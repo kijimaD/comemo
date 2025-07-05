@@ -10,7 +10,91 @@ Date:   Thu Jul 19 14:35:02 2018 -0700
     Change-Id: I402137b796e574e9b085ab54290d1b4ef73d3fcc
     Reviewed-on: https://go-review.googlesource.com/125039
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/print.go          | 39 +++++++++++++++++++++++++++++++++------
  src/cmd/vet/testdata/print.go | 11 +++++++++++
  2 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index ac1eb7997b..90fd4ed379 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -68,12 +68,12 @@ type printfExport struct {
+ var printfImported = make(map[string]map[string]int)
+ 
+ type printfWrapper struct {
+-	name       string
+-	fn         *ast.FuncDecl
+-	format     *ast.Field
+-	args       *ast.Field
+-	callers    []printfCaller
+-	printfLike bool
++	name    string
++	fn      *ast.FuncDecl
++	format  *ast.Field
++	args    *ast.Field
++	callers []printfCaller
++	failed  bool // if true, not a printf wrapper
+ }
+ 
+ type printfCaller struct {
+@@ -168,6 +168,33 @@ func findPrintfLike(pkg *Package) {
+ 	for _, w := range wrappers {
+ 		// Scan function for calls that could be to other printf-like functions.
+ 		ast.Inspect(w.fn.Body, func(n ast.Node) bool {
++			if w.failed {
++				return false
++			}
++
++			// TODO: Relax these checks; issue 26555.
++			if assign, ok := n.(*ast.AssignStmt); ok {
++				for _, lhs := range assign.Lhs {
++					if match(lhs, w.format) || match(lhs, w.args) {
++						// Modifies the format
++						// string or args in
++						// some way, so not a
++						// simple wrapper.
++						w.failed = true
++						return false
++					}
++				}
++			}
++			if un, ok := n.(*ast.UnaryExpr); ok && un.Op == token.AND {
++				if match(un.X, w.format) || match(un.X, w.args) {
++					// Taking the address of the
++					// format string or args,
++					// so not a simple wrapper.
++					w.failed = true
++					return false
++				}
++			}
++
+ 			call, ok := n.(*ast.CallExpr)
+ 			if !ok || len(call.Args) == 0 || !match(call.Args[len(call.Args)-1], w.args) {
+ 				return true
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 16f46a4897..7c0cbcf05a 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -318,6 +318,9 @@ func PrintfTests() {
+ 	l.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
+ 	l.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+ 	l.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
++
++	// Issue 26486
++	dbg("", 1) // no error "call has arguments but no formatting directive"
+ }
+ 
+ func someString() string { return "X" }
+@@ -650,3 +653,11 @@ func UnexportedStringerOrError() {
+ func DisableErrorForFlag0() {
+ 	fmt.Printf("%0t", true)
+ }
++
++// Issue 26486.
++func dbg(format string, args ...interface{}) {
++	if format == "" {
++		format = "%v"
++	}
++	fmt.Printf(format, args...)
++}

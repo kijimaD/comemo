@@ -7,7 +7,7 @@ Date:   Tue Mar 30 13:15:16 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/800042
-
+---
  src/pkg/debug/proc/proc_linux.go       | 2 +-
  src/pkg/debug/proc/regs_linux_386.go   | 4 ++--
  src/pkg/debug/proc/regs_linux_amd64.go | 4 ++--
@@ -15,3 +15,127 @@ Date:   Tue Mar 30 13:15:16 2010 -0700
  src/pkg/websocket/client.go            | 6 +++---
  src/pkg/websocket/server.go            | 2 +-
  6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index afe8bd9159..5253ea846b 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -430,7 +430,7 @@ func (t *thread) wait() {
+ 		t.logTrace("beginning wait")
+ 		ev.Waitmsg, ev.err = os.Wait(t.tid, syscall.WALL)
+ 		if ev.err == nil && ev.Pid != t.tid {
+-			panic("Wait returned pid ", ev.Pid, " wanted ", t.tid)
++			panic(fmt.Sprint("Wait returned pid ", ev.Pid, " wanted ", t.tid))
+ 		}
+ 		if ev.StopSignal() == syscall.SIGSTOP && t.ignoreNextSigstop {
+ 			// Spurious SIGSTOP.  See Thread.Stop().
+diff --git a/src/pkg/debug/proc/regs_linux_386.go b/src/pkg/debug/proc/regs_linux_386.go
+index 7c5478d86f..6ba1b75180 100644
+--- a/src/pkg/debug/proc/regs_linux_386.go
++++ b/src/pkg/debug/proc/regs_linux_386.go
+@@ -92,7 +92,7 @@ func (r *_386Regs) Get(i int) Word {
+ 	case 15:
+ 		return Word(r.Gs)
+ 	}
+-	panic("invalid register index ", strconv.Itoa(i))
++	panic("invalid register index " + strconv.Itoa(i))
+ }
+ 
+ func (r *_386Regs) Set(i int, val Word) os.Error {
+@@ -130,7 +130,7 @@ func (r *_386Regs) Set(i int, val Word) os.Error {
+ 	case 15:
+ 		r.Gs = uint16(val)
+ 	default:
+-		panic("invalid register index ", strconv.Itoa(i))
++		panic("invalid register index " + strconv.Itoa(i))
+ 	}
+ 	return r.setter(&r.PtraceRegs)
+ }
+diff --git a/src/pkg/debug/proc/regs_linux_amd64.go b/src/pkg/debug/proc/regs_linux_amd64.go
+index b070b77140..a9f3569d3a 100644
+--- a/src/pkg/debug/proc/regs_linux_amd64.go
++++ b/src/pkg/debug/proc/regs_linux_amd64.go
+@@ -124,7 +124,7 @@ func (r *amd64Regs) Get(i int) Word {
+ 	case 23:
+ 		return Word(r.Gs)
+ 	}
+-	panic("invalid register index ", strconv.Itoa(i))
++	panic("invalid register index " + strconv.Itoa(i))
+ }
+ 
+ func (r *amd64Regs) Set(i int, val Word) os.Error {
+@@ -178,7 +178,7 @@ func (r *amd64Regs) Set(i int, val Word) os.Error {
+ 	case 23:
+ 		r.Gs = uint64(val)
+ 	default:
+-		panic("invalid register index ", strconv.Itoa(i))
++		panic("invalid register index " + strconv.Itoa(i))
+ 	}
+ 	return r.setter(&r.PtraceRegs)
+ }
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index 210c783150..2ae56d5c59 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -24,7 +24,7 @@ import (
+ )
+ 
+ func abort(funcname string, err int) {
+-	panic(funcname+" failed: (", err, ") ", syscall.Errstr(err), "\n")
++	panic(funcname + " failed: " + syscall.Errstr(err))
+ }
+ 
+ func print_version(v uint32) {
+@@ -77,7 +77,7 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
+ func loadDll(fname string) uint32 {
+ 	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
+ 	if m == 0 {
+-		panic("syscall: could not LoadLibraryEx ", fname)
++		panic("syscall: could not LoadLibraryEx " + fname)
+ 	}
+ 	return m
+ }
+@@ -85,7 +85,7 @@ func loadDll(fname string) uint32 {
+ func getSysProcAddr(m uint32, pname string) uintptr {
+ 	p := getprocaddress(m, uintptr(unsafe.Pointer(StringBytePtr(pname))))
+ 	if p == 0 {
+-		panic("syscall: could not GetProcAddress for ", pname)
++		panic("syscall: could not GetProcAddress for " + pname)
+ 	}
+ 	return p
+ }
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 90597a8212..2966450a6f 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -74,14 +74,14 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
+ 	func main() {
+ 	 	ws, err := websocket.Dial("ws://localhost/ws", "", "http://localhost/");
+ 	 	if err != nil {
+-			panic("Dial: ", err.String())
++			panic("Dial: " + err.String())
+ 		}
+ 		if _, err := ws.Write([]byte("hello, world!\n")); err != nil {
+-			panic("Write: ", err.String())
++			panic("Write: " + err.String())
+ 		}
+ 		var msg = make([]byte, 512);
+ 		if n, err := ws.Read(msg); err != nil {
+-			panic("Read: ", err.String())
++			panic("Read: " + err.String())
+ 		}
+ 		// use msg[0:n]
+ 	}
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 7faf6ba49e..00b537e277 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -34,7 +34,7 @@ import (
+ 		http.Handle("/echo", websocket.Handler(EchoServer));
+ 		err := http.ListenAndServe(":12345", nil);
+ 		if err != nil {
+-			panic("ListenAndServe: ", err.String())
++			panic("ListenAndServe: " + err.String())
+ 		}
+ 	}
+ */

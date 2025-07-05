@@ -8,9 +8,145 @@ Date:   Mon Oct 20 10:01:34 2008 -0700
     R=r
     OCL=17449
     CL=17449
-
+---
  usr/gri/pretty/node.go    |  2 +-
  usr/gri/pretty/parser.go  | 10 ++++++----
  usr/gri/pretty/printer.go | 24 ++++++------------------
  usr/gri/pretty/scanner.go |  9 ++++++++-
  4 files changed, 21 insertions(+), 24 deletions(-)
+
+diff --git a/usr/gri/pretty/node.go b/usr/gri/pretty/node.go
+index 1fef1c8ff2..a465a7856d 100644
+--- a/usr/gri/pretty/node.go
++++ b/usr/gri/pretty/node.go
+@@ -173,7 +173,7 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
+ export type Stat struct {
+ 	pos, tok int;
+ 	init, post *Stat;
+-	lhs, expr *Expr;
++	expr *Expr;
+ 	block *List;
+ 	decl *Decl;
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 47f4630f45..db3856d863 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -904,13 +904,15 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
+ 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+ 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+ 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+-		s = Node.NewStat(P.pos, P.tok);
++		// assignment
++		pos, tok := P.pos, P.tok;
+ 		P.Next();
+-		s.lhs = x;
+-		s.expr = P.ParseExpressionList();
+-		if l, r := x.len(), s.expr.len(); l > 1 && r > 1 && l != r {
++		y := P.ParseExpressionList();
++		if xl, yl := x.len(), y.len(); xl > 1 && yl > 1 && xl != yl {
+ 			P.Error(x.pos, "arity of lhs doesn't match rhs");
+ 		}
++		s = Node.NewStat(x.pos, Scanner.EXPRSTAT);
++		s.expr = Node.NewExpr(pos, tok, x, y);
+ 
+ 	default:
+ 		var pos, tok int;
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 7a65a8e1d9..d66ef8185d 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -232,10 +232,10 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 
+ 	case Scanner.PERIOD:
+ 		// selector or type guard
+-		P.Expr1(x.x, 8);  // 8 == highest precedence
++		P.Expr1(x.x, Scanner.HighestPrec);
+ 		P.String(x.pos, ".");
+ 		if x.y != nil {
+-			P.Expr1(x.y, 8);
++			P.Expr1(x.y, Scanner.HighestPrec);
+ 		} else {
+ 			P.String(0, "(");
+ 			P.Type(x.t);
+@@ -244,14 +244,14 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 		
+ 	case Scanner.LBRACK:
+ 		// index
+-		P.Expr1(x.x, 8);
++		P.Expr1(x.x, Scanner.HighestPrec);
+ 		P.String(x.pos, "[");
+ 		P.Expr1(x.y, 0);
+ 		P.String(0, "]");
+ 
+ 	case Scanner.LPAREN:
+ 		// call
+-		P.Expr1(x.x, 8);
++		P.Expr1(x.x, Scanner.HighestPrec);
+ 		P.String(x.pos, "(");
+ 		P.Expr1(x.y, 0);
+ 		P.String(0, ")");
+@@ -268,7 +268,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 		if x.x == nil {
+ 			// unary expression
+ 			P.Token(x.pos, x.tok);
+-			P.Expr1(x.y, 7);  // 7 == unary operator precedence
++			P.Expr1(x.y, Scanner.UnaryPrec);
+ 		} else {
+ 			// binary expression: print ()'s if necessary
+ 			prec := Scanner.Precedence(x.tok);
+@@ -289,7 +289,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 
+ 
+ func (P *Printer) Expr(x *Node.Expr) {
+-	P.Expr1(x, 0);
++	P.Expr1(x, Scanner.LowestPrec);
+ }
+ 
+ 
+@@ -372,18 +372,6 @@ func (P *Printer) Stat(s *Node.Stat) {
+ 		// declaration
+ 		P.Declaration(s.decl, false);
+ 
+-	case Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+-		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+-		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+-		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+-		// assignment
+-		P.Expr(s.lhs);
+-		P.Blank();
+-		P.Token(s.pos, s.tok);
+-		P.Blank();
+-		P.Expr(s.expr);
+-		P.semi = true;
+-
+ 	case Scanner.INC, Scanner.DEC:
+ 		P.Expr(s.expr);
+ 		P.Token(s.pos, s.tok);
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 3af53c0682..fcca40d5a7 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -210,6 +210,13 @@ export func TokenString(tok int) string {
+ }
+ 
+ 
++export const (
++	LowestPrec = -1;
++	UnaryPrec = 7;
++	HighestPrec = 8;
++)
++
++
+ export func Precedence(tok int) int {
+ 	switch tok {
+ 	case COLON:
+@@ -227,7 +234,7 @@ export func Precedence(tok int) int {
+ 	case MUL, QUO, REM, SHL, SHR, AND:
+ 		return 6;
+ 	}
+-	return -1;
++	return LowestPrec;
+ }
+ 
+ 

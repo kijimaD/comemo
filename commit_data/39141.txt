@@ -16,6 +16,50 @@ Date:   Sun Dec 30 23:53:27 2018 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++++++++
  1 file changed, 35 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index e395d15310..7c6043ffdb 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1010,3 +1010,38 @@ func TestAtomicLoadStore64(t *testing.T) {
+ 	atomic.StoreUint64(&flag, 1)
+ 	<-done
+ }
++
++func TestTracebackAll(t *testing.T) {
++	// With gccgo, if a profiling signal arrives at the wrong time
++	// during traceback, it may crash or hang. See issue #29448.
++	f, err := ioutil.TempFile("", "proftraceback")
++	if err != nil {
++		t.Fatalf("TempFile: %v", err)
++	}
++	defer os.Remove(f.Name())
++	defer f.Close()
++
++	if err := StartCPUProfile(f); err != nil {
++		t.Fatal(err)
++	}
++	defer StopCPUProfile()
++
++	ch := make(chan int)
++	defer close(ch)
++
++	count := 10
++	for i := 0; i < count; i++ {
++		go func() {
++			<-ch // block
++		}()
++	}
++
++	N := 10000
++	if testing.Short() {
++		N = 500
++	}
++	buf := make([]byte, 10*1024)
++	for i := 0; i < N; i++ {
++		runtime.Stack(buf, true)
++	}
++}

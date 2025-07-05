@@ -9,8 +9,143 @@ Date:   Sat Apr 6 20:09:02 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8362046
-
+---
  src/pkg/runtime/lock_futex.c | 14 +++++++-------
  src/pkg/runtime/lock_sema.c  | 18 +++++++++---------
  src/pkg/runtime/runtime.h    | 10 ++++++----
  3 files changed, 22 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 07aab2d7be..3c2ef4ede0 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -111,9 +111,9 @@ runtime·noteclear(Note *n)
+ void
+ runtime·notewakeup(Note *n)
+ {
+-	if(runtime·xchg(&n->key, 1))
++	if(runtime·xchg((uint32*)&n->key, 1))
+ 		runtime·throw("notewakeup - double wakeup");
+-	runtime·futexwakeup(&n->key, 1);
++	runtime·futexwakeup((uint32*)&n->key, 1);
+ }
+ 
+ void
+@@ -121,8 +121,8 @@ runtime·notesleep(Note *n)
+ {
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+-	while(runtime·atomicload(&n->key) == 0)
+-		runtime·futexsleep(&n->key, 0, -1);
++	while(runtime·atomicload((uint32*)&n->key) == 0)
++		runtime·futexsleep((uint32*)&n->key, 0, -1);
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(true);
+ }
+@@ -137,15 +137,15 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		return;
+ 	}
+ 
+-	if(runtime·atomicload(&n->key) != 0)
++	if(runtime·atomicload((uint32*)&n->key) != 0)
+ 		return;
+ 
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+-		runtime·futexsleep(&n->key, 0, ns);
+-		if(runtime·atomicload(&n->key) != 0)
++		runtime·futexsleep((uint32*)&n->key, 0, ns);
++		if(runtime·atomicload((uint32*)&n->key) != 0)
+ 			break;
+ 		now = runtime·nanotime();
+ 		if(now >= deadline)
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 210460f33d..ec4b15a98a 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -118,7 +118,7 @@ runtime·unlock(Lock *l)
+ void
+ runtime·noteclear(Note *n)
+ {
+-	n->waitm = nil;
++	n->key = 0;
+ }
+ 
+ void
+@@ -127,8 +127,8 @@ runtime·notewakeup(Note *n)
+ 	M *mp;
+ 
+ 	do
+-		mp = runtime·atomicloadp(&n->waitm);
+-	while(!runtime·casp(&n->waitm, mp, (void*)LOCKED));
++		mp = runtime·atomicloadp((void**)&n->key);
++	while(!runtime·casp((void**)&n->key, mp, (void*)LOCKED));
+ 
+ 	// Successfully set waitm to LOCKED.
+ 	// What was it before?
+@@ -148,8 +148,8 @@ runtime·notesleep(Note *n)
+ {
+ 	if(m->waitsema == 0)
+ 		m->waitsema = runtime·semacreate();
+-	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup)
+-		if(n->waitm != (void*)LOCKED)
++	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup)
++		if(n->key != LOCKED)
+ 			runtime·throw("notesleep - waitm out of sync");
+ 		return;
+ 	}
+@@ -176,8 +176,8 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		m->waitsema = runtime·semacreate();
+ 
+ 	// Register for wakeup on n->waitm.
+-	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup already)
+-		if(n->waitm != (void*)LOCKED)
++	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
++		if(n->key != LOCKED)
+ 			runtime·throw("notetsleep - waitm out of sync");
+ 		return;
+ 	}
+@@ -212,10 +212,10 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	// so that any notewakeup racing with the return does not
+ 	// try to grant us the semaphore when we don't expect it.
+ 	for(;;) {
+-		mp = runtime·atomicloadp(&n->waitm);
++		mp = runtime·atomicloadp((void**)&n->key);
+ 		if(mp == m) {
+ 			// No wakeup yet; unregister if possible.
+-			if(runtime·casp(&n->waitm, mp, nil))
++			if(runtime·casp((void**)&n->key, mp, nil))
+ 				return;
+ 		} else if(mp == (M*)LOCKED) {
+ 			// Wakeup happened so semaphore is available.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8e604221b1..ee82bedb7b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -54,7 +54,7 @@ typedef	struct	Lock		Lock;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
+ typedef	struct	Mem		Mem;
+-typedef	union	Note		Note;
++typedef	struct	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	Stktop		Stktop;
+ typedef	struct	String		String;
+@@ -163,10 +163,12 @@ struct	Lock
+ 	// Used to be a union, but unions break precise GC.
+ 	uintptr	key;
+ };
+-union	Note
++struct	Note
+ {
+-	uint32	key;	// futex-based impl
+-	M*	waitm;	// waiting M (sema-based impl)
++	// Futex-based impl treats it as uint32 key,
++	// while sema-based impl as M* waitm.
++	// Used to be a union, but unions break precise GC.
++	uintptr	key;
+ };
+ struct String
+ {

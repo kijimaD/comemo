@@ -64,6 +64,29 @@ Date:   Wed Jan 6 02:40:05 2021 +0000
     Reviewed-by: Jacob Moody <j4kem00dy@gmail.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_plan9.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 47ccbdc384..12c4237f69 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -320,14 +320,15 @@ func cexecPipe(p []int) error {
+ 		return e
+ 	}
+ 
+-	fd, e := Open("#d/"+itoa(p[1]), O_CLOEXEC)
++	fd, e := Open("#d/"+itoa(p[1]), O_RDWR|O_CLOEXEC)
+ 	if e != nil {
+ 		Close(p[0])
+ 		Close(p[1])
+ 		return e
+ 	}
+ 
+-	Close(fd)
++	Close(p[1])
++	p[1] = fd
+ 	return nil
+ }
+ 

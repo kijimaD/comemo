@@ -29,8 +29,84 @@ Date:   Sat Sep 23 15:30:46 2017 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/fakedb_test.go |  1 +
  src/database/sql/sql.go         | 12 ++++++++++++
  src/database/sql/sql_test.go    |  8 +++++++-
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 4dcd096ca4..8e77df4ace 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -943,6 +943,7 @@ type rowsCursor struct {
+ }
+ 
+ func (rc *rowsCursor) touchMem() {
++	rc.parentMem.touchMem()
+ 	rc.line++
+ }
+ 
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index c609fe4cc4..89976c7fd0 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2454,6 +2454,12 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
+ 	if rs.lastcols == nil {
+ 		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
+ 	}
++
++	// Lock the driver connection before calling the driver interface
++	// rowsi to prevent a Tx from rolling back the connection at the same time.
++	rs.dc.Lock()
++	defer rs.dc.Unlock()
++
+ 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
+ 	if rs.lasterr != nil {
+ 		// Close the connection if there is a driver error.
+@@ -2503,6 +2509,12 @@ func (rs *Rows) NextResultSet() bool {
+ 		doClose = true
+ 		return false
+ 	}
++
++	// Lock the driver connection before calling the driver interface
++	// rowsi to prevent a Tx from rolling back the connection at the same time.
++	rs.dc.Lock()
++	defer rs.dc.Unlock()
++
+ 	rs.lasterr = nextResultSet.NextResultSet()
+ 	if rs.lasterr != nil {
+ 		doClose = true
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index c935eb4348..dd59ab9853 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3106,6 +3106,9 @@ func TestIssue6081(t *testing.T) {
+ // In the test, a context is canceled while the query is in process so
+ // the internal rollback will run concurrently with the explicitly called
+ // Tx.Rollback.
++//
++// The addition of calling rows.Next also tests
++// Issue 21117.
+ func TestIssue18429(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+@@ -3116,7 +3119,7 @@ func TestIssue18429(t *testing.T) {
+ 
+ 	const milliWait = 30
+ 
+-	for i := 0; i < 100; i++ {
++	for i := 0; i < 1000; i++ {
+ 		sem <- true
+ 		wg.Add(1)
+ 		go func() {
+@@ -3138,6 +3141,9 @@ func TestIssue18429(t *testing.T) {
+ 			// reported.
+ 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
+ 			if rows != nil {
++				// Call Next to test Issue 21117 and check for races.
++				for rows.Next() {
++				}
+ 				rows.Close()
+ 			}
+ 			// This call will race with the context cancel rollback to complete

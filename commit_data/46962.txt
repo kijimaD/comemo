@@ -16,6 +16,29 @@ Date:   Wed Jan 27 11:00:21 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cpuprof.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 9bfdfe7c74..e5d0193b9c 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -103,7 +103,16 @@ func (p *cpuProfile) add(gp *g, stk []uintptr) {
+ 		// because otherwise its write barrier behavior may not
+ 		// be correct. See the long comment there before
+ 		// changing the argument here.
+-		cpuprof.log.write(&gp.labels, nanotime(), hdr[:], stk)
++		//
++		// Note: it can happen on Windows, where we are calling
++		// p.add with a gp that is not the current g, that gp is nil,
++		// meaning we interrupted a system thread with no g.
++		// Avoid faulting in that case.
++		var tagPtr *unsafe.Pointer
++		if gp != nil {
++			tagPtr = &gp.labels
++		}
++		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
+ 	}
+ 
+ 	atomic.Store(&prof.signalLock, 0)

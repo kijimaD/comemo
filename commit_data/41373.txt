@@ -20,8 +20,139 @@ Date:   Thu Sep 26 08:38:33 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 20 ++++++++++++++++++--
  src/cmd/internal/obj/link.go        | 12 +++++++++++-
  src/cmd/internal/obj/objfile.go     | 14 +++++++-------
  3 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index dd2294e37f..4d6f579928 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -376,7 +376,7 @@ func compileFunctions() {
+ 	}
+ }
+ 
+-func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
++func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+ 	fn := curfn.(*Node)
+ 	if fn.Func.Nname != nil {
+ 		if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
+@@ -414,10 +414,26 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
+ 			Name:    name,
+ 			Gotype:  gotype,
+ 		})
++		fnsym.Func.RecordAutoType(gotype)
+ 	}
+ 
+ 	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, automDecls)
+ 
++	// For each type referenced by the functions auto vars, attach a
++	// dummy relocation to the function symbol to insure that the type
++	// included in DWARF processing during linking.
++	typesyms := []*obj.LSym{}
++	for t, _ := range fnsym.Func.Autot {
++		typesyms = append(typesyms, t)
++	}
++	sort.Sort(obj.BySymName(typesyms))
++	for _, sym := range typesyms {
++		r := obj.Addrel(infosym)
++		r.Sym = sym
++		r.Type = objabi.R_USETYPE
++	}
++	fnsym.Func.Autot = nil
++
+ 	var varScopes []ScopeID
+ 	for _, decl := range decls {
+ 		pos := decl.Pos
+@@ -643,7 +659,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 			Name:    obj.NAME_DELETED_AUTO,
+ 			Gotype:  gotype,
+ 		})
+-
++		fnsym.Func.RecordAutoType(gotype)
+ 	}
+ 
+ 	return decls, vars
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 01701efe80..4ebfc1d14f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -399,6 +399,7 @@ type FuncInfo struct {
+ 	Locals   int32
+ 	Text     *Prog
+ 	Autom    []*Auto
++	Autot    map[*LSym]struct{}
+ 	Pcln     Pcln
+ 	InlMarks []InlMark
+ 
+@@ -431,6 +432,15 @@ func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
+ 	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
+ }
+ 
++// Record the type symbol for an auto variable so that the linker
++// an emit DWARF type information for the type.
++func (fi *FuncInfo) RecordAutoType(gotype *LSym) {
++	if fi.Autot == nil {
++		fi.Autot = make(map[*LSym]struct{})
++	}
++	fi.Autot[gotype] = struct{}{}
++}
++
+ //go:generate stringer -type ABI
+ 
+ // ABI is the calling convention of a text symbol.
+@@ -644,7 +654,7 @@ type Link struct {
+ 	Imports            []string
+ 	DiagFunc           func(string, ...interface{})
+ 	DiagFlush          func()
+-	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
++	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index dbbcd1240b..165e618d53 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -597,7 +597,7 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
+ 	var scopes []dwarf.Scope
+ 	var inlcalls dwarf.InlCalls
+ 	if ctxt.DebugInfo != nil {
+-		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
++		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
+ 	}
+ 	var err error
+ 	dwctxt := dwCtxt{ctxt}
+@@ -654,7 +654,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	if s.Func == nil {
+ 		s.Func = new(FuncInfo)
+ 	}
+-	scopes, _ := ctxt.DebugInfo(s, curfn)
++	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+ 	dwctxt := dwCtxt{ctxt}
+ 	filesym := ctxt.fileSymbol(s)
+ 	fnstate := dwarf.FnState{
+@@ -893,7 +893,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
+ 		fns[idx] = fn
+ 		idx++
+ 	}
+-	sort.Sort(bySymName(fns))
++	sort.Sort(BySymName(fns))
+ 
+ 	// Should not be called during parallel portion of compilation.
+ 	if ft.ctxt.InParallel {
+@@ -921,8 +921,8 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
+ 	}
+ }
+ 
+-type bySymName []*LSym
++type BySymName []*LSym
+ 
+-func (s bySymName) Len() int           { return len(s) }
+-func (s bySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
+-func (s bySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s BySymName) Len() int           { return len(s) }
++func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
++func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

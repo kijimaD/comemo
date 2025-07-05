@@ -14,7 +14,64 @@ Date:   Tue May 29 10:30:54 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go | 13 +++++++++++++
  test/fixedbugs/issue25516.go             | 26 ++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 322ea82c8d..13b7d7e1e8 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -252,6 +252,19 @@ func deadcode(f *Func) {
+ 		b.Values = b.Values[:i]
+ 	}
+ 
++	// Remove dead blocks from WBLoads list.
++	i = 0
++	for _, b := range f.WBLoads {
++		if reachable[b.ID] {
++			f.WBLoads[i] = b
++			i++
++		}
++	}
++	for j := i; j < len(f.WBLoads); j++ {
++		f.WBLoads[j] = nil
++	}
++	f.WBLoads = f.WBLoads[:i]
++
+ 	// Remove unreachable blocks. Return dead blocks to allocator.
+ 	i = 0
+ 	for _, b := range f.Blocks {
+diff --git a/test/fixedbugs/issue25516.go b/test/fixedbugs/issue25516.go
+new file mode 100644
+index 0000000000..8326ef953f
+--- /dev/null
++++ b/test/fixedbugs/issue25516.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure dead write barriers are handled correctly.
++
++package main
++
++func f(p **int) {
++	// The trick here is to eliminate the block containing the write barrier,
++	// but only after the write barrier branches are inserted.
++	// This requires some delicate code.
++	i := 0
++	var b []bool
++	var s string
++	for true {
++		if b[i] {
++			var a []string
++			s = a[len(s)]
++			i = 0
++		}
++		*p = nil
++	}
++}

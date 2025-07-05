@@ -13,6 +13,20 @@ Date:   Fri May 8 10:41:15 2015 -0400
     Change-Id: Iae9f30c898d3a1ff8d47558ca104dfb3ff07112c
     Reviewed-on: https://go-review.googlesource.com/9845
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index d6be37994b..8a827d0433 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1382,7 +1382,7 @@ limit of how much data to read.  Here is the signature of the
+ <code>os</code>:
+ </p>
+ <pre>
+-func (file *File) Read(buf []byte) (n int, err error)
++func (f *File) Read(buf []byte) (n int, err error)
+ </pre>
+ <p>
+ The method returns the number of bytes read and an error value, if

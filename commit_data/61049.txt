@@ -12,6 +12,20 @@ Date:   Sat Sep 7 14:04:00 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/ld/decodesym.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index ab2b8fac59..32271b6f91 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -261,7 +261,7 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
+ 			}
+ 			return append(progsize, progbytes...)
+ 		}
+-		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
++		Exitf("cannot find gcprog for %s", ctxt.loader.SymName(s))
+ 		return nil
+ 	}
+ 	relocs := ctxt.loader.Relocs(s)

@@ -8,6 +8,38 @@ Date:   Mon Apr 11 11:54:07 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21837
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/color/ycbcr_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index f5e7cbf335..1b110691a2 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -171,3 +171,26 @@ func TestPalette(t *testing.T) {
+ 		t.Errorf("got %v, want %v", got, want)
+ 	}
+ }
++
++var sinkr, sinkg, sinkb uint8
++
++func BenchmarkYCbCrToRGB(b *testing.B) {
++	// YCbCrToRGB does saturating arithmetic.
++	// Low, middle, and high values can take
++	// different paths through the generated code.
++	b.Run("0", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sinkr, sinkg, sinkb = YCbCrToRGB(0, 0, 0)
++		}
++	})
++	b.Run("128", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sinkr, sinkg, sinkb = YCbCrToRGB(128, 128, 128)
++		}
++	})
++	b.Run("255", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sinkr, sinkg, sinkb = YCbCrToRGB(255, 255, 255)
++		}
++	})
++}

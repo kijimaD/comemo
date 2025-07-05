@@ -10,7 +10,7 @@ Date:   Fri Oct 8 19:23:35 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/syslist.go                    | 2 +-
  src/internal/goarch/zgoarch_386.go         | 4 ++--
  src/internal/goarch/zgoarch_amd64.go       | 4 ++--
@@ -36,3 +36,520 @@ Date:   Fri Oct 8 19:23:35 2021 +0200
  src/internal/goarch/zgoarch_sparc64.go     | 4 ++--
  src/internal/goarch/zgoarch_wasm.go        | 4 ++--
  24 files changed, 47 insertions(+), 47 deletions(-)
+
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 60ac5511bd..0f6e336925 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -8,4 +8,4 @@ package build
+ // Do not remove from this list, as these are used for go/build filename matching.
+ 
+ const goosList = "aix android darwin dragonfly freebsd hurd illumos ios js linux nacl netbsd openbsd plan9 solaris windows zos "
+-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le loong64 mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
++const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be loong64 mips mipsle mips64 mips64le mips64p32 mips64p32le ppc ppc64 ppc64le riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/internal/goarch/zgoarch_386.go b/src/internal/goarch/zgoarch_386.go
+index 2395b80951..364367722f 100644
+--- a/src/internal/goarch/zgoarch_386.go
++++ b/src/internal/goarch/zgoarch_386.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_amd64.go b/src/internal/goarch/zgoarch_amd64.go
+index c301d279c1..8169580857 100644
+--- a/src/internal/goarch/zgoarch_amd64.go
++++ b/src/internal/goarch/zgoarch_amd64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_arm.go b/src/internal/goarch/zgoarch_arm.go
+index 4a5ff37999..edc69f3349 100644
+--- a/src/internal/goarch/zgoarch_arm.go
++++ b/src/internal/goarch/zgoarch_arm.go
+@@ -14,8 +14,6 @@ const IsArm = 1
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_arm64.go b/src/internal/goarch/zgoarch_arm64.go
+index 840e280f94..0459376349 100644
+--- a/src/internal/goarch/zgoarch_arm64.go
++++ b/src/internal/goarch/zgoarch_arm64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 1
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_arm64be.go b/src/internal/goarch/zgoarch_arm64be.go
+index bdbe5faacf..b9439c147e 100644
+--- a/src/internal/goarch/zgoarch_arm64be.go
++++ b/src/internal/goarch/zgoarch_arm64be.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 1
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_armbe.go b/src/internal/goarch/zgoarch_armbe.go
+index 36be514a0b..bbb07603d6 100644
+--- a/src/internal/goarch/zgoarch_armbe.go
++++ b/src/internal/goarch/zgoarch_armbe.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 1
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_loong64.go b/src/internal/goarch/zgoarch_loong64.go
+index 9465cf5bf5..4d2cd70a00 100644
+--- a/src/internal/goarch/zgoarch_loong64.go
++++ b/src/internal/goarch/zgoarch_loong64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 1
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mips.go b/src/internal/goarch/zgoarch_mips.go
+index e1458c0485..25a8071727 100644
+--- a/src/internal/goarch/zgoarch_mips.go
++++ b/src/internal/goarch/zgoarch_mips.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 1
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mips64.go b/src/internal/goarch/zgoarch_mips64.go
+index 7de345e321..907ae30ec4 100644
+--- a/src/internal/goarch/zgoarch_mips64.go
++++ b/src/internal/goarch/zgoarch_mips64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mips64le.go b/src/internal/goarch/zgoarch_mips64le.go
+index 96b1c3c021..3f4c369d16 100644
+--- a/src/internal/goarch/zgoarch_mips64le.go
++++ b/src/internal/goarch/zgoarch_mips64le.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 1
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mips64p32.go b/src/internal/goarch/zgoarch_mips64p32.go
+index 91d1f3c4df..d03e503c59 100644
+--- a/src/internal/goarch/zgoarch_mips64p32.go
++++ b/src/internal/goarch/zgoarch_mips64p32.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 1
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mips64p32le.go b/src/internal/goarch/zgoarch_mips64p32le.go
+index 18f2ef2347..bbaa010ada 100644
+--- a/src/internal/goarch/zgoarch_mips64p32le.go
++++ b/src/internal/goarch/zgoarch_mips64p32le.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 1
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_mipsle.go b/src/internal/goarch/zgoarch_mipsle.go
+index 4551de1a32..b22be64d6e 100644
+--- a/src/internal/goarch/zgoarch_mipsle.go
++++ b/src/internal/goarch/zgoarch_mipsle.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 1
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_ppc.go b/src/internal/goarch/zgoarch_ppc.go
+index ffed58c2e5..ed50bf8275 100644
+--- a/src/internal/goarch/zgoarch_ppc.go
++++ b/src/internal/goarch/zgoarch_ppc.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 1
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_ppc64.go b/src/internal/goarch/zgoarch_ppc64.go
+index c369c74166..26b921d343 100644
+--- a/src/internal/goarch/zgoarch_ppc64.go
++++ b/src/internal/goarch/zgoarch_ppc64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 1
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 1
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_ppc64le.go b/src/internal/goarch/zgoarch_ppc64le.go
+index de5bae2a81..de4fe0fb80 100644
+--- a/src/internal/goarch/zgoarch_ppc64le.go
++++ b/src/internal/goarch/zgoarch_ppc64le.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 1
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 1
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_riscv.go b/src/internal/goarch/zgoarch_riscv.go
+index 07c9d81b39..3eff474467 100644
+--- a/src/internal/goarch/zgoarch_riscv.go
++++ b/src/internal/goarch/zgoarch_riscv.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 1
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_riscv64.go b/src/internal/goarch/zgoarch_riscv64.go
+index 24e6ef3fdf..d99ab9dc29 100644
+--- a/src/internal/goarch/zgoarch_riscv64.go
++++ b/src/internal/goarch/zgoarch_riscv64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 1
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_s390.go b/src/internal/goarch/zgoarch_s390.go
+index 429206d653..6d4ff71cc9 100644
+--- a/src/internal/goarch/zgoarch_s390.go
++++ b/src/internal/goarch/zgoarch_s390.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 1
+diff --git a/src/internal/goarch/zgoarch_s390x.go b/src/internal/goarch/zgoarch_s390x.go
+index 0c59005216..6c215060a3 100644
+--- a/src/internal/goarch/zgoarch_s390x.go
++++ b/src/internal/goarch/zgoarch_s390x.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_sparc.go b/src/internal/goarch/zgoarch_sparc.go
+index 83a356e4c7..029e790fb0 100644
+--- a/src/internal/goarch/zgoarch_sparc.go
++++ b/src/internal/goarch/zgoarch_sparc.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_sparc64.go b/src/internal/goarch/zgoarch_sparc64.go
+index 7c9d40986e..bcd7b6f7df 100644
+--- a/src/internal/goarch/zgoarch_sparc64.go
++++ b/src/internal/goarch/zgoarch_sparc64.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0
+diff --git a/src/internal/goarch/zgoarch_wasm.go b/src/internal/goarch/zgoarch_wasm.go
+index 5aac1dfc47..0816c85a11 100644
+--- a/src/internal/goarch/zgoarch_wasm.go
++++ b/src/internal/goarch/zgoarch_wasm.go
+@@ -14,8 +14,6 @@ const IsArm = 0
+ const IsArmbe = 0
+ const IsArm64 = 0
+ const IsArm64be = 0
+-const IsPpc64 = 0
+-const IsPpc64le = 0
+ const IsLoong64 = 0
+ const IsMips = 0
+ const IsMipsle = 0
+@@ -24,6 +22,8 @@ const IsMips64le = 0
+ const IsMips64p32 = 0
+ const IsMips64p32le = 0
+ const IsPpc = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
+ const IsRiscv = 0
+ const IsRiscv64 = 0
+ const IsS390 = 0

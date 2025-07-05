@@ -9,6 +9,29 @@ Date:   Fri Aug 18 14:55:05 2017 +1000
     Change-Id: I26137c115ad4b5f5a69801ed981c146adf6e824c
     Reviewed-on: https://go-review.googlesource.com/56750
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index b8fd4f3fbc..47dd0c69af 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -139,7 +139,7 @@ func adbPush(t *testing.T, filename string) {
+ 	if GOOS != "android" {
+ 		return
+ 	}
+-	args := append("adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
++	args := []string{"adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename)}
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("adb command failed: %v\n%s\n", err, out)
+@@ -150,7 +150,7 @@ func adbRun(t *testing.T, adbargs ...string) string {
+ 	if GOOS != "android" {
+ 		t.Fatalf("trying to run adb command when operating system is not android.")
+ 	}
+-	args := append("adb", "shell")
++	args := []string{"adb", "shell"}
+ 	args = append(args, adbargs...)
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()

@@ -26,7 +26,153 @@ Date:   Tue Oct 23 15:51:42 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modcmd/edit.go  | 14 +++++++--
  src/cmd/go/internal/modload/init.go | 58 +++++++++++++++++++++++++++++--------
  2 files changed, 57 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index c589c6d4ed..875bad78dc 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -7,6 +7,7 @@
+ package modcmd
+ 
+ import (
++	"bytes"
+ 	"encoding/json"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -15,6 +16,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+@@ -204,17 +206,23 @@ func runEdit(cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
+-	data, err = modFile.Format()
++	out, err := modFile.Format()
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	if *editPrint {
+-		os.Stdout.Write(data)
++		os.Stdout.Write(out)
+ 		return
+ 	}
+ 
+-	if err := ioutil.WriteFile(gomod, data, 0666); err != nil {
++	unlock := modfetch.SideLock()
++	defer unlock()
++	lockedData, err := ioutil.ReadFile(gomod)
++	if err == nil && !bytes.Equal(lockedData, data) {
++		base.Fatalf("go: go.mod changed during editing; not overwriting")
++	}
++	if err := ioutil.WriteFile(gomod, out, 0666); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 7e8c223189..baefea88c5 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/modfile"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/mvs"
++	"cmd/go/internal/renameio"
+ 	"cmd/go/internal/search"
+ 	"encoding/json"
+ 	"fmt"
+@@ -34,10 +35,11 @@ var (
+ 	MustUseModules = mustUseModules()
+ 	initialized    bool
+ 
+-	ModRoot  string
+-	modFile  *modfile.File
+-	excluded map[module.Version]bool
+-	Target   module.Version
++	ModRoot     string
++	modFile     *modfile.File
++	modFileData []byte
++	excluded    map[module.Version]bool
++	Target      module.Version
+ 
+ 	gopath string
+ 
+@@ -285,6 +287,7 @@ func InitMod() {
+ 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
+ 	}
+ 	modFile = f
++	modFileData = data
+ 
+ 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
+ 		// Empty mod file. Must add module path.
+@@ -579,22 +582,53 @@ func WriteGoMod() {
+ 		modFile.SetRequire(list)
+ 	}
+ 
+-	file := filepath.Join(ModRoot, "go.mod")
+-	old, _ := ioutil.ReadFile(file)
+ 	modFile.Cleanup() // clean file after edits
+ 	new, err := modFile.Format()
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+-	if !bytes.Equal(old, new) {
+-		if cfg.BuildMod == "readonly" {
+-			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++
++	// Always update go.sum, even if we didn't change go.mod: we may have
++	// downloaded modules that we didn't have before.
++	modfetch.WriteGoSum()
++
++	if bytes.Equal(new, modFileData) {
++		// We don't need to modify go.mod from what we read previously.
++		// Ignore any intervening edits.
++		return
++	}
++	if cfg.BuildMod == "readonly" {
++		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++	}
++
++	unlock := modfetch.SideLock()
++	defer unlock()
++
++	file := filepath.Join(ModRoot, "go.mod")
++	old, err := ioutil.ReadFile(file)
++	if !bytes.Equal(old, modFileData) {
++		if bytes.Equal(old, new) {
++			// Some other process wrote the same go.mod file that we were about to write.
++			modFileData = new
++			return
+ 		}
+-		if err := ioutil.WriteFile(file, new, 0666); err != nil {
+-			base.Fatalf("go: %v", err)
++		if err != nil {
++			base.Fatalf("go: can't determine whether go.mod has changed: %v", err)
+ 		}
++		// The contents of the go.mod file have changed. In theory we could add all
++		// of the new modules to the build list, recompute, and check whether any
++		// module in *our* build list got bumped to a different version, but that's
++		// a lot of work for marginal benefit. Instead, fail the command: if users
++		// want to run concurrent commands, they need to start with a complete,
++		// consistent module definition.
++		base.Fatalf("go: updates to go.mod needed, but contents have changed")
++
+ 	}
+-	modfetch.WriteGoSum()
++
++	if err := renameio.WriteFile(file, new); err != nil {
++		base.Fatalf("error writing go.mod: %v", err)
++	}
++	modFileData = new
+ }
+ 
+ func fixVersion(path, vers string) (string, error) {

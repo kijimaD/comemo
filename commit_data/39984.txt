@@ -13,7 +13,66 @@ Date:   Mon Feb 11 17:20:59 2019 +0000
     Change-Id: I5ef86b8ac81a47d05d8404df65af9ec5f419dc40
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164098
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgclarge.go | 12 ++++++------
  src/runtime/mheap.go    | 12 ++++++------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index 7b01a11780..dba617c25d 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -295,13 +295,13 @@ func (root *mTreap) removeNode(t *treapNode) {
+ 	mheap_.treapalloc.free(unsafe.Pointer(t))
+ }
+ 
+-// find searches for, finds, and returns the treap node containing the
+-// smallest span that can hold npages. If no span has at least npages
+-// it returns nil.
++// find searches for, finds, and returns the treap iterator representing
++// the position of the smallest span that can hold npages. If no span has
++// at least npages it returns an invalid iterator.
+ // This is slightly more complicated than a simple binary tree search
+ // since if an exact match is not found the next larger node is
+ // returned.
+-func (root *mTreap) find(npages uintptr) *treapNode {
++func (root *mTreap) find(npages uintptr) treapIter {
+ 	t := root.treap
+ 	for t != nil {
+ 		if t.spanKey == nil {
+@@ -312,10 +312,10 @@ func (root *mTreap) find(npages uintptr) *treapNode {
+ 		} else if t.left != nil && t.left.npagesKey >= npages {
+ 			t = t.left
+ 		} else {
+-			return t
++			return treapIter{t}
+ 		}
+ 	}
+-	return nil
++	return treapIter{}
+ }
+ 
+ // removeSpan searches for, finds, deletes span along with
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 8b7ed742c9..e9cd62d7d8 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1126,12 +1126,12 @@ func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
+ 	// Note that we want the _smaller_ free span, i.e. the free span
+ 	// closer in size to the amount we requested (npage).
+ 	var s *mspan
+-	if tf != nil && (ts == nil || tf.spanKey.npages <= ts.spanKey.npages) {
+-		s = tf.spanKey
+-		h.free.removeNode(tf)
+-	} else if ts != nil && (tf == nil || tf.spanKey.npages > ts.spanKey.npages) {
+-		s = ts.spanKey
+-		h.scav.removeNode(ts)
++	if tf.valid() && (!ts.valid() || tf.span().npages <= ts.span().npages) {
++		s = tf.span()
++		h.free.erase(tf)
++	} else if ts.valid() && (!tf.valid() || tf.span().npages > ts.span().npages) {
++		s = ts.span()
++		h.scav.erase(ts)
+ 	}
+ 	return s
+ }

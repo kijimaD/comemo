@@ -14,8 +14,57 @@ Date:   Fri Apr 4 18:40:06 2025 -0700
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/client.go             | 4 ++--
  src/net/http/request.go            | 2 +-
  src/net/http/responsecontroller.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 9231f63e65..a281a1ca6a 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -854,7 +854,7 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ // To make a request with a specified context.Context, use [NewRequestWithContext]
+ // and [Client.Do].
+ //
+-// See the Client.Do method documentation for details on how redirects
++// See the [Client.Do] method documentation for details on how redirects
+ // are handled.
+ func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ 	req, err := NewRequest("POST", url, body)
+@@ -894,7 +894,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+ //
+-// See the Client.Do method documentation for details on how redirects
++// See the [Client.Do] method documentation for details on how redirects
+ // are handled.
+ //
+ // To make a request with a specified context.Context, use [NewRequestWithContext]
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 8a765c3442..167cff585a 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -878,7 +878,7 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
+ // For an outgoing client request, the context
+ // controls the entire lifetime of a request and its response:
+ // obtaining a connection, sending the request, and reading the
+-// response headers and body. See the Request type's documentation for
++// response headers and body. See the [Request] type's documentation for
+ // the difference between inbound and outbound request fields.
+ //
+ // If body is of type [*bytes.Buffer], [*bytes.Reader], or
+diff --git a/src/net/http/responsecontroller.go b/src/net/http/responsecontroller.go
+index f3f24c1273..785fa21d17 100644
+--- a/src/net/http/responsecontroller.go
++++ b/src/net/http/responsecontroller.go
+@@ -62,7 +62,7 @@ func (c *ResponseController) Flush() error {
+ }
+ 
+ // Hijack lets the caller take over the connection.
+-// See the Hijacker interface for details.
++// See the [Hijacker] interface for details.
+ func (c *ResponseController) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+ 	rw := c.rw
+ 	for {

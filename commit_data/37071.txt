@@ -11,6 +11,22 @@ Date:   Mon Jun 25 19:04:31 2018 +0000
     GitHub-Pull-Request: golang/go#26052
     Reviewed-on: https://go-review.googlesource.com/120795
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/trace/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index b6a594355a..a40f87e53c 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package trace contains facilities for programs to generate trace
+-// for Go execution tracer.
++// Package trace contains facilities for programs to generate traces
++// for the Go execution tracer.
+ //
+ // Tracing runtime activities
+ //

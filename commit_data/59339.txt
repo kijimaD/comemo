@@ -24,7 +24,48 @@ Date:   Thu Jan 18 12:51:13 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/crypto/x509/verify.go      |  2 +-
  src/crypto/x509/verify_test.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 9d3c3246d3..6efbff28bf 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -899,7 +899,7 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
+ 	)
+ 
+ 	considerCandidate := func(certType int, candidate potentialParent) {
+-		if alreadyInChain(candidate.cert, currentChain) {
++		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
+ 			return
+ 		}
+ 
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 861d2b3890..8a7a5f6e2c 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -2792,3 +2792,22 @@ func TestVerifyEKURootAsLeaf(t *testing.T) {
+ 	}
+ 
+ }
++
++func TestVerifyNilPubKey(t *testing.T) {
++	c := &Certificate{
++		RawIssuer:      []byte{1, 2, 3},
++		AuthorityKeyId: []byte{1, 2, 3},
++	}
++	opts := &VerifyOptions{}
++	opts.Roots = NewCertPool()
++	r := &Certificate{
++		RawSubject:   []byte{1, 2, 3},
++		SubjectKeyId: []byte{1, 2, 3},
++	}
++	opts.Roots.AddCert(r)
++
++	_, err := c.buildChains([]*Certificate{r}, nil, opts)
++	if _, ok := err.(UnknownAuthorityError); !ok {
++		t.Fatalf("buildChains returned unexpected error, got: %v, want %v", err, UnknownAuthorityError{})
++	}
++}

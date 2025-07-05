@@ -11,6 +11,19 @@ Date:   Thu May 5 13:05:16 2016 -0700
     Change-Id: I1caa62a242790601810a1ff72af7ea9773d4da76
     Reviewed-on: https://go-review.googlesource.com/22822
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime1.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 400ea296a9..d25042da41 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -68,7 +68,6 @@ func goargs() {
+ 	if GOOS == "windows" {
+ 		return
+ 	}
+-
+ 	argslice = make([]string, argc)
+ 	for i := int32(0); i < argc; i++ {
+ 		argslice[i] = gostringnocopy(argv_index(argv, i))

@@ -9,9 +9,160 @@ Date:   Sun Jun 7 22:14:04 2015 -0400
     Change-Id: Ia68d3566ba3ebeea6e18e388446bd9b8c431e156
     Reviewed-on: https://go-review.googlesource.com/10814
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue10303.go | 70 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/out.go          | 14 ++++++++-
  src/runtime/cgo.go          | 16 +++++++++++
  4 files changed, 100 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 0fea40f959..1a9207ca2a 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -63,5 +63,6 @@ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ func Test9026(t *testing.T)                  { test9026(t) }
+ func Test9557(t *testing.T)                  { test9557(t) }
++func Test10303(t *testing.T)                 { test10303(t, 10) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue10303.go b/misc/cgo/test/issue10303.go
+new file mode 100644
+index 0000000000..ea623d7379
+--- /dev/null
++++ b/misc/cgo/test/issue10303.go
+@@ -0,0 +1,70 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10303. Pointers passed to C were not marked as escaping (bug in cgo).
++
++package cgotest
++
++/*
++typedef int *intptr;
++
++void setintstar(int *x) {
++	*x = 1;
++}
++
++void setintptr(intptr x) {
++	*x = 1;
++}
++
++void setvoidptr(void *x) {
++	*(int*)x = 1;
++}
++
++typedef struct Struct Struct;
++struct Struct {
++	int *P;
++};
++
++void setstruct(Struct s) {
++	*s.P = 1;
++}
++
++*/
++import "C"
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func test10303(t *testing.T, n int) {
++	// Run at a few different stack depths just to avoid an unlucky pass
++	// due to variables ending up on different pages.
++	if n > 0 {
++		test10303(t, n-1)
++	}
++	if t.Failed() {
++		return
++	}
++	var x, y, z, v, si C.int
++	var s C.Struct
++	C.setintstar(&x)
++	C.setintptr(&y)
++	C.setvoidptr(unsafe.Pointer(&v))
++	s.P = &si
++	C.setstruct(s)
++
++	if uintptr(unsafe.Pointer(&x))&^0xfff == uintptr(unsafe.Pointer(&z))&^0xfff {
++		t.Error("C int* argument on stack")
++	}
++	if uintptr(unsafe.Pointer(&y))&^0xfff == uintptr(unsafe.Pointer(&z))&^0xfff {
++		t.Error("C intptr argument on stack")
++	}
++	if uintptr(unsafe.Pointer(&v))&^0xfff == uintptr(unsafe.Pointer(&z))&^0xfff {
++		t.Error("C void* argument on stack")
++	}
++	if uintptr(unsafe.Pointer(&si))&^0xfff == uintptr(unsafe.Pointer(&z))&^0xfff {
++		t.Error("C struct field pointer on stack")
++	}
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 87f21ed822..d2a3624693 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -79,6 +79,13 @@ func (p *Package) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fgo2, "func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }\n\n")
+ 
++	if !*gccgo {
++		fmt.Fprintf(fgo2, "//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse\n")
++		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
++		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
++		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
++	}
++
+ 	typedefNames := make([]string, 0, len(typedef))
+ 	for name := range typedef {
+ 		typedefNames = append(typedefNames, name)
+@@ -428,7 +435,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
+ 		return
+ 	}
+ 
+-	// C wrapper calls into gcc, passing a pointer to the argument frame.
++	// Wrapper calls into gcc, passing a pointer to the argument frame.
+ 	fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", cname)
+ 	fmt.Fprintf(fgo2, "//go:linkname __cgofn_%s %s\n", cname, cname)
+ 	fmt.Fprintf(fgo2, "var __cgofn_%s byte\n", cname)
+@@ -463,6 +470,11 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
+ 	if n.AddError {
+ 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
+ 	}
++	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
++	for i := range d.Type.Params.List {
++		fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
++	}
++	fmt.Fprintf(fgo2, "\t}\n")
+ 	fmt.Fprintf(fgo2, "\treturn\n")
+ 	fmt.Fprintf(fgo2, "}\n")
+ }
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index d8ae6ec94b..169a31d4c6 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -32,3 +32,19 @@ var iscgo bool
+ // cgoHasExtraM is set on startup when an extra M is created for cgo.
+ // The extra M must be created before any C/C++ code calls cgocallback.
+ var cgoHasExtraM bool
++
++// cgoUse is called by cgo-generated code (using go:linkname to get at
++// an unexported name). The calls serve two purposes:
++// 1) they are opaque to escape analysis, so the argument is considered to
++// escape to the heap.
++// 2) they keep the argument alive until the call site; the call is emitted after
++// the end of the (presumed) use of the argument by C.
++// cgoUse should not actually be called (see cgoAlwaysFalse).
++func cgoUse(interface{}) { throw("cgoUse should not be called") }
++
++// cgoAlwaysFalse is a boolean value that is always false.
++// The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) }.
++// The compiler cannot see that cgoAlwaysFalse is always false,
++// so it emits the test and keeps the call, giving the desired
++// escape analysis result. The test is cheaper than the call.
++var cgoAlwaysFalse bool

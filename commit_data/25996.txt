@@ -9,6 +9,20 @@ Date:   Wed Dec 9 14:55:10 2015 +0000
     Change-Id: I4c76316b69e8a243fb6bf280283f3722e728d853
     Reviewed-on: https://go-review.googlesource.com/17641
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index ea2f516f84..b1c748c9a5 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1123,7 +1123,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 
+ // Rat returns the rational number corresponding to x;
+ // or nil if x is an infinity.
+-// The result is Exact is x is not an Inf.
++// The result is Exact if x is not an Inf.
+ // If a non-nil *Rat argument z is provided, Rat stores
+ // the result in z instead of allocating a new Rat.
+ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {

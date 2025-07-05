@@ -7,10 +7,110 @@ Date:   Wed May 2 16:56:26 2012 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6128051
-
+---
  test/bugs/bug434.dir/one.go      | 28 ++++++++++++++++++++++++++++
  test/bugs/bug434.dir/two.go      | 22 ++++++++++++++++++++++
  test/bugs/bug434.go              |  7 +++++++
  test/fixedbugs/bug396.dir/one.go |  1 +
  test/golden.out                  |  4 ++++
  5 files changed, 62 insertions(+)
+
+diff --git a/test/bugs/bug434.dir/one.go b/test/bugs/bug434.dir/one.go
+new file mode 100644
+index 0000000000..491ada1d9c
+--- /dev/null
++++ b/test/bugs/bug434.dir/one.go
+@@ -0,0 +1,28 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package one
++
++// Issue 3552
++
++type T struct { int }
++
++func (t T) F() int { return t.int }
++
++type U struct { int int }
++
++func (u U) F() int { return u.int }
++
++type lint int
++
++type V struct { lint }
++
++func (v V) F() int { return int(v.lint) }
++
++type W struct { lint lint }
++
++func (w W) F() int { return int(w.lint) }
++
++
++
+diff --git a/test/bugs/bug434.dir/two.go b/test/bugs/bug434.dir/two.go
+new file mode 100644
+index 0000000000..1366d244d3
+--- /dev/null
++++ b/test/bugs/bug434.dir/two.go
+@@ -0,0 +1,22 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use the functions in one.go so that the inlined
++// forms get type-checked.
++
++package two
++
++import "./one"
++
++func use() {
++	var t one.T
++	var u one.U
++	var v one.V
++	var w one.W
++
++	_ = t.F()
++	_ = u.F()
++	_ = v.F()
++	_ = w.F()
++}
+diff --git a/test/bugs/bug434.go b/test/bugs/bug434.go
+new file mode 100644
+index 0000000000..65047fd4a7
+--- /dev/null
++++ b/test/bugs/bug434.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go || echo BUG:bug434
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/bug396.dir/one.go b/test/fixedbugs/bug396.dir/one.go
+index 7902a07d53..96a1dd7dc2 100644
+--- a/test/fixedbugs/bug396.dir/one.go
++++ b/test/fixedbugs/bug396.dir/one.go
+@@ -4,6 +4,7 @@
+ 
+ package one
+ 
++// Issue 2687
+ type T struct { int }
+ 
+ func New(i int) T { return T{i} }
+diff --git a/test/golden.out b/test/golden.out
+index 376af8e53c..3e44e04c6a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -22,3 +22,7 @@ throw: all goroutines are asleep - deadlock!
+ 
+ =========== bugs/bug395.go
+ bug395 is broken
++
++=========== bugs/bug434.go
++bugs/bug434.dir/two.go:10: one.t.int undefined (cannot refer to unexported field or method one.int)
++BUG:bug434

@@ -8,7 +8,68 @@ Date:   Wed Dec 9 10:36:03 2009 -0800
     
     R=golang-dev, rsc
     https://golang.org/cl/167058
-
+---
  src/pkg/json/struct.go      | 12 +++++++++++-
  src/pkg/json/struct_test.go |  4 ++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 8d86631939..d34939cbd2 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -377,6 +377,11 @@ func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
+ }
+ 
+ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
++	if val == nil {
++		fmt.Fprint(w, "null");
++		return;
++	}
++
+ 	switch v := val.(type) {
+ 	case *reflect.StringValue:
+ 		fmt.Fprintf(w, "%q", v.Get())
+@@ -389,10 +394,15 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
+ 	case *reflect.StructValue:
+ 		err = writeStruct(w, v)
+ 	case *reflect.ChanValue,
+-		*reflect.InterfaceValue,
+ 		*reflect.PtrValue,
+ 		*reflect.UnsafePointerValue:
+ 		err = &MarshalError{val.Type()}
++	case *reflect.InterfaceValue:
++		if v.IsNil() {
++			fmt.Fprint(w, "null")
++		} else {
++			err = &MarshalError{val.Type()}
++		}
+ 	default:
+ 		value := val.(reflect.Value);
+ 		fmt.Fprint(w, value.Interface());
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index c01f4ddeb9..0c7976eba0 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -177,6 +177,7 @@ type marshalTest struct {
+ 
+ var marshalTests = []marshalTest{
+ 	// basic string
++	marshalTest{nil, "null"},
+ 	marshalTest{true, "true"},
+ 	marshalTest{false, "false"},
+ 	marshalTest{123, "123"},
+@@ -185,11 +186,14 @@ var marshalTests = []marshalTest{
+ 	marshalTest{"teststring", `"teststring"`},
+ 	marshalTest{[4]int{1, 2, 3, 4}, "[1,2,3,4]"},
+ 	marshalTest{[]int{1, 2, 3, 4}, "[1,2,3,4]"},
++	marshalTest{[]interface{}{nil}, "[null]"},
+ 	marshalTest{[][]int{[]int{1, 2}, []int{3, 4}}, "[[1,2],[3,4]]"},
+ 	marshalTest{map[string]string{"one": "one"}, `{"one":"one"}`},
+ 	marshalTest{map[string]int{"one": 1}, `{"one":1}`},
++	marshalTest{map[string]interface{}{"null": nil}, `{"null":null}`},
+ 	marshalTest{struct{}{}, "{}"},
+ 	marshalTest{struct{ a int }{1}, `{"a":1}`},
++	marshalTest{struct{ a interface{} }{nil}, `{"a":null}`},
+ 	marshalTest{struct {
+ 		a	int;
+ 		b	string;

@@ -16,7 +16,37 @@ Date:   Wed Mar 9 12:01:16 2022 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                       | 3 +++
  src/cmd/go/testdata/script/version_build_settings.txt | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ab70845959..2592cf5447 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2333,6 +2333,9 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+ 		appendSetting("-tags", strings.Join(tags, ","))
+ 	}
++	if cfg.BuildTrimpath {
++		appendSetting("-trimpath", "true")
++	}
+ 	cgo := "0"
+ 	if cfg.BuildContext.CgoEnabled {
+ 		cgo = "1"
+diff --git a/src/cmd/go/testdata/script/version_build_settings.txt b/src/cmd/go/testdata/script/version_build_settings.txt
+index dc9e67681e..90c7253764 100644
+--- a/src/cmd/go/testdata/script/version_build_settings.txt
++++ b/src/cmd/go/testdata/script/version_build_settings.txt
+@@ -23,6 +23,10 @@ go build -ldflags=example.com/m=-w
+ go version -m m$GOEXE
+ stdout '^\tbuild\t-ldflags=example\.com/m=-w$'
+ 
++go build -trimpath
++go version -m m$GOEXE
++stdout '\tbuild\t-trimpath=true$'
++
+ # gccgoflags are not added when gc is used, and vice versa.
+ # TODO: test gccgo.
+ go build -gccgoflags=all=UNUSED

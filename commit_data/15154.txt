@@ -9,6 +9,33 @@ Date:   Thu Feb 7 00:39:52 2013 +0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7306052
-
+---
  src/pkg/sync/example_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sync/example_test.go b/src/pkg/sync/example_test.go
+index 1564924003..031c87f03b 100644
+--- a/src/pkg/sync/example_test.go
++++ b/src/pkg/sync/example_test.go
+@@ -24,10 +24,10 @@ func ExampleWaitGroup() {
+ 		wg.Add(1)
+ 		// Launch a goroutine to fetch the URL.
+ 		go func(url string) {
++			// Decrement the counter when the goroutine completes.
++			defer wg.Done()
+ 			// Fetch the URL.
+ 			http.Get(url)
+-			// Decrement the counter.
+-			wg.Done()
+ 		}(url)
+ 	}
+ 	// Wait for all HTTP fetches to complete.
+@@ -37,7 +37,7 @@ func ExampleWaitGroup() {
+ func ExampleOnce() {
+ 	var once sync.Once
+ 	onceBody := func() {
+-		fmt.Printf("Only once\n")
++		fmt.Println("Only once")
+ 	}
+ 	done := make(chan bool)
+ 	for i := 0; i < 10; i++ {

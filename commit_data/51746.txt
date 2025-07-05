@@ -15,6 +15,20 @@ Date:   Wed Mar 9 07:56:04 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/391134
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/pprof/proto.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 215bd0bf96..68dac42d20 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -530,7 +530,7 @@ func (d *pcDeck) reset() {
+ // since the stack trace is already fully expanded) and the symbolizeResult
+ // to the deck. If it fails the caller needs to flush the deck and retry.
+ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symbolizeFlag) (success bool) {
+-	if existing := len(d.pcs); existing > 0 {
++	if existing := len(d.frames); existing > 0 {
+ 		// 'd.frames' are all expanded from one 'pc' and represent all
+ 		// inlined functions so we check only the last one.
+ 		newFrame := frames[0]

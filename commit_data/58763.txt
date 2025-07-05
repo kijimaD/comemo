@@ -13,6 +13,23 @@ Date:   Thu Dec 7 00:59:54 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.22.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 7e2b4da20c..bf39db39e5 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -580,7 +580,10 @@ defer func() {
+     </p>
+ 
+     <p><!-- CL 467335 -->
+-      TODO: <a href="https://go.dev/cl/467335">https://go.dev/cl/467335</a>: net: respect hosts file when resolving names for Windows
++      The Go DNS Resolver, used when building the binary with "-tags=netgo",
++      now searches a matching name in the Windows hosts file,
++      located at <code>%SystemRoot%\System32\drivers\etc\hosts</code>,
++      before making a DNS query.
+     </p>
+   </dd>
+ </dl><!-- net -->

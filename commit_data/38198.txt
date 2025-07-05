@@ -22,6 +22,29 @@ Date:   Tue Oct 9 16:01:20 2018 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 1efcbd3bbc..f82d820a43 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -448,6 +448,9 @@ func (m *maxLatencyWriter) Write(p []byte) (n int, err error) {
+ func (m *maxLatencyWriter) delayedFlush() {
+ 	m.mu.Lock()
+ 	defer m.mu.Unlock()
++	if !m.flushPending { // if stop was called but AfterFunc already started this goroutine
++		return
++	}
+ 	m.dst.Flush()
+ 	m.flushPending = false
+ }
+@@ -455,6 +458,7 @@ func (m *maxLatencyWriter) delayedFlush() {
+ func (m *maxLatencyWriter) stop() {
+ 	m.mu.Lock()
+ 	defer m.mu.Unlock()
++	m.flushPending = false
+ 	if m.t != nil {
+ 		m.t.Stop()
+ 	}

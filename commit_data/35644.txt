@@ -16,6 +16,19 @@ Date:   Wed Feb 21 13:35:08 2018 -0800
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Philip Hofer <phofer@umich.edu>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/branchelim.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index a37b8f06e1..54508985b3 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -139,6 +139,7 @@ func clobberBlock(b *Block) {
+ 	b.Succs = nil
+ 	b.Aux = nil
+ 	b.SetControl(nil)
++	b.Likely = BranchUnknown
+ 	b.Kind = BlockInvalid
+ }
+ 

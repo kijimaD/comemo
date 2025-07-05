@@ -14,7 +14,50 @@ Date:   Fri Sep 30 11:12:01 2016 -0400
     Change-Id: Ic03463229a5f75ca41a4a4b50300da4b4d892d45
     Reviewed-on: https://go-review.googlesource.com/30130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/mkpost.go             | 7 +++++++
  src/syscall/ztypes_linux_s390x.go | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/mkpost.go b/src/syscall/mkpost.go
+index 26aeec843f..e75ba1502a 100644
+--- a/src/syscall/mkpost.go
++++ b/src/syscall/mkpost.go
+@@ -18,6 +18,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"regexp"
++	"strings"
+ )
+ 
+ func main() {
+@@ -38,10 +39,16 @@ func main() {
+ 		re = regexp.MustCompile("Pad_cgo[A-Za-z0-9_]*")
+ 		s = re.ReplaceAllString(s, "_")
+ 
++		// We want to keep X__val in Fsid. Hide it and restore it later.
++		s = strings.Replace(s, "X__val", "MKPOSTFSIDVAL", 1)
++
+ 		// Replace other unwanted fields with blank identifiers.
+ 		re = regexp.MustCompile("X_[A-Za-z0-9_]*")
+ 		s = re.ReplaceAllString(s, "_")
+ 
++		// Restore X__val in Fsid.
++		s = strings.Replace(s, "MKPOSTFSIDVAL", "X__val", 1)
++
+ 		// Force the type of RawSockaddr.Data to [14]int8 to match
+ 		// the existing gccgo API.
+ 		re = regexp.MustCompile("(Data\\s+\\[14\\])uint8")
+diff --git a/src/syscall/ztypes_linux_s390x.go b/src/syscall/ztypes_linux_s390x.go
+index cdde47863f..63c4a83b19 100644
+--- a/src/syscall/ztypes_linux_s390x.go
++++ b/src/syscall/ztypes_linux_s390x.go
+@@ -140,7 +140,7 @@ type Dirent struct {
+ }
+ 
+ type Fsid struct {
+-	_ [2]int32
++	X__val [2]int32
+ }
+ 
+ type Flock_t struct {

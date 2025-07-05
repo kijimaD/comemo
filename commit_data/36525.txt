@@ -17,7 +17,7 @@ Date:   Tue May 1 03:25:15 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go        | 18 ++++------
  src/cmd/asm/internal/asm/asm.go           |  6 ----
  src/cmd/asm/internal/asm/testdata/arm64.s | 50 ++++++++++++++++++++------
@@ -25,3 +25,290 @@ Date:   Tue May 1 03:25:15 2018 +0000
  src/cmd/internal/obj/arm64/anames.go      | 16 +++++++++
  src/cmd/internal/obj/arm64/asm7.go        | 60 +++++++++++++++++++++----------
  6 files changed, 119 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 4b30e40b55..e7ef928fa2 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -72,18 +72,12 @@ func IsARM64STLXR(op obj.As) bool {
+ 	switch op {
+ 	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR,
+ 		arm64.ASTXRB, arm64.ASTXRH, arm64.ASTXRW, arm64.ASTXR,
+-		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW:
+-		return true
+-	}
+-	return false
+-}
+-
+-// IsARM64SWP reports whether the op (as defined by an arm64.A*
+-// constant) is one of the SWP-like instructions that require special
+-// handling.
+-func IsARM64SWP(op obj.As) bool {
+-	switch op {
+-	case arm64.ASWPD, arm64.ASWPW, arm64.ASWPH, arm64.ASWPB:
++		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW,
++		arm64.ASWPB, arm64.ASWPH, arm64.ASWPW, arm64.ASWPD,
++		arm64.ALDADDB, arm64.ALDADDH, arm64.ALDADDW, arm64.ALDADDD,
++		arm64.ALDANDB, arm64.ALDANDH, arm64.ALDANDW, arm64.ALDANDD,
++		arm64.ALDEORB, arm64.ALDEORH, arm64.ALDEORW, arm64.ALDEORD,
++		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 21dcd06c5c..4c256f62b2 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -570,12 +570,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.RegTo2 = a[2].Reg
+ 				break
+ 			}
+-			if arch.IsARM64SWP(op) {
+-				prog.From = a[1]
+-				prog.Reg = p.getRegister(prog, op, &a[0])
+-				prog.To = a[2]
+-				break
+-			}
+ 			if arch.IsARM64TBL(op) {
+ 				prog.From = a[0]
+ 				if a[1].Type != obj.TYPE_REGLIST {
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 7463689a3c..950ca2f9cb 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -537,6 +537,46 @@ again:
+ 	STXP	(R1, R2), (RSP), R10                 // e10b2ac8
+ 	STXPW	(R1, R2), (R3), R10                  // 61082a88
+ 	STXPW	(R1, R2), (RSP), R10                 // e10b2a88
++	SWPD	R5, (R6), R7                         // c78025f8
++	SWPD	R5, (RSP), R7                        // e78325f8
++	SWPW	R5, (R6), R7                         // c78025b8
++	SWPW	R5, (RSP), R7                        // e78325b8
++	SWPH	R5, (R6), R7                         // c7802578
++	SWPH	R5, (RSP), R7                        // e7832578
++	SWPB	R5, (R6), R7                         // c7802538
++	SWPB	R5, (RSP), R7                        // e7832538
++	LDADDD	R5, (R6), R7                         // c70025f8
++	LDADDD	R5, (RSP), R7                        // e70325f8
++	LDADDW	R5, (R6), R7                         // c70025b8
++	LDADDW	R5, (RSP), R7                        // e70325b8
++	LDADDH	R5, (R6), R7                         // c7002578
++	LDADDH	R5, (RSP), R7                        // e7032578
++	LDADDB	R5, (R6), R7                         // c7002538
++	LDADDB	R5, (RSP), R7                        // e7032538
++	LDANDD	R5, (R6), R7                         // c71025f8
++	LDANDD	R5, (RSP), R7                        // e71325f8
++	LDANDW	R5, (R6), R7                         // c71025b8
++	LDANDW	R5, (RSP), R7                        // e71325b8
++	LDANDH	R5, (R6), R7                         // c7102578
++	LDANDH	R5, (RSP), R7                        // e7132578
++	LDANDB	R5, (R6), R7                         // c7102538
++	LDANDB	R5, (RSP), R7                        // e7132538
++	LDEORD	R5, (R6), R7                         // c72025f8
++	LDEORD	R5, (RSP), R7                        // e72325f8
++	LDEORW	R5, (R6), R7                         // c72025b8
++	LDEORW	R5, (RSP), R7                        // e72325b8
++	LDEORH	R5, (R6), R7                         // c7202578
++	LDEORH	R5, (RSP), R7                        // e7232578
++	LDEORB	R5, (R6), R7                         // c7202538
++	LDEORB	R5, (RSP), R7                        // e7232538
++	LDORD	R5, (R6), R7                         // c73025f8
++	LDORD	R5, (RSP), R7                        // e73325f8
++	LDORW	R5, (R6), R7                         // c73025b8
++	LDORW	R5, (RSP), R7                        // e73325b8
++	LDORH	R5, (R6), R7                         // c7302578
++	LDORH	R5, (RSP), R7                        // e7332578
++	LDORB	R5, (R6), R7                         // c7302538
++	LDORB	R5, (RSP), R7                        // e7332538
+ 
+ // RET
+ //
+@@ -647,16 +687,6 @@ again:
+ 	STPW	(R3, R4), x(SB)
+ 	STPW	(R3, R4), x+8(SB)
+ 
+-// SWPD/SWPW/SWPH/SWPB
+-	SWPD	R5, (R6), R7    // SWPD (R6), R5, R7   // c78025f8
+-	SWPD	R5, (RSP), R7   // SWPD (RSP), R5, R7  // e78325f8
+-	SWPW	R5, (R6), R7    // SWPW (R6), R5, R7   // c78025b8
+-	SWPW	R5, (RSP), R7   // SWPW (RSP), R5, R7  // e78325b8
+-	SWPH	R5, (R6), R7    // SWPH (R6), R5, R7   // c7802578
+-	SWPH	R5, (RSP), R7   // SWPH (RSP), R5, R7  // e7832578
+-	SWPB	R5, (R6), R7    // SWPB (R6), R5, R7   // c7802538
+-	SWPB	R5, (RSP), R7   // SWPB (RSP), R5, R7  // e7832538
+-
+ // END
+ //
+ //	LTYPEE comma
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index dc696f6898..8e725c6f2c 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -594,6 +594,14 @@ const (
+ 	AHVC
+ 	AIC
+ 	AISB
++	ALDADDB
++	ALDADDH
++	ALDADDW
++	ALDADDD
++	ALDANDB
++	ALDANDH
++	ALDANDW
++	ALDANDD
+ 	ALDAR
+ 	ALDARB
+ 	ALDARH
+@@ -604,6 +612,14 @@ const (
+ 	ALDAXRB
+ 	ALDAXRH
+ 	ALDAXRW
++	ALDEORB
++	ALDEORH
++	ALDEORW
++	ALDEORD
++	ALDORB
++	ALDORH
++	ALDORW
++	ALDORD
+ 	ALDP
+ 	ALDPW
+ 	ALDPSW
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 3d1a762e1d..30be3b2732 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -96,6 +96,14 @@ var Anames = []string{
+ 	"HVC",
+ 	"IC",
+ 	"ISB",
++	"LDADDB",
++	"LDADDH",
++	"LDADDW",
++	"LDADDD",
++	"LDANDB",
++	"LDANDH",
++	"LDANDW",
++	"LDANDD",
+ 	"LDAR",
+ 	"LDARB",
+ 	"LDARH",
+@@ -106,6 +114,14 @@ var Anames = []string{
+ 	"LDAXRB",
+ 	"LDAXRH",
+ 	"LDAXRW",
++	"LDEORB",
++	"LDEORH",
++	"LDEORW",
++	"LDEORD",
++	"LDORB",
++	"LDORH",
++	"LDORW",
++	"LDORD",
+ 	"LDP",
+ 	"LDPW",
+ 	"LDPSW",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index dd0e420e2f..f01b8363ad 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -370,10 +370,6 @@ var optab = []Optab{
+ 	{ACCMN, C_COND, C_REG, C_VCON, 19, 4, 0, 0, 0}, /* from3 either C_REG or C_VCON */
+ 	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
+ 
+-	/* SWPD/SWPW/SWPH/SWPB */
+-	{ASWPD, C_ZAUTO, C_REG, C_REG, 47, 4, REGSP, 0, 0},
+-	{ASWPD, C_ZOREG, C_REG, C_REG, 47, 4, 0, 0, 0},
+-
+ 	/* scaled 12-bit unsigned displacement store */
+ 	{AMOVB, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
+@@ -657,13 +653,15 @@ var optab = []Optab{
+ 	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
+ 	{ASTPW, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
+ 
++	{ASWPD, C_REG, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},     // RegTo2=C_REG
++	{ASWPD, C_REG, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0}, // RegTo2=C_REG
+ 	{ALDAR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
+ 	{ALDXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
+ 	{ALDAXR, C_ZOREG, C_NONE, C_REG, 58, 4, 0, 0, 0},
+ 	{ALDXP, C_ZOREG, C_NONE, C_PAIR, 58, 4, 0, 0, 0},
+-	{ASTLR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_NONE
+-	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},  // to3=C_REG
+-	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // to3=C_REG
++	{ASTLR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},     // RegTo2=C_NONE
++	{ASTXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},     // RegTo2=C_REG
++	{ASTLXR, C_REG, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},    // RegTo2=C_REG
+ 	{ASTXP, C_PAIR, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
+ 
+ 	/* VLD1/VST1 */
+@@ -1995,6 +1993,22 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(ASWPB, t)
+ 			oprangeset(ASWPH, t)
+ 			oprangeset(ASWPW, t)
++			oprangeset(ALDADDB, t)
++			oprangeset(ALDADDH, t)
++			oprangeset(ALDADDW, t)
++			oprangeset(ALDADDD, t)
++			oprangeset(ALDANDB, t)
++			oprangeset(ALDANDH, t)
++			oprangeset(ALDANDW, t)
++			oprangeset(ALDANDD, t)
++			oprangeset(ALDEORB, t)
++			oprangeset(ALDEORH, t)
++			oprangeset(ALDEORW, t)
++			oprangeset(ALDEORD, t)
++			oprangeset(ALDORB, t)
++			oprangeset(ALDORH, t)
++			oprangeset(ALDORW, t)
++			oprangeset(ALDORD, t)
+ 
+ 		case ABEQ:
+ 			oprangeset(ABNE, t)
+@@ -3333,26 +3347,34 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= uint32(p.To.Reg & 31)
+ 
+ 	case 47: /* SWPx Rs, (Rb), Rt: Rs -> (Rb) -> Rt */
+-		v := int32(c.regoff(&p.From))
+-		rb := int(p.From.Reg)
+-		if v != 0 {
+-			c.ctxt.Diag("invalid offset: %v\n", p)
+-		}
+-		rs := p.Reg
+-		rt := p.To.Reg
++		rs := p.From.Reg
++		rt := p.RegTo2
++		rb := p.To.Reg
+ 		switch p.As {
+-		case ASWPD:
++		case ASWPD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
+ 			o1 = 3 << 30
+-		case ASWPW:
++		case ASWPW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+ 			o1 = 2 << 30
+-		case ASWPH:
++		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+ 			o1 = 1 << 30
+-		case ASWPB:
++		case ASWPB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
+ 			o1 = 0 << 30
+ 		default:
+ 			c.ctxt.Diag("illegal instruction: %v\n", p)
+ 		}
+-		o1 |= 0x1c1<<21 | 0x20<<10 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
++		switch p.As {
++		case ASWPD, ASWPW, ASWPH, ASWPB:
++			o1 |= 0x20 << 10
++		case ALDADDD, ALDADDW, ALDADDH, ALDADDB:
++			o1 |= 0x00 << 10
++		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
++			o1 |= 0x04 << 10
++		case ALDEORD, ALDEORW, ALDEORH, ALDEORB:
++			o1 |= 0x08 << 10
++		case ALDORD, ALDORW, ALDORH, ALDORB:
++			o1 |= 0x0c << 10
++		}
++		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+ 
+ 	case 50: /* sys/sysl */
+ 		o1 = c.opirr(p, p.As)

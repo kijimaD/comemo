@@ -11,10 +11,81 @@ Date:   Wed Nov 11 10:21:49 2015 +0900
     Change-Id: Ibdefdb801d0326e53755bc9cc8c10eed998094e5
     Reviewed-on: https://go-review.googlesource.com/16795
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/path/filepath/path.go         | 4 ++--
  src/path/filepath/path_plan9.go   | 4 ++++
  src/path/filepath/path_test.go    | 1 +
  src/path/filepath/path_unix.go    | 4 ++++
  src/path/filepath/path_windows.go | 4 ++++
  5 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 5dc5cfd49e..681fdfa09f 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -269,7 +269,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
+ 	baseSlashed := len(base) > 0 && base[0] == Separator
+ 	targSlashed := len(targ) > 0 && targ[0] == Separator
+-	if baseSlashed != targSlashed || baseVol != targVol {
++	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
+ 		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
+ 	}
+ 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
+@@ -283,7 +283,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 		for ti < tl && targ[ti] != Separator {
+ 			ti++
+ 		}
+-		if targ[t0:ti] != base[b0:bi] {
++		if !sameWord(targ[t0:ti], base[b0:bi]) {
+ 			break
+ 		}
+ 		if bi < bl {
+diff --git a/src/path/filepath/path_plan9.go b/src/path/filepath/path_plan9.go
+index 962774efd5..60d46d9d42 100644
+--- a/src/path/filepath/path_plan9.go
++++ b/src/path/filepath/path_plan9.go
+@@ -42,3 +42,7 @@ func join(elem []string) string {
+ 	}
+ 	return ""
+ }
++
++func sameWord(a, b string) bool {
++	return a == b
++}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 09e7be228a..057aa6a2c0 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1033,6 +1033,7 @@ var winreltests = []RelTests{
+ 	{`C:a\b\c`, `C:a/b/d`, `..\d`},
+ 	{`C:\`, `D:\`, `err`},
+ 	{`C:`, `D:`, `err`},
++	{`C:\Projects`, `c:\projects\src`, `src`},
+ }
+ 
+ func TestRel(t *testing.T) {
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index d241d78fa7..2d242cc0b5 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -44,3 +44,7 @@ func join(elem []string) string {
+ 	}
+ 	return ""
+ }
++
++func sameWord(a, b string) bool {
++	return a == b
++}
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index bcfe0a34b0..edf7966d19 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -145,3 +145,7 @@ func joinNonEmpty(elem []string) string {
+ func isUNC(path string) bool {
+ 	return volumeNameLen(path) > 2
+ }
++
++func sameWord(a, b string) bool {
++	return strings.EqualFold(a, b)
++}

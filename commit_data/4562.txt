@@ -9,9 +9,127 @@ Date:   Thu Jan 7 23:24:48 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/183157
-
+---
  src/cmd/gc/lex.c                   | 28 ++++++++++++++++++++++------
  test/{bugs => fixedbugs}/bug219.go |  3 +++
  test/{bugs => fixedbugs}/bug239.go |  0
  test/{bugs => fixedbugs}/bug240.go |  2 +-
  4 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 43b676d6fc..75d6d2200a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -358,7 +358,6 @@ cannedimports(char *file, char *cp)
+ 	curio.cp = cp;
+ 	curio.nlsemi = 0;
+ 
+-	pkgmyname = S;
+ 	typecheckok = 1;
+ 	incannedimport = 1;
+ }
+@@ -379,6 +378,12 @@ isfrog(int c)
+ 	return 0;
+ }
+ 
++typedef struct Loophack Loophack;
++struct Loophack {
++	int v;
++	Loophack *next;
++};
++
+ static int32
+ _yylex(void)
+ {
+@@ -387,6 +392,8 @@ _yylex(void)
+ 	char *cp;
+ 	Rune rune;
+ 	Sym *s;
++	static Loophack *lstk;
++	Loophack *h;
+ 
+ 	prevlineno = lineno;
+ 
+@@ -718,18 +725,27 @@ l0:
+ 	 * non-parenthesized '{' becomes an LBODY.
+ 	 * loophack is normally 0.
+ 	 * a keyword makes it go up to 1.
+-	 * parens increment and decrement when loophack > 0.
++	 * parens push loophack onto a stack and go back to 0.
+ 	 * a '{' with loophack == 1 becomes LBODY and disables loophack.
+ 	 *
+ 	 * i said it was clumsy.
+ 	 */
+ 	case '(':
+-		if(loophack > 0)
+-			loophack++;
++		if(loophack || lstk != nil) {
++			h = malloc(sizeof *h);
++			h->v = loophack;
++			h->next = lstk;
++			lstk = h;
++			loophack = 0;
++		}
+ 		goto lx;
+ 	case ')':
+-		if(loophack > 0)
+-			loophack--;
++		if(lstk != nil) {
++			h = lstk;
++			loophack = h->v;
++			lstk = h->next;
++			free(h);
++		}
+ 		goto lx;
+ 	case '{':
+ 		if(loophack == 1) {
+diff --git a/test/bugs/bug219.go b/test/fixedbugs/bug219.go
+similarity index 94%
+rename from test/bugs/bug219.go
+rename to test/fixedbugs/bug219.go
+index aee07cce7e..21361a2aab 100644
+--- a/test/bugs/bug219.go
++++ b/test/fixedbugs/bug219.go
+@@ -14,6 +14,7 @@ func g1() {
+ 	if x := f(func() {
+ 		if {}
+ 	}); {
++		_ = x;
+ 	}
+ }
+ 
+@@ -22,6 +23,7 @@ func g2() {
+ 	if x := f(func() {
+ 		//if {}
+ 	}); {
++		_ = x;
+ 	}
+ }
+ 
+@@ -31,5 +33,6 @@ func g3() {
+ 		if {}
+ 	});
+ 	if {
++		_ = x;
+ 	}
+ }
+diff --git a/test/bugs/bug239.go b/test/fixedbugs/bug239.go
+similarity index 100%
+rename from test/bugs/bug239.go
+rename to test/fixedbugs/bug239.go
+diff --git a/test/bugs/bug240.go b/test/fixedbugs/bug240.go
+similarity index 91%
+rename from test/bugs/bug240.go
+rename to test/fixedbugs/bug240.go
+index dc7cdd8963..6cba9c8b1e 100644
+--- a/test/bugs/bug240.go
++++ b/test/fixedbugs/bug240.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import . "unsafe"
++import . "unsafe"	// ERROR "not used"
+ 
+ func main() {
+ 	var x int

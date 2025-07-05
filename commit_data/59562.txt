@@ -12,8 +12,56 @@ Date:   Tue Mar 26 07:13:57 2024 +0800
     Auto-Submit: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/testdata/script/build_runtime_gcflags.txt    | 4 ++--
  src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 4 ++--
  src/cmd/internal/objabi/pkgspecial.go                   | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_runtime_gcflags.txt b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+index c87e480911..31695b1772 100644
+--- a/src/cmd/go/testdata/script/build_runtime_gcflags.txt
++++ b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+@@ -5,7 +5,7 @@ env GO111MODULE=off
+ env GOCACHE=$WORK/gocache
+ mkdir $GOCACHE
+ 
+-# Verify the standard library (specifically runtime/internal/atomic) can be
++# Verify the standard library (specifically internal/runtime/atomic) can be
+ # built with -gcflags when -n is given. See golang.org/issue/29346.
+ go build -n -gcflags=all='-l' std
+-stderr 'compile.* runtime/internal/atomic .* -l'
++stderr 'compile.* internal/runtime/atomic .* -l'
+diff --git a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+index 283db3e1a6..a098979797 100644
+--- a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
++++ b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+@@ -11,13 +11,13 @@ go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
+ # execute at least one test.
+ 
+ go test -short -covermode=atomic -run=TestStoreInt64 sync/atomic
+-go test -short -covermode=atomic -run=TestAnd8 runtime/internal/atomic
++go test -short -covermode=atomic -run=TestAnd8 internal/runtime/atomic
+ 
+ # Skip remainder if no race detector support.
+ [!race] skip
+ 
+ go test -short -cover -race -run=TestStoreInt64 sync/atomic
+-go test -short -cover -race -run=TestAnd8 runtime/internal/atomic
++go test -short -cover -race -run=TestAnd8 internal/runtime/atomic
+ 
+ -- go.mod --
+ module coverdep
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 44f26024f7..8ca9c7416d 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -73,7 +73,7 @@ var extraNoInstrumentPkgs = []string{
+ 	"-internal/bytealg",
+ }
+ 
+-var noRaceFuncPkgs = []string{"sync", "sync/atomic"}
++var noRaceFuncPkgs = []string{"sync", "sync/atomic", "internal/runtime/atomic"}
+ 
+ var allowAsmABIPkgs = []string{
+ 	"runtime",

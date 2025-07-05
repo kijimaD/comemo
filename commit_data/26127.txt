@@ -16,6 +16,34 @@ Date:   Thu Dec 17 20:25:33 2015 +0000
     Change-Id: Ifc78a6196f23e0f58e3b9ad7340e207a2d5de0a6
     Reviewed-on: https://go-review.googlesource.com/17977
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/vcs.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 743205bfd8..59e72c6de2 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -147,7 +147,7 @@ var vcsGit = &vcsCmd{
+ 
+ // scpSyntaxRe matches the SCP-like addresses used by Git to access
+ // repositories by SSH.
+-var scpSyntaxRe = regexp.MustCompile(`^(?:([a-zA-Z0-9_]+)@)?([a-zA-Z0-9._-]+):(.*)$`)
++var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+ 
+ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
+ 	cmd := "config remote.origin.url"
+@@ -171,12 +171,10 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
+ 		// "ssh://git@github.com/user/repo".
+ 		repoURL = &url.URL{
+ 			Scheme:  "ssh",
++			User:    url.User(m[1]),
+ 			Host:    m[2],
+ 			RawPath: m[3],
+ 		}
+-		if m[1] != "" {
+-			repoURL.User = url.User(m[1])
+-		}
+ 	} else {
+ 		repoURL, err = url.Parse(out)
+ 		if err != nil {

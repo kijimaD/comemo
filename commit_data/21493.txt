@@ -16,8 +16,164 @@ Date:   Wed Jan 7 09:25:23 2015 -0800
     Change-Id: I1dc503dc5af4ca22c8f8c048fb7b4541cc957e0f
     Reviewed-on: https://go-review.googlesource.com/2452
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/align.c          | 17 +++++++++++++----
  src/reflect/type.go         | 19 +++++++++++++++----
  src/runtime/runtime_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 69 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 6e5d149c75..29accd3538 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -48,10 +48,13 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ 	Type *f;
+ 	int64 w;
+ 	int32 maxalign;
++	vlong starto, lastzero;
+ 	
++	starto = o;
+ 	maxalign = flag;
+ 	if(maxalign < 1)
+ 		maxalign = 1;
++	lastzero = 0;
+ 	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+@@ -80,22 +83,28 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ 			} else
+ 				f->nname->xoffset = o;
+ 		}
++		if(w == 0)
++			lastzero = o;
+ 		o += w;
+ 		if(o >= MAXWIDTH) {
+ 			yyerror("type %lT too large", errtype);
+ 			o = 8;  // small but nonzero
+ 		}
+ 	}
++	// For nonzero-sized structs which end in a zero-sized thing, we add
++	// an extra byte of padding to the type.  This padding ensures that
++	// taking the address of the zero-sized thing can't manufacture a
++	// pointer to the next object in the heap.  See issue 9401.
++	if(flag == 1 && o > starto && o == lastzero)
++		o++;
++
+ 	// final width is rounded
+ 	if(flag)
+ 		o = rnd(o, maxalign);
+ 	t->align = maxalign;
+ 
+ 	// type width only includes back to first field's offset
+-	if(t->type == T)
+-		t->width = 0;
+-	else
+-		t->width = o - t->type->width;
++	t->width = o - starto;
+ 	return o;
+ }
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d19e5f9767..a71d8374c6 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1527,9 +1527,10 @@ func isReflexive(t *rtype) bool {
+ 
+ // gcProg is a helper type for generatation of GC pointer info.
+ type gcProg struct {
+-	gc     []byte
+-	size   uintptr // size of type in bytes
+-	hasPtr bool
++	gc       []byte
++	size     uintptr // size of type in bytes
++	hasPtr   bool
++	lastZero uintptr // largest offset of a zero-byte field
+ }
+ 
+ func (gc *gcProg) append(v byte) {
+@@ -1542,6 +1543,9 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 	gc.align(uintptr(t.align))
+ 	if !t.pointers() {
+ 		gc.size += t.size
++		if t.size == 0 {
++			gc.lastZero = gc.size
++		}
+ 		return
+ 	}
+ 	switch t.Kind() {
+@@ -1566,11 +1570,15 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 		gc.appendWord(bitsPointer)
+ 		gc.appendWord(bitsPointer)
+ 	case Struct:
++		oldsize := gc.size
+ 		c := t.NumField()
+ 		for i := 0; i < c; i++ {
+ 			gc.appendProg(t.Field(i).Type.common())
+ 		}
+-		gc.align(uintptr(t.align))
++		if gc.size > oldsize + t.size {
++			panic("reflect: struct components are larger than the struct itself")
++		}
++		gc.size = oldsize + t.size
+ 	}
+ }
+ 
+@@ -1595,6 +1603,9 @@ func (gc *gcProg) finalize() (unsafe.Pointer, bool) {
+ 	if gc.size == 0 {
+ 		return nil, false
+ 	}
++	if gc.lastZero == gc.size {
++		gc.size++
++	}
+ 	ptrsize := unsafe.Sizeof(uintptr(0))
+ 	gc.align(ptrsize)
+ 	nptr := gc.size / ptrsize
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 1688364a8e..c4de3e247b 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -247,3 +247,44 @@ func TestEqString(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTrailingZero(t *testing.T) {
++	// make sure we add padding for structs with trailing zero-sized fields
++	type T1 struct {
++		n int32
++		z [0]byte
++	}
++	if unsafe.Sizeof(T1{}) != 8 {
++		t.Errorf("sizeof(%#v)==%d, want 8", T1{}, unsafe.Sizeof(T1{}))
++	}
++	type T2 struct {
++		n int64
++		z struct{}
++	}
++	if unsafe.Sizeof(T2{}) != 16 {
++		t.Errorf("sizeof(%#v)==%d, want 16", T2{}, unsafe.Sizeof(T2{}))
++	}
++	type T3 struct {
++		n byte
++		z [4]struct{}
++	}
++	if unsafe.Sizeof(T3{}) != 2 {
++		t.Errorf("sizeof(%#v)==%d, want 2", T3{}, unsafe.Sizeof(T3{}))
++	}
++	// make sure padding can double for both zerosize and alignment
++	type T4 struct {
++		a int32
++		b int16
++		c int8
++		z struct{}
++	}
++	if unsafe.Sizeof(T4{}) != 8 {
++		t.Errorf("sizeof(%#v)==%d, want 8", T4{}, unsafe.Sizeof(T4{}))
++	}
++	// make sure we don't pad a zero-sized thing
++	type T5 struct {
++	}
++	if unsafe.Sizeof(T5{}) != 0 {
++		t.Errorf("sizeof(%#v)==%d, want 0", T5{}, unsafe.Sizeof(T5{}))
++	}
++}

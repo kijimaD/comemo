@@ -20,6 +20,28 @@ Date:   Fri Jul 6 09:55:33 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os_windows.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index bf5baea13e..6f73a5ba24 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -698,10 +698,12 @@ func minit() {
+ 		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
+ 		throw("VirtualQuery for stack base failed")
+ 	}
+-	// Add 8K of slop for calling C functions that don't have
+-	// stack checks. We shouldn't be anywhere near this bound
+-	// anyway.
+-	base := mbi.allocationBase + 8*1024
++	// The system leaves an 8K PAGE_GUARD region at the bottom of
++	// the stack (in theory VirtualQuery isn't supposed to include
++	// that, but it does). Add an additional 8K of slop for
++	// calling C functions that don't have stack checks. We
++	// shouldn't be anywhere near this bound anyway.
++	base := mbi.allocationBase + 16<<10
+ 	// Sanity check the stack bounds.
+ 	g0 := getg()
+ 	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {

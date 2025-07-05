@@ -19,6 +19,29 @@ Date:   Mon Jun 27 13:58:55 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/net_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 29a2c5d4ba..c297c51fb9 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -97,6 +97,17 @@ func TestCloseWrite(t *testing.T) {
+ 					t.Error(err)
+ 					return
+ 				}
++
++				// Workaround for https://go.dev/issue/49352.
++				// On arm64 macOS (current as of macOS 12.4),
++				// reading from a socket at the same time as the client
++				// is closing it occasionally hangs for 60 seconds before
++				// returning ECONNRESET. Sleep for a bit to give the
++				// socket time to close before trying to read from it.
++				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++					time.Sleep(10 * time.Millisecond)
++				}
++
+ 				if !deadline.IsZero() {
+ 					c.SetDeadline(deadline)
+ 				}

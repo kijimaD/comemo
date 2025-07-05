@@ -15,6 +15,19 @@ Date:   Tue Mar 12 08:35:52 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httptest/server_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 5313f65456..c96a0ff337 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -83,6 +83,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
+ 		t.Fatal(err)
+ 	}
+ 	got, err := io.ReadAll(res.Body)
++	res.Body.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

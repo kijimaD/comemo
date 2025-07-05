@@ -13,7 +13,7 @@ Date:   Thu Mar 8 12:13:41 2012 -0500
     R=rsc, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/5788043
-
+---
  .hgignore                 |  1 +
  misc/cgo/testso/Makefile  | 22 ----------------------
  misc/cgo/testso/cgoso.go  |  5 ++++-
@@ -22,3 +22,122 @@ Date:   Thu Mar 8 12:13:41 2012 -0500
  misc/cgo/testso/test.bash |  7 ++++---
  src/run.bash              |  2 --
  7 files changed, 14 insertions(+), 29 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 2a84753035..d6ba72c6bc 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -27,6 +27,7 @@ doc/tmpltohtml
+ doc/articles/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
++misc/cgo/testso/testso
+ misc/dashboard/builder/builder
+ misc/goplay/goplay
+ misc/osx/*.pkg
+diff --git a/misc/cgo/testso/Makefile b/misc/cgo/testso/Makefile
+deleted file mode 100644
+index e472cf2124..0000000000
+--- a/misc/cgo/testso/Makefile
++++ /dev/null
+@@ -1,22 +0,0 @@
+-# Copyright 2011 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=cgosotest
+-
+-CGO_DEPS+=libcgoso.so
+-CGO_LDFLAGS+=-lcgoso -L.
+-CLEANFILES+=out libcgoso.so
+-CGOFILES=\
+-	cgoso.go\
+-
+-include ../../../src/Make.pkg
+-
+-libcgoso.so: cgoso_c.c
+-	gcc cgoso_c.c -fPIC -o $@ $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS))
+-
+-out: install main.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
+-	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+index 6eb9f40e38..44fb616c11 100644
+--- a/misc/cgo/testso/cgoso.go
++++ b/misc/cgo/testso/cgoso.go
+@@ -4,7 +4,10 @@
+ 
+ package cgosotest
+ 
+-//void sofunc(void);
++/*
++#cgo LDFLAGS: -L. -lcgosotest
++void sofunc(void);
++*/
+ import "C"
+ 
+ func Test() {
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+index e29f7e8071..8c15a6b9ff 100644
+--- a/misc/cgo/testso/cgoso_c.c
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ void sofunc(void)
+ {
+ 	extern void goCallback(void);
+diff --git a/misc/cgo/testso/main.go b/misc/cgo/testso/main.go
+index 672ab262be..88aa4322d2 100644
+--- a/misc/cgo/testso/main.go
++++ b/misc/cgo/testso/main.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+-import "cgosotest"
++import "."
+ 
+ func main() {
+ 	cgosotest.Test()
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+index f275eb5723..119fd64827 100755
+--- a/misc/cgo/testso/test.bash
++++ b/misc/cgo/testso/test.bash
+@@ -4,6 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-gomake out
+-LD_LIBRARY_PATH=. ./out
+-gomake clean
++gcc -fPIC -g -shared -o libcgosotest.so cgoso_c.c
++go build main.go
++LD_LIBRARY_PATH=. ./main
++rm -f libcgosotest.so main
+diff --git a/src/run.bash b/src/run.bash
+index e97f55a0ba..0e4600b0ad 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -55,12 +55,10 @@ xcd() {
+ go test
+ ) || exit $?
+ 
+-$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ [ "$GOHOSTOS" == darwin ] ||
+ (xcd ../misc/cgo/testso
+-"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 

@@ -20,9 +20,86 @@ Date:   Wed May 22 22:57:47 2013 +0400
     R=golang-dev, minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/9303046
-
+---
  src/pkg/runtime/cgo/iscgo.c |  1 +
  src/pkg/runtime/cgocall.c   |  4 ++++
  src/pkg/runtime/proc.c      | 14 ++++++++++----
  src/pkg/runtime/runtime.h   |  1 +
  4 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/iscgo.c b/src/pkg/runtime/cgo/iscgo.c
+index eb6f5c09d7..0907a19581 100644
+--- a/src/pkg/runtime/cgo/iscgo.c
++++ b/src/pkg/runtime/cgo/iscgo.c
+@@ -12,3 +12,4 @@
+ #include "../runtime.h"
+ 
+ bool runtime·iscgo = 1;
++uint32 runtime·needextram = 1;  // create an extra M on first cgo call
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index b829665462..16bc765549 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -126,6 +126,10 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	if(raceenabled)
+ 		runtime·racereleasemerge(&cgosync);
+ 
++	// Create an extra M for callbacks on threads not created by Go on first cgo call.
++	if(runtime·needextram && runtime·cas(&runtime·needextram, 1, 0))
++		runtime·newextram();
++
+ 	m->ncgocall++;
+ 
+ 	/*
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 10170d874e..d6d308e524 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -60,6 +60,7 @@ enum { MaxGomaxprocs = 1<<8 };
+ 
+ Sched	runtime·sched;
+ int32	runtime·gomaxprocs;
++uint32	runtime·needextram;
+ bool	runtime·singleproc;
+ bool	runtime·iscgo;
+ uint32	runtime·gcwaiting;
+@@ -475,11 +476,8 @@ runtime·mstart(void)
+ 
+ 	// Install signal handlers; after minit so that minit can
+ 	// prepare the thread to be able to handle the signals.
+-	if(m == &runtime·m0) {
++	if(m == &runtime·m0)
+ 		runtime·initsig();
+-		if(runtime·iscgo)
+-			runtime·newextram();
+-	}
+ 	
+ 	if(m->mstartfn)
+ 		m->mstartfn();
+@@ -587,6 +585,14 @@ runtime·needm(byte x)
+ {
+ 	M *mp;
+ 
++	if(runtime·needextram) {
++		// Can happen if C/C++ code calls Go from a global ctor.
++		// Can not throw, because scheduler is not initialized yet.
++		runtime·write(2, "fatal error: cgo callback before cgo call\n",
++			sizeof("fatal error: cgo callback before cgo call\n")-1);
++		runtime·exit(1);
++	}
++
+ 	// Lock extra list, take head, unlock popped list.
+ 	// nilokay=false is safe here because of the invariant above,
+ 	// that the extra list always contains or will soon contain
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ef162e9bbb..17f8c9a94a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -657,6 +657,7 @@ extern	G*	runtime·lastg;
+ extern	M*	runtime·allm;
+ extern	P**	runtime·allp;
+ extern	int32	runtime·gomaxprocs;
++extern	uint32	runtime·needextram;
+ extern	bool	runtime·singleproc;
+ extern	uint32	runtime·panicking;
+ extern	uint32	runtime·gcwaiting;		// gc is waiting to run

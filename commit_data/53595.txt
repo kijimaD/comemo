@@ -21,7 +21,64 @@ Date:   Wed Jun 15 17:03:27 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/bytes/buffer.go |  5 ++---
  src/bytes/bytes.go  | 19 +++----------------
  2 files changed, 5 insertions(+), 19 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 0bacbda164..ee83fd8b36 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -298,9 +298,8 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
+ 	if !ok {
+ 		m = b.grow(utf8.UTFMax)
+ 	}
+-	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
+-	b.buf = b.buf[:m+n]
+-	return n, nil
++	b.buf = utf8.AppendRune(b.buf[:m], r)
++	return len(b.buf) - m, nil
+ }
+ 
+ // Read reads the next len(p) bytes from the buffer or until the buffer
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 5cf5b477eb..7b28cf1efc 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -560,9 +560,7 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
+ 	// In the worst case, the slice can grow when mapped, making
+ 	// things unpleasant. But it's so rare we barge in assuming it's
+ 	// fine. It could also shrink but that falls out naturally.
+-	maxbytes := len(s) // length of b
+-	nbytes := 0        // number of bytes encoded in b
+-	b := make([]byte, maxbytes)
++	b := make([]byte, 0, len(s))
+ 	for i := 0; i < len(s); {
+ 		wid := 1
+ 		r := rune(s[i])
+@@ -571,22 +569,11 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
+ 		}
+ 		r = mapping(r)
+ 		if r >= 0 {
+-			rl := utf8.RuneLen(r)
+-			if rl < 0 {
+-				rl = len(string(utf8.RuneError))
+-			}
+-			if nbytes+rl > maxbytes {
+-				// Grow the buffer.
+-				maxbytes = maxbytes*2 + utf8.UTFMax
+-				nb := make([]byte, maxbytes)
+-				copy(nb, b[0:nbytes])
+-				b = nb
+-			}
+-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
++			b = utf8.AppendRune(b, r)
+ 		}
+ 		i += wid
+ 	}
+-	return b[0:nbytes]
++	return b
+ }
+ 
+ // Repeat returns a new byte slice consisting of count copies of b.

@@ -16,8 +16,196 @@ Date:   Fri Apr 1 15:09:19 2016 +0200
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/loopbce.go | 41 ++++++++++++++++++
  test/checkbce.go                        | 15 ++++++-
  test/loopbce.go                         | 77 +++++++++++++++++++++++++++++++++
  3 files changed, 132 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 17486ac49f..c937ead1b2 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -240,6 +240,37 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
+ 		}
+ 	skip2:
+ 
++		// Simplify
++		// (IsInBounds (Add64 ind) (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
++		// (IsSliceInBounds ind (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
++		if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
++			ind, add := dropAdd64(v.Args[0])
++			if ind.Op != OpPhi {
++				goto skip3
++			}
++
++			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
++			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
++				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
++					goto skip3
++				}
++
++				limit := v.Args[1].AuxInt
++				if v.Op == OpIsSliceInBounds {
++					// If limit++ overflows signed integer then 0 <= max && max <= limit will be false.
++					limit++
++				}
++
++				if max := iv.max.AuxInt + add; 0 <= max && max <= limit { // handle overflow
++					if f.pass.debug > 0 {
++						f.Config.Warnl(b.Line, "Found redundant (%s ind %d), ind < %d", v.Op, v.Args[1].AuxInt, iv.max.AuxInt+add)
++					}
++					goto simplify
++				}
++			}
++		}
++	skip3:
++
+ 		continue
+ 
+ 	simplify:
+@@ -258,3 +289,13 @@ func dropAdd64(v *Value) (*Value, int64) {
+ 	}
+ 	return v, 0
+ }
++
++func isGreaterOrEqualThan(v *Value, c int64) bool {
++	if c == 0 {
++		return isNonNegative(v)
++	}
++	if v.isGenericIntConst() && v.AuxInt >= c {
++		return true
++	}
++	return false
++}
+diff --git a/test/checkbce.go b/test/checkbce.go
+index 988375fcc7..fa0ea12803 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -57,7 +57,7 @@ func f6(a [32]int, b [64]int, i int) {
+ 	useInt(b[uint64(i*0x07C4ACDD)>>58])
+ 	useInt(a[uint(i*0x07C4ACDD)>>59])
+ 
+-	// The following bounds should removed as they can overflow.
++	// The following bounds should not be removed because they can overflow.
+ 	useInt(a[uint32(i*0x106297f105d0cc86)>>26]) // ERROR "Found IsInBounds$"
+ 	useInt(b[uint64(i*0x106297f105d0cc86)>>57]) // ERROR "Found IsInBounds$"
+ 	useInt(a[int32(i*0x106297f105d0cc86)>>26])  // ERROR "Found IsInBounds$"
+@@ -89,6 +89,19 @@ func g3(a []int) {
+ 	}
+ }
+ 
++func g4(a [100]int) {
++	for i := 10; i < 50; i++ {
++		useInt(a[i-10])
++		useInt(a[i])
++		useInt(a[i+25])
++		useInt(a[i+50])
++
++		// The following are out of bounds.
++		useInt(a[i-11]) // ERROR "Found IsInBounds$"
++		useInt(a[i+51]) // ERROR "Found IsInBounds$"
++	}
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }
+diff --git a/test/loopbce.go b/test/loopbce.go
+index eb44092705..ea195217e6 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -139,6 +139,70 @@ func h2(a []byte) {
+ 	}
+ }
+ 
++func k0(a [100]int) [100]int {
++	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
++		a[i-11] = i
++		a[i-10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 80$"
++		a[i-5] = i  // ERROR "Found redundant \(IsInBounds ind 100\), ind < 85$"
++		a[i] = i    // ERROR "Found redundant \(IsInBounds ind 100\), ind < 90$"
++		a[i+5] = i  // ERROR "Found redundant \(IsInBounds ind 100\), ind < 95$"
++		a[i+10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 100$"
++		a[i+11] = i
++	}
++	return a
++}
++
++func k1(a [100]int) [100]int {
++	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
++		useSlice(a[:i-11])
++		useSlice(a[:i-10]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 80$"
++		useSlice(a[:i-5])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 85$"
++		useSlice(a[:i])    // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 90$"
++		useSlice(a[:i+5])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 95$"
++		useSlice(a[:i+10]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 100$"
++		useSlice(a[:i+11]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 101$"
++
++	}
++	return a
++}
++
++func k2(a [100]int) [100]int {
++	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
++		useSlice(a[i-11:])
++		useSlice(a[i-10:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 80$"
++		useSlice(a[i-5:])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 85$"
++		useSlice(a[i:])    // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 90$"
++		useSlice(a[i+5:])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 95$"
++		useSlice(a[i+10:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 100$"
++		useSlice(a[i+11:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 101$"
++	}
++	return a
++}
++
++func k3(a [100]int) [100]int {
++	for i := -10; i < 90; i++ { // ERROR "Induction variable with minimum -10 and increment 1$"
++		a[i+10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 100$"
++	}
++	return a
++}
++
++func k4(a [100]int) [100]int {
++	min := (-1) << 63
++	for i := min; i < min+50; i++ { // ERROR "Induction variable with minimum -9223372036854775808 and increment 1$"
++		a[i-min] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 50$"
++	}
++	return a
++}
++
++func k5(a [100]int) [100]int {
++	max := (1 << 63) - 1
++	for i := max - 50; i < max; i++ { // ERROR "Induction variable with minimum 9223372036854775757 and increment 1$"
++		a[i-max+50] = i
++		a[i-(max-70)] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 70$"
++	}
++	return a
++}
++
+ func nobce1() {
+ 	// tests overflow of max-min
+ 	a := int64(9223372036854774057)
+@@ -168,9 +232,22 @@ func nobce2(a string) {
+ 	}
+ }
+ 
++func nobce3(a [100]int64) [100]int64 {
++	min := int64((-1) << 63)
++	max := int64((1 << 63) - 1)
++	for i := min; i < max; i++ { // ERROR "Induction variable with minimum -9223372036854775808 and increment 1$"
++		a[i] = i
++	}
++	return a
++}
++
+ //go:noinline
+ func useString(a string) {
+ }
+ 
++//go:noinline
++func useSlice(a []int) {
++}
++
+ func main() {
+ }

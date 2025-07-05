@@ -18,7 +18,7 @@ Date:   Wed Apr 10 16:44:46 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go    |  2 +-
  src/cmd/compile/internal/gc/pgen.go   |  2 +-
  test/fixedbugs/issue31252.dir/a.go    | 13 +++++++++++++
@@ -27,3 +27,130 @@ Date:   Wed Apr 10 16:44:46 2019 -0700
  test/fixedbugs/issue31252.dir/main.go | 11 +++++++++++
  test/fixedbugs/issue31252.go          |  7 +++++++
  7 files changed, 72 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 5630e12ace..86d52f5084 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -287,7 +287,7 @@ func addGCLocals() {
+ 			}
+ 		}
+ 		if x := s.Func.StackObjects; x != nil {
+-			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
++			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index b0ed01947a..8e4126d779 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -266,7 +266,7 @@ func compile(fn *Node) {
+ 				// Also make sure we allocate a linker symbol
+ 				// for the stack object data, for the same reason.
+ 				if fn.Func.lsym.Func.StackObjects == nil {
+-					fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
++					fn.Func.lsym.Func.StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
+ 				}
+ 			}
+ 		}
+diff --git a/test/fixedbugs/issue31252.dir/a.go b/test/fixedbugs/issue31252.dir/a.go
+new file mode 100644
+index 0000000000..fa431502c0
+--- /dev/null
++++ b/test/fixedbugs/issue31252.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "fmt"
++
++type IndexController struct{}
++
++func (this *IndexController) Index(m *string) {
++	fmt.Println(m)
++}
+diff --git a/test/fixedbugs/issue31252.dir/b.go b/test/fixedbugs/issue31252.dir/b.go
+new file mode 100644
+index 0000000000..9bfc0ff92e
+--- /dev/null
++++ b/test/fixedbugs/issue31252.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "fmt"
++
++type IndexController struct{}
++
++func (this *IndexController) Index(m *string) {
++	fmt.Println(m)
++}
+diff --git a/test/fixedbugs/issue31252.dir/c.go b/test/fixedbugs/issue31252.dir/c.go
+new file mode 100644
+index 0000000000..928c8eee1c
+--- /dev/null
++++ b/test/fixedbugs/issue31252.dir/c.go
+@@ -0,0 +1,26 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import (
++	"a"
++	"b"
++)
++
++type HandlerFunc func(*string)
++
++func RouterInit() {
++	//home API
++	homeIndex := &a.IndexController{}
++	GET("/home/index/index", homeIndex.Index)
++	//admin API
++	adminIndex := &b.IndexController{}
++	GET("/admin/index/index", adminIndex.Index)
++	return
++}
++
++func GET(path string, handlers ...HandlerFunc) {
++	return
++}
+diff --git a/test/fixedbugs/issue31252.dir/main.go b/test/fixedbugs/issue31252.dir/main.go
+new file mode 100644
+index 0000000000..25a7548668
+--- /dev/null
++++ b/test/fixedbugs/issue31252.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "c"
++
++func main() {
++	c.RouterInit()
++}
+diff --git a/test/fixedbugs/issue31252.go b/test/fixedbugs/issue31252.go
+new file mode 100644
+index 0000000000..973ae1dcef
+--- /dev/null
++++ b/test/fixedbugs/issue31252.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

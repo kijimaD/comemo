@@ -8,6 +8,29 @@ Date:   Wed Feb 13 02:27:42 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7308081
-
+---
  src/pkg/encoding/xml/xml.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index decb2bec65..3e004306a1 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -1692,7 +1692,7 @@ var HTMLAutoClose = htmlAutoClose
+ var htmlAutoClose = []string{
+ 	/*
+ 		hget http://www.w3.org/TR/html4/loose.dtd |
+-		9 sed -n 's/<!ELEMENT (.*) - O EMPTY.+/	"\1",/p' | tr A-Z a-z
++		9 sed -n 's/<!ELEMENT ([^ ]*) +- O EMPTY.+/	"\1",/p' | tr A-Z a-z
+ 	*/
+ 	"basefont",
+ 	"br",
+@@ -1702,7 +1702,7 @@ var htmlAutoClose = []string{
+ 	"param",
+ 	"hr",
+ 	"input",
+-	"col     ",
++	"col",
+ 	"frame",
+ 	"isindex",
+ 	"base",

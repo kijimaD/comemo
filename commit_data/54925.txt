@@ -16,7 +16,7 @@ Date:   Mon Nov 21 14:09:35 2022 -0800
     Run-TryBot: Tim King <taking@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                           |  2 +-
  src/cmd/go.sum                                           |  4 ++--
  .../vendor/golang.org/x/tools/go/analysis/analysis.go    | 15 ++-------------
@@ -25,3 +25,155 @@ Date:   Mon Nov 21 14:09:35 2022 -0800
  .../x/tools/internal/analysisinternal/analysis.go        | 16 ++--------------
  src/cmd/vendor/modules.txt                               |  2 +-
  7 files changed, 10 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 73bbec1de0..3b199ef54b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.1.0
+ 	golang.org/x/sys v0.2.0
+ 	golang.org/x/term v0.1.0
+-	golang.org/x/tools v0.3.0
++	golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 29538553bb..b0e04ce913 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,5 +12,5 @@ golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
+ golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.1.0 h1:g6Z6vPFA9dYBAF7DWcH6sCcOntplXsDKcliusYijMlw=
+ golang.org/x/term v0.1.0/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.3.0 h1:SrNbZl6ECOS1qFzgTdQfWXZM9XBkiA6tkFrH9YSTPHM=
+-golang.org/x/tools v0.3.0/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
++golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192 h1:WKkUAWH1gBo+5k1/MzaZPmDNYJP+fwpZUVn6dXGC1Vo=
++golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index d11505a165..44ada22a03 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -11,8 +11,6 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"reflect"
+-
+-	"golang.org/x/tools/internal/analysisinternal"
+ )
+ 
+ // An Analyzer describes an analysis function and its options.
+@@ -48,6 +46,7 @@ type Analyzer struct {
+ 	// RunDespiteErrors allows the driver to invoke
+ 	// the Run method of this analyzer even on a
+ 	// package that contains parse or type errors.
++	// The Pass.TypeErrors field may consequently be non-empty.
+ 	RunDespiteErrors bool
+ 
+ 	// Requires is a set of analyzers that must run successfully
+@@ -75,17 +74,6 @@ type Analyzer struct {
+ 
+ func (a *Analyzer) String() string { return a.Name }
+ 
+-func init() {
+-	// Set the analysisinternal functions to be able to pass type errors
+-	// to the Pass type without modifying the go/analysis API.
+-	analysisinternal.SetTypeErrors = func(p interface{}, errors []types.Error) {
+-		p.(*Pass).typeErrors = errors
+-	}
+-	analysisinternal.GetTypeErrors = func(p interface{}) []types.Error {
+-		return p.(*Pass).typeErrors
+-	}
+-}
+-
+ // A Pass provides information to the Run function that
+ // applies a specific analyzer to a single Go package.
+ //
+@@ -106,6 +94,7 @@ type Pass struct {
+ 	Pkg          *types.Package // type information about the package
+ 	TypesInfo    *types.Info    // type information about the syntax trees
+ 	TypesSizes   types.Sizes    // function for computing sizes of types
++	TypeErrors   []types.Error  // type errors (only if Analyzer.RunDespiteErrors)
+ 
+ 	// Report reports a Diagnostic, a finding about a specific location
+ 	// in the analyzed source code such as a potential mistake.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 2c49e33589..b5a301c205 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -297,7 +297,7 @@ singlechecker and multichecker subpackages.
+ 
+ The singlechecker package provides the main function for a command that
+ runs one analyzer. By convention, each analyzer such as
+-go/passes/findcall should be accompanied by a singlechecker-based
++go/analysis/passes/findcall should be accompanied by a singlechecker-based
+ command such as go/analysis/passes/findcall/cmd/findcall, defined in its
+ entirety as:
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index d9c8f11cdd..6e6907d261 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -340,6 +340,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				Pkg:               pkg,
+ 				TypesInfo:         info,
+ 				TypesSizes:        tc.Sizes,
++				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
+ 				ResultOf:          inputs,
+ 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
+ 				ImportObjectFact:  facts.ImportObjectFact,
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 6fceef5e72..d15f0eb7ab 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package analysisinternal exposes internal-only fields from go/analysis.
++// Package analysisinternal provides gopls' internal analyses with a
++// number of helper functions that operate on typed syntax trees.
+ package analysisinternal
+ 
+ import (
+@@ -18,11 +19,6 @@ import (
+ // in Go 1.18+.
+ var DiagnoseFuzzTests bool = false
+ 
+-var (
+-	GetTypeErrors func(p interface{}) []types.Error
+-	SetTypeErrors func(p interface{}, errors []types.Error)
+-)
+-
+ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
+ 	// Get the end position for the type error.
+ 	offset, end := fset.PositionFor(start, false).Offset, start
+@@ -210,14 +206,6 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+ 	}
+ }
+ 
+-type TypeErrorPass string
+-
+-const (
+-	NoNewVars      TypeErrorPass = "nonewvars"
+-	NoResultValues TypeErrorPass = "noresultvalues"
+-	UndeclaredName TypeErrorPass = "undeclaredname"
+-)
+-
+ // StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
+ // Some examples:
+ //
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index a746c4f1dd..b090daf0ff 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.1.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.3.0
++# golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

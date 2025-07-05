@@ -10,7 +10,93 @@ Date:   Mon Apr 13 19:29:23 2009 -0700
     DELTA=16  (3 added, 3 deleted, 10 changed)
     OCL=27399
     CL=27401
-
+---
  src/lib/template/format.go   | 11 +++++------
  src/lib/template/template.go | 15 ++++++++-------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/template/format.go b/src/lib/template/format.go
+index ee90fed616..1dd9aebdec 100644
+--- a/src/lib/template/format.go
++++ b/src/lib/template/format.go
+@@ -8,21 +8,20 @@ package template
+ 
+ import (
+ 	"fmt";
++	"io";
+ 	"reflect";
+ )
+ 
+ // HtmlFormatter formats arbitrary values for HTML
+ // TODO: do something for real.
+-func HtmlFormatter(v reflect.Value) string {
+-	s := fmt.Sprint(reflect.Indirect(v).Interface());
+-	return s;
++func HtmlFormatter(w io.Write, value interface{}, format string) {
++	fmt.Fprint(w, value);
+ }
+ 
+ // StringFormatter formats returns the default string representation.
+ // It is stored under the name "str" and is the default formatter.
+ // You can override the default formatter by storing your default
+ // under the name "" in your custom formatter map.
+-func StringFormatter(v reflect.Value) string {
+-	s := fmt.Sprint(reflect.Indirect(v).Interface());
+-	return s;
++func StringFormatter(w io.Write, value interface{}, format string) {
++	fmt.Fprint(w, value);
+ }
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index a40a8b86ca..274d9bf886 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -48,8 +48,7 @@ const (
+ 
+ // FormatterMap is the type describing the mapping from formatter
+ // names to the functions that implement them.
+-// TODO(rsc): Maybe func should take interface{} instead?
+-type FormatterMap map[string] func(reflect.Value) string
++type FormatterMap map[string] func(io.Write, interface{}, string)
+ 
+ // Built-in formatters.
+ var builtins = FormatterMap {
+@@ -437,7 +436,7 @@ func (t *template) varValue(name string) reflect.Value {
+ 
+ // Evalute a variable, looking up through the parent if necessary.
+ // If it has a formatter attached ({var|formatter}) run that too.
+-func (t *template) evalVariable(name_formatter string) string {
++func (t *template) writeVariable(w io.Write, name_formatter string) {
+ 	name := name_formatter;
+ 	formatter := "";
+ 	bar := strings.Index(name_formatter, "|");
+@@ -445,16 +444,18 @@ func (t *template) evalVariable(name_formatter string) string {
+ 		name = name_formatter[0:bar];
+ 		formatter = name_formatter[bar+1:len(name_formatter)];
+ 	}
+-	val := t.varValue(name);
++	val := t.varValue(name).Interface();
+ 	// is it in user-supplied map?
+ 	if t.fmap != nil {
+ 		if fn, ok := t.fmap[formatter]; ok {
+-			return fn(val)
++			fn(w, val, formatter);
++			return;
+ 		}
+ 	}
+ 	// is it in builtin map?
+ 	if fn, ok := builtins[formatter]; ok {
+-		return fn(val)
++		fn(w, val, formatter);
++		return;
+ 	}
+ 	t.error(ErrNoFormatter, ": ", formatter);
+ 	panic("notreached");
+@@ -484,7 +485,7 @@ func (t *template) execute() {
+ 				panic("unknown literal: ", w[0]);
+ 			}
+ 		case Variable:
+-			t.wr.Write(io.StringBytes(t.evalVariable(w[0])));
++			t.writeVariable(t.wr, w[0]);
+ 		case Or, End, Alternates:
+ 			t.error(ErrSyntax, ": ", string(item));
+ 		case Section:

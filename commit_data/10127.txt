@@ -7,7 +7,102 @@ Date:   Thu Oct 27 12:22:06 2011 -0700
     R=iant
     CC=golang-dev, gri
     https://golang.org/cl/5327048
-
+---
  src/pkg/go/parser/parser.go      | 10 ++++++++-
  src/pkg/go/parser/parser_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c78c6b56ec..e2c9441372 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -434,7 +434,9 @@ func (p *parser) parseLhsList() []ast.Expr {
+ 	switch p.tok {
+ 	case token.DEFINE:
+ 		// lhs of a short variable declaration
+-		p.shortVarDecl(p.makeIdentList(list))
++		// but doesn't enter scope until later:
++		// caller must call p.shortVarDecl(p.makeIdentList(list))
++		// at appropriate time.
+ 	case token.COLON:
+ 		// lhs of a label declaration or a communication clause of a select
+ 		// statement (parseLhsList is not called when parsing the case clause
+@@ -1398,6 +1400,9 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
+ 		} else {
+ 			y = p.parseRhsList()
+ 		}
++		if tok == token.DEFINE {
++			p.shortVarDecl(p.makeIdentList(x))
++		}
+ 		return &ast.AssignStmt{x, pos, tok, y}, isRange
+ 	}
+ 
+@@ -1722,6 +1727,9 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 				}
+ 				p.next()
+ 				rhs = p.parseRhs()
++				if tok == token.DEFINE && lhs != nil {
++					p.shortVarDecl(p.makeIdentList(lhs))
++				}
+ 			} else {
+ 				// rhs must be single receive operation
+ 				if len(lhs) > 1 {
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 9705dcff25..dee90fbcf4 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,6 +5,7 @@
+ package parser
+ 
+ import (
++	"go/ast"
+ 	"go/token"
+ 	"os"
+ 	"testing"
+@@ -134,3 +135,46 @@ func TestParse4(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestColonEqualsScope(t *testing.T) {
++	f, err := ParseFile(fset, "", `package p; func f() { x, y, z := x, y, z }`, 0)
++	if err != nil {
++		t.Errorf("parse: %s", err)
++	}
++
++	// RHS refers to undefined globals; LHS does not.
++	as := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.AssignStmt)
++	for _, v := range as.Rhs {
++		id := v.(*ast.Ident)
++		if id.Obj != nil {
++			t.Errorf("rhs %s has Obj, should not", id.Name)
++		}
++	}
++	for _, v := range as.Lhs {
++		id := v.(*ast.Ident)
++		if id.Obj == nil {
++			t.Errorf("lhs %s does not have Obj, should", id.Name)
++		}
++	}
++}
++
++func TestVarScope(t *testing.T) {
++	f, err := ParseFile(fset, "", `package p; func f() { var x, y, z = x, y, z }`, 0)
++	if err != nil {
++		t.Errorf("parse: %s", err)
++	}
++
++	// RHS refers to undefined globals; LHS does not.
++	as := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.DeclStmt).Decl.(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
++	for _, v := range as.Values {
++		id := v.(*ast.Ident)
++		if id.Obj != nil {
++			t.Errorf("rhs %s has Obj, should not", id.Name)
++		}
++	}
++	for _, id := range as.Names {
++		if id.Obj == nil {
++			t.Errorf("lhs %s does not have Obj, should", id.Name)
++		}
++	}
++}

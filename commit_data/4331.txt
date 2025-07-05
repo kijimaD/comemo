@@ -6,7 +6,46 @@ Date:   Fri Dec 4 20:37:32 2009 -0800
     
     R=ken2
     https://golang.org/cl/166070
-
+---
  src/cmd/6g/reg.c | 8 ++++----
  src/cmd/8g/reg.c | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index fde26772d1..f406335f4e 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1549,10 +1549,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", "sys");
+-		symlist[1] = pkglookup("throwslice", "sys");
+-		symlist[2] = pkglookup("throwinit", "sys");
+-		symlist[3] = pkglookup("panicl", "sys");
++		symlist[0] = pkglookup("throwindex", "runtime");
++		symlist[1] = pkglookup("throwslice", "runtime");
++		symlist[2] = pkglookup("throwinit", "runtime");
++		symlist[3] = pkglookup("panicl", "runtime");
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 82736c087e..4d39f57b6d 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1438,10 +1438,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", "sys");
+-		symlist[1] = pkglookup("throwslice", "sys");
+-		symlist[2] = pkglookup("throwinit", "sys");
+-		symlist[3] = pkglookup("panicl", "sys");
++		symlist[0] = pkglookup("throwindex", "runtime");
++		symlist[1] = pkglookup("throwslice", "runtime");
++		symlist[2] = pkglookup("throwinit", "runtime");
++		symlist[3] = pkglookup("panicl", "runtime");
+ 	}
+ 
+ 	s = p->to.sym;

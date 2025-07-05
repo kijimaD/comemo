@@ -16,7 +16,7 @@ Date:   Wed Oct 5 15:29:29 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go        | 12 +---
  src/cmd/compile/internal/test/inl_test.go     | 12 ++--
  src/runtime/internal/sys/intrinsics.go        | 93 ++++++++++++++++-----------
@@ -30,3 +30,513 @@ Date:   Wed Oct 5 15:29:29 2022 +0800
  src/runtime/stack.go                          |  2 +-
  test/intrinsic.dir/main.go                    | 24 +++----
  12 files changed, 114 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 77307f4c2d..871530d7d5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4003,16 +4003,6 @@ func InitTables() {
+ 		sys.ARM64, sys.PPC64)
+ 
+ 	/******** runtime/internal/sys ********/
+-	addF("runtime/internal/sys", "Ctz32",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
+-		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+-	addF("runtime/internal/sys", "Ctz64",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
+-		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("runtime/internal/sys", "Bswap32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+@@ -4750,8 +4740,8 @@ func InitTables() {
+ 		sys.AMD64)
+ 	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
+ 
+-	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
+ 	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
++	alias("runtime/internal/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
+ 	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
+ 	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
+ 	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 285052c0da..c73f49eeb7 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -212,19 +212,19 @@ func TestIntendedInlining(t *testing.T) {
+ 	}
+ 
+ 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
+-		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
++		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
+ 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
+-		// On loong64, mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
+-		// to inline (Issue 22239).
++		// On loong64, mips64x and riscv64, TrailingZeros64 is not intrinsified and causes nextFreeFast
++		// too expensive to inline (Issue 22239).
+ 		want["runtime"] = append(want["runtime"], "nextFreeFast")
+ 		// Same behavior for heapBits.nextFast.
+ 		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
+ 	}
+ 	if runtime.GOARCH != "386" {
+-		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
++		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
+ 		// The same applies to Bswap32.
+-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz64")
+-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
++		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
++		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
+ 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+ 	}
+ 	if bits.UintSize == 64 {
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index 5af49011e9..902d893178 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -5,56 +5,75 @@
+ //go:build !386
+ 
+ // TODO finish intrinsifying 386, deadcode the assembly, remove build tags, merge w/ intrinsics_common
+-// TODO replace all uses of CtzXX with TrailingZerosXX; they are the same.
+ 
+ package sys
+ 
+-// Using techniques from http://supertech.csail.mit.edu/papers/debruijn.pdf
++// Copied from math/bits to avoid dependence.
+ 
+-const deBruijn64ctz = 0x0218a392cd3d5dbf
+-
+-var deBruijnIdx64ctz = [64]byte{
+-	0, 1, 2, 7, 3, 13, 8, 19,
+-	4, 25, 14, 28, 9, 34, 20, 40,
+-	5, 17, 26, 38, 15, 46, 29, 48,
+-	10, 31, 35, 54, 21, 50, 41, 57,
+-	63, 6, 12, 18, 24, 27, 33, 39,
+-	16, 37, 45, 47, 30, 53, 49, 56,
+-	62, 11, 23, 32, 36, 44, 52, 55,
+-	61, 22, 43, 51, 60, 42, 59, 58,
++var deBruijn32tab = [32]byte{
++	0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
++	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
+ }
+ 
+-const deBruijn32ctz = 0x04653adf
++const deBruijn32 = 0x077CB531
+ 
+-var deBruijnIdx32ctz = [32]byte{
+-	0, 1, 2, 6, 3, 11, 7, 16,
+-	4, 14, 12, 21, 8, 23, 17, 26,
+-	31, 5, 10, 15, 13, 20, 22, 25,
+-	30, 9, 19, 24, 29, 18, 28, 27,
++var deBruijn64tab = [64]byte{
++	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
++	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
++	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
++	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+ }
+ 
+-// Ctz64 counts trailing (low-order) zeroes,
+-// and if all are zero, then 64.
+-func Ctz64(x uint64) int {
+-	x &= -x                       // isolate low-order bit
+-	y := x * deBruijn64ctz >> 58  // extract part of deBruijn sequence
+-	i := int(deBruijnIdx64ctz[y]) // convert to bit index
+-	z := int((x - 1) >> 57 & 64)  // adjustment if zero
+-	return i + z
++const deBruijn64 = 0x03f79d71b4ca8b09
++
++const ntz8tab = "" +
++	"\x08\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x06\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x07\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x06\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
++	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00"
++
++// TrailingZeros32 returns the number of trailing zero bits in x; the result is 32 for x == 0.
++func TrailingZeros32(x uint32) int {
++	if x == 0 {
++		return 32
++	}
++	// see comment in TrailingZeros64
++	return int(deBruijn32tab[(x&-x)*deBruijn32>>(32-5)])
+ }
+ 
+-// Ctz32 counts trailing (low-order) zeroes,
+-// and if all are zero, then 32.
+-func Ctz32(x uint32) int {
+-	x &= -x                       // isolate low-order bit
+-	y := x * deBruijn32ctz >> 27  // extract part of deBruijn sequence
+-	i := int(deBruijnIdx32ctz[y]) // convert to bit index
+-	z := int((x - 1) >> 26 & 32)  // adjustment if zero
+-	return i + z
++// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
++func TrailingZeros64(x uint64) int {
++	if x == 0 {
++		return 64
++	}
++	// If popcount is fast, replace code below with return popcount(^x & (x - 1)).
++	//
++	// x & -x leaves only the right-most bit set in the word. Let k be the
++	// index of that bit. Since only a single bit is set, the value is two
++	// to the power of k. Multiplying by a power of two is equivalent to
++	// left shifting, in this case by k bits. The de Bruijn (64 bit) constant
++	// is such that all six bit, consecutive substrings are distinct.
++	// Therefore, if we have a left shifted version of this constant we can
++	// find by how many bits it was shifted by looking at which six bit
++	// substring ended up at the top of the word.
++	// (Knuth, volume 4, section 7.3.1)
++	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
+ }
+ 
+-// Ctz8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
+-func Ctz8(x uint8) int {
++// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
++func TrailingZeros8(x uint8) int {
+ 	return int(ntz8tab[x])
+ }
+ 
+diff --git a/src/runtime/internal/sys/intrinsics_386.s b/src/runtime/internal/sys/intrinsics_386.s
+index 784b246a01..f33ade0a3a 100644
+--- a/src/runtime/internal/sys/intrinsics_386.s
++++ b/src/runtime/internal/sys/intrinsics_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime∕internal∕sys·Ctz64(SB), NOSPLIT, $0-12
++TEXT runtime∕internal∕sys·TrailingZeros64(SB), NOSPLIT, $0-12
+ 	// Try low 32 bits.
+ 	MOVL	x_lo+0(FP), AX
+ 	BSFL	AX, AX
+@@ -26,7 +26,7 @@ none:
+ 	MOVL	$64, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
++TEXT runtime∕internal∕sys·TrailingZeros32(SB), NOSPLIT, $0-8
+ 	MOVL	x+0(FP), AX
+ 	BSFL	AX, AX
+ 	JNZ	2(PC)
+@@ -34,7 +34,7 @@ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕sys·Ctz8(SB), NOSPLIT, $0-8
++TEXT runtime∕internal∕sys·TrailingZeros8(SB), NOSPLIT, $0-8
+ 	MOVBLZX	x+0(FP), AX
+ 	BSFL	AX, AX
+ 	JNZ	2(PC)
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+index 7d7af20906..709ec23f9d 100644
+--- a/src/runtime/internal/sys/intrinsics_common.go
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -6,43 +6,23 @@ package sys
+ 
+ // Copied from math/bits to avoid dependence.
+ 
+-var len8tab = [256]uint8{
+-	0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+-	0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+-	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+-	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+-	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+-	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+-	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+-	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+-}
+-
+-var ntz8tab = [256]uint8{
+-	0x08, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x07, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-}
++const len8tab = "" +
++	"\x00\x01\x02\x02\x03\x03\x03\x03\x04\x04\x04\x04\x04\x04\x04\x04" +
++	"\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05" +
++	"\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06" +
++	"\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06\x06" +
++	"\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07" +
++	"\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07" +
++	"\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07" +
++	"\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
++	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08"
+ 
+ // len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+ //
+@@ -102,45 +82,12 @@ func OnesCount64(x uint64) int {
+ 	return int(x) & (1<<7 - 1)
+ }
+ 
+-var deBruijn64tab = [64]byte{
+-	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
+-	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
+-	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
+-	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+-}
+-
+-const deBruijn64 = 0x03f79d71b4ca8b09
+-
+-// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
+-func TrailingZeros64(x uint64) int {
+-	if x == 0 {
+-		return 64
+-	}
+-	// If popcount is fast, replace code below with return popcount(^x & (x - 1)).
+-	//
+-	// x & -x leaves only the right-most bit set in the word. Let k be the
+-	// index of that bit. Since only a single bit is set, the value is two
+-	// to the power of k. Multiplying by a power of two is equivalent to
+-	// left shifting, in this case by k bits. The de Bruijn (64 bit) constant
+-	// is such that all six bit, consecutive substrings are distinct.
+-	// Therefore, if we have a left shifted version of this constant we can
+-	// find by how many bits it was shifted by looking at which six bit
+-	// substring ended up at the top of the word.
+-	// (Knuth, volume 4, section 7.3.1)
+-	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
+-}
+-
+ // LeadingZeros64 returns the number of leading zero bits in x; the result is 64 for x == 0.
+ func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
+ 
+ // LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
+ func LeadingZeros8(x uint8) int { return 8 - Len8(x) }
+ 
+-// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
+-func TrailingZeros8(x uint8) int {
+-	return int(ntz8tab[x])
+-}
+-
+ // Len8 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+ func Len8(x uint8) int {
+ 	return int(len8tab[x])
+diff --git a/src/runtime/internal/sys/intrinsics_stubs.go b/src/runtime/internal/sys/intrinsics_stubs.go
+index a020652f76..66cfcded40 100644
+--- a/src/runtime/internal/sys/intrinsics_stubs.go
++++ b/src/runtime/internal/sys/intrinsics_stubs.go
+@@ -6,8 +6,8 @@
+ 
+ package sys
+ 
+-func Ctz64(x uint64) int
+-func Ctz32(x uint32) int
+-func Ctz8(x uint8) int
++func TrailingZeros64(x uint64) int
++func TrailingZeros32(x uint32) int
++func TrailingZeros8(x uint8) int
+ func Bswap64(x uint64) uint64
+ func Bswap32(x uint32) uint32
+diff --git a/src/runtime/internal/sys/intrinsics_test.go b/src/runtime/internal/sys/intrinsics_test.go
+index 0444183e9d..bf75f19848 100644
+--- a/src/runtime/internal/sys/intrinsics_test.go
++++ b/src/runtime/internal/sys/intrinsics_test.go
+@@ -5,19 +5,19 @@ import (
+ 	"testing"
+ )
+ 
+-func TestCtz64(t *testing.T) {
++func TestTrailingZeros64(t *testing.T) {
+ 	for i := 0; i <= 64; i++ {
+ 		x := uint64(5) << uint(i)
+-		if got := sys.Ctz64(x); got != i {
+-			t.Errorf("Ctz64(%d)=%d, want %d", x, got, i)
++		if got := sys.TrailingZeros64(x); got != i {
++			t.Errorf("TrailingZeros64(%d)=%d, want %d", x, got, i)
+ 		}
+ 	}
+ }
+-func TestCtz32(t *testing.T) {
++func TestTrailingZeros32(t *testing.T) {
+ 	for i := 0; i <= 32; i++ {
+ 		x := uint32(5) << uint(i)
+-		if got := sys.Ctz32(x); got != i {
+-			t.Errorf("Ctz32(%d)=%d, want %d", x, got, i)
++		if got := sys.TrailingZeros32(x); got != i {
++			t.Errorf("TrailingZeros32(%d)=%d, want %d", x, got, i)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index cece04eeca..70a13d0576 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -816,7 +816,7 @@ var zerobase uintptr
+ // nextFreeFast returns the next free object if one is quickly available.
+ // Otherwise it returns 0.
+ func nextFreeFast(s *mspan) gclinkptr {
+-	theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
++	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
+ 	if theBit < 64 {
+ 		result := s.freeindex + uintptr(theBit)
+ 		if result < s.nelems {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 8a4a61c27d..7cc22309f1 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -147,7 +147,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 
+ 	aCache := s.allocCache
+ 
+-	bitIndex := sys.Ctz64(aCache)
++	bitIndex := sys.TrailingZeros64(aCache)
+ 	for bitIndex == 64 {
+ 		// Move index to start of next cached bits.
+ 		sfreeindex = (sfreeindex + 64) &^ (64 - 1)
+@@ -159,7 +159,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 		// Refill s.allocCache with the next 64 alloc bits.
+ 		s.refillAllocCache(whichByte)
+ 		aCache = s.allocCache
+-		bitIndex = sys.Ctz64(aCache)
++		bitIndex = sys.TrailingZeros64(aCache)
+ 		// nothing available in cached bits
+ 		// grab the next 8 bytes and try again.
+ 	}
+@@ -452,9 +452,9 @@ func (h heapBits) next() (heapBits, uintptr) {
+ 		if h.mask != 0 {
+ 			var i int
+ 			if goarch.PtrSize == 8 {
+-				i = sys.Ctz64(uint64(h.mask))
++				i = sys.TrailingZeros64(uint64(h.mask))
+ 			} else {
+-				i = sys.Ctz32(uint32(h.mask))
++				i = sys.TrailingZeros32(uint32(h.mask))
+ 			}
+ 			h.mask ^= uintptr(1) << (i & (ptrBits - 1))
+ 			return h, h.addr + uintptr(i)*goarch.PtrSize
+@@ -494,9 +494,9 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
+ 	// BSFQ
+ 	var i int
+ 	if goarch.PtrSize == 8 {
+-		i = sys.Ctz64(uint64(h.mask))
++		i = sys.TrailingZeros64(uint64(h.mask))
+ 	} else {
+-		i = sys.Ctz32(uint32(h.mask))
++		i = sys.TrailingZeros32(uint32(h.mask))
+ 	}
+ 	// BTCQ
+ 	h.mask ^= uintptr(1) << (i & (ptrBits - 1))
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 134d14f1a0..459dc8891e 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -225,9 +225,9 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 		var shift uintptr
+ 		if goarch.PtrSize == 8 {
+ 			// Mask shift for better code generation.
+-			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
++			shift = uintptr(sys.TrailingZeros64(uint64(et.size))) & 63
+ 		} else {
+-			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
++			shift = uintptr(sys.TrailingZeros32(uint32(et.size))) & 31
+ 		}
+ 		lenmem = uintptr(oldLen) << shift
+ 		newlenmem = uintptr(newLen) << shift
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 10c45045d9..87d8e519bd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -617,7 +617,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f
+ 		}
+ 		b := *(addb(bv.bytedata, i/8))
+ 		for b != 0 {
+-			j := uintptr(sys.Ctz8(b))
++			j := uintptr(sys.TrailingZeros8(b))
+ 			b &= b - 1
+ 			pp := (*uintptr)(add(scanp, (i+j)*goarch.PtrSize))
+ 		retry:
+diff --git a/test/intrinsic.dir/main.go b/test/intrinsic.dir/main.go
+index 4340dd4b11..951aa159d6 100644
+--- a/test/intrinsic.dir/main.go
++++ b/test/intrinsic.dir/main.go
+@@ -23,26 +23,26 @@ func logf(f string, args ...interface{}) {
+ }
+ 
+ func test(i int, x uint64) {
+-	t := T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
++	t := T.TrailingZeros64(x) // ERROR "intrinsic substitution for TrailingZeros64"
+ 	if i != t {
+-		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
++		logf("TrailingZeros64(0x%x) expected %d but got %d\n", x, i, t)
+ 	}
+ 	x = -x
+-	t = T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
++	t = T.TrailingZeros64(x) // ERROR "intrinsic substitution for TrailingZeros64"
+ 	if i != t {
+-		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
++		logf("TrailingZeros64(0x%x) expected %d but got %d\n", x, i, t)
+ 	}
+ 
+ 	if i <= 32 {
+ 		x32 := uint32(x)
+-		t32 := T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
++		t32 := T.TrailingZeros32(x32) // ERROR "intrinsic substitution for TrailingZeros32"
+ 		if i != t32 {
+-			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
++			logf("TrailingZeros32(0x%x) expected %d but got %d\n", x32, i, t32)
+ 		}
+ 		x32 = -x32
+-		t32 = T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
++		t32 = T.TrailingZeros32(x32) // ERROR "intrinsic substitution for TrailingZeros32"
+ 		if i != t32 {
+-			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
++			logf("TrailingZeros32(0x%x) expected %d but got %d\n", x32, i, t32)
+ 		}
+ 	}
+ }
+@@ -76,11 +76,11 @@ func main() {
+ 	}
+ 
+ 	// Zero is a special case, be sure it is done right.
+-	if T.Ctz32(0) != 32 { // ERROR "intrinsic substitution for Ctz32"
+-		logf("ctz32(0) != 32")
++	if T.TrailingZeros32(0) != 32 { // ERROR "intrinsic substitution for TrailingZeros32"
++		logf("TrailingZeros32(0) != 32")
+ 	}
+-	if T.Ctz64(0) != 64 { // ERROR "intrinsic substitution for Ctz64"
+-		logf("ctz64(0) != 64")
++	if T.TrailingZeros64(0) != 64 { // ERROR "intrinsic substitution for TrailingZeros64"
++		logf("TrailingZeros64(0) != 64")
+ 	}
+ 
+ 	for i := 0; i <= 64; i++ {

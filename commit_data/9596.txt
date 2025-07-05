@@ -7,7 +7,7 @@ Date:   Mon Sep 5 07:48:42 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev, mike.rosset
     https://golang.org/cl/4950062
-
+---
  src/cmd/godoc/snippet.go            | 0
  src/pkg/big/int.go                  | 0
  src/pkg/big/int_test.go             | 0
@@ -17,3 +17,28 @@ Date:   Mon Sep 5 07:48:42 2011 -0400
  src/pkg/math/atan2_decl.go          | 0
  test/hashmap.go                     | 0
  8 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/crypto/rand/rand_windows.go b/src/pkg/crypto/rand/rand_windows.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/math/atan2_decl.go b/src/pkg/math/atan2_decl.go
+old mode 100755
+new mode 100644
+diff --git a/test/hashmap.go b/test/hashmap.go
+old mode 100755
+new mode 100644

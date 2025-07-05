@@ -9,7 +9,64 @@ Date:   Sat Aug 11 21:06:40 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6458115
-
+---
  src/pkg/go/parser/interface.go |  9 +++++++++
  src/pkg/go/parser/parser.go    | 13 +++++++++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 5c203a7846..4a84a97ae7 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -90,6 +90,15 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ 	var p parser
+ 	p.init(fset, filename, text, mode)
+ 	f := p.parseFile()
++	if f == nil {
++		// source is not a valid Go source file - satisfy
++		// ParseFile API and return a valid (but) empty
++		// *ast.File
++		f = &ast.File{
++			Name:  new(ast.Ident),
++			Scope: ast.NewScope(nil),
++		}
++	}
+ 
+ 	// sort errors
+ 	if p.mode&SpuriousErrors == 0 {
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 80f4b5a7a2..d35a9410a6 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2285,6 +2285,12 @@ func (p *parser) parseFile() *ast.File {
+ 		defer un(trace(p, "File"))
+ 	}
+ 
++	// Don't bother parsing the rest if we had errors scanning the first token.
++	// Likely not a Go source file at all.
++	if p.errors.Len() != 0 {
++		return nil
++	}
++
+ 	// package clause
+ 	doc := p.leadComment
+ 	pos := p.expect(token.PACKAGE)
+@@ -2296,13 +2302,16 @@ func (p *parser) parseFile() *ast.File {
+ 	}
+ 	p.expectSemi()
+ 
+-	// Don't bother parsing the rest if we had errors already.
++	// Don't bother parsing the rest if we had errors parsing the package clause.
+ 	// Likely not a Go source file at all.
++	if p.errors.Len() != 0 {
++		return nil
++	}
+ 
+ 	p.openScope()
+ 	p.pkgScope = p.topScope
+ 	var decls []ast.Decl
+-	if p.errors.Len() == 0 && p.mode&PackageClauseOnly == 0 {
++	if p.mode&PackageClauseOnly == 0 {
+ 		// import decls
+ 		for p.tok == token.IMPORT {
+ 			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))

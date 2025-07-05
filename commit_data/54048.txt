@@ -15,6 +15,28 @@ Date:   Fri Sep 2 14:48:28 2022 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/readrequest_test.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index a6a12a0ddd..ba5cf4a261 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -455,12 +455,10 @@ Host: foo
+ Content-Length: 5`)},
+ 
+ 	// golang.org/issue/22464
+-	{"leading_space_in_header", reqBytes(`HEAD / HTTP/1.1
+- Host: foo
+-Content-Length: 5`)},
+-	{"leading_tab_in_header", reqBytes(`HEAD / HTTP/1.1
+-\tHost: foo
+-Content-Length: 5`)},
++	{"leading_space_in_header", reqBytes(`GET / HTTP/1.1
++ Host: foo`)},
++	{"leading_tab_in_header", reqBytes(`GET / HTTP/1.1
++` + "\t" + `Host: foo`)},
+ }
+ 
+ func TestReadRequest_Bad(t *testing.T) {

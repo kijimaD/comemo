@@ -11,7 +11,38 @@ Date:   Mon Apr 16 09:41:05 2018 +1000
     Change-Id: I7d9abbb0324314e02a37813c2d2f6adb0d6af5e7
     Reviewed-on: https://go-review.googlesource.com/107375
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/dead.go              | 2 +-
  src/cmd/vet/testdata/deadcode.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/dead.go b/src/cmd/vet/dead.go
+index 130f619626..0facec5525 100644
+--- a/src/cmd/vet/dead.go
++++ b/src/cmd/vet/dead.go
+@@ -45,7 +45,7 @@ func (f *File) updateDead(node ast.Node) {
+ 				}
+ 				for _, expr := range cc.List {
+ 					v := f.pkg.types[expr].Value
+-					if v == nil || constant.BoolVal(v) {
++					if v == nil || v.Kind() != constant.Bool || constant.BoolVal(v) {
+ 						continue BodyLoopBool
+ 					}
+ 				}
+diff --git a/src/cmd/vet/testdata/deadcode.go b/src/cmd/vet/testdata/deadcode.go
+index 5370bc32f6..d1a7adee38 100644
+--- a/src/cmd/vet/testdata/deadcode.go
++++ b/src/cmd/vet/testdata/deadcode.go
+@@ -2123,3 +2123,12 @@ var _ = func() {
+ 	// goto without label used to panic
+ 	goto
+ }
++
++func _() int {
++	// Empty switch tag with non-bool case value used to panic.
++	switch {
++	case 1:
++		println()
++	}
++	println()
++}

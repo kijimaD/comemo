@@ -20,7 +20,7 @@ Date:   Sun Sep 7 23:40:59 2014 -0400
     R=golang-codereviews, alex.brainman
     CC=aram, golang-codereviews, iant, khr, r
     https://golang.org/cl/136300043
-
+---
  src/pkg/runtime/os_plan9.c          | 13 -------------
  src/pkg/runtime/os_solaris.c        | 13 -------------
  src/pkg/runtime/os_windows.c        | 23 +++++++----------------
@@ -31,3 +31,239 @@ Date:   Sun Sep 7 23:40:59 2014 -0400
  src/pkg/runtime/sys_windows_386.s   | 13 +++++++++++++
  src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++++++++
  9 files changed, 95 insertions(+), 43 deletions(-)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index f824710793..853f3ef7a1 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -160,19 +160,6 @@ runtime·nanotime(void)
+ 	return ns;
+ }
+ 
+-#pragma textflag NOSPLIT
+-void
+-time·now(int64 sec, int32 nsec)
+-{
+-	int64 ns;
+-
+-	ns = runtime·nanotime();
+-	sec = ns / 1000000000LL;
+-	nsec = ns - sec * 1000000000LL;
+-	FLUSH(&sec);
+-	FLUSH(&nsec);
+-}
+-
+ #pragma textflag NOSPLIT
+ void
+ runtime·itoa(int32 n, byte *p, uint32 len)
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index c6c2a8a7a1..e35d2b9971 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -436,19 +436,6 @@ runtime·nanotime(void)
+ 	return runtime·sysvicall0((uintptr)runtime·nanotime1);
+ }
+ 
+-#pragma textflag NOSPLIT
+-void
+-time·now(int64 sec, int32 usec)
+-{
+-	int64 ns;
+-
+-	ns = runtime·nanotime();
+-	sec = ns / 1000000000LL;
+-	usec = ns - sec * 1000000000LL;
+-	FLUSH(&sec);
+-	FLUSH(&usec);
+-}
+-
+ #pragma textflag NOSPLIT
+ int32
+ runtime·open(int8* path, int32 oflag, int32 mode)
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index d7f7a5a3b4..a4d77f6b75 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -301,6 +301,13 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
+ 	return 0;
+ }
+ 
++#pragma textflag NOSPLIT
++int64
++runtime·unixnano(void)
++{
++	return (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
++}
++
+ static void
+ badsystime(void)
+ {
+@@ -314,22 +321,6 @@ runtime·nanotime(void)
+ 	return runtime·systime(INTERRUPT_TIME) * 100LL;
+ }
+ 
+-#pragma textflag NOSPLIT
+-void
+-time·now(int64 sec, int32 usec)
+-{
+-	int64 ns;
+-
+-	// SystemTime is 100s of nanoseconds since January 1, 1601.
+-	// Convert to nanoseconds since January 1, 1970.
+-	ns = (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
+-
+-	sec = ns / 1000000000LL;
+-	usec = ns - sec * 1000000000LL;
+-	FLUSH(&sec);
+-	FLUSH(&usec);
+-}
+-
+ // Calling stdcall on os stack.
+ #pragma textflag NOSPLIT
+ static void*
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 2f98bfb06c..bd397d72a7 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -158,7 +158,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8
++TEXT time·now(SB),NOSPLIT,$0-12
+ 	CALL	nanotime<>(SB)
+ 
+ 	// generated code for
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index dfa09613e4..7432981813 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -101,6 +101,19 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
+ 	MOVL	$-1, ret_hi+8(FP)
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$8-12
++	CALL	runtime·nanotime(SB)
++	MOVL	0(SP), AX
++	MOVL	4(SP), DX
++
++	MOVL	$1000000000, CX
++	DIVL	CX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	MOVL	DX, nsec+8(FP)
++	RET
++
+ TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVL	$28, AX
+ 	INT	$64
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 08ddc3ffa8..954c0c27bb 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -91,6 +91,26 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$8-12
++	CALL	runtime·nanotime(SB)
++	MOVQ	0(SP), AX
++
++	// generated code for
++	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
++	// adapted to reduce duplication
++	MOVQ	AX, CX
++	MOVQ	$1360296554856532783, AX
++	MULQ	CX
++	ADDQ	CX, DX
++	RCRQ	$1, DX
++	SHRQ	$29, DX
++	MOVQ	DX, sec+0(FP)
++	IMULQ	$1000000000, DX
++	SUBQ	DX, CX
++	MOVL	CX, nsec+8(FP)
++	RET
++
+ TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVQ	$28, BP
+ 	SYSCALL
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index 2055d6c80b..093315c4a4 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -327,3 +327,23 @@ TEXT runtime·osyield1(SB),NOSPLIT,$0
+ 	MOVQ	libc·sched_yield(SB), AX
+ 	CALL	AX
+ 	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$8-12
++	CALL	runtime·nanotime(SB)
++	MOVQ	0(SP), AX
++
++	// generated code for
++	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
++	// adapted to reduce duplication
++	MOVQ	AX, CX
++	MOVQ	$1360296554856532783, AX
++	MULQ	CX
++	ADDQ	CX, DX
++	RCRQ	$1, DX
++	SHRQ	$29, DX
++	MOVQ	DX, sec+0(FP)
++	IMULQ	$1000000000, DX
++	SUBQ	DX, CX
++	MOVL	CX, nsec+8(FP)
++	RET
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index f4d561feea..a9e096f018 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -365,3 +365,16 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	CALL	AX
+ 	MOVL	BP, SP
+ 	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$8-12
++	CALL	runtime·unixnano(SB)
++	MOVL	0(SP), AX
++	MOVL	4(SP), DX
++
++	MOVL	$1000000000, CX
++	DIVL	CX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	MOVL	DX, nsec+8(FP)
++	RET
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index e5890e04ae..21f73daf09 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -384,3 +384,24 @@ TEXT runtime·usleep2(SB),NOSPLIT,$16
+ 	CALL	AX
+ 	MOVQ	8(SP), SP
+ 	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$8-12
++	CALL	runtime·unixnano(SB)
++	MOVQ	0(SP), AX
++
++	// generated code for
++	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
++	// adapted to reduce duplication
++	MOVQ	AX, CX
++	MOVQ	$1360296554856532783, AX
++	MULQ	CX
++	ADDQ	CX, DX
++	RCRQ	$1, DX
++	SHRQ	$29, DX
++	MOVQ	DX, sec+0(FP)
++	IMULQ	$1000000000, DX
++	SUBQ	DX, CX
++	MOVL	CX, nsec+8(FP)
++	RET
++

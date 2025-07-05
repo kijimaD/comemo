@@ -7,6 +7,11 @@ Date:   Tue Jun 14 17:25:57 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4591078
-
+---
  doc/gopher/appenginelogo.gif | Bin 0 -> 2105 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/appenginelogo.gif b/doc/gopher/appenginelogo.gif
+new file mode 100644
+index 0000000000..46b3c1eeb8
+Binary files /dev/null and b/doc/gopher/appenginelogo.gif differ

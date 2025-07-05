@@ -17,7 +17,7 @@ Date:   Wed Mar 2 15:59:38 2016 -0500
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go     |  2 +-
  src/cmd/link/internal/ld/data.go   |  4 ++--
  src/cmd/link/internal/ld/elf.go    |  8 +++-----
@@ -29,3 +29,270 @@ Date:   Wed Mar 2 15:59:38 2016 -0500
  src/cmd/link/internal/ld/sym.go    | 20 ++++++++------------
  src/cmd/link/internal/ld/symtab.go |  2 +-
  10 files changed, 29 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 321dd243b2..d07756071d 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -97,7 +97,7 @@ func hostArchive(name string) {
+ 	any := true
+ 	for any {
+ 		var load []uint64
+-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++		for _, s := range Ctxt.Allsym {
+ 			for _, r := range s.R {
+ 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
+ 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d5e591a045..d4abe70022 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1006,7 +1006,7 @@ func addinitarrdata(s *LSym) {
+ }
+ 
+ func dosymtype() {
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if len(s.P) > 0 {
+ 			if s.Type == obj.SBSS {
+ 				s.Type = obj.SDATA
+@@ -1145,7 +1145,7 @@ func dodata() {
+ 	var last *LSym
+ 	datap = nil
+ 
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if !s.Reachable || s.Special != 0 {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 6d34978d5a..8dd4df3957 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1361,9 +1361,7 @@ func elfdynhash() {
+ 	buckets := make([]uint32, nbucket)
+ 
+ 	var b int
+-	var hc uint32
+-	var name string
+-	for sy := Ctxt.Allsym; sy != nil; sy = sy.Allsym {
++	for _, sy := range Ctxt.Allsym {
+ 		if sy.Dynid <= 0 {
+ 			continue
+ 		}
+@@ -1372,8 +1370,8 @@ func elfdynhash() {
+ 			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
+ 		}
+ 
+-		name = sy.Extname
+-		hc = elfhash([]byte(name))
++		name := sy.Extname
++		hc := elfhash([]byte(name))
+ 
+ 		b = int(hc % uint32(nbucket))
+ 		chain[sy.Dynid] = buckets[b]
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index b261c4e73a..98e99bcd29 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -449,7 +449,7 @@ func deadcode() {
+ 	if Buildmode == BuildmodeShared {
+ 		// Mark all symbols defined in this library as reachable when
+ 		// building a shared library.
+-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++		for _, s := range Ctxt.Allsym {
+ 			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
+ 				mark(s)
+ 			}
+@@ -471,7 +471,7 @@ func deadcode() {
+ 		markflood()
+ 
+ 		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++		for _, s := range Ctxt.Allsym {
+ 			if strings.HasPrefix(s.Name, "go.typelink.") {
+ 				s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
+ 			}
+@@ -503,7 +503,7 @@ func deadcode() {
+ 		}
+ 	}
+ 
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.weak.") {
+ 			s.Special = 1 // do not lay out in data segment
+ 			s.Reachable = true
+@@ -513,14 +513,13 @@ func deadcode() {
+ 
+ 	// record field tracking references
+ 	var buf bytes.Buffer
+-	var p *LSym
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.track.") {
+ 			s.Special = 1 // do not lay out in data segment
+ 			s.Hidden = true
+ 			if s.Reachable {
+ 				buf.WriteString(s.Name[9:])
+-				for p = s.Reachparent; p != nil; p = p.Reachparent {
++				for p := s.Reachparent; p != nil; p = p.Reachparent {
+ 					buf.WriteString("\t")
+ 					buf.WriteString(p.Name)
+ 				}
+@@ -543,13 +542,11 @@ func deadcode() {
+ }
+ 
+ func doweak() {
+-	var t *LSym
+-
+ 	// resolve weak references only if
+ 	// target symbol will be in binary anyway.
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.weak.") {
+-			t = Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
++			t := Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
+ 			if t != nil && t.Type != 0 && t.Reachable {
+ 				s.Value = t.Value
+ 				s.Type = t.Type
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d14106887b..93467dbfc9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -599,7 +599,7 @@ func loadlib() {
+ 	if Linkmode == LinkInternal {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++		for _, s := range Ctxt.Allsym {
+ 			if s.Type == obj.SHOSTOBJ {
+ 				// If a symbol was marked both
+ 				// cgo_import_static and cgo_import_dynamic,
+@@ -679,7 +679,7 @@ func loadlib() {
+ 		// If we have any undefined symbols in external
+ 		// objects, try to read them from the libgcc file.
+ 		any := false
+-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++		for _, s := range Ctxt.Allsym {
+ 			for _, r := range s.R {
+ 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF && r.Sym.Name != ".got" {
+ 					any = true
+@@ -1904,7 +1904,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
+ 	}
+ 
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if s.Hidden || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index beb142e44f..4b63a80f1f 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -67,7 +67,6 @@ type LSym struct {
+ 	Locals      int32
+ 	Value       int64
+ 	Size        int64
+-	Allsym      *LSym
+ 	Next        *LSym
+ 	Sub         *LSym
+ 	Outer       *LSym
+@@ -142,7 +141,7 @@ type Link struct {
+ 	Windows    int32
+ 	Goroot     string
+ 	Hash       map[symVer]*LSym
+-	Allsym     *LSym
++	Allsym     []*LSym
+ 	Nsymbol    int32
+ 	Tlsg       *LSym
+ 	Libdir     []string
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index d88a414dbf..8add7db8c1 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -652,7 +652,7 @@ func (x machoscmp) Less(i, j int) bool {
+ 
+ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	genasmsym(put)
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
+ 			if s.Reachable {
+ 				put(s, "", 'D', 0, 0, 0, nil)
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 00fbb170b6..407cba4e52 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -487,7 +487,7 @@ func initdynimport() *Dll {
+ 
+ 	dr = nil
+ 	var m *Imp
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if !s.Reachable || s.Type != obj.SDYNIMPORT {
+ 			continue
+ 		}
+@@ -692,7 +692,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
+ 
+ func initdynexport() {
+ 	nexport = 0
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if !s.Reachable || s.Cgoexport&CgoExportDynamic == 0 {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 5f31e59e09..6df4839468 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -57,12 +57,13 @@ var headers = []struct {
+ }
+ 
+ func linknew(arch *LinkArch) *Link {
+-	ctxt := new(Link)
+-	// Preallocate about 2mb for hash
+-	ctxt.Hash = make(map[symVer]*LSym, 100000)
+-	ctxt.Arch = arch
+-	ctxt.Version = obj.HistVersion
+-	ctxt.Goroot = obj.Getgoroot()
++	ctxt := &Link{
++		Hash:    make(map[symVer]*LSym, 100000), // preallocate about 2mb for hash
++		Allsym:  make([]*LSym, 0, 100000),
++		Arch:    arch,
++		Version: obj.HistVersion,
++		Goroot:  obj.Getgoroot(),
++	}
+ 
+ 	p := obj.Getgoarch()
+ 	if p != arch.Name {
+@@ -168,15 +169,10 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s.Plt = -1
+ 	s.Got = -1
+ 	s.Name = symb
+-	s.Type = 0
+ 	s.Version = int16(v)
+-	s.Value = 0
+-	s.Size = 0
+ 	ctxt.Nsymbol++
+ 
+-	s.Allsym = ctxt.Allsym
+-	ctxt.Allsym = s
+-
++	ctxt.Allsym = append(ctxt.Allsym, s)
+ 	return s
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index af22322c4f..17e1aff2ab 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -461,7 +461,7 @@ func symtab() {
+ 	// within a type they sort by size, so the .* symbols
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++	for _, s := range Ctxt.Allsym {
+ 		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
+ 			continue
+ 		}

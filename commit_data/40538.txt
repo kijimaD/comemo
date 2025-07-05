@@ -14,7 +14,126 @@ Date:   Thu May 23 15:43:51 2019 +0000
     GitHub-Pull-Request: golang/go#29328
     Reviewed-on: https://go-review.googlesource.com/c/go/+/154760
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/mediatype.go      | 36 ++++++++++++++++++++++++++++++++----
  src/mime/mediatype_test.go | 25 ++++++++++++++++++++++---
  2 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 05390773a8..56ceb48853 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -19,7 +19,7 @@ import (
+ // FormatMediaType returns the empty string.
+ func FormatMediaType(t string, param map[string]string) string {
+ 	var b strings.Builder
+-	if slash := strings.Index(t, "/"); slash == -1 {
++	if slash := strings.IndexByte(t, '/'); slash == -1 {
+ 		if !isToken(t) {
+ 			return ""
+ 		}
+@@ -48,7 +48,38 @@ func FormatMediaType(t string, param map[string]string) string {
+ 			return ""
+ 		}
+ 		b.WriteString(strings.ToLower(attribute))
++
++		needEnc := needsEncoding(value)
++		if needEnc {
++			// RFC 2231 section 4
++			b.WriteByte('*')
++		}
+ 		b.WriteByte('=')
++
++		if needEnc {
++			b.WriteString("utf-8''")
++
++			offset := 0
++			for index := 0; index < len(value); index++ {
++				ch := value[index]
++				// {RFC 2231 section 7}
++				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
++				if ch <= ' ' || ch >= 0x7F ||
++					ch == '*' || ch == '\'' || ch == '%' ||
++					isTSpecial(rune(ch)) {
++
++					b.WriteString(value[offset:index])
++					offset = index + 1
++
++					b.WriteByte('%')
++					b.WriteByte(upperhex[ch>>4])
++					b.WriteByte(upperhex[ch&0x0F])
++				}
++			}
++			b.WriteString(value[offset:])
++			continue
++		}
++
+ 		if isToken(value) {
+ 			b.WriteString(value)
+ 			continue
+@@ -63,9 +94,6 @@ func FormatMediaType(t string, param map[string]string) string {
+ 				offset = index
+ 				b.WriteByte('\\')
+ 			}
+-			if character&0x80 != 0 {
+-				return ""
+-			}
+ 		}
+ 		b.WriteString(value[offset:])
+ 		b.WriteByte('"')
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 945a8189e1..e91ff38d68 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -6,6 +6,7 @@ package mime
+ 
+ import (
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -481,8 +482,9 @@ var formatTests = []formatTest{
+ 	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
+ 	{"foo bar/baz", nil, ""},
+ 	{"foo/bar baz", nil, ""},
+-	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, ""},
+-	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, ""},
++	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, "attachment; filename*=utf-8''%C4%84%C4%84%C5%BD%C5%BD%C4%8C%C4%8C%C5%A0%C5%A0"},
++	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, "attachment; filename*=utf-8''%C3%81%C3%81%C3%8A%C3%8A%C3%87%C3%87%C3%8E%C3%8E"},
++	{"attachment", map[string]string{"filename": "数据统计.png"}, "attachment; filename*=utf-8''%E6%95%B0%E6%8D%AE%E7%BB%9F%E8%AE%A1.png"},
+ 	{"foo/BAR", nil, "foo/bar"},
+ 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
+ 	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},
+@@ -491,7 +493,8 @@ var formatTests = []formatTest{
+ 	{"foo/BAR", map[string]string{"both": `With \backslash and "quote`}, `foo/bar; both="With \\backslash and \"quote"`},
+ 	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
+ 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
+-	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
++	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, "foo/bar; nonascii*=utf-8''not%20an%20ascii%20character%3A%20%C3%A4"},
++	{"foo/BAR", map[string]string{"ctl": "newline: \n nil: \000"}, "foo/bar; ctl*=utf-8''newline%3A%20%0A%20nil%3A%20%00"},
+ 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+ 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
+ 	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
+@@ -503,5 +506,21 @@ func TestFormatMediaType(t *testing.T) {
+ 		if got != tt.want {
+ 			t.Errorf("%d. FormatMediaType(%q, %v) = %q; want %q", i, tt.typ, tt.params, got, tt.want)
+ 		}
++		if got == "" {
++			continue
++		}
++		typ, params, err := ParseMediaType(got)
++		if err != nil {
++			t.Errorf("%d. ParseMediaType(%q) err: %v", i, got, err)
++		}
++		if typ != strings.ToLower(tt.typ) {
++			t.Errorf("%d. ParseMediaType(%q) typ = %q; want %q", i, got, typ, tt.typ)
++		}
++		for k, v := range tt.params {
++			k = strings.ToLower(k)
++			if params[k] != v {
++				t.Errorf("%d. ParseMediaType(%q) params[%s] = %q; want %q", i, got, k, params[k], v)
++			}
++		}
+ 	}
+ }

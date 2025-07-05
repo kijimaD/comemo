@@ -9,9 +9,90 @@ Date:   Wed Dec 14 17:34:35 2011 +0100
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5372105
-
+---
  src/cmd/gc/fmt.c         | 14 ++++++++------
  test/ddd1.go             |  2 +-
  test/fixedbugs/bug386.go | 12 ++++++++++++
  test/named1.go           |  2 +-
  4 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 23b1808291..d2e3423f17 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1278,13 +1278,17 @@ exprfmt(Fmt *f, Node *n, int prec)
+ static int
+ nodefmt(Fmt *f, Node *n)
+ {
++	Type *t;
++
++	t = n->type;
++	if(n->orig != N)
++		n = n->orig;
+ 
+-	if(f->flags&FmtLong && n->type != T) {
+-		if(n->type->etype == TNIL)
++	if(f->flags&FmtLong && t != T) {
++		if(t->etype == TNIL)
+ 			return fmtprint(f, "nil");
+ 		else
+-			return fmtprint(f, "%N (type %T)", n, n->type);
+-
++			return fmtprint(f, "%N (type %T)", n, t);
+ 	}
+ 
+ 	// TODO inlining produces expressions with ninits. we can't print these yet.
+@@ -1479,8 +1483,6 @@ Nconv(Fmt *fp)
+ 	switch(fmtmode) {
+ 	case FErr:
+ 	case FExp:
+-		if(n->orig != N)
+-			n = n->orig;
+ 		r = nodefmt(fp, n);
+ 		break;
+ 	case FDbg:
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 54ccc23407..6d84248e5e 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -15,7 +15,7 @@ var (
+ 	_ = sum()
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "integer"
+-	_ = sum("hello")  // ERROR ".hello. .type ideal string. as type int|incompatible"
++	_ = sum("hello")  // ERROR ".hello. .type string. as type int|incompatible"
+ 	_ = sum([]int{1}) // ERROR "\[\]int literal.*as type int|incompatible"
+ )
+ 
+diff --git a/test/fixedbugs/bug386.go b/test/fixedbugs/bug386.go
+new file mode 100644
+index 0000000000..85b8d30824
+--- /dev/null
++++ b/test/fixedbugs/bug386.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2451, 2452 
++package foo
++
++func f() error { return 0 } // ERROR "cannot use 0 .type int."
++
++func g() error { return -1 }  // ERROR "cannot use -1 .type int."
+\ No newline at end of file
+diff --git a/test/named1.go b/test/named1.go
+index 64e492886e..499b77b961 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -37,7 +37,7 @@ func main() {
+ 	asBool(true)
+ 	asBool(*&b)
+ 	asBool(Bool(true))
+-	asBool(1 != 2) // ERROR "cannot use.*type ideal bool.*as type Bool"
++	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"
+ 	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
+ 
+ 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"

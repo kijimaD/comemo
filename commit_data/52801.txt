@@ -11,6 +11,23 @@ Date:   Fri Jun 3 13:47:10 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/sync/atomic/doc.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index a7d5b46288..bb3b8f673e 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -46,8 +46,9 @@ import (
+ //
+ // On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
+ //
+-// On ARM, 386, and 32-bit MIPS, it is the caller's responsibility
+-// to arrange for 64-bit alignment of 64-bit words accessed atomically.
++// On ARM, 386, and 32-bit MIPS, it is the caller's responsibility to arrange
++// for 64-bit alignment of 64-bit words accessed atomically via the primitive
++// atomic functions (types Int64 and Uint64 are automatically aligned).
+ // The first word in a variable or in an allocated struct, array, or slice can
+ // be relied upon to be 64-bit aligned.
+ 

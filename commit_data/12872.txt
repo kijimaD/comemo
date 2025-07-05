@@ -19,6 +19,19 @@ Date:   Tue Apr 10 15:14:10 2012 -0400
     R=golang-dev, rminnich
     CC=golang-dev, john, rsc
     https://golang.org/cl/5939045
-
+---
  src/pkg/runtime/rt0_plan9_386.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index b56c8b325d..56f3a0f6c7 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -25,6 +25,7 @@ argv_fix:
+ 	ADDL	$4, BP
+ 	LOOP	argv_fix
+ 	
++	CALL	runtime·asminit(SB)
+ 	JMP	_rt0_386(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1

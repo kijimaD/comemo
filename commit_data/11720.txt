@@ -9,6 +9,19 @@ Date:   Wed Feb 8 16:14:24 2012 -0500
     R=golang-dev, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5647057
-
+---
  src/cmd/go/tool.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index af8a0d2877..0ec5cf6a74 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -70,6 +70,7 @@ func runTool(cmd *Command, args []string) {
+ 	toolCmd := &exec.Cmd{
+ 		Path:   toolPath,
+ 		Args:   args,
++		Stdin:  os.Stdin,
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
+ 	}

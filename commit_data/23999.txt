@@ -14,6 +14,23 @@ Date:   Thu Jun 18 07:26:39 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/11250
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 70797ddfe7..e4854e8a14 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -523,6 +523,11 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
+ 	}
+ 	dialc := make(chan dialRes)
+ 
++	// Copy these hooks so we don't race on the postPendingDial in
++	// the goroutine we launch. Issue 11136.
++	prePendingDial := prePendingDial
++	postPendingDial := postPendingDial
++
+ 	handlePendingDial := func() {
+ 		if prePendingDial != nil {
+ 			prePendingDial()

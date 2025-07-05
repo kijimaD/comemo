@@ -13,7 +13,90 @@ Date:   Tue Jul 18 13:15:05 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 25 ++++++++++++++++---------
  src/cmd/link/internal/ld/lib.go   | 21 ++++++++++++++-------
  2 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 0ea327f8bc..7d667ff552 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2948,8 +2948,8 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out string, allaction
+ 		// libffi.
+ 		ldflags = append(ldflags, "-Wl,-r", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive")
+ 
+-		if b.gccSupportsNoPie() {
+-			ldflags = append(ldflags, "-no-pie")
++		if nopie := b.gccNoPie(); nopie != "" {
++			ldflags = append(ldflags, nopie)
+ 		}
+ 
+ 		// We are creating an object file, so we don't want a build ID.
+@@ -3196,11 +3196,18 @@ func (b *Builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 	return a
+ }
+ 
+-// On systems with PIE (position independent executables) enabled by default,
+-// -no-pie must be passed when doing a partial link with -Wl,-r. But -no-pie is
+-// not supported by all compilers.
+-func (b *Builder) gccSupportsNoPie() bool {
+-	return b.gccSupportsFlag("-no-pie")
++// gccNoPie returns the flag to use to request non-PIE. On systems
++// with PIE (position independent executables) enabled by default,
++// -no-pie must be passed when doing a partial link with -Wl,-r.
++// But -no-pie is not supported by all compilers, and clang spells it -nopie.
++func (b *Builder) gccNoPie() string {
++	if b.gccSupportsFlag("-no-pie") {
++		return "-no-pie"
++	}
++	if b.gccSupportsFlag("-nopie") {
++		return "-nopie"
++	}
++	return ""
+ }
+ 
+ // gccSupportsFlag checks to see if the compiler supports a flag.
+@@ -3531,8 +3538,8 @@ func (b *Builder) collect(p *load.Package, obj, ofile string, cgoLDFLAGS, outObj
+ 
+ 	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
+ 
+-	if b.gccSupportsNoPie() {
+-		ldflags = append(ldflags, "-no-pie")
++	if flag := b.gccNoPie(); flag != "" {
++		ldflags = append(ldflags, flag)
+ 	}
+ 
+ 	// We are creating an object file, so we don't want a build ID.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 625287112c..381022081b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1255,13 +1255,20 @@ func (l *Link) hostlink() {
+ 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+ 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+ 		}
+-		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
+-		cmd.Dir = *flagTmpdir
+-		cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+-		out, err := cmd.CombinedOutput()
+-		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
+-		if supported {
+-			argv = append(argv, "-no-pie")
++
++		// GCC uses -no-pie, clang uses -nopie.
++		for _, nopie := range []string{"-no-pie", "-nopie"} {
++			cmd := exec.Command(argv[0], "-c", nopie, "trivial.c")
++			cmd.Dir = *flagTmpdir
++			cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
++			out, _ := cmd.CombinedOutput()
++			// GCC says "unrecognized command line option ‘-no-pie’"
++			// clang says "unknown argument: '-no-pie'"
++			supported := !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
++			if supported {
++				argv = append(argv, nopie)
++				break
++			}
+ 		}
+ 	}
+ 

@@ -7,10 +7,159 @@ Date:   Mon Apr 5 23:44:05 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/812041
-
+---
  src/libcgo/386.S         |  2 +-
  src/libcgo/Makefile      |  2 ++
  src/libcgo/amd64.S       |  2 +-
  src/libcgo/mingw_386.c   | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/libcgo/mingw_amd64.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 94 insertions(+), 2 deletions(-)
+
+diff --git a/src/libcgo/386.S b/src/libcgo/386.S
+old mode 100644
+new mode 100755
+index 3d7786d14e..278c5293ce
+--- a/src/libcgo/386.S
++++ b/src/libcgo/386.S
+@@ -5,7 +5,7 @@
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__MINGW32__)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+old mode 100644
+new mode 100755
+index b5ac6e33f1..deb6b48a34
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -19,9 +19,11 @@ OFILES=\
+ CFLAGS_386=-m32
+ CFLAGS_amd64=-m64
+ 
++
+ LDFLAGS_linux=-shared -lpthread -lm
+ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+ LDFLAGS_freebsd=-pthread -shared -lm
++LDFLAGS_mingw=-shared -lm -mthreads
+ 
+ %.o: %.c
+ 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+index eaa346a143..a7adff9e97 100644
+--- a/src/libcgo/amd64.S
++++ b/src/libcgo/amd64.S
+@@ -5,7 +5,7 @@
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__MINGW64__)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s
+diff --git a/src/libcgo/mingw_386.c b/src/libcgo/mingw_386.c
+new file mode 100755
+index 0000000000..62be9303ef
+--- /dev/null
++++ b/src/libcgo/mingw_386.c
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++/* From what I've read 1MB is default for 32-bit Linux. 
++   Allocation granularity on Windows is typically 64 KB. */
++#define STACKSIZE (1*1024*1024)
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++    ts->g->stackguard = STACKSIZE;
++    _beginthread(threadentry, STACKSIZE, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++    ThreadStart ts;
++
++    ts = *(ThreadStart*)v;
++    free(v);
++
++    ts.g->stackbase = (uintptr)&ts;
++
++    /*
++     * libcgo_sys_thread_start set stackguard to stack size;
++     * change to actual guard pointer.
++     */
++    ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++    crosscall_386(ts.fn);
++    return nil;
++}
+diff --git a/src/libcgo/mingw_amd64.c b/src/libcgo/mingw_amd64.c
+new file mode 100755
+index 0000000000..56417e178b
+--- /dev/null
++++ b/src/libcgo/mingw_amd64.c
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define WIN64_LEAN_AND_MEAN
++#include <windows.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++/* From what I've read 2MB is default for 64-bit Linux. 
++   Allocation granularity on Windows is typically 64 KB. */
++#define STACKSIZE (2*1024*1024)
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++    ts->g->stackguard = STACKSIZE;
++    _beginthread(threadentry, STACKSIZE, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++    ThreadStart ts;
++
++    ts = *(ThreadStart*)v;
++    free(v);
++
++    ts.g->stackbase = (uintptr)&ts;
++
++    /*
++     * libcgo_sys_thread_start set stackguard to stack size;
++     * change to actual guard pointer.
++     */
++    ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++    crosscall_386(ts.fn);
++    return nil;
++}

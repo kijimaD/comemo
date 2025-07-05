@@ -14,6 +14,21 @@ Date:   Wed Nov 28 16:50:57 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/plugin/plugin_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/plugin/plugin_test.go b/src/plugin/plugin_test.go
+index be742b8c6d..b334c5cf0e 100644
+--- a/src/plugin/plugin_test.go
++++ b/src/plugin/plugin_test.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !nacl !linux,arm64
++// +build !nacl
++// +build !linux linux,!arm64
+ 
+ package plugin_test
+ 

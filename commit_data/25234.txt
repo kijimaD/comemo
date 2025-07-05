@@ -7,6 +7,19 @@ Date:   Sat Oct 10 22:35:13 2015 +1100
     Change-Id: I34c8ada1f3c5d401944483df424011fa2ae9fc3d
     Reviewed-on: https://go-review.googlesource.com/15673
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index dfce949d6a..182695fe87 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -13,6 +13,7 @@ bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
+ bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
+ fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+ math/rand: add Read (https://golang.org/cl/14522)
++net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)

@@ -5,10 +5,101 @@ Date:   Mon Jul 7 10:17:52 2008 -0700
     bug update
     
     SVN=126121
-
+---
  test/bugs/bug049.go                |  2 ++
  test/bugs/bug055.go                |  2 +-
  test/{bugs => fixedbugs}/bug023.go |  0
  test/{bugs => fixedbugs}/bug050.go |  0
  test/golden.out                    | 17 +++++++++--------
  5 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/test/bugs/bug049.go b/test/bugs/bug049.go
+index 31da6c816f..72ac7ecbd8 100644
+--- a/test/bugs/bug049.go
++++ b/test/bugs/bug049.go
+@@ -12,6 +12,8 @@ func atom(s string) {
+ 	}
+ }
+ 
++func main() {}
++
+ /*
+ bug047.go:4: fatal error: stringpool: not string
+ */
+diff --git a/test/bugs/bug055.go b/test/bugs/bug055.go
+index 8812efec8f..cf9dcd7c86 100644
+--- a/test/bugs/bug055.go
++++ b/test/bugs/bug055.go
+@@ -15,7 +15,7 @@ func main() {
+ 	if true {} else i++
+ 	type s struct {};
+ 	i = 0
+-	type s int
++	type s2 int
+ 	var k = func (a int) int { return a+1 }(3);
+ ro:
+ }
+diff --git a/test/bugs/bug023.go b/test/fixedbugs/bug023.go
+similarity index 100%
+rename from test/bugs/bug023.go
+rename to test/fixedbugs/bug023.go
+diff --git a/test/bugs/bug050.go b/test/fixedbugs/bug050.go
+similarity index 100%
+rename from test/bugs/bug050.go
+rename to test/fixedbugs/bug050.go
+diff --git a/test/golden.out b/test/golden.out
+index 4f567bc727..b3a7eb15d8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -112,8 +112,6 @@ BUG: known to fail incorrectly
+ =========== bugs/bug015.go
+ BUG: known to succeed incorrectly
+ 
+-=========== bugs/bug023.go
+-
+ =========== bugs/bug025.go
+ bugs/bug025.go:7: variable exported but not defined: Foo
+ 
+@@ -175,11 +173,8 @@ bugs/bug048.go:7: illegal types for operand: CONV
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug049.go
+-
+-=========== bugs/bug050.go
+-bugs/bug050.go:3: package statement must be first
+-sys.6:1 bugs/bug050.go:3: syntax error
+-BUG: segfault
++getu: main·.stringo: not defined
++BUG: link failure
+ 
+ =========== bugs/bug052.go
+ SIGSEGV: segmentation violation
+@@ -212,7 +207,7 @@ bugs/bug054.go:25: fatal error: agen_inter i2s
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug055.go
+-bug055.go:1: fatal error: cant open: bug055.go
++bugs/bug055.go:15: fatal error: allocparams: this class
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug057.go
+@@ -280,6 +275,8 @@ BUG: compilation should succeed
+ 
+ =========== fixedbugs/bug022.go
+ 
++=========== fixedbugs/bug023.go
++
+ =========== fixedbugs/bug024.go
+ 
+ =========== fixedbugs/bug028.go
+@@ -314,6 +311,10 @@ fixedbugs/bug039.go:6: var x redeclared in this block
+ 
+ =========== fixedbugs/bug045.go
+ 
++=========== fixedbugs/bug050.go
++fixedbugs/bug050.go:3: package statement must be first
++sys.6:1 fixedbugs/bug050.go:3: syntax error
++
+ =========== fixedbugs/bug051.go
+ fixedbugs/bug051.go:10: expression must be a constant
+ 

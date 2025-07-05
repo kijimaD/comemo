@@ -12,6 +12,23 @@ Date:   Fri May 31 14:16:38 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/netip/netip_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 79e1a446d8..4307df38bf 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -788,6 +788,11 @@ func TestAddrWellKnown(t *testing.T) {
+ 		ip   Addr
+ 		std  net.IP
+ 	}{
++		{
++			name: "IPv4 unspecified",
++			ip:   IPv4Unspecified(),
++			std:  net.IPv4zero,
++		},
+ 		{
+ 			name: "IPv6 link-local all nodes",
+ 			ip:   IPv6LinkLocalAllNodes(),

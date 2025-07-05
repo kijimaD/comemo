@@ -14,6 +14,18 @@ Date:   Wed Sep 7 02:04:13 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  test/escape_unsafe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/escape_unsafe.go b/test/escape_unsafe.go
+index cec6674a14..56c536fdfb 100644
+--- a/test/escape_unsafe.go
++++ b/test/escape_unsafe.go
+@@ -65,5 +65,5 @@ func toSliceData(s *[]int, p unsafe.Pointer) { // ERROR "s does not escape" "lea
+ }
+ 
+ func toStringData(s *string, p unsafe.Pointer) { // ERROR "s does not escape" "leaking param: p$"
+-	(*reflect.SliceHeader)(unsafe.Pointer(s)).Data = uintptr(p)
++	(*reflect.StringHeader)(unsafe.Pointer(s)).Data = uintptr(p)
+ }

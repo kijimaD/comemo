@@ -15,10 +15,173 @@ Date:   Wed Nov 13 19:50:44 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/627795
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/load/printer.go | 16 ++++++++--------
  src/cmd/go/internal/work/action.go  |  2 +-
  src/cmd/go/internal/work/buildid.go |  4 ++--
  src/cmd/go/internal/work/exec.go    |  4 ++--
  src/cmd/go/internal/work/shell.go   | 16 ++++++++--------
  5 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/printer.go b/src/cmd/go/internal/load/printer.go
+index 81954c0f34..d698a78aa2 100644
+--- a/src/cmd/go/internal/load/printer.go
++++ b/src/cmd/go/internal/load/printer.go
+@@ -17,15 +17,15 @@ import (
+ 
+ // A Printer reports output about a Package.
+ type Printer interface {
+-	// Output reports output from building pkg. The arguments are of the form
+-	// expected by fmt.Print.
++	// Printf reports output from building pkg. The arguments are of the form
++	// expected by [fmt.Printf].
+ 	//
+ 	// pkg may be nil if this output is not associated with the build of a
+ 	// particular package.
+ 	//
+ 	// The caller is responsible for checking if printing output is appropriate,
+ 	// for example by checking cfg.BuildN or cfg.BuildV.
+-	Output(pkg *Package, args ...any)
++	Printf(pkg *Package, format string, args ...any)
+ 
+ 	// Errorf prints output in the form of `log.Errorf` and reports that
+ 	// building pkg failed.
+@@ -68,8 +68,8 @@ type TextPrinter struct {
+ 	Writer io.Writer
+ }
+ 
+-func (p *TextPrinter) Output(_ *Package, args ...any) {
+-	fmt.Fprint(p.Writer, args...)
++func (p *TextPrinter) Printf(_ *Package, format string, args ...any) {
++	fmt.Fprintf(p.Writer, format, args...)
+ }
+ 
+ func (p *TextPrinter) Errorf(_ *Package, format string, args ...any) {
+@@ -92,10 +92,10 @@ type jsonBuildEvent struct {
+ 	Output     string `json:",omitempty"` // Non-empty if Action == “build-output”
+ }
+ 
+-func (p *JSONPrinter) Output(pkg *Package, args ...any) {
++func (p *JSONPrinter) Printf(pkg *Package, format string, args ...any) {
+ 	ev := &jsonBuildEvent{
+ 		Action: "build-output",
+-		Output: fmt.Sprint(args...),
++		Output: fmt.Sprintf(format, args...),
+ 	}
+ 	if ev.Output == "" {
+ 		// There's no point in emitting a completely empty output event.
+@@ -112,7 +112,7 @@ func (p *JSONPrinter) Errorf(pkg *Package, format string, args ...any) {
+ 	// For clarity, emit each line as a separate output event.
+ 	for len(s) > 0 {
+ 		i := strings.IndexByte(s, '\n')
+-		p.Output(pkg, s[:i+1])
++		p.Printf(pkg, "%s", s[:i+1])
+ 		s = s[i+1:]
+ 	}
+ 	ev := &jsonBuildEvent{
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index ab577a6e0e..60ed983d82 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -298,7 +298,7 @@ func NewBuilder(workDir string) *Builder {
+ 	b.backgroundSh = NewShell(b.WorkDir, nil)
+ 
+ 	if printWorkDir {
+-		b.BackgroundShell().Print("WORK=", b.WorkDir, "\n")
++		b.BackgroundShell().Printf("WORK=%s\n", b.WorkDir)
+ 	}
+ 
+ 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 7ec3f94d9d..421c693149 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -618,7 +618,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
+ 			sh.ShowCmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+ 		}
+ 		if !cfg.BuildN {
+-			sh.Print(string(stdout))
++			sh.Printf("%s", stdout)
+ 		}
+ 	}
+ 	return nil
+@@ -626,7 +626,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
+ 
+ // flushOutput flushes the output being queued in a.
+ func (b *Builder) flushOutput(a *Action) {
+-	b.Shell(a).Print(string(a.output))
++	b.Shell(a).Printf("%s", a.output)
+ 	a.output = nil
+ }
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6fed8d9cbc..a527a80941 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -520,11 +520,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		// different sections of the bootstrap script have to
+ 		// be merged, the banners give patch something
+ 		// to use to find its context.
+-		sh.Print("\n#\n# " + p.ImportPath + "\n#\n\n")
++		sh.Printf("\n#\n# %s\n#\n\n", p.ImportPath)
+ 	}
+ 
+ 	if cfg.BuildV {
+-		sh.Print(p.ImportPath + "\n")
++		sh.Printf("%s\n", p.ImportPath)
+ 	}
+ 
+ 	if p.Error != nil {
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index a14635489f..dd5a31c606 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -71,16 +71,16 @@ func (sh *Shell) pkg() *load.Package {
+ 	return sh.action.Package
+ }
+ 
+-// Print emits a to this Shell's output stream, formatting it like fmt.Print.
++// Printf emits a to this Shell's output stream, formatting it like fmt.Printf.
+ // It is safe to call concurrently.
+-func (sh *Shell) Print(a ...any) {
++func (sh *Shell) Printf(format string, a ...any) {
+ 	sh.printLock.Lock()
+ 	defer sh.printLock.Unlock()
+-	sh.printer.Output(sh.pkg(), a...)
++	sh.printer.Printf(sh.pkg(), format, a...)
+ }
+ 
+-func (sh *Shell) printLocked(a ...any) {
+-	sh.printer.Output(sh.pkg(), a...)
++func (sh *Shell) printfLocked(format string, a ...any) {
++	sh.printer.Printf(sh.pkg(), format, a...)
+ }
+ 
+ // Errorf reports an error on sh's package and sets the process exit status to 1.
+@@ -371,7 +371,7 @@ func (sh *Shell) ShowCmd(dir string, format string, args ...any) {
+ 	if dir != "" && dir != "/" {
+ 		if dir != sh.scriptDir {
+ 			// Show changing to dir and update the current directory.
+-			sh.printLocked(sh.fmtCmd("", "cd %s\n", dir))
++			sh.printfLocked("%s", sh.fmtCmd("", "cd %s\n", dir))
+ 			sh.scriptDir = dir
+ 		}
+ 		// Replace scriptDir is our working directory. Replace it
+@@ -383,7 +383,7 @@ func (sh *Shell) ShowCmd(dir string, format string, args ...any) {
+ 		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
+ 	}
+ 
+-	sh.printLocked(cmd + "\n")
++	sh.printfLocked("%s\n", cmd)
+ }
+ 
+ // reportCmd reports the output and exit status of a command. The cmdOut and
+@@ -522,7 +522,7 @@ func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error
+ 		a.output = append(a.output, err.Error()...)
+ 	} else {
+ 		// Write directly to the Builder output.
+-		sh.Print(err.Error())
++		sh.Printf("%s", err)
+ 	}
+ 	return nil
+ }

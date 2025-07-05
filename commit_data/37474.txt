@@ -9,6 +9,45 @@ Date:   Wed Jun 20 20:40:33 2018 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ecdsa/example_test.go | 32 ++++++++++++++++++++++++++++++++
  1 file changed, 32 insertions(+)
+
+diff --git a/src/crypto/ecdsa/example_test.go b/src/crypto/ecdsa/example_test.go
+new file mode 100644
+index 0000000000..bddeab8955
+--- /dev/null
++++ b/src/crypto/ecdsa/example_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ecdsa_test
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/sha256"
++	"fmt"
++)
++
++func Example() {
++	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++
++	msg := "hello, world"
++	hash := sha256.Sum256([]byte(msg))
++
++	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
++	if err != nil {
++		panic(err)
++	}
++	fmt.Printf("signature: (0x%x, 0x%x)\n", r, s)
++
++	valid := ecdsa.Verify(&privateKey.PublicKey, hash[:], r, s)
++	fmt.Println("signature verified:", valid)
++}

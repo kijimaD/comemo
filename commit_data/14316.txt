@@ -18,6 +18,21 @@ Date:   Tue Nov 6 12:09:40 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6811082
-
+---
  src/pkg/runtime/parfor_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/parfor_test.go b/src/pkg/runtime/parfor_test.go
+index 0547db0209..7644354ab3 100644
+--- a/src/pkg/runtime/parfor_test.go
++++ b/src/pkg/runtime/parfor_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The race detector does not understand ParFor synchronization.
++// +build !race
++
+ package runtime_test
+ 
+ import (

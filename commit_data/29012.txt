@@ -21,7 +21,53 @@ Date:   Sat Aug 13 18:12:21 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/rune.go   | 3 +++
  src/runtime/string.go | 5 ++---
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/rune.go b/src/runtime/rune.go
+index 99c38e0bd9..91a0ca2503 100644
+--- a/src/runtime/rune.go
++++ b/src/runtime/rune.go
+@@ -178,6 +178,7 @@ func runetochar(str []byte, r rune) int {
+ 	 *	0080-07FF => t2 tx
+ 	 */
+ 	if c <= rune2 {
++		_ = str[1]
+ 		str[0] = byte(t2 | (c >> (1 * bitx)))
+ 		str[1] = byte(tx | (c & maskx))
+ 		return 2
+@@ -201,6 +202,7 @@ func runetochar(str []byte, r rune) int {
+ 	 *	0800-FFFF => t3 tx tx
+ 	 */
+ 	if c <= rune3 {
++		_ = str[2]
+ 		str[0] = byte(t3 | (c >> (2 * bitx)))
+ 		str[1] = byte(tx | ((c >> (1 * bitx)) & maskx))
+ 		str[2] = byte(tx | (c & maskx))
+@@ -211,6 +213,7 @@ func runetochar(str []byte, r rune) int {
+ 	 * four character sequence (21-bit value)
+ 	 *     10000-1FFFFF => t4 tx tx tx
+ 	 */
++	_ = str[3]
+ 	str[0] = byte(t4 | (c >> (3 * bitx)))
+ 	str[1] = byte(tx | ((c >> (2 * bitx)) & maskx))
+ 	str[2] = byte(tx | ((c >> (1 * bitx)) & maskx))
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index ef28ba9828..e74947f42f 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -47,10 +47,9 @@ func concatstrings(buf *tmpBuf, a []string) string {
+ 		return a[idx]
+ 	}
+ 	s, b := rawstringtmp(buf, l)
+-	l = 0
+ 	for _, x := range a {
+-		copy(b[l:], x)
+-		l += len(x)
++		copy(b, x)
++		b = b[len(x):]
+ 	}
+ 	return s
+ }

@@ -18,6 +18,28 @@ Date:   Sun Nov 4 09:36:25 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os_linux_arm64.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index cbe528b4af..2d6f68bdd9 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -22,7 +22,15 @@ func archauxv(tag, val uintptr) {
+ 	case _AT_HWCAP:
+ 		// arm64 doesn't have a 'cpuid' instruction equivalent and relies on
+ 		// HWCAP/HWCAP2 bits for hardware capabilities.
+-		cpu.HWCap = uint(val)
++		hwcap := uint(val)
++		if GOOS == "android" {
++			// The Samsung S9+ kernel reports support for atomics, but not all cores
++			// actually support them, resulting in SIGILL. See issue #28431.
++			// TODO(elias.naur): Only disable the optimization on bad chipsets.
++			const hwcap_ATOMICS = 1 << 8
++			hwcap &= ^uint(hwcap_ATOMICS)
++		}
++		cpu.HWCap = hwcap
+ 	case _AT_HWCAP2:
+ 		cpu.HWCap2 = uint(val)
+ 	}

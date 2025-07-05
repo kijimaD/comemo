@@ -22,8 +22,45 @@ Date:   Tue Dec 20 17:26:18 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/internal/startlinetest/func_amd64.go | 3 +++
  src/runtime/internal/startlinetest/func_amd64.s  | 3 ++-
  src/runtime/start_line_amd64_test.go             | 2 ++
  3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/startlinetest/func_amd64.go b/src/runtime/internal/startlinetest/func_amd64.go
+index 6cd9a3f417..ab7063d615 100644
+--- a/src/runtime/internal/startlinetest/func_amd64.go
++++ b/src/runtime/internal/startlinetest/func_amd64.go
+@@ -8,3 +8,6 @@ package startlinetest
+ // Defined in func_amd64.s, this is a trivial assembly function that calls
+ // runtime_test.callerStartLine.
+ func AsmFunc() int
++
++// Provided by runtime_test.
++var CallerStartLine func(bool) int
+diff --git a/src/runtime/internal/startlinetest/func_amd64.s b/src/runtime/internal/startlinetest/func_amd64.s
+index ace5b34e70..96982bedab 100644
+--- a/src/runtime/internal/startlinetest/func_amd64.s
++++ b/src/runtime/internal/startlinetest/func_amd64.s
+@@ -23,5 +23,6 @@
+ TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
+ 	NO_LOCAL_POINTERS
+ 	MOVQ	$0, AX // wantInlined
+-	CALL    runtime_test·callerStartLine<ABIInternal>(SB)
++	MOVQ	·CallerStartLine(SB), DX
++	CALL	(DX)
+ 	RET
+diff --git a/src/runtime/start_line_amd64_test.go b/src/runtime/start_line_amd64_test.go
+index 57001e71de..305ed0b126 100644
+--- a/src/runtime/start_line_amd64_test.go
++++ b/src/runtime/start_line_amd64_test.go
+@@ -13,6 +13,8 @@ import (
+ // is only tested on amd64 to avoid the need for a proliferation of per-arch
+ // copies of this function.
+ func TestStartLineAsm(t *testing.T) {
++	startlinetest.CallerStartLine = callerStartLine
++
+ 	const wantLine = 23
+ 	got := startlinetest.AsmFunc()
+ 	if got != wantLine {

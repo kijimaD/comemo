@@ -12,8 +12,125 @@ Date:   Fri Jan 19 22:47:23 2018 -0500
     Change-Id: I6d3051fcd7e06a86442324a64d781d8ad95c624f
     Reviewed-on: https://go-review.googlesource.com/88679
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.html     |  8 ++++----
  doc/install.html | 14 +++++++-------
  doc/root.html    |  2 +-
  3 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 1665d74e95..34e305b93c 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -775,7 +775,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
+ </p>
+ 
+ {{code "/doc/progs/go1.go" `/ErrSyntax/`}}
+-		
++
+ <p>
+ <em>Updating</em>:
+ Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
+@@ -1827,7 +1827,7 @@ for full details.
+ <tr><td>Uitob(x, b)</td> <td>FormatUint(uint64(x), b)</td></tr>
+ <tr><td>Uitob64(x, b)</td> <td>FormatUint(x, b)</td></tr>
+ </table>
+-		
++
+ <p>
+ <em>Updating</em>:
+ Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
+@@ -1841,7 +1841,7 @@ a cast that must be added by hand; the <code>go</code> <code>fix</code> tool wil
+ <h3 id="templates">The template packages</h3>
+ 
+ <p>
+-The <code>template</code> and <code>exp/template/html</code> packages have moved to 
++The <code>template</code> and <code>exp/template/html</code> packages have moved to
+ <a href="/pkg/text/template/"><code>text/template</code></a> and
+ <a href="/pkg/html/template/"><code>html/template</code></a>.
+ More significant, the interface to these packages has been simplified.
+@@ -2035,4 +2035,4 @@ They are available for many combinations of architecture and operating system
+ Installation details are described on the
+ <a href="/doc/install">Getting Started</a> page, while
+ the distributions themselves are listed on the
+-<a href="https://golang.org/dl/">downloads page</a>.
++<a href="/dl/">downloads page</a>.
+diff --git a/doc/install.html b/doc/install.html
+index abf7fa6dae..f17dce5bdd 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -8,14 +8,14 @@
+ <h2 id="download">Download the Go distribution</h2>
+ 
+ <p>
+-<a href="https://golang.org/dl/" id="start" class="download">
++<a href="/dl/" id="start" class="download">
+ <span class="big">Download Go</span>
+ <span class="desc">Click here to visit the downloads page</span>
+ </a>
+ </p>
+ 
+ <p>
+-<a href="https://golang.org/dl/" target="_blank">Official binary
++<a href="/dl/" target="_blank">Official binary
+ distributions</a> are available for the FreeBSD (release 10-STABLE and above),
+ Linux, Mac OS X (10.8 and above), and Windows operating systems and
+ the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
+@@ -33,7 +33,7 @@ system and architecture, try
+ <h2 id="requirements">System requirements</h2>
+ 
+ <p>
+-Go <a href="https://golang.org/dl/">binary distributions</a> are available for these supported operating systems and architectures.
++Go <a href="/dl/">binary distributions</a> are available for these supported operating systems and architectures.
+ Please ensure your system meets these requirements before proceeding.
+ If your OS or architecture is not on the list, you may be able to
+ <a href="/doc/install/source">install from source</a> or
+@@ -77,7 +77,7 @@ first <a href="#uninstall">remove the existing version</a>.
+ <h3 id="tarball">Linux, Mac OS X, and FreeBSD tarballs</h3>
+ 
+ <p>
+-<a href="https://golang.org/dl/">Download the archive</a>
++<a href="/dl/">Download the archive</a>
+ and extract it into <code>/usr/local</code>, creating a Go tree in
+ <code>/usr/local/go</code>. For example:
+ </p>
+@@ -138,7 +138,7 @@ location.
+ <h3 id="osx">Mac OS X package installer</h3>
+ 
+ <p>
+-<a href="https://golang.org/dl/">Download the package file</a>,
++<a href="/dl/">Download the package file</a>,
+ open it, and follow the prompts to install the Go tools.
+ The package installs the Go distribution to <code>/usr/local/go</code>.
+ </p>
+@@ -167,7 +167,7 @@ MSI installer that configures your installation automatically.
+ <h4 id="windows_msi">MSI installer</h4>
+ 
+ <p>
+-Open the <a href="https://golang.org/dl/">MSI file</a>
++Open the <a href="/dl/">MSI file</a>
+ and follow the prompts to install the Go tools.
+ By default, the installer puts the Go distribution in <code>c:\Go</code>.
+ </p>
+@@ -185,7 +185,7 @@ command prompts for the change to take effect.
+ <h4 id="windows_zip">Zip archive</h4>
+ 
+ <p>
+-<a href="https://golang.org/dl/">Download the zip file</a> and extract it into the directory of your choice (we suggest <code>c:\Go</code>).
++<a href="/dl/">Download the zip file</a> and extract it into the directory of your choice (we suggest <code>c:\Go</code>).
+ </p>
+ 
+ <p>
+diff --git a/doc/root.html b/doc/root.html
+index 9bdf927480..a5119a9ff8 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -58,7 +58,7 @@ simple, reliable, and efficient software.
+ 
+ <div id="gopher"></div>
+ 
+-<a href="https://golang.org/dl/" id="start">
++<a href="/dl/" id="start">
+ <span class="big">Download Go</span>
+ <span class="desc">
+ Binary distributions available for<br>

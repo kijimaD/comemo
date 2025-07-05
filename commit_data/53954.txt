@@ -50,7 +50,7 @@ Date:   Thu Jul 14 21:18:15 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51246.txt                   | 12 +++++
  src/syscall/asm_linux_386.s          | 14 +++---
  src/syscall/asm_linux_amd64.s        | 14 +++---
@@ -76,3 +76,817 @@ Date:   Thu Jul 14 21:18:15 2022 -0700
  src/syscall/syscall_linux_riscv64.go |  3 +-
  src/syscall/syscall_linux_s390x.go   |  3 +-
  24 files changed, 228 insertions(+), 99 deletions(-)
+
+diff --git a/api/next/51246.txt b/api/next/51246.txt
+index ae583cf1da..b00f540466 100644
+--- a/api/next/51246.txt
++++ b/api/next/51246.txt
+@@ -8,6 +8,8 @@ pkg syscall (linux-386), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-386), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-386), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-386), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-386), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-386), type SysProcAttr struct, UseCgroupFD bool #51246
+ pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+ pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+ pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+@@ -18,6 +20,8 @@ pkg syscall (linux-386-cgo), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-386-cgo), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-386-cgo), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-386-cgo), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-386-cgo), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-386-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+ pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+ pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND ideal-int #51246
+ pkg syscall (linux-amd64), const CLONE_INTO_CGROUP = 8589934592 #51246
+@@ -28,6 +32,8 @@ pkg syscall (linux-amd64), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-amd64), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-amd64), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-amd64), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-amd64), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-amd64), type SysProcAttr struct, UseCgroupFD bool #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+@@ -38,6 +44,8 @@ pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-amd64-cgo), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-amd64-cgo), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-amd64-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+ pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+ pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND ideal-int #51246
+ pkg syscall (linux-arm), const CLONE_INTO_CGROUP = 8589934592 #51246
+@@ -48,6 +56,8 @@ pkg syscall (linux-arm), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-arm), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-arm), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-arm), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-arm), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-arm), type SysProcAttr struct, UseCgroupFD bool #51246
+ pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+ pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+ pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+@@ -58,3 +68,5 @@ pkg syscall (linux-arm-cgo), const CLONE_NEWTIME = 128 #51246
+ pkg syscall (linux-arm-cgo), const CLONE_NEWTIME ideal-int #51246
+ pkg syscall (linux-arm-cgo), const CLONE_PIDFD = 4096 #51246
+ pkg syscall (linux-arm-cgo), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-arm-cgo), type SysProcAttr struct, CgroupFD int #51246
++pkg syscall (linux-arm-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+diff --git a/src/syscall/asm_linux_386.s b/src/syscall/asm_linux_386.s
+index e86a859f4e..a8e63f7079 100644
+--- a/src/syscall/asm_linux_386.s
++++ b/src/syscall/asm_linux_386.s
+@@ -13,24 +13,24 @@
+ // instead of the glibc-specific "CALL 0x10(GS)".
+ #define INVOKE_SYSCALL	INT	$0x80
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	MOVL	a1+4(FP), BX
+-	MOVL	$0, CX
++	MOVL	a2+8(FP), CX
+ 	MOVL	$0, DX
+ 	POPL	SI // preserve return address
+ 	INVOKE_SYSCALL
+ 	PUSHL	SI
+ 	CMPL	AX, $0xfffff001
+ 	JLS	ok
+-	MOVL	$-1, r1+8(FP)
++	MOVL	$-1, r1+12(FP)
+ 	NEGL	AX
+-	MOVL	AX, err+12(FP)
++	MOVL	AX, err+16(FP)
+ 	RET
+ ok:
+-	MOVL	AX, r1+8(FP)
+-	MOVL	$0, err+12(FP)
++	MOVL	AX, r1+12(FP)
++	MOVL	$0, err+16(FP)
+ 	RET
+ 
+ // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index 3206a45d5d..00d6fedc62 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -11,10 +11,10 @@
+ 
+ #define SYS_gettimeofday 96
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVQ	a1+8(FP), DI
+-	MOVQ	$0, SI
++	MOVQ	a2+16(FP), SI
+ 	MOVQ	$0, DX
+ 	MOVQ	$0, R10
+ 	MOVQ	$0, R8
+@@ -25,13 +25,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	PUSHQ	R12
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	ok2
+-	MOVQ	$-1, r1+16(FP)
++	MOVQ	$-1, r1+24(FP)
+ 	NEGQ	AX
+-	MOVQ	AX, err+24(FP)
++	MOVQ	AX, err+32(FP)
+ 	RET
+ ok2:
+-	MOVQ	AX, r1+16(FP)
+-	MOVQ	$0, err+24(FP)
++	MOVQ	AX, r1+24(FP)
++	MOVQ	$0, err+32(FP)
+ 	RET
+ 
+ // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+diff --git a/src/syscall/asm_linux_arm.s b/src/syscall/asm_linux_arm.s
+index 3252220562..d3995416c2 100644
+--- a/src/syscall/asm_linux_arm.s
++++ b/src/syscall/asm_linux_arm.s
+@@ -41,25 +41,25 @@ okseek:
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	trap+0(FP), R7	// syscall entry
+ 	MOVW	a1+4(FP), R0
+-	MOVW	$0, R1
++	MOVW	a2+8(FP), R1
+ 	MOVW	$0, R2
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R1
+ 	CMP	R1, R0
+ 	BLS	ok
+ 	MOVW	$-1, R1
+-	MOVW	R1, r1+8(FP)
++	MOVW	R1, r1+12(FP)
+ 	RSB	$0, R0, R0
+-	MOVW	R0, err+12(FP)
++	MOVW	R0, err+16(FP)
+ 	RET
+ ok:
+-	MOVW	R0, r1+8(FP)
++	MOVW	R0, r1+12(FP)
+ 	MOVW	$0, R0
+-	MOVW	R0, err+12(FP)
++	MOVW	R0, err+16(FP)
+ 	RET
+ 
+ // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
+diff --git a/src/syscall/asm_linux_arm64.s b/src/syscall/asm_linux_arm64.s
+index be78ac8ac4..7fa789a349 100644
+--- a/src/syscall/asm_linux_arm64.s
++++ b/src/syscall/asm_linux_arm64.s
+@@ -4,10 +4,10 @@
+ 
+ #include "textflag.h"
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-40
+ 	MOVD	a1+8(FP), R0
+-	MOVD	$0, R1
++	MOVD	a2+16(FP), R1
+ 	MOVD	$0, R2
+ 	MOVD	$0, R3
+ 	MOVD	$0, R4
+@@ -17,13 +17,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+ 	CMN	$4095, R0
+ 	BCC	ok
+ 	MOVD	$-1, R4
+-	MOVD	R4, r1+16(FP)	// r1
++	MOVD	R4, r1+24(FP)	// r1
+ 	NEG	R0, R0
+-	MOVD	R0, err+24(FP)	// errno
++	MOVD	R0, err+32(FP)	// errno
+ 	RET
+ ok:
+-	MOVD	R0, r1+16(FP)	// r1
+-	MOVD	ZR, err+24(FP)	// errno
++	MOVD	R0, r1+24(FP)	// r1
++	MOVD	ZR, err+32(FP)	// errno
+ 	RET
+ 
+ // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
+diff --git a/src/syscall/asm_linux_loong64.s b/src/syscall/asm_linux_loong64.s
+index 7dc69c6612..1a7457c7ea 100644
+--- a/src/syscall/asm_linux_loong64.s
++++ b/src/syscall/asm_linux_loong64.s
+@@ -8,10 +8,10 @@
+ // System calls for loong64, Linux
+ //
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-40
+ 	MOVV	a1+8(FP), R4
+-	MOVV	$0, R5
++	MOVV	a2+16(FP), R5
+ 	MOVV	$0, R6
+ 	MOVV	$0, R7
+ 	MOVV	$0, R8
+@@ -21,13 +21,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+ 	MOVW	$-4096, R12
+ 	BGEU	R12, R4, ok
+ 	MOVV	$-1, R12
+-	MOVV	R12, r1+16(FP)		// r1
++	MOVV	R12, r1+24(FP)		// r1
+ 	SUBVU	R4, R0, R4
+-	MOVV	R4, err+24(FP)		// errno
++	MOVV	R4, err+32(FP)		// errno
+ 	RET
+ ok:
+-	MOVV	R4, r1+16(FP)	// r1
+-	MOVV	R0, err+24(FP)	// errno
++	MOVV	R4, r1+24(FP)	// r1
++	MOVV	R0, err+32(FP)	// errno
+ 	RET
+ 
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+diff --git a/src/syscall/asm_linux_mips64x.s b/src/syscall/asm_linux_mips64x.s
+index fadf1939e0..ceafeb6b01 100644
+--- a/src/syscall/asm_linux_mips64x.s
++++ b/src/syscall/asm_linux_mips64x.s
+@@ -10,10 +10,10 @@
+ // System calls for mips64, Linux
+ //
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVV	a1+8(FP), R4
+-	MOVV	R0, R5
++	MOVV	a2+16(FP), R5
+ 	MOVV	R0, R6
+ 	MOVV	R0, R7
+ 	MOVV	R0, R8
+@@ -22,12 +22,12 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	SYSCALL
+ 	BEQ	R7, ok
+ 	MOVV	$-1, R1
+-	MOVV	R1, r1+16(FP)	// r1
+-	MOVV	R2, err+24(FP)	// errno
++	MOVV	R1, r1+24(FP)	// r1
++	MOVV	R2, err+32(FP)	// errno
+ 	RET
+ ok:
+-	MOVV	R2, r1+16(FP)	// r1
+-	MOVV	R0, err+24(FP)	// errno
++	MOVV	R2, r1+24(FP)	// r1
++	MOVV	R0, err+32(FP)	// errno
+ 	RET
+ 
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+diff --git a/src/syscall/asm_linux_mipsx.s b/src/syscall/asm_linux_mipsx.s
+index b8cae96b1a..3e5e8b1139 100644
+--- a/src/syscall/asm_linux_mipsx.s
++++ b/src/syscall/asm_linux_mipsx.s
+@@ -44,21 +44,21 @@ ok9:
+ 	JAL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	a1+4(FP), R4
+-	MOVW	R0, R5
++	MOVW	a2+8(FP), R5
+ 	MOVW	R0, R6
+ 	MOVW	trap+0(FP), R2	// syscall entry
+ 	SYSCALL
+ 	BEQ	R7, ok
+ 	MOVW	$-1, R1
+-	MOVW	R1, r1+8(FP)	// r1
+-	MOVW	R2, err+12(FP)	// errno
++	MOVW	R1, r1+12(FP)	// r1
++	MOVW	R2, err+16(FP)	// errno
+ 	RET
+ ok:
+-	MOVW	R2, r1+8(FP)	// r1
+-	MOVW	R0, err+12(FP)	// errno
++	MOVW	R2, r1+12(FP)	// r1
++	MOVW	R0, err+16(FP)	// errno
+ 	RET
+ 
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$20-24
+diff --git a/src/syscall/asm_linux_ppc64x.s b/src/syscall/asm_linux_ppc64x.s
+index 89cc1c2b0b..b9412fec1d 100644
+--- a/src/syscall/asm_linux_ppc64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -10,10 +10,10 @@
+ // System calls for ppc64, Linux
+ //
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	a1+8(FP), R3
+-	MOVD	R0, R4
++	MOVD	a2+16(FP), R4
+ 	MOVD	R0, R5
+ 	MOVD	R0, R6
+ 	MOVD	R0, R7
+@@ -22,12 +22,12 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	SYSCALL R9
+ 	BVC	ok
+ 	MOVD	$-1, R4
+-	MOVD	R4, r1+16(FP)	// r1
+-	MOVD	R3, err+24(FP)	// errno
++	MOVD	R4, r1+24(FP)	// r1
++	MOVD	R3, err+32(FP)	// errno
+ 	RET
+ ok:
+-	MOVD	R3, r1+16(FP)	// r1
+-	MOVD	R0, err+24(FP)	// errno
++	MOVD	R3, r1+24(FP)	// r1
++	MOVD	R0, err+32(FP)	// errno
+ 	RET
+ 
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+diff --git a/src/syscall/asm_linux_riscv64.s b/src/syscall/asm_linux_riscv64.s
+index 0fc1f73581..6fd09ec422 100644
+--- a/src/syscall/asm_linux_riscv64.s
++++ b/src/syscall/asm_linux_riscv64.s
+@@ -8,10 +8,10 @@
+ // System calls for riscv64, Linux
+ //
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOV	a1+8(FP), A0
+-	MOV	ZERO, A1
++	MOV	a2+16(FP), A1
+ 	MOV	ZERO, A2
+ 	MOV	ZERO, A3
+ 	MOV	ZERO, A4
+@@ -20,14 +20,14 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	ECALL
+ 	MOV	$-4096, T0
+ 	BLTU	T0, A0, err
+-	MOV	A0, r1+16(FP)	// r1
+-	MOV	ZERO, err+24(FP)	// errno
++	MOV	A0, r1+24(FP)	// r1
++	MOV	ZERO, err+32(FP)	// errno
+ 	RET
+ err:
+ 	MOV	$-1, T0
+-	MOV	T0, r1+16(FP)	// r1
++	MOV	T0, r1+24(FP)	// r1
+ 	SUB	A0, ZERO, A0
+-	MOV	A0, err+24(FP)	// errno
++	MOV	A0, err+32(FP)	// errno
+ 	RET
+ 
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+diff --git a/src/syscall/asm_linux_s390x.s b/src/syscall/asm_linux_s390x.s
+index c3631c1261..41c34b1e17 100644
+--- a/src/syscall/asm_linux_s390x.s
++++ b/src/syscall/asm_linux_s390x.s
+@@ -8,10 +8,10 @@
+ // System calls for s390x, Linux
+ //
+ 
+-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+-	MOVD	$0, R2
+-	MOVD	a1+8(FP), R3
++// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	a1+8(FP), R2
++	MOVD	a2+16(FP), R3
+ 	MOVD	$0, R4
+ 	MOVD	$0, R5
+ 	MOVD	$0, R6
+@@ -20,13 +20,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	SYSCALL
+ 	MOVD	$0xfffffffffffff001, R8
+ 	CMPUBLT	R2, R8, ok2
+-	MOVD	$-1, r1+16(FP)
++	MOVD	$-1, r1+24(FP)
+ 	NEG	R2, R2
+-	MOVD	R2, err+24(FP)	// errno
++	MOVD	R2, err+32(FP)	// errno
+ 	RET
+ ok2:
+-	MOVD	R2, r1+16(FP)
+-	MOVD	$0, err+24(FP)	// errno
++	MOVD	R2, r1+24(FP)
++	MOVD	$0, err+32(FP)	// errno
+ 	RET
+ 
+ // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index d9e9e6df44..72b56f484a 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -99,6 +99,8 @@ type SysProcAttr struct {
+ 	// users this should be set to false for mappings work.
+ 	GidMappingsEnableSetgroups bool
+ 	AmbientCaps                []uintptr // Ambient capabilities (Linux only)
++	UseCgroupFD                bool      // Whether to make use of the CgroupFD field.
++	CgroupFD                   int       // File descriptor of a cgroup to put the new process into.
+ }
+ 
+ var (
+@@ -176,6 +178,21 @@ func capToIndex(cap uintptr) uintptr { return cap >> 5 }
+ // See CAP_TO_MASK in linux/capability.h:
+ func capToMask(cap uintptr) uint32 { return 1 << uint(cap&31) }
+ 
++// cloneArgs holds arguments for clone3 Linux syscall.
++type cloneArgs struct {
++	flags      uint64 // Flags bit mask
++	pidFD      uint64 // Where to store PID file descriptor (int *)
++	childTID   uint64 // Where to store child TID, in child's memory (pid_t *)
++	parentTID  uint64 // Where to store child TID, in parent's memory (pid_t *)
++	exitSignal uint64 // Signal to deliver to parent on child termination
++	stack      uint64 // Pointer to lowest byte of stack
++	stackSize  uint64 // Size of stack
++	tls        uint64 // Location of new TLS
++	setTID     uint64 // Pointer to a pid_t array (since Linux 5.5)
++	setTIDSize uint64 // Number of elements in set_tid (since Linux 5.5)
++	cgroup     uint64 // File descriptor for target cgroup of child (since Linux 5.7)
++}
++
+ // forkAndExecInChild1 implements the body of forkAndExecInChild up to
+ // the parent's post-fork path. This is a separate function so we can
+ // separate the child's and parent's stack frames if we're using
+@@ -205,9 +222,10 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		nextfd                    int
+ 		i                         int
+ 		caps                      caps
+-		fd1                       uintptr
++		fd1, flags                uintptr
+ 		puid, psetgroups, pgid    []byte
+ 		uidmap, setgroups, gidmap []byte
++		clone3                    *cloneArgs
+ 	)
+ 
+ 	if sys.UidMappings != nil {
+@@ -252,17 +270,33 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
++	flags = sys.Cloneflags
++	if sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0 {
++		flags |= CLONE_VFORK | CLONE_VM
++	}
++	// Whether to use clone3.
++	if sys.UseCgroupFD {
++		clone3 = &cloneArgs{
++			flags:      uint64(flags) | CLONE_INTO_CGROUP,
++			exitSignal: uint64(SIGCHLD),
++			cgroup:     uint64(sys.CgroupFD),
++		}
++	}
++
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+ 	runtime_BeforeFork()
+ 	locked = true
+-	switch {
+-	case sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0:
+-		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
+-	case runtime.GOARCH == "s390x":
+-		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
+-	default:
+-		r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
++	if clone3 != nil {
++		r1, err1 = rawVforkSyscall(_SYS_clone3, uintptr(unsafe.Pointer(clone3)), unsafe.Sizeof(*clone3))
++	} else {
++		flags |= uintptr(SIGCHLD)
++		if runtime.GOARCH == "s390x" {
++			// On Linux/s390, the first two arguments of clone(2) are swapped.
++			r1, err1 = rawVforkSyscall(SYS_CLONE, 0, flags)
++		} else {
++			r1, err1 = rawVforkSyscall(SYS_CLONE, flags, 0)
++		}
+ 	}
+ 	if err1 != 0 || r1 != 0 {
+ 		// If we're in the parent, we must return immediately
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 8a9258d116..a035d415ed 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -7,6 +7,7 @@
+ package syscall_test
+ 
+ import (
++	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -14,6 +15,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"os/user"
++	"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strconv"
+@@ -461,6 +463,96 @@ func TestUnshareUidGidMapping(t *testing.T) {
+ 	}
+ }
+ 
++func prepareCgroupFD(t *testing.T) (int, string) {
++	t.Helper()
++
++	const O_PATH = 0x200000 // Same for all architectures, but for some reason not defined in syscall for 386||amd64.
++
++	// Requires cgroup v2.
++	const prefix = "/sys/fs/cgroup"
++	selfCg, err := os.ReadFile("/proc/self/cgroup")
++	if err != nil {
++		if os.IsNotExist(err) || os.IsPermission(err) {
++			t.Skip(err)
++		}
++		t.Fatal(err)
++	}
++
++	// Expect a single line like this:
++	// 0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-891992a2-efbb-4f28-aedb-b24f9e706770.scope
++	// Otherwise it's either cgroup v1 or a hybrid hierarchy.
++	if bytes.Count(selfCg, []byte("\n")) > 1 {
++		t.Skip("cgroup v2 not available")
++	}
++	cg := bytes.TrimPrefix(selfCg, []byte("0::"))
++	if len(cg) == len(selfCg) { // No prefix found.
++		t.Skipf("cgroup v2 not available (/proc/self/cgroup contents: %q)", selfCg)
++	}
++
++	// Need clone3 with CLONE_INTO_CGROUP support.
++	_, err = syscall.ForkExec("non-existent binary", nil, &syscall.ProcAttr{
++		Sys: &syscall.SysProcAttr{
++			UseCgroupFD: true,
++			CgroupFD:    -1,
++		},
++	})
++	// // EPERM can be returned if clone3 is not enabled by seccomp.
++	if err == syscall.ENOSYS || err == syscall.EPERM {
++		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
++	}
++
++	// Need an ability to create a sub-cgroup.
++	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
++	if err != nil {
++		if os.IsPermission(err) {
++			t.Skip(err)
++		}
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { syscall.Rmdir(subCgroup) })
++
++	cgroupFD, err := syscall.Open(subCgroup, O_PATH, 0)
++	if err != nil {
++		t.Fatal(&os.PathError{Op: "open", Path: subCgroup, Err: err})
++	}
++	t.Cleanup(func() { syscall.Close(cgroupFD) })
++
++	return cgroupFD, "/" + path.Base(subCgroup)
++}
++
++func TestUseCgroupFD(t *testing.T) {
++	fd, suffix := prepareCgroupFD(t)
++
++	cmd := exec.Command(os.Args[0], "-test.run=TestUseCgroupFDHelper")
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		UseCgroupFD: true,
++		CgroupFD:    fd,
++	}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
++	}
++	// NB: this wouldn't work with cgroupns.
++	if !bytes.HasSuffix(bytes.TrimSpace(out), []byte(suffix)) {
++		t.Fatalf("got: %q, want: a line that ends with %q", out, suffix)
++	}
++}
++
++func TestUseCgroupFDHelper(*testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++	defer os.Exit(0)
++	// Read and print own cgroup path.
++	selfCg, err := os.ReadFile("/proc/self/cgroup")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++	fmt.Print(string(selfCg))
++}
++
+ type capHeader struct {
+ 	version uint32
+ 	pid     int32
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index c3038fc09a..bdee570dda 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -94,6 +94,7 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ }
+ 
+ func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
++func rawVforkSyscall(trap, a1, a2 uintptr) (r1 uintptr, err Errno)
+ 
+ /*
+  * Wrapped
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 7602736905..0c9c6aa755 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS32
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -348,5 +349,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 02e411666e..77e1393de1 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -6,6 +6,7 @@ package syscall
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -120,5 +121,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 1b5d639ebe..f4740af586 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS32
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -200,5 +201,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 3ce6849064..f42686262a 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -182,5 +183,3 @@ func Pause() error {
+ 	_, err := ppoll(nil, 0, nil, nil)
+ 	return err
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_loong64.go b/src/syscall/syscall_linux_loong64.go
+index 2cd3494668..5a0fa0834d 100644
+--- a/src/syscall/syscall_linux_loong64.go
++++ b/src/syscall/syscall_linux_loong64.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -217,5 +218,3 @@ func Pause() error {
+ 	_, err := ppoll(nil, 0, nil, nil)
+ 	return err
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 2d3784e7de..8a0aa5c91e 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 5435
+ 	_SYS_faccessat2 = 5439
+ )
+ 
+@@ -182,5 +183,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 59825e4a98..c8468fb5b5 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -10,6 +10,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 4435
+ 	_SYS_faccessat2 = 4439
+ )
+ 
+@@ -193,5 +194,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index ba8f1e78cf..5c076d8bea 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -91,8 +92,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+ 
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+-
+ //sys	syncFileRange2(fd int, flags int, off int64, n int64) (err error) = SYS_SYNC_FILE_RANGE2
+ 
+ func SyncFileRange(fd int, off int64, n int64, flags int) error {
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 82c4094143..3bb54600a8 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -168,5 +169,3 @@ func Pause() error {
+ 	_, err := ppoll(nil, 0, nil, nil)
+ 	return err
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index fb97180483..cb83697be4 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_clone3     = 435
+ 	_SYS_faccessat2 = 439
+ )
+ 
+@@ -257,5 +258,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+-
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

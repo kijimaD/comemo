@@ -7,9 +7,326 @@ Date:   Fri Mar 25 14:42:25 2011 -0400
     R=iant, rsc, brainman
     CC=golang-dev
     https://golang.org/cl/4306042
-
+---
  src/pkg/net/Makefile        |   4 ++
  src/pkg/net/file.go         | 115 ++++++++++++++++++++++++++++++++++++++
  src/pkg/net/file_test.go    | 131 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/file_windows.go |  17 ++++++
  4 files changed, 267 insertions(+)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 6b6d7c0e3c..3f48907446 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -24,6 +24,7 @@ GOFILES=\
+ GOFILES_freebsd=\
+ 	newpollserver.go\
+ 	fd.go\
++	file.go\
+ 	dnsconfig.go\
+ 	dnsclient.go\
+ 	port.go\
+@@ -31,6 +32,7 @@ GOFILES_freebsd=\
+ GOFILES_darwin=\
+ 	newpollserver.go\
+ 	fd.go\
++	file.go\
+ 	dnsconfig.go\
+ 	dnsclient.go\
+ 	port.go\
+@@ -38,12 +40,14 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	newpollserver.go\
+ 	fd.go\
++	file.go\
+ 	dnsconfig.go\
+ 	dnsclient.go\
+ 	port.go\
+ 
+ GOFILES_windows=\
+ 	resolv_windows.go\
++	file_windows.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+new file mode 100644
+index 0000000000..5439ed994f
+--- /dev/null
++++ b/src/pkg/net/file.go
+@@ -0,0 +1,115 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func newFileFD(f *os.File) (*netFD, os.Error) {
++	fd, errno := syscall.Dup(f.Fd())
++	if errno != 0 {
++		return nil, os.NewSyscallError("dup", errno)
++	}
++
++	proto, errno := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
++	if errno != 0 {
++		return nil, os.NewSyscallError("getsockopt", errno)
++	}
++
++	toAddr := sockaddrToTCP
++	sa, _ := syscall.Getsockname(fd)
++	switch sa.(type) {
++	default:
++		closesocket(fd)
++		return nil, os.EINVAL
++	case *syscall.SockaddrInet4:
++		if proto == syscall.SOCK_DGRAM {
++			toAddr = sockaddrToUDP
++		} else if proto == syscall.SOCK_RAW {
++			toAddr = sockaddrToIP
++		}
++	case *syscall.SockaddrInet6:
++		if proto == syscall.SOCK_DGRAM {
++			toAddr = sockaddrToUDP
++		} else if proto == syscall.SOCK_RAW {
++			toAddr = sockaddrToIP
++		}
++	case *syscall.SockaddrUnix:
++		toAddr = sockaddrToUnix
++		if proto == syscall.SOCK_DGRAM {
++			toAddr = sockaddrToUnixgram
++		} else if proto == syscall.SOCK_SEQPACKET {
++			toAddr = sockaddrToUnixpacket
++		}
++	}
++	laddr := toAddr(sa)
++	sa, _ = syscall.Getpeername(fd)
++	raddr := toAddr(sa)
++
++	return newFD(fd, 0, proto, laddr.Network(), laddr, raddr)
++}
++
++// FileConn returns a copy of the network connection corresponding to
++// the open file f.  It is the caller's responsibility to close f when
++// finished.  Closing c does not affect f, and closing f does not
++// affect c.
++func FileConn(f *os.File) (c Conn, err os.Error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch fd.laddr.(type) {
++	case *TCPAddr:
++		return newTCPConn(fd), nil
++	case *UDPAddr:
++		return newUDPConn(fd), nil
++	case *UnixAddr:
++		return newUnixConn(fd), nil
++	case *IPAddr:
++		return newIPConn(fd), nil
++	}
++	fd.Close()
++	return nil, os.EINVAL
++}
++
++// FileListener returns a copy of the network listener corresponding
++// to the open file f.  It is the caller's responsibility to close l
++// when finished.  Closing c does not affect l, and closing l does not
++// affect c.
++func FileListener(f *os.File) (l Listener, err os.Error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch laddr := fd.laddr.(type) {
++	case *TCPAddr:
++		return &TCPListener{fd}, nil
++	case *UnixAddr:
++		return &UnixListener{fd, laddr.Name}, nil
++	}
++	fd.Close()
++	return nil, os.EINVAL
++}
++
++// FilePacketConn returns a copy of the packet network connection
++// corresponding to the open file f.  It is the caller's
++// responsibility to close f when finished.  Closing c does not affect
++// f, and closing f does not affect c.
++func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch fd.laddr.(type) {
++	case *UDPAddr:
++		return newUDPConn(fd), nil
++	case *UnixAddr:
++		return newUnixConn(fd), nil
++	}
++	fd.Close()
++	return nil, os.EINVAL
++}
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+new file mode 100644
+index 0000000000..1824d04eeb
+--- /dev/null
++++ b/src/pkg/net/file_test.go
+@@ -0,0 +1,131 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"reflect"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++type listenerFile interface {
++	Listener
++	File() (f *os.File, err os.Error)
++}
++
++type packetConnFile interface {
++	PacketConn
++	File() (f *os.File, err os.Error)
++}
++
++type connFile interface {
++	Conn
++	File() (f *os.File, err os.Error)
++}
++
++func testFileListener(t *testing.T, net, laddr string) {
++	if net == "tcp" {
++		laddr += ":0" // any available port
++	}
++	l, err := Listen(net, laddr)
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	defer l.Close()
++	lf := l.(listenerFile)
++	f, err := lf.File()
++	if err != nil {
++		t.Fatalf("File failed: %v", err)
++	}
++	c, err := FileListener(f)
++	if err != nil {
++		t.Fatalf("FileListener failed: %v", err)
++	}
++	if !reflect.DeepEqual(l.Addr(), c.Addr()) {
++		t.Fatalf("Addrs not equal: %#v != %#v", l.Addr(), c.Addr())
++	}
++	if err := c.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++	if err := f.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++}
++
++func TestFileListener(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
++	testFileListener(t, "tcp", "127.0.0.1")
++	testFileListener(t, "tcp", "127.0.0.1")
++	if kernelSupportsIPv6() {
++		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
++		testFileListener(t, "tcp", "127.0.0.1")
++		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
++	}
++	if syscall.OS == "linux" {
++		testFileListener(t, "unix", "@gotest/net")
++		testFileListener(t, "unixpacket", "@gotest/net")
++	}
++}
++
++func testFilePacketConn(t *testing.T, pcf packetConnFile) {
++	f, err := pcf.File()
++	if err != nil {
++		t.Fatalf("File failed: %v", err)
++	}
++	c, err := FilePacketConn(f)
++	if err != nil {
++		t.Fatalf("FilePacketConn failed: %v", err)
++	}
++	if !reflect.DeepEqual(pcf.LocalAddr(), c.LocalAddr()) {
++		t.Fatalf("LocalAddrs not equal: %#v != %#v", pcf.LocalAddr(), c.LocalAddr())
++	}
++	if err := c.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++	if err := f.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++}
++
++func testFilePacketConnListen(t *testing.T, net, laddr string) {
++	l, err := ListenPacket(net, laddr)
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	testFilePacketConn(t, l.(packetConnFile))
++	if err := l.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++}
++
++func testFilePacketConnDial(t *testing.T, net, raddr string) {
++	c, err := Dial(net, "", raddr)
++	if err != nil {
++		t.Fatalf("Dial failed: %v", err)
++	}
++	testFilePacketConn(t, c.(packetConnFile))
++	if err := c.Close(); err != nil {
++		t.Fatalf("Close failed: %v", err)
++	}
++}
++
++func TestFilePacketConn(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
++	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
++	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
++	if kernelSupportsIPv6() {
++		testFilePacketConnListen(t, "udp", "[::1]:0")
++		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
++	}
++	if syscall.OS == "linux" {
++		testFilePacketConnListen(t, "unixgram", "@gotest1/net")
++	}
++}
+diff --git a/src/pkg/net/file_windows.go b/src/pkg/net/file_windows.go
+new file mode 100644
+index 0000000000..7aef9c1064
+--- /dev/null
++++ b/src/pkg/net/file_windows.go
+@@ -0,0 +1,17 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func FileConn(f *os.File) (c Conn, err os.Error) {
++	return nil, os.EWINDOWS
++}
++
++func FileListener(f *os.File) (l Listener, err os.Error) {
++	return nil, os.EWINDOWS
++}
++
++func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
++	return nil, os.EWINDOWS
++}

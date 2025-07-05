@@ -75,8 +75,59 @@ Date:   Wed Aug 16 10:39:38 2023 +0800
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go           | 4 ++--
  src/cmd/compile/internal/ssa/debug_lines_test.go | 2 +-
  src/internal/buildcfg/exp.go                     | 4 +++-
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index c36ac4cd5d..debcf1a0f4 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -283,8 +283,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.registers = registersLOONG64[:]
+ 		c.gpRegMask = gpRegMaskLOONG64
+ 		c.fpRegMask = fpRegMaskLOONG64
+-		// c.intParamRegs = paramIntRegLOONG64
+-		// c.floatParamRegs = paramFloatRegLOONG64
++		c.intParamRegs = paramIntRegLOONG64
++		c.floatParamRegs = paramFloatRegLOONG64
+ 		c.FPReg = framepointerRegLOONG64
+ 		c.LinkReg = linkRegLOONG64
+ 		c.hasGReg = true
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index cf115107a1..af9e2a34cf 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -44,7 +44,7 @@ func testGoArch() string {
+ 
+ func hasRegisterABI() bool {
+ 	switch testGoArch() {
+-	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
++	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index c6a6c84f3c..75ed7b2459 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -65,6 +65,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	case "amd64", "arm64", "ppc64le", "ppc64", "riscv64":
+ 		regabiAlwaysOn = true
+ 		regabiSupported = true
++	case "loong64":
++		regabiSupported = true
+ 	}
+ 
+ 	baseline := goexperiment.Flags{
+@@ -130,7 +132,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		flags.RegabiWrappers = true
+ 		flags.RegabiArgs = true
+ 	}
+-	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
++	// regabi is only supported on amd64, arm64, loong64, riscv64, ppc64 and ppc64le.
+ 	if !regabiSupported {
+ 		flags.RegabiWrappers = false
+ 		flags.RegabiArgs = false

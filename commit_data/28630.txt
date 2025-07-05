@@ -13,6 +13,39 @@ Date:   Wed Jun 15 10:36:48 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/runtime/testdata/testprogcgo/aprof.go | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/aprof.go b/src/runtime/testdata/testprogcgo/aprof.go
+index b4b71f2861..aabca9e1eb 100644
+--- a/src/runtime/testdata/testprogcgo/aprof.go
++++ b/src/runtime/testdata/testprogcgo/aprof.go
+@@ -30,19 +30,17 @@ func GoNop() {}
+ func CgoCCodeSIGPROF() {
+ 	c := make(chan bool)
+ 	go func() {
+-		for {
+-			<-c
+-			start := time.Now()
+-			for i := 0; i < 1e7; i++ {
+-				if i%1000 == 0 {
+-					if time.Since(start) > time.Second {
+-						break
+-					}
++		<-c
++		start := time.Now()
++		for i := 0; i < 1e7; i++ {
++			if i%1000 == 0 {
++				if time.Since(start) > time.Second {
++					break
+ 				}
+-				C.GoNop()
+ 			}
+-			c <- true
++			C.GoNop()
+ 		}
++		c <- true
+ 	}()
+ 
+ 	var buf bytes.Buffer

@@ -26,7 +26,7 @@ Date:   Tue Oct 16 10:42:58 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  .../lockedfile/internal/filelock/filelock.go       |  98 ++++++++++
  .../lockedfile/internal/filelock/filelock_other.go |  36 ++++
  .../lockedfile/internal/filelock/filelock_plan9.go |  38 ++++
@@ -41,3 +41,1258 @@ Date:   Tue Oct 16 10:42:58 2018 -0400
  src/cmd/go/internal/lockedfile/mutex.go            |  60 ++++++
  src/cmd/go/testdata/script/mod_patterns.txt        |  10 +
  13 files changed, 1167 insertions(+)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+new file mode 100644
+index 0000000000..aba3eed776
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+@@ -0,0 +1,98 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package filelock provides a platform-independent API for advisory file
++// locking. Calls to functions in this package on platforms that do not support
++// advisory locks will return errors for which IsNotSupported returns true.
++package filelock
++
++import (
++	"errors"
++	"os"
++)
++
++// A File provides the minimal set of methods required to lock an open file.
++// File implementations must be usable as map keys.
++// The usual implementation is *os.File.
++type File interface {
++	// Name returns the name of the file.
++	Name() string
++
++	// Fd returns a valid file descriptor.
++	// (If the File is an *os.File, it must not be closed.)
++	Fd() uintptr
++
++	// Stat returns the FileInfo structure describing file.
++	Stat() (os.FileInfo, error)
++}
++
++// Lock places an advisory write lock on the file, blocking until it can be
++// locked.
++//
++// If Lock returns nil, no other process will be able to place a read or write
++// lock on the file until this process exits, closes f, or calls Unlock on it.
++//
++// If f's descriptor is already read- or write-locked, the behavior of Lock is
++// unspecified.
++//
++// Closing the file may or may not release the lock promptly. Callers should
++// ensure that Unlock is always called when Lock succeeds.
++func Lock(f File) error {
++	return lock(f, writeLock)
++}
++
++// RLock places an advisory read lock on the file, blocking until it can be locked.
++//
++// If RLock returns nil, no other process will be able to place a write lock on
++// the file until this process exits, closes f, or calls Unlock on it.
++//
++// If f is already read- or write-locked, the behavior of RLock is unspecified.
++//
++// Closing the file may or may not release the lock promptly. Callers should
++// ensure that Unlock is always called if RLock succeeds.
++func RLock(f File) error {
++	return lock(f, readLock)
++}
++
++// Unlock removes an advisory lock placed on f by this process.
++//
++// The caller must not attempt to unlock a file that is not locked.
++func Unlock(f File) error {
++	return unlock(f)
++}
++
++// String returns the name of the function corresponding to lt
++// (Lock, RLock, or Unlock).
++func (lt lockType) String() string {
++	switch lt {
++	case readLock:
++		return "RLock"
++	case writeLock:
++		return "Lock"
++	default:
++		return "Unlock"
++	}
++}
++
++// IsNotSupported returns a boolean indicating whether the error is known to
++// report that a function is not supported (possibly for a specific input).
++// It is satisfied by ErrNotSupported as well as some syscall errors.
++func IsNotSupported(err error) bool {
++	return isNotSupported(underlyingError(err))
++}
++
++var ErrNotSupported = errors.New("operation not supported")
++
++// underlyingError returns the underlying error for known os error types.
++func underlyingError(err error) error {
++	switch err := err.(type) {
++	case *os.PathError:
++		return err.Err
++	case *os.LinkError:
++		return err.Err
++	case *os.SyscallError:
++		return err.Err
++	}
++	return err
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+new file mode 100644
+index 0000000000..7d60160f90
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+@@ -0,0 +1,36 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!plan9,!solaris,!windows
++
++package filelock
++
++import "os"
++
++type lockType int8
++
++const (
++	readLock = iota + 1
++	writeLock
++)
++
++func lock(f File, lt lockType) error {
++	return &os.PathError{
++		Op:   lt.String(),
++		Path: f.Name(),
++		Err:  ErrNotSupported,
++	}
++}
++
++func unlock(f File) error {
++	return &os.PathError{
++		Op:   "Unlock",
++		Path: f.Name(),
++		Err:  ErrNotSupported,
++	}
++}
++
++func isNotSupported(err error) bool {
++	return err == ErrNotSupported
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
+new file mode 100644
+index 0000000000..afdffe323f
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
+@@ -0,0 +1,38 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package filelock
++
++import (
++	"os"
++)
++
++type lockType int8
++
++const (
++	readLock = iota + 1
++	writeLock
++)
++
++func lock(f File, lt lockType) error {
++	return &os.PathError{
++		Op:   lt.String(),
++		Path: f.Name(),
++		Err:  ErrNotSupported,
++	}
++}
++
++func unlock(f File) error {
++	return &os.PathError{
++		Op:   "Unlock",
++		Path: f.Name(),
++		Err:  ErrNotSupported,
++	}
++}
++
++func isNotSupported(err error) bool {
++	return err == ErrNotSupported
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_solaris.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_solaris.go
+new file mode 100644
+index 0000000000..b03d5f893e
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_solaris.go
+@@ -0,0 +1,157 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code implements the filelock API using POSIX 'fcntl' locks, which attach
++// to an (inode, process) pair rather than a file descriptor. To avoid unlocking
++// files prematurely when the same file is opened through different descriptors,
++// we allow only one read-lock at a time.
++//
++// Most platforms provide some alternative API, such as an 'flock' system call
++// or an F_OFD_SETLK command for 'fcntl', that allows for better concurrency and
++// does not require per-inode bookkeeping in the application.
++//
++// TODO(bcmills): If we add a build tag for Illumos (see golang.org/issue/20603)
++// then Illumos should use F_OFD_SETLK, and the resulting code would be as
++// simple as filelock_unix.go. We will still need the code in this file as long
++// as Oracle Solaris provides only F_SETLK.
++
++package filelock
++
++import (
++	"errors"
++	"io"
++	"os"
++	"sync"
++	"syscall"
++)
++
++type lockType int16
++
++const (
++	readLock  lockType = syscall.F_RDLCK
++	writeLock lockType = syscall.F_WRLCK
++)
++
++type inode = uint64 // type of syscall.Stat_t.Ino
++
++type inodeLock struct {
++	owner File
++	queue []<-chan File
++}
++
++type token struct{}
++
++var (
++	mu     sync.Mutex
++	inodes = map[File]inode{}
++	locks  = map[inode]inodeLock{}
++)
++
++func lock(f File, lt lockType) (err error) {
++	// POSIX locks apply per inode and process, and the lock for an inode is
++	// released when *any* descriptor for that inode is closed. So we need to
++	// synchronize access to each inode internally, and must serialize lock and
++	// unlock calls that refer to the same inode through different descriptors.
++	fi, err := f.Stat()
++	if err != nil {
++		return err
++	}
++	ino := fi.Sys().(*syscall.Stat_t).Ino
++
++	mu.Lock()
++	if i, dup := inodes[f]; dup && i != ino {
++		mu.Unlock()
++		return &os.PathError{
++			Op:   lt.String(),
++			Path: f.Name(),
++			Err:  errors.New("inode for file changed since last Lock or RLock"),
++		}
++	}
++	inodes[f] = ino
++
++	var wait chan File
++	l := locks[ino]
++	if l.owner == f {
++		// This file already owns the lock, but the call may change its lock type.
++	} else if l.owner == nil {
++		// No owner: it's ours now.
++		l.owner = f
++	} else {
++		// Already owned: add a channel to wait on.
++		wait = make(chan File)
++		l.queue = append(l.queue, wait)
++	}
++	locks[ino] = l
++	mu.Unlock()
++
++	if wait != nil {
++		wait <- f
++	}
++
++	err = setlkw(f.Fd(), lt)
++
++	if err != nil {
++		unlock(f)
++		return &os.PathError{
++			Op:   lt.String(),
++			Path: f.Name(),
++			Err:  err,
++		}
++	}
++
++	return nil
++}
++
++func unlock(f File) error {
++	var owner File
++
++	mu.Lock()
++	ino, ok := inodes[f]
++	if ok {
++		owner = locks[ino].owner
++	}
++	mu.Unlock()
++
++	if owner != f {
++		panic("unlock called on a file that is not locked")
++	}
++
++	err := setlkw(f.Fd(), syscall.F_UNLCK)
++
++	mu.Lock()
++	l := locks[ino]
++	if len(l.queue) == 0 {
++		// No waiters: remove the map entry.
++		delete(locks, ino)
++	} else {
++		// The first waiter is sending us their file now.
++		// Receive it and update the queue.
++		l.owner = <-l.queue[0]
++		l.queue = l.queue[1:]
++		locks[ino] = l
++	}
++	delete(inodes, f)
++	mu.Unlock()
++
++	return err
++}
++
++// setlkw calls FcntlFlock with F_SETLKW for the entire file indicated by fd.
++func setlkw(fd uintptr, lt lockType) error {
++	for {
++		err := syscall.FcntlFlock(fd, syscall.F_SETLKW, &syscall.Flock_t{
++			Type:   int16(lt),
++			Whence: io.SeekStart,
++			Start:  0,
++			Len:    0, // All bytes.
++		})
++		if err != syscall.EINTR {
++			return err
++		}
++	}
++}
++
++func isNotSupported(err error) bool {
++	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+new file mode 100644
+index 0000000000..96f4874378
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -0,0 +1,206 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !js,!nacl,!plan9
++
++package filelock_test
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++	"time"
++
++	"cmd/go/internal/lockedfile/internal/filelock"
++)
++
++func lock(t *testing.T, f *os.File) {
++	t.Helper()
++	err := filelock.Lock(f)
++	t.Logf("Lock(fd %d) = %v", f.Fd(), err)
++	if err != nil {
++		t.Fail()
++	}
++}
++
++func rLock(t *testing.T, f *os.File) {
++	t.Helper()
++	err := filelock.RLock(f)
++	t.Logf("RLock(fd %d) = %v", f.Fd(), err)
++	if err != nil {
++		t.Fail()
++	}
++}
++
++func unlock(t *testing.T, f *os.File) {
++	t.Helper()
++	err := filelock.Unlock(f)
++	t.Logf("Unlock(fd %d) = %v", f.Fd(), err)
++	if err != nil {
++		t.Fail()
++	}
++}
++
++func mustTempFile(t *testing.T) (f *os.File, remove func()) {
++	t.Helper()
++
++	base := filepath.Base(t.Name())
++	f, err := ioutil.TempFile("", base)
++	if err != nil {
++		t.Fatalf(`ioutil.TempFile("", %q) = %v`, base, err)
++	}
++	t.Logf("fd %d = %s", f.Fd(), f.Name())
++
++	return f, func() {
++		f.Close()
++		os.Remove(f.Name())
++	}
++}
++
++func mustOpen(t *testing.T, name string) *os.File {
++	t.Helper()
++
++	f, err := os.OpenFile(name, os.O_RDWR, 0)
++	if err != nil {
++		t.Fatalf("os.Open(%q) = %v", name, err)
++	}
++
++	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
++	return f
++}
++
++const (
++	quiescent            = 10 * time.Millisecond
++	probablyStillBlocked = 10 * time.Second
++)
++
++func mustBlock(t *testing.T, op string, f *os.File) (wait func(*testing.T)) {
++	t.Helper()
++
++	desc := fmt.Sprintf("%s(fd %d)", op, f.Fd())
++
++	done := make(chan struct{})
++	go func() {
++		t.Helper()
++		switch op {
++		case "Lock":
++			lock(t, f)
++		case "RLock":
++			rLock(t, f)
++		default:
++			panic("invalid op: " + op)
++		}
++		close(done)
++	}()
++
++	select {
++	case <-done:
++		t.Fatalf("%s unexpectedly did not block", desc)
++		return nil
++
++	case <-time.After(quiescent):
++		t.Logf("%s is blocked (as expected)", desc)
++		return func(t *testing.T) {
++			t.Helper()
++			select {
++			case <-time.After(probablyStillBlocked):
++				t.Fatalf("%s is unexpectedly still blocked", desc)
++			case <-done:
++			}
++		}
++	}
++}
++
++func TestLockExcludesLock(t *testing.T) {
++	t.Parallel()
++
++	f, remove := mustTempFile(t)
++	defer remove()
++
++	other := mustOpen(t, f.Name())
++	defer other.Close()
++
++	lock(t, f)
++	lockOther := mustBlock(t, "Lock", other)
++	unlock(t, f)
++	lockOther(t)
++	unlock(t, other)
++}
++
++func TestLockExcludesRLock(t *testing.T) {
++	t.Parallel()
++
++	f, remove := mustTempFile(t)
++	defer remove()
++
++	other := mustOpen(t, f.Name())
++	defer other.Close()
++
++	lock(t, f)
++	rLockOther := mustBlock(t, "RLock", other)
++	unlock(t, f)
++	rLockOther(t)
++	unlock(t, other)
++}
++
++func TestRLockExcludesOnlyLock(t *testing.T) {
++	t.Parallel()
++
++	f, remove := mustTempFile(t)
++	defer remove()
++	rLock(t, f)
++
++	f2 := mustOpen(t, f.Name())
++	defer f2.Close()
++
++	if runtime.GOOS == "solaris" {
++		// When using POSIX locks (as on Solaris), we can't safely read-lock the
++		// same inode through two different descriptors at the same time: when the
++		// first descriptor is closed, the second descriptor would still be open but
++		// silently unlocked. So a second RLock must block instead of proceeding.
++		lockF2 := mustBlock(t, "RLock", f2)
++		unlock(t, f)
++		lockF2(t)
++	} else {
++		rLock(t, f2)
++	}
++
++	other := mustOpen(t, f.Name())
++	defer other.Close()
++	lockOther := mustBlock(t, "Lock", other)
++
++	unlock(t, f2)
++	if runtime.GOOS != "solaris" {
++		unlock(t, f)
++	}
++	lockOther(t)
++	unlock(t, other)
++}
++
++func TestLockNotDroppedByExecCommand(t *testing.T) {
++	f, remove := mustTempFile(t)
++	defer remove()
++
++	lock(t, f)
++
++	other := mustOpen(t, f.Name())
++	defer other.Close()
++
++	// Some kinds of file locks are dropped when a duplicated or forked file
++	// descriptor is unlocked. Double-check that the approach used by os/exec does
++	// not accidentally drop locks.
++	cmd := exec.Command(os.Args[0], "-test.run=^$")
++	if err := cmd.Run(); err != nil {
++		t.Fatalf("exec failed: %v", err)
++	}
++
++	lockOther := mustBlock(t, "Lock", other)
++	unlock(t, f)
++	lockOther(t)
++	unlock(t, other)
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+new file mode 100644
+index 0000000000..00c4262832
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+@@ -0,0 +1,44 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package filelock
++
++import (
++	"os"
++	"syscall"
++)
++
++type lockType int16
++
++const (
++	readLock  lockType = syscall.LOCK_SH
++	writeLock lockType = syscall.LOCK_EX
++)
++
++func lock(f File, lt lockType) (err error) {
++	for {
++		err = syscall.Flock(int(f.Fd()), int(lt))
++		if err != syscall.EINTR {
++			break
++		}
++	}
++	if err != nil {
++		return &os.PathError{
++			Op:   lt.String(),
++			Path: f.Name(),
++			Err:  err,
++		}
++	}
++	return nil
++}
++
++func unlock(f File) error {
++	return lock(f, syscall.LOCK_UN)
++}
++
++func isNotSupported(err error) bool {
++	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
++}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+new file mode 100644
+index 0000000000..43e85e450e
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+@@ -0,0 +1,66 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package filelock
++
++import (
++	"internal/syscall/windows"
++	"os"
++	"syscall"
++)
++
++type lockType uint32
++
++const (
++	readLock  lockType = 0
++	writeLock lockType = windows.LOCKFILE_EXCLUSIVE_LOCK
++)
++
++const (
++	reserved = 0
++	allBytes = ^uint32(0)
++)
++
++func lock(f File, lt lockType) error {
++	// Per https://golang.org/issue/19098, “Programs currently expect the Fd
++	// method to return a handle that uses ordinary synchronous I/O.”
++	// However, LockFileEx still requires an OVERLAPPED structure,
++	// which contains the file offset of the beginning of the lock range.
++	// We want to lock the entire file, so we leave the offset as zero.
++	ol := new(syscall.Overlapped)
++
++	err := windows.LockFileEx(syscall.Handle(f.Fd()), uint32(lt), reserved, allBytes, allBytes, ol)
++	if err != nil {
++		return &os.PathError{
++			Op:   lt.String(),
++			Path: f.Name(),
++			Err:  err,
++		}
++	}
++	return nil
++}
++
++func unlock(f File) error {
++	ol := new(syscall.Overlapped)
++	err := windows.UnlockFileEx(syscall.Handle(f.Fd()), reserved, allBytes, allBytes, ol)
++	if err != nil {
++		return &os.PathError{
++			Op:   "Unlock",
++			Path: f.Name(),
++			Err:  err,
++		}
++	}
++	return nil
++}
++
++func isNotSupported(err error) bool {
++	switch err {
++	case windows.ERROR_NOT_SUPPORTED, windows.ERROR_CALL_NOT_IMPLEMENTED, ErrNotSupported:
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile.go b/src/cmd/go/internal/lockedfile/lockedfile.go
+new file mode 100644
+index 0000000000..bb184b1085
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/lockedfile.go
+@@ -0,0 +1,122 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package lockedfile creates and manipulates files whose contents should only
++// change atomically.
++package lockedfile
++
++import (
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"runtime"
++)
++
++// A File is a locked *os.File.
++//
++// Closing the file releases the lock.
++//
++// If the program exits while a file is locked, the operating system releases
++// the lock but may not do so promptly: callers must ensure that all locked
++// files are closed before exiting.
++type File struct {
++	osFile
++	closed bool
++}
++
++// osFile embeds a *os.File while keeping the pointer itself unexported.
++// (When we close a File, it must be the same file descriptor that we opened!)
++type osFile struct {
++	*os.File
++}
++
++// OpenFile is like os.OpenFile, but returns a locked file.
++// If flag includes os.O_WRONLY or os.O_RDWR, the file is write-locked;
++// otherwise, it is read-locked.
++func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
++	var (
++		f   = new(File)
++		err error
++	)
++	f.osFile.File, err = openFile(name, flag, perm)
++	if err != nil {
++		return nil, err
++	}
++
++	// Although the operating system will drop locks for open files when the go
++	// command exits, we want to hold locks for as little time as possible, and we
++	// especially don't want to leave a file locked after we're done with it. Our
++	// Close method is what releases the locks, so use a finalizer to report
++	// missing Close calls on a best-effort basis.
++	runtime.SetFinalizer(f, func(f *File) {
++		panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", f.Name()))
++	})
++
++	return f, nil
++}
++
++// Open is like os.Open, but returns a read-locked file.
++func Open(name string) (*File, error) {
++	return OpenFile(name, os.O_RDONLY, 0)
++}
++
++// Create is like os.Create, but returns a write-locked file.
++func Create(name string) (*File, error) {
++	return OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
++}
++
++// Edit creates the named file with mode 0666 (before umask),
++// but does not truncate existing contents.
++//
++// If Edit succeeds, methods on the returned File can be used for I/O.
++// The associated file descriptor has mode O_RDWR and the file is write-locked.
++func Edit(name string) (*File, error) {
++	return OpenFile(name, os.O_RDWR|os.O_CREATE, 0666)
++}
++
++// Close unlocks and closes the underlying file.
++//
++// Close may be called multiple times; all calls after the first will return a
++// non-nil error.
++func (f *File) Close() error {
++	if f.closed {
++		return &os.PathError{
++			Op:   "close",
++			Path: f.Name(),
++			Err:  os.ErrClosed,
++		}
++	}
++	f.closed = true
++
++	err := closeFile(f.osFile.File)
++	runtime.SetFinalizer(f, nil)
++	return err
++}
++
++// Read opens the named file with a read-lock and returns its contents.
++func Read(name string) ([]byte, error) {
++	f, err := Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++
++	return ioutil.ReadAll(f)
++}
++
++// Write opens the named file (creating it with the given permissions if needed),
++// then write-locks it and overwrites it with the given content.
++func Write(name string, content io.Reader, perm os.FileMode) (err error) {
++	f, err := OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
++	if err != nil {
++		return err
++	}
++
++	_, err = io.Copy(f, content)
++	if closeErr := f.Close(); err == nil {
++		err = closeErr
++	}
++	return err
++}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+new file mode 100644
+index 0000000000..1c390f7425
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+@@ -0,0 +1,63 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package lockedfile
++
++import (
++	"os"
++
++	"cmd/go/internal/lockedfile/internal/filelock"
++)
++
++func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
++	// On BSD systems, we could add the O_SHLOCK or O_EXLOCK flag to the OpenFile
++	// call instead of locking separately, but we have to support separate locking
++	// calls for Linux and Windows anyway, so it's simpler to use that approach
++	// consistently.
++
++	f, err := os.OpenFile(name, flag&^os.O_TRUNC, perm)
++	if err != nil {
++		return nil, err
++	}
++
++	switch flag & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR) {
++	case os.O_WRONLY, os.O_RDWR:
++		err = filelock.Lock(f)
++	default:
++		err = filelock.RLock(f)
++	}
++	if err == nil && flag&os.O_TRUNC == os.O_TRUNC {
++		if err = f.Truncate(0); err != nil {
++			// The documentation for os.O_TRUNC says “if possible, truncate file when
++			// opened”, but doesn't define “possible” (golang.org/issue/28699).
++			// We'll treat regular files (and symlinks to regular files) as “possible”
++			// and ignore errors for the rest.
++			if fi, statErr := f.Stat(); statErr == nil && !fi.Mode().IsRegular() {
++				err = nil
++			}
++		}
++	}
++
++	if err != nil {
++		filelock.Unlock(f)
++		f.Close()
++		return nil, err
++	}
++
++	return f, nil
++}
++
++func closeFile(f *os.File) error {
++	// Since locking syscalls operate on file descriptors, we must unlock the file
++	// while the descriptor is still valid — that is, before the file is closed —
++	// and avoid unlocking files that are already closed.
++	err := filelock.Unlock(f)
++
++	if closeErr := f.Close(); err == nil {
++		err = closeErr
++	}
++	return err
++}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+new file mode 100644
+index 0000000000..4a52c94976
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+@@ -0,0 +1,93 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package lockedfile
++
++import (
++	"math/rand"
++	"os"
++	"strings"
++	"time"
++)
++
++// Opening an exclusive-use file returns an error.
++// The expected error strings are:
++//
++//  - "open/create -- file is locked" (cwfs, kfs)
++//  - "exclusive lock" (fossil)
++//  - "exclusive use file already open" (ramfs)
++var lockedErrStrings = [...]string{
++	"file is locked",
++	"exclusive lock",
++	"exclusive use file already open",
++}
++
++// Even though plan9 doesn't support the Lock/RLock/Unlock functions to
++// manipulate already-open files, IsLocked is still meaningful: os.OpenFile
++// itself may return errors that indicate that a file with the ModeExclusive bit
++// set is already open.
++func isLocked(err error) bool {
++	s := err.Error()
++
++	for _, frag := range lockedErrStrings {
++		if strings.Contains(s, frag) {
++			return true
++		}
++	}
++
++	return false
++}
++
++func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
++	// Plan 9 uses a mode bit instead of explicit lock/unlock syscalls.
++	//
++	// Per http://man.cat-v.org/plan_9/5/stat: “Exclusive use files may be open
++	// for I/O by only one fid at a time across all clients of the server. If a
++	// second open is attempted, it draws an error.”
++	//
++	// So we can try to open a locked file, but if it fails we're on our own to
++	// figure out when it becomes available. We'll use exponential backoff with
++	// some jitter and an arbitrary limit of 500ms.
++
++	// If the file was unpacked or created by some other program, it might not
++	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
++	// can be confident that a successful OpenFile implies exclusive use.
++	if fi, err := os.Stat(name); err == nil {
++		if fi.Mode()&os.ModeExclusive == 0 {
++			if err := os.Chmod(name, fi.Mode()|os.ModeExclusive); err != nil {
++				return nil, err
++			}
++		}
++	} else if !os.IsNotExist(err) {
++		return nil, err
++	}
++
++	nextSleep := 1 * time.Millisecond
++	const maxSleep = 500 * time.Millisecond
++	for {
++		f, err := os.OpenFile(name, flag, perm|os.ModeExclusive)
++		if err == nil {
++			return f, nil
++		}
++
++		if !isLocked(err) {
++			return nil, err
++		}
++
++		time.Sleep(nextSleep)
++
++		nextSleep += nextSleep
++		if nextSleep > maxSleep {
++			nextSleep = maxSleep
++		}
++		// Apply 10% jitter to avoid synchronizing collisions.
++		nextSleep += time.Duration((0.1*rand.Float64() - 0.05) * float64(nextSleep))
++	}
++}
++
++func closeFile(f *os.File) error {
++	return f.Close()
++}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+new file mode 100644
+index 0000000000..6d5819efdb
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -0,0 +1,174 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// js and nacl do not support inter-process file locking.
++// +build !js,!nacl
++
++package lockedfile_test
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"testing"
++	"time"
++
++	"cmd/go/internal/lockedfile"
++)
++
++func mustTempDir(t *testing.T) (dir string, remove func()) {
++	t.Helper()
++
++	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
++	if err != nil {
++		t.Fatal(err)
++	}
++	return dir, func() { os.RemoveAll(dir) }
++}
++
++const (
++	quiescent            = 10 * time.Millisecond
++	probablyStillBlocked = 10 * time.Second
++)
++
++func mustBlock(t *testing.T, desc string, f func()) (wait func(*testing.T)) {
++	t.Helper()
++
++	done := make(chan struct{})
++	go func() {
++		f()
++		close(done)
++	}()
++
++	select {
++	case <-done:
++		t.Fatalf("%s unexpectedly did not block", desc)
++		return nil
++
++	case <-time.After(quiescent):
++		return func(t *testing.T) {
++			t.Helper()
++			select {
++			case <-time.After(probablyStillBlocked):
++				t.Fatalf("%s is unexpectedly still blocked after %v", desc, probablyStillBlocked)
++			case <-done:
++			}
++		}
++	}
++}
++
++func TestMutexExcludes(t *testing.T) {
++	t.Parallel()
++
++	dir, remove := mustTempDir(t)
++	defer remove()
++
++	path := filepath.Join(dir, "lock")
++
++	mu := lockedfile.MutexAt(path)
++	t.Logf("mu := MutexAt(_)")
++
++	unlock, err := mu.Lock()
++	if err != nil {
++		t.Fatalf("mu.Lock: %v", err)
++	}
++	t.Logf("unlock, _  := mu.Lock()")
++
++	mu2 := lockedfile.MutexAt(mu.Path)
++	t.Logf("mu2 := MutexAt(mu.Path)")
++
++	wait := mustBlock(t, "mu2.Lock()", func() {
++		unlock2, err := mu2.Lock()
++		if err != nil {
++			t.Errorf("mu2.Lock: %v", err)
++			return
++		}
++		t.Logf("unlock2, _ := mu2.Lock()")
++		t.Logf("unlock2()")
++		unlock2()
++	})
++
++	t.Logf("unlock()")
++	unlock()
++	wait(t)
++}
++
++func TestReadWaitsForLock(t *testing.T) {
++	t.Parallel()
++
++	dir, remove := mustTempDir(t)
++	defer remove()
++
++	path := filepath.Join(dir, "timestamp.txt")
++
++	f, err := lockedfile.Create(path)
++	if err != nil {
++		t.Fatalf("Create: %v", err)
++	}
++	defer f.Close()
++
++	const (
++		part1 = "part 1\n"
++		part2 = "part 2\n"
++	)
++	_, err = f.WriteString(part1)
++	if err != nil {
++		t.Fatalf("WriteString: %v", err)
++	}
++	t.Logf("WriteString(%q) = <nil>", part1)
++
++	wait := mustBlock(t, "Read", func() {
++		b, err := lockedfile.Read(path)
++		if err != nil {
++			t.Errorf("Read: %v", err)
++			return
++		}
++
++		const want = part1 + part2
++		got := string(b)
++		if got == want {
++			t.Logf("Read(_) = %q", got)
++		} else {
++			t.Errorf("Read(_) = %q, _; want %q", got, want)
++		}
++	})
++
++	_, err = f.WriteString(part2)
++	if err != nil {
++		t.Errorf("WriteString: %v", err)
++	} else {
++		t.Logf("WriteString(%q) = <nil>", part2)
++	}
++	f.Close()
++
++	wait(t)
++}
++
++func TestCanLockExistingFile(t *testing.T) {
++	t.Parallel()
++
++	dir, remove := mustTempDir(t)
++	defer remove()
++	path := filepath.Join(dir, "existing.txt")
++
++	if err := ioutil.WriteFile(path, []byte("ok"), 0777); err != nil {
++		t.Fatalf("ioutil.WriteFile: %v", err)
++	}
++
++	f, err := lockedfile.Edit(path)
++	if err != nil {
++		t.Fatalf("first Edit: %v", err)
++	}
++
++	wait := mustBlock(t, "Edit", func() {
++		other, err := lockedfile.Edit(path)
++		if err != nil {
++			t.Errorf("second Edit: %v", err)
++		}
++		other.Close()
++	})
++
++	f.Close()
++	wait(t)
++}
+diff --git a/src/cmd/go/internal/lockedfile/mutex.go b/src/cmd/go/internal/lockedfile/mutex.go
+new file mode 100644
+index 0000000000..17f3751c37
+--- /dev/null
++++ b/src/cmd/go/internal/lockedfile/mutex.go
+@@ -0,0 +1,60 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package lockedfile
++
++import (
++	"fmt"
++	"os"
++)
++
++// A Mutex provides mutual exclusion within and across processes by locking a
++// well-known file. Such a file generally guards some other part of the
++// filesystem: for example, a Mutex file in a directory might guard access to
++// the entire tree rooted in that directory.
++//
++// Mutex does not implement sync.Locker: unlike a sync.Mutex, a lockedfile.Mutex
++// can fail to lock (e.g. if there is a permission error in the filesystem).
++//
++// Like a sync.Mutex, a Mutex may be included as a field of a larger struct but
++// must not be copied after first use. The Path field must be set before first
++// use and must not be change thereafter.
++type Mutex struct {
++	Path string // The path to the well-known lock file. Must be non-empty.
++}
++
++// MutexAt returns a new Mutex with Path set to the given non-empty path.
++func MutexAt(path string) *Mutex {
++	if path == "" {
++		panic("lockedfile.MutexAt: path must be non-empty")
++	}
++	return &Mutex{Path: path}
++}
++
++func (mu *Mutex) String() string {
++	return fmt.Sprintf("lockedfile.Mutex(%s)", mu.Path)
++}
++
++// Lock attempts to lock the Mutex.
++//
++// If successful, Lock returns a non-nil unlock function: it is provided as a
++// return-value instead of a separate method to remind the caller to check the
++// accompanying error. (See https://golang.org/issue/20803.)
++func (mu *Mutex) Lock() (unlock func(), err error) {
++	if mu.Path == "" {
++		panic("lockedfile.Mutex: missing Path during Lock")
++	}
++
++	// We could use either O_RDWR or O_WRONLY here. If we choose O_RDWR and the
++	// file at mu.Path is write-only, the call to OpenFile will fail with a
++	// permission error. That's actually what we want: if we add an RLock method
++	// in the future, it should call OpenFile with O_RDONLY and will require the
++	// files must be readable, so we should not let the caller make any
++	// assumptions about Mutex working with write-only files.
++	f, err := OpenFile(mu.Path, os.O_RDWR|os.O_CREATE, 0666)
++	if err != nil {
++		return nil, err
++	}
++	return func() { f.Close() }, nil
++}
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index 4fa436ba2d..5f9ab62704 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -34,6 +34,13 @@ env CGO_ENABLED=0
+ go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+ ! stdout example.com/m/useC
+ 
++# 'go list ./...' should not try to resolve the main module.
++cd ../empty
++go list -deps ./...
++! stdout .
++! stderr 'finding'
++stderr -count=1 '^go: warning: "./..." matched no packages'
++
+ -- m/go.mod --
+ module example.com/m
+ 
+@@ -64,3 +71,6 @@ module example.com/m/nested
+ -- nested/useencoding/useencoding.go --
+ package useencoding
+ import _ "encoding"
++
++-- empty/go.mod --
++module example.com/empty

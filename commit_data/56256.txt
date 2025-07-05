@@ -21,7 +21,39 @@ Date:   Mon Apr 17 09:25:45 2023 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 5 ++---
  src/cmd/link/internal/ppc64/asm.go | 4 ++--
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 1091127210..1575bb66d0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1300,9 +1300,8 @@ func opset(a, b0 obj.As) {
+ 
+ // Build the opcode table
+ func buildop(ctxt *obj.Link) {
+-	// PC-rel relocation support is available only for targets which support
+-	// ELFv2 1.5 (only power10/ppc64le/linux today).
+-	pfxEnabled = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux" && buildcfg.GOARCH == "ppc64le"
++	// Limit PC-relative prefix instruction usage to supported and tested targets.
++	pfxEnabled = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
+ 	cfg := fmt.Sprintf("power%d/%s/%s", buildcfg.GOPPC64, buildcfg.GOARCH, buildcfg.GOOS)
+ 	if cfg == buildOpCfg {
+ 		// Already initialized to correct OS/cpu; stop now.
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 333411a53d..445180bb79 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -45,8 +45,8 @@ import (
+ 	"strings"
+ )
+ 
+-// The build configuration supports PC-relative instructions and relocations.
+-var hasPCrel = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux" && buildcfg.GOARCH == "ppc64le"
++// The build configuration supports PC-relative instructions and relocations (limited to tested targets).
++var hasPCrel = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
+ 
+ func genpltstub(ctxt *ld.Link, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (sym loader.Sym, firstUse bool) {
+ 	// The ppc64 ABI PLT has similar concepts to other

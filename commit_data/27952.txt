@@ -82,6 +82,41 @@ Date:   Wed Mar 30 17:15:15 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 23 ++---------------------
  1 file changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 194439337b..bc157cddbb 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1602,27 +1602,8 @@ func gcMark(start_time int64) {
+ 
+ 	cachestats()
+ 
+-	// Compute the reachable heap size at the beginning of the
+-	// cycle. This is approximately the marked heap size at the
+-	// end (which we know) minus the amount of marked heap that
+-	// was allocated after marking began (which we don't know, but
+-	// is approximately the amount of heap that was allocated
+-	// since marking began).
+-	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
+-	if memstats.heap_live < work.initialHeapLive {
+-		// This can happen if mCentral_UncacheSpan tightens
+-		// the heap_live approximation.
+-		allocatedDuringCycle = 0
+-	}
+-	if work.bytesMarked >= allocatedDuringCycle {
+-		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
+-	} else {
+-		// This can happen if most of the allocation during
+-		// the cycle never became reachable from the heap.
+-		// Just set the reachable heap approximation to 0 and
+-		// let the heapminimum kick in below.
+-		memstats.heap_reachable = 0
+-	}
++	// Update the reachable heap stat.
++	memstats.heap_reachable = work.bytesMarked
+ 
+ 	// Trigger the next GC cycle when the allocated heap has grown
+ 	// by triggerRatio over the reachable heap size. Assume that

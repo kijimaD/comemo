@@ -17,7 +17,7 @@ Date:   Fri Mar 19 16:52:55 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/303433
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go      |  6 +--
  src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
  src/cmd/compile/internal/ssa/op.go                | 50 ++++++++----------
@@ -25,3 +25,365 @@ Date:   Fri Mar 19 16:52:55 2021 -0400
  src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
  src/cmd/compile/internal/ssagen/ssa.go            | 63 ++++++++---------------
  6 files changed, 49 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 29a8f670b0..60eed37f1c 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1058,14 +1058,14 @@ func expandCalls(f *Func) {
+ 			for j, a := range v.Args[:len(v.Args)-1] {
+ 				i := int64(j)
+ 				auxType := aux.TypeOfResult(i)
+-				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.results[i].Name, x.sp, mem)
++				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.NameOfResult(i), x.sp, mem)
+ 				auxOffset := int64(0)
+ 				auxSize := aux.SizeOfResult(i)
+ 				aRegs := aux.RegsOfResult(int64(j))
+ 				if len(aRegs) == 0 && a.Op == OpDereference {
+ 					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
+ 					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
+-						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
++						dAddr.Args[1] == dMem && dAddr.Aux == aux.NameOfResult(i) {
+ 						if dMem.Op == OpVarDef && dMem.Aux == dAddr.Aux {
+ 							dMem.copyOf(dMem.MemoryArg()) // elide the VarDef
+ 						}
+@@ -1075,7 +1075,7 @@ func expandCalls(f *Func) {
+ 				} else {
+ 					if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
+ 						addr := a.Args[0] // This is a self-move. // TODO(register args) do what here for registers?
+-						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.results[i].Name {
++						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.NameOfResult(i) {
+ 							continue
+ 						}
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 2af6e8472c..738c62607a 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -247,7 +247,7 @@ func insertLoopReschedChecks(f *Func) {
+ 		//    goto header
+ 		resched := f.fe.Syslook("goschedguarded")
+ 		// TODO(register args) -- will need more details
+-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil, nil), mem0)
++		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil), mem0)
+ 		sched.AddEdgeTo(h)
+ 		headerMemPhi.AddArg(mem1)
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 9e7e169137..e4721a1ba8 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -110,11 +110,9 @@ func (a *AuxNameOffset) String() string {
+ }
+ 
+ type AuxCall struct {
+-	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
+ 	Fn      *obj.LSym
+-	results []Param
+-	reg     *regInfo                // regInfo for this call // TODO for now nil means ignore
+-	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
++	reg     *regInfo // regInfo for this call
++	abiInfo *abi.ABIParamResultInfo
+ }
+ 
+ // Reg returns the regInfo for a given call, combining the derived in/out register masks
+@@ -229,6 +227,15 @@ func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
+ 	return a.abiInfo.InParam(int(which)).Registers
+ }
+ 
++// NameOfResult returns the type of result which (indexed 0, 1, etc).
++func (a *AuxCall) NameOfResult(which int64) *ir.Name {
++	name := a.abiInfo.OutParam(int(which)).Name
++	if name == nil {
++		return nil
++	}
++	return name.(*ir.Name)
++}
++
+ // TypeOfResult returns the type of result which (indexed 0, 1, etc).
+ func (a *AuxCall) TypeOfResult(which int64) *types.Type {
+ 	return a.abiInfo.OutParam(int(which)).Type
+@@ -272,10 +279,7 @@ func (a *AuxCall) NArgs() int64 {
+ 	return int64(len(a.abiInfo.InParams()))
+ }
+ 
+-// String returns
+-// "AuxCall{<fn>(<args>)}"             if len(results) == 0;
+-// "AuxCall{<fn>(<args>)<results[0]>}" if len(results) == 1;
+-// "AuxCall{<fn>(<args>)(<results>)}"  otherwise.
++// String returns "AuxCall{<fn>}"
+ func (a *AuxCall) String() string {
+ 	var fn string
+ 	if a.Fn == nil {
+@@ -283,19 +287,7 @@ func (a *AuxCall) String() string {
+ 	} else {
+ 		fn = fmt.Sprintf("AuxCall{%v", a.Fn)
+ 	}
+-
+-	if len(a.results) > 0 { // usual is zero or one; only some RT calls have more than one.
+-		if len(a.results) == 1 {
+-			fn += fmt.Sprintf("[%v,%v]", a.results[0].Type, a.results[0].Offset)
+-		} else {
+-			s := "("
+-			for _, result := range a.results {
+-				fn += fmt.Sprintf("%s[%v,%v]", s, result.Type, result.Offset)
+-				s = ","
+-			}
+-			fn += ")"
+-		}
+-	}
++	// TODO how much of the ABI should be printed?
+ 
+ 	return fn + "}"
+ }
+@@ -311,7 +303,7 @@ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+ }
+ 
+ // StaticAuxCall returns an AuxCall for a static call.
+-func StaticAuxCall(sym *obj.LSym, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++func StaticAuxCall(sym *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	if paramResultInfo == nil {
+ 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+ 	}
+@@ -319,37 +311,37 @@ func StaticAuxCall(sym *obj.LSym, results []Param, paramResultInfo *abi.ABIParam
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: sym, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: sym, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+-func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++func InterfaceAuxCall(paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	var reg *regInfo
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: nil, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+-func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++func ClosureAuxCall(paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	var reg *regInfo
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: nil, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ func (*AuxCall) CanBeAnSSAAux() {}
+ 
+ // OwnAuxCall returns a function's own AuxCall
+-func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++func OwnAuxCall(fn *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
+ 	var reg *regInfo
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: fn, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: fn, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9e67c3482c..f9ad980172 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
+ 		return nil
+ 	}
+ 	va := aux.(*AuxCall)
+-	return StaticAuxCall(lsym, va.results, va.abiInfo)
++	return StaticAuxCall(lsym, va.abiInfo)
+ }
+ 
+ // de-virtualize an InterLECall
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 9b956a4577..ddcafe461c 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -516,7 +516,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	off = round(off, config.PtrSize)
+ 
+ 	// issue call
+-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, nil, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
++	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
+ 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
+ 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, mem)
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f142810cf3..45952482fb 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -566,7 +566,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		results[i].Reg = r
+ 	}
+ 
+-	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, args, results, params)
++	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, params)
+ 
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Dcl {
+@@ -4783,21 +4783,20 @@ func (s *state) openDeferExit() {
+ 		// Generate code to call the function call of the defer, using the
+ 		// closure/receiver/args that were stored in argtmps at the point
+ 		// of the defer statement.
+-		argStart := base.Ctxt.FixedFrameSize()
+ 		fn := r.n.X
+ 		stksize := fn.Type().ArgWidth()
+-		var ACArgs []ssa.Param
+-		var ACResults []ssa.Param
++		var ACArgs []*types.Type
++		var ACResults []*types.Type
+ 		var callArgs []*ssa.Value
+ 		if r.rcvr != nil {
+ 			// rcvr in case of OCALLINTER
+ 			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
+-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
++			ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+ 			callArgs = append(callArgs, v)
+ 		}
+ 		for j, argAddrVal := range r.argVals {
+ 			f := getParam(r.n, j)
+-			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + abi.FieldOffsetOf(f))})
++			ACArgs = append(ACArgs, f.Type)
+ 			var a *ssa.Value
+ 			if !TypeOK(f.Type) {
+ 				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
+@@ -4811,10 +4810,10 @@ func (s *state) openDeferExit() {
+ 			v := s.load(r.closure.Type.Elem(), r.closure)
+ 			s.maybeNilCheckClosure(v, callDefer)
+ 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
+-			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
+ 		} else {
+-			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		}
+ 		callArgs = append(callArgs, s.mem())
+@@ -4861,9 +4860,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	var codeptr *ssa.Value // ptr to target code (if dynamic)
+ 	var rcvr *ssa.Value    // receiver to set
+ 	fn := n.X
+-	var ACArgs []ssa.Param    // AuxCall args
+-	var ACResults []ssa.Param // AuxCall results
+-	var callArgs []*ssa.Value // For late-expansion, the args themselves (not stored, args to the call instead).
++	var ACArgs []*types.Type    // AuxCall args
++	var ACResults []*types.Type // AuxCall results
++	var callArgs []*ssa.Value   // For late-expansion, the args themselves (not stored, args to the call instead).
+ 	inRegisters := false
+ 
+ 	var magicFnNameSym *types.Sym
+@@ -4932,14 +4931,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	res := n.X.Type().Results()
+ 	if k == callNormal {
+ 		for _, p := range params.OutParams() {
+-			r := p.Registers
+-			var o int32
+-			if len(r) == 0 {
+-				o = p.Offset()
+-			} else {
+-				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+-			}
+-			ACResults = append(ACResults, ssa.Param{Type: p.Type, Offset: o, Reg: r})
++			ACResults = append(ACResults, p.Type)
+ 		}
+ 	}
+ 
+@@ -4993,8 +4985,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+-		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
+-		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
++		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+ 		callArgs = append(callArgs, addr, s.mem())
+ 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		call.AddArgs(callArgs...)
+@@ -5009,19 +5001,16 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
+ 		// These are written in SP-offset order.
+ 		argStart := base.Ctxt.FixedFrameSize()
+-		// argExtra is for combining with ABI-derived offsets; argStart is for old ABI0 code (defer, go).
+-		argExtra := int32(0) // TODO(register args) untangle this mess when fully transition to abiutils, defer/go sanitized.
+ 		// Defer/go args.
+ 		if k != callNormal {
+ 			// Write argsize and closure (args to newproc/deferproc).
+ 			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
+-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)}) // not argExtra
++			ACArgs = append(ACArgs, types.Types[types.TUINT32]) // not argExtra
+ 			callArgs = append(callArgs, argsize)
+-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
++			ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+ 			callArgs = append(callArgs, closure)
+ 			stksize += 2 * int64(types.PtrSize)
+ 			argStart += 2 * int64(types.PtrSize)
+-			argExtra = 2 * int32(types.PtrSize)
+ 		}
+ 
+ 		// Set receiver (for interface calls).
+@@ -5037,15 +5026,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 
+ 		for _, p := range params.InParams() { // includes receiver for interface calls
+-			r := p.Registers
+-			var o int32
+-			if len(r) == 0 {
+-				o = p.Offset()
+-			} else {
+-				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+-			}
+-			ACArg := ssa.Param{Type: p.Type, Offset: argExtra + o, Reg: r} // o from ABI includes any architecture-dependent offsets.
+-			ACArgs = append(ACArgs, ACArg)
++			ACArgs = append(ACArgs, p.Type)
+ 		}
+ 		for i, n := range args {
+ 			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
+@@ -5056,10 +5037,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// call target
+ 		switch {
+ 		case k == callDefer:
+-			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults))) // TODO paramResultInfo for DeferProc
++			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults)) // TODO paramResultInfo for DeferProc
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		case k == callGo:
+-			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
+ 		case closure != nil:
+ 			// rawLoad because loading the code pointer from a
+@@ -5068,14 +5049,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
+-			aux := ssa.ClosureAuxCall(ACArgs, ACResults, callABI.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.ClosureAuxCall(callABI.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
+ 		case codeptr != nil:
+ 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
+-			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, params)
++			aux := ssa.InterfaceAuxCall(params)
+ 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+ 		case callee != nil:
+-			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACResults, params)
++			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), params)
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		default:
+ 			s.Fatalf("bad call type %v %v", n.Op(), n)
+@@ -5542,7 +5523,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 
+ 	// Issue call
+ 	var call *ssa.Value
+-	aux := ssa.StaticAuxCall(fn, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
++	aux := ssa.StaticAuxCall(fn, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
+ 	callArgs = append(callArgs, s.mem())
+ 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 	call.AddArgs(callArgs...)

@@ -63,7 +63,7 @@ Date:   Fri May 12 16:39:43 2023 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go             |   1 +
  src/cmd/compile/internal/base/flag.go              |   1 +
  .../compile/internal/devirtualize/devirtualize.go  |  22 +-
@@ -76,3 +76,1415 @@ Date:   Fri May 12 16:39:43 2023 -0400
  .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 0 -> 682 bytes
  .../test/testdata/pgo/devirtualize/devirt_test.go  |  27 ++
  11 files changed, 1049 insertions(+), 122 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index e217b3e9b0..1f05ed9831 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -54,6 +54,7 @@ type DebugFlags struct {
+ 	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
+ 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
++	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
+ 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+ 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+ 
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index f1656fc98c..bac421d303 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -169,6 +169,7 @@ func ParseFlags() {
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
+ 	Debug.PGOInline = 1
++	Debug.PGODevirtualize = 1
+ 	Debug.SyncFrames = -1 // disable sync markers by default
+ 
+ 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index 6c41d4efd8..cfeb8d8ee9 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -2,9 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package devirtualize implements a simple "devirtualization"
+-// optimization pass, which replaces interface method calls with
+-// direct concrete-type method calls where possible.
++// Package devirtualize implements two "devirtualization" optimization passes:
++//
++// - "Static" devirtualization which replaces interface method calls with
++//   direct concrete-type method calls where possible.
++// - "Profile-guided" devirtualization which replaces indirect calls with a
++//   conditional direct call to the hottest concrete callee from a profile, as
++//   well as a fallback using the original indirect call.
+ package devirtualize
+ 
+ import (
+@@ -14,8 +18,9 @@ import (
+ 	"cmd/compile/internal/types"
+ )
+ 
+-// Func devirtualizes calls within fn where possible.
+-func Func(fn *ir.Func) {
++// Static devirtualizes calls within fn where possible when the concrete callee
++// is available statically.
++func Static(fn *ir.Func) {
+ 	ir.CurFunc = fn
+ 
+ 	// For promoted methods (including value-receiver methods promoted to pointer-receivers),
+@@ -34,14 +39,15 @@ func Func(fn *ir.Func) {
+ 			return
+ 		case *ir.CallExpr:
+ 			if !goDeferCall[n] {
+-				Call(n)
++				staticCall(n)
+ 			}
+ 		}
+ 	})
+ }
+ 
+-// Call devirtualizes the given call if possible.
+-func Call(call *ir.CallExpr) {
++// staticCall devirtualizes the given call if possible when the concrete callee
++// is available statically.
++func staticCall(call *ir.CallExpr) {
+ 	if call.Op() != ir.OCALLINTER {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+new file mode 100644
+index 0000000000..69c421ca5a
+--- /dev/null
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -0,0 +1,532 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package devirtualize
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"encoding/json"
++	"fmt"
++	"os"
++)
++
++// CallStat summarizes a single call site.
++//
++// This is used only for debug logging.
++type CallStat struct {
++	Pkg string // base.Ctxt.Pkgpath
++	Pos string // file:line:col of call.
++
++	Caller string // Linker symbol name of calling function.
++
++	// Direct or indirect call.
++	Direct bool
++
++	// For indirect calls, interface call or other indirect function call.
++	Interface bool
++
++	// Total edge weight from this call site.
++	Weight int64
++
++	// Hottest callee from this call site, regardless of type
++	// compatibility.
++	Hottest       string
++	HottestWeight int64
++
++	// Devirtualized callee if != "".
++	//
++	// Note that this may be different than Hottest because we apply
++	// type-check restrictions, which helps distinguish multiple calls on
++	// the same line.
++	Devirtualized       string
++	DevirtualizedWeight int64
++}
++
++// ProfileGuided performs call devirtualization of indirect calls based on
++// profile information.
++//
++// Specifically, it performs conditional devirtualization of interface calls
++// for the hottest callee. That is, it performs a transformation like:
++//
++//	type Iface interface {
++//		Foo()
++//	}
++//
++//	type Concrete struct{}
++//
++//	func (Concrete) Foo() {}
++//
++//	func foo(i Iface) {
++//		i.Foo()
++//	}
++//
++// to:
++//
++//	func foo(i Iface) {
++//		if c, ok := i.(Concrete); ok {
++//			c.Foo()
++//		} else {
++//			i.Foo()
++//		}
++//	}
++//
++// The primary benefit of this transformation is enabling inlining of the
++// direct call.
++func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
++	ir.CurFunc = fn
++
++	name := ir.LinkFuncName(fn)
++
++	// Can't devirtualize go/defer calls. See comment in Static.
++	goDeferCall := make(map[*ir.CallExpr]bool)
++
++	var jsonW *json.Encoder
++	if base.Debug.PGODebug >= 3 {
++		jsonW = json.NewEncoder(os.Stdout)
++	}
++
++	var edit func(n ir.Node) ir.Node
++	edit = func(n ir.Node) ir.Node {
++		if n == nil {
++			return n
++		}
++
++		if gds, ok := n.(*ir.GoDeferStmt); ok {
++			if call, ok := gds.Call.(*ir.CallExpr); ok {
++				goDeferCall[call] = true
++			}
++		}
++
++		ir.EditChildren(n, edit)
++
++		call, ok := n.(*ir.CallExpr)
++		if !ok {
++			return n
++		}
++
++		var stat *CallStat
++		if base.Debug.PGODebug >= 3 {
++			// Statistics about every single call. Handy for external data analysis.
++			//
++			// TODO(prattmic): Log via logopt?
++			stat = constructCallStat(p, fn, name, call)
++			if stat != nil {
++				defer func() {
++					jsonW.Encode(&stat)
++				}()
++			}
++		}
++
++		if call.Op() != ir.OCALLINTER {
++			return n
++		}
++
++		if base.Debug.PGODebug >= 2 {
++			fmt.Printf("%v: PGO devirtualize considering call %v\n", ir.Line(call), call)
++		}
++
++		if goDeferCall[call] {
++			if base.Debug.PGODebug >= 2 {
++				fmt.Printf("%v: can't PGO devirtualize go/defer call %v\n", ir.Line(call), call)
++			}
++			return n
++		}
++
++		// Bail if we do not have a hot callee.
++		callee, weight := findHotConcreteCallee(p, fn, call)
++		if callee == nil {
++			return n
++		}
++		// Bail if we do not have a Type node for the hot callee.
++		ctyp := methodRecvType(callee)
++		if ctyp == nil {
++			return n
++		}
++		// Bail if we know for sure it won't inline.
++		if !shouldPGODevirt(callee) {
++			return n
++		}
++
++		if stat != nil {
++			stat.Devirtualized = ir.LinkFuncName(callee)
++			stat.DevirtualizedWeight = weight
++		}
++
++		return rewriteCondCall(call, fn, callee, ctyp)
++	}
++
++	ir.EditChildren(fn, edit)
++}
++
++// shouldPGODevirt checks if we should perform PGO devirtualization to the
++// target function.
++//
++// PGO devirtualization is most valuable when the callee is inlined, so if it
++// won't inline we can skip devirtualizing.
++func shouldPGODevirt(fn *ir.Func) bool {
++	var reason string
++	if base.Flag.LowerM > 1 || logopt.Enabled() {
++		defer func() {
++			if reason != "" {
++				if base.Flag.LowerM > 1 {
++					fmt.Printf("%v: should not PGO devirtualize %v: %s\n", ir.Line(fn), ir.FuncName(fn), reason)
++				}
++				if logopt.Enabled() {
++					logopt.LogOpt(fn.Pos(), ": should not PGO devirtualize function", "pgo-devirtualize", ir.FuncName(fn), reason)
++				}
++			}
++		}()
++	}
++
++	reason = inline.InlineImpossible(fn)
++	if reason != "" {
++		return false
++	}
++
++	// TODO(prattmic): checking only InlineImpossible is very conservative,
++	// primarily excluding only functions with pragmas. We probably want to
++	// move in either direction. Either:
++	//
++	// 1. Don't even bother to check InlineImpossible, as it affects so few
++	// functions.
++	//
++	// 2. Or consider the function body (notably cost) to better determine
++	// if the function will actually inline.
++
++	return true
++}
++
++// constructCallStat builds an initial CallStat describing this call, for
++// logging. If the call is devirtualized, the devirtualization fields should be
++// updated.
++func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallExpr) *CallStat {
++	switch call.Op() {
++	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
++	default:
++		// We don't care about logging builtin functions.
++		return nil
++	}
++
++	stat := CallStat{
++		Pkg:    base.Ctxt.Pkgpath,
++		Pos:    ir.Line(call),
++		Caller: name,
++	}
++
++	offset := pgo.NodeLineOffset(call, fn)
++
++	// Sum of all edges from this callsite, regardless of callee.
++	// For direct calls, this should be the same as the single edge
++	// weight (except for multiple calls on one line, which we
++	// can't distinguish).
++	callerNode := p.WeightedCG.IRNodes[name]
++	for _, edge := range callerNode.OutEdges {
++		if edge.CallSiteOffset != offset {
++			continue
++		}
++		stat.Weight += edge.Weight
++		if edge.Weight > stat.HottestWeight {
++			stat.HottestWeight = edge.Weight
++			stat.Hottest = edge.Dst.Name()
++		}
++	}
++
++	switch call.Op() {
++	case ir.OCALLFUNC:
++		stat.Interface = false
++
++		callee := pgo.DirectCallee(call.X)
++		if callee != nil {
++			stat.Direct = true
++			if stat.Hottest == "" {
++				stat.Hottest = ir.LinkFuncName(callee)
++			}
++		} else {
++			stat.Direct = false
++		}
++	case ir.OCALLINTER:
++		stat.Direct = false
++		stat.Interface = true
++	case ir.OCALLMETH:
++		base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
++	}
++
++	return &stat
++}
++
++// rewriteCondCall devirtualizes the given call using a direct method call to
++// concretetyp.
++func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
++	if base.Flag.LowerM != 0 {
++		fmt.Printf("%v: PGO devirtualizing call to %v\n", ir.Line(call), callee)
++	}
++
++	// We generate an OINCALL of:
++	//
++	// var recv Iface
++	//
++	// var arg1 A1
++	// var argN AN
++	//
++	// var ret1 R1
++	// var retN RN
++	//
++	// recv, arg1, argN = recv expr, arg1 expr, argN expr
++	//
++	// t, ok := recv.(Concrete)
++	// if ok {
++	//   ret1, retN = t.Method(arg1, ... argN)
++	// } else {
++	//   ret1, retN = recv.Method(arg1, ... argN)
++	// }
++	//
++	// OINCALL retvars: ret1, ... retN
++	//
++	// This isn't really an inlined call of course, but InlinedCallExpr
++	// makes handling reassignment of return values easier.
++	//
++	// TODO(prattmic): This increases the size of the AST in the caller,
++	// making it less like to inline. We may want to compensate for this
++	// somehow.
++
++	var retvars []ir.Node
++
++	sig := call.X.Type()
++
++	for _, ret := range sig.Results().FieldSlice() {
++		retvars = append(retvars, typecheck.Temp(ret.Type))
++	}
++
++	sel := call.X.(*ir.SelectorExpr)
++	method := sel.Sel
++	pos := call.Pos()
++	init := ir.TakeInit(call)
++
++	// Evaluate receiver and argument expressions. The receiver is used
++	// twice but we don't want to cause side effects twice. The arguments
++	// are used in two different calls and we can't trivially copy them.
++	//
++	// recv must be first in the assignment list as its side effects must
++	// be ordered before argument side effects.
++	var lhs, rhs []ir.Node
++	recv := typecheck.Temp(sel.X.Type())
++	lhs = append(lhs, recv)
++	rhs = append(rhs, sel.X)
++
++	// Move arguments to assignments prior to the if statement. We cannot
++	// simply copy the args' IR, as some IR constructs cannot be copied,
++	// such as labels (possible in InlinedCall nodes).
++	args := call.Args.Take()
++	for _, arg := range args {
++		argvar := typecheck.Temp(arg.Type())
++
++		lhs = append(lhs, argvar)
++		rhs = append(rhs, arg)
++	}
++
++	asList := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
++	init.Append(typecheck.Stmt(asList))
++
++	// Copy slice so edits in one location don't affect another.
++	argvars := append([]ir.Node(nil), lhs[1:]...)
++	call.Args = argvars
++
++	tmpnode := typecheck.Temp(concretetyp)
++	tmpok := typecheck.Temp(types.Types[types.TBOOL])
++
++	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
++
++	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
++	init.Append(typecheck.Stmt(assertAsList))
++
++	concreteCallee := typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, tmpnode, method))
++	// Copy slice so edits in one location don't affect another.
++	argvars = append([]ir.Node(nil), argvars...)
++	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)
++
++	var thenBlock, elseBlock ir.Nodes
++	if len(retvars) == 0 {
++		thenBlock.Append(concreteCall)
++		elseBlock.Append(call)
++	} else {
++		// Copy slice so edits in one location don't affect another.
++		thenRet := append([]ir.Node(nil),  retvars...)
++		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{concreteCall})
++		thenBlock.Append(typecheck.Stmt(thenAsList))
++
++		elseRet := append([]ir.Node(nil),  retvars...)
++		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{call})
++		elseBlock.Append(typecheck.Stmt(elseAsList))
++	}
++
++	cond := ir.NewIfStmt(pos, nil, nil, nil)
++	cond.SetInit(init)
++	cond.Cond = tmpok
++	cond.Body = thenBlock
++	cond.Else = elseBlock
++	cond.Likely = true
++
++	body := []ir.Node{typecheck.Stmt(cond)}
++
++	res := ir.NewInlinedCallExpr(pos, body, retvars)
++	res.SetType(call.Type())
++	res.SetTypecheck(1)
++
++	if base.Debug.PGODebug >= 3 {
++		fmt.Printf("PGO devirtualizing call to %+v. After: %+v\n", concretetyp, res)
++	}
++
++	return res
++}
++
++// methodRecvType returns the type containing method fn. Returns nil if fn
++// is not a method.
++func methodRecvType(fn *ir.Func) *types.Type {
++	recv := fn.Nname.Type().Recv()
++	if recv == nil {
++		return nil
++	}
++	return recv.Type
++}
++
++// interfaceCallRecvType returns the type of the interface used in an interface
++// call.
++func interfaceCallRecvType(call *ir.CallExpr) *types.Type {
++	if call.Op() != ir.OCALLINTER {
++		base.Fatalf("Call isn't OCALLINTER: %+v", call)
++	}
++
++	sel, ok := call.X.(*ir.SelectorExpr)
++	if !ok {
++		base.Fatalf("OCALLINTER doesn't contain SelectorExpr: %+v", call)
++	}
++
++	return sel.X.Type()
++}
++
++// findHotConcreteCallee returns the *ir.Func of the hottest callee of an
++// indirect call, if available, and its edge weight.
++func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++	callerName := ir.LinkFuncName(caller)
++	callerNode := p.WeightedCG.IRNodes[callerName]
++	callOffset := pgo.NodeLineOffset(call, caller)
++
++	inter := interfaceCallRecvType(call)
++
++	var hottest *pgo.IREdge
++
++	// Returns true if e is hotter than hottest.
++	//
++	// Naively this is just e.Weight > hottest.Weight, but because OutEdges
++	// has arbitrary iteration order, we need to apply additional sort
++	// criteria when e.Weight == hottest.Weight to ensure we have stable
++	// selection.
++	hotter := func(e *pgo.IREdge) bool {
++		if hottest == nil {
++			return true
++		}
++		if e.Weight != hottest.Weight {
++			return e.Weight > hottest.Weight
++		}
++
++		// Now e.Weight == hottest.Weight, we must select on other
++		// criteria.
++
++		if hottest.Dst.AST == nil && e.Dst.AST != nil {
++			// Prefer the edge with IR available.
++			return true
++		}
++
++		// Arbitrary, but the callee names will always differ. Select
++		// the lexicographically first callee.
++		return e.Dst.Name() < hottest.Dst.Name()
++	}
++
++	for _, e := range callerNode.OutEdges {
++		if e.CallSiteOffset != callOffset {
++			continue
++		}
++
++		if !hotter(e) {
++			// TODO(prattmic): consider total caller weight? i.e.,
++			// if the hottest callee is only 10% of the weight,
++			// maybe don't devirtualize? Similarly, if this is call
++			// is globally very cold, there is not much value in
++			// devirtualizing.
++			if base.Debug.PGODebug >= 2 {
++				fmt.Printf("%v: edge %s:%d -> %s (weight %d): too cold (hottest %d)\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight, hottest.Weight)
++			}
++			continue
++		}
++
++		if e.Dst.AST == nil {
++			// Destination isn't visible from this package
++			// compilation.
++			//
++			// We must assume it implements the interface.
++			//
++			// We still record this as the hottest callee so far
++			// because we only want to return the #1 hottest
++			// callee. If we skip this then we'd return the #2
++			// hottest callee.
++			if base.Debug.PGODebug >= 2 {
++				fmt.Printf("%v: edge %s:%d -> %s (weight %d) (missing IR): hottest so far\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
++			}
++			hottest = e
++			continue
++		}
++
++		ctyp := methodRecvType(e.Dst.AST)
++		if ctyp == nil {
++			// Not a method.
++			// TODO(prattmic): Support non-interface indirect calls.
++			if base.Debug.PGODebug >= 2 {
++				fmt.Printf("%v: edge %s:%d -> %s (weight %d): callee not a method\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
++			}
++			continue
++		}
++
++		// If ctyp doesn't implement inter it is most likely from a
++		// different call on the same line
++		if !typecheck.Implements(ctyp, inter) {
++			// TODO(prattmic): this is overly strict. Consider if
++			// ctyp is a partial implementation of an interface
++			// that gets embedded in types that complete the
++			// interface. It would still be OK to devirtualize a
++			// call to this method.
++			//
++			// What we'd need to do is check that the function
++			// pointer in the itab matches the method we want,
++			// rather than doing a full type assertion.
++			if base.Debug.PGODebug >= 2 {
++				why := typecheck.ImplementsExplain(ctyp, inter)
++				fmt.Printf("%v: edge %s:%d -> %s (weight %d): %v doesn't implement %v (%s)\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight, ctyp, inter, why)
++			}
++			continue
++		}
++
++		if base.Debug.PGODebug >= 2 {
++			fmt.Printf("%v: edge %s:%d -> %s (weight %d): hottest so far\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
++		}
++		hottest = e
++	}
++
++	if hottest == nil {
++		if base.Debug.PGODebug >= 2 {
++			fmt.Printf("%v: call %s:%d: no hot callee\n", ir.Line(call), callerName, callOffset)
++		}
++		return nil, 0
++	}
++
++	if base.Debug.PGODebug >= 2 {
++		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
++	}
++	return hottest.Dst.AST, hottest.Weight
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 464707242a..937d1c4751 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -253,7 +253,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	typecheck.IncrementalAddrtaken = true
+ 
+ 	// Read profile file and build profile-graph and weighted-call-graph.
+-	base.Timer.Start("fe", "pgoprofile")
++	base.Timer.Start("fe", "pgo-load-profile")
+ 	var profile *pgo.Profile
+ 	if base.Flag.PgoProfile != "" {
+ 		var err error
+@@ -263,6 +263,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		}
+ 	}
+ 
++	base.Timer.Start("fe", "pgo-devirtualization")
++	if profile != nil && base.Debug.PGODevirtualize > 0 {
++		// TODO(prattmic): No need to use bottom-up visit order. This
++		// is mirroring the PGO IRGraph visit order, which also need
++		// not be bottom-up.
++		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++			for _, fn := range list {
++				devirtualize.ProfileGuided(fn, profile)
++			}
++		})
++		ir.CurFunc = nil
++	}
++
+ 	// Inlining
+ 	base.Timer.Start("fe", "inlining")
+ 	if base.Flag.LowerL != 0 {
+@@ -274,7 +287,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	var transformed []loopvar.VarAndLoop
+ 	for _, n := range typecheck.Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC {
+-			devirtualize.Func(n.(*ir.Func))
++			devirtualize.Static(n.(*ir.Func))
+ 			transformed = append(transformed, loopvar.ForCapture(n.(*ir.Func))...)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index ff7e929ef4..96a6f3028a 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -101,13 +101,13 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+ 			candHotCalleeMap[callee] = struct{}{}
+ 		}
+ 		// mark hot call sites
+-		if caller := p.WeightedCG.IRNodes[n.CallerName]; caller != nil {
++		if caller := p.WeightedCG.IRNodes[n.CallerName]; caller != nil && caller.AST != nil {
+ 			csi := pgo.CallSiteInfo{LineOffset: n.CallSiteOffset, Caller: caller.AST}
+ 			candHotEdgeMap[csi] = struct{}{}
+ 		}
+ 	}
+ 
+-	if base.Debug.PGODebug >= 2 {
++	if base.Debug.PGODebug >= 3 {
+ 		fmt.Printf("hot-cg before inline in dot format:")
+ 		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
+ 	}
+@@ -283,71 +283,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		}()
+ 	}
+ 
+-	// If marked "go:noinline", don't inline
+-	if fn.Pragma&ir.Noinline != 0 {
+-		reason = "marked go:noinline"
+-		return
+-	}
+-
+-	// If marked "go:norace" and -race compilation, don't inline.
+-	if base.Flag.Race && fn.Pragma&ir.Norace != 0 {
+-		reason = "marked go:norace with -race compilation"
+-		return
+-	}
+-
+-	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
+-	if base.Debug.Checkptr != 0 && fn.Pragma&ir.NoCheckPtr != 0 {
+-		reason = "marked go:nocheckptr"
+-		return
+-	}
+-
+-	// If marked "go:cgo_unsafe_args", don't inline, since the
+-	// function makes assumptions about its argument frame layout.
+-	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+-		reason = "marked go:cgo_unsafe_args"
+-		return
+-	}
+-
+-	// If marked as "go:uintptrkeepalive", don't inline, since the
+-	// keep alive information is lost during inlining.
+-	//
+-	// TODO(prattmic): This is handled on calls during escape analysis,
+-	// which is after inlining. Move prior to inlining so the keep-alive is
+-	// maintained after inlining.
+-	if fn.Pragma&ir.UintptrKeepAlive != 0 {
+-		reason = "marked as having a keep-alive uintptr argument"
+-		return
+-	}
+-
+-	// If marked as "go:uintptrescapes", don't inline, since the
+-	// escape information is lost during inlining.
+-	if fn.Pragma&ir.UintptrEscapes != 0 {
+-		reason = "marked as having an escaping uintptr argument"
+-		return
+-	}
+-
+-	// The nowritebarrierrec checker currently works at function
+-	// granularity, so inlining yeswritebarrierrec functions can
+-	// confuse it (#22342). As a workaround, disallow inlining
+-	// them for now.
+-	if fn.Pragma&ir.Yeswritebarrierrec != 0 {
+-		reason = "marked go:yeswritebarrierrec"
+-		return
+-	}
+-
+-	// If fn has no body (is defined outside of Go), cannot inline it.
+-	if len(fn.Body) == 0 {
+-		reason = "no function body"
+-		return
+-	}
+-
+-	// If fn is synthetic hash or eq function, cannot inline it.
+-	// The function is not generated in Unified IR frontend at this moment.
+-	if ir.IsEqOrHashFunc(fn) {
+-		reason = "type eq/hash function"
++	reason = InlineImpossible(fn)
++	if reason != "" {
+ 		return
+ 	}
+-
+ 	if fn.Typecheck() == 0 {
+ 		base.Fatalf("CanInline on non-typechecked function %v", fn)
+ 	}
+@@ -415,6 +354,82 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	}
+ }
+ 
++// InlineImpossible returns a non-empty reason string if fn is impossible to
++// inline regardless of cost or contents.
++func InlineImpossible(fn *ir.Func) string {
++	var reason string // reason, if any, that the function can not be inlined.
++	if fn.Nname == nil {
++		reason = "no name"
++		return reason
++	}
++
++	// If marked "go:noinline", don't inline.
++	if fn.Pragma&ir.Noinline != 0 {
++		reason = "marked go:noinline"
++		return reason
++	}
++
++	// If marked "go:norace" and -race compilation, don't inline.
++	if base.Flag.Race && fn.Pragma&ir.Norace != 0 {
++		reason = "marked go:norace with -race compilation"
++		return reason
++	}
++
++	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
++	if base.Debug.Checkptr != 0 && fn.Pragma&ir.NoCheckPtr != 0 {
++		reason = "marked go:nocheckptr"
++		return reason
++	}
++
++	// If marked "go:cgo_unsafe_args", don't inline, since the function
++	// makes assumptions about its argument frame layout.
++	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
++		reason = "marked go:cgo_unsafe_args"
++		return reason
++	}
++
++	// If marked as "go:uintptrkeepalive", don't inline, since the keep
++	// alive information is lost during inlining.
++	//
++	// TODO(prattmic): This is handled on calls during escape analysis,
++	// which is after inlining. Move prior to inlining so the keep-alive is
++	// maintained after inlining.
++	if fn.Pragma&ir.UintptrKeepAlive != 0 {
++		reason = "marked as having a keep-alive uintptr argument"
++		return reason
++	}
++
++	// If marked as "go:uintptrescapes", don't inline, since the escape
++	// information is lost during inlining.
++	if fn.Pragma&ir.UintptrEscapes != 0 {
++		reason = "marked as having an escaping uintptr argument"
++		return reason
++	}
++
++	// The nowritebarrierrec checker currently works at function
++	// granularity, so inlining yeswritebarrierrec functions can confuse it
++	// (#22342). As a workaround, disallow inlining them for now.
++	if fn.Pragma&ir.Yeswritebarrierrec != 0 {
++		reason = "marked go:yeswritebarrierrec"
++		return reason
++	}
++
++	// If fn has no body (is defined outside of Go), cannot inline it.
++	if len(fn.Body) == 0 {
++		reason = "no function body"
++		return reason
++	}
++
++	// If fn is synthetic hash or eq function, cannot inline it.
++	// The function is not generated in Unified IR frontend at this moment.
++	if ir.IsEqOrHashFunc(fn) {
++		reason = "type eq/hash function"
++		return reason
++	}
++
++	return ""
++}
++
+ // canDelayResults reports whether inlined calls to fn can delay
+ // declaring the result parameter until the "return" statement.
+ func canDelayResults(fn *ir.Func) bool {
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index b9c39f6090..074f4a5a2f 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -51,25 +51,41 @@ import (
+ 	"os"
+ )
+ 
+-// IRGraph is the key data structure that is built from profile. It is
+-// essentially a call graph with nodes pointing to IRs of functions and edges
+-// carrying weights and callsite information. The graph is bidirectional that
+-// helps in removing nodes efficiently.
++// IRGraph is a call graph with nodes pointing to IRs of functions and edges
++// carrying weights and callsite information.
++//
++// Nodes for indirect calls may have missing IR (IRNode.AST == nil) if the node
++// is not visible from this package (e.g., not in the transitive deps). Keeping
++// these nodes allows determining the hottest edge from a call even if that
++// callee is not available.
++//
++// TODO(prattmic): Consider merging this data structure with Graph. This is
++// effectively a copy of Graph aggregated to line number and pointing to IR.
+ type IRGraph struct {
+ 	// Nodes of the graph
+-	IRNodes  map[string]*IRNode
+-	OutEdges IREdgeMap
+-	InEdges  IREdgeMap
++	IRNodes map[string]*IRNode
+ }
+ 
+-// IRNode represents a node in the IRGraph.
++// IRNode represents a node (function) in the IRGraph.
+ type IRNode struct {
+ 	// Pointer to the IR of the Function represented by this node.
+ 	AST *ir.Func
++	// Linker symbol name of the Function represented by this node.
++	// Populated only if AST == nil.
++	LinkerSymbolName string
++
++	// Set of out-edges in the callgraph. The map uniquely identifies each
++	// edge based on the callsite and callee, for fast lookup.
++	OutEdges map[NodeMapKey]*IREdge
+ }
+ 
+-// IREdgeMap maps an IRNode to its successors.
+-type IREdgeMap map[*IRNode][]*IREdge
++// Name returns the symbol name of this function.
++func (i *IRNode) Name() string {
++	if i.AST != nil {
++		return ir.LinkFuncName(i.AST)
++	}
++	return i.LinkerSymbolName
++}
+ 
+ // IREdge represents a call edge in the IRGraph with source, destination,
+ // weight, callsite, and line number information.
+@@ -82,6 +98,8 @@ type IREdge struct {
+ 
+ // NodeMapKey represents a hash key to identify unique call-edges in profile
+ // and in IR. Used for deduplication of call edges found in profile.
++//
++// TODO(prattmic): rename to something more descriptive.
+ type NodeMapKey struct {
+ 	CallerName     string
+ 	CalleeName     string
+@@ -244,10 +262,22 @@ func (p *Profile) processprofileGraph(g *graph.Graph) error {
+ func (p *Profile) initializeIRGraph() {
+ 	// Bottomup walk over the function to create IRGraph.
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+-		for _, n := range list {
+-			p.VisitIR(n)
++		for _, fn := range list {
++			p.VisitIR(fn)
+ 		}
+ 	})
++
++	// Add additional edges for indirect calls. This must be done second so
++	// that IRNodes is fully populated (see the dummy node TODO in
++	// addIndirectEdges).
++	//
++	// TODO(prattmic): VisitIR above populates the graph via direct calls
++	// discovered via the IR. addIndirectEdges populates the graph via
++	// calls discovered via the profile. This combination of opposite
++	// approaches is a bit awkward, particularly because direct calls are
++	// discoverable via the profile as well. Unify these into a single
++	// approach.
++	p.addIndirectEdges()
+ }
+ 
+ // VisitIR traverses the body of each ir.Func and use NodeMap to determine if
+@@ -258,12 +288,7 @@ func (p *Profile) VisitIR(fn *ir.Func) {
+ 	if g.IRNodes == nil {
+ 		g.IRNodes = make(map[string]*IRNode)
+ 	}
+-	if g.OutEdges == nil {
+-		g.OutEdges = make(map[*IRNode][]*IREdge)
+-	}
+-	if g.InEdges == nil {
+-		g.InEdges = make(map[*IRNode][]*IREdge)
+-	}
++
+ 	name := ir.LinkFuncName(fn)
+ 	node, ok := g.IRNodes[name]
+ 	if !ok {
+@@ -317,21 +342,107 @@ func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node,
+ 		Weight:         weight,
+ 		CallSiteOffset: nodeinfo.CallSiteOffset,
+ 	}
+-	g.OutEdges[callerNode] = append(g.OutEdges[callerNode], edge)
+-	g.InEdges[calleeNode] = append(g.InEdges[calleeNode], edge)
++
++	if callerNode.OutEdges == nil {
++		callerNode.OutEdges = make(map[NodeMapKey]*IREdge)
++	}
++	callerNode.OutEdges[nodeinfo] = edge
++}
++
++// addIndirectEdges adds indirect call edges found in the profile to the graph,
++// to be used for devirtualization.
++//
++// targetDeclFuncs is the set of functions in typecheck.Target.Decls. Only
++// edges from these functions will be added.
++//
++// Devirtualization is only applied to typecheck.Target.Decls functions, so there
++// is no need to add edges from other functions.
++//
++// N.B. despite the name, addIndirectEdges will add any edges discovered via
++// the profile. We don't know for sure that they are indirect, but assume they
++// are since direct calls would already be added. (e.g., direct calls that have
++// been deleted from source since the profile was taken would be added here).
++//
++// TODO(prattmic): Devirtualization runs before inlining, so we can't devirtualize
++// calls inside inlined call bodies. If we did add that, we'd need edges from
++// inlined bodies as well.
++func (p *Profile) addIndirectEdges() {
++	g := p.WeightedCG
++
++	// g.IRNodes is populated with the set of functions in the local
++	// package build by VisitIR. We want to filter for local functions
++	// below, but we also add unknown callees to IRNodes as we go. So make
++	// an initial copy of IRNodes to recall just the local functions.
++	localNodes := make(map[string]*IRNode, len(g.IRNodes))
++	for k, v := range g.IRNodes {
++		localNodes[k] = v
++	}
++
++	for key, weights := range p.NodeMap {
++		// All callers in the local package build were added to IRNodes
++		// in VisitIR. If a caller isn't in the local package build we
++		// can skip adding edges, since we won't be devirtualizing in
++		// them anyway. This keeps the graph smaller.
++		callerNode, ok := localNodes[key.CallerName]
++		if !ok {
++			continue
++		}
++
++		// Already handled this edge?
++		if _, ok := callerNode.OutEdges[key]; ok {
++			continue
++		}
++
++		calleeNode, ok := g.IRNodes[key.CalleeName]
++		if !ok {
++			// IR is missing for this callee. Most likely this is
++			// because the callee isn't in the transitive deps of
++			// this package.
++			//
++			// Record this call anyway. If this is the hottest,
++			// then we want to skip devirtualization rather than
++			// devirtualizing to the second most common callee.
++			//
++			// TODO(prattmic): VisitIR populates IRNodes with all
++			// of the functions discovered via local package
++			// function declarations and calls. Thus we could miss
++			// functions that are available in export data of
++			// transitive deps, but aren't directly reachable. We
++			// need to do a lookup directly from package export
++			// data to get complete coverage.
++			calleeNode = &IRNode{
++				LinkerSymbolName: key.CalleeName,
++				// TODO: weights? We don't need them.
++			}
++			// Add dummy node back to IRNodes. We don't need this
++			// directly, but PrintWeightedCallGraphDOT uses these
++			// to print nodes.
++			g.IRNodes[key.CalleeName] = calleeNode
++		}
++		edge := &IREdge{
++			Src:            callerNode,
++			Dst:            calleeNode,
++			Weight:         weights.EWeight,
++			CallSiteOffset: key.CallSiteOffset,
++		}
++
++		if callerNode.OutEdges == nil {
++			callerNode.OutEdges = make(map[NodeMapKey]*IREdge)
++		}
++		callerNode.OutEdges[key] = edge
++	}
+ }
+ 
+-// createIRGraphEdge traverses the nodes in the body of ir.Func and add edges between callernode which points to the ir.Func and the nodes in the body.
++// createIRGraphEdge traverses the nodes in the body of ir.Func and adds edges
++// between the callernode which points to the ir.Func and the nodes in the
++// body.
+ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string) {
+-	var doNode func(ir.Node) bool
+-	doNode = func(n ir.Node) bool {
++	ir.VisitList(fn.Body, func(n ir.Node) {
+ 		switch n.Op() {
+-		default:
+-			ir.DoChildren(n, doNode)
+ 		case ir.OCALLFUNC:
+ 			call := n.(*ir.CallExpr)
+ 			// Find the callee function from the call site and add the edge.
+-			callee := inlCallee(call.X)
++			callee := DirectCallee(call.X)
+ 			if callee != nil {
+ 				p.addIREdge(callernode, name, n, callee)
+ 			}
+@@ -341,9 +452,7 @@ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string
+ 			callee := ir.MethodExprName(call.X).Func
+ 			p.addIREdge(callernode, name, n, callee)
+ 		}
+-		return false
+-	}
+-	doNode(fn)
++	})
+ }
+ 
+ // WeightInPercentage converts profile weights to a percentage.
+@@ -366,19 +475,22 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	})
+ 
+ 	// Determine nodes of DOT.
++	//
++	// Note that ir.Func may be nil for functions not visible from this
++	// package.
+ 	nodes := make(map[string]*ir.Func)
+ 	for name := range funcs {
+ 		if n, ok := p.WeightedCG.IRNodes[name]; ok {
+-			for _, e := range p.WeightedCG.OutEdges[n] {
+-				if _, ok := nodes[ir.LinkFuncName(e.Src.AST)]; !ok {
+-					nodes[ir.LinkFuncName(e.Src.AST)] = e.Src.AST
++			for _, e := range n.OutEdges {
++				if _, ok := nodes[e.Src.Name()]; !ok {
++					nodes[e.Src.Name()] = e.Src.AST
+ 				}
+-				if _, ok := nodes[ir.LinkFuncName(e.Dst.AST)]; !ok {
+-					nodes[ir.LinkFuncName(e.Dst.AST)] = e.Dst.AST
++				if _, ok := nodes[e.Dst.Name()]; !ok {
++					nodes[e.Dst.Name()] = e.Dst.AST
+ 				}
+ 			}
+-			if _, ok := nodes[ir.LinkFuncName(n.AST)]; !ok {
+-				nodes[ir.LinkFuncName(n.AST)] = n.AST
++			if _, ok := nodes[n.Name()]; !ok {
++				nodes[n.Name()] = n.AST
+ 			}
+ 		}
+ 	}
+@@ -386,11 +498,15 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	// Print nodes.
+ 	for name, ast := range nodes {
+ 		if _, ok := p.WeightedCG.IRNodes[name]; ok {
+-			color := "black"
+-			if ast.Inl != nil {
+-				fmt.Printf("\"%v\" [color=%v,label=\"%v,inl_cost=%d\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), ast.Inl.Cost)
++			style := "solid"
++			if ast == nil {
++				style = "dashed"
++			}
++
++			if ast != nil && ast.Inl != nil {
++				fmt.Printf("\"%v\" [color=black, style=%s, label=\"%v,inl_cost=%d\"];\n", name, style, name, ast.Inl.Cost)
+ 			} else {
+-				fmt.Printf("\"%v\" [color=%v, label=\"%v\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast))
++				fmt.Printf("\"%v\" [color=black, style=%s, label=\"%v\"];\n", name, style, name)
+ 			}
+ 		}
+ 	}
+@@ -399,15 +515,19 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 		for _, f := range list {
+ 			name := ir.LinkFuncName(f)
+ 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
+-				for _, e := range p.WeightedCG.OutEdges[n] {
++				for _, e := range n.OutEdges {
++					style := "solid"
++					if e.Dst.AST == nil {
++						style = "dashed"
++					}
++					color := "black"
+ 					edgepercent := WeightInPercentage(e.Weight, p.TotalEdgeWeight)
+ 					if edgepercent > edgeThreshold {
+-						fmt.Printf("edge [color=red, style=solid];\n")
+-					} else {
+-						fmt.Printf("edge [color=black, style=solid];\n")
++						color = "red"
+ 					}
+ 
+-					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.LinkFuncName(n.AST), ir.LinkFuncName(e.Dst.AST), edgepercent)
++					fmt.Printf("edge [color=%s, style=%s];\n", color, style)
++					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", n.Name(), e.Dst.Name(), edgepercent)
+ 				}
+ 			}
+ 		}
+@@ -415,8 +535,11 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	fmt.Printf("}\n")
+ }
+ 
+-// inlCallee is same as the implementation for inl.go with one change. The change is that we do not invoke CanInline on a closure.
+-func inlCallee(fn ir.Node) *ir.Func {
++// DirectCallee takes a function-typed expression and returns the underlying
++// function that it refers to if statically known. Otherwise, it returns nil.
++//
++// Equivalent to inline.inlCallee without calling CanInline on closures.
++func DirectCallee(fn ir.Node) *ir.Func {
+ 	fn = ir.StaticValue(fn)
+ 	switch fn.Op() {
+ 	case ir.OMETHEXPR:
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+new file mode 100644
+index 0000000000..5ddd626962
+--- /dev/null
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -0,0 +1,126 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"bufio"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"regexp"
++	"testing"
++)
++
++// testPGODevirtualize tests that specific PGO devirtualize rewrites are performed.
++func testPGODevirtualize(t *testing.T, dir string) {
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	const pkg = "example.com/pgo/devirtualize"
++
++	// Add a go.mod so we have a consistent symbol names in this temp dir.
++	goMod := fmt.Sprintf(`module %s
++go 1.19
++`, pkg)
++	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0644); err != nil {
++		t.Fatalf("error writing go.mod: %v", err)
++	}
++
++	// Build the test with the profile.
++	pprof := filepath.Join(dir, "devirt.pprof")
++	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=2", pprof)
++	out := filepath.Join(dir, "test.exe")
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", out, gcflag, "."))
++	cmd.Dir = dir
++
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		t.Fatalf("error creating pipe: %v", err)
++	}
++	defer pr.Close()
++	cmd.Stdout = pw
++	cmd.Stderr = pw
++
++	err = cmd.Start()
++	pw.Close()
++	if err != nil {
++		t.Fatalf("error starting go test: %v", err)
++	}
++
++	type devirtualization struct {
++		pos    string
++		callee string
++	}
++
++	want := []devirtualization{
++		{
++			pos:    "./devirt.go:81:21",
++			callee: "Mult.Multiply",
++		},
++		{
++			pos:    "./devirt.go:81:31",
++			callee: "Add.Add",
++		},
++	}
++
++	got := make(map[devirtualization]struct{})
++
++	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing call to (.*)`)
++
++	scanner := bufio.NewScanner(pr)
++	for scanner.Scan() {
++		line := scanner.Text()
++		t.Logf("child: %s", line)
++
++		m := devirtualizedLine.FindStringSubmatch(line)
++		if m == nil {
++			continue
++		}
++
++		d := devirtualization{
++			pos:    m[1],
++			callee: m[2],
++		}
++		got[d] = struct{}{}
++	}
++	if err := cmd.Wait(); err != nil {
++		t.Fatalf("error running go test: %v", err)
++	}
++	if err := scanner.Err(); err != nil {
++		t.Fatalf("error reading go test output: %v", err)
++	}
++
++	if len(got) != len(want) {
++		t.Errorf("mismatched devirtualization count; got %v want %v", got, want)
++	}
++	for _, w := range want {
++		if _, ok := got[w]; ok {
++			continue
++		}
++		t.Errorf("devirtualization %v missing; got %v", w, got)
++	}
++}
++
++// TestPGODevirtualize tests that specific functions are devirtualized when PGO
++// is applied to the exact source that was profiled.
++func TestPGODevirtualize(t *testing.T) {
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("error getting wd: %v", err)
++	}
++	srcDir := filepath.Join(wd, "testdata", "pgo", "devirtualize")
++
++	// Copy the module to a scratch location so we can add a go.mod.
++	dir := t.TempDir()
++
++	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof"} {
++		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
++			t.Fatalf("error copying %s: %v", file, err)
++		}
++	}
++
++	testPGODevirtualize(t, dir)
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+new file mode 100644
+index 0000000000..3f22093b34
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -0,0 +1,83 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: Please avoid updating this file. If this file needs to be updated,
++// then a new devirt.pprof file should be generated:
++//
++//	$ cd $GOROOT/src/cmd/compile/internal/test/testdata/pgo/devirtualize/
++//	$ go mod init example.com/pgo/devirtualize
++//	$ go test -bench=. -cpuprofile ./devirt.pprof
++
++package devirt
++
++type Multiplier interface {
++	Multiply(a, b int) int
++}
++
++type Adder interface {
++	Add(a, b int) int
++}
++
++var sink int
++
++type Mult struct{}
++
++func (Mult) Multiply(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a * b
++}
++
++type NegMult struct{}
++
++func (NegMult) Multiply(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return -1 * a * b
++}
++
++type Add struct{}
++
++func (Add) Add(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a + b
++}
++
++type Sub struct{}
++
++func (Sub) Add(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a - b
++}
++
++// Exercise calls mostly a1 and m1.
++//
++//go:noinline
++func Exercise(iter int, a1, a2 Adder, m1, m2 Multiplier) {
++	for i := 0; i < iter; i++ {
++		a := a1
++		m := m1
++		if i%10 == 0 {
++			a = a2
++			m = m2
++		}
++
++		// N.B. Profiles only distinguish calls on a per-line level,
++		// making the two calls ambiguous. However because the
++		// interfaces and implementations are mutually exclusive,
++		// devirtualization can still select the correct callee for
++		// each.
++		//
++		// If they were not mutually exclusive (for example, two Add
++		// calls), then we could not definitively select the correct
++		// callee.
++		sink += m.Multiply(42, a.Add(1, 2))
++	}
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof
+new file mode 100644
+index 0000000000..b72f7cf4b3
+Binary files /dev/null and b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+new file mode 100644
+index 0000000000..03c966f6de
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: Please avoid updating this file. If this file needs to be updated,
++// then a new devirt.pprof file should be generated:
++//
++//	$ cd $GOROOT/src/cmd/compile/internal/test/testdata/pgo/devirtualize/
++//	$ go mod init example.com/pgo/devirtualize
++//	$ go test -bench=. -cpuprofile ./devirt.pprof
++
++package devirt
++
++import (
++	"testing"
++)
++
++func BenchmarkDevirt(b *testing.B) {
++	var (
++		a1 Add
++		a2 Sub
++		m1 Mult
++		m2 NegMult
++	)
++
++	Exercise(b.N, a1, a2, m1, m2)
++}

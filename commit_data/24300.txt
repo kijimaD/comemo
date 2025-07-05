@@ -15,6 +15,20 @@ Date:   Wed Jul 22 09:31:29 2015 -0700
     Change-Id: Ifa5f25f9a95d7484cb53d4883cfd78dc58a0f9a7
     Reviewed-on: https://go-review.googlesource.com/12506
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index f3b84e1eac..e6b59c5f43 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -320,7 +320,7 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	}
+ 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+ 	y = new(big.Int).SetBytes(data[1+byteLen:])
+-	if !curve.Params().IsOnCurve(x, y) {
++	if !curve.IsOnCurve(x, y) {
+ 		x, y = nil, nil
+ 	}
+ 	return

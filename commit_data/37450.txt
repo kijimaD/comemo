@@ -20,8 +20,142 @@ Date:   Mon Jul 30 12:59:42 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go             |  8 ++++--
  src/cmd/go/internal/modload/load.go         | 40 ++++++++++++++++++++++++++---
  src/cmd/go/testdata/script/mod_list_dir.txt | 27 +++++++++++++++++++
  3 files changed, 69 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2559e9fb54..691e8a537b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1755,8 +1755,12 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
+ 	// This lets you run go test ./ioutil in package io and be
+ 	// referring to io/ioutil rather than a hypothetical import of
+ 	// "./ioutil".
+-	if build.IsLocalImport(arg) {
+-		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(base.Cwd, arg), build.FindOnly)
++	if build.IsLocalImport(arg) || filepath.IsAbs(arg) {
++		dir := arg
++		if !filepath.IsAbs(arg) {
++			dir = filepath.Join(base.Cwd, arg)
++		}
++		bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly)
+ 		if bp.ImportPath != "" && bp.ImportPath != "." {
+ 			arg = bp.ImportPath
+ 		}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b7dbc39b05..9c550445ee 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/build"
+ 	"io/ioutil"
+ 	"os"
++	"path"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -60,17 +61,26 @@ func ImportPaths(args []string) []string {
+ 		paths = nil
+ 		for _, pkg := range cleaned {
+ 			switch {
+-			case build.IsLocalImport(pkg):
++			case build.IsLocalImport(pkg) || filepath.IsAbs(pkg):
+ 				list := []string{pkg}
+ 				if strings.Contains(pkg, "...") {
+ 					// TODO: Where is the go.mod cutoff?
+ 					list = warnPattern(pkg, search.AllPackagesInFS(pkg))
+ 				}
+ 				for _, pkg := range list {
+-					dir := filepath.Join(cwd, pkg)
++					dir := pkg
++					if !filepath.IsAbs(dir) {
++						dir = filepath.Join(cwd, pkg)
++					} else {
++						dir = filepath.Clean(dir)
++					}
++
++					// Note: The checks for @ here are just to avoid misinterpreting
++					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
++					// It's not strictly necessary but helpful to keep the checks.
+ 					if dir == ModRoot {
+ 						pkg = Target.Path
+-					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
++					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) && !strings.Contains(dir[len(ModRoot):], "@") {
+ 						suffix := filepath.ToSlash(dir[len(ModRoot):])
+ 						if strings.HasPrefix(suffix, "/vendor/") {
+ 							// TODO getmode vendor check
+@@ -78,8 +88,12 @@ func ImportPaths(args []string) []string {
+ 						} else {
+ 							pkg = Target.Path + suffix
+ 						}
++					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && !strings.Contains(sub, "@") {
++						pkg = filepath.ToSlash(sub)
++					} else if path := pathInModuleCache(dir); path != "" {
++						pkg = path
+ 					} else {
+-						base.Errorf("go: package %s outside module root", pkg)
++						base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+ 						continue
+ 					}
+ 					roots = append(roots, pkg)
+@@ -156,6 +170,24 @@ func ImportPaths(args []string) []string {
+ 	return final
+ }
+ 
++// pathInModuleCache returns the import path of the directory dir,
++// if dir is in the module cache copy of a module in our build list.
++func pathInModuleCache(dir string) string {
++	for _, m := range buildList[1:] {
++		root, err := modfetch.DownloadDir(m)
++		if err != nil {
++			continue
++		}
++		if sub := search.InDir(dir, root); sub != "" {
++			sub = filepath.ToSlash(sub)
++			if !strings.Contains(sub, "/vendor/") && !strings.HasPrefix(sub, "vendor/") && !strings.Contains(sub, "@") {
++				return path.Join(m.Path, filepath.ToSlash(sub))
++			}
++		}
++	}
++	return ""
++}
++
+ // warnPattern returns list, the result of matching pattern,
+ // but if list is empty then first it prints a warning about
+ // the pattern not matching any packages.
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+new file mode 100644
+index 0000000000..9b3ee14d1b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -0,0 +1,27 @@
++# go list with path to directory should work
++
++env GO111MODULE=off
++go list -f '{{.ImportPath}}' $GOROOT/src/math
++stdout ^math$
++
++env GO111MODULE=on
++go list -f '{{.ImportPath}}' $GOROOT/src/math
++stdout ^math$
++go list -f '{{.ImportPath}}' .
++stdout ^x$
++go list -f '{{.ImportPath}}' $GOPATH/src/mod/rsc.io/quote@v1.5.2
++stdout '^rsc.io/quote$'
++go list -f '{{.ImportPath}}' $GOPATH/src/mod/rsc.io/sampler@v1.3.0
++stdout '^rsc.io/sampler$'
++go get rsc.io/sampler@v1.3.1
++go list -f '{{.ImportPath}}' $GOPATH/src/mod/rsc.io/sampler@v1.3.1
++stdout '^rsc.io/sampler$'
++! go list -f '{{.ImportPath}}' $GOPATH/src/mod/rsc.io/sampler@v1.3.0
++stderr 'outside available modules'
++
++-- go.mod --
++module x
++require rsc.io/quote v1.5.2
++
++-- x.go --
++package x

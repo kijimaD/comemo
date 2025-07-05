@@ -28,7 +28,33 @@ Date:   Mon Nov 20 20:56:05 2017 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 ++
  src/cmd/internal/obj/x86/asm6.go                   | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index 6b4d7c7356..a5bcb0f9bc 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -233,5 +233,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	VPGATHERQQ Y0, (R13)(Y1*1), Y2          // c4c2fd91540d00
+ 	VPGATHERQQ Y0, 16(R13)(Y1*1), Y2        // c4c2fd91540d10
+ 	VPGATHERQQ Y0, 512(R13)(Y1*1), Y2       // c4c2fd91940d00020000
++	// Test low-8 register for /is4 "hr" operand.
++	VPBLENDVB X0, (BX), X1, X2              // c4e3714c1300
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 6451f2cc98..a44497b35b 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3964,7 +3964,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				hr, from, from3, to := unpackOps4(p)
+ 				asmbuf.asmvex(ctxt, from, from3, to, o.op[z], o.op[z+1])
+ 				asmbuf.asmand(ctxt, cursym, p, from, to)
+-				asmbuf.Put1(byte(regrex[hr.Reg]+reg[hr.Reg]+1) << 4)
++				asmbuf.Put1(byte(regIndex(hr.Reg) << 4))
+ 
+ 			case Zr_m_xm:
+ 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)

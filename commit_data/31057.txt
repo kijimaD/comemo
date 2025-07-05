@@ -12,8 +12,83 @@ Date:   Wed Jan 18 15:12:18 2017 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/msan_shared.go | 12 ++++++++++++
  misc/cgo/testsanitizers/test.bash      | 21 +++++++++++++++++++++
  src/runtime/msan.go                    |  4 +++-
  3 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/msan_shared.go b/misc/cgo/testsanitizers/msan_shared.go
+new file mode 100644
+index 0000000000..966947cac3
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan_shared.go
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This program segfaulted during libpreinit when built with -msan:
++// http://golang.org/issue/18707
++
++package main
++
++import "C"
++
++func main() {}
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index dfc6d3819a..4da85020d8 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -68,6 +68,25 @@ fi
+ 
+ status=0
+ 
++testmsanshared() {
++  goos=$(go env GOOS)
++  suffix="-installsuffix testsanitizers"
++  libext="so"
++  if [ "$goos" == "darwin" ]; then
++	  libext="dylib"
++  fi
++  go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
++
++	echo 'int main() { return 0; }' > ${TMPDIR}/testmsanshared.c
++  $CC $(go env GOGCCFLAGS) -fsanitize=memory -o ${TMPDIR}/testmsanshared ${TMPDIR}/testmsanshared.c ${TMPDIR}/libmsanshared.$libext
++
++  if ! LD_LIBRARY_PATH=. ${TMPDIR}/testmsanshared; then
++    echo "FAIL: msan_shared"
++    status=1
++  fi
++  rm -f ${TMPDIR}/{testmsanshared,testmsanshared.c,libmsanshared.$libext}
++}
++
+ if test "$msan" = "yes"; then
+     if ! go build -msan std; then
+ 	echo "FAIL: build -msan std"
+@@ -108,6 +127,8 @@ if test "$msan" = "yes"; then
+ 	echo "FAIL: msan_fail"
+ 	status=1
+     fi
++
++    testmsanshared
+ fi
+ 
+ if test "$tsan" = "yes"; then
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index 7177c8e611..c0f3957e28 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -28,9 +28,11 @@ const msanenabled = true
+ // the runtime, but operations like a slice copy can call msanread
+ // anyhow for values on the stack. Just ignore msanread when running
+ // on the system stack. The other msan functions are fine.
++//
++//go:nosplit
+ func msanread(addr unsafe.Pointer, sz uintptr) {
+ 	g := getg()
+-	if g == g.m.g0 || g == g.m.gsignal {
++	if g == nil || g.m == nil || g == g.m.g0 || g == g.m.gsignal {
+ 		return
+ 	}
+ 	domsanread(addr, sz)

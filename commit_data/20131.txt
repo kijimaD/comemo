@@ -13,8 +13,146 @@ Date:   Tue Aug 19 11:46:05 2014 +0400
     R=golang-codereviews, khr, cookieo9
     CC=golang-codereviews, rlh, rsc
     https://golang.org/cl/130200044
-
+---
  src/pkg/runtime/malloc.h       |  1 +
  src/pkg/runtime/malloc_test.go | 22 +++++++++++++++++++---
  src/pkg/runtime/mheap.c        | 24 ++++++++++++++----------
  3 files changed, 34 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 963e71c42f..a700956b0c 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -283,6 +283,7 @@ struct MStats
+ #define mstats runtime·memstats
+ extern MStats mstats;
+ void	runtime·updatememstats(GCStats *stats);
++void	runtime·ReadMemStats(MStats *stats);
+ 
+ // Size classes.  Computed and initialized by InitSizes.
+ //
+diff --git a/src/pkg/runtime/malloc_test.go b/src/pkg/runtime/malloc_test.go
+index 252760a07e..211d78dc8a 100644
+--- a/src/pkg/runtime/malloc_test.go
++++ b/src/pkg/runtime/malloc_test.go
+@@ -16,10 +16,26 @@ func TestMemStats(t *testing.T) {
+ 	// Test that MemStats has sane values.
+ 	st := new(MemStats)
+ 	ReadMemStats(st)
+-	if st.HeapSys == 0 || st.StackSys == 0 || st.MSpanSys == 0 || st.MCacheSys == 0 ||
+-		st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 {
+-		t.Fatalf("Zero sys value: %+v", *st)
++
++	// Everything except HeapReleased, because it indeed can be 0.
++	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
++		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
++		st.HeapIdle == 0 || st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
++		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
++		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
++		st.NextGC == 0 || st.NumGC == 0 {
++		t.Fatalf("Zero value: %+v", *st)
++	}
++
++	if st.Alloc > 1e10 || st.TotalAlloc > 1e11 || st.Sys > 1e10 || st.Lookups > 1e10 ||
++		st.Mallocs > 1e10 || st.Frees > 1e10 || st.HeapAlloc > 1e10 || st.HeapSys > 1e10 ||
++		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
++		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
++		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
++		st.NextGC > 1e10 || st.NumGC > 1e9 {
++		t.Fatalf("Insanely high value (overflow?): %+v", *st)
+ 	}
++
+ 	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
+ 		st.BuckHashSys+st.GCSys+st.OtherSys {
+ 		t.Fatalf("Bad sys value: %+v", *st)
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 46cf80007b..599872423a 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -17,7 +17,7 @@
+ #include "malloc.h"
+ 
+ static MSpan *MHeap_AllocSpanLocked(MHeap*, uintptr);
+-static void MHeap_FreeSpanLocked(MHeap*, MSpan*);
++static void MHeap_FreeSpanLocked(MHeap*, MSpan*, bool, bool);
+ static bool MHeap_Grow(MHeap*, uintptr);
+ static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
+ static MSpan *BestFit(MSpan*, uintptr, MSpan*);
+@@ -326,7 +326,7 @@ HaveSpan:
+ 		t->needzero = s->needzero;
+ 		s->state = MSpanStack; // prevent coalescing with s
+ 		t->state = MSpanStack;
+-		MHeap_FreeSpanLocked(h, t);
++		MHeap_FreeSpanLocked(h, t, false, false);
+ 		t->unusedsince = s->unusedsince; // preserve age (TODO: wrong: t is possibly merged and/or deallocated at this point)
+ 		s->state = MSpanFree;
+ 	}
+@@ -413,7 +413,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	h->spans[p + s->npages - 1] = s;
+ 	runtime·atomicstore(&s->sweepgen, h->sweepgen);
+ 	s->state = MSpanInUse;
+-	MHeap_FreeSpanLocked(h, s);
++	MHeap_FreeSpanLocked(h, s, false, true);
+ 	return true;
+ }
+ 
+@@ -467,7 +467,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
+ 		mstats.heap_alloc -= s->npages<<PageShift;
+ 		mstats.heap_objects--;
+ 	}
+-	MHeap_FreeSpanLocked(h, s);
++	MHeap_FreeSpanLocked(h, s, true, true);
+ 	runtime·unlock(&h->lock);
+ }
+ 
+@@ -506,12 +506,12 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
+ 	s->needzero = 1;
+ 	runtime·lock(&h->lock);
+ 	mstats.stacks_inuse -= s->npages<<PageShift;
+-	MHeap_FreeSpanLocked(h, s);
++	MHeap_FreeSpanLocked(h, s, true, true);
+ 	runtime·unlock(&h->lock);
+ }
+ 
+ static void
+-MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
++MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
+ {
+ 	MSpan *t;
+ 	PageID p;
+@@ -532,8 +532,10 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
+ 		runtime·throw("MHeap_FreeSpanLocked - invalid span state");
+ 		break;
+ 	}
+-	mstats.heap_inuse -= s->npages<<PageShift;
+-	mstats.heap_idle += s->npages<<PageShift;
++	if(acctinuse)
++		mstats.heap_inuse -= s->npages<<PageShift;
++	if(acctidle)
++		mstats.heap_idle += s->npages<<PageShift;
+ 	s->state = MSpanFree;
+ 	runtime·MSpanList_Remove(s);
+ 	// Stamp newly unused spans. The scavenger will use that
+@@ -606,6 +608,7 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ {
+ 	uint32 i;
+ 	uintptr sumreleased;
++	MStats stats;
+ 	MHeap *h;
+ 	
+ 	h = &runtime·mheap;
+@@ -615,11 +618,12 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ 	sumreleased += scavengelist(&h->freelarge, now, limit);
+ 
+ 	if(runtime·debug.gctrace > 0) {
++		runtime·ReadMemStats(&stats);
+ 		if(sumreleased > 0)
+ 			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
+ 		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
+-			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
+-			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
++			k, stats.heap_inuse>>20, stats.heap_idle>>20, stats.heap_sys>>20,
++			stats.heap_released>>20, (stats.heap_sys - stats.heap_released)>>20);
+ 	}
+ }
+ 

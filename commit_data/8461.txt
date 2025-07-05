@@ -9,7 +9,143 @@ Date:   Sun May 22 09:48:04 2011 -0700
     R=bradfitz, golang-dev
     CC=golang-dev
     https://golang.org/cl/4550062
-
+---
  src/pkg/net/ipsock.go      | 49 +++++++++++++++++++++++++++++++---------------
  src/pkg/net/server_test.go | 31 ++++++++++++++++++++++++++---
  2 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 532f925b05..b83284d36a 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -59,24 +59,43 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 
+ var supportsIPv6, supportsIPv4map = probeIPv6Stack()
+ 
+-func favoriteAddrFamily(net string, raddr, laddr sockaddr) (family int) {
+-	// Figure out IP version.
+-	// If network has a suffix like "tcp4", obey it.
+-	family = syscall.AF_INET6
++// favoriteAddrFamily returns the appropriate address family to
++// the given net, raddr, laddr and mode.  At first it figures
++// address family out from the net.  If mode indicates "listen"
++// and laddr.(type).IP is nil, it assuumes that the user wants to
++// make a passive connection with wildcard address family, both
++// INET and INET6, and wildcard address.  Otherwise guess: if the
++// addresses are IPv4 then returns INET, or else returns INET6.
++func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
+ 	switch net[len(net)-1] {
+ 	case '4':
+-		family = syscall.AF_INET
++		return syscall.AF_INET
+ 	case '6':
+-		// nothing to do
+-	default:
+-		// Otherwise, guess.
+-		// If the addresses are IPv4, use 4; else 6.
+-		if (laddr == nil || laddr.family() == syscall.AF_INET) &&
+-			(raddr == nil || raddr.family() == syscall.AF_INET) {
+-			family = syscall.AF_INET
++		return syscall.AF_INET6
++	}
++
++	if mode == "listen" {
++		switch a := laddr.(type) {
++		case *TCPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
++		case *UDPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
++		case *IPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
+ 		}
+ 	}
+-	return
++
++	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
++		(raddr == nil || raddr.family() == syscall.AF_INET) {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
+ }
+ 
+ func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
+@@ -142,11 +161,9 @@ type sockaddr interface {
+ }
+ 
+ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+-	// Figure out IP version.
+-	// If network has a suffix like "tcp4", obey it.
+ 	var oserr os.Error
+ 	var la, ra syscall.Sockaddr
+-	family := favoriteAddrFamily(net, raddr, laddr)
++	family := favoriteAddrFamily(net, raddr, laddr, mode)
+ 	if laddr != nil {
+ 		if la, oserr = laddr.sockaddr(family); oserr != nil {
+ 			goto Error
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index d44e8afc9e..107de3e1cc 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -92,15 +92,19 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
+ }
+ 
+ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+-	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
++	if listenaddr == "" {
++		t.Logf("Test %s %s %s\n", network, "<nil>", dialaddr)
++	} else {
++		t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
++	}
+ 	listening := make(chan string)
+ 	done := make(chan int)
+-	if network == "tcp" {
++	if network == "tcp" || network == "tcp4" || network == "tcp6" {
+ 		listenaddr += ":0" // any available port
+ 	}
+ 	go runServe(t, network, listenaddr, listening, done)
+ 	addr := <-listening // wait for server to start
+-	if network == "tcp" {
++	if network == "tcp" || network == "tcp4" || network == "tcp6" {
+ 		dialaddr += addr[strings.LastIndex(addr, ":"):]
+ 	}
+ 	connect(t, network, dialaddr, false)
+@@ -108,12 +112,33 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ func TestTCPServer(t *testing.T) {
++	doTest(t, "tcp", "", "127.0.0.1")
++	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
+ 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
++	doTest(t, "tcp4", "", "127.0.0.1")
++	doTest(t, "tcp4", "0.0.0.0", "127.0.0.1")
++	doTest(t, "tcp4", "127.0.0.1", "127.0.0.1")
+ 	if supportsIPv6 {
++		doTest(t, "tcp", "", "[::1]")
++		doTest(t, "tcp", "[::]", "[::1]")
+ 		doTest(t, "tcp", "[::1]", "[::1]")
++		doTest(t, "tcp6", "", "[::1]")
++		doTest(t, "tcp6", "[::]", "[::1]")
++		doTest(t, "tcp6", "[::1]", "[::1]")
+ 	}
+ 	if supportsIPv6 && supportsIPv4map {
++		doTest(t, "tcp", "[::ffff:0.0.0.0]", "127.0.0.1")
++		doTest(t, "tcp", "[::]", "127.0.0.1")
++		doTest(t, "tcp4", "[::ffff:0.0.0.0]", "127.0.0.1")
++		doTest(t, "tcp6", "", "127.0.0.1")
++		doTest(t, "tcp6", "[::ffff:0.0.0.0]", "127.0.0.1")
++		doTest(t, "tcp6", "[::]", "127.0.0.1")
+ 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
++		doTest(t, "tcp", "[::ffff:127.0.0.1]", "127.0.0.1")
++		doTest(t, "tcp4", "127.0.0.1", "[::ffff:127.0.0.1]")
++		doTest(t, "tcp4", "[::ffff:127.0.0.1]", "127.0.0.1")
++		doTest(t, "tcp6", "127.0.0.1", "[::ffff:127.0.0.1]")
++		doTest(t, "tcp6", "[::ffff:127.0.0.1]", "127.0.0.1")
+ 	}
+ }
+ 

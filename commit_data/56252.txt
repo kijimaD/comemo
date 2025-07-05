@@ -14,8 +14,66 @@ Date:   Thu Apr 20 19:27:23 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go           |  2 +-
  src/go/types/unify.go                              |  2 +-
  .../types/testdata/fixedbugs/issue59740.go         | 25 ++++++++++++++++++++++
  3 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index a5ccc6eb41..3c4027d189 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -46,7 +46,7 @@ const (
+ 	// Whether to panic when unificationDepthLimit is reached.
+ 	// If disabled, a recursion depth overflow results in a (quiet)
+ 	// unification failure.
+-	panicAtUnificationDepthLimit = true
++	panicAtUnificationDepthLimit = false // go.dev/issue/59740
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 107e569380..9d89a687de 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -48,7 +48,7 @@ const (
+ 	// Whether to panic when unificationDepthLimit is reached.
+ 	// If disabled, a recursion depth overflow results in a (quiet)
+ 	// unification failure.
+-	panicAtUnificationDepthLimit = true
++	panicAtUnificationDepthLimit = false // go.dev/issue/59740
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.
+diff --git a/src/internal/types/testdata/fixedbugs/issue59740.go b/src/internal/types/testdata/fixedbugs/issue59740.go
+new file mode 100644
+index 0000000000..31cd03b3af
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59740.go
+@@ -0,0 +1,25 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type F[T any] func(func(F[T]))
++
++func f(F[int])      {}
++func g[T any](F[T]) {}
++
++func _() {
++	g(f /* ERROR "type func(F[int]) of f does not match F[T] (cannot infer T)" */) // type inference/unification must not panic
++}
++
++// original test case from issue
++
++type List[T any] func(T, func(T, List[T]) T) T
++
++func nil[T any](n T, _ List[T]) T        { return n }
++func cons[T any](h T, t List[T]) List[T] { return func(n T, f func(T, List[T]) T) T { return f(h, t) } }
++
++func nums[T any](t T) List[T] {
++	return cons(t, cons(t, nil /* ERROR "type func(n T, _ List[T]) T of nil[T] does not match inferred type List[T] for List[T]" */ [T]))
++}

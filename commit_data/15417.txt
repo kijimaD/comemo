@@ -7,9 +7,62 @@ Date:   Mon Feb 25 12:43:03 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7393059
-
+---
  src/pkg/archive/tar/reader_test.go     | 2 +-
  src/pkg/encoding/gob/gobencdec_test.go | 2 +-
  src/pkg/encoding/json/decode_test.go   | 2 +-
  src/pkg/net/http/request_test.go       | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 12bfeff36b..9a19682371 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -338,7 +338,7 @@ func TestParsePAXTime(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		if !ts.Equal(expected) {
+-			t.Fatal("Time parsing failure %s %s", ts, expected)
++			t.Fatalf("Time parsing failure %s %s", ts, expected)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 18f4450da6..8f54e37994 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -348,7 +348,7 @@ func TestGobEncoderFieldsOfDifferentType(t *testing.T) {
+ 		t.Fatal("decode error:", err)
+ 	}
+ 	if y.G.s != "XYZ" {
+-		t.Fatalf("expected `XYZ` got %c", y.G.s)
++		t.Fatalf("expected `XYZ` got %q", y.G.s)
+ 	}
+ }
+ 
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 1ce26f8fb3..e1bd918dda 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1158,7 +1158,7 @@ type Time3339 time.Time
+ 
+ func (t *Time3339) UnmarshalJSON(b []byte) error {
+ 	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
+-		return fmt.Errorf("types: failed to unmarshal non-string value %q as an RFC 3339 time")
++		return fmt.Errorf("types: failed to unmarshal non-string value %q as an RFC 3339 time", b)
+ 	}
+ 	tm, err := time.Parse(time.RFC3339, string(b[1:len(b)-1]))
+ 	if err != nil {
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 0e7bda1b95..00ad791ded 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -262,7 +262,7 @@ func TestNewRequestContentLength(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		if req.ContentLength != tt.want {
+-			t.Errorf("ContentLength(%#T) = %d; want %d", tt.r, req.ContentLength, tt.want)
++			t.Errorf("ContentLength(%T) = %d; want %d", tt.r, req.ContentLength, tt.want)
+ 		}
+ 	}
+ }

@@ -9,7 +9,7 @@ Date:   Wed Jan 7 11:37:04 2015 -0500
     Change-Id: I9ce897dc505dea9923be4e823bae31f4f7fa2ee2
     Reviewed-on: https://go-review.googlesource.com/2471
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/a.h                                 | 165 ----
  src/cmd/dist/arg.h                               |  49 --
  src/cmd/dist/arm.c                               |  72 --
@@ -23,3 +23,2381 @@ Date:   Wed Jan 7 11:37:04 2015 -0500
  src/cmd/dist/{unix.c => util.go}                 |   0
  src/cmd/dist/windows.c                           | 989 -----------------------
  12 files changed, 2317 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+deleted file mode 100644
+index 288063b94b..0000000000
+--- a/src/cmd/dist/a.h
++++ /dev/null
+@@ -1,165 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-typedef int bool;
+-
+-// The Time unit is unspecified; we just need to
+-// be able to compare whether t1 is older than t2 with t1 < t2.
+-typedef long long Time;
+-
+-#define nil ((void*)0)
+-#define nelem(x) (sizeof(x)/sizeof((x)[0]))
+-#ifndef PLAN9
+-#define USED(x) ((void)(x))
+-#endif
+-
+-// A Buf is a byte buffer, like Go's []byte.
+-typedef struct Buf Buf;
+-struct Buf
+-{
+-	char *p;
+-	int len;
+-	int cap;
+-};
+-
+-// A Vec is a string vector, like Go's []string.
+-typedef struct Vec Vec;
+-struct Vec
+-{
+-	char **p;
+-	int len;
+-	int cap;
+-};
+-
+-// Modes for run.
+-enum {
+-	CheckExit = 1,
+-};
+-
+-// buf.c
+-bool	bequal(Buf *s, Buf *t);
+-void	bsubst(Buf *b, char *x, char *y);
+-void	bfree(Buf *b);
+-void	bgrow(Buf *b, int n);
+-void	binit(Buf *b);
+-char*	bpathf(Buf *b, char *fmt, ...);
+-char*	bprintf(Buf *b, char *fmt, ...);
+-void	bwritef(Buf *b, char *fmt, ...);
+-void	breset(Buf *b);
+-char*	bstr(Buf *b);
+-char*	btake(Buf *b);
+-void	bwrite(Buf *b, void *v, int n);
+-void	bwriteb(Buf *dst, Buf *src);
+-void	bwritestr(Buf *b, char *p);
+-void	bswap(Buf *b, Buf *b1);
+-void	vadd(Vec *v, char *p);
+-void	vcopy(Vec *dst, char **src, int n);
+-void	vfree(Vec *v);
+-void	vgrow(Vec *v, int n);
+-void	vinit(Vec *v);
+-void	vreset(Vec *v);
+-void	vuniq(Vec *v);
+-void	splitlines(Vec*, char*);
+-void	splitfields(Vec*, char*);
+-
+-// build.c
+-extern char *goarch;
+-extern char *gobin;
+-extern char *gochar;
+-extern char *gohostarch;
+-extern char *gohostos;
+-extern char *goos;
+-extern char *goroot;
+-extern char *goroot_final;
+-extern char *goextlinkenabled;
+-extern char *goversion;
+-extern char *defaultcc;
+-extern char *defaultcxxtarget;
+-extern char *defaultcctarget;
+-extern char *workdir;
+-extern char *tooldir;
+-extern char *slash;
+-extern bool rebuildall;
+-extern bool defaultclang;
+-
+-int	find(char*, char**, int);
+-void	init(void);
+-void	cmdbanner(int, char**);
+-void	cmdbootstrap(int, char**);
+-void	cmdclean(int, char**);
+-void	cmdenv(int, char**);
+-void	cmdinstall(int, char**);
+-void	cmdversion(int, char**);
+-
+-// buildgc.c
+-void	gcopnames(char*, char*);
+-void	mkanames(char*, char*);
+-
+-// buildruntime.c
+-void	mkzasm(char*, char*);
+-void	mkzsys(char*, char*);
+-void	mkzgoarch(char*, char*);
+-void	mkzgoos(char*, char*);
+-void	mkzruntimedefs(char*, char*);
+-void	mkzversion(char*, char*);
+-void	mkzexperiment(char*, char*);
+-
+-// buildgo.c
+-void	mkzdefaultcc(char*, char*);
+-
+-// main.c
+-extern int vflag;
+-extern int sflag;
+-void	usage(void);
+-void	xmain(int argc, char **argv);
+-
+-// portability layer (plan9.c, unix.c, windows.c)
+-bool	contains(char *p, char *sep);
+-void	errprintf(char*, ...);
+-void	fatal(char *msg, ...);
+-bool	hasprefix(char *p, char *prefix);
+-bool	hassuffix(char *p, char *suffix);
+-bool	isabs(char*);
+-bool	isdir(char *p);
+-bool	isfile(char *p);
+-char*	lastelem(char*);
+-Time	mtime(char*);
+-void	readfile(Buf*, char*);
+-void	copyfile(char*, char*, int);
+-void	run(Buf *b, char *dir, int mode, char *cmd, ...);
+-void	runv(Buf *b, char *dir, int mode, Vec *argv);
+-void	bgrunv(char *dir, int mode, Vec *argv);
+-void	bgwait(void);
+-bool	streq(char*, char*);
+-bool	cansse2(void);
+-void	writefile(Buf*, char*, int);
+-void	xatexit(void (*f)(void));
+-void	xexit(int);
+-void	xfree(void*);
+-void	xgetenv(Buf *b, char *name);
+-void	xgetwd(Buf *b);
+-void*	xmalloc(int n);
+-void*	xmalloc(int);
+-int	xmemcmp(void*, void*, int);
+-void	xmemmove(void*, void*, int);
+-void	xmkdir(char *p);
+-void	xmkdirall(char*);
+-Time	xmtime(char *p);
+-void	xprintf(char*, ...);
+-void	xqsort(void*, int, int, int(*)(const void*, const void*));
+-void	xreaddir(Vec *dst, char *dir);
+-void*	xrealloc(void*, int);
+-void	xrealwd(Buf *b, char *path);
+-void	xremove(char *p);
+-void	xremoveall(char *p);
+-void	xsetenv(char*, char*);
+-int	xstrcmp(char*, char*);
+-char*	xstrdup(char *p);
+-int	xstrlen(char*);
+-char*	xstrrchr(char*, int);
+-char*	xstrstr(char*, char*);
+-char*	xworkdir(void);
+-int	xsamefile(char*, char*);
+-char*	xgetgoarm(void);
+-int	xtryexecfunc(void (*)(void));
+diff --git a/src/cmd/dist/arg.h b/src/cmd/dist/arg.h
+deleted file mode 100644
+index 9819765b17..0000000000
+--- a/src/cmd/dist/arg.h
++++ /dev/null
+@@ -1,49 +0,0 @@
+-/*
+-Derived from Inferno include/kern.h.
+-
+-http://code.google.com/p/inferno-os/source/browse/include/kern.h
+-
+-	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-	Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+-	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in
+-all copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-THE SOFTWARE.
+-*/
+-
+-/* command line */
+-extern char	*argv0;
+-#define	ARGBEGIN	for((argv0=(argv0?argv0:*argv)),argv++,argc--;\
+-			    argv[0] && argv[0][0]=='-' && argv[0][1];\
+-			    argc--, argv++) {\
+-				char *_args, *_argt;\
+-				char _argc;\
+-				_args = &argv[0][1];\
+-				if(_args[0]=='-' && _args[1]==0){\
+-					argc--; argv++; break;\
+-				}\
+-				while((_argc = *_args++) != 0)\
+-				switch(_argc)
+-#define	ARGEND		_argt=0;USED(_argt);USED(_argc);USED(_args);}USED(argv);USED(argc);
+-#define	ARGF()		(_argt=_args, _args="",\
+-				(*_argt? _argt: argv[1]? (argc--, *++argv): 0))
+-#define	EARGF(x)	(_argt=_args, _args="",\
+-				(*_argt? _argt: argv[1]? (argc--, *++argv): ((x), fatal("usage"), (char*)0)))
+-
+-#define	ARGC()		_argc
+-
+diff --git a/src/cmd/dist/arm.c b/src/cmd/dist/arm.c
+deleted file mode 100644
+index 1ce7b7710d..0000000000
+--- a/src/cmd/dist/arm.c
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "a.h"
+-
+-#ifndef __ARMEL__
+-char *
+-xgetgoarm(void)
+-{
+-	return "6";
+-}
+-#else
+-static void useVFPv3(void);
+-static void useVFPv1(void);
+-
+-char *
+-xgetgoarm(void)
+-{
+-#if defined(__FreeBSD__)
+-	// FreeBSD has broken VFP support
+-	return "5";
+-#endif
+-	// NaCl always has VFP support.
+-	if(streq(goos, "nacl") || xtryexecfunc(useVFPv3))
+-		return "7";
+-	else if(xtryexecfunc(useVFPv1))
+-		return "6";
+-	return "5";
+-}
+-
+-static void
+-useVFPv3(void)
+-{
+-	// try to run VFPv3-only "vmov.f64 d0, #112" instruction
+-	// we can't use that instruction directly, because we
+-	// might be compiling with a soft-float only toolchain.
+-	//
+-	// some newer toolchains are configured to use thumb
+-	// by default, so we need to do some mode changing magic
+-	// here.
+-	// We can use "bx pc; nop" here, but GNU as(1) insists
+-	// on warning us
+-	// "use of r15 in bx in ARM mode is not really useful"
+-	// so we workaround that by using "bx r0"
+-	__asm__ __volatile__ ("mov r0, pc");
+-	__asm__ __volatile__ ("bx r0");
+-	__asm__ __volatile__ (".word 0xeeb70b00"); // vmov.f64 d0, #112
+-	__asm__ __volatile__ (".word 0xe12fff1e"); // bx lr
+-}
+-
+-static void
+-useVFPv1(void)
+-{
+-	// try to run "vmov.f64 d0, d0" instruction
+-	// we can't use that instruction directly, because we
+-	// might be compiling with a soft-float only toolchain
+-	//
+-	// some newer toolchains are configured to use thumb
+-	// by default, so we need to do some mode changing magic
+-	// here.
+-	// We can use "bx pc; nop" here, but GNU as(1) insists
+-	// on warning us
+-	// "use of r15 in bx in ARM mode is not really useful"
+-	// so we workaround that by using "bx r0"
+-	__asm__ __volatile__ ("mov r0, pc");
+-	__asm__ __volatile__ ("bx r0");
+-	__asm__ __volatile__ (".word 0xeeb00b40"); // vomv.f64 d0, d0
+-	__asm__ __volatile__ (".word 0xe12fff1e"); // bx lr
+-}
+-
+-#endif
+diff --git a/src/cmd/dist/buf.c b/src/cmd/dist/buf.c
+deleted file mode 100644
+index fbecd567ad..0000000000
+--- a/src/cmd/dist/buf.c
++++ /dev/null
+@@ -1,284 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Byte buffers and string vectors.
+-
+-#include "a.h"
+-
+-// binit prepares an uninitialized buffer for use.
+-void
+-binit(Buf *b)
+-{
+-	b->p = nil;
+-	b->len = 0;
+-	b->cap = 0;
+-}
+-
+-// breset truncates the buffer back to zero length.
+-void
+-breset(Buf *b)
+-{
+-	b->len = 0;
+-}
+-
+-// bfree frees the storage associated with a buffer.
+-void
+-bfree(Buf *b)
+-{
+-	xfree(b->p);
+-	binit(b);
+-}
+-
+-// bgrow ensures that the buffer has at least n more bytes
+-// between its len and cap.
+-void
+-bgrow(Buf *b, int n)
+-{
+-	int want;
+-	
+-	want = b->len+n;
+-	if(want > b->cap) {
+-		b->cap = 2*want;
+-		if(b->cap < 64)
+-			b->cap = 64;
+-		b->p = xrealloc(b->p, b->cap);
+-	}
+-}
+-
+-// bwrite appends the n bytes at v to the buffer.
+-void
+-bwrite(Buf *b, void *v, int n)
+-{
+-	bgrow(b, n);
+-	xmemmove(b->p+b->len, v, n);
+-	b->len += n;
+-}
+-
+-// bwritestr appends the string p to the buffer.
+-void
+-bwritestr(Buf *b, char *p)
+-{
+-	bwrite(b, p, xstrlen(p));
+-}
+-
+-// bstr returns a pointer to a NUL-terminated string of the
+-// buffer contents.  The pointer points into the buffer.
+-char*
+-bstr(Buf *b)
+-{
+-	bgrow(b, 1);
+-	b->p[b->len] = '\0';
+-	return b->p;
+-}
+-
+-// btake takes ownership of the string form of the buffer.
+-// After this call, the buffer has zero length and does not
+-// refer to the memory that btake returned.
+-char*
+-btake(Buf *b)
+-{
+-	char *p;
+-	
+-	p = bstr(b);
+-	binit(b);
+-	return p;
+-}
+-
+-// bwriteb appends the src buffer to the dst buffer.
+-void
+-bwriteb(Buf *dst, Buf *src)
+-{
+-	bwrite(dst, src->p, src->len);
+-}
+-
+-// bequal reports whether the buffers have the same content.
+-bool
+-bequal(Buf *s, Buf *t)
+-{
+-	return s->len == t->len && xmemcmp(s->p, t->p, s->len) == 0;
+-}
+-
+-// bsubst rewites b to replace all occurrences of x with y.
+-void
+-bsubst(Buf *b, char *x, char *y)
+-{
+-	char *p;
+-	int nx, ny, pos;
+-
+-	nx = xstrlen(x);
+-	ny = xstrlen(y);
+-
+-	pos = 0;
+-	for(;;) {
+-		p = xstrstr(bstr(b)+pos, x);
+-		if(p == nil)
+-			break;
+-		if(nx != ny) {
+-			if(nx < ny) {
+-				pos = p - b->p;
+-				bgrow(b, ny-nx);
+-				p = b->p + pos;
+-			}
+-			xmemmove(p+ny, p+nx, (b->p+b->len)-(p+nx));
+-		}
+-		xmemmove(p, y, ny);
+-		pos = p+ny - b->p;
+-		b->len += ny - nx;
+-	}
+-}
+-
+-// The invariant with the vectors is that v->p[0:v->len] is allocated
+-// strings that are owned by the vector.  The data beyond v->len may
+-// be garbage.
+-
+-// vinit prepares an uninitialized vector for use.
+-void
+-vinit(Vec *v)
+-{
+-	v->p = nil;
+-	v->len = 0;
+-	v->cap = 0;
+-}
+-
+-// vreset truncates the vector back to zero length.
+-void
+-vreset(Vec *v)
+-{
+-	int i;
+-	
+-	for(i=0; i<v->len; i++) {
+-		xfree(v->p[i]);
+-		v->p[i] = nil;
+-	}
+-	v->len = 0;
+-}
+-
+-// vfree frees the storage associated with the vector.
+-void
+-vfree(Vec *v)
+-{
+-	vreset(v);
+-	xfree(v->p);
+-	vinit(v);
+-}
+-
+-
+-// vgrow ensures that the vector has room for at least 
+-// n more entries between len and cap.
+-void
+-vgrow(Vec *v, int n)
+-{
+-	int want;
+-	
+-	want = v->len+n;
+-	if(want > v->cap) {
+-		v->cap = 2*want;
+-		if(v->cap < 64)
+-			v->cap = 64;
+-		v->p = xrealloc(v->p, v->cap*sizeof v->p[0]);
+-	}
+-}
+-
+-// vcopy copies the srclen strings at src into the vector.
+-void
+-vcopy(Vec *dst, char **src, int srclen)
+-{
+-	int i;
+-	
+-	// use vadd, to make copies of strings
+-	for(i=0; i<srclen; i++)
+-		vadd(dst, src[i]);
+-}
+-
+-// vadd adds a copy of the string p to the vector.
+-void
+-vadd(Vec *v, char *p)
+-{
+-	vgrow(v, 1);
+-	if(p != nil)
+-		p = xstrdup(p);
+-	v->p[v->len++] = p;
+-}
+-
+-// vaddn adds a string consisting of the n bytes at p to the vector.
+-static void
+-vaddn(Vec *v, char *p, int n)
+-{
+-	char *q;
+-
+-	vgrow(v, 1);
+-	q = xmalloc(n+1);
+-	xmemmove(q, p, n);
+-	q[n] = '\0';
+-	v->p[v->len++] = q;
+-}
+-
+-static int
+-strpcmp(const void *a, const void *b)
+-{
+-	return xstrcmp(*(char**)a, *(char**)b);
+-}
+-
+-// vuniq sorts the vector and then discards duplicates,
+-// in the manner of sort | uniq.
+-void
+-vuniq(Vec *v)
+-{
+-	int i, n;
+-
+-	xqsort(v->p, v->len, sizeof(v->p[0]), strpcmp);
+-	n = 0;
+-	for(i=0; i<v->len; i++) {
+-		if(n>0 && streq(v->p[i], v->p[n-1]))
+-			xfree(v->p[i]);
+-		else
+-			v->p[n++] = v->p[i];
+-	}
+-	v->len = n;
+-}
+-
+-// splitlines replaces the vector v with the result of splitting
+-// the input p after each \n. If there is a \r immediately before
+-// each \n, it will be removed.
+-void
+-splitlines(Vec *v, char *p)
+-{
+-	int i;
+-	char *start;
+-	
+-	vreset(v);
+-	start = p;
+-	for(i=0; p[i]; i++) {
+-		if((p[i] == '\r' && p[i+1] == '\n') || p[i] == '\n') {
+-			vaddn(v, start, (p+i+1)-start);
+-			if(p[i] == '\r') {
+-				v->p[v->len-1][(p+i)-start] = '\n';
+-				i++;
+-			}
+-			start = p+i+1;
+-		}
+-	}
+-	if(*start != '\0')
+-		vadd(v, start);
+-}
+-
+-// splitfields replaces the vector v with the result of splitting
+-// the input p into non-empty fields containing no spaces.
+-void
+-splitfields(Vec *v, char *p)
+-{
+-	char *start;
+-
+-	vreset(v);
+-	for(;;) {
+-		while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+-			p++;
+-		if(*p == '\0')
+-			break;
+-		start = p;
+-		while(*p != ' ' && *p != '\t' && *p != '\r' && *p != '\n' && *p != '\0')
+-			p++;
+-		vaddn(v, start, p-start);
+-	}
+-}
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.go
+similarity index 100%
+rename from src/cmd/dist/build.c
+rename to src/cmd/dist/build.go
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.go
+similarity index 100%
+rename from src/cmd/dist/buildgc.c
+rename to src/cmd/dist/buildgc.go
+diff --git a/src/cmd/dist/buildgo.c b/src/cmd/dist/buildgo.go
+similarity index 100%
+rename from src/cmd/dist/buildgo.c
+rename to src/cmd/dist/buildgo.go
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.go
+similarity index 100%
+rename from src/cmd/dist/buildruntime.c
+rename to src/cmd/dist/buildruntime.go
+diff --git a/src/cmd/dist/main.c b/src/cmd/dist/main.go
+similarity index 100%
+rename from src/cmd/dist/main.c
+rename to src/cmd/dist/main.go
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+deleted file mode 100644
+index 13bee4a057..0000000000
+--- a/src/cmd/dist/plan9.c
++++ /dev/null
+@@ -1,758 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// These #ifdefs are being used as a substitute for
+-// build configuration, so that on any system, this
+-// tool can be built with the local equivalent of
+-//	cc *.c
+-//
+-#ifdef PLAN9
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <stdio.h>
+-#undef nil
+-#undef nelem
+-#include "a.h"
+-
+-// bprintf replaces the buffer with the result of the printf formatting
+-// and returns a pointer to the NUL-terminated buffer contents.
+-char*
+-bprintf(Buf *b, char *fmt, ...)
+-{
+-	va_list arg;
+-	char buf[4096];
+-
+-	breset(b);
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-	return bstr(b);
+-}
+-
+-// bpathf is the same as bprintf (on windows it turns / into \ after the printf).
+-// It returns a pointer to the NUL-terminated buffer contents.
+-char*
+-bpathf(Buf *b, char *fmt, ...)
+-{
+-	va_list arg;
+-	char buf[4096];
+-	
+-	breset(b);
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-	return bstr(b);
+-}
+-
+-// bwritef is like bprintf but does not reset the buffer
+-// and does not return the NUL-terminated string.
+-void
+-bwritef(Buf *b, char *fmt, ...)
+-{
+-	va_list arg;
+-	char buf[4096];
+-	
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-}
+-
+-// breadfrom appends to b all the data that can be read from fd.
+-static void
+-breadfrom(Buf *b, int fd)
+-{
+-	int n;
+-
+-	for(;;) {
+-		bgrow(b, 4096);
+-		n = read(fd, b->p+b->len, 4096);
+-		if(n < 0)
+-			fatal("read");
+-		if(n == 0)
+-			break;
+-		b->len += n;
+-	}
+-}
+-
+-// xgetenv replaces b with the value of the named environment variable.
+-void
+-xgetenv(Buf *b, char *name)
+-{
+-	char *p;
+-	
+-	breset(b);
+-	p = getenv(name);
+-	if(p != nil)
+-		bwritestr(b, p);
+-}
+-
+-static void genrun(Buf *b, char *dir, int mode, Vec *argv, int bg);
+-
+-// run runs the command named by cmd.
+-// If b is not nil, run replaces b with the output of the command.
+-// If dir is not nil, run runs the command in that directory.
+-// If mode is CheckExit, run calls fatal if the command is not successful.
+-void
+-run(Buf *b, char *dir, int mode, char *cmd, ...)
+-{
+-	va_list arg;
+-	Vec argv;
+-	char *p;
+-	
+-	vinit(&argv);
+-	vadd(&argv, cmd);
+-	va_start(arg, cmd);
+-	while((p = va_arg(arg, char*)) != nil)
+-		vadd(&argv, p);
+-	va_end(arg);
+-	
+-	runv(b, dir, mode, &argv);
+-	
+-	vfree(&argv);
+-}
+-
+-// runv is like run but takes a vector.
+-void
+-runv(Buf *b, char *dir, int mode, Vec *argv)
+-{
+-	genrun(b, dir, mode, argv, 1);
+-}
+-
+-// bgrunv is like run but runs the command in the background.
+-// bgwait waits for pending bgrunv to finish.
+-void
+-bgrunv(char *dir, int mode, Vec *argv)
+-{
+-	genrun(nil, dir, mode, argv, 0);
+-}
+-
+-#define MAXBG 4 /* maximum number of jobs to run at once */
+-
+-static struct {
+-	int pid;
+-	int mode;
+-	char *cmd;
+-	Buf *b;
+-} bg[MAXBG];
+-static int nbg;
+-static int maxnbg = nelem(bg);
+-
+-static void bgwait1(void);
+-
+-// genrun is the generic run implementation.
+-static void
+-genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+-{
+-	int i, p[2], pid;
+-	Buf b1, cmd;
+-	char *q;
+-
+-	while(nbg >= maxnbg)
+-		bgwait1();
+-
+-	binit(&b1);
+-	binit(&cmd);
+-
+-	if(!isabs(argv->p[0])) {
+-		bpathf(&b1, "/bin/%s", argv->p[0]);
+-		free(argv->p[0]);
+-		argv->p[0] = xstrdup(bstr(&b1));
+-	}
+-
+-	// Generate a copy of the command to show in a log.
+-	// Substitute $WORK for the work directory.
+-	for(i=0; i<argv->len; i++) {
+-		if(i > 0)
+-			bwritestr(&cmd, " ");
+-		q = argv->p[i];
+-		if(workdir != nil && hasprefix(q, workdir)) {
+-			bwritestr(&cmd, "$WORK");
+-			q += strlen(workdir);
+-		}
+-		bwritestr(&cmd, q);
+-	}
+-	if(vflag > 1)
+-		errprintf("%s\n", bstr(&cmd));
+-
+-	if(b != nil) {
+-		breset(b);
+-		if(pipe(p) < 0)
+-			fatal("pipe");
+-	}
+-
+-	switch(pid = fork()) {
+-	case -1:
+-		fatal("fork");
+-	case 0:
+-		if(b != nil) {
+-			close(0);
+-			close(p[0]);
+-			dup(p[1], 1);
+-			dup(p[1], 2);
+-			if(p[1] > 2)
+-				close(p[1]);
+-		}
+-		if(dir != nil) {
+-			if(chdir(dir) < 0) {
+-				fprint(2, "chdir: %r\n");
+-				_exits("chdir");
+-			}
+-		}
+-		vadd(argv, nil);
+-		exec(argv->p[0], argv->p);
+-		fprint(2, "%s\n", bstr(&cmd));
+-		fprint(2, "exec: %r\n");
+-		_exits("exec");
+-	}
+-	if(b != nil) {
+-		close(p[1]);
+-		breadfrom(b, p[0]);
+-		close(p[0]);
+-	}
+-
+-	if(nbg < 0)
+-		fatal("bad bookkeeping");
+-	bg[nbg].pid = pid;
+-	bg[nbg].mode = mode;
+-	bg[nbg].cmd = btake(&cmd);
+-	bg[nbg].b = b;
+-	nbg++;
+-	
+-	if(wait)
+-		bgwait();
+-
+-	bfree(&cmd);
+-	bfree(&b1);
+-}
+-
+-// bgwait1 waits for a single background job.
+-static void
+-bgwait1(void)
+-{
+-	Waitmsg *w;
+-	int i, mode;
+-	char *cmd;
+-	Buf *b;
+-
+-	w = wait();
+-	if(w == nil)
+-		fatal("wait");
+-		
+-	for(i=0; i<nbg; i++)
+-		if(bg[i].pid == w->pid)
+-			goto ok;
+-	fatal("wait: unexpected pid");
+-
+-ok:
+-	cmd = bg[i].cmd;
+-	mode = bg[i].mode;
+-	bg[i].pid = 0;
+-	b = bg[i].b;
+-	bg[i].b = nil;
+-	bg[i] = bg[--nbg];
+-	
+-	if(mode == CheckExit && w->msg[0]) {
+-		if(b != nil)
+-			xprintf("%s\n", bstr(b));
+-		fatal("FAILED: %s", cmd);
+-	}
+-	xfree(cmd);
+-}
+-
+-// bgwait waits for all the background jobs.
+-void
+-bgwait(void)
+-{
+-	while(nbg > 0)
+-		bgwait1();
+-}
+-
+-// xgetwd replaces b with the current directory.
+-void
+-xgetwd(Buf *b)
+-{
+-	char buf[4096];
+-	
+-	breset(b);
+-	if(getwd(buf, sizeof buf) == nil)
+-		fatal("getwd");
+-	bwritestr(b, buf);
+-}
+-
+-// xrealwd replaces b with the 'real' name for the given path.
+-// real is defined as what getcwd returns in that directory.
+-void
+-xrealwd(Buf *b, char *path)
+-{
+-	char buf[4096];
+-	int fd;
+-
+-	fd = open(path, OREAD);
+-	if(fd2path(fd, buf, sizeof buf) < 0)
+-		fatal("fd2path");
+-	close(fd);
+-	breset(b);
+-	bwritestr(b, buf);
+-}
+-
+-// isdir reports whether p names an existing directory.
+-bool
+-isdir(char *p)
+-{
+-	Dir *d;
+-	ulong mode;
+-
+-	d = dirstat(p);
+-	if(d == nil)
+-		return 0;
+-	mode = d->mode;
+-	free(d);
+-	return (mode & DMDIR) == DMDIR;
+-}
+-
+-// isfile reports whether p names an existing file.
+-bool
+-isfile(char *p)
+-{
+-	Dir *d;
+-	ulong mode;
+-
+-	d = dirstat(p);
+-	if(d == nil)
+-		return 0;
+-	mode = d->mode;
+-	free(d);
+-	return (mode & DMDIR) == 0;
+-}
+-
+-// mtime returns the modification time of the file p.
+-Time
+-mtime(char *p)
+-{
+-	Dir *d;
+-	ulong t;
+-
+-	d = dirstat(p);
+-	if(d == nil)
+-		return 0;
+-	t = d->mtime;
+-	free(d);
+-	return (Time)t;
+-}
+-
+-// isabs reports whether p is an absolute path.
+-bool
+-isabs(char *p)
+-{
+-	return hasprefix(p, "/");
+-}
+-
+-// readfile replaces b with the content of the named file.
+-void
+-readfile(Buf *b, char *file)
+-{
+-	int fd;
+-
+-	breset(b);
+-	fd = open(file, OREAD);
+-	if(fd < 0)
+-		fatal("open %s", file);
+-	breadfrom(b, fd);
+-	close(fd);
+-}
+-
+-// writefile writes b to the named file, creating it if needed.
+-void
+-writefile(Buf *b, char *file, int exec)
+-{
+-	int fd;
+-	Dir d;
+-	
+-	fd = create(file, ORDWR, 0666);
+-	if(fd < 0)
+-		fatal("create %s", file);
+-	if(write(fd, b->p, b->len) != b->len)
+-		fatal("short write");
+-	if(exec) {
+-		nulldir(&d);
+-		d.mode = 0755;
+-		dirfwstat(fd, &d);
+-	}
+-	close(fd);
+-}
+-
+-// xmkdir creates the directory p.
+-void
+-xmkdir(char *p)
+-{
+-	int fd;
+-
+-	if(isdir(p))
+-		return;
+-	fd = create(p, OREAD, 0777|DMDIR);
+-	close(fd);
+-	if(fd < 0)
+-		fatal("mkdir %s", p);
+-}
+-
+-// xmkdirall creates the directory p and its parents, as needed.
+-void
+-xmkdirall(char *p)
+-{
+-	char *q;
+-
+-	if(isdir(p))
+-		return;
+-	q = strrchr(p, '/');
+-	if(q != nil) {
+-		*q = '\0';
+-		xmkdirall(p);
+-		*q = '/';
+-	}
+-	xmkdir(p);
+-}
+-
+-// xremove removes the file p.
+-void
+-xremove(char *p)
+-{
+-	if(vflag > 2)
+-		errprintf("rm %s\n", p);
+-	remove(p);
+-}
+-
+-// xremoveall removes the file or directory tree rooted at p.
+-void
+-xremoveall(char *p)
+-{
+-	int i;
+-	Buf b;
+-	Vec dir;
+-
+-	binit(&b);
+-	vinit(&dir);
+-
+-	if(isdir(p)) {
+-		xreaddir(&dir, p);
+-		for(i=0; i<dir.len; i++) {
+-			bprintf(&b, "%s/%s", p, dir.p[i]);
+-			xremoveall(bstr(&b));
+-		}
+-	}
+-	if(vflag > 2)
+-		errprintf("rm %s\n", p);
+-	remove(p);
+-	
+-	bfree(&b);
+-	vfree(&dir);	
+-}
+-
+-// xreaddir replaces dst with a list of the names of the files in dir.
+-// The names are relative to dir; they are not full paths.
+-void
+-xreaddir(Vec *dst, char *dir)
+-{
+-	Dir *d;
+-	int fd, i, n;
+-
+-	vreset(dst);
+-
+-	fd = open(dir, OREAD);
+-	if(fd < 0)
+-		fatal("open %s", dir);
+-	n = dirreadall(fd, &d);
+-	for(i=0; i<n; i++)
+-		vadd(dst, d[i].name);
+-	free(d);
+-	close(fd);
+-}
+-
+-// xworkdir creates a new temporary directory to hold object files
+-// and returns the name of that directory.
+-char*
+-xworkdir(void)
+-{
+-	Buf b;
+-	char *p;
+-	int fd, tries;
+-
+-	binit(&b);
+-
+-	fd = 0;
+-	for(tries=0; tries<1000; tries++) {
+-		bprintf(&b, "/tmp/go-cbuild-%06x", nrand((1<<24)-1));
+-		fd = create(bstr(&b), OREAD|OEXCL, 0700|DMDIR);
+-		if(fd >= 0)
+-			goto done;
+-	}
+-	fatal("xworkdir create");
+-
+-done:
+-	close(fd);
+-	p = btake(&b);
+-
+-	bfree(&b);
+-	return p;
+-}
+-
+-// fatal prints an error message to standard error and exits.
+-void
+-fatal(char *msg, ...)
+-{
+-	va_list arg;
+-	
+-	fflush(stdout);
+-	fprintf(stderr, "go tool dist: ");
+-	va_start(arg, msg);
+-	vfprintf(stderr, msg, arg);
+-	va_end(arg);
+-	fprintf(stderr, "\n");
+-
+-	bgwait();
+-	exits(msg);
+-}
+-
+-// xmalloc returns a newly allocated zeroed block of n bytes of memory.
+-// It calls fatal if it runs out of memory.
+-void*
+-xmalloc(int n)
+-{
+-	void *p;
+-	
+-	p = malloc(n);
+-	if(p == nil)
+-		fatal("out of memory");
+-	memset(p, 0, n);
+-	return p;
+-}
+-
+-// xstrdup returns a newly allocated copy of p.
+-// It calls fatal if it runs out of memory.
+-char*
+-xstrdup(char *p)
+-{
+-	p = strdup(p);
+-	if(p == nil)
+-		fatal("out of memory");
+-	return p;
+-}
+-
+-// xrealloc grows the allocation p to n bytes and
+-// returns the new (possibly moved) pointer.
+-// It calls fatal if it runs out of memory.
+-void*
+-xrealloc(void *p, int n)
+-{
+-	p = realloc(p, n);
+-	if(p == nil)
+-		fatal("out of memory");
+-	return p;
+-}
+-
+-// xfree frees the result returned by xmalloc, xstrdup, or xrealloc.
+-void
+-xfree(void *p)
+-{
+-	free(p);
+-}
+-
+-// hassuffix reports whether p ends with suffix.
+-bool
+-hassuffix(char *p, char *suffix)
+-{
+-	int np, ns;
+-
+-	np = strlen(p);
+-	ns = strlen(suffix);
+-	return np >= ns && streq(p+np-ns, suffix);
+-}
+-
+-// hasprefix reports whether p begins with prefix.
+-bool
+-hasprefix(char *p, char *prefix)
+-{
+-	return strncmp(p, prefix, strlen(prefix)) == 0;
+-}
+-
+-// contains reports whether sep appears in p.
+-bool
+-contains(char *p, char *sep)
+-{
+-	return strstr(p, sep) != nil;
+-}
+-
+-// streq reports whether p and q are the same string.
+-bool
+-streq(char *p, char *q)
+-{
+-	return strcmp(p, q) == 0;
+-}
+-
+-// lastelem returns the final path element in p.
+-char*
+-lastelem(char *p)
+-{
+-	char *out;
+-
+-	out = p;
+-	for(; *p; p++)
+-		if(*p == '/')
+-			out = p+1;
+-	return out;
+-}
+-
+-// xmemmove copies n bytes from src to dst.
+-void
+-xmemmove(void *dst, void *src, int n)
+-{
+-	memmove(dst, src, n);
+-}
+-
+-// xmemcmp compares the n-byte regions starting at a and at b.
+-int
+-xmemcmp(void *a, void *b, int n)
+-{
+-	return memcmp(a, b, n);
+-}
+-
+-// xstrlen returns the length of the NUL-terminated string at p.
+-int
+-xstrlen(char *p)
+-{
+-	return strlen(p);
+-}
+-
+-// xexit exits the process with return code n.
+-void
+-xexit(int n)
+-{
+-	char buf[32];
+-
+-	snprintf(buf, sizeof buf, "%d", n);
+-	exits(buf);
+-}
+-
+-// xatexit schedules the exit-handler f to be run when the program exits.
+-void
+-xatexit(void (*f)(void))
+-{
+-	atexit(f);
+-}
+-
+-// xprintf prints a message to standard output.
+-void
+-xprintf(char *fmt, ...)
+-{
+-	va_list arg;
+-	
+-	va_start(arg, fmt);
+-	vprintf(fmt, arg);
+-	va_end(arg);
+-}
+-
+-// errprintf prints a message to standard output.
+-void
+-errprintf(char *fmt, ...)
+-{
+-	va_list arg;
+-	
+-	va_start(arg, fmt);
+-	vfprintf(stderr, fmt, arg);
+-	va_end(arg);
+-}
+-
+-// xsetenv sets the environment variable $name to the given value.
+-void
+-xsetenv(char *name, char *value)
+-{
+-	putenv(name, value);
+-}
+-
+-// main takes care of OS-specific startup and dispatches to xmain.
+-void
+-main(int argc, char **argv)
+-{
+-	Buf b;
+-
+-	setvbuf(stdout, nil, _IOLBF, BUFSIZ);
+-	setvbuf(stderr, nil, _IOLBF, BUFSIZ);
+-
+-	binit(&b);
+-
+-	rfork(RFENVG);
+-
+-	slash = "/";
+-	gohostos = "plan9";
+-
+-	xgetenv(&b, "objtype");
+-	if(b.len == 0)
+-		fatal("$objtype is unset");
+-	gohostarch = btake(&b);
+-
+-	srand(time(0)+getpid());
+-	init();
+-	xmain(argc, argv);
+-
+-	bfree(&b);
+-	exits(nil);
+-}
+-
+-// xqsort is a wrapper for the C standard qsort.
+-void
+-xqsort(void *data, int n, int elemsize, int (*cmp)(const void*, const void*))
+-{
+-	qsort(data, n, elemsize, cmp);
+-}
+-
+-// xstrcmp compares the NUL-terminated strings a and b.
+-int
+-xstrcmp(char *a, char *b)
+-{
+-	return strcmp(a, b);
+-}
+-
+-// xstrstr returns a pointer to the first occurrence of b in a.
+-char*
+-xstrstr(char *a, char *b)
+-{
+-	return strstr(a, b);
+-}
+-
+-// xstrrchr returns a pointer to the final occurrence of c in p.
+-char*
+-xstrrchr(char *p, int c)
+-{
+-	return strrchr(p, c);
+-}
+-
+-// xsamefile reports whether f1 and f2 are the same file (or dir)
+-int
+-xsamefile(char *f1, char *f2)
+-{
+-	return streq(f1, f2); // suffice for now
+-}
+-
+-// xtryexecfunc tries to execute function f, if any illegal instruction
+-// signal received in the course of executing that function, it will
+-// return 0, otherwise it will return 1.
+-int
+-xtryexecfunc(void (*f)(void))
+-{
+-	USED(f);
+-	return 0; // suffice for now
+-}
+-
+-bool
+-cansse2(void)
+-{
+-	// if we had access to cpuid, could answer this question
+-	// less conservatively.
+-	return 0;
+-}
+-
+-#endif // PLAN9
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/util.go
+similarity index 100%
+rename from src/cmd/dist/unix.c
+rename to src/cmd/dist/util.go
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+deleted file mode 100644
+index ff1a273512..0000000000
+--- a/src/cmd/dist/windows.c
++++ /dev/null
+@@ -1,989 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// These #ifdefs are being used as a substitute for
+-// build configuration, so that on any system, this
+-// tool can be built with the local equivalent of
+-//	cc *.c
+-//
+-#ifdef WIN32
+-
+-// Portability layer implemented for Windows.
+-// See unix.c for doc comments about exported functions.
+-
+-#include "a.h"
+-#include <windows.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <stdarg.h>
+-
+-/*
+- * Windows uses 16-bit rune strings in the APIs.
+- * Define conversions between Rune* and UTF-8 char*.
+- */
+-
+-typedef unsigned char uchar;
+-typedef unsigned short Rune;  // same as Windows
+-
+-// encoderune encodes the rune r into buf and returns
+-// the number of bytes used.
+-static int
+-encoderune(char *buf, Rune r)
+-{
+-	if(r < 0x80) {  // 7 bits
+-		buf[0] = r;
+-		return 1;
+-	}
+-	if(r < 0x800) {  // 5+6 bits
+-		buf[0] = 0xc0 | (r>>6);
+-		buf[1] = 0x80 | (r&0x3f);
+-		return 2;
+-	}
+-	buf[0] = 0xe0 | (r>>12);
+-	buf[1] = 0x80 | ((r>>6)&0x3f);
+-	buf[2] = 0x80 | (r&0x3f);
+-	return 3;
+-}
+-
+-// decoderune decodes the rune encoding at sbuf into r
+-// and returns the number of bytes used.
+-static int
+-decoderune(Rune *r, char *sbuf)
+-{
+-	uchar *buf;
+-
+-	buf = (uchar*)sbuf;
+-	if(buf[0] < 0x80) {
+-		*r = buf[0];
+-		return 1;
+-	}
+-	if((buf[0]&0xe0) == 0xc0 && (buf[1]&0xc0) == 0x80) {
+-		*r = (buf[0]&~0xc0)<<6 | (buf[1]&~0x80);
+-		if(*r < 0x80)
+-			goto err;
+-		return 2;
+-	}
+-	if((buf[0]&0xf0) == 0xe0 && (buf[1]&0xc0) == 0x80 && (buf[2]&0xc0) == 0x80) {
+-		*r = (buf[0]&~0xc0)<<12 | (buf[1]&~0x80)<<6 | (buf[2]&~0x80);
+-		if(*r < 0x800)
+-			goto err;
+-		return 3;
+-	}
+-err:
+-	*r = 0xfffd;
+-	return 1;
+-}
+-
+-// toutf replaces b with the UTF-8 encoding of the rune string r.	
+-static void
+-toutf(Buf *b, Rune *r)
+-{
+-	int i, n;
+-	char buf[4];
+-
+-	breset(b);
+-	for(i=0; r[i]; i++) {
+-		n = encoderune(buf, r[i]);
+-		bwrite(b, buf, n);
+-	}
+-}
+-
+-// torune replaces *rp with a pointer to a newly allocated
+-// rune string equivalent of the UTF-8 string p.
+-static void
+-torune(Rune **rp, char *p)
+-{
+-	Rune *r, *w;
+-
+-	r = xmalloc((strlen(p)+1) * sizeof r[0]);
+-	w = r;
+-	while(*p)
+-		p += decoderune(w++, p);
+-	*w = 0;
+-	*rp = r;
+-}
+-
+-// errstr returns the most recent Windows error, in string form.
+-static char*
+-errstr(void)
+-{
+-	DWORD code;
+-	Rune *r;
+-	Buf b;
+-
+-	binit(&b);
+-	code = GetLastError();
+-	r = nil;
+-	FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
+-		nil, code, 0, (Rune*)&r, 0, nil);
+-	toutf(&b, r);
+-	return bstr(&b);  // leak but we're dying anyway
+-}
+-
+-void
+-xgetenv(Buf *b, char *name)
+-{
+-	Rune *buf;
+-	int n;
+-	Rune *r;
+-
+-	breset(b);
+-	torune(&r, name);
+-	n = GetEnvironmentVariableW(r, NULL, 0);
+-	if(n > 0) {
+-		buf = xmalloc((n+1)*sizeof buf[0]);
+-		GetEnvironmentVariableW(r, buf, n+1);
+-		buf[n] = '\0';
+-		toutf(b, buf);
+-		xfree(buf);
+-	}
+-	xfree(r);
+-}
+-
+-void
+-xsetenv(char *name, char *value)
+-{
+-	Rune *rname, *rvalue;
+-
+-	torune(&rname, name);
+-	torune(&rvalue, value);
+-	SetEnvironmentVariableW(rname, rvalue);
+-	xfree(rname);
+-	xfree(rvalue);
+-}
+-
+-char*
+-bprintf(Buf *b, char *fmt, ...)
+-{
+-	va_list arg;
+-	char buf[4096];
+-	
+-	breset(b);
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-	return bstr(b);
+-}
+-
+-void
+-bwritef(Buf *b, char *fmt, ...)
+-{
+-	va_list arg;
+-	char buf[4096];
+-	
+-	// no reset
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-}
+-
+-// bpathf is like bprintf but replaces / with \ in the result,
+-// to make it a canonical windows file path.
+-char*
+-bpathf(Buf *b, char *fmt, ...)
+-{
+-	int i;
+-	va_list arg;
+-	char buf[4096];
+-	
+-	breset(b);
+-	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
+-	va_end(arg);
+-	bwritestr(b, buf);
+-
+-	for(i=0; i<b->len; i++)
+-		if(b->p[i] == '/')
+-			b->p[i] = '\\';
+-
+-	return bstr(b);
+-}
+-
+-
+-static void
+-breadfrom(Buf *b, HANDLE h)
+-{
+-	DWORD n;
+-
+-	for(;;) {
+-		if(b->len > 1<<22)
+-			fatal("unlikely file size in readfrom");
+-		bgrow(b, 4096);
+-		n = 0;
+-		if(!ReadFile(h, b->p+b->len, 4096, &n, nil)) {
+-			// Happens for pipe reads.
+-			break;
+-		}
+-		if(n == 0)
+-			break;
+-		b->len += n;
+-	}
+-}
+-
+-void
+-run(Buf *b, char *dir, int mode, char *cmd, ...)
+-{
+-	va_list arg;
+-	Vec argv;
+-	char *p;
+-	
+-	vinit(&argv);
+-	vadd(&argv, cmd);
+-	va_start(arg, cmd);
+-	while((p = va_arg(arg, char*)) != nil)
+-		vadd(&argv, p);
+-	va_end(arg);
+-	
+-	runv(b, dir, mode, &argv);
+-	
+-	vfree(&argv);
+-}
+-
+-static void genrun(Buf*, char*, int, Vec*, int);
+-
+-void
+-runv(Buf *b, char *dir, int mode, Vec *argv)
+-{
+-	genrun(b, dir, mode, argv, 1);
+-}
+-
+-void
+-bgrunv(char *dir, int mode, Vec *argv)
+-{
+-	genrun(nil, dir, mode, argv, 0);
+-}
+-
+-#define MAXBG 4 /* maximum number of jobs to run at once */
+-
+-static struct {
+-	PROCESS_INFORMATION pi;
+-	int mode;
+-	char *cmd;
+-} bg[MAXBG];
+-
+-static int nbg;
+-
+-static void bgwait1(void);
+-
+-static void
+-genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+-{
+-	// Another copy of this logic is in ../../lib9/run_windows.c.
+-	// If there's a bug here, fix the logic there too.
+-	int i, j, nslash;
+-	Buf cmd;
+-	char *q;
+-	Rune *rcmd, *rexe, *rdir;
+-	STARTUPINFOW si;
+-	PROCESS_INFORMATION pi;
+-	HANDLE p[2];
+-
+-	while(nbg >= nelem(bg))
+-		bgwait1();
+-
+-	binit(&cmd);
+-
+-	for(i=0; i<argv->len; i++) {
+-		q = argv->p[i];
+-		if(i == 0 && streq(q, "hg"))
+-			bwritestr(&cmd, "cmd.exe /c ");
+-		if(i > 0)
+-			bwritestr(&cmd, " ");
+-		if(contains(q, " ") || contains(q, "\t") || contains(q, "\"") || contains(q, "\\\\") || hassuffix(q, "\\")) {
+-			bwritestr(&cmd, "\"");
+-			nslash = 0;
+-			for(; *q; q++) {
+-				if(*q == '\\') {
+-					nslash++;
+-					continue;
+-				}
+-				if(*q == '"') {
+-					for(j=0; j<2*nslash+1; j++)
+-						bwritestr(&cmd, "\\");
+-					nslash = 0;
+-				}
+-				for(j=0; j<nslash; j++)
+-					bwritestr(&cmd, "\\");
+-				nslash = 0;
+-				bwrite(&cmd, q, 1);
+-			}
+-			for(j=0; j<2*nslash; j++)
+-				bwritestr(&cmd, "\\");
+-			bwritestr(&cmd, "\"");
+-		} else {
+-			bwritestr(&cmd, q);
+-		}
+-	}
+-	if(vflag > 1)
+-		errprintf("%s\n", bstr(&cmd));
+-
+-	torune(&rcmd, bstr(&cmd));
+-	rexe = nil;
+-	rdir = nil;
+-	if(dir != nil)
+-		torune(&rdir, dir);
+-
+-	memset(&si, 0, sizeof si);
+-	si.cb = sizeof si;
+-	si.dwFlags = STARTF_USESTDHANDLES;
+-	si.hStdInput = INVALID_HANDLE_VALUE;
+-	if(b == nil) {
+-		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+-		si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+-	} else {
+-		SECURITY_ATTRIBUTES seci;
+-
+-		memset(&seci, 0, sizeof seci);
+-		seci.nLength = sizeof seci;
+-		seci.bInheritHandle = 1;
+-		breset(b);
+-		if(!CreatePipe(&p[0], &p[1], &seci, 0))
+-			fatal("CreatePipe: %s", errstr());
+-		si.hStdOutput = p[1];
+-		si.hStdError = p[1];
+-	}
+-
+-	if(!CreateProcessW(rexe, rcmd, nil, nil, TRUE, 0, nil, rdir, &si, &pi)) {
+-		if(mode!=CheckExit)
+-			return;
+-		fatal("%s: %s", argv->p[0], errstr());
+-	}
+-	if(rexe != nil)
+-		xfree(rexe);
+-	xfree(rcmd);
+-	if(rdir != nil)
+-		xfree(rdir);
+-	if(b != nil) {
+-		CloseHandle(p[1]);
+-		breadfrom(b, p[0]);
+-		CloseHandle(p[0]);
+-	}
+-
+-	if(nbg < 0)
+-		fatal("bad bookkeeping");
+-	bg[nbg].pi = pi;
+-	bg[nbg].mode = mode;
+-	bg[nbg].cmd = btake(&cmd);
+-	nbg++;
+-
+-	if(wait)
+-		bgwait();
+-
+-	bfree(&cmd);
+-}
+-
+-// closes the background job for bgwait1
+-static void
+-bgwaitclose(int i)
+-{
+-	if(i < 0 || i >= nbg)
+-		return;
+-
+-	CloseHandle(bg[i].pi.hProcess);
+-	CloseHandle(bg[i].pi.hThread);
+-	
+-	bg[i] = bg[--nbg];
+-}
+-
+-// bgwait1 waits for a single background job
+-static void
+-bgwait1(void)
+-{
+-	int i, mode;
+-	char *cmd;
+-	HANDLE bgh[MAXBG];
+-	DWORD code;
+-
+-	if(nbg == 0)
+-		fatal("bgwait1: nothing left");
+-
+-	for(i=0; i<nbg; i++)
+-		bgh[i] = bg[i].pi.hProcess;
+-	i = WaitForMultipleObjects(nbg, bgh, FALSE, INFINITE);
+-	if(i < 0 || i >= nbg)
+-		fatal("WaitForMultipleObjects: %s", errstr());
+-
+-	cmd = bg[i].cmd;
+-	mode = bg[i].mode;
+-	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code)) {
+-		bgwaitclose(i);
+-		fatal("GetExitCodeProcess: %s", errstr());
+-		return;
+-	}
+-
+-	if(mode==CheckExit && code != 0) {
+-		bgwaitclose(i);
+-		fatal("FAILED: %s", cmd);
+-		return;
+-	}
+-
+-	bgwaitclose(i);
+-}
+-
+-void
+-bgwait(void)
+-{
+-	while(nbg > 0)
+-		bgwait1();
+-}
+-
+-// rgetwd returns a rune string form of the current directory's path.
+-static Rune*
+-rgetwd(void)
+-{
+-	int n;
+-	Rune *r;
+-
+-	n = GetCurrentDirectoryW(0, nil);
+-	r = xmalloc((n+1)*sizeof r[0]);
+-	GetCurrentDirectoryW(n+1, r);
+-	r[n] = '\0';
+-	return r;
+-}
+-
+-void
+-xgetwd(Buf *b)
+-{
+-	Rune *r;
+-
+-	r = rgetwd();
+-	breset(b);
+-	toutf(b, r);
+-	xfree(r);
+-}
+-
+-void
+-xrealwd(Buf *b, char *path)
+-{
+-	Rune *old;
+-	Rune *rnew;
+-
+-	old = rgetwd();
+-	torune(&rnew, path);
+-	if(!SetCurrentDirectoryW(rnew))
+-		fatal("chdir %s: %s", path, errstr());
+-	xfree(rnew);
+-	xgetwd(b);
+-	if(!SetCurrentDirectoryW(old)) {
+-		breset(b);
+-		toutf(b, old);
+-		fatal("chdir %s: %s", bstr(b), errstr());
+-	}
+-}
+-
+-bool
+-isdir(char *p)
+-{
+-	DWORD attr;
+-	Rune *r;
+-
+-	torune(&r, p);
+-	attr = GetFileAttributesW(r);
+-	xfree(r);
+-	return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY);
+-}
+-
+-bool
+-isfile(char *p)
+-{
+-	DWORD attr;
+-	Rune *r;
+-
+-	torune(&r, p);
+-	attr = GetFileAttributesW(r);
+-	xfree(r);
+-	return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+-}
+-
+-Time
+-mtime(char *p)
+-{
+-	HANDLE h;
+-	WIN32_FIND_DATAW data;
+-	Rune *r;
+-	FILETIME *ft;
+-
+-	torune(&r, p);
+-	h = FindFirstFileW(r, &data);
+-	xfree(r);
+-	if(h == INVALID_HANDLE_VALUE)
+-		return 0;
+-	FindClose(h);
+-	ft = &data.ftLastWriteTime;
+-	return (Time)ft->dwLowDateTime + ((Time)ft->dwHighDateTime<<32);
+-}
+-
+-bool
+-isabs(char *p)
+-{
+-	// c:/ or c:\ at beginning
+-	if(('A' <= p[0] && p[0] <= 'Z') || ('a' <= p[0] && p[0] <= 'z'))
+-		return p[1] == ':' && (p[2] == '/' || p[2] == '\\');
+-	// / or \ at beginning
+-	return p[0] == '/' || p[0] == '\\';
+-}
+-
+-void
+-readfile(Buf *b, char *file)
+-{
+-	HANDLE h;
+-	Rune *r;
+-
+-	breset(b);
+-	if(vflag > 2)
+-		errprintf("read %s\n", file);
+-	torune(&r, file);
+-	h = CreateFileW(r, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
+-	if(h == INVALID_HANDLE_VALUE)
+-		fatal("open %s: %s", file, errstr());
+-	breadfrom(b, h);
+-	CloseHandle(h);
+-}
+-
+-void
+-writefile(Buf *b, char *file, int exec)
+-{
+-	HANDLE h;
+-	Rune *r;
+-	DWORD n;
+-
+-	USED(exec);
+-
+-	if(vflag > 2)
+-		errprintf("write %s\n", file);
+-	torune(&r, file);
+-	h = CreateFileW(r, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, CREATE_ALWAYS, 0, 0);
+-	if(h == INVALID_HANDLE_VALUE)
+-		fatal("create %s: %s", file, errstr());
+-	n = 0;
+-	if(!WriteFile(h, b->p, b->len, &n, 0))
+-		fatal("write %s: %s", file, errstr());
+-	CloseHandle(h);
+-}
+-	
+-
+-void
+-xmkdir(char *p)
+-{
+-	Rune *r;
+-
+-	torune(&r, p);
+-	if(!CreateDirectoryW(r, nil))
+-		fatal("mkdir %s: %s", p, errstr());
+-	xfree(r);
+-}
+-
+-void
+-xmkdirall(char *p)
+-{
+-	int c;
+-	char *q, *q2;
+-	
+-	if(isdir(p))
+-		return;
+-	q = strrchr(p, '/');
+-	q2 = strrchr(p, '\\');
+-	if(q2 != nil && (q == nil || q < q2))
+-		q = q2;
+-	if(q != nil) {
+-		c = *q;
+-		*q = '\0';
+-		xmkdirall(p);
+-		*q = c;
+-	}
+-	xmkdir(p);
+-}
+-
+-void
+-xremove(char *p)
+-{
+-	int attr;
+-	Rune *r;
+-
+-	torune(&r, p);
+-	attr = GetFileAttributesW(r);
+-	if(attr >= 0) {
+-		if(attr & FILE_ATTRIBUTE_DIRECTORY)
+-			RemoveDirectoryW(r);
+-		else
+-			DeleteFileW(r);
+-	}
+-	xfree(r);
+-}
+-
+-void
+-xreaddir(Vec *dst, char *dir)
+-{
+-	Rune *r;
+-	Buf b;
+-	HANDLE h;
+-	WIN32_FIND_DATAW data;
+-	char *p, *q;
+-
+-	binit(&b);
+-	vreset(dst);
+-
+-	bwritestr(&b, dir);
+-	bwritestr(&b, "\\*");
+-	torune(&r, bstr(&b));
+-
+-	h = FindFirstFileW(r, &data);
+-	xfree(r);
+-	if(h == INVALID_HANDLE_VALUE)
+-		goto out;
+-	do{
+-		toutf(&b, data.cFileName);
+-		p = bstr(&b);
+-		q = xstrrchr(p, '\\');
+-		if(q != nil)
+-			p = q+1;
+-		if(!streq(p, ".") && !streq(p, ".."))
+-			vadd(dst, p);
+-	}while(FindNextFileW(h, &data));
+-	FindClose(h);
+-
+-out:
+-	bfree(&b);
+-}
+-
+-char*
+-xworkdir(void)
+-{
+-	Rune buf[1024];
+-	Rune tmp[MAX_PATH];
+-	Rune go[3] = {'g', 'o', '\0'};
+-	int n;
+-	Buf b;
+-
+-	n = GetTempPathW(nelem(buf), buf);
+-	if(n <= 0)
+-		fatal("GetTempPath: %s", errstr());
+-	buf[n] = '\0';
+-
+-	if(GetTempFileNameW(buf, go, 0, tmp) == 0)
+-		fatal("GetTempFileName: %s", errstr());
+-	DeleteFileW(tmp);
+-	if(!CreateDirectoryW(tmp, nil))
+-		fatal("create tempdir: %s", errstr());
+-	
+-	binit(&b);
+-	toutf(&b, tmp);
+-	return btake(&b);
+-}
+-
+-void
+-xremoveall(char *p)
+-{
+-	int i;
+-	Buf b;
+-	Vec dir;
+-	Rune *r;
+-
+-	binit(&b);
+-	vinit(&dir);
+-
+-	torune(&r, p);
+-	if(isdir(p)) {
+-		xreaddir(&dir, p);
+-		for(i=0; i<dir.len; i++) {
+-			bprintf(&b, "%s/%s", p, dir.p[i]);
+-			xremoveall(bstr(&b));
+-		}
+-		RemoveDirectoryW(r);
+-	} else {
+-		DeleteFileW(r);
+-	}
+-	xfree(r);
+-	
+-	bfree(&b);
+-	vfree(&dir);	
+-}
+-
+-void
+-fatal(char *msg, ...)
+-{
+-	static char buf1[1024];
+-	va_list arg;
+-
+-	va_start(arg, msg);
+-	vsnprintf(buf1, sizeof buf1, msg, arg);
+-	va_end(arg);
+-
+-	errprintf("go tool dist: %s\n", buf1);
+-	
+-	bgwait();
+-	ExitProcess(1);
+-}
+-
+-// HEAP is the persistent handle to the default process heap.
+-static HANDLE HEAP = INVALID_HANDLE_VALUE;
+-
+-void*
+-xmalloc(int n)
+-{
+-	void *p;
+-
+-	if(HEAP == INVALID_HANDLE_VALUE)
+-		HEAP = GetProcessHeap();
+-	p = HeapAlloc(HEAP, 0, n);
+-	if(p == nil)
+-		fatal("out of memory allocating %d: %s", n, errstr());
+-	memset(p, 0, n);
+-	return p;
+-}
+-
+-char*
+-xstrdup(char *p)
+-{
+-	char *q;
+-
+-	q = xmalloc(strlen(p)+1);
+-	strcpy(q, p);
+-	return q;
+-}
+-
+-void
+-xfree(void *p)
+-{
+-	if(HEAP == INVALID_HANDLE_VALUE)
+-		HEAP = GetProcessHeap();
+-	HeapFree(HEAP, 0, p);
+-}
+-
+-void*
+-xrealloc(void *p, int n)
+-{
+-	if(p == nil)
+-		return xmalloc(n);
+-	if(HEAP == INVALID_HANDLE_VALUE)
+-		HEAP = GetProcessHeap();
+-	p = HeapReAlloc(HEAP, 0, p, n);
+-	if(p == nil)
+-		fatal("out of memory reallocating %d", n);
+-	return p;
+-}
+-
+-bool
+-hassuffix(char *p, char *suffix)
+-{
+-	int np, ns;
+-
+-	np = strlen(p);
+-	ns = strlen(suffix);
+-	return np >= ns && streq(p+np-ns, suffix);
+-}
+-
+-bool
+-hasprefix(char *p, char *prefix)
+-{
+-	return strncmp(p, prefix, strlen(prefix)) == 0;
+-}
+-
+-bool
+-contains(char *p, char *sep)
+-{
+-	return strstr(p, sep) != nil;
+-}
+-
+-bool
+-streq(char *p, char *q)
+-{
+-	return strcmp(p, q) == 0;
+-}
+-
+-char*
+-lastelem(char *p)
+-{
+-	char *out;
+-
+-	out = p;
+-	for(; *p; p++)
+-		if(*p == '/' || *p == '\\')
+-			out = p+1;
+-	return out;
+-}
+-
+-void
+-xmemmove(void *dst, void *src, int n)
+-{
+-	memmove(dst, src, n);
+-}
+-
+-int
+-xmemcmp(void *a, void *b, int n)
+-{
+-	return memcmp(a, b, n);
+-}
+-
+-int
+-xstrlen(char *p)
+-{
+-	return strlen(p);
+-}
+-
+-void
+-xexit(int n)
+-{
+-	ExitProcess(n);
+-}
+-
+-void
+-xatexit(void (*f)(void))
+-{
+-	atexit(f);
+-}
+-
+-void
+-xprintf(char *fmt, ...)
+-{
+-	va_list arg;
+-	
+-	va_start(arg, fmt);
+-	vprintf(fmt, arg);
+-	va_end(arg);
+-}
+-
+-void
+-errprintf(char *fmt, ...)
+-{
+-	va_list arg;
+-	
+-	va_start(arg, fmt);
+-	vfprintf(stderr, fmt, arg);
+-	va_end(arg);
+-}
+-
+-int
+-main(int argc, char **argv)
+-{
+-	SYSTEM_INFO si;
+-
+-	setvbuf(stdout, nil, _IOLBF, 0);
+-	setvbuf(stderr, nil, _IOLBF, 0);
+-
+-	slash = "\\";
+-	gohostos = "windows";
+-
+-	GetSystemInfo(&si);
+-	switch(si.wProcessorArchitecture) {
+-	case PROCESSOR_ARCHITECTURE_AMD64:
+-		gohostarch = "amd64";
+-		break;
+-	case PROCESSOR_ARCHITECTURE_INTEL:
+-		gohostarch = "386";
+-		break;
+-	default:
+-		fatal("unknown processor architecture");
+-	}
+-
+-	init();
+-
+-	xmain(argc, argv);
+-	return 0;
+-}
+-
+-void
+-xqsort(void *data, int n, int elemsize, int (*cmp)(const void*, const void*))
+-{
+-	qsort(data, n, elemsize, cmp);
+-}
+-
+-int
+-xstrcmp(char *a, char *b)
+-{
+-	return strcmp(a, b);
+-}
+-
+-char*
+-xstrstr(char *a, char *b)
+-{
+-	return strstr(a, b);
+-}
+-
+-char*
+-xstrrchr(char *p, int c)
+-{
+-	char *ep;
+-	
+-	ep = p+strlen(p);
+-	for(ep=p+strlen(p); ep >= p; ep--)
+-		if(*ep == c)
+-			return ep;
+-	return nil;
+-}
+-
+-// xsamefile reports whether f1 and f2 are the same file (or dir)
+-int
+-xsamefile(char *f1, char *f2)
+-{
+-	Rune *ru;
+-	HANDLE fd1, fd2;
+-	BY_HANDLE_FILE_INFORMATION fi1, fi2;
+-	int r;
+-
+-	// trivial case
+-	if(streq(f1, f2))
+-		return 1;
+-	
+-	torune(&ru, f1);
+-	// refer to ../../os/stat_windows.go:/sameFile
+-	fd1 = CreateFileW(ru, 0, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+-	xfree(ru);
+-	if(fd1 == INVALID_HANDLE_VALUE)
+-		return 0;
+-	torune(&ru, f2);
+-	fd2 = CreateFileW(ru, 0, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+-	xfree(ru);
+-	if(fd2 == INVALID_HANDLE_VALUE) {
+-		CloseHandle(fd1);
+-		return 0;
+-	}
+-	r = GetFileInformationByHandle(fd1, &fi1) != 0 && GetFileInformationByHandle(fd2, &fi2) != 0;
+-	CloseHandle(fd2);
+-	CloseHandle(fd1);
+-	if(r != 0 &&
+-	   fi1.dwVolumeSerialNumber == fi2.dwVolumeSerialNumber &&
+-	   fi1.nFileIndexHigh == fi2.nFileIndexHigh &&
+-	   fi1.nFileIndexLow == fi2.nFileIndexLow)
+-	   	return 1;
+-	return 0;
+-}
+-
+-// xtryexecfunc tries to execute function f, if any illegal instruction
+-// signal received in the course of executing that function, it will
+-// return 0, otherwise it will return 1.
+-int
+-xtryexecfunc(void (*f)(void))
+-{
+-	return 0; // suffice for now
+-}
+-
+-static void
+-cpuid(int dst[4], int ax)
+-{
+-	// NOTE: This asm statement is for mingw.
+-	// If we ever support MSVC, use __cpuid(dst, ax)
+-	// to use the built-in.
+-#if defined(__i386__) || defined(__x86_64__)
+-	asm volatile("cpuid"
+-		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
+-		: "0" (ax));
+-#else
+-	dst[0] = dst[1] = dst[2] = dst[3] = 0;
+-#endif
+-}
+-
+-bool
+-cansse2(void)
+-{
+-	int info[4];
+-	
+-	cpuid(info, 1);
+-	return (info[3] & (1<<26)) != 0;	// SSE2
+-}
+-
+-
+-#endif // __WINDOWS__

@@ -16,8 +16,70 @@ Date:   Wed Aug 21 10:43:49 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191137
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/alldocs.go                 |  8 +++++---
  src/cmd/go/internal/modfetch/fetch.go |  8 +++++---
  src/cmd/go/internal/modfetch/sumdb.go | 12 +++++++++++-
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 63ec2321be..ebbead5d31 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2743,9 +2743,11 @@
+ // 	GOSUMDB="sum.golang.org+<publickey>"
+ // 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
+ //
+-// The go command knows the public key of sum.golang.org; use of any other
+-// database requires giving the public key explicitly. The URL defaults to
+-// "https://" followed by the database name.
++// The go command knows the public key of sum.golang.org, and also that the name
++// sum.golang.google.cn (available inside mainland China) connects to the
++// sum.golang.org checksum database; use of any other database requires giving
++// the public key explicitly.
++// The URL defaults to "https://" followed by the database name.
+ //
+ // GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
+ // See https://sum.golang.org/privacy for the service's privacy policy.
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 74e36cc6fc..51a56028c4 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -701,9 +701,11 @@ to use and optionally its public key and URL, as in:
+ 	GOSUMDB="sum.golang.org+<publickey>"
+ 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
+ 
+-The go command knows the public key of sum.golang.org; use of any other
+-database requires giving the public key explicitly. The URL defaults to
+-"https://" followed by the database name.
++The go command knows the public key of sum.golang.org, and also that the name
++sum.golang.google.cn (available inside mainland China) connects to the
++sum.golang.org checksum database; use of any other database requires giving
++the public key explicitly.
++The URL defaults to "https://" followed by the database name.
+ 
+ GOSUMDB defaults to "sum.golang.org", the Go checksum database run by Google.
+ See https://sum.golang.org/privacy for the service's privacy policy.
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index b0bb3d4d5e..1c24ec273b 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -60,7 +60,17 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
+ 	// $GOSUMDB can be "key" or "key url",
+ 	// and the key can be a full verifier key
+ 	// or a host on our list of known keys.
+-	key := strings.Fields(cfg.GOSUMDB)
++
++	// Special case: sum.golang.google.cn
++	// is an alias, reachable inside mainland China,
++	// for sum.golang.org. If there are more
++	// of these we should add a map like knownGOSUMDB.
++	gosumdb := cfg.GOSUMDB
++	if gosumdb == "sum.golang.google.cn" {
++		gosumdb = "sum.golang.org https://sum.golang.google.cn"
++	}
++
++	key := strings.Fields(gosumdb)
+ 	if len(key) >= 1 {
+ 		if k := knownGOSUMDB[key[0]]; k != "" {
+ 			key[0] = k

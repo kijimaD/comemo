@@ -11,6 +11,20 @@ Date:   Thu Jun 3 15:18:36 2021 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/buildcfg/exp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 1fc53324c1..352aebd227 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -29,7 +29,7 @@ var regabiDeveloping = GOARCH == "arm64"
+ var experimentBaseline = goexperiment.Flags{
+ 	RegabiWrappers: regabiSupported || regabiDeveloping,
+ 	RegabiG:        regabiSupported,
+-	RegabiReflect:  regabiSupported,
++	RegabiReflect:  regabiSupported || regabiDeveloping,
+ 	RegabiDefer:    true,
+ 	RegabiArgs:     regabiSupported,
+ }

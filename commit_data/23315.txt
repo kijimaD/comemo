@@ -19,6 +19,36 @@ Date:   Wed May 6 08:26:51 2015 -0700
     Change-Id: Ifa6c218a927399d05c47954fdcaea1015e558fb6
     Reviewed-on: https://go-review.googlesource.com/9791
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/env_test.go | 18 +++++++++++-------
  1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 622f39cfed..2224890869 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -96,13 +96,17 @@ func TestUnsetenv(t *testing.T) {
+ }
+ 
+ func TestLookupEnv(t *testing.T) {
+-	value, ok := LookupEnv("GOROOT") // Should be set.
+-	if !ok {
+-		t.Errorf("GOROOT is not set")
+-	}
+-	const v = "Variable That Does Not Exist"
+-	value, ok = LookupEnv(v) // Should not be set.
++	const smallpox = "SMALLPOX"      // No one has smallpox.
++	value, ok := LookupEnv(smallpox) // Should not exist.
+ 	if ok || value != "" {
+-		t.Errorf("%s is set: %q", v, value)
++		t.Fatalf("%s=%q", smallpox, value)
++	}
++	err := Setenv(smallpox, "virus")
++	if err != nil {
++		t.Fatalf("failed to release smallpox virus")
++	}
++	value, ok = LookupEnv(smallpox)
++	if !ok {
++		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
+ 	}
+ }

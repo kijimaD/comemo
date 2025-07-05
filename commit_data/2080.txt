@@ -14,6 +14,46 @@ Date:   Tue Apr 21 22:46:19 2009 -0700
     DELTA=19  (19 added, 0 deleted, 0 changed)
     OCL=27711
     CL=27713
-
+---
  usr/gri/pretty/docprinter.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index 87b973e275..88651b288f 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -453,8 +453,26 @@ func (doc *DocReader) Doc() *PackageDoc {
+ // ----------------------------------------------------------------------------
+ // Filtering by name
+ 
++// Does s look like a regular expression?
++func isRegexp(s string) bool {
++	metachars := ".(|)*+?^$[]";
++	for i, c := range s {
++		for j, m := range metachars {
++			if c == m {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ func match(s string, a []string) bool {
+ 	for i, t := range a {
++		if isRegexp(t) {
++			if matched, err := regexp.Match(t, s); matched {
++				return true;
++			}
++		}
+ 		if s == t {
+ 			return true;
+ 		}
+@@ -516,6 +534,7 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
+ // Filter eliminates information from d that is not
+ // about one of the given names.
+ // TODO: Recognize "Type.Method" as a name.
++// TODO(r): maybe precompile the regexps.
+ func (p *PackageDoc) Filter(names []string) {
+ 	p.Consts = filterValueDocs(p.Consts, names);
+ 	p.Vars = filterValueDocs(p.Vars, names);

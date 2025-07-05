@@ -15,6 +15,39 @@ Date:   Tue Jan 22 02:50:27 2013 +0800
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7100059
-
+---
  src/cmd/5l/l.h | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 21a3bced8e..dfa86df6e2 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -68,21 +68,24 @@ struct	Adr
+ {
+ 	union
+ 	{
+-		int32	u0offset;
++		struct {
++			int32	offset;
++			int32	offset2; // argsize
++		} u0off;
+ 		char*	u0sval;
+ 		Ieee	u0ieee;
+ 		char*	u0sbig;
+ 	} u0;
+ 	Sym*	sym;
+ 	Sym*	gotype;
+-	int32	offset2; // argsize
+ 	char	type;
+ 	char	reg;
+ 	char	name;
+ 	char	class;
+ };
+ 
+-#define	offset	u0.u0offset
++#define	offset	u0.u0off.offset
++#define	offset2	u0.u0off.offset2
+ #define	sval	u0.u0sval
+ #define	scon	sval
+ #define	ieee	u0.u0ieee

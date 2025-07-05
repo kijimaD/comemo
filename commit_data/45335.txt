@@ -14,9 +14,184 @@ Date:   Mon Jul 6 11:26:56 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243914
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/fs/readdir.go         | 47 ++++++++++++++++++++++++++++++++++++++++++++
  src/io/fs/readdir_test.go    | 35 +++++++++++++++++++++++++++++++++
  src/testing/fstest/mapfs.go  |  4 ++++
  src/testing/fstest/testfs.go | 42 ++++++++++++++++++++++++++++++++++++++-
  4 files changed, 127 insertions(+), 1 deletion(-)
+
+diff --git a/src/io/fs/readdir.go b/src/io/fs/readdir.go
+new file mode 100644
+index 0000000000..3a5aa6d86a
+--- /dev/null
++++ b/src/io/fs/readdir.go
+@@ -0,0 +1,47 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++import (
++	"errors"
++	"sort"
++)
++
++// ReadDirFS is the interface implemented by a file system
++// that provides an optimized implementation of ReadDir.
++type ReadDirFS interface {
++	FS
++
++	// ReadDir reads the named directory
++	// and returns a list of directory entries sorted by filename.
++	ReadDir(name string) ([]DirEntry, error)
++}
++
++// ReadDir reads the named directory
++// and returns a list of directory entries sorted by filename.
++//
++// If fs implements ReadDirFS, ReadDir calls fs.ReadDir.
++// Otherwise ReadDir calls fs.Open and uses ReadDir and Close
++// on the returned file.
++func ReadDir(fsys FS, name string) ([]DirEntry, error) {
++	if fsys, ok := fsys.(ReadDirFS); ok {
++		return fsys.ReadDir(name)
++	}
++
++	file, err := fsys.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer file.Close()
++
++	dir, ok := file.(ReadDirFile)
++	if !ok {
++		return nil, &PathError{Op: "readdir", Path: name, Err: errors.New("not implemented")}
++	}
++
++	list, err := dir.ReadDir(-1)
++	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
++	return list, err
++}
+diff --git a/src/io/fs/readdir_test.go b/src/io/fs/readdir_test.go
+new file mode 100644
+index 0000000000..46a4bc2788
+--- /dev/null
++++ b/src/io/fs/readdir_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	. "io/fs"
++	"testing"
++)
++
++type readDirOnly struct{ ReadDirFS }
++
++func (readDirOnly) Open(name string) (File, error) { return nil, ErrNotExist }
++
++func TestReadDir(t *testing.T) {
++	check := func(desc string, dirs []DirEntry, err error) {
++		t.Helper()
++		if err != nil || len(dirs) != 1 || dirs[0].Name() != "hello.txt" {
++			var names []string
++			for _, d := range dirs {
++				names = append(names, d.Name())
++			}
++			t.Errorf("ReadDir(%s) = %v, %v, want %v, nil", desc, names, err, []string{"hello.txt"})
++		}
++	}
++
++	// Test that ReadDir uses the method when present.
++	dirs, err := ReadDir(readDirOnly{testFsys}, ".")
++	check("readDirOnly", dirs, err)
++
++	// Test that ReadDir uses Open when the method is not present.
++	dirs, err = ReadDir(openOnly{testFsys}, ".")
++	check("openOnly", dirs, err)
++}
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index b01911e589..1eaf8f0040 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -124,6 +124,10 @@ func (fsys MapFS) Stat(name string) (fs.FileInfo, error) {
+ 	return fs.Stat(fsOnly{fsys}, name)
+ }
+ 
++func (fsys MapFS) ReadDir(name string) ([]fs.DirEntry, error) {
++	return fs.ReadDir(fsOnly{fsys}, name)
++}
++
+ // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+ type mapFileInfo struct {
+ 	name string
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 290d2596cc..4ea6ed6095 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -196,6 +196,36 @@ func (t *fsTester) checkDir(dir string) {
+ 		}
+ 	}
+ 	t.checkDirList(dir, "first Open+ReadDir(-1) vs third Open+ReadDir(1,2) loop", list, list2)
++
++	// If fsys has ReadDir, check that it matches and is sorted.
++	if fsys, ok := t.fsys.(fs.ReadDirFS); ok {
++		list2, err := fsys.ReadDir(dir)
++		if err != nil {
++			t.errorf("%s: fsys.ReadDir: %v", dir, err)
++			return
++		}
++		t.checkDirList(dir, "first Open+ReadDir(-1) vs fsys.ReadDir", list, list2)
++
++		for i := 0; i+1 < len(list2); i++ {
++			if list2[i].Name() >= list2[i+1].Name() {
++				t.errorf("%s: fsys.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
++			}
++		}
++	}
++
++	// Check fs.ReadDir as well.
++	list2, err = fs.ReadDir(t.fsys, dir)
++	if err != nil {
++		t.errorf("%s: fs.ReadDir: %v", dir, err)
++		return
++	}
++	t.checkDirList(dir, "first Open+ReadDir(-1) vs fs.ReadDir", list, list2)
++
++	for i := 0; i+1 < len(list2); i++ {
++		if list2[i].Name() >= list2[i+1].Name() {
++			t.errorf("%s: fs.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
++		}
++	}
+ }
+ 
+ // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
+@@ -233,12 +263,22 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
+ 		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
+ 	}
+ 
++	einfo, err := entry.Info()
++	if err != nil {
++		t.errorf("%s: entry.Info: %v", path, err)
++		return
++	}
++	fentry = formatInfo(einfo)
++	finfo = formatInfo(info)
++	if fentry != finfo {
++		t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, fentry, finfo)
++	}
++
+ 	info2, err := fs.Stat(t.fsys, path)
+ 	if err != nil {
+ 		t.errorf("%s: fs.Stat: %v", path, err)
+ 		return
+ 	}
+-	finfo = formatInfo(info)
+ 	finfo2 := formatInfo(info2)
+ 	if finfo2 != finfo {
+ 		t.errorf("%s: fs.Stat(...) = %s\n\twant %s", path, finfo2, finfo)

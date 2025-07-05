@@ -22,10 +22,299 @@ Date:   Wed Jan 5 15:46:31 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go          | 18 +++++-
  .../types2/testdata/fixedbugs/issue50417.go2       | 64 ++++++++++++++++++++
  src/go/types/lookup.go                             | 18 +++++-
  src/go/types/testdata/fixedbugs/issue50417.go2     | 64 ++++++++++++++++++++
  test/typeparam/issue50417.go                       | 70 ++++++++++++++++++++++
  5 files changed, 230 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 7bdf13b4b7..77a70a0510 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -43,7 +43,7 @@ import (
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+-	// Methods cannot be associated to a named pointer type
++	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+ 	// in the same package as the method.").
+@@ -60,7 +60,21 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		}
+ 	}
+ 
+-	return lookupFieldOrMethod(T, addressable, false, pkg, name)
++	obj, index, indirect = lookupFieldOrMethod(T, addressable, false, pkg, name)
++
++	// If we didn't find anything and if we have a type parameter with a structural constraint,
++	// see if there is a matching field (but not a method, those need to be declared explicitly
++	// in the constraint). If the structural constraint is a named pointer type (see above), we
++	// are ok here because only fields are accepted as results.
++	if obj == nil && isTypeParam(T) {
++		if t := structuralType(T); t != nil {
++			obj, index, indirect = lookupFieldOrMethod(t, addressable, false, pkg, name)
++			if _, ok := obj.(*Var); !ok {
++				obj, index, indirect = nil, nil, false // accept fields (variables) only
++			}
++		}
++	}
++	return
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+new file mode 100644
+index 0000000000..c05987e5ea
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+@@ -0,0 +1,64 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Sf struct {
++        f int
++}
++
++func f0[P Sf](p P) {
++        _ = p.f
++        p.f = 0
++}
++
++func f0t[P ~struct{f int}](p P) {
++        _ = p.f
++        p.f = 0
++}
++
++var _ = f0[Sf]
++var _ = f0t[Sf]
++
++var _ = f0[Sm /* ERROR does not implement */ ]
++var _ = f0t[Sm /* ERROR does not implement */ ]
++
++func f1[P interface{ Sf; m() }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m()
++}
++
++var _ = f1[Sf /* ERROR missing method m */ ]
++var _ = f1[Sm /* ERROR does not implement */ ]
++
++type Sm struct {}
++
++func (Sm) m() {}
++
++type Sfm struct {
++        f int
++}
++
++func (Sfm) m() {}
++
++func f2[P interface{ Sfm; m() }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m()
++}
++
++var _ = f2[Sfm]
++
++// special case: structural type is a named pointer type
++
++type PSfm *Sfm
++
++func f3[P interface{ PSfm }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m /* ERROR type bound for P has no method m */ ()
++}
++
++var _ = f3[PSfm]
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 7f3fbd6929..e593351804 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -43,7 +43,7 @@ import (
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+-	// Methods cannot be associated to a named pointer type
++	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+ 	// in the same package as the method.").
+@@ -60,7 +60,21 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		}
+ 	}
+ 
+-	return lookupFieldOrMethod(T, addressable, pkg, name)
++	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name)
++
++	// If we didn't find anything and if we have a type parameter with a structural constraint,
++	// see if there is a matching field (but not a method, those need to be declared explicitly
++	// in the constraint). If the structural constraint is a named pointer type (see above), we
++	// are ok here because only fields are accepted as results.
++	if obj == nil && isTypeParam(T) {
++		if t := structuralType(T); t != nil {
++			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name)
++			if _, ok := obj.(*Var); !ok {
++				obj, index, indirect = nil, nil, false // accept fields (variables) only
++			}
++		}
++	}
++	return
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+diff --git a/src/go/types/testdata/fixedbugs/issue50417.go2 b/src/go/types/testdata/fixedbugs/issue50417.go2
+new file mode 100644
+index 0000000000..c05987e5ea
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50417.go2
+@@ -0,0 +1,64 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Sf struct {
++        f int
++}
++
++func f0[P Sf](p P) {
++        _ = p.f
++        p.f = 0
++}
++
++func f0t[P ~struct{f int}](p P) {
++        _ = p.f
++        p.f = 0
++}
++
++var _ = f0[Sf]
++var _ = f0t[Sf]
++
++var _ = f0[Sm /* ERROR does not implement */ ]
++var _ = f0t[Sm /* ERROR does not implement */ ]
++
++func f1[P interface{ Sf; m() }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m()
++}
++
++var _ = f1[Sf /* ERROR missing method m */ ]
++var _ = f1[Sm /* ERROR does not implement */ ]
++
++type Sm struct {}
++
++func (Sm) m() {}
++
++type Sfm struct {
++        f int
++}
++
++func (Sfm) m() {}
++
++func f2[P interface{ Sfm; m() }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m()
++}
++
++var _ = f2[Sfm]
++
++// special case: structural type is a named pointer type
++
++type PSfm *Sfm
++
++func f3[P interface{ PSfm }](p P) {
++        _ = p.f
++        p.f = 0
++        p.m /* ERROR type bound for P has no method m */ ()
++}
++
++var _ = f3[PSfm]
+diff --git a/test/typeparam/issue50417.go b/test/typeparam/issue50417.go
+new file mode 100644
+index 0000000000..bf6ac424c5
+--- /dev/null
++++ b/test/typeparam/issue50417.go
+@@ -0,0 +1,70 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {}
++
++type Sf struct {
++	f int
++}
++
++func f0[P Sf](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++func f0t[P ~struct{ f int }](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++// TODO(danscales) enable once the compiler is fixed
++// var _ = f0[Sf]
++// var _ = f0t[Sf]
++
++func f1[P interface {
++	Sf
++	m()
++}](p P) {
++	_ = p.f
++	p.f = 0
++	p.m()
++}
++
++type Sm struct{}
++
++func (Sm) m() {}
++
++type Sfm struct {
++	f int
++}
++
++func (Sfm) m() {}
++
++func f2[P interface {
++	Sfm
++	m()
++}](p P) {
++	_ = p.f
++	p.f = 0
++	p.m()
++}
++
++// TODO(danscales) enable once the compiler is fixed
++// var _ = f2[Sfm]
++
++// special case: structural type is a named pointer type
++
++type PSfm *Sfm
++
++func f3[P interface{ PSfm }](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++// TODO(danscales) enable once the compiler is fixed
++// var _ = f3[PSfm]

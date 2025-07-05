@@ -10,6 +10,23 @@ Date:   Sun Mar 1 17:40:35 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221778
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/os/file_plan9.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 48bf5f5076..bcf3c625bf 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -290,6 +290,11 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
++	if f.dirinfo != nil {
++		// Free cached dirinfo, so we allocate a new one if we
++		// access this file as a directory again. See #35767 and #37161.
++		f.dirinfo = nil
++	}
+ 	return syscall.Seek(f.fd, offset, whence)
+ }
+ 

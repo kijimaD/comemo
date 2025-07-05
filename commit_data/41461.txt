@@ -11,7 +11,52 @@ Date:   Fri Oct 4 13:27:49 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfile/read_test.go | 23 +++++++++++++++++++++++
  src/cmd/go/internal/modfile/rule.go      |  2 +-
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfile/read_test.go b/src/cmd/go/internal/modfile/read_test.go
+index 8cb1a3908c..32401304b9 100644
+--- a/src/cmd/go/internal/modfile/read_test.go
++++ b/src/cmd/go/internal/modfile/read_test.go
+@@ -363,3 +363,26 @@ func TestModulePath(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestGoVersion(t *testing.T) {
++	for _, test := range []struct {
++		desc, input string
++		ok          bool
++	}{
++		{desc: "empty", input: "module m\ngo \n", ok: false},
++		{desc: "one", input: "module m\ngo 1\n", ok: false},
++		{desc: "two", input: "module m\ngo 1.22\n", ok: true},
++		{desc: "three", input: "module m\ngo 1.22.333", ok: false},
++		{desc: "before", input: "module m\ngo v1.2\n", ok: false},
++		{desc: "after", input: "module m\ngo 1.2rc1\n", ok: false},
++		{desc: "space", input: "module m\ngo 1.2 3.4\n", ok: false},
++	} {
++		t.Run(test.desc, func(t *testing.T) {
++			if _, err := Parse("go.mod", []byte(test.input), nil); err == nil && !test.ok {
++				t.Error("unexpected success")
++			} else if err != nil && test.ok {
++				t.Errorf("unexpected error: %v", err)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index 6e1a22f3ca..e1f2687840 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -153,7 +153,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 	return f, nil
+ }
+ 
+-var GoVersionRE = lazyregexp.New(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
++var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+ 
+ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.

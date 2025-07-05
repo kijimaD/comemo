@@ -17,7 +17,7 @@ Date:   Sun Mar 29 21:59:00 2015 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/ld/symtab.go |  4 ++
  src/reflect/type.go           | 57 +++++++++++++++------------
  src/runtime/heapdump.go       |  9 +++--
@@ -31,3 +31,532 @@ Date:   Sun Mar 29 21:59:00 2015 +0000
  src/runtime/signal_windows.go |  1 +
  src/runtime/symtab.go         | 46 ++++++++++++++++------
  12 files changed, 174 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 7bcc1c667a..37aeb78474 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -410,6 +410,7 @@ func symtab() {
+ 	// This code uses several global variables that are set by pcln.go:pclntab.
+ 	moduledata := Linklookup(Ctxt, "runtime.themoduledata", 0)
+ 	moduledata.Type = SNOPTRDATA
++	moduledatasize := moduledata.Size
+ 	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
+ 	moduledata.Reachable = true
+ 	moduledata.Local = true
+@@ -448,4 +449,7 @@ func symtab() {
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
++	// The rest of moduledata is zero initialized.
++	moduledata.Size = moduledatasize
++	Symgrow(Ctxt, moduledata, moduledatasize)
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index ccd145499e..8cfae98e08 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1301,39 +1301,48 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ // there can be more than one with a given string.
+ // Only types we might want to look up are included:
+ // channels, maps, slices, and arrays.
+-func typelinks() []*rtype
++func typelinks() [][]*rtype
+ 
+ // typesByString returns the subslice of typelinks() whose elements have
+ // the given string representation.
+ // It may be empty (no known types with that string) or may have
+ // multiple elements (multiple types with that string).
+ func typesByString(s string) []*rtype {
+-	typ := typelinks()
+-
+-	// We are looking for the first index i where the string becomes >= s.
+-	// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
+-	i, j := 0, len(typ)
+-	for i < j {
+-		h := i + (j-i)/2 // avoid overflow when computing h
+-		// i ≤ h < j
+-		if !(*typ[h].string >= s) {
+-			i = h + 1 // preserves f(i-1) == false
+-		} else {
+-			j = h // preserves f(j) == true
++	typs := typelinks()
++	var ret []*rtype
++
++	for _, typ := range typs {
++		// We are looking for the first index i where the string becomes >= s.
++		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
++		i, j := 0, len(typ)
++		for i < j {
++			h := i + (j-i)/2 // avoid overflow when computing h
++			// i ≤ h < j
++			if !(*typ[h].string >= s) {
++				i = h + 1 // preserves f(i-1) == false
++			} else {
++				j = h // preserves f(j) == true
++			}
++		}
++		// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
++
++		// Having found the first, linear scan forward to find the last.
++		// We could do a second binary search, but the caller is going
++		// to do a linear scan anyway.
++		j = i
++		for j < len(typ) && *typ[j].string == s {
++			j++
+ 		}
+-	}
+-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+ 
+-	// Having found the first, linear scan forward to find the last.
+-	// We could do a second binary search, but the caller is going
+-	// to do a linear scan anyway.
+-	j = i
+-	for j < len(typ) && *typ[j].string == s {
+-		j++
++		if j > i {
++			if ret == nil {
++				ret = typ[i:j:j]
++			} else {
++				ret = append(ret, typ[i:j]...)
++			}
++		}
+ 	}
+-
+-	// This slice will be empty if the string is not found.
+-	return typ[i:j]
++	return ret
+ }
+ 
+ // The lookupCache caches ChanOf, MapOf, and SliceOf lookups.
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 090a490449..bd63cf8c94 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -431,19 +431,20 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
+ }
+ 
+ func dumproots() {
++	// TODO(mwhudson): dump datamask etc from all objects
+ 	// data segment
+-	dumpbvtypes(&gcdatamask, unsafe.Pointer(themoduledata.data))
++	dumpbvtypes(&themoduledata.gcdatamask, unsafe.Pointer(themoduledata.data))
+ 	dumpint(tagData)
+ 	dumpint(uint64(themoduledata.data))
+ 	dumpmemrange(unsafe.Pointer(themoduledata.data), themoduledata.edata-themoduledata.data)
+-	dumpfields(gcdatamask)
++	dumpfields(themoduledata.gcdatamask)
+ 
+ 	// bss segment
+-	dumpbvtypes(&gcbssmask, unsafe.Pointer(themoduledata.bss))
++	dumpbvtypes(&themoduledata.gcbssmask, unsafe.Pointer(themoduledata.bss))
+ 	dumpint(tagBSS)
+ 	dumpint(uint64(themoduledata.bss))
+ 	dumpmemrange(unsafe.Pointer(themoduledata.bss), themoduledata.ebss-themoduledata.bss)
+-	dumpfields(gcbssmask)
++	dumpfields(themoduledata.gcbssmask)
+ 
+ 	// MSpan.types
+ 	allspans := h_allspans
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index e6183e74a8..9315353001 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -426,44 +426,47 @@ func wbshadowinit() {
+ 	memmove(p1, unsafe.Pointer(mheap_.arena_start), mheap_.arena_used-mheap_.arena_start)
+ 
+ 	mheap_.shadow_reserved = reserved
+-	start := ^uintptr(0)
+-	end := uintptr(0)
+-	if start > themoduledata.noptrdata {
+-		start = themoduledata.noptrdata
+-	}
+-	if start > themoduledata.data {
+-		start = themoduledata.data
+-	}
+-	if start > themoduledata.noptrbss {
+-		start = themoduledata.noptrbss
+-	}
+-	if start > themoduledata.bss {
+-		start = themoduledata.bss
+-	}
+-	if end < themoduledata.enoptrdata {
+-		end = themoduledata.enoptrdata
+-	}
+-	if end < themoduledata.edata {
+-		end = themoduledata.edata
+-	}
+-	if end < themoduledata.enoptrbss {
+-		end = themoduledata.enoptrbss
+-	}
+-	if end < themoduledata.ebss {
+-		end = themoduledata.ebss
+-	}
+-	start &^= _PhysPageSize - 1
+-	end = round(end, _PhysPageSize)
+-	mheap_.data_start = start
+-	mheap_.data_end = end
+-	reserved = false
+-	p1 = sysReserveHigh(end-start, &reserved)
+-	if p1 == nil {
+-		throw("cannot map shadow data")
++
++	for datap := &themoduledata; datap != nil; datap = datap.next {
++		start := ^uintptr(0)
++		end := uintptr(0)
++		if start > datap.noptrdata {
++			start = datap.noptrdata
++		}
++		if start > datap.data {
++			start = datap.data
++		}
++		if start > datap.noptrbss {
++			start = datap.noptrbss
++		}
++		if start > datap.bss {
++			start = datap.bss
++		}
++		if end < datap.enoptrdata {
++			end = datap.enoptrdata
++		}
++		if end < datap.edata {
++			end = datap.edata
++		}
++		if end < datap.enoptrbss {
++			end = datap.enoptrbss
++		}
++		if end < datap.ebss {
++			end = datap.ebss
++		}
++		start &^= _PhysPageSize - 1
++		end = round(end, _PhysPageSize)
++		datap.data_start = start
++		datap.data_end = end
++		reserved = false
++		p1 = sysReserveHigh(end-start, &reserved)
++		if p1 == nil {
++			throw("cannot map shadow data")
++		}
++		datap.shadow_data = uintptr(p1) - start
++		sysMap(p1, end-start, reserved, &memstats.other_sys)
++		memmove(p1, unsafe.Pointer(start), end-start)
+ 	}
+-	mheap_.shadow_data = uintptr(p1) - start
+-	sysMap(p1, end-start, reserved, &memstats.other_sys)
+-	memmove(p1, unsafe.Pointer(start), end-start)
+ 
+ 	mheap_.shadow_enabled = true
+ }
+@@ -471,13 +474,15 @@ func wbshadowinit() {
+ // shadowptr returns a pointer to the shadow value for addr.
+ //go:nosplit
+ func shadowptr(addr uintptr) *uintptr {
+-	var shadow *uintptr
+-	if mheap_.data_start <= addr && addr < mheap_.data_end {
+-		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_data))
+-	} else if inheap(addr) {
+-		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
++	for datap := &themoduledata; datap != nil; datap = datap.next {
++		if datap.data_start <= addr && addr < datap.data_end {
++			return (*uintptr)(unsafe.Pointer(addr + datap.shadow_data))
++		}
++	}
++	if inheap(addr) {
++		return (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
+ 	}
+-	return shadow
++	return nil
+ }
+ 
+ // istrackedptr reports whether the pointer value p requires a write barrier
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index ebee7429b1..80828692d6 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -747,29 +747,31 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 	const typeBitsPerByte = 8 / typeBitsWidth
+ 
+ 	// data
+-	if themoduledata.data <= uintptr(p) && uintptr(p) < themoduledata.edata {
+-		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-		*len = n / ptrSize
+-		*mask = &make([]byte, *len)[0]
+-		for i := uintptr(0); i < n; i += ptrSize {
+-			off := (uintptr(p) + i - themoduledata.data) / ptrSize
+-			bits := (*(*byte)(add(unsafe.Pointer(gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++	for datap := &themoduledata; datap != nil; datap = datap.next {
++		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
++			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
++			*len = n / ptrSize
++			*mask = &make([]byte, *len)[0]
++			for i := uintptr(0); i < n; i += ptrSize {
++				off := (uintptr(p) + i - datap.data) / ptrSize
++				bits := (*(*byte)(add(unsafe.Pointer(datap.gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
++				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++			}
++			return
+ 		}
+-		return
+-	}
+ 
+-	// bss
+-	if themoduledata.bss <= uintptr(p) && uintptr(p) < themoduledata.ebss {
+-		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-		*len = n / ptrSize
+-		*mask = &make([]byte, *len)[0]
+-		for i := uintptr(0); i < n; i += ptrSize {
+-			off := (uintptr(p) + i - themoduledata.bss) / ptrSize
+-			bits := (*(*byte)(add(unsafe.Pointer(gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++		// bss
++		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
++			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
++			*len = n / ptrSize
++			*mask = &make([]byte, *len)[0]
++			for i := uintptr(0); i < n; i += ptrSize {
++				off := (uintptr(p) + i - datap.bss) / ptrSize
++				bits := (*(*byte)(add(unsafe.Pointer(datap.gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
++				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++			}
++			return
+ 		}
+-		return
+ 	}
+ 
+ 	// heap
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 2de75656e5..e51dcc2b5b 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -289,11 +289,13 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		// The relevant segments are: noptrdata, data, bss, noptrbss.
+ 		// We cannot assume they are in any order or even contiguous,
+ 		// due to external linking.
+-		if themoduledata.noptrdata <= uintptr(e.data) && uintptr(e.data) < themoduledata.enoptrdata ||
+-			themoduledata.data <= uintptr(e.data) && uintptr(e.data) < themoduledata.edata ||
+-			themoduledata.bss <= uintptr(e.data) && uintptr(e.data) < themoduledata.ebss ||
+-			themoduledata.noptrbss <= uintptr(e.data) && uintptr(e.data) < themoduledata.enoptrbss {
+-			return
++		for datap := &themoduledata; datap != nil; datap = datap.next {
++			if datap.noptrdata <= uintptr(e.data) && uintptr(e.data) < datap.enoptrdata ||
++				datap.data <= uintptr(e.data) && uintptr(e.data) < datap.edata ||
++				datap.bss <= uintptr(e.data) && uintptr(e.data) < datap.ebss ||
++				datap.noptrbss <= uintptr(e.data) && uintptr(e.data) < datap.enoptrbss {
++				return
++			}
+ 		}
+ 		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a0975046c7..d2054e5f7b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -136,9 +136,6 @@ func have_cgo_allocate() bool {
+ 	return &weak_cgo_allocate != nil
+ }
+ 
+-var gcdatamask bitvector
+-var gcbssmask bitvector
+-
+ // heapminimum is the minimum number of bytes in the heap.
+ // This cleans up the corner case of where we have a very small live set but a lot
+ // of allocations and collecting every GOGC * live set is expensive.
+@@ -154,8 +151,10 @@ func gcinit() {
+ 
+ 	work.markfor = parforalloc(_MaxGcproc)
+ 	gcpercent = readgogc()
+-	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcdata)), themoduledata.edata-themoduledata.data)
+-	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(themoduledata.gcbss)), themoduledata.ebss-themoduledata.bss)
++	for datap := &themoduledata; datap != nil; datap = datap.next {
++		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
++		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
++	}
+ 	memstats.next_gc = heapminimum
+ }
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 59a3692a58..ef09b377bc 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -60,10 +60,14 @@ func markroot(desc *parfor, i uint32) {
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch i {
+ 	case _RootData:
+-		scanblock(themoduledata.data, themoduledata.edata-themoduledata.data, gcdatamask.bytedata, &gcw)
++		for datap := &themoduledata; datap != nil; datap = datap.next {
++			scanblock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, &gcw)
++		}
+ 
+ 	case _RootBss:
+-		scanblock(themoduledata.bss, themoduledata.ebss-themoduledata.bss, gcbssmask.bytedata, &gcw)
++		for datap := &themoduledata; datap != nil; datap = datap.next {
++			scanblock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, &gcw)
++		}
+ 
+ 	case _RootFinalizers:
+ 		for fb := allfin; fb != nil; fb = fb.alllink {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 4a023e5624..7b4b046764 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -37,14 +37,13 @@ type mheap struct {
+ 	arena_end      uintptr
+ 	arena_reserved bool
+ 
+-	// write barrier shadow data+heap.
++	// write barrier shadow heap.
+ 	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
++	// See also shadow_data, data_start, data_end fields on moduledata in
++	// symtab.go.
+ 	shadow_enabled  bool    // shadow should be updated and checked
+ 	shadow_reserved bool    // shadow memory is reserved
+ 	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
+-	shadow_data     uintptr // data-addr + shadow_data = shadow data addr
+-	data_start      uintptr // start of shadowed data addresses
+-	data_end        uintptr // end of shadowed data addresses
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5fddc582e9..8e0e82266a 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -426,8 +426,12 @@ func gomcache() *mcache {
+ 
+ //go:linkname reflect_typelinks reflect.typelinks
+ //go:nosplit
+-func reflect_typelinks() []*_type {
+-	return themoduledata.typelinks
++func reflect_typelinks() [][]*_type {
++	ret := [][]*_type{themoduledata.typelinks}
++	for datap := themoduledata.next; datap != nil; datap = datap.next {
++		ret = append(ret, datap.typelinks)
++	}
++	return ret
+ }
+ 
+ // TODO: move back into mgc.go
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index ab8fe206c7..bdeb5f182b 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -11,6 +11,7 @@ import (
+ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code).
++	// TODO(mwhudson): needs to loop to support shared libs
+ 	if r.ip() < themoduledata.text || themoduledata.etext < r.ip() {
+ 		return false
+ 	}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8ee80c8eed..42b752b866 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -47,6 +47,17 @@ type moduledata struct {
+ 	end, gcdata, gcbss    uintptr
+ 
+ 	typelinks []*_type
++
++	gcdatamask, gcbssmask bitvector
++
++	// write barrier shadow data
++	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
++	// See also the shadow_* fields on mheap in mheap.go.
++	shadow_data uintptr // data-addr + shadow_data = shadow data addr
++	data_start  uintptr // start of shadowed data addresses
++	data_end    uintptr // end of shadowed data addresses
++
++	next *moduledata
+ }
+ 
+ var themoduledata moduledata // linker symbol
+@@ -135,34 +146,45 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	return file, int(line32)
+ }
+ 
++func findmoduledatap(pc uintptr) *moduledata {
++	for datap := &themoduledata; datap != nil; datap = datap.next {
++		if datap.minpc <= pc && pc <= datap.maxpc {
++			return datap
++		}
++	}
++	return nil
++}
++
+ func findfunc(pc uintptr) *_func {
+-	if pc < themoduledata.minpc || pc >= themoduledata.maxpc {
++	datap := findmoduledatap(pc)
++	if datap == nil {
+ 		return nil
+ 	}
+ 	const nsub = uintptr(len(findfuncbucket{}.subbuckets))
+ 
+-	x := pc - themoduledata.minpc
++	x := pc - datap.minpc
+ 	b := x / pcbucketsize
+ 	i := x % pcbucketsize / (pcbucketsize / nsub)
+ 
+-	ffb := (*findfuncbucket)(add(unsafe.Pointer(themoduledata.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
++	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
+ 	idx := ffb.idx + uint32(ffb.subbuckets[i])
+-	if pc < themoduledata.ftab[idx].entry {
++	if pc < datap.ftab[idx].entry {
+ 		throw("findfunc: bad findfunctab entry")
+ 	}
+ 
+ 	// linear search to find func with pc >= entry.
+-	for themoduledata.ftab[idx+1].entry <= pc {
++	for datap.ftab[idx+1].entry <= pc {
+ 		idx++
+ 	}
+-	return (*_func)(unsafe.Pointer(&themoduledata.pclntable[themoduledata.ftab[idx].funcoff]))
++	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
+ }
+ 
+ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 	if off == 0 {
+ 		return -1
+ 	}
+-	p := themoduledata.pclntable[off:]
++	datap := findmoduledatap(f.entry) // inefficient
++	p := datap.pclntable[off:]
+ 	pc := f.entry
+ 	val := int32(-1)
+ 	for {
+@@ -184,7 +206,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 
+ 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+ 
+-	p = themoduledata.pclntable[off:]
++	p = datap.pclntable[off:]
+ 	pc = f.entry
+ 	val = -1
+ 	for {
+@@ -204,7 +226,8 @@ func cfuncname(f *_func) *byte {
+ 	if f == nil || f.nameoff == 0 {
+ 		return nil
+ 	}
+-	return (*byte)(unsafe.Pointer(&themoduledata.pclntable[f.nameoff]))
++	datap := findmoduledatap(f.entry) // inefficient
++	return (*byte)(unsafe.Pointer(&datap.pclntable[f.nameoff]))
+ }
+ 
+ func funcname(f *_func) string {
+@@ -212,13 +235,14 @@ func funcname(f *_func) string {
+ }
+ 
+ func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
++	datap := findmoduledatap(f.entry) // inefficient
+ 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
+ 	line = pcvalue(f, f.pcln, targetpc, strict)
+-	if fileno == -1 || line == -1 || fileno >= len(themoduledata.filetab) {
++	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
+ 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+ 		return "?", 0
+ 	}
+-	file = gostringnocopy(&themoduledata.pclntable[themoduledata.filetab[fileno]])
++	file = gostringnocopy(&datap.pclntable[datap.filetab[fileno]])
+ 	return
+ }
+ 

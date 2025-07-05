@@ -7,6 +7,19 @@ Date:   Thu Sep 6 15:02:42 2012 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6493087
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index cce07584de..0245194c99 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -213,6 +213,7 @@ Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
++Manu Garg <manugarg@google.com>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>

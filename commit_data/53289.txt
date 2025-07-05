@@ -17,8 +17,62 @@ Date:   Wed Jun 22 20:57:50 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/bytes/bytes_test.go     | 2 ++
  src/strings/strings.go      | 7 ++-----
  src/strings/strings_test.go | 2 ++
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 985aa0b147..b407fe8a2d 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -755,6 +755,8 @@ var splittests = []SplitTest{
+ 	{"123", "", 2, []string{"1", "23"}},
+ 	{"123", "", 17, []string{"1", "2", "3"}},
+ 	{"bT", "T", math.MaxInt / 4, []string{"b", ""}},
++	{"\xff-\xff", "", -1, []string{"\xff", "-", "\xff"}},
++	{"\xff-\xff", "-", -1, []string{"\xff", "\xff"}},
+ }
+ 
+ func TestSplit(t *testing.T) {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 1dc4238522..013d718426 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // explode splits s into a slice of UTF-8 strings,
+ // one string per Unicode character up to a maximum of n (n < 0 means no limit).
+-// Invalid UTF-8 sequences become correct encodings of U+FFFD.
++// Invalid UTF-8 bytes are sliced individually.
+ func explode(s string, n int) []string {
+ 	l := utf8.RuneCountInString(s)
+ 	if n < 0 || n > l {
+@@ -23,12 +23,9 @@ func explode(s string, n int) []string {
+ 	}
+ 	a := make([]string, n)
+ 	for i := 0; i < n-1; i++ {
+-		ch, size := utf8.DecodeRuneInString(s)
++		_, size := utf8.DecodeRuneInString(s)
+ 		a[i] = s[:size]
+ 		s = s[size:]
+-		if ch == utf8.RuneError {
+-			a[i] = string(utf8.RuneError)
+-		}
+ 	}
+ 	if n > 0 {
+ 		a[n-1] = s
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 9e7fb85ddf..a1604c2c47 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -406,6 +406,8 @@ var splittests = []SplitTest{
+ 	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+ 	{"1 2", " ", 3, []string{"1", "2"}},
+ 	{"", "T", math.MaxInt / 4, []string{""}},
++	{"\xff-\xff", "", -1, []string{"\xff", "-", "\xff"}},
++	{"\xff-\xff", "-", -1, []string{"\xff", "\xff"}},
+ }
+ 
+ func TestSplit(t *testing.T) {

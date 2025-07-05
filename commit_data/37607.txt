@@ -12,7 +12,49 @@ Date:   Wed May 9 15:49:22 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  test/codegen/copy.go                    | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 5e151b5213..e7d1b5c767 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -905,7 +905,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+ 	// have fast Move ops.
+ 	switch c.arch {
+ 	case "amd64", "amd64p32":
+-		return sz <= 16
++		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
+ 	case "386", "ppc64", "ppc64le", "arm64":
+ 		return sz <= 8
+ 	case "s390x":
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index 5c3837bc7c..dc8ee43f4c 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -40,19 +40,22 @@ var x [256]byte
+ func moveDisjointStack() {
+ 	var s [256]byte
+ 	// s390x:-".*memmove"
++	// amd64:-".*memmove"
+ 	copy(s[:], x[:])
+ 	runtime.KeepAlive(&s)
+ }
+ 
+-func moveDisjointArg(b *[256]byte)  {
++func moveDisjointArg(b *[256]byte) {
+ 	var s [256]byte
+ 	// s390x:-".*memmove"
++	// amd64:-".*memmove"
+ 	copy(s[:], b[:])
+ 	runtime.KeepAlive(&s)
+ }
+ 
+ func moveDisjointNoOverlap(a *[256]byte) {
+ 	// s390x:-".*memmove"
++	// amd64:-".*memmove"
+ 	copy(a[:], a[128:])
+ }
+ 

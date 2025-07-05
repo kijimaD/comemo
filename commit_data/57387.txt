@@ -18,6 +18,20 @@ Date:   Tue Aug 1 13:28:14 2023 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/text/template/funcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index b5a8c9ec50..a949f896fa 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -478,7 +478,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
+ 			case k1 == uintKind && k2 == intKind:
+ 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
+ 			default:
+-				if arg1 != zero && arg != zero {
++				if arg1.IsValid() && arg.IsValid() {
+ 					return false, errBadComparison
+ 				}
+ 			}

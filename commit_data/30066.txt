@@ -9,7 +9,7 @@ Date:   Sun Oct 23 14:10:11 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/example_test.go       |  2 +-
  src/crypto/tls/handshake_server_test.go |  8 ++++----
  src/database/sql/example_test.go        |  2 +-
@@ -18,3 +18,166 @@ Date:   Sun Oct 23 14:10:11 2016 -0700
  src/reflect/all_test.go                 | 18 +++++++++---------
  src/text/template/exec_test.go          |  2 +-
  7 files changed, 19 insertions(+), 20 deletions(-)
+
+diff --git a/src/compress/gzip/example_test.go b/src/compress/gzip/example_test.go
+index e32346bb95..ce29e9ba36 100644
+--- a/src/compress/gzip/example_test.go
++++ b/src/compress/gzip/example_test.go
+@@ -98,7 +98,7 @@ func ExampleReader_Multistream() {
+ 			log.Fatal(err)
+ 		}
+ 
+-		fmt.Println("\n")
++		fmt.Print("\n\n")
+ 
+ 		err = zr.Reset(&buf)
+ 		if err == io.EOF {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 8d760ca10a..765a9745fc 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1253,18 +1253,18 @@ func TestGetConfigForClient(t *testing.T) {
+ 
+ 		if len(test.errorSubstring) == 0 {
+ 			if serverErr != nil || clientErr != nil {
+-				t.Errorf("%#d: expected no error but got serverErr: %q, clientErr: %q", i, serverErr, clientErr)
++				t.Errorf("test[%d]: expected no error but got serverErr: %q, clientErr: %q", i, serverErr, clientErr)
+ 			}
+ 			if test.verify != nil {
+ 				if err := test.verify(configReturned); err != nil {
+-					t.Errorf("#%d: verify returned error: %v", i, err)
++					t.Errorf("test[%d]: verify returned error: %v", i, err)
+ 				}
+ 			}
+ 		} else {
+ 			if serverErr == nil {
+-				t.Errorf("%#d: expected error containing %q but got no error", i, test.errorSubstring)
++				t.Errorf("test[%d]: expected error containing %q but got no error", i, test.errorSubstring)
+ 			} else if !strings.Contains(serverErr.Error(), test.errorSubstring) {
+-				t.Errorf("%#d: expected error to contain %q but it was %q", i, test.errorSubstring, serverErr)
++				t.Errorf("test[%d]: expected error to contain %q but it was %q", i, test.errorSubstring, serverErr)
+ 			}
+ 		}
+ 	}
+diff --git a/src/database/sql/example_test.go b/src/database/sql/example_test.go
+index 9032eac2d2..ce56ca4cb0 100644
+--- a/src/database/sql/example_test.go
++++ b/src/database/sql/example_test.go
+@@ -45,7 +45,7 @@ func ExampleDB_QueryRow() {
+ 	}
+ }
+ 
+-func ExampleDB_QueryMultipleResultSets() {
++func ExampleDB_Query_multipleResultSets() {
+ 	age := 27
+ 	q := `
+ create temp table uid (id bigint); -- Create temp table for queries.
+diff --git a/src/math/modf_arm64.s b/src/math/modf_arm64.s
+index 0bdec4ebbe..7c70ef33ac 100644
+--- a/src/math/modf_arm64.s
++++ b/src/math/modf_arm64.s
+@@ -6,7 +6,7 @@
+ 
+ // func Modf(f float64) (int float64, frac float64)
+ TEXT ·Modf(SB),NOSPLIT,$0
+-	MOVD	x+0(FP), R0
++	MOVD	f+0(FP), R0
+ 	FMOVD	R0, F0
+ 	FRINTZD	F0, F1
+ 	FMOVD	F1, int+8(FP)
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 72af075e5b..f03d91517d 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -7,7 +7,6 @@ package os_test
+ import (
+ 	"bytes"
+ 	"encoding/hex"
+-	"fmt"
+ 	"internal/syscall/windows"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -274,7 +273,7 @@ func TestDirectoryJunction(t *testing.T) {
+ 				mklink: func(link, target string) error {
+ 					output, err := osexec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+ 					if err != nil {
+-						fmt.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
++						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
+ 					}
+ 					return nil
+ 				},
+@@ -346,7 +345,7 @@ func TestDirectorySymbolicLink(t *testing.T) {
+ 				mklink: func(link, target string) error {
+ 					output, err := osexec.Command("cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
+ 					if err != nil {
+-						fmt.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
++						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
+ 					}
+ 					return nil
+ 				},
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 1d423f4386..c99ad79b64 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3119,7 +3119,7 @@ func ReadWriterV(x io.ReadWriter) Value {
+ 
+ type Empty struct{}
+ type MyStruct struct {
+-	x int "tag"
++	x int `some:"tag"`
+ }
+ type MyString string
+ type MyBytes []byte
+@@ -3434,31 +3434,31 @@ var convertTests = []struct {
+ 
+ 	// structs with different tags
+ 	{V(struct {
+-		x int "foo"
++		x int `some:"foo"`
+ 	}{}), V(struct {
+-		x int "bar"
++		x int `some:"bar"`
+ 	}{})},
+ 
+ 	{V(struct {
+-		x int "bar"
++		x int `some:"bar"`
+ 	}{}), V(struct {
+-		x int "foo"
++		x int `some:"foo"`
+ 	}{})},
+ 
+ 	{V(MyStruct{}), V(struct {
+-		x int "foo"
++		x int `some:"foo"`
+ 	}{})},
+ 
+ 	{V(struct {
+-		x int "foo"
++		x int `some:"foo"`
+ 	}{}), V(MyStruct{})},
+ 
+ 	{V(MyStruct{}), V(struct {
+-		x int "bar"
++		x int `some:"bar"`
+ 	}{})},
+ 
+ 	{V(struct {
+-		x int "bar"
++		x int `some:"bar"`
+ 	}{}), V(MyStruct{})},
+ 
+ 	// can convert *byte and *MyByte
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 7092961850..1c7e115554 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1326,7 +1326,7 @@ func TestAddrOfIndex(t *testing.T) {
+ 		var buf bytes.Buffer
+ 		err := tmpl.Execute(&buf, reflect.ValueOf([]V{{1}}))
+ 		if err != nil {
+-			t.Fatal("%s: Execute: %v", text, err)
++			t.Fatalf("%s: Execute: %v", text, err)
+ 		}
+ 		if buf.String() != "<1>" {
+ 			t.Fatalf("%s: template output = %q, want %q", text, buf, "<1>")

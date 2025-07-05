@@ -8,6 +8,27 @@ Date:   Wed Dec 16 11:26:26 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17901
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/example_test.go b/src/archive/tar/example_test.go
+index 2317f44e96..5f0ce2f402 100644
+--- a/src/archive/tar/example_test.go
++++ b/src/archive/tar/example_test.go
+@@ -26,7 +26,7 @@ func Example() {
+ 	}{
+ 		{"readme.txt", "This archive contains some text files."},
+ 		{"gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+-		{"todo.txt", "Get animal handling licence."},
++		{"todo.txt", "Get animal handling license."},
+ 	}
+ 	for _, file := range files {
+ 		hdr := &tar.Header{
+@@ -76,5 +76,5 @@ func Example() {
+ 	// Geoffrey
+ 	// Gonzo
+ 	// Contents of todo.txt:
+-	// Get animal handling licence.
++	// Get animal handling license.
+ }

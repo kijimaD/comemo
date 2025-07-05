@@ -18,7 +18,64 @@ Date:   Sat Oct 28 10:14:08 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/74210
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 11 +++++++----
  test/fixedbugs/issue22458.go             | 26 ++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 7faf2f13fe..bc0a972da4 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1133,12 +1133,15 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if v.Op == OpKeepAlive {
+ 				// Make sure the argument to v is still live here.
+ 				s.advanceUses(v)
+-				vi := &s.values[v.Args[0].ID]
+-				if vi.spill != nil {
++				a := v.Args[0]
++				vi := &s.values[a.ID]
++				if vi.regs == 0 && !vi.rematerializeable {
+ 					// Use the spill location.
+-					v.SetArg(0, vi.spill)
++					// This forces later liveness analysis to make the
++					// value live at this point.
++					v.SetArg(0, s.makeSpill(a, b))
+ 				} else {
+-					// No need to keep unspilled values live.
++					// In-register and rematerializeable values are already live.
+ 					// These are typically rematerializeable constants like nil,
+ 					// or values of a variable that were modified since the last call.
+ 					v.Op = OpCopy
+diff --git a/test/fixedbugs/issue22458.go b/test/fixedbugs/issue22458.go
+new file mode 100644
+index 0000000000..5c89929577
+--- /dev/null
++++ b/test/fixedbugs/issue22458.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure KeepAlive introduces a use of the spilled variable.
++
++package main
++
++import "runtime"
++
++type node struct {
++        next *node
++}
++
++var x bool
++
++func main() {
++        var head *node
++        for x {
++                head = &node{head}
++        }
++
++        runtime.KeepAlive(head)
++}

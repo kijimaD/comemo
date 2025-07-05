@@ -7,6 +7,14 @@ Date:   Mon Dec 22 09:32:34 2014 -0800
     Change-Id: I04d2e83f86f021464190f0b0fe0e450cb4662ad9
     Reviewed-on: https://go-review.googlesource.com/1971
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index a80f25382a..307694f9ef 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -1 +1,2 @@
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
++encoding/base64: add unpadded encodings (https://golang.org/cl/1511)

@@ -14,6 +14,36 @@ Date:   Tue Apr 16 16:01:50 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 07ab135186..51b8dcd155 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -7,6 +7,7 @@ package gcimporter_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/godebug"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -204,6 +205,16 @@ func TestImportTypeparamTests(t *testing.T) {
+ 				want := types.ObjectString(checkedObj, types.RelativeTo(checked))
+ 				want = sanitizeObjectString(want)
+ 
++				// TODO(golang/go#66859): investigate and reenable these tests,
++				// which fail with gotypesalias=1, soon to be the default.
++				if godebug.New("gotypesalias").Value() != "0" {
++					symbol := name + " in " + filepath.Base(filename)
++					switch symbol {
++					case "Eint2 in struct.go", "A in issue50259.go":
++						t.Skipf("%s requires gotypesalias=1", symbol)
++					}
++				}
++
+ 				if got != want {
+ 					t.Errorf("imported %q as %q, want %q", name, got, want)
+ 				}

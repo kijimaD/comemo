@@ -7,6 +7,28 @@ Date:   Wed Jul 29 09:43:32 2015 +1000
     Change-Id: I45d92fed757fa1866d5b80e53ed1af6712fa6741
     Reviewed-on: https://go-review.googlesource.com/12782
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 9dc289e639..4e173d130a 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -931,6 +931,16 @@ if a JSON value is not appropriate for the target variable or component
+ to which it is being unmarshaled.
+ </li>
+ 
++<li>
++The <code>encoding/json</code>'s
++<a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
++type has a new method that provides a streaming interface for decoding
++a JSON document:
++<a href="/pkg/encoding/json/#Decoder.Token"><code>Token</code></a>.
++It also interoperates with the existing functionality of <code>Decode</code>,
++which will continue a decode operation already started with <code>Decoder.Token</code>.
++</li>
++
+ <li>
+ The <a href="/pkg/flag/"><code>flag</code></a> package
+ has a new function, <a href="/pkg/flag/#UnquoteUsage"><code>UnquoteUsage</code></a>,

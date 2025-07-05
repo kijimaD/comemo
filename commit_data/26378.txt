@@ -13,7 +13,7 @@ Date:   Tue Jan 12 15:34:03 2016 -0800
     Change-Id: I50576478e478670c3d6429ad4e1b7d80f98a19d8
     Reviewed-on: https://go-review.googlesource.com/18548
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os1_darwin.go    |  4 ++--
  src/runtime/os1_dragonfly.go |  4 ++--
  src/runtime/os1_freebsd.go   |  4 ++--
@@ -26,3 +26,189 @@ Date:   Tue Jan 12 15:34:03 2016 -0800
  src/runtime/os3_solaris.go   |  5 +++--
  src/runtime/proc.go          | 10 +++++++---
  11 files changed, 25 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index b5a1f59119..e9e0b6aa1c 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -147,8 +147,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 59ffb809d3..5b146209dc 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -123,8 +123,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 05d13439b8..79d995476e 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -126,8 +126,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 747a1ac5e3..b38cfc14f9 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -213,9 +213,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	smask := &mp.sigmask
+-	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
++func msigrestore(sigmask sigset) {
++	rtsigprocmask(_SIG_SETMASK, &sigmask, nil, int32(unsafe.Sizeof(sigmask)))
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index 3af51b7017..dab205de6a 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -22,7 +22,7 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
++func msigrestore(sigmask sigset) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 79524aaf27..42199020e5 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -144,8 +144,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 7e1aa33f0b..a6cefa2039 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -156,8 +156,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, mp.sigmask)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, sigmask)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 61ebc1dc20..7506d591df 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -26,7 +26,7 @@ func mpreinit(mp *m) {
+ func msigsave(mp *m) {
+ }
+ 
+-func msigrestore(mp *m) {
++func msigrestore(sigmask sigset) {
+ }
+ 
+ func sigblock() {
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index a59e9ec88c..a28e11e088 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -391,7 +391,7 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
++func msigrestore(sigmask sigset) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 7d9ee5c00e..3f2efa88c7 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -198,8 +198,8 @@ func msigsave(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigrestore(mp *m) {
+-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -540,6 +540,7 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
++//go:noescape
+ func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
+ 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index be1bb815d5..a7e94a9c1d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1427,20 +1427,24 @@ func dropm() {
+ 	// After the call to setg we can only call nosplit functions
+ 	// with no pointer manipulation.
+ 	mp := getg().m
+-	mnext := lockextra(true)
+-	mp.schedlink.set(mnext)
+ 
+ 	// Block signals before unminit.
+ 	// Unminit unregisters the signal handling stack (but needs g on some systems).
+ 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
+ 	// It's important not to try to handle a signal between those two steps.
++	sigmask := mp.sigmask
+ 	sigblock()
+ 	unminit()
++
++	mnext := lockextra(true)
++	mp.schedlink.set(mnext)
++
+ 	setg(nil)
+-	msigrestore(mp)
+ 
+ 	// Commit the release of mp.
+ 	unlockextra(mp)
++
++	msigrestore(sigmask)
+ }
+ 
+ // A helper function for EnsureDropM.

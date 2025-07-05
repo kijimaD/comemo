@@ -23,7 +23,7 @@ Date:   Sat Nov 28 01:41:13 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go             |   1 +
  src/cmd/compile/internal/gc/alg.go         |   2 +-
  src/cmd/compile/internal/gc/align.go       |  10 +-
@@ -49,3 +49,1465 @@ Date:   Sat Nov 28 01:41:13 2020 -0500
  src/cmd/compile/internal/ir/node.go        |  56 +++-----
  src/cmd/compile/internal/ir/sizeof_test.go |   5 +-
  24 files changed, 256 insertions(+), 265 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 7a375604fd..978c83e5c2 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -22,6 +22,7 @@ package main_test
+ var knownFormats = map[string]string{
+ 	"*bytes.Buffer %s":                                "",
+ 	"*cmd/compile/internal/gc.EscLocation %v":         "",
++	"*cmd/compile/internal/ir.Name %v":                "",
+ 	"*cmd/compile/internal/ir.node %v":                "",
+ 	"*cmd/compile/internal/ssa.Block %s":              "",
+ 	"*cmd/compile/internal/ssa.Block %v":              "",
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index d2762126ad..356f0eada7 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -311,7 +311,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		hashel := hashfor(t.Elem())
+ 
+ 		n := ir.Nod(ir.ORANGE, nil, ir.Nod(ir.ODEREF, np, nil))
+-		ni := NewName(lookup("i"))
++		ni := ir.Node(NewName(lookup("i")))
+ 		ni.SetType(types.Types[types.TINT])
+ 		n.PtrList().Set1(ni)
+ 		n.SetColas(true)
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index edf7d263a3..4f8f04d73d 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -126,8 +126,8 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			// NOTE(rsc): This comment may be stale.
+ 			// It's possible the ordering has changed and this is
+ 			// now the common case. I'm not sure.
+-			if n.Name().Param.Stackcopy != nil {
+-				n.Name().Param.Stackcopy.SetOffset(o)
++			if n.Name().Stackcopy != nil {
++				n.Name().Stackcopy.SetOffset(o)
+ 				n.SetOffset(0)
+ 			} else {
+ 				n.SetOffset(o)
+@@ -198,8 +198,10 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		}
+ 
+ 		*path = append(*path, t)
+-		if p := ir.AsNode(t.Nod).Name().Param; p != nil && findTypeLoop(p.Ntype.Type(), path) {
+-			return true
++		if n := ir.AsNode(t.Nod); n != nil {
++			if name := n.Name(); name != nil && name.Ntype != nil && findTypeLoop(name.Ntype.Type(), path) {
++				return true
++			}
+ 		}
+ 		*path = (*path)[:len(*path)-1]
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 2901ae41d6..7a1078326d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -21,7 +21,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	fn := dcl.Func()
+ 	fn.SetIsHiddenClosure(Curfn != nil)
+ 	fn.Nname = newfuncnamel(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+-	fn.Nname.Name().Param.Ntype = xtype
++	fn.Nname.Name().Ntype = xtype
+ 	fn.Nname.Name().Defn = dcl
+ 
+ 	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
+@@ -38,7 +38,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	for _, v := range fn.ClosureVars.Slice() {
+ 		// Unlink from v1; see comment in syntax.go type Param for these fields.
+ 		v1 := v.Name().Defn
+-		v1.Name().Param.Innermost = v.Name().Param.Outer
++		v1.Name().Innermost = v.Name().Outer
+ 
+ 		// If the closure usage of v is not dense,
+ 		// we need to make it dense; now that we're out
+@@ -68,7 +68,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 		// obtains f3's v, creating it if necessary (as it is in the example).
+ 		//
+ 		// capturevars will decide whether to use v directly or &v.
+-		v.Name().Param.Outer = oldname(v.Sym())
++		v.Name().Outer = oldname(v.Sym()).(*ir.Name)
+ 	}
+ 
+ 	return clo
+@@ -194,7 +194,8 @@ func capturevars(dcl ir.Node) {
+ 		// so that the outer frame also grabs them and knows they escape.
+ 		dowidth(v.Type())
+ 
+-		outer := v.Name().Param.Outer
++		var outer ir.Node
++		outer = v.Name().Outer
+ 		outermost := v.Name().Defn
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+@@ -262,7 +263,7 @@ func transformclosure(dcl ir.Node) {
+ 				// (accesses will implicitly deref &v).
+ 				addr := NewName(lookup("&" + v.Sym().Name))
+ 				addr.SetType(types.NewPtr(v.Type()))
+-				v.Name().Param.Heapaddr = addr
++				v.Name().Heapaddr = addr
+ 				v = addr
+ 			}
+ 
+@@ -312,7 +313,7 @@ func transformclosure(dcl ir.Node) {
+ 				addr.Name().SetUsed(true)
+ 				addr.Name().Curfn = dcl
+ 				fn.Dcl = append(fn.Dcl, addr)
+-				v.Name().Param.Heapaddr = addr
++				v.Name().Heapaddr = addr
+ 				if v.Name().Byval() {
+ 					cv = ir.Nod(ir.OADDR, cv, nil)
+ 				}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 2a7be137c0..04e6e7a596 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"go/constant"
+ 	"strings"
+ )
+ 
+@@ -64,11 +63,6 @@ func declare(n ir.Node, ctxt ir.Class) {
+ 		return
+ 	}
+ 
+-	if n.Name() == nil {
+-		// named OLITERAL needs Name; most OLITERALs don't.
+-		n.SetName(new(ir.Name))
+-	}
+-
+ 	s := n.Sym()
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+@@ -152,7 +146,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 		for _, v := range vl {
+ 			v.SetOp(ir.ONAME)
+ 			declare(v, dclcontext)
+-			v.Name().Param.Ntype = t
++			v.Name().Ntype = t
+ 			v.Name().Defn = as2
+ 			if Curfn != nil {
+ 				init = append(init, ir.Nod(ir.ODCL, v, nil))
+@@ -176,7 +170,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 
+ 		v.SetOp(ir.ONAME)
+ 		declare(v, dclcontext)
+-		v.Name().Param.Ntype = t
++		v.Name().Ntype = t
+ 
+ 		if e != nil || Curfn != nil || ir.IsBlank(v) {
+ 			if Curfn != nil {
+@@ -201,9 +195,8 @@ func newnoname(s *types.Sym) ir.Node {
+ 	if s == nil {
+ 		base.Fatalf("newnoname nil")
+ 	}
+-	n := ir.Nod(ir.ONONAME, nil, nil)
+-	n.SetSym(s)
+-	n.SetOffset(0)
++	n := ir.NewNameAt(base.Pos, s)
++	n.SetOp(ir.ONONAME)
+ 	return n
+ }
+ 
+@@ -220,7 +213,7 @@ func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) ir.Node {
+ 
+ // this generates a new name node for a name
+ // being declared.
+-func dclname(s *types.Sym) ir.Node {
++func dclname(s *types.Sym) *ir.Name {
+ 	n := NewName(s)
+ 	n.SetOp(ir.ONONAME) // caller will correct it
+ 	return n
+@@ -277,7 +270,7 @@ func oldname(s *types.Sym) ir.Node {
+ 		// are parsing x := 5 inside the closure, until we get to
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+-		c := n.Name().Param.Innermost
++		c := n.Name().Innermost
+ 		if c == nil || c.Name().Curfn != Curfn {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = NewName(s)
+@@ -288,8 +281,8 @@ func oldname(s *types.Sym) ir.Node {
+ 
+ 			// Link into list of active closure variables.
+ 			// Popped from list in func funcLit.
+-			c.Name().Param.Outer = n.Name().Param.Innermost
+-			n.Name().Param.Innermost = c
++			c.Name().Outer = n.Name().Innermost
++			n.Name().Innermost = c
+ 
+ 			Curfn.Func().ClosureVars.Append(c)
+ 		}
+@@ -392,8 +385,8 @@ func funchdr(n ir.Node) {
+ 
+ 	types.Markdcl()
+ 
+-	if n.Func().Nname != nil && n.Func().Nname.Name().Param.Ntype != nil {
+-		funcargs(n.Func().Nname.Name().Param.Ntype)
++	if n.Func().Nname != nil && n.Func().Nname.Name().Ntype != nil {
++		funcargs(n.Func().Nname.Name().Ntype)
+ 	} else {
+ 		funcargs2(n.Type())
+ 	}
+@@ -458,7 +451,7 @@ func funcarg(n ir.Node, ctxt ir.Class) {
+ 	}
+ 
+ 	n.SetRight(ir.NewNameAt(n.Pos(), n.Sym()))
+-	n.Right().Name().Param.Ntype = n.Left()
++	n.Right().Name().Ntype = n.Left()
+ 	n.Right().SetIsDDD(n.IsDDD())
+ 	declare(n.Right(), ctxt)
+ 
+@@ -554,8 +547,8 @@ func structfield(n ir.Node) *types.Field {
+ 		checkembeddedtype(n.Type())
+ 		f.Embedded = 1
+ 	}
+-	if n.HasVal() {
+-		f.Note = constant.StringVal(n.Val())
++	if n.Opt() != nil {
++		f.Note = n.Opt().(string)
+ 	}
+ 
+ 	base.Pos = lno
+@@ -640,7 +633,7 @@ func interfacefield(n ir.Node) *types.Field {
+ 		base.Fatalf("interfacefield: oops %v\n", n)
+ 	}
+ 
+-	if n.HasVal() {
++	if n.Opt() != nil {
+ 		base.Errorf("interface method cannot have annotation")
+ 	}
+ 
+@@ -952,10 +945,10 @@ func dclfunc(sym *types.Sym, tfn ir.Node) ir.Node {
+ 	fn := ir.Nod(ir.ODCLFUNC, nil, nil)
+ 	fn.Func().Nname = newfuncnamel(base.Pos, sym, fn.Func())
+ 	fn.Func().Nname.Name().Defn = fn
+-	fn.Func().Nname.Name().Param.Ntype = tfn
++	fn.Func().Nname.Name().Ntype = tfn
+ 	setNodeNameFunc(fn.Func().Nname)
+ 	funchdr(fn)
+-	fn.Func().Nname.Name().Param.Ntype = typecheck(fn.Func().Nname.Name().Param.Ntype, ctxType)
++	fn.Func().Nname.Name().Ntype = typecheck(fn.Func().Nname.Name().Ntype, ctxType)
+ 	return fn
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 33b05a5bf0..1c8ccdadef 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -115,13 +115,13 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []
+ 		numLocalEmbed++
+ 		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
+ 		v.Sym().Def = v
+-		v.Name().Param.Ntype = typ
++		v.Name().Ntype = typ
+ 		v.SetClass(ir.PEXTERN)
+ 		externdcl = append(externdcl, v)
+ 		exprs = []ir.Node{v}
+ 	}
+ 
+-	v.Name().Param.SetEmbedFiles(list)
++	v.Name().SetEmbedFiles(list)
+ 	embedlist = append(embedlist, v)
+ 	return exprs
+ }
+@@ -193,7 +193,7 @@ func dumpembeds() {
+ // initEmbed emits the init data for a //go:embed variable,
+ // which is either a string, a []byte, or an embed.FS.
+ func initEmbed(v ir.Node) {
+-	files := v.Name().Param.EmbedFiles()
++	files := v.Name().EmbedFiles()
+ 	switch kind := embedKind(v.Type()); kind {
+ 	case embedUnknown:
+ 		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index e3ac883e95..351643ef5d 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1895,7 +1895,7 @@ func moveToHeap(n ir.Node) {
+ 		stackcopy.SetType(n.Type())
+ 		stackcopy.SetOffset(n.Offset())
+ 		stackcopy.SetClass(n.Class())
+-		stackcopy.Name().Param.Heapaddr = heapaddr
++		stackcopy.Name().Heapaddr = heapaddr
+ 		if n.Class() == ir.PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+@@ -1904,7 +1904,7 @@ func moveToHeap(n ir.Node) {
+ 			// See issue 16095.
+ 			heapaddr.Name().SetIsOutputParamHeapAddr(true)
+ 		}
+-		n.Name().Param.Stackcopy = stackcopy
++		n.Name().Stackcopy = stackcopy
+ 
+ 		// Substitute the stackcopy into the function variable list so that
+ 		// liveness and other analyses use the underlying stack slot
+@@ -1931,7 +1931,7 @@ func moveToHeap(n ir.Node) {
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+ 	n.SetClass(ir.PAUTOHEAP)
+ 	n.SetOffset(0)
+-	n.Name().Param.Heapaddr = heapaddr
++	n.Name().Heapaddr = heapaddr
+ 	n.SetEsc(EscHeap)
+ 	if base.Flag.LowerM != 0 {
+ 		base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index cb640c7ccf..cf9e0d58bf 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -31,13 +31,13 @@ func sysvar(name string) *obj.LSym {
+ // isParamStackCopy reports whether this is the on-stack copy of a
+ // function parameter that moved to the heap.
+ func isParamStackCopy(n ir.Node) bool {
+-	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Param.Heapaddr != nil
++	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Heapaddr != nil
+ }
+ 
+ // isParamHeapCopy reports whether this is the on-heap copy of
+ // a function parameter that moved to the heap.
+ func isParamHeapCopy(n ir.Node) bool {
+-	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy != nil
++	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy != nil
+ }
+ 
+ // autotmpname returns the name for an autotmp variable numbered n.
+@@ -52,7 +52,7 @@ func autotmpname(n int) string {
+ }
+ 
+ // make a new Node off the books
+-func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
++func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
+ 	if curfn == nil {
+ 		base.Fatalf("no curfn for tempAt")
+ 	}
+@@ -80,9 +80,9 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
+ 
+ 	dowidth(t)
+ 
+-	return ir.Orig(n)
++	return n
+ }
+ 
+-func temp(t *types.Type) ir.Node {
++func temp(t *types.Type) *ir.Name {
+ 	return tempAt(base.Pos, Curfn, t)
+ }
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index c2ea599af4..88d3a6477c 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1463,7 +1463,7 @@ func (w *exportWriter) localName(n ir.Node) {
+ 	// PPARAM/PPARAMOUT, because we only want to include vargen in
+ 	// non-param names.
+ 	var v int32
+-	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy == nil) {
++	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
+ 		v = n.Name().Vargen
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index d43d0d06af..102144aedf 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -982,7 +982,7 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 					continue
+ 				}
+ 
+-				o := v.Name().Param.Outer
++				o := v.Name().Outer
+ 				// make sure the outer param matches the inlining location
+ 				// NB: if we enabled inlining of functions containing OCLOSURE or refined
+ 				// the reassigned check via some sort of copy propagation this would most
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7d2933f360..931626159d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -253,7 +253,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Param.Alias()) {
++		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Alias()) {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+@@ -265,7 +265,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Param.Alias() {
++		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Alias() {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 54915d7693..cbe8a24051 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -456,7 +456,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		n.SetOp(ir.OLITERAL)
+ 		declare(n, dclcontext)
+ 
+-		n.Name().Param.Ntype = typ
++		n.Name().Ntype = typ
+ 		n.Name().Defn = v
+ 		n.SetIota(cs.iota)
+ 
+@@ -480,19 +480,18 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 	// decl.Type may be nil but in that case we got a syntax error during parsing
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+-	param := n.Name().Param
+-	param.Ntype = typ
+-	param.SetAlias(decl.Alias)
++	n.Ntype = typ
++	n.SetAlias(decl.Alias)
+ 	if pragma, ok := decl.Pragma.(*Pragma); ok {
+ 		if !decl.Alias {
+-			param.SetPragma(pragma.Flag & TypePragmas)
++			n.SetPragma(pragma.Flag & TypePragmas)
+ 			pragma.Flag &^= TypePragmas
+ 		}
+ 		p.checkUnused(pragma)
+ 	}
+ 
+ 	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
+-	if param.Alias() && !langSupported(1, 9, ir.LocalPkg) {
++	if n.Alias() && !langSupported(1, 9, ir.LocalPkg) {
+ 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
+ 	}
+ 	return nod
+@@ -506,7 +505,7 @@ func (p *noder) declNames(names []*syntax.Name) []ir.Node {
+ 	return nodes
+ }
+ 
+-func (p *noder) declName(name *syntax.Name) ir.Node {
++func (p *noder) declName(name *syntax.Name) *ir.Name {
+ 	n := dclname(p.name(name))
+ 	n.SetPos(p.pos(name))
+ 	return n
+@@ -537,7 +536,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 
+ 	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
+ 	f.Func().Nname.Name().Defn = f
+-	f.Func().Nname.Name().Param.Ntype = t
++	f.Func().Nname.Name().Ntype = t
+ 
+ 	if pragma, ok := fun.Pragma.(*Pragma); ok {
+ 		f.Func().Pragma = pragma.Flag & FuncPragmas
+@@ -872,7 +871,7 @@ func (p *noder) structType(expr *syntax.StructType) ir.Node {
+ 			n = p.nodSym(field, ir.ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
+ 		}
+ 		if i < len(expr.TagList) && expr.TagList[i] != nil {
+-			n.SetVal(p.basicLit(expr.TagList[i]))
++			n.SetOpt(constant.StringVal(p.basicLit(expr.TagList[i])))
+ 		}
+ 		l = append(l, n)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 221b733a07..b74b132632 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -667,7 +667,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.
+ 			// misleading location for the param (we want pointer-to-heap
+ 			// and not stack).
+ 			// TODO(thanm): generate a better location expression
+-			stackcopy := n.Name().Param.Stackcopy
++			stackcopy := n.Name().Stackcopy
+ 			if stackcopy != nil && (stackcopy.Class() == ir.PPARAM || stackcopy.Class() == ir.PPARAMOUT) {
+ 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 				isReturnValue = (stackcopy.Class() == ir.PPARAMOUT)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index bd7696d859..e3a9b2a198 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -795,7 +795,7 @@ func (lv *Liveness) epilogue() {
+ 					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					base.Fatalf("variable %v both output param and heap output param", n)
+ 				}
+-				if n.Name().Param.Heapaddr != nil {
++				if n.Name().Heapaddr != nil {
+ 					// If this variable moved to the heap, then
+ 					// its stack copy is not live.
+ 					continue
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5c410ce3ba..28703205d6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -136,7 +136,7 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
+ }
+ 
+ // newname returns a new ONAME Node associated with symbol s.
+-func NewName(s *types.Sym) ir.Node {
++func NewName(s *types.Sym) *ir.Name {
+ 	n := ir.NewNameAt(base.Pos, s)
+ 	n.Name().Curfn = Curfn
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0c4a3ad833..4ab47fb406 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -259,12 +259,12 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 				// are substituted.
+ 				cycle := cycleFor(n)
+ 				for _, n1 := range cycle {
+-					if n1.Name() != nil && !n1.Name().Param.Alias() {
++					if n1.Name() != nil && !n1.Name().Alias() {
+ 						// Cycle is ok. But if n is an alias type and doesn't
+ 						// have a type yet, we have a recursive type declaration
+ 						// with aliases that we can't handle properly yet.
+ 						// Report an error rather than crashing later.
+-						if n.Name() != nil && n.Name().Param.Alias() && n.Type() == nil {
++						if n.Name() != nil && n.Name().Alias() && n.Type() == nil {
+ 							base.Pos = n.Pos()
+ 							base.Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
+ 						}
+@@ -2412,9 +2412,6 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
+ 	}
+ 
+ 	n.SetOp(ir.OMETHEXPR)
+-	if n.Name() == nil {
+-		n.SetName(new(ir.Name))
+-	}
+ 	n.SetRight(NewName(n.Sym()))
+ 	n.SetSym(methodSym(t, n.Sym()))
+ 	n.SetType(methodfunc(m.Type, n.Left().Type()))
+@@ -3228,7 +3225,7 @@ func typecheckas(n ir.Node) {
+ 	// so that the conversion below happens).
+ 	n.SetLeft(resolve(n.Left()))
+ 
+-	if n.Left().Name() == nil || n.Left().Name().Defn != n || n.Left().Name().Param.Ntype != nil {
++	if n.Left().Name() == nil || n.Left().Name().Defn != n || n.Left().Name().Ntype != nil {
+ 		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxAssign))
+ 	}
+ 
+@@ -3247,7 +3244,7 @@ func typecheckas(n ir.Node) {
+ 		}
+ 	}
+ 
+-	if n.Left().Name() != nil && n.Left().Name().Defn == n && n.Left().Name().Param.Ntype == nil {
++	if n.Left().Name() != nil && n.Left().Name().Defn == n && n.Left().Name().Ntype == nil {
+ 		n.SetRight(defaultlit(n.Right(), nil))
+ 		n.Left().SetType(n.Right().Type())
+ 	}
+@@ -3283,7 +3280,7 @@ func typecheckas2(n ir.Node) {
+ 		n1 = resolve(n1)
+ 		ls[i1] = n1
+ 
+-		if n1.Name() == nil || n1.Name().Defn != n || n1.Name().Param.Ntype != nil {
++		if n1.Name() == nil || n1.Name().Defn != n || n1.Name().Ntype != nil {
+ 			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
+ 		}
+ 	}
+@@ -3308,7 +3305,7 @@ func typecheckas2(n ir.Node) {
+ 			if nl.Type() != nil && nr.Type() != nil {
+ 				rs[il] = assignconv(nr, nl.Type(), "assignment")
+ 			}
+-			if nl.Name() != nil && nl.Name().Defn == n && nl.Name().Param.Ntype == nil {
++			if nl.Name() != nil && nl.Name().Defn == n && nl.Name().Ntype == nil {
+ 				rs[il] = defaultlit(rs[il], nil)
+ 				nl.SetType(rs[il].Type())
+ 			}
+@@ -3342,7 +3339,7 @@ func typecheckas2(n ir.Node) {
+ 				if f.Type != nil && l.Type() != nil {
+ 					checkassignto(f.Type, l)
+ 				}
+-				if l.Name() != nil && l.Name().Defn == n && l.Name().Param.Ntype == nil {
++				if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
+ 					l.SetType(f.Type)
+ 				}
+ 			}
+@@ -3378,7 +3375,7 @@ func typecheckas2(n ir.Node) {
+ 			if l.Type() != nil && !l.Type().IsBoolean() {
+ 				checkassignto(types.Types[types.TBOOL], l)
+ 			}
+-			if l.Name() != nil && l.Name().Defn == n && l.Name().Param.Ntype == nil {
++			if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
+ 				l.SetType(types.Types[types.TBOOL])
+ 			}
+ 			goto out
+@@ -3502,7 +3499,7 @@ func setUnderlying(t, underlying *types.Type) {
+ 	}
+ 
+ 	// Propagate go:notinheap pragma from the Name to the Type.
+-	if n.Name() != nil && n.Name().Param != nil && n.Name().Param.Pragma()&ir.NotInHeap != 0 {
++	if n.Name() != nil && n.Name().Pragma()&ir.NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}
+ 
+@@ -3525,8 +3522,8 @@ func typecheckdeftype(n ir.Node) {
+ 	}
+ 
+ 	n.SetTypecheck(1)
+-	n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
+-	t := n.Name().Param.Ntype.Type()
++	n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
++	t := n.Name().Ntype.Type()
+ 	if t == nil {
+ 		n.SetDiag(true)
+ 		n.SetType(nil)
+@@ -3586,10 +3583,10 @@ func typecheckdef(n ir.Node) {
+ 		base.Fatalf("typecheckdef %v", n.Op())
+ 
+ 	case ir.OLITERAL:
+-		if n.Name().Param.Ntype != nil {
+-			n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
+-			n.SetType(n.Name().Param.Ntype.Type())
+-			n.Name().Param.Ntype = nil
++		if n.Name().Ntype != nil {
++			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
++			n.SetType(n.Name().Ntype.Type())
++			n.Name().Ntype = nil
+ 			if n.Type() == nil {
+ 				n.SetDiag(true)
+ 				goto ret
+@@ -3640,9 +3637,9 @@ func typecheckdef(n ir.Node) {
+ 		}
+ 
+ 	case ir.ONAME:
+-		if n.Name().Param.Ntype != nil {
+-			n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
+-			n.SetType(n.Name().Param.Ntype.Type())
++		if n.Name().Ntype != nil {
++			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
++			n.SetType(n.Name().Ntype.Type())
+ 			if n.Type() == nil {
+ 				n.SetDiag(true)
+ 				goto ret
+@@ -3676,21 +3673,22 @@ func typecheckdef(n ir.Node) {
+ 		n.Name().Defn = typecheck(n.Name().Defn, ctxStmt) // fills in n.Type
+ 
+ 	case ir.OTYPE:
+-		if p := n.Name().Param; p.Alias() {
++		n := n.(*ir.Name)
++		if n.Alias() {
+ 			// Type alias declaration: Simply use the rhs type - no need
+ 			// to create a new type.
+ 			// If we have a syntax error, p.Ntype may be nil.
+-			if p.Ntype != nil {
+-				p.Ntype = typecheck(p.Ntype, ctxType)
+-				n.SetType(p.Ntype.Type())
++			if n.Ntype != nil {
++				n.Ntype = typecheck(n.Ntype, ctxType)
++				n.SetType(n.Ntype.Type())
+ 				if n.Type() == nil {
+ 					n.SetDiag(true)
+ 					goto ret
+ 				}
+ 				// For package-level type aliases, set n.Sym.Def so we can identify
+ 				// it as a type alias during export. See also #31959.
+-				if n.Name().Curfn == nil {
+-					n.Sym().Def = p.Ntype
++				if n.Curfn == nil {
++					n.Sym().Def = n.Ntype
+ 				}
+ 			}
+ 			break
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 978e53ac15..1068720748 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -110,7 +110,6 @@ func lexinit() {
+ 			types.Types[etype] = t
+ 		}
+ 		s2.Def = typenod(t)
+-		ir.AsNode(s2.Def).SetName(new(ir.Name))
+ 	}
+ 
+ 	for _, s := range &builtinFuncs {
+@@ -132,13 +131,11 @@ func lexinit() {
+ 	s := ir.BuiltinPkg.Lookup("true")
+ 	s.Def = nodbool(true)
+ 	ir.AsNode(s.Def).SetSym(lookup("true"))
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	ir.AsNode(s.Def).SetType(types.UntypedBool)
+ 
+ 	s = ir.BuiltinPkg.Lookup("false")
+ 	s.Def = nodbool(false)
+ 	ir.AsNode(s.Def).SetSym(lookup("false"))
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	ir.AsNode(s.Def).SetType(types.UntypedBool)
+ 
+ 	s = lookup("_")
+@@ -158,12 +155,10 @@ func lexinit() {
+ 	s = ir.BuiltinPkg.Lookup("nil")
+ 	s.Def = nodnil()
+ 	ir.AsNode(s.Def).SetSym(s)
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 
+ 	s = ir.BuiltinPkg.Lookup("iota")
+ 	s.Def = ir.Nod(ir.OIOTA, nil, nil)
+ 	ir.AsNode(s.Def).SetSym(s)
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ }
+ 
+ func typeinit() {
+@@ -182,7 +177,6 @@ func typeinit() {
+ 	types.Types[types.TUNSAFEPTR] = t
+ 	t.Sym = unsafepkg.Lookup("Pointer")
+ 	t.Sym.Def = typenod(t)
+-	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
+ 	dowidth(types.Types[types.TUNSAFEPTR])
+ 
+ 	for et := types.TINT8; et <= types.TUINT64; et++ {
+@@ -359,7 +353,6 @@ func lexinit1() {
+ 	types.Bytetype = types.New(types.TUINT8)
+ 	types.Bytetype.Sym = s
+ 	s.Def = typenod(types.Bytetype)
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	dowidth(types.Bytetype)
+ 
+ 	// rune alias
+@@ -367,7 +360,6 @@ func lexinit1() {
+ 	types.Runetype = types.New(types.TINT32)
+ 	types.Runetype.Sym = s
+ 	s.Def = typenod(types.Runetype)
+-	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	dowidth(types.Runetype)
+ 
+ 	// backend-dependent builtin types (e.g. int).
+@@ -385,7 +377,6 @@ func lexinit1() {
+ 		t.Sym = s1
+ 		types.Types[s.etype] = t
+ 		s1.Def = typenod(t)
+-		ir.AsNode(s1.Def).SetName(new(ir.Name))
+ 		s1.Origpkg = ir.BuiltinPkg
+ 
+ 		dowidth(t)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 87fe36b08a..c05aa0c372 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -196,7 +196,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 			if prealloc[v] == nil {
+ 				prealloc[v] = callnew(v.Type())
+ 			}
+-			nn := ir.Nod(ir.OAS, v.Name().Param.Heapaddr, prealloc[v])
++			nn := ir.Nod(ir.OAS, v.Name().Heapaddr, prealloc[v])
+ 			nn.SetColas(true)
+ 			nn = typecheck(nn, ctxStmt)
+ 			return walkstmt(nn)
+@@ -286,7 +286,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 				}
+ 				if cl == ir.PPARAMOUT {
+ 					if isParamStackCopy(ln) {
+-						ln = walkexpr(typecheck(ir.Nod(ir.ODEREF, ln.Name().Param.Heapaddr, nil), ctxExpr), nil)
++						ln = walkexpr(typecheck(ir.Nod(ir.ODEREF, ln.Name().Heapaddr, nil), ctxExpr), nil)
+ 					}
+ 					rl = append(rl, ln)
+ 				}
+@@ -314,7 +314,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 		for i, nl := range lhs.FieldSlice() {
+ 			nname := ir.AsNode(nl.Nname)
+ 			if isParamHeapCopy(nname) {
+-				nname = nname.Name().Param.Stackcopy
++				nname = nname.Name().Stackcopy
+ 			}
+ 			a := ir.Nod(ir.OAS, nname, rhs[i])
+ 			res[i] = convas(a, n.PtrInit())
+@@ -456,7 +456,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	if n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP {
+-		nn := ir.Nod(ir.ODEREF, n.Name().Param.Heapaddr, nil)
++		nn := ir.Nod(ir.ODEREF, n.Name().Heapaddr, nil)
+ 		nn = typecheck(nn, ctxExpr)
+ 		nn = walkexpr(nn, init)
+ 		nn.Left().MarkNonNil()
+@@ -1160,7 +1160,7 @@ opswitch:
+ 			if n.Type().Elem().Width >= maxImplicitStackVarSize {
+ 				base.Fatalf("large ONEW with EscNone: %v", n)
+ 			}
+-			r := temp(n.Type().Elem())
++			r := ir.Node(temp(n.Type().Elem()))
+ 			r = ir.Nod(ir.OAS, r, nil) // zero temp
+ 			r = typecheck(r, ctxStmt)
+ 			init.Append(r)
+@@ -1776,7 +1776,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		// Any assignment to an lvalue that might cause a function call must be
+ 		// deferred until all the returned values have been read.
+ 		if fncall(l, r.Type) {
+-			tmp := temp(r.Type)
++			tmp := ir.Node(temp(r.Type))
+ 			tmp = typecheck(tmp, ctxExpr)
+ 			a := ir.Nod(ir.OAS, l, tmp)
+ 			a = convas(a, &mm)
+@@ -2174,7 +2174,7 @@ func reorder3save(n ir.Node, all []ir.Node, i int, early *[]ir.Node) ir.Node {
+ 		return n
+ 	}
+ 
+-	q := temp(n.Type())
++	q := ir.Node(temp(n.Type()))
+ 	q = ir.Nod(ir.OAS, q, n)
+ 	q = typecheck(q, ctxStmt)
+ 	*early = append(*early, q)
+@@ -2411,7 +2411,7 @@ func paramstoheap(params *types.Type) []ir.Node {
+ 			continue
+ 		}
+ 
+-		if stackcopy := v.Name().Param.Stackcopy; stackcopy != nil {
++		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
+ 			nn = append(nn, walkstmt(ir.Nod(ir.ODCL, v, nil)))
+ 			if stackcopy.Class() == ir.PPARAM {
+ 				nn = append(nn, walkstmt(typecheck(ir.Nod(ir.OAS, v, stackcopy), ctxStmt)))
+@@ -2432,7 +2432,7 @@ func paramstoheap(params *types.Type) []ir.Node {
+ func zeroResults() {
+ 	for _, f := range Curfn.Type().Results().Fields().Slice() {
+ 		v := ir.AsNode(f.Nname)
+-		if v != nil && v.Name().Param.Heapaddr != nil {
++		if v != nil && v.Name().Heapaddr != nil {
+ 			// The local which points to the return value is the
+ 			// thing that needs zeroing. This is already handled
+ 			// by a Needzero annotation in plive.go:livenessepilogue.
+@@ -2445,7 +2445,7 @@ func zeroResults() {
+ 			// I don't think the zeroing below matters.
+ 			// The stack return value will never be marked as live anywhere in the function.
+ 			// It is not written to until deferreturn returns.
+-			v = v.Name().Param.Stackcopy
++			v = v.Name().Stackcopy
+ 		}
+ 		// Zero the stack location containing f.
+ 		Curfn.Func().Enter.Append(ir.NodAt(Curfn.Pos(), ir.OAS, v, nil))
+@@ -2461,7 +2461,7 @@ func returnsfromheap(params *types.Type) []ir.Node {
+ 		if v == nil {
+ 			continue
+ 		}
+-		if stackcopy := v.Name().Param.Stackcopy; stackcopy != nil && stackcopy.Class() == ir.PPARAMOUT {
++		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class() == ir.PPARAMOUT {
+ 			nn = append(nn, walkstmt(typecheck(ir.Nod(ir.OAS, stackcopy, v), ctxStmt)))
+ 		}
+ 	}
+@@ -3155,7 +3155,7 @@ func copyany(n ir.Node, init *ir.Nodes, runtimecall bool) ir.Node {
+ 
+ 	fn := syslook("memmove")
+ 	fn = substArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
+-	nwid := temp(types.Types[types.TUINTPTR])
++	nwid := ir.Node(temp(types.Types[types.TUINTPTR]))
+ 	setwid := ir.Nod(ir.OAS, nwid, conv(nlen, types.Types[types.TUINTPTR]))
+ 	ne.PtrBody().Append(setwid)
+ 	nwid = ir.Nod(ir.OMUL, nwid, nodintconst(nl.Type().Elem().Width))
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+new file mode 100644
+index 0000000000..418351742e
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -0,0 +1,47 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/types"
++)
++
++// A miniStmt is a miniNode with extra fields common to expressions.
++// TODO(rsc): Once we are sure about the contents, compact the bools
++// into a bit field and leave extra bits available for implementations
++// embedding miniExpr. Right now there are ~60 unused bits sitting here.
++type miniExpr struct {
++	miniNode
++	typ   *types.Type
++	init  Nodes       // TODO(rsc): Don't require every Node to have an init
++	opt   interface{} // TODO(rsc): Don't require every Node to have an opt?
++	flags bitset8
++}
++
++const (
++	miniExprHasCall = 1 << iota
++	miniExprImplicit
++	miniExprNonNil
++	miniExprTransient
++	miniExprBounded
++)
++
++func (n *miniExpr) Type() *types.Type     { return n.typ }
++func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
++func (n *miniExpr) Opt() interface{}      { return n.opt }
++func (n *miniExpr) SetOpt(x interface{})  { n.opt = x }
++func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
++func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
++func (n *miniExpr) Implicit() bool        { return n.flags&miniExprImplicit != 0 }
++func (n *miniExpr) SetImplicit(b bool)    { n.flags.set(miniExprImplicit, b) }
++func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
++func (n *miniExpr) MarkNonNil()           { n.flags |= miniExprNonNil }
++func (n *miniExpr) Transient() bool       { return n.flags&miniExprTransient != 0 }
++func (n *miniExpr) SetTransient(b bool)   { n.flags.set(miniExprTransient, b) }
++func (n *miniExpr) Bounded() bool         { return n.flags&miniExprBounded != 0 }
++func (n *miniExpr) SetBounded(b bool)     { n.flags.set(miniExprBounded, b) }
++func (n *miniExpr) Init() Nodes           { return n.init }
++func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
++func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 24318d501f..e749778030 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1615,9 +1615,9 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 		} else {
+ 			mode.Fprintf(s, "%v%j", n.Op(), n)
+ 		}
+-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Param != nil && n.Name().Param.Ntype != nil {
++		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+ 			indent(s)
+-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Param.Ntype)
++			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
+ 		}
+ 
+ 	case OASOP:
+@@ -1625,9 +1625,9 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 
+ 	case OTYPE:
+ 		mode.Fprintf(s, "%v %v%j type=%v", n.Op(), n.Sym(), n, n.Type())
+-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Param != nil && n.Name().Param.Ntype != nil {
++		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+ 			indent(s)
+-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Param.Ntype)
++			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 608c2bed81..248fe232cb 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -130,7 +130,6 @@ func (n *miniNode) SetType(*types.Type) { panic(n.no("SetType")) }
+ func (n *miniNode) Func() *Func         { return nil }
+ func (n *miniNode) SetFunc(*Func)       { panic(n.no("SetFunc")) }
+ func (n *miniNode) Name() *Name         { return nil }
+-func (n *miniNode) SetName(*Name)       { panic(n.no("SetName")) }
+ func (n *miniNode) Sym() *types.Sym     { return nil }
+ func (n *miniNode) SetSym(*types.Sym)   { panic(n.no("SetSym")) }
+ func (n *miniNode) Offset() int64       { return types.BADWIDTH }
+@@ -164,7 +163,6 @@ func (n *miniNode) SetIndexMapLValue(bool)    { panic(n.no("SetIndexMapLValue"))
+ func (n *miniNode) ResetAux()                 { panic(n.no("ResetAux")) }
+ func (n *miniNode) HasBreak() bool            { panic(n.no("HasBreak")) }
+ func (n *miniNode) SetHasBreak(bool)          { panic(n.no("SetHasBreak")) }
+-func (n *miniNode) HasVal() bool              { return false }
+ func (n *miniNode) Val() constant.Value       { panic(n.no("Val")) }
+ func (n *miniNode) SetVal(v constant.Value)   { panic(n.no("SetVal")) }
+ func (n *miniNode) Int64Val() int64           { panic(n.no("Int64Val")) }
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 64d5d2a2ed..d330745cfb 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -15,29 +15,38 @@ import (
+ 
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
+ type Name struct {
++	miniExpr
++	subOp      Op    // uint8
++	class      Class // uint8
++	flags      bitset16
++	pragma     PragmaFlag // int16
++	sym        *types.Sym
++	typ        *types.Type
++	fn         *Func
++	offset     int64
++	val        constant.Value
++	orig       Node
++	embedFiles *[]string // list of embedded files, for ONAME var
++
+ 	PkgName *PkgName // real package for import . names
+ 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
+ 	// For a closure var, the ONAME node of the outer captured variable
+ 	Defn Node
+ 	// The ODCLFUNC node (for a static function/method or a closure) in which
+ 	// local variable or param is declared.
+-	Curfn     Node
+-	Param     *Param // additional fields for ONAME, OTYPE
+-	Decldepth int32  // declaration loop depth, increased for every loop or label
++	Curfn Node
+ 	// Unique number for ONAME nodes within a function. Function outputs
+ 	// (results) are numbered starting at one, followed by function inputs
+ 	// (parameters), and then local variables. Vargen is used to distinguish
+ 	// local variables/params with the same name.
+-	Vargen int32
+-	flags  bitset16
+-}
++	Vargen    int32
++	Decldepth int32 // declaration loop depth, increased for every loop or label
+ 
+-type Param struct {
+ 	Ntype    Node
+-	Heapaddr Node // temp holding heap address of param
++	Heapaddr *Name // temp holding heap address of param
+ 
+ 	// ONAME PAUTOHEAP
+-	Stackcopy Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
++	Stackcopy *Name // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+ 
+ 	// ONAME closure linkage
+ 	// Consider:
+@@ -108,114 +117,88 @@ type Param struct {
+ 	//
+ 	// Because of the sharding of pieces of the node, x.Defn means x.Name.Defn
+ 	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
+-	Innermost Node
+-	Outer     Node
+-
+-	// OTYPE & ONAME //go:embed info,
+-	// sharing storage to reduce gc.Param size.
+-	// Extra is nil, or else *Extra is a *paramType or an *embedFileList.
+-	Extra *interface{}
++	Innermost *Name
++	Outer     *Name
+ }
+ 
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+ // The caller is responsible for setting n.Name.Curfn.
+-func NewNameAt(pos src.XPos, s *types.Sym) Node {
+-	if s == nil {
+-		base.Fatalf("newnamel nil")
++func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
++	if sym == nil {
++		base.Fatalf("NewNameAt nil")
+ 	}
++	return newNameAt(pos, sym)
++}
+ 
+-	var x struct {
+-		n node
+-		m Name
+-		p Param
+-	}
+-	n := &x.n
+-	n.SetName(&x.m)
+-	n.Name().Param = &x.p
+-
+-	n.SetOp(ONAME)
+-	n.SetPos(pos)
+-	n.SetOrig(n)
+-
+-	n.SetSym(s)
++// newNameAt is like NewNameAt but allows sym == nil.
++func newNameAt(pos src.XPos, sym *types.Sym) *Name {
++	n := new(Name)
++	n.op = ONAME
++	n.pos = pos
++	n.orig = n
++	n.sym = sym
+ 	return n
+ }
+ 
+-type paramType struct {
+-	flag  PragmaFlag
+-	alias bool
++func (n *Name) String() string                { return fmt.Sprint(n) }
++func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *Name) RawCopy() Node                 { c := *n; return &c }
++func (n *Name) Name() *Name                   { return n }
++func (n *Name) Sym() *types.Sym               { return n.sym }
++func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
++func (n *Name) Orig() Node                    { return n.orig }
++func (n *Name) SetOrig(x Node)                { n.orig = x }
++func (n *Name) SubOp() Op                     { return n.subOp }
++func (n *Name) SetSubOp(x Op)                 { n.subOp = x }
++func (n *Name) Class() Class                  { return n.class }
++func (n *Name) SetClass(x Class)              { n.class = x }
++func (n *Name) Func() *Func                   { return n.fn }
++func (n *Name) SetFunc(x *Func)               { n.fn = x }
++func (n *Name) Offset() int64                 { return n.offset }
++func (n *Name) SetOffset(x int64)             { n.offset = x }
++func (n *Name) Iota() int64                   { return n.offset }
++func (n *Name) SetIota(x int64)               { n.offset = x }
++
++func (n *Name) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OLITERAL, ONONAME, ONAME, OTYPE, OIOTA:
++		n.op = op
++	}
+ }
+ 
+ // Pragma returns the PragmaFlag for p, which must be for an OTYPE.
+-func (p *Param) Pragma() PragmaFlag {
+-	if p.Extra == nil {
+-		return 0
+-	}
+-	return (*p.Extra).(*paramType).flag
+-}
++func (n *Name) Pragma() PragmaFlag { return n.pragma }
+ 
+ // SetPragma sets the PragmaFlag for p, which must be for an OTYPE.
+-func (p *Param) SetPragma(flag PragmaFlag) {
+-	if p.Extra == nil {
+-		if flag == 0 {
+-			return
+-		}
+-		p.Extra = new(interface{})
+-		*p.Extra = &paramType{flag: flag}
+-		return
+-	}
+-	(*p.Extra).(*paramType).flag = flag
+-}
++func (n *Name) SetPragma(flag PragmaFlag) { n.pragma = flag }
+ 
+ // Alias reports whether p, which must be for an OTYPE, is a type alias.
+-func (p *Param) Alias() bool {
+-	if p.Extra == nil {
+-		return false
+-	}
+-	t, ok := (*p.Extra).(*paramType)
+-	if !ok {
+-		return false
+-	}
+-	return t.alias
+-}
++func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
+ 
+ // SetAlias sets whether p, which must be for an OTYPE, is a type alias.
+-func (p *Param) SetAlias(alias bool) {
+-	if p.Extra == nil {
+-		if !alias {
+-			return
+-		}
+-		p.Extra = new(interface{})
+-		*p.Extra = &paramType{alias: alias}
+-		return
+-	}
+-	(*p.Extra).(*paramType).alias = alias
+-}
+-
+-type embedFileList []string
++func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
+ 
+ // EmbedFiles returns the list of embedded files for p,
+ // which must be for an ONAME var.
+-func (p *Param) EmbedFiles() []string {
+-	if p.Extra == nil {
++func (n *Name) EmbedFiles() []string {
++	if n.embedFiles == nil {
+ 		return nil
+ 	}
+-	return *(*p.Extra).(*embedFileList)
++	return *n.embedFiles
+ }
+ 
+ // SetEmbedFiles sets the list of embedded files for p,
+ // which must be for an ONAME var.
+-func (p *Param) SetEmbedFiles(list []string) {
+-	if p.Extra == nil {
+-		if len(list) == 0 {
+-			return
+-		}
+-		f := embedFileList(list)
+-		p.Extra = new(interface{})
+-		*p.Extra = &f
++func (n *Name) SetEmbedFiles(list []string) {
++	if n.embedFiles == nil && list == nil {
+ 		return
+ 	}
+-	*(*p.Extra).(*embedFileList) = list
++	if n.embedFiles == nil {
++		n.embedFiles = new([]string)
++	}
++	*n.embedFiles = list
+ }
+ 
+ const (
+@@ -233,6 +216,8 @@ const (
+ 	nameInlLocal              // PAUTO created by inliner, derived from callee local
+ 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
+ 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
++	nameIsDDD                 // is function argument a ...
++	nameAlias                 // is type name an alias
+ )
+ 
+ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+@@ -249,9 +234,10 @@ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
++func (n *Name) IsDDD() bool                 { return n.flags&nameIsDDD != 0 }
+ 
+ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+-func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
++func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+ func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
+ func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+ func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+@@ -264,13 +250,14 @@ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b)
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
++func (n *Name) SetIsDDD(b bool)                 { n.flags.set(nameIsDDD, b) }
+ 
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+-func (n *node) MarkReadonly() {
++func (n *Name) MarkReadonly() {
+ 	if n.Op() != ONAME {
+ 		base.Fatalf("Node.MarkReadonly %v", n.Op())
+ 	}
+-	n.Name().SetReadonly(true)
++	n.Name().setReadonly(true)
+ 	// Mark the linksym as readonly immediately
+ 	// so that the SSA backend can use this information.
+ 	// It will be overridden later during dumpglobls.
+@@ -278,31 +265,26 @@ func (n *node) MarkReadonly() {
+ }
+ 
+ // Val returns the constant.Value for the node.
+-func (n *node) Val() constant.Value {
+-	if !n.HasVal() {
++func (n *Name) Val() constant.Value {
++	if n.val == nil {
+ 		return constant.MakeUnknown()
+ 	}
+-	return *n.e.(*constant.Value)
++	return n.val
+ }
+ 
+ // SetVal sets the constant.Value for the node,
+ // which must not have been used with SetOpt.
+-func (n *node) SetVal(v constant.Value) {
+-	if n.hasOpt() {
+-		base.Flag.LowerH = 1
+-		Dump("have Opt", n)
+-		base.Fatalf("have Opt")
+-	}
+-	if n.Op() == OLITERAL {
+-		AssertValidTypeForConst(n.Type(), v)
++func (n *Name) SetVal(v constant.Value) {
++	if n.op != OLITERAL {
++		panic(n.no("SetVal"))
+ 	}
+-	n.setHasVal(true)
+-	n.e = &v
++	AssertValidTypeForConst(n.Type(), v)
++	n.val = v
+ }
+ 
+ // Int64Val returns n as an int64.
+ // n must be an integer or rune constant.
+-func (n *node) Int64Val() int64 {
++func (n *Name) Int64Val() int64 {
+ 	if !IsConst(n, constant.Int) {
+ 		base.Fatalf("Int64Val(%v)", n)
+ 	}
+@@ -314,7 +296,7 @@ func (n *node) Int64Val() int64 {
+ }
+ 
+ // CanInt64 reports whether it is safe to call Int64Val() on n.
+-func (n *node) CanInt64() bool {
++func (n *Name) CanInt64() bool {
+ 	if !IsConst(n, constant.Int) {
+ 		return false
+ 	}
+@@ -327,7 +309,7 @@ func (n *node) CanInt64() bool {
+ 
+ // Uint64Val returns n as an uint64.
+ // n must be an integer or rune constant.
+-func (n *node) Uint64Val() uint64 {
++func (n *Name) Uint64Val() uint64 {
+ 	if !IsConst(n, constant.Int) {
+ 		base.Fatalf("Uint64Val(%v)", n)
+ 	}
+@@ -340,7 +322,7 @@ func (n *node) Uint64Val() uint64 {
+ 
+ // BoolVal returns n as a bool.
+ // n must be a boolean constant.
+-func (n *node) BoolVal() bool {
++func (n *Name) BoolVal() bool {
+ 	if !IsConst(n, constant.Bool) {
+ 		base.Fatalf("BoolVal(%v)", n)
+ 	}
+@@ -349,7 +331,7 @@ func (n *node) BoolVal() bool {
+ 
+ // StringVal returns the value of a literal string Node as a string.
+ // n must be a string constant.
+-func (n *node) StringVal() string {
++func (n *Name) StringVal() string {
+ 	if !IsConst(n, constant.String) {
+ 		base.Fatalf("StringVal(%v)", n)
+ 	}
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0023df97a8..a6a24774b5 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -59,7 +59,6 @@ type Node interface {
+ 	Func() *Func
+ 	SetFunc(x *Func)
+ 	Name() *Name
+-	SetName(x *Name)
+ 	Sym() *types.Sym
+ 	SetSym(x *types.Sym)
+ 	Offset() int64
+@@ -93,7 +92,6 @@ type Node interface {
+ 	SetHasBreak(x bool)
+ 	MarkReadonly()
+ 	Val() constant.Value
+-	HasVal() bool
+ 	SetVal(v constant.Value)
+ 	Int64Val() int64
+ 	Uint64Val() uint64
+@@ -149,11 +147,8 @@ type node struct {
+ 	// func
+ 	fn *Func
+ 
+-	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
+-	name *Name
+-
+-	sym *types.Sym  // various
+-	e   interface{} // Opt or Val, see methods below
++	sym *types.Sym // various
++	opt interface{}
+ 
+ 	// Various. Usually an offset into a struct. For example:
+ 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+@@ -185,8 +180,7 @@ func (n *node) Type() *types.Type     { return n.typ }
+ func (n *node) SetType(x *types.Type) { n.typ = x }
+ func (n *node) Func() *Func           { return n.fn }
+ func (n *node) SetFunc(x *Func)       { n.fn = x }
+-func (n *node) Name() *Name           { return n.name }
+-func (n *node) SetName(x *Name)       { n.name = x }
++func (n *node) Name() *Name           { return nil }
+ func (n *node) Sym() *types.Sym       { return n.sym }
+ func (n *node) SetSym(x *types.Sym)   { n.sym = x }
+ func (n *node) Pos() src.XPos         { return n.pos }
+@@ -208,6 +202,14 @@ func (n *node) PtrList() *Nodes       { return &n.list }
+ func (n *node) Rlist() Nodes          { return n.rlist }
+ func (n *node) SetRlist(x Nodes)      { n.rlist = x }
+ func (n *node) PtrRlist() *Nodes      { return &n.rlist }
++func (n *node) MarkReadonly()         { panic("node.MarkReadOnly") }
++func (n *node) Val() constant.Value   { panic("node.Val") }
++func (n *node) SetVal(constant.Value) { panic("node.SetVal") }
++func (n *node) Int64Val() int64       { panic("node.Int64Val") }
++func (n *node) CanInt64() bool        { return false }
++func (n *node) Uint64Val() uint64     { panic("node.Uint64Val") }
++func (n *node) BoolVal() bool         { panic("node.BoolVal") }
++func (n *node) StringVal() string     { panic("node.StringVal") }
+ 
+ func (n *node) SetOp(op Op) {
+ 	if !okForNod[op] {
+@@ -305,8 +307,6 @@ const (
+ 	_, nodeBounded   // bounds check unnecessary
+ 	_, nodeHasCall   // expression contains a function call
+ 	_, nodeLikely    // if statement condition likely
+-	_, nodeHasVal    // node.E contains a Val
+-	_, nodeHasOpt    // node.E contains an Opt
+ 	_, nodeEmbedded  // ODCLFIELD embedded type
+ )
+ 
+@@ -326,8 +326,6 @@ func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
+ func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+ func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+ func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
+-func (n *node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
+-func (n *node) hasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+ func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
+ 
+ func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+@@ -344,8 +342,6 @@ func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+ func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+ func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+ func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+-func (n *node) setHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+-func (n *node) setHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+ func (n *node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+ 
+ // MarkNonNil marks a pointer n as being guaranteed non-nil,
+@@ -380,29 +376,13 @@ func (n *node) SetBounded(b bool) {
+ 
+ // Opt returns the optimizer data for the node.
+ func (n *node) Opt() interface{} {
+-	if !n.hasOpt() {
+-		return nil
+-	}
+-	return n.e
++	return n.opt
+ }
+ 
+ // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
+ // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+ func (n *node) SetOpt(x interface{}) {
+-	if x == nil {
+-		if n.hasOpt() {
+-			n.setHasOpt(false)
+-			n.e = nil
+-		}
+-		return
+-	}
+-	if n.HasVal() {
+-		base.Flag.LowerH = 1
+-		Dump("have Val", n)
+-		base.Fatalf("have Val")
+-	}
+-	n.setHasOpt(true)
+-	n.e = x
++	n.opt = x
+ }
+ 
+ func (n *node) Iota() int64 {
+@@ -1344,6 +1324,10 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewEmptyStmt(pos)
+ 	case OBREAK, OCONTINUE, OFALL, OGOTO:
+ 		return NewBranchStmt(pos, op, nil)
++	case OLITERAL, OTYPE, OIOTA:
++		n := newNameAt(pos, nil)
++		n.SetOp(op)
++		return n
+ 	case OLABEL:
+ 		return NewLabelStmt(pos, nil)
+ 	default:
+@@ -1428,13 +1412,11 @@ var okForNod = [OEND]bool{
+ 	OINDEXMAP:      true,
+ 	OINLCALL:       true,
+ 	OINLMARK:       true,
+-	OIOTA:          true,
+ 	OITAB:          true,
+ 	OKEY:           true,
+ 	OLABEL:         true,
+ 	OLE:            true,
+ 	OLEN:           true,
+-	OLITERAL:       true,
+ 	OLSH:           true,
+ 	OLT:            true,
+ 	OMAKE:          true,
+@@ -1446,13 +1428,11 @@ var okForNod = [OEND]bool{
+ 	OMETHEXPR:      true,
+ 	OMOD:           true,
+ 	OMUL:           true,
+-	ONAME:          true,
+ 	ONE:            true,
+ 	ONEG:           true,
+ 	ONEW:           true,
+ 	ONEWOBJ:        true,
+ 	ONIL:           true,
+-	ONONAME:        true,
+ 	ONOT:           true,
+ 	OOFFSETOF:      true,
+ 	OOR:            true,
+@@ -1499,7 +1479,7 @@ var okForNod = [OEND]bool{
+ 	OTINTER:        true,
+ 	OTMAP:          true,
+ 	OTSTRUCT:       true,
+-	OTYPE:          true,
++	OTYPE:          true, // TODO: Remove once setTypeNode is gone.
+ 	OTYPESW:        true,
+ 	OVARDEF:        true,
+ 	OVARKILL:       true,
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index a025cb5986..8a0b078b9b 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,9 +21,8 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 152, 280},
+-		{Name{}, 36, 64},
+-		{Param{}, 44, 88},
+-		{node{}, 88, 152},
++		{Name{}, 132, 232},
++		{node{}, 84, 144},
+ 	}
+ 
+ 	for _, tt := range tests {

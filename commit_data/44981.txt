@@ -20,7 +20,127 @@ Date:   Mon Sep 21 12:19:47 2020 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/debug/dwarf/entry.go      | 21 +++++++++++++++++----
  src/debug/dwarf/entry_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 4 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 01f2190db7..88eb56936b 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -717,6 +717,7 @@ type Reader struct {
+ 	d            *Data
+ 	err          error
+ 	unit         int
++	lastUnit     bool   // set if last entry returned by Next is TagCompileUnit/TagPartialUnit
+ 	lastChildren bool   // .Children of last entry returned by Next
+ 	lastSibling  Offset // .Val(AttrSibling) of last entry returned by Next
+ 	cu           *Entry // current compilation unit
+@@ -774,13 +775,18 @@ func (r *Reader) Seek(off Offset) {
+ // maybeNextUnit advances to the next unit if this one is finished.
+ func (r *Reader) maybeNextUnit() {
+ 	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
+-		r.unit++
+-		u := &r.d.unit[r.unit]
+-		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+-		r.cu = nil
++		r.nextUnit()
+ 	}
+ }
+ 
++// nextUnit advances to the next unit.
++func (r *Reader) nextUnit() {
++	r.unit++
++	u := &r.d.unit[r.unit]
++	r.b = makeBuf(r.d, u, "info", u.off, u.data)
++	r.cu = nil
++}
++
+ // Next reads the next entry from the encoded entry stream.
+ // It returns nil, nil when it reaches the end of the section.
+ // It returns an error if the current offset is invalid or the data at the
+@@ -799,12 +805,14 @@ func (r *Reader) Next() (*Entry, error) {
+ 		r.err = r.b.err
+ 		return nil, r.err
+ 	}
++	r.lastUnit = false
+ 	if e != nil {
+ 		r.lastChildren = e.Children
+ 		if r.lastChildren {
+ 			r.lastSibling, _ = e.Val(AttrSibling).(Offset)
+ 		}
+ 		if e.Tag == TagCompileUnit || e.Tag == TagPartialUnit {
++			r.lastUnit = true
+ 			r.cu = e
+ 		}
+ 	} else {
+@@ -830,6 +838,11 @@ func (r *Reader) SkipChildren() {
+ 		return
+ 	}
+ 
++	if r.lastUnit && r.unit+1 < len(r.d.unit) {
++		r.nextUnit()
++		return
++	}
++
+ 	for {
+ 		e, err := r.Next()
+ 		if err != nil || e == nil || e.Tag == 0 {
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 4c9aad21f3..2e6ee048aa 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -7,6 +7,7 @@ package dwarf_test
+ import (
+ 	. "debug/dwarf"
+ 	"encoding/binary"
++	"path/filepath"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -209,3 +210,44 @@ func Test64Bit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUnitIteration(t *testing.T) {
++	// Iterate over all ELF test files we have and ensure that
++	// we get the same set of compilation units skipping (method 0)
++	// and not skipping (method 1) CU children.
++	files, err := filepath.Glob(filepath.Join("testdata", "*.elf"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, file := range files {
++		t.Run(file, func(t *testing.T) {
++			d := elfData(t, file)
++			var units [2][]interface{}
++			for method := range units {
++				for r := d.Reader(); ; {
++					ent, err := r.Next()
++					if err != nil {
++						t.Fatal(err)
++					}
++					if ent == nil {
++						break
++					}
++					if ent.Tag == TagCompileUnit {
++						units[method] = append(units[method], ent.Val(AttrName))
++					}
++					if method == 0 {
++						if ent.Tag != TagCompileUnit {
++							t.Fatalf("found unexpected tag %v on top level", ent.Tag)
++						}
++						r.SkipChildren()
++					}
++				}
++			}
++			t.Logf("skipping CUs:     %v", units[0])
++			t.Logf("not-skipping CUs: %v", units[1])
++			if !reflect.DeepEqual(units[0], units[1]) {
++				t.Fatal("set of CUs differ")
++			}
++		})
++	}
++}

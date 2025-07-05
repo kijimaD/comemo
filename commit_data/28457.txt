@@ -24,6 +24,19 @@ Date:   Wed May 25 20:56:56 2016 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index d6e5494180..e50c443044 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -526,6 +526,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ 	MOVQ	fv+0(FP), DX	// fn
+ 	MOVQ	argp+8(FP), BX	// caller sp
+ 	LEAQ	-8(BX), SP	// caller sp after CALL
++	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
+ 	SUBQ	$5, (SP)	// return to CALL again
+ 	MOVQ	0(DX), BX
+ 	JMP	BX	// but first run the deferred function

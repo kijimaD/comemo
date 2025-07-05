@@ -21,8 +21,84 @@ Date:   Sat Oct 12 21:23:29 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/preempt.go  |  9 +++++++--
  src/runtime/proc.go     | 11 ++++++++++-
  src/runtime/runtime2.go |  4 ++++
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index e1091cfd68..71c3089830 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -282,7 +282,11 @@ func asyncPreempt()
+ func asyncPreempt2() {
+ 	gp := getg()
+ 	gp.asyncSafePoint = true
+-	mcall(preemptPark)
++	if gp.preemptStop {
++		mcall(preemptPark)
++	} else {
++		mcall(gopreempt_m)
++	}
+ 	gp.asyncSafePoint = false
+ }
+ 
+@@ -316,7 +320,8 @@ func init() {
+ // wantAsyncPreempt returns whether an asynchronous preemption is
+ // queued for gp.
+ func wantAsyncPreempt(gp *g) bool {
+-	return gp.preemptStop && readgstatus(gp)&^_Gscan == _Grunning
++	// Check both the G and the P.
++	return (gp.preempt || gp.m.p != 0 && gp.m.p.ptr().preempt) && readgstatus(gp)&^_Gscan == _Grunning
+ }
+ 
+ // isAsyncSafePoint reports whether gp at instruction PC is an
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6740169cf8..5ef9b32417 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2487,11 +2487,13 @@ func schedule() {
+ 	}
+ 
+ top:
++	pp := _g_.m.p.ptr()
++	pp.preempt = false
++
+ 	if sched.gcwaiting != 0 {
+ 		gcstopm()
+ 		goto top
+ 	}
+-	pp := _g_.m.p.ptr()
+ 	if pp.runSafePointFn != 0 {
+ 		runSafePointFn()
+ 	}
+@@ -4654,6 +4656,13 @@ func preemptone(_p_ *p) bool {
+ 	// Setting gp->stackguard0 to StackPreempt folds
+ 	// preemption into the normal stack overflow check.
+ 	gp.stackguard0 = stackPreempt
++
++	// Request an async preemption of this P.
++	if preemptMSupported && debug.asyncpreemptoff == 0 {
++		_p_.preempt = true
++		preemptM(mp)
++	}
++
+ 	return true
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index aba62930d4..4ee075a36a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -642,6 +642,10 @@ type p struct {
+ 	// Race context used while executing timer functions.
+ 	timerRaceCtx uintptr
+ 
++	// preempt is set to indicate that this P should be enter the
++	// scheduler ASAP (regardless of what G is running on it).
++	preempt bool
++
+ 	pad cpu.CacheLinePad
+ }
+ 

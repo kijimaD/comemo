@@ -12,7 +12,34 @@ Date:   Sat Sep 11 06:59:17 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/database/sql/convert_test.go | 3 ---
  src/time/time.go                 | 1 -
  2 files changed, 4 deletions(-)
+
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index 2668a5ed5e..400da7ea57 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -51,9 +51,6 @@ var (
+ 	scanbytes  []byte
+ 	scanraw    RawBytes
+ 	scanint    int
+-	scanint8   int8
+-	scanint16  int16
+-	scanint32  int32
+ 	scanuint8  uint8
+ 	scanuint16 uint16
+ 	scanbool   bool
+diff --git a/src/time/time.go b/src/time/time.go
+index 4ecc3d82dc..1919ebbc2c 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -425,7 +425,6 @@ const (
+ 	internalToUnix int64 = -unixToInternal
+ 
+ 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
+-	internalToWall int64 = -wallToInternal
+ )
+ 
+ // IsZero reports whether t represents the zero time instant,

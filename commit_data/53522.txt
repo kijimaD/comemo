@@ -18,8 +18,83 @@ Date:   Thu Jul 21 05:16:11 2022 +0000
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 29 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go       |  2 +-
  3 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index e3d77be0b4..fbf853e40e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2977,3 +2977,8 @@
+ 	=> (Move [sz] dst src mem)
+ 
+ ((REV|REVW) ((REV|REVW) p)) => p
++
++// runtime/internal/math.MulUintptr intrinsics
++
++(Select0 (Mul64uover x y)) => (MUL x y)
++(Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 7845e9cf1d..f6e3cfc999 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -27362,6 +27362,18 @@ func rewriteValueARM64_OpSelect0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (Mul64uover x y))
++	// result: (MUL x y)
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64MUL)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpSelect1(v *Value) bool {
+@@ -27415,6 +27427,23 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select1 (Mul64uover x y))
++	// result: (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64NotEqual)
++		v0 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
++		v0.AuxInt = int64ToAuxInt(0)
++		v1 := b.NewValue0(v.Pos, OpARM64UMULH, typ.UInt64)
++		v1.AddArg2(x, y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpSelectN(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0c30cfecab..7cb1da3205 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3908,7 +3908,7 @@ func InitTables() {
+ 			}
+ 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64)
++		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64, sys.ARM64)
+ 	alias("runtime", "mulUintptr", "runtime/internal/math", "MulUintptr", all...)
+ 	add("runtime", "KeepAlive",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

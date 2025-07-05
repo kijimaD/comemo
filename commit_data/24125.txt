@@ -10,6 +10,26 @@ Date:   Sat Jul 11 17:19:39 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/12060
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ff35c6cd40..8d7b6f8807 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -418,9 +418,12 @@ func (t *tester) registerTests() {
+ 					return t.cgoTestSO("misc/cgo/testso")
+ 				},
+ 			})
+-			if t.goos == "darwin" {
++			switch t.goos {
++			case "darwin":
+ 				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
+-			} else {
++			case "netbsd":
++				fmt.Println("Skipping misc/cgo/testsovar test. See issue 11654 for details.")
++			default:
+ 				t.tests = append(t.tests, distTest{
+ 					name:    "testsovar",
+ 					heading: "../misc/cgo/testsovar",

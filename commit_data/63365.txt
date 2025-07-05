@@ -11,6 +11,20 @@ Date:   Mon Jun 30 16:26:43 2025 +0200
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-
+---
  src/testing/synctest/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/synctest/run.go b/src/testing/synctest/run.go
+index c97a53fb80..2e668ab863 100644
+--- a/src/testing/synctest/run.go
++++ b/src/testing/synctest/run.go
+@@ -10,7 +10,7 @@ import "internal/synctest"
+ 
+ // Run is deprecated.
+ //
+-// Deprecated: Use Test instead.
++// Deprecated: Use Test instead. Run will be removed in Go 1.26.
+ func Run(f func()) {
+ 	synctest.Run(f)
+ }

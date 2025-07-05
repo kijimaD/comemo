@@ -15,7 +15,7 @@ Date:   Sun Nov 26 08:22:22 2017 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/cgo_unix.go       |  2 +-
  src/net/dnsconfig_unix.go |  2 +-
  src/net/hosts.go          |  2 +-
@@ -24,3 +24,304 @@ Date:   Sun Nov 26 08:22:22 2017 -0500
  src/net/lookup.go         | 10 ++++----
  src/net/lookup_test.go    | 26 ++++++++++++++++++++
  7 files changed, 81 insertions(+), 49 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 1baa01f036..3db867a080 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -249,7 +249,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error,
+ 	var zone string
+ 	ip := parseIPv4(addr)
+ 	if ip == nil {
+-		ip, zone = parseIPv6(addr, true)
++		ip, zone = parseIPv6Zone(addr)
+ 	}
+ 	if ip == nil {
+ 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 53fa14687f..707fd6f6fe 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -73,7 +73,7 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 				// to look it up.
+ 				if parseIPv4(f[1]) != nil {
+ 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+-				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
++				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
+ 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+ 				}
+ 			}
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 9c101c6ef5..ebc0353a7f 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -16,7 +16,7 @@ func parseLiteralIP(addr string) string {
+ 	var zone string
+ 	ip = parseIPv4(addr)
+ 	if ip == nil {
+-		ip, zone = parseIPv6(addr, true)
++		ip, zone = parseIPv6Zone(addr)
+ 	}
+ 	if ip == nil {
+ 		return ""
+diff --git a/src/net/ip.go b/src/net/ip.go
+index d5b4051794..da8dca588e 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -562,25 +562,26 @@ func parseIPv4(s string) IP {
+ 	return IPv4(p[0], p[1], p[2], p[3])
+ }
+ 
+-// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
+-// and RFC 5952.  It can also parse a literal scoped IPv6 address with
+-// zone identifier which is described in RFC 4007 when zoneAllowed is
+-// true.
+-func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
++// parseIPv6Zone parses s as a literal IPv6 address and its associated zone
++// identifier which is described in RFC 4007.
++func parseIPv6Zone(s string) (IP, string) {
++	s, zone := splitHostZone(s)
++	return parseIPv6(s), zone
++}
++
++// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
++// and RFC 5952.
++func parseIPv6(s string) (ip IP) {
+ 	ip = make(IP, IPv6len)
+ 	ellipsis := -1 // position of ellipsis in ip
+ 
+-	if zoneAllowed {
+-		s, zone = splitHostZone(s)
+-	}
+-
+ 	// Might have leading ellipsis
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+ 		ellipsis = 0
+ 		s = s[2:]
+ 		// Might be only ellipsis
+ 		if len(s) == 0 {
+-			return ip, zone
++			return ip
+ 		}
+ 	}
+ 
+@@ -590,22 +591,22 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 		// Hex number.
+ 		n, c, ok := xtoi(s)
+ 		if !ok || n > 0xFFFF {
+-			return nil, zone
++			return nil
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+ 		if c < len(s) && s[c] == '.' {
+ 			if ellipsis < 0 && i != IPv6len-IPv4len {
+ 				// Not the right place.
+-				return nil, zone
++				return nil
+ 			}
+ 			if i+IPv4len > IPv6len {
+ 				// Not enough room.
+-				return nil, zone
++				return nil
+ 			}
+ 			ip4 := parseIPv4(s)
+ 			if ip4 == nil {
+-				return nil, zone
++				return nil
+ 			}
+ 			ip[i] = ip4[12]
+ 			ip[i+1] = ip4[13]
+@@ -629,14 +630,14 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 
+ 		// Otherwise must be followed by colon and more.
+ 		if s[0] != ':' || len(s) == 1 {
+-			return nil, zone
++			return nil
+ 		}
+ 		s = s[1:]
+ 
+ 		// Look for ellipsis.
+ 		if s[0] == ':' {
+ 			if ellipsis >= 0 { // already have one
+-				return nil, zone
++				return nil
+ 			}
+ 			ellipsis = i
+ 			s = s[1:]
+@@ -648,13 +649,13 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 
+ 	// Must have used entire string.
+ 	if len(s) != 0 {
+-		return nil, zone
++		return nil
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+ 	if i < IPv6len {
+ 		if ellipsis < 0 {
+-			return nil, zone
++			return nil
+ 		}
+ 		n := IPv6len - i
+ 		for j := i - 1; j >= ellipsis; j-- {
+@@ -665,9 +666,9 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 		}
+ 	} else if ellipsis >= 0 {
+ 		// Ellipsis must represent at least one 0 group.
+-		return nil, zone
++		return nil
+ 	}
+-	return ip, zone
++	return ip
+ }
+ 
+ // ParseIP parses s as an IP address, returning the result.
+@@ -681,13 +682,26 @@ func ParseIP(s string) IP {
+ 		case '.':
+ 			return parseIPv4(s)
+ 		case ':':
+-			ip, _ := parseIPv6(s, false)
+-			return ip
++			return parseIPv6(s)
+ 		}
+ 	}
+ 	return nil
+ }
+ 
++// parseIPZone parses s as an IP address, return it and its associated zone
++// identifier (IPv6 only).
++func parseIPZone(s string) (IP, string) {
++	for i := 0; i < len(s); i++ {
++		switch s[i] {
++		case '.':
++			return parseIPv4(s), ""
++		case ':':
++			return parseIPv6Zone(s)
++		}
++	}
++	return nil, ""
++}
++
+ // ParseCIDR parses s as a CIDR notation IP address and prefix length,
+ // like "192.0.2.0/24" or "2001:db8::/32", as defined in
+ // RFC 4632 and RFC 4291.
+@@ -706,7 +720,7 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	ip := parseIPv4(addr)
+ 	if ip == nil {
+ 		iplen = IPv6len
+-		ip, _ = parseIPv6(addr, false)
++		ip = parseIPv6(addr)
+ 	}
+ 	n, i, ok := dtoi(mask)
+ 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 947bdf3489..f4ff82bd75 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -276,24 +276,16 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
+ 	}
+ 
+ 	// Try as a literal IP address, then as a DNS name.
+-	var ips []IPAddr
+-	if ip := parseIPv4(host); ip != nil {
+-		ips = []IPAddr{{IP: ip}}
+-	} else if ip, zone := parseIPv6(host, true); ip != nil {
+-		ips = []IPAddr{{IP: ip, Zone: zone}}
+-		// Issue 18806: if the machine has halfway configured
+-		// IPv6 such that it can bind on "::" (IPv6unspecified)
+-		// but not connect back to that same address, fall
+-		// back to dialing 0.0.0.0.
+-		if ip.Equal(IPv6unspecified) {
+-			ips = append(ips, IPAddr{IP: IPv4zero})
+-		}
+-	} else {
+-		// Try as a DNS name.
+-		ips, err = r.LookupIPAddr(ctx, host)
+-		if err != nil {
+-			return nil, err
+-		}
++	ips, err := r.LookupIPAddr(ctx, host)
++	if err != nil {
++		return nil, err
++	}
++	// Issue 18806: if the machine has halfway configured
++	// IPv6 such that it can bind on "::" (IPv6unspecified)
++	// but not connect back to that same address, fall
++	// back to dialing 0.0.0.0.
++	if len(ips) == 1 && ips[0].IP.Equal(IPv6unspecified) {
++		ips = append(ips, IPAddr{IP: IPv4zero})
+ 	}
+ 
+ 	var filter func(IPAddr) bool
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 1a9b4a9f08..e0f21fa9a8 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -162,11 +162,11 @@ func LookupHost(host string) (addrs []string, err error) {
+ // It returns a slice of that host's addresses.
+ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	// Make sure that no matter what we do later, host=="" is rejected.
+-	// ParseIP, for example, does accept empty strings.
++	// parseIP, for example, does accept empty strings.
+ 	if host == "" {
+ 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+ 	}
+-	if ip := ParseIP(host); ip != nil {
++	if ip, _ := parseIPZone(host); ip != nil {
+ 		return []string{host}, nil
+ 	}
+ 	return r.lookupHost(ctx, host)
+@@ -190,12 +190,12 @@ func LookupIP(host string) ([]IP, error) {
+ // It returns a slice of that host's IPv4 and IPv6 addresses.
+ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, error) {
+ 	// Make sure that no matter what we do later, host=="" is rejected.
+-	// ParseIP, for example, does accept empty strings.
++	// parseIP, for example, does accept empty strings.
+ 	if host == "" {
+ 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
+ 	}
+-	if ip := ParseIP(host); ip != nil {
+-		return []IPAddr{{IP: ip}}, nil
++	if ip, zone := parseIPZone(host); ip != nil {
++		return []IPAddr{{IP: ip, Zone: zone}}, nil
+ 	}
+ 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
+ 	if trace != nil && trace.DNSStart != nil {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 010f71df2f..5c66dfa260 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -306,6 +306,32 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+ 	}
+ }
+ 
++func TestLookupIPv6LinkLocalAddrWithZone(t *testing.T) {
++	if !supportsIPv6() || !*testIPv6 {
++		t.Skip("IPv6 is required")
++	}
++
++	ipaddrs, err := DefaultResolver.LookupIPAddr(context.Background(), "fe80::1%lo0")
++	if err != nil {
++		t.Error(err)
++	}
++	for _, addr := range ipaddrs {
++		if e, a := "lo0", addr.Zone; e != a {
++			t.Errorf("wrong zone: want %q, got %q", e, a)
++		}
++	}
++
++	addrs, err := DefaultResolver.LookupHost(context.Background(), "fe80::1%lo0")
++	if err != nil {
++		t.Error(err)
++	}
++	for _, addr := range addrs {
++		if e, a := "fe80::1%lo0", addr; e != a {
++			t.Errorf("wrong host: want %q got %q", e, a)
++		}
++	}
++}
++
+ var lookupCNAMETests = []struct {
+ 	name, cname string
+ }{

@@ -8,6 +8,28 @@ Date:   Wed Nov 12 14:16:49 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/174970043
-
+---
  src/cmd/9g/gsubr.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index f7a4290818..e5cd5ed4bf 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -1046,6 +1046,8 @@ gins(int as, Node *f, Node *t)
+ 		break;
+ 	case AMOVD:
+ 	case AMOVDU:
++		if(af.type == D_CONST)
++			break;
+ 		w = 8;
+ 		break;
+ 	}
+@@ -1275,7 +1277,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OADDR:
+ 		naddr(n->left, a, canemitcode);
+ 		a->etype = tptr;
+-		a->width = widthptr;
+ 		switch(a->type) {
+ 		case D_OREG:
+ 			a->type = D_CONST;

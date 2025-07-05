@@ -17,7 +17,44 @@ Date:   Mon Apr 19 19:10:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/expr.go                  | 3 ++-
  src/go/types/fixedbugs/issue45635.go2 | 9 +++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 170761afb3..5576c43819 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
++	"go/internal/typeparams"
+ 	"go/token"
+ 	"math"
+ )
+@@ -1435,7 +1436,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	case *ast.IndexExpr:
+ 		check.exprOrType(x, e.X)
+ 		if x.mode == invalid {
+-			check.use(e.Index)
++			check.use(typeparams.UnpackExpr(e.Index)...)
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/fixedbugs/issue45635.go2 b/src/go/types/fixedbugs/issue45635.go2
+new file mode 100644
+index 0000000000..1fbe0382ea
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue45635.go2
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	some /* ERROR "undeclared name" */ [int, int]()
++}

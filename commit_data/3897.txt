@@ -7,6 +7,36 @@ Date:   Sun Nov 8 00:49:56 2009 -0800
     
     R=rsc
     http://go/go-review/1024022
-
+---
  lib/godoc/dirlist.html | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+new file mode 100644
+index 0000000000..03980078fb
+--- /dev/null
++++ b/lib/godoc/dirlist.html
+@@ -0,0 +1,23 @@
++<!--
++	Copyright 2009 The Go Authors. All rights reserved.
++	Use of this source code is governed by a BSD-style
++	license that can be found in the LICENSE file.
++-->
++
++<p>
++<table class="layout">
++<tr>
++	<th align="left">File</th>
++	<th width="100" align="right">Size</th>
++</tr>
++<tr>
++	<td><a href=".." class="noline">..</a></td>
++</tr>
++{.repeated section @}
++<tr>
++	<td align="left"><a href="{Name|html}" class="noline">{Name|html}</a></td>
++	<td align="right">{Size|html}</td>
++</tr>
++{.end}
++</table>
++</p>

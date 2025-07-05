@@ -15,9 +15,75 @@ Date:   Wed Oct 16 09:13:59 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go     | 2 ++
  src/cmd/internal/obj/objfile2.go       | 3 +++
  src/cmd/link/internal/ld/deadcode2.go  | 4 +---
  src/cmd/link/internal/loader/loader.go | 5 +++++
  4 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index ef32c4873e..03b322da6c 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -205,6 +205,7 @@ const (
+ 	SymFlagLeaf
+ 	SymFlagCFunc
+ 	SymFlagReflectMethod
++	SymFlagGoType
+ 	SymFlagTopFrame
+ )
+ 
+@@ -234,6 +235,7 @@ func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
+ func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
+ func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
+ func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
++func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
+ func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
+ 
+ // Symbol reference.
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index f3389612d6..69019e033d 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -238,6 +238,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.TopFrame() {
+ 		flag |= goobj2.SymFlagTopFrame
+ 	}
++	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
++		flag |= goobj2.SymFlagGoType
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 259199eea1..818024069e 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -108,9 +108,7 @@ func (d *deadcodePass2) flood() {
+ 		symIdx := d.wq.pop()
+ 
+ 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
+-
+-		name := d.ldr.RawSymName(symIdx)
+-		if strings.HasPrefix(name, "type.") && name[5] != '.' { // TODO: use an attribute instead of checking name
++		if d.ldr.IsGoType(symIdx) {
+ 			p := d.ldr.Data(symIdx)
+ 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
+ 				for _, sig := range decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx) {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c155f27dcb..708e8d0d3e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -364,6 +364,11 @@ func (l *Loader) IsReflectMethod(i Sym) bool {
+ 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
+ }
+ 
++// Returns whether this is a Go type symbol.
++func (l *Loader) IsGoType(i Sym) bool {
++	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
++}
++
+ // Returns the symbol content of the i-th symbol. i is global index.
+ func (l *Loader) Data(i Sym) []byte {
+ 	if l.isExternal(i) {

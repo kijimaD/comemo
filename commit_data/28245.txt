@@ -10,6 +10,27 @@ Date:   Fri May 6 18:46:35 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/22881
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index fb3cf18d3b..7dba393cee 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -70,6 +70,7 @@ func TestLookupGoogleSRV(t *testing.T) {
+ 	for _, tt := range lookupGoogleSRVTests {
+ 		cname, srvs, err := LookupSRV(tt.service, tt.proto, tt.name)
+ 		if err != nil {
++			testenv.SkipFlakyNet(t)
+ 			t.Fatal(err)
+ 		}
+ 		if len(srvs) == 0 {
+@@ -137,6 +138,7 @@ func TestLookupGmailNS(t *testing.T) {
+ 	for _, tt := range lookupGmailNSTests {
+ 		nss, err := LookupNS(tt.name)
+ 		if err != nil {
++			testenv.SkipFlakyNet(t)
+ 			t.Fatal(err)
+ 		}
+ 		if len(nss) == 0 {

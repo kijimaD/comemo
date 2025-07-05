@@ -8,7 +8,141 @@ Date:   Thu May 15 15:55:31 2014 +1000
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/100440045
-
+---
  src/cmd/addr2line/addr2line_test.go | 45 +++++++++++++++++++++---------------
  src/cmd/objdump/objdump_test.go     | 46 +++++++++++++++++++++----------------
  2 files changed, 52 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index c213db05dd..5bcaffd914 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -67,6 +67,30 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
+ 	return funcname, f[0], f[1]
+ }
+ 
++const symName = "cmd/addr2line.TestAddr2Line"
++
++func testAddr2Line(t *testing.T, exepath, addr string) {
++	funcName, srcPath, srcLineNo := runAddr2Line(t, exepath, addr)
++	if symName != funcName {
++		t.Fatalf("expected function name %v; got %v", symName, funcName)
++	}
++	fi1, err := os.Stat("addr2line_test.go")
++	if err != nil {
++		t.Fatalf("Stat failed: %v", err)
++	}
++	fi2, err := os.Stat(srcPath)
++	if err != nil {
++		t.Fatalf("Stat failed: %v", err)
++	}
++	if !os.SameFile(fi1, fi2) {
++		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
++	}
++	if srcLineNo != "94" {
++		t.Fatalf("line number = %v; want 94", srcLineNo)
++	}
++}
++
++// This is line 93. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see http://golang.org/issue/7947")
+@@ -85,23 +109,6 @@ func TestAddr2Line(t *testing.T) {
+ 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
+ 	}
+ 
+-	const symName = "cmd/addr2line.TestAddr2Line"
+-	funcName, srcPath, srcLineNo := runAddr2Line(t, exepath, syms[symName])
+-	if symName != funcName {
+-		t.Fatalf("expected function name %v; got %v", symName, funcName)
+-	}
+-	fi1, err := os.Stat("addr2line_test.go")
+-	if err != nil {
+-		t.Fatalf("Stat failed: %v", err)
+-	}
+-	fi2, err := os.Stat(srcPath)
+-	if err != nil {
+-		t.Fatalf("Stat failed: %v", err)
+-	}
+-	if !os.SameFile(fi1, fi2) {
+-		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+-	}
+-	if srcLineNo != "70" {
+-		t.Fatalf("line number = %v; want 70", srcLineNo)
+-	}
++	testAddr2Line(t, exepath, syms[symName])
++	testAddr2Line(t, exepath, "0x"+syms[symName])
+ }
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index e65b2c8096..24f292a6b8 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -39,13 +39,8 @@ func loadSyms(t *testing.T) map[string]string {
+ 	return syms
+ }
+ 
+-func runObjDump(t *testing.T, exepath, startaddr string) (path, lineno string) {
+-	addr, err := strconv.ParseUint(startaddr, 16, 64)
+-	if err != nil {
+-		t.Fatalf("invalid start address %v: %v", startaddr, err)
+-	}
+-	endaddr := fmt.Sprintf("%x", addr+10)
+-	cmd := exec.Command(exepath, os.Args[0], "0x"+startaddr, "0x"+endaddr)
++func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno string) {
++	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go tool objdump %v: %v\n%s", os.Args[0], err, string(out))
+@@ -72,17 +67,8 @@ func runObjDump(t *testing.T, exepath, startaddr string) (path, lineno string) {
+ 	return f[0], f[1]
+ }
+ 
+-// This is line 75.  The test depends on that.
+-func TestObjDump(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7947")
+-	}
+-	syms := loadSyms(t)
+-
+-	tmp, exe := buildObjdump(t)
+-	defer os.RemoveAll(tmp)
+-
+-	srcPath, srcLineNo := runObjDump(t, exe, syms["cmd/objdump.TestObjDump"])
++func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
++	srcPath, srcLineNo := runObjDump(t, exe, startaddr, endaddr)
+ 	fi1, err := os.Stat("objdump_test.go")
+ 	if err != nil {
+ 		t.Fatalf("Stat failed: %v", err)
+@@ -94,9 +80,29 @@ func TestObjDump(t *testing.T) {
+ 	if !os.SameFile(fi1, fi2) {
+ 		t.Fatalf("objdump_test.go and %s are not same file", srcPath)
+ 	}
+-	if srcLineNo != "76" {
+-		t.Fatalf("line number = %v; want 76", srcLineNo)
++	if srcLineNo != "89" {
++		t.Fatalf("line number = %v; want 89", srcLineNo)
++	}
++}
++
++// This is line 88. The test depends on that.
++func TestObjDump(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7947")
+ 	}
++	syms := loadSyms(t)
++
++	tmp, exe := buildObjdump(t)
++	defer os.RemoveAll(tmp)
++
++	startaddr := syms["cmd/objdump.TestObjDump"]
++	addr, err := strconv.ParseUint(startaddr, 16, 64)
++	if err != nil {
++		t.Fatalf("invalid start address %v: %v", startaddr, err)
++	}
++	endaddr := fmt.Sprintf("%x", addr+10)
++	testObjDump(t, exe, startaddr, endaddr)
++	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr)
+ }
+ 
+ func buildObjdump(t *testing.T) (tmp, exe string) {

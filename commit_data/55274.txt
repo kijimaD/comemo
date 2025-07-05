@@ -39,9 +39,147 @@ Date:   Tue Jan 24 09:05:36 2023 -0500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_goroot_symlink.txt |  6 +-
  src/os/stat_test.go                                |  7 +--
  src/os/stat_windows.go                             | 11 +++-
  src/path/filepath/path_test.go                     | 64 ++++++++++++++++++++++
  4 files changed, 77 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_goroot_symlink.txt b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+index 8e50e4beab..989a8c2dd5 100644
+--- a/src/cmd/go/testdata/script/list_goroot_symlink.txt
++++ b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+@@ -45,10 +45,8 @@ stdout $WORK${/}lib${/}goroot
+ exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' encoding/binary
+ stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+ 
+-	# BUG(#50807): This doesn't work on Windows for some reason — perhaps
+-	# a bug in the Windows Lstat implementation with trailing separators?
+-[!GOOS:windows] exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
+-[!GOOS:windows] stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
++exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
++stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+ 
+ # Most path lookups in GOROOT are not sensitive to symlinks. However, patterns
+ # involving '...' wildcards must use Walk to check the GOROOT tree, which makes
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index 72621f257b..96019699aa 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -279,11 +278,7 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
+ 	}
+ 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
+ 
+-	if runtime.GOOS == "windows" {
+-		testSymlinkStats(t, dirlinkWithSlash, true)
+-	} else {
+-		testDirStats(t, dirlinkWithSlash)
+-	}
++	testDirStats(t, dirlinkWithSlash)
+ 
+ 	fi1, err := os.Stat(dir)
+ 	if err != nil {
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 7ac9f7b860..033c3b9353 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -123,5 +123,14 @@ func statNolog(name string) (FileInfo, error) {
+ 
+ // lstatNolog implements Lstat for Windows.
+ func lstatNolog(name string) (FileInfo, error) {
+-	return stat("Lstat", name, false)
++	followSymlinks := false
++	if name != "" && IsPathSeparator(name[len(name)-1]) {
++		// We try to implement POSIX semantics for Lstat path resolution
++		// (per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12):
++		// symlinks before the last separator in the path must be resolved. Since
++		// the last separator in this case follows the last path element, we should
++		// follow symlinks in the last path element.
++		followSymlinks = true
++	}
++	return stat("Lstat", name, followSymlinks)
+ }
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index e6a9270909..672d7e6261 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -818,6 +818,70 @@ func TestWalkFileError(t *testing.T) {
+ 	}
+ }
+ 
++func TestWalkSymlinkRoot(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	td := t.TempDir()
++	dir := filepath.Join(td, "dir")
++	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
++		t.Fatal(err)
++	}
++	touch(t, filepath.Join(dir, "foo"))
++
++	link := filepath.Join(td, "link")
++	if err := os.Symlink("dir", link); err != nil {
++		t.Fatal(err)
++	}
++
++	// Per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12:
++	// “A pathname that contains at least one non- <slash> character and that ends
++	// with one or more trailing <slash> characters shall not be resolved
++	// successfully unless the last pathname component before the trailing <slash>
++	// characters names an existing directory [...].”
++	//
++	// Since Walk does not traverse symlinks itself, its behavior should depend on
++	// whether the path passed to Walk ends in a slash: if it does not end in a slash,
++	// Walk should report the symlink itself (since it is the last pathname component);
++	// but if it does end in a slash, Walk should walk the directory to which the symlink
++	// refers (since it must be fully resolved before walking).
++	for _, tt := range []struct {
++		desc string
++		root string
++		want []string
++	}{
++		{
++			desc: "no slash",
++			root: link,
++			want: []string{link},
++		},
++		{
++			desc: "slash",
++			root: link + string(filepath.Separator),
++			want: []string{link, filepath.Join(link, "foo")},
++		},
++	} {
++		tt := tt
++		t.Run(tt.desc, func(t *testing.T) {
++			var walked []string
++			err := filepath.Walk(tt.root, func(path string, info fs.FileInfo, err error) error {
++				if err != nil {
++					return err
++				}
++				t.Logf("%#q: %v", path, info.Mode())
++				walked = append(walked, filepath.Clean(path))
++				return nil
++			})
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			if !reflect.DeepEqual(walked, tt.want) {
++				t.Errorf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
++			}
++		})
++	}
++}
++
+ var basetests = []PathTest{
+ 	{"", "."},
+ 	{".", "."},

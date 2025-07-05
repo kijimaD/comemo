@@ -15,7 +15,64 @@ Date:   Fri Oct 26 11:41:02 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_client_test.go | 6 +++---
  src/crypto/tls/handshake_server_test.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 5a1e608536..437aaed462 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -384,12 +384,12 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 		}
+ 		for i, b := range flows {
+ 			if i%2 == 1 {
+-				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
++				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+ 				serverConn.Write(b)
+ 				continue
+ 			}
+ 			bb := make([]byte, len(b))
+-			serverConn.SetReadDeadline(time.Now().Add(1 * time.Second))
++			serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+ 			_, err := io.ReadFull(serverConn, bb)
+ 			if err != nil {
+ 				t.Fatalf("%s #%d: %s", test.name, i, err)
+@@ -1646,7 +1646,7 @@ func TestCloseClientConnectionOnIdleServer(t *testing.T) {
+ 		serverConn.Read(b[:])
+ 		client.Close()
+ 	}()
+-	client.SetWriteDeadline(time.Now().Add(time.Second))
++	client.SetWriteDeadline(time.Now().Add(time.Minute))
+ 	err := client.Handshake()
+ 	if err != nil {
+ 		if err, ok := err.(net.Error); ok && err.Timeout() {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 2a77584cdd..e14adbd766 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -615,12 +615,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 		}
+ 		for i, b := range flows {
+ 			if i%2 == 0 {
+-				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
++				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+ 				clientConn.Write(b)
+ 				continue
+ 			}
+ 			bb := make([]byte, len(b))
+-			clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
++			clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+ 			n, err := io.ReadFull(clientConn, bb)
+ 			if err != nil {
+ 				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
+@@ -1434,7 +1434,7 @@ func TestCloseServerConnectionOnIdleClient(t *testing.T) {
+ 		clientConn.Write([]byte{'0'})
+ 		server.Close()
+ 	}()
+-	server.SetReadDeadline(time.Now().Add(time.Second))
++	server.SetReadDeadline(time.Now().Add(time.Minute))
+ 	err := server.Handshake()
+ 	if err != nil {
+ 		if err, ok := err.(net.Error); ok && err.Timeout() {

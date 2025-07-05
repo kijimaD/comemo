@@ -15,6 +15,25 @@ Date:   Wed Nov 18 17:50:21 2015 -0800
     Change-Id: I049034e6dde7ad884b0a8c329921adac1866ff18
     Reviewed-on: https://go-review.googlesource.com/17047
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index d6567d0c9c..3617493815 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2001,10 +2001,12 @@ func getc() int {
+ 	} else {
+ 	loop:
+ 		c = obj.Bgetc(curio.bin)
++		// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
+ 		if c == 0xef {
+ 			buf, err := curio.bin.Peek(2)
+ 			if err != nil {
+-				log.Fatalf("getc: peeking: %v", err)
++				yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
++				errorexit()
+ 			}
+ 			if buf[0] == 0xbb && buf[1] == 0xbf {
+ 				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")

@@ -7,6 +7,25 @@ Date:   Tue Dec 16 14:08:39 2014 -0500
     Change-Id: I8670540a2a9647efbd8b072a54272a04c530e54b
     Reviewed-on: https://go-review.googlesource.com/2001
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/9l/asm.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index 7814edd525..936cf8723e 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -165,9 +165,11 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 
+ 		t = symaddr(r->sym) + r->add - (s->value + r->off);
+ 		if(t & 3)
+-			ctxt->diag("relocation for %s is not aligned: %lld", s->name, t);
++			ctxt->diag("relocation for %s+%d is not aligned: %lld", r->sym->name, r->off, t);
+ 		if(t << 6 >> 6 != t)
+-			ctxt->diag("relocation for %s is too big: %lld", s->name, t);
++			// TODO(austin) This can happen if text > 32M.
++			// Add a call trampoline to .text in that case.
++			ctxt->diag("relocation for %s+%d is too big: %lld", r->sym->name, r->off, t);
+ 
+ 		*val = (o1 & 0xfc000003U) | (t & ~0xfc000003U);
+ 		return 0;

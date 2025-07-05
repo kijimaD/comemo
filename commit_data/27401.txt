@@ -24,7 +24,7 @@ Date:   Mon Mar 21 00:12:18 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/api/goapi.go                    |  9 ---------
  src/cmd/cgo/gcc.go                      |  3 +--
  src/cmd/dist/util.go                    |  1 -
@@ -55,3 +55,640 @@ Date:   Mon Mar 21 00:12:18 2016 +0100
  src/text/template/funcs.go              |  1 -
  src/time/time.go                        |  3 ---
  29 files changed, 13 insertions(+), 219 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index b946077276..982c40b085 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -368,15 +368,6 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 	return f, nil
+ }
+ 
+-func contains(list []string, s string) bool {
+-	for _, t := range list {
+-		if t == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // The package cache doesn't operate correctly in rare (so far artificial)
+ // circumstances (issue 8425). Disable before debugging non-obvious errors
+ // from the type-checker.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b2835a495f..84cd2e816a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1282,8 +1282,7 @@ func runGcc(stdin []byte, args []string) (string, string) {
+ // with equivalent memory layout.
+ type typeConv struct {
+ 	// Cache of already-translated or in-progress types.
+-	m       map[dwarf.Type]*Type
+-	typedef map[string]ast.Expr
++	m map[dwarf.Type]*Type
+ 
+ 	// Map from types to incomplete pointers to those types.
+ 	ptrs map[dwarf.Type][]*Type
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 57b1d2dd84..34f7372de8 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -131,7 +131,6 @@ var maxbg = 4 /* maximum number of jobs to run at once */
+ 
+ var (
+ 	bgwork = make(chan func(), 1e5)
+-	bgdone = make(chan struct{}, 1e5)
+ 
+ 	bghelpers sync.WaitGroup
+ 
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index a14ccdb59b..d0983d447d 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -29,17 +29,15 @@ const (
+ )
+ 
+ type Package struct {
+-	writer     io.Writer // Destination for output.
+-	name       string    // Package name, json for encoding/json.
+-	userPath   string    // String the user used to find this package.
+-	unexported bool
+-	matchCase  bool
+-	pkg        *ast.Package // Parsed package.
+-	file       *ast.File    // Merged from all files in the package
+-	doc        *doc.Package
+-	build      *build.Package
+-	fs         *token.FileSet // Needed for printing.
+-	buf        bytes.Buffer
++	writer   io.Writer    // Destination for output.
++	name     string       // Package name, json for encoding/json.
++	userPath string       // String the user used to find this package.
++	pkg      *ast.Package // Parsed package.
++	file     *ast.File    // Merged from all files in the package
++	doc      *doc.Package
++	build    *build.Package
++	fs       *token.FileSet // Needed for printing.
++	buf      bytes.Buffer
+ }
+ 
+ type PackageError string // type returned by pkg.Fatalf.
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b63c195f78..08062ea9a5 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1312,16 +1312,6 @@ func (b *builder) do(root *action) {
+ 	wg.Wait()
+ }
+ 
+-// hasString reports whether s appears in the list of strings.
+-func hasString(strings []string, s string) bool {
+-	for _, t := range strings {
+-		if s == t {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // build is the action for building a single package or command.
+ func (b *builder) build(a *action) (err error) {
+ 	// Return an error if the package has CXX files but it's not using
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index cbedacb34d..749e28c24d 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -17,7 +17,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"unicode"
+ )
+ 
+ var cmdGenerate = &Command{
+@@ -371,17 +370,6 @@ func (g *Generator) expandVar(word string) string {
+ 	return os.Getenv(word)
+ }
+ 
+-// identLength returns the length of the identifier beginning the string.
+-func (g *Generator) identLength(word string) int {
+-	for i, r := range word {
+-		if r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) {
+-			continue
+-		}
+-		return i
+-	}
+-	return len(word)
+-}
+-
+ // setShorthand installs a new shorthand as defined by a -command directive.
+ func (g *Generator) setShorthand(words []string) {
+ 	// Create command shorthand.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 65cbab2b0d..4e0987d69e 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -403,8 +403,6 @@ func errorf(format string, args ...interface{}) {
+ 	setExitStatus(1)
+ }
+ 
+-var logf = log.Printf
+-
+ func exitIfErrors() {
+ 	if exitStatus != 0 {
+ 		exit()
+@@ -428,19 +426,6 @@ func run(cmdargs ...interface{}) {
+ 	}
+ }
+ 
+-func runOut(dir string, cmdargs ...interface{}) []byte {
+-	cmdline := stringList(cmdargs...)
+-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Dir = dir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		os.Stderr.Write(out)
+-		errorf("%v", err)
+-		out = nil
+-	}
+-	return out
+-}
+-
+ // envForDir returns a copy of the environment
+ // suitable for running in the given directory.
+ // The environment is the current process's environment
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 927d68d1c6..fa923c8873 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -90,7 +90,6 @@ type Package struct {
+ 	target       string               // installed file for this package (may be executable)
+ 	fake         bool                 // synthesized package
+ 	external     bool                 // synthesized external test package
+-	forceBuild   bool                 // this package must be rebuilt
+ 	forceLibrary bool                 // this package is a library (even if named "main")
+ 	cmdline      bool                 // defined by files listed on command line
+ 	local        bool                 // imported via local path (./ or ../)
+diff --git a/src/cmd/pprof/internal/report/report.go b/src/cmd/pprof/internal/report/report.go
+index b2b07b24f9..86bd4a280b 100644
+--- a/src/cmd/pprof/internal/report/report.go
++++ b/src/cmd/pprof/internal/report/report.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"math"
+-	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+@@ -248,14 +247,6 @@ func valueOrDot(value int64, rpt *Report) string {
+ 	return rpt.formatValue(value)
+ }
+ 
+-// canAccessFile determines if the filename can be opened for reading.
+-func canAccessFile(path string) bool {
+-	if fi, err := os.Stat(path); err == nil {
+-		return fi.Mode().Perm()&0400 != 0
+-	}
+-	return false
+-}
+-
+ // printTags collects all tags referenced in the profile and prints
+ // them in a sorted table.
+ func printTags(w io.Writer, rpt *Report) error {
+@@ -764,14 +755,6 @@ type node struct {
+ 	tags tagMap
+ }
+ 
+-func (ts tags) string() string {
+-	var ret string
+-	for _, s := range ts {
+-		ret = ret + fmt.Sprintf("%s %s %d %d\n", s.name, s.unit, s.value, s.weight)
+-	}
+-	return ret
+-}
+-
+ type nodeInfo struct {
+ 	name              string
+ 	origName          string
+@@ -1697,22 +1680,3 @@ type Report struct {
+ 	sampleValue func(*profile.Sample) int64
+ 	formatValue func(int64) string
+ }
+-
+-func (rpt *Report) formatTags(s *profile.Sample) (string, bool) {
+-	var labels []string
+-	for key, vals := range s.Label {
+-		for _, v := range vals {
+-			labels = append(labels, key+":"+v)
+-		}
+-	}
+-	for key, nvals := range s.NumLabel {
+-		for _, v := range nvals {
+-			labels = append(labels, scaledValueLabel(v, key, "auto"))
+-		}
+-	}
+-	if len(labels) == 0 {
+-		return "", false
+-	}
+-	sort.Strings(labels)
+-	return strings.Join(labels, `\n`), true
+-}
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 4f9d13c545..cce330793d 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -237,7 +237,6 @@ var defact = make([]int, NSTATES)  // default actions of states
+ 
+ // lookahead set information
+ 
+-var lkst []Lkset
+ var nolook = 0  // flag to turn off lookahead computations
+ var tbitset = 0 // size of lookahead sets
+ var clset Lkset // temporary storage for lookahead computations
+@@ -3185,8 +3184,6 @@ func isword(c rune) bool {
+ 	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+ }
+ 
+-func mktemp(t string) string { return t }
+-
+ //
+ // return 1 if 2 arrays are equal
+ // return 0 if not equal
+@@ -3204,13 +3201,6 @@ func aryeq(a []int, b []int) int {
+ 	return 1
+ }
+ 
+-func putrune(f *bufio.Writer, c int) {
+-	s := string(c)
+-	for i := 0; i < len(s); i++ {
+-		f.WriteByte(s[i])
+-	}
+-}
+-
+ func getrune(f *bufio.Reader) rune {
+ 	var r rune
+ 
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 71e5372972..90e9aebab6 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -29,7 +29,6 @@ type reader struct {
+ 	setupDone    bool // true if we have parsed the bzip2 header.
+ 	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
+ 	eof          bool
+-	buf          []byte    // stores Burrows-Wheeler transformed data.
+ 	c            [256]uint // the `C' array for the inverse BWT.
+ 	tt           []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
+ 	tPos         uint32    // Index of the next output byte in tt.
+diff --git a/src/compress/flate/token.go b/src/compress/flate/token.go
+index c485939d34..ae01391f9c 100644
+--- a/src/compress/flate/token.go
++++ b/src/compress/flate/token.go
+@@ -75,9 +75,6 @@ func matchToken(xlength uint32, xoffset uint32) token {
+ 	return token(matchType + xlength<<lengthShift + xoffset)
+ }
+ 
+-// Returns the type of a token
+-func (t token) typ() uint32 { return uint32(t) & typeMask }
+-
+ // Returns the literal of a literal token
+ func (t token) literal() uint32 { return uint32(t - literalType) }
+ 
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 28971ce078..572266bc8f 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -590,13 +590,6 @@ type Certificate struct {
+ 	Leaf *x509.Certificate
+ }
+ 
+-// A TLS record.
+-type record struct {
+-	contentType  recordType
+-	major, minor uint8
+-	payload      []byte
+-}
+-
+ type handshakeMessage interface {
+ 	marshal() []byte
+ 	unmarshal([]byte) bool
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index e0dab08ddc..2b1875d903 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -174,13 +174,6 @@ func (hc *halfConn) incSeq() {
+ 	panic("TLS: sequence number wraparound")
+ }
+ 
+-// resetSeq resets the sequence number to zero.
+-func (hc *halfConn) resetSeq() {
+-	for i := range hc.seq {
+-		hc.seq[i] = 0
+-	}
+-}
+-
+ // removePadding returns an unpadded slice, in constant time, which is a prefix
+ // of the input. It also returns a byte which is equal to 255 if the padding
+ // was valid and 0 otherwise. See RFC 2246, section 6.2.3.2
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 7ba7ce5c90..e7482a8e2f 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -838,11 +838,6 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
+ 	return dc, nil
+ }
+ 
+-var (
+-	errConnClosed = errors.New("database/sql: internal sentinel error: conn is closed")
+-	errConnBusy   = errors.New("database/sql: internal sentinel error: conn is busy")
+-)
+-
+ // putConnHook is a hook for testing.
+ var putConnHook func(*DB, *driverConn)
+ 
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 7b61428664..31647536ac 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -291,26 +291,3 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
+ 	}
+ 	return strconv.FormatUint(uint64(i), 10)
+ }
+-
+-func flagName(i uint32, names []intName, goSyntax bool) string {
+-	s := ""
+-	for _, n := range names {
+-		if n.i&i == n.i {
+-			if len(s) > 0 {
+-				s += "+"
+-			}
+-			if goSyntax {
+-				s += "macho."
+-			}
+-			s += n.s
+-			i -= n.i
+-		}
+-	}
+-	if len(s) == 0 {
+-		return "0x" + strconv.FormatUint(uint64(i), 16)
+-	}
+-	if i != 0 {
+-		s += "+0x" + strconv.FormatUint(uint64(i), 16)
+-	}
+-	return s
+-}
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index b9f5a39fde..ec4822b5c1 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -175,10 +175,9 @@ func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+ }
+ 
+ var (
+-	begComment   = []byte("<!--")
+-	endComment   = []byte("-->")
+-	endProcInst  = []byte("?>")
+-	endDirective = []byte(">")
++	begComment  = []byte("<!--")
++	endComment  = []byte("-->")
++	endProcInst = []byte("?>")
+ )
+ 
+ // EncodeToken writes the given XML token to the stream.
+diff --git a/src/html/escape.go b/src/html/escape.go
+index ab6fd1c7b4..71906ac586 100644
+--- a/src/html/escape.go
++++ b/src/html/escape.go
+@@ -10,10 +10,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-type writer interface {
+-	WriteString(string) (int, error)
+-}
+-
+ // These replacements permit compatibility with old numeric entities that
+ // assumed Windows-1252 encoding.
+ // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+diff --git a/src/io/pipe.go b/src/io/pipe.go
+index 179515e78d..7e98cd2eb7 100644
+--- a/src/io/pipe.go
++++ b/src/io/pipe.go
+@@ -15,11 +15,6 @@ import (
+ // ErrClosedPipe is the error used for read or write operations on a closed pipe.
+ var ErrClosedPipe = errors.New("io: read/write on closed pipe")
+ 
+-type pipeResult struct {
+-	n   int
+-	err error
+-}
+-
+ // A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
+ type pipe struct {
+ 	rl    sync.Mutex // gates readers one at a time
+diff --git a/src/net/http/fcgi/fcgi.go b/src/net/http/fcgi/fcgi.go
+index 06bba0488a..337484139d 100644
+--- a/src/net/http/fcgi/fcgi.go
++++ b/src/net/http/fcgi/fcgi.go
+@@ -58,8 +58,6 @@ const (
+ 	statusUnknownRole
+ )
+ 
+-const headerLen = 8
+-
+ type header struct {
+ 	Version       uint8
+ 	Type          recType
+@@ -158,11 +156,6 @@ func (c *conn) writeRecord(recType recType, reqId uint16, b []byte) error {
+ 	return err
+ }
+ 
+-func (c *conn) writeBeginRequest(reqId uint16, role uint16, flags uint8) error {
+-	b := [8]byte{byte(role >> 8), byte(role), flags}
+-	return c.writeRecord(typeBeginRequest, reqId, b[:])
+-}
+-
+ func (c *conn) writeEndRequest(reqId uint16, appStatus int, protocolStatus uint8) error {
+ 	b := make([]byte, 8)
+ 	binary.BigEndian.PutUint32(b, uint32(appStatus))
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 3af5395898..ddde11a0e4 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -168,13 +168,6 @@ var reqWriteExcludeHeaderDump = map[string]bool{
+ 	"Trailer":           true,
+ }
+ 
+-// dumpAsReceived writes req to w in the form as it was received, or
+-// at least as accurately as possible from the information retained in
+-// the request.
+-func dumpAsReceived(req *http.Request, w io.Writer) error {
+-	return nil
+-}
+-
+ // DumpRequest returns the given request in its HTTP/1.x wire
+ // representation. It should only be used by servers to debug client
+ // requests. The returned representation is an approximation only;
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index d6cd9a1cb3..386971d928 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1371,7 +1371,6 @@ func (e *httpError) Timeout() bool   { return e.timeout }
+ func (e *httpError) Temporary() bool { return true }
+ 
+ var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+-var errClosed error = &httpError{err: "net/http: server closed connection before response was received"}
+ var errRequestCanceled = errors.New("net/http: request canceled")
+ var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
+ 
+@@ -1697,17 +1696,6 @@ type fakeLocker struct{}
+ func (fakeLocker) Lock()   {}
+ func (fakeLocker) Unlock() {}
+ 
+-func isNetWriteError(err error) bool {
+-	switch e := err.(type) {
+-	case *url.Error:
+-		return isNetWriteError(e.Err)
+-	case *net.OpError:
+-		return e.Op == "write"
+-	default:
+-		return false
+-	}
+-}
+-
+ // cloneTLSConfig returns a shallow clone of the exported
+ // fields of cfg, ignoring the unexported sync.Once, which
+ // contains a mutex and must not be copied.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 1305bbfff4..262545d973 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -11,7 +11,6 @@ import (
+ )
+ 
+ const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+-const cannotSet = "cannot set value obtained from unexported struct field"
+ 
+ // Value is the reflection interface to a Go value.
+ //
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index 93334c3aff..29f624b54c 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -36,7 +36,6 @@ type bitState struct {
+ 
+ 	end     int
+ 	cap     []int
+-	input   input
+ 	jobs    []job
+ 	visited []uint32
+ }
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 6c6329e0b0..4fd61b5d8d 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -107,14 +107,6 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
+ 	return t
+ }
+ 
+-// free returns t to the free pool.
+-func (m *machine) free(t *thread) {
+-	m.inputBytes.str = nil
+-	m.inputString.str = ""
+-	m.inputReader.r = nil
+-	m.pool = append(m.pool, t)
+-}
+-
+ // match runs the machine over the input starting at pos.
+ // It reports whether a match was found.
+ // If so, m.matchcap holds the submatch information.
+@@ -192,7 +184,6 @@ func (m *machine) match(i input, pos int) bool {
+ func (m *machine) clear(q *queue) {
+ 	for _, d := range q.dense {
+ 		if d.t != nil {
+-			// m.free(d.t)
+ 			m.pool = append(m.pool, d.t)
+ 		}
+ 	}
+@@ -213,7 +204,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
+ 			continue
+ 		}
+ 		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
+-			// m.free(t)
+ 			m.pool = append(m.pool, t)
+ 			continue
+ 		}
+@@ -232,7 +222,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
+ 				// First-match mode: cut off all lower-priority threads.
+ 				for _, d := range runq.dense[j+1:] {
+ 					if d.t != nil {
+-						// m.free(d.t)
+ 						m.pool = append(m.pool, d.t)
+ 					}
+ 				}
+@@ -253,7 +242,6 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
+ 			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t)
+ 		}
+ 		if t != nil {
+-			// m.free(t)
+ 			m.pool = append(m.pool, t)
+ 		}
+ 	}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 92af6bb45b..fe3db9f78b 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -75,8 +75,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-var debug = false
+-
+ // Regexp is the representation of a compiled regular expression.
+ // A Regexp is safe for concurrent use by multiple goroutines.
+ type Regexp struct {
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index b322c0eddf..d07a0c27b8 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -19,13 +19,6 @@ type Interface interface {
+ 	Swap(i, j int)
+ }
+ 
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // Insertion sort
+ func insertionSort(data Interface, a, b int) {
+ 	for i := a + 1; i < b; i++ {
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 0bfcffa795..cd0b82b243 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -322,7 +322,6 @@ const (
+ 	complexKind
+ 	intKind
+ 	floatKind
+-	integerKind
+ 	stringKind
+ 	uintKind
+ )
+diff --git a/src/time/time.go b/src/time/time.go
+index 9693286fd5..4b9a0db730 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -225,9 +225,6 @@ const (
+ 	// Assumed by the unixToInternal computation below.
+ 	internalYear = 1
+ 
+-	// The year of the zero Unix time.
+-	unixYear = 1970
+-
+ 	// Offsets to convert between internal and absolute or Unix times.
+ 	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+ 	internalToAbsolute       = -absoluteToInternal

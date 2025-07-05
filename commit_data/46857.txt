@@ -13,8 +13,112 @@ Date:   Thu Feb 4 12:10:02 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/predicates.go |  6 ++----
  src/go/types/type.go       |  8 +++-----
  src/go/types/typexpr.go    | 21 +++++++++++++++++++--
  3 files changed, 24 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 148edbfb76..954a7ca987 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -6,8 +6,6 @@
+ 
+ package types
+ 
+-import "sort"
+-
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+ 		return ok
+@@ -273,8 +271,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 					p = p.prev
+ 				}
+ 				if debug {
+-					assert(sort.IsSorted(byUniqueMethodName(a)))
+-					assert(sort.IsSorted(byUniqueMethodName(b)))
++					assertSortedMethods(a)
++					assertSortedMethods(b)
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 087cda429d..66e194e967 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -4,8 +4,6 @@
+ 
+ package types
+ 
+-import "sort"
+-
+ // A Type represents a type of Go.
+ // All types implement the Type interface.
+ type Type interface {
+@@ -301,8 +299,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	}
+ 
+ 	// sort for API stability
+-	sort.Sort(byUniqueMethodName(methods))
+-	sort.Stable(byUniqueTypeName(embeddeds))
++	sortMethods(methods)
++	sortTypes(embeddeds)
+ 
+ 	typ.methods = methods
+ 	typ.embeddeds = embeddeds
+@@ -396,7 +394,7 @@ func (t *Interface) Complete() *Interface {
+ 	}
+ 
+ 	if methods != nil {
+-		sort.Sort(byUniqueMethodName(methods))
++		sortMethods(methods)
+ 		t.allMethods = methods
+ 	}
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 2b398010f4..311a970051 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -518,8 +518,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	}
+ 
+ 	// sort for API stability
+-	sort.Sort(byUniqueMethodName(ityp.methods))
+-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
++	sortMethods(ityp.methods)
++	sortTypes(ityp.embeddeds)
+ 
+ 	check.later(func() { check.completeInterface(ityp) })
+ }
+@@ -613,6 +613,10 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 	}
+ }
+ 
++func sortTypes(list []Type) {
++	sort.Stable(byUniqueTypeName(list))
++}
++
+ // byUniqueTypeName named type lists can be sorted by their unique type names.
+ type byUniqueTypeName []Type
+ 
+@@ -627,6 +631,19 @@ func sortName(t Type) string {
+ 	return ""
+ }
+ 
++func sortMethods(list []*Func) {
++	sort.Sort(byUniqueMethodName(list))
++}
++
++func assertSortedMethods(list []*Func) {
++	if !debug {
++		panic("internal error: assertSortedMethods called outside debug mode")
++	}
++	if !sort.IsSorted(byUniqueMethodName(list)) {
++		panic("internal error: methods not sorted")
++	}
++}
++
+ // byUniqueMethodName method lists can be sorted by their unique method names.
+ type byUniqueMethodName []*Func
+ 

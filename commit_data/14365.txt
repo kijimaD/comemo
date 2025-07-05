@@ -9,6 +9,32 @@ Date:   Fri Nov 9 10:05:46 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6812103
-
+---
  src/pkg/runtime/crash_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 0abc531537..bc6b89feed 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"testing"
+ 	"text/template"
+ )
+@@ -22,12 +21,6 @@ type crashTest struct {
+ // both main (m0) and non-main threads (m).
+ 
+ func testCrashHandler(t *testing.T, ct *crashTest) {
+-	if runtime.GOOS == "freebsd" {
+-		// TODO(brainman): do not know why this test fails on freebsd
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
+-	}
+-
+ 	st := template.Must(template.New("crashSource").Parse(crashSource))
+ 
+ 	dir, err := ioutil.TempDir("", "go-build")

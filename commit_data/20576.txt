@@ -18,8 +18,89 @@ Date:   Fri Sep 19 11:38:48 2014 +1000
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/146800043
-
+---
  src/runtime/os_windows_386.c        | 15 ---------------
  src/runtime/os_windows_amd64.c      | 15 ---------------
  src/runtime/syscall_windows_test.go |  6 ++++++
  3 files changed, 6 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/os_windows_386.c b/src/runtime/os_windows_386.c
+index 028b09bbc8..e2ae8db277 100644
+--- a/src/runtime/os_windows_386.c
++++ b/src/runtime/os_windows_386.c
+@@ -24,8 +24,6 @@ runtime·dumpregs(Context *r)
+ 	runtime·printf("gs      %x\n", r->SegGs);
+ }
+ 
+-#define DBG_PRINTEXCEPTION_C 0x40010006
+-
+ // Called by sigtramp from Windows VEH handler.
+ // Return value signals whether the exception has been handled (-1)
+ // or should be made available to other handlers in the chain (0).
+@@ -36,19 +34,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	uintptr *sp;
+ 	extern byte runtime·text[], runtime·etext[];
+ 
+-	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
+-		// This exception is intended to be caught by debuggers.
+-		// There is a not-very-informational message like
+-		// "Invalid parameter passed to C runtime function"
+-		// sitting at info->ExceptionInformation[0] (a wchar_t*),
+-		// with length info->ExceptionInformation[1].
+-		// The default behavior is to ignore this exception,
+-		// but somehow returning 0 here (meaning keep going)
+-		// makes the program crash instead. Maybe Windows has no
+-		// other handler registered? In any event, ignore it.
+-		return -1;
+-	}
+-
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+ 	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
+diff --git a/src/runtime/os_windows_amd64.c b/src/runtime/os_windows_amd64.c
+index d7b45c5b1d..261880d450 100644
+--- a/src/runtime/os_windows_amd64.c
++++ b/src/runtime/os_windows_amd64.c
+@@ -32,8 +32,6 @@ runtime·dumpregs(Context *r)
+ 	runtime·printf("gs      %X\n", (uint64)r->SegGs);
+ }
+ 
+-#define DBG_PRINTEXCEPTION_C 0x40010006
+-
+ // Called by sigtramp from Windows VEH handler.
+ // Return value signals whether the exception has been handled (-1)
+ // or should be made available to other handlers in the chain (0).
+@@ -44,19 +42,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	uintptr *sp;
+ 	extern byte runtime·text[], runtime·etext[];
+ 
+-	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
+-		// This exception is intended to be caught by debuggers.
+-		// There is a not-very-informational message like
+-		// "Invalid parameter passed to C runtime function"
+-		// sitting at info->ExceptionInformation[0] (a wchar_t*),
+-		// with length info->ExceptionInformation[1].
+-		// The default behavior is to ignore this exception,
+-		// but somehow returning 0 here (meaning keep going)
+-		// makes the program crash instead. Maybe Windows has no
+-		// other handler registered? In any event, ignore it.
+-		return -1;
+-	}
+-
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+ 	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index a828512188..9ed016ccc8 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -488,3 +488,9 @@ func TestRegisterClass(t *testing.T) {
+ 		t.Fatalf("UnregisterClass failed: %v", err)
+ 	}
+ }
++
++func TestOutputDebugString(t *testing.T) {
++	d := GetDLL(t, "kernel32.dll")
++	p := syscall.StringToUTF16Ptr("testing OutputDebugString")
++	d.Proc("OutputDebugStringW").Call(uintptr(unsafe.Pointer(p)))
++}

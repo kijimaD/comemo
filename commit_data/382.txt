@@ -8,10 +8,299 @@ Date:   Thu Jul 17 15:03:39 2008 -0700
     differnt assignment of offsets to parameters
     
     SVN=127888
-
+---
  src/cmd/6g/gen.c   | 167 ++++++++++++++++++++++-------------------------------
  src/cmd/gc/dcl.c   |   8 ++-
  src/cmd/gc/go.h    |   3 +-
  src/cmd/gc/subr.c  |   1 +
  src/runtime/proc.c |   8 +--
  5 files changed, 78 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 764f35ee3d..0c8f23767c 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -92,58 +92,6 @@ allocparams(void)
+ 	Node *n;
+ 	ulong w;
+ 
+-	/*
+-	 * allocate (set xoffset) the stack
+-	 * slots for this, inargs, outargs
+-	 * these are allocated positavely
+-	 * from 0 up.
+-	 * note that this uses the 'width'
+-	 * field, which, in the OFIELD of the
+-	 * parameters, is the offset in the
+-	 * parameter list.
+-	 */
+-	d = curfn->type->param->forw;
+-	t = funcfirst(&list, curfn->type);
+-	while(t != T) {
+-		if(d == D)
+-			fatal("allocparams: this & in nil");
+-
+-		if(d->op != ONAME) {
+-			d = d->forw;
+-			continue;
+-		}
+-
+-		n = d->dnode;
+-		if(n->class != PPARAM)
+-			fatal("allocparams: this & in class %N %d", n, n->class);
+-
+-//print("assign %S %ld\n", n->sym, t->width);
+-		n->xoffset = t->width;
+-		d = d->forw;
+-		t = funcnext(&list);
+-	}
+-
+-	t = structfirst(&list, getoutarg(curfn->type));
+-	while(t != T) {
+-		if(t->nname != N && t->nname->sym->name[0] != '_') {
+-			if(d == D)
+-				fatal("allocparams: out nil");
+-
+-			if(d->op != ONAME) {
+-				d = d->forw;
+-				continue;
+-			}
+-
+-			n = d->dnode;
+-			if(n->class != PPARAM)
+-				fatal("allocparams: out class %N %d", n, n->class);
+-
+-			n->xoffset = t->width;
+-			d = d->forw;
+-		}
+-		t = structnext(&list);
+-	}
+-
+ 	/*
+ 	 * allocate (set xoffset) the stack
+ 	 * slots for all automatics.
+@@ -996,56 +944,16 @@ samereg(Node *a, Node *b)
+ 	return 1;
+ }
+ 
+-/*
+- * this is hard because divide
+- * is done in a fixed numerator
+- * of combined DX:AX registers
+- */
+ void
+-cgen_div(int op, Node *nl, Node *nr, Node *res)
++dodiv(int op, Node *nl, Node *nr, Node *res)
+ {
++	int a;
+ 	Node n1, n2, n3;
+-	int a, rax, rdx;
+-
+-	rax = reg[D_AX];
+-	rdx = reg[D_DX];
+ 
+ 	nodreg(&n1, types[TINT64], D_AX);
+ 	nodreg(&n2, types[TINT64], D_DX);
+-	regalloc(&n1, nr->type, &n1);
+-	regalloc(&n2, nr->type, &n2);
+-
+-	// clean out the AX register
+-	if(rax && !samereg(res, &n1)) {
+-		regalloc(&n3, types[TINT64], N);
+-		gins(AMOVQ, &n1, &n3);
+-		regfree(&n1);
+-		regfree(&n2);
+-
+-		reg[D_AX] = 0;
+-		cgen_div(op, nl, nr, res);
+-		reg[D_AX] = rax;
+-
+-		gins(AMOVQ, &n3, &n1);
+-		regfree(&n3);
+-		goto ret;
+-	}
+-
+-	// clean out the DX register
+-	if(rdx && !samereg(res, &n2)) {
+-		regalloc(&n3, types[TINT64], N);
+-		gins(AMOVQ, &n2, &n3);
+-		regfree(&n1);
+-		regfree(&n2);
+-
+-		reg[D_DX] = 0;
+-		cgen_div(op, nl, nr, res);
+-		reg[D_DX] = rdx;
+-
+-		gins(AMOVQ, &n3, &n2);
+-		regfree(&n3);
+-		goto ret;
+-	}
++	regalloc(&n1, nl->type, &n1);
++	regalloc(&n2, nl->type, &n2);
+ 
+ 	a = optoas(op, nl->type);
+ 
+@@ -1077,9 +985,72 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	regfree(&n1);
+ 	regfree(&n2);
++}
+ 
+-ret:
+-	;
++/*
++ * this is hard because divide
++ * is done in a fixed numerator
++ * of combined DX:AX registers
++ */
++void
++cgen_div(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3, n4, n5;
++	int a, rax, rdx;
++
++	rax = reg[D_AX];
++	rdx = reg[D_DX];
++
++	nodreg(&n1, types[TINT64], D_AX);
++	nodreg(&n2, types[TINT64], D_DX);
++
++	// clean out the AX register
++	if(rax && !samereg(res, &n1)) {
++		if(rdx && !samereg(res, &n2)) {
++			regalloc(&n5, types[TINT64], N);	// DX holder
++			regalloc(&n4, types[TINT64], N);	// AX holder
++			regalloc(&n3, nl->type, N);		// dest for div
++
++			gins(AMOVQ, &n2, &n5);
++			gins(AMOVQ, &n1, &n4);
++			dodiv(op, nl, nr, &n3);
++			gins(AMOVQ, &n4, &n1);
++			gins(AMOVQ, &n5, &n2);
++			gmove(&n3, res);
++
++			regfree(&n5);
++			regfree(&n4);
++			regfree(&n3);
++			return;
++		}
++		regalloc(&n4, types[TINT64], N);	// AX holder
++		regalloc(&n3, nl->type, N);		// dest for div
++
++		gins(AMOVQ, &n1, &n4);
++		dodiv(op, nl, nr, &n3);
++		gins(AMOVQ, &n4, &n1);
++		gmove(&n3, res);
++
++		regfree(&n4);
++		regfree(&n3);
++		return;
++	}
++
++	// clean out the DX register
++	if(rdx && !samereg(res, &n2)) {
++		regalloc(&n4, types[TINT64], N);	// DX holder
++		regalloc(&n3, nl->type, N);		// dest for div
++
++		gins(AMOVQ, &n2, &n4);
++		dodiv(op, nl, nr, &n3);
++		gins(AMOVQ, &n4, &n2);
++		gmove(&n3, res);
++
++		regfree(&n4);
++		regfree(&n3);
++		return;
++	}
++	dodiv(op, nl, nr, res);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index b3c74d7dd8..ac724a02b1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -370,13 +370,13 @@ funcargs(Type *ft)
+ 	Iter save;
+ 	int all;
+ 
+-	ft->param = autodcl->back;	// base of arguments - see allocparams in gen.c
+-
+ 	// declare the this/in arguments
+ 	t = funcfirst(&save, ft);
+ 	while(t != T) {
+-		if(t->nname != N)
++		if(t->nname != N) {
++			t->nname->xoffset = t->width;
+ 			addvar(t->nname, t->type, PPARAM);
++		}
+ 		t = funcnext(&save);
+ 	}
+ 
+@@ -384,6 +384,8 @@ funcargs(Type *ft)
+ 	all = 0;
+ 	t = structfirst(&save, getoutarg(ft));
+ 	while(t != T) {
++		if(t->nname != N)
++			t->nname->xoffset = t->width;
+ 		if(t->nname != N && t->nname->sym->name[0] != '_') {
+ 			addvar(t->nname, t->type, PPARAM);
+ 			all |= 1;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bf34727159..ed1f903e58 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -68,7 +68,6 @@ struct	Val
+ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+ typedef	struct	Type	Type;
+-typedef	struct	Dcl	Dcl;
+ 
+ struct	Type
+ {
+@@ -85,7 +84,6 @@ struct	Type
+ 
+ 	Sym*	sym;
+ 	long	vargen;		// unique name for OTYPE/ONAME
+-	Dcl*	param;
+ 
+ 	// most nodes
+ 	Type*	type;
+@@ -175,6 +173,7 @@ struct	Sym
+ };
+ #define	S	((Sym*)0)
+ 
++typedef	struct	Dcl	Dcl;
+ struct	Dcl
+ {
+ 	uchar	op;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7ee6314e2e..b7e261d9e4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1506,6 +1506,7 @@ ptrto(Type *t)
+ 		fatal("ptrto: nil");
+ 	t1 = typ(tptr);
+ 	t1->type = t;
++	t1->width = types[tptr]->width;
+ 	return t1;
+ }
+ 
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index d6aed85f1c..807c70b60b 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -28,12 +28,8 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ //sys·printpointer(fn);
+ 
+ 	siz = (siz+7) & ~7;
+-	if(siz > 1024) {
+-		prints("sys·newproc: too many args: ");
+-		sys·printint(siz);
+-		prints("\n");
+-		sys·panicl(123);
+-	}
++	if(siz > 1024)
++		throw("sys·newproc: too many args");
+ 
+ 	// try to rip off an old goroutine
+ 	for(newg=allg; newg!=nil; newg=newg->alllink)

@@ -8,6 +8,20 @@ Date:   Fri Apr 4 17:36:01 2014 +1100
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/84340043
-
+---
  src/pkg/net/net_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_windows_test.go b/src/pkg/net/net_windows_test.go
+index 894f517745..2f57745e3c 100644
+--- a/src/pkg/net/net_windows_test.go
++++ b/src/pkg/net/net_windows_test.go
+@@ -84,7 +84,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 	}
+ 	err = cmd.Start()
+ 	if err != nil {
+-		t.Fatalf("cmd.Start failed: %v\n%s\n", err)
++		t.Fatalf("cmd.Start failed: %v\n", err)
+ 	}
+ 	outReader := bufio.NewReader(stdout)
+ 	for {

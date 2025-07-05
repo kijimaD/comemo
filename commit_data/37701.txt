@@ -14,7 +14,7 @@ Date:   Fri Jun 1 19:25:57 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/runtime/export_debug_test.go |  2 +-
  src/runtime/os3_plan9.go         |  2 +-
  src/runtime/os_plan9.go          | 10 +++++-----
@@ -23,3 +23,151 @@ Date:   Fri Jun 1 19:25:57 2018 +0200
  src/runtime/traceback.go         |  4 ++--
  src/runtime/type.go              |  4 ----
  7 files changed, 14 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index d34c1fd7dc..74f8855de6 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -115,7 +115,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		return false
+ 	}
+ 	f := findfunc(uintptr(ctxt.rip()))
+-	if !(hasprefix(funcname(f), "runtime.debugCall") || hasprefix(funcname(f), "debugCall")) {
++	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
+ 		println("trap in unknown function", funcname(f))
+ 		return false
+ 	}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 0e3a4c8024..15ca3359d2 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -44,7 +44,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	// level by the program but will otherwise be ignored.
+ 	flags = _SigNotify
+ 	for sig, t = range sigtable {
+-		if hasprefix(notestr, t.name) {
++		if hasPrefix(notestr, t.name) {
+ 			flags = t.flags
+ 			break
+ 		}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 9f41c5ac83..5469114a2b 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -112,20 +112,20 @@ func sigpanic() {
+ }
+ 
+ func atolwhex(p string) int64 {
+-	for hasprefix(p, " ") || hasprefix(p, "\t") {
++	for hasPrefix(p, " ") || hasPrefix(p, "\t") {
+ 		p = p[1:]
+ 	}
+ 	neg := false
+-	if hasprefix(p, "-") || hasprefix(p, "+") {
++	if hasPrefix(p, "-") || hasPrefix(p, "+") {
+ 		neg = p[0] == '-'
+ 		p = p[1:]
+-		for hasprefix(p, " ") || hasprefix(p, "\t") {
++		for hasPrefix(p, " ") || hasPrefix(p, "\t") {
+ 			p = p[1:]
+ 		}
+ 	}
+ 	var n int64
+ 	switch {
+-	case hasprefix(p, "0x"), hasprefix(p, "0X"):
++	case hasPrefix(p, "0x"), hasPrefix(p, "0X"):
+ 		p = p[2:]
+ 		for ; len(p) > 0; p = p[1:] {
+ 			if '0' <= p[0] && p[0] <= '9' {
+@@ -138,7 +138,7 @@ func atolwhex(p string) int64 {
+ 				break
+ 			}
+ 		}
+-	case hasprefix(p, "0"):
++	case hasPrefix(p, "0"):
+ 		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
+ 			n = n*8 + int64(p[0]-'0')
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 31b188efd9..32467715c4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -498,7 +498,7 @@ func cpuinit() {
+ 			p := argv_index(argv, argc+1+i)
+ 			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
+ 
+-			if hasprefix(s, prefix) {
++			if hasPrefix(s, prefix) {
+ 				env = gostring(p)[len(prefix):]
+ 				break
+ 			}
+@@ -3702,7 +3702,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+ 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
+ 		if f := findfunc(pc); f.valid() {
+-			if hasprefix(funcname(f), "runtime/internal/atomic") {
++			if hasPrefix(funcname(f), "runtime/internal/atomic") {
+ 				lostAtomic64Count++
+ 				return
+ 			}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 6e42483b13..d10bd96f43 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -333,7 +333,7 @@ func index(s, t string) int {
+ 		return 0
+ 	}
+ 	for i := 0; i < len(s); i++ {
+-		if s[i] == t[0] && hasprefix(s[i:], t) {
++		if s[i] == t[0] && hasPrefix(s[i:], t) {
+ 			return i
+ 		}
+ 	}
+@@ -344,8 +344,8 @@ func contains(s, t string) bool {
+ 	return index(s, t) >= 0
+ }
+ 
+-func hasprefix(s, t string) bool {
+-	return len(s) >= len(t) && s[:len(t)] == t
++func hasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+ }
+ 
+ const (
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index d8c225d975..a1f32016b9 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -843,7 +843,7 @@ func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
+ 		return true
+ 	}
+ 
+-	return contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
++	return contains(name, ".") && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
+ }
+ 
+ // isExportedRuntime reports whether name is an exported runtime function.
+@@ -1022,7 +1022,7 @@ func isSystemGoroutine(gp *g) bool {
+ 		// back into user code.
+ 		return !fingRunning
+ 	}
+-	return hasprefix(funcname(f), "runtime.")
++	return hasPrefix(funcname(f), "runtime.")
+ }
+ 
+ // SetCgoTraceback records three C functions to use to gather
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 4b38c351c7..88a44a37ed 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -112,10 +112,6 @@ func (t *_type) uncommon() *uncommontype {
+ 	}
+ }
+ 
+-func hasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+-}
+-
+ func (t *_type) name() string {
+ 	if t.tflag&tflagNamed == 0 {
+ 		return ""

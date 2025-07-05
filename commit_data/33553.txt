@@ -17,6 +17,65 @@ Date:   Sun Aug 20 10:17:02 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/57410
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 42 insertions(+)
+
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 922cd830bc..25dfe921fe 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -5,7 +5,10 @@
+ package runtime_test
+ 
+ import (
++	"bytes"
++	"internal/testenv"
+ 	"io"
++	"os/exec"
+ 	. "runtime"
+ 	"runtime/debug"
+ 	"strings"
+@@ -354,3 +357,42 @@ func TestVersion(t *testing.T) {
+ 		t.Fatalf("cr/nl in version: %q", vers)
+ 	}
+ }
++
++// TestIntendedInlining tests that specific runtime functions are inlined.
++// This allows refactoring for code clarity and re-use without fear that
++// changes to the compiler will cause silent performance regressions.
++func TestIntendedInlining(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	// want is the list of function names that should be inlined.
++	want := []string{"tophash", "add"}
++
++	m := make(map[string]bool, len(want))
++	for _, s := range want {
++		m[s] = true
++	}
++
++	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-m", "runtime"))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++	lines := bytes.Split(out, []byte{'\n'})
++	for _, x := range lines {
++		f := bytes.Split(x, []byte(": can inline "))
++		if len(f) < 2 {
++			continue
++		}
++		fn := bytes.TrimSpace(f[1])
++		delete(m, string(fn))
++	}
++
++	for s := range m {
++		t.Errorf("function %s not inlined", s)
++	}
++}

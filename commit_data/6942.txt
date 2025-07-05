@@ -13,8 +13,57 @@ Date:   Mon Dec 13 16:57:35 2010 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3579042
-
+---
  src/pkg/runtime/darwin/mem.c  | 7 -------
  src/pkg/runtime/freebsd/mem.c | 7 -------
  src/pkg/runtime/linux/mem.c   | 7 -------
  3 files changed, 21 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+index fc963d719b..7fb2c28078 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -36,11 +36,4 @@ runtime·SysFree(void *v, uintptr n)
+ void
+ runtime·SysMemInit(void)
+ {
+-	// Code generators assume that references to addresses
+-	// on the first page will fault.  Map the page explicitly with
+-	// no permissions, to head off possible bugs like the system
+-	// allocating that page as the virtual address space fills.
+-	// Ignore any error, since other systems might be smart
+-	// enough to never allow anything there.
+-//	mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index 90201784a4..7fb2c28078 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -36,11 +36,4 @@ runtime·SysFree(void *v, uintptr n)
+ void
+ runtime·SysMemInit(void)
+ {
+-	// Code generators assume that references to addresses
+-	// on the first page will fault.  Map the page explicitly with
+-	// no permissions, to head off possible bugs like the system
+-	// allocating that page as the virtual address space fills.
+-	// Ignore any error, since other systems might be smart
+-	// enough to never allow anything there.
+-	runtime·mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 9bf054a210..e750f97ea2 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -40,11 +40,4 @@ runtime·SysFree(void *v, uintptr n)
+ void
+ runtime·SysMemInit(void)
+ {
+-	// Code generators assume that references to addresses
+-	// on the first page will fault.  Map the page explicitly with
+-	// no permissions, to head off possible bugs like the system
+-	// allocating that page as the virtual address space fills.
+-	// Ignore any error, since other systems might be smart
+-	// enough to never allow anything there.
+-	runtime·mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
+ }

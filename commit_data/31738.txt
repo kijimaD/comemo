@@ -23,6 +23,59 @@ Date:   Thu Mar 9 13:30:20 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 35 ++++++++++++++++++++++----------
  1 file changed, 24 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index ea6523d24c..c63b7d2200 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -39,23 +39,36 @@ func nilcheckelim(f *Func) {
+ 
+ 	// make an initial pass identifying any non-nil values
+ 	for _, b := range f.Blocks {
+-		// a value resulting from taking the address of a
+-		// value, or a value constructed from an offset of a
+-		// non-nil ptr (OpAddPtr) implies it is non-nil
+ 		for _, v := range b.Values {
++			// a value resulting from taking the address of a
++			// value, or a value constructed from an offset of a
++			// non-nil ptr (OpAddPtr) implies it is non-nil
+ 			if v.Op == OpAddr || v.Op == OpAddPtr {
+ 				nonNilValues[v.ID] = true
+-			} else if v.Op == OpPhi {
++			}
++		}
++	}
++
++	for changed := true; changed; {
++		changed = false
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
+ 				// phis whose arguments are all non-nil
+ 				// are non-nil
+-				argsNonNil := true
+-				for _, a := range v.Args {
+-					if !nonNilValues[a.ID] {
+-						argsNonNil = false
++				if v.Op == OpPhi {
++					argsNonNil := true
++					for _, a := range v.Args {
++						if !nonNilValues[a.ID] {
++							argsNonNil = false
++							break
++						}
++					}
++					if argsNonNil {
++						if !nonNilValues[v.ID] {
++							changed = true
++						}
++						nonNilValues[v.ID] = true
+ 					}
+-				}
+-				if argsNonNil {
+-					nonNilValues[v.ID] = true
+ 				}
+ 			}
+ 		}

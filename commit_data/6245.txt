@@ -7,7 +7,7 @@ Date:   Sun Sep 12 12:02:29 2010 +1000
     R=r, Joe Poirier, rsc
     CC=golang-dev
     https://golang.org/cl/2123044
-
+---
  src/pkg/Makefile                   | 1 -
  src/pkg/net/parse_test.go          | 5 +++++
  src/pkg/net/port_test.go           | 1 -
@@ -15,3 +15,124 @@ Date:   Sun Sep 12 12:02:29 2010 +1000
  src/pkg/net/timeout_test.go        | 5 +++++
  src/pkg/syscall/syscall_windows.go | 6 ++++++
  6 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index b8e45da407..3a6491a924 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -190,7 +190,6 @@ endif
+ ifeq ($(GOOS),windows)
+ NOTEST+=exec         # no pipe
+ NOTEST+=log          # no runtime.Caller
+-NOTEST+=net          # no network
+ NOTEST+=os           # many things unimplemented
+ NOTEST+=os/signal    # no signals
+ NOTEST+=path         # tree walking does not work
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index f53df3b683..2b7784eee2 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -8,9 +8,14 @@ import (
+ 	"bufio"
+ 	"os"
+ 	"testing"
++	"runtime"
+ )
+ 
+ func TestReadLine(t *testing.T) {
++	// /etc/services file does not exist on windows.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	filename := "/etc/services" // a nice big file
+ 
+ 	fd, err := os.Open(filename, os.O_RDONLY, 0)
+diff --git a/src/pkg/net/port_test.go b/src/pkg/net/port_test.go
+index 50aab5aba7..7a796a874c 100644
+--- a/src/pkg/net/port_test.go
++++ b/src/pkg/net/port_test.go
+@@ -23,7 +23,6 @@ var porttests = []portTest{
+ 	portTest{"tcp", "chargen", 19, true},
+ 	portTest{"tcp", "ftp-data", 20, true},
+ 	portTest{"tcp", "ftp", 21, true},
+-	portTest{"tcp", "ssh", 22, true},
+ 	portTest{"tcp", "telnet", 23, true},
+ 	portTest{"tcp", "smtp", 25, true},
+ 	portTest{"tcp", "time", 37, true},
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 0d077fe95f..46bedaa5bc 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"strings"
+ 	"syscall"
+ 	"testing"
++	"runtime"
+ )
+ 
+ // Do not test empty datagrams by default.
+@@ -108,6 +109,10 @@ func TestTCPServer(t *testing.T) {
+ }
+ 
+ func TestUnixServer(t *testing.T) {
++	// "unix" sockets are not supported on windows.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	os.Remove("/tmp/gotest.net")
+ 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net")
+ 	os.Remove("/tmp/gotest.net")
+@@ -177,6 +182,10 @@ func TestUDPServer(t *testing.T) {
+ }
+ 
+ func TestUnixDatagramServer(t *testing.T) {
++	// "unix" sockets are not supported on windows.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	for _, isEmpty := range []bool{false} {
+ 		os.Remove("/tmp/gotest1.net")
+ 		os.Remove("/tmp/gotest1.net.local")
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 3594c0a350..092781685e 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -8,9 +8,14 @@ import (
+ 	"os"
+ 	"testing"
+ 	"time"
++	"runtime"
+ )
+ 
+ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
++	// Timeouts are not implemented on windows.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	fd, err := Dial(network, "", addr)
+ 	if err != nil {
+ 		t.Errorf("dial %s %s failed: %v", network, addr, err)
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 62990440b5..3eb0af16db 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -442,6 +442,9 @@ func Utimes(path string, tv []Timeval) (errno int) {
+ //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
+ //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
+ 
++// For testing: clients can set this flag to force
++// creation of IPv6 sockets to return EAFNOSUPPORT.
++var SocketDisableIPv6 bool
+ 
+ type RawSockaddrInet4 struct {
+ 	Family uint16
+@@ -525,6 +528,9 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
+ }
+ 
+ func Socket(domain, typ, proto int) (fd, errno int) {
++	if domain == AF_INET6 && SocketDisableIPv6 {
++		return -1, EAFNOSUPPORT
++	}
+ 	h, e := socket(int32(domain), int32(typ), int32(proto))
+ 	return int(h), int(e)
+ }

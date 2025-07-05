@@ -9,6 +9,23 @@ Date:   Tue Nov 23 10:43:16 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/3150041
-
+---
  doc/docs.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 6643b2095e..9ffa0220ce 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -47,6 +47,11 @@ application. It touches on structs, methods, file I/O, http, regular expressions
+ and closures.
+ </p>
+ 
++<h3 id="codewalks"><a href="codewalk/">Codewalks</a></h3>
++<p>
++Guided tours of Go programs. 
++</p>
++
+ <h3 id="go_for_cpp_programmers"><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></h3>
+ <p>
+ An introduction to Go for C++ programmers.

@@ -16,7 +16,80 @@ Date:   Tue May 13 12:17:49 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/92290043
-
+---
  src/pkg/regexp/all_test.go    | 10 ++++++++++
  src/pkg/regexp/syntax/prog.go |  5 +++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index a84c6410ae..301a1dfcd8 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -473,6 +473,11 @@ func TestSplit(t *testing.T) {
+ 	}
+ }
+ 
++// This ran out of stack before issue 7608 was fixed.
++func TestOnePassCutoff(t *testing.T) {
++	MustCompile(`^(?:x{1,1000}){1,1000}$`)
++}
++
+ func BenchmarkLiteral(b *testing.B) {
+ 	x := strings.Repeat("x", 50) + "y"
+ 	b.StopTimer()
+@@ -588,6 +593,7 @@ func BenchmarkOnePassShortA(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
+ func BenchmarkNotOnePassShortA(b *testing.B) {
+ 	b.StopTimer()
+ 	x := []byte("abcddddddeeeededd")
+@@ -597,6 +603,7 @@ func BenchmarkNotOnePassShortA(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
+ func BenchmarkOnePassShortB(b *testing.B) {
+ 	b.StopTimer()
+ 	x := []byte("abcddddddeeeededd")
+@@ -606,6 +613,7 @@ func BenchmarkOnePassShortB(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
+ func BenchmarkNotOnePassShortB(b *testing.B) {
+ 	b.StopTimer()
+ 	x := []byte("abcddddddeeeededd")
+@@ -615,6 +623,7 @@ func BenchmarkNotOnePassShortB(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
+ func BenchmarkOnePassLongPrefix(b *testing.B) {
+ 	b.StopTimer()
+ 	x := []byte("abcdefghijklmnopqrstuvwxyz")
+@@ -624,6 +633,7 @@ func BenchmarkOnePassLongPrefix(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
+ func BenchmarkOnePassLongNotPrefix(b *testing.B) {
+ 	b.StopTimer()
+ 	x := []byte("abcdefghijklmnopqrstuvwxyz")
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index 089b90db11..c1d6a121f0 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -600,6 +600,11 @@ func (p runeSlice) Sort() {
+ // onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is recursive
+ // to the size of the Prog
+ func (p *Prog) makeOnePass() *Prog {
++	// If the machine is very long, it's not worth the time to check if we can use one pass.
++	if len(p.Inst) >= 1000 {
++		return NotOnePass
++	}
++
+ 	var (
+ 		instQueue    = newQueue(len(p.Inst))
+ 		visitQueue   = newQueue(len(p.Inst))

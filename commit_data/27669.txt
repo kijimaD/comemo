@@ -21,6 +21,37 @@ Date:   Wed Apr 6 18:58:22 2016 +0100
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 15 ++++++++++-----
  1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 23bc72c1e4..8b2f3d5291 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -530,15 +530,20 @@ func blockChanClose() {
+ }
+ 
+ func blockSelectRecvAsync() {
++	const numTries = 3
+ 	c := make(chan bool, 1)
+ 	c2 := make(chan bool, 1)
+ 	go func() {
+-		time.Sleep(blockDelay)
+-		c <- true
++		for i := 0; i < numTries; i++ {
++			time.Sleep(blockDelay)
++			c <- true
++		}
+ 	}()
+-	select {
+-	case <-c:
+-	case <-c2:
++	for i := 0; i < numTries; i++ {
++		select {
++		case <-c:
++		case <-c2:
++		}
+ 	}
+ }
+ 

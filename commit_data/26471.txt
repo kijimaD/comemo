@@ -13,8 +13,109 @@ Date:   Thu Jan 14 00:38:48 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18627
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/example_test.go | 17 +++--------------
  src/archive/zip/reader.go       |  2 --
  src/archive/zip/register.go     | 27 ++++++++++++++++-----------
  3 files changed, 19 insertions(+), 27 deletions(-)
+
+diff --git a/src/archive/zip/example_test.go b/src/archive/zip/example_test.go
+index 8dd79cc79c..1eed3040cb 100644
+--- a/src/archive/zip/example_test.go
++++ b/src/archive/zip/example_test.go
+@@ -76,8 +76,7 @@ func ExampleReader() {
+ }
+ 
+ func ExampleWriter_RegisterCompressor() {
+-	// Override the default Deflate compressor with a higher compression
+-	// level.
++	// Override the default Deflate compressor with a higher compression level.
+ 
+ 	// Create a buffer to write our archive to.
+ 	buf := new(bytes.Buffer)
+@@ -85,19 +84,9 @@ func ExampleWriter_RegisterCompressor() {
+ 	// Create a new zip archive.
+ 	w := zip.NewWriter(buf)
+ 
+-	var fw *flate.Writer
+-
+-	// Register the deflator.
++	// Register a custom Deflate compressor.
+ 	w.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+-		var err error
+-		if fw == nil {
+-			// Creating a flate compressor for every file is
+-			// expensive, create one and reuse it.
+-			fw, err = flate.NewWriter(out, flate.BestCompression)
+-		} else {
+-			fw.Reset(out)
+-		}
+-		return fw, err
++		return flate.NewWriter(out, flate.BestCompression)
+ 	})
+ 
+ 	// Proceed to add files to w.
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 9a0e20db1e..84a9d41888 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -118,8 +118,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ // RegisterDecompressor registers or overrides a custom decompressor for a
+ // specific method ID. If a decompressor for a given method is not found,
+ // Reader will default to looking up the decompressor at the package level.
+-//
+-// Must not be called concurrently with Open on any Files in the Reader.
+ func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
+ 	if z.decompressors == nil {
+ 		z.decompressors = make(map[uint16]Decompressor)
+diff --git a/src/archive/zip/register.go b/src/archive/zip/register.go
+index 4211ec7af7..8fccbf7ca0 100644
+--- a/src/archive/zip/register.go
++++ b/src/archive/zip/register.go
+@@ -12,15 +12,19 @@ import (
+ 	"sync"
+ )
+ 
+-// A Compressor returns a compressing writer, writing to the
+-// provided writer. On Close, any pending data should be flushed.
+-type Compressor func(io.Writer) (io.WriteCloser, error)
+-
+-// Decompressor is a function that wraps a Reader with a decompressing Reader.
+-// The decompressed ReadCloser is returned to callers who open files from
+-// within the archive.  These callers are responsible for closing this reader
+-// when they're finished reading.
+-type Decompressor func(io.Reader) io.ReadCloser
++// A Compressor returns a new compressing writer, writing to w.
++// The WriteCloser's Close method must be used to flush pending data to w.
++// The Compressor itself must be safe to invoke from multiple goroutines
++// simultaneously, but each returned writer will be used only by
++// one goroutine at a time.
++type Compressor func(w io.Writer) (io.WriteCloser, error)
++
++// A Decompressor returns a new decompressing reader, reading from r.
++// The ReadCloser's Close method must be used to release associated resources.
++// The Decompressor itself must be safe to invoke from multiple goroutines
++// simultaneously, but each returned reader will be used only by
++// one goroutine at a time.
++type Decompressor func(r io.Reader) io.ReadCloser
+ 
+ var flateWriterPool sync.Pool
+ 
+@@ -75,14 +79,15 @@ var (
+ )
+ 
+ // RegisterDecompressor allows custom decompressors for a specified method ID.
+-func RegisterDecompressor(method uint16, d Decompressor) {
++// The common methods Store and Deflate are built in.
++func RegisterDecompressor(method uint16, dcomp Decompressor) {
+ 	mu.Lock()
+ 	defer mu.Unlock()
+ 
+ 	if _, ok := decompressors[method]; ok {
+ 		panic("decompressor already registered")
+ 	}
+-	decompressors[method] = d
++	decompressors[method] = dcomp
+ }
+ 
+ // RegisterCompressor registers custom compressors for a specified method ID.

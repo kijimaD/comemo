@@ -7,6 +7,21 @@ Date:   Mon Nov 9 23:22:04 2009 -0800
     
     R=rsc
     http://go/go-review/1024044
-
+---
  lib/godoc/package.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 4bb0052578..29b62dfea8 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -84,6 +84,9 @@
+ 	<td width="25">&nbsp;</td>
+ 	<th align="left">Synopsis</th>
+ 	</tr>
++	<tr>
++	<th align="left"><a href="..">..<a></th>
++	</tr>
+ 	{.repeated section List}
+ 		<tr>
+ 		{Depth|padding}

@@ -16,8 +16,95 @@ Date:   Mon Aug 14 15:39:19 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go   | 10 +++++-----
  src/archive/tar/tar_test.go | 28 ++++++++++++++++++++++++++++
  src/archive/tar/writer.go   |  8 ++++++--
  3 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index e9dff8439e..fb214c855d 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -133,8 +133,9 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 	const supportGNULong = false
+ 
+ 	var blk block
+-	var v7 = blk.V7()
+-	var ustar = blk.USTAR()
++	v7 := blk.V7()
++	ustar := blk.USTAR()
++	gnu := blk.GNU()
+ 	verifyString(h.Name, len(v7.Name()), supportGNULong, paxPath)
+ 	verifyString(h.Linkname, len(v7.LinkName()), supportGNULong, paxLinkpath)
+ 	verifyString(h.Uname, len(ustar.UserName()), false, paxUname)
+@@ -146,9 +147,8 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
+ 	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
+ 	verifyTime(h.ModTime, len(v7.ModTime()), true, paxMtime)
+-	// TODO(dsnet): Support atime and ctime fields.
+-	// verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
+-	// verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
++	verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
++	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
+ 
+ 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
+ 		return formatUnknown, nil
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 79895e6f9d..22e23a6bbd 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -450,6 +450,34 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(077777777777, 0)},
+ 		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{ModTime: time.Unix(077777777777+1, 0)},
++		paxHdrs: map[string]string{paxMtime: "8589934592"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0)},
++		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{ModTime: time.Unix(-1, 0)},
++		paxHdrs: map[string]string{paxMtime: "-1"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{ModTime: time.Unix(-1, 500)},
++		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
++		formats: formatPAX,
++	}, {
++		header:  &Header{AccessTime: time.Unix(0, 0)},
++		paxHdrs: map[string]string{paxAtime: "0"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{AccessTime: time.Unix(-123, 0)},
++		paxHdrs: map[string]string{paxAtime: "-123"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{ChangeTime: time.Unix(123, 456)},
++		paxHdrs: map[string]string{paxCtime: "123.000000456"},
++		formats: formatPAX,
+ 	}}
+ 
+ 	for i, v := range vectors {
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 7d393b46df..3d75c398e9 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -141,8 +141,12 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
+ 	// Pack the main header.
+ 	var f formatter
+ 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatNumeric)
+-	// TODO(dsnet): Support atime and ctime fields.
+-	// See https://golang.org/issue/17876
++	if !hdr.AccessTime.IsZero() {
++		f.formatNumeric(blk.GNU().AccessTime(), hdr.AccessTime.Unix())
++	}
++	if !hdr.ChangeTime.IsZero() {
++		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
++	}
+ 	blk.SetFormat(formatGNU)
+ 	if f.err != nil {
+ 		return f.err // Should never happen since header is validated

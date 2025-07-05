@@ -10,8 +10,86 @@ Date:   Tue Oct 11 10:23:14 2016 -0700
     Change-Id: I6e8698f5fbb04b31771a65f4a8f3f9c045ff3c98
     Reviewed-on: https://go-review.googlesource.com/30816
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go   | 13 +++++++++++++
  src/cmd/compile/internal/gc/pgen.go  |  8 ++------
  src/cmd/compile/internal/gc/plive.go | 13 ++-----------
  3 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a51e8999ea..3610f16c74 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -271,6 +271,19 @@ func duintptr(s *Sym, off int, v uint64) int {
+ 	return duintxx(s, off, v, Widthptr)
+ }
+ 
++func dbvec(s *Sym, off int, bv bvec) int {
++	for j := 0; int32(j) < bv.n; j += 32 {
++		word := bv.b[j/32]
++
++		// Runtime reads the bitmaps as byte arrays. Oblige.
++		off = duint8(s, off, uint8(word))
++		off = duint8(s, off, uint8(word>>8))
++		off = duint8(s, off, uint8(word>>16))
++		off = duint8(s, off, uint8(word>>24))
++	}
++	return off
++}
++
+ // stringConstantSyms holds the pair of symbols we create for a
+ // constant string.
+ type stringConstantSyms struct {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ef4ac11a89..f88e370277 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -157,15 +157,11 @@ func emitptrargsmap() {
+ 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
+ 	}
+ 
+-	for j := 0; int32(j) < bv.n; j += 32 {
+-		off = duint32(sym, off, bv.b[j/32])
+-	}
++	off = dbvec(sym, off, bv)
+ 	if Curfn.Type.Results().NumFields() > 0 {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
+-		for j := 0; int32(j) < bv.n; j += 32 {
+-			off = duint32(sym, off, bv.b[j/32])
+-		}
++		off = dbvec(sym, off, bv)
+ 	}
+ 
+ 	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 588b69dc30..1d5e5cfbbb 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1666,7 +1666,7 @@ func livenessprintdebug(lv *Liveness) {
+ // Dumps a slice of bitmaps to a symbol as a sequence of uint32 values. The
+ // first word dumped is the total number of bitmaps. The second word is the
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+-// words that are followed are the raw bitmap words.
++// remaining bytes are the raw bitmaps.
+ func onebitwritesymbol(arr []bvec, sym *Sym) {
+ 	off := 4                                  // number of bitmaps, to fill in later
+ 	off = duint32(sym, off, uint32(arr[0].n)) // number of bits in each bitmap
+@@ -1678,16 +1678,7 @@ func onebitwritesymbol(arr []bvec, sym *Sym) {
+ 		if bv.b == nil {
+ 			break
+ 		}
+-		for j := 0; int32(j) < bv.n; j += 32 {
+-			word := bv.b[j/32]
+-
+-			// Runtime reads the bitmaps as byte arrays. Oblige.
+-			off = duint8(sym, off, uint8(word))
+-
+-			off = duint8(sym, off, uint8(word>>8))
+-			off = duint8(sym, off, uint8(word>>16))
+-			off = duint8(sym, off, uint8(word>>24))
+-		}
++		off = dbvec(sym, off, bv)
+ 	}
+ 
+ 	duint32(sym, 0, uint32(i)) // number of bitmaps

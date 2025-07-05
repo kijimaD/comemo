@@ -14,7 +14,60 @@ Date:   Fri Aug 26 11:39:47 2016 -0400
     Change-Id: I3b416f6d0bccaaa9b547de86356471365862399c
     Reviewed-on: https://go-review.googlesource.com/27827
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/floor_s390x.s | 26 ++++++++++++++++++++++++++
  src/math/stubs_s390x.s |  9 ---------
  2 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/math/floor_s390x.s b/src/math/floor_s390x.s
+new file mode 100644
+index 0000000000..896e79b807
+--- /dev/null
++++ b/src/math/floor_s390x.s
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func Floor(x float64) float64
++TEXT ·Floor(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FIDBR	$7, F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++// func Ceil(x float64) float64
++TEXT ·Ceil(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FIDBR	$6, F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++// func Trunc(x float64) float64
++TEXT ·Trunc(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FIDBR	$5, F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 76868447cd..c3aed13e87 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -25,15 +25,6 @@ TEXT ·Expm1(SB),NOSPLIT,$0
+ TEXT ·Exp(SB),NOSPLIT,$0
+ 	BR ·exp(SB)
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
+-	BR ·floor(SB)
+-
+-TEXT ·Ceil(SB),NOSPLIT,$0
+-	BR ·ceil(SB)
+-
+-TEXT ·Trunc(SB),NOSPLIT,$0
+-	BR ·trunc(SB)
+-
+ TEXT ·Frexp(SB),NOSPLIT,$0
+ 	BR ·frexp(SB)
+ 

@@ -10,7 +10,66 @@ Date:   Mon Aug 19 17:13:00 2024 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/fs_js.go      | 16 ++++++++++------
  src/syscall/syscall_js.go | 13 +++++++------
  2 files changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index b6138ebeb1..111ce4f5c1 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -23,12 +23,13 @@ var constants = jsFS.Get("constants")
+ var uint8Array = js.Global().Get("Uint8Array")
+ 
+ var (
+-	nodeWRONLY = constants.Get("O_WRONLY").Int()
+-	nodeRDWR   = constants.Get("O_RDWR").Int()
+-	nodeCREATE = constants.Get("O_CREAT").Int()
+-	nodeTRUNC  = constants.Get("O_TRUNC").Int()
+-	nodeAPPEND = constants.Get("O_APPEND").Int()
+-	nodeEXCL   = constants.Get("O_EXCL").Int()
++	nodeWRONLY    = constants.Get("O_WRONLY").Int()
++	nodeRDWR      = constants.Get("O_RDWR").Int()
++	nodeCREATE    = constants.Get("O_CREAT").Int()
++	nodeTRUNC     = constants.Get("O_TRUNC").Int()
++	nodeAPPEND    = constants.Get("O_APPEND").Int()
++	nodeEXCL      = constants.Get("O_EXCL").Int()
++	nodeDIRECTORY = constants.Get("O_DIRECTORY").Int()
+ )
+ 
+ type jsFile struct {
+@@ -83,6 +84,9 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 	if openmode&O_SYNC != 0 {
+ 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
+ 	}
++	if openmode&O_DIRECTORY != 0 {
++		flags |= nodeDIRECTORY
++	}
+ 
+ 	jsFD, err := fsCall("open", path, flags, perm)
+ 	if err != nil {
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 0e529e0343..c320e34f26 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -128,12 +128,13 @@ const (
+ 	O_WRONLY = 1
+ 	O_RDWR   = 2
+ 
+-	O_CREAT  = 0100
+-	O_CREATE = O_CREAT
+-	O_TRUNC  = 01000
+-	O_APPEND = 02000
+-	O_EXCL   = 0200
+-	O_SYNC   = 010000
++	O_CREAT     = 0100
++	O_CREATE    = O_CREAT
++	O_TRUNC     = 01000
++	O_APPEND    = 02000
++	O_EXCL      = 0200
++	O_SYNC      = 010000
++	O_DIRECTORY = 020000
+ 
+ 	O_CLOEXEC = 0
+ )

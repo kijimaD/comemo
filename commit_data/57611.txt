@@ -19,7 +19,7 @@ Date:   Fri Aug 18 00:09:06 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go           |  5 ++++-
  src/cmd/compile/internal/ir/expr.go               |  2 +-
  src/cmd/compile/internal/ir/node.go               |  7 -------
@@ -27,3 +27,112 @@ Date:   Fri Aug 18 00:09:06 2023 -0700
  src/cmd/compile/internal/test/abiutilsaux_test.go |  2 +-
  src/cmd/compile/internal/typecheck/syms.go        |  4 ++--
  6 files changed, 13 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 2ba1955b55..0caec2f6b9 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -321,7 +321,10 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
+ 	}
+ 
+ 	if e.inMutualBatch(fn) {
+-		return e.addr(ir.AsNode(param.Nname))
++		if param.Nname == nil {
++			return e.discardHole()
++		}
++		return e.addr(param.Nname.(*ir.Name))
+ 	}
+ 
+ 	// Call to previously tagged function.
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 5eed85ed84..37e2689b97 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1110,7 +1110,7 @@ func IsReflectHeaderDataField(l Node) bool {
+ func ParamNames(ft *types.Type) []Node {
+ 	args := make([]Node, ft.NumParams())
+ 	for i, f := range ft.Params().FieldSlice() {
+-		args[i] = AsNode(f.Nname)
++		args[i] = f.Nname.(*Name)
+ 	}
+ 	return args
+ }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 317c716b16..b1829faf7f 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -462,13 +462,6 @@ const (
+ 
+ )
+ 
+-func AsNode(n types.Object) Node {
+-	if n == nil {
+-		return nil
+-	}
+-	return n.(Node)
+-}
+-
+ var BlankNode *Name
+ 
+ func IsConst(n Node, ct constant.Kind) bool {
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index d46b0cd360..01135de39f 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -153,8 +153,8 @@ func hashFunc(t *types.Type) *ir.Func {
+ 	sym.Def = fn.Nname
+ 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+ 
+-	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+-	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
++	np := fn.Type().Params().Field(0).Nname.(*ir.Name)
++	nh := fn.Type().Params().Field(1).Nname.(*ir.Name)
+ 
+ 	switch t.Kind() {
+ 	case types.TARRAY:
+@@ -375,9 +375,9 @@ func eqFunc(t *types.Type) *ir.Func {
+ 	sym.Def = fn.Nname
+ 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+ 
+-	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+-	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
+-	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)
++	np := fn.Type().Params().Field(0).Nname.(*ir.Name)
++	nq := fn.Type().Params().Field(1).Nname.(*ir.Name)
++	nr := fn.Type().Results().Field(0).Nname.(*ir.Name)
+ 
+ 	// Label to jump to if an equality test fails.
+ 	neq := typecheck.AutoLabel(".neq")
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index 3316af6940..7f929c603d 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -76,7 +76,7 @@ func tokenize(src string) []string {
+ }
+ 
+ func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
+-	n := ir.AsNode(f.Nname).(*ir.Name)
++	n := f.Nname.(*ir.Name)
+ 	if n.FrameOffset() != int64(r.Offset()) {
+ 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
+ 			which, idx, r.Offset(), n.Offset_, f.Type)
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 4f75129998..61a3422b1a 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -16,7 +16,7 @@ func LookupRuntime(name string) *ir.Name {
+ 	if s == nil || s.Def == nil {
+ 		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
+ 	}
+-	return ir.AsNode(s.Def).(*ir.Name)
++	return s.Def.(*ir.Name)
+ }
+ 
+ // SubstArgTypes substitutes the given list of types for
+@@ -126,5 +126,5 @@ func LookupCoverage(name string) *ir.Name {
+ 	if sym == nil {
+ 		base.Fatalf("LookupCoverage: can't find runtime/coverage.%s", name)
+ 	}
+-	return ir.AsNode(sym.Def).(*ir.Name)
++	return sym.Def.(*ir.Name)
+ }

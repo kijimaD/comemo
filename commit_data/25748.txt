@@ -16,7 +16,61 @@ Date:   Wed Nov 18 20:22:29 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/transport.go      |  2 +-
  src/net/http/transport_test.go | 15 ++++++++++++++-
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 96096a6bef..63abd377e9 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -237,7 +237,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		req.closeBody()
+ 		return nil, &badStringError{"unsupported protocol scheme", s}
+ 	}
+-	if !validMethod(req.Method) {
++	if req.Method != "" && !validMethod(req.Method) {
+ 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
+ 	}
+ 	if req.URL.Host == "" {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a404eeb5cc..fc9dc5eb48 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"net"
+ 	. "net/http"
+ 	"net/http/httptest"
++	"net/http/httputil"
+ 	"net/url"
+ 	"os"
+ 	"reflect"
+@@ -1775,7 +1776,6 @@ func TestTransportNoHost(t *testing.T) {
+ 	defer afterTest(t)
+ 	tr := &Transport{}
+ 	_, err := tr.RoundTrip(&Request{
+-		Method: "GET",
+ 		Header: make(Header),
+ 		URL: &url.URL{
+ 			Scheme: "http",
+@@ -1787,6 +1787,19 @@ func TestTransportNoHost(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 13311
++func TestTransportEmptyMethod(t *testing.T) {
++	req, _ := NewRequest("GET", "http://foo.com/", nil)
++	req.Method = ""                                 // docs say "For client requests an empty string means GET"
++	got, err := httputil.DumpRequestOut(req, false) // DumpRequestOut uses Transport
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(string(got), "GET ") {
++		t.Fatalf("expected substring 'GET '; got: %s", got)
++	}
++}
++
+ func TestTransportSocketLateBinding(t *testing.T) {
+ 	defer afterTest(t)
+ 

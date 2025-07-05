@@ -12,7 +12,53 @@ Date:   Wed Apr 11 14:16:52 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm_test.go | 18 ++++++++++++++++++
  src/cmd/internal/obj/arm64/obj7.go     |  8 +++++---
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm_test.go b/src/cmd/internal/obj/arm64/asm_test.go
+index 3e0c9c13a6..68f5b0b346 100644
+--- a/src/cmd/internal/obj/arm64/asm_test.go
++++ b/src/cmd/internal/obj/arm64/asm_test.go
+@@ -61,3 +61,21 @@ func gen(buf *bytes.Buffer) {
+ 	fmt.Fprintln(buf, "label:")
+ 	fmt.Fprintln(buf, "RET")
+ }
++
++// Issue 20348.
++func TestNoRet(t *testing.T) {
++	dir, err := ioutil.TempDir("", "testnoret")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	tmpfile := filepath.Join(dir, "x.s")
++	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
++		t.Fatal(err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd.Env = []string{"GOARCH=arm64", "GOOS=linux"}
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Errorf("%v\n%s", err, out)
++	}
++}
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 1bd4a5d7b1..9c3d22050e 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -476,9 +476,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			break
+ 
+ 		case obj.ANOP:
+-			q1 = p.Link
+-			q.Link = q1 /* q is non-nop */
+-			q1.Mark |= p.Mark
++			if p.Link != nil {
++				q1 = p.Link
++				q.Link = q1 /* q is non-nop */
++				q1.Mark |= p.Mark
++			}
+ 			continue
+ 
+ 		case ABL,

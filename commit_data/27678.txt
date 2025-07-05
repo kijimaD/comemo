@@ -11,6 +11,21 @@ Date:   Thu Apr 7 14:00:00 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 230d146877..db8961676c 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1915,6 +1915,9 @@ func dwarfgeneratedebugsyms() {
+ 	if Debug['w'] != 0 { // disable dwarf
+ 		return
+ 	}
++	if Debug['s'] != 0 && HEADTYPE != obj.Hdarwin {
++		return
++	}
+ 	if HEADTYPE == obj.Hplan9 {
+ 		return
+ 	}

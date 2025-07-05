@@ -10,6 +10,88 @@ Date:   Tue Dec 11 12:19:39 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6873063
-
+---
  src/pkg/regexp/all_test.go | 47 +++++++++++++++++++++++-----------------------
  1 file changed, 23 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index dd2ed042c5..3596573b4f 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -30,53 +30,52 @@ var good_re = []string{
+ 	`\!\\`,
+ }
+ 
+-/*
+ type stringError struct {
+ 	re  string
+-	err error
++	err string
+ }
+ 
+ var bad_re = []stringError{
+-	{`*`, ErrBareClosure},
+-	{`+`, ErrBareClosure},
+-	{`?`, ErrBareClosure},
+-	{`(abc`, ErrUnmatchedLpar},
+-	{`abc)`, ErrUnmatchedRpar},
+-	{`x[a-z`, ErrUnmatchedLbkt},
+-	{`abc]`, ErrUnmatchedRbkt},
+-	{`[z-a]`, ErrBadRange},
+-	{`abc\`, ErrExtraneousBackslash},
+-	{`a**`, ErrBadClosure},
+-	{`a*+`, ErrBadClosure},
+-	{`a??`, ErrBadClosure},
+-	{`\x`, ErrBadBackslash},
+-}
+-*/
+-
+-func compileTest(t *testing.T, expr string, error error) *Regexp {
++	{`*`, "missing argument to repetition operator: `*`"},
++	{`+`, "missing argument to repetition operator: `+`"},
++	{`?`, "missing argument to repetition operator: `?`"},
++	{`(abc`, "missing closing ): `(abc`"},
++	{`abc)`, "unexpected ): `abc)`"},
++	{`x[a-z`, "missing closing ]: `[a-z`"},
++	{`[z-a]`, "invalid character class range: `z-a`"},
++	{`abc\`, "trailing backslash at end of expression"},
++	{`a**`, "invalid nested repetition operator: `**`"},
++	{`a*+`, "invalid nested repetition operator: `*+`"},
++	{`\x`, "invalid escape sequence: `\\x`"},
++}
++
++func compileTest(t *testing.T, expr string, error string) *Regexp {
+ 	re, err := Compile(expr)
+-	if err != error {
++	if error == "" && err != nil {
+ 		t.Error("compiling `", expr, "`; unexpected error: ", err.Error())
+ 	}
++	if error != "" && err == nil {
++		t.Error("compiling `", expr, "`; missing error")
++	} else if error != "" && !strings.Contains(err.Error(), error) {
++		t.Error("compiling `", expr, "`; wrong error: ", err.Error(), "; want ", error)
++	}
+ 	return re
+ }
+ 
+ func TestGoodCompile(t *testing.T) {
+ 	for i := 0; i < len(good_re); i++ {
+-		compileTest(t, good_re[i], nil)
++		compileTest(t, good_re[i], "")
+ 	}
+ }
+ 
+-/*
+ func TestBadCompile(t *testing.T) {
+ 	for i := 0; i < len(bad_re); i++ {
+ 		compileTest(t, bad_re[i].re, bad_re[i].err)
+ 	}
+ }
+-*/
+ 
+ func matchTest(t *testing.T, test *FindTest) {
+-	re := compileTest(t, test.pat, nil)
++	re := compileTest(t, test.pat, "")
+ 	if re == nil {
+ 		return
+ 	}

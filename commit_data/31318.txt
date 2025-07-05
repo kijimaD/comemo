@@ -15,6 +15,30 @@ Date:   Sat Feb 11 17:34:48 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path_windows_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 73e74be8d3..c9a0255efd 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -67,6 +67,9 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
+ 		}
+ 	}
+ 
++	// on some systems, SystemRoot is required for cmd to work
++	systemRoot := os.Getenv("SystemRoot")
++
+ 	for i, d := range tt.result {
+ 		if d == "" {
+ 			continue
+@@ -75,7 +78,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
+ 		cmd := &exec.Cmd{
+ 			Path: comspec,
+ 			Args: []string{`/c`, cmdfile},
+-			Env:  []string{`Path=` + tt.list},
++			Env:  []string{`Path=` + tt.list, `SystemRoot=` + systemRoot},
+ 			Dir:  tmp,
+ 		}
+ 		out, err := cmd.CombinedOutput()

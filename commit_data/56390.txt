@@ -22,8 +22,116 @@ Date:   Wed May 3 21:34:25 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go            | 20 ++++++++++++++++++++
  src/go/types/infer.go                               | 20 ++++++++++++++++++++
  src/internal/types/testdata/fixedbugs/issue59953.go | 11 +++++++++++
  3 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 3d313c8ac9..1028924c32 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -349,6 +349,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	for len(dirty) > 0 {
++		if traceInference {
++			u.tracef("-- simplify %s ➞ %s", tparams, inferred)
++		}
+ 		// TODO(gri) Instead of creating a new substMap for each iteration,
+ 		// provide an update operation for substMaps and only change when
+ 		// needed. Optimization.
+@@ -357,6 +360,21 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		for _, index := range dirty {
+ 			t0 := inferred[index]
+ 			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
++				// t0 was simplified to t1.
++				// If t0 was a generic function, but the simplifed signature t1 does
++				// not contain any type parameters anymore, the function is not generic
++				// anymore. Remove it's type parameters. (go.dev/issue/59953)
++				// Note that if t0 was a signature, t1 must be a signature, and t1
++				// can only be a generic signature if it originated from a generic
++				// function argument. Those signatures are never defined types and
++				// thus there is no need to call under below.
++				// TODO(gri) Consider doing this in Checker.subst.
++				//           Then this would fall out automatically here and also
++				//           in instantiation (where we also explicitly nil out
++				//           type parameters). See the *Signature TODO in subst.
++				if sig, _ := t1.(*Signature); sig != nil && sig.TypeParams().Len() > 0 && !isParameterized(tparams, sig) {
++					sig.tparams = nil
++				}
+ 				inferred[index] = t1
+ 				dirty[n] = index
+ 				n++
+@@ -462,6 +480,8 @@ func typeParamsString(list []*TypeParam) string {
+ }
+ 
+ // isParameterized reports whether typ contains any of the type parameters of tparams.
++// If typ is a generic function, isParameterized ignores the type parameter declarations;
++// it only considers the signature proper (incoming and result parameters).
+ func isParameterized(tparams []*TypeParam, typ Type) bool {
+ 	w := tpWalker{
+ 		tparams: tparams,
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 6b90cd6de8..3db10e0010 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -351,6 +351,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	for len(dirty) > 0 {
++		if traceInference {
++			u.tracef("-- simplify %s ➞ %s", tparams, inferred)
++		}
+ 		// TODO(gri) Instead of creating a new substMap for each iteration,
+ 		// provide an update operation for substMaps and only change when
+ 		// needed. Optimization.
+@@ -359,6 +362,21 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		for _, index := range dirty {
+ 			t0 := inferred[index]
+ 			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
++				// t0 was simplified to t1.
++				// If t0 was a generic function, but the simplifed signature t1 does
++				// not contain any type parameters anymore, the function is not generic
++				// anymore. Remove it's type parameters. (go.dev/issue/59953)
++				// Note that if t0 was a signature, t1 must be a signature, and t1
++				// can only be a generic signature if it originated from a generic
++				// function argument. Those signatures are never defined types and
++				// thus there is no need to call under below.
++				// TODO(gri) Consider doing this in Checker.subst.
++				//           Then this would fall out automatically here and also
++				//           in instantiation (where we also explicitly nil out
++				//           type parameters). See the *Signature TODO in subst.
++				if sig, _ := t1.(*Signature); sig != nil && sig.TypeParams().Len() > 0 && !isParameterized(tparams, sig) {
++					sig.tparams = nil
++				}
+ 				inferred[index] = t1
+ 				dirty[n] = index
+ 				n++
+@@ -464,6 +482,8 @@ func typeParamsString(list []*TypeParam) string {
+ }
+ 
+ // isParameterized reports whether typ contains any of the type parameters of tparams.
++// If typ is a generic function, isParameterized ignores the type parameter declarations;
++// it only considers the signature proper (incoming and result parameters).
+ func isParameterized(tparams []*TypeParam, typ Type) bool {
+ 	w := tpWalker{
+ 		tparams: tparams,
+diff --git a/src/internal/types/testdata/fixedbugs/issue59953.go b/src/internal/types/testdata/fixedbugs/issue59953.go
+new file mode 100644
+index 0000000000..40d97378a2
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59953.go
+@@ -0,0 +1,11 @@
++// -reverseTypeInference
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _()         { f(g) }
++func f[P any](P) {}
++func g[Q int](Q) {}

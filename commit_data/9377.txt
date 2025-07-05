@@ -18,8 +18,70 @@ Date:   Tue Aug 16 14:22:08 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4836045
-
+---
  src/cmd/5c/reg.c  | 1 +
  src/cmd/6c/cgen.c | 8 ++------
  src/cmd/6l/asm.c  | 5 ++++-
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 50b814598d..1ccf74a35d 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -66,6 +66,7 @@ rcmp(const void *a1, const void *a2)
+ void
+ regopt(Prog *p)
+ {
++	USED(p);
+ 	// TODO(kaib): optimizer disabled because it smashes R8 when running out of registers
+ 	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
+ 	return;
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 7aa4aa9766..7f717dcbb4 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -930,9 +930,6 @@ cgen(Node *n, Node *nn)
+ 
+ 			return;
+ 		}
+-		o = 0;
+-		if(REGARG >= 0)
+-			o = reg[REGARG];
+ 		gargs(r, &nod, &nod1);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+@@ -941,9 +938,8 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
+-		if(REGARG >= 0)
+-			if(o != reg[REGARG])
+-				reg[REGARG]--;
++		if(REGARG >= 0 && reg[REGARG])
++			reg[REGARG]--;
+ 		if(nn != Z) {
+ 			regret(&nod, n);
+ 			gmove(&nod, nn);
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index f59a59efbe..3a8223e65c 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -298,6 +298,9 @@ adddynrel(Sym *s, Reloc *r)
+ int
+ archreloc(Reloc *r, Sym *s, vlong *val)
+ {
++	USED(r);
++	USED(s);
++	USED(val);
+ 	return -1;
+ }
+ 
+@@ -859,7 +862,7 @@ asmb(void)
+ 		startva = INITTEXT - HEADR;
+ 
+ 		/* This null SHdr must appear before all others */
+-		sh = newElfShdr(elfstr[ElfStrEmpty]);
++		newElfShdr(elfstr[ElfStrEmpty]);
+ 
+ 		/* program header info */
+ 		pph = newElfPhdr();

@@ -26,6 +26,27 @@ Date:   Sun May 29 00:47:45 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/deflate.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 8467d7749d..8a085ba347 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -16,9 +16,12 @@ const (
+ 	BestCompression    = 9
+ 	DefaultCompression = -1
+ 	HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
+-	logWindowSize      = 15
+-	windowSize         = 1 << logWindowSize
+-	windowMask         = windowSize - 1
++)
++
++const (
++	logWindowSize = 15
++	windowSize    = 1 << logWindowSize
++	windowMask    = windowSize - 1
+ 
+ 	// The LZ77 step produces a sequence of literal tokens and <length, offset>
+ 	// pair tokens. The offset is also known as distance. The underlying wire

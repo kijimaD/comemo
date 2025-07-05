@@ -21,7 +21,86 @@ Date:   Thu Feb 18 09:34:43 2016 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go     | 10 ++++++----
  src/runtime/runtime2.go | 17 ++++++++++++-----
  2 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index cc64d30a68..e89831783e 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -33,7 +33,10 @@ type hchan struct {
+ 	recvx    uint   // receive index
+ 	recvq    waitq  // list of recv waiters
+ 	sendq    waitq  // list of send waiters
+-	lock     mutex
++
++	// lock protects all fields in hchan, as well as several
++	// fields in sudogs blocked on this channel.
++	lock mutex
+ }
+ 
+ type waitq struct {
+@@ -261,12 +264,12 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
+ 			c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
+ 		}
+ 	}
+-	unlockf()
+ 	if sg.elem != nil {
+ 		sendDirect(c.elemtype, sg, ep)
+ 		sg.elem = nil
+ 	}
+ 	gp := sg.g
++	unlockf()
+ 	gp.param = unsafe.Pointer(sg)
+ 	if sg.releasetime != 0 {
+ 		sg.releasetime = cputicks()
+@@ -509,7 +512,6 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
+ 		if raceenabled {
+ 			racesync(c, sg)
+ 		}
+-		unlockf()
+ 		if ep != nil {
+ 			// copy data from sender
+ 			// ep points to our own stack or heap, so nothing
+@@ -539,10 +541,10 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
+ 			c.recvx = 0
+ 		}
+ 		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
+-		unlockf()
+ 	}
+ 	sg.elem = nil
+ 	gp := sg.g
++	unlockf()
+ 	gp.param = unsafe.Pointer(sg)
+ 	if sg.releasetime != 0 {
+ 		sg.releasetime = cputicks()
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5d7f4354ef..eda258a992 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -214,11 +214,18 @@ type gobuf struct {
+ // Changes here must also be made in src/cmd/compile/internal/gc/select.go's
+ // selecttype.
+ type sudog struct {
+-	g           *g
+-	selectdone  *uint32 // CAS to 1 to win select race (may point to stack)
+-	next        *sudog
+-	prev        *sudog
+-	elem        unsafe.Pointer // data element (may point to stack)
++	// The following fields are protected by the hchan.lock of the
++	// channel this sudog is blocking on.
++
++	g          *g
++	selectdone *uint32 // CAS to 1 to win select race (may point to stack)
++	next       *sudog
++	prev       *sudog
++	elem       unsafe.Pointer // data element (may point to stack)
++
++	// The following fields are never accessed concurrently.
++	// waitlink is only accessed by g.
++
+ 	releasetime int64
+ 	ticket      uint32
+ 	waitlink    *sudog // g.waiting list

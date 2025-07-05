@@ -39,7 +39,7 @@ Date:   Tue Sep 11 21:42:30 2012 +0200
     R=rsc, dave, nigeltao
     CC=golang-dev
     https://golang.org/cl/6351090
-
+---
  src/cmd/gc/builtin.c    |  1 +
  src/cmd/gc/gen.c        |  9 +++++++--
  src/cmd/gc/go.h         |  1 +
@@ -47,3 +47,162 @@ Date:   Tue Sep 11 21:42:30 2012 +0200
  src/cmd/gc/walk.c       | 42 ++++++++++++++++++++++++++++++++++++++++--
  src/pkg/runtime/iface.c | 12 ++++++++++++
  6 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 535e38fac5..6354fa22c8 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -39,6 +39,7 @@ char *runtimeimport =
+ 	"func @\"\".stringiter2(? string, ? int) (@\"\".retk int, @\"\".retv rune)\n"
+ 	"func @\"\".copy(@\"\".to any, @\"\".fr any, @\"\".wid uint32) (? int)\n"
+ 	"func @\"\".slicestringcopy(@\"\".to any, @\"\".fr any) (? int)\n"
++	"func @\"\".typ2Itab(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".cache **byte) (@\"\".ret *byte)\n"
+ 	"func @\"\".convI2E(@\"\".elem any) (@\"\".ret any)\n"
+ 	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
+ 	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index ebb410ba54..9b667775eb 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -410,7 +410,7 @@ gen(Node *n)
+ 		p1 = gjmp(P);			//		goto test
+ 		p2 = gjmp(P);			// p2:		goto else
+ 		patch(p1, pc);				// test:
+-		bgen(n->ntest, 0, 0, p2);			//		if(!test) goto p2
++		bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
+ 		genlist(n->nbody);				//		then
+ 		p3 = gjmp(P);			//		goto done
+ 		patch(p2, pc);				// else:
+@@ -746,12 +746,17 @@ ret:
+ void
+ cgen_eface(Node *n, Node *res)
+ {
++	/* 
++	 * the right node of an eface may contain function calls that uses res as an argument,
++	 * so it's important that it is done first
++	 */
+ 	Node dst;
+ 	dst = *res;
+ 	dst.type = types[tptr];
+-	cgen(n->left, &dst);
+ 	dst.xoffset += widthptr;
+ 	cgen(n->right, &dst);
++	dst.xoffset -= widthptr;
++	cgen(n->left, &dst);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7bbaabb378..4a8d191dc7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -257,6 +257,7 @@ struct	Node
+ 	uchar	implicit;
+ 	uchar	addrtaken;	// address taken, even if not moved to heap
+ 	uchar	dupok;	// duplicate definitions ok (for func)
++	schar	likely; // likeliness of if statement
+ 
+ 	// most nodes
+ 	Type*	type;
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 408f624cff..7ab24a0440 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -59,6 +59,7 @@ func copy(to any, fr any, wid uint32) int
+ func slicestringcopy(to any, fr any) int
+ 
+ // interface conversions
++func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
+ func convI2E(elem any) (ret any)
+ func convI2I(typ *byte, elem any) (ret any)
+ func convT2E(typ *byte, elem any) (ret any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4855b13ba9..935fa6d65d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -374,7 +374,7 @@ walkexpr(Node **np, NodeList **init)
+ 	int et;
+ 	int64 v;
+ 	int32 lno;
+-	Node *n, *fn;
++	Node *n, *fn, *n1, *n2;
+ 	Sym *sym;
+ 	char buf[100], *p;
+ 
+@@ -771,6 +771,44 @@ walkexpr(Node **np, NodeList **init)
+ 			l = nod(OADDR, sym->def, N);
+ 			l->addable = 1;
+ 			ll = list(ll, l);
++
++			if(n->left->type->width == widthptr &&
++		   	   isint[simsimtype(n->left->type)]) {
++				/* For pointer types, we can make a special form of optimization
++				 *
++				 * These statements are put onto the expression init list:
++				 * 	Itab *tab = atomicloadtype(&cache);
++				 * 	if(tab == nil)
++				 * 		tab = typ2Itab(type, itype, &cache);
++				 *
++				 * The CONVIFACE expression is replaced with this:
++				 * 	OEFACE{tab, ptr};
++				 */
++				l = temp(ptrto(types[TUINT8]));
++
++				n1 = nod(OAS, l, sym->def);
++				typecheck(&n1, Etop);
++				*init = list(*init, n1);
++
++				fn = syslook("typ2Itab", 1);
++				n1 = nod(OCALL, fn, N);
++				n1->list = ll;
++				typecheck(&n1, Erv);
++				walkexpr(&n1, init);
++
++				n2 = nod(OIF, N, N);
++				n2->ntest = nod(OEQ, l, nodnil());
++				n2->nbody = list1(nod(OAS, l, n1));
++				n2->likely = -1;
++				typecheck(&n2, Etop);
++				*init = list(*init, n2);
++
++				l = nod(OEFACE, l, n->left);
++				l->typecheck = n->typecheck; 
++				l->type = n->type;
++				n = l;
++				goto ret;
++			}
+ 		}
+ 		ll = list(ll, n->left);
+ 		argtype(fn, n->left->type);
+@@ -1168,7 +1206,7 @@ walkexpr(Node **np, NodeList **init)
+ 		else
+ 			r = nod(OOROR, nod(ONE, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
+ 		typecheck(&r, Erv);
+-		walkexpr(&r, nil);
++		walkexpr(&r, init);
+ 		r->type = n->type;
+ 		n = r;
+ 		goto ret;
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 864954d0d5..8e0150d07b 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -183,6 +183,18 @@ copyout(Type *t, void **src, void *dst)
+ 		alg->copy(size, dst, *src);
+ }
+ 
++#pragma textflag 7
++void
++runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
++{
++	Itab *tab;
++
++	tab = itab(inter, t, 0);
++	runtime·atomicstorep(cache, tab);
++	ret = tab;
++	FLUSH(&ret);
++}
++
+ // func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
+ #pragma textflag 7
+ void

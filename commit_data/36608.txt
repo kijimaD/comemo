@@ -21,6 +21,32 @@ Date:   Tue May 8 22:59:35 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 11219ce5c7..7c8b7973ad 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -137,6 +137,9 @@ func runMain() (int, error) {
+ 		return 1, err
+ 	}
+ 
++	// Kill any hanging debug bridges that might take up port 3222.
++	exec.Command("killall", "idevicedebugserverproxy").Run()
++
+ 	closer, err := startDebugBridge()
+ 	if err != nil {
+ 		return 1, err
+@@ -453,7 +456,9 @@ func install(appdir string) error {
+ 
+ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
+ 	if deviceID != "" {
+-		cmd.Args = append(cmd.Args, "-u", deviceID)
++		// Inject -u device_id after the executable, but before the arguments.
++		args := []string{cmd.Args[0], "-u", deviceID}
++		cmd.Args = append(args, cmd.Args[1:]...)
+ 	}
+ 	return cmd
+ }

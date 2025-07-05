@@ -11,10 +11,76 @@ Date:   Tue Oct 25 19:19:39 2016 -0700
     Change-Id: I7c137b4dc25c0c875ed07b0c64c67ae984c39cbc
     Reviewed-on: https://go-review.googlesource.com/32112
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/log/syslog/doc.go           | 2 +-
  src/net/rpc/server.go           | 2 ++
  src/net/smtp/smtp.go            | 2 +-
  src/testing/quick/quick.go      | 2 +-
  src/text/tabwriter/tabwriter.go | 2 +-
  5 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/log/syslog/doc.go b/src/log/syslog/doc.go
+index dfcc2dde34..5458523249 100644
+--- a/src/log/syslog/doc.go
++++ b/src/log/syslog/doc.go
+@@ -10,7 +10,7 @@
+ // the syslog client will attempt to reconnect to the server
+ // and write again.
+ //
+-// The syslog package is frozen and not accepting new features.
++// The syslog package is frozen and is not accepting new features.
+ // Some external packages provide more functionality. See:
+ //
+ //   https://godoc.org/?q=syslog
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 4920c668ea..83d9aac10c 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -121,6 +121,8 @@
+ 
+ 	A server implementation will often provide a simple, type-safe wrapper for the
+ 	client.
++
++	The net/rpc package is frozen and is not accepting new features.
+ */
+ package rpc
+ 
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index 9e04dd7c82..48f38894fd 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -9,7 +9,7 @@
+ //	STARTTLS  RFC 3207
+ // Additional extensions may be handled by clients.
+ //
+-// The smtp package is frozen and not accepting new features.
++// The smtp package is frozen and is not accepting new features.
+ // Some external packages provide more functionality. See:
+ //
+ //   https://godoc.org/?q=smtp
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index cbf9584041..95860fda0f 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -4,7 +4,7 @@
+ 
+ // Package quick implements utility functions to help with black box testing.
+ //
+-// The package is frozen and not accepting new features.
++// The testing/quick package is frozen and is not accepting new features.
+ package quick
+ 
+ import (
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index befcacf01b..752c9b8e9f 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -8,7 +8,7 @@
+ // The package is using the Elastic Tabstops algorithm described at
+ // http://nickgravgaard.com/elastictabstops/index.html.
+ //
+-// The package is frozen and not accepting new features.
++// The text/tabwriter package is frozen and is not accepting new features.
+ package tabwriter
+ 
+ import (

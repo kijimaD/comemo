@@ -17,7 +17,7 @@ Date:   Sun Mar 12 15:34:20 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/386.rules |  4 ++++
  src/cmd/compile/internal/ssa/_gen/386Ops.go |  1 +
  src/cmd/compile/internal/ssa/opGen.go       | 15 +++++++++++++++
@@ -26,3 +26,209 @@ Date:   Sun Mar 12 15:34:20 2023 +0800
  src/cmd/compile/internal/x86/ssa.go         | 23 +++++++++++++++++++++++
  test/codegen/mathbits.go                    |  4 ++++
  7 files changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/386.rules b/src/cmd/compile/internal/ssa/_gen/386.rules
+index db16ab0961..03413b289e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386.rules
++++ b/src/cmd/compile/internal/ssa/_gen/386.rules
+@@ -56,8 +56,12 @@
+ (Sqrt ...) => (SQRTSD ...)
+ (Sqrt32 ...) => (SQRTSS ...)
+ 
++(Ctz8 x) => (BSFL (ORLconst <typ.UInt32> [0x100] x))
++(Ctz8NonZero ...) => (BSFL ...)
+ (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
+ (Ctz16NonZero ...) => (BSFL ...)
++(Ctz32 ...) => (LoweredCtz32 ...)
++(Ctz32NonZero ...) => (BSFL ...)
+ 
+ // Lowering extension
+ (SignExt8to16  ...) => (MOVBLSX ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/386Ops.go b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+index 6f19ea6427..7401ac871c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+@@ -302,6 +302,7 @@ func init() {
+ 
+ 		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+ 		{name: "BSFW", argLength: 1, reg: gp11, asm: "BSFW", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
++		{name: "LoweredCtz32", argLength: 1, reg: gp11, clobberFlags: true},      // arg0 # of low-order zeroes
+ 
+ 		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+ 		{name: "BSRW", argLength: 1, reg: gp11, asm: "BSRW", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4a24012b1d..b5ca35953c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -456,6 +456,7 @@ const (
+ 	Op386NOTL
+ 	Op386BSFL
+ 	Op386BSFW
++	Op386LoweredCtz32
+ 	Op386BSRL
+ 	Op386BSRW
+ 	Op386BSWAPL
+@@ -5034,6 +5035,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredCtz32",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.ABSFL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:         "BSRL",
+ 		argLen:       1,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index f658d9380a..fe5bbe56a3 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -315,6 +315,17 @@ func rewriteValue386(v *Value) bool {
+ 	case OpCtz16NonZero:
+ 		v.Op = Op386BSFL
+ 		return true
++	case OpCtz32:
++		v.Op = Op386LoweredCtz32
++		return true
++	case OpCtz32NonZero:
++		v.Op = Op386BSFL
++		return true
++	case OpCtz8:
++		return rewriteValue386_OpCtz8(v)
++	case OpCtz8NonZero:
++		v.Op = Op386BSFL
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = Op386CVTTSS2SL
+ 		return true
+@@ -8527,6 +8538,22 @@ func rewriteValue386_OpCtz16(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpCtz8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz8 x)
++	// result: (BSFL (ORLconst <typ.UInt32> [0x100] x))
++	for {
++		x := v_0
++		v.reset(Op386BSFL)
++		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
++		v0.AuxInt = int32ToAuxInt(0x100)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValue386_OpDiv8(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b4a55c00af..e49ba5ee71 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4492,12 +4492,12 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
+@@ -4531,7 +4531,7 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz8, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
++		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], args[0])
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 6c92ca1f56..811a34cc0b 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -831,6 +831,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			base.WarnfAt(v.Pos, "generated nil check")
+ 		}
++	case ssa.Op386LoweredCtz32:
++		// BSFL in, out
++		p := s.Prog(x86.ABSFL)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
++		// JNZ 2(PC)
++		p1 := s.Prog(x86.AJNE)
++		p1.To.Type = obj.TYPE_BRANCH
++
++		// MOVL $32, out
++		p2 := s.Prog(x86.AMOVL)
++		p2.From.Type = obj.TYPE_CONST
++		p2.From.Offset = 32
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = v.Reg()
++
++		// NOP (so the JNZ has somewhere to land)
++		nop := s.Prog(obj.ANOP)
++		p1.To.SetTarget(nop)
++
+ 	case ssa.OpClobber:
+ 		p := s.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 86a44d7c93..8c971cf760 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -293,6 +293,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
+ func TrailingZeros(n uint) int {
+ 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// amd64/v3:"TZCNTQ"
++	// 386:"BSFL"
+ 	// arm:"CLZ"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+@@ -305,6 +306,7 @@ func TrailingZeros(n uint) int {
+ func TrailingZeros64(n uint64) int {
+ 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// amd64/v3:"TZCNTQ"
++	// 386:"BSFL"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+ 	// ppc64x/power8:"ANDN","POPCNTD"
+@@ -322,6 +324,7 @@ func TrailingZeros64Subtract(n uint64) int {
+ func TrailingZeros32(n uint32) int {
+ 	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
+ 	// amd64/v3:"TZCNTL"
++	// 386:"BSFL"
+ 	// arm:"CLZ"
+ 	// arm64:"RBITW","CLZW"
+ 	// s390x:"FLOGR","MOVWZ"
+@@ -345,6 +348,7 @@ func TrailingZeros16(n uint16) int {
+ 
+ func TrailingZeros8(n uint8) int {
+ 	// amd64:"BSFL","BTSL\\t\\$8"
++	// 386:"BSFL"
+ 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
+ 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$256"

@@ -9,6 +9,20 @@ Date:   Tue Sep 30 19:34:33 2014 +0400
     R=rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/147370043
-
+---
  src/runtime/stack.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 2d23c717bd..8562b94076 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -695,7 +695,7 @@ runtime·newstack(void)
+ 		runtime·traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g);
+ 		runtime·throw("runtime: wrong goroutine in newstack");
+ 	}
+-	if(g->throwsplit)
++	if(g->m->curg->throwsplit)
+ 		runtime·throw("runtime: stack split at bad time");
+ 
+ 	// The goroutine must be executing in order to call newstack,

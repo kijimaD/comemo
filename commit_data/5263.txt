@@ -9,7 +9,7 @@ Date:   Fri Apr 9 15:30:40 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/855046
-
+---
  src/cmd/prof/gopprof       | 28 ++++++++++++++++++++++++++++
  src/pkg/runtime/iface.c    |  6 +++---
  src/pkg/runtime/malloc.cgo | 16 +++++-----------
@@ -20,3 +20,271 @@ Date:   Fri Apr 9 15:30:40 2010 -0700
  src/pkg/runtime/slice.c    |  2 +-
  src/pkg/runtime/string.cgo |  6 +++---
  9 files changed, 49 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/prof/gopprof b/src/cmd/prof/gopprof
+index 11d8857875..dffeeffa13 100755
+--- a/src/cmd/prof/gopprof
++++ b/src/cmd/prof/gopprof
+@@ -2400,6 +2400,34 @@ sub RemoveUninterestingFrames {
+                       '__builtin_vec_new',
+                       'operator new',
+                       'operator new[]',
++                      # Go
++                      'catstring',
++                      'copyin',
++                      'gostring',
++                      'gostringsize',
++                      'hash_init',
++                      'hash_subtable_new',
++                      'hash_conv',
++                      'hash_grow',
++                      'hash_insert_internal',
++                      'hash_insert',
++                      'mapassign',
++                      'runtime.mapassign1',
++                      'makechan',
++                      'makemap',
++                      'mal',
++                      'mallocgc',
++                      'runtime.catstring',
++                      'runtime.ifaceT2E',
++                      'runtime.ifaceT2I',
++                      'runtime.makechan',
++                      'runtime.makemap',
++                      'runtime.makeslice',
++                      'runtime.mal',
++                      'runtime.slicebytetostring',
++                      'runtime.sliceinttostring',
++                      'runtime.stringtoslicebyte',
++                      'runtime.stringtosliceint',
+                       # These mark the beginning/end of our custom sections
+                       '__start_google_malloc',
+                       '__stop_google_malloc',
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 28e3edeeef..9c2c6b1b5e 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -157,7 +157,7 @@ copyin(Type *t, void *src, void **dst)
+ 	if(wid <= sizeof(*dst))
+ 		algarray[alg].copy(wid, dst, src);
+ 	else {
+-		p = malx(wid, 1);
++		p = mal(wid);
+ 		algarray[alg].copy(wid, p, src);
+ 		*dst = p;
+ 	}
+@@ -662,7 +662,7 @@ unsafe·New(Eface typ, void *ret)
+ 	t = (Type*)((Eface*)typ.data-1);
+ 
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(t->size, RefNoPointers, 1, 1, 1);
++		ret = mallocgc(t->size, RefNoPointers, 1, 1);
+ 	else
+ 		ret = mal(t->size);
+ 	FLUSH(&ret);
+@@ -682,7 +682,7 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
+ 	
+ 	size = n*t->size;
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(size, RefNoPointers, 1, 1, 1);
++		ret = mallocgc(size, RefNoPointers, 1, 1);
+ 	else
+ 		ret = mal(size);
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 2e7818a396..e6b965444e 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -36,7 +36,7 @@ fastrand1(void)
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+ void*
+-mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_depth)
++mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ {
+ 	int32 sizeclass, rate;
+ 	MCache *c;
+@@ -105,7 +105,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_dept
+ 			m->mcache->next_sample = fastrand1() % (2*rate);
+ 		profile:
+ 			*ref |= RefProfiled;
+-			MProf_Malloc(skip_depth+1, v, size);
++			MProf_Malloc(v, size);
+ 		}
+ 	}
+ 
+@@ -117,7 +117,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_dept
+ void*
+ malloc(uintptr size)
+ {
+-	return mallocgc(size, 0, 0, 1, 1);
++	return mallocgc(size, 0, 0, 1);
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -258,13 +258,7 @@ mallocinit(void)
+ void*
+ mal(uintptr n)
+ {
+-	return mallocgc(n, 0, 1, 1, 2);
+-}
+-
+-void*
+-malx(uintptr n, int32 skip_delta)
+-{
+-	return mallocgc(n, 0, 1, 1, 2+skip_delta);
++	return mallocgc(n, 0, 1, 1);
+ }
+ 
+ // Stack allocator uses malloc/free most of the time,
+@@ -299,7 +293,7 @@ stackalloc(uint32 n)
+ 		unlock(&stacks);
+ 		return v;
+ 	}
+-	v = mallocgc(n, RefNoProfiling, 0, 0, 0);
++	v = mallocgc(n, RefNoProfiling, 0, 0);
+ 	if(!mlookup(v, nil, nil, nil, &ref))
+ 		throw("stackalloc mlookup");
+ 	*ref = RefStack;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index caed4d3fc4..8b733b6a4a 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -346,7 +346,7 @@ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+ void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
+ 
+-void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed, int32 skip_depth);
++void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+ int32	mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
+ void	gc(int32 force);
+ 
+@@ -369,7 +369,7 @@ enum
+ 	RefFlags = 0xFFFF0000U,
+ };
+ 
+-void	MProf_Malloc(int32, void*, uintptr);
++void	MProf_Malloc(void*, uintptr);
+ void	MProf_Free(void*, uintptr);
+ 
+ // Malloc profiling settings.
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index ae737e8da2..03c1e1044f 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -134,8 +134,8 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 			newtab.max *= 3;
+ 		}
+ 
+-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1, 2);
+-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1, 2);
++		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
++		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
+ 
+ 		for(i=0; i<fintab.max; i++) {
+ 			void *k;
+diff --git a/src/pkg/runtime/mprof.cgo b/src/pkg/runtime/mprof.cgo
+index 0cddb243d2..61a5132b76 100644
+--- a/src/pkg/runtime/mprof.cgo
++++ b/src/pkg/runtime/mprof.cgo
+@@ -65,7 +65,7 @@ stkbucket(uintptr *stk, int32 nstk)
+ 		   mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
+ 			return b;
+ 
+-	b = mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1, 0);
++	b = mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1);
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	memmove(b->stk, stk, nstk*sizeof stk[0]);
+ 	b->hash = h;
+@@ -132,7 +132,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 		if(ah->addr == (addr>>20))
+ 			goto found;
+ 
+-	ah = mallocgc(sizeof *ah, RefNoProfiling, 0, 1, 0);
++	ah = mallocgc(sizeof *ah, RefNoProfiling, 0, 1);
+ 	addrmem += sizeof *ah;
+ 	ah->next = addrhash[h];
+ 	ah->addr = addr>>20;
+@@ -140,7 +140,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 
+ found:
+ 	if((e = addrfree) == nil) {
+-		e = mallocgc(64*sizeof *e, RefNoProfiling, 0, 0, 0);
++		e = mallocgc(64*sizeof *e, RefNoProfiling, 0, 0);
+ 		addrmem += 64*sizeof *e;
+ 		for(i=0; i+1<64; i++)
+ 			e[i].next = &e[i+1];
+@@ -185,7 +185,7 @@ found:
+ 
+ // Called by malloc to record a profiled block.
+ void
+-MProf_Malloc(int32 skip, void *p, uintptr size)
++MProf_Malloc(void *p, uintptr size)
+ {
+ 	int32 nstk;
+ 	uintptr stk[32];
+@@ -195,7 +195,7 @@ MProf_Malloc(int32 skip, void *p, uintptr size)
+ 		return;
+ 
+ 	m->nomemprof++;
+-	nstk = callers(1+skip, stk, 32);
++	nstk = callers(1, stk, 32);
+ 	lock(&proflock);
+ 	b = stkbucket(stk, nstk);
+ 	b->allocs++;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 7063a9fc6d..8a97772da7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -383,7 +383,6 @@ void	mcpy(byte*, byte*, uint32);
+ int32	mcmp(byte*, byte*, uint32);
+ void	memmove(void*, void*, uint32);
+ void*	mal(uintptr);
+-void*	malx(uintptr size, int32 skip_delta);
+ uint32	cmpstring(String, String);
+ String	catstring(String, String);
+ String	gostring(byte*);
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index ca2585c796..c3c079c670 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -23,7 +23,7 @@ void
+ 	ret.cap = cap;
+ 
+ 	if((t->elem->kind&KindNoPointers))
+-		ret.array = mallocgc(size, RefNoPointers, 1, 1, 1);
++		ret.array = mallocgc(size, RefNoPointers, 1, 1);
+ 	else
+ 		ret.array = mal(size);
+ 
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 005b0ffc80..103ac329b4 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -41,7 +41,7 @@ gostringsize(int32 l)
+ 
+ 	if(l == 0)
+ 		return emptystring;
+-	s.str = malx(l+1, 1);	// leave room for NUL for C runtime (e.g., callers of getenv)
++	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+ 	s.len = l;
+ 	if(l > maxstring)
+ 		maxstring = l;
+@@ -197,7 +197,7 @@ func slicebytetostring(b Slice) (s String) {
+ }
+ 
+ func stringtoslicebyte(s String) (b Slice) {
+-	b.array = mallocgc(s.len, RefNoPointers, 1, 1, 1);
++	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
+ 	b.len = s.len;
+ 	b.cap = s.len;
+ 	mcpy(b.array, s.str, s.len);
+@@ -240,7 +240,7 @@ func stringtosliceint(s String) (b Slice) {
+ 		n++;
+ 	}
+ 
+-	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1, 1);
++	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
+ 	b.len = n;
+ 	b.cap = n;
+ 	p = s.str;

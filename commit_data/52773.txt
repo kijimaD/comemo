@@ -12,8 +12,86 @@ Date:   Thu May 26 11:33:09 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  src/testing/helper_test.go                | 22 ++++++++++++----------
  src/testing/helperfuncs_test.go           | 10 ++++++++++
  3 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index a986b08041..88e4961666 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -407,6 +407,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 
+ 	// Make a new internal function.
+ 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
++	fn.SetWrapper(true) // See issue 52237
+ 
+ 	// This is the dictionary we want to use.
+ 	// It may be a constant, it may be the outer functions's dictionary, or it may be
+diff --git a/src/testing/helper_test.go b/src/testing/helper_test.go
+index 6175410f18..357a0798a1 100644
+--- a/src/testing/helper_test.go
++++ b/src/testing/helper_test.go
+@@ -24,20 +24,22 @@ func TestTBHelper(t *T) {
+ 
+ 	want := `--- FAIL: Test (?s)
+ helperfuncs_test.go:12: 0
+-helperfuncs_test.go:33: 1
++helperfuncs_test.go:40: 1
+ helperfuncs_test.go:21: 2
+-helperfuncs_test.go:35: 3
+-helperfuncs_test.go:42: 4
++helperfuncs_test.go:42: 3
++helperfuncs_test.go:49: 4
+ --- FAIL: Test/sub (?s)
+-helperfuncs_test.go:45: 5
++helperfuncs_test.go:52: 5
+ helperfuncs_test.go:21: 6
+-helperfuncs_test.go:44: 7
+-helperfuncs_test.go:56: 8
++helperfuncs_test.go:51: 7
++helperfuncs_test.go:63: 8
+ --- FAIL: Test/sub2 (?s)
+-helperfuncs_test.go:71: 11
+-helperfuncs_test.go:75: recover 12
+-helperfuncs_test.go:64: 9
+-helperfuncs_test.go:60: 10
++helperfuncs_test.go:78: 11
++helperfuncs_test.go:82: recover 12
++helperfuncs_test.go:84: GenericFloat64
++helperfuncs_test.go:85: GenericInt
++helperfuncs_test.go:71: 9
++helperfuncs_test.go:67: 10
+ `
+ 	lines := strings.Split(buf.String(), "\n")
+ 	durationRE := regexp.MustCompile(`\(.*\)$`)
+diff --git a/src/testing/helperfuncs_test.go b/src/testing/helperfuncs_test.go
+index 272b33c0e5..b63bc91ac2 100644
+--- a/src/testing/helperfuncs_test.go
++++ b/src/testing/helperfuncs_test.go
+@@ -26,6 +26,13 @@ func helperCallingHelper(t *T, msg string) {
+ 	helper(t, msg)
+ }
+ 
++func genericHelper[G any](t *T, msg string) {
++	t.Helper()
++	t.Error(msg)
++}
++
++var genericIntHelper = genericHelper[int]
++
+ func testHelper(t *T) {
+ 	// Check combinations of directly and indirectly
+ 	// calling helper functions.
+@@ -73,6 +80,9 @@ func testHelper(t *T) {
+ 	// Check that helper-ness propagates up through panic/recover.
+ 	// See https://golang.org/issue/31154.
+ 	recoverHelper(t, "12")
++
++	genericHelper[float64](t, "GenericFloat64")
++	genericIntHelper(t, "GenericInt")
+ }
+ 
+ func parallelTestHelper(t *T) {

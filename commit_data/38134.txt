@@ -9,7 +9,7 @@ Date:   Mon Nov 6 14:50:30 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go          |  2 +-
  src/cmd/compile/internal/gc/align.go        |  8 ++------
  src/cmd/compile/internal/gc/bexport.go      |  2 +-
@@ -30,3 +30,505 @@ Date:   Mon Nov 6 14:50:30 2017 -0800
  src/cmd/compile/internal/types/type.go      | 28 +++++++++++-----------------
  src/cmd/compile/internal/types/utils.go     |  3 ---
  19 files changed, 45 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index b7d88531fd..9a13ed368b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -102,7 +102,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
+ 	case TINT8, TUINT8, TINT16, TUINT16,
+ 		TINT32, TUINT32, TINT64, TUINT64,
+ 		TINT, TUINT, TUINTPTR,
+-		TBOOL, TPTR32, TPTR64,
++		TBOOL, TPTR,
+ 		TCHAN, TUNSAFEPTR:
+ 		return AMEM, nil
+ 
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 9e752fc628..fb761d2339 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -250,12 +250,8 @@ func dowidth(t *types.Type) {
+ 		w = 16
+ 		t.Align = uint8(Widthreg)
+ 
+-	case TPTR32:
+-		w = 4
+-		checkwidth(t.Elem())
+-
+-	case TPTR64:
+-		w = 8
++	case TPTR:
++		w = int64(Widthptr)
+ 		checkwidth(t.Elem())
+ 
+ 	case TUNSAFEPTR:
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3ef1e6af4d..7c09ab5a34 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -43,7 +43,7 @@ func (p *exporter) markType(t *types.Type) {
+ 	// the user already needs some way to construct values of
+ 	// those types.
+ 	switch t.Etype {
+-	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN:
++	case TPTR, TARRAY, TSLICE, TCHAN:
+ 		// TODO(mdempsky): Skip marking element type for
+ 		// send-only channels?
+ 		p.markType(t.Elem())
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a80455a30c..effed1f4ac 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -347,7 +347,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 		case TARRAY:
+ 			goto bad
+ 
+-		case TPTR32, TPTR64, TUNSAFEPTR:
++		case TPTR, TUNSAFEPTR:
+ 			n.SetVal(Val{new(Mpint)})
+ 
+ 		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
+@@ -1482,7 +1482,7 @@ func smallintconst(n *Node) bool {
+ 			TBOOL:
+ 			return true
+ 
+-		case TIDEAL, TINT64, TUINT64, TPTR32, TPTR64:
++		case TIDEAL, TINT64, TUINT64, TPTR:
+ 			v, ok := n.Val().U.(*Mpint)
+ 			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
+ 				return true
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 145007f5e1..94190f0020 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1507,7 +1507,7 @@ func (e *EscState) addDereference(n *Node) *Node {
+ 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
+ 	ind.Pos = n.Pos
+ 	t := n.Type
+-	if t.IsKind(types.Tptr) || t.IsSlice() {
++	if t.IsPtr() || t.IsSlice() {
+ 		// This should model our own sloppy use of OIND to encode
+ 		// decreasing levels of indirection; i.e., "indirecting" a slice
+ 		// yields the type of an element.
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 5d2e36ee51..28e9b9b6dc 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -697,7 +697,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		switch mode {
+ 		case FTypeId, FTypeIdName:
+ 			if flag&FmtShort != 0 {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 3007c9cabf..d90c97ad92 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -617,7 +617,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		w.startType(pointerType)
+ 		w.typ(t.Elem())
+ 
+@@ -743,7 +743,7 @@ func constTypeOf(typ *types.Type) Ctype {
+ 		return CTSTR
+ 	case TINT, TINT8, TINT16, TINT32, TINT64,
+ 		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR,
+-		TPTR32, TPTR64, TUNSAFEPTR:
++		TPTR, TUNSAFEPTR:
+ 		return CTINT
+ 	case TFLOAT32, TFLOAT64:
+ 		return CTFLT
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index d75c5b8239..89b977de85 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -20,7 +20,7 @@ func typeWithoutPointers() *types.Type {
+ 
+ func typeWithPointers() *types.Type {
+ 	t := types.New(TSTRUCT)
+-	f := &types.Field{Type: types.New(TPTR64)}
++	f := &types.Field{Type: types.New(TPTR)}
+ 	t.SetFields([]*types.Field{f})
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 563b425db7..a38c33647e 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -534,7 +534,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 		TINT, TUINT, TUINTPTR, TBOOL,
+ 		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
+ 
+-	case TPTR32, TPTR64, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
++	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+ 		if off&int64(Widthptr-1) != 0 {
+ 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+@@ -1163,8 +1163,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
+ 		return
+ 	}
+ 	switch t.Etype {
+-	case TPTR32,
+-		TPTR64,
++	case TPTR,
+ 		TUNSAFEPTR,
+ 		TFUNC,
+ 		TCHAN,
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 935c3b0503..3ef5682301 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -656,7 +656,7 @@ func typePkg(t *types.Type) *types.Pkg {
+ 	tsym := t.Sym
+ 	if tsym == nil {
+ 		switch t.Etype {
+-		case TARRAY, TSLICE, TPTR32, TPTR64, TCHAN:
++		case TARRAY, TSLICE, TPTR, TCHAN:
+ 			if t.Elem() != nil {
+ 				tsym = t.Elem().Sym
+ 			}
+@@ -714,8 +714,7 @@ var kinds = []int{
+ 	TFLOAT64:    objabi.KindFloat64,
+ 	TBOOL:       objabi.KindBool,
+ 	TSTRING:     objabi.KindString,
+-	TPTR32:      objabi.KindPtr,
+-	TPTR64:      objabi.KindPtr,
++	TPTR:        objabi.KindPtr,
+ 	TSTRUCT:     objabi.KindStruct,
+ 	TINTER:      objabi.KindInterface,
+ 	TCHAN:       objabi.KindChan,
+@@ -736,8 +735,7 @@ func typeptrdata(t *types.Type) int64 {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR32,
+-		TPTR64,
++	case TPTR,
+ 		TUNSAFEPTR,
+ 		TFUNC,
+ 		TCHAN,
+@@ -1035,8 +1033,7 @@ func isreflexive(t *types.Type) bool {
+ 		TINT64,
+ 		TUINT64,
+ 		TUINTPTR,
+-		TPTR32,
+-		TPTR64,
++		TPTR,
+ 		TUNSAFEPTR,
+ 		TSTRING,
+ 		TCHAN:
+@@ -1071,7 +1068,7 @@ func isreflexive(t *types.Type) bool {
+ func needkeyupdate(t *types.Type) bool {
+ 	switch t.Etype {
+ 	case TBOOL, TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32,
+-		TINT64, TUINT64, TUINTPTR, TPTR32, TPTR64, TUNSAFEPTR, TCHAN:
++		TINT64, TUINT64, TUINTPTR, TPTR, TUNSAFEPTR, TCHAN:
+ 		return false
+ 
+ 	case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, // floats and complex can be +0/-0
+@@ -1279,7 +1276,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		ot = duint8(lsym, ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
+ 		ot = dextratype(lsym, ot, t, 0)
+ 
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		if t.Elem().Etype == TANY {
+ 			// ../../../../runtime/type.go:/UnsafePointerType
+ 			ot = dcommontype(lsym, t)
+@@ -1356,7 +1353,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		// functions must return the existing type structure rather
+ 		// than creating a new one.
+ 		switch t.Etype {
+-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
++		case TPTR, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
+ 			keep = true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2b67ef9a6f..469fbb8c96 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1363,8 +1363,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
+ 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
+ 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
+-	opAndType{OEQ, TPTR32}:     ssa.OpEqPtr,
+-	opAndType{OEQ, TPTR64}:     ssa.OpEqPtr,
++	opAndType{OEQ, TPTR}:       ssa.OpEqPtr,
+ 	opAndType{OEQ, TUINTPTR}:   ssa.OpEqPtr,
+ 	opAndType{OEQ, TUNSAFEPTR}: ssa.OpEqPtr,
+ 	opAndType{OEQ, TFLOAT64}:   ssa.OpEq64F,
+@@ -1384,8 +1383,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
+ 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
+ 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
+-	opAndType{ONE, TPTR32}:     ssa.OpNeqPtr,
+-	opAndType{ONE, TPTR64}:     ssa.OpNeqPtr,
++	opAndType{ONE, TPTR}:       ssa.OpNeqPtr,
+ 	opAndType{ONE, TUINTPTR}:   ssa.OpNeqPtr,
+ 	opAndType{ONE, TUNSAFEPTR}: ssa.OpNeqPtr,
+ 	opAndType{ONE, TFLOAT64}:   ssa.OpNeq64F,
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7e450e2e66..9a6c61a651 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -772,8 +772,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
+ 	// 5. src is the predeclared identifier nil and dst is a nillable type.
+ 	if src.Etype == TNIL {
+ 		switch dst.Etype {
+-		case TPTR32,
+-			TPTR64,
++		case TPTR,
+ 			TFUNC,
+ 			TMAP,
+ 			TCHAN,
+@@ -2003,8 +2002,7 @@ func isdirectiface(t *types.Type) bool {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR32,
+-		TPTR64,
++	case TPTR,
+ 		TCHAN,
+ 		TMAP,
+ 		TFUNC,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4831ecca34..897dd710b9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -87,8 +87,7 @@ var _typekind = []string{
+ 	TFLOAT64:    "float64",
+ 	TBOOL:       "bool",
+ 	TSTRING:     "string",
+-	TPTR32:      "pointer",
+-	TPTR64:      "pointer",
++	TPTR:        "pointer",
+ 	TUNSAFEPTR:  "unsafe.Pointer",
+ 	TSTRUCT:     "struct",
+ 	TINTER:      "interface",
+diff --git a/src/cmd/compile/internal/gc/types.go b/src/cmd/compile/internal/gc/types.go
+index aa0f066a46..ce82c3a52e 100644
+--- a/src/cmd/compile/internal/gc/types.go
++++ b/src/cmd/compile/internal/gc/types.go
+@@ -32,9 +32,7 @@ const (
+ 
+ 	TBOOL = types.TBOOL
+ 
+-	TPTR32 = types.TPTR32
+-	TPTR64 = types.TPTR64
+-
++	TPTR       = types.TPTR
+ 	TFUNC      = types.TFUNC
+ 	TSLICE     = types.TSLICE
+ 	TARRAY     = types.TARRAY
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index dbc2d647c9..96980ad500 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -177,11 +177,8 @@ func typeinit() {
+ 		simtype[et] = et
+ 	}
+ 
+-	types.Types[TPTR32] = types.New(TPTR32)
+-	dowidth(types.Types[TPTR32])
+-
+-	types.Types[TPTR64] = types.New(TPTR64)
+-	dowidth(types.Types[TPTR64])
++	types.Types[TPTR] = types.New(TPTR)
++	dowidth(types.Types[TPTR])
+ 
+ 	t := types.New(TUNSAFEPTR)
+ 	types.Types[TUNSAFEPTR] = t
+@@ -190,11 +187,6 @@ func typeinit() {
+ 	asNode(t.Sym.Def).Name = new(Name)
+ 	dowidth(types.Types[TUNSAFEPTR])
+ 
+-	types.Tptr = TPTR32
+-	if Widthptr == 8 {
+-		types.Tptr = TPTR64
+-	}
+-
+ 	for et := TINT8; et <= TUINT64; et++ {
+ 		isInt[et] = true
+ 	}
+@@ -263,8 +255,7 @@ func typeinit() {
+ 	okforlen[TSLICE] = true
+ 	okforlen[TSTRING] = true
+ 
+-	okforeq[TPTR32] = true
+-	okforeq[TPTR64] = true
++	okforeq[TPTR] = true
+ 	okforeq[TUNSAFEPTR] = true
+ 	okforeq[TINTER] = true
+ 	okforeq[TCHAN] = true
+@@ -357,10 +348,10 @@ func typeinit() {
+ 	types.Types[TINTER] = types.New(TINTER)
+ 
+ 	// simple aliases
+-	simtype[TMAP] = types.Tptr
+-	simtype[TCHAN] = types.Tptr
+-	simtype[TFUNC] = types.Tptr
+-	simtype[TUNSAFEPTR] = types.Tptr
++	simtype[TMAP] = TPTR
++	simtype[TCHAN] = TPTR
++	simtype[TFUNC] = TPTR
++	simtype[TUNSAFEPTR] = TPTR
+ 
+ 	array_array = int(Rnd(0, int64(Widthptr)))
+ 	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1b1d36b61d..5aa2146a8c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2138,7 +2138,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 				on = syslook("printiface")
+ 			}
+ 			on = substArgTypes(on, n.Type) // any-1
+-		case TPTR32, TPTR64, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
++		case TPTR, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
+ 			on = syslook("printpointer")
+ 			on = substArgTypes(on, n.Type) // any-1
+ 		case TSLICE:
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 5832050a8a..9c776d4b16 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -163,7 +163,6 @@ func init() {
+ 	}
+ 	types.Dowidth = func(t *types.Type) {}
+ 
+-	types.Tptr = types.TPTR64
+ 	for _, typ := range [...]struct {
+ 		width int64
+ 		et    types.EType
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 25f8f826e6..e6e6127405 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -43,9 +43,7 @@ const (
+ 
+ 	TBOOL
+ 
+-	TPTR32
+-	TPTR64
+-
++	TPTR
+ 	TFUNC
+ 	TSLICE
+ 	TARRAY
+@@ -137,7 +135,7 @@ type Type struct {
+ 	// TFUNCARGS: FuncArgs
+ 	// TCHANARGS: ChanArgs
+ 	// TCHAN: *Chan
+-	// TPTR32, TPTR64: Ptr
++	// TPTR: Ptr
+ 	// TARRAY: *Array
+ 	// TSLICE: Slice
+ 	Extra interface{}
+@@ -461,7 +459,7 @@ func New(et EType) *Type {
+ 		t.Extra = new(Struct)
+ 	case TINTER:
+ 		t.Extra = new(Interface)
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		t.Extra = Ptr{}
+ 	case TCHANARGS:
+ 		t.Extra = ChanArgs{}
+@@ -560,11 +558,7 @@ func NewPtr(elem *Type) *Type {
+ 		return t
+ 	}
+ 
+-	if Tptr == 0 {
+-		Fatalf("NewPtr: Tptr not initialized")
+-	}
+-
+-	t := New(Tptr)
++	t := New(TPTR)
+ 	t.Extra = Ptr{Elem: elem}
+ 	t.Width = int64(Widthptr)
+ 	t.Align = uint8(Widthptr)
+@@ -619,7 +613,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 		t = (*types)[0]
+ 		*types = (*types)[1:]
+ 
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		elem := SubstAny(t.Elem(), types)
+ 		if elem != t.Elem() {
+ 			t = t.copy()
+@@ -790,7 +784,7 @@ func (t *Type) Key() *Type {
+ // Usable with pointers, channels, arrays, slices, and maps.
+ func (t *Type) Elem() *Type {
+ 	switch t.Etype {
+-	case TPTR32, TPTR64:
++	case TPTR:
+ 		return t.Extra.(Ptr).Elem
+ 	case TARRAY:
+ 		return t.Extra.(*Array).Elem
+@@ -1101,7 +1095,7 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		}
+ 		return t.Elem().cmp(x.Elem())
+ 
+-	case TPTR32, TPTR64, TSLICE:
++	case TPTR, TSLICE:
+ 		// No special cases for these, they are handled
+ 		// by the general code after the switch.
+ 
+@@ -1199,7 +1193,7 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		panic(e)
+ 	}
+ 
+-	// Common element type comparison for TARRAY, TCHAN, TPTR32, TPTR64, and TSLICE.
++	// Common element type comparison for TARRAY, TCHAN, TPTR, and TSLICE.
+ 	return t.Elem().cmp(x.Elem())
+ }
+ 
+@@ -1261,7 +1255,7 @@ func (t *Type) IsComplex() bool {
+ // IsPtr reports whether t is a regular Go pointer type.
+ // This does not include unsafe.Pointer.
+ func (t *Type) IsPtr() bool {
+-	return t.Etype == TPTR32 || t.Etype == TPTR64
++	return t.Etype == TPTR
+ }
+ 
+ // IsUnsafePtr reports whether t is an unsafe pointer.
+@@ -1275,7 +1269,7 @@ func (t *Type) IsUnsafePtr() bool {
+ // that consist of a single pointer shaped type.
+ // TODO(mdempsky): Should it? See golang.org/issue/15028.
+ func (t *Type) IsPtrShaped() bool {
+-	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
++	return t.Etype == TPTR || t.Etype == TUNSAFEPTR ||
+ 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+ }
+ 
+@@ -1449,7 +1443,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 		}
+ 		return false
+ 
+-	case TPTR32, TPTR64, TSLICE:
++	case TPTR, TSLICE:
+ 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+ 
+ 	case TTUPLE:
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index 0eac402f8e..caaeb889fb 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -11,9 +11,6 @@ import (
+ 
+ const BADWIDTH = -1000000000
+ 
+-// Initialized by frontend. Exists only here.
+-var Tptr EType // either TPTR32 or TPTR64
+-
+ // The following variables must be initialized early by the frontend.
+ // They are here to break import cycles.
+ // TODO(gri) eliminate these dependencies.

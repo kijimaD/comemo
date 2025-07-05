@@ -17,7 +17,7 @@ Date:   Thu Apr 26 15:37:27 2018 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/asm.html                              |  6 ++++++
  src/cmd/compile/internal/mips64/galign.go |  2 +-
  src/cmd/dist/build.go                     | 16 ++++++++++++++++
@@ -33,3 +33,357 @@ Date:   Thu Apr 26 15:37:27 2018 +0200
  test/codegen/math.go                      |  3 ++-
  test/run.go                               |  2 +-
  14 files changed, 84 insertions(+), 15 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index c954079b66..f2f8fad576 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -939,6 +939,12 @@ The value of <code>GOMIPS</code> environment variable (<code>hardfloat</code> or
+ <code>GOMIPS_hardfloat</code> or <code>GOMIPS_softfloat</code>.
+ </p>
+ 
++<p>
++The value of <code>GOMIPS64</code> environment variable (<code>hardfloat</code> or
++<code>softfloat</code>) is made available to assembly code by predefining either
++<code>GOMIPS64_hardfloat</code> or <code>GOMIPS64_softfloat</code>.
++</p>
++
+ <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
+ 
+ <p>
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 910230f4f4..5252719e8e 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -18,7 +18,7 @@ func Init(arch *gc.Arch) {
+ 	}
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+-
++	arch.SoftFloat = objabi.GOMIPS64 == "softfloat"
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d570aa1a84..163fdae119 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -31,6 +31,7 @@ var (
+ 	goarm            string
+ 	go386            string
+ 	gomips           string
++	gomips64         string
+ 	goroot           string
+ 	goroot_final     string
+ 	goextlinkenabled string
+@@ -145,6 +146,12 @@ func xinit() {
+ 	}
+ 	gomips = b
+ 
++	b = os.Getenv("GOMIPS64")
++	if b == "" {
++		b = "hardfloat"
++	}
++	gomips64 = b
++
+ 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
+ 		fatalf("$GOROOT is not set correctly or not exported\n"+
+ 			"\tGOROOT=%s\n"+
+@@ -202,6 +209,7 @@ func xinit() {
+ 	os.Setenv("GOHOSTOS", gohostos)
+ 	os.Setenv("GOOS", goos)
+ 	os.Setenv("GOMIPS", gomips)
++	os.Setenv("GOMIPS64", gomips64)
+ 	os.Setenv("GOROOT", goroot)
+ 	os.Setenv("GOROOT_FINAL", goroot_final)
+ 
+@@ -822,6 +830,11 @@ func runInstall(dir string, ch chan struct{}) {
+ 			compile = append(compile, "-D", "GOMIPS_"+gomips)
+ 		}
+ 
++		if goarch == "mips64" || goarch == "mipsle64" {
++			// Define GOMIPS64_value from gomips64.
++			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
++		}
++
+ 		doclean := true
+ 		b := pathf("%s/%s", workdir, filepath.Base(p))
+ 
+@@ -1063,6 +1076,9 @@ func cmdenv() {
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		xprintf(format, "GOMIPS", gomips)
+ 	}
++	if goarch == "mips64" || goarch == "mips64le" {
++		xprintf(format, "GOMIPS64", gomips64)
++	}
+ 
+ 	if *path {
+ 		sep := ":"
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 5cbcd8191b..acf2230cb4 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -44,6 +44,7 @@ func mkzversion(dir, file string) {
+ //	const defaultGO386 = <go386>
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOMIPS = <gomips>
++//	const defaultGOMIPS64 = <gomips64>
+ //	const defaultGOOS = runtime.GOOS
+ //	const defaultGOARCH = runtime.GOARCH
+ //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+@@ -71,6 +72,7 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
++	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 371f8ceb95..fa8c02cc4b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1094,6 +1094,9 @@
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
++//	GOMIPS64
++//		For GOARCH=mips64{,le}, whether to use floating point instructions.
++//		Valid values are hardfloat (default), softfloat.
+ //
+ // Special-purpose environment variables:
+ //
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 1de4f0dc79..85494e34f0 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -84,9 +84,10 @@ var (
+ 	GOROOT_FINAL = findGOROOT_FINAL()
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+-	GOARM  = fmt.Sprint(objabi.GOARM)
+-	GO386  = objabi.GO386
+-	GOMIPS = objabi.GOMIPS
++	GOARM    = fmt.Sprint(objabi.GOARM)
++	GO386    = objabi.GO386
++	GOMIPS   = objabi.GOMIPS
++	GOMIPS64 = objabi.GOMIPS64
+ )
+ 
+ // Update build context to use our computed GOROOT.
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 603f7b5060..f682c3a789 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -78,6 +78,8 @@ func MkEnv() []cfg.EnvVar {
+ 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
+ 	case "mips", "mipsle":
+ 		env = append(env, cfg.EnvVar{Name: "GOMIPS", Value: cfg.GOMIPS})
++	case "mips64", "mips64le":
++		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
+ 	}
+ 
+ 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index f7ec839f02..60c1346e1d 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -527,6 +527,9 @@ Architecture-specific environment variables:
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
++	GOMIPS64
++		For GOARCH=mips64{,le}, whether to use floating point instructions.
++		Valid values are hardfloat (default), softfloat.
+ 
+ Special-purpose environment variables:
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 04fabd995e..88efe8b757 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -233,6 +233,11 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
+ 	}
+ 
++	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
++		// Define GOMIPS64_value from cfg.GOMIPS64.
++		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
++	}
++
+ 	var ofiles []string
+ 	for _, sfile := range sfiles {
+ 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index eafef6bfa7..0553231dee 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -21,13 +21,14 @@ func envOr(key, value string) string {
+ var (
+ 	defaultGOROOT string // set by linker
+ 
+-	GOROOT  = envOr("GOROOT", defaultGOROOT)
+-	GOARCH  = envOr("GOARCH", defaultGOARCH)
+-	GOOS    = envOr("GOOS", defaultGOOS)
+-	GO386   = envOr("GO386", defaultGO386)
+-	GOARM   = goarm()
+-	GOMIPS  = gomips()
+-	Version = version
++	GOROOT   = envOr("GOROOT", defaultGOROOT)
++	GOARCH   = envOr("GOARCH", defaultGOARCH)
++	GOOS     = envOr("GOOS", defaultGOOS)
++	GO386    = envOr("GO386", defaultGO386)
++	GOARM    = goarm()
++	GOMIPS   = gomips()
++	GOMIPS64 = gomips64()
++	Version  = version
+ )
+ 
+ func goarm() int {
+@@ -53,6 +54,15 @@ func gomips() string {
+ 	panic("unreachable")
+ }
+ 
++func gomips64() string {
++	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
++	case "hardfloat", "softfloat":
++		return v
++	}
++	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")
++	panic("unreachable")
++}
++
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index e928ff4792..1235852dbe 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -17,7 +17,11 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	 * Also note that at procedure entry in gc world, 8(R29) will be the
+ 	 *  first arg.
+ 	 */
++#ifndef GOMIPS64_softfloat
+ 	ADDV	$(-8*23), R29
++#else
++	ADDV	$(-8*15), R29
++#endif
+ 	MOVV	R5, (8*1)(R29) // void*
+ 	MOVW	R6, (8*2)(R29) // int32
+ 	MOVV	R7, (8*3)(R29) // uintptr
+@@ -32,6 +36,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	RSB, (8*12)(R29)
+ 	MOVV	g, (8*13)(R29)
+ 	MOVV	R31, (8*14)(R29)
++#ifndef GOMIPS64_softfloat
+ 	MOVD	F24, (8*15)(R29)
+ 	MOVD	F25, (8*16)(R29)
+ 	MOVD	F26, (8*17)(R29)
+@@ -40,7 +45,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	F29, (8*20)(R29)
+ 	MOVD	F30, (8*21)(R29)
+ 	MOVD	F31, (8*22)(R29)
+-
++#endif
+ 	// Initialize Go ABI environment
+ 	// prepare SB register = PC & 0xffffffff00000000
+ 	BGEZAL	R0, 1(PC)
+@@ -60,6 +65,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	(8*12)(R29), RSB
+ 	MOVV	(8*13)(R29), g
+ 	MOVV	(8*14)(R29), R31
++#ifndef GOMIPS64_softfloat
+ 	MOVD	(8*15)(R29), F24
+ 	MOVD	(8*16)(R29), F25
+ 	MOVD	(8*17)(R29), F26
+@@ -69,4 +75,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	(8*21)(R29), F30
+ 	MOVD	(8*22)(R29), F31
+ 	ADDV	$(8*23), R29
++#else
++	ADDV	$(8*15), R29
++#endif
+ 	RET
+diff --git a/src/runtime/cgo/gcc_mips64x.S b/src/runtime/cgo/gcc_mips64x.S
+index a7ef0061a4..908dd2135c 100644
+--- a/src/runtime/cgo/gcc_mips64x.S
++++ b/src/runtime/cgo/gcc_mips64x.S
+@@ -14,7 +14,11 @@
+ .globl crosscall1
+ .set noat
+ crosscall1:
++#ifndef __mips_soft_float
+ 	daddiu	$29, $29, -160
++#else
++	daddiu	$29, $29, -96 // For soft-float, no need to make room for FP registers
++#endif
+ 	sd	$31, 0($29)
+ 	sd	$16, 8($29)
+ 	sd	$17, 16($29)
+@@ -26,6 +30,7 @@ crosscall1:
+ 	sd	$23, 64($29)
+ 	sd	$28, 72($29)
+ 	sd	$30, 80($29)
++#ifndef __mips_soft_float
+ 	sdc1	$f24, 88($29)
+ 	sdc1	$f25, 96($29)
+ 	sdc1	$f26, 104($29)
+@@ -34,6 +39,7 @@ crosscall1:
+ 	sdc1	$f29, 128($29)
+ 	sdc1	$f30, 136($29)
+ 	sdc1	$f31, 144($29)
++#endif
+ 
+ 	// prepare SB register = pc & 0xffffffff00000000
+ 	bal	1f
+@@ -56,6 +62,7 @@ crosscall1:
+ 	ld	$23, 64($29)
+ 	ld	$28, 72($29)
+ 	ld	$30, 80($29)
++#ifndef __mips_soft_float
+ 	ldc1	$f24, 88($29)
+ 	ldc1	$f25, 96($29)
+ 	ldc1	$f26, 104($29)
+@@ -64,9 +71,13 @@ crosscall1:
+ 	ldc1	$f29, 128($29)
+ 	ldc1	$f30, 136($29)
+ 	ldc1	$f31, 144($29)
++#endif
+ 	ld	$31, 0($29)
+-
++#ifndef __mips_soft_float
+ 	daddiu	$29, $29, 160
++#else
++	daddiu	$29, $29, 96
++#endif
+ 	jr	$31
+ 
+ .set at
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index f73321200b..1ecba26847 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -40,7 +40,8 @@ func sqrt(x float64) float64 {
+ 	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
+ 	// arm64:"FSQRTD"
+ 	// arm/7:"SQRTD"
+-	// mips/hardfloat:"SQRTD" mips64:"SQRTD"
++	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
++	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
+ 	return math.Sqrt(x)
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 0914b742ab..93139e183e 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1301,7 +1301,7 @@ var (
+ 		"arm":     {"GOARM", "5", "6", "7"},
+ 		"arm64":   {},
+ 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
+-		"mips64":  {},
++		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
+ 		"ppc64":   {},
+ 		"ppc64le": {},
+ 		"s390x":   {},

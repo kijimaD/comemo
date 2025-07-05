@@ -28,7 +28,114 @@ Date:   Wed Apr 12 10:07:35 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/value.go      | 34 +++++++++++++++++++++++++++++++++-
  src/log/slog/value_test.go | 19 +++++++++++++++++++
  2 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/value.go b/src/log/slog/value.go
+index fcfc884dc3..d07d9e33a4 100644
+--- a/src/log/slog/value.go
++++ b/src/log/slog/value.go
+@@ -7,8 +7,10 @@ package slog
+ import (
+ 	"fmt"
+ 	"math"
++	"runtime"
+ 	"slices"
+ 	"strconv"
++	"strings"
+ 	"time"
+ 	"unsafe"
+ )
+@@ -448,8 +450,14 @@ func (v Value) Resolve() Value {
+ 	return v
+ }
+ 
+-func (v Value) resolve() Value {
++func (v Value) resolve() (rv Value) {
+ 	orig := v
++	defer func() {
++		if r := recover(); r != nil {
++			rv = AnyValue(fmt.Errorf("LogValue panicked\n%s", stack(3, 5)))
++		}
++	}()
++
+ 	for i := 0; i < maxLogValues; i++ {
+ 		if v.Kind() != KindLogValuer {
+ 			return v
+@@ -460,6 +468,30 @@ func (v Value) resolve() Value {
+ 	return AnyValue(err)
+ }
+ 
++func stack(skip, nFrames int) string {
++	pcs := make([]uintptr, nFrames+1)
++	n := runtime.Callers(skip+1, pcs)
++	if n == 0 {
++		return "(no stack)"
++	}
++	frames := runtime.CallersFrames(pcs[:n])
++	var b strings.Builder
++	i := 0
++	for {
++		frame, more := frames.Next()
++		fmt.Fprintf(&b, "called from %s (%s:%d)\n", frame.Function, frame.File, frame.Line)
++		if !more {
++			break
++		}
++		i++
++		if i >= nFrames {
++			fmt.Fprintf(&b, "(rest of stack elided)\n")
++			break
++		}
++	}
++	return b.String()
++}
++
+ // resolveAttrs replaces the values of the given Attrs with their
+ // resolutions.
+ func resolveAttrs(as []Attr) {
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index d2c427b96e..e0c60c3652 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -7,6 +7,7 @@ package slog
+ import (
+ 	"fmt"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+@@ -185,6 +186,20 @@ func TestLogValue(t *testing.T) {
+ 	if !attrsEqual(got2, want2) {
+ 		t.Errorf("got %v, want %v", got2, want2)
+ 	}
++
++	// Verify that panics in Resolve are caught and turn into errors.
++	v = AnyValue(panickingLogValue{})
++	got = v.Resolve().Any()
++	gotErr, ok := got.(error)
++	if !ok {
++		t.Errorf("expected error, got %T", got)
++	}
++	// The error should provide some context information.
++	// We'll just check that this function name appears in it.
++	fmt.Println(got)
++	if got, want := gotErr.Error(), "TestLogValue"; !strings.Contains(got, want) {
++		t.Errorf("got %q, want substring %q", got, want)
++	}
+ }
+ 
+ func TestZeroTime(t *testing.T) {
+@@ -201,6 +216,10 @@ type replace struct {
+ 
+ func (r *replace) LogValue() Value { return r.v }
+ 
++type panickingLogValue struct{}
++
++func (panickingLogValue) LogValue() Value { panic("bad") }
++
+ // A Value with "unsafe" strings is significantly faster:
+ // safe:  1785 ns/op, 0 allocs
+ // unsafe: 690 ns/op, 0 allocs

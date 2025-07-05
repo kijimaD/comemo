@@ -20,6 +20,44 @@ Date:   Mon Oct 30 13:23:00 2023 -0700
     Reviewed-by: Eric Fang <eric.fang@arm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/arm64/obj7.go | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index bd33cbe907..0ab5939b84 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -850,21 +850,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.To = obj.Addr{}
+ 			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if c.autosize != 0 {
++					// Restore frame pointer.
++					// ADD $framesize-8, RSP, R29
+ 					p.As = AADD
+ 					p.From.Type = obj.TYPE_CONST
+-					p.From.Offset = int64(c.autosize)
++					p.From.Offset = int64(c.autosize) - 8
++					p.Reg = REGSP
+ 					p.To.Type = obj.TYPE_REG
+-					p.To.Reg = REGSP
+-					p.Spadj = -c.autosize
++					p.To.Reg = REGFP
+ 
+-					// Frame pointer.
++					// Pop stack frame.
++					// ADD $framesize, RSP, RSP
+ 					p = obj.Appendp(p, c.newprog)
+-					p.As = ASUB
++					p.As = AADD
+ 					p.From.Type = obj.TYPE_CONST
+-					p.From.Offset = 8
+-					p.Reg = REGSP
++					p.From.Offset = int64(c.autosize)
+ 					p.To.Type = obj.TYPE_REG
+-					p.To.Reg = REGFP
++					p.To.Reg = REGSP
++					p.Spadj = -c.autosize
+ 				}
+ 			} else {
+ 				aoffset := c.autosize

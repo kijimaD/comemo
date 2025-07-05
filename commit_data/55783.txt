@@ -16,6 +16,20 @@ Date:   Mon Mar 13 21:32:49 2023 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/debug/mod.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 8b7a42305e..7f85174c06 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -78,7 +78,7 @@ type Module struct {
+ //   - CGO_CXXFLAGS:  the effective CGO_CPPFLAGS environment variable
+ //   - CGO_LDFLAGS: the effective CGO_CPPFLAGS environment variable
+ //   - GOARCH: the architecture target
+-//   - GOAMD64/GOARM64/GO386/etc: the architecture feature level for GOARCH
++//   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
+ //   - GOOS: the operating system target
+ //   - vcs: the version control system for the source tree where the build ran
+ //   - vcs.revision: the revision identifier for the current commit or checkout

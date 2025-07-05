@@ -12,8 +12,118 @@ Date:   Tue Mar 26 22:59:41 2024 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go |  6 +++---
  src/cmd/go/internal/modload/load.go      | 11 ++++++-----
  src/cmd/go/internal/mvs/mvs.go           |  4 ++--
  3 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index d72a24f111..9c11bd4d13 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -8,8 +8,8 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"os"
+-	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"slices"
+@@ -1228,7 +1228,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
+ 		}
+ 	}
+ 
+-	if rs.pruning == pruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
++	if rs.pruning == pruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
+ 		// The root set is unchanged and rs was already pruned, so keep rs to
+ 		// preserve its cached ModuleGraph (if any).
+ 		return rs, nil
+@@ -1469,7 +1469,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
+ 	if MainModules.Len() > 1 {
+ 		gover.ModSort(roots)
+ 	}
+-	if rs.pruning == unpruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
++	if rs.pruning == unpruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
+ 		// The root set is unchanged and rs was already unpruned, so keep rs to
+ 		// preserve its cached ModuleGraph (if any).
+ 		return rs, nil
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 51eb141d4b..408c109f5b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -99,12 +99,13 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"io/fs"
++	"maps"
+ 	"os"
+ 	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -1181,7 +1182,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.error(err)
+ 			break
+ 		}
+-		if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
++		if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
+ 			// Something is deeply wrong. resolveMissingImports gave us a non-empty
+ 			// set of modules to add to the graph, but adding those modules had no
+ 			// effect — either they were already in the graph, or updateRoots did not
+@@ -1319,7 +1320,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 	// imports.AnyTags, then we didn't necessarily load every package that
+ 	// contributes “direct” imports — so we can't safely mark existing direct
+ 	// dependencies in ld.requirements as indirect-only. Propagate them as direct.
+-	loadedDirect := ld.allPatternIsRoot && reflect.DeepEqual(ld.Tags, imports.AnyTags())
++	loadedDirect := ld.allPatternIsRoot && maps.Equal(ld.Tags, imports.AnyTags())
+ 	if loadedDirect {
+ 		direct = make(map[string]bool)
+ 	} else {
+@@ -1465,7 +1466,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 		// packages present in the standard library. If it has changed, it's best to
+ 		// reload packages once more to be sure everything is stable.
+ 		changed = true
+-	} else if rs != ld.requirements && !reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
++	} else if rs != ld.requirements && !slices.Equal(rs.rootModules, ld.requirements.rootModules) {
+ 		// The roots of the module graph have changed in some way (not just the
+ 		// "direct" markings). Check whether the changes affected any of the loaded
+ 		// packages.
+@@ -1779,7 +1780,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 		ld.exitIfErrors(ctx)
+ 		return false
+ 	}
+-	if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
++	if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
+ 		// Something is deeply wrong. resolveMissingImports gave us a non-empty
+ 		// set of modules to add to the graph, but adding those modules had no
+ 		// effect — either they were already in the graph, or updateRoots did not
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 468a985927..1ac5aeb471 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -8,7 +8,7 @@ package mvs
+ 
+ import (
+ 	"fmt"
+-	"reflect"
++	"slices"
+ 	"sort"
+ 	"sync"
+ 
+@@ -171,7 +171,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
+ 
+ 	// The final list is the minimum version of each module found in the graph.
+ 	list := g.BuildList()
+-	if vs := list[:len(targets)]; !reflect.DeepEqual(vs, targets) {
++	if vs := list[:len(targets)]; !slices.Equal(vs, targets) {
+ 		// target.Version will be "" for modload, the main client of MVS.
+ 		// "" denotes the main module, which has no version. However, MVS treats
+ 		// version strings as opaque, so "" is not a special value here.

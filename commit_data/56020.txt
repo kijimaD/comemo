@@ -15,7 +15,7 @@ Date:   Fri Mar 31 00:00:19 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/archive/zip/struct.go                  | 2 +-
  src/bytes/buffer.go                        | 2 +-
  src/cmd/compile/internal/abt/avlint32.go   | 2 +-
@@ -48,3 +48,487 @@ Date:   Fri Mar 31 00:00:19 2023 +0800
  src/runtime/iface.go                       | 2 +-
  src/syscall/js/js.go                       | 4 ++--
  31 files changed, 41 insertions(+), 41 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 98c1e8e41e..25ce6f5411 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -67,7 +67,7 @@ const (
+ 	//
+ 	// IDs 0..31 are reserved for official use by PKWARE.
+ 	// IDs above that range are defined by third-party vendors.
+-	// Since ZIP lacked high precision timestamps (nor a official specification
++	// Since ZIP lacked high precision timestamps (nor an official specification
+ 	// of the timezone used for the date fields), many competing extra fields
+ 	// have been invented. Pervasive use effectively makes them "official".
+ 	//
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 5ab58c78bb..5a68188423 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -109,7 +109,7 @@ func (b *Buffer) Reset() {
+ 	b.lastRead = opInvalid
+ }
+ 
+-// tryGrowByReslice is a inlineable version of grow for the fast-case where the
++// tryGrowByReslice is an inlineable version of grow for the fast-case where the
+ // internal buffer only needs to be resliced.
+ // It returns the index where bytes should be written and whether it succeeded.
+ func (b *Buffer) tryGrowByReslice(n int) (int, bool) {
+diff --git a/src/cmd/compile/internal/abt/avlint32.go b/src/cmd/compile/internal/abt/avlint32.go
+index 9800e03ac0..28c1642c6e 100644
+--- a/src/cmd/compile/internal/abt/avlint32.go
++++ b/src/cmd/compile/internal/abt/avlint32.go
+@@ -570,7 +570,7 @@ func (t *node32) lub(key int32, allow_eq bool) *node32 {
+ 			// t is too small, lub is to right.
+ 			t = t.right
+ 		} else {
+-			// t is a upper bound, record it and seek a better one.
++			// t is an upper bound, record it and seek a better one.
+ 			best = t
+ 			t = t.left
+ 		}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 5d82788008..39ebc37634 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -380,7 +380,7 @@ func (n *InlinedCallExpr) SingleResult() Node {
+ 	return n.ReturnVars[0]
+ }
+ 
+-// A LogicalExpr is a expression X Op Y where Op is && or ||.
++// A LogicalExpr is an expression X Op Y where Op is && or ||.
+ // It is separate from BinaryExpr to make room for statements
+ // that must be executed before Y but after X.
+ type LogicalExpr struct {
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index b62174b141..75da5a1462 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -92,7 +92,7 @@ func Int64Val(n Node) int64 {
+ 	return x
+ }
+ 
+-// Uint64Val returns n as an uint64.
++// Uint64Val returns n as a uint64.
+ // n must be an integer or rune constant.
+ func Uint64Val(n Node) uint64 {
+ 	if !IsConst(n, constant.Int) {
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 273ead4942..b7dfaa33e3 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -93,7 +93,7 @@ func findIndVar(f *Func) []indVar {
+ 		var init *Value  // starting value
+ 		var limit *Value // ending value
+ 
+-		// Check thet the control if it either ind </<= limit or limit </<= ind.
++		// Check that the control if it either ind </<= limit or limit </<= ind.
+ 		// TODO: Handle unsigned comparisons?
+ 		c := b.Controls[0]
+ 		inclusive := false
+@@ -117,12 +117,12 @@ func findIndVar(f *Func) []indVar {
+ 			//     for i := len(n)-1; i >= 0; i--
+ 			init, inc, nxt = parseIndVar(limit)
+ 			if init == nil {
+-				// No recognied induction variable on either operand
++				// No recognized induction variable on either operand
+ 				continue
+ 			}
+ 
+ 			// Ok, the arguments were reversed. Swap them, and remember that we're
+-			// looking at a ind >/>= loop (so the induction must be decrementing).
++			// looking at an ind >/>= loop (so the induction must be decrementing).
+ 			ind, limit = limit, ind
+ 			less = false
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 9434c0ef16..e2319d78d6 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -372,7 +372,7 @@ const (
+ 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
+ 	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
+ 	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
+-	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is a int8 immediate
++	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
+ 	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+ )
+ 
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index ad89de3f13..19d9f9004d 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -56,7 +56,7 @@ const (
+ )
+ 
+ // posetUndo represents an undo pass to be performed.
+-// It's an union of fields that can be used to store information,
++// It's a union of fields that can be used to store information,
+ // and typ is the discriminant, that specifies which kind
+ // of operation must be performed. Not all fields are always used.
+ type posetUndo struct {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 513ce51b2c..9775d37b39 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1345,7 +1345,7 @@ func (t *Type) IsUnsafePtr() bool {
+ 	return t.kind == TUNSAFEPTR
+ }
+ 
+-// IsUintptr reports whether t is an uintptr.
++// IsUintptr reports whether t is a uintptr.
+ func (t *Type) IsUintptr() bool {
+ 	return t.kind == TUINTPTR
+ }
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 8f27329da8..4207b487a7 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -609,7 +609,7 @@ func isAppendOfMake(n ir.Node) bool {
+ 	}
+ 
+ 	// y must be either an integer constant or the largest possible positive value
+-	// of variable y needs to fit into an uint.
++	// of variable y needs to fit into a uint.
+ 
+ 	// typecheck made sure that constant arguments to make are not negative and fit into an int.
+ 
+@@ -652,7 +652,7 @@ func isAppendOfMake(n ir.Node) bool {
+ //	growslice will have done the clearing for us.
+ 
+ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+-	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
++	// isAppendOfMake made sure all possible positive values of l2 fit into a uint.
+ 	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
+ 	// check of l2 < 0 at runtime which is generated below.
+ 	l2 := typecheck.Conv(n.Args[1].(*ir.MakeExpr).Len, types.Types[types.TINT])
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 9516ea3cd6..1091127210 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -626,7 +626,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+ 	return 0
+ }
+ 
+-// Get the implied register of a operand which doesn't specify one.  These show up
++// Get the implied register of an operand which doesn't specify one.  These show up
+ // in handwritten asm like "MOVD R5, foosymbol" where a base register is not supplied,
+ // or "MOVD R5, foo+10(SP) or pseudo-register is used.  The other common case is when
+ // generating constants in register like "MOVD $constant, Rx".
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 8aa76a670d..0d97121e2c 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1691,7 +1691,7 @@ func instructionForProg(p *obj.Prog) *instruction {
+ 	return ins
+ }
+ 
+-// instructionsForOpImmediate returns the machine instructions for a immedate
++// instructionsForOpImmediate returns the machine instructions for an immediate
+ // operand. The instruction is specified by as and the source register is
+ // specified by rs, instead of the obj.Prog.
+ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction {
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index fd0faec84b..f344b53870 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -232,7 +232,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 				// Offset is the location of the param on the Go stack (ie relative to sp).
+ 				// Because of our call convention, the parameters are located an additional 8 bytes
+-				// from sp because we store the return address as a int64 at the bottom of the stack.
++				// from sp because we store the return address as an int64 at the bottom of the stack.
+ 				// Ie the stack looks like [return_addr, param3, param2, param1, etc]
+ 
+ 				// Ergo, we add 8 to the true byte offset of the param to skip the return address.
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 66e97c69db..49766d598d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1677,7 +1677,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 	}
+ }
+ 
+-// allocateDataSectionForSym creates a new sym.Section into which a a
++// allocateDataSectionForSym creates a new sym.Section into which a
+ // single symbol will be placed. Here "seg" is the segment into which
+ // the section will go, "s" is the symbol to be placed into the new
+ // section, and "rwx" contains permissions for the section.
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 7b8a134221..158a86f61d 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -38,7 +38,7 @@ const (
+ 	// XCOFF binaries should normally have all its sections position-independent.
+ 	// However, this is not yet possible for .text because of some R_ADDR relocations
+ 	// inside RODATA symbols.
+-	// .data and .bss are position-independent so their address start inside a unreachable
++	// .data and .bss are position-independent so their address start inside an unreachable
+ 	// segment during execution to force segfault if something is wrong.
+ 	XCOFFTEXTBASE = 0x100000000 // Start of text address
+ 	XCOFFDATABASE = 0x200000000 // Start of data address
+@@ -875,7 +875,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
+ // put function used by genasmsym to write symbol table.
+ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
+ 	// All XCOFF symbols generated by this GO symbols
+-	// Can be a symbol entry or a auxiliary entry
++	// Can be a symbol entry or an auxiliary entry
+ 	syms := []xcoffSym{}
+ 
+ 	ldr := ctxt.loader
+@@ -1329,7 +1329,7 @@ func (ctxt *Link) doxcoff() {
+ 			}
+ 
+ 			if ldr.SymType(s) == sym.STEXT {
+-				// On AIX, a exported function must have two symbols:
++				// On AIX, an exported function must have two symbols:
+ 				// - a .text symbol which must start with a ".".
+ 				// - a .data symbol which is a function descriptor.
+ 				name := ldr.SymExtname(s)
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 00af640b74..0a610ff048 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -141,7 +141,7 @@ const (
+ 	// a jump to the loaded value.
+ 	CreateImportStubPltToken = -2
+ 
+-	// When stored into the GOT value for a import symbol __imp_X this
++	// When stored into the GOT value for an import symbol __imp_X this
+ 	// token tells windynrelocsym to redirect references to the
+ 	// underlying DYNIMPORT symbol X.
+ 	RedirectToDynImportGotToken = -2
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 63869704e5..9141d05ffb 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -704,7 +704,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ }
+ 
+ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
+-	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
++	// Beware that bit0~bit15 start from the third byte of an instruction in Big-Endian machines.
+ 	rt := r.Type
+ 	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
+ 	} else {
+diff --git a/src/crypto/internal/edwards25519/scalar.go b/src/crypto/internal/edwards25519/scalar.go
+index d34ecea33e..3fd1653877 100644
+--- a/src/crypto/internal/edwards25519/scalar.go
++++ b/src/crypto/internal/edwards25519/scalar.go
+@@ -104,7 +104,7 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
+ // If x is not of the right length, SetUniformBytes returns nil and an error,
+ // and the receiver is unchanged.
+ //
+-// SetUniformBytes can be used to set s to an uniformly distributed value given
++// SetUniformBytes can be used to set s to a uniformly distributed value given
+ // 64 uniformly distributed random bytes.
+ func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
+ 	if len(x) != 64 {
+diff --git a/src/crypto/tls/cache.go b/src/crypto/tls/cache.go
+index fc8f2c0844..09f58250a8 100644
+--- a/src/crypto/tls/cache.go
++++ b/src/crypto/tls/cache.go
+@@ -22,7 +22,7 @@ type cacheEntry struct {
+ // multiple Conns. Returned references should not be mutated by callers. Certificates
+ // are still safe to use after they are removed from the cache.
+ //
+-// Certificates are returned wrapped in a activeCert struct that should be held by
++// Certificates are returned wrapped in an activeCert struct that should be held by
+ // the caller. When references to the activeCert are freed, the number of references
+ // to the certificate in the cache is decremented. Once the number of references
+ // reaches zero, the entry is evicted from the cache.
+@@ -49,7 +49,7 @@ type activeCert struct {
+ }
+ 
+ // active increments the number of references to the entry, wraps the
+-// certificate in the entry in a activeCert, and sets the finalizer.
++// certificate in the entry in an activeCert, and sets the finalizer.
+ //
+ // Note that there is a race between active and the finalizer set on the
+ // returned activeCert, triggered if active is called after the ref count is
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index 2d085e0a96..74b2f99708 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -27,8 +27,8 @@ type pkcs8 struct {
+ 
+ // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+ //
+-// It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, a ed25519.PrivateKey (not
+-// a pointer), or a *ecdh.PrivateKey (for X25519). More types might be supported
++// It returns a *rsa.PrivateKey, an *ecdsa.PrivateKey, an ed25519.PrivateKey (not
++// a pointer), or an *ecdh.PrivateKey (for X25519). More types might be supported
+ // in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index f8c922d42e..de4bb9b736 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -464,7 +464,7 @@ func (e *FormatError) Error() string {
+ 	return "unknown error"
+ }
+ 
+-// readOptionalHeader accepts a io.ReadSeeker pointing to optional header in the PE file
++// readOptionalHeader accepts an io.ReadSeeker pointing to optional header in the PE file
+ // and its size as seen in the file header.
+ // It parses the given size of bytes and returns optional header. It infers whether the
+ // bytes being parsed refer to 32 bit or 64 bit version of optional header.
+@@ -612,7 +612,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
+ 	}
+ }
+ 
+-// readDataDirectories accepts a io.ReadSeeker pointing to data directories in the PE file,
++// readDataDirectories accepts an io.ReadSeeker pointing to data directories in the PE file,
+ // its size and number of data directories as seen in optional header.
+ // It parses the given size of bytes and returns given number of data directories.
+ func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 5a80e6c3e8..aa413939d4 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -60,7 +60,7 @@ func (enc *Encoder) setError(err error) {
+ 	}
+ }
+ 
+-// writeMessage sends the data item preceded by a unsigned count of its length.
++// writeMessage sends the data item preceded by an unsigned count of its length.
+ func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
+ 	// Space has been reserved for the length at the head of the message.
+ 	// This is a little dirty: we grab the slice from the bytes.Buffer and massage
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index fac24dfa05..dec0245261 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1213,7 +1213,7 @@ parseElements:
+ 	}
+ 
+ 	// TODO(rfindley): the error produced here could be improved, since we could
+-	// accept a identifier, 'type', or a '}' at this point.
++	// accept an identifier, 'type', or a '}' at this point.
+ 	rbrace := p.expect(token.RBRACE)
+ 
+ 	return &ast.InterfaceType{
+diff --git a/src/index/suffixarray/sais.go b/src/index/suffixarray/sais.go
+index 74c5235617..3283aa348d 100644
+--- a/src/index/suffixarray/sais.go
++++ b/src/index/suffixarray/sais.go
+@@ -525,7 +525,7 @@ func induceSubS_8_32(text []byte, sa, freq, bucket []int32) {
+ // Second, to avoid text comparison entirely, if an LMS-substring is very short,
+ // sa[j/2] records its actual text instead of its length, so that if two such
+ // substrings have matching “length,” the text need not be read at all.
+-// The definition of “very short” is that the text bytes must pack into an uint32,
++// The definition of “very short” is that the text bytes must pack into a uint32,
+ // and the unsigned encoding e must be ≥ len(text), so that it can be
+ // distinguished from a valid length.
+ func length_8_32(text []byte, sa []int32, numLMS int) {
+diff --git a/src/internal/xcoff/ar.go b/src/internal/xcoff/ar.go
+index 2b432d5e10..81ac75afa3 100644
+--- a/src/internal/xcoff/ar.go
++++ b/src/internal/xcoff/ar.go
+@@ -216,7 +216,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
+ 
+ // GetFile returns the XCOFF file defined by member name.
+ // FIXME: This doesn't work if an archive has two members with the same
+-// name which can occur if a archive has both 32-bits and 64-bits files.
++// name which can occur if an archive has both 32-bits and 64-bits files.
+ func (arch *Archive) GetFile(name string) (*File, error) {
+ 	for _, mem := range arch.Members {
+ 		if mem.Name == name {
+diff --git a/src/math/rand/rng.go b/src/math/rand/rng.go
+index f305df1a20..1e4a9e014f 100644
+--- a/src/math/rand/rng.go
++++ b/src/math/rand/rng.go
+@@ -234,7 +234,7 @@ func (rng *rngSource) Int63() int64 {
+ 	return int64(rng.Uint64() & rngMask)
+ }
+ 
+-// Uint64 returns a non-negative pseudo-random 64-bit integer as an uint64.
++// Uint64 returns a non-negative pseudo-random 64-bit integer as a uint64.
+ func (rng *rngSource) Uint64() uint64 {
+ 	rng.tap--
+ 	if rng.tap < 0 {
+diff --git a/src/net/error_posix.go b/src/net/error_posix.go
+index 8fc7d0bb73..619483593b 100644
+--- a/src/net/error_posix.go
++++ b/src/net/error_posix.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // wrapSyscallError takes an error and a syscall name. If the error is
+-// a syscall.Errno, it wraps it in a os.SyscallError using the syscall name.
++// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+ func wrapSyscallError(name string, err error) error {
+ 	if _, ok := err.(syscall.Errno); ok {
+ 		err = os.NewSyscallError(name, err)
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 3d0ad19af0..e1ba5971e0 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -365,7 +365,7 @@ func isIP(host string) bool {
+ 	return net.ParseIP(host) != nil
+ }
+ 
+-// defaultPath returns the directory part of an URL's path according to
++// defaultPath returns the directory part of a URL's path according to
+ // RFC 6265 section 5.1.4.
+ func defaultPath(path string) string {
+ 	if len(path) == 0 || path[0] != '/' {
+@@ -379,7 +379,7 @@ func defaultPath(path string) string {
+ 	return path[:i] // Path is either of form "/abc/xyz" or "/abc/xyz/".
+ }
+ 
+-// newEntry creates an entry from a http.Cookie c. now is the current time and
++// newEntry creates an entry from an http.Cookie c. now is the current time and
+ // is compared to c.Expires to determine deletion of c. defPath and host are the
+ // default-path and the canonical host name of the URL c was received from.
+ //
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 22f3eb02cd..5efc333221 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3474,7 +3474,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ 		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+ 			return cvtSliceArrayPtr
+ 		}
+-		// "x is a slice, T is a array type,
++		// "x is a slice, T is an array type,
+ 		// and the slice and array types have identical element types."
+ 		if dst.Kind() == Array && src.Elem() == dst.Elem() {
+ 			return cvtSliceArray
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index a4d56dd33b..f8acbf4ca7 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -272,7 +272,7 @@ func panicdottypeI(have *itab, want, iface *_type) {
+ 	panicdottypeE(t, want, iface)
+ }
+ 
+-// panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
++// panicnildottype is called when doing an i.(T) conversion and the interface i is nil.
+ // want = the static type we're trying to convert to.
+ func panicnildottype(want *_type) {
+ 	panic(&TypeAssertionError{nil, nil, want, ""})
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 5fdb14d446..2515b4f9ca 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -570,7 +570,7 @@ func (e *ValueError) Error() string {
+ }
+ 
+ // CopyBytesToGo copies bytes from src to dst.
+-// It panics if src is not an Uint8Array or Uint8ClampedArray.
++// It panics if src is not a Uint8Array or Uint8ClampedArray.
+ // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+ func CopyBytesToGo(dst []byte, src Value) int {
+ 	n, ok := copyBytesToGo(dst, src.ref)
+@@ -585,7 +585,7 @@ func CopyBytesToGo(dst []byte, src Value) int {
+ func copyBytesToGo(dst []byte, src ref) (int, bool)
+ 
+ // CopyBytesToJS copies bytes from src to dst.
+-// It panics if dst is not an Uint8Array or Uint8ClampedArray.
++// It panics if dst is not a Uint8Array or Uint8ClampedArray.
+ // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+ func CopyBytesToJS(dst Value, src []byte) int {
+ 	n, ok := copyBytesToJS(dst.ref, src)

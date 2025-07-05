@@ -8,6 +8,29 @@ Date:   Thu Jul 9 15:08:39 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/12254
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/example_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index 7f2eb2c354..645de2e909 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -84,3 +84,17 @@ func ExampleURL_opaque() {
+ 	// Accept-Encoding: gzip
+ 	//
+ }
++
++func ExampleURL_ResolveReference() {
++	u, err := url.Parse("../../..//search?q=dotnet")
++	if err != nil {
++		log.Fatal(err)
++	}
++	base, err := url.Parse("http://example.com/directory/")
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(base.ResolveReference(u))
++	// Output:
++	// http://example.com/search?q=dotnet
++}

@@ -6,6 +6,19 @@ Date:   Thu Sep 10 10:47:11 2009 -0700
     
     OCL=34517
     CL=34517
-
+---
  doc/go_spec.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9498c4cf98..7a76909605 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4398,6 +4398,7 @@ The following minimal alignment properties are guaranteed:
+ <h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
+ <ul>
+ 	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
++	<li><font color=red>Gccgo does not implement the blank identifier.</font></li>
+ </ul>
+ 
+ </div>

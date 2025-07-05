@@ -18,6 +18,19 @@ Date:   Tue Feb 28 15:16:30 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/help_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/help_test.go b/src/cmd/go/help_test.go
+index 7f05cdf2cb..de3b96694c 100644
+--- a/src/cmd/go/help_test.go
++++ b/src/cmd/go/help_test.go
+@@ -17,6 +17,7 @@ import (
+ var fixDocs = flag.Bool("fixdocs", false, "if true, update alldocs.go")
+ 
+ func TestDocsUpToDate(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
+ 	if !*fixDocs {
+ 		t.Parallel()
+ 	}

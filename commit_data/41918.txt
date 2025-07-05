@@ -12,7 +12,7 @@ Date:   Thu Oct 31 16:54:21 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204521
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                 |  1 +
  src/cmd/go/internal/modfetch/repo.go           | 21 ++++++++----
  src/cmd/go/internal/modload/init.go            | 47 +++++++++++++++++---------
@@ -23,3 +23,301 @@ Date:   Thu Oct 31 16:54:21 2019 -0400
  src/cmd/go/testdata/script/mod_readonly.txt    | 12 +++++--
  src/cmd/go/testdata/script/mod_vendor_auto.txt |  2 --
  9 files changed, 143 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b5d6ddca17..1f7ece7165 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -27,6 +27,7 @@ var (
+ 	BuildBuildmode         string // -buildmode flag
+ 	BuildContext           = defaultContext()
+ 	BuildMod               string             // -mod flag
++	BuildModReason         string             // reason -mod flag is set, if set by default
+ 	BuildI                 bool               // -i flag
+ 	BuildLinkshared        bool               // -linkshared flag
+ 	BuildMSan              bool               // -msan flag
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 2ecd13cabe..92a486d2cf 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -5,7 +5,6 @@
+ package modfetch
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -215,7 +214,7 @@ func Lookup(proxy, path string) (Repo, error) {
+ // lookup returns the module with the given module path.
+ func lookup(proxy, path string) (r Repo, err error) {
+ 	if cfg.BuildMod == "vendor" {
+-		return nil, errModVendor
++		return nil, errLookupDisabled
+ 	}
+ 
+ 	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
+@@ -239,11 +238,21 @@ func lookup(proxy, path string) (r Repo, err error) {
+ 	}
+ }
+ 
++type lookupDisabledError struct{}
++
++func (lookupDisabledError) Error() string {
++	if cfg.BuildModReason == "" {
++		return fmt.Sprintf("module lookup disabled by -mod=%s", cfg.BuildMod)
++	}
++	return fmt.Sprintf("module lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
++}
++
++var errLookupDisabled error = lookupDisabledError{}
++
+ var (
+-	errModVendor       = errors.New("module lookup disabled by -mod=vendor")
+-	errProxyOff        = notExistError("module lookup disabled by GOPROXY=off")
+-	errNoproxy   error = notExistError("disabled by GOPRIVATE/GONOPROXY")
+-	errUseProxy  error = notExistError("path does not match GOPRIVATE/GONOPROXY")
++	errProxyOff       = notExistError("module lookup disabled by GOPROXY=off")
++	errNoproxy  error = notExistError("disabled by GOPRIVATE/GONOPROXY")
++	errUseProxy error = notExistError("path does not match GOPRIVATE/GONOPROXY")
+ )
+ 
+ func lookupDirect(path string) (Repo, error) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 48ffe99643..82ec62ea08 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -460,25 +460,36 @@ func setDefaultBuildMod() {
+ 		// manipulate the build list.
+ 		return
+ 	}
+-	if modRoot != "" {
+-		if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+-			modGo := "unspecified"
+-			if modFile.Go != nil {
+-				if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
+-					// The Go version is at least 1.14, and a vendor directory exists.
+-					// Set -mod=vendor by default.
+-					cfg.BuildMod = "vendor"
+-					return
+-				} else {
+-					modGo = modFile.Go.Version
+-				}
++	if modRoot == "" {
++		return
++	}
++
++	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
++		modGo := "unspecified"
++		if modFile.Go != nil {
++			if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
++				// The Go version is at least 1.14, and a vendor directory exists.
++				// Set -mod=vendor by default.
++				cfg.BuildMod = "vendor"
++				cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
++				return
++			} else {
++				modGo = modFile.Go.Version
+ 			}
+-			fmt.Fprintf(os.Stderr, "go: not defaulting to -mod=vendor because go.mod 'go' version is %s\n", modGo)
+ 		}
++
++		// Since a vendor directory exists, we have a non-trivial reason for
++		// choosing -mod=mod, although it probably won't be used for anything.
++		// Record the reason anyway for consistency.
++		// It may be overridden if we switch to mod=readonly below.
++		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s.", modGo)
+ 	}
+ 
+-	// TODO(golang.org/issue/33326): set -mod=readonly implicitly if the go.mod
+-	// file is itself read-only?
++	p := ModFilePath()
++	if fi, err := os.Stat(p); err == nil && !hasWritePerm(p, fi) {
++		cfg.BuildMod = "readonly"
++		cfg.BuildModReason = "go.mod file is read-only."
++	}
+ }
+ 
+ // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
+@@ -858,7 +869,11 @@ func WriteGoMod() {
+ 	if dirty && cfg.BuildMod == "readonly" {
+ 		// If we're about to fail due to -mod=readonly,
+ 		// prefer to report a dirty go.mod over a dirty go.sum
+-		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++		if cfg.BuildModReason != "" {
++			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
++		} else {
++			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++		}
+ 	}
+ 	// Always update go.sum, even if we didn't change go.mod: we may have
+ 	// downloaded modules that we didn't have before.
+diff --git a/src/cmd/go/internal/modload/stat_openfile.go b/src/cmd/go/internal/modload/stat_openfile.go
+new file mode 100644
+index 0000000000..931aaf1577
+--- /dev/null
++++ b/src/cmd/go/internal/modload/stat_openfile.go
+@@ -0,0 +1,27 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix js,wasm plan9
++
++// On plan9, per http://9p.io/magic/man2html/2/access: “Since file permissions
++// are checked by the server and group information is not known to the client,
++// access must open the file to check permissions.”
++//
++// aix and js,wasm are similar, in that they do not define syscall.Access.
++
++package modload
++
++import (
++	"os"
++)
++
++// hasWritePerm reports whether the current user has permission to write to the
++// file with the given info.
++func hasWritePerm(path string, _ os.FileInfo) bool {
++	if f, err := os.OpenFile(path, os.O_WRONLY, 0); err == nil {
++		f.Close()
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/modload/stat_unix.go b/src/cmd/go/internal/modload/stat_unix.go
+new file mode 100644
+index 0000000000..ea3b801f2c
+--- /dev/null
++++ b/src/cmd/go/internal/modload/stat_unix.go
+@@ -0,0 +1,31 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package modload
++
++import (
++	"os"
++	"syscall"
++)
++
++// hasWritePerm reports whether the current user has permission to write to the
++// file with the given info.
++//
++// Although the root user on most Unix systems can write to files even without
++// permission, hasWritePerm reports false if no appropriate permission bit is
++// set even if the current user is root.
++func hasWritePerm(path string, fi os.FileInfo) bool {
++	if os.Getuid() == 0 {
++		// The root user can access any file, but we still want to default to
++		// read-only mode if the go.mod file is marked as globally non-writable.
++		// (If the user really intends not to be in readonly mode, they can
++		// pass -mod=mod explicitly.)
++		return fi.Mode()&0222 != 0
++	}
++
++	const W_OK = 0x2
++	return syscall.Access(path, W_OK) == nil
++}
+diff --git a/src/cmd/go/internal/modload/stat_windows.go b/src/cmd/go/internal/modload/stat_windows.go
+new file mode 100644
+index 0000000000..d7826cfc6b
+--- /dev/null
++++ b/src/cmd/go/internal/modload/stat_windows.go
+@@ -0,0 +1,23 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package modload
++
++import (
++	"os"
++)
++
++// hasWritePerm reports whether the current user has permission to write to the
++// file with the given info.
++func hasWritePerm(_ string, fi os.FileInfo) bool {
++	// Windows has a read-only attribute independent of ACLs, so use that to
++	// determine whether the file is intended to be overwritten.
++	//
++	// Per https://golang.org/pkg/os/#Chmod:
++	// “On Windows, only the 0200 bit (owner writable) of mode is used; it
++	// controls whether the file's read-only attribute is set or cleared.”
++	return fi.Mode()&0200 != 0
++}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 362a10fa86..942fca85a8 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -431,7 +431,11 @@ func (ts *testScript) cmdChmod(neg bool, args []string) {
+ 	if err != nil || perm&uint64(os.ModePerm) != perm {
+ 		ts.fatalf("invalid mode: %s", args[0])
+ 	}
+-	for _, path := range args[1:] {
++	for _, arg := range args[1:] {
++		path := arg
++		if !filepath.IsAbs(path) {
++			path = filepath.Join(ts.cd, arg)
++		}
+ 		err := os.Chmod(path, os.FileMode(perm))
+ 		ts.check(err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index ff25f4bfe2..942a8663f6 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -12,6 +12,14 @@ cp go.mod go.mod.empty
+ stderr 'import lookup disabled by -mod=readonly'
+ cmp go.mod go.mod.empty
+ 
++# -mod=readonly should be set implicitly if the go.mod file is read-only
++chmod 0400 go.mod
++env GOFLAGS=
++! go list all
++
++chmod 0600 go.mod
++env GOFLAGS=-mod=readonly
++
+ # update go.mod - go get allowed
+ go get rsc.io/quote
+ grep rsc.io/quote go.mod
+@@ -21,11 +29,11 @@ cp go.mod.empty go.mod
+ go mod tidy
+ 
+ # -mod=readonly must succeed once go.mod is up-to-date...
+-go list
++go list all
+ 
+ # ... even if it needs downloads
+ go clean -modcache
+-go list
++go list all
+ 
+ # -mod=readonly should reject inconsistent go.mod files
+ # (ones that would be rewritten).
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index 873644b438..a15db7ca18 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -48,7 +48,6 @@ go list -f {{.Dir}} -tags tools all
+ stdout '^'$WORK'[/\\]auto$'
+ stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+ stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+-stderr '^go: not defaulting to -mod=vendor because go.mod .go. version is 1.13$'
+ 
+ go list -m -f '{{.Dir}}' all
+ stdout '^'$WORK'[/\\]auto$'
+@@ -146,7 +145,6 @@ go list -mod=vendor -f {{.Dir}} -tags tools all
+ stdout '^'$WORK'[/\\]auto$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+-! stderr 'not defaulting to -mod=vendor'
+ 
+ # ...but a version mismatch for an explicit dependency should be noticed.
+ cp $WORK/modules-bad-1.13.txt vendor/modules.txt

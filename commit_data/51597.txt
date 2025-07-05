@@ -11,8 +11,48 @@ Date:   Sat Feb 19 12:33:16 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/types2/testdata/examples/methods.go2 | 2 +-
  src/go/types/testdata/examples/methods.go2                    | 2 +-
  src/runtime/testdata/testprogcgo/aprof.go                     | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/methods.go2 b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+index 1d76d553dc..a46f789d60 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+@@ -35,7 +35,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+ // style. In m3 below, int is the name of the local receiver type parameter
+ // and it shadows the predeclared identifier int which then cannot be used
+ // anymore as expected.
+-// This is no different from locally redelaring a predeclared identifier
++// This is no different from locally re-declaring a predeclared identifier
+ // and usually should be avoided. There are some notable exceptions; e.g.,
+ // sometimes it makes sense to use the identifier "copy" which happens to
+ // also be the name of a predeclared built-in function.
+diff --git a/src/go/types/testdata/examples/methods.go2 b/src/go/types/testdata/examples/methods.go2
+index 1d76d553dc..a46f789d60 100644
+--- a/src/go/types/testdata/examples/methods.go2
++++ b/src/go/types/testdata/examples/methods.go2
+@@ -35,7 +35,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+ // style. In m3 below, int is the name of the local receiver type parameter
+ // and it shadows the predeclared identifier int which then cannot be used
+ // anymore as expected.
+-// This is no different from locally redelaring a predeclared identifier
++// This is no different from locally re-declaring a predeclared identifier
+ // and usually should be avoided. There are some notable exceptions; e.g.,
+ // sometimes it makes sense to use the identifier "copy" which happens to
+ // also be the name of a predeclared built-in function.
+diff --git a/src/runtime/testdata/testprogcgo/aprof.go b/src/runtime/testdata/testprogcgo/aprof.go
+index c70d6333bb..16870144dd 100644
+--- a/src/runtime/testdata/testprogcgo/aprof.go
++++ b/src/runtime/testdata/testprogcgo/aprof.go
+@@ -10,7 +10,7 @@ package main
+ // This is a regression test for issue 14599, where profiling fails when the
+ // function is the first C function. Exported functions are the first C
+ // functions, so we use an exported function. Exported functions are created in
+-// lexigraphical order of source files, so this file is named aprof.go to
++// lexicographical order of source files, so this file is named aprof.go to
+ // ensure its function is first.
+ 
+ // extern void CallGoNop();

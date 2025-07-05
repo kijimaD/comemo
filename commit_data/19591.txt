@@ -26,7 +26,130 @@ Date:   Sun Jun 22 15:26:30 2014 -0700
     R=r, dave
     CC=golang-codereviews
     https://golang.org/cl/102610043
-
+---
  src/pkg/strings/replace.go      | 33 +++++++++++++-------------------
  src/pkg/strings/replace_test.go | 42 ++++++++++++-----------------------------
  2 files changed, 25 insertions(+), 50 deletions(-)
+
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+index 89aca95bae..cb9d7b1fa4 100644
+--- a/src/pkg/strings/replace.go
++++ b/src/pkg/strings/replace.go
+@@ -4,10 +4,7 @@
+ 
+ package strings
+ 
+-import (
+-	"io"
+-	"sync"
+-)
++import "io"
+ 
+ // A Replacer replaces a list of strings with replacements.
+ type Replacer struct {
+@@ -454,31 +451,27 @@ func (r *byteReplacer) Replace(s string) string {
+ 	return string(buf)
+ }
+ 
+-var bufferPool = sync.Pool{
+-	New: func() interface{} {
+-		b := make([]byte, 4096)
+-		return &b
+-	},
+-}
+-
+ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+-	bp := bufferPool.Get().(*[]byte)
+-	buf := *bp
++	// TODO(bradfitz): use io.WriteString with slices of s, avoiding allocation.
++	bufsize := 32 << 10
++	if len(s) < bufsize {
++		bufsize = len(s)
++	}
++	buf := make([]byte, bufsize)
++
+ 	for len(s) > 0 {
+-		ncopy := copy(buf, s)
++		ncopy := copy(buf, s[:])
++		s = s[ncopy:]
+ 		for i, b := range buf[:ncopy] {
+ 			buf[i] = r.new[b]
+ 		}
+-		s = s[ncopy:]
+-		var wn int
+-		wn, err = w.Write(buf[:ncopy])
++		wn, err := w.Write(buf[:ncopy])
+ 		n += wn
+ 		if err != nil {
+-			break
++			return n, err
+ 		}
+ 	}
+-	bufferPool.Put(bp)
+-	return
++	return n, nil
+ }
+ 
+ // byteStringReplacer is the implementation that's used when all the
+diff --git a/src/pkg/strings/replace_test.go b/src/pkg/strings/replace_test.go
+index 77e48b988b..2cb318b69d 100644
+--- a/src/pkg/strings/replace_test.go
++++ b/src/pkg/strings/replace_test.go
+@@ -308,21 +308,20 @@ func TestReplacer(t *testing.T) {
+ 	}
+ }
+ 
+-var algorithmTestCases = []struct {
+-	r    *Replacer
+-	want string
+-}{
+-	{capitalLetters, "*strings.byteReplacer"},
+-	{htmlEscaper, "*strings.byteStringReplacer"},
+-	{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
+-	{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
+-	{NewReplacer("", "X"), "*strings.genericReplacer"},
+-	{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
+-}
+-
+ // TestPickAlgorithm tests that NewReplacer picks the correct algorithm.
+ func TestPickAlgorithm(t *testing.T) {
+-	for i, tc := range algorithmTestCases {
++	testCases := []struct {
++		r    *Replacer
++		want string
++	}{
++		{capitalLetters, "*strings.byteReplacer"},
++		{htmlEscaper, "*strings.byteStringReplacer"},
++		{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
++		{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
++		{NewReplacer("", "X"), "*strings.genericReplacer"},
++		{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
++	}
++	for i, tc := range testCases {
+ 		got := fmt.Sprintf("%T", tc.r.Replacer())
+ 		if got != tc.want {
+ 			t.Errorf("%d. algorithm = %s, want %s", i, got, tc.want)
+@@ -330,23 +329,6 @@ func TestPickAlgorithm(t *testing.T) {
+ 	}
+ }
+ 
+-type errWriter struct{}
+-
+-func (errWriter) Write(p []byte) (n int, err error) {
+-	return 0, fmt.Errorf("unwritable")
+-}
+-
+-// TestWriteStringError tests that WriteString returns an error
+-// received from the underlying io.Writer.
+-func TestWriteStringError(t *testing.T) {
+-	for i, tc := range algorithmTestCases {
+-		n, err := tc.r.WriteString(errWriter{}, "abc")
+-		if n != 0 || err == nil || err.Error() != "unwritable" {
+-			t.Errorf("%d. WriteStringError = %d, %v, want 0, unwritable", i, n, err)
+-		}
+-	}
+-}
+-
+ // TestGenericTrieBuilding verifies the structure of the generated trie. There
+ // is one node per line, and the key ending with the current line is in the
+ // trie if it ends with a "+".

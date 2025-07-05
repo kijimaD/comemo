@@ -15,8 +15,187 @@ Date:   Mon Oct 10 13:39:30 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go    | 61 ++++++++++++++++++++++++++-----
  src/cmd/compile/internal/test/inl_test.go | 55 ++++++++++++++++++++++++++++
  src/runtime/coverage/emitdata_test.go     |  7 ++++
  3 files changed, 114 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index fe042dd024..949924517a 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -37,7 +37,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -284,6 +283,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 					break
+ 				}
+ 			}
++			// Special case for coverage counter updates; although
++			// these correspond to real operations, we treat them as
++			// zero cost for the moment. This is due to the existence
++			// of tests that are sensitive to inlining-- if the
++			// insertion of coverage instrumentation happens to tip a
++			// given function over the threshold and move it from
++			// "inlinable" to "not-inlinable", this can cause changes
++			// in allocation behavior, which can then result in test
++			// failures (a good example is the TestAllocations in
++			// crypto/ed25519).
++			if isAtomicCoverageCounterUpdate(n) {
++				break
++			}
+ 		}
+ 		if n.X.Op() == ir.OMETHEXPR {
+ 			if meth := ir.MethodExprName(n.X); meth != nil {
+@@ -485,14 +497,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		// then result in test failures (a good example is the
+ 		// TestAllocations in crypto/ed25519).
+ 		n := n.(*ir.AssignStmt)
+-		if n.X.Op() == ir.OINDEX {
+-			n := n.X.(*ir.IndexExpr)
+-			if n.X.Op() == ir.ONAME && n.X.Type().IsArray() {
+-				n := n.X.(*ir.Name)
+-				if n.Linksym().Type == objabi.SCOVERAGE_COUNTER {
+-					return false
+-				}
+-			}
++		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n) {
++			return false
+ 		}
+ 	}
+ 
+@@ -1539,3 +1545,40 @@ func doList(list []ir.Node, do func(ir.Node) bool) bool {
+ 	}
+ 	return false
+ }
++
++// isIndexingCoverageCounter returns true if the specified node 'n' is indexing
++// into a coverage counter array.
++func isIndexingCoverageCounter(n ir.Node) bool {
++	if n.Op() != ir.OINDEX {
++		return false
++	}
++	ixn := n.(*ir.IndexExpr)
++	if ixn.X.Op() != ir.ONAME || !ixn.X.Type().IsArray() {
++		return false
++	}
++	nn := ixn.X.(*ir.Name)
++	return nn.CoverageCounter()
++}
++
++// isAtomicCoverageCounterUpdate examines the specified node to
++// determine whether it represents a call to sync/atomic.AddUint32 to
++// increment a coverage counter.
++func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
++	if cn.X.Op() != ir.ONAME {
++		return false
++	}
++	name := cn.X.(*ir.Name)
++	if name.Class != ir.PFUNC {
++		return false
++	}
++	fn := name.Sym().Name
++	if name.Sym().Pkg.Path != "sync/atomic" || fn != "AddUint32" {
++		return false
++	}
++	if len(cn.Args) != 2 || cn.Args[0].Op() != ir.OADDR {
++		return false
++	}
++	adn := cn.Args[0].(*ir.AddrExpr)
++	v := isIndexingCoverageCounter(adn.X)
++	return v
++}
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index fd3b489d13..285052c0da 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -7,6 +7,7 @@ package test
+ import (
+ 	"bufio"
+ 	"internal/buildcfg"
++	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"io"
+ 	"math/bits"
+@@ -332,3 +333,57 @@ func TestIntendedInlining(t *testing.T) {
+ 		t.Errorf("%s was not inlined: %s", fullName, reason)
+ 	}
+ }
++
++func collectInlCands(msgs string) map[string]struct{} {
++	rv := make(map[string]struct{})
++	lines := strings.Split(msgs, "\n")
++	re := regexp.MustCompile(`^\S+\s+can\s+inline\s+(\S+)`)
++	for _, line := range lines {
++		m := re.FindStringSubmatch(line)
++		if m != nil {
++			rv[m[1]] = struct{}{}
++		}
++	}
++	return rv
++}
++
++func TestIssue56044(t *testing.T) {
++	if testing.Short() {
++		t.Skipf("skipping test: too long for short mode")
++	}
++	if !goexperiment.CoverageRedesign {
++		t.Skipf("skipping new coverage tests (experiment not enabled)")
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	modes := []string{"-covermode=set", "-covermode=atomic"}
++
++	for _, mode := range modes {
++		// Build the Go runtime with "-m", capturing output.
++		args := []string{"build", "-gcflags=runtime=-m", "runtime"}
++		cmd := exec.Command(testenv.GoToolPath(t), args...)
++		b, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("build failed (%v): %s", err, b)
++		}
++		mbase := collectInlCands(string(b))
++
++		// Redo the build with -cover, also with "-m".
++		args = []string{"build", "-gcflags=runtime=-m", mode, "runtime"}
++		cmd = exec.Command(testenv.GoToolPath(t), args...)
++		b, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("build failed (%v): %s", err, b)
++		}
++		mcov := collectInlCands(string(b))
++
++		// Make sure that there aren't any functions that are marked
++		// as inline candidates at base but not with coverage.
++		for k := range mbase {
++			if _, ok := mcov[k]; !ok {
++				t.Errorf("error: did not find %s in coverage -m output", k)
++			}
++		}
++	}
++}
+diff --git a/src/runtime/coverage/emitdata_test.go b/src/runtime/coverage/emitdata_test.go
+index 818a67cbdb..e74db3e332 100644
+--- a/src/runtime/coverage/emitdata_test.go
++++ b/src/runtime/coverage/emitdata_test.go
+@@ -406,6 +406,13 @@ func TestApisOnNocoverBinary(t *testing.T) {
+ }
+ 
+ func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
++	if testing.Short() {
++		t.Skipf("skipping test: too long for short mode")
++	}
++	if !goexperiment.CoverageRedesign {
++		t.Skipf("skipping new coverage tests (experiment not enabled)")
++	}
++
+ 	// This test requires "go test -race -cover", meaning that we need
+ 	// go build, go run, and "-race" support.
+ 	testenv.MustHaveGoRun(t)

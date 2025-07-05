@@ -13,8 +13,255 @@ Date:   Wed Jan 8 14:21:15 2020 -0500
     Change-Id: Ibe1b09490bea72d9143324eae7443e0cf5afe85d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213823
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                         |  48 -----------
  src/cmd/go/testdata/script/test_fail_fast.txt | 113 ++++++++++++++++++++++++++
  src/cmd/go/testdata/src/failfast_test.go      |  62 --------------
  3 files changed, 113 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ade3330e2c..a6b8a07b4d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4165,54 +4165,6 @@ func TestGoTestJSON(t *testing.T) {
+ 	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
+ }
+ 
+-func TestFailFast(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tests := []struct {
+-		run      string
+-		failfast bool
+-		nfail    int
+-	}{
+-		{"TestFailingA", true, 1},
+-		{"TestFailing[AB]", true, 1},
+-		{"TestFailing[AB]", false, 2},
+-		// mix with non-failing tests:
+-		{"TestA|TestFailing[AB]", true, 1},
+-		{"TestA|TestFailing[AB]", false, 2},
+-		// mix with parallel tests:
+-		{"TestFailingB|TestParallelFailingA", true, 2},
+-		{"TestFailingB|TestParallelFailingA", false, 2},
+-		{"TestFailingB|TestParallelFailing[AB]", true, 3},
+-		{"TestFailingB|TestParallelFailing[AB]", false, 3},
+-		// mix with parallel sub-tests
+-		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", true, 3},
+-		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", false, 5},
+-		{"TestParallelFailingSubtestsA", true, 1},
+-		// only parallels:
+-		{"TestParallelFailing[AB]", false, 2},
+-		// non-parallel subtests:
+-		{"TestFailingSubtestsA", true, 1},
+-		{"TestFailingSubtestsA", false, 2},
+-		// fatal test
+-		{"TestFatal[CD]", true, 1},
+-		{"TestFatal[CD]", false, 2},
+-	}
+-
+-	for _, tt := range tests {
+-		t.Run(tt.run, func(t *testing.T) {
+-			tg.runFail("test", "./testdata/src/failfast_test.go", "-run="+tt.run, "-failfast="+strconv.FormatBool(tt.failfast))
+-
+-			nfail := strings.Count(tg.getStdout(), "FAIL - ")
+-
+-			if nfail != tt.nfail {
+-				t.Errorf("go test -run=%s -failfast=%t printed %d FAILs, want %d", tt.run, tt.failfast, nfail, tt.nfail)
+-			}
+-		})
+-	}
+-}
+-
+ // Issue 22986.
+ func TestImportPath(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/test_fail_fast.txt b/src/cmd/go/testdata/script/test_fail_fast.txt
+new file mode 100644
+index 0000000000..132ea709eb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fail_fast.txt
+@@ -0,0 +1,113 @@
++[short] skip
++
++# test fail fast
++! go test ./failfast_test.go -run='TestFailingA' -failfast=true
++stdout -count=1 'FAIL - '
++! go test ./failfast_test.go -run='TestFailing[AB]' -failfast=true
++stdout -count=1 'FAIL - '
++! go test ./failfast_test.go -run='TestFailing[AB]' -failfast=false
++stdout -count=2 'FAIL - '
++
++# mix with non-failing tests
++! go test ./failfast_test.go -run='TestA|TestFailing[AB]' -failfast=true
++stdout -count=1 'FAIL - '
++! go test ./failfast_test.go -run='TestA|TestFailing[AB]' -failfast=false
++stdout -count=2 'FAIL - '
++
++# mix with parallel tests
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=true
++stdout -count=2 'FAIL - '
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=false
++stdout -count=2 'FAIL - '
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=true
++stdout -count=3 'FAIL - '
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=false
++stdout -count=3 'FAIL - '
++
++# mix with parallel sub-tests
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=true
++stdout -count=3 'FAIL - '
++! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=false
++stdout -count=5 'FAIL - '
++! go test ./failfast_test.go -run='TestParallelFailingSubtestsA' -failfast=true
++stdout -count=1 'FAIL - '
++
++# only parallels
++! go test ./failfast_test.go -run='TestParallelFailing[AB]' -failfast=false
++stdout -count=2 'FAIL - '
++
++# non-parallel subtests
++! go test ./failfast_test.go -run='TestFailingSubtestsA' -failfast=true
++stdout -count=1 'FAIL - '
++! go test ./failfast_test.go -run='TestFailingSubtestsA' -failfast=false
++stdout -count=2 'FAIL - '
++
++# fatal test
++! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=true
++stdout -count=1 'FAIL - '
++! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=false
++stdout -count=2 'FAIL - '
++
++-- failfast_test.go --
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package failfast
++
++import "testing"
++
++func TestA(t *testing.T) {
++	// Edge-case testing, mixing unparallel tests too
++	t.Logf("LOG: %s", t.Name())
++}
++
++func TestFailingA(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestB(t *testing.T) {
++	// Edge-case testing, mixing unparallel tests too
++	t.Logf("LOG: %s", t.Name())
++}
++
++func TestParallelFailingA(t *testing.T) {
++	t.Parallel()
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestParallelFailingB(t *testing.T) {
++	t.Parallel()
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestParallelFailingSubtestsA(t *testing.T) {
++	t.Parallel()
++	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++}
++
++func TestFailingSubtestsA(t *testing.T) {
++	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++}
++
++func TestFailingB(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestFatalC(t *testing.T) {
++	t.Fatalf("FAIL - %s", t.Name())
++}
++
++func TestFatalD(t *testing.T) {
++	t.Fatalf("FAIL - %s", t.Name())
++}
+diff --git a/src/cmd/go/testdata/src/failfast_test.go b/src/cmd/go/testdata/src/failfast_test.go
+deleted file mode 100644
+index 6e64d73fdf..0000000000
+--- a/src/cmd/go/testdata/src/failfast_test.go
++++ /dev/null
+@@ -1,62 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package failfast
+-
+-import "testing"
+-
+-func TestA(t *testing.T) {
+-	// Edge-case testing, mixing unparallel tests too
+-	t.Logf("LOG: %s", t.Name())
+-}
+-
+-func TestFailingA(t *testing.T) {
+-	t.Errorf("FAIL - %s", t.Name())
+-}
+-
+-func TestB(t *testing.T) {
+-	// Edge-case testing, mixing unparallel tests too
+-	t.Logf("LOG: %s", t.Name())
+-}
+-
+-func TestParallelFailingA(t *testing.T) {
+-	t.Parallel()
+-	t.Errorf("FAIL - %s", t.Name())
+-}
+-
+-func TestParallelFailingB(t *testing.T) {
+-	t.Parallel()
+-	t.Errorf("FAIL - %s", t.Name())
+-}
+-
+-func TestParallelFailingSubtestsA(t *testing.T) {
+-	t.Parallel()
+-	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
+-		t.Errorf("FAIL - %s", t.Name())
+-	})
+-	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
+-		t.Errorf("FAIL - %s", t.Name())
+-	})
+-}
+-
+-func TestFailingSubtestsA(t *testing.T) {
+-	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
+-		t.Errorf("FAIL - %s", t.Name())
+-	})
+-	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
+-		t.Errorf("FAIL - %s", t.Name())
+-	})
+-}
+-
+-func TestFailingB(t *testing.T) {
+-	t.Errorf("FAIL - %s", t.Name())
+-}
+-
+-func TestFatalC(t *testing.T) {
+-	t.Fatalf("FAIL - %s", t.Name())
+-}
+-
+-func TestFatalD(t *testing.T) {
+-	t.Fatalf("FAIL - %s", t.Name())
+-}

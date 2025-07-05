@@ -9,9 +9,148 @@ Date:   Thu Feb 12 16:06:21 2009 -0800
     R=r
     OCL=24970
     CL=24970
-
+---
  usr/gri/pretty/ast.go     |  6 ++++++
  usr/gri/pretty/gds.go     |  2 +-
  usr/gri/pretty/parser.go  | 33 +++++++++++++++------------------
  usr/gri/pretty/printer.go |  6 ++++++
  4 files changed, 28 insertions(+), 19 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index b3260a1fa4..df8bfbf2cd 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -390,6 +390,10 @@ type (
+ 		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
+ 		Label *Ident;  // if any, or nil
+ 	};
++	
++	EmptyStat struct {
++		Pos int;  // position of ";"
++	};
+ )
+ 
+ 
+@@ -405,6 +409,7 @@ type StatVisitor interface {
+ 	DoSwitchStat(s *SwitchStat);
+ 	DoSelectStat(s *SelectStat);
+ 	DoControlFlowStat(s *ControlFlowStat);
++	DoEmptyStat(s *EmptyStat);
+ }
+ 
+ 
+@@ -419,6 +424,7 @@ func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
+ func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
+ func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
+ func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
++func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index d5637cc9df..284a9d5073 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -155,7 +155,7 @@ func main() {
+ 	http.Handle("/", http.HandlerFunc(serve));
+ 	err2 := http.ListenAndServe(":" + *port, nil);
+ 	if err2 != nil {
+-		log.Exitf("ListenAndServe: ", err2.String())
++		log.Exitf("ListenAndServe: %s", err2.String())
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index b5cbcd72bf..5543d9eeb3 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -733,25 +733,21 @@ func (P *Parser) parseStatementList(list *array.Array) {
+ 		defer un(trace(P, "StatementList"));
+ 	}
+ 
++	expect_semi := false;
+ 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		s := P.parseStatement();
+-		if s != nil {
+-			// not the empty statement
+-			list.Push(s);
++		if expect_semi {
++			P.expect(Scanner.SEMICOLON);
++			expect_semi = false;
+ 		}
++		list.Push(P.parseStatement());
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.next();
+ 		} else if P.opt_semi {
+ 			P.opt_semi = false;  // "consume" optional semicolon
+ 		} else {
+-			break;
++			expect_semi = true;
+ 		}
+ 	}
+-
+-	// Try to provide a good error message
+-	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		P.error(P.pos, "expected end of statement list (semicolon missing?)");
+-	}
+ }
+ 
+ 
+@@ -1273,12 +1269,9 @@ func (P *Parser) parseIfStat() *AST.IfStat {
+ 	var else_ AST.Stat;
+ 	if P.tok == Scanner.ELSE {
+ 		P.next();
+-		if P.tok == Scanner.IF || P.tok == Scanner.LBRACE {
++		if ok := P.tok == Scanner.IF || P.tok == Scanner.LBRACE; ok || P.sixg {
+ 			else_ = P.parseStatement();
+-		} else if P.sixg {
+-			else_ = P.parseStatement();
+-			if else_ != nil {
+-				// not the empty statement
++			if !ok {
+ 				// wrap in a block since we don't have one
+ 				body := AST.NewBlock(0, Scanner.LBRACE);
+ 				body.List.Push(else_);
+@@ -1290,7 +1283,7 @@ func (P *Parser) parseIfStat() *AST.IfStat {
+ 	}
+ 	P.closeScope();
+ 
+-	return &AST.IfStat{pos, init, cond, body, else_ };
++	return &AST.IfStat{pos, init, cond, body, else_};
+ }
+ 
+ 
+@@ -1438,10 +1431,14 @@ func (P *Parser) parseStatement() AST.Stat {
+ 		return P.parseSwitchStat();
+ 	case Scanner.SELECT:
+ 		return P.parseSelectStat();
++	case Scanner.SEMICOLON:
++		// don't consume the ";", it is the separator following the empty statement
++		return &AST.EmptyStat{P.pos};
+ 	}
+ 
+-	// empty statement
+-	return nil;
++	// no statement found
++	P.error(P.pos, "statement expected");
++	return &AST.BadStat{P.pos};
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index d29bfd1ee6..a0de7d06a6 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -919,6 +919,12 @@ func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
+ }
+ 
+ 
++func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
++	P.String(s.Pos, "");
++	P.separator = semicolon;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 

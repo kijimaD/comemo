@@ -10,6 +10,20 @@ Date:   Wed Dec 18 18:24:55 2013 -0800
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/43480052
-
+---
  src/pkg/compress/flate/inflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 3eb3b2b83e..bbe4c5a16f 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -180,7 +180,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
+ // the NewReader will introduce its own buffering.
+ type Reader interface {
+ 	io.Reader
+-	ReadByte() (c byte, err error)
++	io.ByteReader
+ }
+ 
+ // Decompress state.

@@ -8,7 +8,45 @@ Date:   Fri Sep 24 12:28:14 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2215045
-
+---
  src/pkg/bufio/bufio.go      |  1 +
  src/pkg/bufio/bufio_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index b85a0793cc..1cac079274 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -207,6 +207,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
+ 		b.fill()
+ 	}
++	b.lastRuneSize = -1
+ 	if b.r == b.w {
+ 		return 0, 0, b.err
+ 	}
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 5df97bd245..fb0ed045ae 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -319,6 +319,20 @@ func TestUnreadRuneError(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnreadRuneAtEOF(t *testing.T) {
++	// UnreadRune/ReadRune should error at EOF (was a bug; used to panic)
++	r := NewReader(strings.NewReader("x"))
++	r.ReadRune()
++	r.ReadRune()
++	r.UnreadRune()
++	_, _, err := r.ReadRune()
++	if err == nil {
++		t.Error("expected error at EOF")
++	} else if err != os.EOF {
++		t.Error("expected EOF; got", err)
++	}
++}
++
+ func TestReadWriteRune(t *testing.T) {
+ 	const NRune = 1000
+ 	byteBuf := new(bytes.Buffer)

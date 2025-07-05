@@ -28,10 +28,211 @@ Date:   Thu Aug 25 14:17:52 2016 +0200
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 43 +++++++++++++-------------
  src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
  src/cmd/compile/internal/gc/walk.go            | 22 +++++++++++--
  src/runtime/slice.go                           | 23 ++++++++++----
  test/fixedbugs/issue4085b.go                   | 24 ++++++++------
  5 files changed, 74 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 637a661cdd..c7223e0355 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -83,27 +83,28 @@ const runtimeimport = "" +
+ 	"\t\x15selectrecv2\x00\b\x17\"\xb4\x02\x00\x00\x1f\x02:\xfc\x01\x00\x00\x17:\xfe\x01\x00\x00\x17\x00\x15rec" +
+ 	"eived·5\x00\x00\x02\x00\xb6\x02\x00\x00\t\x19selectdefault\x00\x02\x17\"\xb4\x02\x00\x00\x02" +
+ 	"\x00\xb6\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xac\x02\x00\x00\x00\t\tblock\x00\x00\x00\t\x11make" +
+-	"slice\x00\x06\x17\"\x06\x00\x00\n\vnel·3\x00\x00\n\vcap·4\x00\x00\x02\x11:\vary\xc2" +
+-	"\xb71\x00\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vold·3\x00\x00\x02\xc8\x02\x00\x00\x02\x11" +
+-	":\xca\x02\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00\x17:\vfrm·2\x00\x00\x16\x11l" +
+-	"ength·3\x00b\x00\t\vmemclr\x00\x04\x17\"\vptr·1\x00\x00\x16\x11length" +
+-	"·2\x00b\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00\x00\x17:\ay·3\x00\x00\x16\rsi" +
+-	"ze·4\x00b\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x13" +
+-	"memequal16\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x13memequal32\x00" +
+-	"\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x13memequal64\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02" +
+-	"\x00\x00\x01\x00\x00\t\x15memequal128\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x0fint" +
+-	"64div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint6" +
+-	"4mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat" +
+-	"64toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint64\x00\x01\x1a\x00\x01\x14\x00" +
+-	"\t\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64tofloat64" +
+-	"\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t\x1duint32t" +
+-	"ofloat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e\vnum·2" +
+-	"\x00\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefuncenter\x00\x01" +
+-	"\x16b\x00\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01\x16b\x00\t\x11rac" +
+-	"ewrite\x00\x01\x16b\x00\t\x19racereadrange\x00\x04\x16\raddr·1\x00b\x16" +
+-	"\rsize·2\x00b\x00\t\x1bracewriterange\x00\x04\x16\x96\x03\x00b\x16\x98\x03\x00b\x00" +
+-	"\t\x0fmsanread\x00\x04\x16\x96\x03\x00b\x16\x98\x03\x00b\x00\t\x11msanwrite\x00\x04\x16\x96\x03\x00" +
+-	"b\x16\x98\x03\x00b\x00\v\xf8\x01\v\x00\x01\x00\n$$\n"
++	"slice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00\x00\x02\vcap·4\x00\x00\x02\x11:\vary\xc2" +
++	"\xb71\x00\x00\t\x15makeslice64\x00\x06\x17\"\x06\x00\x00\n\xc6\x02\x00\x00\n\xc8\x02\x00\x00\x02\x11:\xca\x02\x00" +
++	"\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vold·3\x00\x00\x02\xc8\x02\x00\x00\x02\x11:\xca\x02" +
++	"\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00\x17:\vfrm·2\x00\x00\x16\x11leng" +
++	"th·3\x00b\x00\t\vmemclr\x00\x04\x17\"\vptr·1\x00\x00\x16\x11length·2" +
++	"\x00b\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00\x00\x17:\ay·3\x00\x00\x16\rsize\xc2" +
++	"\xb74\x00b\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13mem" +
++	"equal16\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13memequal32\x00\x04\x17:" +
++	"\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13memequal64\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01" +
++	"\x00\x00\t\x15memequal128\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x0fint64d" +
++	"iv\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint64mo" +
++	"d\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat64t" +
++	"oint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint64\x00\x01\x1a\x00\x01\x14\x00\t\x1df" +
++	"loat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64tofloat64\x00\x01\n" +
++	"\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t\x1duint32tofl" +
++	"oat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e\vnum·2\x00\x00\x1e" +
++	"\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefuncenter\x00\x01\x16b\x00" +
++	"\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01\x16b\x00\t\x11racewr" +
++	"ite\x00\x01\x16b\x00\t\x19racereadrange\x00\x04\x16\raddr·1\x00b\x16\rsi" +
++	"ze·2\x00b\x00\t\x1bracewriterange\x00\x04\x16\x98\x03\x00b\x16\x9a\x03\x00b\x00\t\x0fm" +
++	"sanread\x00\x04\x16\x98\x03\x00b\x16\x9a\x03\x00b\x00\t\x11msanwrite\x00\x04\x16\x98\x03\x00b\x16\x9a" +
++	"\x03\x00b\x00\v\xfa\x01\v\x00\x01\x00\n$$\n"
+ 
+ const unsafeimport = "" +
+ 	"version 2\n\n\x00\x00\x01\vunsafe\x00\x05\r\rPointer\x00\x16\x00\t\x0fOff" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index ef7e408959..ee7010585d 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -131,7 +131,8 @@ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
+ func block()
+ 
+-func makeslice(typ *byte, nel int64, cap int64) (ary []any)
++func makeslice(typ *byte, len int, cap int) (ary []any)
++func makeslice64(typ *byte, len int64, cap int64) (ary []any)
+ func growslice(typ *byte, old []any, cap int) (ary []any)
+ func memmove(to *any, frm *any, length uintptr)
+ func memclr(ptr *byte, length uintptr)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8173a2e0cb..91895dd8af 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1506,11 +1506,27 @@ opswitch:
+ 			r = walkexpr(r, init)
+ 			n = r
+ 		} else {
+-			// makeslice(et *Type, nel int64, max int64) (ary []any)
+-			fn := syslook("makeslice")
++			// n escapes; set up a call to makeslice.
++			// When len and cap can fit into int, use makeslice instead of
++			// makeslice64, which is faster and shorter on 32 bit platforms.
++
++			len, cap := l, r
++
++			fnname := "makeslice64"
++			argtype := Types[TINT64]
++
++			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
++			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
++			// will be handled by the negative range checks in makeslice during runtime.
++			if (len.Type.IsKind(TIDEAL) || Maxintval[len.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) &&
++				(cap.Type.IsKind(TIDEAL) || Maxintval[cap.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) {
++				fnname = "makeslice"
++				argtype = Types[TINT]
++			}
+ 
++			fn := syslook(fnname)
+ 			fn = substArgTypes(fn, t.Elem()) // any-1
+-			n = mkcall1(fn, n.Type, init, typename(t.Elem()), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
++			n = mkcall1(fn, t, init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
+ 		}
+ 
+ 	case ORUNESTR:
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index e15e6c4dc6..dd8dcb1873 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -36,21 +36,18 @@ func maxSliceCap(elemsize uintptr) uintptr {
+ 	return _MaxMem / elemsize
+ }
+ 
+-// TODO: take uintptrs instead of int64s?
+-func makeslice(et *_type, len64, cap64 int64) slice {
++func makeslice(et *_type, len, cap int) slice {
+ 	// NOTE: The len > maxElements check here is not strictly necessary,
+ 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
+ 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
+ 	// but since the cap is only being supplied implicitly, saying len is clearer.
+ 	// See issue 4085.
+ 	maxElements := maxSliceCap(et.size)
+-	len := int(len64)
+-	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
++	if len < 0 || uintptr(len) > maxElements {
+ 		panic(errorString("makeslice: len out of range"))
+ 	}
+ 
+-	cap := int(cap64)
+-	if cap < len || int64(cap) != cap64 || uintptr(cap) > maxElements {
++	if cap < len || uintptr(cap) > maxElements {
+ 		panic(errorString("makeslice: cap out of range"))
+ 	}
+ 
+@@ -58,6 +55,20 @@ func makeslice(et *_type, len64, cap64 int64) slice {
+ 	return slice{p, len, cap}
+ }
+ 
++func makeslice64(et *_type, len64, cap64 int64) slice {
++	len := int(len64)
++	if int64(len) != len64 {
++		panic(errorString("makeslice: len out of range"))
++	}
++
++	cap := int(cap64)
++	if int64(cap) != cap64 {
++		panic(errorString("makeslice: cap out of range"))
++	}
++
++	return makeslice(et, len, cap)
++}
++
+ // growslice handles slice growth during append.
+ // It is passed the slice element type, the old slice, and the desired new minimum capacity,
+ // and it returns a new slice with at least that capacity, with the old data
+diff --git a/test/fixedbugs/issue4085b.go b/test/fixedbugs/issue4085b.go
+index 583c417511..b91bbd748a 100644
+--- a/test/fixedbugs/issue4085b.go
++++ b/test/fixedbugs/issue4085b.go
+@@ -15,21 +15,25 @@ type T []int
+ 
+ func main() {
+ 	n := -1
+-	shouldPanic("len out of range", func() {_ = make(T, n)})
+-	shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++	shouldPanic("len out of range", func() { _ = make(T, n) })
++	shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
++	shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
++	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+ 	var t *byte
+ 	if unsafe.Sizeof(t) == 8 {
+-		n = 1<<20
++		n = 1 << 20
+ 		n <<= 20
+-		shouldPanic("len out of range", func() {_ = make(T, n)})
+-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++		shouldPanic("len out of range", func() { _ = make(T, n) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+ 		n <<= 20
+-		shouldPanic("len out of range", func() {_ = make(T, n)})
+-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++		shouldPanic("len out of range", func() { _ = make(T, n) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+ 	} else {
+ 		n = 1<<31 - 1
+-		shouldPanic("len out of range", func() {_ = make(T, n)})
+-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++		shouldPanic("len out of range", func() { _ = make(T, n) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
++		shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+ 	}
+ }
+ 
+@@ -44,6 +48,6 @@ func shouldPanic(str string, f func()) {
+ 			panic("got panic " + s + ", want " + str)
+ 		}
+ 	}()
+-	
++
+ 	f()
+ }

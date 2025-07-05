@@ -12,7 +12,7 @@ Date:   Tue May 26 23:08:39 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10526
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go  |  2 ++
  src/cmd/compile/internal/gc/dcl.go    |  4 ++++
  src/cmd/compile/internal/gc/export.go |  1 +
@@ -22,3 +22,264 @@ Date:   Tue May 26 23:08:39 2015 -0400
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  src/cmd/compile/internal/gc/y.go      |  8 ++++----
  8 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 892595a214..54e840d8da 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -432,6 +432,7 @@ func typeinit() {
+ 	Types[TUNSAFEPTR] = t
+ 	t.Sym = Pkglookup("Pointer", unsafepkg)
+ 	t.Sym.Def = typenod(t)
++	t.Sym.Def.Name = new(Name)
+ 
+ 	dowidth(Types[TUNSAFEPTR])
+ 
+@@ -654,6 +655,7 @@ func typeinit() {
+ 		dowidth(t)
+ 		Types[etype] = t
+ 		s1.Def = typenod(t)
++		s1.Def.Name = new(Name)
+ 	}
+ 
+ 	Array_array = int(Rnd(0, int64(Widthptr)))
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index fc2f14a02e..2a88861dab 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -174,6 +174,10 @@ func declare(n *Node, ctxt uint8) {
+ 		return
+ 	}
+ 
++	if n.Name == nil {
++		// named OLITERAL needs Name; most OLITERALs don't.
++		n.Name = new(Name)
++	}
+ 	n.Lineno = int32(parserline())
+ 	s := n.Sym
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 623d61ad74..33aa0ad11f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -416,6 +416,7 @@ func pkgtype(s *Sym) *Type {
+ 		t := typ(TFORW)
+ 		t.Sym = s
+ 		s.Def = typenod(t)
++		s.Def.Name = new(Name)
+ 	}
+ 
+ 	if s.Def.Type == nil {
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index b8e9ceb304..b37d39404c 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -1221,8 +1221,8 @@ name:
+ 	sym	%prec NotParen
+ 	{
+ 		$$ = oldname($1);
+-		if $$.Pack != nil {
+-			$$.Pack.Used = true;
++		if $$.Name != nil && $$.Name.Pack != nil {
++			$$.Name.Pack.Used = true;
+ 		}
+ 	}
+ 
+@@ -1687,8 +1687,8 @@ packname:
+ 
+ 		$$ = $1;
+ 		n = oldname($1);
+-		if n.Pack != nil {
+-			n.Pack.Used = true;
++		if n.Name != nil && n.Name.Pack != nil {
++			n.Name.Pack.Used = true;
+ 		}
+ 	}
+ |	LNAME '.' sym
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index fd64dabb21..32452e6692 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2182,6 +2182,7 @@ func lexinit() {
+ 
+ 			s1.Lexical = LNAME
+ 			s1.Def = typenod(t)
++			s1.Def.Name = new(Name)
+ 			continue
+ 		}
+ 
+@@ -2207,11 +2208,13 @@ func lexinit() {
+ 	s = Pkglookup("true", builtinpkg)
+ 	s.Def = Nodbool(true)
+ 	s.Def.Sym = Lookup("true")
++	s.Def.Name = new(Name)
+ 	s.Def.Type = idealbool
+ 
+ 	s = Pkglookup("false", builtinpkg)
+ 	s.Def = Nodbool(false)
+ 	s.Def.Sym = Lookup("false")
++	s.Def.Name = new(Name)
+ 	s.Def.Type = idealbool
+ 
+ 	s = Lookup("_")
+@@ -2235,6 +2238,7 @@ func lexinit() {
+ 	v.U = new(NilVal)
+ 	s.Def = nodlit(v)
+ 	s.Def.Sym = s
++	s.Def.Name = new(Name)
+ }
+ 
+ func lexinit1() {
+@@ -2282,6 +2286,7 @@ func lexinit1() {
+ 	bytetype.Sym = s1
+ 	s1.Lexical = LNAME
+ 	s1.Def = typenod(bytetype)
++	s1.Def.Name = new(Name)
+ 
+ 	// rune alias
+ 	s = Lookup("rune")
+@@ -2292,6 +2297,7 @@ func lexinit1() {
+ 	runetype.Sym = s1
+ 	s1.Lexical = LNAME
+ 	s1.Def = typenod(runetype)
++	s1.Def.Name = new(Name)
+ }
+ 
+ func lexfini() {
+@@ -2311,6 +2317,7 @@ func lexfini() {
+ 		etype = syms[i].etype
+ 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
+ 			s.Def = typenod(Types[etype])
++			s.Def.Name = new(Name)
+ 			s.Origpkg = builtinpkg
+ 		}
+ 
+@@ -2328,6 +2335,7 @@ func lexfini() {
+ 		s = Lookup(Thearch.Typedefs[i].Name)
+ 		if s.Def == nil {
+ 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
++			s.Def.Name = new(Name)
+ 			s.Origpkg = builtinpkg
+ 		}
+ 	}
+@@ -2338,18 +2346,21 @@ func lexfini() {
+ 
+ 	if s.Def == nil {
+ 		s.Def = typenod(bytetype)
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+ 	s = Lookup("error")
+ 	if s.Def == nil {
+ 		s.Def = typenod(errortype)
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+ 	s = Lookup("rune")
+ 	if s.Def == nil {
+ 		s.Def = typenod(runetype)
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+@@ -2359,6 +2370,7 @@ func lexfini() {
+ 		v.U = new(NilVal)
+ 		s.Def = nodlit(v)
+ 		s.Def.Sym = s
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+@@ -2373,6 +2385,7 @@ func lexfini() {
+ 	if s.Def == nil {
+ 		s.Def = Nodbool(true)
+ 		s.Def.Sym = s
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+@@ -2380,6 +2393,7 @@ func lexfini() {
+ 	if s.Def == nil {
+ 		s.Def = Nodbool(false)
+ 		s.Def.Sym = s
++		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+@@ -2572,9 +2586,9 @@ func mkpackage(pkgname string) {
+ 			if s.Def.Sym != s {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+-				if s.Def.Pack != nil && !s.Def.Pack.Used && nsyntaxerrors == 0 {
+-					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
+-					s.Def.Pack.Used = true
++				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
++					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Pkg.Path, "")
++					s.Def.Name.Pack.Used = true
+ 				}
+ 
+ 				s.Def = nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4dd8b29b8e..dc85dc4237 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -331,7 +331,10 @@ func importdot(opkg *Pkg, pack *Node) {
+ 
+ 		s1.Def = s.Def
+ 		s1.Block = s.Block
+-		s1.Def.Pack = pack
++		if s1.Def.Name == nil {
++			Dump("s1def", s1.Def)
++		}
++		s1.Def.Name.Pack = pack
+ 		s1.Origpkg = opkg
+ 		n++
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 02b5e9578d..5878c686a0 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -30,7 +30,6 @@ type Node struct {
+ 
+ 	// ONAME
+ 	Name  *Name
+-	Pack  *Node // real package for import . names
+ 	Curfn *Node // function for local variables
+ 	Param *Param
+ 
+@@ -94,6 +93,7 @@ type Node struct {
+ 
+ // Name holds Node fields used only by ONAME nodes.
+ type Name struct {
++	Pack      *Node // real package for import . names
+ 	Heapaddr  *Node // temp holding heap address of param
+ 	Inlvar    *Node // ONAME substitute while inlining
+ 	Defn      *Node // initializing assignment
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 1ee619f6d6..7399dde08b 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -2390,8 +2390,8 @@ yydefault:
+ 		//line go.y:1222
+ 		{
+ 			yyVAL.node = oldname(yyDollar[1].sym)
+-			if yyVAL.node.Pack != nil {
+-				yyVAL.node.Pack.Used = true
++			if yyVAL.node.Name != nil && yyVAL.node.Name.Pack != nil {
++				yyVAL.node.Name.Pack.Used = true
+ 			}
+ 		}
+ 	case 164:
+@@ -2846,8 +2846,8 @@ yydefault:
+ 
+ 			yyVAL.sym = yyDollar[1].sym
+ 			n = oldname(yyDollar[1].sym)
+-			if n.Pack != nil {
+-				n.Pack.Used = true
++			if n.Name != nil && n.Name.Pack != nil {
++				n.Name.Pack.Used = true
+ 			}
+ 		}
+ 	case 237:

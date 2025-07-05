@@ -32,7 +32,7 @@ Date:   Tue Mar 15 16:31:02 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/logopt/log_opts.go | 2 +-
  src/cmd/compile/internal/noder/reader.go    | 2 +-
  src/cmd/internal/objabi/line.go             | 2 +-
@@ -40,3 +40,90 @@ Date:   Tue Mar 15 16:31:02 2022 -0400
  src/cmd/link/internal/ld/main.go            | 1 -
  src/internal/buildcfg/cfg.go                | 5 ++---
  6 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 97ebf56944..9fee83426f 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -405,7 +405,7 @@ func uriIfy(f string) DocumentURI {
+ // Return filename, replacing a first occurrence of $GOROOT with the
+ // actual value of the GOROOT (because LSP does not speak "$GOROOT").
+ func uprootedPath(filename string) string {
+-	if !strings.HasPrefix(filename, "$GOROOT/") {
++	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
+ 		return filename
+ 	}
+ 	return buildcfg.GOROOT + filename[len("$GOROOT"):]
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 62875ba073..01e795183d 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -209,7 +209,7 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+ 	// require being more consistent about when we use native vs UNIX
+ 	// file paths.
+ 	const dollarGOROOT = "$GOROOT"
+-	if strings.HasPrefix(filename, dollarGOROOT) {
++	if buildcfg.GOROOT != "" && strings.HasPrefix(filename, dollarGOROOT) {
+ 		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
+ 	}
+ 
+diff --git a/src/cmd/internal/objabi/line.go b/src/cmd/internal/objabi/line.go
+index 0b1e0bb181..beee1291b5 100644
+--- a/src/cmd/internal/objabi/line.go
++++ b/src/cmd/internal/objabi/line.go
+@@ -39,7 +39,7 @@ func AbsFile(dir, file, rewrites string) string {
+ 	}
+ 
+ 	abs, rewritten := ApplyRewrites(abs, rewrites)
+-	if !rewritten && hasPathPrefix(abs, buildcfg.GOROOT) {
++	if !rewritten && buildcfg.GOROOT != "" && hasPathPrefix(abs, buildcfg.GOROOT) {
+ 		abs = "$GOROOT" + abs[len(buildcfg.GOROOT):]
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a81232b2a4..61b1fcbecf 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -390,7 +390,9 @@ func libinit(ctxt *Link) {
+ 		suffix = "asan"
+ 	}
+ 
+-	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
++	if buildcfg.GOROOT != "" {
++		Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
++	}
+ 
+ 	mayberemoveoutfile()
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d13c3ff8b6..14f83566f5 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -121,7 +121,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	final := gorootFinal()
+ 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+-	addstrdata1(ctxt, "internal/buildcfg.defaultGOROOT="+final)
+ 
+ 	buildVersion := buildcfg.Version
+ 	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 68c10a2824..1066d0c189 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -15,13 +15,12 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ )
+ 
+ var (
+-	defaultGOROOT string // set by linker
+-
+-	GOROOT   = envOr("GOROOT", defaultGOROOT)
++	GOROOT   = runtime.GOROOT() // cached for efficiency
+ 	GOARCH   = envOr("GOARCH", defaultGOARCH)
+ 	GOOS     = envOr("GOOS", defaultGOOS)
+ 	GO386    = envOr("GO386", defaultGO386)

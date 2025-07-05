@@ -7,6 +7,20 @@ Date:   Mon Mar 5 15:51:58 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5757043
-
+---
  src/pkg/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 6356b296df..1f568b31e6 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -243,7 +243,7 @@ type commonType struct {
+ 	fieldAlign    uint8        // alignment of struct field with this type
+ 	kind          uint8        // enumeration for C
+ 	alg           *uintptr     // algorithm table (../runtime/runtime.h:/Alg)
+-	string        *string      // string form; unnecessary  but undeniably useful
++	string        *string      // string form; unnecessary but undeniably useful
+ 	*uncommonType              // (relatively) uncommon fields
+ 	ptrToThis     *runtimeType // pointer to this type, if used in binary or has methods
+ }

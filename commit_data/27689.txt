@@ -14,6 +14,26 @@ Date:   Wed Apr 6 20:19:47 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21629
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/io.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 23401dae93..023473c79b 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -274,10 +274,11 @@ type RuneScanner interface {
+ 	UnreadRune() error
+ }
+ 
+-// ReadAtSizer is the interface that groups the basic ReadAt and Size
+-// methods, representing a sized data source that supports random
++// SizedReaderAt is the interface that groups the basic ReadAt method
++// with a Size method that reports the total size of the underlying
++// object. It represents a fixed-size data source that supports random
+ // access by multiple concurrent goroutines.
+-type ReadAtSizer interface {
++type SizedReaderAt interface {
+ 	ReaderAt
+ 	// Size reports the length of the data source in bytes.
+ 	Size() int64

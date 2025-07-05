@@ -12,7 +12,7 @@ Date:   Wed Jul 8 18:31:14 2009 -0700
     DELTA=821  (400 added, 392 deleted, 29 changed)
     OCL=31376
     CL=31378
-
+---
  src/pkg/Make.deps                                  |  2 +-
  src/pkg/archive/tar/Makefile                       |  4 +-
  src/pkg/archive/tar/{untar.go => reader.go}        |  9 ++---
@@ -20,3 +20,205 @@ Date:   Wed Jul 8 18:31:14 2009 -0700
  src/pkg/archive/tar/writer.go                      | 28 +++++++-------
  src/pkg/archive/tar/writer_test.go                 | 43 +++++++++++++---------
  6 files changed, 47 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 088708fba5..9144ad40d9 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,4 +1,4 @@
+-archive/tar.install: bufio.install bytes.install io.install os.install strconv.install
++archive/tar.install: bytes.install io.install os.install strconv.install strings.install
+ base64.install: bytes.install io.install os.install strconv.install
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+diff --git a/src/pkg/archive/tar/Makefile b/src/pkg/archive/tar/Makefile
+index 2689b30f6a..78734ef58a 100644
+--- a/src/pkg/archive/tar/Makefile
++++ b/src/pkg/archive/tar/Makefile
+@@ -36,7 +36,7 @@ O1=\
+ 	common.$O\
+ 
+ O2=\
+-	untar.$O\
++	reader.$O\
+ 	writer.$O\
+ 
+ 
+@@ -48,7 +48,7 @@ a1: $(O1)
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/tar.a untar.$O writer.$O
++	$(AR) grc _obj$D/tar.a reader.$O writer.$O
+ 	rm -f $(O2)
+ 
+ 
+diff --git a/src/pkg/archive/tar/untar.go b/src/pkg/archive/tar/reader.go
+similarity index 97%
+rename from src/pkg/archive/tar/untar.go
+rename to src/pkg/archive/tar/reader.go
+index 87382d4f5c..7e8f617b00 100644
+--- a/src/pkg/archive/tar/untar.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -6,7 +6,6 @@ package tar
+ 
+ // TODO(dsymonds):
+ //   - pax extensions
+-//   - rename this file to reader.go
+ 
+ import (
+ 	"archive/tar";
+@@ -20,13 +19,13 @@ var (
+ 	HeaderError os.Error = os.ErrorString("invalid tar header");
+ )
+ 
+-// A tar archive consists of a sequence of files.
+ // A Reader provides sequential access to the contents of a tar archive.
++// A tar archive consists of a sequence of files.
+ // The Next method advances to the next file in the archive (including the first),
+ // and then it can be treated as an io.Reader to access the file's data.
+ //
+ // Example:
+-// 	tr := NewTarReader(r);
++// 	tr := tar.NewReader(r);
+ // 	for {
+ //		hdr, err := tr.Next();
+ //		if err != nil {
+@@ -36,7 +35,7 @@ var (
+ //			// end of tar archive
+ //			break
+ //		}
+-//		io.Copy(tr, somewhere);
++//		io.Copy(tr, data);
+ // 	}
+ type Reader struct {
+ 	r io.Reader;
+@@ -48,7 +47,7 @@ type Reader struct {
+ func (tr *Reader) skipUnread()
+ func (tr *Reader) readHeader() *Header
+ 
+-// NewReader creates a new Reader reading the given io.Reader.
++// NewReader creates a new Reader reading from r.
+ func NewReader(r io.Reader) *Reader {
+ 	return &Reader{ r: r }
+ }
+diff --git a/src/pkg/archive/tar/untar_test.go b/src/pkg/archive/tar/reader_test.go
+similarity index 100%
+rename from src/pkg/archive/tar/untar_test.go
+rename to src/pkg/archive/tar/reader_test.go
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 57e9a4607c..fbb0031fc5 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -28,7 +28,7 @@ var (
+ // writing at most hdr.Size bytes in total.
+ //
+ // Example:
+-// 	tw := NewTarWriter(w);
++// 	tw := tar.NewWriter(w);
+ //	hdr := new(Header);
+ //	hdr.Size = length of data in bytes;
+ //	// populate other hdr fields as desired
+@@ -112,19 +112,19 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	// TODO(dsymonds): handle names longer than 100 chars
+ 	nr := bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+ 
+-	tw.octal(s.next(8), hdr.Mode);
+-	tw.octal(s.next(8), hdr.Uid);
+-	tw.octal(s.next(8), hdr.Gid);
+-	tw.octal(s.next(12), hdr.Size);
+-	tw.octal(s.next(12), hdr.Mtime);
+-	s.next(8);  // chksum
+-	s.next(1)[0] = hdr.Typeflag;
+-	s.next(100);  // linkname
+-	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));
+-	tw.cString(s.next(32), hdr.Uname);
+-	tw.cString(s.next(32), hdr.Gname);
+-	tw.octal(s.next(8), hdr.Devmajor);
+-	tw.octal(s.next(8), hdr.Devminor);
++	tw.octal(s.next(8), hdr.Mode);	// 100:108
++	tw.octal(s.next(8), hdr.Uid);	// 108:116
++	tw.octal(s.next(8), hdr.Gid);	// 116:124
++	tw.octal(s.next(12), hdr.Size);	// 124:136
++	tw.octal(s.next(12), hdr.Mtime);	// 136:148
++	s.next(8);  // chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag;	// 156:157
++	s.next(100);  // linkname (157:257)
++	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
++	tw.cString(s.next(32), hdr.Uname);	// 265:297
++	tw.cString(s.next(32), hdr.Gname);	// 297:329
++	tw.octal(s.next(8), hdr.Devmajor);	// 329:337
++	tw.octal(s.next(8), hdr.Devminor);	// 337:345
+ 
+ 	// The chksum field is terminated by a NUL and a space.
+ 	// This is different from the other octal fields.
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 202530a0f0..5ada36b530 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -62,30 +62,39 @@ var writerTests = []*writerTest{
+ }
+ 
+ // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
+-func bytestr(b []byte) string {
+-	s := fmt.Sprintf("(%d bytes)\n", len(b));
++func bytestr(offset int, b []byte) string {
+ 	const rowLen = 32;
++	s := fmt.Sprintf("%04x ", offset);
+ 	for i, ch := range b {
+-		if i % rowLen == 0 {
+-			// start of line: hex offset
+-			s += fmt.Sprintf("%04x", i);
+-		}
+ 		switch {
+ 		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
+ 			s += fmt.Sprintf("  %c", ch);
+ 		default:
+ 			s += fmt.Sprintf(" %02x", ch);
+ 		}
+-		if (i + 1) % rowLen == 0 {
+-			// end of line
+-			s += "\n";
+-		} else if (i + 1) % (rowLen / 2) == 0 {
+-			// extra space
+-			s += " ";
+-		}
+ 	}
+-	if s[len(s)-1] != '\n' {
+-		s += "\n"
++	return s
++}
++
++// Render a pseudo-diff between two blocks of bytes.
++func bytediff(a []byte, b []byte) string {
++	const rowLen = 32;
++	s := fmt.Sprintf("(%d bytes vs. %d bytes)\n", len(a), len(b));
++	for offset := 0; len(a) + len(b) > 0; offset += rowLen {
++		na, nb := rowLen, rowLen;
++		if na > len(a) {
++			na = len(a);
++		}
++		if nb > len(b) {
++			nb = len(b);
++		}
++		sa := bytestr(offset, a[0:na]);
++		sb := bytestr(offset, b[0:nb]);
++		if sa != sb {
++			s += fmt.Sprintf("-%v\n+%v\n", sa, sb);
++		}
++		a = a[na:len(a)];
++		b = b[nb:len(b)];
+ 	}
+ 	return s
+ }
+@@ -115,8 +124,8 @@ testLoop:
+ 
+ 		actual := buf.Data();
+ 		if !bytes.Equal(expected, actual) {
+-			t.Errorf("test %d: Incorrect result:\n%v\nwant:\n%v",
+-				 i, bytestr(actual), bytestr(expected));
++			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
++			         i, bytediff(expected, actual));
+ 		}
+ 	}
+ }

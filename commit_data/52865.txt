@@ -10,9 +10,80 @@ Date:   Tue Jun 7 10:43:51 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410876
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go           |  2 +-
  .../internal/types2/testdata/fixedbugs/issue40350.go     | 16 ++++++++++++++++
  src/go/types/instantiate.go                              |  2 +-
  src/go/types/testdata/fixedbugs/issue40350.go            | 16 ++++++++++++++++
  4 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index f338e28d2e..45f7e43ccf 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -277,7 +277,7 @@ func (check *Checker) implements(V, T Type) error {
+ 		if alt != nil {
+ 			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+ 		} else {
+-			return errorf("%s does not implement %s", V, T)
++			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go
+new file mode 100644
+index 0000000000..7ffd551c2e
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type number interface {
++	~float64 | ~int | ~int32
++	float64 | ~int32
++}
++
++func f[T number]() {}
++
++func _() {
++	_ = f[int /* ERROR int does not implement number \(int missing in float64 | ~int32\)*/]
++}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6091b0b381..e6b731f241 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -277,7 +277,7 @@ func (check *Checker) implements(V, T Type) error {
+ 		if alt != nil {
+ 			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+ 		} else {
+-			return errorf("%s does not implement %s", V, T)
++			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue40350.go b/src/go/types/testdata/fixedbugs/issue40350.go
+new file mode 100644
+index 0000000000..7ffd551c2e
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue40350.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type number interface {
++	~float64 | ~int | ~int32
++	float64 | ~int32
++}
++
++func f[T number]() {}
++
++func _() {
++	_ = f[int /* ERROR int does not implement number \(int missing in float64 | ~int32\)*/]
++}

@@ -9,7 +9,62 @@ Date:   Fri Feb 10 13:35:03 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/5654046
-
+---
  src/pkg/exp/types/gcimporter.go      | 11 +++++++----
  src/pkg/exp/types/gcimporter_test.go |  2 +-
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index a573fbb246..8b28aede1e 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -11,12 +11,12 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
++	"go/build"
+ 	"go/token"
+ 	"io"
+ 	"math/big"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"strconv"
+ 	"text/scanner"
+ )
+@@ -24,7 +24,6 @@ import (
+ const trace = false // set to true for debugging
+ 
+ var (
+-	pkgRoot = filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH)
+ 	pkgExts = [...]string{".a", ".5", ".6", ".8"}
+ )
+ 
+@@ -39,8 +38,12 @@ func findPkg(path string) (filename, id string) {
+ 	var noext string
+ 	switch path[0] {
+ 	default:
+-		// "x" -> "$GOROOT/pkg/$GOOS_$GOARCH/x.ext", "x"
+-		noext = filepath.Join(pkgRoot, path)
++		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
++		tree, pkg, err := build.FindTree(path)
++		if err != nil {
++			return
++		}
++		noext = filepath.Join(tree.PkgDir(), pkg)
+ 
+ 	case '.':
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index 912d467ea0..5411f3bcce 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -61,7 +61,7 @@ func testPath(t *testing.T, path string) bool {
+ const maxTime = 3 * time.Second
+ 
+ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+-	dirname := filepath.Join(pkgRoot, dir)
++	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+ 	list, err := ioutil.ReadDir(dirname)
+ 	if err != nil {
+ 		t.Errorf("testDir(%s): %s", dirname, err)

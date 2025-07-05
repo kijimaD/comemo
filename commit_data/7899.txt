@@ -7,6 +7,23 @@ Date:   Mon Mar 28 15:55:48 2011 -0700
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4289079
-
+---
  lib/godoc/search.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/godoc/search.txt b/lib/godoc/search.txt
+index eff4d36fc8..967c1ac015 100644
+--- a/lib/godoc/search.txt
++++ b/lib/godoc/search.txt
+@@ -46,9 +46,9 @@ package {Pak.Name}
+ {.end}
+ {.section Textual}
+ {.section Complete}
+-{Found} TEXTUAL OCCURENCES
++{Found} TEXTUAL OCCURRENCES
+ {.or}
+-MORE THAN {Found} TEXTUAL OCCURENCES
++MORE THAN {Found} TEXTUAL OCCURRENCES
+ {.end}
+ 
+ {.repeated section @}

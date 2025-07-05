@@ -17,6 +17,20 @@ Date:   Tue Jul 26 13:01:18 2016 -0400
     Change-Id: Iba86de57c24100adecac9cb5892ce180126c0ea6
     Reviewed-on: https://go-review.googlesource.com/25250
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/path/filepath/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 3c70cd8be6..1d8e35c969 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -177,7 +177,7 @@ func FromSlash(path string) string {
+ // SplitList splits a list of paths joined by the OS-specific ListSeparator,
+ // usually found in PATH or GOPATH environment variables.
+ // Unlike strings.Split, SplitList returns an empty slice when passed an empty
+-// string. SplitList does not replace slash characters in the returned paths.
++// string.
+ func SplitList(path string) []string {
+ 	return splitList(path)
+ }

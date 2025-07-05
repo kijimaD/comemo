@@ -13,7 +13,55 @@ Date:   Tue Jun 7 09:12:21 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  4 ++--
  test/typeparam/issue53254.go              | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d463c850f3..89869c77d6 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1349,7 +1349,7 @@ func (g *genInst) dictPass(info *instInfo) {
+ 			mce := m.(*ir.ConvExpr)
+ 			// Note: x's argument is still typed as a type parameter.
+ 			// m's argument now has an instantiated type.
+-			if mce.X.Type().HasShape() || m.Type().HasShape() {
++			if mce.X.Type().HasShape() || (m.Type().HasShape() && !m.Type().IsEmptyInterface()) {
+ 				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
+ 			}
+ 		case ir.ODOTTYPE, ir.ODOTTYPE2:
+@@ -1446,7 +1446,7 @@ func findDictType(info *instInfo, t *types.Type) int {
+ // instantiated node of the CONVIFACE node or XDOT node (for a bound method call) that is causing the
+ // conversion.
+ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, in ir.Node, dst *types.Type) ir.Node {
+-	assert(v.Type().HasShape() || in.Type().HasShape())
++	assert(v.Type().HasShape() || (in.Type().HasShape() && !in.Type().IsEmptyInterface()))
+ 	assert(dst.IsInterface())
+ 
+ 	if v.Type().IsInterface() {
+diff --git a/test/typeparam/issue53254.go b/test/typeparam/issue53254.go
+new file mode 100644
+index 0000000000..afc0f18471
+--- /dev/null
++++ b/test/typeparam/issue53254.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Interface[T any] interface {
++}
++
++func F[T any]() Interface[T] {
++	var i int
++	return i
++}
++
++func main() {
++	F[int]()
++}

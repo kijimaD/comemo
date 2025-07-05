@@ -10,7 +10,7 @@ Date:   Tue Oct 20 14:10:22 2009 -0700
     DELTA=685  (275 added, 409 deleted, 1 changed)
     OCL=35810
     CL=35933
-
+---
  src/clean.bash                                          | 2 +-
  src/pkg/Make.deps                                       | 1 +
  src/pkg/Makefile                                        | 1 +
@@ -19,3 +19,81 @@ Date:   Tue Oct 20 14:10:22 2009 -0700
  {usr/dsymonds => src/pkg/exp}/iterable/iterable_test.go | 0
  src/run.bash                                            | 5 -----
  7 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 2bfc88f22c..31cbdab86d 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -7,7 +7,7 @@ rm -rf $GOROOT/pkg/${GOOS}_$GOARCH
+ rm -f $GOROOT/lib/*.a
+ for i in lib9 libbio libcgo libmach libregexp cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+-	../usr/r/rpc ../usr/dsymonds/iterable \
++	../usr/r/rpc \
+ 	../test/bench
+ do(
+ 	cd $i || exit 1
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 49862d2dc6..9cd6ff34bf 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -30,6 +30,7 @@ encoding/git85.install: bytes.install io.install os.install strconv.install
+ exec.install: os.install strings.install
+ exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
++exp/iterable.install: container/vector.install
+ expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index cd50bb92fb..9da15b83a8 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -44,6 +44,7 @@ DIRS=\
+ 	exec\
+ 	exp/datafmt\
+ 	exp/eval\
++	exp/iterable\
+ 	expvar\
+ 	flag\
+ 	fmt\
+diff --git a/usr/dsymonds/iterable/Makefile b/src/pkg/exp/iterable/Makefile
+similarity index 93%
+rename from usr/dsymonds/iterable/Makefile
+rename to src/pkg/exp/iterable/Makefile
+index 3485d0ee43..18e9e81707 100644
+--- a/usr/dsymonds/iterable/Makefile
++++ b/src/pkg/exp/iterable/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=iterable
++TARG=exp/iterable
+ GOFILES=\
+ 	iterable.go\
+ 
+diff --git a/usr/dsymonds/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+similarity index 100%
+rename from usr/dsymonds/iterable/iterable.go
+rename to src/pkg/exp/iterable/iterable.go
+diff --git a/usr/dsymonds/iterable/iterable_test.go b/src/pkg/exp/iterable/iterable_test.go
+similarity index 100%
+rename from usr/dsymonds/iterable/iterable_test.go
+rename to src/pkg/exp/iterable/iterable_test.go
+diff --git a/src/run.bash b/src/run.bash
+index 619ba9b7d8..d88ea7852b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -59,11 +59,6 @@ time make
+ ./chanrun
+ ) || exit $?
+ 
+-(xcd ../usr/dsymonds/iterable
+-make clean
+-time make test
+-) || exit $?
+-
+ (xcd pkg/exp/ogle
+ make clean
+ time make ogle

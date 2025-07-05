@@ -26,10 +26,120 @@ Date:   Thu Feb 24 13:46:44 2011 -0800
     R=bradfitzgo, r, r2
     CC=golang-dev
     https://golang.org/cl/4230044
-
+---
  src/Make.pkg                     | 4 +---
  src/pkg/runtime/Makefile         | 7 ++++---
  src/pkg/runtime/darwin/thread.c  | 3 ++-
  src/pkg/runtime/freebsd/thread.c | 3 ++-
  src/pkg/runtime/linux/thread.c   | 3 ++-
  5 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 435c8943da..549936e53a 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -176,11 +176,9 @@ _cgo_defun.$O: _cgo_defun.c
+ # Generic build rules.
+ # These come last so that the rules above can override them
+ # for more specific file names.
+-%.$O: %.c
++%.$O: %.c $(HFILES)
+ 	$(CC) $(CFLAGS) $*.c
+ 
+ %.$O: %.s
+ 	$(AS) $*.s
+ 
+-%.$O: $(HFILES)
+-
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 38e1aa61e3..185397f570 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -94,6 +94,7 @@ HFILES=\
+ 	runtime.h\
+ 	hashmap.h\
+ 	malloc.h\
++	stack.h\
+ 	$(GOARCH)/asm.h\
+ 	$(GOOS)/os.h\
+ 	$(GOOS)/signals.h\
+@@ -141,13 +142,13 @@ version_$(GOOS).go:
+ 	./goc2c "`pwd`/$<" > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+-%.$O:	$(GOARCH)/%.c
++%.$O:	$(GOARCH)/%.c $(HFILES)
+ 	$(CC) $(CFLAGS) $<
+ 
+-%.$O:	$(GOOS)/%.c
++%.$O:	$(GOOS)/%.c $(HFILES)
+ 	$(CC) $(CFLAGS) $<
+ 
+-%.$O:	$(GOOS)/$(GOARCH)/%.c
++%.$O:	$(GOOS)/$(GOARCH)/%.c $(HFILES)
+ 	$(CC) $(CFLAGS) $<
+ 
+ %.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 57e813109c..235d69abfc 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "os.h"
++#include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+ 
+@@ -176,7 +177,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+-	runtime·signalstack(m->gsignal->stackguard, 32*1024);
++	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+ }
+ 
+ // Mach IPC, to get at semaphores
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 9bd8838335..569098aa21 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -4,6 +4,7 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "os.h"
++#include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+@@ -175,7 +176,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+-	runtime·signalstack(m->gsignal->stackguard, 32*1024);
++	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index d5f9a8fb0e..7166b0ef27 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "os.h"
++#include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+ 
+@@ -274,7 +275,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+-	runtime·signalstack(m->gsignal->stackguard, 32*1024);
++	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+ }
+ 
+ void

@@ -8,7 +8,41 @@ Date:   Tue Jul 8 13:42:14 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/112800043
-
+---
  src/pkg/net/cgo_android.go | 14 ++++++++++++++
  src/pkg/net/cgo_linux.go   |  2 +-
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/cgo_android.go b/src/pkg/net/cgo_android.go
+new file mode 100644
+index 0000000000..3819ce56a4
+--- /dev/null
++++ b/src/pkg/net/cgo_android.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo,!netgo
++
++package net
++
++//#include <netdb.h>
++import "C"
++
++func cgoAddrInfoFlags() C.int {
++	return C.AI_CANONNAME
++}
+diff --git a/src/pkg/net/cgo_linux.go b/src/pkg/net/cgo_linux.go
+index 693aef03d2..4ef2d0cd12 100644
+--- a/src/pkg/net/cgo_linux.go
++++ b/src/pkg/net/cgo_linux.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo,!netgo
++// +build !android,cgo,!netgo
+ 
+ package net
+ 

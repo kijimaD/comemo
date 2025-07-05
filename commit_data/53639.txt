@@ -15,7 +15,42 @@ Date:   Thu Aug 25 14:30:15 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/testdata/check/builtins0.go | 4 ++--
  src/go/types/typexpr.go                  | 1 +
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/testdata/check/builtins0.go b/src/go/types/testdata/check/builtins0.go
+index 936595b06b..f4932a8309 100644
+--- a/src/go/types/testdata/check/builtins0.go
++++ b/src/go/types/testdata/check/builtins0.go
+@@ -482,7 +482,7 @@ func make1() {
+ }
+ 
+ func make2() {
+-	f1 /* ERROR not used */ := func() (x []int) { return }
++	f1 := func() (x []int) { return }
+ 	_ = make(f0 /* ERROR not a type */ ())
+ 	_ = make(f1 /* ERROR not a type */ ())
+ }
+@@ -502,7 +502,7 @@ func new1() {
+ }
+ 
+ func new2() {
+-	f1 /* ERROR not used */ := func() (x []int) { return }
++	f1 := func() (x []int) { return }
+ 	_ = new(f0 /* ERROR not a type */ ())
+ 	_ = new(f1 /* ERROR not a type */ ())
+ }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 397bd75db3..13adb9f2a9 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -377,6 +377,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 	default:
+ 		check.errorf(e0, _NotAType, "%s is not a type", e0)
++		check.use(e0)
+ 	}
+ 
+ 	typ := Typ[Invalid]

@@ -16,10 +16,95 @@ Date:   Tue Jan 7 11:09:33 2020 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s   | 2 ++
  src/cmd/asm/internal/asm/testdata/arm64error.s | 3 +++
  src/cmd/internal/obj/arm64/a.out.go            | 1 +
  src/cmd/internal/obj/arm64/anames.go           | 1 +
  src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++++
  5 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 71270ce43f..a483c731b8 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -712,6 +712,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    VPMULL2 V2.B16, V1.B16, V4.H8                               // 24e0224e
+    VRBIT V10.B16, V21.B16                                      // 5559606e
+    VREV32 V2.H8, V1.H8                                         // 4108606e
++   VREV16 V2.B8, V1.B8                                         // 4118200e
++   VREV16 V5.B16, V16.B16                                      // b018204e
+    SCVTFWS R6, F17                                             // d100221e
+    SCVTFWD R3, F15                                             // 6f00621e
+    SCVTFS R20, F25                                             // 9902229e
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 7dfca1a1fe..0661a474b4 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -106,6 +106,9 @@ TEXT errors(SB),$0
+ 	VST1.P	[V1.B16], (R8)(R9<<1)                            // ERROR "invalid extended register"
+ 	VREV64	V1.H4, V2.H8                                     // ERROR "invalid arrangement"
+ 	VREV64	V1.D1, V2.D1                                     // ERROR "invalid arrangement"
++	VREV16	V1.D1, V2.D1                                     // ERROR "invalid arrangement"
++	VREV16	V1.B8, V2.B16                                    // ERROR "invalid arrangement"
++	VREV16	V1.H4, V2.H4                                     // ERROR "invalid arrangement"
+ 	FLDPD	(R0), (R1, R2)                                   // ERROR "invalid register pair"
+ 	FLDPD	(R1), (F2, F2)                                   // ERROR "constrained unpredictable behavior"
+ 	FLDPS	(R2), (F3, F3)                                   // ERROR "constrained unpredictable behavior"
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 30362081e1..152c493a65 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -962,6 +962,7 @@ const (
+ 	AVLD3R
+ 	AVLD4R
+ 	AVORR
++	AVREV16
+ 	AVREV32
+ 	AVREV64
+ 	AVST1
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index e4dd5f2eb1..565f70aaf9 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -469,6 +469,7 @@ var Anames = []string{
+ 	"VLD3R",
+ 	"VLD4R",
+ 	"VORR",
++	"VREV16",
+ 	"VREV32",
+ 	"VREV64",
+ 	"VST1",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 971e1bdd64..b7e5b9fc17 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2719,6 +2719,7 @@ func buildop(ctxt *obj.Link) {
+ 		case AVREV32:
+ 			oprangeset(AVRBIT, t)
+ 			oprangeset(AVREV64, t)
++			oprangeset(AVREV16, t)
+ 
+ 		case AVZIP1:
+ 			oprangeset(AVZIP2, t)
+@@ -4471,6 +4472,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+ 
++		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
++			c.ctxt.Diag("invalid arrangement: %v", p)
++		}
++
+ 		if p.As == AVMOV {
+ 			o1 |= uint32(rf&31) << 16
+ 		}
+@@ -5594,6 +5599,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	case AVORR:
+ 		return 7<<25 | 5<<21 | 7<<10
+ 
++	case AVREV16:
++		return 3<<26 | 2<<24 | 1<<21 | 3<<11
++
+ 	case AVREV32:
+ 		return 11<<26 | 2<<24 | 1<<21 | 1<<11
+ 

@@ -14,6 +14,23 @@ Date:   Wed Nov 15 21:05:02 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/542736
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  test/finprofiled.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/test/finprofiled.go b/test/finprofiled.go
+index ca7e3c81dc..ef8f61c802 100644
+--- a/test/finprofiled.go
++++ b/test/finprofiled.go
+@@ -57,6 +57,11 @@ func main() {
+ 	for _, p := range prof {
+ 		bytes := p.AllocBytes - p.FreeBytes
+ 		nobj := p.AllocObjects - p.FreeObjects
++		if nobj == 0 {
++			// There may be a record that has had all of its objects
++			// freed. That's fine. Avoid a divide-by-zero and skip.
++			continue
++		}
+ 		size := bytes / nobj
+ 		if size == tinyBlockSize {
+ 			totalBytes += bytes

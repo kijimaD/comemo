@@ -10,7 +10,71 @@ Date:   Tue Oct 20 14:21:07 2020 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/cpu/cpu_s390x.go | 15 +++++++++++++--
  src/runtime/os_linux_s390x.go |  9 ++-------
  2 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 526e074225..45d8ed27f0 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -6,6 +6,8 @@ package cpu
+ 
+ const CacheLinePadSize = 256
+ 
++var HWCap uint
++
+ // bitIsSet reports whether the bit at index is set. The bit index
+ // is in big endian order, so bit index 0 is the leftmost bit.
+ func bitIsSet(bits []uint64, index uint) bool {
+@@ -95,8 +97,10 @@ const (
+ 	// vector facilities
+ 	vxe facility = 135 // vector-enhancements 1
+ 
+-	// Note: vx and highgprs are excluded because they require
+-	// kernel support and so must be fetched from HWCAP.
++	// Note: vx requires kernel support
++	// and so must be fetched from HWCAP.
++
++	hwcap_VX = 1 << 11 // vector facility
+ )
+ 
+ // facilityList contains the result of an STFLE call.
+@@ -188,7 +192,14 @@ func doinit() {
+ 			S390X.HasEDDSA = kdsa.Has(eddsaVerifyEd25519, eddsaSignEd25519, eddsaVerifyEd448, eddsaSignEd448)
+ 		}
+ 	}
++
++	S390X.HasVX = isSet(HWCap, hwcap_VX)
++
+ 	if S390X.HasVX {
+ 		S390X.HasVXE = facilities.Has(vxe)
+ 	}
+ }
++
++func isSet(hwc uint, value uint) bool {
++	return hwc&value != 0
++}
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index ee18fd1dc2..b9651f186c 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -6,15 +6,10 @@ package runtime
+ 
+ import "internal/cpu"
+ 
+-const (
+-	// bit masks taken from bits/hwcap.h
+-	_HWCAP_S390_VX = 2048 // vector facility
+-)
+-
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_HWCAP: // CPU capability bit flags
+-		cpu.S390X.HasVX = val&_HWCAP_S390_VX != 0
++	case _AT_HWCAP:
++		cpu.HWCap = uint(val)
+ 	}
+ }
+ 

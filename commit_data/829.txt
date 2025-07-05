@@ -8,6 +8,24 @@ Date:   Wed Oct 8 09:46:20 2008 -0700
     DELTA=6  (6 added, 0 deleted, 0 changed)
     OCL=16726
     CL=16726
-
+---
  src/make.bash | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index 3ff193145e..df70e41f48 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -6,6 +6,12 @@
+ set -e
+ export MAKEFLAGS=-j4
+ 
++if ! test -f $GOROOT/include/u.h
++then
++	echo '$GOROOT is not set correctly or not exported' 1>&2
++	exit 1
++fi
++
+ bash clean.bash
+ 
+ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib

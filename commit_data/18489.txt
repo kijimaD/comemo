@@ -11,6 +11,20 @@ Date:   Thu Feb 13 07:28:22 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/62910043
-
+---
  src/cmd/gc/popt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 3fa1cf9a71..cfb2791acf 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -697,7 +697,7 @@ mergetemp(Prog *firstp)
+ 	if(Debug) {
+ 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
+ 		for(v=var; v<var+nvar; v++) {
+-			print("var %#N %T %d-%d", v->node, v->node->type, v->start, v->end);
++			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
+ 			if(v->addr)
+ 				print(" addr=1");
+ 			if(v->removed)

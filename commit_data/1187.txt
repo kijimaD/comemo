@@ -7,6 +7,19 @@ Date:   Wed Nov 19 13:01:32 2008 -0800
     TBR=r
     OCL=19600
     CL=19600
-
+---
  src/make.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index 0c9475f4d0..a6f5fd92c6 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -14,6 +14,7 @@ fi
+ 
+ bash clean.bash
+ 
++rm -f $HOME/bin/quietgcc
+ cp quietgcc.bash $HOME/bin/quietgcc
+ chmod +x $HOME/bin/quietgcc
+ 

@@ -16,7 +16,49 @@ Date:   Mon Jul 25 06:31:46 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/response_test.go | 13 -------------
  src/net/http/server.go        |  6 ------
  2 files changed, 19 deletions(-)
+
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 5a735b0215..2500e420dd 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -972,19 +972,6 @@ func matchErr(err error, wantErr any) error {
+ 	return fmt.Errorf("%v; want %v", err, wantErr)
+ }
+ 
+-func TestNeedsSniff(t *testing.T) {
+-	// needsSniff returns true with an empty response.
+-	r := &response{}
+-	if got, want := r.needsSniff(), true; got != want {
+-		t.Errorf("needsSniff = %t; want %t", got, want)
+-	}
+-	// needsSniff returns false when Content-Type = nil.
+-	r.handlerHeader = Header{"Content-Type": nil}
+-	if got, want := r.needsSniff(), false; got != want {
+-		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
+-	}
+-}
+-
+ // A response should only write out single Connection: close header. Tests #19499.
+ func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
+ 	const connectionCloseHeader = "Connection: close"
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 960f7d6482..f4149e41a3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -555,12 +555,6 @@ func (w *response) requestTooLarge() {
+ 	}
+ }
+ 
+-// needsSniff reports whether a Content-Type still needs to be sniffed.
+-func (w *response) needsSniff() bool {
+-	_, haveType := w.handlerHeader["Content-Type"]
+-	return !w.cw.wroteHeader && !haveType && w.written < sniffLen
+-}
+-
+ // writerOnly hides an io.Writer value's optional ReadFrom method
+ // from io.Copy.
+ type writerOnly struct {

@@ -12,6 +12,21 @@ Date:   Tue Apr 12 19:48:01 2016 +0000
     Change-Id: Ibfeacddc98dac1da316e704b5c8491617a13e3bf
     Reviewed-on: https://go-review.googlesource.com/21901
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/dial_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index f8e90abb48..466adf060e 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -823,6 +823,9 @@ func TestDialCancel(t *testing.T) {
+ 	if testing.Short() && !onGoBuildFarm {
+ 		t.Skip("skipping in short mode")
+ 	}
++	if testenv.Builder() == "linux-arm64-buildlet" {
++		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
++	}
+ 
+ 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+ 	if !supportsIPv4 {

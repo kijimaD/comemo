@@ -9,7 +9,112 @@ Date:   Tue Sep 20 11:28:00 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5093042
-
+---
  src/pkg/gob/decode.go         | 18 ++++++------------
  src/pkg/gob/gobencdec_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
  2 files changed, 44 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 9bbe1286e0..60c0e10cea 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -467,20 +467,17 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
+ // decodeSingle decodes a top-level value that is not a struct and stores it through p.
+ // Such values are preceded by a zero, making them have the memory layout of a
+ // struct field (although with an illegal field number).
+-func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr) (err os.Error) {
+-	indir := ut.indir
+-	if ut.isGobDecoder {
+-		indir = int(ut.decIndir)
+-	}
+-	p = allocate(ut.base, p, indir)
++func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) (err os.Error) {
+ 	state := dec.newDecoderState(&dec.buf)
+ 	state.fieldnum = singletonField
+-	basep := p
+ 	delta := int(state.decodeUint())
+ 	if delta != 0 {
+ 		errorf("decode: corrupted data: non-zero delta for singleton")
+ 	}
+ 	instr := &engine.instr[singletonField]
++	if instr.indir != ut.indir {
++		return os.NewError("gob: internal error: inconsistent indirection")
++	}
+ 	ptr := unsafe.Pointer(basep) // offset will be zero
+ 	if instr.indir > 1 {
+ 		ptr = decIndirect(ptr, instr.indir)
+@@ -1069,10 +1066,7 @@ func (dec *Decoder) typeString(remoteId typeId) string {
+ // compileSingle compiles the decoder engine for a non-struct top-level value, including
+ // GobDecoders.
+ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
+-	rt := ut.base
+-	if ut.isGobDecoder {
+-		rt = ut.user
+-	}
++	rt := ut.user
+ 	engine = new(decEngine)
+ 	engine.instr = make([]decInstr, 1) // one item
+ 	name := rt.String()                // best we can do
+@@ -1202,7 +1196,7 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
+ 		dec.decodeIgnoredValue(wireId)
+ 		return
+ 	}
+-	// Dereference down to the underlying struct type.
++	// Dereference down to the underlying type.
+ 	ut := userType(val.Type())
+ 	base := ut.base
+ 	var enginePtr **decEngine
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index 371a43c8f5..01addbe235 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -424,7 +424,7 @@ func TestGobEncoderNonStructSingleton(t *testing.T) {
+ 		t.Fatal("decode error:", err)
+ 	}
+ 	if x != 1234 {
+-		t.Errorf("expected 1234 got %c", x)
++		t.Errorf("expected 1234 got %d", x)
+ 	}
+ }
+ 
+@@ -488,3 +488,40 @@ func TestGobEncoderIgnoreNilEncoder(t *testing.T) {
+ 		t.Errorf("expected x.G = nil, got %v", x.G)
+ 	}
+ }
++
++type gobDecoderBug0 struct {
++	foo, bar string
++}
++
++func (br *gobDecoderBug0) String() string {
++	return br.foo + "-" + br.bar
++}
++
++func (br *gobDecoderBug0) GobEncode() ([]byte, os.Error) {
++	return []byte(br.String()), nil
++}
++
++func (br *gobDecoderBug0) GobDecode(b []byte) os.Error {
++	br.foo = "foo"
++	br.bar = "bar"
++	return nil
++}
++
++// This was a bug: the receiver has a different indirection level
++// than the variable.
++func TestGobEncoderExtraIndirect(t *testing.T) {
++	gdb := &gobDecoderBug0{"foo", "bar"}
++	buf := new(bytes.Buffer)
++	e := NewEncoder(buf)
++	if err := e.Encode(gdb); err != nil {
++		t.Fatalf("encode: %v", err)
++	}
++	d := NewDecoder(buf)
++	var got *gobDecoderBug0
++	if err := d.Decode(&got); err != nil {
++		t.Fatalf("decode: %v", err)
++	}
++	if got.foo != gdb.foo || got.bar != gdb.bar {
++		t.Errorf("got = %q, want %q", got, gdb)
++	}
++}

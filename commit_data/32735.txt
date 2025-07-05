@@ -14,7 +14,48 @@ Date:   Mon Mar 27 13:28:19 2017 +0000
     Change-Id: I87f0618ac31e96071bca61055cc17c0cbdee208a
     Reviewed-on: https://go-review.googlesource.com/38640
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 8 ++++++++
  src/cmd/go/internal/test/test.go | 3 +++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f52d8d2a44..6a2f35d39b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1437,6 +1437,9 @@
+ // 	-cover
+ // 	    Enable coverage analysis.
+ //
++// 	    BUG: If a compilation or test fails with coverage enabled,
++// 	    the reported line numbers may be incorrect.
++//
+ // 	-covermode set,count,atomic
+ // 	    Set the mode for coverage analysis for the package[s]
+ // 	    being tested. The default is "set" unless -race is enabled,
+@@ -1459,6 +1462,11 @@
+ // 	    benchmarks should be executed.  The default is the current value
+ // 	    of GOMAXPROCS.
+ //
++// 	-list regexp
++// 	    List tests, benchmarks, or examples matching the regular expression.
++// 	    No tests, benchmarks or examples will be run. This will only
++// 	    list top-level tests. No subtest or subbenchmarks will be shown.
++//
+ // 	-parallel n
+ // 	    Allow parallel execution of test functions that call t.Parallel.
+ // 	    The value of this flag is the maximum number of tests to run
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index aae3af4080..f362984d29 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -162,6 +162,9 @@ const testFlag2 = `
+ 	-cover
+ 	    Enable coverage analysis.
+ 
++	    BUG: If a compilation or test fails with coverage enabled,
++	    the reported line numbers may be incorrect.
++
+ 	-covermode set,count,atomic
+ 	    Set the mode for coverage analysis for the package[s]
+ 	    being tested. The default is "set" unless -race is enabled,

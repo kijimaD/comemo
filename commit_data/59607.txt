@@ -17,6 +17,21 @@ Date:   Sat Mar 30 09:13:39 2024 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/doc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index c2e375165c..1c5d4b060d 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -402,7 +402,8 @@ controlled by the cgocheck setting of the GODEBUG environment
+ variable. The default setting is GODEBUG=cgocheck=1, which implements
+ reasonably cheap dynamic checks. These checks may be disabled
+ entirely using GODEBUG=cgocheck=0. Complete checking of pointer
+-handling, at some cost in run time, is available via GODEBUG=cgocheck=2.
++handling, at some cost in run time, is available by setting
++GOEXPERIMENT=cgocheck2 at build time.
+ 
+ It is possible to defeat this enforcement by using the unsafe package,
+ and of course there is nothing stopping the C code from doing anything

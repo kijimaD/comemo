@@ -11,6 +11,35 @@ Date:   Fri Feb 15 18:55:45 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/syscall/syscall_linux_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 293549a841..8a578639bd 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -360,10 +360,23 @@ func TestSyscallNoError(t *testing.T) {
+ 		strconv.FormatUint(uint64(-uid), 10) + " / " +
+ 		strconv.FormatUint(uint64(uid), 10)
+ 	if got != want {
++		if filesystemIsNoSUID(tmpBinary) {
++			t.Skip("skipping test when temp dir is mounted nosuid")
++		}
+ 		t.Errorf("expected %s, got %s", want, got)
+ 	}
+ }
+ 
++// filesystemIsNoSUID reports whether the filesystem for the given
++// path is mounted nosuid.
++func filesystemIsNoSUID(path string) bool {
++	var st syscall.Statfs_t
++	if syscall.Statfs(path, &st) != nil {
++		return false
++	}
++	return st.Flags&syscall.MS_NOSUID != 0
++}
++
+ func syscallNoError() {
+ 	// Test that the return value from SYS_GETEUID32 (which cannot fail)
+ 	// doesn't get treated as an error (see https://golang.org/issue/22924)

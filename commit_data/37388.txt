@@ -9,9 +9,176 @@ Date:   Tue Jul 24 00:24:49 2018 +0000
     Change-Id: If117ba3e7d031f84b30d3a721ef99fe622734de2
     Reviewed-on: https://go-review.googlesource.com/125575
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/client.go      | 40 +++++++++++++++++++++++++++++++++++-----
  src/net/http/export_test.go | 17 +++++++++++++++++
  src/net/http/roundtrip.go   |  3 +++
  src/net/http/server.go      |  2 +-
  4 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index da35557e3f..fc4a792edd 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -357,7 +357,9 @@ func basicAuth(username, password string) string {
+ //
+ // An error is returned if there were too many redirects or if there
+ // was an HTTP protocol error. A non-2xx response doesn't cause an
+-// error.
++// error. Any returned error will be of type *url.Error. The url.Error
++// value's Timeout method will report true if request timed out or was
++// canceled.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+@@ -382,7 +384,9 @@ func Get(url string) (resp *Response, err error) {
+ //
+ // An error is returned if the Client's CheckRedirect function fails
+ // or if there was an HTTP protocol error. A non-2xx response doesn't
+-// cause an error.
++// cause an error. Any returned error will be of type *url.Error. The
++// url.Error value's Timeout method will report true if request timed
++// out or was canceled.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+@@ -457,6 +461,15 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
+ 	return redirectMethod, shouldRedirect, includeBody
+ }
+ 
++// urlErrorOp returns the (*url.Error).Op value to use for the
++// provided (*Request).Method value.
++func urlErrorOp(method string) string {
++	if method == "" {
++		return "Get"
++	}
++	return method[:1] + strings.ToLower(method[1:])
++}
++
+ // Do sends an HTTP request and returns an HTTP response, following
+ // policy (such as redirects, cookies, auth) as configured on the
+ // client.
+@@ -490,10 +503,26 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
+ // provided that the Request.GetBody function is defined.
+ // The NewRequest function automatically sets GetBody for common
+ // standard library body types.
++//
++// Any returned error will be of type *url.Error. The url.Error
++// value's Timeout method will report true if request timed out or was
++// canceled.
+ func (c *Client) Do(req *Request) (*Response, error) {
++	return c.do(req)
++}
++
++var testHookClientDoResult func(retres *Response, reterr error)
++
++func (c *Client) do(req *Request) (retres *Response, reterr error) {
++	if testHookClientDoResult != nil {
++		defer func() { testHookClientDoResult(retres, reterr) }()
++	}
+ 	if req.URL == nil {
+ 		req.closeBody()
+-		return nil, errors.New("http: nil Request.URL")
++		return nil, &url.Error{
++			Op:  urlErrorOp(req.Method),
++			Err: errors.New("http: nil Request.URL"),
++		}
+ 	}
+ 
+ 	var (
+@@ -512,7 +541,6 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 		if !reqBodyClosed {
+ 			req.closeBody()
+ 		}
+-		method := valueOrDefault(reqs[0].Method, "GET")
+ 		var urlStr string
+ 		if resp != nil && resp.Request != nil {
+ 			urlStr = stripPassword(resp.Request.URL)
+@@ -520,7 +548,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 			urlStr = stripPassword(req.URL)
+ 		}
+ 		return &url.Error{
+-			Op:  method[:1] + strings.ToLower(method[1:]),
++			Op:  urlErrorOp(reqs[0].Method),
+ 			URL: urlStr,
+ 			Err: err,
+ 		}
+@@ -617,6 +645,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 			reqBodyClosed = true
+ 			if !deadline.IsZero() && didTimeout() {
+ 				err = &httpError{
++					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+ 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
+ 					timeout: true,
+ 				}
+@@ -827,6 +856,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
+ 	}
+ 	if b.reqDidTimeout() {
+ 		err = &httpError{
++			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+ 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
+ 			timeout: true,
+ 		}
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 5ff85bc7c8..bc0db53a2c 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -9,7 +9,9 @@ package http
+ 
+ import (
+ 	"context"
++	"fmt"
+ 	"net"
++	"net/url"
+ 	"sort"
+ 	"sync"
+ 	"testing"
+@@ -40,6 +42,21 @@ func init() {
+ 	// When not under test, these values are always nil
+ 	// and never assigned to.
+ 	testHookMu = new(sync.Mutex)
++
++	testHookClientDoResult = func(res *Response, err error) {
++		if err != nil {
++			if _, ok := err.(*url.Error); !ok {
++				panic(fmt.Sprintf("unexpected Client.Do error of type %T; want *url.Error", err))
++			}
++		} else {
++			if res == nil {
++				panic("Client.Do returned nil, nil")
++			}
++			if res.Body == nil {
++				panic("Client.Do returned nil res.Body and no error")
++			}
++		}
++	}
+ }
+ 
+ var (
+diff --git a/src/net/http/roundtrip.go b/src/net/http/roundtrip.go
+index c8e691cc46..2ec736bfb1 100644
+--- a/src/net/http/roundtrip.go
++++ b/src/net/http/roundtrip.go
+@@ -10,6 +10,9 @@ package http
+ //
+ // For higher-level HTTP client support (such as handling of cookies
+ // and redirects), see Get, Post, and the Client type.
++//
++// Like the RoundTripper interface, the error types returned
++// by RoundTrip are unspecified.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	return t.roundTrip(req)
+ }
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 91caca7267..0e34b72320 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2426,7 +2426,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+ // connections and they were configured with "h2" in the TLS
+ // Config.NextProtos.
+ //
+-// Serve always returns a non-nil reror.
++// Serve always returns a non-nil error.
+ func Serve(l net.Listener, handler Handler) error {
+ 	srv := &Server{Handler: handler}
+ 	return srv.Serve(l)

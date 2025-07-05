@@ -11,7 +11,51 @@ Date:   Thu Sep 23 20:50:48 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/error_test.go  | 4 ++--
  src/cmd/compile/internal/syntax/parser_test.go | 7 ++-----
  2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index 30e68ff1d9..0952ddc647 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -154,11 +154,11 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 		if found {
+ 			rx, err := regexp.Compile(pattern)
+ 			if err != nil {
+-				t.Errorf("%s: %v", pos, err)
++				t.Errorf("%s:%s: %v", filename, pos, err)
+ 				return
+ 			}
+ 			if match := rx.MatchString(e.Msg); !match {
+-				t.Errorf("%s: %q does not match %q", pos, e.Msg, pattern)
++				t.Errorf("%s:%s: %q does not match %q", filename, pos, e.Msg, pattern)
+ 				return
+ 			}
+ 			// we have a match - eliminate this error
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 6afe109e1b..04a16e96fe 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -51,10 +51,7 @@ func TestParseGo2(t *testing.T) {
+ 	}
+ }
+ 
+-func TestStdLib(t *testing.T)        { testStdLib(t, 0) }
+-func TestStdLibGeneric(t *testing.T) { testStdLib(t, AllowGenerics) }
+-
+-func testStdLib(t *testing.T, mode Mode) {
++func TestStdLib(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test in short mode")
+ 	}
+@@ -93,7 +90,7 @@ func testStdLib(t *testing.T, mode Mode) {
+ 				if debug {
+ 					fmt.Printf("parsing %s\n", filename)
+ 				}
+-				ast, err := ParseFile(filename, nil, nil, mode)
++				ast, err := ParseFile(filename, nil, nil, AllowGenerics)
+ 				if err != nil {
+ 					t.Error(err)
+ 					return

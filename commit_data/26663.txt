@@ -10,7 +10,111 @@ Date:   Sat Feb 20 11:06:35 2016 -0800
     Change-Id: I246194705d594f80426f3ba77d8580af9185daf7
     Reviewed-on: https://go-review.googlesource.com/19759
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go    | 29 +++++++++++++++++------------
  src/cmd/compile/internal/gc/parser.go | 19 ++++---------------
  2 files changed, 21 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 08545df953..a6f65bec62 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -866,10 +866,15 @@ func isfrog(c int) bool {
+ 	return false
+ }
+ 
+-type yySymType struct {
+-	sym *Sym
+-	val Val
+-	op  Op
++type lexer struct {
++	// TODO(gri) move other lexer state here and out of global variables
++	// (source, current line number, etc.)
++
++	// current token
++	tok  int32
++	sym_ *Sym // valid if tok == LNAME
++	val  Val  // valid if tok == LLITERAL
++	op   Op   // valid if tok == LASOP
+ }
+ 
+ const (
+@@ -920,7 +925,7 @@ const (
+ 	LRSH
+ )
+ 
+-func _yylex(yylval *yySymType) int32 {
++func (yylval *lexer) _yylex() int32 {
+ 	var c1 int
+ 	var op Op
+ 	var escflag int
+@@ -1402,7 +1407,7 @@ talph:
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
+ 	}
+-	yylval.sym = s
++	yylval.sym_ = s
+ 	return int32(s.Lexical)
+ 
+ ncu:
+@@ -1828,16 +1833,16 @@ func pragcgo(text string) {
+ 	}
+ }
+ 
+-func yylex(yylval *yySymType) int32 {
+-	lx := _yylex(yylval)
++func (l *lexer) next() {
++	tok := l._yylex()
+ 
+-	if curio.nlsemi && lx == EOF {
++	if curio.nlsemi && tok == EOF {
+ 		// Treat EOF as "end of line" for the purposes
+ 		// of inserting a semicolon.
+-		lx = ';'
++		tok = ';'
+ 	}
+ 
+-	switch lx {
++	switch tok {
+ 	case LNAME,
+ 		LLITERAL,
+ 		LBREAK,
+@@ -1855,7 +1860,7 @@ func yylex(yylval *yySymType) int32 {
+ 		curio.nlsemi = false
+ 	}
+ 
+-	return lx
++	l.tok = tok
+ }
+ 
+ func getc() int {
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 3a5b508393..deae40c21b 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -42,21 +42,10 @@ func parse_file(bin *obj.Biobuf) {
+ }
+ 
+ type parser struct {
+-	tok    int32     // next token (one-token look-ahead)
+-	op     Op        // valid if tok == LASOP
+-	val    Val       // valid if tok == LLITERAL
+-	sym_   *Sym      // valid if tok == LNAME
+-	fnest  int       // function nesting level (for error handling)
+-	xnest  int       // expression nesting level (for complit ambiguity resolution)
+-	yy     yySymType // for temporary use by next
+-	indent []byte    // tracing support
+-}
+-
+-func (p *parser) next() {
+-	p.tok = yylex(&p.yy)
+-	p.op = p.yy.op
+-	p.val = p.yy.val
+-	p.sym_ = p.yy.sym
++	lexer
++	fnest  int    // function nesting level (for error handling)
++	xnest  int    // expression nesting level (for complit ambiguity resolution)
++	indent []byte // tracing support
+ }
+ 
+ func (p *parser) got(tok int32) bool {

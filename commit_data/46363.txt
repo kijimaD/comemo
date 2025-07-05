@@ -16,7 +16,7 @@ Date:   Wed Dec 23 02:16:17 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/alg.go     | 22 ++++++++--------
  src/cmd/compile/internal/reflectdata/reflect.go |  6 ++++-
  src/cmd/compile/internal/typecheck/dcl.go       | 34 +++++++++++--------------
@@ -24,3 +24,188 @@ Date:   Wed Dec 23 02:16:17 2020 -0800
  src/cmd/compile/internal/walk/compare.go        | 10 ++++----
  src/cmd/compile/internal/walk/select.go         |  6 ++---
  6 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 8391486e50..1f943f5795 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -289,11 +289,11 @@ func hashfor(t *types.Type) ir.Node {
+ 
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
+-		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+-	}, []*ir.Field{
+-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
++	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++		types.NewField(base.Pos, nil, types.NewPtr(t)),
++		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
++	}, []*types.Field{
++		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 	}))
+ 	return n
+ }
+@@ -777,12 +777,12 @@ func hashmem(t *types.Type) ir.Node {
+ 
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
+-		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+-	}, []*ir.Field{
+-		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
++	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++		types.NewField(base.Pos, nil, types.NewPtr(t)),
++		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
++		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
++	}, []*types.Field{
++		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 	}))
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index ba3e0fa75e..3fbf6f337f 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1419,7 +1419,11 @@ func WriteBasicTypes() {
+ 		// The latter is the type of an auto-generated wrapper.
+ 		WriteType(types.NewPtr(types.ErrorType))
+ 
+-		WriteType(typecheck.NewFuncType(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
++		WriteType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++			types.NewField(base.Pos, nil, types.ErrorType),
++		}, []*types.Field{
++			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
++		}))
+ 
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(ir.Pkgs.Runtime)
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 9f66d0fa17..bfdd76ba10 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -676,30 +676,26 @@ func autotmpname(n int) string {
+ 
+ // f is method type, with receiver.
+ // return function type, receiver as first argument (or not).
+-func NewMethodType(f *types.Type, receiver *types.Type) *types.Type {
+-	inLen := f.Params().Fields().Len()
+-	if receiver != nil {
+-		inLen++
++func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
++	nrecvs := 0
++	if recv != nil {
++		nrecvs++
+ 	}
+-	in := make([]*ir.Field, 0, inLen)
+ 
+-	if receiver != nil {
+-		d := ir.NewField(base.Pos, nil, nil, receiver)
+-		in = append(in, d)
++	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
++	if recv != nil {
++		params[0] = types.NewField(base.Pos, nil, recv)
+ 	}
+-
+-	for _, t := range f.Params().Fields().Slice() {
+-		d := ir.NewField(base.Pos, nil, nil, t.Type)
+-		d.IsDDD = t.IsDDD()
+-		in = append(in, d)
++	for i, param := range sig.Params().Fields().Slice() {
++		d := types.NewField(base.Pos, nil, param.Type)
++		d.SetIsDDD(param.IsDDD())
++		params[nrecvs+i] = d
+ 	}
+ 
+-	outLen := f.Results().Fields().Len()
+-	out := make([]*ir.Field, 0, outLen)
+-	for _, t := range f.Results().Fields().Slice() {
+-		d := ir.NewField(base.Pos, nil, nil, t.Type)
+-		out = append(out, d)
++	results := make([]*types.Field, sig.Results().Fields().Len())
++	for i, t := range sig.Results().Fields().Slice() {
++		results[i] = types.NewField(base.Pos, nil, t.Type)
+ 	}
+ 
+-	return NewFuncType(nil, in, out)
++	return types.NewSignature(types.LocalPkg, nil, params, results)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 99d81dcede..fdac719ad9 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -73,17 +73,17 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ 	// The information appears in the binary in the form of type descriptors;
+ 	// the struct is unnamed so that closures in multiple packages with the
+ 	// same struct type can share the descriptor.
+-	fields := []*ir.Field{
+-		ir.NewField(base.Pos, Lookup(".F"), nil, types.Types[types.TUINTPTR]),
++	fields := []*types.Field{
++		types.NewField(base.Pos, Lookup(".F"), types.Types[types.TUINTPTR]),
+ 	}
+ 	for _, v := range clo.Func.ClosureVars {
+ 		typ := v.Type()
+ 		if !v.Byval() {
+ 			typ = types.NewPtr(typ)
+ 		}
+-		fields = append(fields, ir.NewField(base.Pos, v.Sym(), nil, typ))
++		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
+ 	}
+-	typ := NewStructType(fields)
++	typ := types.NewStruct(types.NoPkg, fields)
+ 	typ.SetNoalg(true)
+ 	return typ
+ }
+@@ -92,9 +92,9 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ // needed in the closure for n (n must be a OCALLPART node).
+ // The address of a variable of the returned type can be cast to a func.
+ func PartialCallType(n *ir.CallPartExpr) *types.Type {
+-	t := NewStructType([]*ir.Field{
+-		ir.NewField(base.Pos, Lookup("F"), nil, types.Types[types.TUINTPTR]),
+-		ir.NewField(base.Pos, Lookup("R"), nil, n.X.Type()),
++	t := types.NewStruct(types.NoPkg, []*types.Field{
++		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
++		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
+ 	})
+ 	t.SetNoalg(true)
+ 	return t
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index b1ab42782b..40b45d4dea 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -428,11 +428,11 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 		sym := reflectdata.TypeSymPrefix(".eq", t)
+ 		n := typecheck.NewName(sym)
+ 		ir.MarkFunc(n)
+-		n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
+-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+-		}, []*ir.Field{
+-			ir.NewField(base.Pos, nil, nil, types.Types[types.TBOOL]),
++		n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++			types.NewField(base.Pos, nil, types.NewPtr(t)),
++			types.NewField(base.Pos, nil, types.NewPtr(t)),
++		}, []*types.Field{
++			types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
+ 		}))
+ 		return n, false
+ 	}
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index 438131b294..5e03732169 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -287,9 +287,9 @@ var scase *types.Type
+ // Keep in sync with src/runtime/select.go.
+ func scasetype() *types.Type {
+ 	if scase == nil {
+-		scase = typecheck.NewStructType([]*ir.Field{
+-			ir.NewField(base.Pos, typecheck.Lookup("c"), nil, types.Types[types.TUNSAFEPTR]),
+-			ir.NewField(base.Pos, typecheck.Lookup("elem"), nil, types.Types[types.TUNSAFEPTR]),
++		scase = types.NewStruct(types.NoPkg, []*types.Field{
++			types.NewField(base.Pos, typecheck.Lookup("c"), types.Types[types.TUNSAFEPTR]),
++			types.NewField(base.Pos, typecheck.Lookup("elem"), types.Types[types.TUNSAFEPTR]),
+ 		})
+ 		scase.SetNoalg(true)
+ 	}

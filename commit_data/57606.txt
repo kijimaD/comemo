@@ -14,10 +14,211 @@ Date:   Thu Aug 17 22:13:22 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go | 10 +++++-----
  src/cmd/compile/internal/gc/main.go          |  6 +++---
  src/cmd/compile/internal/inline/inl.go       | 26 +++++++++++++-------------
  src/cmd/compile/internal/loopvar/loopvar.go  |  6 +++---
  src/cmd/compile/internal/noder/reader.go     |  5 +----
  5 files changed, 25 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 6675951e01..d339ba172b 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -302,7 +302,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	sig := call.X.Type()
+ 
+ 	for _, ret := range sig.Results().FieldSlice() {
+-		retvars = append(retvars, typecheck.TempAt(base.Pos, ir.CurFunc, ret.Type))
++		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
+ 	}
+ 
+ 	sel := call.X.(*ir.SelectorExpr)
+@@ -317,7 +317,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	// recv must be first in the assignment list as its side effects must
+ 	// be ordered before argument side effects.
+ 	var lhs, rhs []ir.Node
+-	recv := typecheck.TempAt(base.Pos, ir.CurFunc, sel.X.Type())
++	recv := typecheck.TempAt(base.Pos, curfn, sel.X.Type())
+ 	lhs = append(lhs, recv)
+ 	rhs = append(rhs, sel.X)
+ 
+@@ -326,7 +326,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	// such as labels (possible in InlinedCall nodes).
+ 	args := call.Args.Take()
+ 	for _, arg := range args {
+-		argvar := typecheck.TempAt(base.Pos, ir.CurFunc, arg.Type())
++		argvar := typecheck.TempAt(base.Pos, curfn, arg.Type())
+ 
+ 		lhs = append(lhs, argvar)
+ 		rhs = append(rhs, arg)
+@@ -339,8 +339,8 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	argvars := append([]ir.Node(nil), lhs[1:]...)
+ 	call.Args = argvars
+ 
+-	tmpnode := typecheck.TempAt(base.Pos, ir.CurFunc, concretetyp)
+-	tmpok := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
++	tmpnode := typecheck.TempAt(base.Pos, curfn, concretetyp)
++	tmpok := typecheck.TempAt(base.Pos, curfn, types.Types[types.TBOOL])
+ 
+ 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4d28504360..ae695b58f9 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -262,9 +262,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// Devirtualize and get variable capture right in for loops
+ 	var transformed []loopvar.VarAndLoop
+-	for _, n := range typecheck.Target.Funcs {
+-		devirtualize.Static(n)
+-		transformed = append(transformed, loopvar.ForCapture(n)...)
++	for _, fn := range typecheck.Target.Funcs {
++		devirtualize.Static(fn)
++		transformed = append(transformed, loopvar.ForCapture(fn)...)
+ 	}
+ 	ir.CurFunc = nil
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 19244fbe7f..cc567b6fce 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -843,7 +843,7 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+ 	var inlCalls []*ir.InlinedCallExpr
+ 	var edit func(ir.Node) ir.Node
+ 	edit = func(n ir.Node) ir.Node {
+-		return inlnode(n, bigCaller, &inlCalls, edit, profile)
++		return inlnode(fn, n, bigCaller, &inlCalls, edit, profile)
+ 	}
+ 	ir.EditChildren(fn, edit)
+ 
+@@ -874,7 +874,7 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+ // The result of inlnode MUST be assigned back to n, e.g.
+ //
+ //	n.Left = inlnode(n.Left)
+-func inlnode(n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node, profile *pgo.Profile) ir.Node {
++func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node, profile *pgo.Profile) ir.Node {
+ 	if n == nil {
+ 		return n
+ 	}
+@@ -935,8 +935,8 @@ func inlnode(n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit fu
+ 		if ir.IsIntrinsicCall(call) {
+ 			break
+ 		}
+-		if fn := inlCallee(ir.CurFunc, call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+-			n = mkinlcall(call, fn, bigCaller, inlCalls)
++		if fn := inlCallee(callerfn, call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
++			n = mkinlcall(callerfn, call, fn, bigCaller, inlCalls)
+ 		}
+ 	}
+ 
+@@ -985,7 +985,7 @@ var SSADumpInline = func(*ir.Func) {}
+ 
+ // InlineCall allows the inliner implementation to be overridden.
+ // If it returns nil, the function will not be inlined.
+-var InlineCall = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
++var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+ 	base.Fatalf("inline.InlineCall not overridden")
+ 	panic("unreachable")
+ }
+@@ -1046,27 +1046,27 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ //
+ //	n.Left = mkinlcall(n.Left, fn, isddd)
+-func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr) ir.Node {
++func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr) ir.Node {
+ 	if fn.Inl == nil {
+ 		if logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf("%s cannot be inlined", ir.PkgFuncName(fn)))
+ 		}
+ 		return n
+ 	}
+ 
+-	if ok, maxCost := inlineCostOK(n, ir.CurFunc, fn, bigCaller); !ok {
++	if ok, maxCost := inlineCostOK(n, callerfn, fn, bigCaller); !ok {
+ 		if logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf("cost %d of %s exceeds max caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
+ 		}
+ 		return n
+ 	}
+ 
+-	if fn == ir.CurFunc {
++	if fn == callerfn {
+ 		// Can't recursively inline a function into itself.
+ 		if logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(ir.CurFunc)))
++			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
+ 		}
+ 		return n
+ 	}
+@@ -1097,7 +1097,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 	for inlIndex := parent; inlIndex >= 0; inlIndex = base.Ctxt.InlTree.Parent(inlIndex) {
+ 		if base.Ctxt.InlTree.InlinedFunction(inlIndex) == sym {
+ 			if base.Flag.LowerM > 1 {
+-				fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", ir.Line(n), fn, ir.FuncName(ir.CurFunc))
++				fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", ir.Line(n), fn, ir.FuncName(callerfn))
+ 			}
+ 			return n
+ 		}
+@@ -1163,7 +1163,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
+ 	}
+ 
+-	res := InlineCall(n, fn, inlIndex)
++	res := InlineCall(callerfn, n, fn, inlIndex)
+ 
+ 	if res == nil {
+ 		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index 0ed6947f7a..7126d780b6 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -107,7 +107,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
+ 					// Rename the loop key, prefix body with assignment from loop key
+ 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
+-					tk := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
++					tk := typecheck.TempAt(base.Pos, fn, n.Type())
+ 					tk.SetTypecheck(1)
+ 					as := ir.NewAssignStmt(x.Pos(), n, tk)
+ 					as.Def = true
+@@ -298,7 +298,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 					for _, z := range leaked {
+ 						transformed = append(transformed, VarAndLoop{z, x, lastPos})
+ 
+-						tz := typecheck.TempAt(base.Pos, ir.CurFunc, z.Type())
++						tz := typecheck.TempAt(base.Pos, fn, z.Type())
+ 						tz.SetTypecheck(1)
+ 						zPrimeForZ[z] = tz
+ 
+@@ -360,7 +360,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 						// body' = prebody +
+ 						// (6)     if tmp_first {tmp_first = false} else {Post} +
+ 						//         if !cond {break} + ...
+-						tmpFirst := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
++						tmpFirst := typecheck.TempAt(base.Pos, fn, types.Types[types.TBOOL])
+ 
+ 						// tmpFirstAssign assigns val to tmpFirst
+ 						tmpFirstAssign := func(val bool) *ir.AssignStmt {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 013c73f3d5..99755a976b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3446,10 +3446,7 @@ var inlgen = 0
+ 
+ // unifiedInlineCall implements inline.NewInline by re-reading the function
+ // body from its Unified IR export data.
+-func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+-	// TODO(mdempsky): Turn callerfn into an explicit parameter.
+-	callerfn := ir.CurFunc
+-
++func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+ 	pri, ok := bodyReaderFor(fn)
+ 	if !ok {
+ 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)

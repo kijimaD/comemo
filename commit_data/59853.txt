@@ -12,7 +12,7 @@ Date:   Tue Apr 30 16:21:20 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/582556
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/next/3-tools.md                           | 14 ++++++++++++
  src/cmd/go/internal/test/flagdefs.go          |  1 +
  src/cmd/vet/main.go                           |  2 ++
@@ -20,3 +20,122 @@ Date:   Tue Apr 30 16:21:20 2024 -0400
  src/cmd/vet/testdata/stdversion/stdversion.go |  5 +++++
  src/cmd/vet/vet_test.go                       | 31 +++++++++++++++++++++++++++
  6 files changed, 56 insertions(+)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index bdbe6c0771..c052f3b084 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -8,5 +8,19 @@ Distributions that install the `go` command to a location other than
+ `$GOROOT/bin/go` should install a symlink instead of relocating
+ or copying the `go` binary.
+ 
++### Vet {#vet}
++
++The `go vet` subcommand now includes the
++[stdversion](https://beta.pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdversion)
++analyzer, which flags references to symbols that are too new for the version
++of Go in effect in the referring file. (The effective version is determined
++by the `go` directive in the file's enclosing `go.mod` file, and
++by any [`//go:build` constraints](https://pkg.go.dev/cmd/go#hdr-Build_constraints)
++in the file.)
++
++For example, it will report a diagnostic for a reference to the
++`reflect.TypeFor` function (introduced in go1.22) from a file in a
++module whose go.mod file specifies `go 1.21`.
++
+ ### Cgo {#cgo}
+ 
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index baa0cdf4c6..0292c19d82 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -67,6 +67,7 @@ var passAnalyzersToVet = map[string]bool{
+ 	"sigchanyzer":      true,
+ 	"slog":             true,
+ 	"stdmethods":       true,
++	"stdversion":       true,
+ 	"stringintconv":    true,
+ 	"structtag":        true,
+ 	"testinggoroutine": true,
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index c5197284b5..7b9a700635 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -32,6 +32,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
+ 	"golang.org/x/tools/go/analysis/passes/slog"
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
++	"golang.org/x/tools/go/analysis/passes/stdversion"
+ 	"golang.org/x/tools/go/analysis/passes/stringintconv"
+ 	"golang.org/x/tools/go/analysis/passes/structtag"
+ 	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
+@@ -70,6 +71,7 @@ func main() {
+ 		sigchanyzer.Analyzer,
+ 		slog.Analyzer,
+ 		stdmethods.Analyzer,
++		stdversion.Analyzer,
+ 		stringintconv.Analyzer,
+ 		structtag.Analyzer,
+ 		tests.Analyzer,
+diff --git a/src/cmd/vet/testdata/stdversion/go.mod b/src/cmd/vet/testdata/stdversion/go.mod
+new file mode 100644
+index 0000000000..90ae83b840
+--- /dev/null
++++ b/src/cmd/vet/testdata/stdversion/go.mod
+@@ -0,0 +1,3 @@
++module stdversion
++
++go 1.21
+diff --git a/src/cmd/vet/testdata/stdversion/stdversion.go b/src/cmd/vet/testdata/stdversion/stdversion.go
+new file mode 100644
+index 0000000000..ba5846cd13
+--- /dev/null
++++ b/src/cmd/vet/testdata/stdversion/stdversion.go
+@@ -0,0 +1,5 @@
++package stdversion
++
++import "reflect"
++
++var _ = reflect.TypeFor[int]() // ERROR "reflect.TypeFor requires go1.22 or later \(module is go1.21\)"
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 278a88afb3..ad42cf1d7c 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -152,6 +152,37 @@ func TestVet(t *testing.T) {
+ 			t.Log("vet stderr:\n", cmd.Stderr)
+ 		}
+ 	})
++
++	// The stdversion analyzer requires a lower-than-tip go
++	// version in its go.mod file for it to report anything.
++	// So again we use a testdata go.mod file to "downgrade".
++	t.Run("stdversion", func(t *testing.T) {
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
++		cmd.Env = append(os.Environ(), "GOWORK=off")
++		cmd.Dir = "testdata/stdversion"
++		cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
++		cmd.Run()
++		stderr := cmd.Stderr.(fmt.Stringer).String()
++
++		filename := filepath.FromSlash("testdata/stdversion/stdversion.go")
++
++		// Unlike the tests above, which runs vet in cmd/vet/, this one
++		// runs it in subdirectory, so the "full names" in the output
++		// are in fact short "./rangeloop.go".
++		// But we can't just pass "./rangeloop.go" as the "full name"
++		// argument to errorCheck as it does double duty as both a
++		// string that appears in the output, and as file name
++		// openable relative to the test directory, containing text
++		// expectations.
++		//
++		// So, we munge the file.
++		stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./stdversion.go"), filename)
++
++		if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
++			t.Errorf("error check failed: %s", err)
++			t.Log("vet stderr:\n", cmd.Stderr)
++		}
++	})
+ }
+ 
+ func cgoEnabled(t *testing.T) bool {

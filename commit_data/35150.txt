@@ -25,7 +25,206 @@ Date:   Wed Jan 3 10:24:29 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go      | 72 +++++++------------------------------------------
  src/time/format_test.go | 34 -----------------------
  2 files changed, 10 insertions(+), 96 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 4f28e3be0c..a60474f026 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -90,7 +90,6 @@ const (
+ 	stdLongMonth             = iota + stdNeedDate  // "January"
+ 	stdMonth                                       // "Jan"
+ 	stdNumMonth                                    // "1"
+-	stdUnderMonth                                  // "_1"
+ 	stdZeroMonth                                   // "01"
+ 	stdLongWeekDay                                 // "Monday"
+ 	stdWeekDay                                     // "Mon"
+@@ -99,13 +98,10 @@ const (
+ 	stdZeroDay                                     // "02"
+ 	stdHour                  = iota + stdNeedClock // "15"
+ 	stdHour12                                      // "3"
+-	stdUnderHour12                                 // "_3"
+ 	stdZeroHour12                                  // "03"
+ 	stdMinute                                      // "4"
+-	stdUnderMinute                                 // "_4"
+ 	stdZeroMinute                                  // "04"
+ 	stdSecond                                      // "5"
+-	stdUnderSecond                                 // "_5"
+ 	stdZeroSecond                                  // "05"
+ 	stdLongYear              = iota + stdNeedDate  // "2006"
+ 	stdYear                                        // "06"
+@@ -191,24 +187,13 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 			}
+ 			return layout[0:i], stdDay, layout[i+1:]
+ 
+-		case '_': // _1, _2, _2006, _3, _4, _5
+-			if len(layout) >= i+2 {
+-				switch layout[i+1] {
+-				case '1':
+-					return layout[0:i], stdUnderMonth, layout[i+2:]
+-				case '2':
+-					//_2006 is really a literal _, followed by stdLongYear
+-					if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
+-						return layout[0 : i+1], stdLongYear, layout[i+5:]
+-					}
+-					return layout[0:i], stdUnderDay, layout[i+2:]
+-				case '3':
+-					return layout[0:i], stdUnderHour12, layout[i+2:]
+-				case '4':
+-					return layout[0:i], stdUnderMinute, layout[i+2:]
+-				case '5':
+-					return layout[0:i], stdUnderSecond, layout[i+2:]
++		case '_': // _2, _2006
++			if len(layout) >= i+2 && layout[i+1] == '2' {
++				//_2006 is really a literal _, followed by stdLongYear
++				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
++					return layout[0 : i+1], stdLongYear, layout[i+5:]
+ 				}
++				return layout[0:i], stdUnderDay, layout[i+2:]
+ 			}
+ 
+ 		case '3':
+@@ -559,11 +544,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 			b = append(b, m...)
+ 		case stdNumMonth:
+ 			b = appendInt(b, int(month), 0)
+-		case stdUnderMonth:
+-			if month < 10 {
+-				b = append(b, ' ')
+-			}
+-			b = appendInt(b, int(month), 0)
+ 		case stdZeroMonth:
+ 			b = appendInt(b, int(month), 2)
+ 		case stdWeekDay:
+@@ -589,16 +569,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 				hr = 12
+ 			}
+ 			b = appendInt(b, hr, 0)
+-		case stdUnderHour12:
+-			// Noon is 12PM, midnight is 12AM.
+-			hr := hour % 12
+-			if hr == 0 {
+-				hr = 12
+-			}
+-			if hr < 10 {
+-				b = append(b, ' ')
+-			}
+-			b = appendInt(b, hr, 0)
+ 		case stdZeroHour12:
+ 			// Noon is 12PM, midnight is 12AM.
+ 			hr := hour % 12
+@@ -608,20 +578,10 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 			b = appendInt(b, hr, 2)
+ 		case stdMinute:
+ 			b = appendInt(b, min, 0)
+-		case stdUnderMinute:
+-			if min < 10 {
+-				b = append(b, ' ')
+-			}
+-			b = appendInt(b, min, 0)
+ 		case stdZeroMinute:
+ 			b = appendInt(b, min, 2)
+ 		case stdSecond:
+ 			b = appendInt(b, sec, 0)
+-		case stdUnderSecond:
+-			if sec < 10 {
+-				b = append(b, ' ')
+-			}
+-			b = appendInt(b, sec, 0)
+ 		case stdZeroSecond:
+ 			b = appendInt(b, sec, 2)
+ 		case stdPM:
+@@ -886,10 +846,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		case stdLongMonth:
+ 			month, value, err = lookup(longMonthNames, value)
+ 			month++
+-		case stdNumMonth, stdUnderMonth, stdZeroMonth:
+-			if std == stdUnderMonth && len(value) > 0 && value[0] == ' ' {
+-				value = value[1:]
+-			}
++		case stdNumMonth, stdZeroMonth:
+ 			month, value, err = getnum(value, std == stdZeroMonth)
+ 			if month <= 0 || 12 < month {
+ 				rangeErrString = "month"
+@@ -913,26 +870,17 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			if hour < 0 || 24 <= hour {
+ 				rangeErrString = "hour"
+ 			}
+-		case stdHour12, stdUnderHour12, stdZeroHour12:
+-			if std == stdUnderHour12 && len(value) > 0 && value[0] == ' ' {
+-				value = value[1:]
+-			}
++		case stdHour12, stdZeroHour12:
+ 			hour, value, err = getnum(value, std == stdZeroHour12)
+ 			if hour < 0 || 12 < hour {
+ 				rangeErrString = "hour"
+ 			}
+-		case stdMinute, stdUnderMinute, stdZeroMinute:
+-			if std == stdUnderMinute && len(value) > 0 && value[0] == ' ' {
+-				value = value[1:]
+-			}
++		case stdMinute, stdZeroMinute:
+ 			min, value, err = getnum(value, std == stdZeroMinute)
+ 			if min < 0 || 60 <= min {
+ 				rangeErrString = "minute"
+ 			}
+-		case stdSecond, stdUnderSecond, stdZeroSecond:
+-			if std == stdUnderSecond && len(value) > 0 && value[0] == ' ' {
+-				value = value[1:]
+-			}
++		case stdSecond, stdZeroSecond:
+ 			sec, value, err = getnum(value, std == stdZeroSecond)
+ 			if sec < 0 || 60 <= sec {
+ 				rangeErrString = "second"
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 9871976ad5..6d27f468c7 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -116,18 +116,6 @@ func TestFormatShortYear(t *testing.T) {
+ 	}
+ }
+ 
+-// issue 22802.
+-func TestFormatSpacePadding(t *testing.T) {
+-	for i := 9; i <= 10; i++ {
+-		time := Date(2001, Month(i), i, i, i, i, 700000000, UTC)
+-		result := time.Format("2006-_1-_2 _3:_4:_5")
+-		want := fmt.Sprintf("2001-%2d-%2d %2d:%2d:%2d", i, i, i, i, i)
+-		if result != want {
+-			t.Errorf("SpacePadding expected %q got %q", want, result)
+-		}
+-	}
+-}
+-
+ type ParseTest struct {
+ 	name       string
+ 	format     string
+@@ -639,25 +627,3 @@ func TestUnderscoreTwoThousand(t *testing.T) {
+ 		t.Errorf("Incorrect minute, got %d", m)
+ 	}
+ }
+-
+-// issue 22802.
+-func TestParseSpacePadding(t *testing.T) {
+-	format := "2006-_1-_2 _3:_4:_5"
+-	input := "2017- 9- 6  8: 4: 2"
+-	time, err := Parse(format, input)
+-	if err != nil {
+-		t.Error(err)
+-	}
+-	if y, m, d := time.Date(); y != 2017 || m != 9 || d != 6 {
+-		t.Errorf("Incorrect y/m/d, got %d/%d/%d", y, m, d)
+-	}
+-	if h := time.Hour(); h != 8 {
+-		t.Errorf("Incorrect hour, got %d", h)
+-	}
+-	if m := time.Minute(); m != 4 {
+-		t.Errorf("Incorrect minute, got %d", m)
+-	}
+-	if s := time.Second(); s != 2 {
+-		t.Errorf("Incorrect second, got %d", s)
+-	}
+-}

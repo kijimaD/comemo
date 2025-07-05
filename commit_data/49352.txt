@@ -12,7 +12,55 @@ Date:   Sun Aug 15 12:34:59 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go              | 11 ++++++++---
  .../compile/internal/syntax/testdata/issue47704.go2    | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 29f5c88d0f..4fb6de10a8 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1049,10 +1049,15 @@ loop:
+ 			}
+ 
+ 			// x[i:...
+-			// For better error message, don't use p.want(_Colon) here (issue #47704).
++			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
+ 			if !p.got(_Colon) {
+-				p.syntaxError("expecting : or ]")
+-				p.advance(_Colon, _Rbrack)
++				if p.mode&AllowGenerics == 0 {
++					p.syntaxError("expecting : or ]")
++					p.advance(_Colon, _Rbrack)
++				} else {
++					p.syntaxError("expecting comma, : or ]")
++					p.advance(_Comma, _Colon, _Rbrack)
++				}
+ 			}
+ 			p.xnest++
+ 			t := new(SliceExpr)
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go2 b/src/cmd/compile/internal/syntax/testdata/issue47704.go2
+new file mode 100644
+index 0000000000..4e65857f3b
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.go2
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// error messages for parser in generic mode
++func _() {
++	_ = m[] // ERROR expecting operand
++	_ = m[x,]
++	_ = m[x /* ERROR unexpected a */ a b c d]
++}
++
++// test case from the issue
++func f(m map[int]int) int {
++	return m[0 // ERROR expecting comma, \: or \]
++		]
++}

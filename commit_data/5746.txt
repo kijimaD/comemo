@@ -7,6 +7,20 @@ Date:   Wed Jun 30 19:57:26 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1665047
-
+---
  src/pkg/template/template.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 334559c13c..a615b7b418 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -54,7 +54,7 @@
+ 	map passed to the template set up routines or in the default
+ 	set ("html","str","") and is used to process the data for
+ 	output.  The formatter function has signature
+-		func(wr io.Write, data interface{}, formatter string)
++		func(wr io.Writer, data interface{}, formatter string)
+ 	where wr is the destination for output, data is the field
+ 	value, and formatter is its name at the invocation site.
+ */

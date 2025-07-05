@@ -9,6 +9,20 @@ Date:   Wed Apr 8 10:30:34 2015 +1200
     Change-Id: Ia0ccdd9b5292010297ae95debab4acf50d3c4d9c
     Reviewed-on: https://go-review.googlesource.com/8600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index ba1a707132..58905d913f 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -271,6 +271,8 @@ Go generate sets several variables when it runs the generator:
+ 		The base name of the file.
+ 	$GOPACKAGE
+ 		The name of the package of the file containing the directive.
++	$DOLLAR
++		A dollar sign.
+ 
+ Other than variable substitution and quoted-string evaluation, no
+ special processing such as "globbing" is performed on the command

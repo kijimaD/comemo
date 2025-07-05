@@ -7,6 +7,29 @@ Date:   Fri Sep 17 12:35:34 2010 +1000
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/2212041
-
+---
  src/pkg/os/path.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index bea971375e..74c83ab17a 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -84,7 +84,6 @@ func RemoveAll(path string) Error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer fd.Close()
+ 
+ 	// Remove contents & return first error.
+ 	err = nil
+@@ -105,6 +104,9 @@ func RemoveAll(path string) Error {
+ 		}
+ 	}
+ 
++	// Close directory, because windows won't remove opened directory.
++	fd.Close()
++
+ 	// Remove directory.
+ 	err1 := Remove(path)
+ 	if err == nil {

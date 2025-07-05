@@ -10,6 +10,21 @@ Date:   Mon Jan 13 10:28:19 2025 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/strconv/quote.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index 1f4929a952..99c292a8ed 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -378,7 +378,8 @@ func QuotedPrefix(s string) (string, error) {
+ // or backquoted Go string literal, returning the string value
+ // that s quotes.  (If s is single-quoted, it would be a Go
+ // character literal; Unquote returns the corresponding
+-// one-character string. For '' Unquote returns the empty string.)
++// one-character string. For an empty character literal
++// Unquote returns the empty string.)
+ func Unquote(s string) (string, error) {
+ 	out, rem, err := unquote(s, true)
+ 	if len(rem) > 0 {

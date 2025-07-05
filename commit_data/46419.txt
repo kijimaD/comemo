@@ -23,7 +23,7 @@ Date:   Mon Dec 28 19:14:39 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/obj.go              |  2 +-
  src/cmd/compile/internal/ir/func.go             | 10 +++-------
  src/cmd/compile/internal/ir/name.go             |  3 +++
@@ -34,3 +34,209 @@ Date:   Mon Dec 28 19:14:39 2020 -0800
  src/cmd/compile/internal/types/sym.go           |  4 ++++
  src/cmd/compile/internal/walk/expr.go           |  2 +-
  9 files changed, 39 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0ab3a8dad4..d0454981f4 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -260,7 +260,7 @@ func addGCLocals() {
+ 	}
+ }
+ 
+-func ggloblnod(nam ir.Node) {
++func ggloblnod(nam *ir.Name) {
+ 	s := nam.Sym().Linksym()
+ 	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
+ 	flags := 0
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 16d67f6ae0..a4f5875aab 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -78,7 +78,7 @@ type Func struct {
+ 	// Marks records scope boundary changes.
+ 	Marks []Mark
+ 
+-	FieldTrack map[*types.Sym]struct{}
++	FieldTrack map[*obj.LSym]struct{}
+ 	DebugInfo  interface{}
+ 	LSym       *obj.LSym
+ 
+@@ -119,12 +119,8 @@ func (f *Func) isStmt() {}
+ func (f *Func) Type() *types.Type     { return f.typ }
+ func (f *Func) SetType(x *types.Type) { f.typ = x }
+ 
+-func (f *Func) Sym() *types.Sym {
+-	if f.Nname != nil {
+-		return f.Nname.Sym()
+-	}
+-	return nil
+-}
++func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
++func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
+ 
+ // An Inline holds fields used for function bodies that can be inlined.
+ type Inline struct {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 980e3f6349..b13b57e95f 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -7,6 +7,7 @@ package ir
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 
+@@ -238,6 +239,8 @@ func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+ func (n *Name) Iota() int64            { return n.Offset_ }
+ func (n *Name) SetIota(x int64)        { n.Offset_ = x }
+ 
++func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
++
+ func (*Name) CanBeNtype()    {}
+ func (*Name) CanBeAnSSASym() {}
+ func (*Name) CanBeAnSSAAux() {}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index df80380fc1..4c625b40cb 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -812,8 +812,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 
+ // TrackSym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+-func TrackSym(t *types.Type, f *types.Field) *types.Sym {
+-	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name)
++func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
++	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name).Linksym()
+ }
+ 
+ func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
+@@ -845,6 +845,18 @@ func TypeSym(t *types.Type) *types.Sym {
+ 	return s
+ }
+ 
++func TypeLinksymPrefix(prefix string, t *types.Type) *obj.LSym {
++	return TypeSymPrefix(prefix, t).Linksym()
++}
++
++func TypeLinksymLookup(name string) *obj.LSym {
++	return types.TypeSymLookup(name).Linksym()
++}
++
++func TypeLinksym(t *types.Type) *obj.LSym {
++	return TypeSym(t).Linksym()
++}
++
+ func TypePtr(t *types.Type) *ir.AddrExpr {
+ 	s := TypeSym(t)
+ 	if s.Def == nil {
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index bc6be20d86..72ce233fda 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -225,7 +225,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 
+ // fieldtrack adds R_USEFIELD relocations to fnsym to record any
+ // struct fields that it used.
+-func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
++func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
+ 	if fnsym == nil {
+ 		return
+ 	}
+@@ -233,24 +233,18 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
+ 		return
+ 	}
+ 
+-	trackSyms := make([]*types.Sym, 0, len(tracked))
++	trackSyms := make([]*obj.LSym, 0, len(tracked))
+ 	for sym := range tracked {
+ 		trackSyms = append(trackSyms, sym)
+ 	}
+-	sort.Sort(symByName(trackSyms))
++	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+ 	for _, sym := range trackSyms {
+ 		r := obj.Addrel(fnsym)
+-		r.Sym = sym.Linksym()
++		r.Sym = sym
+ 		r.Type = objabi.R_USEFIELD
+ 	}
+ }
+ 
+-type symByName []*types.Sym
+-
+-func (a symByName) Len() int           { return len(a) }
+-func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+-func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // largeStack is info about a function whose stack frame is too large (rare).
+ type largeStack struct {
+ 	locals int64
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 509d53f8c9..5cf267636b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2106,7 +2106,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
+ 	case ir.OCFUNC:
+ 		n := n.(*ir.UnaryExpr)
+-		aux := n.X.Sym().Linksym()
++		aux := n.X.(*ir.Name).Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+@@ -6826,7 +6826,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	case *ir.Name:
+ 		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+-			a.Sym = ir.Orig(n).Sym().Linksym()
++			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+ 			a.Offset += n.FrameOffset()
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 342a2e2bbc..ab9cb5bd7e 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -258,6 +258,13 @@ func FuncSym(s *types.Sym) *types.Sym {
+ 	return sf
+ }
+ 
++func FuncLinksym(n *ir.Name) *obj.LSym {
++	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
++		base.Fatalf("expected func name: %v", n)
++	}
++	return FuncSym(n.Sym()).Linksym()
++}
++
+ // NeedFuncSym ensures that s·f is exported.
+ // It is only used with -dynlink.
+ // When not compiling for dynamic linking,
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index cd061d5f1c..2914e2ed3f 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -74,6 +74,10 @@ func (sym *Sym) LinksymName() string {
+ 	return sym.Pkg.Prefix + "." + sym.Name
+ }
+ 
++// Deprecated: This method should not be used directly. Instead, use a
++// higher-level abstraction that directly returns the linker symbol
++// for a named object. For example, reflectdata.TypeLinksym(t) instead
++// of reflectdata.TypeSym(t).Linksym().
+ func (sym *Sym) Linksym() *obj.LSym {
+ 	if sym == nil {
+ 		return nil
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index f40aa6adb5..0d7ffca15d 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -975,7 +975,7 @@ func usefield(n *ir.SelectorExpr) {
+ 
+ 	sym := reflectdata.TrackSym(outer, field)
+ 	if ir.CurFunc.FieldTrack == nil {
+-		ir.CurFunc.FieldTrack = make(map[*types.Sym]struct{})
++		ir.CurFunc.FieldTrack = make(map[*obj.LSym]struct{})
+ 	}
+ 	ir.CurFunc.FieldTrack[sym] = struct{}{}
+ }

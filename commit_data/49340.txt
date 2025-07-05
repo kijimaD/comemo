@@ -13,6 +13,20 @@ Date:   Sat Aug 7 04:18:37 2021 +0000
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Damien Neil <dneil@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 38e1aa2247..b016bef144 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -308,7 +308,7 @@ func ubtoa(dst []byte, start int, v byte) int {
+ // It returns one of 4 forms:
+ //   - "<nil>", if ip has length 0
+ //   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
+-//   - IPv6 ("2001:db8::1"), if ip is a valid IPv6 address
++//   - IPv6 conforming to RFC 5952 ("2001:db8::1"), if ip is a valid IPv6 address
+ //   - the hexadecimal form of ip, without punctuation, if no other cases apply
+ func (ip IP) String() string {
+ 	p := ip

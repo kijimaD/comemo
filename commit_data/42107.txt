@@ -11,7 +11,49 @@ Date:   Fri Nov 8 18:53:35 2019 +0000
     Change-Id: I96fd39ae80fe350ba8b3aa310443d41daec38093
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206146
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/asn1/asn1_test.go | 19 -------------------
  src/encoding/asn1/common.go    |  3 ---
  2 files changed, 22 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 5cadf31510..d5649bff9f 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -1129,22 +1129,3 @@ func TestBMPString(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestSequenceOfSet(t *testing.T) {
+-	type someSetSET struct {
+-		A int `asn1:"tag:0"`
+-	}
+-
+-	type someStruct struct {
+-		B int          `asn1:"tag:0"`
+-		C []someSetSET `asn1:"tag:1"`
+-	}
+-
+-	der := []byte{0x30, 0x0F, 0x80, 0x01, 0x01, 0xA1, 0x0A, 0x31, 0x03, 0x80, 0x01, 0x01, 0x31, 0x03, 0x80, 0x01, 0x02}
+-
+-	var b someStruct
+-	if _, err := Unmarshal(der, &b); err != nil {
+-		t.Errorf("Unmarshal failed: %v", err)
+-	}
+-
+-}
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index b0ca1c8aab..e2aa8bd9c5 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -167,9 +167,6 @@ func getUniversalType(t reflect.Type) (matchAny bool, tagNumber int, isCompound,
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return false, TagInteger, false, true
+ 	case reflect.Struct:
+-		if strings.HasSuffix(t.Name(), "SET") {
+-			return false, TagSet, true, true
+-		}
+ 		return false, TagSequence, true, true
+ 	case reflect.Slice:
+ 		if t.Elem().Kind() == reflect.Uint8 {

@@ -15,6 +15,28 @@ Date:   Wed Feb 5 11:36:00 2020 -0800
     Change-Id: I92c52fcc7d480ce74746e99e6e85a04efb87294f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217780
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index c863da42fa..35f9955d2a 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -569,6 +569,16 @@ appropriately.)
+   </dd>
+ </dl><!-- go/build -->
+ 
++<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
++  <dd>
++    <p><!-- CL 198488 -->
++      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
++      whose names have predictable prefixes and suffixes. As with TempFile, if the pattern
++      contains a '*', the random string replaces the last '*'.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+   <dd>
+     <p><!-- CL 186182 -->

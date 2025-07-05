@@ -15,10 +15,94 @@ Date:   Wed Oct 26 15:27:59 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5294071
-
+---
  src/cmd/5c/gc.h   | 2 +-
  src/cmd/6c/gc.h   | 2 +-
  src/cmd/8c/gc.h   | 2 +-
  src/cmd/cc/pgen.c | 6 +++---
  src/cmd/cc/pswt.c | 2 +-
  5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 5349114f8f..8777ec6772 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -304,7 +304,7 @@ void	gpseudo(int, Sym*, Node*);
+ int	swcmp(const void*, const void*);
+ void	doswit(Node*);
+ void	swit1(C1*, int, int32, Node*);
+-void	cas(void);
++void	newcase(void);
+ void	bitload(Node*, Node*, Node*, Node*, Node*);
+ void	bitstore(Node*, Node*, Node*, Node*, Node*);
+ int	mulcon(Node*, Node*);
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 0c23b115cd..ed2338731f 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -299,7 +299,7 @@ void	gpseudo(int, Sym*, Node*);
+ int	swcmp(const void*, const void*);
+ void	doswit(Node*);
+ void	swit1(C1*, int, int32, Node*);
+-void	cas(void);
++void	newcase(void);
+ void	bitload(Node*, Node*, Node*, Node*, Node*);
+ void	bitstore(Node*, Node*, Node*, Node*, Node*);
+ int32	outstring(char*, int32);
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index 32b80e9958..60ead6b034 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -304,7 +304,7 @@ void	gpseudo(int, Sym*, Node*);
+ int	swcmp(const void*, const void*);
+ void	doswit(Node*);
+ void	swit1(C1*, int, int32, Node*);
+-void	cas(void);
++void	newcase(void);
+ void	bitload(Node*, Node*, Node*, Node*, Node*);
+ void	bitstore(Node*, Node*, Node*, Node*, Node*);
+ int32	outstring(char*, int32);
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 0e5e8c059d..e652e2349d 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -266,7 +266,7 @@ loop:
+ 		if(cases == C)
+ 			diag(n, "case/default outside a switch");
+ 		if(l == Z) {
+-			cas();
++			newcase();
+ 			cases->val = 0;
+ 			cases->def = 1;
+ 			cases->label = pc;
+@@ -278,7 +278,7 @@ loop:
+ 			goto rloop;
+ 		if(l->op == OCONST)
+ 		if(typeword[l->type->etype] && l->type->etype != TIND) {
+-			cas();
++			newcase();
+ 			cases->val = l->vconst;
+ 			cases->def = 0;
+ 			cases->label = pc;
+@@ -303,7 +303,7 @@ loop:
+ 
+ 		cn = cases;
+ 		cases = C;
+-		cas();
++		newcase();
+ 
+ 		sbc = breakpc;
+ 		breakpc = pc;
+diff --git a/src/cmd/cc/pswt.c b/src/cmd/cc/pswt.c
+index 0e402dea71..b94035faa0 100644
+--- a/src/cmd/cc/pswt.c
++++ b/src/cmd/cc/pswt.c
+@@ -92,7 +92,7 @@ doswit(Node *n)
+ }
+ 
+ void
+-cas(void)
++newcase(void)
+ {
+ 	Case *c;
+ 

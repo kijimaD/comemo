@@ -25,6 +25,28 @@ Date:   Mon Jun 11 12:09:18 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/sendfile_windows.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index 4a15b75236..1a4d0ca191 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -25,6 +25,16 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
+ 	o := &fd.wop
+ 	o.qty = uint32(n)
+ 	o.handle = src
++
++	// TODO(brainman): skip calling syscall.Seek if OS allows it
++	curpos, err := syscall.Seek(o.handle, 0, 1)
++	if err != nil {
++		return 0, err
++	}
++
++	o.o.OffsetHigh = uint32(curpos)
++	o.o.Offset = uint32(curpos >> 32)
++
+ 	done, err := wsrv.ExecIO(o, func(o *operation) error {
+ 		return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+ 	})

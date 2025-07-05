@@ -9,8 +9,78 @@ Date:   Thu Mar 1 17:41:59 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5707054
-
+---
  src/pkg/encoding/json/encode.go      |  2 +-
  src/pkg/encoding/json/encode_test.go | 19 +++++++++++++++++++
  src/pkg/encoding/json/indent.go      | 13 +++++++++++++
  3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index f98071777f..5425a3a90a 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -260,7 +260,7 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 		b, err := m.MarshalJSON()
+ 		if err == nil {
+ 			// copy JSON into buffer, checking validity.
+-			err = Compact(&e.Buffer, b)
++			err = compact(&e.Buffer, b, true)
+ 		}
+ 		if err != nil {
+ 			e.error(&MarshalerError{v.Type(), err})
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index 7a726a91c4..cb1c77eb52 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -167,3 +167,22 @@ func TestRefValMarshal(t *testing.T) {
+ 		t.Errorf("got %q, want %q", got, want)
+ 	}
+ }
++
++// C implements Marshaler and returns unescaped JSON.
++type C int
++
++func (C) MarshalJSON() ([]byte, error) {
++	return []byte(`"<&>"`), nil
++}
++
++func TestMarshalerEscaping(t *testing.T) {
++	var c C
++	const want = `"\u003c\u0026\u003e"`
++	b, err := Marshal(c)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	if got := string(b); got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}
+diff --git a/src/pkg/encoding/json/indent.go b/src/pkg/encoding/json/indent.go
+index 5ba19b07ac..e8dfa4ec43 100644
+--- a/src/pkg/encoding/json/indent.go
++++ b/src/pkg/encoding/json/indent.go
+@@ -9,11 +9,24 @@ import "bytes"
+ // Compact appends to dst the JSON-encoded src with
+ // insignificant space characters elided.
+ func Compact(dst *bytes.Buffer, src []byte) error {
++	return compact(dst, src, false)
++}
++
++func compact(dst *bytes.Buffer, src []byte, escape bool) error {
+ 	origLen := dst.Len()
+ 	var scan scanner
+ 	scan.reset()
+ 	start := 0
+ 	for i, c := range src {
++		if escape && (c == '<' || c == '>' || c == '&') {
++			if start < i {
++				dst.Write(src[start:i])
++			}
++			dst.WriteString(`\u00`)
++			dst.WriteByte(hex[c>>4])
++			dst.WriteByte(hex[c&0xF])
++			start = i + 1
++		}
+ 		v := scan.step(&scan, int(c))
+ 		if v >= scanSkipSpace {
+ 			if v == scanError {

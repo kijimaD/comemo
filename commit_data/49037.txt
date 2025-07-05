@@ -35,10 +35,318 @@ Date:   Fri Jul 2 17:51:20 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go        | 30 +++++++---
  src/cmd/compile/internal/noder/stencil.go     | 81 +++++++++++++++++++++------
  src/cmd/compile/internal/typecheck/iexport.go |  6 +-
  src/cmd/compile/internal/typecheck/iimport.go | 22 ++++++++
  test/typeparam/boundmethod.go                 | 60 ++++++++++++++++++++
  5 files changed, 172 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index d974b291d0..16470a5449 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -207,29 +207,43 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
+ 		typed(g.typ(typ), n)
+ 
+-		// Fill in n.Selection for a generic method reference, even though we
+-		// won't use it directly, since it is useful for analysis.
+-		// Specifically do not fill in for fields or interfaces methods, so
+-		// n.Selection being non-nil means a method reference, rather than an
+-		// interface reference or reference to a field with a function value.
++		// Fill in n.Selection for a generic method reference or a bound
++		// interface method, even though we won't use it directly, since it
++		// is useful for analysis. Specifically do not fill in for fields or
++		// other interfaces methods (method call on an interface value), so
++		// n.Selection being non-nil means a method reference for a generic
++		// type or a method reference due to a bound.
+ 		obj2 := g.info.Selections[expr].Obj()
+ 		sig := types2.AsSignature(obj2.Type())
+ 		if sig == nil || sig.Recv() == nil {
+ 			return n
+ 		}
+-		// recvType is the type of the last embedded field. Because of the
++		index := g.info.Selections[expr].Index()
++		last := index[len(index)-1]
++		// recvType is the receiver of the method being called.  Because of the
+ 		// way methods are imported, g.obj(obj2) doesn't work across
+ 		// packages, so we have to lookup the method via the receiver type.
+ 		recvType := deref2(sig.Recv().Type())
+ 		if types2.AsInterface(recvType.Underlying()) != nil {
++			fieldType := n.X.Type()
++			for _, ix := range index[:len(index)-1] {
++				fieldType = fieldType.Field(ix).Type
++			}
++			if fieldType.Kind() == types.TTYPEPARAM {
++				n.Selection = fieldType.Bound().AllMethods().Index(last)
++				//fmt.Printf(">>>>> %v: Bound call %v\n", base.FmtPos(pos), n.Sel)
++			} else {
++				assert(fieldType.Kind() == types.TINTER)
++				//fmt.Printf(">>>>> %v: Interface call %v\n", base.FmtPos(pos), n.Sel)
++			}
+ 			return n
+ 		}
+ 
+-		index := g.info.Selections[expr].Index()
+-		last := index[len(index)-1]
+ 		recvObj := types2.AsNamed(recvType).Obj()
+ 		recv := g.pkg(recvObj.Pkg()).Lookup(recvObj.Name()).Def
+ 		n.Selection = recv.Type().Methods().Index(last)
++		//fmt.Printf(">>>>> %v: Method call %v\n", base.FmtPos(pos), n.Sel)
++
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d292bfd5c6..1759fbc4cf 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -158,12 +158,9 @@ func (g *irgen) stencil() {
+ 
+ 				st := g.getInstantiation(gf, targs, true)
+ 				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
+-				_ = usingSubdict
+-				// TODO: We should do assert(usingSubdict) here, but
+-				// not creating sub-dictionary entry for
+-				// absDifference in absdiff.go yet. Unusual case,
+-				// where there are different generic method
+-				// implementations of Abs in absDifference.
++				// We have to be using a subdictionary, since this is
++				// a generic method call.
++				assert(usingSubdict)
+ 
+ 				call.SetOp(ir.OCALL)
+ 				call.X = st.Nname
+@@ -741,10 +738,9 @@ func gcshapeType(t *types.Type) (*types.Type, string) {
+ 	return gcshape, buf.String()
+ }
+ 
+-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+-// with the type arguments targs. If the instantiated function is not already
+-// cached, then it calls genericSubst to create the new instantiation.
+-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
++// checkFetchBody checks if a generic body can be fetched, but hasn't been loaded
++// yet. If so, it imports the body.
++func checkFetchBody(nameNode *ir.Name) {
+ 	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
+ 		// If there is no body yet but Func.Inl exists, then we can can
+ 		// import the whole generic body.
+@@ -754,6 +750,13 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth
+ 		nameNode.Func.Body = nameNode.Func.Inl.Body
+ 		nameNode.Func.Dcl = nameNode.Func.Inl.Dcl
+ 	}
++}
++
++// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
++// with the type arguments targs. If the instantiated function is not already
++// cached, then it calls genericSubst to create the new instantiation.
++func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
++	checkFetchBody(nameNode)
+ 	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
+ 	info := g.instInfoMap[sym]
+ 	if info == nil {
+@@ -1405,13 +1408,41 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 			case ir.OCALL:
+ 				call := n.(*ir.CallExpr)
+ 				if call.X.Op() == ir.OXDOT {
+-					subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
+-					s2targs := make([]*types.Type, len(subtargs))
+-					for i, t := range subtargs {
+-						s2targs[i] = subst.Typ(t)
++					var nameNode *ir.Name
++					se := call.X.(*ir.SelectorExpr)
++					if types.IsInterfaceMethod(se.Selection.Type) {
++						// This is a method call enabled by a type bound.
++						tmpse := ir.NewSelectorExpr(base.Pos, ir.OXDOT, se.X, se.Sel)
++						tmpse = typecheck.AddImplicitDots(tmpse)
++						tparam := tmpse.X.Type()
++						assert(tparam.IsTypeParam())
++						recvType := targs[tparam.Index()]
++						if len(recvType.RParams()) == 0 {
++							// No sub-dictionary entry is
++							// actually needed, since the
++							// typeparam is not an
++							// instantiated type that
++							// will have generic methods.
++							break
++						}
++						// This is a method call for an
++						// instantiated type, so we need a
++						// sub-dictionary.
++						targs := recvType.RParams()
++						genRecvType := recvType.OrigSym.Def.Type()
++						nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
++						sym = g.getDictionarySym(nameNode, targs, true)
++					} else {
++						// This is the case of a normal
++						// method call on a generic type.
++						nameNode = call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
++						subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
++						s2targs := make([]*types.Type, len(subtargs))
++						for i, t := range subtargs {
++							s2targs[i] = subst.Typ(t)
++						}
++						sym = g.getDictionarySym(nameNode, s2targs, true)
+ 					}
+-					nameNode := call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
+-					sym = g.getDictionarySym(nameNode, s2targs, true)
+ 				} else {
+ 					inst := call.X.(*ir.InstExpr)
+ 					var nameNode *ir.Name
+@@ -1452,8 +1483,14 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 				assert(false)
+ 			}
+ 
+-			off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+-			infoPrint(" - Subdict %v\n", sym.Name)
++			if sym == nil {
++				// Unused sub-dictionary entry, just emit 0.
++				off = objw.Uintptr(lsym, off, 0)
++				infoPrint(" - Unused subdict entry\n")
++			} else {
++				off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
++				infoPrint(" - Subdict %v\n", sym.Name)
++			}
+ 		}
+ 		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
+ 		infoPrint("=== Done dictionary\n")
+@@ -1512,6 +1549,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 		return infop
+ 	}
+ 
++	checkFetchBody(gn)
+ 	var info gfInfo
+ 	gf := gn.Func
+ 	recv := gf.Type().Recv()
+@@ -1575,6 +1613,13 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 				info.subDictCalls = append(info.subDictCalls, n)
+ 			}
+ 		}
++		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
++			n.(*ir.CallExpr).X.(*ir.SelectorExpr).Selection != nil &&
++			deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).IsTypeParam() {
++			n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
++			infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
++			info.subDictCalls = append(info.subDictCalls, n)
++		}
+ 		if n.Op() == ir.OCLOSURE {
+ 			// Visit the closure body and add all relevant entries to the
+ 			// dictionary of the outer function (closure will just use
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 0a48078bd0..4fbc48f17b 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1789,7 +1789,11 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.exoticSelector(n.Sel)
+ 		if go117ExportTypes {
+ 			w.exoticType(n.Type())
+-			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
++			if n.Op() == ir.OXDOT {
++				// n.Selection for method references will be
++				// reconstructed during import.
++				w.bool(n.Selection != nil)
++			} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
+ 				w.exoticField(n.Selection)
+ 			}
+ 			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 4a97267f05..bf7f84b5cd 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1376,6 +1376,28 @@ func (r *importReader) node() ir.Node {
+ 		if go117ExportTypes {
+ 			n.SetType(r.exoticType())
+ 			switch op {
++			case ir.OXDOT:
++				hasSelection := r.bool()
++				// We reconstruct n.Selection for method calls on
++				// generic types and method calls due to type param
++				// bounds.  Otherwise, n.Selection is nil.
++				if hasSelection {
++					n1 := ir.NewSelectorExpr(pos, op, expr, sel)
++					AddImplicitDots(n1)
++					var m *types.Field
++					if n1.X.Type().IsTypeParam() {
++						genType := n1.X.Type().Bound()
++						m = Lookdot1(n1, sel, genType, genType.AllMethods(), 1)
++					} else {
++						genType := types.ReceiverBaseType(n1.X.Type())
++						if genType.IsInstantiatedGeneric() {
++							genType = genType.OrigSym.Def.Type()
++						}
++						m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
++					}
++					assert(m != nil)
++					n.Selection = m
++				}
+ 			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
+ 				n.Selection = r.exoticField()
+ 			case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
+diff --git a/test/typeparam/boundmethod.go b/test/typeparam/boundmethod.go
+new file mode 100644
+index 0000000000..c150f9d85a
+--- /dev/null
++++ b/test/typeparam/boundmethod.go
+@@ -0,0 +1,60 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test illustrates how a type bound method (String below) can be implemented
++// either by a concrete type (myint below) or a instantiated generic type
++// (StringInt[myint] below).
++
++package main
++
++import (
++        "fmt"
++        "reflect"
++        "strconv"
++)
++
++type myint int
++
++//go:noinline
++func (m myint) String() string {
++        return strconv.Itoa(int(m))
++}
++
++type Stringer interface {
++        String() string
++}
++
++func stringify[T Stringer](s []T) (ret []string) {
++        for _, v := range s {
++                ret = append(ret, v.String())
++        }
++        return ret
++}
++
++type StringInt[T any] T
++
++//go:noinline
++func (m StringInt[T]) String() string {
++        return "aa"
++}
++
++func main() {
++        x := []myint{myint(1), myint(2), myint(3)}
++
++        got := stringify(x)
++        want := []string{"1", "2", "3"}
++        if !reflect.DeepEqual(got, want) {
++                panic(fmt.Sprintf("got %s, want %s", got, want))
++        }
++
++        x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
++
++        got2 := stringify(x2)
++        want2 := []string{"aa", "aa", "aa"}
++        if !reflect.DeepEqual(got2, want2) {
++                panic(fmt.Sprintf("got %s, want %s", got2, want2))
++        }
++}

@@ -21,7 +21,90 @@ Date:   Mon Sep 16 10:25:48 2019 +0200
     Change-Id: Iade83d8deb54f14277ed3f2e37b190e1ed173d11
     Reviewed-on: https://go-review.googlesource.com/c/go/+/195220
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/loopbce.go | 24 ++++++++++++++++--------
  test/loopbce.go                         | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 2ce687822a..bfa2597493 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -111,17 +111,25 @@ func findIndVar(f *Func) []indVar {
+ 			continue
+ 		}
+ 
+-		// See if the arguments are reversed (i < len() <=> len() > i)
+-		less := true
+-		if max.Op == OpPhi {
+-			ind, max = max, ind
+-			less = false
+-		}
+-
+ 		// See if this is really an induction variable
++		less := true
+ 		min, inc, nxt := parseIndVar(ind)
+ 		if min == nil {
+-			continue
++			// We failed to parse the induction variable. Before punting, we want to check
++			// whether the control op was written with arguments in non-idiomatic order,
++			// so that we believe being "max" (the upper bound) is actually the induction
++			// variable itself. This would happen for code like:
++			//     for i := 0; len(n) > i; i++
++			min, inc, nxt = parseIndVar(max)
++			if min == nil {
++				// No recognied induction variable on either operand
++				continue
++			}
++
++			// Ok, the arguments were reversed. Swap them, and remember that we're
++			// looking at a ind >/>= loop (so the induction must be decrementing).
++			ind, max = max, ind
++			less = false
+ 		}
+ 
+ 		// Expect the increment to be a nonzero constant.
+diff --git a/test/loopbce.go b/test/loopbce.go
+index e0a6463c5e..f0c9bd0f81 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -257,6 +257,39 @@ func k5(a [100]int) [100]int {
+ 	return a
+ }
+ 
++func d1(a [100]int) [100]int {
++	for i := 0; i < 100; i++ { // ERROR "Induction variable: limits \[0,100\), increment 1$"
++		for j := 0; j < i; j++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
++			a[j] = 0   // ERROR "Proved IsInBounds$"
++			a[j+1] = 0 // FIXME: this boundcheck should be eliminated
++			a[j+2] = 0
++		}
++	}
++	return a
++}
++
++func d2(a [100]int) [100]int {
++	for i := 0; i < 100; i++ { // ERROR "Induction variable: limits \[0,100\), increment 1$"
++		for j := 0; i > j; j++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
++			a[j] = 0   // ERROR "Proved IsInBounds$"
++			a[j+1] = 0 // FIXME: this boundcheck should be eliminated
++			a[j+2] = 0
++		}
++	}
++	return a
++}
++
++func d3(a [100]int) [100]int {
++	for i := 0; i <= 99; i++ { // ERROR "Induction variable: limits \[0,99\], increment 1$"
++		for j := 0; j <= i-1; j++ { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
++			a[j] = 0   // ERROR "Proved IsInBounds$"
++			a[j+1] = 0 // ERROR "Proved IsInBounds$"
++			a[j+2] = 0
++		}
++	}
++	return a
++}
++
+ func nobce1() {
+ 	// tests overflow of max-min
+ 	a := int64(9223372036854774057)

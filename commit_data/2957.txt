@@ -8,7 +8,7 @@ Date:   Wed Aug 12 15:17:47 2009 -0700
     DELTA=827  (0 added, 826 deleted, 1 changed)
     OCL=33117
     CL=33120
-
+---
  src/cmd/clean.bash          |   2 +-
  src/cmd/gobuild/Makefile    |  79 ----------
  src/cmd/gobuild/gobuild.go  | 344 --------------------------------------------
@@ -16,3 +16,881 @@ Date:   Wed Aug 12 15:17:47 2009 -0700
  src/cmd/gobuild/makefile.go | 120 ----------------
  src/cmd/gobuild/util.go     | 279 -----------------------------------
  6 files changed, 1 insertion(+), 835 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index bba191c994..8e6e5a7f1f 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov ebnflint gobuild godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov ebnflint godefs godoc gofmt prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/gobuild/Makefile b/src/cmd/gobuild/Makefile
+deleted file mode 100644
+index c0dd9f3f2a..0000000000
+--- a/src/cmd/gobuild/Makefile
++++ /dev/null
+@@ -1,79 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# ironically, not auto-generated
+-
+-include ../../Make.conf
+-
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
+-LD=$(O)l
+-
+-default: gobuild
+-
+-clean:
+-	rm -f *.[$(OS)] *.a [$(OS)].out gobuild
+-
+-%.$O: %.go
+-	$(GC) $*.go
+-
+-O1=util.$O
+-O2=makefile.$O
+-O3=gobuild.$O
+-
+-phases: a1 a2 a3
+-gobuild.a: phases
+-
+-a1: $(O1)
+-	$(AR) grc gobuild.a util.$O
+-	rm -f $(O1)
+-
+-a2: $(O2)
+-	$(AR) grc gobuild.a makefile.$O
+-	rm -f $(O2)
+-
+-a3: $(O3)
+-	$(AR) grc gobuild.a gobuild.$O
+-	rm -f $(O3)
+-
+-newpkg: clean
+-	$(AR) grc gobuild.a
+-
+-$(O1): newpkg
+-$(O2): a1
+-$(O3): a2
+-
+-# zzgobuild is a fake target that will always run, even if
+-# "gobuild" existed at the beginning of the make.
+-# The problem is that if you "make install" and install
+-# depends on gobuild and this rule says gobuild,
+-# and gobuild.a depends on phases, "phases" gets
+-# run, which cleans everything and then rebuilds
+-# gobuild.a.  So now make thinks gobuild was up to date
+-# to begin with (and it ran "phases" just for good measure)
+-# but in fact gobuild is gone ("phases" removed it).
+-#
+-# Calling the target zzgobuild instead means that
+-# make will always run this rule, rebuilding gobuild
+-# before trying to install it.  Sigh.
+-zzgobuild: main.$O gobuild.a
+-	$(LD) -o gobuild main.$O
+-
+-gobuild: zzgobuild
+-
+-main.$O: phases
+-
+-nuke: clean
+-	rm -f $(GOBIN)/gobuild
+-
+-install: zzgobuild
+-	cp gobuild $(GOBIN)/gobuild
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+deleted file mode 100644
+index 6dce9d576f..0000000000
+--- a/src/cmd/gobuild/gobuild.go
++++ /dev/null
+@@ -1,344 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gobuild
+-
+-import (
+-	"flag";
+-	"fmt";
+-	"io";
+-	"os";
+-	"path";
+-	"sort";
+-	"strings";
+-	"template";
+-	"unicode";
+-	"utf8";
+-
+-	"./gobuild";
+-)
+-
+-type Pkg struct
+-
+-type File struct {
+-	Name string;
+-	Pkg *Pkg;
+-	Imports []string;
+-	Deps []*Pkg;
+-	Phase int;
+-}
+-
+-type Pkg struct {
+-	Name string;
+-	Path string;
+-	Files []*File;
+-}
+-
+-type ArCmd struct {
+-	Pkg *Pkg;
+-	Files []*File;
+-}
+-
+-type Phase struct {
+-	Phase int;
+-	ArCmds []*ArCmd;
+-}
+-
+-type Info struct {
+-	Args []string;
+-	Char string;
+-	Dir string;
+-	ObjDir string;
+-	Pkgmap map[string] *Pkg;
+-	Packages []*Pkg;
+-	Files map[string] *File;
+-	Imports map[string] bool;
+-	Phases []*Phase;
+-	MaxPhase int;
+-}
+-
+-var verbose = flag.Bool("v", false, "verbose mode")
+-var writeMakefile = flag.Bool("m", false, "write Makefile to standard output")
+-
+-func PushPkg(vp *[]*Pkg, p *Pkg) {
+-	v := *vp;
+-	n := len(v);
+-	if n >= cap(v) {
+-		m := 2*n + 10;
+-		a := make([]*Pkg, n, m);
+-		for i := range v {
+-			a[i] = v[i];
+-		}
+-		v = a;
+-	}
+-	v = v[0:n+1];
+-	v[n] = p;
+-	*vp = v;
+-}
+-
+-func PushFile(vp *[]*File, p *File) {
+-	v := *vp;
+-	n := len(v);
+-	if n >= cap(v) {
+-		m := 2*n + 10;
+-		a := make([]*File, n, m);
+-		for i := range v {
+-			a[i] = v[i];
+-		}
+-		v = a;
+-	}
+-	v = v[0:n+1];
+-	v[n] = p;
+-	*vp = v;
+-}
+-
+-// For sorting Files
+-type FileArray []*File
+-
+-func (a FileArray) Len() int {
+-	return len(a)
+-}
+-
+-func (a FileArray) Less(i, j int) bool {
+-	return a[i].Name < a[j].Name
+-}
+-
+-func (a FileArray) Swap(i, j int) {
+-	a[i], a[j] = a[j], a[i]
+-}
+-
+-// If current directory is under $GOROOT/src/pkg, return the
+-// path relative to there.  Otherwise return "".
+-func PkgDir() string {
+-	goroot := os.Getenv("GOROOT");
+-	if goroot == "" {
+-		return ""
+-	}
+-	srcroot := path.Clean(goroot + "/src/pkg/");
+-	pwd := os.Getenv("PWD");	// TODO(rsc): real pwd
+-	if pwd == "" {
+-		return ""
+-	}
+-	if pwd == srcroot {
+-		return ""
+-	}
+-	n := len(srcroot);
+-	if len(pwd) < n || pwd[n] != '/' || pwd[0:n] != srcroot {
+-		return ""
+-	}
+-
+-	dir := pwd[n+1:len(pwd)];
+-	return dir;
+-}
+-
+-func ScanFiles(filenames []string) *Info {
+-	// Build list of imports, local packages, and files.
+-	// Exclude *_test.go and anything in package main.
+-	// TODO(rsc): Build a binary from package main?
+-
+-	z := new(Info);
+-	z.Args = os.Args;
+-	z.Dir = PkgDir();
+-	z.Char = theChar;	// for template
+-	z.ObjDir = ObjDir;	// for template
+-	z.Pkgmap = make(map[string] *Pkg);
+-	z.Files = make(map[string] *File);
+-	z.Imports = make(map[string] bool);
+-
+-	// Read Go files to find out packages and imports.
+-	var pkg *Pkg;
+-	for _, filename := range filenames {
+-		if strings.Index(filename, "_test.") >= 0 {
+-			continue;
+-		}
+-		f := new(File);
+-		f.Name = filename;
+-		if path.Ext(filename) == ".go" {
+-			rune, _ := utf8.DecodeRuneInString(filename);
+-			if rune != '_' && !unicode.IsLetter(rune) && !unicode.IsDecimalDigit(rune) {
+-				// Ignore files with funny leading letters,
+-				// to avoid editor files like .foo.go and ~foo.go.
+-				continue;
+-			}
+-
+-			pkgname, imp, err := PackageImports(filename);
+-			if err != nil {
+-				fatal("parsing %s: %s", filename, err);
+-			}
+-			if pkgname == "main" {
+-				continue;
+-			}
+-
+-			path := pkgname;
+-			var ok bool;
+-			pkg, ok = z.Pkgmap[path];
+-			if !ok {
+-				pkg = new(Pkg);
+-				pkg.Name = pkgname;
+-				pkg.Path = path;
+-				z.Pkgmap[path] = pkg;
+-				PushPkg(&z.Packages, pkg);
+-			}
+-			f.Pkg = pkg;
+-			f.Imports = imp;
+-			for _, name := range imp {
+-				z.Imports[name] = true;
+-			}
+-			PushFile(&pkg.Files, f);
+-		}
+-		z.Files[filename] = f;
+-	}
+-
+-	// Loop through files again, filling in more info.
+-	for _, f := range z.Files {
+-		if f.Pkg == nil {
+-			// non-Go file: fill in package name.
+-			// Must only be a single package in this directory.
+-			if len(z.Pkgmap) != 1 {
+-				fatal("cannot determine package for %s", f.Name);
+-			}
+-			f.Pkg = pkg;
+-		}
+-
+-		// Go file: record dependencies on other packages in this directory.
+-		for _, imp := range f.Imports {
+-			pkg, ok := z.Pkgmap[imp];
+-			if ok && pkg != f.Pkg {
+-				PushPkg(&f.Deps, pkg);
+-			}
+-		}
+-	}
+-
+-	// Update destination directory.
+-	// If destination directory has same
+-	// name as package name, cut it off.
+-	dir, name := path.Split(z.Dir);
+-	if len(z.Packages) == 1 && z.Packages[0].Name == name {
+-		z.Dir = dir;
+-	}
+-
+-	return z;
+-}
+-
+-func PackageObj(pkg string) string {
+-	return pkg + ".a"
+-}
+-
+-func (z *Info) Build() {
+-	// Create empty object directory tree.
+-	RemoveAll(ObjDir);
+-	obj := path.Join(ObjDir, z.Dir) + "/";
+-	MkdirAll(obj);
+-
+-	// Create empty archives.
+-	for pkgname := range z.Pkgmap {
+-		ar := obj + PackageObj(pkgname);
+-		os.Remove(ar);
+-		Archive(ar, nil);
+-	}
+-
+-	// Compile by repeated passes: build as many .6 as possible,
+-	// put them in their archives, and repeat.
+-	var pending, fail, success []*File;
+-	for _, file := range z.Files {
+-		PushFile(&pending, file);
+-	}
+-	sort.Sort(FileArray(pending));
+-
+-	var arfiles []string;
+-	z.Phases = make([]*Phase, 0, len(z.Files));
+-
+-	for phase := 1; len(pending) > 0; phase++ {
+-		// Run what we can.
+-		fail = fail[0:0];
+-		success = success[0:0];
+-		for _, f := range pending {
+-			if !Build(Compiler(f.Name), f.Name, 0) {
+-				PushFile(&fail, f);
+-			} else {
+-				if *verbose {
+-					fmt.Fprint(os.Stderr, f.Name, " ");
+-				}
+-				PushFile(&success, f);
+-			}
+-		}
+-		if len(success) == 0 {
+-			// Nothing ran; give up.
+-			for _, f := range fail {
+-				Build(Compiler(f.Name), f.Name, ShowErrors | ForceDisplay);
+-			}
+-			fatal("stalemate");
+-		}
+-		if *verbose {
+-			fmt.Fprint(os.Stderr, "\n");
+-		}
+-
+-		// Record phase data.
+-		p := new(Phase);
+-		p.ArCmds = make([]*ArCmd, 0, len(z.Pkgmap));
+-		p.Phase = phase;
+-		n := len(z.Phases);
+-		z.Phases = z.Phases[0:n+1];
+-		z.Phases[n] = p;
+-
+-		// Update archives.
+-		for _, pkg := range z.Pkgmap {
+-			arfiles = arfiles[0:0];
+-			var files []*File;
+-			for _, f := range success {
+-				if f.Pkg == pkg {
+-					PushString(&arfiles, Object(f.Name, theChar));
+-					PushFile(&files, f);
+-				}
+-				f.Phase = phase;
+-			}
+-			if len(arfiles) > 0 {
+-				Archive(obj + pkg.Name + ".a", arfiles);
+-
+-				n := len(p.ArCmds);
+-				p.ArCmds = p.ArCmds[0:n+1];
+-				p.ArCmds[n] = &ArCmd{pkg, files};
+-			}
+-			for _, filename := range arfiles {
+-				os.Remove(filename);
+-			}
+-		}
+-		pending, fail = fail, pending;
+-
+-	}
+-}
+-
+-func (z *Info) Clean() {
+-	RemoveAll(ObjDir);
+-	for pkgname := range z.Pkgmap {
+-		os.Remove(PackageObj(pkgname));
+-	}
+-}
+-
+-func Main() {
+-	flag.Parse();
+-
+-	filenames := flag.Args();
+-	if len(filenames) == 0 {
+-		var err os.Error;
+-		filenames, err= SourceFiles(".");
+-		if err != nil {
+-			fatal("reading .: %s", err.String());
+-		}
+-	}
+-
+-	state := ScanFiles(filenames);
+-	state.Build();
+-	if *writeMakefile {
+-		t, err := template.Parse(makefileTemplate, makefileMap);
+-		if err != nil {
+-			fatal("template.Parse: %s", err.String());
+-		}
+-		err = t.Execute(state, os.Stdout);
+-		if err != nil {
+-			fatal("template.Expand: %s", err.String());
+-		}
+-	}
+-}
+-
+diff --git a/src/cmd/gobuild/main.go b/src/cmd/gobuild/main.go
+deleted file mode 100644
+index b5bef4d333..0000000000
+--- a/src/cmd/gobuild/main.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "./gobuild";
+-
+-func main() {
+-	gobuild.Main();
+-}
+-
+diff --git a/src/cmd/gobuild/makefile.go b/src/cmd/gobuild/makefile.go
+deleted file mode 100644
+index 36a9ee034c..0000000000
+--- a/src/cmd/gobuild/makefile.go
++++ /dev/null
+@@ -1,120 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gobuild
+-
+-import (
+-	"fmt";
+-	"io";
+-	"path";
+-	"template";
+-
+-	"./gobuild";
+-)
+-
+-var makefileTemplate = `
+-# DO NOT EDIT.  Automatically generated by gobuild.
+-{Args|args} >Makefile
+-
+-D={.section Dir}/{@}{.end}
+-
+-include $(GOROOT)/src/Make.$(GOARCH)
+-AR=gopack
+-
+-default: packages
+-
+-clean:
+-	rm -rf *.[$(OS)] *.a [$(OS)].out {ObjDir}
+-
+-test: packages
+-	gotest
+-
+-coverage: packages
+-	gotest
+-	6cov -g $$(pwd) | grep -v '_test\.go:'
+-
+-%.$O: %.go
+-	$(GC) -I{ObjDir} $*.go
+-
+-%.$O: %.c
+-	$(CC) $*.c
+-
+-%.$O: %.s
+-	$(AS) $*.s
+-
+-{.repeated section Phases}
+-O{Phase}=\
+-{.repeated section ArCmds}
+-{.repeated section Files}
+-	{Name|basename}.$O\
+-{.end}
+-{.end}
+-
+-{.end}
+-
+-phases:{.repeated section Phases} a{Phase}{.end}
+-{.repeated section Packages}
+-{ObjDir}$D/{Name}.a: phases
+-{.end}
+-
+-{.repeated section Phases}
+-a{Phase}: $(O{Phase})
+-{.repeated section ArCmds}
+-	$(AR) grc {ObjDir}$D/{.section Pkg}{Name}.a{.end}{.repeated section Files} {Name|basename}.$O{.end}
+-{.end}
+-	rm -f $(O{Phase})
+-
+-{.end}
+-
+-newpkg: clean
+-	mkdir -p {ObjDir}$D
+-{.repeated section Packages}
+-	$(AR) grc {ObjDir}$D/{Name}.a
+-{.end}
+-
+-$(O1): newpkg
+-{.repeated section Phases}
+-$(O{Phase|+1}): a{Phase}
+-{.end}
+-
+-nuke: clean
+-	rm -f{.repeated section Packages} $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/{Name}.a{.end}
+-
+-packages:{.repeated section Packages} {ObjDir}$D/{Name}.a{.end}
+-
+-install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
+-{.repeated section Packages}
+-	cp {ObjDir}$D/{Name}.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/{Name}.a
+-{.end}
+-`
+-
+-func argsFmt(w io.Writer, x interface{}, format string) {
+-	args := x.([]string);
+-	fmt.Fprint(w, "#");
+-	for i, a := range args {
+-		fmt.Fprint(w, " ", ShellString(a));
+-	}
+-}
+-
+-func basenameFmt(w io.Writer, x interface{}, format string) {
+-	t := fmt.Sprint(x);
+-	t = t[0:len(t)-len(path.Ext(t))];
+-	fmt.Fprint(w, MakeString(t));
+-}
+-
+-func plus1Fmt(w io.Writer, x interface{}, format string) {
+-	fmt.Fprint(w, x.(int) + 1);
+-}
+-
+-func makeFmt(w io.Writer, x interface{}, format string) {
+-	fmt.Fprint(w, MakeString(fmt.Sprint(x)));
+-}
+-
+-var makefileMap = template.FormatterMap {
+-	"": makeFmt,
+-	"+1": plus1Fmt,
+-	"args": argsFmt,
+-	"basename": basenameFmt,
+-}
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+deleted file mode 100644
+index 52e3109a74..0000000000
+--- a/src/cmd/gobuild/util.go
++++ /dev/null
+@@ -1,279 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-
+-package gobuild
+-
+-import (
+-	"bufio";
+-	"exec";
+-	"fmt";
+-	"io";
+-	"go/ast";
+-	"go/parser";
+-	"os";
+-	"path";
+-	"sort";
+-	"strconv";
+-	"strings";
+-)
+-
+-const (
+-	ShowErrors = 1<<iota;
+-	ForceDisplay;
+-)
+-
+-var (
+-	theChar string;
+-	goarch string;
+-	goos string;
+-	bin = make(map[string] string);
+-)
+-
+-var theChars = map[string] string {
+-	"amd64": "6",
+-	"386": "8",
+-	"arm": "5"
+-}
+-
+-const ObjDir = "_obj"
+-
+-func fatal(format string, args ...) {
+-	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprintf(format, args));
+-	os.Exit(1);
+-}
+-
+-func init() {
+-	goarch = os.Getenv("GOARCH");
+-	goos = os.Getenv("GOOS");
+-
+-	var ok bool;
+-	theChar, ok = theChars[goarch];
+-	if !ok {
+-		fatal("unknown $GOARCH: %s", goarch);
+-	}
+-
+-	var binaries = []string{
+-		theChar + "g",
+-		theChar + "c",
+-		theChar + "a",
+-		"gopack",
+-	};
+-
+-	for i, v := range binaries {
+-		var s string;
+-		var err os.Error;
+-		if s, err = exec.LookPath(v); err != nil {
+-			fatal("cannot find binary %s", v);
+-		}
+-		bin[v] = s;
+-	}
+-}
+-
+-func PushString(vp *[]string, p string) {
+-	v := *vp;
+-	n := len(v);
+-	if n >= cap(v) {
+-		m := 2*n + 10;
+-		a := make([]string, n, m);
+-		for i := range v {
+-			a[i] = v[i];
+-		}
+-		v = a;
+-	}
+-	v = v[0:n+1];
+-	v[n] = p;
+-	*vp = v;
+-}
+-
+-func run(argv []string, flag int) (ok bool) {
+-	argv0 := bin[argv[0]];
+-	null, err := os.Open("/dev/null", os.O_RDWR, 0);
+-	if err != nil {
+-		fatal("open /dev/null: %s", err);
+-	}
+-	defer null.Close();
+-	r, w, err := os.Pipe();
+-	if err != nil {
+-		fatal("pipe: %s", err);
+-	}
+-	pid, err := os.ForkExec(argv0, argv, os.Environ(), "", []*os.File{null, w, w});
+-	defer r.Close();
+-	w.Close();
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, err);
+-		return false;
+-	}
+-
+-	// Read the first line of output, if any.  Discard the rest.
+-	// If there is output and ShowErrors is set, show it,
+-	// preceded by a shell command line.
+-	// If ForceDisplay is set, we show the command even
+-	// if there's no output; this gets set if we're just trying
+-	// to keep the user informed.
+-	b := bufio.NewReader(r);
+-	line, err := b.ReadLineString('\n', true);
+-	if flag & ShowErrors != 0 && line != "" || flag & ForceDisplay != 0 {
+-		fmt.Fprint(os.Stderr, "$ ");
+-		for i, s := range argv {
+-			fmt.Fprint(os.Stderr, s, " ");
+-		}
+-		fmt.Fprint(os.Stderr, "\n");
+-		fmt.Fprint(os.Stderr, "  ", line);
+-		io.Copy(r, null);	// don't let process block on pipe
+-	}
+-	waitmsg, err := os.Wait(pid, 0);
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, err);
+-		return false;
+-	}
+-	return waitmsg.Exited() && waitmsg.ExitStatus() == 0;
+-}
+-
+-func Build(cmd []string, file string, flag int) (ok bool) {
+-	var argv []string;
+-	for i, c := range cmd {
+-		PushString(&argv, c);
+-	}
+-	PushString(&argv, file);
+-	return run(argv, flag);
+-}
+-
+-func Archive(pkg string, files []string) {
+-	argv := []string{ "gopack", "grc", pkg };
+-	for i, file := range files {
+-		PushString(&argv, file);
+-	}
+-	if !run(argv, ShowErrors) {
+-		fatal("archive failed");
+-	}
+-}
+-
+-func Compiler(file string) []string {
+-	switch {
+-	case strings.HasSuffix(file, ".go"):
+-		return []string{ theChar + "g", "-I", ObjDir };
+-	case strings.HasSuffix(file, ".c"):
+-		return []string{ theChar + "c", "-FVw" };
+-	case strings.HasSuffix(file, ".s"):
+-		return []string{ theChar + "a" };
+-	}
+-	fatal("don't know how to compile %s", file);
+-	return nil;
+-}
+-
+-func Object(file, suffix string) string {
+-	ext := path.Ext(file);
+-	return file[0:len(file)-len(ext)] + "." + suffix;
+-}
+-
+-// Dollarstring returns s with literal goarch/goos values
+-// replaced by $lGOARCHr where l and r are the specified delimeters.
+-func dollarString(s, l, r string) string {
+-	out := "";
+-	j := 0;	// index of last byte in s copied to out.
+-	for i := 0; i < len(s); {
+-		switch {
+-		case i+len(goarch) <= len(s) && s[i:i+len(goarch)] == goarch:
+-			out += s[j:i];
+-			out += "$" + l + "GOARCH" + r;
+-			i += len(goarch);
+-			j = i;
+-		case i+len(goos) <= len(s) && s[i:i+len(goos)] == goos:
+-			out += s[j:i];
+-			out += "$" + l + "GOOS" + r;
+-			i += len(goos);
+-			j = i;
+-		default:
+-			i++;
+-		}
+-	}
+-	out += s[j:len(s)];
+-	return out;
+-}
+-
+-// dollarString wrappers.
+-// Print ShellString(s) or MakeString(s) depending on
+-// the context in which the result will be interpreted.
+-type ShellString string;
+-func (s ShellString) String() string {
+-	return dollarString(string(s), "{", "}");
+-}
+-
+-type MakeString string;
+-func (s MakeString) String() string {
+-	return dollarString(string(s), "(", ")");
+-}
+-
+-// TODO(rsc): Should this be in the AST library?
+-func LitString(p []*ast.StringLit) (string, os.Error) {
+-	s := "";
+-	for i, lit := range p {
+-		t, err := strconv.Unquote(string(lit.Value));
+-		if err != nil {
+-			return "", err;
+-		}
+-		s += t;
+-	}
+-	return s, nil;
+-}
+-
+-func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
+-	prog, err := parser.ParseFile(file, nil, parser.ImportsOnly);
+-	if err != nil {
+-		return "", nil, err;
+-	}
+-
+-	// Normally one must consult the types of decl and spec,
+-	// but we told the parser to return imports only,
+-	// so assume it did.
+-	var imp []string;
+-	for _, decl := range prog.Decls {
+-		for _, spec := range decl.(*ast.GenDecl).Specs {
+-			str, err := LitString(spec.(*ast.ImportSpec).Path);
+-			if err != nil {
+-				return "", nil, os.NewError("invalid import specifier");	// better than os.EINVAL
+-			}
+-			PushString(&imp, str);
+-		}
+-	}
+-
+-	// TODO(rsc): should be prog.Package.Value
+-	return prog.Name.Value, imp, nil;
+-}
+-
+-func SourceFiles(dir string) ([]string, os.Error) {
+-	f, err := os.Open(dir, os.O_RDONLY, 0);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	names, err1 := f.Readdirnames(-1);
+-	f.Close();
+-	out := make([]string, 0, len(names));
+-	for i, name := range names {
+-		if strings.HasSuffix(name, ".go")
+-		|| strings.HasSuffix(name, ".c")
+-		|| strings.HasSuffix(name, ".s") {
+-			n := len(out);
+-			out = out[0:n+1];
+-			out[n] = name;
+-		}
+-	}
+-	sort.SortStrings(out);
+-	return out, nil;
+-}
+-
+-func MkdirAll(name string) {
+-	err := os.MkdirAll(name, 0755);
+-	if err != nil {
+-		fatal("MkdirAll: %v", err);
+-	}
+-}
+-
+-func RemoveAll(name string) {
+-	err := os.RemoveAll(name);
+-	if err != nil {
+-		fatal("RemoveAll: %v", err);
+-	}
+-}

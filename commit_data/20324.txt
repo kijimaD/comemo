@@ -11,7 +11,7 @@ Date:   Sun Aug 31 22:49:14 2014 -0400
     R=khr, josharian
     CC=golang-codereviews
     https://golang.org/cl/135170044
-
+---
  include/link.h              |  1 +
  src/cmd/cc/pgen.c           |  1 +
  src/cmd/ld/lib.c            | 53 +++++++++++++++++++++++++++++++++++++++++++++
@@ -20,3 +20,216 @@ Date:   Sun Aug 31 22:49:14 2014 -0400
  src/liblink/objfile.c       | 18 +++++++++++----
  src/pkg/debug/goobj/read.go |  6 +++--
  7 files changed, 76 insertions(+), 6 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 2b4de789d5..73f148c14c 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -126,6 +126,7 @@ struct	LSym
+ 	short	type;
+ 	short	version;
+ 	uchar	dupok;
++	uchar	cfunc;
+ 	uchar	external;
+ 	uchar	nosplit;
+ 	uchar	reachable;
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 53410a11a0..99128d4005 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -131,6 +131,7 @@ codgen(Node *n, Node *nn)
+ 	nearln = nn->lineno;
+ 
+ 	p = gtext(n1->sym, stkoff);
++	p->from.sym->cfunc = 1;
+ 	sp = p;
+ 
+ 	/*
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index a68993715d..51e10bb99d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1554,3 +1554,56 @@ diag(char *fmt, ...)
+ 		errorexit();
+ 	}
+ }
++
++void
++checkgo(void)
++{
++	LSym *s;
++	Reloc *r;
++	int i;
++	int changed;
++	
++	if(!debug['C'])
++		return;
++	
++	// TODO(rsc,khr): Eventually we want to get to no Go-called C functions at all,
++	// which would simplify this logic quite a bit.
++
++	// Mark every Go-called C function with cfunc=2, recursively.
++	do {
++		changed = 0;
++		for(s = ctxt->textp; s != nil; s = s->next) {
++			if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
++				for(i=0; i<s->nr; i++) {
++					r = &s->r[i];
++					if(r->sym == nil)
++						continue;
++					if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
++						if(r->sym->cfunc == 1) {
++							changed = 1;
++							r->sym->cfunc = 2;
++						}
++					}
++				}
++			}
++		}
++	}while(changed);
++
++	// Complain about Go-called C functions that can split the stack
++	// (that can be preempted for garbage collection or trigger a stack copy).
++	for(s = ctxt->textp; s != nil; s = s->next) {
++		if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
++			for(i=0; i<s->nr; i++) {
++				r = &s->r[i];
++				if(r->sym == nil)
++					continue;
++				if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
++					if(s->cfunc == 0 && r->sym->cfunc == 2 && !r->sym->nosplit)
++						print("Go %s calls C %s\n", s->name, r->sym->name);
++					else if(s->cfunc == 2 && s->nosplit && !r->sym->nosplit)
++						print("Go calls C %s calls %s\n", s->name, r->sym->name);
++				}
++			}
++		}
++	}
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index dd23990234..067ffa0bcc 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -183,6 +183,7 @@ uint16	be16(uchar *b);
+ uint32	be32(uchar *b);
+ uint64	be64(uchar *b);
+ void	callgraph(void);
++void	checkgo(void);
+ void	cflush(void);
+ void	codeblk(int64 addr, int64 size);
+ vlong	cpos(void);
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index d78dacd368..54c5ef2472 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -71,6 +71,7 @@ main(int argc, char *argv[])
+ 	if(thechar == '6')
+ 		flagcount("8", "assume 64-bit addresses", &debug['8']);
+ 	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
++	flagcount("C", "check Go calls to C code", &debug['C']);
+ 	flagint64("D", "addr: data address", &INITDAT);
+ 	flagstr("E", "sym: entry symbol", &INITENTRY);
+ 	if(thechar == '5')
+@@ -162,6 +163,7 @@ main(int argc, char *argv[])
+ 		mark(linklookup(ctxt, "runtime.read_tls_fallback", 0));
+ 	}
+ 
++	checkgo();
+ 	deadcode();
+ 	callgraph();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 22c9199d5e..dc463d474e 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -38,7 +38,8 @@
+ //	- type [int]
+ //	- name [string]
+ //	- version [int]
+-//	- dupok [int]
++//	- flags [int]
++//		1 dupok
+ //	- size [int]
+ //	- gotype [symbol reference]
+ //	- p [data block]
+@@ -50,7 +51,9 @@
+ //	- args [int]
+ //	- locals [int]
+ //	- nosplit [int]
+-//	- leaf [int]
++//	- flags [int]
++//		1 leaf
++//		2 C function
+ //	- nlocal [int]
+ //	- local [nlocal automatics]
+ //	- pcln [pcln table]
+@@ -289,6 +292,8 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 			Bprint(ctxt->bso, "t=%d ", s->type);
+ 		if(s->dupok)
+ 			Bprint(ctxt->bso, "dupok ");
++		if(s->cfunc)
++			Bprint(ctxt->bso, "cfunc ");
+ 		if(s->nosplit)
+ 			Bprint(ctxt->bso, "nosplit ");
+ 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
+@@ -351,7 +356,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 		wrint(b, s->args);
+ 		wrint(b, s->locals);
+ 		wrint(b, s->nosplit);
+-		wrint(b, s->leaf);
++		wrint(b, s->leaf | s->cfunc<<1);
+ 		n = 0;
+ 		for(a = s->autom; a != nil; a = a->link)
+ 			n++;
+@@ -519,6 +524,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	if(v != 0 && v != 1)
+ 		sysfatal("invalid symbol version %d", v);
+ 	dupok = rdint(f);
++	dupok &= 1;
+ 	size = rdint(f);
+ 	
+ 	if(v != 0)
+@@ -573,7 +579,9 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 		s->args = rdint(f);
+ 		s->locals = rdint(f);
+ 		s->nosplit = rdint(f);
+-		s->leaf = rdint(f);
++		v = rdint(f);
++		s->leaf = v&1;
++		s->cfunc = v&2;
+ 		n = rdint(f);
+ 		for(i=0; i<n; i++) {
+ 			a = emallocz(sizeof *a);
+@@ -629,6 +637,8 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 			Bprint(ctxt->bso, "t=%d ", s->type);
+ 		if(s->dupok)
+ 			Bprint(ctxt->bso, "dupok ");
++		if(s->cfunc)
++			Bprint(ctxt->bso, "cfunc ");
+ 		if(s->nosplit)
+ 			Bprint(ctxt->bso, "nosplit ");
+ 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
+diff --git a/src/pkg/debug/goobj/read.go b/src/pkg/debug/goobj/read.go
+index c95fe1e47f..79a83e59a6 100644
+--- a/src/pkg/debug/goobj/read.go
++++ b/src/pkg/debug/goobj/read.go
+@@ -602,7 +602,8 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 		s := &Sym{SymID: r.readSymID()}
+ 		r.p.Syms = append(r.p.Syms, s)
+ 		s.Kind = SymKind(typ)
+-		s.DupOK = r.readInt() != 0
++		flags := r.readInt()
++		s.DupOK = flags&1 != 0
+ 		s.Size = r.readInt()
+ 		s.Type = r.readSymID()
+ 		s.Data = r.readData()
+@@ -623,7 +624,8 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			s.Func = f
+ 			f.Args = r.readInt()
+ 			f.Frame = r.readInt()
+-			f.Leaf = r.readInt() != 0
++			flags := r.readInt()
++			f.Leaf = flags&1 != 0
+ 			f.NoSplit = r.readInt() != 0
+ 			f.Var = make([]Var, r.readInt())
+ 			for i := range f.Var {

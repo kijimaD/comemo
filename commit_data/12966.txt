@@ -7,6 +7,20 @@ Date:   Wed Apr 25 13:01:08 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6114053
-
+---
  misc/dashboard/app/build/ui.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 0337aa3063..1a7b67de93 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -97,7 +97,7 @@ type Pagination struct {
+ func goCommits(c appengine.Context, page int) ([]*Commit, error) {
+ 	q := datastore.NewQuery("Commit").
+ 		Ancestor((&Package{}).Key(c)).
+-		Order("-Time").
++		Order("-Num").
+ 		Limit(commitsPerPage).
+ 		Offset(page * commitsPerPage)
+ 	var commits []*Commit

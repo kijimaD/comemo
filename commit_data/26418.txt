@@ -23,7 +23,7 @@ Date:   Thu Jan 21 12:38:05 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ++++++++++++
  src/runtime/cgo/gcc_netbsd_386.c      | 12 ++++++++++++
  src/runtime/cgo/gcc_netbsd_amd64.c    | 12 ++++++++++++
@@ -31,3 +31,177 @@ Date:   Thu Jan 21 12:38:05 2016 -0800
  src/runtime/os1_netbsd.go             | 15 ++++++++++++++-
  src/runtime/sys_dragonfly_amd64.s     | 12 ++++++++++++
  6 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index f79f652e46..f41b9b408a 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -56,6 +56,7 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
++	stack_t ss;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -65,6 +66,17 @@ threadentry(void *v)
+ 	 */
+ 	setg_gcc((void*)ts.g);
+ 
++	// On DragonFly, a new thread inherits the signal stack of the
++	// creating thread.  That confuses minit, so we remove that
++	// signal stack here before calling the regular mstart.  It's
++	// a bit baroque to remove a signal stack here only to add one
++	// in minit, but it's a simple change that keeps DragonFly
++	// working like other OS's.  At this point all signals are
++	// blocked, so there is no race.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_flags = SS_DISABLE;
++	sigaltstack(&ss, nil);
++
+ 	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index 2505e6dc7c..6fc7a122b4 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -55,6 +55,7 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
++	stack_t ss;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -64,6 +65,17 @@ threadentry(void *v)
+ 	 */
+ 	setg_gcc((void*)ts.g);
+ 
++	// On NetBSD, a new thread inherits the signal stack of the
++	// creating thread.  That confuses minit, so we remove that
++	// signal stack here before calling the regular mstart.  It's
++	// a bit baroque to remove a signal stack here only to add one
++	// in minit, but it's a simple change that keeps NetBSD
++	// working like other OS's.  At this point all signals are
++	// blocked, so there is no race.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_flags = SS_DISABLE;
++	sigaltstack(&ss, nil);
++
+ 	crosscall_386(ts.fn);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index 8f646502d7..f0ecfac575 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -56,6 +56,7 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
++	stack_t ss;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -65,6 +66,17 @@ threadentry(void *v)
+ 	 */
+ 	setg_gcc((void*)ts.g);
+ 
++	// On NetBSD, a new thread inherits the signal stack of the
++	// creating thread.  That confuses minit, so we remove that
++	// signal stack here before calling the regular mstart.  It's
++	// a bit baroque to remove a signal stack here only to add one
++	// in minit, but it's a simple change that keeps NetBSD
++	// working like other OS's.  At this point all signals are
++	// blocked, so there is no race.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_flags = SS_DISABLE;
++	sigaltstack(&ss, nil);
++
+ 	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index 7a98c0de24..3567aaae72 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -57,10 +57,22 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
++	stack_t ss;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
++	// On NetBSD, a new thread inherits the signal stack of the
++	// creating thread.  That confuses minit, so we remove that
++	// signal stack here before calling the regular mstart.  It's
++	// a bit baroque to remove a signal stack here only to add one
++	// in minit, but it's a simple change that keeps NetBSD
++	// working like other OS's.  At this point all signals are
++	// blocked, so there is no race.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_flags = SS_DISABLE;
++	sigaltstack(&ss, nil);
++
+ 	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 42199020e5..9ab39ba97d 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -104,7 +104,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	uc.uc_link = nil
+ 	uc.uc_sigmask = sigset_all
+ 
+-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(mstart))
++	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
+ 
+ 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
+ 	if ret < 0 {
+@@ -113,6 +113,19 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ }
+ 
++// netbsdMStart is the function call that starts executing a newly
++// created thread.  On NetBSD, a new thread inherits the signal stack
++// of the creating thread.  That confuses minit, so we remove that
++// signal stack here before calling the regular mstart.  It's a bit
++// baroque to remove a signal stack here only to add one in minit, but
++// it's a simple change that keeps NetBSD working like other OS's.
++// At this point all signals are blocked, so there is no race.
++//go:nosplit
++func netbsdMstart() {
++	signalstack(nil)
++	mstart()
++}
++
+ func osinit() {
+ 	ncpu = getncpu()
+ }
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index d1b94e1bfd..4e4d793c43 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -51,6 +51,18 @@ TEXT runtime·lwp_start(SB),NOSPLIT,$0
+ 	MOVQ	R13, g_m(DI)
+ 	MOVQ	DI, g(CX)
+ 
++	// On DragonFly, a new thread inherits the signal stack of the
++	// creating thread.  That confuses minit, so we remove that
++	// signal stack here before calling the regular mstart.  It's
++	// a bit baroque to remove a signal stack here only to add one
++	// in minit, but it's a simple change that keeps DragonFly
++	// working like other OS's.  At this point all signals are
++	// blocked, so there is no race.
++	SUBQ	$8, SP
++	MOVQ	$0, 0(SP)
++	CALL	runtime·signalstack(SB)
++	ADDQ	$8, SP
++
+ 	CALL	runtime·stackcheck(SB)
+ 	CALL	runtime·mstart(SB)
+ 

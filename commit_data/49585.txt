@@ -17,9 +17,106 @@ Date:   Sun Aug 29 22:57:36 2021 +0200
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go                   | 12 +++---------
  .../internal/types2/testdata/fixedbugs/issue48048.go2     | 15 +++++++++++++++
  src/go/types/call.go                                      | 12 +++---------
  src/go/types/testdata/fixedbugs/issue48048.go2            | 15 +++++++++++++++
  4 files changed, 36 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 0b062b4c94..954aa1de20 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -479,7 +479,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 		goto Error
+ 	}
+ 
+-	check.instantiatedOperand(x)
++	if x.mode == typexpr {
++		x.typ = check.varType(e.X)
++	}
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+@@ -718,11 +720,3 @@ func (check *Checker) useLHS(arg ...syntax.Expr) {
+ 		}
+ 	}
+ }
+-
+-// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
+-func (check *Checker) instantiatedOperand(x *operand) {
+-	if x.mode == typexpr && isGeneric(x.typ) {
+-		check.errorf(x, "cannot use generic type %s without instantiation", x.typ)
+-		x.typ = Typ[Invalid]
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go2
+new file mode 100644
+index 0000000000..f401330621
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go2
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++func (T[_]) A() {}
++
++var _ = (T[int]).A
++var _ = (*T[int]).A
++
++var _ = (T /* ERROR cannot use generic type */).A
++var _ = (*T /* ERROR cannot use generic type */).A
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index fdecafb781..61534b6328 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -470,7 +470,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		goto Error
+ 	}
+ 
+-	check.instantiatedOperand(x)
++	if x.mode == typexpr {
++		x.typ = check.varType(e.X)
++	}
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+@@ -745,11 +747,3 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
+ 		}
+ 	}
+ }
+-
+-// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
+-func (check *Checker) instantiatedOperand(x *operand) {
+-	if x.mode == typexpr && isGeneric(x.typ) {
+-		check.errorf(x, _Todo, "cannot use generic type %s without instantiation", x.typ)
+-		x.typ = Typ[Invalid]
+-	}
+-}
+diff --git a/src/go/types/testdata/fixedbugs/issue48048.go2 b/src/go/types/testdata/fixedbugs/issue48048.go2
+new file mode 100644
+index 0000000000..f401330621
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48048.go2
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++func (T[_]) A() {}
++
++var _ = (T[int]).A
++var _ = (*T[int]).A
++
++var _ = (T /* ERROR cannot use generic type */).A
++var _ = (*T /* ERROR cannot use generic type */).A

@@ -12,7 +12,41 @@ Date:   Mon Oct 7 14:37:44 2019 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 6 ++++++
  src/cmd/internal/obj/s390x/vector.go      | 4 ++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 4fc599416f..6888651007 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -435,6 +435,12 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	VMSLEG  V21, V22, V23, V24      // e78563807fb8
+ 	VMSLOG  V21, V22, V23, V24      // e78563407fb8
+ 	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
++	VSUMGH	V1, V2, V3              // e73120001065
++	VSUMGF	V16, V17, V18           // e72010002e65
++	VSUMQF	V4, V5, V6              // e76450002067
++	VSUMQG	V19, V20, V21           // e75340003e67
++	VSUMB	V7, V8, V9              // e79780000064
++	VSUMH	V22, V23, V24           // e78670001e64
+ 
+ 	RET
+ 	RET	foo(SB)
+diff --git a/src/cmd/internal/obj/s390x/vector.go b/src/cmd/internal/obj/s390x/vector.go
+index 62adcf6d4a..00f578340f 100644
+--- a/src/cmd/internal/obj/s390x/vector.go
++++ b/src/cmd/internal/obj/s390x/vector.go
+@@ -978,9 +978,9 @@ func vop(as obj.As) (opcode, es, cs uint32) {
+ 	case AVSUMQ:
+ 		return op_VSUMQ, 0, 0
+ 	case AVSUMQF:
+-		return op_VSUMQ, 1, 0
+-	case AVSUMQG:
+ 		return op_VSUMQ, 2, 0
++	case AVSUMQG:
++		return op_VSUMQ, 3, 0
+ 	case AVSUM:
+ 		return op_VSUM, 0, 0
+ 	case AVSUMB:

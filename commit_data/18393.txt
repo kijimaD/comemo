@@ -12,7 +12,43 @@ Date:   Sun Feb 2 16:05:07 2014 +1100
     R=golang-codereviews, lucio.dere, iant, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/56540046
-
+---
  src/pkg/time/internal_test.go | 10 +++++++++-
  src/pkg/time/sleep_test.go    |  3 +++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index d9592954b2..4ba6d478de 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -78,7 +78,15 @@ func CheckRuntimeTimerOverflow() error {
+ 			if Now().After(stop) {
+ 				return errors.New("runtime timer stuck: overflow in addtimer")
+ 			}
+-			runtime.Gosched()
++			// Issue 6874. This test previously called runtime.Gosched to try to yield
++			// to the goroutine servicing t, however the scheduler has a bias towards the
++			// previously running goroutine in an idle system. Combined with high load due
++			// to all CPUs busy running tests t's goroutine could be delayed beyond the
++			// timeout window.
++			//
++			// Calling runtime.GC() reduces the worst case lantency for scheduling t by 20x
++			// under the current Go 1.3 scheduler.
++			runtime.GC()
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 4687259509..23cb3daebb 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -398,6 +398,9 @@ func TestIssue5745(t *testing.T) {
+ }
+ 
+ func TestOverflowRuntimeTimer(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode, see issue 6874")
++	}
+ 	if err := CheckRuntimeTimerOverflow(); err != nil {
+ 		t.Fatalf(err.Error())
+ 	}

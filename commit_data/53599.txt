@@ -33,6 +33,26 @@ Date:   Mon Aug 22 18:25:29 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/syscall_windows.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index ebaf84343d..c58d972e61 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -43,7 +43,13 @@ func UTF16FromString(s string) ([]uint16, error) {
+ 	if bytealg.IndexByteString(s, 0) != -1 {
+ 		return nil, EINVAL
+ 	}
+-	return utf16.Encode([]rune(s + "\x00")), nil
++	// In the worst case all characters require two uint16.
++	// Also account for the terminating NULL character.
++	buf := make([]uint16, 0, len(s)*2+1)
++	for _, r := range s {
++		buf = utf16.AppendRune(buf, r)
++	}
++	return utf16.AppendRune(buf, '\x00'), nil
+ }
+ 
+ // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,

@@ -10,7 +10,99 @@ Date:   Fri May 1 07:02:36 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9638
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     | 11 +++++++----
  2 files changed, 44 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index be54487441..6cbe24b6b5 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2767,6 +2767,43 @@ func TestServerKeepAliveAfterWriteError(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 9987: shouldn't add automatic Content-Length (or
++// Content-Type) if a Transfer-Encoding was set by the handler.
++func TestNoContentLengthIfTransferEncoding(t *testing.T) {
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Transfer-Encoding", "foo")
++		io.WriteString(w, "<html>")
++	}))
++	defer ts.Close()
++	c, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	defer c.Close()
++	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
++		t.Fatal(err)
++	}
++	bs := bufio.NewScanner(c)
++	var got bytes.Buffer
++	for bs.Scan() {
++		if strings.TrimSpace(bs.Text()) == "" {
++			break
++		}
++		got.WriteString(bs.Text())
++		got.WriteByte('\n')
++	}
++	if err := bs.Err(); err != nil {
++		t.Fatal(err)
++	}
++	if strings.Contains(got.String(), "Content-Length") {
++		t.Errorf("Unexpected Content-Length in response headers: %s", got.String())
++	}
++	if strings.Contains(got.String(), "Content-Type") {
++		t.Errorf("Unexpected Content-Type in response headers: %s", got.String())
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1bde413a38..dbd629210e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -781,6 +781,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		foreachHeaderElement(v, cw.res.declareTrailer)
+ 	}
+ 
++	te := header.get("Transfer-Encoding")
++	hasTE := te != ""
++
+ 	// If the handler is done but never sent a Content-Length
+ 	// response header and this is our first (and last) write, set
+ 	// it, even to zero. This helps HTTP/1.0 clients keep their
+@@ -793,7 +796,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	// write non-zero bytes.  If it's actually 0 bytes and the
+ 	// handler never looked at the Request.Method, we just don't
+ 	// send a Content-Length header.
+-	if w.handlerDone && !trailers && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
++	// Further, we don't send an automatic Content-Length if they
++	// set a Transfer-Encoding, because they're generally incompatible.
++	if w.handlerDone && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+ 		w.contentLength = int64(len(p))
+ 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
+ 	}
+@@ -845,7 +850,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	if bodyAllowedForStatus(code) {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		_, haveType := header["Content-Type"]
+-		if !haveType {
++		if !haveType && !hasTE {
+ 			setHeader.contentType = DetectContentType(p)
+ 		}
+ 	} else {
+@@ -858,8 +863,6 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
+ 	}
+ 
+-	te := header.get("Transfer-Encoding")
+-	hasTE := te != ""
+ 	if hasCL && hasTE && te != "identity" {
+ 		// TODO: return an error if WriteHeader gets a return parameter
+ 		// For now just ignore the Content-Length.

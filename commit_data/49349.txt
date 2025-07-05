@@ -10,7 +10,38 @@ Date:   Fri Aug 13 13:58:23 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/time/tzdata/generate_zipdata.go | 4 ++--
  src/time/tzdata/zipdata.go          | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/tzdata/generate_zipdata.go b/src/time/tzdata/generate_zipdata.go
+index 64b5b1b22c..0869c8458c 100644
+--- a/src/time/tzdata/generate_zipdata.go
++++ b/src/time/tzdata/generate_zipdata.go
+@@ -31,8 +31,8 @@ const header = `// Copyright 2020 The Go Authors. All rights reserved.
+ 
+ // For more information, see
+ // https://www.iana.org/time-zones
+-// ftp://ftp.iana.org/tz/code/tz-link.htm
+-// http://tools.ietf.org/html/rfc6557
++// ftp://ftp.iana.org/tz/code/tz-link.html
++// https://datatracker.ietf.org/doc/html/rfc6557
+ 
+ package tzdata
+ 
+diff --git a/src/time/tzdata/zipdata.go b/src/time/tzdata/zipdata.go
+index 03b59720e2..60c0784008 100644
+--- a/src/time/tzdata/zipdata.go
++++ b/src/time/tzdata/zipdata.go
+@@ -11,8 +11,8 @@
+ 
+ // For more information, see
+ // https://www.iana.org/time-zones
+-// ftp://ftp.iana.org/tz/code/tz-link.htm
+-// http://tools.ietf.org/html/rfc6557
++// ftp://ftp.iana.org/tz/code/tz-link.html
++// https://datatracker.ietf.org/doc/html/rfc6557
+ 
+ package tzdata
+ 

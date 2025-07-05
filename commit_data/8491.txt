@@ -7,6 +7,24 @@ Date:   Wed May 25 10:19:50 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4539086
-
+---
  src/cmd/gc/sinit.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index be96a1477a..eb7ef31ecc 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -173,10 +173,10 @@ initfix(NodeList *l)
+ 
+ /*
+  * from here down is the walk analysis
+- * of composit literals.
++ * of composite literals.
+  * most of the work is to generate
+  * data statements for the constant
+- * part of the composit literal.
++ * part of the composite literal.
+  */
+ 
+ static	void	structlit(int ctxt, int pass, Node *n, Node *var, NodeList **init);

@@ -14,8 +14,184 @@ Date:   Fri Aug 26 09:54:32 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go     | 12 ++++++------
  src/runtime/runtime2.go |  6 ++----
  src/runtime/time.go     | 24 ++++++++++++------------
  3 files changed, 20 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b5e04e93ae..6ecb786d1b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3348,7 +3348,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+ 		// if we would clear deleted timers.
+ 		// This corresponds to the condition below where
+ 		// we decide whether to call clearDeletedTimers.
+-		if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
++		if pp != getg().m.p.ptr() || int(pp.deletedTimers.Load()) <= int(pp.numTimers.Load()/4) {
+ 			return now, next, false
+ 		}
+ 	}
+@@ -3373,7 +3373,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+ 	// If this is the local P, and there are a lot of deleted timers,
+ 	// clear them out. We only do this for the local P to reduce
+ 	// lock contention on timersLock.
+-	if pp == getg().m.p.ptr() && int(atomic.Load(&pp.deletedTimers)) > len(pp.timers)/4 {
++	if pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4 {
+ 		clearDeletedTimers(pp)
+ 	}
+ 
+@@ -4785,8 +4785,8 @@ func (pp *p) destroy() {
+ 		lock(&pp.timersLock)
+ 		moveTimers(plocal, pp.timers)
+ 		pp.timers = nil
+-		pp.numTimers = 0
+-		pp.deletedTimers = 0
++		pp.numTimers.Store(0)
++		pp.deletedTimers.Store(0)
+ 		pp.timer0When.Store(0)
+ 		unlock(&pp.timersLock)
+ 		unlock(&plocal.timersLock)
+@@ -5738,7 +5738,7 @@ func (p pMask) clear(id int32) {
+ // TODO(prattmic): Additional targeted updates may improve the above cases.
+ // e.g., updating the mask when stealing a timer.
+ func updateTimerPMask(pp *p) {
+-	if atomic.Load(&pp.numTimers) > 0 {
++	if pp.numTimers.Load() > 0 {
+ 		return
+ 	}
+ 
+@@ -5746,7 +5746,7 @@ func updateTimerPMask(pp *p) {
+ 	// decrement numTimers when handling a timerModified timer in
+ 	// checkTimers. We must take timersLock to serialize with these changes.
+ 	lock(&pp.timersLock)
+-	if atomic.Load(&pp.numTimers) == 0 {
++	if pp.numTimers.Load() == 0 {
+ 		timerpMask.clear(pp.id)
+ 	}
+ 	unlock(&pp.timersLock)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e6c8180d6d..c3cb392540 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -720,12 +720,10 @@ type p struct {
+ 	timers []*timer
+ 
+ 	// Number of timers in P's heap.
+-	// Modified using atomic instructions.
+-	numTimers uint32
++	numTimers atomic.Uint32
+ 
+ 	// Number of timerDeleted timers in P's heap.
+-	// Modified using atomic instructions.
+-	deletedTimers uint32
++	deletedTimers atomic.Uint32
+ 
+ 	// Race context used while executing timer functions.
+ 	timerRaceCtx uintptr
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 5f12a1a297..945756109a 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -303,7 +303,7 @@ func doaddtimer(pp *p, t *timer) {
+ 	if t == pp.timers[0] {
+ 		pp.timer0When.Store(t.when)
+ 	}
+-	atomic.Xadd(&pp.numTimers, 1)
++	pp.numTimers.Add(1)
+ }
+ 
+ // deltimer deletes the timer t. It may be on some other P, so we can't
+@@ -326,7 +326,7 @@ func deltimer(t *timer) bool {
+ 					badTimer()
+ 				}
+ 				releasem(mp)
+-				atomic.Xadd(&tpp.deletedTimers, 1)
++				tpp.deletedTimers.Add(1)
+ 				// Timer was not yet run.
+ 				return true
+ 			} else {
+@@ -344,7 +344,7 @@ func deltimer(t *timer) bool {
+ 					badTimer()
+ 				}
+ 				releasem(mp)
+-				atomic.Xadd(&tpp.deletedTimers, 1)
++				tpp.deletedTimers.Add(1)
+ 				// Timer was not yet run.
+ 				return true
+ 			} else {
+@@ -397,7 +397,7 @@ func dodeltimer(pp *p, i int) int {
+ 	if i == 0 {
+ 		updateTimer0When(pp)
+ 	}
+-	n := atomic.Xadd(&pp.numTimers, -1)
++	n := pp.numTimers.Add(-1)
+ 	if n == 0 {
+ 		// If there are no timers, then clearly none are modified.
+ 		pp.timerModifiedEarliest.Store(0)
+@@ -425,7 +425,7 @@ func dodeltimer0(pp *p) {
+ 		siftdownTimer(pp.timers, 0)
+ 	}
+ 	updateTimer0When(pp)
+-	n := atomic.Xadd(&pp.numTimers, -1)
++	n := pp.numTimers.Add(-1)
+ 	if n == 0 {
+ 		// If there are no timers, then clearly none are modified.
+ 		pp.timerModifiedEarliest.Store(0)
+@@ -477,7 +477,7 @@ loop:
+ 			// This could lead to a self-deadlock. See #38070.
+ 			mp = acquirem()
+ 			if atomic.Cas(&t.status, status, timerModifying) {
+-				atomic.Xadd(&t.pp.ptr().deletedTimers, -1)
++				t.pp.ptr().deletedTimers.Add(-1)
+ 				pending = false // timer already stopped
+ 				break loop
+ 			}
+@@ -586,7 +586,7 @@ func cleantimers(pp *p) {
+ 			if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+ 				badTimer()
+ 			}
+-			atomic.Xadd(&pp.deletedTimers, -1)
++			pp.deletedTimers.Add(-1)
+ 		case timerModifiedEarlier, timerModifiedLater:
+ 			if !atomic.Cas(&t.status, s, timerMoving) {
+ 				continue
+@@ -695,7 +695,7 @@ func adjusttimers(pp *p, now int64) {
+ 				if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+ 					badTimer()
+ 				}
+-				atomic.Xadd(&pp.deletedTimers, -1)
++				pp.deletedTimers.Add(-1)
+ 				// Go back to the earliest changed heap entry.
+ 				// "- 1" because the loop will add 1.
+ 				i = changed - 1
+@@ -799,7 +799,7 @@ func runtimer(pp *p, now int64) int64 {
+ 			if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+ 				badTimer()
+ 			}
+-			atomic.Xadd(&pp.deletedTimers, -1)
++			pp.deletedTimers.Add(-1)
+ 			if len(pp.timers) == 0 {
+ 				return -1
+ 			}
+@@ -964,8 +964,8 @@ nextTimer:
+ 		timers[i] = nil
+ 	}
+ 
+-	atomic.Xadd(&pp.deletedTimers, -cdel)
+-	atomic.Xadd(&pp.numTimers, -cdel)
++	pp.deletedTimers.Add(-cdel)
++	pp.numTimers.Add(-cdel)
+ 
+ 	timers = timers[:to]
+ 	pp.timers = timers
+@@ -993,7 +993,7 @@ func verifyTimerHeap(pp *p) {
+ 			throw("bad timer heap")
+ 		}
+ 	}
+-	if numTimers := int(atomic.Load(&pp.numTimers)); len(pp.timers) != numTimers {
++	if numTimers := int(pp.numTimers.Load()); len(pp.timers) != numTimers {
+ 		println("timer heap len", len(pp.timers), "!= numTimers", numTimers)
+ 		throw("bad timer heap len")
+ 	}

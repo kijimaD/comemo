@@ -34,7 +34,54 @@ Date:   Mon Jun 8 20:04:14 2015 +0000
     Change-Id: Idae52f806849f4c9ab7aca1b4bb4b59a74723d0e
     Reviewed-on: https://go-review.googlesource.com/10823
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/escape.go      |  2 +-
  src/html/template/escape_test.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index bfcea66b90..3c18340547 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -215,7 +215,7 @@ func allIdents(node parse.Node) []string {
+ 	case *parse.ChainNode:
+ 		return node.Field
+ 	}
+-	panic("unidentified node type in allIdents")
++	return nil
+ }
+ 
+ // ensurePipelineContains ensures that the pipeline has commands with
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 41ab0c8ae7..bea2d133c3 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1586,6 +1586,28 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 	}
+ }
+ 
++func TestEscapeMalformedPipelines(t *testing.T) {
++	tests := []string{
++		"{{ 0 | $ }}",
++		"{{ 0 | $ | urlquery }}",
++		"{{ 0 | $ | urlquery | html }}",
++		"{{ 0 | (nil) }}",
++		"{{ 0 | (nil) | html }}",
++		"{{ 0 | (nil) | html | urlquery }}",
++	}
++	for _, test := range tests {
++		var b bytes.Buffer
++		tmpl, err := New("test").Parse(test)
++		if err != nil {
++			t.Errorf("failed to parse set: %q", err)
++		}
++		err = tmpl.Execute(&b, nil)
++		if err == nil {
++			t.Errorf("Expected error for %q", test)
++		}
++	}
++}
++
+ func TestEscapeErrorsNotIgnorable(t *testing.T) {
+ 	var b bytes.Buffer
+ 	tmpl, _ := New("dangerous").Parse("<a")

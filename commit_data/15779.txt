@@ -19,9 +19,134 @@ Date:   Thu Mar 14 23:42:11 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7536046
-
+---
  src/pkg/runtime/sys_darwin_amd64.s  | 10 +++++-----
  src/pkg/runtime/sys_freebsd_amd64.s |  2 +-
  src/pkg/runtime/sys_netbsd_amd64.s  |  6 +++---
  src/pkg/runtime/sys_openbsd_amd64.s |  6 +++---
  4 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 271d43a31b..c8a45439d1 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -289,7 +289,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL
+ 	JCC 3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET
+@@ -342,7 +342,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
+ 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
+ 	SYSCALL
+ 	JCC 3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET
+@@ -435,7 +435,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVL	$(0x2000000+202), AX	// syscall entry
+ 	SYSCALL
+ 	JCC 3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET
+@@ -448,7 +448,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	MOVL	$(0x2000000+362), AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+@@ -462,7 +462,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	MOVL	$(0x2000000+363), AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index f393b87000..3738f16073 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -261,7 +261,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+ 	JCC 3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 329373c858..958b97e601 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -16,7 +16,7 @@ TEXT runtime·lwp_create(SB),7,$0
+ 	MOVL	$309, AX		// sys__lwp_create
+ 	SYSCALL
+ 	JCC	2(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 
+ TEXT runtime·lwp_tramp(SB),7,$0
+@@ -254,7 +254,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	MOVL	$197, AX		// sys_mmap
+ 	SYSCALL
+ 	JCC	2(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	ADDQ	$16, SP
+ 	RET
+ 
+@@ -306,7 +306,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+ 	JCC 3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 5ec52dfccf..585fe47c2b 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -23,7 +23,7 @@ TEXT runtime·tfork(SB),7,$32
+ 
+ 	// Return if tfork syscall failed.
+ 	JCC	3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 
+ 	// In parent, return.
+@@ -243,7 +243,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	MOVL	$197, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	ADDQ	$16, SP
+ 	RET
+ 
+@@ -294,7 +294,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+ 	JCC	3(PC)
+-	NEGL	AX
++	NEGQ	AX
+ 	RET
+ 	MOVL	$0, AX
+ 	RET

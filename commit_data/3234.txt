@@ -7,8 +7,98 @@ Date:   Tue Sep 8 15:52:27 2009 -0700
     R=rsc
     OCL=34462
     CL=34462
-
+---
  src/cmd/gc/go.h    |  1 +
  src/cmd/gc/sinit.c |  2 +-
  src/cmd/gc/walk.c  | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4f58fc00a0..34f5802d30 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1012,6 +1012,7 @@ NodeList*	reorder1(NodeList*);
+ NodeList*	reorder3(NodeList*);
+ NodeList*	reorder4(NodeList*);
+ void	anylit(Node*, Node*, NodeList**);
++int	oaslit(Node*, NodeList**);
+ void	heapmoves(void);
+ void	walkdeflist(NodeList*);
+ void	walkdef(Node*);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index d8d2bc69b2..07db731ef0 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -51,7 +51,7 @@ init1(Node *n, NodeList **out)
+ 		case OAS:
+ 			if(n->defn->left != n)
+ 				goto bad;
+-			n->dodata = 1;
++			n->defn->dodata = 1;
+ 			init1(n->defn->right, out);
+ 			if(debug['j'])
+ 				print("%S\n", n->sym);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index aff91db083..6a4e52eeea 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -572,6 +572,8 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		walkexpr(&n->left, init);
++		if(oaslit(n, init))
++			goto ret;
+ 		walkexpr(&n->right, init);
+ 		l = n->left;
+ 		r = n->right;
+@@ -2406,6 +2408,50 @@ anylit(Node *n, Node *var, NodeList **init)
+ 	}
+ }
+ 
++int
++oaslit(Node *n, NodeList **init)
++{
++	Type *t;
++
++	if(n->left == N || n->right == N)
++		goto no;
++	if(!simplename(n->left))
++		goto no;
++	if(n->dodata == 1)
++		goto initctxt;
++
++no:
++	// not a special composit literal assignment
++	return 0;
++
++initctxt:
++	switch(n->right->op) {
++	default:
++		goto no;
++
++	case OSTRUCTLIT:
++		structlit(n->right, n->left, 3, init);
++		break;
++
++	case OARRAYLIT:
++		t = n->right->type;
++		if(t == T)
++			goto no;
++		if(t->bound < 0) {
++			slicelit(n->right, n->left, init);
++			break;
++		}
++		arraylit(n->right, n->left, 3, init);
++		break;
++
++	case OMAPLIT:
++		maplit(n->right, n->left, init);
++		break;
++	}
++	n->op = OEMPTY;
++	return 1;
++}
++
+ /*
+  * walk through argin parameters.
+  * generate and return code to allocate

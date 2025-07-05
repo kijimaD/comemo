@@ -24,9 +24,295 @@ Date:   Wed Oct 12 22:58:47 2016 -0400
     Change-Id: I2d75817f17ca8752d7df188080a407836af92611
     Reviewed-on: https://go-review.googlesource.com/30946
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/encoding/xml/marshal.go      | 16 ++++++++
  src/encoding/xml/marshal_test.go | 68 ++++++++++++++++++++++++++++++---
  src/encoding/xml/read.go         | 81 +++++++++++++++++++++++++++++-----------
  src/encoding/xml/typeinfo.go     |  2 +-
  4 files changed, 140 insertions(+), 27 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 7f22cdad44..d1879c1167 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -593,6 +593,22 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
+ 		val = val.Elem()
+ 	}
+ 
++	// Walk slices.
++	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
++		n := val.Len()
++		for i := 0; i < n; i++ {
++			if err := p.marshalAttr(start, name, val.Index(i)); err != nil {
++				return err
++			}
++		}
++		return nil
++	}
++
++	if val.Type() == attrType {
++		start.Attr = append(start.Attr, val.Interface().(Attr))
++		return nil
++	}
++
+ 	s, b, err := p.marshalSimple(val.Type(), val)
+ 	if err != nil {
+ 		return err
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index e5cf1f6bfd..1cc07549b7 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -199,6 +199,17 @@ type AttrTest struct {
+ 	Bytes []byte  `xml:",attr"`
+ }
+ 
++type AttrsTest struct {
++	Attrs []Attr  `xml:",any,attr"`
++	Int   int     `xml:",attr"`
++	Named int     `xml:"int,attr"`
++	Float float64 `xml:",attr"`
++	Uint8 uint8   `xml:",attr"`
++	Bool  bool    `xml:",attr"`
++	Str   string  `xml:",attr"`
++	Bytes []byte  `xml:",attr"`
++}
++
+ type OmitAttrTest struct {
+ 	Int   int     `xml:",attr,omitempty"`
+ 	Named int     `xml:"int,attr,omitempty"`
+@@ -379,7 +390,7 @@ var (
+ 	nameAttr     = "Sarah"
+ 	ageAttr      = uint(12)
+ 	contentsAttr = "lorem ipsum"
+-	empty = ""
++	empty        = ""
+ )
+ 
+ // Unless explicitly stated as such (or *Plain), all of the
+@@ -829,6 +840,53 @@ var marshalTests = []struct {
+ 		ExpectXML: `<AttrTest Int="0" int="0" Float="0" Uint8="0"` +
+ 			` Bool="false" Str="" Bytes=""></AttrTest>`,
+ 	},
++	{
++		Value: &AttrsTest{
++			Attrs: []Attr{
++				{Name: Name{Local: "Answer"}, Value: "42"},
++				{Name: Name{Local: "Int"}, Value: "8"},
++				{Name: Name{Local: "int"}, Value: "9"},
++				{Name: Name{Local: "Float"}, Value: "23.5"},
++				{Name: Name{Local: "Uint8"}, Value: "255"},
++				{Name: Name{Local: "Bool"}, Value: "true"},
++				{Name: Name{Local: "Str"}, Value: "str"},
++				{Name: Name{Local: "Bytes"}, Value: "byt"},
++			},
++		},
++		ExpectXML:   `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
++		MarshalOnly: true,
++	},
++	{
++		Value: &AttrsTest{
++			Attrs: []Attr{
++				{Name: Name{Local: "Answer"}, Value: "42"},
++			},
++			Int:   8,
++			Named: 9,
++			Float: 23.5,
++			Uint8: 255,
++			Bool:  true,
++			Str:   "str",
++			Bytes: []byte("byt"),
++		},
++		ExpectXML: `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt"></AttrsTest>`,
++	},
++	{
++		Value: &AttrsTest{
++			Attrs: []Attr{
++				{Name: Name{Local: "Int"}, Value: "0"},
++				{Name: Name{Local: "int"}, Value: "0"},
++				{Name: Name{Local: "Float"}, Value: "0"},
++				{Name: Name{Local: "Uint8"}, Value: "0"},
++				{Name: Name{Local: "Bool"}, Value: "false"},
++				{Name: Name{Local: "Str"}},
++				{Name: Name{Local: "Bytes"}},
++			},
++			Bytes: []byte{},
++		},
++		ExpectXML:   `<AttrsTest Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes="" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
++		MarshalOnly: true,
++	},
+ 	{
+ 		Value: &OmitAttrTest{
+ 			Int:   8,
+@@ -872,7 +930,7 @@ var marshalTests = []struct {
+ 			Bool:  true,
+ 			Str:   "str",
+ 			Bytes: []byte("byt"),
+-			PStr:   &empty,
++			PStr:  &empty,
+ 			Ptr:   &PresenceTest{},
+ 		},
+ 		ExpectXML: `<OmitFieldTest>` +
+@@ -1102,7 +1160,7 @@ type AttrParent struct {
+ }
+ 
+ type BadAttr struct {
+-	Name []string `xml:"name,attr"`
++	Name map[string]string `xml:"name,attr"`
+ }
+ 
+ var marshalErrorTests = []struct {
+@@ -1138,8 +1196,8 @@ var marshalErrorTests = []struct {
+ 		Err:   `xml: X>Y chain not valid with attr flag`,
+ 	},
+ 	{
+-		Value: BadAttr{[]string{"X", "Y"}},
+-		Err:   `xml: unsupported type: []string`,
++		Value: BadAttr{map[string]string{"X": "Y"}},
++		Err:   `xml: unsupported type: map[string]string`,
+ 	},
+ }
+ 
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 53c15a2840..ba62366560 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -52,6 +52,11 @@ import (
+ //      the explicit name in a struct field tag of the form "name,attr",
+ //      Unmarshal records the attribute value in that field.
+ //
++//   * If the XML element has an attribute not handled by the previous
++//      rule and the struct has a field with an associated tag containing
++//      ",any,attr", Unmarshal records the attribute value in the first
++//      such field.
++//
+ //   * If the XML element contains character data, that data is
+ //      accumulated in the first struct field that has tag ",chardata".
+ //      The struct field may have type []byte or string.
+@@ -94,8 +99,12 @@ import (
+ // Unmarshal maps an attribute value to a string or []byte by saving
+ // the value in the string or slice.
+ //
+-// Unmarshal maps an XML element to a slice by extending the length of
+-// the slice and mapping the element to the newly created value.
++// Unmarshal maps an attribute value to an Attr by saving the attribute,
++// including its name, in the Attr.
++//
++// Unmarshal maps an XML element or attribute value to a slice by
++// extending the length of the slice and mapping the element or attribute
++// to the newly created value.
+ //
+ // Unmarshal maps an XML element or attribute value to a bool by
+ // setting it to the boolean value represented by the string.
+@@ -256,10 +265,31 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ 			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+ 		}
+ 	}
++
++	if val.Type().Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
++		// Slice of element values.
++		// Grow slice.
++		n := val.Len()
++		val.Set(reflect.Append(val, reflect.Zero(val.Type().Elem())))
++
++		// Recur to read element into slice.
++		if err := p.unmarshalAttr(val.Index(n), attr); err != nil {
++			val.SetLen(n)
++			return err
++		}
++		return nil
++	}
++
++	if val.Type() == attrType {
++		val.Set(reflect.ValueOf(attr))
++		return nil
++	}
++
+ 	return copyValue(val, []byte(attr.Value))
+ }
+ 
+ var (
++	attrType            = reflect.TypeOf(Attr{})
+ 	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
+ 	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
+ 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+@@ -356,16 +386,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		// Slice of element values.
+ 		// Grow slice.
+ 		n := v.Len()
+-		if n >= v.Cap() {
+-			ncap := 2 * n
+-			if ncap < 4 {
+-				ncap = 4
+-			}
+-			new := reflect.MakeSlice(typ, n, ncap)
+-			reflect.Copy(new, v)
+-			v.Set(new)
+-		}
+-		v.SetLen(n + 1)
++		v.Set(reflect.Append(val, reflect.Zero(v.Type().Elem())))
+ 
+ 		// Recur to read element into slice.
+ 		if err := p.unmarshal(v.Index(n), start); err != nil {
+@@ -412,22 +433,40 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		}
+ 
+ 		// Assign attributes.
+-		// Also, determine whether we need to save character data or comments.
+-		for i := range tinfo.fields {
+-			finfo := &tinfo.fields[i]
+-			switch finfo.flags & fMode {
+-			case fAttr:
+-				strv := finfo.value(sv)
+-				// Look for attribute.
+-				for _, a := range start.Attr {
++		for _, a := range start.Attr {
++			handled := false
++			any := -1
++			for i := range tinfo.fields {
++				finfo := &tinfo.fields[i]
++				switch finfo.flags & fMode {
++				case fAttr:
++					strv := finfo.value(sv)
+ 					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+ 						if err := p.unmarshalAttr(strv, a); err != nil {
+ 							return err
+ 						}
+-						break
++						handled = true
++					}
++
++				case fAny | fAttr:
++					if any == -1 {
++						any = i
+ 					}
+ 				}
++			}
++			if !handled && any >= 0 {
++				finfo := &tinfo.fields[any]
++				strv := finfo.value(sv)
++				if err := p.unmarshalAttr(strv, a); err != nil {
++					return err
++				}
++			}
++		}
+ 
++		// Determine whether we need to save character data or comments.
++		for i := range tinfo.fields {
++			finfo := &tinfo.fields[i]
++			switch finfo.flags & fMode {
+ 			case fCDATA, fCharData:
+ 				if !saveData.IsValid() {
+ 					saveData = finfo.value(sv)
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 70da962ffa..b9996a164b 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -151,7 +151,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 		switch mode := finfo.flags & fMode; mode {
+ 		case 0:
+ 			finfo.flags |= fElement
+-		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny:
++		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
+ 			if f.Name == "XMLName" || tag != "" && mode != fAttr {
+ 				valid = false
+ 			}

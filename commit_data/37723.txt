@@ -13,6 +13,36 @@ Date:   Wed Jul 11 23:36:55 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/context.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index 45be3a6a9f..7ab3d1fed6 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -48,19 +48,19 @@ func (c context) mangle(templateName string) string {
+ 		return templateName
+ 	}
+ 	s := templateName + "$htmltemplate_" + c.state.String()
+-	if c.delim != 0 {
++	if c.delim != delimNone {
+ 		s += "_" + c.delim.String()
+ 	}
+-	if c.urlPart != 0 {
++	if c.urlPart != urlPartNone {
+ 		s += "_" + c.urlPart.String()
+ 	}
+-	if c.jsCtx != 0 {
++	if c.jsCtx != jsCtxRegexp {
+ 		s += "_" + c.jsCtx.String()
+ 	}
+-	if c.attr != 0 {
++	if c.attr != attrNone {
+ 		s += "_" + c.attr.String()
+ 	}
+-	if c.element != 0 {
++	if c.element != elementNone {
+ 		s += "_" + c.element.String()
+ 	}
+ 	return s

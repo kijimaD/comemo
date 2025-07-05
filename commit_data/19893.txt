@@ -13,6 +13,19 @@ Date:   Tue Aug 5 21:10:07 2014 -0700
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/115580044
-
+---
  src/liblink/asm6.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 454b30239a..3fc3e01286 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -3066,6 +3066,7 @@ found:
+ 		break;
+ 
+ 	case Zclr:
++		ctxt->rexflag &= ~Pw;
+ 		*ctxt->andptr++ = op;
+ 		asmand(ctxt, &p->to, &p->to);
+ 		break;

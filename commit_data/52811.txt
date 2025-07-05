@@ -21,8 +21,81 @@ Date:   Fri Jun 3 16:00:16 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  api/next/51115.txt     |  1 -
  src/io/example_test.go | 14 --------------
  src/io/io.go           | 16 +++++-----------
  3 files changed, 5 insertions(+), 26 deletions(-)
+
+diff --git a/api/next/51115.txt b/api/next/51115.txt
+deleted file mode 100644
+index 0ce24b4ed0..0000000000
+--- a/api/next/51115.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg io, type LimitedReader struct, Err error #51115
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index e4b20bd981..419e449982 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -6,7 +6,6 @@ package io_test
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -284,16 +283,3 @@ func ExampleReadAll() {
+ 	// Output:
+ 	// Go is a general-purpose language designed with systems programming in mind.
+ }
+-
+-func ExampleLimitedReader() {
+-	r := strings.NewReader("some io.Reader stream to be read\n")
+-	sentinel := errors.New("reached read limit")
+-	lr := &io.LimitedReader{R: r, N: 4, Err: sentinel}
+-
+-	if _, err := io.Copy(os.Stdout, lr); err != sentinel {
+-		log.Fatal(err)
+-	}
+-
+-	// Output:
+-	// some
+-}
+diff --git a/src/io/io.go b/src/io/io.go
+index 830779e79d..db88125f50 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -455,26 +455,20 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ // LimitReader returns a Reader that reads from r
+ // but stops with EOF after n bytes.
+ // The underlying implementation is a *LimitedReader.
+-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n, nil} }
++func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+ 
+ // A LimitedReader reads from R but limits the amount of
+ // data returned to just N bytes. Each call to Read
+ // updates N to reflect the new amount remaining.
+-// Read returns Err when N <= 0.
+-// If Err is nil, it returns EOF instead.
++// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+ type LimitedReader struct {
+-	R   Reader // underlying reader
+-	N   int64  // max bytes remaining
+-	Err error  // error to return on reaching the limit
++	R Reader // underlying reader
++	N int64  // max bytes remaining
+ }
+ 
+ func (l *LimitedReader) Read(p []byte) (n int, err error) {
+ 	if l.N <= 0 {
+-		err := l.Err
+-		if err == nil {
+-			err = EOF
+-		}
+-		return 0, err
++		return 0, EOF
+ 	}
+ 	if int64(len(p)) > l.N {
+ 		p = p[0:l.N]

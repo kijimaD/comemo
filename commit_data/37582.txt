@@ -69,7 +69,7 @@ Date:   Sun Jul 29 12:50:50 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/flagalloc.go  |  68 ++++--
  src/cmd/compile/internal/ssa/gen/386.rules |  13 ++
  src/cmd/compile/internal/ssa/gen/386Ops.go |  18 +-
@@ -78,3 +78,733 @@ Date:   Sun Jul 29 12:50:50 2018 +0000
  src/cmd/compile/internal/x86/ssa.go        |  15 ++
  test/codegen/comparisons.go                |  10 +
  7 files changed, 526 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 050595ff8d..56c12e320a 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -4,6 +4,30 @@
+ 
+ package ssa
+ 
++// When breaking up a combined load-compare to separated load and compare operations,
++// opLoad specifies the load operation, and opCmp specifies the compare operation.
++type typeCmdLoadMap struct {
++	opLoad Op
++	opCmp  Op
++}
++
++var opCmpLoadMap = map[Op]typeCmdLoadMap{
++	OpAMD64CMPQload:      {OpAMD64MOVQload, OpAMD64CMPQ},
++	OpAMD64CMPLload:      {OpAMD64MOVLload, OpAMD64CMPL},
++	OpAMD64CMPWload:      {OpAMD64MOVWload, OpAMD64CMPW},
++	OpAMD64CMPBload:      {OpAMD64MOVBload, OpAMD64CMPB},
++	Op386CMPLload:        {Op386MOVLload, Op386CMPL},
++	Op386CMPWload:        {Op386MOVWload, Op386CMPW},
++	Op386CMPBload:        {Op386MOVBload, Op386CMPB},
++	OpAMD64CMPQconstload: {OpAMD64MOVQload, OpAMD64CMPQconst},
++	OpAMD64CMPLconstload: {OpAMD64MOVLload, OpAMD64CMPLconst},
++	OpAMD64CMPWconstload: {OpAMD64MOVWload, OpAMD64CMPWconst},
++	OpAMD64CMPBconstload: {OpAMD64MOVBload, OpAMD64CMPBconst},
++	Op386CMPLconstload:   {Op386MOVLload, Op386CMPLconst},
++	Op386CMPWconstload:   {Op386MOVWload, Op386CMPWconst},
++	Op386CMPBconstload:   {Op386MOVBload, Op386CMPBconst},
++}
++
+ // flagalloc allocates the flag register among all the flag-generating
+ // instructions. Flag values are recomputed if they need to be
+ // spilled/restored.
+@@ -122,55 +146,55 @@ func flagalloc(f *Func) {
+ 			if spill[v.ID] && v.MemoryArg() != nil {
+ 				switch v.Op {
+ 				case OpAMD64CMPQload:
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = OpAMD64CMPQ
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = 0
+ 					v.Aux = nil
+ 					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPLload:
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = OpAMD64CMPL
++				case OpAMD64CMPLload, Op386CMPLload:
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = 0
+ 					v.Aux = nil
+ 					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPWload:
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = OpAMD64CMPW
++				case OpAMD64CMPWload, Op386CMPWload:
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = 0
+ 					v.Aux = nil
+ 					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPBload:
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = OpAMD64CMPB
++				case OpAMD64CMPBload, Op386CMPBload:
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = 0
+ 					v.Aux = nil
+ 					v.SetArgs2(load, v.Args[1])
+ 
+ 				case OpAMD64CMPQconstload:
+ 					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = OpAMD64CMPQconst
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = vo.Val()
+ 					v.Aux = nil
+ 					v.SetArgs1(load)
+-				case OpAMD64CMPLconstload:
++				case OpAMD64CMPLconstload, Op386CMPLconstload:
+ 					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = OpAMD64CMPLconst
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = vo.Val()
+ 					v.Aux = nil
+ 					v.SetArgs1(load)
+-				case OpAMD64CMPWconstload:
++				case OpAMD64CMPWconstload, Op386CMPWconstload:
+ 					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = OpAMD64CMPWconst
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = vo.Val()
+ 					v.Aux = nil
+ 					v.SetArgs1(load)
+-				case OpAMD64CMPBconstload:
++				case OpAMD64CMPBconstload, Op386CMPBconstload:
+ 					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = OpAMD64CMPBconst
++					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = opCmpLoadMap[v.Op].opCmp
+ 					v.AuxInt = vo.Val()
+ 					v.Aux = nil
+ 					v.SetArgs1(load)
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 65ac532689..94f24a81ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -1262,3 +1262,16 @@
+ // a register to use for holding the address of the constant pool entry.
+ (MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
+ (MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
++
++(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(L|W|B)load {sym} [off] ptr x mem)
++(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
++
++(CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
++	&& l.Uses == 1
++	&& validValAndOff(c, off)
++	&& clobber(l) ->
++  @l.Block (CMP(L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
++
++(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int32(c)),off) -> (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
++(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
++(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 0a77776b52..7a274269d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -117,9 +117,11 @@ func init() {
+ 		gp11mod   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx}, clobbers: ax}
+ 		gp21mul   = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}
+ 
+-		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}}
+-		gp1flags = regInfo{inputs: []regMask{gpsp}}
+-		flagsgp  = regInfo{inputs: nil, outputs: gponly}
++		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
++		gp1flags     = regInfo{inputs: []regMask{gpsp}}
++		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, 0}}
++		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
++		flagsgp      = regInfo{inputs: nil, outputs: gponly}
+ 
+ 		readflags = regInfo{inputs: nil, outputs: gponly}
+ 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+@@ -235,6 +237,16 @@ func init() {
+ 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int16"}, // arg0 compare to auxint
+ 		{name: "CMPBconst", argLength: 1, reg: gp1flags, asm: "CMPB", typ: "Flags", aux: "Int8"},  // arg0 compare to auxint
+ 
++		// compare *(arg0+auxint+aux) to arg1 (in that order). arg2=mem.
++		{name: "CMPLload", argLength: 3, reg: gp1flagsLoad, asm: "CMPL", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPWload", argLength: 3, reg: gp1flagsLoad, asm: "CMPW", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPBload", argLength: 3, reg: gp1flagsLoad, asm: "CMPB", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++
++		// compare *(arg0+ValAndOff(AuxInt).Off()+aux) to ValAndOff(AuxInt).Val() (in that order). arg1=mem.
++		{name: "CMPLconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPL", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPWconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPW", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPBconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPB", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++
+ 		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f32
+ 		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f64
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6a14ee0801..34b1d8a4bb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -300,6 +300,12 @@ const (
+ 	Op386CMPLconst
+ 	Op386CMPWconst
+ 	Op386CMPBconst
++	Op386CMPLload
++	Op386CMPWload
++	Op386CMPBload
++	Op386CMPLconstload
++	Op386CMPWconstload
++	Op386CMPBconstload
+ 	Op386UCOMISS
+ 	Op386UCOMISD
+ 	Op386TESTL
+@@ -3329,6 +3335,87 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "CMPLload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "CMPWload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "CMPBload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "CMPLconstload",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "CMPWconstload",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "CMPBconstload",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
+ 	{
+ 		name:        "UCOMISS",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index a204d48d07..db2c62089d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -47,14 +47,20 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386CMPB_0(v)
+ 	case Op386CMPBconst:
+ 		return rewriteValue386_Op386CMPBconst_0(v)
++	case Op386CMPBload:
++		return rewriteValue386_Op386CMPBload_0(v)
+ 	case Op386CMPL:
+ 		return rewriteValue386_Op386CMPL_0(v)
+ 	case Op386CMPLconst:
+-		return rewriteValue386_Op386CMPLconst_0(v)
++		return rewriteValue386_Op386CMPLconst_0(v) || rewriteValue386_Op386CMPLconst_10(v)
++	case Op386CMPLload:
++		return rewriteValue386_Op386CMPLload_0(v)
+ 	case Op386CMPW:
+ 		return rewriteValue386_Op386CMPW_0(v)
+ 	case Op386CMPWconst:
+ 		return rewriteValue386_Op386CMPWconst_0(v)
++	case Op386CMPWload:
++		return rewriteValue386_Op386CMPWload_0(v)
+ 	case Op386LEAL:
+ 		return rewriteValue386_Op386LEAL_0(v)
+ 	case Op386LEAL1:
+@@ -2216,9 +2222,65 @@ func rewriteValue386_Op386CMPB_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPBload {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != Op386MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386CMPBload)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPB x l:(MOVBload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPBload {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != Op386MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPBload, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (CMPBconst (MOVLconst [x]) [y])
+ 	// cond: int8(x)==int8(y)
+ 	// result: (FlagEQ)
+@@ -2365,6 +2427,60 @@ func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPBconst l:(MOVBload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPBconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != Op386MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, Op386CMPBconstload, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValue386_Op386CMPBload_0(v *Value) bool {
++	// match: (CMPBload {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(int64(int8(c)),off)
++	// result: (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(int64(int8(c)), off)) {
++			break
++		}
++		v.reset(Op386CMPBconstload)
++		v.AuxInt = makeValAndOff(int64(int8(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386CMPL_0(v *Value) bool {
+@@ -2404,6 +2520,60 @@ func rewriteValue386_Op386CMPL_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPL l:(MOVLload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPLload {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386CMPLload)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPL x l:(MOVLload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPLload {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPLload, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386CMPLconst_0(v *Value) bool {
+@@ -2571,6 +2741,65 @@ func rewriteValue386_Op386CMPLconst_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386CMPLconst_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPLconst l:(MOVLload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, Op386CMPLconstload, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValue386_Op386CMPLload_0(v *Value) bool {
++	// match: (CMPLload {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(int64(int32(c)),off)
++	// result: (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(int64(int32(c)), off)) {
++			break
++		}
++		v.reset(Op386CMPLconstload)
++		v.AuxInt = makeValAndOff(int64(int32(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386CMPW_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2608,9 +2837,65 @@ func rewriteValue386_Op386CMPW_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW l:(MOVWload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPWload {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != Op386MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386CMPWload)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPW x l:(MOVWload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPWload {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != Op386MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPWload, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (CMPWconst (MOVLconst [x]) [y])
+ 	// cond: int16(x)==int16(y)
+ 	// result: (FlagEQ)
+@@ -2757,6 +3042,60 @@ func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPWconst l:(MOVWload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPWconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != Op386MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, Op386CMPWconstload, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValue386_Op386CMPWload_0(v *Value) bool {
++	// match: (CMPWload {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(int64(int16(c)),off)
++	// result: (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(int64(int16(c)), off)) {
++			break
++		}
++		v.reset(Op386CMPWconstload)
++		v.AuxInt = makeValAndOff(int64(int16(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386LEAL_0(v *Value) bool {
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index b781d95725..d75a55c565 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -417,6 +417,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Args[0].Reg()
++	case ssa.Op386CMPLload, ssa.Op386CMPWload, ssa.Op386CMPBload:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Args[1].Reg()
++	case ssa.Op386CMPLconstload, ssa.Op386CMPWconstload, ssa.Op386CMPBconstload:
++		sc := v.AuxValAndOff()
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		gc.AddAux2(&p.From, v, sc.Off())
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = sc.Val()
+ 	case ssa.Op386MOVLconst:
+ 		x := v.Reg()
+ 
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 2f010bcbae..ebd75d85d9 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -122,6 +122,16 @@ func CmpMem5(p **int) {
+ 	*p = nil
+ }
+ 
++func CmpMem6(a []int) int {
++	// 386:`CMPL\s8\([A-Z]+\),`
++	// amd64:`CMPQ\s16\([A-Z]+\),`
++	if a[1] > a[2] {
++		return 1
++	} else {
++		return 2
++	}
++}
++
+ // Check tbz/tbnz are generated when comparing against zero on arm64
+ 
+ func CmpZero1(a int32, ptr *int) {

@@ -7,6 +7,24 @@ Date:   Mon Dec 19 15:40:10 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5492073
-
+---
  src/pkg/archive/zip/reader_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 9594fe8e50..0e40268c2f 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -163,10 +163,10 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	done := make(chan bool)
+ 	for i := 0; i < 5; i++ {
+ 		for j, ft := range zt.File {
+-			go func() {
++			go func(j int, ft ZipTestFile) {
+ 				readTestFile(t, ft, z.File[j])
+ 				done <- true
+-			}()
++			}(j, ft)
+ 			n++
+ 		}
+ 	}

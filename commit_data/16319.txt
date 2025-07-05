@@ -7,6 +7,23 @@ Date:   Wed May 15 10:25:02 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/9104052
-
+---
  misc/dashboard/codereview/dashboard/people.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+index 21bd8f89cd..112df71644 100644
+--- a/misc/dashboard/codereview/dashboard/people.go
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -24,9 +24,11 @@ func init() {
+ 		"agl",
+ 		"bradfitz",
+ 		"campoy",
++		"cshapiro",
+ 		"dsymonds",
+ 		"gri",
+ 		"iant",
++		"mpvl",
+ 		"nigeltao",
+ 		"r",
+ 		"rsc",

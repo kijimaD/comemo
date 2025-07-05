@@ -9,7 +9,78 @@ Date:   Tue Feb 21 14:12:07 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5683056
-
+---
  doc/install-source.html | 10 +++++-----
  doc/install.html        |  6 +++---
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 7c4ab8155a..e3d0627333 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -19,7 +19,7 @@ This document focuses on the <code>gc</code> Go
+ compiler and tools (<code>6g</code>, <code>8g</code> etc.).
+ For information on how to use <code>gccgo</code>, a more traditional
+ compiler using the GCC back end, see
+-<a href="gccgo_install.html">Setting up and using gccgo</a>.
++<a href="/install/gccgo/">Setting up and using gccgo</a>.
+ </p>
+ 
+ <p>
+@@ -226,7 +226,7 @@ If you see the "hello, world" message then Go is installed correctly.
+ 
+ <p>
+ Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>
+-or reading the <a href="go_tutorial.html">Go Tutorial</a>.
++or reading the <a href="/doc/go_tutorial.html">Go Tutorial</a>.
+ </p>
+ 
+ <p>
+@@ -235,18 +235,18 @@ read <a href="/doc/code.html">How to Write Go Code</a>.
+ </p>
+ 
+ <p>
+-Build a web application by following the <a href="codelab/wiki/">Wiki
++Build a web application by following the <a href="/doc/codelab/wiki/">Wiki
+ Codelab</a>.
+ </p>
+ 
+ <p>
+-Read <a href="effective_go.html">Effective Go</a> to learn about writing
++Read <a href="/doc/effective_go.html">Effective Go</a> to learn about writing
+ idiomatic Go code.
+ </p>
+ 
+ <p>
+ For the full story, consult Go's extensive 
+-<a href="docs.html">documentation</a>.
++<a href="/doc/">documentation</a>.
+ </p>
+ 
+ 
+diff --git a/doc/install.html b/doc/install.html
+index 3ebdd66cd9..95bfaa7694 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -153,18 +153,18 @@ read <a href="/doc/code.html">How to Write Go Code</a>.
+ </p>
+ 
+ <p>
+-Build a web application by following the <a href="codelab/wiki/">Wiki
++Build a web application by following the <a href="/doc/codelab/wiki/">Wiki
+ Codelab</a>.
+ </p>
+ 
+ <p>
+-Read <a href="effective_go.html">Effective Go</a> to learn about writing
++Read <a href="/doc/effective_go.html">Effective Go</a> to learn about writing
+ idiomatic Go code.
+ </p>
+ 
+ <p>
+ For the full story, consult Go's extensive 
+-<a href="docs.html">documentation</a>.
++<a href="/doc/">documentation</a>.
+ </p>
+ 
+ 

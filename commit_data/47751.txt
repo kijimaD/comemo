@@ -24,7 +24,32 @@ Date:   Thu Apr 8 18:32:00 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 3 +++
  test/fixedbugs/issue28688.go        | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9199db830c..68506c7a7b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -158,6 +158,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
+ 	}
+ 	if base.Debug.SoftFloat != 0 {
++		if objabi.Experiment.RegabiArgs {
++			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
++		}
+ 		ssagen.Arch.SoftFloat = true
+ 	}
+ 
+diff --git a/test/fixedbugs/issue28688.go b/test/fixedbugs/issue28688.go
+index 0d2000e149..8ef0802812 100644
+--- a/test/fixedbugs/issue28688.go
++++ b/test/fixedbugs/issue28688.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-d=softfloat
++// run -gcflags=-d=softfloat -goexperiment noregabiargs
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

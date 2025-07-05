@@ -10,7 +10,42 @@ Date:   Wed Jun 14 22:04:33 2017 +0000
     Change-Id: Icbb4c7cb201ac51d2cc6066620b47ba09ff6fe65
     Reviewed-on: https://go-review.googlesource.com/45780
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/go1.9.html    | 7 ++-----
  src/net/ipsock.go | 4 ++--
  2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 63e8b7a6d0..8f33a046d3 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -466,12 +466,9 @@ type T1 = T2
+       TODO: <a href="https://golang.org/cl/37260">https://golang.org/cl/37260</a>: allow Resolver to use a custom dialer
+     </p>
+ 
+-    <p><!-- CL 37402 -->
+-      TODO: <a href="https://golang.org/cl/37402">https://golang.org/cl/37402</a>: implement deadline functionality on Pipe
+-    </p>
+-
+     <p><!-- CL 40510 -->
+-      TODO: <a href="https://golang.org/cl/40510">https://golang.org/cl/40510</a>: don&#39;t enclose non-literal IPv6 addresses in square brackets
++      <a href="/pkg/net/#JoinHostPort"><code>JoinHostPort</code></a> now only places an address in square brackets if the host contains a colon.
++      In previous releases it would also wrap addresses in square brackets if they contained a percent ('<code>%</code>') sign.
+     </p>
+ 
+     <p><!-- CL 40512 -->
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 6049692d37..201c3f58bc 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -194,8 +194,8 @@ func splitHostZone(s string) (host, zone string) {
+ }
+ 
+ // JoinHostPort combines host and port into a network address of the
+-// form "host:port" or "host%zone:port", if host is a literal IPv6
+-// address, "[host]:port" or [host%zone]:port.
++// form "host:port". If host contains a colon, as found in literal
++// IPv6 addresses, then JoinHostPort returns "[host]:port".
+ func JoinHostPort(host, port string) string {
+ 	// We assume that host is a literal IPv6 address if host has
+ 	// colons.

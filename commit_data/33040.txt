@@ -13,7 +13,36 @@ Date:   Wed Jun 28 20:09:15 2017 +0300
     Change-Id: I3270db8317ce6e06e6d77070a32a5df6ab2491e0
     Reviewed-on: https://go-review.googlesource.com/47010
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_posix.go | 2 +-
  src/os/os_test.go    | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 6ee7eeb2da..5ac0acdd36 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -48,7 +48,7 @@ func syscallMode(i FileMode) (o uint32) {
+ // If the file is a symbolic link, it changes the mode of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Chmod(name string, mode FileMode) error {
+-	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
++	if e := syscall.Chmod(fixLongPath(name), syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", name, e}
+ 	}
+ 	return nil
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 91c6be6148..dbe4ff8830 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1990,6 +1990,10 @@ func TestLongPath(t *testing.T) {
+ 					if dir.Size() != filesize || filesize != wantSize {
+ 						t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
+ 					}
++					err = Chmod(path, dir.Mode())
++					if err != nil {
++						t.Fatalf("Chmod(%q) failed: %v", path, err)
++					}
+ 				}
+ 				if err := Truncate(sizedTempDir+"/bar.txt", 0); err != nil {
+ 					t.Fatalf("Truncate failed: %v", err)

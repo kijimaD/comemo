@@ -23,6 +23,20 @@ Date:   Wed Dec 23 13:48:44 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/182044
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5aed74e00a..ed740187b9 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3611,7 +3611,7 @@ in the type assertion.
+ 
+ <pre class="ebnf">
+ TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
+-TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
++TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
+ TypeCaseClause  = TypeSwitchCase ":" { Statement ";" } .
+ TypeSwitchCase  = "case" TypeList | "default" .
+ TypeList        = Type { "," Type } .

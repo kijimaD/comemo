@@ -45,7 +45,47 @@ Date:   Thu Aug 6 15:36:50 2015 -0400
     Change-Id: Ifb6fb53087e09a252baddadc36eebf954468f2a8
     Reviewed-on: https://go-review.googlesource.com/13323
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/panic.go |  2 +-
  src/runtime/stubs.go | 15 ++++++++++++++-
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index c8158b9dec..a1662812de 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -327,7 +327,7 @@ func Goexit() {
+ 		freedefer(d)
+ 		// Note: we ignore recovers here because Goexit isn't a panic
+ 	}
+-	goexit()
++	goexit1()
+ }
+ 
+ // Print all currently active panics.  Used when crashing.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index e6b015684b..d725bb11f5 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -128,7 +128,20 @@ func breakpoint()
+ func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
+ 
+ func procyield(cycles uint32)
+-func goexit()
++
++type neverCallThisFunction struct{}
++
++// goexit is the return stub at the top of every goroutine call stack.
++// Each goroutine stack is constructed as if goexit called the
++// goroutine's entry point function, so that when the entry point
++// function returns, it will return to goexit, which will call goexit1
++// to perform the actual exit.
++//
++// This function must never be called directly. Call goexit1 instead.
++// gentraceback assumes that goexit terminates the stack. A direct
++// call on the stack will cause gentraceback to stop walking the stack
++// prematurely and if there are leftover stack barriers it may panic.
++func goexit(neverCallThisFunction)
+ 
+ // Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
+ // so not all have these arguments. Mark them uintptr so that the GC

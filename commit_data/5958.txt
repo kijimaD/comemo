@@ -7,8 +7,63 @@ Date:   Wed Aug 4 17:58:56 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1849055
-
+---
  src/pkg/go/printer/testdata/expressions.golden | 7 -------
  src/pkg/go/printer/testdata/expressions.input  | 7 -------
  src/pkg/go/printer/testdata/expressions.raw    | 7 -------
  3 files changed, 21 deletions(-)
+
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 95e5502d36..3315f9b0e1 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -172,13 +172,6 @@ func _() {
+ 	_ = [...]T{}
+ 	_ = []T{}
+ 	_ = map[int]T{}
+-
+-	_ = (T){}
+-	_ = (struct{}){}
+-	_ = ([10]T){}
+-	_ = ([...]T){}
+-	_ = ([]T){}
+-	_ = (map[int]T){}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 13891d9711..e4f12af4cd 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -172,13 +172,6 @@ func _() {
+ 	_ = [...]T{}
+ 	_ = []T{}
+ 	_ = map[int]T{}
+-
+-	_ = (T){}
+-	_ = (struct{}){}
+-	_ = ([10]T){}
+-	_ = ([...]T){}
+-	_ = ([]T){}
+-	_ = (map[int]T){}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index dccc8d122b..07b649aff7 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -172,13 +172,6 @@ func _() {
+ 	_ = [...]T{}
+ 	_ = []T{}
+ 	_ = map[int]T{}
+-
+-	_ = (T){}
+-	_ = (struct{}){}
+-	_ = ([10]T){}
+-	_ = ([...]T){}
+-	_ = ([]T){}
+-	_ = (map[int]T){}
+ }
+ 
+ 

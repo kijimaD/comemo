@@ -15,6 +15,20 @@ Date:   Thu Feb 23 21:55:37 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mheap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 2f6cc358c3..4a5ba45ec1 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1062,7 +1062,7 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
+ 
+ //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
+ func runtime_debug_freeOSMemory() {
+-	gcStart(gcForceBlockMode, gcTrigger{kind: gcTriggerAlways})
++	GC()
+ 	systemstack(func() { mheap_.scavenge(-1, ^uint64(0), 0) })
+ }
+ 

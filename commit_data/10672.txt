@@ -9,6 +9,20 @@ Date:   Fri Dec 9 11:12:03 2011 +1100
     R=golang-dev, bsiegert
     CC=golang-dev
     https://golang.org/cl/5462045
-
+---
  src/pkg/syscall/mksyscall_windows.pl | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index 0daca2eded..1fb51125bd 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -263,7 +263,7 @@ while(<>) {
+ 		} elsif($rettype eq "error") {
+ 			# Set $reg to "error" only if returned value indicate failure
+ 			$body .= "\tif $reg != 0 {\n";
+-			$body .= "\t\t$name = Errno($reg)\n";
++			$body .= "\t\t$name = ${syscalldot}Errno($reg)\n";
+ 			$body .= "\t}\n";
+ 		} else {
+ 			$body .= "\t$name = $rettype($reg)\n";

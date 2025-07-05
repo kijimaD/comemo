@@ -12,9 +12,171 @@ Date:   Mon Aug 23 23:10:25 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2015043
-
+---
  src/cmd/gc/go.h        |  2 +-
  src/cmd/gc/go.y        | 35 ++++++++++++++++++++---------------
  src/cmd/gc/print.c     |  7 +++++++
  src/cmd/gc/typecheck.c | 10 ++++++++++
  4 files changed, 38 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2da3a76fe7..581a3eb37b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -209,7 +209,6 @@ struct	Node
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+ 	uchar	isddd;
+-	uchar	paren;	// was parenthesized
+ 	uchar	pun;		// dont registerize variable ONAME
+ 
+ 	// most nodes
+@@ -411,6 +410,7 @@ enum
+ 	OTINTER,
+ 	OTFUNC,
+ 	OTARRAY,
++	OTPAREN,
+ 
+ 	// misc
+ 	ODDD,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index b61ca759e5..baa589241f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -58,7 +58,7 @@
+ %type	<node>	name_or_type non_expr_type
+ %type	<node>	new_name dcl_name oexpr typedclname
+ %type	<node>	onew_name
+-%type	<node>	osimple_stmt pexpr
++%type	<node>	osimple_stmt pexpr pexpr_no_paren
+ %type	<node>	pseudocall range_stmt select_stmt
+ %type	<node>	simple_stmt
+ %type	<node>	switch_stmt uexpr
+@@ -812,7 +812,7 @@ pseudocall:
+ 		$$->list = $3;
+ 	}
+ 
+-pexpr:
++pexpr_no_paren:
+ 	LLITERAL
+ 	{
+ 		$$ = nodlit($1);
+@@ -829,11 +829,6 @@ pexpr:
+ 		}
+ 		$$ = nod(OXDOT, $1, newname($3));
+ 	}
+-|	'(' expr_or_type ')'
+-	{
+-		$$ = $2;
+-		$$->paren++;
+-	}
+ |	pexpr '.' '(' expr_or_type ')'
+ 	{
+ 		$$ = nod(ODOTTYPE, $1, $4);
+@@ -873,16 +868,28 @@ pexpr:
+ 		if($2 == LBODY)
+ 			loophack = 1;
+ 	}
+-|	pexpr '{' braced_keyval_list '}'
++|	pexpr_no_paren '{' braced_keyval_list '}'
+ 	{
+-		if($1->paren)
+-			yyerror("cannot parenthesize type in composite literal");
+ 		// composite expression
+ 		$$ = nod(OCOMPLIT, N, $1);
+ 		$$->list = $3;
+ 	}
++|	'(' expr_or_type ')' '{' braced_keyval_list '}'
++	{
++		yyerror("cannot parenthesize type in composite literal");
++		// composite expression
++		$$ = nod(OCOMPLIT, N, $2);
++		$$->list = $5;
++	}
+ |	fnliteral
+ 
++pexpr:
++	pexpr_no_paren
++|	'(' expr_or_type ')'
++	{
++		$$ = $2;
++	}
++
+ expr_or_type:
+ 	expr
+ |	non_expr_type	%prec PreferToRightParen
+@@ -965,8 +972,7 @@ ntype:
+ |	dotname
+ |	'(' ntype ')'
+ 	{
+-		$$ = $2;
+-		$$->paren++;
++		$$ = nod(OTPAREN, $2, N);
+ 	}
+ 
+ non_expr_type:
+@@ -985,8 +991,7 @@ non_recvchantype:
+ |	dotname
+ |	'(' ntype ')'
+ 	{
+-		$$ = $2;
+-		$$->paren++;
++		$$ = nod(OTPAREN, $2, N);
+ 	}
+ 
+ convtype:
+@@ -1146,7 +1151,7 @@ fndcl:
+ 			yyerror("bad receiver in method");
+ 			break;
+ 		}
+-		if(rcvr->right->paren || (rcvr->right->op == OIND && rcvr->right->left->paren))
++		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
+ 			yyerror("cannot parenthesize receiver type");
+ 
+ 		$$ = nod(ODCLFUNC, N, N);
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index c2bac91615..fc5be984f3 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -66,6 +66,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OPLUS:
+ 	case ORECV:
+ 	case OCONVIFACE:
++	case OTPAREN:
+ 		nprec = 7;
+ 		break;
+ 
+@@ -165,6 +166,12 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "[]");
+ 		exprfmt(f, n->left, PFIXME);
+ 		break;
++	
++	case OTPAREN:
++		fmtprint(f, "(");
++		exprfmt(f, n->left, 0);
++		fmtprint(f, ")");
++		break;
+ 
+ 	case OTMAP:
+ 		fmtprint(f, "map[");
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2eb6cc87d1..4adbcabe41 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -169,6 +169,16 @@ reswitch:
+ 			goto error;
+ 		break;
+ 
++	case OTPAREN:
++		ok |= Etype;
++		l = typecheck(&n->left, Etype);
++		if(l->type == T)
++			goto error;
++		n->op = OTYPE;
++		n->type = l->type;
++		n->left = N;
++		break;
++	
+ 	case OTARRAY:
+ 		ok |= Etype;
+ 		t = typ(TARRAY);

@@ -8,7 +8,7 @@ Date:   Mon Aug 12 21:46:33 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12717043
-
+---
  src/pkg/sync/atomic/asm_386.s         | 46 +++++++++++++++++------------------
  src/pkg/sync/atomic/asm_amd64.s       | 46 +++++++++++++++++------------------
  src/pkg/sync/atomic/asm_arm.s         | 16 ++++++------
@@ -17,3 +17,516 @@ Date:   Mon Aug 12 21:46:33 2013 +0400
  src/pkg/sync/atomic/asm_netbsd_arm.s  |  4 +--
  src/pkg/sync/atomic/atomic_test.go    | 37 ++++++++++++++++++++++++++++
  7 files changed, 103 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 5313a09591..75379f5fcf 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -6,10 +6,10 @@
+ 
+ #include "../../../cmd/ld/textflag.h"
+ 
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -19,16 +19,16 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	SETEQ	swapped+12(FP)
+ 	RET
+ 
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-13
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-13
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-21
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-21
+ 	MOVL	addr+0(FP), BP
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+@@ -43,10 +43,10 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
+ 	SETEQ	swapped+20(FP)
+ 	RET
+ 
+-TEXT ·AddInt32(SB),NOSPLIT,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0-12
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),NOSPLIT,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0-12
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	delta+4(FP), AX
+ 	MOVL	AX, CX
+@@ -57,13 +57,13 @@ TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	MOVL	CX, new+8(FP)
+ 	RET
+ 
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0-12
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddInt64(SB),NOSPLIT,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0-20
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddUint64(SB),NOSPLIT,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0-20
+ 	// no XADDQ so use CMPXCHG8B loop
+ 	MOVL	addr+0(FP), BP
+ 	TESTL	$7, BP
+@@ -99,19 +99,19 @@ addloop:
+ 	MOVL	CX, new_hi+16(FP)
+ 	RET
+ 
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0-8
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+ 	MOVL	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, val+4(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+ 	JMP	·LoadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+ 	MOVL	addr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+@@ -124,25 +124,25 @@ TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	EMMS
+ 	RET
+ 
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0-8
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0-8
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0-8
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),NOSPLIT,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+ 	JMP	·StoreUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+ 	MOVL	addr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+@@ -160,8 +160,8 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	XADDL	AX, (SP)
+ 	RET
+ 
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StorePointer(SB),NOSPLIT,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0-8
+ 	JMP	·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index c254614a57..4e062cc20d 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -6,10 +6,10 @@
+ 
+ #include "../../../cmd/ld/textflag.h"
+ 
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	old+8(FP), AX
+ 	MOVL	new+12(FP), CX
+@@ -18,16 +18,16 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	SETEQ	swapped+16(FP)
+ 	RET
+ 
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-25
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+@@ -36,10 +36,10 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
+ 	SETEQ	swapped+24(FP)
+ 	RET
+ 
+-TEXT ·AddInt32(SB),NOSPLIT,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0-20
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),NOSPLIT,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0-20
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	delta+8(FP), AX
+ 	MOVL	AX, CX
+@@ -49,13 +49,13 @@ TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	MOVL	CX, new+16(FP)
+ 	RET
+ 
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddInt64(SB),NOSPLIT,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0-24
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddUint64(SB),NOSPLIT,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0-24
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	delta+8(FP), AX
+ 	MOVQ	AX, CX
+@@ -65,55 +65,55 @@ TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	MOVQ	CX, new+16(FP)
+ 	RET
+ 
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+ 	MOVQ	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+ 	JMP	·LoadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+ 	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+ 	JMP	·LoadPointer(SB)
+ 
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+ 	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),NOSPLIT,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	val+8(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+ 	JMP	·StoreUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+ 	JMP	·StorePointer(SB)
+ 
+-TEXT ·StorePointer(SB),NOSPLIT,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0-16
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 2d974b625c..70db48967b 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -8,7 +8,7 @@
+ 
+ // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+ 
+-TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0
++TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
+ 	MOVW	addr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+ 	MOVW	new+8(FP), R3
+@@ -28,7 +28,7 @@ casfail:
+ 	MOVBU	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0
++TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -57,7 +57,7 @@ cas64fail:
+ 	MOVBU	R0, ret+20(FP)
+ 	RET
+ 
+-TEXT ·armAddUint32(SB),NOSPLIT,$0
++TEXT ·armAddUint32(SB),NOSPLIT,$0-12
+ 	MOVW	addr+0(FP), R1
+ 	MOVW	delta+4(FP), R2
+ addloop:
+@@ -70,7 +70,7 @@ addloop:
+ 	MOVW	R3, ret+8(FP)
+ 	RET
+ 
+-TEXT ·armAddUint64(SB),NOSPLIT,$0
++TEXT ·armAddUint64(SB),NOSPLIT,$0-20
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -91,7 +91,7 @@ add64loop:
+ 	MOVW	R5, rethi+16(FP)
+ 	RET
+ 
+-TEXT ·armLoadUint64(SB),NOSPLIT,$0
++TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -107,7 +107,7 @@ load64loop:
+ 	MOVW	R3, valhi+8(FP)
+ 	RET
+ 
+-TEXT ·armStoreUint64(SB),NOSPLIT,$0
++TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -131,7 +131,7 @@ store64loop:
+ // which will make uses of the 64-bit atomic operations loop forever.
+ // If things are working, set okLDREXD to avoid future checks.
+ // https://bugs.launchpad.net/qemu/+bug/670883.
+-TEXT	check64<>(SB),NOSPLIT,$16
++TEXT	check64<>(SB),NOSPLIT,$16-0
+ 	MOVW	$10, R1
+ 	// 8-aligned stack address scratch space.
+ 	MOVW	$8(R13), R5
+@@ -156,7 +156,7 @@ TEXT	fastCheck64<>(SB),NOSPLIT,$-4
+ 	RET.NE
+ 	B	slowCheck64<>(SB)
+ 
+-TEXT slowCheck64<>(SB),NOSPLIT,$0
++TEXT slowCheck64<>(SB),NOSPLIT,$0-0
+ 	BL	check64<>(SB)
+ 	// Still here, must be okay.
+ 	MOVW	$1, R0
+diff --git a/src/pkg/sync/atomic/asm_freebsd_arm.s b/src/pkg/sync/atomic/asm_freebsd_arm.s
+index 013fdfc57d..813c1aa4f2 100644
+--- a/src/pkg/sync/atomic/asm_freebsd_arm.s
++++ b/src/pkg/sync/atomic/asm_freebsd_arm.s
+@@ -43,7 +43,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+ 	MOVW addr+0(FP), R1
+ load32loop:
+ 	LDREX (R1), R2		// loads R2
+@@ -68,7 +68,7 @@ TEXT ·LoadPointer(SB),NOSPLIT,$0
+ TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),NOSPLIT,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+ 	MOVW addr+0(FP), R1
+ 	MOVW val+4(FP), R2
+ storeloop:
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index b78c7fa038..31c86ccbe3 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -30,7 +30,7 @@ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B	·CompareAndSwapUint32(SB)
+ 
+ // Implement using kernel cas for portability.
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ casagain:
+@@ -61,7 +61,7 @@ TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	B	·AddUint32(SB)
+ 
+ // Implement using kernel cas for portability.
+-TEXT ·AddUint32(SB),NOSPLIT,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0-12
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	delta+4(FP), R4
+ addloop1:
+@@ -79,7 +79,7 @@ TEXT ·AddUintptr(SB),NOSPLIT,$0
+ TEXT cas64<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
+ 
+-TEXT kernelCAS64<>(SB),NOSPLIT,$0
++TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+ 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+ 	MOVW	addr+0(FP), R2 // ptr
+ 	// make unaligned atomic access panic
+@@ -94,7 +94,7 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0
+ 	MOVW	R0, 20(FP)
+ 	RET
+ 
+-TEXT generalCAS64<>(SB),NOSPLIT,$20
++TEXT generalCAS64<>(SB),NOSPLIT,$20-21
+ 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+ 	MOVW	addr+0(FP), R0
+ 	// make unaligned atomic access panic
+@@ -114,7 +114,7 @@ TEXT generalCAS64<>(SB),NOSPLIT,$20
+ 
+ GLOBL armCAS64(SB), $4
+ 
+-TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4
++TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-21
+ 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
+ 	MOVW	(R0), R0
+ 	// __kuser_cmpxchg64 only present if helper version >= 5
+@@ -136,7 +136,7 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4
+ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B   	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-21
+ 	MOVW	armCAS64(SB), R0
+ 	CMP 	$0, R0
+ 	MOVW.NE	R0, PC
+@@ -151,7 +151,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+ 	MOVW	addr+0(FP), R2
+ loadloop1:
+ 	MOVW	0(R2), R0
+@@ -176,7 +176,7 @@ TEXT ·LoadPointer(SB),NOSPLIT,$0
+ TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),NOSPLIT,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	val+4(FP), R1
+ storeloop1:
+diff --git a/src/pkg/sync/atomic/asm_netbsd_arm.s b/src/pkg/sync/atomic/asm_netbsd_arm.s
+index e2eea9f8db..a4d1f4e828 100644
+--- a/src/pkg/sync/atomic/asm_netbsd_arm.s
++++ b/src/pkg/sync/atomic/asm_netbsd_arm.s
+@@ -43,7 +43,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+ 	MOVW addr+0(FP), R1
+ load32loop:
+ 	LDREX (R1), R2		// loads R2
+@@ -68,7 +68,7 @@ TEXT ·LoadPointer(SB),NOSPLIT,$0
+ TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),NOSPLIT,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+ 	MOVW addr+0(FP), R1
+ 	MOVW val+4(FP), R2
+ storeloop:
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index b392df595e..cec81c4626 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1203,3 +1203,40 @@ func TestUnaligned64(t *testing.T) {
+ 	shouldPanic(t, "CompareAndSwapUint64", func() { CompareAndSwapUint64(p, 1, 2) })
+ 	shouldPanic(t, "AddUint64", func() { AddUint64(p, 3) })
+ }
++
++func TestNilDeref(t *testing.T) {
++	funcs := [...]func(){
++		func() { CompareAndSwapInt32(nil, 0, 0) },
++		func() { CompareAndSwapInt64(nil, 0, 0) },
++		func() { CompareAndSwapUint32(nil, 0, 0) },
++		func() { CompareAndSwapUint64(nil, 0, 0) },
++		func() { CompareAndSwapUintptr(nil, 0, 0) },
++		func() { CompareAndSwapPointer(nil, nil, nil) },
++		func() { AddInt32(nil, 0) },
++		func() { AddUint32(nil, 0) },
++		func() { AddInt64(nil, 0) },
++		func() { AddUint64(nil, 0) },
++		func() { AddUintptr(nil, 0) },
++		func() { LoadInt32(nil) },
++		func() { LoadInt64(nil) },
++		func() { LoadUint32(nil) },
++		func() { LoadUint64(nil) },
++		func() { LoadUintptr(nil) },
++		func() { LoadPointer(nil) },
++		func() { StoreInt32(nil, 0) },
++		func() { StoreInt64(nil, 0) },
++		func() { StoreUint32(nil, 0) },
++		func() { StoreUint64(nil, 0) },
++		func() { StoreUintptr(nil, 0) },
++		func() { StorePointer(nil, nil) },
++	}
++	for _, f := range funcs {
++		func() {
++			defer func() {
++				runtime.GC()
++				recover()
++			}()
++			f()
++		}()
++	}
++}

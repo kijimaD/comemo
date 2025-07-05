@@ -10,6 +10,23 @@ Date:   Tue Apr 15 19:40:00 2014 -0700
     R=agl, rsc
     CC=golang-codereviews
     https://golang.org/cl/88340043
-
+---
  src/pkg/crypto/tls/conn.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 000b23cbca..550bc7f8fe 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -884,6 +884,11 @@ func (c *Conn) Read(b []byte) (n int, err error) {
+ 	if err = c.Handshake(); err != nil {
+ 		return
+ 	}
++	if len(b) == 0 {
++		// Put this after Handshake, in case people were calling
++		// Read(nil) for the side effect of the Handshake.
++		return
++	}
+ 
+ 	c.in.Lock()
+ 	defer c.in.Unlock()

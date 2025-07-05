@@ -8,6 +8,24 @@ Date:   Thu Aug 6 10:53:29 2009 -0700
     DELTA=2  (1 added, 1 deleted, 0 changed)
     OCL=32828
     CL=32830
-
+---
  src/pkg/bufio/bufio.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 5ef1b69e9d..c64e01b446 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -107,11 +107,11 @@ func (b *Reader) fill() os.Error {
+ 
+ 	// Read new data.
+ 	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
++	b.w += n;
+ 	if e != nil {
+ 		b.err = e;
+ 		return e
+ 	}
+-	b.w += n;
+ 	return nil
+ }
+ 

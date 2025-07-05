@@ -10,6 +10,27 @@ Date:   Wed Mar 30 20:19:52 2022 -0700
     Trust: Eli Bendersky‎ <eliben@golang.org>
     Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/pprof/doc.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/doc.go b/src/cmd/pprof/doc.go
+index 84de036610..6b8c28fe1d 100644
+--- a/src/cmd/pprof/doc.go
++++ b/src/cmd/pprof/doc.go
+@@ -4,9 +4,13 @@
+ 
+ // Pprof interprets and displays profiles of Go programs.
+ //
+-// Usage:
++// Basic usage:
+ //
+ //	go tool pprof binary profile
+ //
+-// For more information, see https://blog.golang.org/profiling-go-programs.
++// For detailed usage information:
++//
++//  go tool pprof -h
++//
++// For an example, see https://blog.golang.org/profiling-go-programs.
+ package main

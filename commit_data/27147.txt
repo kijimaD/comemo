@@ -9,9 +9,166 @@ Date:   Sun Mar 13 15:22:45 2016 -0700
     Change-Id: I7935a253e3e96191a33f5041bab203ecc5f0c976
     Reviewed-on: https://go-review.googlesource.com/20647
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  1 -
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 -
  src/cmd/compile/internal/gc/walk.go            | 58 +++++++++++++-------------
  src/runtime/slice.go                           | 11 -----
  4 files changed, 29 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 4a6e56fe47..6ca870285a 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -128,7 +128,6 @@ const runtimeimport = "" +
+ 	"func @\"\".block ()\n" +
+ 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n" +
+ 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".cap·4 int) (@\"\".ary·1 []any)\n" +
+-	"func @\"\".growslice_n (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int) (@\"\".ary·1 []any)\n" +
+ 	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr \"unsafe-uintptr\")\n" +
+ 	"func @\"\".memclr (@\"\".ptr·1 *byte, @\"\".length·2 uintptr \"unsafe-uintptr\")\n" +
+ 	"func @\"\".memequal (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr \"unsafe-uintptr\") (? bool)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 4286f361b8..944cac2c63 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -165,7 +165,6 @@ func block()
+ 
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+ func growslice(typ *byte, old []any, cap int) (ary []any)
+-func growslice_n(typ *byte, old []any, n int) (ary []any)
+ func memmove(to *any, frm *any, length uintptr)
+ func memclr(ptr *byte, length uintptr)
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index fe9b0e5dc7..afc560d5d0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2777,10 +2777,12 @@ func addstr(n *Node, init *Nodes) *Node {
+ // expand append(l1, l2...) to
+ //   init {
+ //     s := l1
+-//     if n := len(l1) + len(l2) - cap(s); n > 0 {
+-//       s = growslice_n(s, n)
++//     n := len(s) + len(l2)
++//     // Compare as uint so growslice can panic on overflow.
++//     if uint(n) > uint(cap(s)) {
++//       s = growslice(s, n)
+ //     }
+-//     s = s[:len(l1)+len(l2)]
++//     s = s[:n]
+ //     memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+ //   }
+ //   s
+@@ -2800,33 +2802,38 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	l1 := n.List.First()
+ 	l2 := n.List.Second()
+ 
+-	s := temp(l1.Type) // var s []T
+ 	var l []*Node
++
++	// var s []T
++	s := temp(l1.Type)
+ 	l = append(l, Nod(OAS, s, l1)) // s = l1
+ 
+-	nt := temp(Types[TINT])
++	// n := len(s) + len(l2)
++	nn := temp(Types[TINT])
++	l = append(l, Nod(OAS, nn, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil))))
+ 
++	// if uint(n) > uint(cap(s))
+ 	nif := Nod(OIF, nil, nil)
++	nif.Left = Nod(OGT, Nod(OCONV, nn, nil), Nod(OCONV, Nod(OCAP, s, nil), nil))
++	nif.Left.Left.Type = Types[TUINT]
++	nif.Left.Right.Type = Types[TUINT]
+ 
+-	// n := len(s) + len(l2) - cap(s)
+-	nif.Ninit.Set1(Nod(OAS, nt, Nod(OSUB,
+-		Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)),
+-		Nod(OCAP, s, nil))))
+-
+-	nif.Left = Nod(OGT, nt, Nodintconst(0))
+-
+-	// instantiate growslice_n(Type*, []any, int) []any
+-	fn := syslook("growslice_n") //   growslice_n(<type>, old []T, n int64) (ret []T)
++	// instantiate growslice(Type*, []any, int) []any
++	fn := syslook("growslice")
+ 	substArgTypes(&fn, s.Type.Type, s.Type.Type)
+ 
+-	// s = growslice_n(T, s, n)
+-	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
+-
++	// s = growslice(T, s, n)
++	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
+ 	l = append(l, nif)
+ 
++	// s = s[:n]
++	nt := Nod(OSLICE, s, Nod(OKEY, nil, nn))
++	nt.Etype = 1
++	l = append(l, Nod(OAS, s, nt))
++
+ 	if haspointers(l1.Type.Type) {
+-		// copy(s[len(l1):len(l1)+len(l2)], l2)
+-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))))
++		// copy(s[len(l1):], l2)
++		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
+ 
+ 		nptr1.Etype = 1
+ 		nptr2 := l2
+@@ -2838,8 +2845,8 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		l = append(ln.Slice(), nt)
+ 	} else if instrumenting {
+ 		// rely on runtime to instrument copy.
+-		// copy(s[len(l1):len(l1)+len(l2)], l2)
+-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))))
++		// copy(s[len(l1):], l2)
++		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
+ 
+ 		nptr1.Etype = 1
+ 		nptr2 := l2
+@@ -2857,8 +2864,8 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	} else {
+ 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+ 		nptr1 := Nod(OINDEX, s, Nod(OLEN, l1, nil))
+-
+ 		nptr1.Bounded = true
++
+ 		nptr1 = Nod(OADDR, nptr1, nil)
+ 
+ 		nptr2 := Nod(OSPTR, l2, nil)
+@@ -2875,13 +2882,6 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		l = append(ln.Slice(), nt)
+ 	}
+ 
+-	// s = s[:len(l1)+len(l2)]
+-	nt = Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))
+-
+-	nt = Nod(OSLICE, s, Nod(OKEY, nil, nt))
+-	nt.Etype = 1
+-	l = append(l, Nod(OAS, s, nt))
+-
+ 	typechecklist(l, Etop)
+ 	walkstmtlist(l)
+ 	init.Append(l...)
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index bbd3e99523..c67862ebac 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -33,17 +33,6 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
+ 	return slice{p, len, cap}
+ }
+ 
+-// growslice_n is a variant of growslice that takes the number of new elements
+-// instead of the new minimum capacity.
+-// TODO(rsc): This is used by append(slice, slice...).
+-// The compiler should change that code to use growslice directly (issue #11419).
+-func growslice_n(t *slicetype, old slice, n int) slice {
+-	if n < 1 {
+-		panic(errorString("growslice: invalid n"))
+-	}
+-	return growslice(t, old, old.cap+n)
+-}
+-
+ // growslice handles slice growth during append.
+ // It is passed the slice type, the old slice, and the desired new minimum capacity,
+ // and it returns a new slice with at least that capacity, with the old data

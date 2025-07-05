@@ -9,6 +9,23 @@ Date:   Fri Nov 5 13:59:53 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2836041
-
+---
  src/cmd/6l/optab.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 378db6d375..6cc50313e3 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -907,9 +907,9 @@ Optab optab[] =
+ 	{ APOPQ,	ypopl,	Py, 0x58,0x8f,(00) },
+ 	{ APOPW,	ypopl,	Pe, 0x58,0x8f,(00) },
+ 	{ APOR,		ymm,	Py, 0xeb,Pe,0xeb },
+-	{ APSADBW,	yxm,	Pw, Pe,0xf6 },
++	{ APSADBW,	yxm,	Pq, 0xf6 },
+ 	{ APSHUFHW,	yxshuf,	Pf3, 0x70 },
+-	{ APSHUFL,	yxm,	Pw, Pe,0x70 },
++	{ APSHUFL,	yxshuf,	Pq, 0x70 },
+ 	{ APSHUFLW,	yxshuf,	Pf2, 0x70 },
+ 	{ APSHUFW,	ymshuf,	Pm, 0x70 },
+ 	{ APSLLO,	ypsdq,	Pq, 0x73,(07) },

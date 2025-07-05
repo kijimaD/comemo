@@ -14,6 +14,30 @@ Date:   Thu Oct 5 12:20:11 2023 -0700
     Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/bytes/boundary_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/bytes/boundary_test.go b/src/bytes/boundary_test.go
+index f9855fcb05..67f377e089 100644
+--- a/src/bytes/boundary_test.go
++++ b/src/bytes/boundary_test.go
+@@ -98,3 +98,18 @@ func TestIndexNearPageBoundary(t *testing.T) {
+ 	}
+ 	q[len(q)-1] = 0
+ }
++
++func TestCountNearPageBoundary(t *testing.T) {
++	t.Parallel()
++	b := dangerousSlice(t)
++	for i := range b {
++		c := Count(b[i:], []byte{1})
++		if c != 0 {
++			t.Fatalf("Count(b[%d:], {1})=%d, want 0\n", i, c)
++		}
++		c = Count(b[:i], []byte{0})
++		if c != i {
++			t.Fatalf("Count(b[:%d], {0})=%d, want %d\n", i, c, i)
++		}
++	}
++}

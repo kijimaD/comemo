@@ -15,6 +15,28 @@ Date:   Fri Oct 20 10:53:48 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 3fdbf1e492..6c2b7299c2 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -135,11 +135,14 @@ func TestIntendedInlining(t *testing.T) {
+ 		},
+ 	}
+ 
+-	if runtime.GOARCH != "386" {
++	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {
+ 		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
+ 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
+-		// So check for it only on non-386 platforms.
++		// On MIPS64x, Ctz64 is not intrinsified and causes nextFreeFast too expensive to inline
++		// (Issue 22239).
+ 		want["runtime"] = append(want["runtime"], "nextFreeFast")
++	}
++	if runtime.GOARCH != "386" {
+ 		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
+ 		// The same applies to Bswap32.
+ 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz64")

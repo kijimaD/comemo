@@ -10,6 +10,33 @@ Date:   Wed Feb 2 15:53:32 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4128052
-
+---
  doc/install.html | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/doc/install.html b/doc/install.html
+index 5917da964a..8630837b68 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -110,6 +110,21 @@ package repository will most likely be old and broken.)
+ If that fails, try installing manually from the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
+ </p>
+ 
++<p>
++Mercurial versions 1.7.x and up require the configuration of
++<a href="http://mercurial.selenic.com/wiki/CACertificates">Certification Authorities</a>
++(CAs). Error messages of the form:
++</p>
++<pre>
++warning: go.googlecode.com certificate with fingerprint b1:af: ... bc not verified (check hostfingerprints or web.cacerts config setting)
++</pre>
++<p>
++when using Mercurial indicate that the CAs are missing.
++Check your Mercurial version (<code>hg --version</code>) and
++<a href="http://mercurial.selenic.com/wiki/CACertificates#Configuration_of_HTTPS_certificate_authorities">configure the CAs</a>
++if necessary.
++</p>
++
+ <h2 id="fetch">Fetch the repository</h2>
+ 
+ <p>

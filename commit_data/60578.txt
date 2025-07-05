@@ -17,6 +17,22 @@ Date:   Thu Aug 1 10:17:14 2024 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/debug/buildinfo/buildinfo.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/debug/buildinfo/buildinfo.go b/src/debug/buildinfo/buildinfo.go
+index fa02344cd3..f3d38b26e8 100644
+--- a/src/debug/buildinfo/buildinfo.go
++++ b/src/debug/buildinfo/buildinfo.go
+@@ -295,6 +295,10 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
+ 
+ 	b, err = readData(x, addr, length)
+ 	if err != nil {
++		if err == io.ErrUnexpectedEOF {
++			// Length too large to allocate. Clearly bogus value.
++			return "", 0, errNotGoExe
++		}
+ 		return "", 0, err
+ 	}
+ 	if uint64(len(b)) < length {

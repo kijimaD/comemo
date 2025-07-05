@@ -7,10 +7,127 @@ Date:   Thu Sep 3 15:23:21 2009 -0700
     R=ken
     OCL=34339
     CL=34341
-
+---
  src/cmd/gc/closure.c |  2 +-
  src/cmd/gc/go.h      |  2 --
  src/cmd/gc/init.c    |  2 +-
  src/cmd/gc/lex.c     | 25 -------------------------
  src/cmd/gc/subr.c    |  9 +++------
  5 files changed, 5 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 46bb2d7853..2f102993c6 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -152,7 +152,7 @@ walkclosure(Node *func, NodeList **init)
+ 
+ 	// create the function
+ 	xfunc = nod(ODCLFUNC, N, N);
+-	snprint(namebuf, sizeof namebuf, "_f%.3ld·%s", ++closgen, filename);
++	snprint(namebuf, sizeof namebuf, "_f%.3ld", ++closgen);
+ 	xfunc->nname = newname(lookup(namebuf));
+ 	xfunc->nname->ntype = xtype;
+ 	declare(xfunc->nname, PFUNC);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b4cf07a754..e9dd4bc339 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -617,7 +617,6 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ extern	char*	unsafeimport;
+-EXTERN	char*	filename;	// name to uniqify names
+ EXTERN	Idir*	idirs;
+ 
+ EXTERN	Type*	types[NTYPE];
+@@ -696,7 +695,6 @@ int	yyparse(void);
+ /*
+  *	lex.c
+  */
+-void	setfilename(char*);
+ void	addidir(char*);
+ void	importfile(Val*);
+ void	cannedimports(char*, char*);
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 555f4e8902..6e31b73252 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -9,7 +9,7 @@
+  * it is called by the initialization before
+  * main is run. to make it unique within a
+  * package and also uncallable, the name,
+- * normally "pkg.init", is altered to "pkg.init·filename".
++ * normally "pkg.init", is altered to "pkg.init·1".
+  */
+ Node*
+ renameinit(Node *n)
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f9ce1a1483..bcd27b0819 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -76,8 +76,6 @@ main(int argc, char *argv[])
+ 	lexlineno = 1;
+ 
+ 	for(i=0; i<argc; i++) {
+-		if(i == 0)
+-			setfilename(argv[i]);
+ 		infile = argv[i];
+ 		linehist(infile, 0, 0);
+ 
+@@ -149,29 +147,6 @@ usage:
+ 	return 0;
+ }
+ 
+-void
+-setfilename(char *file)
+-{
+-	char *p;
+-	int c;
+-
+-	p = strrchr(file, '/');
+-	if(p != nil)
+-		file = p+1;
+-	strncpy(namebuf, file, sizeof(namebuf));
+-	p = strrchr(namebuf, '.');
+-	if(p != nil && strcmp(p, ".go") == 0)
+-		*p = 0;
+-	filename = strdup(namebuf);
+-
+-	// turn invalid identifier chars into _
+-	for(p=filename; *p; p++) {
+-		c = *p & 0xFF;
+-		if(c < 0x80 && !isalpha(c) && !isdigit(c) && c != '_')
+-			*p = '_';
+-	}
+-}
+-
+ int
+ arsize(Biobuf *b, char *name)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8b75560158..1cc568f4b6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -973,11 +973,8 @@ Tpretty(Fmt *fp, Type *t)
+ 				return 0;
+ 			if(s->flags & SymImported)
+ 				return 0;
+-			if(t->vargen || !(s->flags & (SymExport|SymPackage))) {
+-				fmtprint(fp, "·%s", filename);
+-				if(t->vargen)
+-					fmtprint(fp, "·%d", t->vargen);
+-			}
++			if(t->vargen)
++				fmtprint(fp, "·%d", t->vargen);
+ 			return 0;
+ 		}
+ 		return fmtprint(fp, "%S", s);
+@@ -2227,7 +2224,7 @@ staticname(Type *t)
+ {
+ 	Node *n;
+ 
+-	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d·%s", statuniqgen, filename);
++	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
+ 	statuniqgen++;
+ 	n = newname(lookup(namebuf));
+ 	addvar(n, t, PEXTERN);

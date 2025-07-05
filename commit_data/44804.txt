@@ -7,6 +7,25 @@ Date:   Tue Aug 25 10:38:50 2020 +0300
     Change-Id: Id38e639c66a42acf0b1c4488cdfd0b7b6cf71c78
     Reviewed-on: https://go-review.googlesource.com/c/go/+/250397
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/asm.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index dbbe8f2cd1..cc8598aeff 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -687,6 +687,13 @@ MOVQ	g(CX), AX     // Move g into AX.
+ MOVQ	g_m(AX), BX   // Move g.m into BX.
+ </pre>
+ 
++<p>
++Register <code>BP</code> is callee-save.
++The assembler automatically inserts <code>BP</code> save/restore when frame size is larger than zero.
++Using <code>BP</code> as a general purpose register is allowed,
++however it can interfere with sampling-based profiling.
++</p>
++
+ <h3 id="arm">ARM</h3>
+ 
+ <p>

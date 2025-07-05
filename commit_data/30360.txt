@@ -10,7 +10,141 @@ Date:   Sat Oct 29 18:37:49 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/32371
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_windows.go  | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/net/writev_test.go | 21 +++++++++++++----
  2 files changed, 78 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 828da4a2e6..40b4aa1d7a 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -96,6 +96,7 @@ type operation struct {
+ 	rsan   int32
+ 	handle syscall.Handle
+ 	flags  uint32
++	bufs   []syscall.WSABuf
+ }
+ 
+ func (o *operation) InitBuf(buf []byte) {
+@@ -106,6 +107,30 @@ func (o *operation) InitBuf(buf []byte) {
+ 	}
+ }
+ 
++func (o *operation) InitBufs(buf *Buffers) {
++	if o.bufs == nil {
++		o.bufs = make([]syscall.WSABuf, 0, len(*buf))
++	} else {
++		o.bufs = o.bufs[:0]
++	}
++	for _, b := range *buf {
++		var p *byte
++		if len(b) > 0 {
++			p = &b[0]
++		}
++		o.bufs = append(o.bufs, syscall.WSABuf{uint32(len(b)), p})
++	}
++}
++
++// ClearBufs clears all pointers to Buffers parameter captured
++// by InitBufs, so it can be released by garbage collector.
++func (o *operation) ClearBufs() {
++	for i := range o.bufs {
++		o.bufs[i].Buf = nil
++	}
++	o.bufs = o.bufs[:0]
++}
++
+ // ioSrv executes net IO requests.
+ type ioSrv struct {
+ 	req chan ioSrvReq
+@@ -484,6 +509,42 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	return n, err
+ }
+ 
++func (c *conn) writeBuffers(v *Buffers) (int64, error) {
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	n, err := c.fd.writeBuffers(v)
++	if err != nil {
++		return n, &OpError{Op: "WSASend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++	}
++	return n, nil
++}
++
++func (fd *netFD) writeBuffers(buf *Buffers) (int64, error) {
++	if len(*buf) == 0 {
++		return 0, nil
++	}
++	if err := fd.writeLock(); err != nil {
++		return 0, err
++	}
++	defer fd.writeUnlock()
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	o := &fd.wop
++	o.InitBufs(buf)
++	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
++		return syscall.WSASend(o.fd.sysfd, &o.bufs[0], uint32(len(*buf)), &o.qty, 0, &o.o, nil)
++	})
++	o.ClearBufs()
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("wsasend", err)
++	}
++	testHookDidWritev(n)
++	buf.consume(int64(n))
++	return int64(n), err
++}
++
+ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 175bc38400..4d2fc39506 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -150,18 +150,27 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 		}
+ 
+ 		var wantSum int
+-		var wantMinCalls int
+ 		switch runtime.GOOS {
+ 		case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks
+ 			for v > 0 {
+ 				wantMinCalls++
+ 				v -= 1024
+ 			}
+-		}
+-		if len(writeLog.log) < wantMinCalls {
+-			t.Errorf("write calls = %v < wanted min %v", len(writeLog.log), wantMinCalls)
++			if len(writeLog.log) < wantMinCalls {
++				t.Errorf("write calls = %v < wanted min %v", len(writeLog.log), wantMinCalls)
++			}
++		case "windows":
++			var wantCalls int
++			wantSum = want.Len()
++			if wantSum > 0 {
++				wantCalls = 1 // windows will always do 1 syscall, unless sending empty buffer
++			}
++			if len(writeLog.log) != wantCalls {
++				t.Errorf("write calls = %v; want %v", len(writeLog.log), wantCalls)
++			}
+ 		}
+ 		if gotSum != wantSum {
+ 			t.Errorf("writev call sum  = %v; want %v", gotSum, wantSum)
+@@ -171,6 +180,10 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ }
+ 
+ func TestWritevError(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
++	}
++
+ 	ln, err := newLocalListener("tcp")
+ 	if err != nil {
+ 		t.Fatal(err)

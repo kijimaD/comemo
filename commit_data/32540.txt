@@ -15,7 +15,34 @@ Date:   Fri Jun 17 09:33:33 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  src/runtime/mheap.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ea0d585ed9..3a533d9100 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -111,7 +111,7 @@ const (
+ 
+ 	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
+ 	_TinySize      = 16
+-	_TinySizeClass = 2
++	_TinySizeClass = int8(2)
+ 
+ 	_FixAllocChunk  = 16 << 10               // Chunk size for FixAlloc
+ 	_MaxMHeapList   = 1 << (20 - _PageShift) // Maximum page length for fixed-size list in MHeap.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index f237ec26aa..a61ea5420c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -326,7 +326,7 @@ type spanClass uint8
+ 
+ const (
+ 	numSpanClasses = _NumSizeClasses << 1
+-	tinySpanClass  = tinySizeClass<<1 | 1
++	tinySpanClass  = spanClass(tinySizeClass<<1 | 1)
+ )
+ 
+ func makeSpanClass(sizeclass uint8, noscan bool) spanClass {

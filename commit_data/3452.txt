@@ -8,9 +8,193 @@ Date:   Tue Oct 6 09:52:37 2009 -0700
     DELTA=39  (0 added, 0 deleted, 39 changed)
     OCL=35360
     CL=35376
-
+---
  src/pkg/go/printer/printer_test.go              |  2 +-
  src/pkg/go/printer/testdata/comments.x          |  2 +-
  src/pkg/go/printer/testdata/declarations.golden | 66 ++++++++++++-------------
  src/pkg/go/printer/testdata/expressions.golden  |  8 +--
  4 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 2f98eacf47..df42c398eb 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -17,7 +17,7 @@ import (
+ 
+ const (
+ 	dataDir = "testdata";
+-	tabwidth = 4;
++	tabwidth = 8;
+ )
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index 5e22c6b8dd..79889fae18 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -17,7 +17,7 @@ type S0 struct {
+ type S1 struct {
+ 	S0;
+ 	A, B, C	float;	// 3 exported fields
+-	D		int;	// 2 unexported fields
++	D	int;	// 2 unexported fields
+ 	// contains unexported fields
+ }
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 9ea0b59728..23f3c8aa5b 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -19,10 +19,10 @@ import (
+ )
+ 
+ import (
+-				"io";
++			"io";
+ 	aLongRename	"io";
+-	b			"io";
+-	c			"i" "o";
++	b		"io";
++	c		"i" "o";
+ )
+ 
+ // no newlines between consecutive single imports, but
+@@ -124,16 +124,16 @@ func _() {
+ 	// no entry has a type
+ 	const (
+ 		zzzzzz	= 1;
+-		z		= 2;
+-		zzz		= 3;
++		z	= 2;
++		zzz	= 3;
+ 	)
+ 	// some entries have a type
+ 	const (
+-		xxxxxx				= 1;
+-		x					= 2;
+-		xxx					= 3;
++		xxxxxx			= 1;
++		x			= 2;
++		xxx			= 3;
+ 		yyyyyyyy	float	= iota;
+-		yyyy				= "bar";
++		yyyy			= "bar";
+ 		yyy;
+ 		yy		= 2;
+ 	)
+@@ -143,31 +143,31 @@ func _() {
+ 	// no entry has a type
+ 	var (
+ 		zzzzzz	= 1;
+-		z		= 2;
+-		zzz		= 3;
++		z	= 2;
++		zzz	= 3;
+ 	)
+ 	// some entries have a type
+ 	var (
+ 		xxxxxx		int;
+-		x			float;
+-		xxx			string;
+-		yyyyyyyy	int		= 1234;
+-		y			float	= 3.14;
+-		yyyy				= "bar";
+-		yyy			string	= "foo";
++		x		float;
++		xxx		string;
++		yyyyyyyy	int	= 1234;
++		y		float	= 3.14;
++		yyyy			= "bar";
++		yyy		string	= "foo";
+ 	)
+ }
+ 
+ func _() {
+ 	type (
+ 		xxxxxx	int;
+-		x		float;
+-		xxx		string;
++		x	float;
++		xxx	string;
+ 		xxxxx	[]x;
+-		xx		struct{};
++		xx	struct{};
+ 		xxxxxxx	struct {
+ 			_, _	int;
+-			_		float;
++			_	float;
+ 		};
+ 		xxxx	chan<- string;
+ 	)
+@@ -178,7 +178,7 @@ func _() {
+ type ES struct{}
+ 
+ type _ struct {	// this comment must not change indentation
+-	f					int;
++	f			int;
+ 	f, ff, fff, ffff	int;
+ }
+ 
+@@ -216,14 +216,14 @@ type _ struct {
+ 
+ type _ struct {
+ 	bool;
+-	a, b, c				int;
+-	int					"tag";
+-	ES;					// comment
+-	float				"tag";	// comment
+-	f					int;	// comment
++	a, b, c			int;
++	int			"tag";
++	ES;			// comment
++	float			"tag";	// comment
++	f			int;	// comment
+ 	f, ff, fff, ffff	int;	// comment
+-	g					float	"tag";
+-	h					float	"tag";	// comment
++	g			float	"tag";
++	h			float	"tag";	// comment
+ }
+ 
+ 
+@@ -246,16 +246,16 @@ type _ interface {
+ }
+ 
+ type _ interface {	// this comment must not change indentation
+-	EI;							// here's a comment
+-	f();						// no blank between identifier and ()
+-	fffff();					// no blank between identifier and ()
++	EI;				// here's a comment
++	f();				// no blank between identifier and ()
++	fffff();			// no blank between identifier and ()
+ 	gggggggggggg(x, y, z int);	// hurray
+ }
+ 
+ // formatting of variable declarations
+ func _() {
+ 	type day struct {
+-		n			int;
++		n		int;
+ 		short, long	string;
+ 	}
+ 	var (
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 61adaca9cf..5b2cfca28d 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -9,11 +9,11 @@ type T struct {
+ }
+ 
+ var (
+-	a, b, c, d, e										int;
++	a, b, c, d, e						int;
+ 	longIdentifier1, longIdentifier2, longIdentifier3	int;
+-	t0, t1, t2											T;
+-	s													string;
+-	p													*int;
++	t0, t1, t2						T;
++	s							string;
++	p							*int;
+ )
+ 
+ 

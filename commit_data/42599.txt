@@ -17,6 +17,19 @@ Date:   Wed Jan 22 15:30:52 2020 -0500
     Run-TryBot: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/link_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 1515f97558..4f792bd1f1 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -214,6 +214,7 @@ func TestBuildForTvOS(t *testing.T) {
+ 		"GOOS=darwin",
+ 		"GOARCH=arm64",
+ 		"CC="+strings.Join(CC, " "),
++		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+ 	)
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)

@@ -13,8 +13,58 @@ Date:   Sun Feb 14 17:59:48 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/bug511.dir/a.go | 11 +++++++++++
  test/fixedbugs/bug511.dir/b.go | 11 +++++++++++
  test/fixedbugs/bug511.go       |  9 +++++++++
  3 files changed, 31 insertions(+)
+
+diff --git a/test/fixedbugs/bug511.dir/a.go b/test/fixedbugs/bug511.dir/a.go
+new file mode 100644
+index 0000000000..33931a07a8
+--- /dev/null
++++ b/test/fixedbugs/bug511.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type S struct{}
++
++type A = S
++
++func (A) M() {}
+diff --git a/test/fixedbugs/bug511.dir/b.go b/test/fixedbugs/bug511.dir/b.go
+new file mode 100644
+index 0000000000..f8877d6afd
+--- /dev/null
++++ b/test/fixedbugs/bug511.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() {
++	a.S{}.M()
++}
+diff --git a/test/fixedbugs/bug511.go b/test/fixedbugs/bug511.go
+new file mode 100644
+index 0000000000..edd3a23521
+--- /dev/null
++++ b/test/fixedbugs/bug511.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo mishandled type aliases as receiver types.
++
++package ignored

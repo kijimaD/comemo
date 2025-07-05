@@ -13,7 +13,75 @@ Date:   Wed Jun 21 21:58:42 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/46412
     Run-TryBot: Tom Bergan <tombergan@google.com>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/export_test.go |  7 ++++++-
  src/net/http/server.go      | 20 +++++++++-----------
  2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 2ef145e534..f57e0c1585 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -63,9 +63,14 @@ func SetPendingDialHooks(before, after func()) {
+ func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
+ 
+ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
++	ctx, cancel := context.WithCancel(context.Background())
++	go func() {
++		<-ch
++		cancel()
++	}()
+ 	return &timeoutHandler{
+ 		handler:     handler,
+-		testTimeout: ch,
++		testContext: ctx,
+ 		// (no body)
+ 	}
+ }
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index cf6d2a079d..9b3efecb59 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3032,9 +3032,9 @@ type timeoutHandler struct {
+ 	body    string
+ 	dt      time.Duration
+ 
+-	// When set, no timer will be created and this channel will
++	// When set, no context will be created and this context will
+ 	// be used instead.
+-	testTimeout <-chan time.Time
++	testContext context.Context
+ }
+ 
+ func (h *timeoutHandler) errorBody() string {
+@@ -3045,12 +3045,13 @@ func (h *timeoutHandler) errorBody() string {
+ }
+ 
+ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+-	var t *time.Timer
+-	timeout := h.testTimeout
+-	if timeout == nil {
+-		t = time.NewTimer(h.dt)
+-		timeout = t.C
++	ctx := h.testContext
++	if ctx == nil {
++		var cancelCtx context.CancelFunc
++		ctx, cancelCtx = context.WithTimeout(r.Context(), h.dt)
++		defer cancelCtx()
+ 	}
++	r = r.WithContext(ctx)
+ 	done := make(chan struct{})
+ 	tw := &timeoutWriter{
+ 		w: w,
+@@ -3073,10 +3074,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		}
+ 		w.WriteHeader(tw.code)
+ 		w.Write(tw.wbuf.Bytes())
+-		if t != nil {
+-			t.Stop()
+-		}
+-	case <-timeout:
++	case <-ctx.Done():
+ 		tw.mu.Lock()
+ 		defer tw.mu.Unlock()
+ 		w.WriteHeader(StatusServiceUnavailable)

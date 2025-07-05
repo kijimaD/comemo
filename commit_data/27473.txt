@@ -36,7 +36,7 @@ Date:   Mon Mar 28 22:57:57 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go       | 12 ++++--------
  src/cmd/compile/internal/gc/inl.go       |  7 ++-----
  src/cmd/compile/internal/gc/order.go     |  4 +---
@@ -48,3 +48,333 @@ Date:   Mon Mar 28 22:57:57 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 29 +++++++++++++----------------
  src/cmd/compile/internal/gc/walk.go      |  8 ++------
  10 files changed, 62 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 99336694fe..51e6371c6d 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1494,10 +1494,8 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 				if n2.Isddd && !n.Isddd {
+ 					// Introduce ODDDARG node to represent ... allocation.
+ 					src = Nod(ODDDARG, nil, nil)
+-					src.Type = typ(TARRAY)
+-					src.Type.Type = n2.Type.Type
+-					src.Type.Bound = int64(len(lls))
+-					src.Type = Ptrto(src.Type) // make pointer so it will be tracked
++					arr := typArray(n2.Type.Type, int64(len(lls)))
++					src.Type = Ptrto(arr) // make pointer so it will be tracked
+ 					src.Lineno = n.Lineno
+ 					e.track(src)
+ 					n.Right = src
+@@ -1556,10 +1554,8 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			src = Nod(ODDDARG, nil, nil)
+ 			src.Lineno = n.Lineno
+-			src.Type = typ(TARRAY)
+-			src.Type.Type = t.Type.Type
+-			src.Type.Bound = int64(len(lls) - i)
+-			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
++			arr := typArray(t.Type.Type, int64(len(lls)-i))
++			src.Type = Ptrto(arr) // make pointer so it will be tracked
+ 			e.track(src)
+ 			n.Right = src
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e25ce132da..422184240e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -747,11 +747,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 			as.Right = nodnil()
+ 			as.Right.Type = varargtype
+ 		} else {
+-			vararrtype := typ(TARRAY)
+-			vararrtype.Type = varargtype.Type
+-			vararrtype.Bound = int64(varargcount)
+-
+-			as.Right = Nod(OCOMPLIT, nil, typenod(varargtype))
++			vararrtype := typArray(varargtype.Type, int64(varargcount))
++			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
+ 			as.Right.List.Set(varargs)
+ 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 306507790a..7e953e8dcc 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1005,9 +1005,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		orderexprlist(n.List, order)
+ 
+ 		if n.List.Len() > 5 {
+-			t := typ(TARRAY)
+-			t.Bound = int64(n.List.Len())
+-			t.Type = Types[TSTRING]
++			t := typArray(Types[TSTRING], int64(n.List.Len()))
+ 			prealloc[n] = ordertemp(t, order, false)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 892dd5969a..cf2d3be9ef 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3133,9 +3133,7 @@ func (p *parser) hidden_funarg() *Node {
+ 		s3 := p.hidden_type()
+ 		s4 := p.oliteral()
+ 
+-		t := typ(TARRAY)
+-		t.Bound = -1
+-		t.Type = s3
++		t := typSlice(s3)
+ 
+ 		ss := Nod(ODCLFIELD, nil, typenod(t))
+ 		if s1 != nil {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d320d37ae5..c05ee3cdd1 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -93,19 +93,12 @@ func mapbucket(t *Type) *Type {
+ 	}
+ 
+ 	// The first field is: uint8 topbits[BUCKETSIZE].
+-	arr := typ(TARRAY)
+-
+-	arr.Type = Types[TUINT8]
+-	arr.Bound = BUCKETSIZE
++	arr := typArray(Types[TUINT8], BUCKETSIZE)
+ 	field := make([]*Field, 0, 5)
+ 	field = append(field, makefield("topbits", arr))
+-	arr = typ(TARRAY)
+-	arr.Type = keytype
+-	arr.Bound = BUCKETSIZE
++	arr = typArray(keytype, BUCKETSIZE)
+ 	field = append(field, makefield("keys", arr))
+-	arr = typ(TARRAY)
+-	arr.Type = valtype
+-	arr.Bound = BUCKETSIZE
++	arr = typArray(valtype, BUCKETSIZE)
+ 	field = append(field, makefield("values", arr))
+ 
+ 	// Make sure the overflow pointer is the last memory in the struct,
+@@ -1124,10 +1117,7 @@ ok:
+ 		if t.Bound >= 0 {
+ 			// ../../../../runtime/type.go:/arrayType
+ 			s1 := dtypesym(t.Type)
+-
+-			t2 := typ(TARRAY)
+-			t2.Type = t.Type
+-			t2.Bound = -1 // slice
++			t2 := typSlice(t.Type)
+ 			s2 := dtypesym(t2)
+ 			ot = dcommontype(s, ot, t)
+ 			ot = dsymptr(s, ot, s1, 0)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 8cf22f50cf..9782673892 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -433,10 +433,8 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		initplan(r)
+ 		if Isslice(r.Type) {
+ 			// Init slice.
+-			ta := typ(TARRAY)
+-
+-			ta.Type = r.Type.Type
+-			ta.Bound = r.Right.Val().U.(*Mpint).Int64()
++			bound := r.Right.Val().U.(*Mpint).Int64()
++			ta := typArray(r.Type.Type, bound)
+ 			a := staticname(ta, 1)
+ 			inittemps[r] = a
+ 			n := *l
+@@ -876,9 +874,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		tstruct := typ(TSTRUCT)
+ 		tstruct.SetFields(fields[:])
+ 
+-		tarr := typ(TARRAY)
+-		tarr.Bound = int64(b)
+-		tarr.Type = tstruct
++		tarr := typArray(tstruct, int64(b))
+ 
+ 		// TODO(josharian): suppress alg generation for these types?
+ 		dowidth(tarr)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 370380b3bb..1a55f01a5c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -483,7 +483,8 @@ func Nodbool(b bool) *Node {
+ }
+ 
+ func aindex(b *Node, t *Type) *Type {
+-	bound := int64(-1) // open bound
++	hasbound := false
++	var bound int64
+ 	b = typecheck(b, Erv)
+ 	if b != nil {
+ 		switch consttype(b) {
+@@ -491,6 +492,7 @@ func aindex(b *Node, t *Type) *Type {
+ 			Yyerror("array bound must be an integer expression")
+ 
+ 		case CTINT, CTRUNE:
++			hasbound = true
+ 			bound = b.Val().U.(*Mpint).Int64()
+ 			if bound < 0 {
+ 				Yyerror("array bound must be non negative")
+@@ -498,12 +500,10 @@ func aindex(b *Node, t *Type) *Type {
+ 		}
+ 	}
+ 
+-	// fixed array
+-	r := typ(TARRAY)
+-
+-	r.Type = t
+-	r.Bound = bound
+-	return r
++	if !hasbound {
++		return typSlice(t)
++	}
++	return typArray(t, bound)
+ }
+ 
+ // treecopy recursively copies n, with the exception of
+@@ -1904,10 +1904,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		// that the interface call will pass in.
+ 		// Add a dummy padding argument after the
+ 		// receiver to make up the difference.
+-		tpad := typ(TARRAY)
+-
+-		tpad.Type = Types[TUINT8]
+-		tpad.Bound = Types[Tptr].Width - rcvr.Width
++		tpad := typArray(Types[TUINT8], Types[Tptr].Width-rcvr.Width)
+ 		pad := Nod(ODCLFIELD, newname(Lookup(".pad")), typenod(tpad))
+ 		l = append(l, pad)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 6653f092f9..3c23ff26eb 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -235,6 +235,30 @@ func typ(et EType) *Type {
+ 	return t
+ }
+ 
++// typArray returns a new fixed-length array Type.
++func typArray(elem *Type, bound int64) *Type {
++	t := typ(TARRAY)
++	t.Type = elem
++	t.Bound = bound
++	return t
++}
++
++// typSlice returns a new slice Type.
++func typSlice(elem *Type) *Type {
++	t := typ(TARRAY)
++	t.Type = elem
++	t.Bound = -1
++	return t
++}
++
++// typeDDDArray returns a new [...]T array Type.
++func typeDDDArray(elem *Type) *Type {
++	t := typ(TARRAY)
++	t.Type = elem
++	t.Bound = dddBound
++	return t
++}
++
+ func newField() *Field {
+ 	return &Field{
+ 		Offset: BADWIDTH,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e3690b2ae6..f6f13c485c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -330,13 +330,19 @@ OpSwitch:
+ 
+ 	case OTARRAY:
+ 		ok |= Etype
+-		t := typ(TARRAY)
++		var t *Type
+ 		l := n.Left
+ 		r := n.Right
++		r = typecheck(r, Etype)
++		if r.Type == nil {
++			n.Type = nil
++			return n
++		}
++
+ 		if l == nil {
+-			t.Bound = -1 // slice
++			t = typSlice(r.Type)
+ 		} else if l.Op == ODDD {
+-			t.Bound = dddBound // to be filled in
++			t = typeDDDArray(r.Type)
+ 			if top&Ecomplit == 0 && n.Diag == 0 {
+ 				t.Broke = true
+ 				n.Diag = 1
+@@ -363,7 +369,8 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			t.Bound = v.U.(*Mpint).Int64()
++			t = typArray(r.Type, v.U.(*Mpint).Int64())
++
+ 			if doesoverflow(v, Types[TINT]) {
+ 				Yyerror("array bound is too large")
+ 				n.Type = nil
+@@ -375,12 +382,6 @@ OpSwitch:
+ 			}
+ 		}
+ 
+-		r = typecheck(r, Etype)
+-		if r.Type == nil {
+-			n.Type = nil
+-			return n
+-		}
+-		t.Type = r.Type
+ 		n.Op = OTYPE
+ 		n.Type = t
+ 		n.Left = nil
+@@ -1128,9 +1129,7 @@ OpSwitch:
+ 			n.Op = OSLICESTR
+ 		} else if Isptr[t.Etype] && Isfixedarray(t.Type) {
+ 			tp = t.Type
+-			n.Type = typ(TARRAY)
+-			n.Type.Type = tp.Type
+-			n.Type.Bound = -1
++			n.Type = typSlice(tp.Type)
+ 			dowidth(n.Type)
+ 			n.Op = OSLICEARR
+ 		} else if Isslice(t) {
+@@ -1195,9 +1194,7 @@ OpSwitch:
+ 		var tp *Type
+ 		if Isptr[t.Etype] && Isfixedarray(t.Type) {
+ 			tp = t.Type
+-			n.Type = typ(TARRAY)
+-			n.Type.Type = tp.Type
+-			n.Type.Bound = -1
++			n.Type = typSlice(tp.Type)
+ 			dowidth(n.Type)
+ 			n.Op = OSLICE3ARR
+ 		} else if Isslice(t) {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3e5f963a21..7180538680 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1715,9 +1715,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ 		esc = ddd.Esc
+ 	}
+ 
+-	tslice := typ(TARRAY)
+-	tslice.Type = l.Type.Type
+-	tslice.Bound = -1
++	tslice := typSlice(l.Type.Type)
+ 
+ 	var n *Node
+ 	if len(lr0) == 0 {
+@@ -2707,9 +2705,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 		// large numbers of strings are passed to the runtime as a slice.
+ 		fn = "concatstrings"
+ 
+-		t := typ(TARRAY)
+-		t.Type = Types[TSTRING]
+-		t.Bound = -1
++		t := typSlice(Types[TSTRING])
+ 		slice := Nod(OCOMPLIT, nil, typenod(t))
+ 		if prealloc[n] != nil {
+ 			prealloc[slice] = prealloc[n]

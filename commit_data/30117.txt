@@ -17,9 +17,295 @@ Date:   Sun Oct 23 22:32:16 2016 -0400
     Change-Id: I668b04501999b7f9b080275a2d1f8a57029cbbb3
     Reviewed-on: https://go-review.googlesource.com/31760
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/cmd/internal/obj/arm64/obj7.go | 64 +++++++++++++++++++++--------------
  src/cmd/internal/obj/ppc64/obj9.go | 68 +++++++++++++++++++++++---------------
  src/cmd/internal/obj/s390x/objz.go | 21 +++++++-----
  test/fixedbugs/issue17381.go       | 54 ++++++++++++++++++++++++++++++
  4 files changed, 148 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 707ba9f0d4..cbe246e882 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -750,38 +750,54 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				if ctxt.Autosize == 0 {
+ 					break
+ 				}
+-				aoffset = 0
+ 			}
+ 
++			// Frame is non-empty. Make sure to save link register, even if
++			// it is a leaf function, so that traceback works.
+ 			q = p
+ 			if ctxt.Autosize > aoffset {
+-				q = ctxt.NewProg()
+-				q.As = ASUB
++				// Frame size is too large for a MOVD.W instruction.
++				// Store link register before decrementing SP, so if a signal comes
++				// during the execution of the function prologue, the traceback
++				// code will not see a half-updated stack frame.
++				q = obj.Appendp(ctxt, q)
+ 				q.Lineno = p.Lineno
++				q.As = ASUB
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = int64(ctxt.Autosize) - int64(aoffset)
++				q.From.Offset = int64(ctxt.Autosize)
++				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REGSP
+-				q.Spadj = int32(q.From.Offset)
+-				q.Link = p.Link
+-				p.Link = q
+-				if cursym.Text.Mark&LEAF != 0 {
+-					break
+-				}
+-			}
++				q.To.Reg = REGTMP
+ 
+-			q1 = ctxt.NewProg()
+-			q1.As = AMOVD
+-			q1.Lineno = p.Lineno
+-			q1.From.Type = obj.TYPE_REG
+-			q1.From.Reg = REGLINK
+-			q1.To.Type = obj.TYPE_MEM
+-			q1.Scond = C_XPRE
+-			q1.To.Offset = int64(-aoffset)
+-			q1.To.Reg = REGSP
+-			q1.Link = q.Link
+-			q1.Spadj = aoffset
+-			q.Link = q1
++				q = obj.Appendp(ctxt, q)
++				q.Lineno = p.Lineno
++				q.As = AMOVD
++				q.From.Type = obj.TYPE_REG
++				q.From.Reg = REGLINK
++				q.To.Type = obj.TYPE_MEM
++				q.To.Reg = REGTMP
++
++				q1 = obj.Appendp(ctxt, q)
++				q1.Lineno = p.Lineno
++				q1.As = AMOVD
++				q1.From.Type = obj.TYPE_REG
++				q1.From.Reg = REGTMP
++				q1.To.Type = obj.TYPE_REG
++				q1.To.Reg = REGSP
++				q1.Spadj = ctxt.Autosize
++			} else {
++				// small frame, update SP and save LR in a single MOVD.W instruction
++				q1 = obj.Appendp(ctxt, q)
++				q1.As = AMOVD
++				q1.Lineno = p.Lineno
++				q1.From.Type = obj.TYPE_REG
++				q1.From.Reg = REGLINK
++				q1.To.Type = obj.TYPE_MEM
++				q1.Scond = C_XPRE
++				q1.To.Offset = int64(-aoffset)
++				q1.To.Reg = REGSP
++				q1.Spadj = aoffset
++			}
+ 
+ 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7ed302ad96..68211eefe4 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -445,16 +445,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	autosize := int32(0)
+-	var aoffset int
+-	var mov obj.As
+ 	var p1 *obj.Prog
+ 	var p2 *obj.Prog
+ 	for p := cursym.Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+-			mov = AMOVD
+-			aoffset = 0
+ 			autosize = int32(textstksiz)
+ 
+ 			if p.Mark&LEAF != 0 && autosize == 0 {
+@@ -520,11 +516,49 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if autosize != 0 {
+-				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
++				// Make sure to save link register for non-empty frame, even if
++				// it is a leaf function, so that traceback works.
+ 				if cursym.Text.Mark&LEAF == 0 && autosize >= -BIG && autosize <= BIG {
+-					mov = AMOVDU
+-					aoffset = int(-autosize)
++					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
++					q = obj.Appendp(ctxt, q)
++					q.As = AMOVD
++					q.Lineno = p.Lineno
++					q.From.Type = obj.TYPE_REG
++					q.From.Reg = REG_LR
++					q.To.Type = obj.TYPE_REG
++					q.To.Reg = REGTMP
++
++					q = obj.Appendp(ctxt, q)
++					q.As = AMOVDU
++					q.Lineno = p.Lineno
++					q.From.Type = obj.TYPE_REG
++					q.From.Reg = REGTMP
++					q.To.Type = obj.TYPE_MEM
++					q.To.Offset = int64(-autosize)
++					q.To.Reg = REGSP
++					q.Spadj = int32(autosize)
+ 				} else {
++					// Frame size is too large for a MOVDU instruction.
++					// Store link register before decrementing SP, so if a signal comes
++					// during the execution of the function prologue, the traceback
++					// code will not see a half-updated stack frame.
++					q = obj.Appendp(ctxt, q)
++					q.As = AMOVD
++					q.Lineno = p.Lineno
++					q.From.Type = obj.TYPE_REG
++					q.From.Reg = REG_LR
++					q.To.Type = obj.TYPE_REG
++					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
++
++					q = obj.Appendp(ctxt, q)
++					q.As = AMOVD
++					q.Lineno = p.Lineno
++					q.From.Type = obj.TYPE_REG
++					q.From.Reg = REG_R29
++					q.To.Type = obj.TYPE_MEM
++					q.To.Offset = int64(-autosize)
++					q.To.Reg = REGSP
++
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AADD
+ 					q.Lineno = p.Lineno
+@@ -546,26 +580,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				break
+ 			}
+ 
+-			q = obj.Appendp(ctxt, q)
+-			q.As = AMOVD
+-			q.Lineno = p.Lineno
+-			q.From.Type = obj.TYPE_REG
+-			q.From.Reg = REG_LR
+-			q.To.Type = obj.TYPE_REG
+-			q.To.Reg = REGTMP
+-
+-			q = obj.Appendp(ctxt, q)
+-			q.As = mov
+-			q.Lineno = p.Lineno
+-			q.From.Type = obj.TYPE_REG
+-			q.From.Reg = REGTMP
+-			q.To.Type = obj.TYPE_MEM
+-			q.To.Offset = int64(aoffset)
+-			q.To.Reg = REGSP
+-			if q.As == AMOVDU {
+-				q.Spadj = int32(-aoffset)
+-			}
+-
+ 			if ctxt.Flag_shared {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AMOVD
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 615cfc2db2..fca8f85c0f 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -408,8 +408,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if autosize != 0 {
++				// Make sure to save link register for non-empty frame, even if
++				// it is a leaf function, so that traceback works.
++				// Store link register before decrementing SP, so if a signal comes
++				// during the execution of the function prologue, the traceback
++				// code will not see a half-updated stack frame.
+ 				q = obj.Appendp(ctxt, p)
+ 				q.As = AMOVD
++				q.From.Type = obj.TYPE_REG
++				q.From.Reg = REG_LR
++				q.To.Type = obj.TYPE_MEM
++				q.To.Reg = REGSP
++				q.To.Offset = int64(-autosize)
++
++				q = obj.Appendp(ctxt, q)
++				q.As = AMOVD
+ 				q.From.Type = obj.TYPE_ADDR
+ 				q.From.Offset = int64(-autosize)
+ 				q.From.Reg = REGSP // not actually needed - REGSP is assumed if no reg is provided
+@@ -428,14 +441,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				break
+ 			}
+ 
+-			q = obj.Appendp(ctxt, q)
+-			q.As = AMOVD
+-			q.From.Type = obj.TYPE_REG
+-			q.From.Reg = REG_LR
+-			q.To.Type = obj.TYPE_MEM
+-			q.To.Reg = REGSP
+-			q.To.Offset = 0
+-
+ 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+diff --git a/test/fixedbugs/issue17381.go b/test/fixedbugs/issue17381.go
+new file mode 100644
+index 0000000000..be63633e7f
+--- /dev/null
++++ b/test/fixedbugs/issue17381.go
+@@ -0,0 +1,54 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 17381: make sure leave function with non-empty frame
++// saves link register, so that traceback will work.
++
++package main
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++func main() {
++	defer func() {
++		if recover() == nil {
++			panic("did not panic")
++		}
++		pcs := make([]uintptr, 20)
++		n := runtime.Callers(1, pcs)
++		for _, pc := range pcs[:n] {
++			if runtime.FuncForPC(pc).Name() == "main.main" {
++				return
++			}
++		}
++		panic("cannot find main.main in backtrace")
++	}()
++
++	prep()
++	f() // should panic
++}
++
++func funcPC(f interface{}) uintptr {
++	var ptr uintptr
++	return **(**uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(&f)) + unsafe.Sizeof(ptr)))
++}
++
++//go:noinline
++func f() {
++	var t [1]int // non-empty frame
++	*(*int)(nil) = t[0]
++}
++
++var p = funcPC(runtime.GC) + 8
++
++//go:noinline
++func prep() {
++	// put some garbage on stack
++	var x = [20]uintptr{p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p}
++	_ = x
++}

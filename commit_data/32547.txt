@@ -14,6 +14,21 @@ Date:   Sat Apr 29 01:42:19 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 0a7459a0dc..5b384190b2 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3702,8 +3702,8 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
+ 
+ // Test that a hanging Request.Body.Read from another goroutine can't
+ // cause the Handler goroutine's Request.Body.Close to block.
++// See issue 7121.
+ func TestRequestBodyCloseDoesntBlock(t *testing.T) {
+-	t.Skipf("Skipping known issue; see golang.org/issue/7121")
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+ 	}

@@ -14,7 +14,7 @@ Date:   Sun Oct 28 11:22:08 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 ++
  src/cmd/compile/internal/ssa/rewrite386.go     | 2 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2 ++
@@ -29,3 +29,237 @@ Date:   Sun Oct 28 11:22:08 2018 -0700
  src/cmd/compile/internal/ssa/rewritedec64.go   | 2 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 2 ++
  13 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index de52523afd..faaad974c4 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -160,10 +160,12 @@ func genRules(arch arch) {
+ 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
++	fmt.Fprintln(w, "import \"fmt\"")
+ 	fmt.Fprintln(w, "import \"math\"")
+ 	fmt.Fprintln(w, "import \"cmd/internal/obj\"")
+ 	fmt.Fprintln(w, "import \"cmd/internal/objabi\"")
+ 	fmt.Fprintln(w, "import \"cmd/compile/internal/types\"")
++	fmt.Fprintln(w, "var _ = fmt.Println   // in case not otherwise used")
+ 	fmt.Fprintln(w, "var _ = math.MinInt8  // in case not otherwise used")
+ 	fmt.Fprintln(w, "var _ = obj.ANOP      // in case not otherwise used")
+ 	fmt.Fprintln(w, "var _ = objabi.GOROOT // in case not otherwise used")
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 1fb314cb11..b6fb6c8b97 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c51aeb5163..3ac860c1a2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 4f6f61544e..4fc7fdfbe1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index b9bb109b9e..1e4b1ef0cf 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 231949644e..e513981852 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 9cd0050e26..04df5b8603 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index dad036d3d2..abad10a2d1 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 0054e267bb..dce7a52529 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index b92556db90..c17ed54b3c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 8ca737bed1..e980520376 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 500e274206..f88fce8076 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f0a1346acf..7869fec21f 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3,11 +3,13 @@
+ 
+ package ssa
+ 
++import "fmt"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
++var _ = fmt.Println   // in case not otherwise used
+ var _ = math.MinInt8  // in case not otherwise used
+ var _ = obj.ANOP      // in case not otherwise used
+ var _ = objabi.GOROOT // in case not otherwise used

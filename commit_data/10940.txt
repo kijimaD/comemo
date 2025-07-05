@@ -7,6 +7,26 @@ Date:   Wed Dec 21 08:05:04 2011 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5489102
-
+---
  src/cmd/go/main.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 7b7f4a450d..2709750fcc 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -242,9 +242,11 @@ func allPackages(what string) []string {
+ 	have := map[string]bool{
+ 		"builtin": true, // ignore pseudo-package that exists only for documentation
+ 	}
+-	if !build.DefaultContext.CgoEnabled {
+-		have["runtime/cgo"] = true // ignore during walk
+-	}
++	/*
++		if !build.DefaultContext.CgoEnabled {
++			have["runtime/cgo"] = true // ignore during walk
++		}
++	*/
+ 	var pkgs []string
+ 
+ 	// Commands

@@ -16,7 +16,7 @@ Date:   Sat May 22 21:59:00 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  9 ++++
  src/cmd/internal/objabi/reloctype.go            |  3 ++
  src/cmd/internal/objabi/reloctype_string.go     | 71 +++++++++++++------------
@@ -24,3 +24,260 @@ Date:   Sat May 22 21:59:00 2021 -0700
  src/runtime/export_test.go                      | 25 ---------
  src/runtime/hash_test.go                        | 49 -----------------
  6 files changed, 49 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 8c0e33f6df..b3688fca67 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1112,6 +1112,15 @@ func writeType(t *types.Type) *obj.LSym {
+ 		}
+ 		ot = objw.Uint32(lsym, ot, flags)
+ 		ot = dextratype(lsym, ot, t, 0)
++		if u := t.Underlying(); u != t {
++			// If t is a named map type, also keep the underlying map
++			// type live in the binary. This is important to make sure that
++			// a named map and that same map cast to its underlying type via
++			// reflection, use the same hash function. See issue 37716.
++			r := obj.Addrel(lsym)
++			r.Sym = writeType(u)
++			r.Type = objabi.R_KEEP
++		}
+ 
+ 	case types.TPTR:
+ 		if t.Elem().Kind() == types.TANY {
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index ea55fa3b0a..52827a6dee 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -101,6 +101,9 @@ const (
+ 	// *rtype, and may be set to zero by the linker if it determines the method
+ 	// text is unreachable by the linked program.
+ 	R_METHODOFF
++	// R_KEEP tells the linker to keep the referred-to symbol in the final binary
++	// if the symbol containing the R_KEEP relocation is in the final binary.
++	R_KEEP
+ 	R_POWER_TOC
+ 	R_GOTPCREL
+ 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 8882d19f88..4638ef14d9 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -34,44 +34,45 @@ func _() {
+ 	_ = x[R_USEIFACE-24]
+ 	_ = x[R_USEIFACEMETHOD-25]
+ 	_ = x[R_METHODOFF-26]
+-	_ = x[R_POWER_TOC-27]
+-	_ = x[R_GOTPCREL-28]
+-	_ = x[R_JMPMIPS-29]
+-	_ = x[R_DWARFSECREF-30]
+-	_ = x[R_DWARFFILEREF-31]
+-	_ = x[R_ARM64_TLS_LE-32]
+-	_ = x[R_ARM64_TLS_IE-33]
+-	_ = x[R_ARM64_GOTPCREL-34]
+-	_ = x[R_ARM64_GOT-35]
+-	_ = x[R_ARM64_PCREL-36]
+-	_ = x[R_ARM64_LDST8-37]
+-	_ = x[R_ARM64_LDST16-38]
+-	_ = x[R_ARM64_LDST32-39]
+-	_ = x[R_ARM64_LDST64-40]
+-	_ = x[R_ARM64_LDST128-41]
+-	_ = x[R_POWER_TLS_LE-42]
+-	_ = x[R_POWER_TLS_IE-43]
+-	_ = x[R_POWER_TLS-44]
+-	_ = x[R_ADDRPOWER_DS-45]
+-	_ = x[R_ADDRPOWER_GOT-46]
+-	_ = x[R_ADDRPOWER_PCREL-47]
+-	_ = x[R_ADDRPOWER_TOCREL-48]
+-	_ = x[R_ADDRPOWER_TOCREL_DS-49]
+-	_ = x[R_RISCV_PCREL_ITYPE-50]
+-	_ = x[R_RISCV_PCREL_STYPE-51]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-52]
+-	_ = x[R_RISCV_TLS_IE_STYPE-53]
+-	_ = x[R_PCRELDBL-54]
+-	_ = x[R_ADDRMIPSU-55]
+-	_ = x[R_ADDRMIPSTLS-56]
+-	_ = x[R_ADDRCUOFF-57]
+-	_ = x[R_WASMIMPORT-58]
+-	_ = x[R_XCOFFREF-59]
++	_ = x[R_KEEP-27]
++	_ = x[R_POWER_TOC-28]
++	_ = x[R_GOTPCREL-29]
++	_ = x[R_JMPMIPS-30]
++	_ = x[R_DWARFSECREF-31]
++	_ = x[R_DWARFFILEREF-32]
++	_ = x[R_ARM64_TLS_LE-33]
++	_ = x[R_ARM64_TLS_IE-34]
++	_ = x[R_ARM64_GOTPCREL-35]
++	_ = x[R_ARM64_GOT-36]
++	_ = x[R_ARM64_PCREL-37]
++	_ = x[R_ARM64_LDST8-38]
++	_ = x[R_ARM64_LDST16-39]
++	_ = x[R_ARM64_LDST32-40]
++	_ = x[R_ARM64_LDST64-41]
++	_ = x[R_ARM64_LDST128-42]
++	_ = x[R_POWER_TLS_LE-43]
++	_ = x[R_POWER_TLS_IE-44]
++	_ = x[R_POWER_TLS-45]
++	_ = x[R_ADDRPOWER_DS-46]
++	_ = x[R_ADDRPOWER_GOT-47]
++	_ = x[R_ADDRPOWER_PCREL-48]
++	_ = x[R_ADDRPOWER_TOCREL-49]
++	_ = x[R_ADDRPOWER_TOCREL_DS-50]
++	_ = x[R_RISCV_PCREL_ITYPE-51]
++	_ = x[R_RISCV_PCREL_STYPE-52]
++	_ = x[R_RISCV_TLS_IE_ITYPE-53]
++	_ = x[R_RISCV_TLS_IE_STYPE-54]
++	_ = x[R_PCRELDBL-55]
++	_ = x[R_ADDRMIPSU-56]
++	_ = x[R_ADDRMIPSTLS-57]
++	_ = x[R_ADDRCUOFF-58]
++	_ = x[R_WASMIMPORT-59]
++	_ = x[R_XCOFFREF-60]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 120, 127, 134, 142, 150, 158, 164, 170, 176, 186, 195, 205, 221, 232, 243, 253, 262, 275, 289, 303, 317, 333, 344, 357, 370, 384, 398, 412, 427, 441, 455, 466, 480, 495, 512, 530, 551, 570, 589, 609, 629, 639, 650, 663, 674, 686, 696}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 120, 127, 134, 142, 150, 158, 164, 170, 176, 186, 195, 205, 221, 232, 238, 249, 259, 268, 281, 295, 309, 323, 339, 350, 363, 376, 390, 404, 418, 433, 447, 461, 472, 486, 501, 518, 536, 557, 576, 595, 615, 635, 645, 656, 669, 680, 692, 702}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 1b3bf1180d..39c7426842 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -178,28 +178,11 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 		return h
+ 	case kindStruct:
+ 		s := (*structtype)(unsafe.Pointer(t))
+-		memStart := uintptr(0)
+-		memEnd := uintptr(0)
+ 		for _, f := range s.fields {
+-			if memEnd > memStart && (f.name.isBlank() || f.offset() != memEnd || f.typ.tflag&tflagRegularMemory == 0) {
+-				// flush any pending regular memory hashing
+-				h = memhash(add(p, memStart), h, memEnd-memStart)
+-				memStart = memEnd
+-			}
+ 			if f.name.isBlank() {
+ 				continue
+ 			}
+-			if f.typ.tflag&tflagRegularMemory == 0 {
+-				h = typehash(f.typ, add(p, f.offset()), h)
+-				continue
+-			}
+-			if memStart == memEnd {
+-				memStart = f.offset()
+-			}
+-			memEnd = f.offset() + f.typ.size
+-		}
+-		if memEnd > memStart {
+-			h = memhash(add(p, memStart), h, memEnd-memStart)
++			h = typehash(f.typ, add(p, f.offset()), h)
+ 		}
+ 		return h
+ 	default:
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a6fc1e4785..c8d01fbb15 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1148,31 +1148,6 @@ func SemNwait(addr *uint32) uint32 {
+ 	return atomic.Load(&root.nwait)
+ }
+ 
+-// MapHashCheck computes the hash of the key k for the map m, twice.
+-// Method 1 uses the built-in hasher for the map.
+-// Method 2 uses the typehash function (the one used by reflect).
+-// Returns the two hash values, which should always be equal.
+-func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+-	// Unpack m.
+-	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
+-	mh := (*hmap)(efaceOf(&m).data)
+-
+-	// Unpack k.
+-	kt := efaceOf(&k)._type
+-	var p unsafe.Pointer
+-	if isDirectIface(kt) {
+-		q := efaceOf(&k).data
+-		p = unsafe.Pointer(&q)
+-	} else {
+-		p = efaceOf(&k).data
+-	}
+-
+-	// Compute the hash functions.
+-	x := mt.hasher(noescape(p), uintptr(mh.hash0))
+-	y := typehash(kt, noescape(p), uintptr(mh.hash0))
+-	return x, y
+-}
+-
+ // mspan wrapper for testing.
+ //go:notinheap
+ type MSpan mspan
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 502383557b..7048874a71 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"math/rand"
+-	"reflect"
+ 	. "runtime"
+ 	"strings"
+ 	"testing"
+@@ -49,54 +48,6 @@ func TestMemHash64Equality(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCompilerVsRuntimeHash(t *testing.T) {
+-	// Test to make sure the compiler's hash function and the runtime's hash function agree.
+-	// See issue 37716.
+-	for _, m := range []interface{}{
+-		map[bool]int{},
+-		map[int8]int{},
+-		map[uint8]int{},
+-		map[int16]int{},
+-		map[uint16]int{},
+-		map[int32]int{},
+-		map[uint32]int{},
+-		map[int64]int{},
+-		map[uint64]int{},
+-		map[int]int{},
+-		map[uint]int{},
+-		map[uintptr]int{},
+-		map[*byte]int{},
+-		map[chan int]int{},
+-		map[unsafe.Pointer]int{},
+-		map[float32]int{},
+-		map[float64]int{},
+-		map[complex64]int{},
+-		map[complex128]int{},
+-		map[string]int{},
+-		//map[interface{}]int{},
+-		//map[interface{F()}]int{},
+-		map[[8]uint64]int{},
+-		map[[8]string]int{},
+-		map[struct{ a, b, c, d int32 }]int{}, // Note: tests AMEM128
+-		map[struct{ a, b, _, d int32 }]int{},
+-		map[struct {
+-			a, b int32
+-			c    float32
+-			d, e [8]byte
+-		}]int{},
+-		map[struct {
+-			a int16
+-			b int64
+-		}]int{},
+-	} {
+-		k := reflect.New(reflect.TypeOf(m).Key()).Elem().Interface() // the zero key
+-		x, y := MapHashCheck(m, k)
+-		if x != y {
+-			t.Errorf("hashes did not match (%x vs %x) for map %T", x, y, m)
+-		}
+-	}
+-}
+-
+ // Smhasher is a torture test for hash functions.
+ // https://code.google.com/p/smhasher/
+ // This code is a port of some of the Smhasher tests to Go.

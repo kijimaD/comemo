@@ -12,6 +12,29 @@ Date:   Wed Sep 28 21:23:06 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index e426814aab..6790c6e7df 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"errors"
+-	"fmt"
+ )
+ 
+ var arm64LS = map[string]uint8{
+@@ -66,8 +65,7 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
+ 		// Generate the mapping automatically when the first time the function is called.
+ 		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
+ 		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
+-			s := fmt.Sprintf("%s", opd)
+-			arm64SpecialOperand[s] = opd
++			arm64SpecialOperand[opd.String()] = opd
+ 		}
+ 
+ 		// Handle some special cases.

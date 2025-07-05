@@ -17,7 +17,7 @@ Date:   Tue Apr 16 02:49:09 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/objabi/util.go            |  5 +++
  src/cmd/link/internal/amd64/asm.go         | 40 +++++++++---------
  src/cmd/link/internal/arm/asm.go           | 26 ++++++------
@@ -30,3 +30,702 @@ Date:   Tue Apr 16 02:49:09 2019 +0000
  src/cmd/link/internal/sym/reloc.go         |  8 ++--
  src/cmd/link/internal/x86/asm.go           | 23 ++++++-----
  11 files changed, 109 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index e28447d141..57f19f2e3c 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -34,6 +34,11 @@ var (
+ 	Version  = version
+ )
+ 
++const (
++	ElfRelocOffset   = 256
++	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
++)
++
+ func goarm() int {
+ 	switch v := envOr("GOARM", defaultGOARM); v {
+ 	case "5":
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e922fe2db9..fca4877a45 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -103,13 +103,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	switch r.Type {
+ 	default:
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case 256 + objabi.RelocType(elf.R_X86_64_PC32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC32):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -122,7 +122,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_X86_64_PC64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC64):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -133,7 +133,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += 8
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_X86_64_PLT32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
+ 		r.Type = objabi.R_PCREL
+ 		r.Add += 4
+ 		if targ.Type == sym.SDYNIMPORT {
+@@ -144,7 +144,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_X86_64_GOTPCREL), 256 + objabi.RelocType(elf.R_X86_64_GOTPCRELX), 256 + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCREL),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCRELX),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			// have symbol
+ 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+@@ -167,7 +169,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += int64(targ.Got())
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_X86_64_64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_64):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -175,9 +177,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		return true
+ 
+ 	// Handle relocations found in Mach-O object files.
+-	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
+-		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
+-		512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
+ 		// TODO: What is the difference between all these?
+ 		r.Type = objabi.R_ADDR
+ 
+@@ -186,7 +188,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		return true
+ 
+-	case 512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+@@ -196,11 +198,11 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		fallthrough
+ 
+-	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
+-		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
+-		512 + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
+-		512 + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
+-		512 + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
+ 		r.Type = objabi.R_PCREL
+ 
+ 		if targ.Type == sym.SDYNIMPORT {
+@@ -208,7 +210,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		return true
+ 
+-	case 512 + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			// have symbol
+ 			// turn MOVQ of GOT entry into LEAQ of symbol itself
+@@ -223,7 +225,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		fallthrough
+ 
+-	case 512 + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+ 		}
+@@ -333,7 +335,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_X86_64_32)))
+ 			}
+ 			rela.AddUint64(ctxt.Arch, uint64(r.Add))
+-			r.Type = 256 // ignore during relocsym
++			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+ 			return true
+ 		}
+ 
+@@ -359,7 +361,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			s.Value = got.Size
+ 			got.AddUint64(ctxt.Arch, 0)
+ 			ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(targ.Dynid))
+-			r.Type = 256 // ignore during relocsym
++			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index efcd41d72b..7ea1fe5f8f 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -120,13 +120,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	switch r.Type {
+ 	default:
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case 256 + objabi.RelocType(elf.R_ARM_PLT32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PLT32):
+ 		r.Type = objabi.R_CALLARM
+ 
+ 		if targ.Type == sym.SDYNIMPORT {
+@@ -137,11 +137,11 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_THM_PC22): // R_ARM_THM_CALL
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_THM_PC22): // R_ARM_THM_CALL
+ 		ld.Exitf("R_ARM_THM_CALL, are you using -marm?")
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			addgotsyminternal(ctxt, targ)
+ 		} else {
+@@ -153,7 +153,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += int64(targ.Got())
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			addgotsyminternal(ctxt, targ)
+ 		} else {
+@@ -165,19 +165,19 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += int64(targ.Got()) + 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
+ 		r.Type = objabi.R_GOTOFF
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
+ 		r.Type = objabi.R_PCREL
+ 
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_CALL):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL):
+ 		r.Type = objabi.R_CALLARM
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+@@ -187,13 +187,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_REL32): // R_ARM_REL32
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_REL32): // R_ARM_REL32
+ 		r.Type = objabi.R_PCREL
+ 
+ 		r.Add += 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_ABS32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_ABS32):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -201,7 +201,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		return true
+ 
+ 		// we can just ignore this, because we are targeting ARM V5+ anyway
+-	case 256 + objabi.RelocType(elf.R_ARM_V4BX):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_V4BX):
+ 		if r.Sym != nil {
+ 			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
+ 			r.Sym.Type = 0
+@@ -210,8 +210,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Sym = nil
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_ARM_PC24),
+-		256 + objabi.RelocType(elf.R_ARM_JUMP24):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+ 		r.Type = objabi.R_CALLARM
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b869eea278..cb74b9a723 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -162,7 +162,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 			}
+ 		}
+ 
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			continue
+ 		}
+ 		if r.Siz == 0 { // informational relocation - no work to do
+@@ -636,7 +636,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			continue
+ 		}
+ 
+-		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= 256 {
++		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= objabi.ElfRelocOffset {
+ 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3d9cb4898d..ca29da4f01 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1401,7 +1401,7 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
+ 		if !r.Sym.Attr.Reachable() {
+ 			continue
+ 		}
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			continue
+ 		}
+ 		if r.Siz == 0 { // informational relocation
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 916b7cf9f2..a22a77bd47 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -923,7 +923,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 				rp.Sym = elfsym.sym
+ 			}
+ 
+-			rp.Type = 256 + objabi.RelocType(info)
++			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
+ 			rp.Siz, err = relSize(arch, pn, uint32(info))
+ 			if err != nil {
+ 				return nil, 0, err
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index e2b0d63aa3..a8e41a94c7 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -771,7 +771,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 							// handle reference to __IMPORT/__pointers.
+ 							// how much worse can this get?
+ 							// why are we supporting 386 on the mac anyway?
+-							rp.Type = 512 + MACHO_FAKE_GOTPCREL
++							rp.Type = objabi.MachoRelocOffset + MACHO_FAKE_GOTPCREL
+ 
+ 							// figure out which pointer this is a reference to.
+ 							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
+@@ -805,7 +805,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 			}
+ 
+ 			rp.Siz = rel.length
+-			rp.Type = 512 + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
++			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+ 			rp.Off = int32(rel.addr)
+ 
+ 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index a857694962..d376c4de58 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -95,7 +95,7 @@ func genplt(ctxt *ld.Link) {
+ 	for _, s := range ctxt.Textp {
+ 		for i := range s.R {
+ 			r := &s.R[i]
+-			if r.Type != 256+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
++			if r.Type != objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
+ 				continue
+ 			}
+ 
+@@ -275,13 +275,13 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	switch r.Type {
+ 	default:
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case 256 + objabi.RelocType(elf.R_PPC64_REL24):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
+ 		r.Type = objabi.R_CALLPOWER
+ 
+ 		// This is a local call, so the caller isn't setting
+@@ -298,7 +298,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC_REL32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC_REL32):
+ 		r.Type = objabi.R_PCREL
+ 		r.Add += 4
+ 
+@@ -308,7 +308,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_ADDR64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_ADDR64):
+ 		r.Type = objabi.R_ADDR
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			// These happen in .toc sections
+@@ -318,54 +318,54 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+ 			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
+ 			rela.AddUint64(ctxt.Arch, uint64(r.Add))
+-			r.Type = 256 // ignore during relocsym
++			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+ 		}
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_LO
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HA):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HA):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HI):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HI):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_DS):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_DS):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
+ 		r.Type = objabi.R_POWER_TOC
+ 		r.Variant = sym.RV_POWER_DS
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_LO):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_LO):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_POWER_LO
+ 		r.Add += 2 // Compensate for relocation size of 2
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HI):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HI):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
+ 		r.Add += 2
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HA):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HA):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
+ 		r.Add += 2
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 88199f3a56..46a6ffef82 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -107,30 +107,30 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	switch r.Type {
+ 	default:
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case 256 + objabi.RelocType(elf.R_390_12),
+-		256 + objabi.RelocType(elf.R_390_GOT12):
+-		ld.Errorf(s, "s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_12),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT12):
++		ld.Errorf(s, "s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type-objabi.ElfRelocOffset)
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_390_8),
+-		256 + objabi.RelocType(elf.R_390_16),
+-		256 + objabi.RelocType(elf.R_390_32),
+-		256 + objabi.RelocType(elf.R_390_64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_8),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_16),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_32),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_64):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_390_nn relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = objabi.R_ADDR
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_PC16),
+-		256 + objabi.RelocType(elf.R_390_PC32),
+-		256 + objabi.RelocType(elf.R_390_PC64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC16),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC32),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC64):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -143,14 +143,14 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GOT16),
+-		256 + objabi.RelocType(elf.R_390_GOT32),
+-		256 + objabi.RelocType(elf.R_390_GOT64):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT16),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT32),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT64):
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_PLT16DBL),
+-		256 + objabi.RelocType(elf.R_390_PLT32DBL):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT16DBL),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT32DBL):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_390_DBL
+ 		r.Add += int64(r.Siz)
+@@ -161,8 +161,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_PLT32),
+-		256 + objabi.RelocType(elf.R_390_PLT64):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT32),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT64):
+ 		r.Type = objabi.R_PCREL
+ 		r.Add += int64(r.Siz)
+ 		if targ.Type == sym.SDYNIMPORT {
+@@ -172,37 +172,37 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_COPY):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_COPY):
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GLOB_DAT):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GLOB_DAT):
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_390_JMP_SLOT):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_JMP_SLOT):
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_390_RELATIVE):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_RELATIVE):
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+ 		return false
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GOTOFF):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTOFF):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_390_GOTOFF relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = objabi.R_GOTOFF
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GOTPC):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPC):
+ 		r.Type = objabi.R_PCREL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_PC16DBL),
+-		256 + objabi.RelocType(elf.R_390_PC32DBL):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC16DBL),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC32DBL):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_390_DBL
+ 		r.Add += int64(r.Siz)
+@@ -211,14 +211,14 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GOTPCDBL):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPCDBL):
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_390_DBL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_390_GOTENT):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
+ 		addgotsym(ctxt, targ)
+ 
+ 		r.Type = objabi.R_PCREL
+diff --git a/src/cmd/link/internal/sym/reloc.go b/src/cmd/link/internal/sym/reloc.go
+index da696d327b..9c862f109d 100644
+--- a/src/cmd/link/internal/sym/reloc.go
++++ b/src/cmd/link/internal/sym/reloc.go
+@@ -57,8 +57,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 	// Uncomment code when we include those in bootstrap code.
+ 
+ 	switch {
+-	case r >= 512: // Mach-O
+-		// nr := (r - 512)>>1
++	case r >= objabi.MachoRelocOffset: // Mach-O
++		// nr := (r - objabi.MachoRelocOffset)>>1
+ 		// switch ctxt.Arch.Family {
+ 		// case sys.AMD64:
+ 		// 	return macho.RelocTypeX86_64(nr).String()
+@@ -71,8 +71,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 		// default:
+ 		// 	panic("unreachable")
+ 		// }
+-	case r >= 256: // ELF
+-		nr := r - 256
++	case r >= objabi.ElfRelocOffset: // ELF
++		nr := r - objabi.ElfRelocOffset
+ 		switch arch.Family {
+ 		case sys.AMD64:
+ 			return elf.R_X86_64(nr).String()
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 1744ab4d99..9472f5516d 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -172,13 +172,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	switch r.Type {
+ 	default:
+-		if r.Type >= 256 {
++		if r.Type >= objabi.ElfRelocOffset {
+ 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case 256 + objabi.RelocType(elf.R_386_PC32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_PC32):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+@@ -191,7 +191,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_386_PLT32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_PLT32):
+ 		r.Type = objabi.R_PCREL
+ 		r.Add += 4
+ 		if targ.Type == sym.SDYNIMPORT {
+@@ -202,7 +202,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_386_GOT32), 256 + objabi.RelocType(elf.R_386_GOT32X):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOT32),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOT32X):
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			// have symbol
+ 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+@@ -233,31 +234,31 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Add += int64(targ.Got())
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_386_GOTOFF):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOTOFF):
+ 		r.Type = objabi.R_GOTOFF
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_386_GOTPC):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOTPC):
+ 		r.Type = objabi.R_PCREL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+ 		return true
+ 
+-	case 256 + objabi.RelocType(elf.R_386_32):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_32):
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = objabi.R_ADDR
+ 		return true
+ 
+-	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
++	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
+ 		r.Type = objabi.R_ADDR
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
+ 		}
+ 		return true
+ 
+-	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
++	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+@@ -269,7 +270,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Type = objabi.R_PCREL
+ 		return true
+ 
+-	case 512 + ld.MACHO_FAKE_GOTPCREL:
++	case objabi.MachoRelocOffset + ld.MACHO_FAKE_GOTPCREL:
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			// have symbol
+ 			// turn MOVL of GOT entry into LEAL of symbol itself
+@@ -342,7 +343,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			s.Value = got.Size
+ 			got.AddUint32(ctxt.Arch, 0)
+ 			ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(targ.Dynid))
+-			r.Type = 256 // ignore during relocsym
++			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+ 			return true
+ 		}
+ 	}

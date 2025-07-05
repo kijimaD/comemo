@@ -17,6 +17,32 @@ Date:   Wed Mar 12 23:11:30 2025 +1100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  test/codegen/floats.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 2a5cf39957..d04202d394 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -149,20 +149,14 @@ func CmpWithAdd(a float64, b float64) bool {
+ //    Non-floats    //
+ // ---------------- //
+ 
+-// We should make sure that the compiler doesn't generate floating point
+-// instructions for non-float operations on Plan 9, because floating point
+-// operations are not allowed in the note handler.
+-
+ func ArrayZero() [16]byte {
+ 	// amd64:"MOVUPS"
+-	// plan9/amd64/:-"MOVUPS"
+ 	var a [16]byte
+ 	return a
+ }
+ 
+ func ArrayCopy(a [16]byte) (b [16]byte) {
+ 	// amd64:"MOVUPS"
+-	// plan9/amd64/:-"MOVUPS"
+ 	b = a
+ 	return
+ }

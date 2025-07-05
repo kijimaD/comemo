@@ -13,6 +13,32 @@ Date:   Tue Jan 19 08:27:10 2016 -0800
     Change-Id: Ibb759cd6e84c00f4450a012992088422c0546638
     Reviewed-on: https://go-review.googlesource.com/18734
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/tls/tls.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index c1d1331bde..4bedd7682d 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -172,7 +172,9 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
+ }
+ 
+ // LoadX509KeyPair reads and parses a public/private key pair from a pair of
+-// files. The files must contain PEM encoded data.
++// files. The files must contain PEM encoded data. On successful return,
++// Certificate.Leaf will be nil because the parsed form of the certificate is
++// not retained.
+ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ 	certPEMBlock, err := ioutil.ReadFile(certFile)
+ 	if err != nil {
+@@ -186,7 +188,8 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ }
+ 
+ // X509KeyPair parses a public/private key pair from a pair of
+-// PEM encoded data.
++// PEM encoded data. On successful return, Certificate.Leaf will be nil because
++// the parsed form of the certificate is not retained.
+ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+ 

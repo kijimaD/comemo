@@ -13,7 +13,40 @@ Date:   Tue Sep 13 13:29:13 2016 +1200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go   | 8 ++++++++
  src/cmd/link/internal/ld/deadcode.go | 2 +-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index bb84ef8cab..af4f91550f 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -394,6 +394,14 @@ func TestTrivialExecutable(t *testing.T) {
+ 	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
+ }
+ 
++// Build a trivial program in PIE mode that links against the shared runtime and check it runs.
++func TestTrivialExecutablePIE(t *testing.T) {
++	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "trivial")
++	run(t, "trivial executable", "./trivial.pie")
++	AssertIsLinkedTo(t, "./trivial.pie", soname)
++	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
++}
++
+ // Build an executable that uses cgo linked against the shared runtime and check it
+ // runs.
+ func TestCgoExecutable(t *testing.T) {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c8aa6ee0ce..9f49cf2dfc 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -241,7 +241,7 @@ func (d *deadcodepass) init() {
+ 		// In a normal binary, start at main.main and the init
+ 		// functions and mark what is reachable from there.
+ 		names = append(names, *flagEntrySymbol)
+-		if *FlagLinkshared && Buildmode == BuildmodeExe {
++		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+ 			names = append(names, "main.main", "main.init")
+ 		}
+ 		for _, name := range markextra {

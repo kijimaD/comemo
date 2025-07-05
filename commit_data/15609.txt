@@ -8,8 +8,105 @@ Date:   Wed Mar 6 12:34:19 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7502044
-
+---
  src/pkg/text/template/exec.go      | 18 +++++++++++++++++-
  src/pkg/text/template/exec_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/text/template/template.go  |  3 +++
  3 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index b9c03d8f0b..12c40b70f1 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -5,6 +5,7 @@
+ package template
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"reflect"
+@@ -125,8 +126,23 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ 		wr:   wr,
+ 		vars: []variable{{"$", value}},
+ 	}
++	t.init()
+ 	if t.Tree == nil || t.Root == nil {
+-		state.errorf("%q is an incomplete or empty template", t.name)
++		var b bytes.Buffer
++		for name, tmpl := range t.tmpl {
++			if tmpl.Tree == nil || tmpl.Root == nil {
++				continue
++			}
++			if b.Len() > 0 {
++				b.WriteString(", ")
++			}
++			fmt.Fprintf(&b, "%q", name)
++		}
++		var s string
++		if b.Len() > 0 {
++			s = "; defined templates are: " + b.String()
++		}
++		state.errorf("%q is an incomplete or empty template%s", t.Name(), s)
+ 	}
+ 	state.walk(value, t.Root)
+ 	return
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 683e9ac76b..0f8beec5ed 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -816,3 +816,40 @@ func TestExecuteOnNewTemplate(t *testing.T) {
+ 	// This is issue 3872.
+ 	_ = New("Name").Templates()
+ }
++
++const testTemplates = `{{define "one"}}one{{end}}{{define "two"}}two{{end}}`
++
++func TestMessageForExecuteEmpty(t *testing.T) {
++	// Test a truly empty template.
++	tmpl := New("empty")
++	var b bytes.Buffer
++	err := tmpl.Execute(&b, 0)
++	if err == nil {
++		t.Fatal("expected initial error")
++	}
++	got := err.Error()
++	want := `template: empty: "empty" is an incomplete or empty template`
++	if got != want {
++		t.Errorf("expected error %s got %s", want, got)
++	}
++	// Add a non-empty template to check that the error is helpful.
++	tests, err := New("").Parse(testTemplates)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmpl.AddParseTree("secondary", tests.Tree)
++	err = tmpl.Execute(&b, 0)
++	if err == nil {
++		t.Fatal("expected second error")
++	}
++	got = err.Error()
++	want = `template: empty: "empty" is an incomplete or empty template; defined templates are: "secondary"`
++	if got != want {
++		t.Errorf("expected error %s got %s", want, got)
++	}
++	// Make sure we can execute the secondary.
++	err = tmpl.ExecuteTemplate(&b, "secondary", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index a2b9062ad1..d801c790ef 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -40,6 +40,9 @@ func New(name string) *Template {
+ 
+ // Name returns the name of the template.
+ func (t *Template) Name() string {
++	if t.name == "" {
++		return "<unnamed>"
++	}
+ 	return t.name
+ }
+ 

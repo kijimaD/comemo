@@ -29,6 +29,50 @@ Date:   Fri Nov 16 02:20:58 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/testing/testing.go | 24 ++++++++++++++++++------
  1 file changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 0bc222c0bb..0ac51b6fe5 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -17,13 +17,13 @@
+ // package builds but will be included when the ``go test'' command is run.
+ // For more detail, run ``go help test'' and ``go help testflag''.
+ //
+-// Tests and benchmarks may be skipped if not applicable with a call to
+-// the Skip method of *T and *B:
+-//     func TestTimeConsuming(t *testing.T) {
+-//         if testing.Short() {
+-//             t.Skip("skipping test in short mode.")
++// A simple test function looks like this:
++//
++//     func TestAbs(t *testing.T) {
++//         got := Abs(-1)
++//         if got != 1 {
++//             t.Errorf("Abs(-1) = %d; want 1", got)
+ //         }
+-//         ...
+ //     }
+ //
+ // Benchmarks
+@@ -132,6 +132,18 @@
+ // example function, at least one other function, type, variable, or constant
+ // declaration, and no test or benchmark functions.
+ //
++// Skipping
++//
++// Tests or benchmarks may be skipped at run time with a call to
++// the Skip method of *T or *B:
++//
++//     func TestTimeConsuming(t *testing.T) {
++//         if testing.Short() {
++//             t.Skip("skipping test in short mode.")
++//         }
++//         ...
++//     }
++//
+ // Subtests and Sub-benchmarks
+ //
+ // The Run methods of T and B allow defining subtests and sub-benchmarks,

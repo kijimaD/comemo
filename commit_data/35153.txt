@@ -12,8 +12,92 @@ Date:   Wed Jan 3 17:50:47 2018 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go          |  2 +-
  src/encoding/gob/decode.go    |  2 ++
  src/encoding/gob/type_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5842a98233..44971ecf17 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1286,7 +1286,7 @@ func (t *tester) runFlag(rx string) string {
+ func (t *tester) raceTest(dt *distTest) error {
+ 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
+ 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
+-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace"), "flag", "os", "os/exec")
++	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace"), "flag", "os", "os/exec", "encoding/gob")
+ 	// We don't want the following line, because it
+ 	// slows down all.bash (by 10 seconds on my laptop).
+ 	// The race builder should catch any error here, but doesn't.
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 8dece42e90..2da913fceb 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1038,6 +1038,8 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ 
+ // typeString returns a human-readable description of the type identified by remoteId.
+ func (dec *Decoder) typeString(remoteId typeId) string {
++	typeLock.Lock()
++	defer typeLock.Unlock()
+ 	if t := idToType[remoteId]; t != nil {
+ 		// globally known type.
+ 		return t.string()
+diff --git a/src/encoding/gob/type_test.go b/src/encoding/gob/type_test.go
+index 14f25d8ac4..934270eedd 100644
+--- a/src/encoding/gob/type_test.go
++++ b/src/encoding/gob/type_test.go
+@@ -7,6 +7,7 @@ package gob
+ import (
+ 	"bytes"
+ 	"reflect"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -218,3 +219,44 @@ func TestStressParallel(t *testing.T) {
+ 		<-c
+ 	}
+ }
++
++// Issue 23328. Note that this test name is known to cmd/dist/test.go.
++func TestTypeRace(t *testing.T) {
++	c := make(chan bool)
++	var wg sync.WaitGroup
++	for i := 0; i < 2; i++ {
++		wg.Add(1)
++		go func(i int) {
++			defer wg.Done()
++			var buf bytes.Buffer
++			enc := NewEncoder(&buf)
++			dec := NewDecoder(&buf)
++			var x interface{}
++			switch i {
++			case 0:
++				x = &N1{}
++			case 1:
++				x = &N2{}
++			default:
++				t.Errorf("bad i %d", i)
++				return
++			}
++			m := make(map[string]string)
++			<-c
++			if err := enc.Encode(x); err != nil {
++				t.Error(err)
++				return
++			}
++			if err := enc.Encode(x); err != nil {
++				t.Error(err)
++				return
++			}
++			if err := dec.Decode(&m); err == nil {
++				t.Error("decode unexpectedly succeeded")
++				return
++			}
++		}(i)
++	}
++	close(c)
++	wg.Wait()
++}

@@ -83,7 +83,7 @@ Date:   Tue Mar 27 15:50:45 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/bv.go    | 15 +++++++++++++++
  src/cmd/compile/internal/gc/gsubr.go | 14 ++++++++++++++
  src/cmd/compile/internal/gc/obj.go   |  2 +-
@@ -94,3 +94,247 @@ Date:   Tue Mar 27 15:50:45 2018 -0400
  src/runtime/funcdata.h               |  2 ++
  src/runtime/symtab.go                |  2 ++
  9 files changed, 82 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index 21f6f4f246..db0185e5a8 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -117,6 +117,21 @@ func (bv bvec) Next(i int32) int32 {
+ 	return i
+ }
+ 
++// Len returns the minimum number of bits required to represent bv.
++// The result is 0 if no bits are set in bv.
++func (bv bvec) Len() int32 {
++	for wi := len(bv.b) - 1; wi >= 0; wi-- {
++		if w := bv.b[wi]; w != 0 {
++			for i := wordBits - 1; i >= 0; i-- {
++				if w>>uint(i) != 0 {
++					return int32(wi)*wordBits + int32(i) + 1
++				}
++			}
++		}
++	}
++	return 0
++}
++
+ func (bv bvec) IsEmpty() bool {
+ 	for _, x := range bv.b {
+ 		if x != 0 {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 70b5cd3366..f39ffc7365 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -116,6 +116,14 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+ 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
+ 		Addrconst(&p.To, int64(idx))
+ 	}
++	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
++		// Emit register map index change.
++		idx := pp.nextLive.regMapIndex
++		pp.prevLive.regMapIndex = idx
++		p := pp.Prog(obj.APCDATA)
++		Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
++		Addrconst(&p.To, int64(idx))
++	}
+ 
+ 	p := pp.next
+ 	pp.next = pp.NewProg()
+@@ -189,6 +197,12 @@ func (pp *Progs) settext(fn *Node) {
+ 	p.To.Type = obj.TYPE_MEM
+ 	p.To.Name = obj.NAME_EXTERN
+ 	p.To.Sym = &fn.Func.lsym.Func.GCLocals
++
++	p = pp.Prog(obj.AFUNCDATA)
++	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = &fn.Func.lsym.Func.GCRegs
+ }
+ 
+ func (f *Func) initLSym() {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index aec6fe5397..fb749d171f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -292,7 +292,7 @@ func addGCLocals() {
+ 		if s.Func == nil {
+ 			continue
+ 		}
+-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
++		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
+ 			if seen[gcsym.Name] {
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 9da398a459..88f265de02 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -594,6 +594,20 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 	}
+ }
+ 
++// usedRegs returns the maximum width of the live register map.
++func (lv *Liveness) usedRegs() int32 {
++	var any liveRegMask
++	for _, live := range lv.regMaps {
++		any |= live
++	}
++	i := int32(0)
++	for any != 0 {
++		any >>= 1
++		i++
++	}
++	return i
++}
++
+ // Generates live pointer value maps for arguments and local variables. The
+ // this argument and the in arguments are always assumed live. The vars
+ // argument is a slice of *Nodes.
+@@ -1615,7 +1629,7 @@ func (lv *Liveness) printDebug() {
+ // first word dumped is the total number of bitmaps. The second word is the
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+ // remaining bytes are the raw bitmaps.
+-func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
++func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+ 	// Size args bitmaps to be just large enough to hold the largest pointer.
+ 	// First, find the largest Xoffset node we care about.
+ 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+@@ -1643,7 +1657,6 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+ 	// This would require shifting all bitmaps.
+ 	maxLocals := lv.stkptrsize
+ 
+-	// TODO(austin): Emit a register map.
+ 	args := bvalloc(int32(maxArgs / int64(Widthptr)))
+ 	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+ 	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
+@@ -1662,6 +1675,22 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+ 		loff = dbvec(livesym, loff, locals)
+ 	}
+ 
++	regs := bvalloc(lv.usedRegs())
++	roff := duint32(regssym, 0, uint32(len(lv.regMaps))) // number of bitmaps
++	roff = duint32(regssym, roff, uint32(regs.n))        // number of bits in each bitmap
++	if regs.n > 32 {
++		// Our uint32 conversion below won't work.
++		Fatalf("GP registers overflow uint32")
++	}
++
++	if regs.n > 0 {
++		for _, live := range lv.regMaps {
++			regs.Clear()
++			regs.b[0] = uint32(live)
++			roff = dbvec(regssym, roff, regs)
++		}
++	}
++
+ 	// Give these LSyms content-addressable names,
+ 	// so that they can be de-duplicated.
+ 	// This provides significant binary size savings.
+@@ -1669,6 +1698,7 @@ func (lv *Liveness) emit(argssym, livesym *obj.LSym) {
+ 	// they are tracked separately from ctxt.hash.
+ 	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
+ 	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
++	regssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(regssym.P))
+ }
+ 
+ // Entry pointer for liveness analysis. Solves for the liveness of
+@@ -1692,7 +1722,7 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
+ 
+ 	// Emit the live pointer map data structures
+ 	if ls := e.curfn.Func.lsym; ls != nil {
+-		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals)
++		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
+ 	}
+ 	return lv.livenessMap
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f99f6f8d6a..132f7836ef 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -404,6 +404,7 @@ type FuncInfo struct {
+ 
+ 	GCArgs   LSym
+ 	GCLocals LSym
++	GCRegs   LSym
+ }
+ 
+ // Attribute is a set of symbol attributes.
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index d383d85cab..0658cc7311 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -159,6 +159,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	gclocals := &s.Func.GCLocals
+ 	gclocals.Set(AttrDuplicateOK, true)
+ 	gclocals.Type = objabi.SRODATA
++	gcregs := &s.Func.GCRegs
++	gcregs.Set(AttrDuplicateOK, true)
++	gcregs.Type = objabi.SRODATA
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+@@ -203,5 +206,14 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata.To.Type = TYPE_CONST
+ 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+ 
++	// Same, with register map.
++	pcdata = Appendp(pcdata, newprog)
++	pcdata.Pos = s.Func.Text.Pos
++	pcdata.As = APCDATA
++	pcdata.From.Type = TYPE_CONST
++	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
++	pcdata.To.Type = TYPE_CONST
++	pcdata.To.Offset = -1
++
+ 	return pcdata
+ }
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 80874edeb0..a7827125bf 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -13,9 +13,11 @@ package objabi
+ const (
+ 	PCDATA_StackMapIndex       = 0
+ 	PCDATA_InlTreeIndex        = 1
++	PCDATA_RegMapIndex         = 2
+ 	FUNCDATA_ArgsPointerMaps   = 0
+ 	FUNCDATA_LocalsPointerMaps = 1
+ 	FUNCDATA_InlTree           = 2
++	FUNCDATA_RegPointerMaps    = 3
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 27d5a2f6b9..4c290b9b9a 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -10,10 +10,12 @@
+ 
+ #define PCDATA_StackMapIndex 0
+ #define PCDATA_InlTreeIndex 1
++#define PCDATA_RegMapIndex 2
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
+ #define FUNCDATA_InlTree 2
++#define FUNCDATA_RegPointerMaps 3
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index c829bfdec1..f730b509d6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -343,9 +343,11 @@ func (f *Func) funcInfo() funcInfo {
+ const (
+ 	_PCDATA_StackMapIndex       = 0
+ 	_PCDATA_InlTreeIndex        = 1
++	_PCDATA_RegMapIndex         = 2
+ 	_FUNCDATA_ArgsPointerMaps   = 0
+ 	_FUNCDATA_LocalsPointerMaps = 1
+ 	_FUNCDATA_InlTree           = 2
++	_FUNCDATA_RegPointerMaps    = 3
+ 	_ArgsSizeUnknown            = -0x80000000
+ )
+ 

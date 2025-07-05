@@ -11,7 +11,7 @@ Date:   Wed Sep 16 17:52:12 2015 -0700
     Change-Id: I037436d8318c18f9758b435eca2d45b3bdd17ef8
     Reviewed-on: https://go-review.googlesource.com/14660
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/assignments.go       |   6 +-
  src/go/types/builtins.go          |   2 +-
  src/go/types/call.go              |   2 +-
@@ -21,3 +21,328 @@ Date:   Wed Sep 16 17:52:12 2015 -0700
  src/go/types/testdata/stmt0.src   |   6 +-
  src/go/types/testdata/vardecl.src |   4 +-
  8 files changed, 164 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 4231196b2d..240cea24db 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -30,6 +30,8 @@ func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
+ 
+ 	// x must be a single value
+ 	// (tuple types are never named - no need for underlying type)
++	// TODO(gri) We may be able to get rid of this check now that
++	// we check for single-valued expressions more rigorously.
+ 	if t, _ := x.typ.(*Tuple); t != nil {
+ 		assert(t.Len() > 1)
+ 		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
+@@ -205,7 +207,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ // return expressions, and returnPos is the position of the return statement.
+ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
+ 	l := len(lhs)
+-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
++	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
+ 	if get == nil || l != r {
+ 		// invalidate lhs and use rhs
+ 		for _, obj := range lhs {
+@@ -244,7 +246,7 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos)
+ 
+ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
+ 	l := len(lhs)
+-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
++	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2)
+ 	if get == nil {
+ 		return // error reported by unpack
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index a879c8164d..be6c92982d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -44,7 +44,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	switch id {
+ 	default:
+ 		// make argument getter
+-		arg, nargs, _ = unpack(func(x *operand, i int) { check.expr(x, call.Args[i]) }, nargs, false)
++		arg, nargs, _ = unpack(func(x *operand, i int) { check.multiExpr(x, call.Args[i]) }, nargs, false)
+ 		if arg == nil {
+ 			return
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index c3ed0778e9..14c94de210 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -61,7 +61,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 			return statement
+ 		}
+ 
+-		arg, n, _ := unpack(func(x *operand, i int) { check.expr(x, e.Args[i]) }, len(e.Args), false)
++		arg, n, _ := unpack(func(x *operand, i int) { check.multiExpr(x, e.Args[i]) }, len(e.Args), false)
+ 		if arg == nil {
+ 			x.mode = invalid
+ 			x.expr = e
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 9d2331a1ad..bbdaf9b3ce 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1453,23 +1453,40 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface,
+ 	check.errorf(pos, "%s cannot have dynamic type %s (%s %s)", x, T, msg, method.name)
+ }
+ 
++func (check *Checker) singleValue(x *operand) {
++	if x.mode == value {
++		// tuple types are never named - no need for Underlying() below
++		if t, ok := x.typ.(*Tuple); ok && t.Len() != 1 {
++			check.errorf(x.pos(), "%d-valued %s in single-value context", t.Len(), x)
++			x.mode = invalid
++		}
++	}
++}
++
+ // expr typechecks expression e and initializes x with the expression value.
++// The result must be a single value.
+ // If an error occurred, x.mode is set to invalid.
+ //
+ func (check *Checker) expr(x *operand, e ast.Expr) {
++	check.multiExpr(x, e)
++	check.singleValue(x)
++}
++
++// multiExpr is like expr but the result may be a multi-value.
++func (check *Checker) multiExpr(x *operand, e ast.Expr) {
+ 	check.rawExpr(x, e, nil)
+ 	var msg string
+ 	switch x.mode {
+ 	default:
+ 		return
+ 	case novalue:
+-		msg = "used as value"
++		msg = "%s used as value"
+ 	case builtin:
+-		msg = "must be called"
++		msg = "%s must be called"
+ 	case typexpr:
+-		msg = "is not an expression"
++		msg = "%s is not an expression"
+ 	}
+-	check.errorf(x.pos(), "%s %s", x, msg)
++	check.errorf(x.pos(), msg, x)
+ 	x.mode = invalid
+ }
+ 
+@@ -1480,18 +1497,19 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
+ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
+ 	assert(hint != nil)
+ 	check.rawExpr(x, e, hint)
++	check.singleValue(x)
+ 	var msg string
+ 	switch x.mode {
+ 	default:
+ 		return
+ 	case novalue:
+-		msg = "used as value"
++		msg = "%s used as value"
+ 	case builtin:
+-		msg = "must be called"
++		msg = "%s must be called"
+ 	case typexpr:
+-		msg = "is not an expression"
++		msg = "%s is not an expression"
+ 	}
+-	check.errorf(x.pos(), "%s %s", x, msg)
++	check.errorf(x.pos(), msg, x)
+ 	x.mode = invalid
+ }
+ 
+@@ -1500,6 +1518,7 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
+ //
+ func (check *Checker) exprOrType(x *operand, e ast.Expr) {
+ 	check.rawExpr(x, e, nil)
++	check.singleValue(x)
+ 	if x.mode == novalue {
+ 		check.errorf(x.pos(), "%s used as value or type", x)
+ 		x.mode = invalid
+diff --git a/src/go/types/testdata/expr0.src b/src/go/types/testdata/expr0.src
+index 3120c6f078..2a917c06e2 100644
+--- a/src/go/types/testdata/expr0.src
++++ b/src/go/types/testdata/expr0.src
+@@ -172,3 +172,9 @@ var (
+ 	p3 P = &p2
+ )
+ 
++func g() (a, b int) { return }
++
++func _() {
++	_ = -g /* ERROR 2-valued g */ ()
++	_ = <-g /* ERROR 2-valued g */ ()
++}
+diff --git a/src/go/types/testdata/expr1.src b/src/go/types/testdata/expr1.src
+index 8ef0aed6d2..eaaf610b03 100644
+--- a/src/go/types/testdata/expr1.src
++++ b/src/go/types/testdata/expr1.src
+@@ -5,3 +5,123 @@
+ // binary expressions
+ 
+ package expr1
++
++type mybool bool
++
++func _(x, y bool, z mybool) {
++	x = x || y
++	x = x || true
++	x = x || false
++	x = x && y
++	x = x && true
++	x = x && false
++
++	z = z /* ERROR mismatched types */ || y
++	z = z || true
++	z = z || false
++	z = z /* ERROR mismatched types */ && y
++	z = z && true
++	z = z && false
++}
++
++type myint int
++
++func _(x, y int, z myint) {
++	x = x + 1
++	x = x + 1.0
++	x = x + 1.1 // ERROR truncated to int
++	x = x + y
++	x = x - y
++	x = x * y
++	x = x / y
++	x = x % y
++	x = x << y // ERROR must be unsigned integer
++	x = x >> y // ERROR must be unsigned integer
++
++	z = z + 1
++	z = z + 1.0
++	z = z + 1.1 // ERROR truncated to int
++	z = z /* ERROR mismatched types */ + y
++	z = z /* ERROR mismatched types */ - y
++	z = z /* ERROR mismatched types */ * y
++	z = z /* ERROR mismatched types */ / y
++	z = z /* ERROR mismatched types */ % y
++	z = z << y // ERROR must be unsigned integer
++	z = z >> y // ERROR must be unsigned integer
++}
++
++type myuint uint
++
++func _(x, y uint, z myuint) {
++	x = x + 1
++	x = x + - /* ERROR overflows uint */ 1
++	x = x + 1.0
++	x = x + 1.1 // ERROR truncated to uint
++	x = x + y
++	x = x - y
++	x = x * y
++	x = x / y
++	x = x % y
++	x = x << y
++	x = x >> y
++
++	z = z + 1
++	z = x + - /* ERROR overflows uint */ 1
++	z = z + 1.0
++	z = z + 1.1 // ERROR truncated to uint
++	z = z /* ERROR mismatched types */ + y
++	z = z /* ERROR mismatched types */ - y
++	z = z /* ERROR mismatched types */ * y
++	z = z /* ERROR mismatched types */ / y
++	z = z /* ERROR mismatched types */ % y
++	z = z << y
++	z = z >> y
++}
++
++type myfloat64 float64
++
++func _(x, y float64, z myfloat64) {
++	x = x + 1
++	x = x + -1
++	x = x + 1.0
++	x = x + 1.1
++	x = x + y
++	x = x - y
++	x = x * y
++	x = x / y
++	x = x /* ERROR not defined */ % y
++	x = x /* ERROR operand x .* must be integer */ << y
++	x = x /* ERROR operand x .* must be integer */ >> y
++
++	z = z + 1
++	z = z + -1
++	z = z + 1.0
++	z = z + 1.1
++	z = z /* ERROR mismatched types */ + y
++	z = z /* ERROR mismatched types */ - y
++	z = z /* ERROR mismatched types */ * y
++	z = z /* ERROR mismatched types */ / y
++	z = z /* ERROR mismatched types */ % y
++	z = z /* ERROR operand z .* must be integer */ << y
++	z = z /* ERROR operand z .* must be integer */ >> y
++}
++
++type mystring string
++
++func _(x, y string, z mystring) {
++	x = x + "foo"
++	x = x /* ERROR not defined */ - "foo"
++	x = x + 1 // ERROR cannot convert
++	x = x + y
++	x = x /* ERROR not defined */ - y
++	x = x * 10 // ERROR cannot convert
++}
++
++func f() (a, b int) { return }
++
++func _(x int) {
++	_ = f /* ERROR 2-valued f */ () + 1
++	_ = x + f /* ERROR 2-valued f */ ()
++	_ = f /* ERROR 2-valued f */ () + f
++	_ = f /* ERROR 2-valued f */ () + f /* ERROR 2-valued f */ ()
++}
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index 80abbd1d96..52ed65c68b 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -631,14 +631,14 @@ func issue11667() {
+ 
+ func issue11687() {
+ 	f := func() (_, _ int) { return }
+-	switch f /* ERROR "2-valued expression" */ () {
++	switch f /* ERROR "2-valued f" */ () {
+ 	}
+ 	var x int
+-	switch f /* ERROR "2-valued expression" */ () {
++	switch f /* ERROR "2-valued f" */ () {
+ 	case x:
+ 	}
+ 	switch x {
+-	case f /* ERROR "cannot compare" */ (): // TODO(gri) better error message (issue 11896)
++	case f /* ERROR "2-valued f" */ ():
+ 	}
+ }
+ 
+diff --git a/src/go/types/testdata/vardecl.src b/src/go/types/testdata/vardecl.src
+index fb6b5f7838..00825371f2 100644
+--- a/src/go/types/testdata/vardecl.src
++++ b/src/go/types/testdata/vardecl.src
+@@ -31,7 +31,7 @@ var _ = 1, 2 /* ERROR "extra init expr 2" */
+ var _, _ = 1 /* ERROR "assignment count mismatch" */
+ var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+-var _ = g /* ERROR "2-valued expr" */ ()
++var _ = g /* ERROR "2-valued g" */ ()
+ var _, _ = g()
+ var _, _, _ = g /* ERROR "assignment count mismatch" */ ()
+ 
+@@ -50,7 +50,7 @@ var (
+ 	_, _ = 1 /* ERROR "assignment count mismatch" */
+ 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+-	_ = g /* ERROR "2-valued expr" */ ()
++	_ = g /* ERROR "2-valued g" */ ()
+ 	_, _ = g()
+ 	_, _, _ = g /* ERROR "assignment count mismatch" */ ()
+ 

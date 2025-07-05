@@ -10,6 +10,20 @@ Date:   Tue May 22 09:12:35 2018 -0700
     Change-Id: Ic7c19e1d5f29547911909df5788945848a6080ff
     Reviewed-on: https://go-review.googlesource.com/114004
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index cc81e24dde..de52523afd 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -548,7 +548,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
+ 		}
+ 	} else {
+ 		if typ == "" {
+-			log.Fatalf("sub-expression %s (op=Op%s%s) must have a type", result, oparch, op.name)
++			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, loc)
+ 		}
+ 		v = fmt.Sprintf("v%d", *alloc)
+ 		*alloc++

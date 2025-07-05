@@ -17,7 +17,73 @@ Date:   Mon Mar 22 21:16:27 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/ip.go      | 21 +++++++++++++++++++++
  src/net/ip_test.go | 22 ++++++++++++++++++++++
  2 files changed, 43 insertions(+)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 18e3f3a2f5..da51dab800 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -128,6 +128,27 @@ func (ip IP) IsLoopback() bool {
+ 	return ip.Equal(IPv6loopback)
+ }
+ 
++// IsPrivate reports whether ip is a private address, according to
++// RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
++func (ip IP) IsPrivate() bool {
++	if ip4 := ip.To4(); ip4 != nil {
++		// Following RFC 4193, Section 3. Local IPv6 Unicast Addresses which says:
++		//   The Internet Assigned Numbers Authority (IANA) has reserved the
++		//   following three blocks of the IPv4 address space for private internets:
++		//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
++		//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
++		//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
++		return ip4[0] == 10 ||
++			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
++			(ip4[0] == 192 && ip4[1] == 168)
++	}
++	// Following RFC 4193, Section 3. Private Address Space which says:
++	//   The Internet Assigned Numbers Authority (IANA) has reserved the
++	//   following block of the IPv6 address space for local internets:
++	//     FC00::  -  FDFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF (FC00::/7 prefix)
++	return len(ip) == IPv6len && ip[0]&0xfe == 0xfc
++}
++
+ // IsMulticast reports whether ip is a multicast address.
+ func (ip IP) IsMulticast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil {
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 1e09ae9db4..3af5e41ceb 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -691,6 +691,28 @@ var ipAddrScopeTests = []struct {
+ 	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+ 	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+ 	{IP.IsGlobalUnicast, nil, false},
++	{IP.IsPrivate, nil, false},
++	{IP.IsPrivate, IPv4(1, 1, 1, 1), false},
++	{IP.IsPrivate, IPv4(9, 255, 255, 255), false},
++	{IP.IsPrivate, IPv4(10, 0, 0, 0), true},
++	{IP.IsPrivate, IPv4(10, 255, 255, 255), true},
++	{IP.IsPrivate, IPv4(11, 0, 0, 0), false},
++	{IP.IsPrivate, IPv4(172, 15, 255, 255), false},
++	{IP.IsPrivate, IPv4(172, 16, 0, 0), true},
++	{IP.IsPrivate, IPv4(172, 16, 255, 255), true},
++	{IP.IsPrivate, IPv4(172, 23, 18, 255), true},
++	{IP.IsPrivate, IPv4(172, 31, 255, 255), true},
++	{IP.IsPrivate, IPv4(172, 31, 0, 0), true},
++	{IP.IsPrivate, IPv4(172, 32, 0, 0), false},
++	{IP.IsPrivate, IPv4(192, 167, 255, 255), false},
++	{IP.IsPrivate, IPv4(192, 168, 0, 0), true},
++	{IP.IsPrivate, IPv4(192, 168, 255, 255), true},
++	{IP.IsPrivate, IPv4(192, 169, 0, 0), false},
++	{IP.IsPrivate, IP{0xfb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
++	{IP.IsPrivate, IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
++	{IP.IsPrivate, IP{0xfc, 0xff, 0x12, 0, 0, 0, 0, 0x44, 0, 0, 0, 0, 0, 0, 0, 0}, true},
++	{IP.IsPrivate, IP{0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true},
++	{IP.IsPrivate, IP{0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+ }
+ 
+ func name(f interface{}) string {

@@ -13,6 +13,20 @@ Date:   Tue Mar 29 08:51:16 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/stat_openfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/stat_openfile.go b/src/cmd/go/internal/modload/stat_openfile.go
+index ff7c124af5..5773073d90 100644
+--- a/src/cmd/go/internal/modload/stat_openfile.go
++++ b/src/cmd/go/internal/modload/stat_openfile.go
+@@ -8,7 +8,7 @@
+ // are checked by the server and group information is not known to the client,
+ // access must open the file to check permissions.”
+ //
+-// aix and js,wasm are similar, in that they do not define syscall.Access.
++// js,wasm is similar, in that it does not define syscall.Access.
+ 
+ package modload
+ 

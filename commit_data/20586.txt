@@ -10,6 +10,24 @@ Date:   Fri Sep 19 13:53:33 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/145760043
-
+---
  src/net/http/server.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 203037e9f5..8f2b777b29 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -42,6 +42,12 @@ var (
+ // and then return.  Returning signals that the request is finished
+ // and that the HTTP server can move on to the next request on
+ // the connection.
++//
++// If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
++// that the effect of the panic was isolated to the active request.
++// It recovers the panic, logs a stack trace to the server error log,
++// and hangs up the connection.
++//
+ type Handler interface {
+ 	ServeHTTP(ResponseWriter, *Request)
+ }

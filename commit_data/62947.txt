@@ -31,8 +31,90 @@ Date:   Thu May 1 10:43:32 2025 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s      | 10 ++++++++++
  src/cmd/asm/internal/asm/testdata/riscv64error.s |  5 +++++
  src/cmd/internal/obj/riscv/obj.go                |  9 +++++++--
  3 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 0db846a3a1..4e0226a2b6 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -623,17 +623,27 @@ start:
+ 	VADCVXM		X11, V2, V0, V3			// d7c12540
+ 	VADCVIM		$15, V2, V0, V3			// d7b12740
+ 	VMADCVVM	V1, V2, V0, V3			// d7812044
++	VMADCVVM	V1, V2, V0, V0			// 57802044
+ 	VMADCVXM	X11, V2, V0, V3			// d7c12544
++	VMADCVXM	X11, V2, V0, V0			// 57c02544
+ 	VMADCVIM	$15, V2, V0, V3			// d7b12744
++	VMADCVIM	$15, V2, V0, V0			// 57b02744
+ 	VMADCVV		V1, V2, V3			// d7812046
++	VMADCVV		V1, V2, V0			// 57802046
+ 	VMADCVX		X11, V2, V3			// d7c12546
++	VMADCVX		X11, V2, V0			// 57c02546
+ 	VMADCVI		$15, V2, V3			// d7b12746
++	VMADCVI		$15, V2, V0			// 57b02746
+ 	VSBCVVM		V1, V2, V0, V3			// d7812048
+ 	VSBCVXM		X11, V2, V0, V3			// d7c12548
+ 	VMSBCVVM	V1, V2, V0, V3			// d781204c
++	VMSBCVVM	V1, V2, V0, V0			// 5780204c
+ 	VMSBCVXM	X11, V2, V0, V3			// d7c1254c
++	VMSBCVXM	X11, V2, V0, V0			// 57c0254c
+ 	VMSBCVV		V1, V2, V3			// d781204e
++	VMSBCVV		V1, V2, V0			// 5780204e
+ 	VMSBCVX		X11, V2, V3			// d7c1254e
++	VMSBCVX		X11, V2, V0			// 57c0254e
+ 
+ 	// 31.11.5: Vector Bitwise Logical Instructions
+ 	VANDVV		V1, V2, V3			// d7812026
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 4238197893..4e6afa0ac2 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -95,10 +95,13 @@ TEXT errors(SB),$0
+ 	VSEXTVF8	V2, V3, V4			// ERROR "invalid vector mask register"
+ 	VADCVVM		V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VADCVVM		V1, V2, V3			// ERROR "invalid vector mask register"
++	VADCVVM		V1, V2, V0, V0			// ERROR "invalid destination register V0"
+ 	VADCVXM		X10, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VADCVXM		X10, V2, V3			// ERROR "invalid vector mask register"
++	VADCVXM		X10, V2, V0, V0			// ERROR "invalid destination register V0"
+ 	VADCVIM		$15, V2, V1, V3			// ERROR "invalid vector mask register"
+ 	VADCVIM		$15, V2, V3			// ERROR "invalid vector mask register"
++	VADCVIM		$15, V2, V0, V0			// ERROR "invalid destination register V0"
+ 	VMADCVVM	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VMADCVVM	V1, V2, V3			// ERROR "invalid vector mask register"
+ 	VMADCVXM	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+@@ -107,8 +110,10 @@ TEXT errors(SB),$0
+ 	VMADCVIM	$15, V2, V3			// ERROR "invalid vector mask register"
+ 	VSBCVVM		V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VSBCVVM		V1, V2, V3			// ERROR "invalid vector mask register"
++	VSBCVVM		V1, V2, V0, V0			// ERROR "invalid destination register V0"
+ 	VSBCVXM		X10, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VSBCVXM		X10, V2, V3			// ERROR "invalid vector mask register"
++	VSBCVXM		X10, V2, V0, V0			// ERROR "invalid destination register V0"
+ 	VMSBCVVM	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VMSBCVVM	V1, V2, V3			// ERROR "invalid vector mask register"
+ 	VMSBCVXM	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f4a2cb5fa4..3c91a1f02c 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -3773,8 +3773,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.funct7 |= 1 // unmasked
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), REG_V0
+ 
+-	case AVADCVVM, AVADCVXM, AVMADCVVM, AVMADCVXM, AVSBCVVM, AVSBCVXM, AVMSBCVVM, AVMSBCVXM, AVADCVIM, AVMADCVIM,
+-		AVMERGEVVM, AVMERGEVXM, AVMERGEVIM, AVFMERGEVFM:
++	case AVADCVIM, AVADCVVM, AVADCVXM, AVSBCVVM, AVSBCVXM:
++		if ins.rd == REG_V0 {
++			p.Ctxt.Diag("%v: invalid destination register V0", p)
++		}
++		fallthrough
++
++	case AVMADCVVM, AVMADCVXM, AVMSBCVVM, AVMSBCVXM, AVMADCVIM, AVMERGEVVM, AVMERGEVXM, AVMERGEVIM, AVFMERGEVFM:
+ 		if ins.rs3 != REG_V0 {
+ 			p.Ctxt.Diag("%v: invalid vector mask register", p)
+ 		}

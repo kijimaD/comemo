@@ -14,8 +14,48 @@ Date:   Thu May 4 15:05:33 2017 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go          | 2 +-
  src/net/dial_test.go           | 2 +-
  src/net/dnsclient_unix_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 95579b7b22..49614a9bef 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3090,7 +3090,7 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
+ 	tg.run("test", "-race", "-i", "runtime/race")
+ 	new, err := os.Stat(cgo)
+ 	tg.must(err)
+-	if new.ModTime() != old.ModTime() {
++	if !new.ModTime().Equal(old.ModTime()) {
+ 		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
+ 	}
+ }
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 669a368521..a49a9d7426 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -529,7 +529,7 @@ func TestDialerPartialDeadline(t *testing.T) {
+ 		if err != tt.expectErr {
+ 			t.Errorf("#%d: got %v; want %v", i, err, tt.expectErr)
+ 		}
+-		if deadline != tt.expectDeadline {
++		if !deadline.Equal(tt.expectDeadline) {
+ 			t.Errorf("#%d: got %v; want %v", i, deadline, tt.expectDeadline)
+ 		}
+ 	}
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index e1bbf68e57..a23e5f6222 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -784,7 +784,7 @@ func TestRetryTimeout(t *testing.T) {
+ 			return nil, poll.ErrTimeout
+ 		}
+ 
+-		if deadline == deadline0 {
++		if deadline.Equal(deadline0) {
+ 			t.Error("deadline didn't change")
+ 		}
+ 

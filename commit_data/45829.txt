@@ -14,7 +14,46 @@ Date:   Sat Nov 21 15:53:18 2020 +0100
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sync/atomic/doc.go | 11 +++++------
  src/sync/once.go       |  2 +-
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index ff4ad80049..805ef956d5 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -43,15 +43,14 @@ import (
+ 	"unsafe"
+ )
+ 
+-// BUG(rsc): On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
++// BUG(rsc): On 386, the 64-bit functions use instructions unavailable before the Pentium MMX.
+ //
+ // On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
+ //
+-// On ARM, x86-32, and 32-bit MIPS,
+-// it is the caller's responsibility to arrange for 64-bit
+-// alignment of 64-bit words accessed atomically. The first word in a
+-// variable or in an allocated struct, array, or slice can be relied upon to be
+-// 64-bit aligned.
++// On ARM, 386, and 32-bit MIPS, it is the caller's responsibility
++// to arrange for 64-bit alignment of 64-bit words accessed atomically.
++// The first word in a variable or in an allocated struct, array, or slice can
++// be relied upon to be 64-bit aligned.
+ 
+ // SwapInt32 atomically stores new into *addr and returns the previous *addr value.
+ func SwapInt32(addr *int32, new int32) (old int32)
+diff --git a/src/sync/once.go b/src/sync/once.go
+index bf4b80c867..8844314e7e 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -15,7 +15,7 @@ type Once struct {
+ 	// done indicates whether the action has been performed.
+ 	// It is first in the struct because it is used in the hot path.
+ 	// The hot path is inlined at every call site.
+-	// Placing done first allows more compact instructions on some architectures (amd64/x86),
++	// Placing done first allows more compact instructions on some architectures (amd64/386),
+ 	// and fewer instructions (to calculate offset) on other architectures.
+ 	done uint32
+ 	m    Mutex

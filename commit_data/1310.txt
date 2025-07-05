@@ -7,6 +7,66 @@ Date:   Tue Dec 9 17:52:41 2008 -0800
     R=r
     OCL=20874
     CL=20874
-
+---
  src/cmd/gc/const.c | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index ad8607794e..a61ebe5ee1 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -67,7 +67,7 @@ convlit(Node *n, Type *t)
+ 			break;
+ 		if(et == TINTER)
+ 			break;
+-		return;
++		goto bad1;
+ 
+ 	case Wlitstr:
+ 		if(isnilinter(t)) {
+@@ -212,6 +212,7 @@ evconst(Node *n)
+ 	case Wlitfloat:
+ 	case Wlitbool:
+ 	case Wlitstr:
++	case Wlitnil:
+ 		break;
+ 	}
+ 
+@@ -228,6 +229,7 @@ evconst(Node *n)
+ 	case Wlitfloat:
+ 	case Wlitbool:
+ 	case Wlitstr:
++	case Wlitnil:
+ 		break;
+ 	}
+ 
+@@ -246,7 +248,7 @@ evconst(Node *n)
+ 			nl->val.ctype = CTFLT;
+ 			wl = whatis(nl);
+ 		} else {
+-			yyerror("illegal combination of literals %O %E, %E", n->op, wl, wr);
++			yyerror("illegal combination of literals %O %W, %W", n->op, wl, wr);
+ 			return;
+ 		}
+ 	}
+@@ -264,7 +266,7 @@ evconst(Node *n)
+ 
+ 	switch(TUP(n->op, wl)) {
+ 	default:
+-		yyerror("illegal literal %O %E", n->op, wl);
++		yyerror("illegal literal %O %W", n->op, wl);
+ 		return;
+ 
+ 	case TUP(OADD, Wlitint):
+@@ -312,6 +314,11 @@ evconst(Node *n)
+ 		mpdivfltflt(fval, nr->val.u.fval);
+ 		break;
+ 
++	case TUP(OEQ, Wlitnil):
++		goto settrue;
++	case TUP(ONE, Wlitnil):
++		goto setfalse;
++
+ 	case TUP(OEQ, Wlitint):
+ 		if(mpcmpfixfix(xval, nr->val.u.xval) == 0)
+ 			goto settrue;

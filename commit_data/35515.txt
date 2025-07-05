@@ -14,7 +14,7 @@ Date:   Fri Feb 16 11:26:14 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os2_freebsd.go        | 1 -
  src/runtime/os2_solaris.go        | 1 -
  src/runtime/os3_solaris.go        | 3 ---
@@ -38,3 +38,486 @@ Date:   Fri Feb 16 11:26:14 2018 +0100
  src/runtime/sys_linux_ppc64x.s    | 8 --------
  src/runtime/sys_linux_s390x.s     | 9 ---------
  22 files changed, 139 deletions(-)
+
+diff --git a/src/runtime/os2_freebsd.go b/src/runtime/os2_freebsd.go
+index 84ab715237..29f0b76d3a 100644
+--- a/src/runtime/os2_freebsd.go
++++ b/src/runtime/os2_freebsd.go
+@@ -8,7 +8,6 @@ const (
+ 	_SS_DISABLE  = 4
+ 	_NSIG        = 33
+ 	_SI_USER     = 0x10001
+-	_RLIMIT_AS   = 10
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+diff --git a/src/runtime/os2_solaris.go b/src/runtime/os2_solaris.go
+index f5c0c83316..108bea6135 100644
+--- a/src/runtime/os2_solaris.go
++++ b/src/runtime/os2_solaris.go
+@@ -10,5 +10,4 @@ const (
+ 	_SIG_SETMASK = 3
+ 	_NSIG        = 73 /* number of signals in sigtable array */
+ 	_SI_USER     = 0
+-	_RLIMIT_AS   = 10
+ )
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 226cdd1188..c6544c7a6d 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -16,7 +16,6 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_exit exit "libc.so"
+ //go:cgo_import_dynamic libc_fstat fstat "libc.so"
+ //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
+-//go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
+ //go:cgo_import_dynamic libc_kill kill "libc.so"
+ //go:cgo_import_dynamic libc_madvise madvise "libc.so"
+ //go:cgo_import_dynamic libc_malloc malloc "libc.so"
+@@ -51,7 +50,6 @@ import "unsafe"
+ //go:linkname libc_exit libc_exit
+ //go:linkname libc_fstat libc_fstat
+ //go:linkname libc_getcontext libc_getcontext
+-//go:linkname libc_getrlimit libc_getrlimit
+ //go:linkname libc_kill libc_kill
+ //go:linkname libc_madvise libc_madvise
+ //go:linkname libc_malloc libc_malloc
+@@ -87,7 +85,6 @@ var (
+ 	libc_exit,
+ 	libc_fstat,
+ 	libc_getcontext,
+-	libc_getrlimit,
+ 	libc_kill,
+ 	libc_madvise,
+ 	libc_malloc,
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 4c3ce28074..681057f3d5 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -10,7 +10,6 @@ const (
+ 	_NSIG        = 33
+ 	_SI_USER     = 0
+ 	_SS_DISABLE  = 4
+-	_RLIMIT_AS   = 10
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+@@ -36,9 +35,6 @@ func setitimer(mode int32, new, old *itimerval)
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+ 
+-//go:noescape
+-func getrlimit(kind int32, limit unsafe.Pointer) int32
+-
+ func raise(sig uint32)
+ func raiseproc(sig uint32)
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 855bf30b6f..2bd9b9a509 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -29,8 +29,6 @@ func setitimer(mode int32, new, old *itimerval)
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+ 
+-//go:noescape
+-func getrlimit(kind int32, limit unsafe.Pointer) int32
+ func raise(sig uint32)
+ func raiseproc(sig uint32)
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 69850a9ccb..7ebca7f856 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -350,8 +350,6 @@ func sigprocmask(how int32, new, old *sigset) {
+ 	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
+ }
+ 
+-//go:noescape
+-func getrlimit(kind int32, limit unsafe.Pointer) int32
+ func raise(sig uint32)
+ func raiseproc(sig uint32)
+ 
+diff --git a/src/runtime/os_linux_be64.go b/src/runtime/os_linux_be64.go
+index e66dcac2ad..85466d704b 100644
+--- a/src/runtime/os_linux_be64.go
++++ b/src/runtime/os_linux_be64.go
+@@ -15,16 +15,10 @@ const (
+ 	_SIG_BLOCK   = 0
+ 	_SIG_UNBLOCK = 1
+ 	_SIG_SETMASK = 2
+-	_RLIMIT_AS   = 9
+ )
+ 
+ type sigset uint64
+ 
+-type rlimit struct {
+-	rlim_cur uintptr
+-	rlim_max uintptr
+-}
+-
+ var sigset_all = sigset(^uint64(0))
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux_generic.go b/src/runtime/os_linux_generic.go
+index f672162eae..14810e3cc3 100644
+--- a/src/runtime/os_linux_generic.go
++++ b/src/runtime/os_linux_generic.go
+@@ -19,7 +19,6 @@ const (
+ 	_SIG_BLOCK   = 0
+ 	_SIG_UNBLOCK = 1
+ 	_SIG_SETMASK = 2
+-	_RLIMIT_AS   = 9
+ )
+ 
+ // It's hard to tease out exactly how big a Sigset is, but
+@@ -27,11 +26,6 @@ const (
+ // are running, this is right.
+ type sigset [2]uint32
+ 
+-type rlimit struct {
+-	rlim_cur uintptr
+-	rlim_max uintptr
+-}
+-
+ var sigset_all = sigset{^uint32(0), ^uint32(0)}
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index be2b71911b..0d7b84dcee 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -35,16 +35,10 @@ const (
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+-	_RLIMIT_AS   = 6
+ )
+ 
+ type sigset [2]uint64
+ 
+-type rlimit struct {
+-	rlim_cur uintptr
+-	rlim_max uintptr
+-}
+-
+ var sigset_all = sigset{^uint64(0), ^uint64(0)}
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux_mipsx.go b/src/runtime/os_linux_mipsx.go
+index 313da1b3b2..e0548ecc79 100644
+--- a/src/runtime/os_linux_mipsx.go
++++ b/src/runtime/os_linux_mipsx.go
+@@ -35,16 +35,10 @@ const (
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+-	_RLIMIT_AS   = 6
+ )
+ 
+ type sigset [4]uint32
+ 
+-type rlimit struct {
+-	rlim_cur uintptr
+-	rlim_max uintptr
+-}
+-
+ var sigset_all = sigset{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}
+ 
+ //go:nosplit
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 813f1f4b69..f0eb5f4e21 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -119,14 +119,6 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+-	MOVL	kind+0(FP), DI
+-	MOVQ	limit+8(FP), SI
+-	MOVL	$194, AX
+-	SYSCALL
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$496, AX	// lwp_gettid
+ 	SYSCALL
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index bef8e3257a..94b2357c62 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -102,12 +102,6 @@ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$-4
+-	MOVL	$194, AX
+-	INT	$0x80
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	// thr_self(&8(SP))
+ 	LEAL	8(SP), AX
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 7499931ca1..c2c71784dd 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -107,14 +107,6 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+-	MOVL	kind+0(FP), DI
+-	MOVQ	limit+8(FP), SI
+-	MOVL	$194, AX
+-	SYSCALL
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	// thr_self(&8(SP))
+ 	LEAQ	8(SP), DI	// arg 1 &8(SP)
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index ab81f061f7..d0b1e96a1a 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -25,7 +25,6 @@
+ #define SYS_madvise (SYS_BASE + 75)
+ #define SYS_setitimer (SYS_BASE + 83)
+ #define SYS_fcntl (SYS_BASE + 92)
+-#define SYS_getrlimit (SYS_BASE + 194)
+ #define SYS___sysctl (SYS_BASE + 202)
+ #define SYS_nanosleep (SYS_BASE + 240)
+ #define SYS_clock_gettime (SYS_BASE + 232)
+@@ -137,14 +136,6 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0
+-	MOVW kind+0(FP), R0
+-	MOVW limit+4(FP), R1
+-	MOVW $SYS_getrlimit, R7
+-	SWI $0
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+ TEXT runtime·raise(SB),NOSPLIT,$8
+ 	// thr_self(&4(R13))
+ 	MOVW $4(R13), R0 // arg 1 &4(R13)
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index bc3b8dbb1c..1e63dee4a1 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -43,7 +43,6 @@
+ #define SYS_rt_sigaction	174
+ #define SYS_rt_sigprocmask	175
+ #define SYS_sigaltstack 	186
+-#define SYS_ugetrlimit		191
+ #define SYS_mmap2		192
+ #define SYS_mincore		218
+ #define SYS_madvise		219
+@@ -132,14 +131,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$0
+-	MOVL	$SYS_ugetrlimit, AX
+-	MOVL	kind+0(FP), BX
+-	MOVL	limit+4(FP), CX
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$8
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index fdbb958bb2..c49bd8841d 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -33,7 +33,6 @@
+ #define SYS_exit		60
+ #define SYS_kill		62
+ #define SYS_fcntl		72
+-#define SYS_getrlimit		97
+ #define SYS_sigaltstack 	131
+ #define SYS_arch_prctl		158
+ #define SYS_gettid		186
+@@ -114,14 +113,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$0-20
+-	MOVL	kind+0(FP), DI
+-	MOVQ	limit+8(FP), SI
+-	MOVL	$SYS_getrlimit, AX
+-	SYSCALL
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 0869d9349f..ef72ae0308 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -37,7 +37,6 @@
+ #define SYS_tkill (SYS_BASE + 238)
+ #define SYS_sched_yield (SYS_BASE + 158)
+ #define SYS_pselect6 (SYS_BASE + 335)
+-#define SYS_ugetrlimit (SYS_BASE + 191)
+ #define SYS_sched_getaffinity (SYS_BASE + 242)
+ #define SYS_clock_gettime (SYS_BASE + 263)
+ #define SYS_epoll_create (SYS_BASE + 250)
+@@ -98,14 +97,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$0
+-	MOVW	kind+0(FP), R0
+-	MOVW	limit+4(FP), R1
+-	MOVW	$SYS_ugetrlimit, R7
+-	SWI	$0
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	code+0(FP), R0
+ 	MOVW	$SYS_exit_group, R7
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index d8efc50072..06a9efab99 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -29,7 +29,6 @@
+ #define SYS_rt_sigaction	134
+ #define SYS_rt_sigprocmask	135
+ #define SYS_sigaltstack		132
+-#define SYS_getrlimit		163
+ #define SYS_madvise		233
+ #define SYS_mincore		232
+ #define SYS_getpid		172
+@@ -116,14 +115,6 @@ done:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	kind+0(FP), R0
+-	MOVD	limit+8(FP), R1
+-	MOVD	$SYS_getrlimit, R8
+-	SVC
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$24-4
+ 	MOVWU	usec+0(FP), R3
+ 	MOVD	R3, R5
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index ba55526c26..c254b23ba7 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -33,7 +33,6 @@
+ #define SYS_rt_sigaction	5013
+ #define SYS_rt_sigprocmask	5014
+ #define SYS_sigaltstack		5129
+-#define SYS_getrlimit		5095
+ #define SYS_madvise		5027
+ #define SYS_mincore		5026
+ #define SYS_gettid		5178
+@@ -112,14 +111,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	kind+0(FP), R4	// _RLIMIT_AS = 6 on linux/mips
+-	MOVV	limit+8(FP), R5
+-	MOVV	$SYS_getrlimit, R2
+-	SYSCALL
+-	MOVW	R2, ret+16(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVWU	usec+0(FP), R3
+ 	MOVV	R3, R5
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index e6c8a2d41f..d96b5dac94 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -32,7 +32,6 @@
+ #define SYS_rt_sigaction	    4194
+ #define SYS_rt_sigprocmask		4195
+ #define SYS_sigaltstack		    4206
+-#define SYS_getrlimit		    4076
+ #define SYS_madvise		        4218
+ #define SYS_mincore		        4217
+ #define SYS_gettid		        4222
+@@ -110,14 +109,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$0-12
+-	MOVW	kind+0(FP), R4
+-	MOVW	limit+4(FP), R5
+-	MOVW	$SYS_getrlimit, R2
+-	SYSCALL
+-	MOVW	R2, ret+8(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$28-4
+ 	MOVW	usec+0(FP), R3
+ 	MOVW	R3, R5
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 9b45f94e65..def0ab47a2 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -35,7 +35,6 @@
+ #define SYS_rt_sigaction	173
+ #define SYS_rt_sigprocmask	174
+ #define SYS_sigaltstack		185
+-#define SYS_ugetrlimit		190
+ #define SYS_madvise		205
+ #define SYS_mincore		206
+ #define SYS_gettid		207
+@@ -103,13 +102,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	kind+0(FP), R3
+-	MOVD	limit+8(FP), R4
+-	SYSCALL	$SYS_ugetrlimit
+-	MOVW	R3, ret+16(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	usec+0(FP), R3
+ 	MOVD	R3, R5
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 72b024434f..4231297251 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -29,7 +29,6 @@
+ #define SYS_rt_sigaction        174
+ #define SYS_rt_sigprocmask      175
+ #define SYS_sigaltstack         186
+-#define SYS_ugetrlimit          191
+ #define SYS_madvise             219
+ #define SYS_mincore             218
+ #define SYS_gettid              236
+@@ -106,14 +105,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	kind+0(FP), R2
+-	MOVD	limit+8(FP), R3
+-	MOVW	$SYS_ugetrlimit, R1
+-	SYSCALL
+-	MOVW	R2, ret+16(FP)
+-	RET
+-
+ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	usec+0(FP), R2
+ 	MOVD	R2, R4

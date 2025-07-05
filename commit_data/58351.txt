@@ -11,7 +11,7 @@ Date:   Tue Oct 31 09:50:00 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go              |  4 ++--
  src/cmd/compile/internal/syntax/testdata/issue23434.go |  4 ++--
  src/cmd/compile/internal/syntax/testdata/issue31092.go |  2 +-
@@ -19,3 +19,159 @@ Date:   Tue Oct 31 09:50:00 2023 -0700
  src/cmd/compile/internal/syntax/testdata/tparams.go    |  4 ++--
  src/cmd/compile/internal/syntax/testdata/typeset.go    |  4 ++--
  6 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 3895f53cf7..b34a58c3c2 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1147,7 +1147,7 @@ loop:
+ 			}
+ 
+ 			// x[i:...
+-			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
++			// For better error message, don't simply use p.want(_Colon) here (go.dev/issue/47704).
+ 			if !p.got(_Colon) {
+ 				p.syntaxError("expected comma, : or ]")
+ 				p.advance(_Comma, _Colon, _Rbrack)
+@@ -2322,7 +2322,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 			// asking for a '{' rather than a ';' here leads to a better error message
+ 			p.want(_Lbrace)
+ 			if p.tok != _Lbrace {
+-				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., issue #22581)
++				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., go.dev/issue/22581)
+ 			}
+ 		}
+ 		if keyword == _For {
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue23434.go b/src/cmd/compile/internal/syntax/testdata/issue23434.go
+index 5a72a7f4ed..e436abfecb 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue23434.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue23434.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for issue 23434: Better synchronization of
++// Test case for go.dev/issue/23434: Better synchronization of
+ // parser after missing type. There should be exactly
+ // one error each time, with now follow errors.
+ 
+@@ -12,7 +12,7 @@ type T /* ERROR unexpected newline */
+ 
+ type Map map[int] /* ERROR unexpected newline */
+ 
+-// Examples from #23434:
++// Examples from go.dev/issue/23434:
+ 
+ func g() {
+ 	m := make(map[string] /* ERROR unexpected ! */ !)
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue31092.go b/src/cmd/compile/internal/syntax/testdata/issue31092.go
+index b1839b8f46..0bd40bd7cd 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue31092.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue31092.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test cases for issue 31092: Better synchronization of
++// Test cases for go.dev/issue/31092: Better synchronization of
+ // parser after seeing an := rather than an = in a const,
+ // type, or variable declaration.
+ 
+diff --git a/src/cmd/compile/internal/syntax/testdata/map2.go b/src/cmd/compile/internal/syntax/testdata/map2.go
+index 2833445662..3d1cbfbd22 100644
+--- a/src/cmd/compile/internal/syntax/testdata/map2.go
++++ b/src/cmd/compile/internal/syntax/testdata/map2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file is like map.go2, but instead if importing chans, it contains
++// This file is like map.go, but instead of importing chans, it contains
+ // the necessary functionality at the end of the file.
+ 
+ // Package orderedmap provides an ordered map, implemented as a binary tree.
+@@ -23,7 +23,7 @@ type node[K, V any] struct {
+ 
+ // New returns a new map.
+ func New[K, V any](compare func(K, K) int) *Map[K, V] {
+-        return &Map[K, V]{compare: compare}
++	return &Map[K, V]{compare: compare}
+ }
+ 
+ // find looks up key in the map, and returns either a pointer
+@@ -85,7 +85,7 @@ func (m *Map[K, V]) InOrder() *Iterator[K, V] {
+ 		// Stop sending values if sender.Send returns false,
+ 		// meaning that nothing is listening at the receiver end.
+ 		return f(n.left) &&
+-                        sender.Send(keyValue[K, V]{n.key, n.val}) &&
++			sender.Send(keyValue[K, V]{n.key, n.val}) &&
+ 			f(n.right)
+ 	}
+ 	go func() {
+@@ -119,7 +119,7 @@ func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T])
+ // A sender is used to send values to a Receiver.
+ type chans_Sender[T any] struct {
+ 	values chan<- T
+-	done <-chan bool
++	done   <-chan bool
+ }
+ 
+ func (s *chans_Sender[T]) Send(v T) bool {
+@@ -137,10 +137,10 @@ func (s *chans_Sender[T]) Close() {
+ 
+ type chans_Receiver[T any] struct {
+ 	values <-chan T
+-	done chan<- bool
++	done   chan<- bool
+ }
+ 
+ func (r *chans_Receiver[T]) Next() (T, bool) {
+ 	v, ok := <-r.values
+ 	return v, ok
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/syntax/testdata/tparams.go b/src/cmd/compile/internal/syntax/testdata/tparams.go
+index 646fbbebc8..15e92afa81 100644
+--- a/src/cmd/compile/internal/syntax/testdata/tparams.go
++++ b/src/cmd/compile/internal/syntax/testdata/tparams.go
+@@ -23,7 +23,7 @@ func f[a t, b t, c /* ERROR missing type constraint */ ]()
+ 
+ func f[a b,  /* ERROR expected ] */ 0] ()
+ 
+-// issue #49482
++// go.dev/issue/49482
+ type (
+ 	t[a *[]int] struct{}
+ 	t[a *t,] struct{}
+@@ -35,7 +35,7 @@ type (
+ 	t[a *struct{}|~t] struct{}
+ )
+ 
+-// issue #51488
++// go.dev/issue/51488
+ type (
+ 	t[a *t|t,] struct{}
+ 	t[a *t|t, b t] struct{}
+diff --git a/src/cmd/compile/internal/syntax/testdata/typeset.go b/src/cmd/compile/internal/syntax/testdata/typeset.go
+index fe5c3f45a8..63cdb079c0 100644
+--- a/src/cmd/compile/internal/syntax/testdata/typeset.go
++++ b/src/cmd/compile/internal/syntax/testdata/typeset.go
+@@ -44,7 +44,7 @@ type (
+         _[_ t|~struct{}] t
+         _[_ ~t|~struct{}] t
+ 
+-        // test cases for issue #49175
++        // test cases for go.dev/issue/49175
+         _[_ []t]t
+         _[_ [1]t]t
+         _[_ ~[]t]t
+@@ -52,7 +52,7 @@ type (
+         t [ /* ERROR type parameters must be named */ t[0]]t
+ )
+ 
+-// test cases for issue #49174
++// test cases for go.dev/issue/49174
+ func _[_ t]() {}
+ func _[_ []t]() {}
+ func _[_ [1]t]() {}

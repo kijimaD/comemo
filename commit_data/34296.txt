@@ -13,7 +13,7 @@ Date:   Fri Apr 28 12:43:06 2017 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go     |  4 +++-
  src/cmd/link/internal/arm64/asm.go     |  2 +-
  src/cmd/link/internal/ld/data.go       |  2 +-
@@ -26,3 +26,219 @@ Date:   Fri Apr 28 12:43:06 2017 +1200
  src/cmd/link/internal/sym/symkind.go   |  1 -
  src/cmd/link/internal/x86/asm.go       |  4 +++-
  11 files changed, 36 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 90d8a37877..0f9775ed77 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -113,7 +113,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
++		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++		// sense and should be removed when someone has thought about it properly.
++		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+ 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = objabi.R_PCREL
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index e8e6e6e855..324151e40e 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -239,7 +239,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+ 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+ 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+ 			// add + R_ADDRARM64.
+-			if !(r.Sym.Version != 0 || (r.Sym.Type&sym.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
++			if !(r.Sym.Version != 0 || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+ 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a5a329b6f0..84e073c42b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -122,7 +122,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 			continue
+ 		}
+ 
+-		if r.Sym != nil && (r.Sym.Type&(sym.SMASK|sym.SHIDDEN) == 0 || r.Sym.Type&sym.SMASK == sym.SXREF) {
++		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type&sym.SMASK == sym.SXREF) {
+ 			// When putting the runtime but not main into a shared library
+ 			// these symbols are undefined and that's OK.
+ 			if ctxt.BuildMode == BuildModeShared {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 884d07339c..5d123396b2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2159,7 +2159,9 @@ func undefsym(ctxt *Link, s *sym.Symbol) {
+ 		if r.Sym == nil { // happens for some external ARM relocs
+ 			continue
+ 		}
+-		if r.Sym.Type == sym.Sxxx || r.Sym.Type == sym.SXREF {
++		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++		// sense and should be removed when someone has thought about it properly.
++		if (r.Sym.Type == sym.Sxxx || r.Sym.Type == sym.SXREF) && !r.Sym.Attr.VisibilityHidden() {
+ 			Errorf(s, "undefined: %q", r.Sym.Name)
+ 		}
+ 		if !r.Sym.Attr.Reachable() && r.Type != objabi.R_WEAKADDROFF {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ac99a90e66..fc97bfbaf1 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -679,7 +679,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 			}
+ 		}
+ 		class := IMAGE_SYM_CLASS_EXTERNAL
+-		if s.Version != 0 || (s.Type&sym.SHIDDEN != 0) || s.Attr.Local() {
++		if s.Version != 0 || s.Attr.VisibilityHidden() || s.Attr.Local() {
+ 			class = IMAGE_SYM_CLASS_STATIC
+ 		}
+ 		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 5adce1530b..572b63a523 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+ 
+-	if x.Version != 0 || (x.Type&sym.SHIDDEN != 0) || x.Attr.Local() {
++	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -145,7 +145,12 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 		addr -= int64(xo.Sect.Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+-	if x.Type&sym.SHIDDEN != 0 {
++	if x.Attr.VisibilityHidden() {
++		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf, i.e. when
++		// internally linking. But STV_HIDDEN visibility only matters in object
++		// files and shared libraries, and as we are a long way from implementing
++		// internal linking for shared libraries and only create object files when
++		// externally linking, I don't think this makes a lot of sense.
+ 		other = STV_HIDDEN
+ 	}
+ 	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index d69270ffe3..5cae1070ce 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1043,8 +1043,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 				// set dupok generally. See http://codereview.appspot.com/5823055/
+ 				// comment #5 for details.
+ 				if s != nil && elfsym.other == 2 {
+-					s.Type |= sym.SHIDDEN
+-					s.Attr |= sym.AttrDuplicateOK
++					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
+ 				}
+ 			}
+ 
+@@ -1060,7 +1059,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 				// so put it in the hash table.
+ 				if needSym != 0 {
+ 					s = syms.Lookup(elfsym.name, localSymVersion)
+-					s.Type |= sym.SHIDDEN
++					s.Attr |= sym.AttrVisibilityHidden
+ 				}
+ 
+ 				break
+@@ -1072,14 +1071,14 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 				// don't bother to add them into the hash table
+ 				s = syms.Newsym(elfsym.name, localSymVersion)
+ 
+-				s.Type |= sym.SHIDDEN
++				s.Attr |= sym.AttrVisibilityHidden
+ 			}
+ 
+ 		case ElfSymBindWeak:
+ 			if needSym != 0 {
+ 				s = syms.Lookup(elfsym.name, 0)
+ 				if elfsym.other == 2 {
+-					s.Type |= sym.SHIDDEN
++					s.Attr |= sym.AttrVisibilityHidden
+ 				}
+ 			}
+ 
+@@ -1089,7 +1088,9 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 		}
+ 	}
+ 
+-	if s != nil && s.Type == 0 && elfsym.type_ != ElfSymTypeSection {
++	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++	// sense and should be removed when someone has thought about it properly.
++	if s != nil && s.Type == 0 && !s.Attr.VisibilityHidden() && elfsym.type_ != ElfSymTypeSection {
+ 		s.Type = sym.SXREF
+ 	}
+ 	elfsym.sym = s
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 553d18292f..d6d73bf88f 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -134,7 +134,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
+ 		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
++		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++		// sense and should be removed when someone has thought about it properly.
++		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+ 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = objabi.R_PCREL
+diff --git a/src/cmd/link/internal/sym/attribute.go b/src/cmd/link/internal/sym/attribute.go
+index 1293e890a4..27b45eef32 100644
+--- a/src/cmd/link/internal/sym/attribute.go
++++ b/src/cmd/link/internal/sym/attribute.go
+@@ -52,7 +52,12 @@ const (
+ 	AttrMakeTypelink
+ 	// AttrShared marks symbols compiled with the -shared option.
+ 	AttrShared
+-	// 14 attributes defined so far.
++	// AttrVisibilityHidden symbols are ELF symbols with
++	// visibility set to STV_HIDDEN. They become local symbols in
++	// the final executable. Only relevant when internally linking
++	// on an ELF platform.
++	AttrVisibilityHidden
++	// 15 attributes defined so far.
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -69,6 +74,7 @@ func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+ func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+ func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
+ func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
++func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 619c26d069..a47fa041de 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -107,7 +107,6 @@ const (
+ 	SDWARFLOC
+ 	SSUB       = SymKind(1 << 8)
+ 	SMASK      = SymKind(SSUB - 1)
+-	SHIDDEN    = SymKind(1 << 9)
+ 	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
+ )
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index c774caeefe..d2928d2706 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -182,7 +182,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
++		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++		// sense and should be removed when someone has thought about it properly.
++		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+ 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = objabi.R_PCREL

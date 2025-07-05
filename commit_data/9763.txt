@@ -30,7 +30,7 @@ Date:   Tue Sep 20 16:47:17 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5078046
-
+---
  test/fixedbugs/bug353.go | 2 +-
  test/fixedbugs/bug357.go | 3 ++-
  test/fixedbugs/bug358.go | 4 ++--
@@ -39,3 +39,114 @@ Date:   Tue Sep 20 16:47:17 2011 -0700
  test/fixedbugs/bug363.go | 4 ++--
  test/fixedbugs/bug365.go | 2 +-
  7 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/test/fixedbugs/bug353.go b/test/fixedbugs/bug353.go
+index 46f5c36cb3..b59d97f338 100644
+--- a/test/fixedbugs/bug353.go
++++ b/test/fixedbugs/bug353.go
+@@ -13,7 +13,7 @@ import (
+ 	"os"
+ )
+ 
+-func echo(fd io.ReadWriterCloser) { // ERROR "undefined: io.ReadWriterCloser"
++func echo(fd io.ReadWriterCloser) { // ERROR "undefined.*io.ReadWriterCloser"
+ 	var buf [1024]byte
+ 	for {
+ 		n, err := fd.Read(buf)
+diff --git a/test/fixedbugs/bug357.go b/test/fixedbugs/bug357.go
+index 2220398d01..448d982637 100644
+--- a/test/fixedbugs/bug357.go
++++ b/test/fixedbugs/bug357.go
+@@ -15,8 +15,9 @@ func bla1() bool {
+ 
+ func bla5() bool {
+ 	_ = 1
+-	false  // ERROR "false not used"
++	false  // ERROR "false not used|value computed is not used"
+ 	_ = 2
++	return false
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug358.go b/test/fixedbugs/bug358.go
+index cc622c047f..f43709b7e2 100644
+--- a/test/fixedbugs/bug358.go
++++ b/test/fixedbugs/bug358.go
+@@ -11,12 +11,12 @@ package main
+ 
+ import (
+ 	"http"
+-	"io/ioutil"
++	"io/ioutil"	// GCCGO_ERROR "imported and not used"
+ 	"os"
+ )
+ 
+ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+-	return func(w http.ResponseWriter, r *http.Request)  // ERROR "syntax error"
++	return func(w http.ResponseWriter, r *http.Request)  // ERROR "syntax error|invalid use of type"
+ }
+ 
+ type Page struct {
+diff --git a/test/fixedbugs/bug359.go b/test/fixedbugs/bug359.go
+index 7f34672f1d..3701499ed2 100644
+--- a/test/fixedbugs/bug359.go
++++ b/test/fixedbugs/bug359.go
+@@ -16,11 +16,11 @@ type Painting struct {
+ }
+ 
+ func (p Painting) Foo() {
+-	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field"
++	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field|hidden field"
+ 	}
+ }
+ 
+ // from comment 4 of issue 1910
+ type Foo interface {
+-	Run(a int) (a int)  // ERROR "a redeclared"
++	Run(a int) (a int)  // ERROR "a redeclared|redefinition|previous"
+ }
+diff --git a/test/fixedbugs/bug362.go b/test/fixedbugs/bug362.go
+index 7912091030..f38572c0d0 100644
+--- a/test/fixedbugs/bug362.go
++++ b/test/fixedbugs/bug362.go
+@@ -10,7 +10,7 @@
+ package main
+ 
+ var (
+-	a = iota  // ERROR "undefined: iota"
+-	b = iota  // ERROR "undefined: iota"
+-	c = iota  // ERROR "undefined: iota"
++	a = iota  // ERROR "undefined: iota|iota is only defined in const"
++	b = iota  // ERROR "undefined: iota|iota is only defined in const"
++	c = iota  // ERROR "undefined: iota|iota is only defined in const"
+ )
+diff --git a/test/fixedbugs/bug363.go b/test/fixedbugs/bug363.go
+index 7e89749a0a..7a9952642d 100644
+--- a/test/fixedbugs/bug363.go
++++ b/test/fixedbugs/bug363.go
+@@ -10,10 +10,10 @@ package main
+ 
+ func main() {
+ 	var i uint = 33
+-	var a = (1<<i) + 4.5  // ERROR "shift of type float64"
++	var a = (1<<i) + 4.5  // ERROR "shift of type float64|shift of non-integer"
+ 	println(a)
+ 	
+-	var b = (1<<i) + 4.0  // ERROR "shift of type float64"
++	var b = (1<<i) + 4.0  // ERROR "shift of type float64|shift of non-integer"
+ 	println(b)
+ 
+ 	var c int64 = (1<<i) + 4.0  // ok - it's all int64
+diff --git a/test/fixedbugs/bug365.go b/test/fixedbugs/bug365.go
+index 7ec19b0c8b..ce69505044 100644
+--- a/test/fixedbugs/bug365.go
++++ b/test/fixedbugs/bug365.go
+@@ -12,7 +12,7 @@
+ package main
+ 
+ type S struct {
+-	err os.Error  // ERROR "undefined"
++	err os.Error  // ERROR "undefined|expected package"
+ 	Num int
+ }
+ 

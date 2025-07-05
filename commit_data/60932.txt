@@ -15,6 +15,20 @@ Date:   Sun Sep 8 06:18:22 2024 +0000
     Reviewed-by: Tim King <taking@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b24ebec27d..a35f806aa3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -227,7 +227,7 @@ const (
+ 	// --------------  ---------  ----------  ----------  -----------
+ 	//       */64-bit         48        64MB           1    4M (32MB)
+ 	// windows/64-bit         48         4MB          64    1M  (8MB)
+-	//      ios/arm64         33         4MB           1  2048  (8KB)
++	//      ios/arm64         40         4MB           1  256K  (2MB)
+ 	//       */32-bit         32         4MB           1  1024  (4KB)
+ 	//     */mips(le)         31         4MB           1   512  (2KB)
+ 

@@ -9,7 +9,7 @@ Date:   Mon Dec 5 14:40:19 2011 -0500
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5431046
-
+---
  src/cmd/gc/dcl.c                | 112 ++++++++++++++++-----
  src/cmd/gc/export.c             |  97 +++++++++---------
  src/cmd/gc/fmt.c                | 136 +++++++++++++------------
@@ -21,3 +21,1428 @@ Date:   Mon Dec 5 14:40:19 2011 -0500
  src/cmd/gc/typecheck.c          |  25 +++--
  src/pkg/exp/types/gcimporter.go |   9 +-
  10 files changed, 404 insertions(+), 275 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a84b27c9ba..c61306ad4c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -8,6 +8,7 @@
+ #include	"y.tab.h"
+ 
+ static	void	funcargs(Node*);
++static	void	funcargs2(Type*);
+ 
+ static int
+ dflag(void)
+@@ -547,13 +548,6 @@ ifacedcl(Node *n)
+ void
+ funchdr(Node *n)
+ {
+-
+-	if(n->nname != N) {
+-		n->nname->op = ONAME;
+-		declare(n->nname, PFUNC);
+-		n->nname->defn = n;
+-	}
+-
+ 	// change the declaration context from extern to auto
+ 	if(funcdepth == 0 && dclcontext != PEXTERN)
+ 		fatal("funchdr: dclcontext");
+@@ -564,10 +558,13 @@ funchdr(Node *n)
+ 
+ 	n->outer = curfn;
+ 	curfn = n;
++
+ 	if(n->nname)
+ 		funcargs(n->nname->ntype);
+-	else
++	else if (n->ntype)
+ 		funcargs(n->ntype);
++	else
++		funcargs2(n->type);
+ }
+ 
+ static void
+@@ -582,11 +579,11 @@ funcargs(Node *nt)
+ 
+ 	// declare the receiver and in arguments.
+ 	// no n->defn because type checking of func header
+-	// will fill in the types before we can demand them.
++	// will not fill in the types until later
+ 	if(nt->left != N) {
+ 		n = nt->left;
+ 		if(n->op != ODCLFIELD)
+-			fatal("funcargs1 %O", n->op);
++			fatal("funcargs receiver %O", n->op);
+ 		if(n->left != N) {
+ 			n->left->op = ONAME;
+ 			n->left->ntype = n->right;
+@@ -596,7 +593,7 @@ funcargs(Node *nt)
+ 	for(l=nt->list; l; l=l->next) {
+ 		n = l->n;
+ 		if(n->op != ODCLFIELD)
+-			fatal("funcargs2 %O", n->op);
++			fatal("funcargs in %O", n->op);
+ 		if(n->left != N) {
+ 			n->left->op = ONAME;
+ 			n->left->ntype = n->right;
+@@ -609,7 +606,7 @@ funcargs(Node *nt)
+ 	for(l=nt->rlist; l; l=l->next) {
+ 		n = l->n;
+ 		if(n->op != ODCLFIELD)
+-			fatal("funcargs3 %O", n->op);
++			fatal("funcargs out %O", n->op);
+ 		if(n->left != N) {
+ 			n->left->op = ONAME;
+ 			n->left->ntype = n->right;
+@@ -627,6 +624,48 @@ funcargs(Node *nt)
+ 	}
+ }
+ 
++/*
++ * Same as funcargs, except run over an already constructed TFUNC.
++ * This happens during import, where the hidden_fndcl rule has
++ * used functype directly to parse the function's type.
++ */
++static void
++funcargs2(Type *t)
++{
++	Type *ft;
++	Node *n;
++
++	if(t->etype != TFUNC)
++		fatal("funcargs2 %T", t);
++	
++	if(t->thistuple)
++		for(ft=getthisx(t)->type; ft; ft=ft->down) {
++			if(!ft->nname || !ft->nname->sym)
++				continue;
++			n = newname(ft->nname->sym);
++			n->type = ft->type;
++			declare(n, PPARAM);
++		}
++
++	if(t->intuple)
++		for(ft=getinargx(t)->type; ft; ft=ft->down) {
++			if(!ft->nname || !ft->nname->sym)
++				continue;
++			n = newname(ft->nname->sym);
++			n->type = ft->type;
++			declare(n, PPARAM);
++		}
++
++	if(t->outtuple)
++		for(ft=getoutargx(t)->type; ft; ft=ft->down) {
++			if(!ft->nname || !ft->nname->sym)
++				continue;
++			n = newname(ft->nname->sym);
++			n->type = ft->type;
++			declare(n, PPARAMOUT);
++		}
++}
++
+ /*
+  * finish the body.
+  * called in auto-declaration context.
+@@ -654,7 +693,7 @@ typedcl0(Sym *s)
+ {
+ 	Node *n;
+ 
+-	n = dclname(s);
++	n = newname(s);
+ 	n->op = OTYPE;
+ 	declare(n, dclcontext);
+ 	return n;
+@@ -740,8 +779,6 @@ structfield(Node *n)
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
+-		if(importpkg && !exportname(f->sym->name))
+-			f->sym = pkglookup(f->sym->name, structpkg);
+ 	}
+ 
+ 	lineno = lno;
+@@ -778,8 +815,12 @@ tostruct(NodeList *l)
+ 	Type *t, *f, **tp;
+ 	t = typ(TSTRUCT);
+ 
+-	for(tp = &t->type; l; l=l->next,tp = &(*tp)->down)
+-		*tp = structfield(l->n);
++	for(tp = &t->type; l; l=l->next) {
++		f = structfield(l->n);
++
++		*tp = f;
++		tp = &f->down;
++	}
+ 
+ 	for(f=t->type; f && !t->broke; f=f->down)
+ 		if(f->broke)
+@@ -803,7 +844,7 @@ tofunargs(NodeList *l)
+ 
+ 	for(tp = &t->type; l; l=l->next) {
+ 		f = structfield(l->n);
+-
++		f->funarg = 1;
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if(l->n->left && l->n->left->class == PPARAM)
+ 			l->n->left->paramfld = f;
+@@ -944,7 +985,10 @@ embedded(Sym *s)
+ 		*utfrune(name, CenterDot) = 0;
+ 	}
+ 
+-	n = newname(lookup(name));
++	if(exportname(name) || s->pkg == builtinpkg)  // old behaviour, tests pass, but is it correct?
++		n = newname(lookup(name));
++	else
++		n = newname(pkglookup(name, s->pkg));
+ 	n = nod(ODCLFIELD, n, oldname(s));
+ 	n->embedded = 1;
+ 	return n;
+@@ -1009,6 +1053,17 @@ checkarglist(NodeList *all, int input)
+ 			t = n;
+ 			n = N;
+ 		}
++
++		// during import l->n->op is OKEY, but l->n->left->sym == S
++		// means it was a '?', not that it was
++		// a lone type This doesn't matter for the exported
++		// declarations, which are parsed by rules that don't
++		// use checkargs, but can happen for func literals in
++		// the inline bodies.
++		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.c prints _ instead of ?
++		if(importpkg && n->sym == S)
++			n = N;
++
+ 		if(n != N && n->sym == S) {
+ 			t = n;
+ 			n = N;
+@@ -1137,7 +1192,6 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 	else
+ 		p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
+ 	s = pkglookup(p, s->pkg);
+-	//print("methodsym:%s -> %+S\n", p, s);
+ 	free(p);
+ 	return s;
+ 
+@@ -1174,7 +1228,11 @@ methodname1(Node *n, Node *t)
+ 		p = smprint("(%s%S).%S", star, t->sym, n->sym);
+ 	else
+ 		p = smprint("%S.%S", t->sym, n->sym);
+-	n = newname(pkglookup(p, t->sym->pkg));
++
++	if(exportname(t->sym->name))
++		n = newname(lookup(p));
++	else
++		n = newname(pkglookup(p, t->sym->pkg));
+ 	free(p);
+ 	return n;
+ }
+@@ -1234,8 +1292,6 @@ addmethod(Sym *sf, Type *t, int local)
+ 	}
+ 
+ 	pa = f;
+-	if(importpkg && !exportname(sf->name))
+-		sf = pkglookup(sf->name, importpkg);
+ 
+ 	n = nod(ODCLFIELD, newname(sf), N);
+ 	n->type = t;
+@@ -1258,10 +1314,16 @@ addmethod(Sym *sf, Type *t, int local)
+ 		return;
+ 	}
+ 
++	f = structfield(n);
++
++	// during import unexported method names should be in the type's package
++	if(importpkg && f->sym && !exportname(f->sym->name) && f->sym->pkg != structpkg)
++		fatal("imported method name %+S in wrong package %s\n", f->sym, structpkg->name);
++
+ 	if(d == T)
+-		pa->method = structfield(n);
++		pa->method = f;
+ 	else
+-		d->down = structfield(n);
++		d->down = f;
+ 	return;
+ }
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 6938f04889..5951aa2e88 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -7,11 +7,9 @@
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
+-static	void	dumpsym(Sym*);
+-static	void	dumpexporttype(Type*);
+-static	void	dumpexportvar(Sym*);
+-static	void	dumpexportconst(Sym*);
++static void	dumpexporttype(Type*);
+ 
++// Mark n's symbol as exported
+ void
+ exportsym(Node *n)
+ {
+@@ -27,6 +25,7 @@ exportsym(Node *n)
+ 	exportlist = list(exportlist, n);
+ }
+ 
++// Mark n's symbol as package-local
+ static void
+ packagesym(Node *n)
+ {
+@@ -178,7 +177,7 @@ dumpexporttype(Type *t)
+ 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
+ 	for(i=0; i<n; i++) {
+ 		f = m[i];
+-		Bprint(bout, "\tfunc (%#T) %#hS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
++		Bprint(bout, "\tfunc (%#T) %#hhS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
+ 	}
+ }
+ 
+@@ -200,15 +199,18 @@ dumpsym(Sym *s)
+ 	default:
+ 		yyerror("unexpected export symbol: %O %S", s->def->op, s);
+ 		break;
++
+ 	case OLITERAL:
+ 		dumpexportconst(s);
+ 		break;
++
+ 	case OTYPE:
+ 		if(s->def->type->etype == TFORW)
+ 			yyerror("export of incomplete type %S", s);
+ 		else
+ 			dumpexporttype(s->def->type);
+ 		break;
++
+ 	case ONAME:
+ 		dumpexportvar(s);
+ 		break;
+@@ -286,12 +288,25 @@ pkgtype(Sym *s)
+ 	return s->def->type;
+ }
+ 
+-static int
+-mypackage(Sym *s)
++void
++importimport(Sym *s, Strlit *z)
+ {
+-	// we import all definitions for runtime.
+-	// lowercase ones can only be used by the compiler.
+-	return s->pkg == localpkg || s->pkg == runtimepkg;
++	// Informational: record package name
++	// associated with import path, for use in
++	// human-readable messages.
++	Pkg *p;
++
++	p = mkpkg(z);
++	if(p->name == nil) {
++		p->name = s->name;
++		pkglookup(s->name, nil)->npkg++;
++	} else if(strcmp(p->name, s->name) != 0)
++		yyerror("conflicting names %s and %s for package \"%Z\"", p->name, s->name, p->path);
++	
++	if(!incannedimport && myimportpath != nil && strcmp(z->s, myimportpath) == 0) {
++		yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, z);
++		errorexit();
++	}
+ }
+ 
+ void
+@@ -299,19 +314,17 @@ importconst(Sym *s, Type *t, Node *n)
+ {
+ 	Node *n1;
+ 
+-	if(!exportname(s->name) && !mypackage(s))
+-		return;
+ 	importsym(s, OLITERAL);
+ 	convlit(&n, t);
+-	if(s->def != N) {
+-		// TODO: check if already the same.
++
++	if(s->def != N)	 // TODO: check if already the same.
+ 		return;
+-	}
+ 
+ 	if(n->op != OLITERAL) {
+ 		yyerror("expression must be a constant");
+ 		return;
+ 	}
++
+ 	if(n->sym != S) {
+ 		n1 = nod(OXXX, N, N);
+ 		*n1 = *n;
+@@ -325,13 +338,10 @@ importconst(Sym *s, Type *t, Node *n)
+ }
+ 
+ void
+-importvar(Sym *s, Type *t, int ctxt)
++importvar(Sym *s, Type *t)
+ {
+ 	Node *n;
+ 
+-	if(!exportname(s->name) && !initname(s->name) && !mypackage(s))
+-		return;
+-
+ 	importsym(s, ONAME);
+ 	if(s->def != N && s->def->op == ONAME) {
+ 		if(eqtype(t, s->def->type))
+@@ -340,7 +350,7 @@ importvar(Sym *s, Type *t, int ctxt)
+ 	}
+ 	n = newname(s);
+ 	n->type = t;
+-	declare(n, ctxt);
++	declare(n, PEXTERN);
+ 
+ 	if(debug['E'])
+ 		print("import var %S %lT\n", s, t);
+@@ -351,38 +361,25 @@ importtype(Type *pt, Type *t)
+ {
+ 	Node *n;
+ 
+-	if(pt != T && t != T) {
+-		// override declaration in unsafe.go for Pointer.
+-		// there is no way in Go code to define unsafe.Pointer
+-		// so we have to supply it.
+-		if(incannedimport &&
+-		   strcmp(importpkg->name, "unsafe") == 0 &&
+-		   strcmp(pt->nod->sym->name, "Pointer") == 0) {
+-			t = types[TUNSAFEPTR];
+-		}
+-
+-		if(pt->etype == TFORW) {
+-			n = pt->nod;
+-			copytype(pt->nod, t);
+-			// unzero nod
+-			pt->nod = n;
+-			
+-			pt->sym->lastlineno = parserline();
+-			declare(n, PEXTERN);
+-			
+-			checkwidth(pt);
+-		} else if(!eqtype(pt->orig, t))
+-			yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
++	// override declaration in unsafe.go for Pointer.
++	// there is no way in Go code to define unsafe.Pointer
++	// so we have to supply it.
++	if(incannedimport &&
++	   strcmp(importpkg->name, "unsafe") == 0 &&
++	   strcmp(pt->nod->sym->name, "Pointer") == 0) {
++		t = types[TUNSAFEPTR];
+ 	}
+ 
++	if(pt->etype == TFORW) {
++		n = pt->nod;
++		copytype(pt->nod, t);
++		pt->nod = n;		// unzero nod
++		pt->sym->lastlineno = parserline();
++		declare(n, PEXTERN);
++		checkwidth(pt);
++	} else if(!eqtype(pt->orig, t))
++		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
++
+ 	if(debug['E'])
+ 		print("import type %T %lT\n", pt, t);
+ }
+-
+-void
+-importmethod(Sym *s, Type *t)
+-{
+-	checkwidth(t);
+-	addmethod(s, t, 0);
+-}
+-
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index b32aaaab20..86711869d8 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -24,7 +24,7 @@
+ //	%S Sym*		Symbols
+ //		Flags: +,- #: mode (see below)
+ //			"%hS"	unqualified identifier in any mode
+-//			"%hhS"  strip type qualifier off of method name
++//			"%hhS"  in export mode: unqualified identifier if exported, qualified if not
+ //
+ //	%T Type*	Types
+ //		Flags: +,- #: mode (see below)
+@@ -341,6 +341,9 @@ Jconv(Fmt *fp)
+ 	if(n->implicit != 0)
+ 		fmtprint(fp, " implicit(%d)", n->implicit);
+ 
++	if(n->embedded != 0)
++		fmtprint(fp, " embedded(%d)", n->embedded);
++
+ 	if(!c && n->used != 0)
+ 		fmtprint(fp, " used(%d)", n->used);
+ 	return 0;
+@@ -488,7 +491,7 @@ symfmt(Fmt *fp, Sym *s)
+ 			if(s->pkg == localpkg)
+ 				return fmtstrcpy(fp, s->name);
+ 			// If the name was used by multiple packages, display the full path,
+-			if(pkglookup(s->pkg->name, nil)->npkg > 1)
++			if(s->pkg->name && pkglookup(s->pkg->name, nil)->npkg > 1)
+ 				return fmtprint(fp, "\"%Z\".%s", s->pkg->path, s->name);
+ 			return fmtprint(fp, "%s.%s", s->pkg->name, s->name);
+ 		case FDbg:
+@@ -502,11 +505,19 @@ symfmt(Fmt *fp, Sym *s)
+ 		}
+ 	}
+ 
+-	if(fp->flags&FmtByte) {
++	if(fp->flags&FmtByte) {  // FmtByte (hh) implies FmtShort (h)
+ 		// skip leading "type." in method name
+ 		p = utfrrune(s->name, '.');
+ 		if(p)
+-			return fmtstrcpy(fp, p+1);
++			p++;
++		else
++			p = s->name;
++
++		// exportname needs to see the name without the prefix too.
++		if((fmtmode == FExp && !exportname(p)) || fmtmode == FDbg)
++			return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, p);
++
++		return fmtstrcpy(fp, p);
+ 	}
+ 
+ 	return fmtstrcpy(fp, s->name);
+@@ -672,9 +683,9 @@ typefmt(Fmt *fp, Type *t)
+ 			fmtstrcpy(fp, "struct {");
+ 			for(t1=t->type; t1!=T; t1=t1->down)
+ 				if(t1->down)
+-					fmtprint(fp, " %T;", t1);
++					fmtprint(fp, " %lT;", t1);
+ 				else
+-					fmtprint(fp, " %T ", t1);
++					fmtprint(fp, " %lT ", t1);
+ 			fmtstrcpy(fp, "}");
+ 		}
+ 		return 0;
+@@ -682,21 +693,22 @@ typefmt(Fmt *fp, Type *t)
+ 	case TFIELD:
+ 		if(!(fp->flags&FmtShort)) {
+ 			s = t->sym;
+-			switch(fmtmode) {
+-			case FErr:
+-			case FExp:
+-				// Take the name from the original, lest we substituted it with .anon%d
+-				if (t->nname)
+-					s = t->nname->orig->sym;
+-
+-				if((s == S || t->embedded)) {
++			// Take the name from the original, lest we substituted it with .anon%d
++			if (t->nname && (fmtmode == FErr || fmtmode == FExp))
++				s = t->nname->orig->sym;
++			
++			if(s != S && !t->embedded) {
++				if(fp->flags&FmtLong)
++					fmtprint(fp, "%hhS ", s);  // qualify non-exported names (used on structs, not on funarg)
++				else 
++					fmtprint(fp, "%S ", s);
++			} else if(fmtmode == FExp) {
++				// TODO(rsc) this breaks on the eliding of unused arguments in the backend
++				// when this is fixed, the special case in dcl.c checkarglist can go.
++				//if(t->funarg)
++				//	fmtstrcpy(fp, "_ ");
++				//else
+ 					fmtstrcpy(fp, "? ");
+-					break;
+-				}
+-				// fallthrough
+-			default:
+-				if(!(s == S || t->embedded))
+-					fmtprint(fp, "%hS ", s);
+ 			}
+ 		}
+ 
+@@ -764,15 +776,7 @@ stmtfmt(Fmt *f, Node *n)
+ 
+ 	switch(n->op){
+ 	case ODCL:
+-		switch(n->left->class) {
+-		case PFUNC:
+-		case PEXTERN:
+-			fmtprint(f, "var %S %T", n->left->sym, n->left->type);
+-			break;
+-		default:
+-			fmtprint(f, "var %hS %T", n->left->sym, n->left->type);
+-			break;
+-		}
++		fmtprint(f, "var %S %T", n->left->sym, n->left->type);
+ 		break;
+ 
+ 	case ODCLFIELD:
+@@ -931,9 +935,15 @@ static int opprec[] = {
+ 	[ORECV] = 8,
+ 	[ORUNESTR] = 8,
+ 	[OTPAREN] = 8,
++	[OSTRUCTLIT] = 8,
++	[OMAPLIT] = 8,
++	[OARRAYLIT] = 8,
+ 
+ 	[OINDEXMAP] = 8,
+ 	[OINDEX] = 8,
++	[OSLICE] = 8,
++	[OSLICESTR] = 8,
++	[OSLICEARR] = 8,
+ 	[ODOTINTER] = 8,
+ 	[ODOTMETH] = 8,
+ 	[ODOTPTR] = 8,
+@@ -1006,6 +1016,7 @@ static int
+ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
++	NodeList *l;
+ 
+ 	while(n && n->implicit)
+ 		n = n->left;
+@@ -1044,15 +1055,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ONAME:
+ 	case OPACK:
+ 	case ONONAME:
+-		if(fmtmode == FExp) {
+-			switch(n->class&~PHEAP) {
+-			case PEXTERN:
+-			case PFUNC:
+-				break;
+-			default:
+-				return fmtprint(f, "%hS", n->sym);
+-			}
+-		}
+ 		return fmtprint(f, "%S", n->sym);
+ 
+ 	case OTYPE:
+@@ -1091,39 +1093,31 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OTFUNC:
+ 		return fmtprint(f, "<func>");
+ 
+-	case OPLUS:
+-	case OMINUS:
+-		if(n->left->op == n->op)
+-			return fmtprint(f, "%#O %N", n->op, n->left);
+-		// fallthrough
+-	case OADDR:
+-	case OCOM:
+-	case OIND:
+-	case ONOT:
+-	case ORECV:
+-		return fmtprint(f, "%#O%N", n->op, n->left);
+-
+ 	case OCLOSURE:
+ 		if(fmtmode == FErr)
+ 			return fmtstrcpy(f, "func literal");
+-		// return fmtprint(f, "%T { %H }", n->type, n->nbody); this prints the list/rlist turned to types, not what we want
+-		if(!n->rlist)
+-			return fmtprint(f, "func(%,H) { %H } ", n->list, n->nbody);
+-		if(!n->rlist->next && !n->rlist->n->left)
+-			return fmtprint(f, "func(%,H) %N { %H } ", n->list, n->rlist->n->right, n->nbody);
+-		return fmtprint(f, "func(%,H) (%,H) { %H } ", n->list, n->rlist, n->nbody);
++		return fmtprint(f, "%T { %H }", n->type, n->nbody);
+ 
+ 	case OCOMPLIT:
+ 		return fmtstrcpy(f, "composite literal");
+ 
+ 	case OPTRLIT:
+-		if(fmtmode == FErr)
+-			return fmtprint(f, "&%T literal", n->type->type);
+-		return fmtprint(f, "&%T{ %,H }", n->type->type, n->list);
++		return fmtprint(f, "&%N", n->left);
++
++	case OSTRUCTLIT:
++		if (fmtmode == FExp) {   // requires special handling of field names
++			fmtprint(f, "%T{", n->type);
++			for(l=n->list; l; l=l->next)
++				if(l->next)
++					fmtprint(f, " %hhS:%N,", l->n->left->sym, l->n->right);
++				else
++					fmtprint(f, " %hhS:%N ", l->n->left->sym, l->n->right);
++			return fmtstrcpy(f, "}");
++		}
++		// fallthrough
+ 
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+-	case OSTRUCTLIT:
+ 		if(fmtmode == FErr)
+ 			return fmtprint(f, "%T literal", n->type);
+ 		return fmtprint(f, "%T{ %,H }", n->type, n->list);
+@@ -1211,6 +1205,21 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "make(%T, %,H)", n->type, n->list->next);
+ 		return fmtprint(f, "make(%T)", n->type);
+ 
++	// Unary
++	case OPLUS:
++	case OMINUS:
++	case OADDR:
++	case OCOM:
++	case OIND:
++	case ONOT:
++	case ORECV:
++		if(n->left->op == n->op)
++			fmtprint(f, "%#O ", n->op);
++		else
++			fmtprint(f, "%#O", n->op);
++		return exprfmt(f, n->left, nprec+1);
++
++	// Binary
+ 	case OADD:
+ 	case OADDSTR:
+ 	case OAND:
+@@ -1274,8 +1283,7 @@ indent(Fmt *fp)
+ {
+ 	int i;
+ 
+-	if(dumpdepth > 1)
+-		fmtstrcpy(fp, "\n");
++	fmtstrcpy(fp, "\n");
+ 	for(i = 0; i < dumpdepth; ++i)
+ 		fmtstrcpy(fp, ".   ");
+ }
+@@ -1324,7 +1332,6 @@ nodedump(Fmt *fp, Node *n)
+ 	case OTYPE:
+ 		fmtprint(fp, "%O %S type=%T", n->op, n->sym, n->type);
+ 		if(recur && n->type == T && n->ntype) {
+-			fmtstrcpy(fp, "\n");
+ 			indent(fp);
+ 			fmtprint(fp, "%O-ntype%N", n->op, n->ntype);
+ 		}
+@@ -1384,6 +1391,9 @@ Sconv(Fmt *fp)
+ 	if(s == S)
+ 		return fmtstrcpy(fp, "<S>");
+ 
++	if(s->name[0] == '_' && s->name[1] == '\0')
++		return fmtstrcpy(fp, "_");
++
+ 	sf = fp->flags;
+ 	sm = setfmode(&fp->flags);
+ 	r = symfmt(fp, s);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 59f43dd6d6..82d5039f0c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -135,7 +135,7 @@ struct	Type
+ 	uchar	printed;
+ 	uchar	embedded;	// TFIELD embedded type
+ 	uchar	siggen;
+-	uchar	funarg;
++	uchar	funarg;		// on TSTRUCT and TFIELD
+ 	uchar	copyany;
+ 	uchar	local;		// created in this file
+ 	uchar	deferwidth;
+@@ -325,9 +325,9 @@ struct	NodeList
+ 
+ enum
+ {
+-	SymExport	= 1<<0,
++	SymExport	= 1<<0,	// to be exported
+ 	SymPackage	= 1<<1,
+-	SymExported	= 1<<2,
++	SymExported	= 1<<2,	// already written out by export
+ 	SymUniq		= 1<<3,
+ 	SymSiggen	= 1<<4,
+ };
+@@ -794,7 +794,7 @@ EXTERN	NodeList*	xtop;
+ EXTERN	NodeList*	externdcl;
+ EXTERN	NodeList*	closures;
+ EXTERN	NodeList*	exportlist;
+-EXTERN	NodeList*	typelist;
++EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+ EXTERN	int	incannedimport;
+ EXTERN	int	statuniqgen;		// name generator for static temps
+@@ -950,11 +950,11 @@ void	autoexport(Node *n, int ctxt);
+ void	dumpexport(void);
+ int	exportname(char *s);
+ void	exportsym(Node *n);
+-void	importconst(Sym *s, Type *t, Node *n);
+-void	importmethod(Sym *s, Type *t);
+-Sym*	importsym(Sym *s, int op);
+-void	importtype(Type *pt, Type *t);
+-void	importvar(Sym *s, Type *t, int ctxt);
++void    importconst(Sym *s, Type *t, Node *n);
++void	importimport(Sym *s, Strlit *z);
++Sym*    importsym(Sym *s, int op);
++void    importtype(Type *pt, Type *t);
++void    importvar(Sym *s, Type *t);
+ Type*	pkgtype(Sym *s);
+ 
+ /*
+@@ -983,7 +983,7 @@ Node*	temp(Type*);
+  *	init.c
+  */
+ void	fninit(NodeList *n);
+-Node*	renameinit(Node *n);
++Sym*	renameinit(void);
+ 
+ /*
+  *	lex.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 530e54112a..1b00235083 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -56,7 +56,7 @@ static void fixlbrace(int);
+ %type	<node>	case caseblock
+ %type	<node>	compound_stmt dotname embed expr complitexpr
+ %type	<node>	expr_or_type
+-%type	<node>	fndcl fnliteral
++%type	<node>	fndcl hidden_fndcl fnliteral
+ %type	<node>	for_body for_header for_stmt if_header if_stmt else non_dcl_stmt
+ %type	<node>	interfacedcl keyval labelname name
+ %type	<node>	name_or_type non_expr_type
+@@ -80,8 +80,8 @@ static void fixlbrace(int);
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+-%type	<node>	hidden_constant hidden_literal hidden_dcl
+-%type	<node>	hidden_interfacedcl hidden_structdcl hidden_opt_sym
++%type	<node>	hidden_constant hidden_literal hidden_funarg
++%type	<node>	hidden_interfacedcl hidden_structdcl
+ 
+ %type	<list>	hidden_funres
+ %type	<list>	ohidden_funres
+@@ -235,7 +235,7 @@ import_here:
+ 	}
+ 
+ import_package:
+-	LPACKAGE sym import_safety ';'
++	LPACKAGE LNAME import_safety ';'
+ 	{
+ 		if(importpkg->name == nil) {
+ 			importpkg->name = $2->name;
+@@ -1004,7 +1004,17 @@ onew_name:
+ 
+ sym:
+ 	LNAME
++	{
++		$$ = $1;
++		// during imports, unqualified non-exported identifiers are from builtinpkg
++		if(importpkg != nil && !exportname($1->name))
++			$$ = pkglookup($1->name, builtinpkg);
++	}
+ |	hidden_importsym
++|	'?'
++	{
++		$$ = S;
++	}
+ 
+ hidden_importsym:
+ 	'@' LLITERAL '.' LNAME
+@@ -1186,38 +1196,43 @@ xfndcl:
+ 	}
+ 
+ fndcl:
+-	dcl_name '(' oarg_type_list_ocomma ')' fnres
++	sym '(' oarg_type_list_ocomma ')' fnres
+ 	{
+-		Node *n;
++		Node *t;
+ 
++		$$ = N;
+ 		$3 = checkarglist($3, 1);
+-		$$ = nod(ODCLFUNC, N, N);
+-		$$->nname = $1;
+-		n = nod(OTFUNC, N, N);
+-		n->list = $3;
+-		n->rlist = $5;
+-		if(strcmp($1->sym->name, "init") == 0) {
+-			$$->nname = renameinit($1);
++
++		if(strcmp($1->name, "init") == 0) {
++			$1 = renameinit();
+ 			if($3 != nil || $5 != nil)
+ 				yyerror("func init must have no arguments and no return values");
+ 		}
+-		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->sym->name, "main") == 0) {
++		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->name, "main") == 0) {
+ 			if($3 != nil || $5 != nil)
+ 				yyerror("func main must have no arguments and no return values");
+ 		}
+-		// TODO: check if nname already has an ntype
+-		$$->nname->ntype = n;
++
++		t = nod(OTFUNC, N, N);
++		t->list = $3;
++		t->rlist = $5;
++
++		$$ = nod(ODCLFUNC, N, N);
++		$$->nname = newname($1);
++		$$->nname->defn = $$;
++		$$->nname->ntype = t;		// TODO: check if nname already has an ntype
++		declare($$->nname, PFUNC);
++
+ 		funchdr($$);
+ 	}
+ |	'(' oarg_type_list_ocomma ')' sym '(' oarg_type_list_ocomma ')' fnres
+ 	{
+ 		Node *rcvr, *t;
+-		Node *name;
+-		
+-		name = newname($4);
++
++		$$ = N;
+ 		$2 = checkarglist($2, 0);
+ 		$6 = checkarglist($6, 1);
+-		$$ = N;
++
+ 		if($2 == nil) {
+ 			yyerror("method has no receiver");
+ 			break;
+@@ -1234,13 +1249,51 @@ fndcl:
+ 		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
+ 			yyerror("cannot parenthesize receiver type");
+ 
+-		$$ = nod(ODCLFUNC, N, N);
+-		$$->nname = methodname1(name, rcvr->right);
+ 		t = nod(OTFUNC, rcvr, N);
+ 		t->list = $6;
+ 		t->rlist = $8;
++
++		$$ = nod(ODCLFUNC, N, N);
++		$$->shortname = newname($4);
++		$$->nname = methodname1($$->shortname, rcvr->right);
++		$$->nname->defn = $$;
+ 		$$->nname->ntype = t;
+-		$$->shortname = name;
++		declare($$->nname, PFUNC);
++
++		funchdr($$);
++	}
++
++hidden_fndcl:
++	hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
++	{
++		Sym *s;
++		Type *t;
++
++		$$ = N;
++
++		s = $1;
++		t = functype(N, $3, $5);
++
++		importsym(s, ONAME);
++		if(s->def != N && s->def->op == ONAME) {
++			if(eqtype(t, s->def->type))
++				break;
++			yyerror("inconsistent definition for func %S during import\n\t%T\n\t%T", s, s->def->type, t);
++		}
++
++		$$ = newname(s);
++		$$->type = t;
++		declare($$, PFUNC);
++
++		funchdr($$);
++	}
++|	'(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres
++	{
++		$$ = methodname1(newname($4), $2->n->right); 
++		$$->type = functype($2->n, $6, $8);
++
++		checkwidth($$->type);
++		addmethod($4, $$->type, 0);
+ 		funchdr($$);
+ 	}
+ 
+@@ -1709,31 +1762,16 @@ oliteral:
+ |	LLITERAL
+ 
+ /*
+- * import syntax from header of
+- * an output package
++ * import syntax from package header
+  */
+ hidden_import:
+-	LIMPORT sym LLITERAL ';'
++	LIMPORT LNAME LLITERAL ';'
+ 	{
+-		// Informational: record package name
+-		// associated with import path, for use in
+-		// human-readable messages.
+-		Pkg *p;
+-
+-		p = mkpkg($3.u.sval);
+-		if(p->name == nil) {
+-			p->name = $2->name;
+-			pkglookup($2->name, nil)->npkg++;
+-		} else if(strcmp(p->name, $2->name) != 0)
+-			yyerror("conflicting names %s and %s for package \"%Z\"", p->name, $2->name, p->path);
+-		if(!incannedimport && myimportpath != nil && strcmp($3.u.sval->s, myimportpath) == 0) {
+-			yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, $3.u.sval);
+-			errorexit();
+-		}
++		importimport($2, $3.u.sval);
+ 	}
+ |	LVAR hidden_pkg_importsym hidden_type ';'
+ 	{
+-		importvar($2, $3, PEXTERN);
++		importvar($2, $3);
+ 	}
+ |	LCONST hidden_pkg_importsym '=' hidden_constant ';'
+ 	{
+@@ -1747,17 +1785,24 @@ hidden_import:
+ 	{
+ 		importtype($2, $3);
+ 	}
+-|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres ';'
++|	LFUNC hidden_fndcl fnbody ';'
+ 	{
+-		importvar($2, functype(N, $4, $6), PFUNC);
++		if($2 == N)
++			break;
++
++		funcbody($2);
++		importlist = list(importlist, $2);
++
++		if(debug['E']) {
++			print("import [%Z] func %lN \n", $2->sym->pkg->path, $2);
++		}
+ 	}
+-|	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres ';'
++
++hidden_pkg_importsym:
++	hidden_importsym
+ 	{
+-		if($3->next != nil || $3->n->op != ODCLFIELD) {
+-			yyerror("bad receiver in method");
+-			YYERROR;
+-		}
+-		importmethod($5, functype($3->n, $7, $9));
++		$$ = $1;
++		structpkg = $$->pkg;
+ 	}
+ 
+ hidden_pkgtype:
+@@ -1767,6 +1812,10 @@ hidden_pkgtype:
+ 		importsym($1, OTYPE);
+ 	}
+ 
++/*
++ *  importing types
++ */
++
+ hidden_type:
+ 	hidden_type_misc
+ |	hidden_type_recv_chan
+@@ -1848,52 +1897,45 @@ hidden_type_func:
+ 		$$ = functype(nil, $3, $5);
+ 	}
+ 
+-hidden_opt_sym:
+-	sym
+-	{
+-		$$ = newname($1);
+-	}
+-|	'?'
+-	{
+-		$$ = N;
+-	}
+-
+-hidden_dcl:
+-	hidden_opt_sym hidden_type oliteral
++hidden_funarg:
++	sym hidden_type oliteral
+ 	{
+-		$$ = nod(ODCLFIELD, $1, typenod($2));
++		$$ = nod(ODCLFIELD, N, typenod($2));
++		if($1)
++			$$->left = newname($1);
+ 		$$->val = $3;
+ 	}
+-|	hidden_opt_sym LDDD hidden_type oliteral
++|	sym LDDD hidden_type oliteral
+ 	{
+ 		Type *t;
+-		
++	
+ 		t = typ(TARRAY);
+ 		t->bound = -1;
+ 		t->type = $3;
+-		$$ = nod(ODCLFIELD, $1, typenod(t));
++
++		$$ = nod(ODCLFIELD, N, typenod(t));
++		if($1)
++			$$->left = newname($1);
+ 		$$->isddd = 1;
+ 		$$->val = $4;
+ 	}
+ 
+ hidden_structdcl:
+ 	sym hidden_type oliteral
+-	{
+-		$$ = nod(ODCLFIELD, newname($1), typenod($2));
+-		$$->val = $3;
+-	}
+-|	'?' hidden_type oliteral
+ 	{
+ 		Sym *s;
+ 
+-		s = $2->sym;
+-		if(s == S && isptr[$2->etype])
+-			s = $2->type->sym;
+-		if(s && s->pkg == builtinpkg)
+-			s = lookup(s->name);
+-		$$ = embedded(s);
+-		$$->right = typenod($2);
+-		$$->val = $3;
++		if($1 != S) {
++			$$ = nod(ODCLFIELD, newname($1), typenod($2));
++			$$->val = $3;
++		} else {
++			s = $2->sym;
++			if(s == S && isptr[$2->etype])
++				s = $2->type->sym;
++			$$ = embedded(s);
++			$$->right = typenod($2);
++			$$->val = $3;
++		}
+ 	}
+ 
+ hidden_interfacedcl:
+@@ -1918,6 +1960,10 @@ hidden_funres:
+ 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
+ 	}
+ 
++/*
++ *  importing constants
++ */
++
+ hidden_literal:
+ 	LLITERAL
+ 	{
+@@ -1951,22 +1997,15 @@ hidden_constant:
+ 		$$ = nodcplxlit($2->val, $4->val);
+ 	}
+ 
+-hidden_pkg_importsym:
+-	hidden_importsym
+-	{
+-		$$ = $1;
+-		structpkg = $$->pkg;
+-	}
+-
+ hidden_import_list:
+ |	hidden_import_list hidden_import
+ 
+ hidden_funarg_list:
+-	hidden_dcl
++	hidden_funarg
+ 	{
+ 		$$ = list1($1);
+ 	}
+-|	hidden_funarg_list ',' hidden_dcl
++|	hidden_funarg_list ',' hidden_funarg
+ 	{
+ 		$$ = list($1, $3);
+ 	}
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index da69e41ae3..be402cc0ce 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -13,21 +13,13 @@
+  * package and also uncallable, the name,
+  * normally "pkg.init", is altered to "pkg.init·1".
+  */
+-Node*
+-renameinit(Node *n)
++Sym*
++renameinit(void)
+ {
+-	Sym *s;
+ 	static int initgen;
+ 
+-	s = n->sym;
+-	if(s == S)
+-		return n;
+-	if(strcmp(s->name, "init") != 0)
+-		return n;
+-
+ 	snprint(namebuf, sizeof(namebuf), "init·%d", ++initgen);
+-	s = lookup(namebuf);
+-	return newname(s);
++	return lookup(namebuf);
+ }
+ 
+ /*
+@@ -125,7 +117,9 @@ fninit(NodeList *n)
+ 	fn = nod(ODCLFUNC, N, N);
+ 	initsym = lookup(namebuf);
+ 	fn->nname = newname(initsym);
++	fn->nname->defn = fn;
+ 	fn->nname->ntype = nod(OTFUNC, N, N);
++	declare(fn->nname, PFUNC);
+ 	funchdr(fn);
+ 
+ 	// (3)
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bf5a26d006..3267fbe389 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -334,11 +334,11 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors)
+ 		errorexit();
+ 
+-	// Phase 3b: escape analysis.
++	// Phase 4: escape analysis.
+ 	if(!debug['N'])
+ 		escapes();
+ 
+-	// Phase 4: Compile function bodies.
++	// Phase 5: Compile top level functions.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n, 0);
+@@ -346,16 +346,15 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+-	// Phase 4b: Compile all closures.
++	// Phase 5b: Compile all closures.
+ 	while(closures) {
+ 		l = closures;
+ 		closures = nil;
+-		for(; l; l=l->next) {
++		for(; l; l=l->next)
+ 			funccompile(l->n, 1);
+-		}
+ 	}
+ 
+-	// Phase 5: check external declarations.
++	// Phase 6: check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+@@ -1423,7 +1422,7 @@ yylex(void)
+ 	// Track last two tokens returned by yylex.
+ 	yyprev = yylast;
+ 	yylast = lx;
+- 	return lx;
++	return lx;
+ }
+ 
+ static int
+@@ -1680,12 +1679,12 @@ static	struct
+ 	"type",		LTYPE,		Txxx,		OXXX,
+ 	"var",		LVAR,		Txxx,		OXXX,
+ 
+-	"append",		LNAME,		Txxx,		OAPPEND,
++	"append",	LNAME,		Txxx,		OAPPEND,
+ 	"cap",		LNAME,		Txxx,		OCAP,
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+ 	"complex",	LNAME,		Txxx,		OCOMPLEX,
+ 	"copy",		LNAME,		Txxx,		OCOPY,
+-	"delete",		LNAME,		Txxx,		ODELETE,
++	"delete",	LNAME,		Txxx,		ODELETE,
+ 	"imag",		LNAME,		Txxx,		OIMAG,
+ 	"len",		LNAME,		Txxx,		OLEN,
+ 	"make",		LNAME,		Txxx,		OMAKE,
+@@ -1710,6 +1709,7 @@ lexinit(void)
+ 	Sym *s, *s1;
+ 	Type *t;
+ 	int etype;
++	Val v;
+ 
+ 	/*
+ 	 * initialize basic types array
+@@ -1738,6 +1738,16 @@ lexinit(void)
+ 			s1->def = typenod(t);
+ 			continue;
+ 		}
++
++		etype = syms[i].op;
++		if(etype != OXXX) {
++			s1 = pkglookup(syms[i].name, builtinpkg);
++			s1->lexical = LNAME;
++			s1->def = nod(ONAME, N, N);
++			s1->def->sym = s;
++			s1->def->etype = etype;
++			s1->def->builtin = 1;
++		}
+ 	}
+ 
+ 	// logically, the type of a string literal.
+@@ -1765,6 +1775,19 @@ lexinit(void)
+ 	types[TBLANK] = typ(TBLANK);
+ 	s->def->type = types[TBLANK];
+ 	nblank = s->def;
++
++	s = pkglookup("_", builtinpkg);
++	s->block = -100;
++	s->def = nod(ONAME, N, N);
++	s->def->sym = s;
++	types[TBLANK] = typ(TBLANK);
++	s->def->type = types[TBLANK];
++
++	types[TNIL] = typ(TNIL);
++	s = pkglookup("nil", builtinpkg);
++	v.ctype = CTNIL;
++	s->def = nodlit(v);
++	s->def->sym = s;
+ }
+ 
+ static void
+@@ -1875,7 +1898,6 @@ lexfini(void)
+ 	if(s->def == N)
+ 		s->def = typenod(runetype);
+ 
+-	types[TNIL] = typ(TNIL);
+ 	s = lookup("nil");
+ 	if(s->def == N) {
+ 		v.ctype = CTNIL;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2ee5868bc6..8bdfaf7b0c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2287,8 +2287,6 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	in = structargs(getinarg(method->type), 1);
+ 	out = structargs(getoutarg(method->type), 0);
+ 
+-	fn = nod(ODCLFUNC, N, N);
+-	fn->nname = newname(newnam);
+ 	t = nod(OTFUNC, N, N);
+ 	l = list1(this);
+ 	if(iface && rcvr->width < types[tptr]->width) {
+@@ -2305,7 +2303,12 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	}
+ 	t->list = concat(l, in);
+ 	t->rlist = out;
++
++	fn = nod(ODCLFUNC, N, N);
++	fn->nname = newname(newnam);
++	fn->nname->defn = fn;
+ 	fn->nname->ntype = t;
++	declare(fn->nname, PFUNC);
+ 	funchdr(fn);
+ 
+ 	// arg list
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index eb6e84e63e..072b577a56 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -43,7 +43,7 @@ resolve(Node *n)
+ {
+ 	Node *r;
+ 
+-	if(n != N && n->op == ONONAME && (r = n->sym->def) != N) {
++	if(n != N && n->op == ONONAME && n->sym != S && (r = n->sym->def) != N) {
+ 		if(r->op != OIOTA)
+ 			n = r;
+ 		else if(n->iota >= 0)
+@@ -114,7 +114,6 @@ typecheck(Node **np, int top)
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+ 	Type *t, *tp, *ft, *missing, *have;
+-	Sym *sym;
+ 	Val v;
+ 	char *why;
+ 
+@@ -567,15 +566,14 @@ reswitch:
+ 	case ODOT:
+ 		typecheck(&n->left, Erv|Etype);
+ 		defaultlit(&n->left, T);
+-		l = n->left;
+-		if((t = l->type) == T)
++		if((t = n->left->type) == T)
+ 			goto error;
+ 		if(n->right->op != ONAME) {
+ 			yyerror("rhs of . must be a name");	// impossible
+ 			goto error;
+ 		}
+-		sym = n->right->sym;
+-		if(l->op == OTYPE) {
++
++		if(n->left->op == OTYPE) {
+ 			if(!looktypedot(n, t, 0)) {
+ 				if(looktypedot(n, t, 1))
+ 					yyerror("%N undefined (cannot refer to unexported method %S)", n, n->right->sym);
+@@ -584,19 +582,18 @@ reswitch:
+ 				goto error;
+ 			}
+ 			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
+-				yyerror("type %T has no method %hS", n->left->type, sym);
++				yyerror("type %T has no method %hS", n->left->type, n->right->sym);
+ 				n->type = T;
+ 				goto error;
+ 			}
+ 			n->op = ONAME;
+-			n->sym = methodsym(sym, l->type, 0);
+-			n->type = methodfunc(n->type, l->type);
++			n->sym = n->right->sym;
++			n->type = methodfunc(n->type, n->left->type);
+ 			n->xoffset = 0;
+ 			n->class = PFUNC;
+ 			ok = Erv;
+ 			goto ret;
+ 		}
+-		tp = t;
+ 		if(isptr[t->etype] && t->type->etype != TINTER) {
+ 			t = t->type;
+ 			if(t == T)
+@@ -608,7 +605,7 @@ reswitch:
+ 			if(lookdot(n, t, 1))
+ 				yyerror("%N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
+ 			else
+-				yyerror("%N undefined (type %T has no field or method %S)", n, tp, n->right->sym);
++				yyerror("%N undefined (type %T has no field or method %S)", n, n->left->type, n->right->sym);
+ 			goto error;
+ 		}
+ 		switch(n->op) {
+@@ -2167,14 +2164,16 @@ typecheckcomplit(Node **np)
+ 					typecheck(&l->right, Erv);
+ 					continue;
+ 				}
++
+ 				// Sym might have resolved to name in other top-level
+ 				// package, because of import dot.  Redirect to correct sym
+ 				// before we do the lookup.
+-				if(s->pkg != localpkg)
++				if(s->pkg != localpkg && exportname(s->name))
+ 					s = lookup(s->name);
++
+ 				f = lookdot1(s, t, t->type, 0);
+ 				if(f == nil) {
+-					yyerror("unknown %T field '%s' in struct literal", t, s->name);
++					yyerror("unknown %T field '%S' in struct literal", t, s);
+ 					continue;
+ 				}
+ 				l->left = newname(s);
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 16a8667ff6..b5fc357802 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -323,7 +323,7 @@ func (p *gcParser) parseMapType() Type {
+ 	return &Map{Key: key, Elt: elt}
+ }
+ 
+-// Name = identifier | "?" .
++// Name = identifier | "?" | ExportedName  .
+ //
+ func (p *gcParser) parseName() (name string) {
+ 	switch p.tok {
+@@ -333,6 +333,9 @@ func (p *gcParser) parseName() (name string) {
+ 	case '?':
+ 		// anonymous
+ 		p.next()
++	case '@':
++		// exported name prefixed with package path
++		_, name = p.parseExportedName()
+ 	default:
+ 		p.error("name expected")
+ 	}
+@@ -747,7 +750,7 @@ func (p *gcParser) parseFuncDecl() {
+ 	}
+ }
+ 
+-// MethodDecl = "func" Receiver identifier Signature .
++// MethodDecl = "func" Receiver Name Signature .
+ // Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" [ FuncBody ].
+ //
+ func (p *gcParser) parseMethodDecl() {
+@@ -755,7 +758,7 @@ func (p *gcParser) parseMethodDecl() {
+ 	p.expect('(')
+ 	p.parseParameter() // receiver
+ 	p.expect(')')
+-	p.expect(scanner.Ident)
++	p.parseName() // unexported method names in imports are qualified with their package.
+ 	p.parseSignature()
+ 	if p.tok == '{' {
+ 		p.parseFuncBody()

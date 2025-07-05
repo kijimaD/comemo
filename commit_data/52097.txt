@@ -18,8 +18,74 @@ Date:   Thu Mar 10 11:43:43 2022 -0500
     Trust: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/rand/util.go      |  3 +++
  src/crypto/rand/util_test.go | 19 +++++++++++++++++++
  src/go/build/deps_test.go    |  2 +-
  3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/util.go b/src/crypto/rand/util.go
+index 0f143a3830..11b1a28ec5 100644
+--- a/src/crypto/rand/util.go
++++ b/src/crypto/rand/util.go
+@@ -5,6 +5,7 @@
+ package rand
+ 
+ import (
++	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+@@ -17,6 +18,8 @@ func Prime(rand io.Reader, bits int) (*big.Int, error) {
+ 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
+ 	}
+ 
++	randutil.MaybeReadByte(rand)
++
+ 	b := uint(bits % 8)
+ 	if b == 0 {
+ 		b = 8
+diff --git a/src/crypto/rand/util_test.go b/src/crypto/rand/util_test.go
+index e76ce2018a..9caf8e91cc 100644
+--- a/src/crypto/rand/util_test.go
++++ b/src/crypto/rand/util_test.go
+@@ -38,6 +38,25 @@ func TestPrimeBitsLt2(t *testing.T) {
+ 	}
+ }
+ 
++func TestPrimeNondeterministic(t *testing.T) {
++	r := mathrand.New(mathrand.NewSource(42))
++	p0, err := rand.Prime(r, 32)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for i := 0; i < 128; i++ {
++		r.Seed(42)
++		p, err := rand.Prime(r, 32)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if p.Cmp(p0) != 0 {
++			return
++		}
++	}
++	t.Error("Prime always generated the same prime given the same input")
++}
++
+ func TestInt(t *testing.T) {
+ 	// start at 128 so the case of (max.BitLen() % 8) == 0 is covered
+ 	for n := 128; n < 140; n++ {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c4fb2fe0b4..052e7ad9c0 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -416,8 +416,8 @@ var depsRules = `
+ 
+ 	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
+ 	CRYPTO, FMT, math/big, embed
+-	< crypto/rand
+ 	< crypto/internal/randutil
++	< crypto/rand
+ 	< crypto/ed25519
+ 	< encoding/asn1
+ 	< golang.org/x/crypto/cryptobyte/asn1

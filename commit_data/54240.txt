@@ -11,6 +11,20 @@ Date:   Thu Sep 29 20:40:44 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/modindex/read.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index da525ae446..d6a04a0156 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -769,7 +769,7 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
+ 	plusBuildConstraints := sf.plusBuildConstraints()
+ 	for _, text := range plusBuildConstraints {
+ 		if x, err := constraint.Parse(text); err == nil {
+-			if imports.Eval(x, tags, true) == false {
++			if !imports.Eval(x, tags, true) {
+ 				return false
+ 			}
+ 		}

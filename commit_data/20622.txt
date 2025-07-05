@@ -10,6 +10,20 @@ Date:   Wed Sep 24 19:09:43 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/142640043
-
+---
  src/net/empty.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/empty.s b/src/net/empty.s
+index a515c2fe29..f0b255a0cf 100644
+--- a/src/net/empty.s
++++ b/src/net/empty.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !cgo
++
+ // This file is required to prevent compiler errors
+ // when the package built with CGO_ENABLED=0.
+ // Otherwise the compiler says:

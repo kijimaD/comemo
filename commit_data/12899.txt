@@ -7,6 +7,19 @@ Date:   Mon Apr 16 10:25:20 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6037052
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a10e0de3c7..17c2aead32 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -86,6 +86,7 @@ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Redden <christopher.redden@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>
++Colby Ranger <cranger@google.com>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
+ Damian Gryski <dgryski@gmail.com>

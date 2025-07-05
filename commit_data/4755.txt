@@ -7,6 +7,26 @@ Date:   Mon Feb 1 16:26:50 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198046
-
+---
  test/fixedbugs/bug248.dir/bug2.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index d562bf6041..4e02b5d9a7 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -37,11 +37,11 @@ func main() {
+ 	// check that reflect paths are correct,
+ 	// meaning that reflect data for v0, v1 didn't get confused.
+ 
+-	// path is full (rooted) path name.  check suffix only.
+-	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") {
++	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
++	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
+ 		panicln("bad v0 path", len(s), s)
+ 	}
+-	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") {
++	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
+ 		panicln("bad v1 path", s)
+ 	}
+ 

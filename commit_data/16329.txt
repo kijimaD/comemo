@@ -7,6 +7,28 @@ Date:   Fri May 17 17:26:44 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9458043
-
+---
  src/pkg/os/file_windows.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 41233fff64..4cd4542075 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -253,12 +253,12 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 	if len(f.readbuf) == 0 {
+ 		// syscall.ReadConsole seems to fail, if given large buffer.
+ 		// So limit the buffer to 16000 characters.
+-		readN := 16000
+-		if len(b) < readN {
+-			readN = len(b)
++		numBytes := len(b)
++		if numBytes > 16000 {
++			numBytes = 16000
+ 		}
+ 		// get more input data from os
+-		wchars := make([]uint16, readN)
++		wchars := make([]uint16, numBytes)
+ 		var p *uint16
+ 		if len(b) > 0 {
+ 			p = &wchars[0]

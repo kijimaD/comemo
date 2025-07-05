@@ -7,6 +7,40 @@ Date:   Wed Apr 15 22:38:09 2009 -0700
     R=ken
     OCL=27537
     CL=27545
-
+---
  src/cmd/gc/walk.c | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a9606cfae4..1fa07dec03 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -271,7 +271,7 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->left, Erv);
+-		indir(n, list(prcompat(n->left, 1), nodpanic(n->lineno)));
++		indir(n, list(prcompat(n->left, 2), nodpanic(n->lineno)));
+ 		goto ret;
+ 
+ 	case OLITERAL:
+@@ -1980,6 +1980,10 @@ ascompat(Type *dst, Type *src)
+ 	return 0;
+ }
+ 
++// generate code for print
++//	fmt = 0: print
++//	fmt = 1: println
++//	fmt = 2: panicln (like println but no trailing newline)
+ Node*
+ prcompat(Node *n, int fmt)
+ {
+@@ -1995,7 +1999,7 @@ prcompat(Node *n, int fmt)
+ 
+ loop:
+ 	if(l == N) {
+-		if(fmt) {
++		if(fmt == 1) {
+ 			on = syslook("printnl", 0);
+ 			r = list(r, nod(OCALL, on, N));
+ 		}

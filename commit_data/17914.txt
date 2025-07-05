@@ -7,6 +7,19 @@ Date:   Fri Dec 6 13:32:47 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/38590043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 34711681be..bcfeddb0d1 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -387,6 +387,7 @@ Paul van Brouwershaven <paul@vanbrouwershaven.com>
+ Pawel Szczur <filemon@google.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Armitage <peter.armitage@gmail.com>
++Peter Collingbourne <pcc@google.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Kleiweg <pkleiweg@xs4all.nl>
+ Peter McKenzie <petermck@google.com>

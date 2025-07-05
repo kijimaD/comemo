@@ -13,7 +13,58 @@ Date:   Tue Jun 14 19:01:04 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/412235
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  .../internal/types2/testdata/fixedbugs/issue50729.go  | 19 +++++++++++++++++++
  src/go/types/testdata/fixedbugs/issue50729.go         | 19 +++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go
+new file mode 100644
+index 0000000000..fe19fdfa68
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// version 1
++var x1 T1[B1]
++
++type T1[_ any] struct{}
++type A1 T1[B1]
++type B1 = T1[A1]
++
++// version 2
++type T2[_ any] struct{}
++type A2 T2[B2]
++type B2 = T2[A2]
++
++var x2 T2[B2]
+diff --git a/src/go/types/testdata/fixedbugs/issue50729.go b/src/go/types/testdata/fixedbugs/issue50729.go
+new file mode 100644
+index 0000000000..fe19fdfa68
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50729.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// version 1
++var x1 T1[B1]
++
++type T1[_ any] struct{}
++type A1 T1[B1]
++type B1 = T1[A1]
++
++// version 2
++type T2[_ any] struct{}
++type A2 T2[B2]
++type B2 = T2[A2]
++
++var x2 T2[B2]

@@ -11,6 +11,25 @@ Date:   Fri Jun 1 11:43:16 2018 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index eec0bc4d2e..fa73919620 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -221,7 +221,12 @@ func Mkdir(name string, perm FileMode) error {
+ 
+ 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+ 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
+-		setStickyBit(name)
++		e = setStickyBit(name)
++
++		if e != nil {
++			Remove(name)
++			return e
++		}
+ 	}
+ 
+ 	return nil

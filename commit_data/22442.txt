@@ -9,7 +9,7 @@ Date:   Sun Mar 8 14:16:29 2015 +0100
     Change-Id: Ifa5f993cd6ac5e34783c0df41faf772fbce96ae2
     Reviewed-on: https://go-review.googlesource.com/7049
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/7g/cgen.go           | 103 ++---
  src/cmd/7g/galign.go         |  21 +-
  src/cmd/7g/gg.go             |   4 +-
@@ -24,3 +24,3509 @@ Date:   Sun Mar 8 14:16:29 2015 +0100
  src/cmd/internal/gc/reg.go   |   4 +-
  src/cmd/internal/gc/walk.go  |   4 +-
  13 files changed, 515 insertions(+), 1750 deletions(-)
+
+diff --git a/src/cmd/7g/cgen.go b/src/cmd/7g/cgen.go
+index 4ab5215e55..455113bbf2 100644
+--- a/src/cmd/7g/cgen.go
++++ b/src/cmd/7g/cgen.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ 	"fmt"
+ )
+ 
+@@ -250,11 +250,11 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 		gc.OGE,
+ 		gc.OGT,
+ 		gc.ONOT:
+-		p1 := gc.Gbranch(ppc64.ABR, nil, 0)
++		p1 := gc.Gbranch(arm64.AB, nil, 0)
+ 
+ 		p2 := gc.Pc
+ 		gmove(gc.Nodbool(true), res)
+-		p3 := gc.Gbranch(ppc64.ABR, nil, 0)
++		p3 := gc.Gbranch(arm64.AB, nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 		bgen(n, true, 0, p2)
+ 		gmove(gc.Nodbool(false), res)
+@@ -280,20 +280,10 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 		return
+ 
+ 	case gc.OMINUS:
+-		if gc.Isfloat[nl.Type.Etype] {
+-			nr = gc.Nodintconst(-1)
+-			gc.Convlit(&nr, n.Type)
+-			a = optoas(gc.OMUL, nl.Type)
+-			goto sbop
+-		}
+-
+-		a := optoas(int(n.Op), nl.Type)
+-		// unary
+ 		var n1 gc.Node
+-		regalloc(&n1, nl.Type, res)
+-
++		regalloc(&n1, nl.Type, nil)
+ 		cgen(nl, &n1)
+-		gins(a, nil, &n1)
++		gins(optoas(gc.OMINUS, nl.Type), &n1, &n1)
+ 		gmove(&n1, res)
+ 		regfree(&n1)
+ 		return
+@@ -379,7 +369,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+-			p1 := gins(ppc64.AMOVD, nil, &n1)
++			p1 := gins(arm64.AMOVD, nil, &n1)
+ 			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+@@ -403,7 +393,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 
+ 			var n2 gc.Node
+ 			gc.Nodconst(&n2, gc.Types[gc.Tptr], 0)
+-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
++			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
+ 			p1 := gc.Gbranch(optoas(gc.OEQ, gc.Types[gc.Tptr]), nil, 0)
+ 
+ 			n2 = n1
+@@ -444,7 +434,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 
+ 			var n2 gc.Node
+ 			gc.Nodconst(&n2, gc.Types[gc.Tptr], 0)
+-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
++			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n1, &n2)
+ 			p1 := gc.Gbranch(optoas(gc.OEQ, gc.Types[gc.Tptr]), nil, 0)
+ 
+ 			n2 = n1
+@@ -690,7 +680,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		gc.Cgen_checknil(a)
+ 
+ 	case gc.OINDEX:
+-		var p2 *obj.Prog // to be patched to panicindex.
++		p2 := (*obj.Prog)(nil) // to be patched to panicindex.
+ 		w := uint32(n.Type.Width)
+ 
+ 		//bounded = debug['B'] || n->bounded;
+@@ -796,13 +786,13 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 					gc.Nodconst(&n4, gc.Types[gc.TUINT64], nl.Type.Bound)
+ 				} else {
+ 					regalloc(&n4, gc.Types[gc.TUINT64], nil)
+-					p1 := gins(ppc64.AMOVD, nil, &n4)
++					p1 := gins(arm64.AMOVD, nil, &n4)
+ 					p1.From.Type = obj.TYPE_CONST
+ 					p1.From.Offset = nl.Type.Bound
+ 				}
+ 			}
+ 
+-			gins(optoas(gc.OCMP, gc.Types[gc.TUINT64]), &n2, &n4)
++			gcmp(optoas(gc.OCMP, gc.Types[gc.TUINT64]), &n2, &n4)
+ 			if n4.Op == gc.OREGISTER {
+ 				regfree(&n4)
+ 			}
+@@ -816,7 +806,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+-			p1 := gins(ppc64.AMOVD, nil, &n3)
++			p1 := gins(arm64.AMOVD, nil, &n3)
+ 			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			p1.From.Type = obj.TYPE_ADDR
+ 		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+@@ -897,7 +887,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		var n3 gc.Node
+ 		n3.Op = gc.OADDR
+ 		n3.Left = &n1
+-		gins(ppc64.AMOVD, &n3, &n2)
++		gins(arm64.AMOVD, &n3, &n2)
+ 		gmove(&n2, res)
+ 		regfree(&n2)
+ 		return
+@@ -909,7 +899,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		n1.Left = n
+ 		var n2 gc.Node
+ 		regalloc(&n2, gc.Types[gc.Tptr], res)
+-		gins(ppc64.AMOVD, &n1, &n2)
++		gins(arm64.AMOVD, &n1, &n2)
+ 		gmove(&n2, res)
+ 		regfree(&n2)
+ 		return
+@@ -1020,7 +1010,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		// Increase the refcount of the register so that igen's caller
+ 	// has to call regfree.
+ 	case gc.OINDREG:
+-		if n.Val.U.Reg != ppc64.REGSP {
++		if n.Val.U.Reg != arm64.REGSP {
+ 			reg[n.Val.U.Reg]++
+ 		}
+ 		*a = *n
+@@ -1060,7 +1050,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		fp := gc.Structfirst(&flist, gc.Getoutarg(n.Left.Type))
+ 		*a = gc.Node{}
+ 		a.Op = gc.OINDREG
+-		a.Val.U.Reg = ppc64.REGSP
++		a.Val.U.Reg = arm64.REGSP
+ 		a.Addable = 1
+ 		a.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved lr at 0(SP)
+ 		a.Type = n.Type
+@@ -1149,10 +1139,10 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 		cgen(n, &n1)
+ 		var n2 gc.Node
+ 		gc.Nodconst(&n2, n.Type, 0)
+-		gins(optoas(gc.OCMP, n.Type), &n1, &n2)
+-		a := ppc64.ABNE
++		gcmp(optoas(gc.OCMP, n.Type), &n1, &n2)
++		a := arm64.ABNE
+ 		if !true_ {
+-			a = ppc64.ABEQ
++			a = arm64.ABEQ
+ 		}
+ 		gc.Patch(gc.Gbranch(a, n.Type, likely), to)
+ 		regfree(&n1)
+@@ -1161,7 +1151,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 		// need to ask if it is bool?
+ 	case gc.OLITERAL:
+ 		if !true_ == (n.Val.U.Bval == 0) {
+-			gc.Patch(gc.Gbranch(ppc64.ABR, nil, likely), to)
++			gc.Patch(gc.Gbranch(arm64.AB, nil, likely), to)
+ 		}
+ 		return
+ 
+@@ -1218,15 +1208,15 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 		if !true_ {
+ 			if gc.Isfloat[nr.Type.Etype] {
+ 				// brcom is not valid on floats when NaN is involved.
+-				p1 := gc.Gbranch(ppc64.ABR, nil, 0)
++				p1 := gc.Gbranch(arm64.AB, nil, 0)
+ 
+-				p2 := gc.Gbranch(ppc64.ABR, nil, 0)
++				p2 := gc.Gbranch(arm64.AB, nil, 0)
+ 				gc.Patch(p1, gc.Pc)
+ 				ll := n.Ninit // avoid re-genning ninit
+ 				n.Ninit = nil
+ 				bgen(n, true, -likely, p2)
+ 				n.Ninit = ll
+-				gc.Patch(gc.Gbranch(ppc64.ABR, nil, 0), to)
++				gc.Patch(gc.Gbranch(arm64.AB, nil, 0), to)
+ 				gc.Patch(p2, gc.Pc)
+ 				return
+ 			}
+@@ -1260,7 +1250,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 			var n2 gc.Node
+ 			regalloc(&n2, gc.Types[gc.Tptr], &n1)
+ 			gmove(&n1, &n2)
+-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
++			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
+ 			regfree(&n2)
+ 			gc.Patch(gc.Gbranch(a, gc.Types[gc.Tptr], likely), to)
+ 			regfree(&n1)
+@@ -1283,7 +1273,7 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 			var n2 gc.Node
+ 			regalloc(&n2, gc.Types[gc.Tptr], &n1)
+ 			gmove(&n1, &n2)
+-			gins(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
++			gcmp(optoas(gc.OCMP, gc.Types[gc.Tptr]), &n2, &tmp)
+ 			regfree(&n2)
+ 			gc.Patch(gc.Gbranch(a, gc.Types[gc.Tptr], likely), to)
+ 			regfree(&n1)
+@@ -1317,24 +1307,13 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 
+ 		regalloc(&n1, nl.Type, nil)
+ 		cgen(nl, &n1)
+-
+-		// TODO(minux): cmpi does accept 16-bit signed immediate as p->to.
+-		// and cmpli accepts 16-bit unsigned immediate.
+-		//if(smallintconst(nr)) {
+-		//	gins(optoas(OCMP, nr->type), &n1, nr);
+-		//	patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
+-		//	regfree(&n1);
+-		//	break;
+-		//}
+-
+ 		regalloc(&n2, nr.Type, nil)
+-
+ 		cgen(nr, &n2)
+ 
+ 	cmp:
+ 		l := &n1
+ 		r := &n2
+-		gins(optoas(gc.OCMP, nr.Type), l, r)
++		gcmp(optoas(gc.OCMP, nr.Type), l, r)
+ 		if gc.Isfloat[nr.Type.Etype] && (a == gc.OLE || a == gc.OGE) {
+ 			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
+ 			switch a {
+@@ -1470,16 +1449,16 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 		gc.Fatal("sgen: invalid alignment %d for %v", align, gc.Tconv(n.Type, 0))
+ 
+ 	case 1:
+-		op = ppc64.AMOVBU
++		op = arm64.AMOVB
+ 
+ 	case 2:
+-		op = ppc64.AMOVHU
++		op = arm64.AMOVH
+ 
+ 	case 4:
+-		op = ppc64.AMOVWZU // there is no lwau, only lwaux
++		op = arm64.AMOVW
+ 
+ 	case 8:
+-		op = ppc64.AMOVDU
++		op = arm64.AMOVD
+ 	}
+ 
+ 	if w%int64(align) != 0 {
+@@ -1521,7 +1500,7 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	if n.Ullman >= res.Ullman {
+ 		agenr(n, &dst, res) // temporarily use dst
+ 		regalloc(&src, gc.Types[gc.Tptr], nil)
+-		gins(ppc64.AMOVD, &dst, &src)
++		gins(arm64.AMOVD, &dst, &src)
+ 		if res.Op == gc.ONAME {
+ 			gc.Gvardef(res)
+ 		}
+@@ -1544,28 +1523,28 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	if dir < 0 {
+ 		if c >= 4 {
+ 			regalloc(&nend, gc.Types[gc.Tptr], nil)
+-			gins(ppc64.AMOVD, &src, &nend)
++			gins(arm64.AMOVD, &src, &nend)
+ 		}
+ 
+-		p := gins(ppc64.AADD, nil, &src)
++		p := gins(arm64.AADD, nil, &src)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = w
+ 
+-		p = gins(ppc64.AADD, nil, &dst)
++		p = gins(arm64.AADD, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = w
+ 	} else {
+-		p := gins(ppc64.AADD, nil, &src)
++		p := gins(arm64.AADD, nil, &src)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(-dir)
+ 
+-		p = gins(ppc64.AADD, nil, &dst)
++		p = gins(arm64.AADD, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(-dir)
+ 
+ 		if c >= 4 {
+ 			regalloc(&nend, gc.Types[gc.Tptr], nil)
+-			p := gins(ppc64.AMOVD, &src, &nend)
++			p := gins(arm64.AMOVD, &src, &nend)
+ 			p.From.Type = obj.TYPE_ADDR
+ 			p.From.Offset = w
+ 		}
+@@ -1577,15 +1556,17 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 		p := gins(op, &src, &tmp)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Offset = int64(dir)
++		p.Scond = arm64.C_XPRE
+ 		ploop := p
+ 
+ 		p = gins(op, &tmp, &dst)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = int64(dir)
++		p.Scond = arm64.C_XPRE
+ 
+-		p = gins(ppc64.ACMP, &src, &nend)
++		p = gcmp(arm64.ACMP, &src, &nend)
+ 
+-		gc.Patch(gc.Gbranch(ppc64.ABNE, nil, 0), ploop)
++		gc.Patch(gc.Gbranch(arm64.ABNE, nil, 0), ploop)
+ 		regfree(&nend)
+ 	} else {
+ 		// TODO(austin): Instead of generating ADD $-8,R8; ADD
+@@ -1604,10 +1585,12 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 			p = gins(op, &src, &tmp)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Offset = int64(dir)
++			p.Scond = arm64.C_XPRE
+ 
+ 			p = gins(op, &tmp, &dst)
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Offset = int64(dir)
++			p.Scond = arm64.C_XPRE
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/7g/galign.go b/src/cmd/7g/galign.go
+index b39149a952..52ac23c39a 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/7g/galign.go
+@@ -7,24 +7,16 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ )
+ 
+-var thechar int = '9'
++var thechar int = '7'
+ 
+-var thestring string = "ppc64"
++var thestring string = "arm64"
+ 
+-var thelinkarch *obj.LinkArch
++var thelinkarch *obj.LinkArch = &arm64.Linkarm64
+ 
+ func linkarchinit() {
+-	thestring = obj.Getgoarch()
+-	gc.Thearch.Thestring = thestring
+-	if thestring == "ppc64le" {
+-		thelinkarch = &ppc64.Linkppc64le
+-	} else {
+-		thelinkarch = &ppc64.Linkppc64
+-	}
+-	gc.Thearch.Thelinkarch = thelinkarch
+ }
+ 
+ var MAXWIDTH int64 = 1 << 50
+@@ -43,7 +35,6 @@ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+ 	gc.Widthreg = 8
+-
+ }
+ 
+ func main() {
+@@ -51,8 +42,8 @@ func main() {
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+ 	gc.Thearch.Typedefs = typedefs
+-	gc.Thearch.REGSP = ppc64.REGSP
+-	gc.Thearch.REGCTXT = ppc64.REGCTXT
++	gc.Thearch.REGSP = arm64.REGSP
++	gc.Thearch.REGCTXT = arm64.REGCTXT
+ 	gc.Thearch.MAXWIDTH = MAXWIDTH
+ 	gc.Thearch.Anyregalloc = anyregalloc
+ 	gc.Thearch.Betypeinit = betypeinit
+diff --git a/src/cmd/7g/gg.go b/src/cmd/7g/gg.go
+index 068d8afe53..a267482f6b 100644
+--- a/src/cmd/7g/gg.go
++++ b/src/cmd/7g/gg.go
+@@ -4,14 +4,14 @@
+ 
+ package main
+ 
+-import "cmd/internal/obj/ppc64"
++import "cmd/internal/obj/arm64"
+ import "cmd/internal/gc"
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-var reg [ppc64.NREG + ppc64.NFREG]uint8
++var reg [arm64.NREG + arm64.NFREG]uint8
+ 
+ var panicdiv *gc.Node
+ 
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 7cc8bc57c8..367d655f2c 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ 	"fmt"
+ )
+ 
+@@ -69,27 +69,31 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, 8+frame+lo+i)
++			p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
+ 		}
+ 	} else if cnt <= int64(128*gc.Widthptr) {
+-		p = appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+-		p.Reg = ppc64.REGSP
++		p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
++		p = appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
++		p.Reg = arm64.REGRT1
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+ 		p.To = gc.Naddr(f)
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+-		p = appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+-		p = appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+-		p.Reg = ppc64.REGSP
+-		p = appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+-		p = appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+-		p.Reg = ppc64.REGRT1
+-		p = appendpp(p, ppc64.AMOVDU, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGRT1, int64(gc.Widthptr))
++		p = appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
++		p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
++		p = appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
++		p.Reg = arm64.REGRT1
++		p = appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm64.REGTMP, 0)
++		p = appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT2, 0)
++		p.Reg = arm64.REGRT1
++		p = appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(gc.Widthptr))
++		p.Scond = arm64.C_XPRE
+ 		p1 := p
+-		p = appendpp(p, ppc64.ACMP, obj.TYPE_REG, ppc64.REGRT1, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+-		p = appendpp(p, ppc64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
++		p = appendpp(p, arm64.ACMP, obj.TYPE_REG, arm64.REGRT1, 0, obj.TYPE_NONE, 0, 0)
++		p.Reg = arm64.REGRT2
++		p = appendpp(p, arm64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+ 		gc.Patch(p, p1)
+ 	}
+ 
+@@ -112,20 +116,6 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int
+ 	return q
+ }
+ 
+-/*
+- * generate: BL reg, f
+- * where both reg and f are registers.
+- * On power, f must be moved to CTR first.
+- */
+-func ginsBL(reg *gc.Node, f *gc.Node) {
+-	p := gins(ppc64.AMOVD, f, nil)
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = ppc64.REG_CTR
+-	p = gins(ppc64.ABL, reg, nil)
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = ppc64.REG_CTR
+-}
+-
+ /*
+  * generate:
+  *	call f
+@@ -157,17 +147,16 @@ func ginscall(f *gc.Node, proc int) {
+ 				// However, the stack trace code will show the line
+ 				// of the instruction byte before the return PC.
+ 				// To avoid that being an unrelated instruction,
+-				// insert a ppc64 NOP that we will have the right line number.
+-				// The ppc64 NOP is really or r0, r0, r0; use that description
++				// insert a arm64 NOP that we will have the right line number.
++				// The arm64 NOP is really or HINT $0; use that description
+ 				// because the NOP pseudo-instruction would be removed by
+ 				// the linker.
+-				var reg gc.Node
+-				gc.Nodreg(&reg, gc.Types[gc.TINT], ppc64.REG_R0)
+-
+-				gins(ppc64.AOR, &reg, &reg)
++				var con gc.Node
++				gc.Nodconst(&con, gc.Types[gc.TINT], 0)
++				gins(arm64.AHINT, &con, nil)
+ 			}
+ 
+-			p := gins(ppc64.ABL, nil, f)
++			p := gins(arm64.ABL, nil, f)
+ 			gc.Afunclit(&p.To, f)
+ 			if proc == -1 || gc.Noreturn(p) {
+ 				gins(obj.AUNDEF, nil, nil)
+@@ -176,17 +165,17 @@ func ginscall(f *gc.Node, proc int) {
+ 		}
+ 
+ 		var reg gc.Node
+-		gc.Nodreg(&reg, gc.Types[gc.Tptr], ppc64.REGCTXT)
++		gc.Nodreg(&reg, gc.Types[gc.Tptr], arm64.REGCTXT)
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, gc.Types[gc.Tptr], ppc64.REG_R3)
++		gc.Nodreg(&r1, gc.Types[gc.Tptr], arm64.REGRT1)
+ 		gmove(f, &reg)
+ 		reg.Op = gc.OINDREG
+ 		gmove(&reg, &r1)
+-		reg.Op = gc.OREGISTER
+-		ginsBL(&reg, &r1)
++		r1.Op = gc.OINDREG
++		gins(arm64.ABL, nil, &r1)
+ 
+ 	case 3: // normal call of c function pointer
+-		ginsBL(nil, f)
++		gins(arm64.ABL, nil, f)
+ 
+ 	case 1, // call in new proc (go)
+ 		2: // deferred call (defer)
+@@ -194,20 +183,20 @@ func ginscall(f *gc.Node, proc int) {
+ 		gc.Nodconst(&con, gc.Types[gc.TINT64], int64(gc.Argsize(f.Type)))
+ 
+ 		var reg gc.Node
+-		gc.Nodreg(&reg, gc.Types[gc.TINT64], ppc64.REG_R3)
++		gc.Nodreg(&reg, gc.Types[gc.TINT64], arm64.REGRT1)
+ 		var reg2 gc.Node
+-		gc.Nodreg(&reg2, gc.Types[gc.TINT64], ppc64.REG_R4)
++		gc.Nodreg(&reg2, gc.Types[gc.TINT64], arm64.REGRT2)
+ 		gmove(f, &reg)
+ 
+ 		gmove(&con, &reg2)
+-		p := gins(ppc64.AMOVW, &reg2, nil)
++		p := gins(arm64.AMOVW, &reg2, nil)
+ 		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = ppc64.REGSP
++		p.To.Reg = arm64.REGSP
+ 		p.To.Offset = 8
+ 
+-		p = gins(ppc64.AMOVD, &reg, nil)
++		p = gins(arm64.AMOVD, &reg, nil)
+ 		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = ppc64.REGSP
++		p.To.Reg = arm64.REGSP
+ 		p.To.Offset = 16
+ 
+ 		if proc == 1 {
+@@ -220,11 +209,10 @@ func ginscall(f *gc.Node, proc int) {
+ 		}
+ 
+ 		if proc == 2 {
+-			gc.Nodreg(&reg, gc.Types[gc.TINT64], ppc64.REG_R3)
+-			p := gins(ppc64.ACMP, &reg, nil)
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = ppc64.REG_R0
+-			p = gc.Gbranch(ppc64.ABEQ, nil, +1)
++			gc.Nodreg(&reg, gc.Types[gc.TINT64], arm64.REG_R0) // R0 should match runtime.return0
++			p := gins(arm64.ACMP, &reg, nil)
++			p.Reg = arm64.REGZERO
++			p = gc.Gbranch(arm64.ABEQ, nil, +1)
+ 			cgen_ret(nil)
+ 			gc.Patch(p, gc.Pc)
+ 		}
+@@ -263,7 +251,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
+ 	igen(i, &nodi, res) // REG = &inter
+ 
+ 	var nodsp gc.Node
+-	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], ppc64.REGSP)
++	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], arm64.REGSP)
+ 
+ 	nodsp.Xoffset = int64(gc.Widthptr)
+ 	if proc != 0 {
+@@ -295,7 +283,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
+ 		proc = 3
+ 	} else {
+ 		// go/defer. generate go func value.
+-		p := gins(ppc64.AMOVD, &nodo, &nodr) // REG = &(32+offset(REG)) -- i.tab->fun[f]
++		p := gins(arm64.AMOVD, &nodo, &nodr) // REG = &(32+offset(REG)) -- i.tab->fun[f]
+ 		p.From.Type = obj.TYPE_ADDR
+ 	}
+ 
+@@ -376,7 +364,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
+ 
+ 	var nod gc.Node
+ 	nod.Op = gc.OINDREG
+-	nod.Val.U.Reg = ppc64.REGSP
++	nod.Val.U.Reg = arm64.REGSP
+ 	nod.Addable = 1
+ 
+ 	nod.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved LR at 0(R1)
+@@ -403,7 +391,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
+ 
+ 	var nod1 gc.Node
+ 	nod1.Op = gc.OINDREG
+-	nod1.Val.U.Reg = ppc64.REGSP
++	nod1.Val.U.Reg = arm64.REGSP
+ 	nod1.Addable = 1
+ 
+ 	nod1.Xoffset = fp.Width + int64(gc.Widthptr) // +widthptr: saved lr at 0(SP)
+@@ -413,7 +401,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
+ 		var nod2 gc.Node
+ 		regalloc(&nod2, gc.Types[gc.Tptr], res)
+ 		agen(&nod1, &nod2)
+-		gins(ppc64.AMOVD, &nod2, res)
++		gins(arm64.AMOVD, &nod2, res)
+ 		regfree(&nod2)
+ 	} else {
+ 		agen(&nod1, res)
+@@ -504,9 +492,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	// Handle divide-by-zero panic.
+ 	p1 := gins(optoas(gc.OCMP, t), &tr, nil)
+-
+-	p1.To.Type = obj.TYPE_REG
+-	p1.To.Reg = ppc64.REGZERO
++	p1.Reg = arm64.REGZERO
+ 	p1 = gc.Gbranch(optoas(gc.ONE, t), nil, +1)
+ 	if panicdiv == nil {
+ 		panicdiv = gc.Sysfunc("panicdivide")
+@@ -518,11 +504,11 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if check != 0 {
+ 		var nm1 gc.Node
+ 		gc.Nodconst(&nm1, t, -1)
+-		gins(optoas(gc.OCMP, t), &tr, &nm1)
++		gcmp(optoas(gc.OCMP, t), &tr, &nm1)
+ 		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
+ 		if op == gc.ODIV {
+ 			// a / (-1) is -a.
+-			gins(optoas(gc.OMINUS, t), nil, &tl)
++			gins(optoas(gc.OMINUS, t), &tl, &tl)
+ 
+ 			gmove(&tl, res)
+ 		} else {
+@@ -601,7 +587,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TINT16,
+ 		gc.TINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(ppc64.ASRAD, nil, &n1))
++		p := (*obj.Prog)(gins(arm64.AASR, nil, &n1))
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -609,16 +595,16 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TUINT16,
+ 		gc.TUINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(ppc64.ASRD, nil, &n1))
++		p := (*obj.Prog)(gins(arm64.ALSR, nil, &n1))
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+ 		if gc.Issigned[t.Etype] {
+-			gins(ppc64.AMULHD, &n2, &n1)
++			gins(arm64.ASMULH, &n2, &n1)
+ 		} else {
+-			gins(ppc64.AMULHDU, &n2, &n1)
++			gins(arm64.AUMULH, &n2, &n1)
+ 		}
+ 
+ 	default:
+@@ -704,7 +690,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	// test and fix up large shifts
+ 	if !bounded {
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+-		gins(optoas(gc.OCMP, tcount), &n1, &n3)
++		gcmp(optoas(gc.OCMP, tcount), &n1, &n3)
+ 		p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, tcount), nil, +1))
+ 		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+@@ -740,58 +726,59 @@ func clearfat(nl *gc.Node) {
+ 	c := uint64(w % 8) // bytes
+ 	q := uint64(w / 8) // dwords
+ 
+-	if reg[ppc64.REGRT1-ppc64.REG_R0] > 0 {
+-		gc.Fatal("R%d in use during clearfat", ppc64.REGRT1-ppc64.REG_R0)
++	if reg[arm64.REGRT1-arm64.REG_R0] > 0 {
++		gc.Fatal("R%d in use during clearfat", arm64.REGRT1-arm64.REG_R0)
+ 	}
+ 
+ 	var r0 gc.Node
+-	gc.Nodreg(&r0, gc.Types[gc.TUINT64], ppc64.REG_R0) // r0 is always zero
++	gc.Nodreg(&r0, gc.Types[gc.TUINT64], arm64.REGZERO)
+ 	var dst gc.Node
+-	gc.Nodreg(&dst, gc.Types[gc.Tptr], ppc64.REGRT1)
+-	reg[ppc64.REGRT1-ppc64.REG_R0]++
++	gc.Nodreg(&dst, gc.Types[gc.Tptr], arm64.REGRT1)
++	reg[arm64.REGRT1-arm64.REG_R0]++
+ 	agen(nl, &dst)
+ 
+ 	var boff uint64
+ 	if q > 128 {
+-		p := gins(ppc64.ASUB, nil, &dst)
++		p := gins(arm64.ASUB, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 8
+ 
+ 		var end gc.Node
+ 		regalloc(&end, gc.Types[gc.Tptr], nil)
+-		p = gins(ppc64.AMOVD, &dst, &end)
++		p = gins(arm64.AMOVD, &dst, &end)
+ 		p.From.Type = obj.TYPE_ADDR
+ 		p.From.Offset = int64(q * 8)
+ 
+-		p = gins(ppc64.AMOVDU, &r0, &dst)
++		p = gins(arm64.AMOVD, &r0, &dst)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = 8
++		p.Scond = arm64.C_XPRE
+ 		pl := (*obj.Prog)(p)
+ 
+-		p = gins(ppc64.ACMP, &dst, &end)
+-		gc.Patch(gc.Gbranch(ppc64.ABNE, nil, 0), pl)
++		p = gcmp(arm64.ACMP, &dst, &end)
++		gc.Patch(gc.Gbranch(arm64.ABNE, nil, 0), pl)
+ 
+ 		regfree(&end)
+ 
+-		// The loop leaves R3 on the last zeroed dword
++		// The loop leaves R16 on the last zeroed dword
+ 		boff = 8
+ 	} else if q >= 4 {
+-		p := gins(ppc64.ASUB, nil, &dst)
++		p := gins(arm64.ASUB, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 8
+ 		f := (*gc.Node)(gc.Sysfunc("duffzero"))
+ 		p = gins(obj.ADUFFZERO, nil, f)
+ 		gc.Afunclit(&p.To, f)
+ 
+-		// 4 and 128 = magic constants: see ../../runtime/asm_ppc64x.s
++		// 4 and 128 = magic constants: see ../../runtime/asm_arm64x.s
+ 		p.To.Offset = int64(4 * (128 - q))
+ 
+-		// duffzero leaves R3 on the last zeroed dword
++		// duffzero leaves R16 on the last zeroed dword
+ 		boff = 8
+ 	} else {
+ 		var p *obj.Prog
+ 		for t := uint64(0); t < q; t++ {
+-			p = gins(ppc64.AMOVD, &r0, &dst)
++			p = gins(arm64.AMOVD, &r0, &dst)
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Offset = int64(8 * t)
+ 		}
+@@ -801,12 +788,12 @@ func clearfat(nl *gc.Node) {
+ 
+ 	var p *obj.Prog
+ 	for t := uint64(0); t < c; t++ {
+-		p = gins(ppc64.AMOVB, &r0, &dst)
++		p = gins(arm64.AMOVB, &r0, &dst)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = int64(t + boff)
+ 	}
+ 
+-	reg[ppc64.REGRT1-ppc64.REG_R0]--
++	reg[arm64.REGRT1-arm64.REG_R0]--
+ }
+ 
+ // Called after regopt and peep have run.
+@@ -829,26 +816,10 @@ func expandchecks(firstp *obj.Prog) {
+ 			gc.Fatal("invalid nil check %v\n", p)
+ 		}
+ 
+-		/*
+-			// check is
+-			//	TD $4, R0, arg (R0 is always zero)
+-			// eqv. to:
+-			// 	tdeq r0, arg
+-			// NOTE: this needs special runtime support to make SIGTRAP recoverable.
+-			reg = p->from.reg;
+-			p->as = ATD;
+-			p->from = p->to = p->from3 = zprog.from;
+-			p->from.type = TYPE_CONST;
+-			p->from.offset = 4;
+-			p->from.reg = 0;
+-			p->reg = REG_R0;
+-			p->to.type = TYPE_REG;
+-			p->to.reg = reg;
+-		*/
+ 		// check is
+-		//	CMP arg, R0
++		//	CMP arg, ZR
+ 		//	BNE 2(PC) [likely]
+-		//	MOVD R0, 0(R0)
++		//	MOVD ZR, 0(arg)
+ 		p1 = gc.Ctxt.NewProg()
+ 
+ 		p2 = gc.Ctxt.NewProg()
+@@ -861,10 +832,9 @@ func expandchecks(firstp *obj.Prog) {
+ 		p2.Lineno = p.Lineno
+ 		p1.Pc = 9999
+ 		p2.Pc = 9999
+-		p.As = ppc64.ACMP
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REGZERO
+-		p1.As = ppc64.ABNE
++		p.As = arm64.ACMP
++		p.Reg = arm64.REGZERO
++		p1.As = arm64.ABNE
+ 
+ 		//p1->from.type = TYPE_CONST;
+ 		//p1->from.offset = 1; // likely
+@@ -873,12 +843,11 @@ func expandchecks(firstp *obj.Prog) {
+ 		p1.To.U.Branch = p2.Link
+ 
+ 		// crash by write to memory address 0.
+-		p2.As = ppc64.AMOVD
+-
++		p2.As = arm64.AMOVD
+ 		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = ppc64.REG_R0
++		p2.From.Reg = arm64.REGZERO
+ 		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = ppc64.REG_R0
++		p2.To.Reg = p.From.Reg
+ 		p2.To.Offset = 0
+ 	}
+ }
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 01572195c8..74da595f76 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -33,7 +33,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ 	"fmt"
+ )
+ 
+@@ -43,35 +43,25 @@ import (
+ var unmappedzero int64 = 4096
+ 
+ var resvd = []int{
+-	ppc64.REGZERO,
+-	ppc64.REGSP, // reserved for SP
+-	// We need to preserve the C ABI TLS pointer because sigtramp
+-	// may happen during C code and needs to access the g.  C
+-	// clobbers REGG, so if Go were to clobber REGTLS, sigtramp
+-	// won't know which convention to use.  By preserving REGTLS,
+-	// we can just retrieve g from TLS when we aren't sure.
+-	ppc64.REGTLS,
+-
+-	// TODO(austin): Consolidate REGTLS and REGG?
+-	ppc64.REGG,
+-	ppc64.REGTMP, // REGTMP
+-	ppc64.FREGCVI,
+-	ppc64.FREGZERO,
+-	ppc64.FREGHALF,
+-	ppc64.FREGONE,
+-	ppc64.FREGTWO,
++	arm64.REGTMP,
++	arm64.REGG,
++	arm64.REG_R31, // REGZERO and REGSP
++	arm64.FREGZERO,
++	arm64.FREGHALF,
++	arm64.FREGONE,
++	arm64.FREGTWO,
+ }
+ 
+ func ginit() {
+ 	for i := 0; i < len(reg); i++ {
+ 		reg[i] = 1
+ 	}
+-	for i := 0; i < ppc64.NREG+ppc64.NFREG; i++ {
++	for i := 0; i < arm64.NREG+arm64.NFREG; i++ {
+ 		reg[i] = 0
+ 	}
+ 
+ 	for i := 0; i < len(resvd); i++ {
+-		reg[resvd[i]-ppc64.REG_R0]++
++		reg[resvd[i]-arm64.REG_R0]++
+ 	}
+ }
+ 
+@@ -79,12 +69,12 @@ var regpc [len(reg)]uint32
+ 
+ func gclean() {
+ 	for i := int(0); i < len(resvd); i++ {
+-		reg[resvd[i]-ppc64.REG_R0]--
++		reg[resvd[i]-arm64.REG_R0]--
+ 	}
+ 
+ 	for i := int(0); i < len(reg); i++ {
+ 		if reg[i] != 0 {
+-			gc.Yyerror("reg %v left allocated, %p\n", obj.Rconv(i+ppc64.REG_R0), regpc[i])
++			gc.Yyerror("reg %v left allocated, %p\n", obj.Rconv(i+arm64.REG_R0), regpc[i])
+ 		}
+ 	}
+ }
+@@ -122,9 +112,9 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 	if gc.Debug['r'] != 0 {
+ 		fixfree := int(0)
+ 		fltfree := int(0)
+-		for i := int(ppc64.REG_R0); i < ppc64.REG_F31; i++ {
+-			if reg[i-ppc64.REG_R0] == 0 {
+-				if i < ppc64.REG_F0 {
++		for i := int(arm64.REG_R0); i < arm64.REG_F31; i++ {
++			if reg[i-arm64.REG_R0] == 0 {
++				if i < arm64.REG_F0 {
+ 					fixfree++
+ 				} else {
+ 					fltfree++
+@@ -150,21 +140,21 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 		gc.TBOOL:
+ 		if o != nil && o.Op == gc.OREGISTER {
+ 			i = int(o.Val.U.Reg)
+-			if i >= ppc64.REGMIN && i <= ppc64.REGMAX {
++			if i >= arm64.REGMIN && i <= arm64.REGMAX {
+ 				goto out
+ 			}
+ 		}
+ 
+-		for i = ppc64.REGMIN; i <= ppc64.REGMAX; i++ {
+-			if reg[i-ppc64.REG_R0] == 0 {
+-				regpc[i-ppc64.REG_R0] = uint32(obj.Getcallerpc(&n))
++		for i = arm64.REGMIN; i <= arm64.REGMAX; i++ {
++			if reg[i-arm64.REG_R0] == 0 {
++				regpc[i-arm64.REG_R0] = uint32(obj.Getcallerpc(&n))
+ 				goto out
+ 			}
+ 		}
+ 
+ 		gc.Flusherrors()
+-		for i := int(ppc64.REG_R0); i < ppc64.REG_R0+ppc64.NREG; i++ {
+-			fmt.Printf("R%d %p\n", i, regpc[i-ppc64.REG_R0])
++		for i := int(arm64.REG_R0); i < arm64.REG_R0+arm64.NREG; i++ {
++			fmt.Printf("R%d %p\n", i, regpc[i-arm64.REG_R0])
+ 		}
+ 		gc.Fatal("out of fixed registers")
+ 
+@@ -172,21 +162,21 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 		gc.TFLOAT64:
+ 		if o != nil && o.Op == gc.OREGISTER {
+ 			i = int(o.Val.U.Reg)
+-			if i >= ppc64.FREGMIN && i <= ppc64.FREGMAX {
++			if i >= arm64.FREGMIN && i <= arm64.FREGMAX {
+ 				goto out
+ 			}
+ 		}
+ 
+-		for i = ppc64.FREGMIN; i <= ppc64.FREGMAX; i++ {
+-			if reg[i-ppc64.REG_R0] == 0 {
+-				regpc[i-ppc64.REG_R0] = uint32(obj.Getcallerpc(&n))
++		for i = arm64.FREGMIN; i <= arm64.FREGMAX; i++ {
++			if reg[i-arm64.REG_R0] == 0 {
++				regpc[i-arm64.REG_R0] = uint32(obj.Getcallerpc(&n))
+ 				goto out
+ 			}
+ 		}
+ 
+ 		gc.Flusherrors()
+-		for i := int(ppc64.REG_F0); i < ppc64.REG_F0+ppc64.NREG; i++ {
+-			fmt.Printf("F%d %p\n", i, regpc[i-ppc64.REG_R0])
++		for i := int(arm64.REG_F0); i < arm64.REG_F0+arm64.NREG; i++ {
++			fmt.Printf("F%d %p\n", i, regpc[i-arm64.REG_R0])
+ 		}
+ 		gc.Fatal("out of floating registers")
+ 
+@@ -200,7 +190,7 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 	return
+ 
+ out:
+-	reg[i-ppc64.REG_R0]++
++	reg[i-arm64.REG_R0]++
+ 	gc.Nodreg(n, t, i)
+ }
+ 
+@@ -211,8 +201,8 @@ func regfree(n *gc.Node) {
+ 	if n.Op != gc.OREGISTER && n.Op != gc.OINDREG {
+ 		gc.Fatal("regfree: not a register")
+ 	}
+-	i := int(int(n.Val.U.Reg) - ppc64.REG_R0)
+-	if i == ppc64.REGSP-ppc64.REG_R0 {
++	i := int(int(n.Val.U.Reg) - arm64.REG_R0)
++	if i == arm64.REGSP-arm64.REG_R0 {
+ 		return
+ 	}
+ 	if i < 0 || i >= len(reg) {
+@@ -236,13 +226,13 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 
+ 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+ 
+-	if as != ppc64.AMOVD && (c < -ppc64.BIG || c > ppc64.BIG) {
++	if as != arm64.AMOVD && (c < -arm64.BIG || c > arm64.BIG) {
+ 		// cannot have more than 16-bit of immediate in ADD, etc.
+ 		// instead, MOV into register first.
+ 		var ntmp gc.Node
+ 		regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+ 
+-		gins(ppc64.AMOVD, &n1, &ntmp)
++		gins(arm64.AMOVD, &n1, &ntmp)
+ 		gins(as, &ntmp, n2)
+ 		regfree(&ntmp)
+ 		return
+@@ -253,7 +243,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 
+ /*
+  * generate
+- *	as n, $c (CMP/CMPU)
++ *	as n, $c (CMP)
+  */
+ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	var n1 gc.Node
+@@ -264,15 +254,9 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	default:
+ 		gc.Fatal("ginscon2")
+ 
+-	case ppc64.ACMP:
+-		if -ppc64.BIG <= c && c <= ppc64.BIG {
+-			gins(as, n2, &n1)
+-			return
+-		}
+-
+-	case ppc64.ACMPU:
+-		if 0 <= c && c <= 2*ppc64.BIG {
+-			gins(as, n2, &n1)
++	case arm64.ACMP:
++		if -arm64.BIG <= c && c <= arm64.BIG {
++			gcmp(as, n2, &n1)
+ 			return
+ 		}
+ 	}
+@@ -281,36 +265,11 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	var ntmp gc.Node
+ 	regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+ 
+-	gins(ppc64.AMOVD, &n1, &ntmp)
+-	gins(as, n2, &ntmp)
++	gins(arm64.AMOVD, &n1, &ntmp)
++	gcmp(as, n2, &ntmp)
+ 	regfree(&ntmp)
+ }
+ 
+-/*
+- * set up nodes representing 2^63
+- */
+-var bigi gc.Node
+-
+-var bigf gc.Node
+-
+-var bignodes_did int
+-
+-func bignodes() {
+-	if bignodes_did != 0 {
+-		return
+-	}
+-	bignodes_did = 1
+-
+-	gc.Nodconst(&bigi, gc.Types[gc.TUINT64], 1)
+-	gc.Mpshiftfix(bigi.Val.U.Xval, 63)
+-
+-	bigf = bigi
+-	bigf.Type = gc.Types[gc.TFLOAT64]
+-	bigf.Val.Ctype = gc.CTFLT
+-	bigf.Val.U.Fval = new(gc.Mpflt)
+-	gc.Mpmovefixflt(bigf.Val.U.Fval, bigi.Val.U.Xval)
+-}
+-
+ /*
+  * generate move:
+  *	t = f
+@@ -331,7 +290,6 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 	}
+ 
+ 	// cannot have two memory operands
+-	var r2 gc.Node
+ 	var r1 gc.Node
+ 	var a int
+ 	if gc.Ismem(f) && gc.Ismem(t) {
+@@ -352,7 +310,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 			gc.Convconst(&con, gc.Types[gc.TINT64], &f.Val)
+ 			var r1 gc.Node
+ 			regalloc(&r1, con.Type, t)
+-			gins(ppc64.AMOVD, &con, &r1)
++			gins(arm64.AMOVD, &con, &r1)
+ 			gmove(&r1, t)
+ 			regfree(&r1)
+ 			return
+@@ -364,7 +322,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 			gc.Convconst(&con, gc.Types[gc.TUINT64], &f.Val)
+ 			var r1 gc.Node
+ 			regalloc(&r1, con.Type, t)
+-			gins(ppc64.AMOVD, &con, &r1)
++			gins(arm64.AMOVD, &con, &r1)
+ 			gmove(&r1, t)
+ 			regfree(&r1)
+ 			return
+@@ -379,21 +337,13 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		}
+ 	}
+ 
+-	// float constants come from memory.
+-	//if(isfloat[tt])
+-	//	goto hard;
+-
+-	// 64-bit immediates are also from memory.
+-	//if(isint[tt])
+-	//	goto hard;
+-	//// 64-bit immediates are really 32-bit sign-extended
+-	//// unless moving into a register.
+-	//if(isint[tt]) {
+-	//	if(mpcmpfixfix(con.val.u.xval, minintval[TINT32]) < 0)
+-	//		goto hard;
+-	//	if(mpcmpfixfix(con.val.u.xval, maxintval[TINT32]) > 0)
+-	//		goto hard;
+-	//}
++	// value -> value copy, first operand in memory.
++	// any floating point operand requires register
++	// src, so goto hard to copy to register first.
++	if gc.Ismem(f) && ft != tt && (gc.Isfloat[ft] || gc.Isfloat[tt]) {
++		cvt = gc.Types[ft]
++		goto hard
++	}
+ 
+ 	// value -> value copy, only one memory operand.
+ 	// figure out the instruction to use.
+@@ -418,7 +368,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT32<<16 | gc.TINT8,
+ 		gc.TINT64<<16 | gc.TINT8,
+ 		gc.TUINT64<<16 | gc.TINT8:
+-		a = ppc64.AMOVB
++		a = arm64.AMOVB
+ 
+ 	case gc.TINT8<<16 | gc.TUINT8, // same size
+ 		gc.TUINT8<<16 | gc.TUINT8,
+@@ -429,7 +379,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT32<<16 | gc.TUINT8,
+ 		gc.TINT64<<16 | gc.TUINT8,
+ 		gc.TUINT64<<16 | gc.TUINT8:
+-		a = ppc64.AMOVBZ
++		a = arm64.AMOVBU
+ 
+ 	case gc.TINT16<<16 | gc.TINT16, // same size
+ 		gc.TUINT16<<16 | gc.TINT16,
+@@ -438,7 +388,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT32<<16 | gc.TINT16,
+ 		gc.TINT64<<16 | gc.TINT16,
+ 		gc.TUINT64<<16 | gc.TINT16:
+-		a = ppc64.AMOVH
++		a = arm64.AMOVH
+ 
+ 	case gc.TINT16<<16 | gc.TUINT16, // same size
+ 		gc.TUINT16<<16 | gc.TUINT16,
+@@ -447,26 +397,26 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT32<<16 | gc.TUINT16,
+ 		gc.TINT64<<16 | gc.TUINT16,
+ 		gc.TUINT64<<16 | gc.TUINT16:
+-		a = ppc64.AMOVHZ
++		a = arm64.AMOVHU
+ 
+ 	case gc.TINT32<<16 | gc.TINT32, // same size
+ 		gc.TUINT32<<16 | gc.TINT32,
+ 		gc.TINT64<<16 | gc.TINT32,
+ 		// truncate
+ 		gc.TUINT64<<16 | gc.TINT32:
+-		a = ppc64.AMOVW
++		a = arm64.AMOVW
+ 
+ 	case gc.TINT32<<16 | gc.TUINT32, // same size
+ 		gc.TUINT32<<16 | gc.TUINT32,
+ 		gc.TINT64<<16 | gc.TUINT32,
+ 		gc.TUINT64<<16 | gc.TUINT32:
+-		a = ppc64.AMOVWZ
++		a = arm64.AMOVWU
+ 
+ 	case gc.TINT64<<16 | gc.TINT64, // same size
+ 		gc.TINT64<<16 | gc.TUINT64,
+ 		gc.TUINT64<<16 | gc.TINT64,
+ 		gc.TUINT64<<16 | gc.TUINT64:
+-		a = ppc64.AMOVD
++		a = arm64.AMOVD
+ 
+ 		/*
+ 		 * integer up-conversions
+@@ -477,7 +427,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT8<<16 | gc.TUINT32,
+ 		gc.TINT8<<16 | gc.TINT64,
+ 		gc.TINT8<<16 | gc.TUINT64:
+-		a = ppc64.AMOVB
++		a = arm64.AMOVB
+ 
+ 		goto rdst
+ 
+@@ -487,7 +437,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT8<<16 | gc.TUINT32,
+ 		gc.TUINT8<<16 | gc.TINT64,
+ 		gc.TUINT8<<16 | gc.TUINT64:
+-		a = ppc64.AMOVBZ
++		a = arm64.AMOVBU
+ 
+ 		goto rdst
+ 
+@@ -495,7 +445,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT16<<16 | gc.TUINT32,
+ 		gc.TINT16<<16 | gc.TINT64,
+ 		gc.TINT16<<16 | gc.TUINT64:
+-		a = ppc64.AMOVH
++		a = arm64.AMOVH
+ 
+ 		goto rdst
+ 
+@@ -503,164 +453,135 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT16<<16 | gc.TUINT32,
+ 		gc.TUINT16<<16 | gc.TINT64,
+ 		gc.TUINT16<<16 | gc.TUINT64:
+-		a = ppc64.AMOVHZ
++		a = arm64.AMOVHU
+ 
+ 		goto rdst
+ 
+ 	case gc.TINT32<<16 | gc.TINT64, // sign extend int32
+ 		gc.TINT32<<16 | gc.TUINT64:
+-		a = ppc64.AMOVW
++		a = arm64.AMOVW
+ 
+ 		goto rdst
+ 
+ 	case gc.TUINT32<<16 | gc.TINT64, // zero extend uint32
+ 		gc.TUINT32<<16 | gc.TUINT64:
+-		a = ppc64.AMOVWZ
++		a = arm64.AMOVWU
+ 
+ 		goto rdst
+ 
+-		//warn("gmove: convert float to int not implemented: %N -> %N\n", f, t);
+-	//return;
+-	// algorithm is:
+-	//	if small enough, use native float64 -> int64 conversion.
+-	//	otherwise, subtract 2^63, convert, and add it back.
+ 	/*
+ 	* float to integer
+ 	 */
+-	case gc.TFLOAT32<<16 | gc.TINT32,
+-		gc.TFLOAT64<<16 | gc.TINT32,
+-		gc.TFLOAT32<<16 | gc.TINT64,
+-		gc.TFLOAT64<<16 | gc.TINT64,
+-		gc.TFLOAT32<<16 | gc.TINT16,
++	case gc.TFLOAT32<<16 | gc.TINT32:
++		a = arm64.AFCVTZSSW
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TINT32:
++		a = arm64.AFCVTZSDW
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TINT64:
++		a = arm64.AFCVTZSS
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TINT64:
++		a = arm64.AFCVTZSD
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TUINT32:
++		a = arm64.AFCVTZUSW
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TUINT32:
++		a = arm64.AFCVTZUDW
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TUINT64:
++		a = arm64.AFCVTZUS
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TUINT64:
++		a = arm64.AFCVTZUD
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TINT16,
+ 		gc.TFLOAT32<<16 | gc.TINT8,
+-		gc.TFLOAT32<<16 | gc.TUINT16,
+-		gc.TFLOAT32<<16 | gc.TUINT8,
+ 		gc.TFLOAT64<<16 | gc.TINT16,
+-		gc.TFLOAT64<<16 | gc.TINT8,
+-		gc.TFLOAT64<<16 | gc.TUINT16,
+-		gc.TFLOAT64<<16 | gc.TUINT8,
+-		gc.TFLOAT32<<16 | gc.TUINT32,
+-		gc.TFLOAT64<<16 | gc.TUINT32,
+-		gc.TFLOAT32<<16 | gc.TUINT64,
+-		gc.TFLOAT64<<16 | gc.TUINT64:
+-		bignodes()
+-
+-		var r1 gc.Node
+-		regalloc(&r1, gc.Types[ft], f)
+-		gmove(f, &r1)
+-		if tt == gc.TUINT64 {
+-			regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
+-			gmove(&bigf, &r2)
+-			gins(ppc64.AFCMPU, &r1, &r2)
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1))
+-			gins(ppc64.AFSUB, &r2, &r1)
+-			gc.Patch(p1, gc.Pc)
+-			regfree(&r2)
+-		}
++		gc.TFLOAT64<<16 | gc.TINT8:
++		cvt = gc.Types[gc.TINT32]
+ 
+-		regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
+-		var r3 gc.Node
+-		regalloc(&r3, gc.Types[gc.TINT64], t)
+-		gins(ppc64.AFCTIDZ, &r1, &r2)
+-		p1 := (*obj.Prog)(gins(ppc64.AFMOVD, &r2, nil))
+-		p1.To.Type = obj.TYPE_MEM
+-		p1.To.Reg = ppc64.REGSP
+-		p1.To.Offset = -8
+-		p1 = gins(ppc64.AMOVD, nil, &r3)
+-		p1.From.Type = obj.TYPE_MEM
+-		p1.From.Reg = ppc64.REGSP
+-		p1.From.Offset = -8
+-		regfree(&r2)
+-		regfree(&r1)
+-		if tt == gc.TUINT64 {
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)) // use CR0 here again
+-			gc.Nodreg(&r1, gc.Types[gc.TINT64], ppc64.REGTMP)
+-			gins(ppc64.AMOVD, &bigi, &r1)
+-			gins(ppc64.AADD, &r1, &r3)
+-			gc.Patch(p1, gc.Pc)
+-		}
++		goto hard
+ 
+-		gmove(&r3, t)
+-		regfree(&r3)
+-		return
++	case gc.TFLOAT32<<16 | gc.TUINT16,
++		gc.TFLOAT32<<16 | gc.TUINT8,
++		gc.TFLOAT64<<16 | gc.TUINT16,
++		gc.TFLOAT64<<16 | gc.TUINT8:
++		cvt = gc.Types[gc.TUINT32]
++
++		goto hard
+ 
+-		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
+-	//return;
+-	// algorithm is:
+-	//	if small enough, use native int64 -> uint64 conversion.
+-	//	otherwise, halve (rounding to odd?), convert, and double.
+ 	/*
+ 	 * integer to float
+ 	 */
+-	case gc.TINT32<<16 | gc.TFLOAT32,
+-		gc.TINT32<<16 | gc.TFLOAT64,
+-		gc.TINT64<<16 | gc.TFLOAT32,
+-		gc.TINT64<<16 | gc.TFLOAT64,
++	case gc.TINT8<<16 | gc.TFLOAT32,
+ 		gc.TINT16<<16 | gc.TFLOAT32,
++		gc.TINT32<<16 | gc.TFLOAT32:
++		a = arm64.ASCVTFWS
++
++		goto rdst
++
++	case gc.TINT8<<16 | gc.TFLOAT64,
+ 		gc.TINT16<<16 | gc.TFLOAT64,
+-		gc.TINT8<<16 | gc.TFLOAT32,
+-		gc.TINT8<<16 | gc.TFLOAT64,
++		gc.TINT32<<16 | gc.TFLOAT64:
++		a = arm64.ASCVTFWD
++
++		goto rdst
++
++	case gc.TINT64<<16 | gc.TFLOAT32:
++		a = arm64.ASCVTFS
++		goto rdst
++
++	case gc.TINT64<<16 | gc.TFLOAT64:
++		a = arm64.ASCVTFD
++		goto rdst
++
++	case gc.TUINT8<<16 | gc.TFLOAT32,
+ 		gc.TUINT16<<16 | gc.TFLOAT32,
++		gc.TUINT32<<16 | gc.TFLOAT32:
++		a = arm64.AUCVTFWS
++
++		goto rdst
++
++	case gc.TUINT8<<16 | gc.TFLOAT64,
+ 		gc.TUINT16<<16 | gc.TFLOAT64,
+-		gc.TUINT8<<16 | gc.TFLOAT32,
+-		gc.TUINT8<<16 | gc.TFLOAT64,
+-		gc.TUINT32<<16 | gc.TFLOAT32,
+-		gc.TUINT32<<16 | gc.TFLOAT64,
+-		gc.TUINT64<<16 | gc.TFLOAT32,
+-		gc.TUINT64<<16 | gc.TFLOAT64:
+-		bignodes()
+-
+-		var r1 gc.Node
+-		regalloc(&r1, gc.Types[gc.TINT64], nil)
+-		gmove(f, &r1)
+-		if ft == gc.TUINT64 {
+-			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
+-			gmove(&bigi, &r2)
+-			gins(ppc64.ACMPU, &r1, &r2)
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1))
+-			p2 := (*obj.Prog)(gins(ppc64.ASRD, nil, &r1))
+-			p2.From.Type = obj.TYPE_CONST
+-			p2.From.Offset = 1
+-			gc.Patch(p1, gc.Pc)
+-		}
++		gc.TUINT32<<16 | gc.TFLOAT64:
++		a = arm64.AUCVTFWD
+ 
+-		regalloc(&r2, gc.Types[gc.TFLOAT64], t)
+-		p1 := (*obj.Prog)(gins(ppc64.AMOVD, &r1, nil))
+-		p1.To.Type = obj.TYPE_MEM
+-		p1.To.Reg = ppc64.REGSP
+-		p1.To.Offset = -8
+-		p1 = gins(ppc64.AFMOVD, nil, &r2)
+-		p1.From.Type = obj.TYPE_MEM
+-		p1.From.Reg = ppc64.REGSP
+-		p1.From.Offset = -8
+-		gins(ppc64.AFCFID, &r2, &r2)
+-		regfree(&r1)
+-		if ft == gc.TUINT64 {
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)) // use CR0 here again
+-			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
+-			gins(ppc64.AFMUL, &r1, &r2)
+-			gc.Patch(p1, gc.Pc)
+-		}
++		goto rdst
+ 
+-		gmove(&r2, t)
+-		regfree(&r2)
+-		return
++	case gc.TUINT64<<16 | gc.TFLOAT32:
++		a = arm64.AUCVTFS
++		goto rdst
++
++	case gc.TUINT64<<16 | gc.TFLOAT64:
++		a = arm64.AUCVTFD
++		goto rdst
+ 
+ 		/*
+ 		 * float to float
+ 		 */
+ 	case gc.TFLOAT32<<16 | gc.TFLOAT32:
+-		a = ppc64.AFMOVS
++		a = arm64.AFMOVS
+ 
+ 	case gc.TFLOAT64<<16 | gc.TFLOAT64:
+-		a = ppc64.AFMOVD
++		a = arm64.AFMOVD
+ 
+ 	case gc.TFLOAT32<<16 | gc.TFLOAT64:
+-		a = ppc64.AFMOVS
++		a = arm64.AFCVTSD
+ 		goto rdst
+ 
+ 	case gc.TFLOAT64<<16 | gc.TFLOAT32:
+-		a = ppc64.AFRSP
++		a = arm64.AFCVTDS
+ 		goto rdst
+ 	}
+ 
+@@ -669,14 +590,12 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	// requires register destination
+ rdst:
+-	{
+-		regalloc(&r1, t.Type, t)
++	regalloc(&r1, t.Type, t)
+ 
+-		gins(a, f, &r1)
+-		gmove(&r1, t)
+-		regfree(&r1)
+-		return
+-	}
++	gins(a, f, &r1)
++	gmove(&r1, t)
++	regfree(&r1)
++	return
+ 
+ 	// requires register intermediate
+ hard:
+@@ -718,26 +637,19 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	w := int32(0)
+ 	switch as {
+-	case ppc64.AMOVB,
+-		ppc64.AMOVBU,
+-		ppc64.AMOVBZ,
+-		ppc64.AMOVBZU:
++	case arm64.AMOVB,
++		arm64.AMOVBU:
+ 		w = 1
+ 
+-	case ppc64.AMOVH,
+-		ppc64.AMOVHU,
+-		ppc64.AMOVHZ,
+-		ppc64.AMOVHZU:
++	case arm64.AMOVH,
++		arm64.AMOVHU:
+ 		w = 2
+ 
+-	case ppc64.AMOVW,
+-		ppc64.AMOVWU,
+-		ppc64.AMOVWZ,
+-		ppc64.AMOVWZU:
++	case arm64.AMOVW,
++		arm64.AMOVWU:
+ 		w = 4
+ 
+-	case ppc64.AMOVD,
+-		ppc64.AMOVDU:
++	case arm64.AMOVD:
+ 		if af.Type == obj.TYPE_CONST || af.Type == obj.TYPE_ADDR {
+ 			break
+ 		}
+@@ -760,24 +672,47 @@ func fixlargeoffset(n *gc.Node) {
+ 	if n.Op != gc.OINDREG {
+ 		return
+ 	}
+-	if n.Val.U.Reg == ppc64.REGSP { // stack offset cannot be large
++	if -4096 <= n.Xoffset && n.Xoffset < 4096 {
+ 		return
+ 	}
+-	if n.Xoffset != int64(int32(n.Xoffset)) {
+-		// TODO(minux): offset too large, move into R31 and add to R31 instead.
+-		// this is used only in test/fixedbugs/issue6036.go.
+-		gc.Fatal("offset too large: %v", gc.Nconv(n, 0))
+-
+-		a := gc.Node(*n)
+-		a.Op = gc.OREGISTER
+-		a.Type = gc.Types[gc.Tptr]
+-		a.Xoffset = 0
+-		gc.Cgen_checknil(&a)
+-		ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
+-		n.Xoffset = 0
++	a := gc.Node(*n)
++	a.Op = gc.OREGISTER
++	a.Type = gc.Types[gc.Tptr]
++	a.Xoffset = 0
++	gc.Cgen_checknil(&a)
++	ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
++	n.Xoffset = 0
++}
++
++/*
++ * insert n into reg slot of p
++ */
++func raddr(n *gc.Node, p *obj.Prog) {
++	var a obj.Addr
++
++	a = gc.Naddr(n)
++	if a.Type != obj.TYPE_REG {
++		if n != nil {
++			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
++		} else {
++			gc.Fatal("bad in raddr: <null>")
++		}
++		p.Reg = 0
++	} else {
++		p.Reg = a.Reg
+ 	}
+ }
+ 
++func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
++	if lhs.Op != gc.OREGISTER {
++		gc.Fatal("bad operands to gcmp: %v %v", gc.Oconv(int(lhs.Op), 0), gc.Oconv(int(rhs.Op), 0))
++	}
++
++	p := gins(as, rhs, nil)
++	raddr(lhs, p)
++	return p
++}
++
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+@@ -804,7 +739,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OEQ<<16 | gc.TPTR64,
+ 		gc.OEQ<<16 | gc.TFLOAT32,
+ 		gc.OEQ<<16 | gc.TFLOAT64:
+-		a = ppc64.ABEQ
++		a = arm64.ABEQ
+ 
+ 	case gc.ONE<<16 | gc.TBOOL,
+ 		gc.ONE<<16 | gc.TINT8,
+@@ -819,109 +754,113 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.ONE<<16 | gc.TPTR64,
+ 		gc.ONE<<16 | gc.TFLOAT32,
+ 		gc.ONE<<16 | gc.TFLOAT64:
+-		a = ppc64.ABNE
++		a = arm64.ABNE
+ 
+-	case gc.OLT<<16 | gc.TINT8, // ACMP
++	case gc.OLT<<16 | gc.TINT8,
+ 		gc.OLT<<16 | gc.TINT16,
+ 		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64,
+-		gc.OLT<<16 | gc.TUINT8,
+-		// ACMPU
++		gc.OLT<<16 | gc.TINT64:
++		a = arm64.ABLT
++
++	case gc.OLT<<16 | gc.TUINT8,
+ 		gc.OLT<<16 | gc.TUINT16,
+ 		gc.OLT<<16 | gc.TUINT32,
+ 		gc.OLT<<16 | gc.TUINT64,
+ 		gc.OLT<<16 | gc.TFLOAT32,
+-		// AFCMPU
+ 		gc.OLT<<16 | gc.TFLOAT64:
+-		a = ppc64.ABLT
++		a = arm64.ABLO
+ 
+-	case gc.OLE<<16 | gc.TINT8, // ACMP
++	case gc.OLE<<16 | gc.TINT8,
+ 		gc.OLE<<16 | gc.TINT16,
+ 		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64,
+-		gc.OLE<<16 | gc.TUINT8,
+-		// ACMPU
++		gc.OLE<<16 | gc.TINT64:
++		a = arm64.ABLE
++
++	case gc.OLE<<16 | gc.TUINT8,
+ 		gc.OLE<<16 | gc.TUINT16,
+ 		gc.OLE<<16 | gc.TUINT32,
+ 		gc.OLE<<16 | gc.TUINT64,
+ 		gc.OLE<<16 | gc.TFLOAT32,
+-		// AFCMPU
+ 		gc.OLE<<16 | gc.TFLOAT64:
+-		a = ppc64.ABLE
++		a = arm64.ABLS
+ 
+ 	case gc.OGT<<16 | gc.TINT8,
+ 		gc.OGT<<16 | gc.TINT16,
+ 		gc.OGT<<16 | gc.TINT32,
+ 		gc.OGT<<16 | gc.TINT64,
+-		gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64,
+ 		gc.OGT<<16 | gc.TFLOAT32,
+ 		gc.OGT<<16 | gc.TFLOAT64:
+-		a = ppc64.ABGT
++		a = arm64.ABGT
++
++	case gc.OGT<<16 | gc.TUINT8,
++		gc.OGT<<16 | gc.TUINT16,
++		gc.OGT<<16 | gc.TUINT32,
++		gc.OGT<<16 | gc.TUINT64:
++		a = arm64.ABHI
+ 
+ 	case gc.OGE<<16 | gc.TINT8,
+ 		gc.OGE<<16 | gc.TINT16,
+ 		gc.OGE<<16 | gc.TINT32,
+ 		gc.OGE<<16 | gc.TINT64,
+-		gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64,
+ 		gc.OGE<<16 | gc.TFLOAT32,
+ 		gc.OGE<<16 | gc.TFLOAT64:
+-		a = ppc64.ABGE
++		a = arm64.ABGE
++
++	case gc.OGE<<16 | gc.TUINT8,
++		gc.OGE<<16 | gc.TUINT16,
++		gc.OGE<<16 | gc.TUINT32,
++		gc.OGE<<16 | gc.TUINT64:
++		a = arm64.ABHS
+ 
+ 	case gc.OCMP<<16 | gc.TBOOL,
+ 		gc.OCMP<<16 | gc.TINT8,
+ 		gc.OCMP<<16 | gc.TINT16,
+ 		gc.OCMP<<16 | gc.TINT32,
+ 		gc.OCMP<<16 | gc.TPTR32,
+-		gc.OCMP<<16 | gc.TINT64:
+-		a = ppc64.ACMP
+-
+-	case gc.OCMP<<16 | gc.TUINT8,
++		gc.OCMP<<16 | gc.TINT64,
++		gc.OCMP<<16 | gc.TUINT8,
+ 		gc.OCMP<<16 | gc.TUINT16,
+ 		gc.OCMP<<16 | gc.TUINT32,
+ 		gc.OCMP<<16 | gc.TUINT64,
+ 		gc.OCMP<<16 | gc.TPTR64:
+-		a = ppc64.ACMPU
++		a = arm64.ACMP
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32,
+-		gc.OCMP<<16 | gc.TFLOAT64:
+-		a = ppc64.AFCMPU
++	case gc.OCMP<<16 | gc.TFLOAT32:
++		a = arm64.AFCMPS
++
++	case gc.OCMP<<16 | gc.TFLOAT64:
++		a = arm64.AFCMPD
+ 
+ 	case gc.OAS<<16 | gc.TBOOL,
+ 		gc.OAS<<16 | gc.TINT8:
+-		a = ppc64.AMOVB
++		a = arm64.AMOVB
+ 
+ 	case gc.OAS<<16 | gc.TUINT8:
+-		a = ppc64.AMOVBZ
++		a = arm64.AMOVBU
+ 
+ 	case gc.OAS<<16 | gc.TINT16:
+-		a = ppc64.AMOVH
++		a = arm64.AMOVH
+ 
+ 	case gc.OAS<<16 | gc.TUINT16:
+-		a = ppc64.AMOVHZ
++		a = arm64.AMOVHU
+ 
+ 	case gc.OAS<<16 | gc.TINT32:
+-		a = ppc64.AMOVW
++		a = arm64.AMOVW
+ 
+ 	case gc.OAS<<16 | gc.TUINT32,
+ 		gc.OAS<<16 | gc.TPTR32:
+-		a = ppc64.AMOVWZ
++		a = arm64.AMOVWU
+ 
+ 	case gc.OAS<<16 | gc.TINT64,
+ 		gc.OAS<<16 | gc.TUINT64,
+ 		gc.OAS<<16 | gc.TPTR64:
+-		a = ppc64.AMOVD
++		a = arm64.AMOVD
+ 
+ 	case gc.OAS<<16 | gc.TFLOAT32:
+-		a = ppc64.AFMOVS
++		a = arm64.AFMOVS
+ 
+ 	case gc.OAS<<16 | gc.TFLOAT64:
+-		a = ppc64.AFMOVD
++		a = arm64.AFMOVD
+ 
+ 	case gc.OADD<<16 | gc.TINT8,
+ 		gc.OADD<<16 | gc.TUINT8,
+@@ -933,13 +872,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OADD<<16 | gc.TINT64,
+ 		gc.OADD<<16 | gc.TUINT64,
+ 		gc.OADD<<16 | gc.TPTR64:
+-		a = ppc64.AADD
++		a = arm64.AADD
+ 
+ 	case gc.OADD<<16 | gc.TFLOAT32:
+-		a = ppc64.AFADDS
++		a = arm64.AFADDS
+ 
+ 	case gc.OADD<<16 | gc.TFLOAT64:
+-		a = ppc64.AFADD
++		a = arm64.AFADDD
+ 
+ 	case gc.OSUB<<16 | gc.TINT8,
+ 		gc.OSUB<<16 | gc.TUINT8,
+@@ -951,13 +890,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OSUB<<16 | gc.TINT64,
+ 		gc.OSUB<<16 | gc.TUINT64,
+ 		gc.OSUB<<16 | gc.TPTR64:
+-		a = ppc64.ASUB
++		a = arm64.ASUB
+ 
+ 	case gc.OSUB<<16 | gc.TFLOAT32:
+-		a = ppc64.AFSUBS
++		a = arm64.AFSUBS
+ 
+ 	case gc.OSUB<<16 | gc.TFLOAT64:
+-		a = ppc64.AFSUB
++		a = arm64.AFSUBD
+ 
+ 	case gc.OMINUS<<16 | gc.TINT8,
+ 		gc.OMINUS<<16 | gc.TUINT8,
+@@ -969,7 +908,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OMINUS<<16 | gc.TINT64,
+ 		gc.OMINUS<<16 | gc.TUINT64,
+ 		gc.OMINUS<<16 | gc.TPTR64:
+-		a = ppc64.ANEG
++		a = arm64.ANEG
++
++	case gc.OMINUS<<16 | gc.TFLOAT32:
++		a = arm64.AFNEGS
++
++	case gc.OMINUS<<16 | gc.TFLOAT64:
++		a = arm64.AFNEGD
+ 
+ 	case gc.OAND<<16 | gc.TINT8,
+ 		gc.OAND<<16 | gc.TUINT8,
+@@ -981,7 +926,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OAND<<16 | gc.TINT64,
+ 		gc.OAND<<16 | gc.TUINT64,
+ 		gc.OAND<<16 | gc.TPTR64:
+-		a = ppc64.AAND
++		a = arm64.AAND
+ 
+ 	case gc.OOR<<16 | gc.TINT8,
+ 		gc.OOR<<16 | gc.TUINT8,
+@@ -993,7 +938,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OOR<<16 | gc.TINT64,
+ 		gc.OOR<<16 | gc.TUINT64,
+ 		gc.OOR<<16 | gc.TPTR64:
+-		a = ppc64.AOR
++		a = arm64.AORR
+ 
+ 	case gc.OXOR<<16 | gc.TINT8,
+ 		gc.OXOR<<16 | gc.TUINT8,
+@@ -1005,7 +950,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OXOR<<16 | gc.TINT64,
+ 		gc.OXOR<<16 | gc.TUINT64,
+ 		gc.OXOR<<16 | gc.TPTR64:
+-		a = ppc64.AXOR
++		a = arm64.AEOR
+ 
+ 		// TODO(minux): handle rotates
+ 	//case CASE(OLROT, TINT8):
+@@ -1031,7 +976,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OLSH<<16 | gc.TINT64,
+ 		gc.OLSH<<16 | gc.TUINT64,
+ 		gc.OLSH<<16 | gc.TPTR64:
+-		a = ppc64.ASLD
++		a = arm64.ALSL
+ 
+ 	case gc.ORSH<<16 | gc.TUINT8,
+ 		gc.ORSH<<16 | gc.TUINT16,
+@@ -1039,13 +984,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.ORSH<<16 | gc.TPTR32,
+ 		gc.ORSH<<16 | gc.TUINT64,
+ 		gc.ORSH<<16 | gc.TPTR64:
+-		a = ppc64.ASRD
++		a = arm64.ALSR
+ 
+ 	case gc.ORSH<<16 | gc.TINT8,
+ 		gc.ORSH<<16 | gc.TINT16,
+ 		gc.ORSH<<16 | gc.TINT32,
+ 		gc.ORSH<<16 | gc.TINT64:
+-		a = ppc64.ASRAD
++		a = arm64.AASR
+ 
+ 		// TODO(minux): handle rotates
+ 	//case CASE(ORROTC, TINT8):
+@@ -1060,40 +1005,42 @@ func optoas(op int, t *gc.Type) int {
+ 	//	break;
+ 
+ 	case gc.OHMUL<<16 | gc.TINT64:
+-		a = ppc64.AMULHD
++		a = arm64.ASMULH
+ 
+ 	case gc.OHMUL<<16 | gc.TUINT64,
+ 		gc.OHMUL<<16 | gc.TPTR64:
+-		a = ppc64.AMULHDU
++		a = arm64.AUMULH
+ 
+ 	case gc.OMUL<<16 | gc.TINT8,
+ 		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TINT64:
+-		a = ppc64.AMULLD
++		gc.OMUL<<16 | gc.TINT32:
++		a = arm64.ASMULL
++
++	case gc.OMUL<<16 | gc.TINT64:
++		a = arm64.AMUL
+ 
+ 	case gc.OMUL<<16 | gc.TUINT8,
+ 		gc.OMUL<<16 | gc.TUINT16,
+ 		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32,
++		gc.OMUL<<16 | gc.TPTR32:
+ 		// don't use word multiply, the high 32-bit are undefined.
+-		// fallthrough
+-		gc.OMUL<<16 | gc.TUINT64,
++		a = arm64.AUMULL
++
++	case gc.OMUL<<16 | gc.TUINT64,
+ 		gc.OMUL<<16 | gc.TPTR64:
+-		a = ppc64.AMULLD
+-		// for 64-bit multiplies, signedness doesn't matter.
++		a = arm64.AMUL // for 64-bit multiplies, signedness doesn't matter.
+ 
+ 	case gc.OMUL<<16 | gc.TFLOAT32:
+-		a = ppc64.AFMULS
++		a = arm64.AFMULS
+ 
+ 	case gc.OMUL<<16 | gc.TFLOAT64:
+-		a = ppc64.AFMUL
++		a = arm64.AFMULD
+ 
+ 	case gc.ODIV<<16 | gc.TINT8,
+ 		gc.ODIV<<16 | gc.TINT16,
+ 		gc.ODIV<<16 | gc.TINT32,
+ 		gc.ODIV<<16 | gc.TINT64:
+-		a = ppc64.ADIVD
++		a = arm64.ASDIV
+ 
+ 	case gc.ODIV<<16 | gc.TUINT8,
+ 		gc.ODIV<<16 | gc.TUINT16,
+@@ -1101,13 +1048,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.ODIV<<16 | gc.TPTR32,
+ 		gc.ODIV<<16 | gc.TUINT64,
+ 		gc.ODIV<<16 | gc.TPTR64:
+-		a = ppc64.ADIVDU
++		a = arm64.AUDIV
+ 
+ 	case gc.ODIV<<16 | gc.TFLOAT32:
+-		a = ppc64.AFDIVS
++		a = arm64.AFDIVS
+ 
+ 	case gc.ODIV<<16 | gc.TFLOAT64:
+-		a = ppc64.AFDIV
++		a = arm64.AFDIVD
+ 	}
+ 
+ 	return a
+diff --git a/src/cmd/7g/opt.go b/src/cmd/7g/opt.go
+deleted file mode 100644
+index 4a134f134f..0000000000
+--- a/src/cmd/7g/opt.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-// Many Power ISA arithmetic and logical instructions come in four
+-// standard variants.  These bits let us map between variants.
+-const (
+-	V_CC = 1 << 0 // xCC (affect CR field 0 flags)
+-	V_V  = 1 << 1 // xV (affect SO and OV flags)
+-)
+diff --git a/src/cmd/7g/peep.go b/src/cmd/7g/peep.go
+index af2e68ce2d..7faef1a747 100644
+--- a/src/cmd/7g/peep.go
++++ b/src/cmd/7g/peep.go
+@@ -33,318 +33,14 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ 	"fmt"
+ )
+ 
+ var gactive uint32
+ 
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
+-	if g == nil {
+-		return
+-	}
+-	gactive = 0
+-
+-	var p *obj.Prog
+-	var r *gc.Flow
+-	var t int
+-loop1:
+-	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+-		gc.Dumpit("loop1", g.Start, 0)
+-	}
+-
+-	t = 0
+-	for r = g.Start; r != nil; r = r.Link {
+-		p = r.Prog
+-
+-		// TODO(austin) Handle smaller moves.  arm and amd64
+-		// distinguish between moves that moves that *must*
+-		// sign/zero extend and moves that don't care so they
+-		// can eliminate moves that don't care without
+-		// breaking moves that do care.  This might let us
+-		// simplify or remove the next peep loop, too.
+-		if p.As == ppc64.AMOVD || p.As == ppc64.AFMOVD {
+-			if regtyp(&p.To) {
+-				// Try to eliminate reg->reg moves
+-				if regtyp(&p.From) {
+-					if p.From.Type == p.To.Type {
+-						if copyprop(r) {
+-							excise(r)
+-							t++
+-						} else if subprop(r) && copyprop(r) {
+-							excise(r)
+-							t++
+-						}
+-					}
+-				}
+-
+-				// Convert uses to $0 to uses of R0 and
+-				// propagate R0
+-				if regzer(&p.From) != 0 {
+-					if p.To.Type == obj.TYPE_REG {
+-						p.From.Type = obj.TYPE_REG
+-						p.From.Reg = ppc64.REGZERO
+-						if copyprop(r) {
+-							excise(r)
+-							t++
+-						} else if subprop(r) && copyprop(r) {
+-							excise(r)
+-							t++
+-						}
+-					}
+-				}
+-			}
+-		}
+-	}
+-
+-	if t != 0 {
+-		goto loop1
+-	}
+-
+-	/*
+-	 * look for MOVB x,R; MOVB R,R (for small MOVs not handled above)
+-	 */
+-	var p1 *obj.Prog
+-	var r1 *gc.Flow
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+-		p = r.Prog
+-		switch p.As {
+-		default:
+-			continue
+-
+-		case ppc64.AMOVH,
+-			ppc64.AMOVHZ,
+-			ppc64.AMOVB,
+-			ppc64.AMOVBZ,
+-			ppc64.AMOVW,
+-			ppc64.AMOVWZ:
+-			if p.To.Type != obj.TYPE_REG {
+-				continue
+-			}
+-		}
+-
+-		r1 = r.Link
+-		if r1 == nil {
+-			continue
+-		}
+-		p1 = r1.Prog
+-		if p1.As != p.As {
+-			continue
+-		}
+-		if p1.From.Type != obj.TYPE_REG || p1.From.Reg != p.To.Reg {
+-			continue
+-		}
+-		if p1.To.Type != obj.TYPE_REG || p1.To.Reg != p.To.Reg {
+-			continue
+-		}
+-		excise(r1)
+-	}
+-
+-	if gc.Debug['D'] > 1 {
+-		goto ret /* allow following code improvement to be suppressed */
+-	}
+-
+-	/*
+-	 * look for OP x,y,R; CMP R, $0 -> OPCC x,y,R
+-	 * when OP can set condition codes correctly
+-	 */
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+-		p = r.Prog
+-		switch p.As {
+-		case ppc64.ACMP,
+-			ppc64.ACMPW: /* always safe? */
+-			if regzer(&p.To) == 0 {
+-				continue
+-			}
+-			r1 = r.S1
+-			if r1 == nil {
+-				continue
+-			}
+-			switch r1.Prog.As {
+-			default:
+-				continue
+-
+-				/* the conditions can be complex and these are currently little used */
+-			case ppc64.ABCL,
+-				ppc64.ABC:
+-				continue
+-
+-			case ppc64.ABEQ,
+-				ppc64.ABGE,
+-				ppc64.ABGT,
+-				ppc64.ABLE,
+-				ppc64.ABLT,
+-				ppc64.ABNE,
+-				ppc64.ABVC,
+-				ppc64.ABVS:
+-				break
+-			}
+-
+-			r1 = r
+-			for {
+-				r1 = gc.Uniqp(r1)
+-				if r1 == nil || r1.Prog.As != obj.ANOP {
+-					break
+-				}
+-			}
+-
+-			if r1 == nil {
+-				continue
+-			}
+-			p1 = r1.Prog
+-			if p1.To.Type != obj.TYPE_REG || p1.To.Reg != p.From.Reg {
+-				continue
+-			}
+-			switch p1.As {
+-			/* irregular instructions */
+-			case ppc64.ASUB,
+-				ppc64.AADD,
+-				ppc64.AXOR,
+-				ppc64.AOR:
+-				if p1.From.Type == obj.TYPE_CONST || p1.From.Type == obj.TYPE_ADDR {
+-					continue
+-				}
+-			}
+-
+-			switch p1.As {
+-			default:
+-				continue
+-
+-			case ppc64.AMOVW,
+-				ppc64.AMOVD:
+-				if p1.From.Type != obj.TYPE_REG {
+-					continue
+-				}
+-				continue
+-
+-			case ppc64.AANDCC,
+-				ppc64.AANDNCC,
+-				ppc64.AORCC,
+-				ppc64.AORNCC,
+-				ppc64.AXORCC,
+-				ppc64.ASUBCC,
+-				ppc64.ASUBECC,
+-				ppc64.ASUBMECC,
+-				ppc64.ASUBZECC,
+-				ppc64.AADDCC,
+-				ppc64.AADDCCC,
+-				ppc64.AADDECC,
+-				ppc64.AADDMECC,
+-				ppc64.AADDZECC,
+-				ppc64.ARLWMICC,
+-				ppc64.ARLWNMCC,
+-				/* don't deal with floating point instructions for now */
+-				/*
+-					case AFABS:
+-					case AFADD:
+-					case AFADDS:
+-					case AFCTIW:
+-					case AFCTIWZ:
+-					case AFDIV:
+-					case AFDIVS:
+-					case AFMADD:
+-					case AFMADDS:
+-					case AFMOVD:
+-					case AFMSUB:
+-					case AFMSUBS:
+-					case AFMUL:
+-					case AFMULS:
+-					case AFNABS:
+-					case AFNEG:
+-					case AFNMADD:
+-					case AFNMADDS:
+-					case AFNMSUB:
+-					case AFNMSUBS:
+-					case AFRSP:
+-					case AFSUB:
+-					case AFSUBS:
+-					case ACNTLZW:
+-					case AMTFSB0:
+-					case AMTFSB1:
+-				*/
+-				ppc64.AADD,
+-				ppc64.AADDV,
+-				ppc64.AADDC,
+-				ppc64.AADDCV,
+-				ppc64.AADDME,
+-				ppc64.AADDMEV,
+-				ppc64.AADDE,
+-				ppc64.AADDEV,
+-				ppc64.AADDZE,
+-				ppc64.AADDZEV,
+-				ppc64.AAND,
+-				ppc64.AANDN,
+-				ppc64.ADIVW,
+-				ppc64.ADIVWV,
+-				ppc64.ADIVWU,
+-				ppc64.ADIVWUV,
+-				ppc64.ADIVD,
+-				ppc64.ADIVDV,
+-				ppc64.ADIVDU,
+-				ppc64.ADIVDUV,
+-				ppc64.AEQV,
+-				ppc64.AEXTSB,
+-				ppc64.AEXTSH,
+-				ppc64.AEXTSW,
+-				ppc64.AMULHW,
+-				ppc64.AMULHWU,
+-				ppc64.AMULLW,
+-				ppc64.AMULLWV,
+-				ppc64.AMULHD,
+-				ppc64.AMULHDU,
+-				ppc64.AMULLD,
+-				ppc64.AMULLDV,
+-				ppc64.ANAND,
+-				ppc64.ANEG,
+-				ppc64.ANEGV,
+-				ppc64.ANOR,
+-				ppc64.AOR,
+-				ppc64.AORN,
+-				ppc64.AREM,
+-				ppc64.AREMV,
+-				ppc64.AREMU,
+-				ppc64.AREMUV,
+-				ppc64.AREMD,
+-				ppc64.AREMDV,
+-				ppc64.AREMDU,
+-				ppc64.AREMDUV,
+-				ppc64.ARLWMI,
+-				ppc64.ARLWNM,
+-				ppc64.ASLW,
+-				ppc64.ASRAW,
+-				ppc64.ASRW,
+-				ppc64.ASLD,
+-				ppc64.ASRAD,
+-				ppc64.ASRD,
+-				ppc64.ASUB,
+-				ppc64.ASUBV,
+-				ppc64.ASUBC,
+-				ppc64.ASUBCV,
+-				ppc64.ASUBME,
+-				ppc64.ASUBMEV,
+-				ppc64.ASUBE,
+-				ppc64.ASUBEV,
+-				ppc64.ASUBZE,
+-				ppc64.ASUBZEV,
+-				ppc64.AXOR:
+-				t = variant2as(int(p1.As), as2variant(int(p1.As))|V_CC)
+-			}
+-
+-			if gc.Debug['D'] != 0 {
+-				fmt.Printf("cmp %v; %v -> ", p1, p)
+-			}
+-			p1.As = int16(t)
+-			if gc.Debug['D'] != 0 {
+-				fmt.Printf("%v\n", p1)
+-			}
+-			excise(r)
+-			continue
+-		}
+-	}
+-
+-ret:
+-	gc.Flowend(g)
++	// TODO(aram)
+ }
+ 
+ func excise(r *gc.Flow) {
+@@ -356,677 +52,9 @@ func excise(r *gc.Flow) {
+ 	gc.Ostats.Ndelmov++
+ }
+ 
+-/*
+- * regzer returns 1 if a's value is 0 (a is R0 or $0)
+- */
+-func regzer(a *obj.Addr) int {
+-	if a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_ADDR {
+-		if a.Sym == nil && a.Reg == 0 {
+-			if a.Offset == 0 {
+-				return 1
+-			}
+-		}
+-	}
+-	if a.Type == obj.TYPE_REG {
+-		if a.Reg == ppc64.REGZERO {
+-			return 1
+-		}
+-	}
+-	return 0
+-}
+-
+ func regtyp(a *obj.Addr) bool {
+ 	// TODO(rsc): Floating point register exclusions?
+-	return a.Type == obj.TYPE_REG && ppc64.REG_R0 <= a.Reg && a.Reg <= ppc64.REG_F31 && a.Reg != ppc64.REGZERO
+-}
+-
+-/*
+- * the idea is to substitute
+- * one register for another
+- * from one MOV to another
+- *	MOV	a, R1
+- *	ADD	b, R1	/ no use of R2
+- *	MOV	R1, R2
+- * would be converted to
+- *	MOV	a, R2
+- *	ADD	b, R2
+- *	MOV	R2, R1
+- * hopefully, then the former or latter MOV
+- * will be eliminated by copy propagation.
+- *
+- * r0 (the argument, not the register) is the MOV at the end of the
+- * above sequences.  This returns 1 if it modified any instructions.
+- */
+-func subprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	if !regtyp(v1) {
+-		return false
+-	}
+-	v2 := (*obj.Addr)(&p.To)
+-	if !regtyp(v2) {
+-		return false
+-	}
+-	var info gc.ProgInfo
+-	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+-		if gc.Uniqs(r) == nil {
+-			break
+-		}
+-		p = r.Prog
+-		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+-			continue
+-		}
+-		info = proginfo(p)
+-		if info.Flags&gc.Call != 0 {
+-			return false
+-		}
+-
+-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+-			if p.To.Type == v1.Type {
+-				if p.To.Reg == v1.Reg {
+-					copysub(&p.To, v1, v2, 1)
+-					if gc.Debug['P'] != 0 {
+-						fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+-						if p.From.Type == v2.Type {
+-							fmt.Printf(" excise")
+-						}
+-						fmt.Printf("\n")
+-					}
+-
+-					for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
+-						p = r.Prog
+-						copysub(&p.From, v1, v2, 1)
+-						copysub1(p, v1, v2, 1)
+-						copysub(&p.To, v1, v2, 1)
+-						if gc.Debug['P'] != 0 {
+-							fmt.Printf("%v\n", r.Prog)
+-						}
+-					}
+-
+-					t := int(int(v1.Reg))
+-					v1.Reg = v2.Reg
+-					v2.Reg = int16(t)
+-					if gc.Debug['P'] != 0 {
+-						fmt.Printf("%v last\n", r.Prog)
+-					}
+-					return true
+-				}
+-			}
+-		}
+-
+-		if copyau(&p.From, v2) || copyau1(p, v2) || copyau(&p.To, v2) {
+-			break
+-		}
+-		if copysub(&p.From, v1, v2, 0) != 0 || copysub1(p, v1, v2, 0) != 0 || copysub(&p.To, v1, v2, 0) != 0 {
+-			break
+-		}
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * The idea is to remove redundant copies.
+- *	v1->v2	F=0
+- *	(use v2	s/v2/v1/)*
+- *	set v1	F=1
+- *	use v2	return fail (v1->v2 move must remain)
+- *	-----------------
+- *	v1->v2	F=0
+- *	(use v2	s/v2/v1/)*
+- *	set v1	F=1
+- *	set v2	return success (caller can remove v1->v2 move)
+- */
+-func copyprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
+-	if copyas(v1, v2) {
+-		if gc.Debug['P'] != 0 {
+-			fmt.Printf("eliminating self-move\n", r0.Prog)
+-		}
+-		return true
+-	}
+-
+-	gactive++
+-	if gc.Debug['P'] != 0 {
+-		fmt.Printf("trying to eliminate %v->%v move from:\n%v\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r0.Prog)
+-	}
+-	return copy1(v1, v2, r0.S1, 0)
+-}
+-
+-// copy1 replaces uses of v2 with v1 starting at r and returns 1 if
+-// all uses were rewritten.
+-func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+-	if uint32(r.Active) == gactive {
+-		if gc.Debug['P'] != 0 {
+-			fmt.Printf("act set; return 1\n")
+-		}
+-		return true
+-	}
+-
+-	r.Active = int32(gactive)
+-	if gc.Debug['P'] != 0 {
+-		fmt.Printf("copy1 replace %v with %v f=%d\n", gc.Ctxt.Dconv(v2), gc.Ctxt.Dconv(v1), f)
+-	}
+-	var t int
+-	var p *obj.Prog
+-	for ; r != nil; r = r.S1 {
+-		p = r.Prog
+-		if gc.Debug['P'] != 0 {
+-			fmt.Printf("%v", p)
+-		}
+-		if f == 0 && gc.Uniqp(r) == nil {
+-			// Multiple predecessors; conservatively
+-			// assume v1 was set on other path
+-			f = 1
+-
+-			if gc.Debug['P'] != 0 {
+-				fmt.Printf("; merge; f=%d", f)
+-			}
+-		}
+-
+-		t = copyu(p, v2, nil)
+-		switch t {
+-		case 2: /* rar, can't split */
+-			if gc.Debug['P'] != 0 {
+-				fmt.Printf("; %v rar; return 0\n", gc.Ctxt.Dconv(v2))
+-			}
+-			return false
+-
+-		case 3: /* set */
+-			if gc.Debug['P'] != 0 {
+-				fmt.Printf("; %v set; return 1\n", gc.Ctxt.Dconv(v2))
+-			}
+-			return true
+-
+-		case 1, /* used, substitute */
+-			4: /* use and set */
+-			if f != 0 {
+-				if gc.Debug['P'] == 0 {
+-					return false
+-				}
+-				if t == 4 {
+-					fmt.Printf("; %v used+set and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+-				} else {
+-					fmt.Printf("; %v used and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+-				}
+-				return false
+-			}
+-
+-			if copyu(p, v2, v1) != 0 {
+-				if gc.Debug['P'] != 0 {
+-					fmt.Printf("; sub fail; return 0\n")
+-				}
+-				return false
+-			}
+-
+-			if gc.Debug['P'] != 0 {
+-				fmt.Printf("; sub %v->%v\n => %v", gc.Ctxt.Dconv(v2), gc.Ctxt.Dconv(v1), p)
+-			}
+-			if t == 4 {
+-				if gc.Debug['P'] != 0 {
+-					fmt.Printf("; %v used+set; return 1\n", gc.Ctxt.Dconv(v2))
+-				}
+-				return true
+-			}
+-		}
+-
+-		if f == 0 {
+-			t = copyu(p, v1, nil)
+-			if f == 0 && (t == 2 || t == 3 || t == 4) {
+-				f = 1
+-				if gc.Debug['P'] != 0 {
+-					fmt.Printf("; %v set and !f; f=%d", gc.Ctxt.Dconv(v1), f)
+-				}
+-			}
+-		}
+-
+-		if gc.Debug['P'] != 0 {
+-			fmt.Printf("\n")
+-		}
+-		if r.S2 != nil {
+-			if !copy1(v1, v2, r.S2, f) {
+-				return false
+-			}
+-		}
+-	}
+-
+-	return true
+-}
+-
+-// If s==nil, copyu returns the set/use of v in p; otherwise, it
+-// modifies p to replace reads of v with reads of s and returns 0 for
+-// success or non-zero for failure.
+-//
+-// If s==nil, copy returns one of the following values:
+-// 	1 if v only used
+-//	2 if v is set and used in one address (read-alter-rewrite;
+-// 	  can't substitute)
+-//	3 if v is only set
+-//	4 if v is set in one address and used in another (so addresses
+-// 	  can be rewritten independently)
+-//	0 otherwise (not touched)
+-func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+-	if p.From3.Type != obj.TYPE_NONE {
+-		// 9g never generates a from3
+-		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
+-	}
+-
+-	switch p.As {
+-	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
+-		return 2
+-
+-	case obj.ANOP, /* read p->from, write p->to */
+-		ppc64.AMOVH,
+-		ppc64.AMOVHZ,
+-		ppc64.AMOVB,
+-		ppc64.AMOVBZ,
+-		ppc64.AMOVW,
+-		ppc64.AMOVWZ,
+-		ppc64.AMOVD,
+-		ppc64.ANEG,
+-		ppc64.ANEGCC,
+-		ppc64.AADDME,
+-		ppc64.AADDMECC,
+-		ppc64.AADDZE,
+-		ppc64.AADDZECC,
+-		ppc64.ASUBME,
+-		ppc64.ASUBMECC,
+-		ppc64.ASUBZE,
+-		ppc64.ASUBZECC,
+-		ppc64.AFCTIW,
+-		ppc64.AFCTIWZ,
+-		ppc64.AFCTID,
+-		ppc64.AFCTIDZ,
+-		ppc64.AFCFID,
+-		ppc64.AFCFIDCC,
+-		ppc64.AFMOVS,
+-		ppc64.AFMOVD,
+-		ppc64.AFRSP,
+-		ppc64.AFNEG,
+-		ppc64.AFNEGCC:
+-		if s != nil {
+-			if copysub(&p.From, v, s, 1) != 0 {
+-				return 1
+-			}
+-
+-			// Update only indirect uses of v in p->to
+-			if !copyas(&p.To, v) {
+-				if copysub(&p.To, v, s, 1) != 0 {
+-					return 1
+-				}
+-			}
+-			return 0
+-		}
+-
+-		if copyas(&p.To, v) {
+-			// Fix up implicit from
+-			if p.From.Type == obj.TYPE_NONE {
+-				p.From = p.To
+-			}
+-			if copyau(&p.From, v) {
+-				return 4
+-			}
+-			return 3
+-		}
+-
+-		if copyau(&p.From, v) {
+-			return 1
+-		}
+-		if copyau(&p.To, v) {
+-			// p->to only indirectly uses v
+-			return 1
+-		}
+-
+-		return 0
+-
+-	case ppc64.AMOVBU, /* rar p->from, write p->to or read p->from, rar p->to */
+-		ppc64.AMOVBZU,
+-		ppc64.AMOVHU,
+-		ppc64.AMOVHZU,
+-		ppc64.AMOVWZU,
+-		ppc64.AMOVDU:
+-		if p.From.Type == obj.TYPE_MEM {
+-			if copyas(&p.From, v) {
+-				// No s!=nil check; need to fail
+-				// anyway in that case
+-				return 2
+-			}
+-
+-			if s != nil {
+-				if copysub(&p.To, v, s, 1) != 0 {
+-					return 1
+-				}
+-				return 0
+-			}
+-
+-			if copyas(&p.To, v) {
+-				return 3
+-			}
+-		} else if p.To.Type == obj.TYPE_MEM {
+-			if copyas(&p.To, v) {
+-				return 2
+-			}
+-			if s != nil {
+-				if copysub(&p.From, v, s, 1) != 0 {
+-					return 1
+-				}
+-				return 0
+-			}
+-
+-			if copyau(&p.From, v) {
+-				return 1
+-			}
+-		} else {
+-			fmt.Printf("copyu: bad %v\n", p)
+-		}
+-
+-		return 0
+-
+-	case ppc64.ARLWMI, /* read p->from, read p->reg, rar p->to */
+-		ppc64.ARLWMICC:
+-		if copyas(&p.To, v) {
+-			return 2
+-		}
+-		fallthrough
+-
+-		/* fall through */
+-	case ppc64.AADD,
+-		/* read p->from, read p->reg, write p->to */
+-		ppc64.AADDC,
+-		ppc64.AADDE,
+-		ppc64.ASUB,
+-		ppc64.ASLW,
+-		ppc64.ASRW,
+-		ppc64.ASRAW,
+-		ppc64.ASLD,
+-		ppc64.ASRD,
+-		ppc64.ASRAD,
+-		ppc64.AOR,
+-		ppc64.AORCC,
+-		ppc64.AORN,
+-		ppc64.AORNCC,
+-		ppc64.AAND,
+-		ppc64.AANDCC,
+-		ppc64.AANDN,
+-		ppc64.AANDNCC,
+-		ppc64.ANAND,
+-		ppc64.ANANDCC,
+-		ppc64.ANOR,
+-		ppc64.ANORCC,
+-		ppc64.AXOR,
+-		ppc64.AMULHW,
+-		ppc64.AMULHWU,
+-		ppc64.AMULLW,
+-		ppc64.AMULLD,
+-		ppc64.ADIVW,
+-		ppc64.ADIVD,
+-		ppc64.ADIVWU,
+-		ppc64.ADIVDU,
+-		ppc64.AREM,
+-		ppc64.AREMU,
+-		ppc64.AREMD,
+-		ppc64.AREMDU,
+-		ppc64.ARLWNM,
+-		ppc64.ARLWNMCC,
+-		ppc64.AFADDS,
+-		ppc64.AFADD,
+-		ppc64.AFSUBS,
+-		ppc64.AFSUB,
+-		ppc64.AFMULS,
+-		ppc64.AFMUL,
+-		ppc64.AFDIVS,
+-		ppc64.AFDIV:
+-		if s != nil {
+-			if copysub(&p.From, v, s, 1) != 0 {
+-				return 1
+-			}
+-			if copysub1(p, v, s, 1) != 0 {
+-				return 1
+-			}
+-
+-			// Update only indirect uses of v in p->to
+-			if !copyas(&p.To, v) {
+-				if copysub(&p.To, v, s, 1) != 0 {
+-					return 1
+-				}
+-			}
+-			return 0
+-		}
+-
+-		if copyas(&p.To, v) {
+-			if p.Reg == 0 {
+-				// Fix up implicit reg (e.g., ADD
+-				// R3,R4 -> ADD R3,R4,R4) so we can
+-				// update reg and to separately.
+-				p.Reg = p.To.Reg
+-			}
+-
+-			if copyau(&p.From, v) {
+-				return 4
+-			}
+-			if copyau1(p, v) {
+-				return 4
+-			}
+-			return 3
+-		}
+-
+-		if copyau(&p.From, v) {
+-			return 1
+-		}
+-		if copyau1(p, v) {
+-			return 1
+-		}
+-		if copyau(&p.To, v) {
+-			return 1
+-		}
+-		return 0
+-
+-	case ppc64.ABEQ,
+-		ppc64.ABGT,
+-		ppc64.ABGE,
+-		ppc64.ABLT,
+-		ppc64.ABLE,
+-		ppc64.ABNE,
+-		ppc64.ABVC,
+-		ppc64.ABVS:
+-		return 0
+-
+-	case obj.ACHECKNIL, /* read p->from */
+-		ppc64.ACMP, /* read p->from, read p->to */
+-		ppc64.ACMPU,
+-		ppc64.ACMPW,
+-		ppc64.ACMPWU,
+-		ppc64.AFCMPO,
+-		ppc64.AFCMPU:
+-		if s != nil {
+-			if copysub(&p.From, v, s, 1) != 0 {
+-				return 1
+-			}
+-			return copysub(&p.To, v, s, 1)
+-		}
+-
+-		if copyau(&p.From, v) {
+-			return 1
+-		}
+-		if copyau(&p.To, v) {
+-			return 1
+-		}
+-		return 0
+-
+-		// 9g never generates a branch to a GPR (this isn't
+-	// even a normal instruction; liblink turns it in to a
+-	// mov and a branch).
+-	case ppc64.ABR: /* read p->to */
+-		if s != nil {
+-			if copysub(&p.To, v, s, 1) != 0 {
+-				return 1
+-			}
+-			return 0
+-		}
+-
+-		if copyau(&p.To, v) {
+-			return 1
+-		}
+-		return 0
+-
+-	case ppc64.ARETURN: /* funny */
+-		if s != nil {
+-			return 0
+-		}
+-
+-		// All registers die at this point, so claim
+-		// everything is set (and not used).
+-		return 3
+-
+-	case ppc64.ABL: /* funny */
+-		if v.Type == obj.TYPE_REG {
+-			// TODO(rsc): REG_R0 and REG_F0 used to be
+-			// (when register numbers started at 0) exregoffset and exfregoffset,
+-			// which are unset entirely.
+-			// It's strange that this handles R0 and F0 differently from the other
+-			// registers. Possible failure to optimize?
+-			if ppc64.REG_R0 < v.Reg && v.Reg <= ppc64.REGEXT {
+-				return 2
+-			}
+-			if v.Reg == ppc64.REGARG {
+-				return 2
+-			}
+-			if ppc64.REG_F0 < v.Reg && v.Reg <= ppc64.FREGEXT {
+-				return 2
+-			}
+-		}
+-
+-		if p.From.Type == obj.TYPE_REG && v.Type == obj.TYPE_REG && p.From.Reg == v.Reg {
+-			return 2
+-		}
+-
+-		if s != nil {
+-			if copysub(&p.To, v, s, 1) != 0 {
+-				return 1
+-			}
+-			return 0
+-		}
+-
+-		if copyau(&p.To, v) {
+-			return 4
+-		}
+-		return 3
+-
+-		// R0 is zero, used by DUFFZERO, cannot be substituted.
+-	// R3 is ptr to memory, used and set, cannot be substituted.
+-	case obj.ADUFFZERO:
+-		if v.Type == obj.TYPE_REG {
+-			if v.Reg == 0 {
+-				return 1
+-			}
+-			if v.Reg == 3 {
+-				return 2
+-			}
+-		}
+-
+-		return 0
+-
+-		// R3, R4 are ptr to src, dst, used and set, cannot be substituted.
+-	// R5 is scratch, set by DUFFCOPY, cannot be substituted.
+-	case obj.ADUFFCOPY:
+-		if v.Type == obj.TYPE_REG {
+-			if v.Reg == 3 || v.Reg == 4 {
+-				return 2
+-			}
+-			if v.Reg == 5 {
+-				return 3
+-			}
+-		}
+-
+-		return 0
+-
+-	case obj.ATEXT: /* funny */
+-		if v.Type == obj.TYPE_REG {
+-			if v.Reg == ppc64.REGARG {
+-				return 3
+-			}
+-		}
+-		return 0
+-
+-	case obj.APCDATA,
+-		obj.AFUNCDATA,
+-		obj.AVARDEF,
+-		obj.AVARKILL:
+-		return 0
+-	}
+-}
+-
+-// copyas returns 1 if a and v address the same register.
+-//
+-// If a is the from operand, this means this operation reads the
+-// register in v.  If a is the to operand, this means this operation
+-// writes the register in v.
+-func copyas(a *obj.Addr, v *obj.Addr) bool {
+-	if regtyp(v) {
+-		if a.Type == v.Type {
+-			if a.Reg == v.Reg {
+-				return true
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+-// copyau returns 1 if a either directly or indirectly addresses the
+-// same register as v.
+-//
+-// If a is the from operand, this means this operation reads the
+-// register in v.  If a is the to operand, this means the operation
+-// either reads or writes the register in v (if !copyas(a, v), then
+-// the operation reads the register in v).
+-func copyau(a *obj.Addr, v *obj.Addr) bool {
+-	if copyas(a, v) {
+-		return true
+-	}
+-	if v.Type == obj.TYPE_REG {
+-		if a.Type == obj.TYPE_MEM || (a.Type == obj.TYPE_ADDR && a.Reg != 0) {
+-			if v.Reg == a.Reg {
+-				return true
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+-// copyau1 returns 1 if p->reg references the same register as v and v
+-// is a direct reference.
+-func copyau1(p *obj.Prog, v *obj.Addr) bool {
+-	if regtyp(v) && v.Reg != 0 {
+-		if p.Reg == v.Reg {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// copysub replaces v with s in a if f!=0 or indicates it if could if f==0.
+-// Returns 1 on failure to substitute (it always succeeds on ppc64).
+-func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+-	if f != 0 {
+-		if copyau(a, v) {
+-			a.Reg = s.Reg
+-		}
+-	}
+-	return 0
+-}
+-
+-// copysub1 replaces v with s in p1->reg if f!=0 or indicates if it could if f==0.
+-// Returns 1 on failure to substitute (it always succeeds on ppc64).
+-func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f int) int {
+-	if f != 0 {
+-		if copyau1(p1, v) {
+-			p1.Reg = s.Reg
+-		}
+-	}
+-	return 0
++	return a.Type == obj.TYPE_REG && arm64.REG_R0 <= a.Reg && a.Reg <= arm64.REG_F31 && a.Reg != arm64.REGZERO
+ }
+ 
+ func sameaddr(a *obj.Addr, v *obj.Addr) bool {
+@@ -1049,5 +77,5 @@ func smallindir(a *obj.Addr, reg *obj.Addr) bool {
+ }
+ 
+ func stackaddr(a *obj.Addr) bool {
+-	return a.Type == obj.TYPE_REG && a.Reg == ppc64.REGSP
++	return a.Type == obj.TYPE_REG && a.Reg == arm64.REGSP
+ }
+diff --git a/src/cmd/7g/prog.go b/src/cmd/7g/prog.go
+index d5d534695a..3c68813ced 100644
+--- a/src/cmd/7g/prog.go
++++ b/src/cmd/7g/prog.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/arm64"
+ )
+ 
+ const (
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [ppc64.ALAST]gc.ProgInfo{
++var progtable = [arm64.ALAST]gc.ProgInfo{
+ 	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+ 	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+ 	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+@@ -37,108 +37,99 @@ var progtable = [ppc64.ALAST]gc.ProgInfo{
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+-	obj.ANOP: gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	obj.ANOP:    gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AHINT: gc.ProgInfo{gc.OK, 0, 0, 0},
+ 
+ 	// Integer
+-	ppc64.AADD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASUB:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ANEG:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AAND:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AOR:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AXOR:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULLD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULLW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULHD:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULHDU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ADIVD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ADIVDU:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASLD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASRD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASRAD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ACMP:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.ACMPU:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.ATD:     gc.ProgInfo{gc.SizeQ | gc.RightRead, 0, 0, 0},
++	arm64.AADD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASUB:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ANEG:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AAND:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AORR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AEOR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AMUL:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASMULL: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUMULL: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASMULH: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUMULH: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASDIV:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUDIV:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ALSL:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ALSR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AASR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ACMP:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	ppc64.AFADD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFADDS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFSUB:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFSUBS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFMUL:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFMULS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFDIV:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFDIVS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCTIDZ: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCFID:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCMPU:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.AFRSP:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFADDD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFADDS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFCMPD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm64.AFCMPS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++
++	// float -> integer
++	arm64.AFCVTZSD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSDW: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSSW: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUDW: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUSW: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++
++	// float -> float
++	arm64.AFCVTSD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTDS: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++
++	// integer -> float
++	arm64.ASCVTFD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFS:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFWD: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFWS: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFS:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFWD: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFWS: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// Moves
+-	ppc64.AMOVB:  gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVBU: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVBZ: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVH:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVHU: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVHZ: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-
+-	// there is no AMOVWU.
+-	ppc64.AMOVWZU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVWZ:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	ppc64.AMOVDU:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc, 0, 0, 0},
+-	ppc64.AFMOVS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AFMOVD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm64.AMOVB:  gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVBU: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVH:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVHU: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVWU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm64.AFMOVS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AFMOVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// Jumps
+-	ppc64.ABR:     gc.ProgInfo{gc.Jump | gc.Break, 0, 0, 0},
+-	ppc64.ABL:     gc.ProgInfo{gc.Call, 0, 0, 0},
+-	ppc64.ABEQ:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABNE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABGE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABLT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABGT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABLE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ARETURN: gc.ProgInfo{gc.Break, 0, 0, 0},
++	arm64.AB:      gc.ProgInfo{gc.Jump | gc.Break, 0, 0, 0},
++	arm64.ABL:     gc.ProgInfo{gc.Call, 0, 0, 0},
++	arm64.ABEQ:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABNE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABGE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABLT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABGT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABLE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABLO:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABLS:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABHI:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	arm64.ABHS:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
++	obj.ARET:      gc.ProgInfo{gc.Break, 0, 0, 0},
+ 	obj.ADUFFZERO: gc.ProgInfo{gc.Call, 0, 0, 0},
+ 	obj.ADUFFCOPY: gc.ProgInfo{gc.Call, 0, 0, 0},
+ }
+ 
+-var initproginfo_initialized int
+-
+-func initproginfo() {
+-	var addvariant = []int{V_CC, V_V, V_CC | V_V}
+-
+-	if initproginfo_initialized != 0 {
+-		return
+-	}
+-	initproginfo_initialized = 1
+-
+-	// Perform one-time expansion of instructions in progtable to
+-	// their CC, V, and VCC variants
+-	var as2 int
+-	var i int
+-	var variant int
+-	for as := int(0); as < len(progtable); as++ {
+-		if progtable[as].Flags == 0 {
+-			continue
+-		}
+-		variant = as2variant(as)
+-		for i = 0; i < len(addvariant); i++ {
+-			as2 = variant2as(as, variant|addvariant[i])
+-			if as2 != 0 && progtable[as2].Flags == 0 {
+-				progtable[as2] = progtable[as]
+-			}
+-		}
+-	}
+-}
+-
+ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+-	initproginfo()
+-
+ 	info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		info = progtable[ppc64.AADD]
++		info = progtable[arm64.AADD]
+ 		gc.Fatal("proginfo: unknown instruction %v", p)
+ 	}
+ 
+@@ -149,14 +140,14 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 
+ 	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
+ 		info.Regindex |= RtoB(int(p.From.Reg))
+-		if info.Flags&gc.PostInc != 0 {
++		if p.Scond != 0 {
+ 			info.Regset |= RtoB(int(p.From.Reg))
+ 		}
+ 	}
+ 
+ 	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
+ 		info.Regindex |= RtoB(int(p.To.Reg))
+-		if info.Flags&gc.PostInc != 0 {
++		if p.Scond != 0 {
+ 			info.Regset |= RtoB(int(p.To.Reg))
+ 		}
+ 	}
+@@ -167,150 +158,16 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	}
+ 
+ 	if p.As == obj.ADUFFZERO {
+-		info.Reguse |= 1<<0 | RtoB(ppc64.REG_R3)
+-		info.Regset |= RtoB(ppc64.REG_R3)
++		info.Reguse |= RtoB(arm64.REGRT1)
++		info.Regset |= RtoB(arm64.REGRT1)
+ 	}
+ 
+ 	if p.As == obj.ADUFFCOPY {
+ 		// TODO(austin) Revisit when duffcopy is implemented
+-		info.Reguse |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4) | RtoB(ppc64.REG_R5)
++		info.Reguse |= RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REG_R5)
+ 
+-		info.Regset |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4)
++		info.Regset |= RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2)
+ 	}
+ 
+ 	return
+ }
+-
+-// Instruction variants table.  Initially this contains entries only
+-// for the "base" form of each instruction.  On the first call to
+-// as2variant or variant2as, we'll add the variants to the table.
+-var varianttable = [ppc64.ALAST][4]int{
+-	ppc64.AADD:     [4]int{ppc64.AADD, ppc64.AADDCC, ppc64.AADDV, ppc64.AADDVCC},
+-	ppc64.AADDC:    [4]int{ppc64.AADDC, ppc64.AADDCCC, ppc64.AADDCV, ppc64.AADDCVCC},
+-	ppc64.AADDE:    [4]int{ppc64.AADDE, ppc64.AADDECC, ppc64.AADDEV, ppc64.AADDEVCC},
+-	ppc64.AADDME:   [4]int{ppc64.AADDME, ppc64.AADDMECC, ppc64.AADDMEV, ppc64.AADDMEVCC},
+-	ppc64.AADDZE:   [4]int{ppc64.AADDZE, ppc64.AADDZECC, ppc64.AADDZEV, ppc64.AADDZEVCC},
+-	ppc64.AAND:     [4]int{ppc64.AAND, ppc64.AANDCC, 0, 0},
+-	ppc64.AANDN:    [4]int{ppc64.AANDN, ppc64.AANDNCC, 0, 0},
+-	ppc64.ACNTLZD:  [4]int{ppc64.ACNTLZD, ppc64.ACNTLZDCC, 0, 0},
+-	ppc64.ACNTLZW:  [4]int{ppc64.ACNTLZW, ppc64.ACNTLZWCC, 0, 0},
+-	ppc64.ADIVD:    [4]int{ppc64.ADIVD, ppc64.ADIVDCC, ppc64.ADIVDV, ppc64.ADIVDVCC},
+-	ppc64.ADIVDU:   [4]int{ppc64.ADIVDU, ppc64.ADIVDUCC, ppc64.ADIVDUV, ppc64.ADIVDUVCC},
+-	ppc64.ADIVW:    [4]int{ppc64.ADIVW, ppc64.ADIVWCC, ppc64.ADIVWV, ppc64.ADIVWVCC},
+-	ppc64.ADIVWU:   [4]int{ppc64.ADIVWU, ppc64.ADIVWUCC, ppc64.ADIVWUV, ppc64.ADIVWUVCC},
+-	ppc64.AEQV:     [4]int{ppc64.AEQV, ppc64.AEQVCC, 0, 0},
+-	ppc64.AEXTSB:   [4]int{ppc64.AEXTSB, ppc64.AEXTSBCC, 0, 0},
+-	ppc64.AEXTSH:   [4]int{ppc64.AEXTSH, ppc64.AEXTSHCC, 0, 0},
+-	ppc64.AEXTSW:   [4]int{ppc64.AEXTSW, ppc64.AEXTSWCC, 0, 0},
+-	ppc64.AFABS:    [4]int{ppc64.AFABS, ppc64.AFABSCC, 0, 0},
+-	ppc64.AFADD:    [4]int{ppc64.AFADD, ppc64.AFADDCC, 0, 0},
+-	ppc64.AFADDS:   [4]int{ppc64.AFADDS, ppc64.AFADDSCC, 0, 0},
+-	ppc64.AFCFID:   [4]int{ppc64.AFCFID, ppc64.AFCFIDCC, 0, 0},
+-	ppc64.AFCTID:   [4]int{ppc64.AFCTID, ppc64.AFCTIDCC, 0, 0},
+-	ppc64.AFCTIDZ:  [4]int{ppc64.AFCTIDZ, ppc64.AFCTIDZCC, 0, 0},
+-	ppc64.AFCTIW:   [4]int{ppc64.AFCTIW, ppc64.AFCTIWCC, 0, 0},
+-	ppc64.AFCTIWZ:  [4]int{ppc64.AFCTIWZ, ppc64.AFCTIWZCC, 0, 0},
+-	ppc64.AFDIV:    [4]int{ppc64.AFDIV, ppc64.AFDIVCC, 0, 0},
+-	ppc64.AFDIVS:   [4]int{ppc64.AFDIVS, ppc64.AFDIVSCC, 0, 0},
+-	ppc64.AFMADD:   [4]int{ppc64.AFMADD, ppc64.AFMADDCC, 0, 0},
+-	ppc64.AFMADDS:  [4]int{ppc64.AFMADDS, ppc64.AFMADDSCC, 0, 0},
+-	ppc64.AFMOVD:   [4]int{ppc64.AFMOVD, ppc64.AFMOVDCC, 0, 0},
+-	ppc64.AFMSUB:   [4]int{ppc64.AFMSUB, ppc64.AFMSUBCC, 0, 0},
+-	ppc64.AFMSUBS:  [4]int{ppc64.AFMSUBS, ppc64.AFMSUBSCC, 0, 0},
+-	ppc64.AFMUL:    [4]int{ppc64.AFMUL, ppc64.AFMULCC, 0, 0},
+-	ppc64.AFMULS:   [4]int{ppc64.AFMULS, ppc64.AFMULSCC, 0, 0},
+-	ppc64.AFNABS:   [4]int{ppc64.AFNABS, ppc64.AFNABSCC, 0, 0},
+-	ppc64.AFNEG:    [4]int{ppc64.AFNEG, ppc64.AFNEGCC, 0, 0},
+-	ppc64.AFNMADD:  [4]int{ppc64.AFNMADD, ppc64.AFNMADDCC, 0, 0},
+-	ppc64.AFNMADDS: [4]int{ppc64.AFNMADDS, ppc64.AFNMADDSCC, 0, 0},
+-	ppc64.AFNMSUB:  [4]int{ppc64.AFNMSUB, ppc64.AFNMSUBCC, 0, 0},
+-	ppc64.AFNMSUBS: [4]int{ppc64.AFNMSUBS, ppc64.AFNMSUBSCC, 0, 0},
+-	ppc64.AFRES:    [4]int{ppc64.AFRES, ppc64.AFRESCC, 0, 0},
+-	ppc64.AFRSP:    [4]int{ppc64.AFRSP, ppc64.AFRSPCC, 0, 0},
+-	ppc64.AFRSQRTE: [4]int{ppc64.AFRSQRTE, ppc64.AFRSQRTECC, 0, 0},
+-	ppc64.AFSEL:    [4]int{ppc64.AFSEL, ppc64.AFSELCC, 0, 0},
+-	ppc64.AFSQRT:   [4]int{ppc64.AFSQRT, ppc64.AFSQRTCC, 0, 0},
+-	ppc64.AFSQRTS:  [4]int{ppc64.AFSQRTS, ppc64.AFSQRTSCC, 0, 0},
+-	ppc64.AFSUB:    [4]int{ppc64.AFSUB, ppc64.AFSUBCC, 0, 0},
+-	ppc64.AFSUBS:   [4]int{ppc64.AFSUBS, ppc64.AFSUBSCC, 0, 0},
+-	ppc64.AMTFSB0:  [4]int{ppc64.AMTFSB0, ppc64.AMTFSB0CC, 0, 0},
+-	ppc64.AMTFSB1:  [4]int{ppc64.AMTFSB1, ppc64.AMTFSB1CC, 0, 0},
+-	ppc64.AMULHD:   [4]int{ppc64.AMULHD, ppc64.AMULHDCC, 0, 0},
+-	ppc64.AMULHDU:  [4]int{ppc64.AMULHDU, ppc64.AMULHDUCC, 0, 0},
+-	ppc64.AMULHW:   [4]int{ppc64.AMULHW, ppc64.AMULHWCC, 0, 0},
+-	ppc64.AMULHWU:  [4]int{ppc64.AMULHWU, ppc64.AMULHWUCC, 0, 0},
+-	ppc64.AMULLD:   [4]int{ppc64.AMULLD, ppc64.AMULLDCC, ppc64.AMULLDV, ppc64.AMULLDVCC},
+-	ppc64.AMULLW:   [4]int{ppc64.AMULLW, ppc64.AMULLWCC, ppc64.AMULLWV, ppc64.AMULLWVCC},
+-	ppc64.ANAND:    [4]int{ppc64.ANAND, ppc64.ANANDCC, 0, 0},
+-	ppc64.ANEG:     [4]int{ppc64.ANEG, ppc64.ANEGCC, ppc64.ANEGV, ppc64.ANEGVCC},
+-	ppc64.ANOR:     [4]int{ppc64.ANOR, ppc64.ANORCC, 0, 0},
+-	ppc64.AOR:      [4]int{ppc64.AOR, ppc64.AORCC, 0, 0},
+-	ppc64.AORN:     [4]int{ppc64.AORN, ppc64.AORNCC, 0, 0},
+-	ppc64.AREM:     [4]int{ppc64.AREM, ppc64.AREMCC, ppc64.AREMV, ppc64.AREMVCC},
+-	ppc64.AREMD:    [4]int{ppc64.AREMD, ppc64.AREMDCC, ppc64.AREMDV, ppc64.AREMDVCC},
+-	ppc64.AREMDU:   [4]int{ppc64.AREMDU, ppc64.AREMDUCC, ppc64.AREMDUV, ppc64.AREMDUVCC},
+-	ppc64.AREMU:    [4]int{ppc64.AREMU, ppc64.AREMUCC, ppc64.AREMUV, ppc64.AREMUVCC},
+-	ppc64.ARLDC:    [4]int{ppc64.ARLDC, ppc64.ARLDCCC, 0, 0},
+-	ppc64.ARLDCL:   [4]int{ppc64.ARLDCL, ppc64.ARLDCLCC, 0, 0},
+-	ppc64.ARLDCR:   [4]int{ppc64.ARLDCR, ppc64.ARLDCRCC, 0, 0},
+-	ppc64.ARLDMI:   [4]int{ppc64.ARLDMI, ppc64.ARLDMICC, 0, 0},
+-	ppc64.ARLWMI:   [4]int{ppc64.ARLWMI, ppc64.ARLWMICC, 0, 0},
+-	ppc64.ARLWNM:   [4]int{ppc64.ARLWNM, ppc64.ARLWNMCC, 0, 0},
+-	ppc64.ASLD:     [4]int{ppc64.ASLD, ppc64.ASLDCC, 0, 0},
+-	ppc64.ASLW:     [4]int{ppc64.ASLW, ppc64.ASLWCC, 0, 0},
+-	ppc64.ASRAD:    [4]int{ppc64.ASRAD, ppc64.ASRADCC, 0, 0},
+-	ppc64.ASRAW:    [4]int{ppc64.ASRAW, ppc64.ASRAWCC, 0, 0},
+-	ppc64.ASRD:     [4]int{ppc64.ASRD, ppc64.ASRDCC, 0, 0},
+-	ppc64.ASRW:     [4]int{ppc64.ASRW, ppc64.ASRWCC, 0, 0},
+-	ppc64.ASUB:     [4]int{ppc64.ASUB, ppc64.ASUBCC, ppc64.ASUBV, ppc64.ASUBVCC},
+-	ppc64.ASUBC:    [4]int{ppc64.ASUBC, ppc64.ASUBCCC, ppc64.ASUBCV, ppc64.ASUBCVCC},
+-	ppc64.ASUBE:    [4]int{ppc64.ASUBE, ppc64.ASUBECC, ppc64.ASUBEV, ppc64.ASUBEVCC},
+-	ppc64.ASUBME:   [4]int{ppc64.ASUBME, ppc64.ASUBMECC, ppc64.ASUBMEV, ppc64.ASUBMEVCC},
+-	ppc64.ASUBZE:   [4]int{ppc64.ASUBZE, ppc64.ASUBZECC, ppc64.ASUBZEV, ppc64.ASUBZEVCC},
+-	ppc64.AXOR:     [4]int{ppc64.AXOR, ppc64.AXORCC, 0, 0},
+-}
+-
+-var initvariants_initialized int
+-
+-func initvariants() {
+-	if initvariants_initialized != 0 {
+-		return
+-	}
+-	initvariants_initialized = 1
+-
+-	var j int
+-	for i := int(0); i < len(varianttable); i++ {
+-		if varianttable[i][0] == 0 {
+-			// Instruction has no variants
+-			varianttable[i][0] = i
+-
+-			continue
+-		}
+-
+-		// Copy base form to other variants
+-		if varianttable[i][0] == i {
+-			for j = 0; j < len(varianttable[i]); j++ {
+-				varianttable[varianttable[i][j]] = varianttable[i]
+-			}
+-		}
+-	}
+-}
+-
+-// as2variant returns the variant (V_*) flags of instruction as.
+-func as2variant(as int) int {
+-	initvariants()
+-	for i := int(0); i < len(varianttable[as]); i++ {
+-		if varianttable[as][i] == as {
+-			return i
+-		}
+-	}
+-	gc.Fatal("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
+-	return 0
+-}
+-
+-// variant2as returns the instruction as with the given variant (V_*) flags.
+-// If no such variant exists, this returns 0.
+-func variant2as(as int, flags int) int {
+-	initvariants()
+-	return varianttable[as][flags]
+-}
+diff --git a/src/cmd/7g/reg.go b/src/cmd/7g/reg.go
+index fb0c2e37ec..c8035f5663 100644
+--- a/src/cmd/7g/reg.go
++++ b/src/cmd/7g/reg.go
+@@ -30,8 +30,10 @@
+ 
+ package main
+ 
+-import "cmd/internal/obj/ppc64"
+-import "cmd/internal/gc"
++import (
++	"cmd/internal/gc"
++	"cmd/internal/obj/arm64"
++)
+ 
+ const (
+ 	NREGVAR = 64 /* 32 general + 32 floating */
+@@ -111,10 +113,10 @@ func regnames(n *int) []string {
+ 
+ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+-	regbits := uint64(1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS))
++	regbits := uint64(RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REGPR))
+ 
+ 	// Also exclude floating point registers with fixed constants
+-	regbits |= RtoB(ppc64.REG_F27) | RtoB(ppc64.REG_F28) | RtoB(ppc64.REG_F29) | RtoB(ppc64.REG_F30) | RtoB(ppc64.REG_F31)
++	regbits |= RtoB(arm64.REG_F27) | RtoB(arm64.REG_F28) | RtoB(arm64.REG_F29) | RtoB(arm64.REG_F30) | RtoB(arm64.REG_F31)
+ 
+ 	return regbits
+ }
+@@ -136,11 +138,11 @@ func doregbits(r int) uint64 {
+  *	32+31	F31
+  */
+ func RtoB(r int) uint64 {
+-	if r > ppc64.REG_R0 && r <= ppc64.REG_R31 {
+-		return 1 << uint(r-ppc64.REG_R0)
++	if r >= arm64.REG_R0 && r <= arm64.REG_R31 {
++		return 1 << uint(r-arm64.REG_R0)
+ 	}
+-	if r >= ppc64.REG_F0 && r <= ppc64.REG_F31 {
+-		return 1 << uint(32+r-ppc64.REG_F0)
++	if r >= arm64.REG_F0 && r <= arm64.REG_F31 {
++		return 1 << uint(32+r-arm64.REG_F0)
+ 	}
+ 	return 0
+ }
+@@ -150,7 +152,7 @@ func BtoR(b uint64) int {
+ 	if b == 0 {
+ 		return 0
+ 	}
+-	return gc.Bitno(b) + ppc64.REG_R0
++	return gc.Bitno(b) + arm64.REG_R0
+ }
+ 
+ func BtoF(b uint64) int {
+@@ -158,5 +160,5 @@ func BtoF(b uint64) int {
+ 	if b == 0 {
+ 		return 0
+ 	}
+-	return gc.Bitno(b) + ppc64.REG_F0
++	return gc.Bitno(b) + arm64.REG_F0
+ }
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index b8417d952a..09949665c5 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -80,7 +80,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 	p := Prog(as)
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	p.To.U.Branch = nil
+-	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' {
++	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(bool2int(likely > 0))
+ 	}
+@@ -423,7 +423,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 	case OADDR:
+ 		a = Naddr(n.Left)
+ 		a.Etype = uint8(Tptr)
+-		if Thearch.Thechar != '5' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
++		if Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
+ 			a.Width = int64(Widthptr)
+ 		}
+ 		if a.Type != obj.TYPE_MEM {
+@@ -461,7 +461,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 			break // len(nil)
+ 		}
+ 		a.Etype = Simtype[TUINT]
+-		if Thearch.Thechar == '9' {
++		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 			a.Etype = Simtype[TINT]
+ 		}
+ 		a.Offset += int64(Array_nel)
+@@ -477,7 +477,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 			break // cap(nil)
+ 		}
+ 		a.Etype = Simtype[TUINT]
+-		if Thearch.Thechar == '9' {
++		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 			a.Etype = Simtype[TINT]
+ 		}
+ 		a.Offset += int64(Array_cap)
+@@ -560,7 +560,7 @@ fp:
+ 		if Thearch.Thechar == '5' {
+ 			n.Xoffset += 4
+ 		}
+-		if Thearch.Thechar == '9' {
++		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 			n.Xoffset += 8
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 06239048e2..6735c7df42 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -277,7 +277,7 @@ func allocauto(ptxt *obj.Prog) {
+ 		if haspointers(n.Type) {
+ 			stkptrsize = Stksize
+ 		}
+-		if Thearch.Thechar == '5' || Thearch.Thechar == '9' {
++		if Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 			Stksize = Rnd(Stksize, int64(Widthptr))
+ 		}
+ 		if Stksize >= 1<<31 {
+@@ -333,7 +333,7 @@ func Cgen_checknil(n *Node) {
+ 		Fatal("bad checknil")
+ 	}
+ 
+-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
++	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
+ 		var reg Node
+ 		Thearch.Regalloc(&reg, Types[Tptr], n)
+ 		Thearch.Cgen(n, &reg)
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index 41200bac6f..8d10d4282e 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -154,7 +154,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
+ 	p1.As = int16(Thearch.Optoas(OAS, Types[uint8(v.etype)]))
+ 
+ 	// TODO(rsc): Remove special case here.
+-	if (Thearch.Thechar == '9' || Thearch.Thechar == '5') && v.etype == TBOOL {
++	if (Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && v.etype == TBOOL {
+ 		p1.As = int16(Thearch.Optoas(OAS, Types[TUINT8]))
+ 	}
+ 	p1.From.Type = obj.TYPE_REG
+@@ -209,7 +209,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 		// TODO(rsc): Remove special case here.
+ 	case obj.TYPE_ADDR:
+ 		var bit Bits
+-		if Thearch.Thechar == '9' || Thearch.Thechar == '5' {
++		if Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 			goto memcase
+ 		}
+ 		a.Type = obj.TYPE_MEM
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index e4abc282c2..4aecd540cf 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -3625,7 +3625,7 @@ func samecheap(a *Node, b *Node) bool {
+ }
+ 
+ func walkrotate(np **Node) {
+-	if Thearch.Thechar == '9' {
++	if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 		return
+ 	}
+ 
+@@ -3757,7 +3757,7 @@ func walkdiv(np **Node, init **NodeList) {
+ 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
+ 
+ 	// TODO(minux)
+-	if Thearch.Thechar == '9' {
++	if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+ 		return
+ 	}
+ 

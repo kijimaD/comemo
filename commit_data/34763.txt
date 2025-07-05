@@ -12,7 +12,73 @@ Date:   Sat Jul 8 20:19:25 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      |  9 +++++++++
  src/net/url/url_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 92c9c27d70..bb44be3117 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -372,17 +372,26 @@ type Userinfo struct {
+ 
+ // Username returns the username.
+ func (u *Userinfo) Username() string {
++	if u == nil {
++		return ""
++	}
+ 	return u.username
+ }
+ 
+ // Password returns the password in case it is set, and whether it is set.
+ func (u *Userinfo) Password() (string, bool) {
++	if u == nil {
++		return "", false
++	}
+ 	return u.password, u.passwordSet
+ }
+ 
+ // String returns the encoded userinfo information in the standard form
+ // of "username[:password]".
+ func (u *Userinfo) String() string {
++	if u == nil {
++		return ""
++	}
+ 	s := escape(u.username, encodeUserPassword)
+ 	if u.passwordSet {
+ 		s += ":" + escape(u.password, encodeUserPassword)
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 604b323601..d6aed3acaf 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1709,3 +1709,29 @@ func TestGob(t *testing.T) {
+ 		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
+ 	}
+ }
++
++func TestNilUser(t *testing.T) {
++	defer func() {
++		if v := recover(); v != nil {
++			t.Fatalf("unexpected panic: %v", v)
++		}
++	}()
++
++	u, err := Parse("http://foo.com/")
++
++	if err != nil {
++		t.Fatalf("parse err: %v", err)
++	}
++
++	if v := u.User.Username(); v != "" {
++		t.Fatalf("expected empty username, got %s", v)
++	}
++
++	if v, ok := u.User.Password(); v != "" || ok {
++		t.Fatalf("expected empty password, got %s (%v)", v, ok)
++	}
++
++	if v := u.User.String(); v != "" {
++		t.Fatalf("expected empty string, got %s", v)
++	}
++}

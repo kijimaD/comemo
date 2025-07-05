@@ -15,7 +15,75 @@ Date:   Sun Mar 10 02:38:12 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/test.go            | 15 ++++++++++++---
  src/cmd/go/testdata/script/test_timeout.txt | 21 +++++++++++++++++++++
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 225dab31de..9b9bbce0dd 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -484,8 +484,9 @@ var (
+ 	pkgArgs          []string
+ 	pkgs             []*load.Package
+ 
+-	testKillTimeout = 10 * time.Minute
+-	testCacheExpire time.Time // ignore cached test results before this time
++	testActualTimeout = 10 * time.Minute                  // actual timeout which is passed to tests
++	testKillTimeout   = testActualTimeout + 1*time.Minute // backup alarm
++	testCacheExpire   time.Time                           // ignore cached test results before this time
+ )
+ 
+ // testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
+@@ -552,13 +553,21 @@ func runTest(cmd *base.Command, args []string) {
+ 	// the test wedges with a goroutine spinning and its background
+ 	// timer does not get a chance to fire.
+ 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
+-		testKillTimeout = dt + 1*time.Minute
++		testActualTimeout = dt
++		testKillTimeout = testActualTimeout + 1*time.Minute
+ 	} else if err == nil && dt == 0 {
+ 		// An explicit zero disables the test timeout.
++		// No timeout is passed to tests.
+ 		// Let it have one century (almost) before we kill it.
++		testActualTimeout = -1
+ 		testKillTimeout = 100 * 365 * 24 * time.Hour
+ 	}
+ 
++	// Pass timeout to tests if it exists.
++	if testActualTimeout > 0 {
++		testArgs = append(testArgs, "-test.timeout="+testActualTimeout.String())
++	}
++
+ 	// show passing test output (after buffering) with -v flag.
+ 	// must buffer because tests are running in parallel, and
+ 	// otherwise the output will get mixed.
+diff --git a/src/cmd/go/testdata/script/test_timeout.txt b/src/cmd/go/testdata/script/test_timeout.txt
+new file mode 100644
+index 0000000000..9087a9030e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_timeout.txt
+@@ -0,0 +1,21 @@
++env GO111MODULE=off
++cd a
++
++# No timeout is passed via 'go test' command.
++go test -v
++stdout '10m0s'
++
++# Timeout is passed via 'go test' command.
++go test -v -timeout 30m
++stdout '30m0s'
++
++-- a/timeout_test.go --
++package t
++import (
++	"flag"
++	"fmt"
++	"testing"
++)
++func TestTimeout(t *testing.T) {
++	fmt.Println(flag.Lookup("test.timeout").Value.String())
++}
+\ No newline at end of file

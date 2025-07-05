@@ -8,6 +8,20 @@ Date:   Sat Oct 10 18:56:13 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35572
     CL=35572
-
+---
  src/pkg/strings/strings.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 4883d392cd..bb1b8b2311 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -188,7 +188,7 @@ func ToLower(s string) string {
+ }
+ 
+ // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
+-func Title(s string) string {
++func ToTitle(s string) string {
+ 	return Map(unicode.ToTitle, s)
+ }
+ 

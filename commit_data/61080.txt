@@ -20,7 +20,73 @@ Date:   Sun Sep 29 04:24:00 2024 +0200
     Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/syscall/unix/getrandom_linux_test.go | 22 ++++++++++++++++++++++
  src/runtime/vgetrandom_linux.go                   | 12 ++++++++----
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom_linux_test.go b/src/internal/syscall/unix/getrandom_linux_test.go
+new file mode 100644
+index 0000000000..e1778c19e8
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix_test
++
++import (
++	"internal/syscall/unix"
++	"testing"
++)
++
++func BenchmarkParallelGetRandom(b *testing.B) {
++	b.SetBytes(4)
++	b.RunParallel(func(pb *testing.PB) {
++		var buf [4]byte
++		for pb.Next() {
++			if _, err := unix.GetRandom(buf[:], 0); err != nil {
++				b.Fatal(err)
++			}
++		}
++	})
++}
+diff --git a/src/runtime/vgetrandom_linux.go b/src/runtime/vgetrandom_linux.go
+index 1e8c8ceaf0..af0e9cad1e 100644
+--- a/src/runtime/vgetrandom_linux.go
++++ b/src/runtime/vgetrandom_linux.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+ 
+@@ -43,8 +46,9 @@ func vgetrandomGetState() uintptr {
+ 	lock(&vgetrandomAlloc.statesLock)
+ 	if len(vgetrandomAlloc.states) == 0 {
+ 		num := uintptr(ncpu) // Just a reasonable size hint to start.
+-		allocSize := (num*vgetrandomAlloc.stateSize + physPageSize - 1) &^ (physPageSize - 1)
+-		num = (physPageSize / vgetrandomAlloc.stateSize) * (allocSize / physPageSize)
++		stateSizeCacheAligned := (vgetrandomAlloc.stateSize + cpu.CacheLineSize - 1) &^ (cpu.CacheLineSize - 1)
++		allocSize := (num*stateSizeCacheAligned + physPageSize - 1) &^ (physPageSize - 1)
++		num = (physPageSize / stateSizeCacheAligned) * (allocSize / physPageSize)
+ 		p, err := mmap(nil, allocSize, vgetrandomAlloc.mmapProt, vgetrandomAlloc.mmapFlags, -1, 0)
+ 		if err != 0 {
+ 			unlock(&vgetrandomAlloc.statesLock)
+@@ -59,7 +63,7 @@ func vgetrandomGetState() uintptr {
+ 				newBlock = (newBlock + physPageSize - 1) &^ (physPageSize - 1)
+ 			}
+ 			vgetrandomAlloc.states = append(vgetrandomAlloc.states, newBlock)
+-			newBlock += vgetrandomAlloc.stateSize
++			newBlock += stateSizeCacheAligned
+ 		}
+ 	}
+ 	state := vgetrandomAlloc.states[len(vgetrandomAlloc.states)-1]

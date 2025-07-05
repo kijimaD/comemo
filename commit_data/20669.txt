@@ -11,7 +11,43 @@ Date:   Mon Sep 29 12:26:51 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/149770044
-
+---
  src/crypto/x509/pkix/pkix.go |  2 +-
  src/crypto/x509/x509_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 58c1e54d10..8768b78590 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -164,7 +164,7 @@ type TBSCertificateList struct {
+ 	Signature           AlgorithmIdentifier
+ 	Issuer              RDNSequence
+ 	ThisUpdate          time.Time
+-	NextUpdate          time.Time
++	NextUpdate          time.Time            `asn1:"optional"`
+ 	RevokedCertificates []RevokedCertificate `asn1:"optional"`
+ 	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
+ }
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 56f7a98322..abe86216f9 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -707,6 +707,17 @@ func TestParseDERCRL(t *testing.T) {
+ 	// Can't check the signature here without a package cycle.
+ }
+ 
++func TestCRLWithoutExpiry(t *testing.T) {
++	derBytes := fromBase64("MIHYMIGZMAkGByqGSM44BAMwEjEQMA4GA1UEAxMHQ2FybERTUxcNOTkwODI3MDcwMDAwWjBpMBMCAgDIFw05OTA4MjIwNzAwMDBaMBMCAgDJFw05OTA4MjIwNzAwMDBaMBMCAgDTFw05OTA4MjIwNzAwMDBaMBMCAgDSFw05OTA4MjIwNzAwMDBaMBMCAgDUFw05OTA4MjQwNzAwMDBaMAkGByqGSM44BAMDLwAwLAIUfmVSdjP+NHMX0feW+aDU2G1cfT0CFAJ6W7fVWxjBz4fvftok8yqDnDWh")
++	certList, err := ParseDERCRL(derBytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !certList.TBSCertList.NextUpdate.IsZero() {
++		t.Errorf("NextUpdate is not the zero value")
++	}
++}
++
+ func TestParsePEMCRL(t *testing.T) {
+ 	pemBytes := fromBase64(pemCRLBase64)
+ 	certList, err := ParseCRL(pemBytes)

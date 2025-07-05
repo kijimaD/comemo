@@ -39,7 +39,7 @@ Date:   Tue Aug 15 16:45:52 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/escape/assign.go |   8 +-
  src/cmd/compile/internal/escape/call.go   |  49 ++++++++----
  src/cmd/compile/internal/escape/escape.go |  53 +++++++++++--
@@ -50,3 +50,748 @@ Date:   Tue Aug 15 16:45:52 2023 -0700
  test/escape_closure.go                    |  14 ++++
  test/inline_big.go                        |   6 +-
  9 files changed, 268 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/assign.go b/src/cmd/compile/internal/escape/assign.go
+index 80697bf37b..1c1d5799ad 100644
+--- a/src/cmd/compile/internal/escape/assign.go
++++ b/src/cmd/compile/internal/escape/assign.go
+@@ -39,10 +39,10 @@ func (e *escape) addr(n ir.Node) hole {
+ 		if n.X.Type().IsArray() {
+ 			k = e.addr(n.X)
+ 		} else {
+-			e.discard(n.X)
++			e.mutate(n.X)
+ 		}
+ 	case ir.ODEREF, ir.ODOTPTR:
+-		e.discard(n)
++		e.mutate(n)
+ 	case ir.OINDEXMAP:
+ 		n := n.(*ir.IndexExpr)
+ 		e.discard(n.X)
+@@ -52,6 +52,10 @@ func (e *escape) addr(n ir.Node) hole {
+ 	return k
+ }
+ 
++func (e *escape) mutate(n ir.Node) {
++	e.expr(e.mutatorHole(), n)
++}
++
+ func (e *escape) addrs(l ir.Nodes) []hole {
+ 	var ks []hole
+ 	for _, n := range l {
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 2dd3fe8375..fe0c542ed6 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -68,17 +68,8 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		var fn *ir.Name
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
+-			// If we have a direct call to a closure (not just one we were
+-			// able to statically resolve with ir.StaticValue), mark it as
+-			// such so batch.outlives can optimize the flow results.
+-			if call.X.Op() == ir.OCLOSURE {
+-				call.X.(*ir.ClosureExpr).Func.SetClosureCalled(true)
+-			}
+-
+ 			v := ir.StaticValue(call.X)
+ 			fn = ir.StaticCalleeName(v)
+-		case ir.OCALLMETH:
+-			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
+ 		}
+ 
+ 		fntype := call.X.Type()
+@@ -88,7 +79,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 
+ 		if ks != nil && fn != nil && e.inMutualBatch(fn) {
+ 			for i, result := range fn.Type().Results().FieldSlice() {
+-				e.expr(ks[i], ir.AsNode(result.Nname))
++				e.expr(ks[i], result.Nname.(*ir.Name))
+ 			}
+ 		}
+ 
+@@ -99,7 +90,20 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 			// Note: We use argument and not argumentFunc, because while
+ 			// call.X here may be an argument to runtime.{new,defer}proc,
+ 			// it's not an argument to fn itself.
+-			argument(e.discardHole(), &call.X)
++			calleeK := e.discardHole()
++			if fn == nil { // unknown callee
++				for _, k := range ks {
++					if k.dst != &e.blankLoc {
++						// The results flow somewhere, but we don't statically
++						// know the callee function. If a closure flows here, we
++						// need to conservatively assume its results might flow to
++						// the heap.
++						calleeK = e.calleeHole()
++						break
++					}
++				}
++			}
++			argument(calleeK, &call.X)
+ 		} else {
+ 			recvp = &call.X.(*ir.SelectorExpr).X
+ 		}
+@@ -139,7 +143,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		// it has enough capacity. Alternatively, a new heap
+ 		// slice might be allocated, and all slice elements
+ 		// might flow to heap.
+-		appendeeK := ks[0]
++		appendeeK := e.teeHole(ks[0], e.mutatorHole())
+ 		if args[0].Type().Elem().HasPointers() {
+ 			appendeeK = e.teeHole(appendeeK, e.heapHole().deref(call, "appendee slice"))
+ 		}
+@@ -160,7 +164,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 
+ 	case ir.OCOPY:
+ 		call := call.(*ir.BinaryExpr)
+-		argument(e.discardHole(), &call.X)
++		argument(e.mutatorHole(), &call.X)
+ 
+ 		copiedK := e.discardHole()
+ 		if call.Y.Type().IsSlice() && call.Y.Type().Elem().HasPointers() {
+@@ -185,10 +189,14 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		}
+ 		argumentRType(&call.RType)
+ 
+-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OCLEAR:
++	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+ 		call := call.(*ir.UnaryExpr)
+ 		argument(e.discardHole(), &call.X)
+ 
++	case ir.OCLEAR:
++		call := call.(*ir.UnaryExpr)
++		argument(e.mutatorHole(), &call.X)
++
+ 	case ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+ 		call := call.(*ir.UnaryExpr)
+ 		argument(ks[0], &call.X)
+@@ -251,6 +259,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	fn := ir.NewClosureFunc(n.Pos(), true)
+ 	fn.SetWrapper(true)
+ 	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
++	fn.SetEsc(escFuncTagged) // no params; effectively tagged already
+ 	fn.Body = []ir.Node{call}
+ 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+ 		// If the callee is a named function, link to the original callee.
+@@ -310,9 +319,11 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
+ 		// Create and declare a new pointer-typed temp variable.
+ 		tmp := e.wrapExpr(arg.Pos(), &arg.X, init, call, wrapper)
+ 
++		k := e.mutatorHole()
+ 		if pragma&ir.UintptrEscapes != 0 {
+-			e.flow(e.heapHole().note(arg, "//go:uintptrescapes"), e.oldLoc(tmp))
++			k = e.heapHole().note(arg, "//go:uintptrescapes")
+ 		}
++		e.flow(k, e.oldLoc(tmp))
+ 
+ 		if pragma&ir.UintptrKeepAlive != 0 {
+ 			call := call.(*ir.CallExpr)
+@@ -454,11 +465,17 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
+ 	// Call to previously tagged function.
+ 
+ 	var tagKs []hole
+-
+ 	esc := parseLeaks(param.Note)
++
+ 	if x := esc.Heap(); x >= 0 {
+ 		tagKs = append(tagKs, e.heapHole().shift(x))
+ 	}
++	if x := esc.Mutator(); x >= 0 {
++		tagKs = append(tagKs, e.mutatorHole().shift(x))
++	}
++	if x := esc.Callee(); x >= 0 {
++		tagKs = append(tagKs, e.calleeHole().shift(x))
++	}
+ 
+ 	if ks != nil {
+ 		for i := 0; i < numEscResults; i++ {
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 5ad73bfc0d..2882f9fda3 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -88,8 +88,10 @@ type batch struct {
+ 	allLocs  []*location
+ 	closures []closure
+ 
+-	heapLoc  location
+-	blankLoc location
++	heapLoc    location
++	mutatorLoc location
++	calleeLoc  location
++	blankLoc   location
+ }
+ 
+ // A closure holds a closure expression and its spill hole (i.e.,
+@@ -129,7 +131,9 @@ func Batch(fns []*ir.Func, recursive bool) {
+ 	}
+ 
+ 	var b batch
+-	b.heapLoc.attrs = attrEscapes | attrPersists
++	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
++	b.mutatorLoc.attrs = attrMutates
++	b.calleeLoc.attrs = attrCalls
+ 
+ 	// Construct data-flow graph from syntax trees.
+ 	for _, fn := range fns {
+@@ -288,6 +292,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 		if n == nil {
+ 			continue
+ 		}
++
+ 		if n.Op() == ir.ONAME {
+ 			n := n.(*ir.Name)
+ 			n.Opt = nil
+@@ -337,6 +342,20 @@ func (b *batch) finish(fns []*ir.Func) {
+ 				}
+ 			}
+ 		}
++
++		// If the result of a string->[]byte conversion is never mutated,
++		// then it can simply reuse the string's memory directly.
++		//
++		// TODO(mdempsky): Enable in a subsequent CL. We need to ensure
++		// []byte("") evaluates to []byte{}, not []byte(nil).
++		if false {
++			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
++				if base.Flag.LowerM >= 1 {
++					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
++				}
++				n.SetOp(ir.OSTR2BYTESTMP)
++			}
++		}
+ 	}
+ }
+ 
+@@ -345,10 +364,10 @@ func (b *batch) finish(fns []*ir.Func) {
+ // fn has not yet been analyzed, so its parameters and results
+ // should be incorporated directly into the flow graph instead of
+ // relying on its escape analysis tagging.
+-func (e *escape) inMutualBatch(fn *ir.Name) bool {
++func (b *batch) inMutualBatch(fn *ir.Name) bool {
+ 	if fn.Defn != nil && fn.Defn.Esc() < escFuncTagged {
+ 		if fn.Defn.Esc() == escFuncUnknown {
+-			base.Fatalf("graph inconsistency: %v", fn)
++			base.FatalfAt(fn.Pos(), "graph inconsistency: %v", fn)
+ 		}
+ 		return true
+ 	}
+@@ -411,6 +430,8 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 			if diagnose && f.Sym != nil {
+ 				base.WarnfAt(f.Pos, "%v does not escape", name())
+ 			}
++			esc.AddMutator(0)
++			esc.AddCallee(0)
+ 		} else {
+ 			if diagnose && f.Sym != nil {
+ 				base.WarnfAt(f.Pos, "leaking param: %v", name())
+@@ -453,9 +474,7 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	esc.Optimize()
+ 
+ 	if diagnose && !loc.hasAttr(attrEscapes) {
+-		if esc.Empty() {
+-			base.WarnfAt(f.Pos, "%v does not escape", name())
+-		}
++		anyLeaks := false
+ 		if x := esc.Heap(); x >= 0 {
+ 			if x == 0 {
+ 				base.WarnfAt(f.Pos, "leaking param: %v", name())
+@@ -463,11 +482,29 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 				// TODO(mdempsky): Mention level=x like below?
+ 				base.WarnfAt(f.Pos, "leaking param content: %v", name())
+ 			}
++			anyLeaks = true
+ 		}
+ 		for i := 0; i < numEscResults; i++ {
+ 			if x := esc.Result(i); x >= 0 {
+ 				res := fn.Type().Results().Field(i).Sym
+ 				base.WarnfAt(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
++				anyLeaks = true
++			}
++		}
++		if !anyLeaks {
++			base.WarnfAt(f.Pos, "%v does not escape", name())
++		}
++
++		if base.Flag.LowerM >= 2 {
++			if x := esc.Mutator(); x >= 0 {
++				base.WarnfAt(f.Pos, "mutates param: %v derefs=%v", name(), x)
++			} else {
++				base.WarnfAt(f.Pos, "does not mutate param: %v", name())
++			}
++			if x := esc.Callee(); x >= 0 {
++				base.WarnfAt(f.Pos, "calls param: %v derefs=%v", name(), x)
++			} else {
++				base.WarnfAt(f.Pos, "does not call param: %v", name())
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index 9b3a4558fb..f3baa67223 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -88,6 +88,17 @@ const (
+ 	// address outlives the statement; that is, whether its storage
+ 	// cannot be immediately reused.
+ 	attrPersists
++
++	// attrMutates indicates whether pointers that are reachable from
++	// this location may have their addressed memory mutated. This is
++	// used to detect string->[]byte conversions that can be safely
++	// optimized away.
++	attrMutates
++
++	// attrCalls indicates whether closures that are reachable from this
++	// location may be called without tracking their results. This is
++	// used to better optimize indirect closure calls.
++	attrCalls
+ )
+ 
+ func (l *location) hasAttr(attr locAttr) bool { return l.attrs&attr != 0 }
+@@ -121,6 +132,35 @@ func (l *location) leakTo(sink *location, derefs int) {
+ 	l.paramEsc.AddHeap(derefs)
+ }
+ 
++// leakTo records that parameter l leaks to sink.
++func (b *batch) leakTo(l, sink *location, derefs int) {
++	if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
++		if base.Flag.LowerM >= 2 {
++			fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(sink), derefs)
++		}
++		explanation := b.explainPath(sink, l)
++		if logopt.Enabled() {
++			var e_curfn *ir.Func // TODO(mdempsky): Fix.
++			logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
++				fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(sink), derefs), explanation)
++		}
++	}
++
++	// If sink is a result parameter that doesn't escape (#44614)
++	// and we can fit return bits into the escape analysis tag,
++	// then record as a result leak.
++	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
++		if ri := sink.resultIndex - 1; ri < numEscResults {
++			// Leak to result parameter.
++			l.paramEsc.AddResult(ri, derefs)
++			return
++		}
++	}
++
++	// Otherwise, record as heap leak.
++	l.paramEsc.AddHeap(derefs)
++}
++
+ func (l *location) isName(c ir.Class) bool {
+ 	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
+ }
+@@ -203,7 +243,7 @@ func (b *batch) flow(k hole, src *location) {
+ 			}
+ 
+ 		}
+-		src.attrs |= attrEscapes
++		src.attrs |= attrEscapes | attrPersists | attrMutates | attrCalls
+ 		return
+ 	}
+ 
+@@ -212,11 +252,13 @@ func (b *batch) flow(k hole, src *location) {
+ }
+ 
+ func (b *batch) heapHole() hole    { return b.heapLoc.asHole() }
++func (b *batch) mutatorHole() hole { return b.mutatorLoc.asHole() }
++func (b *batch) calleeHole() hole  { return b.calleeLoc.asHole() }
+ func (b *batch) discardHole() hole { return b.blankLoc.asHole() }
+ 
+ func (b *batch) oldLoc(n *ir.Name) *location {
+ 	if n.Canonical().Opt == nil {
+-		base.Fatalf("%v has no location", n)
++		base.FatalfAt(n.Pos(), "%v has no location", n)
+ 	}
+ 	return n.Canonical().Opt.(*location)
+ }
+@@ -231,7 +273,7 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
+ 
+ 	if n != nil && n.Op() == ir.ONAME {
+ 		if canon := n.(*ir.Name).Canonical(); n != canon {
+-			base.Fatalf("newLoc on non-canonical %v (canonical is %v)", n, canon)
++			base.FatalfAt(n.Pos(), "newLoc on non-canonical %v (canonical is %v)", n, canon)
+ 		}
+ 	}
+ 	loc := &location{
+@@ -249,11 +291,11 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
+ 			if n.Class == ir.PPARAM && n.Curfn == nil {
+ 				// ok; hidden parameter
+ 			} else if n.Curfn != e.curfn {
+-				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
++				base.FatalfAt(n.Pos(), "curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
+ 			}
+ 
+ 			if n.Opt != nil {
+-				base.Fatalf("%v already has a location", n)
++				base.FatalfAt(n.Pos(), "%v already has a location", n)
+ 			}
+ 			n.Opt = loc
+ 		}
+diff --git a/src/cmd/compile/internal/escape/leaks.go b/src/cmd/compile/internal/escape/leaks.go
+index 1432607c2d..942f87d2a2 100644
+--- a/src/cmd/compile/internal/escape/leaks.go
++++ b/src/cmd/compile/internal/escape/leaks.go
+@@ -10,33 +10,53 @@ import (
+ 	"strings"
+ )
+ 
+-const numEscResults = 7
+-
+-// An leaks represents a set of assignment flows from a parameter
+-// to the heap or to any of its function's (first numEscResults)
+-// result parameters.
+-type leaks [1 + numEscResults]uint8
++// A leaks represents a set of assignment flows from a parameter to
++// the heap, mutator, callee, or to any of its function's (first
++// numEscResults) result parameters.
++type leaks [8]uint8
++
++const (
++	leakHeap = iota
++	leakMutator
++	leakCallee
++	leakResult0
++)
+ 
+-// Empty reports whether l is an empty set (i.e., no assignment flows).
+-func (l leaks) Empty() bool { return l == leaks{} }
++const numEscResults = len(leaks{}) - leakResult0
+ 
+ // Heap returns the minimum deref count of any assignment flow from l
+ // to the heap. If no such flows exist, Heap returns -1.
+-func (l leaks) Heap() int { return l.get(0) }
++func (l leaks) Heap() int { return l.get(leakHeap) }
++
++// Mutator returns the minimum deref count of any assignment flow from
++// l to the pointer operand of an indirect assignment statement. If no
++// such flows exist, Mutator returns -1.
++func (l leaks) Mutator() int { return l.get(leakMutator) }
++
++// Callee returns the minimum deref count of any assignment flow from
++// l to the callee operand of call expression. If no such flows exist,
++// Callee returns -1.
++func (l leaks) Callee() int { return l.get(leakCallee) }
+ 
+ // Result returns the minimum deref count of any assignment flow from
+ // l to its function's i'th result parameter. If no such flows exist,
+ // Result returns -1.
+-func (l leaks) Result(i int) int { return l.get(1 + i) }
++func (l leaks) Result(i int) int { return l.get(leakResult0 + i) }
+ 
+ // AddHeap adds an assignment flow from l to the heap.
+-func (l *leaks) AddHeap(derefs int) { l.add(0, derefs) }
++func (l *leaks) AddHeap(derefs int) { l.add(leakHeap, derefs) }
++
++// AddMutator adds a flow from l to the mutator (i.e., a pointer
++// operand of an indirect assignment statement).
++func (l *leaks) AddMutator(derefs int) { l.add(leakMutator, derefs) }
++
++// AddCallee adds an assignment flow from l to the callee operand of a
++// call expression.
++func (l *leaks) AddCallee(derefs int) { l.add(leakCallee, derefs) }
+ 
+ // AddResult adds an assignment flow from l to its function's i'th
+ // result parameter.
+-func (l *leaks) AddResult(i, derefs int) { l.add(1+i, derefs) }
+-
+-func (l *leaks) setResult(i, derefs int) { l.set(1+i, derefs) }
++func (l *leaks) AddResult(i, derefs int) { l.add(leakResult0+i, derefs) }
+ 
+ func (l leaks) get(i int) int { return int(l[i]) - 1 }
+ 
+@@ -64,9 +84,9 @@ func (l *leaks) Optimize() {
+ 	// If we have a path to the heap, then there's no use in
+ 	// keeping equal or longer paths elsewhere.
+ 	if x := l.Heap(); x >= 0 {
+-		for i := 0; i < numEscResults; i++ {
+-			if l.Result(i) >= x {
+-				l.setResult(i, -1)
++		for i := 1; i < len(*l); i++ {
++			if l.get(i) >= x {
++				l.set(i, -1)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index 12866c0dc8..fc634e04a7 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -36,6 +36,8 @@ func (b *batch) walkAll() {
+ 	for _, loc := range b.allLocs {
+ 		enqueue(loc)
+ 	}
++	enqueue(&b.mutatorLoc)
++	enqueue(&b.calleeLoc)
+ 	enqueue(&b.heapLoc)
+ 
+ 	var walkgen uint32
+@@ -61,12 +63,27 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 	root.derefs = 0
+ 	root.dst = nil
+ 
++	if root.hasAttr(attrCalls) {
++		if clo, ok := root.n.(*ir.ClosureExpr); ok {
++			if fn := clo.Func; b.inMutualBatch(fn.Nname) && !fn.ClosureResultsLost() {
++				fn.SetClosureResultsLost(true)
++
++				// Re-flow from the closure's results, now that we're aware
++				// we lost track of them.
++				for _, result := range fn.Type().Results().FieldSlice() {
++					enqueue(b.oldLoc(result.Nname.(*ir.Name)))
++				}
++			}
++		}
++	}
++
+ 	todo := []*location{root} // LIFO queue
+ 	for len(todo) > 0 {
+ 		l := todo[len(todo)-1]
+ 		todo = todo[:len(todo)-1]
+ 
+ 		derefs := l.derefs
++		var newAttrs locAttr
+ 
+ 		// If l.derefs < 0, then l's address flows to root.
+ 		addressOf := derefs < 0
+@@ -77,22 +94,41 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 			// derefs at 0.
+ 			derefs = 0
+ 
++			// If l's address flows somewhere that
++			// outlives it, then l needs to be heap
++			// allocated.
++			if b.outlives(root, l) {
++				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
++					if base.Flag.LowerM >= 2 {
++						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
++					}
++					explanation := b.explainPath(root, l)
++					if logopt.Enabled() {
++						var e_curfn *ir.Func // TODO(mdempsky): Fix.
++						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
++					}
++				}
++				newAttrs |= attrEscapes | attrPersists | attrMutates | attrCalls
++			} else
+ 			// If l's address flows to a persistent location, then l needs
+ 			// to persist too.
+-			if root.hasAttr(attrPersists) && !l.hasAttr(attrPersists) {
+-				l.attrs |= attrPersists
+-				enqueue(l)
++			if root.hasAttr(attrPersists) {
++				newAttrs |= attrPersists
+ 			}
+ 		}
+ 
+-		if b.outlives(root, l) {
+-			// l's value flows to root. If l is a function
+-			// parameter and root is the heap or a
+-			// corresponding result parameter, then record
+-			// that value flow for tagging the function
+-			// later.
+-			if l.isName(ir.PPARAM) {
+-				if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
++		if derefs == 0 {
++			newAttrs |= root.attrs & (attrMutates | attrCalls)
++		}
++
++		// l's value flows to root. If l is a function
++		// parameter and root is the heap or a
++		// corresponding result parameter, then record
++		// that value flow for tagging the function
++		// later.
++		if l.isName(ir.PPARAM) {
++			if b.outlives(root, l) {
++				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+ 					if base.Flag.LowerM >= 2 {
+ 						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), derefs)
+ 					}
+@@ -105,23 +141,18 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 				}
+ 				l.leakTo(root, derefs)
+ 			}
++			if root.hasAttr(attrMutates) {
++				l.paramEsc.AddMutator(derefs)
++			}
++			if root.hasAttr(attrCalls) {
++				l.paramEsc.AddCallee(derefs)
++			}
++		}
+ 
+-			// If l's address flows somewhere that
+-			// outlives it, then l needs to be heap
+-			// allocated.
+-			if addressOf && !l.hasAttr(attrEscapes) {
+-				if logopt.Enabled() || base.Flag.LowerM >= 2 {
+-					if base.Flag.LowerM >= 2 {
+-						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
+-					}
+-					explanation := b.explainPath(root, l)
+-					if logopt.Enabled() {
+-						var e_curfn *ir.Func // TODO(mdempsky): Fix.
+-						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
+-					}
+-				}
+-				l.attrs |= attrEscapes
+-				enqueue(l)
++		if newAttrs&^l.attrs != 0 {
++			l.attrs |= newAttrs
++			enqueue(l)
++			if l.attrs&attrEscapes != 0 {
+ 				continue
+ 			}
+ 		}
+@@ -231,17 +262,23 @@ func (b *batch) outlives(l, other *location) bool {
+ 		return true
+ 	}
+ 
++	// Pseudo-locations that don't really exist.
++	if l == &b.mutatorLoc || l == &b.calleeLoc {
++		return false
++	}
++
+ 	// We don't know what callers do with returned values, so
+ 	// pessimistically we need to assume they flow to the heap and
+ 	// outlive everything too.
+ 	if l.isName(ir.PPARAMOUT) {
+-		// Exception: Directly called closures can return
+-		// locations allocated outside of them without forcing
+-		// them to the heap. For example:
++		// Exception: Closures can return locations allocated outside of
++		// them without forcing them to the heap, if we can statically
++		// identify all call sites. For example:
+ 		//
+-		//    var u int  // okay to stack allocate
+-		//    *(func() *int { return &u }()) = 42
+-		if containsClosure(other.curfn, l.curfn) && l.curfn.ClosureCalled() {
++		//	var u int  // okay to stack allocate
++		//	fn := func() *int { return &u }()
++		//	*fn() = 42
++		if containsClosure(other.curfn, l.curfn) && !l.curfn.ClosureResultsLost() {
+ 			return false
+ 		}
+ 
+@@ -252,10 +289,10 @@ func (b *batch) outlives(l, other *location) bool {
+ 	// outlives other if it was declared outside other's loop
+ 	// scope. For example:
+ 	//
+-	//    var l *int
+-	//    for {
+-	//        l = new(int)
+-	//    }
++	//	var l *int
++	//	for {
++	//		l = new(int) // must heap allocate: outlives for loop
++	//	}
+ 	if l.curfn == other.curfn && l.loopDepth < other.loopDepth {
+ 		return true
+ 	}
+@@ -263,10 +300,10 @@ func (b *batch) outlives(l, other *location) bool {
+ 	// If other is declared within a child closure of where l is
+ 	// declared, then l outlives it. For example:
+ 	//
+-	//    var l *int
+-	//    func() {
+-	//        l = new(int)
+-	//    }
++	//	var l *int
++	//	func() {
++	//		l = new(int) // must heap allocate: outlives call frame (if not inlined)
++	//	}()
+ 	if containsClosure(l.curfn, other.curfn) {
+ 		return true
+ 	}
+@@ -276,8 +313,8 @@ func (b *batch) outlives(l, other *location) bool {
+ 
+ // containsClosure reports whether c is a closure contained within f.
+ func containsClosure(f, c *ir.Func) bool {
+-	// Common case.
+-	if f == c {
++	// Common cases.
++	if f == c || c.OClosure == nil {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index dcd9e56289..b0b4d52fa3 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -215,7 +215,7 @@ const (
+ 	funcExportInline             // include inline body in export data
+ 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
+ 	funcOpenCodedDeferDisallowed // can't do open-coded defers
+-	funcClosureCalled            // closure is only immediately called; used by escape analysis
++	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
+ 	funcPackageInit              // compiler emitted .init func for package
+ )
+ 
+@@ -237,7 +237,7 @@ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinability
+ func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
+ func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
+ func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
+-func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
++func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
+ func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
+ 
+ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
+@@ -253,7 +253,7 @@ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilit
+ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
+ func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
+ func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+-func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
++func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
+ func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
+ 
+ func (f *Func) SetWBPos(pos src.XPos) {
+diff --git a/test/escape_closure.go b/test/escape_closure.go
+index bd6c025476..0b19d6f6e8 100644
+--- a/test/escape_closure.go
++++ b/test/escape_closure.go
+@@ -177,3 +177,17 @@ func ClosureIndirect() {
+ }
+ 
+ func nopFunc(p *int) {} // ERROR "p does not escape"
++
++func ClosureIndirect2() {
++	f := func(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0" "func literal does not escape"
++
++	f(new(int)) // ERROR "new\(int\) does not escape"
++
++	g := f
++	g(new(int)) // ERROR "new\(int\) does not escape"
++
++	h := nopFunc2
++	h(new(int)) // ERROR "new\(int\) does not escape"
++}
++
++func nopFunc2(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0"
+diff --git a/test/inline_big.go b/test/inline_big.go
+index 7dd1abdb6a..f579fc0910 100644
+--- a/test/inline_big.go
++++ b/test/inline_big.go
+@@ -9,18 +9,18 @@
+ 
+ package foo
+ 
+-func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape"
++func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
+ 	// Cost 16 body (need cost < 20).
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	return a[0] + a[1] + a[2] + a[3]
+ }
+-func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape"
++func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
+ 	// Cost 32 body (need cost > 20 and cost < 80).
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]
+ }
+ 
+-func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'"
++func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'" "mutates param: a derefs=0" "does not call param: a"
+ 	// Add lots of nodes to f's body. We need >5000.
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	a[0] = 0

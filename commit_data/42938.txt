@@ -9,7 +9,62 @@ Date:   Mon Feb 24 17:23:19 2020 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/auth.go   | 10 +---------
  src/crypto/tls/common.go |  8 --------
  2 files changed, 1 insertion(+), 17 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 009f8d3d1e..d87f7bdd51 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+-	"encoding/asn1"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+@@ -27,14 +26,7 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
+ 		if !ok {
+ 			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
+ 		}
+-		ecdsaSig := new(ecdsaSignature)
+-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+-			return err
+-		}
+-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-			return errors.New("ECDSA signature contained zero or negative values")
+-		}
+-		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
++		if !ecdsa.VerifyASN1(pubKey, signed, sig) {
+ 			return errors.New("ECDSA verification failure")
+ 		}
+ 	case signatureEd25519:
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index c3de0b3dee..53719c48df 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -19,7 +19,6 @@ import (
+ 	"fmt"
+ 	"internal/cpu"
+ 	"io"
+-	"math/big"
+ 	"net"
+ 	"strings"
+ 	"sync"
+@@ -1264,13 +1263,6 @@ func (c *lruSessionCache) Get(sessionKey string) (*ClientSessionState, bool) {
+ 	return nil, false
+ }
+ 
+-// TODO(jsing): Make these available to both crypto/x509 and crypto/tls.
+-type dsaSignature struct {
+-	R, S *big.Int
+-}
+-
+-type ecdsaSignature dsaSignature
+-
+ var emptyConfig Config
+ 
+ func defaultConfig() *Config {

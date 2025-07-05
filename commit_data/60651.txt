@@ -16,8 +16,81 @@ Date:   Fri Aug 9 18:17:57 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/windows/security_windows.go | 19 -------------------
  src/os/user/lookup_windows.go                    | 16 +++-------------
  src/os/user/user_test.go                         |  3 +--
  3 files changed, 4 insertions(+), 34 deletions(-)
+
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index e528744caa..95694c368a 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -156,22 +156,3 @@ type UserInfo4 struct {
+ //
+ //go:linkname GetSystemDirectory
+ func GetSystemDirectory() string // Implemented in runtime package.
+-
+-// GetUserName retrieves the user name of the current thread
+-// in the specified format.
+-func GetUserName(format uint32) (string, error) {
+-	n := uint32(50)
+-	for {
+-		b := make([]uint16, n)
+-		e := syscall.GetUserNameEx(format, &b[0], &n)
+-		if e == nil {
+-			return syscall.UTF16ToString(b[:n]), nil
+-		}
+-		if e != syscall.ERROR_MORE_DATA {
+-			return "", e
+-		}
+-		if n <= uint32(len(b)) {
+-			return "", e
+-		}
+-	}
+-}
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index c319324d11..f259269a53 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -232,22 +232,12 @@ func current() (*User, error) {
+ 		if e != nil {
+ 			return e
+ 		}
+-		username, e := windows.GetUserName(syscall.NameSamCompatible)
++		username, domain, e := lookupUsernameAndDomain(u.User.Sid)
+ 		if e != nil {
+ 			return e
+ 		}
+-		displayName, e := windows.GetUserName(syscall.NameDisplay)
+-		if e != nil {
+-			return e
+-		}
+-		usr = &User{
+-			Uid:      uid,
+-			Gid:      gid,
+-			Username: username,
+-			Name:     displayName,
+-			HomeDir:  dir,
+-		}
+-		return nil
++		usr, e = newUser(uid, gid, dir, username, domain)
++		return e
+ 	})
+ 	return usr, err
+ }
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 31486aed03..fa597b78ec 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -45,9 +45,8 @@ func TestCurrent(t *testing.T) {
+ }
+ 
+ func BenchmarkCurrent(b *testing.B) {
+-	// Benchmark current instead of Current because Current caches the result.
+ 	for i := 0; i < b.N; i++ {
+-		current()
++		Current()
+ 	}
+ }
+ 

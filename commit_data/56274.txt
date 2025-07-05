@@ -32,7 +32,115 @@ Date:   Wed Mar 29 09:12:20 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/flag/flag.go      | 30 ++++++++++++++++++++++++++++--
  src/flag/flag_test.go | 14 +++++++++++++-
  2 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 45928b0190..9d3e8d32a5 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -89,6 +89,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -399,7 +400,8 @@ type FlagSet struct {
+ 	formal        map[string]*Flag
+ 	args          []string // arguments after flags
+ 	errorHandling ErrorHandling
+-	output        io.Writer // nil means stderr; use Output() accessor
++	output        io.Writer         // nil means stderr; use Output() accessor
++	undef         map[string]string // flags which didn't exist at the time of Set
+ }
+ 
+ // A Flag represents the state of a flag.
+@@ -490,8 +492,29 @@ func Lookup(name string) *Flag {
+ 
+ // Set sets the value of the named flag.
+ func (f *FlagSet) Set(name, value string) error {
++	return f.set(name, value)
++}
++func (f *FlagSet) set(name, value string) error {
+ 	flag, ok := f.formal[name]
+ 	if !ok {
++		// Remember that a flag that isn't defined is being set.
++		// We return an error in this case, but in addition if
++		// subsequently that flag is defined, we want to panic
++		// at the definition point.
++		// This is a problem which occurs if both the definition
++		// and the Set call are in init code and for whatever
++		// reason the init code changes evaluation order.
++		// See issue 57411.
++		_, file, line, ok := runtime.Caller(2)
++		if !ok {
++			file = "?"
++			line = 0
++		}
++		if f.undef == nil {
++			f.undef = map[string]string{}
++		}
++		f.undef[name] = fmt.Sprintf("%s:%d", file, line)
++
+ 		return fmt.Errorf("no such flag -%v", name)
+ 	}
+ 	err := flag.Value.Set(value)
+@@ -507,7 +530,7 @@ func (f *FlagSet) Set(name, value string) error {
+ 
+ // Set sets the value of the named command-line flag.
+ func Set(name, value string) error {
+-	return CommandLine.Set(name, value)
++	return CommandLine.set(name, value)
+ }
+ 
+ // isZeroValue determines whether the string represents the zero
+@@ -1004,6 +1027,9 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
+ 		}
+ 		panic(msg) // Happens only if flags are declared with identical names
+ 	}
++	if pos := f.undef[name]; pos != "" {
++		panic(fmt.Sprintf("flag %s set at %s before being defined", name, pos))
++	}
+ 	if f.formal == nil {
+ 		f.formal = make(map[string]*Flag)
+ 	}
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 14d199d6e9..57c88f009f 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/exec"
++	"regexp"
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
+@@ -726,7 +727,7 @@ func mustPanic(t *testing.T, testName string, expected string, f func()) {
+ 		case nil:
+ 			t.Errorf("%s\n: expected panic(%q), but did not panic", testName, expected)
+ 		case string:
+-			if msg != expected {
++			if ok, _ := regexp.MatchString(expected, msg); !ok {
+ 				t.Errorf("%s\n: expected panic(%q), but got panic(%q)", testName, expected, msg)
+ 			}
+ 		default:
+@@ -844,3 +845,14 @@ func TestUserDefinedBoolFunc(t *testing.T) {
+ 		t.Errorf(`got %q; error should contain "test error"`, errMsg)
+ 	}
+ }
++
++func TestDefineAfterSet(t *testing.T) {
++	flags := NewFlagSet("test", ContinueOnError)
++	// Set by itself doesn't panic.
++	flags.Set("myFlag", "value")
++
++	// Define-after-set panics.
++	mustPanic(t, "DefineAfterSet", "flag myFlag set at .*/flag_test.go:.* before being defined", func() {
++		_ = flags.String("myFlag", "default", "usage")
++	})
++}

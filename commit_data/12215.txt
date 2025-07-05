@@ -7,6 +7,27 @@ Date:   Sun Feb 26 22:24:51 2012 +1100
     R=golang-dev, bradfitz, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5696078
-
+---
  src/pkg/time/time.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 709a422672..1b8c76fcc4 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -384,6 +384,15 @@ type Duration int64
+ 
+ // Common durations.  There is no definition for units of Day or larger
+ // to avoid confusion across daylight savings time zone transitions.
++//
++// To count the number of units in a Duration, divide:
++//	second := time.Second
++//	fmt.Print(int64(second/time.Millisecond)) // prints 1000
++//
++// To convert an integer number of units to a Duration, multiply:
++//	seconds := 10
++//	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
++//
+ const (
+ 	Nanosecond  Duration = 1
+ 	Microsecond          = 1000 * Nanosecond

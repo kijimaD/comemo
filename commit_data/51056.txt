@@ -51,8 +51,105 @@ Date:   Wed Dec 1 08:56:19 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/mgc.go     | 14 ++++++++++++++
  src/runtime/mgcmark.go | 14 ++++++--------
  src/runtime/proc.go    | 14 ++++++++++++++
  3 files changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d75893dc43..8c8f7d936b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -320,11 +320,20 @@ var work struct {
+ 	nwait  uint32
+ 
+ 	// Number of roots of various root types. Set by gcMarkRootPrepare.
++	//
++	// nStackRoots == len(stackRoots), but we have nStackRoots for
++	// consistency.
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+ 
+ 	// Base indexes of each root type. Set by gcMarkRootPrepare.
+ 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
+ 
++	// stackRoots is a snapshot of all of the Gs that existed
++	// before the beginning of concurrent marking. The backing
++	// store of this must not be modified because it might be
++	// shared with allgs.
++	stackRoots []*g
++
+ 	// Each type of GC state transition is protected by a lock.
+ 	// Since multiple threads can simultaneously detect the state
+ 	// transition condition, any thread that detects a transition
+@@ -1368,6 +1377,11 @@ func gcMark(startTime int64) {
+ 		throw("work.full != 0")
+ 	}
+ 
++	// Drop allg snapshot. allgs may have grown, in which case
++	// this is the only reference to the old backing store and
++	// there's no need to keep it around.
++	work.stackRoots = nil
++
+ 	// Clear out buffers and double-check that all gcWork caches
+ 	// are empty. This should be ensured by gcMarkDone before we
+ 	// enter mark termination.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index a5129bd1ee..a15c62cc49 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -102,7 +102,8 @@ func gcMarkRootPrepare() {
+ 	// ignore them because they begin life without any roots, so
+ 	// there's nothing to scan, and any roots they create during
+ 	// the concurrent phase will be caught by the write barrier.
+-	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
++	work.stackRoots = allGsSnapshot()
++	work.nStackRoots = len(work.stackRoots)
+ 
+ 	work.markrootNext = 0
+ 	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+@@ -194,15 +195,12 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 	default:
+ 		// the rest is scanning goroutine stacks
+ 		workCounter = &gcController.stackScanWork
+-		var gp *g
+-		if work.baseStacks <= i && i < work.baseEnd {
+-			// N.B. Atomic read of allglen in gcMarkRootPrepare
+-			// acts as a barrier to ensure that allgs must be large
+-			// enough to contain all relevant Gs.
+-			gp = allgs[i-work.baseStacks]
+-		} else {
++		if i < work.baseStacks || work.baseEnd <= i {
++			printlock()
++			print("runtime: markroot index ", i, " not in stack roots range [", work.baseStacks, ", ", work.baseEnd, ")\n")
+ 			throw("markroot: bad index")
+ 		}
++		gp := work.stackRoots[i-work.baseStacks]
+ 
+ 		// remember when we've first observed the G blocked
+ 		// needed only to output in traceback
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a238ea77f3..f375b67981 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -547,6 +547,20 @@ func allgadd(gp *g) {
+ 	unlock(&allglock)
+ }
+ 
++// allGsSnapshot returns a snapshot of the slice of all Gs.
++//
++// The world must be stopped or allglock must be held.
++func allGsSnapshot() []*g {
++	assertWorldStoppedOrLockHeld(&allglock)
++
++	// Because the world is stopped or allglock is held, allgadd
++	// cannot happen concurrently with this. allgs grows
++	// monotonically and existing entries never change, so we can
++	// simply return a copy of the slice header. For added safety,
++	// we trim everything past len because that can still change.
++	return allgs[:len(allgs):len(allgs)]
++}
++
+ // atomicAllG returns &allgs[0] and len(allgs) for use with atomicAllGIndex.
+ func atomicAllG() (**g, uintptr) {
+ 	length := atomic.Loaduintptr(&allglen)

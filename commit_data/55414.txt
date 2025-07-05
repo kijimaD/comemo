@@ -14,7 +14,7 @@ Date:   Wed Feb 1 10:00:29 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go      | 21 ++++++++-------------
  src/cmd/compile/internal/types2/infer2.go     | 22 +++++++++++++++++++---
  src/cmd/compile/internal/types2/predicates.go |  7 ++++++-
@@ -23,3 +23,260 @@ Date:   Wed Feb 1 10:00:29 2023 -0800
  src/go/types/infer2.go                        | 22 +++++++++++++++++++---
  src/go/types/predicates.go                    |  7 ++++++-
  7 files changed, 69 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index be88f5db91..671ce6a640 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -13,13 +13,7 @@ import (
+ 	"strings"
+ )
+ 
+-// infer attempts to infer the complete set of type arguments for generic function instantiation/call
+-// based on the given type parameters tparams, type arguments targs, function parameters params, and
+-// function arguments args, if any. There must be at least one type parameter, no more type arguments
+-// than type parameters, and params and args must match in number (incl. zero).
+-// If successful, infer returns the complete list of type arguments, one for each type parameter.
+-// Otherwise the result is nil and appropriate errors will be reported.
+-//
++// infer1 is an implementation of infer.
+ // Inference proceeds as follows. Starting with given type arguments:
+ //
+ //  1. apply FTI (function type inference) with typed arguments,
+@@ -28,11 +22,7 @@ import (
+ //  4. apply CTI.
+ //
+ // The process stops as soon as all type arguments are known or an error occurs.
+-func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
+-	if useNewTypeInference {
+-		return check.infer2(pos, tparams, targs, params, args)
+-	}
+-
++func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, silent bool) (result []Type) {
+ 	if debug {
+ 		defer func() {
+ 			assert(result == nil || len(result) == len(tparams))
+@@ -142,6 +132,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	u := newUnifier(tparams, targs)
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
++		if silent {
++			return
++		}
+ 		// provide a better error message if we can
+ 		targs, index := u.inferred()
+ 		if index == 0 {
+@@ -260,7 +253,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// At least one type argument couldn't be inferred.
+ 	assert(targs != nil && index >= 0 && targs[index] == nil)
+ 	tpar := tparams[index]
+-	check.errorf(pos, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
++	if !silent {
++		check.errorf(pos, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/infer2.go b/src/cmd/compile/internal/types2/infer2.go
+index 27e951ce01..6f0c1ddff5 100644
+--- a/src/cmd/compile/internal/types2/infer2.go
++++ b/src/cmd/compile/internal/types2/infer2.go
+@@ -11,14 +11,30 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
+-const useNewTypeInference = false
+-
+-// infer2 attempts to infer the complete set of type arguments for generic function instantiation/call
++// infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+ // than type parameters, and params and args must match in number (incl. zero).
+ // If successful, infer returns the complete list of given and inferred type arguments, one for each
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
++func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) []Type {
++	r2 := check.infer2(pos, tparams, targs, params, args)
++	r1 := check.infer1(pos, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
++	assert(len(r2) == len(r1))
++	for i, targ2 := range r2 {
++		targ1 := r1[i]
++		var c comparer
++		c.ignoreInvalids = true
++		if !c.identical(targ2, targ1, nil) {
++			tpar := tparams[i]
++			check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
++			panic("inconsistent type inference")
++		}
++	}
++	return r2
++}
++
++// infer2 is an implementation of infer.
+ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
+ 	if debug {
+ 		defer func() {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index c30badfe17..2e6067652b 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -201,7 +201,8 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 
+ // A comparer is used to compare types.
+ type comparer struct {
+-	ignoreTags bool // if set, identical ignores struct tags
++	ignoreTags     bool // if set, identical ignores struct tags
++	ignoreInvalids bool // if set, identical treats an invalid type as identical to any type
+ }
+ 
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+@@ -210,6 +211,10 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		return true
+ 	}
+ 
++	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
++		return true
++	}
++
+ 	switch x := x.(type) {
+ 	case *Basic:
+ 		// Basic types are singletons except for the rune and byte
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 707d17e920..c78e94eadc 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -207,7 +207,7 @@ func fixInferSig(f *ast.File) {
+ 	ast.Inspect(f, func(n ast.Node) bool {
+ 		switch n := n.(type) {
+ 		case *ast.FuncDecl:
+-			if n.Name.Name == "infer" || n.Name.Name == "infer2" {
++			if n.Name.Name == "infer" || n.Name.Name == "infer1" || n.Name.Name == "infer2" {
+ 				// rewrite (pos token.Pos, ...) to (posn positioner, ...)
+ 				par := n.Type.Params.List[0]
+ 				if len(par.Names) == 1 && par.Names[0].Name == "pos" {
+@@ -228,8 +228,9 @@ func fixInferSig(f *ast.File) {
+ 						n.Args[0] = arg
+ 						return false
+ 					}
+-				case "errorf", "infer2":
++				case "errorf", "infer1", "infer2":
+ 					// rewrite check.errorf(pos, ...) to check.errorf(posn, ...)
++					// rewrite check.infer1(pos, ...) to check.infer1(posn, ...)
+ 					// rewrite check.infer2(pos, ...) to check.infer2(posn, ...)
+ 					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+ 						pos := n.Args[0].Pos()
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 3ee4f50413..93a43d39ea 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -15,13 +15,7 @@ import (
+ 	"strings"
+ )
+ 
+-// infer attempts to infer the complete set of type arguments for generic function instantiation/call
+-// based on the given type parameters tparams, type arguments targs, function parameters params, and
+-// function arguments args, if any. There must be at least one type parameter, no more type arguments
+-// than type parameters, and params and args must match in number (incl. zero).
+-// If successful, infer returns the complete list of type arguments, one for each type parameter.
+-// Otherwise the result is nil and appropriate errors will be reported.
+-//
++// infer1 is an implementation of infer.
+ // Inference proceeds as follows. Starting with given type arguments:
+ //
+ //  1. apply FTI (function type inference) with typed arguments,
+@@ -30,11 +24,7 @@ import (
+ //  4. apply CTI.
+ //
+ // The process stops as soon as all type arguments are known or an error occurs.
+-func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
+-	if useNewTypeInference {
+-		return check.infer2(posn, tparams, targs, params, args)
+-	}
+-
++func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, silent bool) (result []Type) {
+ 	if debug {
+ 		defer func() {
+ 			assert(result == nil || len(result) == len(tparams))
+@@ -144,6 +134,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	u := newUnifier(tparams, targs)
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
++		if silent {
++			return
++		}
+ 		// provide a better error message if we can
+ 		targs, index := u.inferred()
+ 		if index == 0 {
+@@ -262,7 +255,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// At least one type argument couldn't be inferred.
+ 	assert(targs != nil && index >= 0 && targs[index] == nil)
+ 	tpar := tparams[index]
+-	check.errorf(posn, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
++	if !silent {
++		check.errorf(posn, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/go/types/infer2.go b/src/go/types/infer2.go
+index 711bd6b584..a0c2ac1c69 100644
+--- a/src/go/types/infer2.go
++++ b/src/go/types/infer2.go
+@@ -13,14 +13,30 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
+-const useNewTypeInference = false
+-
+-// infer2 attempts to infer the complete set of type arguments for generic function instantiation/call
++// infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+ // than type parameters, and params and args must match in number (incl. zero).
+ // If successful, infer returns the complete list of given and inferred type arguments, one for each
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
++func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) []Type {
++	r2 := check.infer2(posn, tparams, targs, params, args)
++	r1 := check.infer1(posn, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
++	assert(len(r2) == len(r1))
++	for i, targ2 := range r2 {
++		targ1 := r1[i]
++		var c comparer
++		c.ignoreInvalids = true
++		if !c.identical(targ2, targ1, nil) {
++			tpar := tparams[i]
++			check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
++			panic("inconsistent type inference")
++		}
++	}
++	return r2
++}
++
++// infer2 is an implementation of infer.
+ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
+ 	if debug {
+ 		defer func() {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 9a156a040c..903b1445e9 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -203,7 +203,8 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 
+ // A comparer is used to compare types.
+ type comparer struct {
+-	ignoreTags bool // if set, identical ignores struct tags
++	ignoreTags     bool // if set, identical ignores struct tags
++	ignoreInvalids bool // if set, identical treats an invalid type as identical to any type
+ }
+ 
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+@@ -212,6 +213,10 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		return true
+ 	}
+ 
++	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
++		return true
++	}
++
+ 	switch x := x.(type) {
+ 	case *Basic:
+ 		// Basic types are singletons except for the rune and byte

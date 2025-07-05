@@ -10,7 +10,29 @@ Date:   Mon Sep 26 13:11:22 2011 -0400
     R=alex.brainman, lucio.dere, bradfitz, hectorchu
     CC=golang-dev
     https://golang.org/cl/4777043
-
+---
  src/run.bash    | 1 -
  test/sigchld.go | 1 +
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index a9689bf15e..b1eaf3abe6 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -93,7 +93,6 @@ done
+ ./timing.sh -test
+ ) || exit $?
+ 
+-[ "$GOHOSTOS" == windows ] ||
+ (xcd ../test
+ ./run
+ ) || exit $?
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 1fb2e21bd5..25bccab72a 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,3 +1,4 @@
++// [ "$GOOS" = windows ] ||
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.

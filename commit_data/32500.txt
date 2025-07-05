@@ -26,9 +26,194 @@ Date:   Wed Apr 26 17:58:31 2017 -0400
     Change-Id: Ibcbd2714f3e4d97c7b523d7398f29ab2301cc897
     Reviewed-on: https://go-review.googlesource.com/41873
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go        |  4 ++
  src/cmd/link/internal/ld/decodesym.go  |  6 ++-
  src/cmd/link/internal/ld/dwarf.go      | 15 +++---
  src/cmd/link/internal/ld/dwarf_test.go | 98 ++++++++++++++++++++++++++++++++++
  4 files changed, 115 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 7625149914..827b146584 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -139,6 +139,9 @@ const (
+ 	DW_AT_go_kind = 0x2900
+ 	DW_AT_go_key  = 0x2901
+ 	DW_AT_go_elem = 0x2902
++	// Attribute for DW_TAG_member of a struct type.
++	// Nonzero value indicates the struct field is an embedded field.
++	DW_AT_go_embedded_field = 0x2903
+ 
+ 	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+@@ -251,6 +254,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_data_member_location, DW_FORM_block1},
+ 			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_embedded_field, DW_FORM_flag},
+ 		},
+ 	},
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 4d93188dc8..1a1c354680 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -254,8 +254,12 @@ func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
+ }
+ 
+ func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
++	return decodetypeStructFieldOffsAnon(arch, s, i) >> 1
++}
++
++func decodetypeStructFieldOffsAnon(arch *sys.Arch, s *Symbol, i int) int64 {
+ 	off := decodetypeStructFieldArrayOff(s, i)
+-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.PtrSize) >> 1)
++	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.PtrSize))
+ }
+ 
+ // InterfaceType.methods.length
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 1f80f8cdcd..184ab8daa1 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -508,18 +508,19 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
+-		var f string
+-		var fld *dwarf.DWDie
+-		var s *Symbol
+ 		for i := 0; i < nfields; i++ {
+-			f = decodetypeStructFieldName(gotype, i)
+-			s = decodetypeStructFieldType(gotype, i)
++			f := decodetypeStructFieldName(gotype, i)
++			s := decodetypeStructFieldType(gotype, i)
+ 			if f == "" {
+ 				f = s.Name[5:] // skip "type."
+ 			}
+-			fld = newdie(ctxt, die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
++			fld := newdie(ctxt, die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
+-			newmemberoffsetattr(fld, int32(decodetypeStructFieldOffs(ctxt.Arch, gotype, i)))
++			offsetAnon := decodetypeStructFieldOffsAnon(ctxt.Arch, gotype, i)
++			newmemberoffsetattr(fld, int32(offsetAnon>>1))
++			if offsetAnon&1 != 0 { // is embedded field
++				newattr(fld, dwarf.DW_AT_go_embedded_field, dwarf.DW_CLS_FLAG, 1, 0)
++			}
+ 		}
+ 
+ 	case objabi.KindUnsafePointer:
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 7ce1e0c30b..4e7413f739 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -94,3 +95,100 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
+ 	}
+ 	return f
+ }
++
++func TestEmbeddedStructMarker(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	const prog = `
++package main
++
++import "fmt"
++
++type Foo struct { v int }
++type Bar struct {
++	Foo
++	name string
++}
++type Baz struct {
++	*Foo
++	name string
++}
++
++func main() {
++	bar := Bar{ Foo: Foo{v: 123}, name: "onetwothree"}
++	baz := Baz{ Foo: &bar.Foo, name: "123" }
++	fmt.Println(bar, baz)
++}`
++
++	want := map[string]map[string]bool{
++		"main.Foo": map[string]bool{"v": false},
++		"main.Bar": map[string]bool{"Foo": true, "name": false},
++		"main.Baz": map[string]bool{"Foo": true, "name": false},
++	}
++
++	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	f := gobuild(t, dir, prog)
++
++	defer f.Close()
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		switch entry.Tag {
++		case dwarf.TagStructType:
++			name := entry.Val(dwarf.AttrName).(string)
++			wantMembers := want[name]
++			if wantMembers == nil {
++				continue
++			}
++			gotMembers, err := findMembers(rdr)
++			if err != nil {
++				t.Fatalf("error reading DWARF: %v", err)
++			}
++
++			if !reflect.DeepEqual(gotMembers, wantMembers) {
++				t.Errorf("type %v: got map[member]embedded = %+v, want %+v", name, wantMembers, gotMembers)
++			}
++			delete(want, name)
++		}
++	}
++	if len(want) != 0 {
++		t.Errorf("failed to check all expected types: missing types = %+v", want)
++	}
++}
++
++func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
++	memberEmbedded := map[string]bool{}
++	// TODO(hyangah): define in debug/dwarf package
++	const goEmbeddedStruct = dwarf.Attr(0x2903)
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			return nil, err
++		}
++		switch entry.Tag {
++		case dwarf.TagMember:
++			name := entry.Val(dwarf.AttrName).(string)
++			embedded := entry.Val(goEmbeddedStruct).(bool)
++			memberEmbedded[name] = embedded
++		case 0:
++			return memberEmbedded, nil
++		}
++	}
++	return memberEmbedded, nil
++}

@@ -27,7 +27,7 @@ Date:   Thu Feb 24 16:45:45 2011 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/4223044
-
+---
  src/cmd/5l/obj.c  |  1 +
  src/cmd/5l/pass.c | 12 ------------
  src/cmd/6l/obj.c  |  1 +
@@ -38,3 +38,185 @@ Date:   Thu Feb 24 16:45:45 2011 -0500
  src/cmd/ld/lib.c  | 12 ++++++++++++
  src/cmd/ld/lib.h  |  2 ++
  9 files changed, 48 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c929b3291e..f252f9fc56 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -280,6 +280,7 @@ main(int argc, char *argv[])
+ 	symtab();
+ 	dodata();
+ 	address();
++	doweak();
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index e16b34171b..7e1ba6a09a 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -35,18 +35,6 @@
+ 
+ static void xfol(Prog*, Prog**);
+ 
+-void
+-undef(void)
+-{
+-	int i;
+-	Sym *s;
+-
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->hash)
+-		if(s->type == SXREF)
+-			diag("%s: not defined", s->name);
+-}
+-
+ Prog*
+ brchain(Prog *p)
+ {
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 8d602b649f..f113e3ec1e 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -267,6 +267,7 @@ main(int argc, char *argv[])
+ 	symtab();
+ 	dodata();
+ 	address();
++	doweak();
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 98a32a7624..8fda943923 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -718,15 +718,3 @@ atolwhex(char *s)
+ 		n = -n;
+ 	return n;
+ }
+-
+-void
+-undef(void)
+-{
+-	int i;
+-	Sym *s;
+-
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->hash)
+-		if(s->type == SXREF)
+-			diag("%s: not defined", s->name);
+-}
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 791ba1e525..d505dc10e5 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -316,6 +316,7 @@ main(int argc, char *argv[])
+ 	symtab();
+ 	dodata();
+ 	address();
++	doweak();
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index bbb86cff7d..294926f293 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -666,15 +666,3 @@ atolwhex(char *s)
+ 		n = -n;
+ 	return n;
+ }
+-
+-void
+-undef(void)
+-{
+-	int i;
+-	Sym *s;
+-
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->hash)
+-		if(s->type == SXREF)
+-			diag("%s(%d): not defined", s->name, s->version);
+-}
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 2c6a6d084b..2f5d31e515 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -550,6 +550,8 @@ mark(Sym *s)
+ 
+ 	if(s == S || s->reachable)
+ 		return;
++	if(strncmp(s->name, "weak.", 5) == 0)
++		return;
+ 	s->reachable = 1;
+ 	if(s->text)
+ 		marktext(s);
+@@ -654,6 +656,35 @@ deadcode(void)
+ 		textp = nil;
+ 	else
+ 		last->next = nil;
++	
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->hash)
++		if(strncmp(s->name, "weak.", 5) == 0) {
++			s->special = 1;  // do not lay out in data segment
++			s->reachable = 1;
++		}
++}
++
++void
++doweak(void)
++{
++	int i;
++	Sym *s, *t;
++
++	// resolve weak references only if
++	// target symbol will be in binary anyway.
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->hash) {
++		if(strncmp(s->name, "weak.", 5) == 0) {
++			t = lookup(s->name+5, s->version);
++			if(t->type != 0 && t->reachable) {
++				s->value = t->value;
++				s->type = t->type;
++			} else
++				s->value = 0;
++			continue;
++		}
++	}
+ }
+ 
+ void
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 39593085d4..e645502b33 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1279,3 +1279,15 @@ headtype(char *name)
+ 	errorexit();
+ 	return -1;  // not reached
+ }
++
++void
++undef(void)
++{
++	int i;
++	Sym *s;
++
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->hash)
++		if(s->type == SXREF)
++			diag("%s(%d): not defined", s->name, s->version);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 7df348353c..adde2c9ff2 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -167,6 +167,8 @@ int	archreloc(Reloc*, Sym*, vlong*);
+ void	adddynsym(Sym*);
+ void	addexport(void);
+ void	dostkcheck(void);
++void	undef(void);
++void	doweak(void);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);

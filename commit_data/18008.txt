@@ -9,7 +9,38 @@ Date:   Mon Dec 16 16:54:10 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/39020044
-
+---
  src/cmd/gc/mparith1.c       |  2 +-
  test/fixedbugs/issue6964.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index e25044a8be..41412c416d 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -65,7 +65,7 @@ mpcmpfltc(Mpflt *b, double c)
+ 	Mpflt a;
+ 
+ 	mpmovecflt(&a, c);
+-	return mpcmpfltflt(&a, b);
++	return mpcmpfltflt(b, &a);
+ }
+ 
+ void
+diff --git a/test/fixedbugs/issue6964.go b/test/fixedbugs/issue6964.go
+new file mode 100644
+index 0000000000..821735c082
+--- /dev/null
++++ b/test/fixedbugs/issue6964.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	_ = string(-4 + 2i + 2) // ERROR "-4\+2i"
++}

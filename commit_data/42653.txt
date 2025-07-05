@@ -10,6 +10,30 @@ Date:   Thu Jan 30 17:32:23 2020 -0800
     Change-Id: I06c7c9a9d253177155a6d46d58231ce26e659757
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217126
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index ff42e05155..e2ac1672db 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -482,6 +482,18 @@ TODO
+ 
+ </dl><!-- encoding/json -->
+ 
++<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
++  <dd>
++    <p><!-- CL 186182 -->
++      The
++      new <a href="https://tip.golang.org/pkg/log/#pkg-constants"><code>Lmsgprefix</code></a>
++      flag may be used to tell the logging functions to emit the
++      optional output prefix immediately before the log message rather
++      than at the start of the line.
++    </p>
++  </dd>
++</dl><!-- log -->
++
+ <dl id="go/doc"><dt><a href="/go/doc/">go/doc</a></dt>
+   <dd>
+     <p><!-- CL 204830 -->

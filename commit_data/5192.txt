@@ -7,6 +7,29 @@ Date:   Tue Mar 30 18:33:06 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/864041
-
+---
  src/pkg/unicode/letter.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index b3ae9ee6ec..9380624fd9 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -222,7 +222,7 @@ func (special SpecialCase) ToUpper(rune int) int {
+ 	return r
+ }
+ 
+-// ToTitlemaps the rune to upper case giving priority to the special mapping.
++// ToTitle maps the rune to title case giving priority to the special mapping.
+ func (special SpecialCase) ToTitle(rune int) int {
+ 	r := to(TitleCase, rune, []CaseRange(special))
+ 	if r == rune {
+@@ -231,7 +231,7 @@ func (special SpecialCase) ToTitle(rune int) int {
+ 	return r
+ }
+ 
+-// ToLower maps the rune to upper case giving priority to the special mapping.
++// ToLower maps the rune to lower case giving priority to the special mapping.
+ func (special SpecialCase) ToLower(rune int) int {
+ 	r := to(LowerCase, rune, []CaseRange(special))
+ 	if r == rune {

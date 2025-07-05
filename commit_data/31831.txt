@@ -7,7 +7,34 @@ Date:   Mon Mar 20 12:14:47 2017 +0100
     Change-Id: Ic9d65206ec27f6d54bb71395802929e9c769e80a
     Reviewed-on: https://go-review.googlesource.com/38355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/aes/asm_ppc64le.s          | 2 +-
  src/crypto/sha512/sha512block_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/aes/asm_ppc64le.s b/src/crypto/aes/asm_ppc64le.s
+index e476d4e747..35fd8b0fad 100644
+--- a/src/crypto/aes/asm_ppc64le.s
++++ b/src/crypto/aes/asm_ppc64le.s
+@@ -7,7 +7,7 @@
+ // licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
+ // it. For further details see http://www.openssl.org/~appro/cryptogams/.
+ 
+-// Original code can be found at the link bellow:
++// Original code can be found at the link below:
+ // https://git.openssl.org/?p=openssl.git;a=blob;f=crypto/aes/asm/aesp8-ppc.pl
+ 
+ // The code is based on 627c953376 from 4 Jun 2016. I changed some function
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index 19b390a448..5370e5ea5b 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -272,7 +272,7 @@ loop:
+ end:
+ 	RET
+ 
+-// Version bellow is based on "Fast SHA512 Implementations on Intel
++// Version below is based on "Fast SHA512 Implementations on Intel
+ // Architecture Processors" White-paper
+ // http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
+ // AVX2 version by Intel, same algorithm in Linux kernel:

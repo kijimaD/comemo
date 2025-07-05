@@ -7,7 +7,7 @@ Date:   Wed Feb 15 12:58:00 2012 +1100
     R=golang-dev, adg, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5675053
-
+---
  src/pkg/archive/zip/reader_test.go | 11 ++---------
  src/pkg/archive/zip/writer_test.go |  2 +-
  src/pkg/archive/zip/zip_test.go    | 16 +++-------------
@@ -17,3 +17,277 @@ Date:   Wed Feb 15 12:58:00 2012 +1100
  src/pkg/strings/reader.go          | 19 +++++++++++++++++--
  src/pkg/strings/reader_test.go     | 30 ++++++++++++++++++++++++++++++
  8 files changed, 101 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 935860e791..ea9e0020db 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -278,7 +278,7 @@ func TestInvalidFiles(t *testing.T) {
+ 	b := make([]byte, size)
+ 
+ 	// zeroes
+-	_, err := NewReader(sliceReaderAt(b), size)
++	_, err := NewReader(bytes.NewReader(b), size)
+ 	if err != ErrFormat {
+ 		t.Errorf("zeroes: error=%v, want %v", err, ErrFormat)
+ 	}
+@@ -289,15 +289,8 @@ func TestInvalidFiles(t *testing.T) {
+ 	for i := 0; i < size-4; i += 4 {
+ 		copy(b[i:i+4], sig)
+ 	}
+-	_, err = NewReader(sliceReaderAt(b), size)
++	_, err = NewReader(bytes.NewReader(b), size)
+ 	if err != ErrFormat {
+ 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
+ 	}
+ }
+-
+-type sliceReaderAt []byte
+-
+-func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
+-	copy(b, r[int(off):int(off)+len(b)])
+-	return len(b), nil
+-}
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index ce93fae19e..88e5211ff7 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -77,7 +77,7 @@ func TestWriter(t *testing.T) {
+ 	}
+ 
+ 	// read it back
+-	r, err := NewReader(sliceReaderAt(buf.Bytes()), int64(buf.Len()))
++	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index 1a260cc569..d6490c4cbb 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -9,22 +9,12 @@ package zip
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"io"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
+-type stringReaderAt string
+-
+-func (s stringReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+-	if off >= int64(len(s)) {
+-		return 0, io.EOF
+-	}
+-	n = copy(p, s[off:])
+-	return
+-}
+-
+ func TestOver65kFiles(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Logf("slow test; skipping")
+@@ -42,8 +32,8 @@ func TestOver65kFiles(t *testing.T) {
+ 	if err := w.Close(); err != nil {
+ 		t.Fatalf("Writer.Close: %v", err)
+ 	}
+-	rat := stringReaderAt(buf.String())
+-	zr, err := NewReader(rat, int64(len(rat)))
++	s := buf.String()
++	zr, err := NewReader(strings.NewReader(s), int64(len(s)))
+ 	if err != nil {
+ 		t.Fatalf("NewReader: %v", err)
+ 	}
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+index b2f7a44dc4..a062e54ba4 100644
+--- a/src/pkg/bytes/reader.go
++++ b/src/pkg/bytes/reader.go
+@@ -10,8 +10,9 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
+-// io.RuneScanner interfaces by reading from a byte slice.
++// A Reader implements the io.Reader, io.ReaderAt, io.Seeker,
++// io.ByteScanner, and io.RuneScanner interfaces by reading from
++// a byte slice.
+ // Unlike a Buffer, a Reader is read-only and supports seeking.
+ type Reader struct {
+ 	s        []byte
+@@ -41,6 +42,20 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	return
+ }
+ 
++func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
++	if off < 0 {
++		return 0, errors.New("bytes: invalid offset")
++	}
++	if off >= int64(len(r.s)) {
++		return 0, io.EOF
++	}
++	n = copy(b, r.s[int(off):])
++	if n < len(b) {
++		err = io.EOF
++	}
++	return
++}
++
+ func (r *Reader) ReadByte() (b byte, err error) {
+ 	if r.i >= len(r.s) {
+ 		return 0, io.EOF
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index 52a63f1b07..2e4b1f26e8 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -6,6 +6,8 @@ package bytes_test
+ 
+ import (
+ 	. "bytes"
++	"fmt"
++	"io"
+ 	"os"
+ 	"testing"
+ )
+@@ -56,3 +58,31 @@ func TestReader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestReaderAt(t *testing.T) {
++	r := NewReader([]byte("0123456789"))
++	tests := []struct {
++		off     int64
++		n       int
++		want    string
++		wanterr interface{}
++	}{
++		{0, 10, "0123456789", nil},
++		{1, 10, "123456789", io.EOF},
++		{1, 9, "123456789", nil},
++		{11, 10, "", io.EOF},
++		{0, 0, "", nil},
++		{-1, 0, "", "bytes: invalid offset"},
++	}
++	for i, tt := range tests {
++		b := make([]byte, tt.n)
++		rn, err := r.ReadAt(b, tt.off)
++		got := string(b[:rn])
++		if got != tt.want {
++			t.Errorf("%d. got %q; want %q", i, got, tt.want)
++		}
++		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
++			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
++		}
++	}
++}
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+index ec643c1476..eee53fc8dd 100644
+--- a/src/pkg/mime/multipart/formdata.go
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -130,7 +130,7 @@ type FileHeader struct {
+ // Open opens and returns the FileHeader's associated File.
+ func (fh *FileHeader) Open() (File, error) {
+ 	if b := fh.content; b != nil {
+-		r := io.NewSectionReader(sliceReaderAt(b), 0, int64(len(b)))
++		r := io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b)))
+ 		return sectionReadCloser{r}, nil
+ 	}
+ 	return os.Open(fh.tmpfile)
+@@ -155,13 +155,3 @@ type sectionReadCloser struct {
+ func (rc sectionReadCloser) Close() error {
+ 	return nil
+ }
+-
+-type sliceReaderAt []byte
+-
+-func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
+-	if int(off) >= len(r) || off < 0 {
+-		return 0, io.ErrUnexpectedEOF
+-	}
+-	n := copy(b, r[int(off):])
+-	return n, nil
+-}
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 58f3b05431..8569805552 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -10,8 +10,9 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
+-// io.RuneScanner interfaces by reading from a string.
++// A Reader implements the io.Reader, io.ReaderAt, io.Seeker,
++// io.ByteScanner, and io.RuneScanner interfaces by reading
++// from a string.
+ type Reader struct {
+ 	s        string
+ 	i        int // current reading index
+@@ -40,6 +41,20 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	return
+ }
+ 
++func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
++	if off < 0 {
++		return 0, errors.New("strings: invalid offset")
++	}
++	if off >= int64(len(r.s)) {
++		return 0, io.EOF
++	}
++	n = copy(b, r.s[int(off):])
++	if n < len(b) {
++		err = io.EOF
++	}
++	return
++}
++
+ func (r *Reader) ReadByte() (b byte, err error) {
+ 	if r.i >= len(r.s) {
+ 		return 0, io.EOF
+diff --git a/src/pkg/strings/reader_test.go b/src/pkg/strings/reader_test.go
+index 57987fffd7..a99ae2a0ea 100644
+--- a/src/pkg/strings/reader_test.go
++++ b/src/pkg/strings/reader_test.go
+@@ -5,6 +5,8 @@
+ package strings_test
+ 
+ import (
++	"fmt"
++	"io"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -56,3 +58,31 @@ func TestReader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestReaderAt(t *testing.T) {
++	r := strings.NewReader("0123456789")
++	tests := []struct {
++		off     int64
++		n       int
++		want    string
++		wanterr interface{}
++	}{
++		{0, 10, "0123456789", nil},
++		{1, 10, "123456789", io.EOF},
++		{1, 9, "123456789", nil},
++		{11, 10, "", io.EOF},
++		{0, 0, "", nil},
++		{-1, 0, "", "strings: invalid offset"},
++	}
++	for i, tt := range tests {
++		b := make([]byte, tt.n)
++		rn, err := r.ReadAt(b, tt.off)
++		got := string(b[:rn])
++		if got != tt.want {
++			t.Errorf("%d. got %q; want %q", i, got, tt.want)
++		}
++		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
++			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
++		}
++	}
++}

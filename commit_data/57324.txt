@@ -21,7 +21,49 @@ Date:   Thu Jul 6 11:12:29 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/benchmark_test.go | 12 ++++++++++++
  src/reflect/deepequal.go      |  7 ++++---
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/benchmark_test.go b/src/reflect/benchmark_test.go
+index 9241c2c3d3..b499ad7122 100644
+--- a/src/reflect/benchmark_test.go
++++ b/src/reflect/benchmark_test.go
+@@ -107,6 +107,18 @@ func BenchmarkDeepEqual(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMapsDeepEqual(b *testing.B) {
++	m1 := map[int]int{
++		1: 1, 2: 2,
++	}
++	m2 := map[int]int{
++		1: 1, 2: 2,
++	}
++	for i := 0; i < b.N; i++ {
++		DeepEqual(m1, m2)
++	}
++}
++
+ func BenchmarkIsZero(b *testing.B) {
+ 	source := ValueOf(struct {
+ 		ArrayComparable    [4]T
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 579781e703..961e170118 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -142,9 +142,10 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 		if v1.UnsafePointer() == v2.UnsafePointer() {
+ 			return true
+ 		}
+-		for _, k := range v1.MapKeys() {
+-			val1 := v1.MapIndex(k)
+-			val2 := v2.MapIndex(k)
++		iter := v1.MapRange()
++		for iter.Next() {
++			val1 := iter.Value()
++			val2 := v2.MapIndex(iter.Key())
+ 			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(val1, val2, visited) {
+ 				return false
+ 			}

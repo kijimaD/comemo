@@ -14,6 +14,29 @@ Date:   Tue Oct 18 13:46:26 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f1cee5a832..b8cae29119 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -965,7 +965,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	// now they all matter, so keep using sys.go.
+ 	restore = addVar(sys, 1)
+ 	defer restore()
+-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
++	tg.wantStale("p1", "stale dependency: runtime/internal", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
+ 	restore()
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+ 	addVar(sys, 2)
+@@ -975,7 +975,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 
+ 	// Restore to "old" release.
+ 	restore()
+-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
++	tg.wantStale("p1", "stale dependency: runtime/internal", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
+ 	tg.run("install", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
+ }

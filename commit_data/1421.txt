@@ -7,7 +7,42 @@ Date:   Tue Jan 6 15:39:28 2009 -0800
     R=ken
     OCL=22173
     CL=22173
-
+---
  src/cmd/gc/walk.c | 3 ++-
  test/newfn.go     | 5 ++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6c7c02838c..870d30a98a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2078,13 +2078,14 @@ Node*
+ newcompat(Node *n)
+ {
+ 	Node *r, *on;
+-	Type *t, *t0;
++	Type *t;
+ 
+ 	t = n->type;
+ 	if(t == T)
+ 		goto bad;
+ 
+ 	switch(t->etype) {
++	case TFUNC:
+ 	case TSTRING:
+ 	case TMAP:
+ 	case TCHAN:
+diff --git a/test/newfn.go b/test/newfn.go
+index fbbf942ce4..63df683ce6 100644
+--- a/test/newfn.go
++++ b/test/newfn.go
+@@ -10,5 +10,8 @@ func main()
+ {
+ 	f := new(());	// ERROR "new"
+ 	g := new((x int, f float) string);	// ERROR "new"
+-	h := new(());	// ok
++	h := new(*());	// ok
++	i := new(string);	// ok
++	j := new(map[int]int);	// ok
++	k := new(chan int);	// ok
+ }

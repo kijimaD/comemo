@@ -7,7 +7,7 @@ Date:   Thu Dec 8 22:07:43 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5444054
-
+---
  src/cmd/5g/cgen.c      |  2 +-
  src/cmd/5g/gsubr.c     |  3 ++-
  src/cmd/6g/gsubr.c     |  3 ++-
@@ -24,3 +24,580 @@ Date:   Thu Dec 8 22:07:43 2011 -0500
  src/cmd/gc/walk.c      |  3 +++
  test/rune.go           | 43 +++++++++++++++++++++++++++++++
  15 files changed, 143 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0616cd3668..b0a6040033 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1066,7 +1066,7 @@ bgen(Node *n, int true, Prog *to)
+ 		}
+ 
+ 		if(nr->op == OLITERAL) {
+-			if(nr->val.ctype == CTINT &&  mpgetfix(nr->val.u.xval) == 0) {
++			if(isconst(nr, CTINT) &&  mpgetfix(nr->val.u.xval) == 0) {
+ 				gencmp0(nl, nl->type, a, to);
+ 				break;
+ 			}
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f287214533..73ae3304ad 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1320,6 +1320,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
++		case CTRUNE:
+ 			a->sym = S;
+ 			a->type = D_CONST;
+ 			a->offset = mpgetfix(n->val.u.xval);
+@@ -1777,7 +1778,7 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
+ 
+ 	switch(n->op) {
+ 	case OLITERAL:
+-		if(n->val.ctype != CTINT)
++		if(!isconst(n, CTINT))
+ 			break;
+ 		v = mpgetfix(n->val.u.xval);
+ 		if(v >= 32000 || v <= -32000)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c16a3645a8..c43d2ef82f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1175,6 +1175,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
++		case CTRUNE:
+ 			a->sym = S;
+ 			a->type = D_CONST;
+ 			a->offset = mpgetfix(n->val.u.xval);
+@@ -1878,7 +1879,7 @@ sudoaddable(int as, Node *n, Addr *a)
+ 
+ 	switch(n->op) {
+ 	case OLITERAL:
+-		if(n->val.ctype != CTINT)
++		if(!isconst(n, CTINT))
+ 			break;
+ 		v = mpgetfix(n->val.u.xval);
+ 		if(v >= 32000 || v <= -32000)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index c7c39b4183..dd6ffbc4c6 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1885,6 +1885,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
++		case CTRUNE:
+ 			a->sym = S;
+ 			a->type = D_CONST;
+ 			a->offset = mpgetfix(n->val.u.xval);
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index dd4c4433be..01c4f15b3f 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -170,6 +170,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		break;
+ 
+ 	case CTINT:
++	case CTRUNE:
+ 	case CTFLT:
+ 	case CTCPLX:
+ 		ct = n->val.ctype;
+@@ -179,6 +180,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 				goto bad;
+ 			case CTCPLX:
+ 			case CTFLT:
++			case CTRUNE:
+ 				n->val = toint(n->val);
+ 				// flowthrough
+ 			case CTINT:
+@@ -192,6 +194,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 				goto bad;
+ 			case CTCPLX:
+ 			case CTINT:
++			case CTRUNE:
+ 				n->val = toflt(n->val);
+ 				// flowthrough
+ 			case CTFLT:
+@@ -206,6 +209,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 				goto bad;
+ 			case CTFLT:
+ 			case CTINT:
++			case CTRUNE:
+ 				n->val = tocplx(n->val);
+ 				break;
+ 			case CTCPLX:
+@@ -213,7 +217,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 				break;
+ 			}
+ 		} else
+-		if(et == TSTRING && ct == CTINT && explicit)
++		if(et == TSTRING && (ct == CTINT || ct == CTRUNE) && explicit)
+ 			n->val = tostr(n->val);
+ 		else
+ 			goto bad;
+@@ -243,6 +247,7 @@ copyval(Val v)
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
++	case CTRUNE:
+ 		i = mal(sizeof(*i));
+ 		mpmovefixfix(i, v.u.xval);
+ 		v.u.xval = i;
+@@ -269,6 +274,7 @@ tocplx(Val v)
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
++	case CTRUNE:
+ 		c = mal(sizeof(*c));
+ 		mpmovefixflt(&c->real, v.u.xval);
+ 		mpmovecflt(&c->imag, 0.0);
+@@ -293,6 +299,7 @@ toflt(Val v)
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
++	case CTRUNE:
+ 		f = mal(sizeof(*f));
+ 		mpmovefixflt(f, v.u.xval);
+ 		v.ctype = CTFLT;
+@@ -316,6 +323,9 @@ toint(Val v)
+ 	Mpint *i;
+ 
+ 	switch(v.ctype) {
++	case CTRUNE:
++		v.ctype = CTINT;
++		break;
+ 	case CTFLT:
+ 		i = mal(sizeof(*i));
+ 		if(mpmovefltfix(i, v.u.fval) < 0)
+@@ -345,6 +355,7 @@ overflow(Val v, Type *t)
+ 		return;
+ 	switch(v.ctype) {
+ 	case CTINT:
++	case CTRUNE:
+ 		if(!isint[t->etype])
+ 			fatal("overflow: %T integer constant", t);
+ 		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0 ||
+@@ -379,6 +390,7 @@ tostr(Val v)
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
++	case CTRUNE:
+ 		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0 ||
+ 		   mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
+ 			yyerror("overflow in int -> string");
+@@ -415,7 +427,12 @@ consttype(Node *n)
+ int
+ isconst(Node *n, int ct)
+ {
+-	return consttype(n) == ct;
++	int t;
++	
++	t = consttype(n);
++	// If the caller is asking for CTINT, allow CTRUNE too.
++	// Makes life easier for back ends.
++	return t == ct || (ct == CTINT && t == CTRUNE);
+ }
+ 
+ /*
+@@ -518,7 +535,8 @@ evconst(Node *n)
+ 		n->right = nr;
+ 		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
+ 			goto illegal;
+-		nl->val = toint(nl->val);
++		if(nl->val.ctype != CTRUNE)
++			nl->val = toint(nl->val);
+ 		nr->val = toint(nr->val);
+ 		break;
+ 	}
+@@ -540,6 +558,17 @@ evconst(Node *n)
+ 		v = toflt(v);
+ 		rv = toflt(rv);
+ 	}
++
++	// Rune and int turns into rune.
++	if(v.ctype == CTRUNE && rv.ctype == CTINT)
++		rv.ctype = CTRUNE;
++	if(v.ctype == CTINT && rv.ctype == CTRUNE) {
++		if(n->op == OLSH || n->op == ORSH)
++			rv.ctype = CTINT;
++		else
++			v.ctype = CTRUNE;
++	}
++
+ 	if(v.ctype != rv.ctype) {
+ 		// Use of undefined name as constant?
+ 		if((v.ctype == 0 || rv.ctype == 0) && nerrors > 0)
+@@ -559,15 +588,19 @@ evconst(Node *n)
+ 		return;
+ 
+ 	case TUP(OADD, CTINT):
++	case TUP(OADD, CTRUNE):
+ 		mpaddfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OSUB, CTINT):
++	case TUP(OSUB, CTRUNE):
+ 		mpsubfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OMUL, CTINT):
++	case TUP(OMUL, CTRUNE):
+ 		mpmulfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(ODIV, CTINT):
++	case TUP(ODIV, CTRUNE):
+ 		if(mpcmpfixc(rv.u.xval, 0) == 0) {
+ 			yyerror("division by zero");
+ 			mpmovecfix(v.u.xval, 1);
+@@ -576,6 +609,7 @@ evconst(Node *n)
+ 		mpdivfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OMOD, CTINT):
++	case TUP(OMOD, CTRUNE):
+ 		if(mpcmpfixc(rv.u.xval, 0) == 0) {
+ 			yyerror("division by zero");
+ 			mpmovecfix(v.u.xval, 1);
+@@ -585,21 +619,27 @@ evconst(Node *n)
+ 		break;
+ 
+ 	case TUP(OLSH, CTINT):
++	case TUP(OLSH, CTRUNE):
+ 		mplshfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(ORSH, CTINT):
++	case TUP(ORSH, CTRUNE):
+ 		mprshfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OOR, CTINT):
++	case TUP(OOR, CTRUNE):
+ 		mporfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OAND, CTINT):
++	case TUP(OAND, CTRUNE):
+ 		mpandfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OANDNOT, CTINT):
++	case TUP(OANDNOT, CTRUNE):
+ 		mpandnotfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 	case TUP(OXOR, CTINT):
++	case TUP(OXOR, CTRUNE):
+ 		mpxorfixfix(v.u.xval, rv.u.xval);
+ 		break;
+ 
+@@ -649,26 +689,32 @@ evconst(Node *n)
+ 		goto setfalse;
+ 
+ 	case TUP(OEQ, CTINT):
++	case TUP(OEQ, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) == 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(ONE, CTINT):
++	case TUP(ONE, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) != 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLT, CTINT):
++	case TUP(OLT, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) < 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLE, CTINT):
++	case TUP(OLE, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) <= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGE, CTINT):
++	case TUP(OGE, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) >= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGT, CTINT):
++	case TUP(OGT, CTRUNE):
+ 		if(mpcmpfixfix(v.u.xval, rv.u.xval) > 0)
+ 			goto settrue;
+ 		goto setfalse;
+@@ -786,17 +832,21 @@ unary:
+ 		}
+ 		// fall through
+ 	case TUP(OCONV, CTINT):
++	case TUP(OCONV, CTRUNE):
+ 	case TUP(OCONV, CTFLT):
+ 	case TUP(OCONV, CTSTR):
+ 		convlit1(&nl, n->type, 1);
+ 		break;
+ 
+ 	case TUP(OPLUS, CTINT):
++	case TUP(OPLUS, CTRUNE):
+ 		break;
+ 	case TUP(OMINUS, CTINT):
++	case TUP(OMINUS, CTRUNE):
+ 		mpnegfix(v.u.xval);
+ 		break;
+ 	case TUP(OCOM, CTINT):
++	case TUP(OCOM, CTRUNE):
+ 		et = Txxx;
+ 		if(nl->type != T)
+ 			et = nl->type->etype;
+@@ -889,6 +939,7 @@ nodlit(Val v)
+ 		n->type = idealbool;
+ 		break;
+ 	case CTINT:
++	case CTRUNE:
+ 	case CTFLT:
+ 	case CTCPLX:
+ 		n->type = types[TIDEAL];
+@@ -1008,6 +1059,9 @@ defaultlit(Node **np, Type *t)
+ 	case CTINT:
+ 		n->type = types[TINT];
+ 		goto num;
++	case CTRUNE:
++		n->type = runetype;
++		goto num;
+ 	case CTFLT:
+ 		n->type = types[TFLOAT64];
+ 		goto num;
+@@ -1072,6 +1126,13 @@ defaultlit2(Node **lp, Node **rp, int force)
+ 		convlit(rp, types[TFLOAT64]);
+ 		return;
+ 	}
++
++	if(isconst(l, CTRUNE) || isconst(r, CTRUNE)) {
++		convlit(lp, runetype);
++		convlit(rp, runetype);
++		return;
++	}
++
+ 	convlit(lp, types[TINT]);
+ 	convlit(rp, types[TINT]);
+ }
+@@ -1108,7 +1169,7 @@ cmpslit(Node *l, Node *r)
+ int
+ smallintconst(Node *n)
+ {
+-	if(n->op == OLITERAL && n->val.ctype == CTINT && n->type != T)
++	if(n->op == OLITERAL && isconst(n, CTINT) && n->type != T)
+ 	switch(simtype[n->type->etype]) {
+ 	case TINT8:
+ 	case TUINT8:
+@@ -1210,6 +1271,7 @@ convconst(Node *con, Type *t, Val *val)
+ 		default:
+ 			fatal("convconst ctype=%d %lT", val->ctype, t);
+ 		case CTINT:
++		case CTRUNE:
+ 			i = mpgetfix(val->u.xval);
+ 			break;
+ 		case CTBOOL:
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 86711869d8..35acb5b84b 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -354,12 +354,22 @@ static int
+ Vconv(Fmt *fp)
+ {
+ 	Val *v;
++	vlong x;
+ 
+ 	v = va_arg(fp->args, Val*);
+ 
+ 	switch(v->ctype) {
+ 	case CTINT:
+ 		return fmtprint(fp, "%B", v->u.xval);
++	case CTRUNE:
++		x = mpgetfix(v->u.xval);
++		if(' ' <= x && x < 0x80)
++			return fmtprint(fp, "'%c'", (int)x);
++		if(0 <= x && x < (1<<16))
++			return fmtprint(fp, "'\\u%04ux'", (int)x);
++		if(0 <= x && x <= Runemax)
++			return fmtprint(fp, "'\\U%08llux'", x);
++		return fmtprint(fp, "('\\x00' + %B)", v->u.xval);
+ 	case CTFLT:
+ 		return fmtprint(fp, "%F", v->u.fval);
+ 	case CTCPLX:  // ? 1234i ->  (0p+0+617p+1)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 82d5039f0c..b8c40fcb9d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -113,7 +113,7 @@ struct	Val
+ 	{
+ 		short	reg;		// OREGISTER
+ 		short	bval;		// bool value CTBOOL
+-		Mpint*	xval;		// int CTINT
++		Mpint*	xval;		// int CTINT, rune CTRUNE
+ 		Mpflt*	fval;		// float CTFLT
+ 		Mpcplx*	cval;		// float CTCPLX
+ 		Strlit*	sval;		// string CTSTR
+@@ -527,6 +527,7 @@ enum
+ 	CTxxx,
+ 
+ 	CTINT,
++	CTRUNE,
+ 	CTFLT,
+ 	CTCPLX,
+ 	CTSTR,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 075117102b..f71658920a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1974,6 +1974,7 @@ hidden_literal:
+ 		$$ = nodlit($2);
+ 		switch($$->val.ctype){
+ 		case CTINT:
++		case CTRUNE:
+ 			mpnegfix($$->val.u.xval);
+ 			break;
+ 		case CTFLT:
+@@ -1994,6 +1995,11 @@ hidden_constant:
+ 	hidden_literal
+ |	'(' hidden_literal '+' hidden_literal ')'
+ 	{
++		if($2->val.ctype == CTRUNE && $4->val.ctype == CTINT) {
++			$$ = $2;
++			mpaddfixfix($2->val.u.xval, $4->val.u.xval);
++			break;
++		}
+ 		$$ = nodcplxlit($2->val, $4->val);
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3dbd6dda1a..1963bfbdaf 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -840,7 +840,7 @@ l0:
+ 		}
+ 		yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
+ 		mpmovecfix(yylval.val.u.xval, v);
+-		yylval.val.ctype = CTINT;
++		yylval.val.ctype = CTRUNE;
+ 		DBG("lex: codepoint literal\n");
+ 		strcpy(litbuf, "string literal");
+ 		return LLITERAL;
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 8d199e0240..3ef914a60e 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -1341,6 +1341,7 @@ iszero(Node *n)
+ 			return n->val.u.bval == 0;
+ 			
+ 		case CTINT:
++		case CTRUNE:
+ 			return mpcmpfixc(n->val.u.xval, 0) == 0;
+ 	
+ 		case CTFLT:
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5584f78e2f..71e67f1449 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -709,6 +709,7 @@ aindex(Node *b, Type *t)
+ 			yyerror("array bound must be an integer expression");
+ 			break;
+ 		case CTINT:
++		case CTRUNE:
+ 			bound = mpgetfix(b->val.u.xval);
+ 			if(bound < 0)
+ 				yyerror("array bound must be non negative");
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index fb19129812..786fdf938d 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -132,6 +132,7 @@ exprcmp(Case *c1, Case *c2)
+ 		n = mpcmpfltflt(n1->val.u.fval, n2->val.u.fval);
+ 		break;
+ 	case CTINT:
++	case CTRUNE:
+ 		n = mpcmpfixfix(n1->val.u.xval, n2->val.u.xval);
+ 		break;
+ 	case CTSTR:
+@@ -380,6 +381,7 @@ mkcaselist(Node *sw, int arg)
+ 			switch(consttype(n->left)) {
+ 			case CTFLT:
+ 			case CTINT:
++			case CTRUNE:
+ 			case CTSTR:
+ 				c->type = Texprconst;
+ 			}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 90db76960d..edf32fe2fa 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -257,6 +257,7 @@ reswitch:
+ 			l = typecheck(&n->left, Erv);
+ 			switch(consttype(l)) {
+ 			case CTINT:
++			case CTRUNE:
+ 				v = l->val;
+ 				break;
+ 			case CTFLT:
+@@ -1849,6 +1850,7 @@ keydup(Node *n, Node *hash[], ulong nhash)
+ 		b = 23;
+ 		break;
+ 	case CTINT:
++	case CTRUNE:
+ 		b = mpgetfix(n->val.u.xval);
+ 		break;
+ 	case CTFLT:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 075a801a30..93bcd423f4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1538,6 +1538,9 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 		n = l->n;
+ 		if(n->op == OLITERAL) {
+ 			switch(n->val.ctype) {
++			case CTRUNE:
++				defaultlit(&n, runetype);
++				break;
+ 			case CTINT:
+ 				defaultlit(&n, types[TINT64]);
+ 				break;
+diff --git a/test/rune.go b/test/rune.go
+new file mode 100644
+index 0000000000..b2c73775d4
+--- /dev/null
++++ b/test/rune.go
+@@ -0,0 +1,43 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var (
++	r0 = 'a'
++	r1 = 'a'+1
++	r2 = 1+'a'
++	r3 = 'a'*2
++	r4 = 'a'/2
++	r5 = 'a'<<1
++	r6 = 'b'<<2
++
++	r = []rune{r0, r1, r2, r3, r4, r5, r6}
++)
++
++var (
++	f0 = 1.2
++	f1 = 1.2/'a'
++
++	f = []float64{f0, f1}
++)
++
++var (
++	i0 = 1
++	i1 = 1<<'\x01'
++	
++	i = []int{i0, i1}
++)
++
++const (
++	maxRune = '\U0010FFFF'
++)
++
++var (
++	b0 = maxRune < r0
++	
++	b = []bool{b0}
++)

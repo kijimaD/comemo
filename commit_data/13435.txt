@@ -32,7 +32,7 @@ Date:   Tue Jul 3 09:09:05 2012 +1000
     R=rsc, bradfitz, go.peter.90, daniel.morsing, dave, uriel
     CC=golang-dev
     https://golang.org/cl/6337058
-
+---
  src/cmd/5g/gsubr.c              |   7 ++-
  src/cmd/6g/gsubr.c              |   7 ++-
  src/cmd/8g/gsubr.c              |   7 ++-
@@ -47,3 +47,615 @@ Date:   Tue Jul 3 09:09:05 2012 +1000
  src/pkg/runtime/iface_test.go   |  92 ++++++++++++++++++---------
  test/{convT2E.go => convT2X.go} | 133 ++++++++++++++++++++++++++++++++--------
  13 files changed, 222 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 80a173404c..19036a36f7 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -208,7 +208,7 @@ ggloblnod(Node *nam, int32 width)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok)
++ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+ 	Prog *p;
+ 
+@@ -220,8 +220,9 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.name = D_NONE;
+ 	p->to.offset = width;
+ 	if(dupok)
+-		p->reg = DUPOK;
+-	p->reg |= RODATA;
++		p->reg |= DUPOK;
++	if(rodata)
++		p->reg |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 8284bd3da5..2758304427 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -206,7 +206,7 @@ ggloblnod(Node *nam, int32 width)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok)
++ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+ 	Prog *p;
+ 
+@@ -218,8 +218,9 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.index = D_NONE;
+ 	p->to.offset = width;
+ 	if(dupok)
+-		p->from.scale = DUPOK;
+-	p->from.scale |= RODATA;
++		p->from.scale |= DUPOK;
++	if(rodata)
++		p->from.scale |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 4011fa5c59..439495c034 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -207,7 +207,7 @@ ggloblnod(Node *nam, int32 width)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok)
++ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+ 	Prog *p;
+ 
+@@ -219,8 +219,9 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.index = D_NONE;
+ 	p->to.offset = width;
+ 	if(dupok)
+-		p->from.scale = DUPOK;
+-	p->from.scale |= RODATA;
++		p->from.scale |= DUPOK;
++	if(rodata)
++		p->from.scale |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 4aec0c04ea..e17aa7953a 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -41,7 +41,7 @@ char *runtimeimport =
+ 	"func @\"\".convI2E(@\"\".elem any) (@\"\".ret any)\n"
+ 	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
+ 	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
+-	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".elem any) (@\"\".ret any)\n"
++	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".cache **byte, @\"\".elem any) (@\"\".ret any)\n"
+ 	"func @\"\".assertE2E(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertE2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+ 	"func @\"\".assertE2I(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7864b7b72d..9045922d37 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -767,6 +767,7 @@ EXTERN	Pkg*	importpkg;	// package being imported
+ EXTERN	Pkg*	structpkg;	// package that declared struct, during import
+ EXTERN	Pkg*	builtinpkg;	// fake package for builtins
+ EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
++EXTERN	Pkg*	itabpkg;	// fake pkg for itab cache
+ EXTERN	Pkg*	runtimepkg;	// package runtime
+ EXTERN	Pkg*	stringpkg;	// fake package for C strings
+ EXTERN	Pkg*	typepkg;	// fake package for runtime type info
+@@ -1330,7 +1331,7 @@ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+ void	genembedtramp(Type*, Type*, Sym*, int iface);
+ void	ggloblnod(Node *nam, int32 width);
+-void	ggloblsym(Sym *s, int32 width, int dupok);
++void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+ int	isfat(Type*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e6e7558958..641cb6f62c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -204,6 +204,10 @@ main(int argc, char *argv[])
+ 	gostringpkg->name = "go.string";
+ 	gostringpkg->prefix = "go.string";	// not go%2estring
+ 
++	itabpkg = mkpkg(strlit("go.itab"));
++	itabpkg->name = "go.itab";
++	itabpkg->prefix = "go.itab";	// not go%2eitab
++
+ 	runtimepkg = mkpkg(strlit("runtime"));
+ 	runtimepkg->name = "runtime";
+ 
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e45b4e0d44..8094671cb2 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -314,7 +314,7 @@ stringsym(char *s, int len)
+ 	}
+ 	off = duint8(sym, off, 0);  // terminating NUL for runtime
+ 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
+-	ggloblsym(sym, off, 1);
++	ggloblsym(sym, off, 1, 1);
+ 
+ 	return sym;	
+ }
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index bab17d89ee..fa9bc993bb 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -305,7 +305,7 @@ dimportpath(Pkg *p)
+ 	p->pathsym = n->sym;
+ 
+ 	gdatastring(n, p->path);
+-	ggloblsym(n->sym, types[TSTRING]->width, 1);
++	ggloblsym(n->sym, types[TSTRING]->width, 1, 1);
+ }
+ 
+ static int
+@@ -857,7 +857,7 @@ ok:
+ 		break;
+ 	}
+ 	ot = dextratype(s, ot, t, xt);
+-	ggloblsym(s, ot, dupok);
++	ggloblsym(s, ot, dupok, 1);
+ 	return s;
+ }
+ 
+@@ -955,7 +955,7 @@ dalgsym(Type *t)
+ 		break;
+ 	}
+ 
+-	ggloblsym(s, ot, 1);
++	ggloblsym(s, ot, 1, 1);
+ 	return s;
+ }
+ 
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index d5cdb2a5ea..91fb7720f5 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -61,7 +61,7 @@ func slicestringcopy(to any, fr any) int
+ func convI2E(elem any) (ret any)
+ func convI2I(typ *byte, elem any) (ret any)
+ func convT2E(typ *byte, elem any) (ret any)
+-func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
++func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
+ 
+ // interface type assertions  x.(T)
+ func assertE2E(typ *byte, iface any) (ret any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f5ccc198b3..20f8bbfe93 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -375,6 +375,7 @@ walkexpr(Node **np, NodeList **init)
+ 	int64 v;
+ 	int32 lno;
+ 	Node *n, *fn;
++	Sym *sym;
+ 	char buf[100], *p;
+ 
+ 	n = *np;
+@@ -755,6 +756,22 @@ walkexpr(Node **np, NodeList **init)
+ 			ll = list(ll, typename(n->left->type));
+ 		if(!isnilinter(n->type))
+ 			ll = list(ll, typename(n->type));
++		if(!isinter(n->left->type) && !isnilinter(n->type)){
++			sym = pkglookup(smprint("%-T.%-T", n->left->type, n->type), itabpkg);
++			if(sym->def == N) {
++				l = nod(ONAME, N, N);
++				l->sym = sym;
++				l->type = ptrto(types[TUINT8]);
++				l->addable = 1;
++				l->class = PEXTERN;
++				l->xoffset = 0;
++				sym->def = l;
++				ggloblsym(sym, widthptr, 1, 0);
++			}
++			l = nod(OADDR, sym->def, N);
++			l->addable = 1;
++			ll = list(ll, l);
++		}
+ 		ll = list(ll, n->left);
+ 		argtype(fn, n->left->type);
+ 		argtype(fn, n->type);
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 358cdcbbb6..864954d0d5 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -183,19 +183,25 @@ copyout(Type *t, void **src, void *dst)
+ 		alg->copy(size, dst, *src);
+ }
+ 
+-// func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
++// func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
+ #pragma textflag 7
+ void
+-runtime·convT2I(Type *t, InterfaceType *inter, ...)
++runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
+ {
+ 	byte *elem;
+ 	Iface *ret;
++	Itab *tab;
+ 	int32 wid;
+ 
+-	elem = (byte*)(&inter+1);
++	elem = (byte*)(&cache+1);
+ 	wid = t->size;
+ 	ret = (Iface*)(elem + ROUND(wid, Structrnd));
+-	ret->tab = itab(inter, t, 0);
++	tab = runtime·atomicloadp(cache);
++	if(!tab) {
++		tab = itab(inter, t, 0);
++		runtime·atomicstorep(cache, tab);
++	}
++	ret->tab = tab;
+ 	copyin(t, elem, &ret->data);
+ }
+ 
+diff --git a/src/pkg/runtime/iface_test.go b/src/pkg/runtime/iface_test.go
+index ee534db15d..bca0ea0ee7 100644
+--- a/src/pkg/runtime/iface_test.go
++++ b/src/pkg/runtime/iface_test.go
+@@ -5,98 +5,134 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+-	"io"
+ 	"testing"
+ )
+ 
++type I1 interface {
++	Method1()
++}
++
++type I2 interface {
++	Method1()
++	Method2()
++}
++
++type TS uint16
++type TM uintptr
++type TL [2]uintptr
++
++func (TS) Method1() {}
++func (TS) Method2() {}
++func (TM) Method1() {}
++func (TM) Method2() {}
++func (TL) Method1() {}
++func (TL) Method2() {}
++
+ var (
+-	I   interface{}
+-	J   int
+-	B                 = new(bytes.Buffer)
+-	W   io.Writer     = B
+-	I2  interface{}   = B
+-	R   io.ReadWriter = B
+-	Big [2]*int
++	e  interface{}
++	e_ interface{}
++	i1 I1
++	i2 I2
++	ts TS
++	tm TM
++	tl TL
+ )
+ 
+ func BenchmarkConvT2ESmall(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		I = uint16(1)
++		e = ts
+ 	}
+ }
+ 
+ func BenchmarkConvT2EUintptr(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		I = uintptr(1)
++		e = tm
++	}
++}
++
++func BenchmarkConvT2ELarge(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		e = tl
++	}
++}
++
++func BenchmarkConvT2ISmall(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		i1 = ts
+ 	}
+ }
+ 
+-func BenchmarkConvT2EBig(b *testing.B) {
+-	v := [2]uintptr{1, 2}
++func BenchmarkConvT2IUintptr(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		I = v
++		i1 = tm
+ 	}
+ }
+ 
+-func BenchmarkConvT2I(b *testing.B) {
++func BenchmarkConvT2ILarge(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		W = B
++		i1 = tl
+ 	}
+ }
+ 
+ func BenchmarkConvI2E(b *testing.B) {
++	i2 = tm
+ 	for i := 0; i < b.N; i++ {
+-		I = W
++		e = i2
+ 	}
+ }
+ 
+ func BenchmarkConvI2I(b *testing.B) {
++	i2 = tm
+ 	for i := 0; i < b.N; i++ {
+-		W = R
++		i1 = i2
+ 	}
+ }
+ 
+ func BenchmarkAssertE2T(b *testing.B) {
+-	I = 1
++	e = tm
+ 	for i := 0; i < b.N; i++ {
+-		J = I.(int)
++		tm = e.(TM)
+ 	}
+ }
+ 
+-func BenchmarkAssertE2TBig(b *testing.B) {
+-	var v interface{} = [2]*int{}
++func BenchmarkAssertE2TLarge(b *testing.B) {
++	e = tl
+ 	for i := 0; i < b.N; i++ {
+-		Big = v.([2]*int)
++		tl = e.(TL)
+ 	}
+ }
+ 
+ func BenchmarkAssertE2I(b *testing.B) {
++	e = tm
+ 	for i := 0; i < b.N; i++ {
+-		W = I2.(io.Writer)
++		i1 = e.(I1)
+ 	}
+ }
+ 
+ func BenchmarkAssertI2T(b *testing.B) {
++	i1 = tm
+ 	for i := 0; i < b.N; i++ {
+-		B = W.(*bytes.Buffer)
++		tm = i1.(TM)
+ 	}
+ }
+ 
+ func BenchmarkAssertI2I(b *testing.B) {
++	i1 = tm
+ 	for i := 0; i < b.N; i++ {
+-		W = R.(io.Writer)
++		i2 = i1.(I2)
+ 	}
+ }
+ 
+ func BenchmarkAssertI2E(b *testing.B) {
++	i1 = tm
+ 	for i := 0; i < b.N; i++ {
+-		I = R.(interface{})
++		e = i1.(interface{})
+ 	}
+ }
+ 
+ func BenchmarkAssertE2E(b *testing.B) {
++	e = tm
+ 	for i := 0; i < b.N; i++ {
+-		I = I2.(interface{})
++		e_ = e
+ 	}
+ }
+diff --git a/test/convT2E.go b/test/convT2X.go
+similarity index 54%
+rename from test/convT2E.go
+rename to test/convT2X.go
+index 975808fef7..7e27f06b0c 100644
+--- a/test/convT2E.go
++++ b/test/convT2X.go
+@@ -8,27 +8,56 @@
+ 
+ package main
+ 
++type J interface {
++	Method()
++}
++
++type (
++	U16  uint16
++	U32  uint32
++	U64  uint64
++	U128 [2]uint64
++	F32  float32
++	F64  float64
++	C128 complex128
++	S    string
++	B    []byte
++	M    map[int]int
++	C    chan int
++	Z    struct{}
++)
++
++func (U16) Method()  {}
++func (U32) Method()  {}
++func (U64) Method()  {}
++func (U128) Method() {}
++func (F32) Method()  {}
++func (F64) Method()  {}
++func (C128) Method() {}
++func (S) Method()    {}
++func (B) Method()    {}
++func (M) Method()    {}
++func (C) Method()    {}
++func (Z) Method()    {}
++
+ var (
+-	z    = struct{}{}
++	u16  = U16(1)
++	u32  = U32(2)
++	u64  = U64(3)
++	u128 = U128{4, 5}
++	f32  = F32(6)
++	f64  = F64(7)
++	c128 = C128(8 + 9i)
++	s    = S("10")
++	b    = B("11")
++	m    = M{12: 13}
++	c    = make(C, 14)
++	z    = Z{}
+ 	p    = &z
+ 	pp   = &p
+-	u16  = uint16(1)
+-	u32  = uint32(2)
+-	u64  = uint64(3)
+-	u128 = [2]uint64{4, 5}
+-	f32  = float32(6)
+-	f64  = float64(7)
+-	c128 = complex128(8 + 9i)
+-	s    = "10"
+-	b    = []byte("11")
+-	m    = map[int]int{12: 13}
+-	c    = make(chan int, 14)
+ )
+ 
+ var (
+-	iz    interface{} = z
+-	ip    interface{} = p
+-	ipp   interface{} = pp
+ 	iu16  interface{} = u16
+ 	iu32  interface{} = u32
+ 	iu64  interface{} = u64
+@@ -40,6 +69,24 @@ var (
+ 	ib    interface{} = b
+ 	im    interface{} = m
+ 	ic    interface{} = c
++	iz    interface{} = z
++	ip    interface{} = p
++	ipp   interface{} = pp
++
++	ju16  J = u16
++	ju32  J = u32
++	ju64  J = u64
++	ju128 J = u128
++	jf32  J = f32
++	jf64  J = f64
++	jc128 J = c128
++	js    J = s
++	jb    J = b
++	jm    J = m
++	jc    J = c
++	jz J = z
++	jp J = p // The method set for *T contains the methods for T.
++	// pp does not implement error.
+ )
+ 
+ func second(a ...interface{}) interface{} {
+@@ -47,44 +94,78 @@ func second(a ...interface{}) interface{} {
+ }
+ 
+ func main() {
+-	// Test equality. There are no tests for b and m, as slices and
+-	// maps are not comparable by ==.
+-	if z != iz {
+-		panic("z != iz")
+-	}
+-	if p != ip {
+-		panic("p != ip")
+-	}
+-	if pp != ipp {
+-		panic("pp != ipp")
+-	}
++	// Test equality.
+ 	if u16 != iu16 {
+ 		panic("u16 != iu16")
+ 	}
++	if u16 != ju16 {
++		panic("u16 != ju16")
++	}
+ 	if u32 != iu32 {
+ 		panic("u32 != iu32")
+ 	}
++	if u32 != ju32 {
++		panic("u32 != ju32")
++	}
+ 	if u64 != iu64 {
+ 		panic("u64 != iu64")
+ 	}
++	if u64 != ju64 {
++		panic("u64 != ju64")
++	}
+ 	if u128 != iu128 {
+ 		panic("u128 != iu128")
+ 	}
++	if u128 != ju128 {
++		panic("u128 != ju128")
++	}
+ 	if f32 != if32 {
+ 		panic("f32 != if32")
+ 	}
++	if f32 != jf32 {
++		panic("f32 != jf32")
++	}
+ 	if f64 != if64 {
+ 		panic("f64 != if64")
+ 	}
++	if f64 != jf64 {
++		panic("f64 != jf64")
++	}
+ 	if c128 != ic128 {
+ 		panic("c128 != ic128")
+ 	}
++	if c128 != jc128 {
++		panic("c128 != jc128")
++	}
+ 	if s != is {
+ 		panic("s != is")
+ 	}
++	if s != js {
++		panic("s != js")
++	}
+ 	if c != ic {
+ 		panic("c != ic")
+ 	}
++	if c != jc {
++		panic("c != jc")
++	}
++	// There are no tests for b and m, as slices and maps are not comparable by ==.
++	if z != iz {
++		panic("z != iz")
++	}
++	if z != jz {
++		panic("z != jz")
++	}
++	if p != ip {
++		panic("p != ip")
++	}
++	if p != jp {
++		panic("p != jp")
++	}
++	if pp != ipp {
++		panic("pp != ipp")
++	}
++	// pp does not implement J.
+ 
+ 	// Test that non-interface types can be used as ...interface{} arguments.
+ 	if got := second(z, p, pp, u16, u32, u64, u128, f32, f64, c128, s, b, m, c); got != ip {

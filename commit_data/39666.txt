@@ -11,9 +11,64 @@ Date:   Tue Mar 12 14:43:22 2019 -0400
     Change-Id: I305cb3c0daab8cedd2e6ad235d4733f66af18723
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167082
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/cover/cover_test.go                 | 1 +
  src/cmd/internal/obj/x86/issue19518_test.go | 3 ++-
  src/cmd/internal/obj/x86/obj6_test.go       | 3 ++-
  src/cmd/link/link_test.go                   | 3 ++-
  4 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index f002442b63..cf8f3d2384 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -82,6 +82,7 @@ func TestMain(m *testing.M) {
+ 		fmt.Fprintln(os.Stderr, err)
+ 		os.Exit(1)
+ 	}
++	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
+ 
+ 	testTempDir = dir
+ 
+diff --git a/src/cmd/internal/obj/x86/issue19518_test.go b/src/cmd/internal/obj/x86/issue19518_test.go
+index 1b0fb4a8b1..174e2dd846 100644
+--- a/src/cmd/internal/obj/x86/issue19518_test.go
++++ b/src/cmd/internal/obj/x86/issue19518_test.go
+@@ -64,7 +64,8 @@ func objdumpOutput(t *testing.T) []byte {
+ 		testenv.GoToolPath(t), "build", "-o",
+ 		filepath.Join(tmpdir, "output"))
+ 
+-	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
++	cmd.Env = append(os.Environ(),
++		"GOARCH=amd64", "GOOS=linux", "GOPATH="+filepath.Join(tmpdir, "_gopath"))
+ 	cmd.Dir = tmpdir
+ 
+ 	out, err := cmd.CombinedOutput()
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index c5399744f2..f9dd584569 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -99,7 +99,8 @@ func asmOutput(t *testing.T, s string) []byte {
+ 		testenv.GoToolPath(t), "tool", "asm", "-S", "-dynlink",
+ 		"-o", filepath.Join(tmpdir, "output.6"), tmpfile.Name())
+ 
+-	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
++	cmd.Env = append(os.Environ(),
++		"GOARCH=amd64", "GOOS=linux", "GOPATH="+filepath.Join(tmpdir, "_gopath"))
+ 	asmout, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("error %s output %s", err, asmout)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 5200c3a6f0..bcb3f2f58b 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -161,7 +161,8 @@ TEXT ·x(SB),0,$0
+ `)
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build")
+ 	cmd.Dir = tmpdir
+-	cmd.Env = append(os.Environ(), []string{"GOARCH=amd64", "GOOS=linux"}...)
++	cmd.Env = append(os.Environ(),
++		"GOARCH=amd64", "GOOS=linux", "GOPATH="+filepath.Join(tmpdir, "_gopath"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Fatalf("expected build to fail, but it succeeded")

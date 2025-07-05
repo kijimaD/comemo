@@ -8,7 +8,7 @@ Date:   Sun Jun 3 03:08:49 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6284043
-
+---
  src/cmd/5a/lex.c             | 2 ++
  src/cmd/5l/5.out.h           | 4 +++-
  src/cmd/5l/asm.c             | 9 +++++++++
@@ -16,3 +16,98 @@ Date:   Sun Jun 3 03:08:49 2012 +0800
  src/cmd/5l/span.c            | 1 +
  src/pkg/math/big/arith_arm.s | 2 +-
  6 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index e569fe62d3..6064becb9f 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -406,6 +406,8 @@ struct
+ 
+ 	"PLD",		LTYPEPLD, APLD,
+ 	"UNDEF",	LTYPEE,	AUNDEF,
++	"CLZ",		LTYPE2, ACLZ,
++
+ 	0
+ };
+ 
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 56724d3dbc..df5b5186a2 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -184,9 +184,11 @@ enum	as
+ 	ASTREXD,
+ 
+ 	APLD,
+-	
++
+ 	AUNDEF,
+ 
++	ACLZ,
++
+ 	ALAST,
+ };
+ 
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 6d9d0b3f21..d8fde46832 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1801,6 +1801,11 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		o1 = opbra(ABL, C_SCOND_NONE);
+ 		o1 |= (v >> 2) & 0xffffff;
+ 		break;
++	case 97:	/* CLZ Rm, Rd */
++ 		o1 = oprrr(p->as, p->scond);
++ 		o1 |= p->to.reg << 12;
++ 		o1 |= p->from.reg;
++		break;
+ 	}
+ 	
+ 	out[0] = o1;
+@@ -1958,6 +1963,10 @@ oprrr(int a, int sc)
+ 		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
+ 	case ACMP+AEND:	// cmp imm
+ 		return o | (0x3<<24) | (0x5<<20);
++
++	case ACLZ:
++		// CLZ doesn't support .S
++		return (o & (0xf<<28)) | (0x16f<<16) | (0xf1<<4);
+ 	}
+ 	diag("bad rrr %d", a);
+ 	prasm(curp);
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index be25b6ed61..9edbec09d6 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -236,5 +236,7 @@ Optab	optab[] =
+ 	
+ 	{ AUNDEF,		C_NONE,	C_NONE,	C_NONE,		96, 4, 0 },
+ 
++	{ ACLZ,		C_REG,	C_NONE,	C_REG,		97, 4, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index acacb66bb0..bda4981ee1 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -848,6 +848,7 @@ buildop(void)
+ 		case ATST:
+ 		case APLD:
+ 		case AUNDEF:
++		case ACLZ:
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/math/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+index dbf3360b58..ed0f371655 100644
+--- a/src/pkg/math/big/arith_arm.s
++++ b/src/pkg/math/big/arith_arm.s
+@@ -314,7 +314,7 @@ TEXT ·mulWW(SB),7,$0
+ // func bitLen(x Word) (n int)
+ TEXT ·bitLen(SB),7,$0
+ 	MOVW	x+0(FP), R0
+-	WORD	$0xe16f0f10 // CLZ R0, R0  (count leading zeros)
++	CLZ 	R0, R0
+ 	MOVW	$32, R1
+ 	SUB.S	R0, R1
+ 	MOVW	R1, n+4(FP)

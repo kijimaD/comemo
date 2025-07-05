@@ -16,10 +16,76 @@ Date:   Fri Sep 30 19:50:03 2022 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/osinfo/os_unix.go | 2 +-
  src/os/rlimit.go                   | 2 +-
  src/runtime/pprof/pprof_rusage.go  | 2 +-
  src/runtime/pprof/rusage_test.go   | 2 +-
  src/syscall/mmap_unix_test.go      | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/osinfo/os_unix.go b/src/cmd/internal/osinfo/os_unix.go
+index b989f0afb4..e1488323ae 100644
+--- a/src/cmd/internal/osinfo/os_unix.go
++++ b/src/cmd/internal/osinfo/os_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package osinfo
+ 
+diff --git a/src/os/rlimit.go b/src/os/rlimit.go
+index a89414d098..e0d0ef9b62 100644
+--- a/src/os/rlimit.go
++++ b/src/os/rlimit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package os
+ 
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+index a3ca4c8d5d..aa429fb06a 100644
+--- a/src/runtime/pprof/pprof_rusage.go
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package pprof
+ 
+diff --git a/src/runtime/pprof/rusage_test.go b/src/runtime/pprof/rusage_test.go
+index b82b1af768..80395109d9 100644
+--- a/src/runtime/pprof/rusage_test.go
++++ b/src/runtime/pprof/rusage_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package pprof
+ 
+diff --git a/src/syscall/mmap_unix_test.go b/src/syscall/mmap_unix_test.go
+index 5e08b20679..911dfa66ac 100644
+--- a/src/syscall/mmap_unix_test.go
++++ b/src/syscall/mmap_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package syscall_test
+ 

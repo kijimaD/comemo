@@ -7,8 +7,143 @@ Date:   Mon Mar 5 10:34:22 2012 +1100
     R=golang-dev, kyle, r
     CC=golang-dev
     https://golang.org/cl/5729052
-
+---
  doc/root.html        | 44 ++++++++++++++++++++++----------------------
  doc/style.css        | 14 +++++++-------
  lib/godoc/godoc.html |  9 +++++----
  3 files changed, 34 insertions(+), 33 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 6884fbafe7..2029d4c6d2 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -2,26 +2,7 @@
+ 	"Path": "/"
+ }-->
+ 
+-<div id="left" class="aboutcol">
+-
+-<div id="about">
+-Go is an open source programming environment that makes it easy to build
+-simple, reliable, and efficient software.
+-</div>
+-
+-<div id="gopher"></div>
+-
+-<a href="/install/" id="start">
+-<div class="big">Download Go</div>
+-<div class="desc">
+-Binary distributions available for<br>
+-Linux, Mac OS X, Windows, and more.
+-</div>
+-</a>
+-
+-</div>
+-
+-<div id="right" class="learncol">
++<div class="left">
+ 
+ <div id="learn">
+ <div class="rootHeading">Try Go</div>
+@@ -49,9 +30,28 @@ Hello, 世界
+ 
+ </div>
+ 
++<div class="right">
++
++<div id="about">
++Go is an open source programming environment that makes it easy to build
++simple, reliable, and efficient software.
++</div>
++
++<div id="gopher"></div>
++
++<a href="/install/" id="start">
++<div class="big">Download Go</div>
++<div class="desc">
++Binary distributions available for<br>
++Linux, Mac OS X, Windows, and more.
++</div>
++</a>
++
++</div>
++
+ <div style="clear: both"></div>
+ 
+-<div id="left">
++<div class="left">
+ 
+ <div id="video">
+ <div class="rootHeading">Featured video</div>
+@@ -61,7 +61,7 @@ Hello, 世界
+ 
+ </div>
+ 
+-<div id="right">
++<div class="right">
+ 
+ <div id="blog">
+ <div class="rootHeading">Featured articles</div>
+diff --git a/doc/style.css b/doc/style.css
+index 51d74b192f..b180a615d2 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -118,8 +118,8 @@ table.dir td {
+ div#heading {
+ 	float: left;
+ 	margin: 0 0 10px 0;
+-	padding: 16px 0;
+-	font-size: 26px;
++	padding: 21px 0;
++	font-size: 20px;
+ 	font-weight: normal;
+ }
+ div#heading a {
+@@ -197,7 +197,7 @@ div#menu > a {
+ div#menu > input {
+ 	position: relative;
+ 	top: 1px;
+-	width: 100px;
++	width: 60px;
+ 	background: white;
+ 	color: #222;
+ }
+@@ -205,14 +205,14 @@ div#menu > input.inactive {
+ 	color: #999;
+ }
+ 
+-div#left {
++div.left {
+ 	float: left;
+ }
+-div#right {
++div.right {
+ 	float: right;
+ }
+-div#left,
+-div#right {
++div.left,
++div.right {
+ 	width: 415px;
+ }
+ 
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 380a3910d9..09a2cc4c2f 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -20,10 +20,11 @@
+ <form method="GET" action="/search">
+ <div id="heading"><a href="/">The Go Programming Language</a></div>
+ <div id="menu">
+-<a href="/doc/">Learn</a>
+-<a href="/install/">Install</a>
+-<a href="/project/">Project</a>
+-<a href="/doc/reference.html">Reference</a>
++<a href="/doc/">Documents</a>
++<a href="/ref/">References</a>
++<a href="/pkg/">Packages</a>
++<a href="/project/">The Project</a>
++<a href="/help/">Help</a>
+ <input type="text" id="search" name="q" class="inactive" value="Search">
+ </div>
+ </form>

@@ -9,6 +9,32 @@ Date:   Sat Oct 13 13:25:20 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/internal/profile/profile.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/pprof/internal/profile/profile.go b/src/runtime/pprof/internal/profile/profile.go
+index 863bd403a4..84e607e9a8 100644
+--- a/src/runtime/pprof/internal/profile/profile.go
++++ b/src/runtime/pprof/internal/profile/profile.go
+@@ -415,16 +415,16 @@ func (p *Profile) String() string {
+ 	for _, m := range p.Mapping {
+ 		bits := ""
+ 		if m.HasFunctions {
+-			bits = bits + "[FN]"
++			bits += "[FN]"
+ 		}
+ 		if m.HasFilenames {
+-			bits = bits + "[FL]"
++			bits += "[FL]"
+ 		}
+ 		if m.HasLineNumbers {
+-			bits = bits + "[LN]"
++			bits += "[LN]"
+ 		}
+ 		if m.HasInlineFrames {
+-			bits = bits + "[IN]"
++			bits += "[IN]"
+ 		}
+ 		ss = append(ss, fmt.Sprintf("%d: %#x/%#x/%#x %s %s %s",
+ 			m.ID,

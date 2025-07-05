@@ -14,7 +14,77 @@ Date:   Fri Apr 7 20:32:46 2017 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go      | 37 +++++++++++++++++++++++++++++++++++++
  src/os/stat_windows.go |  7 ++++++-
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a88ba54821..ee9e0cf767 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1705,6 +1705,43 @@ func TestStatStdin(t *testing.T) {
+ 	}
+ }
+ 
++func TestStatRelativeSymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	tmpdir, err := ioutil.TempDir("", "TestStatRelativeSymlink")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer RemoveAll(tmpdir)
++
++	target := filepath.Join(tmpdir, "target")
++	f, err := Create(target)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	st, err := f.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	link := filepath.Join(tmpdir, "link")
++	err = Symlink(filepath.Base(target), link)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	st1, err := Stat(link)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !SameFile(st, st1) {
++		t.Error("Stat doesn't follow relative symlink")
++	}
++}
++
+ func TestReadAtEOF(t *testing.T) {
+ 	f := newFile("TestReadAtEOF", t)
+ 	defer Remove(f.Name())
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 0b8132f5c8..fe0ca8d1b2 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -71,10 +71,15 @@ func Stat(name string) (FileInfo, error) {
+ 		if fi.Mode()&ModeSymlink == 0 {
+ 			return fi, nil
+ 		}
+-		name, err = Readlink(name)
++		newname, err := Readlink(name)
+ 		if err != nil {
+ 			return fi, err
+ 		}
++		if isAbs(newname) {
++			name = newname
++		} else {
++			name = dirname(name) + `\` + newname
++		}
+ 	}
+ 	return nil, &PathError{"Stat", name, syscall.ELOOP}
+ }

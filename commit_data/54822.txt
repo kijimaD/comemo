@@ -16,8 +16,64 @@ Date:   Wed Nov 16 10:17:17 2022 -0500
     Reviewed-by: Changkun Ou <mail@changkun.de>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/panic_test.go | 2 +-
  src/testing/sub_test.go   | 4 ++--
  src/testing/testing.go    | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+index 4648057b77..8733bc3f30 100644
+--- a/src/testing/panic_test.go
++++ b/src/testing/panic_test.go
+@@ -227,7 +227,7 @@ func TestMorePanic(t *testing.T) {
+ 		{
+ 			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
+ 			flags: []string{"-test.run=TestCallRunInCleanupHelper"},
+-			want:  `panic: testing: t.Run is called during t.Cleanup`,
++			want:  `panic: testing: t.Run called during t.Cleanup`,
+ 		},
+ 	}
+ 
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index e1da99d07a..55b14c3795 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -805,13 +805,13 @@ func TestRacyOutput(t *T) {
+ 		return len(b), nil
+ 	}
+ 
+-	var wg sync.WaitGroup
+ 	root := &T{
+ 		common:  common{w: &funcWriter{raceDetector}},
+ 		context: newTestContext(1, allMatcher()),
+ 	}
+ 	root.chatty = newChattyPrinter(root.w)
+ 	root.Run("", func(t *T) {
++		var wg sync.WaitGroup
+ 		for i := 0; i < 100; i++ {
+ 			wg.Add(1)
+ 			go func(i int) {
+@@ -821,8 +821,8 @@ func TestRacyOutput(t *T) {
+ 				})
+ 			}(i)
+ 		}
++		wg.Wait()
+ 	})
+-	wg.Wait()
+ 
+ 	if races > 0 {
+ 		t.Errorf("detected %d racy Writes", races)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 9c6b660582..acd28667c2 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1588,7 +1588,7 @@ func tRunner(t *T, fn func(t *T)) {
+ // must return before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
+ 	if t.cleanupStarted.Load() {
+-		panic("testing: t.Run is called during t.Cleanup")
++		panic("testing: t.Run called during t.Cleanup")
+ 	}
+ 
+ 	t.hasSub.Store(true)

@@ -19,7 +19,48 @@ Date:   Mon Jun 17 11:07:39 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go          |  3 +++
  src/cmd/go/testdata/script/mod_init_path.txt | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 75ea131273..807ce8d5dc 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -518,6 +518,9 @@ func findAltConfig(dir string) (root, name string) {
+ func findModulePath(dir string) (string, error) {
+ 	if CmdModModule != "" {
+ 		// Running go mod init x/y/z; return x/y/z.
++		if err := module.CheckImportPath(CmdModModule); err != nil {
++			return "", err
++		}
+ 		return CmdModModule, nil
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_init_path.txt b/src/cmd/go/testdata/script/mod_init_path.txt
+new file mode 100644
+index 0000000000..637c29f4bc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_init_path.txt
+@@ -0,0 +1,20 @@
++env GO111MODULE=on
++
++! go mod init .
++stderr 'malformed import path'
++
++cd x
++go mod init example.com/x
++
++cd ../y
++go mod init m
++
++-- x/main.go --
++package main
++
++func main() {}
++
++-- y/main.go --
++package main
++
++func main() {}

@@ -42,7 +42,7 @@ Date:   Tue Aug 1 22:17:02 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go         | 66 ++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 ++
  src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  4 ++
@@ -51,3 +51,292 @@ Date:   Tue Aug 1 22:17:02 2023 +0800
  src/cmd/compile/internal/ssagen/ssa.go          |  2 +-
  src/runtime/minmax_test.go                      | 22 +++++++-
  7 files changed, 174 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 22338188e5..caca504d28 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -297,6 +297,72 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++
++	case ssa.OpRISCV64LoweredFMAXD, ssa.OpRISCV64LoweredFMIND, ssa.OpRISCV64LoweredFMAXS, ssa.OpRISCV64LoweredFMINS:
++		// Most of FMIN/FMAX result match Go's required behaviour, unless one of the
++		// inputs is a NaN. As such, we need to explicitly test for NaN
++		// before using FMIN/FMAX.
++
++		// FADD Rarg0, Rarg1, Rout // FADD is used to propagate a NaN to the result in these cases.
++		// FEQ  Rarg0, Rarg0, Rtmp
++		// BEQZ Rtmp, end
++		// FEQ  Rarg1, Rarg1, Rtmp
++		// BEQZ Rtmp, end
++		// F(MIN | MAX)
++
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		out := v.Reg()
++		add, feq := riscv.AFADDD, riscv.AFEQD
++		if v.Op == ssa.OpRISCV64LoweredFMAXS || v.Op == ssa.OpRISCV64LoweredFMINS {
++			add = riscv.AFADDS
++			feq = riscv.AFEQS
++		}
++
++		p1 := s.Prog(add)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r0
++		p1.Reg = r1
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = out
++
++		p2 := s.Prog(feq)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = r0
++		p2.Reg = r0
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = riscv.REG_TMP
++
++		p3 := s.Prog(riscv.ABEQ)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = riscv.REG_ZERO
++		p3.Reg = riscv.REG_TMP
++		p3.To.Type = obj.TYPE_BRANCH
++
++		p4 := s.Prog(feq)
++		p4.From.Type = obj.TYPE_REG
++		p4.From.Reg = r1
++		p4.Reg = r1
++		p4.To.Type = obj.TYPE_REG
++		p4.To.Reg = riscv.REG_TMP
++
++		p5 := s.Prog(riscv.ABEQ)
++		p5.From.Type = obj.TYPE_REG
++		p5.From.Reg = riscv.REG_ZERO
++		p5.Reg = riscv.REG_TMP
++		p5.To.Type = obj.TYPE_BRANCH
++
++		p6 := s.Prog(v.Op.Asm())
++		p6.From.Type = obj.TYPE_REG
++		p6.From.Reg = r1
++		p6.Reg = r0
++		p6.To.Type = obj.TYPE_REG
++		p6.To.Reg = out
++
++		nop := s.Prog(obj.ANOP)
++		p3.To.SetTarget(nop)
++		p5.To.SetTarget(nop)
++
+ 	case ssa.OpRISCV64LoweredMuluhilo:
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index fc206c42d3..4fef20a565 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -72,6 +72,9 @@
+ 
+ (FMA ...) => (FMADDD ...)
+ 
++(Min(64|32)F ...) => (LoweredFMIN(D|S) ...)
++(Max(64|32)F ...) => (LoweredFMAX(D|S) ...)
++
+ // Sign and zero extension.
+ 
+ (SignExt8to16  ...) => (MOVBreg ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 93f20f8a99..9ce6450166 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -429,6 +429,8 @@ func init() {
+ 		{name: "FNES", argLength: 2, reg: fp2gp, asm: "FNES", commutative: true},                                                            // arg0 != arg1
+ 		{name: "FLTS", argLength: 2, reg: fp2gp, asm: "FLTS"},                                                                               // arg0 < arg1
+ 		{name: "FLES", argLength: 2, reg: fp2gp, asm: "FLES"},                                                                               // arg0 <= arg1
++		{name: "LoweredFMAXS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXS", commutative: true, typ: "Float32"},             // max(arg0, arg1)
++		{name: "LoweredFMINS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINS", commutative: true, typ: "Float32"},             // min(arg0, arg1)
+ 
+ 		// D extension.
+ 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true, typ: "Float64"},                                           // arg0 + arg1
+@@ -456,6 +458,8 @@ func init() {
+ 		{name: "FNED", argLength: 2, reg: fp2gp, asm: "FNED", commutative: true},                                                            // arg0 != arg1
+ 		{name: "FLTD", argLength: 2, reg: fp2gp, asm: "FLTD"},                                                                               // arg0 < arg1
+ 		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED"},                                                                               // arg0 <= arg1
++		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"},             // min(arg0, arg1)
++		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"},             // max(arg0, arg1)
+ 	}
+ 
+ 	RISCV64blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c552832520..5a2ca1a424 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2464,6 +2464,8 @@ const (
+ 	OpRISCV64FNES
+ 	OpRISCV64FLTS
+ 	OpRISCV64FLES
++	OpRISCV64LoweredFMAXS
++	OpRISCV64LoweredFMINS
+ 	OpRISCV64FADDD
+ 	OpRISCV64FSUBD
+ 	OpRISCV64FMULD
+@@ -2489,6 +2491,8 @@ const (
+ 	OpRISCV64FNED
+ 	OpRISCV64FLTD
+ 	OpRISCV64FLED
++	OpRISCV64LoweredFMIND
++	OpRISCV64LoweredFMAXD
+ 
+ 	OpS390XFADDS
+ 	OpS390XFADD
+@@ -33072,6 +33076,38 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredFMAXS",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             riscv.AFMAXS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:            "LoweredFMINS",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             riscv.AFMINS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:        "FADDD",
+ 		argLen:      2,
+@@ -33426,6 +33462,38 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredFMIND",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             riscv.AFMIND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:            "LoweredFMAXD",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             riscv.AFMAXD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 
+ 	{
+ 		name:         "FADDS",
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 52ddca1c7d..cf86572b8d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -326,6 +326,18 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpLsh8x64(v)
+ 	case OpLsh8x8:
+ 		return rewriteValueRISCV64_OpLsh8x8(v)
++	case OpMax32F:
++		v.Op = OpRISCV64LoweredFMAXS
++		return true
++	case OpMax64F:
++		v.Op = OpRISCV64LoweredFMAXD
++		return true
++	case OpMin32F:
++		v.Op = OpRISCV64LoweredFMINS
++		return true
++	case OpMin64F:
++		v.Op = OpRISCV64LoweredFMIND
++		return true
+ 	case OpMod16:
+ 		return rewriteValueRISCV64_OpMod16(v)
+ 	case OpMod16u:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index df933ec1cf..3e72a27554 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3700,7 +3700,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 
+ 		if typ.IsFloat() {
+ 			switch Arch.LinkArch.Family {
+-			case sys.AMD64, sys.ARM64:
++			case sys.AMD64, sys.ARM64, sys.RISCV64:
+ 				var op ssa.Op
+ 				switch {
+ 				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
+diff --git a/src/runtime/minmax_test.go b/src/runtime/minmax_test.go
+index e0bc28fbf6..1f815a84c3 100644
+--- a/src/runtime/minmax_test.go
++++ b/src/runtime/minmax_test.go
+@@ -66,10 +66,10 @@ func TestMaxFloat(t *testing.T) {
+ 	}
+ 	for _, x := range all {
+ 		if z := max(nan, x); !math.IsNaN(z) {
+-			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
++			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
+ 		}
+ 		if z := max(x, nan); !math.IsNaN(z) {
+-			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
++			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
+ 		}
+ 	}
+ }
+@@ -127,3 +127,21 @@ func TestMinMaxStringTies(t *testing.T) {
+ 	test(2, 0, 1)
+ 	test(2, 1, 0)
+ }
++
++func BenchmarkMinFloat(b *testing.B) {
++	var m float64 = 0
++	for i := 0; i < b.N; i++ {
++		for _, f := range all {
++			m = min(m, f)
++		}
++	}
++}
++
++func BenchmarkMaxFloat(b *testing.B) {
++	var m float64 = 0
++	for i := 0; i < b.N; i++ {
++		for _, f := range all {
++			m = max(m, f)
++		}
++	}
++}

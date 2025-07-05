@@ -13,6 +13,24 @@ Date:   Thu Jun 25 14:12:48 2015 +1000
     Change-Id: Ica79359eab48d669d307449fdd458764895fab2c
     Reviewed-on: https://go-review.googlesource.com/11475
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1146a41c18..e70bff0bbd 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -548,7 +548,11 @@ func TestFileLineInErrorMessages(t *testing.T) {
+ 	tg.tempFile("err.go", `package main; import "bar"`)
+ 	path := tg.path("err.go")
+ 	tg.runFail("run", path)
+-	tg.grepStderr("^"+regexp.QuoteMeta(path)+":", "missing file:line in error message")
++	shortPath := path
++	if rel, err := filepath.Rel(tg.pwd(), path); err == nil && len(rel) < len(path) {
++		shortPath = rel
++	}
++	tg.grepStderr("^"+regexp.QuoteMeta(shortPath)+":", "missing file:line in error message")
+ }
+ 
+ func TestProgramNameInCrashMessages(t *testing.T) {

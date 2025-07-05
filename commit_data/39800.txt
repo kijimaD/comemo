@@ -15,6 +15,24 @@ Date:   Mon Mar 11 09:15:38 2019 -0400
     Change-Id: I6dc6984128152cf9611d30fbc4e6418e91a7641f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/166597
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/repo.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index c63f6b0422..ab6e46dd74 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -160,12 +160,6 @@ type RevInfo struct {
+ // To avoid version control access except when absolutely necessary,
+ // Lookup does not attempt to connect to the repository itself.
+ //
+-// The Import function takes an import path found in source code and
+-// determines which module to add to the requirement list to satisfy
+-// that import. It checks successive truncations of the import path
+-// to determine possible modules and stops when it finds a module
+-// in which the latest version satisfies the import path.
+-//
+ // The ImportRepoRev function is a variant of Import which is limited
+ // to code in a source code repository at a particular revision identifier
+ // (usually a commit hash or source code repository tag, not necessarily

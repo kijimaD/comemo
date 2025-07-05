@@ -21,6 +21,37 @@ Date:   Fri Dec 6 06:51:04 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/testing/benchmark.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index dbc0814884..78e1b2de6d 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -275,6 +275,11 @@ func (b *B) doBench() BenchmarkResult {
+ }
+ 
+ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
++	if prevns == 0 {
++		// Round up to dodge divide by zero. See https://go.dev/issue/70709.
++		prevns = 1
++	}
++
+ 	// Order of operations matters.
+ 	// For very fast benchmarks, prevIters ~= prevns.
+ 	// If you divide first, you get 0 or 1,
+@@ -321,12 +326,7 @@ func (b *B) launch() {
+ 				// Predict required iterations.
+ 				goalns := d.Nanoseconds()
+ 				prevIters := int64(b.N)
+-				prevns := b.duration.Nanoseconds()
+-				if prevns <= 0 {
+-					// Round up, to avoid div by zero.
+-					prevns = 1
+-				}
+-				n = int64(predictN(goalns, prevIters, prevns, last))
++				n = int64(predictN(goalns, prevIters, b.duration.Nanoseconds(), last))
+ 				b.runN(int(n))
+ 			}
+ 		}

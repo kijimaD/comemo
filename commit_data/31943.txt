@@ -9,6 +9,46 @@ Date:   Fri Mar 17 17:09:07 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index d37540e180..17860957cf 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -551,14 +551,13 @@ func (f *Func) invalidateCFG() {
+ // opening the file.
+ func (f *Func) DebugHashMatch(evname, name string) bool {
+ 	evhash := os.Getenv(evname)
+-	if evhash == "" {
++	switch evhash {
++	case "":
+ 		return true // default behavior with no EV is "on"
+-	}
+-	if evhash == "y" || evhash == "Y" {
++	case "y", "Y":
+ 		f.logDebugHashMatch(evname, name)
+ 		return true
+-	}
+-	if evhash == "n" || evhash == "N" {
++	case "n", "N":
+ 		return false
+ 	}
+ 	// Check the hash of the name against a partial input hash.
+@@ -597,11 +596,10 @@ func (f *Func) logDebugHashMatch(evname, name string) {
+ 	file := f.logfiles[evname]
+ 	if file == nil {
+ 		file = os.Stdout
+-		tmpfile := os.Getenv("GSHS_LOGFILE")
+-		if tmpfile != "" {
+-			var ok error
+-			file, ok = os.Create(tmpfile)
+-			if ok != nil {
++		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
++			var err error
++			file, err = os.Create(tmpfile)
++			if err != nil {
+ 				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
+ 			}
+ 		}

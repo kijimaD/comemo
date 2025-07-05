@@ -17,9 +17,288 @@ Date:   Wed May 3 18:20:12 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/42611
     Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa_test.go       | 22 +++++++++++++
  src/crypto/elliptic/elliptic_test.go | 63 ++++++++++++++++++++++++++++++++++++
  src/crypto/elliptic/p256_amd64.go    | 48 ++++++++++++++++++++++++---
  src/crypto/elliptic/p256_asm_amd64.s | 44 +++++++++++++++++++++++--
  4 files changed, 171 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 9546f67c68..2b3d44ac7a 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -331,3 +331,25 @@ func TestNegativeInputs(t *testing.T) {
+ 	testNegativeInputs(t, elliptic.P384(), "p384")
+ 	testNegativeInputs(t, elliptic.P521(), "p521")
+ }
++
++func TestZeroHashSignature(t *testing.T) {
++	zeroHash := make([]byte, 64)
++
++	for _, curve := range []elliptic.Curve{elliptic.P224(), elliptic.P256(), elliptic.P384(), elliptic.P521()} {
++		privKey, err := GenerateKey(curve, rand.Reader)
++		if err != nil {
++			panic(err)
++		}
++
++		// Sign a hash consisting of all zeros.
++		r, s, err := Sign(rand.Reader, privKey, zeroHash)
++		if err != nil {
++			panic(err)
++		}
++
++		// Confirm that it can be verified.
++		if !Verify(&privKey.PublicKey, zeroHash, r, s) {
++			t.Errorf("zero hash signature verify failed for %T", curve)
++		}
++	}
++}
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index c3e4c17d25..41c4d658a0 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -455,6 +455,69 @@ func TestInfinity(t *testing.T) {
+ 	}
+ }
+ 
++type synthCombinedMult struct {
++	Curve
++}
++
++func (s synthCombinedMult) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
++	x1, y1 := s.ScalarBaseMult(baseScalar)
++	x2, y2 := s.ScalarMult(bigX, bigY, scalar)
++	return s.Add(x1, y1, x2, y2)
++}
++
++func TestCombinedMult(t *testing.T) {
++	type combinedMult interface {
++		Curve
++		CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int)
++	}
++
++	p256, ok := P256().(combinedMult)
++	if !ok {
++		p256 = &synthCombinedMult{P256()}
++	}
++
++	gx := p256.Params().Gx
++	gy := p256.Params().Gy
++
++	zero := make([]byte, 32)
++	one := make([]byte, 32)
++	one[31] = 1
++	two := make([]byte, 32)
++	two[31] = 2
++
++	// 0×G + 0×G = ∞
++	x, y := p256.CombinedMult(gx, gy, zero, zero)
++	if x.Sign() != 0 || y.Sign() != 0 {
++		t.Errorf("0×G + 0×G = (%d, %d), should be ∞", x, y)
++	}
++
++	// 1×G + 0×G = G
++	x, y = p256.CombinedMult(gx, gy, one, zero)
++	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
++		t.Errorf("1×G + 0×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
++	}
++
++	// 0×G + 1×G = G
++	x, y = p256.CombinedMult(gx, gy, zero, one)
++	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
++		t.Errorf("0×G + 1×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
++	}
++
++	// 1×G + 1×G = 2×G
++	x, y = p256.CombinedMult(gx, gy, one, one)
++	ggx, ggy := p256.ScalarBaseMult(two)
++	if x.Cmp(ggx) != 0 || y.Cmp(ggy) != 0 {
++		t.Errorf("1×G + 1×G = (%d, %d), should be (%d, %d)", x, y, ggx, ggy)
++	}
++
++	minusOne := new(big.Int).Sub(p256.Params().N, big.NewInt(1))
++	// 1×G + (-1)×G = ∞
++	x, y = p256.CombinedMult(gx, gy, one, minusOne.Bytes())
++	if x.Sign() != 0 || y.Sign() != 0 {
++		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
++	}
++}
++
+ func BenchmarkBaseMult(b *testing.B) {
+ 	b.ResetTimer()
+ 	p224 := P224()
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index 66b7cf8dc5..26f1f0df83 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -86,8 +86,10 @@ func p256OrdSqr(res, in []uint64, n int)
+ // if zero == 0 -> res = in2
+ func p256PointAddAffineAsm(res, in1, in2 []uint64, sign, sel, zero int)
+ 
+-// Point add
+-func p256PointAddAsm(res, in1, in2 []uint64)
++// Point add. Returns one if the two input points were equal and zero
++// otherwise. (Note that, due to the way that the equations work out, some
++// representations of ∞ are considered equal to everything by this function.)
++func p256PointAddAsm(res, in1, in2 []uint64) int
+ 
+ // Point double
+ func p256PointDoubleAsm(res, in []uint64)
+@@ -213,9 +215,11 @@ func (curve p256Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []by
+ 	scalarReversed := make([]uint64, 4)
+ 	var r1, r2 p256Point
+ 	p256GetScalar(scalarReversed, baseScalar)
++	r1IsInfinity := scalarIsZero(scalarReversed)
+ 	r1.p256BaseMult(scalarReversed)
+ 
+ 	p256GetScalar(scalarReversed, scalar)
++	r2IsInfinity := scalarIsZero(scalarReversed)
+ 	fromBig(r2.xyz[0:4], maybeReduceModP(bigX))
+ 	fromBig(r2.xyz[4:8], maybeReduceModP(bigY))
+ 	p256Mul(r2.xyz[0:4], r2.xyz[0:4], rr[:])
+@@ -228,8 +232,15 @@ func (curve p256Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []by
+ 	r2.xyz[11] = 0x00000000fffffffe
+ 
+ 	r2.p256ScalarMult(scalarReversed)
+-	p256PointAddAsm(r1.xyz[:], r1.xyz[:], r2.xyz[:])
+-	return r1.p256PointToAffine()
++
++	var sum, double p256Point
++	pointsEqual := p256PointAddAsm(sum.xyz[:], r1.xyz[:], r2.xyz[:])
++	p256PointDoubleAsm(double.xyz[:], r1.xyz[:])
++	sum.CopyConditional(&double, pointsEqual)
++	sum.CopyConditional(&r1, r2IsInfinity)
++	sum.CopyConditional(&r2, r1IsInfinity)
++
++	return sum.p256PointToAffine()
+ }
+ 
+ func (curve p256Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
+@@ -260,6 +271,24 @@ func (curve p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big
+ 	return r.p256PointToAffine()
+ }
+ 
++// uint64IsZero returns 1 if x is zero and zero otherwise.
++func uint64IsZero(x uint64) int {
++	x = ^x
++	x &= x >> 32
++	x &= x >> 16
++	x &= x >> 8
++	x &= x >> 4
++	x &= x >> 2
++	x &= x >> 1
++	return int(x&1)
++}
++
++// scalarIsZero returns 1 if scalar represents the zero value, and zero
++// otherwise.
++func scalarIsZero(scalar []uint64) int {
++	return uint64IsZero(scalar[0] | scalar[1] | scalar[2] | scalar[3])
++}
++
+ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
+ 	zInv := make([]uint64, 4)
+ 	zInvSq := make([]uint64, 4)
+@@ -281,6 +310,17 @@ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
+ 	return new(big.Int).SetBytes(xOut), new(big.Int).SetBytes(yOut)
+ }
+ 
++// CopyConditional copies overwrites p with src if v == 1, and leaves p
++// unchanged if v == 0.
++func (p *p256Point) CopyConditional(src *p256Point, v int) {
++	pMask := uint64(v) - 1
++	srcMask := ^pMask
++
++	for i, n := range p.xyz {
++		p.xyz[i] = (n & pMask) | (src.xyz[i] & srcMask)
++	}
++}
++
+ // p256Inverse sets out to in^-1 mod p.
+ func p256Inverse(out, in []uint64) {
+ 	var stack [6 * 4]uint64
+diff --git a/src/crypto/elliptic/p256_asm_amd64.s b/src/crypto/elliptic/p256_asm_amd64.s
+index ea4a6fab9a..73f0fdd159 100644
+--- a/src/crypto/elliptic/p256_asm_amd64.s
++++ b/src/crypto/elliptic/p256_asm_amd64.s
+@@ -1972,6 +1972,36 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
+ #undef rptr
+ #undef sel_save
+ #undef zero_save
++
++// p256IsZero returns 1 in AX if [acc4..acc7] represents zero and zero
++// otherwise. It writes to [acc4..acc7], t0 and t1.
++TEXT p256IsZero(SB),NOSPLIT,$0
++	// AX contains a flag that is set if the input is zero.
++	XORQ AX, AX
++	MOVQ $1, t1
++
++	// Check whether [acc4..acc7] are all zero.
++	MOVQ acc4, t0
++	ORQ acc5, t0
++	ORQ acc6, t0
++	ORQ acc7, t0
++
++	// Set the zero flag if so. (CMOV of a constant to a register doesn't
++	// appear to be supported in Go. Thus t1 = 1.)
++	CMOVQEQ t1, AX
++
++	// XOR [acc4..acc7] with P and compare with zero again.
++	XORQ $-1, acc4
++	XORQ p256const0<>(SB), acc5
++	XORQ p256const1<>(SB), acc7
++	ORQ acc5, acc4
++	ORQ acc6, acc4
++	ORQ acc7, acc4
++
++	// Set the zero flag if so.
++	CMOVQEQ t1, AX
++	RET
++
+ /* ---------------------------------------*/
+ #define x1in(off) (32*0 + off)(SP)
+ #define y1in(off) (32*1 + off)(SP)
+@@ -1996,9 +2026,11 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
+ #define rsqr(off)  (32*18 + off)(SP)
+ #define hcub(off)  (32*19 + off)(SP)
+ #define rptr       (32*20)(SP)
++#define points_eq  (32*20+8)(SP)
+ 
+-//func p256PointAddAsm(res, in1, in2 []uint64)
+-TEXT ·p256PointAddAsm(SB),0,$672-72
++//func p256PointAddAsm(res, in1, in2 []uint64) int
++TEXT ·p256PointAddAsm(SB),0,$680-80
++	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+ 	// Move input to stack in order to free registers
+ 	MOVQ res+0(FP), AX
+ 	MOVQ in1+24(FP), BX
+@@ -2055,6 +2087,8 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
+ 	LDt (s1)
+ 	CALL p256SubInternal(SB)	// r = s2 - s1
+ 	ST (r)
++	CALL p256IsZero(SB)
++	MOVQ AX, points_eq
+ 
+ 	LDacc (z2sqr)
+ 	LDt (x1in)
+@@ -2068,6 +2102,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
+ 	LDt (u1)
+ 	CALL p256SubInternal(SB)	// h = u2 - u1
+ 	ST (h)
++	CALL p256IsZero(SB)
++	ANDQ points_eq, AX
++	MOVQ AX, points_eq
+ 
+ 	LDacc (r)
+ 	CALL p256SqrInternal(SB)	// rsqr = rˆ2
+@@ -2135,6 +2172,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
+ 	MOVOU X4, (16*4)(AX)
+ 	MOVOU X5, (16*5)(AX)
+ 
++	MOVQ points_eq, AX
++	MOVQ AX, ret+72(FP)
++
+ 	RET
+ #undef x1in
+ #undef y1in

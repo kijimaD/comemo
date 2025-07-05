@@ -9,6 +9,21 @@ Date:   Wed May 4 11:16:55 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4444090
-
+---
  src/make.bash | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index 79e368cb50..84b9908f45 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -47,6 +47,9 @@ rm -f "$GOBIN"/gomake
+ ) >"$GOBIN"/gomake
+ chmod +x "$GOBIN"/gomake
+ 
++# TODO(brainman): delete this after 01/01/2012.
++rm -f "$GOBIN"/gotest	# remove old bash version of gotest on Windows
++
+ if [ -d /selinux -a -f /selinux/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
+ 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+ 		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "

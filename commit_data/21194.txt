@@ -12,6 +12,49 @@ Date:   Fri Dec 5 02:22:20 2014 -0500
     R=rsc, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/177470043
-
+---
  src/cmd/ld/lib.c | 24 ++++++++++++------------
  1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 64608d226e..925274bfd3 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -202,7 +202,18 @@ loadlib(void)
+ 		iscgo |= strcmp(ctxt->library[i].pkg, "runtime/cgo") == 0;
+ 		objfile(ctxt->library[i].file, ctxt->library[i].pkg);
+ 	}
+-	
++
++	if(linkmode == LinkAuto) {
++		if(iscgo && externalobj)
++			linkmode = LinkExternal;
++		else
++			linkmode = LinkInternal;
++
++		// Force external linking for android.
++		if(strcmp(goos, "android") == 0)
++			linkmode = LinkExternal;
++	}
++
+ 	if(linkmode == LinkExternal && !iscgo) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+@@ -229,17 +240,6 @@ loadlib(void)
+ 		}
+ 	}
+ 
+-	if(linkmode == LinkAuto) {
+-		if(iscgo && externalobj)
+-			linkmode = LinkExternal;
+-		else
+-			linkmode = LinkInternal;
+-
+-		// Force external linking for android.
+-		if(strcmp(goos, "android") == 0)
+-			linkmode = LinkExternal;
+-	}
+-
+ 	if(linkmode == LinkInternal) {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.

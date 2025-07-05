@@ -51,7 +51,7 @@ Date:   Sat Aug 27 13:17:30 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/crc32/crc32.go            |  10 ++-
  src/hash/crc32/crc32_amd64.go      | 170 +++++++++++++++++++++++++++++++++++--
  src/hash/crc32/crc32_amd64.s       |  49 ++++++++++-
@@ -61,3 +61,460 @@ Date:   Sat Aug 27 13:17:30 2016 -0400
  src/hash/crc32/crc32_s390x.go      |   4 +
  src/hash/crc32/crc32_test.go       |  24 ++++++
  8 files changed, 301 insertions(+), 14 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index c3ac7b80c3..57089a700d 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -52,8 +52,14 @@ var castagnoliTable8 *slicing8Table
+ var castagnoliOnce sync.Once
+ 
+ func castagnoliInit() {
+-	castagnoliTable = makeTable(Castagnoli)
+-	castagnoliTable8 = makeTable8(Castagnoli)
++	// Call the arch-specific init function and let it decide if we will need
++	// the tables for the generic implementation.
++	needGenericTables := castagnoliInitArch()
++
++	if needGenericTables {
++		castagnoliTable = makeTable(Castagnoli)
++		castagnoliTable8 = makeTable8(Castagnoli)
++	}
+ }
+ 
+ // IEEETable is the table for the IEEE polynomial.
+diff --git a/src/hash/crc32/crc32_amd64.go b/src/hash/crc32/crc32_amd64.go
+index a0180a12de..a071cbcb88 100644
+--- a/src/hash/crc32/crc32_amd64.go
++++ b/src/hash/crc32/crc32_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package crc32
+ 
++import "unsafe"
++
+ // This file contains the code to call the SSE 4.2 version of the Castagnoli
+ // and IEEE CRC.
+ 
+@@ -13,11 +15,20 @@ func haveSSE41() bool
+ func haveSSE42() bool
+ func haveCLMUL() bool
+ 
+-// castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
++// castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE4.2 CRC32
+ // instruction.
+ //go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
++// castagnoliSSE42Triple is defined in crc32_amd64.s and uses the SSE4.2 CRC32
++// instruction.
++//go:noescape
++func castagnoliSSE42Triple(
++	crcA, crcB, crcC uint32,
++	a, b, c []byte,
++	rounds uint32,
++) (retA uint32, retB uint32, retC uint32)
++
+ // ieeeCLMUL is defined in crc_amd64.s and uses the PCLMULQDQ
+ // instruction as well as SSE 4.1.
+ //go:noescape
+@@ -26,15 +37,160 @@ func ieeeCLMUL(crc uint32, p []byte) uint32
+ var sse42 = haveSSE42()
+ var useFastIEEE = haveCLMUL() && haveSSE41()
+ 
++const castagnoliK1 = 168
++const castagnoliK2 = 1344
++
++type sse42Table [4]Table
++
++var castagnoliSSE42TableK1 *sse42Table
++var castagnoliSSE42TableK2 *sse42Table
++
++func castagnoliInitArch() (needGenericTables bool) {
++	if !sse42 {
++		return true
++	}
++	castagnoliSSE42TableK1 = new(sse42Table)
++	castagnoliSSE42TableK2 = new(sse42Table)
++	// See description in updateCastagnoli.
++	//    t[0][i] = CRC(i000, O)
++	//    t[1][i] = CRC(0i00, O)
++	//    t[2][i] = CRC(00i0, O)
++	//    t[3][i] = CRC(000i, O)
++	// where O is a sequence of K zeros.
++	var tmp [castagnoliK2]byte
++	for b := 0; b < 4; b++ {
++		for i := 0; i < 256; i++ {
++			val := uint32(i) << uint32(b*8)
++			castagnoliSSE42TableK1[b][i] = castagnoliSSE42(val, tmp[:castagnoliK1])
++			castagnoliSSE42TableK2[b][i] = castagnoliSSE42(val, tmp[:])
++		}
++	}
++	return false
++}
++
++// castagnoliShift computes the CRC32-C of K1 or K2 zeroes (depending on the
++// table given) with the given initial crc value. This corresponds to
++// CRC(crc, O) in the description in updateCastagnoli.
++func castagnoliShift(table *sse42Table, crc uint32) uint32 {
++	return table[3][crc>>24] ^
++		table[2][(crc>>16)&0xFF] ^
++		table[1][(crc>>8)&0xFF] ^
++		table[0][crc&0xFF]
++}
++
+ func updateCastagnoli(crc uint32, p []byte) uint32 {
+-	if sse42 {
+-		return castagnoliSSE42(crc, p)
++	if !sse42 {
++		// Use slicing-by-8 on larger inputs.
++		if len(p) >= sliceBy8Cutoff {
++			return updateSlicingBy8(crc, castagnoliTable8, p)
++		}
++		return update(crc, castagnoliTable, p)
+ 	}
+-	// Use slicing-by-8 on larger inputs.
+-	if len(p) >= sliceBy8Cutoff {
+-		return updateSlicingBy8(crc, castagnoliTable8, p)
++
++	// This method is inspired from the algorithm in Intel's white paper:
++	//    "Fast CRC Computation for iSCSI Polynomial Using CRC32 Instruction"
++	// The same strategy of splitting the buffer in three is used but the
++	// combining calculation is different; the complete derivation is explained
++	// below.
++	//
++	// -- The basic idea --
++	//
++	// The CRC32 instruction (available in SSE4.2) can process 8 bytes at a
++	// time. In recent Intel architectures the instruction takes 3 cycles;
++	// however the processor can pipeline up to three instructions if they
++	// don't depend on each other.
++	//
++	// Roughly this means that we can process three buffers in about the same
++	// time we can process one buffer.
++	//
++	// The idea is then to split the buffer in three, CRC the three pieces
++	// separately and then combine the results.
++	//
++	// Combining the results requires precomputed tables, so we must choose a
++	// fixed buffer length to optimize. The longer the length, the faster; but
++	// only buffers longer than this length will use the optimization. We choose
++	// two cutoffs and compute tables for both:
++	//  - one around 512: 168*3=504
++	//  - one around 4KB: 1344*3=4032
++	//
++	// -- The nitty gritty --
++	//
++	// Let CRC(I, X) be the non-inverted CRC32-C of the sequence X (with
++	// initial non-inverted CRC I). This function has the following properties:
++	//   (a) CRC(I, AB) = CRC(CRC(I, A), B)
++	//   (b) CRC(I, A xor B) = CRC(I, A) xor CRC(0, B)
++	//
++	// Say we want to compute CRC(I, ABC) where A, B, C are three sequences of
++	// K bytes each, where K is a fixed constant. Let O be the sequence of K zero
++	// bytes.
++	//
++	// CRC(I, ABC) = CRC(I, ABO xor C)
++	//             = CRC(I, ABO) xor CRC(0, C)
++	//             = CRC(CRC(I, AB), O) xor CRC(0, C)
++	//             = CRC(CRC(I, AO xor B), O) xor CRC(0, C)
++	//             = CRC(CRC(I, AO) xor CRC(0, B), O) xor CRC(0, C)
++	//             = CRC(CRC(CRC(I, A), O) xor CRC(0, B), O) xor CRC(0, C)
++	//
++	// The castagnoliSSE42Triple function can compute CRC(I, A), CRC(0, B),
++	// and CRC(0, C) efficiently.  We just need to find a way to quickly compute
++	// CRC(uvwx, O) given a 4-byte initial value uvwx. We can precompute these
++	// values; since we can't have a 32-bit table, we break it up into four
++	// 8-bit tables:
++	//
++	//    CRC(uvwx, O) = CRC(u000, O) xor
++	//                   CRC(0v00, O) xor
++	//                   CRC(00w0, O) xor
++	//                   CRC(000x, O)
++	//
++	// We can compute tables corresponding to the four terms for all 8-bit
++	// values.
++
++	crc = ^crc
++
++	// If a buffer is long enough to use the optimization, process the first few
++	// bytes to align the buffer to an 8 byte boundary (if necessary).
++	if len(p) >= castagnoliK1*3 {
++		delta := int(uintptr(unsafe.Pointer(&p[0])) & 7)
++		if delta != 0 {
++			delta = 8 - delta
++			crc = castagnoliSSE42(crc, p[:delta])
++			p = p[delta:]
++		}
+ 	}
+-	return update(crc, castagnoliTable, p)
++
++	// Process 3*K2 at a time.
++	for len(p) >= castagnoliK2*3 {
++		// Compute CRC(I, A), CRC(0, B), and CRC(0, C).
++		crcA, crcB, crcC := castagnoliSSE42Triple(
++			crc, 0, 0,
++			p, p[castagnoliK2:], p[castagnoliK2*2:],
++			castagnoliK2/24)
++
++		// CRC(I, AB) = CRC(CRC(I, A), O) xor CRC(0, B)
++		crcAB := castagnoliShift(castagnoliSSE42TableK2, crcA) ^ crcB
++		// CRC(I, ABC) = CRC(CRC(I, AB), O) xor CRC(0, C)
++		crc = castagnoliShift(castagnoliSSE42TableK2, crcAB) ^ crcC
++		p = p[castagnoliK2*3:]
++	}
++
++	// Process 3*K1 at a time.
++	for len(p) >= castagnoliK1*3 {
++		// Compute CRC(I, A), CRC(0, B), and CRC(0, C).
++		crcA, crcB, crcC := castagnoliSSE42Triple(
++			crc, 0, 0,
++			p, p[castagnoliK1:], p[castagnoliK1*2:],
++			castagnoliK1/24)
++
++		// CRC(I, AB) = CRC(CRC(I, A), O) xor CRC(0, B)
++		crcAB := castagnoliShift(castagnoliSSE42TableK1, crcA) ^ crcB
++		// CRC(I, ABC) = CRC(CRC(I, AB), O) xor CRC(0, C)
++		crc = castagnoliShift(castagnoliSSE42TableK1, crcAB) ^ crcC
++		p = p[castagnoliK1*3:]
++	}
++
++	// Use the simple implementation for what's left.
++	crc = castagnoliSSE42(crc, p)
++	return ^crc
+ }
+ 
+ func updateIEEE(crc uint32, p []byte) uint32 {
+diff --git a/src/hash/crc32/crc32_amd64.s b/src/hash/crc32/crc32_amd64.s
+index a775a194df..50c0ec83aa 100644
+--- a/src/hash/crc32/crc32_amd64.s
++++ b/src/hash/crc32/crc32_amd64.s
+@@ -4,14 +4,14 @@
+ 
+ #include "textflag.h"
+ 
++// castagnoliSSE42 updates the (non-inverted) crc with the given buffer.
++//
+ // func castagnoliSSE42(crc uint32, p []byte) uint32
+ TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
+ 	MOVL crc+0(FP), AX  // CRC value
+ 	MOVQ p+8(FP), SI  // data pointer
+ 	MOVQ p_len+16(FP), CX  // len(p)
+ 
+-	NOTL AX
+-
+ 	// If there are fewer than 8 bytes to process, skip alignment.
+ 	CMPQ CX, $8
+ 	JL less_than_8
+@@ -87,10 +87,53 @@ less_than_2:
+ 	CRC32B (SI), AX
+ 
+ done:
+-	NOTL AX
+ 	MOVL AX, ret+32(FP)
+ 	RET
+ 
++// castagnoliSSE42Triple updates three (non-inverted) crcs with (24*rounds)
++// bytes from each buffer.
++//
++// func castagnoliSSE42Triple(
++//     crc1, crc2, crc3 uint32,
++//     a, b, c []byte,
++//     rounds uint32,
++// ) (retA uint32, retB uint32, retC uint32)
++TEXT ·castagnoliSSE42Triple(SB),NOSPLIT,$0
++	MOVL crcA+0(FP), AX
++	MOVL crcB+4(FP), CX
++	MOVL crcC+8(FP), DX
++
++	MOVQ a+16(FP), R8   // data pointer
++	MOVQ b+40(FP), R9   // data pointer
++	MOVQ c+64(FP), R10  // data pointer
++
++	MOVL rounds+88(FP), R11
++
++loop:
++	CRC32Q (R8), AX
++	CRC32Q (R9), CX
++	CRC32Q (R10), DX
++
++	CRC32Q 8(R8), AX
++	CRC32Q 8(R9), CX
++	CRC32Q 8(R10), DX
++
++	CRC32Q 16(R8), AX
++	CRC32Q 16(R9), CX
++	CRC32Q 16(R10), DX
++
++	ADDQ $24, R8
++	ADDQ $24, R9
++	ADDQ $24, R10
++
++	DECQ R11
++	JNZ loop
++
++	MOVL AX, retA+96(FP)
++	MOVL CX, retB+100(FP)
++	MOVL DX, retC+104(FP)
++	RET
++
+ // func haveSSE42() bool
+ TEXT ·haveSSE42(SB),NOSPLIT,$0
+ 	XORQ AX, AX
+diff --git a/src/hash/crc32/crc32_amd64_test.go b/src/hash/crc32/crc32_amd64_test.go
+new file mode 100644
+index 0000000000..8bbaa10221
+--- /dev/null
++++ b/src/hash/crc32/crc32_amd64_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package crc32
++
++import (
++	"math/rand"
++	"testing"
++)
++
++func TestCastagnoliSSE42(t *testing.T) {
++	if !sse42 {
++		t.Skip("SSE42 not supported")
++	}
++
++	// Init the SSE42 tables.
++	MakeTable(Castagnoli)
++
++	// Manually init the software implementation to compare against.
++	castagnoliTable = makeTable(Castagnoli)
++	castagnoliTable8 = makeTable8(Castagnoli)
++
++	// The optimized SSE4.2 implementation behaves differently for different
++	// lengths (especially around multiples of K*3). Crosscheck against the
++	// software implementation for various lengths.
++	for _, base := range []int{castagnoliK1, castagnoliK2, castagnoliK1 + castagnoliK2} {
++		for _, baseMult := range []int{2, 3, 5, 6, 9, 30} {
++			for _, variation := range []int{0, 1, 2, 3, 4, 7, 10, 16, 32, 50, 128} {
++				for _, varMult := range []int{-2, -1, +1, +2} {
++					length := base*baseMult + variation*varMult
++					p := make([]byte, length)
++					_, _ = rand.Read(p)
++					crcInit := uint32(rand.Int63())
++					correct := updateSlicingBy8(crcInit, castagnoliTable8, p)
++					result := updateCastagnoli(crcInit, p)
++					if result != correct {
++						t.Errorf("SSE42 implementation = 0x%x want 0x%x (buffer length %d)",
++							result, correct, len(p))
++					}
++				}
++			}
++		}
++	}
++}
+diff --git a/src/hash/crc32/crc32_amd64p32.go b/src/hash/crc32/crc32_amd64p32.go
+index 1f6cd34643..48d181f295 100644
+--- a/src/hash/crc32/crc32_amd64p32.go
++++ b/src/hash/crc32/crc32_amd64p32.go
+@@ -7,17 +7,22 @@ package crc32
+ // This file contains the code to call the SSE 4.2 version of the Castagnoli
+ // CRC.
+ 
+-// haveSSE42 is defined in crc_amd64p32.s and uses CPUID to test for SSE 4.2
++// haveSSE42 is defined in crc32_amd64p32.s and uses CPUID to test for SSE 4.2
+ // support.
+ func haveSSE42() bool
+ 
+-// castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
++// castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE4.2 CRC32
+ // instruction.
+ //go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+ var sse42 = haveSSE42()
+ 
++func castagnoliInitArch() (needGenericTables bool) {
++	// We only need the generic implementation tables if we don't have SSE4.2.
++	return !sse42
++}
++
+ func updateCastagnoli(crc uint32, p []byte) uint32 {
+ 	if sse42 {
+ 		return castagnoliSSE42(crc, p)
+diff --git a/src/hash/crc32/crc32_generic.go b/src/hash/crc32/crc32_generic.go
+index 10a6367bc9..decf973066 100644
+--- a/src/hash/crc32/crc32_generic.go
++++ b/src/hash/crc32/crc32_generic.go
+@@ -9,6 +9,10 @@ package crc32
+ // This file contains the generic version of updateCastagnoli which does
+ // slicing-by-8, or uses the fallback for very small sizes.
+ 
++func castagnoliInitArch() (needGenericTables bool) {
++	return true
++}
++
+ func updateCastagnoli(crc uint32, p []byte) uint32 {
+ 	// Use slicing-by-8 on larger inputs.
+ 	if len(p) >= sliceBy8Cutoff {
+diff --git a/src/hash/crc32/crc32_s390x.go b/src/hash/crc32/crc32_s390x.go
+index befb58f55f..72d2648280 100644
+--- a/src/hash/crc32/crc32_s390x.go
++++ b/src/hash/crc32/crc32_s390x.go
+@@ -25,6 +25,10 @@ func vectorizedCastagnoli(crc uint32, p []byte) uint32
+ //go:noescape
+ func vectorizedIEEE(crc uint32, p []byte) uint32
+ 
++func castagnoliInitArch() (needGenericTables bool) {
++	return true
++}
++
+ func genericCastagnoli(crc uint32, p []byte) uint32 {
+ 	// Use slicing-by-8 on larger inputs.
+ 	if len(p) >= sliceBy8Cutoff {
+diff --git a/src/hash/crc32/crc32_test.go b/src/hash/crc32/crc32_test.go
+index 067c42adf0..113a109698 100644
+--- a/src/hash/crc32/crc32_test.go
++++ b/src/hash/crc32/crc32_test.go
+@@ -113,18 +113,42 @@ func BenchmarkCastagnoliCrc40B(b *testing.B) {
+ 	benchmark(b, New(MakeTable(Castagnoli)), 40, 0)
+ }
+ 
++func BenchmarkCastagnoliCrc40BMisaligned(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 40, 1)
++}
++
++func BenchmarkCastagnoliCrc512(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 512, 0)
++}
++
++func BenchmarkCastagnoliCrc512Misaligned(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 512, 1)
++}
++
+ func BenchmarkCastagnoliCrc1KB(b *testing.B) {
+ 	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 0)
+ }
+ 
++func BenchmarkCastagnoliCrc1KBMisaligned(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 1)
++}
++
+ func BenchmarkCastagnoliCrc4KB(b *testing.B) {
+ 	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 0)
+ }
+ 
++func BenchmarkCastagnoliCrc4KBMisaligned(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 1)
++}
++
+ func BenchmarkCastagnoliCrc32KB(b *testing.B) {
+ 	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 0)
+ }
+ 
++func BenchmarkCastagnoliCrc32KBMisaligned(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 1)
++}
++
+ func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
+ 	b.SetBytes(n)
+ 	data := make([]byte, n+alignment)

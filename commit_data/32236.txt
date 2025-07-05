@@ -17,7 +17,87 @@ Date:   Mon Mar 20 14:05:48 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 10 ++++++++++
  src/runtime/mgcwork.go | 38 +++++++++++++++++++++++++++++++++++++-
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b79617edf7..d537aaf67e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -795,6 +795,16 @@ var work struct {
+ 	empty lfstack                  // lock-free list of empty blocks workbuf
+ 	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+ 
++	wbufSpans struct {
++		lock mutex
++		// busy is a list of all spans containing workbufs on
++		// one of the workbuf lists.
++		busy mSpanList
++	}
++
++	// Restore 64-bit alignment on 32-bit.
++	_ uint32
++
+ 	// bytesMarked is the number of bytes marked this cycle. This
+ 	// includes bytes blackened in scanned objects, noscan objects
+ 	// that go straight to black, and permagrey objects scanned by
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 1df40d2afe..a9559230de 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -12,8 +12,22 @@ import (
+ 
+ const (
+ 	_WorkbufSize = 2048 // in bytes; larger values result in less contention
++
++	// workbufAlloc is the number of bytes to allocate at a time
++	// for new workbufs. This must be a multiple of pageSize and
++	// should be a multiple of _WorkbufSize.
++	//
++	// Larger values reduce workbuf allocation overhead. Smaller
++	// values reduce heap fragmentation.
++	workbufAlloc = 32 << 10
+ )
+ 
++func init() {
++	if workbufAlloc%pageSize != 0 || workbufAlloc%_WorkbufSize != 0 {
++		throw("bad workbufAlloc")
++	}
++}
++
+ // Garbage collector work pool abstraction.
+ //
+ // This implements a producer/consumer model for pointers to grey
+@@ -318,7 +332,29 @@ func getempty() *workbuf {
+ 		}
+ 	}
+ 	if b == nil {
+-		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), sys.CacheLineSize, &memstats.gc_sys))
++		// Allocate more workbufs.
++		var s *mspan
++		systemstack(func() {
++			s = mheap_.allocManual(workbufAlloc/pageSize, &memstats.gc_sys)
++		})
++		if s == nil {
++			throw("out of memory")
++		}
++		// Record the new span in the busy list.
++		lock(&work.wbufSpans.lock)
++		work.wbufSpans.busy.insert(s)
++		unlock(&work.wbufSpans.lock)
++		// Slice up the span into new workbufs. Return one and
++		// put the rest on the empty list.
++		for i := uintptr(0); i+_WorkbufSize <= workbufAlloc; i += _WorkbufSize {
++			newb := (*workbuf)(unsafe.Pointer(s.base() + i))
++			newb.nobj = 0
++			if i == 0 {
++				b = newb
++			} else {
++				putempty(newb)
++			}
++		}
+ 	}
+ 	return b
+ }

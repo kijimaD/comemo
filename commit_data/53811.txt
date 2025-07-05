@@ -29,7 +29,62 @@ Date:   Sun Aug 28 05:23:28 2022 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  3 ++-
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 21 +++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index a49a9148ea..9d3cb06697 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -748,8 +748,9 @@
+ (SRL x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
+ (SRA x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
+ 
+-// Convert subtraction of a const into ADDI with negative immediate, where possible.
++// Convert const subtraction into ADDI with negative immediate, where possible.
+ (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
++(SUB <t> (MOVDconst [val]) y) && is32Bit(-val) => (NEG (ADDI <t> [-val] y))
+ 
+ // Subtraction of zero.
+ (SUB  x (MOVDconst [0])) => x
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 052e9d2039..6244488992 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -5495,6 +5495,7 @@ func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
+ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (SUB x (MOVDconst [val]))
+ 	// cond: is32Bit(-val)
+ 	// result: (ADDI [-val] x)
+@@ -5512,6 +5513,26 @@ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUB <t> (MOVDconst [val]) y)
++	// cond: is32Bit(-val)
++	// result: (NEG (ADDI <t> [-val] y))
++	for {
++		t := v.Type
++		if v_0.Op != OpRISCV64MOVDconst {
++			break
++		}
++		val := auxIntToInt64(v_0.AuxInt)
++		y := v_1
++		if !(is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64NEG)
++		v0 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
++		v0.AuxInt = int64ToAuxInt(-val)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (SUB x (MOVDconst [0]))
+ 	// result: x
+ 	for {

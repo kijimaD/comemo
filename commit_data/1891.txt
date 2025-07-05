@@ -8,7 +8,52 @@ Date:   Thu Mar 26 16:05:30 2009 -0700
     DELTA=22  (22 added, 0 deleted, 0 changed)
     OCL=26779
     CL=26792
-
+---
  src/lib/utf8.go      | 11 +++++++++++
  src/lib/utf8_test.go | 11 +++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+index ff55df8021..e7a5594b90 100644
+--- a/src/lib/utf8.go
++++ b/src/lib/utf8.go
+@@ -256,6 +256,17 @@ func EncodeRune(rune int, p []byte) int {
+ 	return 4;
+ }
+ 
++// EncodeRuneToString returns the string corresponding to the UTF-8 encoding of the rune.
++func EncodeRuneToString(rune int) string {
++	if rune < _Rune1Max {
++		return string([1]byte{byte(rune)})
++	}
++
++	var buf[UTFMax] byte;
++	size := EncodeRune(rune, buf);
++	return string(buf[0:size]);
++}
++
+ // RuneCount returns the number of runes in p.  Erroneous and short
+ // encodings are treated as single runes of width 1 byte.
+ func RuneCount(p []byte) int {
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+index e35aff938c..966b2c9751 100644
+--- a/src/lib/utf8_test.go
++++ b/src/lib/utf8_test.go
+@@ -98,6 +98,17 @@ func TestEncodeRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestEncodeRuneToString(t *testing.T) {
++	for i := 0; i < len(utf8map); i++ {
++		m := utf8map[i];
++		s := m.str;
++		s1 := utf8.EncodeRuneToString(m.rune);
++		if s != s1 {
++			t.Errorf("EncodeRuneToString(0x%04x) = %s want %s", m.rune, s1, s);
++		}
++	}
++}
++
+ func TestDecodeRune(t *testing.T) {
+ 	for i := 0; i < len(utf8map); i++ {
+ 		m := utf8map[i];

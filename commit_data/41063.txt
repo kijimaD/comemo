@@ -9,6 +9,34 @@ Date:   Sat Oct 13 14:38:21 2018 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/redblack32_test.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/redblack32_test.go b/src/cmd/compile/internal/ssa/redblack32_test.go
+index 1ec2976072..376e8cff8d 100644
+--- a/src/cmd/compile/internal/ssa/redblack32_test.go
++++ b/src/cmd/compile/internal/ssa/redblack32_test.go
+@@ -134,15 +134,15 @@ func (t *RBTint32) DebugString() string {
+ func (t *node32) DebugString() string {
+ 	s := ""
+ 	if t.left != nil {
+-		s = s + "["
+-		s = s + t.left.DebugString()
+-		s = s + "]"
++		s += "["
++		s += t.left.DebugString()
++		s += "]"
+ 	}
+-	s = s + fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
++	s += fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
+ 	if t.right != nil {
+-		s = s + "["
+-		s = s + t.right.DebugString()
+-		s = s + "]"
++		s += "["
++		s += t.right.DebugString()
++		s += "]"
+ 	}
+ 	return s
+ }

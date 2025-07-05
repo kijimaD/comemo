@@ -7,7 +7,32 @@ Date:   Tue Jan 4 13:07:00 2011 -0500
     R=r
     CC=golang-dev, pgavlin
     https://golang.org/cl/3763043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 758226e5ed..66d1f5308d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -86,6 +86,7 @@ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
++Patrick Gavlin <pgavlin@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Mundy <go.peter.90@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4f56b5d538..53d994188c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -132,6 +132,7 @@ Nicholas Waples <nwaples@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
++Patrick Gavlin <pgavlin@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter McKenzie <petermck@google.com>

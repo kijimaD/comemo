@@ -15,7 +15,85 @@ Date:   Wed Mar 22 10:17:46 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/link.go     |  1 -
  src/cmd/internal/obj/x86/asm6.go | 12 +++++-------
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8d9e4e3476..640716c171 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -740,7 +740,6 @@ type Link struct {
+ 	Rep           int
+ 	Repn          int
+ 	Lock          int
+-	Asmode        int
+ 	AsmBuf        AsmBuf // instruction buffer for x86
+ 	Instoffset    int64
+ 	Autosize      int32
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 5d649accc1..2fad88d67b 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2254,7 +2254,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 			// Can't use SP as the index register
+ 			return Yxxx
+ 		}
+-		if ctxt.Asmode == 64 {
++		if ctxt.Arch.Family == sys.AMD64 {
+ 			switch a.Name {
+ 			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+ 				// Global variables can't use index registers and their
+@@ -2379,7 +2379,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		REG_R13B,
+ 		REG_R14B,
+ 		REG_R15B:
+-		if ctxt.Asmode != 64 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			return Yxxx
+ 		}
+ 		fallthrough
+@@ -2409,7 +2409,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		REG_R13,
+ 		REG_R14,
+ 		REG_R15:
+-		if ctxt.Asmode != 64 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			return Yxxx
+ 		}
+ 		fallthrough
+@@ -2580,7 +2580,7 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
+ 		REG_R13,
+ 		REG_R14,
+ 		REG_R15:
+-		if ctxt.Asmode != 64 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			goto bad
+ 		}
+ 		fallthrough
+@@ -2628,7 +2628,7 @@ bas:
+ 		REG_R13,
+ 		REG_R14,
+ 		REG_R15:
+-		if ctxt.Asmode != 64 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			goto bad
+ 		}
+ 		fallthrough
+@@ -4359,7 +4359,6 @@ func nacltrunc(ctxt *obj.Link, reg int) {
+ 
+ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 	ctxt.AsmBuf.Reset()
+-	ctxt.Asmode = int(p.Mode)
+ 
+ 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
+ 		switch p.As {
+@@ -4462,7 +4461,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 	ctxt.Rexflag = 0
+ 	ctxt.Vexflag = 0
+ 	mark := ctxt.AsmBuf.Len()
+-	ctxt.Asmode = int(p.Mode)
+ 	doasm(ctxt, p)
+ 	if ctxt.Rexflag != 0 && ctxt.Vexflag == 0 {
+ 		/*

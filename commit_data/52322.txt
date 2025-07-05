@@ -11,6 +11,26 @@ Date:   Mon Apr 25 16:36:01 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c980a7cf2c..2f7ce061d4 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -726,11 +726,13 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		}
+ 
+ 		o.Write(&b)
++		p := b.Bytes()
+ 		isym := &LSym{
+ 			Type:   objabi.SDATA, // for now, I don't think it matters
+ 			PkgIdx: goobj.PkgIdxSelf,
+ 			SymIdx: symidx,
+-			P:      append([]byte(nil), b.Bytes()...),
++			P:      append([]byte(nil), p...),
++			Size:   int64(len(p)),
+ 		}
+ 		isym.Set(AttrIndexed, true)
+ 		symidx++

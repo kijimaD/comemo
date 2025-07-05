@@ -9,8 +9,58 @@ Date:   Fri Apr 17 17:05:47 2015 -0700
     Change-Id: I77470279865d4c954df615d6594c69edf68c28ca
     Reviewed-on: https://go-review.googlesource.com/9090
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go  | 6 +++++-
  src/cmd/cgo/main.go | 1 +
  src/cmd/cgo/out.go  | 2 +-
  3 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3ec753f55e..694c88c7b3 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -199,6 +199,10 @@ func (p *Package) loadDefines(f *File) {
+ 			val = strings.TrimSpace(line[tabIndex:])
+ 		}
+ 
++		if key == "__clang__" {
++			p.GccIsClang = true
++		}
++
+ 		if n := f.Name[key]; n != nil {
+ 			if *debugDefine {
+ 				fmt.Fprintf(os.Stderr, "#define %s %s\n", key, val)
+@@ -762,7 +766,7 @@ func (p *Package) gccCmd() []string {
+ 		"-c",          // do not link
+ 		"-xc",         // input language is C
+ 	)
+-	if strings.Contains(c[0], "clang") {
++	if p.GccIsClang {
+ 		c = append(c,
+ 			"-ferror-limit=0",
+ 			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 41abb2c672..13ab9659d7 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -33,6 +33,7 @@ type Package struct {
+ 	PtrSize     int64
+ 	IntSize     int64
+ 	GccOptions  []string
++	GccIsClang  bool
+ 	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
+ 	Written     map[string]bool
+ 	Name        map[string]*Name // accumulated Name from Files
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 11a1cffd18..fd8ebcc4d9 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -626,7 +626,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+ // and http://golang.org/issue/5603.
+ func (p *Package) packedAttribute() string {
+ 	s := "__attribute__((__packed__"
+-	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
++	if !p.GccIsClang && (goarch == "amd64" || goarch == "386") {
+ 		s += ", __gcc_struct__"
+ 	}
+ 	return s + "))"

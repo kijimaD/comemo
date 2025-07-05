@@ -11,7 +11,7 @@ Date:   Mon Apr 18 13:41:08 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/abi/abiutils.go     |  2 +-
  src/cmd/compile/internal/amd64/ssa.go        |  2 +-
  src/cmd/compile/internal/arm/ssa.go          |  2 +-
@@ -44,3 +44,659 @@ Date:   Mon Apr 18 13:41:08 2022 -0400
  src/cmd/link/internal/ld/lib.go              |  2 +-
  src/cmd/link/internal/ld/link.go             |  8 --------
  31 files changed, 58 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 07ece87c41..aa5063f741 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -258,7 +258,7 @@ type RegAmounts struct {
+ // by the ABI rules for parameter passing and result returning.
+ type ABIConfig struct {
+ 	// Do we need anything more than this?
+-	offsetForLocals  int64 // e.g., obj.(*Link).FixedFrameSize() -- extra linkage information on some architectures.
++	offsetForLocals  int64 // e.g., obj.(*Link).Arch.FixedFrameSize -- extra linkage information on some architectures.
+ 	regAmounts       RegAmounts
+ 	regsForTypeCache map[*types.Type]int
+ }
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 7049d4e163..c9667bd04a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1100,7 +1100,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 		p := s.Prog(mov)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize() // 0 on amd64, just to be consistent with other architectures
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize // 0 on amd64, just to be consistent with other architectures
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 063fb65b33..a53f51bd13 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -854,7 +854,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(arm.AMOVW)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 48eb2190b2..3b6e6f6723 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -171,7 +171,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		for _, a := range v.Block.Func.RegArgs {
+ 			// Pass the spill/unspill information along to the assembler, offset by size of
+ 			// the saved LR slot.
+-			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.FixedFrameSize())
++			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.Arch.FixedFrameSize)
+ 			s.FuncInfo().AddSpill(
+ 				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+ 		}
+@@ -1128,7 +1128,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(arm64.AMOVD)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index ba73976504..f84368ece3 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -339,7 +339,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 
+ 	localAutoOffset := func() int64 {
+ 		offs = n.FrameOffset()
+-		if base.Ctxt.FixedFrameSize() == 0 {
++		if base.Ctxt.Arch.FixedFrameSize == 0 {
+ 			offs -= int64(types.PtrSize)
+ 		}
+ 		if buildcfg.FramePointerEnabled {
+@@ -357,7 +357,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		if n.IsOutputParamInRegisters() {
+ 			offs = localAutoOffset()
+ 		} else {
+-			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
++			offs = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
+ 		}
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/escape/desugar.go b/src/cmd/compile/internal/escape/desugar.go
+index 8b3cc25cf9..6c21981aca 100644
+--- a/src/cmd/compile/internal/escape/desugar.go
++++ b/src/cmd/compile/internal/escape/desugar.go
+@@ -24,9 +24,9 @@ func fixRecoverCall(call *ir.CallExpr) {
+ 
+ 	pos := call.Pos()
+ 
+-	// FP is equal to caller's SP plus FixedFrameSize().
++	// FP is equal to caller's SP plus FixedFrameSize.
+ 	var fp ir.Node = ir.NewCallExpr(pos, ir.OGETCALLERSP, nil, nil)
+-	if off := base.Ctxt.FixedFrameSize(); off != 0 {
++	if off := base.Ctxt.Arch.FixedFrameSize; off != 0 {
+ 		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(off))
+ 	}
+ 	// TODO(mdempsky): Replace *int32 with unsafe.Pointer, without upsetting checkptr.
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index 1a5125207d..a18440e7b3 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -20,7 +20,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	}
+ 	if cnt < int64(4*types.PtrSize) {
+ 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+-			p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.FixedFrameSize()+off+i)
++			p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.Arch.FixedFrameSize+off+i)
+ 		}
+ 	} else {
+ 		//fmt.Printf("zerorange frame:%v, lo: %v, hi:%v \n", frame ,lo, hi)
+@@ -30,7 +30,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 		//	MOVW	R0, (Widthptr)r1
+ 		//	ADD 	$Widthptr, r1
+ 		//	BNE		r1, r2, loop
+-		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-4, obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, base.Ctxt.Arch.FixedFrameSize+off-4, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
+ 		p.Reg = mips.REGRT1
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 6326f966bf..0411756c8d 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -792,7 +792,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(mips.AMOVW)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 6e12c6cb94..f3e372c3bc 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -762,7 +762,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(mips.AMOVV)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 7877be3336..4c935cfc71 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -19,17 +19,17 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	}
+ 	if cnt < int64(4*types.PtrSize) {
+ 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+-			p = pp.Append(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, base.Ctxt.FixedFrameSize()+off+i)
++			p = pp.Append(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, base.Ctxt.Arch.FixedFrameSize+off+i)
+ 		}
+ 	} else if cnt <= int64(128*types.PtrSize) {
+-		p = pp.Append(p, ppc64.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
++		p = pp.Append(p, ppc64.AADD, obj.TYPE_CONST, 0, base.Ctxt.Arch.FixedFrameSize+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(types.PtrSize))
+ 	} else {
+-		p = pp.Append(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
++		p = pp.Append(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.Arch.FixedFrameSize+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+ 		p = pp.Append(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Append(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index da74cacd95..8689bd8b27 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -476,7 +476,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(ppc64.AMOVD)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -509,7 +509,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		for _, a := range v.Block.Func.RegArgs {
+ 			// Pass the spill/unspill information along to the assembler, offset by size of
+ 			// the saved LR slot.
+-			addr := ssagen.SpillSlotAddr(a, ppc64.REGSP, base.Ctxt.FixedFrameSize())
++			addr := ssagen.SpillSlotAddr(a, ppc64.REGSP, base.Ctxt.Arch.FixedFrameSize)
+ 			s.FuncInfo().AddSpill(
+ 				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+ 		}
+diff --git a/src/cmd/compile/internal/riscv64/ggen.go b/src/cmd/compile/internal/riscv64/ggen.go
+index 0f37f65fcf..44488e4327 100644
+--- a/src/cmd/compile/internal/riscv64/ggen.go
++++ b/src/cmd/compile/internal/riscv64/ggen.go
+@@ -19,7 +19,7 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	}
+ 
+ 	// Adjust the frame to account for LR.
+-	off += base.Ctxt.FixedFrameSize()
++	off += base.Ctxt.Arch.FixedFrameSize
+ 
+ 	if cnt < int64(4*types.PtrSize) {
+ 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index b6e6dc1a03..5f74fd876c 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -237,7 +237,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		for _, a := range v.Block.Func.RegArgs {
+ 			// Pass the spill/unspill information along to the assembler, offset by size of
+ 			// the saved LR slot.
+-			addr := ssagen.SpillSlotAddr(a, riscv.REG_SP, base.Ctxt.FixedFrameSize())
++			addr := ssagen.SpillSlotAddr(a, riscv.REG_SP, base.Ctxt.Arch.FixedFrameSize)
+ 			s.FuncInfo().AddSpill(
+ 				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+ 		}
+@@ -669,7 +669,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(riscv.AMOV)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 488a080c46..70e4031224 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -24,7 +24,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	}
+ 
+ 	// Adjust the frame to account for LR.
+-	off += base.Ctxt.FixedFrameSize()
++	off += base.Ctxt.Arch.FixedFrameSize
+ 	reg := int16(s390x.REGSP)
+ 
+ 	// If the off cannot fit in a 12-bit unsigned displacement then we
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 8f9c157d9a..7d9b31de4c 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -550,7 +550,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is FixedFrameSize below the address of the first arg
+ 		p := s.Prog(s390x.AMOVD)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize()
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ddf2190e52..931ef454fc 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -332,8 +332,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.floatParamRegs = nil // no FP registers in softfloat mode
+ 	}
+ 
+-	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
++	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize)
++	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize)
+ 
+ 	// On Plan 9, floating point operations are not allowed in note handler.
+ 	if buildcfg.GOOS == "plan9" {
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index b774ea78b1..90ea2d5040 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1108,7 +1108,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 				a0 := a.Args[0]
+ 				if a0.Op == OpLocalAddr {
+ 					n := a0.Aux.(*ir.Name)
+-					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
++					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
+ 						continue
+ 					}
+ 				}
+@@ -1129,7 +1129,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 				// It's common for a tail call passing the same arguments (e.g. method wrapper),
+ 				// so this would be a self copy. Detect this and optimize it out.
+ 				n := a.Aux.(*ir.Name)
+-				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
++				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
+ 					continue
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 21eee12c85..65ff960c84 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -486,7 +486,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
+ 
+ 	// put arguments on stack
+-	off := config.ctxt.FixedFrameSize()
++	off := config.ctxt.Arch.FixedFrameSize
+ 
+ 	var argTypes []*types.Type
+ 	if typ != nil { // for typedmemmove
+@@ -529,7 +529,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	// issue call
+ 	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+ 	call.AddArgs(wbargs...)
+-	call.AuxInt = off - config.ctxt.FixedFrameSize()
++	call.AuxInt = off - config.ctxt.Arch.FixedFrameSize
+ 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
+ }
+ 
+@@ -629,7 +629,7 @@ func IsNewObject(v *Value) (mem *Value, ok bool) {
+ 	if v.Args[0].Args[0].Op != OpSP {
+ 		return nil, false
+ 	}
+-	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
++	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+c.RegSize { // offset of return value
+ 		return nil, false
+ 	}
+ 	return mem, true
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 86d40e239d..825b32aa80 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -225,13 +225,13 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 	switch n.Class {
+ 	case ir.PPARAM, ir.PPARAMOUT:
+ 		if !n.IsOutputParamInRegisters() {
+-			off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
++			off = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
+ 			break
+ 		}
+ 		fallthrough // PPARAMOUT in registers allocates like an AUTO
+ 	case ir.PAUTO:
+ 		off = n.FrameOffset()
+-		if base.Ctxt.FixedFrameSize() == 0 {
++		if base.Ctxt.Arch.FixedFrameSize == 0 {
+ 			off -= int64(types.PtrSize)
+ 		}
+ 		if buildcfg.FramePointerEnabled {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7b6b69ffc5..adb95445c4 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5102,7 +5102,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	} else {
+ 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
+ 		// These are written in SP-offset order.
+-		argStart := base.Ctxt.FixedFrameSize()
++		argStart := base.Ctxt.Arch.FixedFrameSize
+ 		// Defer/go args.
+ 		if k != callNormal && k != callTail {
+ 			// Write closure (arg to newproc/deferproc).
+@@ -5606,7 +5606,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
+ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args ...*ssa.Value) []*ssa.Value {
+ 	s.prevCall = nil
+ 	// Write args to the stack
+-	off := base.Ctxt.FixedFrameSize()
++	off := base.Ctxt.Arch.FixedFrameSize
+ 	var callArgs []*ssa.Value
+ 	var callArgTypes []*types.Type
+ 
+@@ -5633,7 +5633,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockExit
+ 		b.SetControl(call)
+-		call.AuxInt = off - base.Ctxt.FixedFrameSize()
++		call.AuxInt = off - base.Ctxt.Arch.FixedFrameSize
+ 		if len(results) > 0 {
+ 			s.Fatalf("panic call can't have results")
+ 		}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 12d9d0f365..378100b162 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -727,7 +727,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// caller's SP is the address of the first arg
+ 		p := s.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_ADDR
+-		p.From.Offset = -base.Ctxt.FixedFrameSize() // 0 on 386, just to be consistent with other architectures
++		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize // 0 on 386, just to be consistent with other architectures
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 12a4c94e24..5f6c135f8c 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -984,14 +984,6 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+ 	return last
+ }
+ 
+-// The smallest possible offset from the hardware stack pointer to a local
+-// variable on the stack. Architectures that use a link register save its value
+-// on the stack in the function prologue and so always have a pointer between
+-// the hardware stack pointer and the local variable area.
+-func (ctxt *Link) FixedFrameSize() int64 {
+-	return ctxt.Arch.FixedFrameSize
+-}
+-
+ // LinkArch is the definition of a single architecture.
+ type LinkArch struct {
+ 	*sys.Arch
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index e475ffdc14..ab8d37b1be 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -415,7 +415,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		return
+ 	}
+ 
+-	c := ctxt0{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset + ctxt.FixedFrameSize())}
++	c := ctxt0{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset + ctxt.Arch.FixedFrameSize)}
+ 
+ 	if oprange[AOR&obj.AMask] == nil {
+ 		c.ctxt.Diag("mips ops not initialized, call mips.buildop first")
+@@ -627,7 +627,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 				// a.Offset is still relative to pseudo-FP.
+ 				a.Reg = obj.REG_NONE
+ 			}
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+ 			}
+@@ -695,7 +695,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 				// a.Offset is still relative to pseudo-FP.
+ 				a.Reg = obj.REG_NONE
+ 			}
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+ 			}
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index b96a28a944..2a2c8ecb75 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -140,7 +140,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	p := c.cursym.Func().Text
+ 	textstksiz := p.To.Offset
+-	if textstksiz == -ctxt.FixedFrameSize() {
++	if textstksiz == -ctxt.Arch.FixedFrameSize {
+ 		// Historical way to mark NOFRAME.
+ 		p.From.Sym.Set(obj.AttrNoFrame, true)
+ 		textstksiz = 0
+@@ -282,7 +282,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if !p.From.Sym.NoFrame() {
+ 				// If there is a stack frame at all, it includes
+ 				// space to save the LR.
+-				autosize += int32(c.ctxt.FixedFrameSize())
++				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
+ 			if autosize&4 != 0 && c.ctxt.Arch.Family == sys.MIPS64 {
+@@ -299,7 +299,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 
+-			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
++			p.To.Offset = int64(autosize) - ctxt.Arch.FixedFrameSize
+ 
+ 			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				c.cursym.Set(obj.AttrLeaf, true)
+@@ -392,7 +392,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = add
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = int64(autosize) + ctxt.FixedFrameSize()
++				q.From.Offset = int64(autosize) + ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R3
+@@ -409,7 +409,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = add
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = ctxt.FixedFrameSize()
++				q.From.Offset = ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R2
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 50c9b37f02..9ee469c6f2 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -917,7 +917,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_LOREG
+ 
+ 		case obj.NAME_PARAM:
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SOREG
+ 			}
+@@ -983,7 +983,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_LACON
+ 
+ 		case obj.NAME_PARAM:
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+ 			}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 0a938d7a13..098f1cd7fe 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -614,7 +614,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if !p.From.Sym.NoFrame() {
+ 				// If there is a stack frame at all, it includes
+ 				// space to save the LR.
+-				autosize += int32(c.ctxt.FixedFrameSize())
++				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
+ 			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
+@@ -811,7 +811,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = int64(autosize) + c.ctxt.FixedFrameSize()
++				q.From.Offset = int64(autosize) + c.ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R24
+@@ -831,7 +831,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = c.ctxt.FixedFrameSize()
++				q.From.Offset = c.ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R25
+@@ -1066,7 +1066,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+ 
+ 		// Save LR and REGCTXT
+-		frameSize := 8 + c.ctxt.FixedFrameSize()
++		frameSize := 8 + c.ctxt.Arch.FixedFrameSize
+ 
+ 		// MOVD LR, REGTMP
+ 		p = obj.Appendp(p, c.newprog)
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 0f52f66779..b30958cb38 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -380,7 +380,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	// Save LR unless there is no frame.
+ 	if !text.From.Sym.NoFrame() {
+-		stacksize += ctxt.FixedFrameSize()
++		stacksize += ctxt.Arch.FixedFrameSize
+ 	}
+ 
+ 	cursym.Func().Args = text.To.Val.(int32)
+@@ -461,7 +461,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		calcargp := obj.Appendp(getargp, newprog)
+ 		calcargp.As = AADDI
+-		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.FixedFrameSize()}
++		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.Arch.FixedFrameSize}
+ 		calcargp.Reg = REG_SP
+ 		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X7}
+ 
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 06921085c9..5760847bcd 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -586,7 +586,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 				// a.Offset is still relative to pseudo-FP.
+ 				a.Reg = obj.REG_NONE
+ 			}
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+ 			}
+@@ -657,7 +657,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 				// a.Offset is still relative to pseudo-FP.
+ 				a.Reg = obj.REG_NONE
+ 			}
+-			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
++			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+ 			}
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index aebbf8dbc5..fed7703759 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -310,7 +310,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if !p.From.Sym.NoFrame() {
+ 				// If there is a stack frame at all, it includes
+ 				// space to save the LR.
+-				autosize += int32(c.ctxt.FixedFrameSize())
++				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
+ 			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
+@@ -420,7 +420,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = int64(autosize) + c.ctxt.FixedFrameSize()
++				q.From.Offset = int64(autosize) + c.ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R5
+@@ -440,7 +440,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = c.ctxt.FixedFrameSize()
++				q.From.Offset = c.ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R6
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7104a3c8b6..e26b1e56dd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2471,7 +2471,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
+ 		}
+ 		// Raise limit to allow frame.
+ 		locals := info.Locals()
+-		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
++		limit = objabi.StackLimit + int(locals) + int(ctxt.Arch.FixedFrameSize)
+ 	}
+ 
+ 	// Walk through sp adjustments in function, consuming relocs.
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f1b5f4d223..34221dfa8a 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -102,14 +102,6 @@ type cgodata struct {
+ 	directives [][]string
+ }
+ 
+-// The smallest possible offset from the hardware stack pointer to a local
+-// variable on the stack. Architectures that use a link register save its value
+-// on the stack in the function prologue and so always have a pointer between
+-// the hardware stack pointer and the local variable area.
+-func (ctxt *Link) FixedFrameSize() int64 {
+-	return ctxt.Arch.FixedFrameSize
+-}
+-
+ func (ctxt *Link) Logf(format string, args ...interface{}) {
+ 	fmt.Fprintf(ctxt.Bso, format, args...)
+ 	ctxt.Bso.Flush()

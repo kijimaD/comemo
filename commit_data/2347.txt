@@ -32,8 +32,330 @@ Date:   Fri May 29 18:12:04 2009 -0700
     DELTA=95  (49 added, 9 deleted, 37 changed)
     OCL=29625
     CL=29640
-
+---
  src/cmd/ar/ar.c            | 21 +++++++++-----
  src/cmd/gobuild/gobuild.go | 23 +++++++++++-----
  src/cmd/gobuild/util.go    | 68 +++++++++++++++++++++++++++++++---------------
  3 files changed, 76 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 733c4b5c87..35a3eeccdb 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -58,6 +58,7 @@
+ typedef struct	Arsymref
+ {
+ 	char	*name;
++	char *file;
+ 	int	type;
+ 	int	len;
+ 	vlong	offset;
+@@ -87,6 +88,7 @@ typedef	struct Arfile		/* Temp file control block - one per tempfile */
+ typedef struct Hashchain
+ {
+ 	char	*name;
++	char *file;
+ 	struct Hashchain *next;
+ } Hashchain;
+ 
+@@ -148,7 +150,7 @@ void	arread(Biobuf*, Armember*, int);
+ void	arstream(int, Arfile*);
+ int	arwrite(int, Armember*);
+ int	bamatch(char*, char*);
+-int	duplicate(char*);
++int	duplicate(char*, char**);
+ Armember *getdir(Biobuf*);
+ void	getpkgdef(char**, int*);
+ int	getspace(void);
+@@ -743,6 +745,7 @@ objsym(Sym *s, void *p)
+ 	int n;
+ 	Arsymref *as;
+ 	Arfile *ap;
++	char *ofile;
+ 
+ 	if (s->type != 'T' &&  s->type != 'D')
+ 		return;
+@@ -750,9 +753,10 @@ objsym(Sym *s, void *p)
+ 	as = armalloc(sizeof(Arsymref));
+ 	as->offset = ap->size;
+ 	as->name = arstrdup(s->name);
+-	if(s->type == 'T' && duplicate(as->name)) {
++	as->file = arstrdup(file);
++	if(s->type == 'T' && duplicate(as->name, &ofile)) {
+ 		dupfound = 1;
+-		fprint(2, "duplicate text symbol: %s\n", as->name);
++		fprint(2, "duplicate text symbol: %s and %s: %s\n", as->file, ofile, as->name);
+ 		free(as->name);
+ 		free(as);
+ 		return;
+@@ -783,7 +787,7 @@ hashstr(char *name)
+ }
+ 
+ int
+-duplicate(char *name)
++duplicate(char *name, char **ofile)
+ {
+ 	Hashchain *p;
+ 	int h;
+@@ -791,12 +795,16 @@ duplicate(char *name)
+ 	h = hashstr(name) % NHASH;
+ 
+ 	for(p = hash[h]; p; p = p->next)
+-		if(strcmp(p->name, name) == 0)
++		if(strcmp(p->name, name) == 0) {
++			*ofile = p->file;
+ 			return 1;
++		}
+ 	p = armalloc(sizeof(Hashchain));
+ 	p->next = hash[h];
+ 	p->name = name;
++	p->file = file;
+ 	hash[h] = p;
++	*ofile = nil;
+ 	return 0;
+ }
+ 
+@@ -893,7 +901,7 @@ getdir(Biobuf *b)
+ 	while(*--cp==' ')
+ 		;
+ 	cp[1] = '\0';
+-	file = name;
++	file = arstrdup(name);
+ 	bp->date = strtol(bp->hdr.date, 0, 0);
+ 	bp->size = strtol(bp->hdr.size, 0, 0);
+ 	return bp;
+@@ -1487,7 +1495,6 @@ loadpkgdata(char *data, int len)
+ 	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+-	file = arstrdup(file);
+ 	p = data;
+ 	ep = data + len;
+ 	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index 0db9bca042..c84c7e9277 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -14,6 +14,8 @@ import (
+ 	"sort";
+ 	"strings";
+ 	"template";
++	"unicode";
++	"utf8";
+ )
+ 
+ type Pkg struct
+@@ -148,9 +150,16 @@ func ScanFiles(filenames []string) *Info {
+ 		f := new(File);
+ 		f.Name = filename;
+ 		if path.Ext(filename) == ".go" {
++			rune, _ := utf8.DecodeRuneInString(filename);
++			if rune != '_' && !unicode.IsLetter(rune) && !unicode.IsDecimalDigit(rune) {
++				// Ignore files with funny leading letters,
++				// to avoid editor files like .foo.go and ~foo.go.
++				continue;
++			}
++
+ 			pkgname, imp, err := PackageImports(filename);
+ 			if err != nil {
+-				fatal("parsing", filename, err.String());
++				fatal("parsing %s: %s", filename, err);
+ 			}
+ 			if pkgname == "main" {
+ 				continue;
+@@ -182,7 +191,7 @@ func ScanFiles(filenames []string) *Info {
+ 			// non-Go file: fill in package name.
+ 			// Must only be a single package in this directory.
+ 			if len(z.Pkgmap) != 1 {
+-				fatal("cannot determine package for ", f.Name);
++				fatal("cannot determine package for %s", f.Name);
+ 			}
+ 			f.Pkg = pkg;
+ 		}
+@@ -240,7 +249,7 @@ func (z *Info) Build() {
+ 		fail = fail[0:0];
+ 		success = success[0:0];
+ 		for _, f := range pending {
+-			if !Build(Compiler(f.Name), f.Name, false) {
++			if !Build(Compiler(f.Name), f.Name, 0) {
+ 				PushFile(&fail, f);
+ 			} else {
+ 				if *verbose {
+@@ -252,7 +261,7 @@ func (z *Info) Build() {
+ 		if len(success) == 0 {
+ 			// Nothing ran; give up.
+ 			for _, f := range fail {
+-				Build(Compiler(f.Name), f.Name, true);
++				Build(Compiler(f.Name), f.Name, ShowErrors | ForceDisplay);
+ 			}
+ 			fatal("stalemate");
+ 		}
+@@ -310,7 +319,7 @@ func Main() {
+ 		var err os.Error;
+ 		filenames, err= SourceFiles(".");
+ 		if err != nil {
+-			fatal("reading .: ", err.String());
++			fatal("reading .: %s", err.String());
+ 		}
+ 	}
+ 
+@@ -319,11 +328,11 @@ func Main() {
+ 	if *writeMakefile {
+ 		t, err := template.Parse(makefileTemplate, makefileMap);
+ 		if err != nil {
+-			fatal("template.Parse: ", err.String());
++			fatal("template.Parse: %s", err.String());
+ 		}
+ 		err = t.Execute(state, os.Stdout);
+ 		if err != nil {
+-			fatal("template.Expand: ", err.String());
++			fatal("template.Expand: %s", err.String());
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 462d2dc953..e7b3c77890 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -6,8 +6,10 @@
+ package gobuild
+ 
+ import (
++	"bufio";
+ 	"exec";
+ 	"fmt";
++	"io";
+ 	"go/ast";
+ 	"go/parser";
+ 	"os";
+@@ -17,6 +19,11 @@ import (
+ 	"strings";
+ )
+ 
++const (
++	ShowErrors = 1<<iota;
++	ForceDisplay;
++)
++
+ var (
+ 	theChar string;
+ 	goarch string;
+@@ -32,8 +39,8 @@ var theChars = map[string] string {
+ 
+ const ObjDir = "_obj"
+ 
+-func fatal(args ...) {
+-	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprint(args));
++func fatal(format string, args ...) {
++	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprintf(format, args));
+ 	os.Exit(1);
+ }
+ 
+@@ -45,7 +52,7 @@ func init() {
+ 	var ok bool;
+ 	theChar, ok = theChars[goarch];
+ 	if !ok {
+-		fatal("unknown $GOARCH: ", goarch);
++		fatal("unknown $GOARCH: %s", goarch);
+ 	}
+ 
+ 	var binaries = []string{
+@@ -58,7 +65,7 @@ func init() {
+ 	for i, v := range binaries {
+ 		var s string;
+ 		if s, err = exec.LookPath(v); err != nil {
+-			fatal("cannot find binary ", v);
++			fatal("cannot find binary %s", v);
+ 		}
+ 		bin[v] = s;
+ 	}
+@@ -79,38 +86,55 @@ func PushString(v *[]string, p string) {
+ }
+ 
+ 
+-func run(argv []string, display bool) (ok bool) {
++func run(argv []string, flag int) (ok bool) {
+ 	argv0 := bin[argv[0]];
+-	output := exec.DevNull;
+-	if display {
+-		output = exec.PassThrough;
++	null, err := os.Open("/dev/null", os.O_RDWR, 0);
++	if err != nil {
++		fatal("open /dev/null: %s", err);
+ 	}
+-	p, err1 := exec.Run(argv0, argv, os.Environ(), exec.DevNull, output, output);
+-	if err1 != nil {
+-		return false;
++	defer null.Close();
++	r, w, err := os.Pipe();
++	if err != nil {
++		fatal("pipe: %s", err);
+ 	}
+-	w, err2 := p.Wait(0);
+-	if err2 != nil {
++	pid, err := os.ForkExec(argv0, argv, os.Environ(), "", []*os.File{null, w, w});
++	defer r.Close();
++	w.Close();
++	if err != nil {
+ 		return false;
+ 	}
+-	return w.Exited() && w.ExitStatus() == 0;
+-}
+ 
+-func Build(cmd []string, file string, display bool) (ok bool) {
+-	if display {
++	// Read the first line of output, if any.  Discard the rest.
++	// If there is output and ShowErrors is set, show it,
++	// preceded by a shell command line.
++	// If ForceDisplay is set, we show the command even
++	// if there's no output; this gets set if we're just trying
++	// to keep the user informed.
++	b := bufio.NewReader(r);
++	line, err := b.ReadLineString('\n', true);
++	if flag & ShowErrors != 0 && line != "" || flag & ForceDisplay != 0 {
+ 		fmt.Fprint(os.Stderr, "$ ");
+-		for i, s := range cmd {
++		for i, s := range argv {
+ 			fmt.Fprint(os.Stderr, s, " ");
+ 		}
+-		fmt.Fprint(os.Stderr, file, "\n");
++		fmt.Fprint(os.Stderr, "\n");
++		fmt.Fprint(os.Stderr, "  ", line);
++		io.Copy(r, null);	// don't let process block on pipe
++	}
++	waitmsg, err := os.Wait(pid, 0);
++	if err != nil {
++		return false;
+ 	}
++	return waitmsg.Exited() && waitmsg.ExitStatus() == 0;
++}
+ 
++func Build(cmd []string, file string, flag int) (ok bool) {
+ 	var argv []string;
+ 	for i, c := range cmd {
+ 		PushString(&argv, c);
+ 	}
+ 	PushString(&argv, file);
+-	return run(argv, display);
++	return run(argv, flag);
+ }
+ 
+ func Archive(pkg string, files []string) {
+@@ -118,7 +142,7 @@ func Archive(pkg string, files []string) {
+ 	for i, file := range files {
+ 		PushString(&argv, file);
+ 	}
+-	if !run(argv, true) {
++	if !run(argv, ShowErrors) {
+ 		fatal("archive failed");
+ 	}
+ }
+@@ -132,7 +156,7 @@ func Compiler(file string) []string {
+ 	case strings.HasSuffix(file, ".s"):
+ 		return []string{ theChar + "a" };
+ 	}
+-	fatal("don't know how to compile ", file);
++	fatal("don't know how to compile %s", file);
+ 	return nil;
+ }
+ 

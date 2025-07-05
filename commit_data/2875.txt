@@ -7,6 +7,28 @@ Date:   Tue Aug 4 15:35:58 2009 -0700
     R=gri,rsc
     OCL=32748
     CL=32748
-
+---
  src/cmd/gobuild/util.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 55ce1398d8..52e3109a74 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -265,14 +265,14 @@ func SourceFiles(dir string) ([]string, os.Error) {
+ }
+ 
+ func MkdirAll(name string) {
+-	err := path.MkdirAll(name);
++	err := os.MkdirAll(name, 0755);
+ 	if err != nil {
+ 		fatal("MkdirAll: %v", err);
+ 	}
+ }
+ 
+ func RemoveAll(name string) {
+-	err := path.RemoveAll(name);
++	err := os.RemoveAll(name);
+ 	if err != nil {
+ 		fatal("RemoveAll: %v", err);
+ 	}

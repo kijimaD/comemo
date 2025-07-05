@@ -10,7 +10,39 @@ Date:   Tue Jul 7 12:10:15 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/11951
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipraw_test.go | 2 ++
  src/net/iprawsock.go  | 5 +++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ipraw_test.go b/src/net/ipraw_test.go
+index 7221f7868b..5d86a9d031 100644
+--- a/src/net/ipraw_test.go
++++ b/src/net/ipraw_test.go
+@@ -38,6 +38,8 @@ var resolveIPAddrTests = []resolveIPAddrTest{
+ 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
+ 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
+ 
++	{"ip4:icmp", "", &IPAddr{}, nil},
++
+ 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
+ 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
+ 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 71d1fc1fc2..f02df7fa8d 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -17,10 +17,11 @@ func (a *IPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	ip := ipEmptyString(a.IP)
+ 	if a.Zone != "" {
+-		return a.IP.String() + "%" + a.Zone
++		return ip + "%" + a.Zone
+ 	}
+-	return a.IP.String()
++	return ip
+ }
+ 
+ func (a *IPAddr) isWildcard() bool {

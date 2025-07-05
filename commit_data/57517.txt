@@ -13,7 +13,7 @@ Date:   Fri Aug 11 18:20:21 2023 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_dragonfly_amd64.c | 3 +--
  src/runtime/cgo/gcc_fatalf.c          | 2 +-
  src/runtime/cgo/gcc_freebsd_386.c     | 3 +--
@@ -30,3 +30,213 @@ Date:   Fri Aug 11 18:20:21 2023 +1000
  src/runtime/cgo/gcc_openbsd_arm64.c   | 3 +--
  src/runtime/cgo/gcc_openbsd_mips64.c  | 3 +--
  15 files changed, 15 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index b506078395..009d4b4fb9 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_fatalf.c b/src/runtime/cgo/gcc_fatalf.c
+index 9493dbb4b0..d7425ea480 100644
+--- a/src/runtime/cgo/gcc_fatalf.c
++++ b/src/runtime/cgo/gcc_fatalf.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (!android && linux) || freebsd
++//go:build aix || (!android && linux) || dragonfly || freebsd || netbsd || openbsd
+ 
+ #include <stdarg.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_386.c b/src/runtime/cgo/gcc_freebsd_386.c
+index ee4306071c..ed98808cce 100644
+--- a/src/runtime/cgo/gcc_freebsd_386.c
++++ b/src/runtime/cgo/gcc_freebsd_386.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index af398f8320..3fcae03d51 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -52,8 +52,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_arm64.c b/src/runtime/cgo/gcc_freebsd_arm64.c
+index 01f6a31c32..b896fb721b 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm64.c
++++ b/src/runtime/cgo/gcc_freebsd_arm64.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_riscv64.c b/src/runtime/cgo/gcc_freebsd_riscv64.c
+index 7fe7972d2d..ba0489fe0c 100644
+--- a/src/runtime/cgo/gcc_freebsd_riscv64.c
++++ b/src/runtime/cgo/gcc_freebsd_riscv64.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index 2e77564718..97191f2847 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index fbf1d75ec4..02b5d0e430 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index ca370f69c3..13fb47df3b 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_arm64.c b/src/runtime/cgo/gcc_netbsd_arm64.c
+index c6961f5cbe..b3fd268cf9 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm64.c
++++ b/src/runtime/cgo/gcc_netbsd_arm64.c
+@@ -42,8 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index 5fd2c2f10f..b646fe005f 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index fb1cd3368e..445ecc30c8 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_arm.c b/src/runtime/cgo/gcc_openbsd_arm.c
+index 2aec207e36..b28f7faced 100644
+--- a/src/runtime/cgo/gcc_openbsd_arm.c
++++ b/src/runtime/cgo/gcc_openbsd_arm.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_arm64.c b/src/runtime/cgo/gcc_openbsd_arm64.c
+index a9af8a2d1f..c1ab03389f 100644
+--- a/src/runtime/cgo/gcc_openbsd_arm64.c
++++ b/src/runtime/cgo/gcc_openbsd_arm64.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_mips64.c b/src/runtime/cgo/gcc_openbsd_mips64.c
+index fbf7ceb0c5..68ddc55e91 100644
+--- a/src/runtime/cgo/gcc_openbsd_mips64.c
++++ b/src/runtime/cgo/gcc_openbsd_mips64.c
+@@ -41,8 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 

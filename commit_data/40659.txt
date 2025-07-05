@@ -24,10 +24,156 @@ Date:   Tue Jun 11 11:49:09 2019 -0400
     Change-Id: Ic2ba9bd2d31c4c5fd9e7c42ca14e8dc38520c93b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181717
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../tools/go/analysis/passes/errorsas/errorsas.go  | 75 ++++++++++++++++++++++
  src/cmd/vendor/modules.txt                         |  3 +-
  src/cmd/vet/main.go                                |  2 +
  5 files changed, 82 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 86e3281496..3d9b4a8d24 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
++	golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9cb4e8630c..6ca1dee5ed 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,5 +13,5 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c h1:8QARbM77BTyoVvSaGaoQPCYgZlVROYX1uKApKK98b+8=
+-golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
++golang.org/x/tools v0.0.0-20190611154301-25a4f137592f h1:6awn5JC4pwVI5HiBqs7MDtRxnwV9PpO5iSA9v6P09pA=
++golang.org/x/tools v0.0.0-20190611154301-25a4f137592f/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+new file mode 100644
+index 0000000000..c411466c28
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -0,0 +1,75 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The errorsas package defines an Analyzer that checks that the second arugment to
++// errors.As is a pointer to a type implementing error.
++package errorsas
++
++import (
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
++)
++
++const doc = `report passing non-pointer or non-error values to errors.As
++
++The errorsas analysis reports calls to errors.As where the type
++of the second argument is not a pointer to a type implementing error.`
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "errorsas",
++	Doc:      doc,
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	switch pass.Pkg.Path() {
++	case "errors", "errors_test":
++		// These packages know how to use their own APIs.
++		// Sometimes they are testing what happens to incorrect programs.
++		return nil, nil
++	}
++
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++
++	nodeFilter := []ast.Node{
++		(*ast.CallExpr)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		call := n.(*ast.CallExpr)
++		fn := typeutil.StaticCallee(pass.TypesInfo, call)
++		if fn == nil {
++			return // not a static call
++		}
++		if len(call.Args) < 2 {
++			return // not enough arguments, e.g. called with return values of another function
++		}
++		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
++			pass.Reportf(call.Pos(), "second argument to errors.As must be a pointer to an interface or a type implementing error")
++		}
++	})
++	return nil, nil
++}
++
++var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
++
++// pointerToInterfaceOrError reports whether the type of e is a pointer to an interface or a type implementing error,
++// or is the empty interface.
++func pointerToInterfaceOrError(pass *analysis.Pass, e ast.Expr) bool {
++	t := pass.TypesInfo.Types[e].Type
++	if it, ok := t.Underlying().(*types.Interface); ok && it.NumMethods() == 0 {
++		return true
++	}
++	pt, ok := t.Underlying().(*types.Pointer)
++	if !ok {
++		return false
++	}
++	_, ok = pt.Elem().Underlying().(*types.Interface)
++	return ok || types.Implements(pt.Elem(), errorType)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8889b907e2..caf340a752 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
++# golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts
+@@ -39,6 +39,7 @@ golang.org/x/tools/go/analysis/passes/cgocall
+ golang.org/x/tools/go/analysis/passes/composite
+ golang.org/x/tools/go/analysis/passes/copylock
+ golang.org/x/tools/go/analysis/passes/ctrlflow
++golang.org/x/tools/go/analysis/passes/errorsas
+ golang.org/x/tools/go/analysis/passes/httpresponse
+ golang.org/x/tools/go/analysis/passes/inspect
+ golang.org/x/tools/go/analysis/passes/internal/analysisutil
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index b845d95040..2a4f929d60 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -13,6 +13,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/cgocall"
+ 	"golang.org/x/tools/go/analysis/passes/composite"
+ 	"golang.org/x/tools/go/analysis/passes/copylock"
++	"golang.org/x/tools/go/analysis/passes/errorsas"
+ 	"golang.org/x/tools/go/analysis/passes/httpresponse"
+ 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+ 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+@@ -40,6 +41,7 @@ func main() {
+ 		cgocall.Analyzer,
+ 		composite.Analyzer,
+ 		copylock.Analyzer,
++		errorsas.Analyzer,
+ 		httpresponse.Analyzer,
+ 		loopclosure.Analyzer,
+ 		lostcancel.Analyzer,

@@ -7,6 +7,20 @@ Date:   Tue Jan 29 09:32:49 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7245043
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 3d7b9ad5b1..0b7b5008ec 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -544,7 +544,7 @@ def LoadCL(ui, repo, name, web=True):
+ 		cl.private = d.get('private', False) != False
+ 		cl.lgtm = []
+ 		for m in d.get('messages', []):
+-			if m.get('approval', False) == True:
++			if m.get('approval', False) == True or m.get('disapproval', False) == True:
+ 				who = re.sub('@.*', '', m.get('sender', ''))
+ 				text = re.sub("\n(.|\n)*", '', m.get('text', ''))
+ 				cl.lgtm.append((who, text))

@@ -16,8 +16,99 @@ Date:   Sat Aug 5 16:22:48 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/next/60370.txt           |  5 +++++
  src/database/sql/sql.go      | 33 +++++++++++++++++++++++++++++++++
  src/database/sql/sql_test.go | 17 +++++++++++++++--
  3 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/60370.txt b/api/next/60370.txt
+new file mode 100644
+index 0000000000..66ced0bfb7
+--- /dev/null
++++ b/api/next/60370.txt
+@@ -0,0 +1,5 @@
++pkg database/sql, method (*Null[$0]) Scan(interface{}) error #60370
++pkg database/sql, method (Null[$0]) Value() (driver.Value, error) #60370
++pkg database/sql, type Null[$0 interface{}] struct #60370
++pkg database/sql, type Null[$0 interface{}] struct, Valid bool #60370
++pkg database/sql, type Null[$0 interface{}] struct, V $0 #60370
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 836fe83e2e..7a57c7de36 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -391,6 +391,39 @@ func (n NullTime) Value() (driver.Value, error) {
+ 	return n.Time, nil
+ }
+ 
++// Null represents a value that may be null.
++// Null implements the Scanner interface so
++// it can be used as a scan destination:
++//
++//	var s Null[string]
++//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
++//	...
++//	if s.Valid {
++//	   // use s.V
++//	} else {
++//	   // NULL value
++//	}
++type Null[T any] struct {
++	V     T
++	Valid bool
++}
++
++func (n *Null[T]) Scan(value any) error {
++	if value == nil {
++		n.V, n.Valid = *new(T), false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.V, value)
++}
++
++func (n Null[T]) Value() (driver.Value, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return n.V, nil
++}
++
+ // Scanner is an interface used by Scan.
+ type Scanner interface {
+ 	// Scan assigns a value from a database driver.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index e6a5cd912a..f1c946d4e4 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1803,6 +1803,18 @@ func TestNullStringParam(t *testing.T) {
+ 	nullTestRun(t, spec)
+ }
+ 
++func TestGenericNullStringParam(t *testing.T) {
++	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
++		{Null[string]{"aqua", true}, "", Null[string]{"aqua", true}},
++		{Null[string]{"brown", false}, "", Null[string]{"", false}},
++		{"chartreuse", "", Null[string]{"chartreuse", true}},
++		{Null[string]{"darkred", true}, "", Null[string]{"darkred", true}},
++		{Null[string]{"eel", false}, "", Null[string]{"", false}},
++		{"foo", Null[string]{"black", false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
+ func TestNullInt64Param(t *testing.T) {
+ 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
+ 		{NullInt64{31, true}, 1, NullInt64{31, true}},
+@@ -1916,8 +1928,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
+ 	}
+ 
+ 	// Can't put null val into non-null col
+-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
+-		t.Errorf("expected error inserting nil val with prepared statement Exec")
++	row5 := spec.rows[5]
++	if _, err := stmt.Exec(6, "bob", row5.nullParam, row5.notNullParam); err == nil {
++		t.Errorf("expected error inserting nil val with prepared statement Exec: NULL=%#v, NOT-NULL=%#v", row5.nullParam, row5.notNullParam)
+ 	}
+ 
+ 	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)

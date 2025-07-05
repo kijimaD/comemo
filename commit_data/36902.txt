@@ -23,7 +23,7 @@ Date:   Mon Jun 4 15:42:12 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/116815
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/decl.go              | 111 ++++++++++++++++++++++++++------------
  src/go/types/testdata/cycles2.src |  27 ++++------
  src/go/types/testdata/cycles3.src |   2 +-
@@ -31,3 +31,323 @@ Date:   Mon Jun 4 15:42:12 2018 -0700
  src/go/types/testdata/decls0.src  |   8 +--
  src/go/types/testdata/issues.src  |   2 +-
  6 files changed, 118 insertions(+), 59 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 8430ebddb7..e8e01541a3 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -59,6 +59,15 @@ const useCycleMarking = true
+ // objDecl type-checks the declaration of obj in its respective (file) context.
+ // See check.typ for the details on def and path.
+ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
++	if trace {
++		check.trace(obj.Pos(), "-- checking %s %s (path = %s, objPath = %s)", obj.color(), obj, pathString(path), check.pathString())
++		check.indent++
++		defer func() {
++			check.indent--
++			check.trace(obj.Pos(), "=> %s", obj)
++		}()
++	}
++
+ 	// Checking the declaration of obj means inferring its type
+ 	// (and possibly its value, for constants).
+ 	// An object's type (and thus the object) may be in one of
+@@ -123,27 +132,42 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 		// order code.
+ 		switch obj := obj.(type) {
+ 		case *Const:
++			if useCycleMarking && check.typeCycle(obj) {
++				obj.typ = Typ[Invalid]
++				break
++			}
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+ 
+ 		case *Var:
++			if useCycleMarking && check.typeCycle(obj) {
++				obj.typ = Typ[Invalid]
++				break
++			}
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+ 
+ 		case *TypeName:
+-			if useCycleMarking {
+-				check.typeCycle(obj)
++			if useCycleMarking && check.typeCycle(obj) {
++				// break cycle
++				// (without this, calling underlying()
++				// below may lead to an endless loop
++				// if we have a cycle for a defined
++				// (*Named) type)
++				obj.typ = Typ[Invalid]
+ 			}
+ 
+ 		case *Func:
+-			// Cycles involving functions require variables in
+-			// the cycle; they are pretty esoteric. For now we
+-			// handle this as before (for grey functions, the
+-			// function type is set to an empty signature which
+-			// makes it impossible to initialize a variable with
+-			// the function).
++			if useCycleMarking && check.typeCycle(obj) {
++				// Don't set obj.typ to Typ[Invalid] here
++				// because plenty of code type-asserts that
++				// functions have a *Signature type. Grey
++				// functions have their type set to an empty
++				// signature which makes it impossible to
++				// initialize a variable with the function.
++			}
+ 
+ 		default:
+ 			unreachable()
+@@ -152,15 +176,6 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 		return
+ 	}
+ 
+-	if trace {
+-		check.trace(obj.Pos(), "-- checking %s (path = %s, objPath = %s)", obj, pathString(path), check.pathString())
+-		check.indent++
+-		defer func() {
+-			check.indent--
+-			check.trace(obj.Pos(), "=> %s", obj)
+-		}()
+-	}
+-
+ 	d := check.objMap[obj]
+ 	if d == nil {
+ 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+@@ -207,39 +222,63 @@ var indir = NewTypeName(token.NoPos, nil, "*", nil)
+ 
+ // typeCycle checks if the cycle starting with obj is valid and
+ // reports an error if it is not.
+-func (check *Checker) typeCycle(obj *TypeName) {
++// TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
++// cycle method anymore.
++func (check *Checker) typeCycle(obj Object) bool {
+ 	d := check.objMap[obj]
+ 	if d == nil {
+ 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+ 		unreachable()
+ 	}
+ 
+-	// A cycle must have at least one indirection and one defined
+-	// type to be permitted: If there is no indirection, the size
+-	// of the type cannot be computed (it's either infinite or 0);
+-	// if there is no defined type, we have a sequence of alias
+-	// type names which will expand ad infinitum.
+-	var hasIndir, hasDefType bool
++	// We distinguish between cycles involving only constants and variables
++	// (nval = len(cycle)), cycles involving types (and functions) only
++	// (nval == 0), and mixed cycles (nval != 0 && nval != len(cycle)).
++	// We ignore functions at the moment (taking them into account correctly
++	// is complicated and it doesn't improve error reporting significantly).
++	//
++	// A cycle must have at least one indirection and one type definition
++	// to be permitted: If there is no indirection, the size of the type
++	// cannot be computed (it's either infinite or 0); if there is no type
++	// definition, we have a sequence of alias type names which will expand
++	// ad infinitum.
++	var nval int
++	var hasIndir, hasTDef bool
+ 	assert(obj.color() >= grey)
+ 	start := obj.color() - grey // index of obj in objPath
+ 	cycle := check.objPath[start:]
+ 	for _, obj := range cycle {
+-		// Cycles may contain various objects; for now only look at type names.
+-		if tname, _ := obj.(*TypeName); tname != nil {
+-			if tname == indir {
++		switch obj := obj.(type) {
++		case *Const, *Var:
++			nval++
++		case *TypeName:
++			if obj == indir {
+ 				hasIndir = true
+-			} else if !check.objMap[tname].alias {
+-				hasDefType = true
+-			}
+-			if hasIndir && hasDefType {
+-				return // cycle is permitted
++			} else if !check.objMap[obj].alias {
++				hasTDef = true
+ 			}
++		case *Func:
++			// ignored for now
++		default:
++			unreachable()
+ 		}
+ 	}
+ 
+-	// break cycle
+-	// (without this, calling underlying() below may lead to an endless loop)
+-	obj.typ = Typ[Invalid]
++	// A cycle involving only constants and variables is invalid but we
++	// ignore them here because they are reported via the initialization
++	// cycle check.
++	if nval == len(cycle) {
++		return false
++	}
++
++	// A cycle involving only types (and possibly functions) must have at
++	// least one indirection and one type definition to be permitted: If
++	// there is no indirection, the size of the type cannot be computed
++	// (it's either infinite or 0); if there is no type definition, we
++	// have a sequence of alias type names which will expand ad infinitum.
++	if nval == 0 && hasIndir && hasTDef {
++		return false // cycle is permitted
++	}
+ 
+ 	// report cycle
+ 	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+@@ -250,6 +289,8 @@ func (check *Checker) typeCycle(obj *TypeName) {
+ 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+ 	}
+ 	check.errorf(obj.Pos(), "\t%s", obj.Name())
++
++	return true
+ }
+ 
+ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+diff --git a/src/go/types/testdata/cycles2.src b/src/go/types/testdata/cycles2.src
+index 345ab56ea6..a7f4bc60f5 100644
+--- a/src/go/types/testdata/cycles2.src
++++ b/src/go/types/testdata/cycles2.src
+@@ -69,47 +69,38 @@ type T interface {
+ 
+ // Variations of this test case.
+ 
+-type T1 interface {
+-	m() [x1 /* ERROR no value */ .m()[0]]int
++type T1 /* ERROR cycle */ interface {
++	m() [x1.m()[0]]int
+ }
+ 
+ var x1 T1
+ 
+-type T2 interface {
+-	m() [len(x2 /* ERROR no value */ .m())]int
++type T2 /* ERROR cycle */ interface {
++	m() [len(x2.m())]int
+ }
+ 
+ var x2 T2
+ 
+-type T3 interface {
++type T3 /* ERROR cycle */ interface {
+ 	m() [unsafe.Sizeof(x3.m)]int
+ }
+ 
+ var x3 T3
+ 
+-// The test case below should also report an error for
+-// the cast inside the T4 interface (like it does for the
+-// variable initialization). The reason why it does not is
+-// that inside T4, the method x4.m depends on T4 which is not
+-// fully set up yet. The x4.m method happens to have an empty
+-// signature which is why the cast is permitted.
+-// TODO(gri) Consider marking methods as incomplete and provide
+-// a better error message in that case.
+-
+-type T4 interface {
++type T4 /* ERROR cycle */ interface {
+ 	m() [unsafe.Sizeof(cast4(x4.m))]int
+ }
+ 
+ var x4 T4
+-var _ = cast4(x4 /* ERROR cannot convert */.m)
++var _ = cast4(x4.m)
+ 
+ type cast4 func()
+ 
+ // This test is symmetric to the T4 case: Here the cast is
+ // "correct", but it doesn't work inside the T5 interface.
+ 
+-type T5 interface {
+-	m() [unsafe.Sizeof(cast5(x5 /* ERROR cannot convert */ .m))]int
++type T5 /* ERROR cycle */ interface {
++	m() [unsafe.Sizeof(cast5(x5.m))]int
+ }
+ 
+ var x5 T5
+diff --git a/src/go/types/testdata/cycles3.src b/src/go/types/testdata/cycles3.src
+index 3da4fb5761..5e89b627f0 100644
+--- a/src/go/types/testdata/cycles3.src
++++ b/src/go/types/testdata/cycles3.src
+@@ -48,7 +48,7 @@ type (
+ )
+ 
+ type (
+-	U interface {
++	U /* ERROR cycle */ interface {
+ 		V
+ 	}
+ 
+diff --git a/src/go/types/testdata/cycles5.src b/src/go/types/testdata/cycles5.src
+index 3fa62af5b1..9c2822e738 100644
+--- a/src/go/types/testdata/cycles5.src
++++ b/src/go/types/testdata/cycles5.src
+@@ -152,3 +152,30 @@ type (
+ 		I() M
+ 	}
+ )
++
++// issue #8699
++type T12 /* ERROR cycle */ [len(a12)]int
++var a12 = makeArray()
++func makeArray() (res T12) { return }
++
++// issue #20770
++var r /* ERROR cycle */ = newReader()
++func newReader() r
++
++// variations of the theme of #8699 amd #20770
++var arr /* ERROR cycle */ = f()
++func f() [len(arr)]int
++
++// TODO(gri) here we should only get one error
++func ff /* ERROR cycle */ (ff /* ERROR not a type */ )
++
++type T13 /* ERROR cycle */ [len(b13)]int
++var b13 T13
++
++func g /* ERROR cycle */ () [unsafe.Sizeof(x)]int
++var x = g
++
++func h /* ERROR cycle */ () [h /* ERROR no value */ ()[0]]int { panic(0) }
++
++var c14 /* ERROR cycle */ T14
++type T14 [uintptr(unsafe.Sizeof(&c14))]byte
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 75d442bc13..162dfeda04 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -184,10 +184,10 @@ type (
+ 
+ // cycles in function/method declarations
+ // (test cases for issue 5217 and variants)
+-func f1(x f1 /* ERROR "not a type" */ ) {}
+-func f2(x *f2 /* ERROR "not a type" */ ) {}
+-func f3() (x f3 /* ERROR "not a type" */ ) { return }
+-func f4() (x *f4 /* ERROR "not a type" */ ) { return }
++func f1 /* ERROR cycle */ (x f1 /* ERROR "not a type" */ ) {}
++func f2 /* ERROR cycle */ (x *f2 /* ERROR "not a type" */ ) {}
++func f3 /* ERROR cycle */ () (x f3 /* ERROR "not a type" */ ) { return }
++func f4 /* ERROR cycle */ () (x *f4 /* ERROR "not a type" */ ) { return }
+ 
+ func (S0) m1(x S0.m1 /* ERROR "field or method" */ ) {}
+ func (S0) m2(x *S0.m2 /* ERROR "field or method" */ ) {}
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 9750bdc2e2..d727c3b3e2 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -97,7 +97,7 @@ func issue10979() {
+ 
+ // issue11347
+ // These should not crash.
+-var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
++var a1, b1 /* ERROR cycle */ /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
+ var a2, b2 /* ERROR cycle */ = 0 /* ERROR cannot initialize */ /* ERROR cannot initialize */ > 0<<""[b2]
+ var a3, b3 /* ERROR cycle */ = int /* ERROR cannot initialize */ /* ERROR cannot initialize */ (1<<""[b3])
+ 

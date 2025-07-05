@@ -20,7 +20,64 @@ Date:   Tue May 16 19:52:41 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go |  5 ++++-
  src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index cd856b9a9a..f8b5c4abae 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1041,7 +1041,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 		return n
+ 	}
+ 
+-	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
++	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(fn.Sym().Pkg) {
+ 		// Runtime package must not be instrumented.
+ 		// Instrument skips runtime package. However, some runtime code can be
+ 		// inlined into other packages and instrumented there. To avoid this,
+@@ -1050,6 +1050,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 		// which lead to false race reports on m contents.
+ 		return n
+ 	}
++	if base.Flag.Race && types.IsNoRacePkg(fn.Sym().Pkg) {
++		return n
++	}
+ 
+ 	parent := base.Ctxt.PosTable.Pos(n.Pos()).Base().InliningIndex()
+ 	sym := fn.Linksym()
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 9775d37b39..c390b8194b 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1863,6 +1863,28 @@ func IsTypePkg(p *Pkg) bool {
+ 	return p == typepkg
+ }
+ 
++// IsNoInstrumentPkg reports whether p is a package that
++// should not be instrumented.
++func IsNoInstrumentPkg(p *Pkg) bool {
++	for _, np := range base.NoInstrumentPkgs {
++		if p.Path == np {
++			return true
++		}
++	}
++	return false
++}
++
++// IsNoRacePkg reports whether p is a package that
++// should not be race instrumented.
++func IsNoRacePkg(p *Pkg) bool {
++	for _, np := range base.NoRacePkgs {
++		if p.Path == np {
++			return true
++		}
++	}
++	return false
++}
++
+ // ReceiverBaseType returns the underlying type, if any,
+ // that owns methods with receiver parameter t.
+ // The result is either a named type or an anonymous struct.

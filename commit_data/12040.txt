@@ -9,8 +9,81 @@ Date:   Sun Feb 19 10:50:03 2012 +0900
     R=golang-dev, rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5656098
-
+---
  src/pkg/net/multicast_test.go |  6 ++++++
  src/pkg/net/sock.go           | 12 +++++++++---
  src/pkg/net/udpsock_posix.go  |  2 +-
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index f62580de66..9727ecdc15 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -81,6 +81,9 @@ func TestListenMulticastUDP(t *testing.T) {
+ 		if !found {
+ 			t.Fatalf("%q not found in RIB", tt.gaddr.String())
+ 		}
++		if c.LocalAddr().String() != tt.gaddr.String() {
++			t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), tt.gaddr.String())
++		}
+ 	}
+ }
+ 
+@@ -114,6 +117,9 @@ func TestSimpleListenMulticastUDP(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("ListenMulticastUDP failed: %v", err)
+ 		}
++		if c.LocalAddr().String() != tt.gaddr.String() {
++			t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), tt.gaddr.String())
++		}
+ 		c.Close()
+ 	}
+ }
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 70064c307e..dc139f04a2 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -33,13 +33,14 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 		return nil, err
+ 	}
+ 
++	var bla syscall.Sockaddr
+ 	if la != nil {
+-		la, err = listenerSockaddr(s, f, la, toAddr)
++		bla, err = listenerSockaddr(s, f, la, toAddr)
+ 		if err != nil {
+ 			closesocket(s)
+ 			return nil, err
+ 		}
+-		err = syscall.Bind(s, la)
++		err = syscall.Bind(s, bla)
+ 		if err != nil {
+ 			closesocket(s)
+ 			return nil, err
+@@ -61,7 +62,12 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	}
+ 
+ 	sa, _ := syscall.Getsockname(s)
+-	laddr := toAddr(sa)
++	var laddr Addr
++	if la != nil && bla != la {
++		laddr = toAddr(la)
++	} else {
++		laddr = toAddr(sa)
++	}
+ 	sa, _ = syscall.Getpeername(s)
+ 	raddr := toAddr(sa)
+ 
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 8ee58ed4c6..1f99dc5386 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -262,7 +262,7 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 	if gaddr == nil || gaddr.IP == nil {
+-		return nil, &OpError{"listenmulticastudp", "udp", nil, errMissingAddress}
++		return nil, &OpError{"listenmulticast", net, nil, errMissingAddress}
+ 	}
+ 	fd, err := internetSocket(net, gaddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {

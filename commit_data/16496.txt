@@ -7,6 +7,17 @@ Date:   Tue Jun 4 17:14:53 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10017045
-
+---
  test/sigchld.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sigchld.go b/test/sigchld.go
+index a60d28deaa..9024f39956 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,4 +1,4 @@
+-// +build !windows
++// +build !windows !plan9
+ // cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.

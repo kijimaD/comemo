@@ -10,7 +10,34 @@ Date:   Mon Oct 13 12:41:14 2014 -0700
     R=golang-codereviews, gri
     CC=golang-codereviews
     https://golang.org/cl/159760043
-
+---
  src/math/big/rat.go      | 3 +++
  src/math/big/rat_test.go | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 0bcec30252..c5339fe443 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -552,6 +552,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		if z.b.abs, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
+ 			return nil, false
+ 		}
++		if len(z.b.abs) == 0 {
++			return nil, false
++		}
+ 		return z.norm(), true
+ 	}
+ 
+diff --git a/src/math/big/rat_test.go b/src/math/big/rat_test.go
+index 598eac8cc7..5dbbb3510f 100644
+--- a/src/math/big/rat_test.go
++++ b/src/math/big/rat_test.go
+@@ -89,6 +89,7 @@ var setStringTests = []struct {
+ 	{"53/70893980658822810696", "53/70893980658822810696", true},
+ 	{"106/141787961317645621392", "53/70893980658822810696", true},
+ 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
++	{in: "1/0", ok: false},
+ }
+ 
+ func TestRatSetString(t *testing.T) {

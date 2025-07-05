@@ -7,7 +7,39 @@ Date:   Mon Jan 5 20:16:10 2015 -0500
     Change-Id: Ia18b8411bebc47ea71ac1acd9ff9dc570ec15dea
     Reviewed-on: https://go-review.googlesource.com/2341
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/asm_arm.s     | 2 +-
  src/runtime/atomic_arm.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 3253942c60..d37eed034e 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -394,7 +394,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	ADD	R3, R1;				\
+ 	ADD	R3, R0;				\
+ 	SUB	R3, R2;				\
+-loop:
++loop:						\
+ 	CMP	$0, R2;				\
+ 	B.EQ	end;				\
+ 	MOVBU.P	1(R1), R5;			\
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index 7f0b929143..ff73144626 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -38,10 +38,10 @@ func xchg(addr *uint32, v uint32) uint32 {
+ }
+ 
+ //go:nosplit
+-func xchgp1(addr *unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
++func xchgp1(addr unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
+ 	for {
+-		old := *addr
+-		if casp1(addr, old, v) {
++		old := *(*unsafe.Pointer)(addr)
++		if casp1((*unsafe.Pointer)(addr), old, v) {
+ 			return old
+ 		}
+ 	}

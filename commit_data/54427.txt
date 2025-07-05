@@ -14,6 +14,34 @@ Date:   Fri Oct 14 15:36:58 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/sigfwd.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/testdata/testprogcgo/sigfwd.go b/src/runtime/testdata/testprogcgo/sigfwd.go
+index 1694289700..b27d436f82 100644
+--- a/src/runtime/testdata/testprogcgo/sigfwd.go
++++ b/src/runtime/testdata/testprogcgo/sigfwd.go
+@@ -17,8 +17,11 @@ import (
+ #include <stdio.h>
+ #include <string.h>
+ 
++sig_atomic_t expectCSigsegv;
+ int *sigfwdP;
++
+ static void sigsegv() {
++	expectCSigsegv = 1;
+ 	*sigfwdP = 1;
+ 	fprintf(stderr, "ERROR: C SIGSEGV not thrown on caught?.\n");
+ 	exit(2);
+@@ -26,6 +29,10 @@ static void sigsegv() {
+ 
+ static void segvhandler(int signum) {
+ 	if (signum == SIGSEGV) {
++		if (expectCSigsegv == 0) {
++			fprintf(stderr, "SIGSEGV caught in C unexpectedly\n");
++			exit(1);
++		}
+ 		fprintf(stdout, "OK\n");
+ 		exit(0);  // success
+ 	}

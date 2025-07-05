@@ -18,7 +18,60 @@ Date:   Thu Oct 6 17:47:13 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/types/errors/codes.go      | 8 ++++++++
  src/internal/types/errors/codes_test.go | 8 +++++---
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index a09b590352..8c0273571f 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -31,6 +31,11 @@ type Code int
+ // problem with types.
+ 
+ const (
++	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
++	// to the type checker. It should never happen.
++	InvalidSyntaxTree Code = -1
++
++	// The zero Code value indicates an unset (invalid) error code.
+ 	_ Code = iota
+ 
+ 	// Test is reserved for errors that only apply while in self-test mode.
+@@ -40,6 +45,9 @@ const (
+ 	//
+ 	// Per the spec:
+ 	//  "The PackageName must not be the blank identifier."
++	//
++	// Example:
++	//  package _
+ 	BlankPkgName
+ 
+ 	// MismatchedPkgName occurs when a file's package name doesn't match the
+diff --git a/src/internal/types/errors/codes_test.go b/src/internal/types/errors/codes_test.go
+index 3bf466aec4..6f671a94c6 100644
+--- a/src/internal/types/errors/codes_test.go
++++ b/src/internal/types/errors/codes_test.go
+@@ -24,7 +24,7 @@ func TestErrorCodeExamples(t *testing.T) {
+ 			doc := spec.Doc.Text()
+ 			examples := strings.Split(doc, "Example:")
+ 			for i := 1; i < len(examples); i++ {
+-				example := examples[i]
++				example := strings.TrimSpace(examples[i])
+ 				err := checkExample(t, example)
+ 				if err == nil {
+ 					t.Fatalf("no error in example #%d", i)
+@@ -89,8 +89,10 @@ func readCode(err Error) int {
+ func checkExample(t *testing.T, example string) error {
+ 	t.Helper()
+ 	fset := token.NewFileSet()
+-	src := fmt.Sprintf("package p\n\n%s", example)
+-	file, err := parser.ParseFile(fset, "example.go", src, 0)
++	if !strings.HasPrefix(example, "package") {
++		example = "package p\n\n" + example
++	}
++	file, err := parser.ParseFile(fset, "example.go", example, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -12,8 +12,85 @@ Date:   Tue Jun 2 09:16:22 2015 -0700
     Change-Id: Ib22c45908e41ba3752010d2f5759e37e3921a48e
     Reviewed-on: https://go-review.googlesource.com/10635
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go       | 19 ++++++++++++++-----
  src/cmd/compile/internal/ssa/deadcode.go |  2 +-
  src/cmd/compile/internal/ssa/rewrite.go  |  4 ++--
  3 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3c95266bdc..fd1c30edee 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -327,11 +327,20 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
+ 
+ 	case OINDEX:
+-		if n.Left.Type.Bound >= 0 { // array
++		if n.Left.Type.Bound >= 0 { // array or string
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+-			s.boundsCheck(i, s.f.ConstInt(s.config.Uintptr, n.Left.Type.Bound))
+-			return s.curBlock.NewValue2(ssa.OpArrayIndex, n.Left.Type.Type, nil, a, i)
++			var elemtype *Type
++			var len *ssa.Value
++			if n.Left.Type.IsString() {
++				len = s.curBlock.NewValue1(ssa.OpStringLen, s.config.Uintptr, nil, a)
++				elemtype = Types[TUINT8]
++			} else {
++				len = s.f.ConstInt(s.config.Uintptr, n.Left.Type.Bound)
++				elemtype = n.Left.Type.Type
++			}
++			s.boundsCheck(i, len)
++			return s.curBlock.NewValue2(ssa.OpArrayIndex, elemtype, nil, a, i)
+ 		} else { // slice
+ 			p := s.addr(n)
+ 			return s.curBlock.NewValue2(ssa.OpLoad, n.Left.Type.Type, nil, p, s.mem())
+@@ -367,7 +376,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	}
+ }
+ 
+-// expr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
++// addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+ func (s *state) addr(n *Node) *ssa.Value {
+ 	switch n.Op {
+ 	case ONAME:
+@@ -402,7 +411,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			return s.curBlock.NewValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), nil, p, i)
+ 		}
+ 	default:
+-		log.Fatalf("addr: bad op %v", n.Op)
++		log.Fatalf("addr: bad op %v", Oconv(int(n.Op), 0))
+ 		return nil
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index ba5d8758d9..1a5589cd0a 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -82,7 +82,7 @@ func deadcode(f *Func) {
+ 			i++
+ 		} else {
+ 			if len(b.Values) > 0 {
+-				panic("live value in unreachable block")
++				log.Panicf("live values in unreachable block %v: %v", b, b.Values)
+ 			}
+ 			f.bid.put(b.ID)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 6b76e55e2a..fd0fc7e1a7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -12,10 +12,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 	var curv *Value
+ 	defer func() {
+ 		if curb != nil {
+-			log.Printf("panic during rewrite of %s\n", curb.LongString())
++			log.Printf("panic during rewrite of block %s\n", curb.LongString())
+ 		}
+ 		if curv != nil {
+-			log.Printf("panic during rewrite of %s\n", curv.LongString())
++			log.Printf("panic during rewrite of value %s\n", curv.LongString())
+ 			panic("rewrite failed")
+ 			// TODO(khr): print source location also
+ 		}

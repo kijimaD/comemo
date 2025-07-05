@@ -7,6 +7,20 @@ Date:   Fri Jan 8 22:22:59 2016 -0800
     Change-Id: Ia6d40ead1e54dd0b8998370cbabc2d7cd8b7aa0b
     Reviewed-on: https://go-review.googlesource.com/18470
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 784763aea9..f059d6178b 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -19,7 +19,7 @@ var (
+ func getprotobyname(name string) (proto int, err error) {
+ 	p, err := syscall.GetProtoByName(name)
+ 	if err != nil {
+-		return 0, os.NewSyscallError("getorotobyname", err)
++		return 0, os.NewSyscallError("getprotobyname", err)
+ 	}
+ 	return int(p.Proto), nil
+ }

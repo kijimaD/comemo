@@ -14,10 +14,370 @@ Date:   Mon Jul 6 11:27:12 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243915
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go    |   2 +-
  src/io/fs/glob.go            | 116 +++++++++++++++++++++++++++++++++++++++++++
  src/io/fs/glob_test.go       |  82 ++++++++++++++++++++++++++++++
  src/testing/fstest/mapfs.go  |   4 ++
  src/testing/fstest/testfs.go |  96 +++++++++++++++++++++++++++++++++++
  5 files changed, 299 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ccee539086..16a67791cf 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -123,7 +123,7 @@ var depsRules = `
+ 	< context
+ 	< TIME;
+ 
+-	TIME, io, sort
++	TIME, io, path, sort
+ 	< io/fs;
+ 
+ 	# MATH is RUNTIME plus the basic math packages.
+diff --git a/src/io/fs/glob.go b/src/io/fs/glob.go
+new file mode 100644
+index 0000000000..77f6ebbaaf
+--- /dev/null
++++ b/src/io/fs/glob.go
+@@ -0,0 +1,116 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++import (
++	"path"
++	"runtime"
++)
++
++// A GlobFS is a file system with a Glob method.
++type GlobFS interface {
++	FS
++
++	// Glob returns the names of all files matching pattern,
++	// providing an implementation of the top-level
++	// Glob function.
++	Glob(pattern string) ([]string, error)
++}
++
++// Glob returns the names of all files matching pattern or nil
++// if there is no matching file. The syntax of patterns is the same
++// as in path.Match. The pattern may describe hierarchical names such as
++// /usr/*/bin/ed (assuming the Separator is '/').
++//
++// Glob ignores file system errors such as I/O errors reading directories.
++// The only possible returned error is path.ErrBadPattern, reporting that
++// the pattern is malformed.
++//
++// If fs implements GlobFS, Glob calls fs.Glob.
++// Otherwise, Glob uses ReadDir to traverse the directory tree
++// and look for matches for the pattern.
++func Glob(fsys FS, pattern string) (matches []string, err error) {
++	if fsys, ok := fsys.(GlobFS); ok {
++		return fsys.Glob(pattern)
++	}
++
++	if !hasMeta(pattern) {
++		if _, err = Stat(fsys, pattern); err != nil {
++			return nil, nil
++		}
++		return []string{pattern}, nil
++	}
++
++	dir, file := path.Split(pattern)
++	dir = cleanGlobPath(dir)
++
++	if !hasMeta(dir) {
++		return glob(fsys, dir, file, nil)
++	}
++
++	// Prevent infinite recursion. See issue 15879.
++	if dir == pattern {
++		return nil, path.ErrBadPattern
++	}
++
++	var m []string
++	m, err = Glob(fsys, dir)
++	if err != nil {
++		return
++	}
++	for _, d := range m {
++		matches, err = glob(fsys, d, file, matches)
++		if err != nil {
++			return
++		}
++	}
++	return
++}
++
++// cleanGlobPath prepares path for glob matching.
++func cleanGlobPath(path string) string {
++	switch path {
++	case "":
++		return "."
++	default:
++		return path[0 : len(path)-1] // chop off trailing separator
++	}
++}
++
++// glob searches for files matching pattern in the directory dir
++// and appends them to matches, returning the updated slice.
++// If the directory cannot be opened, glob returns the existing matches.
++// New matches are added in lexicographical order.
++func glob(fs FS, dir, pattern string, matches []string) (m []string, e error) {
++	m = matches
++	infos, err := ReadDir(fs, dir)
++	if err != nil {
++		return // ignore I/O error
++	}
++
++	for _, info := range infos {
++		n := info.Name()
++		matched, err := path.Match(pattern, n)
++		if err != nil {
++			return m, err
++		}
++		if matched {
++			m = append(m, path.Join(dir, n))
++		}
++	}
++	return
++}
++
++// hasMeta reports whether path contains any of the magic characters
++// recognized by path.Match.
++func hasMeta(path string) bool {
++	for i := 0; i < len(path); i++ {
++		c := path[i]
++		if c == '*' || c == '?' || c == '[' || runtime.GOOS == "windows" && c == '\\' {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/io/fs/glob_test.go b/src/io/fs/glob_test.go
+new file mode 100644
+index 0000000000..0183a49b6c
+--- /dev/null
++++ b/src/io/fs/glob_test.go
+@@ -0,0 +1,82 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	. "io/fs"
++	"os"
++	"testing"
++)
++
++var globTests = []struct {
++	fs              FS
++	pattern, result string
++}{
++	{os.DirFS("."), "glob.go", "glob.go"},
++	{os.DirFS("."), "gl?b.go", "glob.go"},
++	{os.DirFS("."), "*", "glob.go"},
++	{os.DirFS(".."), "*/glob.go", "fs/glob.go"},
++}
++
++func TestGlob(t *testing.T) {
++	for _, tt := range globTests {
++		matches, err := Glob(tt.fs, tt.pattern)
++		if err != nil {
++			t.Errorf("Glob error for %q: %s", tt.pattern, err)
++			continue
++		}
++		if !contains(matches, tt.result) {
++			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
++		}
++	}
++	for _, pattern := range []string{"no_match", "../*/no_match"} {
++		matches, err := Glob(os.DirFS("."), pattern)
++		if err != nil {
++			t.Errorf("Glob error for %q: %s", pattern, err)
++			continue
++		}
++		if len(matches) != 0 {
++			t.Errorf("Glob(%#q) = %#v want []", pattern, matches)
++		}
++	}
++}
++
++func TestGlobError(t *testing.T) {
++	_, err := Glob(os.DirFS("."), "[]")
++	if err == nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++}
++
++// contains reports whether vector contains the string s.
++func contains(vector []string, s string) bool {
++	for _, elem := range vector {
++		if elem == s {
++			return true
++		}
++	}
++	return false
++}
++
++type globOnly struct{ GlobFS }
++
++func (globOnly) Open(name string) (File, error) { return nil, ErrNotExist }
++
++func TestGlobMethod(t *testing.T) {
++	check := func(desc string, names []string, err error) {
++		t.Helper()
++		if err != nil || len(names) != 1 || names[0] != "hello.txt" {
++			t.Errorf("Glob(%s) = %v, %v, want %v, nil", desc, names, err, []string{"hello.txt"})
++		}
++	}
++
++	// Test that ReadDir uses the method when present.
++	names, err := Glob(globOnly{testFsys}, "*.txt")
++	check("readDirOnly", names, err)
++
++	// Test that ReadDir uses Open when the method is not present.
++	names, err = Glob(openOnly{testFsys}, "*.txt")
++	check("openOnly", names, err)
++}
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 1eaf8f0040..10e56f5b3c 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -128,6 +128,10 @@ func (fsys MapFS) ReadDir(name string) ([]fs.DirEntry, error) {
+ 	return fs.ReadDir(fsOnly{fsys}, name)
+ }
+ 
++func (fsys MapFS) Glob(pattern string) ([]string, error) {
++	return fs.Glob(fsOnly{fsys}, pattern)
++}
++
+ // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+ type mapFileInfo struct {
+ 	name string
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 4ea6ed6095..21cd00e5b6 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -11,6 +11,8 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"io/ioutil"
++	"path"
++	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"testing/iotest"
+@@ -226,6 +228,8 @@ func (t *fsTester) checkDir(dir string) {
+ 			t.errorf("%s: fs.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
+ 		}
+ 	}
++
++	t.checkGlob(dir, list)
+ }
+ 
+ // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
+@@ -243,6 +247,98 @@ func formatInfo(info fs.FileInfo) string {
+ 	return fmt.Sprintf("%s IsDir=%v Mode=%v Size=%d ModTime=%v", info.Name(), info.IsDir(), info.Mode(), info.Size(), info.ModTime())
+ }
+ 
++// checkGlob checks that various glob patterns work if the file system implements GlobFS.
++func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
++	if _, ok := t.fsys.(fs.GlobFS); !ok {
++		return
++	}
++
++	// Make a complex glob pattern prefix that only matches dir.
++	var glob string
++	if dir != "." {
++		elem := strings.Split(dir, "/")
++		for i, e := range elem {
++			var pattern []rune
++			for j, r := range e {
++				if r == '*' || r == '?' || r == '\\' || r == '[' {
++					pattern = append(pattern, '\\', r)
++					continue
++				}
++				switch (i + j) % 5 {
++				case 0:
++					pattern = append(pattern, r)
++				case 1:
++					pattern = append(pattern, '[', r, ']')
++				case 2:
++					pattern = append(pattern, '[', r, '-', r, ']')
++				case 3:
++					pattern = append(pattern, '[', '\\', r, ']')
++				case 4:
++					pattern = append(pattern, '[', '\\', r, '-', '\\', r, ']')
++				}
++			}
++			elem[i] = string(pattern)
++		}
++		glob = strings.Join(elem, "/") + "/"
++	}
++
++	// Try to find a letter that appears in only some of the final names.
++	c := rune('a')
++	for ; c <= 'z'; c++ {
++		have, haveNot := false, false
++		for _, d := range list {
++			if strings.ContainsRune(d.Name(), c) {
++				have = true
++			} else {
++				haveNot = true
++			}
++		}
++		if have && haveNot {
++			break
++		}
++	}
++	if c > 'z' {
++		c = 'a'
++	}
++	glob += "*" + string(c) + "*"
++
++	var want []string
++	for _, d := range list {
++		if strings.ContainsRune(d.Name(), c) {
++			want = append(want, path.Join(dir, d.Name()))
++		}
++	}
++
++	names, err := t.fsys.(fs.GlobFS).Glob(glob)
++	if err != nil {
++		t.errorf("%s: Glob(%#q): %v", dir, glob, err)
++		return
++	}
++	if reflect.DeepEqual(want, names) {
++		return
++	}
++
++	if !sort.StringsAreSorted(names) {
++		t.errorf("%s: Glob(%#q): unsorted output:\n%s", dir, glob, strings.Join(names, "\n"))
++		sort.Strings(names)
++	}
++
++	var problems []string
++	for len(want) > 0 || len(names) > 0 {
++		switch {
++		case len(want) > 0 && len(names) > 0 && want[0] == names[0]:
++			want, names = want[1:], names[1:]
++		case len(want) > 0 && (len(names) == 0 || want[0] < names[0]):
++			problems = append(problems, "missing: "+want[0])
++			want = want[1:]
++		default:
++			problems = append(problems, "extra: "+names[0])
++			names = names[1:]
++		}
++	}
++	t.errorf("%s: Glob(%#q): wrong output:\n%s", dir, glob, strings.Join(problems, "\n"))
++}
++
+ // checkStat checks that a direct stat of path matches entry,
+ // which was found in the parent's directory listing.
+ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {

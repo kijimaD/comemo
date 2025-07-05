@@ -123,3 +123,147 @@ Date:   Thu Aug 4 10:08:20 2016 -0700
  .../x/net/route/zsys_openbsd.go                    |   0
  test/fixedbugs/issue16515.go                       |  53 ++++
  113 files changed, 1225 insertions(+), 384 deletions(-)
+
+diff --cc src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 811e810f15,d27eff0f6a..9b418661f0
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@@ -394,21 -386,14 +394,19 @@@
+  				(MOVQstoreconst [0] destptr mem))))
+  
+  // Medium zeroing uses a duff device.
+ -(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
+ -	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+ -(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
+ -	(DUFFZERO [size] destptr (MOVOconst [0]) mem)
+ +(Zero [s] destptr mem)
+ +	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0
+ +	&& !config.noDuffDevice ->
+ +	(Zero [SizeAndAlign(s).Size()-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+ +(Zero [s] destptr mem)
+ +	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice ->
+- 	(DUFFZERO [duffStartAMD64(SizeAndAlign(s).Size())]
+- 		(ADDQconst [duffAdjAMD64(SizeAndAlign(s).Size())] destptr) (MOVOconst [0])
+- 		mem)
+++	(DUFFZERO [SizeAndAlign(s).Size()] destptr (MOVOconst [0]) mem)
+  
+  // Large zeroing uses REP STOSQ.
+ -(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
+ -	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
+ +(Zero [s] destptr mem)
+ +	&& (SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32))
+ +	&& SizeAndAlign(s).Size()%8 == 0 ->
+ +	(REPSTOSQ destptr (MOVQconst [SizeAndAlign(s).Size()/8]) (MOVQconst [0]) mem)
+  
+  // Lowering constants
+  (Const8   [val]) -> (MOVLconst [val])
+diff --cc src/cmd/compile/internal/ssa/rewrite.go
+index 082aacd9c9,61d4234c65..1c4815dc81
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@@ -259,64 -254,6 +259,19 @@@ func isSamePtr(p1, p2 *Value) bool 
+  	return false
+  }
+  
+- func duffStartAMD64(size int64) int64 {
+- 	x, _ := duffAMD64(size)
+- 	return x
+- }
+- func duffAdjAMD64(size int64) int64 {
+- 	_, x := duffAMD64(size)
+- 	return x
+- }
+- 
+- // duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
+- // required to use the duffzero mechanism for a block of the given size.
+- func duffAMD64(size int64) (int64, int64) {
+- 	// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+- 	// See runtime/mkduff.go.
+- 	const (
+- 		dzBlocks    = 16 // number of MOV/ADD blocks
+- 		dzBlockLen  = 4  // number of clears per block
+- 		dzBlockSize = 19 // size of instructions in a single block
+- 		dzMovSize   = 4  // size of single MOV instruction w/ offset
+- 		dzAddSize   = 4  // size of single ADD instruction
+- 		dzClearStep = 16 // number of bytes cleared by each MOV instruction
+- 
+- 		dzTailLen  = 4 // number of final STOSQ instructions
+- 		dzTailSize = 2 // size of single STOSQ instruction
+- 
+- 		dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
+- 		dzSize     = dzBlocks * dzBlockSize
+- 	)
+- 
+- 	if size < 32 || size > 1024 || size%dzClearStep != 0 {
+- 		panic("bad duffzero size")
+- 	}
+- 	steps := size / dzClearStep
+- 	blocks := steps / dzBlockLen
+- 	steps %= dzBlockLen
+- 	off := dzBlockSize * (dzBlocks - blocks)
+- 	var adj int64
+- 	if steps != 0 {
+- 		off -= dzAddSize
+- 		off -= dzMovSize * steps
+- 		adj -= dzClearStep * (dzBlockLen - steps)
+- 	}
+- 	return off, adj
+- }
+- 
+ +// moveSize returns the number of bytes an aligned MOV instruction moves
+ +func moveSize(align int64, c *Config) int64 {
+ +	switch {
+ +	case align%8 == 0 && c.IntSize == 8:
+ +		return 8
+ +	case align%4 == 0:
+ +		return 4
+ +	case align%2 == 0:
+ +		return 2
+ +	}
+ +	return 1
+ +}
+ +
+  // mergePoint finds a block among a's blocks which dominates b and is itself
+  // dominated by all of a's blocks. Returns nil if it can't find one.
+  // Might return nil even if one does exist.
+diff --cc src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 19f01a0148,a2b9e15a4f..3aa38f31ad
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@@ -17413,25 -17173,22 +17413,22 @@@ func rewriteValueAMD64_OpZero(v *Value
+  		v.AddArg(v1)
+  		return true
+  	}
+ -	// match: (Zero [size] destptr mem)
+ -	// cond: size <= 1024 && size%16 == 0 && !config.noDuffDevice
+ -	// result: (DUFFZERO [size] destptr (MOVOconst [0]) mem)
+ +	// match: (Zero [s] destptr mem)
+ +	// cond: SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice
+- 	// result: (DUFFZERO [duffStartAMD64(SizeAndAlign(s).Size())] 		(ADDQconst [duffAdjAMD64(SizeAndAlign(s).Size())] destptr) (MOVOconst [0]) 		mem)
+++	// result: (DUFFZERO [SizeAndAlign(s).Size()] destptr (MOVOconst [0]) mem)
+  	for {
+ -		size := v.AuxInt
+ +		s := v.AuxInt
+  		destptr := v.Args[0]
+  		mem := v.Args[1]
+ -		if !(size <= 1024 && size%16 == 0 && !config.noDuffDevice) {
+ +		if !(SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice) {
+  			break
+  		}
+  		v.reset(OpAMD64DUFFZERO)
+- 		v.AuxInt = duffStartAMD64(SizeAndAlign(s).Size())
+- 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
+- 		v0.AuxInt = duffAdjAMD64(SizeAndAlign(s).Size())
+- 		v0.AddArg(destptr)
+ -		v.AuxInt = size
+++		v.AuxInt = SizeAndAlign(s).Size()
++ 		v.AddArg(destptr)
++ 		v0 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)
++ 		v0.AuxInt = 0
+  		v.AddArg(v0)
+- 		v1 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)
+- 		v1.AuxInt = 0
+- 		v.AddArg(v1)
+  		v.AddArg(mem)
+  		return true
+  	}

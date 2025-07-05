@@ -16,7 +16,7 @@ Date:   Fri Mar 8 09:34:00 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: 胡玮文 <huww98@outlook.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go.mod                                             |  2 +-
  src/cmd/go.sum                                             |  4 ++--
  src/cmd/vendor/modules.txt                                 |  2 +-
@@ -27,3 +27,200 @@ Date:   Fri Mar 8 09:34:00 2024 -0800
  src/vendor/golang.org/x/net/http/httpproxy/proxy.go        |  5 +----
  src/vendor/modules.txt                                     |  4 ++--
  9 files changed, 20 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 346a156a0f..2ab365a9da 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -10,7 +10,7 @@ require (
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.18.0
+ 	golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e
+-	golang.org/x/term v0.17.0
++	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.18.0
+ )
+ 
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 683d46d169..4917878db2 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -34,8 +34,8 @@ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e h1:PLWTnhLSeWLoHHuUDdzlJeYqRntM+xTyojGjTrFg01c=
+ golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e/go.mod h1:wQS78u8AjB4H3mN7DPniFYwsXnV9lPziq+He/eA7JIw=
+-golang.org/x/term v0.17.0 h1:mkTF7LCd6WGJNL3K1Ad7kwxNfYAW6a8a8QqtMblp/4U=
+-golang.org/x/term v0.17.0/go.mod h1:lLRBjIVuehSbZlaOtGMbcMncT+aqLLLmKrsjNrUguwk=
++golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
++golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+ golang.org/x/tools v0.18.0 h1:k8NLag8AGHnn+PHbl7g43CtqZAwG60vZkLqgyZgIHgQ=
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 816cb4646a..a62ce7a360 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -58,7 +58,7 @@ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+ golang.org/x/telemetry/internal/upload
+ golang.org/x/telemetry/upload
+-# golang.org/x/term v0.17.0
++# golang.org/x/term v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/term
+ # golang.org/x/text v0.14.0
+diff --git a/src/go.mod b/src/go.mod
+index 01f826f5a1..ec34db73c2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,8 +3,8 @@ module std
+ go 1.23
+ 
+ require (
+-	golang.org/x/crypto v0.18.0
+-	golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a
++	golang.org/x/crypto v0.21.0
++	golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index b2a1bcc341..60c0528091 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+-golang.org/x/crypto v0.18.0 h1:PGVlW0xEltQnzFZ55hkuX5+KLyrMYhHld1YHO4AKcdc=
+-golang.org/x/crypto v0.18.0/go.mod h1:R0j02AL6hcrfOiy9T4ZYp/rcWeMxM3L6QYxlOuEG1mg=
+-golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a h1:VHlux4LIHGkrTO1cETOIekMY3h7UnpTakEdoxS/+o28=
+-golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
++golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
++golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
++golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f h1:c4fKFo2ZTrRdyG3qANmoyoqSjzzBn2luv+NdTb45Ryw=
++golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
+ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64le.s b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64le.s
+index d2ca5deeb9..b3c1699bff 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64le.s
+@@ -19,15 +19,14 @@
+ 
+ #define POLY1305_MUL(h0, h1, h2, r0, r1, t0, t1, t2, t3, t4, t5) \
+ 	MULLD  r0, h0, t0;  \
+-	MULLD  r0, h1, t4;  \
+ 	MULHDU r0, h0, t1;  \
++	MULLD  r0, h1, t4;  \
+ 	MULHDU r0, h1, t5;  \
+ 	ADDC   t4, t1, t1;  \
+ 	MULLD  r0, h2, t2;  \
+-	ADDZE  t5;          \
+ 	MULHDU r1, h0, t4;  \
+ 	MULLD  r1, h0, h0;  \
+-	ADD    t5, t2, t2;  \
++	ADDE   t5, t2, t2;  \
+ 	ADDC   h0, t1, t1;  \
+ 	MULLD  h2, r1, t3;  \
+ 	ADDZE  t4, h0;      \
+@@ -37,13 +36,11 @@
+ 	ADDE   t5, t3, t3;  \
+ 	ADDC   h0, t2, t2;  \
+ 	MOVD   $-4, t4;     \
+-	MOVD   t0, h0;      \
+-	MOVD   t1, h1;      \
+ 	ADDZE  t3;          \
+-	ANDCC  $3, t2, h2;  \
+-	AND    t2, t4, t0;  \
++	RLDICL $0, t2, $62, h2; \
++	AND    t2, t4, h0;  \
+ 	ADDC   t0, h0, h0;  \
+-	ADDE   t3, h1, h1;  \
++	ADDE   t3, t1, h1;  \
+ 	SLD    $62, t3, t4; \
+ 	SRD    $2, t2;      \
+ 	ADDZE  h2;          \
+@@ -75,6 +72,7 @@ TEXT ·update(SB), $0-32
+ loop:
+ 	POLY1305_ADD(R4, R8, R9, R10, R20, R21, R22)
+ 
++	PCALIGN $16
+ multiply:
+ 	POLY1305_MUL(R8, R9, R10, R11, R12, R16, R17, R18, R14, R20, R21)
+ 	ADD $-16, R5
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 42987ab7c5..a656efc128 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -273,7 +273,6 @@ var (
+ 	errTooManyAdditionals = errors.New("too many Additionals to pack (>65535)")
+ 	errNonCanonicalName   = errors.New("name is not in canonical format (it must end with a .)")
+ 	errStringTooLong      = errors.New("character string exceeds maximum length (255)")
+-	errCompressedSRV      = errors.New("compressed name in SRV resource data")
+ )
+ 
+ // Internal constants.
+@@ -2028,10 +2027,6 @@ func (n *Name) pack(msg []byte, compression map[string]uint16, compressionOff in
+ 
+ // unpack unpacks a domain name.
+ func (n *Name) unpack(msg []byte, off int) (int, error) {
+-	return n.unpackCompressed(msg, off, true /* allowCompression */)
+-}
+-
+-func (n *Name) unpackCompressed(msg []byte, off int, allowCompression bool) (int, error) {
+ 	// currOff is the current working offset.
+ 	currOff := off
+ 
+@@ -2076,9 +2071,6 @@ Loop:
+ 			name = append(name, '.')
+ 			currOff = endOff
+ 		case 0xC0: // Pointer
+-			if !allowCompression {
+-				return off, errCompressedSRV
+-			}
+ 			if currOff >= len(msg) {
+ 				return off, errInvalidPtr
+ 			}
+@@ -2549,7 +2541,7 @@ func unpackSRVResource(msg []byte, off int) (SRVResource, error) {
+ 		return SRVResource{}, &nestedError{"Port", err}
+ 	}
+ 	var target Name
+-	if _, err := target.unpackCompressed(msg, off, false /* allowCompression */); err != nil {
++	if _, err := target.unpack(msg, off); err != nil {
+ 		return SRVResource{}, &nestedError{"Target", err}
+ 	}
+ 	return SRVResource{priority, weight, port, target}, nil
+diff --git a/src/vendor/golang.org/x/net/http/httpproxy/proxy.go b/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
+index c3bd9a1eeb..6404aaf157 100644
+--- a/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
++++ b/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
+@@ -149,10 +149,7 @@ func parseProxy(proxy string) (*url.URL, error) {
+ 	}
+ 
+ 	proxyURL, err := url.Parse(proxy)
+-	if err != nil ||
+-		(proxyURL.Scheme != "http" &&
+-			proxyURL.Scheme != "https" &&
+-			proxyURL.Scheme != "socks5") {
++	if err != nil || proxyURL.Scheme == "" || proxyURL.Host == "" {
+ 		// proxy was bogus. Try prepending "http://" to it and
+ 		// see if that parses correctly. If not, we fall
+ 		// through and complain about the original one.
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 9e3b5b1554..eb78e2ae9d 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.18.0
++# golang.org/x/crypto v0.21.0
+ ## explicit; go 1.18
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a
++# golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

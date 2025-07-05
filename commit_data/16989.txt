@@ -9,7 +9,32 @@ Date:   Thu Aug 1 15:49:35 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/12291043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 9ff64bffec..c53e3d3964 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -276,6 +276,7 @@ Ross Light <rlight2@gmail.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Ryan Slade <ryanslade@gmail.com>
+ Sanjay Menakuru <balasanjay@gmail.com>
++Scott Ferguson <scottwferg@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Sebastien Binet	<seb.binet@gmail.com>
+ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4757494817..7dbddb8cf4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -397,6 +397,7 @@ Ryan Slade <ryanslade@gmail.com>
+ Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
+ Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>
+ Sanjay Menakuru <balasanjay@gmail.com>
++Scott Ferguson <scottwferg@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Scott Schwartz <scotts@golang.org>
+ Sebastien Binet	<seb.binet@gmail.com>

@@ -62,7 +62,7 @@ Date:   Mon Feb 25 12:13:47 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7395056
-
+---
  src/cmd/5g/ggen.c      | 14 +++++++++++++-
  src/cmd/5g/gsubr.c     |  5 +++--
  src/cmd/5g/list.c      |  5 ++++-
@@ -97,3 +97,666 @@ Date:   Mon Feb 25 12:13:47 2013 -0500
  src/cmd/gc/typecheck.c |  1 -
  src/cmd/gc/walk.c      |  2 ++
  33 files changed, 132 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 679354da9a..de1671bb6f 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -28,6 +28,9 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
++		if (p->as == ATYPE)
++			continue;
++
+ 		if (p->from.name == D_AUTO && p->from.node)
+ 			p->from.node->used = 1;
+ 
+@@ -40,12 +43,21 @@ markautoused(Prog* p)
+ void
+ fixautoused(Prog* p)
+ {
+-	for (; p; p = p->link) {
++	Prog **lp;
++
++	for (lp=&p; (p=*lp) != P; ) {
++		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
++			*lp = p->link;
++			continue;
++		}
++
+ 		if (p->from.name == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+ 
+ 		if (p->to.name == D_AUTO && p->to.node)
+ 			p->to.offset += p->to.node->stkdelta;
++
++		lp = &p->link;
+ 	}
+ }
+ 
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ce5ae422e0..38c4a92006 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -192,15 +192,16 @@ gjmp(Prog *to)
+ }
+ 
+ void
+-ggloblnod(Node *nam, int32 width)
++ggloblnod(Node *nam)
+ {
+ 	Prog *p;
+ 
+ 	p = gins(AGLOBL, nam, N);
+ 	p->lineno = nam->lineno;
++	p->from.gotype = ngotype(nam);
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+-	p->to.offset = width;
++	p->to.offset = nam->type->width;
+ 	if(nam->readonly)
+ 		p->reg = RODATA;
+ 	if(nam->type != T && !haspointers(nam->type))
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 9f67f79f43..6c3f1d7449 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -196,7 +196,10 @@ Dconv(Fmt *fp)
+ //		goto conv;
+ 	}
+ conv:
+-	return fmtstrcpy(fp, str);
++	fmtstrcpy(fp, str);
++	if(a->gotype)
++		fmtprint(fp, "{%s}", a->gotype->name);
++	return 0;
+ }
+ 
+ int
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index c729a64661..b6202a882c 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -76,6 +76,8 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index da80f32a4b..0667531ebf 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -248,6 +248,8 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 1ffe9dc85e..4aef8a27f4 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -198,6 +198,7 @@ enum	as
+ 	
+ 	AUSEFIELD,
+ 	ALOCALS,
++	ATYPE,
+ 
+ 	ALAST,
+ };
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c9e38dc389..14b1ea7aae 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -578,6 +578,10 @@ loop:
+ 		pc++;
+ 		break;
+ 
++	case ATYPE:
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		if(cursym != nil && cursym->text) {
+ 			histtoauto();
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index fd30e91a52..a5afa02e79 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -833,6 +833,7 @@ buildop(void)
+ 		case ALOCALS:
+ 		case ACASE:
+ 		case ABCASE:
++		case ATYPE:
+ 			break;
+ 		case AADDF:
+ 			oprange[AADDD] = oprange[r];
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 10c116d623..23bb5093f0 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -25,6 +25,9 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
++		if (p->as == ATYPE)
++			continue;
++
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.node->used = 1;
+ 
+@@ -35,14 +38,22 @@ markautoused(Prog* p)
+ 
+ // Fixup instructions after compactframe has moved all autos around.
+ void
+-fixautoused(Prog* p)
++fixautoused(Prog *p)
+ {
+-	for (; p; p = p->link) {
++	Prog **lp;
++
++	for (lp=&p; (p=*lp) != P; ) {
++		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
++			*lp = p->link;
++			continue;
++		}
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+ 			p->to.offset += p->to.node->stkdelta;
++
++		lp = &p->link;
+ 	}
+ }
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 34965126e8..fc5407a1f3 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -190,15 +190,16 @@ gjmp(Prog *to)
+ }
+ 
+ void
+-ggloblnod(Node *nam, int32 width)
++ggloblnod(Node *nam)
+ {
+ 	Prog *p;
+ 
+ 	p = gins(AGLOBL, nam, N);
+ 	p->lineno = nam->lineno;
++	p->from.gotype = ngotype(nam);
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+-	p->to.offset = width;
++	p->to.offset = nam->type->width;
+ 	if(nam->readonly)
+ 		p->from.scale = RODATA;
+ 	if(nam->type != T && !haspointers(nam->type))
+@@ -1179,10 +1180,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 
+ 	case ONAME:
+ 		a->etype = 0;
+-		if(n->type != T) {
++		if(n->type != T)
+ 			a->etype = simtype[n->type->etype];
+-			a->gotype = ngotype(n);
+-		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+ 		a->node = n->orig;
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index d84cceffb8..9d27a6a097 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -161,7 +161,10 @@ brk:
+ 		strcat(str, s);
+ 	}
+ conv:
+-	return fmtstrcpy(fp, str);
++	fmtstrcpy(fp, str);
++	if(a->gotype)
++		fmtprint(fp, "{%s}", a->gotype->name);
++	return 0;
+ }
+ 
+ static	char*	regstr[] =
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 070077f105..569655786a 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -132,6 +132,8 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index bb8e09c642..e1188a2353 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -224,6 +224,8 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index d348c1304e..805b3fc6f2 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -759,6 +759,7 @@ enum	as
+ 	
+ 	AUSEFIELD,
+ 	ALOCALS,
++	ATYPE,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index e90a66e5dc..10e4a98601 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -590,6 +590,10 @@ loop:
+ 		cursym->locals = p->to.offset;
+ 		pc++;
+ 		goto loop;
++	
++	case ATYPE:
++		pc++;
++		goto loop;
+ 
+ 	case ATEXT:
+ 		s = p->from.sym;
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 21b4784353..a163e6faab 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1318,6 +1318,7 @@ Optab optab[] =
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+ 	{ ALOCALS },
++	{ ATYPE },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index e8d6747c4a..70148106c4 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -27,6 +27,9 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
++		if (p->as == ATYPE)
++			continue;
++
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.node->used = 1;
+ 
+@@ -39,12 +42,21 @@ markautoused(Prog* p)
+ void
+ fixautoused(Prog* p)
+ {
+-	for (; p; p = p->link) {
++	Prog **lp;
++
++	for (lp=&p; (p=*lp) != P; ) {
++		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
++			*lp = p->link;
++			continue;
++		}
++
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+ 			p->to.offset += p->to.node->stkdelta;
++
++		lp = &p->link;
+ 	}
+ }
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 3650d34a05..c4c184bb9a 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -191,15 +191,16 @@ gjmp(Prog *to)
+ }
+ 
+ void
+-ggloblnod(Node *nam, int32 width)
++ggloblnod(Node *nam)
+ {
+ 	Prog *p;
+ 
+ 	p = gins(AGLOBL, nam, N);
+ 	p->lineno = nam->lineno;
++	p->from.gotype = ngotype(nam);
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+-	p->to.offset = width;
++	p->to.offset = nam->type->width;
+ 	if(nam->readonly)
+ 		p->from.scale = RODATA;
+ 	if(nam->type != T && !haspointers(nam->type))
+@@ -2260,7 +2261,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->etype = simtype[n->type->etype];
+ 			dowidth(n->type);
+ 			a->width = n->type->width;
+-			a->gotype = ngotype(n);
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index 7ed1c119d5..ec02ba5c5c 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -158,7 +158,10 @@ brk:
+ 		strcat(str, s);
+ 	}
+ conv:
+-	return fmtstrcpy(fp, str);
++	fmtstrcpy(fp, str);
++	if(a->gotype)
++		fmtprint(fp, "{%s}", a->gotype->name);
++	return 0;
+ }
+ 
+ static	char*	regstr[] =
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index ccf7dcd339..e5a3149cf1 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -126,6 +126,8 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index e96336b702..c1f51c0a41 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -195,6 +195,8 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case ALOCALS:
++		case ATYPE:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index ae1397dd8d..3868899560 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -569,6 +569,7 @@ enum	as
+ 	
+ 	AUSEFIELD,
+ 	ALOCALS,
++	ATYPE,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index bd5684a350..dcb8390b97 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -600,6 +600,10 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ATYPE:
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 3ccdbfd226..79d7b39f00 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -963,6 +963,7 @@ Optab optab[] =
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+ 	{ ALOCALS },
++	{ ATYPE },
+ 
+ 	0
+ };
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 3e65e0dd2c..78b73d847c 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -13,7 +13,7 @@
+ void
+ closurehdr(Node *ntype)
+ {
+-	Node *n, *name, *a, *orig;
++	Node *n, *name, *a;
+ 	NodeList *l;
+ 
+ 	n = nod(OCLOSURE, N, N);
+@@ -43,11 +43,8 @@ closurehdr(Node *ntype)
+ 	}
+ 	for(l=n->rlist; l; l=l->next) {
+ 		name = l->n->left;
+-		if(name) {
+-			orig = name->orig;  // preserve the meaning of orig == N (anonymous PPARAMOUT)
++		if(name)
+ 			name = newname(name->sym);
+-			name->orig = orig;
+-		}
+ 		ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, name, l->n->right));
+ 	}
+ }
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c4990df072..aa2489d9a1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -640,8 +640,7 @@ funcargs(Node *nt)
+ 			// give it a name so escape analysis has nodes to work with
+ 			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
+ 			n->left = newname(lookup(namebuf));
+-			n->left->orig = N;  // signal that the original was absent
+-
++			// TODO: n->left->missing = 1;
+ 		} 
+ 
+ 		n->left->op = ONAME;
+@@ -815,7 +814,7 @@ structfield(Node *n)
+ 		break;
+ 	}
+ 
+-	if(n->left && n->left->op == ONAME && n->left->orig != N) {
++	if(n->left && n->left->op == ONAME) {
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
+@@ -1177,6 +1176,7 @@ functype(Node *this, NodeList *in, NodeList *out)
+ {
+ 	Type *t;
+ 	NodeList *rcvr;
++	Sym *s;
+ 
+ 	t = typ(TFUNC);
+ 
+@@ -1194,7 +1194,12 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 		t->thistuple = 1;
+ 	t->outtuple = count(out);
+ 	t->intuple = count(in);
+-	t->outnamed = t->outtuple > 0 && out->n->left != N && out->n->left->orig != N;
++	t->outnamed = 0;
++	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
++		s = out->n->left->orig->sym;
++		if(s != S && s->name[0] != '~')
++			t->outnamed = 1;
++	}
+ 
+ 	return t;
+ }
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index bae66e0772..5d37ac0fd5 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -723,12 +723,15 @@ typefmt(Fmt *fp, Type *t)
+ 		if(!(fp->flags&FmtShort)) {
+ 			s = t->sym;
+ 
+-			// Take the name from the original, lest we substituted it with .anon%d
+-			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N)
+-				if(t->nname->orig != N)
++			// Take the name from the original, lest we substituted it with ~anon%d
++			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N) {
++				if(t->nname->orig != N) {
+ 					s = t->nname->orig->sym;
+-				else 
++					if(s != S && s->name[0] == '~')
++						s = S;
++				} else 
+ 					s = S;
++			}
+ 			
+ 			if(s != S && !t->embedded) {
+ 				if(t->funarg)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 68a0563aac..05d942b419 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -271,7 +271,6 @@ struct	Node
+ 
+ 	// most nodes
+ 	Type*	type;
+-	Type*	realtype;	// as determined by typecheck
+ 	Node*	orig;		// original form, for printing, and tracking copies of ONAMEs
+ 
+ 	// func
+@@ -1438,7 +1437,7 @@ void	gdata(Node*, Node*, int);
+ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+ void	genembedtramp(Type*, Type*, Sym*, int iface);
+-void	ggloblnod(Node *nam, int32 width);
++void	ggloblnod(Node *nam);
+ void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 94f1c65c96..b87d35b7bd 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -59,7 +59,7 @@ dumpglobls(void)
+ 			continue;
+ 		dowidth(n->type);
+ 
+-		ggloblnod(n, n->type->width);
++		ggloblnod(n);
+ 	}
+ 
+ 	for(l=funcsyms; l; l=l->next) {
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index f4894e468e..6f732b991e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -14,11 +14,12 @@ compile(Node *fn)
+ {
+ 	Plist *pl;
+ 	Node nod1, *n;
+-	Prog *plocals, *ptxt;
++	Prog *plocals, *ptxt, *p, *p1;
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
+ 	vlong oldstksize;
++	NodeList *l;
+ 
+ 	if(newproc == N) {
+ 		newproc = sysfunc("newproc");
+@@ -92,12 +93,25 @@ compile(Node *fn)
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+ 
++	for(l=fn->dcl; l; l=l->next) {
++		n = l->n;
++		if(n->op != ONAME) // might be OTYPE or OLITERAL
++			continue;
++		switch(n->class) {
++		case PAUTO:
++		case PPARAM:
++		case PPARAMOUT:
++			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
++			p = gins(ATYPE, l->n, &nod1);
++			p->from.gotype = ngotype(l->n);
++			break;
++		}
++	}
++
+ 	genlist(curfn->enter);
+ 
+ 	retpc = nil;
+ 	if(hasdefer || curfn->exit) {
+-		Prog *p1;
+-
+ 		p1 = gjmp(nil);
+ 		retpc = gjmp(nil);
+ 		patch(p1, pc);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 323d4f3922..db8b170145 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3555,10 +3555,8 @@ umagic(Magic *m)
+ Sym*
+ ngotype(Node *n)
+ {
+-	if(n->sym != S && n->realtype != T)
+-	if(strncmp(n->sym->name, "autotmp_", 8) != 0)
+-		return typenamesym(n->realtype);
+-
++	if(n->type != T)
++		return typenamesym(n->type);
+ 	return S;
+ }
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6b750384c0..ac90baafd2 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -296,7 +296,6 @@ typecheck1(Node **np, int top)
+ 		}
+ 
+ 		typecheckdef(n);
+-		n->realtype = n->type;
+ 		if(n->op == ONONAME)
+ 			goto error;
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c79339ca77..de2105ed39 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2217,6 +2217,8 @@ paramstoheap(Type **argin, int out)
+ 	nn = nil;
+ 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
+ 		v = t->nname;
++		if(v && v->sym && v->sym->name[0] == '~')
++			v = N;
+ 		if(v == N && out && hasdefer) {
+ 			// Defer might stop a panic and show the
+ 			// return values as they exist at the time of panic.

@@ -11,6 +11,52 @@ Date:   Thu Jul 29 14:12:04 2010 -0700
     R=rsc, rsc1
     CC=golang-dev
     https://golang.org/cl/1698046
-
+---
  src/pkg/mime/type.go | 22 +++++++++++++++++++++-
  1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index b23b503649..9202b85572 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -10,6 +10,7 @@ import (
+ 	"once"
+ 	"os"
+ 	"strings"
++	"sync"
+ )
+ 
+ var typeFiles = []string{
+@@ -30,6 +31,8 @@ var mimeTypes = map[string]string{
+ 	".xml":  "text/xml; charset=utf-8",
+ }
+ 
++var mimeLock sync.RWMutex
++
+ func loadMimeFile(filename string) {
+ 	f, err := os.Open(filename, os.O_RDONLY, 0666)
+ 	if err != nil {
+@@ -79,5 +82,22 @@ func initMime() {
+ //   /etc/apache/mime.types
+ func TypeByExtension(ext string) string {
+ 	once.Do(initMime)
+-	return mimeTypes[ext]
++	mimeLock.RLock()
++	typename := mimeTypes[ext]
++	mimeLock.RUnlock()
++	return typename
++}
++
++// AddExtensionType sets the MIME type associated with
++// the extension ext to typ.  The extension should begin with
++// a leading dot, as in ".html".
++func AddExtensionType(ext, typ string) os.Error {
++	once.Do(initMime)
++	if len(ext) < 1 || ext[0] != '.' {
++		return os.EINVAL
++	}
++	mimeLock.Lock()
++	mimeTypes[ext] = typ
++	mimeLock.Unlock()
++	return nil
+ }

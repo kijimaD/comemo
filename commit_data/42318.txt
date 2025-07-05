@@ -19,7 +19,57 @@ Date:   Thu Nov 14 17:03:44 2019 -0500
     Change-Id: I357bf26c996e1fee1e7eebe4e6bb07d62930d3f7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207349
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/plist.go | 8 +++-----
  src/runtime/preempt.go        | 2 +-
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index fb592011e1..8c9b803632 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -215,12 +215,10 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata := Appendp(p, newprog)
+ 	pcdata.As = APCDATA
+ 	pcdata.From.Type = TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
++	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+ 	pcdata.To.Type = TYPE_CONST
+ 	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
+ 
+-	// TODO: register map?
+-
+ 	return pcdata
+ }
+ 
+@@ -232,7 +230,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
+ 	pcdata := Appendp(p, newprog)
+ 	pcdata.As = APCDATA
+ 	pcdata.From.Type = TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
++	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+ 	pcdata.To.Type = TYPE_CONST
+ 	pcdata.To.Offset = oldval
+ 
+@@ -248,7 +246,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
+ 	prev := p0
+ 	oldval := int64(-1) // entry pcdata
+ 	for p := prev.Link; p != nil; p, prev = p.Link, p {
+-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_StackMapIndex {
++		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
+ 			oldval = p.To.Offset
+ 			continue
+ 		}
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 60e1bcef5f..2c38ac02f5 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -393,7 +393,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+ 		// use the LR for unwinding, which will be bad.
+ 		return false
+ 	}
+-	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
++	smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
+ 	if smi == -2 {
+ 		// Unsafe-point marked by compiler. This includes
+ 		// atomic sequences (e.g., write barrier) and nosplit

@@ -29,7 +29,149 @@ Date:   Thu Jun 21 19:11:34 2018 +0200
     Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/splice_linux.go | 28 ++++++++---------
  src/net/splice_test.go            | 63 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 14 deletions(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 5874f79a56..aa237e587a 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -34,20 +34,6 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
+ 	defer destroyTempPipe(prfd, pwfd)
+ 	// From here on, the operation should be considered handled,
+ 	// even if Splice doesn't transfer any data.
+-	if err := src.readLock(); err != nil {
+-		return 0, true, "splice", err
+-	}
+-	defer src.readUnlock()
+-	if err := dst.writeLock(); err != nil {
+-		return 0, true, "splice", err
+-	}
+-	defer dst.writeUnlock()
+-	if err := src.pd.prepareRead(src.isFile); err != nil {
+-		return 0, true, "splice", err
+-	}
+-	if err := dst.pd.prepareWrite(dst.isFile); err != nil {
+-		return 0, true, "splice", err
+-	}
+ 	var inPipe, n int
+ 	for err == nil && remain > 0 {
+ 		max := maxSpliceSize
+@@ -84,6 +70,13 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
+ //
+ // If spliceDrain returns (0, nil), src is at EOF.
+ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
++	if err := sock.readLock(); err != nil {
++		return 0, err
++	}
++	defer sock.readUnlock()
++	if err := sock.pd.prepareRead(sock.isFile); err != nil {
++		return 0, err
++	}
+ 	for {
+ 		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
+ 		if err != syscall.EAGAIN {
+@@ -109,6 +102,13 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
+ // all of it to the socket. This behavior is similar to the Write
+ // step of an io.Copy in userspace.
+ func splicePump(sock *FD, pipefd int, inPipe int) (int, error) {
++	if err := sock.writeLock(); err != nil {
++		return 0, err
++	}
++	defer sock.writeUnlock()
++	if err := sock.pd.prepareWrite(sock.isFile); err != nil {
++		return 0, err
++	}
+ 	written := 0
+ 	for inPipe > 0 {
+ 		n, err := splice(sock.Sysfd, pipefd, inPipe, spliceNonblock)
+diff --git a/src/net/splice_test.go b/src/net/splice_test.go
+index 483a9e555f..2f1e69ddb6 100644
+--- a/src/net/splice_test.go
++++ b/src/net/splice_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -19,6 +21,7 @@ func TestSplice(t *testing.T) {
+ 	t.Run("big", testSpliceBig)
+ 	t.Run("honorsLimitedReader", testSpliceHonorsLimitedReader)
+ 	t.Run("readerAtEOF", testSpliceReaderAtEOF)
++	t.Run("issue25985", testSpliceIssue25985)
+ }
+ 
+ func testSpliceSimple(t *testing.T) {
+@@ -234,6 +237,66 @@ func testSpliceReaderAtEOF(t *testing.T) {
+ 	}
+ }
+ 
++func testSpliceIssue25985(t *testing.T) {
++	front, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer front.Close()
++	back, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer back.Close()
++
++	var wg sync.WaitGroup
++	wg.Add(2)
++
++	proxy := func() {
++		src, err := front.Accept()
++		if err != nil {
++			return
++		}
++		dst, err := Dial("tcp", back.Addr().String())
++		if err != nil {
++			return
++		}
++		defer dst.Close()
++		defer src.Close()
++		go func() {
++			io.Copy(src, dst)
++			wg.Done()
++		}()
++		go func() {
++			io.Copy(dst, src)
++			wg.Done()
++		}()
++	}
++
++	go proxy()
++
++	toFront, err := Dial("tcp", front.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	io.WriteString(toFront, "foo")
++	toFront.Close()
++
++	fromProxy, err := back.Accept()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer fromProxy.Close()
++
++	_, err = ioutil.ReadAll(fromProxy)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	wg.Wait()
++}
++
+ func BenchmarkTCPReadFrom(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 

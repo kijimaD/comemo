@@ -14,7 +14,134 @@ Date:   Thu Oct 20 11:05:45 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 +--
  src/cmd/compile/internal/ssa/rewritePPC64.go | 96 ++++++++++++++++++++++++++++
  2 files changed, 100 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 1df8b3ca0e..ba1ffa5e12 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -361,10 +361,10 @@
+ (NE (CMPWconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+ (NE (CMPWconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+ (NE (CMPWconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+-// (NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
+-// (NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
+-// (NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
+-// (NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
++(NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
++(NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
++(NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
++(NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
+ 
+ // Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
+ (EQ (CMPconst [0] (ANDconst [c] x)) yes no) -> (EQ (ANDCCconst [c] x) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index defda0aa63..bea94e44d8 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -10584,6 +10584,102 @@ func rewriteBlockPPC64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
++		// match: (NE (CMPWconst [0] (FLessThan cc)) yes no)
++		// cond:
++		// result: (FLT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64FLessThan {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FLT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPWconst [0] (FLessEqual cc)) yes no)
++		// cond:
++		// result: (FLE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64FLessEqual {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FLE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPWconst [0] (FGreaterThan cc)) yes no)
++		// cond:
++		// result: (FGT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64FGreaterThan {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FGT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPWconst [0] (FGreaterEqual cc)) yes no)
++		// cond:
++		// result: (FGE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64FGreaterEqual {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FGE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
+ 		// match: (NE (CMPconst [0] (ANDconst [c] x)) yes no)
+ 		// cond:
+ 		// result: (NE (ANDCCconst [c] x) yes no)

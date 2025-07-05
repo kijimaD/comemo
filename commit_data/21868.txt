@@ -26,9 +26,124 @@ Date:   Fri Feb 6 11:44:09 2015 +1100
     Change-Id: I13f306ff07a99b44b493fade72ac00d0d5097e1c
     Reviewed-on: https://go-review.googlesource.com/3981
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go       | 48 ++++++++++++++++++++++++++++++----------------
  src/cmd/dist/vfp_arm.s     | 15 ---------------
  src/cmd/dist/vfp_default.s | 14 --------------
  src/nacltest.bash          |  2 +-
  4 files changed, 32 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 5cdd01b334..e686e42fe1 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -471,24 +471,38 @@ func xgetgoarm() string {
+ 		// FreeBSD has broken VFP support.
+ 		return "5"
+ 	}
+-	if xtryexecfunc(useVFPv3) {
++	if goos != "linux" {
++		// All other arm platforms that we support
++		// require ARMv7.
+ 		return "7"
+ 	}
+-	if xtryexecfunc(useVFPv1) {
+-		return "6"
++	cpuinfo := readfile("/proc/cpuinfo")
++	goarm := "5"
++	for _, line := range splitlines(cpuinfo) {
++		line := strings.SplitN(line, ":", 2)
++		if len(line) < 2 {
++			continue
++		}
++		if strings.TrimSpace(line[0]) != "Features" {
++			continue
++		}
++		features := splitfields(line[1])
++		sort.Strings(features) // so vfpv3 sorts after vfp
++
++		// Infer GOARM value from the vfp features available
++		// on this host. Values of GOARM detected are:
++		// 5: no vfp support was found
++		// 6: vfp (v1) support was detected, but no higher
++		// 7: vfpv3 support was detected.
++		// This matches the assertions in runtime.checkarm.
++		for _, f := range features {
++			switch f {
++			case "vfp":
++				goarm = "6"
++			case "vfpv3":
++				goarm = "7"
++			}
++		}
+ 	}
+-	return "5"
++	return goarm
+ }
+-
+-func xtryexecfunc(f func()) bool {
+-	// TODO(rsc): Implement.
+-	// The C cmd/dist used this to test whether certain assembly
+-	// sequences could be executed properly. It used signals and
+-	// timers and sigsetjmp, which is basically not possible in Go.
+-	// We probably have to invoke ourselves as a subprocess instead,
+-	// to contain the fault/timeout.
+-	return false
+-}
+-
+-func useVFPv1()
+-func useVFPv3()
+diff --git a/src/cmd/dist/vfp_arm.s b/src/cmd/dist/vfp_arm.s
+deleted file mode 100644
+index 39052dbb30..0000000000
+--- a/src/cmd/dist/vfp_arm.s
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// try to run "vmov.f64 d0, d0" instruction
+-TEXT ·useVFPv1(SB),NOSPLIT,$0
+-	WORD $0xeeb00b40	// vmov.f64 d0, d0
+-	RET
+-
+-// try to run VFPv3-only "vmov.f64 d0, #112" instruction
+-TEXT ·useVFPv3(SB),NOSPLIT,$0
+-	WORD $0xeeb70b00	// vmov.f64 d0, #112
+-	RET
+diff --git a/src/cmd/dist/vfp_default.s b/src/cmd/dist/vfp_default.s
+deleted file mode 100644
+index c795b357f7..0000000000
+--- a/src/cmd/dist/vfp_default.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !arm
+-
+-#include "textflag.h"
+-
+-TEXT ·useVFPv1(SB),NOSPLIT,$0
+-	RET
+-
+-TEXT ·useVFPv3(SB),NOSPLIT,$0
+-	RET
+-
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 6220d39f13..534f1ef5af 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -62,7 +62,7 @@ fi
+ # Run host build to get toolchain for running zip generator.
+ unset GOOS GOARCH
+ if [ ! -f make.bash ]; then
+-	echo 'nacl.bash must be run from $GOROOT/src' 1>&2
++	echo 'nacltest.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+ fi
+ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash

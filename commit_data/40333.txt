@@ -12,7 +12,7 @@ Date:   Thu Jan 31 13:00:51 2019 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/dist/test.go              | 2 --
  src/cmd/internal/obj/mips/asm0.go | 2 --
  src/cmd/internal/obj/x86/asm6.go  | 1 -
@@ -20,3 +20,93 @@ Date:   Thu Jan 31 13:00:51 2019 +0300
  src/runtime/mem_aix.go            | 1 -
  src/runtime/mheap.go              | 1 -
  6 files changed, 10 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1309a0acdf..e7fd155ee4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1121,7 +1121,6 @@ func (t *tester) runPending(nextTest *distTest) {
+ 	var last *distTest
+ 	for ended < len(worklist) {
+ 		for started < len(worklist) && started-ended < maxbg {
+-			//println("start", started)
+ 			w := worklist[started]
+ 			started++
+ 			w.start <- !t.failed || t.keepGoing
+@@ -1142,7 +1141,6 @@ func (t *tester) runPending(nextTest *distTest) {
+ 		if vflag > 1 {
+ 			errprintf("%s\n", strings.Join(w.cmd.Args, " "))
+ 		}
+-		//println("wait", ended)
+ 		ended++
+ 		<-w.end
+ 		os.Stdout.Write(w.out)
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index c08d97a9aa..77aa24a4f6 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -722,8 +722,6 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 		a2 = C_REG
+ 	}
+ 
+-	//print("oplook %P %d %d %d\n", p, a1, a2, a3);
+-
+ 	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]
+ 	c3 := &xcmp[a3]
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 93fd033460..1f668a0166 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -5114,7 +5114,6 @@ bad:
+ 	}
+ 
+ 	ctxt.Diag("invalid instruction: %v", p)
+-	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
+ }
+ 
+ // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 6fcdea1538..30ec5f1cc9 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1667,15 +1667,12 @@ Run:
+ 			if n == 0 {
+ 				// Program is over; continue in trailer if present.
+ 				if trailer != nil {
+-					//println("trailer")
+ 					p = trailer
+ 					trailer = nil
+ 					continue
+ 				}
+-				//println("done")
+ 				break Run
+ 			}
+-			//println("lit", n, dst)
+ 			nbyte := n / 8
+ 			for i := uintptr(0); i < nbyte; i++ {
+ 				bits |= uintptr(*p) << nbits
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 56db7426af..660861a9f1 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -22,7 +22,6 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+ 			exit(2)
+ 		}
+-		//println("sysAlloc failed: ", err)
+ 		return nil
+ 	}
+ 	mSysStatInc(sysStat, n)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 9f4e75a7b1..1e61656489 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1211,7 +1211,6 @@ HaveSpan:
+ 	*stat += uint64(npage << _PageShift)
+ 	memstats.heap_idle -= uint64(npage << _PageShift)
+ 
+-	//println("spanalloc", hex(s.start<<_PageShift))
+ 	if s.inList() {
+ 		throw("still in list")
+ 	}

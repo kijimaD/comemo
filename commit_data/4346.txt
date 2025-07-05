@@ -8,7 +8,7 @@ Date:   Mon Dec 7 15:52:14 2009 -0800
     
     R=r
     https://golang.org/cl/165080
-
+---
  src/pkg/runtime/malloc.h     |  6 +++---
  src/pkg/runtime/mcentral.c   |  1 -
  src/pkg/runtime/mgc0.c       |  7 +++++--
@@ -18,3 +18,181 @@ Date:   Mon Dec 7 15:52:14 2009 -0800
  src/pkg/runtime/proc.c       |  3 ++-
  src/pkg/runtime/symtab.c     | 39 +++++----------------------------------
  8 files changed, 15 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 2e0f1143dd..b3fa8e0dfb 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -113,8 +113,9 @@ struct MLink
+ 	MLink *next;
+ };
+ 
+-// SysAlloc obtains a large chunk of memory from the operating system,
+-// typically on the order of a hundred kilobytes or a megabyte.
++// SysAlloc obtains a large chunk of zeroed memory from the
++// operating system, typically on the order of a hundred kilobytes
++// or a megabyte.
+ //
+ // SysUnused notifies the operating system that the contents
+ // of the memory region are no longer needed and can be reused
+@@ -312,4 +313,3 @@ enum
+ 	RefSome,		// some references
+ 	RefNoPointers = 0x80000000U,	// flag - no pointers here     
+ };
+-
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 5c9f720c09..9881812e32 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -40,7 +40,6 @@ MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
+ 	MLink *first, *last, *v;
+ 	int32 i;
+ 
+-
+ 	lock(c);
+ 	// Replenish central list if empty.
+ 	if(MSpanList_IsEmpty(&c->nonempty)) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d01429f349..f0eafe3fd6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -91,8 +91,11 @@ mark(void)
+ {
+ 	G *gp;
+ 
+-	// mark data+bss
+-	scanblock(0, data, end - data);
++	// mark data+bss.
++	// skip mheap itself, which has no interesting pointers
++	// and is mostly zeroed and would not otherwise be paged in.
++	scanblock(0, data, (byte*)&mheap - data);
++	scanblock(0, (byte*)(&mheap+1), end - (byte*)(&mheap+1));
+ 
+ 	// mark stacks
+ 	for(gp=allg; gp!=nil; gp=gp->alllink) {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 8661bd2a1b..e78c860c31 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -194,7 +194,6 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	// NOTE(rsc): In tcmalloc, if we've accumulated enough
+ 	// system allocations, the heap map gets entirely allocated
+ 	// in 32-bit mode.  (In 64-bit mode that's not practical.)
+-
+ 	if(!MHeapMap_Preallocate(&h->map, ((uintptr)v>>PageShift) - 1, (ask>>PageShift) + 2)) {
+ 		SysFree(v, ask);
+ 		return false;
+diff --git a/src/pkg/runtime/mheapmap32.c b/src/pkg/runtime/mheapmap32.c
+index 8cea825c33..13491595da 100644
+--- a/src/pkg/runtime/mheapmap32.c
++++ b/src/pkg/runtime/mheapmap32.c
+@@ -84,7 +84,6 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
+-			runtime_memclr((byte*)p2, sizeof *p2);
+ 			m->p[i1] = p2;
+ 		}
+ 
+diff --git a/src/pkg/runtime/mheapmap64.c b/src/pkg/runtime/mheapmap64.c
+index 7930291786..97e20b6d20 100644
+--- a/src/pkg/runtime/mheapmap64.c
++++ b/src/pkg/runtime/mheapmap64.c
+@@ -96,7 +96,6 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
+-			runtime_memclr((byte*)p2, sizeof *p2);
+ 			m->p[i1] = p2;
+ 		}
+ 
+@@ -105,7 +104,6 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p3 = m->allocator(sizeof *p3);
+ 			if(p3 == nil)
+ 				return false;
+-			runtime_memclr((byte*)p3, sizeof *p3);
+ 			p2->p[i2] = p3;
+ 		}
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 2f36868f5f..f04cb66928 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -102,9 +102,10 @@ schedinit(void)
+ 	mallocinit();
+ 	goargs();
+ 
++	// For debugging:
+ 	// Allocate internal symbol table representation now,
+ 	// so that we don't need to call malloc when we crash.
+-	findfunc(0);
++	// findfunc(0);
+ 
+ 	sched.gomaxprocs = 1;
+ 	p = getenv("GOMAXPROCS");
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 18ce07a1cf..0b5499474f 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -24,40 +24,6 @@
+ #define SYMDATA ((byte*)(0x99LL<<24) + 8)
+ #endif
+ 
+-
+-// Return a pointer to a byte array containing the symbol table segment.
+-void
+-runtime·symdat(Slice *symtab, Slice *pclntab)
+-{
+-	Slice *a;
+-	int32 *v;
+-
+-	// TODO(rsc): Remove once TODO at top of file is done.
+-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0) {
+-		symtab = mal(sizeof *a);
+-		pclntab = mal(sizeof *a);
+-		FLUSH(&symtab);
+-		FLUSH(&pclntab);
+-		return;
+-	}
+-
+-	v = SYMCOUNTS;
+-
+-	a = mal(sizeof *a);
+-	a->len = v[0];
+-	a->cap = a->len;
+-	a->array = SYMDATA;
+-	symtab = a;
+-	FLUSH(&symtab);
+-
+-	a = mal(sizeof *a);
+-	a->len = v[1];
+-	a->cap = a->len;
+-	a->array = SYMDATA + v[0];
+-	pclntab = a;
+-	FLUSH(&pclntab);
+-}
+-
+ typedef struct Sym Sym;
+ struct Sym
+ {
+@@ -122,6 +88,8 @@ static int32 nfunc;
+ static byte **fname;
+ static int32 nfname;
+ 
++static Lock funclock;
++
+ static void
+ dofunc(Sym *sym)
+ {
+@@ -379,8 +347,11 @@ findfunc(uintptr addr)
+ 	Func *f;
+ 	int32 nf, n;
+ 
++	lock(&funclock);
+ 	if(func == nil)
+ 		buildfuncs();
++	unlock(&funclock);
++
+ 	if(nfunc == 0)
+ 		return nil;
+ 	if(addr < func[0].entry || addr >= func[nfunc].entry)

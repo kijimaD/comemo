@@ -15,7 +15,7 @@ Date:   Wed Nov 4 14:51:51 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/getrandom_linux.go         | 9 ---------
  src/internal/syscall/unix/getrandom_linux_386.go     | 7 +++++++
  src/internal/syscall/unix/getrandom_linux_amd64.go   | 7 +++++++
@@ -23,3 +23,98 @@ Date:   Wed Nov 4 14:51:51 2015 -0800
  src/internal/syscall/unix/getrandom_linux_generic.go | 9 +++++++++
  src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 9 +++++++++
  6 files changed, 39 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom_linux.go b/src/internal/syscall/unix/getrandom_linux.go
+index 7388271ef1..e07557a93b 100644
+--- a/src/internal/syscall/unix/getrandom_linux.go
++++ b/src/internal/syscall/unix/getrandom_linux.go
+@@ -5,20 +5,11 @@
+ package unix
+ 
+ import (
+-	"runtime"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"unsafe"
+ )
+ 
+-var randomTrap = map[string]uintptr{
+-	"386":     355,
+-	"amd64":   318,
+-	"arm":     384,
+-	"ppc64":   359,
+-	"ppc64le": 359,
+-}[runtime.GOARCH]
+-
+ var randomUnsupported int32 // atomic
+ 
+ // GetRandomFlag is a flag supported by the getrandom system call.
+diff --git a/src/internal/syscall/unix/getrandom_linux_386.go b/src/internal/syscall/unix/getrandom_linux_386.go
+new file mode 100644
+index 0000000000..48c69b4585
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_386.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const randomTrap uintptr = 355
+diff --git a/src/internal/syscall/unix/getrandom_linux_amd64.go b/src/internal/syscall/unix/getrandom_linux_amd64.go
+new file mode 100644
+index 0000000000..7175e36e31
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_amd64.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const randomTrap uintptr = 318
+diff --git a/src/internal/syscall/unix/getrandom_linux_arm.go b/src/internal/syscall/unix/getrandom_linux_arm.go
+new file mode 100644
+index 0000000000..c4d6f43d56
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_arm.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const randomTrap uintptr = 384
+diff --git a/src/internal/syscall/unix/getrandom_linux_generic.go b/src/internal/syscall/unix/getrandom_linux_generic.go
+new file mode 100644
+index 0000000000..0e632dc27a
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_generic.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build arm64
++
++package unix
++
++const randomTrap uintptr = 278
+diff --git a/src/internal/syscall/unix/getrandom_linux_ppc64x.go b/src/internal/syscall/unix/getrandom_linux_ppc64x.go
+new file mode 100644
+index 0000000000..6edaba2f14
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_ppc64x.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package unix
++
++const randomTrap uintptr = 359

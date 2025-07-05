@@ -15,7 +15,131 @@ Date:   Thu Nov 30 22:59:04 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/maps/maps_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/map.go    | 22 +++++++++++++++----
  2 files changed, 76 insertions(+), 4 deletions(-)
+
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index 5e3f9ca03b..fa30fe8c2b 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -182,3 +182,61 @@ func TestCloneWithMapAssign(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCloneLarge(t *testing.T) {
++	// See issue 64474.
++	type K [17]float64 // > 128 bytes
++	type V [17]float64
++
++	var zero float64
++	negZero := -zero
++
++	for tst := 0; tst < 3; tst++ {
++		// Initialize m with a key and value.
++		m := map[K]V{}
++		var k1 K
++		var v1 V
++		m[k1] = v1
++
++		switch tst {
++		case 0: // nothing, just a 1-entry map
++		case 1:
++			// Add more entries to make it 2 buckets
++			// 1 entry already
++			// 7 more fill up 1 bucket
++			// 1 more to grow to 2 buckets
++			for i := 0; i < 7+1; i++ {
++				m[K{float64(i) + 1}] = V{}
++			}
++		case 2:
++			// Capture the map mid-grow
++			// 1 entry already
++			// 7 more fill up 1 bucket
++			// 5 more (13 total) fill up 2 buckets
++			// 13 more (26 total) fill up 4 buckets
++			// 1 more to start the 4->8 bucket grow
++			for i := 0; i < 7+5+13+1; i++ {
++				m[K{float64(i) + 1}] = V{}
++			}
++		}
++
++		// Clone m, which should freeze the map's contents.
++		c := Clone(m)
++
++		// Update m with new key and value.
++		k2, v2 := k1, v1
++		k2[0] = negZero
++		v2[0] = 1.0
++		m[k2] = v2
++
++		// Make sure c still has its old key and value.
++		for k, v := range c {
++			if math.Signbit(k[0]) {
++				t.Errorf("tst%d: sign bit of key changed; got %v want %v", tst, k, k1)
++			}
++			if v != v1 {
++				t.Errorf("tst%d: value changed; got %v want %v", tst, v, v1)
++			}
++		}
++	}
++}
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 7048949073..11daeb7568 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1480,12 +1480,24 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
+ 
+ 		dst.tophash[pos] = src.tophash[i]
+ 		if t.IndirectKey() {
+-			*(*unsafe.Pointer)(dstK) = *(*unsafe.Pointer)(srcK)
++			srcK = *(*unsafe.Pointer)(srcK)
++			if t.NeedKeyUpdate() {
++				kStore := newobject(t.Key)
++				typedmemmove(t.Key, kStore, srcK)
++				srcK = kStore
++			}
++			// Note: if NeedKeyUpdate is false, then the memory
++			// used to store the key is immutable, so we can share
++			// it between the original map and its clone.
++			*(*unsafe.Pointer)(dstK) = srcK
+ 		} else {
+ 			typedmemmove(t.Key, dstK, srcK)
+ 		}
+ 		if t.IndirectElem() {
+-			*(*unsafe.Pointer)(dstEle) = *(*unsafe.Pointer)(srcEle)
++			srcEle = *(*unsafe.Pointer)(srcEle)
++			eStore := newobject(t.Elem)
++			typedmemmove(t.Elem, eStore, srcEle)
++			*(*unsafe.Pointer)(dstEle) = eStore
+ 		} else {
+ 			typedmemmove(t.Elem, dstEle, srcEle)
+ 		}
+@@ -1509,14 +1521,14 @@ func mapclone2(t *maptype, src *hmap) *hmap {
+ 		fatal("concurrent map clone and map write")
+ 	}
+ 
+-	if src.B == 0 {
++	if src.B == 0 && !(t.IndirectKey() && t.NeedKeyUpdate()) && !t.IndirectElem() {
++		// Quick copy for small maps.
+ 		dst.buckets = newobject(t.Bucket)
+ 		dst.count = src.count
+ 		typedmemmove(t.Bucket, dst.buckets, src.buckets)
+ 		return dst
+ 	}
+ 
+-	//src.B != 0
+ 	if dst.B == 0 {
+ 		dst.buckets = newobject(t.Bucket)
+ 	}
+@@ -1564,6 +1576,8 @@ func mapclone2(t *maptype, src *hmap) *hmap {
+ 			continue
+ 		}
+ 
++		// oldB < dst.B, so a single source bucket may go to multiple destination buckets.
++		// Process entries one at a time.
+ 		for srcBmap != nil {
+ 			// move from oldBlucket to new bucket
+ 			for i := uintptr(0); i < bucketCnt; i++ {

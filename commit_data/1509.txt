@@ -8,7 +8,126 @@ Date:   Fri Jan 16 13:29:43 2009 -0800
     DELTA=14  (0 added, 0 deleted, 14 changed)
     OCL=22960
     CL=22962
-
+---
  src/lib/fmt/format.go | 14 +++++++-------
  src/lib/fmt/print.go  | 14 +++++++-------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 9c8b127b73..ef8477764f 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -413,7 +413,7 @@ func (f *Fmt) Fmt_q(s string) *Fmt {
+ 
+ // floating-point
+ 
+-func Prec(f *Fmt, def int) int {
++func doPrec(f *Fmt, def int) int {
+ 	if f.prec_present {
+ 		return f.prec;
+ 	}
+@@ -428,15 +428,15 @@ func fmtString(f *Fmt, s string) *Fmt {
+ 
+ // float64
+ func (f *Fmt) Fmt_e64(a float64) *Fmt {
+-	return fmtString(f, strconv.Ftoa64(a, 'e', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa64(a, 'e', doPrec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_f64(a float64) *Fmt {
+-	return fmtString(f, strconv.Ftoa64(a, 'f', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa64(a, 'f', doPrec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_g64(a float64) *Fmt {
+-	return fmtString(f, strconv.Ftoa64(a, 'g', Prec(f, -1)));
++	return fmtString(f, strconv.Ftoa64(a, 'g', doPrec(f, -1)));
+ }
+ 
+ func (f *Fmt) Fmt_fb64(a float64) *Fmt {
+@@ -447,15 +447,15 @@ func (f *Fmt) Fmt_fb64(a float64) *Fmt {
+ // cannot defer to float64 versions
+ // because it will get rounding wrong in corner cases.
+ func (f *Fmt) Fmt_e32(a float32) *Fmt {
+-	return fmtString(f, strconv.Ftoa32(a, 'e', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa32(a, 'e', doPrec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_f32(a float32) *Fmt {
+-	return fmtString(f, strconv.Ftoa32(a, 'f', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa32(a, 'f', doPrec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_g32(a float32) *Fmt {
+-	return fmtString(f, strconv.Ftoa32(a, 'g', Prec(f, -1)));
++	return fmtString(f, strconv.Ftoa32(a, 'g', doPrec(f, -1)));
+ }
+ 
+ func (f *Fmt) Fmt_fb32(a float32) *Fmt {
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 97fb1460da..67d56e1c18 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -45,7 +45,7 @@ type pp struct {
+ 	fmt	*Fmt;
+ }
+ 
+-func Printer() *pp {
++func newPrinter() *pp {
+ 	p := new(pp);
+ 	p.fmt = fmt.New();
+ 	return p;
+@@ -130,7 +130,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
+ 
+ export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprintf(format, v);
+ 	n, error = w.Write(p.buf[0:p.n]);
+ 	return n, error;
+@@ -143,7 +143,7 @@ export func Printf(format string, v ...) (n int, errno *os.Error) {
+ 
+ export func Sprintf(format string, a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprintf(format, v);
+ 	s := string(p.buf)[0 : p.n];
+ 	return s;
+@@ -154,7 +154,7 @@ export func Sprintf(format string, a ...) string {
+ 
+ export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprint(v, false, false);
+ 	n, error = w.Write(p.buf[0:p.n]);
+ 	return n, error;
+@@ -167,7 +167,7 @@ export func Print(v ...) (n int, errno *os.Error) {
+ 
+ export func Sprint(a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprint(v, false, false);
+ 	s := string(p.buf)[0 : p.n];
+ 	return s;
+@@ -179,7 +179,7 @@ export func Sprint(a ...) string {
+ 
+ export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprint(v, true, true);
+ 	n, error = w.Write(p.buf[0:p.n]);
+ 	return n, error;
+@@ -192,7 +192,7 @@ export func Println(v ...) (n int, errno *os.Error) {
+ 
+ export func Sprintln(a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+-	p := Printer();
++	p := newPrinter();
+ 	p.doprint(v, true, true);
+ 	s := string(p.buf)[0 : p.n];
+ 	return s;

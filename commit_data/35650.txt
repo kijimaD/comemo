@@ -11,8 +11,136 @@ Date:   Wed Feb 14 14:54:59 2018 +1100
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          | 28 ++----------------------
  src/cmd/compile/internal/ssa/config.go      | 33 +++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/export_test.go | 26 +----------------------
  3 files changed, 36 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index af52933451..a9342aedf4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -24,31 +24,7 @@ var ssaConfig *ssa.Config
+ var ssaCaches []ssa.Cache
+ 
+ func initssaconfig() {
+-	types_ := ssa.Types{
+-		Bool:       types.Types[TBOOL],
+-		Int8:       types.Types[TINT8],
+-		Int16:      types.Types[TINT16],
+-		Int32:      types.Types[TINT32],
+-		Int64:      types.Types[TINT64],
+-		UInt8:      types.Types[TUINT8],
+-		UInt16:     types.Types[TUINT16],
+-		UInt32:     types.Types[TUINT32],
+-		UInt64:     types.Types[TUINT64],
+-		Float32:    types.Types[TFLOAT32],
+-		Float64:    types.Types[TFLOAT64],
+-		Int:        types.Types[TINT],
+-		UInt:       types.Types[TUINT],
+-		Uintptr:    types.Types[TUINTPTR],
+-		String:     types.Types[TSTRING],
+-		BytePtr:    types.NewPtr(types.Types[TUINT8]),
+-		Int32Ptr:   types.NewPtr(types.Types[TINT32]),
+-		UInt32Ptr:  types.NewPtr(types.Types[TUINT32]),
+-		IntPtr:     types.NewPtr(types.Types[TINT]),
+-		UintptrPtr: types.NewPtr(types.Types[TUINTPTR]),
+-		Float32Ptr: types.NewPtr(types.Types[TFLOAT32]),
+-		Float64Ptr: types.NewPtr(types.Types[TFLOAT64]),
+-		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[TUINT8])),
+-	}
++	types_ := ssa.NewTypes()
+ 
+ 	if thearch.SoftFloat {
+ 		softfloatInit()
+@@ -69,7 +45,7 @@ func initssaconfig() {
+ 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
+ 	_ = types.NewPtr(types.Errortype)                                 // *error
+ 	types.NewPtrCacheEnabled = false
+-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types_, Ctxt, Debug['N'] == 0)
++	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug['N'] == 0)
+ 	if thearch.LinkArch.Name == "386" {
+ 		ssaConfig.Set387(thearch.Use387)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 9bf4ef5968..1226ca7a5a 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -73,6 +73,39 @@ type Types struct {
+ 	BytePtrPtr *types.Type
+ }
+ 
++// Instantiate the SSA type pointers.
++func NewTypes() *Types {
++	t := new(Types)
++	t.SetTypPtrs()
++	return t
++}
++
++// Populate the SSA type pointers.
++func (t *Types) SetTypPtrs() {
++	t.Bool = types.Types[types.TBOOL]
++	t.Int8 = types.Types[types.TINT8]
++	t.Int16 = types.Types[types.TINT16]
++	t.Int32 = types.Types[types.TINT32]
++	t.Int64 = types.Types[types.TINT64]
++	t.UInt8 = types.Types[types.TUINT8]
++	t.UInt16 = types.Types[types.TUINT16]
++	t.UInt32 = types.Types[types.TUINT32]
++	t.UInt64 = types.Types[types.TUINT64]
++	t.Float32 = types.Types[types.TFLOAT32]
++	t.Float64 = types.Types[types.TFLOAT64]
++	t.Int = types.Types[types.TINT]
++	t.Uintptr = types.Types[types.TUINTPTR]
++	t.String = types.Types[types.TSTRING]
++	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
++	t.Int32Ptr = types.NewPtr(types.Types[types.TINT32])
++	t.UInt32Ptr = types.NewPtr(types.Types[types.TUINT32])
++	t.IntPtr = types.NewPtr(types.Types[types.TINT])
++	t.UintptrPtr = types.NewPtr(types.Types[types.TUINTPTR])
++	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
++	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
++	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
++}
++
+ type Logger interface {
+ 	// Logf logs a message from the compiler.
+ 	Logf(string, ...interface{})
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index ac7a1b00e0..1fe0bbe6ae 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -184,31 +184,7 @@ func init() {
+ 		t.Align = uint8(typ.width)
+ 		types.Types[typ.et] = t
+ 	}
+-
+-	dummyTypes = Types{
+-		Bool:       types.Types[types.TBOOL],
+-		Int8:       types.Types[types.TINT8],
+-		Int16:      types.Types[types.TINT16],
+-		Int32:      types.Types[types.TINT32],
+-		Int64:      types.Types[types.TINT64],
+-		UInt8:      types.Types[types.TUINT8],
+-		UInt16:     types.Types[types.TUINT16],
+-		UInt32:     types.Types[types.TUINT32],
+-		UInt64:     types.Types[types.TUINT64],
+-		Float32:    types.Types[types.TFLOAT32],
+-		Float64:    types.Types[types.TFLOAT64],
+-		Int:        types.Types[types.TINT],
+-		Uintptr:    types.Types[types.TUINTPTR],
+-		String:     types.Types[types.TSTRING],
+-		BytePtr:    types.NewPtr(types.Types[types.TUINT8]),
+-		Int32Ptr:   types.NewPtr(types.Types[types.TINT32]),
+-		UInt32Ptr:  types.NewPtr(types.Types[types.TUINT32]),
+-		IntPtr:     types.NewPtr(types.Types[types.TINT]),
+-		UintptrPtr: types.NewPtr(types.Types[types.TUINTPTR]),
+-		Float32Ptr: types.NewPtr(types.Types[types.TFLOAT32]),
+-		Float64Ptr: types.NewPtr(types.Types[types.TFLOAT64]),
+-		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[types.TUINT8])),
+-	}
++	dummyTypes.SetTypPtrs()
+ }
+ 
+ func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }

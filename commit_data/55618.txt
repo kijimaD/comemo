@@ -13,6 +13,46 @@ Date:   Sat Feb 25 16:32:15 2023 +0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/env_windows.go | 23 +++++++++++++----------
  1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index cd085a9e44..94364f930c 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -74,21 +74,24 @@ func Clearenv() {
+ }
+ 
+ func Environ() []string {
+-	s, e := GetEnvironmentStrings()
++	envp, e := GetEnvironmentStrings()
+ 	if e != nil {
+ 		return nil
+ 	}
+-	defer FreeEnvironmentStrings(s)
++	defer FreeEnvironmentStrings(envp)
++
+ 	r := make([]string, 0, 50) // Empty with room to grow.
+-	for from, i, p := 0, 0, (*[1 << 24]uint16)(unsafe.Pointer(s)); true; i++ {
+-		if p[i] == 0 {
+-			// empty string marks the end
+-			if i <= from {
+-				break
+-			}
+-			r = append(r, string(utf16.Decode(p[from:i])))
+-			from = i + 1
++	const size = unsafe.Sizeof(*envp)
++	for *envp != 0 { // environment block ends with empty string
++		// find NUL terminator
++		end := unsafe.Pointer(envp)
++		for *(*uint16)(end) != 0 {
++			end = unsafe.Add(end, size)
+ 		}
++
++		entry := unsafe.Slice(envp, (uintptr(end)-uintptr(unsafe.Pointer(envp)))/size)
++		r = append(r, string(utf16.Decode(entry)))
++		envp = (*uint16)(unsafe.Add(end, size))
+ 	}
+ 	return r
+ }

@@ -21,6 +21,23 @@ Date:   Mon Oct 3 14:45:52 2016 -0400
     Change-Id: I951c0a2be427eb9082a32d65c4410e6fdef041be
     Reviewed-on: https://go-review.googlesource.com/31453
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mfinal.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 4f3e887bc8..dae3956cd1 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -182,6 +182,11 @@ func runfinq() {
+ 				if f.fint == nil {
+ 					throw("missing type in runfinq")
+ 				}
++				// frame is effectively uninitialized
++				// memory. That means we have to clear
++				// it before writing to it to avoid
++				// confusing the write barrier.
++				*(*[2]uintptr)(frame) = [2]uintptr{}
+ 				switch f.fint.kind & kindMask {
+ 				case kindPtr:
+ 					// direct use of pointer

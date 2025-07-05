@@ -7,8 +7,112 @@ Date:   Wed Sep 17 14:08:52 2008 -0700
     R=r
     OCL=15441
     CL=15445
-
+---
  src/runtime/print.c | 12 ++++++++----
  test/golden.out     | 30 ++++--------------------------
  test/printbig.go    | 12 ++++++++++++
  3 files changed, 24 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 8236f04b4a..726665bb76 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -112,15 +112,16 @@ void
+ sys·printint(int64 v)
+ {
+ 	byte buf[100];
+-	int32 i, s;
++	int32 i, s, big;
+ 
++	big = 0;
+ 	s = 0;
+ 	if(v < 0) {
+ 		v = -v;
+ 		s = 1;
+ 		if(v < 0) {
+-			sys·write(1, (byte*)"-oo", 3);
+-			return;
++			big = 1;
++			v--;
+ 		}
+ 	}
+ 
+@@ -130,10 +131,13 @@ sys·printint(int64 v)
+ 			break;
+ 		v = v/10;
+ 	}
+-	if(s) {
++	if(s){
+ 		i--;
+ 		buf[i] = '-';
+ 	}
++	if(big){
++		buf[nelem(buf)-1]++;
++	}
+ 	sys·write(1, buf+i, nelem(buf)-i);
+ }
+ 
+diff --git a/test/golden.out b/test/golden.out
+index e39abee1fb..9689f1cb73 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,30 +1,4 @@
+ 
+-=========== ./bufiolib.go
+-throw: index out of range
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: 0x11c43
+-
+-0x11c43?zi
+-	throw(98060, 0, 235528, ...)
+-	throw(0x17f0c, 0x39808, 0x5e2e, ...)
+-0x11b97?zi
+-	sys·throwindex(235528, 0, 0, ...)
+-	sys·throwindex(0x39808, 0x0, 0x1, ...)
+-0x5e2e?zi
+-	bufio·BufRead_ReadLineString(235312, 0, 65546, ...)
+-	bufio·BufRead_ReadLineString(0x39730, 0x1000a, 0x39758, ...)
+-0x1cb8?zi
+-	main·ReadLines(235312, 0, 235304, ...)
+-	main·ReadLines(0x39730, 0x39728, 0x1, ...)
+-0x2bb5?zi
+-	main·TestBufRead(85470, 0, 1, ...)
+-	main·TestBufRead(0x14dde, 0x1, 0x7fff5fbff268, ...)
+-0x3830?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+-
+-
+ =========== ./func1.go
+ func1.go:12: var a redeclared in this block
+      previous declaration at func1.go:12
+@@ -48,6 +22,10 @@ skipping increment test until bug060 is fixed
+ 9! = 362880
+ 10! = 3628800
+ 
++=========== ./printbig.go
++-9223372036854775808
++9223372036854775807
++
+ =========== ./turing.go
+ Hello World!
+ 
+diff --git a/test/printbig.go b/test/printbig.go
+new file mode 100644
+index 0000000000..5ec95b9468
+--- /dev/null
++++ b/test/printbig.go
+@@ -0,0 +1,12 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	print(-(1<<63), "\n");
++	print((1<<63)-1, "\n")
++}

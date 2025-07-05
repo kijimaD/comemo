@@ -11,6 +11,20 @@ Date:   Mon Feb 20 02:49:58 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5687048
-
+---
  .hgignore | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index a937d4eecb..f306782d99 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -46,8 +46,6 @@ src/pkg/go/build/syslist.go
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion
+-src/pkg/runtime/version.go
+-src/pkg/runtime/version_*.go
+ src/pkg/runtime/z*
+ src/pkg/unicode/maketables
+ src/pkg/*.*/

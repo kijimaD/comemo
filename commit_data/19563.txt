@@ -14,7 +14,256 @@ Date:   Tue Jun 17 14:56:54 2014 -0700
     R=golang-codereviews, dan.kortschak, rsc
     CC=golang-codereviews
     https://golang.org/cl/103480043
-
+---
  src/pkg/fmt/fmt_test.go | 115 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/fmt/format.go   |  71 ++++++++++++++----------------
  2 files changed, 147 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 2865b966ee..430da628aa 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -517,9 +517,76 @@ var fmtTests = []struct {
+ 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
+ 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
+ 
+-	// Zero padding floats used to put the minus sign in the middle.
+-	{"%020f", -1.0, "-000000000001.000000"},
++	// Comparison of padding rules with C printf.
++	/*
++		C program:
++		#include <stdio.h>
++
++		char *format[] = {
++			"[%.2f]",
++			"[% .2f]",
++			"[%+.2f]",
++			"[%7.2f]",
++			"[% 7.2f]",
++			"[%+7.2f]",
++			"[%07.2f]",
++			"[% 07.2f]",
++			"[%+07.2f]",
++		};
++
++		int main(void) {
++			int i;
++			for(i = 0; i < 9; i++) {
++				printf("%s: ", format[i]);
++				printf(format[i], 1.0);
++				printf(" ");
++				printf(format[i], -1.0);
++				printf("\n");
++			}
++		}
++
++		Output:
++			[%.2f]: [1.00] [-1.00]
++			[% .2f]: [ 1.00] [-1.00]
++			[%+.2f]: [+1.00] [-1.00]
++			[%7.2f]: [   1.00] [  -1.00]
++			[% 7.2f]: [   1.00] [  -1.00]
++			[%+7.2f]: [  +1.00] [  -1.00]
++			[%07.2f]: [0001.00] [-001.00]
++			[% 07.2f]: [ 001.00] [-001.00]
++			[%+07.2f]: [+001.00] [-001.00]
++	*/
++	{"%.2f", 1.0, "1.00"},
++	{"%.2f", -1.0, "-1.00"},
++	{"% .2f", 1.0, " 1.00"},
++	{"% .2f", -1.0, "-1.00"},
++	{"%+.2f", 1.0, "+1.00"},
++	{"%+.2f", -1.0, "-1.00"},
++	{"%7.2f", 1.0, "   1.00"},
++	{"%7.2f", -1.0, "  -1.00"},
++	{"% 7.2f", 1.0, "   1.00"},
++	{"% 7.2f", -1.0, "  -1.00"},
++	{"%+7.2f", 1.0, "  +1.00"},
++	{"%+7.2f", -1.0, "  -1.00"},
++	{"%07.2f", 1.0, "0001.00"},
++	{"%07.2f", -1.0, "-001.00"},
++	{"% 07.2f", 1.0, " 001.00"},
++	{"% 07.2f", -1.0, "-001.00"},
++	{"%+07.2f", 1.0, "+001.00"},
++	{"%+07.2f", -1.0, "-001.00"},
++
++	// Complex numbers: exhaustively tested in TestComplexFormatting.
++	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
++	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
++	// Zero padding does not apply to infinities.
++	{"%020f", math.Inf(-1), "                -Inf"},
++	{"%020f", math.Inf(+1), "                +Inf"},
++	{"% 020f", math.Inf(-1), "                -Inf"},
++	{"% 020f", math.Inf(+1), "                 Inf"},
++	{"%+020f", math.Inf(-1), "                -Inf"},
++	{"%+020f", math.Inf(+1), "                +Inf"},
+ 	{"%20f", -1.0, "           -1.000000"},
++	// Make sure we can handle very large widths.
+ 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
+ 
+ 	// Complex fmt used to leave the plus flag set for future entries in the array
+@@ -605,6 +672,50 @@ func TestSprintf(t *testing.T) {
+ 	}
+ }
+ 
++// TestComplexFormatting checks that a complex always formats to the same
++// thing as if done by hand with two singleton prints.
++func TestComplexFormatting(t *testing.T) {
++	var yesNo = []bool{true, false}
++	var signs = []float64{1, 0, -1}
++	for _, plus := range yesNo {
++		for _, zero := range yesNo {
++			for _, space := range yesNo {
++				for _, char := range "fFeEgG" {
++					realFmt := "%"
++					if zero {
++						realFmt += "0"
++					}
++					if space {
++						realFmt += " "
++					}
++					if plus {
++						realFmt += "+"
++					}
++					realFmt += "10.2"
++					realFmt += string(char)
++					// Imaginary part always has a sign, so force + and ignore space.
++					imagFmt := "%"
++					if zero {
++						imagFmt += "0"
++					}
++					imagFmt += "+"
++					imagFmt += "10.2"
++					imagFmt += string(char)
++					for _, realSign := range signs {
++						for _, imagSign := range signs {
++							one := Sprintf(realFmt, complex(realSign, imagSign))
++							two := Sprintf("("+realFmt+imagFmt+"i)", realSign, imagSign)
++							if one != two {
++								t.Error(f, one, two)
++							}
++						}
++					}
++				}
++			}
++		}
++	}
++}
++
+ type SE []interface{} // slice of empty; notational compactness.
+ 
+ var reorderTests = []struct {
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 20baa4bd53..f50163c4a2 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -368,14 +368,25 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	} else {
+ 		num[0] = '+'
+ 	}
++	// Special handling for infinity, which doesn't look like a number so shouldn't be padded with zeros.
++	if math.IsInf(v, 0) {
++		if f.zero {
++			defer func() { f.zero = true }()
++			f.zero = false
++		}
++	}
+ 	// num is now a signed version of the number.
+ 	// If we're zero padding, want the sign before the leading zeros.
+ 	// Achieve this by writing the sign out and then padding the unsigned number.
+ 	if f.zero && f.widPresent && f.wid > len(num) {
+-		f.buf.WriteByte(num[0])
+-		f.wid--
++		if f.space && v >= 0 {
++			f.buf.WriteByte(' ') // This is what C does: even with zero, f.space means space.
++			f.wid--
++		} else if f.plus || v < 0 {
++			f.buf.WriteByte(num[0])
++			f.wid--
++		}
+ 		f.pad(num[1:])
+-		f.wid++ // Restore width; complex numbers will reuse this value for imaginary part.
+ 		return
+ 	}
+ 	// f.space says to replace a leading + with a space.
+@@ -436,60 +447,46 @@ func (f *fmt) fmt_fb32(v float32) { f.formatFloat(float64(v), 'b', 0, 32) }
+ 
+ // fmt_c64 formats a complex64 according to the verb.
+ func (f *fmt) fmt_c64(v complex64, verb rune) {
+-	f.buf.WriteByte('(')
+-	r := real(v)
+-	oldPlus := f.plus
+-	for i := 0; ; i++ {
+-		switch verb {
+-		case 'b':
+-			f.fmt_fb32(r)
+-		case 'e':
+-			f.fmt_e32(r)
+-		case 'E':
+-			f.fmt_E32(r)
+-		case 'f', 'F':
+-			f.fmt_f32(r)
+-		case 'g':
+-			f.fmt_g32(r)
+-		case 'G':
+-			f.fmt_G32(r)
+-		}
+-		if i != 0 {
+-			break
+-		}
+-		f.plus = true
+-		r = imag(v)
+-	}
+-	f.plus = oldPlus
+-	f.buf.Write(irparenBytes)
++	f.fmt_complex(float64(real(v)), float64(imag(v)), 32, verb)
+ }
+ 
+ // fmt_c128 formats a complex128 according to the verb.
+ func (f *fmt) fmt_c128(v complex128, verb rune) {
++	f.fmt_complex(real(v), imag(v), 64, verb)
++}
++
++// fmt_complex formats a complex number as (r+ji).
++func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
+ 	f.buf.WriteByte('(')
+-	r := real(v)
+ 	oldPlus := f.plus
++	oldSpace := f.space
++	oldWid := f.wid
+ 	for i := 0; ; i++ {
+ 		switch verb {
+ 		case 'b':
+-			f.fmt_fb64(r)
++			f.formatFloat(r, 'b', 0, size)
+ 		case 'e':
+-			f.fmt_e64(r)
++			f.formatFloat(r, 'e', doPrec(f, 6), size)
+ 		case 'E':
+-			f.fmt_E64(r)
++			f.formatFloat(r, 'E', doPrec(f, 6), size)
+ 		case 'f', 'F':
+-			f.fmt_f64(r)
++			f.formatFloat(r, 'f', doPrec(f, 6), size)
+ 		case 'g':
+-			f.fmt_g64(r)
++			f.formatFloat(r, 'g', doPrec(f, -1), size)
+ 		case 'G':
+-			f.fmt_G64(r)
++			f.formatFloat(r, 'G', doPrec(f, -1), size)
+ 		}
+ 		if i != 0 {
+ 			break
+ 		}
++		// Imaginary part always has a sign.
+ 		f.plus = true
+-		r = imag(v)
++		f.space = false
++		f.wid = oldWid
++		r = j
+ 	}
++	f.space = oldSpace
+ 	f.plus = oldPlus
++	f.wid = oldWid
+ 	f.buf.Write(irparenBytes)
+ }

@@ -9,8 +9,68 @@ Date:   Thu Apr 13 10:42:16 2017 +0200
     Change-Id: Ib43cdcdc962a8d9e14faf984bc859a92ba1eb517
     Reviewed-on: https://go-review.googlesource.com/40531
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  4 +++-
  test/fixedbugs/issue8438.go         | 17 +++++++++++++++++
  test/interface/explicit.go          |  3 +--
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ff2d88614b..b52b4e4e69 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -982,7 +982,9 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
+ 	var why string
+ 	op := assignop(n.Type, t, &why)
+ 	if op == 0 {
+-		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
++		if !old.Diag() {
++			yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
++		}
+ 		op = OCONV
+ 	}
+ 
+diff --git a/test/fixedbugs/issue8438.go b/test/fixedbugs/issue8438.go
+new file mode 100644
+index 0000000000..b28025cdac
+--- /dev/null
++++ b/test/fixedbugs/issue8438.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that we don't print duplicate errors for string ->
++// array-literal conversion
++
++package main
++
++func main() {
++	_ = []byte{"foo"}   // ERROR "cannot convert"
++	_ = []int{"foo"}    // ERROR "cannot convert"
++	_ = []rune{"foo"}   // ERROR "cannot convert"
++	_ = []string{"foo"} // OK
++}
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index b10d02f248..3c449b13ad 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -53,7 +53,7 @@ func main() {
+ 	i2 = I2(i) // ERROR "invalid|missing N method"
+ 
+ 	e = E(t) // ok
+-	t = T(e) // ERROR "need explicit|need type assertion|incompatible" "as type [*]T"
++	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+ }
+ 
+ type M interface {
+@@ -81,7 +81,6 @@ var m2 M = jj // ERROR "incompatible|wrong type for M method"
+ var m3 = M(ii) // ERROR "invalid|missing"
+ var m4 = M(jj) // ERROR "invalid|wrong type for M method"
+ 
+-
+ type B1 interface {
+ 	_() // ERROR "methods must have a unique non-blank name"
+ }

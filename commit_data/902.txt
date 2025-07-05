@@ -16,10 +16,488 @@ Date:   Sat Oct 18 16:42:25 2008 -0700
     R=r
     OCL=17426
     CL=17426
-
+---
  usr/gri/pretty/parser.go   | 74 ++++++++++++++++++++++++++++++++--------------
  usr/gri/pretty/pretty.go   | 15 +++++-----
  usr/gri/pretty/scanner.go  | 72 ++++++++++++++++++++++++++++++++++++--------
  usr/gri/pretty/selftest.go | 32 ++++++++++++++++++++
  usr/gri/pretty/test.sh     | 55 ++++++++++++++++++++++------------
  5 files changed, 187 insertions(+), 61 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 47a613be10..ac4e3e55cd 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -9,8 +9,11 @@ import Node "node"
+ 
+ 
+ export type Parser struct {
+-	verbose bool;
++	// Tracing/debugging
++	verbose, sixg bool;
+ 	indent uint;
++	
++	// Scanner
+ 	scanner *Scanner.Scanner;
+ 	tokchan *<-chan *Scanner.Token;
+ 	comments *Node.List;
+@@ -76,23 +79,19 @@ func (P *Parser) Next0() {
+ func (P *Parser) Next() {
+ 	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
+ 		P.comments.Add(Node.NewComment(P.pos, P.val));
+-		if P.val == "/*ERROR*/" {
+-			// the position of the next token is the position of the next expected error
+-
+-		} else if P.val == "/*SYNC*/" {
+-			// synchronized at the next token
+-			
+-		}
+ 	}
+ }
+ 
+ 
+-func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
++func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+ 	P.verbose = verbose;
++	P.sixg = sixg;
+ 	P.indent = 0;
++	
+ 	P.scanner = scanner;
+ 	P.tokchan = tokchan;
+ 	P.comments = Node.NewList();
++	
+ 	P.Next();
+ 	P.expr_lev = 1;
+ 	P.scope_lev = 0;
+@@ -106,7 +105,12 @@ func (P *Parser) Error(pos int, msg string) {
+ 
+ func (P *Parser) Expect(tok int) {
+ 	if P.tok != tok {
+-		P.Error(P.pos, "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'");
++		msg := "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'";
++		switch P.tok {
++		case Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING:
++			msg += " " + P.val;
++		}
++		P.Error(P.pos, msg);
+ 	}
+ 	P.Next();  // make progress in any case
+ }
+@@ -291,18 +295,41 @@ func (P *Parser) ParseChannelType() *Node.Type {
+ }
+ 
+ 
++// TODO: The code below (ParseVarDecl, ParseVarDeclList) is all too
++// complicated. There must be a better way to do this.
++
++func (P *Parser) ParseVarDecl(expect_ident bool) *Node.Type {
++	t := Node.BadType;
++	if expect_ident {
++		x := P.ParseIdent();
++		t = Node.NewType(x.pos, Scanner.IDENT);
++		t.expr = x;
++	} else {
++		t = P.ParseType();
++	}
++	return t;
++}
++
++
+ func (P *Parser) ParseVarDeclList(list *Node.List) {
+ 	P.Trace("VarDeclList");
+ 
+ 	// parse a list of types
+ 	i0 := list.len();
+-	list.Add(P.ParseType());
++	list.Add(P.ParseVarDecl(i0 > 0));
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		list.Add(P.ParseType());
++		list.Add(P.ParseVarDecl(i0 > 0));
+ 	}
+ 
+-	typ := P.TryType();
++	var typ *Node.Type;
++	if i0 > 0 {
++		// not the first parameter section; we must have a type
++		typ = P.ParseType();
++	} else {
++		// first parameter section; we may have a type
++		typ = P.TryType();
++	}
+ 
+ 	// convert the list into a list of (type) expressions
+ 	if typ != nil {
+@@ -313,7 +340,7 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
+ 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
+ 				list.set(i, t.expr);
+ 			} else {
+-				list.set(i, Node.NewLit(t.pos, Scanner.IDENT, "bad"));
++				list.set(i, Node.BadExpr);
+ 				P.Error(t.pos, "identifier expected");
+ 			}
+ 		}
+@@ -559,11 +586,8 @@ func (P *Parser) ParseStatementList() *Node.List {
+ func (P *Parser) ParseBlock() *Node.List {
+ 	P.Trace("Block");
+ 	
+-	var s *Node.List;
+ 	P.Expect(Scanner.LBRACE);
+-	if P.tok != Scanner.RBRACE {
+-		s = P.ParseStatementList();
+-	}
++	s := P.ParseStatementList();
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+ 	
+@@ -1001,11 +1025,9 @@ func (P *Parser) ParseIfStat() *Node.Stat {
+ 	s.block = P.ParseBlock();
+ 	if P.tok == Scanner.ELSE {
+ 		P.Next();
+-		if P.tok == Scanner.IF {
+-			s.post = P.ParseIfStat();
+-		} else {
+-			// For 6g compliance - should really be P.ParseBlock()
+-			s1 := P.ParseStatement();
++		s1 := Node.BadStat;
++		if P.sixg {
++			s1 = P.ParseStatement();
+ 			if s1 != nil {
+ 				// not the empty statement
+ 				if s1.tok != Scanner.LBRACE {
+@@ -1017,7 +1039,13 @@ func (P *Parser) ParseIfStat() *Node.Stat {
+ 				}
+ 				s.post = s1;
+ 			}
++		} else if P.tok == Scanner.IF {
++			s1 = P.ParseIfStat();
++		} else {
++			s1 = Node.NewStat(P.pos, Scanner.LBRACE);
++			s1.block = P.ParseBlock();
+ 		}
++		s.post = s1;
+ 	}
+ 	
+ 	P.Ecart();
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 94e99fca18..37f30e7868 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -12,10 +12,11 @@ import Printer "printer"
+ 
+ 
+ var (
+-    silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+-    verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
+-    //sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
+-    tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
++	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
++	verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
++	sixg = Flag.Bool("6g", true, nil, "6g compatibility mode");
++	testmode = Flag.Bool("t", false, nil, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
++	tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
+ )
+ 
+ 
+@@ -44,7 +45,7 @@ func main() {
+ 		}
+ 
+ 		scanner := new(Scanner.Scanner);
+-		scanner.Open(src_file, src);
++		scanner.Open(src_file, src, testmode.BVal());
+ 
+ 		var tstream *<-chan *Scanner.Token;
+ 		if tokenchan.BVal() {
+@@ -52,7 +53,7 @@ func main() {
+ 		}
+ 
+ 		parser := new(Parser.Parser);
+-		parser.Open(verbose.BVal(), scanner, tstream);
++		parser.Open(verbose.BVal(), sixg.BVal(), scanner, tstream);
+ 
+ 		prog := parser.ParseProgram();
+ 
+@@ -60,7 +61,7 @@ func main() {
+ 			sys.exit(1);
+ 		}
+ 
+-		if !silent.BVal() {
++		if !silent.BVal() && !testmode.BVal() {
+ 			var P Printer.Printer;
+ 			(&P).Program(prog);
+ 		}
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 1878dc359b..2325a7dea1 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -277,12 +277,16 @@ export type Scanner struct {
+ 	filename string;  // error reporting only
+ 	nerrors int;  // number of errors
+ 	errpos int;  // last error position
+-
++	
+ 	// scanning
+ 	src string;  // scanned source
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+ 	chpos int;  // position of ch
++
++	// testmode
++	testmode bool;
++	testpos int;
+ }
+ 
+ 
+@@ -419,11 +423,29 @@ func (S *Scanner) ErrorMsg(pos int, msg string) {
+ 		}
+ 	}
+ 	print(": ", msg, "\n");
++	
++	S.nerrors++;
++	S.errpos = pos;
++
++	if S.nerrors >= 10 {
++		sys.exit(1);
++	}
+ }
+ 
+ 
+ func (S *Scanner) Error(pos int, msg string) {
+-	const errdist = 10;
++	// check for expected errors (test mode)
++	if S.testpos < 0 || pos == S.testpos {
++		// test mode:
++		// S.testpos < 0:  // follow-up errors are expected and ignored
++		// S.testpos == 0:  // an error is expected at S.testpos and ignored
++		S.testpos = -1;
++		return;
++	}
++	
++	// only report errors that are sufficiently far away from the previous error
++	// in the hope to avoid most follow-up errors
++	const errdist = 20;
+ 	delta := pos - S.errpos;  // may be negative!
+ 	if delta < 0 {
+ 		delta = -delta;
+@@ -431,24 +453,28 @@ func (S *Scanner) Error(pos int, msg string) {
+ 	
+ 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
+ 		S.ErrorMsg(pos, msg);
+-		S.nerrors++;
+-		S.errpos = pos;
+-	}
+-	
+-	if S.nerrors >= 10 {
+-		sys.exit(1);
+-	}
++	}	
+ }
+ 
+ 
+-func (S *Scanner) Open(filename, src string) {
++func (S *Scanner) ExpectNoErrors() {
++	// set the next expected error position to one after eof
++	// (the eof position is a legal error position!)
++	S.testpos = len(S.src) + 1;
++}
++
++
++func (S *Scanner) Open(filename, src string, testmode bool) {
+ 	S.filename = filename;
+ 	S.nerrors = 0;
+ 	S.errpos = 0;
+ 	
+ 	S.src = src;
+ 	S.pos = 0;
+-	S.Next();
++	S.testmode = testmode;
++	
++	S.ExpectNoErrors();  // after setting S.src
++	S.Next();  // after S.ExpectNoErrrors()
+ }
+ 
+ 
+@@ -514,7 +540,29 @@ func (S *Scanner) ScanComment() string {
+ 	S.Error(pos, "comment not terminated");
+ 
+ exit:
+-	return S.src[pos : S.chpos];
++	comment := S.src[pos : S.chpos];
++	if S.testmode {
++		// interpret ERROR and SYNC comments
++		oldpos := -1;
++		switch {
++		case len(comment) >= 8 && comment[3 : 8] == "ERROR" :
++			// an error is expected at the next token position
++			oldpos = S.testpos;
++			S.SkipWhitespace();
++			S.testpos = S.chpos;
++		case len(comment) >= 7 && comment[3 : 7] == "SYNC" :
++			// scanning/parsing synchronized again - no (follow-up) errors expected
++			oldpos = S.testpos;
++			S.ExpectNoErrors();
++		}
++	
++		if 0 <= oldpos && oldpos <= len(S.src) {
++			// the previous error was not found
++			S.ErrorMsg(oldpos, "ERROR not found");
++		}
++	}
++	
++	return comment;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/selftest.go b/usr/gri/pretty/selftest.go
+new file mode 100644
+index 0000000000..f0e22c7947
+--- /dev/null
++++ b/usr/gri/pretty/selftest.go
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import P0 /* ERROR expected */ ; /* SYNC */
++import P1 /* ERROR expected */ Flags /* SYNC */
++import P2 /* ERROR expected */ 42 /* SYNC */
++
++
++type S0 struct {
++	f0, f1, f2;
++}
++
++
++func /* ERROR receiver */ () f0() {} /* SYNC */
++func /* ERROR receiver */ (*S0, *S0) f1() {} /* SYNC */
++
++
++func f0(a b, c /* ERROR type */ ) {}
++
++
++func f1() {
++}
++
++
++func main () {
++}
++
++
++func /* ERROR EOF */
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 7964fe3169..de0003d862 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -8,44 +8,45 @@ TMP1=test_tmp1.go
+ TMP2=test_tmp2.go
+ COUNT=0
+ 
++count() {
++	let COUNT=$COUNT+1
++	let M=$COUNT%10
++	if [ $M == 0 ]; then
++		echo -n "."
++	fi
++}
++
++
+ apply1() {
+ 	#echo $1 $2
+ 	$1 $2
+-	let COUNT=$COUNT+1
++	count
+ }
+ 
++
+ apply() {
+ 	for F in \
+ 		$GOROOT/usr/gri/pretty/*.go \
+ 		$GOROOT/usr/gri/gosrc/*.go \
+-		$GOROOT/test/235.go \
+-		$GOROOT/test/args.go \
+-		$GOROOT/test/bufiolib.go \
+-		$GOROOT/test/char_lit.go \
+-		$GOROOT/test/complit.go \
+-		$GOROOT/test/const.go \
+-		$GOROOT/test/dialgoogle.go \
+-		$GOROOT/test/empty.go \
+-		$GOROOT/test/env.go \
+-		$GOROOT/test/float_lit.go \
+-		$GOROOT/test/fmt_test.go \
+-		$GOROOT/test/for.go \
+-		$GOROOT/test/func.go \
+-		$GOROOT/test/func1.go \
+-		$GOROOT/test/func2.go \
++		$GOROOT/test/*.go \
+ 		$GOROOT/src/pkg/*.go \
+ 		$GOROOT/src/lib/*.go \
+ 		$GOROOT/src/lib/*/*.go \
+ 		$GOROOT/usr/r/*/*.go
+ 	do
+-		apply1 $1 $F
++		case `basename $F` in
++		selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
++		* ) apply1 $1 $F ;;
++		esac
+ 	done
+ }
+ 
++
+ cleanup() {
+ 	rm -f $TMP1 $TMP2
+ }
+ 
++
+ silent() {
+ 	cleanup
+ 	pretty -s $1 > $TMP1
+@@ -56,6 +57,7 @@ silent() {
+ 	fi
+ }
+ 
++
+ idempotent() {
+ 	cleanup
+ 	pretty $1 > $TMP1
+@@ -68,6 +70,7 @@ idempotent() {
+ 	fi
+ }
+ 
++
+ runtest() {
+ 	#echo "Testing silent mode"
+ 	cleanup
+@@ -78,6 +81,7 @@ runtest() {
+ 	$1 idempotent $2
+ }
+ 
++
+ runtests() {
+ 	if [ $# == 0 ]; then
+ 		runtest apply
+@@ -88,8 +92,21 @@ runtests() {
+ 	fi
+ }
+ 
++
++# run selftest always
++pretty -t selftest.go > $TMP1
++if [ $? != 0 ]; then
++	cat $TMP1
++	echo "Error (selftest): pretty -t selftest.go"
++	exit 1
++fi
++count
++
++
++# run over all .go files
+ runtests $*
+ cleanup
+-let COUNT=$COUNT/2  # divide by number of tests in runtest
+-echo "PASSED ($COUNT files)"
+ 
++# done
++echo
++echo "PASSED ($COUNT tests)"

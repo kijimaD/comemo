@@ -14,8 +14,135 @@ Date:   Sat Jan 6 07:25:05 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/export_test.go |  2 ++
  src/reflect/type.go        | 47 +++++++++++++++++++++++++++++++++++++++++++++-
  src/reflect/type_test.go   | 43 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 91 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 1648eb3624..55eb50a425 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -166,3 +166,5 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
+ var MethodValueCallCodePtr = methodValueCallCodePtr
+ 
+ var InternalIsZero = isZero
++
++var IsRegularMemory = isRegularMemory
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 89c5015530..dfa2ff6ddf 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2152,6 +2152,47 @@ func isValidFieldName(fieldName string) bool {
+ 	return len(fieldName) > 0
+ }
+ 
++// This must match cmd/compile/internal/compare.IsRegularMemory
++func isRegularMemory(t Type) bool {
++	switch t.Kind() {
++	case Array:
++		return isRegularMemory(t.Elem())
++	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Chan, Pointer, Bool, UnsafePointer:
++		return true
++	case Struct:
++		num := t.NumField()
++		switch num {
++		case 0:
++			return true
++		case 1:
++			field := t.Field(0)
++			if field.Name == "_" {
++				return false
++			}
++			return isRegularMemory(field.Type)
++		default:
++			for i := range num {
++				field := t.Field(i)
++				if field.Name == "_" || !isRegularMemory(field.Type) || isPaddedField(t, i) {
++					return false
++				}
++			}
++			return true
++		}
++	}
++	return false
++}
++
++// isPaddedField reports whether the i'th field of struct type t is followed
++// by padding.
++func isPaddedField(t Type, i int) bool {
++	field := t.Field(i)
++	if i+1 < t.NumField() {
++		return field.Offset+field.Type.Size() != t.Field(i+1).Offset
++	}
++	return field.Offset+field.Type.Size() != t.Size()
++}
++
+ // StructOf returns the struct type containing fields.
+ // The Offset and Index fields are ignored and computed as they would be
+ // by the compiler.
+@@ -2445,7 +2486,11 @@ func StructOf(fields []StructField) Type {
+ 	}
+ 
+ 	typ.Str = resolveReflectName(newName(str, "", false, false))
+-	typ.TFlag = 0 // TODO: set tflagRegularMemory
++	if isRegularMemory(toType(&typ.Type)) {
++		typ.TFlag = abi.TFlagRegularMemory
++	} else {
++		typ.TFlag = 0
++	}
+ 	typ.Hash = hash
+ 	typ.Size_ = size
+ 	typ.PtrBytes = typeptrdata(&typ.Type)
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+index 9e124273a2..d53bbe553d 100644
+--- a/src/reflect/type_test.go
++++ b/src/reflect/type_test.go
+@@ -57,3 +57,46 @@ func TestStructOfEmbeddedIfaceMethodCall(t *testing.T) {
+ 		_ = x.Name()
+ 	})
+ }
++
++func TestIsRegularMemory(t *testing.T) {
++	type args struct {
++		t reflect.Type
++	}
++	type S struct {
++		int
++	}
++	tests := []struct {
++		name string
++		args args
++		want bool
++	}{
++		{"struct{i int}", args{reflect.TypeOf(struct{ i int }{})}, true},
++		{"struct{}", args{reflect.TypeOf(struct{}{})}, true},
++		{"struct{i int; s S}", args{reflect.TypeOf(struct {
++			i int
++			s S
++		}{})}, true},
++		{"map[int][int]", args{reflect.TypeOf(map[int]int{})}, false},
++		{"[4]chan int", args{reflect.TypeOf([4]chan int{})}, true},
++		{"struct{i int; _ S}", args{reflect.TypeOf(struct {
++			i int
++			_ S
++		}{})}, false},
++		{"struct{a int16; b int32}", args{reflect.TypeOf(struct {
++			a int16
++			b int32
++		}{})}, false},
++		{"struct {x int32; y int16}", args{reflect.TypeOf(struct {
++			x int32
++			y int16
++		}{})}, false},
++		{"struct {_ int32 }", args{reflect.TypeOf(struct{ _ int32 }{})}, false},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			if got := reflect.IsRegularMemory(tt.args.t); got != tt.want {
++				t.Errorf("isRegularMemory() = %v, want %v", got, tt.want)
++			}
++		})
++	}
++}

@@ -13,6 +13,30 @@ Date:   Mon Jan 25 14:14:10 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index ecf3294082..e49a9716fe 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -434,6 +434,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		// bitmask showing which of the open-coded defers in this function
+ 		// have been activated.
+ 		deferBitsTemp := typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT8])
++		deferBitsTemp.SetAddrtaken(true)
+ 		s.deferBitsTemp = deferBitsTemp
+ 		// For this value, AuxInt is initialized to zero by default
+ 		startDeferBits := s.entryNewValue0(ssa.OpConst8, types.Types[types.TUINT8])
+@@ -5086,6 +5087,10 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		defer s.popLine()
+ 	}
+ 
++	if s.canSSA(n) {
++		s.Fatalf("addr of canSSA expression: %+v", n)
++	}
++
+ 	t := types.NewPtr(n.Type())
+ 	linksymOffset := func(lsym *obj.LSym, offset int64) *ssa.Value {
+ 		v := s.entryNewValue1A(ssa.OpAddr, t, lsym, s.sb)

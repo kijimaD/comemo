@@ -24,6 +24,24 @@ Date:   Thu Aug 9 23:17:45 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 06c452ff45..87940a8f02 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -347,9 +347,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 		if err == nil {
+ 			return r.statLocal(rev, ref)
+ 		}
+-		if !strings.Contains(err.Error(), "unadvertised object") && !strings.Contains(err.Error(), "no such remote ref") && !strings.Contains(err.Error(), "does not support shallow") {
+-			return nil, err
+-		}
++		// Don't try to be smart about parsing the error.
++		// It's too complex and varies too much by git version.
++		// No matter what went wrong, fall back to a complete fetch.
+ 	}
+ 
+ 	// Last resort.

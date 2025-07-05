@@ -9,7 +9,50 @@ Date:   Wed Oct 16 16:30:39 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14762044
-
+---
  src/pkg/database/sql/convert_test.go      | 4 ++--
  src/pkg/database/sql/driver/types_test.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/database/sql/convert_test.go b/src/pkg/database/sql/convert_test.go
+index 950e24fc3a..a39c2c54fb 100644
+--- a/src/pkg/database/sql/convert_test.go
++++ b/src/pkg/database/sql/convert_test.go
+@@ -267,14 +267,14 @@ func TestValueConverters(t *testing.T) {
+ 			goterr = err.Error()
+ 		}
+ 		if goterr != tt.err {
+-			t.Errorf("test %d: %s(%T(%v)) error = %q; want error = %q",
++			t.Errorf("test %d: %T(%T(%v)) error = %q; want error = %q",
+ 				i, tt.c, tt.in, tt.in, goterr, tt.err)
+ 		}
+ 		if tt.err != "" {
+ 			continue
+ 		}
+ 		if !reflect.DeepEqual(out, tt.out) {
+-			t.Errorf("test %d: %s(%T(%v)) = %v (%T); want %v (%T)",
++			t.Errorf("test %d: %T(%T(%v)) = %v (%T); want %v (%T)",
+ 				i, tt.c, tt.in, tt.in, out, out, tt.out, tt.out)
+ 		}
+ 	}
+diff --git a/src/pkg/database/sql/driver/types_test.go b/src/pkg/database/sql/driver/types_test.go
+index ab82bca716..1ce0ff0654 100644
+--- a/src/pkg/database/sql/driver/types_test.go
++++ b/src/pkg/database/sql/driver/types_test.go
+@@ -51,14 +51,14 @@ func TestValueConverters(t *testing.T) {
+ 			goterr = err.Error()
+ 		}
+ 		if goterr != tt.err {
+-			t.Errorf("test %d: %s(%T(%v)) error = %q; want error = %q",
++			t.Errorf("test %d: %T(%T(%v)) error = %q; want error = %q",
+ 				i, tt.c, tt.in, tt.in, goterr, tt.err)
+ 		}
+ 		if tt.err != "" {
+ 			continue
+ 		}
+ 		if !reflect.DeepEqual(out, tt.out) {
+-			t.Errorf("test %d: %s(%T(%v)) = %v (%T); want %v (%T)",
++			t.Errorf("test %d: %T(%T(%v)) = %v (%T); want %v (%T)",
+ 				i, tt.c, tt.in, tt.in, out, out, tt.out, tt.out)
+ 		}
+ 	}

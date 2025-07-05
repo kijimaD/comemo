@@ -9,9 +9,101 @@ Date:   Tue Feb 14 14:52:00 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5658047
-
+---
  doc/godocs.js          | 22 ++++++++++++++++++----
  lib/godoc/example.html |  2 +-
  lib/godoc/package.html |  9 +++++++++
  src/cmd/godoc/godoc.go |  4 ++--
  4 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 5320de6bcc..cc96cf6743 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -23,7 +23,7 @@ bindEvent(window, 'load', godocs_onload);
+ function godocs_onload() {
+   godocs_bindSearchEvents();
+   godocs_generateTOC();
+-  godocs_bindExampleToggles();
++  godocs_bindExamples();
+ }
+ 
+ function godocs_bindSearchEvents() {
+@@ -158,11 +158,14 @@ function godocs_nodeToText(node) {
+   return text;
+ }
+ 
+-function godocs_bindExampleToggles() {
++function godocs_bindExamples() {
+   var examples = document.getElementsByClassName("example");
+   for (var i = 0; i < examples.length; i++) {
+-    var eg = examples[i];
+-    godocs_bindExampleToggle(eg);
++    godocs_bindExampleToggle(examples[i]);
++  }
++  var links = document.getElementsByClassName("exampleLink");
++  for (var i = 0; i < links.length; i++) {
++    godocs_bindExampleLink(links[i]);
+   }
+ }
+ function godocs_bindExampleToggle(eg) {
+@@ -177,3 +180,14 @@ function godocs_bindExampleToggle(eg) {
+     });
+   }
+ }
++function godocs_bindExampleLink(l) {
++  var prefix = "example_";
++  bindEvent(l, "click", function() {
++    var i = l.href.indexOf("#"+prefix);
++    if (i < 0)
++      return;
++    var id = prefix + l.href.slice(i+1+prefix.length);
++    var eg = document.getElementById(id);
++    eg.className = "exampleVisible";
++  });
++}
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index 7af943172b..d31e204a2f 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -1,4 +1,4 @@
+-<div class="example">
++<div id="example_{{.Name}}" class="example">
+ 	<div class="collapsed">
+ 		<p class="exampleHeading">▹ Example</p>
+ 	</div>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index f4b6a0b7e3..2722ff0e9a 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -52,6 +52,15 @@
+ 			{{end}}
+ 		</dl>
+ 
++		{{if $.Examples}}
++			<h4>Examples</h4>
++			<dl>
++			{{range $.Examples}}
++			<dd><a class="exampleLink" href="#example_{{.Name}}">{{.Name}}</a></dd>
++			{{end}}
++			</dl>
++		{{end}}
++
+ 		{{with .Filenames}}
+ 			<h4>Package files</h4>
+ 			<p>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 613475a592..3945039299 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -522,8 +522,8 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 		code = code[2 : len(code)-2]
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+-			Code, Output string
+-		}{code, eg.Output})
++			Name, Code, Output string
++		}{name, code, eg.Output})
+ 		if err != nil {
+ 			log.Print(err)
+ 		}

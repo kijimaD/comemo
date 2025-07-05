@@ -11,8 +11,87 @@ Date:   Sun Apr 26 04:34:34 2020 +1000
     Change-Id: I933db2813826d88819366191fbbea8fcee5e4dda
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230120
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  3 +++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 20 ++++----------------
  3 files changed, 9 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 845ca58b6e..fbd87360ac 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -414,9 +414,9 @@
+ // Boolean ops; 0=false, 1=true
+ (AndB ...) => (AND ...)
+ (OrB  ...) => (OR  ...)
+-(EqB  x y) => (XORI [1] (XOR <typ.Bool> x y))
++(EqB  x y) => (SEQZ (XOR <typ.Bool> x y))
+ (NeqB ...) => (XOR ...)
+-(Not  x)   => (XORI [1] x)
++(Not  ...) => (SEQZ ...)
+ 
+ // Lowering pointer arithmetic
+ // TODO: Special handling for SP offsets, like ARM
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 8bdb35f95a..8ab4abe04a 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -10,6 +10,9 @@ import (
+ 	"fmt"
+ )
+ 
++// Notes:
++//  - Boolean types occupy the entire register. 0=false, 1=true.
++
+ // Suffixes encode the bit width of various instructions:
+ //
+ // D (double word) = 64 bit int
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index db9f529bae..6b91c08628 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -391,7 +391,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		v.Op = OpRISCV64LoweredNilCheck
+ 		return true
+ 	case OpNot:
+-		return rewriteValueRISCV64_OpNot(v)
++		v.Op = OpRISCV64SEQZ
++		return true
+ 	case OpOffPtr:
+ 		return rewriteValueRISCV64_OpOffPtr(v)
+ 	case OpOr16:
+@@ -913,12 +914,11 @@ func rewriteValueRISCV64_OpEqB(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (EqB x y)
+-	// result: (XORI [1] (XOR <typ.Bool> x y))
++	// result: (SEQZ (XOR <typ.Bool> x y))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		v.reset(OpRISCV64XORI)
+-		v.AuxInt = int64ToAuxInt(1)
++		v.reset(OpRISCV64SEQZ)
+ 		v0 := b.NewValue0(v.Pos, OpRISCV64XOR, typ.Bool)
+ 		v0.AddArg2(x, y)
+ 		v.AddArg(v0)
+@@ -2132,18 +2132,6 @@ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueRISCV64_OpNot(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (Not x)
+-	// result: (XORI [1] x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64XORI)
+-		v.AuxInt = int64ToAuxInt(1)
+-		v.AddArg(x)
+-		return true
+-	}
+-}
+ func rewriteValueRISCV64_OpOffPtr(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block

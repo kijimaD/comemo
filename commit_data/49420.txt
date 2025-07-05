@@ -16,8 +16,96 @@ Date:   Wed Jul 28 02:06:10 2021 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                            | 20 ++++++++++----------
  src/cmd/go/internal/test/test.go                 | 21 +++++++++++----------
  src/cmd/go/testdata/script/test_cache_inputs.txt |  6 ++++++
  3 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f919699627..ddf7bb5318 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1446,16 +1446,16 @@
+ // The rule for a match in the cache is that the run involves the same
+ // test binary and the flags on the command line come entirely from a
+ // restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+-// -list, -parallel, -run, -short, and -v. If a run of go test has any test
+-// or non-test flags outside this set, the result is not cached. To
+-// disable test caching, use any test flag or argument other than the
+-// cacheable flags. The idiomatic way to disable test caching explicitly
+-// is to use -count=1. Tests that open files within the package's source
+-// root (usually $GOPATH) or that consult environment variables only
+-// match future runs in which the files and environment variables are unchanged.
+-// A cached test result is treated as executing in no time at all,
+-// so a successful package test result will be cached and reused
+-// regardless of -timeout setting.
++// -list, -parallel, -run, -short, -timeout, -failfast, and -v.
++// If a run of go test has any test or non-test flags outside this set,
++// the result is not cached. To disable test caching, use any test flag
++// or argument other than the cacheable flags. The idiomatic way to disable
++// test caching explicitly is to use -count=1. Tests that open files within
++// the package's source root (usually $GOPATH) or that consult environment
++// variables only match future runs in which the files and environment
++// variables are unchanged. A cached test result is treated as executing
++// in no time at all,so a successful package test result will be cached and
++// reused regardless of -timeout setting.
+ //
+ // In addition to the build flags, the flags handled by 'go test' itself are:
+ //
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index ce8f226a96..e8bf0e198e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -119,16 +119,16 @@ elapsed time in the summary line.
+ The rule for a match in the cache is that the run involves the same
+ test binary and the flags on the command line come entirely from a
+ restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+--list, -parallel, -run, -short, and -v. If a run of go test has any test
+-or non-test flags outside this set, the result is not cached. To
+-disable test caching, use any test flag or argument other than the
+-cacheable flags. The idiomatic way to disable test caching explicitly
+-is to use -count=1. Tests that open files within the package's source
+-root (usually $GOPATH) or that consult environment variables only
+-match future runs in which the files and environment variables are unchanged.
+-A cached test result is treated as executing in no time at all,
+-so a successful package test result will be cached and reused
+-regardless of -timeout setting.
++-list, -parallel, -run, -short, -timeout, -failfast, and -v.
++If a run of go test has any test or non-test flags outside this set,
++the result is not cached. To disable test caching, use any test flag
++or argument other than the cacheable flags. The idiomatic way to disable
++test caching explicitly is to use -count=1. Tests that open files within
++the package's source root (usually $GOPATH) or that consult environment
++variables only match future runs in which the files and environment
++variables are unchanged. A cached test result is treated as executing
++in no time at all,so a successful package test result will be cached and
++reused regardless of -timeout setting.
+ 
+ In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+@@ -1351,6 +1351,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			"-test.run",
+ 			"-test.short",
+ 			"-test.timeout",
++			"-test.failfast",
+ 			"-test.v":
+ 			// These are cacheable.
+ 			// Note that this list is documented above,
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index d694a30994..3705c700d1 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -108,6 +108,12 @@ go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+ go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+ ! stdout '\(cached\)'
+ 
++# golang.org/issue/47355: that includes the `-failfast` argument.
++go test testcache -run=TestOSArgs -failfast
++! stdout '\(cached\)'
++go test testcache -run=TestOSArgs -failfast
++stdout '\(cached\)'
++
+ # Executables within GOROOT and GOPATH should affect caching,
+ # even if the test does not stat them explicitly.
+ 

@@ -15,7 +15,231 @@ Date:   Wed Feb 25 13:42:54 2015 +0000
     Change-Id: I75f97f67c08bbee151d1e0970f8462dd0f4511ef
     Reviewed-on: https://go-review.googlesource.com/5910
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/encoding/xml/marshal.go      | 84 ++++++++++++++++++++++++++--------------
  src/encoding/xml/marshal_test.go | 50 +++++++++++++++---------
  2 files changed, 86 insertions(+), 48 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 9d6045c916..a0e2058d89 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -1018,25 +1018,22 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 			}
+ 
+ 		case fElement, fElement | fAny:
+-			if err := s.trim(finfo.parents); err != nil {
++			if err := s.setParents(finfo, vf); err != nil {
+ 				return err
+ 			}
+-			if len(finfo.parents) > len(s.stack) {
+-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+-					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
+-						return err
+-					}
+-				}
+-			}
+ 		}
+ 		if err := p.marshalValue(vf, finfo, nil); err != nil {
+ 			return err
+ 		}
+ 	}
+-	s.trim(nil)
++	if err := s.setParents(&noField, reflect.Value{}); err != nil {
++		return err
++	}
+ 	return p.cachedWriteError()
+ }
+ 
++var noField fieldInfo
++
+ // return the bufio Writer's cached write error
+ func (p *printer) cachedWriteError() error {
+ 	_, err := p.Write(nil)
+@@ -1075,37 +1072,64 @@ func (p *printer) writeIndent(depthDelta int) {
+ }
+ 
+ type parentStack struct {
+-	p     *printer
+-	stack []string
++	p       *printer
++	xmlns   string
++	parents []string
+ }
+ 
+-// trim updates the XML context to match the longest common prefix of the stack
+-// and the given parents.  A closing tag will be written for every parent
+-// popped.  Passing a zero slice or nil will close all the elements.
+-func (s *parentStack) trim(parents []string) error {
+-	split := 0
+-	for ; split < len(parents) && split < len(s.stack); split++ {
+-		if parents[split] != s.stack[split] {
+-			break
++// setParents sets the stack of current parents to those found in finfo.
++// It only writes the start elements if vf holds a non-nil value.
++// If finfo is &noField, it pops all elements.
++func (s *parentStack) setParents(finfo *fieldInfo, vf reflect.Value) error {
++	xmlns := s.p.defaultNS
++	if finfo.xmlns != "" {
++		xmlns = finfo.xmlns
++	}
++	commonParents := 0
++	if xmlns == s.xmlns {
++		for ; commonParents < len(finfo.parents) && commonParents < len(s.parents); commonParents++ {
++			if finfo.parents[commonParents] != s.parents[commonParents] {
++				break
++			}
+ 		}
+ 	}
+-	for i := len(s.stack) - 1; i >= split; i-- {
+-		if err := s.p.writeEnd(Name{Local: s.stack[i]}); err != nil {
++	// Pop off any parents that aren't in common with the previous field.
++	for i := len(s.parents) - 1; i >= commonParents; i-- {
++		if err := s.p.writeEnd(Name{
++			Space: s.xmlns,
++			Local: s.parents[i],
++		}); err != nil {
+ 			return err
+ 		}
+ 	}
+-	s.stack = parents[:split]
+-	return nil
+-}
+-
+-// push adds parent elements to the stack and writes open tags.
+-func (s *parentStack) push(parents []string) error {
+-	for i := 0; i < len(parents); i++ {
+-		if err := s.p.writeStart(&StartElement{Name: Name{Local: parents[i]}}); err != nil {
++	s.parents = finfo.parents
++	s.xmlns = xmlns
++	if commonParents >= len(s.parents) {
++		// No new elements to push.
++		return nil
++	}
++	if (vf.Kind() == reflect.Ptr || vf.Kind() == reflect.Interface) && vf.IsNil() {
++		// The element is nil, so no need for the start elements.
++		s.parents = s.parents[:commonParents]
++		return nil
++	}
++	// Push any new parents required.
++	for _, name := range s.parents[commonParents:] {
++		start := &StartElement{
++			Name: Name{
++				Space: s.xmlns,
++				Local: name,
++			},
++		}
++		// Set the default name space for parent elements
++		// to match what we do with other elements.
++		if s.xmlns != s.p.defaultNS {
++			start.setDefaultNamespace()
++		}
++		if err := s.p.writeStart(start); err != nil {
+ 			return err
+ 		}
+ 	}
+-	s.stack = append(s.stack, parents...)
+ 	return nil
+ }
+ 
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 7410a81ec9..601bb30d03 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -625,17 +626,21 @@ var marshalTests = []struct {
+ 			C       string   `xml:"space x>c"`
+ 			C1      string   `xml:"space1 x>c"`
+ 			D1      string   `xml:"space1 x>d"`
++			E1      string   `xml:"x>e"`
+ 		}{
+ 			A:  "a",
+ 			B:  "b",
+ 			C:  "c",
+ 			C1: "c1",
+ 			D1: "d1",
++			E1: "e1",
+ 		},
+ 		ExpectXML: `<top xmlns="space">` +
+-			`<x xmlns=""><a>a</a><b>b</b><c xmlns="space">c</c>` +
+-			`<c xmlns="space1">c1</c>` +
+-			`<d xmlns="space1">d1</d>` +
++			`<x><a>a</a><b>b</b><c>c</c></x>` +
++			`<x xmlns="space1">` +
++			`<c>c1</c>` +
++			`<d>d1</d>` +
++			`<e>e1</e>` +
+ 			`</x>` +
+ 			`</top>`,
+ 	},
+@@ -659,10 +664,11 @@ var marshalTests = []struct {
+ 			D1: "d1",
+ 		},
+ 		ExpectXML: `<top xmlns="space0">` +
+-			`<x xmlns=""><a>a</a><b>b</b>` +
+-			`<c xmlns="space">c</c>` +
+-			`<c xmlns="space1">c1</c>` +
+-			`<d xmlns="space1">d1</d>` +
++			`<x><a>a</a><b>b</b></x>` +
++			`<x xmlns="space"><c>c</c></x>` +
++			`<x xmlns="space1">` +
++			`<c>c1</c>` +
++			`<d>d1</d>` +
+ 			`</x>` +
+ 			`</top>`,
+ 	},
+@@ -676,8 +682,8 @@ var marshalTests = []struct {
+ 			B1: "b1",
+ 		},
+ 		ExpectXML: `<top>` +
+-			`<x><b xmlns="space">b</b>` +
+-			`<b xmlns="space1">b1</b></x>` +
++			`<x xmlns="space"><b>b</b></x>` +
++			`<x xmlns="space1"><b>b1</b></x>` +
+ 			`</top>`,
+ 	},
+ 
+@@ -1100,15 +1106,6 @@ func TestUnmarshal(t *testing.T) {
+ 		if _, ok := test.Value.(*Plain); ok {
+ 			continue
+ 		}
+-		if test.ExpectXML == `<top>`+
+-			`<x><b xmlns="space">b</b>`+
+-			`<b xmlns="space1">b1</b></x>`+
+-			`</top>` {
+-			// TODO(rogpeppe): re-enable this test in
+-			// https://go-review.googlesource.com/#/c/5910/
+-			continue
+-		}
+-
+ 		vt := reflect.TypeOf(test.Value)
+ 		dest := reflect.New(vt.Elem()).Interface()
+ 		err := Unmarshal([]byte(test.ExpectXML), dest)
+@@ -1659,3 +1656,20 @@ func TestDecodeEncode(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 9796. Used to fail with GORACE="halt_on_error=1" -race.
++func TestRace9796(t *testing.T) {
++	type A struct{}
++	type B struct {
++		C []A `xml:"X>Y"`
++	}
++	var wg sync.WaitGroup
++	for i := 0; i < 2; i++ {
++		wg.Add(1)
++		go func() {
++			Marshal(B{[]A{A{}}})
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}

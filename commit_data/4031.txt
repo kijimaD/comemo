@@ -13,6 +13,26 @@ Date:   Fri Nov 13 13:15:18 2009 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/154118
-
+---
  src/pkg/flag/flag.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index ff72c08e24..0471d126c0 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -31,8 +31,13 @@
+ 	Command line flag syntax:
+ 		-flag
+ 		-flag=x
+-		-flag x
++		-flag x  // non-boolean flags only
+ 	One or two minus signs may be used; they are equivalent.
++	The last form is not permitted for boolean flags because the
++	meaning of the command
++		cmd -x *
++	will change if there is a file called 0, false, etc.  You must
++	use the -flag=false form to turn off a boolean flag.
+ 
+ 	Flag parsing stops just before the first non-flag argument
+ 	("-" is a non-flag argument) or after the terminator "--".

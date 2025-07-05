@@ -7,7 +7,65 @@ Date:   Thu Mar 17 09:59:18 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4271048
-
+---
  src/cmd/gofix/httpserver.go      | 17 ++++++++++++++++-
  src/cmd/gofix/httpserver_test.go |  4 ++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/httpserver.go b/src/cmd/gofix/httpserver.go
+index 88996532b4..659a259267 100644
+--- a/src/cmd/gofix/httpserver.go
++++ b/src/cmd/gofix/httpserver.go
+@@ -51,7 +51,7 @@ func httpserver(f *ast.File) bool {
+ 
+ 			// Look for w.UsingTLS() and w.Remoteaddr().
+ 			call, ok := n.(*ast.CallExpr)
+-			if !ok || len(call.Args) != 0 {
++			if !ok || (len(call.Args) != 0 && len(call.Args) != 2) {
+ 				return
+ 			}
+ 			sel, ok := call.Fun.(*ast.SelectorExpr)
+@@ -102,6 +102,21 @@ func httpserver(f *ast.File) bool {
+ 					Sel: ast.NewIdent("RemoteAddr"),
+ 				}
+ 				fixed = true
++			case "SetHeader":
++				// replace w.SetHeader with w.Header().Set
++				// or w.Header().Del if second argument is ""
++				sel.X = &ast.CallExpr{
++					Fun: &ast.SelectorExpr{
++						X:   ast.NewIdent(w.String()),
++						Sel: ast.NewIdent("Header"),
++					},
++				}
++				sel.Sel = ast.NewIdent("Set")
++				if len(call.Args) == 2 && isEmptyString(call.Args[1]) {
++					sel.Sel = ast.NewIdent("Del")
++					call.Args = call.Args[:1]
++				}
++				fixed = true
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/gofix/httpserver_test.go b/src/cmd/gofix/httpserver_test.go
+index 2866ad896d..89bb4fa710 100644
+--- a/src/cmd/gofix/httpserver_test.go
++++ b/src/cmd/gofix/httpserver_test.go
+@@ -16,6 +16,8 @@ var httpserverTests = []testCase{
+ import "http"
+ 
+ func f(xyz http.ResponseWriter, abc *http.Request, b string) {
++	xyz.SetHeader("foo", "bar")
++	xyz.SetHeader("baz", "")
+ 	xyz.Hijack()
+ 	xyz.Flush()
+ 	go xyz.Hijack()
+@@ -33,6 +35,8 @@ func f(xyz http.ResponseWriter, abc *http.Request, b string) {
+ import "http"
+ 
+ func f(xyz http.ResponseWriter, abc *http.Request, b string) {
++	xyz.Header().Set("foo", "bar")
++	xyz.Header().Del("baz")
+ 	xyz.(http.Hijacker).Hijack()
+ 	xyz.(http.Flusher).Flush()
+ 	go xyz.(http.Hijacker).Hijack()

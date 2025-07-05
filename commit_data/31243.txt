@@ -18,8 +18,92 @@ Date:   Wed Dec 7 10:49:45 2016 +1100
     Change-Id: I54d73caee2aea45a99618d11600d8e82fe20d0c0
     Reviewed-on: https://go-review.googlesource.com/34090
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go       | 11 +++++++++++
  src/os/stat_windows.go  | 13 +++++++------
  src/os/types_windows.go | 11 +++++++----
  3 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7ad9aac70e..9d74070e7f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1669,6 +1669,17 @@ func TestStatStdin(t *testing.T) {
+ 		Exit(0)
+ 	}
+ 
++	fi, err := Stdin.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++	switch mode := fi.Mode(); {
++	case mode&ModeCharDevice != 0:
++	case mode&ModeNamedPipe != 0:
++	default:
++		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
++	}
++
+ 	var cmd *osexec.Cmd
+ 	if runtime.GOOS == "windows" {
+ 		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index fdabf73cba..c8379381b1 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -31,8 +31,9 @@ func (file *File) Stat() (FileInfo, error) {
+ 	if err != nil {
+ 		return nil, &PathError{"GetFileType", file.name, err}
+ 	}
+-	if ft == syscall.FILE_TYPE_PIPE {
+-		return &fileStat{name: basename(file.name), pipe: true}, nil
++	switch ft {
++	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
++		return &fileStat{name: basename(file.name), filetype: ft}, nil
+ 	}
+ 
+ 	var d syscall.ByHandleFileInformation
+@@ -50,10 +51,10 @@ func (file *File) Stat() (FileInfo, error) {
+ 			FileSizeHigh:   d.FileSizeHigh,
+ 			FileSizeLow:    d.FileSizeLow,
+ 		},
+-		vol:   d.VolumeSerialNumber,
+-		idxhi: d.FileIndexHigh,
+-		idxlo: d.FileIndexLow,
+-		pipe:  false,
++		filetype: ft,
++		vol:      d.VolumeSerialNumber,
++		idxhi:    d.FileIndexHigh,
++		idxlo:    d.FileIndexLow,
+ 	}, nil
+ }
+ 
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index ad4e863fcb..772b9e5d24 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -12,9 +12,9 @@ import (
+ 
+ // A fileStat is the implementation of FileInfo returned by Stat and Lstat.
+ type fileStat struct {
+-	name string
+-	sys  syscall.Win32FileAttributeData
+-	pipe bool
++	name     string
++	sys      syscall.Win32FileAttributeData
++	filetype uint32 // what syscall.GetFileType returns
+ 
+ 	// used to implement SameFile
+ 	sync.Mutex
+@@ -43,8 +43,11 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+ 		m |= ModeSymlink
+ 	}
+-	if fs.pipe {
++	switch fs.filetype {
++	case syscall.FILE_TYPE_PIPE:
+ 		m |= ModeNamedPipe
++	case syscall.FILE_TYPE_CHAR:
++		m |= ModeCharDevice
+ 	}
+ 	return m
+ }

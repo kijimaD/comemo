@@ -13,6 +13,21 @@ Date:   Tue Oct 18 15:27:51 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 1221642f2f..f31c858f6b 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -441,9 +441,6 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ }
+ 
+ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/15464")
+-	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		io.WriteString(w, r.RemoteAddr)

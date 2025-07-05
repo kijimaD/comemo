@@ -19,7 +19,7 @@ Date:   Sun Oct 9 22:45:17 2016 -0700
     Change-Id: I3d3dfbe7f602066975c7a7794fe25b4c645440ce
     Reviewed-on: https://go-review.googlesource.com/30723
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/example_test.go   | 13 +++++++++++
  src/math/big/floatconv.go      | 15 ++++++++++++
  src/math/big/floatconv_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
@@ -27,3 +27,174 @@ Date:   Sun Oct 9 22:45:17 2016 -0700
  src/math/big/intconv.go        |  4 ++++
  src/math/big/ratconv.go        |  3 +++
  6 files changed, 89 insertions(+)
+
+diff --git a/src/math/big/example_test.go b/src/math/big/example_test.go
+index ac7955219d..cfc77351d4 100644
+--- a/src/math/big/example_test.go
++++ b/src/math/big/example_test.go
+@@ -51,6 +51,19 @@ func ExampleInt_Scan() {
+ 	// Output: 18446744073709551617
+ }
+ 
++func ExampleFloat_Scan() {
++	// The Scan function is rarely used directly;
++	// the fmt package recognizes it as an implementation of fmt.Scanner.
++	f := new(big.Float)
++	_, err := fmt.Sscan("1.19282e99", f)
++	if err != nil {
++		log.Println("error scanning value:", err)
++	} else {
++		fmt.Println(f)
++	}
++	// Output: 1.19282e+99
++}
++
+ // This example demonstrates how to use big.Int to compute the smallest
+ // Fibonacci number with 100 decimal digits and to test whether it is prime.
+ func Example_fibonacci() {
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 4ba03bc105..186dfe4a6e 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -12,6 +12,8 @@ import (
+ 	"strings"
+ )
+ 
++var floatZero Float
++
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s must be a floating-point number of the same format as accepted
+ // by Parse, with base argument 0. The entire string (not just a prefix) must
+@@ -276,3 +278,16 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
+ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
+ 	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
+ }
++
++var _ fmt.Scanner = &floatZero // *Float must implement fmt.Scanner
++
++// Scan is a support routine for fmt.Scanner; it sets z to the value of
++// the scanned number. It accepts formats whose verbs are supported by
++// fmt.Scan for floating point values, which are:
++// 'b' (binary), 'e', 'E', 'f', 'F', 'g' and 'G'.
++// Scan doesn't handle ±Inf.
++func (z *Float) Scan(s fmt.ScanState, ch rune) error {
++	s.SkipSpace()
++	_, _, err := z.scan(byteReader{s}, 0)
++	return err
++}
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index b2a1ab05fc..edcb2eb105 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"math"
+ 	"strconv"
+@@ -665,3 +666,54 @@ func BenchmarkParseFloatLargeExp(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func TestFloatScan(t *testing.T) {
++	var floatScanTests = []struct {
++		input     string
++		format    string
++		output    string
++		remaining int
++		wantErr   bool
++	}{
++		0: {"10.0", "%f", "10", 0, false},
++		1: {"23.98+2.0", "%v", "23.98", 4, false},
++		2: {"-1+1", "%v", "-1", 2, false},
++		3: {" 00000", "%v", "0", 0, false},
++		4: {"-123456p-78", "%b", "-4.084816388e-19", 0, false},
++		5: {"+123", "%b", "123", 0, false},
++		6: {"-1.234e+56", "%e", "-1.234e+56", 0, false},
++		7: {"-1.234E-56", "%E", "-1.234e-56", 0, false},
++		8: {"-1.234e+567", "%g", "-1.234e+567", 0, false},
++		9: {"+1234567891011.234", "%G", "1.234567891e+12", 0, false},
++
++		// Scan doesn't handle ±Inf.
++		10: {"Inf", "%v", "", 3, true},
++		11: {"-Inf", "%v", "", 3, true},
++		12: {"-Inf", "%v", "", 3, true},
++	}
++
++	var buf bytes.Buffer
++	for i, test := range floatScanTests {
++		x := new(Float)
++		buf.Reset()
++		buf.WriteString(test.input)
++		_, err := fmt.Fscanf(&buf, test.format, x)
++		if test.wantErr {
++			if err == nil {
++				t.Errorf("#%d want non-nil err", i)
++			}
++			continue
++		}
++
++		if err != nil {
++			t.Errorf("#%d error: %s", i, err)
++		}
++
++		if x.String() != test.output {
++			t.Errorf("#%d got %s; want %s", i, x.String(), test.output)
++		}
++		if buf.Len() != test.remaining {
++			t.Errorf("#%d got %d bytes remaining; want %d", i, buf.Len(), test.remaining)
++		}
++	}
++}
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 57b16e1ad1..d2a85886c7 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -376,6 +376,8 @@ func min(x, y int) int {
+ 	return y
+ }
+ 
++var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
++
+ // Format implements fmt.Formatter. It accepts all the regular
+ // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
+ // 'g', 'G') as well as 'p' and 'v'. See (*Float).Text for the
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index daf674aef4..91a62ce04e 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -52,6 +52,8 @@ func writeMultiple(s fmt.State, text string, count int) {
+ 	}
+ }
+ 
++var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
++
+ // Format implements fmt.Formatter. It accepts the formats
+ // 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase
+ // hexadecimal), and 'X' (uppercase hexadecimal).
+@@ -223,6 +225,8 @@ func (r byteReader) UnreadByte() error {
+ 	return r.UnreadRune()
+ }
+ 
++var _ fmt.Scanner = intOne // *Int must implement fmt.Scanner
++
+ // Scan is a support routine for fmt.Scanner; it sets z to the value of
+ // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
+ // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 8a43f8bf64..a6a401c857 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -18,6 +18,9 @@ func ratTok(ch rune) bool {
+ 	return strings.ContainsRune("+-/0123456789.eE", ch)
+ }
+ 
++var ratZero Rat
++var _ fmt.Scanner = &ratZero // *Rat must implement fmt.Scanner
++
+ // Scan is a support routine for fmt.Scanner. It accepts the formats
+ // 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
+ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {

@@ -9,9 +9,72 @@ Date:   Thu Mar 7 07:29:34 2019 +0000
     GitHub-Pull-Request: golang/go#30156
     Reviewed-on: https://go-review.googlesource.com/c/go/+/161723
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  misc/cgo/test/env.go                   | 4 ++--
  misc/cgo/testcarchive/testdata/main4.c | 4 ++--
  misc/cgo/testcarchive/testdata/main5.c | 2 +-
  misc/nacl/testdata/mime.types          | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/env.go b/misc/cgo/test/env.go
+index b2081b7283..e0703e1452 100644
+--- a/misc/cgo/test/env.go
++++ b/misc/cgo/test/env.go
+@@ -18,8 +18,8 @@ import (
+ // This is really an os package test but here for convenience.
+ func testSetEnv(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+-		// Go uses SetEnvironmentVariable on windows. Howerver,
+-		// C runtime takes a *copy* at process startup of thei
++		// Go uses SetEnvironmentVariable on windows. However,
++		// C runtime takes a *copy* at process startup of the
+ 		// OS environment, and stores it in environ/envp.
+ 		// It is this copy that	getenv/putenv manipulate.
+ 		t.Logf("skipping test")
+diff --git a/misc/cgo/testcarchive/testdata/main4.c b/misc/cgo/testcarchive/testdata/main4.c
+index 4fd55e753d..a74763dd70 100644
+--- a/misc/cgo/testcarchive/testdata/main4.c
++++ b/misc/cgo/testcarchive/testdata/main4.c
+@@ -93,7 +93,7 @@ static void* thread1(void* arg __attribute__ ((unused))) {
+ 		fprintf(stderr, "sigaltstack disabled on return from Go\n");
+ 		ok = 0;
+ 	} else if (nss.ss_sp != ss.ss_sp) {
+-		fprintf(stderr, "sigalstack changed on return from Go\n");
++		fprintf(stderr, "sigaltstack changed on return from Go\n");
+ 		ok = 0;
+ 	}
+ 
+@@ -150,7 +150,7 @@ static void* thread2(void* arg __attribute__ ((unused))) {
+ 		fprintf(stderr, "sigaltstack disabled on return from Go\n");
+ 		ok = 0;
+ 	} else if (nss.ss_sp != ss.ss_sp) {
+-		fprintf(stderr, "sigalstack changed on return from Go\n");
++		fprintf(stderr, "sigaltstack changed on return from Go\n");
+ 		ok = 0;
+ 	}
+ 
+diff --git a/misc/cgo/testcarchive/testdata/main5.c b/misc/cgo/testcarchive/testdata/main5.c
+index 897b70d2fa..9d0da33652 100644
+--- a/misc/cgo/testcarchive/testdata/main5.c
++++ b/misc/cgo/testcarchive/testdata/main5.c
+@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
+ 				printf("write(2) unexpectedly succeeded\n");
+ 				return 0;
+ 			}
+-			printf("did not receieve SIGPIPE\n");
++			printf("did not receive SIGPIPE\n");
+ 			return 0;
+ 		}
+ 		default:
+diff --git a/misc/nacl/testdata/mime.types b/misc/nacl/testdata/mime.types
+index 81a415e9e6..ba678d5a4e 100644
+--- a/misc/nacl/testdata/mime.types
++++ b/misc/nacl/testdata/mime.types
+@@ -1,6 +1,6 @@
+ # This file maps Internet media types to unique file extension(s).
+ # Although created for httpd, this file is used by many software systems
+-# and has been placed in the public domain for unlimited redisribution.
++# and has been placed in the public domain for unlimited redistribution.
+ #
+ # The table below contains both registered and (common) unregistered types.
+ # A type that has no unique extension can be ignored -- they are listed

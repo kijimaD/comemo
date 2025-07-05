@@ -13,8 +13,223 @@ Date:   Wed May 3 13:33:14 2017 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +--
  src/cmd/compile/internal/ssa/opGen.go          |  28 ++++---
  src/cmd/compile/internal/ssa/rewritegeneric.go | 102 +++++++++++++++++++++++++
  3 files changed, 123 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e9a90963ab..d962e4a193 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -218,11 +218,11 @@ var genericOps = []opData{
+ 	{name: "Geq64F", argLength: 2, typ: "Bool"},
+ 
+ 	// boolean ops
+-	{name: "AndB", argLength: 2, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
+-	{name: "OrB", argLength: 2, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
+-	{name: "EqB", argLength: 2, typ: "Bool"},  // arg0 == arg1
+-	{name: "NeqB", argLength: 2, typ: "Bool"}, // arg0 != arg1
+-	{name: "Not", argLength: 1, typ: "Bool"},  // !arg0, boolean
++	{name: "AndB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
++	{name: "OrB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
++	{name: "EqB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 == arg1
++	{name: "NeqB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 != arg1
++	{name: "Not", argLength: 1, typ: "Bool"},                     // !arg0, boolean
+ 
+ 	// 1-input ops
+ 	{name: "Neg8", argLength: 1}, // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 32d928388f..938743897e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -21751,24 +21751,28 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "AndB",
+-		argLen:  2,
+-		generic: true,
++		name:        "AndB",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "OrB",
+-		argLen:  2,
+-		generic: true,
++		name:        "OrB",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "EqB",
+-		argLen:  2,
+-		generic: true,
++		name:        "EqB",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "NeqB",
+-		argLen:  2,
+-		generic: true,
++		name:        "NeqB",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "Not",
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 72d9c818b2..88cc39a65d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7894,6 +7894,24 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (EqB (ConstBool [d]) (ConstBool [c]))
++	// cond:
++	// result: (ConstBool [b2i(c == d)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		d := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c == d)
++		return true
++	}
+ 	// match: (EqB (ConstBool [0]) x)
+ 	// cond:
+ 	// result: (Not x)
+@@ -7910,6 +7928,22 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (EqB x (ConstBool [0]))
++	// cond:
++	// result: (Not x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (EqB (ConstBool [1]) x)
+ 	// cond:
+ 	// result: x
+@@ -7927,6 +7961,23 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (EqB x (ConstBool [1]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 1 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEqInter_0(v *Value) bool {
+@@ -14438,6 +14489,24 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
++	// match: (NeqB (ConstBool [d]) (ConstBool [c]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		d := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
+ 	// match: (NeqB (ConstBool [0]) x)
+ 	// cond:
+ 	// result: x
+@@ -14455,6 +14524,23 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (NeqB x (ConstBool [0]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (NeqB (ConstBool [1]) x)
+ 	// cond:
+ 	// result: (Not x)
+@@ -14471,6 +14557,22 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (NeqB x (ConstBool [1]))
++	// cond:
++	// result: (Not x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 1 {
++			break
++		}
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {

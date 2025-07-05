@@ -22,9 +22,80 @@ Date:   Mon Sep 12 13:39:54 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   | 2 +-
  src/cmd/compile/internal/gc/go.go        | 2 --
  src/cmd/compile/internal/gc/main.go      | 3 ---
  src/cmd/compile/internal/gc/typecheck.go | 6 ++----
  4 files changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 713a7f4610..cde3476271 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -289,7 +289,7 @@ func (p *importer) pkg() *Pkg {
+ 	} else if pkg.Name != name {
+ 		Yyerror("conflicting package names %s and %s for path %q", pkg.Name, name, path)
+ 	}
+-	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
++	if myimportpath != "" && path == myimportpath {
+ 		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
+ 		errorexit()
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 5c273bbd30..756c4d7358 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -231,8 +231,6 @@ var funcsyms []*Node
+ 
+ var dclcontext Class // PEXTERN/PAUTO
+ 
+-var incannedimport int
+-
+ var statuniqgen int // name generator for static temps
+ 
+ var iota_ int32
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 42dfbdc773..a52ad8cc50 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -685,15 +685,12 @@ func loadsys() {
+ 
+ 	block = 1
+ 	iota_ = -1000000
+-	incannedimport = 1
+ 
+ 	importpkg = Runtimepkg
+ 	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
+ 	importpkg = unsafepkg
+ 	Import(bufio.NewReader(strings.NewReader(unsafeimport)))
+-
+ 	importpkg = nil
+-	incannedimport = 0
+ }
+ 
+ func importfile(f *Val, indent []byte) {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 49685cf13c..aee38874ad 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2096,9 +2096,7 @@ OpSwitch:
+ 	case ODCLTYPE:
+ 		ok |= Etop
+ 		n.Left = typecheck(n.Left, Etype)
+-		if incannedimport == 0 {
+-			checkwidth(n.Left.Type)
+-		}
++		checkwidth(n.Left.Type)
+ 		break OpSwitch
+ 	}
+ 
+@@ -2114,7 +2112,7 @@ OpSwitch:
+ 		}
+ 	}
+ 
+-	if safemode && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
++	if safemode && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+ 		Yyerror("cannot use unsafe.Pointer")
+ 	}
+ 

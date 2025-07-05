@@ -22,7 +22,45 @@ Date:   Tue Mar 11 15:09:46 2025 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  ...temappings.txt => godebug_decoratemappings_124.txt} |  0
  .../script/godebug_decoratemappings_comment.txt        | 18 +++++++++++-------
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/godebug_decoratemappings.txt b/src/cmd/go/testdata/script/godebug_decoratemappings_124.txt
+similarity index 100%
+rename from src/cmd/go/testdata/script/godebug_decoratemappings.txt
+rename to src/cmd/go/testdata/script/godebug_decoratemappings_124.txt
+diff --git a/test/decoratemappingszero.go b/src/cmd/go/testdata/script/godebug_decoratemappings_comment.txt
+similarity index 54%
+rename from test/decoratemappingszero.go
+rename to src/cmd/go/testdata/script/godebug_decoratemappings_comment.txt
+index 162e553405..7568812e37 100644
+--- a/test/decoratemappingszero.go
++++ b/src/cmd/go/testdata/script/godebug_decoratemappings_comment.txt
+@@ -1,14 +1,18 @@
+-// run
++env GO111MODULE=on
+ 
+-// Copyright 2025 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++[!GOOS:linux] skip
++[short] skip
+ 
+-// Disable mapping annotations, which only exists for Linux.
++# Programs with //go:debug decoratemappings=0 should never see annotations.
++# This ensures that the runtime has not overridden the default.
++go run .
+ 
+-//go:debug decoratemappings=0
+-//go:build linux
++-- go.mod --
++go 1.25
++module m
+ 
++-- main.go --
++//go:debug decoratemappings=1
+ package main
+ 
+ import (

@@ -13,7 +13,43 @@ Date:   Thu May 16 06:49:49 2024 +0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/fs_test.go  | 2 +-
  src/reflect/type_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 63278d890f..2c3426f735 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1456,7 +1456,7 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
+ 
+ type panicOnSeek struct{ io.ReadSeeker }
+ 
+-func Test_scanETag(t *testing.T) {
++func TestScanETag(t *testing.T) {
+ 	tests := []struct {
+ 		in         string
+ 		wantETag   string
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+index 40ae7131c3..51abc0776c 100644
+--- a/src/reflect/type_test.go
++++ b/src/reflect/type_test.go
+@@ -118,7 +118,7 @@ func BenchmarkTypeForError(b *testing.B) {
+ 	}
+ }
+ 
+-func Test_Type_CanSeq(t *testing.T) {
++func TestType_CanSeq(t *testing.T) {
+ 	tests := []struct {
+ 		name string
+ 		tr   reflect.Type
+@@ -143,7 +143,7 @@ func Test_Type_CanSeq(t *testing.T) {
+ 	}
+ }
+ 
+-func Test_Type_CanSeq2(t *testing.T) {
++func TestType_CanSeq2(t *testing.T) {
+ 	tests := []struct {
+ 		name string
+ 		tr   reflect.Type

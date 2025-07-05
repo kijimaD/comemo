@@ -11,7 +11,34 @@ Date:   Thu Nov 19 12:33:32 2015 -0800
     Change-Id: I880472639bf2fc1a0751a83041bc7ddd0c9e55f4
     Reviewed-on: https://go-review.googlesource.com/17062
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/alldocs.go  | 2 +-
  src/cmd/go/generate.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7e4892ccd1..82f848d2e2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -451,7 +451,7 @@ Go generate accepts one specific flag:
+ 		any trailing spaces and final newline) matches the
+ 		expression.
+ 
+-It also accepts the standard build flags -v, -n, and -x.
++It also accepts the standard build flags including -v, -n, and -x.
+ The -v flag prints the names of packages and files as they are
+ processed.
+ The -n flag prints commands that would be executed.
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 152b7d3fb1..0834aa7823 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -115,7 +115,7 @@ Go generate accepts one specific flag:
+ 		any trailing spaces and final newline) matches the
+ 		expression.
+ 
+-It also accepts the standard build flags -v, -n, and -x.
++It also accepts the standard build flags including -v, -n, and -x.
+ The -v flag prints the names of packages and files as they are
+ processed.
+ The -n flag prints commands that would be executed.

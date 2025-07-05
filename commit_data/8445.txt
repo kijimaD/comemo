@@ -14,7 +14,7 @@ Date:   Thu May 19 17:05:35 2011 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/4515113
-
+---
  misc/dashboard/builder/http.go                 | 18 ++++++++--------
  misc/dashboard/builder/main.go                 | 30 +++++++++++++-------------
  src/pkg/go/printer/nodes.go                    | 12 ++++++-----
@@ -24,3 +24,247 @@ Date:   Thu May 19 17:05:35 2011 -0700
  src/pkg/mime/multipart/multipart_test.go       |  2 +-
  src/pkg/os/user/user_test.go                   |  2 +-
  8 files changed, 36 insertions(+), 34 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 45ecb78cca..4546f855a4 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -59,7 +59,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
+ func dashStatus(meth, cmd string, args param) os.Error {
+ 	var resp struct {
+ 		Status string
+-		Error string
++		Error  string
+ 	}
+ 	err := dash(meth, cmd, &resp, args)
+ 	if err != nil {
+@@ -68,12 +68,12 @@ func dashStatus(meth, cmd string, args param) os.Error {
+ 	if resp.Status != "OK" {
+ 		return os.NewError("/build: " + resp.Error)
+ 	}
+-	return nil	
++	return nil
+ }
+-	
++
+ // todo returns the next hash to build.
+ func (b *Builder) todo() (rev string, err os.Error) {
+-	var resp []struct{
++	var resp []struct {
+ 		Hash string
+ 	}
+ 	if err = dash("GET", "todo", &resp, param{"builder": b.name}); err != nil {
+@@ -128,12 +128,12 @@ func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, h
+ // postCommit informs the dashboard of a new commit
+ func postCommit(key string, l *HgLog) os.Error {
+ 	return dashStatus("POST", "commit", param{
+-		"key": key,
+-		"node": l.Hash,
+-		"date": l.Date,
+-		"user": l.Author,
++		"key":    key,
++		"node":   l.Hash,
++		"date":   l.Date,
++		"user":   l.Author,
+ 		"parent": l.Parent,
+-		"desc": l.Desc,
++		"desc":   l.Desc,
+ 	})
+ }
+ 
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 86cc0c1ca9..c1536abb28 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -48,7 +48,7 @@ type Builder struct {
+ 
+ var (
+ 	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
+-	commitFlag = flag.Bool("commit", false, "upload information about new commits")
++	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
+ 	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
+ 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+@@ -93,7 +93,7 @@ func main() {
+ 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
+ 		log.Fatal("Error cloning repository:", err)
+ 	}
+-	
++
+ 	if *commitFlag {
+ 		if len(flag.Args()) == 0 {
+ 			commitWatcher()
+@@ -242,7 +242,7 @@ func (b *Builder) build() bool {
+ 		return false
+ 	}
+ 	// Look for hash locally before running hg pull.
+-	
++
+ 	if _, err := fullHash(hash[:12]); err != nil {
+ 		// Don't have hash, so run hg pull.
+ 		if err := run(nil, goroot, "hg", "pull"); err != nil {
+@@ -389,12 +389,12 @@ func commitWatcher() {
+ 
+ // HgLog represents a single Mercurial revision.
+ type HgLog struct {
+-	Hash string
++	Hash   string
+ 	Author string
+-	Date string
+-	Desc string
++	Date   string
++	Desc   string
+ 	Parent string
+-	
++
+ 	// Internal metadata
+ 	added bool
+ }
+@@ -429,23 +429,23 @@ func commitPoll(key string) {
+ 		log.Printf("hg pull: %v", err)
+ 		return
+ 	}
+-	
+-	const N = 20   // how many revisions to grab
++
++	const N = 20 // how many revisions to grab
+ 
+ 	data, _, err := runLog(nil, "", goroot, "hg", "log",
+ 		"--encoding=utf-8",
+-		"--limit=" + strconv.Itoa(N),
+-		"--template=" + xmlLogTemplate,
++		"--limit="+strconv.Itoa(N),
++		"--template="+xmlLogTemplate,
+ 	)
+ 	if err != nil {
+ 		log.Printf("hg log: %v", err)
+ 		return
+ 	}
+-	
++
+ 	var logStruct struct {
+ 		Log []HgLog
+ 	}
+-	err = xml.Unmarshal(strings.NewReader("<top>" + data + "</top>"), &logStruct)
++	err = xml.Unmarshal(strings.NewReader("<top>"+data+"</top>"), &logStruct)
+ 	if err != nil {
+ 		log.Printf("unmarshal hg log: %v", err)
+ 		return
+@@ -468,7 +468,7 @@ func commitPoll(key string) {
+ 			// Can't create node without parent.
+ 			continue
+ 		}
+-		
++
+ 		if logByHash[l.Hash] == nil {
+ 			// Make copy to avoid pinning entire slice when only one entry is new.
+ 			t := *l
+@@ -496,7 +496,7 @@ func addCommit(hash, key string) bool {
+ 	if l.added {
+ 		return true
+ 	}
+-	
++
+ 	// Check for already added, perhaps in an earlier run.
+ 	if dashboardCommit(hash) {
+ 		log.Printf("%s already on dashboard\n", hash)
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6657cbb92e..0fca8a161b 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -215,12 +215,13 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 		}
+ 
+ 		if i > 0 {
+-			if mode&commaSep != 0 {
++			switch {
++			case mode&commaSep != 0:
+ 				p.print(token.COMMA)
+-			}
+-			if mode&periodSep != 0 {
++			case mode&periodSep != 0:
+ 				p.print(token.PERIOD)
+ 			}
++			needsBlank := mode&periodSep == 0 // period-separated list elements don't need a blank
+ 			if prevLine < line && prevLine > 0 && line > 0 {
+ 				// lines are broken using newlines so comments remain aligned
+ 				// unless forceFF is set or there are multiple expressions on
+@@ -229,11 +230,12 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 					ws = ignore
+ 					*multiLine = true
+ 					prevBreak = i
++					needsBlank = false // we got a line break instead
+ 				}
+-			} else if mode&periodSep == 0 {
++			}
++			if needsBlank {
+ 				p.print(blank)
+ 			}
+-			// period-separated list elements don't need a blank
+ 		}
+ 
+ 		if isPair && size > 0 && len(list) > 1 {
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 3d0f144e10..a5e2fdc3b9 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -644,7 +644,7 @@ func _() {
+ func f() {
+ 	// os.Open parameters should remain on two lines
+ 	if writer, err = os.Open(outfile, s.O_WRONLY|os.O_CREATE|
+-		os.O_TRUNC,0666); err != nil {
++		os.O_TRUNC, 0666); err != nil {
+ 		log.Fatal(err)
+ 	}
+ }
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 72ab850fab..308d9edff6 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -644,7 +644,7 @@ func _() {
+ func f() {
+ 	// os.Open parameters should remain on two lines
+ 	if writer, err = os.Open(outfile, s.O_WRONLY|os.O_CREATE|
+-		os.O_TRUNC,0666); err != nil {
++		os.O_TRUNC, 0666); err != nil {
+ 		log.Fatal(err)
+ 	}
+ }
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 60d41edf3d..120a026056 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -624,7 +624,7 @@ func TestServerConsumesRequestBody(t *testing.T) {
+ 		"POST / HTTP/1.1\r\n"+
+ 			"Host: test\r\n"+
+ 			"Content-Length: %d\r\n"+
+-			"\r\n",len(body))))
++			"\r\n", len(body))))
+ 	conn.readBuf.Write([]byte(body))
+ 
+ 	done := make(chan bool)
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index a7efc20f25..ec564b1d98 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -315,7 +315,7 @@ foo: bar
+ 
+ 
+ --MyBoundary--
+-`,"\n", "\r\n", -1)
++`, "\n", "\r\n", -1)
+ 	r := NewReader(strings.NewReader(testBody), "MyBoundary")
+ 	part, err := r.NextPart()
+ 	if err != nil {
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index de953cae3d..ee917b57af 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -56,6 +56,6 @@ func TestLookup(t *testing.T) {
+ 	if !reflect.DeepEqual(u, un) {
+ 		t.Errorf("Lookup by userid vs. name didn't match\n"+
+ 			"LookupId(%d): %#v\n"+
+-			"Lookup(%q): %#v\n",uid, u, u.Username, un)
++			"Lookup(%q): %#v\n", uid, u, u.Username, un)
+ 	}
+ }

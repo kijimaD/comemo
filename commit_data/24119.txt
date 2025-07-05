@@ -9,6 +9,23 @@ Date:   Sat Jul 11 14:41:22 2015 -0700
     Change-Id: I941f951633c89bb1454ce6d1d1b4124d46a7d9dd
     Reviewed-on: https://go-review.googlesource.com/12091
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 2be7b8ebaf..1b1ae27e58 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -44,7 +44,10 @@ func deadcode(f *Func) {
+ 		// pop a reachable value
+ 		v := q[len(q)-1]
+ 		q = q[:len(q)-1]
+-		for _, x := range v.Args {
++		for i, x := range v.Args {
++			if v.Op == OpPhi && !reachable[v.Block.Preds[i].ID] {
++				continue
++			}
+ 			if !live[x.ID] {
+ 				live[x.ID] = true
+ 				q = append(q, x) // push

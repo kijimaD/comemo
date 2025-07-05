@@ -12,6 +12,20 @@ Date:   Mon Sep 3 12:02:25 2018 +0530
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.html b/misc/wasm/wasm_exec.html
+index cc37ea73ce..f5e21e40f3 100644
+--- a/misc/wasm/wasm_exec.html
++++ b/misc/wasm/wasm_exec.html
+@@ -27,6 +27,8 @@ license that can be found in the LICENSE file.
+ 			mod = result.module;
+ 			inst = result.instance;
+ 			document.getElementById("runButton").disabled = false;
++		}).catch((err) => {
++			console.error(err);
+ 		});
+ 
+ 		async function run() {

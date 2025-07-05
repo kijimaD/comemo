@@ -72,10 +72,315 @@ Date:   Thu Mar 21 11:25:09 2013 -0400
     R=agl
     CC=golang-dev
     https://golang.org/cl/7547050
-
+---
  src/pkg/crypto/rc4/rc4_386.s   |  51 +++++++++++++++
  src/pkg/crypto/rc4/rc4_amd64.s | 137 ++++++++++++++++++++++++++++-------------
  src/pkg/crypto/rc4/rc4_asm.go  |   2 +-
  src/pkg/crypto/rc4/rc4_ref.go  |   2 +-
  src/pkg/crypto/rc4/rc4_test.go |  48 +++++++++++----
  5 files changed, 184 insertions(+), 56 deletions(-)
+
+diff --git a/src/pkg/crypto/rc4/rc4_386.s b/src/pkg/crypto/rc4/rc4_386.s
+new file mode 100644
+index 0000000000..55b527bd8c
+--- /dev/null
++++ b/src/pkg/crypto/rc4/rc4_386.s
+@@ -0,0 +1,51 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
++TEXT ·xorKeyStream(SB),7,$0
++	MOVL dst+0(FP), DI
++	MOVL src+4(FP), SI
++	MOVL state+12(FP), BP
++
++	MOVL xPtr+16(FP), AX
++	MOVBLZX (AX), AX
++	MOVL yPtr+20(FP), BX
++	MOVBLZX (BX), BX
++	CMPL n+8(FP), $0
++	JEQ done
++
++loop:
++	// i += 1
++	INCB AX
++
++	// j += c.s[i]
++	MOVBLZX (BP)(AX*1), DX
++	ADDB DX, BX
++	MOVBLZX BX, BX
++
++	// c.s[i], c.s[j] = c.s[j], c.s[i]
++	MOVBLZX (BP)(BX*1), CX
++	MOVB CX, (BP)(AX*1)
++	MOVB DX, (BP)(BX*1)
++
++	// *dst = *src ^ c.s[c.s[i]+c.s[j]]
++	ADDB DX, CX
++	MOVBLZX CX, CX
++	MOVB (BP)(CX*1), CX
++	XORB (SI), CX
++	MOVBLZX CX, CX
++	MOVB CX, (DI)
++
++	INCL SI
++	INCL DI
++	DECL n+8(FP)
++	JNE loop
++
++done:
++	MOVL xPtr+16(FP), CX
++	MOVB AX, (CX)
++	MOVL yPtr+20(FP), CX
++	MOVB BX, (CX)
++
++	RET
+diff --git a/src/pkg/crypto/rc4/rc4_amd64.s b/src/pkg/crypto/rc4/rc4_amd64.s
+index ffe9ada85b..d6d4577a38 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64.s
++++ b/src/pkg/crypto/rc4/rc4_amd64.s
+@@ -1,53 +1,106 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++// Original source:
++//	http://www.zorinaq.com/papers/rc4-amd64.html
++//	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
++//
++// Transliterated from GNU to 6a assembly syntax by the Go authors.
++// The comments and spacing are from the original.
+ 
+-// func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+-TEXT ·xorKeyStream(SB),7,$0
+-	MOVQ dst+0(FP), DI
+-	MOVQ src+8(FP), SI
+-	MOVQ n+16(FP), CX
+-	MOVQ state+24(FP), R8
+-
+-	MOVQ xPtr+32(FP), AX
+-	MOVBQZX (AX), AX
+-	MOVQ yPtr+40(FP), BX
+-	MOVBQZX (BX), BX
++// The new EXTEND macros avoid a bad stall on some systems after 8-bit math.
+ 
+-loop:
+-	CMPQ CX, $0
+-	JE done
++// NOTE: Changing EXTEND to a no-op makes the code run 1.2x faster on Core i5
++// but makes the code run 2.0x slower on Xeon.
++#define EXTEND(r) MOVBLZX r, r
+ 
+-	// c.i += 1
+-	INCB AX
++/*
++** RC4 implementation optimized for AMD64.
++**
++** Author: Marc Bevand <bevand_m (at) epita.fr>
++** Licence: I hereby disclaim the copyright on this code and place it
++** in the public domain.
++**
++** The code has been designed to be easily integrated into openssl:
++** the exported RC4() function can replace the actual implementations
++** openssl already contains. Please note that when linking with openssl,
++** it requires that sizeof(RC4_INT) == 8. So openssl must be compiled
++** with -DRC4_INT='unsigned long'.
++**
++** The throughput achieved by this code is about 320 MBytes/sec, on
++** a 1.8 GHz AMD Opteron (rev C0) processor.
++*/
+ 
+-	// c.j += c.s[c.i]
+-	MOVB (R8)(AX*1), R9
+-	ADDB R9, BX
+-
+-	MOVBQZX (R8)(BX*1), R10
++TEXT ·xorKeyStream(SB),7,$0
++	MOVQ	len+16(FP),	BX		// rbx = ARG(len)
++	MOVQ	in+8(FP),	SI		// in = ARG(in)
++	MOVQ	out+0(FP),	DI		// out = ARG(out)
++	MOVQ	d+24(FP),	BP		// d = ARG(data)
++	MOVQ	xp+32(FP),	AX
++	MOVBQZX	0(AX),		CX		// x = *xp
++	MOVQ	yp+40(FP),	AX
++	MOVBQZX	0(AX),		DX		// y = *yp
+ 
+-	MOVB R10, (R8)(AX*1)
+-	MOVB R9, (R8)(BX*1)
++	INCQ	CX				// x++
++	ANDQ	$255,		CX		// x &= 0xff
++	LEAQ	-8(BX)(SI*1),	BX		// rbx = in+len-8
++	MOVQ	BX,		R9		// tmp = in+len-8
++	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x]
++	CMPQ	BX,		SI		// cmp in with in+len-8
++	JLT	end				// jump if (in+len-8 < in)
+ 
+-	// R11 = c.s[c.i]+c.s[c.j]
+-	MOVQ R10, R11
+-	ADDB R9, R11
++start:
++	ADDQ	$8,		SI		// increment in
++	ADDQ	$8,		DI		// increment out
++	
++	// generate the next 8 bytes of the rc4 stream into R8
++	MOVQ	$8,		R11		// byte counter
++l1:	ADDB	AX,		DX
++	EXTEND(DX)
++	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
++	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
++	ADDB	AX,		BX		// val = ty + tx
++	EXTEND(BX)
++	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
++	INCB	CX				// x++ (NEXT ROUND)
++	EXTEND(CX)
++	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
++	SHLQ	$8,		R8
++	MOVB	(BP)(BX*1),	R8		// val = d[val]
++	DECQ	R11
++	JNZ	l1
+ 
+-	MOVB (R8)(R11*1), R11
+-	MOVB (SI), R12
+-	XORB R11, R12
+-	MOVB R12, (DI)
++	// xor 8 bytes
++	BSWAPQ	R8
++	XORQ	-8(SI),		R8
++	CMPQ	SI,		R9		// cmp in+len-8 with in XXX
++	MOVQ	R8,		-8(DI)
++	JLE	start				// jump if (in <= in+len-8)
+ 
+-	INCQ SI
+-	INCQ DI
+-	DECQ CX
++end:
++	ADDQ	$8,		R9		// tmp = in+len
+ 
+-	JMP loop
+-done:
+-	MOVQ xPtr+32(FP), R8
+-	MOVB AX, (R8)
+-	MOVQ yPtr+40(FP), R8
+-	MOVB BX, (R8)
++	// handle the last bytes, one by one
++l2:	CMPQ	R9,		SI		// cmp in with in+len
++	JLE	finished			// jump if (in+len <= in)
++	ADDB	AX,		DX		// y += tx
++	EXTEND(DX)
++	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
++	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
++	ADDB	AX,		BX		// val = ty+tx
++	EXTEND(BX)
++	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
++	INCB	CX				// x++ (NEXT ROUND)
++	EXTEND(CX)
++	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
++	MOVBLZX	(BP)(BX*1),	R8		// val = d[val]
++	XORB	(SI),		R8		// xor 1 byte
++	MOVB	R8,		(DI)
++	INCQ	SI				// in++
++	INCQ	DI				// out++
++	JMP l2
+ 
++finished:
++	DECQ	CX				// x--
++	MOVQ	yp+40(FP),	BX
++	MOVB	DX, 0(BX)
++	MOVQ	xp+32(FP),	AX
++	MOVB	CX, 0(AX)
+ 	RET
+diff --git a/src/pkg/crypto/rc4/rc4_asm.go b/src/pkg/crypto/rc4/rc4_asm.go
+index 0b66e4a9e2..532768dff2 100644
+--- a/src/pkg/crypto/rc4/rc4_asm.go
++++ b/src/pkg/crypto/rc4/rc4_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 arm
++// +build amd64 arm 386
+ 
+ package rc4
+ 
+diff --git a/src/pkg/crypto/rc4/rc4_ref.go b/src/pkg/crypto/rc4/rc4_ref.go
+index 1018548c24..44d3804368 100644
+--- a/src/pkg/crypto/rc4/rc4_ref.go
++++ b/src/pkg/crypto/rc4/rc4_ref.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!arm
++// +build !amd64,!arm,!386
+ 
+ package rc4
+ 
+diff --git a/src/pkg/crypto/rc4/rc4_test.go b/src/pkg/crypto/rc4/rc4_test.go
+index 9e12789f7f..1ce03608ca 100644
+--- a/src/pkg/crypto/rc4/rc4_test.go
++++ b/src/pkg/crypto/rc4/rc4_test.go
+@@ -5,6 +5,7 @@
+ package rc4
+ 
+ import (
++	"fmt"
+ 	"testing"
+ )
+ 
+@@ -72,20 +73,43 @@ var golden = []rc4Test{
+ 	},
+ }
+ 
++func testEncrypt(t *testing.T, desc string, c *Cipher, src, expect []byte) {
++	dst := make([]byte, len(src))
++	c.XORKeyStream(dst, src)
++	for i, v := range dst {
++		if v != expect[i] {
++			t.Fatalf("%s: mismatch at byte %d:\nhave %x\nwant %x", desc, i, dst, expect)
++		}
++	}
++}
++
+ func TestGolden(t *testing.T) {
+-	for i := 0; i < len(golden); i++ {
+-		g := golden[i]
+-		c, err := NewCipher(g.key)
+-		if err != nil {
+-			t.Errorf("Failed to create cipher at golden index %d", i)
+-			return
++	for gi, g := range golden {
++		data := make([]byte, len(g.keystream))
++		for i := range data {
++			data[i] = byte(i)
+ 		}
+-		keystream := make([]byte, len(g.keystream))
+-		c.XORKeyStream(keystream, keystream)
+-		for j, v := range keystream {
+-			if g.keystream[j] != v {
+-				t.Errorf("Failed at golden index %d:\n%x\nvs\n%x", i, keystream, g.keystream)
+-				break
++
++		expect := make([]byte, len(g.keystream))
++		for i := range expect {
++			expect[i] = byte(i) ^ g.keystream[i]
++		}
++
++		for size := 1; size <= len(g.keystream); size++ {
++			c, err := NewCipher(g.key)
++			if err != nil {
++				t.Fatalf("#%d: NewCipher: %v", gi, err)
++			}
++
++			off := 0
++			for off < len(g.keystream) {
++				n := len(g.keystream) - off
++				if n > size {
++					n = size
++				}
++				desc := fmt.Sprintf("#%d@[%d:%d]", gi, off, off+n)
++				testEncrypt(t, desc, c, data[off:off+n], expect[off:off+n])
++				off += n
+ 			}
+ 		}
+ 	}

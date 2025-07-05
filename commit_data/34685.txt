@@ -13,7 +13,74 @@ Date:   Mon Nov 6 18:51:12 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 13 ++++++++++++-
  test/fixedbugs/issue22605.go           | 26 ++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index faed5bd9a5..66b1a8e186 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -960,10 +960,17 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
+ 	return ot
+ }
+ 
++// typeHasNoAlg returns whether t does not have any associated hash/eq
++// algorithms because t, or some component of t, is marked Noalg.
++func typeHasNoAlg(t *types.Type) bool {
++	a, bad := algtype1(t)
++	return a == ANOEQ && bad.Noalg()
++}
++
+ func typesymname(t *types.Type) string {
+ 	name := t.ShortString()
+ 	// Use a separate symbol name for Noalg types for #17752.
+-	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg() {
++	if typeHasNoAlg(t) {
+ 		name = "noalg." + name
+ 	}
+ 	return name
+@@ -1394,6 +1401,10 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			keep = true
+ 		}
+ 	}
++	// Do not put Noalg types in typelinks.  See issue #22605.
++	if typeHasNoAlg(t) {
++		keep = false
++	}
+ 	lsym.Set(obj.AttrMakeTypelink, keep)
+ 
+ 	return lsym
+diff --git a/test/fixedbugs/issue22605.go b/test/fixedbugs/issue22605.go
+new file mode 100644
+index 0000000000..9e726f353c
+--- /dev/null
++++ b/test/fixedbugs/issue22605.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// We were picking up a special noalg type from typelinks.
++
++package main
++
++import "reflect"
++
++func f(m map[string]int) int {
++	return m["a"]
++}
++
++func g(m map[[8]string]int) int {
++	t := reflect.ArrayOf(8, reflect.TypeOf(""))
++	a := reflect.New(t).Elem()
++	return m[a.Interface().([8]string)]
++}
++
++func main() {
++	m := map[[8]string]int{}
++	g(m)
++}

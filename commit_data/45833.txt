@@ -31,10 +31,131 @@ Date:   Sun Nov 22 13:47:55 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go           |  1 -
  src/cmd/compile/internal/gc/closure.go   |  1 +
  src/cmd/compile/internal/gc/inl.go       | 11 ++---------
  src/cmd/compile/internal/gc/syntax.go    |  6 +++++-
  src/cmd/compile/internal/gc/typecheck.go | 21 +++++++++++++++++++++
  5 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 0811df7f7b..a8698de307 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -50,7 +50,6 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/types.Sym %v":              "",
+ 	"*cmd/compile/internal/types.Type %#L":            "",
+ 	"*cmd/compile/internal/types.Type %#v":            "",
+-	"*cmd/compile/internal/types.Type %+v":            "",
+ 	"*cmd/compile/internal/types.Type %-S":            "",
+ 	"*cmd/compile/internal/types.Type %0S":            "",
+ 	"*cmd/compile/internal/types.Type %L":             "",
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 42a9b4f3e8..dd6640667d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -435,6 +435,7 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
+ 	fn.Right = newname(sym)
+ 	fn.Op = OCALLPART
+ 	fn.Type = xfunc.Type
++	fn.SetOpt(nil) // clear types.Field from ODOTMETH
+ }
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 419056985f..1fab67391b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -358,9 +358,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		if t == nil {
+ 			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
+ 		}
+-		if t.Nname() == nil {
+-			Fatalf("no function definition for [%p] %+v\n", t, t)
+-		}
+ 		if isRuntimePkg(n.Left.Sym.Pkg) {
+ 			fn := n.Left.Sym.Name
+ 			if fn == "heapBits.nextArena" {
+@@ -372,7 +369,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 				break
+ 			}
+ 		}
+-		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl != nil {
++		if inlfn := n.Left.MethodName().Func; inlfn.Inl != nil {
+ 			v.budget -= inlfn.Inl.Cost
+ 			break
+ 		}
+@@ -703,11 +700,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
+ 		}
+ 
+-		if n.Left.Type.Nname() == nil {
+-			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
+-		}
+-
+-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), maxCost, inlMap)
++		n = mkinlcall(n, n.Left.MethodName(), maxCost, inlMap)
+ 	}
+ 
+ 	lineno = lno
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 43358333b8..e46a0dadf3 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -266,7 +266,11 @@ func (n *Node) Opt() interface{} {
+ // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
+ // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+ func (n *Node) SetOpt(x interface{}) {
+-	if x == nil && n.HasVal() {
++	if x == nil {
++		if n.HasOpt() {
++			n.SetHasOpt(false)
++			n.E = nil
++		}
+ 		return
+ 	}
+ 	if n.HasVal() {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c0b05035f0..1c371c0e9d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2416,6 +2416,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
+ 	n.Type = methodfunc(m.Type, n.Left.Type)
+ 	n.Xoffset = 0
+ 	n.SetClass(PFUNC)
++	n.SetOpt(m)
+ 	// methodSym already marked n.Sym as a function.
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+@@ -2538,6 +2539,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 		n.Xoffset = f2.Offset
+ 		n.Type = f2.Type
+ 		n.Op = ODOTMETH
++		n.SetOpt(f2)
+ 
+ 		return f2
+ 	}
+@@ -4017,3 +4019,22 @@ func curpkg() *types.Pkg {
+ 
+ 	return fnpkg(fn)
+ }
++
++// MethodName returns the ONAME representing the method
++// referenced by expression n, which must be a method selector,
++// method expression, or method value.
++func (n *Node) MethodName() *Node {
++	return asNode(n.MethodFunc().Type.Nname())
++}
++
++// MethodFunc is like MethodName, but returns the types.Field instead.
++func (n *Node) MethodFunc() *types.Field {
++	switch {
++	case n.Op == ODOTMETH || n.isMethodExpression():
++		return n.Opt().(*types.Field)
++	case n.Op == OCALLPART:
++		return callpartMethod(n)
++	}
++	Fatalf("unexpected node: %v (%v)", n, n.Op)
++	panic("unreachable")
++}

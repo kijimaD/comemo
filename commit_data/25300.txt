@@ -12,7 +12,48 @@ Date:   Sun Oct 18 13:32:11 2015 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go |  1 +
  src/cmd/cgo/gcc.go | 10 ++++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index f82d782055..723bbfe6ad 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -119,6 +119,7 @@ C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
+ C.long, C.ulong (unsigned long), C.longlong (long long),
+ C.ulonglong (unsigned long long), C.float, C.double.
+ The C type void* is represented by Go's unsafe.Pointer.
++The C types __int128_t and __uint128_t are represented by [16]byte.
+ 
+ To access a struct, union, or enum type directly, prefix it with
+ struct_, union_, or enum_, as in C.struct_stat.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b65b6cb7a9..198c05452f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1227,6 +1227,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			t.Go = c.int32
+ 		case 8:
+ 			t.Go = c.int64
++		case 16:
++			t.Go = &ast.ArrayType{
++				Len: c.intExpr(t.Size),
++				Elt: c.uint8,
++			}
+ 		}
+ 		if t.Align = t.Size; t.Align >= c.ptrSize {
+ 			t.Align = c.ptrSize
+@@ -1384,6 +1389,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			t.Go = c.uint32
+ 		case 8:
+ 			t.Go = c.uint64
++		case 16:
++			t.Go = &ast.ArrayType{
++				Len: c.intExpr(t.Size),
++				Elt: c.uint8,
++			}
+ 		}
+ 		if t.Align = t.Size; t.Align >= c.ptrSize {
+ 			t.Align = c.ptrSize

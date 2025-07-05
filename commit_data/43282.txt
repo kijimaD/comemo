@@ -12,6 +12,23 @@ Date:   Sat Mar 21 06:52:58 2020 +0000
     GitHub-Pull-Request: golang/go#35805
     Reviewed-on: https://go-review.googlesource.com/c/go/+/208600
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 8cb297f379..a99aaeda07 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -27,7 +27,10 @@
+ 	}
+ 
+ 	if (!global.fs && global.require) {
+-		global.fs = require("fs");
++		const fs = require("fs");
++		if (Object.keys(fs) !== 0) {
++			global.fs = fs;
++		}
+ 	}
+ 
+ 	const enosys = () => {

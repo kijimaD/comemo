@@ -8,10 +8,76 @@ Date:   Sun Jun 19 13:57:22 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4629051
-
+---
  src/Make.ccmd           | 2 +-
  src/cmd/cov/Makefile    | 3 ---
  src/cmd/gopack/Makefile | 3 ---
  src/cmd/nm/Makefile     | 3 ---
  src/cmd/prof/Makefile   | 3 ---
  5 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index 88f647152c..78258c2383 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -9,7 +9,7 @@ TARG:=$(TARG).exe
+ endif
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm $(HOST_LDFLAGS)
++	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lmach $(HOST_LDFLAGS)
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index fdeb146365..95dba9c60f 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -17,9 +17,6 @@ OFILES=\
+ HFILES=\
+ 	tree.h\
+ 
+-LIB=\
+-	../../../lib/libmach.a\
+-
+ NOINSTALL=1
+ include ../../Make.ccmd
+ 
+diff --git a/src/cmd/gopack/Makefile b/src/cmd/gopack/Makefile
+index 8598095624..91a8ac2df2 100644
+--- a/src/cmd/gopack/Makefile
++++ b/src/cmd/gopack/Makefile
+@@ -9,7 +9,4 @@ TARG=gopack
+ OFILES=\
+ 	ar.$O\
+ 
+-LIB=\
+-	../../../lib/libmach.a\
+-
+ include ../../Make.ccmd
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index 383dbd973c..81bc348deb 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -12,7 +12,4 @@ TARG=6nm
+ OFILES=\
+ 	nm.$O\
+ 
+-LIB=\
+-	../../../lib/libmach.a\
+-
+ include ../../Make.ccmd
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index e643f267cc..8a1a2f3083 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -13,9 +13,6 @@ TARG=6prof
+ OFILES=\
+ 	main.$O\
+ 
+-LIB=\
+-	../../../lib/libmach.a\
+-
+ NOINSTALL=1
+ include ../../Make.ccmd
+ 

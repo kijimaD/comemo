@@ -7,7 +7,51 @@ Date:   Mon Nov 14 16:11:15 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5373095
-
+---
  src/pkg/reflect/all_test.go  | 8 ++++++++
  src/pkg/reflect/deepequal.go | 6 ++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 271a651147..2f6917d3c6 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -651,6 +651,14 @@ var deepEqualTests = []DeepEqualTest{
+ 	{nil, 1, false},
+ 	{1, nil, false},
+ 
++	// Nil vs empty: not the same.
++	{[]int{}, []int(nil), false},
++	{[]int{}, []int{}, true},
++	{[]int(nil), []int(nil), true},
++	{map[int]int{}, map[int]int(nil), false},
++	{map[int]int{}, map[int]int{}, true},
++	{map[int]int(nil), map[int]int(nil), true},
++
+ 	// Mismatched types
+ 	{1, 1.0, false},
+ 	{int32(1), int64(1), false},
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 63c28fe202..df5ec0a609 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -69,6 +69,9 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ 		}
+ 		return true
+ 	case Slice:
++		if v1.IsNil() != v2.IsNil() {
++			return false
++		}
+ 		if v1.Len() != v2.Len() {
+ 			return false
+ 		}
+@@ -93,6 +96,9 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ 		}
+ 		return true
+ 	case Map:
++		if v1.IsNil() != v2.IsNil() {
++			return false
++		}
+ 		if v1.Len() != v2.Len() {
+ 			return false
+ 		}

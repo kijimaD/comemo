@@ -17,8 +17,171 @@ Date:   Tue Mar 23 15:35:30 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 10 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 90 ++++++++++++++++++++++++++++
  test/codegen/bitfield.go                     | 11 ++++
  3 files changed, 111 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 1d2efdabe0..cb997776db 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1801,6 +1801,16 @@
+ // Special case setting bit as 1. An example is math.Copysign(c,-1)
+ (ORconst [c1] (ANDconst [c2] x)) && c2|c1 == ^0  => (ORconst [c1] x)
+ 
++// If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
++(MOVWUreg (SLLconst [lc] x)) && lc >= 32 => (MOVDconst [0])
++(MOVHUreg (SLLconst [lc] x)) && lc >= 16 => (MOVDconst [0])
++(MOVBUreg (SLLconst [lc] x)) && lc >= 8 => (MOVDconst [0])
++
++// After zero extension, the upper (64-datasize(32|16|8)) bits are zero, we can optimiza to constant 0.
++(SRLconst [rc] (MOVWUreg x)) && rc >= 32 => (MOVDconst [0])
++(SRLconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVDconst [0])
++(SRLconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVDconst [0])
++
+ // bitfield ops
+ 
+ // sbfiz
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index c961310018..cdc246205c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -7028,6 +7028,21 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg (SLLconst [lc] x))
++	// cond: lc >= 8
++	// result: (MOVDconst [0])
++	for {
++		if v_0.Op != OpARM64SLLconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 8) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVBUreg (SLLconst [sc] x))
+ 	// cond: isARM64BFMask(sc, 1<<8-1, sc)
+ 	// result: (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
+@@ -10525,6 +10540,21 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
+ 		return true
+ 	}
++	// match: (MOVHUreg (SLLconst [lc] x))
++	// cond: lc >= 16
++	// result: (MOVDconst [0])
++	for {
++		if v_0.Op != OpARM64SLLconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 16) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVHUreg (SLLconst [sc] x))
+ 	// cond: isARM64BFMask(sc, 1<<16-1, sc)
+ 	// result: (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
+@@ -12622,6 +12652,21 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint32(c)))
+ 		return true
+ 	}
++	// match: (MOVWUreg (SLLconst [lc] x))
++	// cond: lc >= 32
++	// result: (MOVDconst [0])
++	for {
++		if v_0.Op != OpARM64SLLconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 32) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVWUreg (SLLconst [sc] x))
+ 	// cond: isARM64BFMask(sc, 1<<32-1, sc)
+ 	// result: (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
+@@ -20125,6 +20170,51 @@ func rewriteValueARM64_OpARM64SRLconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRLconst [rc] (MOVWUreg x))
++	// cond: rc >= 32
++	// result: (MOVDconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpARM64MOVWUreg {
++			break
++		}
++		if !(rc >= 32) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRLconst [rc] (MOVHUreg x))
++	// cond: rc >= 16
++	// result: (MOVDconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpARM64MOVHUreg {
++			break
++		}
++		if !(rc >= 16) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRLconst [rc] (MOVBUreg x))
++	// cond: rc >= 8
++	// result: (MOVDconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpARM64MOVBUreg {
++			break
++		}
++		if !(rc >= 8) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (SRLconst [rc] (SLLconst [lc] x))
+ 	// cond: lc > rc
+ 	// result: (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 8acefbd027..0fe6799ec1 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -264,3 +264,14 @@ func rev16w(c uint32) (uint32, uint32, uint32) {
+ 	b3 := ((c & 0xff00ff00) >> 8) ^ ((c & 0x00ff00ff) << 8)
+ 	return b1, b2, b3
+ }
++
++func shift(x uint32, y uint16, z uint8) uint64 {
++	// arm64:-`MOVWU`,-`LSR\t[$]32`
++	a := uint64(x) >> 32
++	// arm64:-`MOVHU
++	b := uint64(y) >> 16
++	// arm64:-`MOVBU`
++	c := uint64(z) >> 8
++	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
++	return a + b + c
++}

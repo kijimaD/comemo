@@ -10,7 +10,48 @@ Date:   Tue Dec 16 14:12:01 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2003
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/ld/data.c  | 9 +++++++++
  src/cmd/ld/ldelf.c | 2 ++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 92c6fb57ce..3cf0bbdfe1 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -132,6 +132,7 @@ relocsym(LSym *s)
+ {
+ 	Reloc *r;
+ 	LSym *rs;
++	int16 i16;
+ 	int32 i, off, siz, fl;
+ 	vlong o;
+ 	uchar *cast;
+@@ -317,6 +318,14 @@ relocsym(LSym *s)
+ 			// TODO(rsc): Remove.
+ 			s->p[off] = (int8)o;
+ 			break;
++		case 2:
++			if(o != (int16)o)
++				diag("relocation address is too big: %#llx", o);
++			i16 = o;
++			cast = (uchar*)&i16;
++			for(i=0; i<2; i++)
++				s->p[off+i] = cast[inuxi2[i]];
++			break;
+ 		case 4:
+ 			if(r->type == R_PCREL || r->type == R_CALL) {
+ 				if(o != (int32)o)
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 90da4aeb8f..f289fb38c7 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -721,6 +721,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				else
+ 					diag("invalid rela size %d", rp->siz);
+ 			}
++			if(rp->siz == 2)
++				rp->add = (int16)rp->add;
+ 			if(rp->siz == 4)
+ 				rp->add = (int32)rp->add;
+ 			//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);

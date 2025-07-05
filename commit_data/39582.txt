@@ -9,6 +9,20 @@ Date:   Mon Mar 4 00:44:58 2019 +0000
     GitHub-Pull-Request: golang/go#30551
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164970
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/driver/driver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index ecc6547bf3..316e7cea37 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -26,7 +26,7 @@ import (
+ //   time.Time
+ //
+ // If the driver supports cursors, a returned Value may also implement the Rows interface
+-// in this package. This is used when, for example, when a user selects a cursor
++// in this package. This is used, for example, when a user selects a cursor
+ // such as "select cursor(select * from my_table) from dual". If the Rows
+ // from the select is closed, the cursor Rows will also be closed.
+ type Value interface{}

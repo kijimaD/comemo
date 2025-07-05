@@ -21,7 +21,39 @@ Date:   Mon Nov 28 10:55:31 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5438056
-
+---
  src/pkg/html/parse.go      | 7 +++++++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 723f65a4d7..adfac61edc 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -679,6 +679,13 @@ func inBodyIM(p *parser) bool {
+ 		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
+ 			p.reconstructActiveFormattingElements()
+ 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
++		case "nobr":
++			p.reconstructActiveFormattingElements()
++			if p.elementInScope(defaultScopeStopTags, "nobr") {
++				p.inBodyEndTagFormatting("nobr")
++				p.reconstructActiveFormattingElements()
++			}
++			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+ 		case "applet", "marquee", "object":
+ 			p.reconstructActiveFormattingElements()
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 4a088c74b1..9e02173b80 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -152,7 +152,7 @@ func TestParser(t *testing.T) {
+ 		{"doctype01.dat", -1},
+ 		{"tests1.dat", -1},
+ 		{"tests2.dat", -1},
+-		{"tests3.dat", 20},
++		{"tests3.dat", 23},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)

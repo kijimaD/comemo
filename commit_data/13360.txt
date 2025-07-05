@@ -7,7 +7,87 @@ Date:   Mon Jun 18 12:54:36 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6303098
-
+---
  src/pkg/net/url/url.go      | 20 ++++++++++++++++----
  src/pkg/net/url/url_test.go | 18 +++++++++++-------
  2 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 17bf0d3a34..7b9289468b 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -7,7 +7,9 @@
+ package url
+ 
+ import (
++	"bytes"
+ 	"errors"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -538,14 +540,24 @@ func (v Values) Encode() string {
+ 	if v == nil {
+ 		return ""
+ 	}
+-	parts := make([]string, 0, len(v)) // will be large enough for most uses
+-	for k, vs := range v {
++	var buf bytes.Buffer
++	keys := make([]string, 0, len(v))
++	for k := range v {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++	for _, k := range keys {
++		vs := v[k]
+ 		prefix := QueryEscape(k) + "="
+ 		for _, v := range vs {
+-			parts = append(parts, prefix+QueryEscape(v))
++			if buf.Len() > 0 {
++				buf.WriteByte('&')
++			}
++			buf.WriteString(prefix)
++			buf.WriteString(QueryEscape(v))
+ 		}
+ 	}
+-	return strings.Join(parts, "&")
++	return buf.String()
+ }
+ 
+ // resolvePath applies special path segments from refs and applies
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 75e8abe4eb..9ea8d7ecd1 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -453,20 +453,24 @@ func TestEscape(t *testing.T) {
+ //}
+ 
+ type EncodeQueryTest struct {
+-	m         Values
+-	expected  string
+-	expected1 string
++	m        Values
++	expected string
+ }
+ 
+ var encodeQueryTests = []EncodeQueryTest{
+-	{nil, "", ""},
+-	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
+-	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
++	{nil, ""},
++	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
++	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
++	{Values{
++		"a": {"a1", "a2", "a3"},
++		"b": {"b1", "b2", "b3"},
++		"c": {"c1", "c2", "c3"},
++	}, "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"},
+ }
+ 
+ func TestEncodeQuery(t *testing.T) {
+ 	for _, tt := range encodeQueryTests {
+-		if q := tt.m.Encode(); q != tt.expected && q != tt.expected1 {
++		if q := tt.m.Encode(); q != tt.expected {
+ 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
+ 		}
+ 	}

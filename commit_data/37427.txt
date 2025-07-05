@@ -13,6 +13,57 @@ Date:   Wed Jul 25 14:55:42 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go | 32 +++++++++++---------------------
  1 file changed, 11 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index dd8a60eb09..36dc0deee7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -494,7 +494,17 @@ func (ld *loader) doPkg(item interface{}) {
+ 		pkg.mod = pkg.testOf.mod
+ 		imports = pkg.testOf.testImports
+ 	} else {
+-		pkg.mod, pkg.dir, pkg.err = ld.doImport(pkg.path)
++		if strings.Contains(pkg.path, "@") {
++			// Leave for error during load.
++			return
++		}
++		if build.IsLocalImport(pkg.path) {
++			// Leave for error during load.
++			// (Module mode does not allow local imports.)
++			return
++		}
++
++		pkg.mod, pkg.dir, pkg.err = Import(pkg.path)
+ 		if pkg.dir == "" {
+ 			return
+ 		}
+@@ -526,26 +536,6 @@ func (ld *loader) doPkg(item interface{}) {
+ 	}
+ }
+ 
+-// doImport finds the directory holding source code for the given import path.
+-// It returns the module containing the package (if any),
+-// the directory containing the package (if any),
+-// and any error encountered.
+-// Not all packages have modules: the ones in the standard library do not.
+-// Not all packages have directories: "unsafe" and "C" do not.
+-func (ld *loader) doImport(path string) (mod module.Version, dir string, err error) {
+-	if strings.Contains(path, "@") {
+-		// Leave for error during load.
+-		return module.Version{}, "", nil
+-	}
+-	if build.IsLocalImport(path) {
+-		// Leave for error during load.
+-		// (Module mode does not allow local imports.)
+-		return module.Version{}, "", nil
+-	}
+-
+-	return Import(path)
+-}
+-
+ // scanDir is like imports.ScanDir but elides known magic imports from the list,
+ // so that we do not go looking for packages that don't really exist.
+ //

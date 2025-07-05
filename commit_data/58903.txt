@@ -15,7 +15,7 @@ Date:   Sat Jan 6 07:12:43 2024 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go  | 7 ++++---
  src/cmd/link/internal/ld/lib.go   | 4 ----
  src/cmd/link/internal/ld/pcln.go  | 2 +-
@@ -23,3 +23,111 @@ Date:   Sat Jan 6 07:12:43 2024 +0000
  src/internal/abi/symtab.go        | 2 ++
  src/runtime/symtab.go             | 3 +--
  6 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f4ea8407c8..896d773124 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -43,6 +43,7 @@ import (
+ 	"debug/elf"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/abi"
+ 	"log"
+ 	"os"
+ 	"sort"
+@@ -2556,8 +2557,8 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
+ 		sect.Align = align
+ 	}
+ 
+-	funcsize := uint64(MINFUNC) // spacing required for findfunctab
+-	if ldr.SymSize(s) > MINFUNC {
++	funcsize := uint64(abi.MINFUNC) // spacing required for findfunctab
++	if ldr.SymSize(s) > abi.MINFUNC {
+ 		funcsize = uint64(ldr.SymSize(s))
+ 	}
+ 
+@@ -2611,7 +2612,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
+ 				// Assign its address directly in order to be the
+ 				// first symbol of this new section.
+ 				ntext.SetType(sym.STEXT)
+-				ntext.SetSize(int64(MINFUNC))
++				ntext.SetSize(int64(abi.MINFUNC))
+ 				ntext.SetOnList(true)
+ 				ntext.SetAlign(sectAlign)
+ 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index eab74dc328..0219beeb10 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -273,10 +273,6 @@ var (
+ 	symSize int32
+ )
+ 
+-const (
+-	MINFUNC = 16 // minimum size for a function
+-)
+-
+ // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
+ // are used, 0 otherwise.
+ var abiInternalVer = sym.SymVerABIInternal
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5734b92507..170ebe5ebe 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -827,7 +827,7 @@ func expandGoroot(s string) string {
+ }
+ 
+ const (
+-	BUCKETSIZE    = 256 * MINFUNC
++	BUCKETSIZE    = 256 * abi.MINFUNC
+ 	SUBBUCKETS    = 16
+ 	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
+ 	NOIDX         = 0x7fffffff
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 413a809414..2f511b97c7 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/buildcfg"
+ 	"io"
+ 	"regexp"
+@@ -154,8 +155,8 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
+ 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
+ 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
+ 	ldr.SetSymSect(s, sect)
+-	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC)<<16) // va starts at zero
+-	va += uint64(ld.MINFUNC)
++	ldr.SetSymValue(s, int64(funcValueOffset+va/abi.MINFUNC)<<16) // va starts at zero
++	va += uint64(abi.MINFUNC)
+ 	return sect, n, va
+ }
+ 
+diff --git a/src/internal/abi/symtab.go b/src/internal/abi/symtab.go
+index ce1b650155..41026ea2ab 100644
+--- a/src/internal/abi/symtab.go
++++ b/src/internal/abi/symtab.go
+@@ -105,3 +105,5 @@ const (
+ 	// Like UnsafePointRestart1, but back to function entry if async preempted.
+ 	UnsafePointRestartAtEntry = -5
+ )
++
++const MINFUNC = 16 // minimum size for a function
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index edf800f519..a046ebef39 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -497,8 +497,7 @@ type textsect struct {
+ 	baseaddr uintptr // relocated section address
+ }
+ 
+-const minfunc = 16                 // minimum function size
+-const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
++const pcbucketsize = 256 * abi.MINFUNC // size of bucket in the pc->func lookup table
+ 
+ // findfuncbucket is an array of these structures.
+ // Each bucket represents 4096 bytes of the text segment.

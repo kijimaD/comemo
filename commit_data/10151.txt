@@ -9,10 +9,138 @@ Date:   Mon Oct 31 11:47:44 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5320041
-
+---
  src/pkg/net/lookup_plan9.go  | 13 +++++++++++--
  src/pkg/net/lookup_test.go   |  4 ++--
  src/pkg/net/net_test.go      |  4 ++++
  src/pkg/net/tcpsock_plan9.go | 18 ++++++++++++++++++
  src/pkg/net/timeout_test.go  |  7 +++++++
  5 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index d779f4a5d7..a14c592e8f 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -49,7 +49,7 @@ func queryCS(net, host, service string) (res []string, err os.Error) {
+ 
+ func queryCS1(net string, ip IP, port int) (clone, dest string, err os.Error) {
+ 	ips := "*"
+-	if !ip.IsUnspecified() {
++	if len(ip) != 0 && !ip.IsUnspecified() {
+ 		ips = ip.String()
+ 	}
+ 	lines, err := queryCS(net, ips, itoa(port))
+@@ -215,7 +215,16 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ func LookupTXT(name string) (txt []string, err os.Error) {
+-	return nil, os.NewError("net.LookupTXT is not implemented on Plan 9")
++	lines, err := queryDNS(name, "txt")
++	if err != nil {
++		return
++	}
++	for _, line := range lines {
++		if i := byteIndex(line, '\t'); i >= 0 {
++			txt = append(txt, line[i+1:])
++		}
++	}
++	return
+ }
+ 
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index c0fcd26047..6b7e53d0c6 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -52,8 +52,8 @@ func TestGmailMX(t *testing.T) {
+ }
+ 
+ func TestGmailTXT(t *testing.T) {
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+-		t.Logf("LookupTXT is not implemented on Windows or Plan 9")
++	if runtime.GOOS == "windows" {
++		t.Logf("LookupTXT is not implemented on Windows")
+ 		return
+ 	}
+ 	if testing.Short() || avoidMacFirewall {
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 3754bc90b3..94d620e47e 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 	"os"
+ 	"regexp"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -128,6 +129,9 @@ func TestReverseAddress(t *testing.T) {
+ }
+ 
+ func TestShutdown(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
+ 	l, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		if l, err = Listen("tcp6", "[::1]:0"); err != nil {
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index f4f6e9fee1..3319e57c33 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -16,6 +16,24 @@ type TCPConn struct {
+ 	plan9Conn
+ }
+ 
++// CloseRead shuts down the reading side of the TCP connection.
++// Most callers should just use Close.
++func (c *TCPConn) CloseRead() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
++// CloseWrite shuts down the writing side of the TCP connection.
++// Most callers should just use Close.
++func (c *TCPConn) CloseWrite() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
+ // DialTCP connects to the remote address raddr on the network net,
+ // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 0dbab5846a..2c2c36fff5 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"os"
++	"runtime"
+ 	"testing"
+ 	"time"
+ )
+@@ -41,11 +42,17 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ }
+ 
+ func TestTimeoutUDP(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
+ 	testTimeout(t, "udp", "127.0.0.1:53", false)
+ 	testTimeout(t, "udp", "127.0.0.1:53", true)
+ }
+ 
+ func TestTimeoutTCP(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
+ 	// set up a listener that won't talk back
+ 	listening := make(chan string)
+ 	done := make(chan int)

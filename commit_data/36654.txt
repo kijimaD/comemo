@@ -17,10 +17,148 @@ Date:   Tue May 1 00:57:57 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/cache.go      |  1 +
  src/cmd/compile/internal/ssa/func.go       | 15 +++++++++++++++
  src/cmd/compile/internal/ssa/poset.go      | 15 +++++++++------
  src/cmd/compile/internal/ssa/poset_test.go |  3 ++-
  src/cmd/compile/internal/ssa/prove.go      | 25 +++++++++++++++++++++----
  5 files changed, 48 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index b30af6304d..f306a1959e 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -24,6 +24,7 @@ type Cache struct {
+ 	domblockstore []ID         // scratch space for computing dominators
+ 	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
+ 	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
++	scrPoset      []*poset     // scratch poset to be reused
+ 
+ 	ValueToProgAfter []*obj.Prog
+ 	debugState       debugState
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a2991040ee..900be71c42 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -130,6 +130,21 @@ func (f *Func) retSparseMap(ss *sparseMap) {
+ 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+ }
+ 
++// newPoset returns a new poset from the internal cache
++func (f *Func) newPoset() *poset {
++	if len(f.Cache.scrPoset) > 0 {
++		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
++		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
++		return po
++	}
++	return newPoset()
++}
++
++// retPoset returns a poset to the internal cache
++func (f *Func) retPoset(po *poset) {
++	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
++}
++
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
+ 	var v *Value
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 26a689404d..37b607977c 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -152,13 +152,8 @@ type poset struct {
+ 	undo      []posetUndo   // undo chain
+ }
+ 
+-func newPoset(unsigned bool) *poset {
+-	var flags uint8
+-	if unsigned {
+-		flags |= posetFlagUnsigned
+-	}
++func newPoset() *poset {
+ 	return &poset{
+-		flags:     flags,
+ 		values:    make(map[ID]uint32),
+ 		constants: make([]*Value, 0, 8),
+ 		nodes:     make([]posetNode, 1, 16),
+@@ -168,6 +163,14 @@ func newPoset(unsigned bool) *poset {
+ 	}
+ }
+ 
++func (po *poset) SetUnsigned(uns bool) {
++	if uns {
++		po.flags |= posetFlagUnsigned
++	} else {
++		po.flags &^= posetFlagUnsigned
++	}
++}
++
+ // Handle children
+ func (po *poset) setchl(i uint32, l posetEdge) { po.nodes[i].l = l }
+ func (po *poset) setchr(i uint32, r posetEdge) { po.nodes[i].r = r }
+diff --git a/src/cmd/compile/internal/ssa/poset_test.go b/src/cmd/compile/internal/ssa/poset_test.go
+index 89635ce54d..cb739d9a0c 100644
+--- a/src/cmd/compile/internal/ssa/poset_test.go
++++ b/src/cmd/compile/internal/ssa/poset_test.go
+@@ -64,7 +64,8 @@ func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
+ 		}
+ 	}
+ 
+-	po := newPoset(unsigned)
++	po := newPoset()
++	po.SetUnsigned(unsigned)
+ 	for idx, op := range ops {
+ 		t.Logf("op%d%v", idx, op)
+ 		switch op.typ {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index b30dab9fe3..8e24834088 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -181,10 +181,12 @@ type factsTable struct {
+ var checkpointFact = fact{}
+ var checkpointBound = limitFact{}
+ 
+-func newFactsTable() *factsTable {
++func newFactsTable(f *Func) *factsTable {
+ 	ft := &factsTable{}
+-	ft.order[0] = newPoset(false) // signed
+-	ft.order[1] = newPoset(true)  // unsigned
++	ft.order[0] = f.newPoset() // signed
++	ft.order[1] = f.newPoset() // unsigned
++	ft.order[0].SetUnsigned(false)
++	ft.order[1].SetUnsigned(true)
+ 	ft.facts = make(map[pair]relation)
+ 	ft.stack = make([]fact, 4)
+ 	ft.limits = make(map[ID]limit)
+@@ -666,7 +668,8 @@ var (
+ // its negation. If either leads to a contradiction, it can trim that
+ // successor.
+ func prove(f *Func) {
+-	ft := newFactsTable()
++	ft := newFactsTable(f)
++	ft.checkpoint()
+ 
+ 	// Find length and capacity ops.
+ 	var zero *Value
+@@ -794,6 +797,20 @@ func prove(f *Func) {
+ 			ft.restore()
+ 		}
+ 	}
++
++	ft.restore()
++
++	// Return the posets to the free list
++	for _, po := range ft.order {
++		// Make sure it's empty as it should be. A non-empty poset
++		// might cause errors and miscompilations if reused.
++		if checkEnabled {
++			if err := po.CheckEmpty(); err != nil {
++				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
++			}
++		}
++		f.retPoset(po)
++	}
+ }
+ 
+ // getBranch returns the range restrictions added by p

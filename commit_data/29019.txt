@@ -12,7 +12,7 @@ Date:   Fri Aug 19 16:35:36 2016 -0400
     Change-Id: I4b0412954d5fd4c13a5fcddd8689ed8ac701d345
     Reviewed-on: https://go-review.googlesource.com/27404
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/mips64/galign.go     |    6 +
  src/cmd/compile/internal/mips64/ssa.go        |  603 +++++
  src/cmd/compile/internal/ssa/config.go        |   10 +
@@ -27,3 +27,6437 @@ Date:   Fri Aug 19 16:35:36 2016 -0400
  src/cmd/compile/internal/ssa/rewriteMIPS64.go | 3018 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritePPC64.go  |    1 +
  13 files changed, 5777 insertions(+), 198 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 22890c891b..ca8b1ccc00 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -6,6 +6,7 @@ package mips64
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/mips"
+ )
+@@ -62,6 +63,11 @@ func Main() {
+ 	gc.Thearch.Doregbits = doregbits
+ 	gc.Thearch.Regnames = regnames
+ 
++	gc.Thearch.SSARegToReg = ssaRegToReg
++	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
++	gc.Thearch.SSAGenValue = ssaGenValue
++	gc.Thearch.SSAGenBlock = ssaGenBlock
++
+ 	gc.Main()
+ 	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+new file mode 100644
+index 0000000000..81a63833be
+--- /dev/null
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -0,0 +1,603 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mips64
++
++import (
++	"math"
++
++	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ssa"
++	"cmd/internal/obj"
++	"cmd/internal/obj/mips"
++)
++
++var ssaRegToReg = []int16{
++	mips.REG_R0, // constant 0
++	mips.REG_R1,
++	mips.REG_R2,
++	mips.REG_R3,
++	mips.REG_R4,
++	mips.REG_R5,
++	mips.REG_R6,
++	mips.REG_R7,
++	mips.REG_R8,
++	mips.REG_R9,
++	mips.REG_R10,
++	mips.REG_R11,
++	mips.REG_R12,
++	mips.REG_R13,
++	mips.REG_R14,
++	mips.REG_R15,
++	mips.REG_R16,
++	mips.REG_R17,
++	mips.REG_R18,
++	mips.REG_R19,
++	mips.REG_R20,
++	mips.REG_R21,
++	mips.REG_R22,
++	// R23 = REGTMP not used in regalloc
++	mips.REG_R24,
++	mips.REG_R25,
++	// R26 reserved by kernel
++	// R27 reserved by kernel
++	// R28 = REGSB not used in regalloc
++	mips.REGSP, // R29
++	mips.REGG,  // R30
++	// R31 = REGLINK not used in regalloc
++
++	mips.REG_F0,
++	mips.REG_F1,
++	mips.REG_F2,
++	mips.REG_F3,
++	mips.REG_F4,
++	mips.REG_F5,
++	mips.REG_F6,
++	mips.REG_F7,
++	mips.REG_F8,
++	mips.REG_F9,
++	mips.REG_F10,
++	mips.REG_F11,
++	mips.REG_F12,
++	mips.REG_F13,
++	mips.REG_F14,
++	mips.REG_F15,
++	mips.REG_F16,
++	mips.REG_F17,
++	mips.REG_F18,
++	mips.REG_F19,
++	mips.REG_F20,
++	mips.REG_F21,
++	mips.REG_F22,
++	mips.REG_F23,
++	mips.REG_F24,
++	mips.REG_F25,
++	mips.REG_F26,
++	mips.REG_F27,
++	mips.REG_F28,
++	mips.REG_F29,
++	mips.REG_F30,
++	mips.REG_F31,
++
++	mips.REG_HI, // high bits of multiplication
++	mips.REG_LO, // low bits of multiplication
++
++	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
++}
++
++// Smallest possible faulting page at address zero,
++// see ../../../../runtime/mheap.go:/minPhysPageSize
++const minZeroPage = 4096
++
++// loadByType returns the load instruction of the given type.
++func loadByType(t ssa.Type, r int16) obj.As {
++	if mips.REG_F0 <= r && r <= mips.REG_F31 {
++		if t.IsFloat() && t.Size() == 4 { // float32
++			return mips.AMOVF
++		} else { // float64 or integer in FP register
++			return mips.AMOVD
++		}
++	} else {
++		switch t.Size() {
++		case 1:
++			if t.IsSigned() {
++				return mips.AMOVB
++			} else {
++				return mips.AMOVBU
++			}
++		case 2:
++			if t.IsSigned() {
++				return mips.AMOVH
++			} else {
++				return mips.AMOVHU
++			}
++		case 4:
++			if t.IsSigned() {
++				return mips.AMOVW
++			} else {
++				return mips.AMOVWU
++			}
++		case 8:
++			return mips.AMOVV
++		}
++	}
++	panic("bad load type")
++}
++
++// storeByType returns the store instruction of the given type.
++func storeByType(t ssa.Type, r int16) obj.As {
++	if mips.REG_F0 <= r && r <= mips.REG_F31 {
++		if t.IsFloat() && t.Size() == 4 { // float32
++			return mips.AMOVF
++		} else { // float64 or integer in FP register
++			return mips.AMOVD
++		}
++	} else {
++		switch t.Size() {
++		case 1:
++			return mips.AMOVB
++		case 2:
++			return mips.AMOVH
++		case 4:
++			return mips.AMOVW
++		case 8:
++			return mips.AMOVV
++		}
++	}
++	panic("bad store type")
++}
++
++func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
++	s.SetLineno(v.Line)
++	switch v.Op {
++	case ssa.OpInitMem:
++		// memory arg needs no code
++	case ssa.OpArg:
++		// input args need no code
++	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
++		// nothing to do
++	case ssa.OpCopy, ssa.OpMIPS64MOVVconvert, ssa.OpMIPS64MOVVreg:
++		if v.Type.IsMemory() {
++			return
++		}
++		x := gc.SSARegNum(v.Args[0])
++		y := gc.SSARegNum(v)
++		if x == y {
++			return
++		}
++		as := mips.AMOVV
++		if v.Type.IsFloat() {
++			switch v.Type.Size() {
++			case 4:
++				as = mips.AMOVF
++			case 8:
++				as = mips.AMOVD
++			default:
++				panic("bad float size")
++			}
++		}
++		p := gc.Prog(as)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = y
++	case ssa.OpMIPS64MOVVnop:
++		if gc.SSARegNum(v) != gc.SSARegNum(v.Args[0]) {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		// nothing to do
++	case ssa.OpLoadReg:
++		if v.Type.IsFlags() {
++			v.Unimplementedf("load flags not implemented: %v", v.LongString())
++			return
++		}
++		r := gc.SSARegNum(v)
++		p := gc.Prog(loadByType(v.Type, r))
++		n, off := gc.AutoVar(v.Args[0])
++		p.From.Type = obj.TYPE_MEM
++		p.From.Node = n
++		p.From.Sym = gc.Linksym(n.Sym)
++		p.From.Offset = off
++		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
++			p.From.Name = obj.NAME_PARAM
++			p.From.Offset += n.Xoffset
++		} else {
++			p.From.Name = obj.NAME_AUTO
++		}
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpPhi:
++		gc.CheckLoweredPhi(v)
++	case ssa.OpStoreReg:
++		if v.Type.IsFlags() {
++			v.Unimplementedf("store flags not implemented: %v", v.LongString())
++			return
++		}
++		r := gc.SSARegNum(v.Args[0])
++		p := gc.Prog(storeByType(v.Type, r))
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r
++		n, off := gc.AutoVar(v)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Node = n
++		p.To.Sym = gc.Linksym(n.Sym)
++		p.To.Offset = off
++		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
++			p.To.Name = obj.NAME_PARAM
++			p.To.Offset += n.Xoffset
++		} else {
++			p.To.Name = obj.NAME_AUTO
++		}
++	case ssa.OpMIPS64ADDV,
++		ssa.OpMIPS64SUBV,
++		ssa.OpMIPS64AND,
++		ssa.OpMIPS64OR,
++		ssa.OpMIPS64XOR,
++		ssa.OpMIPS64NOR,
++		ssa.OpMIPS64SLLV,
++		ssa.OpMIPS64SRLV,
++		ssa.OpMIPS64SRAV,
++		ssa.OpMIPS64ADDF,
++		ssa.OpMIPS64ADDD,
++		ssa.OpMIPS64SUBF,
++		ssa.OpMIPS64SUBD,
++		ssa.OpMIPS64MULF,
++		ssa.OpMIPS64MULD,
++		ssa.OpMIPS64DIVF,
++		ssa.OpMIPS64DIVD:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64SGT,
++		ssa.OpMIPS64SGTU:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64ADDVconst,
++		ssa.OpMIPS64SUBVconst,
++		ssa.OpMIPS64ANDconst,
++		ssa.OpMIPS64ORconst,
++		ssa.OpMIPS64XORconst,
++		ssa.OpMIPS64NORconst,
++		ssa.OpMIPS64SLLVconst,
++		ssa.OpMIPS64SRLVconst,
++		ssa.OpMIPS64SRAVconst,
++		ssa.OpMIPS64SGTconst,
++		ssa.OpMIPS64SGTUconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64MULV,
++		ssa.OpMIPS64MULVU,
++		ssa.OpMIPS64DIVV,
++		ssa.OpMIPS64DIVVU:
++		// result in hi,lo
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.Reg = gc.SSARegNum(v.Args[0])
++	case ssa.OpMIPS64MOVVconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64MOVFconst,
++		ssa.OpMIPS64MOVDconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_FCONST
++		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64CMPEQF,
++		ssa.OpMIPS64CMPEQD,
++		ssa.OpMIPS64CMPGEF,
++		ssa.OpMIPS64CMPGED,
++		ssa.OpMIPS64CMPGTF,
++		ssa.OpMIPS64CMPGTD:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = gc.SSARegNum(v.Args[1])
++	case ssa.OpMIPS64MOVVaddr:
++		p := gc.Prog(mips.AMOVV)
++		p.From.Type = obj.TYPE_ADDR
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
++		var wantreg string
++		// MOVV $sym+off(base), R
++		// the assembler expands it as the following:
++		// - base is SP: add constant offset to SP (R29)
++		//               when constant is large, tmp register (R23) may be used
++		// - base is SB: load external address with relocation
++		switch v.Aux.(type) {
++		default:
++			v.Fatalf("aux is of unknown type %T", v.Aux)
++		case *ssa.ExternSymbol:
++			wantreg = "SB"
++			gc.AddAux(&p.From, v)
++		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++			wantreg = "SP"
++			gc.AddAux(&p.From, v)
++		case nil:
++			// No sym, just MOVV $off(SP), R
++			wantreg = "SP"
++			p.From.Reg = mips.REGSP
++			p.From.Offset = v.AuxInt
++		}
++		if reg := gc.SSAReg(v.Args[0]); reg.Name() != wantreg {
++			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
++		}
++	case ssa.OpMIPS64MOVBload,
++		ssa.OpMIPS64MOVBUload,
++		ssa.OpMIPS64MOVHload,
++		ssa.OpMIPS64MOVHUload,
++		ssa.OpMIPS64MOVWload,
++		ssa.OpMIPS64MOVWUload,
++		ssa.OpMIPS64MOVVload,
++		ssa.OpMIPS64MOVFload,
++		ssa.OpMIPS64MOVDload:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64MOVBstore,
++		ssa.OpMIPS64MOVHstore,
++		ssa.OpMIPS64MOVWstore,
++		ssa.OpMIPS64MOVVstore,
++		ssa.OpMIPS64MOVFstore,
++		ssa.OpMIPS64MOVDstore:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
++	case ssa.OpMIPS64MOVBstorezero,
++		ssa.OpMIPS64MOVHstorezero,
++		ssa.OpMIPS64MOVWstorezero,
++		ssa.OpMIPS64MOVVstorezero:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = mips.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
++	case ssa.OpMIPS64MOVBreg,
++		ssa.OpMIPS64MOVBUreg,
++		ssa.OpMIPS64MOVHreg,
++		ssa.OpMIPS64MOVHUreg,
++		ssa.OpMIPS64MOVWreg,
++		ssa.OpMIPS64MOVWUreg:
++		// TODO: remove extension if after proper load
++		fallthrough
++	case ssa.OpMIPS64MOVWF,
++		ssa.OpMIPS64MOVWD,
++		ssa.OpMIPS64MOVFW,
++		ssa.OpMIPS64MOVDW,
++		ssa.OpMIPS64MOVVF,
++		ssa.OpMIPS64MOVVD,
++		ssa.OpMIPS64MOVFV,
++		ssa.OpMIPS64MOVDV,
++		ssa.OpMIPS64MOVFD,
++		ssa.OpMIPS64MOVDF,
++		ssa.OpMIPS64NEGF,
++		ssa.OpMIPS64NEGD:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64NEGV:
++		// SUB from REGZERO
++		p := gc.Prog(mips.ASUBVU)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = mips.REGZERO
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpMIPS64CALLstatic:
++		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
++			// Deferred calls will appear to be returning to
++			// the CALL deferreturn(SB) that we are about to emit.
++			// However, the stack trace code will show the line
++			// of the instruction byte before the return PC.
++			// To avoid that being an unrelated instruction,
++			// insert an actual hardware NOP that will have the right line number.
++			// This is different from obj.ANOP, which is a virtual no-op
++			// that doesn't make it into the instruction stream.
++			ginsnop()
++		}
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(v.Aux.(*gc.Sym))
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpMIPS64CALLclosure:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = 0
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpMIPS64CALLdefer:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpMIPS64CALLgo:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpMIPS64CALLinter:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = 0
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpMIPS64LoweredNilCheck:
++		// TODO: optimization
++		// Issue a load which will fault if arg is nil.
++		p := gc.Prog(mips.AMOVB)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = mips.REGZERO
++		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
++			gc.Warnl(v.Line, "generated nil check")
++		}
++	case ssa.OpVarDef:
++		gc.Gvardef(v.Aux.(*gc.Node))
++	case ssa.OpVarKill:
++		gc.Gvarkill(v.Aux.(*gc.Node))
++	case ssa.OpVarLive:
++		gc.Gvarlive(v.Aux.(*gc.Node))
++	case ssa.OpKeepAlive:
++		if !v.Args[0].Type.IsPtrShaped() {
++			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
++		}
++		n, off := gc.AutoVar(v.Args[0])
++		if n == nil {
++			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
++		}
++		if off != 0 {
++			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
++		}
++		gc.Gvarlive(n)
++	case ssa.OpMIPS64FPFlagTrue,
++		ssa.OpMIPS64FPFlagFalse:
++		// MOVV	$0, r
++		// BFPF	2(PC)
++		// MOVV	$1, r
++		branch := mips.ABFPF
++		if v.Op == ssa.OpMIPS64FPFlagFalse {
++			branch = mips.ABFPT
++		}
++		p := gc.Prog(mips.AMOVV)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = mips.REGZERO
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++		p2 := gc.Prog(branch)
++		p2.To.Type = obj.TYPE_BRANCH
++		p3 := gc.Prog(mips.AMOVV)
++		p3.From.Type = obj.TYPE_CONST
++		p3.From.Offset = 1
++		p3.To.Type = obj.TYPE_REG
++		p3.To.Reg = gc.SSARegNum(v)
++		p4 := gc.Prog(obj.ANOP) // not a machine instruction, for branch to land
++		gc.Patch(p2, p4)
++	case ssa.OpSelect0, ssa.OpSelect1:
++		// nothing to do
++	case ssa.OpMIPS64LoweredGetClosurePtr:
++		// Closure pointer is R22 (mips.REGCTXT).
++		gc.CheckLoweredGetClosurePtr(v)
++	default:
++		v.Unimplementedf("genValue not implemented: %s", v.LongString())
++	}
++}
++
++var blockJump = map[ssa.BlockKind]struct {
++	asm, invasm obj.As
++}{
++	ssa.BlockMIPS64EQ:  {mips.ABEQ, mips.ABNE},
++	ssa.BlockMIPS64NE:  {mips.ABNE, mips.ABEQ},
++	ssa.BlockMIPS64LTZ: {mips.ABLTZ, mips.ABGEZ},
++	ssa.BlockMIPS64GEZ: {mips.ABGEZ, mips.ABLTZ},
++	ssa.BlockMIPS64LEZ: {mips.ABLEZ, mips.ABGTZ},
++	ssa.BlockMIPS64GTZ: {mips.ABGTZ, mips.ABLEZ},
++	ssa.BlockMIPS64FPT: {mips.ABFPT, mips.ABFPF},
++	ssa.BlockMIPS64FPF: {mips.ABFPF, mips.ABFPT},
++}
++
++func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
++	s.SetLineno(b.Line)
++
++	switch b.Kind {
++	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
++		if b.Succs[0].Block() != next {
++			p := gc.Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++		}
++	case ssa.BlockDefer:
++		// defer returns in R1:
++		// 0 if we should continue executing
++		// 1 if we should jump to deferreturn call
++		p := gc.Prog(mips.ABNE)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = mips.REGZERO
++		p.Reg = mips.REG_R1
++		p.To.Type = obj.TYPE_BRANCH
++		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++		if b.Succs[0].Block() != next {
++			p := gc.Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++		}
++	case ssa.BlockExit:
++		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
++	case ssa.BlockRet:
++		gc.Prog(obj.ARET)
++	case ssa.BlockRetJmp:
++		p := gc.Prog(obj.ARET)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
++	case ssa.BlockMIPS64EQ, ssa.BlockMIPS64NE,
++		ssa.BlockMIPS64LTZ, ssa.BlockMIPS64GEZ,
++		ssa.BlockMIPS64LEZ, ssa.BlockMIPS64GTZ,
++		ssa.BlockMIPS64FPT, ssa.BlockMIPS64FPF:
++		jmp := blockJump[b.Kind]
++		var p *obj.Prog
++		switch next {
++		case b.Succs[0].Block():
++			p = gc.Prog(jmp.invasm)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++		case b.Succs[1].Block():
++			p = gc.Prog(jmp.asm)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++		default:
++			p = gc.Prog(jmp.asm)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++			q := gc.Prog(obj.AJMP)
++			q.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
++		}
++		if !b.Control.Type.IsFlags() {
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = gc.SSARegNum(b.Control)
++		}
++	default:
++		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index f41b5e8d79..b2f1fd9735 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -194,6 +194,16 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+ 		c.NeedsFpScratch = true
+ 		c.hasGReg = true
++	case "mips64", "mips64le":
++		c.IntSize = 8
++		c.PtrSize = 8
++		c.lowerBlock = rewriteBlockMIPS64
++		c.lowerValue = rewriteValueMIPS64
++		c.registers = registersMIPS64[:]
++		c.gpRegMask = gpRegMaskMIPS64
++		c.fpRegMask = fpRegMaskMIPS64
++		c.FPReg = framepointerRegMIPS64
++		c.hasGReg = true
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+new file mode 100644
+index 0000000000..5c5f0ca68b
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -0,0 +1,215 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++(AddPtr x y) -> (ADDV x y)
++(Add64 x y) -> (ADDV x y)
++(Add32 x y) -> (ADDV x y)
++(Add16 x y) -> (ADDV x y)
++(Add8 x y) -> (ADDV x y)
++(Add32F x y) -> (ADDF x y)
++(Add64F x y) -> (ADDD x y)
++
++(SubPtr x y) -> (SUBV x y)
++(Sub64 x y) -> (SUBV x y)
++(Sub32 x y) -> (SUBV x y)
++(Sub16 x y) -> (SUBV x y)
++(Sub8 x y) -> (SUBV x y)
++(Sub32F x y) -> (SUBF x y)
++(Sub64F x y) -> (SUBD x y)
++
++(And64 x y) -> (AND x y)
++(And32 x y) -> (AND x y)
++(And16 x y) -> (AND x y)
++(And8 x y) -> (AND x y)
++
++(Or64 x y) -> (OR x y)
++(Or32 x y) -> (OR x y)
++(Or16 x y) -> (OR x y)
++(Or8 x y) -> (OR x y)
++
++(Xor64 x y) -> (XOR x y)
++(Xor32 x y) -> (XOR x y)
++(Xor16 x y) -> (XOR x y)
++(Xor8 x y) -> (XOR x y)
++
++// unary ops
++(Neg64 x) -> (NEGV x)
++(Neg32 x) -> (NEGV x)
++(Neg16 x) -> (NEGV x)
++(Neg8 x) -> (NEGV x)
++(Neg32F x) -> (NEGF x)
++(Neg64F x) -> (NEGD x)
++
++(Com64 x) -> (NOR (MOVVconst [0]) x)
++(Com32 x) -> (NOR (MOVVconst [0]) x)
++(Com16 x) -> (NOR (MOVVconst [0]) x)
++(Com8 x) -> (NOR (MOVVconst [0]) x)
++
++// boolean ops -- booleans are represented with 0=false, 1=true
++(AndB x y) -> (AND x y)
++(OrB x y) -> (OR x y)
++(EqB x y) -> (XOR (MOVVconst [1]) (XOR <config.fe.TypeBool()> x y))
++(NeqB x y) -> (XOR x y)
++(Not x) -> (XOR (MOVVconst [1]) x)
++
++// constants
++(Const64 [val]) -> (MOVVconst [val])
++(Const32 [val]) -> (MOVVconst [val])
++(Const16 [val]) -> (MOVVconst [val])
++(Const8 [val]) -> (MOVVconst [val])
++(Const32F [val]) -> (MOVFconst [val])
++(Const64F [val]) -> (MOVDconst [val])
++(ConstNil) -> (MOVVconst [0])
++(ConstBool [b]) -> (MOVVconst [b])
++
++// truncations
++// Because we ignore high parts of registers, truncates are just copies.
++(Trunc16to8 x) -> x
++(Trunc32to8 x) -> x
++(Trunc32to16 x) -> x
++(Trunc64to8 x) -> x
++(Trunc64to16 x) -> x
++(Trunc64to32 x) -> x
++
++// Zero-/Sign-extensions
++(ZeroExt8to16 x) -> (MOVBUreg x)
++(ZeroExt8to32 x) -> (MOVBUreg x)
++(ZeroExt16to32 x) -> (MOVHUreg x)
++(ZeroExt8to64 x) -> (MOVBUreg x)
++(ZeroExt16to64 x) -> (MOVHUreg x)
++(ZeroExt32to64 x) -> (MOVWUreg x)
++
++(SignExt8to16 x) -> (MOVBreg x)
++(SignExt8to32 x) -> (MOVBreg x)
++(SignExt16to32 x) -> (MOVHreg x)
++(SignExt8to64 x) -> (MOVBreg x)
++(SignExt16to64 x) -> (MOVHreg x)
++(SignExt32to64 x) -> (MOVWreg x)
++
++// float <-> int conversion
++(Cvt32to32F x) -> (MOVWF x)
++(Cvt32to64F x) -> (MOVWD x)
++(Cvt64to32F x) -> (MOVVF x)
++(Cvt64to64F x) -> (MOVVD x)
++(Cvt32Fto32 x) -> (MOVFW x)
++(Cvt64Fto32 x) -> (MOVDW x)
++(Cvt32Fto64 x) -> (MOVFV x)
++(Cvt64Fto64 x) -> (MOVDV x)
++(Cvt32Fto64F x) -> (MOVFD x)
++(Cvt64Fto32F x) -> (MOVDF x)
++
++// comparisons
++(Eq8 x y)  -> (SGTU (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)) (MOVVconst [0]))
++(Eq16 x y) -> (SGTU (XOR (ZeroExt16to64 x) (ZeroExt16to64 y)) (MOVVconst [0]))
++(Eq32 x y) -> (SGTU (XOR (ZeroExt32to64 x) (ZeroExt32to64 y)) (MOVVconst [0]))
++(Eq64 x y) -> (SGTU (XOR x y) (MOVVconst [0]))
++(EqPtr x y) -> (SGTU (XOR x y) (MOVVconst [0]))
++(Eq32F x y) -> (FPFlagTrue (CMPEQF x y))
++(Eq64F x y) -> (FPFlagTrue (CMPEQD x y))
++
++(Neq8 x y)  -> (SGTU (MOVVconst [0]) (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)))
++(Neq16 x y) -> (SGTU (MOVVconst [0]) (XOR (ZeroExt16to32 x) (ZeroExt16to64 y)))
++(Neq32 x y) -> (SGTU (MOVVconst [0]) (XOR (ZeroExt32to64 x) (ZeroExt32to64 y)) )
++(Neq64 x y) -> (SGTU (MOVVconst [0]) (XOR x y))
++(NeqPtr x y) -> (SGTU (MOVVconst [0]) (XOR x y))
++(Neq32F x y) -> (FPFlagFalse (CMPEQF x y))
++(Neq64F x y) -> (FPFlagFalse (CMPEQD x y))
++
++(Less8 x y)  -> (SGT (SignExt8to64 y) (SignExt8to64 x))
++(Less16 x y) -> (SGT (SignExt16to64 y) (SignExt16to64 x))
++(Less32 x y) -> (SGT (SignExt32to64 y) (SignExt32to64 x))
++(Less64 x y) -> (SGT y x)
++(Less32F x y) -> (FPFlagTrue (CMPGTF y x)) // reverse operands to work around NaN
++(Less64F x y) -> (FPFlagTrue (CMPGTD y x)) // reverse operands to work around NaN
++
++(Less8U x y)  -> (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++(Less16U x y) -> (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++(Less32U x y) -> (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++(Less64U x y) -> (SGTU y x)
++
++(Leq8 x y)  -> (XOR (MOVVconst [1]) (SGT (SignExt8to64 x) (SignExt8to64 y)))
++(Leq16 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt16to64 x) (SignExt16to64 y)))
++(Leq32 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt32to64 x) (SignExt32to64 y)))
++(Leq64 x y) -> (XOR (MOVVconst [1]) (SGT x y))
++(Leq32F x y) -> (FPFlagTrue (CMPGEF y x)) // reverse operands to work around NaN
++(Leq64F x y) -> (FPFlagTrue (CMPGED y x)) // reverse operands to work around NaN
++
++(Leq8U x y)  -> (XOR (MOVVconst [1]) (SGTU (ZeroExt8to64 x) (ZeroExt8to64 y)))
++(Leq16U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt16to64 x) (ZeroExt16to64 y)))
++(Leq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
++(Leq64U x y) -> (XOR (MOVVconst [1]) (SGTU x y))
++
++(Greater8 x y)  -> (SGT (SignExt8to64 x) (SignExt8to64 y))
++(Greater16 x y) -> (SGT (SignExt16to64 x) (SignExt16to64 y))
++(Greater32 x y) -> (SGT (SignExt32to64 x) (SignExt32to64 y))
++(Greater64 x y) -> (SGT x y)
++(Greater32F x y) -> (FPFlagTrue (CMPGTF x y))
++(Greater64F x y) -> (FPFlagTrue (CMPGTD x y))
++
++(Greater8U x y)  -> (SGTU (ZeroExt8to64 x) (ZeroExt8to64 y))
++(Greater16U x y) -> (SGTU (ZeroExt16to64 x) (ZeroExt16to64 y))
++(Greater32U x y) -> (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y))
++(Greater64U x y) -> (SGTU x y)
++
++(Geq8 x y)  -> (XOR (MOVVconst [1]) (SGT (SignExt8to64 y) (SignExt8to64 x)))
++(Geq16 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt16to64 y) (SignExt16to64 x)))
++(Geq32 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt32to64 y) (SignExt32to64 x)))
++(Geq64 x y) -> (XOR (MOVVconst [1]) (SGT y x))
++(Geq32F x y) -> (FPFlagTrue (CMPGEF x y))
++(Geq64F x y) -> (FPFlagTrue (CMPGED x y))
++
++(Geq8U x y)  -> (XOR (MOVVconst [1]) (SGTU (ZeroExt8to64 y) (ZeroExt8to64 x)))
++(Geq16U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt16to64 y) (ZeroExt16to64 x)))
++(Geq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x)))
++(Geq64U x y) -> (XOR (MOVVconst [1]) (SGTU y x))
++
++(OffPtr [off] ptr:(SP)) -> (MOVVaddr [off] ptr)
++(OffPtr [off] ptr) -> (ADDVconst [off] ptr)
++
++(Addr {sym} base) -> (MOVVaddr {sym} base)
++
++// loads
++(Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t)) -> (MOVWload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) -> (MOVWUload ptr mem)
++(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVVload ptr mem)
++(Load <t> ptr mem) && is32BitFloat(t) -> (MOVFload ptr mem)
++(Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
++
++// stores
++(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
++(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
++(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
++(Store [8] ptr val mem) && !is64BitFloat(val.Type) -> (MOVVstore ptr val mem)
++(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
++(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
++
++// calls
++(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
++(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
++(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
++(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
++(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
++
++// checks
++(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
++(IsNonNil ptr) -> (SGTU ptr (MOVVconst [0]))
++(IsInBounds idx len) -> (SGTU len idx)
++(IsSliceInBounds idx len) -> (XOR (MOVVconst [1]) (SGTU idx len))
++
++// pseudo-ops
++(GetClosurePtr) -> (LoweredGetClosurePtr)
++(Convert x mem) -> (MOVVconvert x mem)
++
++(If cond yes no) -> (NE cond yes no)
++
++// Optimizations
++
++// Absorb boolean tests into block
++(NE (FPFlagTrue cmp) yes no) -> (FPT cmp yes no)
++(NE (FPFlagFalse cmp) yes no) -> (FPF cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+new file mode 100644
+index 0000000000..f0b61138ca
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -0,0 +1,314 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import "strings"
++
++// Notes:
++//  - Integer types live in the low portion of registers. Upper portions are junk.
++//  - Boolean types use the low-order byte of a register. 0=false, 1=true.
++//    Upper bytes are junk.
++//  - *const instructions may use a constant larger than the instuction can encode.
++//    In this case the assembler expands to multiple instructions and uses tmp
++//    register (R23).
++
++// Suffixes encode the bit width of various instructions.
++// V (vlong)     = 64 bit
++// WU (word)     = 32 bit unsigned
++// W (word)      = 32 bit
++// H (half word) = 16 bit
++// HU            = 16 bit unsigned
++// B (byte)      = 8 bit
++// BU            = 8 bit unsigned
++// F (float)     = 32 bit float
++// D (double)    = 64 bit float
++
++// Note: registers not used in regalloc are not included in this list,
++// so that regmask stays within int64
++// Be careful when hand coding regmasks.
++var regNamesMIPS64 = []string{
++	"R0", // constant 0
++	"R1",
++	"R2",
++	"R3",
++	"R4",
++	"R5",
++	"R6",
++	"R7",
++	"R8",
++	"R9",
++	"R10",
++	"R11",
++	"R12",
++	"R13",
++	"R14",
++	"R15",
++	"R16",
++	"R17",
++	"R18",
++	"R19",
++	"R20",
++	"R21",
++	"R22",
++	// R23 = REGTMP not used in regalloc
++	"R24",
++	"R25",
++	// R26 reserved by kernel
++	// R27 reserved by kernel
++	// R28 = REGSB not used in regalloc
++	"SP", // aka R29
++	"g",  // aka R30
++	// R31 = REGLINK not used in regalloc
++
++	"F0",
++	"F1",
++	"F2",
++	"F3",
++	"F4",
++	"F5",
++	"F6",
++	"F7",
++	"F8",
++	"F9",
++	"F10",
++	"F11",
++	"F12",
++	"F13",
++	"F14",
++	"F15",
++	"F16",
++	"F17",
++	"F18",
++	"F19",
++	"F20",
++	"F21",
++	"F22",
++	"F23",
++	"F24", // 0.0
++	"F25",
++	"F26", // 0.5
++	"F27",
++	"F28", // 1.0
++	"F29",
++	"F30", // 2.0
++	"F31",
++
++	"HI", // high bits of multiplication
++	"LO", // low bits of multiplication
++
++	// pseudo-registers
++	"SB",
++}
++
++func init() {
++	// Make map from reg names to reg integers.
++	if len(regNamesMIPS64) > 64 {
++		panic("too many registers")
++	}
++	num := map[string]int{}
++	for i, name := range regNamesMIPS64 {
++		num[name] = i
++	}
++	buildReg := func(s string) regMask {
++		m := regMask(0)
++		for _, r := range strings.Split(s, " ") {
++			if n, ok := num[r]; ok {
++				m |= regMask(1) << uint(n)
++				continue
++			}
++			panic("register " + r + " not found")
++		}
++		return m
++	}
++
++	// Common individual register masks
++	var (
++		gp         = buildReg("R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25")
++		gpg        = gp | buildReg("g")
++		gpsp       = gp | buildReg("SP")
++		gpspg      = gpg | buildReg("SP")
++		gpspsbg    = gpspg | buildReg("SB")
++		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31")
++		lo         = buildReg("LO")
++		hi         = buildReg("HI")
++		callerSave = gp | fp | lo | hi | buildReg("g") // runtime.setg (and anything calling it) may clobber g
++	)
++	// Common regInfo
++	var (
++		gp01     = regInfo{inputs: nil, outputs: []regMask{gp}}
++		gp11     = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
++		gp11sp   = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
++		gp21     = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
++		gp2hilo  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{hi, lo}}
++		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
++		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
++		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
++		fp01     = regInfo{inputs: nil, outputs: []regMask{fp}}
++		fp11     = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		//fp1flags  = regInfo{inputs: []regMask{fp}}
++		//fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		//gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
++		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
++		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
++		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
++		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
++	)
++	ops := []opData{
++		// binary ops
++		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},     // arg0 + arg1
++		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},   // arg0 + auxInt
++		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                        // arg0 - arg1
++		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},     // arg0 - auxInt
++		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true},   // arg0 * arg1, signed, results hi,lo
++		{name: "MULVU", argLength: 2, reg: gp2hilo, asm: "MULVU", commutative: true}, // arg0 * arg1, unsigned, results hi,lo
++		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV"},                      // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
++		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU"},                    // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
++
++		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
++		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
++		{name: "SUBF", argLength: 2, reg: fp21, asm: "SUBF"},                    // arg0 - arg1
++		{name: "SUBD", argLength: 2, reg: fp21, asm: "SUBD"},                    // arg0 - arg1
++		{name: "MULF", argLength: 2, reg: fp21, asm: "MULF", commutative: true}, // arg0 * arg1
++		{name: "MULD", argLength: 2, reg: fp21, asm: "MULD", commutative: true}, // arg0 * arg1
++		{name: "DIVF", argLength: 2, reg: fp21, asm: "DIVF"},                    // arg0 / arg1
++		{name: "DIVD", argLength: 2, reg: fp21, asm: "DIVD"},                    // arg0 / arg1
++
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                // arg0 & arg1
++		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"},                // arg0 & auxInt
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                  // arg0 | arg1
++		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                  // arg0 | auxInt
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, typ: "UInt64"}, // arg0 ^ arg1
++		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", typ: "UInt64"}, // arg0 ^ auxInt
++		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                // ^(arg0 | arg1)
++		{name: "NORconst", argLength: 1, reg: gp11, asm: "NOR", aux: "Int64"},                // ^(arg0 | auxInt)
++
++		{name: "NEGV", argLength: 1, reg: gp11},              // -arg0
++		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"}, // -arg0, float32
++		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"}, // -arg0, float64
++
++		// shifts
++		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                    // arg0 << arg1, shift amount is mod 64
++		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"}, // arg0 << auxInt
++		{name: "SRLV", argLength: 2, reg: gp21, asm: "SRLV"},                    // arg0 >> arg1, unsigned, shift amount is mod 64
++		{name: "SRLVconst", argLength: 1, reg: gp11, asm: "SRLV", aux: "Int64"}, // arg0 >> auxInt, unsigned
++		{name: "SRAV", argLength: 2, reg: gp21, asm: "SRAV"},                    // arg0 >> arg1, signed, shift amount is mod 64
++		{name: "SRAVconst", argLength: 1, reg: gp11, asm: "SRAV", aux: "Int64"}, // arg0 >> auxInt, signed
++
++		// comparisons
++		{name: "SGT", argLength: 2, reg: gp21, asm: "SGT", typ: "Bool"},                      // 1 if arg0 > arg1 (signed), 0 otherwise
++		{name: "SGTconst", argLength: 2, reg: gp21, asm: "SGT", aux: "Int64", typ: "Bool"},   // 1 if arg0 > auxInt (signed), 0 otherwise
++		{name: "SGTU", argLength: 2, reg: gp21, asm: "SGTU", typ: "Bool"},                    // 1 if arg0 > arg1 (unsigned), 0 otherwise
++		{name: "SGTUconst", argLength: 2, reg: gp21, asm: "SGTU", aux: "Int64", typ: "Bool"}, // 1 if arg0 > auxInt (unsigned), 0 otherwise
++
++		{name: "CMPEQF", argLength: 2, reg: fp2flags, asm: "CMPEQF", typ: "Flags"}, // flags=true if arg0 = arg1, float32
++		{name: "CMPEQD", argLength: 2, reg: fp2flags, asm: "CMPEQD", typ: "Flags"}, // flags=true if arg0 = arg1, float64
++		{name: "CMPGEF", argLength: 2, reg: fp2flags, asm: "CMPGEF", typ: "Flags"}, // flags=true if arg0 >= arg1, float32
++		{name: "CMPGED", argLength: 2, reg: fp2flags, asm: "CMPGED", typ: "Flags"}, // flags=true if arg0 >= arg1, float64
++		{name: "CMPGTF", argLength: 2, reg: fp2flags, asm: "CMPGTF", typ: "Flags"}, // flags=true if arg0 > arg1, float32
++		{name: "CMPGTD", argLength: 2, reg: fp2flags, asm: "CMPGTD", typ: "Flags"}, // flags=true if arg0 > arg1, float64
++
++		// moves
++		{name: "MOVVconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVV", typ: "UInt64", rematerializeable: true},    // auxint
++		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
++		{name: "MOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
++
++		{name: "MOVVaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVV", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
++
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32"},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32"}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVVload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVV", typ: "UInt64"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32"},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64"},  // load from arg0 + auxInt + aux.  arg1=mem.
++
++		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVVstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVV", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++
++		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVVstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVV", typ: "Mem"}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
++
++		// conversions
++		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
++		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
++		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},   // move from arg0, sign-extended from half
++		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
++		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0, sign-extended from word
++		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
++		{name: "MOVVreg", argLength: 1, reg: gp11, asm: "MOVV"},   // move from arg0
++
++		{name: "MOVVnop", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // nop, return arg0 in same register
++
++		{name: "MOVWF", argLength: 1, reg: fp11, asm: "MOVWF"}, // int32 -> float32
++		{name: "MOVWD", argLength: 1, reg: fp11, asm: "MOVWD"}, // int32 -> float64
++		{name: "MOVVF", argLength: 1, reg: fp11, asm: "MOVVF"}, // int64 -> float32
++		{name: "MOVVD", argLength: 1, reg: fp11, asm: "MOVVD"}, // int64 -> float64
++		{name: "MOVFW", argLength: 1, reg: fp11, asm: "MOVFW"}, // float32 -> int32
++		{name: "MOVDW", argLength: 1, reg: fp11, asm: "MOVDW"}, // float64 -> int32
++		{name: "MOVFV", argLength: 1, reg: fp11, asm: "MOVFV"}, // float32 -> int64
++		{name: "MOVDV", argLength: 1, reg: fp11, asm: "MOVDV"}, // float64 -> int64
++		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"}, // float32 -> float64
++		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"}, // float64 -> float32
++
++		// function calls
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++
++		// pseudo-ops
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
++
++		{name: "FPFlagTrue", argLength: 1, reg: readflags},  // bool, true if FP flag is true
++		{name: "FPFlagFalse", argLength: 1, reg: readflags}, // bool, true if FP flag is false
++
++		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
++		// and sorts it to the very beginning of the block to prevent other
++		// use of R22 (mips.REGCTXT, the closure pointer)
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}},
++
++		// MOVDconvert converts between pointers and integers.
++		// We have a special op for this so as to not confuse GC
++		// (particularly stack maps).  It takes a memory arg so it
++		// gets correctly ordered with respect to GC safepoints.
++		// arg0=ptr/int arg1=mem, output=int/ptr
++		{name: "MOVVconvert", argLength: 2, reg: gp11, asm: "MOVV"},
++	}
++
++	blocks := []blockData{
++		{name: "EQ"},
++		{name: "NE"},
++		{name: "LTZ"}, // < 0
++		{name: "LEZ"}, // <= 0
++		{name: "GTZ"}, // > 0
++		{name: "GEZ"}, // >= 0
++		{name: "FPT"}, // FP flag is true
++		{name: "FPF"}, // FP flag is false
++	}
++
++	archs = append(archs, arch{
++		name:            "MIPS64",
++		pkg:             "cmd/internal/obj/mips",
++		genfile:         "../../mips64/ssa.go",
++		ops:             ops,
++		blocks:          blocks,
++		regnames:        regNamesMIPS64,
++		gpregmask:       gp,
++		fpregmask:       fp,
++		framepointerreg: -1, // not used
++	})
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 0cb428b6fa..8841c4d018 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -234,6 +234,7 @@ func genRules(arch arch) {
+ 				if strings.Contains(s[1], "(") {
+ 					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false, rule.loc)
+ 				} else {
++					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
+ 					fmt.Fprintf(w, "%s := b.Control\n", s[1])
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f5fd0dd4fd..14c0d761c5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -7,6 +7,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"cmd/internal/obj/arm64"
++	"cmd/internal/obj/mips"
+ 	"cmd/internal/obj/ppc64"
+ 	"cmd/internal/obj/x86"
+ )
+@@ -66,6 +67,15 @@ const (
+ 	BlockARM64UGT
+ 	BlockARM64UGE
+ 
++	BlockMIPS64EQ
++	BlockMIPS64NE
++	BlockMIPS64LTZ
++	BlockMIPS64LEZ
++	BlockMIPS64GTZ
++	BlockMIPS64GEZ
++	BlockMIPS64FPT
++	BlockMIPS64FPF
++
+ 	BlockPPC64EQ
+ 	BlockPPC64NE
+ 	BlockPPC64LT
+@@ -143,6 +153,15 @@ var blockString = [...]string{
+ 	BlockARM64UGT: "UGT",
+ 	BlockARM64UGE: "UGE",
+ 
++	BlockMIPS64EQ:  "EQ",
++	BlockMIPS64NE:  "NE",
++	BlockMIPS64LTZ: "LTZ",
++	BlockMIPS64LEZ: "LEZ",
++	BlockMIPS64GTZ: "GTZ",
++	BlockMIPS64GEZ: "GEZ",
++	BlockMIPS64FPT: "FPT",
++	BlockMIPS64FPF: "FPF",
++
+ 	BlockPPC64EQ:  "EQ",
+ 	BlockPPC64NE:  "NE",
+ 	BlockPPC64LT:  "LT",
+@@ -962,6 +981,101 @@ const (
+ 	OpARM64FlagGT_ULT
+ 	OpARM64InvertFlags
+ 
++	OpMIPS64ADDV
++	OpMIPS64ADDVconst
++	OpMIPS64SUBV
++	OpMIPS64SUBVconst
++	OpMIPS64MULV
++	OpMIPS64MULVU
++	OpMIPS64DIVV
++	OpMIPS64DIVVU
++	OpMIPS64ADDF
++	OpMIPS64ADDD
++	OpMIPS64SUBF
++	OpMIPS64SUBD
++	OpMIPS64MULF
++	OpMIPS64MULD
++	OpMIPS64DIVF
++	OpMIPS64DIVD
++	OpMIPS64AND
++	OpMIPS64ANDconst
++	OpMIPS64OR
++	OpMIPS64ORconst
++	OpMIPS64XOR
++	OpMIPS64XORconst
++	OpMIPS64NOR
++	OpMIPS64NORconst
++	OpMIPS64NEGV
++	OpMIPS64NEGF
++	OpMIPS64NEGD
++	OpMIPS64SLLV
++	OpMIPS64SLLVconst
++	OpMIPS64SRLV
++	OpMIPS64SRLVconst
++	OpMIPS64SRAV
++	OpMIPS64SRAVconst
++	OpMIPS64SGT
++	OpMIPS64SGTconst
++	OpMIPS64SGTU
++	OpMIPS64SGTUconst
++	OpMIPS64CMPEQF
++	OpMIPS64CMPEQD
++	OpMIPS64CMPGEF
++	OpMIPS64CMPGED
++	OpMIPS64CMPGTF
++	OpMIPS64CMPGTD
++	OpMIPS64MOVVconst
++	OpMIPS64MOVFconst
++	OpMIPS64MOVDconst
++	OpMIPS64MOVVaddr
++	OpMIPS64MOVBload
++	OpMIPS64MOVBUload
++	OpMIPS64MOVHload
++	OpMIPS64MOVHUload
++	OpMIPS64MOVWload
++	OpMIPS64MOVWUload
++	OpMIPS64MOVVload
++	OpMIPS64MOVFload
++	OpMIPS64MOVDload
++	OpMIPS64MOVBstore
++	OpMIPS64MOVHstore
++	OpMIPS64MOVWstore
++	OpMIPS64MOVVstore
++	OpMIPS64MOVFstore
++	OpMIPS64MOVDstore
++	OpMIPS64MOVBstorezero
++	OpMIPS64MOVHstorezero
++	OpMIPS64MOVWstorezero
++	OpMIPS64MOVVstorezero
++	OpMIPS64MOVBreg
++	OpMIPS64MOVBUreg
++	OpMIPS64MOVHreg
++	OpMIPS64MOVHUreg
++	OpMIPS64MOVWreg
++	OpMIPS64MOVWUreg
++	OpMIPS64MOVVreg
++	OpMIPS64MOVVnop
++	OpMIPS64MOVWF
++	OpMIPS64MOVWD
++	OpMIPS64MOVVF
++	OpMIPS64MOVVD
++	OpMIPS64MOVFW
++	OpMIPS64MOVDW
++	OpMIPS64MOVFV
++	OpMIPS64MOVDV
++	OpMIPS64MOVFD
++	OpMIPS64MOVDF
++	OpMIPS64CALLstatic
++	OpMIPS64CALLclosure
++	OpMIPS64CALLdefer
++	OpMIPS64CALLgo
++	OpMIPS64CALLinter
++	OpMIPS64LoweredNilCheck
++	OpMIPS64FPFlagTrue
++	OpMIPS64FPFlagFalse
++	OpMIPS64LoweredGetClosurePtr
++	OpMIPS64MOVVconvert
++
+ 	OpPPC64ADD
+ 	OpPPC64ADDconst
+ 	OpPPC64FADD
+@@ -11885,497 +11999,1723 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 
+ 	{
+-		name:        "ADD",
++		name:        "ADDV",
+ 		argLen:      2,
+ 		commutative: true,
+-		asm:         ppc64.AADD,
++		asm:         mips.AADDVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "ADDconst",
+-		auxType: auxSymOff,
++		name:    "ADDVconst",
++		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.AADD,
++		asm:     mips.AADDVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 134217726}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "FADD",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFADD,
++		name:   "SUBV",
++		argLen: 2,
++		asm:    mips.ASUBVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "FADDS",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFADDS,
++		name:    "SUBVconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     mips.ASUBVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SUB",
+-		argLen: 2,
+-		asm:    ppc64.ASUB,
++		name:        "MULV",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.AMULV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 576460752303423488},  // HI
++				{1, 1152921504606846976}, // LO
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "FSUB",
+-		argLen: 2,
+-		asm:    ppc64.AFSUB,
++		name:        "MULVU",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.AMULVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 576460752303423488},  // HI
++				{1, 1152921504606846976}, // LO
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "FSUBS",
++		name:   "DIVV",
+ 		argLen: 2,
+-		asm:    ppc64.AFSUBS,
++		asm:    mips.ADIVV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 576460752303423488},  // HI
++				{1, 1152921504606846976}, // LO
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULLD",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AMULLD,
++		name:   "DIVVU",
++		argLen: 2,
++		asm:    mips.ADIVVU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 576460752303423488},  // HI
++				{1, 1152921504606846976}, // LO
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULLW",
++		name:        "ADDF",
+ 		argLen:      2,
+ 		commutative: true,
+-		asm:         ppc64.AMULLW,
++		asm:         mips.AADDF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULHD",
++		name:        "ADDD",
+ 		argLen:      2,
+ 		commutative: true,
+-		asm:         ppc64.AMULHD,
++		asm:         mips.AADDD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULHW",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AMULHW,
++		name:   "SUBF",
++		argLen: 2,
++		asm:    mips.ASUBF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULHDU",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AMULHDU,
++		name:   "SUBD",
++		argLen: 2,
++		asm:    mips.ASUBD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "MULHWU",
++		name:        "MULF",
+ 		argLen:      2,
+ 		commutative: true,
+-		asm:         ppc64.AMULHWU,
++		asm:         mips.AMULF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "FMUL",
++		name:        "MULD",
+ 		argLen:      2,
+ 		commutative: true,
+-		asm:         ppc64.AFMUL,
++		asm:         mips.AMULD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:        "FMULS",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFMULS,
++		name:   "DIVF",
++		argLen: 2,
++		asm:    mips.ADIVF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SRAD",
++		name:   "DIVD",
+ 		argLen: 2,
+-		asm:    ppc64.ASRAD,
++		asm:    mips.ADIVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SRAW",
+-		argLen: 2,
+-		asm:    ppc64.ASRAW,
++		name:        "AND",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SRD",
+-		argLen: 2,
+-		asm:    ppc64.ASRD,
++		name:    "ANDconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     mips.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SRW",
+-		argLen: 2,
+-		asm:    ppc64.ASRW,
++		name:        "OR",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.AOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SLD",
+-		argLen: 2,
+-		asm:    ppc64.ASLD,
++		name:    "ORconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     mips.AOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "SLW",
+-		argLen: 2,
+-		asm:    ppc64.ASLW,
++		name:        "XOR",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.AXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "ADDconstForCarry",
+-		auxType: auxInt16,
++		name:    "XORconst",
++		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.AADDC,
++		asm:     mips.AXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+-			clobbers: 1073741824, // R31
+ 		},
+ 	},
+ 	{
+-		name:   "MaskIfNotCarry",
+-		argLen: 1,
+-		asm:    ppc64.AADDME,
++		name:        "NOR",
++		argLen:      2,
++		commutative: true,
++		asm:         mips.ANOR,
+ 		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SRADconst",
++		name:    "NORconst",
+ 		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.ASRAD,
++		asm:     mips.ANOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SRAWconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     ppc64.ASRAW,
++		name:   "NEGV",
++		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SRDconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     ppc64.ASRD,
++		name:   "NEGF",
++		argLen: 1,
++		asm:    mips.ANEGF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SRWconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     ppc64.ASRW,
++		name:   "NEGD",
++		argLen: 1,
++		asm:    mips.ANEGD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SLDconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     ppc64.ASLD,
++		name:   "SLLV",
++		argLen: 2,
++		asm:    mips.ASLLV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:    "SLWconst",
++		name:    "SLLVconst",
+ 		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.ASLW,
++		asm:     mips.ASLLV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "FDIV",
++		name:   "SRLV",
+ 		argLen: 2,
+-		asm:    ppc64.AFDIV,
++		asm:    mips.ASRLV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "FDIVS",
+-		argLen: 2,
+-		asm:    ppc64.AFDIVS,
++		name:    "SRLVconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     mips.ASRLV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "DIVD",
++		name:   "SRAV",
+ 		argLen: 2,
+-		asm:    ppc64.ADIVD,
++		asm:    mips.ASRAV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "DIVW",
+-		argLen: 2,
+-		asm:    ppc64.ADIVW,
++		name:    "SRAVconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     mips.ASRAV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "DIVDU",
++		name:   "SGT",
+ 		argLen: 2,
+-		asm:    ppc64.ADIVDU,
++		asm:    mips.ASGT,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:   "DIVWU",
+-		argLen: 2,
+-		asm:    ppc64.ADIVWU,
++		name:    "SGTconst",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     mips.ASGT,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "SGTU",
++		argLen: 2,
++		asm:    mips.ASGTU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "SGTUconst",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     mips.ASGTU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{1, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "CMPEQF",
++		argLen: 2,
++		asm:    mips.ACMPEQF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "CMPEQD",
++		argLen: 2,
++		asm:    mips.ACMPEQD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "CMPGEF",
++		argLen: 2,
++		asm:    mips.ACMPGEF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "CMPGED",
++		argLen: 2,
++		asm:    mips.ACMPGED,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "CMPGTF",
++		argLen: 2,
++		asm:    mips.ACMPGTF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "CMPGTD",
++		argLen: 2,
++		asm:    mips.ACMPGTD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++				{1, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:              "MOVVconst",
++		auxType:           auxInt64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               mips.AMOVV,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:              "MOVFconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               mips.AMOVF,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:              "MOVDconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               mips.AMOVD,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:              "MOVVaddr",
++		auxType:           auxSymOff,
++		argLen:            1,
++		rematerializeable: true,
++		asm:               mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009247248384}, // SP SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVBload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVBUload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVBU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVHload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVHUload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVHU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVWload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVWUload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVVload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:    "MOVFload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:    "MOVDload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:    "MOVBstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVHstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVWstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVVstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVFstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++				{1, 385057768005959680},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:    "MOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     mips.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++				{1, 385057768005959680},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:    "MOVBstorezero",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVHstorezero",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVWstorezero",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:    "MOVVstorezero",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
++			},
++		},
++	},
++	{
++		name:   "MOVBreg",
++		argLen: 1,
++		asm:    mips.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVBUreg",
++		argLen: 1,
++		asm:    mips.AMOVBU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVHreg",
++		argLen: 1,
++		asm:    mips.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVHUreg",
++		argLen: 1,
++		asm:    mips.AMOVHU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVWreg",
++		argLen: 1,
++		asm:    mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVWUreg",
++		argLen: 1,
++		asm:    mips.AMOVWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVVreg",
++		argLen: 1,
++		asm:    mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:         "MOVVnop",
++		argLen:       1,
++		resultInArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "MOVWF",
++		argLen: 1,
++		asm:    mips.AMOVWF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVWD",
++		argLen: 1,
++		asm:    mips.AMOVWD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVVF",
++		argLen: 1,
++		asm:    mips.AMOVVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVVD",
++		argLen: 1,
++		asm:    mips.AMOVVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVFW",
++		argLen: 1,
++		asm:    mips.AMOVFW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVDW",
++		argLen: 1,
++		asm:    mips.AMOVDW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVFV",
++		argLen: 1,
++		asm:    mips.AMOVFV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVDV",
++		argLen: 1,
++		asm:    mips.AMOVDV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVFD",
++		argLen: 1,
++		asm:    mips.AMOVFD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:   "MOVDF",
++		argLen: 1,
++		asm:    mips.AMOVDF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++			outputs: []outputInfo{
++				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
++			},
++		},
++	},
++	{
++		name:         "CALLstatic",
++		auxType:      auxSymOff,
++		argLen:       1,
++		clobberFlags: true,
++		reg: regInfo{
++			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
++		},
++	},
++	{
++		name:         "CALLclosure",
++		auxType:      auxInt64,
++		argLen:       3,
++		clobberFlags: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 4194304},  // R22
++				{0, 67108862}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP
++			},
++			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
++		},
++	},
++	{
++		name:         "CALLdefer",
++		auxType:      auxInt64,
++		argLen:       1,
++		clobberFlags: true,
++		reg: regInfo{
++			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
++		},
++	},
++	{
++		name:         "CALLgo",
++		auxType:      auxInt64,
++		argLen:       1,
++		clobberFlags: true,
++		reg: regInfo{
++			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
++		},
++	},
++	{
++		name:         "CALLinter",
++		auxType:      auxInt64,
++		argLen:       2,
++		clobberFlags: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
++		},
++	},
++	{
++		name:   "LoweredNilCheck",
++		argLen: 2,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++		},
++	},
++	{
++		name:   "FPFlagTrue",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "FPFlagFalse",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++	{
++		name:   "LoweredGetClosurePtr",
++		argLen: 0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 4194304}, // R22
++			},
++		},
++	},
++	{
++		name:   "MOVVconvert",
++		argLen: 2,
++		asm:    mips.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
++			},
++			outputs: []outputInfo{
++				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
++			},
++		},
++	},
++
++	{
++		name:        "ADD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ADDconst",
++		auxType: auxSymOff,
++		argLen:  1,
++		asm:     ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "FADD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "FADDS",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFADDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "SUB",
++		argLen: 2,
++		asm:    ppc64.ASUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "FSUB",
++		argLen: 2,
++		asm:    ppc64.AFSUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FSUBS",
++		argLen: 2,
++		asm:    ppc64.AFSUBS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "MULLD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULLW",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULHD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULHD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULHW",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULHW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULHDU",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULHDU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULHWU",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULHWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "FMUL",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFMUL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "FMULS",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFMULS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "SRAD",
++		argLen: 2,
++		asm:    ppc64.ASRAD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SRAW",
++		argLen: 2,
++		asm:    ppc64.ASRAW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SRD",
++		argLen: 2,
++		asm:    ppc64.ASRD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SRW",
++		argLen: 2,
++		asm:    ppc64.ASRW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SLD",
++		argLen: 2,
++		asm:    ppc64.ASLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SLW",
++		argLen: 2,
++		asm:    ppc64.ASLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ADDconstForCarry",
++		auxType: auxInt16,
++		argLen:  1,
++		asm:     ppc64.AADDC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 1073741824, // R31
++		},
++	},
++	{
++		name:   "MaskIfNotCarry",
++		argLen: 1,
++		asm:    ppc64.AADDME,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SRADconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASRAD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SRAWconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASRAW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SRDconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASRD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SRWconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASRW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SLDconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SLWconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "FDIV",
++		argLen: 2,
++		asm:    ppc64.AFDIV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FDIVS",
++		argLen: 2,
++		asm:    ppc64.AFDIVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "DIVD",
++		argLen: 2,
++		asm:    ppc64.ADIVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "DIVW",
++		argLen: 2,
++		asm:    ppc64.ADIVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "DIVDU",
++		argLen: 2,
++		asm:    ppc64.ADIVDU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "DIVWU",
++		argLen: 2,
++		asm:    ppc64.ADIVWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -15104,6 +16444,73 @@ var registersARM64 = [...]Register{
+ var gpRegMaskARM64 = regMask(133955583)
+ var fpRegMaskARM64 = regMask(288230375077969920)
+ var framepointerRegARM64 = int8(-1)
++var registersMIPS64 = [...]Register{
++	{0, "R0"},
++	{1, "R1"},
++	{2, "R2"},
++	{3, "R3"},
++	{4, "R4"},
++	{5, "R5"},
++	{6, "R6"},
++	{7, "R7"},
++	{8, "R8"},
++	{9, "R9"},
++	{10, "R10"},
++	{11, "R11"},
++	{12, "R12"},
++	{13, "R13"},
++	{14, "R14"},
++	{15, "R15"},
++	{16, "R16"},
++	{17, "R17"},
++	{18, "R18"},
++	{19, "R19"},
++	{20, "R20"},
++	{21, "R21"},
++	{22, "R22"},
++	{23, "R24"},
++	{24, "R25"},
++	{25, "SP"},
++	{26, "g"},
++	{27, "F0"},
++	{28, "F1"},
++	{29, "F2"},
++	{30, "F3"},
++	{31, "F4"},
++	{32, "F5"},
++	{33, "F6"},
++	{34, "F7"},
++	{35, "F8"},
++	{36, "F9"},
++	{37, "F10"},
++	{38, "F11"},
++	{39, "F12"},
++	{40, "F13"},
++	{41, "F14"},
++	{42, "F15"},
++	{43, "F16"},
++	{44, "F17"},
++	{45, "F18"},
++	{46, "F19"},
++	{47, "F20"},
++	{48, "F21"},
++	{49, "F22"},
++	{50, "F23"},
++	{51, "F24"},
++	{52, "F25"},
++	{53, "F26"},
++	{54, "F27"},
++	{55, "F28"},
++	{56, "F29"},
++	{57, "F30"},
++	{58, "F31"},
++	{59, "HI"},
++	{60, "LO"},
++	{61, "SB"},
++}
++var gpRegMaskMIPS64 = regMask(33554430)
++var fpRegMaskMIPS64 = regMask(385057768005959680)
++var framepointerRegMIPS64 = int8(-1)
+ var registersPPC64 = [...]Register{
+ 	{0, "SP"},
+ 	{1, "SB"},
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index eda37e787e..8100b9ef7c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -13711,6 +13711,7 @@ func rewriteBlock386(b *Block) bool {
+ 		// result: (NE (TESTB cond cond) yes no)
+ 		for {
+ 			v := b.Control
++			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 7d07c66ec0..ace66bcda4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -18896,6 +18896,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 		// result: (NE (TESTB cond cond) yes no)
+ 		for {
+ 			v := b.Control
++			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index a4659e40bd..9b4d1ed099 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -17305,6 +17305,7 @@ func rewriteBlockARM(b *Block) bool {
+ 		// result: (NE (CMPconst [0] cond) yes no)
+ 		for {
+ 			v := b.Control
++			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 01f685a7c3..ca1dd805cd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -15200,6 +15200,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		// result: (NE (CMPconst [0] cond) yes no)
+ 		for {
+ 			v := b.Control
++			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+new file mode 100644
+index 0000000000..8ab23eb2df
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -0,0 +1,3018 @@
++// autogenerated from gen/MIPS64.rules: do not edit!
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "math"
++
++var _ = math.MinInt8 // in case not otherwise used
++func rewriteValueMIPS64(v *Value, config *Config) bool {
++	switch v.Op {
++	case OpAdd16:
++		return rewriteValueMIPS64_OpAdd16(v, config)
++	case OpAdd32:
++		return rewriteValueMIPS64_OpAdd32(v, config)
++	case OpAdd32F:
++		return rewriteValueMIPS64_OpAdd32F(v, config)
++	case OpAdd64:
++		return rewriteValueMIPS64_OpAdd64(v, config)
++	case OpAdd64F:
++		return rewriteValueMIPS64_OpAdd64F(v, config)
++	case OpAdd8:
++		return rewriteValueMIPS64_OpAdd8(v, config)
++	case OpAddPtr:
++		return rewriteValueMIPS64_OpAddPtr(v, config)
++	case OpAddr:
++		return rewriteValueMIPS64_OpAddr(v, config)
++	case OpAnd16:
++		return rewriteValueMIPS64_OpAnd16(v, config)
++	case OpAnd32:
++		return rewriteValueMIPS64_OpAnd32(v, config)
++	case OpAnd64:
++		return rewriteValueMIPS64_OpAnd64(v, config)
++	case OpAnd8:
++		return rewriteValueMIPS64_OpAnd8(v, config)
++	case OpAndB:
++		return rewriteValueMIPS64_OpAndB(v, config)
++	case OpClosureCall:
++		return rewriteValueMIPS64_OpClosureCall(v, config)
++	case OpCom16:
++		return rewriteValueMIPS64_OpCom16(v, config)
++	case OpCom32:
++		return rewriteValueMIPS64_OpCom32(v, config)
++	case OpCom64:
++		return rewriteValueMIPS64_OpCom64(v, config)
++	case OpCom8:
++		return rewriteValueMIPS64_OpCom8(v, config)
++	case OpConst16:
++		return rewriteValueMIPS64_OpConst16(v, config)
++	case OpConst32:
++		return rewriteValueMIPS64_OpConst32(v, config)
++	case OpConst32F:
++		return rewriteValueMIPS64_OpConst32F(v, config)
++	case OpConst64:
++		return rewriteValueMIPS64_OpConst64(v, config)
++	case OpConst64F:
++		return rewriteValueMIPS64_OpConst64F(v, config)
++	case OpConst8:
++		return rewriteValueMIPS64_OpConst8(v, config)
++	case OpConstBool:
++		return rewriteValueMIPS64_OpConstBool(v, config)
++	case OpConstNil:
++		return rewriteValueMIPS64_OpConstNil(v, config)
++	case OpConvert:
++		return rewriteValueMIPS64_OpConvert(v, config)
++	case OpCvt32Fto32:
++		return rewriteValueMIPS64_OpCvt32Fto32(v, config)
++	case OpCvt32Fto64:
++		return rewriteValueMIPS64_OpCvt32Fto64(v, config)
++	case OpCvt32Fto64F:
++		return rewriteValueMIPS64_OpCvt32Fto64F(v, config)
++	case OpCvt32to32F:
++		return rewriteValueMIPS64_OpCvt32to32F(v, config)
++	case OpCvt32to64F:
++		return rewriteValueMIPS64_OpCvt32to64F(v, config)
++	case OpCvt64Fto32:
++		return rewriteValueMIPS64_OpCvt64Fto32(v, config)
++	case OpCvt64Fto32F:
++		return rewriteValueMIPS64_OpCvt64Fto32F(v, config)
++	case OpCvt64Fto64:
++		return rewriteValueMIPS64_OpCvt64Fto64(v, config)
++	case OpCvt64to32F:
++		return rewriteValueMIPS64_OpCvt64to32F(v, config)
++	case OpCvt64to64F:
++		return rewriteValueMIPS64_OpCvt64to64F(v, config)
++	case OpDeferCall:
++		return rewriteValueMIPS64_OpDeferCall(v, config)
++	case OpEq16:
++		return rewriteValueMIPS64_OpEq16(v, config)
++	case OpEq32:
++		return rewriteValueMIPS64_OpEq32(v, config)
++	case OpEq32F:
++		return rewriteValueMIPS64_OpEq32F(v, config)
++	case OpEq64:
++		return rewriteValueMIPS64_OpEq64(v, config)
++	case OpEq64F:
++		return rewriteValueMIPS64_OpEq64F(v, config)
++	case OpEq8:
++		return rewriteValueMIPS64_OpEq8(v, config)
++	case OpEqB:
++		return rewriteValueMIPS64_OpEqB(v, config)
++	case OpEqPtr:
++		return rewriteValueMIPS64_OpEqPtr(v, config)
++	case OpGeq16:
++		return rewriteValueMIPS64_OpGeq16(v, config)
++	case OpGeq16U:
++		return rewriteValueMIPS64_OpGeq16U(v, config)
++	case OpGeq32:
++		return rewriteValueMIPS64_OpGeq32(v, config)
++	case OpGeq32F:
++		return rewriteValueMIPS64_OpGeq32F(v, config)
++	case OpGeq32U:
++		return rewriteValueMIPS64_OpGeq32U(v, config)
++	case OpGeq64:
++		return rewriteValueMIPS64_OpGeq64(v, config)
++	case OpGeq64F:
++		return rewriteValueMIPS64_OpGeq64F(v, config)
++	case OpGeq64U:
++		return rewriteValueMIPS64_OpGeq64U(v, config)
++	case OpGeq8:
++		return rewriteValueMIPS64_OpGeq8(v, config)
++	case OpGeq8U:
++		return rewriteValueMIPS64_OpGeq8U(v, config)
++	case OpGetClosurePtr:
++		return rewriteValueMIPS64_OpGetClosurePtr(v, config)
++	case OpGoCall:
++		return rewriteValueMIPS64_OpGoCall(v, config)
++	case OpGreater16:
++		return rewriteValueMIPS64_OpGreater16(v, config)
++	case OpGreater16U:
++		return rewriteValueMIPS64_OpGreater16U(v, config)
++	case OpGreater32:
++		return rewriteValueMIPS64_OpGreater32(v, config)
++	case OpGreater32F:
++		return rewriteValueMIPS64_OpGreater32F(v, config)
++	case OpGreater32U:
++		return rewriteValueMIPS64_OpGreater32U(v, config)
++	case OpGreater64:
++		return rewriteValueMIPS64_OpGreater64(v, config)
++	case OpGreater64F:
++		return rewriteValueMIPS64_OpGreater64F(v, config)
++	case OpGreater64U:
++		return rewriteValueMIPS64_OpGreater64U(v, config)
++	case OpGreater8:
++		return rewriteValueMIPS64_OpGreater8(v, config)
++	case OpGreater8U:
++		return rewriteValueMIPS64_OpGreater8U(v, config)
++	case OpInterCall:
++		return rewriteValueMIPS64_OpInterCall(v, config)
++	case OpIsInBounds:
++		return rewriteValueMIPS64_OpIsInBounds(v, config)
++	case OpIsNonNil:
++		return rewriteValueMIPS64_OpIsNonNil(v, config)
++	case OpIsSliceInBounds:
++		return rewriteValueMIPS64_OpIsSliceInBounds(v, config)
++	case OpLeq16:
++		return rewriteValueMIPS64_OpLeq16(v, config)
++	case OpLeq16U:
++		return rewriteValueMIPS64_OpLeq16U(v, config)
++	case OpLeq32:
++		return rewriteValueMIPS64_OpLeq32(v, config)
++	case OpLeq32F:
++		return rewriteValueMIPS64_OpLeq32F(v, config)
++	case OpLeq32U:
++		return rewriteValueMIPS64_OpLeq32U(v, config)
++	case OpLeq64:
++		return rewriteValueMIPS64_OpLeq64(v, config)
++	case OpLeq64F:
++		return rewriteValueMIPS64_OpLeq64F(v, config)
++	case OpLeq64U:
++		return rewriteValueMIPS64_OpLeq64U(v, config)
++	case OpLeq8:
++		return rewriteValueMIPS64_OpLeq8(v, config)
++	case OpLeq8U:
++		return rewriteValueMIPS64_OpLeq8U(v, config)
++	case OpLess16:
++		return rewriteValueMIPS64_OpLess16(v, config)
++	case OpLess16U:
++		return rewriteValueMIPS64_OpLess16U(v, config)
++	case OpLess32:
++		return rewriteValueMIPS64_OpLess32(v, config)
++	case OpLess32F:
++		return rewriteValueMIPS64_OpLess32F(v, config)
++	case OpLess32U:
++		return rewriteValueMIPS64_OpLess32U(v, config)
++	case OpLess64:
++		return rewriteValueMIPS64_OpLess64(v, config)
++	case OpLess64F:
++		return rewriteValueMIPS64_OpLess64F(v, config)
++	case OpLess64U:
++		return rewriteValueMIPS64_OpLess64U(v, config)
++	case OpLess8:
++		return rewriteValueMIPS64_OpLess8(v, config)
++	case OpLess8U:
++		return rewriteValueMIPS64_OpLess8U(v, config)
++	case OpLoad:
++		return rewriteValueMIPS64_OpLoad(v, config)
++	case OpNeg16:
++		return rewriteValueMIPS64_OpNeg16(v, config)
++	case OpNeg32:
++		return rewriteValueMIPS64_OpNeg32(v, config)
++	case OpNeg32F:
++		return rewriteValueMIPS64_OpNeg32F(v, config)
++	case OpNeg64:
++		return rewriteValueMIPS64_OpNeg64(v, config)
++	case OpNeg64F:
++		return rewriteValueMIPS64_OpNeg64F(v, config)
++	case OpNeg8:
++		return rewriteValueMIPS64_OpNeg8(v, config)
++	case OpNeq16:
++		return rewriteValueMIPS64_OpNeq16(v, config)
++	case OpNeq32:
++		return rewriteValueMIPS64_OpNeq32(v, config)
++	case OpNeq32F:
++		return rewriteValueMIPS64_OpNeq32F(v, config)
++	case OpNeq64:
++		return rewriteValueMIPS64_OpNeq64(v, config)
++	case OpNeq64F:
++		return rewriteValueMIPS64_OpNeq64F(v, config)
++	case OpNeq8:
++		return rewriteValueMIPS64_OpNeq8(v, config)
++	case OpNeqB:
++		return rewriteValueMIPS64_OpNeqB(v, config)
++	case OpNeqPtr:
++		return rewriteValueMIPS64_OpNeqPtr(v, config)
++	case OpNilCheck:
++		return rewriteValueMIPS64_OpNilCheck(v, config)
++	case OpNot:
++		return rewriteValueMIPS64_OpNot(v, config)
++	case OpOffPtr:
++		return rewriteValueMIPS64_OpOffPtr(v, config)
++	case OpOr16:
++		return rewriteValueMIPS64_OpOr16(v, config)
++	case OpOr32:
++		return rewriteValueMIPS64_OpOr32(v, config)
++	case OpOr64:
++		return rewriteValueMIPS64_OpOr64(v, config)
++	case OpOr8:
++		return rewriteValueMIPS64_OpOr8(v, config)
++	case OpOrB:
++		return rewriteValueMIPS64_OpOrB(v, config)
++	case OpSignExt16to32:
++		return rewriteValueMIPS64_OpSignExt16to32(v, config)
++	case OpSignExt16to64:
++		return rewriteValueMIPS64_OpSignExt16to64(v, config)
++	case OpSignExt32to64:
++		return rewriteValueMIPS64_OpSignExt32to64(v, config)
++	case OpSignExt8to16:
++		return rewriteValueMIPS64_OpSignExt8to16(v, config)
++	case OpSignExt8to32:
++		return rewriteValueMIPS64_OpSignExt8to32(v, config)
++	case OpSignExt8to64:
++		return rewriteValueMIPS64_OpSignExt8to64(v, config)
++	case OpStaticCall:
++		return rewriteValueMIPS64_OpStaticCall(v, config)
++	case OpStore:
++		return rewriteValueMIPS64_OpStore(v, config)
++	case OpSub16:
++		return rewriteValueMIPS64_OpSub16(v, config)
++	case OpSub32:
++		return rewriteValueMIPS64_OpSub32(v, config)
++	case OpSub32F:
++		return rewriteValueMIPS64_OpSub32F(v, config)
++	case OpSub64:
++		return rewriteValueMIPS64_OpSub64(v, config)
++	case OpSub64F:
++		return rewriteValueMIPS64_OpSub64F(v, config)
++	case OpSub8:
++		return rewriteValueMIPS64_OpSub8(v, config)
++	case OpSubPtr:
++		return rewriteValueMIPS64_OpSubPtr(v, config)
++	case OpTrunc16to8:
++		return rewriteValueMIPS64_OpTrunc16to8(v, config)
++	case OpTrunc32to16:
++		return rewriteValueMIPS64_OpTrunc32to16(v, config)
++	case OpTrunc32to8:
++		return rewriteValueMIPS64_OpTrunc32to8(v, config)
++	case OpTrunc64to16:
++		return rewriteValueMIPS64_OpTrunc64to16(v, config)
++	case OpTrunc64to32:
++		return rewriteValueMIPS64_OpTrunc64to32(v, config)
++	case OpTrunc64to8:
++		return rewriteValueMIPS64_OpTrunc64to8(v, config)
++	case OpXor16:
++		return rewriteValueMIPS64_OpXor16(v, config)
++	case OpXor32:
++		return rewriteValueMIPS64_OpXor32(v, config)
++	case OpXor64:
++		return rewriteValueMIPS64_OpXor64(v, config)
++	case OpXor8:
++		return rewriteValueMIPS64_OpXor8(v, config)
++	case OpZeroExt16to32:
++		return rewriteValueMIPS64_OpZeroExt16to32(v, config)
++	case OpZeroExt16to64:
++		return rewriteValueMIPS64_OpZeroExt16to64(v, config)
++	case OpZeroExt32to64:
++		return rewriteValueMIPS64_OpZeroExt32to64(v, config)
++	case OpZeroExt8to16:
++		return rewriteValueMIPS64_OpZeroExt8to16(v, config)
++	case OpZeroExt8to32:
++		return rewriteValueMIPS64_OpZeroExt8to32(v, config)
++	case OpZeroExt8to64:
++		return rewriteValueMIPS64_OpZeroExt8to64(v, config)
++	}
++	return false
++}
++func rewriteValueMIPS64_OpAdd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add16 x y)
++	// cond:
++	// result: (ADDV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAdd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32 x y)
++	// cond:
++	// result: (ADDV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAdd32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32F x y)
++	// cond:
++	// result: (ADDF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAdd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64 x y)
++	// cond:
++	// result: (ADDV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAdd64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64F x y)
++	// cond:
++	// result: (ADDD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAdd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add8 x y)
++	// cond:
++	// result: (ADDV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAddPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AddPtr x y)
++	// cond:
++	// result: (ADDV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64ADDV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAddr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Addr {sym} base)
++	// cond:
++	// result: (MOVVaddr {sym} base)
++	for {
++		sym := v.Aux
++		base := v.Args[0]
++		v.reset(OpMIPS64MOVVaddr)
++		v.Aux = sym
++		v.AddArg(base)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAnd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And16 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAnd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And32 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAnd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And64 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAnd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And8 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpAndB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AndB x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpClosureCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ClosureCall [argwid] entry closure mem)
++	// cond:
++	// result: (CALLclosure [argwid] entry closure mem)
++	for {
++		argwid := v.AuxInt
++		entry := v.Args[0]
++		closure := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpMIPS64CALLclosure)
++		v.AuxInt = argwid
++		v.AddArg(entry)
++		v.AddArg(closure)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCom16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com16 x)
++	// cond:
++	// result: (NOR (MOVVconst [0]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCom32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com32 x)
++	// cond:
++	// result: (NOR (MOVVconst [0]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCom64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com64 x)
++	// cond:
++	// result: (NOR (MOVVconst [0]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCom8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com8 x)
++	// cond:
++	// result: (NOR (MOVVconst [0]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const16 [val])
++	// cond:
++	// result: (MOVVconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const32 [val])
++	// cond:
++	// result: (MOVVconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const32F [val])
++	// cond:
++	// result: (MOVFconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVFconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64 [val])
++	// cond:
++	// result: (MOVVconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64F [val])
++	// cond:
++	// result: (MOVDconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVDconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConst8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const8 [val])
++	// cond:
++	// result: (MOVVconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConstBool(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ConstBool [b])
++	// cond:
++	// result: (MOVVconst [b])
++	for {
++		b := v.AuxInt
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = b
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConstNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ConstNil)
++	// cond:
++	// result: (MOVVconst [0])
++	for {
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = 0
++		return true
++	}
++}
++func rewriteValueMIPS64_OpConvert(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Convert x mem)
++	// cond:
++	// result: (MOVVconvert x mem)
++	for {
++		x := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpMIPS64MOVVconvert)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt32Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto32 x)
++	// cond:
++	// result: (MOVFW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVFW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt32Fto64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64 x)
++	// cond:
++	// result: (MOVFV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVFV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt32Fto64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64F x)
++	// cond:
++	// result: (MOVFD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVFD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt32to32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to32F x)
++	// cond:
++	// result: (MOVWF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVWF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt32to64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to64F x)
++	// cond:
++	// result: (MOVWD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVWD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt64Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32 x)
++	// cond:
++	// result: (MOVDW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVDW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt64Fto32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32F x)
++	// cond:
++	// result: (MOVDF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVDF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt64Fto64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto64 x)
++	// cond:
++	// result: (MOVDV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVDV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt64to32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64to32F x)
++	// cond:
++	// result: (MOVVF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVVF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpCvt64to64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64to64F x)
++	// cond:
++	// result: (MOVVD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVVD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpDeferCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (DeferCall [argwid] mem)
++	// cond:
++	// result: (CALLdefer [argwid] mem)
++	for {
++		argwid := v.AuxInt
++		mem := v.Args[0]
++		v.reset(OpMIPS64CALLdefer)
++		v.AuxInt = argwid
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq16 x y)
++	// cond:
++	// result: (SGTU (XOR (ZeroExt16to64 x) (ZeroExt16to64 y)) (MOVVconst [0]))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v1 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v3.AuxInt = 0
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq32 x y)
++	// cond:
++	// result: (SGTU (XOR (ZeroExt32to64 x) (ZeroExt32to64 y)) (MOVVconst [0]))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v3.AuxInt = 0
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq32F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPEQF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPEQF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64 x y)
++	// cond:
++	// result: (SGTU (XOR x y) (MOVVconst [0]))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPEQD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPEQD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq8 x y)
++	// cond:
++	// result: (SGTU (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)) (MOVVconst [0]))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v1 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v3.AuxInt = 0
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqB x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (XOR <config.fe.TypeBool()> x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeBool())
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpEqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqPtr x y)
++	// cond:
++	// result: (SGTU (XOR x y) (MOVVconst [0]))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq16 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt16to64 y) (SignExt16to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq16U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt16to64 y) (ZeroExt16to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt32to64 y) (SignExt32to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGEF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGEF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v1.AddArg(y)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGED x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGED, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v1.AddArg(y)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq8 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt8to64 y) (SignExt8to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGeq8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq8U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt8to64 y) (ZeroExt8to64 x)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v2.AddArg(y)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGetClosurePtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (GetClosurePtr)
++	// cond:
++	// result: (LoweredGetClosurePtr)
++	for {
++		v.reset(OpMIPS64LoweredGetClosurePtr)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGoCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (GoCall [argwid] mem)
++	// cond:
++	// result: (CALLgo [argwid] mem)
++	for {
++		argwid := v.AuxInt
++		mem := v.Args[0]
++		v.reset(OpMIPS64CALLgo)
++		v.AuxInt = argwid
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater16 x y)
++	// cond:
++	// result: (SGT (SignExt16to64 x) (SignExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater16U x y)
++	// cond:
++	// result: (SGTU (ZeroExt16to64 x) (ZeroExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32 x y)
++	// cond:
++	// result: (SGT (SignExt32to64 x) (SignExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGTF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGTF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32U x y)
++	// cond:
++	// result: (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64 x y)
++	// cond:
++	// result: (SGT x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGTD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGTD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64U x y)
++	// cond:
++	// result: (SGTU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater8 x y)
++	// cond:
++	// result: (SGT (SignExt8to64 x) (SignExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpGreater8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater8U x y)
++	// cond:
++	// result: (SGTU (ZeroExt8to64 x) (ZeroExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpInterCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (InterCall [argwid] entry mem)
++	// cond:
++	// result: (CALLinter [argwid] entry mem)
++	for {
++		argwid := v.AuxInt
++		entry := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpMIPS64CALLinter)
++		v.AuxInt = argwid
++		v.AddArg(entry)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpIsInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsInBounds idx len)
++	// cond:
++	// result: (SGTU len idx)
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v.AddArg(len)
++		v.AddArg(idx)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpIsNonNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsNonNil ptr)
++	// cond:
++	// result: (SGTU ptr (MOVVconst [0]))
++	for {
++		ptr := v.Args[0]
++		v.reset(OpMIPS64SGTU)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpIsSliceInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsSliceInBounds idx len)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU idx len))
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v1.AddArg(idx)
++		v1.AddArg(len)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq16 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt16to64 x) (SignExt16to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq16U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt16to64 x) (ZeroExt16to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt32to64 x) (SignExt32to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGEF y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGEF, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGED y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGED, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq8 x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGT (SignExt8to64 x) (SignExt8to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGT, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLeq8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq8U x y)
++	// cond:
++	// result: (XOR (MOVVconst [1]) (SGTU (ZeroExt8to64 x) (ZeroExt8to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64SGTU, config.fe.TypeBool())
++		v2 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less16 x y)
++	// cond:
++	// result: (SGT (SignExt16to64 y) (SignExt16to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less16U x y)
++	// cond:
++	// result: (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32 x y)
++	// cond:
++	// result: (SGT (SignExt32to64 y) (SignExt32to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGTF y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGTF, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32U x y)
++	// cond:
++	// result: (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64 x y)
++	// cond:
++	// result: (SGT y x)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64F x y)
++	// cond:
++	// result: (FPFlagTrue (CMPGTD y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagTrue)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPGTD, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64U x y)
++	// cond:
++	// result: (SGTU y x)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less8 x y)
++	// cond:
++	// result: (SGT (SignExt8to64 y) (SignExt8to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGT)
++		v0 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLess8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less8U x y)
++	// cond:
++	// result: (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(y)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpLoad(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Load <t> ptr mem)
++	// cond: t.IsBoolean()
++	// result: (MOVBUload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(t.IsBoolean()) {
++			break
++		}
++		v.reset(OpMIPS64MOVBUload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is8BitInt(t) && isSigned(t))
++	// result: (MOVBload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is8BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVBload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is8BitInt(t) && !isSigned(t))
++	// result: (MOVBUload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is8BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVBUload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is16BitInt(t) && isSigned(t))
++	// result: (MOVHload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is16BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVHload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is16BitInt(t) && !isSigned(t))
++	// result: (MOVHUload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is16BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVHUload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is32BitInt(t) && isSigned(t))
++	// result: (MOVWload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVWload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is32BitInt(t) && !isSigned(t))
++	// result: (MOVWUload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVWUload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (is64BitInt(t) || isPtr(t))
++	// result: (MOVVload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitInt(t) || isPtr(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVVload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitFloat(t)
++	// result: (MOVFload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitFloat(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVFload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is64BitFloat(t)
++	// result: (MOVDload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitFloat(t)) {
++			break
++		}
++		v.reset(OpMIPS64MOVDload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueMIPS64_OpNeg16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg16 x)
++	// cond:
++	// result: (NEGV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeg32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32 x)
++	// cond:
++	// result: (NEGV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeg32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32F x)
++	// cond:
++	// result: (NEGF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeg64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64 x)
++	// cond:
++	// result: (NEGV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeg64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64F x)
++	// cond:
++	// result: (NEGD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeg8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg8 x)
++	// cond:
++	// result: (NEGV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64NEGV)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq16 x y)
++	// cond:
++	// result: (SGTU (MOVVconst [0]) (XOR (ZeroExt16to32 x) (ZeroExt16to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq32 x y)
++	// cond:
++	// result: (SGTU (MOVVconst [0]) (XOR (ZeroExt32to64 x) (ZeroExt32to64 y)) )
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v2 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq32F x y)
++	// cond:
++	// result: (FPFlagFalse (CMPEQF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagFalse)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPEQF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64 x y)
++	// cond:
++	// result: (SGTU (MOVVconst [0]) (XOR x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64F x y)
++	// cond:
++	// result: (FPFlagFalse (CMPEQD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64FPFlagFalse)
++		v0 := b.NewValue0(v.Line, OpMIPS64CMPEQD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq8 x y)
++	// cond:
++	// result: (SGTU (MOVVconst [0]) (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v2 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqB x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNeqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqPtr x y)
++	// cond:
++	// result: (SGTU (MOVVconst [0]) (XOR x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SGTU)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMIPS64XOR, config.fe.TypeUInt64())
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNilCheck(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NilCheck ptr mem)
++	// cond:
++	// result: (LoweredNilCheck ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpMIPS64LoweredNilCheck)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpNot(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Not x)
++	// cond:
++	// result: (XOR (MOVVconst [1]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64XOR)
++		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
++		v0.AuxInt = 1
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOffPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OffPtr [off] ptr:(SP))
++	// cond:
++	// result: (MOVVaddr [off] ptr)
++	for {
++		off := v.AuxInt
++		ptr := v.Args[0]
++		if ptr.Op != OpSP {
++			break
++		}
++		v.reset(OpMIPS64MOVVaddr)
++		v.AuxInt = off
++		v.AddArg(ptr)
++		return true
++	}
++	// match: (OffPtr [off] ptr)
++	// cond:
++	// result: (ADDVconst [off] ptr)
++	for {
++		off := v.AuxInt
++		ptr := v.Args[0]
++		v.reset(OpMIPS64ADDVconst)
++		v.AuxInt = off
++		v.AddArg(ptr)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOr16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or16 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOr32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or32 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOr64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or64 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or8 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpOrB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OrB x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt16to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt16to32 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt16to64 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt32to64 x)
++	// cond:
++	// result: (MOVWreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVWreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt8to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to16 x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt8to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to32 x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSignExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to64 x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpStaticCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (StaticCall [argwid] {target} mem)
++	// cond:
++	// result: (CALLstatic [argwid] {target} mem)
++	for {
++		argwid := v.AuxInt
++		target := v.Aux
++		mem := v.Args[0]
++		v.reset(OpMIPS64CALLstatic)
++		v.AuxInt = argwid
++		v.Aux = target
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpStore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Store [1] ptr val mem)
++	// cond:
++	// result: (MOVBstore ptr val mem)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpMIPS64MOVBstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [2] ptr val mem)
++	// cond:
++	// result: (MOVHstore ptr val mem)
++	for {
++		if v.AuxInt != 2 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpMIPS64MOVHstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [4] ptr val mem)
++	// cond: !is32BitFloat(val.Type)
++	// result: (MOVWstore ptr val mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(!is32BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpMIPS64MOVWstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [8] ptr val mem)
++	// cond: !is64BitFloat(val.Type)
++	// result: (MOVVstore ptr val mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(!is64BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpMIPS64MOVVstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [4] ptr val mem)
++	// cond: is32BitFloat(val.Type)
++	// result: (MOVFstore ptr val mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpMIPS64MOVFstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [8] ptr val mem)
++	// cond: is64BitFloat(val.Type)
++	// result: (MOVDstore ptr val mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is64BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpMIPS64MOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueMIPS64_OpSub16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub16 x y)
++	// cond:
++	// result: (SUBV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSub32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32 x y)
++	// cond:
++	// result: (SUBV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSub32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32F x y)
++	// cond:
++	// result: (SUBF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSub64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64 x y)
++	// cond:
++	// result: (SUBV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSub64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64F x y)
++	// cond:
++	// result: (SUBD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSub8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub8 x y)
++	// cond:
++	// result: (SUBV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpSubPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SubPtr x y)
++	// cond:
++	// result: (SUBV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc16to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc16to8 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc32to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to16 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc32to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to8 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc64to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to16 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc64to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to32 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpTrunc64to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to8 x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpXor16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor16 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpXor32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor32 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpXor64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor64 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpXor8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor8 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpMIPS64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt16to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt16to32 x)
++	// cond:
++	// result: (MOVHUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVHUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt16to64 x)
++	// cond:
++	// result: (MOVHUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVHUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt32to64 x)
++	// cond:
++	// result: (MOVWUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVWUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt8to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to16 x)
++	// cond:
++	// result: (MOVBUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt8to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to32 x)
++	// cond:
++	// result: (MOVBUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueMIPS64_OpZeroExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to64 x)
++	// cond:
++	// result: (MOVBUreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpMIPS64MOVBUreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteBlockMIPS64(b *Block) bool {
++	switch b.Kind {
++	case BlockIf:
++		// match: (If cond yes no)
++		// cond:
++		// result: (NE cond yes no)
++		for {
++			v := b.Control
++			_ = v
++			cond := b.Control
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockMIPS64NE
++			b.SetControl(cond)
++			_ = yes
++			_ = no
++			return true
++		}
++	case BlockMIPS64NE:
++		// match: (NE (FPFlagTrue cmp) yes no)
++		// cond:
++		// result: (FPT cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpMIPS64FPFlagTrue {
++				break
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockMIPS64FPT
++			b.SetControl(cmp)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (FPFlagFalse cmp) yes no)
++		// cond:
++		// result: (FPF cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpMIPS64FPFlagFalse {
++				break
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockMIPS64FPF
++			b.SetControl(cmp)
++			_ = yes
++			_ = no
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 311b5532ab..b6d474c006 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -6834,6 +6834,7 @@ func rewriteBlockPPC64(b *Block) bool {
+ 		// result: (NE (CMPWconst [0] cond) yes no)
+ 		for {
+ 			v := b.Control
++			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]

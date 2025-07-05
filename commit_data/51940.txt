@@ -13,6 +13,32 @@ Date:   Wed Nov 3 16:17:45 2021 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/abi/abi_riscv64.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/internal/abi/abi_riscv64.go b/src/internal/abi/abi_riscv64.go
+new file mode 100644
+index 0000000000..1656820577
+--- /dev/null
++++ b/src/internal/abi/abi_riscv64.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabiargs
++
++package abi
++
++const (
++	// See abi_generic.go.
++
++	// X8 - X23
++	IntArgRegs = 16
++
++	// F8 - F23.
++	FloatArgRegs = 16
++
++	EffectiveFloatRegSize = 8
++)

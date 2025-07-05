@@ -15,7 +15,76 @@ Date:   Fri Jan 18 21:43:56 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
  test/fixedbugs/issue28926.go       | 24 ++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 70fc66bf57..6a41885954 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -184,18 +184,11 @@ func typecheckswitch(n *Node) {
+ 			}
+ 		}
+ 
+-		if n.Type == nil || n.Type.IsUntyped() {
+-			// if the value we're switching on has no type or is untyped,
+-			// we've already printed an error and don't need to continue
+-			// typechecking the body
+-			return
+-		}
+-
+ 		if top == Etype {
+ 			ll := ncase.List
+ 			if ncase.Rlist.Len() != 0 {
+ 				nvar := ncase.Rlist.First()
+-				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
++				if ll.Len() == 1 && (ll.First().Type == nil || !ll.First().Type.IsKind(TNIL)) {
+ 					// single entry type switch
+ 					nvar.Type = ll.First().Type
+ 				} else {
+@@ -203,6 +196,13 @@ func typecheckswitch(n *Node) {
+ 					nvar.Type = n.Type
+ 				}
+ 
++				if nvar.Type == nil || nvar.Type.IsUntyped() {
++					// if the value we're switching on has no type or is untyped,
++					// we've already printed an error and don't need to continue
++					// typechecking the body
++					continue
++				}
++
+ 				nvar = typecheck(nvar, ctxExpr|ctxAssign)
+ 				ncase.Rlist.SetFirst(nvar)
+ 			}
+diff --git a/test/fixedbugs/issue28926.go b/test/fixedbugs/issue28926.go
+new file mode 100644
+index 0000000000..5a46bd307c
+--- /dev/null
++++ b/test/fixedbugs/issue28926.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Stringer interface {
++	String() string
++}
++
++func main() {
++	var e interface{}
++	switch e := e.(type) {
++	case G: // ERROR "undefined: G"
++		e.M() // ok: this error should be ignored because the case failed its typecheck
++	case E: // ERROR "undefined: E"
++		e.D() // ok: this error should be ignored because the case failed its typecheck
++	case Stringer:
++		// ok: this error should not be ignored to prove that passing legs aren't left out
++		_ = e.(T) // ERROR "undefined: T"
++	}
++}

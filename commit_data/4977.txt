@@ -11,7 +11,36 @@ Date:   Wed Mar 3 15:25:26 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223094
-
+---
  src/pkg/net/dnsclient.go | 2 +-
  src/pkg/net/dnsconfig.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 0a6fca0115..387a9bbf9c 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -62,7 +62,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 			return nil, err
+ 		}
+ 
+-		c.SetReadTimeout(1e9) // nanoseconds
++		c.SetReadTimeout(int64(cfg.timeout) * 1e9) // nanoseconds
+ 
+ 		buf := make([]byte, 2000) // More than enough.
+ 		n, err = c.Read(buf)
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index b2153e07da..7d098583df 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -32,8 +32,8 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
+ 	conf.search = make([]string, 0)
+ 	conf.ndots = 1
+-	conf.timeout = 1
+-	conf.attempts = 1
++	conf.timeout = 5
++	conf.attempts = 2
+ 	conf.rotate = false
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		f := getFields(line)

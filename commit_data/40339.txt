@@ -19,7 +19,32 @@ Date:   Sun May 5 09:35:14 2019 -0400
     Change-Id: I6239be69cd7994990d091400664e4474124a98fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/js.go      | 1 +
  src/html/template/js_test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 04c7c325db..7025c1cfaa 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -397,6 +397,7 @@ func isJSType(mimeType string) bool {
+ 		"application/ld+json",
+ 		"application/x-ecmascript",
+ 		"application/x-javascript",
++		"module",
+ 		"text/ecmascript",
+ 		"text/javascript",
+ 		"text/javascript1.0",
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 05fa105be0..075adaafd3 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -344,6 +344,7 @@ func TestIsJsMimeType(t *testing.T) {
+ 		{"text/javascript", true},
+ 		{"application/json", true},
+ 		{"application/ld+json", true},
++		{"module", true},
+ 	}
+ 
+ 	for _, test := range tests {

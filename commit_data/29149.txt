@@ -11,6 +11,33 @@ Date:   Sun Aug 28 09:03:08 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27929
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/androidtest.bash | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index c76882d9db..3ac56d1745 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -47,6 +47,12 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+ 	-o ../bin/go_android_${GOARCH}_exec \
+ 	../misc/android/go_android_exec.go
+ 
++export pkgdir=$(dirname $(go list -f '{{.Target}}' runtime))
++if [ "$pkgdir" = "" ]; then
++	echo "could not find android pkg dir" 1>&2
++	exit 1
++fi
++
+ export ANDROID_TEST_DIR=/tmp/androidtest-$$
+ 
+ function cleanup() {
+@@ -68,7 +74,7 @@ mkdir -p $FAKE_GOROOT/pkg
+ cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
+ cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
+ cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
+-cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
++cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
+ 
+ echo '# Syncing test files to android device'
+ adb shell mkdir -p /data/local/tmp/goroot

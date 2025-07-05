@@ -33,7 +33,86 @@ Date:   Fri Oct 22 15:59:15 2021 -0400
     Reviewed-by: Julie Qiu <julie@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  .../testdata/script/test_fuzz_mutator_repeat.txt   | 24 ++++++++++++++--------
  src/internal/fuzz/worker.go                        | 17 +++------------
  2 files changed, 18 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index f2952c349b..15d7cb6b32 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -1,5 +1,3 @@
+-skip  # Flaky: https://golang.org/issue/49047
+-
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
+@@ -9,11 +7,11 @@ skip  # Flaky: https://golang.org/issue/49047
+ 
+ [short] skip
+ 
+-# Start fuzzing. The worker crashes after ~100 iterations.
++# Start fuzzing. The worker crashes after 100 iterations.
+ # The fuzz function writes the crashing input to "want" before exiting.
+ # The fuzzing engine reconstructs the crashing input and saves it to testdata.
+ ! exists want
+-! go test -fuzz=. -parallel=1
++! go test -fuzz=. -parallel=1 -fuzztime=110x -fuzzminimizetime=10x -v
+ stdout 'fuzzing process terminated unexpectedly'
+ stdout 'Crash written to testdata'
+ 
+@@ -46,12 +44,20 @@ func FuzzRepeat(f *testing.F) {
+ 		if i == 100 {
+ 			f, err := os.OpenFile("want", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+ 			if err != nil {
+-				// Couldn't create the file, probably because it already exists,
+-				// and we're minimizing now. Return without crashing.
+-				return
++				// Couldn't create the file. Return without crashing, and try
++				// again.
++				i--
++				t.Skip(err)
++			}
++			if _, err := f.Write(b); err != nil {
++				// We already created the file, so if we failed to write it
++				// there's not much we can do. The test will fail anyway, but
++				// at least make sure the error is logged to stdout.
++				t.Fatal(err)
++			}
++			if err := f.Close(); err != nil {
++				t.Fatal(err)
+ 			}
+-			f.Write(b)
+-			f.Close()
+ 			os.Exit(1) // crash without communicating
+ 		}
+ 
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index b36ebe2a7e..388675f713 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -738,20 +738,9 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 				return resp
+ 			}
+ 			if cov != nil {
+-				// Found new coverage. Before reporting to the coordinator,
+-				// run the same values once more to deflake.
+-				if !shouldStop() {
+-					dur, cov, errMsg = fuzzOnce(entry)
+-					if errMsg != "" {
+-						resp.Err = errMsg
+-						return resp
+-					}
+-				}
+-				if cov != nil {
+-					resp.CoverageData = cov
+-					resp.InterestingDuration = dur
+-					return resp
+-				}
++				resp.CoverageData = cov
++				resp.InterestingDuration = dur
++				return resp
+ 			}
+ 			if shouldStop() {
+ 				return resp

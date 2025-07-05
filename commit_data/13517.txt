@@ -22,7 +22,151 @@ Date:   Mon Jul 30 08:48:51 2012 +1000
     R=golang-dev, minux.ma, franciscossouza
     CC=golang-dev
     https://golang.org/cl/6445043
-
+---
  misc/vim/ftplugin/go/import.vim | 34 +++++++++++++++++++++--
  misc/vim/ftplugin/go/test.sh    | 61 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 93 insertions(+), 2 deletions(-)
+
+diff --git a/misc/vim/ftplugin/go/import.vim b/misc/vim/ftplugin/go/import.vim
+index 6705a476b1..6ed5dd49d1 100644
+--- a/misc/vim/ftplugin/go/import.vim
++++ b/misc/vim/ftplugin/go/import.vim
+@@ -12,7 +12,7 @@
+ "       in the current Go buffer, using proper style and ordering.
+ "       If {path} is already being imported, an error will be
+ "       displayed and the buffer will be untouched.
+-" 
++"
+ "   :ImportAs {localname} {path}
+ "
+ "       Same as Import, but uses a custom local name for the package.
+@@ -58,6 +58,12 @@ function! s:SwitchImport(enabled, localname, path)
+         return
+     endif
+ 
++    " Extract any site prefix (e.g. github.com/).
++    " If other imports with the same prefix are grouped separately,
++    " we will add this new import with them.
++    " Only up to and including the first slash is used.
++    let siteprefix = matchstr(path, "^[^/]*/")
++
+     let qpath = '"' . path . '"'
+     if a:localname != ''
+         let qlocalpath = a:localname . ' ' . qpath
+@@ -83,16 +89,31 @@ function! s:SwitchImport(enabled, localname, path)
+             let appendstr = qlocalpath
+             let indentstr = 1
+             let appendline = line
++            let firstblank = -1
++            let lastprefix = ""
+             while line <= line("$")
+                 let line = line + 1
+                 let linestr = getline(line)
+                 let m = matchlist(getline(line), '^\()\|\(\s\+\)\(\S*\s*\)"\(.\+\)"\)')
+                 if empty(m)
++                    if siteprefix == ""
++                        " must be in the first group
++                        break
++                    endif
++                    " record this position, but keep looking
++                    if firstblank < 0
++                        let firstblank = line
++                    endif
+                     continue
+                 endif
+                 if m[1] == ')'
++                    " if there's no match, add it to the first group
++                    if appendline < 0 && firstblank >= 0
++                        let appendline = firstblank
++                    endif
+                     break
+                 endif
++                let lastprefix = matchstr(m[4], "^[^/]*/")
+                 if a:localname != '' && m[3] != ''
+                     let qlocalpath = printf('%-' . (len(m[3])-1) . 's %s', a:localname, qpath)
+                 endif
+@@ -103,7 +124,16 @@ function! s:SwitchImport(enabled, localname, path)
+                     let deleteline = line
+                     break
+                 elseif m[4] < path
+-                    let appendline = line
++                    " don't set candidate position if we have a site prefix,
++                    " we've passed a blank line, and this doesn't share the same
++                    " site prefix.
++                    if siteprefix == "" || firstblank < 0 || match(m[4], "^" . siteprefix) >= 0
++                        let appendline = line
++                    endif
++                elseif siteprefix != "" && match(m[4], "^" . siteprefix) >= 0
++                    " first entry of site group
++                    let appendline = line - 1
++                    break
+                 endif
+             endwhile
+             break
+diff --git a/misc/vim/ftplugin/go/test.sh b/misc/vim/ftplugin/go/test.sh
+new file mode 100755
+index 0000000000..bc32718df5
+--- /dev/null
++++ b/misc/vim/ftplugin/go/test.sh
+@@ -0,0 +1,61 @@
++#!/bin/bash -e
++#
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++#
++# Tests for import.vim.
++
++cd $(dirname $0)
++
++cat > base.go <<EOF
++package test
++
++import (
++	"bytes"
++	"io"
++	"net"
++
++	"mycorp/foo"
++)
++EOF
++
++fail=0
++
++# usage: test_one new_import pattern
++# Pattern is a PCRE expression that will match across lines.
++test_one() {
++  echo 2>&1 -n "Import $1: "
++  vim -e -s -u /dev/null -U /dev/null --noplugin -c "source import.vim" \
++    -c "Import $1" -c 'wq! test.go' base.go
++  # ensure blank lines are treated correctly
++  if ! gofmt test.go | cmp test.go; then
++    echo 2>&1 "gofmt conflict"
++    gofmt test.go | diff -u test.go - | sed "s/^/\t/" 2>&1
++    fail=1
++    return
++  fi
++  if ! grep -P -q "(?s)$2" test.go; then
++    echo 2>&1 "$2 did not match"
++    cat test.go | sed "s/^/\t/" 2>&1
++    fail=1
++    return
++  fi
++  echo 2>&1 "ok"
++}
++
++test_one baz '"baz".*"bytes"'
++test_one io/ioutil '"io".*"io/ioutil".*"net"'
++test_one myc '"io".*"myc".*"net"'  # prefix of a site prefix
++test_one nat '"io".*"nat".*"net"'
++test_one net/http '"net".*"net/http".*"mycorp/foo"'
++test_one zoo '"net".*"zoo".*"mycorp/foo"'
++test_one mycorp/bar '"net".*"mycorp/bar".*"mycorp/foo"'
++test_one mycorp/goo '"net".*"mycorp/foo".*"mycorp/goo"'
++
++rm -f base.go test.go
++if [ $fail -gt 0 ]; then
++  echo 2>&1 "FAIL"
++  exit 1
++fi
++echo 2>&1 "PASS"

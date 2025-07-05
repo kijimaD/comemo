@@ -20,6 +20,27 @@ Date:   Mon Nov 9 21:27:35 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/testdata/script/test_race_install.txt | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_race_install.txt b/src/cmd/go/testdata/script/test_race_install.txt
+index d28809bfdc..8b1f343a32 100644
+--- a/src/cmd/go/testdata/script/test_race_install.txt
++++ b/src/cmd/go/testdata/script/test_race_install.txt
+@@ -6,7 +6,7 @@ go install -race -pkgdir=$WORKDIR/tmp/pkg std
+ 
+ # Make sure go test -i -race doesn't rebuild cached packages
+ go test -race -pkgdir=$WORKDIR/tmp/pkg -i -v empty/pkg
+-! stderr .
++cmp stderr stderr.txt
+ 
+ -- go.mod --
+ module empty
+@@ -14,4 +14,5 @@ module empty
+ go 1.16
+ -- pkg/pkg.go --
+ package p
+-
++-- stderr.txt --
++go test: -i flag is deprecated

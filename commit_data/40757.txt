@@ -12,6 +12,46 @@ Date:   Wed Jun 26 10:07:13 2019 -0400
     Change-Id: Ie85abea946db81804c1995d27be4951d5db6b812
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183918
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.13.html | 21 +++++++++++----------
  1 file changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 180fcc9499..261af12945 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -267,6 +267,17 @@ go env -w GOSUMDB=off
+   the source code needed to build dependencies of the named packages.
+ </p>
+ 
++<p><!-- CL 177677 -->
++  By default, <code>go</code> <code>get</code> <code>-u</code> in module mode
++  upgrades only non-test dependencies, as in GOPATH mode. It now also accepts
++  the <code>-t</code> flag, which (as in GOPATH mode)
++  causes <code>go</code> <code>get</code> to include the packages imported
++  by <em>tests of</em> the packages named on the command line. If
++  the <code>-t</code> flag is set, the packages imported by tests will be
++  updated (if the <code>-u</code> flag is set), downloaded, and built (unless
++  the <code>-d</code> flag is set) along with the usual non-test packages.
++</p>
++
+ <p><!-- CL 167747 -->
+   In module-aware mode, the <code>go</code> <code>get</code> subcommand now
+   supports the version suffix <code>@patch</code>. The <code>@patch</code>
+@@ -277,16 +288,6 @@ go env -w GOSUMDB=off
+   equivalent to the existing <code>@latest</code> suffix.
+ </p>
+ 
+-<p><!-- CL 177677 -->
+-  Additionally, the <code>go</code> <code>get</code> subcommand now supports
+-  the <code>-t</code> flag in module-aware mode. As in GOPATH mode,
+-  the <code>-t</code> flag instructs <code>go</code> <code>get</code> to include
+-  the packages imported by <em>tests of</em> the packages named on the command
+-  line. If the <code>-t</code> flag is set, the packages imported by tests will
+-  be updated (if the <code>-u</code> flag is set), downloaded, and built (unless
+-  the <code>-d</code> flag is set) along with the usual non-test packages.
+-</p>
+-
+ <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
+ 
+ <p>

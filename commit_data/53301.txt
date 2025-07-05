@@ -13,6 +13,23 @@ Date:   Tue Aug 9 03:03:32 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 7790e65ca2..40eab64a54 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -460,11 +460,6 @@ func tcAppend(n *ir.CallExpr) ir.Node {
+ 			return n
+ 		}
+ 
+-		if t.Elem().IsKind(types.TUINT8) && args[1].Type().IsString() {
+-			args[1] = DefaultLit(args[1], types.Types[types.TSTRING])
+-			return n
+-		}
+-
+ 		// AssignConv is of args[1] not required here, as the
+ 		// types of args[0] and args[1] don't need to match
+ 		// (They will both have an underlying type which are

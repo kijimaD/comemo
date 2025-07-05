@@ -12,9 +12,104 @@ Date:   Mon Jan 25 08:53:27 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194052
-
+---
  src/cmd/5l/obj.c |  6 ++++++
  src/cmd/6l/obj.c |  6 ++++++
  src/cmd/8l/obj.c |  6 ++++++
  src/cmd/ld/lib.c | 12 +++++++++---
  4 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 9cfa0c45f4..1ccac71bc1 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -659,6 +659,12 @@ loop:
+ 		if(s != S) {
+ 			p->dlink = s->data;
+ 			s->data = p;
++			if(s->file == nil)
++				s->file = pn;
++			else if(s->file != pn) {
++				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
++				errorexit();
++			}			
+ 		}
+ 		if(edatap == P)
+ 			datap = p;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index e29cdb9472..ca67973714 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -692,6 +692,12 @@ loop:
+ 		if(s != S) {
+ 			p->dlink = s->data;
+ 			s->data = p;
++			if(s->file == nil)
++				s->file = pn;
++			else if(s->file != pn) {
++				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
++				errorexit();
++			}
+ 		}
+ 		if(edatap == P)
+ 			datap = p;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 0d950748b6..b83293496a 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -729,6 +729,12 @@ loop:
+ 		if(s != S) {
+ 			p->dlink = s->data;
+ 			s->data = p;
++			if(s->file == nil)
++				s->file = pn;
++			else if(s->file != pn) {
++				diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
++				errorexit();
++			}			
+ 		}
+ 		if(edatap == P)
+ 			datap = p;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 7ede8c89e1..550cce3209 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -338,13 +338,21 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	static int files;
+ 	static char **filen;
+ 	char **nfilen, *line;
+-	int n, c1, c2, c3;
++	int i, n, c1, c2, c3;
+ 	vlong import0, import1, eof;
+ 	char src[1024];
+ 
+ 	eof = Boffset(f) + len;
+ 	src[0] = '\0';
+ 
++	// don't load individual object more than once.
++	// happens with import of .6 files because of loop in xresolv.
++	// doesn't happen with .a because SYMDEF is consulted
++	// first to decide whether each individual object file is needed.
++	for(i=0; i<files; i++)
++		if(strcmp(filen[i], pn) == 0)
++			return;
++
+ 	if((files&15) == 0){
+ 		nfilen = malloc((files+16)*sizeof(char*));
+ 		memmove(nfilen, filen, files*sizeof(char*));
+@@ -354,7 +362,6 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	pn = strdup(pn);
+ 	filen[files++] = pn;
+ 
+-
+ 	/* check the header */
+ 	line = Brdline(f, '\n');
+ 	if(line == nil) {
+@@ -390,7 +397,6 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	ldpkg(f, pkg, import1 - import0 - 2, pn);	// -2 for !\n
+ 	Bseek(f, import1, 0);
+ 
+-	// PGNS: Should be using import path, not pkg.
+ 	ldobj1(f, pkg, eof - Boffset(f), pn);
+ 	return;
+ 

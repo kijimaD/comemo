@@ -14,6 +14,45 @@ Date:   Tue Oct 24 21:57:51 2017 -0700
     Change-Id: I13abc9c930b9156d43ec216f8efb768952a29439
     Reviewed-on: https://go-review.googlesource.com/73211
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index cdd7c3b735..e661d199d4 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -242,7 +242,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "arm",
+ 		os:      "linux",
+-		imports: []string{"math/bits"},
++		imports: []string{"math/bits", "runtime"},
+ 		tests:   linuxARMTests,
+ 	},
+ 	{
+@@ -1020,12 +1020,11 @@ var linuxAMD64Tests = []*asmTest{
+ 		// make sure assembly output has matching offset and base register.
+ 		fn: `
+ 		func f72(a, b int) int {
+-			//go:noinline
+-			func() {_, _ = a, b} () // use some frame
++			runtime.GC() // use some frame
+ 			return b
+ 		}
+ 		`,
+-		pos: []string{"b\\+40\\(SP\\)"},
++		pos: []string{"b\\+24\\(SP\\)"},
+ 	},
+ 	{
+ 		// check load combining
+@@ -1803,8 +1802,7 @@ var linuxARMTests = []*asmTest{
+ 		// make sure assembly output has matching offset and base register.
+ 		fn: `
+ 		func f13(a, b int) int {
+-			//go:noinline
+-			func() {_, _ = a, b} () // use some frame
++			runtime.GC() // use some frame
+ 			return b
+ 		}
+ 		`,

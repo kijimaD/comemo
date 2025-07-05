@@ -22,7 +22,36 @@ Date:   Wed Jul 9 19:33:45 2014 -0700
     R=r, minux, rsc, adg
     CC=golang-codereviews
     https://golang.org/cl/110890043
-
+---
  src/pkg/go/build/deps_test.go | 2 +-
  src/pkg/net/rpc/debug.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 22ce8ff15a..9509f78051 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -327,7 +327,7 @@ var pkgDeps = map[string][]string{
+ 	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
+ 	"net/http/httputil": {"L4", "NET", "OS", "net/http"},
+ 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
+-	"net/rpc":           {"L4", "NET", "encoding/gob", "net/http", "text/template"},
++	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+ 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+ }
+ 
+diff --git a/src/pkg/net/rpc/debug.go b/src/pkg/net/rpc/debug.go
+index 926466d625..98b2c1c6c4 100644
+--- a/src/pkg/net/rpc/debug.go
++++ b/src/pkg/net/rpc/debug.go
+@@ -11,9 +11,9 @@ package rpc
+ 
+ import (
+ 	"fmt"
++	"html/template"
+ 	"net/http"
+ 	"sort"
+-	"text/template"
+ )
+ 
+ const debugText = `<html>

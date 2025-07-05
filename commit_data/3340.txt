@@ -11,8 +11,48 @@ Date:   Tue Sep 22 07:48:43 2009 -0700
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=34878
     CL=34889
-
+---
  src/cmd/cov/Makefile  | 2 +-
  src/cmd/prof/Makefile | 2 +-
  src/libmach/Makefile  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 4e02547dca..9c0d8abaa0 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -22,7 +22,7 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+-install: install-$(GOOS)
++install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 193f5896cd..daab2df1bf 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -22,7 +22,7 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+-install: install-$(GOOS)
++install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index 4a5e3405fc..b0031486ab 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -45,7 +45,7 @@ OFILES=\
+ 	5obj.$O\
+ 	6obj.$O\
+ 	8obj.$O\
+-	$(GOOS).$O\
++	$(shell uname | tr A-Z a-z).$O\
+ 
+ HFILES=$(GOROOT)/include/mach.h elf.h macho.h obj.h
+ 

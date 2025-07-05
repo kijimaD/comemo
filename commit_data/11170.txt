@@ -8,9 +8,78 @@ Date:   Sat Jan 14 10:59:45 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5540057
-
+---
  src/pkg/exp/sql/driver/types.go | 2 +-
  src/pkg/fmt/doc.go              | 5 +++--
  src/pkg/math/all_test.go        | 2 +-
  src/pkg/strconv/fp_test.go      | 8 ++++----
  4 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/sql/driver/types.go b/src/pkg/exp/sql/driver/types.go
+index 0ee278856d..d6ba641cb2 100644
+--- a/src/pkg/exp/sql/driver/types.go
++++ b/src/pkg/exp/sql/driver/types.go
+@@ -40,7 +40,7 @@ type ValueConverter interface {
+ //       1 is true
+ //       0 is false,
+ //       other integers are an error
+-//  - for strings and []byte, same rules as strconv.Atob
++//  - for strings and []byte, same rules as strconv.ParseBool
+ //  - all other types are an error
+ var Bool boolType
+ 
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 11e9f19f89..7d4178da76 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -30,8 +30,9 @@
+ 		%X	base 16, with upper-case letters for A-F
+ 		%U	Unicode format: U+1234; same as "U+%04X"
+ 	Floating-point and complex constituents:
+-		%b	decimalless scientific notation with exponent a power
+-			of two, in the manner of strconv.Ftoa32, e.g. -123456p-78
++		%b	decimalless scientific notation with exponent a power of two, 
++			in the manner of strconv.FormatFloat with the 'b' format, 
++			e.g. -123456p-78
+ 		%e	scientific notation, e.g. -1234.456e+78
+ 		%E	scientific notation, e.g. -1234.456E+78
+ 		%f	decimal point but no exponent, e.g. 123.456
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 2f73c06272..ed66a42fb0 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -2536,7 +2536,7 @@ func TestLargeTan(t *testing.T) {
+ }
+ 
+ // Check that math constants are accepted by compiler
+-// and have right value (assumes strconv.Atof works).
++// and have right value (assumes strconv.ParseFloat works).
+ // http://code.google.com/p/go/issues/detail?id=201
+ 
+ type floatTest struct {
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 47877e373a..171defa441 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -26,8 +26,8 @@ func pow2(i int) float64 {
+ 	return pow2(i/2) * pow2(i-i/2)
+ }
+ 
+-// Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
+-// itself, passes the rest on to strconv.Atof64.
++// Wrapper around strconv.ParseFloat(x, 64).  Handles dddddp+ddd (binary exponent)
++// itself, passes the rest on to strconv.ParseFloat.
+ func myatof64(s string) (f float64, ok bool) {
+ 	a := strings.SplitN(s, "p", 2)
+ 	if len(a) == 2 {
+@@ -70,8 +70,8 @@ func myatof64(s string) (f float64, ok bool) {
+ 	return f1, true
+ }
+ 
+-// Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
+-// itself, passes the rest on to strconv.Atof32.
++// Wrapper around strconv.ParseFloat(x, 32).  Handles dddddp+ddd (binary exponent)
++// itself, passes the rest on to strconv.ParseFloat.
+ func myatof32(s string) (f float32, ok bool) {
+ 	a := strings.SplitN(s, "p", 2)
+ 	if len(a) == 2 {

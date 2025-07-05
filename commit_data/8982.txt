@@ -8,7 +8,120 @@ Date:   Fri Jul 8 17:53:55 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4662084
-
+---
  src/pkg/exp/template/lex.go      | 43 ++++++++++++++++++++++++++--------------
  src/pkg/exp/template/lex_test.go | 13 ++++++++++++
  2 files changed, 41 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index d78152979f..e8763c55c6 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -35,9 +35,10 @@ func (i item) String() string {
+ type itemType int
+ 
+ const (
+-	itemError   itemType = iota // error occurred; value is text of error
+-	itemBool                    // boolean constant
+-	itemComplex                 // complex constant (1+2i); imaginary is just a number
++	itemError       itemType = iota // error occurred; value is text of error
++	itemBool                        // boolean constant
++	itemComplex                     // complex constant (1+2i); imaginary is just a number
++	itemColonEquals                 // colon-equals (':=') introducing a declaration
+ 	itemEOF
+ 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
+ 	itemIdentifier // alphanumeric identifier
+@@ -48,6 +49,7 @@ const (
+ 	itemRightDelim // right action delimiter
+ 	itemString     // quoted string (includes quotes)
+ 	itemText       // plain text
++	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
+ 	// Keywords appear after all the rest.
+ 	itemKeyword  // used only to delimit the keywords
+ 	itemDot      // the cursor, spelled '.'.
+@@ -62,18 +64,20 @@ const (
+ 
+ // Make the types prettyprint.
+ var itemName = map[itemType]string{
+-	itemError:      "error",
+-	itemBool:       "bool",
+-	itemComplex:    "complex",
+-	itemEOF:        "EOF",
+-	itemField:      "field",
+-	itemIdentifier: "identifier",
+-	itemLeftDelim:  "left delim",
+-	itemNumber:     "number",
+-	itemPipe:       "pipe",
+-	itemRawString:  "raw string",
+-	itemRightDelim: "right delim",
+-	itemString:     "string",
++	itemError:       "error",
++	itemBool:        "bool",
++	itemComplex:     "complex",
++	itemColonEquals: ":=",
++	itemEOF:         "EOF",
++	itemField:       "field",
++	itemIdentifier:  "identifier",
++	itemLeftDelim:   "left delim",
++	itemNumber:      "number",
++	itemPipe:        "pipe",
++	itemRawString:   "raw string",
++	itemRightDelim:  "right delim",
++	itemString:      "string",
++	itemVariable:    "variable",
+ 	// keywords
+ 	itemDot:      ".",
+ 	itemDefine:   "define",
+@@ -279,12 +283,19 @@ func lexInsideAction(l *lexer) stateFn {
+ 			return l.errorf("unclosed action")
+ 		case isSpace(r):
+ 			l.ignore()
++		case r == ':':
++			if l.next() != '=' {
++				return l.errorf("expected :=")
++			}
++			l.emit(itemColonEquals)
+ 		case r == '|':
+ 			l.emit(itemPipe)
+ 		case r == '"':
+ 			return lexQuote
+ 		case r == '`':
+ 			return lexRawQuote
++		case r == '$':
++			return lexIdentifier
+ 		case r == '.':
+ 			// special look-ahead for ".field" so we don't break l.backup().
+ 			if l.pos < len(l.input) {
+@@ -324,6 +335,8 @@ Loop:
+ 				l.emit(key[word])
+ 			case word[0] == '.':
+ 				l.emit(itemField)
++			case word[0] == '$':
++				l.emit(itemVariable)
+ 			case word == "true", word == "false":
+ 				l.emit(itemBool)
+ 			default:
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index 256ec04d85..d2156fa712 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -85,6 +85,19 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"variables", "{{$c := printf $ $hello $23 $.Method}}", []item{
++		tLeft,
++		{itemVariable, "$c"},
++		{itemColonEquals, ":="},
++		{itemIdentifier, "printf"},
++		{itemVariable, "$"},
++		{itemVariable, "$hello"},
++		{itemVariable, "$23"},
++		{itemVariable, "$"},
++		{itemField, ".Method"},
++		tRight,
++		tEOF,
++	}},
+ 	{"pipeline", `intro {{echo hi 1.2 |noargs|args 1 "hi"}} outro`, []item{
+ 		{itemText, "intro "},
+ 		tLeft,

@@ -15,7 +15,143 @@ Date:   Tue Dec 30 12:19:43 2014 +0000
     Signed-off-by: Peter Waller <p@pwaller.net>
     Reviewed-on: https://go-review.googlesource.com/2320
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 46 ++++++++++++++++++++++++
  src/net/http/httputil/reverseproxy_test.go | 56 ++++++++++++++++++++++++++++++
  2 files changed, 102 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index ab46370180..5a0c1edfe1 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -100,6 +100,24 @@ var hopHeaders = []string{
+ 	"Upgrade",
+ }
+ 
++type requestCanceler interface {
++	CancelRequest(*http.Request)
++}
++
++type runOnFirstRead struct {
++	io.Reader
++
++	fn func() // Run before first Read, then set to nil
++}
++
++func (c *runOnFirstRead) Read(bs []byte) (int, error) {
++	if c.fn != nil {
++		c.fn()
++		c.fn = nil
++	}
++	return c.Reader.Read(bs)
++}
++
+ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	transport := p.Transport
+ 	if transport == nil {
+@@ -109,6 +127,34 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	outreq := new(http.Request)
+ 	*outreq = *req // includes shallow copies of maps, but okay
+ 
++	if closeNotifier, ok := rw.(http.CloseNotifier); ok {
++		if requestCanceler, ok := transport.(requestCanceler); ok {
++			reqDone := make(chan struct{})
++			defer close(reqDone)
++
++			clientGone := closeNotifier.CloseNotify()
++
++			outreq.Body = struct {
++				io.Reader
++				io.Closer
++			}{
++				Reader: &runOnFirstRead{
++					Reader: outreq.Body,
++					fn: func() {
++						go func() {
++							select {
++							case <-clientGone:
++								requestCanceler.CancelRequest(outreq)
++							case <-reqDone:
++							}
++						}()
++					},
++				},
++				Closer: outreq.Body,
++			}
++		}
++	}
++
+ 	p.Director(outreq)
+ 	outreq.Proto = "HTTP/1.1"
+ 	outreq.ProtoMajor = 1
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index e9539b44b6..539c5e81cf 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -8,6 +8,7 @@ package httputil
+ 
+ import (
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
+@@ -211,3 +212,58 @@ func TestReverseProxyFlushInterval(t *testing.T) {
+ 		t.Error("maxLatencyWriter flushLoop() never exited")
+ 	}
+ }
++
++func TestReverseProxyCancellation(t *testing.T) {
++	const backendResponse = "I am the backend"
++
++	reqInFlight := make(chan struct{})
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		close(reqInFlight)
++
++		select {
++		case <-time.After(10 * time.Second):
++			// Note: this should only happen in broken implementations, and the
++			// closenotify case should be instantaneous.
++			t.Log("Failed to close backend connection")
++			t.Fail()
++		case <-w.(http.CloseNotifier).CloseNotify():
++		}
++
++		w.WriteHeader(http.StatusOK)
++		w.Write([]byte(backendResponse))
++	}))
++
++	defer backend.Close()
++
++	backend.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
++
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++
++	// Discards errors of the form:
++	// http: proxy error: read tcp 127.0.0.1:44643: use of closed network connection
++	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0)
++
++	frontend := httptest.NewServer(proxyHandler)
++	defer frontend.Close()
++
++	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
++	go func() {
++		<-reqInFlight
++		http.DefaultTransport.(*http.Transport).CancelRequest(getReq)
++	}()
++	res, err := http.DefaultClient.Do(getReq)
++	if res != nil {
++		t.Fatal("Non-nil response")
++	}
++	if err == nil {
++		// This should be an error like:
++		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
++		//    use of closed network connection
++		t.Fatal("DefaultClient.Do() returned nil error")
++	}
++}

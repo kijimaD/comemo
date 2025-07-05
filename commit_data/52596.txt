@@ -17,6 +17,33 @@ Date:   Thu May 12 09:30:54 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/netip/netip_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 9fe7cae6ec..74dcc974f8 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/intern"
++	"internal/testenv"
+ 	"net"
+ 	. "net/netip"
+ 	"reflect"
+@@ -1907,8 +1908,13 @@ func TestAddrStringAllocs(t *testing.T) {
+ 		{"ipv4-in-ipv6", MustParseAddr("::ffff:192.168.1.1"), 1},
+ 		{"ipv4-in-ipv6+zone", MustParseAddr("::ffff:192.168.1.1%eth0"), 1},
+ 	}
++	isNooptBuilder := strings.HasSuffix(testenv.Builder(), "-noopt")
+ 	for _, tc := range tests {
+ 		t.Run(tc.name, func(t *testing.T) {
++			if isNooptBuilder && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
++				// Optimizations are required to remove some allocs.
++				t.Skipf("skipping on %v", testenv.Builder())
++			}
+ 			allocs := int(testing.AllocsPerRun(1000, func() {
+ 				sinkString = tc.ip.String()
+ 			}))

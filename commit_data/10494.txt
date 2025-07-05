@@ -23,8 +23,206 @@ Date:   Thu Nov 24 09:28:58 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5437045
-
+---
  src/pkg/html/parse.go      | 58 ++++++++++++++++++++++++++++++++++++++++++----
  src/pkg/html/parse_test.go | 21 +++++++++++++++--
  src/pkg/html/render.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 129 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 36204895b9..041c5390ed 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -321,6 +321,59 @@ func (p *parser) resetInsertionMode() {
+ 
+ const whitespace = " \t\r\n\f"
+ 
++// parseDoctype parses the data from a DoctypeToken into a name,
++// public identifier, and system identifier. It returns a Node whose Type 
++// is DoctypeNode, whose Data is the name, and which has attributes
++// named "system" and "public" for the two identifiers if they were present.
++func parseDoctype(s string) *Node {
++	n := &Node{Type: DoctypeNode}
++
++	// Find the name.
++	space := strings.IndexAny(s, whitespace)
++	if space == -1 {
++		space = len(s)
++	}
++	n.Data = strings.ToLower(s[:space])
++	s = strings.TrimLeft(s[space:], whitespace)
++
++	if len(s) < 6 {
++		// It can't start with "PUBLIC" or "SYSTEM".
++		// Ignore the rest of the string.
++		return n
++	}
++
++	key := strings.ToLower(s[:6])
++	s = s[6:]
++	for key == "public" || key == "system" {
++		s = strings.TrimLeft(s, whitespace)
++		if s == "" {
++			break
++		}
++		quote := s[0]
++		if quote != '"' && quote != '\'' {
++			break
++		}
++		s = s[1:]
++		q := strings.IndexRune(s, rune(quote))
++		var id string
++		if q == -1 {
++			id = s
++			s = ""
++		} else {
++			id = s[:q]
++			s = s[q+1:]
++		}
++		n.Attr = append(n.Attr, Attribute{Key: key, Val: id})
++		if key == "public" {
++			key = "system"
++		} else {
++			key = ""
++		}
++	}
++
++	return n
++}
++
+ // Section 11.2.5.4.1.
+ func initialIM(p *parser) bool {
+ 	switch p.tok.Type {
+@@ -337,10 +390,7 @@ func initialIM(p *parser) bool {
+ 		})
+ 		return true
+ 	case DoctypeToken:
+-		p.doc.Add(&Node{
+-			Type: DoctypeNode,
+-			Data: p.tok.Data,
+-		})
++		p.doc.Add(parseDoctype(p.tok.Data))
+ 		p.im = beforeHTMLIM
+ 		return true
+ 	}
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index c1347c9dc1..90d3f46c61 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -97,7 +97,23 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 	case CommentNode:
+ 		fmt.Fprintf(w, "<!-- %s -->", n.Data)
+ 	case DoctypeNode:
+-		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
++		fmt.Fprintf(w, "<!DOCTYPE %s", n.Data)
++		if n.Attr != nil {
++			var p, s string
++			for _, a := range n.Attr {
++				switch a.Key {
++				case "public":
++					p = a.Val
++				case "system":
++					s = a.Val
++				}
++			}
++			if p != "" || s != "" {
++				fmt.Fprintf(w, ` "%s"`, p)
++				fmt.Fprintf(w, ` "%s"`, s)
++			}
++		}
++		io.WriteString(w, ">")
+ 	case scopeMarkerNode:
+ 		return errors.New("unexpected scopeMarkerNode")
+ 	default:
+@@ -133,8 +149,9 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
++		{"doctype01.dat", -1},
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 59},
++		{"tests2.dat", -1},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index 92c349fb32..57d78beef1 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"strings"
+ )
+ 
+ type writer interface {
+@@ -98,6 +99,40 @@ func render1(w writer, n *Node) error {
+ 		if _, err := w.WriteString(n.Data); err != nil {
+ 			return err
+ 		}
++		if n.Attr != nil {
++			var p, s string
++			for _, a := range n.Attr {
++				switch a.Key {
++				case "public":
++					p = a.Val
++				case "system":
++					s = a.Val
++				}
++			}
++			if p != "" {
++				if _, err := w.WriteString(" PUBLIC "); err != nil {
++					return err
++				}
++				if err := writeQuoted(w, p); err != nil {
++					return err
++				}
++				if s != "" {
++					if err := w.WriteByte(' '); err != nil {
++						return err
++					}
++					if err := writeQuoted(w, s); err != nil {
++						return err
++					}
++				}
++			} else if s != "" {
++				if _, err := w.WriteString(" SYSTEM "); err != nil {
++					return err
++				}
++				if err := writeQuoted(w, s); err != nil {
++					return err
++				}
++			}
++		}
+ 		return w.WriteByte('>')
+ 	default:
+ 		return errors.New("html: unknown node type")
+@@ -181,6 +216,27 @@ func render1(w writer, n *Node) error {
+ 	return w.WriteByte('>')
+ }
+ 
++// writeQuoted writes s to w surrounded by quotes. Normally it will use double
++// quotes, but if s contains a double quote, it will use single quotes.
++// It is used for writing the identifiers in a doctype declaration.
++// In valid HTML, they can't contain both types of quotes.
++func writeQuoted(w writer, s string) error {
++	var q byte = '"'
++	if strings.Contains(s, `"`) {
++		q = '\''
++	}
++	if err := w.WriteByte(q); err != nil {
++		return err
++	}
++	if _, err := w.WriteString(s); err != nil {
++		return err
++	}
++	if err := w.WriteByte(q); err != nil {
++		return err
++	}
++	return nil
++}
++
+ // Section 13.1.2, "Elements", gives this list of void elements. Void elements
+ // are those that can't have any contents.
+ var voidElements = map[string]bool{

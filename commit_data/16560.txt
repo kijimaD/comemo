@@ -7,6 +7,25 @@ Date:   Thu Jun 13 12:43:26 2013 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10236045
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index dc89d94ed3..babd6e280f 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -21,6 +21,13 @@ Read the <a href="/doc/go1.1.html">Go 1.1 Release Notes</a> for
+ more information.
+ </p>
+ 
++<h3 id="go1.1.minor">Minor revisions</h3>
++
++<p>
++go1.1.1 (released 2013/06/13) includes several compiler and runtime bug fixes.
++See the <a href="https://code.google.com/p/go/source/list?name=release-branch.go1.1&r=43c4a41d24382a56a90e924800c681e435d9e399">change history</a> for details.
++</p>
++
+ <h2 id="go1">go1 (released 2012/03/28)</h2>
+ 
+ <p>

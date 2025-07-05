@@ -17,6 +17,26 @@ Date:   Thu Oct 12 01:39:46 2017 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d096df547e..b41f0c5ef8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1170,10 +1170,10 @@ func mstart() {
+ 	mstart1(0)
+ 
+ 	// Exit this thread.
+-	if GOOS == "windows" || GOOS == "solaris" {
+-		// Windows and Solaris always system-allocate the
+-		// stack, but put it in _g_.stack before mstart, so
+-		// the logic above hasn't set osStack yet.
++	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
++		// Window, Solaris and Plan 9 always system-allocate
++		// the stack, but put it in _g_.stack before mstart,
++		// so the logic above hasn't set osStack yet.
+ 		osStack = true
+ 	}
+ 	mexit(osStack)

@@ -12,7 +12,133 @@ Date:   Tue May 31 15:01:05 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/switch5.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/switch6.go | 32 +++++++++++++++++++++++
  2 files changed, 113 insertions(+)
+
+diff --git a/test/switch5.go b/test/switch5.go
+new file mode 100644
+index 0000000000..7da2c6641f
+--- /dev/null
++++ b/test/switch5.go
+@@ -0,0 +1,81 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that switch statements with duplicate cases are detected by the compiler.
++// Does not compile.
++
++package main
++
++import "fmt"
++
++func f0(x int) {
++	switch x {
++	case 0:
++	case 0: // ERROR "duplicate case 0 in switch"
++	}
++
++	switch x {
++	case 0:
++	case int(0): // ERROR "duplicate case 0 in switch"
++	}
++}
++
++func f1(x float32) {
++	switch x {
++	case 5:
++	case 5: // ERROR "duplicate case 5 in switch"
++	case 5.0: // ERROR "duplicate case 5 in switch"
++	}
++}
++
++func f2(s string) {
++	switch s {
++	case "":
++	case "": // ERROR "duplicate case .. in switch"
++	case "abc":
++	case "abc": // ERROR "duplicate case .abc. in switch"
++	}
++}
++
++func f3(e interface{}) {
++	switch e {
++	case 0:
++	case 0: // ERROR "duplicate case 0 in switch"
++	case int64(0):
++	case float32(10):
++	case float32(10): // ERROR "duplicate case float32\(10\) in switch"
++	case float64(10):
++	case float64(10): // ERROR "duplicate case float64\(10\) in switch"
++	}
++}
++
++func f4(e interface{}) {
++	switch e.(type) {
++	case int:
++	case int: // ERROR "duplicate case int in type switch"
++	case int64:
++	case error: // ERROR "duplicate case error in type switch"
++	case error:
++	case fmt.Stringer:
++	case fmt.Stringer: // ERROR "duplicate case fmt.Stringer in type switch"
++	case struct {
++		i int "tag1"
++	}:
++	case struct {
++		i int "tag2"
++	}:
++	case struct {
++		i int "tag1"
++	}: // ERROR "duplicate case struct { i int .tag1. } in type switch"
++	}
++}
++
++func f5(a [1]int) {
++	switch a {
++	case [1]int{0}:
++	case [1]int{0}: // OK -- see issue 15896
++	}
++}
+diff --git a/test/switch6.go b/test/switch6.go
+new file mode 100644
+index 0000000000..bd62c620b6
+--- /dev/null
++++ b/test/switch6.go
+@@ -0,0 +1,32 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check the compiler's switch handling that happens
++// at typechecking time.
++// This must be separate from other checks,
++// because errors during typechecking
++// prevent other errors from being discovered.
++
++package main
++
++// Verify that type switch statements with impossible cases are detected by the compiler.
++func f0(e error) {
++	switch e.(type) {
++	case int: // ERROR "impossible type switch case: e \(type error\) cannot have dynamic type int \(missing Error method\)"
++	}
++}
++
++// Verify that the compiler rejects multiple default cases.
++func f1(e interface{}) {
++	switch e { // ERROR "multiple defaults in switch"
++	default:
++	default:
++	}
++	switch e.(type) { // ERROR "multiple defaults in switch"
++	default:
++	default:
++	}
++}

@@ -7,6 +7,20 @@ Date:   Thu Jun 16 15:41:33 2016 -0400
     Change-Id: I6ef08f6078190dc9df0b2df4f26a76456602f5e8
     Reviewed-on: https://go-review.googlesource.com/24176
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/lfstack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index db54ecb05e..8e33ce1d09 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -6,7 +6,7 @@
+ // Initialize head to 0, compare with 0 to test for emptiness.
+ // The stack does not keep pointers to nodes,
+ // so they can be garbage collected if there are no other pointers to nodes.
+-// The following code runs only on g0 stack.
++// The following code runs only in non-preemptible contexts.
+ 
+ package runtime
+ 

@@ -11,6 +11,28 @@ Date:   Sun Mar 22 17:33:52 2020 +1100
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 14af03f58c..289a75b59c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3527,16 +3527,6 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
+ 	return r
+ }
+ 
+-// isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
+-func (n *Node) isIntOrdering() bool {
+-	switch n.Op {
+-	case OLE, OLT, OGE, OGT:
+-	default:
+-		return false
+-	}
+-	return n.Left.Type.IsInteger() && n.Right.Type.IsInteger()
+-}
+-
+ // return 1 if integer n must be in range [0, max), 0 otherwise
+ func bounded(n *Node, max int64) bool {
+ 	if n.Type == nil || !n.Type.IsInteger() {

@@ -9,8 +9,400 @@ Date:   Fri Jun 29 07:44:04 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6351052
-
+---
  src/pkg/net/http/fs.go         | 107 ++++++++++++++++++++++++++++++-----
  src/pkg/net/http/fs_test.go    | 123 ++++++++++++++++++++++++++++-------------
  src/pkg/net/http/range_test.go |  22 ++++++++
  3 files changed, 199 insertions(+), 53 deletions(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 2ef27a18b4..74a341a5ce 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -11,6 +11,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"mime"
++	"mime/multipart"
++	"net/textproto"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -123,8 +125,9 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	code := StatusOK
+ 
+ 	// If Content-Type isn't set, use the file's extension to find it.
+-	if w.Header().Get("Content-Type") == "" {
+-		ctype := mime.TypeByExtension(filepath.Ext(name))
++	ctype := w.Header().Get("Content-Type")
++	if ctype == "" {
++		ctype = mime.TypeByExtension(filepath.Ext(name))
+ 		if ctype == "" {
+ 			// read a chunk to decide between utf-8 text and binary
+ 			var buf [1024]byte
+@@ -141,18 +144,27 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	}
+ 
+ 	// handle Content-Range header.
+-	// TODO(adg): handle multiple ranges
+ 	sendSize := size
++	var sendContent io.Reader = content
+ 	if size >= 0 {
+ 		ranges, err := parseRange(r.Header.Get("Range"), size)
+-		if err == nil && len(ranges) > 1 {
+-			err = errors.New("multiple ranges not supported")
+-		}
+ 		if err != nil {
+ 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 			return
+ 		}
+-		if len(ranges) == 1 {
++		switch {
++		case len(ranges) == 1:
++			// RFC 2616, Section 14.16:
++			// "When an HTTP message includes the content of a single
++			// range (for example, a response to a request for a
++			// single range, or to a request for a set of ranges
++			// that overlap without any holes), this content is
++			// transmitted with a Content-Range header, and a
++			// Content-Length header showing the number of bytes
++			// actually transferred.
++			// ...
++			// A response to a request for a single range MUST NOT
++			// be sent using the multipart/byteranges media type."
+ 			ra := ranges[0]
+ 			if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
+ 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+@@ -160,7 +172,41 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			}
+ 			sendSize = ra.length
+ 			code = StatusPartialContent
+-			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, size))
++			w.Header().Set("Content-Range", ra.contentRange(size))
++		case len(ranges) > 1:
++			for _, ra := range ranges {
++				if ra.start > size {
++					Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
++					return
++				}
++			}
++			sendSize = rangesMIMESize(ranges, ctype, size)
++			code = StatusPartialContent
++
++			pr, pw := io.Pipe()
++			mw := multipart.NewWriter(pw)
++			w.Header().Set("Content-Type", "multipart/byteranges; boundary="+mw.Boundary())
++			sendContent = pr
++			defer pr.Close() // cause writing goroutine to fail and exit if CopyN doesn't finish.
++			go func() {
++				for _, ra := range ranges {
++					part, err := mw.CreatePart(ra.mimeHeader(ctype, size))
++					if err != nil {
++						pw.CloseWithError(err)
++						return
++					}
++					if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
++						pw.CloseWithError(err)
++						return
++					}
++					if _, err := io.CopyN(part, content, ra.length); err != nil {
++						pw.CloseWithError(err)
++						return
++					}
++				}
++				mw.Close()
++				pw.Close()
++			}()
+ 		}
+ 
+ 		w.Header().Set("Accept-Ranges", "bytes")
+@@ -172,11 +218,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	w.WriteHeader(code)
+ 
+ 	if r.Method != "HEAD" {
+-		if sendSize == -1 {
+-			io.Copy(w, content)
+-		} else {
+-			io.CopyN(w, content, sendSize)
+-		}
++		io.CopyN(w, sendContent, sendSize)
+ 	}
+ }
+ 
+@@ -314,6 +356,17 @@ type httpRange struct {
+ 	start, length int64
+ }
+ 
++func (r httpRange) contentRange(size int64) string {
++	return fmt.Sprintf("bytes %d-%d/%d", r.start, r.start+r.length-1, size)
++}
++
++func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHeader {
++	return textproto.MIMEHeader{
++		"Content-Range": {r.contentRange(size)},
++		"Content-Type":  {contentType},
++	}
++}
++
+ // parseRange parses a Range header string as per RFC 2616.
+ func parseRange(s string, size int64) ([]httpRange, error) {
+ 	if s == "" {
+@@ -325,11 +378,15 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 	}
+ 	var ranges []httpRange
+ 	for _, ra := range strings.Split(s[len(b):], ",") {
++		ra = strings.TrimSpace(ra)
++		if ra == "" {
++			continue
++		}
+ 		i := strings.Index(ra, "-")
+ 		if i < 0 {
+ 			return nil, errors.New("invalid range")
+ 		}
+-		start, end := ra[:i], ra[i+1:]
++		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
+ 		var r httpRange
+ 		if start == "" {
+ 			// If no start is specified, end specifies the
+@@ -367,3 +424,25 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 	}
+ 	return ranges, nil
+ }
++
++// countingWriter counts how many bytes have been written to it.
++type countingWriter int64
++
++func (w *countingWriter) Write(p []byte) (n int, err error) {
++	*w += countingWriter(len(p))
++	return len(p), nil
++}
++
++// rangesMIMESize returns the nunber of bytes it takes to encode the
++// provided ranges as a multipart response.
++func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
++	var w countingWriter
++	mw := multipart.NewWriter(&w)
++	for _, ra := range ranges {
++		mw.CreatePart(ra.mimeHeader(contentType, contentSize))
++		encSize += ra.length
++	}
++	mw.Close()
++	encSize += int64(w)
++	return
++}
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 45580cbd2a..26408a3948 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"mime"
++	"mime/multipart"
+ 	"net"
+ 	. "net/http"
+ 	"net/http/httptest"
+@@ -26,21 +28,28 @@ import (
+ )
+ 
+ const (
+-	testFile       = "testdata/file"
+-	testFileLength = 11
++	testFile    = "testdata/file"
++	testFileLen = 11
+ )
+ 
++type wantRange struct {
++	start, end int64 // range [start,end)
++}
++
+ var ServeFileRangeTests = []struct {
+-	start, end int
+-	r          string
+-	code       int
++	r      string
++	code   int
++	ranges []wantRange
+ }{
+-	{0, testFileLength, "", StatusOK},
+-	{0, 5, "0-4", StatusPartialContent},
+-	{2, testFileLength, "2-", StatusPartialContent},
+-	{testFileLength - 5, testFileLength, "-5", StatusPartialContent},
+-	{3, 8, "3-7", StatusPartialContent},
+-	{0, 0, "20-", StatusRequestedRangeNotSatisfiable},
++	{r: "", code: StatusOK},
++	{r: "bytes=0-4", code: StatusPartialContent, ranges: []wantRange{{0, 5}}},
++	{r: "bytes=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
++	{r: "bytes=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
++	{r: "bytes=3-7", code: StatusPartialContent, ranges: []wantRange{{3, 8}}},
++	{r: "bytes=20-", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
++	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
++	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
+ }
+ 
+ func TestServeFile(t *testing.T) {
+@@ -66,33 +75,81 @@ func TestServeFile(t *testing.T) {
+ 
+ 	// straight GET
+ 	_, body := getBody(t, "straight get", req)
+-	if !equal(body, file) {
++	if !bytes.Equal(body, file) {
+ 		t.Fatalf("body mismatch: got %q, want %q", body, file)
+ 	}
+ 
+ 	// Range tests
+-	for i, rt := range ServeFileRangeTests {
+-		req.Header.Set("Range", "bytes="+rt.r)
+-		if rt.r == "" {
+-			req.Header["Range"] = nil
++	for _, rt := range ServeFileRangeTests {
++		if rt.r != "" {
++			req.Header.Set("Range", rt.r)
+ 		}
+-		r, body := getBody(t, fmt.Sprintf("test %d", i), req)
+-		if r.StatusCode != rt.code {
+-			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, r.StatusCode, rt.code)
++		resp, body := getBody(t, fmt.Sprintf("range test %q", rt.r), req)
++		if resp.StatusCode != rt.code {
++			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, resp.StatusCode, rt.code)
+ 		}
+ 		if rt.code == StatusRequestedRangeNotSatisfiable {
+ 			continue
+ 		}
+-		h := fmt.Sprintf("bytes %d-%d/%d", rt.start, rt.end-1, testFileLength)
+-		if rt.r == "" {
+-			h = ""
++		wantContentRange := ""
++		if len(rt.ranges) == 1 {
++			rng := rt.ranges[0]
++			wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
+ 		}
+-		cr := r.Header.Get("Content-Range")
+-		if cr != h {
+-			t.Errorf("header mismatch: range=%q: got %q, want %q", rt.r, cr, h)
++		cr := resp.Header.Get("Content-Range")
++		if cr != wantContentRange {
++			t.Errorf("range=%q: Content-Range = %q, want %q", rt.r, cr, wantContentRange)
+ 		}
+-		if !equal(body, file[rt.start:rt.end]) {
+-			t.Errorf("body mismatch: range=%q: got %q, want %q", rt.r, body, file[rt.start:rt.end])
++		ct := resp.Header.Get("Content-Type")
++		if len(rt.ranges) == 1 {
++			rng := rt.ranges[0]
++			wantBody := file[rng.start:rng.end]
++			if !bytes.Equal(body, wantBody) {
++				t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
++			}
++			if strings.HasPrefix(ct, "multipart/byteranges") {
++				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r)
++			}
++		}
++		if len(rt.ranges) > 1 {
++			typ, params, err := mime.ParseMediaType(ct)
++			if err != nil {
++				t.Errorf("range=%q content-type = %q; %v", rt.r, ct, err)
++				continue
++			}
++			if typ != "multipart/byteranges" {
++				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r)
++				continue
++			}
++			if params["boundary"] == "" {
++				t.Errorf("range=%q content-type = %q; lacks boundary", rt.r, ct)
++			}
++			if g, w := resp.ContentLength, int64(len(body)); g != w {
++				t.Errorf("range=%q Content-Length = %d; want %d", rt.r, g, w)
++			}
++			mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
++			for ri, rng := range rt.ranges {
++				part, err := mr.NextPart()
++				if err != nil {
++					t.Fatalf("range=%q, reading part index %d: %v", rt.r, ri, err)
++				}
++				body, err := ioutil.ReadAll(part)
++				if err != nil {
++					t.Fatalf("range=%q, reading part index %d body: %v", rt.r, ri, err)
++				}
++				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
++				wantBody := file[rng.start:rng.end]
++				if !bytes.Equal(body, wantBody) {
++					t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
++				}
++				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
++					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
++				}
++			}
++			_, err = mr.NextPart()
++			if err != io.EOF {
++				t.Errorf("range=%q; expected final error io.EOF; got %v", err)
++			}
+ 		}
+ 	}
+ }
+@@ -581,15 +638,3 @@ func TestLinuxSendfileChild(*testing.T) {
+ 		panic(err)
+ 	}
+ }
+-
+-func equal(a, b []byte) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i := range a {
+-		if a[i] != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/pkg/net/http/range_test.go b/src/pkg/net/http/range_test.go
+index 5274a81fa3..ef911af7b0 100644
+--- a/src/pkg/net/http/range_test.go
++++ b/src/pkg/net/http/range_test.go
+@@ -14,15 +14,34 @@ var ParseRangeTests = []struct {
+ 	r      []httpRange
+ }{
+ 	{"", 0, nil},
++	{"", 1000, nil},
+ 	{"foo", 0, nil},
+ 	{"bytes=", 0, nil},
++	{"bytes=7", 10, nil},
++	{"bytes= 7 ", 10, nil},
++	{"bytes=1-", 0, nil},
+ 	{"bytes=5-4", 10, nil},
+ 	{"bytes=0-2,5-4", 10, nil},
++	{"bytes=2-5,4-3", 10, nil},
++	{"bytes=--5,4--3", 10, nil},
++	{"bytes=A-", 10, nil},
++	{"bytes=A- ", 10, nil},
++	{"bytes=A-Z", 10, nil},
++	{"bytes= -Z", 10, nil},
++	{"bytes=5-Z", 10, nil},
++	{"bytes=Ran-dom, garbage", 10, nil},
++	{"bytes=0x01-0x02", 10, nil},
++	{"bytes=         ", 10, nil},
++	{"bytes= , , ,   ", 10, nil},
++
+ 	{"bytes=0-9", 10, []httpRange{{0, 10}}},
+ 	{"bytes=0-", 10, []httpRange{{0, 10}}},
+ 	{"bytes=5-", 10, []httpRange{{5, 5}}},
+ 	{"bytes=0-20", 10, []httpRange{{0, 10}}},
+ 	{"bytes=15-,0-5", 10, nil},
++	{"bytes=1-2,5-", 10, []httpRange{{1, 2}, {5, 5}}},
++	{"bytes=-2 , 7-", 11, []httpRange{{9, 2}, {7, 4}}},
++	{"bytes=0-0 ,2-2, 7-", 11, []httpRange{{0, 1}, {2, 1}, {7, 4}}},
+ 	{"bytes=-5", 10, []httpRange{{5, 5}}},
+ 	{"bytes=-15", 10, []httpRange{{0, 10}}},
+ 	{"bytes=0-499", 10000, []httpRange{{0, 500}}},
+@@ -32,6 +51,9 @@ var ParseRangeTests = []struct {
+ 	{"bytes=0-0,-1", 10000, []httpRange{{0, 1}, {9999, 1}}},
+ 	{"bytes=500-600,601-999", 10000, []httpRange{{500, 101}, {601, 399}}},
+ 	{"bytes=500-700,601-999", 10000, []httpRange{{500, 201}, {601, 399}}},
++
++	// Match Apache laxity:
++	{"bytes=   1 -2   ,  4- 5, 7 - 8 , ,,", 11, []httpRange{{1, 2}, {4, 2}, {7, 2}}},
+ }
+ 
+ func TestParseRange(t *testing.T) {

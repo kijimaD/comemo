@@ -13,7 +13,127 @@ Date:   Thu Sep 17 13:46:46 2015 -0700
     Change-Id: I1355fc149b71c868e740bfa53de29c25d160777d
     Reviewed-on: https://go-review.googlesource.com/14710
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go    | 12 ++++++
  src/cmd/asm/internal/lex/lex_test.go | 73 ++++++++++++++++++++++++++++++++++++
  2 files changed, 85 insertions(+)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index cd9168064d..e5a33013e1 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -63,7 +63,12 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 	return macros
+ }
+ 
++var panicOnError bool // For testing.
++
+ func (in *Input) Error(args ...interface{}) {
++	if panicOnError {
++		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
++	}
+ 	fmt.Fprintf(os.Stderr, "%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...))
+ 	os.Exit(1)
+ }
+@@ -113,6 +118,10 @@ func (in *Input) Next() ScanToken {
+ 			}
+ 			fallthrough
+ 		default:
++			if tok == scanner.EOF && len(in.ifdefStack) > 0 {
++				// We're skipping text but have run out of input with no #endif.
++				in.Error("unclosed #ifdef or #ifndef")
++			}
+ 			in.beginningOfLine = tok == '\n'
+ 			if in.enabled() {
+ 				in.text = in.Stack.Text()
+@@ -251,6 +260,9 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 	var tokens []Token
+ 	// Scan to newline. Backslashes escape newlines.
+ 	for tok != '\n' {
++		if tok == scanner.EOF {
++			in.Error("missing newline in macro definition for %q\n", name)
++		}
+ 		if tok == '\\' {
+ 			tok = in.Stack.Next()
+ 			if tok != '\n' && tok != '\\' {
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index 32cc13ea66..14ffffecc8 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -258,3 +258,76 @@ func drain(input *Input) string {
+ 		buf.WriteString(input.Text())
+ 	}
+ }
++
++type badLexTest struct {
++	input string
++	error string
++}
++
++var badLexTests = []badLexTest{
++	{
++		"3 #define foo bar\n",
++		"'#' must be first item on line",
++	},
++	{
++		"#ifdef foo\nhello",
++		"unclosed #ifdef or #ifndef",
++	},
++	{
++		"#ifndef foo\nhello",
++		"unclosed #ifdef or #ifndef",
++	},
++	{
++		"#ifdef foo\nhello\n#else\nbye",
++		"unclosed #ifdef or #ifndef",
++	},
++	{
++		"#define A() A()\nA()",
++		"recursive macro invocation",
++	},
++	{
++		"#define A a\n#define A a\n",
++		"redefinition of macro",
++	},
++	{
++		"#define A a",
++		"no newline after macro definition",
++	},
++}
++
++func TestBadLex(t *testing.T) {
++	for _, test := range badLexTests {
++		input := NewInput(test.error)
++		input.Push(NewTokenizer(test.error, strings.NewReader(test.input), nil))
++		err := firstError(input)
++		if err == nil {
++			t.Errorf("%s: got no error", test.error)
++			continue
++		}
++		if !strings.Contains(err.Error(), test.error) {
++			t.Errorf("got error %q expected %q", err.Error(), test.error)
++		}
++	}
++}
++
++// firstError returns the first error value triggered by the input.
++func firstError(input *Input) (err error) {
++	panicOnError = true
++	defer func() {
++		panicOnError = false
++		switch e := recover(); e := e.(type) {
++		case nil:
++		case error:
++			err = e
++		default:
++			panic(e)
++		}
++	}()
++
++	for {
++		tok := input.Next()
++		if tok == scanner.EOF {
++			return
++		}
++	}
++}

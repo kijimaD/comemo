@@ -14,7 +14,7 @@ Date:   Thu Apr 21 08:14:50 2011 -0400
     R=gri, ken2, r
     CC=golang-dev
     https://golang.org/cl/4442071
-
+---
  src/cmd/gc/go.h                             |  1 +
  src/cmd/gc/go.y                             |  4 +++
  src/cmd/gc/reflect.c                        | 55 ++++++++++++++++++-----------
@@ -28,3 +28,352 @@ Date:   Thu Apr 21 08:14:50 2011 -0400
  test/{bugs => fixedbugs}/bug324.go          |  2 +-
  test/golden.out                             |  5 ---
  12 files changed, 80 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bb258a193d..042856b459 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -315,6 +315,7 @@ struct	Pkg
+ {
+ 	char*	name;
+ 	Strlit*	path;
++	Sym*	pathsym;
+ 	char*	prefix;
+ 	Pkg*	link;
+ 	char	exported;	// import line written in export data
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 89899ae1e9..7adfd002a3 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1853,6 +1853,10 @@ hidden_interfacedcl:
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+ 	}
++|	hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
++	{
++		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
++	}
+ 
+ ohidden_funres:
+ 	{
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 4b0de95c26..810787d308 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -182,6 +182,11 @@ methods(Type *t)
+ 		a = b;
+ 
+ 		a->name = method->name;
++		if(!exportname(method->name)) {
++			if(method->pkg == nil)
++				fatal("methods: missing package");
++			a->pkg = method->pkg;
++		}
+ 		a->isym = methodsym(method, it, 1);
+ 		a->tsym = methodsym(method, t, 0);
+ 		a->type = methodfunc(f->type, t);
+@@ -253,8 +258,11 @@ imethods(Type *t)
+ 		method = f->sym;
+ 		a = mal(sizeof(*a));
+ 		a->name = method->name;
+-		if(!exportname(method->name))
++		if(!exportname(method->name)) {
++			if(method->pkg == nil)
++				fatal("imethods: missing package");
+ 			a->pkg = method->pkg;
++		}
+ 		a->mtype = f->type;
+ 		a->offset = 0;
+ 		a->type = methodfunc(f->type, nil);
+@@ -297,26 +305,6 @@ imethods(Type *t)
+ 	return all;
+ }
+ 
+-static int
+-dgopkgpath(Sym *s, int ot, Pkg *pkg)
+-{
+-	if(pkg == nil)
+-		return dgostringptr(s, ot, nil);
+-
+-	// Emit reference to go.importpath.""., which 6l will
+-	// rewrite using the correct import path.  Every package
+-	// that imports this one directly defines the symbol.
+-	if(pkg == localpkg) {
+-		static Sym *ns;
+-		
+-		if(ns == nil)
+-			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
+-		return dsymptr(s, ot, ns, 0);
+-	}
+-
+-	return dgostringptr(s, ot, pkg->name);
+-}
+-
+ static void
+ dimportpath(Pkg *p)
+ {
+@@ -324,6 +312,9 @@ dimportpath(Pkg *p)
+ 	char *nam;
+ 	Node *n;
+ 	
++	if(p->pathsym != S)
++		return;
++
+ 	if(gopkg == nil) {
+ 		gopkg = mkpkg(strlit("go"));
+ 		gopkg->name = "go";
+@@ -335,11 +326,33 @@ dimportpath(Pkg *p)
+ 	free(nam);
+ 	n->class = PEXTERN;
+ 	n->xoffset = 0;
++	p->pathsym = n->sym;
+ 	
+ 	gdatastring(n, p->path);
+ 	ggloblsym(n->sym, types[TSTRING]->width, 1);
+ }
+ 
++static int
++dgopkgpath(Sym *s, int ot, Pkg *pkg)
++{
++	if(pkg == nil)
++		return dgostringptr(s, ot, nil);
++
++	// Emit reference to go.importpath.""., which 6l will
++	// rewrite using the correct import path.  Every package
++	// that imports this one directly defines the symbol.
++	if(pkg == localpkg) {
++		static Sym *ns;
++		
++		if(ns == nil)
++			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
++		return dsymptr(s, ot, ns, 0);
++	}
++
++	dimportpath(pkg);
++	return dsymptr(s, ot, pkg->pathsym, 0);
++}
++
+ /*
+  * uncommonType
+  * ../../pkg/runtime/type.go:/uncommonType
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fe3a105c45..b233a0d8e5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1264,7 +1264,12 @@ Tpretty(Fmt *fp, Type *t)
+ 	case TINTER:
+ 		fmtprint(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			fmtprint(fp, " %hS%hhT", t1->sym, t1->type);
++			fmtprint(fp, " ");
++			if(exportname(t1->sym->name))
++				fmtprint(fp, "%hS", t1->sym);
++			else
++				fmtprint(fp, "%S", t1->sym);
++			fmtprint(fp, "%hhT", t1->type);
+ 			if(t1->down)
+ 				fmtprint(fp, ";");
+ 		}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 9e0ae6285b..30adc04e72 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -461,7 +461,13 @@ func (p *gcParser) parseFuncType() Type {
+ // MethodSpec = identifier Signature .
+ //
+ func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
+-	p.expect(scanner.Ident)
++	if p.tok == scanner.Ident {
++		p.expect(scanner.Ident)
++	} else {
++		p.parsePkgId()
++		p.expect('.')
++		p.parseDotIdent()
++	}
+ 	isVariadic := false
+ 	p.parseSignature(scope, &isVariadic)
+ }
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 726713fcc0..450265a1a6 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -152,7 +152,7 @@ var typeTests = []pair{
+ 			b()
+ 		})
+ 	}{},
+-		"interface { a(func(func(int) int) func(func(int)) int); b() }",
++		"interface { reflect_test.a(func(func(int) int) func(func(int)) int); reflect_test.b() }",
+ 	},
+ }
+ 
+@@ -1300,40 +1300,40 @@ func TestNestedMethods(t *testing.T) {
+ 	}
+ }
+ 
+-type innerInt struct {
+-	x int
++type InnerInt struct {
++	X int
+ }
+ 
+-type outerInt struct {
+-	y int
+-	innerInt
++type OuterInt struct {
++	Y int
++	InnerInt
+ }
+ 
+-func (i *innerInt) m() int {
+-	return i.x
++func (i *InnerInt) M() int {
++	return i.X
+ }
+ 
+ func TestEmbeddedMethods(t *testing.T) {
+-	typ := Typeof((*outerInt)(nil))
+-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outerInt).m).Pointer() {
+-		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
++	typ := Typeof((*OuterInt)(nil))
++	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*OuterInt).M).Pointer() {
++		t.Errorf("Wrong method table for OuterInt: (m=%p)", (*OuterInt).M)
+ 		for i := 0; i < typ.NumMethod(); i++ {
+ 			m := typ.Method(i)
+ 			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
+ 		}
+ 	}
+ 
+-	i := &innerInt{3}
++	i := &InnerInt{3}
+ 	if v := NewValue(i).Method(0).Call(nil)[0].Int(); v != 3 {
+-		t.Errorf("i.m() = %d, want 3", v)
++		t.Errorf("i.M() = %d, want 3", v)
+ 	}
+ 
+-	o := &outerInt{1, innerInt{2}}
++	o := &OuterInt{1, InnerInt{2}}
+ 	if v := NewValue(o).Method(0).Call(nil)[0].Int(); v != 2 {
+-		t.Errorf("i.m() = %d, want 2", v)
++		t.Errorf("i.M() = %d, want 2", v)
+ 	}
+ 
+-	f := (*outerInt).m
++	f := (*OuterInt).M
+ 	if v := f(o); v != 2 {
+ 		t.Errorf("f(o) = %d, want 2", v)
+ 	}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 805569e2d3..0ed9991a65 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -941,9 +941,7 @@ func implements(T, V *commonType) bool {
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
+ 			vm := &v.methods[j]
+-			// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
+-			// but it breaks the *ast.Ident vs ast.Expr test.
+-			if vm.name == tm.name && vm.typ == tm.typ {
++			if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
+ 				if i++; i >= len(t.methods) {
+ 					return true
+ 				}
+@@ -960,9 +958,7 @@ func implements(T, V *commonType) bool {
+ 	for j := 0; j < len(v.methods); j++ {
+ 		tm := &t.methods[i]
+ 		vm := &v.methods[j]
+-		// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
+-		// but it breaks the *ast.Ident vs ast.Expr test.
+-		if vm.name == tm.name && vm.mtyp == tm.typ {
++		if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
+ 			if i++; i >= len(t.methods) {
+ 				return true
+ 			}
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 6c806512f8..b1015f695f 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -50,7 +50,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	Method *t, *et;
+ 	IMethod *i, *ei;
+ 	uint32 h;
+-	String *iname;
++	String *iname, *ipkgPath;
+ 	Itab *m;
+ 	UncommonType *x;
+ 	Type *itype;
+@@ -120,6 +120,7 @@ search:
+ 	for(; i < ei; i++) {
+ 		itype = i->type;
+ 		iname = i->name;
++		ipkgPath = i->pkgPath;
+ 		for(;; t++) {
+ 			if(t >= et) {
+ 				if(!canfail) {
+@@ -136,7 +137,7 @@ search:
+ 				m->bad = 1;
+ 				goto out;
+ 			}
+-			if(t->mtyp == itype && t->name == iname)
++			if(t->mtyp == itype && t->name == iname && t->pkgPath == ipkgPath)
+ 				break;
+ 		}
+ 		if(m)
+diff --git a/test/bugs/bug324.dir/main.go b/test/fixedbugs/bug324.dir/main.go
+similarity index 91%
+rename from test/bugs/bug324.dir/main.go
+rename to test/fixedbugs/bug324.dir/main.go
+index 4c1a18d9ca..3ab61f3eb5 100644
+--- a/test/bugs/bug324.dir/main.go
++++ b/test/fixedbugs/bug324.dir/main.go
+@@ -14,7 +14,7 @@ type Exported interface {
+ 
+ type Implementation struct{}
+ 
+-func (p *Implementation) private() { println("main.Implementation.private()") }
++func (p *Implementation) private() {}
+ 
+ 
+ func main() {
+@@ -40,7 +40,12 @@ func main() {
+ 	// x = px
+ 
+ 	// this assignment unexpectedly compiles and then executes
++	defer func() {
++		recover()
++	}()
+ 	x = px.(Exported)
++	
++	println("should not get this far")
+ 
+ 	// this is a legitimate call, but because of the previous assignment,
+ 	// it invokes the method private in p!
+diff --git a/test/bugs/bug324.dir/p.go b/test/fixedbugs/bug324.dir/p.go
+similarity index 100%
+rename from test/bugs/bug324.dir/p.go
+rename to test/fixedbugs/bug324.dir/p.go
+diff --git a/test/bugs/bug324.go b/test/fixedbugs/bug324.go
+similarity index 66%
+rename from test/bugs/bug324.go
+rename to test/fixedbugs/bug324.go
+index e188515d77..3da75630ac 100644
+--- a/test/bugs/bug324.go
++++ b/test/fixedbugs/bug324.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ! ./$A.out || echo BUG: should fail
++// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/golden.out b/test/golden.out
+index bbe399f28c..725e8de448 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -166,8 +166,3 @@ panic: interface conversion: interface is main.T, not main.T
+ bugs/bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
+ bugs/bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T in method receiver
+ BUG: fails incorrectly
+-
+-=========== bugs/bug324.go
+-main.Implementation.private()
+-p.Implementation.private()
+-BUG: should fail

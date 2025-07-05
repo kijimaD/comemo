@@ -29,7 +29,7 @@ Date:   Wed Mar 31 14:47:59 2021 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go                              |   2 +-
  src/cmd/go/internal/list/list.go                   |   4 +-
  src/cmd/go/internal/modcmd/edit.go                 |  14 ++-
@@ -51,3 +51,904 @@ Date:   Wed Mar 31 14:47:59 2021 -0400
  src/cmd/go/testdata/script/mod_list_deprecated.txt |  52 ++++++++++
  .../script/mod_list_deprecated_replace.txt         |  68 +++++++++++++
  20 files changed, 550 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3fece365e8..a713428bc2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1135,7 +1135,7 @@
+ //
+ // 	type Module struct {
+ // 		Path string
+-// 		Version string
++// 		Deprecated string
+ // 	}
+ //
+ // 	type GoMod struct {
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 898a39ea24..9b78a64d5f 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -348,7 +348,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		if *listM {
+ 			*listFmt = "{{.String}}"
+ 			if *listVersions {
+-				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}`
++				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}{{if .Deprecated}} (deprecated){{end}}`
+ 			}
+ 		} else {
+ 			*listFmt = "{{.ImportPath}}"
+@@ -453,7 +453,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		var mode modload.ListMode
+ 		if *listU {
+-			mode |= modload.ListU | modload.ListRetracted
++			mode |= modload.ListU | modload.ListRetracted | modload.ListDeprecated
+ 		}
+ 		if *listRetracted {
+ 			mode |= modload.ListRetracted
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 1df104eb1d..e1ec088f55 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -86,7 +86,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 
+ 	type Module struct {
+ 		Path string
+-		Version string
++		Deprecated string
+ 	}
+ 
+ 	type GoMod struct {
+@@ -450,7 +450,7 @@ func flagDropRetract(arg string) {
+ 
+ // fileJSON is the -json output data structure.
+ type fileJSON struct {
+-	Module  module.Version
++	Module  editModuleJSON
+ 	Go      string `json:",omitempty"`
+ 	Require []requireJSON
+ 	Exclude []module.Version
+@@ -458,6 +458,11 @@ type fileJSON struct {
+ 	Retract []retractJSON
+ }
+ 
++type editModuleJSON struct {
++	Path       string
++	Deprecated string `json:",omitempty"`
++}
++
+ type requireJSON struct {
+ 	Path     string
+ 	Version  string `json:",omitempty"`
+@@ -479,7 +484,10 @@ type retractJSON struct {
+ func editPrintJSON(modFile *modfile.File) {
+ 	var f fileJSON
+ 	if modFile.Module != nil {
+-		f.Module = modFile.Module.Mod
++		f.Module = editModuleJSON{
++			Path:       modFile.Module.Mod.Path,
++			Deprecated: modFile.Module.Deprecated,
++		}
+ 	}
+ 	if modFile.Go != nil {
+ 		f.Go = modFile.Go.Version
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index c6e380b197..876d8ab24d 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -354,7 +354,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			pkgPatterns = append(pkgPatterns, q.pattern)
+ 		}
+ 	}
+-	r.checkPackagesAndRetractions(ctx, pkgPatterns)
++	r.checkPackageProblems(ctx, pkgPatterns)
+ 
+ 	// We've already downloaded modules (and identified direct and indirect
+ 	// dependencies) by loading packages in findAndUpgradeImports.
+@@ -1463,25 +1463,31 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
+ 	return false, cs.mod
+ }
+ 
+-// checkPackagesAndRetractions reloads packages for the given patterns and
+-// reports missing and ambiguous package errors. It also reports loads and
+-// reports retractions for resolved modules and modules needed to build
+-// named packages.
++// checkPackageProblems reloads packages for the given patterns and reports
++// missing and ambiguous package errors. It also reports retractions and
++// deprecations for resolved modules and modules needed to build named packages.
+ //
+ // We skip missing-package errors earlier in the process, since we want to
+ // resolve pathSets ourselves, but at that point, we don't have enough context
+ // to log the package-import chains leading to each error.
+-func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns []string) {
++func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []string) {
+ 	defer base.ExitIfErrors()
+ 
+-	// Build a list of modules to load retractions for. Start with versions
+-	// selected based on command line queries.
+-	//
+-	// This is a subset of the build list. If the main module has a lot of
+-	// dependencies, loading retractions for the entire build list would be slow.
+-	relevantMods := make(map[module.Version]struct{})
++	// Gather information about modules we might want to load retractions and
++	// deprecations for. Loading this metadata requires at least one version
++	// lookup per module, and we don't want to load information that's neither
++	// relevant nor actionable.
++	type modFlags int
++	const (
++		resolved modFlags = 1 << iota // version resolved by 'go get'
++		named                         // explicitly named on command line or provides a named package
++		hasPkg                        // needed to build named packages
++		direct                        // provides a direct dependency of the main module
++	)
++	relevantMods := make(map[module.Version]modFlags)
+ 	for path, reason := range r.resolvedVersion {
+-		relevantMods[module.Version{Path: path, Version: reason.version}] = struct{}{}
++		m := module.Version{Path: path, Version: reason.version}
++		relevantMods[m] |= resolved
+ 	}
+ 
+ 	// Reload packages, reporting errors for missing and ambiguous imports.
+@@ -1518,44 +1524,89 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns
+ 				base.SetExitStatus(1)
+ 				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
+ 					for _, m := range ambiguousErr.Modules {
+-						relevantMods[m] = struct{}{}
++						relevantMods[m] |= hasPkg
+ 					}
+ 				}
+ 			}
+ 			if m := modload.PackageModule(pkg); m.Path != "" {
+-				relevantMods[m] = struct{}{}
++				relevantMods[m] |= hasPkg
++			}
++		}
++		for _, match := range matches {
++			for _, pkg := range match.Pkgs {
++				m := modload.PackageModule(pkg)
++				relevantMods[m] |= named
+ 			}
+ 		}
+ 	}
+ 
+-	// Load and report retractions.
+-	type retraction struct {
+-		m   module.Version
+-		err error
+-	}
+-	retractions := make([]retraction, 0, len(relevantMods))
++	reqs := modload.LoadModFile(ctx)
+ 	for m := range relevantMods {
+-		retractions = append(retractions, retraction{m: m})
++		if reqs.IsDirect(m.Path) {
++			relevantMods[m] |= direct
++		}
+ 	}
+-	sort.Slice(retractions, func(i, j int) bool {
+-		return retractions[i].m.Path < retractions[j].m.Path
+-	})
+-	for i := 0; i < len(retractions); i++ {
++
++	// Load retractions for modules mentioned on the command line and modules
++	// needed to build named packages. We care about retractions of indirect
++	// dependencies, since we might be able to upgrade away from them.
++	type modMessage struct {
++		m       module.Version
++		message string
++	}
++	retractions := make([]modMessage, 0, len(relevantMods))
++	for m, flags := range relevantMods {
++		if flags&(resolved|named|hasPkg) != 0 {
++			retractions = append(retractions, modMessage{m: m})
++		}
++	}
++	sort.Slice(retractions, func(i, j int) bool { return retractions[i].m.Path < retractions[j].m.Path })
++	for i := range retractions {
+ 		i := i
+ 		r.work.Add(func() {
+ 			err := modload.CheckRetractions(ctx, retractions[i].m)
+ 			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
+-				retractions[i].err = err
++				retractions[i].message = err.Error()
+ 			}
+ 		})
+ 	}
++
++	// Load deprecations for modules mentioned on the command line. Only load
++	// deprecations for indirect dependencies if they're also direct dependencies
++	// of the main module. Deprecations of purely indirect dependencies are
++	// not actionable.
++	deprecations := make([]modMessage, 0, len(relevantMods))
++	for m, flags := range relevantMods {
++		if flags&(resolved|named) != 0 || flags&(hasPkg|direct) == hasPkg|direct {
++			deprecations = append(deprecations, modMessage{m: m})
++		}
++	}
++	sort.Slice(deprecations, func(i, j int) bool { return deprecations[i].m.Path < deprecations[j].m.Path })
++	for i := range deprecations {
++		i := i
++		r.work.Add(func() {
++			deprecation, err := modload.CheckDeprecation(ctx, deprecations[i].m)
++			if err != nil || deprecation == "" {
++				return
++			}
++			deprecations[i].message = modload.ShortMessage(deprecation, "")
++		})
++	}
++
+ 	<-r.work.Idle()
++
++	// Report deprecations, then retractions.
++	for _, mm := range deprecations {
++		if mm.message != "" {
++			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
++		}
++	}
+ 	var retractPath string
+-	for _, r := range retractions {
+-		if r.err != nil {
+-			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
++	for _, mm := range retractions {
++		if mm.message != "" {
++			fmt.Fprintf(os.Stderr, "go: warning: %v\n", mm.message)
+ 			if retractPath == "" {
+-				retractPath = r.m.Path
++				retractPath = mm.m.Path
+ 			} else {
+ 				retractPath = "<module>"
+ 			}
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index 897be56397..19088352f0 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -10,19 +10,20 @@ import "time"
+ // and the fields are documented in the help text in ../list/list.go
+ 
+ type ModulePublic struct {
+-	Path      string        `json:",omitempty"` // module path
+-	Version   string        `json:",omitempty"` // module version
+-	Versions  []string      `json:",omitempty"` // available module versions
+-	Replace   *ModulePublic `json:",omitempty"` // replaced by this module
+-	Time      *time.Time    `json:",omitempty"` // time version was created
+-	Update    *ModulePublic `json:",omitempty"` // available update (with -u)
+-	Main      bool          `json:",omitempty"` // is this the main module?
+-	Indirect  bool          `json:",omitempty"` // module is only indirectly needed by main module
+-	Dir       string        `json:",omitempty"` // directory holding local copy of files, if any
+-	GoMod     string        `json:",omitempty"` // path to go.mod file describing module, if any
+-	GoVersion string        `json:",omitempty"` // go version used in module
+-	Retracted []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
+-	Error     *ModuleError  `json:",omitempty"` // error loading module
++	Path       string        `json:",omitempty"` // module path
++	Version    string        `json:",omitempty"` // module version
++	Versions   []string      `json:",omitempty"` // available module versions
++	Replace    *ModulePublic `json:",omitempty"` // replaced by this module
++	Time       *time.Time    `json:",omitempty"` // time version was created
++	Update     *ModulePublic `json:",omitempty"` // available update (with -u)
++	Main       bool          `json:",omitempty"` // is this the main module?
++	Indirect   bool          `json:",omitempty"` // module is only indirectly needed by main module
++	Dir        string        `json:",omitempty"` // directory holding local copy of files, if any
++	GoMod      string        `json:",omitempty"` // path to go.mod file describing module, if any
++	GoVersion  string        `json:",omitempty"` // go version used in module
++	Retracted  []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
++	Deprecated string        `json:",omitempty"` // deprecation message, if any (with -u)
++	Error      *ModuleError  `json:",omitempty"` // error loading module
+ }
+ 
+ type ModuleError struct {
+@@ -45,6 +46,9 @@ func (m *ModulePublic) String() string {
+ 			s += " [" + versionString(m.Update) + "]"
+ 		}
+ 	}
++	if m.Deprecated != "" {
++		s += " (deprecated)"
++	}
+ 	if m.Replace != nil {
+ 		s += " => " + m.Replace.Path
+ 		if m.Replace.Version != "" {
+@@ -53,6 +57,9 @@ func (m *ModulePublic) String() string {
+ 				s += " [" + versionString(m.Replace.Update) + "]"
+ 			}
+ 		}
++		if m.Replace.Deprecated != "" {
++			s += " (deprecated)"
++		}
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index c3cac4d491..53771b2231 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -112,8 +112,8 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+ 	var noVersionErr *NoMatchingVersionError
+ 	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+-		// Ignore "not found" and "no matching version" errors. This usually means
+-		// the user is offline or the proxy doesn't have a matching version.
++		// Ignore "not found" and "no matching version" errors.
++		// This means the proxy has no matching version or no versions at all.
+ 		//
+ 		// We should report other errors though. An attacker that controls the
+ 		// network shouldn't be able to hide versions by interfering with
+@@ -163,9 +163,8 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+ 	var noVersionErr *NoMatchingVersionError
+ 	var retractErr *ModuleRetractedError
+ 	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+-		// Ignore "not found" and "no matching version" errors. This usually means
+-		// the user is offline or the proxy doesn't have a go.mod file that could
+-		// contain retractions.
++		// Ignore "not found" and "no matching version" errors.
++		// This means the proxy has no matching version or no versions at all.
+ 		//
+ 		// We should report other errors though. An attacker that controls the
+ 		// network shouldn't be able to hide versions by interfering with
+@@ -184,6 +183,31 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+ 	}
+ }
+ 
++// addDeprecation fills in m.Deprecated if the module was deprecated by its
++// author. m.Error is set if there's an error loading deprecation information.
++func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
++	deprecation, err := CheckDeprecation(ctx, module.Version{Path: m.Path, Version: m.Version})
++	var noVersionErr *NoMatchingVersionError
++	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
++		// Ignore "not found" and "no matching version" errors.
++		// This means the proxy has no matching version or no versions at all.
++		//
++		// We should report other errors though. An attacker that controls the
++		// network shouldn't be able to hide versions by interfering with
++		// the HTTPS connection. An attacker that controls the proxy may still
++		// hide versions, since the "list" and "latest" endpoints are not
++		// authenticated.
++		return
++	}
++	if err != nil {
++		if m.Error == nil {
++			m.Error = &modinfo.ModuleError{Err: err.Error()}
++		}
++		return
++	}
++	m.Deprecated = deprecation
++}
++
+ // moduleInfo returns information about module m, loaded from the requirements
+ // in rs (which may be nil to indicate that m was not loaded from a requirement
+ // graph).
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 3fbe3c6700..a1ac7b22b7 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -191,6 +191,12 @@ func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
+ 	return cached.mg, cached.err
+ }
+ 
++// IsDirect returns whether the given module provides a package directly
++// imported by a package or test in the main module.
++func (rs *Requirements) IsDirect(path string) bool {
++	return rs.direct[path]
++}
++
+ // A ModuleGraph represents the complete graph of module dependencies
+ // of a main module.
+ //
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 6082bd5be8..e33078b53c 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -25,6 +25,7 @@ type ListMode int
+ const (
+ 	ListU ListMode = 1 << iota
+ 	ListRetracted
++	ListDeprecated
+ 	ListVersions
+ 	ListRetractedVersions
+ )
+@@ -52,6 +53,9 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
+ 					if mode&ListRetracted != 0 {
+ 						addRetraction(ctx, m)
+ 					}
++					if mode&ListDeprecated != 0 {
++						addDeprecation(ctx, m)
++					}
+ 					<-sem
+ 				}()
+ 			}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 3b01afa13f..7b92a2b7ab 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -232,6 +232,42 @@ func ShortMessage(message, emptyDefault string) string {
+ 	return message
+ }
+ 
++// CheckDeprecation returns a deprecation message from the go.mod file of the
++// latest version of the given module. Deprecation messages are comments
++// before or on the same line as the module directives that start with
++// "Deprecated:" and run until the end of the paragraph.
++//
++// CheckDeprecation returns an error if the message can't be loaded.
++// CheckDeprecation returns "", nil if there is no deprecation message.
++func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string, err error) {
++	defer func() {
++		if err != nil {
++			err = fmt.Errorf("loading deprecation for %s: %w", m.Path, err)
++		}
++	}()
++
++	if m.Version == "" {
++		// Main module, standard library, or file replacement module.
++		// Don't look up deprecation.
++		return "", nil
++	}
++	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
++		// All versions of the module were replaced.
++		// We'll look up deprecation separately for the replacement.
++		return "", nil
++	}
++
++	latest, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
++	if err != nil {
++		return "", err
++	}
++	summary, err := rawGoModSummary(latest)
++	if err != nil {
++		return "", err
++	}
++	return summary.deprecated, nil
++}
++
+ // Replacement returns the replacement for mod, if any, from go.mod.
+ // If there is no replacement for mod, Replacement returns
+ // a module.Version with Path == "".
+@@ -419,6 +455,7 @@ type modFileSummary struct {
+ 	goVersionV string // GoVersion with "v" prefix
+ 	require    []module.Version
+ 	retract    []retraction
++	deprecated string
+ }
+ 
+ // A retraction consists of a retracted version interval and rationale.
+@@ -597,6 +634,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 
+ 		if f.Module != nil {
+ 			summary.module = f.Module.Mod
++			summary.deprecated = f.Module.Deprecated
+ 		}
+ 		if f.Go != nil && f.Go.Version != "" {
+ 			rawGoVersion.LoadOrStore(m, f.Go.Version)
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt
+new file mode 100644
+index 0000000000..7c29621e83
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt
+@@ -0,0 +1,12 @@
++-- .info --
++{"Version":"v1.0.0"}
++-- .mod --
++module example.com/deprecated/a
++
++go 1.17
++-- go.mod --
++module example.com/deprecated/a
++
++go 1.17
++-- a.go --
++package a
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt
+new file mode 100644
+index 0000000000..0613389d1f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt
+@@ -0,0 +1,14 @@
++-- .info --
++{"Version":"v1.9.0"}
++-- .mod --
++// Deprecated: in example.com/deprecated/a@v1.9.0
++module example.com/deprecated/a
++
++go 1.17
++-- go.mod --
++// Deprecated: in example.com/deprecated/a@v1.9.0
++module example.com/deprecated/a
++
++go 1.17
++-- a.go --
++package a
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.0.0.txt
+new file mode 100644
+index 0000000000..50006aefb5
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.0.0.txt
+@@ -0,0 +1,12 @@
++-- .info --
++{"Version":"v1.0.0"}
++-- .mod --
++module example.com/deprecated/b
++
++go 1.17
++-- go.mod --
++module example.com/deprecated/b
++
++go 1.17
++-- b.go --
++package b
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt
+new file mode 100644
+index 0000000000..163d6b543e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt
+@@ -0,0 +1,14 @@
++-- .info --
++{"Version":"v1.9.0"}
++-- .mod --
++// Deprecated: in example.com/deprecated/b@v1.9.0
++module example.com/deprecated/b
++
++go 1.17
++-- go.mod --
++// Deprecated: in example.com/deprecated/b@v1.9.0
++module example.com/deprecated/b
++
++go 1.17
++-- b.go --
++package b
+diff --git a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt
+new file mode 100644
+index 0000000000..a68588eedb
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt
+@@ -0,0 +1,14 @@
++-- .info --
++{"Version":"v1.0.0"}
++-- .mod --
++// Deprecated: in v1.0.0
++module example.com/undeprecated
++
++go 1.17
++-- go.mod --
++// Deprecated: in v1.0.0
++module example.com/undeprecated
++
++go 1.17
++-- undeprecated.go --
++package undeprecated
+diff --git a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt
+new file mode 100644
+index 0000000000..ecabf322ec
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt
+@@ -0,0 +1,14 @@
++-- .info --
++{"Version":"v1.0.1"}
++-- .mod --
++// no longer deprecated
++module example.com/undeprecated
++
++go 1.17
++-- go.mod --
++// no longer deprecated
++module example.com/undeprecated
++
++go 1.17
++-- undeprecated.go --
++package undeprecated
+diff --git a/src/cmd/go/testdata/script/mod_deprecate_message.txt b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+new file mode 100644
+index 0000000000..4a0674b808
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+@@ -0,0 +1,73 @@
++# When there is a short single-line message, 'go get' should print it all.
++go get -d short
++stderr '^go: warning: module short is deprecated: short$'
++go list -m -u -f '{{.Deprecated}}' short
++stdout '^short$'
++
++# When there is a multi-line message, 'go get' should print the first line.
++go get -d multiline
++stderr '^go: warning: module multiline is deprecated: first line$'
++! stderr 'second line'
++go list -m -u -f '{{.Deprecated}}' multiline
++stdout '^first line\nsecond line.$'
++
++# When there is a long message, 'go get' should print a placeholder.
++go get -d long
++stderr '^go: warning: module long is deprecated: \(message omitted: too long\)$'
++go list -m -u -f '{{.Deprecated}}' long
++stdout '^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$'
++
++# When a message contains unprintable chracters, 'go get' should say that
++# without printing the message.
++go get -d unprintable
++stderr '^go: warning: module unprintable is deprecated: \(message omitted: contains non-printable characters\)$'
++go list -m -u -f '{{.Deprecated}}' unprintable
++stdout '^message contains ASCII BEL\x07$'
++
++-- go.mod --
++module use
++
++go 1.16
++
++require (
++	short v0.0.0
++	multiline v0.0.0
++	long v0.0.0
++	unprintable v0.0.0
++)
++
++replace (
++	short v0.0.0 => ./short
++	multiline v0.0.0 => ./multiline
++	long v0.0.0 => ./long
++	unprintable v0.0.0 => ./unprintable
++)
++-- short/go.mod --
++// Deprecated: short
++module short
++
++go 1.16
++-- short/short.go --
++package short
++-- multiline/go.mod --
++// Deprecated: first line
++// second line.
++module multiline
++
++go 1.16
++-- multiline/multiline.go --
++package multiline
++-- long/go.mod --
++// Deprecated: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
++module long
++
++go 1.16
++-- long/long.go --
++package long
++-- unprintable/go.mod --
++// Deprecated: message contains ASCII BEL
++module unprintable
++
++go 1.16
++-- unprintable/unprintable.go --
++package unprintable
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 9da69306da..5aa5ca1ffc 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -46,6 +46,10 @@ cmpenv stdout $WORK/go.mod.json
+ go mod edit -json $WORK/go.mod.retractrationale
+ cmp stdout $WORK/go.mod.retractrationale.json
+ 
++# go mod edit -json (deprecation)
++go mod edit -json $WORK/go.mod.deprecation
++cmp stdout $WORK/go.mod.deprecation.json
++
+ # go mod edit -json (empty mod file)
+ go mod edit -json $WORK/go.mod.empty
+ cmp stdout $WORK/go.mod.empty.json
+@@ -290,6 +294,20 @@ retract (
+ 		}
+ 	]
+ }
++-- $WORK/go.mod.deprecation --
++// Deprecated: and the new one is not ready yet
++module m
++-- $WORK/go.mod.deprecation.json --
++{
++	"Module": {
++		"Path": "m",
++		"Deprecated": "and the new one is not ready yet"
++	},
++	"Require": null,
++	"Exclude": null,
++	"Replace": null,
++	"Retract": null
++}
+ -- $WORK/go.mod.empty --
+ -- $WORK/go.mod.empty.json --
+ {
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecated.txt b/src/cmd/go/testdata/script/mod_get_deprecated.txt
+new file mode 100644
+index 0000000000..4633009f69
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_deprecated.txt
+@@ -0,0 +1,66 @@
++# 'go get pkg' should not show a deprecation message for an unrelated module.
++go get -d ./use/nothing
++! stderr 'module.*is deprecated'
++
++# 'go get pkg' should show a deprecation message for the module providing pkg.
++go get -d example.com/deprecated/a
++stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++go get -d example.com/deprecated/a@v1.0.0
++stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++
++# 'go get pkg' should show a deprecation message for a module providing
++# packages directly imported by pkg.
++go get -d ./use/a
++stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++
++# 'go get pkg' may show a deprecation message for an indirectly required module
++# if it provides a package named on the command line.
++go get -d ./use/b
++! stderr 'module.*is deprecated'
++go get -d local/use
++! stderr 'module.*is deprecated'
++go get -d example.com/deprecated/b
++stderr '^go: warning: module example.com/deprecated/b is deprecated: in example.com/deprecated/b@v1.9.0$'
++
++# 'go get pkg' does not show a deprecation message for a module providing a
++# directly imported package if the module is no longer deprecated in its
++# latest version, even if the module is deprecated in its current version.
++go get -d ./use/undeprecated
++! stderr 'module.*is deprecated'
++
++-- go.mod --
++module m
++
++go 1.17
++
++require (
++	example.com/deprecated/a v1.0.0
++	example.com/undeprecated v1.0.0
++	local v0.0.0
++)
++
++replace local v0.0.0 => ./local
++-- use/nothing/nothing.go --
++package nothing
++-- use/a/a.go --
++package a
++
++import _ "example.com/deprecated/a"
++-- use/b/b.go --
++package b
++
++import _ "local/use"
++-- use/undeprecated/undeprecated.go --
++package undeprecated
++
++import _ "example.com/undeprecated"
++-- local/go.mod --
++module local
++
++go 1.17
++
++require example.com/deprecated/b v1.0.0
++-- local/use/use.go --
++package use
++
++import _ "example.com/deprecated/b"
+diff --git a/src/cmd/go/testdata/script/mod_list_deprecated.txt b/src/cmd/go/testdata/script/mod_list_deprecated.txt
+new file mode 100644
+index 0000000000..f0ecbba2ce
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_deprecated.txt
+@@ -0,0 +1,52 @@
++# 'go list pkg' does not show deprecation.
++go list example.com/deprecated/a
++stdout '^example.com/deprecated/a$'
++
++# 'go list -m' does not show deprecation.
++go list -m example.com/deprecated/a
++stdout '^example.com/deprecated/a v1.9.0$'
++
++# 'go list -m -versions' does not show deprecation.
++go list -m -versions example.com/deprecated/a
++stdout '^example.com/deprecated/a v1.0.0 v1.9.0$'
++
++# 'go list -m -u' shows deprecation.
++go list -m -u example.com/deprecated/a
++stdout '^example.com/deprecated/a v1.9.0 \(deprecated\)$'
++
++# 'go list -m -u -f' exposes the deprecation message.
++go list -m -u -f {{.Deprecated}} example.com/deprecated/a
++stdout '^in example.com/deprecated/a@v1.9.0$'
++
++# This works even if we use an old version that does not have the deprecation
++# message in its go.mod file.
++go get -d example.com/deprecated/a@v1.0.0
++! grep Deprecated: $WORK/gopath/pkg/mod/cache/download/example.com/deprecated/a/@v/v1.0.0.mod
++go list -m -u -f {{.Deprecated}} example.com/deprecated/a
++stdout '^in example.com/deprecated/a@v1.9.0$'
++
++# 'go list -m -u' does not show deprecation for the main module.
++go list -m -u
++! stdout deprecated
++go list -m -u -f '{{if not .Deprecated}}ok{{end}}'
++stdout ok
++
++# 'go list -m -u' does not show a deprecation message for a module that is not
++# deprecated at the latest version, even if it is deprecated at the current
++# version.
++go list -m -u example.com/undeprecated
++stdout '^example.com/undeprecated v1.0.0 \[v1.0.1\]$'
++-- go.mod --
++// Deprecated: main module is deprecated, too!
++module example.com/use
++
++go 1.17
++
++require (
++	example.com/deprecated/a v1.9.0
++	example.com/undeprecated v1.0.0
++)
++-- go.sum --
++example.com/deprecated/a v1.9.0 h1:pRyvBIZheJpQVVnNW4Fdg8QuoqDgtkCreqZZbASV3BE=
++example.com/deprecated/a v1.9.0/go.mod h1:Z1uUVshSY9kh6l/2hZ8oA9SBviX2yfaeEpcLDz6AZwY=
++example.com/undeprecated v1.0.0/go.mod h1:1qiRbdA9VzJXDqlG26Y41O5Z7YyO+jAD9do8XCZQ+Gg=
+diff --git a/src/cmd/go/testdata/script/mod_list_deprecated_replace.txt b/src/cmd/go/testdata/script/mod_list_deprecated_replace.txt
+new file mode 100644
+index 0000000000..48b991fc47
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_deprecated_replace.txt
+@@ -0,0 +1,68 @@
++# When all versions are replaced, we should not look up a deprecation message.
++# We will still look up a deprecation message for the replacement.
++cp go.mod.allreplaced go.mod
++go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
++stdout '^example.com/deprecated/a@v1.0.0 <> => example.com/deprecated/b@v1.0.0 <in example.com/deprecated/b@v1.9.0>$'
++
++# When one version is replaced, we should see a deprecation message.
++cp go.mod.onereplaced go.mod
++go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
++stdout '^example.com/deprecated/a@v1.0.0 <in example.com/deprecated/a@v1.9.0> => example.com/deprecated/b@v1.0.0 <in example.com/deprecated/b@v1.9.0>$'
++
++# If the replacement is a directory, we won't look that up.
++cp go.mod.dirreplacement go.mod
++go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
++stdout '^example.com/deprecated/a@v1.0.0 <> => ./a@ <>$'
++
++# If the latest version of the replacement is replaced, we'll use the content
++# from that replacement.
++cp go.mod.latestreplaced go.mod
++go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
++stdout '^example.com/deprecated/a@v1.0.0 <> => example.com/deprecated/b@v1.0.0 <in ./b>$'
++
++-- go.mod.allreplaced --
++module m
++
++go 1.17
++
++require example.com/deprecated/a v1.0.0
++
++replace example.com/deprecated/a => example.com/deprecated/b v1.0.0
++-- go.mod.onereplaced --
++module m
++
++go 1.17
++
++require example.com/deprecated/a v1.0.0
++
++replace example.com/deprecated/a v1.0.0 => example.com/deprecated/b v1.0.0
++-- go.mod.dirreplacement --
++module m
++
++go 1.17
++
++require example.com/deprecated/a v1.0.0
++
++replace example.com/deprecated/a => ./a
++-- go.mod.latestreplaced --
++module m
++
++go 1.17
++
++require example.com/deprecated/a v1.0.0
++
++replace (
++	example.com/deprecated/a => example.com/deprecated/b v1.0.0
++	example.com/deprecated/b v1.9.0 => ./b
++)
++-- go.sum --
++example.com/deprecated/b v1.0.0/go.mod h1:b19J9ywRGviY7Nq4aJ1WBJ+A7qUlEY9ihp22yI4/F6M=
++-- a/go.mod --
++module example.com/deprecated/a
++
++go 1.17
++-- b/go.mod --
++// Deprecated: in ./b
++module example.com/deprecated/b
++
++go 1.17

@@ -6,7 +6,158 @@ Date:   Tue Nov 24 11:31:11 2009 -0800
     
     R=dsymonds1, rsc
     https://golang.org/cl/156079
-
+---
  src/pkg/exp/iterable/iterable.go      | 74 +++++++++++++++++++++++++++++++++++
  src/pkg/exp/iterable/iterable_test.go | 60 ++++++++++++++++++++++++++++
  2 files changed, 134 insertions(+)
+
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+index d9836d52ba..ec09fc7e86 100644
+--- a/src/pkg/exp/iterable/iterable.go
++++ b/src/pkg/exp/iterable/iterable.go
+@@ -132,3 +132,77 @@ func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
+ 
+ // TODO:
+ // - Zip
++
++// helper type for the Take/TakeWhile/Drop/DropWhile functions.
++// primarily used so that the .Iter() method can be attached
++type iterFunc func(chan interface{})
++
++// provide the Iterable interface
++func (v iterFunc) Iter() <-chan interface{} {
++	ch := make(chan interface{});
++	go v(ch);
++	return ch;
++}
++
++// Take returns an Iterable that contains the first n elements of iter.
++func Take(iter Iterable, n int) Iterable {
++	return iterFunc(func(ch chan interface{}) {
++		defer close(ch);
++		if n <= 0 {
++			return
++		}
++		m := n;
++		for v := range iter.Iter() {
++			ch <- v;
++			m--;
++			if m == 0 {
++				return
++			}
++		}
++	})
++}
++
++// TakeWhile returns an Iterable that contains elements from iter while f is true.
++func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
++	return iterFunc(func(ch chan interface{}) {
++		for v := range iter.Iter() {
++			if !f(v) {
++				break
++			}
++			ch <- v;
++		}
++		close(ch);
++	})
++}
++
++// Drop returns an Iterable that returns each element of iter after the first n elements.
++func Drop(iter Iterable, n int) Iterable {
++	return iterFunc(func(ch chan interface{}) {
++		m := n;
++		for v := range iter.Iter() {
++			if m > 0 {
++				m--;
++				continue;
++			}
++			ch <- v;
++		}
++		close(ch);
++	})
++}
++
++// DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
++func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
++	return iterFunc(func(ch chan interface{}) {
++		drop := true;
++		for v := range iter.Iter() {
++			if drop {
++				if f(v) {
++					continue
++				}
++				drop = false;
++			}
++			ch <- v;
++		}
++		close(ch);
++	})
++}
+diff --git a/src/pkg/exp/iterable/iterable_test.go b/src/pkg/exp/iterable/iterable_test.go
+index c6307dca05..eefe222695 100644
+--- a/src/pkg/exp/iterable/iterable_test.go
++++ b/src/pkg/exp/iterable/iterable_test.go
+@@ -122,3 +122,63 @@ func TestPartition(t *testing.T) {
+ 	assertArraysAreEqual(t, Data(ti), []int{2, 4});
+ 	assertArraysAreEqual(t, Data(fi), []int{1, 3, 5});
+ }
++
++func TestTake(t *testing.T) {
++	res := Take(oneToFive, 2);
++	assertArraysAreEqual(t, Data(res), []int{1, 2});
++	assertArraysAreEqual(t, Data(res), []int{1, 2});	// second test to ensure that .Iter() returns a new channel
++
++	// take none
++	res = Take(oneToFive, 0);
++	assertArraysAreEqual(t, Data(res), []int{});
++
++	// try to take more than available
++	res = Take(oneToFive, 20);
++	assertArraysAreEqual(t, Data(res), oneToFive);
++}
++
++func TestTakeWhile(t *testing.T) {
++	// take some
++	res := TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) <= 3 });
++	assertArraysAreEqual(t, Data(res), []int{1, 2, 3});
++	assertArraysAreEqual(t, Data(res), []int{1, 2, 3});	// second test to ensure that .Iter() returns a new channel
++
++	// take none
++	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) > 3000 });
++	assertArraysAreEqual(t, Data(res), []int{});
++
++	// take all
++	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3000 });
++	assertArraysAreEqual(t, Data(res), oneToFive);
++}
++
++func TestDrop(t *testing.T) {
++	// drop none
++	res := Drop(oneToFive, 0);
++	assertArraysAreEqual(t, Data(res), oneToFive);
++	assertArraysAreEqual(t, Data(res), oneToFive);	// second test to ensure that .Iter() returns a new channel
++
++	// drop some
++	res = Drop(oneToFive, 2);
++	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});
++	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});	// second test to ensure that .Iter() returns a new channel
++
++	// drop more than available
++	res = Drop(oneToFive, 88);
++	assertArraysAreEqual(t, Data(res), []int{});
++}
++
++func TestDropWhile(t *testing.T) {
++	// drop some
++	res := DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3 });
++	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});
++	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});	// second test to ensure that .Iter() returns a new channel
++
++	// test case where all elements are dropped
++	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 100 });
++	assertArraysAreEqual(t, Data(res), []int{});
++
++	// test case where none are dropped
++	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) > 1000 });
++	assertArraysAreEqual(t, Data(res), oneToFive);
++}

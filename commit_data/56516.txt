@@ -19,7 +19,58 @@ Date:   Mon May 8 10:47:45 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testdir/testdir_test.go |  8 --------
  test/env.go                          | 13 ++++++++-----
  2 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/testdir/testdir_test.go b/src/internal/testdir/testdir_test.go
+index 864b072384..8ad2353e9f 100644
+--- a/src/internal/testdir/testdir_test.go
++++ b/src/internal/testdir/testdir_test.go
+@@ -571,14 +571,6 @@ func (t test) run() error {
+ 		t.Fatal(err)
+ 	}
+ 
+-	// A few tests (of things like the environment) require these to be set.
+-	if os.Getenv("GOOS") == "" {
+-		os.Setenv("GOOS", runtime.GOOS)
+-	}
+-	if os.Getenv("GOARCH") == "" {
+-		os.Setenv("GOARCH", runtime.GOARCH)
+-	}
+-
+ 	var (
+ 		runInDir        = tempDir
+ 		tempDirIsGOPATH = false
+diff --git a/test/env.go b/test/env.go
+index 972374679a..1590f1e06b 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that the Go environment variables are present and accessible through
+-// package os and package runtime.
++// Test that environment variables are accessible through
++// package os.
+ 
+ package main
+ 
+@@ -15,9 +15,12 @@ import (
+ )
+ 
+ func main() {
+-	ga := os.Getenv("GOARCH")
+-	if ga != runtime.GOARCH {
+-		print("$GOARCH=", ga, "!= runtime.GOARCH=", runtime.GOARCH, "\n")
++	ga := os.Getenv("PATH")
++	if runtime.GOOS == "plan9" {
++		ga = os.Getenv("path")
++	}
++	if ga == "" {
++		print("PATH is empty\n")
+ 		os.Exit(1)
+ 	}
+ 	xxx := os.Getenv("DOES_NOT_EXIST")

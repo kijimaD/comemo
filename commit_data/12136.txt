@@ -7,10 +7,164 @@ Date:   Wed Feb 22 00:29:37 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5688064
-
+---
  src/cmd/gc/const.c     | 21 ++++++++++++++++++---
  src/cmd/gc/subr.c      | 12 ++++++++++++
  src/cmd/gc/typecheck.c | 11 ++++++++++-
  src/cmd/gc/walk.c      |  4 +++-
  test/named1.go         |  4 ++--
  5 files changed, 45 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 15c760b3a6..e27c883387 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -87,6 +87,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 
+ 	switch(n->op) {
+ 	default:
++		if(n->type == idealbool)
++			n->type = types[TBOOL];
+ 		if(n->type->etype == TIDEAL) {
+ 			convlit(&n->left, t);
+ 			convlit(&n->right, t);
+@@ -1010,6 +1012,10 @@ defaultlit(Node **np, Type *t)
+ 		}
+ 		n->type = t;
+ 		return;
++	case ONOT:
++		defaultlit(&n->left, t);
++		n->type = n->left->type;
++		return;
+ 	default:
+ 		if(n->left == N) {
+ 			dump("defaultlit", n);
+@@ -1029,13 +1035,18 @@ defaultlit(Node **np, Type *t)
+ 		} else if(t == T && (n->left->op == OLSH || n->left->op == ORSH)) {
+ 			defaultlit(&n->right, T);
+ 			defaultlit(&n->left, n->right->type);
++		} else if(iscmp[n->op]) {
++			defaultlit2(&n->left, &n->right, 1);
+ 		} else {
+ 			defaultlit(&n->left, t);
+ 			defaultlit(&n->right, t);
+ 		}
+-		if(n->type == idealbool || n->type == idealstring)
+-			n->type = types[n->type->etype];
+-		else
++		if(n->type == idealbool || n->type == idealstring) {
++			if(t != T && t->etype == n->type->etype)
++				n->type = t;
++			else
++				n->type = types[n->type->etype];
++		} else
+ 			n->type = n->left->type;
+ 		return;
+ 	}
+@@ -1124,6 +1135,10 @@ defaultlit2(Node **lp, Node **rp, int force)
+ 	}
+ 	if(!force)
+ 		return;
++	if(l->type->etype == TBOOL) {
++		convlit(lp, types[TBOOL]);
++		convlit(rp, types[TBOOL]);
++	}
+ 	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
+ 		convlit(lp, types[TCOMPLEX128]);
+ 		convlit(rp, types[TCOMPLEX128]);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5621ed9d34..12ac6fcb97 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1354,6 +1354,18 @@ assignconv(Node *n, Type *t, char *context)
+ 	if(t->etype == TBLANK)
+ 		return n;
+ 
++	// Convert ideal bool from comparison to plain bool
++	// if the next step is non-bool (like interface{}).
++	if(n->type == idealbool && t->etype != TBOOL) {
++		if(n->op == ONAME || n->op == OLITERAL) {
++			r = nod(OCONVNOP, n, N);
++			r->type = types[TBOOL];
++			r->typecheck = 1;
++			r->implicit = 1;
++			n = r;
++		}
++	}
++
+ 	if(eqtype(n->type, t))
+ 		return n;
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5bb386d8e5..90bd24964e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -526,7 +526,7 @@ reswitch:
+ 		t = l->type;
+ 		if(iscmp[n->op]) {
+ 			evconst(n);
+-			t = types[TBOOL];
++			t = idealbool;
+ 			if(n->op != OLITERAL) {
+ 				defaultlit2(&l, &r, 1);
+ 				n->left = l;
+@@ -1317,6 +1317,13 @@ reswitch:
+ 	case OPRINTN:
+ 		ok |= Etop;
+ 		typechecklist(n->list, Erv | Eindir);  // Eindir: address does not escape
++		for(args=n->list; args; args=args->next) {
++			// Special case for print: int constant is int64, not int.
++			if(isconst(args->n, CTINT))
++				defaultlit(&args->n, types[TINT64]);
++			else
++				defaultlit(&args->n, T);
++		}
+ 		goto ret;
+ 
+ 	case OPANIC:
+@@ -2887,6 +2894,8 @@ typecheckdef(Node *n)
+ 	}
+ 
+ ret:
++	if(n->op != OLITERAL && n->type != T && isideal(n->type))
++		fatal("got %T for %N", n->type, n);
+ 	if(typecheckdefstack->n != n)
+ 		fatal("typecheckdefstack mismatch");
+ 	l = typecheckdefstack;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ea18766e30..9bd0a699cb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1055,6 +1055,8 @@ walkexpr(Node **np, NodeList **init)
+ 			walkexpr(&r, nil);
+ 		}
+ 		typecheck(&r, Erv);
++		if(n->type->etype != TBOOL) fatal("cmp %T", n->type);
++		r->type = n->type;
+ 		n = r;
+ 		goto ret;
+ 
+@@ -1190,7 +1192,7 @@ walkexpr(Node **np, NodeList **init)
+ 			r = nod(OOROR, nod(ONE, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
+ 		typecheck(&r, Erv);
+ 		walkexpr(&r, nil);
+-
++		r->type = n->type;
+ 		n = r;
+ 		goto ret;
+ 
+diff --git a/test/named1.go b/test/named1.go
+index ca9da0fa31..5ff6930f7d 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -37,8 +37,8 @@ func main() {
+ 	asBool(true)
+ 	asBool(*&b)
+ 	asBool(Bool(true))
+-	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"
+-	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
++	asBool(1 != 2) // ok now
++	asBool(i < j)  // ok now
+ 
+ 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
+ 

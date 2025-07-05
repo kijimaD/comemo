@@ -9,7 +9,32 @@ Date:   Wed Dec 14 10:24:17 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5482062
-
+---
  src/pkg/go/build/Makefile   | 2 +-
  src/pkg/go/build/syslist.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index 349e00e801..1a18e00b88 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -11,7 +11,7 @@ GOFILES=\
+ 	path.go\
+ 	syslist.go\
+ 
+-CLEANFILES+=syslist.go pkgtest/_obj cmdtest/_obj cgotest/_obj
++CLEANFILES+=pkgtest/_obj cmdtest/_obj cgotest/_obj
+ 
+ include ../../../Make.pkg
+ 
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+new file mode 100644
+index 0000000000..0ee9821322
+--- /dev/null
++++ b/src/pkg/go/build/syslist.go
+@@ -0,0 +1,5 @@
++// Generated automatically by make.
++package build
++
++const goosList = "darwin freebsd linux netbsd openbsd plan9 windows "
++const goarchList = "386 amd64 arm "

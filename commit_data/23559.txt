@@ -11,6 +11,37 @@ Date:   Tue May 26 11:44:18 2015 -0700
     Change-Id: If87ad0fb546c6955a6d4b5801e06e5c7d5695ea2
     Reviewed-on: https://go-review.googlesource.com/10382
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 17 +----------------
  1 file changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cdcca6be57..b5f18f3a02 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,24 +1,9 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 18, 2015",
++	"Subtitle": "Version of May 26, 2015",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+-<!--
+-TODO
+-[ ] need language about function/method calls and parameter passing rules
+-[ ] last paragraph of #Assignments (constant promotion) should be elsewhere
+-    and mention assignment to empty interface.
+-[ ] need to say something about "scope" of selectors?
+-[ ] clarify what a field name is in struct declarations
+-    (struct{T} vs struct {T T} vs struct {t T})
+-[ ] need explicit language about the result type of operations
+-[ ] should probably write something about evaluation order of statements even
+-	though obvious
+-[ ] in Selectors section, clarify what receiver value is passed in method invocations
+--->
+-
+-
+ <h2 id="Introduction">Introduction</h2>
+ 
+ <p>

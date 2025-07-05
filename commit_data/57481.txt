@@ -13,7 +13,7 @@ Date:   Tue Aug 8 18:25:59 2023 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/godebug.md                     |  8 ++++++++
  src/crypto/tls/conn.go             |  5 +++++
  src/crypto/tls/handshake_client.go | 29 ++++++++++++++++++++++++-----
@@ -21,3 +21,143 @@ Date:   Tue Aug 8 18:25:59 2023 -0700
  src/internal/godebugs/table.go     |  1 +
  src/runtime/metrics/doc.go         |  4 ++++
  6 files changed, 48 insertions(+), 8 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 7a6d70e487..d26555503e 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -126,6 +126,14 @@ for example,
+ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
+ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
++### Go 1.22
++
++Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
++that can be used in TLS handshakes, controlled by the [`tlsmaxrsasize`setting](/pkg/crypto/tls#Conn.Handshake).
++The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
++denial of service attacks, this setting and default was backported to Go
++1.19.13, Go 1.20.8, and Go 1.21.1.
++
+ ### Go 1.21
+ 
+ Go 1.21 made it a run-time error to call `panic` with a nil interface value,
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 8b62dd5bff..c04bd48d6a 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1467,6 +1467,11 @@ func (c *Conn) closeNotify() error {
+ //
+ // For control over canceling or setting a timeout on a handshake, use
+ // HandshakeContext or the Dialer's DialContext method instead.
++//
++// In order to avoid denial of service attacks, the maximum RSA key size allowed
++// in certificates sent by either the TLS server or client is limited to 8192
++// bits. This limit can be overridden by setting tlsmaxrsasize in the GODEBUG
++// environment variable (e.g. GODEBUG=tlsmaxrsasize=4096).
+ func (c *Conn) Handshake() error {
+ 	return c.HandshakeContext(context.Background())
+ }
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f6911d458f..4649f36dea 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -17,8 +17,10 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
++	"internal/godebug"
+ 	"io"
+ 	"net"
++	"strconv"
+ 	"strings"
+ 	"time"
+ )
+@@ -936,9 +938,23 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
+ 	return nil
+ }
+ 
+-// maxRSAKeySize is the maximum RSA key size in bits that we are willing
++// defaultMaxRSAKeySize is the maximum RSA key size in bits that we are willing
+ // to verify the signatures of during a TLS handshake.
+-const maxRSAKeySize = 8192
++const defaultMaxRSAKeySize = 8192
++
++var tlsmaxrsasize = godebug.New("tlsmaxrsasize")
++
++func checkKeySize(n int) (max int, ok bool) {
++	if v := tlsmaxrsasize.Value(); v != "" {
++		if max, err := strconv.Atoi(v); err == nil {
++			if (n <= max) != (n <= defaultMaxRSAKeySize) {
++				tlsmaxrsasize.IncNonDefault()
++			}
++			return max, n <= max
++		}
++	}
++	return defaultMaxRSAKeySize, n <= defaultMaxRSAKeySize
++}
+ 
+ // verifyServerCertificate parses and verifies the provided chain, setting
+ // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
+@@ -951,9 +967,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 			c.sendAlert(alertBadCertificate)
+ 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
+ 		}
+-		if cert.cert.PublicKeyAlgorithm == x509.RSA && cert.cert.PublicKey.(*rsa.PublicKey).N.BitLen() > maxRSAKeySize {
+-			c.sendAlert(alertBadCertificate)
+-			return fmt.Errorf("tls: server sent certificate containing RSA key larger than %d bits", maxRSAKeySize)
++		if cert.cert.PublicKeyAlgorithm == x509.RSA {
++			n := cert.cert.PublicKey.(*rsa.PublicKey).N.BitLen()
++			if max, ok := checkKeySize(n); !ok {
++				c.sendAlert(alertBadCertificate)
++				return fmt.Errorf("tls: server sent certificate containing RSA key larger than %d bits", max)
++			}
+ 		}
+ 		activeHandles[i] = cert
+ 		certs[i] = cert.cert
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 89a16a8967..996b23b1f5 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -864,9 +864,12 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 			c.sendAlert(alertBadCertificate)
+ 			return errors.New("tls: failed to parse client certificate: " + err.Error())
+ 		}
+-		if certs[i].PublicKeyAlgorithm == x509.RSA && certs[i].PublicKey.(*rsa.PublicKey).N.BitLen() > maxRSAKeySize {
+-			c.sendAlert(alertBadCertificate)
+-			return fmt.Errorf("tls: client sent certificate containing RSA key larger than %d bits", maxRSAKeySize)
++		if certs[i].PublicKeyAlgorithm == x509.RSA {
++			n := certs[i].PublicKey.(*rsa.PublicKey).N.BitLen()
++			if max, ok := checkKeySize(n); !ok {
++				c.sendAlert(alertBadCertificate)
++				return fmt.Errorf("tls: client sent certificate containing RSA key larger than %d bits", max)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 243f9efce1..b1711d9ef2 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -42,6 +42,7 @@ var All = []Info{
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
++	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "zipinsecurepath", Package: "archive/zip"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index b4d32d135a..55d1f65f42 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -290,6 +290,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		package due to a non-default GODEBUG=tarinsecurepath=...
+ 		setting.
+ 
++	/godebug/non-default-behavior/tlsmaxrsasize:events
++		The number of non-default behaviors executed by the crypto/tls
++		package due to a non-default GODEBUG=tlsmaxrsasize=... setting.
++
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

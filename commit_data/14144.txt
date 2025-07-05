@@ -9,7 +9,66 @@ Date:   Mon Oct 15 07:50:13 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6683047
-
+---
  src/pkg/time/format.go    | 11 ++++++-----
  src/pkg/time/time_test.go |  2 ++
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 46f4fbc13b..aab4a4d6b6 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -323,7 +323,8 @@ func atoi(s string) (x int, err error) {
+ 		neg = true
+ 		s = s[1:]
+ 	}
+-	x, rem, err := leadingInt(s)
++	q, rem, err := leadingInt(s)
++	x = int(q)
+ 	if err != nil || rem != "" {
+ 		return 0, atoiError
+ 	}
+@@ -954,18 +955,18 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string,
+ var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
+ 
+ // leadingInt consumes the leading [0-9]* from s.
+-func leadingInt(s string) (x int, rem string, err error) {
++func leadingInt(s string) (x int64, rem string, err error) {
+ 	i := 0
+ 	for ; i < len(s); i++ {
+ 		c := s[i]
+ 		if c < '0' || c > '9' {
+ 			break
+ 		}
+-		if x >= (1<<31-10)/10 {
++		if x >= (1<<63-10)/10 {
+ 			// overflow
+ 			return 0, "", errLeadingInt
+ 		}
+-		x = x*10 + int(c) - '0'
++		x = x*10 + int64(c) - '0'
+ 	}
+ 	return x, s[i:], nil
+ }
+@@ -1010,7 +1011,7 @@ func ParseDuration(s string) (Duration, error) {
+ 	for s != "" {
+ 		g := float64(0) // this element of the sequence
+ 
+-		var x int
++		var x int64
+ 		var err error
+ 
+ 		// The next character must be [0-9.]
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 23bb6a55bc..9888d0d9c1 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -999,6 +999,8 @@ var parseDurationTests = []struct {
+ 	{"-2m3.4s", true, -(2*Minute + 3*Second + 400*Millisecond)},
+ 	{"1h2m3s4ms5us6ns", true, 1*Hour + 2*Minute + 3*Second + 4*Millisecond + 5*Microsecond + 6*Nanosecond},
+ 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
++	// large value
++	{"52763797000ns", true, 52763797000 * Nanosecond},
+ 
+ 	// errors
+ 	{"", false, 0},

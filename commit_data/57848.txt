@@ -15,8 +15,149 @@ Date:   Wed Sep 6 13:06:58 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules | 30 +++++++++--------
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 46 +++++++++++++++++++++++++++
  test/fixedbugs/issue62469.go                  | 15 +++++++++
  3 files changed, 77 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 4a99771e3b..1719312fbd 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1555,20 +1555,22 @@
+ (GreaterEqualU (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
+ 
+ // absorb InvertFlags into boolean values
+-(Equal         (InvertFlags x)) => (Equal x)
+-(NotEqual      (InvertFlags x)) => (NotEqual x)
+-(LessThan      (InvertFlags x)) => (GreaterThan x)
+-(LessThanU     (InvertFlags x)) => (GreaterThanU x)
+-(GreaterThan   (InvertFlags x)) => (LessThan x)
+-(GreaterThanU  (InvertFlags x)) => (LessThanU x)
+-(LessEqual     (InvertFlags x)) => (GreaterEqual x)
+-(LessEqualU    (InvertFlags x)) => (GreaterEqualU x)
+-(GreaterEqual  (InvertFlags x)) => (LessEqual x)
+-(GreaterEqualU (InvertFlags x)) => (LessEqualU x)
+-(LessThanF     (InvertFlags x)) => (GreaterThanF x)
+-(LessEqualF    (InvertFlags x)) => (GreaterEqualF x)
+-(GreaterThanF  (InvertFlags x)) => (LessThanF x)
+-(GreaterEqualF (InvertFlags x)) => (LessEqualF x)
++(Equal            (InvertFlags x)) => (Equal x)
++(NotEqual         (InvertFlags x)) => (NotEqual x)
++(LessThan         (InvertFlags x)) => (GreaterThan x)
++(LessThanU        (InvertFlags x)) => (GreaterThanU x)
++(GreaterThan      (InvertFlags x)) => (LessThan x)
++(GreaterThanU     (InvertFlags x)) => (LessThanU x)
++(LessEqual        (InvertFlags x)) => (GreaterEqual x)
++(LessEqualU       (InvertFlags x)) => (GreaterEqualU x)
++(GreaterEqual     (InvertFlags x)) => (LessEqual x)
++(GreaterEqualU    (InvertFlags x)) => (LessEqualU x)
++(LessThanF        (InvertFlags x)) => (GreaterThanF x)
++(LessEqualF       (InvertFlags x)) => (GreaterEqualF x)
++(GreaterThanF     (InvertFlags x)) => (LessThanF x)
++(GreaterEqualF    (InvertFlags x)) => (LessEqualF x)
++(LessThanNoov     (InvertFlags x)) => (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
++(GreaterEqualNoov (InvertFlags x)) => (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
+ 
+ // Boolean-generating instructions (NOTE: NOT all boolean Values) always
+ // zero upper bit of the register; no need to zero-extend
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 84274bd506..caeed8b6b9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -154,6 +154,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64GreaterEqual(v)
+ 	case OpARM64GreaterEqualF:
+ 		return rewriteValueARM64_OpARM64GreaterEqualF(v)
++	case OpARM64GreaterEqualNoov:
++		return rewriteValueARM64_OpARM64GreaterEqualNoov(v)
+ 	case OpARM64GreaterEqualU:
+ 		return rewriteValueARM64_OpARM64GreaterEqualU(v)
+ 	case OpARM64GreaterThan:
+@@ -174,6 +176,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64LessThan(v)
+ 	case OpARM64LessThanF:
+ 		return rewriteValueARM64_OpARM64LessThanF(v)
++	case OpARM64LessThanNoov:
++		return rewriteValueARM64_OpARM64LessThanNoov(v)
+ 	case OpARM64LessThanU:
+ 		return rewriteValueARM64_OpARM64LessThanU(v)
+ 	case OpARM64MADD:
+@@ -5965,6 +5969,27 @@ func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (GreaterEqualNoov (InvertFlags x))
++	// result: (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
++	for {
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64OR)
++		v0 := b.NewValue0(v.Pos, OpARM64LessThanNoov, typ.Bool)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
++		v1.AddArg(x)
++		v.AddArg2(v0, v1)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64GreaterEqualU(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GreaterEqualU (FlagConstant [fc]))
+@@ -6679,6 +6704,27 @@ func rewriteValueARM64_OpARM64LessThanF(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (LessThanNoov (InvertFlags x))
++	// result: (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
++	for {
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64BIC)
++		v0 := b.NewValue0(v.Pos, OpARM64GreaterEqualNoov, typ.Bool)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
++		v1.AddArg(x)
++		v.AddArg2(v0, v1)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64LessThanU(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (LessThanU (FlagConstant [fc]))
+diff --git a/test/fixedbugs/issue62469.go b/test/fixedbugs/issue62469.go
+new file mode 100644
+index 0000000000..d850ccb289
+--- /dev/null
++++ b/test/fixedbugs/issue62469.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func sign(p1, p2, p3 point) bool {
++	return (p1.x-p3.x)*(p2.y-p3.y)-(p2.x-p3.x)*(p1.y-p3.y) < 0
++}
++
++type point struct {
++	x, y int
++}

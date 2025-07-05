@@ -7,6 +7,20 @@ Date:   Sat Sep 13 14:51:39 2008 -0700
     R=r
     OCL=15314
     CL=15314
-
+---
  src/cmd/6g/gsubr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ac807c651e..28daa2a335 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -329,7 +329,7 @@ loop:
+ 		s->local = 2;
+ 
+ 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+-	s = pkglookup(namebuf, s->package);
++	s = pkglookup(namebuf, s->opackage);
+ 	return s;
+ }
+ 

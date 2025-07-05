@@ -64,7 +64,7 @@ Date:   Wed Mar 5 11:10:40 2014 -0500
     R=golang-codereviews, alex.brainman
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/71440043
-
+---
  src/pkg/runtime/cgocall.c               | 12 +++++++
  src/pkg/runtime/export_test.go          |  4 +++
  src/pkg/runtime/proc.c                  | 16 +++------
@@ -73,3 +73,314 @@ Date:   Wed Mar 5 11:10:40 2014 -0500
  src/pkg/runtime/sys_windows_386.s       | 10 ++++++
  src/pkg/runtime/syscall_windows_test.go | 57 +++++++++++++++++++++------------
  7 files changed, 100 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index b61cc904c1..0876c00b41 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -98,6 +98,7 @@ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+ 	Defer d;
++	SEHUnwind sehunwind;
+ 
+ 	if(m->racecall) {
+ 		runtime·asmcgocall(fn, arg);
+@@ -130,6 +131,14 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	d.argp = (void*)-1;  // unused because unlockm never recovers
+ 	d.special = true;
+ 	g->defer = &d;
++	
++	// Record current SEH for restoration during endcgo.
++	// This matters most when the execution stops due to panic
++	// and the called C code isn't given a chance to clean up
++	// the SEHs it has pushed.
++	sehunwind.seh = runtime·getseh();
++	sehunwind.link = m->sehunwind;
++	m->sehunwind = &sehunwind;
+ 
+ 	m->ncgo++;
+ 
+@@ -166,6 +175,9 @@ endcgo(void)
+ 		m->cgomal = nil;
+ 	}
+ 
++	runtime·setseh(m->sehunwind->seh);
++	m->sehunwind = m->sehunwind->link;
++
+ 	if(raceenabled)
+ 		runtime·raceacquire(&cgosync);
+ }
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 7a31b63b31..eedc1b7e20 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -90,3 +90,7 @@ var MemclrBytes = memclrBytes
+ func gogoBytes() int32
+ 
+ var GogoBytes = gogoBytes
++
++func getseh_go() uintptr
++
++var GetSEH = getseh_go
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 94d08bb55c..6a65e590de 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -601,13 +601,11 @@ runtime·starttheworld(void)
+ void
+ runtime·mstart(void)
+ {
+-#ifdef GOOS_windows
+-#ifdef GOARCH_386
++#ifdef GOOSARCH_windows_386
+ 	// It is used by windows-386 only. Unfortunately, seh needs
+ 	// to be located on os stack, and mstart runs on os stack
+ 	// for both m0 and m.
+ 	SEH seh;
+-#endif
+ #endif
+ 
+ 	if(g != m->g0)
+@@ -619,10 +617,8 @@ runtime·mstart(void)
+ 	runtime·gosave(&m->g0->sched);
+ 	m->g0->sched.pc = (uintptr)-1;  // make sure it is never used
+ 	m->g0->stackguard = m->g0->stackguard0;  // cgo sets only stackguard0, copy it to stackguard
+-#ifdef GOOS_windows
+-#ifdef GOARCH_386
++#ifdef GOOSARCH_windows_386
+ 	m->seh = &seh;
+-#endif
+ #endif
+ 	runtime·asminit();
+ 	runtime·minit();
+@@ -775,14 +771,12 @@ runtime·needm(byte x)
+ 	g->stackguard = (uintptr)(&x - 32*1024);
+ 	g->stackguard0 = g->stackguard;
+ 
+-#ifdef GOOS_windows
+-#ifdef GOARCH_386
++#ifdef GOOSARCH_windows_386
+ 	// On windows/386, we need to put an SEH frame (two words)
+ 	// somewhere on the current stack. We are called from cgocallback_gofunc
+ 	// and we know that it will leave two unused words below m->curg->sched.sp.
+ 	// Use those.
+ 	m->seh = (SEH*)((uintptr*)&x + 1);
+-#endif
+ #endif
+ 
+ 	// Initialize this thread to use the m.
+@@ -862,10 +856,8 @@ runtime·dropm(void)
+ 	// Undo whatever initialization minit did during needm.
+ 	runtime·unminit();
+ 
+-#ifdef GOOS_windows
+-#ifdef GOARCH_386
++#ifdef GOOSARCH_windows_386
+ 	m->seh = nil;  // reset dangling typed pointer
+-#endif
+ #endif
+ 
+ 	// Clear m and g, and return m to the extra list.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 5ecb7827a9..90bd24004f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -86,6 +86,7 @@ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
+ typedef	struct	LibCall		LibCall;
+ typedef	struct	SEH		SEH;
++typedef	struct	SEHUnwind		SEHUnwind;
+ typedef	struct	WinCallbackContext	WinCallbackContext;
+ typedef	struct	Timers		Timers;
+ typedef	struct	Timer		Timer;
+@@ -241,11 +242,19 @@ struct	LibCall
+ 	uintptr	r2;
+ 	uintptr	err;	// error number
+ };
++
+ struct	SEH
+ {
+ 	void*	prev;
+ 	void*	handler;
+ };
++
++struct	SEHUnwind
++{
++	SEHUnwind*	link;
++	SEH*	seh;
++};
++
+ // describes how to handle callback
+ struct	WinCallbackContext
+ {
+@@ -295,6 +304,16 @@ struct	G
+ 	uintptr	racectx;
+ 	uintptr	end[];
+ };
++
++// Define a symbol for windows/386 because that is the only
++// system with SEH handling, and we end up checking that
++// repeatedly.
++#ifdef GOOS_windows
++#ifdef GOARCH_386
++#define GOOSARCH_windows_386
++#endif
++#endif
++
+ struct	M
+ {
+ 	G*	g0;		// goroutine with scheduling stack
+@@ -378,6 +397,7 @@ struct	M
+ 	byte*	errstr;
+ #endif
+ 	SEH*	seh;
++	SEHUnwind*	sehunwind;
+ 	uintptr	end[];
+ };
+ 
+@@ -947,6 +967,16 @@ void*	runtime·funcdata(Func*, int32);
+ int32	runtime·setmaxthreads(int32);
+ G*	runtime·timejump(void);
+ 
++// On Windows 386, we have functions for saving and restoring
++// the SEH values; elsewhere #define them away.
++#ifdef GOOSARCH_windows_386
++SEH*	runtime·getseh(void);
++void	runtime·setseh(SEH*);
++#else
++#define runtime·getseh() nil
++#define runtime·setseh(x) do{}while(0)
++#endif
++
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"c"	int32
+ #pragma	varargck	type	"d"	int32
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index c6f6b626a7..57a476b7ce 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -43,6 +43,10 @@ func gogoBytes() (x int32) {
+ 	x = RuntimeGogoBytes;
+ }
+ 
++func getseh_go() (x uintptr) {
++	x = (uintptr)runtime·getseh();
++}
++
+ func typestring(e Eface) (s String) {
+ 	s = *e.type->string;
+ }
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 2755d5001c..ba872496d6 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -390,3 +390,13 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	CALL	AX
+ 	MOVL	BP, SP
+ 	RET
++
++TEXT runtime·getseh(SB),NOSPLIT,$0
++	MOVL	0(FS), AX
++	RET
++
++TEXT runtime·setseh(SB),NOSPLIT,$0
++	MOVL	seh+0(FP), AX
++	MOVL	AX, 0(FS)
++	RET
++
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index ff6bc3dc88..d5e35b9bc3 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -177,11 +177,25 @@ func TestCallbackGC(t *testing.T) {
+ 	nestedCall(t, runtime.GC)
+ }
+ 
+-func TestCallbackPanic(t *testing.T) {
+-	// Make sure panic during callback unwinds properly.
+-	if runtime.LockedOSThread() {
+-		t.Fatal("locked OS thread on entry to TestCallbackPanic")
++// NOTE: TestCallbackPanicLocked must precede the other TestCallbackPanic variants.
++// The SEH logic is testing that SEH is properly restored during the panic.
++// The bug we're looking for (issue 7470) used to leave SEH in the wrong place,
++// but future panics would leave it in that same wrong place. So if one of the other
++// tests runs first, TestCallbackPanicLocked will see SEH not changing and
++// incorrectly infer that it is being restored properly.
++// The SEH checks are only safe (not racy) with the OS thread locked.
++//
++// The fallback is that even if this test doesn't notice, TestSetPanicOnFault will
++// crash if it runs on the same thread after one of these tests.
++
++func TestCallbackPanicLocked(t *testing.T) {
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
++	if !runtime.LockedOSThread() {
++		t.Fatal("runtime.LockOSThread didn't")
+ 	}
++	oldSEH := runtime.GetSEH()
+ 	defer func() {
+ 		s := recover()
+ 		if s == nil {
+@@ -190,27 +204,21 @@ func TestCallbackPanic(t *testing.T) {
+ 		if s.(string) != "callback panic" {
+ 			t.Fatal("wrong panic:", s)
+ 		}
+-		if runtime.LockedOSThread() {
+-			t.Fatal("locked OS thread on exit from TestCallbackPanic")
++		if !runtime.LockedOSThread() {
++			t.Fatal("lost lock on OS thread after panic")
++		}
++		if newSEH := runtime.GetSEH(); oldSEH != newSEH {
++			t.Fatalf("SEH not restored after panic: %#x became %#x", oldSEH, newSEH)
+ 		}
+ 	}()
+ 	nestedCall(t, func() { panic("callback panic") })
+ 	panic("nestedCall returned")
+ }
+ 
+-func TestCallbackPanicLoop(t *testing.T) {
+-	// Make sure we don't blow out m->g0 stack.
+-	for i := 0; i < 100000; i++ {
+-		TestCallbackPanic(t)
+-	}
+-}
+-
+-func TestCallbackPanicLocked(t *testing.T) {
+-	runtime.LockOSThread()
+-	defer runtime.UnlockOSThread()
+-
+-	if !runtime.LockedOSThread() {
+-		t.Fatal("runtime.LockOSThread didn't")
++func TestCallbackPanic(t *testing.T) {
++	// Make sure panic during callback unwinds properly.
++	if runtime.LockedOSThread() {
++		t.Fatal("locked OS thread on entry to TestCallbackPanic")
+ 	}
+ 	defer func() {
+ 		s := recover()
+@@ -220,14 +228,21 @@ func TestCallbackPanicLocked(t *testing.T) {
+ 		if s.(string) != "callback panic" {
+ 			t.Fatal("wrong panic:", s)
+ 		}
+-		if !runtime.LockedOSThread() {
+-			t.Fatal("lost lock on OS thread after panic")
++		if runtime.LockedOSThread() {
++			t.Fatal("locked OS thread on exit from TestCallbackPanic")
+ 		}
+ 	}()
+ 	nestedCall(t, func() { panic("callback panic") })
+ 	panic("nestedCall returned")
+ }
+ 
++func TestCallbackPanicLoop(t *testing.T) {
++	// Make sure we don't blow out m->g0 stack.
++	for i := 0; i < 100000; i++ {
++		TestCallbackPanic(t)
++	}
++}
++
+ func TestBlockingCallback(t *testing.T) {
+ 	c := make(chan int)
+ 	go func() {

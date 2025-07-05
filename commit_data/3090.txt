@@ -8,8 +8,153 @@ Date:   Wed Aug 26 16:14:17 2009 -0700
     DELTA=105  (77 added, 23 deleted, 5 changed)
     OCL=33890
     CL=33910
-
+---
  src/pkg/big/arith.go      | 87 ++++++++++++++++++++++++++++++++++++++++++++---
  src/pkg/big/arith_386.s   | 12 -------
  src/pkg/big/arith_amd64.s | 11 ------
  3 files changed, 82 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 6af5de9bc0..d75f37ac12 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -138,8 +138,55 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ 
+-// TODO(gri) get rid of this eventually
+-func divWWW_s(x1, x0, y Word) (q, r Word)
++// q = (x1<<_W + x0 - r)/y
++// The most significant bit of y must be 1.
++func divStep(x1, x0, y Word) (q, r Word) {
++	d1, d0 := y>>_W2, y&_M2;
++	q1, r1 := x1/d1, x1%d1;
++	m := q1*d0;
++	r1 = r1*_B2 | x0>>_W2;
++	if r1 < m {
++		q1--;
++		r1 += y;
++		if r1 >= y && r1 < m {
++			q1--;
++			r1 += y;
++		}
++	}
++	r1 -= m;
++
++	r0 := r1%d1;
++	q0 := r1/d1;
++	m = q0*d0;
++	r0 = r0*_B2 | x0&_M2;
++	if r0 < m {
++		q0--;
++		r0 += y;
++		if r0 >= y && r0 < m {
++			q0--;
++			r0 += y;
++		}
++	}
++	r0 -= m;
++
++	q = q1*_B2 | q0;
++	r = r0;
++	return;
++}
++
++
++// Number of leading zeros in x.
++func leadingZeros(x Word) (n uint) {
++	if x == 0 {
++		return uint(_W);
++	}
++	for x & (1<<(_W-1)) == 0 {
++		n++;
++		x <<= 1;
++	}
++	return;
++}
++
+ 
+ // q = (x1<<_W + x0 - r)/y
+ func divWW_g(x1, x0, y Word) (q, r Word) {
+@@ -148,9 +195,39 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 		return;
+ 	}
+ 
+-	// TODO(gri) implement general case w/o assembly code
+-	q, r = divWWW_s(x1, x0, y);
+-	return;
++	var q0, q1 Word;
++	z := leadingZeros(y);
++	if y > x1 {
++		if z != 0 {
++			y <<= z;
++			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
++			x0 <<= z;
++		}
++		q0, x0 = divStep(x1, x0, y);
++		q1 = 0;
++	} else {
++		if z == 0 {
++			x1 -= y;
++			q1 = 1;
++		} else {
++			z1 := uint(_W) - z;
++			y <<= z;
++			x2 := x1 >> z1;
++			x1 = (x1 << z) | (x0 >> z1);
++			x0 <<= z;
++			q1, x1 = divStep(x2, x1, y);
++		}
++
++		q0, x0 = divStep(x1, x0, y);
++	}
++
++	r = x0 >> z;
++
++	if q1 != 0 {
++		panic("div out of range");
++	}
++
++	return q0, r;
+ }
+ 
+ 
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index 9fb982bec9..885b152737 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -19,15 +19,3 @@ TEXT big·mulAddVWW_s(SB),7,$0
+ TEXT big·addMulVVW_s(SB),7,$0
+ TEXT big·divWVW_s(SB),7,$0
+ 	RET
+-
+-
+-// func divWWW_s(x1, x0, y Word) (q, r Word)
+-// TODO(gri) Implement this routine completely in Go.
+-//           At the moment we need this assembly version.
+-TEXT big·divWWW_s(SB),7,$0
+-	MOVL x1+0(FP), DX
+-	MOVL x0+4(FP), AX
+-	DIVL y+8(FP)
+-	MOVL AX, q+12(FP)
+-	MOVL DX, r+16(FP)
+-	RET
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 7daf404179..4733a7c3aa 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -176,14 +176,3 @@ E7:	SUBL $1, BX         // i--
+ 
+ 	MOVQ DX, r+40(FP)
+ 	RET
+-
+-
+-// TODO(gri) Implement this routine completely in Go.
+-//           At the moment we need this assembly version.
+-TEXT big·divWWW_s(SB),7,$0
+-	MOVQ x1+0(FP), DX
+-	MOVQ x0+8(FP), AX
+-	DIVQ y+16(FP)
+-	MOVQ AX, q+24(FP)
+-	MOVQ DX, r+32(FP)
+-	RET

@@ -18,6 +18,28 @@ Date:   Sun Sep 11 19:05:29 2016 -0700
     Change-Id: Ie2ea668559d52d42b747260ea69a6d5b3d70e859
     Reviewed-on: https://go-review.googlesource.com/29073
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mkduff.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 46890791e3..cf6b37f530 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -8,14 +8,14 @@
+ // The compiler jumps to computed addresses within
+ // the routine to zero chunks of memory.
+ // Do not change duffzero without also
+-// changing clearfat in cmd/?g/ggen.go.
++// changing the uses in cmd/compile/internal/*/*.go.
+ 
+ // runtime·duffcopy is a Duff's device for copying memory.
+ // The compiler jumps to computed addresses within
+ // the routine to copy chunks of memory.
+ // Source and destination must not overlap.
+ // Do not change duffcopy without also
+-// changing blockcopy in cmd/?g/cgen.go.
++// changing the uses in cmd/compile/internal/*/*.go.
+ 
+ // See the zero* and copy* generators below
+ // for architecture-specific comments.

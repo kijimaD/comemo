@@ -7,6 +7,20 @@ Date:   Wed Dec 21 16:35:31 2011 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5498062
-
+---
  src/pkg/os/user/lookup_stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index ea01f9683d..42fa557445 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nocgo
++// +build nocgo windows
+ 
+ package user
+ 

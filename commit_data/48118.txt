@@ -14,7 +14,45 @@ Date:   Tue Apr 27 06:19:57 2021 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: eric fang <eric.fang@arm.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s | 4 ++--
  src/cmd/internal/obj/arm64/asm7.go             | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 1744c09b98..feb03abacd 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -59,8 +59,8 @@ TEXT errors(SB),$0
+ 	LDP	(R0), (R3, ZR)                                   // ERROR "invalid register pair"
+ 	LDXPW	(RSP), (R2, R2)                                  // ERROR "constrained unpredictable behavior"
+ 	LDAXPW	(R5), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
+-	MOVD.P	300(R2), R3                                      // ERROR "offset out of range [-255,254]"
+-	MOVD.P	R3, 344(R2)                                      // ERROR "offset out of range [-255,254]"
++	MOVD.P	300(R2), R3                                      // ERROR "offset out of range [-256,255]"
++	MOVD.P	R3, 344(R2)                                      // ERROR "offset out of range [-256,255]"
+ 	MOVD	(R3)(R7.SXTX<<2), R8                             // ERROR "invalid index shift amount"
+ 	MOVWU	(R5)(R4.UXTW<<3), R10                            // ERROR "invalid index shift amount"
+ 	MOVWU	(R5)(R4<<1), R10                                 // ERROR "invalid index shift amount"
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 64067a4a17..f2188c3403 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3621,7 +3621,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		v := int32(p.From.Offset)
+ 
+ 		if v < -256 || v > 255 {
+-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
++			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
+ 		}
+ 		o1 = c.opldr(p, p.As)
+ 		if o.scond == C_XPOST {
+@@ -3639,7 +3639,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		v := int32(p.To.Offset)
+ 
+ 		if v < -256 || v > 255 {
+-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
++			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
+ 		}
+ 		o1 = c.opstr(p, p.As)
+ 		if o.scond == C_XPOST {

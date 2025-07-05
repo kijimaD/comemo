@@ -15,6 +15,20 @@ Date:   Fri May 22 12:40:56 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=29223
     CL=29267
-
+---
  src/lib/go/doc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/go/doc/doc.go b/src/lib/go/doc/doc.go
+index fc890f07c7..59b511e8f0 100644
+--- a/src/lib/go/doc/doc.go
++++ b/src/lib/go/doc/doc.go
+@@ -221,7 +221,7 @@ var (
+ // TODO(rsc): Cannot use var initialization for regexps,
+ // because Regexp constructor needs threads.
+ func setupRegexps() {
+-	comment_markers = makeRex("^[ \t]*(// ?| ?/\\* ?)");
++	comment_markers = makeRex("^/(/|\\*) ?");
+ 	trailing_whitespace = makeRex("[ \t\r]+$");
+ 	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
+ }

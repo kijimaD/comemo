@@ -136,9 +136,112 @@ Date:   Sun Apr 12 17:34:33 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  |  2 +-
  src/cmd/compile/internal/gc/subr.go |  3 +++
  src/cmd/compile/internal/gc/swt.go  | 27 ++++++++++++++++++++-------
  test/writebarrier.go                |  8 ++++----
  4 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4829c5f5fc..bb401e805b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2549,7 +2549,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.load(n.Type, addr)
+ 
+ 	case ODEREF:
+-		p := s.exprPtr(n.Left, false, n.Pos)
++		p := s.exprPtr(n.Left, n.Left.Bounded(), n.Pos)
+ 		return s.load(n.Type, p)
+ 
+ 	case ODOT:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 1accfbc825..7805079a63 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1897,6 +1897,9 @@ func itabType(itab *Node) *Node {
+ // The concrete type must be known to have type t.
+ // It follows the pointer if !isdirectiface(t).
+ func ifaceData(n *Node, t *types.Type) *Node {
++	if t.IsInterface() {
++		Fatalf("ifaceData interface: %v", t)
++	}
+ 	ptr := nodSym(OIDATA, n, nil)
+ 	if isdirectiface(t) {
+ 		ptr.Type = t
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 0d5df2e0bd..6c931f2dab 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -540,10 +540,14 @@ func walkTypeSwitch(sw *Node) {
+ 			caseVar = ncase.Rlist.First()
+ 		}
+ 
+-		// For single-type cases, we initialize the case
+-		// variable as part of the type assertion; but in
+-		// other cases, we initialize it in the body.
+-		singleType := ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE
++		// For single-type cases with an interface type,
++		// we initialize the case variable as part of the type assertion.
++		// In other cases, we initialize it in the body.
++		var singleType *types.Type
++		if ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE {
++			singleType = ncase.List.First().Type
++		}
++		caseVarInitialized := false
+ 
+ 		label := autolabel(".s")
+ 		jmp := npos(ncase.Pos, nodSym(OGOTO, nil, label))
+@@ -564,18 +568,27 @@ func walkTypeSwitch(sw *Node) {
+ 				continue
+ 			}
+ 
+-			if singleType {
++			if singleType != nil && singleType.IsInterface() {
+ 				s.Add(n1.Type, caseVar, jmp)
++				caseVarInitialized = true
+ 			} else {
+ 				s.Add(n1.Type, nil, jmp)
+ 			}
+ 		}
+ 
+ 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
+-		if caseVar != nil && !singleType {
++		if caseVar != nil && !caseVarInitialized {
++			val := s.facename
++			if singleType != nil {
++				// We have a single concrete type. Extract the data.
++				if singleType.IsInterface() {
++					Fatalf("singleType interface should have been handled in Add")
++				}
++				val = ifaceData(s.facename, singleType)
++			}
+ 			l := []*Node{
+ 				nodl(ncase.Pos, ODCL, caseVar, nil),
+-				nodl(ncase.Pos, OAS, caseVar, s.facename),
++				nodl(ncase.Pos, OAS, caseVar, val),
+ 			}
+ 			typecheckslice(l, ctxStmt)
+ 			body.Append(l...)
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 8cd559c190..dbf0b6dde2 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -148,12 +148,12 @@ func f16(x []T8, y T8) []T8 {
+ func t1(i interface{}) **int {
+ 	// From issue 14306, make sure we have write barriers in a type switch
+ 	// where the assigned variable escapes.
+-	switch x := i.(type) { // ERROR "write barrier"
+-	case *int:
++	switch x := i.(type) {
++	case *int: // ERROR "write barrier"
+ 		return &x
+ 	}
+-	switch y := i.(type) { // no write barrier here
+-	case **int:
++	switch y := i.(type) {
++	case **int: // no write barrier here
+ 		return y
+ 	}
+ 	return nil

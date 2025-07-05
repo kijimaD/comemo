@@ -16,6 +16,38 @@ Date:   Wed Nov 2 02:07:12 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index a25688fbd1..7c339512ce 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1301,7 +1301,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 				b.Values = append(b.Values, v)
+ 				s.advanceUses(v)
+-				goto issueSpill
++				continue
+ 			}
+ 			if v.Op == OpGetG && s.f.Config.hasGReg {
+ 				// use hardware g register
+@@ -1311,7 +1311,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				s.assignReg(s.GReg, v, v)
+ 				b.Values = append(b.Values, v)
+ 				s.advanceUses(v)
+-				goto issueSpill
++				continue
+ 			}
+ 			if v.Op == OpArg {
+ 				// Args are "pre-spilled" values. We don't allocate
+@@ -1669,8 +1669,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				v.SetArg(i, a) // use register version of arguments
+ 			}
+ 			b.Values = append(b.Values, v)
+-
+-		issueSpill:
+ 		}
+ 
+ 		// Copy the control values - we need this so we can reduce the

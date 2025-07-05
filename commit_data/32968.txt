@@ -9,8 +9,74 @@ Date:   Fri Jun 16 16:13:28 2017 -0700
     Change-Id: I5df67383e9471f030ddafabadf2bc19ce6816f0f
     Reviewed-on: https://go-review.googlesource.com/46002
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/printer/nodes.go                     | 14 +++++++++++++-
  src/go/printer/testdata/declarations.golden |  6 ++++++
  src/go/printer/testdata/declarations.input  |  5 +++++
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index bea4ff2a3a..4eaadeb448 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1532,6 +1532,16 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 	return
+ }
+ 
++// numLines returns the number of lines spanned by node n in the original source.
++func (p *printer) numLines(n ast.Node) int {
++	if from := n.Pos(); from.IsValid() {
++		if to := n.End(); to.IsValid() {
++			return p.lineFor(to) - p.lineFor(from) + 1
++		}
++	}
++	return infinity
++}
++
+ // bodySize is like nodeSize but it is specialized for *ast.BlockStmt's.
+ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
+ 	pos1 := b.Pos()
+@@ -1668,7 +1678,9 @@ func (p *printer) declList(list []ast.Decl) {
+ 			if prev != tok || getDoc(d) != nil {
+ 				min = 2
+ 			}
+-			p.linebreak(p.lineFor(d.Pos()), min, ignore, false)
++			// start a new section if the next declaration is a function
++			// that spans multiple lines (see also issue #19544)
++			p.linebreak(p.lineFor(d.Pos()), min, ignore, tok == token.FUNC && p.numLines(d) > 1)
+ 		}
+ 		p.decl(d)
+ 	}
+diff --git a/src/go/printer/testdata/declarations.golden b/src/go/printer/testdata/declarations.golden
+index d4ea545658..bebc0eaa63 100644
+--- a/src/go/printer/testdata/declarations.golden
++++ b/src/go/printer/testdata/declarations.golden
+@@ -778,6 +778,12 @@ func _() {
+ 	/* multi-line func because block is on multiple lines */
+ }
+ 
++// test case for issue #19544
++func _()	{}
++func _longer_name_() {	// this comment must not force the {} from above to alignment
++	// multiple lines
++}
++
+ // ellipsis parameters
+ func _(...int)
+ func _(...*int)
+diff --git a/src/go/printer/testdata/declarations.input b/src/go/printer/testdata/declarations.input
+index 50386eb8d5..a858051ef0 100644
+--- a/src/go/printer/testdata/declarations.input
++++ b/src/go/printer/testdata/declarations.input
+@@ -795,6 +795,11 @@ func _() { /* multi-line function because of "long-ish" comment - much more comm
+ func _() {
+ /* multi-line func because block is on multiple lines */ }
+ 
++// test case for issue #19544
++func _() {}
++func _longer_name_() { // this comment must not force the {} from above to alignment
++	// multiple lines
++}
+ 
+ // ellipsis parameters
+ func _(...int)

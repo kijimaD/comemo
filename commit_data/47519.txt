@@ -8,6 +8,20 @@ Date:   Wed Mar 24 16:02:24 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304609
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Trust: Kevin Burke <kev@inburke.com>
-
+---
  src/crypto/x509/verify.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 46afb2698a..2432d9bb86 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -837,7 +837,7 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate
+ }
+ 
+ // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
+-// that an invocation of buildChains will (tranistively) make. Most chains are
++// that an invocation of buildChains will (transitively) make. Most chains are
+ // less than 15 certificates long, so this leaves space for multiple chains and
+ // for failed checks due to different intermediates having the same Subject.
+ const maxChainSignatureChecks = 100

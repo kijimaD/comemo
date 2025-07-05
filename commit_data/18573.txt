@@ -11,6 +11,20 @@ Date:   Wed Feb 19 15:50:50 2014 -0500
     R=rsc, bradfitz
     CC=golang-codereviews, rickarnoldjr
     https://golang.org/cl/66110043
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6b5ad81886..ac2e8a4559 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2503,7 +2503,7 @@ typecheckcomplit(Node **np)
+ 				len = i;
+ 				if(t->bound >= 0 && len > t->bound) {
+ 					setlineno(l);
+-					yyerror("array index %d out of bounds [0:%d]", len-1, t->bound);
++					yyerror("array index %lld out of bounds [0:%lld]", len-1, t->bound);
+ 					t->bound = -1;	// no more errors
+ 				}
+ 			}

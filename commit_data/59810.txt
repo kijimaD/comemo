@@ -15,8 +15,48 @@ Date:   Thu Apr 25 08:42:27 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/liveness/mergelocals.go | 2 +-
  src/cmd/compile/internal/types2/api.go           | 2 +-
  src/unique/handle.go                             | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index 1e65d6c1d1..017c4d1dbb 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -448,7 +448,7 @@ func (cs *cstate) setupHashBisection(cands []*ir.Name) {
+ //
+ // It is possible to have situations where a given ir.Name is
+ // non-address-taken at the source level, but whose address is
+-// materialized in order to accomodate the needs of
++// materialized in order to accommodate the needs of
+ // architecture-dependent operations or one sort or another (examples
+ // include things like LoweredZero/DuffZero, etc). The issue here is
+ // that the SymAddr op will show up as touching a variable of
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 029d105e2e..f3931dd262 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package types declares the data types and implements
++// Package types2 declares the data types and implements
+ // the algorithms for type-checking of Go packages. Use
+ // Config.Check to invoke the type checker for a package.
+ // Alternatively, create a new type checker with NewChecker
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index d98f8022d7..4d9669162f 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -102,7 +102,7 @@ var (
+ 	cleanupMu      sync.Mutex
+ 	cleanupFuncsMu sync.Mutex
+ 	cleanupFuncs   []func()
+-	cleanupNotify  []func() // One-time notifcations when cleanups finish.
++	cleanupNotify  []func() // One-time notifications when cleanups finish.
+ )
+ 
+ type uniqueMap[T comparable] struct {

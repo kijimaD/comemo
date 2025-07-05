@@ -9,7 +9,7 @@ Date:   Mon Mar 25 22:09:55 2013 +0100
     R=golang-dev, dave, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/7965043
-
+---
  src/cmd/5l/obj.c                  |  4 ++++
  src/cmd/6l/obj.c                  |  4 ++++
  src/cmd/8l/obj.c                  |  4 ++++
@@ -17,3 +17,114 @@ Date:   Mon Mar 25 22:09:55 2013 +0100
  test/fixedbugs/issue5105.dir/b.go | 15 +++++++++++++++
  test/fixedbugs/issue5105.go       | 10 ++++++++++
  6 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index d38da204a3..f5128c6780 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -608,11 +608,15 @@ loop:
+ 		break;
+ 
+ 	case ALOCALS:
++		if(skip)
++			goto casedef;
+ 		cursym->locals = p->to.offset;
+ 		pc++;
+ 		break;
+ 
+ 	case ATYPE:
++		if(skip)
++			goto casedef;
+ 		pc++;
+ 		goto loop;
+ 
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3775df9de5..ab8b22e231 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -597,11 +597,15 @@ loop:
+ 		goto loop;
+ 
+ 	case ALOCALS:
++		if(skip)
++			goto casdef;
+ 		cursym->locals = p->to.offset;
+ 		pc++;
+ 		goto loop;
+ 	
+ 	case ATYPE:
++		if(skip)
++			goto casdef;
+ 		pc++;
+ 		goto loop;
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 306e288a35..fda96d09ca 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -607,11 +607,15 @@ loop:
+ 		goto loop;
+ 
+ 	case ALOCALS:
++		if(skip)
++			goto casdef;
+ 		cursym->locals = p->to.offset;
+ 		pc++;
+ 		goto loop;
+ 
+ 	case ATYPE:
++		if(skip)
++			goto casdef;
+ 		pc++;
+ 		goto loop;
+ 
+diff --git a/test/fixedbugs/issue5105.dir/a.go b/test/fixedbugs/issue5105.dir/a.go
+new file mode 100644
+index 0000000000..f20abb98bf
+--- /dev/null
++++ b/test/fixedbugs/issue5105.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var A = [2]string{"hello", "world"}
+diff --git a/test/fixedbugs/issue5105.dir/b.go b/test/fixedbugs/issue5105.dir/b.go
+new file mode 100644
+index 0000000000..b12e739e33
+--- /dev/null
++++ b/test/fixedbugs/issue5105.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++var B = [2]string{"world", "hello"}
++
++func main() {
++	if a.A[0] != B[1] {
++		panic("bad hello")
++	}
++}
+diff --git a/test/fixedbugs/issue5105.go b/test/fixedbugs/issue5105.go
+new file mode 100644
+index 0000000000..e3e5e5caa4
+--- /dev/null
++++ b/test/fixedbugs/issue5105.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5105: linker segfaults on duplicate definition
++// of a type..hash.* function.
++
++package ignored

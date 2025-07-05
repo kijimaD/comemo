@@ -23,6 +23,28 @@ Date:   Sun Feb 26 19:41:32 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 990b3f99ce..0def954f8c 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -2199,7 +2200,7 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
+ }
+ 
+ func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
+-	if testing.Short() {
++	if testenv.Builder() == "" {
+ 		t.Skip("Makes assumptions about local networks and (re)naming that aren't always true")
+ 	}
+ 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)

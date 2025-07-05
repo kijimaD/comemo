@@ -12,6 +12,25 @@ Date:   Sun May 8 22:05:21 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 2b84dd4a66..9c346fbedf 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -843,13 +843,6 @@ func inlvar(var_ *Node) *Node {
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	n.Addrtaken = var_.Addrtaken
+ 
+-	// This may no longer be necessary now that we run escape analysis
+-	// after wrapper generation, but for 1.5 this is conservatively left
+-	// unchanged. See bugs 11053 and 9537.
+-	if var_.Esc == EscHeap {
+-		addrescapes(n)
+-	}
+-
+ 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+ 	return n
+ }

@@ -7,10 +7,158 @@ Date:   Mon Jun 20 13:34:10 2011 +1000
     R=paulzhol, mirtchovski, fshahriar, alex.brainman, r
     CC=golang-dev
     https://golang.org/cl/4386041
-
+---
  src/pkg/exec/Makefile            |  3 +++
  src/pkg/exec/lp_plan9.go         | 51 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/error_plan9.go        |  1 +
  src/pkg/os/exec_plan9.go         |  6 +++--
  src/pkg/syscall/syscall_plan9.go | 15 ++++++++++--
  5 files changed, 72 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exec/Makefile b/src/pkg/exec/Makefile
+index 262ecac85e..90bb74b41c 100644
+--- a/src/pkg/exec/Makefile
++++ b/src/pkg/exec/Makefile
+@@ -20,6 +20,9 @@ GOFILES_linux=\
+ GOFILES_windows=\
+ 	lp_windows.go\
+ 
++GOFILES_plan9=\
++	lp_plan9.go\
++
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/exec/lp_plan9.go b/src/pkg/exec/lp_plan9.go
+new file mode 100644
+index 0000000000..d0912f9e9e
+--- /dev/null
++++ b/src/pkg/exec/lp_plan9.go
+@@ -0,0 +1,51 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"os"
++	"strings"
++)
++
++// ErrNotFound is the error resulting if a path search failed to find an executable file.
++var ErrNotFound = os.ErrorString("executable file not found in $path")
++
++func findExecutable(file string) os.Error {
++	d, err := os.Stat(file)
++	if err != nil {
++		return err
++	}
++	if d.IsRegular() && d.Permission()&0111 != 0 {
++		return nil
++	}
++	return os.EPERM
++}
++
++// LookPath searches for an executable binary named file
++// in the directories named by the path environment variable.
++// If file begins with "/", "#", "./", or "../", it is tried
++// directly and the path is not consulted.
++func LookPath(file string) (string, os.Error) {
++	// skip the path lookup for these prefixes
++	skip := []string{"/", "#", "./", "../"}
++
++	for _, p := range skip {
++		if strings.HasPrefix(file, p) {
++			err := findExecutable(file)
++			if err == nil {
++				return file, nil
++			}
++			return "", &Error{file, err}
++		}
++	}
++
++	path := os.Getenv("path")
++	for _, dir := range strings.Split(path, "\000", -1) {
++		if err := findExecutable(dir + "/" + file); err == nil {
++			return dir + "/" + file, nil
++		}
++	}
++	return "", &Error{file, ErrNotFound}
++}
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 3374775b8e..cacfc150c4 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -45,6 +45,7 @@ var (
+ 	EEXIST  = Eexist
+ 	EIO     = Eio
+ 	EACCES  = Eperm
++	EPERM   = Eperm
+ 	EISDIR  = syscall.EISDIR
+ 
+ 	ENAMETOOLONG = NewError("file name too long")
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 29997b48a6..0598adc0fa 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -63,7 +63,9 @@ func Exec(name string, argv []string, envv []string) Error {
+ }
+ 
+ // Waitmsg stores the information about an exited process as reported by Wait.
+-type Waitmsg syscall.Waitmsg
++type Waitmsg struct {
++	syscall.Waitmsg
++}
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+ // Waitmsg describing its status and an Error, if any. The options
+@@ -87,7 +89,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 		}
+ 	}
+ 
+-	return (*Waitmsg)(&waitmsg), nil
++	return &Waitmsg{waitmsg}, nil
+ }
+ 
+ // Wait waits for process pid to exit or stop, and then returns a
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 831cbddb24..4104050fd3 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -35,7 +35,7 @@ var (
+ 	Stdout = 1
+ 	Stderr = 2
+ 
+-	EISDIR Error = NewError("file is a directory")
++	EISDIR = NewError("file is a directory")
+ )
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
+@@ -200,6 +200,17 @@ type Waitmsg struct {
+ 	Msg  string
+ }
+ 
++func (w Waitmsg) Exited() bool   { return true }
++func (w Waitmsg) Signaled() bool { return false }
++
++func (w Waitmsg) ExitStatus() int {
++	if len(w.Msg) == 0 {
++		// a normal exit returns no message
++		return 0
++	}
++	return 1
++}
++
+ //sys	await(s []byte) (n int, err Error)
+ func Await(w *Waitmsg) (err Error) {
+ 	var buf [512]byte
+@@ -230,7 +241,7 @@ func Await(w *Waitmsg) (err Error) {
+ 	w.Time[0] = uint32(atoi(f[1]))
+ 	w.Time[1] = uint32(atoi(f[2]))
+ 	w.Time[2] = uint32(atoi(f[3]))
+-	w.Msg = string(f[4])
++	w.Msg = cstring(f[4])
+ 	return
+ }
+ 

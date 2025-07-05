@@ -22,7 +22,110 @@ Date:   Sat Oct 10 11:22:14 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 40 +++++++++++++++++++++++----------------
  src/cmd/link/internal/ld/pcln.go  | 17 -----------------
  2 files changed, 24 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 80a753438e..2c7f6111de 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -475,6 +475,18 @@ func (ctxt *Link) domacho() {
+ 		sb.SetReachable(true)
+ 		sb.AddUint8(0)
+ 	}
++
++	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
++	// are in pclntab and end up pointing at the host binary, breaking unwinding.
++	// See Issue #18190.
++	if ctxt.BuildMode == BuildModePlugin {
++		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
++			s := ctxt.loader.Lookup(name, 0)
++			if s != 0 {
++				ctxt.loader.SetAttrCgoExportDynamic(s, false)
++			}
++		}
++	}
+ }
+ 
+ func machoadddynlib(lib string, linkmode LinkMode) {
+@@ -899,19 +911,12 @@ func machosymtab(ctxt *Link) {
+ 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
+ 
+ 		export := machoShouldExport(ctxt, ldr, s)
+-		isGoSymbol := strings.Contains(ldr.SymExtname(s), ".")
+-
+-		// In normal buildmodes, only add _ to C symbols, as
+-		// Go symbols have dot in the name.
+-		//
+-		// Do not export C symbols in plugins, as runtime C
+-		// symbols like crosscall2 are in pclntab and end up
+-		// pointing at the host binary, breaking unwinding.
+-		// See Issue #18190.
+-		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(ldr.SymName(s)))
+-		if cexport || export || isGoSymbol {
+-			symstr.AddUint8('_')
+-		}
++
++		// Prefix symbol names with "_" to match the system toolchain.
++		// (We used to only prefix C symbols, which is all required for the build.
++		// But some tools don't recognize Go symbols as symbols, so we prefix them
++		// as well.)
++		symstr.AddUint8('_')
+ 
+ 		// replace "·" as ".", because DTrace cannot handle it.
+ 		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
+@@ -922,10 +927,13 @@ func machosymtab(ctxt *Link) {
+ 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
+ 			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
+ 		} else {
+-			if ldr.AttrCgoExport(s) || export {
+-				symtab.AddUint8(0x0f)
++			if export || ldr.AttrCgoExportDynamic(s) {
++				symtab.AddUint8(0x0f) // N_SECT | N_EXT
++			} else if ldr.AttrCgoExportStatic(s) {
++				// Only export statically, not dynamically. (N_PEXT is like hidden visibility)
++				symtab.AddUint8(0x1f) // N_SECT | N_EXT | N_PEXT
+ 			} else {
+-				symtab.AddUint8(0x0e)
++				symtab.AddUint8(0x0e) // N_SECT
+ 			}
+ 			o := s
+ 			if outer := ldr.OuterSym(o); outer != 0 {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 75e63248df..facb30fe15 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -13,7 +13,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"strings"
+ )
+ 
+ // pclntab holds the state needed for pclntab generation.
+@@ -113,23 +112,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
+ 	return state, compUnits, funcs
+ }
+ 
+-// onlycsymbol looks at a symbol's name to report whether this is a
+-// symbol that is referenced by C code
+-func onlycsymbol(sname string) bool {
+-	switch sname {
+-	case "_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2":
+-		return true
+-	}
+-	if strings.HasPrefix(sname, "_cgoexp_") {
+-		return true
+-	}
+-	return false
+-}
+-
+ func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
+-	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(ctxt.loader.SymName(s)) {
+-		return false
+-	}
+ 	// We want to generate func table entries only for the "lowest
+ 	// level" symbols, not containers of subsymbols.
+ 	return !container.Has(s)

@@ -28,7 +28,7 @@ Date:   Sun Jan 30 19:22:46 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func_test.go      |  2 +-
  src/cmd/compile/internal/syntax/nodes.go       |  2 +-
  src/cmd/compile/internal/syntax/pos.go         |  2 +-
@@ -54,3 +54,367 @@ Date:   Sun Jan 30 19:22:46 2022 -0500
  src/net/http/transport_test.go                 |  2 +-
  src/reflect/type.go                            |  2 +-
  24 files changed, 49 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 276c444b9a..bbb228d8a5 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -34,7 +34,7 @@ package ssa
+ 
+ // TODO(matloob): Choose better names for Fun, Bloc, Goto, etc.
+ // TODO(matloob): Write a parser for the Func disassembly. Maybe
+-//                the parser can be used instead of Fun.
++// the parser can be used instead of Fun.
+ 
+ import (
+ 	"cmd/compile/internal/types"
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 2f9b43edef..b0a0918e77 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -462,7 +462,7 @@ func (simpleStmt) aSimpleStmt() {}
+ // Comments
+ 
+ // TODO(gri) Consider renaming to CommentPos, CommentPlacement, etc.
+-//           Kind = Above doesn't make much sense.
++// Kind = Above doesn't make much sense.
+ type CommentKind uint
+ 
+ const (
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index 1494c0989f..b5e53d268b 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -24,7 +24,7 @@ type Pos struct {
+ func MakePos(base *PosBase, line, col uint) Pos { return Pos{base, sat32(line), sat32(col)} }
+ 
+ // TODO(gri) IsKnown makes an assumption about linebase < 1.
+-//           Maybe we should check for Base() != nil instead.
++// Maybe we should check for Base() != nil instead.
+ 
+ func (pos Pos) Pos() Pos       { return pos }
+ func (pos Pos) IsKnown() bool  { return pos.line > 0 }
+diff --git a/src/cmd/compile/internal/syntax/tokens.go b/src/cmd/compile/internal/syntax/tokens.go
+index 60eae36ec9..6dece1aa5b 100644
+--- a/src/cmd/compile/internal/syntax/tokens.go
++++ b/src/cmd/compile/internal/syntax/tokens.go
+@@ -93,8 +93,8 @@ func contains(tokset uint64, tok token) bool {
+ type LitKind uint8
+ 
+ // TODO(gri) With the 'i' (imaginary) suffix now permitted on integer
+-//           and floating-point numbers, having a single ImagLit does
+-//           not represent the literal kind well anymore. Remove it?
++// and floating-point numbers, having a single ImagLit does
++// not represent the literal kind well anymore. Remove it?
+ const (
+ 	IntLit LitKind = iota
+ 	FloatLit
+diff --git a/src/cmd/compile/internal/syntax/walk.go b/src/cmd/compile/internal/syntax/walk.go
+index b025844204..8f1d566155 100644
+--- a/src/cmd/compile/internal/syntax/walk.go
++++ b/src/cmd/compile/internal/syntax/walk.go
+@@ -52,7 +52,7 @@ func Crawl(root Node, f func(Node) bool) {
+ // field lists such as type T in "a, b, c T"). Such shared nodes are
+ // walked multiple times.
+ // TODO(gri) Revisit this design. It may make sense to walk those nodes
+-//           only once. A place where this matters is types2.TestResolveIdents.
++// only once. A place where this matters is types2.TestResolveIdents.
+ func Walk(root Node, v Visitor) {
+ 	walker{v}.node(root)
+ }
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 49f4e2d2ab..f766c0b31d 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -441,8 +441,8 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ // unpack unpacks a *syntax.ListExpr into a list of syntax.Expr.
+ // Helper introduced for the go/types -> types2 port.
+ // TODO(gri) Should find a more efficient solution that doesn't
+-//           require introduction of a new slice for simple
+-//           expressions.
++// require introduction of a new slice for simple
++// expressions.
+ func unpackExpr(x syntax.Expr) []syntax.Expr {
+ 	if x, _ := x.(*syntax.ListExpr); x != nil {
+ 		return x.ElemList
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 0832877226..335e4d0c23 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -83,9 +83,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+-//           indexed by unique keys for a given type. Verify that named
+-//           types always have only one representation (even when imported
+-//           indirectly via different packages.)
++// indexed by unique keys for a given type. Verify that named
++// types always have only one representation (even when imported
++// indirectly via different packages.)
+ 
+ // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+ // If foldCase is true, the lookup for methods will include looking for any method
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 584ee51a13..1d3703ffd9 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -107,7 +107,7 @@ func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this
+ func (t *Named) Origin() *Named { return t.orig }
+ 
+ // TODO(gri) Come up with a better representation and API to distinguish
+-//           between parameterized instantiated and non-instantiated types.
++// between parameterized instantiated and non-instantiated types.
+ 
+ // TypeParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) generic type even if it is instantiated.
+diff --git a/src/cmd/compile/internal/types2/return.go b/src/cmd/compile/internal/types2/return.go
+index 6c3e1842ce..7cdea99e08 100644
+--- a/src/cmd/compile/internal/types2/return.go
++++ b/src/cmd/compile/internal/types2/return.go
+@@ -99,8 +99,8 @@ func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label strin
+ }
+ 
+ // TODO(gri) For nested breakable statements, the current implementation of hasBreak
+-//	     will traverse the same subtree repeatedly, once for each label. Replace
+-//           with a single-pass label/break matching phase.
++// will traverse the same subtree repeatedly, once for each label. Replace
++// with a single-pass label/break matching phase.
+ 
+ // hasBreak reports if s is or contains a break statement
+ // referring to the label-ed statement or implicit-ly the
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 2b6abbde7e..e00f73ce99 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -312,7 +312,7 @@ L:
+ }
+ 
+ // TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+-//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
++// (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+ //
+ // func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[string]syntax.Expr) (T Type) {
+ // 	var dummy operand
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index c7d42551dd..d495c6788e 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -141,8 +141,8 @@ func (env *tparamEnv) push(typ *Named) *tparamEnv {
+ }
+ 
+ // TODO(gri) Alternative implementation:
+-//           We may not need to build a stack of environments to
+-//           look up the type arguments for type parameters. The
+-//           same information should be available via the path:
+-//           We should be able to just walk the path backwards
+-//           and find the type arguments in the instance objects.
++// We may not need to build a stack of environments to
++// look up the type arguments for type parameters. The
++// same information should be available via the path:
++// We should be able to just walk the path backwards
++// and find the type arguments in the instance objects.
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 308662f633..16b15f11f2 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -40,7 +40,7 @@ func walkDeclList(v Visitor, list []Decl) {
+ }
+ 
+ // TODO(gri): Investigate if providing a closure to Walk leads to
+-//            simpler use (and may help eliminate Inspect in turn).
++// simpler use (and may help eliminate Inspect in turn).
+ 
+ // Walk traverses an AST in depth-first order: It starts by calling
+ // v.Visit(node); node must not be nil. If the visitor w returned by
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index dee3bce9ee..544801bd70 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -70,9 +70,9 @@ type Value interface {
+ const prec = 512
+ 
+ // TODO(gri) Consider storing "error" information in an unknownVal so clients
+-//           can provide better error messages. For instance, if a number is
+-//           too large (incl. infinity), that could be recorded in unknownVal.
+-//           See also #20583 and #42695 for use cases.
++// can provide better error messages. For instance, if a number is
++// too large (incl. infinity), that could be recorded in unknownVal.
++// See also #20583 and #42695 for use cases.
+ 
+ // Representation of values:
+ //
+diff --git a/src/go/parser/performance_test.go b/src/go/parser/performance_test.go
+index 6f8a97770b..1249f35d39 100644
+--- a/src/go/parser/performance_test.go
++++ b/src/go/parser/performance_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"testing"
+ )
+ 
+-// TODO(rFindley): use a testdata file or file from another package here, to
+-//                 avoid a moving target.
++// TODO(rfindley): use a testdata file or file from another package here, to
++// avoid a moving target.
+ var src = readFile("parser.go")
+ 
+ func readFile(filename string) []byte {
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 9a09d58eb2..89e8016409 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -38,12 +38,12 @@ import (
+ // printed.
+ //
+ // TODO(gri): linebreak may add too many lines if the next statement at "line"
+-//            is preceded by comments because the computation of n assumes
+-//            the current position before the comment and the target position
+-//            after the comment. Thus, after interspersing such comments, the
+-//            space taken up by them is not considered to reduce the number of
+-//            linebreaks. At the moment there is no easy way to know about
+-//            future (not yet interspersed) comments in this function.
++// is preceded by comments because the computation of n assumes
++// the current position before the comment and the target position
++// after the comment. Thus, after interspersing such comments, the
++// space taken up by them is not considered to reduce the number of
++// linebreaks. At the moment there is no easy way to know about
++// future (not yet interspersed) comments in this function.
+ //
+ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
+ 	n := nlimit(line - p.pos.Line)
+@@ -125,7 +125,7 @@ const filteredMsg = "contains filtered or unexported fields"
+ // expressions.
+ //
+ // TODO(gri) Consider rewriting this to be independent of []ast.Expr
+-//           so that we can use the algorithm for any kind of list
++// so that we can use the algorithm for any kind of list
+ //           (e.g., pass list via a channel over which to range).
+ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
+ 	if len(list) == 0 {
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index 7e8379739c..615aceebd2 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -1352,7 +1352,7 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
+ 
+ // If lhs is set and the result is an identifier, it is not resolved.
+ // TODO(gri): parseExpr may return a type or even a raw type ([..]int) -
+-//            should reject when a type/raw type is obviously not allowed
++// should reject when a type/raw type is obviously not allowed
+ func (p *parser) parseExpr(lhs bool) ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Expression"))
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 335fada7b7..77fc17f5c3 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -83,9 +83,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+-//           indexed by unique keys for a given type. Verify that named
+-//           types always have only one representation (even when imported
+-//           indirectly via different packages.)
++// indexed by unique keys for a given type. Verify that named
++// types always have only one representation (even when imported
++// indirectly via different packages.)
+ 
+ // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+ // If foldCase is true, the lookup for methods will include looking for any method
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index e4fd96ab64..ee35080142 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -109,7 +109,7 @@ func (t *Named) Obj() *TypeName {
+ func (t *Named) Origin() *Named { return t.orig }
+ 
+ // TODO(gri) Come up with a better representation and API to distinguish
+-//           between parameterized instantiated and non-instantiated types.
++// between parameterized instantiated and non-instantiated types.
+ 
+ // TypeParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) generic type even if it is instantiated.
+diff --git a/src/go/types/return.go b/src/go/types/return.go
+index 2d34a70b98..ee8c41a431 100644
+--- a/src/go/types/return.go
++++ b/src/go/types/return.go
+@@ -101,8 +101,8 @@ func (check *Checker) isTerminatingSwitch(body *ast.BlockStmt, label string) boo
+ }
+ 
+ // TODO(gri) For nested breakable statements, the current implementation of hasBreak
+-//	     will traverse the same subtree repeatedly, once for each label. Replace
+-//           with a single-pass label/break matching phase.
++// will traverse the same subtree repeatedly, once for each label. Replace
++// with a single-pass label/break matching phase.
+ 
+ // hasBreak reports if s is or contains a break statement
+ // referring to the label-ed statement or implicit-ly the
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index d7f6a486ca..0fab70719e 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -317,7 +317,7 @@ L:
+ }
+ 
+ // TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+-//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
++// (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+ //
+ // func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[string]ast.Expr) (T Type) {
+ // 	var dummy operand
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 2c686f2655..edb4c02ecd 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -140,8 +140,8 @@ func (env *tparamEnv) push(typ *Named) *tparamEnv {
+ }
+ 
+ // TODO(gri) Alternative implementation:
+-//           We may not need to build a stack of environments to
+-//           look up the type arguments for type parameters. The
+-//           same information should be available via the path:
+-//           We should be able to just walk the path backwards
+-//           and find the type arguments in the instance objects.
++// We may not need to build a stack of environments to
++// look up the type arguments for type parameters. The
++// same information should be available via the path:
++// We should be able to just walk the path backwards
++// and find the type arguments in the instance objects.
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 7b3427f834..789b96bf35 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -510,7 +510,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
+ }
+ 
+ // TODO(gri) mulAddVWW and divWVW are symmetric operations but
+-//           their signature is not symmetric. Try to unify.
++// their signature is not symmetric. Try to unify.
+ 
+ type funWVW func(z []Word, xn Word, x []Word, y Word) (r Word)
+ type argWVW struct {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index e5d60afb1b..440d6b969b 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -48,7 +48,7 @@ import (
+ )
+ 
+ // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
+-//       and then verify that the final 2 responses get errors back.
++// and then verify that the final 2 responses get errors back.
+ 
+ // hostPortHandler writes back the client's "host:port".
+ var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 83047062bd..9589e83dbd 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1267,7 +1267,7 @@ func (t *structType) Field(i int) (f StructField) {
+ }
+ 
+ // TODO(gri): Should there be an error/bool indicator if the index
+-//            is wrong for FieldByIndex?
++// is wrong for FieldByIndex?
+ 
+ // FieldByIndex returns the nested field corresponding to index.
+ func (t *structType) FieldByIndex(index []int) (f StructField) {

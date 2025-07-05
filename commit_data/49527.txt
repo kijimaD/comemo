@@ -11,8 +11,52 @@ Date:   Tue Aug 24 20:20:07 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/interface.go | 2 +-
  src/cmd/compile/internal/types2/typeset.go   | 6 ++----
  src/cmd/compile/internal/types2/typexpr.go   | 2 +-
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index ccd3de0a6e..e57158d2d5 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -98,7 +98,7 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ 
+ // IsConstraint reports whether interface t is not just a method set.
+-func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
++func (t *Interface) IsConstraint() bool { return t.typeSet().IsConstraint() }
+ 
+ func (t *Interface) Underlying() Type { return t }
+ func (t *Interface) String() string   { return TypeString(t, nil) }
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 56f64ab405..1673b9b4af 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -30,10 +30,8 @@ func (s *_TypeSet) IsAll() bool {
+ 	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
+ }
+ 
+-// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
+-
+-// IsMethodSet reports whether the type set s is described by a single set of methods.
+-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
++// IsConstraint reports whether type set s is not just a set of methods.
++func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+ func (s *_TypeSet) IsComparable() bool {
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index f3e415e4c7..6938648bbc 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -151,7 +151,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+ 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+-			if !tset.IsMethodSet() {
++			if tset.IsConstraint() {
+ 				if tset.comparable {
+ 					check.softErrorf(pos, "interface is (or embeds) comparable")
+ 				} else {

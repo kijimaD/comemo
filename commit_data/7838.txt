@@ -9,6 +9,20 @@ Date:   Wed Mar 23 14:24:30 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4303046
-
+---
  src/pkg/sync/waitgroup.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/waitgroup.go b/src/pkg/sync/waitgroup.go
+index 68e1d509f4..05478c6306 100644
+--- a/src/pkg/sync/waitgroup.go
++++ b/src/pkg/sync/waitgroup.go
+@@ -22,7 +22,7 @@ import "runtime"
+ //       go func() {
+ //           // Do something.
+ //           wg.Done()
+-//       }
++//       }()
+ //   }
+ //   wg.Wait()
+ // 

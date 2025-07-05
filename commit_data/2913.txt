@@ -7,7 +7,52 @@ Date:   Fri Aug 7 13:23:09 2009 -0700
     R=ken
     OCL=32888
     CL=32888
-
+---
  src/cmd/gc/subr.c        |  2 ++
  test/fixedbugs/bug183.go | 25 +++++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6595b45a31..e6ddaf63fc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1537,6 +1537,8 @@ eqtype1(Type *t1, Type *t2, int d, int names)
+ 				return 0;
+ 			if(t1 == T)
+ 				return 1;
++			if(t1->embedded != t2->embedded)
++				return 0;
+ 			if(t1->nname != N && t1->nname->sym != S) {
+ 				if(t2->nname == N || t2->nname->sym == S)
+ 					return 0;
+diff --git a/test/fixedbugs/bug183.go b/test/fixedbugs/bug183.go
+new file mode 100644
+index 0000000000..5c3ef49341
+--- /dev/null
++++ b/test/fixedbugs/bug183.go
+@@ -0,0 +1,25 @@
++//errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T int
++
++func f() {
++	var x struct { T };
++	var y struct { T T };
++	x = y	// ERROR "cannot"
++}
++
++type T1 struct { T }
++type T2 struct { T T }
++
++func g() {
++	var x T1;
++	var y T2;
++	x = y	// ERROR "cannot"
++}
++

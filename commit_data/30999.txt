@@ -39,7 +39,7 @@ Date:   Fri Dec 9 17:15:05 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go                    | 13 ++-
  src/cmd/asm/internal/asm/endtoend_test.go          |  6 +-
  src/cmd/asm/internal/asm/parse.go                  | 15 ++--
@@ -79,3 +79,1933 @@ Date:   Fri Dec 9 17:15:05 2016 -0800
  .../internal/syntax => internal/src}/pos_test.go   | 18 +++--
  src/cmd/internal/src/src.go                        | 32 --------
  38 files changed, 372 insertions(+), 390 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index e7b4d2b9d7..350314d824 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -13,7 +13,6 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+-	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -62,7 +61,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 	}
+ 	prog.Pc = p.pc
+ 	if *flags.Debug {
+-		fmt.Println(p.histLineNum, prog)
++		fmt.Println(p.lineNum, prog)
+ 	}
+ 	if testOut != nil {
+ 		fmt.Fprintln(testOut, prog)
+@@ -164,7 +163,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.ATEXT,
+-		Pos:  src.MakePos(p.histLineNum),
++		Pos:  p.pos(),
+ 		From: nameAddr,
+ 		From3: &obj.Addr{
+ 			Type:   obj.TYPE_CONST,
+@@ -297,7 +296,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.APCDATA,
+-		Pos:  src.MakePos(p.histLineNum),
++		Pos:  p.pos(),
+ 		From: key,
+ 		To:   value,
+ 	}
+@@ -327,7 +326,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.AFUNCDATA,
+-		Pos:  src.MakePos(p.histLineNum),
++		Pos:  p.pos(),
+ 		From: valueAddr,
+ 		To:   nameAddr,
+ 	}
+@@ -342,7 +341,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+-		Pos:  src.MakePos(p.histLineNum),
++		Pos:  p.pos(),
+ 		As:   op,
+ 	}
+ 	switch len(a) {
+@@ -470,7 +469,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	// fmt.Printf("%s %+v\n", op, a)
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+-		Pos:  src.MakePos(p.histLineNum),
++		Pos:  p.pos(),
+ 		As:   op,
+ 	}
+ 	switch len(a) {
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index a2f31f8296..0abcd1f275 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -26,10 +26,9 @@ import (
+ // result against a golden file.
+ 
+ func testEndToEnd(t *testing.T, goarch, file string) {
+-	lex.InitHist()
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+-	lexer := lex.NewLexer(input, ctxt)
++	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+@@ -264,10 +263,9 @@ var (
+ )
+ 
+ func testErrors(t *testing.T, goarch, file string) {
+-	lex.InitHist()
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+-	lexer := lex.NewLexer(input, ctxt)
++	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 406c65e446..4b971e7119 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -19,14 +19,14 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+ type Parser struct {
+ 	lex           lex.TokenReader
+ 	lineNum       int   // Line number in source file.
+-	histLineNum   int32 // Cumulative line number across source files.
+-	errorLine     int32 // (Cumulative) line number of last error.
++	errorLine     int   // Line number of last error.
+ 	errorCount    int   // Number of errors.
+ 	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+ 	input         []lex.Token
+@@ -60,7 +60,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+ 	}
+ }
+ 
+-// panicOnError is enable when testing to abort execution on the first error
++// panicOnError is enabled when testing to abort execution on the first error
+ // and turn it into a recoverable panic.
+ var panicOnError bool
+ 
+@@ -68,11 +68,11 @@ func (p *Parser) errorf(format string, args ...interface{}) {
+ 	if panicOnError {
+ 		panic(fmt.Errorf(format, args...))
+ 	}
+-	if p.histLineNum == p.errorLine {
++	if p.lineNum == p.errorLine {
+ 		// Only one error per line.
+ 		return
+ 	}
+-	p.errorLine = p.histLineNum
++	p.errorLine = p.lineNum
+ 	if p.lex != nil {
+ 		// Put file and line information on head of message.
+ 		format = "%s:%d: " + format + "\n"
+@@ -85,6 +85,10 @@ func (p *Parser) errorf(format string, args ...interface{}) {
+ 	}
+ }
+ 
++func (p *Parser) pos() src.Pos {
++	return src.MakePos(p.lex.Base(), uint(p.lineNum), 0)
++}
++
+ func (p *Parser) Parse() (*obj.Prog, bool) {
+ 	for p.line() {
+ 	}
+@@ -105,7 +109,6 @@ func (p *Parser) line() bool {
+ 		// are labeled with this line. Otherwise we complain after we've absorbed
+ 		// the terminating newline and the line numbers are off by one in errors.
+ 		p.lineNum = p.lex.Line()
+-		p.histLineNum = lex.HistLine()
+ 		switch tok {
+ 		case '\n', ';':
+ 			continue
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 16979730e9..9ba9adfcfd 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -56,7 +56,6 @@ func TestErroneous(t *testing.T) {
+ 	for _, test := range tests {
+ 		parser.errorCount = 0
+ 		parser.lineNum++
+-		parser.histLineNum++
+ 		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
+ 			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
+ 		}
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 4855daa892..ddfcddf36d 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -13,6 +13,7 @@ import (
+ 	"text/scanner"
+ 
+ 	"cmd/asm/internal/flags"
++	"cmd/internal/src"
+ )
+ 
+ // Input is the main input: a stack of readers and some macro definitions.
+@@ -290,7 +291,7 @@ func lookup(args []string, arg string) int {
+ func (in *Input) invokeMacro(macro *Macro) {
+ 	// If the macro has no arguments, just substitute the text.
+ 	if macro.args == nil {
+-		in.Push(NewSlice(in.File(), in.Line(), macro.tokens))
++		in.Push(NewSlice(in.Base(), in.Line(), macro.tokens))
+ 		return
+ 	}
+ 	tok := in.Stack.Next()
+@@ -300,7 +301,7 @@ func (in *Input) invokeMacro(macro *Macro) {
+ 		in.peekToken = tok
+ 		in.peekText = in.text
+ 		in.peek = true
+-		in.Push(NewSlice(in.File(), in.Line(), []Token{Make(macroName, macro.name)}))
++		in.Push(NewSlice(in.Base(), in.Line(), []Token{Make(macroName, macro.name)}))
+ 		return
+ 	}
+ 	actuals := in.argsFor(macro)
+@@ -317,7 +318,7 @@ func (in *Input) invokeMacro(macro *Macro) {
+ 		}
+ 		tokens = append(tokens, substitution...)
+ 	}
+-	in.Push(NewSlice(in.File(), in.Line(), tokens))
++	in.Push(NewSlice(in.Base(), in.Line(), tokens))
+ }
+ 
+ // argsFor returns a map from formal name to actual value for this argumented macro invocation.
+@@ -452,8 +453,8 @@ func (in *Input) line() {
+ 	if tok != '\n' {
+ 		in.Error("unexpected token at end of #line: ", tok)
+ 	}
+-	linkCtxt.LineHist.Update(histLine, file, line)
+-	in.Stack.SetPos(line, file)
++	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
++	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, uint(line)))
+ }
+ 
+ // #undef processing
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 81339059b1..f1f7da7911 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -12,7 +12,7 @@ import (
+ 	"strings"
+ 	"text/scanner"
+ 
+-	"cmd/internal/obj"
++	"cmd/internal/src"
+ )
+ 
+ // A ScanToken represents an input item. It is a simple wrapping of rune, as
+@@ -57,23 +57,8 @@ func (t ScanToken) String() string {
+ 	}
+ }
+ 
+-var (
+-	// It might be nice if these weren't global.
+-	linkCtxt *obj.Link     // The link context for all instructions.
+-	histLine int       = 1 // The cumulative count of lines processed.
+-)
+-
+-// HistLine reports the cumulative source line number of the token,
+-// for use in the Prog structure for the linker. (It's always handling the
+-// instruction from the current lex line.)
+-// It returns int32 because that's what type ../asm prefers.
+-func HistLine() int32 {
+-	return int32(histLine)
+-}
+-
+ // NewLexer returns a lexer for the named file and the given link context.
+-func NewLexer(name string, ctxt *obj.Link) TokenReader {
+-	linkCtxt = ctxt
++func NewLexer(name string) TokenReader {
+ 	input := NewInput(name)
+ 	fd, err := os.Open(name)
+ 	if err != nil {
+@@ -83,16 +68,11 @@ func NewLexer(name string, ctxt *obj.Link) TokenReader {
+ 	return input
+ }
+ 
+-// InitHist sets the line count to 1, for reproducible testing.
+-func InitHist() {
+-	histLine = 1
+-}
+-
+ // The other files in this directory each contain an implementation of TokenReader.
+ 
+ // A TokenReader is like a reader, but returns lex tokens of type Token. It also can tell you what
+ // the text of the most recently returned token is, and where it was found.
+-// The underlying scanner elides all spaces except newline, so the input looks like a  stream of
++// The underlying scanner elides all spaces except newline, so the input looks like a stream of
+ // Tokens; original spacing is lost but we don't need it.
+ type TokenReader interface {
+ 	// Next returns the next token.
+@@ -102,12 +82,14 @@ type TokenReader interface {
+ 	Text() string
+ 	// File reports the source file name of the token.
+ 	File() string
++	// Base reports the position base of the token.
++	Base() *src.PosBase
++	// SetBase sets the position base.
++	SetBase(*src.PosBase)
+ 	// Line reports the source line number of the token.
+ 	Line() int
+ 	// Col reports the source column number of the token.
+ 	Col() int
+-	// SetPos sets the file and line number.
+-	SetPos(line int, file string)
+ 	// Close does any teardown required.
+ 	Close()
+ }
+diff --git a/src/cmd/asm/internal/lex/slice.go b/src/cmd/asm/internal/lex/slice.go
+index b0d5429e04..8ee0c7035f 100644
+--- a/src/cmd/asm/internal/lex/slice.go
++++ b/src/cmd/asm/internal/lex/slice.go
+@@ -4,22 +4,26 @@
+ 
+ package lex
+ 
+-import "text/scanner"
++import (
++	"text/scanner"
++
++	"cmd/internal/src"
++)
+ 
+ // A Slice reads from a slice of Tokens.
+ type Slice struct {
+-	tokens   []Token
+-	fileName string
+-	line     int
+-	pos      int
++	tokens []Token
++	base   *src.PosBase
++	line   int
++	pos    int
+ }
+ 
+-func NewSlice(fileName string, line int, tokens []Token) *Slice {
++func NewSlice(base *src.PosBase, line int, tokens []Token) *Slice {
+ 	return &Slice{
+-		tokens:   tokens,
+-		fileName: fileName,
+-		line:     line,
+-		pos:      -1, // Next will advance to zero.
++		tokens: tokens,
++		base:   base,
++		line:   line,
++		pos:    -1, // Next will advance to zero.
+ 	}
+ }
+ 
+@@ -36,7 +40,17 @@ func (s *Slice) Text() string {
+ }
+ 
+ func (s *Slice) File() string {
+-	return s.fileName
++	return s.base.Filename()
++}
++
++func (s *Slice) Base() *src.PosBase {
++	return s.base
++}
++
++func (s *Slice) SetBase(base *src.PosBase) {
++	// Cannot happen because we only have slices of already-scanned text,
++	// but be prepared.
++	s.base = base
+ }
+ 
+ func (s *Slice) Line() int {
+@@ -56,12 +70,5 @@ func (s *Slice) Col() int {
+ 	return s.pos
+ }
+ 
+-func (s *Slice) SetPos(line int, file string) {
+-	// Cannot happen because we only have slices of already-scanned
+-	// text, but be prepared.
+-	s.line = line
+-	s.fileName = file
+-}
+-
+ func (s *Slice) Close() {
+ }
+diff --git a/src/cmd/asm/internal/lex/stack.go b/src/cmd/asm/internal/lex/stack.go
+index 72d7f8a165..929e5281b4 100644
+--- a/src/cmd/asm/internal/lex/stack.go
++++ b/src/cmd/asm/internal/lex/stack.go
+@@ -4,7 +4,11 @@
+ 
+ package lex
+ 
+-import "text/scanner"
++import (
++	"text/scanner"
++
++	"cmd/internal/src"
++)
+ 
+ // A Stack is a stack of TokenReaders. As the top TokenReader hits EOF,
+ // it resumes reading the next one down.
+@@ -34,7 +38,15 @@ func (s *Stack) Text() string {
+ }
+ 
+ func (s *Stack) File() string {
+-	return s.tr[len(s.tr)-1].File()
++	return s.Base().Filename()
++}
++
++func (s *Stack) Base() *src.PosBase {
++	return s.tr[len(s.tr)-1].Base()
++}
++
++func (s *Stack) SetBase(base *src.PosBase) {
++	s.tr[len(s.tr)-1].SetBase(base)
+ }
+ 
+ func (s *Stack) Line() int {
+@@ -45,9 +57,5 @@ func (s *Stack) Col() int {
+ 	return s.tr[len(s.tr)-1].Col()
+ }
+ 
+-func (s *Stack) SetPos(line int, file string) {
+-	s.tr[len(s.tr)-1].SetPos(line, file)
+-}
+-
+ func (s *Stack) Close() { // Unused.
+ }
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 6a4d95491f..6c17085115 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -10,17 +10,21 @@ import (
+ 	"strings"
+ 	"text/scanner"
+ 	"unicode"
++
++	"cmd/asm/internal/flags"
++	"cmd/internal/obj"
++	"cmd/internal/src"
+ )
+ 
+ // A Tokenizer is a simple wrapping of text/scanner.Scanner, configured
+ // for our purposes and made a TokenReader. It forms the lowest level,
+ // turning text from readers into tokens.
+ type Tokenizer struct {
+-	tok      ScanToken
+-	s        *scanner.Scanner
+-	line     int
+-	fileName string
+-	file     *os.File // If non-nil, file descriptor to close.
++	tok  ScanToken
++	s    *scanner.Scanner
++	base *src.PosBase
++	line int
++	file *os.File // If non-nil, file descriptor to close.
+ }
+ 
+ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
+@@ -37,14 +41,11 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
+ 		scanner.ScanComments
+ 	s.Position.Filename = name
+ 	s.IsIdentRune = isIdentRune
+-	if file != nil {
+-		linkCtxt.LineHist.Push(histLine, name)
+-	}
+ 	return &Tokenizer{
+-		s:        &s,
+-		line:     1,
+-		fileName: name,
+-		file:     file,
++		s:    &s,
++		base: src.NewFileBase(name, obj.AbsFile(obj.WorkingDir(), name, *flags.TrimPath)),
++		line: 1,
++		file: file,
+ 	}
+ }
+ 
+@@ -80,7 +81,15 @@ func (t *Tokenizer) Text() string {
+ }
+ 
+ func (t *Tokenizer) File() string {
+-	return t.fileName
++	return t.base.Filename()
++}
++
++func (t *Tokenizer) Base() *src.PosBase {
++	return t.base
++}
++
++func (t *Tokenizer) SetBase(base *src.PosBase) {
++	t.base = base
+ }
+ 
+ func (t *Tokenizer) Line() int {
+@@ -91,11 +100,6 @@ func (t *Tokenizer) Col() int {
+ 	return t.s.Pos().Column
+ }
+ 
+-func (t *Tokenizer) SetPos(line int, file string) {
+-	t.line = line
+-	t.fileName = file
+-}
+-
+ func (t *Tokenizer) Next() ScanToken {
+ 	s := t.s
+ 	for {
+@@ -105,15 +109,11 @@ func (t *Tokenizer) Next() ScanToken {
+ 		}
+ 		length := strings.Count(s.TokenText(), "\n")
+ 		t.line += length
+-		histLine += length
+ 		// TODO: If we ever have //go: comments in assembly, will need to keep them here.
+ 		// For now, just discard all comments.
+ 	}
+ 	switch t.tok {
+ 	case '\n':
+-		if t.file != nil {
+-			histLine++
+-		}
+ 		t.line++
+ 	case '-':
+ 		if s.Peek() == '>' {
+@@ -146,7 +146,5 @@ func (t *Tokenizer) Next() ScanToken {
+ func (t *Tokenizer) Close() {
+ 	if t.file != nil {
+ 		t.file.Close()
+-		// It's an open file, so pop the line history.
+-		linkCtxt.LineHist.Pop(histLine)
+ 	}
+ }
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 13e5302301..1e27e1a9bd 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -37,7 +37,6 @@ func main() {
+ 	if *flags.PrintOut {
+ 		ctxt.Debugasm = 1
+ 	}
+-	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+@@ -57,7 +56,7 @@ func main() {
+ 	var ok, diag bool
+ 	var failedFile string
+ 	for _, f := range flag.Args() {
+-		lexer := lex.NewLexer(f, ctxt)
++		lexer := lex.NewLexer(f)
+ 		parser := asm.NewParser(ctxt, architecture, lexer)
+ 		ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 			diag = true
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index f0f0852c55..88e9ba2b7b 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -650,11 +650,11 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.Node %T":             "",
+ 	"cmd/compile/internal/syntax.Operator %d":         "",
+ 	"cmd/compile/internal/syntax.Operator %s":         "",
+-	"cmd/compile/internal/syntax.Pos %s":              "",
+ 	"cmd/compile/internal/syntax.token %d":            "",
+ 	"cmd/compile/internal/syntax.token %q":            "",
+ 	"cmd/compile/internal/syntax.token %s":            "",
+ 	"cmd/internal/obj.As %v":                          "",
++	"cmd/internal/src.Pos %s":                         "",
+ 	"error %v":                                        "",
+ 	"float64 %.2f":                                    "",
+ 	"float64 %.3f":                                    "",
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 50b75aa09f..3c71cea33a 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -189,7 +189,7 @@ func genhash(sym *Sym, t *Type) {
+ 		fmt.Printf("genhash %v %v\n", sym, t)
+ 	}
+ 
+-	lineno = src.MakePos(1) // less confusing than end of input
++	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
+ 	dclcontext = PEXTERN
+ 	markdcl()
+ 
+@@ -365,7 +365,7 @@ func geneq(sym *Sym, t *Type) {
+ 		fmt.Printf("geneq %v %v\n", sym, t)
+ 	}
+ 
+-	lineno = src.MakePos(1) // less confusing than end of input
++	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
+ 	dclcontext = PEXTERN
+ 	markdcl()
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 438446147a..dbf2d6e166 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -591,7 +591,8 @@ func (p *exporter) pos(n *Node) {
+ 
+ func fileLine(n *Node) (file string, line int) {
+ 	if n != nil {
+-		file, line = Ctxt.LineHist.AbsFileLine(int(n.Pos.Line()))
++		file = n.Pos.AbsFilename()
++		line = int(n.Pos.Line())
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 5693052fdf..bfb0da5071 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -75,6 +75,9 @@ func anyinit(n []*Node) bool {
+ }
+ 
+ func fninit(n []*Node) {
++	// This code is using the last value of lineno for position information
++	// (see comment in noder.go, noder.file method, for details).
++
+ 	nf := initfix(n)
+ 	if !anyinit(nf) {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 00dc975f2c..f92387036b 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -12,11 +12,8 @@ import (
+ 	"strings"
+ )
+ 
+-// lexlineno is the line number _after_ the most recently read rune.
+-// In particular, it's advanced (or rewound) as newlines are read (or unread).
+-var lexlineno src.Pos
+-
+-// lineno is the line number at the start of the most recently lexed token.
++// lineno is the source position at the start of the most recently lexed token.
++// TODO(gri) rename and eventually remove
+ var lineno src.Pos
+ 
+ func isSpace(c rune) bool {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a3487afb44..aa917c735b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -186,7 +186,7 @@ func Main() {
+ 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
+ 	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+ 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+-	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
++	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+ 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
+ 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+@@ -300,31 +300,23 @@ func Main() {
+ 	blockgen = 1
+ 	dclcontext = PEXTERN
+ 	nerrors = 0
+-	lexlineno = src.MakePos(1)
+ 
+ 	timings.Start("fe", "loadsys")
+ 	loadsys()
+ 
+ 	timings.Start("fe", "parse")
+-	lexlineno0 := lexlineno
++	var lines uint
+ 	for _, infile = range flag.Args() {
+-		linehistpush(infile)
+ 		block = 1
+ 		iota_ = -1000000
+ 		imported_unsafe = false
+-		parseFile(infile)
++		lines += parseFile(infile)
+ 		if nsyntaxerrors != 0 {
+ 			errorexit()
+ 		}
+-
+-		// Instead of converting EOF into '\n' in getc and count it as an extra line
+-		// for the line history to work, and which then has to be corrected elsewhere,
+-		// just add a line here.
+-		lexlineno = src.MakePos(lexlineno.Line() + 1)
+-		linehistpop()
+ 	}
+ 	timings.Stop()
+-	timings.AddEvent(int64(lexlineno.Line()-lexlineno0.Line()), "lines")
++	timings.AddEvent(int64(lines), "lines")
+ 
+ 	testdclstack()
+ 	mkpackage(localpkg.Name) // final import not used checks
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index cdfa84aa4c..7376814b43 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -5,25 +5,28 @@
+ package gc
+ 
+ import (
+-	"cmd/compile/internal/syntax"
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
++
++	"cmd/compile/internal/syntax"
++	"cmd/internal/obj"
++	"cmd/internal/src"
+ )
+ 
+-func parseFile(filename string) {
+-	src, err := os.Open(filename)
++func parseFile(filename string) uint {
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		fmt.Println(err)
+ 		errorexit()
+ 	}
+-	defer src.Close()
++	defer f.Close()
+ 
+-	p := noder{baseline: lexlineno.Line()}
+-	file, _ := syntax.Parse(filename, src, p.error, p.pragma, 0) // errors are tracked via p.error
++	base := src.NewFileBase(filename, absFilename(filename))
++	var p noder
++	file, _ := syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
+ 
+ 	p.file(file)
+ 
+@@ -36,12 +39,19 @@ func parseFile(filename string) {
+ 	if nsyntaxerrors == 0 {
+ 		testdclstack()
+ 	}
++
++	return file.Lines
++}
++
++var pathPrefix string
++
++func absFilename(name string) string {
++	return obj.AbsFile(Ctxt.Pathname, name, pathPrefix)
+ }
+ 
+ // noder transforms package syntax's AST into a Nod tree.
+ type noder struct {
+-	baseline  int32
+-	linknames []syntax.Pos // tracks //go:linkname positions
++	linknames []src.Pos // tracks //go:linkname positions
+ }
+ 
+ func (p *noder) file(file *syntax.File) {
+@@ -50,8 +60,16 @@ func (p *noder) file(file *syntax.File) {
+ 
+ 	xtop = append(xtop, p.decls(file.DeclList)...)
+ 
+-	lexlineno = src.MakePos(p.baseline + int32(file.Lines) - 1)
+-	lineno = lexlineno
++	// For compatibility with old code only (comparisons w/ toolstash):
++	// The old line number tracking simply continued incrementing the
++	// virtual line number (lexlineno) and using it also for lineno.
++	// After processing the last function, the lineno was used for the
++	// line number information of the initialization code (fninit).
++	// It would be better to use an explicit "<autogenerated>" filename
++	// for fninit and set lineno to NoPos here.
++	// TODO(gri) fix this once we switched permanently to the new
++	// position information.
++	lineno = src.MakePos(file.Pos().Base(), uint(file.Lines), 0)
+ }
+ 
+ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+@@ -231,7 +249,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		yyerror("can only use //go:noescape with external func implementations")
+ 	}
+ 	f.Func.Pragma = pragma
+-	lineno = src.MakePos(p.baseline + int32(fun.EndLine) - 1)
++	lineno = src.MakePos(fun.Pos().Base(), fun.EndLine, 0)
+ 	f.Func.Endlineno = lineno
+ 
+ 	funcbody(f)
+@@ -357,14 +375,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+ 		n.List.Set(l)
+-		lineno = src.MakePos(p.baseline + int32(expr.EndLine) - 1)
++		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		closurehdr(p.typeExpr(expr.Type))
+ 		body := p.stmts(expr.Body)
+-		lineno = src.MakePos(p.baseline + int32(expr.EndLine) - 1)
++		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
+ 		return p.setlineno(expr, closurebody(body))
+ 	case *syntax.ParenExpr:
+ 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+@@ -986,12 +1004,12 @@ func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
+ }
+ 
+ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+-	l := src_.Pos().Line()
+-	if l == 0 {
++	pos := src_.Pos()
++	if !pos.IsKnown() {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+ 	}
+-	dst.Pos = src.MakePos(p.baseline + int32(l) - 1)
++	dst.Pos = pos
+ 	return dst
+ }
+ 
+@@ -999,48 +1017,24 @@ func (p *noder) lineno(n syntax.Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	l := n.Pos().Line()
+-	if l == 0 {
++	pos := n.Pos()
++	if !pos.IsKnown() {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+ 	}
+-	lineno = src.MakePos(p.baseline + int32(l) - 1)
++	lineno = pos
+ }
+ 
+ func (p *noder) error(err error) {
+-	line := p.baseline
+-	var msg string
+-	if err, ok := err.(syntax.Error); ok {
+-		line += int32(err.Pos.Line()) - 1
+-		msg = err.Msg
+-	} else {
+-		msg = err.Error()
+-	}
+-	yyerrorl(src.MakePos(line), "%s", msg)
++	e := err.(syntax.Error)
++	yyerrorl(e.Pos, "%s", e.Msg)
+ }
+ 
+-func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
++func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 	switch {
+ 	case strings.HasPrefix(text, "line "):
+-		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+-		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+-		if i < 0 {
+-			break
+-		}
+-		n, err := strconv.Atoi(text[i+1:])
+-		if err != nil {
+-			// TODO: make this an error instead? it is almost certainly a bug.
+-			break
+-		}
+-		if n > 1e8 {
+-			p.error(syntax.Error{Pos: pos, Msg: "line number out of range"})
+-			errorexit()
+-		}
+-		if n <= 0 {
+-			break
+-		}
+-		lexlineno = src.MakePos(p.baseline + int32(pos.Line()))
+-		linehistupdate(text[5:i], n)
++		// line directives are handled by syntax package
++		panic("unreachable")
+ 
+ 	case strings.HasPrefix(text, "go:linkname "):
+ 		// Record line number so we can emit an error later if
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index b86188c314..d8964fd1d0 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,14 +22,14 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 92, 160},
++		{Func{}, 100, 184},
+ 		{Name{}, 44, 72},
+ 		{Param{}, 24, 48},
+-		{Node{}, 92, 144},
+-		{Sym{}, 60, 112},
+-		{Type{}, 60, 96},
++		{Node{}, 96, 160},
++		{Sym{}, 64, 128},
++		{Type{}, 64, 112},
+ 		{MapType{}, 20, 40},
+-		{ForwardType{}, 16, 32},
++		{ForwardType{}, 20, 40},
+ 		{FuncType{}, 28, 48},
+ 		{StructType{}, 12, 24},
+ 		{InterType{}, 4, 8},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a6a8deadc3..4cdc869606 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -282,8 +282,8 @@ func (s *state) label(sym *Sym) *ssaLabel {
+ func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
+ func (s *state) Log() bool                              { return s.config.Log() }
+ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekPos(), msg, args...) }
+-func (s *state) Warnl(line src.Pos, msg string, args ...interface{}) {
+-	s.config.Warnl(line, msg, args...)
++func (s *state) Warnl(pos src.Pos, msg string, args ...interface{}) {
++	s.config.Warnl(pos, msg, args...)
+ }
+ func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
+ 
+@@ -4462,8 +4462,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			f.Logf("%s\t%s\n", s, p)
+ 		}
+ 		if f.Config.HTML != nil {
+-			saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
+-			ptxt.Ctxt.LineHist.PrintFilenameOnly = true
++			// LineHist is defunct now - this code won't do
++			// anything.
++			// TODO: fix this (ideally without a global variable)
++			// saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
++			// ptxt.Ctxt.LineHist.PrintFilenameOnly = true
+ 			var buf bytes.Buffer
+ 			buf.WriteString("<code>")
+ 			buf.WriteString("<dl class=\"ssa-gen\">")
+@@ -4483,7 +4486,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			buf.WriteString("</dl>")
+ 			buf.WriteString("</code>")
+ 			f.Config.HTML.WriteColumn("genssa", buf.String())
+-			ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
++			// ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
+ 		}
+ 	}
+ 
+@@ -4958,8 +4961,8 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
+ 	return canSSAType(t.(*Type))
+ }
+ 
+-func (e *ssaExport) Line(line src.Pos) string {
+-	return linestr(line)
++func (e *ssaExport) Line(pos src.Pos) string {
++	return linestr(pos)
+ }
+ 
+ // Log logs a message from the compiler.
+@@ -4974,15 +4977,15 @@ func (e *ssaExport) Log() bool {
+ }
+ 
+ // Fatal reports a compiler error and exits.
+-func (e *ssaExport) Fatalf(line src.Pos, msg string, args ...interface{}) {
+-	lineno = line
++func (e *ssaExport) Fatalf(pos src.Pos, msg string, args ...interface{}) {
++	lineno = pos
+ 	Fatalf(msg, args...)
+ }
+ 
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+-func (e *ssaExport) Warnl(line src.Pos, fmt_ string, args ...interface{}) {
+-	Warnl(line, fmt_, args...)
++func (e *ssaExport) Warnl(pos src.Pos, fmt_ string, args ...interface{}) {
++	Warnl(pos, fmt_, args...)
+ }
+ 
+ func (e *ssaExport) Debug_checknil() bool {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6d3d9688d4..44a1ab479b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -86,49 +86,54 @@ func hcrash() {
+ 	}
+ }
+ 
+-func linestr(line src.Pos) string {
+-	return Ctxt.Line(int(line.Line()))
++func linestr(pos src.Pos) string {
++	return pos.String()
+ }
+ 
+ // lasterror keeps track of the most recently issued error.
+ // It is used to avoid multiple error messages on the same
+ // line.
+ var lasterror struct {
+-	syntax src.Pos // line of last syntax error
+-	other  src.Pos // line of last non-syntax error
++	syntax src.Pos // source position of last syntax error
++	other  src.Pos // source position of last non-syntax error
+ 	msg    string  // error message of last non-syntax error
+ }
+ 
+-func yyerrorl(line src.Pos, format string, args ...interface{}) {
++// sameline reports whether two positions a, b are on the same line.
++func sameline(a, b src.Pos) bool {
++	return a.Filename() == b.Filename() && a.Line() == b.Line()
++}
++
++func yyerrorl(pos src.Pos, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+ 
+ 	if strings.HasPrefix(msg, "syntax error") {
+ 		nsyntaxerrors++
+ 		// only one syntax error per line, no matter what error
+-		if lasterror.syntax == line {
++		if sameline(lasterror.syntax, pos) {
+ 			return
+ 		}
+-		lasterror.syntax = line
++		lasterror.syntax = pos
+ 	} else {
+ 		// only one of multiple equal non-syntax errors per line
+ 		// (flusherrors shows only one of them, so we filter them
+ 		// here as best as we can (they may not appear in order)
+ 		// so that we don't count them here and exit early, and
+ 		// then have nothing to show for.)
+-		if lasterror.other == line && lasterror.msg == msg {
++		if sameline(lasterror.other, pos) && lasterror.msg == msg {
+ 			return
+ 		}
+-		lasterror.other = line
++		lasterror.other = pos
+ 		lasterror.msg = msg
+ 	}
+ 
+-	adderr(line, "%s", msg)
++	adderr(pos, "%s", msg)
+ 
+ 	hcrash()
+ 	nerrors++
+ 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
+ 		flusherrors()
+-		fmt.Printf("%v: too many errors\n", linestr(line))
++		fmt.Printf("%v: too many errors\n", linestr(pos))
+ 		errorexit()
+ 	}
+ }
+@@ -173,34 +178,14 @@ func Fatalf(fmt_ string, args ...interface{}) {
+ 	errorexit()
+ }
+ 
++// TODO(gri) rename this function
+ func linehistpragma(file string) {
+-	if Debug['i'] != 0 {
+-		fmt.Printf("pragma %s at line %v\n", file, linestr(lexlineno))
+-	}
++	// if Debug['i'] != 0 {
++	// 	fmt.Printf("pragma %s at line %v\n", file, linestr(lexlineno))
++	// }
+ 	Ctxt.AddImport(file)
+ }
+ 
+-func linehistpush(file string) {
+-	if Debug['i'] != 0 {
+-		fmt.Printf("import %s at line %v\n", file, linestr(lexlineno))
+-	}
+-	Ctxt.LineHist.Push(int(lexlineno.Line()), file)
+-}
+-
+-func linehistpop() {
+-	if Debug['i'] != 0 {
+-		fmt.Printf("end of import at line %v\n", linestr(lexlineno))
+-	}
+-	Ctxt.LineHist.Pop(int(lexlineno.Line()))
+-}
+-
+-func linehistupdate(file string, off int) {
+-	if Debug['i'] != 0 {
+-		fmt.Printf("line %s at line %v\n", file, linestr(lexlineno))
+-	}
+-	Ctxt.LineHist.Update(int(lexlineno.Line()), file, off)
+-}
+-
+ func setlineno(n *Node) src.Pos {
+ 	lno := lineno
+ 	if n != nil {
+@@ -474,9 +459,9 @@ func nodbool(b bool) *Node {
+ // treecopy recursively copies n, with the exception of
+ // ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
+ // Copies of iota ONONAME nodes are assigned the current
+-// value of iota_. If lineno != 0, it sets the line number
+-// of newly allocated nodes to lineno.
+-func treecopy(n *Node, lineno src.Pos) *Node {
++// value of iota_. If pos.IsKnown(), it sets the source
++// position of newly allocated nodes to pos.
++func treecopy(n *Node, pos src.Pos) *Node {
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -485,11 +470,11 @@ func treecopy(n *Node, lineno src.Pos) *Node {
+ 	default:
+ 		m := *n
+ 		m.Orig = &m
+-		m.Left = treecopy(n.Left, lineno)
+-		m.Right = treecopy(n.Right, lineno)
+-		m.List.Set(listtreecopy(n.List.Slice(), lineno))
+-		if lineno.IsKnown() {
+-			m.Pos = lineno
++		m.Left = treecopy(n.Left, pos)
++		m.Right = treecopy(n.Right, pos)
++		m.List.Set(listtreecopy(n.List.Slice(), pos))
++		if pos.IsKnown() {
++			m.Pos = pos
+ 		}
+ 		if m.Name != nil && n.Op != ODCLFIELD {
+ 			Dump("treecopy", n)
+@@ -504,8 +489,8 @@ func treecopy(n *Node, lineno src.Pos) *Node {
+ 			// so that all the copies of this const definition
+ 			// don't have the same iota value.
+ 			m := *n
+-			if lineno.IsKnown() {
+-				m.Pos = lineno
++			if pos.IsKnown() {
++				m.Pos = pos
+ 			}
+ 			m.SetIota(iota_)
+ 			return &m
+@@ -1707,21 +1692,12 @@ func structargs(tl *Type, mustname bool) []*Node {
+ //	method - M func (t T)(), a TFIELD type struct
+ //	newnam - the eventual mangled name of this function
+ 
+-var genwrapper_linehistdone int = 0
+-
+ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	if false && Debug['r'] != 0 {
+ 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+ 	}
+ 
+-	lexlineno = src.MakePos(lexlineno.Line() + 1)
+-	lineno = lexlineno
+-	if genwrapper_linehistdone == 0 {
+-		// All the wrappers can share the same linehist entry.
+-		linehistpush("<autogenerated>")
+-
+-		genwrapper_linehistdone = 1
+-	}
++	lineno = src.MakePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
+ 
+ 	dclcontext = PEXTERN
+ 	markdcl()
+@@ -1992,10 +1968,10 @@ func Simsimtype(t *Type) EType {
+ 	return et
+ }
+ 
+-func listtreecopy(l []*Node, lineno src.Pos) []*Node {
++func listtreecopy(l []*Node, pos src.Pos) []*Node {
+ 	var out []*Node
+ 	for _, n := range l {
+-		out = append(out, treecopy(n, lineno))
++		out = append(out, treecopy(n, pos))
+ 	}
+ 	return out
+ }
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 7f1d26d370..cfc63738d6 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func (n *Node) Line() string {
+-	return Ctxt.LineHist.LineString(int(n.Pos.Line()))
++	return linestr(n.Pos)
+ }
+ 
+ var atExitFuncs []func()
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 4aab923653..7792318e20 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,8 +22,8 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Value{}, 68, 112},
+-		{Block{}, 148, 288},
++		{Value{}, 72, 128},
++		{Block{}, 152, 304},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 2b20cbdd97..1186193aba 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -14,7 +14,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ParseFile(*src, nil, nil, 0)
++	ast, err := ParseFile(*src_, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index adbb4da750..82c6c1907f 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -4,11 +4,13 @@
+ 
+ package syntax
+ 
++import "cmd/internal/src"
++
+ // ----------------------------------------------------------------------------
+ // Nodes
+ 
+ type Node interface {
+-	Pos() Pos
++	Pos() src.Pos
+ 	aNode()
+ 	init(p *parser)
+ }
+@@ -16,10 +18,10 @@ type Node interface {
+ type node struct {
+ 	// commented out for now since not yet used
+ 	// doc  *Comment // nil means no comment(s) attached
+-	pos Pos
++	pos src.Pos
+ }
+ 
+-func (n *node) Pos() Pos {
++func (n *node) Pos() src.Pos {
+ 	return n.pos
+ }
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index eb9c3e4aa5..e70ac3d714 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -5,6 +5,7 @@
+ package syntax
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"io"
+ 	"strconv"
+@@ -20,7 +21,7 @@ const trace = false
+ const gcCompat = true
+ 
+ type parser struct {
+-	base *PosBase
++	base *src.PosBase
+ 	errh ErrorHandler
+ 	scanner
+ 
+@@ -32,11 +33,11 @@ type parser struct {
+ 	indent []byte // tracing support
+ }
+ 
+-func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+-	p.base = NewFileBase(filename)
++func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler) {
++	p.base = base
+ 	p.errh = errh
+ 	p.scanner.init(
+-		src,
++		r,
+ 		// Error and pragma handlers for scanner.
+ 		// Because the (line, col) positions passed to these
+ 		// handlers are always at or after the current reading
+@@ -48,6 +49,7 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
+ 		func(line, col uint, text string) {
+ 			if strings.HasPrefix(text, "line ") {
+ 				p.updateBase(line, col+5, text[5:])
++				return
+ 			}
+ 			if pragh != nil {
+ 				p.pragma |= pragh(p.pos_at(line, col), text)
+@@ -63,6 +65,8 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
+ 	p.indent = nil
+ }
+ 
++const lineMax = 1<<24 - 1 // TODO(gri) this limit is defined for src.Pos - fix
++
+ func (p *parser) updateBase(line, col uint, text string) {
+ 	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+ 	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+@@ -75,7 +79,7 @@ func (p *parser) updateBase(line, col uint, text string) {
+ 		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
+ 		return
+ 	}
+-	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
++	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
+ }
+ 
+ func (p *parser) got(tok token) bool {
+@@ -97,12 +101,12 @@ func (p *parser) want(tok token) {
+ // Error handling
+ 
+ // pos_at returns the Pos value for (line, col) and the current position base.
+-func (p *parser) pos_at(line, col uint) Pos {
+-	return MakePos(p.base, line, col)
++func (p *parser) pos_at(line, col uint) src.Pos {
++	return src.MakePos(p.base, line, col)
+ }
+ 
+ // error reports an error at the given position.
+-func (p *parser) error_at(pos Pos, msg string) {
++func (p *parser) error_at(pos src.Pos, msg string) {
+ 	err := Error{pos, msg}
+ 	if p.first == nil {
+ 		p.first = err
+@@ -114,7 +118,7 @@ func (p *parser) error_at(pos Pos, msg string) {
+ }
+ 
+ // syntax_error_at reports a syntax error at the given position.
+-func (p *parser) syntax_error_at(pos Pos, msg string) {
++func (p *parser) syntax_error_at(pos src.Pos, msg string) {
+ 	if trace {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+ 	}
+@@ -159,7 +163,7 @@ func (p *parser) syntax_error_at(pos Pos, msg string) {
+ }
+ 
+ // Convenience methods using the current token position.
+-func (p *parser) pos() Pos                { return p.pos_at(p.line, p.col) }
++func (p *parser) pos() src.Pos            { return p.pos_at(p.line, p.col) }
+ func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
+ func (p *parser) syntax_error(msg string) { p.syntax_error_at(p.pos(), msg) }
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 23fed3b105..da56168957 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -6,6 +6,7 @@ package syntax
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/src"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -18,11 +19,11 @@ import (
+ )
+ 
+ var fast = flag.Bool("fast", false, "parse package files in parallel")
+-var src = flag.String("src", "parser.go", "source file to parse")
++var src_ = flag.String("src", "parser.go", "source file to parse")
+ var verify = flag.Bool("verify", false, "verify idempotent printing")
+ 
+ func TestParse(t *testing.T) {
+-	_, err := ParseFile(*src, nil, nil, 0)
++	_, err := ParseFile(*src_, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -133,7 +134,7 @@ func verifyPrint(filename string, ast1 *File) {
+ 		panic(err)
+ 	}
+ 
+-	ast2, err := ParseBytes(filename, buf1.Bytes(), nil, nil, 0)
++	ast2, err := ParseBytes(src.NewFileBase(filename, filename), buf1.Bytes(), nil, nil, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -157,7 +158,7 @@ func verifyPrint(filename string, ast1 *File) {
+ }
+ 
+ func TestIssue17697(t *testing.T) {
+-	_, err := ParseBytes("", nil, nil, nil, 0) // return with parser error, don't panic
++	_, err := ParseBytes(nil, nil, nil, nil, 0) // return with parser error, don't panic
+ 	if err == nil {
+ 		t.Errorf("no error reported")
+ 	}
+@@ -202,7 +203,7 @@ func TestLineDirectives(t *testing.T) {
+ 		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123, 3},
+ 		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345, 0},
+ 	} {
+-		_, err := ParseBytes("", []byte(test.src), nil, nil, 0)
++		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
+ 		if err == nil {
+ 			t.Errorf("%s: no error reported", test.src)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 5c0fc776a1..dc9a32b6d3 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -15,7 +15,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ParseFile(*src, nil, nil, 0)
++	ast, err := ParseFile(*src_, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 4585defb8f..db2bcb4a0c 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -5,6 +5,7 @@
+ package syntax
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -15,7 +16,7 @@ type Mode uint
+ 
+ // Error describes a syntax error. Error implements the error interface.
+ type Error struct {
+-	Pos Pos
++	Pos src.Pos
+ 	Msg string
+ }
+ 
+@@ -36,11 +37,11 @@ type Pragma uint16
+ // A PragmaHandler is used to process //line and //go: directives as
+ // they're scanned. The returned Pragma value will be unioned into the
+ // next FuncDecl node.
+-type PragmaHandler func(pos Pos, text string) Pragma
++type PragmaHandler func(pos src.Pos, text string) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are errors, Parse will return the first error found.
+-// The filename is only used for position information.
++// The base argument is only used for position information.
+ //
+ // If errh != nil, it is called with each error encountered, and Parse will
+ // process as much source as possible. If errh is nil, Parse will terminate
+@@ -49,7 +50,7 @@ type PragmaHandler func(pos Pos, text string) Pragma
+ // If a PragmaHandler is provided, it is called with each pragma encountered.
+ //
+ // The Mode argument is currently ignored.
+-func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
++func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+ 			if err, ok := p.(Error); ok {
+@@ -61,14 +62,14 @@ func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandle
+ 	}()
+ 
+ 	var p parser
+-	p.init(filename, src, errh, pragh)
++	p.init(base, src, errh, pragh)
+ 	p.next()
+ 	return p.file(), p.first
+ }
+ 
+ // ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
+-func ParseBytes(filename string, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+-	return Parse(filename, &bytesReader{src}, errh, pragh, mode)
++func ParseBytes(base *src.PosBase, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
++	return Parse(base, &bytesReader{src}, errh, pragh, mode)
+ }
+ 
+ type bytesReader struct {
+@@ -86,13 +87,13 @@ func (r *bytesReader) Read(p []byte) (int, error) {
+ 
+ // ParseFile behaves like Parse but it reads the source from the named file.
+ func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+-	src, err := os.Open(filename)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		if errh != nil {
+ 			errh(err)
+ 		}
+ 		return nil, err
+ 	}
+-	defer src.Close()
+-	return Parse(filename, src, errh, pragh, mode)
++	defer f.Close()
++	return Parse(src.NewFileBase(filename, filename), f, errh, pragh, mode)
+ }
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index 566263d3d7..d1df3900cf 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -5,12 +5,16 @@
+ package obj
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+ )
+ 
++// LineHists are not used anymore. This code is only here for reference during a transition period.
++// TODO(gri) remove this eventually (we still need the LineHist independent functions, though).
++
+ // A LineHist records the history of the file input stack, which maps the virtual line number,
+ // an incrementing count of lines processed in any input file and typically named lineno,
+ // to a stack of file:line pairs showing the path of inclusions that led to that position.
+@@ -69,31 +73,43 @@ func (h *LineHist) startRange(lineno int, top *LineStack) {
+ func (h *LineHist) setFile(stk *LineStack, file string) {
+ 	// Note: The exclusion of stk.Directive may be wrong but matches what we've done before.
+ 	// The check for < avoids putting a path prefix on "<autogenerated>".
++	dir := h.Dir
++	if stk.Directive || strings.HasPrefix(file, "<") {
++		dir = ""
++	}
++
++	stk.AbsFile = AbsFile(dir, file, h.TrimPathPrefix)
++
++	if file == "" {
++		file = "??"
++	}
++	stk.File = file
++}
++
++// AbsFile returns the absolute filename for file in the given directory.
++// It also removes a leading pathPrefix, or else rewrites a leading $GOROOT
++// prefix to the literal "$GOROOT".
++// If the resulting path is the empty string, the result is "??".
++func AbsFile(dir, file, pathPrefix string) string {
+ 	abs := file
+-	if h.Dir != "" && !filepath.IsAbs(file) && !strings.HasPrefix(file, "<") && !stk.Directive {
+-		abs = filepath.Join(h.Dir, file)
++	if dir != "" && !filepath.IsAbs(file) {
++		abs = filepath.Join(dir, file)
+ 	}
+ 
+-	// Remove leading TrimPathPrefix, or else rewrite $GOROOT to literal $GOROOT.
+-	if h.TrimPathPrefix != "" && hasPathPrefix(abs, h.TrimPathPrefix) {
+-		if abs == h.TrimPathPrefix {
++	if pathPrefix != "" && hasPathPrefix(abs, pathPrefix) {
++		if abs == pathPrefix {
+ 			abs = ""
+ 		} else {
+-			abs = abs[len(h.TrimPathPrefix)+1:]
++			abs = abs[len(pathPrefix)+1:]
+ 		}
+-	} else if hasPathPrefix(abs, h.GOROOT) {
+-		abs = "$GOROOT" + abs[len(h.GOROOT):]
++	} else if hasPathPrefix(abs, GOROOT) {
++		abs = "$GOROOT" + abs[len(GOROOT):]
+ 	}
+ 	if abs == "" {
+ 		abs = "??"
+ 	}
+-	abs = filepath.Clean(abs)
+-	stk.AbsFile = abs
+ 
+-	if file == "" {
+-		file = "??"
+-	}
+-	stk.File = file
++	return filepath.Clean(abs)
+ }
+ 
+ // Does s have t as a path prefix?
+@@ -273,18 +289,30 @@ func (h *LineHist) AbsFileLine(lineno int) (file string, line int) {
+ // It doesn't allow printing the full stack, and it returns the file name and line number separately.
+ // TODO: Unify with linklinefmt somehow.
+ func linkgetline(ctxt *Link, lineno int32) (f *LSym, l int32) {
+-	stk := ctxt.LineHist.At(int(lineno))
+-	if stk == nil || stk.AbsFile == "" {
++	panic("defunct")
++	// stk := ctxt.LineHist.At(int(lineno))
++	// if stk == nil || stk.AbsFile == "" {
++	// 	return Linklookup(ctxt, "??", HistVersion), 0
++	// }
++	// if stk.Sym == nil {
++	// 	stk.Sym = Linklookup(ctxt, stk.AbsFile, HistVersion)
++	// }
++	// return stk.Sym, int32(stk.fileLineAt(int(lineno)))
++}
++
++// This is modified copy of linkgetline to work from src.Pos.
++func linkgetlineFromPos(ctxt *Link, pos src.Pos) (f *LSym, l int32) {
++	filename := pos.AbsFilename()
++	if !pos.IsKnown() || filename == "" {
+ 		return Linklookup(ctxt, "??", HistVersion), 0
+ 	}
+-	if stk.Sym == nil {
+-		stk.Sym = Linklookup(ctxt, stk.AbsFile, HistVersion)
+-	}
+-	return stk.Sym, int32(stk.fileLineAt(int(lineno)))
++	// TODO(gri) Should this use relative or absolute line number?
++	return Linklookup(ctxt, filename, HistVersion), int32(pos.RelLine())
+ }
+ 
+ func Linkprfile(ctxt *Link, line int) {
+-	fmt.Printf("%s ", ctxt.LineHist.LineString(line))
++	panic("defunct")
++	// fmt.Printf("%s ", ctxt.LineHist.LineString(line))
+ }
+ 
+ func fieldtrack(ctxt *Link, cursym *LSym) {
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index 8f9bcd1ec6..d3a6727676 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -5,45 +5,35 @@
+ package obj
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"testing"
+ )
+ 
+-func TestLineHist(t *testing.T) {
++func TestLinkgetlineFromPos(t *testing.T) {
+ 	ctxt := new(Link)
+ 	ctxt.Hash = make(map[SymVer]*LSym)
+ 
+-	ctxt.LineHist.Push(1, "a.c")
+-	ctxt.LineHist.Push(3, "a.h")
+-	ctxt.LineHist.Pop(5)
+-	ctxt.LineHist.Update(7, "linedir", 2)
+-	ctxt.LineHist.Pop(9)
+-	ctxt.LineHist.Push(11, "b.c")
+-	ctxt.LineHist.Pop(13)
++	afile := src.NewFileBase("a.go", "a.go")
++	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
++	lfile := src.NewLinePragmaBase(src.MakePos(afile, 7, 0), "linedir", 100)
+ 
+-	var expect = []string{
+-		0:  "??:0",
+-		1:  "a.c:1",
+-		2:  "a.c:2",
+-		3:  "a.h:1",
+-		4:  "a.h:2",
+-		5:  "a.c:3",
+-		6:  "a.c:4",
+-		7:  "linedir:2",
+-		8:  "linedir:3",
+-		9:  "??:0",
+-		10: "??:0",
+-		11: "b.c:1",
+-		12: "b.c:2",
+-		13: "??:0",
+-		14: "??:0",
++	var tests = []struct {
++		pos  src.Pos
++		want string
++	}{
++		{src.NoPos, "??:0"},
++		{src.MakePos(afile, 1, 0), "a.go:1"},
++		{src.MakePos(afile, 2, 0), "a.go:2"},
++		{src.MakePos(bfile, 10, 4), "/foo/bar/b.go:10"},
++		{src.MakePos(lfile, 10, 0), "linedir:102"}, // 102 == 100 + (10 - (7+1))
+ 	}
+ 
+-	for i, want := range expect {
+-		f, l := linkgetline(ctxt, int32(i))
+-		have := fmt.Sprintf("%s:%d", f.Name, l)
+-		if have != want {
+-			t.Errorf("linkgetline(%d) = %q, want %q", i, have, want)
++	for _, test := range tests {
++		f, l := linkgetlineFromPos(ctxt, test.pos)
++		got := fmt.Sprintf("%s:%d", f.Name, l)
++		if got != test.want {
++			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 41cf84a64e..6d519f048e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -727,7 +727,6 @@ type Link struct {
+ 	Bso           *bufio.Writer
+ 	Pathname      string
+ 	Hash          map[SymVer]*LSym
+-	LineHist      LineHist
+ 	Imports       []string
+ 	Plists        []*Plist
+ 	Sym_div       *LSym
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 9099a98f64..5eadcb708c 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -141,7 +141,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Pos.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	f, l := linkgetline(ctxt, p.Pos.Line())
++	f, l := linkgetlineFromPos(ctxt, p.Pos)
+ 	if f == nil {
+ 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
+ 		return oldval
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index b8a3c5456c..9cebfabd1c 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Addr{}, 40, 64},
+ 		{LSym{}, 76, 128},
+-		{Prog{}, 144, 224},
++		{Prog{}, 148, 240},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 84de5b61c4..5b4221ae6c 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -37,22 +37,28 @@ import (
+ 	"path/filepath"
+ )
+ 
++// WorkingDir returns the current working directory
++// (or "/???" if the directory cannot be identified),
++// with "/" as separator.
++func WorkingDir() string {
++	var path string
++	path, _ = os.Getwd()
++	if path == "" {
++		path = "/???"
++	}
++	return filepath.ToSlash(path)
++}
++
+ func Linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+ 	ctxt.Hash = make(map[SymVer]*LSym)
+ 	ctxt.Arch = arch
+ 	ctxt.Version = HistVersion
++	ctxt.Pathname = WorkingDir()
+ 
+-	var buf string
+-	buf, _ = os.Getwd()
+-	if buf == "" {
+-		buf = "/???"
+-	}
+-	buf = filepath.ToSlash(buf)
+-	ctxt.Pathname = buf
+-
+-	ctxt.LineHist.GOROOT = GOROOT
+-	ctxt.LineHist.Dir = ctxt.Pathname
++	// LineHist is not used anymore
++	// ctxt.LineHist.GOROOT = GOROOT
++	// ctxt.LineHist.Dir = ctxt.Pathname
+ 
+ 	ctxt.Headtype.Set(GOOS)
+ 	if ctxt.Headtype < 0 {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index ccf4f4b5f6..2dbbef3bfa 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Ctxt.LineHist.LineString(int(p.Pos.Line()))
++	return p.Pos.String()
+ }
+ 
+ var armCondCode = []string{
+@@ -181,10 +181,6 @@ func (ctxt *Link) freeProgs() {
+ 	ctxt.allocIdx = 0
+ }
+ 
+-func (ctxt *Link) Line(n int) string {
+-	return ctxt.LineHist.LineString(n)
+-}
+-
+ func Getcallerpc(interface{}) uintptr {
+ 	return 1
+ }
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/internal/src/pos.go
+similarity index 83%
+rename from src/cmd/compile/internal/syntax/pos.go
+rename to src/cmd/internal/src/pos.go
+index 98cdae9327..7c94c8de76 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -4,7 +4,7 @@
+ 
+ // This file implements the encoding of source positions.
+ 
+-package syntax
++package src
+ 
+ import "strconv"
+ 
+@@ -67,7 +67,14 @@ func (p Pos) RelFilename() string { return p.base.Filename() }
+ // RelLine returns the line number relative to the positions's base.
+ func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+ 
++// AbsFilename() returns the absolute filename recorded with the position's base.
++func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
++
+ func (p Pos) String() string {
++	if !p.IsKnown() {
++		return "<unknown line number>"
++	}
++
+ 	b := p.base
+ 
+ 	if b == b.Pos().base {
+@@ -79,11 +86,16 @@ func (p Pos) String() string {
+ 	return posString(b.Filename(), p.RelLine(), p.Col()) + "[" + b.Pos().String() + "]"
+ }
+ 
++// Don't print column numbers because existing tests may not work anymore.
++// It's a variable for now so that the tests can enable it.
++// TODO(gri) fix this
++var printColumn = false
++
+ // posString formats a (filename, line, col) tuple as a printable position.
+ func posString(filename string, line, col uint) string {
+ 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+ 	// col == colMax is interpreted as unknown column value
+-	if col < colMax {
++	if printColumn && col < colMax {
+ 		s += ":" + strconv.FormatUint(uint64(col), 10)
+ 	}
+ 	return s
+@@ -97,15 +109,17 @@ func posString(filename string, line, col uint) string {
+ // A nil *PosBase is a ready to use file PosBase for an unnamed
+ // file with line numbers starting at 1.
+ type PosBase struct {
+-	pos      Pos
+-	filename string
+-	line     uint
++	pos         Pos
++	filename    string // file name used to open source file, for error messages
++	absFilename string // absolute file name, for PC-Line tables
++	line        uint   // relative line number at pos
+ }
+ 
+-// NewFileBase returns a new *PosBase for a file with the given filename.
+-func NewFileBase(filename string) *PosBase {
++// NewFileBase returns a new *PosBase for a file with the given (relative and
++// absolute) filenames.
++func NewFileBase(filename, absFilename string) *PosBase {
+ 	if filename != "" {
+-		base := &PosBase{filename: filename}
++		base := &PosBase{filename: filename, absFilename: absFilename}
+ 		base.pos = MakePos(base, 0, 0)
+ 		return base
+ 	}
+@@ -116,7 +130,7 @@ func NewFileBase(filename string) *PosBase {
+ //      //line filename:line
+ // at position pos.
+ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
+-	return &PosBase{pos, filename, line - 1}
++	return &PosBase{pos, filename, filename, line - 1}
+ }
+ 
+ var noPos Pos
+@@ -139,6 +153,15 @@ func (b *PosBase) Filename() string {
+ 	return ""
+ }
+ 
++// AbsFilename returns the absolute filename recorded with the base.
++// If b == nil, the result is the empty string.
++func (b *PosBase) AbsFilename() string {
++	if b != nil {
++		return b.absFilename
++	}
++	return ""
++}
++
+ // Line returns the line number recorded with the base.
+ // If b == nil, the result is 0.
+ func (b *PosBase) Line() uint {
+diff --git a/src/cmd/compile/internal/syntax/pos_test.go b/src/cmd/internal/src/pos_test.go
+similarity index 93%
+rename from src/cmd/compile/internal/syntax/pos_test.go
+rename to src/cmd/internal/src/pos_test.go
+index bf2a0c1dfa..3c11840f99 100644
+--- a/src/cmd/compile/internal/syntax/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package syntax
++package src
+ 
+ import (
+ 	"fmt"
+@@ -10,8 +10,10 @@ import (
+ )
+ 
+ func TestPos(t *testing.T) {
+-	f0 := NewFileBase("")
+-	f1 := NewFileBase("f1")
++	printColumn = true
++
++	f0 := NewFileBase("", "")
++	f1 := NewFileBase("f1", "f1")
+ 	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
+ 	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", 100)
+ 	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", 100)
+@@ -28,11 +30,11 @@ func TestPos(t *testing.T) {
+ 		relFilename string
+ 		relLine     uint
+ 	}{
+-		{Pos{}, ":0:0", "", 0, 0, "", 0},
++		{Pos{}, "<unknown line number>", "", 0, 0, "", 0},
+ 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
+-		{MakePos(f2, 7, 10), "f2:16:10[:0:0]", "", 7, 10, "f2", 16},
++		{MakePos(f2, 7, 10), "f2:16:10[<unknown line number>]", "", 7, 10, "f2", 16},
+ 		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
+ 		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
+ 	} {
+@@ -63,8 +65,8 @@ func TestPos(t *testing.T) {
+ }
+ 
+ func TestPredicates(t *testing.T) {
+-	b1 := NewFileBase("b1")
+-	b2 := NewFileBase("b2")
++	b1 := NewFileBase("b1", "b1")
++	b2 := NewFileBase("b2", "b2")
+ 	for _, test := range []struct {
+ 		p, q                 Pos
+ 		known, before, after bool
+@@ -105,6 +107,8 @@ func TestPredicates(t *testing.T) {
+ }
+ 
+ func TestLico(t *testing.T) {
++	printColumn = true
++
+ 	for _, test := range []struct {
+ 		x         lico
+ 		string    string
+diff --git a/src/cmd/internal/src/src.go b/src/cmd/internal/src/src.go
+deleted file mode 100644
+index cfa13286d6..0000000000
+--- a/src/cmd/internal/src/src.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package src implements source positions.
+-package src
+-
+-// Implementation note: This is a thin abstraction over
+-// the historic representation of source positions via
+-// global line numbers. The abstraction will make it
+-// easier to replace this implementation, eventually.
+-
+-// A Pos represents a source position.
+-// The zero value for a Pos is a valid unknown position.
+-type Pos struct {
+-	// line is an index into the global line table, which maps
+-	// the corresponding Pos to a file name and source line number.
+-	line int32
+-}
+-
+-// NoPos is a valid unknown position.
+-var NoPos Pos
+-
+-// MakePos creates a new Pos from a line index.
+-// It requires intimate knowledge of the underlying
+-// implementation and should be used with caution.
+-func MakePos(line int32) Pos { return Pos{line} }
+-
+-func (p Pos) IsKnown() bool     { return p.line != 0 }
+-func (p Pos) Line() int32       { return p.line }
+-func (p Pos) Before(q Pos) bool { return p.line < q.line }
+-func (p Pos) After(q Pos) bool  { return p.line > q.line }

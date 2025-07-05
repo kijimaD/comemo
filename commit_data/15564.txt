@@ -7,7 +7,69 @@ Date:   Sun Mar 3 19:10:59 2013 +0900
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7429049
-
+---
  src/pkg/net/protoconn_test.go | 13 +++++++++++++
  src/pkg/net/unix_test.go      | 13 -------------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 74ae320fe3..de0c2c00a6 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -8,12 +8,25 @@
+ package net
+ 
+ import (
++	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+ )
+ 
++// testUnixAddr uses ioutil.TempFile to get a name that is unique.
++func testUnixAddr() string {
++	f, err := ioutil.TempFile("", "nettest")
++	if err != nil {
++		panic(err)
++	}
++	addr := f.Name()
++	f.Close()
++	os.Remove(addr)
++	return addr
++}
++
+ var condFatalf = func() func(*testing.T, string, ...interface{}) {
+ 	// A few APIs are not implemented yet on both Plan 9 and Windows.
+ 	switch runtime.GOOS {
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+index dda717ea93..2eaabe86e4 100644
+--- a/src/pkg/net/unix_test.go
++++ b/src/pkg/net/unix_test.go
+@@ -8,7 +8,6 @@ package net
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -17,18 +16,6 @@ import (
+ 	"time"
+ )
+ 
+-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
+-func testUnixAddr() string {
+-	f, err := ioutil.TempFile("", "nettest")
+-	if err != nil {
+-		panic(err)
+-	}
+-	addr := f.Name()
+-	f.Close()
+-	os.Remove(addr)
+-	return addr
+-}
+-
+ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 	addr := testUnixAddr()
+ 	la, err := ResolveUnixAddr("unixgram", addr)

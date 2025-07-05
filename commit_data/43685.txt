@@ -11,6 +11,28 @@ Date:   Mon Apr 20 11:06:21 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 27dba95eff..764a279fca 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1043,8 +1043,14 @@ loop:
+ func TestBigGOMAXPROCS(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
+-	if strings.Contains(output, "failed to create new OS thread") {
+-		t.Skipf("failed to create 1024 threads")
++	// Ignore error conditions on small machines.
++	for _, errstr := range []string{
++		"failed to create new OS thread",
++		"cannot allocate memory",
++	} {
++		if strings.Contains(output, errstr) {
++			t.Skipf("failed to create 1024 threads")
++		}
+ 	}
+ 	if !strings.Contains(output, "unknown function: NonexistentTest") {
+ 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)

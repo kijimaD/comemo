@@ -14,9 +14,116 @@ Date:   Mon Jun 22 18:39:10 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go |  4 ++--
  src/cmd/go/internal/load/test.go | 14 ++++++++++----
  src/cmd/go/internal/test/test.go |  6 +++---
  src/cmd/go/internal/vet/vet.go   |  2 +-
  4 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 3ec243a759..7747e730ae 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -477,9 +477,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 				var pmain, ptest, pxtest *load.Package
+ 				var err error
+ 				if *listE {
+-					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
++					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, p, nil)
+ 				} else {
+-					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
++					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, p, nil)
+ 					if err != nil {
+ 						base.Errorf("can't load test package: %s", err)
+ 					}
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 6d251e8358..6db8a00245 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -6,7 +6,7 @@ package load
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/str"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -20,6 +20,9 @@ import (
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
++
++	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ )
+ 
+ var TestMainDeps = []string{
+@@ -42,8 +45,8 @@ type TestCover struct {
+ // TestPackagesFor is like TestPackagesAndErrors but it returns
+ // an error if the test packages or their dependencies have errors.
+ // Only test packages without errors are returned.
+-func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+-	pmain, ptest, pxtest = TestPackagesAndErrors(p, cover)
++func TestPackagesFor(ctx context.Context, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
++	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, p, cover)
+ 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
+ 		if p1 == nil {
+ 			// pxtest may be nil
+@@ -89,7 +92,10 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ //
+ // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
+ // or else there's no point in any of this.
+-func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
++func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
++	ctx, span := trace.StartSpan(ctx, "load.TestPackagesAndErrors")
++	defer span.Done()
++
+ 	pre := newPreload()
+ 	defer pre.flush()
+ 	allImports := append([]string{}, p.TestImports...)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 9788590938..cda51053fb 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -746,7 +746,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 			ensureImport(p, "sync/atomic")
+ 		}
+ 
+-		buildTest, runTest, printTest, err := builderTest(&b, p)
++		buildTest, runTest, printTest, err := builderTest(&b, ctx, p)
+ 		if err != nil {
+ 			str := err.Error()
+ 			str = strings.TrimPrefix(str, "\n")
+@@ -813,7 +813,7 @@ var windowsBadWords = []string{
+ 	"update",
+ }
+ 
+-func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
++func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+ 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+@@ -836,7 +836,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			DeclVars: declareCoverVars,
+ 		}
+ 	}
+-	pmain, ptest, pxtest, err := load.TestPackagesFor(p, cover)
++	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, p, cover)
+ 	if err != nil {
+ 		return nil, nil, nil, err
+ 	}
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 58f392eb96..b306572281 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -77,7 +77,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	root := &work.Action{Mode: "go vet"}
+ 	for _, p := range pkgs {
+-		_, ptest, pxtest, err := load.TestPackagesFor(p, nil)
++		_, ptest, pxtest, err := load.TestPackagesFor(ctx, p, nil)
+ 		if err != nil {
+ 			base.Errorf("%v", err)
+ 			continue

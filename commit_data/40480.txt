@@ -11,10 +11,110 @@ Date:   Wed May 15 10:12:07 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176925
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go               | 1 -
  src/cmd/go/internal/modload/init.go              | 9 +++++----
  src/cmd/go/testdata/script/mod_file_proxy.txt    | 3 ++-
  src/cmd/go/testdata/script/mod_init_empty.txt    | 2 ++
  src/cmd/go/testdata/script/mod_load_badchain.txt | 2 ++
  5 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 8c68ec51d8..789e936608 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -64,7 +64,6 @@ func runTidy(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 	modload.SetBuildList(keep)
+-	modload.AddGoStmt()
+ 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
+ 	modload.WriteGoMod()
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 3f3e8f8526..14fadbf74e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -421,7 +421,7 @@ func legacyModInit() {
+ 		fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", path)
+ 		modFile = new(modfile.File)
+ 		modFile.AddModuleStmt(path)
+-		AddGoStmt()
++		addGoStmt() // Add the go directive before converted module requirements.
+ 	}
+ 
+ 	for _, name := range altConfigs {
+@@ -432,7 +432,6 @@ func legacyModInit() {
+ 			if convert == nil {
+ 				return
+ 			}
+-			AddGoStmt()
+ 			fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(cfg))
+ 			cfg = filepath.ToSlash(cfg)
+ 			if err := modconv.ConvertLegacyConfig(modFile, cfg, data); err != nil {
+@@ -447,9 +446,9 @@ func legacyModInit() {
+ 	}
+ }
+ 
+-// AddGoStmt adds a go directive to the go.mod file if it does not already include one.
++// addGoStmt adds a go directive to the go.mod file if it does not already include one.
+ // The 'go' version added, if any, is the latest version supported by this toolchain.
+-func AddGoStmt() {
++func addGoStmt() {
+ 	if modFile.Go != nil && modFile.Go.Version != "" {
+ 		return
+ 	}
+@@ -653,6 +652,8 @@ func WriteGoMod() {
+ 		return
+ 	}
+ 
++	addGoStmt()
++
+ 	if loaded != nil {
+ 		reqs := MinReqs()
+ 		min, err := reqs.Required(Target)
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index 2769d4db07..cf097f8c80 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -21,6 +21,7 @@ grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
+ 
+ -- $WORK/x/go.mod --
+ module x
++go 1.13
+ require rsc.io/quote v1.5.1
+ -- $WORK/x/x.go --
+ package x
+@@ -31,4 +32,4 @@ golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fq
+ rsc.io/quote v1.5.1 h1:ZE3OgnVGrhXtFkGw90HwW992ZRqcdli/33DLqEYsoxA=
+ rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+ rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+-rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+\ No newline at end of file
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+diff --git a/src/cmd/go/testdata/script/mod_init_empty.txt b/src/cmd/go/testdata/script/mod_init_empty.txt
+index b6357bb053..1c3888caed 100644
+--- a/src/cmd/go/testdata/script/mod_init_empty.txt
++++ b/src/cmd/go/testdata/script/mod_init_empty.txt
+@@ -10,6 +10,8 @@ stdout '^example.com$'
+ 
+ -- go.mod --
+ module example.com
++
++go 1.13
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index 907e7dc616..7bde83963d 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -37,6 +37,8 @@ cmp stderr list-missing-test-expected
+ -- go.mod.orig --
+ module m
+ 
++go 1.13
++
+ require example.com/badchain/a v1.0.0
+ -- use/use.go --
+ package use

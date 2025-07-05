@@ -12,7 +12,58 @@ Date:   Tue May 12 10:29:53 2015 -0700
     Change-Id: I96678fbe2d94f51b957fe26faef33cd8df3823dd
     Reviewed-on: https://go-review.googlesource.com/9965
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/encoder.go      |  6 ++++++
  src/encoding/gob/encoder_test.go | 18 ++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index a340e47b5e..62d0f42e81 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -5,6 +5,7 @@
+ package gob
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"reflect"
+ 	"sync"
+@@ -65,6 +66,11 @@ func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
+ 	// it by hand.
+ 	message := b.Bytes()
+ 	messageLen := len(message) - maxLength
++	// Length cannot be bigger than the decoder can handle.
++	if messageLen >= tooBig {
++		enc.setError(errors.New("gob: encoder: message too big"))
++		return
++	}
+ 	// Encode the length.
+ 	enc.countState.b.Reset()
+ 	enc.countState.encodeUint(uint64(messageLen))
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index c0bd379c93..8a72a3118c 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -976,3 +976,21 @@ func TestBadData(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestHugeWriteFails tests that enormous messages trigger an error.
++func TestHugeWriteFails(t *testing.T) {
++	if testing.Short() {
++		// Requires allocating a monster, so don't do this from all.bash.
++		t.Skip("skipping huge allocation in short mode")
++	}
++	huge := make([]byte, tooBig)
++	huge[0] = 7 // Make sure it's not all zeros.
++	buf := new(bytes.Buffer)
++	err := NewEncoder(buf).Encode(huge)
++	if err == nil {
++		t.Fatalf("expected error for huge slice")
++	}
++	if !strings.Contains(err.Error(), "message too big") {
++		t.Fatalf("expected 'too big' error; got %s\n", err.Error())
++	}
++}

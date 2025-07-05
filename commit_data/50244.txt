@@ -13,7 +13,60 @@ Date:   Mon Oct 11 09:59:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go                   | 15 ++++++++++-----
  .../internal/types2/testdata/examples/typesets.go2        |  2 ++
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index d427f26b7c..26a16d9917 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -627,24 +627,29 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 	// Example: type T[P T[P]] interface{}
+ 	*dst = bindTParams(tparams)
+ 
++	// Keep track of bounds for later validation.
+ 	var bound Type
++	var bounds []Type
++	var posers []poser
+ 	for i, f := range list {
+ 		// Optimization: Re-use the previous type bound if it hasn't changed.
+ 		// This also preserves the grouped output of type parameter lists
+ 		// when printing type strings.
+ 		if i == 0 || f.Type != list[i-1].Type {
+ 			bound = check.bound(f.Type)
++			bounds = append(bounds, bound)
++			posers = append(posers, f.Type)
+ 		}
+ 		tparams[i].bound = bound
+ 	}
+ 
+ 	check.later(func() {
+-		for i, tpar := range tparams {
+-			// TODO(rfindley): this results in duplicate error messages for type
+-			// parameters that share a constraint.
+-			if _, ok := under(tpar.bound).(*TypeParam); ok {
+-				check.error(list[i].Type, "cannot use a type parameter as constraint")
++		for i, bound := range bounds {
++			if _, ok := under(bound).(*TypeParam); ok {
++				check.error(posers[i], "cannot use a type parameter as constraint")
+ 			}
++		}
++		for _, tpar := range tparams {
+ 			tpar.iface() // compute type set
+ 		}
+ 	})
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/typesets.go2 b/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
+index cf01072d8c..e19dcf8da3 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
+@@ -46,6 +46,8 @@ func _() *int {
+ // A type parameter may not be embedded in an interface;
+ // so it can also not be used as a constraint.
+ func _[A any, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
++func _[A any, B, C A /* ERROR cannot use a type parameter as constraint */ ]() {}
++
+ 
+ // Error messages refer to the type constraint as it appears in the source.
+ // (No implicit interface should be exposed.)

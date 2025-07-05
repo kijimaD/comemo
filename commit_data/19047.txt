@@ -9,7 +9,32 @@ Date:   Sun Apr 6 20:23:45 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/84710045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 72b422d28c..43913d84e0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -364,6 +364,7 @@ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
++StalkR <stalkr@stalkr.net>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen McQuay <stephen@mcquay.me>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a0a01fdae8..73040fd30a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -505,6 +505,7 @@ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
++StalkR <stalkr@stalkr.net>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen Ma <stephenm@golang.org>

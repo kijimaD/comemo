@@ -7,8 +7,159 @@ Date:   Mon May 2 09:35:55 2011 +1000
     R=brainman, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4375046
-
+---
  src/pkg/syscall/syscall_windows.go      |  6 +++
  src/pkg/syscall/zsyscall_windows_386.go | 92 +++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   | 12 +++++
  3 files changed, 110 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 1fbb3ccbf4..ce1be0021c 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -161,6 +161,12 @@ func NewCallback(fn interface{}) uintptr
+ //sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (errno int)
+ //sys	FlushFileBuffers(handle int32) (errno int)
+ //sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, errno int) = kernel32.GetFullPathNameW
++//sys	CreateFileMapping(fhandle int32, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle int32, errno int) = kernel32.CreateFileMappingW
++//sys	MapViewOfFile(handle int32, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, errno int)
++//sys	UnmapViewOfFile(addr uintptr) (errno int)
++//sys	FlushViewOfFile(addr uintptr, length uintptr) (errno int)
++//sys	VirtualLock(addr uintptr, length uintptr) (errno int)
++//sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index f4cfdeed8b..ce36ab6c0f 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -70,6 +70,12 @@ var (
+ 	procSetHandleInformation       = getSysProcAddr(modkernel32, "SetHandleInformation")
+ 	procFlushFileBuffers           = getSysProcAddr(modkernel32, "FlushFileBuffers")
+ 	procGetFullPathNameW           = getSysProcAddr(modkernel32, "GetFullPathNameW")
++	procCreateFileMappingW         = getSysProcAddr(modkernel32, "CreateFileMappingW")
++	procMapViewOfFile              = getSysProcAddr(modkernel32, "MapViewOfFile")
++	procUnmapViewOfFile            = getSysProcAddr(modkernel32, "UnmapViewOfFile")
++	procFlushViewOfFile            = getSysProcAddr(modkernel32, "FlushViewOfFile")
++	procVirtualLock                = getSysProcAddr(modkernel32, "VirtualLock")
++	procVirtualUnlock              = getSysProcAddr(modkernel32, "VirtualUnlock")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -901,6 +907,92 @@ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (
+ 	return
+ }
+ 
++func CreateFileMapping(fhandle int32, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle int32, errno int) {
++	r0, _, e1 := Syscall6(procCreateFileMappingW, 6, uintptr(fhandle), uintptr(unsafe.Pointer(sa)), uintptr(prot), uintptr(maxSizeHigh), uintptr(maxSizeLow), uintptr(unsafe.Pointer(name)))
++	handle = int32(r0)
++	if handle == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func MapViewOfFile(handle int32, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, errno int) {
++	r0, _, e1 := Syscall6(procMapViewOfFile, 5, uintptr(handle), uintptr(access), uintptr(offsetHigh), uintptr(offsetLow), uintptr(length), 0)
++	addr = uintptr(r0)
++	if addr == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func UnmapViewOfFile(addr uintptr) (errno int) {
++	r1, _, e1 := Syscall(procUnmapViewOfFile, 1, uintptr(addr), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func FlushViewOfFile(addr uintptr, length uintptr) (errno int) {
++	r1, _, e1 := Syscall(procFlushViewOfFile, 2, uintptr(addr), uintptr(length), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func VirtualLock(addr uintptr, length uintptr) (errno int) {
++	r1, _, e1 := Syscall(procVirtualLock, 2, uintptr(addr), uintptr(length), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func VirtualUnlock(addr uintptr, length uintptr) (errno int) {
++	r1, _, e1 := Syscall(procVirtualUnlock, 2, uintptr(addr), uintptr(length), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 3a50be14c3..73cfe069bc 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -119,6 +119,18 @@ const (
+ 	STANDARD_RIGHTS_READ      = 0x00020000
+ 	PROCESS_QUERY_INFORMATION = 0x00000400
+ 	SYNCHRONIZE               = 0x00100000
++
++	PAGE_READONLY          = 0x02
++	PAGE_READWRITE         = 0x04
++	PAGE_WRITECOPY         = 0x08
++	PAGE_EXECUTE_READ      = 0x20
++	PAGE_EXECUTE_READWRITE = 0x40
++	PAGE_EXECUTE_WRITECOPY = 0x80
++
++	FILE_MAP_COPY    = 0x01
++	FILE_MAP_WRITE   = 0x02
++	FILE_MAP_READ    = 0x04
++	FILE_MAP_EXECUTE = 0x20
+ )
+ 
+ const (

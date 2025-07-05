@@ -17,7 +17,7 @@ Date:   Fri Dec 11 17:16:48 2015 -0800
     Change-Id: If96ee2eb41c6c7379d407b9561b87557bfe47341
     Reviewed-on: https://go-review.googlesource.com/17761
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/cgo.go                            |   2 +
  src/runtime/cgo/callbacks.go                  |   8 +
  src/runtime/cgo/gcc_traceback.c               |  29 +++
@@ -34,3 +34,689 @@ Date:   Fri Dec 11 17:16:48 2015 -0800
  src/runtime/testdata/testprogcgo/traceback.go |  80 +++++++++
  src/runtime/traceback.go                      | 247 ++++++++++++++++++++++++++
  15 files changed, 489 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 8ba31cd481..35d7a07e15 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -16,6 +16,7 @@ import "unsafe"
+ //go:linkname _cgo_thread_start _cgo_thread_start
+ //go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+ //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
++//go:linkname _cgo_callers _cgo_callers
+ 
+ var (
+ 	_cgo_init                     unsafe.Pointer
+@@ -24,6 +25,7 @@ var (
+ 	_cgo_thread_start             unsafe.Pointer
+ 	_cgo_sys_thread_create        unsafe.Pointer
+ 	_cgo_notify_runtime_init_done unsafe.Pointer
++	_cgo_callers                  unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 47bd2b0edc..4f31d1c82c 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -92,5 +92,13 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+ var x_cgo_notify_runtime_init_done byte
+ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+ 
++// Calls the traceback function passed to SetCgoTraceback.
++
++//go:cgo_import_static x_cgo_callers
++//go:linkname x_cgo_callers x_cgo_callers
++//go:linkname _cgo_callers _cgo_callers
++var x_cgo_callers byte
++var _cgo_callers = &x_cgo_callers
++
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/gcc_traceback.c b/src/runtime/cgo/gcc_traceback.c
+new file mode 100644
+index 0000000000..4fdfbe4d9f
+--- /dev/null
++++ b/src/runtime/cgo/gcc_traceback.c
+@@ -0,0 +1,29 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++// +build linux
++
++#include <stdint.h>
++
++struct cgoTracebackArg {
++	uintptr_t  Context;
++	uintptr_t* Buf;
++	uintptr_t  Max;
++};
++
++// Call the user's traceback function and then call sigtramp.
++// The runtime signal handler will jump to this code.
++// We do it this way so that the user's traceback function will be called
++// by a C function with proper unwind info.
++void
++x_cgo_callers(uintptr_t sig, void *info, void *context, void (*cgoTraceback)(struct cgoTracebackArg*), uintptr_t* cgoCallers, void (*sigtramp)(uintptr_t, void*, void*)) {
++	struct cgoTracebackArg arg;
++
++	arg.Context = 0;
++	arg.Buf = cgoCallers;
++	arg.Max = 32; // must match len(runtime.cgoCallers)
++	(*cgoTraceback)(&arg);
++	sigtramp(sig, info, context);
++}
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 7a683d7524..7cffa83617 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -84,6 +84,10 @@ import (
+ 	"unsafe"
+ )
+ 
++// Addresses collected in a cgo backtrace when crashing.
++// Length must match arg.Max in x_cgo_callers in runtime/cgo/gcc_traceback.c.
++type cgoCallers [32]uintptr
++
+ // Call from Go to C.
+ //go:nosplit
+ func cgocall(fn, arg unsafe.Pointer) int32 {
+@@ -109,6 +113,14 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	mp.ncgo++
+ 	defer endcgo(mp)
+ 
++	// Allocate memory to hold a cgo traceback if the cgo call crashes.
++	if mp.cgoCallers == nil {
++		mp.cgoCallers = new(cgoCallers)
++	}
++
++	// Reset traceback.
++	mp.cgoCallers[0] = 0
++
+ 	/*
+ 	 * Announce we are entering a system call
+ 	 * so that the scheduler knows to create another
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 2f7591a8d3..6547996b43 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -209,3 +209,15 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
+ 		t.Errorf("expected %q got %v", want, got)
+ 	}
+ }
++
++func TestCgoCrashTraceback(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++	got := runTestProg(t, "testprogcgo", "CrashTraceback")
++	for i := 1; i <= 3; i++ {
++		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
++			t.Errorf("missing cgo symbolizer:%d", i)
++		}
++	}
++}
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 1c1ead8790..726dd649fe 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -305,6 +305,7 @@ func memlimit() uintptr {
+ 
+ func sigreturn()
+ func sigtramp()
++func cgoSigtramp()
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+@@ -323,7 +324,11 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 		sa.sa_restorer = funcPC(sigreturn)
+ 	}
+ 	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++		if iscgo {
++			fn = funcPC(cgoSigtramp)
++		} else {
++			fn = funcPC(sigtramp)
++		}
+ 	}
+ 	sa.sa_handler = fn
+ 	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+@@ -354,7 +359,7 @@ func getsig(i int32) uintptr {
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+ 		throw("rt_sigaction read failure")
+ 	}
+-	if sa.sa_handler == funcPC(sigtramp) {
++	if sa.sa_handler == funcPC(sigtramp) || sa.sa_handler == funcPC(cgoSigtramp) {
+ 		return funcPC(sighandler)
+ 	}
+ 	return sa.sa_handler
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 457927c804..e0137f7e97 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -373,8 +373,10 @@ type m struct {
+ 	newSigstack   bool // minit on C thread called sigaltstack
+ 	printlock     int8
+ 	fastrand      uint32
+-	ncgocall      uint64 // number of cgo calls in total
+-	ncgo          int32  // number of cgo calls currently in progress
++	ncgocall      uint64      // number of cgo calls in total
++	ncgo          int32       // number of cgo calls currently in progress
++	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
++	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     muintptr
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 3bf5eb0df4..4fe07e0837 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -232,6 +232,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	JMP	runtime·sigtramp(SB)
++
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	MOVL	$173, AX	// rt_sigreturn
+ 	// Sigreturn expects same SP as signal handler,
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 7cab649238..031e412673 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -234,8 +234,65 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	CALL AX
+ 	RET
+ 
++// Used instead of sigtramp in programs that use cgo.
++// Arguments from kernel are in DI, SI, DX.
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	// If no traceback function, do usual sigtramp.
++	MOVQ	runtime·cgoTraceback(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// If no traceback support function, which means that
++	// runtime/cgo was not linked in, do usual sigtramp.
++	MOVQ	_cgo_callers(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// Figure out if we are currently in a cgo call.
++	// If not, just do usual sigtramp.
++	get_tls(CX)
++	MOVQ	g(CX),AX
++	TESTQ	AX, AX
++	JZ	sigtramp        // g == nil
++	MOVQ	g_m(AX), AX
++	TESTQ	AX, AX
++	JZ	sigtramp        // g.m == nil
++	MOVL	m_ncgo(AX), CX
++	TESTL	CX, CX
++	JZ	sigtramp        // g.m.ncgo == 0
++	MOVQ	m_curg(AX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg == nil
++	MOVQ	g_syscallsp(CX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg.syscallsp == 0
++	MOVQ	m_cgoCallers(AX), R8
++	TESTQ	R8, R8
++	JZ	sigtramp        // g.m.cgoCallers == nil
++	MOVL	m_cgoCallersUse(AX), CX
++	TESTL	CX, CX
++	JNZ	sigtramp	// g.m.cgoCallersUse != 0
++
++	// Jump to a function in runtime/cgo.
++	// That function, written in C, will call the user's traceback
++	// function with proper unwind info, and will then call back here.
++	// The first three arguments are already in registers.
++	// Set the last three arguments now.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigtramp(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
++sigtramp:
++	JMP	runtime·sigtramp(SB)
++
++// For cgo unwinding to work, this function must look precisely like
++// the one in glibc.  The glibc source code is:
++// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
++// The code that cares about the precise instructions used is:
++// https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+-	MOVL	$15, AX	// rt_sigreturn
++	MOVQ	$15, AX	// rt_sigreturn
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 50a551320a..5e5fcf0e6f 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -361,6 +361,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	BL	(R11)
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	MOVW  	$runtime·sigtramp(SB), R11
++	B	(R11)
++
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 	MOVW	sig+0(FP), R0
+ 	MOVW	new+4(FP), R1
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 94c101a3d4..1bee8477ed 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -259,6 +259,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	BL	(R0)
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	MOVD	$runtime·sigtramp(SB), R3
++	B	(R3)
++
+ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVD	addr+0(FP), R0
+ 	MOVD	n+8(FP), R1
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 26437ddde4..f6877cb32d 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -249,6 +249,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	JAL	(R1)
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	MOVV	$runtime·sigtramp(SB), R1
++	JMP	(R1)
++
+ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index d063e025a6..56b842ac01 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -243,6 +243,21 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ 	MOVD	24(R1), R2
+ 	RET
+ 
++#ifdef GOARCH_ppc64le
++// ppc64le doesn't need function descriptors
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++#else
++// function descriptor for the real sigtramp
++TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
++	DWORD	$runtime·_cgoSigtramp(SB)
++	DWORD	$0
++	DWORD	$0
++TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
++#endif
++	MOVD	$runtime·sigtramp(SB), R12
++	MOVD	R12, CTR
++	JMP	(CTR)
++
+ TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	addr+0(FP), R3
+ 	MOVD	n+8(FP), R4
+diff --git a/src/runtime/testdata/testprogcgo/traceback.go b/src/runtime/testdata/testprogcgo/traceback.go
+new file mode 100644
+index 0000000000..bb3e70a44f
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/traceback.go
+@@ -0,0 +1,80 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This program will crash.
++// We want the stack trace to include the C functions.
++// We use a fake traceback, and a symbolizer that dumps a string we recognize.
++
++/*
++#cgo CFLAGS: -g -O0
++
++#include <stdint.h>
++
++char *p;
++
++static int f3() {
++	*p = 0;
++	return 0;
++}
++
++static int f2() {
++	return f3();
++}
++
++static int f1() {
++	return f2();
++}
++
++struct cgoTracebackArg {
++	uintptr_t  context;
++	uintptr_t* buf;
++	uintptr_t  max;
++};
++
++struct cgoSymbolizerArg {
++	uintptr_t   pc;
++	const char* file;
++	uintptr_t   lineno;
++	const char* func;
++	uintptr_t   entry;
++	uintptr_t   more;
++	uintptr_t   data;
++};
++
++void cgoTraceback(void* parg) {
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++	arg->buf[0] = 1;
++	arg->buf[1] = 2;
++	arg->buf[2] = 3;
++	arg->buf[3] = 0;
++}
++
++void cgoSymbolizer(void* parg) {
++	struct cgoSymbolizerArg* arg = (struct cgoSymbolizerArg*)(parg);
++	if (arg->pc != arg->data + 1) {
++		arg->file = "unexpected data";
++	} else {
++		arg->file = "cgo symbolizer";
++	}
++	arg->lineno = arg->data + 1;
++	arg->data++;
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++func init() {
++	register("CrashTraceback", CrashTraceback)
++}
++
++func CrashTraceback() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.cgoTraceback), nil, unsafe.Pointer(C.cgoSymbolizer))
++	C.f1()
++}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 872b2ef903..16b9278641 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -579,6 +580,22 @@ func tracebacktrap(pc, sp, lr uintptr, gp *g) {
+ }
+ 
+ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
++	// If the goroutine is in cgo, and we have a cgo traceback, print that.
++	if iscgo && gp.m != nil && gp.m.ncgo > 0 && gp.syscallsp != 0 && gp.m.cgoCallers != nil && gp.m.cgoCallers[0] != 0 {
++		// Lock cgoCallers so that a signal handler won't
++		// change it, copy the array, reset it, unlock it.
++		// We are locked to the thread and are not running
++		// concurrently with a signal handler.
++		// We just have to stop a signal handler from interrupting
++		// in the middle of our copy.
++		atomic.Store(&gp.m.cgoCallersUse, 1)
++		cgoCallers := *gp.m.cgoCallers
++		gp.m.cgoCallers[0] = 0
++		atomic.Store(&gp.m.cgoCallersUse, 0)
++
++		printCgoTraceback(&cgoCallers)
++	}
++
+ 	var n int
+ 	if readgstatus(gp)&^_Gscan == _Gsyscall {
+ 		// Override registers if blocked in system call.
+@@ -739,3 +756,233 @@ func isSystemGoroutine(gp *g) bool {
+ 		pc == timerprocPC ||
+ 		pc == gcBgMarkWorkerPC
+ }
++
++// SetCgoTraceback records three C functions to use to gather
++// traceback information from C code and to convert that traceback
++// information into symbolic information. These are used when printing
++// stack traces for a program that uses cgo.
++//
++// The traceback and context functions may be called from a signal
++// handler, and must therefore use only async-signal safe functions.
++// The symbolizer function may be called while the program is
++// crashing, and so must be cautious about using memory.  None of the
++// functions may call back into Go.
++//
++// The context function will be called with a single argument, a
++// pointer to a struct:
++//
++// struct {
++//	Context uintptr
++// }
++//
++// In C syntax, this struct will be
++//
++// struct {
++//   uintptr_t Context;
++// };
++//
++// If the Context field is 0, the context function is being called to
++// record the current traceback context. It should record whatever
++// information is needed about the current point of execution to later
++// produce a stack trace, probably the stack pointer and PC. In this
++// case the context function will be called from C code.
++//
++// If the Context field is not 0, then it is a value returned by a
++// previous call to the context function. This case is called when the
++// context is no longer needed; that is, when the Go code is returning
++// to its C code caller. This permits permits the context function to
++// release any associated resources.
++//
++// While it would be correct for the context function to record a
++// complete a stack trace whenever it is called, and simply copy that
++// out in the traceback function, in a typical program the context
++// function will be called many times without ever recording a
++// traceback for that context. Recording a complete stack trace in a
++// call to the context function is likely to be inefficient.
++//
++// The traceback function will be called with a single argument, a
++// pointer to a struct:
++//
++// struct {
++//	Context uintptr
++//	Buf     *uintptr
++//	Max     uintptr
++// }
++//
++// In C syntax, this struct will be
++//
++// struct {
++//   uintptr_t  Context;
++//   uintptr_t* Buf;
++//   uintptr_t  Max;
++// };
++//
++// The Context field will be zero to gather a traceback from the
++// current program execution point. In this case, the traceback
++// function will be called from C code.
++//
++// Otherwise Context will be a value previously returned by a call to
++// the context function. The traceback function should gather a stack
++// trace from that saved point in the program execution. The traceback
++// function may be called from an execution thread other than the one
++// that recorded the context, but only when the context is known to be
++// valid and unchanging. The traceback function may also be called
++// deeper in the call stack on the same thread that recorded the
++// context. The traceback function may be called multiple times with
++// the same Context value; it will usually be appropriate to cache the
++// result, if possible, the first time this is called for a specific
++// context value.
++//
++// Buf is where the traceback information should be stored. It should
++// be PC values, such that Buf[0] is the PC of the caller, Buf[1] is
++// the PC of that function's caller, and so on.  Max is the maximum
++// number of entries to store.  The function should store a zero to
++// indicate the top of the stack, or that the caller is on a different
++// stack, presumably a Go stack.
++//
++// Unlike runtime.Callers, the PC values returned should, when passed
++// to the symbolizer function, return the file/line of the call
++// instruction.  No additional subtraction is required or appropriate.
++//
++// The symbolizer function will be called with a single argument, a
++// pointer to a struct:
++//
++// struct {
++//	PC      uintptr // program counter to fetch information for
++//	File    *byte   // file name (NUL terminated)
++//	Lineno  uintptr // line number
++//	Func    *byte   // function name (NUL terminated)
++//	Entry   uintptr // function entry point
++//	More    uintptr // set non-zero if more info for this PC
++//	Data    uintptr // unused by runtime, available for function
++// }
++//
++// In C syntax, this struct will be
++//
++// struct {
++//   uintptr_t PC;
++//   char*     File;
++//   uintptr_t Lineno;
++//   char*     Func;
++//   uintptr_t Entry;
++//   uintptr_t More;
++//   uintptr_t Data;
++// };
++//
++// The PC field will be a value returned by a call to the traceback
++// function.
++//
++// The first time the function is called for a particular traceback,
++// all the fields except PC will be 0. The function should fill in the
++// other fields if possible, setting them to 0/nil if the information
++// is not available. The Data field may be used to store any useful
++// information across calls. The More field should be set to non-zero
++// if there is more information for this PC, zero otherwise. If More
++// is set non-zero, the function will be called again with the same
++// PC, and may return different information (this is intended for use
++// with inlined functions). If More is zero, the function will be
++// called with the next PC value in the traceback. When the traceback
++// is complete, the function will be called once more with PC set to
++// zero; this may be used to free any information. Each call will
++// leave the fields of the struct set to the same values they had upon
++// return, except for the PC field when the More field is zero. The
++// function must not keep a copy of the struct pointer between calls.
++//
++// When calling SetCgoTraceback, the version argument is the version
++// number of the structs that the functions expect to receive.
++// Currently this must be zero.
++//
++// The symbolizer function may be nil, in which case the results of
++// the traceback function will be displayed as numbers. If the
++// traceback function is nil, the symbolizer function will never be
++// called. The context function may be nil, in which case the
++// traceback function will only be called with the context field set
++// to zero.  If the context function is nil, then calls from Go to C
++// to Go will not show a traceback for the C portion of the call stack.
++func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
++	if version != 0 {
++		panic("unsupported version")
++	}
++	if context != nil {
++		panic("SetCgoTraceback: context function not yet implemented")
++	}
++	cgoTraceback = traceback
++	cgoContext = context
++	cgoSymbolizer = symbolizer
++}
++
++var cgoTraceback unsafe.Pointer
++var cgoContext unsafe.Pointer
++var cgoSymbolizer unsafe.Pointer
++
++// cgoTracebackArg is the type passed to cgoTraceback.
++type cgoTracebackArg struct {
++	context uintptr
++	buf     *uintptr
++	max     uintptr
++}
++
++// cgoContextArg is the type passed to cgoContext.
++type cgoContextArg struct {
++	context uintptr
++}
++
++// cgoSymbolizerArg is the type passed to cgoSymbolizer.
++type cgoSymbolizerArg struct {
++	pc       uintptr
++	file     *byte
++	lineno   uintptr
++	funcName *byte
++	entry    uintptr
++	more     uintptr
++	data     uintptr
++}
++
++// cgoTraceback prints a traceback of callers.
++func printCgoTraceback(callers *cgoCallers) {
++	if cgoSymbolizer == nil {
++		for _, c := range callers {
++			if c == 0 {
++				break
++			}
++			print("non-Go function at pc=", hex(c), "\n")
++		}
++		return
++	}
++
++	call := cgocall
++	if panicking > 0 {
++		// We do not want to call into the scheduler when panicking.
++		call = asmcgocall
++	}
++
++	var arg cgoSymbolizerArg
++	for _, c := range callers {
++		if c == 0 {
++			break
++		}
++		arg.pc = c
++		for {
++			call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
++			if arg.funcName != nil {
++				// Note that we don't print any argument
++				// information here, not even parentheses.
++				// The symbolizer must add that if
++				// appropriate.
++				println(gostringnocopy(arg.funcName))
++			} else {
++				println("non-Go function")
++			}
++			print("\t")
++			if arg.file != nil {
++				print(gostringnocopy(arg.file), ":", arg.lineno, " ")
++			}
++			print("pc=", hex(c), "\n")
++			if arg.more == 0 {
++				break
++			}
++		}
++	}
++	arg.pc = 0
++	call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
++}

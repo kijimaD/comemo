@@ -10,9 +10,238 @@ Date:   Fri Sep 19 13:51:06 2014 -0400
     R=r, josharian, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/148770043
-
+---
  doc/go1.4.txt               |  1 +
  src/cmd/go/test.go          | 46 +++++++++++++++++++++++++++++++++++--
  src/testing/testing.go      | 56 +++++++++++++++++++++++++++++++++++++++++----
  src/testing/testing_test.go | 18 +++++++++++++++
  4 files changed, 114 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 6180bc5b92..f46ef48f5d 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -32,6 +32,7 @@ sync/atomic: add Value (CL 136710045)
+ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
+ syscall: now frozen (CL 129820043)
+ testing: add Coverage (CL 98150043)
++testing: add TestMain support (CL 148770043)
+ text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+ time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
+ encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045).
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a602469e44..e990b17bfa 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
+@@ -291,6 +292,7 @@ var testMainDeps = map[string]bool{
+ 	// Dependencies for testmain.
+ 	"testing": true,
+ 	"regexp":  true,
++	"os":      true,
+ }
+ 
+ func runTest(cmd *Command, args []string) {
+@@ -687,7 +689,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		omitDWARF:  !testC && !testNeedBinary,
+ 	}
+ 
+-	// The generated main also imports testing and regexp.
++	// The generated main also imports testing, regexp, and os.
+ 	stk.push("testmain")
+ 	for dep := range testMainDeps {
+ 		if dep == ptest.ImportPath {
+@@ -1057,6 +1059,31 @@ func (b *builder) notest(a *action) error {
+ 	return nil
+ }
+ 
++// isTestMain tells whether fn is a TestMain(m *testing.Main) function.
++func isTestMain(fn *ast.FuncDecl) bool {
++	if fn.Name.String() != "TestMain" ||
++		fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
++		fn.Type.Params == nil ||
++		len(fn.Type.Params.List) != 1 ||
++		len(fn.Type.Params.List[0].Names) > 1 {
++		return false
++	}
++	ptr, ok := fn.Type.Params.List[0].Type.(*ast.StarExpr)
++	if !ok {
++		return false
++	}
++	// We can't easily check that the type is *testing.M
++	// because we don't know how testing has been imported,
++	// but at least check that it's *M or *something.M.
++	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == "M" {
++		return true
++	}
++	if sel, ok := ptr.X.(*ast.SelectorExpr); ok && sel.Sel.Name == "M" {
++		return true
++	}
++	return false
++}
++
+ // isTest tells whether name looks like a test (or benchmark, according to prefix).
+ // It is a Test (say) if there is a character after Test that is not a lower-case letter.
+ // We don't want TesticularCancer.
+@@ -1113,6 +1140,7 @@ type testFuncs struct {
+ 	Tests       []testFunc
+ 	Benchmarks  []testFunc
+ 	Examples    []testFunc
++	TestMain    *testFunc
+ 	Package     *Package
+ 	ImportTest  bool
+ 	NeedTest    bool
+@@ -1168,6 +1196,12 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 		}
+ 		name := n.Name.String()
+ 		switch {
++		case isTestMain(n):
++			if t.TestMain != nil {
++				return errors.New("multiple definitions of TestMain")
++			}
++			t.TestMain = &testFunc{pkg, name, ""}
++			*doImport, *seen = true, true
+ 		case isTest(name, "Test"):
+ 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
+ 			*doImport, *seen = true, true
+@@ -1200,6 +1234,9 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
+ package main
+ 
+ import (
++{{if not .TestMain}}
++	"os"
++{{end}}
+ 	"regexp"
+ 	"testing"
+ 
+@@ -1294,7 +1331,12 @@ func main() {
+ 		CoveredPackages: {{printf "%q" .Covered}},
+ 	})
+ {{end}}
+-	testing.Main(matchString, tests, benchmarks, examples)
++	m := testing.MainStart(matchString, tests, benchmarks, examples)
++{{with .TestMain}}
++	{{.Package}}.{{.Name}}(m)
++{{else}}
++	os.Exit(m.Run())
++{{end}}
+ }
+ 
+ `))
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 731762cb1d..21460b0ed4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -117,6 +117,26 @@
+ // The entire test file is presented as the example when it contains a single
+ // example function, at least one other function, type, variable, or constant
+ // declaration, and no test or benchmark functions.
++//
++// Main
++//
++// It is sometimes necessary for a test program to do extra setup or teardown
++// before or after testing. It is also sometimes necessary for a test to control
++// which code runs on the main thread. To support these and other cases,
++// if a test file contains a function:
++//
++//	func TestMain(m *testing.M)
++//
++// then the generated test will call TestMain(m) instead of running the tests
++// directly. TestMain runs in the main goroutine and can do whatever setup
++// and teardown is necessary around a call to m.Run. It should then call
++// os.Exit with the result of m.Run.
++//
++// The minimal implementation of TestMain is:
++//
++//	func TestMain(m *testing.M) { os.Exit(m.Run()) }
++//
++// In effect, that is the implementation used when no TestMain is explicitly defined.
+ package testing
+ 
+ import (
+@@ -431,23 +451,49 @@ func tRunner(t *T, test *InternalTest) {
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of the "go test" command.
+ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
++	os.Exit(MainStart(matchString, tests, benchmarks, examples).Run())
++}
++
++// M is a type passed to a TestMain function to run the actual tests.
++type M struct {
++	matchString func(pat, str string) (bool, error)
++	tests       []InternalTest
++	benchmarks  []InternalBenchmark
++	examples    []InternalExample
++}
++
++// MainStart is meant for use by tests generated by 'go test'.
++// It is not meant to be called directly and is not subject to the Go 1 compatibility document.
++// It may change signature from release to release.
++func MainStart(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
++	return &M{
++		matchString: matchString,
++		tests:       tests,
++		benchmarks:  benchmarks,
++		examples:    examples,
++	}
++}
++
++// Run runs the tests. It returns an exit code to pass to os.Exit.
++func (m *M) Run() int {
+ 	flag.Parse()
+ 	parseCpuList()
+ 
+ 	before()
+ 	startAlarm()
+-	haveExamples = len(examples) > 0
+-	testOk := RunTests(matchString, tests)
+-	exampleOk := RunExamples(matchString, examples)
++	haveExamples = len(m.examples) > 0
++	testOk := RunTests(m.matchString, m.tests)
++	exampleOk := RunExamples(m.matchString, m.examples)
+ 	stopAlarm()
+ 	if !testOk || !exampleOk {
+ 		fmt.Println("FAIL")
+ 		after()
+-		os.Exit(1)
++		return 1
+ 	}
+ 	fmt.Println("PASS")
+-	RunBenchmarks(matchString, benchmarks)
++	RunBenchmarks(m.matchString, m.benchmarks)
+ 	after()
++	return 0
+ }
+ 
+ func (t *T) report() {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+new file mode 100644
+index 0000000000..87a5c16d6e
+--- /dev/null
++++ b/src/testing/testing_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import (
++	"os"
++	"testing"
++)
++
++// This is exactly what a test would do without a TestMain.
++// It's here only so that there is at least one package in the
++// standard library with a TestMain, so that code is executed.
++
++func TestMain(m *testing.M) {
++	os.Exit(m.Run())
++}

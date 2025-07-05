@@ -9,7 +9,36 @@ Date:   Tue Sep 2 14:26:59 2008 -0700
     DELTA=4  (2 added, 0 deleted, 2 changed)
     OCL=14727
     CL=14727
-
+---
  test/golden.out | 2 +-
  test/run        | 4 +++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index ed4b9c4a1e..652866e86c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -169,7 +169,7 @@ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug092.go
+ BUG should not crash
+-/tmp/gorun-r: line 1: 83206 Illegal instruction     ./$A.out
++$RUNFILE: line 1: PID Illegal instruction     ./$A.out
+ 
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+diff --git a/test/run b/test/run
+index fbc16fc0d1..dd243120e8 100755
+--- a/test/run
++++ b/test/run
+@@ -47,7 +47,9 @@ do
+ 	done
+ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+-	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/' > run.out
++	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
++		s!'$RUNFILE'!$RUNFILE!g
++		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/' > run.out
+ 
+ case $failed in
+ 1)

@@ -7,9 +7,148 @@ Date:   Wed Sep 22 16:10:38 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2237044
-
+---
  src/pkg/fmt/doc.go       |  4 +++-
  src/pkg/fmt/fmt_test.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/fmt/print.go     | 34 ++++++++++++++++++++++++++++++----
  src/pkg/fmt/scan_test.go |  2 --
  4 files changed, 75 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 03343ea5d4..25184d1e45 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -47,7 +47,9 @@
+ 	number of places after the decimal, if appropriate.  The
+ 	format %6.2f prints 123.45. The width of a field is the number
+ 	of Unicode code points in the string. This differs from C's printf where
+-	the field width is the number of bytes.
++	the field width is the number of bytes.  Either or both of the
++	flags may be replaced with the character '*', causing their values
++	to be obtained from the next operand, which must be of type int.
+ 
+ 	Other flags:
+ 		+	always print a sign for numeric values
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 97fd497fbd..b98f28b1ed 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -605,3 +605,45 @@ func TestFormatterPrintln(t *testing.T) {
+ 		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
+ 	}
+ }
++
++func args(a ...interface{}) []interface{} { return a }
++
++type starTest struct {
++	fmt string
++	in  []interface{}
++	out string
++}
++
++var startests = []starTest{
++	starTest{"%*d", args(4, 42), "  42"},
++	starTest{"%.*d", args(4, 42), "0042"},
++	starTest{"%*.*d", args(8, 4, 42), "    0042"},
++	starTest{"%0*d", args(4, 42), "0042"},
++	starTest{"%-*d", args(4, 42), "42  "},
++
++	// erroneous
++	starTest{"%*d", args(nil, 42), "%(badwidth)42"},
++	starTest{"%.*d", args(nil, 42), "%(badprec)42"},
++	starTest{"%*d", args(5, "foo"), "%d(string=  foo)"},
++	starTest{"%*% %d", args(20, 5), "% 5"},
++	starTest{"%*", args(4), "%(badwidth)%*(int=4)"},
++	starTest{"%*d", args(int32(4), 42), "%(badwidth)42"},
++}
++
++// TODO: there's no conversion from []T to ...T, but we can fake it.  These
++// functions do the faking.  We index the table by the length of the param list.
++var sprintf = []func(string, []interface{}) string{
++	0: func(f string, i []interface{}) string { return Sprintf(f) },
++	1: func(f string, i []interface{}) string { return Sprintf(f, i[0]) },
++	2: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1]) },
++	3: func(f string, i []interface{}) string { return Sprintf(f, i[0], i[1], i[2]) },
++}
++
++func TestWidthAndPrecision(t *testing.T) {
++	for _, tt := range startests {
++		s := sprintf[len(tt.in)](tt.fmt, tt.in)
++		if s != tt.out {
++			t.Errorf("got %q expected %q", s, tt.out)
++		}
++	}
++}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index ee821fb785..8585c2dcaf 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -24,6 +24,8 @@ var (
+ 	extraBytes      = []byte("?(extra ")
+ 	irparenBytes    = []byte("i)")
+ 	bytesBytes      = []byte("[]byte{")
++	widthBytes      = []byte("%(badwidth)")
++	precBytes       = []byte("%(badprec)")
+ )
+ 
+ // State represents the printer state passed to custom formatters.
+@@ -782,6 +784,16 @@ BigSwitch:
+ 	return false
+ }
+ 
++// intFromArg gets the fieldnumth element of a. On return, isInt reports whether the argument has type int.
++func intFromArg(a []interface{}, end, i, fieldnum int) (num int, isInt bool, newi, newfieldnum int) {
++	newi, newfieldnum = end, fieldnum
++	if i < end && fieldnum < len(a) {
++		num, isInt = a[fieldnum].(int)
++		newi, newfieldnum = i+1, fieldnum+1
++	}
++	return
++}
++
+ func (p *pp) doPrintf(format string, a []interface{}) {
+ 	end := len(format) - 1
+ 	fieldnum := 0 // we process one field per non-trivial format
+@@ -816,11 +828,25 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 				break F
+ 			}
+ 		}
+-		// do we have 20 (width)?
+-		p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
+-		// do we have .20 (precision)?
++		// do we have width?
++		if format[i] == '*' {
++			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
++			if !p.fmt.widPresent {
++				p.buf.Write(widthBytes)
++			}
++		} else {
++			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
++		}
++		// do we have precision?
+ 		if i < end && format[i] == '.' {
+-			p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
++			if format[i+1] == '*' {
++				p.fmt.prec, p.fmt.precPresent, i, fieldnum = intFromArg(a, end, i+1, fieldnum)
++				if !p.fmt.precPresent {
++					p.buf.Write(precBytes)
++				}
++			} else {
++				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
++			}
+ 		}
+ 		c, w = utf8.DecodeRuneInString(format[i:])
+ 		i += w
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 075cdaa1ca..72304eaaa6 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -289,8 +289,6 @@ var s, t string
+ var c complex
+ var x, y Xs
+ 
+-func args(a ...interface{}) []interface{} { return a }
+-
+ var multiTests = []ScanfMultiTest{
+ 	ScanfMultiTest{"", "", nil, nil, ""},
+ 	ScanfMultiTest{"%d", "23", args(&i), args(23), ""},

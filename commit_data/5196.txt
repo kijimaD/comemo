@@ -7,7 +7,407 @@ Date:   Wed Mar 31 11:47:09 2010 -0700
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/869041
-
+---
  test/recover.go  | 246 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/recover1.go | 141 +++++++++++++++++++++++++++++++
  2 files changed, 387 insertions(+)
+
+diff --git a/test/recover.go b/test/recover.go
+new file mode 100644
+index 0000000000..8b47b82475
+--- /dev/null
++++ b/test/recover.go
+@@ -0,0 +1,246 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of basic recover functionality.
++
++package main
++
++import "runtime"
++
++func main() {
++	test1()
++	test1WithClosures()
++	test2()
++	test3()
++	test4()
++	test5()
++	test6()
++	test6WithClosures()
++	test7()
++}
++
++func die() {
++	runtime.Breakpoint()	// can't depend on panic
++}
++
++func mustRecover(x interface{}) {
++	mustNotRecover()	// because it's not a defer call
++	v := recover()
++	if v == nil {
++		println("missing recover")
++		die()	// panic is useless here
++	}
++	if v != x {
++		println("wrong value", v, x)
++		die()
++	}
++	
++	// the value should be gone now regardless
++	v = recover()
++	if v != nil {
++		println("recover didn't recover")
++		die()
++	}
++}
++
++func mustNotRecover() {
++	v := recover()
++	if v != nil {
++		println("spurious recover")
++		die()
++	}
++}
++
++func withoutRecover() {
++	mustNotRecover()	// because it's a sub-call
++}
++
++func test1() {
++	defer mustNotRecover()	// because mustRecover will squelch it
++	defer mustRecover(1)	// because of panic below
++	defer withoutRecover()	// should be no-op, leaving for mustRecover to find
++	panic(1)
++}
++
++// Repeat test1 with closures instead of standard function.
++// Interesting because recover bases its decision
++// on the frame pointer of its caller, and a closure's
++// frame pointer is in the middle of its actual arguments
++// (after the hidden ones for the closed-over variables).
++func test1WithClosures() {
++	defer func() {
++		v := recover()
++		if v != nil {
++			println("spurious recover in closure")
++			die()
++		}
++	}()
++	defer func(x interface{}) {
++		mustNotRecover()
++		v := recover()
++		if v == nil {
++			println("missing recover")
++			die()
++		}
++		if v != x {
++			println("wrong value", v, x)
++			die()
++		}
++	}(1)
++	defer func() {
++		mustNotRecover()
++	}()
++	panic(1)
++}
++
++func test2() {
++	// Recover only sees the panic argument
++	// if it is called from a deferred call.
++	// It does not see the panic when called from a call within a deferred call (too late)
++	// nor does it see the panic when it *is* the deferred call (too early).
++	defer mustRecover(2)
++	defer recover()	// should be no-op
++	panic(2)
++}
++
++func test3() {
++	defer mustNotRecover()
++	defer func() {
++		recover()	// should squelch
++	}()
++	panic(3)
++}
++
++func test4() {
++	// Equivalent to test3 but using defer to make the call.
++	defer mustNotRecover()
++	defer func() {
++		defer recover()	// should squelch
++	}()
++	panic(4)
++}
++
++// Check that closures can set output arguments.
++// Run g().  If it panics, return x; else return deflt.
++func try(g func(), deflt interface{}) (x interface{}) {
++	defer func() {
++		if v := recover(); v != nil {
++			x = v
++		}
++	}()
++	defer g()
++	return deflt
++}
++
++// Check that closures can set output arguments.
++// Run g().  If it panics, return x; else return deflt.
++func try1(g func(), deflt interface{}) (x interface{}) {
++	defer func() {
++		if v := recover(); v != nil {
++			x = v
++		}
++	}()
++	defer g()
++	x = deflt
++	return
++}
++
++func test5() {
++	v := try(func() { panic(5) }, 55).(int)
++	if v != 5 {
++		println("wrong value", v, 5)
++		die()
++	}
++	
++	s := try(func() { }, "hi").(string)
++	if s != "hi" {
++		println("wrong value", s, "hi")
++		die()
++	}
++
++	v = try1(func() { panic(5) }, 55).(int)
++	if v != 5 {
++		println("try1 wrong value", v, 5)
++		die()
++	}
++	
++	s = try1(func() { }, "hi").(string)
++	if s != "hi" {
++		println("try1 wrong value", s, "hi")
++		die()
++	}
++}
++
++// When a deferred big call starts, it must first
++// create yet another stack segment to hold the
++// giant frame for x.  Make sure that doesn't
++// confuse recover.
++func big(mustRecover bool) {
++	var x [100000]int
++	x[0] = 1
++	x[99999] = 1
++	_ = x
++	
++	v := recover()
++	if mustRecover {
++		if v == nil {
++			println("missing big recover")
++			die()
++		}
++	} else {
++		if v != nil {
++			println("spurious big recover")
++			die()
++		}
++	}
++}
++
++func test6() {
++	defer big(false)
++	defer big(true)
++	panic(6)
++}
++
++func test6WithClosures() {
++	defer func() {
++		var x [100000]int
++		x[0] = 1
++		x[99999] = 1
++		_ = x
++		if recover() != nil {
++			println("spurious big closure recover")
++			die()
++		}
++	}()
++	defer func() {
++		var x [100000]int
++		x[0] = 1
++		x[99999] = 1
++		_ = x
++		if recover() == nil {
++			println("missing big closure recover")
++			die()
++		}
++	}()
++	panic("6WithClosures")
++}
++
++func test7() {
++	ok := false
++	func() {
++		// should panic, then call mustRecover 7, which stops the panic.
++		// then should keep processing ordinary defers earlier than that one
++		// before returning.
++		// this test checks that the defer func on the next line actually runs.
++		defer func() { ok = true }()
++		defer mustRecover(7)
++		panic(7)
++	}()
++	if !ok {
++		println("did not run ok func")
++		die()
++	}
++}
+diff --git a/test/recover1.go b/test/recover1.go
+new file mode 100644
+index 0000000000..db584738bb
+--- /dev/null
++++ b/test/recover1.go
+@@ -0,0 +1,141 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of recover during recursive panics.
++// Here be dragons.
++
++package main
++
++import "runtime"
++
++func main() {
++	test1()
++	test2()
++	test3()
++	test4()
++	test5()
++	test6()
++	test7()
++}
++
++func die() {
++	runtime.Breakpoint()	// can't depend on panic
++}
++
++func mustRecover(x interface{}) {
++	mustNotRecover()	// because it's not a defer call
++	v := recover()
++	if v == nil {
++		println("missing recover")
++		die()	// panic is useless here
++	}
++	if v != x {
++		println("wrong value", v, x)
++		die()
++	}
++	
++	// the value should be gone now regardless
++	v = recover()
++	if v != nil {
++		println("recover didn't recover")
++		die()
++	}
++}
++
++func mustNotRecover() {
++	v := recover()
++	if v != nil {
++		println("spurious recover")
++		die()
++	}
++}
++
++func withoutRecover() {
++	mustNotRecover()	// because it's a sub-call
++}
++
++func test1() {
++	// Easy nested recursive panic.
++	defer mustRecover(1)
++	defer func() {
++		defer mustRecover(2)
++		panic(2)
++	}()
++	panic(1)
++}
++
++func test2() {
++	// Sequential panic.
++	defer mustNotRecover()
++	defer func() {
++		v := recover()
++		if v == nil || v.(int) != 2 {
++			println("wrong value", v, 2)
++			die()
++		}
++		defer mustRecover(3)
++		panic(3)
++	}()
++	panic(2)
++}
++
++func test3() {
++	// Sequential panic - like test2 but less picky.
++	defer mustNotRecover()
++	defer func() {
++		recover()
++		defer mustRecover(3)
++		panic(3)
++	}()
++	panic(2)
++}
++
++func test4() {
++	// Single panic.
++	defer mustNotRecover()
++	defer func() {
++		recover()
++	}()
++	panic(4)
++}
++
++func test5() {
++	// Single panic but recover called via defer
++	defer mustNotRecover()
++	defer func() {
++		defer recover()
++	}()
++	panic(5)
++}
++
++func test6() {
++	// Sequential panic.
++	// Like test3, but changed recover to defer (same change as test4 → test5).
++	defer mustNotRecover()
++	defer func() {
++		defer recover()	// like a normal call from this func; runs because mustRecover stops the panic
++		defer mustRecover(3)
++		panic(3)
++	}()
++	panic(2)
++}
++
++func test7() {
++	// Like test6, but swapped defer order.
++	// The recover in "defer recover()" is now a no-op,
++	// because it runs called from panic, not from the func,
++	// and therefore cannot see the panic of 2.
++	// (Alternately, it cannot see the panic of 2 because
++	// there is an active panic of 3.  And it cannot see the
++	// panic of 3 because it is at the wrong level (too high on the stack).)
++	defer mustRecover(2)
++	defer func() {
++		defer mustRecover(3)
++		defer recover()	// now a no-op, unlike in test6.
++		panic(3)
++	}()
++	panic(2)
++}

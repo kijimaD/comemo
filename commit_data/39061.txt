@@ -24,7 +24,79 @@ Date:   Thu Dec 13 09:31:21 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
  test/fixedbugs/issue29215.go            | 18 ++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 1fd335b3e7..69365c4e60 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1137,12 +1137,22 @@ func symIsRO(sym interface{}) bool {
+ // read8 reads one byte from the read-only global sym at offset off.
+ func read8(sym interface{}, off int64) uint8 {
+ 	lsym := sym.(*obj.LSym)
++	if off >= int64(len(lsym.P)) {
++		// Invalid index into the global sym.
++		// This can happen in dead code, so we don't want to panic.
++		// Just return any value, it will eventually get ignored.
++		// See issue 29215.
++		return 0
++	}
+ 	return lsym.P[off]
+ }
+ 
+ // read16 reads two bytes from the read-only global sym at offset off.
+ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+ 	lsym := sym.(*obj.LSym)
++	if off >= int64(len(lsym.P))-1 {
++		return 0
++	}
+ 	if bigEndian {
+ 		return binary.BigEndian.Uint16(lsym.P[off:])
+ 	} else {
+@@ -1153,6 +1163,9 @@ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+ // read32 reads four bytes from the read-only global sym at offset off.
+ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+ 	lsym := sym.(*obj.LSym)
++	if off >= int64(len(lsym.P))-3 {
++		return 0
++	}
+ 	if bigEndian {
+ 		return binary.BigEndian.Uint32(lsym.P[off:])
+ 	} else {
+@@ -1163,6 +1176,9 @@ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+ // read64 reads eight bytes from the read-only global sym at offset off.
+ func read64(sym interface{}, off int64, bigEndian bool) uint64 {
+ 	lsym := sym.(*obj.LSym)
++	if off >= int64(len(lsym.P))-7 {
++		return 0
++	}
+ 	if bigEndian {
+ 		return binary.BigEndian.Uint64(lsym.P[off:])
+ 	} else {
+diff --git a/test/fixedbugs/issue29215.go b/test/fixedbugs/issue29215.go
+new file mode 100644
+index 0000000000..df703aa25d
+--- /dev/null
++++ b/test/fixedbugs/issue29215.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() {
++        var s string
++        var p, q bool
++        s = "a"
++        for p {
++                p = false == (true != q)
++                s = ""
++        }
++        _ = s == "bbb"
++}

@@ -13,7 +13,101 @@ Date:   Thu Jul 14 13:23:11 2016 -0400
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 22 ++++++++--------------
  test/live.go                         | 19 ++++++++++---------
  2 files changed, 18 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 26e2ce9239..fed21c0c84 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1188,17 +1188,18 @@ func livenessepilogue(lv *Liveness) {
+ 	avarinit := bvalloc(nvars)
+ 	any := bvalloc(nvars)
+ 	all := bvalloc(nvars)
+-	ambig := bvalloc(localswords())
++	pparamout := bvalloc(localswords())
+ 
+-	// Set ambig bit for the pointers to heap-allocated pparamout variables.
+-	// These are implicitly read by post-deferreturn code and thus must be
+-	// kept live throughout the function (if there is any defer that recovers).
++	// Record pointers to heap-allocated pparamout variables.  These
++	// are implicitly read by post-deferreturn code and thus must be
++	// kept live throughout the function (if there is any defer that
++	// recovers).
+ 	if hasdefer {
+ 		for _, n := range lv.vars {
+ 			if n.IsOutputParamHeapAddr() {
+ 				n.Name.Needzero = true
+ 				xoffset := n.Xoffset + stkptrsize
+-				onebitwalktype1(n.Type, &xoffset, ambig)
++				onebitwalktype1(n.Type, &xoffset, pparamout)
+ 			}
+ 		}
+ 	}
+@@ -1250,11 +1251,6 @@ func livenessepilogue(lv *Liveness) {
+ 							if debuglive >= 1 {
+ 								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+ 							}
+-
+-							// Record in 'ambiguous' bitmap.
+-							xoffset := n.Xoffset + stkptrsize
+-
+-							onebitwalktype1(n.Type, &xoffset, ambig)
+ 						}
+ 					}
+ 				}
+@@ -1355,11 +1351,9 @@ func livenessepilogue(lv *Liveness) {
+ 				locals := lv.livepointers[pos]
+ 				onebitlivepointermap(lv, liveout, lv.vars, args, locals)
+ 
+-				// Ambiguously live variables are zeroed immediately after
+-				// function entry. Mark them live for all the non-entry bitmaps
+-				// so that GODEBUG=gcdead=1 mode does not poison them.
++				// Mark pparamout variables (as described above)
+ 				if p.As == obj.ACALL {
+-					bvor(locals, locals, ambig)
++					bvor(locals, locals, pparamout)
+ 				}
+ 
+ 				// Show live pointer bitmaps.
+diff --git a/test/live.go b/test/live.go
+index b4d569a1ba..74548231dd 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -47,24 +47,25 @@ func f2(b bool) {
+ }
+ 
+ func f3(b1, b2 bool) {
+-	// Because x and y are ambiguously live, they appear
+-	// live throughout the function, to avoid being poisoned
+-	// in GODEBUG=gcdead=1 mode.
++	// Here x and y are ambiguously live. In previous go versions they
++	// were marked as live throughout the function to avoid being
++	// poisoned in GODEBUG=gcdead=1 mode; this is now no longer the
++	// case.
+ 
+-	printint(0) // ERROR "live at call to printint: x y$"
++	printint(0)
+ 	if b1 == false {
+-		printint(0) // ERROR "live at call to printint: x y$"
++		printint(0)
+ 		return
+ 	}
+ 
+ 	if b2 {
+ 		var x *int
+-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
+-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
++		printpointer(&x) // ERROR "live at call to printpointer: x$"
++		printpointer(&x) // ERROR "live at call to printpointer: x$"
+ 	} else {
+ 		var y *int
+-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
+-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
++		printpointer(&y) // ERROR "live at call to printpointer: y$"
++		printpointer(&y) // ERROR "live at call to printpointer: y$"
+ 	}
+ 	printint(0) // ERROR "f3: x \(type \*int\) is ambiguously live$" "f3: y \(type \*int\) is ambiguously live$" "live at call to printint: x y$"
+ }

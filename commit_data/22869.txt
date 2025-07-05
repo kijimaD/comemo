@@ -9,8 +9,54 @@ Date:   Sat Apr 11 19:00:53 2015 -0400
     Change-Id: Ie4998d24b2d891a9f6c8047ec40cd3fdf80622cd
     Reviewed-on: https://go-review.googlesource.com/8812
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  src/runtime/crash_test.go     | 5 +++--
  src/runtime/runtime_test.go   | 5 +++--
  3 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 01ffed93db..6c6576ab90 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -57,7 +57,7 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	case "darwin":
+-		if runtime.GOARCH != "arm" {
++		if runtime.GOARCH != "arm" && runtime.GOARCH != "arm64" {
+ 			// static constructor needs external linking, but we don't support
+ 			// external linking on OS X 10.6.
+ 			out, err := exec.Command("uname", "-r").Output()
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 7bb3d28871..975defdb60 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -42,8 +42,9 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string)
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "darwin":
+-		if runtime.GOARCH == "arm" {
+-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, no fork", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 782b936548..d4cccbf084 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -99,8 +99,9 @@ func TestRuntimeGogoBytes(t *testing.T) {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", GOOS)
+ 	case "darwin":
+-		if GOARCH == "arm" {
+-			t.Skipf("skipping on %s/%s", GOOS, GOARCH)
++		switch GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, no fork", GOOS, GOARCH)
+ 		}
+ 	}
+ 

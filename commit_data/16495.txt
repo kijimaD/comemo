@@ -7,6 +7,21 @@ Date:   Tue Jun 4 17:12:29 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10010046
-
+---
  src/pkg/runtime/malloc.h | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 3338b0946f..ba8036ab68 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -153,8 +153,7 @@ struct MLink
+ 
+ // SysAlloc obtains a large chunk of zeroed memory from the
+ // operating system, typically on the order of a hundred kilobytes
+-// or a megabyte.  If the pointer argument is non-nil, the caller
+-// wants a mapping there or nowhere.
++// or a megabyte.
+ //
+ // SysUnused notifies the operating system that the contents
+ // of the memory region are no longer needed and can be reused

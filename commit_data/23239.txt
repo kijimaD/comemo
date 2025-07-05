@@ -118,7 +118,7 @@ Date:   Mon Apr 27 22:45:57 2015 -0400
     Change-Id: Ie779c47e912bf80eb918bafa13638bd8dfd6c2d9
     Reviewed-on: https://go-review.googlesource.com/9406
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/internal/gc/pgen.go    |   6 +-
  src/cmd/internal/gc/plive.go   |  84 +++++++++++++-------------
  src/cmd/internal/gc/reflect.go |  12 ++--
@@ -130,3 +130,1048 @@ Date:   Mon Apr 27 22:45:57 2015 -0400
  src/runtime/mgcmark.go         | 131 ++++++++++++++++++++++-------------------
  src/runtime/stack1.go          |  28 +++------
  10 files changed, 237 insertions(+), 238 deletions(-)
+
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 1667a5c13e..f247a685ca 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -142,12 +142,12 @@ func emitptrargsmap() {
+ 	var xoffset int64
+ 	if Curfn.Type.Thistuple > 0 {
+ 		xoffset = 0
+-		twobitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
++		onebitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
+ 	}
+ 
+ 	if Curfn.Type.Intuple > 0 {
+ 		xoffset = 0
+-		twobitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
++		onebitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
+ 	}
+ 
+ 	for j := 0; int32(j) < bv.n; j += 32 {
+@@ -155,7 +155,7 @@ func emitptrargsmap() {
+ 	}
+ 	if Curfn.Type.Outtuple > 0 {
+ 		xoffset = 0
+-		twobitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
++		onebitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
+ 		for j := 0; int32(j) < bv.n; j += 32 {
+ 			off = duint32(sym, off, bv.b[j/32])
+ 		}
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index fe6905a062..040a77814e 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -886,11 +886,11 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ 
+ // NOTE: The bitmap for a specific type t should be cached in t after the first run
+ // and then simply copied into bv at the correct offset on future calls with
+-// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, twobitwalktype1
++// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
+ // accounts for 40% of the 6g execution time.
+-func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
++func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
+-		Fatal("twobitwalktype1: invalid initial alignment, %v", t)
++		Fatal("onebitwalktype1: invalid initial alignment, %v", t)
+ 	}
+ 
+ 	switch t.Etype {
+@@ -910,10 +910,6 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		TFLOAT64,
+ 		TCOMPLEX64,
+ 		TCOMPLEX128:
+-		for i := int64(0); i < t.Width; i++ {
+-			bvset(bv, int32(((*xoffset+i)/int64(Widthptr))*obj.BitsPerPointer)) // 1 = live scalar (BitsScalar)
+-		}
+-
+ 		*xoffset += t.Width
+ 
+ 	case TPTR32,
+@@ -923,46 +919,46 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		TCHAN,
+ 		TMAP:
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("twobitwalktype1: invalid alignment, %v", t)
++			Fatal("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr (BitsPointer)
++		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer
+ 		*xoffset += t.Width
+ 
+-		// struct { byte *str; intgo len; }
+ 	case TSTRING:
++		// struct { byte *str; intgo len; }
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("twobitwalktype1: invalid alignment, %v", t)
++			Fatal("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
++		bvset(bv, int32(*xoffset/int64(Widthptr))) //pointer in first slot
+ 		*xoffset += t.Width
+ 
+-		// struct { Itab *tab;	union { void *ptr, uintptr val } data; }
+-	// or, when isnilinter(t)==true:
+-	// struct { Type *type; union { void *ptr, uintptr val } data; }
+ 	case TINTER:
++		// struct { Itab *tab;	void *data; }
++		// or, when isnilinter(t)==true:
++		// struct { Type *type; void *data; }
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("twobitwalktype1: invalid alignment, %v", t)
++			Fatal("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
+-		bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+3)) // 2 = live ptr in second slot (BitsPointer)
++		bvset(bv, int32(*xoffset/int64(Widthptr)))   // pointer in first slot
++		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
+ 		*xoffset += t.Width
+ 
+-		// The value of t->bound is -1 for slices types and >0 for
+-	// for fixed array types.  All other values are invalid.
+ 	case TARRAY:
++		// The value of t->bound is -1 for slices types and >0 for
++		// for fixed array types.  All other values are invalid.
+ 		if t.Bound < -1 {
+-			Fatal("twobitwalktype1: invalid bound, %v", t)
++			Fatal("onebitwalktype1: invalid bound, %v", t)
+ 		}
+ 		if Isslice(t) {
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			if *xoffset&int64(Widthptr-1) != 0 {
+-				Fatal("twobitwalktype1: invalid TARRAY alignment, %v", t)
++				Fatal("onebitwalktype1: invalid TARRAY alignment, %v", t)
+ 			}
+-			bvset(bv, int32((*xoffset/int64(Widthptr))*obj.BitsPerPointer+1)) // 2 = live ptr in first slot (BitsPointer)
++			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+ 			*xoffset += t.Width
+ 		} else {
+ 			for i := int64(0); i < t.Bound; i++ {
+-				twobitwalktype1(t.Type, xoffset, bv)
++				onebitwalktype1(t.Type, xoffset, bv)
+ 			}
+ 		}
+ 
+@@ -972,14 +968,14 @@ func twobitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+ 			fieldoffset = t1.Width
+ 			*xoffset += fieldoffset - o
+-			twobitwalktype1(t1.Type, xoffset, bv)
++			onebitwalktype1(t1.Type, xoffset, bv)
+ 			o = fieldoffset + t1.Type.Width
+ 		}
+ 
+ 		*xoffset += t.Width - o
+ 
+ 	default:
+-		Fatal("twobitwalktype1: unexpected type, %v", t)
++		Fatal("onebitwalktype1: unexpected type, %v", t)
+ 	}
+ }
+ 
+@@ -996,7 +992,7 @@ func argswords() int32 {
+ // Generates live pointer value maps for arguments and local variables.  The
+ // this argument and the in arguments are always assumed live.  The vars
+ // argument is an array of Node*s.
+-func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
++func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
+ 	var node *Node
+ 	var xoffset int64
+ 
+@@ -1009,11 +1005,11 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
+ 		switch node.Class {
+ 		case PAUTO:
+ 			xoffset = node.Xoffset + stkptrsize
+-			twobitwalktype1(node.Type, &xoffset, locals)
++			onebitwalktype1(node.Type, &xoffset, locals)
+ 
+ 		case PPARAM, PPARAMOUT:
+ 			xoffset = node.Xoffset
+-			twobitwalktype1(node.Type, &xoffset, args)
++			onebitwalktype1(node.Type, &xoffset, args)
+ 		}
+ 	}
+ 
+@@ -1025,13 +1021,13 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
+ 
+ 	if thisargtype != nil {
+ 		xoffset = 0
+-		twobitwalktype1(thisargtype, &xoffset, args)
++		onebitwalktype1(thisargtype, &xoffset, args)
+ 	}
+ 
+ 	inargtype := getinargx(lv.fn.Type)
+ 	if inargtype != nil {
+ 		xoffset = 0
+-		twobitwalktype1(inargtype, &xoffset, args)
++		onebitwalktype1(inargtype, &xoffset, args)
+ 	}
+ }
+ 
+@@ -1202,15 +1198,15 @@ func livenesssolve(lv *Liveness) {
+ func islive(n *Node, args Bvec, locals Bvec) bool {
+ 	switch n.Class {
+ 	case PPARAM, PPARAMOUT:
+-		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
+-			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
++		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
++			if bvget(args, int32(n.Xoffset/int64(Widthptr)+int64(i))) != 0 {
+ 				return true
+ 			}
+ 		}
+ 
+ 	case PAUTO:
+-		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
+-			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
++		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
++			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)+int64(i))) != 0 {
+ 				return true
+ 			}
+ 		}
+@@ -1239,7 +1235,7 @@ func livenessepilogue(lv *Liveness) {
+ 	avarinit := bvalloc(nvars)
+ 	any := bvalloc(nvars)
+ 	all := bvalloc(nvars)
+-	ambig := bvalloc(localswords() * obj.BitsPerPointer)
++	ambig := bvalloc(localswords())
+ 	nmsg := int32(0)
+ 	startmsg := int32(0)
+ 
+@@ -1294,7 +1290,7 @@ func livenessepilogue(lv *Liveness) {
+ 							// Record in 'ambiguous' bitmap.
+ 							xoffset = n.Xoffset + stkptrsize
+ 
+-							twobitwalktype1(n.Type, &xoffset, ambig)
++							onebitwalktype1(n.Type, &xoffset, ambig)
+ 						}
+ 					}
+ 				}
+@@ -1303,10 +1299,10 @@ func livenessepilogue(lv *Liveness) {
+ 				// value we are tracking.
+ 
+ 				// Live stuff first.
+-				args = bvalloc(argswords() * obj.BitsPerPointer)
++				args = bvalloc(argswords())
+ 
+ 				lv.argslivepointers = append(lv.argslivepointers, args)
+-				locals = bvalloc(localswords() * obj.BitsPerPointer)
++				locals = bvalloc(localswords())
+ 				lv.livepointers = append(lv.livepointers, locals)
+ 
+ 				if debuglive >= 3 {
+@@ -1319,7 +1315,7 @@ func livenessepilogue(lv *Liveness) {
+ 				// because the any/all calculation requires walking forward
+ 				// over the block (as this loop does), while the liveout
+ 				// requires walking backward (as the next loop does).
+-				twobitlivepointermap(lv, any, lv.vars, args, locals)
++				onebitlivepointermap(lv, any, lv.vars, args, locals)
+ 			}
+ 
+ 			if p == bb.last {
+@@ -1394,7 +1390,7 @@ func livenessepilogue(lv *Liveness) {
+ 				args = lv.argslivepointers[pos]
+ 
+ 				locals = lv.livepointers[pos]
+-				twobitlivepointermap(lv, liveout, lv.vars, args, locals)
++				onebitlivepointermap(lv, liveout, lv.vars, args, locals)
+ 
+ 				// Ambiguously live variables are zeroed immediately after
+ 				// function entry. Mark them live for all the non-entry bitmaps
+@@ -1727,7 +1723,7 @@ func livenessprintdebug(lv *Liveness) {
+ // length of the bitmaps.  All bitmaps are assumed to be of equal length.  The
+ // words that are followed are the raw bitmap words.  The arr argument is an
+ // array of Node*s.
+-func twobitwritesymbol(arr []Bvec, sym *Sym) {
++func onebitwritesymbol(arr []Bvec, sym *Sym) {
+ 	var i int
+ 	var j int
+ 	var word uint32
+@@ -1816,9 +1812,9 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
+ 	}
+ 
+ 	// Emit the live pointer map data structures
+-	twobitwritesymbol(lv.livepointers, livesym)
++	onebitwritesymbol(lv.livepointers, livesym)
+ 
+-	twobitwritesymbol(lv.argslivepointers, argssym)
++	onebitwritesymbol(lv.argslivepointers, argssym)
+ 
+ 	// Free everything.
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 824ed0b427..804f888fd3 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1404,7 +1404,7 @@ func gengcmask(t *Type, gcmask []byte) {
+ 	xoffset := int64(0)
+ 
+ 	vec := bvalloc(2 * int32(Widthptr) * 8)
+-	twobitwalktype1(t, &xoffset, vec)
++	onebitwalktype1(t, &xoffset, vec)
+ 
+ 	// Unfold the mask for the GC bitmap format:
+ 	// 4 bits per word, 2 high bits encode pointer info.
+@@ -1419,13 +1419,11 @@ func gengcmask(t *Type, gcmask []byte) {
+ 	var bits uint8
+ 	for j := int64(0); j <= (nptr % 2); j++ {
+ 		for i = 0; i < nptr; i++ {
+-			bits = uint8(bvget(vec, int32(i*obj.BitsPerPointer)) | bvget(vec, int32(i*obj.BitsPerPointer+1))<<1)
+-
+-			// Some fake types (e.g. Hmap) has missing fileds.
+-			// twobitwalktype1 generates BitsDead for that holes,
+-			// replace BitsDead with BitsScalar.
+-			if bits == obj.BitsDead {
++			// convert 0=scalar / 1=pointer to GC bit encoding
++			if bvget(vec, int32(i)) == 0 {
+ 				bits = obj.BitsScalar
++			} else {
++				bits = obj.BitsPointer
+ 			}
+ 			bits <<= 2
+ 			if half {
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 37e18edf12..c32a8137d6 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2243,30 +2243,23 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 		} else if t.Width <= int64(4*Widthptr) {
+ 			x := int64(0)
+ 			if applywritebarrier_bv.b == nil {
+-				applywritebarrier_bv = bvalloc(obj.BitsPerPointer * 4)
++				applywritebarrier_bv = bvalloc(4)
+ 			}
+ 			bvresetall(applywritebarrier_bv)
+-			twobitwalktype1(t, &x, applywritebarrier_bv)
+-			const (
+-				PtrBit = 1
+-			)
+-			// The bvgets are looking for BitsPointer in successive slots.
+-			if obj.BitsPointer != 1<<PtrBit {
+-				Fatal("wrong PtrBit")
+-			}
++			onebitwalktype1(t, &x, applywritebarrier_bv)
+ 			var name string
+ 			switch t.Width / int64(Widthptr) {
+ 			default:
+ 				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), t)
+ 
+ 			case 2:
+-				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit))
++				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1))
+ 
+ 			case 3:
+-				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 2*obj.BitsPerPointer+PtrBit))
++				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2))
+ 
+ 			case 4:
+-				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, PtrBit), bvget(applywritebarrier_bv, obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 2*obj.BitsPerPointer+PtrBit), bvget(applywritebarrier_bv, 3*obj.BitsPerPointer+PtrBit))
++				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2), bvget(applywritebarrier_bv, 3))
+ 			}
+ 
+ 			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, Nodintconst(0), n.Right)
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index f353a4eb26..66b0353f08 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -12,21 +12,21 @@ import (
+ 
+ // TestGCInfo tests that various objects in heap, data and bss receive correct GC pointer type info.
+ func TestGCInfo(t *testing.T) {
+-	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, nonStackInfo(infoScalarPtr))
+-	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, nonStackInfo(infoPtrScalar))
+-	verifyGCInfo(t, "bss BigStruct", &bssBigStruct, nonStackInfo(infoBigStruct()))
+-	verifyGCInfo(t, "bss string", &bssString, nonStackInfo(infoString))
+-	verifyGCInfo(t, "bss slice", &bssSlice, nonStackInfo(infoSlice))
+-	verifyGCInfo(t, "bss eface", &bssEface, nonStackInfo(infoEface))
+-	verifyGCInfo(t, "bss iface", &bssIface, nonStackInfo(infoIface))
+-
+-	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, nonStackInfo(infoScalarPtr))
+-	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, nonStackInfo(infoPtrScalar))
+-	verifyGCInfo(t, "data BigStruct", &dataBigStruct, nonStackInfo(infoBigStruct()))
+-	verifyGCInfo(t, "data string", &dataString, nonStackInfo(infoString))
+-	verifyGCInfo(t, "data slice", &dataSlice, nonStackInfo(infoSlice))
+-	verifyGCInfo(t, "data eface", &dataEface, nonStackInfo(infoEface))
+-	verifyGCInfo(t, "data iface", &dataIface, nonStackInfo(infoIface))
++	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, infoScalarPtr)
++	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, infoPtrScalar)
++	verifyGCInfo(t, "bss BigStruct", &bssBigStruct, infoBigStruct())
++	verifyGCInfo(t, "bss string", &bssString, infoString)
++	verifyGCInfo(t, "bss slice", &bssSlice, infoSlice)
++	verifyGCInfo(t, "bss eface", &bssEface, infoEface)
++	verifyGCInfo(t, "bss iface", &bssIface, infoIface)
++
++	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, infoScalarPtr)
++	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, infoPtrScalar)
++	verifyGCInfo(t, "data BigStruct", &dataBigStruct, infoBigStruct())
++	verifyGCInfo(t, "data string", &dataString, infoString)
++	verifyGCInfo(t, "data slice", &dataSlice, infoSlice)
++	verifyGCInfo(t, "data eface", &dataEface, infoEface)
++	verifyGCInfo(t, "data iface", &dataIface, infoIface)
+ 
+ 	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
+ 	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
+@@ -37,12 +37,12 @@ func TestGCInfo(t *testing.T) {
+ 	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
+ 
+ 	for i := 0; i < 10; i++ {
+-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), nonStackInfo(infoScalarPtr))
+-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), nonStackInfo(infoPtrScalar))
+-		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), nonStackInfo(infoBigStruct()))
+-		verifyGCInfo(t, "heap string", escape(new(string)), nonStackInfo(infoString))
+-		verifyGCInfo(t, "heap eface", escape(new(interface{})), nonStackInfo(infoEface))
+-		verifyGCInfo(t, "heap iface", escape(new(Iface)), nonStackInfo(infoIface))
++		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
++		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), infoPtrScalar)
++		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), infoBigStruct())
++		verifyGCInfo(t, "heap string", escape(new(string)), infoString)
++		verifyGCInfo(t, "heap eface", escape(new(interface{})), infoEface)
++		verifyGCInfo(t, "heap iface", escape(new(Iface)), infoIface)
+ 	}
+ 
+ }
+@@ -130,25 +130,25 @@ func infoBigStruct() []byte {
+ 		return []byte{
+ 			typePointer,                                                // q *int
+ 			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+-			typePointer, typeDead, typeDead, // r []byte
++			typePointer, typeScalar, typeScalar, // r []byte
+ 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+-			typePointer, typeDead, // i string
++			typePointer, typeScalar, // i string
+ 		}
+ 	case "arm64", "amd64", "ppc64", "ppc64le":
+ 		return []byte{
+ 			typePointer,                        // q *int
+ 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+-			typePointer, typeDead, typeDead, // r []byte
++			typePointer, typeScalar, typeScalar, // r []byte
+ 			typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+-			typePointer, typeDead, // i string
++			typePointer, typeScalar, // i string
+ 		}
+ 	case "amd64p32":
+ 		return []byte{
+ 			typePointer,                                                // q *int
+ 			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+-			typePointer, typeDead, typeDead, // r []byte
+-			typeScalar, typeScalar, typeDead, typeScalar, typeScalar, // t int; y uint16; u uint64
+-			typePointer, typeDead, // i string
++			typePointer, typeScalar, typeScalar, // r []byte
++			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
++			typePointer, typeScalar, // i string
+ 		}
+ 	default:
+ 		panic("unknown arch")
+@@ -183,8 +183,8 @@ var (
+ 	dataEface     interface{} = 42
+ 	dataIface     Iface       = IfaceImpl(42)
+ 
+-	infoString = []byte{typePointer, typeDead}
+-	infoSlice  = []byte{typePointer, typeDead, typeDead}
++	infoString = []byte{typePointer, typeScalar}
++	infoSlice  = []byte{typePointer, typeScalar, typeScalar}
+ 	infoEface  = []byte{typePointer, typePointer}
+ 	infoIface  = []byte{typePointer, typePointer}
+ )
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 0a814599ed..e18aa79164 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -237,18 +237,10 @@ type childInfo struct {
+ // dump kinds & offsets of interesting fields in bv
+ func dumpbv(cbv *bitvector, offset uintptr) {
+ 	bv := gobv(*cbv)
+-	for i := uintptr(0); i < uintptr(bv.n); i += typeBitsWidth {
+-		switch bv.bytedata[i/8] >> (i % 8) & typeMask {
+-		default:
+-			throw("unexpected pointer bits")
+-		case typeDead:
+-			// typeDead has already been processed in makeheapobjbv.
+-			// We should only see it in stack maps, in which case we should continue processing.
+-		case typeScalar:
+-			// ok
+-		case typePointer:
++	for i := uintptr(0); i < uintptr(bv.n); i++ {
++		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
+ 			dumpint(fieldKindPtr)
+-			dumpint(uint64(offset + i/typeBitsWidth*ptrSize))
++			dumpint(uint64(offset + i*ptrSize))
+ 		}
+ 	}
+ }
+@@ -278,7 +270,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	var bv bitvector
+ 	if stkmap != nil && stkmap.n > 0 {
+ 		bv = stackmapdata(stkmap, pcdata)
+-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n/typeBitsWidth*ptrSize)))
++		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*ptrSize)))
+ 	} else {
+ 		bv.n = -1
+ 	}
+@@ -326,7 +318,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	} else if stkmap.n > 0 {
+ 		// Locals bitmap information, scan just the pointers in
+ 		// locals.
+-		dumpbv(&bv, s.varp-uintptr(bv.n)/typeBitsWidth*ptrSize-s.sp)
++		dumpbv(&bv, s.varp-uintptr(bv.n)*ptrSize-s.sp)
+ 	}
+ 	dumpint(fieldKindEol)
+ 
+@@ -651,7 +643,7 @@ func dumpmemprof() {
+ 	}
+ }
+ 
+-var dumphdr = []byte("go1.4 heap dump\n")
++var dumphdr = []byte("go1.5 heap dump\n")
+ 
+ func mdump() {
+ 	// make sure we're done sweeping
+@@ -720,18 +712,21 @@ func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
+ func makeheapobjbv(p uintptr, size uintptr) bitvector {
+ 	// Extend the temp buffer if necessary.
+ 	nptr := size / ptrSize
+-	if uintptr(len(tmpbuf)) < nptr*typeBitsWidth/8+1 {
++	if uintptr(len(tmpbuf)) < nptr/8+1 {
+ 		if tmpbuf != nil {
+ 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
+ 		}
+-		n := nptr*typeBitsWidth/8 + 1
++		n := nptr/8 + 1
+ 		p := sysAlloc(n, &memstats.other_sys)
+ 		if p == nil {
+ 			throw("heapdump: out of memory")
+ 		}
+ 		tmpbuf = (*[1 << 30]byte)(p)[:n]
+ 	}
+-	// Convert heap bitmap to type bitmap.
++	// Convert heap bitmap to pointer bitmap.
++	for i := uintptr(0); i < nptr/8+1; i++ {
++		tmpbuf[i] = 0
++	}
+ 	i := uintptr(0)
+ 	hbits := heapBitsForAddr(p)
+ 	for ; i < nptr; i++ {
+@@ -740,8 +735,9 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
+ 			break // end of object
+ 		}
+ 		hbits = hbits.next()
+-		tmpbuf[i*typeBitsWidth/8] &^= (typeMask << ((i * typeBitsWidth) % 8))
+-		tmpbuf[i*typeBitsWidth/8] |= bits << ((i * typeBitsWidth) % 8)
++		if bits == typePointer {
++			tmpbuf[i/8] |= 1 << (i % 8)
++		}
+ 	}
+-	return bitvector{int32(i * typeBitsWidth), &tmpbuf[0]}
++	return bitvector{int32(i), &tmpbuf[0]}
+ }
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index a1ebf03e69..f0c7520e38 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -4,9 +4,20 @@
+ 
+ // Garbage collector: type and heap bitmaps.
+ //
++// Stack, data, and bss bitmaps
++//
++// Not handled in this file, but worth mentioning: stack frames and global data
++// in the data and bss sections are described by 1-bit bitmaps in which 0 means
++// scalar or uninitialized or dead and 1 means pointer to visit during GC.
++//
++// Comparing this 1-bit form with the 2-bit form described below, 0 represents
++// both the 2-bit 00 and 01, while 1 represents the 2-bit 10.
++// Therefore conversions between the two (until the 2-bit form is gone)
++// can be done by x>>1 for 2-bit to 1-bit and x+1 for 1-bit to 2-bit.
++//
+ // Type bitmaps
+ //
+-// The global variables (in the data and bss sections) and types that aren't too large
++// Types that aren't too large
+ // record information about the layout of their memory words using a type bitmap.
+ // The bitmap holds two bits for each pointer-sized word. The two-bit values are:
+ //
+@@ -17,7 +28,6 @@
+ //
+ // typeDead only appears in type bitmaps in Go type descriptors
+ // and in type bitmaps embedded in the heap bitmap (see below).
+-// It is not used in the type bitmap for the global variables.
+ //
+ // Heap bitmap
+ //
+@@ -71,9 +81,8 @@ const (
+ 	typePointer            = 2
+ 	typePointerCheckmarked = 3
+ 
+-	typeBitsWidth   = 2 // # of type bits per pointer-sized word
+-	typeMask        = 1<<typeBitsWidth - 1
+-	typeBitmapScale = ptrSize * (8 / typeBitsWidth) // number of data bytes per type bitmap byte
++	typeBitsWidth = 2 // # of type bits per pointer-sized word
++	typeMask      = 1<<typeBitsWidth - 1
+ 
+ 	heapBitsWidth   = 4
+ 	heapBitmapScale = ptrSize * (8 / heapBitsWidth) // number of data bytes per heap bitmap byte
+@@ -600,7 +609,7 @@ const (
+ // mask is where to store the result.
+ // If inplace is true, store the result not in mask but in the heap bitmap for mask.
+ // ppos is a pointer to position in mask, in bits.
+-// sparse says to generate 4-bits per word mask for heap (2-bits for data/bss otherwise).
++// sparse says to generate 4-bits per word mask for heap (1-bit for data/bss otherwise).
+ //go:nowritebarrier
+ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool) *byte {
+ 	pos := *ppos
+@@ -635,10 +644,10 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 					mask[pos/8] |= v
+ 					pos += heapBitsWidth
+ 				} else {
+-					// 2-bits per word
+-					v <<= pos % 8
+-					mask[pos/8] |= v
+-					pos += typeBitsWidth
++					// 1 bit per word, for data/bss bitmap
++					v >>= 1 // convert typePointer to 1, others to 0
++					mask[pos/8] |= v << (pos % 8)
++					pos++
+ 				}
+ 			}
+ 			prog = addb(prog, round(uintptr(siz)*typeBitsWidth, 8)/8)
+@@ -668,13 +677,13 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 
+ // Unrolls GC program prog for data/bss, returns dense GC mask.
+ func unrollglobgcprog(prog *byte, size uintptr) bitvector {
+-	masksize := round(round(size, ptrSize)/ptrSize*typeBitsWidth, 8) / 8
++	masksize := round(round(size, ptrSize)/ptrSize, 8) / 8
+ 	mask := (*[1 << 30]byte)(persistentalloc(masksize+1, 0, &memstats.gc_sys))
+ 	mask[masksize] = 0xa1
+ 	pos := uintptr(0)
+ 	prog = unrollgcprog1(&mask[0], prog, &pos, false, false)
+-	if pos != size/ptrSize*typeBitsWidth {
+-		print("unrollglobgcprog: bad program size, got ", pos, ", expect ", size/ptrSize*typeBitsWidth, "\n")
++	if pos != size/ptrSize {
++		print("unrollglobgcprog: bad program size, got ", pos, ", expect ", size/ptrSize, "\n")
+ 		throw("unrollglobgcprog: bad program size")
+ 	}
+ 	if *prog != insEnd {
+@@ -744,8 +753,6 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 	*mask = nil
+ 	*len = 0
+ 
+-	const typeBitsPerByte = 8 / typeBitsWidth
+-
+ 	// data
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+ 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+@@ -754,8 +761,9 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 			*mask = &make([]byte, *len)[0]
+ 			for i := uintptr(0); i < n; i += ptrSize {
+ 				off := (uintptr(p) + i - datap.data) / ptrSize
+-				bits := (*(*byte)(add(unsafe.Pointer(datap.gcdatamask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+-				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++				bits := (*addb(datap.gcdatamask.bytedata, off/8) >> (off % 8)) & 1
++				bits += 1 // convert 1-bit to 2-bit
++				*addb(*mask, i/ptrSize) = bits
+ 			}
+ 			return
+ 		}
+@@ -767,8 +775,9 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 			*mask = &make([]byte, *len)[0]
+ 			for i := uintptr(0); i < n; i += ptrSize {
+ 				off := (uintptr(p) + i - datap.bss) / ptrSize
+-				bits := (*(*byte)(add(unsafe.Pointer(datap.gcbssmask.bytedata), off/typeBitsPerByte)) >> ((off % typeBitsPerByte) * typeBitsWidth)) & typeMask
+-				*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++				bits := (*addb(datap.gcbssmask.bytedata, off/8) >> (off % 8)) & 1
++				bits += 1 // convert 1-bit to 2-bit
++				*addb(*mask, i/ptrSize) = bits
+ 			}
+ 			return
+ 		}
+@@ -782,7 +791,7 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 		*mask = &make([]byte, *len)[0]
+ 		for i := uintptr(0); i < n; i += ptrSize {
+ 			bits := heapBitsForAddr(base + i).typeBits()
+-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++			*addb(*mask, i/ptrSize) = bits
+ 		}
+ 		return
+ 	}
+@@ -810,14 +819,15 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 			return
+ 		}
+ 		bv := stackmapdata(stkmap, pcdata)
+-		size := uintptr(bv.n) / typeBitsWidth * ptrSize
++		size := uintptr(bv.n) * ptrSize
+ 		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ 		*len = n / ptrSize
+ 		*mask = &make([]byte, *len)[0]
+ 		for i := uintptr(0); i < n; i += ptrSize {
+ 			off := (uintptr(p) + i - frame.varp + size) / ptrSize
+-			bits := ((*(*byte)(add(unsafe.Pointer(bv.bytedata), off*typeBitsWidth/8))) >> ((off * typeBitsWidth) % 8)) & typeMask
+-			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
++			bits := (*addb(bv.bytedata, off/8) >> (off % 8)) & 1
++			bits += 1 // convert 1-bit to 2-bit
++			*addb(*mask, i/ptrSize) = bits
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e3ff8ff9d4..7e1773c88c 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -20,7 +20,7 @@ var finlock mutex  // protects the following variables
+ var fing *g        // goroutine that runs finalizers
+ var finq *finblock // list of finalizers that are to be executed
+ var finc *finblock // cache of free blocks
+-var finptrmask [_FinBlockSize / typeBitmapScale]byte
++var finptrmask [_FinBlockSize / ptrSize / 8]byte
+ var fingwait bool
+ var fingwake bool
+ var allfin *finblock // list of all blocks
+@@ -35,25 +35,31 @@ type finalizer struct {
+ }
+ 
+ var finalizer1 = [...]byte{
+-	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
+-	// Each byte describes 4 words.
+-	// Need 4 Finalizers described by 5 bytes before pattern repeats:
+-	//	ptr ptr uintptr ptr ptr
+-	//	ptr ptr uintptr ptr ptr
+-	//	ptr ptr uintptr ptr ptr
+-	//	ptr ptr uintptr ptr ptr
++	// Each Finalizer is 5 words, ptr ptr INT ptr ptr (INT = uintptr here)
++	// Each byte describes 8 words.
++	// Need 8 Finalizers described by 5 bytes before pattern repeats:
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
++	//	ptr ptr INT ptr ptr
+ 	// aka
+-	//	ptr ptr uintptr ptr
+-	//	ptr ptr ptr uintptr
+-	//	ptr ptr ptr ptr
+-	//	uintptr ptr ptr ptr
+-	//	ptr uintptr ptr ptr
++	//
++	//	ptr ptr INT ptr ptr ptr ptr INT
++	//	ptr ptr ptr ptr INT ptr ptr ptr
++	//	ptr INT ptr ptr ptr ptr INT ptr
++	//	ptr ptr ptr INT ptr ptr ptr ptr
++	//	INT ptr ptr ptr ptr INT ptr ptr
++	//
+ 	// Assumptions about Finalizer layout checked below.
+-	typePointer | typePointer<<2 | typeScalar<<4 | typePointer<<6,
+-	typePointer | typePointer<<2 | typePointer<<4 | typeScalar<<6,
+-	typePointer | typePointer<<2 | typePointer<<4 | typePointer<<6,
+-	typeScalar | typePointer<<2 | typePointer<<4 | typePointer<<6,
+-	typePointer | typeScalar<<2 | typePointer<<4 | typePointer<<6,
++	1<<0 | 1<<1 | 0<<2 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 0<<7,
++	1<<0 | 1<<1 | 1<<2 | 1<<3 | 0<<4 | 1<<5 | 1<<6 | 1<<7,
++	1<<0 | 0<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 0<<6 | 1<<7,
++	1<<0 | 1<<1 | 1<<2 | 0<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7,
++	0<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 0<<5 | 1<<6 | 1<<7,
+ }
+ 
+ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
+@@ -72,8 +78,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 					unsafe.Offsetof(finalizer{}.arg) != ptrSize ||
+ 					unsafe.Offsetof(finalizer{}.nret) != 2*ptrSize ||
+ 					unsafe.Offsetof(finalizer{}.fint) != 3*ptrSize ||
+-					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize ||
+-					typeBitsWidth != 2) {
++					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize) {
+ 					throw("finalizer out of sync")
+ 				}
+ 				for i := range finptrmask {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1bb709c895..401507545f 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -51,7 +51,7 @@ func gcscan_m() {
+ }
+ 
+ // ptrmask for an allocation containing a single pointer.
+-var oneptr = [...]uint8{typePointer}
++var oneptrmask = [...]uint8{1}
+ 
+ //go:nowritebarrier
+ func markroot(desc *parfor, i uint32) {
+@@ -98,9 +98,9 @@ func markroot(desc *parfor, i uint32) {
+ 				// A finalizer can be set for an inner byte of an object, find object beginning.
+ 				p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+ 				if gcphase != _GCscan {
+-					scanblock(p, s.elemsize, nil, &gcw) // scanned during mark phase
++					scanobject(p, &gcw) // scanned during mark termination
+ 				}
+-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptr[0], &gcw)
++				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], &gcw)
+ 			}
+ 		}
+ 
+@@ -383,7 +383,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 			throw("scanframe: bad symbol table")
+ 		}
+ 		bv := stackmapdata(stkmap, pcdata)
+-		size = (uintptr(bv.n) / typeBitsWidth) * ptrSize
++		size = uintptr(bv.n) * ptrSize
+ 		scanblock(frame.varp-size, size, bv.bytedata, gcw)
+ 	}
+ 
+@@ -405,7 +405,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 			}
+ 			bv = stackmapdata(stkmap, pcdata)
+ 		}
+-		scanblock(frame.argp, uintptr(bv.n)/typeBitsWidth*ptrSize, bv.bytedata, gcw)
++		scanblock(frame.argp, uintptr(bv.n)*ptrSize, bv.bytedata, gcw)
+ 	}
+ }
+ 
+@@ -447,7 +447,7 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
+ 		// out of the wbuf passed in + a single object placed
+ 		// into an empty wbuf in scanobject so there could be
+ 		// a performance hit as we keep fetching fresh wbufs.
+-		scanobject(b, 0, nil, gcw)
++		scanobject(b, gcw)
+ 
+ 		// Flush background scan work credit to the global
+ 		// account if we've accumulated enough locally so
+@@ -499,7 +499,7 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
+ 			// No more work
+ 			break
+ 		}
+-		scanobject(b, 0, nil, gcw)
++		scanobject(b, gcw)
+ 
+ 		// Flush background scan work credit to the global
+ 		// account if we've accumulated enough locally so
+@@ -534,12 +534,12 @@ func gcDrainN(gcw *gcWork, scanWork int64) {
+ 		if b == 0 {
+ 			return
+ 		}
+-		scanobject(b, 0, nil, gcw)
++		scanobject(b, gcw)
+ 	}
+ }
+ 
+-// scanblock scans b as scanobject would.
+-// If the gcphase is GCscan, scanblock performs additional checks.
++// scanblock scans b as scanobject would, but using an explicit
++// pointer bitmap instead of the heap bitmap.
+ //go:nowritebarrier
+ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	// Use local copies of original parameters, so that a stack trace
+@@ -548,59 +548,69 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	b := b0
+ 	n := n0
+ 
+-	// ptrmask can have 2 possible values:
+-	// 1. nil - obtain pointer mask from GC bitmap.
+-	// 2. pointer to a compact mask (for stacks and data).
++	arena_start := mheap_.arena_start
++	arena_used := mheap_.arena_used
++	scanWork := int64(0)
+ 
+-	scanobject(b, n, ptrmask, gcw)
+-	if gcphase == _GCscan {
+-		if inheap(b) && ptrmask == nil {
+-			// b is in heap, we are in GCscan so there should be a ptrmask.
+-			throw("scanblock: In GCscan phase and inheap is true.")
++	for i := uintptr(0); i < n; {
++		// Find bits for the next word.
++		bits := uint32(*addb(ptrmask, i/(ptrSize*8)))
++		if bits == 0 {
++			i += ptrSize * 8
++			continue
++		}
++		for j := 0; j < 8 && i < n; j++ {
++			if bits&1 != 0 {
++				// Same work as in scanobject; see comments there.
++				obj := *(*uintptr)(unsafe.Pointer(b + i))
++				scanWork++
++				if obj != 0 && arena_start <= obj && obj < arena_used {
++					if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
++						checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
++					}
++					if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
++						greyobject(obj, b, i, hbits, span, gcw)
++					}
++				}
++			}
++			bits >>= 1
++			i += ptrSize
+ 		}
+ 	}
++
++	gcw.bytesMarked += uint64(n)
++	gcw.scanWork += scanWork
+ }
+ 
+-// scanobject scans memory starting at b, adding pointers to gcw.
+-// If ptrmask != nil, it specifies the pointer mask starting at b and
+-// n specifies the number of bytes to scan.
+-// If ptrmask == nil, b must point to the beginning of a heap object
+-// and scanobject consults the GC bitmap for the pointer mask and the
+-// spans for the size of the object (it ignores n).
++// scanobject scans the object starting at b, adding pointers to gcw.
++// b must point to the beginning of a heap object; scanobject consults
++// the GC bitmap for the pointer mask and the spans for the size of the
++// object (it ignores n).
+ //go:nowritebarrier
+-func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
++func scanobject(b uintptr, gcw *gcWork) {
+ 	arena_start := mheap_.arena_start
+ 	arena_used := mheap_.arena_used
+ 	scanWork := int64(0)
+ 
+ 	// Find bits of the beginning of the object.
+-	var hbits heapBits
+-
+-	if ptrmask == nil {
+-		// b must point to the beginning of a heap object, so
+-		// we can get its bits and span directly.
+-		hbits = heapBitsForAddr(b)
+-		s := spanOfUnchecked(b)
+-		n = s.elemsize
+-		if n == 0 {
+-			throw("scanobject n == 0")
+-		}
++	// b must point to the beginning of a heap object, so
++	// we can get its bits and span directly.
++	hbits := heapBitsForAddr(b)
++	s := spanOfUnchecked(b)
++	n := s.elemsize
++	if n == 0 {
++		throw("scanobject n == 0")
+ 	}
++
+ 	for i := uintptr(0); i < n; i += ptrSize {
+ 		// Find bits for this word.
+-		var bits uintptr
+-		if ptrmask != nil {
+-			// dense mask (stack or data)
+-			bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * typeBitsWidth)) & typeMask
+-		} else {
+-			if i != 0 {
+-				// Avoid needless hbits.next() on last iteration.
+-				hbits = hbits.next()
+-			}
+-			bits = uintptr(hbits.typeBits())
+-			if bits == typeDead {
+-				break // no more pointers in this object
+-			}
++		if i != 0 {
++			// Avoid needless hbits.next() on last iteration.
++			hbits = hbits.next()
++		}
++		bits := uintptr(hbits.typeBits())
++		if bits == typeDead {
++			break // no more pointers in this object
+ 		}
+ 
+ 		if bits <= typeScalar { // typeScalar, typeDead, typeScalarMarked
+@@ -608,10 +618,13 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 		}
+ 
+ 		if bits&typePointer != typePointer {
+-			print("gc useCheckmark=", useCheckmark, " b=", hex(b), " ptrmask=", ptrmask, "\n")
++			print("gc useCheckmark=", useCheckmark, " b=", hex(b), "\n")
+ 			throw("unexpected garbage collection bits")
+ 		}
+ 
++		// Work here is duplicated in scanblock.
++		// If you make changes here, make changes there too.
++
+ 		obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 
+ 		// Track the scan work performed as a way to estimate
+@@ -626,17 +639,15 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 
+ 		// At this point we have extracted the next potential pointer.
+ 		// Check if it points into heap.
+-		if obj == 0 || obj < arena_start || obj >= arena_used {
+-			continue
+-		}
+-
+-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
+-			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+-		}
++		if obj != 0 && arena_start <= obj && obj < arena_used {
++			if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
++				checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
++			}
+ 
+-		// Mark the object.
+-		if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+-			greyobject(obj, b, i, hbits, span, gcw)
++			// Mark the object.
++			if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
++				greyobject(obj, b, i, hbits, span, gcw)
++			}
+ 		}
+ 	}
+ 	gcw.bytesMarked += uint64(n)
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index db7e3cbeca..4fa1a58ea8 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -298,10 +298,9 @@ func stackfree(stk stack) {
+ 
+ var maxstacksize uintptr = 1 << 20 // enough until runtime.main sets it for real
+ 
+-var mapnames = []string{
+-	typeDead:    "---",
+-	typeScalar:  "scalar",
+-	typePointer: "ptr",
++var ptrnames = []string{
++	0: "scalar",
++	1: "ptr",
+ }
+ 
+ // Stack frame layout
+@@ -365,8 +364,8 @@ func gobv(bv bitvector) gobitvector {
+ 	}
+ }
+ 
+-func ptrbits(bv *gobitvector, i uintptr) uint8 {
+-	return (bv.bytedata[i/4] >> ((i & 3) * 2)) & 3
++func ptrbit(bv *gobitvector, i uintptr) uint8 {
++	return (bv.bytedata[i/8] >> (i % 8)) & 1
+ }
+ 
+ // bv describes the memory starting at address scanp.
+@@ -376,21 +375,12 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 	minp := adjinfo.old.lo
+ 	maxp := adjinfo.old.hi
+ 	delta := adjinfo.delta
+-	num := uintptr(bv.n) / typeBitsWidth
++	num := uintptr(bv.n)
+ 	for i := uintptr(0); i < num; i++ {
+ 		if stackDebug >= 4 {
+-			print("        ", add(scanp, i*ptrSize), ":", mapnames[ptrbits(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
++			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
+ 		}
+-		switch ptrbits(&bv, i) {
+-		default:
+-			throw("unexpected pointer bits")
+-		case typeDead:
+-			if debug.gcdead != 0 {
+-				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(uintptr(poisonStack))
+-			}
+-		case typeScalar:
+-			// ok
+-		case typePointer:
++		if ptrbit(&bv, i) == 1 {
+ 			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
+ 			up := uintptr(p)
+ 			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonStack {
+@@ -461,7 +451,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 			throw("bad symbol table")
+ 		}
+ 		bv = stackmapdata(stackmap, pcdata)
+-		size = (uintptr(bv.n) / typeBitsWidth) * ptrSize
++		size = uintptr(bv.n) * ptrSize
+ 		if stackDebug >= 3 {
+ 			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
+ 		}

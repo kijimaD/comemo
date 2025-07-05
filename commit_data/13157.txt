@@ -12,7 +12,48 @@ Date:   Thu May 24 14:50:36 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6256048
-
+---
  src/pkg/exp/locale/collate/colelem.go |  2 +-
  test/bugs/bug440.go                   | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/locale/collate/colelem.go b/src/pkg/exp/locale/collate/colelem.go
+index 1d66392f94..c867fdac69 100644
+--- a/src/pkg/exp/locale/collate/colelem.go
++++ b/src/pkg/exp/locale/collate/colelem.go
+@@ -102,7 +102,7 @@ const (
+ )
+ 
+ func splitContractIndex(ce colElem) (index, n, offset int) {
+-	h := uint16(ce)
++	h := ce & 0xffff
+ 	return int(h >> maxNBits), int(h & (1<<maxNBits - 1)), int(ce>>16) & (1<<maxContractOffsetBits - 1)
+ }
+ 
+diff --git a/test/bugs/bug440.go b/test/bugs/bug440.go
+new file mode 100644
+index 0000000000..816a18c580
+--- /dev/null
++++ b/test/bugs/bug440.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++// # switch above to 'run' when bug gets fixed.
++// # right now it only breaks on 8g
++
++// Test for 8g register move bug.  The optimizer gets confused
++// about 16- vs 32-bit moves during splitContractIndex.
++
++package main
++
++func main() {
++	const c = 0x12345678
++	index, n, offset := splitContractIndex(c)
++	if index != int((c&0xffff)>>5) || n != int(c & (1<<5-1)) || offset != (c>>16)&(1<<14-1) {
++		println("BUG", index, n, offset)
++	}
++}
++
++func splitContractIndex(ce uint32) (index, n, offset int) {
++	h := uint16(ce)
++	return int(h >> 5), int(h & (1<<5 - 1)), int(ce>>16) & (1<<14 - 1)
++}

@@ -15,6 +15,25 @@ Date:   Mon Aug 20 18:42:02 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d86b2aa544..9be9f5f916 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1366,7 +1366,12 @@ func linkerFlagSupported(linker, flag string) bool {
+ 		}
+ 	})
+ 
+-	cmd := exec.Command(linker, flag, "trivial.c")
++	var flags []string
++	flags = append(flags, ldflag...)
++	flags = append(flags, strings.Fields(*flagExtldflags)...)
++	flags = append(flags, flag, "trivial.c")
++
++	cmd := exec.Command(linker, flags...)
+ 	cmd.Dir = *flagTmpdir
+ 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+ 	out, err := cmd.CombinedOutput()

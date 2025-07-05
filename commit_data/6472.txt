@@ -7,6 +7,29 @@ Date:   Thu Oct 7 06:36:39 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2346044
-
+---
  src/cmd/gc/gen.c | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a8b2e1b8ed..d2396aa09f 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -257,17 +257,6 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OIF:
+-		if(n->ntest == N || n->ntest->op == OLITERAL) {
+-			// drop dead code in if true or if false.
+-			// the linker will do it for us in general,
+-			// but this avoids writnig to the object file
+-			// in a very common case.
+-			if(n->ntest == N || n->ntest->val.u.bval)
+-				genlist(n->nbody);
+-			else
+-				genlist(n->nelse);
+-			break;
+-		}
+ 		p1 = gjmp(P);			//		goto test
+ 		p2 = gjmp(P);			// p2:		goto else
+ 		patch(p1, pc);				// test:

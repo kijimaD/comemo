@@ -7,6 +7,19 @@ Date:   Wed Feb 23 10:12:38 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4220044
-
+---
  src/pkg/sync/cond.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/sync/cond.go b/src/pkg/sync/cond.go
+index c99fda3cce..ea48f2e7a9 100644
+--- a/src/pkg/sync/cond.go
++++ b/src/pkg/sync/cond.go
+@@ -1,6 +1,7 @@
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package sync
+ 
+ import "runtime"

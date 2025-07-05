@@ -8,6 +8,24 @@ Date:   Tue Apr 2 10:25:02 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8267043
-
+---
  src/pkg/sort/example_multi_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sort/example_multi_test.go b/src/pkg/sort/example_multi_test.go
+index 8a2f277880..d0a9e7dc37 100644
+--- a/src/pkg/sort/example_multi_test.go
++++ b/src/pkg/sort/example_multi_test.go
+@@ -49,9 +49,9 @@ func (ms *multiSorter) Swap(i, j int) {
+ }
+ 
+ // Less is part of sort.Interface. It is implemented by looping along the
+-// ordering functions until it finds a comparison that is either Less or
+-// !Less. Note that it can call the ordering functions twice per call. We
+-// could change the ordering functions to return -1, 0, 1 and reduce the
++// less functions until it finds a comparison that is either Less or
++// !Less. Note that it can call the less functions twice per call. We
++// could change the functions to return -1, 0, 1 and reduce the
+ // number of calls for greater efficiency: an exercise for the reader.
+ func (ms *multiSorter) Less(i, j int) bool {
+ 	p, q := &ms.changes[i], &ms.changes[j]

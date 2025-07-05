@@ -11,6 +11,34 @@ Date:   Mon Sep 16 17:10:51 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/613615
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/README.md | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/README.md b/src/cmd/compile/internal/ssa/README.md
+index 5dc4fbee6f..2c602f160c 100644
+--- a/src/cmd/compile/internal/ssa/README.md
++++ b/src/cmd/compile/internal/ssa/README.md
+@@ -46,7 +46,21 @@ above has a `uint8` type, and a constant boolean value will have a `bool` type.
+ However, certain types don't come from Go and are special; below we will cover
+ `memory`, the most common of them.
+ 
+-See [value.go](value.go) for more information.
++Some operators contain an auxiliary field. The aux fields are usually printed as
++enclosed in `[]` or `{}`, and could be the constant op argument, argument type,
++etc.
++for example:
++
++	v13 (?) = Const64 <int> [1]
++
++Here the aux field is the constant op argument, the op is creating a `Const64`
++value of 1. One more example:
++
++	v17 (361) = Store <mem> {int} v16 v14 v8
++
++Here the aux field is the type of the value being `Store`ed, which is int.
++
++See [value.go](value.go) and `_gen/*Ops.go` for more information.
+ 
+ #### Memory types
+ 

@@ -9,8 +9,79 @@ Date:   Wed Jul 20 12:59:50 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/heapdump.go | 8 ++++----
  src/runtime/mbitmap.go  | 5 ++---
  src/runtime/mgcsweep.go | 8 ++++----
  3 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index c7f2b7a443..543efeded4 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -693,9 +693,9 @@ func mdump(m *MemStats) {
+ func writeheapdump_m(fd uintptr, m *MemStats) {
+ 	assertWorldStopped()
+ 
+-	_g_ := getg()
+-	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
+-	_g_.waitreason = waitReasonDumpingHeap
++	gp := getg()
++	casgstatus(gp.m.curg, _Grunning, _Gwaiting)
++	gp.waitreason = waitReasonDumpingHeap
+ 
+ 	// Set dump file.
+ 	dumpfd = fd
+@@ -710,7 +710,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
+ 		tmpbuf = nil
+ 	}
+ 
+-	casgstatus(_g_.m.curg, _Gwaiting, _Grunning)
++	casgstatus(gp.m.curg, _Gwaiting, _Grunning)
+ }
+ 
+ // dumpint() the kind & offset of each field in an object.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index a3a6590d65..fcf59b8b3c 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -2028,11 +2028,10 @@ func getgcmask(ep any) (mask []byte) {
+ 	}
+ 
+ 	// stack
+-	if _g_ := getg(); _g_.m.curg.stack.lo <= uintptr(p) && uintptr(p) < _g_.m.curg.stack.hi {
++	if gp := getg(); gp.m.curg.stack.lo <= uintptr(p) && uintptr(p) < gp.m.curg.stack.hi {
+ 		var frame stkframe
+ 		frame.sp = uintptr(p)
+-		_g_ := getg()
+-		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
++		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+ 		if frame.fn.valid() {
+ 			locals, _, _ := getStackMap(&frame, nil, false)
+ 			if locals.n == 0 {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index de57f18c4f..2ac5d507dd 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -431,8 +431,8 @@ func (s *mspan) ensureSwept() {
+ 	// Caller must disable preemption.
+ 	// Otherwise when this function returns the span can become unswept again
+ 	// (if GC is triggered on another goroutine).
+-	_g_ := getg()
+-	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
++	gp := getg()
++	if gp.m.locks == 0 && gp.m.mallocing == 0 && gp != gp.m.g0 {
+ 		throw("mspan.ensureSwept: m is not locked")
+ 	}
+ 
+@@ -470,8 +470,8 @@ func (s *mspan) ensureSwept() {
+ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 	// It's critical that we enter this function with preemption disabled,
+ 	// GC must not start while we are in the middle of this function.
+-	_g_ := getg()
+-	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
++	gp := getg()
++	if gp.m.locks == 0 && gp.m.mallocing == 0 && gp != gp.m.g0 {
+ 		throw("mspan.sweep: m is not locked")
+ 	}
+ 

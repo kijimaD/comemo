@@ -12,6 +12,28 @@ Date:   Thu Nov 20 14:28:54 2014 -0500
     R=rsc, minux, aram
     CC=golang-codereviews
     https://golang.org/cl/175430043
-
+---
  src/liblink/list9.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 5436e36ac7..0a158cd61e 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -178,13 +178,13 @@ Dconv(Fmt *fp)
+ 			s += sprint(s, "type=%s ", dnames9[a->type]);
+ 		else
+ 			s += sprint(s, "type=%d ", a->type);
+-		if(a->name >= 0 && a->name < D_LAST && dnames9[a->name] != nil)
+-			s += sprint(s, "name=%s ", dnames9[a->name]);
++		if(a->name >= 0 && a->name < D_LAST && dnames9[(int)a->name] != nil)
++			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
+ 		else
+ 			s += sprint(s, "name=%d ", a->name);
+ 		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
+ 		if(a->class != 0)
+-			s += sprint(s, " class=%s", cnames9[a->class]);
++			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+ 		if(a->reg != NREG)
+ 			s += sprint(s, " reg=%d", a->reg);
+ 		if(a->sym != nil)

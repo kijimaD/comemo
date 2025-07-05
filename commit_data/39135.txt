@@ -9,6 +9,29 @@ Date:   Mon Jan 7 09:48:39 2019 +0100
     Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ddfea76d43..34131868a4 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1710,7 +1710,7 @@ prints
+ &amp;{7 -2.35 abc   def}
+ &amp;{a:7 b:-2.35 c:abc     def}
+ &amp;main.T{a:7, b:-2.35, c:"abc\tdef"}
+-map[string] int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
++map[string]int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
+ </pre>
+ <p>
+ (Note the ampersands.)
+@@ -1733,7 +1733,7 @@ fmt.Printf(&quot;%T\n&quot;, timeZone)
+ prints
+ </p>
+ <pre>
+-map[string] int
++map[string]int
+ </pre>
+ <p>
+ If you want to control the default format for a custom type, all that's required is to define

@@ -10,6 +10,47 @@ Date:   Wed Mar 25 21:08:04 2015 -0400
     Change-Id: I8b66721f077951f7e7b8cf3cf346fac27a9b68c0
     Reviewed-on: https://go-review.googlesource.com/8200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strings/strings_test.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 7bb81ef3ca..ee0c260753 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -569,6 +569,35 @@ func TestTrim(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkTrim(b *testing.B) {
++	b.ReportAllocs()
++
++	for i := 0; i < b.N; i++ {
++		for _, tc := range trimTests {
++			name := tc.f
++			var f func(string, string) string
++			switch name {
++			case "Trim":
++				f = Trim
++			case "TrimLeft":
++				f = TrimLeft
++			case "TrimRight":
++				f = TrimRight
++			case "TrimPrefix":
++				f = TrimPrefix
++			case "TrimSuffix":
++				f = TrimSuffix
++			default:
++				b.Errorf("Undefined trim function %s", name)
++			}
++			actual := f(tc.in, tc.arg)
++			if actual != tc.out {
++				b.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
++			}
++		}
++	}
++}
++
+ type predicate struct {
+ 	f    func(rune) bool
+ 	name string

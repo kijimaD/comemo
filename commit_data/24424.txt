@@ -12,7 +12,63 @@ Date:   Tue Jul 28 20:48:10 2015 +0200
     Change-Id: I91c033687987ba43d13ad8f42e3fe4c7a78e6075
     Reviewed-on: https://go-review.googlesource.com/12762
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os3_plan9.go     | 17 ++++++++++++++---
  test/fixedbugs/issue11656.go |  3 +--
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 248576a102..03e9410424 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -49,20 +49,31 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(len(notestr)+1))
+ 		gp.sig = uint32(sig)
+ 		gp.sigpc = c.pc()
++
++		pc := uintptr(c.pc())
++		sp := uintptr(c.sp())
++
++		// If we don't recognize the PC as code
++		// but we do recognize the top pointer on the stack as code,
++		// then assume this was a call to non-code and treat like
++		// pc == 0, to make unwinding show the context.
++		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
++			pc = 0
++		}
++
+ 		// Only push sigpanic if PC != 0.
+ 		//
+ 		// If PC == 0, probably panicked because of a call to a nil func.
+ 		// Not pushing that onto SP will make the trace look like a call
+ 		// to sigpanic instead. (Otherwise the trace will end at
+ 		// sigpanic and we won't get to see who faulted).
+-		if c.pc() != 0 {
+-			sp := c.sp()
++		if pc != 0 {
+ 			if regSize > ptrSize {
+ 				sp -= ptrSize
+ 				*(*uintptr)(unsafe.Pointer(sp)) = 0
+ 			}
+ 			sp -= ptrSize
+-			*(*uintptr)(unsafe.Pointer(sp)) = c.pc()
++			*(*uintptr)(unsafe.Pointer(sp)) = pc
+ 			c.setsp(sp)
+ 		}
+ 		c.setpc(funcPC(sigpanic))
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index c4cfe1d259..90385bbdc4 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -8,10 +8,9 @@
+ // it manages to invoke the signal handler, so this test fails there.
+ // +build !darwin !386
+ //
+-// openbsd/386, netbsd/386, and plan9/386 don't work, not sure why.
++// openbsd/386 and netbsd/386 don't work, not sure why.
+ // +build !openbsd !386
+ // +build !netbsd !386
+-// +build !plan9 !386
+ //
+ // windows doesn't work, because Windows exception handling
+ // delivers signals based on the current PC, and that current PC

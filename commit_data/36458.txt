@@ -11,7 +11,7 @@ Date:   Wed Apr 25 08:38:09 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go              |  2 +-
  src/cmd/compile/internal/arm64/ssa.go        |  4 ++++
  src/cmd/compile/internal/gc/ssa.go           |  2 +-
@@ -24,3 +24,196 @@ Date:   Wed Apr 25 08:38:09 2018 +0000
  src/cmd/internal/obj/util.go                 |  1 +
  src/runtime/asm_arm64.s                      |  5 -----
  11 files changed, 50 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 6261aa843b..b2d5a75ac4 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -486,7 +486,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	case 0:
+ 		// Nothing to do.
+ 	case 1:
+-		if p.arch.UnaryDst[op] || op == obj.ARET {
++		if p.arch.UnaryDst[op] || op == obj.ARET || op == obj.AGETCALLERPC {
+ 			// prog.From is no address.
+ 			prog.To = a[0]
+ 		} else {
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 017c5b9398..4459596e24 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -835,6 +835,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64LoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64FlagEQ,
+ 		ssa.OpARM64FlagLT_ULT,
+ 		ssa.OpARM64FlagLT_UGT,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3ebf41fa0c..f473fa8218 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2833,7 +2833,7 @@ func init() {
+ 	addF("runtime", "getcallerpc",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
+-		}, sys.AMD64, sys.I386)
++		}, sys.AMD64, sys.I386, sys.ARM64)
+ 
+ 	add("runtime", "getcallersp",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index d713fd8fda..b5eeb96468 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -505,6 +505,7 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ 
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 3f821e1ce9..b54de53f59 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -527,6 +527,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
++
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d8e6836d95..669d3f5768 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1253,6 +1253,7 @@ const (
+ 	OpARM64LoweredMove
+ 	OpARM64LoweredGetClosurePtr
+ 	OpARM64LoweredGetCallerSP
++	OpARM64LoweredGetCallerPC
+ 	OpARM64FlagEQ
+ 	OpARM64FlagLT_ULT
+ 	OpARM64FlagLT_UGT
+@@ -16394,6 +16395,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 62cffc1b06..f538011198 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -515,6 +515,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueARM64_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueARM64_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValueARM64_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -27239,6 +27241,15 @@ func rewriteValueARM64_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpARM64LoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueARM64_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index fe33b91820..0ea9af2854 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -821,6 +821,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 			break
++
++		case obj.AGETCALLERPC:
++			if cursym.Leaf() {
++				/* MOVD LR, Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REGLINK
++			} else {
++				/* MOVD (RSP), Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 16e4e1410d..ea11294000 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -343,6 +343,7 @@ const (
+ 	ANOP
+ 	APCDATA
+ 	ARET
++	AGETCALLERPC
+ 	ATEXT
+ 	AUNDEF
+ 	A_ARCHSPECIFIC
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3b92dfcba3..89d481e726 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -493,6 +493,7 @@ var Anames = []string{
+ 	"NOP",
+ 	"PCDATA",
+ 	"RET",
++	"GETCALLERPC",
+ 	"TEXT",
+ 	"UNDEF",
+ }
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 1e0d71ab3b..2319b82255 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1069,11 +1069,6 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
+ 	MOVD	savedR27-8(SP), R27
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+-	MOVD	0(RSP), R0		// LR saved by caller
+-	MOVD	R0, ret+0(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	ZR, R0
+ 	MOVD	(R0), R0

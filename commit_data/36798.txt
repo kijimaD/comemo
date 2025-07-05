@@ -15,7 +15,64 @@ Date:   Sat May 19 00:54:43 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/buffer.go      |  1 +
  src/bytes/buffer_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index dc9d5e95d3..a2eca2ed12 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -202,6 +202,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
+ 	b.lastRead = opInvalid
+ 	for {
+ 		i := b.grow(MinRead)
++		b.buf = b.buf[:i]
+ 		m, e := r.Read(b.buf[i:cap(b.buf)])
+ 		if m < 0 {
+ 			panic(errNegativeRead)
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index e4bbc12f6a..acbe5ca0c4 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -269,6 +269,39 @@ func TestReadFrom(t *testing.T) {
+ 	}
+ }
+ 
++type panicReader struct{ panic bool }
++
++func (r panicReader) Read(p []byte) (int, error) {
++	if r.panic {
++		panic(nil)
++	}
++	return 0, io.EOF
++}
++
++// Make sure that an empty Buffer remains empty when
++// it is "grown" before a Read that panics
++func TestReadFromPanicReader(t *testing.T) {
++
++	// First verify non-panic behaviour
++	var buf Buffer
++	i, err := buf.ReadFrom(panicReader{})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if i != 0 {
++		t.Fatalf("unexpected return from bytes.ReadFrom (1): got: %d, want %d", i, 0)
++	}
++	check(t, "TestReadFromPanicReader (1)", &buf, "")
++
++	// Confirm that when Reader panics, the emtpy buffer remains empty
++	var buf2 Buffer
++	defer func() {
++		recover()
++		check(t, "TestReadFromPanicReader (2)", &buf2, "")
++	}()
++	buf2.ReadFrom(panicReader{panic: true})
++}
++
+ func TestReadFromNegativeReader(t *testing.T) {
+ 	var b Buffer
+ 	defer func() {

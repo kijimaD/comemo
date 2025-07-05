@@ -15,7 +15,7 @@ Date:   Fri Sep 30 10:59:23 2022 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/{gen => _gen}/386.rules                 | 0
  src/cmd/compile/internal/ssa/{gen => _gen}/386Ops.go                 | 3 ---
  src/cmd/compile/internal/ssa/{gen => _gen}/386splitload.rules        | 0
@@ -54,3 +54,378 @@ Date:   Fri Sep 30 10:59:23 2022 -0400
  src/cmd/compile/internal/typecheck/{builtin => _builtin}/runtime.go  | 0
  src/cmd/compile/internal/typecheck/mkbuiltin.go                      | 2 +-
  37 files changed, 2 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/_gen/386.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/386.rules
+rename to src/cmd/compile/internal/ssa/_gen/386.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/386Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/386Ops.go
+index 88e061151e..c66650cdac 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/386splitload.rules b/src/cmd/compile/internal/ssa/_gen/386splitload.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/386splitload.rules
+rename to src/cmd/compile/internal/ssa/_gen/386splitload.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/AMD64.rules
+rename to src/cmd/compile/internal/ssa/_gen/AMD64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index fc42fa5e28..75c5ab643f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules b/src/cmd/compile/internal/ssa/_gen/AMD64splitload.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
+rename to src/cmd/compile/internal/ssa/_gen/AMD64splitload.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/ARM.rules
+rename to src/cmd/compile/internal/ssa/_gen/ARM.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/ARM64.rules
+rename to src/cmd/compile/internal/ssa/_gen/ARM64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index 0e6e6e4a5f..f7cc47bae2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/ARMOps.go
+rename to src/cmd/compile/internal/ssa/_gen/ARMOps.go
+index 3803f273c1..de477a22af 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/LOONG64.rules
+rename to src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/LOONG64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index a59b592445..2cc0f975a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/MIPS.rules
+rename to src/cmd/compile/internal/ssa/_gen/MIPS.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/MIPS64.rules
+rename to src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index 7b18c42ffb..89c87720ed 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/MIPSOps.go
+rename to src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index 523847badc..22a7a5c867 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/PPC64.rules
+rename to src/cmd/compile/internal/ssa/_gen/PPC64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 30a6f6fe07..3a87c1d2a7 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/README b/src/cmd/compile/internal/ssa/_gen/README
+similarity index 94%
+rename from src/cmd/compile/internal/ssa/gen/README
+rename to src/cmd/compile/internal/ssa/_gen/README
+index 6d2c6bb477..0c7ceba7eb 100644
+--- a/src/cmd/compile/internal/ssa/gen/README
++++ b/src/cmd/compile/internal/ssa/_gen/README
+@@ -4,4 +4,4 @@
+ 
+ This package generates opcode tables, rewrite rules, etc. for the ssa compiler.
+ Run it with go-1.13 (or above):
+-   go run *.go
++   go run .
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/RISCV64.rules
+rename to src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index f09910782d..09b1620962 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import (
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/S390X.rules
+rename to src/cmd/compile/internal/ssa/_gen/S390X.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/S390XOps.go
+rename to src/cmd/compile/internal/ssa/_gen/S390XOps.go
+index eef8a2557c..896fdaa20f 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/_gen/Wasm.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/Wasm.rules
+rename to src/cmd/compile/internal/ssa/_gen/Wasm.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/WasmOps.go
+rename to src/cmd/compile/internal/ssa/_gen/WasmOps.go
+index edfba4ee99..33529e729d 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ import "strings"
+diff --git a/src/cmd/compile/internal/ssa/gen/cover.bash b/src/cmd/compile/internal/ssa/_gen/cover.bash
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/cover.bash
+rename to src/cmd/compile/internal/ssa/_gen/cover.bash
+diff --git a/src/cmd/compile/internal/ssa/gen/dec.rules b/src/cmd/compile/internal/ssa/_gen/dec.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/dec.rules
+rename to src/cmd/compile/internal/ssa/_gen/dec.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/_gen/dec64.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/dec64.rules
+rename to src/cmd/compile/internal/ssa/_gen/dec64.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64Ops.go b/src/cmd/compile/internal/ssa/_gen/dec64Ops.go
+similarity index 91%
+rename from src/cmd/compile/internal/ssa/gen/dec64Ops.go
+rename to src/cmd/compile/internal/ssa/_gen/dec64Ops.go
+index 78fcea885a..bba218ed40 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/dec64Ops.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ var dec64Ops = []opData{}
+diff --git a/src/cmd/compile/internal/ssa/gen/decOps.go b/src/cmd/compile/internal/ssa/_gen/decOps.go
+similarity index 90%
+rename from src/cmd/compile/internal/ssa/gen/decOps.go
+rename to src/cmd/compile/internal/ssa/_gen/decOps.go
+index d5cd79378c..0cc11cb4c0 100644
+--- a/src/cmd/compile/internal/ssa/gen/decOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/decOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ var decOps = []opData{}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/generic.rules
+rename to src/cmd/compile/internal/ssa/_gen/generic.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/genericOps.go
+rename to src/cmd/compile/internal/ssa/_gen/genericOps.go
+index d09b9aab75..a4c8fc9c69 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ package main
+ 
+ // Generic opcodes typically specify a width. The inputs and outputs
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/main.go
+rename to src/cmd/compile/internal/ssa/_gen/main.go
+index 81740dcf1c..2fbd94df45 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ // The gen command generates Go code (in the parent directory) for all
+ // the architecture-specific opcodes, blocks, and rewrites.
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+similarity index 99%
+rename from src/cmd/compile/internal/ssa/gen/rulegen.go
+rename to src/cmd/compile/internal/ssa/_gen/rulegen.go
+index fc9b4c9b3e..20b35dc448 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gen
+-// +build gen
+-
+ // This program generates Go code that applies rewrite rules to a Value.
+ // The generated code implements a function of type func (v *Value) bool
+ // which reports whether if did something.
+diff --git a/src/cmd/compile/internal/typecheck/builtin/coverage.go b/src/cmd/compile/internal/typecheck/_builtin/coverage.go
+similarity index 100%
+rename from src/cmd/compile/internal/typecheck/builtin/coverage.go
+rename to src/cmd/compile/internal/typecheck/_builtin/coverage.go
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+similarity index 100%
+rename from src/cmd/compile/internal/typecheck/builtin/runtime.go
+rename to src/cmd/compile/internal/typecheck/_builtin/runtime.go
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index aa3a94a19a..af71a90963 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -80,7 +80,7 @@ func params(tlist ...*types.Type) []*types.Field {
+ 
+ func mkbuiltin(w io.Writer, name string) {
+ 	fset := token.NewFileSet()
+-	f, err := parser.ParseFile(fset, filepath.Join("builtin", name+".go"), nil, 0)
++	f, err := parser.ParseFile(fset, filepath.Join("_builtin", name+".go"), nil, 0)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

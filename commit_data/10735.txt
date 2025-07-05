@@ -22,10 +22,229 @@ Date:   Tue Dec 13 13:52:47 2011 +1100
     R=andybalholm
     CC=golang-dev
     https://golang.org/cl/5467075
-
+---
  src/pkg/html/Makefile      |  1 +
  src/pkg/html/foreign.go    | 56 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/html/node.go       | 15 ++++++------
  src/pkg/html/parse.go      | 60 ++++++++++++++++++++++++++++++++++++++++++----
  src/pkg/html/parse_test.go |  7 +++++-
  5 files changed, 127 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/html/Makefile b/src/pkg/html/Makefile
+index 3c3de8ee31..da5c3f2a3e 100644
+--- a/src/pkg/html/Makefile
++++ b/src/pkg/html/Makefile
+@@ -11,6 +11,7 @@ GOFILES=\
+ 	doctype.go\
+ 	entity.go\
+ 	escape.go\
++	foreign.go\
+ 	node.go\
+ 	parse.go\
+ 	render.go\
+diff --git a/src/pkg/html/foreign.go b/src/pkg/html/foreign.go
+new file mode 100644
+index 0000000000..0f9b4ad560
+--- /dev/null
++++ b/src/pkg/html/foreign.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++// Section 12.2.5.5.
++var breakout = map[string]bool{
++	"b":          true,
++	"big":        true,
++	"blockquote": true,
++	"body":       true,
++	"br":         true,
++	"center":     true,
++	"code":       true,
++	"dd":         true,
++	"div":        true,
++	"dl":         true,
++	"dt":         true,
++	"em":         true,
++	"embed":      true,
++	"font":       true,
++	"h1":         true,
++	"h2":         true,
++	"h3":         true,
++	"h4":         true,
++	"h5":         true,
++	"h6":         true,
++	"head":       true,
++	"hr":         true,
++	"i":          true,
++	"img":        true,
++	"li":         true,
++	"listing":    true,
++	"menu":       true,
++	"meta":       true,
++	"nobr":       true,
++	"ol":         true,
++	"p":          true,
++	"pre":        true,
++	"ruby":       true,
++	"s":          true,
++	"small":      true,
++	"span":       true,
++	"strong":     true,
++	"strike":     true,
++	"sub":        true,
++	"sup":        true,
++	"table":      true,
++	"tt":         true,
++	"u":          true,
++	"ul":         true,
++	"var":        true,
++}
++
++// TODO: add look-up tables for MathML and SVG adjustments.
+diff --git a/src/pkg/html/node.go b/src/pkg/html/node.go
+index 5ca6035c11..b0d42cece0 100644
+--- a/src/pkg/html/node.go
++++ b/src/pkg/html/node.go
+@@ -24,14 +24,15 @@ var scopeMarker = Node{Type: scopeMarkerNode}
+ 
+ // A Node consists of a NodeType and some Data (tag name for element nodes,
+ // content for text) and are part of a tree of Nodes. Element nodes may also
+-// contain a slice of Attributes. Data is unescaped, so that it looks like
+-// "a<b" rather than "a&lt;b".
++// have a Namespace and contain a slice of Attributes. Data is unescaped, so
++// that it looks like "a<b" rather than "a&lt;b".
+ type Node struct {
+-	Parent *Node
+-	Child  []*Node
+-	Type   NodeType
+-	Data   string
+-	Attr   []Attribute
++	Parent    *Node
++	Child     []*Node
++	Type      NodeType
++	Data      string
++	Namespace string
++	Attr      []Attribute
+ }
+ 
+ // Add adds a node as a child of n.
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 24cb323a59..0fe3a99ba2 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -192,9 +192,10 @@ func (p *parser) addText(text string) {
+ // addElement calls addChild with an element node.
+ func (p *parser) addElement(tag string, attr []Attribute) {
+ 	p.addChild(&Node{
+-		Type: ElementNode,
+-		Data: tag,
+-		Attr: attr,
++		Type:      ElementNode,
++		Data:      tag,
++		Namespace: p.top().Namespace,
++		Attr:      attr,
+ 	})
+ }
+ 
+@@ -318,7 +319,10 @@ func (p *parser) resetInsertionMode() {
+ 		case "html":
+ 			p.im = beforeHeadIM
+ 		default:
+-			continue
++			if p.top().Namespace == "" {
++				continue
++			}
++			p.im = inForeignContentIM
+ 		}
+ 		return
+ 	}
+@@ -792,6 +796,21 @@ func inBodyIM(p *parser) bool {
+ 			p.reconstructActiveFormattingElements()
+ 			p.framesetOK = false
+ 			p.addElement(p.tok.Data, p.tok.Attr)
++		case "math", "svg":
++			p.reconstructActiveFormattingElements()
++			namespace := ""
++			if p.tok.Data == "math" {
++				// TODO: adjust MathML attributes.
++				namespace = "mathml"
++			} else {
++				// TODO: adjust SVG attributes.
++				namespace = "svg"
++			}
++			// TODO: adjust foreign attributes.
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.top().Namespace = namespace
++			p.im = inForeignContentIM
++			return true
+ 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
+ 			// Ignore the token.
+ 		default:
+@@ -1557,6 +1576,39 @@ func afterAfterFramesetIM(p *parser) bool {
+ 	return true
+ }
+ 
++// TODO: fix up the other IM's section numbers to match the latest spec.
++
++// Section 12.2.5.5.
++func inForeignContentIM(p *parser) bool {
++	switch p.tok.Type {
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++	case StartTagToken:
++		if breakout[p.tok.Data] {
++			// TODO.
++		}
++		switch p.top().Namespace {
++		case "mathml":
++			// TODO: adjust MathML attributes.
++		case "svg":
++			// TODO: adjust SVG tag names.
++			// TODO: adjust SVG attributes.
++		default:
++			panic("html: bad parser state: unexpected namespace")
++		}
++		// TODO: adjust foreign attributes.
++		p.addElement(p.tok.Data, p.tok.Attr)
++	case EndTagToken:
++		// TODO.
++	default:
++		// Ignore the token.
++	}
++	return true
++}
++
+ func (p *parser) parse() error {
+ 	// Iterate until EOF. Any other error will cause an early return.
+ 	consumed := true
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 8f8787886c..0eba283b98 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -98,7 +98,11 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 	case DocumentNode:
+ 		return errors.New("unexpected DocumentNode")
+ 	case ElementNode:
+-		fmt.Fprintf(w, "<%s>", n.Data)
++		if n.Namespace != "" {
++			fmt.Fprintf(w, "<%s %s>", n.Namespace, n.Data)
++		} else {
++			fmt.Fprintf(w, "<%s>", n.Data)
++		}
+ 		for _, a := range n.Attr {
+ 			io.WriteString(w, "\n")
+ 			dumpIndent(w, level+1)
+@@ -161,6 +165,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
++		{"adoption01.dat", -1},
+ 		{"doctype01.dat", -1},
+ 		{"tests1.dat", -1},
+ 		{"tests2.dat", -1},

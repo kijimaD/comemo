@@ -7,6 +7,22 @@ Date:   Wed Apr 15 15:03:41 2015 -0400
     Change-Id: I402629b154ae36c879a8d5088cb0f71b075f31dc
     Reviewed-on: https://go-review.googlesource.com/8958
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/iostest.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/iostest.bash b/src/iostest.bash
+index 865678f1da..5e09894852 100755
+--- a/src/iostest.bash
++++ b/src/iostest.bash
+@@ -60,5 +60,10 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+ 	-o ../bin/go_darwin_${GOARCH}_exec \
+ 	../misc/ios/go_darwin_arm_exec.go
+ 
++if [ "$GOIOS_DEV_ID" == "" ]; then
++	echo "detecting iOS development identity"
++	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
++fi
++
+ # Run standard build and tests.
+ ./all.bash --no-clean

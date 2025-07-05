@@ -9,7 +9,7 @@ Date:   Thu Jan 26 16:25:07 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5572069
-
+---
  src/cmd/gc/go.h           |   4 ++
  src/cmd/gc/subr.c         |  43 +++++++++++--
  src/pkg/runtime/alg.c     | 104 ++++++++++++++++++++++++++++++
@@ -17,3 +17,462 @@ Date:   Thu Jan 26 16:25:07 2012 -0500
  src/pkg/runtime/runtime.h |   4 ++
  test/map.go               | 157 ++++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 332 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b4715376f6..9584bb7443 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -57,6 +57,10 @@ enum
+ 	AINTER,
+ 	ANILINTER,
+ 	ASLICE,
++	AFLOAT32,
++	AFLOAT64,
++	ACPLX64,
++	ACPLX128,
+ 
+ 	BADWIDTH	= -1000000000,
+ };
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 59e18c2885..f3934ad243 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -515,23 +515,31 @@ algtype1(Type *t, Type **bad)
+ 	case TINT:
+ 	case TUINT:
+ 	case TUINTPTR:
+-	case TCOMPLEX64:
+-	case TCOMPLEX128:
+-	case TFLOAT32:
+-	case TFLOAT64:
+ 	case TBOOL:
+ 	case TPTR32:
+ 	case TPTR64:
+ 	case TCHAN:
+ 	case TUNSAFEPTR:
+ 		return AMEM;
+-	
++
+ 	case TFUNC:
+ 	case TMAP:
+ 		if(bad)
+ 			*bad = t;
+ 		return ANOEQ;
+ 
++	case TFLOAT32:
++		return AFLOAT32;
++
++	case TFLOAT64:
++		return AFLOAT64;
++
++	case TCOMPLEX64:
++		return ACPLX64;
++
++	case TCOMPLEX128:
++		return ACPLX128;
++
+ 	case TSTRING:
+ 		return ASTRING;
+ 	
+@@ -2511,6 +2519,18 @@ hashfor(Type *t)
+ 	case ASTRING:
+ 		sym = pkglookup("strhash", runtimepkg);
+ 		break;
++	case AFLOAT32:
++		sym = pkglookup("f32hash", runtimepkg);
++		break;
++	case AFLOAT64:
++		sym = pkglookup("f64hash", runtimepkg);
++		break;
++	case ACPLX64:
++		sym = pkglookup("c64hash", runtimepkg);
++		break;
++	case ACPLX128:
++		sym = pkglookup("c128hash", runtimepkg);
++		break;
+ 	default:
+ 		sym = typesymprefix(".hash", t);
+ 		break;
+@@ -2537,7 +2557,7 @@ genhash(Sym *sym, Type *t)
+ 	Node *hashel;
+ 	Type *first, *t1;
+ 	int old_safemode;
+-	int64 size;
++	int64 size, mul;
+ 
+ 	if(debug['r'])
+ 		print("genhash %S %T\n", sym, t);
+@@ -2594,6 +2614,17 @@ genhash(Sym *sym, Type *t)
+ 					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
+ 					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
+ 
++		// *h *= mul
++		// Same multipliers as in runtime.memhash.
++		if(widthptr == 4)
++			mul = 3267000013LL;
++		else
++			mul = 23344194077549503LL;
++		n->nbody = list(n->nbody,
++			nod(OAS,
++				nod(OIND, nh, N),
++				nod(OMUL, nod(OIND, nh, N), nodintconst(mul))));
++
+ 		// hashel(h, sizeof(p[i]), &p[i])
+ 		call = nod(OCALL, hashel, N);
+ 		call->list = list(call->list, nh);
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index 033f5b462a..56ec2d69e6 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -197,6 +197,106 @@ runtime·memcopy128(uintptr s, void *a, void *b)
+ 	((uint64*)a)[1] = ((uint64*)b)[1];
+ }
+ 
++void
++runtime·f32equal(bool *eq, uintptr s, void *a, void *b)
++{
++	USED(s);
++	*eq = *(float32*)a == *(float32*)b;
++}
++
++void
++runtime·f64equal(bool *eq, uintptr s, void *a, void *b)
++{
++	USED(s);
++	*eq = *(float64*)a == *(float64*)b;
++}
++
++void
++runtime·c64equal(bool *eq, uintptr s, void *a, void *b)
++{	
++	Complex64 *ca, *cb;
++	
++	USED(s);
++	ca = a;
++	cb = b;
++	*eq = ca->real == cb->real && ca->imag == cb->imag;
++}
++
++void
++runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
++{	
++	Complex128 *ca, *cb;
++	
++	USED(s);
++	ca = a;
++	cb = b;
++	*eq = ca->real == cb->real && ca->imag == cb->imag;
++}
++
++// NOTE: Because NaN != NaN, a map can contain any
++// number of (mostly useless) entries keyed with NaNs.
++// To avoid long hash chains, we assign a random number
++// as the hash value for a NaN.
++
++void
++runtime·f32hash(uintptr *h, uintptr s, void *a)
++{
++	uintptr hash;
++	float32 f;
++
++	USED(s);
++	f = *(float32*)a;
++	if(f == 0)
++		hash = 0;  // +0, -0
++	else if(f != f)
++		hash = runtime·fastrand1();  // any kind of NaN
++	else
++		hash = *(uint32*)a;
++	*h ^= (*h ^ hash ^ 2860486313U) * 3267000013U;
++}
++
++void
++runtime·f64hash(uintptr *h, uintptr s, void *a)
++{
++	uintptr hash;
++	float64 f;
++	uint64 u;
++
++	USED(s);
++	f = *(float32*)a;
++	if(f == 0)
++		hash = 0;	// +0, -0
++	else if(f != f)
++		hash = runtime·fastrand1();  // any kind of NaN
++	else {
++		u = *(uint64*)a;
++		if(sizeof(uintptr) == 4)
++			hash = ((uint32)(u>>32) ^ 2860486313) * (uint32)u;
++		else
++			hash = u;
++	}
++	if(sizeof(uintptr) == 4)
++		*h = (*h ^ hash ^ 2860486313U) * 3267000013U;
++	else
++		*h = (*h ^ hash ^ 33054211828000289ULL) * 23344194077549503ULL;
++}
++
++void
++runtime·c64hash(uintptr *h, uintptr s, void *a)
++{
++	USED(s);
++	runtime·f32hash(h, 0, a);
++	runtime·f32hash(h, 0, (float32*)a+1);
++}
++
++void
++runtime·c128hash(uintptr *h, uintptr s, void *a)
++{
++	USED(s);
++	runtime·f64hash(h, 0, a);
++	runtime·f64hash(h, 0, (float64*)a+1);
++}
++
+ void
+ runtime·slicecopy(uintptr s, void *a, void *b)
+ {
+@@ -349,6 +449,10 @@ runtime·algarray[] =
+ [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
+ [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+ [ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
++[AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
++[AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
++[ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },
++[ACPLX128]	{ runtime·c128hash, runtime·c128equal, runtime·memprint, runtime·memcopy },
+ [AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
+ [AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
+ [AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ed46150ea5..81caccad31 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -278,8 +278,8 @@ runtime·check(void)
+ 	uint32 f;
+ 	int64 g;
+ 	uint64 h;
+-	float32 i;
+-	float64 j;
++	float32 i, i1;
++	float64 j, j1;
+ 	void* k;
+ 	uint16* l;
+ 	struct x1 {
+@@ -319,6 +319,30 @@ runtime·check(void)
+ 	if(z != 4)
+ 		runtime·throw("cas4");
+ 
++	*(uint64*)&j = ~0ULL;
++	if(j == j)
++		runtime·throw("float64nan");
++	if(!(j != j))
++		runtime·throw("float64nan1");
++
++	*(uint64*)&j1 = ~1ULL;
++	if(j == j1)
++		runtime·throw("float64nan2");
++	if(!(j != j1))
++		runtime·throw("float64nan3");
++
++	*(uint32*)&i = ~0UL;
++	if(i == i)
++		runtime·throw("float32nan");
++	if(!(i != i))
++		runtime·throw("float32nan1");
++
++	*(uint32*)&i1 = ~1UL;
++	if(i == i1)
++		runtime·throw("float32nan2");
++	if(!(i != i1))
++		runtime·throw("float32nan3");
++
+ 	runtime·initsig(0);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a30a16cf7e..df2cd149f2 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -375,6 +375,10 @@ enum
+ 	AINTER,
+ 	ANILINTER,
+ 	ASLICE,
++	AFLOAT32,
++	AFLOAT64,
++	ACPLX64,
++	ACPLX128,
+ 	Amax
+ };
+ typedef	struct	Alg		Alg;
+diff --git a/test/map.go b/test/map.go
+index c3963499bc..1c66986299 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"strconv"
+ )
+ 
+@@ -488,4 +489,160 @@ func main() {
+ 	for _, _ = range mnil {
+ 		panic("range mnil")
+ 	}
++
++	testfloat()
++}
++
++func testfloat() {
++	// Test floating point numbers in maps.
++	// Two map keys refer to the same entry if the keys are ==.
++	// The special cases, then, are that +0 == -0 and that NaN != NaN.
++
++	{
++		var (
++			pz   = float32(0)
++			nz   = math.Float32frombits(1 << 31)
++			nana = float32(math.NaN())
++			nanb = math.Float32frombits(math.Float32bits(nana) ^ 2)
++		)
++
++		m := map[float32]string{
++			pz:   "+0",
++			nana: "NaN",
++			nanb: "NaN",
++		}
++		if m[pz] != "+0" {
++			fmt.Println("float32 map cannot read back m[+0]:", m[pz])
++		}
++		if m[nz] != "+0" {
++			fmt.Println("float32 map does not treat", pz, "and", nz, "as equal for read")
++			fmt.Println("float32 map does not treat -0 and +0 as equal for read")
++		}
++		m[nz] = "-0"
++		if m[pz] != "-0" {
++			fmt.Println("float32 map does not treat -0 and +0 as equal for write")
++		}
++		if _, ok := m[nana]; ok {
++			fmt.Println("float32 map allows NaN lookup (a)")
++		}
++		if _, ok := m[nanb]; ok {
++			fmt.Println("float32 map allows NaN lookup (b)")
++		}
++		if len(m) != 3 {
++			fmt.Println("float32 map should have 3 entries:", m)
++		}
++		m[nana] = "NaN"
++		m[nanb] = "NaN"
++		if len(m) != 5 {
++			fmt.Println("float32 map should have 5 entries:", m)
++		}
++	}
++
++	{
++		var (
++			pz   = float64(0)
++			nz   = math.Float64frombits(1 << 63)
++			nana = float64(math.NaN())
++			nanb = math.Float64frombits(math.Float64bits(nana) ^ 2)
++		)
++
++		m := map[float64]string{
++			pz:   "+0",
++			nana: "NaN",
++			nanb: "NaN",
++		}
++		if m[nz] != "+0" {
++			fmt.Println("float64 map does not treat -0 and +0 as equal for read")
++		}
++		m[nz] = "-0"
++		if m[pz] != "-0" {
++			fmt.Println("float64 map does not treat -0 and +0 as equal for write")
++		}
++		if _, ok := m[nana]; ok {
++			fmt.Println("float64 map allows NaN lookup (a)")
++		}
++		if _, ok := m[nanb]; ok {
++			fmt.Println("float64 map allows NaN lookup (b)")
++		}
++		if len(m) != 3 {
++			fmt.Println("float64 map should have 3 entries:", m)
++		}
++		m[nana] = "NaN"
++		m[nanb] = "NaN"
++		if len(m) != 5 {
++			fmt.Println("float64 map should have 5 entries:", m)
++		}
++	}
++
++	{
++		var (
++			pz   = complex64(0)
++			nz   = complex(0, math.Float32frombits(1<<31))
++			nana = complex(5, float32(math.NaN()))
++			nanb = complex(5, math.Float32frombits(math.Float32bits(float32(math.NaN()))^2))
++		)
++
++		m := map[complex64]string{
++			pz:   "+0",
++			nana: "NaN",
++			nanb: "NaN",
++		}
++		if m[nz] != "+0" {
++			fmt.Println("complex64 map does not treat -0 and +0 as equal for read")
++		}
++		m[nz] = "-0"
++		if m[pz] != "-0" {
++			fmt.Println("complex64 map does not treat -0 and +0 as equal for write")
++		}
++		if _, ok := m[nana]; ok {
++			fmt.Println("complex64 map allows NaN lookup (a)")
++		}
++		if _, ok := m[nanb]; ok {
++			fmt.Println("complex64 map allows NaN lookup (b)")
++		}
++		if len(m) != 3 {
++			fmt.Println("complex64 map should have 3 entries:", m)
++		}
++		m[nana] = "NaN"
++		m[nanb] = "NaN"
++		if len(m) != 5 {
++			fmt.Println("complex64 map should have 5 entries:", m)
++		}
++	}
++
++	{
++		var (
++			pz   = complex128(0)
++			nz   = complex(0, math.Float64frombits(1<<63))
++			nana = complex(5, float64(math.NaN()))
++			nanb = complex(5, math.Float64frombits(math.Float64bits(float64(math.NaN()))^2))
++		)
++
++		m := map[complex128]string{
++			pz:   "+0",
++			nana: "NaN",
++			nanb: "NaN",
++		}
++		if m[nz] != "+0" {
++			fmt.Println("complex128 map does not treat -0 and +0 as equal for read")
++		}
++		m[nz] = "-0"
++		if m[pz] != "-0" {
++			fmt.Println("complex128 map does not treat -0 and +0 as equal for write")
++		}
++		if _, ok := m[nana]; ok {
++			fmt.Println("complex128 map allows NaN lookup (a)")
++		}
++		if _, ok := m[nanb]; ok {
++			fmt.Println("complex128 map allows NaN lookup (b)")
++		}
++		if len(m) != 3 {
++			fmt.Println("complex128 map should have 3 entries:", m)
++		}
++		m[nana] = "NaN"
++		m[nanb] = "NaN"
++		if len(m) != 5 {
++			fmt.Println("complex128 map should have 5 entries:", m)
++		}
++	}
+ }

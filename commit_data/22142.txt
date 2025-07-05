@@ -11,9 +11,103 @@ Date:   Mon Dec 8 19:17:37 2014 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Chris Manghane <cmang@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/fmt.go  |  2 +-
  test/escape2.go             |  6 +++---
  test/escape2n.go            |  6 +++---
  test/fixedbugs/issue9083.go | 22 ++++++++++++++++++++++
  4 files changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 5ad607e04e..97907229d4 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1639,7 +1639,7 @@ func exprfmt(n *Node, prec int) string {
+ 			f += fmt.Sprintf("make(%v, %v, %v)", Tconv(n.Type, 0), Nconv(n.Left, 0), Nconv(n.Right, 0))
+ 			return f
+ 		}
+-		if n.Left != nil {
++		if n.Left != nil && (n.Op == OMAKESLICE || !isideal(n.Left.Type)) {
+ 			var f string
+ 			f += fmt.Sprintf("make(%v, %v)", Tconv(n.Type, 0), Nconv(n.Left, 0))
+ 			return f
+diff --git a/test/escape2.go b/test/escape2.go
+index ca9f61481b..3fd62d1dfc 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1753,7 +1753,7 @@ func slicerunetostring2() {
+ }
+ 
+ func makemap0() {
+-	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) does not escape"
++	m := make(map[int]int) // ERROR "make\(map\[int\]int\) does not escape"
+ 	m[0] = 0
+ 	m[1]++
+ 	delete(m, 1)
+@@ -1761,10 +1761,10 @@ func makemap0() {
+ }
+ 
+ func makemap1() map[int]int {
+-	return make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
++	return make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
+ }
+ 
+ func makemap2() {
+-	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
++	m := make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
+ 	sink = m
+ }
+diff --git a/test/escape2n.go b/test/escape2n.go
+index ddd5693485..e9dd7b984e 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1753,7 +1753,7 @@ func slicerunetostring2() {
+ }
+ 
+ func makemap0() {
+-	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) does not escape"
++	m := make(map[int]int) // ERROR "make\(map\[int\]int\) does not escape"
+ 	m[0] = 0
+ 	m[1]++
+ 	delete(m, 1)
+@@ -1761,10 +1761,10 @@ func makemap0() {
+ }
+ 
+ func makemap1() map[int]int {
+-	return make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
++	return make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
+ }
+ 
+ func makemap2() {
+-	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
++	m := make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
+ 	sink = m
+ }
+diff --git a/test/fixedbugs/issue9083.go b/test/fixedbugs/issue9083.go
+new file mode 100644
+index 0000000000..c92c0a6630
+--- /dev/null
++++ b/test/fixedbugs/issue9083.go
+@@ -0,0 +1,22 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 9083: map/chan error messages show non-explicit capacity.
++
++package main
++
++// untyped constant
++const zero = 0
++
++func main() {
++	var x int
++	x = make(map[int]int) // ERROR "cannot use make\(map\[int\]int\)|incompatible"
++	x = make(map[int]int, 0) // ERROR "cannot use make\(map\[int\]int, 0\)|incompatible"
++	x = make(map[int]int, zero) // ERROR "cannot use make\(map\[int\]int, zero\)|incompatible"
++	x = make(chan int) // ERROR "cannot use make\(chan int\)|incompatible"
++	x = make(chan int, 0) // ERROR "cannot use make\(chan int, 0\)|incompatible"
++	x = make(chan int, zero) // ERROR "cannot use make\(chan int, zero\)|incompatible"
++}

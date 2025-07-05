@@ -13,7 +13,32 @@ Date:   Tue Jan 11 12:53:25 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api.go | 1 +
  src/go/types/api.go                    | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 4ea3989c39..fe754db7a4 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -265,6 +265,7 @@ type Info struct {
+ 	//
+ 	//     *syntax.File
+ 	//     *syntax.FuncType
++	//     *syntax.TypeDecl
+ 	//     *syntax.BlockStmt
+ 	//     *syntax.IfStmt
+ 	//     *syntax.SwitchStmt
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 51d58c49aa..a2cc289fbc 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -260,6 +260,7 @@ type Info struct {
+ 	//
+ 	//     *ast.File
+ 	//     *ast.FuncType
++	//     *ast.TypeSpec
+ 	//     *ast.BlockStmt
+ 	//     *ast.IfStmt
+ 	//     *ast.SwitchStmt

@@ -9,7 +9,7 @@ Date:   Tue Sep 10 13:17:21 2013 -0400
     R=golang-dev, adg, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/9164043
-
+---
  src/cmd/go/build.go                               |  6 ++++-
  src/cmd/go/pkg.go                                 | 20 ++++++++-------
  src/cmd/go/test.bash                              | 31 +++++++++++++++++++++++
@@ -18,3 +18,170 @@ Date:   Tue Sep 10 13:17:21 2013 -0400
  src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 +
  src/pkg/go/build/build.go                         | 25 ++++++++++--------
  7 files changed, 64 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f355044d79..83c29ee616 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -311,7 +311,11 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	for _, p := range pkgs {
+ 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
+-			errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
++			if p.ConflictDir != "" {
++				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
++			} else {
++				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
++			}
+ 		}
+ 	}
+ 	exitIfErrors()
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index eec6bdd893..a23ac9e846 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -25,15 +25,16 @@ type Package struct {
+ 	// Note: These fields are part of the go command's public API.
+ 	// See list.go.  It is okay to add fields, but not to change or
+ 	// remove existing ones.  Keep in sync with list.go
+-	Dir        string `json:",omitempty"` // directory containing package sources
+-	ImportPath string `json:",omitempty"` // import path of package in dir
+-	Name       string `json:",omitempty"` // package name
+-	Doc        string `json:",omitempty"` // package documentation string
+-	Target     string `json:",omitempty"` // install path
+-	Goroot     bool   `json:",omitempty"` // is this package found in the Go root?
+-	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
+-	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
+-	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
++	Dir         string `json:",omitempty"` // directory containing package sources
++	ImportPath  string `json:",omitempty"` // import path of package in dir
++	Name        string `json:",omitempty"` // package name
++	Doc         string `json:",omitempty"` // package documentation string
++	Target      string `json:",omitempty"` // install path
++	Goroot      bool   `json:",omitempty"` // is this package found in the Go root?
++	Standard    bool   `json:",omitempty"` // is this package part of the standard Go library?
++	Stale       bool   `json:",omitempty"` // would 'go install' do anything for this package?
++	Root        string `json:",omitempty"` // Go root or Go path dir containing this package
++	ConflictDir string `json:",omitempty"` // Dir is hidden by this other directory
+ 
+ 	// Source files
+ 	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -102,6 +103,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.Name = pp.Name
+ 	p.Doc = pp.Doc
+ 	p.Root = pp.Root
++	p.ConflictDir = pp.ConflictDir
+ 	// TODO? Target
+ 	p.Goroot = pp.Goroot
+ 	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 1a3adb8968..62ab219135 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -439,6 +439,37 @@ TEST go get cover
+ unset GOPATH
+ rm -rf $d
+ 
++TEST shadowing logic
++export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
++
++# The math in root1 is not "math" because the standard math is.
++cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/math)
++if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/pkg/math)" ]; then
++	echo shadowed math is not shadowed: "$cdir"
++	ok=false
++fi
++
++# The foo in root1 is "foo".
++cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/foo)
++if [ "$cdir" != "(foo) ()" ]; then
++	echo unshadowed foo is shadowed: "$cdir"
++	ok=false
++fi
++
++# The foo in root2 is not "foo" because the foo in root1 got there first.
++cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root2/src/foo)
++if [ "$cdir" != "(_$(pwd)/testdata/shadow/root2/src/foo) ($(pwd)/testdata/shadow/root1/src/foo)" ]; then
++	echo shadowed foo is not shadowed: "$cdir"
++	ok=false
++fi
++
++# The error for go install should mention the conflicting directory.
++err=$(! ./testgo install ./testdata/shadow/root2/src/foo 2>&1)
++if [ "$err" != "go install: no install location for directory $(pwd)/testdata/shadow/root2/src/foo hidden by $(pwd)/testdata/shadow/root1/src/foo" ]; then
++	echo wrong shadowed install error: "$err"
++	ok=false
++fi
++
+ # Only succeeds if source order is preserved.
+ TEST source file name order preserved
+ ./testgo test testdata/example[12]_test.go || ok=false
+diff --git a/src/cmd/go/testdata/shadow/root1/src/foo/foo.go b/src/cmd/go/testdata/shadow/root1/src/foo/foo.go
+new file mode 100644
+index 0000000000..f52652b1ba
+--- /dev/null
++++ b/src/cmd/go/testdata/shadow/root1/src/foo/foo.go
+@@ -0,0 +1 @@
++package foo
+diff --git a/src/cmd/go/testdata/shadow/root1/src/math/math.go b/src/cmd/go/testdata/shadow/root1/src/math/math.go
+new file mode 100644
+index 0000000000..c91c24e967
+--- /dev/null
++++ b/src/cmd/go/testdata/shadow/root1/src/math/math.go
+@@ -0,0 +1 @@
++package math
+diff --git a/src/cmd/go/testdata/shadow/root2/src/foo/foo.go b/src/cmd/go/testdata/shadow/root2/src/foo/foo.go
+new file mode 100644
+index 0000000000..f52652b1ba
+--- /dev/null
++++ b/src/cmd/go/testdata/shadow/root2/src/foo/foo.go
+@@ -0,0 +1 @@
++package foo
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 1b62c3da89..f259525f5e 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -339,17 +339,18 @@ const (
+ 
+ // A Package describes the Go package found in a directory.
+ type Package struct {
+-	Dir        string   // directory containing package sources
+-	Name       string   // package name
+-	Doc        string   // documentation synopsis
+-	ImportPath string   // import path of package ("" if unknown)
+-	Root       string   // root of Go tree where this package lives
+-	SrcRoot    string   // package source root directory ("" if unknown)
+-	PkgRoot    string   // package install root directory ("" if unknown)
+-	BinDir     string   // command install directory ("" if unknown)
+-	Goroot     bool     // package found in Go root
+-	PkgObj     string   // installed .a file
+-	AllTags    []string // tags that can influence file selection in this directory
++	Dir         string   // directory containing package sources
++	Name        string   // package name
++	Doc         string   // documentation synopsis
++	ImportPath  string   // import path of package ("" if unknown)
++	Root        string   // root of Go tree where this package lives
++	SrcRoot     string   // package source root directory ("" if unknown)
++	PkgRoot     string   // package install root directory ("" if unknown)
++	BinDir      string   // command install directory ("" if unknown)
++	Goroot      bool     // package found in Go root
++	PkgObj      string   // installed .a file
++	AllTags     []string // tags that can influence file selection in this directory
++	ConflictDir string   // this directory shadows Dir in $GOPATH
+ 
+ 	// Source files
+ 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -476,11 +477,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				// else first.
+ 				if ctxt.GOROOT != "" {
+ 					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
++						p.ConflictDir = dir
+ 						goto Found
+ 					}
+ 				}
+ 				for _, earlyRoot := range all[:i] {
+ 					if dir := ctxt.joinPath(earlyRoot, "src", sub); ctxt.isDir(dir) {
++						p.ConflictDir = dir
+ 						goto Found
+ 					}
+ 				}

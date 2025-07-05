@@ -7,6 +7,19 @@ Date:   Wed Jun 17 09:03:08 2015 +0900
     Change-Id: Ib0b0be901f2ed52e1b432ae62f0b1940eb27ecc3
     Reviewed-on: https://go-review.googlesource.com/11137
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 882f2bfc7b..1195454e04 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -58,6 +58,7 @@ math/big: add arbitrary precision Floats (many cl's)
+ math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
+ mime: add ExtensionByType (https://golang.org/cl/7444)
+ mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
++net: add sequential and RFC 6555-compliant TCP dialing (https://golang.org/cl/8768)
+ net: add Source field to OpError (https://go-review.googlesource.com/9231)
+ net: fix inconsistent errors (https://golang.org/cl/9236)
+ net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)

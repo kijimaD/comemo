@@ -16,9 +16,173 @@ Date:   Tue Feb 14 13:04:12 2023 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/go.mod                                       |  2 +-
  src/go.sum                                       |  4 +-
  src/vendor/golang.org/x/net/http2/hpack/hpack.go | 79 +++++++++++++++---------
  src/vendor/modules.txt                           |  2 +-
  4 files changed, 53 insertions(+), 34 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 628d488de2..81c765f950 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.21
+ 
+ require (
+ 	golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4
+-	golang.org/x/net v0.6.1-0.20230213185550-547e7edf3873
++	golang.org/x/net v0.7.0
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 8fa7143519..33f7371317 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4 h1:8CmdfDrqo5/AGztF4Zk/aBNGTgL5dgcfPMmmvH1z8Lo=
+ golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4/go.mod h1:NK/OQwhpMQP3MwtdjgLlYHnH9ebylxKWv3e0fK+mkQU=
+-golang.org/x/net v0.6.1-0.20230213185550-547e7edf3873 h1:Q3VygVi8kE7fuxQsipcDKKY2No9tcbUM60WcMl2uqYE=
+-golang.org/x/net v0.6.1-0.20230213185550-547e7edf3873/go.mod h1:2Tu9+aMcznHK/AK1HMvgo6xiTLG5rD5rZLDS+rp2Bjs=
++golang.org/x/net v0.7.0 h1:rJrUqqhjsgNp7KqAIc25s9pZnjU7TUcSY7HcVZjdn1g=
++golang.org/x/net v0.7.0/go.mod h1:2Tu9+aMcznHK/AK1HMvgo6xiTLG5rD5rZLDS+rp2Bjs=
+ golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339 h1:qejQWXLeAs3eO3KUJ7VrThA+k04v3zo/FhGln8EizY0=
+ golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b h1:/WbjM0nb7XdqglHRPb40OoA+bJr3ZR/TFeNAF139Jyw=
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/hpack.go b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+index b184a2771a..7a1d976696 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/hpack.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+@@ -359,6 +359,7 @@ func (d *Decoder) parseFieldLiteral(n uint8, it indexType) error {
+ 
+ 	var hf HeaderField
+ 	wantStr := d.emitEnabled || it.indexed()
++	var undecodedName undecodedString
+ 	if nameIdx > 0 {
+ 		ihf, ok := d.at(nameIdx)
+ 		if !ok {
+@@ -366,15 +367,27 @@ func (d *Decoder) parseFieldLiteral(n uint8, it indexType) error {
+ 		}
+ 		hf.Name = ihf.Name
+ 	} else {
+-		hf.Name, buf, err = d.readString(buf, wantStr)
++		undecodedName, buf, err = d.readString(buf)
+ 		if err != nil {
+ 			return err
+ 		}
+ 	}
+-	hf.Value, buf, err = d.readString(buf, wantStr)
++	undecodedValue, buf, err := d.readString(buf)
+ 	if err != nil {
+ 		return err
+ 	}
++	if wantStr {
++		if nameIdx <= 0 {
++			hf.Name, err = d.decodeString(undecodedName)
++			if err != nil {
++				return err
++			}
++		}
++		hf.Value, err = d.decodeString(undecodedValue)
++		if err != nil {
++			return err
++		}
++	}
+ 	d.buf = buf
+ 	if it.indexed() {
+ 		d.dynTab.add(hf)
+@@ -459,46 +472,52 @@ func readVarInt(n byte, p []byte) (i uint64, remain []byte, err error) {
+ 	return 0, origP, errNeedMore
+ }
+ 
+-// readString decodes an hpack string from p.
++// readString reads an hpack string from p.
+ //
+-// wantStr is whether s will be used. If false, decompression and
+-// []byte->string garbage are skipped if s will be ignored
+-// anyway. This does mean that huffman decoding errors for non-indexed
+-// strings past the MAX_HEADER_LIST_SIZE are ignored, but the server
+-// is returning an error anyway, and because they're not indexed, the error
+-// won't affect the decoding state.
+-func (d *Decoder) readString(p []byte, wantStr bool) (s string, remain []byte, err error) {
++// It returns a reference to the encoded string data to permit deferring decode costs
++// until after the caller verifies all data is present.
++func (d *Decoder) readString(p []byte) (u undecodedString, remain []byte, err error) {
+ 	if len(p) == 0 {
+-		return "", p, errNeedMore
++		return u, p, errNeedMore
+ 	}
+ 	isHuff := p[0]&128 != 0
+ 	strLen, p, err := readVarInt(7, p)
+ 	if err != nil {
+-		return "", p, err
++		return u, p, err
+ 	}
+ 	if d.maxStrLen != 0 && strLen > uint64(d.maxStrLen) {
+-		return "", nil, ErrStringLength
++		// Returning an error here means Huffman decoding errors
++		// for non-indexed strings past the maximum string length
++		// are ignored, but the server is returning an error anyway
++		// and because the string is not indexed the error will not
++		// affect the decoding state.
++		return u, nil, ErrStringLength
+ 	}
+ 	if uint64(len(p)) < strLen {
+-		return "", p, errNeedMore
+-	}
+-	if !isHuff {
+-		if wantStr {
+-			s = string(p[:strLen])
+-		}
+-		return s, p[strLen:], nil
++		return u, p, errNeedMore
+ 	}
++	u.isHuff = isHuff
++	u.b = p[:strLen]
++	return u, p[strLen:], nil
++}
+ 
+-	if wantStr {
+-		buf := bufPool.Get().(*bytes.Buffer)
+-		buf.Reset() // don't trust others
+-		defer bufPool.Put(buf)
+-		if err := huffmanDecode(buf, d.maxStrLen, p[:strLen]); err != nil {
+-			buf.Reset()
+-			return "", nil, err
+-		}
++type undecodedString struct {
++	isHuff bool
++	b      []byte
++}
++
++func (d *Decoder) decodeString(u undecodedString) (string, error) {
++	if !u.isHuff {
++		return string(u.b), nil
++	}
++	buf := bufPool.Get().(*bytes.Buffer)
++	buf.Reset() // don't trust others
++	var s string
++	err := huffmanDecode(buf, d.maxStrLen, u.b)
++	if err == nil {
+ 		s = buf.String()
+-		buf.Reset() // be nice to GC
+ 	}
+-	return s, p[strLen:], nil
++	buf.Reset() // be nice to GC
++	bufPool.Put(buf)
++	return s, err
+ }
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 9d584d321b..d555d326b1 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.6.1-0.20230213185550-547e7edf3873
++# golang.org/x/net v0.7.0
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

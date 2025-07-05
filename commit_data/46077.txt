@@ -17,7 +17,7 @@ Date:   Fri Dec 4 12:20:17 2020 -0800
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   3 +-
  src/cmd/go.sum                                     |   9 +-
  .../google/pprof/internal/graph/dotgraph.go        |  24 +-
@@ -26,3 +26,1520 @@ Date:   Fri Dec 4 12:20:17 2020 -0800
  .../github.com/ianlancetaylor/demangle/demangle.go | 501 +++++++++++++++++----
  src/cmd/vendor/modules.txt                         |   5 +-
  7 files changed, 792 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index bfee2c7f06..46ec54b5a2 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,8 +3,7 @@ module cmd
+ go 1.16
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
+-	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
++	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+ 	golang.org/x/mod v0.4.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7a743d9f73..b3e4598bd1 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,11 +1,10 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7 h1:qYWTuM6SUNWgtvkhV8oH6GFHCpU+rKQOxPcepM3xKi0=
+-github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
+-github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+-github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
+-github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
++github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2 h1:HyOHhUtuB/Ruw/L5s5pG2D0kckkN2/IzBs9OClGHnHI=
++github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
++github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
++github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+ golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff h1:XmKBi9R6duxOB3lfc72wyrwiOY7X2Jl1wuI+RFOyMDE=
+ golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+index cde648f20b..8cb87da9af 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+@@ -127,7 +127,7 @@ func (b *builder) addLegend() {
+ 	}
+ 	title := labels[0]
+ 	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, title)
+-	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeForDot(labels), `\l`))
++	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeAllForDot(labels), `\l`))
+ 	if b.config.LegendURL != "" {
+ 		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
+ 	}
+@@ -187,7 +187,7 @@ func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
+ 
+ 	// Create DOT attribute for node.
+ 	attr := fmt.Sprintf(`label="%s" id="node%d" fontsize=%d shape=%s tooltip="%s (%s)" color="%s" fillcolor="%s"`,
+-		label, nodeID, fontSize, shape, node.Info.PrintableName(), cumValue,
++		label, nodeID, fontSize, shape, escapeForDot(node.Info.PrintableName()), cumValue,
+ 		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), false),
+ 		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), true))
+ 
+@@ -305,7 +305,8 @@ func (b *builder) addEdge(edge *Edge, from, to int, hasNodelets bool) {
+ 		arrow = "..."
+ 	}
+ 	tooltip := fmt.Sprintf(`"%s %s %s (%s)"`,
+-		edge.Src.Info.PrintableName(), arrow, edge.Dest.Info.PrintableName(), w)
++		escapeForDot(edge.Src.Info.PrintableName()), arrow,
++		escapeForDot(edge.Dest.Info.PrintableName()), w)
+ 	attr = fmt.Sprintf(`%s tooltip=%s labeltooltip=%s`, attr, tooltip, tooltip)
+ 
+ 	if edge.Residual {
+@@ -382,7 +383,7 @@ func dotColor(score float64, isBackground bool) string {
+ 
+ func multilinePrintableName(info *NodeInfo) string {
+ 	infoCopy := *info
+-	infoCopy.Name = ShortenFunctionName(infoCopy.Name)
++	infoCopy.Name = escapeForDot(ShortenFunctionName(infoCopy.Name))
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
+ 	if infoCopy.File != "" {
+@@ -473,13 +474,18 @@ func min64(a, b int64) int64 {
+ 	return b
+ }
+ 
+-// escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
+-// "center" character (\n) with a left-justified character.
+-// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
+-func escapeForDot(in []string) []string {
++// escapeAllForDot applies escapeForDot to all strings in the given slice.
++func escapeAllForDot(in []string) []string {
+ 	var out = make([]string, len(in))
+ 	for i := range in {
+-		out[i] = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(in[i], `\`, `\\`), `"`, `\"`), "\n", `\l`)
++		out[i] = escapeForDot(in[i])
+ 	}
+ 	return out
+ }
++
++// escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
++// "center" character (\n) with a left-justified character.
++// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
++func escapeForDot(str string) string {
++	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, `\`, `\\`), `"`, `\"`), "\n", `\l`)
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index d2397a93d8..74b904c402 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -28,12 +28,14 @@ import (
+ )
+ 
+ var (
+-	// Removes package name and method arugments for Java method names.
++	// Removes package name and method arguments for Java method names.
+ 	// See tests for examples.
+ 	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
+-	// Removes package name and method arugments for Go function names.
++	// Removes package name and method arguments for Go function names.
+ 	// See tests for examples.
+ 	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
++	// Removes potential module versions in a package path.
++	goVerRegExp = regexp.MustCompile(`^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$`)
+ 	// Strips C++ namespace prefix from a C++ function / method name.
+ 	// NOTE: Make sure to keep the template parameters in the name. Normally,
+ 	// template parameters are stripped from the C++ names but when
+@@ -317,6 +319,8 @@ func New(prof *profile.Profile, o *Options) *Graph {
+ // nodes.
+ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
+ 	nodes, locationMap := CreateNodes(prof, o)
++	seenNode := make(map[*Node]bool)
++	seenEdge := make(map[nodePair]bool)
+ 	for _, sample := range prof.Sample {
+ 		var w, dw int64
+ 		w = o.SampleValue(sample.Value)
+@@ -326,8 +330,12 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
+ 		if dw == 0 && w == 0 {
+ 			continue
+ 		}
+-		seenNode := make(map[*Node]bool, len(sample.Location))
+-		seenEdge := make(map[nodePair]bool, len(sample.Location))
++		for k := range seenNode {
++			delete(seenNode, k)
++		}
++		for k := range seenEdge {
++			delete(seenEdge, k)
++		}
+ 		var parent *Node
+ 		// A residual edge goes over one or more nodes that were not kept.
+ 		residual := false
+@@ -440,6 +448,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
+ // ShortenFunctionName returns a shortened version of a function's name.
+ func ShortenFunctionName(f string) string {
+ 	f = cppAnonymousPrefixRegExp.ReplaceAllString(f, "")
++	f = goVerRegExp.ReplaceAllString(f, `${1}${2}`)
+ 	for _, re := range []*regexp.Regexp{goRegExp, javaRegExp, cppRegExp} {
+ 		if matches := re.FindStringSubmatch(f); len(matches) >= 2 {
+ 			return strings.Join(matches[1:], "")
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+index 0ad5354f58..ccbe5b3559 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+@@ -5,7 +5,6 @@
+ package demangle
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -23,7 +22,10 @@ type AST interface {
+ 	// Copy an AST with possible transformations.
+ 	// If the skip function returns true, no copy is required.
+ 	// If the copy function returns nil, no copy is required.
+-	// Otherwise the AST returned by copy is used in a copy of the full AST.
++	// The Copy method will do the right thing if copy returns nil
++	// for some components of an AST but not others, so a good
++	// copy function will only return non-nil for AST values that
++	// need to change.
+ 	// Copy itself returns either a copy or nil.
+ 	Copy(copy func(AST) AST, skip func(AST) bool) AST
+ 
+@@ -51,7 +53,7 @@ func ASTToString(a AST, options ...Option) string {
+ type printState struct {
+ 	tparams bool // whether to print template parameters
+ 
+-	buf  bytes.Buffer
++	buf  strings.Builder
+ 	last byte // Last byte written to buffer.
+ 
+ 	// The inner field is a list of items to print for a type
+@@ -398,13 +400,172 @@ func (tp *TemplateParam) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sTemplateParam: Template: %p; Index %d", indent, "", field, tp.Template, tp.Index)
+ }
+ 
++// LambdaAuto is a lambda auto parameter.
++type LambdaAuto struct {
++	Index int
++}
++
++func (la *LambdaAuto) print(ps *printState) {
++	// We print the index plus 1 because that is what the standard
++	// demangler does.
++	fmt.Fprintf(&ps.buf, "auto:%d", la.Index+1)
++}
++
++func (la *LambdaAuto) Traverse(fn func(AST) bool) {
++	fn(la)
++}
++
++func (la *LambdaAuto) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(la) {
++		return nil
++	}
++	return fn(la)
++}
++
++func (la *LambdaAuto) GoString() string {
++	return la.goString(0, "")
++}
++
++func (la *LambdaAuto) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sLambdaAuto: Index %d", indent, "", field, la.Index)
++}
++
+ // Qualifiers is an ordered list of type qualifiers.
+-type Qualifiers []string
++type Qualifiers struct {
++	Qualifiers []AST
++}
++
++func (qs *Qualifiers) print(ps *printState) {
++	first := true
++	for _, q := range qs.Qualifiers {
++		if !first {
++			ps.writeByte(' ')
++		}
++		q.print(ps)
++		first = false
++	}
++}
++
++func (qs *Qualifiers) Traverse(fn func(AST) bool) {
++	if fn(qs) {
++		for _, q := range qs.Qualifiers {
++			q.Traverse(fn)
++		}
++	}
++}
++
++func (qs *Qualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(qs) {
++		return nil
++	}
++	changed := false
++	qualifiers := make([]AST, len(qs.Qualifiers))
++	for i, q := range qs.Qualifiers {
++		qc := q.Copy(fn, skip)
++		if qc == nil {
++			qualifiers[i] = q
++		} else {
++			qualifiers[i] = qc
++			changed = true
++		}
++	}
++	if !changed {
++		return fn(qs)
++	}
++	qs = &Qualifiers{Qualifiers: qualifiers}
++	if r := fn(qs); r != nil {
++		return r
++	}
++	return qs
++}
++
++func (qs *Qualifiers) GoString() string {
++	return qs.goString(0, "")
++}
++
++func (qs *Qualifiers) goString(indent int, field string) string {
++	quals := fmt.Sprintf("%*s%s", indent, "", field)
++	for _, q := range qs.Qualifiers {
++		quals += "\n"
++		quals += q.goString(indent+2, "")
++	}
++	return quals
++}
++
++// Qualifier is a single type qualifier.
++type Qualifier struct {
++	Name  string // qualifier name: const, volatile, etc.
++	Exprs []AST  // can be non-nil for noexcept and throw
++}
++
++func (q *Qualifier) print(ps *printState) {
++	ps.writeString(q.Name)
++	if len(q.Exprs) > 0 {
++		ps.writeByte('(')
++		first := true
++		for _, e := range q.Exprs {
++			if !first {
++				ps.writeString(", ")
++			}
++			ps.print(e)
++			first = false
++		}
++		ps.writeByte(')')
++	}
++}
++
++func (q *Qualifier) Traverse(fn func(AST) bool) {
++	if fn(q) {
++		for _, e := range q.Exprs {
++			e.Traverse(fn)
++		}
++	}
++}
++
++func (q *Qualifier) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(q) {
++		return nil
++	}
++	exprs := make([]AST, len(q.Exprs))
++	changed := false
++	for i, e := range q.Exprs {
++		ec := e.Copy(fn, skip)
++		if ec == nil {
++			exprs[i] = e
++		} else {
++			exprs[i] = ec
++			changed = true
++		}
++	}
++	if !changed {
++		return fn(q)
++	}
++	q = &Qualifier{Name: q.Name, Exprs: exprs}
++	if r := fn(q); r != nil {
++		return r
++	}
++	return q
++}
++
++func (q *Qualifier) GoString() string {
++	return q.goString(0, "Qualifier: ")
++}
++
++func (q *Qualifier) goString(indent int, field string) string {
++	qs := fmt.Sprintf("%*s%s%s", indent, "", field, q.Name)
++	if len(q.Exprs) > 0 {
++		for i, e := range q.Exprs {
++			qs += "\n"
++			qs += e.goString(indent+2, fmt.Sprintf("%d: ", i))
++		}
++	}
++	return qs
++}
+ 
+ // TypeWithQualifiers is a type with standard qualifiers.
+ type TypeWithQualifiers struct {
+ 	Base       AST
+-	Qualifiers Qualifiers
++	Qualifiers AST
+ }
+ 
+ func (twq *TypeWithQualifiers) print(ps *printState) {
+@@ -414,7 +575,7 @@ func (twq *TypeWithQualifiers) print(ps *printState) {
+ 	if len(ps.inner) > 0 {
+ 		// The qualifier wasn't printed by Base.
+ 		ps.writeByte(' ')
+-		ps.writeString(strings.Join(twq.Qualifiers, " "))
++		ps.print(twq.Qualifiers)
+ 		ps.inner = ps.inner[:len(ps.inner)-1]
+ 	}
+ }
+@@ -422,7 +583,7 @@ func (twq *TypeWithQualifiers) print(ps *printState) {
+ // Print qualifiers as an inner type by just printing the qualifiers.
+ func (twq *TypeWithQualifiers) printInner(ps *printState) {
+ 	ps.writeByte(' ')
+-	ps.writeString(strings.Join(twq.Qualifiers, " "))
++	ps.print(twq.Qualifiers)
+ }
+ 
+ func (twq *TypeWithQualifiers) Traverse(fn func(AST) bool) {
+@@ -436,10 +597,17 @@ func (twq *TypeWithQualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+ 		return nil
+ 	}
+ 	base := twq.Base.Copy(fn, skip)
+-	if base == nil {
++	quals := twq.Qualifiers.Copy(fn, skip)
++	if base == nil && quals == nil {
+ 		return fn(twq)
+ 	}
+-	twq = &TypeWithQualifiers{Base: base, Qualifiers: twq.Qualifiers}
++	if base == nil {
++		base = twq.Base
++	}
++	if quals == nil {
++		quals = twq.Qualifiers
++	}
++	twq = &TypeWithQualifiers{Base: base, Qualifiers: quals}
+ 	if r := fn(twq); r != nil {
+ 		return r
+ 	}
+@@ -451,14 +619,15 @@ func (twq *TypeWithQualifiers) GoString() string {
+ }
+ 
+ func (twq *TypeWithQualifiers) goString(indent int, field string) string {
+-	return fmt.Sprintf("%*s%sTypeWithQualifiers: Qualifiers: %s\n%s", indent, "", field,
+-		twq.Qualifiers, twq.Base.goString(indent+2, "Base: "))
++	return fmt.Sprintf("%*s%sTypeWithQualifiers:\n%s\n%s", indent, "", field,
++		twq.Qualifiers.goString(indent+2, "Qualifiers: "),
++		twq.Base.goString(indent+2, "Base: "))
+ }
+ 
+ // MethodWithQualifiers is a method with qualifiers.
+ type MethodWithQualifiers struct {
+ 	Method       AST
+-	Qualifiers   Qualifiers
++	Qualifiers   AST
+ 	RefQualifier string // "" or "&" or "&&"
+ }
+ 
+@@ -467,9 +636,9 @@ func (mwq *MethodWithQualifiers) print(ps *printState) {
+ 	ps.inner = append(ps.inner, mwq)
+ 	ps.print(mwq.Method)
+ 	if len(ps.inner) > 0 {
+-		if len(mwq.Qualifiers) > 0 {
++		if mwq.Qualifiers != nil {
+ 			ps.writeByte(' ')
+-			ps.writeString(strings.Join(mwq.Qualifiers, " "))
++			ps.print(mwq.Qualifiers)
+ 		}
+ 		if mwq.RefQualifier != "" {
+ 			ps.writeByte(' ')
+@@ -480,9 +649,9 @@ func (mwq *MethodWithQualifiers) print(ps *printState) {
+ }
+ 
+ func (mwq *MethodWithQualifiers) printInner(ps *printState) {
+-	if len(mwq.Qualifiers) > 0 {
++	if mwq.Qualifiers != nil {
+ 		ps.writeByte(' ')
+-		ps.writeString(strings.Join(mwq.Qualifiers, " "))
++		ps.print(mwq.Qualifiers)
+ 	}
+ 	if mwq.RefQualifier != "" {
+ 		ps.writeByte(' ')
+@@ -501,10 +670,20 @@ func (mwq *MethodWithQualifiers) Copy(fn func(AST) AST, skip func(AST) bool) AST
+ 		return nil
+ 	}
+ 	method := mwq.Method.Copy(fn, skip)
+-	if method == nil {
++	var quals AST
++	if mwq.Qualifiers != nil {
++		quals = mwq.Qualifiers.Copy(fn, skip)
++	}
++	if method == nil && quals == nil {
+ 		return fn(mwq)
+ 	}
+-	mwq = &MethodWithQualifiers{Method: method, Qualifiers: mwq.Qualifiers, RefQualifier: mwq.RefQualifier}
++	if method == nil {
++		method = mwq.Method
++	}
++	if quals == nil {
++		quals = mwq.Qualifiers
++	}
++	mwq = &MethodWithQualifiers{Method: method, Qualifiers: quals, RefQualifier: mwq.RefQualifier}
+ 	if r := fn(mwq); r != nil {
+ 		return r
+ 	}
+@@ -517,14 +696,14 @@ func (mwq *MethodWithQualifiers) GoString() string {
+ 
+ func (mwq *MethodWithQualifiers) goString(indent int, field string) string {
+ 	var q string
+-	if len(mwq.Qualifiers) > 0 {
+-		q += fmt.Sprintf(" Qualifiers: %v", mwq.Qualifiers)
++	if mwq.Qualifiers != nil {
++		q += "\n" + mwq.Qualifiers.goString(indent+2, "Qualifiers: ")
+ 	}
+ 	if mwq.RefQualifier != "" {
+ 		if q != "" {
+-			q += ";"
++			q += "\n"
+ 		}
+-		q += " RefQualifier: " + mwq.RefQualifier
++		q += fmt.Sprintf("%*s%s%s", indent+2, "", "RefQualifier: ", mwq.RefQualifier)
+ 	}
+ 	return fmt.Sprintf("%*s%sMethodWithQualifiers:%s\n%s", indent, "", field,
+ 		q, mwq.Method.goString(indent+2, "Method: "))
+@@ -1955,6 +2134,22 @@ func (u *Unary) goString(indent int, field string) string {
+ 		u.Expr.goString(indent+2, "Expr: "))
+ }
+ 
++// isDesignatedInitializer reports whether x is a designated
++// initializer.
++func isDesignatedInitializer(x AST) bool {
++	switch x := x.(type) {
++	case *Binary:
++		if op, ok := x.Op.(*Operator); ok {
++			return op.Name == "=" || op.Name == "]="
++		}
++	case *Trinary:
++		if op, ok := x.Op.(*Operator); ok {
++			return op.Name == "[...]="
++		}
++	}
++	return false
++}
++
+ // Binary is a binary operation in an expression.
+ type Binary struct {
+ 	Op    AST
+@@ -1975,6 +2170,27 @@ func (b *Binary) print(ps *printState) {
+ 		return
+ 	}
+ 
++	if isDesignatedInitializer(b) {
++		if op.Name == "=" {
++			ps.writeByte('.')
++		} else {
++			ps.writeByte('[')
++		}
++		ps.print(b.Left)
++		if op.Name == "]=" {
++			ps.writeByte(']')
++		}
++		if isDesignatedInitializer(b.Right) {
++			// Don't add anything between designated
++			// initializer chains.
++			ps.print(b.Right)
++		} else {
++			ps.writeByte('=')
++			parenthesize(ps, b.Right)
++		}
++		return
++	}
++
+ 	// Use an extra set of parentheses around an expression that
+ 	// uses the greater-than operator, so that it does not get
+ 	// confused with the '>' that ends template parameters.
+@@ -1984,15 +2200,28 @@ func (b *Binary) print(ps *printState) {
+ 
+ 	left := b.Left
+ 
+-	// A function call in an expression should not print the types
+-	// of the arguments.
++	// For a function call in an expression, don't print the types
++	// of the arguments unless there is a return type.
++	skipParens := false
+ 	if op != nil && op.Name == "()" {
+ 		if ty, ok := b.Left.(*Typed); ok {
+-			left = ty.Name
++			if ft, ok := ty.Type.(*FunctionType); ok {
++				if ft.Return == nil {
++					left = ty.Name
++				} else {
++					skipParens = true
++				}
++			} else {
++				left = ty.Name
++			}
+ 		}
+ 	}
+ 
+-	parenthesize(ps, left)
++	if skipParens {
++		ps.print(left)
++	} else {
++		parenthesize(ps, left)
++	}
+ 
+ 	if op != nil && op.Name == "[]" {
+ 		ps.writeByte('[')
+@@ -2070,6 +2299,23 @@ type Trinary struct {
+ }
+ 
+ func (t *Trinary) print(ps *printState) {
++	if isDesignatedInitializer(t) {
++		ps.writeByte('[')
++		ps.print(t.First)
++		ps.writeString(" ... ")
++		ps.print(t.Second)
++		ps.writeByte(']')
++		if isDesignatedInitializer(t.Third) {
++			// Don't add anything between designated
++			// initializer chains.
++			ps.print(t.Third)
++		} else {
++			ps.writeByte('=')
++			parenthesize(ps, t.Third)
++		}
++		return
++	}
++
+ 	parenthesize(ps, t.First)
+ 	ps.writeByte('?')
+ 	parenthesize(ps, t.Second)
+@@ -2362,6 +2608,9 @@ func (l *Literal) print(ps *printState) {
+ 				ps.writeString("true")
+ 				return
+ 			}
++		} else if b.Name == "decltype(nullptr)" && l.Val == "" {
++			ps.print(l.Type)
++			return
+ 		} else {
+ 			isFloat = builtinTypeFloat[b.Name]
+ 		}
+@@ -2821,6 +3070,83 @@ func (s *Special2) goString(indent int, field string) string {
+ 		indent+2, "", s.Middle, s.Val2.goString(indent+2, "Val2: "))
+ }
+ 
++// EnableIf is used by clang for an enable_if attribute.
++type EnableIf struct {
++	Type AST
++	Args []AST
++}
++
++func (ei *EnableIf) print(ps *printState) {
++	ps.print(ei.Type)
++	ps.writeString(" [enable_if:")
++	first := true
++	for _, a := range ei.Args {
++		if !first {
++			ps.writeString(", ")
++		}
++		ps.print(a)
++		first = false
++	}
++	ps.writeString("]")
++}
++
++func (ei *EnableIf) Traverse(fn func(AST) bool) {
++	if fn(ei) {
++		ei.Type.Traverse(fn)
++		for _, a := range ei.Args {
++			a.Traverse(fn)
++		}
++	}
++}
++
++func (ei *EnableIf) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(ei) {
++		return nil
++	}
++	typ := ei.Type.Copy(fn, skip)
++	argsChanged := false
++	args := make([]AST, len(ei.Args))
++	for i, a := range ei.Args {
++		ac := a.Copy(fn, skip)
++		if ac == nil {
++			args[i] = a
++		} else {
++			args[i] = ac
++			argsChanged = true
++		}
++	}
++	if typ == nil && !argsChanged {
++		return fn(ei)
++	}
++	if typ == nil {
++		typ = ei.Type
++	}
++	ei = &EnableIf{Type: typ, Args: args}
++	if r := fn(ei); r != nil {
++		return r
++	}
++	return ei
++}
++
++func (ei *EnableIf) GoString() string {
++	return ei.goString(0, "")
++}
++
++func (ei *EnableIf) goString(indent int, field string) string {
++	var args string
++	if len(ei.Args) == 0 {
++		args = fmt.Sprintf("%*sArgs: nil", indent+2, "")
++	} else {
++		args = fmt.Sprintf("%*sArgs:", indent+2, "")
++		for i, a := range ei.Args {
++			args += "\n"
++			args += a.goString(indent+4, fmt.Sprintf("%d: ", i))
++		}
++	}
++	return fmt.Sprintf("%*s%sEnableIf:\n%s\n%s", indent, "", field,
++		ei.Type.goString(indent+2, "Type: "), args)
++}
++
+ // Print the inner types.
+ func (ps *printState) printInner(prefixOnly bool) []AST {
+ 	var save []AST
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index 7541b736ba..c2667446df 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -5,6 +5,8 @@
+ // Package demangle defines functions that demangle GCC/LLVM C++ symbol names.
+ // This package recognizes names that were mangled according to the C++ ABI
+ // defined at http://codesourcery.com/cxx-abi/.
++//
++// Most programs will want to call Filter or ToString.
+ package demangle
+ 
+ import (
+@@ -45,7 +47,7 @@ func Filter(name string, options ...Option) string {
+ 	return ret
+ }
+ 
+-// ToString demangles a C++ symbol name, returning human-readable C++
++// ToString demangles a C++ symbol name, returning a human-readable C++
+ // name or an error.
+ // If the name does not appear to be a C++ symbol name at all, the
+ // error will be ErrNotMangledName.
+@@ -183,6 +185,7 @@ type state struct {
+ 	off       int           // offset of str within original string
+ 	subs      substitutions // substitutions
+ 	templates []*Template   // templates being processed
++	inLambda  int           // number of lambdas being parsed
+ }
+ 
+ // copy returns a copy of the current state.
+@@ -310,15 +313,42 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
+ 	if mwq != nil {
+ 		check = mwq.Method
+ 	}
+-	template, _ := check.(*Template)
++
++	var template *Template
++	switch check := check.(type) {
++	case *Template:
++		template = check
++	case *Qualified:
++		if check.LocalName {
++			n := check.Name
++			if nmwq, ok := n.(*MethodWithQualifiers); ok {
++				n = nmwq.Method
++			}
++			template, _ = n.(*Template)
++		}
++	}
++	var oldInLambda int
+ 	if template != nil {
+ 		st.templates = append(st.templates, template)
++		oldInLambda = st.inLambda
++		st.inLambda = 0
++	}
++
++	// Checking for the enable_if attribute here is what the LLVM
++	// demangler does.  This is not very general but perhaps it is
++	// sufficent.
++	const enableIfPrefix = "Ua9enable_ifI"
++	var enableIfArgs []AST
++	if strings.HasPrefix(st.str, enableIfPrefix) {
++		st.advance(len(enableIfPrefix) - 1)
++		enableIfArgs = st.templateArgs()
+ 	}
+ 
+ 	ft := st.bareFunctionType(hasReturnType(a))
+ 
+ 	if template != nil {
+ 		st.templates = st.templates[:len(st.templates)-1]
++		st.inLambda = oldInLambda
+ 	}
+ 
+ 	ft = simplify(ft)
+@@ -349,13 +379,24 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
+ 		}
+ 	}
+ 
+-	return &Typed{Name: a, Type: ft}
++	r := AST(&Typed{Name: a, Type: ft})
++
++	if len(enableIfArgs) > 0 {
++		r = &EnableIf{Type: r, Args: enableIfArgs}
++	}
++
++	return r
+ }
+ 
+ // hasReturnType returns whether the mangled form of a will have a
+ // return type.
+ func hasReturnType(a AST) bool {
+ 	switch a := a.(type) {
++	case *Qualified:
++		if a.LocalName {
++			return hasReturnType(a.Name)
++		}
++		return false
+ 	case *Template:
+ 		return !isCDtorConversion(a.Name)
+ 	case *TypeWithQualifiers:
+@@ -481,7 +522,7 @@ func (st *state) nestedName() AST {
+ 	q := st.cvQualifiers()
+ 	r := st.refQualifier()
+ 	a := st.prefix()
+-	if len(q) > 0 || r != "" {
++	if q != nil || r != "" {
+ 		a = &MethodWithQualifiers{Method: a, Qualifiers: q, RefQualifier: r}
+ 	}
+ 	if len(st.str) == 0 || st.str[0] != 'E' {
+@@ -608,6 +649,29 @@ func (st *state) prefix() AST {
+ 				// gives appropriate output.
+ 				st.advance(1)
+ 				continue
++			case 'J':
++				// It appears that in some cases clang
++				// can emit a J for a template arg
++				// without the expected I.  I don't
++				// know when this happens, but I've
++				// seen it in some large C++ programs.
++				if a == nil {
++					st.fail("unexpected template arguments")
++				}
++				var args []AST
++				for len(st.str) == 0 || st.str[0] != 'E' {
++					arg := st.templateArg()
++					args = append(args, arg)
++				}
++				st.advance(1)
++				tmpl := &Template{Name: a, Args: args}
++				if isCast {
++					st.setTemplate(a, tmpl)
++					st.clearTemplateArgs(args)
++					isCast = false
++				}
++				a = nil
++				next = tmpl
+ 			default:
+ 				st.fail("unrecognized letter in prefix")
+ 			}
+@@ -754,19 +818,26 @@ var operators = map[string]operator{
+ 	"ad": {"&", 1},
+ 	"an": {"&", 2},
+ 	"at": {"alignof ", 1},
++	"aw": {"co_await ", 1},
+ 	"az": {"alignof ", 1},
+ 	"cc": {"const_cast", 2},
+ 	"cl": {"()", 2},
++	// cp is not in the ABI but is used by clang "when the call
++	// would use ADL except for being parenthesized."
++	"cp": {"()", 2},
+ 	"cm": {",", 2},
+ 	"co": {"~", 1},
+ 	"dV": {"/=", 2},
++	"dX": {"[...]=", 3},
+ 	"da": {"delete[] ", 1},
+ 	"dc": {"dynamic_cast", 2},
+ 	"de": {"*", 1},
++	"di": {"=", 2},
+ 	"dl": {"delete ", 1},
+ 	"ds": {".*", 2},
+ 	"dt": {".", 2},
+ 	"dv": {"/", 2},
++	"dx": {"]=", 2},
+ 	"eO": {"^=", 2},
+ 	"eo": {"^", 2},
+ 	"eq": {"==", 2},
+@@ -808,7 +879,10 @@ var operators = map[string]operator{
+ 	"rc": {"reinterpret_cast", 2},
+ 	"rm": {"%", 2},
+ 	"rs": {">>", 2},
++	"sP": {"sizeof...", 1},
++	"sZ": {"sizeof...", 1},
+ 	"sc": {"static_cast", 2},
++	"ss": {"<=>", 2},
+ 	"st": {"sizeof ", 1},
+ 	"sz": {"sizeof ", 1},
+ 	"tr": {"throw", 0},
+@@ -928,6 +1002,7 @@ func (st *state) javaResource() AST {
+ //                ::= TT <type>
+ //                ::= TI <type>
+ //                ::= TS <type>
++//                ::= TA <template-arg>
+ //                ::= GV <(object) name>
+ //                ::= T <call-offset> <(base) encoding>
+ //                ::= Tc <call-offset> <call-offset> <(base) encoding>
+@@ -961,6 +1036,9 @@ func (st *state) specialName() AST {
+ 		case 'S':
+ 			t := st.demangleType(false)
+ 			return &Special{Prefix: "typeinfo name for ", Val: t}
++		case 'A':
++			t := st.templateArg()
++			return &Special{Prefix: "template parameter object for ", Val: t}
+ 		case 'h':
+ 			st.callOffset('h')
+ 			v := st.encoding(true, notForLocalName)
+@@ -1138,7 +1216,7 @@ func (st *state) demangleType(isCast bool) AST {
+ 	addSubst := true
+ 
+ 	q := st.cvQualifiers()
+-	if len(q) > 0 {
++	if q != nil {
+ 		if len(st.str) == 0 {
+ 			st.fail("expected type")
+ 		}
+@@ -1159,7 +1237,7 @@ func (st *state) demangleType(isCast bool) AST {
+ 	if btype, ok := builtinTypes[st.str[0]]; ok {
+ 		ret = &BuiltinType{Name: btype}
+ 		st.advance(1)
+-		if len(q) > 0 {
++		if q != nil {
+ 			ret = &TypeWithQualifiers{Base: ret, Qualifiers: q}
+ 			st.subs.add(ret)
+ 		}
+@@ -1286,6 +1364,8 @@ func (st *state) demangleType(isCast bool) AST {
+ 
+ 		case 'a':
+ 			ret = &Name{Name: "auto"}
++		case 'c':
++			ret = &Name{Name: "decltype(auto)"}
+ 
+ 		case 'f':
+ 			ret = &BuiltinType{Name: "decimal32"}
+@@ -1295,6 +1375,8 @@ func (st *state) demangleType(isCast bool) AST {
+ 			ret = &BuiltinType{Name: "decimal128"}
+ 		case 'h':
+ 			ret = &BuiltinType{Name: "half"}
++		case 'u':
++			ret = &BuiltinType{Name: "char8_t"}
+ 		case 's':
+ 			ret = &BuiltinType{Name: "char16_t"}
+ 		case 'i':
+@@ -1343,7 +1425,7 @@ func (st *state) demangleType(isCast bool) AST {
+ 		}
+ 	}
+ 
+-	if len(q) > 0 {
++	if q != nil {
+ 		if _, ok := ret.(*FunctionType); ok {
+ 			ret = &MethodWithQualifiers{Method: ret, Qualifiers: q, RefQualifier: ""}
+ 		} else if mwq, ok := ret.(*MethodWithQualifiers); ok {
+@@ -1433,17 +1515,32 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
+ }
+ 
+ // mergeQualifiers merges two qualifer lists into one.
+-func mergeQualifiers(q1, q2 Qualifiers) Qualifiers {
++func mergeQualifiers(q1AST, q2AST AST) AST {
++	if q1AST == nil {
++		return q2AST
++	}
++	if q2AST == nil {
++		return q1AST
++	}
++	q1 := q1AST.(*Qualifiers)
+ 	m := make(map[string]bool)
+-	for _, qual := range q1 {
+-		m[qual] = true
++	for _, qualAST := range q1.Qualifiers {
++		qual := qualAST.(*Qualifier)
++		if len(qual.Exprs) == 0 {
++			m[qual.Name] = true
++		}
+ 	}
+-	for _, qual := range q2 {
+-		if !m[qual] {
+-			q1 = append(q1, qual)
+-			m[qual] = true
++	rq := q1.Qualifiers
++	for _, qualAST := range q2AST.(*Qualifiers).Qualifiers {
++		qual := qualAST.(*Qualifier)
++		if len(qual.Exprs) > 0 {
++			rq = append(rq, qualAST)
++		} else if !m[qual.Name] {
++			rq = append(rq, qualAST)
++			m[qual.Name] = true
+ 		}
+ 	}
++	q1.Qualifiers = rq
+ 	return q1
+ }
+ 
+@@ -1456,20 +1553,51 @@ var qualifiers = map[byte]string{
+ }
+ 
+ // <CV-qualifiers> ::= [r] [V] [K]
+-func (st *state) cvQualifiers() Qualifiers {
+-	var q Qualifiers
++func (st *state) cvQualifiers() AST {
++	var q []AST
++qualLoop:
+ 	for len(st.str) > 0 {
+ 		if qv, ok := qualifiers[st.str[0]]; ok {
+-			q = append([]string{qv}, q...)
++			qual := &Qualifier{Name: qv}
++			q = append([]AST{qual}, q...)
+ 			st.advance(1)
+-		} else if len(st.str) > 1 && st.str[:2] == "Dx" {
+-			q = append([]string{"transaction_safe"}, q...)
+-			st.advance(2)
++		} else if len(st.str) > 1 && st.str[0] == 'D' {
++			var qual AST
++			switch st.str[1] {
++			case 'x':
++				qual = &Qualifier{Name: "transaction_safe"}
++				st.advance(2)
++			case 'o':
++				qual = &Qualifier{Name: "noexcept"}
++				st.advance(2)
++			case 'O':
++				st.advance(2)
++				expr := st.expression()
++				if len(st.str) == 0 || st.str[0] != 'E' {
++					st.fail("expected E after computed noexcept expression")
++				}
++				st.advance(1)
++				qual = &Qualifier{Name: "noexcept", Exprs: []AST{expr}}
++			case 'w':
++				st.advance(2)
++				parmlist := st.parmlist()
++				if len(st.str) == 0 || st.str[0] != 'E' {
++					st.fail("expected E after throw parameter list")
++				}
++				st.advance(1)
++				qual = &Qualifier{Name: "throw", Exprs: parmlist}
++			default:
++				break qualLoop
++			}
++			q = append([]AST{qual}, q...)
+ 		} else {
+ 			break
+ 		}
+ 	}
+-	return q
++	if len(q) == 0 {
++		return nil
++	}
++	return &Qualifiers{Qualifiers: q}
+ }
+ 
+ // <ref-qualifier> ::= R
+@@ -1677,7 +1805,7 @@ func (st *state) compactNumber() int {
+ // whatever the template parameter would be expanded to here.  We sort
+ // this out in substitution and simplify.
+ func (st *state) templateParam() AST {
+-	if len(st.templates) == 0 {
++	if len(st.templates) == 0 && st.inLambda == 0 {
+ 		st.fail("template parameter not in scope of template")
+ 	}
+ 	off := st.off
+@@ -1685,6 +1813,13 @@ func (st *state) templateParam() AST {
+ 	st.checkChar('T')
+ 	n := st.compactNumber()
+ 
++	if st.inLambda > 0 {
++		// g++ mangles lambda auto params as template params.
++		// Apparently we can't encounter a template within a lambda.
++		// See https://gcc.gnu.org/PR78252.
++		return &LambdaAuto{Index: n}
++	}
++
+ 	template := st.templates[len(st.templates)-1]
+ 
+ 	if template == nil {
+@@ -1723,6 +1858,10 @@ func (st *state) setTemplate(a AST, tmpl *Template) {
+ 			}
+ 			a.Template = tmpl
+ 			return false
++		case *Closure:
++			// There are no template params in closure types.
++			// https://gcc.gnu.org/PR78252.
++			return false
+ 		default:
+ 			for _, v := range seen {
+ 				if v == a {
+@@ -1812,12 +1951,60 @@ func (st *state) exprList(stop byte) AST {
+ // <expression> ::= <(unary) operator-name> <expression>
+ //              ::= <(binary) operator-name> <expression> <expression>
+ //              ::= <(trinary) operator-name> <expression> <expression> <expression>
++//              ::= pp_ <expression>
++//              ::= mm_ <expression>
++//              ::= cl <expression>+ E
+ //              ::= cl <expression>+ E
++//              ::= cv <type> <expression>
++//              ::= cv <type> _ <expression>* E
++//              ::= tl <type> <braced-expression>* E
++//              ::= il <braced-expression>* E
++//              ::= [gs] nw <expression>* _ <type> E
++//              ::= [gs] nw <expression>* _ <type> <initializer>
++//              ::= [gs] na <expression>* _ <type> E
++//              ::= [gs] na <expression>* _ <type> <initializer>
++//              ::= [gs] dl <expression>
++//              ::= [gs] da <expression>
++//              ::= dc <type> <expression>
++//              ::= sc <type> <expression>
++//              ::= cc <type> <expression>
++//              ::= rc <type> <expression>
++//              ::= ti <type>
++//              ::= te <expression>
+ //              ::= st <type>
++//              ::= sz <expression>
++//              ::= at <type>
++//              ::= az <expression>
++//              ::= nx <expression>
+ //              ::= <template-param>
+-//              ::= sr <type> <unqualified-name>
+-//              ::= sr <type> <unqualified-name> <template-args>
++//              ::= <function-param>
++//              ::= dt <expression> <unresolved-name>
++//              ::= pt <expression> <unresolved-name>
++//              ::= ds <expression> <expression>
++//              ::= sZ <template-param>
++//              ::= sZ <function-param>
++//              ::= sP <template-arg>* E
++//              ::= sp <expression>
++//              ::= fl <binary operator-name> <expression>
++//              ::= fr <binary operator-name> <expression>
++//              ::= fL <binary operator-name> <expression> <expression>
++//              ::= fR <binary operator-name> <expression> <expression>
++//              ::= tw <expression>
++//              ::= tr
++//              ::= <unresolved-name>
+ //              ::= <expr-primary>
++//
++// <function-param> ::= fp <CV-qualifiers> _
++//                  ::= fp <CV-qualifiers> <number>
++//                  ::= fL <number> p <CV-qualifiers> _
++//                  ::= fL <number> p <CV-qualifiers> <number>
++//                  ::= fpT
++//
++// <braced-expression> ::= <expression>
++//                     ::= di <field source-name> <braced-expression>
++//                     ::= dx <index expression> <braced-expression>
++//                     ::= dX <range begin expression> <range end expression> <braced-expression>
++//
+ func (st *state) expression() AST {
+ 	if len(st.str) == 0 {
+ 		st.fail("expected expression")
+@@ -1827,61 +2014,7 @@ func (st *state) expression() AST {
+ 	} else if st.str[0] == 'T' {
+ 		return st.templateParam()
+ 	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'r' {
+-		st.advance(2)
+-		if len(st.str) == 0 {
+-			st.fail("expected unresolved type")
+-		}
+-		switch st.str[0] {
+-		case 'T', 'D', 'S':
+-			t := st.demangleType(false)
+-			n := st.baseUnresolvedName()
+-			n = &Qualified{Scope: t, Name: n, LocalName: false}
+-			if len(st.str) > 0 && st.str[0] == 'I' {
+-				args := st.templateArgs()
+-				n = &Template{Name: n, Args: args}
+-			}
+-			return n
+-		default:
+-			var s AST
+-			if st.str[0] == 'N' {
+-				st.advance(1)
+-				s = st.demangleType(false)
+-			}
+-			for len(st.str) == 0 || st.str[0] != 'E' {
+-				// GCC does not seem to follow the ABI here.
+-				// It can emit type/name without an 'E'.
+-				if s != nil && len(st.str) > 0 && !isDigit(st.str[0]) {
+-					if q, ok := s.(*Qualified); ok {
+-						a := q.Scope
+-						if t, ok := a.(*Template); ok {
+-							st.subs.add(t.Name)
+-							st.subs.add(t)
+-						} else {
+-							st.subs.add(a)
+-						}
+-						return s
+-					}
+-				}
+-				n := st.sourceName()
+-				if len(st.str) > 0 && st.str[0] == 'I' {
+-					st.subs.add(n)
+-					args := st.templateArgs()
+-					n = &Template{Name: n, Args: args}
+-				}
+-				if s == nil {
+-					s = n
+-				} else {
+-					s = &Qualified{Scope: s, Name: n, LocalName: false}
+-				}
+-				st.subs.add(s)
+-			}
+-			if s == nil {
+-				st.fail("missing scope in unresolved name")
+-			}
+-			st.advance(1)
+-			n := st.baseUnresolvedName()
+-			return &Qualified{Scope: s, Name: n, LocalName: false}
+-		}
++		return st.unresolvedName()
+ 	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'p' {
+ 		st.advance(2)
+ 		e := st.expression()
+@@ -1911,9 +2044,25 @@ func (st *state) expression() AST {
+ 			st.advance(1)
+ 			return &FunctionParam{Index: 0}
+ 		} else {
++			// We can see qualifiers here, but we don't
++			// include them in the demangled string.
++			st.cvQualifiers()
+ 			index := st.compactNumber()
+ 			return &FunctionParam{Index: index + 1}
+ 		}
++	} else if st.str[0] == 'f' && len(st.str) > 2 && st.str[1] == 'L' && isDigit(st.str[2]) {
++		st.advance(2)
++		// We don't include the scope count in the demangled string.
++		st.number()
++		if len(st.str) == 0 || st.str[0] != 'p' {
++			st.fail("expected p after function parameter scope count")
++		}
++		st.advance(1)
++		// We can see qualifiers here, but we don't include them
++		// in the demangled string.
++		st.cvQualifiers()
++		index := st.compactNumber()
++		return &FunctionParam{Index: index + 1}
+ 	} else if isDigit(st.str[0]) || (st.str[0] == 'o' && len(st.str) > 1 && st.str[1] == 'n') {
+ 		if st.str[0] == 'o' {
+ 			// Skip operator function ID.
+@@ -1975,13 +2124,15 @@ func (st *state) expression() AST {
+ 				left, _ = st.operatorName(true)
+ 				right = st.expression()
+ 				return &Fold{Left: code[1] == 'l', Op: left, Arg1: right, Arg2: nil}
++			} else if code == "di" {
++				left, _ = st.unqualifiedName()
+ 			} else {
+ 				left = st.expression()
+ 			}
+-			if code == "cl" {
++			if code == "cl" || code == "cp" {
+ 				right = st.exprList('E')
+ 			} else if code == "dt" || code == "pt" {
+-				right, _ = st.unqualifiedName()
++				right = st.unresolvedName()
+ 				if len(st.str) > 0 && st.str[0] == 'I' {
+ 					args := st.templateArgs()
+ 					right = &Template{Name: right, Args: args}
+@@ -2034,6 +2185,82 @@ func (st *state) expression() AST {
+ 	}
+ }
+ 
++// <unresolved-name> ::= [gs] <base-unresolved-name>
++//                   ::= sr <unresolved-type> <base-unresolved-name>
++//                   ::= srN <unresolved-type> <unresolved-qualifier-level>+ E <base-unresolved-name>
++//                   ::= [gs] sr <unresolved-qualifier-level>+ E <base-unresolved-name>
++func (st *state) unresolvedName() AST {
++	if len(st.str) >= 2 && st.str[:2] == "gs" {
++		st.advance(2)
++		n := st.unresolvedName()
++		return &Unary{
++			Op:         &Operator{Name: "::"},
++			Expr:       n,
++			Suffix:     false,
++			SizeofType: false,
++		}
++	} else if len(st.str) >= 2 && st.str[:2] == "sr" {
++		st.advance(2)
++		if len(st.str) == 0 {
++			st.fail("expected unresolved type")
++		}
++		switch st.str[0] {
++		case 'T', 'D', 'S':
++			t := st.demangleType(false)
++			n := st.baseUnresolvedName()
++			n = &Qualified{Scope: t, Name: n, LocalName: false}
++			if len(st.str) > 0 && st.str[0] == 'I' {
++				args := st.templateArgs()
++				n = &Template{Name: n, Args: args}
++				st.subs.add(n)
++			}
++			return n
++		default:
++			var s AST
++			if st.str[0] == 'N' {
++				st.advance(1)
++				s = st.demangleType(false)
++			}
++			for len(st.str) == 0 || st.str[0] != 'E' {
++				// GCC does not seem to follow the ABI here.
++				// It can emit type/name without an 'E'.
++				if s != nil && len(st.str) > 0 && !isDigit(st.str[0]) {
++					if q, ok := s.(*Qualified); ok {
++						a := q.Scope
++						if t, ok := a.(*Template); ok {
++							st.subs.add(t.Name)
++							st.subs.add(t)
++						} else {
++							st.subs.add(a)
++						}
++						return s
++					}
++				}
++				n := st.sourceName()
++				if len(st.str) > 0 && st.str[0] == 'I' {
++					st.subs.add(n)
++					args := st.templateArgs()
++					n = &Template{Name: n, Args: args}
++				}
++				if s == nil {
++					s = n
++				} else {
++					s = &Qualified{Scope: s, Name: n, LocalName: false}
++				}
++				st.subs.add(s)
++			}
++			if s == nil {
++				st.fail("missing scope in unresolved name")
++			}
++			st.advance(1)
++			n := st.baseUnresolvedName()
++			return &Qualified{Scope: s, Name: n, LocalName: false}
++		}
++	} else {
++		return st.baseUnresolvedName()
++	}
++}
++
+ // <base-unresolved-name> ::= <simple-id>
+ //                        ::= on <operator-name>
+ //                        ::= on <operator-name> <template-args>
+@@ -2099,7 +2326,14 @@ func (st *state) exprPrimary() AST {
+ 			st.advance(1)
+ 		}
+ 		if len(st.str) > 0 && st.str[0] == 'E' {
+-			st.fail("missing literal value")
++			if bt, ok := t.(*BuiltinType); ok && bt.Name == "decltype(nullptr)" {
++				// A nullptr should not have a value.
++				// We accept one if present because GCC
++				// used to generate one.
++				// https://gcc.gnu.org/PR91979.
++			} else {
++				st.fail("missing literal value")
++			}
+ 		}
+ 		i := 0
+ 		for len(st.str) > i && st.str[i] != 'E' {
+@@ -2116,17 +2350,29 @@ func (st *state) exprPrimary() AST {
+ 	return ret
+ }
+ 
+-// <discriminator> ::= _ <(non-negative) number>
++// <discriminator> ::= _ <(non-negative) number> (when number < 10)
++//                     __ <(non-negative) number> _ (when number >= 10)
+ func (st *state) discriminator(a AST) AST {
+ 	if len(st.str) == 0 || st.str[0] != '_' {
+ 		return a
+ 	}
+ 	off := st.off
+ 	st.advance(1)
++	trailingUnderscore := false
++	if len(st.str) > 0 && st.str[0] == '_' {
++		st.advance(1)
++		trailingUnderscore = true
++	}
+ 	d := st.number()
+ 	if d < 0 {
+ 		st.failEarlier("invalid negative discriminator", st.off-off)
+ 	}
++	if trailingUnderscore && d >= 10 {
++		if len(st.str) == 0 || st.str[0] != '_' {
++			st.fail("expected _ after discriminator >= 10")
++		}
++		st.advance(1)
++	}
+ 	// We don't currently print out the discriminator, so we don't
+ 	// save it.
+ 	return a
+@@ -2136,15 +2382,15 @@ func (st *state) discriminator(a AST) AST {
+ func (st *state) closureTypeName() AST {
+ 	st.checkChar('U')
+ 	st.checkChar('l')
++	st.inLambda++
+ 	types := st.parmlist()
++	st.inLambda--
+ 	if len(st.str) == 0 || st.str[0] != 'E' {
+ 		st.fail("expected E after closure type name")
+ 	}
+ 	st.advance(1)
+ 	num := st.compactNumber()
+-	ret := &Closure{Types: types, Num: num}
+-	st.subs.add(ret)
+-	return ret
++	return &Closure{Types: types, Num: num}
+ }
+ 
+ // <unnamed-type-name> ::= Ut [ <nonnegative number> ] _
+@@ -2295,31 +2541,92 @@ func (st *state) substitution(forPrefix bool) AST {
+ 		// We need to update any references to template
+ 		// parameters to refer to the currently active
+ 		// template.
++
++		// When copying a Typed we may need to adjust
++		// the templates.
++		copyTemplates := st.templates
++		var oldInLambda []int
++
++		// pushTemplate is called from skip, popTemplate from copy.
++		pushTemplate := func(template *Template) {
++			copyTemplates = append(copyTemplates, template)
++			oldInLambda = append(oldInLambda, st.inLambda)
++			st.inLambda = 0
++		}
++		popTemplate := func() {
++			copyTemplates = copyTemplates[:len(copyTemplates)-1]
++			st.inLambda = oldInLambda[len(oldInLambda)-1]
++			oldInLambda = oldInLambda[:len(oldInLambda)-1]
++		}
++
+ 		copy := func(a AST) AST {
+-			tp, ok := a.(*TemplateParam)
+-			if !ok {
++			var index int
++			switch a := a.(type) {
++			case *Typed:
++				// Remove the template added in skip.
++				if _, ok := a.Name.(*Template); ok {
++					popTemplate()
++				}
++				return nil
++			case *Closure:
++				// Undo the decrement in skip.
++				st.inLambda--
+ 				return nil
++			case *TemplateParam:
++				index = a.Index
++			case *LambdaAuto:
++				// A lambda auto parameter is represented
++				// as a template parameter, so we may have
++				// to change back when substituting.
++				index = a.Index
++			default:
++				return nil
++			}
++			if st.inLambda > 0 {
++				if _, ok := a.(*LambdaAuto); ok {
++					return nil
++				}
++				return &LambdaAuto{Index: index}
+ 			}
+-			if len(st.templates) == 0 {
++			var template *Template
++			if len(copyTemplates) > 0 {
++				template = copyTemplates[len(copyTemplates)-1]
++			} else if rt, ok := ret.(*Template); ok {
++				// At least with clang we can see a template
++				// to start, and sometimes we need to refer
++				// to it. There is probably something wrong
++				// here.
++				template = rt
++			} else {
+ 				st.failEarlier("substituted template parameter not in scope of template", dec)
+ 			}
+-			template := st.templates[len(st.templates)-1]
+ 			if template == nil {
+ 				// This template parameter is within
+ 				// the scope of a cast operator.
+-				return &TemplateParam{Index: tp.Index, Template: nil}
++				return &TemplateParam{Index: index, Template: nil}
+ 			}
+ 
+-			if tp.Index >= len(template.Args) {
+-				st.failEarlier(fmt.Sprintf("substituted template index out of range (%d >= %d)", tp.Index, len(template.Args)), dec)
++			if index >= len(template.Args) {
++				st.failEarlier(fmt.Sprintf("substituted template index out of range (%d >= %d)", index, len(template.Args)), dec)
+ 			}
+ 
+-			return &TemplateParam{Index: tp.Index, Template: template}
++			return &TemplateParam{Index: index, Template: template}
+ 		}
+ 		var seen []AST
+ 		skip := func(a AST) bool {
+-			if _, ok := a.(*Typed); ok {
+-				return true
++			switch a := a.(type) {
++			case *Typed:
++				if template, ok := a.Name.(*Template); ok {
++					// This template is removed in copy.
++					pushTemplate(template)
++				}
++				return false
++			case *Closure:
++				// This is decremented in copy.
++				st.inLambda++
++				return false
++			case *TemplateParam, *LambdaAuto:
++				return false
+ 			}
+ 			for _, v := range seen {
+ 				if v == a {
+@@ -2329,6 +2636,7 @@ func (st *state) substitution(forPrefix bool) AST {
+ 			seen = append(seen, a)
+ 			return false
+ 		}
++
+ 		if c := ret.Copy(copy, skip); c != nil {
+ 			return c
+ 		}
+@@ -2351,6 +2659,7 @@ func (st *state) substitution(forPrefix bool) AST {
+ 
+ 		if len(st.str) > 0 && st.str[0] == 'B' {
+ 			a = st.taggedName(a)
++			st.subs.add(a)
+ 		}
+ 
+ 		return a
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 21bd6bfe48..48aac279e9 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
++# github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ ## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+@@ -15,8 +15,7 @@ github.com/google/pprof/profile
+ github.com/google/pprof/third_party/d3
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+-# github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
+-## explicit
++# github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ ## explicit

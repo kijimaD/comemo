@@ -10,6 +10,20 @@ Date:   Fri May 9 15:49:21 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/98160043
-
+---
  src/pkg/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 3b3787202b..75f650a275 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -502,7 +502,7 @@ func (v Values) Set(key, value string) {
+ 	v[key] = []string{value}
+ }
+ 
+-// Add adds the key to value. It appends to any existing
++// Add adds the value to key. It appends to any existing
+ // values associated with key.
+ func (v Values) Add(key, value string) {
+ 	v[key] = append(v[key], value)

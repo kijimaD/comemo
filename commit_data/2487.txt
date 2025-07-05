@@ -9,7 +9,54 @@ Date:   Fri Jun 19 16:29:30 2009 -0700
     DELTA=24  (24 added, 0 deleted, 0 changed)
     OCL=30459
     CL=30540
-
+---
  src/pkg/io/bytebuffer.go      | 11 +++++++++++
  src/pkg/io/bytebuffer_test.go | 13 +++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/pkg/io/bytebuffer.go b/src/pkg/io/bytebuffer.go
+index 921ddb17ae..000c05352d 100644
+--- a/src/pkg/io/bytebuffer.go
++++ b/src/pkg/io/bytebuffer.go
+@@ -102,6 +102,17 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
+ 	return n, nil
+ }
+ 
++// ReadByte reads and returns the next byte from the buffer.
++// If no byte is available, it returns error ErrEOF.
++func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
++	if b.off >= len(b.buf) {
++		return 0, ErrEOF;
++	}
++        c = b.buf[b.off];
++	b.off++;
++	return c, nil;
++}
++
+ // NewByteBufferFromArray creates and initializes a new ByteBuffer
+ // with buf as its initial contents.
+ func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+diff --git a/src/pkg/io/bytebuffer_test.go b/src/pkg/io/bytebuffer_test.go
+index 5a54322237..0ba83e916b 100644
+--- a/src/pkg/io/bytebuffer_test.go
++++ b/src/pkg/io/bytebuffer_test.go
+@@ -118,6 +118,19 @@ func TestBasicOperations(t *testing.T) {
+ 
+ 		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
+ 		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
++
++		buf.WriteByte(data[1]);
++		c, err := buf.ReadByte();
++		if err != nil {
++			t.Errorf("ReadByte unexpected eof\n");
++		}
++		if c != data[1] {
++			t.Errorf("ReadByte wrong value c=%v\n", c);
++		}
++		c, err = buf.ReadByte();
++		if err == nil {
++			t.Errorf("ReadByte unexpected not eof\n");
++		}
+ 	}
+ }
+ 

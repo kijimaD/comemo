@@ -14,7 +14,92 @@ Date:   Fri Jan 10 17:53:05 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214387
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 39 ----------------------
  .../go/testdata/script/build_cache_arch_mode.txt   | 27 +++++++++++++++
  2 files changed, 27 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c98efb7015..918fd6fcec 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2642,45 +2642,6 @@ func TestNeedVersion(t *testing.T) {
+ 	tg.grepStderr("compile", "does not match go tool version")
+ }
+ 
+-// Issue 9737: verify that GOARM and GO386 affect the computed build ID.
+-func TestBuildIDContainsArchModeEnv(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping in short mode")
+-	}
+-
+-	var tg *testgoData
+-	testWith := func(before, after func()) func(*testing.T) {
+-		return func(t *testing.T) {
+-			tg = testgo(t)
+-			defer tg.cleanup()
+-			tg.tempFile("src/mycmd/x.go", `package main
+-func main() {}`)
+-			tg.setenv("GOPATH", tg.path("."))
+-
+-			tg.cd(tg.path("src/mycmd"))
+-			tg.setenv("GOOS", "linux")
+-			before()
+-			tg.run("install", "mycmd")
+-			after()
+-			tg.wantStale("mycmd", "stale dependency", "should be stale after environment variable change")
+-		}
+-	}
+-
+-	t.Run("386", testWith(func() {
+-		tg.setenv("GOARCH", "386")
+-		tg.setenv("GO386", "387")
+-	}, func() {
+-		tg.setenv("GO386", "sse2")
+-	}))
+-
+-	t.Run("arm", testWith(func() {
+-		tg.setenv("GOARCH", "arm")
+-		tg.setenv("GOARM", "5")
+-	}, func() {
+-		tg.setenv("GOARM", "7")
+-	}))
+-}
+-
+ func TestBuildmodePIE(t *testing.T) {
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Skipf("skipping in -short mode on non-builder")
+diff --git a/src/cmd/go/testdata/script/build_cache_arch_mode.txt b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+new file mode 100644
+index 0000000000..7e751d02b9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+@@ -0,0 +1,27 @@
++# Issue 9737: verify that GOARM and GO386 affect the computed build ID
++
++[short] skip
++
++# 386
++cd $GOPATH/src/mycmd
++env GOOS=linux
++env GOARCH=386
++env GO386=387
++go install mycmd
++env GO386=sse2
++stale mycmd
++
++# arm
++cd $GOPATH/src/mycmd
++env GOOS=linux
++env GOARCH=arm
++env GOARM=5
++go install mycmd
++env GOARM=7
++stale mycmd
++
++
++-- mycmd/x.go --
++package main
++
++func main() {}
+\ No newline at end of file

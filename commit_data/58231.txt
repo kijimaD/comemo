@@ -17,7 +17,70 @@ Date:   Tue Oct 17 20:50:30 2023 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/internal/testfortran/fortran_test.go         | 16 +++++++++++-----
  .../internal/testfortran/testdata/testprog/fortran.go    |  9 ++++++---
  2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testfortran/fortran_test.go b/src/cmd/cgo/internal/testfortran/fortran_test.go
+index eaa36ac7f9..0eae7c5f53 100644
+--- a/src/cmd/cgo/internal/testfortran/fortran_test.go
++++ b/src/cmd/cgo/internal/testfortran/fortran_test.go
+@@ -5,7 +5,6 @@
+ package fortran
+ 
+ import (
+-	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -75,11 +74,18 @@ func TestFortran(t *testing.T) {
+ 
+ 	// Finally, run the actual test.
+ 	t.Log("go", "run", "./testdata/testprog")
+-	out, err := exec.Command("go", "run", "./testdata/testprog").CombinedOutput()
+-	if err == nil && string(out) != "ok\n" {
+-		err = fmt.Errorf("expected ok")
++	var stdout, stderr strings.Builder
++	cmd := exec.Command("go", "run", "./testdata/testprog")
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++	err := cmd.Run()
++	t.Logf("%v", cmd)
++	if stderr.Len() != 0 {
++		t.Logf("stderr:\n%s", stderr.String())
+ 	}
+ 	if err != nil {
+-		t.Errorf("%s\nOutput:\n%s", err, string(out))
++		t.Errorf("%v\n%s", err, stdout.String())
++	} else if stdout.String() != "ok\n" {
++		t.Errorf("stdout:\n%s\nwant \"ok\"", stdout.String())
+ 	}
+ }
+diff --git a/src/cmd/cgo/internal/testfortran/testdata/testprog/fortran.go b/src/cmd/cgo/internal/testfortran/testdata/testprog/fortran.go
+index d8004ceb6d..e98d76c3e6 100644
+--- a/src/cmd/cgo/internal/testfortran/testdata/testprog/fortran.go
++++ b/src/cmd/cgo/internal/testfortran/testdata/testprog/fortran.go
+@@ -6,7 +6,10 @@ package main
+ 
+ // int the_answer();
+ import "C"
+-import "os"
++import (
++	"fmt"
++	"os"
++)
+ 
+ func TheAnswer() int {
+ 	return int(C.the_answer())
+@@ -14,8 +17,8 @@ func TheAnswer() int {
+ 
+ func main() {
+ 	if a := TheAnswer(); a != 42 {
+-		println("Unexpected result for The Answer. Got:", a, " Want: 42")
++		fmt.Fprintln(os.Stderr, "Unexpected result for The Answer. Got:", a, " Want: 42")
+ 		os.Exit(1)
+ 	}
+-	println("ok")
++	fmt.Fprintln(os.Stdout, "ok")
+ }

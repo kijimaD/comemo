@@ -14,7 +14,7 @@ Date:   Thu Oct 8 20:33:36 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 12 +++++------
  src/cmd/compile/internal/gc/const.go     | 36 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/fmt.go       | 14 ++++++-------
@@ -26,3 +26,340 @@ Date:   Thu Oct 8 20:33:36 2020 +0700
  src/cmd/compile/internal/gc/universe.go  | 10 ++++-----
  src/cmd/compile/internal/types/type.go   | 14 ++++++-------
  10 files changed, 58 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f82925347c..0cb9fe9e62 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -160,12 +160,12 @@ func predeclared() []*types.Type {
+ 			types.Errortype,
+ 
+ 			// untyped types
+-			types.Idealbool,
+-			types.Idealint,
+-			types.Idealrune,
+-			types.Idealfloat,
+-			types.Idealcomplex,
+-			types.Idealstring,
++			types.UntypedBool,
++			types.UntypedInt,
++			types.UntypedRune,
++			types.UntypedFloat,
++			types.UntypedComplex,
++			types.UntypedString,
+ 			types.Types[TNIL],
+ 
+ 			// package unsafe
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index d881be485e..b28c0fc8d0 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1019,17 +1019,17 @@ func nodlit(v Val) *Node {
+ func idealType(ct Ctype) *types.Type {
+ 	switch ct {
+ 	case CTSTR:
+-		return types.Idealstring
++		return types.UntypedString
+ 	case CTBOOL:
+-		return types.Idealbool
++		return types.UntypedBool
+ 	case CTINT:
+-		return types.Idealint
++		return types.UntypedInt
+ 	case CTRUNE:
+-		return types.Idealrune
++		return types.UntypedRune
+ 	case CTFLT:
+-		return types.Idealfloat
++		return types.UntypedFloat
+ 	case CTCPLX:
+-		return types.Idealcomplex
++		return types.UntypedComplex
+ 	case CTNIL:
+ 		return types.Types[TNIL]
+ 	}
+@@ -1080,17 +1080,17 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 
+ func ctype(t *types.Type) Ctype {
+ 	switch t {
+-	case types.Idealbool:
++	case types.UntypedBool:
+ 		return CTBOOL
+-	case types.Idealstring:
++	case types.UntypedString:
+ 		return CTSTR
+-	case types.Idealint:
++	case types.UntypedInt:
+ 		return CTINT
+-	case types.Idealrune:
++	case types.UntypedRune:
+ 		return CTRUNE
+-	case types.Idealfloat:
++	case types.UntypedFloat:
+ 		return CTFLT
+-	case types.Idealcomplex:
++	case types.UntypedComplex:
+ 		return CTCPLX
+ 	}
+ 	Fatalf("bad type %v", t)
+@@ -1111,17 +1111,17 @@ func defaultType(t *types.Type) *types.Type {
+ 	}
+ 
+ 	switch t {
+-	case types.Idealbool:
++	case types.UntypedBool:
+ 		return types.Types[TBOOL]
+-	case types.Idealstring:
++	case types.UntypedString:
+ 		return types.Types[TSTRING]
+-	case types.Idealint:
++	case types.UntypedInt:
+ 		return types.Types[TINT]
+-	case types.Idealrune:
++	case types.UntypedRune:
+ 		return types.Runetype
+-	case types.Idealfloat:
++	case types.UntypedFloat:
+ 		return types.Types[TFLOAT64]
+-	case types.Idealcomplex:
++	case types.UntypedComplex:
+ 		return types.Types[TCOMPLEX128]
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d4af451506..36b596338f 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -773,17 +773,17 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited
+ 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
+ 		var name string
+ 		switch t {
+-		case types.Idealbool:
++		case types.UntypedBool:
+ 			name = "untyped bool"
+-		case types.Idealstring:
++		case types.UntypedString:
+ 			name = "untyped string"
+-		case types.Idealint:
++		case types.UntypedInt:
+ 			name = "untyped int"
+-		case types.Idealrune:
++		case types.UntypedRune:
+ 			name = "untyped rune"
+-		case types.Idealfloat:
++		case types.UntypedFloat:
+ 			name = "untyped float"
+-		case types.Idealcomplex:
++		case types.UntypedComplex:
+ 			name = "untyped complex"
+ 		default:
+ 			name = basicnames[t.Etype]
+@@ -1333,7 +1333,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			n.Orig.exprfmt(s, prec, mode)
+ 			return
+ 		}
+-		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.Idealbool && n.Type != types.Idealstring {
++		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.UntypedBool && n.Type != types.UntypedString {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+ 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 3ccaf60f40..df08a4a6c2 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -751,11 +751,11 @@ func (w *exportWriter) param(f *types.Field) {
+ 
+ func constTypeOf(typ *types.Type) Ctype {
+ 	switch typ {
+-	case types.Idealint, types.Idealrune:
++	case types.UntypedInt, types.UntypedRune:
+ 		return CTINT
+-	case types.Idealfloat:
++	case types.UntypedFloat:
+ 		return CTFLT
+-	case types.Idealcomplex:
++	case types.UntypedComplex:
+ 		return CTCPLX
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 0c5e469c57..5f107eeec7 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -375,7 +375,7 @@ func (p *importReader) value() (typ *types.Type, v Val) {
+ 		v.U = p.string()
+ 	case CTINT:
+ 		x := new(Mpint)
+-		x.Rune = typ == types.Idealrune
++		x.Rune = typ == types.UntypedRune
+ 		p.mpint(&x.Val, typ)
+ 		v.U = x
+ 	case CTFLT:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 32394c4b1a..7bde7f7c65 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -50,12 +50,12 @@ func initssaconfig() {
+ 	// Caching is disabled in the backend, so generating these here avoids allocations.
+ 	_ = types.NewPtr(types.Types[TINTER])                             // *interface{}
+ 	_ = types.NewPtr(types.NewPtr(types.Types[TSTRING]))              // **string
+-	_ = types.NewPtr(types.NewPtr(types.Idealstring))                 // **string
++	_ = types.NewPtr(types.NewPtr(types.UntypedString))               // **string
+ 	_ = types.NewPtr(types.NewSlice(types.Types[TINTER]))             // *[]interface{}
+ 	_ = types.NewPtr(types.NewPtr(types.Bytetype))                    // **byte
+ 	_ = types.NewPtr(types.NewSlice(types.Bytetype))                  // *[]byte
+ 	_ = types.NewPtr(types.NewSlice(types.Types[TSTRING]))            // *[]string
+-	_ = types.NewPtr(types.NewSlice(types.Idealstring))               // *[]string
++	_ = types.NewPtr(types.NewSlice(types.UntypedString))             // *[]string
+ 	_ = types.NewPtr(types.NewPtr(types.NewPtr(types.Types[TUINT8]))) // ***uint8
+ 	_ = types.NewPtr(types.Types[TINT16])                             // *int16
+ 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 07547df36e..0242832322 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -825,7 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
+ 
+ 	// Convert ideal bool from comparison to plain bool
+ 	// if the next step is non-bool (like interface{}).
+-	if n.Type == types.Idealbool && !t.IsBoolean() {
++	if n.Type == types.UntypedBool && !t.IsBoolean() {
+ 		if n.Op == ONAME || n.Op == OLITERAL {
+ 			r := nod(OCONVNOP, n, nil)
+ 			r.Type = types.Types[TBOOL]
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0eb0dae373..769341ee04 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -361,7 +361,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ok |= ctxExpr
+ 
+ 		if n.Type == nil && n.Val().Ctype() == CTSTR {
+-			n.Type = types.Idealstring
++			n.Type = types.UntypedString
+ 		}
+ 
+ 	case ONONAME:
+@@ -623,8 +623,8 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			// no defaultlit for left
+ 			// the outer context gives the type
+ 			n.Type = l.Type
+-			if (l.Type == types.Idealfloat || l.Type == types.Idealcomplex) && r.Op == OLITERAL {
+-				n.Type = types.Idealint
++			if (l.Type == types.UntypedFloat || l.Type == types.UntypedComplex) && r.Op == OLITERAL {
++				n.Type = types.UntypedInt
+ 			}
+ 
+ 			break
+@@ -777,7 +777,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 		if iscmp[n.Op] {
+ 			evconst(n)
+-			t = types.Idealbool
++			t = types.UntypedBool
+ 			if n.Op != OLITERAL {
+ 				l, r = defaultlit2(l, r, true)
+ 				n.Left = l
+@@ -1458,7 +1458,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		// Determine result type.
+ 		switch t.Etype {
+ 		case TIDEAL:
+-			n.Type = types.Idealfloat
++			n.Type = types.UntypedFloat
+ 		case TCOMPLEX64:
+ 			n.Type = types.Types[TFLOAT32]
+ 		case TCOMPLEX128:
+@@ -1504,7 +1504,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 
+ 		case TIDEAL:
+-			t = types.Idealcomplex
++			t = types.UntypedComplex
+ 
+ 		case TFLOAT32:
+ 			t = types.Types[TCOMPLEX64]
+@@ -2724,9 +2724,9 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
+ // e.g in error messages about wrong arguments to return.
+ func sigrepr(t *types.Type, isddd bool) string {
+ 	switch t {
+-	case types.Idealstring:
++	case types.UntypedString:
+ 		return "string"
+-	case types.Idealbool:
++	case types.UntypedBool:
+ 		return "bool"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 04861c8dd4..ff8cabd8e3 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -123,21 +123,21 @@ func lexinit() {
+ 		asNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+-	types.Idealstring = types.New(TSTRING)
+-	types.Idealbool = types.New(TBOOL)
++	types.UntypedString = types.New(TSTRING)
++	types.UntypedBool = types.New(TBOOL)
+ 	types.Types[TANY] = types.New(TANY)
+ 
+ 	s := builtinpkg.Lookup("true")
+ 	s.Def = asTypesNode(nodbool(true))
+ 	asNode(s.Def).Sym = lookup("true")
+ 	asNode(s.Def).Name = new(Name)
+-	asNode(s.Def).Type = types.Idealbool
++	asNode(s.Def).Type = types.UntypedBool
+ 
+ 	s = builtinpkg.Lookup("false")
+ 	s.Def = asTypesNode(nodbool(false))
+ 	asNode(s.Def).Sym = lookup("false")
+ 	asNode(s.Def).Name = new(Name)
+-	asNode(s.Def).Type = types.Idealbool
++	asNode(s.Def).Type = types.UntypedBool
+ 
+ 	s = lookup("_")
+ 	s.Block = -100
+@@ -351,7 +351,7 @@ func typeinit() {
+ 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+ 
+ 	dowidth(types.Types[TSTRING])
+-	dowidth(types.Idealstring)
++	dowidth(types.UntypedString)
+ }
+ 
+ func makeErrorInterface() *types.Type {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5d1d5d4008..023ab9af88 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -105,14 +105,14 @@ var (
+ 	Errortype *Type
+ 
+ 	// Types to represent untyped string and boolean constants.
+-	Idealstring *Type
+-	Idealbool   *Type
++	UntypedString *Type
++	UntypedBool   *Type
+ 
+ 	// Types to represent untyped numeric constants.
+-	Idealint     = New(TIDEAL)
+-	Idealrune    = New(TIDEAL)
+-	Idealfloat   = New(TIDEAL)
+-	Idealcomplex = New(TIDEAL)
++	UntypedInt     = New(TIDEAL)
++	UntypedRune    = New(TIDEAL)
++	UntypedFloat   = New(TIDEAL)
++	UntypedComplex = New(TIDEAL)
+ )
+ 
+ // A Type represents a Go type.
+@@ -1436,7 +1436,7 @@ func (t *Type) IsUntyped() bool {
+ 	if t == nil {
+ 		return false
+ 	}
+-	if t == Idealstring || t == Idealbool {
++	if t == UntypedString || t == UntypedBool {
+ 		return true
+ 	}
+ 	switch t.Etype {

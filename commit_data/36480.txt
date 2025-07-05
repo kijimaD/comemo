@@ -9,9 +9,269 @@ Date:   Tue Mar 7 15:12:11 2017 -0800
     Change-Id: Iffd436371d360bf666b76d4d7503e7c3037a9f1d
     Reviewed-on: https://go-review.googlesource.com/37935
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  2 +-
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
  src/cmd/compile/internal/gc/select.go          | 40 ++++++++++++--------------
  src/runtime/select.go                          | 33 +++++++++------------
  4 files changed, 34 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 47f0c38a00..4223a5e3fe 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -242,7 +242,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+ 	typs[89] = types.NewPtr(typs[11])
+ 	typs[90] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[89]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32])})
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32]), anonfield(typs[11])})
+ 	typs[92] = types.NewSlice(typs[2])
+ 	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
+ 	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[92])})
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index dc0a8b2222..17bdf362e9 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -146,7 +146,7 @@ func selectnbrecv(elem *any, hchan <-chan any) bool
+ func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+ 
+ func selectsetpc(cas *byte)
+-func selectgo(cas0 *byte, order0 *byte, ncases int) int
++func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
+ func block()
+ 
+ func makeslice(typ *byte, len int, cap int) (ary []any)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 6663ff6862..eb37e32bf1 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -187,10 +187,6 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			if n.Op == OSELRECV2 && n.List.Len() == 0 {
+ 				n.Op = OSELRECV
+ 			}
+-			if n.Op == OSELRECV2 {
+-				n.List.SetFirst(nod(OADDR, n.List.First(), nil))
+-				n.List.SetFirst(typecheck(n.List.First(), Erv))
+-			}
+ 
+ 			if n.Left != nil {
+ 				n.Left = nod(OADDR, n.Left, nil)
+@@ -225,7 +221,7 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), types.Types[TBOOL], &r.Ninit, ch, n.Right)
+ 
+ 		case OSELRECV:
+-			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
++			// if selectnbrecv(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+@@ -236,7 +232,7 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, ch)
+ 
+ 		case OSELRECV2:
+-			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
++			// if selectnbrecv2(&v, &received, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+@@ -244,7 +240,9 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			if elem == nil {
+ 				elem = nodnil()
+ 			}
+-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, n.List.First(), ch)
++			receivedp := nod(OADDR, n.List.First(), nil)
++			receivedp = typecheck(receivedp, Erv)
++			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, receivedp, ch)
+ 		}
+ 
+ 		r.Left = typecheck(r.Left, Erv)
+@@ -282,7 +280,7 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			caseDefault
+ 		)
+ 
+-		var c, elem, receivedp *Node
++		var c, elem *Node
+ 		var kind int64 = caseDefault
+ 
+ 		if n := cas.Left; n != nil {
+@@ -295,15 +293,10 @@ func walkselectcases(cases *Nodes) []*Node {
+ 				kind = caseSend
+ 				c = n.Left
+ 				elem = n.Right
+-			case OSELRECV:
+-				kind = caseRecv
+-				c = n.Right.Left
+-				elem = n.Left
+-			case OSELRECV2:
++			case OSELRECV, OSELRECV2:
+ 				kind = caseRecv
+ 				c = n.Right.Left
+ 				elem = n.Left
+-				receivedp = n.List.First()
+ 			}
+ 		}
+ 
+@@ -324,11 +317,6 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			elem.Type = types.Types[TUNSAFEPTR]
+ 			setField("elem", elem)
+ 		}
+-		if receivedp != nil {
+-			receivedp = nod(OCONVNOP, receivedp, nil)
+-			receivedp.Type = types.NewPtr(types.Types[TBOOL])
+-			setField("receivedp", receivedp)
+-		}
+ 
+ 		// TODO(mdempsky): There should be a cleaner way to
+ 		// handle this.
+@@ -341,7 +329,11 @@ func walkselectcases(cases *Nodes) []*Node {
+ 	// run the select
+ 	lineno = sellineno
+ 	chosen := temp(types.Types[TINT])
+-	r = nod(OAS, chosen, mkcall("selectgo", types.Types[TINT], nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), nodintconst(int64(n))))
++	recvOK := temp(types.Types[TBOOL])
++	r = nod(OAS2, nil, nil)
++	r.List.Set2(chosen, recvOK)
++	fn := syslook("selectgo")
++	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), nodintconst(int64(n))))
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+ 
+@@ -358,6 +350,13 @@ func walkselectcases(cases *Nodes) []*Node {
+ 		cond = defaultlit(cond, nil)
+ 
+ 		r = nod(OIF, cond, nil)
++
++		if n := cas.Left; n != nil && n.Op == OSELRECV2 {
++			x := nod(OAS, n.List.First(), recvOK)
++			x = typecheck(x, Etop)
++			r.Nbody.Append(x)
++		}
++
+ 		r.Nbody.AppendNodes(&cas.Nbody)
+ 		r.Nbody.Append(nod(OBREAK, nil, nil))
+ 		init = append(init, r)
+@@ -382,7 +381,6 @@ func scasetype() *types.Type {
+ 		scase = tostruct([]*Node{
+ 			namedfield("c", types.Types[TUNSAFEPTR]),
+ 			namedfield("elem", types.Types[TUNSAFEPTR]),
+-			namedfield("receivedp", types.NewPtr(types.Types[TBOOL])),
+ 			namedfield("kind", types.Types[TUINT16]),
+ 			namedfield("pc", types.Types[TUINTPTR]),
+ 			namedfield("releasetime", types.Types[TUINT64]),
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 6e6849c7d3..7935b4fd86 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -28,7 +28,6 @@ const (
+ type scase struct {
+ 	c           *hchan         // chan
+ 	elem        unsafe.Pointer // data element
+-	receivedp   *bool          // pointer to received bool, if any
+ 	kind        uint16
+ 	pc          uintptr // race pc (for race detector / msan)
+ 	releasetime int64
+@@ -111,7 +110,9 @@ func block() {
+ //
+ // selectgo returns the index of the chosen scase, which matches the
+ // ordinal position of its respective select{recv,send,default} call.
+-func selectgo(cas0 *scase, order0 *uint16, ncases int) int {
++// Also, if the chosen scase was a receive operation, it returns whether
++// a value was received.
++func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 	if debugSelect {
+ 		print("select: cas0=", cas0, "\n")
+ 	}
+@@ -219,6 +220,7 @@ loop:
+ 	var dfl *scase
+ 	var casi int
+ 	var cas *scase
++	var recvOK bool
+ 	for i := 0; i < ncases; i++ {
+ 		casi = int(pollorder[i])
+ 		cas = &scases[casi]
+@@ -375,8 +377,8 @@ loop:
+ 		print("wait-return: cas0=", cas0, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
+ 	}
+ 
+-	if cas.kind == caseRecv && cas.receivedp != nil {
+-		*cas.receivedp = true
++	if cas.kind == caseRecv {
++		recvOK = true
+ 	}
+ 
+ 	if raceenabled {
+@@ -409,9 +411,7 @@ bufrecv:
+ 	if msanenabled && cas.elem != nil {
+ 		msanwrite(cas.elem, c.elemtype.size)
+ 	}
+-	if cas.receivedp != nil {
+-		*cas.receivedp = true
+-	}
++	recvOK = true
+ 	qp = chanbuf(c, c.recvx)
+ 	if cas.elem != nil {
+ 		typedmemmove(c.elemtype, cas.elem, qp)
+@@ -450,17 +450,13 @@ recv:
+ 	if debugSelect {
+ 		print("syncrecv: cas0=", cas0, " c=", c, "\n")
+ 	}
+-	if cas.receivedp != nil {
+-		*cas.receivedp = true
+-	}
++	recvOK = true
+ 	goto retc
+ 
+ rclose:
+ 	// read at end of closed channel
+ 	selunlock(scases, lockorder)
+-	if cas.receivedp != nil {
+-		*cas.receivedp = false
+-	}
++	recvOK = false
+ 	if cas.elem != nil {
+ 		typedmemclr(c.elemtype, cas.elem)
+ 	}
+@@ -487,7 +483,7 @@ retc:
+ 	if cas.releasetime > 0 {
+ 		blockevent(cas.releasetime-t0, 1)
+ 	}
+-	return casi
++	return casi, recvOK
+ 
+ sclose:
+ 	// send on closed channel
+@@ -521,13 +517,12 @@ const (
+ )
+ 
+ //go:linkname reflect_rselect reflect.rselect
+-func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
++func reflect_rselect(cases []runtimeSelect) (int, bool) {
+ 	if len(cases) == 0 {
+ 		block()
+ 	}
+ 	sel := make([]scase, len(cases))
+ 	order := make([]uint16, 2*len(cases))
+-	r := new(bool)
+ 	for i := range cases {
+ 		rc := &cases[i]
+ 		switch rc.dir {
+@@ -536,16 +531,14 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 		case selectSend:
+ 			sel[i] = scase{kind: caseSend, c: rc.ch, elem: rc.val}
+ 		case selectRecv:
+-			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val, receivedp: r}
++			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val}
+ 		}
+ 		if raceenabled || msanenabled {
+ 			selectsetpc(&sel[i])
+ 		}
+ 	}
+ 
+-	chosen = selectgo(&sel[0], &order[0], len(cases))
+-	recvOK = *r
+-	return
++	return selectgo(&sel[0], &order[0], len(cases))
+ }
+ 
+ func (q *waitq) dequeueSudoG(sgp *sudog) {

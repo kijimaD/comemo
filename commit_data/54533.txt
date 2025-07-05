@@ -14,9 +14,122 @@ Date:   Fri Sep 23 17:31:19 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go | 15 +++++++++
  src/cmd/compile/internal/ssa/debug.go      |  2 ++
  src/cmd/compile/internal/ssagen/pgen.go    |  1 +
  src/cmd/link/internal/ld/dwarf_test.go     | 53 ++++++++++++++++++++++++++++++
  4 files changed, 71 insertions(+)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 179152f5bf..90c331f0b6 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -151,6 +151,21 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 	} else {
+ 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
+ 	}
++	if fn.DebugInfo != nil {
++		// Recover zero sized variables eliminated by the stackframe pass
++		for _, n := range fn.DebugInfo.(*ssa.FuncDebug).OptDcl {
++			if n.Class != ir.PAUTO {
++				continue
++			}
++			types.CalcSize(n.Type())
++			if n.Type().Size() == 0 {
++				decls = append(decls, n)
++				vars = append(vars, createSimpleVar(fnsym, n))
++				vars[len(vars)-1].StackOffset = 0
++				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
++			}
++		}
++	}
+ 
+ 	dcl := apDecls
+ 	if fnsym.WasInlined() {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 3eaba3a238..584aaef3bf 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -38,6 +38,8 @@ type FuncDebug struct {
+ 	// Register-resident output parameters for the function. This is filled in at
+ 	// SSA generation time.
+ 	RegOutputParams []*ir.Name
++	// Variable declarations that were removed during optimization
++	OptDcl []*ir.Name
+ 
+ 	// Filled in by the user. Translates Block and Value ID to PC.
+ 	GetPC func(ID, ID) int64
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 7e7c13adc9..6b29e83697 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -140,6 +140,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			continue
+ 		}
+ 		if !n.Used() {
++			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
+ 			fn.Dcl = fn.Dcl[:i]
+ 			break
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 65f82d9d78..3132e1233c 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1917,3 +1917,56 @@ func main() {
+ 		t.Errorf("no LPT entries for test.go")
+ 	}
+ }
++
++func TestZeroSizedVariable(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++	t.Parallel()
++
++	// This test verifies that the compiler emits DIEs for zero sized variables
++	// (for example variables of type 'struct {}').
++	// See go.dev/issues/54615.
++
++	const prog = `
++package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	zeroSizedVariable := struct{}{}
++	fmt.Println(zeroSizedVariable)
++}
++`
++
++	for _, opt := range []string{NoOpt, DefaultOpt} {
++		dir := t.TempDir()
++		f := gobuild(t, dir, prog, opt)
++		defer f.Close()
++		defer os.RemoveAll(dir)
++
++		d, err := f.DWARF()
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++
++		rdr := d.Reader()
++		ex := dwtest.Examiner{}
++		if err := ex.Populate(rdr); err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++
++		// Locate the main.zeroSizedVariable DIE
++		abcs := ex.Named("zeroSizedVariable")
++		if len(abcs) == 0 {
++			t.Fatalf("unable to locate DIE for zeroSizedVariable")
++		}
++		if len(abcs) != 1 {
++			t.Fatalf("more than one zeroSizedVariable DIE")
++		}
++	}
++}

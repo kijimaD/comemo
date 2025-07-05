@@ -9,7 +9,7 @@ Date:   Wed Nov 18 15:24:24 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157073
-
+---
  src/cmd/cgo/util.go                         |  3 +-
  src/pkg/archive/tar/writer.go               | 33 ++++++-----
  src/pkg/bytes/buffer.go                     |  7 ++-
@@ -33,3 +33,994 @@ Date:   Wed Nov 18 15:24:24 2009 -0800
  test/bench/fasta.go                         | 89 ++++++++++++++---------------
  test/bench/reverse-complement.go            | 51 ++++++++---------
  22 files changed, 148 insertions(+), 219 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index d91516eb9d..9e9d9aef1e 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"bytes";
+ 	"exec";
+ 	"fmt";
+ 	"go/token";
+@@ -20,7 +19,7 @@ func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
+ 	if off >= int64(len(r)) || off < 0 {
+ 		return 0, os.EOF
+ 	}
+-	return bytes.Copy(p, r[off:len(r)]), nil;
++	return copy(p, r[off:len(r)]), nil;
+ }
+ 
+ // run runs the command argv, feeding in stdin on standard input.
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 3410aa86b1..2c207d618f 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -8,7 +8,6 @@ package tar
+ // - catch more errors (no first header, write after close, etc.)
+ 
+ import (
+-	"bytes";
+ 	"io";
+ 	"os";
+ 	"strconv";
+@@ -124,25 +123,25 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	s := slicer(header);
+ 
+ 	// TODO(dsymonds): handle names longer than 100 chars
+-	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+-
+-	tw.octal(s.next(8), hdr.Mode);				// 100:108
+-	tw.numeric(s.next(8), hdr.Uid);				// 108:116
+-	tw.numeric(s.next(8), hdr.Gid);				// 116:124
+-	tw.numeric(s.next(12), hdr.Size);			// 124:136
+-	tw.numeric(s.next(12), hdr.Mtime);			// 136:148
+-	s.next(8);						// chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag;				// 156:157
+-	s.next(100);						// linkname (157:257)
+-	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
+-	tw.cString(s.next(32), hdr.Uname);			// 265:297
+-	tw.cString(s.next(32), hdr.Gname);			// 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor);			// 329:337
+-	tw.numeric(s.next(8), hdr.Devminor);			// 337:345
++	copy(s.next(100), strings.Bytes(hdr.Name));
++
++	tw.octal(s.next(8), hdr.Mode);			// 100:108
++	tw.numeric(s.next(8), hdr.Uid);			// 108:116
++	tw.numeric(s.next(8), hdr.Gid);			// 116:124
++	tw.numeric(s.next(12), hdr.Size);		// 124:136
++	tw.numeric(s.next(12), hdr.Mtime);		// 136:148
++	s.next(8);					// chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag;			// 156:157
++	s.next(100);					// linkname (157:257)
++	copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
++	tw.cString(s.next(32), hdr.Uname);		// 265:297
++	tw.cString(s.next(32), hdr.Gname);		// 297:329
++	tw.numeric(s.next(8), hdr.Devmajor);		// 329:337
++	tw.numeric(s.next(8), hdr.Devminor);		// 337:345
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {
+-		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"))
++		copy(header[257:265], strings.Bytes("ustar  \x00"))
+ 	}
+ 
+ 	// The chksum field is terminated by a NUL and a space.
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 76d67e777d..0bbc06c323 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -20,10 +20,11 @@ func copyString(dst []byte, doff int, str string) {
+ 
+ // Copy from bytes to byte array at offset doff.  Assume there's room.
+ func copyBytes(dst []byte, doff int, src []byte) {
+-	for soff := 0; soff < len(src); soff++ {
+-		dst[doff] = src[soff];
+-		doff++;
++	if len(src) == 1 {
++		dst[doff] = src[0];
++		return;
+ 	}
++	copy(dst[doff:len(dst)], src);
+ }
+ 
+ // A Buffer is a variable-sized buffer of bytes
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 0c585bd80f..2739c5a3fe 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -44,20 +44,6 @@ func Equal(a, b []byte) bool {
+ 	return true;
+ }
+ 
+-// Copy copies bytes from src to dst,
+-// stopping when either all of src has been copied
+-// or all of dst has been filled.
+-// It returns the number of bytes copied.
+-func Copy(dst, src []byte) int {
+-	if len(src) > len(dst) {
+-		src = src[0:len(dst)]
+-	}
+-	for i, x := range src {
+-		dst[i] = x
+-	}
+-	return len(src);
+-}
+-
+ // explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes),
+ // up to a maximum of n byte arrays. Invalid UTF-8 sequences are chopped into individual bytes.
+ func explode(s []byte, n int) [][]byte {
+@@ -315,10 +301,10 @@ func Add(s, t []byte) []byte {
+ 		s = s[0 : lens+lent]
+ 	} else {
+ 		news := make([]byte, lens+lent, resize(lens+lent));
+-		Copy(news, s);
++		copy(news, s);
+ 		s = news;
+ 	}
+-	Copy(s[lens:lens+lent], t);
++	copy(s[lens:lens+lent], t);
+ 	return s;
+ }
+ 
+@@ -331,7 +317,7 @@ func AddByte(s []byte, t byte) []byte {
+ 		s = s[0 : lens+1]
+ 	} else {
+ 		news := make([]byte, lens+1, resize(lens+1));
+-		Copy(news, s);
++		copy(news, s);
+ 		s = news;
+ 	}
+ 	s[lens] = t;
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 3e737cb376..1b197e1dfb 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -172,36 +172,6 @@ func TestSplitAfter(t *testing.T) {
+ 	}
+ }
+ 
+-type CopyTest struct {
+-	a	string;
+-	b	string;
+-	n	int;
+-	res	string;
+-}
+-
+-var copytests = []CopyTest{
+-	CopyTest{"", "", 0, ""},
+-	CopyTest{"a", "", 0, "a"},
+-	CopyTest{"a", "a", 1, "a"},
+-	CopyTest{"a", "b", 1, "b"},
+-	CopyTest{"xyz", "abc", 3, "abc"},
+-	CopyTest{"wxyz", "abc", 3, "abcz"},
+-	CopyTest{"xyz", "abcd", 3, "abc"},
+-}
+-
+-func TestCopy(t *testing.T) {
+-	for i := 0; i < len(copytests); i++ {
+-		tt := copytests[i];
+-		dst := strings.Bytes(tt.a);
+-		n := Copy(dst, strings.Bytes(tt.b));
+-		result := string(dst);
+-		if result != tt.res || n != tt.n {
+-			t.Errorf(`Copy(%q, %q) = %d, %q; want %d, %q`, tt.a, tt.b, n, result, tt.n, tt.res);
+-			continue;
+-		}
+-	}
+-}
+-
+ // Test case for any function which accepts and returns a byte array.
+ // For ease of creation, we write the byte arrays as strings.
+ type StringTest struct {
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index d861c4872e..257bc99406 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -5,7 +5,6 @@
+ package flate
+ 
+ import (
+-	"bytes";
+ 	"io";
+ 	"math";
+ 	"os";
+@@ -128,7 +127,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
+ 	wSize := d.windowMask + 1;
+ 	if index >= wSize+wSize-(minMatchLength+maxMatchLength) {
+ 		// shift the window by wSize
+-		bytes.Copy(d.window, d.window[wSize:2*wSize]);
++		copy(d.window, d.window[wSize:2*wSize]);
+ 		index -= wSize;
+ 		d.windowEnd -= wSize;
+ 		if d.blockStart >= wSize {
+@@ -355,7 +354,7 @@ func (d *deflater) doDeflate() (err os.Error) {
+ 				// For matches this long, we don't bother inserting each individual
+ 				// item into the table.
+ 				index += length;
+-				hash = (int(d.window[index]) << hashShift + int(d.window[index+1]));
++				hash = (int(d.window[index])<<hashShift + int(d.window[index+1]));
+ 			}
+ 			if ti == maxFlateBlockTokens {
+ 				// The block includes the current character
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index f60d2b3970..90a045ff5c 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -6,7 +6,6 @@ package rsa
+ 
+ import (
+ 	"big";
+-	"bytes";
+ 	"crypto/subtle";
+ 	"io";
+ 	"os";
+@@ -34,7 +33,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
+ 		return
+ 	}
+ 	em[len(em)-len(msg)-1] = 0;
+-	bytes.Copy(mm, msg);
++	copy(mm, msg);
+ 
+ 	m := new(big.Int).SetBytes(em);
+ 	c := encrypt(new(big.Int), pub, m);
+@@ -191,8 +190,8 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []
+ 	for i := 2; i < k-tLen-1; i++ {
+ 		em[i] = 0xff
+ 	}
+-	bytes.Copy(em[k-tLen:k-hashLen], prefix);
+-	bytes.Copy(em[k-hashLen:k], hashed);
++	copy(em[k-tLen:k-hashLen], prefix);
++	copy(em[k-hashLen:k], hashed);
+ 
+ 	m := new(big.Int).SetBytes(em);
+ 	c, err := decrypt(rand, priv, m);
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index e73aaf1e6f..12465973cc 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -9,7 +9,6 @@ package rsa
+ 
+ import (
+ 	"big";
+-	"bytes";
+ 	"crypto/subtle";
+ 	"hash";
+ 	"io";
+@@ -263,9 +262,9 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
+ 	seed := em[1 : 1+hash.Size()];
+ 	db := em[1+hash.Size() : len(em)];
+ 
+-	bytes.Copy(db[0:hash.Size()], lHash);
++	copy(db[0:hash.Size()], lHash);
+ 	db[len(db)-len(msg)-1] = 1;
+-	bytes.Copy(db[len(db)-len(msg):len(db)], msg);
++	copy(db[len(db)-len(msg):len(db)], msg);
+ 
+ 	_, err = io.ReadFull(rand, seed);
+ 	if err != nil {
+@@ -445,6 +444,6 @@ func leftPad(input []byte, size int) (out []byte) {
+ 		n = size
+ 	}
+ 	out = make([]byte, size);
+-	bytes.Copy(out[len(out)-n:len(out)], input);
++	copy(out[len(out)-n:len(out)], input);
+ 	return;
+ }
+diff --git a/src/pkg/crypto/subtle/constant_time_test.go b/src/pkg/crypto/subtle/constant_time_test.go
+index 9b25b9b72d..d9faafe5ff 100644
+--- a/src/pkg/crypto/subtle/constant_time_test.go
++++ b/src/pkg/crypto/subtle/constant_time_test.go
+@@ -5,7 +5,6 @@
+ package subtle
+ 
+ import (
+-	"bytes";
+ 	"testing";
+ 	"testing/quick";
+ )
+@@ -75,14 +74,14 @@ func TestConstantTimeEq(t *testing.T) {
+ 	}
+ }
+ 
+-func copy(v int, x, y []byte) []byte {
++func makeCopy(v int, x, y []byte) []byte {
+ 	if len(x) > len(y) {
+ 		x = x[0:len(y)]
+ 	} else {
+ 		y = y[0:len(x)]
+ 	}
+ 	if v == 1 {
+-		bytes.Copy(x, y)
++		copy(x, y)
+ 	}
+ 	return x;
+ }
+@@ -99,7 +98,7 @@ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
+ }
+ 
+ func TestConstantTimeCopy(t *testing.T) {
+-	err := quick.CheckEqual(constantTimeCopyWrapper, copy, nil);
++	err := quick.CheckEqual(constantTimeCopyWrapper, makeCopy, nil);
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index b9c4cc36fd..7ad5276637 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -4,10 +4,6 @@
+ 
+ package tls
+ 
+-import (
+-	"bytes";
+-)
+-
+ type clientHelloMsg struct {
+ 	raw			[]byte;
+ 	major, minor		uint8;
+@@ -30,9 +26,9 @@ func (m *clientHelloMsg) marshal() []byte {
+ 	x[3] = uint8(length);
+ 	x[4] = m.major;
+ 	x[5] = m.minor;
+-	bytes.Copy(x[6:38], m.random);
++	copy(x[6:38], m.random);
+ 	x[38] = uint8(len(m.sessionId));
+-	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
++	copy(x[39:39+len(m.sessionId)], m.sessionId);
+ 	y := x[39+len(m.sessionId) : len(x)];
+ 	y[0] = uint8(len(m.cipherSuites) >> 7);
+ 	y[1] = uint8(len(m.cipherSuites) << 1);
+@@ -42,7 +38,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 	}
+ 	z := y[2+len(m.cipherSuites)*2 : len(y)];
+ 	z[0] = uint8(len(m.compressionMethods));
+-	bytes.Copy(z[1:len(z)], m.compressionMethods);
++	copy(z[1:len(z)], m.compressionMethods);
+ 	m.raw = x;
+ 
+ 	return x;
+@@ -112,9 +108,9 @@ func (m *serverHelloMsg) marshal() []byte {
+ 	x[3] = uint8(length);
+ 	x[4] = m.major;
+ 	x[5] = m.minor;
+-	bytes.Copy(x[6:38], m.random);
++	copy(x[6:38], m.random);
+ 	x[38] = uint8(len(m.sessionId));
+-	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
++	copy(x[39:39+len(m.sessionId)], m.sessionId);
+ 	z := x[39+len(m.sessionId) : len(x)];
+ 	z[0] = uint8(m.cipherSuite >> 8);
+ 	z[1] = uint8(m.cipherSuite);
+@@ -156,7 +152,7 @@ func (m *certificateMsg) marshal() (x []byte) {
+ 		y[0] = uint8(len(slice) >> 16);
+ 		y[1] = uint8(len(slice) >> 8);
+ 		y[2] = uint8(len(slice));
+-		bytes.Copy(y[3:len(y)], slice);
++		copy(y[3:len(y)], slice);
+ 		y = y[3+len(slice) : len(y)];
+ 	}
+ 
+@@ -189,7 +185,7 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
+ 	x[3] = uint8(length);
+ 	x[4] = uint8(len(m.ciphertext) >> 8);
+ 	x[5] = uint8(len(m.ciphertext));
+-	bytes.Copy(x[6:len(x)], m.ciphertext);
++	copy(x[6:len(x)], m.ciphertext);
+ 
+ 	m.raw = x;
+ 	return x;
+@@ -221,7 +217,7 @@ func (m *finishedMsg) marshal() (x []byte) {
+ 	x = make([]byte, 16);
+ 	x[0] = typeFinished;
+ 	x[3] = 12;
+-	bytes.Copy(x[4:len(x)], m.verifyData);
++	copy(x[4:len(x)], m.verifyData);
+ 	m.raw = x;
+ 	return;
+ }
+diff --git a/src/pkg/crypto/tls/prf.go b/src/pkg/crypto/tls/prf.go
+index c8cb916e86..4009c94972 100644
+--- a/src/pkg/crypto/tls/prf.go
++++ b/src/pkg/crypto/tls/prf.go
+@@ -5,7 +5,6 @@
+ package tls
+ 
+ import (
+-	"bytes";
+ 	"crypto/hmac";
+ 	"crypto/md5";
+ 	"crypto/sha1";
+@@ -37,7 +36,7 @@ func pHash(result, secret, seed []byte, hash hash.Hash) {
+ 		if j+todo > len(result) {
+ 			todo = len(result) - j
+ 		}
+-		bytes.Copy(result[j:j+todo], b);
++		copy(result[j:j+todo], b);
+ 		j += todo;
+ 
+ 		h.Reset();
+@@ -52,8 +51,8 @@ func pRF11(result, secret, label, seed []byte) {
+ 	hashMD5 := md5.New();
+ 
+ 	labelAndSeed := make([]byte, len(label)+len(seed));
+-	bytes.Copy(labelAndSeed, label);
+-	bytes.Copy(labelAndSeed[len(label):len(labelAndSeed)], seed);
++	copy(labelAndSeed, label);
++	copy(labelAndSeed[len(label):len(labelAndSeed)], seed);
+ 
+ 	s1, s2 := splitPreMasterSecret(secret);
+ 	pHash(result, s1, labelAndSeed, hashMD5);
+@@ -81,13 +80,13 @@ var serverFinishedLabel = strings.Bytes("server finished")
+ // 4346, section 6.3.
+ func keysFromPreMasterSecret11(preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey []byte) {
+ 	var seed [tlsRandomLength * 2]byte;
+-	bytes.Copy(seed[0:len(clientRandom)], clientRandom);
+-	bytes.Copy(seed[len(clientRandom):len(seed)], serverRandom);
++	copy(seed[0:len(clientRandom)], clientRandom);
++	copy(seed[len(clientRandom):len(seed)], serverRandom);
+ 	masterSecret = make([]byte, masterSecretLength);
+ 	pRF11(masterSecret, preMasterSecret, masterSecretLabel, seed[0:len(seed)]);
+ 
+-	bytes.Copy(seed[0:len(clientRandom)], serverRandom);
+-	bytes.Copy(seed[len(serverRandom):len(seed)], clientRandom);
++	copy(seed[0:len(clientRandom)], serverRandom);
++	copy(seed[len(serverRandom):len(seed)], clientRandom);
+ 
+ 	n := 2*macLen + 2*keyLen;
+ 	keyMaterial := make([]byte, n);
+@@ -124,8 +123,8 @@ func (h finishedHash) Write(msg []byte) (n int, err os.Error) {
+ // message given the MD5 and SHA1 hashes of a set of handshake messages.
+ func finishedSum(md5, sha1, label, masterSecret []byte) []byte {
+ 	seed := make([]byte, len(md5)+len(sha1));
+-	bytes.Copy(seed, md5);
+-	bytes.Copy(seed[len(md5):len(seed)], sha1);
++	copy(seed, md5);
++	copy(seed[len(md5):len(seed)], sha1);
+ 	out := make([]byte, finishedVerifyLength);
+ 	pRF11(out, masterSecret, label, seed);
+ 	return out;
+diff --git a/src/pkg/crypto/tls/record_process.go b/src/pkg/crypto/tls/record_process.go
+index 3bb0cd4a03..86b908a033 100644
+--- a/src/pkg/crypto/tls/record_process.go
++++ b/src/pkg/crypto/tls/record_process.go
+@@ -10,7 +10,6 @@ package tls
+ // state, or for a notification when the state changes.
+ 
+ import (
+-	"bytes";
+ 	"container/list";
+ 	"crypto/subtle";
+ 	"hash";
+@@ -228,8 +227,8 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
+ 			return;
+ 		}
+ 		newBuf := make([]byte, len(p.handshakeBuf)+len(data));
+-		bytes.Copy(newBuf, p.handshakeBuf);
+-		bytes.Copy(newBuf[len(p.handshakeBuf):len(newBuf)], data);
++		copy(newBuf, p.handshakeBuf);
++		copy(newBuf[len(p.handshakeBuf):len(newBuf)], data);
+ 		p.handshakeBuf = newBuf;
+ 	}
+ 
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 20b1139e0d..8f6ad111cb 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -6,7 +6,6 @@
+ package tls
+ 
+ import (
+-	"bytes";
+ 	"io";
+ 	"os";
+ 	"net";
+@@ -59,7 +58,7 @@ func (tls *Conn) Read(p []byte) (int, os.Error) {
+ 		}
+ 	}
+ 
+-	n := bytes.Copy(p, tls.readBuf);
++	n := copy(p, tls.readBuf);
+ 	tls.readBuf = tls.readBuf[n:len(tls.readBuf)];
+ 	return n, nil;
+ }
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 7f6be9a157..ba70f3dea2 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -7,7 +7,6 @@
+ package ascii85
+ 
+ import (
+-	"bytes";
+ 	"io";
+ 	"os";
+ 	"strconv";
+@@ -268,7 +267,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	for {
+ 		// Copy leftover output from last decode.
+ 		if len(d.out) > 0 {
+-			n = bytes.Copy(p, d.out);
++			n = copy(p, d.out);
+ 			d.out = d.out[n:len(d.out)];
+ 			return;
+ 		}
+@@ -279,7 +278,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
+ 			if ndst > 0 {
+ 				d.out = d.outbuf[0:ndst];
+-				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
++				d.nbuf = copy(&d.buf, d.buf[nsrc:d.nbuf]);
+ 				continue;	// copy out and return
+ 			}
+ 		}
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index b0f57f6029..b149a67153 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -6,7 +6,6 @@
+ package base64
+ 
+ import (
+-	"bytes";
+ 	"io";
+ 	"os";
+ 	"strconv";
+@@ -279,7 +278,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 
+ 	// Use leftover decoded output from last read.
+ 	if len(d.out) > 0 {
+-		n = bytes.Copy(p, d.out);
++		n = copy(p, d.out);
+ 		d.out = d.out[n:len(d.out)];
+ 		return n, nil;
+ 	}
+@@ -304,7 +303,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	if nw > len(p) {
+ 		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
+ 		d.out = d.outbuf[0:nw];
+-		n = bytes.Copy(p, d.out);
++		n = copy(p, d.out);
+ 		d.out = d.out[n:len(d.out)];
+ 	} else {
+ 		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 288fd748c2..cbc78fc3c4 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -241,7 +241,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	for {
+ 		// Copy leftover output from last decode.
+ 		if len(d.out) > 0 {
+-			n = bytes.Copy(p, d.out);
++			n = copy(p, d.out);
+ 			d.out = d.out[n:len(d.out)];
+ 			return;
+ 		}
+@@ -270,7 +270,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 			d.err = CorruptInputError(int64(e) + d.off)
+ 		}
+ 		d.out = d.outbuf[0:nn];
+-		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1:d.nbuf]);
++		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf]);
+ 		d.off += int64(nl + 1);
+ 	}
+ 	panic("unreacahable");
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 89300be96c..b70fa94799 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -277,9 +277,8 @@ func newParser(re *Regexp) *parser {
+ }
+ 
+ func special(c int) bool {
+-	s := `\.+*?()|[]^$`;
+-	for i := 0; i < len(s); i++ {
+-		if c == int(s[i]) {
++	for _, r := range `\.+*?()|[]^$` {
++		if c == r {
+ 			return true
+ 		}
+ 	}
+@@ -287,9 +286,8 @@ func special(c int) bool {
+ }
+ 
+ func specialcclass(c int) bool {
+-	s := `\-[]`;
+-	for i := 0; i < len(s); i++ {
+-		if c == int(s[i]) {
++	for _, r := range `\-[]` {
++		if c == r {
+ 			return true
+ 		}
+ 	}
+@@ -675,9 +673,7 @@ func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []s
+ 	}
+ 	if l == cap(s) {
+ 		s1 := make([]state, 2*l)[0:l];
+-		for i := 0; i < l; i++ {
+-			s1[i] = s[i]
+-		}
++		copy(s1, s);
+ 		s = s1;
+ 	}
+ 	s = s[0 : l+1];
+@@ -685,15 +681,11 @@ func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []s
+ 	s[l].match = match;
+ 	if inst.kind() == _ALT {
+ 		s1 := make([]int, 2*(re.nbra+1));
+-		for i := 0; i < len(s1); i++ {
+-			s1[i] = match[i]
+-		}
++		copy(s1, match);
+ 		s = re.addState(s, inst.(*_Alt).left, s1, pos, end);
+ 		// give other branch a copy of this match vector
+ 		s1 = make([]int, 2*(re.nbra+1));
+-		for i := 0; i < len(s1); i++ {
+-			s1[i] = match[i]
+-		}
++		copy(s1, match);
+ 		s = re.addState(s, inst.next(), s1, pos, end);
+ 	}
+ 	return s;
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index d39419bd95..04caedb6d2 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -11,8 +11,6 @@
+ 
+ package strconv
+ 
+-import "bytes"
+-
+ type decimal struct {
+ 	// TODO(rsc): Can make d[] a bit smaller and add
+ 	// truncated bool;
+@@ -43,18 +41,18 @@ func (a *decimal) String() string {
+ 		buf[w] = '.';
+ 		w++;
+ 		w += digitZero(buf[w : w+-a.dp]);
+-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
++		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 
+ 	case a.dp < a.nd:
+ 		// decimal point in middle of digits
+-		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
++		w += copy(buf[w:w+a.dp], a.d[0:a.dp]);
+ 		buf[w] = '.';
+ 		w++;
+-		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
++		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+ 
+ 	default:
+ 		// zeros fill space between digits and decimal point
+-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
++		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 		w += digitZero(buf[w : w+a.dp-a.nd]);
+ 	}
+ 	return string(buf[0:w]);
+diff --git a/src/pkg/testing/iotest/reader.go b/src/pkg/testing/iotest/reader.go
+index 61da735de6..ce2da08b03 100644
+--- a/src/pkg/testing/iotest/reader.go
++++ b/src/pkg/testing/iotest/reader.go
+@@ -9,7 +9,6 @@ package iotest
+ import (
+ 	"io";
+ 	"os";
+-	"bytes";
+ )
+ 
+ // OneByteReader returns a Reader that implements
+@@ -63,7 +62,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
+ 		if n > 0 {
+ 			break
+ 		}
+-		n = bytes.Copy(p, r.unread);
++		n = copy(p, r.unread);
+ 		r.unread = r.unread[n:len(r.unread)];
+ 	}
+ 	return;
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 202cd46262..c3b91fd5fa 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -65,19 +65,19 @@ type EndElement struct {
+ // the characters they represent.
+ type CharData []byte
+ 
+-func copy(b []byte) []byte {
++func makeCopy(b []byte) []byte {
+ 	b1 := make([]byte, len(b));
+-	bytes.Copy(b1, b);
++	copy(b1, b);
+ 	return b1;
+ }
+ 
+-func (c CharData) Copy() CharData	{ return CharData(copy(c)) }
++func (c CharData) Copy() CharData	{ return CharData(makeCopy(c)) }
+ 
+ // A Comment represents an XML comment of the form <!--comment-->.
+ // The bytes do not include the <!-- and --> comment markers.
+ type Comment []byte
+ 
+-func (c Comment) Copy() Comment	{ return Comment(copy(c)) }
++func (c Comment) Copy() Comment	{ return Comment(makeCopy(c)) }
+ 
+ // A ProcInst represents an XML processing instruction of the form <?target inst?>
+ type ProcInst struct {
+@@ -86,7 +86,7 @@ type ProcInst struct {
+ }
+ 
+ func (p ProcInst) Copy() ProcInst {
+-	p.Inst = copy(p.Inst);
++	p.Inst = makeCopy(p.Inst);
+ 	return p;
+ }
+ 
+@@ -94,7 +94,7 @@ func (p ProcInst) Copy() ProcInst {
+ // The bytes do not include the <! and > markers.
+ type Directive []byte
+ 
+-func (d Directive) Copy() Directive	{ return Directive(copy(d)) }
++func (d Directive) Copy() Directive	{ return Directive(makeCopy(d)) }
+ 
+ type readByter interface {
+ 	ReadByte() (b byte, err os.Error);
+diff --git a/test/bench/fasta.go b/test/bench/fasta.go
+index 52a55447e4..8855d6bb5f 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/fasta.go
+@@ -39,7 +39,6 @@ package main
+ 
+ import (
+ 	"bufio";
+-	"bytes";
+ 	"flag";
+ 	"os";
+ 	"strings";
+@@ -55,7 +54,7 @@ func min(a, b int) int {
+ 	if a < b {
+ 		return a
+ 	}
+-	return b
++	return b;
+ }
+ 
+ type AminoAcid struct {
+@@ -63,23 +62,23 @@ type AminoAcid struct {
+ 	c	byte;
+ }
+ 
+-var	lastrandom uint32 = 42
++var lastrandom uint32 = 42
+ 
+ // Random number between 0.0 and 1.0
+ func myrandom() float {
+ 	const (
+-		IM = 139968;
+-		IA = 3877;
+-		IC = 29573;
++		IM	= 139968;
++		IA	= 3877;
++		IC	= 29573;
+ 	)
+-	lastrandom = (lastrandom * IA + IC) % IM;
++	lastrandom = (lastrandom*IA + IC) % IM;
+ 	// Integer to float conversions are faster if the integer is signed.
+ 	return float(int32(lastrandom)) / IM;
+ }
+ 
+ func AccumulateProbabilities(genelist []AminoAcid) {
+ 	for i := 1; i < len(genelist); i++ {
+-		genelist[i].p += genelist[i-1].p;
++		genelist[i].p += genelist[i-1].p
+ 	}
+ }
+ 
+@@ -90,16 +89,16 @@ func AccumulateProbabilities(genelist []AminoAcid) {
+ // It assumes that WIDTH <= len(s) + 1.
+ func RepeatFasta(s []byte, count int) {
+ 	pos := 0;
+-	s2 := make([]byte, len(s) + WIDTH);
+-	bytes.Copy(s2, s);
+-	bytes.Copy(s2[len(s):len(s2)], s);
++	s2 := make([]byte, len(s)+WIDTH);
++	copy(s2, s);
++	copy(s2[len(s):len(s2)], s);
+ 	for count > 0 {
+ 		line := min(WIDTH, count);
+-		out.Write(s2[pos:pos+line]);
++		out.Write(s2[pos : pos+line]);
+ 		out.WriteByte('\n');
+ 		pos += line;
+ 		if pos >= len(s) {
+-			pos -= len(s);
++			pos -= len(s)
+ 		}
+ 		count -= line;
+ 	}
+@@ -114,7 +113,7 @@ func RepeatFasta(s []byte, count int) {
+ // This sequence is repeated count times.
+ // Between each WIDTH consecutive characters, the function prints a newline.
+ func RandomFasta(genelist []AminoAcid, count int) {
+-	buf := make([]byte, WIDTH + 1);
++	buf := make([]byte, WIDTH+1);
+ 	for count > 0 {
+ 		line := min(WIDTH, count);
+ 		for pos := 0; pos < line; pos++ {
+@@ -125,7 +124,7 @@ func RandomFasta(genelist []AminoAcid, count int) {
+ 			buf[pos] = genelist[i].c;
+ 		}
+ 		buf[line] = '\n';
+-		out.Write(buf[0:line + 1]);
++		out.Write(buf[0 : line+1]);
+ 		count -= line;
+ 	}
+ }
+@@ -136,29 +135,29 @@ func main() {
+ 
+ 	flag.Parse();
+ 
+-	iub := []AminoAcid {
+-		AminoAcid{ 0.27, 'a' },
+-		AminoAcid{ 0.12, 'c' },
+-		AminoAcid{ 0.12, 'g' },
+-		AminoAcid{ 0.27, 't' },
+-		AminoAcid{ 0.02, 'B' },
+-		AminoAcid{ 0.02, 'D' },
+-		AminoAcid{ 0.02, 'H' },
+-		AminoAcid{ 0.02, 'K' },
+-		AminoAcid{ 0.02, 'M' },
+-		AminoAcid{ 0.02, 'N' },
+-		AminoAcid{ 0.02, 'R' },
+-		AminoAcid{ 0.02, 'S' },
+-		AminoAcid{ 0.02, 'V' },
+-		AminoAcid{ 0.02, 'W' },
+-		AminoAcid{ 0.02, 'Y' }
++	iub := []AminoAcid{
++		AminoAcid{0.27, 'a'},
++		AminoAcid{0.12, 'c'},
++		AminoAcid{0.12, 'g'},
++		AminoAcid{0.27, 't'},
++		AminoAcid{0.02, 'B'},
++		AminoAcid{0.02, 'D'},
++		AminoAcid{0.02, 'H'},
++		AminoAcid{0.02, 'K'},
++		AminoAcid{0.02, 'M'},
++		AminoAcid{0.02, 'N'},
++		AminoAcid{0.02, 'R'},
++		AminoAcid{0.02, 'S'},
++		AminoAcid{0.02, 'V'},
++		AminoAcid{0.02, 'W'},
++		AminoAcid{0.02, 'Y'},
+ 	};
+ 
+-	homosapiens := []AminoAcid {
+-		AminoAcid{ 0.3029549426680, 'a' },
+-		AminoAcid{ 0.1979883004921, 'c' },
+-		AminoAcid{ 0.1975473066391, 'g' },
+-		AminoAcid{ 0.3015094502008, 't' }
++	homosapiens := []AminoAcid{
++		AminoAcid{0.3029549426680, 'a'},
++		AminoAcid{0.1979883004921, 'c'},
++		AminoAcid{0.1975473066391, 'g'},
++		AminoAcid{0.3015094502008, 't'},
+ 	};
+ 
+ 	AccumulateProbabilities(iub);
+@@ -166,17 +165,17 @@ func main() {
+ 
+ 	alu := strings.Bytes(
+ 		"GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG"
+-		"GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA"
+-		"CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT"
+-		"ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA"
+-		"GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG"
+-		"AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC"
+-		"AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA");
++			"GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA"
++			"CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT"
++			"ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA"
++			"GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG"
++			"AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC"
++			"AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA");
+ 
+ 	out.WriteString(">ONE Homo sapiens alu\n");
+-	RepeatFasta(alu, 2 * *n);
++	RepeatFasta(alu, 2**n);
+ 	out.WriteString(">TWO IUB ambiguity codes\n");
+-	RandomFasta(iub, 3 * *n);
++	RandomFasta(iub, 3**n);
+ 	out.WriteString(">THREE Homo sapiens frequency\n");
+-	RandomFasta(homosapiens, 5 * *n);
++	RandomFasta(homosapiens, 5**n);
+ }
+diff --git a/test/bench/reverse-complement.go b/test/bench/reverse-complement.go
+index 28feed0941..a7ea8afbd6 100644
+--- a/test/bench/reverse-complement.go
++++ b/test/bench/reverse-complement.go
+@@ -37,39 +37,38 @@ package main
+ 
+ import (
+ 	"bufio";
+-	"bytes";
+ 	"os";
+ )
+ 
+-const	lineSize = 60
++const lineSize = 60
+ 
+-var complement = [256]uint8 {
+-	'A':	'T',	'a':	'T',
+-	'C':	'G',	'c':	'G',
+-	'G':	'C',	'g':	'C',
+-	'T':	'A',	't':	'A',
+-	'U':	'A',	'u':	'A',
+-	'M':	'K',	'm':	'K',
+-	'R':	'Y',	'r':	'Y',
+-	'W':	'W',	'w':	'W',
+-	'S':	'S',	's':	'S',
+-	'Y':	'R',	'y':	'R',
+-	'K':	'M',	'k':	'M',
+-	'V':	'B',	'v':	'B',
+-	'H':	'D',	'h':	'D',
+-	'D':	'H',	'd':	'H',
+-	'B':	'V',	'b':	'V',
+-	'N':	'N',	'n':	'N',
++var complement = [256]uint8{
++	'A': 'T', 'a': 'T',
++	'C': 'G', 'c': 'G',
++	'G': 'C', 'g': 'C',
++	'T': 'A', 't': 'A',
++	'U': 'A', 'u': 'A',
++	'M': 'K', 'm': 'K',
++	'R': 'Y', 'r': 'Y',
++	'W': 'W', 'w': 'W',
++	'S': 'S', 's': 'S',
++	'Y': 'R', 'y': 'R',
++	'K': 'M', 'k': 'M',
++	'V': 'B', 'v': 'B',
++	'H': 'D', 'h': 'D',
++	'D': 'H', 'd': 'H',
++	'B': 'V', 'b': 'V',
++	'N': 'N', 'n': 'N',
+ }
+ 
+ var in *bufio.Reader
+ 
+ func reverseComplement(in []byte) []byte {
+-	outLen := len(in) + (len(in) + lineSize -1)/lineSize;
++	outLen := len(in) + (len(in)+lineSize-1)/lineSize;
+ 	out := make([]byte, outLen);
+ 	j := 0;
+ 	k := 0;
+-	for i := len(in)-1; i >= 0; i-- {
++	for i := len(in) - 1; i >= 0; i-- {
+ 		if k == lineSize {
+ 			out[j] = '\n';
+ 			j++;
+@@ -106,15 +105,15 @@ func main() {
+ 				top = 0;
+ 			}
+ 			os.Stdout.Write(line);
+-			continue
++			continue;
+ 		}
+-		line = line[0:len(line)-1];	// drop newline
++		line = line[0 : len(line)-1];	// drop newline
+ 		if top+len(line) > len(buf) {
+-			nbuf := make([]byte, 2*len(buf) + 1024*(100+len(line)));
+-			bytes.Copy(nbuf, buf[0:top]);
++			nbuf := make([]byte, 2*len(buf)+1024*(100+len(line)));
++			copy(nbuf, buf[0:top]);
+ 			buf = nbuf;
+ 		}
+-		bytes.Copy(buf[top:len(buf)], line);
++		copy(buf[top:len(buf)], line);
+ 		top += len(line);
+ 	}
+ 	output(buf[0:top]);

@@ -12,7 +12,7 @@ Date:   Sat Jul 9 19:26:47 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         |  7 ++++
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  4 ++
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  3 ++
@@ -21,3 +21,248 @@ Date:   Sat Jul 9 19:26:47 2022 +0800
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 55 +++++++++++++++++++++++++
  test/codegen/condmove.go                        | 18 ++++++++
  7 files changed, 127 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 68a2d8ac1b..a1cebdca56 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -786,6 +786,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpLOONG64MASKEQZ, ssa.OpLOONG64MASKNEZ:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 33cc8a6ae3..2810f0afe1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -422,6 +422,8 @@
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+ 
++(CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
++
+ // Optimizations
+ 
+ // Absorb boolean tests into block
+@@ -615,6 +617,8 @@
+ (ORconst  [-1] _) => (MOVVconst [-1])
+ (XORconst [0]  x) => x
+ (XORconst [-1] x) => (NORconst [0] x)
++(MASKEQZ (MOVVconst [0]) cond) => (MOVVconst [0])
++(MASKNEZ (MOVVconst [0]) cond) => (MOVVconst [0])
+ 
+ // generic constant folding
+ (ADDVconst [c] (MOVVconst [d]))  => (MOVVconst [c+d])
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 5a84529192..3b9fc7c871 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -192,6 +192,9 @@ func init() {
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
++		{name: "MASKEQZ", argLength: 2, reg: gp21, asm: "MASKEQZ"}, // returns 0 if arg1 == 0, otherwise returns arg0
++		{name: "MASKNEZ", argLength: 2, reg: gp21, asm: "MASKNEZ"}, // returns 0 if arg1 != 0, otherwise returns arg0
++
+ 		// shifts
+ 		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                      // arg0 << arg1, shift amount is mod 64
+ 		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 7a08654f4e..5a06bfb220 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -22,7 +22,7 @@ import "cmd/internal/src"
+ func branchelim(f *Func) {
+ 	// FIXME: add support for lowering CondSelects on more architectures
+ 	switch f.Config.arch {
+-	case "arm64", "ppc64le", "ppc64", "amd64", "wasm":
++	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
+ 		// implemented
+ 	default:
+ 		return
+@@ -83,6 +83,15 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
+ 		// See issue #26306.
+ 		return false
+ 	}
++	if arch == "loong64" {
++		// We should not generate conditional moves if neither of the arguments is constant zero,
++		// because it requires three instructions (OR, MASKEQZ, MASKNEZ) and will increase the
++		// register pressure.
++		if !(v.Args[0].isGenericIntConst() && v.Args[0].AuxInt == 0) &&
++			!(v.Args[1].isGenericIntConst() && v.Args[1].AuxInt == 0) {
++			return false
++		}
++	}
+ 	// For now, stick to simple scalars that fit in registers
+ 	switch {
+ 	case v.Type.Size() > v.Block.Func.Config.RegSize:
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 994a0c9464..fe57305bc6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1740,6 +1740,8 @@ const (
+ 	OpLOONG64NEGD
+ 	OpLOONG64SQRTD
+ 	OpLOONG64SQRTF
++	OpLOONG64MASKEQZ
++	OpLOONG64MASKNEZ
+ 	OpLOONG64SLLV
+ 	OpLOONG64SLLVconst
+ 	OpLOONG64SRLV
+@@ -23263,6 +23265,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MASKEQZ",
++		argLen: 2,
++		asm:    loong64.AMASKEQZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
++				{1, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "MASKNEZ",
++		argLen: 2,
++		asm:    loong64.AMASKNEZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
++				{1, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:   "SLLV",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index d57289e058..26d6594fef 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -100,6 +100,8 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpCom64(v)
+ 	case OpCom8:
+ 		return rewriteValueLOONG64_OpCom8(v)
++	case OpCondSelect:
++		return rewriteValueLOONG64_OpCondSelect(v)
+ 	case OpConst16:
+ 		return rewriteValueLOONG64_OpConst16(v)
+ 	case OpConst32:
+@@ -229,6 +231,10 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore32(v)
+ 	case OpLOONG64LoweredAtomicStore64:
+ 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v)
++	case OpLOONG64MASKEQZ:
++		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
++	case OpLOONG64MASKNEZ:
++		return rewriteValueLOONG64_OpLOONG64MASKNEZ(v)
+ 	case OpLOONG64MOVBUload:
+ 		return rewriteValueLOONG64_OpLOONG64MOVBUload(v)
+ 	case OpLOONG64MOVBUreg:
+@@ -779,6 +785,27 @@ func rewriteValueLOONG64_OpCom8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpCondSelect(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (CondSelect <t> x y cond)
++	// result: (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		cond := v_2
++		v.reset(OpLOONG64OR)
++		v0 := b.NewValue0(v.Pos, OpLOONG64MASKEQZ, t)
++		v0.AddArg2(x, cond)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MASKNEZ, t)
++		v1.AddArg2(y, cond)
++		v.AddArg2(v0, v1)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpConst16(v *Value) bool {
+ 	// match: (Const16 [val])
+ 	// result: (MOVVconst [int64(val)])
+@@ -1596,6 +1623,34 @@ func rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueLOONG64_OpLOONG64MASKEQZ(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MASKEQZ (MOVVconst [0]) cond)
++	// result: (MOVVconst [0])
++	for {
++		if v_0.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	return false
++}
++func rewriteValueLOONG64_OpLOONG64MASKNEZ(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MASKNEZ (MOVVconst [0]) cond)
++	// result: (MOVVconst [0])
++	for {
++		if v_0.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	return false
++}
+ func rewriteValueLOONG64_OpLOONG64MOVBUload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index 793bd7f973..bfab62213b 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -422,3 +422,21 @@ func cmovFcmp1(s, t float64, a, b int) {
+ 	// arm64:"CSINC\tEQ", -"CSEL"
+ 	r5 = x5
+ }
++
++func cmovzero1(c bool) int {
++	var x int
++	if c {
++		x = 182
++	}
++	// loong64:"MASKEQZ", -"MASKNEZ"
++	return x
++}
++
++func cmovzero2(c bool) int {
++	var x int
++	if !c {
++		x = 182
++	}
++	// loong64:"MASKNEZ", -"MASKEQZ"
++	return x
++}

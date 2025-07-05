@@ -16,6 +16,20 @@ Date:   Tue Jun 7 09:54:09 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/debug/heapdump_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug/heapdump_test.go b/src/runtime/debug/heapdump_test.go
+index 5761c015b8..7d5b950895 100644
+--- a/src/runtime/debug/heapdump_test.go
++++ b/src/runtime/debug/heapdump_test.go
+@@ -38,7 +38,7 @@ type Obj struct {
+ }
+ 
+ func objfin(x *Obj) {
+-	println("finalized", x)
++	//println("finalized", x)
+ }
+ 
+ func TestWriteHeapDumpFinalizers(t *testing.T) {

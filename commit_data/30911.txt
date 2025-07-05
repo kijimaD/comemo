@@ -19,9 +19,115 @@ Date:   Mon Dec 12 13:31:56 2016 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testshared/src/exe/exe.go     | 12 ++++++++++++
  src/cmd/compile/internal/gc/reflect.go |  7 +++----
  src/runtime/iface.go                   | 14 +++++++++-----
  src/runtime/runtime2.go                |  2 +-
  4 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/exe/exe.go b/misc/cgo/testshared/src/exe/exe.go
+index f01ad8ab78..433727112b 100644
+--- a/misc/cgo/testshared/src/exe/exe.go
++++ b/misc/cgo/testshared/src/exe/exe.go
+@@ -12,6 +12,13 @@ import (
+ func DeclaredInMain() {
+ }
+ 
++type C struct {
++}
++
++func F() *C {
++	return nil
++}
++
+ func main() {
+ 	defer depBase.ImplementedInAsm()
+ 	// This code below causes various go.itab.* symbols to be generated in
+@@ -20,4 +27,9 @@ func main() {
+ 	reflect.TypeOf(os.Stdout).Elem()
+ 	runtime.GC()
+ 	depBase.V = depBase.F() + 1
++
++	var c *C
++	if reflect.TypeOf(F).Out(0) != reflect.TypeOf(c) {
++		panic("bad reflection results, see golang.org/issue/18252")
++	}
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4f9d92ed8a..61ac67c0bc 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -998,7 +998,6 @@ func itabname(t, itype *Type) *Node {
+ 		Fatalf("itabname(%v, %v)", t, itype)
+ 	}
+ 	s := Pkglookup(t.tconv(FmtLeft)+","+itype.tconv(FmtLeft), itabpkg)
+-	Linksym(s).Set(obj.AttrLocal, true)
+ 	if s.Def == nil {
+ 		n := newname(s)
+ 		n.Type = Types[TUINT8]
+@@ -1411,15 +1410,15 @@ func dumptypestructs() {
+ 		// }
+ 		o := dsymptr(i.sym, 0, dtypesym(i.itype), 0)
+ 		o = dsymptr(i.sym, o, dtypesym(i.t), 0)
+-		o += Widthptr + 8                      // skip link/bad/unused fields
++		o += Widthptr + 8                      // skip link/bad/inhash fields
+ 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+ 		// at runtime the itab will contain pointers to types, other itabs and
+ 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+-		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR|obj.LOCAL))
++		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+ 
+ 		ilink := Pkglookup(i.t.tconv(FmtLeft)+","+i.itype.tconv(FmtLeft), itablinkpkg)
+ 		dsymptr(ilink, 0, i.sym, 0)
+-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA|obj.LOCAL))
++		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+ 	}
+ 
+ 	// process ptabs
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 18f5c588b4..46010d58fc 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -138,11 +138,8 @@ func additab(m *itab, locked, canfail bool) {
+ 		throw("invalid itab locking")
+ 	}
+ 	h := itabhash(inter, typ)
+-	if m == hash[h] {
+-		println("duplicate itab for", typ.string(), "and", inter.typ.string())
+-		throw("duplicate itabs")
+-	}
+ 	m.link = hash[h]
++	m.inhash = 1
+ 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+ }
+ 
+@@ -150,7 +147,14 @@ func itabsinit() {
+ 	lock(&ifaceLock)
+ 	for _, md := range activeModules() {
+ 		for _, i := range md.itablinks {
+-			additab(i, true, false)
++			// itablinks is a slice of pointers to the itabs used in this
++			// module. A given itab may be used in more than one module
++			// and thanks to the way global symbol resolution works, the
++			// pointed-to itab may already have been inserted into the
++			// global 'hash'.
++			if i.inhash == 0 {
++				additab(i, true, false)
++			}
+ 		}
+ 	}
+ 	unlock(&ifaceLock)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 72524f53af..acc9426142 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -640,7 +640,7 @@ type itab struct {
+ 	_type  *_type
+ 	link   *itab
+ 	bad    int32
+-	unused int32
++	inhash int32      // has this itab been added to hash?
+ 	fun    [1]uintptr // variable sized
+ }
+ 

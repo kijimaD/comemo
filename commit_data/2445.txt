@@ -8,6 +8,21 @@ Date:   Fri Jun 12 15:17:39 2009 -0700
     DELTA=3  (0 added, 3 deleted, 0 changed)
     OCL=30251
     CL=30251
-
+---
  src/pkg/go/parser/parser.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 11c0ee1725..6c607f4731 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -465,9 +465,6 @@ func (p *parser) parseStructType() *ast.StructType {
+ 				break;
+ 			}
+ 		}
+-		if p.tok == token.SEMICOLON {
+-			p.next();
+-		}
+ 
+ 		rbrace = p.expect(token.RBRACE);
+ 		p.opt_semi = true;

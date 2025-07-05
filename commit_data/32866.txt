@@ -17,7 +17,36 @@ Date:   Thu Jun 8 15:56:53 2017 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/syscall_windows.go | 6 ++++++
  src/syscall/syscall_windows.go | 3 ++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index cd23b8da6b..ca8ea8b04f 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -207,3 +207,9 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+ 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+ 	return c.r1, c.r2, c.err
+ }
++
++//go:linkname syscall_exit syscall.Exit
++//go:nosplit
++func syscall_exit(code int) {
++	exit(int32(code))
++}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 551a8c0dd3..4619ce2a2b 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -236,7 +236,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ 
+ // syscall interface implementation for other packages
+ 
+-func Exit(code int) { ExitProcess(uint32(code)) }
++// Implemented in ../runtime/syscall_windows.go.
++func Exit(code int)
+ 
+ func makeInheritSa() *SecurityAttributes {
+ 	var sa SecurityAttributes

@@ -11,6 +11,28 @@ Date:   Thu Jun 11 15:45:46 2020 +0000
     Change-Id: I728a75ae0d00e637f57eb455b6039ffc1a5feed2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237538
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index dd25b27c5f..f451c1bbfd 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -359,11 +359,11 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="cgo">Cgo</h3>
+ 
+ <p><!-- CL 235817 -->
+-	Go 1.15 will translate the C type <code>EGLConfig</code> to the
+-	Go type <code>uintptr</code>. This change is similar to how Go
+-	1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
+-	Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
+-	documentation</a> for more information.
++  Go 1.15 will translate the C type <code>EGLConfig</code> to the
++  Go type <code>uintptr</code>. This change is similar to how Go
++  1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
++  Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
++  documentation</a> for more information.
+ </p>
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>

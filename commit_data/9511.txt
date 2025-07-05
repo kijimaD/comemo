@@ -7,8 +7,111 @@ Date:   Fri Aug 26 16:43:37 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4826041
-
+---
  misc/cgo/life/Makefile      | 14 ++++++++++++++
  src/pkg/runtime/amd64/asm.s | 10 +++++-----
  src/pkg/runtime/cgo/amd64.S | 19 +++++++++++++++++++
  3 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/life/Makefile b/misc/cgo/life/Makefile
+index 5a10380edb..39ec13be28 100644
+--- a/misc/cgo/life/Makefile
++++ b/misc/cgo/life/Makefile
+@@ -11,6 +11,20 @@ CGOFILES=\
+ 
+ CGO_OFILES=\
+ 	c-life.o\
++	
++ifeq ($(GOOS),windows)
++ifeq ($(GOARCH),amd64)
++CGO_OFILES+=\
++	lib64_libmingwex_a-wassert.o\
++	lib64_libmingw32_a-mingw_helpers.o\
++
++lib64_libmingwex_a-wassert.o:
++	ar -x /mingw/x86_64-w64-mingw32/lib/libmingwex.a lib64_libmingwex_a-wassert.o
++
++lib64_libmingw32_a-mingw_helpers.o:
++	ar -x /mingw/x86_64-w64-mingw32/lib/libmingw32.a  lib64_libmingw32_a-mingw_helpers.o
++endif
++endif
+ 
+ CLEANFILES+=life
+ 
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index acd131bb31..a881e3bbf4 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -448,19 +448,19 @@ TEXT runtime·asmcgocall(SB),7,$0
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 
+ 	// Now on a scheduling stack (a pthread-created stack).
+-	SUBQ	$32, SP
++	SUBQ	$48, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	MOVQ	DI, 16(SP)	// save g
+-	MOVQ	DX, 8(SP)	// save SP
++	MOVQ	DI, 32(SP)	// save g
++	MOVQ	DX, 24(SP)	// save SP
+ 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+ 	MOVQ	BX, CX		// CX = first argument in Win64
+ 	CALL	AX
+ 
+ 	// Restore registers, g, stack pointer.
+ 	get_tls(CX)
+-	MOVQ	16(SP), DI
++	MOVQ	32(SP), DI
+ 	MOVQ	DI, g(CX)
+-	MOVQ	8(SP), SP
++	MOVQ	24(SP), SP
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+diff --git a/src/pkg/runtime/cgo/amd64.S b/src/pkg/runtime/cgo/amd64.S
+index 083c2bc941..6c1a4c8e92 100644
+--- a/src/pkg/runtime/cgo/amd64.S
++++ b/src/pkg/runtime/cgo/amd64.S
+@@ -32,7 +32,11 @@ EXT(crosscall_amd64):
+ 	pushq %r14
+ 	pushq %r15
+ 
++#if defined(_WIN64)
++	call *%rcx	/* fn */
++#else
+ 	call *%rdi	/* fn */
++#endif
+ 
+ 	popq %r15
+ 	popq %r14
+@@ -58,10 +62,21 @@ EXT(crosscall2):
+ 	movq  %r14, 0x30(%rsp)
+ 	movq  %r15, 0x38(%rsp)
+ 
++#if defined(_WIN64)
++	// Win64 save RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15
++	movq	%rdi, 0x40(%rsp)
++	movq	%rsi, 0x48(%rsp)
++
++	movq  %rdx, 0(%rsp)	/* arg */
++	movq  %r8, 8(%rsp)	/* argsize (includes padding) */
++	
++	call %rcx	/* fn */
++#else
+ 	movq  %rsi, 0(%rsp)	/* arg */
+ 	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
+ 
+ 	call *%rdi	/* fn */
++#endif
+ 
+ 	movq  0x10(%rsp), %rbx
+ 	movq  0x18(%rsp), %rbp
+@@ -69,5 +84,9 @@ EXT(crosscall2):
+ 	movq  0x28(%rsp), %r13
+ 	movq  0x30(%rsp), %r14
+ 	movq  0x38(%rsp), %r15
++#if defined(__WIN64)
++	movq	0x40(%rsp), %rdi
++	movq	0x48(%rsp), %rsi
++#endif	
+ 	addq  $0x58, %rsp
+ 	ret

@@ -9,6 +9,19 @@ Date:   Sun Jan 15 19:52:45 2012 -0500
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5544072
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7c8874be39..027e6b735c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -146,6 +146,7 @@ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
++Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jongmin Kim <atomaths@gmail.com>
+ Jos Visser <josv@google.com>

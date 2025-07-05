@@ -10,6 +10,19 @@ Date:   Fri Mar 29 15:07:38 2013 +0900
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/8129043
-
+---
  api/next.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index b45c225262..a32c3a9452 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -354,7 +354,6 @@ pkg net, method (*UnixConn) CloseRead() error
+ pkg net, method (*UnixConn) CloseWrite() error
+ pkg net, type DialOption interface, unexported methods
+ pkg net, type IPAddr struct, Zone string
+-pkg net, type IPNet struct, Zone string
+ pkg net, type NS struct
+ pkg net, type NS struct, Host string
+ pkg net, type TCPAddr struct, Zone string

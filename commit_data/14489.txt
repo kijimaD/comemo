@@ -12,6 +12,32 @@ Date:   Mon Nov 26 15:43:32 2012 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/6854096
-
+---
  doc/go_spec.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6115fae67b..458584e000 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of November 21, 2012",
++	"Subtitle": "Version of November 26, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -2463,9 +2463,9 @@ p.z   // (*p).z
+ p.y   // ((*p).T1).y
+ p.x   // (*(*p).T0).x
+ 
+-p.M2  // (*p).M2
+-p.M1  // ((*p).T1).M1
+-p.M0  // ((*p).T0).M0
++p.M2()  // (*p).M2()
++p.M1()  // ((*p).T1).M1()
++p.M0()  // ((*p).T0).M0()
+ </pre>
+ 
+ 

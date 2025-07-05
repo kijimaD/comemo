@@ -21,7 +21,54 @@ Date:   Thu Sep 15 15:14:52 2022 +0800
     Run-TryBot: Jenny Rakoczy <jenny@golang.org>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  4 +++-
  test/inline_endian.go                  | 16 ++++++++++++++--
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 817f2fd999..702b1d1cc5 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -304,7 +304,9 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
+ 							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
+ 							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
+-							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16":
++							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16",
++							"littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
++							"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16":
+ 							cheap = true
+ 						}
+ 					}
+diff --git a/test/inline_endian.go b/test/inline_endian.go
+index e00e06a75e..fc94321de0 100644
+--- a/test/inline_endian.go
++++ b/test/inline_endian.go
+@@ -1,8 +1,6 @@
+ // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+ 
+ //go:build (386 || amd64 || arm64 || ppc64le || s390x) && !gcflags_noopt
+-// +build 386 amd64 arm64 ppc64le s390x
+-// +build !gcflags_noopt
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -21,3 +19,17 @@ import (
+ func endian(b []byte) uint64 { // ERROR "can inline endian" "b does not escape"
+ 	return binary.LittleEndian.Uint64(b) + binary.BigEndian.Uint64(b) // ERROR "inlining call to binary.littleEndian.Uint64" "inlining call to binary.bigEndian.Uint64"
+ }
++
++func appendLittleEndian(b []byte) []byte { // ERROR "can inline appendLittleEndian" "leaking param: b to result ~r0 level=0"
++	b = binary.LittleEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.littleEndian.AppendUint64"
++	b = binary.LittleEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.littleEndian.AppendUint32"
++	b = binary.LittleEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.littleEndian.AppendUint16"
++	return b
++}
++
++func appendBigEndian(b []byte) []byte { // ERROR "can inline appendBigEndian" "leaking param: b to result ~r0 level=0"
++	b = binary.BigEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.bigEndian.AppendUint64"
++	b = binary.BigEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.bigEndian.AppendUint32"
++	b = binary.BigEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.bigEndian.AppendUint16"
++	return b
++}

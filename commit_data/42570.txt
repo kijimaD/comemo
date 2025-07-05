@@ -27,7 +27,67 @@ Date:   Wed Jan 15 16:29:46 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go                     |  2 +-
  src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 40 ++++++++++++++++++++++
  2 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 57024694cf..daa88d3114 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -227,7 +227,7 @@ func (a *Action) trimpath() string {
+ 	// For "go build -trimpath", rewrite package source directory
+ 	// to a file system-independent path (just the import path).
+ 	if cfg.BuildTrimpath {
+-		if m := a.Package.Module; m != nil {
++		if m := a.Package.Module; m != nil && m.Dir != "" && m.Version != "" {
+ 			rewrite += ";" + m.Dir + "=>" + m.Path + "@" + m.Version
+ 		} else {
+ 			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
+diff --git a/src/cmd/go/testdata/script/mod_vendor_trimpath.txt b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+new file mode 100644
+index 0000000000..241a303675
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+@@ -0,0 +1,40 @@
++# Check that when -trimpath and -mod=vendor are used together,
++# paths in vendored packages are properly trimmed.
++# Verifies golang.org/issue/36566.
++
++[short] skip
++
++# Only the main module has a root directory in vendor mode.
++go mod vendor
++go list -f {{.Module.Dir}} example.com/main
++stdout $PWD
++go list -f {{.Module.Dir}} example.com/stack
++! stdout .
++
++# The program prints a file name from a vendored package.
++# Without -trimpath, the name should include the vendor directory.
++go run main.go
++stdout vendor
++
++# With -trimpath, everything before the package path should be trimmed.
++# Unlike with -mod=mod, we don't include versions as part of the module name.
++go run -trimpath main.go
++stdout example.com/stack/stack.go
++
++-- go.mod --
++module example.com/main
++
++require example.com/stack v1.0.0
++
++-- main.go --
++package main
++
++import (
++  "fmt"
++
++  "example.com/stack"
++)
++
++func main() {
++  fmt.Println(stack.TopFile())
++}

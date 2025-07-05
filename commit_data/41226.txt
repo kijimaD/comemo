@@ -15,8 +15,54 @@ Date:   Mon Sep 16 11:28:05 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go |  2 +-
  src/go/types/stdlib_test.go          |  1 +
  test/fixedbugs/issue34329.go         | 14 ++++++++++++++
  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index d6251adc7a..bd6176e479 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -34,7 +34,7 @@ func expandiface(t *types.Type) {
+ 		switch prev := seen[m.Sym]; {
+ 		case prev == nil:
+ 			seen[m.Sym] = m
+-		case !explicit && types.Identical(m.Type, prev.Type):
++		case langSupported(1, 14) && !explicit && types.Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+ 			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 771f54d3f1..a3cbe95b3a 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -181,6 +181,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+ 		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
++		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue34329.go b/test/fixedbugs/issue34329.go
+new file mode 100644
+index 0000000000..790686e3dd
+--- /dev/null
++++ b/test/fixedbugs/issue34329.go
+@@ -0,0 +1,14 @@
++// errorcheck -lang=go1.13
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface { M() }
++
++type _ interface {
++	I
++	I // ERROR "duplicate method M"
++}

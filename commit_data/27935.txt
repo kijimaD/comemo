@@ -11,9 +11,72 @@ Date:   Wed Apr 20 14:05:48 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/type.go      |  5 +++++
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue14729.go             | 14 ++++++++++++++
  4 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0e4b5f6051..e303f11c09 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -719,7 +719,7 @@ func checkembeddedtype(t *Type) {
+ 		}
+ 	}
+ 
+-	if t.IsPtr() {
++	if t.IsPtr() || t.IsUnsafePtr() {
+ 		Yyerror("embedded type cannot be a pointer")
+ 	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
+ 		t.ForwardType().Embedlineno = lineno
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 855b070af6..16399547c7 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -1111,6 +1111,11 @@ func (t *Type) IsPtr() bool {
+ 	return t.Etype == TPTR32 || t.Etype == TPTR64
+ }
+ 
++// IsUnsafePtr reports whether t is an unsafe pointer.
++func (t *Type) IsUnsafePtr() bool {
++	return t.Etype == TUNSAFEPTR
++}
++
+ // IsPtrShaped reports whether t is represented by a single machine pointer.
+ // In addition to regular Go pointer types, this includes map, channel, and
+ // function types and unsafe.Pointer. It does not include array or struct types
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index bf85819bce..e158c87611 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3557,7 +3557,7 @@ func copytype(n *Node, t *Type) {
+ 
+ 	if embedlineno != 0 {
+ 		lineno = embedlineno
+-		if t.IsPtr() {
++		if t.IsPtr() || t.IsUnsafePtr() {
+ 			Yyerror("embedded type cannot be a pointer")
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue14729.go b/test/fixedbugs/issue14729.go
+new file mode 100644
+index 0000000000..88e01f9e16
+--- /dev/null
++++ b/test/fixedbugs/issue14729.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 14729: structs cannot embed unsafe.Pointer per the spec.
++
++package main
++
++import "unsafe"
++
++type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer"
++type s1 struct { p unsafe.Pointer }

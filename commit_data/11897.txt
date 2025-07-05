@@ -8,7 +8,44 @@ Date:   Tue Feb 14 11:24:41 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5654083
-
+---
  src/cmd/vet/print.go                | 11 +++++++++++
  src/pkg/net/http/httptest/server.go |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index fe94137a7e..e0717f8e8e 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -207,7 +207,18 @@ func (f *File) checkPrintfVerb(call *ast.CallExpr, verb rune, flags []byte) {
+ // call.Args[skip] is the first argument to be printed.
+ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+ 	isLn := strings.HasSuffix(name, "ln")
++	isF := strings.HasPrefix(name, "F")
+ 	args := call.Args
++	// check for Println(os.Stderr, ...)
++	if skip == 0 && !isF && len(args) > 0 {
++		if sel, ok := args[0].(*ast.SelectorExpr); ok {
++			if x, ok := sel.X.(*ast.Ident); ok {
++				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
++					f.Warnf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
++				}
++			}
++		}
++	}
+ 	if len(args) <= skip {
+ 		if *verbose && !isLn {
+ 			f.Badf(call.Pos(), "no args in %s call", name)
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index ace1bf3828..8d911f7575 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -95,7 +95,7 @@ func (s *Server) Start() {
+ 	s.URL = "http://" + s.Listener.Addr().String()
+ 	go s.Config.Serve(s.Listener)
+ 	if *serve != "" {
+-		fmt.Println(os.Stderr, "httptest: serving on", s.URL)
++		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
+ 		select {}
+ 	}
+ }

@@ -17,7 +17,7 @@ Date:   Wed Jun 16 15:10:57 2021 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/alldocs.go                    |  6 ++++++
  src/cmd/go/internal/envcmd/env.go        |  8 ++++++++
  src/cmd/go/internal/help/helpdoc.go      |  6 ++++++
@@ -25,3 +25,123 @@ Date:   Wed Jun 16 15:10:57 2021 -0700
  src/cmd/go/testdata/script/env_unset.txt |  7 +++++++
  src/cmd/go/testdata/script/env_write.txt |  6 ++++++
  6 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fd95da23eb..90eb3e2a00 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1903,6 +1903,12 @@
+ // 	GCCGOTOOLDIR
+ // 		If set, where to find gccgo tools, such as cgo.
+ // 		The default is based on how gccgo was configured.
++// 	GOEXPERIMENT
++// 		Comma-separated list of toolchain experiments to enable or disable.
++// 		The list of available experiments may change arbitrarily over time.
++// 		See src/internal/goexperiment/flags.go for currently valid values.
++// 		Warning: This variable is provided for the development and testing
++// 		of the Go toolchain itself. Use beyond that purpose is unsupported.
+ // 	GOROOT_FINAL
+ // 		The root of the installed Go tree, when it is
+ // 		installed in a location other than where it is built.
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index d88dcce5c0..1553d26391 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -73,6 +73,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOCACHE", Value: cache.DefaultDir()},
+ 		{Name: "GOENV", Value: envFile},
+ 		{Name: "GOEXE", Value: cfg.ExeSuffix},
++		{Name: "GOEXPERIMENT", Value: buildcfg.GOEXPERIMENT()},
+ 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+@@ -364,6 +365,13 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
+ 		}
+ 	}
+ 
++	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", buildcfg.GOEXPERIMENT(), "")
++	if okGOEXPERIMENT {
++		if _, _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
++			return err
++		}
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index b552777e3e..490ff1fb7c 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -610,6 +610,12 @@ Special-purpose environment variables:
+ 	GCCGOTOOLDIR
+ 		If set, where to find gccgo tools, such as cgo.
+ 		The default is based on how gccgo was configured.
++	GOEXPERIMENT
++		Comma-separated list of toolchain experiments to enable or disable.
++		The list of available experiments may change arbitrarily over time.
++		See src/internal/goexperiment/flags.go for currently valid values.
++		Warning: This variable is provided for the development and testing
++		of the Go toolchain itself. Use beyond that purpose is unsupported.
+ 	GOROOT_FINAL
+ 		The root of the installed Go tree, when it is
+ 		installed in a location other than where it is built.
+diff --git a/src/cmd/go/testdata/script/env_exp.txt b/src/cmd/go/testdata/script/env_exp.txt
+new file mode 100644
+index 0000000000..681512d87c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_exp.txt
+@@ -0,0 +1,17 @@
++# Test GOEXPERIMENT variable
++
++# go env shows default empty GOEXPERIMENT
++go env
++stdout GOEXPERIMENT=
++
++# go env shows valid experiments
++env GOEXPERIMENT=fieldtrack,staticlockranking
++go env GOEXPERIMENT
++stdout '.*fieldtrack.*staticlockranking.*'
++go env
++stdout 'GOEXPERIMENT=.*fieldtrack.*staticlockranking.*'
++
++# go env rejects unknown experiments
++env GOEXPERIMENT=bad
++! go env GOEXPERIMENT
++stderr 'unknown GOEXPERIMENT bad'
+diff --git a/src/cmd/go/testdata/script/env_unset.txt b/src/cmd/go/testdata/script/env_unset.txt
+index 35fbb0a8a2..4e0f249509 100644
+--- a/src/cmd/go/testdata/script/env_unset.txt
++++ b/src/cmd/go/testdata/script/env_unset.txt
+@@ -4,6 +4,12 @@
+ env GOENV=badenv
+ env GOOS=
+ env GOARCH=
++env GOEXPERIMENT=
++
++! go env
++stderr '^go(\.exe)?: unknown GOEXPERIMENT badexp$'
++
++go env -u GOEXPERIMENT
+ 
+ ! go env
+ stderr '^cmd/go: unsupported GOOS/GOARCH pair bados/badarch$'
+@@ -21,3 +27,4 @@ go env
+ -- badenv --
+ GOOS=bados
+ GOARCH=badarch
++GOEXPERIMENT=badexp
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 4fa39df104..b5e9739167 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -179,3 +179,9 @@ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
+ stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
+ ! go env -w GOMODCACHE=./test
+ stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'
++
++# go env -w checks validity of GOEXPERIMENT
++env GOEXPERIMENT=
++! go env -w GOEXPERIMENT=badexp
++stderr 'unknown GOEXPERIMENT badexp'
++go env -w GOEXPERIMENT=fieldtrack

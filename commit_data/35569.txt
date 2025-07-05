@@ -15,9 +15,154 @@ Date:   Fri Feb 2 16:26:58 2018 -0500
     Change-Id: Ib61cd7b5c796e1813b8859135e85da5bfe2ac686
     Reviewed-on: https://go-review.googlesource.com/92402
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go       |  5 +++++
  src/cmd/compile/internal/ssa/config.go      |  1 +
  src/cmd/compile/internal/ssa/debug.go       | 35 ++++++++++-------------------
  src/cmd/compile/internal/ssa/export_test.go |  4 ++++
  4 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5e301b6271..e120dccabf 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -59,6 +59,11 @@ type Node struct {
+ 	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+ }
+ 
++func (n *Node) IsSynthetic() bool {
++	name := n.Sym.Name
++	return name[0] == '.' || name[0] == '~'
++}
++
+ // IsAutoTmp indicates if n was created by the compiler as a temporary,
+ // based on the setting of the .AutoTemp flag in n's Name.
+ func (n *Node) IsAutoTmp() bool {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index b4fee75b74..9bf4ef5968 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -142,6 +142,7 @@ type Frontend interface {
+ type GCNode interface {
+ 	Typ() *types.Type
+ 	String() string
++	IsSynthetic() bool
+ 	StorageClass() StorageClass
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index b58a90be5f..95f7e09231 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -183,7 +183,7 @@ type debugState struct {
+ 	// The current state of whatever analysis is running.
+ 	currentState stateAtPC
+ 	liveCount    []int
+-	changedVars  []bool
++	changedVars  *sparseSet
+ }
+ 
+ func (state *debugState) initializeCache() {
+@@ -226,7 +226,7 @@ func (state *debugState) initializeCache() {
+ 	state.liveCount = make([]int, len(state.slots))
+ 
+ 	// A relatively small slice, but used many times as the return from processValue.
+-	state.changedVars = make([]bool, len(state.vars))
++	state.changedVars = newSparseSet(len(state.vars))
+ 
+ 	// A pending entry per user variable, with space to track each of its pieces.
+ 	nPieces := 0
+@@ -310,7 +310,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	for i, slot := range f.Names {
+ 		slot := slot
+ 		state.slots[i] = &slot
+-		if isSynthetic(&slot) {
++		if slot.N.IsSynthetic() {
+ 			continue
+ 		}
+ 
+@@ -338,7 +338,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 
+ 	state.initializeCache()
+ 	for i, slot := range f.Names {
+-		if isSynthetic(&slot) {
++		if slot.N.IsSynthetic() {
+ 			continue
+ 		}
+ 		for _, value := range f.NamedValues[slot] {
+@@ -357,13 +357,6 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	}
+ }
+ 
+-// isSynthetic reports whether if slot represents a compiler-inserted variable,
+-// e.g. an autotmp or an anonymous return value that needed a stack slot.
+-func isSynthetic(slot *LocalSlot) bool {
+-	c := slot.N.String()[0]
+-	return c == '.' || c == '~'
+-}
+-
+ // liveness walks the function in control flow order, calculating the start
+ // and end state of each block.
+ func (state *debugState) liveness() []*BlockDebug {
+@@ -519,16 +512,15 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug) ([
+ 
+ 	// A slot is live if it was seen in all predecessors, and they all had
+ 	// some storage in common.
+-	for slotID, slotLoc := range slotLocs {
+-		// Not seen in any predecessor.
+-		if slotLoc.absent() {
+-			continue
+-		}
+-		// Seen in only some predecessors. Clear it out.
++	for slotID := range p0 {
++		slotLoc := slotLocs[slotID]
++
+ 		if state.liveCount[slotID] != len(preds) {
++			// Seen in only some predecessors. Clear it out.
+ 			slotLocs[slotID] = VarLoc{}
+ 			continue
+ 		}
++
+ 		// Present in all predecessors.
+ 		mask := uint64(slotLoc.Registers)
+ 		for {
+@@ -553,7 +545,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 	changed := false
+ 	setSlot := func(slot SlotID, loc VarLoc) {
+ 		changed = true
+-		state.changedVars[state.slotVars[slot]] = true
++		state.changedVars.add(ID(state.slotVars[slot]))
+ 		state.currentState.slots[slot] = loc
+ 	}
+ 
+@@ -860,13 +852,10 @@ func (state *debugState) buildLocationLists(Ctxt *obj.Link, blockLocs []*BlockDe
+ 			}
+ 
+ 			phisPending = false
+-			for varID := range state.changedVars {
+-				if !state.changedVars[varID] {
+-					continue
+-				}
+-				state.changedVars[varID] = false
++			for _, varID := range state.changedVars.contents() {
+ 				updateVar(VarID(varID), v, state.currentState.slots)
+ 			}
++			state.changedVars.clear()
+ 		}
+ 
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index d1d6831eb3..ac7a1b00e0 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -79,6 +79,10 @@ func (d *DummyAuto) StorageClass() StorageClass {
+ 	return ClassAuto
+ }
+ 
++func (d *DummyAuto) IsSynthetic() bool {
++	return false
++}
++
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }

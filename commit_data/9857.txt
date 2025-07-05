@@ -7,7 +7,204 @@ Date:   Tue Oct 4 11:27:06 2011 -0300
     R=golang-dev, rsc, gustavo, r, borman
     CC=golang-dev
     https://golang.org/cl/4981049
-
+---
  src/pkg/path/filepath/path.go      | 69 +++++++++++++++++++++++++++++++
  src/pkg/path/filepath/path_test.go | 85 +++++++++++++++++++++++++++++++++++---
  2 files changed, 148 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index c40d9ff564..afb8f102d5 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -258,6 +258,75 @@ func Abs(path string) (string, os.Error) {
+ 	return Join(wd, path), nil
+ }
+ 
++// Rel returns a relative path that is lexically equivalent to targpath when
++// joined to basepath with an intervening separator. That is,
++// Join(basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
++// An error is returned if targpath can't be made relative to basepath or if
++// knowing the current working directory would be necessary to compute it.
++func Rel(basepath, targpath string) (string, os.Error) {
++	baseVol := VolumeName(basepath)
++	targVol := VolumeName(targpath)
++	base := Clean(basepath)
++	targ := Clean(targpath)
++	if targ == base {
++		return ".", nil
++	}
++	base = base[len(baseVol):]
++	targ = targ[len(targVol):]
++	if base == "." {
++		base = ""
++	}
++	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
++	baseSlashed := len(base) > 0 && base[0] == Separator
++	targSlashed := len(targ) > 0 && targ[0] == Separator
++	if baseSlashed != targSlashed || baseVol != targVol {
++		return "", os.NewError("Rel: can't make " + targ + " relative to " + base)
++	}
++	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
++	bl := len(base)
++	tl := len(targ)
++	var b0, bi, t0, ti int
++	for {
++		for bi < bl && base[bi] != Separator {
++			bi++
++		}
++		for ti < tl && targ[ti] != Separator {
++			ti++
++		}
++		if targ[t0:ti] != base[b0:bi] {
++			break
++		}
++		if bi < bl {
++			bi++
++		}
++		if ti < tl {
++			ti++
++		}
++		b0 = bi
++		t0 = ti
++	}
++	if base[b0:bi] == ".." {
++		return "", os.NewError("Rel: can't make " + targ + " relative to " + base)
++	}
++	if b0 != bl {
++		// Base elements left. Must go up before going down.
++		seps := strings.Count(base[b0:bl], string(Separator))
++		buf := make([]byte, 3+seps*3+tl-t0)
++		n := copy(buf, "..")
++		for i := 0; i < seps; i++ {
++			buf[n] = Separator
++			copy(buf[n+1:], "..")
++			n += 3
++		}
++		if t0 != tl {
++			buf[n] = Separator
++			copy(buf[n+1:], targ[t0:])
++		}
++		return string(buf), nil
++	}
++	return targ[t0:], nil
++}
++
+ // SkipDir is used as a return value from WalkFuncs to indicate that
+ // the directory named in the call is to be skipped. It is not returned
+ // as an error by any function.
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 850ead8e81..9234c0df6c 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -572,10 +572,11 @@ var abstests = []string{
+ 	"pkg/../../AUTHORS",
+ 	"Make.pkg",
+ 	"pkg/Makefile",
+-
+-	// Already absolute
++	".",
+ 	"$GOROOT/src/Make.pkg",
+ 	"$GOROOT/src/../src/Make.pkg",
++	"$GOROOT/misc/cgo",
++	"$GOROOT",
+ }
+ 
+ func TestAbs(t *testing.T) {
+@@ -589,14 +590,15 @@ func TestAbs(t *testing.T) {
+ 	os.Chdir(cwd)
+ 	for _, path := range abstests {
+ 		path = strings.Replace(path, "$GOROOT", goroot, -1)
+-		abspath, err := filepath.Abs(path)
+-		if err != nil {
+-			t.Errorf("Abs(%q) error: %v", path, err)
+-		}
+ 		info, err := os.Stat(path)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", path, err)
+ 		}
++
++		abspath, err := filepath.Abs(path)
++		if err != nil {
++			t.Errorf("Abs(%q) error: %v", path, err)
++		}
+ 		absinfo, err := os.Stat(abspath)
+ 		if err != nil || absinfo.Ino != info.Ino {
+ 			t.Errorf("Abs(%q)=%q, not the same file", path, abspath)
+@@ -610,6 +612,77 @@ func TestAbs(t *testing.T) {
+ 	}
+ }
+ 
++type RelTests struct {
++	root, path, want string
++}
++
++var reltests = []RelTests{
++	{"a/b", "a/b", "."},
++	{"a/b/.", "a/b", "."},
++	{"a/b", "a/b/.", "."},
++	{"./a/b", "a/b", "."},
++	{"a/b", "./a/b", "."},
++	{"ab/cd", "ab/cde", "../cde"},
++	{"ab/cd", "ab/c", "../c"},
++	{"a/b", "a/b/c/d", "c/d"},
++	{"a/b", "a/b/../c", "../c"},
++	{"a/b/../c", "a/b", "../b"},
++	{"a/b/c", "a/c/d", "../../c/d"},
++	{"a/b", "c/d", "../../c/d"},
++	{"../../a/b", "../../a/b/c/d", "c/d"},
++	{"/a/b", "/a/b", "."},
++	{"/a/b/.", "/a/b", "."},
++	{"/a/b", "/a/b/.", "."},
++	{"/ab/cd", "/ab/cde", "../cde"},
++	{"/ab/cd", "/ab/c", "../c"},
++	{"/a/b", "/a/b/c/d", "c/d"},
++	{"/a/b", "/a/b/../c", "../c"},
++	{"/a/b/../c", "/a/b", "../b"},
++	{"/a/b/c", "/a/c/d", "../../c/d"},
++	{"/a/b", "/c/d", "../../c/d"},
++	{"/../../a/b", "/../../a/b/c/d", "c/d"},
++	{".", "a/b", "a/b"},
++	{".", "..", ".."},
++
++	// can't do purely lexically
++	{"..", ".", "err"},
++	{"..", "a", "err"},
++	{"../..", "..", "err"},
++	{"a", "/a", "err"},
++	{"/a", "a", "err"},
++}
++
++var winreltests = []RelTests{
++	{`C:a\b\c`, `C:a/b/d`, `..\d`},
++	{`C:\`, `D:\`, `err`},
++	{`C:`, `D:`, `err`},
++}
++
++func TestRel(t *testing.T) {
++	tests := append([]RelTests{}, reltests...)
++	if runtime.GOOS == "windows" {
++		for i := range tests {
++			tests[i].want = filepath.FromSlash(tests[i].want)
++		}
++		tests = append(tests, winreltests...)
++	}
++	for _, test := range tests {
++		got, err := filepath.Rel(test.root, test.path)
++		if test.want == "err" {
++			if err == nil {
++				t.Errorf("Rel(%q, %q)=%q, want error", test.root, test.path, got)
++			}
++			continue
++		}
++		if err != nil {
++			t.Errorf("Rel(%q, %q): want %q, got error: %s", test.root, test.path, test.want, err)
++		}
++		if got != test.want {
++			t.Errorf("Rel(%q, %q)=%q, want %q", test.root, test.path, got, test.want)
++		}
++	}
++}
++
+ type VolumeNameTest struct {
+ 	path string
+ 	vol  string

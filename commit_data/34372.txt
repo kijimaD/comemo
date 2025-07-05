@@ -17,7 +17,7 @@ Date:   Fri Oct 20 11:56:31 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go  | 13 +++-----
  src/cmd/compile/internal/gc/esc.go    |  4 +--
  src/cmd/compile/internal/gc/export.go |  2 +-
@@ -28,3 +28,370 @@ Date:   Fri Oct 20 11:56:31 2017 +0100
  src/cmd/compile/internal/gc/subr.go   | 61 ++++++++++++++---------------------
  src/cmd/compile/internal/gc/walk.go   | 22 +++++--------
  9 files changed, 52 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 1d67e5fd10..dcc16b6dec 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1373,7 +1373,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 			return convlit(n, t)
+ 		}
+ 
+-		if n.Val().Ctype() == CTNIL {
++		switch n.Val().Ctype() {
++		case CTNIL:
+ 			lineno = lno
+ 			if !n.Diag() {
+ 				yyerror("use of untyped nil")
+@@ -1381,17 +1382,13 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 			}
+ 
+ 			n.Type = nil
+-			break
+-		}
+-
+-		if n.Val().Ctype() == CTSTR {
++		case CTSTR:
+ 			t1 := types.Types[TSTRING]
+ 			n = convlit1(n, t1, false, reuse)
+-			break
++		default:
++			yyerror("defaultlit: unknown literal: %v", n)
+ 		}
+ 
+-		yyerror("defaultlit: unknown literal: %v", n)
+-
+ 	case CTxxx:
+ 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 7c4fb8b557..b420c97666 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -205,9 +205,7 @@ const (
+ // allowed level when a loop is encountered. Using -2 suffices to
+ // pass all the tests we have written so far, which we assume matches
+ // the level of complexity we want the escape analysis code to handle.
+-const (
+-	MinLevel = -2
+-)
++const MinLevel = -2
+ 
+ // A Level encodes the reference state and context applied to
+ // (stack, heap) allocated memory.
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 32a90a7b85..8175119eb8 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -83,7 +83,7 @@ func autoexport(n *Node, ctxt Class) {
+ 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
+ 		return
+ 	}
+-	if n.Type != nil && n.Type.IsKind(TFUNC) && n.Type.Recv() != nil { // method
++	if n.Type != nil && n.Type.IsKind(TFUNC) && n.IsMethod() {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 5ec2e02544..e4b6a91177 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -70,13 +70,13 @@ func newProgs(fn *Node, worker int) *Progs {
+ }
+ 
+ func (pp *Progs) NewProg() *obj.Prog {
++	var p *obj.Prog
+ 	if pp.cacheidx < len(pp.progcache) {
+-		p := &pp.progcache[pp.cacheidx]
+-		p.Ctxt = Ctxt
++		p = &pp.progcache[pp.cacheidx]
+ 		pp.cacheidx++
+-		return p
++	} else {
++		p = new(obj.Prog)
+ 	}
+-	p := new(obj.Prog)
+ 	p.Ctxt = Ctxt
+ 	return p
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 8d814f89e8..fdde0ce35b 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -16,9 +16,7 @@ import (
+ )
+ 
+ // architecture-independent object file output
+-const (
+-	ArhdrSize = 60
+-)
++const ArhdrSize = 60
+ 
+ func formathdr(arhdr []byte, name string, size int64) {
+ 	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
+@@ -62,6 +60,7 @@ func dumpobj1(outfile string, mode int) {
+ 		fmt.Printf("can't create %s: %v\n", outfile, err)
+ 		errorexit()
+ 	}
++	defer bout.Close()
+ 
+ 	startobj := int64(0)
+ 	var arhdr [ArhdrSize]byte
+@@ -108,7 +107,6 @@ func dumpobj1(outfile string, mode int) {
+ 	}
+ 
+ 	if mode&modeLinkerObj == 0 {
+-		bout.Close()
+ 		return
+ 	}
+ 
+@@ -170,8 +168,6 @@ func dumpobj1(outfile string, mode int) {
+ 		formathdr(arhdr[:], "_go_.o", size)
+ 		bout.Write(arhdr[:])
+ 	}
+-
+-	bout.Close()
+ }
+ 
+ func addptabs() {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index e99754c299..6d5fe298d0 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -156,8 +156,7 @@ func walkselect(sel *Node) {
+ 			a.Nbody.Set1(mkcall("block", nil, &ln))
+ 			l = ln.Slice()
+ 			a = typecheck(a, Etop)
+-			l = append(l, a)
+-			l = append(l, n)
++			l = append(l, a, n)
+ 		}
+ 
+ 		l = append(l, cas.Nbody.Slice()...)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3ad84abd10..8d5bbd0fa1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5119,10 +5119,11 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+ func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+ 	s := &types.Sym{Name: parent.N.(*Node).Sym.Name + suffix, Pkg: localpkg}
+ 
+-	n := new(Node)
+-	n.Name = new(Name)
+-	n.Op = ONAME
+-	n.Pos = parent.N.(*Node).Pos
++	n := &Node{
++		Name: new(Name),
++		Op:   ONAME,
++		Pos:  parent.N.(*Node).Pos,
++	}
+ 	n.Orig = n
+ 
+ 	s.Def = asTypesNode(n)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 83f160e883..686a8177c5 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1130,48 +1130,42 @@ func updateHasCall(n *Node) {
+ 	if n == nil {
+ 		return
+ 	}
++	n.SetHasCall(calcHasCall(n))
++}
+ 
+-	b := false
++func calcHasCall(n *Node) bool {
+ 	if n.Ninit.Len() != 0 {
+ 		// TODO(mdempsky): This seems overly conservative.
+-		b = true
+-		goto out
++		return true
+ 	}
+ 
+ 	switch n.Op {
+ 	case OLITERAL, ONAME, OTYPE:
+-		if b || n.HasCall() {
++		if n.HasCall() {
+ 			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
+ 		}
+-		return
++		return false
+ 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+-		b = true
+-		goto out
++		return true
+ 	case OANDAND, OOROR:
+ 		// hard with instrumented code
+ 		if instrumenting {
+-			b = true
+-			goto out
++			return true
+ 		}
+ 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
+ 		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
+ 		// These ops might panic, make sure they are done
+ 		// before we start marshaling args for a call. See issue 16760.
+-		b = true
+-		goto out
++		return true
+ 	}
+ 
+ 	if n.Left != nil && n.Left.HasCall() {
+-		b = true
+-		goto out
++		return true
+ 	}
+ 	if n.Right != nil && n.Right.HasCall() {
+-		b = true
+-		goto out
++		return true
+ 	}
+-
+-out:
+-	n.SetHasCall(b)
++	return false
+ }
+ 
+ func badtype(op Op, tl *types.Type, tr *types.Type) {
+@@ -1383,6 +1377,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		return
+ 	}
+ 	t.SetRecur(true)
++	defer t.SetRecur(false)
+ 
+ 	var u *types.Type
+ 	d--
+@@ -1392,7 +1387,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		// below for embedded fields.
+ 		c = lookdot0(s, t, save, ignorecase)
+ 		if c != 0 {
+-			goto out
++			return c, false
+ 		}
+ 	}
+ 
+@@ -1401,7 +1396,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		u = u.Elem()
+ 	}
+ 	if !u.IsStruct() && !u.IsInterface() {
+-		goto out
++		return c, false
+ 	}
+ 
+ 	for _, f := range u.Fields().Slice() {
+@@ -1410,8 +1405,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		}
+ 		if d < 0 {
+ 			// Found an embedded field at target depth.
+-			more = true
+-			goto out
++			return c, true
+ 		}
+ 		a, more1 := adddot1(s, f.Type, d, save, ignorecase)
+ 		if a != 0 && c == 0 {
+@@ -1423,8 +1417,6 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		}
+ 	}
+ 
+-out:
+-	t.SetRecur(false)
+ 	return c, more
+ }
+ 
+@@ -1553,21 +1545,18 @@ func expand1(t *types.Type, top, followptr bool) {
+ 		u = u.Elem()
+ 	}
+ 
+-	if !u.IsStruct() && !u.IsInterface() {
+-		goto out
+-	}
+-
+-	for _, f := range u.Fields().Slice() {
+-		if f.Embedded == 0 {
+-			continue
+-		}
+-		if f.Sym == nil {
+-			continue
++	if u.IsStruct() || u.IsInterface() {
++		for _, f := range u.Fields().Slice() {
++			if f.Embedded == 0 {
++				continue
++			}
++			if f.Sym == nil {
++				continue
++			}
++			expand1(f.Type, false, followptr)
+ 		}
+-		expand1(f.Type, false, followptr)
+ 	}
+ 
+-out:
+ 	t.SetRecur(false)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a597114252..65ca6cc27a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -13,9 +13,7 @@ import (
+ )
+ 
+ // The constant is known to runtime.
+-const (
+-	tmpstringbufsize = 32
+-)
++const tmpstringbufsize = 32
+ 
+ func walk(fn *Node) {
+ 	Curfn = fn
+@@ -2247,24 +2245,23 @@ func convas(n *Node, init *Nodes) *Node {
+ 	if n.Op != OAS {
+ 		Fatalf("convas: not OAS %v", n.Op)
+ 	}
++	defer updateHasCall(n)
+ 
+ 	n.SetTypecheck(1)
+ 
+-	var lt *types.Type
+-	var rt *types.Type
+ 	if n.Left == nil || n.Right == nil {
+-		goto out
++		return n
+ 	}
+ 
+-	lt = n.Left.Type
+-	rt = n.Right.Type
++	lt := n.Left.Type
++	rt := n.Right.Type
+ 	if lt == nil || rt == nil {
+-		goto out
++		return n
+ 	}
+ 
+ 	if isblank(n.Left) {
+ 		n.Right = defaultlit(n.Right, nil)
+-		goto out
++		return n
+ 	}
+ 
+ 	if !eqtype(lt, rt) {
+@@ -2273,8 +2270,6 @@ func convas(n *Node, init *Nodes) *Node {
+ 	}
+ 	dowidth(n.Right.Type)
+ 
+-out:
+-	updateHasCall(n)
+ 	return n
+ }
+ 
+@@ -2429,9 +2424,8 @@ func outervalue(n *Node) *Node {
+ 			}
+ 		}
+ 
+-		break
++		return n
+ 	}
+-	return n
+ }
+ 
+ // Is it possible that the computation of n might be

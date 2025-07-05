@@ -7,8 +7,60 @@ Date:   Mon Sep 12 11:57:34 2011 +1000
     R=dsymonds
     CC=golang-dev, mikesamuel
     https://golang.org/cl/4972063
-
+---
  src/pkg/exp/template/html/escape_test.go | 9 +++++++--
  src/pkg/exp/template/html/js.go          | 7 ++++++-
  src/pkg/exp/template/html/js_test.go     | 2 +-
  3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index efd97fced5..23f5734987 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -194,8 +194,13 @@ func TestEscape(t *testing.T) {
+ 		},
+ 		{
+ 			"jsRe",
+-			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
+-			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
++			`<button onclick='alert(/{{"foo+bar"}}/.test(""))'>`,
++			`<button onclick='alert(/foo\x2bbar/.test(""))'>`,
++		},
++		{
++			"jsReBlank",
++			`<script>alert(/{{""}}/.test(""));</script>`,
++			`<script>alert(/(?:)/.test(""));</script>`,
+ 		},
+ 		{
+ 			"styleBidiKeywordPassed",
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+index 4147651903..f9251a053b 100644
+--- a/src/pkg/exp/template/html/js.go
++++ b/src/pkg/exp/template/html/js.go
+@@ -174,7 +174,12 @@ func jsStrEscaper(args ...interface{}) string {
+ // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
+ // the literal text of {{.X}} followed by the string "bar".
+ func jsRegexpEscaper(args ...interface{}) string {
+-	return replace(stringify(args...), jsRegexpReplacementTable)
++	s := replace(stringify(args...), jsRegexpReplacementTable)
++	if s == "" {
++		// /{{.X}}/ should not produce a line comment when .X == "".
++		return "(?:)"
++	}
++	return s
+ }
+ 
+ // stringify is an optimized form of fmt.Sprint.
+diff --git a/src/pkg/exp/template/html/js_test.go b/src/pkg/exp/template/html/js_test.go
+index 0ae70d1e2b..76fc23845d 100644
+--- a/src/pkg/exp/template/html/js_test.go
++++ b/src/pkg/exp/template/html/js_test.go
+@@ -224,7 +224,7 @@ func TestJSRegexpEscaper(t *testing.T) {
+ 		x   interface{}
+ 		esc string
+ 	}{
+-		{"", ``},
++		{"", `(?:)`},
+ 		{"foo", `foo`},
+ 		{"\u0000", `\0`},
+ 		{"\t", `\t`},

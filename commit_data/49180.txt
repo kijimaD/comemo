@@ -23,8 +23,112 @@ Date:   Mon Jul 26 16:33:44 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go   | 12 ++++++++++++
  src/go/types/check_test.go |  7 +++++++
  src/go/types/expr.go       | 34 +++++++++++++++++++++++++---------
  3 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f37b91d5a4..f964c656f9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -322,6 +322,18 @@ func TestTypesInfo(t *testing.T) {
+ 			`[][]struct{}`,
+ 		},
+ 
++		// issue 47243
++		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
++		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `uint`}, // issue 47410: should be untyped float
++		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
++		{`package issue47243_d; var x int32; var _ = 1 << x`, `1`, `int`},
++		{`package issue47243_e; var x int32; var _ = 1 << 2`, `1`, `untyped int`},
++		{`package issue47243_f; var x int32; var _ = 1 << 2`, `2`, `untyped int`},
++		{`package issue47243_g; var x int32; var _ = int(1) << 2`, `2`, `untyped int`},
++		{`package issue47243_h; var x int32; var _ = 1 << (2 << x)`, `1`, `int`},
++		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
++		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
++
+ 		// tests for broken code that doesn't parse or type-check
+ 		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+ 		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index c85a8e46fb..f83abf11ce 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -344,6 +344,13 @@ func TestIssue46453(t *testing.T) {
+ 	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
++func TestIssue47243_TypedRHS(t *testing.T) {
++	// The RHS of the shift expression below overflows uint on 32bit platforms,
++	// but this is OK as it is explicitly typed.
++	const src = "package issue47243\n\nvar a uint64; var _ = a << uint64(4294967296)" // uint64(1<<32)
++	checkFiles(t, &StdSizes{4, 4}, "", []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
++}
++
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+ func TestExamples(t *testing.T)  { testDir(t, "examples") }
+ func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 5c65fad447..58962e777b 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -778,32 +778,48 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 	// spec: "The right operand in a shift expression must have integer type
+ 	// or be an untyped constant representable by a value of type uint."
+ 
+-	// Provide a good error message for negative shift counts.
++	// Check that constants are representable by uint, but do not convert them
++	// (see also issue #47243).
+ 	if y.mode == constant_ {
++		// Provide a good error message for negative shift counts.
+ 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+ 			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
+ 			x.mode = invalid
+ 			return
+ 		}
++
++		if isUntyped(y.typ) {
++			// Caution: Check for representability here, rather than in the switch
++			// below, because isInteger includes untyped integers (was bug #43697).
++			check.representable(y, Typ[Uint])
++			if y.mode == invalid {
++				x.mode = invalid
++				return
++			}
++		}
+ 	}
+ 
+-	// Caution: Check for isUntyped first because isInteger includes untyped
+-	//          integers (was bug #43697).
+-	if isUntyped(y.typ) {
++	// Check that RHS is otherwise at least of integer type.
++	switch {
++	case isInteger(y.typ):
++		if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
++			check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
++			x.mode = invalid
++			return
++		}
++	case isUntyped(y.typ):
++		// This is incorrect, but preserves pre-existing behavior.
++		// See also bug #47410.
+ 		check.convertUntyped(y, Typ[Uint])
+ 		if y.mode == invalid {
+ 			x.mode = invalid
+ 			return
+ 		}
+-	} else if !isInteger(y.typ) {
++	default:
+ 		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
+ 		x.mode = invalid
+ 		return
+-	} else if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-		check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
+-		x.mode = invalid
+-		return
+ 	}
+ 
+ 	if x.mode == constant_ {

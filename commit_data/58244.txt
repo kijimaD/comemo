@@ -12,9 +12,54 @@ Date:   Wed Sep 20 00:01:26 2023 +0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/internal/obj/arm64/a.out.go | 2 +-
  src/cmd/internal/obj/arm64/asm7.go  | 2 +-
  src/cmd/internal/obj/arm64/list7.go | 2 +-
  src/cmd/internal/obj/arm64/obj7.go  | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 2289904d92..39b9f164b9 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -1,5 +1,5 @@
+ // cmd/7c/7.out.h  from Vita Nuova.
+-// https://code.google.com/p/ken-cc/source/browse/src/cmd/7c/7.out.h
++// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/src/cmd/7c/7.out.h
+ //
+ // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 84c6b4d5d4..0991ec9201 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1,5 +1,5 @@
+ // cmd/7l/asm.c, cmd/7l/asmout.c, cmd/7l/optab.c, cmd/7l/span.c, cmd/ld/sub.c, cmd/ld/mod.c, from Vita Nuova.
+-// https://code.google.com/p/ken-cc/source/browse/
++// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
+ //
+ // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm64/list7.go b/src/cmd/internal/obj/arm64/list7.go
+index 0187ad3341..0654139642 100644
+--- a/src/cmd/internal/obj/arm64/list7.go
++++ b/src/cmd/internal/obj/arm64/list7.go
+@@ -1,5 +1,5 @@
+ // cmd/7l/list.c and cmd/7l/sub.c from Vita Nuova.
+-// https://code.google.com/p/ken-cc/source/browse/
++// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
+ //
+ // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0e16e287a7..bd33cbe907 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -1,5 +1,5 @@
+ // cmd/7l/noop.c, cmd/7l/obj.c, cmd/ld/pass.c from Vita Nuova.
+-// https://code.google.com/p/ken-cc/source/browse/
++// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
+ //
+ // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)

@@ -10,7 +10,48 @@ Date:   Wed Sep 22 13:23:47 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351531
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go      | 9 +++------
  src/cmd/compile/internal/staticdata/data.go | 2 +-
  2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index eabd232791..3a653e46b4 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -218,8 +218,6 @@ func (s *SymABIs) GenABIWrappers() {
+ 		}
+ 
+ 		if !buildcfg.Experiment.RegabiWrappers {
+-			// We'll generate ABI aliases instead of
+-			// wrappers once we have LSyms in InitLSym.
+ 			continue
+ 		}
+ 
+@@ -251,10 +249,9 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ 			// the funcsym for either the defining
+ 			// function or its wrapper as appropriate.
+ 			//
+-			// If we're using ABI aliases instead of
+-			// wrappers, we only InitLSym for the defining
+-			// ABI of a function, so we make the funcsym
+-			// when we see that.
++			// If we're not using ABI wrappers, we only
++			// InitLSym for the defining ABI of a function,
++			// so we make the funcsym when we see that.
+ 			staticdata.NeedFuncSym(f)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index f25d8d8ec5..57c15a34a0 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -279,7 +279,7 @@ func NeedFuncSym(fn *ir.Func) {
+ 		// entry points, so it doesn't make sense to create a
+ 		// funcsym for other ABIs.
+ 		//
+-		// (If we're using ABI aliases, it doesn't matter.)
++		// (If we're not using ABI wrappers, it doesn't matter.)
+ 		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
+ 	}
+ 	if ir.IsBlank(fn.Nname) {

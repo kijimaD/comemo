@@ -7,7 +7,32 @@ Date:   Mon Mar 14 15:43:58 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4279053
-
+---
  src/cmd/5l/softfloat.c | 1 +
  src/cmd/5l/thumb.c     | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index fd66b09699..03d8c6d262 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -4,6 +4,7 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ // Software floating point.
+ 
+diff --git a/src/cmd/5l/thumb.c b/src/cmd/5l/thumb.c
+index b2ba630c39..a6f729bed7 100644
+--- a/src/cmd/5l/thumb.c
++++ b/src/cmd/5l/thumb.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "l.h"
++#include "../ld/lib.h"
+ 
+ static int32 thumboprr(int);
+ static int32 thumboprrr(int, int);

@@ -12,8 +12,91 @@ Date:   Tue Feb 18 15:16:07 2014 -0800
     R=agl, dave
     CC=golang-codereviews
     https://golang.org/cl/65690043
-
+---
  src/pkg/crypto/rc4/rc4.go      | 17 +++++++++++++++++
  src/pkg/crypto/rc4/rc4_ref.go  |  9 +--------
  src/pkg/crypto/rc4/rc4_test.go | 19 +++++++++++++++----
  3 files changed, 33 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/rc4/rc4.go b/src/pkg/crypto/rc4/rc4.go
+index 3d717c63b0..9acb681bfb 100644
+--- a/src/pkg/crypto/rc4/rc4.go
++++ b/src/pkg/crypto/rc4/rc4.go
+@@ -50,3 +50,20 @@ func (c *Cipher) Reset() {
+ 	}
+ 	c.i, c.j = 0, 0
+ }
++
++// xorKeyStreamGeneric sets dst to the result of XORing src with the
++// key stream.  Dst and src may be the same slice but otherwise should
++// not overlap.
++//
++// This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
++// implementations. This is here for tests and to prevent bitrot.
++func (c *Cipher) xorKeyStreamGeneric(dst, src []byte) {
++	i, j := c.i, c.j
++	for k, v := range src {
++		i += 1
++		j += uint8(c.s[i])
++		c.s[i], c.s[j] = c.s[j], c.s[i]
++		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
++	}
++	c.i, c.j = i, j
++}
+diff --git a/src/pkg/crypto/rc4/rc4_ref.go b/src/pkg/crypto/rc4/rc4_ref.go
+index bca4d28e1d..bdf5e1db2d 100644
+--- a/src/pkg/crypto/rc4/rc4_ref.go
++++ b/src/pkg/crypto/rc4/rc4_ref.go
+@@ -9,12 +9,5 @@ package rc4
+ // XORKeyStream sets dst to the result of XORing src with the key stream.
+ // Dst and src may be the same slice but otherwise should not overlap.
+ func (c *Cipher) XORKeyStream(dst, src []byte) {
+-	i, j := c.i, c.j
+-	for k, v := range src {
+-		i += 1
+-		j += uint8(c.s[i])
+-		c.s[i], c.s[j] = c.s[j], c.s[i]
+-		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
+-	}
+-	c.i, c.j = i, j
++	c.xorKeyStreamGeneric(dst, src)
+ }
+diff --git a/src/pkg/crypto/rc4/rc4_test.go b/src/pkg/crypto/rc4/rc4_test.go
+index 7b4df6791d..af79882463 100644
+--- a/src/pkg/crypto/rc4/rc4_test.go
++++ b/src/pkg/crypto/rc4/rc4_test.go
+@@ -117,19 +117,30 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func TestBlock(t *testing.T) {
++	testBlock(t, (*Cipher).XORKeyStream)
++}
++
++// Test the pure Go version.
++// Because we have assembly for amd64, 386, and arm, this prevents
++// bitrot of the reference implementations.
++func TestBlockGeneric(t *testing.T) {
++	testBlock(t, (*Cipher).xorKeyStreamGeneric)
++}
++
++func testBlock(t *testing.T, xor func(c *Cipher, dst, src []byte)) {
+ 	c1a, _ := NewCipher(golden[0].key)
+ 	c1b, _ := NewCipher(golden[1].key)
+ 	data1 := make([]byte, 1<<20)
+ 	for i := range data1 {
+-		c1a.XORKeyStream(data1[i:i+1], data1[i:i+1])
+-		c1b.XORKeyStream(data1[i:i+1], data1[i:i+1])
++		xor(c1a, data1[i:i+1], data1[i:i+1])
++		xor(c1b, data1[i:i+1], data1[i:i+1])
+ 	}
+ 
+ 	c2a, _ := NewCipher(golden[0].key)
+ 	c2b, _ := NewCipher(golden[1].key)
+ 	data2 := make([]byte, 1<<20)
+-	c2a.XORKeyStream(data2, data2)
+-	c2b.XORKeyStream(data2, data2)
++	xor(c2a, data2, data2)
++	xor(c2b, data2, data2)
+ 
+ 	if !bytes.Equal(data1, data2) {
+ 		t.Fatalf("bad block")

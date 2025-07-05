@@ -17,7 +17,114 @@ Date:   Fri Sep 18 11:40:36 2015 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/iface.go                         |  6 +++
  src/runtime/race/testdata/issue12664_test.go | 76 ++++++++++++++++++++++++++++
  2 files changed, 82 insertions(+)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 332b7d50ab..646f8789eb 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -129,6 +129,9 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
+ }
+ 
+ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
++	}
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if isDirectIface(t) {
+ 		ep._type = t
+@@ -147,6 +150,9 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
+ }
+ 
+ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
++	}
+ 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
+ 	if tab == nil {
+ 		tab = getitab(inter, t, false)
+diff --git a/src/runtime/race/testdata/issue12664_test.go b/src/runtime/race/testdata/issue12664_test.go
+new file mode 100644
+index 0000000000..c9f790edc8
+--- /dev/null
++++ b/src/runtime/race/testdata/issue12664_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"fmt"
++	"testing"
++)
++
++var issue12664 = "hi"
++
++func TestRaceIssue12664(t *testing.T) {
++	c := make(chan struct{})
++	go func() {
++		issue12664 = "bye"
++		close(c)
++	}()
++	fmt.Println(issue12664)
++	<-c
++}
++
++type MyI interface {
++	foo()
++}
++
++type MyT int
++
++func (MyT) foo() {
++}
++
++var issue12664_2 MyT = 0
++
++func TestRaceIssue12664_2(t *testing.T) {
++	c := make(chan struct{})
++	go func() {
++		issue12664_2 = 1
++		close(c)
++	}()
++	func(x MyI) {
++		// Never true, but prevents inlining.
++		if x.(MyT) == -1 {
++			close(c)
++		}
++	}(issue12664_2)
++	<-c
++}
++
++var issue12664_3 MyT = 0
++
++func TestRaceIssue12664_3(t *testing.T) {
++	c := make(chan struct{})
++	go func() {
++		issue12664_3 = 1
++		close(c)
++	}()
++	var r MyT
++	var i interface{} = r
++	issue12664_3 = i.(MyT)
++	<-c
++}
++
++var issue12664_4 MyT = 0
++
++func TestRaceIssue12664_4(t *testing.T) {
++	c := make(chan struct{})
++	go func() {
++		issue12664_4 = 1
++		close(c)
++	}()
++	var r MyT
++	var i MyI = r
++	issue12664_4 = i.(MyT)
++	<-c
++}

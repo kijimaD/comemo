@@ -18,7 +18,7 @@ Date:   Tue Feb 9 15:14:43 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go        | 33 ++++++++++------
  src/cmd/compile/internal/ir/expr.go             |  8 ++--
  src/cmd/compile/internal/ssa/expand_calls.go    | 31 +++++++++++----
@@ -29,3 +29,477 @@ Date:   Tue Feb 9 15:14:43 2021 -0500
  src/cmd/compile/internal/types/type.go          | 16 +++++++-
  src/cmd/compile/internal/walk/assign.go         |  2 +-
  9 files changed, 107 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index a5c85a89fb..8549c0325d 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -151,6 +151,13 @@ func (a *ABIConfig) Copy() *ABIConfig {
+ 	return &b
+ }
+ 
++// LocalsOffset returns the architecture-dependent offset from SP for args and results.
++// In theory this is only used for debugging; it ought to already be incorporated into
++// results from the ABI-related methods
++func (a *ABIConfig) LocalsOffset() int64 {
++	return a.offsetForLocals
++}
++
+ // NumParamRegs returns the number of parameter registers used for a given type,
+ // without regard for the number available.
+ func (a *ABIConfig) NumParamRegs(t *types.Type) int {
+@@ -237,23 +244,22 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
+ 	return result
+ }
+ 
+-// ABIAnalyze takes a function type 't' and an ABI rules description
++// ABIAnalyzeFuncType takes a function type 'ft' and an ABI rules description
+ // 'config' and analyzes the function to determine how its parameters
+ // and results will be passed (in registers or on the stack), returning
+ // an ABIParamResultInfo object that holds the results of the analysis.
+-func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
++func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo {
+ 	setup()
+ 	s := assignState{
+ 		stackOffset: config.offsetForLocals,
+ 		rTotal:      config.regAmounts,
+ 	}
+ 	result := &ABIParamResultInfo{config: config}
+-	ft := t.FuncType()
+-	result.preAllocateParams(t.NumRecvs() != 0, ft.Params.NumFields(), ft.Results.NumFields())
++	result.preAllocateParams(ft.Receiver != nil, ft.Params.NumFields(), ft.Results.NumFields())
+ 
+ 	// Receiver
+ 	// TODO(register args) ? seems like "struct" and "fields" is not right anymore for describing function parameters
+-	if t.NumRecvs() != 0 {
++	if ft.Receiver != nil && ft.Receiver.NumFields() != 0 {
+ 		r := ft.Receiver.FieldSlice()[0]
+ 		result.inparams = append(result.inparams,
+ 			s.assignParamOrReturn(r.Type, r.Nname, false))
+@@ -279,7 +285,14 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ 	result.offsetToSpillArea = alignTo(s.stackOffset, types.RegSize)
+ 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
+ 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
++	return result
++}
+ 
++// ABIAnalyze returns the same result as ABIAnalyzeFuncType, but also
++// updates the offsets of all the receiver, input, and output fields.
++func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
++	ft := t.FuncType()
++	result := config.ABIAnalyzeFuncType(ft)
+ 	// Fill in the frame offsets for receiver, inputs, results
+ 	k := 0
+ 	if t.NumRecvs() != 0 {
+@@ -296,13 +309,11 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ }
+ 
+ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
++	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+ 	if !isReturn || len(a.Registers) == 0 {
+-		// TODO in next CL, assign
+-		if f.Offset+config.offsetForLocals != a.FrameOffset(result) {
+-			if config.regAmounts.intRegs == 0 && config.regAmounts.floatRegs == 0 {
+-				panic(fmt.Errorf("Expected node offset %d != abi offset %d", f.Offset, a.FrameOffset(result)))
+-			}
+-		}
++		// The type frame offset DOES NOT show effects of minimum frame size.
++		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
++		f.Offset = a.FrameOffset(result)-config.LocalsOffset()
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index d68bcfe60c..65ed3cff66 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -447,14 +447,14 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
+ 	t.SetNod(n)
+ }
+ 
+-// A ResultExpr represents a direct access to a result slot on the stack frame.
++// A ResultExpr represents a direct access to a result.
+ type ResultExpr struct {
+ 	miniExpr
+-	Offset int64
++	Index int64 // index of the result expr.
+ }
+ 
+-func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
+-	n := &ResultExpr{Offset: offset}
++func NewResultExpr(pos src.XPos, typ *types.Type, index int64) *ResultExpr {
++	n := &ResultExpr{Index: index}
+ 	n.pos = pos
+ 	n.op = ORESULT
+ 	n.typ = typ
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 292b0b41ce..741d59258b 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -32,6 +32,10 @@ func isBlockMultiValueExit(b *Block) bool {
+ 	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && len(b.Controls) > 0 && b.Controls[0].Op == OpMakeResult
+ }
+ 
++func badVal(s string, v *Value) error {
++	return fmt.Errorf("%s %s", s, v.LongString())
++}
++
+ // removeTrivialWrapperTypes unwraps layers of
+ // struct { singleField SomeType } and [1]SomeType
+ // until a non-wrapper type is reached.  This is useful
+@@ -231,6 +235,9 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
+ 
+ // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
+ func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
++	if v.Op != OpArg {
++		panic(badVal("Wanted OpArg, instead saw", v))
++	}
+ 	name := v.Aux.(*ir.Name)
+ 	fPri := x.f.OwnAux.abiInfo
+ 	for _, a := range fPri.InParams() {
+@@ -275,9 +282,6 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 	}
+ 	switch selector.Op {
+ 	case OpArg:
+-		paramAssignment := x.prAssignForArg(selector)
+-		_ = paramAssignment
+-		// TODO(register args)
+ 		if !x.isAlreadyExpandedAggregateType(selector.Type) {
+ 			if leafType == selector.Type { // OpIData leads us here, sometimes.
+ 				leaf.copyOf(selector)
+@@ -364,7 +368,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 				// StaticCall selector will address last element of Result.
+ 				// TODO do this for all the other call types eventually.
+ 				if aux.abiInfo == nil {
+-					panic(fmt.Errorf("aux.abiInfo nil for call %s", call.LongString()))
++					panic(badVal("aux.abiInfo nil for call", call))
+ 				}
+ 				if existing := x.memForCall[call.ID]; existing == nil {
+ 					selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+@@ -566,9 +570,6 @@ func (x *expandState) decomposeArgOrLoad(pos src.XPos, b *Block, base, source, m
+ // pos and b locate the store instruction, base is the base of the store target, source is the "base" of the value input,
+ // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
+ func storeOneArg(x *expandState, pos src.XPos, b *Block, base, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+-	paramAssignment := x.prAssignForArg(source)
+-	_ = paramAssignment
+-	// TODO(register args)
+ 	w := x.common[selKey{source, offArg, t.Width, t}]
+ 	if w == nil {
+ 		w = source.Block.NewValue0IA(source.Pos, OpArg, t, offArg, source.Aux)
+@@ -1198,10 +1199,24 @@ func expandCalls(f *Func) {
+ 
+ 	deleteNamedVals(f, toDelete)
+ 
+-	// Step 4: rewrite the calls themselves, correcting the type
++	// Step 4: rewrite the calls themselves, correcting the type.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
++			case OpArg:
++				pa := x.prAssignForArg(v)
++				switch len(pa.Registers) {
++				case 0:
++					frameOff := v.Aux.(*ir.Name).FrameOffset()
++					if pa.Offset() != int32(frameOff+x.f.ABISelf.LocalsOffset()) {
++						panic(fmt.Errorf("Parameter assignment %d and OpArg.Aux frameOffset %d disagree, op=%s\n",
++							pa.Offset(), frameOff, v.LongString()))
++					}
++				case 1:
++				default:
++					panic(badVal("Saw unexpeanded OpArg", v))
++				}
++
+ 			case OpStaticLECall:
+ 				v.Op = OpStaticCall
+ 				// TODO need to insert all the register types.
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 6d2ca96293..506c745f7c 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -86,63 +86,39 @@ type AuxCall struct {
+ 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
+ }
+ 
+-// ResultForOffsetAndType returns the index of a t-typed result at *A* particular offset among the results.
+-// An arbitrary number of zero-width-typed results may reside at the same offset with a single not-zero-width
+-// typed result, but the ones with the same type are all indistinguishable so it doesn't matter "which one"
+-// is obtained.
+-// This does not include the mem result for the call opcode.
+-func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
+-	which := int64(-1)
+-	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
+-		if a.OffsetOfResult(i) == offset && a.TypeOfResult(i) == t {
+-			which = i
+-			break
+-		}
+-	}
+-	return which
+-}
+-
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) OffsetOfResult(which int64) int64 {
+-	o := int64(a.results[which].Offset)
+ 	n := int64(a.abiInfo.OutParam(int(which)).Offset())
+-	if o != n {
+-		panic(fmt.Errorf("Result old=%d, new=%d, auxcall=%s, oparams=%v", o, n, a, a.abiInfo.OutParams()))
+-	}
+-	return int64(a.abiInfo.OutParam(int(which)).Offset())
++	return n
+ }
+ 
+ // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
+ // If the call is to a method, the receiver is the first argument (i.e., index 0)
+ func (a *AuxCall) OffsetOfArg(which int64) int64 {
+-	o := int64(a.args[which].Offset)
+ 	n := int64(a.abiInfo.InParam(int(which)).Offset())
+-	if o != n {
+-		panic(fmt.Errorf("Arg old=%d, new=%d, auxcall=%s, iparams=%v", o, n, a, a.abiInfo.InParams()))
+-	}
+-	return int64(a.abiInfo.InParam(int(which)).Offset())
++	return n
+ }
+ 
+ // RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
+ func (a *AuxCall) RegsOfResult(which int64) []abi.RegIndex {
+-	return a.results[which].Reg
++	return a.abiInfo.OutParam(int(which)).Registers
+ }
+ 
+ // RegsOfArg returns the register(s) used for argument which (indexed 0, 1, etc).
+ // If the call is to a method, the receiver is the first argument (i.e., index 0)
+ func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
+-	return a.args[which].Reg
++	return a.abiInfo.InParam(int(which)).Registers
+ }
+ 
+ // TypeOfResult returns the type of result which (indexed 0, 1, etc).
+ func (a *AuxCall) TypeOfResult(which int64) *types.Type {
+-	return a.results[which].Type
++	return a.abiInfo.OutParam(int(which)).Type
+ }
+ 
+ // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
+ // If the call is to a method, the receiver is the first argument (i.e., index 0)
+ func (a *AuxCall) TypeOfArg(which int64) *types.Type {
+-	return a.args[which].Type
++	return a.abiInfo.InParam(int(which)).Type
+ }
+ 
+ // SizeOfResult returns the size of result which (indexed 0, 1, etc).
+@@ -158,7 +134,7 @@ func (a *AuxCall) SizeOfArg(which int64) int64 {
+ 
+ // NResults returns the number of results
+ func (a *AuxCall) NResults() int64 {
+-	return int64(len(a.results))
++	return int64(len(a.abiInfo.OutParams()))
+ }
+ 
+ // LateExpansionResultType returns the result type (including trailing mem)
+@@ -174,7 +150,7 @@ func (a *AuxCall) LateExpansionResultType() *types.Type {
+ 
+ // NArgs returns the number of arguments (including receiver, if there is one).
+ func (a *AuxCall) NArgs() int64 {
+-	return int64(len(a.args))
++	return int64(len(a.abiInfo.InParams()))
+ }
+ 
+ // String returns
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 938c1e8b62..210150d872 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -301,7 +301,7 @@ func (s *state) emitOpenDeferInfo() {
+ 	var maxargsize int64
+ 	for i := len(s.openDefers) - 1; i >= 0; i-- {
+ 		r := s.openDefers[i]
+-		argsize := r.n.X.Type().ArgWidth()
++		argsize := r.n.X.Type().ArgWidth() // TODO register args: but maybe use of abi0 will make this easy
+ 		if argsize > maxargsize {
+ 			maxargsize = argsize
+ 		}
+@@ -324,19 +324,30 @@ func (s *state) emitOpenDeferInfo() {
+ 		}
+ 		off = dvarint(x, off, int64(numArgs))
+ 		if r.rcvrNode != nil {
+-			off = dvarint(x, off, -r.rcvrNode.FrameOffset())
++			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
+ 			off = dvarint(x, off, s.config.PtrSize)
+-			off = dvarint(x, off, 0)
++			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
+ 		}
++
++		// TODO(register args) assume abi0 for this?
++		ab := s.f.ABI0
++		pri := ab.ABIAnalyzeFuncType(r.n.X.Type().FuncType())
+ 		for j, arg := range r.argNodes {
+ 			f := getParam(r.n, j)
+-			off = dvarint(x, off, -arg.FrameOffset())
++			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
+ 			off = dvarint(x, off, f.Type.Size())
+-			off = dvarint(x, off, f.Offset)
++			off = dvarint(x, off, okOffset(pri.InParam(j).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
+ 		}
+ 	}
+ }
+ 
++func okOffset(offset int64) int64 {
++	if offset >= types.BOGUS_FUNARG_OFFSET {
++		panic(fmt.Errorf("Bogus offset %d", offset))
++	}
++	return offset
++}
++
+ // buildssa builds an SSA function for fn.
+ // worker indicates which of the backend workers is doing the processing.
+ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+@@ -528,7 +539,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Dcl {
+ 		if n.Class == ir.PPARAM && s.canSSA(n) {
+-			v := s.newValue0A(ssa.OpArg, n.Type(), n)
++			var v *ssa.Value
++			if n.Sym().Name == ".fp" {
++				// Race-detector's get-caller-pc incantation is NOT a real Arg.
++				v = s.newValue0(ssa.OpGetCallerPC, n.Type())
++			} else {
++				v = s.newValue0A(ssa.OpArg, n.Type(), n)
++			}
+ 			s.vars[n] = v
+ 			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+ 		}
+@@ -2917,15 +2934,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 	case ir.ORESULT:
+ 		n := n.(*ir.ResultExpr)
+ 		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
+-			// Do the old thing
+-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
+-			return s.rawLoad(n.Type(), addr)
++			panic("Expected to see a previous call")
+ 		}
+-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
++		which := n.Index
+ 		if which == -1 {
+-			// Do the old thing // TODO: Panic instead.
+-			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
+-			return s.rawLoad(n.Type(), addr)
++			panic(fmt.Errorf("ORESULT %v does not match call %s", n, s.prevCall))
+ 		}
+ 		if TypeOK(n.Type()) {
+ 			return s.newValue1I(ssa.OpSelectN, n.Type(), which, s.prevCall)
+@@ -4889,7 +4902,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 		// Then, store all the arguments of the defer call.
+ 		ft := fn.Type()
+-		off := t.FieldOff(12)
++		off := t.FieldOff(12) // TODO register args: be sure this isn't a hardcoded param stack offset.
+ 		args := n.Args
+ 
+ 		// Set receiver (for interface calls). Always a pointer.
+@@ -5131,15 +5144,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	case ir.ORESULT:
+ 		// load return from callee
+ 		n := n.(*ir.ResultExpr)
+-		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
+-			return s.constOffPtrSP(t, n.Offset)
+-		}
+-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
+-		if which == -1 {
+-			// Do the old thing // TODO: Panic instead.
+-			return s.constOffPtrSP(t, n.Offset)
+-		}
+-		x := s.newValue1I(ssa.OpSelectNAddr, t, which, s.prevCall)
++		x := s.newValue1I(ssa.OpSelectNAddr, t, n.Index, s.prevCall)
+ 		return x
+ 
+ 	case ir.OINDEX:
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index cb434578dd..5a3446b358 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1175,7 +1175,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+ 			base.Errorf("%v is both field and method", n.Sel)
+ 		}
+ 		if f1.Offset == types.BADWIDTH {
+-			base.Fatalf("lookdot badwidth %v %p", f1, f1)
++			base.Fatalf("lookdot badwidth t=%v, f1=%v@%p", t, f1, f1)
+ 		}
+ 		n.Selection = f1
+ 		n.SetType(f1.Type)
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 799cf3a1f6..4c7378560c 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -141,6 +141,8 @@ func expandiface(t *Type) {
+ }
+ 
+ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
++	// flag is 0 (receiver), 1 (actual struct), or RegSize (in/out parameters)
++	isStruct := flag == 1
+ 	starto := o
+ 	maxalign := int32(flag)
+ 	if maxalign < 1 {
+@@ -161,7 +163,9 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		if f.Type.Align > 0 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+-		f.Offset = o
++		if isStruct { // For receiver/args/results, depends on ABI
++			f.Offset = o
++		}
+ 		if f.Nname != nil {
+ 			// addrescapes has similar code to update these offsets.
+ 			// Usually addrescapes runs after calcStructOffset,
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 9fb6d68994..b0516a8259 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -411,7 +411,8 @@ type Field struct {
+ 	Nname Object
+ 
+ 	// Offset in bytes of this field or method within its enclosing struct
+-	// or interface Type.
++	// or interface Type.  Exception: if field is function receiver, arg or
++	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
+ 	Offset int64
+ }
+ 
+@@ -1719,6 +1720,14 @@ func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+ 	return t
+ }
+ 
++const BOGUS_FUNARG_OFFSET = 1000000000
++
++func unzeroFieldOffsets(f []*Field) {
++	for i := range f {
++		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
++	}
++}
++
+ // NewSignature returns a new function type for the given receiver,
+ // parametes, results, and type parameters, any of which may be nil.
+ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
+@@ -1739,6 +1748,11 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ 		return s
+ 	}
+ 
++	if recv != nil {
++		recv.Offset = BOGUS_FUNARG_OFFSET
++	}
++	unzeroFieldOffsets(params)
++	unzeroFieldOffsets(results)
+ 	ft.Receiver = funargs(recvs, FunargRcvr)
+ 	ft.TParams = funargs(tparams, FunargTparams)
+ 	ft.Params = funargs(params, FunargParams)
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 230b544148..44622c741d 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -270,7 +270,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		}
+ 
+ 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
+-		res.Offset = base.Ctxt.FixedFrameSize() + r.Offset
++		res.Index = int64(i)
+ 		res.SetType(r.Type)
+ 		res.SetTypecheck(1)
+ 

@@ -7,6 +7,19 @@ Date:   Mon Apr 4 15:48:43 2011 -0400
     R=golang-dev, r2
     CC=golang-dev, mrjones
     https://golang.org/cl/4348048
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f22f885235..d457b9b11a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -135,6 +135,7 @@ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>
+ Martin Neubauer <m.ne@gmx.net>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
++Matt Jones <mrjones@google.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>

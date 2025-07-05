@@ -14,9 +14,141 @@ Date:   Wed Mar 31 14:29:13 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                  |  2 +-
  src/cmd/go.sum                                  |  4 +-
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 51 ++++++++++++++++++++-----
  src/cmd/vendor/modules.txt                      |  2 +-
  4 files changed, 45 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 5fbcf642f4..ad899ab4bd 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+ 	golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+ 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
+-	golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
++	golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24
+ 	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+ 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+ 	golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 391e99ca99..84f42376a3 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740 h1:UYbWz0ISU1ccVf+FK/BRuwA4LGw2SzoambF9r5ozR/E=
+-golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24 h1:XWBCOnD7qf8cYkORdr1AfVspwadsirSDgThkrje7nWs=
++golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index f8c9384985..3f603fa60f 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -47,8 +47,9 @@ type File struct {
+ 
+ // A Module is the module statement.
+ type Module struct {
+-	Mod    module.Version
+-	Syntax *Line
++	Mod        module.Version
++	Deprecated string
++	Syntax     *Line
+ }
+ 
+ // A Go is the go statement.
+@@ -131,8 +132,15 @@ var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
+ 	return vers, nil
+ }
+ 
+-// Parse parses the data, reported in errors as being from file,
+-// into a File struct. It applies fix, if non-nil, to canonicalize all module versions found.
++// Parse parses and returns a go.mod file.
++//
++// file is the name of the file, used in positions and errors.
++//
++// data is the content of the file.
++//
++// fix is an optional function that canonicalizes module versions.
++// If fix is nil, all module versions must be canonical (module.CanonicalVersion
++// must return the same string).
+ func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
+ 	return parseToFile(file, data, fix, true)
+ }
+@@ -271,7 +279,11 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 			errorf("repeated module statement")
+ 			return
+ 		}
+-		f.Module = &Module{Syntax: line}
++		deprecated := parseDeprecation(block, line)
++		f.Module = &Module{
++			Syntax:     line,
++			Deprecated: deprecated,
++		}
+ 		if len(args) != 1 {
+ 			errorf("usage: module module/path")
+ 			return
+@@ -385,7 +397,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 		})
+ 
+ 	case "retract":
+-		rationale := parseRetractRationale(block, line)
++		rationale := parseDirectiveComment(block, line)
+ 		vi, err := parseVersionInterval(verb, "", &args, dontFixRetract)
+ 		if err != nil {
+ 			if strict {
+@@ -612,10 +624,29 @@ func parseString(s *string) (string, error) {
+ 	return t, nil
+ }
+ 
+-// parseRetractRationale extracts the rationale for a retract directive from the
+-// surrounding comments. If the line does not have comments and is part of a
+-// block that does have comments, the block's comments are used.
+-func parseRetractRationale(block *LineBlock, line *Line) string {
++var deprecatedRE = lazyregexp.New(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
++
++// parseDeprecation extracts the text of comments on a "module" directive and
++// extracts a deprecation message from that.
++//
++// A deprecation message is contained in a paragraph within a block of comments
++// that starts with "Deprecated:" (case sensitive). The message runs until the
++// end of the paragraph and does not include the "Deprecated:" prefix. If the
++// comment block has multiple paragraphs that start with "Deprecated:",
++// parseDeprecation returns the message from the first.
++func parseDeprecation(block *LineBlock, line *Line) string {
++	text := parseDirectiveComment(block, line)
++	m := deprecatedRE.FindStringSubmatch(text)
++	if m == nil {
++		return ""
++	}
++	return m[1]
++}
++
++// parseDirectiveComment extracts the text of comments on a directive.
++// If the directive's line does not have comments and is part of a block that
++// does have comments, the block's comments are used.
++func parseDirectiveComment(block *LineBlock, line *Line) string {
+ 	comments := line.Comment()
+ 	if block != nil && len(comments.Before) == 0 && len(comments.Suffix) == 0 {
+ 		comments = block.Comment()
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 4a128c7933..80ccb2bf24 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -27,7 +27,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
++# golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

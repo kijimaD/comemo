@@ -8,6 +8,60 @@ Date:   Fri May 15 15:45:35 2009 -0700
     DELTA=21  (19 added, 0 deleted, 2 changed)
     OCL=28938
     CL=28941
-
+---
  usr/gri/pretty/godoc.go | 23 +++++++++++++++++++++--
  1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index fab13b61da..1848b58a22 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -601,7 +601,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ // ----------------------------------------------------------------------------
+ // Server
+ 
+-func LoggingHandler(h http.Handler) http.Handler {
++func loggingHandler(h http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
+ 		log.Stderrf("%s\t%s", req.Host, req.Url.Path);
+ 		h.ServeHTTP(c, req);
+@@ -609,6 +609,18 @@ func LoggingHandler(h http.Handler) http.Handler {
+ }
+ 
+ 
++func restartGodoc(c *http.Conn, r *http.Request) {
++	binary := os.Args[0];  // TODO currently requires absolute paths because of chdir in the beginning
++	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
++	if err != nil {
++		log.Stderrf("os.ForkExec(%s): %v", binary, err);
++		return;  // do not terminate
++	}
++	log.Stderrf("restarted %s, pid = %d\n", binary, pid);
++	os.Exit(0);
++}
++
++
+ func usage() {
+ 	fmt.Fprintf(os.Stderr,
+ 		"usage: godoc package [name ...]\n"
+@@ -648,12 +660,19 @@ func main() {
+ 			log.Stderrf("goroot = %s\n", goroot);
+ 			log.Stderrf("pkgroot = %s\n", *pkgroot);
+ 			log.Stderrf("tmplroot = %s\n", *tmplroot);
+-			handler = LoggingHandler(handler);
++			handler = loggingHandler(handler);
+ 		}
+ 
+ 		http.Handle(Pkg, http.HandlerFunc(servePkg));
++		http.Handle("/debug/restart", http.HandlerFunc(restartGodoc));
+ 		http.Handle("/", http.HandlerFunc(serveFile));
+ 
++		// The server may have been restarted; always wait 1sec to
++		// give the forking server a chance to shut down and release
++		// the http port. (This is necessary because under OS X Exec
++		// won't work if there are more than one thread running.)
++		time.Sleep(1e9);
++
+ 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
+ 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
+ 		}

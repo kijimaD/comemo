@@ -14,7 +14,77 @@ Date:   Fri Mar 14 10:07:51 2014 -0400
     R=aram, rsc, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/72280043
-
+---
  src/cmd/ld/macho.c  | 17 ++++++++++++++++-
  src/cmd/ld/symtab.c | 16 ++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 49db83eea2..0f9b0d2d2d 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -574,6 +574,7 @@ machosymtab(void)
+ {
+ 	int i;
+ 	LSym *symtab, *symstr, *s, *o;
++	char *p;
+ 
+ 	symtab = linklookup(ctxt, ".machosymtab", 0);
+ 	symstr = linklookup(ctxt, ".machosymstr", 0);
+@@ -585,7 +586,21 @@ machosymtab(void)
+ 		// Only add _ to C symbols. Go symbols have dot in the name.
+ 		if(strstr(s->extname, ".") == nil)
+ 			adduint8(ctxt, symstr, '_');
+-		addstring(symstr, s->extname);
++		// replace "·" as ".", because DTrace cannot handle it.
++		if(strstr(s->extname, "·") == nil) {
++			addstring(symstr, s->extname);
++		} else {
++			p = s->extname;
++			while (*p++ != '\0') {
++				if(*p == '\xc2' && *(p+1) == '\xb7') {
++					adduint8(ctxt, symstr, '.');
++					p++;
++				} else {
++					adduint8(ctxt, symstr, *p);
++				}
++			}
++			adduint8(ctxt, symstr, '\0');
++		}
+ 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
+ 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
+ 			adduint8(ctxt, symtab, 0); // no section
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index d26ea0d04e..22e5bb5d95 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -40,6 +40,7 @@ static int
+ putelfstr(char *s)
+ {
+ 	int off, n;
++	char *p, *q;
+ 
+ 	if(elfstrsize == 0 && s[0] != 0) {
+ 		// first entry must be empty string
+@@ -54,6 +55,21 @@ putelfstr(char *s)
+ 	off = elfstrsize;
+ 	elfstrsize += n;
+ 	memmove(elfstrdat+off, s, n);
++	// replace "·" as ".", because DTrace cannot handle it.
++	p = strstr(s, "·");
++	if(p != nil) {
++		p = q = elfstrdat+off;
++		while (*q != '\0') {
++			if(*q == '\xc2' && *(q+1) == '\xb7') {
++				q += 2;
++				*p++ = '.';
++				elfstrsize--;
++			} else {
++				*p++ = *q++;
++			}
++		}
++		*p = '\0';
++	}
+ 	return off;
+ }
+ 

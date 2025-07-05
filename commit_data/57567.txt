@@ -20,9 +20,70 @@ Date:   Thu Aug 17 15:30:04 2023 +0700
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go.mod                                                        | 2 +-
  src/cmd/go.sum                                                        | 4 ++--
  .../vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go | 4 +++-
  src/cmd/vendor/modules.txt                                            | 2 +-
  4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 73363bf851..1eaad916ff 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.3.0
+ 	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
+ 	golang.org/x/term v0.11.0
+-	golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
++	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9acf4e1c20..05bcd8860f 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,5 +12,5 @@ golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c h1:2aG9DV1z3tUfHVJRevogC4
+ golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.11.0 h1:F9tnn/DA/Im8nCwm+fX+1/eBwi4qFjRT++MhtVC4ZX0=
+ golang.org/x/term v0.11.0/go.mod h1:zC9APTIj3jG3FdV/Ons+XE1riIZXG4aZ4GTHiPZJPIU=
+-golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1 h1:lOyXDTLvOo2yR4Lca/u2uape32O+leQ3+TUM9YqYh1Y=
+-golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1/go.mod h1:Sc0INKfu04TlqNoRA1hgpFZbhYXHPr4V5DzpSBTPqQM=
++golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 h1:Vve/L0v7CXXuxUmaMGIEK/dEeq7uiqb5qBgQrZzIE7E=
++golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846/go.mod h1:Sc0INKfu04TlqNoRA1hgpFZbhYXHPr4V5DzpSBTPqQM=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index ff2b41ac4a..ec7727de76 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -223,6 +223,8 @@ func (path typePath) String() string {
+ }
+ 
+ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
++	x = analysisutil.Unparen(x) // ignore parens on rhs
++
+ 	if _, ok := x.(*ast.CompositeLit); ok {
+ 		return nil
+ 	}
+@@ -231,7 +233,7 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+ 		return nil
+ 	}
+ 	if star, ok := x.(*ast.StarExpr); ok {
+-		if _, ok := star.X.(*ast.CallExpr); ok {
++		if _, ok := analysisutil.Unparen(star.X).(*ast.CallExpr); ok {
+ 			// A call may return a pointer to a zero value.
+ 			return nil
+ 		}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 155d95b335..3cf8cc25b6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.11.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
++# golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover

@@ -9,7 +9,47 @@ Date:   Tue Jul 16 11:43:11 2013 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11282044
-
+---
  src/cmd/gc/typecheck.c      |  4 ++--
  test/fixedbugs/issue5358.go | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 54ce5b3ea6..f232efdaf8 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2131,9 +2131,9 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 				for(; tn; tn=tn->down) {
+ 					if(assignop(tn->type, tl->type->type, &why) == 0) {
+ 						if(call != N)
+-							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
++							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type->type, call, why);
+ 						else
+-							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
++							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+ 					}
+ 				}
+ 				goto out;
+diff --git a/test/fixedbugs/issue5358.go b/test/fixedbugs/issue5358.go
+new file mode 100644
+index 0000000000..75aa9533d2
+--- /dev/null
++++ b/test/fixedbugs/issue5358.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 5358: incorrect error message when using f(g()) form on ... args.
++
++package main
++
++func f(x int, y ...int) {}
++
++func g() (int, []int)
++
++func main() {
++	f(g()) // ERROR "as type int in"
++}

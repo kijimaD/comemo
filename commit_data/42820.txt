@@ -11,9 +11,70 @@ Date:   Thu Jan 23 22:18:30 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217001
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/amd64/ssa.go   | 2 +-
  src/cmd/compile/internal/ssa/prove.go   | 8 +++++---
  src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
  src/cmd/compile/internal/x86/ssa.go     | 2 +-
  4 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 9ee322b389..b6c1039d9e 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -257,7 +257,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 		// CPU faults upon signed overflow, which occurs when the most
+ 		// negative int is divided by -1. Handle divide by -1 as a special case.
+-		if ssa.NeedsFixUp(v) {
++		if ssa.DivisionNeedsFixUp(v) {
+ 			var c *obj.Prog
+ 			switch v.Op {
+ 			case ssa.OpAMD64DIVQ:
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 774fa94dbc..01825579d9 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1243,9 +1243,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			divdLim, divdLimok := ft.limits[divd.ID]
+ 			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
+ 				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
+-				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
+-				// that the divisor is not -1 and the dividend is not the most negative,
+-				// so we need to add fix-up code.
++				// See DivisionNeedsFixUp in rewrite.go.
++				// v.AuxInt = 1 means we have proved both that the divisor is not -1
++				// and that the dividend is not the most negative integer,
++				// so we do not need to add fix-up code.
++				v.AuxInt = 1
+ 				if b.Func.pass.debug > 0 {
+ 					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 539941001d..ef24dad747 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -480,8 +480,8 @@ func extend32Fto64F(f float32) float64 {
+ 	return math.Float64frombits(r)
+ }
+ 
+-// NeedsFixUp reports whether the division needs fix-up code.
+-func NeedsFixUp(v *Value) bool {
++// DivisionNeedsFixUp reports whether the division needs fix-up code.
++func DivisionNeedsFixUp(v *Value) bool {
+ 	return v.AuxInt == 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index aa68e9163a..0c7e5bdb97 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -199,7 +199,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if v.Op == ssa.Op386DIVL || v.Op == ssa.Op386DIVW ||
+ 			v.Op == ssa.Op386MODL || v.Op == ssa.Op386MODW {
+ 
+-			if ssa.NeedsFixUp(v) {
++			if ssa.DivisionNeedsFixUp(v) {
+ 				var c *obj.Prog
+ 				switch v.Op {
+ 				case ssa.Op386DIVL, ssa.Op386MODL:

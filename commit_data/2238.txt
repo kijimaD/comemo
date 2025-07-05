@@ -8,6 +8,22 @@ Date:   Mon May 18 14:56:25 2009 -0700
     DELTA=3  (2 added, 0 deleted, 1 changed)
     OCL=28994
     CL=29003
-
+---
  src/lib/os/user.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/os/user.go b/src/lib/os/user.go
+index 1549abdcd5..194aa50e44 100644
+--- a/src/lib/os/user.go
++++ b/src/lib/os/user.go
+@@ -44,7 +44,9 @@ func Getgroups() ([]int, os.Error) {
+ 		return nil, ErrnoToError(err);
+ 	}
+ 
+-	if r1 < 0 || r1 > 1024 {	// the current max is 16; 1024 is a future-proof sanity check
++	// Sanity check group count.
++	// On Linux, max is 1<<16; on BSD, OS X, max is 16.
++	if r1 < 0 || r1 > 1<<20 {
+ 		return nil, EINVAL;
+ 	}
+ 	a := make([]int, r1);

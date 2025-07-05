@@ -9,6 +9,20 @@ Date:   Mon Sep 5 09:50:22 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4960052
-
+---
  misc/goplay/goplay.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index bbc388ba4c..7f4c45376f 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -256,7 +256,7 @@ function compileUpdate() {
+ </head>
+ <body>
+ <table width="100%"><tr><td width="60%" valign="top">
+-<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">{{html .}}</textarea>
++<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">{{printf "%s" . |html}}</textarea>
+ <div class="hints">
+ (Shift-Enter to compile and run.)&nbsp;&nbsp;&nbsp;&nbsp;
+ <input type="checkbox" id="autocompile" value="checked" /> Compile and run after each keystroke

@@ -12,7 +12,16 @@ Date:   Wed Oct 21 09:38:27 2015 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/{print1_write.go => write_err.go}                 | 0
  src/runtime/{print1_write_android.go => write_err_android.go} | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/print1_write.go b/src/runtime/write_err.go
+similarity index 100%
+rename from src/runtime/print1_write.go
+rename to src/runtime/write_err.go
+diff --git a/src/runtime/print1_write_android.go b/src/runtime/write_err_android.go
+similarity index 100%
+rename from src/runtime/print1_write_android.go
+rename to src/runtime/write_err_android.go

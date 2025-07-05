@@ -9,10 +9,284 @@ Date:   Thu Dec 3 12:56:16 2009 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/166041
-
+---
  src/pkg/bytes/buffer.go      | 55 ++++++++++++++++++++++++++++++
  src/pkg/bytes/buffer_test.go | 22 ++++++++++++
  src/pkg/io/io.go             | 32 ++++++++++++++++++
  src/pkg/io/io_test.go        | 80 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/io/ioutil/ioutil.go  | 10 +++---
  5 files changed, 194 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index ab6f837aa1..8fa64524c6 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -7,6 +7,7 @@ package bytes
+ // Simple byte buffer for marshaling data.
+ 
+ import (
++	"io";
+ 	"os";
+ )
+ 
+@@ -91,6 +92,60 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+ 	return n, nil;
+ }
+ 
++// MinRead is the minimum slice size passed to a Read call by
++// Buffer.ReadFrom.  As long as the Buffer has at least MinRead bytes beyond
++// what is required to hold the contents of r, ReadFrom will not grow the
++// underlying buffer.
++const MinRead = 512
++
++// ReadFrom reads data from r until EOF and appends it to the buffer.
++// The return value n is the number of bytes read.
++// Any error except os.EOF encountered during the read
++// is also returned.
++func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
++	for {
++		if cap(b.buf)-len(b.buf) < MinRead {
++			var newBuf []byte;
++			// can we get space without allocation?
++			if b.off+cap(b.buf)-len(b.buf) >= MinRead {
++				// reuse beginning of buffer
++				newBuf = b.buf[0 : len(b.buf)-b.off]
++			} else {
++				// not enough space at end; put space on end
++				newBuf = make([]byte, len(b.buf)-b.off, 2*(cap(b.buf)-b.off)+MinRead)
++			}
++			copy(newBuf, b.buf[b.off:]);
++			b.buf = newBuf;
++			b.off = 0;
++		}
++		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)]);
++		b.buf = b.buf[b.off : len(b.buf)+m];
++		n += int64(m);
++		if e == os.EOF {
++			break
++		}
++		if e != nil {
++			return n, e
++		}
++	}
++	return n, nil;	// err is EOF, so return nil explicitly
++}
++
++// WriteTo writes data to w until the buffer is drained or an error
++// occurs. The return value n is the number of bytes written.
++// Any error encountered during the write is also returned.
++func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
++	for b.off < len(b.buf) {
++		m, e := w.Write(b.buf[b.off:]);
++		n += int64(m);
++		b.off += m;
++		if e != nil {
++			return n, e
++		}
++	}
++	return;
++}
++
+ // WriteString appends the contents of s to the buffer.  The return
+ // value n is the length of s; err is always nil.
+ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index d4862459d5..c9dafad402 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -240,3 +240,25 @@ func TestNil(t *testing.T) {
+ 		t.Error("expcted <nil>; got %q", b.String())
+ 	}
+ }
++
++
++func TestReadFrom(t *testing.T) {
++	var buf Buffer;
++	for i := 3; i < 30; i += 3 {
++		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
++		var b Buffer;
++		b.ReadFrom(&buf);
++		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)));
++	}
++}
++
++
++func TestWriteTo(t *testing.T) {
++	var buf Buffer;
++	for i := 3; i < 30; i += 3 {
++		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
++		var b Buffer;
++		buf.WriteTo(&b);
++		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)));
++	}
++}
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index c4850da912..68c5ccc246 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -112,6 +112,16 @@ type ReadWriteSeeker interface {
+ 	Seeker;
+ }
+ 
++// ReaderFrom is the interface that wraps the ReadFrom method.
++type ReaderFrom interface {
++	ReadFrom(r Reader) (n int64, err os.Error);
++}
++
++// WriterTo is the interface that wraps the WriteTo method.
++type WriterTo interface {
++	WriteTo(w Writer) (n int64, err os.Error);
++}
++
+ // ReaderAt is the interface that wraps the basic ReadAt method.
+ //
+ // ReadAt reads len(p) bytes into p starting at offset off in the
+@@ -178,7 +188,15 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+ 
+ // Copyn copies n bytes (or until an error) from src to dst.
+ // It returns the number of bytes copied and the error, if any.
++//
++// If dst implements the ReaderFrom interface,
++// the copy is implemented by calling dst.ReadFrom(src).
+ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
++	// If the writer has a ReadFrom method, use it to to do the copy.
++	// Avoids a buffer allocation and a copy.
++	if rt, ok := dst.(ReaderFrom); ok {
++		return rt.ReadFrom(LimitReader(src, n))
++	}
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+@@ -211,7 +229,21 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ // Copy copies from src to dst until either EOF is reached
+ // on src or an error occurs.  It returns the number of bytes
+ // copied and the error, if any.
++//
++// If dst implements the ReaderFrom interface,
++// the copy is implemented by calling dst.ReadFrom(src).
++// Otherwise, if src implements the WriterTo interface,
++// the copy is implemented by calling src.WriteTo(dst).
+ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
++	// If the writer has a ReadFrom method, use it to to do the copy.
++	// Avoids an allocation and a copy.
++	if rt, ok := dst.(ReaderFrom); ok {
++		return rt.ReadFrom(src)
++	}
++	// Similarly, if the reader has a WriteTo method, use it to to do the copy.
++	if wt, ok := src.(WriterTo); ok {
++		return wt.WriteTo(dst)
++	}
+ 	buf := make([]byte, 32*1024);
+ 	for {
+ 		nr, er := src.Read(buf);
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+new file mode 100644
+index 0000000000..571712031c
+--- /dev/null
++++ b/src/pkg/io/io_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package io_test
++
++import (
++	"bytes";
++	. "io";
++	"testing";
++)
++
++// An version of bytes.Buffer without ReadFrom and WriteTo
++type Buffer struct {
++	bytes.Buffer;
++	ReaderFrom;	// conflicts with and hides bytes.Buffer's ReaderFrom.
++	WriterTo;	// conflicts with and hides bytes.Buffer's WriterTo.
++}
++
++// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and Copyn.
++
++func TestCopy(t *testing.T) {
++	rb := new(Buffer);
++	wb := new(Buffer);
++	rb.WriteString("hello, world.");
++	Copy(wb, rb);
++	if wb.String() != "hello, world." {
++		t.Errorf("Copy did not work properly")
++	}
++}
++
++func TestCopyReadFrom(t *testing.T) {
++	rb := new(Buffer);
++	wb := new(bytes.Buffer);	// implements ReadFrom.
++	rb.WriteString("hello, world.");
++	Copy(wb, rb);
++	if wb.String() != "hello, world." {
++		t.Errorf("Copy did not work properly")
++	}
++}
++
++func TestCopyWriteTo(t *testing.T) {
++	rb := new(bytes.Buffer);	// implements WriteTo.
++	wb := new(Buffer);
++	rb.WriteString("hello, world.");
++	Copy(wb, rb);
++	if wb.String() != "hello, world." {
++		t.Errorf("Copy did not work properly")
++	}
++}
++
++func TestCopyn(t *testing.T) {
++	rb := new(Buffer);
++	wb := new(Buffer);
++	rb.WriteString("hello, world.");
++	Copyn(wb, rb, 5);
++	if wb.String() != "hello" {
++		t.Errorf("Copyn did not work properly")
++	}
++}
++
++func TestCopynReadFrom(t *testing.T) {
++	rb := new(Buffer);
++	wb := new(bytes.Buffer);	// implements ReadFrom.
++	rb.WriteString("hello");
++	Copyn(wb, rb, 5);
++	if wb.String() != "hello" {
++		t.Errorf("Copyn did not work properly")
++	}
++}
++
++func TestCopynWriteTo(t *testing.T) {
++	rb := new(bytes.Buffer);	// implements WriteTo.
++	wb := new(Buffer);
++	rb.WriteString("hello, world.");
++	Copyn(wb, rb, 5);
++	if wb.String() != "hello" {
++		t.Errorf("Copyn did not work properly")
++	}
++}
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index a38e488111..c322f49c2b 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -34,15 +34,15 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 	if err != nil && dir.Size < 2e9 {	// Don't preallocate a huge buffer, just in case.
+ 		n = dir.Size
+ 	}
+-	if n == 0 {
+-		n = 1024	// No idea what's right, but zero isn't.
+-	}
++	// Add a little extra in case Size is zero, and to avoid another allocation after
++	// Read has filled the buffer.
++	n += bytes.MinRead;
+ 	// Pre-allocate the correct size of buffer, then set its size to zero.  The
+ 	// Buffer will read into the allocated space cheaply.  If the size was wrong,
+ 	// we'll either waste some space off the end or reallocate as needed, but
+ 	// in the overwhelmingly common case we'll get it just right.
+-	buf := bytes.NewBuffer(make([]byte, n)[0:0]);
+-	_, err = io.Copy(buf, f);
++	buf := bytes.NewBuffer(make([]byte, 0, n));
++	_, err = buf.ReadFrom(f);
+ 	return buf.Bytes(), err;
+ }
+ 

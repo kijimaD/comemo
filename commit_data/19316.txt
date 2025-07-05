@@ -20,6 +20,18 @@ Date:   Fri May 9 17:31:35 2014 -0700
     R=minux.ma
     CC=golang-codereviews
     https://golang.org/cl/96200044
-
+---
  src/pkg/runtime/race/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race/doc.go b/src/pkg/runtime/race/doc.go
+index a2d882cdbf..aef805dad7 100644
+--- a/src/pkg/runtime/race/doc.go
++++ b/src/pkg/runtime/race/doc.go
+@@ -5,5 +5,5 @@
+ // Package race implements data race detection logic.
+ // No public interface is provided.
+ // For details about the race detector see
+-// http://blog.golang.org/race-detector
++// http://golang.org/doc/articles/race_detector.html
+ package race

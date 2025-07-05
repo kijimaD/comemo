@@ -16,6 +16,28 @@ Date:   Tue Nov 10 15:24:59 2015 -0500
     Change-Id: I2cee70d5db828d0044082878995949edb25dda5f
     Reviewed-on: https://go-review.googlesource.com/16815
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4dba0cabe9..94443b53c2 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3274,11 +3274,12 @@ func checkdead() {
+ 		}
+ 		mp := mget()
+ 		if mp == nil {
+-			newm(nil, _p_)
+-		} else {
+-			mp.nextp.set(_p_)
+-			notewakeup(&mp.park)
++			// There should always be a free M since
++			// nothing is running.
++			throw("checkdead: no m for timer")
+ 		}
++		mp.nextp.set(_p_)
++		notewakeup(&mp.park)
+ 		return
+ 	}
+ 

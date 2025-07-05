@@ -11,7 +11,7 @@ Date:   Mon Mar 2 11:04:06 2015 -0800
     Change-Id: I44899435011a4a7a398ed03c0801e9f81cc8c905
     Reviewed-on: https://go-review.googlesource.com/6490
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go | 160 +++++++-------------------------------
  src/cmd/asm/internal/asm/asm.go   |   2 +-
  src/cmd/internal/obj/arm/obj5.go  |   6 ++
@@ -19,3 +19,398 @@ Date:   Mon Mar 2 11:04:06 2015 -0800
  src/cmd/internal/obj/link.go      |   1 +
  src/cmd/internal/obj/x86/obj6.go  |  52 +++++++++++++
  6 files changed, 130 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 987f5a5ca6..1ec8e0c12b 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -32,8 +32,6 @@ type Arch struct {
+ 	RegisterPrefix map[string]bool
+ 	// RegisterNumber converts R(10) into arm.REG_R10.
+ 	RegisterNumber func(string, int16) (int16, bool)
+-	// Instructions that take one operand whose result is a destination.
+-	UnaryDestination map[int]bool
+ 	// Instruction is a jump.
+ 	IsJump func(word string) bool
+ 	// Aconv pretty-prints an instruction opcode for this architecture.
+@@ -57,7 +55,6 @@ var Pseudos = map[string]int{
+ // Set configures the architecture specified by GOARCH and returns its representation.
+ // It returns nil if GOARCH is not recognized.
+ func Set(GOARCH string) *Arch {
+-	// TODO: Is this how to set this up?
+ 	switch GOARCH {
+ 	case "386":
+ 		return arch386()
+@@ -136,56 +133,14 @@ func arch386() *Arch {
+ 	instructions["MOVOA"] = i386.AMOVO
+ 	instructions["MOVNTDQ"] = i386.AMOVNTO
+ 
+-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
+-	// These instructions write to prog.To.
+-	unaryDestination[i386.ABSWAPL] = true
+-	unaryDestination[i386.ACMPXCHG8B] = true
+-	unaryDestination[i386.ADECB] = true
+-	unaryDestination[i386.ADECL] = true
+-	unaryDestination[i386.ADECW] = true
+-	unaryDestination[i386.AINCB] = true
+-	unaryDestination[i386.AINCL] = true
+-	unaryDestination[i386.AINCW] = true
+-	unaryDestination[i386.ANEGB] = true
+-	unaryDestination[i386.ANEGL] = true
+-	unaryDestination[i386.ANEGW] = true
+-	unaryDestination[i386.ANOTB] = true
+-	unaryDestination[i386.ANOTL] = true
+-	unaryDestination[i386.ANOTW] = true
+-	unaryDestination[i386.APOPL] = true
+-	unaryDestination[i386.APOPW] = true
+-	unaryDestination[i386.ASETCC] = true
+-	unaryDestination[i386.ASETCS] = true
+-	unaryDestination[i386.ASETEQ] = true
+-	unaryDestination[i386.ASETGE] = true
+-	unaryDestination[i386.ASETGT] = true
+-	unaryDestination[i386.ASETHI] = true
+-	unaryDestination[i386.ASETLE] = true
+-	unaryDestination[i386.ASETLS] = true
+-	unaryDestination[i386.ASETLT] = true
+-	unaryDestination[i386.ASETMI] = true
+-	unaryDestination[i386.ASETNE] = true
+-	unaryDestination[i386.ASETOC] = true
+-	unaryDestination[i386.ASETOS] = true
+-	unaryDestination[i386.ASETPC] = true
+-	unaryDestination[i386.ASETPL] = true
+-	unaryDestination[i386.ASETPS] = true
+-	unaryDestination[i386.AFFREE] = true
+-	unaryDestination[i386.AFLDENV] = true
+-	unaryDestination[i386.AFSAVE] = true
+-	unaryDestination[i386.AFSTCW] = true
+-	unaryDestination[i386.AFSTENV] = true
+-	unaryDestination[i386.AFSTSW] = true
+-
+ 	return &Arch{
+-		LinkArch:         &i386.Link386,
+-		Instructions:     instructions,
+-		Register:         register,
+-		RegisterPrefix:   nil,
+-		RegisterNumber:   nilRegisterNumber,
+-		UnaryDestination: unaryDestination,
+-		IsJump:           jump386,
+-		Aconv:            i386.Aconv,
++		LinkArch:       &i386.Link386,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: nil,
++		RegisterNumber: nilRegisterNumber,
++		IsJump:         jump386,
++		Aconv:          i386.Aconv,
+ 	}
+ }
+ 
+@@ -247,65 +202,14 @@ func archAmd64() *Arch {
+ 	instructions["PSLLDQ"] = x86.APSLLO
+ 	instructions["PSRLDQ"] = x86.APSRLO
+ 
+-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
+-	// These instructions write to prog.To.
+-	unaryDestination[x86.ABSWAPL] = true
+-	unaryDestination[x86.ABSWAPQ] = true
+-	unaryDestination[x86.ACMPXCHG8B] = true
+-	unaryDestination[x86.ADECB] = true
+-	unaryDestination[x86.ADECL] = true
+-	unaryDestination[x86.ADECQ] = true
+-	unaryDestination[x86.ADECW] = true
+-	unaryDestination[x86.AINCB] = true
+-	unaryDestination[x86.AINCL] = true
+-	unaryDestination[x86.AINCQ] = true
+-	unaryDestination[x86.AINCW] = true
+-	unaryDestination[x86.ANEGB] = true
+-	unaryDestination[x86.ANEGL] = true
+-	unaryDestination[x86.ANEGQ] = true
+-	unaryDestination[x86.ANEGW] = true
+-	unaryDestination[x86.ANOTB] = true
+-	unaryDestination[x86.ANOTL] = true
+-	unaryDestination[x86.ANOTQ] = true
+-	unaryDestination[x86.ANOTW] = true
+-	unaryDestination[x86.APOPL] = true
+-	unaryDestination[x86.APOPQ] = true
+-	unaryDestination[x86.APOPW] = true
+-	unaryDestination[x86.ASETCC] = true
+-	unaryDestination[x86.ASETCS] = true
+-	unaryDestination[x86.ASETEQ] = true
+-	unaryDestination[x86.ASETGE] = true
+-	unaryDestination[x86.ASETGT] = true
+-	unaryDestination[x86.ASETHI] = true
+-	unaryDestination[x86.ASETLE] = true
+-	unaryDestination[x86.ASETLS] = true
+-	unaryDestination[x86.ASETLT] = true
+-	unaryDestination[x86.ASETMI] = true
+-	unaryDestination[x86.ASETNE] = true
+-	unaryDestination[x86.ASETOC] = true
+-	unaryDestination[x86.ASETOS] = true
+-	unaryDestination[x86.ASETPC] = true
+-	unaryDestination[x86.ASETPL] = true
+-	unaryDestination[x86.ASETPS] = true
+-	unaryDestination[x86.AFFREE] = true
+-	unaryDestination[x86.AFLDENV] = true
+-	unaryDestination[x86.AFSAVE] = true
+-	unaryDestination[x86.AFSTCW] = true
+-	unaryDestination[x86.AFSTENV] = true
+-	unaryDestination[x86.AFSTSW] = true
+-	unaryDestination[x86.AFXSAVE] = true
+-	unaryDestination[x86.AFXSAVE64] = true
+-	unaryDestination[x86.ASTMXCSR] = true
+-
+ 	return &Arch{
+-		LinkArch:         &x86.Linkamd64,
+-		Instructions:     instructions,
+-		Register:         register,
+-		RegisterPrefix:   nil,
+-		RegisterNumber:   nilRegisterNumber,
+-		UnaryDestination: unaryDestination,
+-		IsJump:           jump386,
+-		Aconv:            x86.Aconv,
++		LinkArch:       &x86.Linkamd64,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: nil,
++		RegisterNumber: nilRegisterNumber,
++		IsJump:         jump386,
++		Aconv:          x86.Aconv,
+ 	}
+ }
+ 
+@@ -343,21 +247,14 @@ func archArm() *Arch {
+ 	instructions["B"] = obj.AJMP
+ 	instructions["BL"] = obj.ACALL
+ 
+-	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
+-	// These instructions write to prog.To.
+-	// TODO: These are silly. Fix once C assembler is gone.
+-	unaryDestination[arm.ASWI] = true
+-	unaryDestination[arm.AWORD] = true
+-
+ 	return &Arch{
+-		LinkArch:         &arm.Linkarm,
+-		Instructions:     instructions,
+-		Register:         register,
+-		RegisterPrefix:   registerPrefix,
+-		RegisterNumber:   armRegisterNumber,
+-		UnaryDestination: unaryDestination,
+-		IsJump:           jumpArm,
+-		Aconv:            arm.Aconv,
++		LinkArch:       &arm.Linkarm,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: registerPrefix,
++		RegisterNumber: armRegisterNumber,
++		IsJump:         jumpArm,
++		Aconv:          arm.Aconv,
+ 	}
+ }
+ 
+@@ -408,13 +305,12 @@ func archPPC64() *Arch {
+ 	instructions["RETURN"] = ppc64.ARETURN
+ 
+ 	return &Arch{
+-		LinkArch:         &ppc64.Linkppc64,
+-		Instructions:     instructions,
+-		Register:         register,
+-		RegisterPrefix:   registerPrefix,
+-		RegisterNumber:   ppc64RegisterNumber,
+-		UnaryDestination: nil,
+-		IsJump:           jumpPPC64,
+-		Aconv:            ppc64.Aconv,
++		LinkArch:       &ppc64.Linkppc64,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: registerPrefix,
++		RegisterNumber: ppc64RegisterNumber,
++		IsJump:         jumpPPC64,
++		Aconv:          ppc64.Aconv,
+ 	}
+ }
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 6487e7c750..1c583de4f1 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -412,7 +412,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 	case 0:
+ 		// Nothing to do.
+ 	case 1:
+-		if p.arch.UnaryDestination[op] {
++		if p.arch.UnaryDst[op] {
+ 			// prog.From is no address.
+ 			prog.To = a[0]
+ 		} else {
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 0b7e1f7d90..09c9368f6b 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1039,6 +1039,11 @@ loop:
+ 	goto loop
+ }
+ 
++var unaryDst = map[int]bool{
++	ASWI:  true,
++	AWORD: true,
++}
++
+ var Linkarm = obj.LinkArch{
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+@@ -1049,6 +1054,7 @@ var Linkarm = obj.LinkArch{
+ 	Assemble:   span5,
+ 	Follow:     follow,
+ 	Progedit:   progedit,
++	UnaryDst:   unaryDst,
+ 	Minlc:      4,
+ 	Ptrsize:    4,
+ 	Regsize:    4,
+diff --git a/src/cmd/internal/obj/i386/obj8.go b/src/cmd/internal/obj/i386/obj8.go
+index 63cb7f2642..e3acae91b5 100644
+--- a/src/cmd/internal/obj/i386/obj8.go
++++ b/src/cmd/internal/obj/i386/obj8.go
+@@ -886,6 +886,47 @@ loop:
+ 	goto loop
+ }
+ 
++var unaryDst = map[int]bool{
++	ABSWAPL:    true,
++	ACMPXCHG8B: true,
++	ADECB:      true,
++	ADECL:      true,
++	ADECW:      true,
++	AINCB:      true,
++	AINCL:      true,
++	AINCW:      true,
++	ANEGB:      true,
++	ANEGL:      true,
++	ANEGW:      true,
++	ANOTB:      true,
++	ANOTL:      true,
++	ANOTW:      true,
++	APOPL:      true,
++	APOPW:      true,
++	ASETCC:     true,
++	ASETCS:     true,
++	ASETEQ:     true,
++	ASETGE:     true,
++	ASETGT:     true,
++	ASETHI:     true,
++	ASETLE:     true,
++	ASETLS:     true,
++	ASETLT:     true,
++	ASETMI:     true,
++	ASETNE:     true,
++	ASETOC:     true,
++	ASETOS:     true,
++	ASETPC:     true,
++	ASETPL:     true,
++	ASETPS:     true,
++	AFFREE:     true,
++	AFLDENV:    true,
++	AFSAVE:     true,
++	AFSTCW:     true,
++	AFSTENV:    true,
++	AFSTSW:     true,
++}
++
+ var Link386 = obj.LinkArch{
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+@@ -896,6 +937,7 @@ var Link386 = obj.LinkArch{
+ 	Assemble:   span8,
+ 	Follow:     follow,
+ 	Progedit:   progedit,
++	UnaryDst:   unaryDst,
+ 	Minlc:      1,
+ 	Ptrsize:    4,
+ 	Regsize:    4,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 397c9c9c0e..86535e5f30 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -250,6 +250,7 @@ type LinkArch struct {
+ 	Assemble   func(*Link, *LSym)
+ 	Follow     func(*Link, *LSym)
+ 	Progedit   func(*Link, *Prog)
++	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
+ 	Minlc      int
+ 	Ptrsize    int
+ 	Regsize    int
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 81e4e0eeb5..86bebe073d 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1083,6 +1083,56 @@ loop:
+ 	goto loop
+ }
+ 
++var unaryDst = map[int]bool{
++	ABSWAPL:    true,
++	ABSWAPQ:    true,
++	ACMPXCHG8B: true,
++	ADECB:      true,
++	ADECL:      true,
++	ADECQ:      true,
++	ADECW:      true,
++	AINCB:      true,
++	AINCL:      true,
++	AINCQ:      true,
++	AINCW:      true,
++	ANEGB:      true,
++	ANEGL:      true,
++	ANEGQ:      true,
++	ANEGW:      true,
++	ANOTB:      true,
++	ANOTL:      true,
++	ANOTQ:      true,
++	ANOTW:      true,
++	APOPL:      true,
++	APOPQ:      true,
++	APOPW:      true,
++	ASETCC:     true,
++	ASETCS:     true,
++	ASETEQ:     true,
++	ASETGE:     true,
++	ASETGT:     true,
++	ASETHI:     true,
++	ASETLE:     true,
++	ASETLS:     true,
++	ASETLT:     true,
++	ASETMI:     true,
++	ASETNE:     true,
++	ASETOC:     true,
++	ASETOS:     true,
++	ASETPC:     true,
++	ASETPL:     true,
++	ASETPS:     true,
++	AFFREE:     true,
++	AFLDENV:    true,
++	AFSAVE:     true,
++	AFSTCW:     true,
++	AFSTENV:    true,
++	AFSTSW:     true,
++	AFXSAVE:    true,
++	AFXSAVE64:  true,
++	ASTMXCSR:   true,
++}
++
+ var Linkamd64 = obj.LinkArch{
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+@@ -1093,6 +1143,7 @@ var Linkamd64 = obj.LinkArch{
+ 	Assemble:   span6,
+ 	Follow:     follow,
+ 	Progedit:   progedit,
++	UnaryDst:   unaryDst,
+ 	Minlc:      1,
+ 	Ptrsize:    8,
+ 	Regsize:    8,
+@@ -1108,6 +1159,7 @@ var Linkamd64p32 = obj.LinkArch{
+ 	Assemble:   span6,
+ 	Follow:     follow,
+ 	Progedit:   progedit,
++	UnaryDst:   unaryDst,
+ 	Minlc:      1,
+ 	Ptrsize:    4,
+ 	Regsize:    8,

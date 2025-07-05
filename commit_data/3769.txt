@@ -6,9 +6,208 @@ Date:   Wed Nov 4 15:17:36 2009 -0800
     
     R=r
     http://go/go-review/1016039
-
+---
  src/cmd/cgo/doc.go    | 35 ++++++++++++++++++
  src/cmd/cov/doc.go    | 33 +++++++++++++++++
  src/cmd/godefs/doc.go | 99 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/godefs/main.c |  2 +-
  4 files changed, 168 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+new file mode 100644
+index 0000000000..022a87c154
+--- /dev/null
++++ b/src/cmd/cgo/doc.go
+@@ -0,0 +1,35 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++Cgo enables the creation of Go packages that call C code.
++
++Usage: cgo [compiler options] file.go
++
++The compiler options are passed through uninterpreted when
++invoking gcc to compile the C parts of the package.
++
++The input file.go is a syntactically valid Go source file that imports
++the pseudo-package "C" and then refers to types such as C.size_t,
++variables such as C.stdout, or functions such as C.putchar.
++
++If the import of "C" is immediately preceded by a comment, that
++comment is used as a header when compiling the C parts of
++the package.  For example:
++
++	// #include <stdio.h>
++	// #include <errno.h>
++	import "C"
++
++Cgo transforms the input file into four output files: two Go source
++files, a C file for 6c (or 8c or 5c), and a C file for gcc.
++
++The standard package makefile rules in Make.pkg automate the
++process of using cgo.  See $GOROOT/misc/cgo/stdio and
++$GOROOT/misc/cgo/gmp for examples.
++
++Cgo does not yet work with gccgo.
++*/
++package documentation
+diff --git a/src/cmd/cov/doc.go b/src/cmd/cov/doc.go
+new file mode 100644
+index 0000000000..5de00e19cd
+--- /dev/null
++++ b/src/cmd/cov/doc.go
+@@ -0,0 +1,33 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++Cov is a rudimentary code coverage tool.
++
++Given a command to run, it runs the command while tracking which
++sections of code have been executed.  When the command finishes,
++cov prints the line numbers of sections of code in the binary that
++were not executed.   With no arguments it assumes the command "6.out".
++
++Usage: cov [-lsv] [-g substring] [-m minlines] [6.out args]
++
++The options are:
++
++	-l
++		print full path names instead of paths relative to the current directory
++	-s
++		show the source code that didn't execute, in addition to the line numbers.
++	-v
++		print debugging information during the run.
++	-g substring
++		restrict the coverage analysis to functions or files whose names contain substring
++	-m minlines
++		only report uncovered sections of code larger than minlines lines
++
++For reasons of disambiguation it is installed as 6cov although it also serves
++as an 8cov and a 5cov.
++
++*/
++package documentation
+diff --git a/src/cmd/godefs/doc.go b/src/cmd/godefs/doc.go
+new file mode 100644
+index 0000000000..2932425197
+--- /dev/null
++++ b/src/cmd/godefs/doc.go
+@@ -0,0 +1,99 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++Godefs is a bootstrapping tool for porting the Go runtime to new systems.
++It translates C type declarations into C or Go type declarations
++with the same memory layout. 
++
++Usage: godefs [-g package] [-c cc] [-f cc-arg]... [defs.c ...]
++
++Godefs takes as input a host-compilable C file that includes
++standard system headers.  From that input file, it generates
++a standalone (no #includes) C or Go file containing equivalent
++definitions.
++
++The input to godefs is a C input file that can be compiled by
++the host system's standard C compiler (typically gcc).
++This file is expected to define new types and enumerated constants
++whose names begin with $ (a legal identifier character in gcc). 
++Godefs compile the given input file with the host compiler and
++then parses the debug info embedded in the assembly output.
++This is far easier than reading system headers on most machines.
++
++The output from godefs is either C output intended for the
++Plan 9 C compiler tool chain (6c, 8c, or 5c) or Go output.	
++
++The options are:
++
++	-g package
++		generate Go output using the given package name.
++		In the Go output, struct fields have leading xx_ prefixes
++		removed and the first character capitalized (exported).
++
++	-c cc
++		set the name of the host system's C compiler (default "gcc")
++	
++	-f cc-arg
++		add cc-arg to the command line when invoking the system C compiler
++		(for example, -f -m64 to invoke gcc -m64).
++		Repeating this option adds multiple flags to the command line.
++
++For example, if this is x.c:
++
++	#include <sys/stat.h>
++
++	typedef struct timespec $Timespec;
++	enum {
++		$S_IFMT = S_IFMT,
++		$S_IFIFO = S_IFIFO,
++		$S_IFCHR = S_IFCHR,
++	};
++
++then "godefs x.c" generates:
++
++	// godefs x.c
++	// MACHINE GENERATED - DO NOT EDIT.
++	
++	// Constants
++	enum {
++		S_IFMT = 0xf000,
++		S_IFIFO = 0x1000,
++		S_IFCHR = 0x2000,
++	};
++	
++	// Types
++	#pragma pack on
++	
++	typedef struct Timespec Timespec;
++	struct Timespec {
++		int64 tv_sec;
++		int64 tv_nsec;
++	};
++	#pragma pack off
++
++and "godefs -g MyPackage x.c" generates:
++
++	// godefs -g MyPackage x.c
++	// MACHINE GENERATED - DO NOT EDIT.
++	
++	package MyPackage
++	
++	// Constants
++	const (
++		S_IFMT = 0xf000;
++		S_IFIFO = 0x1000;
++		S_IFCHR = 0x2000;
++	)
++	
++	// Types
++	
++	type Timespec struct {
++		Sec int64;
++		Nsec int64;
++	}
++
++*/
++package documentation
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index d5881ef872..835bfd9865 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -85,7 +85,7 @@
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-flag] [defs.c ...]\n");
++	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-arg] [defs.c ...]\n");
+ 	exit(1);
+ }
+ 

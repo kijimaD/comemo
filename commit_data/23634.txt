@@ -12,7 +12,7 @@ Date:   Tue May 26 21:30:20 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10521
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/esc.go       |  13 ++--
  src/cmd/compile/internal/gc/export.go    |   1 -
  src/cmd/compile/internal/gc/fmt.go       |  19 ++---
@@ -34,3 +34,1421 @@ Date:   Tue May 26 21:30:20 2015 -0400
  src/cmd/compile/internal/gc/walk.go      |  24 +++----
  src/cmd/compile/internal/gc/y.go         |  14 ++--
  20 files changed, 207 insertions(+), 269 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 879bbf01b6..f9d83a2b53 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -134,7 +134,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 	min = v.visitcode(n.Left, min)
+ 	min = v.visitcode(n.Right, min)
+ 	min = v.visitcodelist(n.List, min)
+-	min = v.visitcode(n.Ntest, min)
+ 	min = v.visitcodelist(n.Nbody, min)
+ 	min = v.visitcodelist(n.Rlist, min)
+ 
+@@ -543,7 +542,6 @@ func escloopdepth(e *EscState, n *Node) {
+ 	escloopdepth(e, n.Left)
+ 	escloopdepth(e, n.Right)
+ 	escloopdepthlist(e, n.List)
+-	escloopdepth(e, n.Ntest)
+ 	escloopdepthlist(e, n.Nbody)
+ 	escloopdepthlist(e, n.Rlist)
+ }
+@@ -572,7 +570,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// process type switch as declaration.
+ 	// must happen before processing of switch body,
+ 	// so before recursion.
+-	if n.Op == OSWITCH && n.Ntest != nil && n.Ntest.Op == OTYPESW {
++	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
+ 		for ll := n.List; ll != nil; ll = ll.Next { // cases
+ 
+ 			// ll->n->nname is the variable per case
+@@ -597,7 +595,6 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	esc(e, n.Left, n)
+ 	esc(e, n.Right, n)
+-	esc(e, n.Ntest, n)
+ 	esclist(e, n.Nbody, n)
+ 	esclist(e, n.List, n)
+ 	esclist(e, n.Rlist, n)
+@@ -646,12 +643,12 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 	case OSWITCH:
+-		if n.Ntest != nil && n.Ntest.Op == OTYPESW {
+-			for ll := n.List; ll != nil; ll = ll.Next { // cases
+-
++		if n.Left != nil && n.Left.Op == OTYPESW {
++			for ll := n.List; ll != nil; ll = ll.Next {
++				// cases
+ 				// ntest->right is the argument of the .(type),
+ 				// ll->n->nname is the variable per case
+-				escassign(e, ll.N.Nname, n.Ntest.Right)
++				escassign(e, ll.N.Nname, n.Left.Right)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b5a9518bde..623d61ad74 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -202,7 +202,6 @@ func reexportdep(n *Node) {
+ 	reexportdeplist(n.List)
+ 	reexportdeplist(n.Rlist)
+ 	reexportdeplist(n.Ninit)
+-	reexportdep(n.Ntest)
+ 	reexportdeplist(n.Nbody)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f4be881957..aaf0f9546d 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -214,7 +214,7 @@ func Jconv(n *Node, flag int) string {
+ 	}
+ 
+ 	if c == 0 && n.Xoffset != BADWIDTH {
+-		fmt.Fprintf(&buf, " x(%d%+d)", n.Xoffset, n.Stkdelta)
++		fmt.Fprintf(&buf, " x(%d%+d)", n.Xoffset, stkdelta[n])
+ 	}
+ 
+ 	if n.Class != 0 {
+@@ -863,9 +863,9 @@ func stmtfmt(n *Node) string {
+ 
+ 	case OIF:
+ 		if simpleinit {
+-			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.N, n.Ntest, n.Nbody)
++			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.N, n.Left, n.Nbody)
+ 		} else {
+-			f += fmt.Sprintf("if %v { %v }", n.Ntest, n.Nbody)
++			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
+ 		}
+ 		if n.Rlist != nil {
+ 			f += fmt.Sprintf(" else { %v }", n.Rlist)
+@@ -884,8 +884,8 @@ func stmtfmt(n *Node) string {
+ 			f += " ;"
+ 		}
+ 
+-		if n.Ntest != nil {
+-			f += fmt.Sprintf(" %v", n.Ntest)
++		if n.Left != nil {
++			f += fmt.Sprintf(" %v", n.Left)
+ 		}
+ 
+ 		if n.Right != nil {
+@@ -919,8 +919,8 @@ func stmtfmt(n *Node) string {
+ 		if simpleinit {
+ 			f += fmt.Sprintf(" %v;", n.Ninit.N)
+ 		}
+-		if n.Ntest != nil {
+-			f += Nconv(n.Ntest, 0)
++		if n.Left != nil {
++			f += Nconv(n.Left, 0)
+ 		}
+ 
+ 		f += fmt.Sprintf(" { %v }", n.List)
+@@ -1562,11 +1562,6 @@ func nodedump(n *Node, flag int) string {
+ 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
+ 		}
+ 
+-		if n.Ntest != nil {
+-			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-test%v", Oconv(int(n.Op), 0), n.Ntest)
+-		}
+-
+ 		if n.Nbody != nil {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index ac436f0469..dfc3911843 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -788,10 +788,10 @@ func gen(n *Node) {
+ 			lab.Continpc = continpc
+ 		}
+ 
+-		gen(n.Right)                      // contin:	incr
+-		Patch(p1, Pc)                     // test:
+-		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
+-		Genlist(n.Nbody)                  //		body
++		gen(n.Right)                     // contin:	incr
++		Patch(p1, Pc)                    // test:
++		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
++		Genlist(n.Nbody)                 //		body
+ 		gjmp(continpc)
+ 		Patch(breakpc, Pc) // done:
+ 		continpc = scontin
+@@ -802,15 +802,15 @@ func gen(n *Node) {
+ 		}
+ 
+ 	case OIF:
+-		p1 := gjmp(nil)                          //		goto test
+-		p2 := gjmp(nil)                          // p2:		goto else
+-		Patch(p1, Pc)                            // test:
+-		Bgen(n.Ntest, false, int(-n.Likely), p2) //		if(!test) goto p2
+-		Genlist(n.Nbody)                         //		then
+-		p3 := gjmp(nil)                          //		goto done
+-		Patch(p2, Pc)                            // else:
+-		Genlist(n.Rlist)                         //		else
+-		Patch(p3, Pc)                            // done:
++		p1 := gjmp(nil)                         //		goto test
++		p2 := gjmp(nil)                         // p2:		goto else
++		Patch(p1, Pc)                           // test:
++		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
++		Genlist(n.Nbody)                        //		then
++		p3 := gjmp(nil)                         //		goto done
++		Patch(p2, Pc)                           // else:
++		Genlist(n.Rlist)                        //		else
++		Patch(p3, Pc)                           // done:
+ 
+ 	case OSWITCH:
+ 		sbreak := breakpc
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index d0bc638309..fe621ea113 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -700,14 +700,14 @@ for_header:
+ 		if $1 != nil {
+ 			$$.Ninit = list1($1);
+ 		}
+-		$$.Ntest = $3;
++		$$.Left = $3;
+ 		$$.Right = $5;
+ 	}
+ |	osimple_stmt
+ 	{
+ 		// normal test
+ 		$$ = Nod(OFOR, nil, nil);
+-		$$.Ntest = $1;
++		$$.Left = $1;
+ 	}
+ |	range_stmt
+ 
+@@ -734,7 +734,7 @@ if_header:
+ 	{
+ 		// test
+ 		$$ = Nod(OIF, nil, nil);
+-		$$.Ntest = $1;
++		$$.Left = $1;
+ 	}
+ |	osimple_stmt ';' osimple_stmt
+ 	{
+@@ -743,7 +743,7 @@ if_header:
+ 		if $1 != nil {
+ 			$$.Ninit = list1($1);
+ 		}
+-		$$.Ntest = $3;
++		$$.Left = $3;
+ 	}
+ 
+ /* IF cond body (ELSE IF cond body)* (ELSE block)? */
+@@ -754,7 +754,7 @@ if_stmt:
+ 	}
+ 	if_header
+ 	{
+-		if $3.Ntest == nil {
++		if $3.Left == nil {
+ 			Yyerror("missing condition in if statement");
+ 		}
+ 	}
+@@ -786,7 +786,7 @@ elseif:
+ 	}
+ 	if_header loop_body
+ 	{
+-		if $4.Ntest == nil {
++		if $4.Left == nil {
+ 			Yyerror("missing condition in if statement");
+ 		}
+ 		$4.Nbody = $5;
+@@ -821,7 +821,7 @@ switch_stmt:
+ 	if_header
+ 	{
+ 		var n *Node
+-		n = $3.Ntest;
++		n = $3.Left;
+ 		if n != nil && n.Op != OTYPESW {
+ 			n = nil;
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index fe3ee4e77a..93bd8a2068 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -196,11 +196,11 @@ func fixautoused(p *obj.Prog) {
+ 		}
+ 
+ 		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
+-			p.From.Offset += ((p.From.Node).(*Node)).Stkdelta
++			p.From.Offset += stkdelta[p.From.Node.(*Node)]
+ 		}
+ 
+ 		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
+-			p.To.Offset += ((p.To.Node).(*Node)).Stkdelta
++			p.To.Offset += stkdelta[p.To.Node.(*Node)]
+ 		}
+ 
+ 		lp = &p.Link
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 92bfeecdef..b8077a25b2 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -123,13 +123,13 @@ func fninit(n *NodeList) {
+ 	// (3)
+ 	a := Nod(OIF, nil, nil)
+ 
+-	a.Ntest = Nod(ONE, gatevar, Nodintconst(0))
++	a.Left = Nod(ONE, gatevar, Nodintconst(0))
+ 	r = list(r, a)
+ 
+ 	// (4)
+ 	b := Nod(OIF, nil, nil)
+ 
+-	b.Ntest = Nod(OEQ, gatevar, Nodintconst(2))
++	b.Left = Nod(OEQ, gatevar, Nodintconst(2))
+ 	b.Nbody = list1(Nod(ORETURN, nil, nil))
+ 	a.Nbody = list1(b)
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 3c5f086700..de14cbf8a3 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -231,7 +231,7 @@ func ishairy(n *Node, budget *int) bool {
+ 
+ 	(*budget)--
+ 
+-	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairylist(n.Nbody, budget)
++	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairylist(n.Nbody, budget)
+ }
+ 
+ // Inlcopy and inlcopylist recursively copy the body of a function.
+@@ -265,7 +265,6 @@ func inlcopy(n *Node) *Node {
+ 	m.List = inlcopylist(n.List)
+ 	m.Rlist = inlcopylist(n.Rlist)
+ 	m.Ninit = inlcopylist(n.Ninit)
+-	m.Ntest = inlcopy(n.Ntest)
+ 	m.Nbody = inlcopylist(n.Nbody)
+ 
+ 	return m
+@@ -434,11 +433,6 @@ func inlnode(np **Node) {
+ 		}
+ 	}
+ 
+-	inlnode(&n.Ntest)
+-	if n.Ntest != nil && n.Ntest.Op == OINLCALL {
+-		inlconv2expr(&n.Ntest)
+-	}
+-
+ 	inlnodelist(n.Nbody)
+ 	for l := n.Nbody; l != nil; l = l.Next {
+ 		if l.N.Op == OINLCALL {
+@@ -965,7 +959,6 @@ func inlsubst(n *Node) *Node {
+ 	m.List = inlsubstlist(n.List)
+ 	m.Rlist = inlsubstlist(n.Rlist)
+ 	m.Ninit = concat(m.Ninit, inlsubstlist(n.Ninit))
+-	m.Ntest = inlsubst(n.Ntest)
+ 	m.Nbody = inlsubstlist(n.Nbody)
+ 
+ 	return m
+@@ -993,6 +986,5 @@ func setlno(n *Node, lno int) {
+ 	setlnolist(n.List, lno)
+ 	setlnolist(n.Rlist, lno)
+ 	setlnolist(n.Ninit, lno)
+-	setlno(n.Ntest, lno)
+ 	setlnolist(n.Nbody, lno)
+ }
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7a4a84d9de..f42a7204bd 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -646,7 +646,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case OFOR:
+ 		t := marktemp(order)
+ 
+-		orderexprinplace(&n.Ntest, order)
++		orderexprinplace(&n.Left, order)
+ 		var l *NodeList
+ 		cleantempnopop(t, order, &l)
+ 		n.Nbody = concat(l, n.Nbody)
+@@ -660,7 +660,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case OIF:
+ 		t := marktemp(order)
+ 
+-		orderexprinplace(&n.Ntest, order)
++		orderexprinplace(&n.Left, order)
+ 		var l *NodeList
+ 		cleantempnopop(t, order, &l)
+ 		n.Nbody = concat(l, n.Nbody)
+@@ -793,7 +793,7 @@ func orderstmt(n *Node, order *Order) {
+ 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
+ 							t = t.Next
+ 						}
+-						if t != nil && t.N.Op == ODCL && t.N.Left == r.Ntest {
++						if t != nil && t.N.Op == ODCL && r.List != nil && t.N.Left == r.List.N {
+ 							t = t.Next
+ 						}
+ 						if t == nil {
+@@ -844,19 +844,19 @@ func orderstmt(n *Node, order *Order) {
+ 						l.N.Ninit = list(l.N.Ninit, tmp2)
+ 					}
+ 
+-					if r.Ntest != nil && isblank(r.Ntest) {
+-						r.Ntest = nil
++					if r.List != nil && isblank(r.List.N) {
++						r.List = nil
+ 					}
+-					if r.Ntest != nil {
+-						tmp1 = r.Ntest
++					if r.List != nil {
++						tmp1 = r.List.N
+ 						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+ 							typecheck(&tmp2, Etop)
+ 							l.N.Ninit = list(l.N.Ninit, tmp2)
+ 						}
+ 
+-						r.Ntest = ordertemp(tmp1.Type, order, false)
+-						tmp2 = Nod(OAS, tmp1, r.Ntest)
++						r.List = list1(ordertemp(tmp1.Type, order, false))
++						tmp2 = Nod(OAS, tmp1, r.List.N)
+ 						typecheck(&tmp2, Etop)
+ 						l.N.Ninit = list(l.N.Ninit, tmp2)
+ 					}
+@@ -918,7 +918,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case OSWITCH:
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Ntest, order, nil)
++		orderexpr(&n.Left, order, nil)
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if l.N.Op != OXCASE {
+ 				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5428307769..815f723b20 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -216,6 +216,11 @@ func cmpstackvar(a *Node, b *Node) int {
+ 	return stringsCompare(a.Sym.Name, b.Sym.Name)
+ }
+ 
++// stkdelta records the stack offset delta for a node
++// during the compaction of the stack frame to remove
++// unused stack slots.
++var stkdelta = map[*Node]int64{}
++
+ // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
+ func allocauto(ptxt *obj.Prog) {
+ 	Stksize = 0
+@@ -283,7 +288,7 @@ func allocauto(ptxt *obj.Prog) {
+ 			Yyerror("stack frame too large (>2GB)")
+ 		}
+ 
+-		n.Stkdelta = -Stksize - n.Xoffset
++		stkdelta[n] = -Stksize - n.Xoffset
+ 	}
+ 
+ 	Stksize = Rnd(Stksize, int64(Widthreg))
+@@ -296,8 +301,8 @@ func allocauto(ptxt *obj.Prog) {
+ 		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
+ 			continue
+ 		}
+-		ll.N.Xoffset += ll.N.Stkdelta
+-		ll.N.Stkdelta = 0
++		ll.N.Xoffset += stkdelta[ll.N]
++		delete(stkdelta, ll.N)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index e35054c7b3..cb5f738a30 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -371,18 +371,25 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
+ 		goto ret
+ 
+-		// just do generic traversal
+ 	case OFOR:
++		if n.Left != nil {
++			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
++		}
+ 		if n.Right != nil {
+ 			racewalknode(&n.Right, &n.Right.Ninit, 0, 0)
+ 		}
+ 		goto ret
+ 
+-	case OIF,
+-		OCALLMETH,
++	case OIF, OSWITCH:
++		if n.Left != nil {
++			racewalknode(&n.Left, &n.Left.Ninit, 0, 0)
++		}
++		goto ret
++
++		// just do generic traversal
++	case OCALLMETH,
+ 		ORETURN,
+ 		ORETJMP,
+-		OSWITCH,
+ 		OSELECT,
+ 		OEMPTY,
+ 		OBREAK,
+@@ -415,9 +422,6 @@ ret:
+ 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
+ 		racewalklist(n.List, init)
+ 	}
+-	if n.Ntest != nil {
+-		racewalknode(&n.Ntest, &n.Ntest.Ninit, 0, 0)
+-	}
+ 	racewalklist(n.Nbody, nil)
+ 	racewalklist(n.Rlist, nil)
+ 	*np = n
+@@ -577,7 +581,6 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
+ 	foreachnode(n.Left, f, c)
+ 	foreachnode(n.Right, f, c)
+ 	foreachlist(n.List, f, c)
+-	foreachnode(n.Ntest, f, c)
+ 	foreachlist(n.Nbody, f, c)
+ 	foreachlist(n.Rlist, f, c)
+ }
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 1036cf99c4..670887b36d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -201,7 +201,7 @@ func walkrange(n *Node) {
+ 															n.Op = OIF
+ 
+ 															n.Nbody = nil
+-															n.Ntest = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
++															n.Left = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
+ 
+ 															// hp = &a[0]
+ 															hp := temp(Ptrto(Types[TUINT8]))
+@@ -231,7 +231,7 @@ func walkrange(n *Node) {
+ 
+ 															n.Nbody = list(n.Nbody, v1)
+ 
+-															typecheck(&n.Ntest, Erv)
++															typecheck(&n.Left, Erv)
+ 															typechecklist(n.Nbody, Etop)
+ 															walkstmt(&n)
+ 															lineno = int32(lno)
+@@ -266,7 +266,7 @@ func walkrange(n *Node) {
+ 			init = list(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
+ 		}
+ 
+-		n.Ntest = Nod(OLT, hv1, hn)
++		n.Left = Nod(OLT, hv1, hn)
+ 		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
+ 		if v1 == nil {
+ 			body = nil
+@@ -313,7 +313,7 @@ func walkrange(n *Node) {
+ 
+ 		substArgTypes(fn, t.Down, t.Type, th)
+ 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+-		n.Ntest = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
++		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
+ 
+ 		fn = syslook("mapiternext", 1)
+ 		substArgTypes(fn, th)
+@@ -338,7 +338,7 @@ func walkrange(n *Node) {
+ 	case TCHAN:
+ 		ha := a
+ 
+-		n.Ntest = nil
++		n.Left = nil
+ 
+ 		hv1 := temp(t.Type)
+ 		hv1.Typecheck = 1
+@@ -347,12 +347,12 @@ func walkrange(n *Node) {
+ 		}
+ 		hb := temp(Types[TBOOL])
+ 
+-		n.Ntest = Nod(ONE, hb, Nodbool(false))
++		n.Left = Nod(ONE, hb, Nodbool(false))
+ 		a := Nod(OAS2RECV, nil, nil)
+ 		a.Typecheck = 1
+ 		a.List = list(list1(hv1), hb)
+ 		a.Rlist = list1(Nod(ORECV, ha, nil))
+-		n.Ntest.Ninit = list1(a)
++		n.Left.Ninit = list1(a)
+ 		if v1 == nil {
+ 			body = nil
+ 		} else {
+@@ -380,8 +380,8 @@ func walkrange(n *Node) {
+ 			a.Rlist = list1(mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1))
+ 		}
+ 
+-		n.Ntest = Nod(ONE, hv1, Nodintconst(0))
+-		n.Ntest.Ninit = list(list1(Nod(OAS, ohv1, hv1)), a)
++		n.Left = Nod(ONE, hv1, Nodintconst(0))
++		n.Left.Ninit = list(list1(Nod(OAS, ohv1, hv1)), a)
+ 
+ 		body = nil
+ 		if v1 != nil {
+@@ -395,8 +395,8 @@ func walkrange(n *Node) {
+ 	n.Op = OFOR
+ 	typechecklist(init, Etop)
+ 	n.Ninit = concat(n.Ninit, init)
+-	typechecklist(n.Ntest.Ninit, Etop)
+-	typecheck(&n.Ntest, Erv)
++	typechecklist(n.Left.Ninit, Etop)
++	typecheck(&n.Left, Erv)
+ 	typecheck(&n.Right, Etop)
+ 	typechecklist(body, Etop)
+ 	n.Nbody = concat(body, n.Nbody)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index f5911c4504..db20778837 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -65,8 +65,7 @@ func typecheckselect(sel *Node) {
+ 
+ 				n.Op = OSELRECV2
+ 				n.Left = n.List.N
+-				n.Ntest = n.List.Next.N
+-				n.List = nil
++				n.List = list1(n.List.Next.N)
+ 				n.Right = n.Rlist.N
+ 				n.Rlist = nil
+ 
+@@ -131,7 +130,7 @@ func walkselect(sel *Node) {
+ 
+ 			case OSELRECV, OSELRECV2:
+ 				ch = n.Right.Left
+-				if n.Op == OSELRECV || n.Ntest == nil {
++				if n.Op == OSELRECV || n.List == nil {
+ 					if n.Left == nil {
+ 						n = n.Right
+ 					} else {
+@@ -146,11 +145,10 @@ func walkselect(sel *Node) {
+ 				}
+ 
+ 				n.Op = OAS2
+-				n.List = list(list1(n.Left), n.Ntest)
++				n.List = concat(list1(n.Left), n.List)
+ 				n.Rlist = list1(n.Right)
+ 				n.Right = nil
+ 				n.Left = nil
+-				n.Ntest = nil
+ 				n.Typecheck = 0
+ 				typecheck(&n, Etop)
+ 			}
+@@ -158,7 +156,7 @@ func walkselect(sel *Node) {
+ 			// if ch == nil { block() }; n;
+ 			a := Nod(OIF, nil, nil)
+ 
+-			a.Ntest = Nod(OEQ, ch, nodnil())
++			a.Left = Nod(OEQ, ch, nodnil())
+ 			a.Nbody = list1(mkcall("block", nil, &l))
+ 			typecheck(&a, Etop)
+ 			l = list(l, a)
+@@ -185,12 +183,12 @@ func walkselect(sel *Node) {
+ 			typecheck(&n.Right, Erv)
+ 
+ 		case OSELRECV, OSELRECV2:
+-			if n.Op == OSELRECV2 && n.Ntest == nil {
++			if n.Op == OSELRECV2 && n.List == nil {
+ 				n.Op = OSELRECV
+ 			}
+ 			if n.Op == OSELRECV2 {
+-				n.Ntest = Nod(OADDR, n.Ntest, nil)
+-				typecheck(&n.Ntest, Erv)
++				n.List.N = Nod(OADDR, n.List.N, nil)
++				typecheck(&n.List.N, Erv)
+ 			}
+ 
+ 			if n.Left == nil {
+@@ -226,7 +224,7 @@ func walkselect(sel *Node) {
+ 		case OSEND:
+ 			ch := n.Left
+ 
+-			r.Ntest = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
++			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
+ 
+ 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
+ 		case OSELRECV:
+@@ -234,7 +232,7 @@ func walkselect(sel *Node) {
+ 
+ 			r.Ninit = cas.Ninit
+ 			ch := n.Right.Left
+-			r.Ntest = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
++			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
+ 
+ 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+ 		case OSELRECV2:
+@@ -242,10 +240,10 @@ func walkselect(sel *Node) {
+ 
+ 			r.Ninit = cas.Ninit
+ 			ch := n.Right.Left
+-			r.Ntest = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.Ntest, ch)
++			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.N, ch)
+ 		}
+ 
+-		typecheck(&r.Ntest, Erv)
++		typecheck(&r.Left, Erv)
+ 		r.Nbody = cas.Nbody
+ 		r.Rlist = concat(dflt.Ninit, dflt.Nbody)
+ 		sel.Nbody = list1(r)
+@@ -282,7 +280,7 @@ func walkselect(sel *Node) {
+ 
+ 		if n == nil {
+ 			// selectdefault(sel *byte);
+-			r.Ntest = mkcall("selectdefault", Types[TBOOL], &r.Ninit, var_)
++			r.Left = mkcall("selectdefault", Types[TBOOL], &r.Ninit, var_)
+ 		} else {
+ 			switch n.Op {
+ 			default:
+@@ -290,15 +288,15 @@ func walkselect(sel *Node) {
+ 
+ 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 			case OSEND:
+-				r.Ntest = mkcall1(chanfn("selectsend", 2, n.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Left, n.Right)
++				r.Left = mkcall1(chanfn("selectsend", 2, n.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Left, n.Right)
+ 
+ 				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 			case OSELRECV:
+-				r.Ntest = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left)
++				r.Left = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left)
+ 
+ 				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
+ 			case OSELRECV2:
+-				r.Ntest = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.Ntest)
++				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.List.N)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 55359dfced..5693d0d4ad 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -214,7 +214,6 @@ func init2(n *Node, out **NodeList) {
+ 	init1(n, out)
+ 	init2(n.Left, out)
+ 	init2(n.Right, out)
+-	init2(n.Ntest, out)
+ 	init2list(n.Ninit, out)
+ 	init2list(n.List, out)
+ 	init2list(n.Rlist, out)
+@@ -996,7 +995,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		a.Nbody = list1(r)
+ 
+ 		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
+-		a.Ntest = Nod(OLT, index, Nodintconst(t.Bound))
++		a.Left = Nod(OLT, index, Nodintconst(t.Bound))
+ 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+ 		typecheck(&a, Etop)
+@@ -1221,6 +1220,7 @@ func oaslit(n *Node, init **NodeList) bool {
+ 	}
+ 
+ 	n.Op = OEMPTY
++	n.Right = nil
+ 	return true
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ed5001a983..d55b7f7636 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2421,7 +2421,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		// generating wrapper from *T to T.
+ 		n := Nod(OIF, nil, nil)
+ 
+-		n.Ntest = Nod(OEQ, this.Left, nodnil())
++		n.Left = Nod(OEQ, this.Left, nodnil())
+ 
+ 		// these strings are already in the reflect tables,
+ 		// so no space cost to use them here.
+@@ -2757,7 +2757,7 @@ func eqfield(p *Node, q *Node, field *Node) *Node {
+ 	nx := Nod(OXDOT, p, field)
+ 	ny := Nod(OXDOT, q, field)
+ 	nif := Nod(OIF, nil, nil)
+-	nif.Ntest = Nod(ONE, nx, ny)
++	nif.Left = Nod(ONE, nx, ny)
+ 	r := Nod(ORETURN, nil, nil)
+ 	r.List = list(r.List, Nodbool(false))
+ 	nif.Nbody = list(nif.Nbody, r)
+@@ -2802,7 +2802,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
+ 	}
+ 
+ 	nif := Nod(OIF, nil, nil)
+-	nif.Ntest = Nod(ONOT, call, nil)
++	nif.Left = Nod(ONOT, call, nil)
+ 	r := Nod(ORETURN, nil, nil)
+ 	r.List = list(r.List, Nodbool(false))
+ 	nif.Nbody = list(nif.Nbody, r)
+@@ -2874,7 +2874,7 @@ func geneq(sym *Sym, t *Type) {
+ 		ny.Bounded = true
+ 
+ 		nif := Nod(OIF, nil, nil)
+-		nif.Ntest = Nod(ONE, nx, ny)
++		nif.Left = Nod(ONE, nx, ny)
+ 		r := Nod(ORETURN, nil, nil)
+ 		r.List = list(r.List, Nodbool(false))
+ 		nif.Nbody = list(nif.Nbody, r)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 2f6833afe4..a3df7e2a2e 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -66,21 +66,21 @@ func typecheckswitch(n *Node) {
+ 	var top int
+ 	var t *Type
+ 
+-	if n.Ntest != nil && n.Ntest.Op == OTYPESW {
++	if n.Left != nil && n.Left.Op == OTYPESW {
+ 		// type switch
+ 		top = Etype
+-		typecheck(&n.Ntest.Right, Erv)
+-		t = n.Ntest.Right.Type
++		typecheck(&n.Left.Right, Erv)
++		t = n.Left.Right.Type
+ 		if t != nil && t.Etype != TINTER {
+-			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Ntest.Right, obj.FmtLong))
++			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, obj.FmtLong))
+ 		}
+ 	} else {
+ 		// expression switch
+ 		top = Erv
+-		if n.Ntest != nil {
+-			typecheck(&n.Ntest, Erv)
+-			defaultlit(&n.Ntest, nil)
+-			t = n.Ntest.Type
++		if n.Left != nil {
++			typecheck(&n.Left, Erv)
++			defaultlit(&n.Left, nil)
++			t = n.Left.Type
+ 		} else {
+ 			t = Types[TBOOL]
+ 		}
+@@ -88,13 +88,13 @@ func typecheckswitch(n *Node) {
+ 			var badtype *Type
+ 			switch {
+ 			case !okforeq[t.Etype]:
+-				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
++				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
+ 			case t.Etype == TARRAY && !Isfixedarray(t):
+ 				nilonly = "slice"
+ 			case t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ:
+-				Yyerror("cannot switch on %v", Nconv(n.Ntest, obj.FmtLong))
++				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
+ 			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
+-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Ntest, obj.FmtLong), badtype)
++				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, obj.FmtLong), badtype)
+ 			case t.Etype == TFUNC:
+ 				nilonly = "func"
+ 			case t.Etype == TMAP:
+@@ -133,13 +133,13 @@ func typecheckswitch(n *Node) {
+ 					case ll.N.Op == OTYPE:
+ 						Yyerror("type %v is not an expression", ll.N.Type)
+ 					case ll.N.Type != nil && assignop(ll.N.Type, t, nil) == 0 && assignop(t, ll.N.Type, nil) == 0:
+-						if n.Ntest != nil {
+-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ll.N, n.Ntest, ll.N.Type, t)
++						if n.Left != nil {
++							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ll.N, n.Left, ll.N.Type, t)
+ 						} else {
+ 							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ll.N, ll.N.Type)
+ 						}
+ 					case nilonly != "" && !Isconst(ll.N, CTNIL):
+-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Ntest)
++						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Left)
+ 					}
+ 
+ 				// type switch
+@@ -151,12 +151,12 @@ func typecheckswitch(n *Node) {
+ 					case ll.N.Op != OTYPE && ll.N.Type != nil: // should this be ||?
+ 						Yyerror("%v is not a type", Nconv(ll.N, obj.FmtLong))
+ 						// reset to original type
+-						ll.N = n.Ntest.Right
++						ll.N = n.Left.Right
+ 					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
+ 						if have != nil && missing.Broke == 0 && have.Broke == 0 {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Ntest.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+ 						} else if missing.Broke == 0 {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Ntest.Right, obj.FmtLong), ll.N.Type, missing.Sym)
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym)
+ 						}
+ 					}
+ 				}
+@@ -189,22 +189,18 @@ func typecheckswitch(n *Node) {
+ // walkswitch walks a switch statement.
+ func walkswitch(sw *Node) {
+ 	// convert switch {...} to switch true {...}
+-	if sw.Ntest == nil {
+-		sw.Ntest = Nodbool(true)
+-		typecheck(&sw.Ntest, Erv)
++	if sw.Left == nil {
++		sw.Left = Nodbool(true)
++		typecheck(&sw.Left, Erv)
+ 	}
+ 
+-	if sw.Ntest.Op == OTYPESW {
++	if sw.Left.Op == OTYPESW {
+ 		var s typeSwitch
+ 		s.walk(sw)
+ 	} else {
+ 		var s exprSwitch
+ 		s.walk(sw)
+ 	}
+-
+-	// Discard old AST elements. They can confuse racewalk.
+-	sw.Ntest = nil
+-	sw.List = nil
+ }
+ 
+ // walk generates an AST implementing sw.
+@@ -215,15 +211,18 @@ func walkswitch(sw *Node) {
+ func (s *exprSwitch) walk(sw *Node) {
+ 	casebody(sw, nil)
+ 
++	cond := sw.Left
++	sw.Left = nil
++
+ 	s.kind = switchKindExpr
+-	if Isconst(sw.Ntest, CTBOOL) {
++	if Isconst(cond, CTBOOL) {
+ 		s.kind = switchKindTrue
+-		if !sw.Ntest.Val.U.(bool) {
++		if !cond.Val.U.(bool) {
+ 			s.kind = switchKindFalse
+ 		}
+ 	}
+ 
+-	walkexpr(&sw.Ntest, &sw.Ninit)
++	walkexpr(&cond, &sw.Ninit)
+ 	t := sw.Type
+ 	if t == nil {
+ 		return
+@@ -233,17 +232,18 @@ func (s *exprSwitch) walk(sw *Node) {
+ 	var cas *NodeList
+ 	if s.kind == switchKindTrue || s.kind == switchKindFalse {
+ 		s.exprname = Nodbool(s.kind == switchKindTrue)
+-	} else if consttype(sw.Ntest) >= 0 {
++	} else if consttype(cond) >= 0 {
+ 		// leave constants to enable dead code elimination (issue 9608)
+-		s.exprname = sw.Ntest
++		s.exprname = cond
+ 	} else {
+-		s.exprname = temp(sw.Ntest.Type)
+-		cas = list1(Nod(OAS, s.exprname, sw.Ntest))
++		s.exprname = temp(cond.Type)
++		cas = list1(Nod(OAS, s.exprname, cond))
+ 		typechecklist(cas, Etop)
+ 	}
+ 
+ 	// enumerate the cases, and lop off the default case
+ 	cc := caseClauses(sw, s.kind)
++	sw.List = nil
+ 	var def *Node
+ 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
+ 		def = cc[0].node.Right
+@@ -278,9 +278,9 @@ func (s *exprSwitch) walk(sw *Node) {
+ 	if nerrors == 0 {
+ 		cas = list(cas, def)
+ 		sw.Nbody = concat(cas, sw.Nbody)
+-		sw.List = nil
+ 		walkstmtlist(sw.Nbody)
+ 	}
++
+ }
+ 
+ // walkCases generates an AST implementing the cases in cc.
+@@ -294,14 +294,14 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 
+ 			a := Nod(OIF, nil, nil)
+ 			if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
+-				a.Ntest = Nod(OEQ, s.exprname, n.Left) // if name == val
+-				typecheck(&a.Ntest, Erv)
++				a.Left = Nod(OEQ, s.exprname, n.Left) // if name == val
++				typecheck(&a.Left, Erv)
+ 			} else if s.kind == switchKindTrue {
+-				a.Ntest = n.Left // if val
++				a.Left = n.Left // if val
+ 			} else {
+ 				// s.kind == switchKindFalse
+-				a.Ntest = Nod(ONOT, n.Left, nil) // if !val
+-				typecheck(&a.Ntest, Erv)
++				a.Left = Nod(ONOT, n.Left, nil) // if !val
++				typecheck(&a.Left, Erv)
+ 			}
+ 			a.Nbody = list1(n.Right) // goto l
+ 
+@@ -320,11 +320,11 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 		// Search by length and then by value; see exprcmp.
+ 		lenlt := Nod(OLT, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+ 		leneq := Nod(OEQ, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+-		a.Ntest = Nod(OOROR, lenlt, Nod(OANDAND, leneq, le))
++		a.Left = Nod(OOROR, lenlt, Nod(OANDAND, leneq, le))
+ 	} else {
+-		a.Ntest = le
++		a.Left = le
+ 	}
+-	typecheck(&a.Ntest, Erv)
++	typecheck(&a.Left, Erv)
+ 	a.Nbody = list1(s.walkCases(cc[:half]))
+ 	a.Rlist = list1(s.walkCases(cc[half:]))
+ 	return a
+@@ -512,17 +512,21 @@ func caseClauses(sw *Node, kind int) []*caseClause {
+ // search using if..goto, although binary search
+ // is used with long runs of concrete types.
+ func (s *typeSwitch) walk(sw *Node) {
+-	if sw.Ntest == nil {
++	cond := sw.Left
++	sw.Left = nil
++
++	if cond == nil {
++		sw.List = nil
+ 		return
+ 	}
+-	if sw.Ntest.Right == nil {
++	if cond.Right == nil {
+ 		setlineno(sw)
+ 		Yyerror("type switch must have an assignment")
+ 		return
+ 	}
+ 
+-	walkexpr(&sw.Ntest.Right, &sw.Ninit)
+-	if !Istype(sw.Ntest.Right.Type, TINTER) {
++	walkexpr(&cond.Right, &sw.Ninit)
++	if !Istype(cond.Right.Type, TINTER) {
+ 		Yyerror("type switch must be on an interface")
+ 		return
+ 	}
+@@ -530,9 +534,9 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	var cas *NodeList
+ 
+ 	// predeclare temporary variables and the boolean var
+-	s.facename = temp(sw.Ntest.Right.Type)
++	s.facename = temp(cond.Right.Type)
+ 
+-	a := Nod(OAS, s.facename, sw.Ntest.Right)
++	a := Nod(OAS, s.facename, cond.Right)
+ 	typecheck(&a, Etop)
+ 	cas = list(cas, a)
+ 
+@@ -546,7 +550,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	casebody(sw, s.facename)
+ 
+ 	// calculate type hash
+-	t := sw.Ntest.Right.Type
++	t := cond.Right.Type
+ 	if isnilinter(t) {
+ 		a = syslook("efacethash", 1)
+ 	} else {
+@@ -560,6 +564,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	cas = list(cas, a)
+ 
+ 	cc := caseClauses(sw, switchKindType)
++	sw.List = nil
+ 	var def *Node
+ 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
+ 		def = cc[0].node.Right
+@@ -576,8 +581,8 @@ func (s *typeSwitch) walk(sw *Node) {
+ 			var v Val
+ 			v.Ctype = CTNIL
+ 			a = Nod(OIF, nil, nil)
+-			a.Ntest = Nod(OEQ, s.facename, nodlit(v))
+-			typecheck(&a.Ntest, Erv)
++			a.Left = Nod(OEQ, s.facename, nodlit(v))
++			typecheck(&a.Left, Erv)
+ 			a.Nbody = list1(n.Right) // if i==nil { goto l }
+ 			n.Right = a
+ 
+@@ -658,7 +663,7 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	init = list(init, a)
+ 
+ 	c := Nod(OIF, nil, nil)
+-	c.Ntest = s.okname
++	c.Left = s.okname
+ 	c.Nbody = list1(t.Right) // if ok { goto l }
+ 
+ 	return liststmt(list(init, c))
+@@ -674,8 +679,8 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 				Fatal("typeSwitch walkCases")
+ 			}
+ 			a := Nod(OIF, nil, nil)
+-			a.Ntest = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
+-			typecheck(&a.Ntest, Erv)
++			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
++			typecheck(&a.Left, Erv)
+ 			a.Nbody = list1(n.Right)
+ 			cas = list(cas, a)
+ 		}
+@@ -685,8 +690,8 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 	// find the middle and recur
+ 	half := len(cc) / 2
+ 	a := Nod(OIF, nil, nil)
+-	a.Ntest = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+-	typecheck(&a.Ntest, Erv)
++	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
++	typecheck(&a.Left, Erv)
+ 	a.Nbody = list1(s.walkCases(cc[:half]))
+ 	a.Rlist = list1(s.walkCases(cc[half:]))
+ 	return a
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 21f43c0598..f8f2248185 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -15,7 +15,6 @@ type Node struct {
+ 	// Generic recursive walks should follow these fields.
+ 	Left  *Node
+ 	Right *Node
+-	Ntest *Node
+ 	Ninit *NodeList
+ 	Nbody *NodeList
+ 	List  *NodeList
+@@ -54,8 +53,7 @@ type Node struct {
+ 	// OLITERAL
+ 	Val Val
+ 
+-	Xoffset  int64
+-	Stkdelta int64 // offset added by stack frame compaction phase.
++	Xoffset int64
+ 
+ 	// Escape analysis.
+ 	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2d3ef0762e..351f26f157 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -237,7 +237,7 @@ func callrecv(n *Node) bool {
+ 		return true
+ 	}
+ 
+-	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
++	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+ }
+ 
+ func callrecvlist(l *NodeList) bool {
+@@ -2097,11 +2097,11 @@ OpSwitch:
+ 		ok |= Etop
+ 		typechecklist(n.Ninit, Etop)
+ 		decldepth++
+-		typecheck(&n.Ntest, Erv)
+-		if n.Ntest != nil {
+-			t := n.Ntest.Type
++		typecheck(&n.Left, Erv)
++		if n.Left != nil {
++			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+-				Yyerror("non-bool %v used as for condition", Nconv(n.Ntest, obj.FmtLong))
++				Yyerror("non-bool %v used as for condition", Nconv(n.Left, obj.FmtLong))
+ 			}
+ 		}
+ 		typecheck(&n.Right, Etop)
+@@ -2112,11 +2112,11 @@ OpSwitch:
+ 	case OIF:
+ 		ok |= Etop
+ 		typechecklist(n.Ninit, Etop)
+-		typecheck(&n.Ntest, Erv)
+-		if n.Ntest != nil {
+-			t := n.Ntest.Type
++		typecheck(&n.Left, Erv)
++		if n.Left != nil {
++			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+-				Yyerror("non-bool %v used as if condition", Nconv(n.Ntest, obj.FmtLong))
++				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
+ 			}
+ 		}
+ 		typechecklist(n.Nbody, Etop)
+@@ -2811,7 +2811,7 @@ func fielddup(n *Node, hash map[string]bool) {
+ 	hash[name] = true
+ }
+ 
+-func keydup(n *Node, hash []*Node) {
++func keydup(n *Node, hash map[uint32][]*Node) {
+ 	orign := n
+ 	if n.Op == OCONVIFACE {
+ 		n = n.Left
+@@ -2846,9 +2846,8 @@ func keydup(n *Node, hash []*Node) {
+ 		}
+ 	}
+ 
+-	h := uint(b % uint32(len(hash)))
+ 	var cmp Node
+-	for a := hash[h]; a != nil; a = a.Ntest {
++	for _, a := range hash[b] {
+ 		cmp.Op = OEQ
+ 		cmp.Left = n
+ 		b = 0
+@@ -2870,75 +2869,20 @@ func keydup(n *Node, hash []*Node) {
+ 		}
+ 	}
+ 
+-	orign.Ntest = hash[h]
+-	hash[h] = orign
++	hash[b] = append(hash[b], orign)
+ }
+ 
+-func indexdup(n *Node, hash []*Node) {
++func indexdup(n *Node, hash map[int64]*Node) {
+ 	if n.Op != OLITERAL {
+ 		Fatal("indexdup: not OLITERAL")
+ 	}
+ 
+-	b := uint32(Mpgetfix(n.Val.U.(*Mpint)))
+-	h := uint(b % uint32(len(hash)))
+-	var c uint32
+-	for a := hash[h]; a != nil; a = a.Ntest {
+-		c = uint32(Mpgetfix(a.Val.U.(*Mpint)))
+-		if b == c {
+-			Yyerror("duplicate index in array literal: %d", b)
+-			return
+-		}
+-	}
+-
+-	n.Ntest = hash[h]
+-	hash[h] = n
+-}
+-
+-func prime(h uint32, sr uint32) bool {
+-	for n := uint32(3); n <= sr; n += 2 {
+-		if h%n == 0 {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func inithash(n *Node, autohash []*Node) []*Node {
+-	// count the number of entries
+-	h := uint32(0)
+-
+-	for ll := n.List; ll != nil; ll = ll.Next {
+-		h++
+-	}
+-
+-	// if the auto hash table is
+-	// large enough use it.
+-	if h <= uint32(len(autohash)) {
+-		for i := range autohash {
+-			autohash[i] = nil
+-		}
+-		return autohash
+-	}
+-
+-	// make hash size odd and 12% larger than entries
+-	h += h / 8
+-
+-	h |= 1
+-
+-	// calculate sqrt of h
+-	sr := h / 2
+-
+-	for i := 0; i < 5; i++ {
+-		sr = (sr + h/sr) / 2
+-	}
+-
+-	// check for primeality
+-	for !prime(h, sr) {
+-		h += 2
++	v := Mpgetfix(n.Val.U.(*Mpint))
++	if hash[v] != nil {
++		Yyerror("duplicate index in array literal: %d", v)
++		return
+ 	}
+-
+-	// build and return a throw-away hash table
+-	return make([]*Node, h)
++	hash[v] = n
+ }
+ 
+ func iscomptype(t *Type) bool {
+@@ -3031,9 +2975,14 @@ func typecheckcomplit(np **Node) {
+ 		n.Type = nil
+ 
+ 	case TARRAY:
+-		var autohash [101]*Node
+-		hash := inithash(n, autohash[:])
+-
++		// Only allocate hash if there are some key/value pairs.
++		var hash map[int64]*Node
++		for ll := n.List; ll != nil; ll = ll.Next {
++			if ll.N.Op == OKEY {
++				hash = make(map[int64]*Node)
++				break
++			}
++		}
+ 		length := int64(0)
+ 		i := 0
+ 		var l *Node
+@@ -3056,7 +3005,7 @@ func typecheckcomplit(np **Node) {
+ 				i = -(1 << 30) // stay negative for a while
+ 			}
+ 
+-			if i >= 0 {
++			if i >= 0 && hash != nil {
+ 				indexdup(l.Left, hash)
+ 			}
+ 			i++
+@@ -3085,9 +3034,7 @@ func typecheckcomplit(np **Node) {
+ 		n.Op = OARRAYLIT
+ 
+ 	case TMAP:
+-		var autohash [101]*Node
+-		hash := inithash(n, autohash[:])
+-
++		hash := make(map[uint32][]*Node)
+ 		var l *Node
+ 		for ll := n.List; ll != nil; ll = ll.Next {
+ 			l = ll.N
+@@ -3952,7 +3899,6 @@ func markbreak(n *Node, implicit *Node) {
+ 		markbreak(n.Left, implicit)
+ 
+ 		markbreak(n.Right, implicit)
+-		markbreak(n.Ntest, implicit)
+ 		markbreaklist(n.Ninit, implicit)
+ 		markbreaklist(n.Nbody, implicit)
+ 		markbreaklist(n.List, implicit)
+@@ -4024,7 +3970,7 @@ func isterminating(l *NodeList, top int) bool {
+ 		return true
+ 
+ 	case OFOR:
+-		if n.Ntest != nil {
++		if n.Left != nil {
+ 			return false
+ 		}
+ 		if n.Hasbreak {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 5b3d5850d9..cd7db02392 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -247,19 +247,19 @@ func walkstmt(np **Node) {
+ 		adjustargs(n, 2*Widthptr)
+ 
+ 	case OFOR:
+-		if n.Ntest != nil {
+-			walkstmtlist(n.Ntest.Ninit)
+-			init := n.Ntest.Ninit
+-			n.Ntest.Ninit = nil
+-			walkexpr(&n.Ntest, &init)
+-			addinit(&n.Ntest, init)
++		if n.Left != nil {
++			walkstmtlist(n.Left.Ninit)
++			init := n.Left.Ninit
++			n.Left.Ninit = nil
++			walkexpr(&n.Left, &init)
++			addinit(&n.Left, init)
+ 		}
+ 
+ 		walkstmt(&n.Right)
+ 		walkstmtlist(n.Nbody)
+ 
+ 	case OIF:
+-		walkexpr(&n.Ntest, &n.Ninit)
++		walkexpr(&n.Left, &n.Ninit)
+ 		walkstmtlist(n.Nbody)
+ 		walkstmtlist(n.Rlist)
+ 
+@@ -1043,7 +1043,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 				walkexpr(&n1, init)
+ 
+ 				n2 := Nod(OIF, nil, nil)
+-				n2.Ntest = Nod(OEQ, l, nodnil())
++				n2.Left = Nod(OEQ, l, nodnil())
+ 				n2.Nbody = list1(Nod(OAS, l, n1))
+ 				n2.Likely = -1
+ 				typecheck(&n2, Etop)
+@@ -2914,7 +2914,7 @@ func appendslice(n *Node, init **NodeList) *Node {
+ 	// n := len(s) + len(l2) - cap(s)
+ 	nif.Ninit = list1(Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil))))
+ 
+-	nif.Ntest = Nod(OGT, nt, Nodintconst(0))
++	nif.Left = Nod(OGT, nt, Nodintconst(0))
+ 
+ 	// instantiate growslice(Type*, []any, int) []any
+ 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
+@@ -3046,7 +3046,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
+ 
+ 	na := Nodintconst(int64(argc)) // const argc
+ 	nx := Nod(OIF, nil, nil)       // if cap(s) - len(s) < argc
+-	nx.Ntest = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
++	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
+ 
+ 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int) (ret []T)
+ 	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
+@@ -3124,7 +3124,7 @@ func copyany(n *Node, init **NodeList, runtimecall int) *Node {
+ 	// if n > len(frm) { n = len(frm) }
+ 	nif := Nod(OIF, nil, nil)
+ 
+-	nif.Ntest = Nod(OGT, nlen, Nod(OLEN, nr, nil))
++	nif.Left = Nod(OGT, nlen, Nod(OLEN, nr, nil))
+ 	nif.Nbody = list(nif.Nbody, Nod(OAS, nlen, Nod(OLEN, nr, nil)))
+ 	l = list(l, nif)
+ 
+@@ -3982,7 +3982,7 @@ func candiscard(n *Node) bool {
+ 		return false
+ 	}
+ 
+-	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
++	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index c412d11051..1515cc64ad 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1788,7 +1788,7 @@ yydefault:
+ 			if yyDollar[1].node != nil {
+ 				yyVAL.node.Ninit = list1(yyDollar[1].node)
+ 			}
+-			yyVAL.node.Ntest = yyDollar[3].node
++			yyVAL.node.Left = yyDollar[3].node
+ 			yyVAL.node.Right = yyDollar[5].node
+ 		}
+ 	case 71:
+@@ -1797,7 +1797,7 @@ yydefault:
+ 		{
+ 			// normal test
+ 			yyVAL.node = Nod(OFOR, nil, nil)
+-			yyVAL.node.Ntest = yyDollar[1].node
++			yyVAL.node.Left = yyDollar[1].node
+ 		}
+ 	case 73:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1825,7 +1825,7 @@ yydefault:
+ 		{
+ 			// test
+ 			yyVAL.node = Nod(OIF, nil, nil)
+-			yyVAL.node.Ntest = yyDollar[1].node
++			yyVAL.node.Left = yyDollar[1].node
+ 		}
+ 	case 77:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1836,7 +1836,7 @@ yydefault:
+ 			if yyDollar[1].node != nil {
+ 				yyVAL.node.Ninit = list1(yyDollar[1].node)
+ 			}
+-			yyVAL.node.Ntest = yyDollar[3].node
++			yyVAL.node.Left = yyDollar[3].node
+ 		}
+ 	case 78:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+@@ -1848,7 +1848,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+ 		//line go.y:756
+ 		{
+-			if yyDollar[3].node.Ntest == nil {
++			if yyDollar[3].node.Left == nil {
+ 				Yyerror("missing condition in if statement")
+ 			}
+ 		}
+@@ -1886,7 +1886,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+ 		//line go.y:788
+ 		{
+-			if yyDollar[4].node.Ntest == nil {
++			if yyDollar[4].node.Left == nil {
+ 				Yyerror("missing condition in if statement")
+ 			}
+ 			yyDollar[4].node.Nbody = yyDollar[5].list
+@@ -1929,7 +1929,7 @@ yydefault:
+ 		//line go.y:822
+ 		{
+ 			var n *Node
+-			n = yyDollar[3].node.Ntest
++			n = yyDollar[3].node.Left
+ 			if n != nil && n.Op != OTYPESW {
+ 				n = nil
+ 			}

@@ -13,7 +13,56 @@ Date:   Mon Aug 17 13:17:26 2020 +0000
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/pcln.go       | 15 ---------------
  src/cmd/internal/obj/s390x/objz.go | 11 +++++++++++
  2 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index bffeda041d..1f7ccf47ef 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -278,21 +278,6 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
+ 	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+ 
+-	// Check that all the Progs used as inline markers are still reachable.
+-	// See issue #40473.
+-	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
+-	for _, inlMark := range cursym.Func.InlMarks {
+-		inlMarkProgs[inlMark.p] = struct{}{}
+-	}
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
+-		if _, ok := inlMarkProgs[p]; ok {
+-			delete(inlMarkProgs, p)
+-		}
+-	}
+-	if len(inlMarkProgs) > 0 {
+-		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
+-	}
+-
+ 	pcinlineState := new(pcinlineState)
+ 	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+ 	for _, inlMark := range cursym.Func.InlMarks {
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index ef6335d849..b14dc810fa 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -283,6 +283,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			ACMPUBNE:
+ 			q = p
+ 			p.Mark |= BRANCH
++			if p.Pcond != nil {
++				q := p.Pcond
++				for q.As == obj.ANOP {
++					q = q.Link
++					p.Pcond = q
++				}
++			}
++
++		case obj.ANOP:
++			q.Link = p.Link /* q is non-nop */
++			p.Link.Mark |= p.Mark
+ 
+ 		default:
+ 			q = p

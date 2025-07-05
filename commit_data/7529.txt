@@ -76,7 +76,7 @@ Date:   Tue Feb 22 17:40:40 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4188061
-
+---
  src/cmd/5c/txt.c           |   4 +-
  src/cmd/5l/l.h             |   5 ++
  src/cmd/5l/list.c          |   4 +
@@ -100,3 +100,1139 @@ Date:   Tue Feb 22 17:40:40 2011 -0500
  src/pkg/runtime/runtime.h  |  82 ++-------------------
  src/pkg/runtime/stack.h    |  86 ++++++++++++++++++++++
  22 files changed, 400 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 0f17cea89b..f5619f8004 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -1194,8 +1194,10 @@ gpseudo(int a, Sym *s, Node *n)
+ 	p->from.type = D_OREG;
+ 	p->from.sym = s;
+ 	p->from.name = D_EXTERN;
+-	if(a == ATEXT)
++	if(a == ATEXT) {
+ 		p->reg = textflag;
++		textflag = 0;
++	}
+ 	if(s->class == CSTATIC)
+ 		p->from.name = D_STATIC;
+ 	naddr(n, &p->to);
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index e42be4e98f..2e887dad73 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -35,6 +35,7 @@
+ 
+ enum
+ {
++	thechar = '5',
+ 	PtrSize = 4
+ };
+ 
+@@ -109,6 +110,7 @@ struct	Prog
+ 	Prog*	dlink;
+ 	int32	pc;
+ 	int32	line;
++	int32	spadj;
+ 	uchar	mark;
+ 	uchar	optab;
+ 	uchar	as;
+@@ -122,6 +124,8 @@ struct	Prog
+ #define	datasize	reg
+ #define	textflag	reg
+ 
++#define	iscall(p)	((p)->as == ABL)
++
+ struct	Sym
+ {
+ 	char*	name;
+@@ -131,6 +135,7 @@ struct	Sym
+ 	uchar	reachable;
+ 	uchar	dynexport;
+ 	uchar	leaf;
++	uchar	stkcheck;
+ 	int32	dynid;
+ 	int32	plt;
+ 	int32	got;
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index b4df895878..2ae25d491e 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -98,6 +98,10 @@ Pconv(Fmt *fp)
+ 		fmtprint(fp, "(%d)	DWORD	%D %D", p->line, &p->from, &p->to);
+ 		break;
+ 	}
++	
++	if(p->spadj)
++		fmtprint(fp, "  (spadj%+d)", p->spadj);
++
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index a9439c27a6..da9f858199 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -227,7 +227,7 @@ noops(void)
+ #ifdef CALLEEBX
+ 				if(p->from.sym->foreign){
+ 					if(thumb)
+-						// don't allow literal pool to seperate these
++						// don't allow literal pool to separate these
+ 						p = adword(0xe28f7001, 0xe12fff17, p); // arm add 1, pc, r7 and bx r7
+ 						// p = aword(0xe12fff17, aword(0xe28f7001, p)); // arm add 1, pc, r7 and bx r7
+ 					else
+@@ -282,6 +282,7 @@ noops(void)
+ 					q1->to.type = D_OREG;
+ 					q1->to.offset = -autosize;
+ 					q1->to.reg = REGSP;
++					q1->spadj = autosize;
+ 					q1->link = p->link;
+ 					p->link = q1;
+ 				} else if (autosize < StackBig) {
+@@ -376,6 +377,7 @@ noops(void)
+ 					p->to.type = D_OREG;
+ 					p->to.offset = -autosize;
+ 					p->to.reg = REGSP;
++					p->spadj = autosize;
+ 				} else { // > StackBig
+ 					// MOVW		$autosize, R1
+ 					// MOVW		$args, R2
+@@ -424,6 +426,7 @@ noops(void)
+ 					p->to.type = D_OREG;
+ 					p->to.offset = -autosize;
+ 					p->to.reg = REGSP;
++					p->spadj = autosize;
+ 				}
+ 				break;
+ 	
+@@ -527,9 +530,20 @@ noops(void)
+ 					p->from.reg = REGSP;
+ 					p->to.type = D_REG;
+ 					p->to.reg = REGPC;
++					// no spadj because it doesn't fall through
+ 				}
+ 				break;
+ 	
++			case AADD:
++				if(p->from.type == D_CONST && p->from.reg == NREG && p->to.type == D_REG && p->to.reg == REGSP)
++					p->spadj = -p->from.offset;
++				break;
++
++			case ASUB:
++				if(p->from.type == D_CONST && p->from.reg == NREG && p->to.type == D_REG && p->to.reg == REGSP)
++					p->spadj = p->from.offset;
++				break;
++
+ 			case ADIV:
+ 			case ADIVU:
+ 			case AMOD:
+@@ -635,6 +649,7 @@ noops(void)
+ 				p->reg = NREG;
+ 				p->to.type = D_REG;
+ 				p->to.reg = REGSP;
++				p->spadj = -8;
+ 	
+ 				/* SUB $8,SP */
+ 				q1->as = ASUB;
+@@ -644,6 +659,7 @@ noops(void)
+ 				q1->reg = NREG;
+ 				q1->to.type = D_REG;
+ 				q1->to.reg = REGSP;
++				p->spadj = 8;
+ 	
+ 				break;
+ 			case AMOVW:
+@@ -653,6 +669,12 @@ noops(void)
+ 					if(a->type == D_CONST && ((a->name == D_NONE && a->reg == REGSP) || a->name == D_AUTO || a->name == D_PARAM) && (a->offset & 3))
+ 						diag("SP offset not multiple of 4");
+ 				}
++				if((p->scond & C_WBIT) && p->to.type == D_OREG && p->to.reg == REGSP)
++					p->spadj = -p->to.offset;
++				if((p->scond & C_PBIT) && p->from.type == D_OREG && p->from.reg == REGSP && p->to.reg != REGPC)
++					p->spadj = -p->from.offset;
++				if(p->from.type == D_CONST && p->from.reg == REGSP && p->to.type == D_REG && p->to.reg == REGSP)
++					p->spadj = -p->from.offset;
+ 				break;
+ 			case AMOVB:
+ 			case AMOVBU:
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b2b7a1e510..b976e300bc 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -41,7 +41,6 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '5';
+ char	*thestring 	= "arm";
+ 
+ /*
+@@ -263,6 +262,7 @@ main(int argc, char *argv[])
+ 	follow();
+ 	softfloat();
+ 	noops();
++	dostkcheck();
+ 	span();
+ 	pclntab();
+ 	symtab();
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 70473ecd27..6933d8eb19 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -39,6 +39,7 @@
+ 
+ enum
+ {
++	thechar = '6',
+ 	PtrSize = 8
+ };
+ 
+@@ -111,6 +112,7 @@ struct	Prog
+ };
+ #define	datasize	from.scale
+ #define	textflag	from.scale
++#define	iscall(p)	((p)->as == ACALL)
+ 
+ struct	Auto
+ {
+@@ -129,6 +131,7 @@ struct	Sym
+ 	uchar	reachable;
+ 	uchar	dynexport;
+ 	uchar	special;
++	uchar	stkcheck;
+ 	int32	dynid;
+ 	int32	sig;
+ 	int32	plt;
+@@ -367,7 +370,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
+ 
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+-extern	char	thechar;
+ EXTERN	int	elfstrsize;
+ EXTERN	char*	elfstrdat;
+ EXTERN	int	elftextsh;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 7180b661ec..3dabb4c178 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -40,7 +40,6 @@
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '6';
+ char*	thestring 	= "amd64";
+ char*	paramspace	= "FP";
+ 
+@@ -253,6 +252,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == 6)
+ 		domacho();
+ 	dostkoff();
++	dostkcheck();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+ 	if(debug['p'])
+ 		if(debug['1'])
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index d6d93ee4bd..9d94cfc854 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -32,16 +32,10 @@
+ 
+ #include	"l.h"
+ #include	"../ld/lib.h"
++#include "../../pkg/runtime/stack.h"
+ 
+ static void xfol(Prog*, Prog**);
+ 
+-// see ../../runtime/proc.c:/StackGuard
+-enum
+-{
+-	StackSmall = 128,
+-	StackBig = 4096,
+-};
+-
+ Prog*
+ brchain(Prog *p)
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index f2546cf201..e4650ee58f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -39,6 +39,7 @@
+ 
+ enum
+ {
++	thechar = '8',
+ 	PtrSize = 4
+ };
+ 
+@@ -110,6 +111,7 @@ struct	Prog
+ };
+ #define	datasize	from.scale
+ #define	textflag	from.scale
++#define	iscall(p)	((p)->as == ACALL)
+ 
+ struct	Auto
+ {
+@@ -128,6 +130,7 @@ struct	Sym
+ 	uchar	reachable;
+ 	uchar	dynexport;
+ 	uchar	special;
++	uchar	stkcheck;
+ 	int32	value;
+ 	int32	size;
+ 	int32	sig;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 13698cb70e..fb97e84266 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -44,7 +44,6 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '8';
+ char	*thestring 	= "386";
+ 
+ /*
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 67acfa167b..a5380ae130 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -262,6 +262,7 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	
++	plan9_tos = S;
+ 	if(HEADTYPE == 2)
+ 		plan9_tos = lookup("_tos", 0);
+ 	
+@@ -412,6 +413,7 @@ dostkoff(void)
+ 		symmorestack->text->from.scale |= NOSPLIT;
+ 	}
+ 	
++	plan9_tos = S;
+ 	if(HEADTYPE == 2)	
+ 		plan9_tos = lookup("_tos", 0);
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index c144d4295d..1838717bfe 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -31,6 +31,8 @@
+ 
+ #include	"l.h"
+ #include	"lib.h"
++#include	"../../pkg/runtime/stack.h"
++
+ #include	<ar.h>
+ 
+ int iconv(Fmt*);
+@@ -1084,3 +1086,181 @@ be64(uchar *b)
+ 
+ Endian be = { be16, be32, be64 };
+ Endian le = { le16, le32, le64 };
++
++typedef struct Chain Chain;
++struct Chain
++{
++	Sym *sym;
++	Chain *up;
++	int limit;  // limit on entry to sym
++};
++
++static int stkcheck(Chain*, int);
++static void stkprint(Chain*, int);
++static void stkbroke(Chain*, int);
++static Sym *morestack;
++static Sym *newstack;
++
++enum
++{
++	HasLinkRegister = (thechar == '5'),
++	CallSize = (!HasLinkRegister)*PtrSize,  // bytes of stack required for a call
++};
++
++void
++dostkcheck(void)
++{
++	Chain ch;
++	Sym *s;
++	
++	morestack = lookup("runtime.morestack", 0);
++	newstack = lookup("runtime.newstack", 0);
++
++	// First the nosplits on their own.
++	for(s = textp; s != nil; s = s->next) {
++		if(s->text == nil || s->text->link == nil || (s->text->textflag & NOSPLIT) == 0)
++			continue;
++		cursym = s;
++		ch.up = nil;
++		ch.sym = s;
++		ch.limit = StackLimit - CallSize;
++		stkcheck(&ch, 0);
++		s->stkcheck = 1;
++	}
++	
++	// Check calling contexts.
++	// Some nosplits get called a little further down,
++	// like newproc and deferproc.  We could hard-code
++	// that knowledge but it's more robust to look at
++	// the actual call sites.
++	for(s = textp; s != nil; s = s->next) {
++		if(s->text == nil || s->text->link == nil || (s->text->textflag & NOSPLIT) != 0)
++			continue;
++		cursym = s;
++		ch.up = nil;
++		ch.sym = s;
++		ch.limit = StackLimit - CallSize;
++		stkcheck(&ch, 0);
++	}
++}
++
++static int
++stkcheck(Chain *up, int depth)
++{
++	Chain ch, ch1;
++	Prog *p;
++	Sym *s;
++	int limit, prolog;
++	
++	limit = up->limit;
++	s = up->sym;
++	p = s->text;
++	
++	// Small optimization: don't repeat work at top.
++	if(s->stkcheck && limit == StackLimit-CallSize)
++		return 0;
++	
++	if(depth > 100) {
++		diag("nosplit stack check too deep");
++		stkbroke(up, 0);
++		return -1;
++	}
++
++	if(p == nil || p->link == nil) {
++		// external function.
++		// should never be called directly.
++		// only diagnose the direct caller.
++		if(depth == 1)
++			diag("call to external function %s", s->name);
++		return -1;
++	}
++
++	if(limit < 0) {
++		stkbroke(up, limit);
++		return -1;
++	}
++
++	// morestack looks like it calls functions,
++	// but it switches the stack pointer first.
++	if(s == morestack)
++		return 0;
++
++	ch.up = up;
++	prolog = (s->text->textflag & NOSPLIT) == 0;
++	for(p = s->text; p != P; p = p->link) {
++		limit -= p->spadj;
++		if(prolog && p->spadj != 0) {
++			// The first stack adjustment in a function with a
++			// split-checking prologue marks the end of the
++			// prologue.  Assuming the split check is correct,
++			// after the adjustment there should still be at least
++			// StackLimit bytes available below the stack pointer.
++			// If this is not the top call in the chain, no need
++			// to duplicate effort, so just stop.
++			if(depth > 0)
++				return 0;
++			prolog = 0;
++			limit = StackLimit;
++		}
++		if(limit < 0) {
++			stkbroke(up, limit);
++			return -1;
++		}
++		if(iscall(p)) {
++			limit -= CallSize;
++			ch.limit = limit;
++			if(p->to.type == D_BRANCH) {
++				// Direct call.
++				ch.sym = p->to.sym;
++				if(stkcheck(&ch, depth+1) < 0)
++					return -1;
++			} else {
++				// Indirect call.  Assume it is a splitting function,
++				// so we have to make sure it can call morestack.
++				limit -= CallSize;
++				ch.sym = nil;
++				ch1.limit = limit;
++				ch1.up = &ch;
++				ch1.sym = morestack;
++				if(stkcheck(&ch1, depth+2) < 0)
++					return -1;
++				limit += CallSize;
++			}
++			limit += CallSize;
++		}
++		
++	}
++	return 0;
++}
++
++static void
++stkbroke(Chain *ch, int limit)
++{
++	diag("nosplit stack overflow");
++	stkprint(ch, limit);
++}
++
++static void
++stkprint(Chain *ch, int limit)
++{
++	char *name;
++
++	if(ch->sym)
++		name = ch->sym->name;
++	else
++		name = "function pointer";
++
++	if(ch->up == nil) {
++		// top of chain.  ch->sym != nil.
++		if(ch->sym->text->textflag & NOSPLIT)
++			print("\t%d\tassumed on entry to %s\n", ch->limit, name);
++		else
++			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);
++	} else {
++		stkprint(ch->up, ch->limit + (!HasLinkRegister)*PtrSize);
++		if(!HasLinkRegister)
++			print("\t%d\ton entry to %s\n", ch->limit, name);
++	}
++	if(ch->limit != limit)
++		print("\t%d\tafter %s uses %d\n", limit, name, ch->limit - limit);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 16dfb0dc30..1b37202271 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -74,7 +74,6 @@ extern	int	nlibdir;
+ extern	int	cout;
+ 
+ EXTERN	char*	INITENTRY;
+-EXTERN	char	thechar;
+ EXTERN	char*	thestring;
+ EXTERN	Library*	library;
+ EXTERN	int	libraryp;
+@@ -167,6 +166,7 @@ void	adddynlib(char*);
+ int	archreloc(Reloc*, Sym*, vlong*);
+ void	adddynsym(Sym*);
+ void	addexport(void);
++void	dostkcheck(void);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index a4e4b32836..93c4d4cd16 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -12,10 +12,10 @@ TEXT _rt0_arm(SB),7,$-4
+ 	// use R13 instead of SP to avoid linker rewriting the offsets
+ 	MOVW	0(R13), R0		// argc
+ 	MOVW	$4(R13), R1		// argv
+-	SUB	$128, R13		// plenty of scratch
++	SUB	$64, R13		// plenty of scratch
+ 	AND	$~7, R13
+-	MOVW	R0, 120(R13)		// save argc, argv away
+-	MOVW	R1, 124(R13)
++	MOVW	R0, 60(R13)		// save argc, argv away
++	MOVW	R1, 64(R13)
+ 
+ 	// set up m and g registers
+ 	// g is R10, m is R9
+@@ -34,9 +34,9 @@ TEXT _rt0_arm(SB),7,$-4
+ 	BL	runtime·check(SB)
+ 
+ 	// saved argc, argv
+-	MOVW	120(R13), R0
++	MOVW	60(R13), R0
+ 	MOVW	R0, 4(R13)
+-	MOVW	124(R13), R1
++	MOVW	64(R13), R1
+ 	MOVW	R1, 8(R13)
+ 	BL	runtime·args(SB)
+ 	BL	runtime·osinit(SB)
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 74e5a30857..741e8f0b8c 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "stack.h"
+ #include "cgocall.h"
+ 
+ void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+@@ -70,7 +71,7 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ 	runtime·startcgocallback(g1);
+ 
+ 	sp = g1->sched.sp - argsize;
+-	if(sp < g1->stackguard - StackGuard + 8) // +8 for return address
++	if(sp < g1->stackguard - StackGuard - StackSystem + 8) // +8 for return address
+ 		runtime·throw("g stack overflow in cgocallback");
+ 	runtime·mcpy(sp, arg, argsize);
+ 
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 8d3ac2ca4f..28c7d7320a 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -495,17 +495,27 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool ok)
+ 	runtime·chanrecv(c, v, &ok, nil);
+ }	
+ 
++static void newselect(int32, Select**);
++
+ // newselect(size uint32) (sel *byte);
+ #pragma textflag 7
+ void
+ runtime·newselect(int32 size, ...)
+ {
+-	int32 n, o;
++	int32 o;
+ 	Select **selp;
+-	Select *sel;
+ 
+ 	o = runtime·rnd(sizeof(size), Structrnd);
+ 	selp = (Select**)((byte*)&size + o);
++	newselect(size, selp);
++}
++
++static void
++newselect(int32 size, Select **selp)
++{
++	int32 n;
++	Select *sel;
++
+ 	n = 0;
+ 	if(size > 1)
+ 		n = size-1;
+@@ -589,21 +599,31 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
+ }
+ 
+ 
+-// selectdefaul(sel *byte) (selected bool);
++static void selectdefault(Select**);
++
++// selectdefault(sel *byte) (selected bool);
+ #pragma textflag 7
+ void
+ runtime·selectdefault(Select *sel, ...)
+ {
++	selectdefault(&sel);
++}
++
++static void
++selectdefault(Select **selp)
++{
++	Select *sel;
+ 	int32 i;
+ 	Scase *cas;
+ 
++	sel = *selp;
+ 	i = sel->ncase;
+ 	if(i >= sel->tcase)
+ 		runtime·throw("selectdefault: too many cases");
+ 	sel->ncase = i+1;
+ 	cas = runtime·mal(sizeof *cas);
+ 	sel->scase[i] = cas;
+-	cas->pc = runtime·getcallerpc(&sel);
++	cas->pc = runtime·getcallerpc(selp);
+ 	cas->chan = nil;
+ 
+ 	cas->so = runtime·rnd(sizeof(sel), Structrnd);
+@@ -662,16 +682,23 @@ runtime·block(void)
+ 	runtime·gosched();
+ }
+ 
++static void selectgo(Select**);
++
+ // selectgo(sel *byte);
+ //
+ // overwrites return pc on stack to signal which case of the select
+ // to run, so cannot appear at the top of a split stack.
+-// frame has 6 pointers and 4 int32 so 64 bytes max.
+-// that's less than StackGuard-StackSmall, so okay.
+ #pragma textflag 7
+ void
+ runtime·selectgo(Select *sel)
+ {
++	selectgo(&sel);
++}
++
++static void
++selectgo(Select **selp)
++{
++	Select *sel;
+ 	uint32 o, i, j;
+ 	Scase *cas, *dfl;
+ 	Hchan *c;
+@@ -679,6 +706,7 @@ runtime·selectgo(Select *sel)
+ 	G *gp;
+ 	byte *as;
+ 
++	sel = *selp;
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+@@ -889,8 +917,8 @@ retc:
+ 	selunlock(sel);
+ 
+ 	// return to pc corresponding to chosen case
+-	runtime·setcallerpc(&sel, cas->pc);
+-	as = (byte*)&sel + cas->so;
++	runtime·setcallerpc(selp, cas->pc);
++	as = (byte*)selp + cas->so;
+ 	freesel(sel);
+ 	*as = true;
+ 	return;
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 3dec45e2b8..698aead3df 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -209,16 +209,25 @@ runtime·convT2E(Type *t, ...)
+ 	copyin(t, elem, &ret->data);
+ }
+ 
++static void assertI2Tret(Type *t, Iface i, byte *ret);
++
+ // func ifaceI2T(typ *byte, iface any) (ret any)
+ #pragma textflag 7
+ void
+ runtime·assertI2T(Type *t, Iface i, ...)
+ {
+-	Itab *tab;
+ 	byte *ret;
+-	Eface err;
+ 
+ 	ret = (byte*)(&i+1);
++	assertI2Tret(t, i, ret);
++}
++
++static void
++assertI2Tret(Type *t, Iface i, byte *ret)
++{
++	Itab *tab;
++	Eface err;
++
+ 	tab = i.tab;
+ 	if(tab == nil) {
+ 		runtime·newTypeAssertionError(nil, nil, t,
+@@ -258,15 +267,23 @@ runtime·assertI2T2(Type *t, Iface i, ...)
+ 	copyout(t, &i.data, ret);
+ }
+ 
++static void assertE2Tret(Type *t, Eface e, byte *ret);
++
+ // func ifaceE2T(typ *byte, iface any) (ret any)
+ #pragma textflag 7
+ void
+ runtime·assertE2T(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+-	Eface err;
+ 
+ 	ret = (byte*)(&e+1);
++	assertE2Tret(t, e, ret);
++}
++
++static void
++assertE2Tret(Type *t, Eface e, byte *ret)
++{
++	Eface err;
+ 
+ 	if(e.type == nil) {
+ 		runtime·newTypeAssertionError(nil, nil, t,
+@@ -307,7 +324,6 @@ runtime·assertE2T2(Type *t, Eface e, ...)
+ }
+ 
+ // func convI2E(elem any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·convI2E(Iface i, Eface ret)
+ {
+@@ -322,7 +338,6 @@ runtime·convI2E(Iface i, Eface ret)
+ }
+ 
+ // func ifaceI2E(typ *byte, iface any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+ {
+@@ -343,7 +358,6 @@ runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+ }
+ 
+ // func ifaceI2E2(typ *byte, iface any) (ret any, ok bool)
+-#pragma textflag 7
+ void
+ runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
+ {
+@@ -364,7 +378,6 @@ runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
+ }
+ 
+ // func convI2I(typ *byte, elem any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·convI2I(InterfaceType* inter, Iface i, Iface ret)
+ {
+@@ -399,7 +412,6 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+ }
+ 
+ // func ifaceI2I(sigi *byte, iface any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·assertI2I(InterfaceType* inter, Iface i, Iface ret)
+ {
+@@ -407,7 +419,6 @@ runtime·assertI2I(InterfaceType* inter, Iface i, Iface ret)
+ }
+ 
+ // func ifaceI2I2(sigi *byte, iface any) (ret any, ok bool)
+-#pragma textflag 7
+ void
+ runtime·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+ {
+@@ -446,7 +457,6 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ }
+ 
+ // func ifaceE2I(sigi *byte, iface any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
+ {
+@@ -454,7 +464,6 @@ runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
+ }
+ 
+ // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool)
+-#pragma textflag 7
+ void
+ runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ {
+@@ -474,7 +483,6 @@ runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ }
+ 
+ // func ifaceE2E(typ *byte, iface any) (ret any)
+-#pragma textflag 7
+ void
+ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+ {
+@@ -494,7 +502,6 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+ }
+ 
+ // func ifaceE2E2(iface any) (ret any, ok bool)
+-#pragma textflag 7
+ void
+ runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
+ {
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 745e18ca0d..abbf63b931 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -8,6 +8,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "stack.h"
+ #include "malloc.h"
+ #include "defs.h"
+ #include "type.h"
+@@ -385,7 +386,7 @@ static struct {
+ } stacks;
+ 
+ enum {
+-	FixedStack = StackBig + StackExtra
++	FixedStack = StackMin,
+ };
+ 
+ void*
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 84cd51700b..1bbca63177 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -7,6 +7,7 @@
+ #include "defs.h"
+ #include "malloc.h"
+ #include "os.h"
++#include "stack.h"
+ 
+ bool	runtime·iscgo;
+ 
+@@ -701,7 +702,7 @@ runtime·oldstack(void)
+ 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+ 
+ 	if(old.free != 0)
+-		runtime·stackfree(g1->stackguard - StackGuard, old.free);
++		runtime·stackfree(g1->stackguard - StackGuard - StackSystem, old.free);
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+@@ -739,14 +740,15 @@ runtime·newstack(void)
+ 		// the new Stktop* is necessary to unwind, but
+ 		// we don't need to create a new segment.
+ 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+-		stk = g1->stackguard - StackGuard;
++		stk = g1->stackguard - StackGuard - StackSystem;
+ 		free = 0;
+ 	} else {
+ 		// allocate new segment.
+ 		framesize += argsize;
+-		if(framesize < StackBig)
+-			framesize = StackBig;
+ 		framesize += StackExtra;	// room for more functions, Stktop.
++		if(framesize < StackMin)
++			framesize = StackMin;
++		framesize += StackSystem;
+ 		stk = runtime·stackalloc(framesize);
+ 		top = (Stktop*)(stk+framesize-sizeof(*top));
+ 		free = framesize;
+@@ -767,7 +769,7 @@ runtime·newstack(void)
+ 	g1->ispanic = false;
+ 
+ 	g1->stackbase = (byte*)top;
+-	g1->stackguard = stk + StackGuard;
++	g1->stackguard = stk + StackGuard + StackSystem;
+ 
+ 	sp = (byte*)top;
+ 	if(argsize > 0) {
+@@ -798,10 +800,10 @@ runtime·malg(int32 stacksize)
+ 
+ 	g = runtime·malloc(sizeof(G));
+ 	if(stacksize >= 0) {
+-		stk = runtime·stackalloc(stacksize + StackGuard);
++		stk = runtime·stackalloc(StackSystem + stacksize);
+ 		g->stack0 = stk;
+-		g->stackguard = stk + StackGuard;
+-		g->stackbase = stk + StackGuard + stacksize - sizeof(Stktop);
++		g->stackguard = stk + StackSystem + StackGuard;
++		g->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
+ 		runtime·memclr(g->stackbase, sizeof(Stktop));
+ 	}
+ 	return g;
+@@ -846,10 +848,10 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 
+ 	if((newg = gfget()) != nil){
+ 		newg->status = Gwaiting;
+-		if(newg->stackguard - StackGuard != newg->stack0)
++		if(newg->stackguard - StackGuard - StackSystem != newg->stack0)
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+-		newg = runtime·malg(StackBig);
++		newg = runtime·malg(StackMin);
+ 		newg->status = Gwaiting;
+ 		newg->alllink = runtime·allg;
+ 		runtime·allg = newg;
+@@ -1099,7 +1101,7 @@ nomatch:
+ static void
+ gfput(G *g)
+ {
+-	if(g->stackguard - StackGuard != g->stack0)
++	if(g->stackguard - StackGuard - StackSystem != g->stack0)
+ 		runtime·throw("invalid stack in gfput");
+ 	g->schedlink = runtime·sched.gfree;
+ 	runtime·sched.gfree = g;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ef2def0f6c..e85bc9daa8 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "stack.h"
+ 
+ enum {
+ 	maxround = sizeof(uintptr),
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a02010013f..ac992a2f1b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -592,83 +592,17 @@ int32	runtime·chancap(Hchan*);
+ 
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+ 
+-/*
+- * Stack layout parameters.
+- * Known to linkers.
+- *
+- * The per-goroutine g->stackguard is set to point
+- * StackGuard bytes above the bottom of the stack.
+- * Each function compares its stack pointer against
+- * g->stackguard to check for overflow.  To cut one
+- * instruction from the check sequence for functions
+- * with tiny frames, the stack is allowed to protrude
+- * StackSmall bytes below the stack guard.  Functions
+- * with large frames don't bother with the check and
+- * always call morestack.  The sequences are
+- * (for amd64, others are similar):
+- *
+- * 	guard = g->stackguard
+- * 	frame = function's stack frame size
+- * 	argsize = size of function arguments (call + return)
+- *
+- * 	stack frame size <= StackSmall:
+- * 		CMPQ guard, SP
+- * 		JHI 3(PC)
+- * 		MOVQ m->morearg, $(argsize << 32)
+- * 		CALL morestack(SB)
+- *
+- * 	stack frame size > StackSmall but < StackBig
+- * 		LEAQ (frame-StackSmall)(SP), R0
+- * 		CMPQ guard, R0
+- * 		JHI 3(PC)
+- * 		MOVQ m->morearg, $(argsize << 32)
+- * 		CALL morestack(SB)
+- *
+- * 	stack frame size >= StackBig:
+- * 		MOVQ m->morearg, $((argsize << 32) | frame)
+- * 		CALL morestack(SB)
+- *
+- * The bottom StackGuard - StackSmall bytes are important:
+- * there has to be enough room to execute functions that
+- * refuse to check for stack overflow, either because they
+- * need to be adjacent to the actual caller's frame (deferproc)
+- * or because they handle the imminent stack overflow (morestack).
+- *
+- * For example, deferproc might call malloc, which does one
+- * of the above checks (without allocating a full frame),
+- * which might trigger a call to morestack.  This sequence
+- * needs to fit in the bottom section of the stack.  On amd64,
+- * morestack's frame is 40 bytes, and deferproc's frame is 56 bytes.
+- * That fits well within the StackGuard - StackSmall = 128 bytes
+- * at the bottom.  There may be other sequences lurking or yet to
+- * be written that require more stack.  Morestack checks to make
+- * sure the stack has not completely overflowed and should catch
+- * such sequences.
+- */
+ enum
+ {
++	// StackSystem is a number of additional bytes to add
++	// to each stack below the usual guard area for OS-specific
++	// purposes like signal handling.
++	// TODO(rsc): This is only for Windows.  Can't Windows use
++	// a separate exception stack like every other operating system?
+ #ifdef __WINDOWS__
+-	// need enough room in guard area for exception handler.
+-	// use larger stacks to compensate for larger stack guard.
+-	StackSmall = 256,
+-	StackGuard = 2048,
+-	StackBig   = 8192,
+-	StackExtra = StackGuard,
++	StackSystem = 2048,
+ #else
+-	// byte offset of stack guard (g->stackguard) above bottom of stack.
+-	StackGuard = 256,
+-
+-	// checked frames are allowed to protrude below the guard by
+-	// this many bytes.  this saves an instruction in the checking
+-	// sequence when the stack frame is tiny.
+-	StackSmall = 128,
+-
+-	// extra space in the frame (beyond the function for which
+-	// the frame is allocated) is assumed not to be much bigger
+-	// than this amount.  it may not be used efficiently if it is.
+-	StackBig = 4096,
+-
+-	// extra room over frame size when allocating a stack.
+-	StackExtra = 1024,
++	StackSystem = 0,
+ #endif
+ };
++
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+new file mode 100644
+index 0000000000..ebf0462b56
+--- /dev/null
++++ b/src/pkg/runtime/stack.h
+@@ -0,0 +1,86 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Stack layout parameters.
++Included both by runtime (compiled via 6c) and linkers (compiled via gcc).
++
++The per-goroutine g->stackguard is set to point StackGuard bytes
++above the bottom of the stack.  Each function compares its stack
++pointer against g->stackguard to check for overflow.  To cut one
++instruction from the check sequence for functions with tiny frames,
++the stack is allowed to protrude StackSmall bytes below the stack
++guard.  Functions with large frames don't bother with the check and
++always call morestack.  The sequences are (for amd64, others are
++similar):
++ 
++	guard = g->stackguard
++	frame = function's stack frame size
++	argsize = size of function arguments (call + return)
++
++	stack frame size <= StackSmall:
++		CMPQ guard, SP
++		JHI 3(PC)
++		MOVQ m->morearg, $(argsize << 32)
++		CALL morestack(SB)
++
++	stack frame size > StackSmall but < StackBig
++		LEAQ (frame-StackSmall)(SP), R0
++		CMPQ guard, R0
++		JHI 3(PC)
++		MOVQ m->morearg, $(argsize << 32)
++		CALL morestack(SB)
++
++	stack frame size >= StackBig:
++		MOVQ m->morearg, $((argsize << 32) | frame)
++		CALL morestack(SB)
++
++The bottom StackGuard - StackSmall bytes are important: there has
++to be enough room to execute functions that refuse to check for
++stack overflow, either because they need to be adjacent to the
++actual caller's frame (deferproc) or because they handle the imminent
++stack overflow (morestack).
++
++For example, deferproc might call malloc, which does one of the
++above checks (without allocating a full frame), which might trigger
++a call to morestack.  This sequence needs to fit in the bottom
++section of the stack.  On amd64, morestack's frame is 40 bytes, and
++deferproc's frame is 56 bytes.  That fits well within the
++StackGuard - StackSmall = 128 bytes at the bottom.  
++The linkers explore all possible call traces involving non-splitting
++functions to make sure that this limit cannot be violated.
++ */
++
++enum {
++	// The amount of extra stack to allocate beyond the size
++	// needed for the single frame that triggered the split.
++	StackExtra = 1024,
++
++	// The minimum stack segment size to allocate.
++	// If the amount needed for the splitting frame + StackExtra
++	// is less than this number, the stack will have this size instead.
++	StackMin = 4096,
++
++	// Functions that need frames bigger than this call morestack
++	// unconditionally.  That is, on entry to a function it is assumed
++	// that the amount of space available in the current stack segment
++	// couldn't possibly be bigger than StackBig.  If stack segments
++	// do run with more space than StackBig, the space may not be
++	// used efficiently.  As a result, StackBig should not be significantly
++	// smaller than StackMin or StackExtra.
++	StackBig = 4096,
++
++	// The stack guard is a pointer this many bytes above the
++	// bottom of the stack.
++	StackGuard = 256,
++
++	// After a stack split check the SP is allowed to be this
++	// many bytes below the stack guard.  This saves an instruction
++	// in the checking sequence for tiny frames.
++	StackSmall = 128,
++
++	// The maximum number of bytes that a chain of NOSPLIT
++	// functions can use.
++	StackLimit = StackGuard - StackSmall,
++};

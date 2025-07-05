@@ -10,6 +10,20 @@ Date:   Sun Mar 14 00:09:05 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/301529
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ea98fea4e5..a52652566b 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -118,7 +118,7 @@ func (d *deadcodePass) flood() {
+ 
+ 		if isgotype {
+ 			if d.dynlink {
+-				// When dynaamic linking, a type may be passed across DSO
++				// When dynamic linking, a type may be passed across DSO
+ 				// boundary and get converted to interface at the other side.
+ 				d.ldr.SetAttrUsedInIface(symIdx, true)
+ 			}

@@ -21,7 +21,69 @@ Date:   Mon May 13 13:43:49 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 15 ++++++++++++++-
  test/fixedbugs/issue31987.go         | 22 ++++++++++++++++++++++
  2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index aa0c06c564..eaccde99c1 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -561,6 +561,13 @@ const (
+ 	inNonInitFunction
+ )
+ 
++func (c initContext) String() string {
++	if c == inInitFunction {
++		return "inInitFunction"
++	}
++	return "inNonInitFunction"
++}
++
+ // from here down is the walk analysis
+ // of composite literals.
+ // most of the work is to generate
+@@ -920,7 +927,13 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 			break
+ 
+ 		case OARRAYLIT, OSTRUCTLIT:
+-			fixedlit(ctxt, initKindDynamic, value, a, init)
++			k := initKindDynamic
++			if vstat == nil {
++				// Generate both static and dynamic initializations.
++				// See issue #31987.
++				k = initKindLocalCode
++			}
++			fixedlit(ctxt, k, value, a, init)
+ 			continue
+ 		}
+ 
+diff --git a/test/fixedbugs/issue31987.go b/test/fixedbugs/issue31987.go
+new file mode 100644
+index 0000000000..372289b52d
+--- /dev/null
++++ b/test/fixedbugs/issue31987.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type container struct {
++	Value string
++}
++
++func main() {
++	s := []container{
++		7: {Value: "string value"},
++	}
++	if s[7].Value != "string value" {
++		panic(fmt.Errorf("wanted \"string value\", got \"%s\"", s[7].Value))
++	}
++}

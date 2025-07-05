@@ -7,7 +7,213 @@ Date:   Sat May 2 17:58:06 2015 +0900
     Change-Id: If84edfaec361ca2fbb75707c4ad30e4ce64f7013
     Reviewed-on: https://go-review.googlesource.com/9664
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/timeout_test.go | 135 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/net/udp_test.go     |  41 ---------------
  2 files changed, 135 insertions(+), 41 deletions(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 792b5a42d3..cafa3755f6 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -356,6 +356,79 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
+ 	}
+ }
+ 
++var readFromTimeoutTests = []struct {
++	timeout time.Duration
++	xerrs   [2]error // expected errors in transition
++}{
++	// Tests that read deadlines work, even if there's data ready
++	// to be read.
++	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
++
++	{50 * time.Millisecond, [2]error{nil, errTimeout}},
++}
++
++func TestReadFromTimeout(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS) // see golang.org/issue/8916
++	}
++
++	ch := make(chan Addr)
++	defer close(ch)
++	handler := func(ls *localPacketServer, c PacketConn) {
++		if dst, ok := <-ch; ok {
++			c.WriteTo([]byte("READFROM TIMEOUT TEST"), dst)
++		}
++	}
++	ls, err := newLocalPacketServer("udp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
++
++	host, _, err := SplitHostPort(ls.PacketConn.LocalAddr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	c, err := ListenPacket(ls.PacketConn.LocalAddr().Network(), JoinHostPort(host, "0"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++	ch <- c.LocalAddr()
++
++	for i, tt := range readFromTimeoutTests {
++		if err := c.SetReadDeadline(time.Now().Add(tt.timeout)); err != nil {
++			t.Fatalf("#%d: %v", i, err)
++		}
++		var b [1]byte
++		for j, xerr := range tt.xerrs {
++			for {
++				n, _, err := c.ReadFrom(b[:])
++				if xerr != nil {
++					if perr := parseReadError(err); perr != nil {
++						t.Errorf("#%d/%d: %v", i, j, perr)
++					}
++					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++						t.Fatalf("#%d/%d: %v", i, j, err)
++					}
++				}
++				if err == nil {
++					time.Sleep(tt.timeout / 3)
++					continue
++				}
++				if n != 0 {
++					t.Fatalf("#%d/%d: read %d; want 0", i, j, n)
++				}
++				break
++			}
++		}
++	}
++}
++
+ var writeTimeoutTests = []struct {
+ 	timeout time.Duration
+ 	xerrs   [2]error // expected errors in transition
+@@ -471,6 +544,68 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
+ 	}
+ }
+ 
++var writeToTimeoutTests = []struct {
++	timeout time.Duration
++	xerrs   [2]error // expected errors in transition
++}{
++	// Tests that write deadlines work, even if there's buffer
++	// space available to write.
++	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
++
++	{10 * time.Millisecond, [2]error{nil, errTimeout}},
++}
++
++func TestWriteToTimeout(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
++	c1, err := newLocalPacketListener("udp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c1.Close()
++
++	host, _, err := SplitHostPort(c1.LocalAddr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for i, tt := range writeToTimeoutTests {
++		c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer c2.Close()
++
++		if err := c2.SetWriteDeadline(time.Now().Add(tt.timeout)); err != nil {
++			t.Fatalf("#%d: %v", i, err)
++		}
++		for j, xerr := range tt.xerrs {
++			for {
++				n, err := c2.WriteTo([]byte("WRITETO TIMEOUT TEST"), c1.LocalAddr())
++				if xerr != nil {
++					if perr := parseWriteError(err); perr != nil {
++						t.Errorf("#%d/%d: %v", i, j, perr)
++					}
++					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++						t.Fatalf("#%d/%d: %v", i, j, err)
++					}
++				}
++				if err == nil {
++					time.Sleep(tt.timeout / 3)
++					continue
++				}
++				if n != 0 {
++					t.Fatalf("#%d/%d: wrote %d; want 0", i, j, n)
++				}
++				break
++			}
++		}
++	}
++}
++
+ func TestReadTimeoutFluctuation(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index d95a54fb0e..f5e0ff8a97 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -60,47 +60,6 @@ func TestResolveUDPAddr(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReadFromUDP(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "nacl", "plan9":
+-		t.Skipf("skipping test on %q, see issue 8916", runtime.GOOS)
+-	}
+-
+-	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	la, err := ResolveUDPAddr("udp", "127.0.0.1:0")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	c, err := ListenUDP("udp", la)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer c.Close()
+-
+-	_, err = c.WriteToUDP([]byte("a"), ra)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	err = c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	b := make([]byte, 1)
+-	_, _, err = c.ReadFromUDP(b)
+-	if err == nil {
+-		t.Fatal("ReadFromUDP should fail")
+-	}
+-	if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+-		t.Fatal(err)
+-	}
+-}
+-
+ func TestWriteToUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":

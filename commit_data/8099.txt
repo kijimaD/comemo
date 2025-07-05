@@ -11,6 +11,26 @@ Date:   Thu Apr 14 11:54:36 2011 -0700
     R=golang-dev, r, r2
     CC=golang-dev
     https://golang.org/cl/4368076
-
+---
  src/pkg/runtime/plan9/mem.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/plan9/mem.c
+index b840de9846..9dfdf2cc35 100644
+--- a/src/pkg/runtime/plan9/mem.c
++++ b/src/pkg/runtime/plan9/mem.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "malloc.h"
++#include "os.h"
+ 
+ extern byte end[];
+ static byte *bloc = { end };
+@@ -52,5 +53,6 @@ runtime·SysMap(void *v, uintptr nbytes)
+ void*
+ runtime·SysReserve(void *v, uintptr nbytes)
+ {
++	USED(v);
+ 	return runtime·SysAlloc(nbytes);
+ }

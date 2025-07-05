@@ -35,7 +35,165 @@ Date:   Mon Jun 14 19:21:14 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/327872
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 41 ++++++++++-------
  src/cmd/compile/internal/typecheck/crawler.go   | 58 +++++++++++++++++++++++--
  2 files changed, 81 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 5516f707fa..f4a0619935 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1795,20 +1795,24 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 		return lsym
+ 	}
+ 
+-	// Only generate (*T).M wrappers for T.M in T's own package, except for
+-	// instantiated methods.
+-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
+-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg &&
+-		!rcvr.Elem().IsFullyInstantiated() {
+-		return lsym
++	// imported reports whether typ is a defined type that was declared
++	// in an imported package, and therefore must have been compiled in
++	// that package.
++	importedType := func(typ *types.Type) bool {
++		return typ.Sym() != nil && typ.Sym().Pkg != types.LocalPkg &&
++
++			// Exception: need wrapper for error.Error (#29304).
++			// TODO(mdempsky): Put this in package runtime, like we do for
++			// the type descriptors for predeclared types.
++			typ != types.ErrorType &&
++
++			// Exception: parameterized types may have been instantiated
++			// with new type arguments, so we don't assume they've been
++			// compiled before.
++			!typ.IsFullyInstantiated()
+ 	}
+ 
+-	// Only generate I.M wrappers for I in I's own package
+-	// but keep doing it for error.Error (was issue #29304)
+-	// and methods of instantiated interfaces.
+-	if rcvr.IsInterface() && rcvr != types.ErrorType &&
+-		rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg &&
+-		!rcvr.IsFullyInstantiated() {
++	if importedType(rcvr) || rcvr.IsPtr() && importedType(rcvr.Elem()) {
+ 		return lsym
+ 	}
+ 
+@@ -1922,9 +1926,16 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	ir.CurFunc = fn
+ 	typecheck.Stmts(fn.Body)
+ 
+-	// Inline calls within (*T).M wrappers. This is safe because we only
+-	// generate those wrappers within the same compilation unit as (T).M.
+-	// TODO(mdempsky): Investigate why we can't enable this more generally.
++	// TODO(mdempsky): Make this unconditional. The exporter now
++	// includes all of the inline bodies we need, and the "importedType"
++	// logic above now correctly suppresses compiling out-of-package
++	// types that we might not have inline bodies for. The only problem
++	// now is that the extra inlining can now introduce further new
++	// itabs, and gc.dumpdata's ad hoc compile loop doesn't handle this.
++	//
++	// CL 327871 will address this by writing itabs and generating
++	// wrappers as part of the loop, so we won't have to worry about
++	// "itabs changed after compile functions loop" errors anymore.
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
+ 		inline.InlineCalls(fn)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index c78a604a8d..655ac6e465 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -15,14 +15,18 @@ import (
+ // callable by importers are marked with ExportInline so that
+ // iexport.go knows to re-export their inline body.
+ func crawlExports(exports []*ir.Name) {
+-	p := crawler{marked: make(map[*types.Type]bool)}
++	p := crawler{
++		marked:   make(map[*types.Type]bool),
++		embedded: make(map[*types.Type]bool),
++	}
+ 	for _, n := range exports {
+ 		p.markObject(n)
+ 	}
+ }
+ 
+ type crawler struct {
+-	marked map[*types.Type]bool // types already seen by markType
++	marked   map[*types.Type]bool // types already seen by markType
++	embedded map[*types.Type]bool // types already seen by markEmbed
+ }
+ 
+ // markObject visits a reachable object.
+@@ -31,6 +35,12 @@ func (p *crawler) markObject(n *ir.Name) {
+ 		p.markInlBody(n)
+ 	}
+ 
++	// If a declared type name is reachable, users can embed it in their
++	// own types, which makes even its unexported methods reachable.
++	if n.Op() == ir.OTYPE {
++		p.markEmbed(n.Type())
++	}
++
+ 	p.markType(n.Type())
+ }
+ 
+@@ -46,7 +56,7 @@ func (p *crawler) markType(t *types.Type) {
+ 	}
+ 	p.marked[t] = true
+ 
+-	// If this is a named type, mark all of its associated
++	// If this is a defined type, mark all of its associated
+ 	// methods. Skip interface types because t.Methods contains
+ 	// only their unexpanded method set (i.e., exclusive of
+ 	// interface embeddings), and the switch statement below
+@@ -107,6 +117,48 @@ func (p *crawler) markType(t *types.Type) {
+ 	}
+ }
+ 
++// markEmbed is similar to markType, but handles finding methods that
++// need to be re-exported because t can be embedded in user code
++// (possibly transitively).
++func (p *crawler) markEmbed(t *types.Type) {
++	if t.IsPtr() {
++		// Defined pointer type; not allowed to embed anyway.
++		if t.Sym() != nil {
++			return
++		}
++		t = t.Elem()
++	}
++
++	if t.IsInstantiatedGeneric() {
++		// Re-instantiated types don't add anything new, so don't follow them.
++		return
++	}
++
++	if p.embedded[t] {
++		return
++	}
++	p.embedded[t] = true
++
++	// If t is a defined type, then re-export all of its methods. Unlike
++	// in markType, we include even unexported methods here, because we
++	// still need to generate wrappers for them, even if the user can't
++	// refer to them directly.
++	if t.Sym() != nil && t.Kind() != types.TINTER {
++		for _, m := range t.Methods().Slice() {
++			p.markObject(m.Nname.(*ir.Name))
++		}
++	}
++
++	// If t is a struct, recursively visit its embedded fields.
++	if t.IsStruct() {
++		for _, f := range t.FieldSlice() {
++			if f.Embedded != 0 {
++				p.markEmbed(f.Type)
++			}
++		}
++	}
++}
++
+ // markInlBody marks n's inline body for export and recursively
+ // ensures all called functions are marked too.
+ func (p *crawler) markInlBody(n *ir.Name) {

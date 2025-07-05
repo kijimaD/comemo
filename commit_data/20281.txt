@@ -14,6 +14,22 @@ Date:   Thu Aug 28 22:40:57 2014 -0400
     R=r, rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/135990043
-
+---
  misc/cgo/test/issue8428.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/cgo/test/issue8428.go b/misc/cgo/test/issue8428.go
+index f5b0ee4974..a3dc5755ce 100644
+--- a/misc/cgo/test/issue8428.go
++++ b/misc/cgo/test/issue8428.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This test fails on older versions of OS X because they use older buggy
++// versions of Clang that emit ambiguous DWARF info.  See issue 8611.
++// +build !darwin
++
+ package cgotest
+ 
+ // Issue 8428.  Cgo inconsistently translated zero size arrays.

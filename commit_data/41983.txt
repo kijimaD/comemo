@@ -14,7 +14,7 @@ Date:   Sun Oct 20 17:25:02 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202338
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARMOps.go |  2 +
  src/runtime/mkpreempt.go                   | 65 +++++++++++++++++++++---
  src/runtime/preempt_386.s                  |  4 +-
@@ -22,3 +22,312 @@ Date:   Sun Oct 20 17:25:02 2019 -0400
  src/runtime/signal_arm.go                  | 14 +++++-
  src/runtime/traceback.go                   |  5 +-
  6 files changed, 153 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index bde170864d..d10706d634 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -60,6 +60,8 @@ var regNamesARM = []string{
+ 	"F14",
+ 	"F15", // tmp
+ 
++	// If you add registers, update asyncPreempt in runtime.
++
+ 	// pseudo-registers
+ 	"SB",
+ }
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index c28f89581d..78b1707f1b 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -78,7 +78,7 @@ var out io.Writer
+ var arches = map[string]func(){
+ 	"386":     gen386,
+ 	"amd64":   genAMD64,
+-	"arm":     notImplemented,
++	"arm":     genARM,
+ 	"arm64":   notImplemented,
+ 	"mips64x": notImplemented,
+ 	"mipsx":   notImplemented,
+@@ -133,9 +133,14 @@ func p(f string, args ...interface{}) {
+ 	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
+ }
+ 
++func label(l string) {
++	fmt.Fprintf(out, "%s\n", l)
++}
++
+ type layout struct {
+ 	stack int
+ 	regs  []regPos
++	sp    string // stack pointer register
+ }
+ 
+ type regPos struct {
+@@ -165,7 +170,7 @@ func (l *layout) save() {
+ 		if reg.save != "" {
+ 			p(reg.save, reg.pos)
+ 		} else {
+-			p("%s %s, %d(SP)", reg.op, reg.reg, reg.pos)
++			p("%s %s, %d(%s)", reg.op, reg.reg, reg.pos, l.sp)
+ 		}
+ 	}
+ }
+@@ -176,7 +181,7 @@ func (l *layout) restore() {
+ 		if reg.restore != "" {
+ 			p(reg.restore, reg.pos)
+ 		} else {
+-			p("%s %d(SP), %s", reg.op, reg.pos, reg.reg)
++			p("%s %d(%s), %s", reg.op, reg.pos, l.sp, reg.reg)
+ 		}
+ 	}
+ }
+@@ -185,7 +190,7 @@ func gen386() {
+ 	p("PUSHFL")
+ 
+ 	// Save general purpose registers.
+-	var l layout
++	var l = layout{sp: "SP"}
+ 	for _, reg := range regNames386 {
+ 		if reg == "SP" || strings.HasPrefix(reg, "X") {
+ 			continue
+@@ -200,7 +205,7 @@ func gen386() {
+ 		108)
+ 
+ 	// Save SSE state only if supported.
+-	lSSE := layout{stack: l.stack}
++	lSSE := layout{stack: l.stack, sp: "SP"}
+ 	for i := 0; i < 8; i++ {
+ 		lSSE.add("MOVUPS", fmt.Sprintf("X%d", i), 16)
+ 	}
+@@ -210,11 +215,11 @@ func gen386() {
+ 	l.save()
+ 	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
+ 	lSSE.save()
+-	p("nosse:")
++	label("nosse:")
+ 	p("CALL ·asyncPreempt2(SB)")
+ 	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
+ 	lSSE.restore()
+-	p("nosse2:")
++	label("nosse2:")
+ 	l.restore()
+ 	p("ADJSP $%d", -lSSE.stack)
+ 
+@@ -224,7 +229,7 @@ func gen386() {
+ 
+ func genAMD64() {
+ 	// Assign stack offsets.
+-	var l layout
++	var l = layout{sp: "SP"}
+ 	for _, reg := range regNamesAMD64 {
+ 		if reg == "SP" || reg == "BP" {
+ 			continue
+@@ -255,6 +260,50 @@ func genAMD64() {
+ 	p("RET")
+ }
+ 
++func genARM() {
++	// Add integer registers R0-R12.
++	// R13 (SP), R14 (LR), R15 (PC) are special and not saved here.
++	var l = layout{sp: "R13", stack: 4} // add LR slot
++	for i := 0; i <= 12; i++ {
++		reg := fmt.Sprintf("R%d", i)
++		if i == 10 {
++			continue // R10 is g register, no need to save/restore
++		}
++		l.add("MOVW", reg, 4)
++	}
++	// Add flag register.
++	l.addSpecial(
++		"MOVW CPSR, R0\nMOVW R0, %d(R13)",
++		"MOVW %d(R13), R0\nMOVW R0, CPSR",
++		4)
++
++	// Add floating point registers F0-F15 and flag register.
++	var lfp = layout{stack: l.stack, sp: "R13"}
++	lfp.addSpecial(
++		"MOVW FPCR, R0\nMOVW R0, %d(R13)",
++		"MOVW %d(R13), R0\nMOVW R0, FPCR",
++		4)
++	for i := 0; i <= 15; i++ {
++		reg := fmt.Sprintf("F%d", i)
++		lfp.add("MOVD", reg, 8)
++	}
++
++	p("MOVW.W R14, -%d(R13)", lfp.stack) // allocate frame, save LR
++	l.save()
++	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp") // test goarm, and skip FP registers if goarm=5.
++	lfp.save()
++	label("nofp:")
++	p("CALL ·asyncPreempt2(SB)")
++	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp2") // test goarm, and skip FP registers if goarm=5.
++	lfp.restore()
++	label("nofp2:")
++	l.restore()
++
++	p("MOVW %d(R13), R14", lfp.stack)     // sigctxt.pushCall pushes LR on stack, restore it
++	p("MOVW.P %d(R13), R15", lfp.stack+4) // load PC, pop frame (including the space pushed by sigctxt.pushCall)
++	p("UNDEF")                            // shouldn't get here
++}
++
+ func genWasm() {
+ 	p("// No async preemption on wasm")
+ 	p("UNDEF")
+diff --git a/src/runtime/preempt_386.s b/src/runtime/preempt_386.s
+index a7961e02ce..a00ac8f385 100644
+--- a/src/runtime/preempt_386.s
++++ b/src/runtime/preempt_386.s
+@@ -26,7 +26,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVUPS X5, 216(SP)
+ 	MOVUPS X6, 232(SP)
+ 	MOVUPS X7, 248(SP)
+-	nosse:
++nosse:
+ 	CALL ·asyncPreempt2(SB)
+ 	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+ 	JNE nosse2
+@@ -38,7 +38,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVUPS 168(SP), X2
+ 	MOVUPS 152(SP), X1
+ 	MOVUPS 136(SP), X0
+-	nosse2:
++nosse2:
+ 	FRSTOR 28(SP)
+ 	MOVL 24(SP), DI
+ 	MOVL 20(SP), SI
+diff --git a/src/runtime/preempt_arm.s b/src/runtime/preempt_arm.s
+index 5697268ce1..8f243c0dcd 100644
+--- a/src/runtime/preempt_arm.s
++++ b/src/runtime/preempt_arm.s
+@@ -4,5 +4,80 @@
+ #include "textflag.h"
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+-	// Not implemented yet
+-	JMP ·abort(SB)
++	MOVW.W R14, -188(R13)
++	MOVW R0, 4(R13)
++	MOVW R1, 8(R13)
++	MOVW R2, 12(R13)
++	MOVW R3, 16(R13)
++	MOVW R4, 20(R13)
++	MOVW R5, 24(R13)
++	MOVW R6, 28(R13)
++	MOVW R7, 32(R13)
++	MOVW R8, 36(R13)
++	MOVW R9, 40(R13)
++	MOVW R11, 44(R13)
++	MOVW R12, 48(R13)
++	MOVW CPSR, R0
++	MOVW R0, 52(R13)
++	MOVB ·goarm(SB), R0
++	CMP $6, R0
++	BLT nofp
++	MOVW FPCR, R0
++	MOVW R0, 56(R13)
++	MOVD F0, 60(R13)
++	MOVD F1, 68(R13)
++	MOVD F2, 76(R13)
++	MOVD F3, 84(R13)
++	MOVD F4, 92(R13)
++	MOVD F5, 100(R13)
++	MOVD F6, 108(R13)
++	MOVD F7, 116(R13)
++	MOVD F8, 124(R13)
++	MOVD F9, 132(R13)
++	MOVD F10, 140(R13)
++	MOVD F11, 148(R13)
++	MOVD F12, 156(R13)
++	MOVD F13, 164(R13)
++	MOVD F14, 172(R13)
++	MOVD F15, 180(R13)
++nofp:
++	CALL ·asyncPreempt2(SB)
++	MOVB ·goarm(SB), R0
++	CMP $6, R0
++	BLT nofp2
++	MOVD 180(R13), F15
++	MOVD 172(R13), F14
++	MOVD 164(R13), F13
++	MOVD 156(R13), F12
++	MOVD 148(R13), F11
++	MOVD 140(R13), F10
++	MOVD 132(R13), F9
++	MOVD 124(R13), F8
++	MOVD 116(R13), F7
++	MOVD 108(R13), F6
++	MOVD 100(R13), F5
++	MOVD 92(R13), F4
++	MOVD 84(R13), F3
++	MOVD 76(R13), F2
++	MOVD 68(R13), F1
++	MOVD 60(R13), F0
++	MOVW 56(R13), R0
++	MOVW R0, FPCR
++nofp2:
++	MOVW 52(R13), R0
++	MOVW R0, CPSR
++	MOVW 48(R13), R12
++	MOVW 44(R13), R11
++	MOVW 40(R13), R9
++	MOVW 36(R13), R8
++	MOVW 32(R13), R7
++	MOVW 28(R13), R6
++	MOVW 24(R13), R5
++	MOVW 20(R13), R4
++	MOVW 16(R13), R3
++	MOVW 12(R13), R2
++	MOVW 8(R13), R1
++	MOVW 4(R13), R0
++	MOVW 188(R13), R14
++	MOVW.P 192(R13), R15
++	UNDEF
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index 1b3e53d01c..ff952b8b60 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -63,8 +63,18 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint32(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = false
++const pushCallSupported = true
+ 
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+-	throw("not implemented")
++	// Push the LR to stack, as we'll clobber it in order to
++	// push the call. The function being pushed is responsible
++	// for restoring the LR and setting the SP back.
++	// This extra slot is known to gentraceback.
++	sp := c.sp() - 4
++	c.set_sp(sp)
++	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
++	// Set up PC and LR to pretend the function being signaled
++	// calls targetPC at the faulting PC.
++	c.set_lr(c.pc())
++	c.set_pc(uint32(targetPC))
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9be7d739d1..dc2a7a3693 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -462,6 +462,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 
+ 		waspanic = f.funcID == funcID_sigpanic
++		injectedCall := waspanic || f.funcID == funcID_asyncPreempt
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if !flr.valid() {
+@@ -477,8 +478,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.argmap = nil
+ 
+ 		// On link register architectures, sighandler saves the LR on stack
+-		// before faking a call to sigpanic.
+-		if usesLR && waspanic {
++		// before faking a call.
++		if usesLR && injectedCall {
+ 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
+ 			frame.sp += sys.MinFrameSize
+ 			if GOARCH == "arm64" {

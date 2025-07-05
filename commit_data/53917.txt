@@ -31,9 +31,213 @@ Date:   Thu Sep 1 09:23:49 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/arch/ppc64.go        | 22 ----------
  src/cmd/asm/internal/asm/asm.go           | 67 +++++++++++--------------------
  src/cmd/asm/internal/asm/testdata/ppc64.s |  7 ++++
  src/cmd/internal/obj/ppc64/obj9.go        | 16 +++++++-
  4 files changed, 45 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index 76fe1d6525..98a2bfedfd 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -21,28 +21,6 @@ func jumpPPC64(word string) bool {
+ 	return false
+ }
+ 
+-// IsPPC64RLD reports whether the op (as defined by an ppc64.A* constant) is
+-// one of the RLD-like instructions that require special handling.
+-// The FMADD-like instructions behave similarly.
+-func IsPPC64RLD(op obj.As) bool {
+-	switch op {
+-	case ppc64.ARLDC, ppc64.ARLDCCC, ppc64.ARLDCL, ppc64.ARLDCLCC,
+-		ppc64.ARLDCR, ppc64.ARLDCRCC, ppc64.ARLDMI, ppc64.ARLDMICC,
+-		ppc64.ARLWMI, ppc64.ARLWMICC, ppc64.ARLWNM, ppc64.ARLWNMCC:
+-		return true
+-	case ppc64.AFMADD, ppc64.AFMADDCC, ppc64.AFMADDS, ppc64.AFMADDSCC,
+-		ppc64.AFMSUB, ppc64.AFMSUBCC, ppc64.AFMSUBS, ppc64.AFMSUBSCC,
+-		ppc64.AFNMADD, ppc64.AFNMADDCC, ppc64.AFNMADDS, ppc64.AFNMADDSCC,
+-		ppc64.AFNMSUB, ppc64.AFNMSUBCC, ppc64.AFNMSUBS, ppc64.AFNMSUBSCC:
+-		return true
+-	}
+-	return false
+-}
+-
+-func IsPPC64ISEL(op obj.As) bool {
+-	return op == ppc64.AISEL
+-}
+-
+ // IsPPC64CMP reports whether the op (as defined by an ppc64.A* constant) is
+ // one of the CMP instructions that require special handling.
+ func IsPPC64CMP(op obj.As) bool {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index cfd1f4c707..050a4f013c 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -727,23 +727,17 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.To = a[1]
+ 				break
+ 			}
+-			// Arithmetic. Choices are:
+-			// reg reg reg
+-			// imm reg reg
+-			// reg imm reg
+-			// If the immediate is the middle argument, use From3.
++
++			prog.From = a[0]
++			prog.To = a[2]
++
++			// If the second argument is not a register argument, it must be
++			// passed RestArgs/SetFrom3
+ 			switch a[1].Type {
+ 			case obj.TYPE_REG:
+-				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+-				prog.To = a[2]
+-			case obj.TYPE_CONST:
+-				prog.From = a[0]
+-				prog.SetFrom3(a[1])
+-				prog.To = a[2]
+ 			default:
+-				p.errorf("invalid addressing modes for %s instruction", op)
+-				return
++				prog.SetFrom3(a[1])
+ 			}
+ 		case sys.RISCV64:
+ 			// RISCV64 instructions with one input and two outputs.
+@@ -810,41 +804,18 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			break
+ 		}
+ 		if p.arch.Family == sys.PPC64 {
+-			if arch.IsPPC64RLD(op) {
+-				prog.From = a[0]
+-				prog.Reg = p.getRegister(prog, op, &a[1])
+-				prog.SetFrom3(a[2])
+-				prog.To = a[3]
+-				break
+-			} else if arch.IsPPC64ISEL(op) {
+-				// ISEL BC,RB,RA,RT becomes isel rt,ra,rb,bc
+-				prog.SetFrom3(a[2])                       // ra
+-				prog.From = a[0]                          // bc
+-				prog.Reg = p.getRegister(prog, op, &a[1]) // rb
+-				prog.To = a[3]                            // rt
+-				break
+-			}
+-			// Else, it is a VA-form instruction
+-			// reg reg reg reg
+-			// imm reg reg reg
+-			// Or a VX-form instruction
+-			// imm imm reg reg
++			prog.From = a[0]
++			prog.To = a[3]
++			// If the second argument is not a register argument, it must be
++			// passed RestArgs/SetFrom3
+ 			if a[1].Type == obj.TYPE_REG {
+-				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+-				prog.SetFrom3(a[2])
+-				prog.To = a[3]
+-				break
+-			} else if a[1].Type == obj.TYPE_CONST {
+-				prog.From = a[0]
+-				prog.Reg = p.getRegister(prog, op, &a[2])
+-				prog.SetFrom3(a[1])
+-				prog.To = a[3]
+-				break
++				prog.SetRestArgs([]obj.Addr{a[2]})
+ 			} else {
+-				p.errorf("invalid addressing modes for %s instruction", op)
+-				return
++				// Don't set prog.Reg if a1 isn't a reg arg.
++				prog.SetRestArgs([]obj.Addr{a[1], a[2]})
+ 			}
++			break
+ 		}
+ 		if p.arch.Family == sys.RISCV64 {
+ 			prog.From = a[0]
+@@ -909,6 +880,14 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.As = MRC // Both instructions are coded as MRC.
+ 			break
+ 		}
++		if p.arch.Family == sys.PPC64 {
++			prog.From = a[0]
++			// Second arg is always a register type on ppc64.
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.SetRestArgs([]obj.Addr{a[2], a[3], a[4]})
++			prog.To = a[5]
++			break
++		}
+ 		fallthrough
+ 	default:
+ 		p.errorf("can't handle %s instruction with %d operands", op, len(a))
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 8f03a3afa6..2e086056d7 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -162,6 +162,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADD $1234567, R5                // 641f001263ffd6877cbf2a14
+ 	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14
+ 	ADDEX R3, R5, $3, R6            // 7cc32f54
++	ADDEX R3, $3, R5, R6            // 7cc32f54
+ 	ADDIS $8, R3                    // 3c630008
+ 	ADDIS $1000, R3, R4             // 3c8303e8
+ 
+@@ -784,7 +785,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	VNCIPHERLAST V1, V2, V3         // 10611549
+ 	VSBOX V1, V2                    // 104105c8
+ 	VSHASIGMAW $1, V1, $15, V2      // 10418e82
++	VSHASIGMAW $1, $15, V1, V2      // 10418e82
+ 	VSHASIGMAD $2, V1, $15, V2      // 104196c2
++	VSHASIGMAD $2, $15, V1, V2      // 104196c2
+ 
+ 	LXVD2X (R3)(R4), VS1            // 7c241e98
+ 	LXVD2X (R3)(R0), VS1            // 7c201e98
+@@ -876,7 +879,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	XXPERM VS1, VS2, VS3            // f06110d0
+ 	XXSLDWI VS1, VS2, $1, VS3       // f0611110
+ 	XXSLDWI V1, V2, $1, V3          // f0611117
++	XXSLDWI V1, $1, V2, V3          // f0611117
+ 	XXSLDWI VS33, VS34, $1, VS35    // f0611117
++	XXSLDWI VS33, $1, VS34, VS35    // f0611117
++	XXPERMDI VS33, VS34, $1, VS35   // f0611157
++	XXPERMDI VS33, $1, VS34, VS35   // f0611157
+ 	XSCVDPSP VS1, VS2               // f0400c24
+ 	XVCVDPSP VS1, VS2               // f0400e24
+ 	XSCVSXDDP VS1, VS2              // f0400de0
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 098f1cd7fe..b6b2a8a9a7 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -88,8 +88,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	// Rewrite SUB constants into ADD.
+ 	switch p.As {
++	// Rewrite SUB constants into ADD.
+ 	case ASUBC:
+ 		if p.From.Type == obj.TYPE_CONST {
+ 			p.From.Offset = -p.From.Offset
+@@ -107,7 +107,21 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.From.Offset = -p.From.Offset
+ 			p.As = AADD
+ 		}
++
++	// To maintain backwards compatibility, we accept some 4 argument usage of
++	// several opcodes which was likely not intended, but did work. These are not
++	// added to optab to avoid the chance this behavior might be used with newer
++	// instructions.
++	//
++	// Rewrite argument ordering like "ADDEX R3, $3, R4, R5" into
++	//                                "ADDEX R3, R4, $3, R5"
++	case AVSHASIGMAW, AVSHASIGMAD, AADDEX, AXXSLDWI, AXXPERMDI:
++		if len(p.RestArgs) == 2 && p.Reg == 0 && p.RestArgs[0].Addr.Type == obj.TYPE_CONST && p.RestArgs[1].Addr.Type == obj.TYPE_REG {
++			p.Reg = p.RestArgs[1].Addr.Reg
++			p.RestArgs = p.RestArgs[:1]
++		}
+ 	}
++
+ 	if c.ctxt.Headtype == objabi.Haix {
+ 		c.rewriteToUseTOC(p)
+ 	} else if c.ctxt.Flag_dynlink {

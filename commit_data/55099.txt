@@ -22,6 +22,20 @@ Date:   Mon Sep 5 14:18:40 2022 -0300
     Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  .github/ISSUE_TEMPLATE/01-pkgsite.md | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/.github/ISSUE_TEMPLATE/01-pkgsite.md b/.github/ISSUE_TEMPLATE/01-pkgsite.md
+index fee00f5b27..31f0fd16b1 100644
+--- a/.github/ISSUE_TEMPLATE/01-pkgsite.md
++++ b/.github/ISSUE_TEMPLATE/01-pkgsite.md
+@@ -34,6 +34,8 @@ Please paste a screenshot of the page.
+ 
+ <!--
+ If possible, provide a recipe for reproducing the error.
++
++Starting with a Private/Incognito tab/window may help rule out problematic browser extensions.
+ -->
+ 
+ 

@@ -27,7 +27,7 @@ Date:   Tue May 25 12:21:11 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../build_package_not_stale_trailing_slash.txt     | 13 ------
  src/cmd/go/testdata/script/cgo_stale.txt           | 39 ++++++++++++++++
  src/cmd/go/testdata/script/list_std_stale.txt      | 31 -------------
@@ -36,3 +36,266 @@ Date:   Tue May 25 12:21:11 2021 -0400
  src/cmd/go/testdata/script/toolexec.txt            |  6 +++
  src/cmd/link/dwarf_test.go                         | 52 +++++++++++++++-------
  7 files changed, 112 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt b/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt
+deleted file mode 100644
+index 38a151ef1f..0000000000
+--- a/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Tests Issue #12690
+-
+-[gccgo] skip 'gccgo does not have GOROOT'
+-
+-! stale runtime
+-! stale os
+-! stale io
+-
+-env GOROOT=$GOROOT'/'
+-
+-! stale runtime
+-! stale os
+-! stale io
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/cgo_stale.txt b/src/cmd/go/testdata/script/cgo_stale.txt
+new file mode 100644
+index 0000000000..9e46855ead
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_stale.txt
+@@ -0,0 +1,39 @@
++# golang.org/issue/46347: a stale runtime/cgo should only force a single rebuild
++
++[!cgo] skip
++[short] skip
++
++
++# If we set a unique CGO_CFLAGS, the installed copy of runtime/cgo
++# should be reported as stale.
++
++env CGO_CFLAGS=-DTestScript_cgo_stale=true
++stale runtime/cgo
++
++
++# If we then build a package that uses cgo, runtime/cgo should be rebuilt and
++# cached with the new flag, but not installed to GOROOT (and thus still stale).
++
++env GOCACHE=$WORK/cache  # Use a fresh cache to avoid interference between runs.
++
++go build -x .
++stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
++stale runtime/cgo
++
++
++# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again
++# even though it is still reported as stale.
++
++go build -x .
++! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
++stale runtime/cgo
++
++
++-- go.mod --
++module example.com/m
++
++go 1.17
++-- m.go --
++package m
++
++import "C"
+diff --git a/src/cmd/go/testdata/script/list_std_stale.txt b/src/cmd/go/testdata/script/list_std_stale.txt
+deleted file mode 100644
+index e5c1f334fd..0000000000
+--- a/src/cmd/go/testdata/script/list_std_stale.txt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-# https://golang.org/issue/44725: packages in std should not be reported as stale,
+-# regardless of whether they are listed from within or outside GOROOT/src.
+-
+-# Control case: net should not be stale at the start of the test,
+-# and should depend on vendor/golang.org/… instead of golang.org/….
+-
+-! stale net
+-
+-go list -deps net
+-stdout '^vendor/golang.org/x/net'
+-! stdout '^golang.org/x/net'
+-
+-# Net should also not be stale when viewed from within GOROOT/src,
+-# and should still report the same package dependencies.
+-
+-cd $GOROOT/src
+-! stale net
+-
+-go list -deps net
+-stdout '^vendor/golang.org/x/net'
+-! stdout '^golang.org/x/net'
+-
+-
+-# However, 'go mod' and 'go get' subcommands should report the original module
+-# dependencies, not the vendored packages.
+-
+-[!net] stop
+-
+-env GOPROXY=
+-go mod why -m golang.org/x/net
+-stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'
+diff --git a/src/cmd/go/testdata/script/list_std_vendor.txt b/src/cmd/go/testdata/script/list_std_vendor.txt
+new file mode 100644
+index 0000000000..8f27cc1e8d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_std_vendor.txt
+@@ -0,0 +1,32 @@
++# https://golang.org/issue/44725: packages in std should have the same
++# dependencies regardless of whether they are listed from within or outside
++# GOROOT/src.
++
++# Control case: net, viewed from outside the 'std' module,
++# should depend on vendor/golang.org/… instead of golang.org/….
++
++go list -deps net
++stdout '^vendor/golang.org/x/net'
++! stdout '^golang.org/x/net'
++cp stdout $WORK/net-deps.txt
++
++
++# It should still report the same package dependencies when viewed from
++# within GOROOT/src.
++
++cd $GOROOT/src
++
++go list -deps net
++stdout '^vendor/golang.org/x/net'
++! stdout '^golang.org/x/net'
++cmp stdout $WORK/net-deps.txt
++
++
++# However, 'go mod' and 'go get' subcommands should report the original module
++# dependencies, not the vendored packages.
++
++[!net] stop
++
++env GOPROXY=
++go mod why -m golang.org/x/net
++stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'
+diff --git a/src/cmd/go/testdata/script/test_race_install_cgo.txt b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+index 3f4eb90e3f..e1fe4f2ace 100644
+--- a/src/cmd/go/testdata/script/test_race_install_cgo.txt
++++ b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+@@ -2,8 +2,6 @@
+ 
+ [!race] skip
+ 
+-[!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
+-
+ env GOBIN=$WORK/bin
+ go install m/mtime m/sametime
+ 
+diff --git a/src/cmd/go/testdata/script/toolexec.txt b/src/cmd/go/testdata/script/toolexec.txt
+index 4f26da6d26..bb86467942 100644
+--- a/src/cmd/go/testdata/script/toolexec.txt
++++ b/src/cmd/go/testdata/script/toolexec.txt
+@@ -3,6 +3,12 @@
+ # Build our simple toolexec program.
+ go build ./cmd/mytool
+ 
++# Use an ephemeral build cache so that our toolexec output is not cached
++# for any stale standard-library dependencies.
++#
++# TODO(#27628): This should not be necessary.
++env GOCACHE=$WORK/gocache
++
+ # Build the main package with our toolexec program. For each action, it will
+ # print the tool's name and the TOOLEXEC_IMPORTPATH value. We expect to compile
+ # each package once, and link the main package once.
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 0419613cbe..3ca59bd47f 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -19,6 +19,36 @@ import (
+ 	"testing"
+ )
+ 
++// TestMain allows this test binary to run as a -toolexec wrapper for the 'go'
++// command. If LINK_TEST_TOOLEXEC is set, TestMain runs the binary as if it were
++// cmd/link, and otherwise runs the requested tool as a subprocess.
++//
++// This allows the test to verify the behavior of the current contents of the
++// cmd/link package even if the installed cmd/link binary is stale.
++func TestMain(m *testing.M) {
++	if os.Getenv("LINK_TEST_TOOLEXEC") == "" {
++		// Not running as a -toolexec wrapper. Just run the tests.
++		os.Exit(m.Run())
++	}
++
++	if strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe") == "link" {
++		// Running as a -toolexec linker, and the tool is cmd/link.
++		// Substitute this test binary for the linker.
++		os.Args = os.Args[1:]
++		main()
++		os.Exit(0)
++	}
++
++	cmd := exec.Command(os.Args[1], os.Args[2:]...)
++	cmd.Stdin = os.Stdin
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		os.Exit(1)
++	}
++	os.Exit(0)
++}
++
+ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoBuild(t)
+@@ -29,17 +59,6 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 
+ 	t.Parallel()
+ 
+-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go list: %v\n%s", err, out)
+-	}
+-	if string(out) != "false\n" {
+-		if strings.HasPrefix(testenv.Builder(), "darwin-") {
+-			t.Skipf("cmd/link is spuriously stale on Darwin builders - see #33598")
+-		}
+-		t.Fatalf("cmd/link is stale - run go install cmd/link")
+-	}
+-
+ 	for _, prog := range []string{"testprog", "testprogcgo"} {
+ 		prog := prog
+ 		expectDWARF := expectDWARF
+@@ -48,11 +67,11 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 			if extld == "" {
+ 				extld = "gcc"
+ 			}
++			var err error
+ 			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-
+ 		}
+ 
+ 		t.Run(prog, func(t *testing.T) {
+@@ -62,15 +81,14 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 
+ 			exe := filepath.Join(tmpDir, prog+".exe")
+ 			dir := "../../runtime/testdata/" + prog
+-			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
++			cmd := exec.Command(testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-o", exe)
+ 			if buildmode != "" {
+ 				cmd.Args = append(cmd.Args, "-buildmode", buildmode)
+ 			}
+ 			cmd.Args = append(cmd.Args, dir)
+-			if env != nil {
+-				cmd.Env = append(os.Environ(), env...)
+-				cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+-			}
++			cmd.Env = append(os.Environ(), env...)
++			cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
++			cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+ 			out, err := cmd.CombinedOutput()
+ 			if err != nil {
+ 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)

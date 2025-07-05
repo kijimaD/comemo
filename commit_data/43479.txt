@@ -15,6 +15,20 @@ Date:   Wed Apr 8 11:54:11 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3a1f355056..f72262cf4d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -101,7 +101,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 			continue
+ 		}
+ 		rs := r.Sym()
+-		if !ldr.AttrReachable(rs) {
++		if !ldr.AttrReachable(rs) || ldr.SymType(rs) == sym.Sxxx {
+ 			continue // something is wrong. skip it here and we'll emit a better error later
+ 		}
+ 		rs = ldr.ResolveABIAlias(rs)

@@ -12,7 +12,50 @@ Date:   Thu Jul 28 00:55:31 2022 +0800
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/lookup.go      |  5 +++++
  src/net/lookup_test.go | 11 +++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index b283c67945..969c902b1d 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -224,10 +224,15 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
+ 	default:
+ 		return nil, UnknownNetworkError(network)
+ 	}
++
++	if host == "" {
++		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
++	}
+ 	addrs, err := r.internetAddrList(ctx, afnet, host)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
+ 	ips := make([]IP, 0, len(addrs))
+ 	for _, addr := range addrs {
+ 		ips = append(ips, addr.(*IPAddr).IP)
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 3a31f56bea..24d4fbf66d 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1208,6 +1208,17 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
++// Issue 53995: Resolver.LookupIP should return error for empty host name.
++func TestResolverLookupIPWithEmptyHost(t *testing.T) {
++	_, err := DefaultResolver.LookupIP(context.Background(), "ip", "")
++	if err == nil {
++		t.Fatal("DefaultResolver.LookupIP for empty host success, want no host error")
++	}
++	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
++		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
++	}
++}
++
+ func TestWithUnexpiredValuesPreserved(t *testing.T) {
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 

@@ -7,7 +7,33 @@ Date:   Wed Dec 21 10:17:37 2011 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5504056
-
+---
  src/pkg/os/user/lookup_stubs.go | 2 +-
  src/pkg/os/user/lookup_unix.go  | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index 7fc087c4dc..ea01f9683d 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build netbsd openbsd plan9 windows
++// +build nocgo
+ 
+ package user
+ 
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index a77aeb73bb..21c8346b2f 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build darwin freebsd linux
++// +build cgo
+ 
+ package user
+ 

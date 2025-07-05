@@ -11,7 +11,7 @@ Date:   Tue Feb 20 20:50:20 2018 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go                     |  4 ++--
  src/cmd/asm/internal/asm/parse.go                      |  2 +-
  .../internal/gc/testdata/flowgraph_generator1.go       |  2 +-
@@ -27,3 +27,278 @@ Date:   Tue Feb 20 20:50:20 2018 +0000
  src/image/gif/reader.go                                |  2 +-
  src/math/big/int.go                                    |  2 +-
  14 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 63664d663c..524a503472 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -120,7 +120,7 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
+ 	return 0, false
+ }
+ 
+-// ARM64RegisterExtension parses an ARM64 register with extension or arrangment.
++// ARM64RegisterExtension parses an ARM64 register with extension or arrangement.
+ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+ 	rm := uint32(reg)
+ 	if isAmount {
+@@ -222,7 +222,7 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 	return nil
+ }
+ 
+-// ARM64RegisterArrangement parses an ARM64 vector register arrangment.
++// ARM64RegisterArrangement parses an ARM64 vector register arrangement.
+ func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
+ 	var curQ, curSize uint16
+ 	if name[0] != 'V' {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 1d5d07344d..5a6a7b2db9 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -591,7 +591,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 	}
+ }
+ 
+-// registerExtension parses a register with extension or arrangment.
++// registerExtension parses a register with extension or arrangement.
+ // There is known to be a register (current token) and an extension operator (peeked token).
+ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
+ 	if prefix != 0 {
+diff --git a/src/cmd/compile/internal/gc/testdata/flowgraph_generator1.go b/src/cmd/compile/internal/gc/testdata/flowgraph_generator1.go
+index 48b05f7491..ad22601f43 100644
+--- a/src/cmd/compile/internal/gc/testdata/flowgraph_generator1.go
++++ b/src/cmd/compile/internal/gc/testdata/flowgraph_generator1.go
+@@ -30,7 +30,7 @@ import (
+ // of the 2-to-the-(J-1) serial numbers.
+ 
+ // For each generated function a compact summary is also
+-// created so that the generated funtion can be simulated
++// created so that the generated function can be simulated
+ // with a simple interpreter to sanity check the behavior of
+ // the compiled code.
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 27233c6889..cc81e24dde 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -915,7 +915,7 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
+ 			panic("couldn't find first two args of commutative op " + s[0])
+ 		}
+ 		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
+-			// When we have (Add x y) with no ther uses of x and y in the matching rule,
++			// When we have (Add x y) with no other uses of x and y in the matching rule,
+ 			// then we can skip the commutative match (Add y x).
+ 			commutative = false
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index c9c04ef41c..cc6cb52972 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -56,7 +56,7 @@ func insertLoopReschedChecks(f *Func) {
+ 	//    are present in the graph, initially with trivial inputs.
+ 	// 4. Record all to-be-modified uses of mem;
+ 	//    apply modifications (split into two steps to simplify and
+-	//    avoided nagging order-dependences).
++	//    avoided nagging order-dependencies).
+ 	// 5. Rewrite backedges to include reschedule check,
+ 	//    and modify destination phi function appropriately with new
+ 	//    definitions for mem.
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index d3d43b1f42..3d65541fd2 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -129,7 +129,7 @@ Go Assembly for ARM64 Reference Manual
+ 
+     VSUB: Sub (scalar)
+       VSUB	<Vm>, <Vn>, <Vd>
+-        Subtract low 64-bit element in <Vm> from the correponding element in <Vn>,
++        Subtract low 64-bit element in <Vm> from the corresponding element in <Vn>,
+         place the result into low 64-bit element of <Vd>.
+ 
+     VUADDLV: Unsigned sum Long across Vector.
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index b95664830f..7fb9a38a9f 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -457,7 +457,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags
+ // On ARM systems, Load will attempt to determine what ELF header flags to
+ // emit by scanning the attributes in the ELF file being loaded. The
+ // parameter initEhdrFlags contains the current header flags for the output
+-// object, and the returnd ehdrFlags contains what this Load function computes.
++// object, and the returned ehdrFlags contains what this Load function computes.
+ // TODO: find a better place for this logic.
+ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+ 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
+diff --git a/src/cmd/link/internal/sym/attribute.go b/src/cmd/link/internal/sym/attribute.go
+index 45a7939d67..62ccef91a6 100644
+--- a/src/cmd/link/internal/sym/attribute.go
++++ b/src/cmd/link/internal/sym/attribute.go
+@@ -70,7 +70,7 @@ const (
+ 	// and for constructing the global offset table when internally linking a dynamic
+ 	// executable.
+ 	//
+-	// TOOD(mwhudson): perhaps a better name for this is AttrNonGoSymbol.
++	// TODO(mwhudson): perhaps a better name for this is AttrNonGoSymbol.
+ 	AttrSubSymbol
+ 	// AttrContainer is set on text symbols that are present as the .Outer for some
+ 	// other symbol.
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index f661359c35..09c5483520 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -608,7 +608,7 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
+ 	copy(invalidX[33:], y.Bytes())
+ 
+ 	if X, Y := Unmarshal(curve, invalidX); X != nil || Y != nil {
+-		t.Errorf("Unmarshal accpets invalid X coordinate")
++		t.Errorf("Unmarshal accepts invalid X coordinate")
+ 	}
+ 
+ 	// This is a point on the curve with a small y value, small enough that we can add p and still be within 32 bytes.
+@@ -625,6 +625,6 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
+ 	copy(invalidY[33:], y.Bytes())
+ 
+ 	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
+-		t.Errorf("Unmarshal accpets invalid Y coordinate")
++		t.Errorf("Unmarshal accepts invalid Y coordinate")
+ 	}
+ }
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 9477e85b95..f0df386122 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -47,7 +47,7 @@ const (
+ 	// name constraints, but leaf certificate contains a name of an
+ 	// unsupported or unconstrained type.
+ 	UnconstrainedName
+-	// TooManyConstraints results when the number of comparision operations
++	// TooManyConstraints results when the number of comparison operations
+ 	// needed to check a certificate exceeds the limit set by
+ 	// VerifyOptions.MaxConstraintComparisions. This limit exists to
+ 	// prevent pathological certificates can consuming excessive amounts of
+@@ -185,7 +185,7 @@ type VerifyOptions struct {
+ 	KeyUsages []ExtKeyUsage
+ 	// MaxConstraintComparisions is the maximum number of comparisons to
+ 	// perform when checking a given certificate's name constraints. If
+-	// zero, a sensible default is used. This limit prevents pathalogical
++	// zero, a sensible default is used. This limit prevents pathological
+ 	// certificates from consuming excessive amounts of CPU time when
+ 	// validating.
+ 	MaxConstraintComparisions int
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 405e818185..12cea0de9f 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1375,7 +1375,7 @@ func TestInvalidNilValues(t *testing.T) {
+ 
+ 			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
+ 			if err == nil {
+-				t.Fatal("expected error when querying nil column, but suceeded")
++				t.Fatal("expected error when querying nil column, but succeeded")
+ 			}
+ 			if err.Error() != tt.expectedError {
+ 				t.Fatalf("Expected error: %s\nReceived: %s", tt.expectedError, err.Error())
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 55f808ccba..dd4c53a80d 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -40,7 +40,7 @@ func TestEscape(t *testing.T) {
+ 	}{
+ 		F: false,
+ 		T: true,
+-		C: "<Cincinatti>",
++		C: "<Cincinnati>",
+ 		G: "<Goodbye>",
+ 		H: "<Hello>",
+ 		A: []string{"<a>", "<b>"},
+@@ -61,7 +61,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"if",
+ 			"{{if .T}}Hello{{end}}, {{.C}}!",
+-			"Hello, &lt;Cincinatti&gt;!",
++			"Hello, &lt;Cincinnati&gt;!",
+ 		},
+ 		{
+ 			"else",
+@@ -71,17 +71,17 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"overescaping1",
+ 			"Hello, {{.C | html}}!",
+-			"Hello, &lt;Cincinatti&gt;!",
++			"Hello, &lt;Cincinnati&gt;!",
+ 		},
+ 		{
+ 			"overescaping2",
+ 			"Hello, {{html .C}}!",
+-			"Hello, &lt;Cincinatti&gt;!",
++			"Hello, &lt;Cincinnati&gt;!",
+ 		},
+ 		{
+ 			"overescaping3",
+ 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
+-			"Hello, &lt;Cincinatti&gt;!",
++			"Hello, &lt;Cincinnati&gt;!",
+ 		},
+ 		{
+ 			"assignment",
+@@ -181,7 +181,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"urlBranchConflictMoot",
+ 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
+-			`<a href="/foo?a=%3cCincinatti%3e">`,
++			`<a href="/foo?a=%3cCincinnati%3e">`,
+ 		},
+ 		{
+ 			"jsStrValue",
+@@ -237,7 +237,7 @@ func TestEscape(t *testing.T) {
+ 			"jsStrNotUnderEscaped",
+ 			"<button onclick='alert({{.C | urlquery}})'>",
+ 			// URL escaped, then quoted for JS.
+-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
++			`<button onclick='alert(&#34;%3CCincinnati%3E&#34;)'>`,
+ 		},
+ 		{
+ 			"jsRe",
+@@ -405,7 +405,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"HTML comment",
+ 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
+-			"<b>Hello, &lt;Cincinatti&gt;</b>",
++			"<b>Hello, &lt;Cincinnati&gt;</b>",
+ 		},
+ 		{
+ 			"HTML comment not first < in text node.",
+@@ -445,7 +445,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"Split HTML comment",
+ 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
+-			"<b>Hello, &lt;Cincinatti&gt;</b>",
++			"<b>Hello, &lt;Cincinnati&gt;</b>",
+ 		},
+ 		{
+ 			"JS line comment",
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 763146ecc4..7ae1ba9b41 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -179,7 +179,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
+ // following the end of LZW data, the very next sub-block must be the block
+ // terminator. If the very end of LZW data happened to fill one sub-block, at
+ // most one more sub-block of length 1 may exist before the block-terminator.
+-// These accomodations allow us to support GIFs created by less strict encoders.
++// These accommodations allow us to support GIFs created by less strict encoders.
+ // See https://golang.org/issue/16146.
+ func (b *blockReader) close() error {
+ 	if b.err == io.EOF {
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 0eda9cd4e1..b5378dc5cc 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -617,7 +617,7 @@ func (z *Int) lehmerGCD(a, b *Int) *Int {
+ 			B.Add(r, w)
+ 
+ 		} else {
+-			// single-digit calculations failed to simluate any quotients
++			// single-digit calculations failed to simulate any quotients
+ 			// do a standard Euclidean step
+ 			t.Rem(A, B)
+ 			A, B, t = B, t, A

@@ -18,8 +18,122 @@ Date:   Wed Jan 24 10:19:30 2024 +0000
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  .../internal/atomic/atomic_andor_generic.go        |  2 +-
  src/runtime/internal/atomic/atomic_loong64.go      | 18 +++++++
  src/runtime/internal/atomic/atomic_loong64.s       | 60 ++++++++++++++++++++++
  3 files changed, 79 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_generic.go b/src/runtime/internal/atomic/atomic_andor_generic.go
+index 00b402681e..a3a974911c 100644
+--- a/src/runtime/internal/atomic/atomic_andor_generic.go
++++ b/src/runtime/internal/atomic/atomic_andor_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build arm || s390x || loong64 || mips || mipsle || mips64 || mips64le || wasm
++//go:build arm || s390x || mips || mipsle || mips64 || mips64le || wasm
+ 
+ package atomic
+ 
+diff --git a/src/runtime/internal/atomic/atomic_loong64.go b/src/runtime/internal/atomic/atomic_loong64.go
+index d82a5b8e2a..de6d4b4ba6 100644
+--- a/src/runtime/internal/atomic/atomic_loong64.go
++++ b/src/runtime/internal/atomic/atomic_loong64.go
+@@ -59,6 +59,24 @@ func Or8(ptr *uint8, val uint8)
+ //go:noescape
+ func Or(ptr *uint32, val uint32)
+ 
++//go:noescape
++func And32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func Or32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func And64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Or64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Anduintptr(ptr *uintptr, val uintptr) uintptr
++
++//go:noescape
++func Oruintptr(ptr *uintptr, val uintptr) uintptr
++
+ // NOTE: Do not add atomicxor8 (XOR is not idempotent).
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_loong64.s b/src/runtime/internal/atomic/atomic_loong64.s
+index 34193add3e..c7452d2e11 100644
+--- a/src/runtime/internal/atomic/atomic_loong64.s
++++ b/src/runtime/internal/atomic/atomic_loong64.s
+@@ -256,6 +256,66 @@ TEXT ·And(SB), NOSPLIT, $0-12
+ 	DBAR
+ 	RET
+ 
++// func Or32(addr *uint32, v uint32) old uint32
++TEXT ·Or32(SB), NOSPLIT, $0-20
++	MOVV	ptr+0(FP), R4
++	MOVW	val+8(FP), R5
++	DBAR
++	LL	(R4), R6
++	OR	R5, R6, R7
++	SC	R7, (R4)
++	BEQ	R7, -4(PC)
++	DBAR
++	MOVW R6, ret+16(FP)
++	RET
++
++// func And32(addr *uint32, v uint32) old uint32
++TEXT ·And32(SB), NOSPLIT, $0-20
++	MOVV	ptr+0(FP), R4
++	MOVW	val+8(FP), R5
++	DBAR
++	LL	(R4), R6
++	AND	R5, R6, R7
++	SC	R7, (R4)
++	BEQ	R7, -4(PC)
++	DBAR
++	MOVW R6, ret+16(FP)
++	RET
++
++// func Or64(addr *uint64, v uint64) old uint64
++TEXT ·Or64(SB), NOSPLIT, $0-24
++	MOVV	ptr+0(FP), R4
++	MOVV	val+8(FP), R5
++	DBAR
++	LLV	(R4), R6
++	OR	R5, R6, R7
++	SCV	R7, (R4)
++	BEQ	R7, -4(PC)
++	DBAR
++	MOVV R6, ret+16(FP)
++	RET
++
++// func And64(addr *uint64, v uint64) old uint64
++TEXT ·And64(SB), NOSPLIT, $0-24
++	MOVV	ptr+0(FP), R4
++	MOVV	val+8(FP), R5
++	DBAR
++	LLV	(R4), R6
++	AND	R5, R6, R7
++	SCV	R7, (R4)
++	BEQ	R7, -4(PC)
++	DBAR
++	MOVV R6, ret+16(FP)
++	RET
++
++// func Anduintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Anduintptr(SB), NOSPLIT, $0-24
++	JMP	·And64(SB)
++
++// func Oruintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Oruintptr(SB), NOSPLIT, $0-24
++	JMP	·Or64(SB)
++
+ // uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	ptr+0(FP), R19

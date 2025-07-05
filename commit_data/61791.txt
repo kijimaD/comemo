@@ -21,7 +21,7 @@ Date:   Fri Nov 22 16:01:48 2024 -0500
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |  12 +-
  src/cmd/go.sum                                     |  24 +-
  .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   9 +
@@ -67,3 +67,2112 @@ Date:   Fri Nov 22 16:01:48 2024 -0500
  src/net/http/h2_bundle.go                          | 172 +++++++++----
  src/vendor/modules.txt                             |   4 +-
  44 files changed, 653 insertions(+), 320 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b441fe55a9..1e653dcf1c 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,14 +4,14 @@ go 1.24
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20241101162523-b92577c0c142
+-	golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4
+-	golang.org/x/build v0.0.0-20240722200705-b9910f320300
++	golang.org/x/arch v0.12.0
++	golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c
+ 	golang.org/x/mod v0.22.0
+-	golang.org/x/sync v0.9.0
+-	golang.org/x/sys v0.27.0
+-	golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
++	golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f
++	golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
++	golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55
+ 	golang.org/x/term v0.26.0
+-	golang.org/x/tools v0.27.0
++	golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 685fd76a0f..0d69a90f26 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -6,23 +6,23 @@ github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd h1:EVX1s+X
+ github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+-golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4 h1:B9d6SEXeIaY1QC4c7Gsf88ratIIcxShKAlz60Urrqzw=
+-golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
+-golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
++golang.org/x/arch v0.12.0 h1:UsYJhbzPYGsT0HbEdmYcqtCv8UNGvnaL561NnIUvaKg=
++golang.org/x/arch v0.12.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c h1:Qdt+PJKjmvZJFMASEapWuGvS6EERdWoCrfzcZdKQibs=
++golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c/go.mod h1:tilxlBi+3BddTuUjJRT4/G+OYaXXVjgUbedg9SDHOfg=
+ golang.org/x/mod v0.22.0 h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
+ golang.org/x/mod v0.22.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
+-golang.org/x/sync v0.9.0 h1:fEo0HyrW1GIgZdpbhCRO0PkJajUS5H9IFUztCgEo2jQ=
+-golang.org/x/sync v0.9.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
+-golang.org/x/sys v0.27.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97 h1:5xPN7d0u5VdgF2gFFXUDaeD3NP1pPgFMHocnCQGAh5M=
+-golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
++golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f h1:2b+sHuEI7qBhH6TW9u35S9E0MutyUXZJzQnr4E/u128=
++golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 h1:nLmXYlwPHXAmVnvJmjvVpEFRhVgC0aCgTR7KW324G0c=
++golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55 h1:ZZOVC4W26kVZSAW314SD81pWtiRgWNMbZsgLqKXx9lE=
++golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55/go.mod h1:7Vh679jcBo81KQrd4wo0gKov7BE6IHwu1tEhHxHNM30=
+ golang.org/x/term v0.26.0 h1:WEQa6V3Gja/BhNxg540hBip/kkaYtRg3cxg4oXSw4AU=
+ golang.org/x/term v0.26.0/go.mod h1:Si5m1o57C5nBNQo5z1iq+XDijt21BDBDp2bK0QI8e3E=
+ golang.org/x/text v0.20.0 h1:gK/Kv2otX8gz+wn7Rmb3vT96ZwuoxnQlY+HlJVj7Qug=
+ golang.org/x/text v0.20.0/go.mod h1:D4IsuqiFMhST5bX19pQ9ikHC2GsaKyk/oF+pn3ducp4=
+-golang.org/x/tools v0.27.0 h1:qEKojBykQkQ4EynWy4S8Weg69NumxKdn40Fce3uc/8o=
+-golang.org/x/tools v0.27.0/go.mod h1:sUi0ZgbwW9ZPAq26Ekut+weQPR5eIM6GQLQ1Yjm1H0Q=
++golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f h1:oWXtmuFywNTA1gJVV5bJ9Y+JnVbAqyAyVpPnQfdNZIE=
++golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f/go.mod h1:sUi0ZgbwW9ZPAq26Ekut+weQPR5eIM6GQLQ1Yjm1H0Q=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index ccba391c9f..6ebc48b3fe 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -321,6 +321,9 @@ const (
+ 	AUDIT_INTEGRITY_STATUS                      = 0x70a
+ 	AUDIT_IPC                                   = 0x517
+ 	AUDIT_IPC_SET_PERM                          = 0x51f
++	AUDIT_IPE_ACCESS                            = 0x58c
++	AUDIT_IPE_CONFIG_CHANGE                     = 0x58d
++	AUDIT_IPE_POLICY_LOAD                       = 0x58e
+ 	AUDIT_KERNEL                                = 0x7d0
+ 	AUDIT_KERNEL_OTHER                          = 0x524
+ 	AUDIT_KERN_MODULE                           = 0x532
+@@ -489,6 +492,7 @@ const (
+ 	BPF_F_ID                                    = 0x20
+ 	BPF_F_NETFILTER_IP_DEFRAG                   = 0x1
+ 	BPF_F_QUERY_EFFECTIVE                       = 0x1
++	BPF_F_REDIRECT_FLAGS                        = 0x19
+ 	BPF_F_REPLACE                               = 0x4
+ 	BPF_F_SLEEPABLE                             = 0x10
+ 	BPF_F_STRICT_ALIGNMENT                      = 0x1
+@@ -1166,6 +1170,7 @@ const (
+ 	EXTA                                        = 0xe
+ 	EXTB                                        = 0xf
+ 	F2FS_SUPER_MAGIC                            = 0xf2f52010
++	FALLOC_FL_ALLOCATE_RANGE                    = 0x0
+ 	FALLOC_FL_COLLAPSE_RANGE                    = 0x8
+ 	FALLOC_FL_INSERT_RANGE                      = 0x20
+ 	FALLOC_FL_KEEP_SIZE                         = 0x1
+@@ -1799,6 +1804,8 @@ const (
+ 	LANDLOCK_ACCESS_NET_BIND_TCP                = 0x1
+ 	LANDLOCK_ACCESS_NET_CONNECT_TCP             = 0x2
+ 	LANDLOCK_CREATE_RULESET_VERSION             = 0x1
++	LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET         = 0x1
++	LANDLOCK_SCOPE_SIGNAL                       = 0x2
+ 	LINUX_REBOOT_CMD_CAD_OFF                    = 0x0
+ 	LINUX_REBOOT_CMD_CAD_ON                     = 0x89abcdef
+ 	LINUX_REBOOT_CMD_HALT                       = 0xcdef0123
+@@ -1924,6 +1931,7 @@ const (
+ 	MNT_FORCE                                   = 0x1
+ 	MNT_ID_REQ_SIZE_VER0                        = 0x18
+ 	MNT_ID_REQ_SIZE_VER1                        = 0x20
++	MNT_NS_INFO_SIZE_VER0                       = 0x10
+ 	MODULE_INIT_COMPRESSED_FILE                 = 0x4
+ 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
+ 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
+@@ -2970,6 +2978,7 @@ const (
+ 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
+ 	SCHED_BATCH                                 = 0x3
+ 	SCHED_DEADLINE                              = 0x6
++	SCHED_EXT                                   = 0x7
+ 	SCHED_FIFO                                  = 0x1
+ 	SCHED_FLAG_ALL                              = 0x7f
+ 	SCHED_FLAG_DL_OVERRUN                       = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 0c00cb3f3a..c0d45e3205 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -109,6 +109,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -297,6 +298,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -335,6 +338,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index dfb364554d..c731d24f02 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -109,6 +109,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -298,6 +299,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -336,6 +339,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index d46dcf78ab..680018a4a7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -303,6 +304,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -341,6 +344,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 3af3248a7f..a63909f308 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -112,6 +112,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -205,6 +206,7 @@ const (
+ 	PERF_EVENT_IOC_SET_BPF           = 0x40042408
+ 	PERF_EVENT_IOC_SET_FILTER        = 0x40082406
+ 	PERF_EVENT_IOC_SET_OUTPUT        = 0x2405
++	POE_MAGIC                        = 0x504f4530
+ 	PPPIOCATTACH                     = 0x4004743d
+ 	PPPIOCATTCHAN                    = 0x40047438
+ 	PPPIOCBRIDGECHAN                 = 0x40047435
+@@ -294,6 +296,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -332,6 +336,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index 292bcf0283..9b0a2573fe 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -109,6 +109,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -290,6 +291,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -328,6 +331,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 782b7110fa..958e6e0645 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x100
+@@ -296,6 +297,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -334,6 +337,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x1029
+ 	SO_DONTROUTE                     = 0x10
+ 	SO_ERROR                         = 0x1007
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index 84973fd927..50c7f25bd1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x100
+@@ -296,6 +297,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -334,6 +337,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x1029
+ 	SO_DONTROUTE                     = 0x10
+ 	SO_ERROR                         = 0x1007
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index 6d9cbc3b27..ced21d66d9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x100
+@@ -296,6 +297,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -334,6 +337,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x1029
+ 	SO_DONTROUTE                     = 0x10
+ 	SO_ERROR                         = 0x1007
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index 5f9fedbce0..226c044190 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x100
+@@ -296,6 +297,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -334,6 +337,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x1029
+ 	SO_DONTROUTE                     = 0x10
+ 	SO_ERROR                         = 0x1007
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+index bb0026ee0c..3122737cd4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x4000
+ 	ICANON                           = 0x100
+ 	IEXTEN                           = 0x400
+@@ -351,6 +352,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -389,6 +392,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 46120db5c9..eb5d3467ed 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x4000
+ 	ICANON                           = 0x100
+ 	IEXTEN                           = 0x400
+@@ -355,6 +356,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -393,6 +396,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index 5c951634fb..e921ebc60b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x4000
+ 	ICANON                           = 0x100
+ 	IEXTEN                           = 0x400
+@@ -355,6 +356,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -393,6 +396,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index 11a84d5af2..38ba81c55c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -287,6 +288,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -325,6 +328,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index f78c4617ca..71f0400977 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -108,6 +108,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x80084803
+ 	HIDIOCGRDESC                     = 0x90044802
+ 	HIDIOCGRDESCSIZE                 = 0x80044801
++	HIDIOCREVOKE                     = 0x4004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -359,6 +360,8 @@ const (
+ 	RTC_WIE_ON                       = 0x700f
+ 	RTC_WKALM_RD                     = 0x80287010
+ 	RTC_WKALM_SET                    = 0x4028700f
++	SCM_DEVMEM_DMABUF                = 0x4f
++	SCM_DEVMEM_LINEAR                = 0x4e
+ 	SCM_TIMESTAMPING                 = 0x25
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
+@@ -397,6 +400,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x35
+ 	SO_COOKIE                        = 0x39
+ 	SO_DETACH_REUSEPORT_BPF          = 0x44
++	SO_DEVMEM_DMABUF                 = 0x4f
++	SO_DEVMEM_DONTNEED               = 0x50
++	SO_DEVMEM_LINEAR                 = 0x4e
+ 	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index aeb777c344..c44a313322 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -112,6 +112,7 @@ const (
+ 	HIDIOCGRAWINFO                   = 0x40084803
+ 	HIDIOCGRDESC                     = 0x50044802
+ 	HIDIOCGRDESCSIZE                 = 0x40044801
++	HIDIOCREVOKE                     = 0x8004480d
+ 	HUPCL                            = 0x400
+ 	ICANON                           = 0x2
+ 	IEXTEN                           = 0x8000
+@@ -350,6 +351,8 @@ const (
+ 	RTC_WIE_ON                       = 0x2000700f
+ 	RTC_WKALM_RD                     = 0x40287010
+ 	RTC_WKALM_SET                    = 0x8028700f
++	SCM_DEVMEM_DMABUF                = 0x58
++	SCM_DEVMEM_LINEAR                = 0x57
+ 	SCM_TIMESTAMPING                 = 0x23
+ 	SCM_TIMESTAMPING_OPT_STATS       = 0x38
+ 	SCM_TIMESTAMPING_PKTINFO         = 0x3c
+@@ -436,6 +439,9 @@ const (
+ 	SO_CNX_ADVICE                    = 0x37
+ 	SO_COOKIE                        = 0x3b
+ 	SO_DETACH_REUSEPORT_BPF          = 0x47
++	SO_DEVMEM_DMABUF                 = 0x58
++	SO_DEVMEM_DONTNEED               = 0x59
++	SO_DEVMEM_LINEAR                 = 0x57
+ 	SO_DOMAIN                        = 0x1029
+ 	SO_DONTROUTE                     = 0x10
+ 	SO_ERROR                         = 0x1007
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 8daaf3faf4..5537148dcb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -2594,8 +2594,8 @@ const (
+ 	SOF_TIMESTAMPING_BIND_PHC     = 0x8000
+ 	SOF_TIMESTAMPING_OPT_ID_TCP   = 0x10000
+ 
+-	SOF_TIMESTAMPING_LAST = 0x10000
+-	SOF_TIMESTAMPING_MASK = 0x1ffff
++	SOF_TIMESTAMPING_LAST = 0x20000
++	SOF_TIMESTAMPING_MASK = 0x3ffff
+ 
+ 	SCM_TSTAMP_SND   = 0x0
+ 	SCM_TSTAMP_SCHED = 0x1
+@@ -3541,7 +3541,7 @@ type Nhmsg struct {
+ type NexthopGrp struct {
+ 	Id     uint32
+ 	Weight uint8
+-	Resvd1 uint8
++	High   uint8
+ 	Resvd2 uint16
+ }
+ 
+@@ -3802,7 +3802,7 @@ const (
+ 	ETHTOOL_MSG_PSE_GET                       = 0x24
+ 	ETHTOOL_MSG_PSE_SET                       = 0x25
+ 	ETHTOOL_MSG_RSS_GET                       = 0x26
+-	ETHTOOL_MSG_USER_MAX                      = 0x2c
++	ETHTOOL_MSG_USER_MAX                      = 0x2d
+ 	ETHTOOL_MSG_KERNEL_NONE                   = 0x0
+ 	ETHTOOL_MSG_STRSET_GET_REPLY              = 0x1
+ 	ETHTOOL_MSG_LINKINFO_GET_REPLY            = 0x2
+@@ -3842,7 +3842,7 @@ const (
+ 	ETHTOOL_MSG_MODULE_NTF                    = 0x24
+ 	ETHTOOL_MSG_PSE_GET_REPLY                 = 0x25
+ 	ETHTOOL_MSG_RSS_GET_REPLY                 = 0x26
+-	ETHTOOL_MSG_KERNEL_MAX                    = 0x2c
++	ETHTOOL_MSG_KERNEL_MAX                    = 0x2e
+ 	ETHTOOL_FLAG_COMPACT_BITSETS              = 0x1
+ 	ETHTOOL_FLAG_OMIT_REPLY                   = 0x2
+ 	ETHTOOL_FLAG_STATS                        = 0x4
+@@ -3850,7 +3850,7 @@ const (
+ 	ETHTOOL_A_HEADER_DEV_INDEX                = 0x1
+ 	ETHTOOL_A_HEADER_DEV_NAME                 = 0x2
+ 	ETHTOOL_A_HEADER_FLAGS                    = 0x3
+-	ETHTOOL_A_HEADER_MAX                      = 0x3
++	ETHTOOL_A_HEADER_MAX                      = 0x4
+ 	ETHTOOL_A_BITSET_BIT_UNSPEC               = 0x0
+ 	ETHTOOL_A_BITSET_BIT_INDEX                = 0x1
+ 	ETHTOOL_A_BITSET_BIT_NAME                 = 0x2
+@@ -4031,11 +4031,11 @@ const (
+ 	ETHTOOL_A_CABLE_RESULT_UNSPEC             = 0x0
+ 	ETHTOOL_A_CABLE_RESULT_PAIR               = 0x1
+ 	ETHTOOL_A_CABLE_RESULT_CODE               = 0x2
+-	ETHTOOL_A_CABLE_RESULT_MAX                = 0x2
++	ETHTOOL_A_CABLE_RESULT_MAX                = 0x3
+ 	ETHTOOL_A_CABLE_FAULT_LENGTH_UNSPEC       = 0x0
+ 	ETHTOOL_A_CABLE_FAULT_LENGTH_PAIR         = 0x1
+ 	ETHTOOL_A_CABLE_FAULT_LENGTH_CM           = 0x2
+-	ETHTOOL_A_CABLE_FAULT_LENGTH_MAX          = 0x2
++	ETHTOOL_A_CABLE_FAULT_LENGTH_MAX          = 0x3
+ 	ETHTOOL_A_CABLE_TEST_NTF_STATUS_UNSPEC    = 0x0
+ 	ETHTOOL_A_CABLE_TEST_NTF_STATUS_STARTED   = 0x1
+ 	ETHTOOL_A_CABLE_TEST_NTF_STATUS_COMPLETED = 0x2
+@@ -4200,7 +4200,8 @@ type (
+ 	}
+ 	PtpSysOffsetExtended struct {
+ 		Samples uint32
+-		Rsv     [3]uint32
++		Clockid int32
++		Rsv     [2]uint32
+ 		Ts      [25][3]PtpClockTime
+ 	}
+ 	PtpSysOffsetPrecise struct {
+@@ -4399,6 +4400,7 @@ const (
+ type LandlockRulesetAttr struct {
+ 	Access_fs  uint64
+ 	Access_net uint64
++	Scoped     uint64
+ }
+ 
+ type LandlockPathBeneathAttr struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 4510bfc3f5..4a32543868 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -168,6 +168,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *SecurityAttributes) (handle Handle, err error)  [failretval==InvalidHandle] = CreateNamedPipeW
+ //sys	ConnectNamedPipe(pipe Handle, overlapped *Overlapped) (err error)
+ //sys	DisconnectNamedPipe(pipe Handle) (err error)
++//sys   GetNamedPipeClientProcessId(pipe Handle, clientProcessID *uint32) (err error)
++//sys   GetNamedPipeServerProcessId(pipe Handle, serverProcessID *uint32) (err error)
+ //sys	GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error)
+ //sys	GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
+ //sys	SetNamedPipeHandleState(pipe Handle, state *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32) (err error) = SetNamedPipeHandleState
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 51311e205f..9d138de5fe 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -176,6 +176,7 @@ const (
+ 	WAIT_FAILED    = 0xFFFFFFFF
+ 
+ 	// Access rights for process.
++	PROCESS_ALL_ACCESS                = 0xFFFF
+ 	PROCESS_CREATE_PROCESS            = 0x0080
+ 	PROCESS_CREATE_THREAD             = 0x0002
+ 	PROCESS_DUP_HANDLE                = 0x0040
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 6f5252880c..01c0716c2c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -280,8 +280,10 @@ var (
+ 	procGetMaximumProcessorCount                             = modkernel32.NewProc("GetMaximumProcessorCount")
+ 	procGetModuleFileNameW                                   = modkernel32.NewProc("GetModuleFileNameW")
+ 	procGetModuleHandleExW                                   = modkernel32.NewProc("GetModuleHandleExW")
++	procGetNamedPipeClientProcessId                          = modkernel32.NewProc("GetNamedPipeClientProcessId")
+ 	procGetNamedPipeHandleStateW                             = modkernel32.NewProc("GetNamedPipeHandleStateW")
+ 	procGetNamedPipeInfo                                     = modkernel32.NewProc("GetNamedPipeInfo")
++	procGetNamedPipeServerProcessId                          = modkernel32.NewProc("GetNamedPipeServerProcessId")
+ 	procGetOverlappedResult                                  = modkernel32.NewProc("GetOverlappedResult")
+ 	procGetPriorityClass                                     = modkernel32.NewProc("GetPriorityClass")
+ 	procGetProcAddress                                       = modkernel32.NewProc("GetProcAddress")
+@@ -1612,7 +1614,7 @@ func DwmSetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, si
+ }
+ 
+ func CancelMibChangeNotify2(notificationHandle Handle) (errcode error) {
+-	r0, _, _ := syscall.SyscallN(procCancelMibChangeNotify2.Addr(), uintptr(notificationHandle))
++	r0, _, _ := syscall.Syscall(procCancelMibChangeNotify2.Addr(), 1, uintptr(notificationHandle), 0, 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+@@ -1652,7 +1654,7 @@ func GetIfEntry(pIfRow *MibIfRow) (errcode error) {
+ }
+ 
+ func GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) {
+-	r0, _, _ := syscall.SyscallN(procGetIfEntry2Ex.Addr(), uintptr(level), uintptr(unsafe.Pointer(row)))
++	r0, _, _ := syscall.Syscall(procGetIfEntry2Ex.Addr(), 2, uintptr(level), uintptr(unsafe.Pointer(row)), 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+@@ -1660,7 +1662,7 @@ func GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) {
+ }
+ 
+ func GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) {
+-	r0, _, _ := syscall.SyscallN(procGetUnicastIpAddressEntry.Addr(), uintptr(unsafe.Pointer(row)))
++	r0, _, _ := syscall.Syscall(procGetUnicastIpAddressEntry.Addr(), 1, uintptr(unsafe.Pointer(row)), 0, 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+@@ -1672,7 +1674,7 @@ func NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsa
+ 	if initialNotification {
+ 		_p0 = 1
+ 	}
+-	r0, _, _ := syscall.SyscallN(procNotifyIpInterfaceChange.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
++	r0, _, _ := syscall.Syscall6(procNotifyIpInterfaceChange.Addr(), 5, uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)), 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+@@ -1684,7 +1686,7 @@ func NotifyUnicastIpAddressChange(family uint16, callback uintptr, callerContext
+ 	if initialNotification {
+ 		_p0 = 1
+ 	}
+-	r0, _, _ := syscall.SyscallN(procNotifyUnicastIpAddressChange.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
++	r0, _, _ := syscall.Syscall6(procNotifyUnicastIpAddressChange.Addr(), 5, uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)), 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+@@ -2446,6 +2448,14 @@ func GetModuleHandleEx(flags uint32, moduleName *uint16, module *Handle) (err er
+ 	return
+ }
+ 
++func GetNamedPipeClientProcessId(pipe Handle, clientProcessID *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetNamedPipeClientProcessId.Addr(), 2, uintptr(pipe), uintptr(unsafe.Pointer(clientProcessID)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall9(procGetNamedPipeHandleStateW.Addr(), 7, uintptr(pipe), uintptr(unsafe.Pointer(state)), uintptr(unsafe.Pointer(curInstances)), uintptr(unsafe.Pointer(maxCollectionCount)), uintptr(unsafe.Pointer(collectDataTimeout)), uintptr(unsafe.Pointer(userName)), uintptr(maxUserNameSize), 0, 0)
+ 	if r1 == 0 {
+@@ -2462,6 +2472,14 @@ func GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint3
+ 	return
+ }
+ 
++func GetNamedPipeServerProcessId(pipe Handle, serverProcessID *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetNamedPipeServerProcessId.Addr(), 2, uintptr(pipe), uintptr(unsafe.Pointer(serverProcessID)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error) {
+ 	var _p0 uint32
+ 	if wait {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/README.md b/src/cmd/vendor/golang.org/x/telemetry/README.md
+index a914a162b2..81a15749c5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/README.md
++++ b/src/cmd/vendor/golang.org/x/telemetry/README.md
+@@ -30,10 +30,12 @@ change in breaking ways as the telemetry integration is refined.
+ ## Contributing
+ 
+ This repository uses Gerrit for code changes. To learn how to submit changes to
+-this repository, see https://golang.org/doc/contribute.html.
++this repository, see https://go.dev/doc/contribute.
+ 
+-The main issue tracker for the time repository is located at
+-https://github.com/golang/go/issues. Prefix your issue with "x/telemetry:" in
++The git repository is https://go.googlesource.com/telemetry.
++
++The main issue tracker for the telemetry repository is located at
++https://go.dev/issues. Prefix your issue with "x/telemetry:" in
+ the subject line, so it is easy to find.
+ 
+ ### Linting & Formatting
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/config/config.go b/src/cmd/vendor/golang.org/x/telemetry/internal/config/config.go
+index 7d73dcd060..533a889c47 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/config/config.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/config/config.go
+@@ -124,7 +124,7 @@ func set(slice []string) map[string]bool {
+ }
+ 
+ // Expand takes a counter defined with buckets and expands it into distinct
+-// strings for each bucket
++// strings for each bucket.
+ func Expand(counter string) []string {
+ 	prefix, rest, hasBuckets := strings.Cut(counter, "{")
+ 	var counters []string
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+index 6fbcec3a92..c08115e56b 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -341,7 +341,7 @@ func readFile(f *file) (*File, error) {
+ 		return nil, fmt.Errorf("counter has no mapped file")
+ 	}
+ 	name := current.f.Name()
+-	data, err := os.ReadFile(name)
++	data, err := ReadMapped(name)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to read from file: %v", err)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 5df6dd7249..872a6f6a9f 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -297,7 +297,7 @@ func (f *file) rotate1() time.Time {
+ 		goVers,
+ 		runtime.GOOS,
+ 		runtime.GOARCH,
+-		f.timeBegin.Format(time.DateOnly),
++		f.timeBegin.Format(telemetry.DateOnly),
+ 		FileVersion,
+ 	)
+ 	dir := telemetry.Default.LocalDir()
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dateonly.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dateonly.go
+new file mode 100644
+index 0000000000..7195301861
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dateonly.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package telemetry
++
++// TODO(rfindley): replace uses of DateOnly with time.DateOnly once we no
++// longer support building gopls with go 1.19.
++const DateOnly = "2006-01-02"
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+index bb18bc6936..0673be5677 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+@@ -102,9 +102,9 @@ func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
+ 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
+ 	}
+ 
+-	asof := asofTime.UTC().Format(time.DateOnly)
++	asof := asofTime.UTC().Format(DateOnly)
+ 	// Defensively guarantee that we can parse the asof time.
+-	if _, err := time.Parse(time.DateOnly, asof); err != nil {
++	if _, err := time.Parse(DateOnly, asof); err != nil {
+ 		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
+ 	}
+ 
+@@ -136,7 +136,7 @@ func (d Dir) Mode() (string, time.Time) {
+ 	//
+ 	// If the modefile contains a date, return it.
+ 	if idx := strings.Index(mode, " "); idx >= 0 {
+-		d, err := time.Parse(time.DateOnly, mode[idx+1:])
++		d, err := time.Parse(DateOnly, mode[idx+1:])
+ 		if err != nil {
+ 			d = time.Time{}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+index 69053dc181..0fd61f8deb 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+@@ -26,7 +26,7 @@ type ProgramConfig struct {
+ }
+ 
+ type CounterConfig struct {
+-	Name  string
++	Name  string  // The "collapsed" counter: <chart>:{<bucket1>,<bucket2>,...}
+ 	Rate  float64 // If X <= Rate, report this counter
+ 	Depth int     `json:",omitempty"` // for stack counters
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+index b054b46a62..d6d67a164d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+@@ -11,6 +11,7 @@ import (
+ 	"time"
+ 
+ 	"golang.org/x/telemetry/internal/counter"
++	"golang.org/x/telemetry/internal/telemetry"
+ )
+ 
+ // time and date handling
+@@ -19,7 +20,7 @@ var distantPast = 21 * 24 * time.Hour
+ 
+ // reports that are too old (21 days) are not uploaded
+ func (u *uploader) tooOld(date string, uploadStartTime time.Time) bool {
+-	t, err := time.Parse(time.DateOnly, date)
++	t, err := time.Parse(telemetry.DateOnly, date)
+ 	if err != nil {
+ 		u.logger.Printf("tooOld: %v", err)
+ 		return false
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index 8b17e325d4..34bb29d8f5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -26,7 +26,7 @@ func (u *uploader) reports(todo *work) ([]string, error) {
+ 		return nil, nil // no reports
+ 	}
+ 	thisInstant := u.startTime
+-	today := thisInstant.Format(time.DateOnly)
++	today := thisInstant.Format(telemetry.DateOnly)
+ 	lastWeek := latestReport(todo.uploaded)
+ 	if lastWeek >= today { //should never happen
+ 		lastWeek = ""
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 5643241c1b..419745f628 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -12,11 +12,13 @@ import (
+ 	"regexp"
+ 	"strings"
+ 	"time"
++
++	"golang.org/x/telemetry/internal/telemetry"
+ )
+ 
+ var (
+ 	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
+-	dateFormat = time.DateOnly
++	dateFormat = telemetry.DateOnly
+ 	// TODO(rfindley): use dateFormat throughout.
+ )
+ 
+@@ -41,7 +43,7 @@ func (u *uploader) uploadReport(fname string) {
+ 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
+ 
+ 	// first make sure it is not in the future
+-	today := thisInstant.Format(time.DateOnly)
++	today := thisInstant.Format(telemetry.DateOnly)
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+ 		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
+@@ -62,7 +64,7 @@ func (u *uploader) uploadReport(fname string) {
+ // try to upload the report, 'true' if successful
+ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+-	fdate = fdate[len(fdate)-len(time.DateOnly):]
++	fdate = fdate[len(fdate)-len(telemetry.DateOnly):]
+ 
+ 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 69ebcc7135..e34086e3e6 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -271,6 +271,9 @@ func child(config Config) {
+ 	uploadStartTime := config.UploadStartTime
+ 	uploadURL := config.UploadURL
+ 
++	// The crashmonitor and/or upload process may themselves record counters.
++	counter.Open()
++
+ 	// Start crashmonitoring and uploading depending on what's requested
+ 	// and wait for the longer running child to complete before exiting:
+ 	// if we collected a crash before the upload finished, wait for the
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index aa02eeda68..d384aa89b8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -50,7 +50,7 @@ type Analyzer struct {
+ 	// RunDespiteErrors allows the driver to invoke
+ 	// the Run method of this analyzer even on a
+ 	// package that contains parse or type errors.
+-	// The Pass.TypeErrors field may consequently be non-empty.
++	// The [Pass.TypeErrors] field may consequently be non-empty.
+ 	RunDespiteErrors bool
+ 
+ 	// Requires is a set of analyzers that must run successfully
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index ff14ff58f9..1282e70d41 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -316,15 +316,22 @@ var vetLegacyFlags = map[string]string{
+ }
+ 
+ // ---- output helpers common to all drivers ----
++//
++// These functions should not depend on global state (flags)!
++// Really they belong in a different package.
++
++// TODO(adonovan): don't accept an io.Writer if we don't report errors.
++// Either accept a bytes.Buffer (infallible), or return a []byte.
+ 
+-// PrintPlain prints a diagnostic in plain text form,
+-// with context specified by the -c flag.
+-func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
++// PrintPlain prints a diagnostic in plain text form.
++// If contextLines is nonnegative, it also prints the
++// offending line plus this many lines of context.
++func PrintPlain(out io.Writer, fset *token.FileSet, contextLines int, diag analysis.Diagnostic) {
+ 	posn := fset.Position(diag.Pos)
+-	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, diag.Message)
++	fmt.Fprintf(out, "%s: %s\n", posn, diag.Message)
+ 
+-	// -c=N: show offending line plus N lines of context.
+-	if Context >= 0 {
++	// show offending line plus N lines of context.
++	if contextLines >= 0 {
+ 		posn := fset.Position(diag.Pos)
+ 		end := fset.Position(diag.End)
+ 		if !end.IsValid() {
+@@ -332,9 +339,9 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
+ 		}
+ 		data, _ := os.ReadFile(posn.Filename)
+ 		lines := strings.Split(string(data), "\n")
+-		for i := posn.Line - Context; i <= end.Line+Context; i++ {
++		for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
+ 			if 1 <= i && i <= len(lines) {
+-				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
++				fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
+ 			}
+ 		}
+ 	}
+@@ -438,10 +445,11 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
+ 	}
+ }
+ 
+-func (tree JSONTree) Print() {
++func (tree JSONTree) Print(out io.Writer) error {
+ 	data, err := json.MarshalIndent(tree, "", "\t")
+ 	if err != nil {
+ 		log.Panicf("internal error: JSON marshaling failed: %v", err)
+ 	}
+-	fmt.Printf("%s\n", data)
++	_, err = fmt.Fprintf(out, "%s\n", data)
++	return err
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 2301ccfc0e..1a9b3094e5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -144,7 +144,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
+ 			for _, res := range results {
+ 				tree.Add(fset, cfg.ID, res.a.Name, res.diagnostics, res.err)
+ 			}
+-			tree.Print()
++			tree.Print(os.Stdout)
+ 		} else {
+ 			// plain text
+ 			exit := 0
+@@ -156,7 +156,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
+ 			}
+ 			for _, res := range results {
+ 				for _, diag := range res.diagnostics {
+-					analysisflags.PrintPlain(fset, diag)
++					analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
+ 					exit = 1
+ 				}
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 4ccaa210af..042b42e2c4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -15,7 +15,6 @@ import (
+ 	"go/types"
+ 	"os"
+ 	pathpkg "path"
+-	"strconv"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ )
+@@ -66,188 +65,6 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
+ 	return end
+ }
+ 
+-func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+-	// TODO(adonovan): think about generics, and also generic aliases.
+-	under := types.Unalias(typ)
+-	// Don't call Underlying unconditionally: although it removes
+-	// Named and Alias, it also removes TypeParam.
+-	if n, ok := under.(*types.Named); ok {
+-		under = n.Underlying()
+-	}
+-	switch under := under.(type) {
+-	case *types.Basic:
+-		switch {
+-		case under.Info()&types.IsNumeric != 0:
+-			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+-		case under.Info()&types.IsBoolean != 0:
+-			return &ast.Ident{Name: "false"}
+-		case under.Info()&types.IsString != 0:
+-			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+-		default:
+-			panic(fmt.Sprintf("unknown basic type %v", under))
+-		}
+-	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
+-		return ast.NewIdent("nil")
+-	case *types.Struct:
+-		texpr := TypeExpr(f, pkg, typ) // typ because we want the name here.
+-		if texpr == nil {
+-			return nil
+-		}
+-		return &ast.CompositeLit{
+-			Type: texpr,
+-		}
+-	}
+-	return nil
+-}
+-
+-// IsZeroValue checks whether the given expression is a 'zero value' (as determined by output of
+-// analysisinternal.ZeroValue)
+-func IsZeroValue(expr ast.Expr) bool {
+-	switch e := expr.(type) {
+-	case *ast.BasicLit:
+-		return e.Value == "0" || e.Value == `""`
+-	case *ast.Ident:
+-		return e.Name == "nil" || e.Name == "false"
+-	default:
+-		return false
+-	}
+-}
+-
+-// TypeExpr returns syntax for the specified type. References to
+-// named types from packages other than pkg are qualified by an appropriate
+-// package name, as defined by the import environment of file.
+-func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+-	switch t := typ.(type) {
+-	case *types.Basic:
+-		switch t.Kind() {
+-		case types.UnsafePointer:
+-			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
+-		default:
+-			return ast.NewIdent(t.Name())
+-		}
+-	case *types.Pointer:
+-		x := TypeExpr(f, pkg, t.Elem())
+-		if x == nil {
+-			return nil
+-		}
+-		return &ast.UnaryExpr{
+-			Op: token.MUL,
+-			X:  x,
+-		}
+-	case *types.Array:
+-		elt := TypeExpr(f, pkg, t.Elem())
+-		if elt == nil {
+-			return nil
+-		}
+-		return &ast.ArrayType{
+-			Len: &ast.BasicLit{
+-				Kind:  token.INT,
+-				Value: fmt.Sprintf("%d", t.Len()),
+-			},
+-			Elt: elt,
+-		}
+-	case *types.Slice:
+-		elt := TypeExpr(f, pkg, t.Elem())
+-		if elt == nil {
+-			return nil
+-		}
+-		return &ast.ArrayType{
+-			Elt: elt,
+-		}
+-	case *types.Map:
+-		key := TypeExpr(f, pkg, t.Key())
+-		value := TypeExpr(f, pkg, t.Elem())
+-		if key == nil || value == nil {
+-			return nil
+-		}
+-		return &ast.MapType{
+-			Key:   key,
+-			Value: value,
+-		}
+-	case *types.Chan:
+-		dir := ast.ChanDir(t.Dir())
+-		if t.Dir() == types.SendRecv {
+-			dir = ast.SEND | ast.RECV
+-		}
+-		value := TypeExpr(f, pkg, t.Elem())
+-		if value == nil {
+-			return nil
+-		}
+-		return &ast.ChanType{
+-			Dir:   dir,
+-			Value: value,
+-		}
+-	case *types.Signature:
+-		var params []*ast.Field
+-		for i := 0; i < t.Params().Len(); i++ {
+-			p := TypeExpr(f, pkg, t.Params().At(i).Type())
+-			if p == nil {
+-				return nil
+-			}
+-			params = append(params, &ast.Field{
+-				Type: p,
+-				Names: []*ast.Ident{
+-					{
+-						Name: t.Params().At(i).Name(),
+-					},
+-				},
+-			})
+-		}
+-		if t.Variadic() {
+-			last := params[len(params)-1]
+-			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
+-		}
+-		var returns []*ast.Field
+-		for i := 0; i < t.Results().Len(); i++ {
+-			r := TypeExpr(f, pkg, t.Results().At(i).Type())
+-			if r == nil {
+-				return nil
+-			}
+-			returns = append(returns, &ast.Field{
+-				Type: r,
+-			})
+-		}
+-		return &ast.FuncType{
+-			Params: &ast.FieldList{
+-				List: params,
+-			},
+-			Results: &ast.FieldList{
+-				List: returns,
+-			},
+-		}
+-	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
+-		if t.Obj().Pkg() == nil {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		if t.Obj().Pkg() == pkg {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		pkgName := t.Obj().Pkg().Name()
+-
+-		// If the file already imports the package under another name, use that.
+-		for _, cand := range f.Imports {
+-			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
+-				if cand.Name != nil && cand.Name.Name != "" {
+-					pkgName = cand.Name.Name
+-				}
+-			}
+-		}
+-		if pkgName == "." {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		return &ast.SelectorExpr{
+-			X:   ast.NewIdent(pkgName),
+-			Sel: ast.NewIdent(t.Obj().Name()),
+-		}
+-	case *types.Struct:
+-		return ast.NewIdent(t.String())
+-	case *types.Interface:
+-		return ast.NewIdent(t.String())
+-	default:
+-		return nil
+-	}
+-}
+-
+ // StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
+ // Some examples:
+ //
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index c36f2a5af0..ed5ec5fa13 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -6,6 +6,9 @@ package facts
+ 
+ import (
+ 	"go/types"
++
++	"golang.org/x/tools/internal/aliases"
++	"golang.org/x/tools/internal/typesinternal"
+ )
+ 
+ // importMap computes the import map for a package by traversing the
+@@ -45,32 +48,41 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 
+ 	addType = func(T types.Type) {
+ 		switch T := T.(type) {
+-		case *types.Alias:
+-			addType(types.Unalias(T))
+ 		case *types.Basic:
+ 			// nop
+-		case *types.Named:
++		case typesinternal.NamedOrAlias: // *types.{Named,Alias}
++			// Add the type arguments if this is an instance.
++			if targs := typesinternal.TypeArgs(T); targs.Len() > 0 {
++				for i := 0; i < targs.Len(); i++ {
++					addType(targs.At(i))
++				}
++			}
++
+ 			// Remove infinite expansions of *types.Named by always looking at the origin.
+ 			// Some named types with type parameters [that will not type check] have
+ 			// infinite expansions:
+ 			//     type N[T any] struct { F *N[N[T]] }
+ 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
+-			T = T.Origin()
++			T = typesinternal.Origin(T)
+ 			if !typs[T] {
+ 				typs[T] = true
++
++				// common aspects
+ 				addObj(T.Obj())
+-				addType(T.Underlying())
+-				for i := 0; i < T.NumMethods(); i++ {
+-					addObj(T.Method(i))
+-				}
+-				if tparams := T.TypeParams(); tparams != nil {
++				if tparams := typesinternal.TypeParams(T); tparams.Len() > 0 {
+ 					for i := 0; i < tparams.Len(); i++ {
+ 						addType(tparams.At(i))
+ 					}
+ 				}
+-				if targs := T.TypeArgs(); targs != nil {
+-					for i := 0; i < targs.Len(); i++ {
+-						addType(targs.At(i))
++
++				// variant aspects
++				switch T := T.(type) {
++				case *types.Alias:
++					addType(aliases.Rhs(T))
++				case *types.Named:
++					addType(T.Underlying())
++					for i := 0; i < T.NumMethods(); i++ {
++						addObj(T.Method(i))
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/zerovalue.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/zerovalue.go
+new file mode 100644
+index 0000000000..1066980649
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/zerovalue.go
+@@ -0,0 +1,282 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typesinternal
++
++import (
++	"fmt"
++	"go/ast"
++	"go/token"
++	"go/types"
++	"strconv"
++	"strings"
++)
++
++// ZeroString returns the string representation of the "zero" value of the type t.
++// This string can be used on the right-hand side of an assignment where the
++// left-hand side has that explicit type.
++// Exception: This does not apply to tuples. Their string representation is
++// informational only and cannot be used in an assignment.
++// When assigning to a wider type (such as 'any'), it's the caller's
++// responsibility to handle any necessary type conversions.
++// See [ZeroExpr] for a variant that returns an [ast.Expr].
++func ZeroString(t types.Type, qf types.Qualifier) string {
++	switch t := t.(type) {
++	case *types.Basic:
++		switch {
++		case t.Info()&types.IsBoolean != 0:
++			return "false"
++		case t.Info()&types.IsNumeric != 0:
++			return "0"
++		case t.Info()&types.IsString != 0:
++			return `""`
++		case t.Kind() == types.UnsafePointer:
++			fallthrough
++		case t.Kind() == types.UntypedNil:
++			return "nil"
++		default:
++			panic(fmt.Sprint("ZeroString for unexpected type:", t))
++		}
++
++	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
++		return "nil"
++
++	case *types.Named, *types.Alias:
++		switch under := t.Underlying().(type) {
++		case *types.Struct, *types.Array:
++			return types.TypeString(t, qf) + "{}"
++		default:
++			return ZeroString(under, qf)
++		}
++
++	case *types.Array, *types.Struct:
++		return types.TypeString(t, qf) + "{}"
++
++	case *types.TypeParam:
++		// Assumes func new is not shadowed.
++		return "*new(" + types.TypeString(t, qf) + ")"
++
++	case *types.Tuple:
++		// Tuples are not normal values.
++		// We are currently format as "(t[0], ..., t[n])". Could be something else.
++		components := make([]string, t.Len())
++		for i := 0; i < t.Len(); i++ {
++			components[i] = ZeroString(t.At(i).Type(), qf)
++		}
++		return "(" + strings.Join(components, ", ") + ")"
++
++	case *types.Union:
++		// Variables of these types cannot be created, so it makes
++		// no sense to ask for their zero value.
++		panic(fmt.Sprintf("invalid type for a variable: %v", t))
++
++	default:
++		panic(t) // unreachable.
++	}
++}
++
++// ZeroExpr returns the ast.Expr representation of the "zero" value of the type t.
++// ZeroExpr is defined for types that are suitable for variables.
++// It may panic for other types such as Tuple or Union.
++// See [ZeroString] for a variant that returns a string.
++func ZeroExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	switch t := typ.(type) {
++	case *types.Basic:
++		switch {
++		case t.Info()&types.IsBoolean != 0:
++			return &ast.Ident{Name: "false"}
++		case t.Info()&types.IsNumeric != 0:
++			return &ast.BasicLit{Kind: token.INT, Value: "0"}
++		case t.Info()&types.IsString != 0:
++			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
++		case t.Kind() == types.UnsafePointer:
++			fallthrough
++		case t.Kind() == types.UntypedNil:
++			return ast.NewIdent("nil")
++		default:
++			panic(fmt.Sprint("ZeroExpr for unexpected type:", t))
++		}
++
++	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
++		return ast.NewIdent("nil")
++
++	case *types.Named, *types.Alias:
++		switch under := t.Underlying().(type) {
++		case *types.Struct, *types.Array:
++			return &ast.CompositeLit{
++				Type: TypeExpr(f, pkg, typ),
++			}
++		default:
++			return ZeroExpr(f, pkg, under)
++		}
++
++	case *types.Array, *types.Struct:
++		return &ast.CompositeLit{
++			Type: TypeExpr(f, pkg, typ),
++		}
++
++	case *types.TypeParam:
++		return &ast.StarExpr{ // *new(T)
++			X: &ast.CallExpr{
++				// Assumes func new is not shadowed.
++				Fun: ast.NewIdent("new"),
++				Args: []ast.Expr{
++					ast.NewIdent(t.Obj().Name()),
++				},
++			},
++		}
++
++	case *types.Tuple:
++		// Unlike ZeroString, there is no ast.Expr can express tuple by
++		// "(t[0], ..., t[n])".
++		panic(fmt.Sprintf("invalid type for a variable: %v", t))
++
++	case *types.Union:
++		// Variables of these types cannot be created, so it makes
++		// no sense to ask for their zero value.
++		panic(fmt.Sprintf("invalid type for a variable: %v", t))
++
++	default:
++		panic(t) // unreachable.
++	}
++}
++
++// IsZeroExpr uses simple syntactic heuristics to report whether expr
++// is a obvious zero value, such as 0, "", nil, or false.
++// It cannot do better without type information.
++func IsZeroExpr(expr ast.Expr) bool {
++	switch e := expr.(type) {
++	case *ast.BasicLit:
++		return e.Value == "0" || e.Value == `""`
++	case *ast.Ident:
++		return e.Name == "nil" || e.Name == "false"
++	default:
++		return false
++	}
++}
++
++// TypeExpr returns syntax for the specified type. References to named types
++// from packages other than pkg are qualified by an appropriate package name, as
++// defined by the import environment of file.
++// It may panic for types such as Tuple or Union.
++func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	switch t := typ.(type) {
++	case *types.Basic:
++		switch t.Kind() {
++		case types.UnsafePointer:
++			// TODO(hxjiang): replace the implementation with types.Qualifier.
++			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
++		default:
++			return ast.NewIdent(t.Name())
++		}
++
++	case *types.Pointer:
++		return &ast.UnaryExpr{
++			Op: token.MUL,
++			X:  TypeExpr(f, pkg, t.Elem()),
++		}
++
++	case *types.Array:
++		return &ast.ArrayType{
++			Len: &ast.BasicLit{
++				Kind:  token.INT,
++				Value: fmt.Sprintf("%d", t.Len()),
++			},
++			Elt: TypeExpr(f, pkg, t.Elem()),
++		}
++
++	case *types.Slice:
++		return &ast.ArrayType{
++			Elt: TypeExpr(f, pkg, t.Elem()),
++		}
++
++	case *types.Map:
++		return &ast.MapType{
++			Key:   TypeExpr(f, pkg, t.Key()),
++			Value: TypeExpr(f, pkg, t.Elem()),
++		}
++
++	case *types.Chan:
++		dir := ast.ChanDir(t.Dir())
++		if t.Dir() == types.SendRecv {
++			dir = ast.SEND | ast.RECV
++		}
++		return &ast.ChanType{
++			Dir:   dir,
++			Value: TypeExpr(f, pkg, t.Elem()),
++		}
++
++	case *types.Signature:
++		var params []*ast.Field
++		for i := 0; i < t.Params().Len(); i++ {
++			params = append(params, &ast.Field{
++				Type: TypeExpr(f, pkg, t.Params().At(i).Type()),
++				Names: []*ast.Ident{
++					{
++						Name: t.Params().At(i).Name(),
++					},
++				},
++			})
++		}
++		if t.Variadic() {
++			last := params[len(params)-1]
++			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
++		}
++		var returns []*ast.Field
++		for i := 0; i < t.Results().Len(); i++ {
++			returns = append(returns, &ast.Field{
++				Type: TypeExpr(f, pkg, t.Results().At(i).Type()),
++			})
++		}
++		return &ast.FuncType{
++			Params: &ast.FieldList{
++				List: params,
++			},
++			Results: &ast.FieldList{
++				List: returns,
++			},
++		}
++
++	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
++		switch t.Obj().Pkg() {
++		case pkg, nil:
++			return ast.NewIdent(t.Obj().Name())
++		}
++		pkgName := t.Obj().Pkg().Name()
++
++		// TODO(hxjiang): replace the implementation with types.Qualifier.
++		// If the file already imports the package under another name, use that.
++		for _, cand := range f.Imports {
++			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
++				if cand.Name != nil && cand.Name.Name != "" {
++					pkgName = cand.Name.Name
++				}
++			}
++		}
++		if pkgName == "." {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		return &ast.SelectorExpr{
++			X:   ast.NewIdent(pkgName),
++			Sel: ast.NewIdent(t.Obj().Name()),
++		}
++
++	case *types.Struct:
++		return ast.NewIdent(t.String())
++
++	case *types.Interface:
++		return ast.NewIdent(t.String())
++
++	case *types.Union:
++		// TODO(hxjiang): handle the union through syntax (~A | ... | ~Z).
++		// Remove nil check when calling typesinternal.TypeExpr.
++		return nil
++
++	case *types.Tuple:
++		panic("invalid input type types.Tuple")
++
++	default:
++		panic("unreachable")
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6ea68b2153..cc8f69e7ca 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,7 +16,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4
++# golang.org/x/arch v0.12.0
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+@@ -25,8 +25,8 @@ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/riscv64/riscv64asm
+ golang.org/x/arch/s390x/s390xasm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20240722200705-b9910f320300
+-## explicit; go 1.21
++# golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c
++## explicit; go 1.22.0
+ golang.org/x/build/relnote
+ # golang.org/x/mod v0.22.0
+ ## explicit; go 1.22.0
+@@ -39,17 +39,17 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.9.0
++# golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.27.0
++# golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+-## explicit; go 1.20
++# golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55
++## explicit; go 1.22.0
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+ golang.org/x/telemetry/counter/countertest
+@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.27.0
++# golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f
+ ## explicit; go 1.22.0
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index 47ef05be87..9ea1b3d868 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,10 +4,10 @@ go 1.24
+ 
+ require (
+ 	golang.org/x/crypto v0.29.0
+-	golang.org/x/net v0.31.0
++	golang.org/x/net v0.31.1-0.20241122011411-9a518991035b
+ )
+ 
+ require (
+-	golang.org/x/sys v0.27.0 // indirect
++	golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 // indirect
+ 	golang.org/x/text v0.20.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 9d72b7d654..9cd2c6fd1a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+ golang.org/x/crypto v0.29.0 h1:L5SG1JTTXupVV3n6sUqMTeWbjAyfPwoda2DLX8J8FrQ=
+ golang.org/x/crypto v0.29.0/go.mod h1:+F4F4N5hv6v38hfeYwTdx20oUvLLc+QfrE9Ax9HtgRg=
+-golang.org/x/net v0.31.0 h1:68CPQngjLL0r2AlUKiSxtQFKvzRVbnzLwMUn5SzcLHo=
+-golang.org/x/net v0.31.0/go.mod h1:P4fl1q7dY2hnZFxEk4pPSkDHF+QqjitcnDjUQyMM+pM=
+-golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
+-golang.org/x/sys v0.27.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/net v0.31.1-0.20241122011411-9a518991035b h1:ABZ3UI3hzgr55QyqwjHw7AEqaeK2YGuXaf4nxEWTkHE=
++golang.org/x/net v0.31.1-0.20241122011411-9a518991035b/go.mod h1:P4fl1q7dY2hnZFxEk4pPSkDHF+QqjitcnDjUQyMM+pM=
++golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 h1:nLmXYlwPHXAmVnvJmjvVpEFRhVgC0aCgTR7KW324G0c=
++golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.20.0 h1:gK/Kv2otX8gz+wn7Rmb3vT96ZwuoxnQlY+HlJVj7Qug=
+ golang.org/x/text v0.20.0/go.mod h1:D4IsuqiFMhST5bX19pQ9ikHC2GsaKyk/oF+pn3ducp4=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 6b40923a86..6186d609c2 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3061,7 +3061,7 @@ func (mh *http2MetaHeadersFrame) checkPseudos() error {
+ 	pf := mh.PseudoFields()
+ 	for i, hf := range pf {
+ 		switch hf.Name {
+-		case ":method", ":path", ":scheme", ":authority":
++		case ":method", ":path", ":scheme", ":authority", ":protocol":
+ 			isRequest = true
+ 		case ":status":
+ 			isResponse = true
+@@ -3069,7 +3069,7 @@ func (mh *http2MetaHeadersFrame) checkPseudos() error {
+ 			return http2pseudoHeaderError(hf.Name)
+ 		}
+ 		// Check for duplicates.
+-		// This would be a bad algorithm, but N is 4.
++		// This would be a bad algorithm, but N is 5.
+ 		// And this doesn't allocate.
+ 		for _, hf2 := range pf[:i] {
+ 			if hf.Name == hf2.Name {
+@@ -3509,10 +3509,11 @@ func http2canonicalHeader(v string) string {
+ }
+ 
+ var (
+-	http2VerboseLogs    bool
+-	http2logFrameWrites bool
+-	http2logFrameReads  bool
+-	http2inTests        bool
++	http2VerboseLogs                    bool
++	http2logFrameWrites                 bool
++	http2logFrameReads                  bool
++	http2inTests                        bool
++	http2disableExtendedConnectProtocol bool
+ )
+ 
+ func init() {
+@@ -3525,6 +3526,9 @@ func init() {
+ 		http2logFrameWrites = true
+ 		http2logFrameReads = true
+ 	}
++	if strings.Contains(e, "http2xconnect=0") {
++		http2disableExtendedConnectProtocol = true
++	}
+ }
+ 
+ const (
+@@ -3616,6 +3620,10 @@ func (s http2Setting) Valid() error {
+ 		if s.Val < 16384 || s.Val > 1<<24-1 {
+ 			return http2ConnectionError(http2ErrCodeProtocol)
+ 		}
++	case http2SettingEnableConnectProtocol:
++		if s.Val != 1 && s.Val != 0 {
++			return http2ConnectionError(http2ErrCodeProtocol)
++		}
+ 	}
+ 	return nil
+ }
+@@ -3625,21 +3633,23 @@ func (s http2Setting) Valid() error {
+ type http2SettingID uint16
+ 
+ const (
+-	http2SettingHeaderTableSize      http2SettingID = 0x1
+-	http2SettingEnablePush           http2SettingID = 0x2
+-	http2SettingMaxConcurrentStreams http2SettingID = 0x3
+-	http2SettingInitialWindowSize    http2SettingID = 0x4
+-	http2SettingMaxFrameSize         http2SettingID = 0x5
+-	http2SettingMaxHeaderListSize    http2SettingID = 0x6
++	http2SettingHeaderTableSize       http2SettingID = 0x1
++	http2SettingEnablePush            http2SettingID = 0x2
++	http2SettingMaxConcurrentStreams  http2SettingID = 0x3
++	http2SettingInitialWindowSize     http2SettingID = 0x4
++	http2SettingMaxFrameSize          http2SettingID = 0x5
++	http2SettingMaxHeaderListSize     http2SettingID = 0x6
++	http2SettingEnableConnectProtocol http2SettingID = 0x8
+ )
+ 
+ var http2settingName = map[http2SettingID]string{
+-	http2SettingHeaderTableSize:      "HEADER_TABLE_SIZE",
+-	http2SettingEnablePush:           "ENABLE_PUSH",
+-	http2SettingMaxConcurrentStreams: "MAX_CONCURRENT_STREAMS",
+-	http2SettingInitialWindowSize:    "INITIAL_WINDOW_SIZE",
+-	http2SettingMaxFrameSize:         "MAX_FRAME_SIZE",
+-	http2SettingMaxHeaderListSize:    "MAX_HEADER_LIST_SIZE",
++	http2SettingHeaderTableSize:       "HEADER_TABLE_SIZE",
++	http2SettingEnablePush:            "ENABLE_PUSH",
++	http2SettingMaxConcurrentStreams:  "MAX_CONCURRENT_STREAMS",
++	http2SettingInitialWindowSize:     "INITIAL_WINDOW_SIZE",
++	http2SettingMaxFrameSize:          "MAX_FRAME_SIZE",
++	http2SettingMaxHeaderListSize:     "MAX_HEADER_LIST_SIZE",
++	http2SettingEnableConnectProtocol: "ENABLE_CONNECT_PROTOCOL",
+ }
+ 
+ func (s http2SettingID) String() string {
+@@ -4965,14 +4975,18 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
+ 		sc.vlogf("http2: server connection from %v on %p", sc.conn.RemoteAddr(), sc.hs)
+ 	}
+ 
++	settings := http2writeSettings{
++		{http2SettingMaxFrameSize, conf.MaxReadFrameSize},
++		{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
++		{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
++		{http2SettingHeaderTableSize, conf.MaxDecoderHeaderTableSize},
++		{http2SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
++	}
++	if !http2disableExtendedConnectProtocol {
++		settings = append(settings, http2Setting{http2SettingEnableConnectProtocol, 1})
++	}
+ 	sc.writeFrame(http2FrameWriteRequest{
+-		write: http2writeSettings{
+-			{http2SettingMaxFrameSize, conf.MaxReadFrameSize},
+-			{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
+-			{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
+-			{http2SettingHeaderTableSize, conf.MaxDecoderHeaderTableSize},
+-			{http2SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
+-		},
++		write: settings,
+ 	})
+ 	sc.unackedSettings++
+ 
+@@ -5837,6 +5851,9 @@ func (sc *http2serverConn) processSetting(s http2Setting) error {
+ 		sc.maxFrameSize = int32(s.Val) // the maximum valid s.Val is < 2^31
+ 	case http2SettingMaxHeaderListSize:
+ 		sc.peerMaxHeaderListSize = s.Val
++	case http2SettingEnableConnectProtocol:
++		// Receipt of this parameter by a server does not
++		// have any impact
+ 	default:
+ 		// Unknown setting: "An endpoint that receives a SETTINGS
+ 		// frame with any unknown or unsupported identifier MUST
+@@ -6267,11 +6284,17 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 		scheme:    f.PseudoValue("scheme"),
+ 		authority: f.PseudoValue("authority"),
+ 		path:      f.PseudoValue("path"),
++		protocol:  f.PseudoValue("protocol"),
++	}
++
++	// extended connect is disabled, so we should not see :protocol
++	if http2disableExtendedConnectProtocol && rp.protocol != "" {
++		return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
+ 	}
+ 
+ 	isConnect := rp.method == "CONNECT"
+ 	if isConnect {
+-		if rp.path != "" || rp.scheme != "" || rp.authority == "" {
++		if rp.protocol == "" && (rp.path != "" || rp.scheme != "" || rp.authority == "") {
+ 			return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
+ 		}
+ 	} else if rp.method == "" || rp.path == "" || (rp.scheme != "https" && rp.scheme != "http") {
+@@ -6295,6 +6318,9 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 	if rp.authority == "" {
+ 		rp.authority = rp.header.Get("Host")
+ 	}
++	if rp.protocol != "" {
++		rp.header.Set(":protocol", rp.protocol)
++	}
+ 
+ 	rw, req, err := sc.newWriterAndRequestNoBody(st, rp)
+ 	if err != nil {
+@@ -6321,6 +6347,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ type http2requestParam struct {
+ 	method                  string
+ 	scheme, authority, path string
++	protocol                string
+ 	header                  Header
+ }
+ 
+@@ -6362,7 +6389,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
+ 
+ 	var url_ *url.URL
+ 	var requestURI string
+-	if rp.method == "CONNECT" {
++	if rp.method == "CONNECT" && rp.protocol == "" {
+ 		url_ = &url.URL{Host: rp.authority}
+ 		requestURI = rp.authority // mimic HTTP/1 server behavior
+ 	} else {
+@@ -7755,25 +7782,26 @@ type http2ClientConn struct {
+ 	idleTimeout time.Duration // or 0 for never
+ 	idleTimer   http2timer
+ 
+-	mu              sync.Mutex   // guards following
+-	cond            *sync.Cond   // hold mu; broadcast on flow/closed changes
+-	flow            http2outflow // our conn-level flow control quota (cs.outflow is per stream)
+-	inflow          http2inflow  // peer's conn-level flow control
+-	doNotReuse      bool         // whether conn is marked to not be reused for any future requests
+-	closing         bool
+-	closed          bool
+-	seenSettings    bool                          // true if we've seen a settings frame, false otherwise
+-	wantSettingsAck bool                          // we sent a SETTINGS frame and haven't heard back
+-	goAway          *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
+-	goAwayDebug     string                        // goAway frame's debug data, retained as a string
+-	streams         map[uint32]*http2clientStream // client-initiated
+-	streamsReserved int                           // incr by ReserveNewRequest; decr on RoundTrip
+-	nextStreamID    uint32
+-	pendingRequests int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
+-	pings           map[[8]byte]chan struct{} // in flight ping data to notification channel
+-	br              *bufio.Reader
+-	lastActive      time.Time
+-	lastIdle        time.Time // time last idle
++	mu               sync.Mutex   // guards following
++	cond             *sync.Cond   // hold mu; broadcast on flow/closed changes
++	flow             http2outflow // our conn-level flow control quota (cs.outflow is per stream)
++	inflow           http2inflow  // peer's conn-level flow control
++	doNotReuse       bool         // whether conn is marked to not be reused for any future requests
++	closing          bool
++	closed           bool
++	seenSettings     bool                          // true if we've seen a settings frame, false otherwise
++	seenSettingsChan chan struct{}                 // closed when seenSettings is true or frame reading fails
++	wantSettingsAck  bool                          // we sent a SETTINGS frame and haven't heard back
++	goAway           *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
++	goAwayDebug      string                        // goAway frame's debug data, retained as a string
++	streams          map[uint32]*http2clientStream // client-initiated
++	streamsReserved  int                           // incr by ReserveNewRequest; decr on RoundTrip
++	nextStreamID     uint32
++	pendingRequests  int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
++	pings            map[[8]byte]chan struct{} // in flight ping data to notification channel
++	br               *bufio.Reader
++	lastActive       time.Time
++	lastIdle         time.Time // time last idle
+ 	// Settings from peer: (also guarded by wmu)
+ 	maxFrameSize                uint32
+ 	maxConcurrentStreams        uint32
+@@ -7783,6 +7811,7 @@ type http2ClientConn struct {
+ 	initialStreamRecvWindowSize int32
+ 	readIdleTimeout             time.Duration
+ 	pingTimeout                 time.Duration
++	extendedConnectAllowed      bool
+ 
+ 	// pendingResets is the number of RST_STREAM frames we have sent to the peer,
+ 	// without confirming that the peer has received them. When we send a RST_STREAM,
+@@ -8207,6 +8236,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 		peerMaxHeaderListSize:       0xffffffffffffffff,               // "infinite", per spec. Use 2^64-1 instead.
+ 		streams:                     make(map[uint32]*http2clientStream),
+ 		singleUse:                   singleUse,
++		seenSettingsChan:            make(chan struct{}),
+ 		wantSettingsAck:             true,
+ 		readIdleTimeout:             conf.SendPingTimeout,
+ 		pingTimeout:                 conf.PingTimeout,
+@@ -8854,6 +8884,8 @@ func (cs *http2clientStream) doRequest(req *Request, streamf func(*http2clientSt
+ 	cs.cleanupWriteRequest(err)
+ }
+ 
++var http2errExtendedConnectNotSupported = errors.New("net/http: extended connect not supported by peer")
++
+ // writeRequest sends a request.
+ //
+ // It returns nil after the request is written, the response read,
+@@ -8869,12 +8901,31 @@ func (cs *http2clientStream) writeRequest(req *Request, streamf func(*http2clien
+ 		return err
+ 	}
+ 
++	// wait for setting frames to be received, a server can change this value later,
++	// but we just wait for the first settings frame
++	var isExtendedConnect bool
++	if req.Method == "CONNECT" && req.Header.Get(":protocol") != "" {
++		isExtendedConnect = true
++	}
++
+ 	// Acquire the new-request lock by writing to reqHeaderMu.
+ 	// This lock guards the critical section covering allocating a new stream ID
+ 	// (requires mu) and creating the stream (requires wmu).
+ 	if cc.reqHeaderMu == nil {
+ 		panic("RoundTrip on uninitialized ClientConn") // for tests
+ 	}
++	if isExtendedConnect {
++		select {
++		case <-cs.reqCancel:
++			return http2errRequestCanceled
++		case <-ctx.Done():
++			return ctx.Err()
++		case <-cc.seenSettingsChan:
++			if !cc.extendedConnectAllowed {
++				return http2errExtendedConnectNotSupported
++			}
++		}
++	}
+ 	select {
+ 	case cc.reqHeaderMu <- struct{}{}:
+ 	case <-cs.reqCancel:
+@@ -9419,7 +9470,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err er
+ 
+ func http2validateHeaders(hdrs Header) string {
+ 	for k, vv := range hdrs {
+-		if !httpguts.ValidHeaderFieldName(k) {
++		if !httpguts.ValidHeaderFieldName(k) && k != ":protocol" {
+ 			return fmt.Sprintf("name %q", k)
+ 		}
+ 		for _, v := range vv {
+@@ -9435,6 +9486,10 @@ func http2validateHeaders(hdrs Header) string {
+ 
+ var http2errNilRequestURL = errors.New("http2: Request.URI is nil")
+ 
++func http2isNormalConnect(req *Request) bool {
++	return req.Method == "CONNECT" && req.Header.Get(":protocol") == ""
++}
++
+ // requires cc.wmu be held.
+ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
+ 	cc.hbuf.Reset()
+@@ -9455,7 +9510,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 	}
+ 
+ 	var path string
+-	if req.Method != "CONNECT" {
++	if !http2isNormalConnect(req) {
+ 		path = req.URL.RequestURI()
+ 		if !http2validPseudoPath(path) {
+ 			orig := path
+@@ -9492,7 +9547,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 			m = MethodGet
+ 		}
+ 		f(":method", m)
+-		if req.Method != "CONNECT" {
++		if !http2isNormalConnect(req) {
+ 			f(":path", path)
+ 			f(":scheme", req.URL.Scheme)
+ 		}
+@@ -9896,6 +9951,9 @@ func (rl *http2clientConnReadLoop) run() error {
+ 			if http2VerboseLogs {
+ 				cc.vlogf("http2: Transport conn %p received error from processing frame %v: %v", cc, http2summarizeFrame(f), err)
+ 			}
++			if !cc.seenSettings {
++				close(cc.seenSettingsChan)
++			}
+ 			return err
+ 		}
+ 	}
+@@ -10462,6 +10520,21 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
+ 		case http2SettingHeaderTableSize:
+ 			cc.henc.SetMaxDynamicTableSize(s.Val)
+ 			cc.peerMaxHeaderTableSize = s.Val
++		case http2SettingEnableConnectProtocol:
++			if err := s.Valid(); err != nil {
++				return err
++			}
++			// If the peer wants to send us SETTINGS_ENABLE_CONNECT_PROTOCOL,
++			// we require that it do so in the first SETTINGS frame.
++			//
++			// When we attempt to use extended CONNECT, we wait for the first
++			// SETTINGS frame to see if the server supports it. If we let the
++			// server enable the feature with a later SETTINGS frame, then
++			// users will see inconsistent results depending on whether we've
++			// seen that frame or not.
++			if !cc.seenSettings {
++				cc.extendedConnectAllowed = s.Val == 1
++			}
+ 		default:
+ 			cc.vlogf("Unhandled Setting: %v", s)
+ 		}
+@@ -10479,6 +10552,7 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
+ 			// connection can establish to our default.
+ 			cc.maxConcurrentStreams = http2defaultMaxConcurrentStreams
+ 		}
++		close(cc.seenSettingsChan)
+ 		cc.seenSettings = true
+ 	}
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 164cdd09c9..deb2727d39 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -6,7 +6,7 @@ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.31.0
++# golang.org/x/net v0.31.1-0.20241122011411-9a518991035b
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -16,7 +16,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.27.0
++# golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.20.0

@@ -12,9 +12,246 @@ Date:   Tue Apr 14 06:46:01 2009 -0700
     DELTA=66  (31 added, 8 deleted, 27 changed)
     OCL=27396
     CL=27422
-
+---
  src/lib/reflect/all_test.go | 31 ++++++++++++++++++++-----------
  src/lib/reflect/tostring.go | 19 ++++++++++++-------
  src/lib/reflect/type.go     | 32 +++++++++++++++++++-------------
  src/lib/reflect/value.go    |  7 +++++--
  4 files changed, 56 insertions(+), 33 deletions(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index e3f6b9b506..ed1e9639be 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -117,8 +117,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	typedump("map[string]int32", "map[string]int32");
+ 	typedump("chan<-string", "chan<-string");
+ 	typedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}");
+-	typedump("*(a int8, b int32)", "*(a int8, b int32)");
+-	typedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}");
++	typedump("func(a int8, b int32)", "func(a int8, b int32)");
++	typedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}");
+ 	typedump("struct {a int8; b int32}", "struct{a int8; b int32}");
+ 	typedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}");
+ 	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
+@@ -126,7 +126,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
+ 	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
+ 	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
+-	typedump("struct {f *(args ...)}", "struct{f *(args ...)}");
++	typedump("struct {f func(args ...)}", "struct{f func(args ...)}");
++	typedump("interface { a(? func(? func(? int) int) func(? func(? int)) int); b() }", "interface{a (func(func(int)(int))(func(func(int))(int))); b ()}");
+ 
+ 	// Values
+ 	valuedump("int8", "8");
+@@ -148,8 +149,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	valuedump("map[string]int32", "map[string]int32{<can't iterate on maps>}");
+ 	valuedump("chan<-string", "chan<-string");
+ 	valuedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}{chan*int32, 0}");
+-	valuedump("*(a int8, b int32)", "*(a int8, b int32)(0)");
+-	valuedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}{*(chan*P.integer, *int8)(0)}");
++	valuedump("func(a int8, b int32)", "func(a int8, b int32)(0)");
++	valuedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}{func(chan*P.integer, *int8)(0)}");
+ 	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
+ 	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
+ 
+@@ -243,14 +244,14 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	t = reflect.ParseTypeString("", "interface {a() *int}");
+ 	assert(t.String(), "interface {a() *int}");
+ 
+-	t = reflect.ParseTypeString("", "*(a int8, b int32)");
+-	assert(t.String(), "*(a int8, b int32)");
++	t = reflect.ParseTypeString("", "func(a int8, b int32)");
++	assert(t.String(), "func(a int8, b int32)");
+ 
+-	t = reflect.ParseTypeString("", "*(a int8, b int32) float");
+-	assert(t.String(), "*(a int8, b int32) float");
++	t = reflect.ParseTypeString("", "func(a int8, b int32) float");
++	assert(t.String(), "func(a int8, b int32) float");
+ 
+-	t = reflect.ParseTypeString("", "*(a int8, b int32) (a float, b float)");
+-	assert(t.String(), "*(a int8, b int32) (a float, b float)");
++	t = reflect.ParseTypeString("", "func(a int8, b int32) (a float, b float)");
++	assert(t.String(), "func(a int8, b int32) (a float, b float)");
+ 
+ 	t = reflect.ParseTypeString("", "[32]int32");
+ 	assert(t.String(), "[32]int32");
+@@ -311,6 +312,14 @@ func TestInterfaceValue(t *testing.T) {
+ 	assert(v3.Type().String(), "float");
+ }
+ 
++func TestFunctionValue(t *testing.T) {
++	v := reflect.NewValue(func() {});
++	if v.Interface() != v.Interface() {
++		t.Fatalf("TestFunction != itself");
++	}
++	assert(v.Type().String(), "func()");
++}
++
+ func TestCopyArray(t *testing.T) {
+ 	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
+ 	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index bb673fc224..43be4b9e8f 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -45,14 +45,18 @@ type hasFields interface {
+ 	Len()	int;
+ }
+ 
+-func typeFieldsToString(t hasFields, sep string) string {
++func typeFieldsToString(t hasFields, sep string, iface bool) string {
+ 	var str string;
+ 	for i := 0; i < t.Len(); i++ {
+ 		str1, typ, tag, offset := t.Field(i);
+ 		if str1 != "" {
+ 			str1 += " "
+ 		}
+-		str1 += typeToString(typ, false);
++		str2 := typeToString(typ, false);
++		if iface && str2[0:4] == "func" {
++			str2 = str2[4:len(str2)]
++		}
++		str1 += str2;
+ 		if tag != "" {
+ 			str1 += " " + doubleQuote(tag);
+ 		}
+@@ -111,14 +115,14 @@ func typeToString(typ Type, expand bool) string {
+ 		}
+ 		return str + typeToString(c.Elem(), false);
+ 	case StructKind:
+-		return "struct{" + typeFieldsToString(typ.(StructType), ";") + "}";
++		return "struct{" + typeFieldsToString(typ.(StructType), ";", false) + "}";
+ 	case InterfaceKind:
+-		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";") + "}";
++		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";", true) + "}";
+ 	case FuncKind:
+ 		f := typ.(FuncType);
+-		str = "(" + typeFieldsToString(f.In(), ",") + ")";
++		str = "func(" + typeFieldsToString(f.In(), ",", false) + ")";
+ 		if f.Out() != nil {
+-			str += "(" + typeFieldsToString(f.Out(), ",") + ")";
++			str += "(" + typeFieldsToString(f.Out(), ",", false) + ")";
+ 		}
+ 		return str;
+ 	default:
+@@ -221,7 +225,8 @@ func valueToString(val Value) string {
+ 	case InterfaceKind:
+ 		return "can't print interfaces yet";
+ 	case FuncKind:
+-		return "can't print funcs yet";
++		v := val.(FuncValue);
++		return typeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
+ 	default:
+ 		panicln("reflect.valueToString: can't print type ", val.Kind());
+ 	}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 7e992a80fc..6fb84c8831 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -61,6 +61,7 @@ type allTypes struct {
+ 	xfloat		float;
+ 	xfloat32	float32;
+ 	xfloat64	float64;
++	xfunc		func();
+ 	xint		int;
+ 	xint16		int16;
+ 	xint32		int32;
+@@ -466,17 +467,11 @@ type funcTypeStruct struct {
+ }
+ 
+ func newFuncTypeStruct(name, typestring string, in, out *structTypeStruct) *funcTypeStruct {
+-	return &funcTypeStruct{ commonType{FuncKind, typestring, name, 0}, in, out }
++	return &funcTypeStruct{ commonType{FuncKind, typestring, name, ptrsize}, in, out }
+ }
+ 
+ func (t *funcTypeStruct) FieldAlign() int {
+-	panic("reflect.type: func.FieldAlign(): cannot happen");
+-	return 0
+-}
+-
+-func (t *funcTypeStruct) Size() int {
+-	panic("reflect.type: func.Size(): cannot happen");
+-	return 0
++	return unsafe.Alignof(x.xfunc);
+ }
+ 
+ func (t *funcTypeStruct) In() StructType {
+@@ -602,15 +597,18 @@ func init() {
+ 	interfacetype =
+ 		'interface' '{' fieldlist '}'
+ 	chantype =
+-		'<-' chan stubtype
+-		chan '<-' stubtype
+-		chan stubtype
++		'<-' 'chan' stubtype
++		'chan' '<-' stubtype
++		'chan' stubtype
+ 	maptype =
+ 		'map' '[' stubtype ']' stubtype
+ 	pointertype =
+ 		'*' stubtype
+ 	functiontype =
+-		'(' fieldlist ')'
++		[ 'func' ] '(' fieldlist ')' [ '(' fieldlist ')' | stubtype ]
++
++	In functiontype 'func' is optional because it is omitted in
++	the reflection string for interface types.
+ 
+ */
+ 
+@@ -860,7 +858,8 @@ func (p *typeParser) Func(name string, tokstart int) *stubType {
+ 	p.Next();
+ 	if p.token != "(" {
+ 		// 1 list: the in parameters are a list.  Is there a single out parameter?
+-		if p.token == "" || p.token == "}" || p.token == "," || p.token == ";" {
++		switch p.token {
++		case "", "}", ")", ",", ";":
+ 			return newStubType(name, newFuncTypeStruct(name, p.TypeString(tokstart), f1, nil));
+ 		}
+ 		// A single out parameter.
+@@ -918,6 +917,13 @@ func (p *typeParser) Type(name string) *stubType {
+ 		}
+ 		p.Next();
+ 		return p.Interface(name, tokstart);
++	case p.token == "func":
++		p.Next();
++		if p.token != "(" {
++			return missingStub
++		}
++		p.Next();
++		return p.Func(name, tokstart);
+ 	case p.token == "(":
+ 		p.Next();
+ 		return p.Func(name, tokstart);
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index af43de98aa..3548803472 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -776,12 +776,17 @@ func interfaceCreator(typ Type, addr Addr) Value {
+ // Its implementation is incomplete.
+ type FuncValue interface {
+ 	Value;
++	Get()	Addr;	// The address of the function.
+ }
+ 
+ type funcValueStruct struct {
+ 	commonValue
+ }
+ 
++func (v *funcValueStruct) Get() Addr {
++	return *(*Addr)(v.addr)
++}
++
+ func funcCreator(typ Type, addr Addr) Value {
+ 	return &funcValueStruct{ commonValue{FuncKind, typ, addr} }
+ }
+@@ -827,8 +832,6 @@ func newValueAddr(typ Type, addr Addr) Value {
+ func NewInitValue(typ Type) Value {
+ 	// Some values cannot be made this way.
+ 	switch typ.Kind() {
+-	case FuncKind:	// must be pointers, at least for now (TODO?)
+-		return nil;
+ 	case ArrayKind:
+ 		if typ.(ArrayType).IsSlice() {
+ 			return nil

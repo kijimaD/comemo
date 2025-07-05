@@ -43,10 +43,671 @@ Date:   Mon Sep 12 12:13:34 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  35 ++++++-
  src/cmd/internal/obj/s390x/a.out.go       |  18 ++++
  src/cmd/internal/obj/s390x/anames.go      |  16 +++
  src/cmd/internal/obj/s390x/asmz.go        | 157 +++++++++++++++++++++---------
  src/cmd/internal/obj/s390x/objz.go        |  25 ++---
  5 files changed, 188 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 4060f08780..6b6e2236d4 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -13,6 +13,13 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	MOVDBR	R1, R2                // b90f0021
+ 	MOVWBR	R3, R4                // b91f0043
+ 
++	MOVDEQ	R0, R1                // b9e28010
++	MOVDGE	R2, R3                // b9e2a032
++	MOVDGT	R4, R5                // b9e22054
++	MOVDLE	R6, R7                // b9e2c076
++	MOVDLT	R8, R9                // b9e24098
++	MOVDNE	R10, R11              // b9e270ba
++
+ 	MOVD	(R15), R1             // e310f0000004
+ 	MOVW	(R15), R2             // e320f0000014
+ 	MOVH	(R15), R3             // e330f0000015
+@@ -50,6 +57,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	ADDC	R1, R2                // b9ea1022
+ 	ADDC	$1, R1, R2            // b9040021c22a00000001
+ 	ADDC	R1, R2, R3            // b9ea1032
++	ADDW	R1, R2                // 1a21
++	ADDW	R1, R2, R3            // b9f81032
++	ADDW	$8192, R1             // c21900002000
++	ADDW	$8192, R1, R2         // ec21200000d8
+ 	SUB	R3, R4                // b9090043
+ 	SUB	R3, R4, R5            // b9e93054
+ 	SUB	$8192, R3             // c238ffffe000
+@@ -57,6 +68,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	SUBC	R1, R2                // b90b0021
+ 	SUBC	$1, R1, R2            // b9040021c22affffffff
+ 	SUBC	R2, R3, R4            // b9eb2043
++	SUBW	R3, R4                // 1b43
++	SUBW	R3, R4, R5            // b9f93054
++	SUBW	$8192, R1             // c21500002000
++	SUBW	$8192, R1, R2         // 1821c22500002000
+ 	MULLW	R6, R7                // b91c0076
+ 	MULLW	R6, R7, R8            // b9040087b91c0086
+ 	MULLW	$8192, R6             // a76d2000
+@@ -73,10 +88,22 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	DIVD	R1, R2, R3            // b90400b2b90d00a1b904003b
+ 	DIVW	R4, R5                // b90400b5b91d00a4b904005b
+ 	DIVW	R4, R5, R6            // b90400b5b91d00a4b904006b
+-	DIVDU	R7, R8                // b90400a0b90400b8b98700a7b904008b
+-	DIVDU	R7, R8, R9            // b90400a0b90400b8b98700a7b904009b
+-	DIVWU	R1, R2                // b90400a0b90400b2b99700a1b904002b
+-	DIVWU	R1, R2, R3            // b90400a0b90400b2b99700a1b904003b
++	DIVDU	R7, R8                // a7a90000b90400b8b98700a7b904008b
++	DIVDU	R7, R8, R9            // a7a90000b90400b8b98700a7b904009b
++	DIVWU	R1, R2                // a7a90000b90400b2b99700a1b904002b
++	DIVWU	R1, R2, R3            // a7a90000b90400b2b99700a1b904003b
++	MODD	R1, R2                // b90400b2b90d00a1b904002a
++	MODD	R1, R2, R3            // b90400b2b90d00a1b904003a
++	MODW	R4, R5                // b90400b5b91d00a4b904005a
++	MODW	R4, R5, R6            // b90400b5b91d00a4b904006a
++	MODDU	R7, R8                // a7a90000b90400b8b98700a7b904008a
++	MODDU	R7, R8, R9            // a7a90000b90400b8b98700a7b904009a
++	MODWU	R1, R2                // a7a90000b90400b2b99700a1b904002a
++	MODWU	R1, R2, R3            // a7a90000b90400b2b99700a1b904003a
++	NEG	R1                    // b9030011
++	NEG	R1, R2                // b9030021
++	NEGW	R1                    // b9130011
++	NEGW	R1, R2                // b9130021
+ 
+ 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
+ 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index ed9a1972f0..0f23931e00 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -212,10 +212,15 @@ const (
+ 	AADDME
+ 	AADDE
+ 	AADDZE
++	AADDW
+ 	ADIVW
+ 	ADIVWU
+ 	ADIVD
+ 	ADIVDU
++	AMODW
++	AMODWU
++	AMODD
++	AMODDU
+ 	AMULLW
+ 	AMULLD
+ 	AMULHD
+@@ -226,7 +231,9 @@ const (
+ 	ASUBV
+ 	ASUBE
+ 	ASUBZE
++	ASUBW
+ 	ANEG
++	ANEGW
+ 
+ 	// integer moves
+ 	AMOVWBR
+@@ -240,6 +247,14 @@ const (
+ 	AMOVD
+ 	AMOVDBR
+ 
++	// conditional moves
++	AMOVDEQ
++	AMOVDGE
++	AMOVDGT
++	AMOVDLE
++	AMOVDLT
++	AMOVDNE
++
+ 	// integer bitwise
+ 	AAND
+ 	AANDN
+@@ -276,6 +291,7 @@ const (
+ 	AFMULS
+ 	AFNABS
+ 	AFNEG
++	AFNEGS
+ 	AFNMADD
+ 	AFNMADDS
+ 	AFNMSUB
+@@ -334,6 +350,8 @@ const (
+ 	ABGT
+ 	ABLE
+ 	ABLT
++	ABLEU
++	ABLTU
+ 	ABNE
+ 	ABVC
+ 	ABVS
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 4a8e619ac1..00a8d4126d 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -11,10 +11,15 @@ var Anames = []string{
+ 	"ADDME",
+ 	"ADDE",
+ 	"ADDZE",
++	"ADDW",
+ 	"DIVW",
+ 	"DIVWU",
+ 	"DIVD",
+ 	"DIVDU",
++	"MODW",
++	"MODWU",
++	"MODD",
++	"MODDU",
+ 	"MULLW",
+ 	"MULLD",
+ 	"MULHD",
+@@ -25,7 +30,9 @@ var Anames = []string{
+ 	"SUBV",
+ 	"SUBE",
+ 	"SUBZE",
++	"SUBW",
+ 	"NEG",
++	"NEGW",
+ 	"MOVWBR",
+ 	"MOVB",
+ 	"MOVBZ",
+@@ -36,6 +43,12 @@ var Anames = []string{
+ 	"MOVWZ",
+ 	"MOVD",
+ 	"MOVDBR",
++	"MOVDEQ",
++	"MOVDGE",
++	"MOVDGT",
++	"MOVDLE",
++	"MOVDLT",
++	"MOVDNE",
+ 	"AND",
+ 	"ANDN",
+ 	"NAND",
+@@ -69,6 +82,7 @@ var Anames = []string{
+ 	"FMULS",
+ 	"FNABS",
+ 	"FNEG",
++	"FNEGS",
+ 	"FNMADD",
+ 	"FNMADDS",
+ 	"FNMSUB",
+@@ -111,6 +125,8 @@ var Anames = []string{
+ 	"BGT",
+ 	"BLE",
+ 	"BLT",
++	"BLEU",
++	"BLTU",
+ 	"BNE",
+ 	"BVC",
+ 	"BVS",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 47c901f01e..9d072041d0 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -145,10 +145,10 @@ var optab = []Optab{
+ 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+ 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
++	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
++	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+ 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
+ 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
+-	Optab{ASUBC, C_REG, C_REG, C_NONE, C_REG, 10, 0},
+-	Optab{ASUBC, C_REG, C_NONE, C_NONE, C_REG, 10, 0},
+ 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+ 	Optab{ADIVW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{ASUB, C_REG, C_REG, C_NONE, C_REG, 10, 0},
+@@ -217,6 +217,9 @@ var optab = []Optab{
+ 	Optab{ACMPUBEQ, C_REG, C_REG, C_NONE, C_SBRA, 89, 0},
+ 	Optab{ACMPUBEQ, C_REG, C_NONE, C_ANDCON, C_SBRA, 90, 0},
+ 
++	// move on condition
++	Optab{AMOVDEQ, C_REG, C_NONE, C_NONE, C_REG, 17, 0},
++
+ 	// compare
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_REG, 70, 0},
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_LCON, 71, 0},
+@@ -790,6 +793,7 @@ func buildop(ctxt *obj.Link) {
+ 		switch r {
+ 		case AADD:
+ 			opset(AADDC, r)
++			opset(AADDW, r)
+ 			opset(AMULLD, r)
+ 			opset(AMULLW, r)
+ 		case ADIVW:
+@@ -797,6 +801,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ADIVD, r)
+ 			opset(ADIVDU, r)
+ 			opset(ADIVWU, r)
++			opset(AMODD, r)
++			opset(AMODDU, r)
++			opset(AMODW, r)
++			opset(AMODWU, r)
+ 		case AMULHD:
+ 			opset(AMULHDU, r)
+ 		case AMOVBZ:
+@@ -844,6 +852,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ABNE, r)
+ 			opset(ABVC, r)
+ 			opset(ABVS, r)
++			opset(ABLEU, r)
++			opset(ABLTU, r)
+ 		case ABR:
+ 			opset(ABL, r)
+ 		case ABC:
+@@ -851,6 +861,7 @@ func buildop(ctxt *obj.Link) {
+ 		case AFABS:
+ 			opset(AFNABS, r)
+ 			opset(AFNEG, r)
++			opset(AFNEGS, r)
+ 			opset(ALEDBR, r)
+ 			opset(ALDEBR, r)
+ 			opset(AFSQRT, r)
+@@ -889,6 +900,9 @@ func buildop(ctxt *obj.Link) {
+ 		case ASUB:
+ 			opset(ASUBC, r)
+ 			opset(ASUBE, r)
++			opset(ASUBW, r)
++		case ANEG:
++			opset(ANEGW, r)
+ 		case AFMOVD:
+ 			opset(AFMOVS, r)
+ 		case AMOVDBR:
+@@ -927,6 +941,12 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ACMPUBLE, r)
+ 			opset(ACMPUBLT, r)
+ 			opset(ACMPUBNE, r)
++		case AMOVDEQ:
++			opset(AMOVDGE, r)
++			opset(AMOVDGT, r)
++			opset(AMOVDLE, r)
++			opset(AMOVDLT, r)
++			opset(AMOVDNE, r)
+ 		case AVL:
+ 			opset(AVLLEZB, r)
+ 			opset(AVLLEZH, r)
+@@ -2510,22 +2530,26 @@ func addcallreloc(ctxt *obj.Link, sym *obj.LSym, add int64) *obj.Reloc {
+ 
+ func branchMask(ctxt *obj.Link, p *obj.Prog) uint32 {
+ 	switch p.As {
+-	case ABEQ, ACMPBEQ, ACMPUBEQ:
++	case ABEQ, ACMPBEQ, ACMPUBEQ, AMOVDEQ:
+ 		return 0x8
+-	case ABGE, ACMPBGE, ACMPUBGE:
++	case ABGE, ACMPBGE, ACMPUBGE, AMOVDGE:
+ 		return 0xA
+-	case ABGT, ACMPBGT, ACMPUBGT:
++	case ABGT, ACMPBGT, ACMPUBGT, AMOVDGT:
+ 		return 0x2
+-	case ABLE, ACMPBLE, ACMPUBLE:
++	case ABLE, ACMPBLE, ACMPUBLE, AMOVDLE:
+ 		return 0xC
+-	case ABLT, ACMPBLT, ACMPUBLT:
++	case ABLT, ACMPBLT, ACMPUBLT, AMOVDLT:
+ 		return 0x4
+-	case ABNE, ACMPBNE, ACMPUBNE:
++	case ABNE, ACMPBNE, ACMPUBNE, AMOVDNE:
+ 		return 0x7
++	case ABLEU: // LE or unordered
++		return 0xD
++	case ABLTU: // LT or unordered
++		return 0x5
+ 	case ABVC:
+-		return 0x0 //needs extra instruction
++		return 0x0 // needs extra instruction
+ 	case ABVS:
+-		return 0x1
++		return 0x1 // unordered
+ 	}
+ 	ctxt.Diag("unknown conditional branch %v", p.As)
+ 	return 0xF
+@@ -2574,9 +2598,9 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		}
+ 
+ 	case 2: // arithmetic op reg [reg] reg
+-		r := int(p.Reg)
++		r := p.Reg
+ 		if r == 0 {
+-			r = int(p.To.Reg)
++			r = p.To.Reg
+ 		}
+ 
+ 		var opcode uint32
+@@ -2590,17 +2614,19 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			opcode = op_ALGRK
+ 		case AADDE:
+ 			opcode = op_ALCGR
++		case AADDW:
++			opcode = op_ARK
+ 		case AMULLW:
+ 			opcode = op_MSGFR
+ 		case AMULLD:
+ 			opcode = op_MSGR
+-		case ADIVW:
++		case ADIVW, AMODW:
+ 			opcode = op_DSGFR
+-		case ADIVWU:
++		case ADIVWU, AMODWU:
+ 			opcode = op_DLR
+-		case ADIVD:
++		case ADIVD, AMODD:
+ 			opcode = op_DSGR
+-		case ADIVDU:
++		case ADIVDU, AMODDU:
+ 			opcode = op_DLGR
+ 		case AFADD:
+ 			opcode = op_ADBR
+@@ -2619,11 +2645,15 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		switch p.As {
+ 		default:
+ 
+-		case AADD, AADDC:
+-			zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.To.Reg), uint32(r), asm)
++		case AADD, AADDC, AADDW:
++			if p.As == AADDW && r == p.To.Reg {
++				zRR(op_AR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++			} else {
++				zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.To.Reg), uint32(r), asm)
++			}
+ 
+ 		case AADDE, AMULLW, AMULLD:
+-			if r == int(p.To.Reg) {
++			if r == p.To.Reg {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			} else if p.From.Reg == p.To.Reg {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(r), asm)
+@@ -2634,14 +2664,22 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 
+ 		case ADIVW, ADIVWU, ADIVD, ADIVDU:
+ 			if p.As == ADIVWU || p.As == ADIVDU {
+-				zRRE(op_LGR, REGTMP, REGZERO, asm)
++				zRI(op_LGHI, REGTMP, 0, asm)
+ 			}
+ 			zRRE(op_LGR, REGTMP2, uint32(r), asm)
+ 			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
+ 			zRRE(op_LGR, uint32(p.To.Reg), REGTMP2, asm)
+ 
++		case AMODW, AMODWU, AMODD, AMODDU:
++			if p.As == AMODWU || p.As == AMODDU {
++				zRI(op_LGHI, REGTMP, 0, asm)
++			}
++			zRRE(op_LGR, REGTMP2, uint32(r), asm)
++			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
++			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
++
+ 		case AFADD, AFADDS:
+-			if r == int(p.To.Reg) {
++			if r == p.To.Reg {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			} else if p.From.Reg == p.To.Reg {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(r), asm)
+@@ -2651,7 +2689,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			}
+ 
+ 		case AFSUB, AFSUBS, AFDIV, AFDIVS:
+-			if r == int(p.To.Reg) {
++			if r == p.To.Reg {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			} else if p.From.Reg == p.To.Reg {
+ 				zRRE(op_LGDR, REGTMP, uint32(r), asm)
+@@ -2681,16 +2719,14 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		case AMOVW:
+ 			v = int64(int32(v))
+ 		}
+-		if v&0xffff == v {
+-			zRI(op_LLILL, uint32(p.To.Reg), uint32(v), asm)
++		if int64(int16(v)) == v {
++			zRI(op_LGHI, uint32(p.To.Reg), uint32(v), asm)
+ 		} else if v&0xffff0000 == v {
+ 			zRI(op_LLILH, uint32(p.To.Reg), uint32(v>>16), asm)
+ 		} else if v&0xffff00000000 == v {
+ 			zRI(op_LLIHL, uint32(p.To.Reg), uint32(v>>32), asm)
+ 		} else if uint64(v)&0xffff000000000000 == uint64(v) {
+ 			zRI(op_LLIHH, uint32(p.To.Reg), uint32(v>>48), asm)
+-		} else if int64(int16(v)) == v {
+-			zRI(op_LGHI, uint32(p.To.Reg), uint32(v), asm)
+ 		} else if int64(int32(v)) == v {
+ 			zRIL(_a, op_LGFI, uint32(p.To.Reg), uint32(v), asm)
+ 		} else if int64(uint32(v)) == v {
+@@ -2845,7 +2881,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			} else {
+ 				zRRF(op_SLGRK, uint32(p.From.Reg), 0, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+-
+ 		case ASUBE:
+ 			if r == 0 {
+ 				r = int(p.To.Reg)
+@@ -2860,6 +2895,12 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+ 				zRRE(op_SLBGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			}
++		case ASUBW:
++			if r == 0 {
++				zRR(op_SR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++			} else {
++				zRRF(op_SRK, uint32(p.From.Reg), 0, uint32(p.To.Reg), uint32(r), asm)
++			}
+ 		}
+ 
+ 	case 11: // br/bl
+@@ -2905,6 +2946,10 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			addrilreloc(ctxt, p.To.Sym, p.To.Offset)
+ 		}
+ 
++	case 17: // move on condition
++		m3 := branchMask(ctxt, p)
++		zRRF(op_LOCGR, m3, 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++
+ 	case 18: // br/bl reg
+ 		if p.As == ABL {
+ 			zRR(op_BASR, uint32(REG_LR), uint32(p.To.Reg), asm)
+@@ -2946,6 +2991,29 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+ 			zRIL(_a, op_ALGFI, uint32(p.To.Reg), uint32(v), asm)
++		case AADDW:
++			i2 := int32(v)
++			if r == p.To.Reg {
++				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
++			} else if int32(int16(i2)) == i2 {
++				zRIE(_d, op_AHIK, uint32(p.To.Reg), uint32(r), uint32(i2), 0, 0, 0, 0, asm)
++			} else {
++				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
++				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
++			}
++		case ASUB:
++			zRIL(_a, op_LGFI, uint32(REGTMP), uint32(v), asm)
++			zRRF(op_SLGRK, uint32(REGTMP), 0, uint32(p.To.Reg), uint32(r), asm)
++		case ASUBC:
++			if r != p.To.Reg {
++				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
++			}
++			zRIL(_a, op_SLGFI, uint32(p.To.Reg), uint32(v), asm)
++		case ASUBW:
++			if r != p.To.Reg {
++				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
++			}
++			zRIL(_a, op_SLFI, uint32(p.To.Reg), uint32(v), asm)
+ 		case AMULLW, AMULLD:
+ 			if r != p.To.Reg {
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+@@ -3009,19 +3077,20 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRRF(opcode, uint32(r), 0, uint32(p.To.Reg), REGTMP, asm)
+ 		}
+ 
+-	case 26: // mov $addr/sym reg
++	case 26: // MOVD $offset(base)(index), reg
+ 		v := regoff(ctxt, &p.From)
+ 		r := p.From.Reg
+ 		if r == 0 {
+ 			r = o.param
+ 		}
++		i := p.From.Index
+ 		if v >= 0 && v < DISP12 {
+-			zRX(op_LA, uint32(p.To.Reg), uint32(r), 0, uint32(v), asm)
++			zRX(op_LA, uint32(p.To.Reg), uint32(r), uint32(i), uint32(v), asm)
+ 		} else if v >= -DISP20/2 && v < DISP20/2 {
+-			zRXY(op_LAY, uint32(p.To.Reg), uint32(r), 0, uint32(v), asm)
++			zRXY(op_LAY, uint32(p.To.Reg), uint32(r), uint32(i), uint32(v), asm)
+ 		} else {
+ 			zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
+-			zRX(op_LA, uint32(p.To.Reg), uint32(r), REGTMP, 0, asm)
++			zRX(op_LA, uint32(p.To.Reg), uint32(r), REGTMP, uint32(i), asm)
+ 		}
+ 
+ 	case 31: // dword
+@@ -3076,6 +3145,8 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			opcode = op_LNDBR
+ 		case AFNEG:
+ 			opcode = op_LCDFR
++		case AFNEGS:
++			opcode = op_LCEBR
+ 		case ALEDBR:
+ 			opcode = op_LEDBR
+ 		case ALDEBR:
+@@ -3161,51 +3232,49 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		}
+ 
+ 	case 47: // arithmetic op (carry) reg [reg] reg
++		r := p.From.Reg
+ 		switch p.As {
+ 		default:
+-
+ 		case AADDME:
+-			r := int(p.From.Reg)
+ 			if p.To.Reg == p.From.Reg {
+ 				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+ 				r = REGTMP
+ 			}
+ 			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
+ 			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
+-
+ 		case AADDZE:
+-			r := int(p.From.Reg)
+ 			if p.To.Reg == p.From.Reg {
+ 				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+ 				r = REGTMP
+ 			}
+-			zRRE(op_LGR, uint32(p.To.Reg), REGZERO, asm) // p.To.Reg <- 0
++			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
+ 			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
+-
+ 		case ASUBME:
+-			r := int(p.From.Reg)
+ 			if p.To.Reg == p.From.Reg {
+ 				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+ 				r = REGTMP
+ 			}
+ 			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
+ 			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
+-
+ 		case ASUBZE:
+-			r := int(p.From.Reg)
+ 			if p.To.Reg == p.From.Reg {
+ 				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+ 				r = REGTMP
+ 			}
+-			zRRE(op_LGR, uint32(p.To.Reg), REGZERO, asm) // p.To.Reg <- 0
++			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
+ 			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
+-
+ 		case ANEG:
+-			r := int(p.From.Reg)
++			r := p.From.Reg
+ 			if r == 0 {
+-				r = int(p.To.Reg)
++				r = p.To.Reg
+ 			}
+ 			zRRE(op_LCGR, uint32(p.To.Reg), uint32(r), asm)
++		case ANEGW:
++			r := p.From.Reg
++			if r == 0 {
++				r = p.To.Reg
++			}
++			zRRE(op_LCGFR, uint32(p.To.Reg), uint32(r), asm)
+ 		}
+ 
+ 	case 48: // floating-point round to integer
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index de1efcdedb..1e8ff97ba8 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -109,13 +109,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// Rewrite SUB constants into ADD.
+ 	switch p.As {
+ 	case ASUBC:
+-		if p.From.Type == obj.TYPE_CONST {
++		if p.From.Type == obj.TYPE_CONST && isint32(-p.From.Offset) {
+ 			p.From.Offset = -p.From.Offset
+ 			p.As = AADDC
+ 		}
+ 
+ 	case ASUB:
+-		if p.From.Type == obj.TYPE_CONST {
++		if p.From.Type == obj.TYPE_CONST && isint32(-p.From.Offset) {
+ 			p.From.Offset = -p.From.Offset
+ 			p.As = AADD
+ 		}
+@@ -258,14 +258,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				p.Link.Mark |= LABEL
+ 			}
+ 
+-		case ANOR:
+-			q = p
+-			if p.To.Type == obj.TYPE_REG {
+-				if p.To.Reg == REGZERO {
+-					p.Mark |= LABEL | SYNC
+-				}
+-			}
+-
+ 		case ASYNC,
+ 			AWORD:
+ 			q = p
+@@ -312,6 +304,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			ABGT,
+ 			ABLE,
+ 			ABLT,
++			ABLEU,
++			ABLTU,
+ 			ABNE,
+ 			ABR,
+ 			ABVC,
+@@ -401,7 +395,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q = p
+ 
+-			if p.From3.Offset&obj.NOSPLIT == 0 {
++			if p.From3.Offset&obj.NOSPLIT == 0 && p.From3.Offset&obj.NOFRAME == 0 {
+ 				p, pPreempt = stacksplitPre(ctxt, p, autosize) // emit pre part of split check
+ 				pPre = p
+ 				wasSplit = true //need post part of split
+@@ -440,7 +434,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOVD g_panic(g), R3
+-				//	CMP R0, R3
++				//	CMP R3, $0
+ 				//	BEQ end
+ 				//	MOVD panic_argp(R3), R4
+ 				//	ADD $(autosize+8), R1, R5
+@@ -466,9 +460,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = ACMP
+ 				q.From.Type = obj.TYPE_REG
+-				q.From.Reg = REG_R0
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R3
++				q.From.Reg = REG_R3
++				q.To.Type = obj.TYPE_CONST
++				q.To.Offset = 0
+ 
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = ABEQ
+@@ -993,6 +987,7 @@ var unaryDst = map[obj.As]bool{
+ 	ASTCKE: true,
+ 	ASTCKF: true,
+ 	ANEG:   true,
++	ANEGW:  true,
+ 	AVONE:  true,
+ 	AVZERO: true,
+ }

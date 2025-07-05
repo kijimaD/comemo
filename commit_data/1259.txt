@@ -8,7 +8,38 @@ Date:   Mon Dec 1 17:27:57 2008 -0800
     DELTA=9  (9 added, 0 deleted, 0 changed)
     OCL=20187
     CL=20187
-
+---
  test/bugs/bug126.go | 10 ++++++++++
  test/golden.out     |  3 +++
  2 files changed, 13 insertions(+)
+
+diff --git a/test/bugs/bug126.go b/test/bugs/bug126.go
+new file mode 100644
+index 0000000000..2481e1dd3f
+--- /dev/null
++++ b/test/bugs/bug126.go
+@@ -0,0 +1,10 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const none = 0  // same const identifier declared twice should not be accepted
++const none = 1  // ERROR "redeclared"
+diff --git a/test/golden.out b/test/golden.out
+index 957aa86e7f..fe10981df5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -173,6 +173,9 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 
++=========== bugs/bug126.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

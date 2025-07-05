@@ -29,7 +29,66 @@ Date:   Fri Nov 11 20:49:41 2016 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go      |  5 +++++
  src/go/build/build_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 27bd802317..5ced41ce45 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -155,6 +155,7 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
+ 	return hasSubdir(rootSym, dirSym)
+ }
+ 
++// hasSubdir reports if dir is within root by performing lexical analysis only.
+ func hasSubdir(root, dir string) (rel string, ok bool) {
+ 	const sep = string(filepath.Separator)
+ 	root = filepath.Clean(root)
+@@ -528,6 +529,10 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		if !ctxt.isAbsPath(path) {
+ 			p.Dir = ctxt.joinPath(srcDir, path)
+ 		}
++		if !ctxt.isDir(p.Dir) {
++			// package was not found
++			return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
++		}
+ 		// Determine canonical import path, if any.
+ 		// Exclude results where the import path would include /testdata/.
+ 		inTestdata := func(sub string) bool {
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index a9972416ef..9b50efe253 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -300,6 +300,30 @@ func TestShellSafety(t *testing.T) {
+ 	}
+ }
+ 
++// Want to get a "cannot find package" error when directory for package does not exist.
++func TestImportDirNotExist(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // really must just have source
++	ctxt := Default
++	ctxt.GOPATH = ""
++
++	tests := []struct {
++		label        string
++		path, srcDir string
++		mode         ImportMode
++	}{
++		{"Import(full, 0)", "go/build/doesnotexist", "", 0},
++		{"Import(local, 0)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), 0},
++		{"Import(full, FindOnly)", "go/build/doesnotexist", "", FindOnly},
++		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
++	}
++	for _, test := range tests {
++		_, err := ctxt.Import(test.path, test.srcDir, test.mode)
++		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
++			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
++		}
++	}
++}
++
+ func TestImportVendor(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default

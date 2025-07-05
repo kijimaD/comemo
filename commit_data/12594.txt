@@ -7,6 +7,20 @@ Date:   Tue Mar 13 12:57:48 2012 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/5777071
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index cf6d0ff86d..b2d0b60e16 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -5,7 +5,7 @@
+ <div class="left">
+ 
+ <div id="learn">
+-<img class="icon share" src="/doc/share.png">
++<img class="icon share" src="/doc/share.png" alt="View full screen" title="View full screen">
+ <div class="rootHeading">Try Go</div>
+ <div class="input">
+ <textarea spellcheck="false" class="code">// You can edit this code!

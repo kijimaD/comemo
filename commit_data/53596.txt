@@ -57,8 +57,167 @@ Date:   Thu Aug 26 12:02:47 2021 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/strconv/atoc.go         |  2 +-
  src/strconv/atoi.go         | 30 +++++++++++++++++-----
  src/strconv/strconv_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 86 insertions(+), 8 deletions(-)
+
+diff --git a/src/strconv/atoc.go b/src/strconv/atoc.go
+index 85c7bafefa..f6fdd14e64 100644
+--- a/src/strconv/atoc.go
++++ b/src/strconv/atoc.go
+@@ -11,7 +11,7 @@ const fnParseComplex = "ParseComplex"
+ func convErr(err error, s string) (syntax, range_ error) {
+ 	if x, ok := err.(*NumError); ok {
+ 		x.Func = fnParseComplex
+-		x.Num = s
++		x.Num = cloneString(s)
+ 		if x.Err == ErrRange {
+ 			return nil, x
+ 		}
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index be08f93356..520d826323 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -33,20 +33,36 @@ func (e *NumError) Error() string {
+ 
+ func (e *NumError) Unwrap() error { return e.Err }
+ 
++// cloneString returns a string copy of x.
++//
++// All ParseXXX functions allow the input string to escape to the error value.
++// This hurts strconv.ParseXXX(string(b)) calls where b is []byte since
++// the conversion from []byte must allocate a string on the heap.
++// If we assume errors are infrequent, then we can avoid escaping the input
++// back to the output by copying it first. This allows the compiler to call
++// strconv.ParseXXX without a heap allocation for most []byte to string
++// conversions, since it can now prove that the string cannot escape Parse.
++//
++// TODO: Use strings.Clone instead? However, we cannot depend on "strings"
++// since it incurs a transitive dependency on "unicode".
++// Either move strings.Clone to an internal/bytealg or make the
++// "strings" to "unicode" dependency lighter (see https://go.dev/issue/54098).
++func cloneString(x string) string { return string([]byte(x)) }
++
+ func syntaxError(fn, str string) *NumError {
+-	return &NumError{fn, str, ErrSyntax}
++	return &NumError{fn, cloneString(str), ErrSyntax}
+ }
+ 
+ func rangeError(fn, str string) *NumError {
+-	return &NumError{fn, str, ErrRange}
++	return &NumError{fn, cloneString(str), ErrRange}
+ }
+ 
+ func baseError(fn, str string, base int) *NumError {
+-	return &NumError{fn, str, errors.New("invalid base " + Itoa(base))}
++	return &NumError{fn, cloneString(str), errors.New("invalid base " + Itoa(base))}
+ }
+ 
+ func bitSizeError(fn, str string, bitSize int) *NumError {
+-	return &NumError{fn, str, errors.New("invalid bit size " + Itoa(bitSize))}
++	return &NumError{fn, cloneString(str), errors.New("invalid bit size " + Itoa(bitSize))}
+ }
+ 
+ const intSize = 32 << (^uint(0) >> 63)
+@@ -205,7 +221,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	un, err = ParseUint(s, base, bitSize)
+ 	if err != nil && err.(*NumError).Err != ErrRange {
+ 		err.(*NumError).Func = fnParseInt
+-		err.(*NumError).Num = s0
++		err.(*NumError).Num = cloneString(s0)
+ 		return 0, err
+ 	}
+ 
+@@ -239,7 +255,7 @@ func Atoi(s string) (int, error) {
+ 		if s[0] == '-' || s[0] == '+' {
+ 			s = s[1:]
+ 			if len(s) < 1 {
+-				return 0, &NumError{fnAtoi, s0, ErrSyntax}
++				return 0, syntaxError(fnAtoi, s0)
+ 			}
+ 		}
+ 
+@@ -247,7 +263,7 @@ func Atoi(s string) (int, error) {
+ 		for _, ch := range []byte(s) {
+ 			ch -= '0'
+ 			if ch > 9 {
+-				return 0, &NumError{fnAtoi, s0, ErrSyntax}
++				return 0, syntaxError(fnAtoi, s0)
+ 			}
+ 			n = n*10 + int(ch)
+ 		}
+diff --git a/src/strconv/strconv_test.go b/src/strconv/strconv_test.go
+index d3c1e953de..41b8fa7e33 100644
+--- a/src/strconv/strconv_test.go
++++ b/src/strconv/strconv_test.go
+@@ -66,6 +66,68 @@ func TestCountMallocs(t *testing.T) {
+ 	}
+ }
+ 
++// Sink makes sure the compiler cannot optimize away the benchmarks.
++var Sink struct {
++	Bool       bool
++	Int        int
++	Int64      int64
++	Uint64     uint64
++	Float64    float64
++	Complex128 complex128
++	Error      error
++	Bytes      []byte
++}
++
++func TestAllocationsFromBytes(t *testing.T) {
++	const runsPerTest = 100
++	bytes := struct{ Bool, Number, String, Buffer []byte }{
++		Bool:   []byte("false"),
++		Number: []byte("123456789"),
++		String: []byte("hello, world!"),
++		Buffer: make([]byte, 1024),
++	}
++
++	checkNoAllocs := func(f func()) func(t *testing.T) {
++		return func(t *testing.T) {
++			t.Helper()
++			if allocs := testing.AllocsPerRun(runsPerTest, f); allocs != 0 {
++				t.Errorf("got %v allocs, want 0 allocs", allocs)
++			}
++		}
++	}
++
++	t.Run("Atoi", checkNoAllocs(func() {
++		Sink.Int, Sink.Error = Atoi(string(bytes.Number))
++	}))
++	t.Run("ParseBool", checkNoAllocs(func() {
++		Sink.Bool, Sink.Error = ParseBool(string(bytes.Bool))
++	}))
++	t.Run("ParseInt", checkNoAllocs(func() {
++		Sink.Int64, Sink.Error = ParseInt(string(bytes.Number), 10, 64)
++	}))
++	t.Run("ParseUint", checkNoAllocs(func() {
++		Sink.Uint64, Sink.Error = ParseUint(string(bytes.Number), 10, 64)
++	}))
++	t.Run("ParseFloat", checkNoAllocs(func() {
++		Sink.Float64, Sink.Error = ParseFloat(string(bytes.Number), 64)
++	}))
++	t.Run("ParseComplex", checkNoAllocs(func() {
++		Sink.Complex128, Sink.Error = ParseComplex(string(bytes.Number), 128)
++	}))
++	t.Run("CanBackquote", checkNoAllocs(func() {
++		Sink.Bool = CanBackquote(string(bytes.String))
++	}))
++	t.Run("AppendQuote", checkNoAllocs(func() {
++		Sink.Bytes = AppendQuote(bytes.Buffer[:0], string(bytes.String))
++	}))
++	t.Run("AppendQuoteToASCII", checkNoAllocs(func() {
++		Sink.Bytes = AppendQuoteToASCII(bytes.Buffer[:0], string(bytes.String))
++	}))
++	t.Run("AppendQuoteToGraphic", checkNoAllocs(func() {
++		Sink.Bytes = AppendQuoteToGraphic(bytes.Buffer[:0], string(bytes.String))
++	}))
++}
++
+ func TestErrorPrefixes(t *testing.T) {
+ 	_, errInt := Atoi("INVALID")
+ 	_, errBool := ParseBool("INVALID")

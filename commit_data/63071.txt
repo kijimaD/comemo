@@ -40,7 +40,60 @@ Date:   Wed Apr 9 17:43:14 2025 -0400
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/modload/init.go     | 17 -----------------
  src/cmd/go/testdata/script/mod_find.txt |  6 ------
  2 files changed, 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 20daf61350..3cf447e648 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -7,7 +7,6 @@ package modload
+ import (
+ 	"bytes"
+ 	"context"
+-	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"internal/godebugs"
+@@ -1747,22 +1746,6 @@ func findModulePath(dir string) (string, error) {
+ 		}
+ 	}
+ 
+-	// Look for Godeps.json declaring import path.
+-	data, _ := os.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
+-	var cfg1 struct{ ImportPath string }
+-	json.Unmarshal(data, &cfg1)
+-	if cfg1.ImportPath != "" {
+-		return cfg1.ImportPath, nil
+-	}
+-
+-	// Look for vendor.json declaring import path.
+-	data, _ = os.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
+-	var cfg2 struct{ RootPath string }
+-	json.Unmarshal(data, &cfg2)
+-	if cfg2.RootPath != "" {
+-		return cfg2.RootPath, nil
+-	}
+-
+ 	// Look for path in GOPATH.
+ 	var badPathErr error
+ 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 9c2037b6e0..748713cdf3 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -24,12 +24,6 @@ cp $devnull go.mod # can't use touch to create it because Windows
+ ! go mod init
+ stderr 'go.mod already exists'
+ 
+-# Module path from Godeps/Godeps.json overrides GOPATH.
+-cd $GOPATH/src/example.com/x/y/z
+-go mod init
+-stderr 'unexpected.com/z'
+-rm go.mod
+-
+ # Empty directory outside GOPATH fails.
+ mkdir $WORK/empty
+ cd $WORK/empty

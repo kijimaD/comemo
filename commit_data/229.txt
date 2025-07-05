@@ -7,8 +7,74 @@ Date:   Wed Jun 25 20:22:10 2008 -0700
     the included import files.
     
     SVN=124759
-
+---
  src/cmd/6g/gen.c  |  1 -
  src/cmd/gc/lex.c  |  4 +++-
  src/cmd/gc/subr.c | 16 +++++++++++++---
  3 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 4faca96c58..9ec6fe0e14 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -28,7 +28,6 @@ compile(Node *fn)
+ 		return;
+ 	lno = dynlineno;
+ 
+-
+ 	curfn = fn;
+ 	dynlineno = curfn->lineno;	// for diagnostics
+ 	dowidth(curfn->type);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index ca7d3a09ef..74dbb1deb7 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -118,7 +118,8 @@ importfile(Val *f)
+ 		yyerror("import statement not a string");
+ 		return;
+ 	}
+-	// BOTCH need to get .8 from backend
++
++	// BOTCH need to get .6 from backend
+ 	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
+ 	file = strdup(namebuf);
+ 	linehist(file, 0);
+@@ -126,6 +127,7 @@ importfile(Val *f)
+ 	imp = Bopen(file, OREAD);
+ 	if(imp == nil)
+ 		fatal("cant open import: %s", namebuf);
++	linehist(file, -1);	// acts as #pragma lib
+ 
+ 	/*
+ 	 * position the input right
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5c8224bdc4..aed40b5956 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -64,13 +64,23 @@ void
+ linehist(char *file, long off)
+ {
+ 	Hist *h;
++	char *cp;
+ 
+ 	if(debug['i'])
+-	if(file != nil)
+-		print("%L: import %s\n", file);
+-	else
++	if(file != nil) {
++		if(off < 0)
++			print("%L: pragma %s\n", file);
++		else
++			print("%L: import %s\n", file);
++	} else
+ 		print("%L: <eof>\n");
+ 
++	if(off < 0 && file[0] != '/') {
++		cp = mal(strlen(file) + strlen(pathname) + 2);
++		sprint(cp, "%s/%s", pathname, file);
++		file = cp;
++	}
++
+ 	h = alloc(sizeof(Hist));
+ 	h->name = file;
+ 	h->line = lineno;

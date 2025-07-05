@@ -16,10 +16,95 @@ Date:   Mon Jul 31 15:24:18 2023 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/content.go   | 4 ++--
  src/html/template/exec_test.go | 4 ++--
  src/html/template/js.go        | 2 +-
  src/text/template/exec.go      | 8 ++++----
  src/text/template/exec_test.go | 4 ++--
  5 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/html/template/content.go b/src/html/template/content.go
+index 49d2f261af..6a9eb4e3cb 100644
+--- a/src/html/template/content.go
++++ b/src/html/template/content.go
+@@ -128,8 +128,8 @@ func indirect(a any) any {
+ }
+ 
+ var (
+-	errorType       = reflect.TypeOf((*error)(nil)).Elem()
+-	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
++	errorType       = reflect.TypeFor[error]()
++	fmtStringerType = reflect.TypeFor[fmt.Stringer]()
+ )
+ 
+ // indirectToStringerOrError returns the value, after dereferencing as many times
+diff --git a/src/html/template/exec_test.go b/src/html/template/exec_test.go
+index 51923ff9c7..05302156e0 100644
+--- a/src/html/template/exec_test.go
++++ b/src/html/template/exec_test.go
+@@ -268,8 +268,8 @@ type execTest struct {
+ // of the max int boundary.
+ // We do it this way so the test doesn't depend on ints being 32 bits.
+ var (
+-	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
+-	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
++	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeFor[int]().Bits()-1)-1))
++	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeFor[int]().Bits()-1)))
+ )
+ 
+ var execTests = []execTest{
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 4e05c14557..717de4300c 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -124,7 +124,7 @@ var regexpPrecederKeywords = map[string]bool{
+ 	"void":       true,
+ }
+ 
+-var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
++var jsonMarshalType = reflect.TypeFor[json.Marshaler]()
+ 
+ // indirectToJSONMarshaler returns the value, after dereferencing as many times
+ // as necessary to reach the base type (or nil) or an implementation of json.Marshal.
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index fd7db657d3..2b778fff69 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -94,7 +94,7 @@ type missingValType struct{}
+ 
+ var missingVal = reflect.ValueOf(missingValType{})
+ 
+-var missingValReflectType = reflect.TypeOf(missingValType{})
++var missingValReflectType = reflect.TypeFor[missingValType]()
+ 
+ func isMissing(v reflect.Value) bool {
+ 	return v.IsValid() && v.Type() == missingValReflectType
+@@ -708,9 +708,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ }
+ 
+ var (
+-	errorType        = reflect.TypeOf((*error)(nil)).Elem()
+-	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+-	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
++	errorType        = reflect.TypeFor[error]()
++	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
++	reflectValueType = reflect.TypeFor[reflect.Value]()
+ )
+ 
+ // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 6eb0d41a51..e607fd3bee 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -265,8 +265,8 @@ type execTest struct {
+ // of the max int boundary.
+ // We do it this way so the test doesn't depend on ints being 32 bits.
+ var (
+-	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
+-	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
++	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeFor[int]().Bits()-1)-1))
++	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeFor[int]().Bits()-1)))
+ )
+ 
+ var execTests = []execTest{

@@ -7,6 +7,19 @@ Date:   Thu May 5 14:56:58 2016 -0700
     Change-Id: Ie163deade396b3e298a93845b9ca4d52333ea82a
     Reviewed-on: https://go-review.googlesource.com/22831
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/token/position.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 33751779a3..7306083b0d 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -164,6 +164,7 @@ func (f *File) MergeLine(line int) {
+ // Each line offset must be larger than the offset for the previous line
+ // and smaller than the file size; otherwise SetLines fails and returns
+ // false.
++// Callers must not mutate the provided slice after SetLines returns.
+ //
+ func (f *File) SetLines(lines []int) bool {
+ 	// verify validity of lines table

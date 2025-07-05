@@ -9,9 +9,190 @@ Date:   Tue Aug 3 14:34:44 2010 -0700
     R=ukai, rsc
     CC=golang-dev
     https://golang.org/cl/1743053
-
+---
  src/pkg/websocket/client.go         | 30 +-----------------------------
  src/pkg/websocket/server.go         | 21 ++-------------------
  src/pkg/websocket/websocket.go      | 27 ++++++++++++++++++++++++++-
  src/pkg/websocket/websocket_test.go | 19 +++++++++++++++++++
  4 files changed, 48 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 221b47cadf..a82a8804d3 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -5,11 +5,9 @@
+ package websocket
+ 
+ import (
+-	"encoding/binary"
+ 	"bufio"
+ 	"bytes"
+ 	"container/vector"
+-	"crypto/md5"
+ 	"fmt"
+ 	"http"
+ 	"io"
+@@ -157,32 +155,6 @@ func generateKey3() (key []byte) {
+ 	return
+ }
+ 
+-/*
+-Gets expected from challenge as described in 4.1 Opening handshake
+-step 42 to 43.
+-cf. http://www.whatwg.org/specs/web-socket-protocol/
+-*/
+-func getExpectedForChallenge(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
+-	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
+-	// a big-endian 32 bit integer, /number_2/, expressed in a big-
+-	// endian 32 bit integer, and the eight bytes of /key_3/ in the
+-	// order they were sent to the wire.
+-	challenge := make([]byte, 16)
+-	challengeBuf := bytes.NewBuffer(challenge)
+-	binary.Write(challengeBuf, binary.BigEndian, number1)
+-	binary.Write(challengeBuf, binary.BigEndian, number2)
+-	copy(challenge[8:], key3)
+-
+-	// 42. Let /expected/ be the MD5 fingerprint of /challenge/ as a big-
+-	// endian 128 bit string.
+-	h := md5.New()
+-	if _, err = h.Write(challenge); err != nil {
+-		return
+-	}
+-	expected = h.Sum()
+-	return
+-}
+-
+ /*
+ Web Socket protocol handshake based on
+ http://www.whatwg.org/specs/web-socket-protocol/
+@@ -258,7 +230,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 	}
+ 
+ 	// Step 42-43. get expected data from challange data.
+-	expected, err := getExpectedForChallenge(number1, number2, key3)
++	expected, err := getChallengeResponse(number1, number2, key3)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 8b255c9290..b58ad122b7 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -5,9 +5,6 @@
+ package websocket
+ 
+ import (
+-	"bytes"
+-	"crypto/md5"
+-	"encoding/binary"
+ 	"http"
+ 	"io"
+ 	"strings"
+@@ -123,25 +120,11 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	part2 := keyNumber2 / space2
+ 
+ 	// Step 8. let challenge to be concatination of part1, part2 and key3.
+-	challenge := make([]byte, 16)
+-	challengeBuf := bytes.NewBuffer(challenge)
+-	err = binary.Write(challengeBuf, binary.BigEndian, part1)
+-	if err != nil {
+-		return
+-	}
+-	err = binary.Write(challengeBuf, binary.BigEndian, part2)
+-	if err != nil {
+-		return
+-	}
+-	if n := copy(challenge[8:], key3); n != 8 {
+-		return
+-	}
+ 	// Step 9. get MD5 fingerprint of challenge.
+-	h := md5.New()
+-	if _, err = h.Write(challenge); err != nil {
++	response, err := getChallengeResponse(part1, part2, key3)
++	if err != nil {
+ 		return
+ 	}
+-	response := h.Sum()
+ 
+ 	// Step 10. send response status line.
+ 	buf.WriteString("HTTP/1.1 101 WebSocket Protocol Handshake\r\n")
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index bcb42f508a..99e1d14485 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -11,6 +11,8 @@ package websocket
+ 
+ import (
+ 	"bufio"
++	"crypto/md5"
++	"encoding/binary"
+ 	"io"
+ 	"net"
+ 	"os"
+@@ -136,7 +138,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
+ 	return os.EINVAL
+ }
+ 
+-// SeWritetTimeout sets the connection's network write timeout in nanoseconds.
++// SetWritetTimeout sets the connection's network write timeout in nanoseconds.
+ func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetWriteTimeout(nsec)
+@@ -144,4 +146,27 @@ func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
+ 	return os.EINVAL
+ }
+ 
++// getChallengeResponse computes the expected response from the
++// challenge as described in section 5.1 Opening Handshake steps 42 to
++// 43 of http://www.whatwg.org/specs/web-socket-protocol/
++func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
++	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
++	// a big-endian 32 bit integer, /number_2/, expressed in a big-
++	// endian 32 bit integer, and the eight bytes of /key_3/ in the
++	// order they were sent to the wire.
++	challenge := make([]byte, 16)
++	binary.BigEndian.PutUint32(challenge[0:], number1)
++	binary.BigEndian.PutUint32(challenge[4:], number2)
++	copy(challenge[8:], key3)
++
++	// 42. Let /expected/ be the MD5 fingerprint of /challenge/ as a big-
++	// endian 128 bit string.
++	h := md5.New()
++	if _, err = h.Write(challenge); err != nil {
++		return
++	}
++	expected = h.Sum()
++	return
++}
++
+ var _ net.Conn = (*Conn)(nil) // compile-time check that *Conn implements net.Conn.
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 5f91b73e8d..1932aca113 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -31,6 +31,25 @@ func startServer() {
+ 	go http.Serve(l, nil)
+ }
+ 
++// Test the getChallengeResponse function with values from section
++// 5.1 of the specification steps 18, 26, and 43 from
++// http://www.whatwg.org/specs/web-socket-protocol/
++func TestChallenge(t *testing.T) {
++	var part1 uint32 = 777007543
++	var part2 uint32 = 114997259
++	key3 := []byte{0x47, 0x30, 0x22, 0x2D, 0x5A, 0x3F, 0x47, 0x58}
++	expected := []byte("0st3Rl&q-2ZU^weu")
++
++	response, err := getChallengeResponse(part1, part2, key3)
++	if err != nil {
++		t.Errorf("getChallengeResponse: returned error %v", err)
++		return
++	}
++	if !bytes.Equal(expected, response) {
++		t.Errorf("getChallengeResponse: expected %q got %q", expected, response)
++	}
++}
++
+ func TestEcho(t *testing.T) {
+ 	once.Do(startServer)
+ 

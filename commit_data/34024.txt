@@ -24,6 +24,23 @@ Date:   Mon Sep 25 17:21:39 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/transport.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 9182e9454b..5f2ace7b4b 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -618,6 +618,11 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
+ 			if port := cm.proxyURL.Port(); !validPort(port) {
+ 				return cm, fmt.Errorf("invalid proxy URL port %q", port)
+ 			}
++			switch cm.proxyURL.Scheme {
++			case "http", "socks5":
++			default:
++				return cm, fmt.Errorf("invalid proxy URL scheme %q", cm.proxyURL.Scheme)
++			}
+ 		}
+ 	}
+ 	return cm, err

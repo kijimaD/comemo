@@ -17,7 +17,7 @@ Date:   Thu Jul 28 13:50:59 2022 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/script/conds.go                | 50 +++++++++---
  src/cmd/go/scriptconds_test.go                     |  2 -
  src/cmd/go/testdata/script/README                  | 92 ++--------------------
@@ -109,3 +109,1693 @@ Date:   Thu Jul 28 13:50:59 2022 -0400
  .../go/testdata/script/version_buildvcs_fossil.txt |  6 +-
  src/cmd/go/testdata/script/vet_asm.txt             |  2 +-
  90 files changed, 254 insertions(+), 310 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/conds.go b/src/cmd/go/internal/script/conds.go
+index 5d0deb5377..d70f274efc 100644
+--- a/src/cmd/go/internal/script/conds.go
++++ b/src/cmd/go/internal/script/conds.go
+@@ -6,6 +6,7 @@ package script
+ 
+ import (
+ 	"cmd/go/internal/imports"
++	"fmt"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -18,18 +19,43 @@ import (
+ func DefaultConds() map[string]Cond {
+ 	conds := make(map[string]Cond)
+ 
+-	// TODO(bcmills): switch these conditions to use suffixes, like '[GOOS:windows]'
+-	// instead of just '[windows]'.
+-
+-	for os := range imports.KnownOS {
+-		conds[os] = BoolCondition("host GOOS="+os, false)
+-	}
+-	conds[runtime.GOOS] = BoolCondition("host GOOS="+runtime.GOOS, true)
+-
+-	for arch := range imports.KnownArch {
+-		conds[arch] = BoolCondition("host GOARCH="+arch, false)
+-	}
+-	conds[runtime.GOARCH] = BoolCondition("host GOARCH="+runtime.GOARCH, true)
++	conds["GOOS"] = PrefixCondition(
++		"runtime.GOOS == <suffix>",
++		func(_ *State, suffix string) (bool, error) {
++			if suffix == runtime.GOOS {
++				return true, nil
++			}
++			if _, ok := imports.KnownOS[suffix]; !ok {
++				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
++			}
++			return false, nil
++		})
++
++	conds["GOARCH"] = PrefixCondition(
++		"runtime.GOARCH == <suffix>",
++		func(_ *State, suffix string) (bool, error) {
++			if suffix == runtime.GOARCH {
++				return true, nil
++			}
++			if _, ok := imports.KnownArch[suffix]; !ok {
++				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
++			}
++			return false, nil
++		})
++
++	conds["compiler"] = PrefixCondition(
++		"runtime.Compiler == <suffix>",
++		func(_ *State, suffix string) (bool, error) {
++			if suffix == runtime.Compiler {
++				return true, nil
++			}
++			switch suffix {
++			case "gc", "gccgo":
++				return false, nil
++			default:
++				return false, fmt.Errorf("unrecognized compiler %q", suffix)
++			}
++		})
+ 
+ 	conds["root"] = BoolCondition("os.Geteuid() == 0", os.Geteuid() == 0)
+ 
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 6e92cd104b..676de3b353 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -41,8 +41,6 @@ func scriptConditions() map[string]script.Cond {
+ 	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
+ 	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported))
+ 	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented))
+-	add("gc", script.BoolCondition(`runtime.Compiler == "gc"`, runtime.Compiler == "gc"))
+-	add("gccgo", script.BoolCondition(`runtime.Compiler == "gccgo"`, runtime.Compiler == "gccgo"))
+ 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
+ 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
+ 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 8724d052e3..b3902eded5 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -362,28 +362,14 @@ wait
+ 
+ 
+ The available conditions are:
+-[386]
+-	host GOARCH=386
++[GOARCH:*]
++	runtime.GOARCH == <suffix>
+ [GODEBUG:*]
+ 	GODEBUG contains <suffix>
+ [GOEXPERIMENT:*]
+ 	GOEXPERIMENT <suffix> is enabled
+-[aix]
+-	host GOOS=aix
+-[amd64]
+-	host GOARCH=amd64
+-[amd64p32]
+-	host GOARCH=amd64p32
+-[android]
+-	host GOOS=android
+-[arm]
+-	host GOARCH=arm
+-[arm64]
+-	host GOARCH=arm64
+-[arm64be]
+-	host GOARCH=arm64be
+-[armbe]
+-	host GOARCH=armbe
++[GOOS:*]
++	runtime.GOOS == <suffix>
+ [asan]
+ 	GOOS/GOARCH supports -asan
+ [buildmode:*]
+@@ -392,102 +378,36 @@ The available conditions are:
+ 	$WORK filesystem is case-sensitive
+ [cgo]
+ 	host CGO_ENABLED
++[compiler:*]
++	runtime.Compiler == <suffix>
+ [cross]
+ 	cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH
+-[darwin]
+-	host GOOS=darwin
+-[dragonfly]
+-	host GOOS=dragonfly
+ [exec:*]
+ 	<suffix> names an executable in the test binary's PATH
+-[freebsd]
+-	host GOOS=freebsd
+ [fuzz]
+ 	GOOS/GOARCH supports -fuzz
+ [fuzz-instrumented]
+ 	GOOS/GOARCH supports -fuzz with instrumentation
+-[gc]
+-	runtime.Compiler == "gc"
+-[gccgo]
+-	runtime.Compiler == "gccgo"
+ [git]
+ 	the 'git' executable exists and provides the standard CLI
+-[hurd]
+-	host GOOS=hurd
+-[illumos]
+-	host GOOS=illumos
+-[ios]
+-	host GOOS=ios
+-[js]
+-	host GOOS=js
+ [link]
+ 	testenv.HasLink()
+-[linux]
+-	host GOOS=linux
+-[loong64]
+-	host GOARCH=loong64
+-[mips]
+-	host GOARCH=mips
+-[mips64]
+-	host GOARCH=mips64
+-[mips64le]
+-	host GOARCH=mips64le
+-[mips64p32]
+-	host GOARCH=mips64p32
+-[mips64p32le]
+-	host GOARCH=mips64p32le
+-[mipsle]
+-	host GOARCH=mipsle
+ [mismatched-goroot]
+ 	test's GOROOT_FINAL does not match the real GOROOT
+ [msan]
+ 	GOOS/GOARCH supports -msan
+-[nacl]
+-	host GOOS=nacl
+ [net]
+ 	testenv.HasExternalNetwork()
+-[netbsd]
+-	host GOOS=netbsd
+-[openbsd]
+-	host GOOS=openbsd
+-[plan9]
+-	host GOOS=plan9
+-[ppc]
+-	host GOARCH=ppc
+-[ppc64]
+-	host GOARCH=ppc64
+-[ppc64le]
+-	host GOARCH=ppc64le
+ [race]
+ 	GOOS/GOARCH supports -race
+-[riscv]
+-	host GOARCH=riscv
+-[riscv64]
+-	host GOARCH=riscv64
+ [root]
+ 	os.Geteuid() == 0
+-[s390]
+-	host GOARCH=s390
+-[s390x]
+-	host GOARCH=s390x
+ [short]
+ 	testing.Short()
+-[solaris]
+-	host GOOS=solaris
+-[sparc]
+-	host GOARCH=sparc
+-[sparc64]
+-	host GOARCH=sparc64
+ [symlink]
+ 	testenv.HasSymlink()
+ [trimpath]
+ 	test binary was built with -trimpath
+ [verbose]
+ 	testing.Verbose()
+-[wasm]
+-	host GOARCH=wasm
+-[windows]
+-	host GOOS=windows
+-[zos]
+-	host GOOS=zos
+ 
+diff --git a/src/cmd/go/testdata/script/bug.txt b/src/cmd/go/testdata/script/bug.txt
+index 571d507358..f64fb85bdc 100644
+--- a/src/cmd/go/testdata/script/bug.txt
++++ b/src/cmd/go/testdata/script/bug.txt
+@@ -1,6 +1,6 @@
+ # Verify that go bug creates the appropriate URL issue body
+ 
+-[!linux] skip
++[!GOOS:linux] skip
+ [short] skip
+ 
+ go install
+diff --git a/src/cmd/go/testdata/script/build_GOTMPDIR.txt b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+index 1073517c29..4c9129ec45 100644
+--- a/src/cmd/go/testdata/script/build_GOTMPDIR.txt
++++ b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+@@ -1,10 +1,10 @@
+ # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+-[!windows] env GOCACHE=$WORK/gocache
+-[windows] env GOCACHE=$WORK\gocache
++[!GOOS:windows] env GOCACHE=$WORK/gocache
++[GOOS:windows] env GOCACHE=$WORK\gocache
+ 
+ # 'go build' should use GOTMPDIR if set.
+-[!windows] env GOTMPDIR=$WORK/my-favorite-tmpdir
+-[windows] env GOTMPDIR=$WORK\my-favorite-tmpdir
++[!GOOS:windows] env GOTMPDIR=$WORK/my-favorite-tmpdir
++[GOOS:windows] env GOTMPDIR=$WORK\my-favorite-tmpdir
+ mkdir $GOTMPDIR
+ go build -x hello.go
+ stderr ^WORK=.*my-favorite-tmpdir
+diff --git a/src/cmd/go/testdata/script/build_acl_windows.txt b/src/cmd/go/testdata/script/build_acl_windows.txt
+index 13a3ba226a..2cb60e0ffd 100644
+--- a/src/cmd/go/testdata/script/build_acl_windows.txt
++++ b/src/cmd/go/testdata/script/build_acl_windows.txt
+@@ -1,4 +1,4 @@
+-[!windows] stop
++[!GOOS:windows] stop
+ [!exec:icacls] skip
+ [!exec:powershell] skip
+ 
+diff --git a/src/cmd/go/testdata/script/build_cache_output.txt b/src/cmd/go/testdata/script/build_cache_output.txt
+index 0d94bf61a9..fc040b48cf 100644
+--- a/src/cmd/go/testdata/script/build_cache_output.txt
++++ b/src/cmd/go/testdata/script/build_cache_output.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=off
+ env GODEBUG=gocachetest=1
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ [short] skip # clears cache, rebuilds too much
+ 
+ # Set up fresh GOCACHE.
+diff --git a/src/cmd/go/testdata/script/build_cd_gopath_different.txt b/src/cmd/go/testdata/script/build_cd_gopath_different.txt
+index a7a4bf412d..64d7d74ce2 100644
+--- a/src/cmd/go/testdata/script/build_cd_gopath_different.txt
++++ b/src/cmd/go/testdata/script/build_cd_gopath_different.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip 'gccgo does not support -ldflags -X'
++[compiler:gccgo] skip 'gccgo does not support -ldflags -X'
+ env GO111MODULE=off
+ go build run_go.go
+ 
+@@ -8,7 +8,7 @@ exec $WORK/tmp/a.exe
+ stderr 'linkXworked'
+ rm $WORK/tmp/a.exe
+ 
+-[!windows] stop 'rest of the tests only apply to Windows'
++[!GOOS:windows] stop 'rest of the tests only apply to Windows'
+ 
+ # Replace '\' with '/' in GOPATH
+ exec ./run_go$GOEXE $GOPATH/src/my.pkg/main $GOPATH REPLACE_SLASH build -o $WORK/tmp/a.exe -ldflags -X=my.pkg.Text=linkXworked
+diff --git a/src/cmd/go/testdata/script/build_cgo_consistent_results.txt b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+index 88a24de814..f22994f71f 100644
+--- a/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
++++ b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+@@ -1,8 +1,8 @@
+ [short] skip
+ [!cgo] skip
+ 
+-[solaris] skip "skipping on Solaris; see golang.org/issue/13247"
+-[illumos] skip "skipping on Solaris; see golang.org/issue/13247"
++[GOOS:solaris] skip "skipping on Solaris; see golang.org/issue/13247"
++[GOOS:illumos] skip "skipping on Solaris; see golang.org/issue/13247"
+ 
+ go build -o $WORK/exe1$GOEXE cgotest
+ go build -x -o $WORK/exe2$GOEXE cgotest
+diff --git a/src/cmd/go/testdata/script/build_darwin_cc_arch.txt b/src/cmd/go/testdata/script/build_darwin_cc_arch.txt
+index 2b81b4cf80..df3fa5bd35 100644
+--- a/src/cmd/go/testdata/script/build_darwin_cc_arch.txt
++++ b/src/cmd/go/testdata/script/build_darwin_cc_arch.txt
+@@ -1,6 +1,6 @@
+ # Test that we pass -arch flag to C compiler on Darwin (issue 43692).
+ 
+-[!darwin] skip
++[!GOOS:darwin] skip
+ [!cgo] skip
+ 
+ # clear CC, in case user sets it
+diff --git a/src/cmd/go/testdata/script/build_gcflags.txt b/src/cmd/go/testdata/script/build_gcflags.txt
+index b47237410d..9603e0b7b7 100644
+--- a/src/cmd/go/testdata/script/build_gcflags.txt
++++ b/src/cmd/go/testdata/script/build_gcflags.txt
+@@ -2,9 +2,9 @@ env GO111MODULE=off
+ 
+ # Test that the user can override default code generation flags.
+ 
+-[gccgo] skip  # gccgo does not use -gcflags
++[compiler:gccgo] skip  # gccgo does not use -gcflags
+ [!cgo] skip
+-[!linux] skip  # test only works if c-archive implies -shared
++[!GOOS:linux] skip  # test only works if c-archive implies -shared
+ [short] skip
+ 
+ env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+diff --git a/src/cmd/go/testdata/script/build_internal.txt b/src/cmd/go/testdata/script/build_internal.txt
+index 5b786f2fbc..0a37d6520c 100644
+--- a/src/cmd/go/testdata/script/build_internal.txt
++++ b/src/cmd/go/testdata/script/build_internal.txt
+@@ -15,7 +15,7 @@ env GO111MODULE=off
+ stderr 'p\.go:3:8: use of internal package .*internal/w not allowed'
+ env GO111MODULE=''
+ 
+-[gccgo] skip # gccgo does not have GOROOT
++[compiler:gccgo] skip # gccgo does not have GOROOT
+ cd ../testinternal
+ ! go build -v .
+ stderr 'p\.go:3:8: use of internal package net/http/internal not allowed'
+diff --git a/src/cmd/go/testdata/script/build_issue48319.txt b/src/cmd/go/testdata/script/build_issue48319.txt
+index 8aba7ad743..cacf8f65e5 100644
+--- a/src/cmd/go/testdata/script/build_issue48319.txt
++++ b/src/cmd/go/testdata/script/build_issue48319.txt
+@@ -3,7 +3,7 @@
+ 
+ [short] skip
+ [!cgo] skip
+-[windows] skip  # The Go Windows builders have an extremely out-of-date gcc that does not support reproducible builds; see https://go.dev/issue/50824.
++[GOOS:windows] skip  # The Go Windows builders have an extremely out-of-date gcc that does not support reproducible builds; see https://go.dev/issue/50824.
+ 
+ # This test is sensitive to cache invalidation,
+ # so use a separate build cache that we can control.
+diff --git a/src/cmd/go/testdata/script/build_issue6480.txt b/src/cmd/go/testdata/script/build_issue6480.txt
+index cf1e9ea6c2..991112fff1 100644
+--- a/src/cmd/go/testdata/script/build_issue6480.txt
++++ b/src/cmd/go/testdata/script/build_issue6480.txt
+@@ -3,7 +3,7 @@
+ # "go test -c" should also appear to write a new binary every time,
+ # even if it's really just updating the mtime on an existing up-to-date binary.
+ 
+-[gccgo] skip
++[compiler:gccgo] skip
+ [short] skip
+ 
+ # Install some commands to compare mtimes
+diff --git a/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+index f1de1e4c71..d47c482170 100644
+--- a/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
++++ b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip 'gccgo does not support -ldflags -X'
++[compiler:gccgo] skip 'gccgo does not support -ldflags -X'
+ 
+ go build -o linkx$GOEXE -ldflags -X=my.pkg.Text=linkXworked my.pkg/main
+ exec ./linkx$GOEXE
+diff --git a/src/cmd/go/testdata/script/build_nocache.txt b/src/cmd/go/testdata/script/build_nocache.txt
+index 1059cad45c..b21e755e89 100644
+--- a/src/cmd/go/testdata/script/build_nocache.txt
++++ b/src/cmd/go/testdata/script/build_nocache.txt
+@@ -7,8 +7,8 @@ env GO111MODULE=off
+ env GOCACHE=
+ env XDG_CACHE_HOME=
+ env HOME=
+-[plan9] env home=
+-[windows] env LocalAppData=
++[GOOS:plan9] env home=
++[GOOS:windows] env LocalAppData=
+ ! go build -o triv triv.go
+ stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
+ 
+@@ -23,13 +23,13 @@ env GOCACHE=off
+ stderr 'build cache is disabled by GOCACHE=off'
+ 
+ # If GOCACHE is set to an unwritable directory, we should diagnose it as such.
+-[windows] stop # Does not support unwritable directories.
++[GOOS:windows] stop # Does not support unwritable directories.
+ [root] skip # Can write to unwritable directories.
+ 
+ mkdir $WORK/unwritable/home
+ chmod 0555 $WORK/unwritable/home
+-[!plan9] env HOME=$WORK/unwritable/home
+-[plan9] env home=$WORK/unwritable/home
++[!GOOS:plan9] env HOME=$WORK/unwritable/home
++[GOOS:plan9] env home=$WORK/unwritable/home
+ 
+ env GOCACHE=$WORK/unwritable/home
+ ! go build -o triv triv.go
+diff --git a/src/cmd/go/testdata/script/build_output.txt b/src/cmd/go/testdata/script/build_output.txt
+index 1e82950dbc..457960f9ac 100644
+--- a/src/cmd/go/testdata/script/build_output.txt
++++ b/src/cmd/go/testdata/script/build_output.txt
+@@ -1,8 +1,8 @@
+-[gccgo] skip 'gccgo has no standard packages'
++[compiler:gccgo] skip 'gccgo has no standard packages'
+ [short] skip
+ 
+-[!windows] env NONEXE='.exe'
+-[windows] env NONEXE=''
++[!GOOS:windows] env NONEXE='.exe'
++[GOOS:windows] env NONEXE=''
+ 
+ env GOBIN=$WORK/tmp/bin
+ go install m/isarchive &
+@@ -28,15 +28,15 @@ go build -o bin/ x.go
+ exists -exec bin/x$GOEXE
+ rm bin
+ 
+-[windows] ! exists bin
+-[windows] go build -o bin\x x.go
+-[windows] exists -exec bin\x
+-[windows] rm bin
++[GOOS:windows] ! exists bin
++[GOOS:windows] go build -o bin\x x.go
++[GOOS:windows] exists -exec bin\x
++[GOOS:windows] rm bin
+ 
+-[windows] ! exists bin
+-[windows] go build -o bin\ x.go
+-[windows] exists -exec bin\x.exe
+-[windows] rm bin
++[GOOS:windows] ! exists bin
++[GOOS:windows] go build -o bin\ x.go
++[GOOS:windows] exists -exec bin\x.exe
++[GOOS:windows] rm bin
+ 
+ ! exists bin
+ mkdir bin
+diff --git a/src/cmd/go/testdata/script/build_tags_no_comma.txt b/src/cmd/go/testdata/script/build_tags_no_comma.txt
+index f3eb28202a..a14a200b67 100644
+--- a/src/cmd/go/testdata/script/build_tags_no_comma.txt
++++ b/src/cmd/go/testdata/script/build_tags_no_comma.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip 'gccgo has no standard packages'
++[compiler:gccgo] skip 'gccgo has no standard packages'
+ go build -tags 'tag1 tag2' math
+ ! go build -tags 'tag1,tag2 tag3' math
+ stderr 'space-separated list contains comma'
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/build_trimpath_cgo.txt b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+index 3187b4d643..528982442d 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_cgo.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+@@ -14,7 +14,7 @@ go run ./list-dwarf hello.exe
+ stdout gopath[/\\]src
+ 
+ # Check that the source path does not appear when -trimpath is used.
+-[aix] stop # can't inspect XCOFF binaries
++[GOOS:aix] stop # can't inspect XCOFF binaries
+ go build -trimpath -o hello.exe .
+ ! grep -q gopath[/\\]src hello.exe
+ go run ./list-dwarf hello.exe
+diff --git a/src/cmd/go/testdata/script/build_unsupported_goos.txt b/src/cmd/go/testdata/script/build_unsupported_goos.txt
+index d61e420279..8c1212934e 100644
+--- a/src/cmd/go/testdata/script/build_unsupported_goos.txt
++++ b/src/cmd/go/testdata/script/build_unsupported_goos.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip # gccgo assumes cross-compilation is always possible
++[compiler:gccgo] skip # gccgo assumes cross-compilation is always possible
+ 
+ env GOOS=windwos
+ 
+diff --git a/src/cmd/go/testdata/script/cache_unix.txt b/src/cmd/go/testdata/script/cache_unix.txt
+index 975960fd39..569480051c 100644
+--- a/src/cmd/go/testdata/script/cache_unix.txt
++++ b/src/cmd/go/testdata/script/cache_unix.txt
+@@ -2,9 +2,9 @@ env GO111MODULE=off
+ 
+ # Integration test for cache directory calculation (cmd/go/internal/cache).
+ 
+-[windows] skip
+-[darwin] skip
+-[plan9] skip
++[GOOS:windows] skip
++[GOOS:darwin] skip
++[GOOS:plan9] skip
+ 
+ mkdir $WORK/gocache
+ mkdir $WORK/xdg
+diff --git a/src/cmd/go/testdata/script/cache_vet.txt b/src/cmd/go/testdata/script/cache_vet.txt
+index 928024e034..6689048f54 100644
+--- a/src/cmd/go/testdata/script/cache_vet.txt
++++ b/src/cmd/go/testdata/script/cache_vet.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=off
+ 
+ [short] skip
+ [GODEBUG:gocacheverify=1] skip
+-[gccgo] skip  # gccgo has no standard packages
++[compiler:gccgo] skip  # gccgo has no standard packages
+ 
+ # Start with a clean build cache:
+ # test failures may be masked if the cache has just the right entries already.
+diff --git a/src/cmd/go/testdata/script/cgo_bad_directives.txt b/src/cmd/go/testdata/script/cgo_bad_directives.txt
+index 6bf3beb8e4..7d28171fad 100644
+--- a/src/cmd/go/testdata/script/cgo_bad_directives.txt
++++ b/src/cmd/go/testdata/script/cgo_bad_directives.txt
+@@ -4,9 +4,9 @@
+ cp x.go.txt x.go
+ 
+ # Only allow //go:cgo_ldflag .* in cgo-generated code
+-[gc] cp x_gc.go.txt x.go
+-[gc] ! go build x
+-[gc] stderr '//go:cgo_ldflag .* only allowed in cgo-generated code'
++[compiler:gc] cp x_gc.go.txt x.go
++[compiler:gc] ! go build x
++[compiler:gc] stderr '//go:cgo_ldflag .* only allowed in cgo-generated code'
+ 
+ # Ignore _* files
+ rm x.go
+@@ -16,11 +16,11 @@ cp cgo_yy.go.txt _cgo_yy.go
+ ! go build .
+ stderr 'no Go files' #_* files are ignored...
+ 
+-[gc] ! go build _cgo_yy.go # ... but if forced, the comment is rejected
++[compiler:gc] ! go build _cgo_yy.go # ... but if forced, the comment is rejected
+ # Actually, today there is a separate issue that _ files named
+ # on the command line are ignored. Once that is fixed,
+ # we want to see the cgo_ldflag error.
+-[gc] stderr '//go:cgo_ldflag only allowed in cgo-generated code|no Go files'
++[compiler:gc] stderr '//go:cgo_ldflag only allowed in cgo-generated code|no Go files'
+ 
+ rm _cgo_yy.go
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_path.txt b/src/cmd/go/testdata/script/cgo_path.txt
+index 1f84dbc5b4..88f57f0a5b 100644
+--- a/src/cmd/go/testdata/script/cgo_path.txt
++++ b/src/cmd/go/testdata/script/cgo_path.txt
+@@ -8,10 +8,10 @@
+ [!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
+ 
+ env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
+-[!windows] env PATH=.:$PATH
+-[!windows] chmod 0755 p/gcc p/clang
+-[!windows] exists -exec p/gcc p/clang
+-[windows] exists -exec p/gcc.bat p/clang.bat
++[!GOOS:windows] env PATH=.:$PATH
++[!GOOS:windows] chmod 0755 p/gcc p/clang
++[!GOOS:windows] exists -exec p/gcc p/clang
++[GOOS:windows] exists -exec p/gcc.bat p/clang.bat
+ ! exists p/bug.txt
+ ! go build -x
+ stderr '^cgo: C compiler "(clang|gcc)" not found: exec: "(clang|gcc)": cannot run executable found relative to current directory'
+diff --git a/src/cmd/go/testdata/script/cgo_path_space.txt b/src/cmd/go/testdata/script/cgo_path_space.txt
+index 654295dc69..1a789022a5 100644
+--- a/src/cmd/go/testdata/script/cgo_path_space.txt
++++ b/src/cmd/go/testdata/script/cgo_path_space.txt
+@@ -10,14 +10,14 @@
+ [exec:gcc] env CC=gcc
+ [!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
+ 
+-[!windows] chmod 0755 $WORK/'program files'/clang
+-[!windows] chmod 0755 $WORK/'program files'/gcc
+-[!windows] exists -exec $WORK/'program files'/clang
+-[!windows] exists -exec $WORK/'program files'/gcc
+-[!windows] env PATH=$WORK/'program files':$PATH
+-[windows] exists -exec $WORK/'program files'/gcc.bat
+-[windows] exists -exec $WORK/'program files'/clang.bat
+-[windows] env PATH=$WORK\'program files';%PATH%
++[!GOOS:windows] chmod 0755 $WORK/'program files'/clang
++[!GOOS:windows] chmod 0755 $WORK/'program files'/gcc
++[!GOOS:windows] exists -exec $WORK/'program files'/clang
++[!GOOS:windows] exists -exec $WORK/'program files'/gcc
++[!GOOS:windows] env PATH=$WORK/'program files':$PATH
++[GOOS:windows] exists -exec $WORK/'program files'/gcc.bat
++[GOOS:windows] exists -exec $WORK/'program files'/clang.bat
++[GOOS:windows] env PATH=$WORK\'program files';%PATH%
+ 
+ ! exists $WORK/log.txt
+ ? go build -x
+@@ -28,8 +28,8 @@ rm $WORK/log.txt
+ # contain spaces separating arguments, and it should be possible to quote
+ # arguments with spaces (including the path), as in CGO_CFLAGS and other
+ # variables. For now, this doesn't work.
+-[!windows] env CC=$WORK/'program files'/gcc
+-[windows] env CC=$WORK\'program files'\gcc.bat
++[!GOOS:windows] env CC=$WORK/'program files'/gcc
++[GOOS:windows] env CC=$WORK\'program files'\gcc.bat
+ ! go build -x
+ ! exists $WORK/log.txt
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+index 80ed751afc..e446758ed8 100644
+--- a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
++++ b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+@@ -17,8 +17,8 @@ go build -x runtime/cgo
+ [!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+ 
+ # https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net to be stale.
+-[!plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+-[plan9] env path=''
++[!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
++[GOOS:plan9] env path=''
+ go build -x runtime/cgo
+ ! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+index 4fb5ccab04..18526c6d31 100644
+--- a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
++++ b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=off
+ # This test tests that we can link in-package syso files that provides symbols
+ # for cgo. See issue 29253.
+ [!cgo] stop
+-[!gc] stop
++[!compiler:gc] stop
+ cc -c -o pkg/o.syso ext.c
+ go build main.go
+ 
+diff --git a/src/cmd/go/testdata/script/cover_asm.txt b/src/cmd/go/testdata/script/cover_asm.txt
+index 57f76d6c02..c7b7114b30 100644
+--- a/src/cmd/go/testdata/script/cover_asm.txt
++++ b/src/cmd/go/testdata/script/cover_asm.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ # Test cover for a package that has an assembly function.
+ 
+diff --git a/src/cmd/go/testdata/script/cover_cgo.txt b/src/cmd/go/testdata/script/cover_cgo.txt
+index 9cf78f71e9..85754b5182 100644
+--- a/src/cmd/go/testdata/script/cover_cgo.txt
++++ b/src/cmd/go/testdata/script/cover_cgo.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!cgo] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ # Test coverage on cgo code.
+ 
+diff --git a/src/cmd/go/testdata/script/cover_cgo_extra_file.txt b/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
+index c53b979f9f..afc2178c87 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!cgo] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ # Test coverage on cgo code. This test case includes an
+ # extra empty non-cgo file in the package being checked.
+diff --git a/src/cmd/go/testdata/script/cover_cgo_extra_test.txt b/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
+index b501ab02a5..ad09baba78 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!cgo] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ # Test coverage on cgo code. This test case has an external
+ # test that tests the code and an in-package test file with
+diff --git a/src/cmd/go/testdata/script/cover_cgo_xtest.txt b/src/cmd/go/testdata/script/cover_cgo_xtest.txt
+index 79cc08c481..0900a48976 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_xtest.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_xtest.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!cgo] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ # Test cgo coverage with an external test.
+ 
+diff --git a/src/cmd/go/testdata/script/cover_dash_c.txt b/src/cmd/go/testdata/script/cover_dash_c.txt
+index 8950f8d088..f28c69e500 100644
+--- a/src/cmd/go/testdata/script/cover_dash_c.txt
++++ b/src/cmd/go/testdata/script/cover_dash_c.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ # Test for issue 24588
+ 
+diff --git a/src/cmd/go/testdata/script/cover_dep_loop.txt b/src/cmd/go/testdata/script/cover_dep_loop.txt
+index 36ea6e00b3..46748e17cc 100644
+--- a/src/cmd/go/testdata/script/cover_dep_loop.txt
++++ b/src/cmd/go/testdata/script/cover_dep_loop.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ # coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
+ # Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
+diff --git a/src/cmd/go/testdata/script/cover_dot_import.txt b/src/cmd/go/testdata/script/cover_dot_import.txt
+index d492e42e2a..a336b1c9ba 100644
+--- a/src/cmd/go/testdata/script/cover_dot_import.txt
++++ b/src/cmd/go/testdata/script/cover_dot_import.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ go test -coverpkg=coverdot/a,coverdot/b coverdot/b
+ ! stderr '[^0-9]0\.0%'
+diff --git a/src/cmd/go/testdata/script/cover_error.txt b/src/cmd/go/testdata/script/cover_error.txt
+index 583a664237..15838d5609 100644
+--- a/src/cmd/go/testdata/script/cover_error.txt
++++ b/src/cmd/go/testdata/script/cover_error.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ # Test line numbers in cover errors.
+ 
+diff --git a/src/cmd/go/testdata/script/cover_import_main_loop.txt b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+index eb6de6778a..36a09c2162 100644
+--- a/src/cmd/go/testdata/script/cover_import_main_loop.txt
++++ b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ ! go test -n importmain/test
+ stderr 'not an importable package' # check that import main was detected
+diff --git a/src/cmd/go/testdata/script/cover_modes.txt b/src/cmd/go/testdata/script/cover_modes.txt
+index f8a399d0e6..a27296eafa 100644
+--- a/src/cmd/go/testdata/script/cover_modes.txt
++++ b/src/cmd/go/testdata/script/cover_modes.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=off
+ # and should merge coverage profiles correctly.
+ 
+ [short] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ go test -short -cover encoding/binary errors -coverprofile=$WORK/cover.out
+ ! stderr '[^0-9]0\.0%'
+diff --git a/src/cmd/go/testdata/script/cover_pattern.txt b/src/cmd/go/testdata/script/cover_pattern.txt
+index ec0850c003..6c79c10094 100644
+--- a/src/cmd/go/testdata/script/cover_pattern.txt
++++ b/src/cmd/go/testdata/script/cover_pattern.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ # If coverpkg=m/sleepy... expands by package loading
+ # (as opposed to pattern matching on deps)
+diff --git a/src/cmd/go/testdata/script/cover_runs.txt b/src/cmd/go/testdata/script/cover_runs.txt
+index 38a7bb77a5..6df6096563 100644
+--- a/src/cmd/go/testdata/script/cover_runs.txt
++++ b/src/cmd/go/testdata/script/cover_runs.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip 'gccgo has no cover tool'
++[compiler:gccgo] skip 'gccgo has no cover tool'
+ [short] skip
+ 
+ go test -short -coverpkg=strings strings regexp
+diff --git a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+index 433af9ab73..ee29bcbaba 100644
+--- a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
++++ b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[gccgo] skip # gccgo has no cover tool
++[compiler:gccgo] skip # gccgo has no cover tool
+ 
+ go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
+ 
+diff --git a/src/cmd/go/testdata/script/embed_brackets.txt b/src/cmd/go/testdata/script/embed_brackets.txt
+index 7093a8497e..ec17ff3827 100644
+--- a/src/cmd/go/testdata/script/embed_brackets.txt
++++ b/src/cmd/go/testdata/script/embed_brackets.txt
+@@ -1,5 +1,5 @@
+ # issue 53314
+-[windows] skip
++[GOOS:windows] skip
+ cd [pkg]
+ go build
+ 
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 132947c623..ccd0eb343e 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -4,14 +4,14 @@ env GO111MODULE=off
+ env AppData=$HOME/windowsappdata
+ env home=$HOME/plan9home
+ go env GOENV
+-[aix] stdout $HOME/.config/go/env
+-[darwin] stdout $HOME'/Library/Application Support/go/env'
+-[freebsd] stdout $HOME/.config/go/env
+-[linux] stdout $HOME/.config/go/env
+-[netbsd] stdout $HOME/.config/go/env
+-[openbsd] stdout $HOME/.config/go/env
+-[plan9] stdout $HOME/plan9home/lib/go/env
+-[windows] stdout $HOME\\windowsappdata\\go\\env
++[GOOS:aix] stdout $HOME/.config/go/env
++[GOOS:darwin] stdout $HOME'/Library/Application Support/go/env'
++[GOOS:freebsd] stdout $HOME/.config/go/env
++[GOOS:linux] stdout $HOME/.config/go/env
++[GOOS:netbsd] stdout $HOME/.config/go/env
++[GOOS:openbsd] stdout $HOME/.config/go/env
++[GOOS:plan9] stdout $HOME/plan9home/lib/go/env
++[GOOS:windows] stdout $HOME\\windowsappdata\\go\\env
+ 
+ # Now override it to something writable.
+ env GOENV=$WORK/envdir/go/env
+@@ -36,7 +36,7 @@ stderr 'go: ''go env -u'' requires an argument'
+ 
+ # go env -w changes default setting
+ env root=
+-[windows] env root=c:
++[GOOS:windows] env root=c:
+ env GOPATH=
+ go env -w GOPATH=$root/non-exist/gopath
+ ! stderr .+
+@@ -115,43 +115,43 @@ stderr 'go: GOTMPDIR must be an absolute path'
+ 
+ # go env -w should accept absolute GOTMPDIR value
+ # and should not create it
+-[windows] go env -w GOTMPDIR=$WORK\x\y\z
+-[!windows] go env -w GOTMPDIR=$WORK/x/y/z
++[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
++[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
+ ! exists $WORK/x/y/z
+ # we should be able to clear an env
+ go env -u GOTMPDIR
+ go env GOTMPDIR
+ stdout ^$
+ 
+-[windows] go env -w GOTMPDIR=$WORK\x\y\z
+-[!windows] go env -w GOTMPDIR=$WORK/x/y/z
++[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
++[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
+ go env -w GOTMPDIR=
+ go env GOTMPDIR
+ stdout ^$
+ 
+ # go env -w rejects relative CC values
+-[!windows] go env -w CC=/usr/bin/clang
++[!GOOS:windows] go env -w CC=/usr/bin/clang
+ go env -w CC=clang
+-[!windows] ! go env -w CC=./clang
+-[!windows] ! go env -w CC=bin/clang
+-[!windows] stderr 'go: CC entry is relative; must be absolute path'
++[!GOOS:windows] ! go env -w CC=./clang
++[!GOOS:windows] ! go env -w CC=bin/clang
++[!GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
+ 
+-[windows] go env -w CC=$WORK\bin\clang
+-[windows] ! go env -w CC=.\clang
+-[windows] ! go env -w CC=bin\clang
+-[windows] stderr 'go: CC entry is relative; must be absolute path'
++[GOOS:windows] go env -w CC=$WORK\bin\clang
++[GOOS:windows] ! go env -w CC=.\clang
++[GOOS:windows] ! go env -w CC=bin\clang
++[GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
+ 
+ # go env -w rejects relative CXX values
+-[!windows] go env -w CC=/usr/bin/cpp
++[!GOOS:windows] go env -w CC=/usr/bin/cpp
+ go env -w CXX=cpp
+-[!windows] ! go env -w CXX=./cpp
+-[!windows] ! go env -w CXX=bin/cpp
+-[!windows] stderr 'go: CXX entry is relative; must be absolute path'
+-
+-[windows] go env -w CXX=$WORK\bin\cpp
+-[windows] ! go env -w CXX=.\cpp
+-[windows] ! go env -w CXX=bin\cpp
+-[windows] stderr 'go: CXX entry is relative; must be absolute path'
++[!GOOS:windows] ! go env -w CXX=./cpp
++[!GOOS:windows] ! go env -w CXX=bin/cpp
++[!GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
++
++[GOOS:windows] go env -w CXX=$WORK\bin\cpp
++[GOOS:windows] ! go env -w CXX=.\cpp
++[GOOS:windows] ! go env -w CXX=bin\cpp
++[GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
+ 
+ # go env -w/-u checks validity of GOOS/ARCH combinations
+ env GOOS=
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index 0705277019..918c32d679 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=off
+ 
+-[!gc] skip 'using -gcflags and -ldflags'
++[!compiler:gc] skip 'using -gcflags and -ldflags'
+ [short] skip
+ 
+ env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+diff --git a/src/cmd/go/testdata/script/generate_bad_imports.txt b/src/cmd/go/testdata/script/generate_bad_imports.txt
+index 4d31573d56..3da391e2e9 100644
+--- a/src/cmd/go/testdata/script/generate_bad_imports.txt
++++ b/src/cmd/go/testdata/script/generate_bad_imports.txt
+@@ -1,4 +1,4 @@
+-[windows] skip # skip because windows has no echo command
++[GOOS:windows] skip # skip because windows has no echo command
+ 
+ go generate gencycle
+ stdout 'hello world' # check go generate gencycle ran the generator
+diff --git a/src/cmd/go/testdata/script/generate_env.txt b/src/cmd/go/testdata/script/generate_env.txt
+index 2df1663376..cb76d30e9b 100644
+--- a/src/cmd/go/testdata/script/generate_env.txt
++++ b/src/cmd/go/testdata/script/generate_env.txt
+@@ -1,8 +1,8 @@
+ # Install an env command because Windows and plan9 don't have it.
+ env GOBIN=$WORK/tmp/bin
+ go install env.go
+-[plan9] env path=$GOBIN${:}$path
+-[!plan9] env PATH=$GOBIN${:}$PATH
++[GOOS:plan9] env path=$GOBIN${:}$path
++[!GOOS:plan9] env PATH=$GOBIN${:}$PATH
+ 
+ # Test generators have access to the environment
+ go generate ./printenv.go
+diff --git a/src/cmd/go/testdata/script/generate_goroot_PATH.txt b/src/cmd/go/testdata/script/generate_goroot_PATH.txt
+index 647cea3bf9..24591f0074 100644
+--- a/src/cmd/go/testdata/script/generate_goroot_PATH.txt
++++ b/src/cmd/go/testdata/script/generate_goroot_PATH.txt
+@@ -4,12 +4,12 @@
+ 
+ [short] skip
+ 
+-[!plan9] env PATH=
+-[plan9] env path=
++[!GOOS:plan9] env PATH=
++[GOOS:plan9] env path=
+ go generate .
+ 
+-[!plan9] env PATH=$WORK${/}bin
+-[plan9] env path=$WORK${/}bin
++[!GOOS:plan9] env PATH=$WORK${/}bin
++[GOOS:plan9] env path=$WORK${/}bin
+ go generate .
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/get_goroot.txt b/src/cmd/go/testdata/script/get_goroot.txt
+index 929435ad70..dc1e5adccf 100644
+--- a/src/cmd/go/testdata/script/get_goroot.txt
++++ b/src/cmd/go/testdata/script/get_goroot.txt
+@@ -28,25 +28,25 @@ stderr '\$GOPATH must not be set to \$GOROOT'
+ mkdir $WORK/home/go
+ 
+ # Fails because GOROOT=$HOME/go so default GOPATH unset.
+-[windows] env USERPROFILE=$WORK/home
+-[plan9] env home=$WORK/home
+-[!windows] [!plan9] env HOME=$WORK/home
++[GOOS:windows] env USERPROFILE=$WORK/home
++[GOOS:plan9] env home=$WORK/home
++[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home
+ env GOPATH=
+ env GOROOT=$WORK/home/go
+ ! go get -d github.com/golang/example/hello
+ stderr '\$GOPATH not set'
+ 
+-[windows] env USERPROFILE=$WORK/home/
+-[plan9] env home=$WORK/home/
+-[!windows] [!plan9] env HOME=$WORK/home/
++[GOOS:windows] env USERPROFILE=$WORK/home/
++[GOOS:plan9] env home=$WORK/home/
++[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home/
+ env GOPATH=
+ env GOROOT=$WORK/home/go
+ ! go get -d github.com/golang/example/hello
+ stderr '\$GOPATH not set'
+ 
+-[windows] env USERPROFILE=$WORK/home
+-[plan9] env home=$WORK/home
+-[!windows] [!plan9] env HOME=$WORK/home
++[GOOS:windows] env USERPROFILE=$WORK/home
++[GOOS:plan9] env home=$WORK/home
++[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home
+ env GOPATH=
+ env GOROOT=$WORK/home/go/
+ ! go get -d github.com/golang/example/hello
+diff --git a/src/cmd/go/testdata/script/gopath_local.txt b/src/cmd/go/testdata/script/gopath_local.txt
+index 54beaca5e8..efde0e707f 100644
+--- a/src/cmd/go/testdata/script/gopath_local.txt
++++ b/src/cmd/go/testdata/script/gopath_local.txt
+@@ -24,7 +24,7 @@ stdout '^sub\.Hello'
+ ! go install testdata/local/easy.go
+ stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
+ 
+-[windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
++[GOOS:windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
+ 
+ env BAD_DIR_NAME='#$%:, &()*;<=>?\^{}'
+ 
+diff --git a/src/cmd/go/testdata/script/gopath_std_vendor.txt b/src/cmd/go/testdata/script/gopath_std_vendor.txt
+index a0a41a50de..4aaf46b5d0 100644
+--- a/src/cmd/go/testdata/script/gopath_std_vendor.txt
++++ b/src/cmd/go/testdata/script/gopath_std_vendor.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=off
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ 
+ go list -f '{{.Dir}}' vendor/golang.org/x/net/http2/hpack
+ stdout $GOPATH[/\\]src[/\\]vendor
+diff --git a/src/cmd/go/testdata/script/goroot_executable.txt b/src/cmd/go/testdata/script/goroot_executable.txt
+index fdbcde06cb..1a0e23e375 100644
+--- a/src/cmd/go/testdata/script/goroot_executable.txt
++++ b/src/cmd/go/testdata/script/goroot_executable.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ mkdir $WORK/new/bin
+ 
+diff --git a/src/cmd/go/testdata/script/install_cross_gobin.txt b/src/cmd/go/testdata/script/install_cross_gobin.txt
+index 33d48fce89..7679a7e224 100644
+--- a/src/cmd/go/testdata/script/install_cross_gobin.txt
++++ b/src/cmd/go/testdata/script/install_cross_gobin.txt
+@@ -6,7 +6,7 @@ go build mycmd
+ 
+ # cross-compile install with implicit GOBIN=$GOPATH/bin can make subdirectory
+ env GOARCH=386
+-[386] env GOARCH=amd64
++[GOARCH:386] env GOARCH=amd64
+ env GOOS=linux
+ go install mycmd
+ exists $GOPATH/bin/linux_$GOARCH/mycmd
+diff --git a/src/cmd/go/testdata/script/link_syso_deps.txt b/src/cmd/go/testdata/script/link_syso_deps.txt
+index c713304d9f..6bb9005577 100644
+--- a/src/cmd/go/testdata/script/link_syso_deps.txt
++++ b/src/cmd/go/testdata/script/link_syso_deps.txt
+@@ -1,12 +1,12 @@
+ # Test that syso in deps is available to cgo.
+ 
+-[!gc] skip 'requires syso support'
++[!compiler:gc] skip 'requires syso support'
+ [!cgo] skip
+ [short] skip 'invokes system C compiler'
+ 
+ # External linking is not supported on linux/ppc64.
+ # See: https://github.com/golang/go/issues/8912
+-[linux] [ppc64] skip
++[GOOS:linux] [GOARCH:ppc64] skip
+ 
+ cc -c -o syso/x.syso syso/x.c
+ cc -c -o syso2/x.syso syso2/x.c
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index 36746e6499..b0d4a7c68c 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -2,13 +2,13 @@
+ # embedded in a package, that is referenced by a Go assembly function.
+ # See issue 33139.
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ [!cgo] skip
+ [short] skip 'invokes system C compiler'
+ 
+ # External linking is not supported on linux/ppc64.
+ # See: https://github.com/golang/go/issues/8912
+-[linux] [ppc64] skip
++[GOOS:linux] [GOARCH:ppc64] skip
+ 
+ cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+ go build -ldflags='-linkmode=external' ./cmd/main.go
+diff --git a/src/cmd/go/testdata/script/linkname.txt b/src/cmd/go/testdata/script/linkname.txt
+index 11336594d3..36ac8ebccd 100644
+--- a/src/cmd/go/testdata/script/linkname.txt
++++ b/src/cmd/go/testdata/script/linkname.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=off
+ 
+ # check for linker name in error message about linker crash
+-[!gc] skip
++[!compiler:gc] skip
+ ! go build -ldflags=-crash_for_testing x.go
+ stderr [\\/]tool[\\/].*[\\/]link
+ 
+diff --git a/src/cmd/go/testdata/script/list_ambiguous_path.txt b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+index 82dde45380..6f22314ffa 100644
+--- a/src/cmd/go/testdata/script/list_ambiguous_path.txt
++++ b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+@@ -22,9 +22,9 @@ stderr '^stat .*[/\\]foo\.go[/\\]b\.go: directory not found$'
+ # Multiple patterns for Go files with a typo. This should
+ # treat the wrong pattern as if it were a nonexistent file.
+ ! go list ./foo.go/a.go ./foo.go/b.go
+-[plan9] stderr 'stat ./foo.go/b.go: ''./foo.go/b.go'' does not exist'
+-[windows] stderr './foo.go/b.go: The system cannot find the file specified'
+-[!plan9] [!windows] stderr './foo.go/b.go: no such file or directory'
++[GOOS:plan9] stderr 'stat ./foo.go/b.go: ''./foo.go/b.go'' does not exist'
++[GOOS:windows] stderr './foo.go/b.go: The system cannot find the file specified'
++[!GOOS:plan9] [!GOOS:windows] stderr './foo.go/b.go: no such file or directory'
+ 
+ -- a.go --
+ package main
+diff --git a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+index 6e48d7b42c..b4ff3cbf6d 100644
+--- a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
++++ b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+@@ -36,8 +36,8 @@ env GO111MODULE=off
+ go list ./...
+ stdout -count=2 '^.+$' # Both 'fmt' and GOROOT/src should be listed.
+ stdout '^fmt$'
+-[!windows] stdout ^_$WORK/goroot/src$
+-[windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
++[!GOOS:windows] stdout ^_$WORK/goroot/src$
++[GOOS:windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
+ 
+ go list ...
+ ! stdout goroot/src
+@@ -46,8 +46,8 @@ go list std
+ ! stdout goroot/src
+ 
+ go list .
+-[!windows] stdout ^_$WORK/goroot/src$
+-[windows] stdout goroot/src$
++[!GOOS:windows] stdout ^_$WORK/goroot/src$
++[GOOS:windows] stdout goroot/src$
+ 
+ # switch to GOPATH/src
+ cd $GOPATH/src
+@@ -55,8 +55,8 @@ cd $GOPATH/src
+ # GO111MODULE=off,GOPATH
+ env GO111MODULE=off
+ go list ./...
+-[!windows] stdout ^_$WORK/gopath/src$
+-[windows] stdout gopath/src$
++[!GOOS:windows] stdout ^_$WORK/gopath/src$
++[GOOS:windows] stdout gopath/src$
+ 
+ go list all
+ ! stdout gopath/src
+diff --git a/src/cmd/go/testdata/script/list_importmap.txt b/src/cmd/go/testdata/script/list_importmap.txt
+index f424b9814c..3c59cfdd11 100644
+--- a/src/cmd/go/testdata/script/list_importmap.txt
++++ b/src/cmd/go/testdata/script/list_importmap.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=off
+ 
+ # gccgo does not have standard packages.
+-[gccgo] skip
++[compiler:gccgo] skip
+ 
+ # fmt should have no rewritten imports.
+ # The import from a/b should map c/d to a's vendor directory.
+diff --git a/src/cmd/go/testdata/script/list_perm.txt b/src/cmd/go/testdata/script/list_perm.txt
+index 3b850ef3cc..14d6f7211d 100644
+--- a/src/cmd/go/testdata/script/list_perm.txt
++++ b/src/cmd/go/testdata/script/list_perm.txt
+@@ -16,8 +16,8 @@ stderr 'matched no packages'
+ # equivalent to an empty directory).
+ 
+ [root] stop # Root typically ignores file permissions.
+-[windows] skip # Does not have Unix-style directory permissions.
+-[plan9] skip   # Might not have Unix-style directory permissions.
++[GOOS:windows] skip # Does not have Unix-style directory permissions.
++[GOOS:plan9] skip   # Might not have Unix-style directory permissions.
+ 
+ chmod 000 noread
+ 
+diff --git a/src/cmd/go/testdata/script/list_replace_absolute_windows.txt b/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
+index b3ff2a7c2d..8b71921e4e 100644
+--- a/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
++++ b/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
+@@ -3,7 +3,7 @@
+ # whether the modindex logic cleans the modroot path before using
+ # it.
+ 
+-[!windows] skip
++[!GOOS:windows] skip
+ [short] skip
+ 
+ go run print_go_mod.go # use this program to write a go.mod with an absolute path
+diff --git a/src/cmd/go/testdata/script/list_std.txt b/src/cmd/go/testdata/script/list_std.txt
+index 6ab1bd1674..64c47664a8 100644
+--- a/src/cmd/go/testdata/script/list_std.txt
++++ b/src/cmd/go/testdata/script/list_std.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=off
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ [short] skip
+ 
+ # Listing GOROOT should only find standard packages.
+diff --git a/src/cmd/go/testdata/script/list_swigcxx.txt b/src/cmd/go/testdata/script/list_swigcxx.txt
+index 4220487a28..731c1e5a7b 100644
+--- a/src/cmd/go/testdata/script/list_swigcxx.txt
++++ b/src/cmd/go/testdata/script/list_swigcxx.txt
+@@ -16,8 +16,8 @@
+ go list -f '{{.CompiledGoFiles}}' -compiled=true example/swig
+ 
+ stdout a\.go
+-[gc] stdout -count=3 $GOCACHE
+-[gccgo] stdout -count=2 $GOCACHE
++[compiler:gc] stdout -count=3 $GOCACHE
++[compiler:gccgo] stdout -count=2 $GOCACHE
+ 
+ -- go.mod --
+ module example
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+index 07755415d6..87f27e87de 100644
+--- a/src/cmd/go/testdata/script/mod_cache_rw.txt
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -17,10 +17,10 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
+ # If all 'go' commands ran with the flag, the system's 'rm' binary
+ # should be able to remove the module cache if the '-rf' flags are set.
+-[!windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
+-[!windows] [!exec:rm] go clean -modcache
+-[windows] [exec:cmd.exe] exec cmd.exe /c rmdir /s /q $GOPATH\pkg\mod
+-[windows] [!exec:cmd.exe] go clean -modcache
++[!GOOS:windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
++[!GOOS:windows] [!exec:rm] go clean -modcache
++[GOOS:windows] [exec:cmd.exe] exec cmd.exe /c rmdir /s /q $GOPATH\pkg\mod
++[GOOS:windows] [!exec:cmd.exe] go clean -modcache
+ ! exists $GOPATH/pkg/mod
+ 
+ # The directories in the module cache should by default be unwritable,
+@@ -30,7 +30,7 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ # unwritable.
+ go get rsc.io/quote@latest
+ [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+-[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
++[!GOOS:windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ ! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_doc_path.txt b/src/cmd/go/testdata/script/mod_doc_path.txt
+index 57470a95c4..83d53926ee 100644
+--- a/src/cmd/go/testdata/script/mod_doc_path.txt
++++ b/src/cmd/go/testdata/script/mod_doc_path.txt
+@@ -4,7 +4,7 @@
+ # Remove 'go' from $PATH. (It can still be located via $GOROOT/bin/go, and the
+ # test script's built-in 'go' command still knows where to find it.)
+ env PATH=''
+-[plan9] env path=''
++[GOOS:plan9] env path=''
+ 
+ go doc p.X
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_concurrent_read.txt b/src/cmd/go/testdata/script/mod_download_concurrent_read.txt
+index 231babd0c0..c2c8b1826f 100644
+--- a/src/cmd/go/testdata/script/mod_download_concurrent_read.txt
++++ b/src/cmd/go/testdata/script/mod_download_concurrent_read.txt
+@@ -10,7 +10,7 @@
+ # Since 1.16, we extract to the final directory, but we create a .partial file
+ # so that if we crash, other processes know the directory is incomplete.
+ 
+-[!windows] skip
++[!GOOS:windows] skip
+ [short] skip
+ 
+ go run downloader.go
+diff --git a/src/cmd/go/testdata/script/mod_download_issue51114.txt b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+index 2aa3c2d19a..68cce8ca26 100644
+--- a/src/cmd/go/testdata/script/mod_download_issue51114.txt
++++ b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+@@ -1,7 +1,7 @@
+ [short] skip
+ [!git] skip
+ [!net] skip
+-[!linux] skip  # Uses XDG_CONFIG_HOME
++[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
+ 
+ env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index 38d9fd25fb..ebc28a0015 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -12,11 +12,11 @@ grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
+ 
+ # Use download cache as file:/// proxy.
+ env GOPATH=$WORK/gopath2
+-[windows] env GOPROXY=file:///C:/nonexist
+-[!windows] env GOPROXY=file:///nonexist
++[GOOS:windows] env GOPROXY=file:///C:/nonexist
++[!GOOS:windows] env GOPROXY=file:///nonexist
+ ! go list
+-[windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download
+-[!windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download
++[GOOS:windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download
++[!GOOS:windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download
+ go list
+ grep v1.5.1 $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/list
+ 
+diff --git a/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt b/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt
+index 2db39783a2..633bd8b7b1 100644
+--- a/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt
++++ b/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt
+@@ -9,8 +9,8 @@ cd $WORK/x
+ go mod tidy
+ 
+ # Use download cache as file:/// proxy.
+-[windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
+-[!windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
++[GOOS:windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
++[!GOOS:windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
+ rm $WORK/gopath/pkg/mod/cache/download/golang.org/x/text/
+ go mod tidy -e
+ stderr '^go: rsc.io/sampler@v1.3.0 requires\n\tgolang.org/x/text@.*: reading file://.*/pkg/mod/cache/download/golang.org/x/text/.*'
+@@ -39,4 +39,4 @@ import (
+ 
+ func Echo() {
+ 	fmt.Println(quote.Hello())
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache.txt b/src/cmd/go/testdata/script/mod_gomodcache.txt
+index bafa587624..bfc6cb1c79 100644
+--- a/src/cmd/go/testdata/script/mod_gomodcache.txt
++++ b/src/cmd/go/testdata/script/mod_gomodcache.txt
+@@ -23,9 +23,9 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
+ grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
+ 
+ # If neither GOMODCACHE or GOPATH are set, GOPATH defaults to the user's $HOME/go, so GOMODCACHE becomes $HOME/go/pkg/mod
+-[windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
+-[plan9] env home=$WORK/home
+-[!windows] [!plan9] env HOME=$WORK/home
++[GOOS:windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
++[GOOS:plan9] env home=$WORK/home
++[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home
+ env GOMODCACHE=
+ env GOPATH=
+ go env GOMODCACHE
+diff --git a/src/cmd/go/testdata/script/mod_list_std.txt b/src/cmd/go/testdata/script/mod_list_std.txt
+index f4e0433d8a..51f8241b50 100644
+--- a/src/cmd/go/testdata/script/mod_list_std.txt
++++ b/src/cmd/go/testdata/script/mod_list_std.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ env GOPROXY=off
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ [short] skip
+ 
+ # Outside of GOROOT, our vendored packages should be reported as part of the standard library.
+diff --git a/src/cmd/go/testdata/script/mod_perm.txt b/src/cmd/go/testdata/script/mod_perm.txt
+index f5382eceaf..2972f46601 100644
+--- a/src/cmd/go/testdata/script/mod_perm.txt
++++ b/src/cmd/go/testdata/script/mod_perm.txt
+@@ -5,8 +5,8 @@ go list ./...
+ # skip in conditions where chmod 0 may not work.
+ # plan9 should be fine, but copied from list_perm.txt unchanged.
+ [root] skip
+-[windows] skip
+-[plan9] skip
++[GOOS:windows] skip
++[GOOS:plan9] skip
+ 
+ # go list should work with unreadable _data directory.
+ chmod 0 _data
+diff --git a/src/cmd/go/testdata/script/mod_permissions.txt b/src/cmd/go/testdata/script/mod_permissions.txt
+index 77e2508cb7..b523e6ac77 100644
+--- a/src/cmd/go/testdata/script/mod_permissions.txt
++++ b/src/cmd/go/testdata/script/mod_permissions.txt
+@@ -5,8 +5,8 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # Skip platforms that do not have Unix-style file permissions.
+-[windows] skip
+-[plan9] skip
++[GOOS:windows] skip
++[GOOS:plan9] skip
+ 
+ chmod 0640 go.mod
+ chmod 0604 go.sum
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index c3cde52953..82e48b6f19 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ env GOPROXY=off
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ 
+ # 'go list' should report imports from _test.go in the TestImports field.
+ go list -f '{{.TestImports}}'
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index a834c4800d..d89ad1aa33 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -10,23 +10,23 @@ env GOPATH=$WORK/gopath1
+ #
+ # TODO(bcmills): The error message here is a bit redundant.
+ # It comes from the sumweb package, which isn't yet producing structured errors.
+-[windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
+-[!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
++[GOOS:windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
++[!GOOS:windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ ! go get golang.org/x/text@v0.3.2
+ stderr '^go: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the path specified.*)'
+ 
+ # If the proxy does not claim to support the database,
+ # checksum verification should fall through to the next proxy,
+ # and downloading should succeed.
+-[windows] env GOPROXY=file:///$WORK/emptyproxy,https://proxy.golang.org
+-[!windows] env GOPROXY=file://$WORK/emptyproxy,https://proxy.golang.org
++[GOOS:windows] env GOPROXY=file:///$WORK/emptyproxy,https://proxy.golang.org
++[!GOOS:windows] env GOPROXY=file://$WORK/emptyproxy,https://proxy.golang.org
+ go get golang.org/x/text@v0.3.2
+ 
+ # After a successful sumdb lookup, the lookup can be repeated
+ # using the download cache as a proxy.
+ cp supported $GOPATH/pkg/mod/cache/download/sumdb/sum.golang.org/supported
+-[windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download,file:///$WORK/sumproxy
+-[!windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download,file://$WORK/sumproxy
++[GOOS:windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download,file:///$WORK/sumproxy
++[!GOOS:windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download,file://$WORK/sumproxy
+ env GOPATH=$WORK/gopath2
+ rm go.sum
+ go get -x -v golang.org/x/text@v0.3.2
+@@ -36,11 +36,11 @@ go get -x -v golang.org/x/text@v0.3.2
+ # a fallback module mirror.
+ grep golang.org/x/text go.sum
+ env GOPATH=$WORK/gopath3
+-[windows] env GOPROXY=file:///$WORK/sumproxy
+-[!windows] env GOPROXY=file://$WORK/sumproxy
++[GOOS:windows] env GOPROXY=file:///$WORK/sumproxy
++[!GOOS:windows] env GOPROXY=file://$WORK/sumproxy
+ ! go get golang.org/x/text@v0.3.2
+-[windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
+-[!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
++[GOOS:windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
++[!GOOS:windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ go get golang.org/x/text@v0.3.2
+ 
+ -- supported --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_temp.txt b/src/cmd/go/testdata/script/mod_tidy_temp.txt
+index 635a336bca..8a2fa4ec10 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_temp.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_temp.txt
+@@ -4,7 +4,7 @@
+ # 1. /tmp/go.mod exists
+ # 2. run 'go mod tidy' in /tmp or in the child directory not having go.mod.
+ 
+-[plan9] stop  # Plan 9 has no $TMPDIR variable to set.
++[GOOS:plan9] stop  # Plan 9 has no $TMPDIR variable to set.
+ 
+ env GOROOT=$TESTGO_GOROOT
+ env TMP=$WORK
+diff --git a/src/cmd/go/testdata/script/std_vendor.txt b/src/cmd/go/testdata/script/std_vendor.txt
+index 6cb015fc07..731ee9e670 100644
+--- a/src/cmd/go/testdata/script/std_vendor.txt
++++ b/src/cmd/go/testdata/script/std_vendor.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=off
+ 
+-[!gc] skip
++[!compiler:gc] skip
+ 
+ # 'go list' should report imports from _test.go in the TestImports field.
+ go list -f '{{.TestImports}}'
+diff --git a/src/cmd/go/testdata/script/test2json_interrupt.txt b/src/cmd/go/testdata/script/test2json_interrupt.txt
+index 3e3a1c7b0d..5828e86136 100644
+--- a/src/cmd/go/testdata/script/test2json_interrupt.txt
++++ b/src/cmd/go/testdata/script/test2json_interrupt.txt
+@@ -1,6 +1,6 @@
+ [short] skip 'links and runs a test binary'
+ [!fuzz] skip 'tests SIGINT behavior for interrupting fuzz tests'
+-[windows] skip 'windows does not support os.Interrupt'
++[GOOS:windows] skip 'windows does not support os.Interrupt'
+ 
+ ? go test -json -fuzz FuzzInterrupt -run '^$' -parallel 1
+ stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'
+@@ -52,4 +52,4 @@ func FuzzInterrupt(f *testing.F) {
+ 			}
+ 		}
+ 	})
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index 3764dcb915..b413f938a6 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -1,5 +1,5 @@
+ # TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!GOOS:darwin] [!GOOS:linux] [!GOOS:windows] skip
+ 
+ # Verify that the fuzzing engine records the actual crashing input, even when
+ # a worker process terminates without communicating the crashing input back
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index 1051292fcb..6f1eeab424 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -1,6 +1,6 @@
+ # NOTE: this test is skipped on Windows, since there's no concept of signals.
+ # When a process terminates another process, it provides an exit code.
+-[windows] skip
++[GOOS:windows] skip
+ [!fuzz] skip
+ [short] skip
+ 
+diff --git a/src/cmd/go/testdata/script/test_goroot_PATH.txt b/src/cmd/go/testdata/script/test_goroot_PATH.txt
+index f49ec106ff..a6278ca749 100644
+--- a/src/cmd/go/testdata/script/test_goroot_PATH.txt
++++ b/src/cmd/go/testdata/script/test_goroot_PATH.txt
+@@ -4,12 +4,12 @@
+ 
+ [short] skip
+ 
+-[!plan9] env PATH=
+-[plan9] env path=
++[!GOOS:plan9] env PATH=
++[GOOS:plan9] env path=
+ go test .
+ 
+-[!plan9] env PATH=$WORK${/}bin
+-[plan9] env path=$WORK${/}bin
++[!GOOS:plan9] env PATH=$WORK${/}bin
++[GOOS:plan9] env path=$WORK${/}bin
+ go test .
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/test_json.txt b/src/cmd/go/testdata/script/test_json.txt
+index cd5b0b9d7a..f2bee34ce2 100644
+--- a/src/cmd/go/testdata/script/test_json.txt
++++ b/src/cmd/go/testdata/script/test_json.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip # gccgo does not have standard packages
++[compiler:gccgo] skip # gccgo does not have standard packages
+ [short] skip
+ 
+ env GOCACHE=$WORK/tmp
+diff --git a/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt b/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
+index a33f9df724..735b5dcc7f 100644
+--- a/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
++++ b/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
+@@ -5,10 +5,10 @@
+ # -Os option.
+ #
+ # Verifies golang.org/issue/52366 for linux/ppc64le
+-[!linux] skip
+-[!gc] skip
++[!GOOS:linux] skip
++[!compiler:gc] skip
+ [!cgo] skip
+-[!ppc64le] skip
++[!GOARCH:ppc64le] skip
+ 
+ go build -ldflags='-linkmode=internal'
+ exec ./abitest
+diff --git a/src/cmd/go/testdata/script/test_ppc64le_cgo_inline_plt.txt b/src/cmd/go/testdata/script/test_ppc64le_cgo_inline_plt.txt
+index 7a9cd7b6d8..ef9ff03592 100644
+--- a/src/cmd/go/testdata/script/test_ppc64le_cgo_inline_plt.txt
++++ b/src/cmd/go/testdata/script/test_ppc64le_cgo_inline_plt.txt
+@@ -8,9 +8,9 @@
+ #
+ # Note, older gcc/clang may accept this option, but
+ # ignore it if binutils does not support the relocs.
+-[!gc] skip
++[!compiler:gc] skip
+ [!cgo] skip
+-[!ppc64le] skip
++[!GOARCH:ppc64le] skip
+ 
+ env CGO_CFLAGS='-fno-plt -O2 -g'
+ 
+diff --git a/src/cmd/go/testdata/script/test_profile.txt b/src/cmd/go/testdata/script/test_profile.txt
+index 4bfa2cc493..9110706f08 100644
+--- a/src/cmd/go/testdata/script/test_profile.txt
++++ b/src/cmd/go/testdata/script/test_profile.txt
+@@ -1,4 +1,4 @@
+-[gccgo] skip 'gccgo has no standard packages'
++[compiler:gccgo] skip 'gccgo has no standard packages'
+ [short] skip
+ 
+ # Check go test -cpuprofile creates errors.test
+diff --git a/src/cmd/go/testdata/script/toolexec.txt b/src/cmd/go/testdata/script/toolexec.txt
+index bb86467942..20a5968052 100644
+--- a/src/cmd/go/testdata/script/toolexec.txt
++++ b/src/cmd/go/testdata/script/toolexec.txt
+@@ -17,7 +17,7 @@ env GOCACHE=$WORK/gocache
+ # Finally, note that asm and cgo are run twice.
+ 
+ go build -toolexec=$PWD/mytool
+-[amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
++[GOARCH:amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
+ stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
+ [cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
+ [cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
+diff --git a/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt b/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
+index da52f9acf2..c85f67421a 100644
+--- a/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
++++ b/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
+@@ -1,4 +1,4 @@
+-[!windows] [short] stop 'this test only applies to Windows'
++[!GOOS:windows] [short] stop 'this test only applies to Windows'
+ env GO111MODULE=off
+ 
+ go build run_go.go
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 839aa8526c..0a2ac1e1d5 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -69,8 +69,8 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
+ # Also test PIE with internal linking.
+ # currently only supported on linux/amd64, linux/arm64 and windows/amd64.
+-[!linux] [!windows] stop
+-[!amd64] [!arm64] stop
++[!GOOS:linux] [!GOOS:windows] stop
++[!GOARCH:amd64] [!GOARCH:arm64] stop
+ go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
+ go version internal.exe
+ stdout '^internal.exe: .+'
+diff --git a/src/cmd/go/testdata/script/version_build_settings.txt b/src/cmd/go/testdata/script/version_build_settings.txt
+index bfa7f5fbbe..cd3f5cfed2 100644
+--- a/src/cmd/go/testdata/script/version_build_settings.txt
++++ b/src/cmd/go/testdata/script/version_build_settings.txt
+@@ -6,7 +6,7 @@ go version -m m$GOEXE
+ stdout '^\tbuild\t-compiler=gc$'
+ stdout '^\tbuild\tGOOS='
+ stdout '^\tbuild\tGOARCH='
+-[amd64] stdout '^\tbuild\tGOAMD64='
++[GOARCH:amd64] stdout '^\tbuild\tGOAMD64='
+ ! stdout asmflags|gcflags|ldflags|gccgoflags
+ 
+ # Toolchain flags are added if present.
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_fossil.txt b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+index 720306868b..45b5baeaf7 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+@@ -3,15 +3,15 @@
+ # The Git test covers common functionality.
+ 
+ # "fossil" is the Fossil file server on Plan 9.
+-[plan9] skip
++[GOOS:plan9] skip
+ [!exec:fossil] skip
+ [short] skip
+ env GOBIN=$WORK/gopath/bin
+ env oldpath=$PATH
+ env HOME=$WORK
+ env USER=gopher
+-[!windows] env fslckout=.fslckout
+-[windows] env fslckout=_FOSSIL_
++[!GOOS:windows] env fslckout=.fslckout
++[GOOS:windows] env fslckout=_FOSSIL_
+ exec pwd
+ exec fossil init repo.fossil
+ cd repo/a
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+index 59b35ec7c2..ae2db97794 100644
+--- a/src/cmd/go/testdata/script/vet_asm.txt
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=off
+ 
+ # Issue 27665. Verify that "go vet" analyzes non-Go files.
+ 
+-[!amd64] skip
++[!GOARCH:amd64] skip
+ ! go vet -asmdecl a
+ stderr 'f: invalid MOVW of x'
+ 

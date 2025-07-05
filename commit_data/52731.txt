@@ -15,6 +15,19 @@ Date:   Thu May 19 20:01:10 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index f99f1f4e43..0a7af2b2d1 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1602,7 +1602,6 @@ var cgoEnabled = map[string]bool{
+ // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+ var incomplete = map[string]bool{
+ 	"linux/sparc64": true,
+-	"linux/loong64": true,
+ }
+ 
+ // List of platforms which are first class ports. See golang.org/issue/38874.

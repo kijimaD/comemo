@@ -7,7 +7,34 @@ Date:   Thu Jan 5 09:44:25 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5523044
-
+---
  src/pkg/net/iprawsock_posix.go | 2 +-
  src/pkg/net/udpsock_posix.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 584069418c..103c4f6a92 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -260,7 +260,7 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err error) {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+ 	if e != nil {
+ 		return nil, e
+ 	}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 6bb15714e2..b7e8e03aec 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -233,7 +233,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if e != nil {
+ 		return nil, e
+ 	}

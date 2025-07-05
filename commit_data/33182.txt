@@ -18,10 +18,130 @@ Date:   Fri Jul 21 16:37:40 2017 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-on: https://go-review.googlesource.com/50970
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  6 +++++-
  test/fixedbugs/issue21120.dir/a.go     | 13 +++++++++++++
  test/fixedbugs/issue21120.dir/b.go     | 29 +++++++++++++++++++++++++++++
  test/fixedbugs/issue21120.dir/main.go  | 25 +++++++++++++++++++++++++
  test/fixedbugs/issue21120.go           | 11 +++++++++++
  5 files changed, 83 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index decd3beda7..91e6f46804 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -582,7 +582,11 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
+ 				sname += "-noname-unexported." + tag
+ 			}
+ 		} else {
+-			sname += name + "." + tag
++			if exported {
++				sname += name + "." + tag
++			} else {
++				sname += name + "-" + tag
++			}
+ 		}
+ 	} else {
+ 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
+diff --git a/test/fixedbugs/issue21120.dir/a.go b/test/fixedbugs/issue21120.dir/a.go
+new file mode 100644
+index 0000000000..f2ee252671
+--- /dev/null
++++ b/test/fixedbugs/issue21120.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type S struct {
++	x int
++}
++
++func V() interface{} {
++	return S{0}
++}
+diff --git a/test/fixedbugs/issue21120.dir/b.go b/test/fixedbugs/issue21120.dir/b.go
+new file mode 100644
+index 0000000000..b00bd53a5d
+--- /dev/null
++++ b/test/fixedbugs/issue21120.dir/b.go
+@@ -0,0 +1,29 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "reflect"
++
++type X int
++
++func F1() string {
++	type x X
++
++	s := struct {
++		*x
++	}{nil}
++	v := reflect.TypeOf(s)
++	return v.Field(0).PkgPath
++}
++
++func F2() string {
++	type y X
++
++	s := struct {
++		*y
++	}{nil}
++	v := reflect.TypeOf(s)
++	return v.Field(0).PkgPath
++}
+diff --git a/test/fixedbugs/issue21120.dir/main.go b/test/fixedbugs/issue21120.dir/main.go
+new file mode 100644
+index 0000000000..1f1ec30e56
+--- /dev/null
++++ b/test/fixedbugs/issue21120.dir/main.go
+@@ -0,0 +1,25 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++
++	"./a"
++	"./b"
++)
++
++func main() {
++	// Make sure the reflect information for a.S is in the executable.
++	_ = a.V()
++
++	b1 := b.F1()
++	b2 := b.F2()
++	if b1 != b2 {
++		fmt.Printf("%q (from b.F1()) != %q (from b.F2())\n", b1, b2)
++		os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/issue21120.go b/test/fixedbugs/issue21120.go
+new file mode 100644
+index 0000000000..ea896ce8e1
+--- /dev/null
++++ b/test/fixedbugs/issue21120.go
+@@ -0,0 +1,11 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The compiler was using an incomplete symbol name for reflect name data,
++// permitting an invalid merge in the linker, producing an incorrect
++// exported flag bit.
++
++package ignored

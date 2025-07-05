@@ -9,7 +9,32 @@ Date:   Mon Mar 11 14:53:39 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7526045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index eeda1da75a..310069139f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -237,6 +237,7 @@ Robert Dinu <r@oktett.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
+ Robin Eklind <r.eklind.87@gmail.com>
++Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 49b976935d..057001e805 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -344,6 +344,7 @@ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>
+ Robin Eklind <r.eklind.87@gmail.com>
++Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>

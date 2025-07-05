@@ -20,7 +20,7 @@ Date:   Tue Apr 26 14:42:34 2022 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/sys_linux_386.s     | 2 +-
  src/runtime/sys_linux_amd64.s   | 2 +-
  src/runtime/sys_linux_arm.s     | 2 +-
@@ -31,3 +31,121 @@ Date:   Tue Apr 26 14:42:34 2022 -0400
  src/runtime/sys_linux_riscv64.s | 2 +-
  src/runtime/sys_linux_s390x.s   | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index fef68d51dc..4942f21e4f 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -433,7 +433,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$28
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
+ 	// Save callee-saved C registers, since the caller may be a C signal handler.
+ 	MOVL	BX, bx-4(SP)
+ 	MOVL	BP, bp-8(SP)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index f2dfbbb70c..ca6ecb13eb 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -339,7 +339,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 201940b4e6..66bf40328e 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -566,7 +566,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R4, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Reserve space for callee-save registers and arguments.
+ 	MOVM.DB.W [R4-R11], (R13)
+ 	SUB	$16, R13
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 8e7cbf7d11..b47b6fd0a0 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -445,7 +445,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called from c-abi, R0: sig, R1: info, R2: cxt
+-TEXT runtime·sigtramp(SB),NOSPLIT,$176
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 3c7f0e7307..06d54dff78 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -405,7 +405,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	JAL	(R25)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+ 	// initialize REGSB = PC&0xffffffff00000000
+ 	BGEZAL	R0, 1(PC)
+ 	SRLV	$32, R31, RSB
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index ab4e976ee4..e70edcc0e2 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -311,7 +311,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R22, R29
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	MOVB	runtime·iscgo(SB), R1
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 48f9334795..2913a05f56 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -459,7 +459,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+ 	DWORD	$sigtramp<>(SB)
+ 	DWORD	$0
+ 	DWORD	$0
+-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ #endif
+ 	// Start with standard C stack frame layout and linkage.
+ 	MOVD    LR, R0
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index 8dde29eb92..afb2d11da9 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -417,7 +417,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+ 	MOVW	A0, 8(X2)
+ 	MOV	A1, 16(X2)
+ 	MOV	A2, 24(X2)
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 03ec7f03fd..91ce1b3c8d 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -272,7 +272,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+ 	// initialize essential registers (just in case)
+ 	XOR	R0, R0
+ 

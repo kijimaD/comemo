@@ -24,6 +24,41 @@ Date:   Mon May 7 13:05:27 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/111795
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index d04f3725b3..50e0342f67 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -125,6 +125,10 @@ func runMain() (int, error) {
+ 		return 1, err
+ 	}
+ 
++	if err := uninstall(bundleID); err != nil {
++		return 1, err
++	}
++
+ 	if err := install(appdir); err != nil {
+ 		return 1, err
+ 	}
+@@ -413,6 +417,18 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
+ 	return values, nil
+ }
+ 
++func uninstall(bundleID string) error {
++	cmd := idevCmd(exec.Command(
++		"ideviceinstaller",
++		"-U", bundleID,
++	))
++	if out, err := cmd.CombinedOutput(); err != nil {
++		os.Stderr.Write(out)
++		return fmt.Errorf("ideviceinstaller -U %q: %s", bundleID, err)
++	}
++	return nil
++}
++
+ func install(appdir string) error {
+ 	attempt := 0
+ 	for {

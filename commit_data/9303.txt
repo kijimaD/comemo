@@ -7,7 +7,255 @@ Date:   Mon Aug 8 07:50:17 2011 +1000
     R=golang-dev, rogpeppe, r, dsymonds, bradfitz, fvbommel
     CC=golang-dev
     https://golang.org/cl/4830065
-
+---
  src/pkg/time/format.go    | 66 ++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/time/time_test.go | 71 ++++++++++++++++++++++++++++++++---------------
  2 files changed, 113 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index d07e1ad498..3c42f0c2d8 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -26,6 +26,9 @@ const (
+ // replaced by a digit if the following number (a day) has two digits; for
+ // compatibility with fixed-width Unix time formats.
+ //
++// A decimal point followed by one or more zeros represents a
++// fractional second.
++//
+ // Numeric time zone offsets format as follows:
+ //	-0700  ±hhmm
+ //	-07:00 ±hh:mm
+@@ -45,6 +48,11 @@ const (
+ 	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
+ 	RFC3339 = "2006-01-02T15:04:05Z07:00"
+ 	Kitchen = "3:04PM"
++	// Handy time stamps.
++	Stamp      = "Jan _2 15:04:05"
++	StampMilli = "Jan _2 15:04:05.000"
++	StampMicro = "Jan _2 15:04:05.000000"
++	StampNano  = "Jan _2 15:04:05.000000000"
+ )
+ 
+ const (
+@@ -154,6 +162,16 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
+ 			if len(layout) >= i+6 && layout[i:i+6] == stdISO8601ColonTZ {
+ 				return layout[0:i], layout[i : i+6], layout[i+6:]
+ 			}
++		case '.': // .000 - multiple digits of zeros (only) for fractional seconds.
++			numZeros := 0
++			var j int
++			for j = i + 1; j < len(layout) && layout[j] == '0'; j++ {
++				numZeros++
++			}
++			// String of digits must end here - only fractional second is all zeros.
++			if numZeros > 0 && (j >= len(layout) || layout[j] < '0' || '9' < layout[j]) {
++				return layout[0:i], layout[i : i+1+numZeros], layout[i+1+numZeros:]
++			}
+ 		}
+ 	}
+ 	return layout, "", ""
+@@ -230,6 +248,21 @@ func pad(i int, padding string) string {
+ 
+ func zeroPad(i int) string { return pad(i, "0") }
+ 
++// formatNano formats a fractional second, as nanoseconds.
++func formatNano(nanosec, n int) string {
++	// User might give us bad data. Make sure it's positive and in range.
++	// They'll get nonsense output but it will have the right format.
++	s := strconv.Uitoa(uint(nanosec) % 1e9)
++	// Zero pad left without fmt.
++	if len(s) < 9 {
++		s = "000000000"[:9-len(s)] + s
++	}
++	if n > 9 {
++		n = 9
++	}
++	return "." + s[:n]
++}
++
+ // Format returns a textual representation of the time value formatted
+ // according to layout.  The layout defines the format by showing the
+ // representation of a standard time, which is then used to describe
+@@ -340,6 +373,10 @@ func (t *Time) Format(layout string) string {
+ 				p += zeroPad(zone / 60)
+ 				p += zeroPad(zone % 60)
+ 			}
++		default:
++			if len(std) >= 2 && std[0:2] == ".0" {
++				p = formatNano(t.Nanosecond, len(std)-1)
++			}
+ 		}
+ 		b.WriteString(p)
+ 		layout = suffix
+@@ -355,7 +392,7 @@ func (t *Time) String() string {
+ 	return t.Format(UnixDate)
+ }
+ 
+-var errBad = os.NewError("bad") // just a marker; not returned to user
++var errBad = os.NewError("bad value for field") // placeholder not passed to user
+ 
+ // ParseError describes a problem parsing a time string.
+ type ParseError struct {
+@@ -620,6 +657,33 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 			if offset, found := lookupByName(p); found {
+ 				t.ZoneOffset = offset
+ 			}
++		default:
++			if len(value) < len(std) {
++				err = errBad
++				break
++			}
++			if len(std) >= 2 && std[0:2] == ".0" {
++				if value[0] != '.' {
++					err = errBad
++					break
++				}
++				t.Nanosecond, err = strconv.Atoi(value[1:len(std)])
++				if err != nil {
++					break
++				}
++				if t.Nanosecond < 0 || t.Nanosecond >= 1e9 {
++					rangeErrString = "fractional second"
++					break
++				}
++				value = value[len(std):]
++				// We need nanoseconds, which means scaling by the number
++				// of missing digits in the format, maximum length 10. If it's
++				// longer than 10, we won't scale.
++				scaleDigits := 10 - len(std)
++				for i := 0; i < scaleDigits; i++ {
++					t.Nanosecond *= 10
++				}
++			}
+ 		}
+ 		if rangeErrString != "" {
+ 			return nil, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index cf37916fb9..4999f4536e 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -6,6 +6,7 @@ package time_test
+ 
+ import (
+ 	"os"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"testing/quick"
+@@ -213,11 +214,16 @@ var formatTests = []FormatTest{
+ 	{"am/pm", "3pm", "9pm"},
+ 	{"AM/PM", "3PM", "9PM"},
+ 	{"two-digit year", "06 01 02", "09 02 04"},
++	// Time stamps, Fractional seconds.
++	{"Stamp", Stamp, "Feb  4 21:00:57"},
++	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
++	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
++	{"StampNano", StampNano, "Feb  4 21:00:57.012345678"},
+ }
+ 
+ func TestFormat(t *testing.T) {
+-	// The numeric time represents Thu Feb  4 21:00:57 PST 2010
+-	time := SecondsToLocalTime(1233810057)
++	// The numeric time represents Thu Feb  4 21:00:57.012345678 PST 2010
++	time := NanosecondsToLocalTime(1233810057012345678)
+ 	for _, test := range formatTests {
+ 		result := time.Format(test.format)
+ 		if result != test.result {
+@@ -227,25 +233,33 @@ func TestFormat(t *testing.T) {
+ }
+ 
+ type ParseTest struct {
+-	name     string
+-	format   string
+-	value    string
+-	hasTZ    bool  // contains a time zone
+-	hasWD    bool  // contains a weekday
+-	yearSign int64 // sign of year
++	name       string
++	format     string
++	value      string
++	hasTZ      bool  // contains a time zone
++	hasWD      bool  // contains a weekday
++	yearSign   int64 // sign of year
++	fracDigits int   // number of digits of fractional second
+ }
+ 
+ var parseTests = []ParseTest{
+-	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1},
+-	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1},
+-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+-	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
+-	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
+-	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
+-	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
++	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1, 0},
++	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1, 0},
++	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
++	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1, 0},
++	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1, 0},
++	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
++	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
+ 	// Amount of white space should not matter.
+-	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
+-	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
++	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1, 0},
++	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1, 0},
++	// Fractional seconds.
++	{"millisecond", "Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
++	{"microsecond", "Mon Jan _2 15:04:05.000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
++	{"nanosecond", "Mon Jan _2 15:04:05.000000000 2006", "Thu Feb  4 21:00:57.012345678 2010", false, true, 1, 9},
++	// Leading zeros in other places should not be taken as fractional seconds.
++	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
++	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
+ }
+ 
+ func TestParse(t *testing.T) {
+@@ -260,11 +274,11 @@ func TestParse(t *testing.T) {
+ }
+ 
+ var rubyTests = []ParseTest{
+-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
++	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
+ 	// Ignore the time zone in the test. If it parses, it'll be OK.
+-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
+-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
+-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
++	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1, 0},
++	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1, 0},
++	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1, 0},
+ }
+ 
+ // Problematic time zone format needs special tests.
+@@ -299,6 +313,14 @@ func checkTime(time *Time, test *ParseTest, t *testing.T) {
+ 	if time.Second != 57 {
+ 		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
+ 	}
++	// Nanoseconds must be checked against the precision of the input.
++	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
++	if err != nil {
++		panic(err)
++	}
++	if time.Nanosecond != int(nanosec) {
++		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond, nanosec)
++	}
+ 	if test.hasTZ && time.ZoneOffset != -28800 {
+ 		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
+ 	}
+@@ -345,11 +367,14 @@ type ParseErrorTest struct {
+ }
+ 
+ var parseErrorTests = []ParseErrorTest{
+-	{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
+-	{ANSIC, "Thu Feb  4 21:00:57 @2010", "parse"},
++	{ANSIC, "Feb  4 21:00:60 2010", "cannot parse"}, // cannot parse Feb as Mon
++	{ANSIC, "Thu Feb  4 21:00:57 @2010", "cannot parse"},
+ 	{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
+ 	{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
+ 	{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
++	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", "cannot parse"},
++	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", "cannot parse"},
++	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
+ }
+ 
+ func TestParseErrors(t *testing.T) {

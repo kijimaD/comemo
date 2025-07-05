@@ -17,7 +17,56 @@ Date:   Thu Nov 29 18:00:51 2012 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6782139
-
+---
  src/pkg/net/http/server.go         |  2 ++
  src/pkg/net/http/transport_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index b50c03ed3a..f786e81b9f 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -369,6 +369,8 @@ func (w *response) WriteHeader(code int) {
+ 
+ 	if w.req.Method == "HEAD" || code == StatusNotModified {
+ 		// do nothing
++	} else if code == StatusNoContent {
++		w.header.Del("Transfer-Encoding")
+ 	} else if hasCL {
+ 		w.contentLength = contentLength
+ 		w.header.Del("Transfer-Encoding")
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 2f4eb88f96..e49f14fa58 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -857,6 +857,30 @@ func TestIssue3595(t *testing.T) {
+ 	}
+ }
+ 
++// From http://golang.org/issue/4454 ,
++// "client fails to handle requests with no body and chunked encoding"
++func TestChunkedNoContent(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(StatusNoContent)
++	}))
++	defer ts.Close()
++
++	for _, closeBody := range []bool{true, false} {
++		c := &Client{Transport: &Transport{}}
++		const n = 4
++		for i := 1; i <= n; i++ {
++			res, err := c.Get(ts.URL)
++			if err != nil {
++				t.Errorf("closingBody=%v, req %d/%d: %v", closeBody, i, n, err)
++			} else {
++				if closeBody {
++					res.Body.Close()
++				}
++			}
++		}
++	}
++}
++
+ func TestTransportConcurrency(t *testing.T) {
+ 	const maxProcs = 16
+ 	const numReqs = 500

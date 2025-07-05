@@ -15,7 +15,76 @@ Date:   Mon Dec 29 16:59:55 2014 -0800
     Change-Id: Id5037eb1ee5fa93687d4a6557b4a8233b29e9df2
     Reviewed-on: https://go-review.googlesource.com/2193
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  9 ++++++-
  test/fixedbugs/issue8385.go              | 42 ++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9f4db270f6..c6626048dc 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2787,7 +2787,14 @@ out:
+ notenough:
+ 	if n == nil || n.Diag == 0 {
+ 		if call != nil {
+-			Yyerror("not enough arguments in call to %v", call)
++			// call is the expression being called, not the overall call.
++			// Method expressions have the form T.M, and the compiler has
++			// rewritten those to ONAME nodes but left T in Left.
++			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
++				Yyerror("not enough arguments in call to method expression %v", call)
++			} else {
++				Yyerror("not enough arguments in call to %v", call)
++			}
+ 		} else {
+ 			Yyerror("not enough arguments to %v", Oconv(int(op), 0))
+ 		}
+diff --git a/test/fixedbugs/issue8385.go b/test/fixedbugs/issue8385.go
+new file mode 100644
+index 0000000000..6447e9f0e8
+--- /dev/null
++++ b/test/fixedbugs/issue8385.go
+@@ -0,0 +1,42 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8385: provide a more descriptive error when a method expression
++// is called without a receiver.
++
++package main
++
++type Fooer interface {
++	Foo(i, j int)
++}
++
++func f(x int) {
++}
++
++type I interface {
++	M(int)
++}
++type T struct{}
++
++func (t T) M(x int) {
++}
++
++func g() func(int)
++
++func main() {
++	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo"
++
++	var i I
++	var t *T
++
++	g()()    // ERROR "not enough arguments in call to g\(\)"
++	f()      // ERROR "not enough arguments in call to f"
++	i.M()    // ERROR "not enough arguments in call to i\.M"
++	I.M()    // ERROR "not enough arguments in call to method expression I\.M"
++	t.M()    // ERROR "not enough arguments in call to t\.M"
++	T.M()    // ERROR "not enough arguments in call to method expression T\.M"
++	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M"
++}

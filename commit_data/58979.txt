@@ -14,7 +14,55 @@ Date:   Mon Jan 29 11:14:05 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/559195
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/generate/generate.go          |  2 ++
  src/cmd/go/testdata/script/generate_workspace.txt | 27 +++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index dbe84d7fd6..6371353e20 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -181,6 +181,8 @@ func init() {
+ }
+ 
+ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
++	modload.InitWorkfile()
++
+ 	if generateRunFlag != "" {
+ 		var err error
+ 		generateRunRE, err = regexp.Compile(generateRunFlag)
+diff --git a/src/cmd/go/testdata/script/generate_workspace.txt b/src/cmd/go/testdata/script/generate_workspace.txt
+new file mode 100644
+index 0000000000..5ba23932f1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/generate_workspace.txt
+@@ -0,0 +1,27 @@
++# This is a regression test for Issue #56098: Go generate
++# wasn't initializing workspace mode
++
++[short] skip
++
++go generate ./mod
++cmp ./mod/got.txt want.txt
++
++-- go.work --
++go 1.22
++
++use ./mod
++-- mod/go.mod --
++module example.com/mod
++-- mod/gen.go --
++//go:generate go run gen.go got.txt
++
++package main
++
++import "os"
++
++func main() {
++    outfile := os.Args[1]
++    os.WriteFile(outfile, []byte("Hello World!\n"), 0644)
++}
++-- want.txt --
++Hello World!
+\ No newline at end of file

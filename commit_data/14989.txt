@@ -8,9 +8,79 @@ Date:   Sat Jan 26 09:57:06 2013 +0800
     R=iant, dave
     CC=golang-dev
     https://golang.org/cl/7094061
-
+---
  src/pkg/runtime/malloc.goc |  2 ++
  src/pkg/runtime/malloc.h   |  2 +-
  src/pkg/runtime/proc.c     |  7 +++++++
  src/pkg/runtime/runtime.h  | 10 +++++-----
  4 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f437c0e3f0..ad3ad5e7db 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -19,6 +19,8 @@ package runtime
+ #pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
+ MHeap runtime·mheap;
+ 
++int32	runtime·checking;
++
+ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
+ 
+ extern volatile intgo runtime·MemProfileRate;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index e6138cfaec..2c34398a72 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -446,7 +446,7 @@ void	runtime·markallocated(void *v, uintptr n, bool noptr);
+ void	runtime·checkallocated(void *v, uintptr n);
+ void	runtime·markfreed(void *v, uintptr n);
+ void	runtime·checkfreed(void *v, uintptr n);
+-int32	runtime·checking;
++extern	int32	runtime·checking;
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+ bool	runtime·blockspecial(void*);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5219071b9a..cd66bcecdb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -24,6 +24,13 @@ static	int32	debug	= 0;
+ 
+ int32	runtime·gcwaiting;
+ 
++G*	runtime·allg;
++G*	runtime·lastg;
++M*	runtime·allm;
++
++int8*	runtime·goos;
++int32	runtime·ncpu;
++
+ // Go scheduler
+ //
+ // The go scheduler's job is to match ready-to-run goroutines (`g's)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 47a7b6e78b..e21c276e17 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -562,15 +562,15 @@ struct Panic
+  */
+ extern	String	runtime·emptystring;
+ extern	uintptr runtime·zerobase;
+-G*	runtime·allg;
+-G*	runtime·lastg;
+-M*	runtime·allm;
++extern	G*	runtime·allg;
++extern	G*	runtime·lastg;
++extern	M*	runtime·allm;
+ extern	int32	runtime·gomaxprocs;
+ extern	bool	runtime·singleproc;
+ extern	uint32	runtime·panicking;
+ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+-int8*	runtime·goos;
+-int32	runtime·ncpu;
++extern	int8*	runtime·goos;
++extern	int32	runtime·ncpu;
+ extern	bool	runtime·iscgo;
+ extern 	void	(*runtime·sysargs)(int32, uint8**);
+ extern	uint32	runtime·maxstring;

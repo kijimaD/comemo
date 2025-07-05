@@ -7,7 +7,7 @@ Date:   Tue Nov 8 15:40:58 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5358041
-
+---
  src/pkg/archive/zip/writer_test.go                  | 2 +-
  src/pkg/bufio/bufio.go                              | 2 +-
  src/pkg/bufio/bufio_test.go                         | 2 +-
@@ -92,3 +92,1269 @@ Date:   Tue Nov 8 15:40:58 2011 -0800
  src/pkg/image/jpeg/writer_test.go                   | 2 +-
  src/pkg/index/suffixarray/suffixarray_test.go       | 2 +-
  83 files changed, 94 insertions(+), 94 deletions(-)
+
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index b562f84305..25491dc753 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -7,7 +7,7 @@ package zip
+ import (
+ 	"bytes"
+ 	"io/ioutil"
+-	"rand"
++	"math/rand"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 7c4f90d85c..61e338b616 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -11,7 +11,7 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"strconv"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const (
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 1d3acea367..1f893951c1 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -14,7 +14,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Reads from a reader and rot13s the result.
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index d1a5b68dc8..e66ac026e5 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -9,7 +9,7 @@ package bytes
+ import (
+ 	"errors"
+ 	"io"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index c271b482e1..5235970032 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -7,9 +7,9 @@ package bytes_test
+ import (
+ 	. "bytes"
+ 	"io"
+-	"rand"
++	"math/rand"
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const N = 10000  // make this bigger for a larger (and slower) test
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 56306b0288..9bfd88fa39 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -8,7 +8,7 @@ package bytes
+ 
+ import (
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Compare returns an integer comparing the two byte arrays lexicographically.
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 62f258de8a..9256b18427 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"reflect"
+ 	"testing"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ func eq(a, b []string) bool {
+diff --git a/src/pkg/crypto/dsa/dsa.go b/src/pkg/crypto/dsa/dsa.go
+index 692d62aa9e..a2adc7eb5c 100644
+--- a/src/pkg/crypto/dsa/dsa.go
++++ b/src/pkg/crypto/dsa/dsa.go
+@@ -6,9 +6,9 @@
+ package dsa
+ 
+ import (
+-	"big"
+ 	"errors"
+ 	"io"
++	"math/big"
+ )
+ 
+ // Parameters represents the domain parameters for a key. These parameters can
+diff --git a/src/pkg/crypto/dsa/dsa_test.go b/src/pkg/crypto/dsa/dsa_test.go
+index deec08dfd8..177aa444df 100644
+--- a/src/pkg/crypto/dsa/dsa_test.go
++++ b/src/pkg/crypto/dsa/dsa_test.go
+@@ -5,8 +5,8 @@
+ package dsa
+ 
+ import (
+-	"big"
+ 	"crypto/rand"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index b7f235b3b1..2f199990c2 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -13,9 +13,9 @@ package ecdsa
+ //     http://www.secg.org/download/aid-780/sec1-v2.pdf
+ 
+ import (
+-	"big"
+ 	"crypto/elliptic"
+ 	"io"
++	"math/big"
+ )
+ 
+ // PublicKey represents an ECDSA public key.
+diff --git a/src/pkg/crypto/ecdsa/ecdsa_test.go b/src/pkg/crypto/ecdsa/ecdsa_test.go
+index baa3c9e933..22360b5708 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa_test.go
++++ b/src/pkg/crypto/ecdsa/ecdsa_test.go
+@@ -5,11 +5,11 @@
+ package ecdsa
+ 
+ import (
+-	"big"
+ 	"crypto/elliptic"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"encoding/hex"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/elliptic/elliptic.go b/src/pkg/crypto/elliptic/elliptic.go
+index 3c3327fe03..b7232a2fad 100644
+--- a/src/pkg/crypto/elliptic/elliptic.go
++++ b/src/pkg/crypto/elliptic/elliptic.go
+@@ -14,8 +14,8 @@ package elliptic
+ // reverse the transform than to operate in affine coordinates.
+ 
+ import (
+-	"big"
+ 	"io"
++	"math/big"
+ 	"sync"
+ )
+ 
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index 9578364b58..a68a3807df 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -5,9 +5,9 @@
+ package elliptic
+ 
+ import (
+-	"big"
+ 	"crypto/rand"
+ 	"fmt"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index f697fa170c..a04b5bd713 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -8,12 +8,12 @@
+ package ocsp
+ 
+ import (
+-	"asn1"
+ 	"crypto"
+ 	"crypto/rsa"
+ 	_ "crypto/sha1"
+ 	"crypto/x509"
+ 	"crypto/x509/pkix"
++	"encoding/asn1"
+ 	"time"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/elgamal/elgamal.go b/src/pkg/crypto/openpgp/elgamal/elgamal.go
+index 2ed49f6213..a553bdee8d 100644
+--- a/src/pkg/crypto/openpgp/elgamal/elgamal.go
++++ b/src/pkg/crypto/openpgp/elgamal/elgamal.go
+@@ -13,11 +13,11 @@
+ package elgamal
+ 
+ import (
+-	"big"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
++	"math/big"
+ )
+ 
+ // PublicKey represents an ElGamal public key.
+diff --git a/src/pkg/crypto/openpgp/elgamal/elgamal_test.go b/src/pkg/crypto/openpgp/elgamal/elgamal_test.go
+index 101121aa65..c4f99f5c48 100644
+--- a/src/pkg/crypto/openpgp/elgamal/elgamal_test.go
++++ b/src/pkg/crypto/openpgp/elgamal/elgamal_test.go
+@@ -5,9 +5,9 @@
+ package elgamal
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto/rand"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key.go b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+index d05103fcd8..b24fa3a3fd 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+@@ -5,13 +5,13 @@
+ package packet
+ 
+ import (
+-	"big"
+ 	"crypto/openpgp/elgamal"
+ 	error_ "crypto/openpgp/error"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"encoding/binary"
+ 	"io"
++	"math/big"
+ 	"strconv"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key_test.go b/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
+index b402245bda..2b8eff7b3a 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
+@@ -5,11 +5,11 @@
+ package packet
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"fmt"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index f7ed3536c5..778df15c0b 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -7,12 +7,12 @@
+ package packet
+ 
+ import (
+-	"big"
+ 	"crypto/aes"
+ 	"crypto/cast5"
+ 	"crypto/cipher"
+ 	error_ "crypto/openpgp/error"
+ 	"io"
++	"math/big"
+ )
+ 
+ // readFull is the same as io.ReadFull except that reading zero bytes returns
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index 742ac51e6e..c0ff82b413 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -5,7 +5,6 @@
+ package packet
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto/cipher"
+ 	"crypto/dsa"
+@@ -16,6 +15,7 @@ import (
+ 	"crypto/sha1"
+ 	"io"
+ 	"io/ioutil"
++	"math/big"
+ 	"strconv"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index af0bc2273f..7d71dc49a7 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -5,7 +5,6 @@
+ package packet
+ 
+ import (
+-	"big"
+ 	"crypto/dsa"
+ 	"crypto/openpgp/elgamal"
+ 	error_ "crypto/openpgp/error"
+@@ -15,6 +14,7 @@ import (
+ 	"fmt"
+ 	"hash"
+ 	"io"
++	"math/big"
+ 	"strconv"
+ )
+ 
+diff --git a/src/pkg/crypto/rand/util.go b/src/pkg/crypto/rand/util.go
+index 322da4aed4..b44ae9897b 100644
+--- a/src/pkg/crypto/rand/util.go
++++ b/src/pkg/crypto/rand/util.go
+@@ -5,8 +5,8 @@
+ package rand
+ 
+ import (
+-	"big"
+ 	"io"
++	"math/big"
+ 	"os"
+ )
+ 
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 901539df17..d7b053fec5 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -5,11 +5,11 @@
+ package rsa
+ 
+ import (
+-	"big"
+ 	"crypto"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
++	"math/big"
+ )
+ 
+ // This file implements encryption and decryption using PKCS#1 v1.5 padding.
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index d69bacfd68..66188ac10e 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -5,7 +5,6 @@
+ package rsa
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/rand"
+@@ -13,6 +12,7 @@ import (
+ 	"encoding/base64"
+ 	"encoding/hex"
+ 	"io"
++	"math/big"
+ 	"testing"
+ 	"testing/quick"
+ )
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index c9344ffadf..27ccf61c4f 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -8,12 +8,12 @@ package rsa
+ // TODO(agl): Add support for PSS padding.
+ 
+ import (
+-	"big"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"hash"
+ 	"io"
++	"math/big"
+ )
+ 
+ var bigZero = big.NewInt(0)
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index c36bca1cd3..0fb9875d04 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -5,10 +5,10 @@
+ package rsa
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto/rand"
+ 	"crypto/sha1"
++	"math/big"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index ee8784ca69..c4463ff48f 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -8,7 +8,6 @@
+ package main
+ 
+ import (
+-	"big"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509"
+@@ -16,6 +15,7 @@ import (
+ 	"encoding/pem"
+ 	"flag"
+ 	"log"
++	"math/big"
+ 	"os"
+ 	"time"
+ )
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index dc68a12239..87e8f7e428 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -5,7 +5,7 @@
+ package tls
+ 
+ import (
+-	"rand"
++	"math/rand"
+ 	"reflect"
+ 	"testing"
+ 	"testing/quick"
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index f2b0a144e5..bc3797947f 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -5,12 +5,12 @@
+ package tls
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto/rsa"
+ 	"encoding/hex"
+ 	"flag"
+ 	"io"
++	"math/big"
+ 	"net"
+ 	"strconv"
+ 	"strings"
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index ba34606eea..08fb852d66 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -5,7 +5,6 @@
+ package tls
+ 
+ import (
+-	"big"
+ 	"crypto"
+ 	"crypto/elliptic"
+ 	"crypto/md5"
+@@ -14,6 +13,7 @@ import (
+ 	"crypto/x509"
+ 	"errors"
+ 	"io"
++	"math/big"
+ )
+ 
+ // rsaKeyAgreement implements the standard TLS key agreement where the client
+diff --git a/src/pkg/crypto/x509/pkcs1.go b/src/pkg/crypto/x509/pkcs1.go
+index 8338ae1dd5..31d0dd0c22 100644
+--- a/src/pkg/crypto/x509/pkcs1.go
++++ b/src/pkg/crypto/x509/pkcs1.go
+@@ -5,10 +5,10 @@
+ package x509
+ 
+ import (
+-	"asn1"
+-	"big"
+ 	"crypto/rsa"
++	"encoding/asn1"
+ 	"errors"
++	"math/big"
+ )
+ 
+ // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 332a394621..b35274c9ae 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -7,8 +7,8 @@
+ package pkix
+ 
+ import (
+-	"asn1"
+-	"big"
++	"encoding/asn1"
++	"math/big"
+ 	"time"
+ )
+ 
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index da8b28337e..9ff7db9a0f 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -6,17 +6,17 @@
+ package x509
+ 
+ import (
+-	"asn1"
+-	"big"
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/dsa"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/x509/pkix"
++	"encoding/asn1"
+ 	"encoding/pem"
+ 	"errors"
+ 	"io"
++	"math/big"
+ 	"time"
+ )
+ 
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index d113f850eb..c42471507b 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -5,16 +5,16 @@
+ package x509
+ 
+ import (
+-	"asn1"
+-	"big"
+ 	"bytes"
+ 	"crypto/dsa"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509/pkix"
++	"encoding/asn1"
+ 	"encoding/base64"
+ 	"encoding/hex"
+ 	"encoding/pem"
++	"math/big"
+ 	"testing"
+ 	"time"
+ )
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index 73e733e365..a0066654f8 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -20,8 +20,8 @@ package asn1
+ // everything by any means.
+ 
+ import (
+-	"big"
+ 	"fmt"
++	"math/big"
+ 	"reflect"
+ 	"time"
+ )
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 583d010471..89c50a70ef 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -5,10 +5,10 @@
+ package asn1
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"math/big"
+ 	"reflect"
+ 	"time"
+ )
+diff --git a/src/pkg/encoding/csv/writer.go b/src/pkg/encoding/csv/writer.go
+index 5ea20e100e..c4dcba5668 100644
+--- a/src/pkg/encoding/csv/writer.go
++++ b/src/pkg/encoding/csv/writer.go
+@@ -9,7 +9,7 @@ import (
+ 	"io"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A Writer writes records to a CSV encoded file.
+diff --git a/src/pkg/encoding/gob/dump.go b/src/pkg/encoding/gob/dump.go
+index c4d4331f76..0d0017cc78 100644
+--- a/src/pkg/encoding/gob/dump.go
++++ b/src/pkg/encoding/gob/dump.go
+@@ -3,8 +3,8 @@ package main
+ // Need to compile package gob with debug.go to build this program.
+ 
+ import (
++	"encoding/gob"
+ 	"fmt"
+-	"gob"
+ 	"os"
+ )
+ 
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 3b862e690e..1b20843fa2 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -11,7 +11,7 @@ import (
+ 	"reflect"
+ 	"sync"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // userTypeInfo stores the information associated with a type the user has handed
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 8abd7b4b4c..41295d2d24 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -15,8 +15,8 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-	"utf16"
+-	"utf8"
++	"unicode/utf16"
++	"unicode/utf8"
+ )
+ 
+ // Unmarshal parses the JSON-encoded data and stores the result
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index aac8f91a44..35964c5d9c 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -17,7 +17,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Marshal returns the JSON encoding of v.
+diff --git a/src/pkg/encoding/json/scanner_test.go b/src/pkg/encoding/json/scanner_test.go
+index 429ac366d3..a0a5995af8 100644
+--- a/src/pkg/encoding/json/scanner_test.go
++++ b/src/pkg/encoding/json/scanner_test.go
+@@ -7,7 +7,7 @@ package json
+ import (
+ 	"bytes"
+ 	"math"
+-	"rand"
++	"math/rand"
+ 	"reflect"
+ 	"testing"
+ )
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 9617150c8f..c6a3d75a80 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -13,7 +13,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 525635067e..216d8889b2 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -21,7 +21,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A SyntaxError represents a syntax error in the XML input stream.
+diff --git a/src/pkg/exp/ebnf/ebnf.go b/src/pkg/exp/ebnf/ebnf.go
+index 15c199af6c..cd8c83c921 100644
+--- a/src/pkg/exp/ebnf/ebnf.go
++++ b/src/pkg/exp/ebnf/ebnf.go
+@@ -25,9 +25,9 @@ package ebnf
+ import (
+ 	"errors"
+ 	"fmt"
+-	"scanner"
++	"text/scanner"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/pkg/exp/ebnf/parser.go b/src/pkg/exp/ebnf/parser.go
+index 2dad9b4c13..7a7e3cc16e 100644
+--- a/src/pkg/exp/ebnf/parser.go
++++ b/src/pkg/exp/ebnf/parser.go
+@@ -6,8 +6,8 @@ package ebnf
+ 
+ import (
+ 	"io"
+-	"scanner"
+ 	"strconv"
++	"text/scanner"
+ )
+ 
+ type parser struct {
+diff --git a/src/pkg/exp/norm/composition.go b/src/pkg/exp/norm/composition.go
+index 7965ffc574..7cad8a2ccd 100644
+--- a/src/pkg/exp/norm/composition.go
++++ b/src/pkg/exp/norm/composition.go
+@@ -4,7 +4,7 @@
+ 
+ package norm
+ 
+-import "utf8"
++import "unicode/utf8"
+ 
+ const (
+ 	maxCombiningChars = 30
+diff --git a/src/pkg/exp/norm/input.go b/src/pkg/exp/norm/input.go
+index 12360a8fda..ce159e9050 100644
+--- a/src/pkg/exp/norm/input.go
++++ b/src/pkg/exp/norm/input.go
+@@ -4,7 +4,7 @@
+ 
+ package norm
+ 
+-import "utf8"
++import "unicode/utf8"
+ 
+ type input interface {
+ 	skipASCII(p int) int
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index c7a3762bde..39bab7f0b6 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -12,9 +12,9 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"regexp"
+ 	"strconv"
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index 391bc4184f..25bb28d517 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -5,7 +5,7 @@
+ // Package norm contains types and functions for normalizing Unicode strings.
+ package norm
+ 
+-import "utf8"
++import "unicode/utf8"
+ 
+ // A Form denotes a canonical representation of Unicode code points.
+ // The Unicode-defined normalization and equivalence forms are:
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 744bb1cd6c..6610c257e5 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -10,9 +10,9 @@ import (
+ 	"exp/norm"
+ 	"flag"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"path"
+ 	"regexp"
+@@ -20,7 +20,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ func main() {
+diff --git a/src/pkg/exp/norm/trie_test.go b/src/pkg/exp/norm/trie_test.go
+index bbd5c03e7b..7308d281b5 100644
+--- a/src/pkg/exp/norm/trie_test.go
++++ b/src/pkg/exp/norm/trie_test.go
+@@ -2,7 +2,7 @@ package norm
+ 
+ import (
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Test data is located in triedata_test.go; generated by maketesttables.
+diff --git a/src/pkg/exp/norm/triegen.go b/src/pkg/exp/norm/triegen.go
+index 56cba32196..5edadac0a4 100644
+--- a/src/pkg/exp/norm/triegen.go
++++ b/src/pkg/exp/norm/triegen.go
+@@ -14,7 +14,7 @@ import (
+ 	"fmt"
+ 	"hash/crc32"
+ 	"log"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const blockSize = 64
+diff --git a/src/pkg/exp/spdy/read.go b/src/pkg/exp/spdy/read.go
+index 3de80c04d7..4830a1d6bf 100644
+--- a/src/pkg/exp/spdy/read.go
++++ b/src/pkg/exp/spdy/read.go
+@@ -7,8 +7,8 @@ package spdy
+ import (
+ 	"compress/zlib"
+ 	"encoding/binary"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"strings"
+ )
+ 
+diff --git a/src/pkg/exp/spdy/spdy_test.go b/src/pkg/exp/spdy/spdy_test.go
+index cb91e02861..c1cad4b37c 100644
+--- a/src/pkg/exp/spdy/spdy_test.go
++++ b/src/pkg/exp/spdy/spdy_test.go
+@@ -6,8 +6,8 @@ package spdy
+ 
+ import (
+ 	"bytes"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"reflect"
+ 	"testing"
+ )
+diff --git a/src/pkg/exp/spdy/types.go b/src/pkg/exp/spdy/types.go
+index 87d6edbd56..2648c4f75f 100644
+--- a/src/pkg/exp/spdy/types.go
++++ b/src/pkg/exp/spdy/types.go
+@@ -7,8 +7,8 @@ package spdy
+ import (
+ 	"bytes"
+ 	"compress/zlib"
+-	"http"
+ 	"io"
++	"net/http"
+ )
+ 
+ //  Data Frame Format
+diff --git a/src/pkg/exp/spdy/write.go b/src/pkg/exp/spdy/write.go
+index 537154fbd3..3dd2ca1d5d 100644
+--- a/src/pkg/exp/spdy/write.go
++++ b/src/pkg/exp/spdy/write.go
+@@ -6,8 +6,8 @@ package spdy
+ 
+ import (
+ 	"encoding/binary"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"strings"
+ )
+ 
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index 9a2c0c5977..da45688eee 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -5,12 +5,12 @@
+ package ssh
+ 
+ import (
+-	"big"
+ 	"crypto"
+ 	"crypto/rand"
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"math/big"
+ 	"net"
+ 	"sync"
+ )
+diff --git a/src/pkg/exp/ssh/common.go b/src/pkg/exp/ssh/common.go
+index f68c353a39..273820b642 100644
+--- a/src/pkg/exp/ssh/common.go
++++ b/src/pkg/exp/ssh/common.go
+@@ -5,7 +5,7 @@
+ package ssh
+ 
+ import (
+-	"big"
++	"math/big"
+ 	"strconv"
+ 	"sync"
+ )
+diff --git a/src/pkg/exp/ssh/messages.go b/src/pkg/exp/ssh/messages.go
+index 5eae181872..e24b6398b5 100644
+--- a/src/pkg/exp/ssh/messages.go
++++ b/src/pkg/exp/ssh/messages.go
+@@ -5,9 +5,9 @@
+ package ssh
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"io"
++	"math/big"
+ 	"reflect"
+ )
+ 
+diff --git a/src/pkg/exp/ssh/messages_test.go b/src/pkg/exp/ssh/messages_test.go
+index 629f3d3b14..fe4c397dc3 100644
+--- a/src/pkg/exp/ssh/messages_test.go
++++ b/src/pkg/exp/ssh/messages_test.go
+@@ -5,8 +5,8 @@
+ package ssh
+ 
+ import (
+-	"big"
+-	"rand"
++	"math/big"
++	"math/rand"
+ 	"reflect"
+ 	"testing"
+ 	"testing/quick"
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 2ae8079d2d..62035d52b7 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -5,7 +5,6 @@
+ package ssh
+ 
+ import (
+-	"big"
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/rand"
+@@ -14,6 +13,7 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"io"
++	"math/big"
+ 	"net"
+ 	"sync"
+ )
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index 7b0e35566f..048f63bb7d 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -7,8 +7,8 @@
+ package types
+ 
+ import (
+-	"big"
+ 	"go/token"
++	"math/big"
+ 	"strconv"
+ )
+ 
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 69dbd5ac5f..4167caf3f0 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -8,17 +8,17 @@
+ package types
+ 
+ import (
+-	"big"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"io"
++	"math/big"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"scanner"
+ 	"strconv"
++	"text/scanner"
+ )
+ 
+ const trace = false // set to true for debugging
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index ec87f5d514..3f66d22615 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -5,9 +5,9 @@
+ package types
+ 
+ import (
+-	"exec"
+ 	"go/ast"
+ 	"io/ioutil"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index f5d6ed586c..629280acf7 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -23,10 +23,10 @@ package expvar
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+-	"http"
+-	"json"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"runtime"
+ 	"strconv"
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 8f7a48168e..fc607274b2 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -5,7 +5,7 @@
+ package expvar
+ 
+ import (
+-	"json"
++	"encoding/json"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 80eb986335..3957a5a261 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"strconv"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const (
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 1345644544..bfa88d1870 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -12,7 +12,7 @@ import (
+ 	"reflect"
+ 	"sync"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Some constants in the form of bytes, to avoid string overhead.
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 7ac3b8edcc..85571e80c7 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -14,7 +14,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // runeUnreader is the interface to something that can unread runes.
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 7dd0015b27..d3c39be607 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -15,7 +15,7 @@ import (
+ 	"regexp"
+ 	"strings"
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ type ScanTest struct {
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index f8caafc179..a0aa5ff120 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -10,7 +10,7 @@ package ast
+ import (
+ 	"go/token"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 282a508b3b..e3de8d0fa7 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -8,9 +8,9 @@ package build
+ import (
+ 	"bytes"
+ 	"errors"
+-	"exec"
+ 	"fmt"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 398e31ce26..db8bc6c8a5 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exec"
++	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index e1989226b6..19216f85b9 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -11,7 +11,7 @@ import (
+ 	"io"
+ 	"regexp"
+ 	"strings"
+-	"template" // for HTMLEscape
++	"text/template" // for HTMLEscape
+ )
+ 
+ func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 7fdf0bcff6..196c957544 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -10,7 +10,7 @@ import (
+ 	"go/ast"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ type Example struct {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 8f1ed1159d..aba7d93a64 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -13,7 +13,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"tabwriter"
++	"text/tabwriter"
+ )
+ 
+ const debug = false // enable for debugging
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index dfbdaa3a12..cef9c48650 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -27,7 +27,7 @@ import (
+ 	"path/filepath"
+ 	"strconv"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A Scanner holds the scanner's internal state while processing
+diff --git a/src/pkg/go/token/serialize.go b/src/pkg/go/token/serialize.go
+index 611b1b3be9..042d6abdf9 100644
+--- a/src/pkg/go/token/serialize.go
++++ b/src/pkg/go/token/serialize.go
+@@ -5,7 +5,7 @@
+ package token
+ 
+ import (
+-	"gob"
++	"encoding/gob"
+ 	"io"
+ )
+ 
+diff --git a/src/pkg/html/entity_test.go b/src/pkg/html/entity_test.go
+index 2cf49d61d2..b53f866fa2 100644
+--- a/src/pkg/html/entity_test.go
++++ b/src/pkg/html/entity_test.go
+@@ -6,7 +6,7 @@ package html
+ 
+ import (
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ func TestEntityLength(t *testing.T) {
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index b8e6571a29..ac9e100df0 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -7,7 +7,7 @@ package html
+ import (
+ 	"bytes"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // These replacements permit compatibility with old numeric entities that 
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 76b5281c08..28e8732136 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"image/color"
+ 	"image/png"
+ 	"io/ioutil"
++	"math/rand"
+ 	"os"
+-	"rand"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index f6b2f00fb7..df3e449d32 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -6,7 +6,7 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
+-	"rand"
++	"math/rand"
+ 	"regexp"
+ 	"sort"
+ 	"strings"

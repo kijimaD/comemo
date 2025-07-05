@@ -18,7 +18,42 @@ Date:   Mon Oct 12 14:29:28 2020 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Trust: Rob Pike <r@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/doc.go   | 3 ++-
  src/fmt/print.go | 8 ++++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index a7115809d3..d05ee519c3 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -150,7 +150,8 @@
+ 	concrete value that it holds, and printing continues with the next rule.
+ 
+ 	2. If an operand implements the Formatter interface, it will
+-	be invoked. Formatter provides fine control of formatting.
++	be invoked. In this case the interpretation of verbs and flags is
++	controlled by that implementation.
+ 
+ 	3. If the %v verb is used with the # flag (%#v) and the operand
+ 	implements the GoStringer interface, that will be invoked.
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 778b5b0938..8bc225f548 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -47,11 +47,11 @@ type State interface {
+ 	Flag(c int) bool
+ }
+ 
+-// Formatter is the interface implemented by values with a custom formatter.
+-// The implementation of Format may call Sprint(f) or Fprint(f) etc.
+-// to generate its output.
++// Formatter is implemented by any value that has a Format method.
++// The implementation controls how State and rune are interpreted,
++// and may call Sprint(f) or Fprint(f) etc. to generate its output.
+ type Formatter interface {
+-	Format(f State, c rune)
++	Format(f State, verb rune)
+ }
+ 
+ // Stringer is implemented by any value that has a String method,

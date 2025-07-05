@@ -95,7 +95,7 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/ecdsa/boring.go              |  5 ++--
  src/crypto/ecdsa/ecdsa.go               | 32 ++++++++++++++++++++---
  src/crypto/internal/boring/bbig/big.go  | 33 +++++++++++++++++++++++
@@ -108,3 +108,571 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
  src/crypto/rsa/rsa.go                   | 19 +++++++++-----
  src/go/build/deps_test.go               | 46 +++++++++++++++++++++------------
  11 files changed, 138 insertions(+), 89 deletions(-)
+
+diff --git a/src/crypto/ecdsa/boring.go b/src/crypto/ecdsa/boring.go
+index d7de5c96e5..1529de3f2b 100644
+--- a/src/crypto/ecdsa/boring.go
++++ b/src/crypto/ecdsa/boring.go
+@@ -8,6 +8,7 @@ package ecdsa
+ 
+ import (
+ 	"crypto/internal/boring"
++	"crypto/internal/boring/bbig"
+ 	"math/big"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -43,7 +44,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
+ 
+ 	b = new(boringPub)
+ 	b.orig = copyPublicKey(pub)
+-	key, err := boring.NewPublicKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y)
++	key, err := boring.NewPublicKeyECDSA(b.orig.Curve.Params().Name, bbig.Enc(b.orig.X), bbig.Enc(b.orig.Y))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -65,7 +66,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
+ 
+ 	b = new(boringPriv)
+ 	b.orig = copyPrivateKey(priv)
+-	key, err := boring.NewPrivateKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y, b.orig.D)
++	key, err := boring.NewPrivateKeyECDSA(b.orig.Curve.Params().Name, bbig.Enc(b.orig.X), bbig.Enc(b.orig.Y), bbig.Enc(b.orig.D))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index d3ae456b84..efc5dd5067 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -24,6 +24,7 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/elliptic"
++	"crypto/internal/boring/bbig"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+ 	"errors"
+@@ -166,7 +167,7 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: x, Y: y}, D: d}, nil
++		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: bbig.Dec(x), Y: bbig.Dec(y)}, D: bbig.Dec(d)}, nil
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+@@ -226,7 +227,21 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+-		return boring.SignECDSA(b, hash)
++		sig, err := boring.SignMarshalECDSA(b, hash)
++		if err != nil {
++			return nil, nil, err
++		}
++		var r, s big.Int
++		var inner cryptobyte.String
++		input := cryptobyte.String(sig)
++		if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
++			!input.Empty() ||
++			!inner.ReadASN1Integer(&r) ||
++			!inner.ReadASN1Integer(&s) ||
++			!inner.Empty() {
++			return nil, nil, errors.New("invalid ASN.1 from boringcrypto")
++		}
++		return &r, &s, nil
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+@@ -327,11 +342,20 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+ // use VerifyASN1 instead of dealing directly with r, s.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	if boring.Enabled {
+-		b, err := boringPublicKey(pub)
++		key, err := boringPublicKey(pub)
++		if err != nil {
++			return false
++		}
++		var b cryptobyte.Builder
++		b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
++			b.AddASN1BigInt(r)
++			b.AddASN1BigInt(s)
++		})
++		sig, err := b.Bytes()
+ 		if err != nil {
+ 			return false
+ 		}
+-		return boring.VerifyECDSA(b, hash, r, s)
++		return boring.VerifyECDSA(key, hash, sig)
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+diff --git a/src/crypto/internal/boring/bbig/big.go b/src/crypto/internal/boring/bbig/big.go
+new file mode 100644
+index 0000000000..5ce46972b3
+--- /dev/null
++++ b/src/crypto/internal/boring/bbig/big.go
+@@ -0,0 +1,33 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bbig
++
++import (
++	"crypto/internal/boring"
++	"math/big"
++	"unsafe"
++)
++
++func Enc(b *big.Int) boring.BigInt {
++	if b == nil {
++		return nil
++	}
++	x := b.Bits()
++	if len(x) == 0 {
++		return boring.BigInt{}
++	}
++	return unsafe.Slice((*uint)(&x[0]), len(x))
++}
++
++func Dec(b boring.BigInt) *big.Int {
++	if b == nil {
++		return nil
++	}
++	if len(b) == 0 {
++		return new(big.Int)
++	}
++	x := unsafe.Slice((*big.Word)(&b[0]), len(b))
++	return new(big.Int).SetBits(x)
++}
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index dd9eac569b..d46166e4e1 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -17,7 +17,6 @@ import "C"
+ import (
+ 	"crypto/internal/boring/sig"
+ 	_ "crypto/internal/boring/syso"
+-	"math/big"
+ 	"math/bits"
+ 	"unsafe"
+ )
+@@ -60,7 +59,7 @@ type fail string
+ 
+ func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
+ 
+-func wbase(b []big.Word) *C.uint8_t {
++func wbase(b BigInt) *C.uint8_t {
+ 	if len(b) == 0 {
+ 		return nil
+ 	}
+@@ -69,20 +68,19 @@ func wbase(b []big.Word) *C.uint8_t {
+ 
+ const wordBytes = bits.UintSize / 8
+ 
+-func bigToBN(x *big.Int) *C.GO_BIGNUM {
+-	raw := x.Bits()
+-	return C._goboringcrypto_BN_le2bn(wbase(raw), C.size_t(len(raw)*wordBytes), nil)
++func bigToBN(x BigInt) *C.GO_BIGNUM {
++	return C._goboringcrypto_BN_le2bn(wbase(x), C.size_t(len(x)*wordBytes), nil)
+ }
+ 
+-func bnToBig(bn *C.GO_BIGNUM) *big.Int {
+-	raw := make([]big.Word, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
+-	if C._goboringcrypto_BN_bn2le_padded(wbase(raw), C.size_t(len(raw)*wordBytes), bn) == 0 {
++func bnToBig(bn *C.GO_BIGNUM) BigInt {
++	x := make(BigInt, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
++	if C._goboringcrypto_BN_bn2le_padded(wbase(x), C.size_t(len(x)*wordBytes), bn) == 0 {
+ 		panic("boringcrypto: bignum conversion failed")
+ 	}
+-	return new(big.Int).SetBits(raw)
++	return x
+ }
+ 
+-func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
++func bigToBn(bnp **C.GO_BIGNUM, b BigInt) bool {
+ 	if *bnp != nil {
+ 		C._goboringcrypto_BN_free(*bnp)
+ 		*bnp = nil
+diff --git a/src/crypto/internal/boring/doc.go b/src/crypto/internal/boring/doc.go
+index 64f41e3c82..6060fe5951 100644
+--- a/src/crypto/internal/boring/doc.go
++++ b/src/crypto/internal/boring/doc.go
+@@ -12,3 +12,8 @@ package boring
+ //
+ // BoringCrypto is only available on linux/amd64 systems.
+ const Enabled = available
++
++// A BigInt is the raw words from a BigInt.
++// This definition allows us to avoid importing math/big.
++// Conversion between BigInt and *big.Int is in crypto/internal/boring/bbig.
++type BigInt []uint
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index 20612e6a2c..884c4b746d 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -10,15 +10,13 @@ package boring
+ // #include "goboringcrypto.h"
+ import "C"
+ import (
+-	"encoding/asn1"
+ 	"errors"
+-	"math/big"
+ 	"runtime"
+ 	"unsafe"
+ )
+ 
+ type ecdsaSignature struct {
+-	R, S *big.Int
++	R, S BigInt
+ }
+ 
+ type PrivateKeyECDSA struct {
+@@ -53,7 +51,7 @@ func curveNID(curve string) (C.int, error) {
+ 	return 0, errUnknownCurve
+ }
+ 
+-func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
++func NewPublicKeyECDSA(curve string, X, Y BigInt) (*PublicKeyECDSA, error) {
+ 	key, err := newECKey(curve, X, Y)
+ 	if err != nil {
+ 		return nil, err
+@@ -67,7 +65,7 @@ func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
+ 	return k, nil
+ }
+ 
+-func newECKey(curve string, X, Y *big.Int) (*C.GO_EC_KEY, error) {
++func newECKey(curve string, X, Y BigInt) (*C.GO_EC_KEY, error) {
+ 	nid, err := curveNID(curve)
+ 	if err != nil {
+ 		return nil, err
+@@ -100,7 +98,7 @@ func newECKey(curve string, X, Y *big.Int) (*C.GO_EC_KEY, error) {
+ 	return key, nil
+ }
+ 
+-func NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*PrivateKeyECDSA, error) {
++func NewPrivateKeyECDSA(curve string, X, Y BigInt, D BigInt) (*PrivateKeyECDSA, error) {
+ 	key, err := newECKey(curve, X, Y)
+ 	if err != nil {
+ 		return nil, err
+@@ -123,22 +121,6 @@ func NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*PrivateKeyECD
+ 	return k, nil
+ }
+ 
+-func SignECDSA(priv *PrivateKeyECDSA, hash []byte) (r, s *big.Int, err error) {
+-	// We could use ECDSA_do_sign instead but would need to convert
+-	// the resulting BIGNUMs to *big.Int form. If we're going to do a
+-	// conversion, converting the ASN.1 form is more convenient and
+-	// likely not much more expensive.
+-	sig, err := SignMarshalECDSA(priv, hash)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-	var esig ecdsaSignature
+-	if _, err := asn1.Unmarshal(sig, &esig); err != nil {
+-		return nil, nil, err
+-	}
+-	return esig.R, esig.S, nil
+-}
+-
+ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ 	size := C._goboringcrypto_ECDSA_size(priv.key)
+ 	sig := make([]byte, size)
+@@ -150,20 +132,13 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ 	return sig[:sigLen], nil
+ }
+ 
+-func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
+-	// We could use ECDSA_do_verify instead but would need to convert
+-	// r and s to BIGNUM form. If we're going to do a conversion, marshaling
+-	// to ASN.1 is more convenient and likely not much more expensive.
+-	sig, err := asn1.Marshal(ecdsaSignature{r, s})
+-	if err != nil {
+-		return false
+-	}
++func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
+ 	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
+ 	runtime.KeepAlive(pub)
+ 	return ok
+ }
+ 
+-func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
++func GenerateKeyECDSA(curve string) (X, Y, D BigInt, err error) {
+ 	nid, err := curveNID(curve)
+ 	if err != nil {
+ 		return nil, nil, nil, err
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index df16588584..bb88fb0004 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -12,7 +12,6 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/boring/sig"
+ 	"hash"
+-	"math/big"
+ )
+ 
+ const available = false
+@@ -55,22 +54,19 @@ func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not a
+ type PublicKeyECDSA struct{ _ int }
+ type PrivateKeyECDSA struct{ _ int }
+ 
+-func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
++func GenerateKeyECDSA(curve string) (X, Y, D BigInt, err error) {
+ 	panic("boringcrypto: not available")
+ }
+-func NewPrivateKeyECDSA(curve string, X, Y, D *big.Int) (*PrivateKeyECDSA, error) {
++func NewPrivateKeyECDSA(curve string, X, Y, D BigInt) (*PrivateKeyECDSA, error) {
+ 	panic("boringcrypto: not available")
+ }
+-func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
+-	panic("boringcrypto: not available")
+-}
+-func SignECDSA(priv *PrivateKeyECDSA, hash []byte) (r, s *big.Int, err error) {
++func NewPublicKeyECDSA(curve string, X, Y BigInt) (*PublicKeyECDSA, error) {
+ 	panic("boringcrypto: not available")
+ }
+ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+-func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
++func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
+ 	panic("boringcrypto: not available")
+ }
+ 
+@@ -95,13 +91,13 @@ func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+ func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+-func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
++func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
+ 	panic("boringcrypto: not available")
+ }
+-func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
++func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv BigInt) (*PrivateKeyRSA, error) {
+ 	panic("boringcrypto: not available")
+ }
+-func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) { panic("boringcrypto: not available") }
++func NewPublicKeyRSA(N, E BigInt) (*PublicKeyRSA, error) { panic("boringcrypto: not available") }
+ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 642287709e..64c83c21c5 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -14,14 +14,13 @@ import (
+ 	"crypto/subtle"
+ 	"errors"
+ 	"hash"
+-	"math/big"
+ 	"runtime"
+ 	"strconv"
+ 	"unsafe"
+ )
+ 
+-func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
+-	bad := func(e error) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
++func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
++	bad := func(e error) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
+ 		return nil, nil, nil, nil, nil, nil, nil, nil, e
+ 	}
+ 
+@@ -47,7 +46,7 @@ type PublicKeyRSA struct {
+ 	_key *C.GO_RSA
+ }
+ 
+-func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) {
++func NewPublicKeyRSA(N, E BigInt) (*PublicKeyRSA, error) {
+ 	key := C._goboringcrypto_RSA_new()
+ 	if key == nil {
+ 		return nil, fail("RSA_new")
+@@ -78,7 +77,7 @@ type PrivateKeyRSA struct {
+ 	_key *C.GO_RSA
+ }
+ 
+-func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
++func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv BigInt) (*PrivateKeyRSA, error) {
+ 	key := C._goboringcrypto_RSA_new()
+ 	if key == nil {
+ 		return nil, fail("RSA_new")
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+index 49a195f0f4..362e9307f8 100644
+--- a/src/crypto/rsa/boring.go
++++ b/src/crypto/rsa/boring.go
+@@ -8,6 +8,7 @@ package rsa
+ 
+ import (
+ 	"crypto/internal/boring"
++	"crypto/internal/boring/bbig"
+ 	"math/big"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -43,7 +44,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyRSA, error) {
+ 
+ 	b = new(boringPub)
+ 	b.orig = copyPublicKey(pub)
+-	key, err := boring.NewPublicKeyRSA(b.orig.N, big.NewInt(int64(b.orig.E)))
++	key, err := boring.NewPublicKeyRSA(bbig.Enc(b.orig.N), bbig.Enc(big.NewInt(int64(b.orig.E))))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -77,7 +78,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyRSA, error) {
+ 		Dq = b.orig.Precomputed.Dq
+ 		Qinv = b.orig.Precomputed.Qinv
+ 	}
+-	key, err := boring.NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv)
++	key, err := boring.NewPrivateKeyRSA(bbig.Enc(N), bbig.Enc(E), bbig.Enc(D), bbig.Enc(P), bbig.Enc(Q), bbig.Enc(Dp), bbig.Enc(Dq), bbig.Enc(Qinv))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index eef967f826..e084be15cc 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -24,6 +24,9 @@ package rsa
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
++	"crypto/internal/boring/bbig"
++	"crypto/internal/randutil"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+@@ -31,12 +34,6 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
+-
+-	"crypto/internal/randutil"
+-)
+-
+-import (
+-	"crypto/internal/boring"
+ 	"unsafe"
+ )
+ 
+@@ -266,10 +263,18 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
+ 	randutil.MaybeReadByte(random)
+ 
+ 	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+-		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
++		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
+ 		if err != nil {
+ 			return nil, err
+ 		}
++		N := bbig.Dec(bN)
++		E := bbig.Dec(bE)
++		D := bbig.Dec(bD)
++		P := bbig.Dec(bP)
++		Q := bbig.Dec(bQ)
++		Dp := bbig.Dec(bDp)
++		Dq := bbig.Dec(bDq)
++		Qinv := bbig.Dec(bQinv)
+ 		e64 := E.Int64()
+ 		if !E.IsInt64() || int64(int(e64)) != e64 {
+ 			return nil, errors.New("crypto/rsa: generated key exponent too large")
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d955081869..91220a88bb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -334,7 +334,7 @@ var depsRules = `
+ 
+ 	# Bulk of the standard library must not use cgo.
+ 	# The prohibition stops at net and os/user.
+-	C !< fmt, go/types;
++	C !< fmt, go/types, CRYPTO-MATH;
+ 
+ 	CGO, OS
+ 	< plugin;
+@@ -399,10 +399,15 @@ var depsRules = `
+ 
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/fipstls;
+-
+-	encoding/binary, golang.org/x/sys/cpu, hash,
+-	FMT, math/big, embed,
+-	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls, crypto/internal/boring/syso
++	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
++
++	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
++	# Unfortunately, stuck with reflect via encoding/binary.
++	crypto/internal/boring/sig,
++	crypto/internal/boring/syso,
++	encoding/binary,
++	golang.org/x/sys/cpu,
++	hash
+ 	< crypto
+ 	< crypto/subtle
+ 	< crypto/internal/subtle
+@@ -411,43 +416,47 @@ var depsRules = `
+ 	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+ 	< crypto/ed25519/internal/edwards25519
+ 	< crypto/cipher
+-	< encoding/asn1
+ 	< crypto/internal/boring
++	< crypto/boring
+ 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+ 	  crypto/sha1, crypto/sha256, crypto/sha512
++	< CRYPTO;
++
++	CGO, fmt, net !< CRYPTO;
++
++	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
++	CRYPTO, FMT, math/big, embed
++	< crypto/internal/boring/bbig
+ 	< crypto/internal/randutil
+ 	< crypto/rand
+ 	< crypto/ed25519
++	< encoding/asn1
+ 	< golang.org/x/crypto/cryptobyte/asn1
+ 	< golang.org/x/crypto/cryptobyte
+ 	< golang.org/x/crypto/curve25519
+ 	< crypto/dsa, crypto/elliptic, crypto/rsa
+ 	< crypto/ecdsa
+-	< CRYPTO-BORING;
++	< CRYPTO-MATH;
+ 
+-	net !< CRYPTO-BORING;
++	CGO, net !< CRYPTO-MATH;
+ 
+ 	# TLS, Prince of Dependencies.
+-	CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
++	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
+ 	< golang.org/x/crypto/internal/subtle
+ 	< golang.org/x/crypto/chacha20
+ 	< golang.org/x/crypto/internal/poly1305
+ 	< golang.org/x/crypto/chacha20poly1305
+ 	< golang.org/x/crypto/hkdf
+ 	< crypto/x509/internal/macos
+-	< crypto/x509/pkix
++	< crypto/x509/pkix;
++
++	crypto/internal/boring/fipstls, crypto/x509/pkix
+ 	< crypto/x509
+ 	< crypto/tls;
+ 
+-	crypto/internal/boring/sig, crypto/internal/boring/fipstls
+-	< crypto/tls/fipsonly;
+-
+-	crypto/internal/boring
+-	< crypto/boring;
+-
+ 	# crypto-aware packages
+ 
+-	CRYPTO-BORING, DEBUG, go/build, go/types, text/scanner
++	DEBUG, go/build, go/types, text/scanner, crypto/md5
+ 	< internal/pkgbits
+ 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+ 	< go/importer;
+@@ -645,6 +654,9 @@ func findImports(pkg string) ([]string, error) {
+ 	}
+ 	var imports []string
+ 	var haveImport = map[string]bool{}
++	if pkg == "crypto/internal/boring" {
++		haveImport["C"] = true // kludge: prevent C from appearing in crypto/internal/boring imports
++	}
+ 	fset := token.NewFileSet()
+ 	for _, file := range files {
+ 		name := file.Name()

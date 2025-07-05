@@ -17,6 +17,43 @@ Date:   Thu Nov 15 14:11:19 2018 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug.go | 17 ++++++++++++-----
  1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 7407a75c41..c2736d837c 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -881,12 +881,11 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 	for _, b := range state.f.Blocks {
+ 		state.mergePredecessors(b, blockLocs, prevBlock)
+ 
+-		// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
+-		for _, varID := range state.changedVars.contents() {
+-			state.updateVar(VarID(varID), b, BlockStart)
+-		}
+-
+ 		if !blockLocs[b.ID].relevant {
++			// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
++			for _, varID := range state.changedVars.contents() {
++				state.updateVar(VarID(varID), b, BlockStart)
++			}
+ 			continue
+ 		}
+ 
+@@ -1019,6 +1018,14 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
+ 		// they get incomplete debug info on 32-bit platforms.
+ 		return
+ 	}
++	if start == end {
++		if state.loggingEnabled {
++			// Printf not logf so not gated by GOSSAFUNC; this should fire very rarely.
++			fmt.Printf("Skipping empty location list for %v in %s\n", state.vars[varID], state.f.Name)
++		}
++		return
++	}
++
+ 	list := state.lists[varID]
+ 	list = appendPtr(state.ctxt, list, start)
+ 	list = appendPtr(state.ctxt, list, end)

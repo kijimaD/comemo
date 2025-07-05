@@ -16,7 +16,55 @@ Date:   Sat Apr 11 15:38:51 2020 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.15.html             | 10 ++++++++++
  src/net/url/example_test.go | 15 +++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index e75132bfa7..8d74c9a5c1 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -134,6 +134,16 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
++  <dd>
++    <p><!-- CL 207082 -->
++      The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
++      method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
++      returns the URL in string form with any password replaced with <code>xxxxx</code>.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- CL 221779 -->
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index ad67f5328a..f0d3d2bf45 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -205,6 +205,21 @@ func ExampleURL_UnmarshalBinary() {
+ 	// https://example.org/foo
+ }
+ 
++func ExampleURL_Redacted() {
++	u := &url.URL{
++		Scheme: "https",
++		User:   url.UserPassword("user", "password"),
++		Host:   "example.com",
++		Path:   "foo/bar",
++	}
++	fmt.Println(u.Redacted())
++	u.User = url.UserPassword("me", "newerPassword")
++	fmt.Println(u.Redacted())
++	// Output:
++	// https://user:xxxxx@example.com/foo/bar
++	// https://me:xxxxx@example.com/foo/bar
++}
++
+ func ExampleURL_RequestURI() {
+ 	u, err := url.Parse("https://example.org/path?foo=bar")
+ 	if err != nil {

@@ -15,10 +15,98 @@ Date:   Thu Mar 9 13:20:01 2023 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go       | 6 +++---
  src/cmd/compile/internal/base/flag.go        | 2 --
  src/cmd/compile/internal/gc/main.go          | 2 +-
  src/cmd/compile/internal/ssagen/pgen.go      | 2 +-
  src/cmd/compile/internal/staticinit/sched.go | 4 ++--
  5 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 288c2d82ef..ec20b18134 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -50,11 +50,11 @@ type DebugFlags struct {
+ 	WB                    int    `help:"print information about write barriers"`
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
+-	PGOInlineCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
++	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+ 	PGOInline             int    `help:"debug profile-guided inlining"`
+-	WrapGlobalMapDbg      int    "help:\"debug trace output for global map init wrapping\""
+-	WrapGlobalMapStress   int    "help:\"run global map init wrap in stress mode (no size cutoff)\""
++	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
++	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+ 
+ 	ConcurrentOk bool // true if only concurrentOk flags seen
+ }
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 4baff74917..ccd63f6368 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -123,7 +123,6 @@ type CmdFlags struct {
+ 	TraceProfile       string       "help:\"write an execution trace to `file`\""
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+ 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
+-	WrapGlobalMapInit  bool         "help:\"wrap global map large inits in their own functions (to permit deadcode)\""
+ 	PgoProfile         string       "help:\"read profile from `file`\""
+ 
+ 	// Configuration derived from flags; not a flag itself.
+@@ -164,7 +163,6 @@ func ParseFlags() {
+ 	Flag.LinkShared = &Ctxt.Flag_linkshared
+ 	Flag.Shared = &Ctxt.Flag_shared
+ 	Flag.WB = true
+-	Flag.WrapGlobalMapInit = true
+ 
+ 	Debug.ConcurrentOk = true
+ 	Debug.InlFuncsWithClosures = 1
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6865067580..6a9ec90aa8 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -374,7 +374,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 
+ 	// Add keep relocations for global maps.
+-	if base.Flag.WrapGlobalMapInit {
++	if base.Debug.WrapGlobalMapCtl != 1 {
+ 		staticinit.AddKeepRelocations()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 3320f746bb..a0378c755a 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -214,7 +214,7 @@ func Compile(fn *ir.Func, worker int) {
+ 	// If we're compiling the package init function, search for any
+ 	// relocations that target global map init outline functions and
+ 	// turn them into weak relocs.
+-	if base.Flag.WrapGlobalMapInit && fn.IsPackageInit() {
++	if fn.IsPackageInit() && base.Debug.WrapGlobalMapCtl != 1 {
+ 		weakenGlobalMapInitRelocs(fn)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 9ad016b930..c9b0239465 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -945,7 +945,7 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
+ 	}
+ 
+ 	// Reject smaller candidates if not in stress mode.
+-	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapStress == 0 {
++	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapCtl != 2 {
+ 		if base.Debug.WrapGlobalMapDbg > 1 {
+ 			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
+ 				nm, rsiz)
+@@ -1046,7 +1046,7 @@ func AddKeepRelocations() {
+ // functions (if legal/profitable). Return value is an updated list
+ // and a list of any newly generated "map init" functions.
+ func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
+-	if !base.Flag.WrapGlobalMapInit {
++	if base.Debug.WrapGlobalMapCtl == 1 {
+ 		return stmts, nil
+ 	}
+ 	newfuncs := []*ir.Func{}

@@ -10,7 +10,7 @@ Date:   Thu Dec 3 18:15:50 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  test/copy1.go                |  8 ++---
  test/fixedbugs/issue10975.go |  2 +-
  test/fixedbugs/issue11361.go |  4 +--
@@ -41,3 +41,583 @@ Date:   Thu Dec 3 18:15:50 2020 -0800
  test/typeswitch3.go          |  6 ++--
  test/varerr.go               |  2 +-
  29 files changed, 100 insertions(+), 124 deletions(-)
+
+diff --git a/test/copy1.go b/test/copy1.go
+index e1fa105584..c0760f7190 100644
+--- a/test/copy1.go
++++ b/test/copy1.go
+@@ -17,11 +17,11 @@ func main() {
+ 	_ = copy()        // ERROR "not enough arguments"
+ 	_ = copy(1, 2, 3) // ERROR "too many arguments"
+ 
+-	_ = copy(si, "hi") // ERROR "have different element types.*int.*string"
++	_ = copy(si, "hi") // ERROR "have different element types(.*int.*string| int and byte)"
+ 	_ = copy(si, sf)   // ERROR "have different element types.*int.*float64"
+ 
+-	_ = copy(1, 2)  // ERROR "must be slices; have int, int"
+-	_ = copy(1, si) // ERROR "first argument to copy should be"
+-	_ = copy(si, 2) // ERROR "second argument to copy should be"
++	_ = copy(1, 2)  // ERROR "must be slices; have int, int|expects slice arguments"
++	_ = copy(1, si) // ERROR "first argument to copy should be|expects slice arguments"
++	_ = copy(si, 2) // ERROR "second argument to copy should be|expects slice arguments"
+ 
+ }
+diff --git a/test/fixedbugs/issue10975.go b/test/fixedbugs/issue10975.go
+index b5f043f0a7..415b71b945 100644
+--- a/test/fixedbugs/issue10975.go
++++ b/test/fixedbugs/issue10975.go
+@@ -10,7 +10,7 @@
+ package main
+ 
+ type I interface {
+-	int // ERROR "interface contains embedded non-interface int"
++	int // ERROR "interface contains embedded non-interface int|not an interface"
+ }
+ 
+ func New() I {
+diff --git a/test/fixedbugs/issue11361.go b/test/fixedbugs/issue11361.go
+index 1260ea89c9..2544adb55b 100644
+--- a/test/fixedbugs/issue11361.go
++++ b/test/fixedbugs/issue11361.go
+@@ -6,6 +6,6 @@
+ 
+ package a
+ 
+-import "fmt"  // ERROR "imported and not used"
++import "fmt"  // ERROR "imported and not used|imported but not used"
+ 
+-const n = fmt // ERROR "fmt without selector"
++const n = fmt // ERROR "fmt without selector|not in selector"
+diff --git a/test/fixedbugs/issue11371.go b/test/fixedbugs/issue11371.go
+index b2d966fac8..c0fc117687 100644
+--- a/test/fixedbugs/issue11371.go
++++ b/test/fixedbugs/issue11371.go
+@@ -9,9 +9,9 @@
+ 
+ package issue11371
+ 
+-const a int = 1.1        // ERROR "constant 1.1 truncated to integer"
+-const b int = 1e20       // ERROR "overflows int"
+-const c int = 1 + 1e-100 // ERROR "constant truncated to integer"
+-const d int = 1 - 1e-100 // ERROR "constant truncated to integer"
+-const e int = 1.00000001 // ERROR "constant truncated to integer"
+-const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer"
++const a int = 1.1        // ERROR "constant 1.1 truncated to integer|truncated to int"
++const b int = 1e20       // ERROR "overflows int|truncated to int"
++const c int = 1 + 1e-100 // ERROR "constant truncated to integer|truncated to int"
++const d int = 1 - 1e-100 // ERROR "constant truncated to integer|truncated to int"
++const e int = 1.00000001 // ERROR "constant truncated to integer|truncated to int"
++const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|truncated to int"
+diff --git a/test/fixedbugs/issue8385.go b/test/fixedbugs/issue8385.go
+index 6447e9f0e8..d8094fe7a7 100644
+--- a/test/fixedbugs/issue8385.go
++++ b/test/fixedbugs/issue8385.go
+@@ -27,7 +27,7 @@ func (t T) M(x int) {
+ func g() func(int)
+ 
+ func main() {
+-	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo"
++	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo|not enough arguments in call"
+ 
+ 	var i I
+ 	var t *T
+@@ -35,8 +35,8 @@ func main() {
+ 	g()()    // ERROR "not enough arguments in call to g\(\)"
+ 	f()      // ERROR "not enough arguments in call to f"
+ 	i.M()    // ERROR "not enough arguments in call to i\.M"
+-	I.M()    // ERROR "not enough arguments in call to method expression I\.M"
++	I.M()    // ERROR "not enough arguments in call to method expression I\.M|not enough arguments in call"
+ 	t.M()    // ERROR "not enough arguments in call to t\.M"
+-	T.M()    // ERROR "not enough arguments in call to method expression T\.M"
+-	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M"
++	T.M()    // ERROR "not enough arguments in call to method expression T\.M|not enough arguments in call"
++	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments in call"
+ }
+diff --git a/test/fixedbugs/issue8438.go b/test/fixedbugs/issue8438.go
+index 3a4f193b57..1a223e701f 100644
+--- a/test/fixedbugs/issue8438.go
++++ b/test/fixedbugs/issue8438.go
+@@ -10,8 +10,8 @@
+ package main
+ 
+ func main() {
+-	_ = []byte{"foo"}   // ERROR "cannot use"
+-	_ = []int{"foo"}    // ERROR "cannot use"
+-	_ = []rune{"foo"}   // ERROR "cannot use"
++	_ = []byte{"foo"}   // ERROR "cannot use|cannot convert"
++	_ = []int{"foo"}    // ERROR "cannot use|cannot convert"
++	_ = []rune{"foo"}   // ERROR "cannot use|cannot convert"
+ 	_ = []string{"foo"} // OK
+ }
+diff --git a/test/fixedbugs/issue8440.go b/test/fixedbugs/issue8440.go
+index f9b1dea3eb..da482b4483 100644
+--- a/test/fixedbugs/issue8440.go
++++ b/test/fixedbugs/issue8440.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	n.foo = 6 // ERROR "undefined: n in n.foo"
++	n.foo = 6 // ERROR "undefined: n in n.foo|undefined: n"
+ }
+diff --git a/test/fixedbugs/issue8745.go b/test/fixedbugs/issue8745.go
+index fee2ca7ce0..c2d00a7ebd 100644
+--- a/test/fixedbugs/issue8745.go
++++ b/test/fixedbugs/issue8745.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f(s string) {
+-	var _ float64 = s[2] // ERROR "cannot use.*type byte.*as type float64"
++	var _ float64 = s[2] // ERROR "cannot use.*type byte.*as type float64|cannot use .* as float64 value"
+ }
+diff --git a/test/fixedbugs/issue9083.go b/test/fixedbugs/issue9083.go
+index 8fbd78be7a..f7e6388de8 100644
+--- a/test/fixedbugs/issue9083.go
++++ b/test/fixedbugs/issue9083.go
+@@ -13,6 +13,7 @@ const zero = 0
+ 
+ func main() {
+ 	var x int
++	_ = x
+ 	x = make(map[int]int) // ERROR "cannot use make\(map\[int\]int\)|incompatible"
+ 	x = make(map[int]int, 0) // ERROR "cannot use make\(map\[int\]int, 0\)|incompatible"
+ 	x = make(map[int]int, zero) // ERROR "cannot use make\(map\[int\]int, zero\)|incompatible"
+diff --git a/test/fixedbugs/issue9370.go b/test/fixedbugs/issue9370.go
+index 120af35397..4724b6e2d9 100644
+--- a/test/fixedbugs/issue9370.go
++++ b/test/fixedbugs/issue9370.go
+@@ -67,12 +67,12 @@ var (
+ 	_ = 1 != e
+ 	_ = 1 >= e // ERROR "invalid operation.*not defined"
+ 
+-	_ = i == 1 // ERROR "invalid operation.*mismatched types"
+-	_ = i != 1 // ERROR "invalid operation.*mismatched types"
+-	_ = i >= 1 // ERROR "invalid operation.*mismatched types"
+-	_ = 1 == i // ERROR "invalid operation.*mismatched types"
+-	_ = 1 != i // ERROR "invalid operation.*mismatched types"
+-	_ = 1 >= i // ERROR "invalid operation.*mismatched types"
++	_ = i == 1 // ERROR "invalid operation.*mismatched types|cannot convert"
++	_ = i != 1 // ERROR "invalid operation.*mismatched types|cannot convert"
++	_ = i >= 1 // ERROR "invalid operation.*mismatched types|cannot convert"
++	_ = 1 == i // ERROR "invalid operation.*mismatched types|cannot convert"
++	_ = 1 != i // ERROR "invalid operation.*mismatched types|cannot convert"
++	_ = 1 >= i // ERROR "invalid operation.*mismatched types|cannot convert"
+ 
+ 	_ = e == f // ERROR "invalid operation.*not defined"
+ 	_ = e != f // ERROR "invalid operation.*not defined"
+diff --git a/test/fixedbugs/issue9432.go b/test/fixedbugs/issue9432.go
+index e8946a5be2..3df3b9097b 100644
+--- a/test/fixedbugs/issue9432.go
++++ b/test/fixedbugs/issue9432.go
+@@ -9,7 +9,7 @@
+ // See golang.org/issue/9432.
+ package p
+ 
+-type foo struct { // ERROR "invalid recursive type"
++type foo struct { // ERROR "invalid recursive type|cycle"
+ 	bar  foo
+ 	blah foo
+ }
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index a33f0483f3..7cb1ef1f8e 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -13,6 +13,6 @@ func f() (_, _ []int)         { return }
+ func g() (x []int, y float64) { return }
+ 
+ func main() {
+-	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append"
+-	_ = append(g()) // ERROR "cannot use float64 value as type int in append"
++	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append|cannot use .* as int value"
++	_ = append(g()) // ERROR "cannot use float64 value as type int in append|cannot use .* as int value"
+ }
+diff --git a/test/fixedbugs/issue9634.go b/test/fixedbugs/issue9634.go
+index 2d5aae4a30..86e3e9a2df 100644
+--- a/test/fixedbugs/issue9634.go
++++ b/test/fixedbugs/issue9634.go
+@@ -14,5 +14,5 @@ func main() {
+ 		t []int
+ 		u int
+ 	}{}
+-	_ = append(s, 0) // ERROR "must be a slice|must be slice"
++	_ = append(s, 0) // ERROR "must be a slice|must be slice|not a slice"
+ }
+diff --git a/test/func1.go b/test/func1.go
+index fb6f56184f..ec25161d13 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -14,6 +14,6 @@ func f1(a int) (int, float32) {
+ }
+ 
+ 
+-func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition"
++func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition|redeclared"
+ 	return 8, 8.0
+ }
+diff --git a/test/funcdup.go b/test/funcdup.go
+index 7b05d12606..3dbb15b0d4 100644
+--- a/test/funcdup.go
++++ b/test/funcdup.go
+@@ -7,21 +7,21 @@
+ package p
+ 
+ type T interface {
+-	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+-	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+-	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
++	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
+ }
+ 
+-type T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+-type T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+-type T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
++type T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++type T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++type T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
+ 
+ type R struct{}
+ 
+-func (i *R) F1(i int)         {} // ERROR "duplicate argument i|redefinition|previous"
+-func (i *R) F2() (i int)      {return 0} // ERROR "duplicate argument i|redefinition|previous"
+-func (i *R) F3(j int) (j int) {return 0} // ERROR "duplicate argument j|redefinition|previous"
++func (i *R) F1(i int)         {} // ERROR "duplicate argument i|redefinition|previous|redeclared"
++func (i *R) F2() (i int)      {return 0} // ERROR "duplicate argument i|redefinition|previous|redeclared"
++func (i *R) F3(j int) (j int) {return 0} // ERROR "duplicate argument j|redefinition|previous|redeclared"
+ 
+-func F1(i, i int)      {} // ERROR "duplicate argument i|redefinition|previous"
+-func F2(i int) (i int) {return 0} // ERROR "duplicate argument i|redefinition|previous"
+-func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition|previous"
++func F1(i, i int)      {} // ERROR "duplicate argument i|redefinition|previous|redeclared"
++func F2(i int) (i int) {return 0} // ERROR "duplicate argument i|redefinition|previous|redeclared"
++func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition|previous|redeclared"
+diff --git a/test/funcdup2.go b/test/funcdup2.go
+index 9513ef46bd..2ee3024e5c 100644
+--- a/test/funcdup2.go
++++ b/test/funcdup2.go
+@@ -7,11 +7,11 @@
+ package p
+ 
+ var T interface {
+-	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+-	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+-	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
++	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
+ }
+ 
+-var T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+-var T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+-var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
++var T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++var T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
++var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous|redeclared"
+diff --git a/test/init.go b/test/init.go
+index 317f2472cb..c2c25c7860 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -14,6 +14,6 @@ func init() {
+ 
+ func main() {
+ 	init()         // ERROR "undefined.*init"
+-	runtime.init() // ERROR "undefined.*runtime\.init"
++	runtime.init() // ERROR "undefined.*runtime\.init|undefined: runtime"
+ 	var _ = init   // ERROR "undefined.*init"
+ }
+diff --git a/test/initloop.go b/test/initloop.go
+index d90395d753..ca652f86f4 100644
+--- a/test/initloop.go
++++ b/test/initloop.go
+@@ -11,7 +11,7 @@ package main
+ 
+ var (
+ 	x int = a
+-	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a"
++	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a|initialization cycle"
+ 	b int = c
+ 	c int = a
+ )
+diff --git a/test/makenew.go b/test/makenew.go
+index 058d975898..14854dcf0c 100644
+--- a/test/makenew.go
++++ b/test/makenew.go
+@@ -10,10 +10,10 @@
+ package main
+ 
+ func main() {
+-	_ = make()      // ERROR "missing argument"
+-	_ = make(int)   // ERROR "cannot make type"
+-	_ = make([]int) // ERROR "missing len argument"
++	_ = make()      // ERROR "missing argument|not enough arguments"
++	_ = make(int)   // ERROR "cannot make type|cannot make int"
++	_ = make([]int) // ERROR "missing len argument|expects 2 or 3 arguments"
+ 
+-	_ = new()       // ERROR "missing argument"
++	_ = new()       // ERROR "missing argument|not enough arguments"
+ 	_ = new(int, 2) // ERROR "too many arguments"
+ }
+diff --git a/test/map1.go b/test/map1.go
+index 498c2ec45b..bd4d87b871 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -61,8 +61,8 @@ type T8 struct { F *T7 }
+ 
+ func main() {
+ 	m := make(map[int]int)
+-	delete()        // ERROR "missing arguments"
+-	delete(m)       // ERROR "missing second \(key\) argument"
++	delete()        // ERROR "missing arguments|not enough arguments"
++	delete(m)       // ERROR "missing second \(key\) argument|not enough arguments"
+ 	delete(m, 2, 3) // ERROR "too many arguments"
+-	delete(1, m)    // ERROR "first argument to delete must be map"
++	delete(1, m)    // ERROR "first argument to delete must be map|is not a map"
+ }
+\ No newline at end of file
+diff --git a/test/method2.go b/test/method2.go
+index a45a943156..790062c2af 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -15,8 +15,8 @@ type T struct {
+ type P *T
+ type P1 *T
+ 
+-func (p P) val() int   { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
+-func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
++func (p P) val() int   { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver|invalid receiver"
++func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver|invalid receiver"
+ 
+ type I interface{}
+ type I1 interface{}
+@@ -38,4 +38,4 @@ var _ = pv.val   // ERROR "pv.val undefined"
+ 
+ func (t *T) g() int { return t.a }
+ 
+-var _ = (T).g() // ERROR "needs pointer receiver|undefined"
++var _ = (T).g() // ERROR "needs pointer receiver|undefined|cannot call pointer method"
+diff --git a/test/method6.go b/test/method6.go
+index 20eccce413..ede3467c5c 100644
+--- a/test/method6.go
++++ b/test/method6.go
+@@ -18,5 +18,5 @@ func (*B) g() {}
+ 
+ var _ = func() {
+ 	var a A
+-	A(a).g() // ERROR "cannot call pointer method on|cannot take the address of"
++	A(a).g() // ERROR "cannot call pointer method .*on|cannot take the address of"
+ }
+diff --git a/test/named1.go b/test/named1.go
+index 7feae13b9d..452c6da27e 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -54,7 +54,7 @@ func main() {
+ 	_ = b
+ 
+ 	_, bb := <-c
+-	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool"
++	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool|cannot use bb"
+ 	_, b = <-c // ok now
+ 	_ = b
+ 
+diff --git a/test/rename1.go b/test/rename1.go
+index c49a70a263..058db4494a 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -13,7 +13,7 @@ func main() {
+ 	var n byte         // ERROR "not a type|expected type"
+ 	var y = float32(0) // ERROR "cannot call|expected function"
+ 	const (
+-		a = 1 + iota // ERROR "invalid operation|incompatible types"
++		a = 1 + iota // ERROR "invalid operation|incompatible types|cannot convert"
+ 	)
+ 
+ }
+diff --git a/test/run.go b/test/run.go
+index 0a69fa62bc..0ffb2c1a3d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -740,6 +740,9 @@ func (t *test) run() {
+ 			t.updateErrors(string(out), long)
+ 		}
+ 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
++		if t.err != nil {
++			return // don't hide error if run below succeeds
++		}
+ 
+ 		// The following is temporary scaffolding to get types2 typechecker
+ 		// up and running against the existing test cases. The explicitly
+@@ -765,6 +768,7 @@ func (t *test) run() {
+ 		for _, flag := range flags {
+ 			for _, pattern := range []string{
+ 				"-+",
++				"-0",
+ 				"-m",
+ 				"-live",
+ 				"wb",
+@@ -773,6 +777,7 @@ func (t *test) run() {
+ 				"typeassert",
+ 				"ssa/check_bce/debug",
+ 				"ssa/intrinsics/debug",
++				"ssa/opt/debug",
+ 				"ssa/prove/debug",
+ 				"ssa/likelyadjust/debug",
+ 				"ssa/insert_resched_checks/off",
+@@ -1916,44 +1921,26 @@ func overlayDir(dstRoot, srcRoot string) error {
+ // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ // Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ var excluded = map[string]bool{
+-	"complit1.go":      true,
+-	"const2.go":        true,
+-	"convlit.go":       true,
+-	"copy1.go":         true,
+-	"ddd1.go":          true,
+-	"devirt.go":        true,
+-	"directive.go":     true,
+-	"float_lit3.go":    true,
+-	"func1.go":         true,
+-	"funcdup.go":       true,
+-	"funcdup2.go":      true,
+-	"import1.go":       true,
+-	"import5.go":       true,
+-	"import6.go":       true,
+-	"init.go":          true,
+-	"initializerr.go":  true,
+-	"initloop.go":      true,
+-	"makechan.go":      true,
+-	"makemap.go":       true,
+-	"makenew.go":       true,
+-	"map1.go":          true,
+-	"method2.go":       true,
+-	"method6.go":       true,
+-	"named1.go":        true,
+-	"rename1.go":       true,
+-	"runtime.go":       true,
+-	"shift1.go":        true,
+-	"slice3err.go":     true,
+-	"switch3.go":       true,
+-	"switch4.go":       true,
+-	"switch5.go":       true,
+-	"switch6.go":       true,
+-	"switch7.go":       true,
+-	"typecheck.go":     true,
+-	"typecheckloop.go": true,
+-	"typeswitch3.go":   true,
+-	"undef.go":         true,
+-	"varerr.go":        true,
++	"complit1.go":     true,
++	"const2.go":       true,
++	"convlit.go":      true,
++	"ddd1.go":         true, // issue #42987
++	"directive.go":    true, // misplaced compiler directive checks
++	"float_lit3.go":   true,
++	"import1.go":      true,
++	"import5.go":      true, // issue #42988
++	"import6.go":      true,
++	"initializerr.go": true,
++	"makechan.go":     true,
++	"makemap.go":      true,
++	"shift1.go":       true, // issue #42989
++	"slice3err.go":    true,
++	"switch3.go":      true,
++	"switch4.go":      true,
++	"switch5.go":      true,
++	"switch6.go":      true,
++	"switch7.go":      true,
++	"typecheck.go":    true, // invalid function is not causing errors when called
+ 
+ 	"fixedbugs/bug163.go":      true,
+ 	"fixedbugs/bug176.go":      true,
+@@ -1994,11 +1981,8 @@ var excluded = map[string]bool{
+ 	"fixedbugs/bug462.go":      true,
+ 	"fixedbugs/bug463.go":      true,
+ 	"fixedbugs/bug487.go":      true,
+-	"fixedbugs/issue10975.go":  true,
+ 	"fixedbugs/issue11326.go":  true,
+-	"fixedbugs/issue11361.go":  true,
+ 	"fixedbugs/issue11362.go":  true,
+-	"fixedbugs/issue11371.go":  true,
+ 	"fixedbugs/issue11590.go":  true,
+ 	"fixedbugs/issue11610.go":  true,
+ 	"fixedbugs/issue11614.go":  true,
+@@ -2148,14 +2132,5 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
+ 	"fixedbugs/issue8501.go":   true, // crashes
+ 	"fixedbugs/issue8507.go":   true, // crashes
+-	"fixedbugs/issue8183.go":   true,
+-	"fixedbugs/issue8385.go":   true,
+-	"fixedbugs/issue8438.go":   true,
+-	"fixedbugs/issue8440.go":   true,
+-	"fixedbugs/issue8745.go":   true,
+-	"fixedbugs/issue9083.go":   true,
+-	"fixedbugs/issue9370.go":   true,
+-	"fixedbugs/issue9432.go":   true,
+-	"fixedbugs/issue9521.go":   true,
+-	"fixedbugs/issue9634.go":   true,
++	"fixedbugs/issue8183.go":   true, // issue #42992
+ }
+diff --git a/test/runtime.go b/test/runtime.go
+index bccc9b53af..a833129dd6 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -17,5 +17,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true)	// ERROR "unexported"
++	runtime.printbool(true)	// ERROR "unexported|not declared"
+ }
+diff --git a/test/typecheckloop.go b/test/typecheckloop.go
+index 3b3e78858e..a143e0984c 100644
+--- a/test/typecheckloop.go
++++ b/test/typecheckloop.go
+@@ -9,6 +9,6 @@
+ 
+ package main
+ 
+-const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A"
+-const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B"
++const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A|initialization cycle"
++const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initialization cycle"
+ const C = A + B + 1
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 1388187566..a57889bc1d 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -36,13 +36,13 @@ func main() {
+ 	}
+ 
+ 	// Issue 2827.
+-	switch _ := r.(type) { // ERROR "invalid variable name _|no new variables"
++	switch _ := r.(type) { // ERROR "invalid variable name _|no new variables?"
+ 	}
+ }
+ 
+ func noninterface() {
+ 	var i int
+-	switch i.(type) { // ERROR "cannot type switch on non-interface value"
++	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
+ 	case string:
+ 	case int:
+ 	}
+@@ -51,6 +51,6 @@ func noninterface() {
+ 		name string
+ 	}
+ 	var s S
+-	switch s.(type) { // ERROR "cannot type switch on non-interface value"
++	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
+ 	}
+ }
+diff --git a/test/varerr.go b/test/varerr.go
+index 82ab814197..349cc8b4e3 100644
+--- a/test/varerr.go
++++ b/test/varerr.go
+@@ -12,6 +12,6 @@ package main
+ func main() {
+ 	_ = asdf	// ERROR "undefined.*asdf"
+ 
+-	new = 1	// ERROR "use of builtin new not in function call|invalid left hand side"
++	new = 1	// ERROR "use of builtin new not in function call|invalid left hand side|must be called"
+ }
+ 

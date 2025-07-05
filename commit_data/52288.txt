@@ -60,8 +60,261 @@ Date:   Sat Apr 16 19:01:48 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go | 28 ++++++++--
  src/reflect/all_test.go                   | 90 +++++++++++++++++++++++++++++++
  src/reflect/value.go                      | 57 +++++++++++++++-----
  3 files changed, 157 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 211068e1dc..af66a32085 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -128,15 +128,33 @@ func TestIntendedInlining(t *testing.T) {
+ 			"ValidRune",
+ 		},
+ 		"reflect": {
+-			"Value.CanInt",
+-			"Value.CanUint",
+-			"Value.CanFloat",
+-			"Value.CanComplex",
++			"Value.Bool",
++			"Value.Bytes",
+ 			"Value.CanAddr",
+-			"Value.CanSet",
++			"Value.CanComplex",
++			"Value.CanFloat",
++			"Value.CanInt",
+ 			"Value.CanInterface",
++			"Value.CanSet",
++			"Value.CanUint",
++			"Value.Cap",
++			"Value.Complex",
++			"Value.Float",
++			"Value.Int",
++			"Value.Interface",
++			"Value.IsNil",
+ 			"Value.IsValid",
++			"Value.Kind",
++			"Value.Len",
+ 			"Value.MapRange",
++			"Value.OverflowComplex",
++			"Value.OverflowFloat",
++			"Value.OverflowInt",
++			"Value.OverflowUint",
++			"Value.String",
++			"Value.Type",
++			"Value.Uint",
++			"Value.UnsafeAddr",
+ 			"Value.pointer",
+ 			"add",
+ 			"align",
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index a886f9f64a..72d01c7deb 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7823,3 +7823,93 @@ func TestNegativeKindString(t *testing.T) {
+ 		t.Fatalf("Kind(-1).String() = %q, want %q", s, want)
+ 	}
+ }
++
++type (
++	namedBool  bool
++	namedBytes []byte
++)
++
++var sourceAll = struct {
++	Bool         Value
++	String       Value
++	Bytes        Value
++	NamedBytes   Value
++	BytesArray   Value
++	SliceAny     Value
++	MapStringAny Value
++}{
++	Bool:         ValueOf(new(bool)).Elem(),
++	String:       ValueOf(new(string)).Elem(),
++	Bytes:        ValueOf(new([]byte)).Elem(),
++	NamedBytes:   ValueOf(new(namedBytes)).Elem(),
++	BytesArray:   ValueOf(new([32]byte)).Elem(),
++	SliceAny:     ValueOf(new([]any)).Elem(),
++	MapStringAny: ValueOf(new(map[string]any)).Elem(),
++}
++
++var sinkAll struct {
++	RawBool   bool
++	RawString string
++	RawBytes  []byte
++	RawInt    int
++}
++
++func BenchmarkBool(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawBool = sourceAll.Bool.Bool()
++	}
++}
++
++func BenchmarkString(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawString = sourceAll.String.String()
++	}
++}
++
++func BenchmarkBytes(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawBytes = sourceAll.Bytes.Bytes()
++	}
++}
++
++func BenchmarkNamedBytes(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawBytes = sourceAll.NamedBytes.Bytes()
++	}
++}
++
++func BenchmarkBytesArray(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawBytes = sourceAll.BytesArray.Bytes()
++	}
++}
++
++func BenchmarkSliceLen(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawInt = sourceAll.SliceAny.Len()
++	}
++}
++
++func BenchmarkMapLen(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawInt = sourceAll.MapStringAny.Len()
++	}
++}
++
++func BenchmarkStringLen(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawInt = sourceAll.String.Len()
++	}
++}
++
++func BenchmarkArrayLen(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawInt = sourceAll.BytesArray.Len()
++	}
++}
++
++func BenchmarkSliceCap(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkAll.RawInt = sourceAll.SliceAny.Cap()
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index de24d4c712..6b5ebfae24 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -281,14 +281,31 @@ func (v Value) Addr() Value {
+ // Bool returns v's underlying value.
+ // It panics if v's kind is not Bool.
+ func (v Value) Bool() bool {
+-	v.mustBe(Bool)
++	// panicNotBool is split out to keep Bool inlineable.
++	if v.kind() != Bool {
++		v.panicNotBool()
++	}
+ 	return *(*bool)(v.ptr)
+ }
+ 
++func (v Value) panicNotBool() {
++	v.mustBe(Bool)
++}
++
++var bytesType = TypeOf(([]byte)(nil)).(*rtype)
++
+ // Bytes returns v's underlying value.
+ // It panics if v's underlying value is not a slice of bytes or
+ // an addressable array of bytes.
+ func (v Value) Bytes() []byte {
++	// bytesSlow is split out to keep Bytes inlineable for unnamed []byte.
++	if v.typ == bytesType {
++		return *(*[]byte)(v.ptr)
++	}
++	return v.bytesSlow()
++}
++
++func (v Value) bytesSlow() []byte {
+ 	switch v.kind() {
+ 	case Slice:
+ 		if v.typ.Elem().Kind() != Uint8 {
+@@ -1129,15 +1146,20 @@ func funcName(f func([]Value) []Value) string {
+ // Cap returns v's capacity.
+ // It panics if v's Kind is not Array, Chan, or Slice.
+ func (v Value) Cap() int {
++	// capNonSlice is split out to keep Cap inlineable for slice kinds.
++	if v.kind() == Slice {
++		return (*unsafeheader.Slice)(v.ptr).Cap
++	}
++	return v.capNonSlice()
++}
++
++func (v Value) capNonSlice() int {
+ 	k := v.kind()
+ 	switch k {
+ 	case Array:
+ 		return v.typ.Len()
+ 	case Chan:
+ 		return chancap(v.pointer())
+-	case Slice:
+-		// Slice is always bigger than a word; assume flagIndir.
+-		return (*unsafeheader.Slice)(v.ptr).Cap
+ 	}
+ 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
+ }
+@@ -1580,8 +1602,15 @@ func (v Value) Kind() Kind {
+ // Len returns v's length.
+ // It panics if v's Kind is not Array, Chan, Map, Slice, or String.
+ func (v Value) Len() int {
+-	k := v.kind()
+-	switch k {
++	// lenNonSlice is split out to keep Len inlineable for slice kinds.
++	if v.kind() == Slice {
++		return (*unsafeheader.Slice)(v.ptr).Len
++	}
++	return v.lenNonSlice()
++}
++
++func (v Value) lenNonSlice() int {
++	switch k := v.kind(); k {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+ 		return int(tt.len)
+@@ -1589,9 +1618,6 @@ func (v Value) Len() int {
+ 		return chanlen(v.pointer())
+ 	case Map:
+ 		return maplen(v.pointer())
+-	case Slice:
+-		// Slice is bigger than a word; assume flagIndir.
+-		return (*unsafeheader.Slice)(v.ptr).Len
+ 	case String:
+ 		// String is bigger than a word; assume flagIndir.
+ 		return (*unsafeheader.String)(v.ptr).Len
+@@ -2441,12 +2467,17 @@ func (v Value) Slice3(i, j, k int) Value {
+ // The fmt package treats Values specially. It does not call their String
+ // method implicitly but instead prints the concrete values they hold.
+ func (v Value) String() string {
+-	switch k := v.kind(); k {
+-	case Invalid:
+-		return "<invalid Value>"
+-	case String:
++	// stringNonString is split out to keep String inlineable for string kinds.
++	if v.kind() == String {
+ 		return *(*string)(v.ptr)
+ 	}
++	return v.stringNonString()
++}
++
++func (v Value) stringNonString() string {
++	if v.kind() == Invalid {
++		return "<invalid Value>"
++	}
+ 	// If you call String on a reflect.Value of other type, it's better to
+ 	// print something than to panic. Useful in debugging.
+ 	return "<" + v.Type().String() + " Value>"

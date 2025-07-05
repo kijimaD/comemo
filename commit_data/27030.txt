@@ -18,7 +18,7 @@ Date:   Thu Jan 28 11:44:07 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go                        |  6 +++---
  src/cmd/go/go_test.go                      |  8 --------
  src/cmd/go/pkg.go                          | 13 +++++++++++++
@@ -57,3 +57,515 @@ Date:   Thu Jan 28 11:44:07 2016 -0500
  src/runtime/cgo/gcc_windows_386.c          |  2 --
  src/runtime/cgo/gcc_windows_amd64.c        |  2 --
  37 files changed, 16 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5977828a3a..3f9537834c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1419,6 +1419,8 @@ func (b *builder) build(a *action) (err error) {
+ 		// cgo and non-cgo worlds, so it necessarily has files in both.
+ 		// In that case gcc only gets the gcc_* files.
+ 		var gccfiles []string
++		gccfiles = append(gccfiles, cfiles...)
++		cfiles = nil
+ 		if a.p.Standard && a.p.ImportPath == "runtime/cgo" {
+ 			filter := func(files, nongcc, gcc []string) ([]string, []string) {
+ 				for _, f := range files {
+@@ -1430,11 +1432,9 @@ func (b *builder) build(a *action) (err error) {
+ 				}
+ 				return nongcc, gcc
+ 			}
+-			cfiles, gccfiles = filter(cfiles, cfiles[:0], gccfiles)
+ 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
+ 		} else {
+-			gccfiles = append(cfiles, sfiles...)
+-			cfiles = nil
++			gccfiles = append(gccfiles, sfiles...)
+ 			sfiles = nil
+ 		}
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2af715a3a4..5526aec8f9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1226,14 +1226,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
+ 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
+ }
+ 
+-func TestDisallowedCSourceFiles(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("build", "badc")
+-	tg.grepStderr("C source files not allowed", "go test did not say C source files not allowed")
+-}
+-
+ func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8b0508894f..927d68d1c6 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -1012,6 +1012,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 	p.Target = p.target
+ 
++	// If cgo is not enabled, ignore cgo supporting sources
++	// just as we ignore go files containing import "C".
++	if !buildContext.CgoEnabled {
++		p.CFiles = nil
++		p.CXXFiles = nil
++		p.MFiles = nil
++		p.SwigFiles = nil
++		p.SwigCXXFiles = nil
++		p.SysoFiles = nil
++		// Note that SFiles are okay (they go to the Go assembler)
++		// and HFiles are okay (they might be used by the SFiles).
++	}
++
+ 	// The gc toolchain only permits C source files with cgo.
+ 	if len(p.CFiles) > 0 && !p.usesCgo() && !p.usesSwig() && buildContext.Compiler == "gc" {
+ 		p.Error = &PackageError{
+diff --git a/src/runtime/cgo/gcc_android.c b/src/runtime/cgo/gcc_android.c
+index b500b29c5e..b756edefa9 100644
+--- a/src/runtime/cgo/gcc_android.c
++++ b/src/runtime/cgo/gcc_android.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <stdarg.h>
+ #include <android/log.h>
+ #include "libcgo.h"
+diff --git a/src/runtime/cgo/gcc_android_386.c b/src/runtime/cgo/gcc_android_386.c
+index 92c77900d2..23a15f1c87 100644
+--- a/src/runtime/cgo/gcc_android_386.c
++++ b/src/runtime/cgo/gcc_android_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_android_amd64.c b/src/runtime/cgo/gcc_android_amd64.c
+index fce7d56a4b..e006c49bcf 100644
+--- a/src/runtime/cgo/gcc_android_amd64.c
++++ b/src/runtime/cgo/gcc_android_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_android_arm.c b/src/runtime/cgo/gcc_android_arm.c
+index 06f4217d22..c7b13f9a7f 100644
+--- a/src/runtime/cgo/gcc_android_arm.c
++++ b/src/runtime/cgo/gcc_android_arm.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_android_arm64.c b/src/runtime/cgo/gcc_android_arm64.c
+index 9aaf1ba73f..f8ad684de3 100644
+--- a/src/runtime/cgo/gcc_android_arm64.c
++++ b/src/runtime/cgo/gcc_android_arm64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_darwin_386.c b/src/runtime/cgo/gcc_darwin_386.c
+index a633728a45..effbcdfd4b 100644
+--- a/src/runtime/cgo/gcc_darwin_386.c
++++ b/src/runtime/cgo/gcc_darwin_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index 58e99e5549..15396b0d25 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index 967f44385d..dbf88c34ac 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <limits.h>
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index 21912298cf..a9eb4f2cd2 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <limits.h>
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index 85c53ca707..b534dccf79 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+diff --git a/src/runtime/cgo/gcc_fatalf.c b/src/runtime/cgo/gcc_fatalf.c
+index 08aebaa806..5ac419b412 100644
+--- a/src/runtime/cgo/gcc_fatalf.c
++++ b/src/runtime/cgo/gcc_fatalf.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // +build !android,linux
+ 
+ #include <stdarg.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_386.c b/src/runtime/cgo/gcc_freebsd_386.c
+index 522f95b2dd..d288666a3d 100644
+--- a/src/runtime/cgo/gcc_freebsd_386.c
++++ b/src/runtime/cgo/gcc_freebsd_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index 31ab136998..e532ad69d6 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index 73f32792c5..c4e7574326 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <machine/sysarch.h>
+ #include <sys/signalvar.h>
+diff --git a/src/runtime/cgo/gcc_libinit_linux_ppc64x.c b/src/runtime/cgo/gcc_libinit_linux_ppc64x.c
+index 147872a7bf..c133142f93 100644
+--- a/src/runtime/cgo/gcc_libinit_linux_ppc64x.c
++++ b/src/runtime/cgo/gcc_libinit_linux_ppc64x.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // TODO: see issue #10410
+ // +build linux
+ // +build ppc64 ppc64le
+diff --git a/src/runtime/cgo/gcc_libinit_openbsd.c b/src/runtime/cgo/gcc_libinit_openbsd.c
+index 5fa84c4de6..eb798ce5e8 100644
+--- a/src/runtime/cgo/gcc_libinit_openbsd.c
++++ b/src/runtime/cgo/gcc_libinit_openbsd.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 5fa84c4de6..eb798ce5e8 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 15e0a8a302..30fe92bfea 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <string.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 0ab4912238..50a7e6e078 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <errno.h>
+ #include <string.h> // strerror
+diff --git a/src/runtime/cgo/gcc_linux_arm.c b/src/runtime/cgo/gcc_linux_arm.c
+index f552421957..945c3f19e4 100644
+--- a/src/runtime/cgo/gcc_linux_arm.c
++++ b/src/runtime/cgo/gcc_linux_arm.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <string.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index 84bd7c0b49..ca9ba0ba6e 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <string.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.c b/src/runtime/cgo/gcc_linux_ppc64x.c
+index 2721384e6b..fb19805bda 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.c
++++ b/src/runtime/cgo/gcc_linux_ppc64x.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // +build ppc64 ppc64le
+ 
+ #include <pthread.h>
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 45786f94ea..14efa5489d 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // +build linux,amd64
+ 
+ #include <errno.h>
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index 32f2e15678..99558ea140 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index aa357459c7..f5c8b1e74f 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index 9589780ac8..97ce908485 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index bf56c8db26..22941a4c6d 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <dlfcn.h>
+ #include <errno.h>
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index b9f2a9d5a9..e84fe6c18b 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <sys/types.h>
+ #include <dlfcn.h>
+ #include <errno.h>
+diff --git a/src/runtime/cgo/gcc_signal_darwin_armx.c b/src/runtime/cgo/gcc_signal_darwin_armx.c
+index ac3c2571c0..e77c507e93 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_armx.c
++++ b/src/runtime/cgo/gcc_signal_darwin_armx.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // Emulation of the Unix signal SIGSEGV.
+ //
+ // On iOS, Go tests and apps under development are run by lldb.
+diff --git a/src/runtime/cgo/gcc_signal_darwin_lldb.c b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+index 598482d350..12cc388400 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_lldb.c
++++ b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ // +build !lldb
+ // +build darwin
+ // +build arm arm64
+diff --git a/src/runtime/cgo/gcc_solaris_amd64.c b/src/runtime/cgo/gcc_solaris_amd64.c
+index 5a01e0826e..98a1a8be53 100644
+--- a/src/runtime/cgo/gcc_solaris_amd64.c
++++ b/src/runtime/cgo/gcc_solaris_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include <pthread.h>
+ #include <string.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_util.c b/src/runtime/cgo/gcc_util.c
+index a15c2d23bb..e20d206be6 100644
+--- a/src/runtime/cgo/gcc_util.c
++++ b/src/runtime/cgo/gcc_util.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #include "libcgo.h"
+ 
+ /* Stub for calling malloc from Go */
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index 536a024c56..fa0c69bc13 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 75d87f0cf8..a3c3896edf 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #define WIN64_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>

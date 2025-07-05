@@ -62,8 +62,78 @@ Date:   Fri Oct 11 16:04:47 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/poset.go      |  3 +--
  src/cmd/compile/internal/ssa/poset_test.go |  4 ++--
  test/prove.go                              | 22 ++++++++++++++++++++++
  3 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 378ecc9263..e74cabb337 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -813,8 +813,7 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
+ 		return false
+ 	}
+ 
+-	return i1 == i2 || po.reaches(i1, i2, false) ||
+-		(po.reaches(i2, i1, false) && !po.reaches(i2, i1, true))
++	return i1 == i2 || po.reaches(i1, i2, false)
+ }
+ 
+ // Equal reports whether n1==n2. It returns false either when it is
+diff --git a/src/cmd/compile/internal/ssa/poset_test.go b/src/cmd/compile/internal/ssa/poset_test.go
+index 0a4f991e00..6f048a30a8 100644
+--- a/src/cmd/compile/internal/ssa/poset_test.go
++++ b/src/cmd/compile/internal/ssa/poset_test.go
+@@ -184,7 +184,7 @@ func TestPoset(t *testing.T) {
+ 		{OrderedOrEqual, 4, 12},
+ 		{OrderedOrEqual_Fail, 12, 4},
+ 		{OrderedOrEqual, 4, 7},
+-		{OrderedOrEqual, 7, 4},
++		{OrderedOrEqual_Fail, 7, 4},
+ 
+ 		// Dag #1: 1<4<=7<12
+ 		{Checkpoint, 0, 0},
+@@ -448,7 +448,7 @@ func TestSetEqual(t *testing.T) {
+ 		{SetOrderOrEqual, 20, 100},
+ 		{SetOrder, 100, 110},
+ 		{OrderedOrEqual, 10, 30},
+-		{OrderedOrEqual, 30, 10},
++		{OrderedOrEqual_Fail, 30, 10},
+ 		{Ordered_Fail, 10, 30},
+ 		{Ordered_Fail, 30, 10},
+ 		{Ordered, 10, 40},
+diff --git a/test/prove.go b/test/prove.go
+index 00fc94e721..eba0f79af2 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -934,6 +934,28 @@ func zeroExt32to64Fence(x []int, j uint32) int {
+ 	return 0
+ }
+ 
++// Ensure that bounds checks with negative indexes are not incorrectly removed.
++func negIndex() {
++	n := make([]int, 1)
++	for i := -1; i <= 0; i++ { // ERROR "Induction variable: limits \[-1,0\], increment 1$"
++		n[i] = 1
++	}
++}
++func negIndex2(n int) {
++	a := make([]int, 5)
++	b := make([]int, 5)
++	c := make([]int, 5)
++	for i := -1; i <= 0; i-- {
++		b[i] = i
++		n++
++		if n > 10 {
++			break
++		}
++	}
++	useSlice(a)
++	useSlice(c)
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

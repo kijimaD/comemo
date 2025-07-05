@@ -22,7 +22,7 @@ Date:   Tue Feb 16 12:24:12 2016 -0600
     Change-Id: I8074f4dc63486e756587564ceb320aca300bf5fa
     Reviewed-on: https://go-review.googlesource.com/19515
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go     |  2 +-
  src/cmd/compile/internal/ppc64/gsubr.go |  4 ++++
  src/cmd/compile/internal/ppc64/peep.go  |  3 ++-
@@ -30,3 +30,98 @@ Date:   Tue Feb 16 12:24:12 2016 -0600
  src/math/sqrt_ppc64x.s                  | 14 ++++++++++++++
  src/math/stubs_ppc64x.s                 |  3 ---
  6 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 30c1ecc040..531ddc3b8d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -677,7 +677,7 @@ opswitch:
+ 
+ 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+ 			switch Thearch.Thechar {
+-			case '5', '6', '7':
++			case '5', '6', '7', '9':
+ 				n.Op = OSQRT
+ 				n.Left = n.List.First()
+ 				n.List.Set(nil)
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index ce1d550cbf..a1611c437b 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -706,6 +706,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 		OCMP_   = uint32(gc.OCMP) << 16
+ 		OAS_    = uint32(gc.OAS) << 16
+ 		OHMUL_  = uint32(gc.OHMUL) << 16
++		OSQRT_  = uint32(gc.OSQRT) << 16
+ 	)
+ 
+ 	a := obj.AXXX
+@@ -1028,6 +1029,9 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 
+ 	case ODIV_ | gc.TFLOAT64:
+ 		a = ppc64.AFDIV
++
++	case OSQRT_ | gc.TFLOAT64:
++		a = ppc64.AFSQRT
+ 	}
+ 
+ 	return a
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 1bacd8f69e..baca75680a 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -632,7 +632,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		ppc64.AFMOVD,
+ 		ppc64.AFRSP,
+ 		ppc64.AFNEG,
+-		ppc64.AFNEGCC:
++		ppc64.AFNEGCC,
++		ppc64.AFSQRT:
+ 		if s != nil {
+ 			if copysub(&p.From, v, s, true) {
+ 				return 1
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index bdd0d4a179..cb0e93b0c5 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -73,6 +73,7 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+ 	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	ppc64.AFSQRT & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+ 
+ 	// Moves
+ 	ppc64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+diff --git a/src/math/sqrt_ppc64x.s b/src/math/sqrt_ppc64x.s
+new file mode 100644
+index 0000000000..bcfb157e0e
+--- /dev/null
++++ b/src/math/sqrt_ppc64x.s
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include "textflag.h"
++
++// func Sqrt(x float64) float64
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FSQRT	F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+index 42e5480234..a57357e2ee 100644
+--- a/src/math/stubs_ppc64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -84,8 +84,5 @@ TEXT ·Sin(SB),NOSPLIT,$0
+ TEXT ·Cos(SB),NOSPLIT,$0
+ 	BR ·cos(SB)
+ 
+-TEXT ·Sqrt(SB),NOSPLIT,$0
+-	BR ·sqrt(SB)
+-
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	BR ·tan(SB)

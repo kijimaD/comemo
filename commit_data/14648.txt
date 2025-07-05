@@ -16,7 +16,7 @@ Date:   Fri Dec 14 17:33:59 2012 +1100
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6903061
-
+---
  src/cmd/dist/build.c         |  1 +
  src/cmd/go/build.go          | 31 +++++++++++++++++++++----------
  src/cmd/go/run.go            |  1 +
@@ -25,3 +25,180 @@ Date:   Fri Dec 14 17:33:59 2012 +1100
  src/cmd/go/signal_unix.go    | 14 ++++++++++++++
  src/cmd/go/test.go           |  1 +
  7 files changed, 82 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index fca668ceb8..13dbe0e81d 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1183,6 +1183,7 @@ static char *buildorder[] = {
+ 	"pkg/go/ast",
+ 	"pkg/go/parser",
+ 	"pkg/os/exec",
++	"pkg/os/signal",
+ 	"pkg/net/url",
+ 	"pkg/text/template/parse",
+ 	"pkg/text/template",
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7e3d2f496d..5f91227f15 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -548,7 +548,6 @@ func (b *builder) do(root *action) {
+ 	}
+ 
+ 	b.readySema = make(chan bool, len(all))
+-	done := make(chan bool)
+ 
+ 	// Initialize per-action execution state.
+ 	for _, a := range all {
+@@ -596,10 +595,11 @@ func (b *builder) do(root *action) {
+ 
+ 		if a == root {
+ 			close(b.readySema)
+-			done <- true
+ 		}
+ 	}
+ 
++	var wg sync.WaitGroup
++
+ 	// Kick off goroutines according to parallelism.
+ 	// If we are using the -n flag (just printing commands)
+ 	// drop the parallelism to 1, both to make the output
+@@ -609,19 +609,30 @@ func (b *builder) do(root *action) {
+ 		par = 1
+ 	}
+ 	for i := 0; i < par; i++ {
++		wg.Add(1)
+ 		go func() {
+-			for _ = range b.readySema {
+-				// Receiving a value from b.sema entitles
+-				// us to take from the ready queue.
+-				b.exec.Lock()
+-				a := b.ready.pop()
+-				b.exec.Unlock()
+-				handle(a)
++			defer wg.Done()
++			for {
++				select {
++				case _, ok := <-b.readySema:
++					if !ok {
++						return
++					}
++					// Receiving a value from b.readySema entitles
++					// us to take from the ready queue.
++					b.exec.Lock()
++					a := b.ready.pop()
++					b.exec.Unlock()
++					handle(a)
++				case <-interrupted:
++					setExitStatus(1)
++					return
++				}
+ 			}
+ 		}()
+ 	}
+ 
+-	<-done
++	wg.Wait()
+ }
+ 
+ // build is the action for building a single package or command.
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 0f41fa61be..88f57617e4 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -84,6 +84,7 @@ func runStdin(cmdargs ...interface{}) {
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
++	startSigHandlers()
+ 	if err := cmd.Run(); err != nil {
+ 		errorf("%v", err)
+ 	}
+diff --git a/src/cmd/go/signal.go b/src/cmd/go/signal.go
+new file mode 100644
+index 0000000000..e8ba0d3655
+--- /dev/null
++++ b/src/cmd/go/signal.go
+@@ -0,0 +1,31 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++	"os/signal"
++	"sync"
++)
++
++// interrupted is closed, if go process is interrupted.
++var interrupted = make(chan struct{})
++
++// processSignals setups signal handler.
++func processSignals() {
++	sig := make(chan os.Signal)
++	signal.Notify(sig, signalsToIgnore...)
++	go func() {
++		<-sig
++		close(interrupted)
++	}()
++}
++
++var onceProcessSignals sync.Once
++
++// startSigHandlers start signal handlers.
++func startSigHandlers() {
++	onceProcessSignals.Do(processSignals)
++}
+diff --git a/src/cmd/go/signal_notunix.go b/src/cmd/go/signal_notunix.go
+new file mode 100644
+index 0000000000..ef13c19195
+--- /dev/null
++++ b/src/cmd/go/signal_notunix.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9 windows
++
++package main
++
++import (
++	"os"
++)
++
++var signalsToIgnore = []os.Signal{os.Interrupt}
+diff --git a/src/cmd/go/signal_unix.go b/src/cmd/go/signal_unix.go
+new file mode 100644
+index 0000000000..489a73b83b
+--- /dev/null
++++ b/src/cmd/go/signal_unix.go
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++package main
++
++import (
++	"os"
++	"syscall"
++)
++
++var signalsToIgnore = []os.Signal{os.Interrupt, syscall.SIGQUIT}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index efd14609aa..555c6f50ed 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -644,6 +644,7 @@ func (b *builder) runTest(a *action) error {
+ 	// running.
+ 	tick := time.NewTimer(testKillTimeout)
+ 	if err == nil {
++		startSigHandlers()
+ 		done := make(chan error)
+ 		go func() {
+ 			done <- cmd.Wait()

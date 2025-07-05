@@ -18,7 +18,7 @@ Date:   Mon Nov 16 18:11:35 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/16993
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/build.go            | 49 --------------------------------
  src/cmd/dist/test.go             | 28 ++++++++++++++++++
  src/cmd/link/doc.go              |  6 ++++
@@ -27,3 +27,279 @@ Date:   Mon Nov 16 18:11:35 2015 -0800
  src/cmd/link/internal/ld/pobj.go |  1 +
  src/go/build/deps_test.go        |  2 ++
  7 files changed, 84 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e06fca63d5..54e3fdf040 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -1003,7 +1002,6 @@ func cmdbootstrap() {
+ 	setup()
+ 
+ 	checkCC()
+-	copyLibgcc()
+ 	bootstrapBuildTools()
+ 
+ 	// For the main bootstrap, building for host os/arch.
+@@ -1112,53 +1110,6 @@ func checkCC() {
+ 	}
+ }
+ 
+-// copyLibgcc copies the C compiler's libgcc into the pkg directory.
+-func copyLibgcc() {
+-	if !needCC() {
+-		return
+-	}
+-	var args []string
+-	switch goarch {
+-	case "386":
+-		args = []string{"-m32"}
+-	case "amd64", "amd64p32":
+-		args = []string{"-m64"}
+-	case "arm":
+-		args = []string{"-marm"}
+-	}
+-	args = append(args, "--print-libgcc-file-name")
+-	output, err := exec.Command(defaultcctarget, args...).Output()
+-	if err != nil {
+-		fatal("cannot find libgcc file name: %v", err)
+-	}
+-	libgcc := strings.TrimSpace(string(output))
+-	if len(libgcc) == 0 {
+-		return
+-	}
+-	in, err := os.Open(libgcc)
+-	if err != nil {
+-		if os.IsNotExist(err) {
+-			return
+-		}
+-		fatal("cannot open libgcc for copying: %v", err)
+-	}
+-	defer in.Close()
+-	outdir := filepath.Join(goroot, "pkg", "libgcc", goos+"_"+goarch)
+-	if err := os.MkdirAll(outdir, 0777); err != nil {
+-		fatal("cannot create libgcc.a directory: %v", err)
+-	}
+-	out, err := os.Create(filepath.Join(outdir, "libgcc"))
+-	if err != nil {
+-		fatal("cannot create libgcc.a for copying: %v", err)
+-	}
+-	if _, err := io.Copy(out, in); err != nil {
+-		fatal("error copying libgcc: %v", err)
+-	}
+-	if err := out.Close(); err != nil {
+-		fatal("error closing new libgcc: %v", err)
+-	}
+-}
+-
+ func defaulttarg() string {
+ 	// xgetwd might return a path with symlinks fully resolved, and if
+ 	// there happens to be symlinks in goroot, then the hasprefix test
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f378f2d729..cbc820336e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -359,6 +359,27 @@ func (t *tester) registerTests() {
+ 		},
+ 	})
+ 
++	// Test that internal linking of standard packages does not
++	// require libgcc.  This ensures that we can install a Go
++	// release on a system that does not have a C compiler
++	// installed and still build Go programs (that don't use cgo).
++	for _, pkg := range cgoPackages {
++
++		// Internal linking is not currently supported on Dragonfly.
++		if t.goos == "dragonfly" {
++			break
++		}
++
++		pkg := pkg
++		t.tests = append(t.tests, distTest{
++			name:    "nolibgcc:" + pkg,
++			heading: "Testing without libgcc.",
++			fn: func() error {
++				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg).Run()
++			},
++		})
++	}
++
+ 	// sync tests
+ 	t.tests = append(t.tests, distTest{
+ 		name:    "sync_cpu",
+@@ -896,3 +917,10 @@ NextVar:
+ 	}
+ 	return out
+ }
++
++// cgoPackages is the standard packages that use cgo.
++var cgoPackages = []string{
++	"crypto/x509",
++	"net",
++	"os/user",
++}
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 6a16080f35..69f9b57859 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -63,6 +63,12 @@ Flags:
+ 	-installsuffix suffix
+ 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
+ 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
++	-libgcc file
++		Set name of compiler support library.
++		This is only used in internal link mode.
++		If not set, default value comes from running the compiler,
++		which may be set by the -extld option.
++		Set to "none" to use no support library.
+ 	-linkmode mode
+ 		Set link mode (internal, external, auto).
+ 		This sets the linking mode as described in cmd/cgo/doc.go.
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 860a94df02..bd14a4326c 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -66,6 +66,9 @@ func hostArchive(name string) {
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			// It's OK if we don't have a libgcc file at all.
++			if Debug['v'] != 0 {
++				fmt.Fprintf(&Bso, "skipping libgcc file: %v\n", err)
++			}
+ 			return
+ 		}
+ 		Exitf("cannot open file %s: %v", name, err)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fc242d8a84..c59f49d108 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -207,6 +207,7 @@ var (
+ 	tmpdir             string
+ 	extld              string
+ 	extldflags         string
++	libgccfile         string
+ 	debug_s            int // backup old value of debug['s']
+ 	Ctxt               *Link
+ 	HEADR              int32
+@@ -644,19 +645,41 @@ func loadlib() {
+ 		hostobjs()
+ 
+ 		// If we have any undefined symbols in external
+-		// objects, try to read them from our copy of the C
+-		// compiler support library, libgcc.a.
++		// objects, try to read them from the libgcc file.
+ 		any := false
+ 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+ 			for _, r := range s.R {
+-				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
++				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF && r.Sym.Name != ".got" {
+ 					any = true
+ 					break
+ 				}
+ 			}
+ 		}
+ 		if any {
+-			hostArchive(fmt.Sprintf("%s/pkg/libgcc/%s_%s/libgcc", goroot, goos, goarch))
++			if libgccfile == "" {
++				if extld == "" {
++					extld = "gcc"
++				}
++				args := hostlinkArchArgs()
++				args = append(args, "--print-libgcc-file-name")
++				if Debug['v'] != 0 {
++					fmt.Fprintf(&Bso, "%s %v\n", extld, args)
++				}
++				out, err := exec.Command(extld, args...).Output()
++				if err != nil {
++					if Debug['v'] != 0 {
++						fmt.Fprintln(&Bso, "not using a libgcc file because compiler failed")
++						fmt.Fprintf(&Bso, "%v\n%s\n", err, out)
++					}
++					libgccfile = "none"
++				} else {
++					libgccfile = strings.TrimSpace(string(out))
++				}
++			}
++
++			if libgccfile != "none" {
++				hostArchive(libgccfile)
++			}
+ 		}
+ 	} else {
+ 		hostlinksetup()
+@@ -1007,19 +1030,7 @@ func hostlink() {
+ 
+ 	var argv []string
+ 	argv = append(argv, extld)
+-	switch Thearch.Thechar {
+-	case '8':
+-		argv = append(argv, "-m32")
+-
+-	case '6', '9':
+-		argv = append(argv, "-m64")
+-
+-	case '5':
+-		argv = append(argv, "-marm")
+-
+-	case '7':
+-		// nothing needed
+-	}
++	argv = append(argv, hostlinkArchArgs()...)
+ 
+ 	if Debug['s'] == 0 && debug_s == 0 {
+ 		argv = append(argv, "-gdwarf-2")
+@@ -1207,6 +1218,22 @@ func hostlink() {
+ 	}
+ }
+ 
++// hostlinkArchArgs returns arguments to pass to the external linker
++// based on the architecture.
++func hostlinkArchArgs() []string {
++	switch Thearch.Thechar {
++	case '8':
++		return []string{"-m32"}
++	case '6', '9':
++		return []string{"-m64"}
++	case '5':
++		return []string{"-marm"}
++	case '7':
++		// nothing needed
++	}
++	return nil
++}
++
+ // ldobj loads an input object.  If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer.  If
+ // it is a Go object, it returns nil.
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 5ba5a68d74..319e850467 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -96,6 +96,7 @@ func Ldmain() {
+ 	obj.Flagcount("h", "halt on error", &Debug['h'])
+ 	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
+ 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
++	obj.Flagstr("libgcc", "compiler support lib for internal linking; use \"none\" to disable", &libgccfile)
+ 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
+ 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
+ 	obj.Flagcount("msan", "enable MSan interface", &flag_msan)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 608a277886..b3b8c232dc 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -259,6 +259,8 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// Cgo.
++	// If you add a dependency on CGO, you must add the package to
++	// cgoPackages in cmd/dist/test.go.
+ 	"runtime/cgo": {"L0", "C"},
+ 	"CGO":         {"C", "runtime/cgo"},
+ 

@@ -18,10 +18,817 @@ Date:   Mon Jun 6 22:36:45 2016 -0400
     Change-Id: Ib0b0fa826bdb75c9e6bb362b95c6cf132cc6b1c0
     Reviewed-on: https://go-review.googlesource.com/23942
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  73 +++---
  src/cmd/compile/internal/ssa/gen/ARM.rules |  71 +++---
  src/cmd/compile/internal/ssa/gen/ARMOps.go |   6 +-
  src/cmd/compile/internal/ssa/opGen.go      |  20 +-
  src/cmd/compile/internal/ssa/rewriteARM.go | 349 ++++++++++++++++++++++++++---
  5 files changed, 426 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index d44ed6cfdf..510d984644 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -295,37 +295,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpARMADDconst:
+-		if v.Aux != nil {
+-			switch v.Aux.(type) {
+-			default:
+-				v.Fatalf("aux is of unknown type %T", v.Aux)
+-			case *ssa.ExternSymbol:
+-				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+-				if reg.Name() != "SB" {
+-					v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
+-				}
+-			case *ssa.ArgSymbol,
+-				*ssa.AutoSymbol:
+-				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+-				if reg.Name() != "SP" {
+-					v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
+-				}
+-			}
+-			// MOVW $sym+off(base), R
+-			// the assembler expands it as the following:
+-			// - base is SP: add constant offset to SP (R13)
+-			//               when constant is large, tmp register (R11) may be used
+-			// - base is SB: load external address from constant pool (use relocation)
+-			p := gc.Prog(arm.AMOVW)
+-			p.From.Type = obj.TYPE_ADDR
+-			gc.AddAux(&p.From, v)
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = gc.SSARegNum(v)
+-			break
+-		}
+-		fallthrough
+-	case ssa.OpARMSUBconst,
++	case ssa.OpARMADDconst,
++		ssa.OpARMSUBconst,
+ 		ssa.OpARMRSBconst,
+ 		ssa.OpARMANDconst,
+ 		ssa.OpARMORconst,
+@@ -407,6 +378,46 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.Reg = gc.SSARegNum(v.Args[0])
++	case ssa.OpARMMOVWaddr:
++		if v.Aux == nil {
++			// MOVW $off(SP), R
++			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
++			if reg.Name() != "SP" {
++				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
++			}
++			p := gc.Prog(arm.AMOVW)
++			p.From.Type = obj.TYPE_ADDR
++			p.From.Reg = arm.REGSP
++			p.From.Offset = v.AuxInt
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = gc.SSARegNum(v)
++			break
++		}
++		// MOVW $sym+off(base), R
++		// the assembler expands it as the following:
++		// - base is SP: add constant offset to SP (R13)
++		//               when constant is large, tmp register (R11) may be used
++		// - base is SB: load external address from constant pool (use relocation)
++		switch v.Aux.(type) {
++		default:
++			v.Fatalf("aux is of unknown type %T", v.Aux)
++		case *ssa.ExternSymbol:
++			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
++			if reg.Name() != "SB" {
++				v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
++			}
++		case *ssa.ArgSymbol,
++			*ssa.AutoSymbol:
++			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
++			if reg.Name() != "SP" {
++				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
++			}
++		}
++		p := gc.Prog(arm.AMOVW)
++		p.From.Type = obj.TYPE_ADDR
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpARMMOVBload,
+ 		ssa.OpARMMOVBUload,
+ 		ssa.OpARMMOVHload,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 99c3d84e20..460c99d292 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -246,9 +246,10 @@
+ (Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Geq32U x y) -> (GreaterEqualU (CMP x y))
+ 
+-(OffPtr [off] ptr) -> (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
++(OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
++(OffPtr [off] ptr) -> (ADDconst [off] ptr)
+ 
+-(Addr {sym} base) -> (ADDconst {sym} base)
++(Addr {sym} base) -> (MOVWaddr {sym} base)
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
+@@ -369,31 +370,47 @@
+ (ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
+ (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
+ 
+-(MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+-  (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-
+-(MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+-  (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+-(MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+-  (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+-(MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+-  (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+-(MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+-  (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+-(MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+-  (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(ADDconst [off1] (MOVWaddr [off2] {sym} ptr)) -> (MOVWaddr [off1+off2] {sym} ptr)
++
++(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
++(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
++(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHload [off1+off2] {sym} ptr mem)
++(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHUload [off1+off2] {sym} ptr mem)
++(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVWload [off1+off2] {sym} ptr mem)
++(MOVFload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVFload [off1+off2] {sym} ptr mem)
++(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVDload [off1+off2] {sym} ptr mem)
++
++(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVBstore [off1+off2] {sym} ptr val mem)
++(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVHstore [off1+off2] {sym} ptr val mem)
++(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVWstore [off1+off2] {sym} ptr val mem)
++(MOVFstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVFstore [off1+off2] {sym} ptr val mem)
++(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVDstore [off1+off2] {sym} ptr val mem)
++
++(MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++
++(MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++	(MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 
+ (ADD (MUL x y) a) -> (MULA x y a)
+ (ADD a (MUL x y)) -> (MULA x y a)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 6a76b0a968..34889e2c2d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -99,7 +99,7 @@ func init() {
+ 	var (
+ 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+ 		gp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
++		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: []regMask{gp}}
+ 		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
+ 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+ 		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+@@ -121,7 +121,7 @@ func init() {
+ 	ops := []opData{
+ 		// binary ops
+ 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"},  // arg0 + auxInt + aux.(*gc.Sym)
++		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int32"},   // arg0 + auxInt
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
+ 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},     // arg0 - auxInt
+ 		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                        // arg1 - arg0
+@@ -189,6 +189,8 @@ func init() {
+ 		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
+ 		{name: "MOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
+ 
++		{name: "MOVWaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVW", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
++
+ 		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 477f16d4f1..67b02dfa90 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -380,6 +380,7 @@ const (
+ 	OpARMMOVWconst
+ 	OpARMMOVFconst
+ 	OpARMMOVDconst
++	OpARMMOVWaddr
+ 	OpARMMOVBload
+ 	OpARMMOVBUload
+ 	OpARMMOVHload
+@@ -3932,12 +3933,12 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "ADDconst",
+-		auxType: auxSymOff,
++		auxType: auxInt32,
+ 		argLen:  1,
+ 		asm:     arm.AADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4733,6 +4734,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "MOVWaddr",
++		auxType:           auxSymOff,
++		argLen:            1,
++		rematerializeable: true,
++		asm:               arm.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 8589942784}, // SP SB
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVBload",
+ 		auxType: auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 1ea89364ed..9c3a3b1435 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -10,6 +10,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpARMADD:
+ 		return rewriteValueARM_OpARMADD(v, config)
++	case OpARMADDconst:
++		return rewriteValueARM_OpARMADDconst(v, config)
+ 	case OpAdd16:
+ 		return rewriteValueARM_OpAdd16(v, config)
+ 	case OpAdd32:
+@@ -496,6 +498,29 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMADDconst(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADDconst [off1] (MOVWaddr [off2] {sym} ptr))
++	// cond:
++	// result: (MOVWaddr [off1+off2] {sym} ptr)
++	for {
++		off1 := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWaddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		ptr := v_0.Args[0]
++		v.reset(OpARMMOVWaddr)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -623,11 +648,11 @@ func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Addr {sym} base)
+ 	// cond:
+-	// result: (ADDconst {sym} base)
++	// result: (MOVWaddr {sym} base)
+ 	for {
+ 		sym := v.Aux
+ 		base := v.Args[0]
+-		v.reset(OpARMADDconst)
++		v.reset(OpARMMOVWaddr)
+ 		v.Aux = sym
+ 		v.AddArg(base)
+ 		return true
+@@ -2535,14 +2560,34 @@ func rewriteValueARM_OpLsh8x8(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVBUload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVBUload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2564,14 +2609,34 @@ func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVBload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVBload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2593,14 +2658,36 @@ func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
++	// cond:
++	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2624,14 +2711,34 @@ func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVDload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVDload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVDload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2653,14 +2760,36 @@ func rewriteValueARM_OpARMMOVDload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVDstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// match: (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
++	// cond:
++	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVDstore)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2684,14 +2813,34 @@ func rewriteValueARM_OpARMMOVDstore(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVFload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVFload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVFload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVFload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2713,14 +2862,36 @@ func rewriteValueARM_OpARMMOVFload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVFstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// match: (MOVFstore [off1] {sym} (ADDconst [off2] ptr) val mem)
++	// cond:
++	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVFstore)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2744,14 +2915,34 @@ func rewriteValueARM_OpARMMOVFstore(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVHUload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVHUload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2773,14 +2964,34 @@ func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVHload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVHload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2802,14 +3013,36 @@ func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
++	// cond:
++	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVHstore)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2833,14 +3066,34 @@ func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// match: (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond:
++	// result: (MOVWload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVWload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -2862,14 +3115,36 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
++	// cond:
++	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVWstore)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		if v_0.Op != OpARMMOVWaddr {
+ 			break
+ 		}
+ 		off2 := v_0.AuxInt
+@@ -3488,16 +3763,28 @@ func rewriteValueARM_OpNot(v *Value, config *Config) bool {
+ func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (OffPtr [off] ptr:(SP))
++	// cond:
++	// result: (MOVWaddr [off] ptr)
++	for {
++		off := v.AuxInt
++		ptr := v.Args[0]
++		if ptr.Op != OpSP {
++			break
++		}
++		v.reset(OpARMMOVWaddr)
++		v.AuxInt = off
++		v.AddArg(ptr)
++		return true
++	}
+ 	// match: (OffPtr [off] ptr)
+ 	// cond:
+-	// result: (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
++	// result: (ADDconst [off] ptr)
+ 	for {
+ 		off := v.AuxInt
+ 		ptr := v.Args[0]
+-		v.reset(OpARMADD)
+-		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.Frontend().TypeInt32())
+-		v0.AuxInt = off
+-		v.AddArg(v0)
++		v.reset(OpARMADDconst)
++		v.AuxInt = off
+ 		v.AddArg(ptr)
+ 		return true
+ 	}

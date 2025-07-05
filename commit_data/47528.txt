@@ -13,7 +13,36 @@ Date:   Fri Sep 4 16:07:12 2020 -0700
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/path/filepath/path.go      | 4 ++++
  src/path/filepath/path_test.go | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 2e7b439355..28b30b1ae7 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -275,7 +275,11 @@ func Rel(basepath, targpath string) (string, error) {
+ 	targ = targ[len(targVol):]
+ 	if base == "." {
+ 		base = ""
++	} else if base == "" && volumeNameLen(baseVol) > 2 /* isUNC */ {
++		// Treat any targetpath matching `\\host\share` basepath as absolute path.
++		base = string(Separator)
+ 	}
++
+ 	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
+ 	baseSlashed := len(base) > 0 && base[0] == Separator
+ 	targSlashed := len(targ) > 0 && targ[0] == Separator
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 8616256ac0..1d9889d320 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1227,6 +1227,7 @@ var winreltests = []RelTests{
+ 	{`C:\Projects`, `c:\projects\src`, `src`},
+ 	{`C:\Projects`, `c:\projects`, `.`},
+ 	{`C:\Projects\a\..`, `c:\projects`, `.`},
++	{`\\host\share`, `\\host\share\file.txt`, `file.txt`},
+ }
+ 
+ func TestRel(t *testing.T) {

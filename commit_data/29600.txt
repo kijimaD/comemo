@@ -10,7 +10,7 @@ Date:   Sat Sep 24 21:38:58 2016 +0200
     Change-Id: I584b902e95cf588aa14febf1e0b6dfa499c303c2
     Reviewed-on: https://go-review.googlesource.com/29871
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     |  6 +++---
  src/cmd/compile/internal/gc/esc.go       |  6 +++---
  src/cmd/compile/internal/gc/inl.go       |  4 ++--
@@ -22,3 +22,319 @@ Date:   Sat Sep 24 21:38:58 2016 +0200
  src/cmd/internal/obj/arm/asm5.go         |  4 ++--
  src/cmd/link/internal/arm/asm.go         |  2 +-
  10 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 6860656870..39c662ffc8 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -335,7 +335,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			TUNSAFEPTR:
+ 			break
+ 
+-			// A nil literal may be converted to uintptr
++		// A nil literal may be converted to uintptr
+ 		// if it is an unsafe.Pointer
+ 		case TUINTPTR:
+ 			if n.Type.Etype == TUNSAFEPTR {
+@@ -851,7 +851,7 @@ func evconst(n *Node) {
+ 			goto illegal
+ 		}
+ 
+-		// right must be unsigned.
++	// right must be unsigned.
+ 	// left can be ideal.
+ 	case OLSH, ORSH:
+ 		nr = defaultlit(nr, Types[TUINT])
+@@ -994,7 +994,7 @@ func evconst(n *Node) {
+ 
+ 		v.U.(*Mpflt).Quo(rv.U.(*Mpflt))
+ 
+-		// The default case above would print 'ideal % ideal',
++	// The default case above would print 'ideal % ideal',
+ 	// which is not quite an ideal error.
+ 	case OMOD_ | CTFLT_:
+ 		if n.Diag == 0 {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4857eb0d21..6c377ea9cb 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -716,7 +716,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			}
+ 		}
+ 
+-		// Filter out the following special case.
++	// Filter out the following special case.
+ 	//
+ 	//	func (b *Buffer) Foo() {
+ 	//		n, m := ...
+@@ -952,7 +952,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 					nE.Escloopdepth = leftE.Escloopdepth
+ 				}
+ 
+-				// PPARAM is loop depth 1 always.
++			// PPARAM is loop depth 1 always.
+ 			// PPARAMOUT is loop depth 0 for writes
+ 			// but considered loop depth 1 for address-of,
+ 			// so that writing the address of one result
+@@ -1148,7 +1148,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 			escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
+ 		}
+ 
+-		// Might be pointer arithmetic, in which case
++	// Might be pointer arithmetic, in which case
+ 	// the operands flow into the result.
+ 	// TODO(rsc): Decide what the story is here. This is unsettling.
+ 	case OADD,
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6687b1ad32..9a8dede50d 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -369,7 +369,7 @@ func inlnode(n *Node) *Node {
+ 		}
+ 		fallthrough
+ 
+-		// TODO do them here (or earlier),
++	// TODO do them here (or earlier),
+ 	// so escape analysis can avoid more heapmoves.
+ 	case OCLOSURE:
+ 		return n
+@@ -407,7 +407,7 @@ func inlnode(n *Node) *Node {
+ 			}
+ 		}
+ 
+-		// if we just replaced arg in f(arg()) or return arg with an inlined call
++	// if we just replaced arg in f(arg()) or return arg with an inlined call
+ 	// and arg returns multiple values, glue as list
+ 	case ORETURN,
+ 		OCALLFUNC,
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index d09983356c..4f34049d6a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -538,7 +538,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+-		// Special: make sure key is addressable,
++	// Special: make sure key is addressable,
+ 	// and make sure OINDEXMAP is not copied out.
+ 	case OAS2MAPR:
+ 		t := marktemp(order)
+@@ -556,7 +556,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+-		// Special: avoid copy of func call n->rlist->n.
++	// Special: avoid copy of func call n->rlist->n.
+ 	case OAS2FUNC:
+ 		t := marktemp(order)
+ 
+@@ -565,7 +565,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+-		// Special: use temporary variables to hold result,
++	// Special: use temporary variables to hold result,
+ 	// so that assertI2Tetc can take address of temporary.
+ 	// No temporary for blank assignment.
+ 	case OAS2DOTTYPE:
+@@ -600,7 +600,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		cleantemp(t, order)
+ 
+-		// Special: use temporary variables to hold result,
++	// Special: use temporary variables to hold result,
+ 	// so that chanrecv can take address of temporary.
+ 	case OAS2RECV:
+ 		t := marktemp(order)
+@@ -620,11 +620,11 @@ func orderstmt(n *Node, order *Order) {
+ 		n.List.Set([]*Node{tmp1, tmp2})
+ 		cleantemp(t, order)
+ 
+-		// Special: does not save n onto out.
++	// Special: does not save n onto out.
+ 	case OBLOCK, OEMPTY:
+ 		orderstmtlist(n.List, order)
+ 
+-		// Special: n->left is not an expression; save as is.
++	// Special: n->left is not an expression; save as is.
+ 	case OBREAK,
+ 		OCONTINUE,
+ 		ODCL,
+@@ -637,7 +637,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ORETJMP:
+ 		order.out = append(order.out, n)
+ 
+-		// Special: handle call arguments.
++	// Special: handle call arguments.
+ 	case OCALLFUNC, OCALLINTER, OCALLMETH:
+ 		t := marktemp(order)
+ 
+@@ -645,7 +645,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+-		// Special: order arguments to inner call but not call itself.
++	// Special: order arguments to inner call but not call itself.
+ 	case ODEFER, OPROC:
+ 		t := marktemp(order)
+ 
+@@ -676,7 +676,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+-		// Clean temporaries from condition evaluation at
++	// Clean temporaries from condition evaluation at
+ 	// beginning of loop body and after for statement.
+ 	case OFOR:
+ 		t := marktemp(order)
+@@ -690,7 +690,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+-		// Clean temporaries from condition at
++	// Clean temporaries from condition at
+ 	// beginning of both branches.
+ 	case OIF:
+ 		t := marktemp(order)
+@@ -707,7 +707,7 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Rlist.Set(orderblock(n.Rlist))
+ 		order.out = append(order.out, n)
+ 
+-		// Special: argument will be converted to interface using convT2E
++	// Special: argument will be converted to interface using convT2E
+ 	// so make sure it is an addressable temporary.
+ 	case OPANIC:
+ 		t := marktemp(order)
+@@ -932,7 +932,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		poptemp(t, order)
+ 
+-		// Special: value being sent is passed as a pointer; make it addressable.
++	// Special: value being sent is passed as a pointer; make it addressable.
+ 	case OSEND:
+ 		t := marktemp(order)
+ 
+@@ -942,7 +942,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+-		// TODO(rsc): Clean temporaries more aggressively.
++	// TODO(rsc): Clean temporaries more aggressively.
+ 	// Note that because walkswitch will rewrite some of the
+ 	// switch into a binary search, this is not as easy as it looks.
+ 	// (If we ran that code here we could invoke orderstmt on
+@@ -1010,7 +1010,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		orderexprlist(n.List, order)
+ 		orderexprlist(n.Rlist, order)
+ 
+-		// Addition of strings turns into a function call.
++	// Addition of strings turns into a function call.
+ 	// Allocate a temporary to hold the strings.
+ 	// Fewer than 5 strings use direct runtime helpers.
+ 	case OADDSTR:
+@@ -1085,7 +1085,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+-		// concrete type (not interface) argument must be addressable
++	// concrete type (not interface) argument must be addressable
+ 	// temporary to pass to runtime.
+ 	case OCONVIFACE:
+ 		n.Left = orderexpr(n.Left, order, nil)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 404088e942..b47ac9d1e0 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -188,7 +188,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 		goto ret
+ 
+-		// Instrument dst argument of runtime.writebarrier* calls
++	// Instrument dst argument of runtime.writebarrier* calls
+ 	// as we do not instrument runtime code.
+ 	// typedslicecopy is instrumented in runtime.
+ 	case OCALLFUNC:
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 1e9d0f3e0a..d999190ad1 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -40,7 +40,7 @@ func typecheckselect(sel *Node) {
+ 			default:
+ 				yyerror("select case must be receive, send or assign recv")
+ 
+-				// convert x = <-c into OSELRECV(x, <-c).
++			// convert x = <-c into OSELRECV(x, <-c).
+ 			// remove implicit conversions; the eventual assignment
+ 			// will reintroduce them.
+ 			case OAS:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 66ebaa0586..3ad869f98b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1705,7 +1705,7 @@ OpSwitch:
+ 				n.SetVal(n.Left.Val())
+ 			}
+ 
+-			// do not use stringtoarraylit.
++		// do not use stringtoarraylit.
+ 		// generated code and compiler memory footprint is better without it.
+ 		case OSTRARRAYBYTE:
+ 			break
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index dc0b0fb00d..e385d3e3c8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -826,7 +826,7 @@ opswitch:
+ 		}
+ 		n = liststmt(append([]*Node{r}, ll...))
+ 
+-		// x, y = <-c
++	// x, y = <-c
+ 	// orderstmt made sure x is addressable.
+ 	case OAS2RECV:
+ 		init.AppendNodes(&n.Ninit)
+@@ -2654,7 +2654,7 @@ func vmatch1(l *Node, r *Node) bool {
+ 		case PPARAM, PAUTO:
+ 			break
+ 
+-			// assignment to non-stack variable
++		// assignment to non-stack variable
+ 		// must be delayed if right has function calls.
+ 		default:
+ 			if r.Ullman >= UINF {
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index be88a87530..70860231a3 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2359,7 +2359,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 |= uint32(p.From.Offset & 0xfff)
+ 		}
+ 
+-		// This is supposed to be something that stops execution.
++	// This is supposed to be something that stops execution.
+ 	// It's not supposed to be reached, ever, but if it is, we'd
+ 	// like to be able to tell how we got there. Assemble as
+ 	// 0xf7fabcfd which is guaranteed to raise undefined instruction
+@@ -2388,7 +2388,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(p.Reg) & 15) << 0
+ 		o1 |= uint32((p.To.Offset & 15) << 16)
+ 
+-		// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
++	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
+ 	// DATABUNDLEEND: zero width alignment marker
+ 	case 100:
+ 		if p.As == ADATABUNDLE {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index f375eb7a16..7163af2382 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -460,7 +460,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 
+-		// The following three arch specific relocations are only for generation of
++	// The following three arch specific relocations are only for generation of
+ 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
+ 	case obj.R_PLT0: // add ip, pc, #0xXX00000
+ 		if ld.Symaddr(ctxt.Syms.Lookup(".got.plt", 0)) < ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) {

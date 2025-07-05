@@ -10,7 +10,56 @@ Date:   Sat Jul 30 17:11:52 2011 -0700
     R=r, r
     CC=golang-dev
     https://golang.org/cl/4810060
-
+---
  src/pkg/exp/template/exec.go      |  6 +++---
  src/pkg/exp/template/exec_test.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 40a947dbf0..e500465d12 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -585,12 +585,12 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n node) reflect.Value {
+ // We indirect through pointers and empty interfaces (only) because
+ // non-empty interfaces have methods we might need.
+ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+-	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
++	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
+ 		if v.IsNil() {
+ 			return v, true
+ 		}
+-		if v.Kind() == reflect.Ptr || v.NumMethod() == 0 {
+-			v = v.Elem()
++		if v.Kind() == reflect.Interface && v.NumMethod() > 0 {
++			break
+ 		}
+ 	}
+ 	return v, false
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index d9b8afbcd2..ed27e71223 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -75,6 +75,13 @@ var tVal = &T{
+ 	Tmpl:   Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
++// A non-empty interface.
++type I interface {
++	Method0() string
++}
++
++var iVal I = tVal
++
+ // Helpers for creation.
+ func newInt(n int) *int {
+ 	p := new(int)
+@@ -344,6 +351,9 @@ var execTests = []execTest{
+ 	// Fixed bugs.
+ 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
+ 	{"bug0", "{{range .MSIone}}{{if $.Method1 .}}X{{end}}{{end}}", "X", tVal, true},
++	// Do not loop endlessly in indirect for non-empty interfaces.
++	// The bug appears with *interface only; this is supposed to fail (cannot invoke Method0), but terminate.
++	{"bug1", "{{.Method0}}", "", &iVal, false},
+ }
+ 
+ func zeroArgs() string {

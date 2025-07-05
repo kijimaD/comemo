@@ -20,7 +20,59 @@ Date:   Tue Oct 29 13:27:00 2019 +0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/bufio.go      |  3 +++
  src/bufio/bufio_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index d1d542a484..f0810be3a4 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -706,6 +706,9 @@ func (b *Writer) WriteString(s string) (int, error) {
+ // supports the ReadFrom method, and b has no buffered data yet,
+ // this calls the underlying ReadFrom without buffering.
+ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
++	if b.err != nil {
++		return 0, b.err
++	}
+ 	if b.Buffered() == 0 {
+ 		if w, ok := b.wr.(io.ReaderFrom); ok {
+ 			n, err = w.ReadFrom(r)
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 3e085fd5d0..9a9f102f15 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1555,6 +1555,32 @@ func TestWriterReadFromMustSetUnderlyingError(t *testing.T) {
+ 	}
+ }
+ 
++type writeErrorOnlyWriter struct{}
++
++func (w writeErrorOnlyWriter) Write(p []byte) (n int, err error) {
++	return 0, errors.New("writeErrorOnlyWriter error")
++}
++
++// Ensure that previous Write errors are immediately returned
++// on any ReadFrom. See golang.org/issue/35194.
++func TestWriterReadFromMustReturnUnderlyingError(t *testing.T) {
++	var wr = NewWriter(writeErrorOnlyWriter{})
++	s := "test1"
++	wantBuffered := len(s)
++	if _, err := wr.WriteString(s); err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	if err := wr.Flush(); err == nil {
++		t.Error("expected flush error, got nil")
++	}
++	if _, err := wr.ReadFrom(strings.NewReader("test2")); err == nil {
++		t.Fatal("expected error, got nil")
++	}
++	if buffered := wr.Buffered(); buffered != wantBuffered {
++		t.Fatalf("Buffered = %v; want %v", buffered, wantBuffered)
++	}
++}
++
+ func BenchmarkReaderCopyOptimal(b *testing.B) {
+ 	// Optimal case is where the underlying reader implements io.WriterTo
+ 	srcBuf := bytes.NewBuffer(make([]byte, 8192))

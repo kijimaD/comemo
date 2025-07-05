@@ -14,6 +14,24 @@ Date:   Sun May 8 14:32:48 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue15602.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/test/fixedbugs/issue15602.go b/test/fixedbugs/issue15602.go
+new file mode 100644
+index 0000000000..badf8133c5
+--- /dev/null
++++ b/test/fixedbugs/issue15602.go
+@@ -0,0 +1,11 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(i interface{}) {
++	i, _ = i.(error)
++}

@@ -8,10 +8,158 @@ Date:   Mon Nov 10 09:27:25 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/168170043
-
+---
  src/cmd/go/doc.go    |  2 +-
  src/cmd/go/pkg.go    | 23 +++++++++++++++++------
  src/cmd/go/test.bash | 18 +++++++++---------
  src/cmd/go/tool.go   |  2 +-
  src/cmd/go/vet.go    |  2 +-
  5 files changed, 29 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index cf3a54565a..43a3159440 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -590,7 +590,7 @@ Usage:
+ 
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about vet, see 'godoc code.google.com/p/go.tools/cmd/vet'.
++For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index e17326442c..6efeeb1a9c 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -383,9 +383,10 @@ func findInternal(path string) (index int, ok bool) {
+ type targetDir int
+ 
+ const (
+-	toRoot targetDir = iota // to bin dir inside package root (default)
+-	toTool                  // GOROOT/pkg/tool
+-	toBin                   // GOROOT/bin
++	toRoot    targetDir = iota // to bin dir inside package root (default)
++	toTool                     // GOROOT/pkg/tool
++	toBin                      // GOROOT/bin
++	stalePath                  // the old import path; fail to build
+ )
+ 
+ // goTools is a map of Go program import path to install target directory.
+@@ -399,9 +400,12 @@ var goTools = map[string]targetDir{
+ 	"cmd/objdump":                          toTool,
+ 	"cmd/pack":                             toTool,
+ 	"cmd/yacc":                             toTool,
+-	"code.google.com/p/go.tools/cmd/cover": toTool,
+-	"code.google.com/p/go.tools/cmd/godoc": toBin,
+-	"code.google.com/p/go.tools/cmd/vet":   toTool,
++	"golang.org/x/tools/cmd/cover":         toTool,
++	"golang.org/x/tools/cmd/godoc":         toBin,
++	"golang.org/x/tools/cmd/vet":           toTool,
++	"code.google.com/p/go.tools/cmd/cover": stalePath,
++	"code.google.com/p/go.tools/cmd/godoc": stalePath,
++	"code.google.com/p/go.tools/cmd/vet":   stalePath,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+@@ -462,6 +466,13 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 
+ 	if p.Name == "main" {
++		// Report an error when the old code.google.com/p/go.tools paths are used.
++		if goTools[p.ImportPath] == stalePath {
++			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
++			e := fmt.Sprintf("the %v command has moved; use %v instead.", p.ImportPath, newPath)
++			p.Error = &PackageError{Err: e}
++			return p
++		}
+ 		_, elem := filepath.Split(p.Dir)
+ 		full := buildContext.GOOS + "_" + buildContext.GOARCH + "/" + elem
+ 		if buildContext.GOOS != toolGOOS || buildContext.GOARCH != toolGOARCH {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 2b5230b1aa..e0f066f186 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -433,20 +433,20 @@ TEST godoc installs into GOBIN
+ d=$(mktemp -d -t testgoXXX)
+ export GOPATH=$d
+ mkdir $d/gobin
+-GOBIN=$d/gobin ./testgo get code.google.com/p/go.tools/cmd/godoc || ok=false
++GOBIN=$d/gobin ./testgo get golang.org/x/tools/cmd/godoc || ok=false
+ if [ ! -x $d/gobin/godoc ]; then
+ 	echo did not install godoc to '$GOBIN'
+-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
++	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' golang.org/x/tools/cmd/godoc || true
+ 	ok=false
+ fi
+ 
+ TEST godoc installs into GOROOT
+ GOROOT=$(./testgo env GOROOT)
+ rm -f $GOROOT/bin/godoc
+-./testgo install code.google.com/p/go.tools/cmd/godoc || ok=false
++./testgo install golang.org/x/tools/cmd/godoc || ok=false
+ if [ ! -x $GOROOT/bin/godoc ]; then
+ 	echo did not install godoc to '$GOROOT/bin'
+-	./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
++	./testgo list -f 'Target: {{.Target}}' golang.org/x/tools/cmd/godoc || true
+ 	ok=false
+ fi
+ 
+@@ -561,8 +561,8 @@ fi
+ TEST without GOPATH, go get fails
+ d=$(mktemp -d -t testgoXXX)
+ mkdir -p $d/src
+-if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
+-	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
++if GOPATH= GOROOT=$d ./testgo get -d golang.org/x/codereview/cmd/hgpatch ; then 
++	echo 'go get golang.org/x/codereview/cmd/hgpatch should not succeed with $GOPATH unset'
+ 	ok=false
+ fi	
+ rm -rf $d
+@@ -571,8 +571,8 @@ rm -rf $d
+ TEST with GOPATH=GOROOT, go get fails
+ d=$(mktemp -d -t testgoXXX)
+ mkdir -p $d/src
+-if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
+-        echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
++if GOPATH=$d GOROOT=$d ./testgo get -d golang.org/x/codereview/cmd/hgpatch ; then
++        echo 'go get golang.org/x/codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
+         ok=false
+ fi
+ rm -rf $d
+@@ -728,7 +728,7 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
+ fi
+ 
+ TEST go get cover
+-./testgo get code.google.com/p/go.tools/cmd/cover || ok=false
++./testgo get golang.org/x/tools/cmd/cover || ok=false
+ 
+ unset GOPATH
+ rm -rf $d
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 6d26f7a4b4..c96161e0f9 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -53,7 +53,7 @@ func tool(toolName string) string {
+ 	// Give a nice message if there is no tool with that name.
+ 	if _, err := os.Stat(toolPath); err != nil {
+ 		if isInGoToolsRepo(toolName) {
+-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get golang.org/x/tools/cmd/%s\n", toolName, toolName)
+ 		} else {
+ 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+ 		}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index de7befc611..02ff54b2ac 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -17,7 +17,7 @@ var cmdVet = &Command{
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about vet, see 'godoc code.google.com/p/go.tools/cmd/vet'.
++For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.

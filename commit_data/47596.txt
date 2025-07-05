@@ -22,8 +22,52 @@ Date:   Tue Mar 30 16:03:26 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/helpers.go   | 3 +++
  src/cmd/compile/internal/noder/stencil.go   | 2 --
  src/cmd/compile/internal/noder/transform.go | 5 -----
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index e5a6dbcb01..6320b30e50 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -87,6 +87,9 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
+ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 	n.IsDDD = dots
++	// n.Use will be changed to ir.CallUseStmt in g.stmt() if this call is
++	// just a statement (any return values are ignored).
++	n.Use = ir.CallUseExpr
+ 
+ 	if fun.Op() == ir.OTYPE {
+ 		// Actually a type conversion, not a function call.
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 1dff4e294c..350f8f8c2a 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -303,8 +303,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	ir.MarkFunc(newf.Nname)
+ 	newf.SetTypecheck(1)
+ 	newf.Nname.SetTypecheck(1)
+-	// TODO(danscales) - remove later, but avoid confusion for now.
+-	newf.Pragma = ir.Noinline
+ 
+ 	// Make sure name/type of newf is set before substituting the body.
+ 	newf.Body = subst.list(gf.Body)
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 7f926dc70a..021d3a9fa7 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -143,11 +143,6 @@ func transformCall(n *ir.CallExpr) {
+ 	}
+ 
+ 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
+-	if t.NumResults() == 0 {
+-		n.Use = ir.CallUseStmt
+-		return
+-	}
+-	n.Use = ir.CallUseExpr
+ 	if t.NumResults() == 1 {
+ 		n.SetType(l.Type().Results().Field(0).Type)
+ 

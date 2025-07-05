@@ -34,9 +34,168 @@ Date:   Tue Nov 15 12:17:25 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5369111
-
+---
  src/pkg/strconv/decimal.go       | 27 ++++++++++-----------------
  src/pkg/strconv/decimal_test.go  | 12 +++++++++---
  src/pkg/strconv/ftoa.go          |  9 ++++++---
  src/pkg/strconv/internal_test.go |  6 +++++-
  4 files changed, 30 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index f572ea4a22..541553097b 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -102,12 +102,6 @@ func (a *decimal) Assign(v uint64) {
+ 	trim(a)
+ }
+ 
+-func newDecimal(i uint64) *decimal {
+-	a := new(decimal)
+-	a.Assign(i)
+-	return a
+-}
+-
+ // Maximum shift that we can do in one pass without overflow.
+ // Signed int has 31 bits, and we have to be able to accommodate 9<<k.
+ const maxShift = 27
+@@ -303,32 +297,32 @@ func shouldRoundUp(a *decimal, nd int) bool {
+ // If nd is zero, it means we're rounding
+ // just to the left of the digits, as in
+ // 0.09 -> 0.1.
+-func (a *decimal) Round(nd int) *decimal {
++func (a *decimal) Round(nd int) {
+ 	if nd < 0 || nd >= a.nd {
+-		return a
++		return
+ 	}
+ 	if shouldRoundUp(a, nd) {
+-		return a.RoundUp(nd)
++		a.RoundUp(nd)
++	} else {
++		a.RoundDown(nd)
+ 	}
+-	return a.RoundDown(nd)
+ }
+ 
+ // Round a down to nd digits (or fewer).
+ // Returns receiver for convenience.
+-func (a *decimal) RoundDown(nd int) *decimal {
++func (a *decimal) RoundDown(nd int) {
+ 	if nd < 0 || nd >= a.nd {
+-		return a
++		return
+ 	}
+ 	a.nd = nd
+ 	trim(a)
+-	return a
+ }
+ 
+ // Round a up to nd digits (or fewer).
+ // Returns receiver for convenience.
+-func (a *decimal) RoundUp(nd int) *decimal {
++func (a *decimal) RoundUp(nd int) {
+ 	if nd < 0 || nd >= a.nd {
+-		return a
++		return
+ 	}
+ 
+ 	// round up
+@@ -337,7 +331,7 @@ func (a *decimal) RoundUp(nd int) *decimal {
+ 		if c < '9' { // can stop after this digit
+ 			a.d[i]++
+ 			a.nd = i + 1
+-			return a
++			return
+ 		}
+ 	}
+ 
+@@ -346,7 +340,6 @@ func (a *decimal) RoundUp(nd int) *decimal {
+ 	a.d[0] = '1'
+ 	a.nd = 1
+ 	a.dp++
+-	return a
+ }
+ 
+ // Extract integer part, rounded appropriately.
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index deb2e02f61..13a127f5b2 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -70,17 +70,23 @@ var roundtests = []roundTest{
+ func TestDecimalRound(t *testing.T) {
+ 	for i := 0; i < len(roundtests); i++ {
+ 		test := &roundtests[i]
+-		s := NewDecimal(test.i).RoundDown(test.nd).String()
++		d := NewDecimal(test.i)
++		d.RoundDown(test.nd)
++		s := d.String()
+ 		if s != test.down {
+ 			t.Errorf("Decimal %v RoundDown %d = %v, want %v",
+ 				test.i, test.nd, s, test.down)
+ 		}
+-		s = NewDecimal(test.i).Round(test.nd).String()
++		d = NewDecimal(test.i)
++		d.Round(test.nd)
++		s = d.String()
+ 		if s != test.round {
+ 			t.Errorf("Decimal %v Round %d = %v, want %v",
+ 				test.i, test.nd, s, test.down)
+ 		}
+-		s = NewDecimal(test.i).RoundUp(test.nd).String()
++		d = NewDecimal(test.i)
++		d.RoundUp(test.nd)
++		s = d.String()
+ 		if s != test.up {
+ 			t.Errorf("Decimal %v RoundUp %d = %v, want %v",
+ 				test.i, test.nd, s, test.up)
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 07fe806b97..8342b6abe7 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -98,7 +98,8 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
+ 	// followed by a flt.mantbits fraction, and we are treating it as
+ 	// a 1+flt.mantbits-bit integer.
+-	d := newDecimal(mant)
++	d := new(decimal)
++	d.Assign(mant)
+ 	d.Shift(exp - int(flt.mantbits))
+ 
+ 	// Round appropriately.
+@@ -184,7 +185,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	// d = mant << (exp - mantbits)
+ 	// Next highest floating point number is mant+1 << exp-mantbits.
+ 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
+-	upper := newDecimal(mant*2 + 1)
++	upper := new(decimal)
++	upper.Assign(mant*2 + 1)
+ 	upper.Shift(exp - int(flt.mantbits) - 1)
+ 
+ 	// d = mant << (exp - mantbits)
+@@ -203,7 +205,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 		mantlo = mant*2 - 1
+ 		explo = exp - 1
+ 	}
+-	lower := newDecimal(mantlo*2 + 1)
++	lower := new(decimal)
++	lower.Assign(mantlo*2 + 1)
+ 	lower.Shift(explo - int(flt.mantbits) - 1)
+ 
+ 	// The upper and lower bounds are possible outputs only if
+diff --git a/src/pkg/strconv/internal_test.go b/src/pkg/strconv/internal_test.go
+index 9a7f4f0867..d0fa80edfb 100644
+--- a/src/pkg/strconv/internal_test.go
++++ b/src/pkg/strconv/internal_test.go
+@@ -6,7 +6,11 @@
+ 
+ package strconv
+ 
+-func NewDecimal(i uint64) *decimal { return newDecimal(i) }
++func NewDecimal(i uint64) *decimal {
++	d := new(decimal)
++	d.Assign(i)
++	return d
++}
+ 
+ func SetOptimize(b bool) bool {
+ 	old := optimize

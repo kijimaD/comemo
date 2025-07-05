@@ -12,8 +12,82 @@ Date:   Wed Mar 19 09:38:51 2025 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/under.go           | 10 ++++++----
  src/go/types/under.go                              | 10 ++++++----
  .../types/testdata/fixedbugs/issue72936.go         | 23 ++++++++++++++++++++++
  3 files changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index 846788a210..9e5334b724 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -112,11 +112,13 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 				}
+ 				// If we have different channel directions, keep the restricted one
+ 				// and complain if they conflict.
+-				if chu.dir == SendRecv {
+-					ct, cu = t, u // switch to current, possibly restricted channel
+-				} else if chu.dir != ch.dir {
++				switch {
++				case chu.dir == ch.dir:
++					// nothing to do
++				case chu.dir == SendRecv:
++					ct, cu = t, u // switch to restricted channel
++				case ch.dir != SendRecv:
+ 					return bad("channels %s and %s have conflicting directions", ct, t)
+-
+ 				}
+ 				return true
+ 			}
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index 8d87e24237..2c09c49134 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -115,11 +115,13 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 				}
+ 				// If we have different channel directions, keep the restricted one
+ 				// and complain if they conflict.
+-				if chu.dir == SendRecv {
+-					ct, cu = t, u // switch to current, possibly restricted channel
+-				} else if chu.dir != ch.dir {
++				switch {
++				case chu.dir == ch.dir:
++					// nothing to do
++				case chu.dir == SendRecv:
++					ct, cu = t, u // switch to restricted channel
++				case ch.dir != SendRecv:
+ 					return bad("channels %s and %s have conflicting directions", ct, t)
+-
+ 				}
+ 				return true
+ 			}
+diff --git a/src/internal/types/testdata/fixedbugs/issue72936.go b/src/internal/types/testdata/fixedbugs/issue72936.go
+new file mode 100644
+index 0000000000..eb4942c0d9
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue72936.go
+@@ -0,0 +1,23 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[C chan<- int | chan int](c C)   { c <- 0 }
++func _[C chan int | chan<- int](c C)   { c <- 0 }
++func _[C <-chan int | chan<- int](c C) { c <- /* ERROR "receive-only channel <-chan int" */ 0 }
++
++func _[C <-chan int | chan int](c C)   { <-c }
++func _[C chan int | <-chan int](c C)   { <-c }
++func _[C chan<- int | <-chan int](c C) { <-c /* ERROR "send-only channel chan<- int" */ }
++
++// from issue report
++
++func send[C interface{ ~chan<- V | ~chan V }, V any](c C, v V) {
++	c <- v
++}
++
++func receive[C interface{ ~<-chan V | ~chan V }, V any](c C) V {
++	return <-c
++}

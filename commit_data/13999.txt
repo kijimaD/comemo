@@ -11,6 +11,20 @@ Date:   Tue Oct 2 08:10:42 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6595050
-
+---
  src/pkg/archive/tar/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index b2b7a58a10..a9c8fdbbc9 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -27,7 +27,7 @@ var (
+ //
+ // Example:
+ //	tw := tar.NewWriter(w)
+-//	hdr := new(Header)
++//	hdr := new(tar.Header)
+ //	hdr.Size = length of data in bytes
+ //	// populate other hdr fields as desired
+ //	if err := tw.WriteHeader(hdr); err != nil {

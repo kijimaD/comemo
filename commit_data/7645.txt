@@ -7,6 +7,29 @@ Date:   Sat Mar 5 15:43:26 2011 -0800
     R=rh
     CC=golang-dev
     https://golang.org/cl/4239060
-
+---
  src/pkg/http/httptest/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/httptest/server.go b/src/pkg/http/httptest/server.go
+index 5c5c746743..86c9eb4353 100644
+--- a/src/pkg/http/httptest/server.go
++++ b/src/pkg/http/httptest/server.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Implementation of TempServer
++// Implementation of Server
+ 
+ package httptest
+ 
+@@ -36,7 +36,7 @@ func NewServer(handler http.Handler) *Server {
+ 	return ts
+ }
+ 
+-// Close shuts down the temporary server.
++// Close shuts down the server.
+ func (s *Server) Close() {
+ 	s.Listener.Close()
+ }

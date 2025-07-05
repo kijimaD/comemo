@@ -17,6 +17,20 @@ Date:   Thu Dec 6 20:58:26 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index a168135a33..e6332072d6 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -215,7 +215,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
+ 					CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
+ 					char *buffer = malloc(maxSize);
+ 					if (CFStringGetCString(summary, buffer, maxSize, kCFStringEncodingUTF8)) {
+-						printf("crypto/x509: %s returned %d\n", buffer, result);
++						printf("crypto/x509: %s returned %d\n", buffer, (int)result);
+ 					}
+ 					free(buffer);
+ 					CFRelease(summary);

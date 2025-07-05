@@ -7,8 +7,52 @@ Date:   Thu Aug 12 11:28:50 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1987041
-
+---
  src/cmd/godoc/godoc.go    | 6 +++---
  src/pkg/go/doc/comment.go | 2 +-
  src/pkg/go/doc/doc.go     | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c8af916736..150a31dc7d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -943,9 +943,9 @@ var (
+ 
+ 
+ func extractString(src []byte, rx *regexp.Regexp) (s string) {
+-	m := rx.Find(src)
+-	if len(m) >= 4 {
+-		s = strings.TrimSpace(string(src[m[2]:m[3]]))
++	m := rx.FindSubmatch(src)
++	if m != nil {
++		s = strings.TrimSpace(string(m[1]))
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 4c79230999..cd985d8a7f 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -199,7 +199,7 @@ var (
+ // and '' into &rdquo;).
+ func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
+ 	for {
+-		m := matchRx.Find(line)
++		m := matchRx.FindSubmatchIndex(line)
+ 		if m == nil {
+ 			break
+ 		}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index a5b9aeb66e..64a1170c54 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -309,7 +309,7 @@ func (doc *docReader) addFile(src *ast.File) {
+ 	// collect BUG(...) comments
+ 	for _, c := range src.Comments {
+ 		text := c.List[0].Text
+-		if m := bug_markers.Find(text); m != nil {
++		if m := bug_markers.FindIndex(text); m != nil {
+ 			// found a BUG comment; maybe empty
+ 			if btxt := text[m[1]:]; bug_content.Match(btxt) {
+ 				// non-empty BUG comment; collect comment without BUG prefix

@@ -7,7 +7,68 @@ Date:   Wed Mar 12 13:12:40 2008 -0700
     - expanded a test case
     
     SVN=112242
-
+---
  doc/go_lang.txt |  2 +-
  tests/test0.go  | 27 +++++++++++++++++++++------
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index b0d717e0ec..651e5f82db 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -603,7 +603,7 @@ Each field of a struct represents a variable within the data
+ structure.
+ 
+   StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
+-  FieldDeclList = FieldDecl { ";" FieldDeclList } .
++  FieldDeclList = FieldDecl { ";" FieldDecl } .
+   FieldDecl = IdentifierList Type .
+ 
+     // An empty struct.
+diff --git a/tests/test0.go b/tests/test0.go
+index 215601ee85..ab58bc8572 100644
+--- a/tests/test0.go
++++ b/tests/test0.go
+@@ -13,13 +13,16 @@ const
+   
+ const (
+   pi = /* the usual */ 3.14159265358979323;
+-  e = 2.718281828
++  e = 2.718281828;
+ )
+ 
+-type
++type (
++  Empty interface {};
+   Point struct {
+-    x, y int
+-  }
++    x, y int;
++  };
++  Point2 Point
++)
+   
+ var (
+   x1 int;
+@@ -42,7 +45,19 @@ func swap(x, y int) (u, v int) {
+ 
+ func control_structs() {
+   i := 0;
+-  for {
+-    i++
++  for {}
++  for {};
++  for j := 0; j < i; j++ {
++    if i == 0 {
++    } else i = 0;
++    var x float
++  }
++  foo: switch {
++    case i < y:
++    case i < j:
++    case i == 0, i == 1, i == j:
++      i++; i++;
++    default:
++      break
+   }
+ }

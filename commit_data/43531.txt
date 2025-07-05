@@ -16,7 +16,7 @@ Date:   Thu Apr 9 20:45:14 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go             |   8 +-
  src/cmd/internal/goobj2/objfile.go            | 118 +++++++++++++-------------
  src/cmd/internal/goobj2/objfile_test.go       |  12 +--
@@ -24,3 +24,705 @@ Date:   Thu Apr 9 20:45:14 2020 -0400
  src/cmd/link/internal/loader/loader.go        |  76 ++++++++---------
  src/cmd/link/internal/loader/symbolbuilder.go |   8 +-
  6 files changed, 114 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 3a5a016514..19c810b8b2 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -57,7 +57,7 @@ func (r *objReader) readNew() {
+ 			pkg := pkglist[p]
+ 			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
+ 		}
+-		sym := rr.Sym2(i)
++		sym := rr.Sym(i)
+ 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
+ 	}
+ 
+@@ -68,7 +68,7 @@ func (r *objReader) readNew() {
+ 	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
+ 	ndef := rr.NSym() + rr.NNonpkgdef()
+ 	for i := 0; i < n; i++ {
+-		osym := rr.Sym2(i)
++		osym := rr.Sym(i)
+ 		if osym.Name(rr) == "" {
+ 			continue // not a real symbol
+ 		}
+@@ -97,7 +97,7 @@ func (r *objReader) readNew() {
+ 		r.p.Syms = append(r.p.Syms, &sym)
+ 
+ 		// Reloc
+-		relocs := rr.Relocs2(i)
++		relocs := rr.Relocs(i)
+ 		sym.Reloc = make([]Reloc, len(relocs))
+ 		for j := range relocs {
+ 			rel := &relocs[j]
+@@ -113,7 +113,7 @@ func (r *objReader) readNew() {
+ 		// Aux symbol info
+ 		isym := -1
+ 		funcdata := make([]goobj2.SymRef, 0, 4)
+-		auxs := rr.Auxs2(i)
++		auxs := rr.Auxs(i)
+ 		for j := range auxs {
+ 			a := &auxs[j]
+ 			switch a.Type() {
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 792dfc046a..bee29a0ad6 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -195,7 +195,7 @@ func (h *Header) Size() int {
+ //    Siz   uint32
+ //    Align uint32
+ // }
+-type Sym2 [SymSize]byte
++type Sym [SymSize]byte
+ 
+ const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
+ 
+@@ -216,42 +216,42 @@ const (
+ 	SymFlagTopFrame
+ )
+ 
+-func (s *Sym2) Name(r *Reader) string {
++func (s *Sym) Name(r *Reader) string {
+ 	len := binary.LittleEndian.Uint32(s[:])
+ 	off := binary.LittleEndian.Uint32(s[4:])
+ 	return r.StringAt(off, len)
+ }
+ 
+-func (s *Sym2) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
+-func (s *Sym2) Type() uint8   { return s[10] }
+-func (s *Sym2) Flag() uint8   { return s[11] }
+-func (s *Sym2) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
+-func (s *Sym2) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
++func (s *Sym) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
++func (s *Sym) Type() uint8   { return s[10] }
++func (s *Sym) Flag() uint8   { return s[11] }
++func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
++func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
+ 
+-func (s *Sym2) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
+-func (s *Sym2) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
+-func (s *Sym2) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
+-func (s *Sym2) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
+-func (s *Sym2) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+-func (s *Sym2) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+-func (s *Sym2) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+-func (s *Sym2) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
++func (s *Sym) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
++func (s *Sym) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
++func (s *Sym) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
++func (s *Sym) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
++func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
++func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
++func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
++func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+ 
+-func (s *Sym2) SetName(x string, w *Writer) {
++func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+ 	binary.LittleEndian.PutUint32(s[4:], w.stringOff(x))
+ }
+ 
+-func (s *Sym2) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
+-func (s *Sym2) SetType(x uint8)   { s[10] = x }
+-func (s *Sym2) SetFlag(x uint8)   { s[11] = x }
+-func (s *Sym2) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
+-func (s *Sym2) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
++func (s *Sym) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
++func (s *Sym) SetType(x uint8)   { s[10] = x }
++func (s *Sym) SetFlag(x uint8)   { s[11] = x }
++func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
++func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
+ 
+-func (s *Sym2) Write(w *Writer) { w.Bytes(s[:]) }
++func (s *Sym) Write(w *Writer) { w.Bytes(s[:]) }
+ 
+ // for testing
+-func (s *Sym2) fromBytes(b []byte) { copy(s[:], b) }
++func (s *Sym) fromBytes(b []byte) { copy(s[:], b) }
+ 
+ // Symbol reference.
+ type SymRef struct {
+@@ -269,28 +269,28 @@ type SymRef struct {
+ //    Add  int64
+ //    Sym  SymRef
+ // }
+-type Reloc2 [RelocSize]byte
++type Reloc [RelocSize]byte
+ 
+ const RelocSize = 4 + 1 + 1 + 8 + 8
+ 
+-func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+-func (r *Reloc2) Siz() uint8  { return r[4] }
+-func (r *Reloc2) Type() uint8 { return r[5] }
+-func (r *Reloc2) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
+-func (r *Reloc2) Sym() SymRef {
++func (r *Reloc) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
++func (r *Reloc) Siz() uint8  { return r[4] }
++func (r *Reloc) Type() uint8 { return r[5] }
++func (r *Reloc) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
++func (r *Reloc) Sym() SymRef {
+ 	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
+ }
+ 
+-func (r *Reloc2) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+-func (r *Reloc2) SetSiz(x uint8)  { r[4] = x }
+-func (r *Reloc2) SetType(x uint8) { r[5] = x }
+-func (r *Reloc2) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
+-func (r *Reloc2) SetSym(x SymRef) {
++func (r *Reloc) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
++func (r *Reloc) SetSiz(x uint8)  { r[4] = x }
++func (r *Reloc) SetType(x uint8) { r[5] = x }
++func (r *Reloc) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
++func (r *Reloc) SetSym(x SymRef) {
+ 	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
+ 	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
+ }
+ 
+-func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
++func (r *Reloc) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+ 	r.SetOff(off)
+ 	r.SetSiz(size)
+ 	r.SetType(typ)
+@@ -298,10 +298,10 @@ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+ 	r.SetSym(sym)
+ }
+ 
+-func (r *Reloc2) Write(w *Writer) { w.Bytes(r[:]) }
++func (r *Reloc) Write(w *Writer) { w.Bytes(r[:]) }
+ 
+ // for testing
+-func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
++func (r *Reloc) fromBytes(b []byte) { copy(r[:], b) }
+ 
+ // Aux symbol info.
+ //
+@@ -310,7 +310,7 @@ func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
+ //    Type uint8
+ //    Sym  SymRef
+ // }
+-type Aux2 [AuxSize]byte
++type Aux [AuxSize]byte
+ 
+ const AuxSize = 1 + 8
+ 
+@@ -327,21 +327,21 @@ const (
+ 	// TODO: more. Pcdata?
+ )
+ 
+-func (a *Aux2) Type() uint8 { return a[0] }
+-func (a *Aux2) Sym() SymRef {
++func (a *Aux) Type() uint8 { return a[0] }
++func (a *Aux) Sym() SymRef {
+ 	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
+ }
+ 
+-func (a *Aux2) SetType(x uint8) { a[0] = x }
+-func (a *Aux2) SetSym(x SymRef) {
++func (a *Aux) SetType(x uint8) { a[0] = x }
++func (a *Aux) SetSym(x SymRef) {
+ 	binary.LittleEndian.PutUint32(a[1:], x.PkgIdx)
+ 	binary.LittleEndian.PutUint32(a[5:], x.SymIdx)
+ }
+ 
+-func (a *Aux2) Write(w *Writer) { w.Bytes(a[:]) }
++func (a *Aux) Write(w *Writer) { w.Bytes(a[:]) }
+ 
+ // for testing
+-func (a *Aux2) fromBytes(b []byte) { copy(a[:], b) }
++func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
+ 
+ type Writer struct {
+ 	wr        *bio.Writer
+@@ -550,10 +550,10 @@ func (r *Reader) SymOff(i int) uint32 {
+ 	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
+ }
+ 
+-// Sym2 returns a pointer to the i-th symbol.
+-func (r *Reader) Sym2(i int) *Sym2 {
++// Sym returns a pointer to the i-th symbol.
++func (r *Reader) Sym(i int) *Sym {
+ 	off := r.SymOff(i)
+-	return (*Sym2)(unsafe.Pointer(&r.b[off]))
++	return (*Sym)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+ // NReloc returns the number of relocations of the i-th symbol.
+@@ -569,17 +569,17 @@ func (r *Reader) RelocOff(i int, j int) uint32 {
+ 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
+ }
+ 
+-// Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
+-func (r *Reader) Reloc2(i int, j int) *Reloc2 {
++// Reloc returns a pointer to the j-th relocation of the i-th symbol.
++func (r *Reader) Reloc(i int, j int) *Reloc {
+ 	off := r.RelocOff(i, j)
+-	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
++	return (*Reloc)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+-// Relocs2 returns a pointer to the relocations of the i-th symbol.
+-func (r *Reader) Relocs2(i int) []Reloc2 {
++// Relocs returns a pointer to the relocations of the i-th symbol.
++func (r *Reader) Relocs(i int) []Reloc {
+ 	off := r.RelocOff(i, 0)
+ 	n := r.NReloc(i)
+-	return (*[1 << 20]Reloc2)(unsafe.Pointer(&r.b[off]))[:n:n]
++	return (*[1 << 20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
+ }
+ 
+ // NAux returns the number of aux symbols of the i-th symbol.
+@@ -595,17 +595,17 @@ func (r *Reader) AuxOff(i int, j int) uint32 {
+ 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
+ }
+ 
+-// Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
+-func (r *Reader) Aux2(i int, j int) *Aux2 {
++// Aux returns a pointer to the j-th aux symbol of the i-th symbol.
++func (r *Reader) Aux(i int, j int) *Aux {
+ 	off := r.AuxOff(i, j)
+-	return (*Aux2)(unsafe.Pointer(&r.b[off]))
++	return (*Aux)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+-// Auxs2 returns the aux symbols of the i-th symbol.
+-func (r *Reader) Auxs2(i int) []Aux2 {
++// Auxs returns the aux symbols of the i-th symbol.
++func (r *Reader) Auxs(i int) []Aux {
+ 	off := r.AuxOff(i, 0)
+ 	n := r.NAux(i)
+-	return (*[1 << 20]Aux2)(unsafe.Pointer(&r.b[off]))[:n:n]
++	return (*[1 << 20]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
+ }
+ 
+ // DataOff returns the offset of the i-th symbol's data.
+diff --git a/src/cmd/internal/goobj2/objfile_test.go b/src/cmd/internal/goobj2/objfile_test.go
+index bdd9c25066..9fd121f9e6 100644
+--- a/src/cmd/internal/goobj2/objfile_test.go
++++ b/src/cmd/internal/goobj2/objfile_test.go
+@@ -24,7 +24,7 @@ func TestReadWrite(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	w := dummyWriter(&buf)
+ 
+-	var s Sym2
++	var s Sym
+ 	s.SetABI(1)
+ 	s.SetType(uint8(objabi.STEXT))
+ 	s.SetFlag(0x12)
+@@ -32,7 +32,7 @@ func TestReadWrite(t *testing.T) {
+ 	s.SetAlign(8)
+ 	s.Write(w)
+ 
+-	var r Reloc2
++	var r Reloc
+ 	r.SetOff(12)
+ 	r.SetSiz(4)
+ 	r.SetType(uint8(objabi.R_ADDR))
+@@ -40,7 +40,7 @@ func TestReadWrite(t *testing.T) {
+ 	r.SetSym(SymRef{11, 22})
+ 	r.Write(w)
+ 
+-	var a Aux2
++	var a Aux
+ 	a.SetType(AuxFuncInfo)
+ 	a.SetSym(SymRef{33, 44})
+ 	a.Write(w)
+@@ -49,21 +49,21 @@ func TestReadWrite(t *testing.T) {
+ 
+ 	// Read them back and check.
+ 	b := buf.Bytes()
+-	var s2 Sym2
++	var s2 Sym
+ 	s2.fromBytes(b)
+ 	if s2.ABI() != 1 || s2.Type() != uint8(objabi.STEXT) || s2.Flag() != 0x12 || s2.Siz() != 12345 || s2.Align() != 8 {
+ 		t.Errorf("read Sym2 mismatch: got %v %v %v %v %v", s2.ABI(), s2.Type(), s2.Flag(), s2.Siz(), s2.Align())
+ 	}
+ 
+ 	b = b[SymSize:]
+-	var r2 Reloc2
++	var r2 Reloc
+ 	r2.fromBytes(b)
+ 	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint8(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
+ 		t.Errorf("read Reloc2 mismatch: got %v %v %v %v %v", r2.Off(), r2.Siz(), r2.Type(), r2.Add(), r2.Sym())
+ 	}
+ 
+ 	b = b[RelocSize:]
+-	var a2 Aux2
++	var a2 Aux
+ 	a2.fromBytes(b)
+ 	if a2.Type() != AuxFuncInfo || a2.Sym() != (SymRef{33, 44}) {
+ 		t.Errorf("read Aux2 mismatch: got %v %v", a2.Type(), a2.Sym())
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index fbbb66829d..9792ef0846 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -248,7 +248,7 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.Func != nil {
+ 		align = uint32(s.Func.Align)
+ 	}
+-	var o goobj2.Sym2
++	var o goobj2.Sym
+ 	o.SetName(name, w.Writer)
+ 	o.SetABI(abi)
+ 	o.SetType(uint8(s.Type))
+@@ -270,7 +270,7 @@ func makeSymRef(s *LSym) goobj2.SymRef {
+ }
+ 
+ func (w *writer) Reloc(r *Reloc) {
+-	var o goobj2.Reloc2
++	var o goobj2.Reloc
+ 	o.SetOff(r.Off)
+ 	o.SetSiz(r.Siz)
+ 	o.SetType(uint8(r.Type))
+@@ -280,7 +280,7 @@ func (w *writer) Reloc(r *Reloc) {
+ }
+ 
+ func (w *writer) aux1(typ uint8, rs *LSym) {
+-	var o goobj2.Aux2
++	var o goobj2.Aux
+ 	o.SetType(typ)
+ 	o.SetSym(makeSymRef(rs))
+ 	o.Write(w.Writer)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6e814c1e64..b9ef4c1d1a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -31,7 +31,7 @@ type Sym int
+ // Relocs encapsulates the set of relocations on a given symbol; an
+ // instance of this type is returned by the Loader Relocs() method.
+ type Relocs struct {
+-	rs []goobj2.Reloc2
++	rs []goobj2.Reloc
+ 
+ 	li int      // local index of symbol whose relocs we're examining
+ 	r  *oReader // object reader for containing package
+@@ -52,7 +52,7 @@ type Reloc struct {
+ // Reloc2 holds a "handle" to access a relocation record from an
+ // object file.
+ type Reloc2 struct {
+-	*goobj2.Reloc2
++	*goobj2.Reloc
+ 	r *oReader
+ 	l *Loader
+ 
+@@ -64,26 +64,26 @@ type Reloc2 struct {
+ 	typ objabi.RelocType
+ }
+ 
+-func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
+-func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
+-func (rel Reloc2) SetSym(s Sym)           { rel.Reloc2.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
++func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
++func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
++func (rel Reloc2) SetSym(s Sym)           { rel.Reloc.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+ 
+ func (rel Reloc2) SetType(t objabi.RelocType) {
+ 	if t != objabi.RelocType(uint8(t)) {
+ 		panic("SetType: type doesn't fit into Reloc2")
+ 	}
+-	rel.Reloc2.SetType(uint8(t))
++	rel.Reloc.SetType(uint8(t))
+ }
+ 
+ // Aux2 holds a "handle" to access an aux symbol record from an
+ // object file.
+ type Aux2 struct {
+-	*goobj2.Aux2
++	*goobj2.Aux
+ 	r *oReader
+ 	l *Loader
+ }
+ 
+-func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux2.Sym()) }
++func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
+ 
+ // oReader is a wrapper type of obj.Reader, along with some
+ // extra information.
+@@ -284,10 +284,10 @@ type extSymPayload struct {
+ 	kind     sym.SymKind
+ 	objidx   uint32 // index of original object if sym made by cloneToExternal
+ 	gotype   Sym    // Gotype (0 if not present)
+-	relocs   []goobj2.Reloc2
++	relocs   []goobj2.Reloc
+ 	reltypes []objabi.RelocType // relocation types
+ 	data     []byte
+-	auxs     []goobj2.Aux2
++	auxs     []goobj2.Aux
+ }
+ 
+ const (
+@@ -391,7 +391,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupo
+ 		return oldi, false
+ 	}
+ 	oldr, oldli := l.toLocal(oldi)
+-	oldsym := oldr.Sym2(oldli)
++	oldsym := oldr.Sym(oldli)
+ 	if oldsym.Dupok() {
+ 		return oldi, false
+ 	}
+@@ -620,7 +620,7 @@ func (l *Loader) RawSymName(i Sym) string {
+ 		return pp.name
+ 	}
+ 	r, li := l.toLocal(i)
+-	return r.Sym2(li).Name(r.Reader)
++	return r.Sym(li).Name(r.Reader)
+ }
+ 
+ // Returns the (patched) name of the i-th symbol.
+@@ -630,7 +630,7 @@ func (l *Loader) SymName(i Sym) string {
+ 		return pp.name
+ 	}
+ 	r, li := l.toLocal(i)
+-	return strings.Replace(r.Sym2(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
++	return strings.Replace(r.Sym(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ }
+ 
+ // Returns the version of the i-th symbol.
+@@ -640,7 +640,7 @@ func (l *Loader) SymVersion(i Sym) int {
+ 		return pp.ver
+ 	}
+ 	r, li := l.toLocal(i)
+-	return int(abiToVer(r.Sym2(li).ABI(), r.version))
++	return int(abiToVer(r.Sym(li).ABI(), r.version))
+ }
+ 
+ // Returns the type of the i-th symbol.
+@@ -653,7 +653,7 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
+ 		return 0
+ 	}
+ 	r, li := l.toLocal(i)
+-	return sym.AbiSymKindToSymKind[objabi.SymKind(r.Sym2(li).Type())]
++	return sym.AbiSymKindToSymKind[objabi.SymKind(r.Sym(li).Type())]
+ }
+ 
+ // Returns the attributes of the i-th symbol.
+@@ -665,7 +665,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
+ 		return 0
+ 	}
+ 	r, li := l.toLocal(i)
+-	return r.Sym2(li).Flag()
++	return r.Sym(li).Flag()
+ }
+ 
+ // Returns the size of the i-th symbol.
+@@ -675,7 +675,7 @@ func (l *Loader) SymSize(i Sym) int64 {
+ 		return pp.size
+ 	}
+ 	r, li := l.toLocal(i)
+-	return int64(r.Sym2(li).Siz())
++	return int64(r.Sym(li).Siz())
+ }
+ 
+ // AttrReachable returns true for symbols that are transitively
+@@ -777,7 +777,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
+ 		// might make more sense to copy the flag value out of the object
+ 		// into a larger bitmap during preload.
+ 		r, li := l.toLocal(i)
+-		return r.Sym2(li).Dupok()
++		return r.Sym(li).Dupok()
+ 	}
+ 	return l.attrDuplicateOK.Has(l.extIndex(i))
+ }
+@@ -1232,7 +1232,7 @@ func (l *Loader) SymGoType(i Sym) Sym {
+ 		return pp.gotype
+ 	}
+ 	r, li := l.toLocal(i)
+-	auxs := r.Auxs2(li)
++	auxs := r.Auxs(li)
+ 	for j := range auxs {
+ 		a := &auxs[j]
+ 		switch a.Type() {
+@@ -1330,7 +1330,7 @@ func (l *Loader) Aux2(i Sym, j int) Aux2 {
+ 	if j >= r.NAux(li) {
+ 		return Aux2{}
+ 	}
+-	return Aux2{r.Aux2(li, j), r, l}
++	return Aux2{r.Aux(li, j), r, l}
+ }
+ 
+ // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
+@@ -1350,7 +1350,7 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
+ 		return
+ 	}
+ 	r, li := l.toLocal(fnSymIdx)
+-	auxs := r.Auxs2(li)
++	auxs := r.Auxs(li)
+ 	for i := range auxs {
+ 		a := &auxs[i]
+ 		switch a.Type() {
+@@ -1504,12 +1504,12 @@ func (l *Loader) Relocs(i Sym) Relocs {
+ 
+ // Relocs returns a Relocs object given a local sym index and reader.
+ func (l *Loader) relocs(r *oReader, li int) Relocs {
+-	var rs []goobj2.Reloc2
++	var rs []goobj2.Reloc
+ 	if l.isExtReader(r) {
+ 		pp := l.payloads[li]
+ 		rs = pp.relocs
+ 	} else {
+-		rs = r.Relocs2(li)
++		rs = r.Relocs(li)
+ 	}
+ 	return Relocs{
+ 		rs: rs,
+@@ -1613,7 +1613,7 @@ func (fi *FuncInfo) Funcdata(fnsym Sym, syms []Sym) []Sym {
+ 		syms = syms[:0]
+ 	}
+ 	r, li := fi.l.toLocal(fnsym)
+-	auxs := r.Auxs2(li)
++	auxs := r.Auxs(li)
+ 	for j := range auxs {
+ 		a := &auxs[j]
+ 		if a.Type() == goobj2.AuxFuncdata {
+@@ -1669,7 +1669,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
+ 
+ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 	var r *oReader
+-	var auxs []goobj2.Aux2
++	var auxs []goobj2.Aux
+ 	if l.IsExternal(i) {
+ 		pp := l.getPayload(i)
+ 		if pp.objidx == 0 {
+@@ -1680,7 +1680,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 	} else {
+ 		var li int
+ 		r, li = l.toLocal(i)
+-		auxs = r.Auxs2(li)
++		auxs = r.Auxs(li)
+ 	}
+ 	for j := range auxs {
+ 		a := &auxs[j]
+@@ -1748,7 +1748,7 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 	l.growSyms(len(l.objSyms) + end - start)
+ 	l.growAttrBitmaps(len(l.objSyms) + end - start)
+ 	for i := start; i < end; i++ {
+-		osym := r.Sym2(i)
++		osym := r.Sym(i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		v := abiToVer(osym.ABI(), r.version)
+ 		dupok := osym.Dupok()
+@@ -1797,7 +1797,7 @@ func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
+ func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
+ 	ndef := r.NSym() + r.NNonpkgdef()
+ 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
+-		osym := r.Sym2(ndef + i)
++		osym := r.Sym(ndef + i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		v := abiToVer(osym.ABI(), r.version)
+ 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+@@ -2216,7 +2216,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+ 			continue // come from a different object
+ 		}
+-		osym := r.Sym2(i)
++		osym := r.Sym(i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+ 		// NB: for the test below, we can skip most anonymous symbols
+@@ -2253,9 +2253,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ // We use this to delay populating FuncInfo until we can batch-allocate
+ // slices for their sub-objects.
+ type funcInfoSym struct {
+-	s    *sym.Symbol  // sym.Symbol for a live function
+-	osym *goobj2.Sym2 // object file symbol data for that function
+-	isym int          // global symbol index of FuncInfo aux sym for func
++	s    *sym.Symbol // sym.Symbol for a live function
++	osym *goobj2.Sym // object file symbol data for that function
++	isym int         // global symbol index of FuncInfo aux sym for func
+ }
+ 
+ // funcAllocInfo records totals/counts for all functions in an objfile;
+@@ -2283,7 +2283,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 	// Read the particulars from object.
+ 	r, li := l.toLocal(symIdx)
+-	osym := r.Sym2(li)
++	osym := r.Sym(li)
+ 	sname := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 	sver := abiToVer(osym.ABI(), r.version)
+ 	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+@@ -2302,7 +2302,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 		// Copy relocations
+ 		relocs := l.Relocs(symIdx)
+-		pp.relocs = make([]goobj2.Reloc2, relocs.Count())
++		pp.relocs = make([]goobj2.Reloc, relocs.Count())
+ 		pp.reltypes = make([]objabi.RelocType, relocs.Count())
+ 		for i := range pp.relocs {
+ 			// Copy the relocs slice.
+@@ -2318,7 +2318,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 	// If we're overriding a data symbol, collect the associated
+ 	// Gotype, so as to propagate it to the new symbol.
+-	auxs := r.Auxs2(li)
++	auxs := r.Auxs(li)
+ 	pp.auxs = auxs
+ loop:
+ 	for j := range auxs {
+@@ -2485,7 +2485,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 			isdup = true
+ 		}
+ 
+-		osym := r.Sym2(i)
++		osym := r.Sym(i)
+ 		dupok := osym.Dupok()
+ 		if dupok && isdup {
+ 			if l.attrReachable.Has(gi) {
+@@ -2525,7 +2525,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 
+ 		// Aux symbol info
+ 		isym := -1
+-		auxs := r.Auxs2(i)
++		auxs := r.Auxs(i)
+ 		for j := range auxs {
+ 			a := &auxs[j]
+ 			switch a.Type() {
+@@ -2827,7 +2827,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 			if !l.attrReachable.Has(gi) {
+ 				continue
+ 			}
+-			osym := r.Sym2(i)
++			osym := r.Sym(i)
+ 			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+ 			if st != sym.STEXT {
+ 				continue
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 82de931caa..558b8bbb90 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -131,7 +131,7 @@ func (sb *SymbolBuilder) Relocs() Relocs {
+ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+ 	n := len(rslice)
+ 	if cap(sb.relocs) < n {
+-		sb.relocs = make([]goobj2.Reloc2, n)
++		sb.relocs = make([]goobj2.Reloc, n)
+ 		sb.reltypes = make([]objabi.RelocType, n)
+ 	} else {
+ 		sb.relocs = sb.relocs[:n]
+@@ -144,7 +144,7 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+ 
+ // Add n relocations, return a handle to the relocations.
+ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+-	sb.relocs = append(sb.relocs, make([]goobj2.Reloc2, n)...)
++	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)
+ 	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
+ 	return sb.l.Relocs(sb.symIdx)
+ }
+@@ -153,7 +153,7 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+ // (to set other fields).
+ func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc2, int) {
+ 	j := len(sb.relocs)
+-	sb.relocs = append(sb.relocs, goobj2.Reloc2{})
++	sb.relocs = append(sb.relocs, goobj2.Reloc{})
+ 	sb.reltypes = append(sb.reltypes, typ)
+ 	relocs := sb.Relocs()
+ 	return relocs.At2(j), j
+@@ -180,7 +180,7 @@ func (p *relocsByOff) Swap(i, j int) {
+ func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
+ 	// Populate a goobj2.Reloc from external reloc record.
+ 	rval := uint32(len(sb.relocs))
+-	var b goobj2.Reloc2
++	var b goobj2.Reloc
+ 	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+ 	sb.relocs = append(sb.relocs, b)
+ 	sb.reltypes = append(sb.reltypes, r.Type)

@@ -8,6 +8,20 @@ Date:   Mon Nov 24 11:59:23 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=19909
     CL=19909
-
+---
  test/fmt_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fmt_test.go b/test/fmt_test.go
+index b2f44429c4..27c986b43e 100644
+--- a/test/fmt_test.go
++++ b/test/fmt_test.go
+@@ -52,7 +52,7 @@ func main() {
+ 	E(f.s("\tf   ").f64(1234.5678e-8), "\tf   0.000012");
+ 	E(f.s("\tf   ").f64(-7.0), "\tf   -7.000000");
+ 	E(f.s("\tf   ").f64(-1e-9), "\tf   -0.000000");
+-	E(f.s("\tg   ").g64(1234.5678e3), "\tg   1234567.8");
++	E(f.s("\tg   ").g64(1234.5678e3), "\tg   1.2345678e+06");
+ 	E(f.s("\tg   ").g64(1234.5678e-8), "\tg   1.2345678e-05");
+ 	E(f.s("\tg   ").g64(-7.0), "\tg   -7");
+ 	E(f.s("\tg   ").g64(-1e-9), "\tg   -1e-09");

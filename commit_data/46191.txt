@@ -17,7 +17,36 @@ Date:   Thu Dec 10 18:07:09 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/fixedbugs/issue43125.src | 8 ++++++++
  src/cmd/compile/internal/types2/typexpr.go               | 3 +++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue43125.src b/src/cmd/compile/internal/types2/fixedbugs/issue43125.src
+new file mode 100644
+index 0000000000..c2bd970e25
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue43125.src
+@@ -0,0 +1,8 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = new(- /* ERROR not a type */ 1)
++var _ = new(1 /* ERROR not a type */ + 1)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 22df01b3be..4231577a4f 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -535,6 +535,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			return typ
+ 		}
+ 
++		check.errorf(e0, "%s is not a type", e0)
++		check.use(e0)
++
+ 	case *syntax.FuncType:
+ 		typ := new(Signature)
+ 		def.setUnderlying(typ)

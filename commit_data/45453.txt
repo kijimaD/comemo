@@ -24,9 +24,212 @@ Date:   Thu Jul 23 21:10:29 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/malloc.go | 33 +------------------------------
  src/runtime/mcache.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++---
  src/runtime/mheap.go  | 18 +----------------
  src/runtime/mstats.go |  4 ++--
  4 files changed, 55 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b19d1f2671..ec601ccb39 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1082,9 +1082,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	} else {
+ 		shouldhelpgc = true
+-		systemstack(func() {
+-			span = largeAlloc(size, needzero, noscan)
+-		})
++		span = c.largeAlloc(size, needzero, noscan)
+ 		span.freeindex = 1
+ 		span.allocCount = 1
+ 		x = unsafe.Pointer(span.base())
+@@ -1179,35 +1177,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	return x
+ }
+ 
+-func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+-	// print("largeAlloc size=", size, "\n")
+-
+-	if size+_PageSize < size {
+-		throw("out of memory")
+-	}
+-	npages := size >> _PageShift
+-	if size&_PageMask != 0 {
+-		npages++
+-	}
+-
+-	// Deduct credit for this span allocation and sweep if
+-	// necessary. mHeap_Alloc will also sweep npages, so this only
+-	// pays the debt down to npage pages.
+-	deductSweepCredit(npages*_PageSize, npages)
+-
+-	spc := makeSpanClass(0, noscan)
+-	s := mheap_.alloc(npages, spc, needzero)
+-	if s == nil {
+-		throw("out of memory")
+-	}
+-	// Put the large span in the mcentral swept list so that it's
+-	// visible to the background sweeper.
+-	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+-	s.limit = s.base() + size
+-	heapBitsForAddr(s.base()).initSpan(s)
+-	return s
+-}
+-
+ // implementation of new builtin
+ // compiler (both frontend and SSA backend) knows the signature
+ // of this function
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 5baa7b3da8..3657c0b86a 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -10,6 +10,7 @@ import (
+ )
+ 
+ // Per-thread (in Go, per-P) cache for small objects.
++// This includes a small object cache and local allocation stats.
+ // No locking needed because it is per-thread (per-P).
+ //
+ // mcaches are allocated from non-GC'd memory, so any heap pointers
+@@ -48,9 +49,11 @@ type mcache struct {
+ 	// When read with stats from other mcaches and with the world
+ 	// stopped, the result will accurately reflect the state of the
+ 	// application.
+-	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+-	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
+-	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
++	local_largealloc  uintptr                  // bytes allocated for large objects
++	local_nlargealloc uintptr                  // number of large object allocations
++	local_largefree   uintptr                  // bytes freed for large objects (>maxsmallsize)
++	local_nlargefree  uintptr                  // number of frees for large objects (>maxsmallsize)
++	local_nsmallfree  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+ 
+ 	// flushGen indicates the sweepgen during which this mcache
+ 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
+@@ -131,6 +134,10 @@ func freemcache(c *mcache, recipient *mcache) {
+ // donate flushes data and resources which have no global
+ // pool to another mcache.
+ func (c *mcache) donate(d *mcache) {
++	d.local_largealloc += c.local_largealloc
++	c.local_largealloc = 0
++	d.local_nlargealloc += c.local_nlargealloc
++	c.local_nlargealloc = 0
+ 	d.local_largefree += c.local_largefree
+ 	c.local_largefree = 0
+ 	d.local_nlargefree += c.local_nlargefree
+@@ -178,6 +185,47 @@ func (c *mcache) refill(spc spanClass) {
+ 	c.alloc[spc] = s
+ }
+ 
++// largeAlloc allocates a span for a large object.
++func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
++	if size+_PageSize < size {
++		throw("out of memory")
++	}
++	npages := size >> _PageShift
++	if size&_PageMask != 0 {
++		npages++
++	}
++
++	// Deduct credit for this span allocation and sweep if
++	// necessary. mHeap_Alloc will also sweep npages, so this only
++	// pays the debt down to npage pages.
++	deductSweepCredit(npages*_PageSize, npages)
++
++	spc := makeSpanClass(0, noscan)
++	s := mheap_.alloc(npages, spc, needzero)
++	if s == nil {
++		throw("out of memory")
++	}
++	c.local_largealloc += npages * pageSize
++	c.local_nlargealloc++
++
++	// Update heap_live and revise pacing if needed.
++	atomic.Xadd64(&memstats.heap_live, int64(npages*pageSize))
++	if trace.enabled {
++		// Trace that a heap alloc occurred because heap_live changed.
++		traceHeapAlloc()
++	}
++	if gcBlackenEnabled != 0 {
++		gcController.revise()
++	}
++
++	// Put the large span in the mcentral swept list so that it's
++	// visible to the background sweeper.
++	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
++	s.limit = s.base() + size
++	heapBitsForAddr(s.base()).initSpan(s)
++	return s
++}
++
+ func (c *mcache) releaseAll() {
+ 	for i := range c.alloc {
+ 		s := c.alloc[i]
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1b41b204ab..5635dc6784 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -128,10 +128,6 @@ type mheap struct {
+ 	// This is accessed atomically.
+ 	reclaimCredit uintptr
+ 
+-	// Malloc stats.
+-	largealloc  uint64 // bytes allocated for large objects
+-	nlargealloc uint64 // number of large object allocations
+-
+ 	// arenas is the heap arena map. It points to the metadata for
+ 	// the heap for every arena frame of the entire usable virtual
+ 	// address space.
+@@ -1170,14 +1166,7 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
+ 		memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 		c.local_tinyallocs = 0
+ 
+-		// Do some additional accounting if it's a large allocation.
+-		if spanclass.sizeclass() == 0 {
+-			mheap_.largealloc += uint64(npages * pageSize)
+-			mheap_.nlargealloc++
+-			atomic.Xadd64(&memstats.heap_live, int64(npages*pageSize))
+-		}
+-
+-		// Either heap_live or heap_scan could have been updated.
++		// heap_scan was been updated.
+ 		if gcBlackenEnabled != 0 {
+ 			gcController.revise()
+ 		}
+@@ -1277,11 +1266,6 @@ HaveSpan:
+ 
+ 		// Update related page sweeper stats.
+ 		atomic.Xadd64(&h.pagesInUse, int64(npages))
+-
+-		if trace.enabled {
+-			// Trace that a heap alloc occurred.
+-			traceHeapAlloc()
+-		}
+ 	}
+ 
+ 	// Make sure the newly allocated span will be observed
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index d81d2ebe81..d9acb361d5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -578,6 +578,8 @@ func updatememstats() {
+ 			continue
+ 		}
+ 		// Collect large allocation stats.
++		memstats.nmalloc += uint64(c.local_nlargealloc)
++		totalAlloc += uint64(c.local_largealloc)
+ 		totalFree += uint64(c.local_largefree)
+ 		memstats.nfree += uint64(c.local_nlargefree)
+ 
+@@ -589,8 +591,6 @@ func updatememstats() {
+ 		}
+ 	}
+ 	// Collect remaining large allocation stats.
+-	memstats.nmalloc += mheap_.nlargealloc
+-	totalAlloc += mheap_.largealloc
+ 
+ 	totalFree += smallFree
+ 

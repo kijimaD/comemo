@@ -18,8 +18,69 @@ Date:   Tue Jan 22 13:49:47 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  8 ++++++++
  test/fixedbugs/issue29870.go        | 15 +++++++++++++++
  test/fixedbugs/issue29870b.go       | 14 ++++++++++++++
  3 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 63e5860950..1dc4b53427 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -243,6 +243,14 @@ func compile(fn *Node) {
+ 	// From this point, there should be no uses of Curfn. Enforce that.
+ 	Curfn = nil
+ 
++	if fn.funcname() == "_" {
++		// We don't need to generate code for this function, just report errors in its body.
++		// At this point we've generated any errors needed.
++		// (Beyond here we generate only non-spec errors, like "stack frame too large".)
++		// See issue 29870.
++		return
++	}
++
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+ 	fn.Func.initLSym(true)
+ 
+diff --git a/test/fixedbugs/issue29870.go b/test/fixedbugs/issue29870.go
+new file mode 100644
+index 0000000000..b79860ca2b
+--- /dev/null
++++ b/test/fixedbugs/issue29870.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we can compile "_" functions without crashing.
++
++package main
++
++import "log"
++
++func _() {
++	log.Println("%2F")
++}
+diff --git a/test/fixedbugs/issue29870b.go b/test/fixedbugs/issue29870b.go
+new file mode 100644
+index 0000000000..1bac566bbb
+--- /dev/null
++++ b/test/fixedbugs/issue29870b.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we're compiling "_" functions at least enough
++// to get to an error which is generated during walk.
++
++package main
++
++func _() {
++	x := 7 // ERROR "x declared and not used"
++}

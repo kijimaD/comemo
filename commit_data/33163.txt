@@ -9,6 +9,20 @@ Date:   Wed Jul 19 23:04:36 2017 +0200
     Change-Id: Idd65c7185b3e19f33958eb165cb5b09c06db3d56
     Reviewed-on: https://go-review.googlesource.com/50110
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 765abe2521..45a995ec72 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -49,7 +49,7 @@ type Message struct {
+ 
+ // ReadMessage reads a message from r.
+ // The headers are parsed, and the body of the message will be available
+-// for reading from r.
++// for reading from msg.Body.
+ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 	tp := textproto.NewReader(bufio.NewReader(r))
+ 

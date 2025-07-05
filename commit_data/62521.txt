@@ -19,8 +19,389 @@ Date:   Wed Mar 5 22:33:50 2025 +0000
     Reviewed-by: Sean Liao <sean@liao.dev>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/log/log.go              | 55 +++++++++++++++++++-------
  src/log/log_test.go         | 87 +++++++++++++++++++++++++++++++++++++++-
  src/log/slog/logger_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 222 insertions(+), 16 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index d4c9c1378f..c79b3a9b74 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -191,8 +191,7 @@ func putBuffer(p *[]byte) {
+ // provided for generality, although at the moment on all pre-defined
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
+-	calldepth++ // +1 for this frame.
+-	return l.output(0, calldepth, func(b []byte) []byte {
++	return l.output(0, calldepth+1, func(b []byte) []byte { // +1 for this frame.
+ 		return append(b, s...)
+ 	})
+ }
+@@ -280,40 +279,52 @@ func (l *Logger) Println(v ...any) {
+ 
+ // Fatal is equivalent to l.Print() followed by a call to [os.Exit](1).
+ func (l *Logger) Fatal(v ...any) {
+-	l.Output(2, fmt.Sprint(v...))
++	l.output(0, 2, func(b []byte) []byte {
++		return fmt.Append(b, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Fatalf is equivalent to l.Printf() followed by a call to [os.Exit](1).
+ func (l *Logger) Fatalf(format string, v ...any) {
+-	l.Output(2, fmt.Sprintf(format, v...))
++	l.output(0, 2, func(b []byte) []byte {
++		return fmt.Appendf(b, format, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Fatalln is equivalent to l.Println() followed by a call to [os.Exit](1).
+ func (l *Logger) Fatalln(v ...any) {
+-	l.Output(2, fmt.Sprintln(v...))
++	l.output(0, 2, func(b []byte) []byte {
++		return fmt.Appendln(b, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Panic is equivalent to l.Print() followed by a call to panic().
+ func (l *Logger) Panic(v ...any) {
+ 	s := fmt.Sprint(v...)
+-	l.Output(2, s)
++	l.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+ // Panicf is equivalent to l.Printf() followed by a call to panic().
+ func (l *Logger) Panicf(format string, v ...any) {
+ 	s := fmt.Sprintf(format, v...)
+-	l.Output(2, s)
++	l.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+ // Panicln is equivalent to l.Println() followed by a call to panic().
+ func (l *Logger) Panicln(v ...any) {
+ 	s := fmt.Sprintln(v...)
+-	l.Output(2, s)
++	l.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+@@ -409,40 +420,52 @@ func Println(v ...any) {
+ 
+ // Fatal is equivalent to [Print] followed by a call to [os.Exit](1).
+ func Fatal(v ...any) {
+-	std.Output(2, fmt.Sprint(v...))
++	std.output(0, 2, func(b []byte) []byte {
++		return fmt.Append(b, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Fatalf is equivalent to [Printf] followed by a call to [os.Exit](1).
+ func Fatalf(format string, v ...any) {
+-	std.Output(2, fmt.Sprintf(format, v...))
++	std.output(0, 2, func(b []byte) []byte {
++		return fmt.Appendf(b, format, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Fatalln is equivalent to [Println] followed by a call to [os.Exit](1).
+ func Fatalln(v ...any) {
+-	std.Output(2, fmt.Sprintln(v...))
++	std.output(0, 2, func(b []byte) []byte {
++		return fmt.Appendln(b, v...)
++	})
+ 	os.Exit(1)
+ }
+ 
+ // Panic is equivalent to [Print] followed by a call to panic().
+ func Panic(v ...any) {
+ 	s := fmt.Sprint(v...)
+-	std.Output(2, s)
++	std.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+ // Panicf is equivalent to [Printf] followed by a call to panic().
+ func Panicf(format string, v ...any) {
+ 	s := fmt.Sprintf(format, v...)
+-	std.Output(2, s)
++	std.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+ // Panicln is equivalent to [Println] followed by a call to panic().
+ func Panicln(v ...any) {
+ 	s := fmt.Sprintln(v...)
+-	std.Output(2, s)
++	std.output(0, 2, func(b []byte) []byte {
++		return append(b, s...)
++	})
+ 	panic(s)
+ }
+ 
+@@ -454,5 +477,7 @@ func Panicln(v ...any) {
+ // if [Llongfile] or [Lshortfile] is set; a value of 1 will print the details
+ // for the caller of Output.
+ func Output(calldepth int, s string) error {
+-	return std.Output(calldepth+1, s) // +1 for this frame.
++	return std.output(0, calldepth+1, func(b []byte) []byte { // +1 for this frame.
++		return append(b, s...)
++	})
+ }
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index c7fa78f5ad..8cc05c5e64 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -7,10 +7,14 @@ package log
+ // These tests are too simple.
+ 
+ import (
++	"bufio"
+ 	"bytes"
++	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"os"
++	"os/exec"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -23,7 +27,7 @@ const (
+ 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
+ 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
+ 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
+-	Rline         = `(63|65):` // must update if the calls to l.Printf / l.Print below move
++	Rline         = `(67|69):` // must update if the calls to l.Printf / l.Print below move
+ 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
+ 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+ )
+@@ -212,6 +216,87 @@ func TestDiscard(t *testing.T) {
+ 	}
+ }
+ 
++func TestCallDepth(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	testenv.MustHaveExec(t)
++	ep, err := os.Executable()
++	if err != nil {
++		t.Fatalf("Executable failed: %v", err)
++	}
++
++	tests := []struct {
++		name string
++		log  func()
++	}{
++		{"Fatal", func() { Fatal("Fatal") }},
++		{"Fatalf", func() { Fatalf("Fatalf") }},
++		{"Fatalln", func() { Fatalln("Fatalln") }},
++		{"Output", func() { Output(1, "Output") }},
++		{"Panic", func() { Panic("Panic") }},
++		{"Panicf", func() { Panicf("Panicf") }},
++		{"Panicln", func() { Panicf("Panicln") }},
++		{"Default.Fatal", func() { Default().Fatal("Default.Fatal") }},
++		{"Default.Fatalf", func() { Default().Fatalf("Default.Fatalf") }},
++		{"Default.Fatalln", func() { Default().Fatalln("Default.Fatalln") }},
++		{"Default.Output", func() { Default().Output(1, "Default.Output") }},
++		{"Default.Panic", func() { Default().Panic("Default.Panic") }},
++		{"Default.Panicf", func() { Default().Panicf("Default.Panicf") }},
++		{"Default.Panicln", func() { Default().Panicf("Default.Panicln") }},
++	}
++
++	// calculate the line offset until the first test case
++	_, _, line, ok := runtime.Caller(0)
++	if !ok {
++		t.Fatalf("runtime.Caller failed")
++	}
++	line -= len(tests) + 3
++
++	for i, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			// some of these calls uses os.Exit() to spawn a command and capture output
++			const envVar = "LOGTEST_CALL_DEPTH"
++			if os.Getenv(envVar) == "1" {
++				SetFlags(Lshortfile)
++				tt.log()
++				os.Exit(1)
++			}
++
++			// spawn test executable
++			cmd := testenv.Command(t, ep,
++				"-test.run=^"+regexp.QuoteMeta(t.Name())+"$",
++				"-test.count=1",
++			)
++			cmd.Env = append(cmd.Environ(), envVar+"=1")
++
++			out, err := cmd.CombinedOutput()
++			var exitErr *exec.ExitError
++			if !errors.As(err, &exitErr) {
++				t.Fatalf("expected exec.ExitError: %v", err)
++			}
++
++			_, firstLine, err := bufio.ScanLines(out, true)
++			if err != nil {
++				t.Fatalf("failed to split line: %v", err)
++			}
++			got := string(firstLine)
++
++			want := fmt.Sprintf(
++				"log_test.go:%d: %s",
++				line+i, tt.name,
++			)
++			if got != want {
++				t.Errorf(
++					"output from %s() mismatch:\n\t got: %s\n\twant: %s",
++					tt.name, got, want,
++				)
++			}
++		})
++	}
++}
++
+ func BenchmarkItoa(b *testing.B) {
+ 	dst := make([]byte, 0, 64)
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 0f1b2113c1..98f919d72e 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -5,8 +5,11 @@
+ package slog
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"context"
++	"errors"
++	"fmt"
+ 	"internal/asan"
+ 	"internal/msan"
+ 	"internal/race"
+@@ -14,6 +17,8 @@ import (
+ 	"io"
+ 	"log"
+ 	loginternal "log/internal"
++	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -229,6 +234,97 @@ func TestCallDepth(t *testing.T) {
+ 	check(11)
+ }
+ 
++func TestCallDepthConnection(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	testenv.MustHaveExec(t)
++	ep, err := os.Executable()
++	if err != nil {
++		t.Fatalf("Executable failed: %v", err)
++	}
++
++	tests := []struct {
++		name string
++		log  func()
++	}{
++		{"log.Fatal", func() { log.Fatal("log.Fatal") }},
++		{"log.Fatalf", func() { log.Fatalf("log.Fatalf") }},
++		{"log.Fatalln", func() { log.Fatalln("log.Fatalln") }},
++		{"log.Output", func() { log.Output(1, "log.Output") }},
++		{"log.Panic", func() { log.Panic("log.Panic") }},
++		{"log.Panicf", func() { log.Panicf("log.Panicf") }},
++		{"log.Panicln", func() { log.Panicf("log.Panicln") }},
++		{"log.Default.Fatal", func() { log.Default().Fatal("log.Default.Fatal") }},
++		{"log.Default.Fatalf", func() { log.Default().Fatalf("log.Default.Fatalf") }},
++		{"log.Default.Fatalln", func() { log.Default().Fatalln("log.Default.Fatalln") }},
++		{"log.Default.Output", func() { log.Default().Output(1, "log.Default.Output") }},
++		{"log.Default.Panic", func() { log.Default().Panic("log.Default.Panic") }},
++		{"log.Default.Panicf", func() { log.Default().Panicf("log.Default.Panicf") }},
++		{"log.Default.Panicln", func() { log.Default().Panicf("log.Default.Panicln") }},
++	}
++
++	// calculate the line offset until the first test case
++	_, _, line, ok := runtime.Caller(0)
++	if !ok {
++		t.Fatalf("runtime.Caller failed")
++	}
++	line -= len(tests) + 3
++
++	for i, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			// inside spawned test executable
++			const envVar = "SLOGTEST_CALL_DEPTH_CONNECTION"
++			if os.Getenv(envVar) == "1" {
++				h := NewTextHandler(os.Stderr, &HandlerOptions{
++					AddSource: true,
++					ReplaceAttr: func(groups []string, a Attr) Attr {
++						if (a.Key == MessageKey || a.Key == SourceKey) && len(groups) == 0 {
++							return a
++						}
++						return Attr{}
++					},
++				})
++				SetDefault(New(h))
++				log.SetFlags(log.Lshortfile)
++				tt.log()
++				os.Exit(1)
++			}
++
++			// spawn test executable
++			cmd := testenv.Command(t, ep,
++				"-test.run=^"+regexp.QuoteMeta(t.Name())+"$",
++				"-test.count=1",
++			)
++			cmd.Env = append(cmd.Environ(), envVar+"=1")
++
++			out, err := cmd.CombinedOutput()
++			var exitErr *exec.ExitError
++			if !errors.As(err, &exitErr) {
++				t.Fatalf("expected exec.ExitError: %v", err)
++			}
++
++			_, firstLine, err := bufio.ScanLines(out, true)
++			if err != nil {
++				t.Fatalf("failed to split line: %v", err)
++			}
++			got := string(firstLine)
++
++			want := fmt.Sprintf(
++				`source=:0 msg="logger_test.go:%d: %s"`,
++				line+i, tt.name,
++			)
++			if got != want {
++				t.Errorf(
++					"output from %s() mismatch:\n\t got: %s\n\twant: %s",
++					tt.name, got, want,
++				)
++			}
++		})
++	}
++}
++
+ func TestAlloc(t *testing.T) {
+ 	ctx := context.Background()
+ 	dl := New(discardTestHandler{})

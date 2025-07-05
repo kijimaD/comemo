@@ -7,8 +7,211 @@ Date:   Thu Feb 16 17:36:06 2012 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/5676064
-
+---
  src/pkg/html/template/clone.go      | 90 -------------------------------------
  src/pkg/html/template/clone_test.go | 82 ---------------------------------
  src/pkg/html/template/escape.go     |  2 +-
  3 files changed, 1 insertion(+), 173 deletions(-)
+
+diff --git a/src/pkg/html/template/clone.go b/src/pkg/html/template/clone.go
+deleted file mode 100644
+index d0d8ea4673..0000000000
+--- a/src/pkg/html/template/clone.go
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package template
+-
+-import (
+-	"text/template/parse"
+-)
+-
+-// clone clones a template Node.
+-func clone(n parse.Node) parse.Node {
+-	switch t := n.(type) {
+-	case *parse.ActionNode:
+-		return cloneAction(t)
+-	case *parse.IfNode:
+-		b := new(parse.IfNode)
+-		copyBranch(&b.BranchNode, &t.BranchNode)
+-		return b
+-	case *parse.ListNode:
+-		return cloneList(t)
+-	case *parse.RangeNode:
+-		b := new(parse.RangeNode)
+-		copyBranch(&b.BranchNode, &t.BranchNode)
+-		return b
+-	case *parse.TemplateNode:
+-		return cloneTemplate(t)
+-	case *parse.TextNode:
+-		return cloneText(t)
+-	case *parse.WithNode:
+-		b := new(parse.WithNode)
+-		copyBranch(&b.BranchNode, &t.BranchNode)
+-		return b
+-	}
+-	panic("cloning " + n.String() + " is unimplemented")
+-}
+-
+-// cloneAction returns a deep clone of n.
+-func cloneAction(n *parse.ActionNode) *parse.ActionNode {
+-	// We use keyless fields because they won't compile if a field is added.
+-	return &parse.ActionNode{n.NodeType, n.Line, clonePipe(n.Pipe)}
+-}
+-
+-// cloneList returns a deep clone of n.
+-func cloneList(n *parse.ListNode) *parse.ListNode {
+-	if n == nil {
+-		return nil
+-	}
+-	// We use keyless fields because they won't compile if a field is added.
+-	c := parse.ListNode{n.NodeType, make([]parse.Node, len(n.Nodes))}
+-	for i, child := range n.Nodes {
+-		c.Nodes[i] = clone(child)
+-	}
+-	return &c
+-}
+-
+-// clonePipe returns a shallow clone of n.
+-// The escaper does not modify pipe descendants in place so there's no need to
+-// clone deeply.
+-func clonePipe(n *parse.PipeNode) *parse.PipeNode {
+-	if n == nil {
+-		return nil
+-	}
+-	// We use keyless fields because they won't compile if a field is added.
+-	return &parse.PipeNode{n.NodeType, n.Line, n.Decl, n.Cmds}
+-}
+-
+-// cloneTemplate returns a deep clone of n.
+-func cloneTemplate(n *parse.TemplateNode) *parse.TemplateNode {
+-	// We use keyless fields because they won't compile if a field is added.
+-	return &parse.TemplateNode{n.NodeType, n.Line, n.Name, clonePipe(n.Pipe)}
+-}
+-
+-// cloneText clones the given node sharing its []byte.
+-func cloneText(n *parse.TextNode) *parse.TextNode {
+-	// We use keyless fields because they won't compile if a field is added.
+-	return &parse.TextNode{n.NodeType, n.Text}
+-}
+-
+-// copyBranch clones src into dst.
+-func copyBranch(dst, src *parse.BranchNode) {
+-	// We use keyless fields because they won't compile if a field is added.
+-	*dst = parse.BranchNode{
+-		src.NodeType,
+-		src.Line,
+-		clonePipe(src.Pipe),
+-		cloneList(src.List),
+-		cloneList(src.ElseList),
+-	}
+-}
+diff --git a/src/pkg/html/template/clone_test.go b/src/pkg/html/template/clone_test.go
+index 384b4f0e83..c612775d4f 100644
+--- a/src/pkg/html/template/clone_test.go
++++ b/src/pkg/html/template/clone_test.go
+@@ -10,88 +10,6 @@ import (
+ 	"text/template/parse"
+ )
+ 
+-func TestCloneList(t *testing.T) {
+-	tests := []struct {
+-		input, want, wantClone string
+-	}{
+-		{
+-			`Hello, {{if true}}{{"<World>"}}{{end}}!`,
+-			"Hello, <World>!",
+-			"Hello, &lt;World&gt;!",
+-		},
+-		{
+-			`Hello, {{if false}}{{.X}}{{else}}{{"<World>"}}{{end}}!`,
+-			"Hello, <World>!",
+-			"Hello, &lt;World&gt;!",
+-		},
+-		{
+-			`Hello, {{with "<World>"}}{{.}}{{end}}!`,
+-			"Hello, <World>!",
+-			"Hello, &lt;World&gt;!",
+-		},
+-		{
+-			`{{range .}}<p>{{.}}</p>{{end}}`,
+-			"<p>foo</p><p><bar></p><p>baz</p>",
+-			"<p>foo</p><p>&lt;bar&gt;</p><p>baz</p>",
+-		},
+-		{
+-			`Hello, {{"<World>" | html}}!`,
+-			"Hello, &lt;World&gt;!",
+-			"Hello, &lt;World&gt;!",
+-		},
+-		{
+-			`Hello{{if 1}}, World{{else}}{{template "d"}}{{end}}!`,
+-			"Hello, World!",
+-			"Hello, World!",
+-		},
+-	}
+-
+-	for _, test := range tests {
+-		s, err := New("s").Parse(test.input)
+-		if err != nil {
+-			t.Errorf("input=%q: unexpected parse error %v", test.input, err)
+-		}
+-
+-		d, _ := New("d").Parse(test.input)
+-		// Hack: just replace the root of the tree.
+-		d.text.Root = cloneList(s.text.Root)
+-
+-		if want, got := s.text.Root.String(), d.text.Root.String(); want != got {
+-			t.Errorf("want %q, got %q", want, got)
+-		}
+-
+-		err = escapeTemplates(d, "d")
+-		if err != nil {
+-			t.Errorf("%q: failed to escape: %s", test.input, err)
+-			continue
+-		}
+-
+-		if want, got := "s", s.Name(); want != got {
+-			t.Errorf("want %q, got %q", want, got)
+-			continue
+-		}
+-		if want, got := "d", d.Name(); want != got {
+-			t.Errorf("want %q, got %q", want, got)
+-			continue
+-		}
+-
+-		data := []string{"foo", "<bar>", "baz"}
+-
+-		var b bytes.Buffer
+-		d.Execute(&b, data)
+-		if got := b.String(); got != test.wantClone {
+-			t.Errorf("input=%q: want %q, got %q", test.input, test.wantClone, got)
+-		}
+-
+-		// Make sure escaping d did not affect s.
+-		b.Reset()
+-		s.text.Execute(&b, data)
+-		if got := b.String(); got != test.want {
+-			t.Errorf("input=%q: want %q, got %q", test.input, test.want, got)
+-		}
+-	}
+-}
+-
+ func TestAddParseTree(t *testing.T) {
+ 	root := Must(New("root").Parse(`{{define "a"}} {{.}} {{template "b"}} {{.}} "></a>{{end}}`))
+ 	tree, err := parse.Parse("t", `{{define "b"}}<a href="{{end}}`, "", "", nil, nil)
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index c6f723ae4a..8145987c9e 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -505,7 +505,7 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
+ 		dt := e.template(dname)
+ 		if dt == nil {
+ 			dt = template.New(dname)
+-			dt.Tree = &parse.Tree{Name: dname, Root: cloneList(t.Root)}
++			dt.Tree = &parse.Tree{Name: dname, Root: t.Root.CopyList()}
+ 			e.derived[dname] = dt
+ 		}
+ 		t = dt

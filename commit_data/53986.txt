@@ -29,7 +29,38 @@ Date:   Fri Jun 10 05:41:02 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/strings/strings.go      | 5 ++++-
  src/strings/strings_test.go | 2 +-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 1e8de2bc34..7cf3686569 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -523,8 +523,11 @@ func Map(mapping func(rune) rune, s string) string {
+ // It panics if count is negative or if
+ // the result of (len(s) * count) overflows.
+ func Repeat(s string, count int) string {
+-	if count == 0 {
++	switch count {
++	case 0:
+ 		return ""
++	case 1:
++		return s
+ 	}
+ 
+ 	// Since we cannot return an error on overflow,
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 8af81a556b..9323ff988d 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1852,7 +1852,7 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
+ func BenchmarkRepeat(b *testing.B) {
+ 	s := "0123456789"
+ 	for _, n := range []int{5, 10} {
+-		for _, c := range []int{1, 2, 6} {
++		for _, c := range []int{0, 1, 2, 6} {
+ 			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+ 					Repeat(s[:n], c)

@@ -8,6 +8,22 @@ Date:   Tue Jul 29 22:06:20 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, khr
     https://golang.org/cl/114510044
-
+---
  src/pkg/runtime/hashmap.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index e15033797c..68ad37c901 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -153,8 +153,8 @@ func evacuated(b *bmap) bool {
+ }
+ 
+ func makemap(t *maptype, hint int64) *hmap {
+-	if unsafe.Sizeof(hmap{}) > 48 {
+-		gothrow("hmap too large")
++	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
++		gothrow("bad hmap size")
+ 	}
+ 
+ 	if hint < 0 || int64(int32(hint)) != hint {

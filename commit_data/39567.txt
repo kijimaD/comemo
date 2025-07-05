@@ -41,7 +41,7 @@ Date:   Tue Mar 5 17:42:48 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go | 40 +++++++++++++++++++++++++++++-------
  src/cmd/compile/internal/gc/ssa.go   | 24 ++++++++++++++--------
  test/checkbce.go                     |  4 +---
@@ -49,3 +49,206 @@ Date:   Tue Mar 5 17:42:48 2019 -0800
  test/fixedbugs/issue30566b.go        | 27 ++++++++++++++++++++++++
  test/live.go                         |  9 ++++----
  6 files changed, 104 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4848a02bb6..0098242c79 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1130,14 +1130,40 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		}
+ 
+ 	case OANDAND, OOROR:
+-		mark := o.markTemp()
+-		n.Left = o.expr(n.Left, nil)
++		// ... = LHS && RHS
++		//
++		// var r bool
++		// r = LHS
++		// if r {       // or !r, for OROR
++		//     r = RHS
++		// }
++		// ... = r
++
++		r := o.newTemp(n.Type, false)
++
++		// Evaluate left-hand side.
++		lhs := o.expr(n.Left, nil)
++		o.out = append(o.out, typecheck(nod(OAS, r, lhs), ctxStmt))
++
++		// Evaluate right-hand side, save generated code.
++		saveout := o.out
++		o.out = nil
++		t := o.markTemp()
++		rhs := o.expr(n.Right, nil)
++		o.out = append(o.out, typecheck(nod(OAS, r, rhs), ctxStmt))
++		o.cleanTemp(t)
++		gen := o.out
++		o.out = saveout
+ 
+-		// Clean temporaries from first branch at beginning of second.
+-		// Leave them on the stack so that they can be killed in the outer
+-		// context in case the short circuit is taken.
+-		n.Right = addinit(n.Right, o.cleanTempNoPop(mark))
+-		n.Right = o.exprInPlace(n.Right)
++		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
++		nif := nod(OIF, r, nil)
++		if n.Op == OANDAND {
++			nif.Nbody.Set(gen)
++		} else {
++			nif.Rlist.Set(gen)
++		}
++		o.out = append(o.out, nif)
++		n = r
+ 
+ 	case OCALLFUNC,
+ 		OCALLINTER,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 95904edd6a..e03988dac2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -994,26 +994,32 @@ func (s *state) stmt(n *Node) {
+ 		s.assign(n.Left, r, deref, skip)
+ 
+ 	case OIF:
+-		bThen := s.f.NewBlock(ssa.BlockPlain)
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+-		var bElse *ssa.Block
+ 		var likely int8
+ 		if n.Likely() {
+ 			likely = 1
+ 		}
++		var bThen *ssa.Block
++		if n.Nbody.Len() != 0 {
++			bThen = s.f.NewBlock(ssa.BlockPlain)
++		} else {
++			bThen = bEnd
++		}
++		var bElse *ssa.Block
+ 		if n.Rlist.Len() != 0 {
+ 			bElse = s.f.NewBlock(ssa.BlockPlain)
+-			s.condBranch(n.Left, bThen, bElse, likely)
+ 		} else {
+-			s.condBranch(n.Left, bThen, bEnd, likely)
++			bElse = bEnd
+ 		}
++		s.condBranch(n.Left, bThen, bElse, likely)
+ 
+-		s.startBlock(bThen)
+-		s.stmtList(n.Nbody)
+-		if b := s.endBlock(); b != nil {
+-			b.AddEdgeTo(bEnd)
++		if n.Nbody.Len() != 0 {
++			s.startBlock(bThen)
++			s.stmtList(n.Nbody)
++			if b := s.endBlock(); b != nil {
++				b.AddEdgeTo(bEnd)
++			}
+ 		}
+-
+ 		if n.Rlist.Len() != 0 {
+ 			s.startBlock(bElse)
+ 			s.stmtList(n.Rlist)
+diff --git a/test/checkbce.go b/test/checkbce.go
+index a8f060aa72..6a126099bc 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -33,9 +33,7 @@ func f1(a [256]int, i int) {
+ 
+ 	if 4 <= i && i < len(a) {
+ 		useInt(a[i])
+-		useInt(a[i-1]) // ERROR "Found IsInBounds$"
+-		// TODO: 'if 4 <= i && i < len(a)' gets rewritten to 'if uint(i - 4) < 256 - 4',
+-		// which the bounds checker cannot yet use to infer that the next line doesn't need a bounds check.
++		useInt(a[i-1])
+ 		useInt(a[i-4])
+ 	}
+ }
+diff --git a/test/fixedbugs/issue30566a.go b/test/fixedbugs/issue30566a.go
+new file mode 100644
+index 0000000000..5d736ccd0d
+--- /dev/null
++++ b/test/fixedbugs/issue30566a.go
+@@ -0,0 +1,23 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++//go:noinline
++func ident(s string) string { return s }
++
++func returnSecond(x bool, s string) string { return s }
++
++func identWrapper(s string) string { return ident(s) }
++
++func main() {
++	got := returnSecond((false || identWrapper("bad") != ""), ident("good"))
++	if got != "good" {
++		panic(fmt.Sprintf("wanted \"good\", got \"%s\"", got))
++	}
++}
+diff --git a/test/fixedbugs/issue30566b.go b/test/fixedbugs/issue30566b.go
+new file mode 100644
+index 0000000000..92e064436d
+--- /dev/null
++++ b/test/fixedbugs/issue30566b.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++)
++
++func main() {
++	_, _ = false || g(1), g(2)
++	if !bytes.Equal(x, []byte{1, 2}) {
++		panic(fmt.Sprintf("wanted [1,2], got %v", x))
++	}
++}
++
++var x []byte
++
++//go:noinline
++func g(b byte) bool {
++	x = append(x, b)
++	return false
++}
+diff --git a/test/live.go b/test/live.go
+index a508947afc..e7134eca0c 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -572,7 +572,7 @@ func f36() {
+ func f37() {
+ 	if (m33[byteptr()] == 0 || // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
+ 		m33[byteptr()] == 0) && // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
+-		m33[byteptr()] == 0 { // ERROR "stack object .autotmp_[0-9]+ interface \{\}"
++		m33[byteptr()] == 0 {
+ 		printnl()
+ 		return
+ 	}
+@@ -697,9 +697,10 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+ 
+ func f42() {
+ 	var p, q, r int
+-	f43([]*int{&p,&q,&r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
+-	f43([]*int{&p,&r,&q})
+-	f43([]*int{&q,&p,&r})
++	f43([]*int{&p, &q, &r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
++	f43([]*int{&p, &r, &q})
++	f43([]*int{&q, &p, &r})
+ }
++
+ //go:noescape
+ func f43(a []*int)

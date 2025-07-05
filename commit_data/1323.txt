@@ -9,10 +9,171 @@ Date:   Thu Dec 11 11:54:33 2008 -0800
     R=ken
     OCL=20976
     CL=20980
-
+---
  src/cmd/6g/obj.c    | 23 ++++++++++++++---------
  src/cmd/gc/dcl.c    | 13 +++++++------
  src/cmd/gc/export.c |  2 +-
  src/cmd/gc/go.h     |  2 +-
  src/cmd/gc/walk.c   |  3 ++-
  5 files changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index b04a440c0d..13a9c9b1ba 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -707,10 +707,12 @@ dumpsigt(Type *t0, Sym *s)
+ 
+ 	// set DUPOK to allow other .6s to contain
+ 	// the same signature.  only one will be chosen.
++	// should only happen for empty signatures
+ 	p = pc;
+ 	gins(AGLOBL, N, N);
+ 	p->from = at;
+-	p->from.scale = DUPOK;
++	if(a == nil)
++		p->from.scale = DUPOK;
+ 	p->to = ac;
+ 	p->to.offset = ot;
+ }
+@@ -891,17 +893,20 @@ dumpsignatures(void)
+ 			continue;
+ 		s->siggen = 1;
+ 
+-//print("dosig %T\n", t);
+-		// don't emit signatures for *NamedStruct or interface if
+-		// they were defined by other packages.
+-		// (optimization)
++		// don't emit non-trivial signatures for types defined outside this file.
++		// non-trivial signatures might also drag in generated trampolines,
++		// and ar can't handle duplicates of the trampolines.
+ 		s1 = S;
+-		if(isptr[et] && t->type != T)
++		if(isptr[et] && t->type != T) {
+ 			s1 = t->type->sym;
+-		else if(et == TINTER)
++			if(s1 && !t->type->local)
++				continue;
++		}
++		else if(et == TINTER) {
+ 			s1 = t->sym;
+-		if(s1 != S && strcmp(s1->opackage, package) != 0)
+-			continue;
++			if(s1 && !t->local)
++				continue;
++		}
+ 
+ 		if(et == TINTER)
+ 			dumpsigi(t, s);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7448b6cc15..c2754f0da4 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -78,7 +78,7 @@ dodcltype(Type *n)
+ 	addtyp(n, dclcontext);
+ 
+ found:
+-	n->sym->local = 1;
++	n->local = 1;
+ 	if(dcladj)
+ 		dcladj(n->sym);
+ 	return n;
+@@ -118,6 +118,8 @@ updatetype(Type *n, Type *t)
+ 		fatal("updatetype %T / %T", n, t);
+ 	}
+ 
++	if(n->local)
++		t->local = 1;
+ 	*n = *t;
+ 	n->sym = s;
+ 
+@@ -274,8 +276,8 @@ addmethod(Node *n, Type *t, int local)
+ 	st = pa->sym;
+ 	if(st == S)
+ 		goto bad;
+-	if(local && !st->local) {
+-		yyerror("method receiver type must be locally defined: %S", st);
++	if(local && !f->local) {
++		yyerror("method receiver type must be locally defined: %T", f);
+ 		return;
+ 	}
+ 
+@@ -558,7 +560,6 @@ dcopy(Sym *a, Sym *b)
+ 	a->vargen = b->vargen;
+ 	a->block = b->block;
+ 	a->lastlineno = b->lastlineno;
+-	a->local = b->local;
+ 	a->offset = b->offset;
+ }
+ 
+@@ -1233,7 +1234,7 @@ variter(Node *vv, Type *t, Node *ee)
+ loop:
+ 	if(v == N && e == N)
+ 		return rev(r);
+-	
++
+ 	if(v == N || e == N) {
+ 		yyerror("shape error in var dcl");
+ 		return rev(r);
+@@ -1279,7 +1280,7 @@ loop:
+ 		iota += 1;
+ 		return;
+ 	}
+-	
++
+ 	if(v == N || c == N) {
+ 		yyerror("shape error in var dcl");
+ 		iota += 1;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 3d7984bd8e..de5f990658 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -203,7 +203,7 @@ dumptype(Type *t)
+ 		return;
+ 
+ 	// no need to dump type if it's not ours (was imported)
+-	if(t->sym != S && t->sym->otype == t && !t->sym->local)
++	if(t->sym != S && t->sym->otype == t && !t->local)
+ 		return;
+ 
+ 	Bprint(bout, "type %#T %l#T\n",  t, t);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5dea32c7cf..8ab5c24dae 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -157,6 +157,7 @@ struct	Type
+ 	uchar	siggen;
+ 	uchar	funarg;
+ 	uchar	copyany;
++	uchar	local;		// created in this file
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -238,7 +239,6 @@ struct	Sym
+ 	uchar	exported;	// exported
+ 	uchar	imported;	// imported
+ 	uchar	sym;		// huffman encoding in object file
+-	uchar	local;		// created in this file
+ 	uchar	uniq;		// imbedded field name first found
+ 	uchar	siggen;		// signature generated
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 37a690302a..d31b1269a2 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1465,7 +1465,7 @@ walkselect(Node *sel)
+ 				res = list(res, oc);
+ 				break;
+ 
+-				
++
+ 			}
+ 			bod = N;
+ 			count++;
+@@ -1699,6 +1699,7 @@ sigtype(Type *st)
+ 	t = newtype(s);
+ 	t = dodcltype(t);
+ 	updatetype(t, st);
++	t->local = 1;
+ 
+ 	// record internal type for signature generation
+ 	x = mal(sizeof(*x));

@@ -12,6 +12,22 @@ Date:   Wed May 25 22:34:37 2022 +0900
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.19.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index af6f3c1efa..155dcc44aa 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -300,8 +300,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- CL 401434 -->
+-      <a href="/pkg/strconv/#reflect.SliceHeader"></a><code>reflect.SliceHeader</code>
+-      and <a href="/pkg/strconv/#reflect.StringHeader"></a><code>reflect.StringHeader</code>
++      <a href="/pkg/reflect/#SliceHeader"><code>SliceHeader</code></a>
++      and <a href="/pkg/reflect/#StringHeader"><code>StringHeader</code></a>
+       are now deprecated, and their use should be avoided.
+     </p>
+     <p><!-- CL 357331 -->

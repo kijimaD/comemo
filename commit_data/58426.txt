@@ -11,7 +11,42 @@ Date:   Wed Nov 8 09:55:54 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/540260
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/loader/loader.go        | 8 --------
  src/cmd/link/internal/loader/symbolbuilder.go | 4 ----
  2 files changed, 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 617c6ba65a..5dd657b4d7 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1316,14 +1316,6 @@ func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
+ 	l.symSects[i] = sect.Index
+ }
+ 
+-// growSects grows the slice used to store symbol sections.
+-func (l *Loader) growSects(reqLen int) {
+-	curLen := len(l.symSects)
+-	if reqLen > curLen {
+-		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
+-	}
+-}
+-
+ // NewSection creates a new (output) section.
+ func (l *Loader) NewSection() *sym.Section {
+ 	sect := new(sym.Section)
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 5a3e88b90e..b9eaca7fb6 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -176,10 +176,6 @@ func (sb *SymbolBuilder) SetReachable(v bool) {
+ 	sb.l.SetAttrReachable(sb.symIdx, v)
+ }
+ 
+-func (sb *SymbolBuilder) setReachable() {
+-	sb.SetReachable(true)
+-}
+-
+ func (sb *SymbolBuilder) ReadOnly() bool {
+ 	return sb.l.AttrReadOnly(sb.symIdx)
+ }

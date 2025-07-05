@@ -59,10 +59,178 @@ Date:   Mon Dec 22 15:12:28 2014 -0800
     Change-Id: Ie9eb65e324af4f664153d0a7cd22bb16b0fba16d
     Reviewed-on: https://go-review.googlesource.com/2053
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/6g/gsubr.c |  1 -
  src/cmd/6g/peep.c  |  4 ++--
  src/cmd/8g/peep.c  |  2 +-
  src/liblink/obj6.c | 28 ++++++++++++++++++++++++++--
  src/liblink/obj8.c | 28 ++++++++++++++++++++++++++--
  5 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 5bd9246607..146ead1134 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -624,7 +624,6 @@ bignodes(void)
+  *	t = f
+  * hard part is conversions.
+  */
+-// TODO: lost special constants for floating point.  XORPD for 0.0?
+ void
+ gmove(Node *f, Node *t)
+ {
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 24617836fe..2445081e3e 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -121,7 +121,7 @@ peep(Prog *firstp)
+ 		case AMOVSS:
+ 		case AMOVSD:
+ 			if(regtyp(&p->to))
+-			if(p->from.type == D_CONST)
++			if(p->from.type == D_CONST || p->from.type == D_FCONST)
+ 				conprop(r);
+ 			break;
+ 		}
+@@ -384,7 +384,7 @@ regtyp(Adr *a)
+ 	t = a->type;
+ 	if(t >= D_AX && t <= D_R15)
+ 		return 1;
+-	if(t >= D_X0 && t <= D_X0+15)
++	if(t >= D_X0 && t <= D_X15)
+ 		return 1;
+ 	return 0;
+ }
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 91a91d20db..c9b489cd2b 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -120,7 +120,7 @@ peep(Prog *firstp)
+ 		case AMOVSS:
+ 		case AMOVSD:
+ 			if(regtyp(&p->to))
+-			if(p->from.type == D_CONST)
++			if(p->from.type == D_CONST || p->from.type == D_FCONST)
+ 				conprop(r);
+ 			break;
+ 		}
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 2acfd2f70d..a8a84f72ce 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -241,6 +241,19 @@ progedit(Link *ctxt, Prog *p)
+ 
+ 	// Rewrite float constants to values stored in memory.
+ 	switch(p->as) {
++	case AMOVSS:
++		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
++		if(p->from.type == D_FCONST)
++		if(p->from.u.dval == 0)
++		if(p->to.type >= D_X0)
++		if(p->to.type <= D_X15) {
++			p->as = AXORPS;
++			p->from.type = p->to.type;
++			p->from.index = p->to.index;
++			break;
++		}
++		// fallthrough
++
+ 	case AFMOVF:
+ 	case AFADDF:
+ 	case AFSUBF:
+@@ -250,7 +263,6 @@ progedit(Link *ctxt, Prog *p)
+ 	case AFDIVRF:
+ 	case AFCOMF:
+ 	case AFCOMFP:
+-	case AMOVSS:
+ 	case AADDSS:
+ 	case ASUBSS:
+ 	case AMULSS:
+@@ -274,6 +286,19 @@ progedit(Link *ctxt, Prog *p)
+ 			p->from.offset = 0;
+ 		}
+ 		break;
++
++	case AMOVSD:
++		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
++		if(p->from.type == D_FCONST)
++		if(p->from.u.dval == 0)
++		if(p->to.type >= D_X0)
++		if(p->to.type <= D_X15) {
++			p->as = AXORPS;
++			p->from.type = p->to.type;
++			p->from.index = p->to.index;
++			break;
++		}
++		// fallthrough
+ 	
+ 	case AFMOVD:
+ 	case AFADDD:
+@@ -284,7 +309,6 @@ progedit(Link *ctxt, Prog *p)
+ 	case AFDIVRD:
+ 	case AFCOMD:
+ 	case AFCOMDP:
+-	case AMOVSD:
+ 	case AADDSD:
+ 	case ASUBSD:
+ 	case AMULSD:
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index f54153ae9b..02ef72753f 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -177,6 +177,19 @@ progedit(Link *ctxt, Prog *p)
+ 
+ 	// Rewrite float constants to values stored in memory.
+ 	switch(p->as) {
++	case AMOVSS:
++		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
++		if(p->from.type == D_FCONST)
++		if(p->from.u.dval == 0)
++		if(p->to.type >= D_X0)
++		if(p->to.type <= D_X7) {
++			p->as = AXORPS;
++			p->from.type = p->to.type;
++			p->from.index = p->to.index;
++			break;
++		}
++		// fallthrough
++
+ 	case AFMOVF:
+ 	case AFADDF:
+ 	case AFSUBF:
+@@ -186,7 +199,6 @@ progedit(Link *ctxt, Prog *p)
+ 	case AFDIVRF:
+ 	case AFCOMF:
+ 	case AFCOMFP:
+-	case AMOVSS:
+ 	case AADDSS:
+ 	case ASUBSS:
+ 	case AMULSS:
+@@ -211,6 +223,19 @@ progedit(Link *ctxt, Prog *p)
+ 		}
+ 		break;
+ 
++	case AMOVSD:
++		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
++		if(p->from.type == D_FCONST)
++		if(p->from.u.dval == 0)
++		if(p->to.type >= D_X0)
++		if(p->to.type <= D_X7) {
++			p->as = AXORPS;
++			p->from.type = p->to.type;
++			p->from.index = p->to.index;
++			break;
++		}
++		// fallthrough
++
+ 	case AFMOVD:
+ 	case AFADDD:
+ 	case AFSUBD:
+@@ -220,7 +245,6 @@ progedit(Link *ctxt, Prog *p)
+ 	case AFDIVRD:
+ 	case AFCOMD:
+ 	case AFCOMDP:
+-	case AMOVSD:
+ 	case AADDSD:
+ 	case ASUBSD:
+ 	case AMULSD:

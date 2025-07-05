@@ -20,8 +20,451 @@ Date:   Mon Jun 22 13:27:10 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/build.go      | 139 +++++++++++++++++++++------------------------
  src/go/build/build_test.go |  88 +++++++++++++++++++---------
  src/go/build/deps_test.go  |   2 +-
  3 files changed, 127 insertions(+), 102 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 217fadf5bd..0732f6aa19 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
++	"go/build/constraint"
+ 	"go/doc"
+ 	"go/token"
+ 	exec "internal/execabs"
+@@ -1423,7 +1424,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
+ 	// Look for +build comments to accept or reject the file.
+ 	ok, sawBinaryOnly, err := ctxt.shouldBuild(info.header, allTags)
+ 	if err != nil {
+-		return nil, err
++		return nil, fmt.Errorf("%s: %v", name, err)
+ 	}
+ 	if !ok && !ctxt.UseAllFiles {
+ 		return nil, nil
+@@ -1459,11 +1460,12 @@ var (
+ 	bSlashSlash = []byte(slashSlash)
+ 	bStarSlash  = []byte(starSlash)
+ 	bSlashStar  = []byte(slashStar)
++	bPlusBuild  = []byte("+build")
+ 
+ 	goBuildComment = []byte("//go:build")
+ 
+ 	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+-	errMultipleGoBuild     = errors.New("multiple //go:build comments") // unused in Go 1.(N-1)
++	errMultipleGoBuild     = errors.New("multiple //go:build comments")
+ )
+ 
+ func isGoBuildComment(line []byte) bool {
+@@ -1498,8 +1500,7 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
+ // shouldBuild reports whether the file should be built
+ // and whether a //go:binary-only-package comment was found.
+ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
+-
+-	// Pass 1. Identify leading run of // comments and blank lines,
++	// Identify leading run of // comments and blank lines,
+ 	// which must be followed by a blank line.
+ 	// Also identify any //go:build comments.
+ 	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
+@@ -1507,44 +1508,42 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
+ 		return false, false, err
+ 	}
+ 
+-	// Pass 2.  Process each +build line in the run.
+-	p := content
+-	shouldBuild = true
+-	sawBuild := false
+-	for len(p) > 0 {
+-		line := p
+-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+-			line, p = line[:i], p[i+1:]
+-		} else {
+-			p = p[len(p):]
+-		}
+-		line = bytes.TrimSpace(line)
+-		if !bytes.HasPrefix(line, bSlashSlash) {
+-			continue
++	// If //go:build line is present, it controls.
++	// Otherwise fall back to +build processing.
++	switch {
++	case goBuild != nil:
++		x, err := constraint.Parse(string(goBuild))
++		if err != nil {
++			return false, false, fmt.Errorf("parsing //go:build line: %v", err)
+ 		}
+-		line = bytes.TrimSpace(line[len(bSlashSlash):])
+-		if len(line) > 0 && line[0] == '+' {
+-			// Looks like a comment +line.
+-			f := strings.Fields(string(line))
+-			if f[0] == "+build" {
+-				sawBuild = true
+-				ok := false
+-				for _, tok := range f[1:] {
+-					if ctxt.match(tok, allTags) {
+-						ok = true
+-					}
+-				}
+-				if !ok {
++		shouldBuild = ctxt.eval(x, allTags)
++
++	default:
++		shouldBuild = true
++		p := content
++		for len(p) > 0 {
++			line := p
++			if i := bytes.IndexByte(line, '\n'); i >= 0 {
++				line, p = line[:i], p[i+1:]
++			} else {
++				p = p[len(p):]
++			}
++			line = bytes.TrimSpace(line)
++			if !bytes.HasPrefix(line, bSlashSlash) || !bytes.Contains(line, bPlusBuild) {
++				continue
++			}
++			text := string(line)
++			if !constraint.IsPlusBuild(text) {
++				continue
++			}
++			if x, err := constraint.Parse(text); err == nil {
++				if !ctxt.eval(x, allTags) {
+ 					shouldBuild = false
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+-	if goBuild != nil && !sawBuild {
+-		return false, false, errGoBuildWithoutBuild
+-	}
+-
+ 	return shouldBuild, sawBinaryOnly, nil
+ }
+ 
+@@ -1580,7 +1579,7 @@ Lines:
+ 		}
+ 
+ 		if !inSlashStar && isGoBuildComment(line) {
+-			if false && goBuild != nil { // enabled in Go 1.N
++			if goBuild != nil {
+ 				return nil, nil, false, errMultipleGoBuild
+ 			}
+ 			goBuild = line
+@@ -1649,7 +1648,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 		if len(cond) > 0 {
+ 			ok := false
+ 			for _, c := range cond {
+-				if ctxt.match(c, nil) {
++				if ctxt.matchAuto(c, nil) {
+ 					ok = true
+ 					break
+ 				}
+@@ -1831,50 +1830,44 @@ func splitQuoted(s string) (r []string, err error) {
+ 	return args, err
+ }
+ 
+-// match reports whether the name is one of:
++// matchAuto interprets text as either a +build or //go:build expression (whichever works),
++// reporting whether the expression matches the build context.
+ //
++// matchAuto is only used for testing of tag evaluation
++// and in #cgo lines, which accept either syntax.
++func (ctxt *Context) matchAuto(text string, allTags map[string]bool) bool {
++	if strings.ContainsAny(text, "&|()") {
++		text = "//go:build " + text
++	} else {
++		text = "// +build " + text
++	}
++	x, err := constraint.Parse(text)
++	if err != nil {
++		return false
++	}
++	return ctxt.eval(x, allTags)
++}
++
++func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
++	return x.Eval(func(tag string) bool { return ctxt.matchTag(tag, allTags) })
++}
++
++// matchTag reports whether the name is one of:
++//
++//	cgo (if cgo is enabled)
+ //	$GOOS
+ //	$GOARCH
+-//	cgo (if cgo is enabled)
+-//	!cgo (if cgo is disabled)
+ //	ctxt.Compiler
+-//	!ctxt.Compiler
++//	linux (if GOOS = android)
++//	solaris (if GOOS = illumos)
+ //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+-//	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
+-//	a comma-separated list of any of these
+ //
+-func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+-	if name == "" {
+-		if allTags != nil {
+-			allTags[name] = true
+-		}
+-		return false
+-	}
+-	if i := strings.Index(name, ","); i >= 0 {
+-		// comma-separated list
+-		ok1 := ctxt.match(name[:i], allTags)
+-		ok2 := ctxt.match(name[i+1:], allTags)
+-		return ok1 && ok2
+-	}
+-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+-		return false
+-	}
+-	if strings.HasPrefix(name, "!") { // negation
+-		return len(name) > 1 && !ctxt.match(name[1:], allTags)
+-	}
+-
++// It records all consulted tags in allTags.
++func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	if allTags != nil {
+ 		allTags[name] = true
+ 	}
+ 
+-	// Tags must be letters, digits, underscores or dots.
+-	// Unlike in Go identifiers, all digits are fine (e.g., "386").
+-	for _, c := range name {
+-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+-			return false
+-		}
+-	}
+-
+ 	// special tags
+ 	if ctxt.CgoEnabled && name == "cgo" {
+ 		return true
+@@ -1946,10 +1939,10 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 	}
+ 	n := len(l)
+ 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+-		return ctxt.match(l[n-1], allTags) && ctxt.match(l[n-2], allTags)
++		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
+ 	}
+ 	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
+-		return ctxt.match(l[n-1], allTags)
++		return ctxt.matchTag(l[n-1], allTags)
+ 	}
+ 	return true
+ }
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index d8f264cac7..0762a150eb 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -30,7 +30,7 @@ func TestMatch(t *testing.T) {
+ 	match := func(tag string, want map[string]bool) {
+ 		t.Helper()
+ 		m := make(map[string]bool)
+-		if !ctxt.match(tag, m) {
++		if !ctxt.matchAuto(tag, m) {
+ 			t.Errorf("%s context should match %s, does not", what, tag)
+ 		}
+ 		if !reflect.DeepEqual(m, want) {
+@@ -40,7 +40,7 @@ func TestMatch(t *testing.T) {
+ 	nomatch := func(tag string, want map[string]bool) {
+ 		t.Helper()
+ 		m := make(map[string]bool)
+-		if ctxt.match(tag, m) {
++		if ctxt.matchAuto(tag, m) {
+ 			t.Errorf("%s context should NOT match %s, does", what, tag)
+ 		}
+ 		if !reflect.DeepEqual(m, want) {
+@@ -153,6 +153,13 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{"yes": true},
+ 		shouldBuild: true,
+ 	},
++	{
++		name: "Yes2",
++		content: "//go:build yes\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true},
++		shouldBuild: true,
++	},
+ 	{
+ 		name: "Or",
+ 		content: "// +build no yes\n\n" +
+@@ -160,6 +167,13 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{"yes": true, "no": true},
+ 		shouldBuild: true,
+ 	},
++	{
++		name: "Or2",
++		content: "//go:build no || yes\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true, "no": true},
++		shouldBuild: true,
++	},
+ 	{
+ 		name: "And",
+ 		content: "// +build no,yes\n\n" +
+@@ -167,6 +181,13 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{"yes": true, "no": true},
+ 		shouldBuild: false,
+ 	},
++	{
++		name: "And2",
++		content: "//go:build no && yes\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true, "no": true},
++		shouldBuild: false,
++	},
+ 	{
+ 		name: "Cgo",
+ 		content: "// +build cgo\n\n" +
+@@ -177,12 +198,23 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{"cgo": true},
+ 		shouldBuild: false,
+ 	},
++	{
++		name: "Cgo2",
++		content: "//go:build cgo\n" +
++			"// Copyright The Go Authors.\n\n" +
++			"// This package implements parsing of tags like\n" +
++			"// +build tag1\n" +
++			"package build",
++		tags:        map[string]bool{"cgo": true},
++		shouldBuild: false,
++	},
+ 	{
+ 		name: "AfterPackage",
+ 		content: "// Copyright The Go Authors.\n\n" +
+ 			"package build\n\n" +
+ 			"// shouldBuild checks tags given by lines of the form\n" +
+ 			"// +build tag\n" +
++			"//go:build tag\n" +
+ 			"func shouldBuild(content []byte)\n",
+ 		tags:        map[string]bool{},
+ 		shouldBuild: true,
+@@ -194,6 +226,13 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{},
+ 		shouldBuild: true,
+ 	},
++	{
++		name: "TooClose2",
++		content: "//go:build yes\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true},
++		shouldBuild: true,
++	},
+ 	{
+ 		name: "TooCloseNo",
+ 		content: "// +build no\n" +
+@@ -201,6 +240,13 @@ var shouldBuildTests = []struct {
+ 		tags:        map[string]bool{},
+ 		shouldBuild: true,
+ 	},
++	{
++		name: "TooCloseNo2",
++		content: "//go:build no\n" +
++			"package main\n",
++		tags:        map[string]bool{"no": true},
++		shouldBuild: false,
++	},
+ 	{
+ 		name: "BinaryOnly",
+ 		content: "//go:binary-only-package\n" +
+@@ -211,41 +257,30 @@ var shouldBuildTests = []struct {
+ 		shouldBuild: true,
+ 	},
+ 	{
+-		name: "ValidGoBuild",
+-		content: "// +build yes\n\n" +
++		name: "BinaryOnly2",
++		content: "//go:binary-only-package\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{"yes": true},
+-		shouldBuild: true,
+-	},
+-	{
+-		name: "MissingBuild",
+-		content: "//go:build no\n" +
+-			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
++		binaryOnly:  true,
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ 	{
+-		name: "MissingBuild2",
+-		content: "/* */\n" +
+-			"// +build yes\n\n" +
++		name: "ValidGoBuild",
++		content: "// +build yes\n\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ 	{
+ 		name: "MissingBuild2",
+-		content: "/*\n" +
++		content: "/* */\n" +
+ 			"// +build yes\n\n" +
+-			"*/\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ 	{
+ 		name: "Comment1",
+@@ -263,9 +298,8 @@ var shouldBuildTests = []struct {
+ 			"*/\n\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ 	{
+ 		name: "Comment3",
+@@ -274,9 +308,8 @@ var shouldBuildTests = []struct {
+ 			"*/\n\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ 	{
+ 		name: "Comment4",
+@@ -290,9 +323,8 @@ var shouldBuildTests = []struct {
+ 		content: "/**/\n" +
+ 			"//go:build no\n" +
+ 			"package main\n",
+-		tags:        map[string]bool{},
++		tags:        map[string]bool{"no": true},
+ 		shouldBuild: false,
+-		err:         errGoBuildWithoutBuild,
+ 	},
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e5c849e8f5..42184276ea 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -295,7 +295,7 @@ var depsRules = `
+ 	FMT
+ 	< go/build/constraint;
+ 
+-	go/doc, go/parser, internal/goroot, internal/goversion
++	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
+ 	< go/build;
+ 
+ 	DEBUG, go/build, go/types, text/scanner

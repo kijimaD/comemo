@@ -14,7 +14,57 @@ Date:   Mon Apr 25 14:39:51 2016 -0700
     Change-Id: I6d14c564e734cc5596c7e995d8851e06d5a35013
     Reviewed-on: https://go-review.googlesource.com/22441
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 9 ++++++++-
  src/go/internal/gcimporter/bimport.go  | 4 ++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c635129ccc..512da43d51 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -123,6 +123,13 @@ const posInfoFormat = false
+ // TODO(gri) remove eventually
+ const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
+ 
++// forceNumberedParams keeps parameter numbering in exported parameter names
++// even where we don't really need it (because the parameter names are not used
++// elsewhere). Leave it enabled for now to remove this difference in generated
++// object files so we can more easily compare old and new format.
++// TODO(gri) remove once we switched to new format
++const forceNumberedParams = true
++
+ const exportVersion = "v0"
+ 
+ // exportInlined enables the export of inlined function bodies and related
+@@ -875,7 +882,7 @@ func parName(f *Field, numbered bool) string {
+ 	// Functions that can be inlined use numbered parameters so we can distingish them
+ 	// from other names in their context after inlining (i.e., the parameter numbering
+ 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
+-	if numbered {
++	if forceNumberedParams || numbered {
+ 		if !strings.Contains(name, "·") && f.Nname != nil && f.Nname.Name != nil && f.Nname.Name.Vargen > 0 {
+ 			name = fmt.Sprintf("%s·%d", name, f.Nname.Name.Vargen) // append Vargen
+ 		}
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index f2080ffe59..5ba9af1b02 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"sort"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -504,6 +505,9 @@ func (p *importer) param(named bool) (*types.Var, bool) {
+ 		if name == "" {
+ 			panic("expected named parameter")
+ 		}
++		if i := strings.Index(name, "·"); i > 0 {
++			name = name[:i] // cut off gc-specific parameter numbering
++		}
+ 		pkg = p.pkg()
+ 	}
+ 

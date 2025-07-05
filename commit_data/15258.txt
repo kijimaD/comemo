@@ -13,7 +13,173 @@ Date:   Fri Feb 15 10:44:29 2013 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/7303090
-
+---
  misc/dashboard/builder/exec.go | 44 +++++++++++++++++++-----------------------
  misc/dashboard/builder/main.go | 42 +++++++++++++++++++++++++++-------------
  2 files changed, 49 insertions(+), 37 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index bf5c28d47d..a4aabd2842 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -29,42 +29,38 @@ func run(timeout time.Duration, envv []string, dir string, argv ...string) error
+ 	return waitWithTimeout(timeout, cmd)
+ }
+ 
+-// runLog runs a process and returns the combined stdout/stderr,
+-// as well as writing it to logfile (if specified). It returns
+-// process combined stdout and stderr output, exit status and error.
+-// The error returned is nil, if process is started successfully,
+-// even if exit status is not successful.
+-func runLog(timeout time.Duration, envv []string, logfile, dir string, argv ...string) (string, int, error) {
+-	if *verbose {
+-		log.Println("runLog", argv)
+-	}
++// runLog runs a process and returns the combined stdout/stderr. It returns
++// process combined stdout and stderr output, exit status and error. The
++// error returned is nil, if process is started successfully, even if exit
++// status is not successful.
++func runLog(timeout time.Duration, envv []string, dir string, argv ...string) (string, bool, error) {
++	var b bytes.Buffer
++	ok, err := runOutput(timeout, envv, &b, dir, argv...)
++	return b.String(), ok, err
++}
+ 
+-	b := new(bytes.Buffer)
+-	var w io.Writer = b
+-	if logfile != "" {
+-		f, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+-		if err != nil {
+-			return "", 0, err
+-		}
+-		defer f.Close()
+-		w = io.MultiWriter(f, b)
++// runOutput runs a process and directs any output to the supplied writer.
++// It returns exit status and error. The error returned is nil, if process
++// is started successfully, even if exit status is not successful.
++func runOutput(timeout time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
++	if *verbose {
++		log.Println("runOutput", argv)
+ 	}
+ 
+ 	cmd := exec.Command(argv[0], argv[1:]...)
+ 	cmd.Dir = dir
+ 	cmd.Env = envv
+-	cmd.Stdout = w
+-	cmd.Stderr = w
++	cmd.Stdout = out
++	cmd.Stderr = out
+ 
+ 	startErr := cmd.Start()
+ 	if startErr != nil {
+-		return "", 1, startErr
++		return false, startErr
+ 	}
+-	exitStatus := 0
+ 	if err := waitWithTimeout(timeout, cmd); err != nil {
+-		exitStatus = 1 // TODO(bradfitz): this is fake. no callers care, so just return a bool instead.
++		return false, err
+ 	}
+-	return b.String(), exitStatus, nil
++	return true, nil
+ }
+ 
+ func waitWithTimeout(timeout time.Duration, cmd *exec.Cmd) error {
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 4b237ba81a..b1f5571b0f 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/xml"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -272,21 +273,36 @@ func (b *Builder) buildHash(hash string) error {
+ 	srcDir := filepath.Join(workpath, "go", "src")
+ 
+ 	// build
++	var buildlog bytes.Buffer
+ 	logfile := filepath.Join(workpath, "build.log")
++	f, err := os.Create(logfile)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++	w := io.MultiWriter(f, &buildlog)
++
+ 	cmd := *buildCmd
+ 	if !filepath.IsAbs(cmd) {
+ 		cmd = filepath.Join(srcDir, cmd)
+ 	}
+ 	startTime := time.Now()
+-	buildLog, status, err := runLog(*buildTimeout, b.envv(), logfile, srcDir, cmd)
++	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, cmd)
+ 	runTime := time.Now().Sub(startTime)
+-	if err != nil {
+-		return fmt.Errorf("%s: %s", *buildCmd, err)
++	errf := func() string {
++		if err != nil {
++			return fmt.Sprintf("error: %v", err)
++		}
++		if !ok {
++			return "failed"
++		}
++		return "success"
+ 	}
++	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
+ 
+-	if status != 0 {
++	if err != nil || !ok {
+ 		// record failure
+-		return b.recordResult(false, "", hash, "", buildLog, runTime)
++		return b.recordResult(false, "", hash, "", buildlog.String(), runTime)
+ 	}
+ 
+ 	// record success
+@@ -372,9 +388,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
+ 	}
+ 
+ 	// fetch package and dependencies
+-	log, status, err := runLog(*cmdTimeout, env, "", goPath, goTool, "get", "-d", pkg+"/...")
+-	if err == nil && status != 0 {
+-		err = fmt.Errorf("go exited with status %d", status)
++	log, ok, err := runLog(*cmdTimeout, env, goPath, goTool, "get", "-d", pkg+"/...")
++	if err == nil && !ok {
++		err = fmt.Errorf("go exited with status 1")
+ 	}
+ 	if err != nil {
+ 		return log, err
+@@ -387,9 +403,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
+ 	}
+ 
+ 	// test the package
+-	log, status, err = runLog(*buildTimeout, env, "", goPath, goTool, "test", "-short", pkg+"/...")
+-	if err == nil && status != 0 {
+-		err = fmt.Errorf("go exited with status %d", status)
++	log, ok, err = runLog(*buildTimeout, env, goPath, goTool, "test", "-short", pkg+"/...")
++	if err == nil && !ok {
++		err = fmt.Errorf("go exited with status 1")
+ 	}
+ 	return log, err
+ }
+@@ -571,7 +587,7 @@ func commitPoll(key, pkg string) {
+ 	const N = 50 // how many revisions to grab
+ 
+ 	lockGoroot()
+-	data, _, err := runLog(*cmdTimeout, nil, "", pkgRoot, hgCmd("log",
++	data, _, err := runLog(*cmdTimeout, nil, pkgRoot, hgCmd("log",
+ 		"--encoding=utf-8",
+ 		"--limit="+strconv.Itoa(N),
+ 		"--template="+xmlLogTemplate)...,
+@@ -663,7 +679,7 @@ func fullHash(root, rev string) (string, error) {
+ 	if root == goroot {
+ 		gorootMu.Lock()
+ 	}
+-	s, _, err := runLog(*cmdTimeout, nil, "", root,
++	s, _, err := runLog(*cmdTimeout, nil, root,
+ 		hgCmd("log",
+ 			"--encoding=utf-8",
+ 			"--rev="+rev,

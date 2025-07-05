@@ -18,6 +18,28 @@ Date:   Wed May 12 15:16:20 2021 +0200
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/list_find_nodeps.txt | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/list_find_nodeps.txt b/src/cmd/go/testdata/script/list_find_nodeps.txt
+index 55f98f6c6c..e08ce78950 100644
+--- a/src/cmd/go/testdata/script/list_find_nodeps.txt
++++ b/src/cmd/go/testdata/script/list_find_nodeps.txt
+@@ -33,6 +33,16 @@ func F() {
+     println(C.INT_MAX)
+ }
+ 
++-- cgo/pkg_notcgo.go --
++//go:build !cgo
++// +build !cgo
++
++package cgopkg
++
++func F() {
++    println(0)
++}
++
+ -- swig/pkg.go --
+ package swigpkg
+ 

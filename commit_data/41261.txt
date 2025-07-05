@@ -11,6 +11,20 @@ Date:   Tue Jul 30 10:02:09 2019 +0300
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 62590850a6..390f93c078 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -67,6 +67,8 @@ type Context interface {
+ 	// Done returns a channel that's closed when work done on behalf of this
+ 	// context should be canceled. Done may return nil if this context can
+ 	// never be canceled. Successive calls to Done return the same value.
++	// The close of the Done channel may happen asynchronously,
++	// after the cancel function returns.
+ 	//
+ 	// WithCancel arranges for Done to be closed when cancel is called;
+ 	// WithDeadline arranges for Done to be closed when the deadline

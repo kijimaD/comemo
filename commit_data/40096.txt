@@ -16,6 +16,21 @@ Date:   Wed Apr 17 08:32:33 2019 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/debug_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 8db2f8ef41..091086f3b9 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -165,6 +165,9 @@ func TestNexting(t *testing.T) {
+ // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
+ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+ 	t.Run(tag+"-"+basename, func(t *testing.T) {
++		if t.Name() == "TestNexting/gdb-dbg-i22558" {
++			testenv.SkipFlaky(t, 31263)
++		}
+ 		testNexting(t, basename, tag, gcflags, 1000, moreargs...)
+ 	})
+ }

@@ -9,7 +9,40 @@ Date:   Thu Mar 23 15:26:10 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/closure.go | 2 ++
  src/cmd/compile/internal/gc/subr.go    | 1 -
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 41ee74b8e0..f53501ca51 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -11,6 +11,7 @@ import (
+ // function literals aka closures
+ func closurehdr(ntype *Node) {
+ 	n := nod(OCLOSURE, nil, nil)
++	n.Func.SetIsHiddenClosure(Curfn != nil)
+ 	n.Func.Ntype = ntype
+ 	n.Func.Depth = funcdepth
+ 	n.Func.Outerfunc = Curfn
+@@ -209,6 +210,7 @@ func makeclosure(func_ *Node) *Node {
+ 
+ 	// create the function
+ 	xfunc := nod(ODCLFUNC, nil, nil)
++	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
+ 
+ 	xfunc.Func.Nname = newfuncname(closurename(func_))
+ 	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 92a269f15d..6b18cd2f6e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -342,7 +342,6 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
+ 		}
+ 		n = &x.Node
+ 		n.Func = &x.Func
+-		n.Func.SetIsHiddenClosure(Curfn != nil)
+ 	case ONAME:
+ 		var x struct {
+ 			Node

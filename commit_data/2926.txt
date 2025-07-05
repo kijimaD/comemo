@@ -10,8 +10,59 @@ Date:   Sun Aug 9 15:03:30 2009 -0700
     DELTA=11  (5 added, 0 deleted, 6 changed)
     OCL=32924
     CL=32945
-
+---
  src/pkg/archive/tar/reader.go       |   7 ++++++-
  src/pkg/archive/tar/reader_test.go  |   8 ++++----
  src/pkg/archive/tar/testdata/v7.tar | Bin 3072 -> 3584 bytes
  3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 7e8f617b00..56b840448a 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -75,7 +75,12 @@ func cString(b []byte) string {
+ }
+ 
+ func (tr *Reader) octal(b []byte) int64 {
+-	if len(b) > 0 && b[len(b)-1] == ' ' {
++	// Removing leading spaces.
++	for len(b) > 0 && b[0] == ' ' {
++		b = b[1:len(b)];
++	}
++	// Removing trailing NULs and spaces.
++	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
+ 		b = b[0:len(b)-1];
+ 	}
+ 	x, err := strconv.Btoui64(cString(b), 8);
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index a3a02978a7..428f73e60b 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -84,20 +84,20 @@ var untarTests = []*untarTest{
+ 		headers: []*Header{
+ 			&Header{
+ 				Name: "small.txt",
+-				Mode: 0640,
++				Mode: 0444,
+ 				Uid: 73025,
+ 				Gid: 5000,
+ 				Size: 5,
+-				Mtime: 1246508266,
++				Mtime: 1244593104,
+ 				Typeflag: '\x00',
+ 			},
+ 			&Header{
+ 				Name: "small2.txt",
+-				Mode: 0640,
++				Mode: 0444,
+ 				Uid: 73025,
+ 				Gid: 5000,
+ 				Size: 11,
+-				Mtime: 1245217492,
++				Mtime: 1244593104,
+ 				Typeflag: '\x00',
+ 			},
+ 		},
+diff --git a/src/pkg/archive/tar/testdata/v7.tar b/src/pkg/archive/tar/testdata/v7.tar
+index dd33f92ffa..eb65fc9410 100644
+Binary files a/src/pkg/archive/tar/testdata/v7.tar and b/src/pkg/archive/tar/testdata/v7.tar differ

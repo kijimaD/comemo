@@ -11,6 +11,20 @@ Date:   Sat Jul 1 19:13:03 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/47370
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index d10bab4e1b..5749194871 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -50,7 +50,7 @@ func ExampleChtimes() {
+ }
+ 
+ func ExampleFileMode() {
+-	fi, err := os.Stat("some-filename")
++	fi, err := os.Lstat("some-filename")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

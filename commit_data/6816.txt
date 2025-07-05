@@ -11,6 +11,35 @@ Date:   Thu Dec 2 09:18:20 2010 -0800
     R=r, r2, gri
     CC=golang-dev
     https://golang.org/cl/3373041
-
+---
  src/pkg/sort/sort.go | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 2abe22d5c7..02e647fca9 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -122,11 +122,19 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+ }
+ 
+ func quickSort(data Interface, a, b int) {
+-	if b-a > 7 {
++	for b-a > 7 {
+ 		mlo, mhi := doPivot(data, a, b)
+-		quickSort(data, a, mlo)
+-		quickSort(data, mhi, b)
+-	} else if b-a > 1 {
++		// Avoiding recursion on the larger subproblem guarantees
++		// a stack depth of at most lg(b-a).
++		if mlo-a < b-mhi {
++			quickSort(data, a, mlo)
++			a = mhi // i.e., quickSort(data, mhi, b)
++		} else {
++			quickSort(data, mhi, b)
++			b = mlo // i.e., quickSort(data, a, mlo)
++		}
++	}
++	if b-a > 1 {
+ 		insertionSort(data, a, b)
+ 	}
+ }

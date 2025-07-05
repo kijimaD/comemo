@@ -14,10 +14,115 @@ Date:   Fri Feb 2 15:54:24 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/bytes.go              |  8 ++++----
  src/internal/bytealg/bytealg.go |  3 ++-
  src/runtime/slice.go            |  3 ++-
  src/strings/builder.go          |  6 +++++-
  src/strings/builder_test.go     | 13 +++++++++++++
  5 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 0679b43a20..1871814c6e 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -525,7 +525,7 @@ func Join(s [][]byte, sep []byte) []byte {
+ 		n += len(v)
+ 	}
+ 
+-	b := bytealg.MakeNoZero(n)
++	b := bytealg.MakeNoZero(n)[:n:n]
+ 	bp := copy(b, s[0])
+ 	for _, v := range s[1:] {
+ 		bp += copy(b[bp:], sep)
+@@ -610,7 +610,7 @@ func Repeat(b []byte, count int) []byte {
+ 			chunkMax = len(b)
+ 		}
+ 	}
+-	nb := bytealg.MakeNoZero(n)
++	nb := bytealg.MakeNoZero(n)[:n:n]
+ 	bp := copy(nb, b)
+ 	for bp < n {
+ 		chunk := bp
+@@ -640,7 +640,7 @@ func ToUpper(s []byte) []byte {
+ 			// Just return a copy.
+ 			return append([]byte(""), s...)
+ 		}
+-		b := bytealg.MakeNoZero(len(s))
++		b := bytealg.MakeNoZero(len(s))[:len(s):len(s)]
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'a' <= c && c <= 'z' {
+@@ -670,7 +670,7 @@ func ToLower(s []byte) []byte {
+ 		if !hasUpper {
+ 			return append([]byte(""), s...)
+ 		}
+-		b := bytealg.MakeNoZero(len(s))
++		b := bytealg.MakeNoZero(len(s))[:len(s):len(s)]
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'A' <= c && c <= 'Z' {
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 1103891eee..6b79a2e1fa 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -111,7 +111,8 @@ func LastIndexRabinKarp[T string | []byte](s, sep T) int {
+ 	return -1
+ }
+ 
+-// MakeNoZero makes a slice of length and capacity n without zeroing the bytes.
++// MakeNoZero makes a slice of length n and capacity of at least n Bytes
++// without zeroing the bytes (including the bytes between len and cap).
+ // It is the caller's responsibility to ensure uninitialized bytes
+ // do not leak to the end user.
+ func MakeNoZero(n int) []byte
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index eb628bb169..8c1023c1e8 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -366,5 +366,6 @@ func bytealg_MakeNoZero(len int) []byte {
+ 	if uintptr(len) > maxAlloc {
+ 		panicmakeslicelen()
+ 	}
+-	return unsafe.Slice((*byte)(mallocgc(uintptr(len), nil, false)), len)
++	cap := roundupsize(uintptr(len), true)
++	return unsafe.Slice((*byte)(mallocgc(uintptr(cap), nil, false)), cap)[:len]
+ }
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 189dadb1e7..7c9b686241 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -15,7 +15,11 @@ import (
+ // Do not copy a non-zero Builder.
+ type Builder struct {
+ 	addr *Builder // of receiver, to detect copies by value
+-	buf  []byte
++
++	// External users should never get direct access to this buffer, since
++	// the slice at some point will be converted to a string using unsafe, also
++	// data between len(buf) and cap(buf) might be uninitialized.
++	buf []byte
+ }
+ 
+ // noescape hides a pointer from escape analysis. It is the identity function
+diff --git a/src/strings/builder_test.go b/src/strings/builder_test.go
+index c3c627ee7d..36fd7a77e3 100644
+--- a/src/strings/builder_test.go
++++ b/src/strings/builder_test.go
+@@ -385,3 +385,16 @@ func BenchmarkBuildString_ByteBuffer(b *testing.B) {
+ 		}
+ 	})
+ }
++
++func TestBuilderGrowSizeclasses(t *testing.T) {
++	s := Repeat("a", 19)
++	allocs := testing.AllocsPerRun(100, func() {
++		var b Builder
++		b.Grow(18)
++		b.WriteString(s)
++		_ = b.String()
++	})
++	if allocs > 1 {
++		t.Fatalf("unexpected amount of allocations: %v, want: 1", allocs)
++	}
++}

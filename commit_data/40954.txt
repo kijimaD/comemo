@@ -25,6 +25,46 @@ Date:   Mon May 6 18:53:46 2019 +0900
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/template/exec.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 4db63bfa09..97c9d1f574 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"internal/fmtsort"
+ 	"io"
+@@ -230,21 +229,19 @@ func (t *Template) DefinedTemplates() string {
+ 	if t.common == nil {
+ 		return ""
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	for name, tmpl := range t.tmpl {
+ 		if tmpl.Tree == nil || tmpl.Root == nil {
+ 			continue
+ 		}
+-		if b.Len() > 0 {
++		if b.Len() == 0 {
++			b.WriteString("; defined templates are: ")
++		} else {
+ 			b.WriteString(", ")
+ 		}
+ 		fmt.Fprintf(&b, "%q", name)
+ 	}
+-	var s string
+-	if b.Len() > 0 {
+-		s = "; defined templates are: " + b.String()
+-	}
+-	return s
++	return b.String()
+ }
+ 
+ // Walk functions step through the major pieces of the template structure,

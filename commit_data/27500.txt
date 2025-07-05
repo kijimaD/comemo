@@ -27,7 +27,7 @@ Date:   Wed Mar 30 10:57:47 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  6 +--
  src/cmd/compile/internal/gc/align.go     | 22 ++++-----
  src/cmd/compile/internal/gc/bexport.go   | 10 ++--
@@ -52,3 +52,1665 @@ Date:   Wed Mar 30 10:57:47 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 78 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/walk.go      | 58 ++++++++++++------------
  23 files changed, 226 insertions(+), 213 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index ac5156124e..a017d9ca30 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -106,7 +106,7 @@ func algtype1(t *Type, bad **Type) int {
+ 			return ANOEQ
+ 		}
+ 
+-		a := algtype1(t.Type, bad)
++		a := algtype1(t.Elem(), bad)
+ 		switch a {
+ 		case AMEM:
+ 			return AMEM
+@@ -203,7 +203,7 @@ func genhash(sym *Sym, t *Type) {
+ 		// An array of pure memory would be handled by the
+ 		// standard algorithm, so the element type must not be
+ 		// pure memory.
+-		hashel := hashfor(t.Type)
++		hashel := hashfor(t.Elem())
+ 
+ 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
+ 		ni := newname(Lookup("i"))
+@@ -519,7 +519,7 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
+ 	nx = typecheck(nx, Erv)
+ 	ny = typecheck(ny, Erv)
+ 
+-	fn, needsize := eqmemfunc(size, nx.Type.Type)
++	fn, needsize := eqmemfunc(size, nx.Type.Elem())
+ 	call := Nod(OCALL, fn, nil)
+ 	call.List.Append(nx)
+ 	call.List.Append(ny)
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 351ca73aa4..fd3fe0dce9 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -176,11 +176,11 @@ func dowidth(t *Type) {
+ 
+ 	case TPTR32:
+ 		w = 4
+-		checkwidth(t.Type)
++		checkwidth(t.Elem())
+ 
+ 	case TPTR64:
+ 		w = 8
+-		checkwidth(t.Type)
++		checkwidth(t.Elem())
+ 
+ 	case TUNSAFEPTR:
+ 		w = int64(Widthptr)
+@@ -194,7 +194,7 @@ func dowidth(t *Type) {
+ 	case TCHAN: // implemented as pointer
+ 		w = int64(Widthptr)
+ 
+-		checkwidth(t.Type)
++		checkwidth(t.Elem())
+ 
+ 		// make fake type to check later to
+ 		// trigger channel argument check.
+@@ -204,7 +204,7 @@ func dowidth(t *Type) {
+ 	case TCHANARGS:
+ 		t1 := t.Wrapped()
+ 		dowidth(t1) // just in case
+-		if t1.Type.Width >= 1<<16 {
++		if t1.Elem().Width >= 1<<16 {
+ 			Yyerror("channel element type too large (>64kB)")
+ 		}
+ 		t.Width = 1
+@@ -235,23 +235,23 @@ func dowidth(t *Type) {
+ 		t.Align = uint8(Widthptr)
+ 
+ 	case TARRAY:
+-		if t.Type == nil {
++		if t.Elem() == nil {
+ 			break
+ 		}
+ 		if t.IsArray() {
+-			dowidth(t.Type)
+-			if t.Type.Width != 0 {
+-				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
++			dowidth(t.Elem())
++			if t.Elem().Width != 0 {
++				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+ 				if uint64(t.Bound) > cap {
+ 					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
+ 				}
+ 			}
+ 
+-			w = t.Bound * t.Type.Width
+-			t.Align = t.Type.Align
++			w = t.Bound * t.Elem().Width
++			t.Align = t.Elem().Align
+ 		} else if t.Bound == -1 {
+ 			w = int64(sizeof_Array)
+-			checkwidth(t.Type)
++			checkwidth(t.Elem())
+ 			t.Align = uint8(Widthptr)
+ 		} else if t.isDDDArray() {
+ 			if !t.Broke {
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f14f12fdc0..24537ac96a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -512,7 +512,7 @@ func (p *exporter) typ(t *Type) {
+ 		} else {
+ 			p.tag(sliceTag)
+ 		}
+-		p.typ(t.Type)
++		p.typ(t.Elem())
+ 
+ 	case TDDDFIELD:
+ 		// see p.param use of TDDDFIELD
+@@ -525,7 +525,7 @@ func (p *exporter) typ(t *Type) {
+ 
+ 	case TPTR32, TPTR64: // could use Tptr but these are constants
+ 		p.tag(pointerTag)
+-		p.typ(t.Type)
++		p.typ(t.Elem())
+ 
+ 	case TFUNC:
+ 		p.tag(signatureTag)
+@@ -548,7 +548,7 @@ func (p *exporter) typ(t *Type) {
+ 	case TCHAN:
+ 		p.tag(chanTag)
+ 		p.int(int(t.Chan))
+-		p.typ(t.Type)
++		p.typ(t.Elem())
+ 
+ 	default:
+ 		Fatalf("exporter: unexpected type: %s (Etype = %d)", Tconv(t, 0), t.Etype)
+@@ -636,7 +636,7 @@ func (p *exporter) fieldName(t *Field) {
+ func basetypeName(t *Type) string {
+ 	s := t.Sym
+ 	if s == nil && Isptr[t.Etype] {
+-		s = t.Type.Sym // deref
++		s = t.Elem().Sym // deref
+ 	}
+ 	if s != nil {
+ 		return s.Name
+@@ -666,7 +666,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	t := q.Type
+ 	if q.Isddd {
+ 		// create a fake type to encode ... just for the p.typ call
+-		t = typWrapper(TDDDFIELD, t.Type)
++		t = typWrapper(TDDDFIELD, t.Elem())
+ 	}
+ 	p.typ(t)
+ 	if n > 0 {
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index f6dda213f6..2effc424b2 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2214,14 +2214,14 @@ func stkof(n *Node) int64 {
+ 			return off
+ 		}
+ 		if Isconst(n.Right, CTINT) {
+-			return off + t.Type.Width*n.Right.Val().U.(*Mpint).Int64()
++			return off + t.Elem().Width*n.Right.Val().U.(*Mpint).Int64()
+ 		}
+ 		return +1000 // on stack but not sure exactly where
+ 
+ 	case OCALLMETH, OCALLINTER, OCALLFUNC:
+ 		t := n.Left.Type
+ 		if Isptr[t.Etype] {
+-			t = t.Type
++			t = t.Elem()
+ 		}
+ 
+ 		f := t.Results().Field(0)
+@@ -2552,7 +2552,7 @@ func cgen_call(n *Node, proc int) {
+ func cgen_callret(n *Node, res *Node) {
+ 	t := n.Left.Type
+ 	if t.Etype == TPTR32 || t.Etype == TPTR64 {
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 
+ 	fp := t.Results().Field(0)
+@@ -2576,7 +2576,7 @@ func cgen_callret(n *Node, res *Node) {
+ func cgen_aret(n *Node, res *Node) {
+ 	t := n.Left.Type
+ 	if Isptr[t.Etype] {
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 
+ 	fp := t.Results().Field(0)
+@@ -2865,7 +2865,7 @@ func cgen_append(n, res *Node) {
+ 	Regfree(&rlen)
+ 
+ 	fn := syslook("growslice")
+-	fn = substArgTypes(fn, res.Type.Type, res.Type.Type)
++	fn = substArgTypes(fn, res.Type.Elem(), res.Type.Elem())
+ 	Ginscall(fn, 0)
+ 
+ 	if Widthptr == 4 && Widthreg == 8 {
+@@ -2945,7 +2945,7 @@ func cgen_append(n, res *Node) {
+ 		if i > 0 {
+ 			Thearch.Gins(Thearch.Optoas(OADD, Types[TUINT]), Nodintconst(int64(i)), &r2)
+ 		}
+-		w := res.Type.Type.Width
++		w := res.Type.Elem().Width
+ 		if Thearch.AddIndex != nil && Thearch.AddIndex(&r2, w, &r1) {
+ 			// r1 updated by back end
+ 		} else if w == 1 {
+@@ -2957,7 +2957,7 @@ func cgen_append(n, res *Node) {
+ 		Regfree(&r2)
+ 
+ 		r1.Op = OINDREG
+-		r1.Type = res.Type.Type
++		r1.Type = res.Type.Elem()
+ 		cgen_wb(n2, &r1, needwritebarrier(&r1, n2))
+ 		Regfree(&r1)
+ 		i++
+@@ -3025,7 +3025,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			return
+ 		}
+ 		if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
+-			Nodconst(&xlen, indexRegType, n.Left.Type.Type.Bound)
++			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().Bound)
+ 			return
+ 		}
+ 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+@@ -3183,7 +3183,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 	// The func obvious below checks for out-of-order constant indexes.
+ 	var bound int64 = -1
+ 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
+-		bound = n.Left.Type.Type.Bound
++		bound = n.Left.Type.Elem().Bound
+ 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+ 		bound = int64(len(n.Left.Val().U.(string)))
+ 	}
+@@ -3467,7 +3467,17 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			Cgenr(n.Left, &xbase, nil)
+ 			Cgen_checknil(&xbase)
+ 		} else {
+-			regalloc(&xbase, Ptrto(res.Type.Type), nil)
++			var ptr *Type
++			if n.Op == OSLICESTR {
++				// Yikes! Ptrto(nil)?!
++				// Prior to CL 21331, that's what this code did implicitly.
++				// Now it does it explicitly, to safely preserve old behavior.
++				// This will all be replaced by SSA anyway.
++				ptr = Ptrto(nil)
++			} else {
++				ptr = Ptrto(n.Type.Elem())
++			}
++			regalloc(&xbase, ptr, nil)
+ 			x.Type = xbase.Type
+ 			Thearch.Gmove(&x, &xbase)
+ 			Regfree(&x)
+@@ -3490,7 +3500,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			if n.Op == OSLICESTR {
+ 				w = 1 // res is string, elem size is 1 (byte)
+ 			} else {
+-				w = res.Type.Type.Width // res is []T, elem size is T.width
++				w = res.Type.Elem().Width // res is []T, elem size is T.width
+ 			}
+ 			if Isconst(&i, CTINT) {
+ 				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Val().U.(*Mpint).Int64()*w, &xbase)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 194c028a62..98edb6d450 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -490,7 +490,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	}
+ 	basetype := rcvrtype
+ 	if Isptr[rcvrtype.Etype] {
+-		basetype = basetype.Type
++		basetype = basetype.Elem()
+ 	}
+ 	if basetype.Etype != TINTER && basetype.Sym == nil {
+ 		Fatalf("missing base type for %v", rcvrtype)
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 17c67aa551..bfd462a853 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1684,7 +1684,7 @@ func isgoconst(n *Node) bool {
+ 		t := l.Type
+ 
+ 		if t != nil && Isptr[t.Etype] {
+-			t = t.Type
++			t = t.Elem()
+ 		}
+ 		if Isfixedarray(t) && !hascallchan(l) {
+ 			return true
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a04fde1831..5e23aaa9fb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -716,7 +716,7 @@ func checkembeddedtype(t *Type) {
+ 	}
+ 
+ 	if t.Sym == nil && Isptr[t.Etype] {
+-		t = t.Type
++		t = t.Elem()
+ 		if t.Etype == TINTER {
+ 			Yyerror("embedded type cannot be a pointer to interface")
+ 		}
+@@ -1020,7 +1020,7 @@ func isifacemethod(f *Type) bool {
+ 	if !Isptr[t.Etype] {
+ 		return false
+ 	}
+-	t = t.Type
++	t = t.Elem()
+ 	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
+ 		return false
+ 	}
+@@ -1076,7 +1076,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 	}
+ 	s = t.Sym
+ 	if s == nil && Isptr[t.Etype] {
+-		t = t.Type
++		t = t.Elem()
+ 		if t == nil {
+ 			goto bad
+ 		}
+@@ -1198,7 +1198,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 					return
+ 				}
+ 
+-				t = t.Type
++				t = t.Elem()
+ 			}
+ 
+ 			if t.Broke { // rely on typecheck having complained before
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2820c8aad7..0e919932cd 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -640,7 +640,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// "Big" conditions that were scattered around in walk have been gathered here
+ 	if n.Esc != EscHeap && n.Type != nil &&
+ 		(n.Type.Width > MaxStackVarSize ||
+-			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
++			n.Op == ONEW && n.Type.Elem().Width >= 1<<16 ||
+ 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+ 		if Debug['m'] > 2 {
+ 			Warnl(n.Lineno, "%v is too large for stack", n)
+@@ -697,7 +697,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// it is also a dereference, because it is implicitly
+ 			// dereferenced (see #12588)
+ 			if Isfixedarray(n.Type) &&
+-				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
++				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Elem(), n.Type)) {
+ 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
+ 			} else {
+ 				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))
+@@ -1341,7 +1341,7 @@ func (e *EscState) addDereference(n *Node) *Node {
+ 		// This should model our own sloppy use of OIND to encode
+ 		// decreasing levels of indirection; i.e., "indirecting" an array
+ 		// might yield the type of an element. To be enhanced...
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 	ind.Type = t
+ 	return ind
+@@ -1493,7 +1493,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 				if n2.Isddd && !n.Isddd {
+ 					// Introduce ODDDARG node to represent ... allocation.
+ 					src = Nod(ODDDARG, nil, nil)
+-					arr := typArray(n2.Type.Type, int64(len(lls)))
++					arr := typArray(n2.Type.Elem(), int64(len(lls)))
+ 					src.Type = Ptrto(arr) // make pointer so it will be tracked
+ 					src.Lineno = n.Lineno
+ 					e.track(src)
+@@ -1555,7 +1555,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			src = Nod(ODDDARG, nil, nil)
+ 			src.Lineno = n.Lineno
+-			arr := typArray(t.Type.Type, int64(len(lls)-i))
++			arr := typArray(t.Type.Elem(), int64(len(lls)-i))
+ 			src.Type = Ptrto(arr) // make pointer so it will be tracked
+ 			e.track(src)
+ 			n.Right = src
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index d17368a19a..436336099f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -150,7 +150,7 @@ func reexportdep(n *Node) {
+ 
+ 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
+ 			if Isptr[t.Etype] {
+-				t = t.Type
++				t = t.Elem()
+ 			}
+ 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+ 				if Debug['E'] != 0 {
+@@ -164,7 +164,7 @@ func reexportdep(n *Node) {
+ 		t := n.Type
+ 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
+ 			if Isptr[t.Etype] {
+-				t = t.Type
++				t = t.Elem()
+ 			}
+ 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+ 				if Debug['E'] != 0 {
+@@ -205,7 +205,7 @@ func reexportdep(n *Node) {
+ 		switch t.Etype {
+ 		case TARRAY, TCHAN, TPTR32, TPTR64:
+ 			if t.Sym == nil {
+-				t = t.Type
++				t = t.Elem()
+ 			}
+ 		}
+ 		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+@@ -304,7 +304,7 @@ func dumpexporttype(t *Type) {
+ 		dumpexporttype(t.Val())
+ 		dumpexporttype(t.Key())
+ 	case TARRAY, TCHAN, TPTR32, TPTR64:
+-		dumpexporttype(t.Type)
++		dumpexporttype(t.Elem())
+ 	}
+ 
+ 	if t.Sym == nil {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 79d64a10be..4079f5afd3 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -581,32 +581,32 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 	switch t.Etype {
+ 	case TPTR32, TPTR64:
+ 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
+-			return "*" + Tconv(t.Type, FmtShort)
++			return "*" + Tconv(t.Elem(), FmtShort)
+ 		}
+-		return "*" + t.Type.String()
++		return "*" + t.Elem().String()
+ 
+ 	case TARRAY:
+ 		if t.IsArray() {
+-			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
++			return fmt.Sprintf("[%d]%v", t.Bound, t.Elem())
+ 		}
+ 		if t.isDDDArray() {
+-			return "[...]" + t.Type.String()
++			return "[...]" + t.Elem().String()
+ 		}
+-		return "[]" + t.Type.String()
++		return "[]" + t.Elem().String()
+ 
+ 	case TCHAN:
+ 		switch t.Chan {
+ 		case Crecv:
+-			return "<-chan " + t.Type.String()
++			return "<-chan " + t.Elem().String()
+ 
+ 		case Csend:
+-			return "chan<- " + t.Type.String()
++			return "chan<- " + t.Elem().String()
+ 		}
+ 
+-		if t.Type != nil && t.Type.Etype == TCHAN && t.Type.Sym == nil && t.Type.Chan == Crecv {
+-			return "chan (" + t.Type.String() + ")"
++		if t.Elem() != nil && t.Elem().Etype == TCHAN && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
++			return "chan (" + t.Elem().String() + ")"
+ 		}
+-		return "chan " + t.Type.String()
++		return "chan " + t.Elem().String()
+ 
+ 	case TMAP:
+ 		return "map[" + t.Key().String() + "]" + t.Val().String()
+@@ -736,7 +736,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+-	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Type)
++	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Elem())
+ }
+ 
+ // Statements which may be rendered with a simplestmt as init.
+@@ -1185,7 +1185,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if fmtmode == FErr {
+ 			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
+ 				if ptrlit {
+-					return fmt.Sprintf("&%v literal", n.Right.Type.Type)
++					return fmt.Sprintf("&%v literal", n.Right.Type.Elem())
+ 				} else {
+ 					return fmt.Sprintf("%v literal", n.Right.Type)
+ 				}
+@@ -1196,7 +1196,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 		if fmtmode == FExp && ptrlit {
+ 			// typecheck has overwritten OIND by OTYPE with pointer type.
+-			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Type, Hconv(n.List, FmtComma))
++			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Elem(), Hconv(n.List, FmtComma))
+ 		}
+ 
+ 		return fmt.Sprintf("(%v{ %v })", n.Right, Hconv(n.List, FmtComma))
+@@ -1652,7 +1652,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 
+ 	var typ string
+ 	if f.Isddd {
+-		typ = "..." + Tconv(f.Type.Type, 0)
++		typ = "..." + Tconv(f.Type.Elem(), 0)
+ 	} else {
+ 		typ = Tconv(f.Type, 0)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 6a7b64a7be..5b1abfd831 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1205,35 +1205,24 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			return f(Ptrto(t.Type), startOffset+int64(Array_array)) &&
++			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
+ 				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+ 				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
+ 		}
+ 
+ 		// Short-circuit [1e6]struct{}.
+-		if t.Type.Width == 0 {
++		if t.Elem().Width == 0 {
+ 			return true
+ 		}
+ 
+ 		for i := int64(0); i < t.Bound; i++ {
+-			if !visitComponents(t.Type, startOffset+i*t.Type.Width, f) {
++			if !visitComponents(t.Elem(), startOffset+i*t.Elem().Width, f) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+ 
+ 	case TSTRUCT:
+-		if t.Type != nil && t.Type.Width != 0 {
+-			// NOTE(rsc): If this happens, the right thing to do is to say
+-			//	startOffset -= t.Type.Width
+-			// but I want to see if it does.
+-			// The old version of componentgen handled this,
+-			// in code introduced in CL 6932045 to fix issue #4518.
+-			// But the test case in issue 4518 does not trigger this anymore,
+-			// so maybe this complication is no longer needed.
+-			Fatalf("struct not at offset 0")
+-		}
+-
+ 		for _, field := range t.Fields().Slice() {
+ 			if !visitComponents(field.Type, startOffset+field.Offset, f) {
+ 				return false
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 422184240e..e5b02c451e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -39,7 +39,7 @@ func fnpkg(fn *Node) *Pkg {
+ 		rcvr := fn.Type.Recv().Type
+ 
+ 		if Isptr[rcvr.Etype] {
+-			rcvr = rcvr.Type
++			rcvr = rcvr.Elem()
+ 		}
+ 		if rcvr.Sym == nil {
+ 			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, FmtLong), rcvr)
+@@ -747,7 +747,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 			as.Right = nodnil()
+ 			as.Right.Type = varargtype
+ 		} else {
+-			vararrtype := typArray(varargtype.Type, int64(varargcount))
++			vararrtype := typArray(varargtype.Elem(), int64(varargcount))
+ 			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
+ 			as.Right.List.Set(varargs)
+ 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+@@ -866,7 +866,7 @@ func retvar(t *Field, i int) *Node {
+ // when they come from a multiple return call.
+ func argvar(t *Type, i int) *Node {
+ 	n := newname(LookupN("~arg", i))
+-	n.Type = t.Type
++	n.Type = t.Elem()
+ 	n.Class = PAUTO
+ 	n.Used = true
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7e953e8dcc..15f1813e17 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -591,7 +591,7 @@ func orderstmt(n *Node, order *Order) {
+ 		orderexprlist(n.List, order)
+ 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
+ 		ch := n.Rlist.First().Left.Type
+-		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
++		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
+ 		var tmp2 *Node
+ 		if !isblank(n.List.Second()) {
+ 			tmp2 = ordertemp(n.List.Second().Type, order, false)
+@@ -861,7 +861,7 @@ func orderstmt(n *Node, order *Order) {
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+-						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
++						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, haspointers(r.Right.Left.Type.Elem()))
+ 						tmp2 = Nod(OAS, tmp1, r.Left)
+ 						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+@@ -1165,7 +1165,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 			// Allocate a temporary that will be cleaned up when this statement
+ 			// completes. We could be more aggressive and try to arrange for it
+ 			// to be cleaned up when the call completes.
+-			prealloc[n] = ordertemp(n.Type.Type, order, false)
++			prealloc[n] = ordertemp(n.Type.Elem(), order, false)
+ 		}
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 90be80154d..27ebf9bece 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3154,7 +3154,7 @@ func (p *parser) hidden_structdcl() *Node {
+ 	} else {
+ 		s := s2.Sym
+ 		if s == nil && Isptr[s2.Etype] {
+-			s = s2.Type.Sym
++			s = s2.Elem().Sym
+ 		}
+ 		pkg := importpkg
+ 		if s1 != nil {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 652b023bdb..4a977d8f62 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -932,7 +932,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 			*xoffset += t.Width
+ 		} else {
+ 			for i := int64(0); i < t.Bound; i++ {
+-				onebitwalktype1(t.Type, xoffset, bv)
++				onebitwalktype1(t.Elem(), xoffset, bv)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 9ff1531f0d..ae1786a0b0 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -38,8 +38,8 @@ func typecheckrange(n *Node) {
+ 		}
+ 	}
+ 
+-	if Isptr[t.Etype] && Isfixedarray(t.Type) {
+-		t = t.Type
++	if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
++		t = t.Elem()
+ 	}
+ 	n.Type = t
+ 
+@@ -51,7 +51,7 @@ func typecheckrange(n *Node) {
+ 
+ 	case TARRAY:
+ 		t1 = Types[TINT]
+-		t2 = t.Type
++		t2 = t.Elem()
+ 
+ 	case TMAP:
+ 		t1 = t.Key()
+@@ -63,7 +63,7 @@ func typecheckrange(n *Node) {
+ 			goto out
+ 		}
+ 
+-		t1 = t.Type
++		t1 = t.Elem()
+ 		t2 = nil
+ 		if n.List.Len() == 2 {
+ 			toomany = 1
+@@ -180,7 +180,7 @@ func walkrange(n *Node) {
+ 		init = append(init, Nod(OAS, hv1, nil))
+ 		init = append(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
+ 		if v2 != nil {
+-			hp = temp(Ptrto(n.Type.Type))
++			hp = temp(Ptrto(n.Type.Elem()))
+ 			tmp := Nod(OINDEX, ha, Nodintconst(0))
+ 			tmp.Bounded = true
+ 			init = append(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
+@@ -206,7 +206,7 @@ func walkrange(n *Node) {
+ 			// Advancing during the increment ensures that the pointer p only points
+ 			// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
+ 			// after which p is dead, so it cannot confuse the collector.
+-			tmp := Nod(OADD, hp, Nodintconst(t.Type.Width))
++			tmp := Nod(OADD, hp, Nodintconst(t.Elem().Width))
+ 
+ 			tmp.Type = hp.Type
+ 			tmp.Typecheck = 1
+@@ -260,9 +260,9 @@ func walkrange(n *Node) {
+ 
+ 		n.Left = nil
+ 
+-		hv1 := temp(t.Type)
++		hv1 := temp(t.Elem())
+ 		hv1.Typecheck = 1
+-		if haspointers(t.Type) {
++		if haspointers(t.Elem()) {
+ 			init = append(init, Nod(OAS, hv1, nil))
+ 		}
+ 		hb := temp(Types[TBOOL])
+@@ -353,7 +353,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 	if !samesafeexpr(stmt.Left.Left, a) || !samesafeexpr(stmt.Left.Right, v1) {
+ 		return false
+ 	}
+-	elemsize := n.Type.Type.Width
++	elemsize := n.Type.Elem().Width
+ 	if elemsize <= 0 || !iszero(stmt.Right) {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 92f8285fa8..214beec308 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
+ 		// method does not apply.
+ 		this := f.Type.Recv().Type
+ 
+-		if Isptr[this.Etype] && this.Type == t {
++		if Isptr[this.Etype] && this.Elem() == t {
+ 			continue
+ 		}
+ 		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
+@@ -582,8 +582,13 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 
+ func typePkg(t *Type) *Pkg {
+ 	tsym := t.Sym
+-	if tsym == nil && t.Type != nil {
+-		tsym = t.Type.Sym
++	if tsym == nil {
++		switch t.Etype {
++		case TARRAY, TPTR32, TPTR64, TCHAN:
++			if t.Elem() != nil {
++				tsym = t.Elem().Sym
++			}
++		}
+ 	}
+ 	if tsym != nil && t != Types[t.Etype] && t != errortype {
+ 		return tsym.Pkg
+@@ -684,7 +689,7 @@ func haspointers(t *Type) bool {
+ 			break
+ 		}
+ 
+-		ret = haspointers(t.Type)
++		ret = haspointers(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		ret = false
+@@ -743,7 +748,7 @@ func typeptrdata(t *Type) int64 {
+ 			return int64(Widthptr)
+ 		}
+ 		// haspointers already eliminated t.Bound == 0.
+-		return (t.Bound-1)*t.Type.Width + typeptrdata(t.Type)
++		return (t.Bound-1)*t.Elem().Width + typeptrdata(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers.
+@@ -913,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
+ }
+ 
+ func typenamesym(t *Type) *Sym {
+-	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
++	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
+ 		Fatalf("typename %v", t)
+ 	}
+ 	s := typesym(t)
+@@ -941,7 +946,7 @@ func typename(t *Type) *Node {
+ }
+ 
+ func itabname(t, itype *Type) *Node {
+-	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
++	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
+ 		Fatalf("itabname %v", t)
+ 	}
+ 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+@@ -997,7 +1002,7 @@ func isreflexive(t *Type) bool {
+ 		if Isslice(t) {
+ 			Fatalf("slice can't be a map key: %v", t)
+ 		}
+-		return isreflexive(t.Type)
++		return isreflexive(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+@@ -1047,7 +1052,7 @@ func needkeyupdate(t *Type) bool {
+ 		if Isslice(t) {
+ 			Fatalf("slice can't be a map key: %v", t)
+ 		}
+-		return needkeyupdate(t.Type)
++		return needkeyupdate(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+@@ -1086,8 +1091,8 @@ func dtypesym(t *Type) *Sym {
+ 	// emit the type structures for int, float, etc.
+ 	tbase := t
+ 
+-	if Isptr[t.Etype] && t.Sym == nil && t.Type.Sym != nil {
+-		tbase = t.Type
++	if Isptr[t.Etype] && t.Sym == nil && t.Elem().Sym != nil {
++		tbase = t.Elem()
+ 	}
+ 	dupok := 0
+ 	if tbase.Sym == nil {
+@@ -1116,8 +1121,8 @@ ok:
+ 	case TARRAY:
+ 		if t.IsArray() {
+ 			// ../../../../runtime/type.go:/arrayType
+-			s1 := dtypesym(t.Type)
+-			t2 := typSlice(t.Type)
++			s1 := dtypesym(t.Elem())
++			t2 := typSlice(t.Elem())
+ 			s2 := dtypesym(t2)
+ 			ot = dcommontype(s, ot, t)
+ 			ot = dsymptr(s, ot, s1, 0)
+@@ -1125,7 +1130,7 @@ ok:
+ 			ot = duintptr(s, ot, uint64(t.Bound))
+ 		} else {
+ 			// ../../../../runtime/type.go:/sliceType
+-			s1 := dtypesym(t.Type)
++			s1 := dtypesym(t.Elem())
+ 
+ 			ot = dcommontype(s, ot, t)
+ 			ot = dsymptr(s, ot, s1, 0)
+@@ -1134,7 +1139,7 @@ ok:
+ 
+ 	// ../../../../runtime/type.go:/chanType
+ 	case TCHAN:
+-		s1 := dtypesym(t.Type)
++		s1 := dtypesym(t.Elem())
+ 
+ 		ot = dcommontype(s, ot, t)
+ 		ot = dsymptr(s, ot, s1, 0)
+@@ -1246,7 +1251,7 @@ ok:
+ 		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TPTR32, TPTR64:
+-		if t.Type.Etype == TANY {
++		if t.Elem().Etype == TANY {
+ 			// ../../../../runtime/type.go:/UnsafePointerType
+ 			ot = dcommontype(s, ot, t)
+ 			ot = dextratype(s, ot, t, 0)
+@@ -1255,7 +1260,7 @@ ok:
+ 		}
+ 
+ 		// ../../../../runtime/type.go:/ptrType
+-		s1 := dtypesym(t.Type)
++		s1 := dtypesym(t.Elem())
+ 
+ 		ot = dcommontype(s, ot, t)
+ 		ot = dsymptr(s, ot, s1, 0)
+@@ -1639,10 +1644,10 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 
+ 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+ 		count := t.Bound
+-		elem := t.Type
++		elem := t.Elem()
+ 		for Isfixedarray(elem) {
+ 			count *= elem.Bound
+-			elem = elem.Type
++			elem = elem.Elem()
+ 		}
+ 
+ 		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 0677612153..3c06a961c4 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -434,7 +434,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		if Isslice(r.Type) {
+ 			// Init slice.
+ 			bound := r.Right.Val().U.(*Mpint).Int64()
+-			ta := typArray(r.Type.Type, bound)
++			ta := typArray(r.Type.Elem(), bound)
+ 			a := staticname(ta, 1)
+ 			inittemps[r] = a
+ 			n := *l
+@@ -1233,7 +1233,7 @@ func initplan(n *Node) {
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatalf("initplan arraylit")
+ 			}
+-			addvalue(p, n.Type.Type.Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
++			addvalue(p, n.Type.Elem().Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
+ 		}
+ 
+ 	case OSTRUCTLIT:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 11a478add1..b880eda5a6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1950,11 +1950,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
+ 		case n.Left.Type.IsSlice():
+ 			p := s.addr(n, false)
+-			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
++			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
+ 		case n.Left.Type.IsArray():
+ 			// TODO: fix when we can SSA arrays of length 1.
+ 			p := s.addr(n, false)
+-			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
++			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
+ 		default:
+ 			s.Fatalf("bad type for index %v", n.Left.Type)
+ 			return nil
+@@ -2077,7 +2077,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// *(ptr+len+2) = e3
+ 		// makeslice(ptr,newlen,cap)
+ 
+-		et := n.Type.Type
++		et := n.Type.Elem()
+ 		pt := Ptrto(et)
+ 
+ 		// Evaluate slice
+@@ -2672,7 +2672,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+ 			}
+-			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
++			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Elem()), a, i)
+ 		}
+ 	case OIND:
+ 		p := s.expr(n.Left)
+@@ -3138,7 +3138,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 	zero := s.constInt(Types[TINT], 0)
+ 	switch {
+ 	case t.IsSlice():
+-		elemtype = t.Type
++		elemtype = t.Elem()
+ 		ptrtype = Ptrto(elemtype)
+ 		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
+ 		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
+@@ -3150,14 +3150,14 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
+ 		cap = len
+ 	case t.IsPtr():
+-		if !t.Type.IsArray() {
++		if !t.Elem().IsArray() {
+ 			s.Fatalf("bad ptr to array in slice %v\n", t)
+ 		}
+-		elemtype = t.Type.Type
++		elemtype = t.Elem().Elem()
+ 		ptrtype = Ptrto(elemtype)
+ 		s.nilCheck(v)
+ 		ptr = v
+-		len = s.constInt(Types[TINT], t.Type.Bound)
++		len = s.constInt(Types[TINT], t.Elem().Bound)
+ 		cap = len
+ 	default:
+ 		s.Fatalf("bad type in slice %v\n", t)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 31c5ec876b..18d35a26fc 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -565,7 +565,7 @@ func isptrto(t *Type, et EType) bool {
+ 	if !Isptr[t.Etype] {
+ 		return false
+ 	}
+-	t = t.Type
++	t = t.Elem()
+ 	if t == nil {
+ 		return false
+ 	}
+@@ -633,7 +633,7 @@ func methtype(t *Type, mustname int) *Type {
+ 		if t.Sym != nil {
+ 			return nil
+ 		}
+-		t = t.Type
++		t = t.Elem()
+ 		if t == nil {
+ 			return nil
+ 		}
+@@ -773,7 +773,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 		return eqtype1(t1.Val(), t2.Val(), assumedEqual)
+ 	}
+ 
+-	return eqtype1(t1.Type, t2.Type, assumedEqual)
++	return eqtype1(t1.Elem(), t2.Elem(), assumedEqual)
+ }
+ 
+ // Are t1 and t2 equal struct types when field names are ignored?
+@@ -886,7 +886,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// src and dst have identical element types, and
+ 	// either src or dst is not a named type.
+ 	if src.Etype == TCHAN && src.Chan == Cboth && dst.Etype == TCHAN {
+-		if Eqtype(src.Type, dst.Type) && (src.Sym == nil || dst.Sym == nil) {
++		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+ 			return OCONVNOP
+ 		}
+ 	}
+@@ -960,7 +960,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	// 3. src and dst are unnamed pointer types
+ 	// and their base types have identical underlying types.
+ 	if Isptr[src.Etype] && Isptr[dst.Etype] && src.Sym == nil && dst.Sym == nil {
+-		if Eqtype(src.Type.Orig, dst.Type.Orig) {
++		if Eqtype(src.Elem().Orig, dst.Elem().Orig) {
+ 			return OCONVNOP
+ 		}
+ 	}
+@@ -988,10 +988,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	}
+ 
+ 	if Isslice(src) && dst.Etype == TSTRING {
+-		if src.Type.Etype == bytetype.Etype {
++		if src.Elem().Etype == bytetype.Etype {
+ 			return OARRAYBYTESTR
+ 		}
+-		if src.Type.Etype == runetype.Etype {
++		if src.Elem().Etype == runetype.Etype {
+ 			return OARRAYRUNESTR
+ 		}
+ 	}
+@@ -999,10 +999,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	// 7. src is a string and dst is []byte or []rune.
+ 	// String to slice.
+ 	if src.Etype == TSTRING && Isslice(dst) {
+-		if dst.Type.Etype == bytetype.Etype {
++		if dst.Elem().Etype == bytetype.Etype {
+ 			return OSTRARRAYBYTE
+ 		}
+-		if dst.Type.Etype == runetype.Etype {
++		if dst.Elem().Etype == runetype.Etype {
+ 			return OSTRARRAYRUNE
+ 		}
+ 	}
+@@ -1278,9 +1278,9 @@ func badtype(op Op, tl *Type, tr *Type) {
+ 
+ 	// common mistake: *struct and *interface.
+ 	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
+-		if tl.Type.Etype == TSTRUCT && tr.Type.Etype == TINTER {
++		if tl.Elem().Etype == TSTRUCT && tr.Elem().Etype == TINTER {
+ 			fmt_ += "\n\t(*struct vs *interface)"
+-		} else if tl.Type.Etype == TINTER && tr.Type.Etype == TSTRUCT {
++		} else if tl.Elem().Etype == TINTER && tr.Elem().Etype == TSTRUCT {
+ 			fmt_ += "\n\t(*interface vs *struct)"
+ 		}
+ 	}
+@@ -1445,7 +1445,7 @@ var dotlist = make([]Dlist, 10)
+ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 	u := t
+ 	if Isptr[u.Etype] {
+-		u = u.Type
++		u = u.Elem()
+ 	}
+ 
+ 	c := 0
+@@ -1501,7 +1501,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
+ 
+ 	u = t
+ 	if Isptr[u.Etype] {
+-		u = u.Type
++		u = u.Elem()
+ 	}
+ 	if u.Etype != TSTRUCT && u.Etype != TINTER {
+ 		goto out
+@@ -1611,7 +1611,7 @@ func expand0(t *Type, followptr bool) {
+ 	u := t
+ 	if Isptr[u.Etype] {
+ 		followptr = true
+-		u = u.Type
++		u = u.Elem()
+ 	}
+ 
+ 	if u.Etype == TINTER {
+@@ -1651,7 +1651,7 @@ func expand1(t *Type, top, followptr bool) {
+ 	u := t
+ 	if Isptr[u.Etype] {
+ 		followptr = true
+-		u = u.Type
++		u = u.Elem()
+ 	}
+ 
+ 	if u.Etype != TSTRUCT && u.Etype != TINTER {
+@@ -1826,7 +1826,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	methodrcvr := method.Type.Recv().Type
+ 
+ 	// generate nil pointer check for better error
+-	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
++	if Isptr[rcvr.Etype] && rcvr.Elem() == methodrcvr {
+ 		// generating wrapper from *T to T.
+ 		n := Nod(OIF, nil, nil)
+ 
+@@ -1837,9 +1837,9 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		var l []*Node
+ 
+ 		var v Val
+-		v.U = rcvr.Type.Sym.Pkg.Name // package name
++		v.U = rcvr.Elem().Sym.Pkg.Name // package name
+ 		l = append(l, nodlit(v))
+-		v.U = rcvr.Type.Sym.Name // type name
++		v.U = rcvr.Elem().Sym.Name // type name
+ 		l = append(l, nodlit(v))
+ 		v.U = method.Sym.Name
+ 		l = append(l, nodlit(v)) // method name
+@@ -1889,7 +1889,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	testdclstack()
+ 
+ 	// wrappers where T is anonymous (struct or interface) can be duplicated.
+-	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {
++	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Elem().Etype == TSTRUCT {
+ 		fn.Func.Dupok = true
+ 	}
+ 	fn = typecheck(fn, Etop)
+@@ -2273,7 +2273,7 @@ func isdirectiface(t *Type) bool {
+ 
+ 	case TARRAY:
+ 		// Array of 1 direct iface type can be direct.
+-		return t.Bound == 1 && isdirectiface(t.Type)
++		return t.Bound == 1 && isdirectiface(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		// Struct with 1 field of direct iface type can be direct.
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index f7bd270e40..0700d4942a 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -503,6 +503,17 @@ func (t *Type) Val() *Type {
+ 	return t.Type
+ }
+ 
++// Elem returns the type of elements of t.
++// Usable with pointers, channels, arrays, and slices.
++func (t *Type) Elem() *Type {
++	switch t.Etype {
++	case TPTR32, TPTR64, TCHAN, TARRAY:
++	default:
++		Fatalf("Type.Elem %s", t.Etype)
++	}
++	return t.Type
++}
++
+ // Wrapped returns the type that pseudo-type t wraps.
+ func (t *Type) Wrapped() *Type {
+ 	switch t.Etype {
+@@ -787,7 +798,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 	}
+ 
+ 	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
+-	return t.Type.cmp(x.Type)
++	return t.Elem().cmp(x.Elem())
+ }
+ 
+ func (t *Type) IsBoolean() bool {
+@@ -864,11 +875,9 @@ func (t *Type) IsInterface() bool {
+ }
+ 
+ func (t *Type) ElemType() ssa.Type {
+-	switch t.Etype {
+-	case TARRAY, TPTR32, TPTR64:
+-		return t.Type
+-	}
+-	panic(fmt.Sprintf("ElemType on invalid type %v", t))
++	// TODO(josharian): If Type ever moves to a shared
++	// internal package, remove this silly wrapper.
++	return t.Elem()
+ }
+ func (t *Type) PtrTo() ssa.Type {
+ 	return Ptrto(t)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b570d2dcd7..b7ea9ac193 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -484,7 +484,7 @@ OpSwitch:
+ 		}
+ 
+ 		ok |= Erv
+-		n.Type = t.Type
++		n.Type = t.Elem()
+ 		break OpSwitch
+ 
+ 	// arithmetic exprs
+@@ -864,8 +864,8 @@ OpSwitch:
+ 			break OpSwitch
+ 		}
+ 
+-		if Isptr[t.Etype] && t.Type.Etype != TINTER {
+-			t = t.Type
++		if Isptr[t.Etype] && t.Elem().Etype != TINTER {
++			t = t.Elem()
+ 			if t == nil {
+ 				n.Type = nil
+ 				return n
+@@ -886,7 +886,7 @@ OpSwitch:
+ 			case isnilinter(t):
+ 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
+ 
+-			case Isptr[t.Etype] && Isinter(t.Type):
++			case Isptr[t.Etype] && Isinter(t.Elem()):
+ 				// Pointer to interface is almost always a mistake.
+ 				Yyerror("%v undefined (type %v is pointer to interface, not interface)", n, n.Left.Type)
+ 
+@@ -989,7 +989,7 @@ OpSwitch:
+ 			if t.Etype == TSTRING {
+ 				n.Type = bytetype
+ 			} else {
+-				n.Type = t.Type
++				n.Type = t.Elem()
+ 			}
+ 			why := "string"
+ 			if t.Etype == TARRAY {
+@@ -1052,7 +1052,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		n.Type = t.Type
++		n.Type = t.Elem()
+ 		break OpSwitch
+ 
+ 	case OSEND:
+@@ -1079,13 +1079,13 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		n.Right = defaultlit(n.Right, t.Type)
++		n.Right = defaultlit(n.Right, t.Elem())
+ 		r := n.Right
+ 		if r.Type == nil {
+ 			n.Type = nil
+ 			return n
+ 		}
+-		n.Right = assignconv(r, l.Type.Type, "send")
++		n.Right = assignconv(r, l.Type.Elem(), "send")
+ 
+ 		// TODO: more aggressive
+ 		n.Etype = 0
+@@ -1124,9 +1124,9 @@ OpSwitch:
+ 		if Istype(t, TSTRING) {
+ 			n.Type = t
+ 			n.Op = OSLICESTR
+-		} else if Isptr[t.Etype] && Isfixedarray(t.Type) {
+-			tp = t.Type
+-			n.Type = typSlice(tp.Type)
++		} else if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
++			tp = t.Elem()
++			n.Type = typSlice(tp.Elem())
+ 			dowidth(n.Type)
+ 			n.Op = OSLICEARR
+ 		} else if Isslice(t) {
+@@ -1189,9 +1189,9 @@ OpSwitch:
+ 		}
+ 
+ 		var tp *Type
+-		if Isptr[t.Etype] && Isfixedarray(t.Type) {
+-			tp = t.Type
+-			n.Type = typSlice(tp.Type)
++		if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
++			tp = t.Elem()
++			n.Type = typSlice(tp.Elem())
+ 			dowidth(n.Type)
+ 			n.Op = OSLICE3ARR
+ 		} else if Isslice(t) {
+@@ -1622,7 +1622,7 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			if Istype(t.Type, TUINT8) && Istype(args.Second().Type, TSTRING) {
++			if Istype(t.Elem(), TUINT8) && Istype(args.Second().Type, TSTRING) {
+ 				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
+ 				break OpSwitch
+ 			}
+@@ -1634,8 +1634,8 @@ OpSwitch:
+ 		if funarg != nil {
+ 			_, it := IterFields(funarg) // Skip first field
+ 			for t := it.Next(); t != nil; t = it.Next() {
+-				if assignop(t.Type, n.Type.Type, nil) == 0 {
+-					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Type)
++				if assignop(t.Type, n.Type.Elem(), nil) == 0 {
++					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Elem())
+ 				}
+ 			}
+ 		} else {
+@@ -1644,7 +1644,7 @@ OpSwitch:
+ 				if n.Type == nil {
+ 					continue
+ 				}
+-				as[i] = assignconv(n, t.Type, "append")
++				as[i] = assignconv(n, t.Elem(), "append")
+ 			}
+ 		}
+ 
+@@ -1684,7 +1684,7 @@ OpSwitch:
+ 
+ 		// copy([]byte, string)
+ 		if Isslice(n.Left.Type) && n.Right.Type.Etype == TSTRING {
+-			if Eqtype(n.Left.Type.Type, bytetype) {
++			if Eqtype(n.Left.Type.Elem(), bytetype) {
+ 				break OpSwitch
+ 			}
+ 			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, FmtLong))
+@@ -1704,7 +1704,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if !Eqtype(n.Left.Type.Type, n.Right.Type.Type) {
++		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
+ 			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+ 			n.Type = nil
+ 			return n
+@@ -1978,7 +1978,7 @@ OpSwitch:
+ 		if t.Etype == TSTRING {
+ 			n.Type = Ptrto(Types[TUINT8])
+ 		} else {
+-			n.Type = Ptrto(t.Type)
++			n.Type = Ptrto(t.Elem())
+ 		}
+ 		break OpSwitch
+ 
+@@ -2299,7 +2299,7 @@ func implicitstar(n *Node) *Node {
+ 	if t == nil || !Isptr[t.Etype] {
+ 		return n
+ 	}
+-	t = t.Type
++	t = t.Elem()
+ 	if t == nil {
+ 		return n
+ 	}
+@@ -2435,7 +2435,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 
+ func derefall(t *Type) *Type {
+ 	for t != nil && t.Etype == Tptr {
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 	return t
+ }
+@@ -2506,26 +2506,26 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 		dowidth(tt)
+ 		rcvr := f2.Type.Recv().Type
+ 		if !Eqtype(rcvr, tt) {
+-			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
++			if rcvr.Etype == Tptr && Eqtype(rcvr.Elem(), tt) {
+ 				checklvalue(n.Left, "call pointer method on")
+ 				n.Left = Nod(OADDR, n.Left, nil)
+ 				n.Left.Implicit = true
+ 				n.Left = typecheck(n.Left, Etype|Erv)
+-			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Type, rcvr) {
++			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Elem(), rcvr) {
+ 				n.Left = Nod(OIND, n.Left, nil)
+ 				n.Left.Implicit = true
+ 				n.Left = typecheck(n.Left, Etype|Erv)
+-			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
++			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+ 				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
+ 				for tt.Etype == Tptr {
+ 					// Stop one level early for method with pointer receiver.
+-					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
++					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
+ 						break
+ 					}
+ 					n.Left = Nod(OIND, n.Left, nil)
+ 					n.Left.Implicit = true
+ 					n.Left = typecheck(n.Left, Etype|Erv)
+-					tt = tt.Type
++					tt = tt.Elem()
+ 				}
+ 			} else {
+ 				Fatalf("method mismatch: %v for %v", rcvr, tt)
+@@ -2612,11 +2612,11 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 				for _, tl := range tstruct.Fields().Slice() {
+ 					if tl.Isddd {
+ 						for ; tn != nil; tn = it.Next() {
+-							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
++							if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
+ 								if call != nil {
+-									Yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Type, call, why)
++									Yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
+ 								} else {
+-									Yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Type, desc(), why)
++									Yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Elem(), desc(), why)
+ 								}
+ 							}
+ 						}
+@@ -2693,7 +2693,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 				n = nl.Index(i)
+ 				setlineno(n)
+ 				if n.Type != nil {
+-					nl.SetIndex(i, assignconvfn(n, t.Type, desc))
++					nl.SetIndex(i, assignconvfn(n, t.Elem(), desc))
+ 				}
+ 			}
+ 
+@@ -2846,7 +2846,7 @@ func iscomptype(t *Type) bool {
+ 		return true
+ 
+ 	case TPTR32, TPTR64:
+-		switch t.Type.Etype {
++		switch t.Elem().Etype {
+ 		case TARRAY, TSTRUCT, TMAP:
+ 			return true
+ 		}
+@@ -2914,7 +2914,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		// For better or worse, we don't allow pointers as the composite literal type,
+ 		// except when using the &T syntax, which sets implicit on the OIND.
+ 		if !n.Right.Implicit {
+-			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Type)
++			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Elem())
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -2926,7 +2926,7 @@ func typecheckcomplit(n *Node) *Node {
+ 			return n
+ 		}
+ 
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 
+ 	var r *Node
+@@ -2979,10 +2979,10 @@ func typecheckcomplit(n *Node) *Node {
+ 			}
+ 
+ 			r = l.Right
+-			pushtype(r, t.Type)
++			pushtype(r, t.Elem())
+ 			r = typecheck(r, Erv)
+-			r = defaultlit(r, t.Type)
+-			l.Right = assignconv(r, t.Type, "array or slice literal")
++			r = defaultlit(r, t.Elem())
++			l.Right = assignconv(r, t.Elem(), "array or slice literal")
+ 		}
+ 
+ 		if t.isDDDArray() {
+@@ -3440,7 +3440,7 @@ func stringtoarraylit(n *Node) *Node {
+ 
+ 	s := n.Left.Val().U.(string)
+ 	var l []*Node
+-	if n.Type.Type.Etype == TUINT8 {
++	if n.Type.Elem().Etype == TUINT8 {
+ 		// []byte
+ 		for i := 0; i < len(s); i++ {
+ 			l = append(l, Nod(OKEY, Nodintconst(int64(i)), Nodintconst(int64(s[0]))))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7180538680..54aa52ad06 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -365,7 +365,7 @@ func isSmallMakeSlice(n *Node) bool {
+ 	}
+ 	t := n.Type
+ 
+-	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Type.Width)
++	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Elem().Width)
+ }
+ 
+ // walk the whole tree of the body of an
+@@ -518,7 +518,7 @@ opswitch:
+ 
+ 	case ODOTPTR:
+ 		usefield(n)
+-		if n.Op == ODOTPTR && n.Left.Type.Type.Width == 0 {
++		if n.Op == ODOTPTR && n.Left.Type.Elem().Width == 0 {
+ 			// No actual copy will be generated, so emit an explicit nil check.
+ 			n.Left = cheapexpr(n.Left, init)
+ 
+@@ -542,7 +542,7 @@ opswitch:
+ 		t := n.Left.Type
+ 
+ 		if Isptr[t.Etype] {
+-			t = t.Type
++			t = t.Elem()
+ 		}
+ 		if Isfixedarray(t) {
+ 			safeexpr(n.Left, init)
+@@ -1155,7 +1155,7 @@ opswitch:
+ 		}
+ 		t := n.Left.Type
+ 		if t != nil && Isptr[t.Etype] {
+-			t = t.Type
++			t = t.Elem()
+ 		}
+ 		if Isfixedarray(t) {
+ 			n.Bounded = bounded(r, t.Bound)
+@@ -1268,10 +1268,10 @@ opswitch:
+ 
+ 	case ONEW:
+ 		if n.Esc == EscNone {
+-			if n.Type.Type.Width >= 1<<16 {
++			if n.Type.Elem().Width >= 1<<16 {
+ 				Fatalf("large ONEW with EscNone: %v", n)
+ 			}
+-			r := temp(n.Type.Type)
++			r := temp(n.Type.Elem())
+ 			r = Nod(OAS, r, nil) // zero temp
+ 			r = typecheck(r, Etop)
+ 			init.Append(r)
+@@ -1279,7 +1279,7 @@ opswitch:
+ 			r = typecheck(r, Erv)
+ 			n = r
+ 		} else {
+-			n = callnew(n.Type.Type)
++			n = callnew(n.Type.Elem())
+ 		}
+ 
+ 		// If one argument to the comparison is an empty string,
+@@ -1410,7 +1410,7 @@ opswitch:
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+-			t = aindex(r, t.Type) // [r]T
++			t = aindex(r, t.Elem()) // [r]T
+ 			var_ := temp(t)
+ 			a := Nod(OAS, var_, nil) // zero temp
+ 			a = typecheck(a, Etop)
+@@ -1424,7 +1424,7 @@ opswitch:
+ 			// makeslice(t *Type, nel int64, max int64) (ary []any)
+ 			fn := syslook("makeslice")
+ 
+-			fn = substArgTypes(fn, t.Type) // any-1
++			fn = substArgTypes(fn, t.Elem()) // any-1
+ 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
+ 		}
+ 
+@@ -1538,7 +1538,7 @@ opswitch:
+ 
+ 	case OSEND:
+ 		n1 := n.Right
+-		n1 = assignconv(n1, n.Left.Type.Type, "chan send")
++		n1 = assignconv(n1, n.Left.Type.Elem(), "chan send")
+ 		n1 = walkexpr(n1, init)
+ 		n1 = Nod(OADDR, n1, nil)
+ 		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, typename(n.Left.Type), n.Left, n1)
+@@ -1715,7 +1715,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ 		esc = ddd.Esc
+ 	}
+ 
+-	tslice := typSlice(l.Type.Type)
++	tslice := typSlice(l.Type.Elem())
+ 
+ 	var n *Node
+ 	if len(lr0) == 0 {
+@@ -2633,9 +2633,9 @@ func chanfn(name string, n int, t *Type) *Node {
+ 	default:
+ 		Fatalf("chanfn %d", n)
+ 	case 1:
+-		fn = substArgTypes(fn, t.Type)
++		fn = substArgTypes(fn, t.Elem())
+ 	case 2:
+-		fn = substArgTypes(fn, t.Type, t.Type)
++		fn = substArgTypes(fn, t.Elem(), t.Elem())
+ 	}
+ 	return fn
+ }
+@@ -2772,7 +2772,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 
+ 	// instantiate growslice(Type*, []any, int) []any
+ 	fn := syslook("growslice")
+-	fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
++	fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
+ 
+ 	// s = growslice(T, s, n)
+ 	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
+@@ -2783,7 +2783,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	nt.Etype = 1
+ 	l = append(l, Nod(OAS, s, nt))
+ 
+-	if haspointers(l1.Type.Type) {
++	if haspointers(l1.Type.Elem()) {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
+ 
+@@ -2793,7 +2793,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		fn = substArgTypes(fn, l1.Type, l2.Type)
+ 		var ln Nodes
+ 		ln.Set(l)
+-		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Type), nptr1, nptr2)
++		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Elem()), nptr1, nptr2)
+ 		l = append(ln.Slice(), nt)
+ 	} else if instrumenting {
+ 		// rely on runtime to instrument copy.
+@@ -2811,7 +2811,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		fn = substArgTypes(fn, l1.Type, l2.Type)
+ 		var ln Nodes
+ 		ln.Set(l)
+-		nt := mkcall1(fn, Types[TINT], &ln, nptr1, nptr2, Nodintconst(s.Type.Type.Width))
++		nt := mkcall1(fn, Types[TINT], &ln, nptr1, nptr2, Nodintconst(s.Type.Elem().Width))
+ 		l = append(ln.Slice(), nt)
+ 	} else {
+ 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+@@ -2823,13 +2823,13 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		nptr2 := Nod(OSPTR, l2, nil)
+ 
+ 		fn := syslook("memmove")
+-		fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
++		fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
+ 
+ 		var ln Nodes
+ 		ln.Set(l)
+ 		nwid := cheapexpr(conv(Nod(OLEN, l2, nil), Types[TUINTPTR]), &ln)
+ 
+-		nwid = Nod(OMUL, nwid, Nodintconst(s.Type.Type.Width))
++		nwid = Nod(OMUL, nwid, Nodintconst(s.Type.Elem().Width))
+ 		nt := mkcall1(fn, nil, &ln, nptr1, nptr2, nwid)
+ 		l = append(ln.Slice(), nt)
+ 	}
+@@ -2883,7 +2883,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 
+ 	// Resolve slice type of multi-valued return.
+ 	if Istype(nsrc.Type, TSTRUCT) {
+-		nsrc.Type = nsrc.Type.Type.Type
++		nsrc.Type = nsrc.Type.Elem().Elem()
+ 	}
+ 	argc := n.List.Len() - 1
+ 	if argc < 1 {
+@@ -2906,7 +2906,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
+ 
+ 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
+-	fn = substArgTypes(fn, ns.Type.Type, ns.Type.Type)
++	fn = substArgTypes(fn, ns.Type.Elem(), ns.Type.Elem())
+ 
+ 	nx.Nbody.Set1(Nod(OAS, ns,
+ 		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
+@@ -2949,9 +2949,9 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ // Also works if b is a string.
+ //
+ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+-	if haspointers(n.Left.Type.Type) {
++	if haspointers(n.Left.Type.Elem()) {
+ 		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
+-		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Type), n.Left, n.Right)
++		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), n.Left, n.Right)
+ 	}
+ 
+ 	if runtimecall {
+@@ -2962,7 +2962,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 			fn = syslook("slicecopy")
+ 		}
+ 		fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
+-		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Type.Width))
++		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Elem().Width))
+ 	}
+ 
+ 	n.Left = walkexpr(n.Left, init)
+@@ -2991,10 +2991,10 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 	// Call memmove.
+ 	fn := syslook("memmove")
+ 
+-	fn = substArgTypes(fn, nl.Type.Type, nl.Type.Type)
++	fn = substArgTypes(fn, nl.Type.Elem(), nl.Type.Elem())
+ 	nwid := temp(Types[TUINTPTR])
+ 	l = append(l, Nod(OAS, nwid, conv(nlen, Types[TUINTPTR])))
+-	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
++	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Elem().Width))
+ 	l = append(l, mkcall1(fn, nil, init, nto, nfrm, nwid))
+ 
+ 	typecheckslice(l, Etop)
+@@ -3136,7 +3136,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	var expr *Node
+-	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Type.Etype] {
++	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Elem().Etype] {
+ 		// Four or fewer elements of a basic type.
+ 		// Unroll comparisons.
+ 		var li *Node
+@@ -3773,7 +3773,7 @@ func usefield(n *Node) {
+ 
+ 	t := n.Left.Type
+ 	if Isptr[t.Etype] {
+-		t = t.Type
++		t = t.Elem()
+ 	}
+ 	field := dotField[typeSym{t.Orig, n.Sym}]
+ 	if field == nil {
+@@ -3785,7 +3785,7 @@ func usefield(n *Node) {
+ 
+ 	outer := n.Left.Type
+ 	if Isptr[outer.Etype] {
+-		outer = outer.Type
++		outer = outer.Elem()
+ 	}
+ 	if outer.Sym == nil {
+ 		Yyerror("tracked field must be in named struct type")

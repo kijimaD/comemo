@@ -9,9 +9,76 @@ Date:   Fri Jul 3 09:45:15 2009 -0700
     DELTA=7  (0 added, 1 deleted, 6 changed)
     OCL=31123
     CL=31145
-
+---
  test/cmp3.go    | 2 +-
  test/cmp5.go    | 2 +-
  test/convert.go | 5 ++---
  test/golden.out | 4 ++--
  4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/test/cmp3.go b/test/cmp3.go
+index 06a67bdf05..1f53c07a14 100644
+--- a/test/cmp3.go
++++ b/test/cmp3.go
+@@ -10,7 +10,7 @@ func use(bool) { }
+ 
+ func main()
+ {
+-	var b map[string]int;
++	var b []int;
+ 	var ib interface{} = b;
+ 	use(ib == ib);
+ }
+diff --git a/test/cmp5.go b/test/cmp5.go
+index 7500974223..2a55f7b8f4 100644
+--- a/test/cmp5.go
++++ b/test/cmp5.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main()
+ {
+-	var b map[string]int;
++	var b []int;
+ 	var ib interface{} = b;
+ 	var m = make(map[interface{}] int);
+ 	m[ib] = 1;
+diff --git a/test/convert.go b/test/convert.go
+index 1b933f93bf..3790bf17ed 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -6,11 +6,10 @@
+ 
+ package main
+ 
+-import "unsafe"
++import "reflect"
+ 
+ func typeof(x interface{}) string {
+-	val, typ, indir := unsafe.Reflect(x);
+-	return typ;
++	return reflect.Typeof(x).String();
+ }
+ 
+ func f() int {
+diff --git a/test/golden.out b/test/golden.out
+index 3f15f48395..bcbebb6fe1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -6,7 +6,7 @@ throw: interface compare
+ panic PC=xxx
+ 
+ =========== ./cmp3.go
+-comparing uncomparable type map[string] int
++comparing uncomparable type []int
+ throw: interface compare
+ 
+ panic PC=xxx
+@@ -18,7 +18,7 @@ throw: interface hash
+ panic PC=xxx
+ 
+ =========== ./cmp5.go
+-hash of unhashable type map[string] int
++hash of unhashable type []int
+ throw: interface hash
+ 
+ panic PC=xxx

@@ -17,7 +17,7 @@ Date:   Mon May 15 16:34:36 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_aix_test.go        |  1 -
  src/runtime/export_darwin_test.go     |  8 --------
  src/runtime/export_openbsd_test.go    | 15 ---------------
@@ -53,3 +53,674 @@ Date:   Mon May 15 16:34:36 2023 -0700
  src/runtime/sys_openbsd_arm64.s       |  6 ++++++
  src/runtime/sys_openbsd_mips64.s      | 12 ++++++++++++
  34 files changed, 209 insertions(+), 86 deletions(-)
+
+diff --git a/src/runtime/export_aix_test.go b/src/runtime/export_aix_test.go
+index 51df951738..48455333c1 100644
+--- a/src/runtime/export_aix_test.go
++++ b/src/runtime/export_aix_test.go
+@@ -4,5 +4,4 @@
+ 
+ package runtime
+ 
+-var Fcntl = syscall_fcntl1
+ var SetNonblock = setNonblock
+diff --git a/src/runtime/export_darwin_test.go b/src/runtime/export_darwin_test.go
+index 66e2c02c4f..48455333c1 100644
+--- a/src/runtime/export_darwin_test.go
++++ b/src/runtime/export_darwin_test.go
+@@ -4,12 +4,4 @@
+ 
+ package runtime
+ 
+-func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
+-	r := fcntl(int32(fd), int32(cmd), int32(arg))
+-	if r < 0 {
+-		return ^uintptr(0), uintptr(-r)
+-	}
+-	return uintptr(r), 0
+-}
+-
+ var SetNonblock = setNonblock
+diff --git a/src/runtime/export_openbsd_test.go b/src/runtime/export_openbsd_test.go
+deleted file mode 100644
+index ef680dc282..0000000000
+--- a/src/runtime/export_openbsd_test.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build openbsd && !mips64
+-
+-package runtime
+-
+-func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
+-	r := fcntl(int32(fd), int32(cmd), int32(arg))
+-	if r < 0 {
+-		return ^uintptr(0), uintptr(-r)
+-	}
+-	return uintptr(r), 0
+-}
+diff --git a/src/runtime/export_solaris_test.go b/src/runtime/export_solaris_test.go
+deleted file mode 100644
+index e865c77691..0000000000
+--- a/src/runtime/export_solaris_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
+-	return sysvicall3Err(&libc_fcntl, fd, cmd, arg)
+-}
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 71a55d8941..6967e7645c 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -9,6 +9,7 @@ package runtime
+ import "unsafe"
+ 
+ var NonblockingPipe = nonblockingPipe
++var Fcntl = fcntl
+ 
+ func sigismember(mask *sigset, i int) bool {
+ 	clear := *mask
+diff --git a/src/runtime/nbpipe_fcntl_libc_test.go b/src/runtime/nbpipe_fcntl_libc_test.go
+deleted file mode 100644
+index 170245defe..0000000000
+--- a/src/runtime/nbpipe_fcntl_libc_test.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || darwin || (openbsd && !mips64) || solaris
+-
+-package runtime_test
+-
+-import (
+-	"runtime"
+-	"syscall"
+-)
+-
+-// Call fcntl libc function rather than calling syscall.
+-func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
+-	res, errno := runtime.Fcntl(fd, uintptr(cmd), arg)
+-	return res, syscall.Errno(errno)
+-}
+diff --git a/src/runtime/nbpipe_fcntl_unix_test.go b/src/runtime/nbpipe_fcntl_unix_test.go
+deleted file mode 100644
+index b7252ea9fa..0000000000
+--- a/src/runtime/nbpipe_fcntl_unix_test.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+-
+-package runtime_test
+-
+-import (
+-	"internal/syscall/unix"
+-	"syscall"
+-)
+-
+-func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
+-	res, _, err := syscall.Syscall(unix.FcntlSyscall, fd, uintptr(cmd), arg)
+-	return res, err
+-}
+diff --git a/src/runtime/nbpipe_test.go b/src/runtime/nbpipe_test.go
+index 0b0f64d076..bb21003c35 100644
+--- a/src/runtime/nbpipe_test.go
++++ b/src/runtime/nbpipe_test.go
+@@ -14,23 +14,29 @@ import (
+ )
+ 
+ func TestNonblockingPipe(t *testing.T) {
+-	t.Parallel()
+-
+ 	// NonblockingPipe is the test name for nonblockingPipe.
+ 	r, w, errno := runtime.NonblockingPipe()
+ 	if errno != 0 {
+ 		t.Fatal(syscall.Errno(errno))
+ 	}
+-	defer func() {
+-		runtime.Close(r)
+-		runtime.Close(w)
+-	}()
++	defer runtime.Close(w)
+ 
+ 	checkIsPipe(t, r, w)
+ 	checkNonblocking(t, r, "reader")
+ 	checkCloseonexec(t, r, "reader")
+ 	checkNonblocking(t, w, "writer")
+ 	checkCloseonexec(t, w, "writer")
++
++	// Test that fcntl returns an error as expected.
++	if runtime.Close(r) != 0 {
++		t.Fatalf("Close(%d) failed", r)
++	}
++	val := runtime.Fcntl(r, syscall.F_GETFD, 0)
++	if val >= 0 {
++		t.Errorf("Fcntl succeeded unexpectedly")
++	} else if syscall.Errno(-val) != syscall.EBADF {
++		t.Errorf("Fcntl failed with error %v, expected %v", -val, syscall.EBADF)
++	}
+ }
+ 
+ func checkIsPipe(t *testing.T, r, w int32) {
+@@ -49,9 +55,9 @@ func checkIsPipe(t *testing.T, r, w int32) {
+ 
+ func checkNonblocking(t *testing.T, fd int32, name string) {
+ 	t.Helper()
+-	flags, errno := fcntl(uintptr(fd), syscall.F_GETFL, 0)
+-	if errno != 0 {
+-		t.Errorf("fcntl(%s, F_GETFL) failed: %v", name, syscall.Errno(errno))
++	flags := runtime.Fcntl(fd, syscall.F_GETFL, 0)
++	if flags < 0 {
++		t.Errorf("fcntl(%s, F_GETFL) failed: %v", name, syscall.Errno(-flags))
+ 	} else if flags&syscall.O_NONBLOCK == 0 {
+ 		t.Errorf("O_NONBLOCK not set in %s flags %#x", name, flags)
+ 	}
+@@ -59,9 +65,9 @@ func checkNonblocking(t *testing.T, fd int32, name string) {
+ 
+ func checkCloseonexec(t *testing.T, fd int32, name string) {
+ 	t.Helper()
+-	flags, errno := fcntl(uintptr(fd), syscall.F_GETFD, 0)
+-	if errno != 0 {
+-		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(errno))
++	flags := runtime.Fcntl(fd, syscall.F_GETFD, 0)
++	if flags < 0 {
++		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(flags))
+ 	} else if flags&syscall.FD_CLOEXEC == 0 {
+ 		t.Errorf("FD_CLOEXEC not set in %s flags %#x", name, flags)
+ 	}
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 426cee4378..41b2f474ac 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -96,10 +96,6 @@ func errno() int32 {
+ 	return *getg().m.perrno
+ }
+ 
+-func fcntl(fd, cmd, arg int32) int32 {
+-	return int32(sysvicall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg)))
+-}
+-
+ func port_create() int32 {
+ 	return int32(sysvicall0(&libc_port_create))
+ }
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 42fe3790e3..a0427009a1 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -569,6 +569,15 @@ func pipe2(flags int32) (r, w int32, errno int32) {
+ 	return p[0], p[1], int32(e)
+ }
+ 
++//go:nosplit
++func fcntl(fd, cmd, arg int32) int32 {
++	r1, err := sysvicall3Err(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
++	if r := int32(r1); r >= 0 {
++		return r
++	}
++	return -int32(err)
++}
++
+ //go:nosplit
+ func closeonexec(fd int32) {
+ 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index e07c7f1da6..56b77e955a 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -353,7 +353,10 @@ func walltime() (sec int64, nsec int32) {
+ 
+ //go:nosplit
+ func fcntl(fd, cmd, arg int32) int32 {
+-	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
++	r, errno := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
++	if int32(r) < 0 {
++		return -int32(errno)
++	}
+ 	return int32(r)
+ }
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index fa480be029..188dabbf5e 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -63,6 +63,7 @@ func kqueue() int32
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
++func fcntl(fd, cmd, arg int32) int32
+ func closeonexec(fd int32)
+ 
+ // From DragonFly's <sys/sysctl.h>
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index d5f02d9da5..cd010cf3a1 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -48,6 +48,7 @@ func kqueue() int32
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
++func fcntl(fd, cmd, arg int32) int32
+ func closeonexec(fd int32)
+ 
+ // From FreeBSD's <sys/sysctl.h>
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 398ff18991..b0246e5c9f 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -466,6 +466,16 @@ func osyield_no_g() {
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
+ 
++//go:nosplit
++func fcntl(fd, cmd, arg int32) int32 {
++	r, _, errno := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
++	ri := int32(r)
++	if ri < 0 {
++		return -int32(errno)
++	}
++	return ri
++}
++
+ const (
+ 	_si_max_size    = 128
+ 	_sigev_max_size = 64
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index f76c87e02e..940a1b2a36 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -79,6 +79,7 @@ func kqueue() int32
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
++func fcntl(fd, cmd, arg int32) int32
+ func closeonexec(fd int32)
+ 
+ const (
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index ebf478badf..0b61773c9d 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -95,6 +95,7 @@ func nanotime1() int64
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+ 
++func fcntl(fd, cmd, arg int32) int32
+ func closeonexec(fd int32)
+ 
+ func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index f881508b77..6e7cada0f7 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -149,7 +149,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+ //go:cgo_unsafe_args
+ 
+ // sysvicall3Err returns both the system call result and the errno value.
+-// This is used by sysicall3 and write1.
++// This is used by sysvicall3 and write1.
+ func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 1e2a353e6c..0ad67ca424 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -369,6 +369,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVL	0(DI), DI		// arg 1 fd
+ 	XORL	AX, AX			// vararg: say "no float args"
+ 	CALL	libc_fcntl(SB)
++	TESTL	AX, AX
++	JGT	noerr
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ // mstart_stub is the first function executed on a new thread started by pthread_create.
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 4a51fb3a86..4111b3427b 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -314,6 +314,13 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVW	R2, (RSP)	// arg 3 is variadic, pass on stack
+ 	MOVW	0(R0), R0	// arg 1 fd
+ 	BL	libc_fcntl(SB)
++	MOVD	$-1, R1
++	CMP	R0, R1
++	BNE	noerr
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	NEG	R0, R0		// caller expects negative errno value
++noerr:
+ 	ADD	$16, RSP
+ 	RET
+ 
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index cae2039477..7901bb709f 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -385,6 +385,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVL	fd+0(FP), DI	// fd
++	MOVL	cmd+4(FP), SI	// cmd
++	MOVL	arg+8(FP), DX	// arg
++	MOVL	$92, AX		// fcntl
++	SYSCALL
++	JCC	2(PC)
++	NEGL	AX		// caller expects negative errno
++	MOVL	AX, ret+16(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	fd+0(FP), DI	// fd
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 4e0bc9b08c..55c299f36f 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -451,6 +451,15 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$-4
++	MOVL	$SYS_fcntl, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX			// caller expects negative errno
++	MOVL	AX, ret+12(FP)
++	RET
++
+ // int32 runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	MOVL	$SYS_fcntl, AX
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 26242d545a..b57bd2e920 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -548,6 +548,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVL	fd+0(FP), DI	// fd
++	MOVL	cmd+4(FP), SI	// cmd
++	MOVL	arg+8(FP), DX	// arg
++	MOVL	$SYS_fcntl, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX		// caller expects negative errno
++	MOVL	AX, ret+16(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	fd+0(FP), DI	// fd
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index a3fee1426c..2da092ad8e 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -387,6 +387,17 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW fd+0(FP), R0	// fd
++	MOVW cmd+4(FP), R1	// cmd
++	MOVW arg+8(FP), R2	// arg
++	MOVW $SYS_fcntl, R7
++	SWI $0
++	RSB.CS $0, R0		// caller expects negative errno
++	MOVW R0, ret+12(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW fd+0(FP), R0	// fd
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 3b2805311f..0483b36892 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -439,6 +439,19 @@ ok:
+ 	MOVW	R0, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0
++	MOVW	cmd+4(FP), R1
++	MOVW	arg+8(FP), R2
++	MOVD	$SYS_fcntl, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0		// caller expects negative errno
++ok:
++	MOVW	R0, ret+16(FP)
++	RET
++
+ // func closeonexec(fd int32)
+ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	fd+0(FP), R0
+diff --git a/src/runtime/sys_freebsd_riscv64.s b/src/runtime/sys_freebsd_riscv64.s
+index 30deed2573..0d3a0a83fb 100644
+--- a/src/runtime/sys_freebsd_riscv64.s
++++ b/src/runtime/sys_freebsd_riscv64.s
+@@ -420,6 +420,19 @@ ok:
+ 	MOVW	A0, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), A0
++	MOVW	cmd+4(FP), A1
++	MOVW	arg+8(FP), A2
++	MOV	$SYS_fcntl, T0
++	ECALL
++	BEQ	T0, ZERO, ok
++	NEG	A0, A0		// caller expects negative errno
++ok:
++	MOVW	A0, ret+16(FP)
++	RET
++
+ // func closeonexec(fd int32)
+ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	fd+0(FP), A0
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 7be18c61d8..a05e1d4478 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -457,6 +457,15 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$-4
++	MOVL	$SYS_fcntl, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX			// caller expects negative errno
++	MOVL	AX, ret+12(FP)
++	RET
++
+ // int32 runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	MOVL	$SYS_fcntl, AX
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 721ffd614c..79a50be8e6 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -432,6 +432,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int2
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVL	fd+0(FP), DI	// fd
++	MOVL	cmd+4(FP), SI	// cmd
++	MOVL	arg+8(FP), DX	// arg
++	MOVL	$SYS_fcntl, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX		// caller expects negative errno
++	MOVL	AX, ret+16(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	fd+0(FP), DI	// fd
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 62fa852add..f9cbcb6df1 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -398,6 +398,16 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, args int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW fd+0(FP), R0
++	MOVW cmd+4(FP), R1
++	MOVW arg+8(FP), R2
++	SWI $SYS_fcntl
++	RSB.CS $0, R0		// caller expects negative errno
++	MOVW R0, ret+12(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW fd+0(FP), R0	// fd
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index fffd18f8b0..37c0af2880 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -416,6 +416,18 @@ ok:
+ 	MOVW	R0, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0	// fd
++	MOVW	cmd+4(FP), R1	// cmd
++	MOVW	arg+8(FP), R2	// arg
++	SVC	$SYS_fcntl
++	BCC	ok
++	NEG	R0, R0		// caller expects negative errno
++ok:
++	MOVW	R0, ret+16(FP)
++	RET
++
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0		// arg 1 - fd
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 963678a2c3..3e5dbc2b0a 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -542,6 +542,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVL	CX, 8(SP)		// arg 3 - arg
+ 	MOVL	$0, 12(SP)		// vararg
+ 	CALL	libc_fcntl(SB)
++	CMPL	AX, $-1
++	JNE	noerr
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno
++noerr:
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index d3e87c2372..47edde7def 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -309,6 +309,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVL	0(DI), DI		// arg 1 fd
+ 	XORL	AX, AX			// vararg: say "no float args"
+ 	CALL	libc_fcntl(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index e03cfb52f6..3568d4eb94 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -424,6 +424,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVW	R2, 0(R13)
+ 	MOVW	0(R0), R0		// arg 1 fd
+ 	BL	libc_fcntl(SB)
++	CMP	$-1, R0
++	BNE	noerr
++	BL	libc_errno(SB)
++	MOVW	(R0), R0
++	RSB.CS	$0, R0			// caller expects negative errno
++noerr:
+ 	MOVW	R9, R13
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 97005eac14..87a0b5c4de 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -306,6 +306,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	MOVW	0(R0), R0		// arg 1 - fd
+ 	MOVD	$0, R3			// vararg
+ 	CALL	libc_fcntl(SB)
++	CMP	$-1, R0
++	BNE	noerr
++	CALL	libc_errno(SB)
++	MOVW	(R0), R0
++	NEG	R0, R0			// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index affd586742..0ba53cd37d 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -364,6 +364,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVW	R2, ret+48(FP)
+ 	RET
+ 
++// func fcntl(fd, cmd, arg int32) int32
++TEXT runtime·fcntl(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R4	// fd
++	MOVW	cmd+4(FP), R5	// cmd
++	MOVW	arg+8(FP), R6	// arg
++	MOVV	$92, R2		// sys_fcntl
++	SYSCALL
++	BEQ	R7, 2(PC)
++	SUBVU	R2, R0, R2	// caller expects negative errno
++	MOVW	R2, ret+16(FP)
++	RET
++
+ // func closeonexec(fd int32)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R4		// arg 1 - fd

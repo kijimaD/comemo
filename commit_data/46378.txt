@@ -15,7 +15,7 @@ Date:   Wed Dec 23 06:59:16 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/escape.go     | 2 +-
  src/cmd/compile/internal/ir/node_gen.go       | 5 ++---
  src/cmd/compile/internal/ir/stmt.go           | 2 +-
@@ -25,3 +25,146 @@ Date:   Wed Dec 23 06:59:16 2020 -0800
  src/cmd/compile/internal/typecheck/stmt.go    | 6 +++---
  src/cmd/compile/internal/walk/switch.go       | 5 +----
  8 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 338b2e0680..7a52ff3b88 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -373,7 +373,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		for _, cas := range n.Cases { // cases
+ 			cas := cas.(*ir.CaseStmt)
+ 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
+-				cv := cas.Vars[0]
++				cv := cas.Var
+ 				k := e.dcl(cv) // type switch variables have no ODCL.
+ 				if cv.Type().HasPointers() {
+ 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 23205b61fe..7d3488f3fd 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -230,7 +230,6 @@ func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *CaseStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.Vars = c.Vars.Copy()
+ 	c.List = c.List.Copy()
+ 	c.Body = c.Body.Copy()
+ 	return &c
+@@ -238,7 +237,7 @@ func (n *CaseStmt) copy() Node {
+ func (n *CaseStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDoList(n.Vars, err, do)
++	err = maybeDo(n.Var, err, do)
+ 	err = maybeDoList(n.List, err, do)
+ 	err = maybeDo(n.Comm, err, do)
+ 	err = maybeDoList(n.Body, err, do)
+@@ -246,7 +245,7 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
+ }
+ func (n *CaseStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	editList(n.Vars, edit)
++	n.Var = maybeEdit(n.Var, edit)
+ 	editList(n.List, edit)
+ 	n.Comm = maybeEdit(n.Comm, edit)
+ 	editList(n.Body, edit)
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index ad6db436a7..c9988eba5c 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -176,7 +176,7 @@ func (n *BranchStmt) Sym() *types.Sym { return n.Label }
+ // A CaseStmt is a case statement in a switch or select: case List: Body.
+ type CaseStmt struct {
+ 	miniStmt
+-	Vars Nodes // declared variable for this case in type switch
++	Var  Node  // declared variable for this case in type switch
+ 	List Nodes // list of expressions for switch, early select
+ 	Comm Node  // communication case (Exprs[0]) after select is type-checked
+ 	Body Nodes
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 4789740bd1..68a01612dc 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1217,7 +1217,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
+ 		if tswitch != nil && tswitch.Tag != nil {
+ 			nn := typecheck.NewName(tswitch.Tag.Sym())
+ 			typecheck.Declare(nn, typecheck.DeclContext)
+-			n.Vars = []ir.Node{nn}
++			n.Var = nn
+ 			// keep track of the instances for reporting unused
+ 			nn.Defn = tswitch
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 365e4315bc..4cb943daaf 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1196,7 +1196,7 @@ func (w *exportWriter) caseList(cases []ir.Node, namedTypeSwitch bool) {
+ 		w.pos(cas.Pos())
+ 		w.stmtList(cas.List)
+ 		if namedTypeSwitch {
+-			w.localName(cas.Vars[0].(*ir.Name))
++			w.localName(cas.Var.(*ir.Name))
+ 		}
+ 		w.stmtList(cas.Body)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index cc8646977d..221229571c 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -780,7 +780,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []ir.Node {
+ 			// Sym for diagnostics anyway.
+ 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
+ 			Declare(caseVar, DeclContext)
+-			cas.Vars = []ir.Node{caseVar}
++			cas.Var = caseVar
+ 			caseVar.Defn = switchExpr
+ 		}
+ 		cas.Body.Set(r.stmtList())
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index bf3801eea2..133f93e53b 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -694,7 +694,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			ts.add(ncase.Pos(), n1.Type())
+ 		}
+ 
+-		if len(ncase.Vars) != 0 {
++		if ncase.Var != nil {
+ 			// Assign the clause variable's type.
+ 			vt := t
+ 			if len(ls) == 1 {
+@@ -707,7 +707,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				}
+ 			}
+ 
+-			nvar := ncase.Vars[0]
++			nvar := ncase.Var
+ 			nvar.SetType(vt)
+ 			if vt != nil {
+ 				nvar = AssignExpr(nvar)
+@@ -716,7 +716,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				nvar.SetTypecheck(1)
+ 				nvar.SetWalkdef(1)
+ 			}
+-			ncase.Vars[0] = nvar
++			ncase.Var = nvar
+ 		}
+ 
+ 		Stmts(ncase.Body)
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 360086ec79..7829d93373 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -334,10 +334,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 	var body ir.Nodes
+ 	for _, ncase := range sw.Cases {
+ 		ncase := ncase.(*ir.CaseStmt)
+-		var caseVar ir.Node
+-		if len(ncase.Vars) != 0 {
+-			caseVar = ncase.Vars[0]
+-		}
++		caseVar := ncase.Var
+ 
+ 		// For single-type cases with an interface type,
+ 		// we initialize the case variable as part of the type assertion.

@@ -64,10 +64,181 @@ Date:   Sun Apr 7 23:23:28 2019 +0200
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/all_test.go     | 47 ++++++++++++++++++++++++++++++++++++++++++++++
  src/regexp/exec.go         |  4 ++++
  src/regexp/exec_test.go    |  1 +
  src/regexp/onepass_test.go | 10 ----------
  src/regexp/regexp.go       | 38 +++++++++++++++++++++++++++++++++++++
  5 files changed, 90 insertions(+), 10 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 623f82df72..626a69142f 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -860,6 +860,25 @@ func BenchmarkQuoteMetaNone(b *testing.B) {
+ 	}
+ }
+ 
++var compileBenchData = []struct{ name, re string }{
++	{"Onepass", `^a.[l-nA-Cg-j]?e$`},
++	{"Medium", `^((a|b|[d-z0-9])*(日){4,5}.)+$`},
++	{"Hard", strings.Repeat(`((abc)*|`, 50) + strings.Repeat(`)`, 50)},
++}
++
++func BenchmarkCompile(b *testing.B) {
++	for _, data := range compileBenchData {
++		b.Run(data.name, func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				if _, err := Compile(data.re); err != nil {
++					b.Fatal(err)
++				}
++			}
++		})
++	}
++}
++
+ func TestDeepEqual(t *testing.T) {
+ 	re1 := MustCompile("a.*b.*c.*d")
+ 	re2 := MustCompile("a.*b.*c.*d")
+@@ -882,3 +901,31 @@ func TestDeepEqual(t *testing.T) {
+ 		t.Errorf("DeepEqual(re1, re2) = false, want true")
+ 	}
+ }
++
++var minInputLenTests = []struct {
++	Regexp string
++	min    int
++}{
++	{``, 0},
++	{`a`, 1},
++	{`aa`, 2},
++	{`(aa)a`, 3},
++	{`(?:aa)a`, 3},
++	{`a?a`, 1},
++	{`(aaa)|(aa)`, 2},
++	{`(aa)+a`, 3},
++	{`(aa)*a`, 1},
++	{`(aa){3,5}`, 6},
++	{`[a-z]`, 1},
++	{`日`, 3},
++}
++
++func TestMinInputLen(t *testing.T) {
++	for _, tt := range minInputLenTests {
++		re, _ := syntax.Parse(tt.Regexp, syntax.Perl)
++		m := minInputLen(re)
++		if m != tt.min {
++			t.Errorf("regexp %#q has minInputLen %d, should be %d", tt.Regexp, m, tt.min)
++		}
++	}
++}
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index efe764e2dc..4411e4c3e6 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -524,6 +524,10 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
+ 		dstCap = arrayNoInts[:0:0]
+ 	}
+ 
++	if r == nil && len(b)+len(s) < re.minInputLen {
++		return nil
++	}
++
+ 	if re.onepass != nil {
+ 		return re.doOnePass(r, b, s, pos, ncap, dstCap)
+ 	}
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 1489219328..1e8795525d 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -717,6 +717,7 @@ var benchSizes = []struct {
+ 	name string
+ 	n    int
+ }{
++	{"16", 16},
+ 	{"32", 32},
+ 	{"1K", 1 << 10},
+ 	{"32K", 32 << 10},
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index a0f2e39048..32264d5f1e 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -223,13 +223,3 @@ func TestRunOnePass(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func BenchmarkCompileOnepass(b *testing.B) {
+-	b.ReportAllocs()
+-	const re = `^a.[l-nA-Cg-j]?e$`
+-	for i := 0; i < b.N; i++ {
+-		if _, err := Compile(re); err != nil {
+-			b.Fatal(err)
+-		}
+-	}
+-}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 54cbd3777b..19ca6f2223 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -94,6 +94,7 @@ type Regexp struct {
+ 	matchcap       int            // size of recorded match lengths
+ 	prefixComplete bool           // prefix is the entire regexp
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
++	minInputLen    int            // minimum length of the input in bytes
+ 
+ 	// This field can be modified by the Longest method,
+ 	// but it is otherwise read-only.
+@@ -191,6 +192,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 		cond:        prog.StartCond(),
+ 		longest:     longest,
+ 		matchcap:    matchcap,
++		minInputLen: minInputLen(re),
+ 	}
+ 	if regexp.onepass == nil {
+ 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+@@ -264,6 +266,42 @@ func (re *Regexp) put(m *machine) {
+ 	matchPool[re.mpool].Put(m)
+ }
+ 
++// minInputLen walks the regexp to find the minimum length of any matchable input
++func minInputLen(re *syntax.Regexp) int {
++	switch re.Op {
++	default:
++		return 0
++	case syntax.OpAnyChar, syntax.OpAnyCharNotNL, syntax.OpCharClass:
++		return 1
++	case syntax.OpLiteral:
++		l := 0
++		for _, r := range re.Rune {
++			l += utf8.RuneLen(r)
++		}
++		return l
++	case syntax.OpCapture, syntax.OpPlus:
++		return minInputLen(re.Sub[0])
++	case syntax.OpRepeat:
++		return re.Min * minInputLen(re.Sub[0])
++	case syntax.OpConcat:
++		l := 0
++		for _, sub := range re.Sub {
++			l += minInputLen(sub)
++		}
++		return l
++	case syntax.OpAlternate:
++		l := minInputLen(re.Sub[0])
++		var lnext int
++		for _, sub := range re.Sub[1:] {
++			lnext = minInputLen(sub)
++			if lnext < l {
++				l = lnext
++			}
++		}
++		return l
++	}
++}
++
+ // MustCompile is like Compile but panics if the expression cannot be parsed.
+ // It simplifies safe initialization of global variables holding compiled regular
+ // expressions.

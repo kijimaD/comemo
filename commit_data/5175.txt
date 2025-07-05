@@ -13,7 +13,7 @@ Date:   Tue Mar 30 10:34:57 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/850041
-
+---
  doc/progs/run                 |   2 +
  doc/progs/sortmain.go         |  20 +--
  src/cmd/cgo/ast.go            |   2 +-
@@ -75,3 +75,3291 @@ Date:   Tue Mar 30 10:34:57 2010 -0700
  test/varinit.go               |  21 ++-
  test/vectors.go               |  29 ++--
  60 files changed, 946 insertions(+), 830 deletions(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index c0e4b53e0c..07bc141dff 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++set -e
++
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+ . "$GOROOT"/src/Make.$GOARCH
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index df2abc0587..6bd504a5b8 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -14,7 +14,7 @@ func ints() {
+ 	a := sort.IntArray(data)
+ 	sort.Sort(a)
+ 	if !sort.IsSorted(a) {
+-		panic()
++		panic("fail")
+ 	}
+ }
+ 
+@@ -23,7 +23,7 @@ func strings() {
+ 	a := sort.StringArray(data)
+ 	sort.Sort(a)
+ 	if !sort.IsSorted(a) {
+-		panic()
++		panic("fail")
+ 	}
+ }
+ 
+@@ -42,18 +42,18 @@ func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num }
+ func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i] }
+ 
+ func days() {
+-	Sunday :=    day{ 0, "SUN", "Sunday" }
+-	Monday :=    day{ 1, "MON", "Monday" }
+-	Tuesday :=   day{ 2, "TUE", "Tuesday" }
+-	Wednesday := day{ 3, "WED", "Wednesday" }
+-	Thursday :=  day{ 4, "THU", "Thursday" }
+-	Friday :=    day{ 5, "FRI", "Friday" }
+-	Saturday :=  day{ 6, "SAT", "Saturday" }
++	Sunday :=    day{0, "SUN", "Sunday"}
++	Monday :=    day{1, "MON", "Monday"}
++	Tuesday :=   day{2, "TUE", "Tuesday"}
++	Wednesday := day{3, "WED", "Wednesday"}
++	Thursday :=  day{4, "THU", "Thursday"}
++	Friday :=    day{5, "FRI", "Friday"}
++	Saturday :=  day{6, "SAT", "Saturday"}
+ 	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday}
+ 	a := dayArray{data}
+ 	sort.Sort(&a)
+ 	if !sort.IsSorted(&a) {
+-		panic()
++		panic("fail")
+ 	}
+ 	for _, d := range data {
+ 		fmt.Printf("%s ", d.longName)
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 1bde1b77bb..0dfe9217a8 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -157,7 +157,7 @@ func walk(x interface{}, p *Prog, context string) {
+ 	// everything else just recurs
+ 	default:
+ 		error(noPos, "unexpected type %T in walk", x)
+-		panic()
++		panic("unexpected type")
+ 
+ 	case nil:
+ 
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index d6fdba15de..aa108d0db5 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -119,7 +119,7 @@ func init() {
+ 	// sanity check: if nKinds is too large, the SpotInfo
+ 	// accessor functions may need to be updated
+ 	if nKinds > 8 {
+-		panic()
++		panic("nKinds > 8")
+ 	}
+ }
+ 
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 13a2f65ab8..df1cde6e9c 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -55,7 +55,7 @@ func download(pkg string) (string, os.Error) {
+ 			v = &svn
+ 		default:
+ 			// regexp only allows hg, svn to get through
+-			panic("missing case in download: ", pkg)
++			panic("missing case in download: " + pkg)
+ 		}
+ 		if err := vcsCheckout(v, root+m[1], "http://"+m[1], m[1]); err != nil {
+ 			return "", err
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 9b52a363a3..1af9545dc5 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -75,7 +75,7 @@ func NewReader(rd io.Reader) *Reader {
+ 	b, err := NewReaderSize(rd, defaultBufSize)
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is a valid size
+-		panic("bufio: NewReader: ", err.String())
++		panic(err)
+ 	}
+ 	return b
+ }
+@@ -353,7 +353,7 @@ func NewWriter(wr io.Writer) *Writer {
+ 	b, err := NewWriterSize(wr, defaultBufSize)
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is valid size
+-		panic("bufio: NewWriter: ", err.String())
++		panic(err)
+ 	}
+ 	return b
+ }
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index efec1eb8b9..df55ce3ccd 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -188,7 +188,8 @@ func bmIndex(b *testing.B, index func([]byte, byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := index(buf, 'x')
+ 		if j != n-1 {
+-			panic("bad index", j)
++			println("bad index", j)
++			panic("bad index")
+ 		}
+ 	}
+ 	buf[n-1] = '0'
+diff --git a/src/pkg/crypto/block/cmac.go b/src/pkg/crypto/block/cmac.go
+index a2f80fe4b3..6082299ab5 100644
+--- a/src/pkg/crypto/block/cmac.go
++++ b/src/pkg/crypto/block/cmac.go
+@@ -37,7 +37,7 @@ func NewCMAC(c Cipher) hash.Hash {
+ 	case 128 / 8:
+ 		r = r128
+ 	default:
+-		panic("crypto/block: NewCMAC: invalid cipher block size", n)
++		panic("crypto/block: NewCMAC: invalid cipher block size")
+ 	}
+ 
+ 	d := new(cmac)
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index 911c7e4a52..837c4fabdc 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -196,7 +196,7 @@ func toValue(val interface{}) Value {
+ 		return &funcV{val}
+ 	}
+ 	log.Crashf("toValue(%T) not implemented", val)
+-	panic()
++	panic("unreachable")
+ }
+ 
+ /*
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 5547aee319..e630578bdd 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -642,7 +642,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		return ei.compileUnaryExpr(x.Op, v)
+ 	}
+ 	log.Crashf("unexpected ast node type %T", x)
+-	panic()
++	panic("unreachable")
+ 
+ typeexpr:
+ 	if !callCtx {
+@@ -704,7 +704,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
+ 		return nil
+ 	}
+ 	log.Crashf("name %s has unknown type %T", name, def)
+-	panic()
++	panic("unreachable")
+ }
+ 
+ func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
+@@ -1424,7 +1424,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 	}
+ 
+ 	log.Crashf("unexpected built-in function '%s'", ft.builtin)
+-	panic()
++	panic("unreachable")
+ }
+ 
+ func (a *exprInfo) compileStarExpr(v *expr) *expr {
+diff --git a/src/pkg/exp/eval/expr1.go b/src/pkg/exp/eval/expr1.go
+index 28da8eea1b..0e83053f46 100644
+--- a/src/pkg/exp/eval/expr1.go
++++ b/src/pkg/exp/eval/expr1.go
+@@ -12,9 +12,15 @@ import (
+  * "As" functions.  These retrieve evaluator functions from an
+  * expr, panicking if the requested evaluator has the wrong type.
+  */
+-func (a *expr) asBool() func(*Thread) bool   { return a.eval.(func(*Thread) bool) }
+-func (a *expr) asUint() func(*Thread) uint64 { return a.eval.(func(*Thread) uint64) }
+-func (a *expr) asInt() func(*Thread) int64   { return a.eval.(func(*Thread) int64) }
++func (a *expr) asBool() func(*Thread) bool {
++	return a.eval.(func(*Thread) bool)
++}
++func (a *expr) asUint() func(*Thread) uint64 {
++	return a.eval.(func(*Thread) uint64)
++}
++func (a *expr) asInt() func(*Thread) int64 {
++	return a.eval.(func(*Thread) int64)
++}
+ func (a *expr) asIdealInt() func() *bignum.Integer {
+ 	return a.eval.(func() *bignum.Integer)
+ }
+@@ -33,10 +39,18 @@ func (a *expr) asArray() func(*Thread) ArrayValue {
+ func (a *expr) asStruct() func(*Thread) StructValue {
+ 	return a.eval.(func(*Thread) StructValue)
+ }
+-func (a *expr) asPtr() func(*Thread) Value   { return a.eval.(func(*Thread) Value) }
+-func (a *expr) asFunc() func(*Thread) Func   { return a.eval.(func(*Thread) Func) }
+-func (a *expr) asSlice() func(*Thread) Slice { return a.eval.(func(*Thread) Slice) }
+-func (a *expr) asMap() func(*Thread) Map     { return a.eval.(func(*Thread) Map) }
++func (a *expr) asPtr() func(*Thread) Value {
++	return a.eval.(func(*Thread) Value)
++}
++func (a *expr) asFunc() func(*Thread) Func {
++	return a.eval.(func(*Thread) Func)
++}
++func (a *expr) asSlice() func(*Thread) Slice {
++	return a.eval.(func(*Thread) Slice)
++}
++func (a *expr) asMap() func(*Thread) Map {
++	return a.eval.(func(*Thread) Map)
++}
+ func (a *expr) asMulti() func(*Thread) []Value {
+ 	return a.eval.(func(*Thread) []Value)
+ }
+@@ -72,7 +86,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
+ 	default:
+ 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
+ 	}
+-	panic()
++	panic("fail")
+ }
+ 
+ /*
+@@ -210,26 +224,17 @@ func (a *expr) genUnaryOpNeg(v *expr) {
+ 	switch a.t.lit().(type) {
+ 	case *uintType:
+ 		vf := v.asUint()
+-		a.eval = func(t *Thread) uint64 {
+-			v := vf(t)
+-			return -v
+-		}
++		a.eval = func(t *Thread) uint64 { v := vf(t); return -v }
+ 	case *intType:
+ 		vf := v.asInt()
+-		a.eval = func(t *Thread) int64 {
+-			v := vf(t)
+-			return -v
+-		}
++		a.eval = func(t *Thread) int64 { v := vf(t); return -v }
+ 	case *idealIntType:
+ 		v := v.asIdealInt()()
+ 		val := v.Neg()
+ 		a.eval = func() *bignum.Integer { return val }
+ 	case *floatType:
+ 		vf := v.asFloat()
+-		a.eval = func(t *Thread) float64 {
+-			v := vf(t)
+-			return -v
+-		}
++		a.eval = func(t *Thread) float64 { v := vf(t); return -v }
+ 	case *idealFloatType:
+ 		v := v.asIdealFloat()()
+ 		val := v.Neg()
+@@ -243,10 +248,7 @@ func (a *expr) genUnaryOpNot(v *expr) {
+ 	switch a.t.lit().(type) {
+ 	case *boolType:
+ 		vf := v.asBool()
+-		a.eval = func(t *Thread) bool {
+-			v := vf(t)
+-			return !v
+-		}
++		a.eval = func(t *Thread) bool { v := vf(t); return !v }
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
+ 	}
+@@ -256,16 +258,10 @@ func (a *expr) genUnaryOpXor(v *expr) {
+ 	switch a.t.lit().(type) {
+ 	case *uintType:
+ 		vf := v.asUint()
+-		a.eval = func(t *Thread) uint64 {
+-			v := vf(t)
+-			return ^v
+-		}
++		a.eval = func(t *Thread) uint64 { v := vf(t); return ^v }
+ 	case *intType:
+ 		vf := v.asInt()
+-		a.eval = func(t *Thread) int64 {
+-			v := vf(t)
+-			return ^v
+-		}
++		a.eval = func(t *Thread) int64 { v := vf(t); return ^v }
+ 	case *idealIntType:
+ 		v := v.asIdealInt()()
+ 		val := v.Neg().Sub(bignum.Int(1))
+@@ -1905,5 +1901,5 @@ func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
+ 	default:
+ 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
+ 	}
+-	panic()
++	panic("fail")
+ }
+diff --git a/src/pkg/exp/eval/gen.go b/src/pkg/exp/eval/gen.go
+index ea421ff9c4..969d655862 100644
+--- a/src/pkg/exp/eval/gen.go
++++ b/src/pkg/exp/eval/gen.go
+@@ -103,12 +103,12 @@ var binOps = []Op{
+ 	Op{Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers},
+ 	Op{Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers},
+ 	Op{Name: "Quo",
+-		Body:      "if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r",
++		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret =  l / r",
+ 		ConstExpr: "l.Quo(r)",
+ 		Types:     numbers,
+ 	},
+ 	Op{Name: "Rem",
+-		Body:      "if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r",
++		Body:      "if r == 0 { t.Abort(DivByZeroError{}) }; ret = l % r",
+ 		ConstExpr: "l.Rem(r)",
+ 		Types:     integers,
+ 	},
+@@ -186,7 +186,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
+ 	default:
+ 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
+ 	}
+-	panic();
++	panic("fail");
+ }
+ 
+ /*
+@@ -357,7 +357,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
+ 	default:
+ 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
+ 	}
+-	panic();
++	panic("fail");
+ }
+ `
+ 
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 2b2a632cd0..fbb428679e 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -231,7 +231,7 @@ func (t *uintType) Zero() Value {
+ 		res := uint64V(0)
+ 		return &res
+ 	}
+-	panic("unexpected uint bit count: ", t.Bits)
++	panic("unexpected uint bit count")
+ }
+ 
+ func (t *uintType) minVal() *bignum.Rational { return bignum.Rat(0, 1) }
+@@ -304,7 +304,7 @@ func (t *intType) Zero() Value {
+ 		res := intV(0)
+ 		return &res
+ 	}
+-	panic("unexpected int bit count: ", t.Bits)
++	panic("unexpected int bit count")
+ }
+ 
+ func (t *intType) minVal() *bignum.Rational {
+@@ -390,7 +390,7 @@ func (t *floatType) Zero() Value {
+ 		res := floatV(0)
+ 		return &res
+ 	}
+-	panic("unexpected float bit count: ", t.Bits)
++	panic("unexpected float bit count")
+ }
+ 
+ var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1))
+@@ -410,7 +410,7 @@ func (t *floatType) minVal() *bignum.Rational {
+ 		return minFloat64Val
+ 	}
+ 	log.Crashf("unexpected floating point bit count: %d", bits)
+-	panic()
++	panic("unreachable")
+ }
+ 
+ func (t *floatType) maxVal() *bignum.Rational {
+@@ -425,7 +425,7 @@ func (t *floatType) maxVal() *bignum.Rational {
+ 		return maxFloat64Val
+ 	}
+ 	log.Crashf("unexpected floating point bit count: %d", bits)
+-	panic()
++	panic("unreachable")
+ }
+ 
+ /*
+diff --git a/src/pkg/exp/ogle/rvalue.go b/src/pkg/exp/ogle/rvalue.go
+index ba915ed5cb..3d630f9366 100644
+--- a/src/pkg/exp/ogle/rvalue.go
++++ b/src/pkg/exp/ogle/rvalue.go
+@@ -232,7 +232,7 @@ func (v remoteFloat) aGet(a aborter) float64 {
+ 	case 8:
+ 		return v.r.p.ToFloat64(bits)
+ 	}
+-	panic("Unexpected float size ", v.size)
++	panic("Unexpected float size")
+ }
+ 
+ func (v remoteFloat) Set(t *eval.Thread, x float64) {
+@@ -247,7 +247,7 @@ func (v remoteFloat) aSet(a aborter, x float64) {
+ 	case 8:
+ 		bits = v.r.p.FromFloat64(x)
+ 	default:
+-		panic("Unexpected float size ", v.size)
++		panic("Unexpected float size")
+ 	}
+ 	v.r.Set(a, v.size, bits)
+ }
+diff --git a/src/pkg/exp/ogle/vars.go b/src/pkg/exp/ogle/vars.go
+index e6298bc481..eed60acec5 100644
+--- a/src/pkg/exp/ogle/vars.go
++++ b/src/pkg/exp/ogle/vars.go
+@@ -63,7 +63,7 @@ func (v remoteFramePtr) Get(t *eval.Thread) eval.Value {
+ 	}
+ 
+ 	t.Abort(NotOnStack{v.fn, g})
+-	panic()
++	panic("fail")
+ }
+ 
+ func (v remoteFramePtr) Set(t *eval.Thread, x eval.Value) {
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 2137ddaa46..6c9837a01d 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -316,7 +316,7 @@ func Walk(v Visitor, node interface{}) {
+ 
+ 	default:
+ 		fmt.Printf("ast.Walk: unexpected type %T", n)
+-		panic()
++		panic("ast.Walk")
+ 	}
+ 
+ 	v.Visit(nil)
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 2002d3818b..6831a53de2 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1738,8 +1738,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body}
+ 	}
+ 
+-	panic() // unreachable
+-	return nil
++	panic("unreachable")
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 5a12c6edb5..2316a459bb 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -107,7 +107,7 @@ func (p *printer) internalError(msg ...interface{}) {
+ 	if debug {
+ 		fmt.Print(p.pos.String() + ": ")
+ 		fmt.Println(msg)
+-		panic()
++		panic("go/printer")
+ 	}
+ }
+ 
+@@ -791,7 +791,7 @@ func (p *printer) print(args ...interface{}) {
+ 			}
+ 		default:
+ 			fmt.Fprintf(os.Stderr, "print: unsupported argument type %T\n", f)
+-			panic()
++			panic("go/printer type")
+ 		}
+ 		p.pos = next
+ 
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 9dea080f8f..3b14841afd 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -777,7 +777,7 @@ func init() {
+ 	case unsafe.Sizeof(float64(0)):
+ 		op = decFloat64
+ 	default:
+-		panic("gob: unknown size of float", unsafe.Sizeof(float(0)))
++		panic("gob: unknown size of float")
+ 	}
+ 	decOpMap[valueKind(float(0))] = op
+ 
+@@ -791,7 +791,7 @@ func init() {
+ 		op = decInt64
+ 		uop = decUint64
+ 	default:
+-		panic("gob: unknown size of int/uint", unsafe.Sizeof(int(0)))
++		panic("gob: unknown size of int/uint")
+ 	}
+ 	decOpMap[valueKind(int(0))] = op
+ 	decOpMap[valueKind(uint(0))] = uop
+@@ -803,7 +803,7 @@ func init() {
+ 	case unsafe.Sizeof(uint64(0)):
+ 		uop = decUint64
+ 	default:
+-		panic("gob: unknown size of uintptr", unsafe.Sizeof(uintptr(0)))
++		panic("gob: unknown size of uintptr")
+ 	}
+ 	decOpMap[valueKind(uintptr(0))] = uop
+ }
+diff --git a/src/pkg/http/lex.go b/src/pkg/http/lex.go
+index d25c4e4038..93b67e7017 100644
+--- a/src/pkg/http/lex.go
++++ b/src/pkg/http/lex.go
+@@ -10,20 +10,16 @@ func isSeparator(c byte) bool {
+ 	switch c {
+ 	case '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t':
+ 		return true
+-	default:
+-		return false
+ 	}
+-	panic()
++	return false
+ }
+ 
+ func isSpace(c byte) bool {
+ 	switch c {
+ 	case ' ', '\t', '\r', '\n':
+ 		return true
+-	default:
+-		return false
+ 	}
+-	panic()
++	return false
+ }
+ 
+ func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 5619b9ec58..28e85be2a3 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"sync"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Network file descriptor.
+@@ -176,12 +177,7 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
+ }
+ 
+ func (s *pollServer) Now() int64 {
+-	sec, nsec, err := os.Time()
+-	if err != nil {
+-		panic("net: os.Time: ", err.String())
+-	}
+-	nsec += sec * 1e9
+-	return nsec
++	return time.Nanoseconds()
+ }
+ 
+ func (s *pollServer) CheckDeadlines() {
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 727b99f7af..daf71c0066 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -25,7 +25,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 	var la, ra syscall.Sockaddr
+ 	switch mode {
+ 	default:
+-		panic("unixSocket", mode)
++		panic("unixSocket mode " + mode)
+ 
+ 	case "dial":
+ 		if laddr != nil {
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index be786e91a3..f21c564d53 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -571,7 +571,7 @@ func (v *ArrayValue) Elem(i int) Value {
+ 	typ := v.typ.(*ArrayType).Elem()
+ 	n := v.Len()
+ 	if i < 0 || i >= n {
+-		panic("index", i, "in array len", n)
++		panic("array index out of bounds")
+ 	}
+ 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
+ 	return newValue(typ, p, v.canSet)
+@@ -642,7 +642,7 @@ func (v *SliceValue) Get() uintptr {
+ func (v *SliceValue) Slice(beg, end int) *SliceValue {
+ 	cap := v.Cap()
+ 	if beg < 0 || end < beg || end > cap {
+-		panic("slice bounds [", beg, ":", end, "] with capacity ", cap)
++		panic("slice index out of bounds")
+ 	}
+ 	typ := v.typ.(*SliceType)
+ 	s := new(SliceHeader)
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 70497bf82a..3771c40b91 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -101,7 +101,8 @@ var ftoatests = []ftoaTest{
+ 
+ func TestFtoa(t *testing.T) {
+ 	if FloatSize != 32 {
+-		panic("floatsize: ", FloatSize)
++		println("floatsize: ", FloatSize)
++		panic("floatsize")
+ 	}
+ 	for i := 0; i < len(ftoatests); i++ {
+ 		test := &ftoatests[i]
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index e2f70c1a53..54c22ba8df 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -983,7 +983,7 @@ func ParseFile(filename string, fmap FormatterMap) (t *Template, err os.Error) {
+ func MustParse(s string, fmap FormatterMap) *Template {
+ 	t, err := Parse(s, fmap)
+ 	if err != nil {
+-		panic("template parse error: ", err.String())
++		panic("template.MustParse error: " + err.String())
+ 	}
+ 	return t
+ }
+@@ -993,7 +993,7 @@ func MustParse(s string, fmap FormatterMap) *Template {
+ func MustParseFile(filename string, fmap FormatterMap) *Template {
+ 	b, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+-		panic("template parse error: ", err.String())
++		panic("template.MustParseFile error: " + err.String())
+ 	}
+ 	return MustParse(string(b), fmap)
+ }
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index d84807e836..7b78874852 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -15,7 +15,7 @@ import (
+ func Seconds() int64 {
+ 	sec, _, err := os.Time()
+ 	if err != nil {
+-		panic("time: os.Time: ", err.String())
++		panic(err)
+ 	}
+ 	return sec
+ }
+@@ -25,7 +25,7 @@ func Seconds() int64 {
+ func Nanoseconds() int64 {
+ 	sec, nsec, err := os.Time()
+ 	if err != nil {
+-		panic("time: os.Time: ", err.String())
++		panic(err)
+ 	}
+ 	return sec*1e9 + nsec
+ }
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 78c42990a0..cc1ff93854 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -62,7 +62,7 @@ func getKeyNumber(s string) (r uint32) {
+ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	rwc, buf, err := c.Hijack()
+ 	if err != nil {
+-		panic("Hijack failed: ", err.String())
++		panic("Hijack failed: " + err.String())
+ 		return
+ 	}
+ 	// The server should abort the WebSocket connection if it finds
+@@ -200,7 +200,7 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 
+ 	rwc, buf, err := c.Hijack()
+ 	if err != nil {
+-		panic("Hijack failed: ", err.String())
++		panic("Hijack failed: " + err.String())
+ 		return
+ 	}
+ 	defer rwc.Close()
+diff --git a/test/235.go b/test/235.go
+index 7507a3ef56..03143a60d8 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -6,34 +6,34 @@
+ 
+ package main
+ 
+-type T chan uint64;
++type T chan uint64
+ 
+ func M(f uint64) (in, out T) {
+-	in = make(T, 100);
+-	out = make(T, 100);
++	in = make(T, 100)
++	out = make(T, 100)
+ 	go func(in, out T, f uint64) {
+ 		for {
+-			out <- f * <-in;
++			out <- f*<-in
+ 		}
+-	}(in, out, f);
+-	return in, out;
++	}(in, out, f)
++	return in, out
+ }
+ 
+ 
+ func min(xs []uint64) uint64 {
+-	m := xs[0];
++	m := xs[0]
+ 	for i := 1; i < len(xs); i++ {
+ 		if xs[i] < m {
+-			m = xs[i];
++			m = xs[i]
+ 		}
+ 	}
+-	return m;
++	return m
+ }
+ 
+ 
+ func main() {
+-	F := []uint64{2, 3, 5};
+-	var n = len(F);
++	F := []uint64{2, 3, 5}
++	var n = len(F)
+ 	OUT := []uint64{
+ 		2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36,
+ 		40, 45, 48, 50, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125,
+@@ -41,27 +41,32 @@ func main() {
+ 		256, 270, 288, 300, 320, 324, 360, 375, 384, 400, 405, 432, 450, 480,
+ 		486, 500, 512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768,
+ 		800, 810, 864, 900, 960, 972, 1000, 1024, 1080, 1125, 1152, 1200, 1215,
+-		1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600 };
++		1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600}
+ 
+-	x := uint64(1);
+-	ins := make([]T, n);
+-	outs := make([]T, n);
+-	xs := make([]uint64, n);
++	x := uint64(1)
++	ins := make([]T, n)
++	outs := make([]T, n)
++	xs := make([]uint64, n)
+ 	for i := 0; i < n; i++ {
+-		ins[i], outs[i] = M(F[i]);
+-		xs[i] = x;
++		ins[i], outs[i] = M(F[i])
++		xs[i] = x
+ 	}
+ 
+ 	for i := 0; i < len(OUT); i++ {
+ 		for i := 0; i < n; i++ {
+-			ins[i] <- x;
++			ins[i] <- x
+ 		}
+ 
+ 		for i := 0; i < n; i++ {
+-			if xs[i] == x { xs[i] = <- outs[i]; }
++			if xs[i] == x {
++				xs[i] = <-outs[i]
++			}
+ 		}
+ 
+-		x = min(xs);
+-		if x != OUT[i] { panic("bad: ", x, " should be ", OUT[i]); }
++		x = min(xs)
++		if x != OUT[i] {
++			println("bad: ", x, " should be ", OUT[i])
++			panic("235")
++		}
+ 	}
+ }
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+index 53dafeb1aa..592d2f54a4 100644
+--- a/test/chan/doubleselect.go
++++ b/test/chan/doubleselect.go
+@@ -56,7 +56,8 @@ func recver(in <-chan int) {
+ 			break
+ 		}
+ 		if _, ok := seen[v]; ok {
+-			panic("got duplicate value: ", v)
++			println("got duplicate value: ", v)
++			panic("fail")
+ 		}
+ 		seen[v] = true
+ 	}
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 5fd7f0d45d..2bc5b6cb2b 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -13,132 +13,198 @@ import "runtime"
+ import "time"
+ 
+ func i32receiver(c chan int32, strobe chan bool) {
+-	if <-c != 123 { panic("i32 value") }
++	if <-c != 123 {
++		panic("i32 value")
++	}
+ 	strobe <- true
+ }
+ 
+ func i32sender(c chan int32, strobe chan bool) {
+-	c <- 234;
++	c <- 234
+ 	strobe <- true
+ }
+ 
+ func i64receiver(c chan int64, strobe chan bool) {
+-	if <-c != 123456 { panic("i64 value") }
++	if <-c != 123456 {
++		panic("i64 value")
++	}
+ 	strobe <- true
+ }
+ 
+ func i64sender(c chan int64, strobe chan bool) {
+-	c <- 234567;
++	c <- 234567
+ 	strobe <- true
+ }
+ 
+ func breceiver(c chan bool, strobe chan bool) {
+-	if ! <-c { panic("b value") }
++	if !<-c {
++		panic("b value")
++	}
+ 	strobe <- true
+ }
+ 
+ func bsender(c chan bool, strobe chan bool) {
+-	c <- true;
++	c <- true
+ 	strobe <- true
+ }
+ 
+ func sreceiver(c chan string, strobe chan bool) {
+-	if <-c != "hello" { panic("s value") }
++	if <-c != "hello" {
++		panic("s value")
++	}
+ 	strobe <- true
+ }
+ 
+ func ssender(c chan string, strobe chan bool) {
+-	c <- "hello again";
++	c <- "hello again"
+ 	strobe <- true
+ }
+ 
+-var ticker = time.Tick(10*1000);	// 10 us
++var ticker = time.Tick(10 * 1000) // 10 us
+ func sleep() {
+-	<-ticker;
+-	<-ticker;
+-	runtime.Gosched();
+-	runtime.Gosched();
+-	runtime.Gosched();
++	<-ticker
++	<-ticker
++	runtime.Gosched()
++	runtime.Gosched()
++	runtime.Gosched()
+ }
+ 
+ func main() {
+-	var i32 int32;
+-	var i64 int64;
+-	var b bool;
+-	var s string;
+-	var ok bool;
++	var i32 int32
++	var i64 int64
++	var b bool
++	var s string
++	var ok bool
+ 
+-	var sync = make(chan bool);
++	var sync = make(chan bool)
+ 
+ 	for buffer := 0; buffer < 2; buffer++ {
+-		c32 := make(chan int32, buffer);
+-		c64 := make(chan int64, buffer);
+-		cb := make(chan bool, buffer);
+-		cs := make(chan string, buffer);
+-
+-		i32, ok = <-c32;
+-		if ok { panic("blocked i32sender") }
+-
+-		i64, ok = <-c64;
+-		if ok { panic("blocked i64sender") }
+-
+-		b, ok = <-cb;
+-		if ok { panic("blocked bsender") }
+-
+-		s, ok = <-cs;
+-		if ok { panic("blocked ssender") }
+-
+-		go i32receiver(c32, sync);
+-		sleep();
+-		ok = c32 <- 123;
+-		if !ok { panic("i32receiver buffer=", buffer) }
+-		<-sync;
+-
+-		go i32sender(c32, sync);
+-		if buffer > 0 { <-sync } else { sleep() }
+-		i32, ok = <-c32;
+-		if !ok { panic("i32sender buffer=", buffer) }
+-		if i32 != 234 { panic("i32sender value") }
+-		if buffer == 0 { <-sync }
+-
+-		go i64receiver(c64, sync);
+-		sleep();
+-		ok = c64 <- 123456;
+-		if !ok { panic("i64receiver") }
+-		<-sync;
+-
+-		go i64sender(c64, sync);
+-		if buffer > 0 { <-sync } else { sleep() }
+-		i64, ok = <-c64;
+-		if !ok { panic("i64sender") }
+-		if i64 != 234567 { panic("i64sender value") }
+-		if buffer == 0 { <-sync }
+-
+-		go breceiver(cb, sync);
+-		sleep();
+-		ok = cb <- true;
+-		if !ok { panic("breceiver") }
+-		<-sync;
+-
+-		go bsender(cb, sync);
+-		if buffer > 0 { <-sync } else { sleep() }
+-		b, ok = <-cb;
+-		if !ok { panic("bsender") }
+-		if !b{ panic("bsender value") }
+-		if buffer == 0 { <-sync }
+-
+-		go sreceiver(cs, sync);
+-		sleep();
+-		ok = cs <- "hello";
+-		if !ok { panic("sreceiver") }
+-		<-sync;
+-
+-		go ssender(cs, sync);
+-		if buffer > 0 { <-sync } else { sleep() }
+-		s, ok = <-cs;
+-		if !ok { panic("ssender") }
+-		if s != "hello again" { panic("ssender value") }
+-		if buffer == 0 { <-sync }
++		c32 := make(chan int32, buffer)
++		c64 := make(chan int64, buffer)
++		cb := make(chan bool, buffer)
++		cs := make(chan string, buffer)
++
++		i32, ok = <-c32
++		if ok {
++			panic("blocked i32sender")
++		}
++
++		i64, ok = <-c64
++		if ok {
++			panic("blocked i64sender")
++		}
++
++		b, ok = <-cb
++		if ok {
++			panic("blocked bsender")
++		}
++
++		s, ok = <-cs
++		if ok {
++			panic("blocked ssender")
++		}
++
++		go i32receiver(c32, sync)
++		sleep()
++		ok = c32 <- 123
++		if !ok {
++			println("i32receiver buffer=", buffer)
++			panic("fail")
++		}
++		<-sync
++
++		go i32sender(c32, sync)
++		if buffer > 0 {
++			<-sync
++		} else {
++			sleep()
++		}
++		i32, ok = <-c32
++		if !ok {
++			println("i32sender buffer=", buffer)
++			panic("fail")
++		}
++		if i32 != 234 {
++			panic("i32sender value")
++		}
++		if buffer == 0 {
++			<-sync
++		}
++
++		go i64receiver(c64, sync)
++		sleep()
++		ok = c64 <- 123456
++		if !ok {
++			panic("i64receiver")
++		}
++		<-sync
++
++		go i64sender(c64, sync)
++		if buffer > 0 {
++			<-sync
++		} else {
++			sleep()
++		}
++		i64, ok = <-c64
++		if !ok {
++			panic("i64sender")
++		}
++		if i64 != 234567 {
++			panic("i64sender value")
++		}
++		if buffer == 0 {
++			<-sync
++		}
++
++		go breceiver(cb, sync)
++		sleep()
++		ok = cb <- true
++		if !ok {
++			panic("breceiver")
++		}
++		<-sync
++
++		go bsender(cb, sync)
++		if buffer > 0 {
++			<-sync
++		} else {
++			sleep()
++		}
++		b, ok = <-cb
++		if !ok {
++			panic("bsender")
++		}
++		if !b {
++			panic("bsender value")
++		}
++		if buffer == 0 {
++			<-sync
++		}
++
++		go sreceiver(cs, sync)
++		sleep()
++		ok = cs <- "hello"
++		if !ok {
++			panic("sreceiver")
++		}
++		<-sync
++
++		go ssender(cs, sync)
++		if buffer > 0 {
++			<-sync
++		} else {
++			sleep()
++		}
++		s, ok = <-cs
++		if !ok {
++			panic("ssender")
++		}
++		if s != "hello again" {
++			panic("ssender value")
++		}
++		if buffer == 0 {
++			<-sync
++		}
+ 	}
+ 	print("PASS\n")
+ }
+diff --git a/test/chan/sieve1.go b/test/chan/sieve1.go
+index d2e7f87869..55076c9253 100644
+--- a/test/chan/sieve1.go
++++ b/test/chan/sieve1.go
+@@ -13,39 +13,42 @@ package main
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch chan<- int) {
+ 	for i := 2; ; i++ {
+-		ch <- i  // Send 'i' to channel 'ch'.
++		ch <- i // Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+ func Filter(in <-chan int, out chan<- int, prime int) {
+-	for i := range in {  // Loop over values received from 'in'.
+-		if i % prime != 0 {
+-			out <- i  // Send 'i' to channel 'out'.
++	for i := range in { // Loop over values received from 'in'.
++		if i%prime != 0 {
++			out <- i // Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+ func Sieve(primes chan<- int) {
+-	ch := make(chan int);  // Create a new channel.
+-	go Generate(ch);  // Start Generate() as a subprocess.
++	ch := make(chan int) // Create a new channel.
++	go Generate(ch)      // Start Generate() as a subprocess.
+ 	for {
+ 		// Note that ch is different on each iteration.
+-		prime := <-ch;
+-		primes <- prime;
+-		ch1 := make(chan int);
+-		go Filter(ch, ch1, prime);
++		prime := <-ch
++		primes <- prime
++		ch1 := make(chan int)
++		go Filter(ch, ch1, prime)
+ 		ch = ch1
+ 	}
+ }
+ 
+ func main() {
+-	primes := make(chan int);
+-	go Sieve(primes);
+-	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
++	primes := make(chan int)
++	go Sieve(primes)
++	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97}
+ 	for i := 0; i < len(a); i++ {
+-		if x := <-primes; x != a[i] { panic(x, " != ", a[i]) }
++		if x := <-primes; x != a[i] {
++			println(x, " != ", a[i])
++			panic("fail")
++		}
+ 	}
+ }
+diff --git a/test/chan/sieve2.go b/test/chan/sieve2.go
+index e612ff3c37..7f2ed91579 100644
+--- a/test/chan/sieve2.go
++++ b/test/chan/sieve2.go
+@@ -165,7 +165,8 @@ func main() {
+ 	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97}
+ 	for i := 0; i < len(a); i++ {
+ 		if x := <-primes; x != a[i] {
+-			panic(x, " != ", a[i])
++			println(x, " != ", a[i])
++			panic("fail")
+ 		}
+ 	}
+ }
+diff --git a/test/cmp1.go b/test/cmp1.go
+index 12e65bec53..db0a486dd3 100644
+--- a/test/cmp1.go
++++ b/test/cmp1.go
+@@ -70,6 +70,7 @@ func main() {
+ 	m[ic] = 1
+ 	m[id] = 2
+ 	if m[ic] != 2 {
+-		panic("m[ic] = ", m[ic])
++		println("m[ic] = ", m[ic])
++		panic("bad m[ic]")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug082.go b/test/fixedbugs/bug082.go
+index 12a2da0617..8353ec200e 100644
+--- a/test/fixedbugs/bug082.go
++++ b/test/fixedbugs/bug082.go
+@@ -4,15 +4,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main	
+- 	
++package main
++
+ func main() {
+-	x := 0;
+-	x = ^x;  // unary ^ not yet implemented
+-	if x != ^0 { panic(x, " ", ^0) }
++	x := 0
++	x = ^x // unary ^ not yet implemented
++	if x != ^0 {
++		println(x, " ", ^0)
++		panic("fail")
++	}
+ }
+ 
+ /*
+-uetli:~/Source/go/test/bugs gri$ 6g bug082.go 
++uetli:~/Source/go/test/bugs gri$ 6g bug082.go
+ bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
+ */
+diff --git a/test/fixedbugs/bug084.go b/test/fixedbugs/bug084.go
+index 7556f8dc56..c1054e550c 100644
+--- a/test/fixedbugs/bug084.go
++++ b/test/fixedbugs/bug084.go
+@@ -7,18 +7,21 @@
+ package main
+ 
+ type Service struct {
+-	rpc [2]int;
++	rpc [2]int
+ }
+ 
+ func (s *Service) Serve(a int64) {
+-	if a != 1234 { panic(a, " not 1234\n") }
++	if a != 1234 {
++		print(a, " not 1234\n")
++		panic("fail")
++	}
+ }
+ 
+ var arith Service
+ 
+ func main() {
+-	c := make(chan string);
+-	a := new(Service);
+-	go a.Serve(1234);
+-	_ = c;
++	c := make(chan string)
++	a := new(Service)
++	go a.Serve(1234)
++	_ = c
+ }
+diff --git a/test/fixedbugs/bug097.go b/test/fixedbugs/bug097.go
+index d5e40999ce..ec3c21543d 100644
+--- a/test/fixedbugs/bug097.go
++++ b/test/fixedbugs/bug097.go
+@@ -6,16 +6,22 @@
+ 
+ package main
+ 
+-type A []int;
++type A []int
+ 
+ func main() {
+-	var a [3]A;
++	var a [3]A
+ 	for i := 0; i < 3; i++ {
+-		a[i] = A{i};
++		a[i] = A{i}
++	}
++	if a[0][0] != 0 {
++		panic("fail a[0][0]")
++	}
++	if a[1][0] != 1 {
++		panic("fail a[1][0]")
++	}
++	if a[2][0] != 2 {
++		panic("fail a[2][0]")
+ 	}
+-	if a[0][0] != 0 { panic(); }
+-	if a[1][0] != 1 { panic(); }
+-	if a[2][0] != 2 { panic(); }
+ }
+ 
+ /*
+@@ -41,7 +47,7 @@ pc: 0x4558
+ */
+ 
+ /* An array composite literal needs to be created freshly every time.
+-	 It is a "construction" of an array after all. If I pass the address
+-	 of the array to some function, it may store it globally. Same applies
+-	 to struct literals.
++It is a "construction" of an array after all. If I pass the address
++of the array to some function, it may store it globally. Same applies
++to struct literals.
+ */
+diff --git a/test/fixedbugs/bug110.go b/test/fixedbugs/bug110.go
+index b5e5875919..4e43d1c01b 100644
+--- a/test/fixedbugs/bug110.go
++++ b/test/fixedbugs/bug110.go
+@@ -14,6 +14,7 @@ func f() {
+ 
+ func main() {
+ 	if a != 0 {
+-		panic("a=", a)
++		println("a=", a)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug117.go b/test/fixedbugs/bug117.go
+index 2cb6d6c31b..ad89ebf52a 100644
+--- a/test/fixedbugs/bug117.go
++++ b/test/fixedbugs/bug117.go
+@@ -5,8 +5,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-type S struct { a int }
++
++type S struct {
++	a int
++}
+ type PS *S
++
+ func (p *S) get() int {
+ 	return p.a
+ }
+@@ -15,11 +19,11 @@ func fn(p PS) int {
+ 	// p has type PS, and PS has no methods.
+ 	// (a compiler might see that p is a pointer
+ 	// and go looking in S without noticing PS.)
+-	return p.get()	// ERROR "undefined"
++	return p.get() // ERROR "undefined"
+ }
+ func main() {
+-	s := S{1};
++	s := S{1}
+ 	if s.get() != 1 {
+-		panic()
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug168.go b/test/fixedbugs/bug168.go
+index 221eb55585..e25eb56b0b 100644
+--- a/test/fixedbugs/bug168.go
++++ b/test/fixedbugs/bug168.go
+@@ -6,13 +6,14 @@
+ 
+ package main
+ 
+-var g byte = 123;
+-var f *byte = &g;
+-var b = make([]byte, 5);
++var g byte = 123
++var f *byte = &g
++var b = make([]byte, 5)
+ 
+ func main() {
+-	b[0:1][0] = *f;
++	b[0:1][0] = *f
+ 	if b[0] != 123 {
+-		panic("want 123 got ", b[0]);
+-	}	
++		println("want 123 got", b[0])
++		panic("fail")
++	}
+ }
+diff --git a/test/fixedbugs/bug194.go b/test/fixedbugs/bug194.go
+index 42d06311cd..dcd633ddef 100644
+--- a/test/fixedbugs/bug194.go
++++ b/test/fixedbugs/bug194.go
+@@ -8,25 +8,28 @@ package main
+ 
+ var v1 = T1(1)
+ var v2 = T2{2}
+-var v3 = T3{0:3, 1:4}
+-var v4 = T4{0:5, 1:6}
+-var v5 = T5{0:7, 1:8}
+-var v6 = T2{f:9}
+-var v7 = T4{f:10}
+-var v8 = T5{f:11}
++var v3 = T3{0: 3, 1: 4}
++var v4 = T4{0: 5, 1: 6}
++var v5 = T5{0: 7, 1: 8}
++var v6 = T2{f: 9}
++var v7 = T4{f: 10}
++var v8 = T5{f: 11}
+ var pf func(T1)
+ 
+ func main() {
+ 	if v1 != 1 || v2.f != 2 || v3[0] != 3 || v3[1] != 4 ||
+-	   v4[0] != 5 || v4[1] != 6 || v5[0] != 7 || v5[1] != 8 ||
+-	   v6.f != 9 || v7[0] != 10 || v8[0] != 11 {
+-		panic()
++		v4[0] != 5 || v4[1] != 6 || v5[0] != 7 || v5[1] != 8 ||
++		v6.f != 9 || v7[0] != 10 || v8[0] != 11 {
++		panic("fail")
+ 	}
+ }
+ 
+ type T1 int
+-type T2 struct { f int }
++type T2 struct {
++	f int
++}
+ type T3 []int
+ type T4 [2]int
+-type T5 map[int] int
++type T5 map[int]int
++
+ const f = 0
+diff --git a/test/fixedbugs/bug221.go b/test/fixedbugs/bug221.go
+index 39255d6f9c..b64583114f 100644
+--- a/test/fixedbugs/bug221.go
++++ b/test/fixedbugs/bug221.go
+@@ -12,10 +12,11 @@
+ package main
+ 
+ var gen = 'a'
++
+ func f(n int) string {
+-	s := string(gen) + string(n+'A'-1);
+-	gen++;
+-	return s;
++	s := string(gen) + string(n+'A'-1)
++	gen++
++	return s
+ }
+ 
+ func g(x, y string) string {
+@@ -23,16 +24,19 @@ func g(x, y string) string {
+ }
+ 
+ func main() {
+-	s := f(1) + f(2);
++	s := f(1) + f(2)
+ 	if s != "aAbB" {
+-		panic("BUG: bug221a: ", s);
++		println("BUG: bug221a: ", s)
++		panic("fail")
+ 	}
+-	s = g(f(3), f(4));
++	s = g(f(3), f(4))
+ 	if s != "cCdD" {
+-		panic("BUG: bug221b: ", s);
++		println("BUG: bug221b: ", s)
++		panic("fail")
+ 	}
+-	s = f(5) + f(6) + f(7) + f(8) + f(9);
++	s = f(5) + f(6) + f(7) + f(8) + f(9)
+ 	if s != "eEfFgGhHiI" {
+-		panic("BUG: bug221c: ", s);
++		println("BUG: bug221c: ", s)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug227.go b/test/fixedbugs/bug227.go
+index be27a68cec..a60866044d 100644
+--- a/test/fixedbugs/bug227.go
++++ b/test/fixedbugs/bug227.go
+@@ -7,11 +7,11 @@
+ package main
+ 
+ var (
+-	nf int
++	nf      int
+ 	x, y, z = f(), f(), f()
+-	m = map[string]string{"a":"A"}
+-	a, aok = m["a"]
+-	b, bok = m["b"]
++	m       = map[string]string{"a": "A"}
++	a, aok  = m["a"]
++	b, bok  = m["b"]
+ )
+ 
+ func look(s string) (string, bool) {
+@@ -26,9 +26,11 @@ func f() int {
+ 
+ func main() {
+ 	if nf != 3 || x != 1 || y != 2 || z != 3 {
+-		panic("nf=", nf, " x=", x, " y=", y)
++		println("nf=", nf, " x=", x, " y=", y)
++		panic("fail")
+ 	}
+ 	if a != "A" || aok != true || b != "" || bok != false {
+-		panic("a=", a, " aok=", aok, " b=", b, " bok=", bok)
++		println("a=", a, " aok=", aok, " b=", b, " bok=", bok)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug234.go b/test/fixedbugs/bug234.go
+index 882bc74017..b806ca64e9 100644
+--- a/test/fixedbugs/bug234.go
++++ b/test/fixedbugs/bug234.go
+@@ -11,10 +11,12 @@ func main() {
+ 	c <- 100
+ 	x, ok := <-c
+ 	if x != 100 || !ok {
+-		panic("x=", x, " ok=", ok, " want 100, true")
++		println("x=", x, " ok=", ok, " want 100, true")
++		panic("fail")
+ 	}
+ 	x, ok = <-c
+ 	if x != 0 || ok {
+-		panic("x=", x, " ok=", ok, " want 0, false")
++		println("x=", x, " ok=", ok, " want 0, false")
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug244.go b/test/fixedbugs/bug244.go
+index 26db78777f..915c3fcd09 100644
+--- a/test/fixedbugs/bug244.go
++++ b/test/fixedbugs/bug244.go
+@@ -25,6 +25,7 @@ var v, ok = m[g()]
+ 
+ func main() {
+ 	if x != 1 || y != 2 || z != 3 || nf != 1 || v != 0 || ok != false || ng != 1 {
+-		panic("x=", x, " y=", y, " z=", z, " nf=", nf, " v=", v, " ok=", ok, " ng=", ng)
++		println("x=", x, " y=", y, " z=", z, " nf=", nf, " v=", v, " ok=", ok, " ng=", ng)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug253.go b/test/fixedbugs/bug253.go
+index f3599614d8..bb5b770f51 100644
+--- a/test/fixedbugs/bug253.go
++++ b/test/fixedbugs/bug253.go
+@@ -20,9 +20,10 @@ type S4 struct {
+ 	S3
+ 	S1
+ }
++
+ func main() {
+ 	var s4 S4
+-	if s4.i != 0 {	// .i refers to s4.S1.i, unambiguously
+-		panic()
++	if s4.i != 0 { // .i refers to s4.S1.i, unambiguously
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug262.go b/test/fixedbugs/bug262.go
+index 1ace12ee35..66f580bd1c 100644
+--- a/test/fixedbugs/bug262.go
++++ b/test/fixedbugs/bug262.go
+@@ -40,13 +40,15 @@ func main() {
+ 	m := make(map[string]int)
+ 	m[f()], *g() = strconv.Atoi(h())
+ 	if m["abc"] != 123 || trace != "fgh" {
+-		panic("BUG", m["abc"], trace)
++		println("BUG", m["abc"], trace)
++		panic("fail")
+ 	}
+ 	mm := make(map[string]os.Error)
+ 	trace = ""
+ 	mm["abc"] = os.EINVAL
+ 	*i(), mm[f()] = strconv.Atoi(h())
+ 	if mm["abc"] != nil || trace != "ifh" {
+-		panic("BUG1", mm["abc"], trace)
++		println("BUG1", mm["abc"], trace)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/func5.go b/test/func5.go
+index 033aa0e3ff..e27825c2b2 100644
+--- a/test/func5.go
++++ b/test/func5.go
+@@ -7,13 +7,13 @@
+ package main
+ 
+ func caller(f func(int, int) int, a, b int, c chan int) {
+-	c <- f(a,b)
++	c <- f(a, b)
+ }
+-	
++
+ func gocall(f func(int, int) int, a, b int) int {
+-	c := make(chan int);
+-	go caller(f, a, b, c);
+-	return <-c;
++	c := make(chan int)
++	go caller(f, a, b, c)
++	return <-c
+ }
+ 
+ func call(f func(int, int) int, a, b int) int {
+@@ -30,7 +30,7 @@ func add(x, y int) int {
+ 	return x + y
+ }
+ 
+-func fn() (func(int, int) int) {
++func fn() func(int, int) int {
+ 	return f
+ }
+ 
+@@ -40,50 +40,50 @@ func addc(x, y int, c chan int) {
+ 	c <- x+y
+ }
+ 
+-func fnc() (func(int, int, chan int)) {
++func fnc() func(int, int, chan int) {
+ 	return fc
+ }
+ 
+ func three(x int) {
+ 	if x != 3 {
+-		panic("wrong val", x)
++		println("wrong val", x)
++		panic("fail")
+ 	}
+ }
+ 
+ var notmain func()
+ 
+-func emptyresults() () {}
+-func noresults() {}
++func emptyresults() {}
++func noresults()    {}
+ 
+ var nothing func()
+ 
+ func main() {
+-	three(call(add, 1, 2));
+-	three(call1(add, 1, 2));
+-	f = add;
+-	three(call(f, 1, 2));
+-	three(call1(f, 1, 2));
+-	three(call(fn(), 1, 2));
+-	three(call1(fn(), 1, 2));
+-	three(call(func(a,b int) int {return a+b}, 1, 2));
+-	three(call1(func(a,b int) int {return a+b}, 1, 2));
+-
+-	fc = addc;
+-	c := make(chan int);
+-	go addc(1, 2, c);
+-	three(<-c);
+-	go fc(1, 2, c);
+-	three(<-c);
+-	go fnc()(1, 2, c);
+-	three(<-c);
+-	go func(a, b int, c chan int){c <- a+b}(1, 2, c);
+-	three(<-c);
+-
+-	emptyresults();
+-	noresults();
+-	nothing = emptyresults;
+-	nothing();
+-	nothing = noresults;
+-	nothing();
++	three(call(add, 1, 2))
++	three(call1(add, 1, 2))
++	f = add
++	three(call(f, 1, 2))
++	three(call1(f, 1, 2))
++	three(call(fn(), 1, 2))
++	three(call1(fn(), 1, 2))
++	three(call(func(a, b int) int { return a + b }, 1, 2))
++	three(call1(func(a, b int) int { return a + b }, 1, 2))
++
++	fc = addc
++	c := make(chan int)
++	go addc(1, 2, c)
++	three(<-c)
++	go fc(1, 2, c)
++	three(<-c)
++	go fnc()(1, 2, c)
++	three(<-c)
++	go func(a, b int, c chan int) { c <- a+b }(1, 2, c)
++	three(<-c)
++
++	emptyresults()
++	noresults()
++	nothing = emptyresults
++	nothing()
++	nothing = noresults
++	nothing()
+ }
+-
+diff --git a/test/golden.out b/test/golden.out
+index 9e08b20e01..e8f7037cf5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -189,6 +189,6 @@ bar
+ bar
+ bal
+ bal
+-barCount != 1
++panic: barCount != 1
+ panic PC=xxx
+ BUG
+diff --git a/test/interface/convert.go b/test/interface/convert.go
+index bc219c72f5..7f429f7031 100644
+--- a/test/interface/convert.go
++++ b/test/interface/convert.go
+@@ -9,21 +9,28 @@
+ 
+ package main
+ 
+-type Stringer interface { String() string }
+-type StringLengther interface { String() string; Length() int }
+-type Empty interface { }
++type Stringer interface {
++	String() string
++}
++type StringLengther interface {
++	String() string
++	Length() int
++}
++type Empty interface{}
+ 
+ type T string
++
+ func (t T) String() string {
+-	return string(t);
++	return string(t)
+ }
+ func (t T) Length() int {
+-	return len(t);
++	return len(t)
+ }
+ 
+ type U string
++
+ func (u U) String() string {
+-	return string(u);
++	return string(u)
+ }
+ 
+ var t = T("hello")
+@@ -36,104 +43,105 @@ var ok bool
+ 
+ func hello(s string) {
+ 	if s != "hello" {
+-		panic("not hello: ", s);
++		println("not hello: ", s)
++		panic("fail")
+ 	}
+ }
+ 
+ func five(i int) {
+ 	if i != 5 {
+-		panic("not 5: ", i);
++		println("not 5: ", i)
++		panic("fail")
+ 	}
+ }
+ 
+ func true(ok bool) {
+ 	if !ok {
+-		panic("not true");
++		panic("not true")
+ 	}
+ }
+ 
+ func false(ok bool) {
+ 	if ok {
+-		panic("not false");
++		panic("not false")
+ 	}
+ }
+ 
+ func main() {
+ 	// T2I
+-	s = t;
+-	hello(s.String());
++	s = t
++	hello(s.String())
+ 
+ 	// I2T
+-	t = s.(T);
+-	hello(t.String());
++	t = s.(T)
++	hello(t.String())
+ 
+ 	// T2E
+-	e = t;
++	e = t
+ 
+ 	// E2T
+-	t = e.(T);
+-	hello(t.String());
++	t = e.(T)
++	hello(t.String())
+ 
+ 	// T2I again
+-	sl = t;
+-	hello(sl.String());
+-	five(sl.Length());
++	sl = t
++	hello(sl.String())
++	five(sl.Length())
+ 
+ 	// I2I static
+-	s = sl;
+-	hello(s.String());
++	s = sl
++	hello(s.String())
+ 
+ 	// I2I dynamic
+-	sl = s.(StringLengther);
+-	hello(sl.String());
+-	five(sl.Length());
++	sl = s.(StringLengther)
++	hello(sl.String())
++	five(sl.Length())
+ 
+ 	// I2E (and E2T)
+-	e = s;
+-	hello(e.(T).String());
++	e = s
++	hello(e.(T).String())
+ 
+ 	// E2I
+-	s = e.(Stringer);
+-	hello(s.String());
++	s = e.(Stringer)
++	hello(s.String())
+ 
+ 	// I2T2 true
+-	t, ok = s.(T);
+-	true(ok);
+-	hello(t.String());
++	t, ok = s.(T)
++	true(ok)
++	hello(t.String())
+ 
+ 	// I2T2 false
+-	_, ok = s.(U);
+-	false(ok);
++	_, ok = s.(U)
++	false(ok)
+ 
+ 	// I2I2 true
+-	sl, ok = s.(StringLengther);
+-	true(ok);
+-	hello(sl.String());
+-	five(sl.Length());
++	sl, ok = s.(StringLengther)
++	true(ok)
++	hello(sl.String())
++	five(sl.Length())
+ 
+ 	// I2I2 false (and T2I)
+-	s = u;
+-	sl, ok = s.(StringLengther);
+-	false(ok);
++	s = u
++	sl, ok = s.(StringLengther)
++	false(ok)
+ 
+ 	// E2T2 true
+-	t, ok = e.(T);
+-	true(ok);
+-	hello(t.String());
++	t, ok = e.(T)
++	true(ok)
++	hello(t.String())
+ 
+ 	// E2T2 false
+-	i, ok = e.(int);
+-	false(ok);
++	i, ok = e.(int)
++	false(ok)
+ 
+ 	// E2I2 true
+-	sl, ok = e.(StringLengther);
+-	true(ok);
+-	hello(sl.String());
+-	five(sl.Length());
++	sl, ok = e.(StringLengther)
++	true(ok)
++	hello(sl.String())
++	five(sl.Length())
+ 
+ 	// E2I2 false (and T2E)
+-	e = u;
+-	sl, ok = e.(StringLengther);
+-	false(ok);
++	e = u
++	sl, ok = e.(StringLengther)
++	false(ok)
+ }
+-
+diff --git a/test/interface/receiver.go b/test/interface/receiver.go
+index 59f3986d7f..f74cecb2c8 100644
+--- a/test/interface/receiver.go
++++ b/test/interface/receiver.go
+@@ -22,7 +22,8 @@ func (t T) V() {
+ 
+ func (t *T) P() {
+ 	if *t != 42 {
+-		panic(t, *t)
++		println(t, *t)
++		panic("fail")
+ 	}
+ 	np++
+ }
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 9600e8a1a6..7785cdf8f6 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -4,141 +4,130 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package	main
++package main
+ 
+-func
+-setpd(a []int) {
+-//	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
+-	for i:=0; i<len(a); i++ {
+-		a[i] = i;
++func setpd(a []int) {
++	//	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	for i := 0; i < len(a); i++ {
++		a[i] = i
+ 	}
+ }
+ 
+-func
+-sumpd(a []int) int {
+-//	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
+-	t := 0;
+-	for i:=0; i<len(a); i++ {
+-		t += a[i];
++func sumpd(a []int) int {
++	//	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	t := 0
++	for i := 0; i < len(a); i++ {
++		t += a[i]
+ 	}
+-//	print("sumpd t=", t, "\n");
+-	return t;
++	//	print("sumpd t=", t, "\n");
++	return t
+ }
+ 
+-func
+-setpf(a *[20]int) {
+-//	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
+-	for i:=0; i<len(a); i++ {
+-		a[i] = i;
++func setpf(a *[20]int) {
++	//	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	for i := 0; i < len(a); i++ {
++		a[i] = i
+ 	}
+ }
+ 
+-func
+-sumpf(a *[20]int) int {
+-//	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
+-	t := 0;
+-	for i:=0; i<len(a); i++ {
+-		t += a[i];
++func sumpf(a *[20]int) int {
++	//	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	t := 0
++	for i := 0; i < len(a); i++ {
++		t += a[i]
+ 	}
+-//	print("sumpf t=", t, "\n");
+-	return t;
++	//	print("sumpf t=", t, "\n");
++	return t
+ }
+ 
+-func
+-res(t int, lb, hb int) {
+-	sb := (hb-lb)*(hb+lb-1)/2;
++func res(t int, lb, hb int) {
++	sb := (hb - lb) * (hb + lb - 1) / 2
+ 	if t != sb {
+-		print(	"lb=", lb,
++		print("lb=", lb,
+ 			"; hb=", hb,
+ 			"; t=", t,
+ 			"; sb=", sb,
+-			"\n");
++			"\n")
+ 		panic("res")
+ 	}
+ }
+ 
+ // call ptr dynamic with ptr dynamic
+-func
+-testpdpd() {
+-	a := make([]int, 10, 100);
++func testpdpd() {
++	a := make([]int, 10, 100)
+ 	if len(a) != 10 && cap(a) != 100 {
+-		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
++		print("len and cap from new: ", len(a), " ", cap(a), "\n")
++		panic("fail")
+ 	}
+ 
+-	a = a[0:100];
+-	setpd(a);
++	a = a[0:100]
++	setpd(a)
+ 
+-	a = a[0:10];
+-	res(sumpd(a), 0, 10);
++	a = a[0:10]
++	res(sumpd(a), 0, 10)
+ 
+-	a = a[5:25];
+-	res(sumpd(a), 5, 25);
++	a = a[5:25]
++	res(sumpd(a), 5, 25)
+ }
+ 
+ // call ptr fixed with ptr fixed
+-func
+-testpfpf() {
+-	var a [20]int;
++func testpfpf() {
++	var a [20]int
+ 
+-	setpf(&a);
+-	res(sumpf(&a), 0, 20);
++	setpf(&a)
++	res(sumpf(&a), 0, 20)
+ }
+ 
+ // call ptr dynamic with ptr fixed from new
+-func
+-testpdpf1() {
+-	a := new([40]int);
+-	setpd(a);
+-	res(sumpd(a), 0, 40);
+-
+-	b := (*a)[5:30];
+-	res(sumpd(b), 5, 30);
++func testpdpf1() {
++	a := new([40]int)
++	setpd(a)
++	res(sumpd(a), 0, 40)
++
++	b := (*a)[5:30]
++	res(sumpd(b), 5, 30)
+ }
+ 
+ // call ptr dynamic with ptr fixed from var
+-func
+-testpdpf2() {
+-	var a [80]int;
++func testpdpf2() {
++	var a [80]int
+ 
+-	setpd(&a);
+-	res(sumpd(&a), 0, 80);
++	setpd(&a)
++	res(sumpd(&a), 0, 80)
+ }
+ 
+ // generate bounds error with ptr dynamic
+-func
+-testpdfault() {
+-	a := make([]int, 100);
++func testpdfault() {
++	a := make([]int, 100)
+ 
+-	print("good\n");
+-	for i:=0; i<100; i++ {
+-		a[i] = 0;
++	print("good\n")
++	for i := 0; i < 100; i++ {
++		a[i] = 0
+ 	}
+-	print("should fault\n");
+-	a[100] = 0;
+-	print("bad\n");
++	print("should fault\n")
++	a[100] = 0
++	print("bad\n")
+ }
+ 
+ // generate bounds error with ptr fixed
+-func
+-testfdfault() {
+-	var a [80]int;
++func testfdfault() {
++	var a [80]int
+ 
+-	print("good\n");
+-	for i:=0; i<80; i++ {
+-		a[i] = 0;
++	print("good\n")
++	for i := 0; i < 80; i++ {
++		a[i] = 0
+ 	}
+-	print("should fault\n");
+-	x := 80;
+-	a[x] = 0;
+-	print("bad\n");
++	print("should fault\n")
++	x := 80
++	a[x] = 0
++	print("bad\n")
+ }
+ 
+-func
+-main() {
+-	testpdpd();
+-	testpfpf();
+-	testpdpf1();
+-	testpdpf2();
+-//	print("testpdfault\n");	testpdfault();
+-//	print("testfdfault\n");	testfdfault();
++func main() {
++	testpdpd()
++	testpfpf()
++	testpdpf1()
++	testpdpf2()
++	//	print("testpdfault\n");	testpdfault();
++	//	print("testfdfault\n");	testfdfault();
+ }
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index 7504b49685..ef75b044d7 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -10,36 +10,33 @@ import "os"
+ import "runtime"
+ import "sync"
+ 
+-var	randx	int;
++var randx int
+ 
+-func
+-nrand(n int) int {
+-	randx += 10007;
++func nrand(n int) int {
++	randx += 10007
+ 	if randx >= 1000000 {
+-		randx -= 1000000;
++		randx -= 1000000
+ 	}
+-	return randx%n;
++	return randx % n
+ }
+ 
+-type	Chan struct {
+-	sc,rc	chan int;	// send and recv chan
+-	sv,rv	int;		// send and recv seq
++type Chan struct {
++	sc, rc chan int // send and recv chan
++	sv, rv int      // send and recv seq
+ }
+ 
+-var
+-(
+-	nproc		int;
+-	nprocLock	sync.Mutex;
+-	cval		int;
+-	end		int	= 10000;
+-	totr,tots	int;
+-	totLock		sync.Mutex;
+-	nc		*Chan;
++var (
++	nproc      int
++	nprocLock  sync.Mutex
++	cval       int
++	end        int = 10000
++	totr, tots int
++	totLock    sync.Mutex
++	nc         *Chan
+ )
+ 
+-func
+-init() {
+-	nc = new(Chan);
++func init() {
++	nc = new(Chan)
+ }
+ 
+ func changeNproc(adjust int) int {
+@@ -50,280 +47,283 @@ func changeNproc(adjust int) int {
+ 	return ret
+ }
+ 
+-func
+-mkchan(c,n int) []*Chan {
+-	ca := make([]*Chan, n);
+-	for i:=0; i<n; i++ {
+-		cval = cval+100;
+-		ch := new(Chan);
+-		ch.sc = make(chan int, c);
+-		ch.rc = ch.sc;
+-		ch.sv = cval;
+-		ch.rv = cval;
+-		ca[i] = ch;
++func mkchan(c, n int) []*Chan {
++	ca := make([]*Chan, n)
++	for i := 0; i < n; i++ {
++		cval = cval + 100
++		ch := new(Chan)
++		ch.sc = make(chan int, c)
++		ch.rc = ch.sc
++		ch.sv = cval
++		ch.rv = cval
++		ca[i] = ch
+ 	}
+-	return ca;
++	return ca
+ }
+ 
+-func
+-expect(v, v0 int) (newv int) {
++func expect(v, v0 int) (newv int) {
+ 	if v == v0 {
+ 		if v%100 == 75 {
+-			return end;
++			return end
+ 		}
+-		return v+1;
++		return v + 1
+ 	}
+-	panic("got ", v, " expected ", v0+1, "\n");
++	print("got ", v, " expected ", v0+1, "\n")
++	panic("fail")
+ }
+ 
+ func (c *Chan) send() bool {
+-//	print("send ", c.sv, "\n");
+-	totLock.Lock();
+-	tots++;
+-	totLock.Unlock();
+-	c.sv = expect(c.sv, c.sv);
++	//	print("send ", c.sv, "\n");
++	totLock.Lock()
++	tots++
++	totLock.Unlock()
++	c.sv = expect(c.sv, c.sv)
+ 	if c.sv == end {
+-		c.sc = nil;
+-		return true;
++		c.sc = nil
++		return true
+ 	}
+-	return false;
++	return false
+ }
+ 
+-func
+-send(c *Chan) {
++func send(c *Chan) {
+ 	for {
+-		for r:=nrand(10); r>=0; r-- {
+-			runtime.Gosched();
++		for r := nrand(10); r >= 0; r-- {
++			runtime.Gosched()
+ 		}
+-		c.sc <- c.sv;
++		c.sc <- c.sv
+ 		if c.send() {
+-			break;
++			break
+ 		}
+ 	}
+ 	changeNproc(-1)
+ }
+ 
+ func (c *Chan) recv(v int) bool {
+-//	print("recv ", v, "\n");
+-	totLock.Lock();
+-	totr++;
+-	totLock.Unlock();
+-	c.rv = expect(c.rv, v);
++	//	print("recv ", v, "\n");
++	totLock.Lock()
++	totr++
++	totLock.Unlock()
++	c.rv = expect(c.rv, v)
+ 	if c.rv == end {
+-		c.rc = nil;
+-		return true;
++		c.rc = nil
++		return true
+ 	}
+-	return false;
++	return false
+ }
+ 
+-func
+-recv(c *Chan) {
+-	var v int;
++func recv(c *Chan) {
++	var v int
+ 
+ 	for {
+-		for r:=nrand(10); r>=0; r-- {
+-			runtime.Gosched();
++		for r := nrand(10); r >= 0; r-- {
++			runtime.Gosched()
+ 		}
+-		v = <-c.rc;
++		v = <-c.rc
+ 		if c.recv(v) {
+-			break;
++			break
+ 		}
+ 	}
+-	changeNproc(-1);
++	changeNproc(-1)
+ }
+ 
+-func
+-sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan) {
+-	var v int;
++func sel(r0, r1, r2, r3, s0, s1, s2, s3 *Chan) {
++	var v int
+ 
+-	a := 0;		// local chans running
++	a := 0 // local chans running
+ 
+-	if r0.rc != nil { a++ }
+-	if r1.rc != nil { a++ }
+-	if r2.rc != nil { a++ }
+-	if r3.rc != nil { a++ }
+-	if s0.sc != nil { a++ }
+-	if s1.sc != nil { a++ }
+-	if s2.sc != nil { a++ }
+-	if s3.sc != nil { a++ }
++	if r0.rc != nil {
++		a++
++	}
++	if r1.rc != nil {
++		a++
++	}
++	if r2.rc != nil {
++		a++
++	}
++	if r3.rc != nil {
++		a++
++	}
++	if s0.sc != nil {
++		a++
++	}
++	if s1.sc != nil {
++		a++
++	}
++	if s2.sc != nil {
++		a++
++	}
++	if s3.sc != nil {
++		a++
++	}
+ 
+ 	for {
+-		for r:=nrand(5); r>=0; r-- {
+-			runtime.Gosched();
++		for r := nrand(5); r >= 0; r-- {
++			runtime.Gosched()
+ 		}
+ 
+ 		select {
+ 		case v = <-r0.rc:
+ 			if r0.recv(v) {
+-				a--;
++				a--
+ 			}
+ 		case v = <-r1.rc:
+ 			if r1.recv(v) {
+-				a--;
++				a--
+ 			}
+ 		case v = <-r2.rc:
+ 			if r2.recv(v) {
+-				a--;
++				a--
+ 			}
+ 		case v = <-r3.rc:
+ 			if r3.recv(v) {
+-				a--;
++				a--
+ 			}
+ 		case s0.sc <- s0.sv:
+ 			if s0.send() {
+-				a--;
++				a--
+ 			}
+ 		case s1.sc <- s1.sv:
+ 			if s1.send() {
+-				a--;
++				a--
+ 			}
+ 		case s2.sc <- s2.sv:
+ 			if s2.send() {
+-				a--;
++				a--
+ 			}
+ 		case s3.sc <- s3.sv:
+ 			if s3.send() {
+-				a--;
++				a--
+ 			}
+ 		}
+ 		if a == 0 {
+-			break;
++			break
+ 		}
+ 	}
+-	changeNproc(-1);
++	changeNproc(-1)
+ }
+ 
+ // direct send to direct recv
+-func
+-test1(c *Chan) {
++func test1(c *Chan) {
+ 	changeNproc(2)
+-	go send(c);
+-	go recv(c);
++	go send(c)
++	go recv(c)
+ }
+ 
+ // direct send to select recv
+-func
+-test2(c int) {
+-	ca := mkchan(c,4);
++func test2(c int) {
++	ca := mkchan(c, 4)
+ 
+ 	changeNproc(4)
+-	go send(ca[0]);
+-	go send(ca[1]);
+-	go send(ca[2]);
+-	go send(ca[3]);
++	go send(ca[0])
++	go send(ca[1])
++	go send(ca[2])
++	go send(ca[3])
+ 
+ 	changeNproc(1)
+-	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
++	go sel(ca[0], ca[1], ca[2], ca[3], nc, nc, nc, nc)
+ }
+ 
+ // select send to direct recv
+-func
+-test3(c int) {
+-	ca := mkchan(c,4);
++func test3(c int) {
++	ca := mkchan(c, 4)
+ 
+ 	changeNproc(4)
+-	go recv(ca[0]);
+-	go recv(ca[1]);
+-	go recv(ca[2]);
+-	go recv(ca[3]);
++	go recv(ca[0])
++	go recv(ca[1])
++	go recv(ca[2])
++	go recv(ca[3])
+ 
+ 	changeNproc(1)
+-	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
++	go sel(nc, nc, nc, nc, ca[0], ca[1], ca[2], ca[3])
+ }
+ 
+ // select send to select recv
+-func
+-test4(c int) {
+-	ca := mkchan(c,4);
++func test4(c int) {
++	ca := mkchan(c, 4)
+ 
+ 	changeNproc(2)
+-	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
+-	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
++	go sel(nc, nc, nc, nc, ca[0], ca[1], ca[2], ca[3])
++	go sel(ca[0], ca[1], ca[2], ca[3], nc, nc, nc, nc)
+ }
+ 
+-func
+-test5(c int) {
+-	ca := mkchan(c,8);
++func test5(c int) {
++	ca := mkchan(c, 8)
+ 
+ 	changeNproc(2)
+-	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
+-	go sel(ca[0],ca[1],ca[2],ca[3], ca[4],ca[5],ca[6],ca[7]);
++	go sel(ca[4], ca[5], ca[6], ca[7], ca[0], ca[1], ca[2], ca[3])
++	go sel(ca[0], ca[1], ca[2], ca[3], ca[4], ca[5], ca[6], ca[7])
+ }
+ 
+-func
+-test6(c int) {
+-	ca := mkchan(c,12);
++func test6(c int) {
++	ca := mkchan(c, 12)
+ 
+ 	changeNproc(4)
+-	go send(ca[4]);
+-	go send(ca[5]);
+-	go send(ca[6]);
+-	go send(ca[7]);
++	go send(ca[4])
++	go send(ca[5])
++	go send(ca[6])
++	go send(ca[7])
+ 
+ 	changeNproc(4)
+-	go recv(ca[8]);
+-	go recv(ca[9]);
+-	go recv(ca[10]);
+-	go recv(ca[11]);
++	go recv(ca[8])
++	go recv(ca[9])
++	go recv(ca[10])
++	go recv(ca[11])
+ 
+ 	changeNproc(2)
+-	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
+-	go sel(ca[0],ca[1],ca[2],ca[3], ca[8],ca[9],ca[10],ca[11]);
++	go sel(ca[4], ca[5], ca[6], ca[7], ca[0], ca[1], ca[2], ca[3])
++	go sel(ca[0], ca[1], ca[2], ca[3], ca[8], ca[9], ca[10], ca[11])
+ }
+ 
+ // wait for outstanding tests to finish
+-func
+-wait() {
+-	runtime.Gosched();
++func wait() {
++	runtime.Gosched()
+ 	for changeNproc(0) != 0 {
+-		runtime.Gosched();
++		runtime.Gosched()
+ 	}
+ }
+ 
+ // run all tests with specified buffer size
+-func
+-tests(c int) {
+-	ca := mkchan(c,4);
+-	test1(ca[0]);
+-	test1(ca[1]);
+-	test1(ca[2]);
+-	test1(ca[3]);
+-	wait();
++func tests(c int) {
++	ca := mkchan(c, 4)
++	test1(ca[0])
++	test1(ca[1])
++	test1(ca[2])
++	test1(ca[3])
++	wait()
+ 
+-	test2(c);
+-	wait();
++	test2(c)
++	wait()
+ 
+-	test3(c);
+-	wait();
++	test3(c)
++	wait()
+ 
+-	test4(c);
+-	wait();
++	test4(c)
++	wait()
+ 
+-	test5(c);
+-	wait();
++	test5(c)
++	wait()
+ 
+-	test6(c);
+-	wait();
++	test6(c)
++	wait()
+ }
+ 
+ // run all test with 4 buffser sizes
+-func
+-main() {
++func main() {
+ 
+-	tests(0);
+-	tests(1);
+-	tests(10);
+-	tests(100);
++	tests(0)
++	tests(1)
++	tests(10)
++	tests(100)
+ 
+-	t :=	4 *			// buffer sizes
+-		(	4*4 +		// tests 1,2,3,4 channels
+-			8 +		// test 5 channels
+-			12 ) *		// test 6 channels
+-		76;			// sends/recvs on a channel
++	t := 4 * // buffer sizes
++		(4*4 + // tests 1,2,3,4 channels
++			8 + // test 5 channels
++			12) * // test 6 channels
++		76 // sends/recvs on a channel
+ 
+ 	if tots != t || totr != t {
+-		print("tots=", tots, " totr=", totr, " sb=", t, "\n");
+-		os.Exit(1);
++		print("tots=", tots, " totr=", totr, " sb=", t, "\n")
++		os.Exit(1)
+ 	}
+-	os.Exit(0);
++	os.Exit(0)
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 14617de9c7..6c15b16164 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -7,106 +7,112 @@
+ 
+ package main
+ 
+-func
+-main() {
+-	var c string;
++func main() {
++	var c string
+ 
+-	a := `abc`;
+-	b := `xyz`;
++	a := `abc`
++	b := `xyz`
+ 
+ 	/* print a literal */
+-	print(`abc`);
++	print(`abc`)
+ 
+ 	/* print a variable */
+-	print(b, "-");
++	print(b, "-")
+ 
+ 	/* catenate literals */
+-	print(`abc` + `xyz`, "-");
++	print(`abc`+`xyz`, "-")
+ 
+ 	/* catenate variables */
+-	print(a+b, "-");
++	print(a+b, "-")
+ 
+ 	/* compare literals */
+ 	if `abc` == `xyz` || `abc` != "abc" || `abc` > `xyz` {
+-		panic("compare literals");
++		panic("compare literals")
+ 	}
+ 
+ 	/* compare variables */
+ 	if a == b || a != a || a > b {
+-		panic("compare variables");
++		panic("compare variables")
+ 	}
+ 
+ 	/* cat */
+-	c = a+b;
+-	print(c, "-");
++	c = a + b
++	print(c, "-")
+ 
+ 	/* catequal */
+-	c = a;
+-	c += b;
+-	print(c, "-");
++	c = a
++	c += b
++	print(c, "-")
+ 
+ 	/* clumsy evaluation */
+-	c = b;
+-	c = a + c;
+-	print(c, "-");
++	c = b
++	c = a + c
++	print(c, "-")
+ 
+ 	/* len */
+ 	if len(c) != 6 {
+-		panic("len ", len(c));
++		print("len ", len(c))
++		panic("fail")
+ 	}
+ 
+ 	/* index strings */
+-	for i:=0; i<len(c); i=i+1 {
+-		if c[i] != (a+b)[i] {
+-			panic("index ", i, " ", c[i], " ", (a+b)[i]);
++	for i := 0; i < len(c); i = i + 1 {
++		if c[i] != (a + b)[i] {
++			print("index ", i, " ", c[i], " ", (a + b)[i])
++			panic("fail")
+ 		}
+ 	}
+ 
+ 	/* slice strings */
+-	print(c[0:3], c[3:]);
++	print(c[0:3], c[3:])
+ 
+-	print("\n");
++	print("\n")
+ 
+ 	/* create string with integer constant */
+-	c = string('x');
++	c = string('x')
+ 	if c != "x" {
+-		panic("create int ", c);
++		print("create int ", c)
++		panic("fail")
+ 	}
+ 
+ 	/* create string with integer variable */
+-	v := 'x';
+-	c = string(v);
++	v := 'x'
++	c = string(v)
+ 	if c != "x" {
+-		panic("create int ", c);
++		print("create int ", c)
++		panic("fail")
+ 	}
+ 
+ 	/* create string with byte array */
+-	var z1 [3]byte;
+-	z1[0] = 'a';
+-	z1[1] = 'b';
+-	z1[2] = 'c';
+-	c = string(&z1);
++	var z1 [3]byte
++	z1[0] = 'a'
++	z1[1] = 'b'
++	z1[2] = 'c'
++	c = string(&z1)
+ 	if c != "abc" {
+-		panic("create byte array ", c);
++		print("create byte array ", c)
++		panic("fail")
+ 	}
+ 
+ 	/* create string with int array */
+-	var z2 [3]int;
+-	z2[0] = 'a';
+-	z2[1] = '\u1234';
+-	z2[2] = 'c';
+-	c = string(&z2);
++	var z2 [3]int
++	z2[0] = 'a'
++	z2[1] = '\u1234'
++	z2[2] = 'c'
++	c = string(&z2)
+ 	if c != "a\u1234c" {
+-		panic("create int array ", c);
++		print("create int array ", c)
++		panic("fail")
+ 	}
+ 
+ 	/* create string with byte array pointer */
+-	z3 := new([3]byte);
+-	z3[0] = 'a';
+-	z3[1] = 'b';
+-	z3[2] = 'c';
+-	c = string(z3);
++	z3 := new([3]byte)
++	z3[0] = 'a'
++	z3[1] = 'b'
++	z3[2] = 'c'
++	c = string(z3)
+ 	if c != "abc" {
+-		panic("create array pointer ", c);
++		print("create array pointer ", c)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index 44229d490c..dc6d74bad6 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -58,9 +58,10 @@ func main() {
+ 	for i := 0; i < N; i++ {
+ 		runtime.GC()
+ 		runtime.Gosched()
+-		time.Sleep(1e6);
++		time.Sleep(1e6)
+ 	}
+ 	if nfinal < N*8/10 {
+-		panic("not enough finalizing:", nfinal, "/", N)
++		println("not enough finalizing:", nfinal, "/", N)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index e7f3f06f4e..2357d83753 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -47,7 +47,8 @@ func main() {
+ 			during := runtime.MemStats.Alloc
+ 			runtime.Free(b)
+ 			if a := runtime.MemStats.Alloc; a != 0 {
+-				panic("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
++				println("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
++				panic("fail")
+ 			}
+ 			bigger()
+ 		}
+diff --git a/test/peano.go b/test/peano.go
+index ccff66bfef..77a0d1272b 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -15,51 +15,51 @@ type Number struct {
+ // Peano primitives
+ 
+ func zero() *Number {
+-	return nil;
++	return nil
+ }
+ 
+ 
+ func is_zero(x *Number) bool {
+-	return x == nil;
++	return x == nil
+ }
+ 
+ 
+ func add1(x *Number) *Number {
+-	e := new(Number);
+-	e.next = x;
+-	return e;
++	e := new(Number)
++	e.next = x
++	return e
+ }
+ 
+ 
+ func sub1(x *Number) *Number {
+-	return x.next;
++	return x.next
+ }
+ 
+ 
+-func add(x, y *Number) *Number{
++func add(x, y *Number) *Number {
+ 	if is_zero(y) {
+-		return x;
++		return x
+ 	}
+ 
+-	return add(add1(x), sub1(y));
++	return add(add1(x), sub1(y))
+ }
+ 
+ 
+ func mul(x, y *Number) *Number {
+-	if is_zero(x) || is_zero(y){
+-		return zero();
++	if is_zero(x) || is_zero(y) {
++		return zero()
+ 	}
+ 
+-	return add(mul(x, sub1(y)), x);
++	return add(mul(x, sub1(y)), x)
+ }
+ 
+ 
+ func fact(n *Number) *Number {
+ 	if is_zero(n) {
+-		return add1(zero());
++		return add1(zero())
+ 	}
+ 
+-	return mul(fact(sub1(n)), n);
++	return mul(fact(sub1(n)), n)
+ }
+ 
+ 
+@@ -68,26 +68,27 @@ func fact(n *Number) *Number {
+ 
+ func gen(n int) *Number {
+ 	if n > 0 {
+-		return add1(gen(n - 1));
++		return add1(gen(n - 1))
+ 	}
+ 
+-	return zero();
++	return zero()
+ }
+ 
+ 
+ func count(x *Number) int {
+ 	if is_zero(x) {
+-		return 0;
++		return 0
+ 	}
+ 
+-	return count(sub1(x)) + 1;
++	return count(sub1(x)) + 1
+ }
+ 
+ 
+ func check(x *Number, expected int) {
+-	var c = count(x);
++	var c = count(x)
+ 	if c != expected {
+-		panic("error: found ", c, "; expected ", expected, "\n");
++		print("error: found ", c, "; expected ", expected, "\n")
++		panic("fail")
+ 	}
+ }
+ 
+@@ -96,24 +97,24 @@ func check(x *Number, expected int) {
+ // Test basic functionality
+ 
+ func verify() {
+-	check(zero(), 0);
+-	check(add1(zero()), 1);
+-	check(gen(10), 10);
+-
+-	check(add(gen(3), zero()), 3);
+-	check(add(zero(), gen(4)), 4);
+-	check(add(gen(3), gen(4)), 7);
+-
+-	check(mul(zero(), zero()), 0);
+-	check(mul(gen(3), zero()), 0);
+-	check(mul(zero(), gen(4)), 0);
+-	check(mul(gen(3), add1(zero())), 3);
+-	check(mul(add1(zero()), gen(4)), 4);
+-	check(mul(gen(3), gen(4)), 12);
+-
+-	check(fact(zero()), 1);
+-	check(fact(add1(zero())), 1);
+-	check(fact(gen(5)), 120);
++	check(zero(), 0)
++	check(add1(zero()), 1)
++	check(gen(10), 10)
++
++	check(add(gen(3), zero()), 3)
++	check(add(zero(), gen(4)), 4)
++	check(add(gen(3), gen(4)), 7)
++
++	check(mul(zero(), zero()), 0)
++	check(mul(gen(3), zero()), 0)
++	check(mul(zero(), gen(4)), 0)
++	check(mul(gen(3), add1(zero())), 3)
++	check(mul(add1(zero()), gen(4)), 4)
++	check(mul(gen(3), gen(4)), 12)
++
++	check(fact(zero()), 1)
++	check(fact(add1(zero())), 1)
++	check(fact(gen(5)), 120)
+ }
+ 
+ 
+@@ -123,9 +124,8 @@ func verify() {
+ 
+ func main() {
+ 
+-	verify();
++	verify()
+ 	for i := 0; i <= 9; i++ {
+-		print(i, "! = ", count(fact(gen(i))), "\n");
++		print(i, "! = ", count(fact(gen(i))), "\n")
+ 	}
+ }
+-
+diff --git a/test/simassign.go b/test/simassign.go
+index 16f5a57143..28408abc23 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -6,74 +6,72 @@
+ 
+ package main
+ 
+-var	a,b,c,d,e,f,g,h,i int;
++var a, b, c, d, e, f, g, h, i int
+ 
+-func
+-printit() {
+-	println(a,b,c,d,e,f,g,h,i);
++func printit() {
++	println(a, b, c, d, e, f, g, h, i)
+ }
+ 
+-func
+-testit(permuteok bool) bool {
++func testit(permuteok bool) bool {
+ 	if a+b+c+d+e+f+g+h+i != 45 {
+-		print("sum does not add to 45\n");
+-		printit();
+-		return false;
++		print("sum does not add to 45\n")
++		printit()
++		return false
+ 	}
+-	return	permuteok ||
++	return permuteok ||
+ 		a == 1 &&
+-		b == 2 &&
+-		c == 3 &&
+-		d == 4 &&
+-		e == 5 &&
+-		f == 6 &&
+-		g == 7 &&
+-		h == 8 &&
+-		i == 9;
++			b == 2 &&
++			c == 3 &&
++			d == 4 &&
++			e == 5 &&
++			f == 6 &&
++			g == 7 &&
++			h == 8 &&
++			i == 9
+ }
+ 
+-func
+-swap(x, y int) (u, v int) {
++func swap(x, y int) (u, v int) {
+ 	return y, x
+ }
+ 
+-func
+-main() {
+-	a = 1;
+-	b = 2;
+-	c = 3;
+-	d = 4;
+-	e = 5;
+-	f = 6;
+-	g = 7;
+-	h = 8;
+-	i = 9;
++func main() {
++	a = 1
++	b = 2
++	c = 3
++	d = 4
++	e = 5
++	f = 6
++	g = 7
++	h = 8
++	i = 9
+ 
+-	if !testit(false) { panic("init val\n"); }
++	if !testit(false) {
++		panic("init val\n")
++	}
+ 
+-	for z:=0; z<100; z++ {
+-		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
++	for z := 0; z < 100; z++ {
++		a, b, c, d, e, f, g, h, i = b, c, d, a, i, e, f, g, h
+ 
+ 		if !testit(z%20 != 19) {
+-			print("on ", z, "th iteration\n");
+-			printit();
+-			panic();
++			print("on ", z, "th iteration\n")
++			printit()
++			panic("fail")
+ 		}
+ 	}
+ 
+ 	if !testit(false) {
+-		print("final val\n");
+-		printit();
+-		panic();
++		print("final val\n")
++		printit()
++		panic("fail")
+ 	}
+ 
+-	a, b = swap(1, 2);
++	a, b = swap(1, 2)
+ 	if a != 2 || b != 1 {
+-		panic("bad swap");
++		panic("bad swap")
+ 	}
+ 
+-	a, b = swap(swap(a, b));
++	a, b = swap(swap(a, b))
+ 	if a != 2 || b != 1 {
+-		panic("bad swap");
++		panic("bad swap")
+ 	}
+ }
+diff --git a/test/typeswitch1.go b/test/typeswitch1.go
+index 879cfb9830..9613b166f1 100644
+--- a/test/typeswitch1.go
++++ b/test/typeswitch1.go
+@@ -9,76 +9,75 @@ package main
+ import "fmt"
+ 
+ const (
+-	a = iota;
+-	b;
+-	c;
+-	d;
+-	e;
++	a = iota
++	b
++	c
++	d
++	e
+ )
+ 
+-var x = []int{1,2,3}
++var x = []int{1, 2, 3}
+ 
+ func f(x int, len *byte) {
+-	*len = byte(x);
++	*len = byte(x)
+ }
+ 
+ func whatis(x interface{}) string {
+ 	switch xx := x.(type) {
+ 	default:
+-		return fmt.Sprint("default ", xx);
++		return fmt.Sprint("default ", xx)
+ 	case int, int8, int16, int32:
+-		return fmt.Sprint("signed ", xx);
++		return fmt.Sprint("signed ", xx)
+ 	case int64:
+-		return fmt.Sprint("signed64 ", int64(xx));
++		return fmt.Sprint("signed64 ", int64(xx))
+ 	case uint, uint8, uint16, uint32:
+-		return fmt.Sprint("unsigned ", xx);
++		return fmt.Sprint("unsigned ", xx)
+ 	case uint64:
+-		return fmt.Sprint("unsigned64 ", uint64(xx));
++		return fmt.Sprint("unsigned64 ", uint64(xx))
+ 	case nil:
+-		return fmt.Sprint("nil ", xx);
++		return fmt.Sprint("nil ", xx)
+ 	}
+-	panic("not reached");
++	panic("not reached")
+ }
+ 
+ func whatis1(x interface{}) string {
+-	xx := x;
++	xx := x
+ 	switch xx.(type) {
+ 	default:
+-		return fmt.Sprint("default ", xx);
++		return fmt.Sprint("default ", xx)
+ 	case int, int8, int16, int32:
+-		return fmt.Sprint("signed ", xx);
++		return fmt.Sprint("signed ", xx)
+ 	case int64:
+-		return fmt.Sprint("signed64 ", xx.(int64));
++		return fmt.Sprint("signed64 ", xx.(int64))
+ 	case uint, uint8, uint16, uint32:
+-		return fmt.Sprint("unsigned ", xx);
++		return fmt.Sprint("unsigned ", xx)
+ 	case uint64:
+-		return fmt.Sprint("unsigned64 ", xx.(uint64));
++		return fmt.Sprint("unsigned64 ", xx.(uint64))
+ 	case nil:
+-		return fmt.Sprint("nil ", xx);
++		return fmt.Sprint("nil ", xx)
+ 	}
+-	panic("not reached");
++	panic("not reached")
+ }
+ 
+ func check(x interface{}, s string) {
+-	w := whatis(x);
++	w := whatis(x)
+ 	if w != s {
+-		fmt.Println("whatis", x, "=>", w, "!=", s);
+-		panic();
++		fmt.Println("whatis", x, "=>", w, "!=", s)
++		panic("fail")
+ 	}
+ 
+-	w = whatis1(x);
++	w = whatis1(x)
+ 	if w != s {
+-		fmt.Println("whatis1", x, "=>", w, "!=", s);
+-		panic();
++		fmt.Println("whatis1", x, "=>", w, "!=", s)
++		panic("fail")
+ 	}
+ }
+ 
+ func main() {
+-	check(1, "signed 1");
+-	check(uint(1), "unsigned 1");
+-	check(int64(1), "signed64 1");
+-	check(uint64(1), "unsigned64 1");
+-	check(1.5, "default 1.5");
+-	check(nil, "nil <nil>");
++	check(1, "signed 1")
++	check(uint(1), "unsigned 1")
++	check(int64(1), "signed64 1")
++	check(uint64(1), "unsigned64 1")
++	check(1.5, "default 1.5")
++	check(nil, "nil <nil>")
+ }
+-
+diff --git a/test/varinit.go b/test/varinit.go
+index 004f9c01b2..c768777932 100644
+--- a/test/varinit.go
++++ b/test/varinit.go
+@@ -7,14 +7,23 @@
+ package main
+ 
+ func main() {
+-	var x int = 1;
+-	if x != 1 { panic("found ", x, ", expected 1\n"); }
++	var x int = 1
++	if x != 1 {
++		print("found ", x, ", expected 1\n")
++		panic("fail")
++	}
+ 	{
+-		var x int = x + 1;
+-		if x != 2 { panic("found ", x, ", expected 2\n"); }
++		var x int = x + 1
++		if x != 2 {
++			print("found ", x, ", expected 2\n")
++			panic("fail")
++		}
+ 	}
+ 	{
+-		x := x + 1;
+-		if x != 2 { panic("found ", x, ", expected 2\n"); }
++		x := x + 1
++		if x != 2 {
++			print("found ", x, ", expected 2\n")
++			panic("fail")
++		}
+ 	}
+ }
+diff --git a/test/vectors.go b/test/vectors.go
+index 5696c2aa5e..ed5905da30 100644
+--- a/test/vectors.go
++++ b/test/vectors.go
+@@ -10,42 +10,45 @@ import "container/vector"
+ 
+ 
+ type S struct {
+-	val int;
++	val int
+ }
+ 
+ 
+ func (p *S) Init(val int) *S {
+-	p.val = val;
+-	return p;
++	p.val = val
++	return p
+ }
+ 
+ 
+ func test0() {
+-	v := new(vector.Vector);
++	v := new(vector.Vector)
+ 	if v.Len() != 0 {
+-		panic("len = ", v.Len(), "\n")
++		print("len = ", v.Len(), "\n")
++		panic("fail")
+ 	}
+ }
+ 
+ 
+ func test1() {
+-	var a [1000]*S;
++	var a [1000]*S
+ 	for i := 0; i < len(a); i++ {
+ 		a[i] = new(S).Init(i)
+ 	}
+ 
+-	v := new(vector.Vector);
++	v := new(vector.Vector)
+ 	for i := 0; i < len(a); i++ {
+-		v.Insert(0, a[i]);
++		v.Insert(0, a[i])
+ 		if v.Len() != i+1 {
+-			panic("len = ", v.Len(), "\n")
++			print("len = ", v.Len(), "\n")
++			panic("fail")
+ 		}
+ 	}
+ 
+ 	for i := 0; i < v.Len(); i++ {
+-		x := v.At(i).(*S);
++		x := v.At(i).(*S)
+ 		if x.val != v.Len()-i-1 {
+-			panic("expected ", i, ", found ", x.val, "\n")
++			print("expected ", i, ", found ", x.val, "\n")
++			panic("fail")
+ 		}
+ 	}
+ 
+@@ -56,6 +59,6 @@ func test1() {
+ 
+ 
+ func main() {
+-	test0();
+-	test1();
++	test0()
++	test1()
+ }

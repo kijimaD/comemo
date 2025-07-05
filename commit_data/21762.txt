@@ -34,6 +34,61 @@ Date:   Thu Jan 29 12:47:30 2015 +0300
     Change-Id: I40851f0786763ee964af34814edbc3e3d73cf4e7
     Reviewed-on: https://go-review.googlesource.com/3418
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbarrier.go | 37 +++++++++++++++++++++----------------
  1 file changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c9ed035dab..33d67c4976 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -110,28 +110,33 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ 	}
+ 
+ 	if mheap_.shadow_enabled {
+-		systemstack(func() {
+-			addr := uintptr(unsafe.Pointer(dst))
+-			shadow := shadowptr(addr)
+-			if shadow == nil {
+-				return
+-			}
+-			// There is a race here but only if the program is using
+-			// racy writes instead of sync/atomic. In that case we
+-			// don't mind crashing.
+-			if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
+-				mheap_.shadow_enabled = false
+-				print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
+-				throw("missed write barrier")
+-			}
+-			*shadow = src
+-		})
++		writebarrierptr_shadow(dst, src)
+ 	}
+ 
+ 	*dst = src
+ 	writebarrierptr_nostore1(dst, src)
+ }
+ 
++//go:nosplit
++func writebarrierptr_shadow(dst *uintptr, src uintptr) {
++	systemstack(func() {
++		addr := uintptr(unsafe.Pointer(dst))
++		shadow := shadowptr(addr)
++		if shadow == nil {
++			return
++		}
++		// There is a race here but only if the program is using
++		// racy writes instead of sync/atomic. In that case we
++		// don't mind crashing.
++		if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
++			mheap_.shadow_enabled = false
++			print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
++			throw("missed write barrier")
++		}
++		*shadow = src
++	})
++}
++
+ // Like writebarrierptr, but the store has already been applied.
+ // Do not reapply.
+ //go:nosplit

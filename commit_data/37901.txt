@@ -23,7 +23,7 @@ Date:   Thu Sep 6 17:21:59 2018 -0700
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_386.s     | 11 +++++++----
  src/runtime/sys_linux_amd64.s   | 12 ++++++++----
  src/runtime/sys_linux_arm.s     | 12 ++++++++----
@@ -33,3 +33,290 @@ Date:   Thu Sep 6 17:21:59 2018 -0700
  src/runtime/sys_linux_ppc64x.s  | 11 +++++++----
  src/runtime/sys_linux_s390x.s   | 12 ++++++++----
  8 files changed, 62 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 8d5a4ff977..4e914f3e60 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -48,7 +48,6 @@
+ #define SYS_mincore		218
+ #define SYS_madvise		219
+ #define SYS_gettid		224
+-#define SYS_tkill		238
+ #define SYS_futex		240
+ #define SYS_sched_getaffinity	242
+ #define SYS_set_thread_area	243
+@@ -57,6 +56,7 @@
+ #define SYS_epoll_ctl		255
+ #define SYS_epoll_wait		256
+ #define SYS_clock_gettime	265
++#define SYS_tgkill		270
+ #define SYS_epoll_create1	329
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+@@ -155,11 +155,14 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$12
++	MOVL	$SYS_getpid, AX
++	INVOKE_SYSCALL
++	MOVL	AX, BX	// arg 1 pid
+ 	MOVL	$SYS_gettid, AX
+ 	INVOKE_SYSCALL
+-	MOVL	AX, BX	// arg 1 tid
+-	MOVL	sig+0(FP), CX	// arg 2 signal
+-	MOVL	$SYS_tkill, AX
++	MOVL	AX, CX	// arg 2 tid
++	MOVL	sig+0(FP), DX	// arg 3 signal
++	MOVL	$SYS_tgkill, AX
+ 	INVOKE_SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 62d80247be..4492dad02e 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -36,12 +36,12 @@
+ #define SYS_sigaltstack 	131
+ #define SYS_arch_prctl		158
+ #define SYS_gettid		186
+-#define SYS_tkill		200
+ #define SYS_futex		202
+ #define SYS_sched_getaffinity	204
+ #define SYS_epoll_create	213
+ #define SYS_exit_group		231
+ #define SYS_epoll_ctl		233
++#define SYS_tgkill		234
+ #define SYS_openat		257
+ #define SYS_faccessat		269
+ #define SYS_epoll_pwait		281
+@@ -137,11 +137,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$0
++	MOVL	$SYS_getpid, AX
++	SYSCALL
++	MOVL	AX, R12
+ 	MOVL	$SYS_gettid, AX
+ 	SYSCALL
+-	MOVL	AX, DI	// arg 1 tid
+-	MOVL	sig+0(FP), SI	// arg 2
+-	MOVL	$SYS_tkill, AX
++	MOVL	AX, SI	// arg 2 tid
++	MOVL	R12, DI	// arg 1 pid
++	MOVL	sig+0(FP), DX	// arg 3
++	MOVL	$SYS_tgkill, AX
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index aa39732cfb..a709c4cbd0 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -36,7 +36,7 @@
+ #define SYS_setitimer (SYS_BASE + 104)
+ #define SYS_mincore (SYS_BASE + 219)
+ #define SYS_gettid (SYS_BASE + 224)
+-#define SYS_tkill (SYS_BASE + 238)
++#define SYS_tgkill (SYS_BASE + 268)
+ #define SYS_sched_yield (SYS_BASE + 158)
+ #define SYS_nanosleep (SYS_BASE + 162)
+ #define SYS_sched_getaffinity (SYS_BASE + 242)
+@@ -138,11 +138,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT	runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$SYS_getpid, R7
++	SWI	$0
++	MOVW	R0, R4
+ 	MOVW	$SYS_gettid, R7
+ 	SWI	$0
+-	// arg 1 tid already in R0 from gettid
+-	MOVW	sig+0(FP), R1	// arg 2 - signal
+-	MOVW	$SYS_tkill, R7
++	MOVW	R0, R1	// arg 2 tid
++	MOVW	R4, R0	// arg 1 pid
++	MOVW	sig+0(FP), R2	// arg 3
++	MOVW	$SYS_tgkill, R7
+ 	SWI	$0
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 1c8fce3db6..086c8ddc63 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -36,7 +36,7 @@
+ #define SYS_getpid		172
+ #define SYS_gettid		178
+ #define SYS_kill		129
+-#define SYS_tkill		130
++#define SYS_tgkill		131
+ #define SYS_futex		98
+ #define SYS_sched_getaffinity	123
+ #define SYS_exit_group		94
+@@ -143,11 +143,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$SYS_getpid, R8
++	SVC
++	MOVW	R0, R19
+ 	MOVD	$SYS_gettid, R8
+ 	SVC
+-	MOVW	R0, R0	// arg 1 tid
+-	MOVW	sig+0(FP), R1	// arg 2
+-	MOVD	$SYS_tkill, R8
++	MOVW	R0, R1	// arg 2 tid
++	MOVW	R19, R0	// arg 1 pid
++	MOVW	sig+0(FP), R2	// arg 3
++	MOVD	$SYS_tgkill, R8
+ 	SVC
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 8e64f1c562..337299ba5f 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -35,12 +35,12 @@
+ #define SYS_madvise		5027
+ #define SYS_mincore		5026
+ #define SYS_gettid		5178
+-#define SYS_tkill		5192
+ #define SYS_futex		5194
+ #define SYS_sched_getaffinity	5196
+ #define SYS_exit_group		5205
+ #define SYS_epoll_create	5207
+ #define SYS_epoll_ctl		5208
++#define SYS_tgkill		5225
+ #define SYS_openat		5247
+ #define SYS_epoll_pwait		5272
+ #define SYS_clock_gettime	5222
+@@ -137,11 +137,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	MOVV	$SYS_getpid, R2
++	SYSCALL
++	MOVW	R2, R16
+ 	MOVV	$SYS_gettid, R2
+ 	SYSCALL
+-	MOVW	R2, R4	// arg 1 tid
+-	MOVW	sig+0(FP), R5	// arg 2
+-	MOVV	$SYS_tkill, R2
++	MOVW	R2, R5	// arg 2 tid
++	MOVW	R16, R4	// arg 1 pid
++	MOVW	sig+0(FP), R6	// arg 3
++	MOVV	$SYS_tgkill, R2
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index a6bca3bebd..dca5f1ee45 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -35,7 +35,6 @@
+ #define SYS_madvise		4218
+ #define SYS_mincore		4217
+ #define SYS_gettid		4222
+-#define SYS_tkill		4236
+ #define SYS_futex		4238
+ #define SYS_sched_getaffinity	4240
+ #define SYS_exit_group		4246
+@@ -43,6 +42,7 @@
+ #define SYS_epoll_ctl		4249
+ #define SYS_epoll_wait		4250
+ #define SYS_clock_gettime	4263
++#define SYS_tgkill		4266
+ #define SYS_epoll_create1	4326
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+@@ -135,11 +135,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$0-4
++	MOVW	$SYS_getpid, R2
++	SYSCALL
++	MOVW	R2, R16
+ 	MOVW	$SYS_gettid, R2
+ 	SYSCALL
+-	MOVW	R2, R4	// arg 1 tid
+-	MOVW	sig+0(FP), R5	// arg 2
+-	MOVW	$SYS_tkill, R2
++	MOVW	R2, R5	// arg 2 tid
++	MOVW	R16, R4	// arg 1 pid
++	MOVW	sig+0(FP), R6	// arg 3
++	MOVW	$SYS_tgkill, R2
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 075adf2368..7c2f8ea637 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -36,7 +36,6 @@
+ #define SYS_madvise		205
+ #define SYS_mincore		206
+ #define SYS_gettid		207
+-#define SYS_tkill		208
+ #define SYS_futex		221
+ #define SYS_sched_getaffinity	223
+ #define SYS_exit_group		234
+@@ -44,6 +43,7 @@
+ #define SYS_epoll_ctl		237
+ #define SYS_epoll_wait		238
+ #define SYS_clock_gettime	246
++#define SYS_tgkill		250
+ #define SYS_epoll_create1	315
+ 
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+@@ -123,10 +123,13 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	SYSCALL	$SYS_getpid
++	MOVW	R3, R14
+ 	SYSCALL	$SYS_gettid
+-	MOVW	R3, R3	// arg 1 tid
+-	MOVW	sig+0(FP), R4	// arg 2
+-	SYSCALL	$SYS_tkill
++	MOVW	R3, R4	// arg 2 tid
++	MOVW	R14, R3	// arg 1 pid
++	MOVW	sig+0(FP), R5	// arg 3
++	SYSCALL	$SYS_tgkill
+ 	RET
+ 
+ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 1ff110c232..95401af62e 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -31,9 +31,9 @@
+ #define SYS_madvise             219
+ #define SYS_mincore             218
+ #define SYS_gettid              236
+-#define SYS_tkill               237
+ #define SYS_futex               238
+ #define SYS_sched_getaffinity   240
++#define SYS_tgkill              241
+ #define SYS_exit_group          248
+ #define SYS_epoll_create        249
+ #define SYS_epoll_ctl           250
+@@ -129,11 +129,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$SYS_getpid, R1
++	SYSCALL
++	MOVW	R2, R10
+ 	MOVW	$SYS_gettid, R1
+ 	SYSCALL
+-	MOVW	R2, R2	// arg 1 tid
+-	MOVW	sig+0(FP), R3	// arg 2
+-	MOVW	$SYS_tkill, R1
++	MOVW	R2, R3	// arg 2 tid
++	MOVW	R10, R2	// arg 1 pid
++	MOVW	sig+0(FP), R4	// arg 2
++	MOVW	$SYS_tgkill, R1
+ 	SYSCALL
+ 	RET
+ 

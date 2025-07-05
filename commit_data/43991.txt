@@ -10,6 +10,20 @@ Date:   Fri May 1 16:48:25 2020 +0200
     Change-Id: I40fc016c7365510a12c41d4ca596f66d2892c3f9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231537
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/unsafeheader/unsafeheader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/unsafeheader/unsafeheader.go b/src/internal/unsafeheader/unsafeheader.go
+index 2d4d00d45c..6d092c629a 100644
+--- a/src/internal/unsafeheader/unsafeheader.go
++++ b/src/internal/unsafeheader/unsafeheader.go
+@@ -29,7 +29,7 @@ type Slice struct {
+ // It cannot be used safely or portably and its representation may
+ // change in a later release.
+ //
+-// Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
++// Unlike reflect.StringHeader, its Data field is sufficient to guarantee the
+ // data it references will not be garbage collected.
+ type String struct {
+ 	Data unsafe.Pointer

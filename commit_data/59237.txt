@@ -15,6 +15,23 @@ Date:   Wed Feb 21 21:40:02 2024 +0800
     Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index bef285e413..e9e7e4df15 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -270,10 +270,10 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessag
+ 	hasAdd := false
+ 	for {
+ 		ahdr, err := p.AdditionalHeader()
+-		hasAdd = hasAdd || err != dnsmessage.ErrSectionDone
+ 		if err != nil {
+ 			return hdr.RCode, hasAdd
+ 		}
++		hasAdd = true
+ 		if ahdr.Type == dnsmessage.TypeOPT {
+ 			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
+ 		}

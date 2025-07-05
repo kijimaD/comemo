@@ -19,9 +19,180 @@ Date:   Wed Feb 27 20:08:36 2019 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go           | 35 +++++++++++++++++++++++++++++++----
  src/context/context_test.go      |  2 +-
  src/go/build/deps_test.go        | 36 +++++++++++++++++++++++++++++++++++-
  src/internal/reflectlite/type.go |  7 +++++++
  4 files changed, 74 insertions(+), 6 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 36f83c7b5b..77298f6531 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -49,7 +49,6 @@ package context
+ 
+ import (
+ 	"errors"
+-	"fmt"
+ 	"internal/reflectlite"
+ 	"sync"
+ 	"time"
+@@ -338,8 +337,19 @@ func (c *cancelCtx) Err() error {
+ 	return err
+ }
+ 
++type stringer interface {
++	String() string
++}
++
++func contextName(c Context) string {
++	if s, ok := c.(stringer); ok {
++		return s.String()
++	}
++	return reflectlite.TypeOf(c).String()
++}
++
+ func (c *cancelCtx) String() string {
+-	return fmt.Sprintf("%v.WithCancel", c.Context)
++	return contextName(c.Context) + ".WithCancel"
+ }
+ 
+ // cancel closes c.done, cancels each of c's children, and, if
+@@ -420,7 +430,9 @@ func (c *timerCtx) Deadline() (deadline time.Time, ok bool) {
+ }
+ 
+ func (c *timerCtx) String() string {
+-	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, time.Until(c.deadline))
++	return contextName(c.cancelCtx.Context) + ".WithDeadline(" +
++		c.deadline.String() + " [" +
++		time.Until(c.deadline).String() + "])"
+ }
+ 
+ func (c *timerCtx) cancel(removeFromParent bool, err error) {
+@@ -481,8 +493,23 @@ type valueCtx struct {
+ 	key, val interface{}
+ }
+ 
++// stringify tries a bit to stringify v, without using fmt, since we don't
++// want context depending on the unicode tables. This is only used by
++// *valueCtx.String().
++func stringify(v interface{}) string {
++	if s, ok := v.(stringer); ok {
++		return s.String()
++	}
++	if s, ok := v.(string); ok {
++		return s
++	}
++	return "<not Stringer>"
++}
++
+ func (c *valueCtx) String() string {
+-	return fmt.Sprintf("%v.WithValue(%#v, %#v)", c.Context, c.key, c.val)
++	return contextName(c.Context) + ".WithValue(type " +
++		reflectlite.TypeOf(c.key).String() +
++		", val " + stringify(c.val) + ")"
+ }
+ 
+ func (c *valueCtx) Value(key interface{}) interface{} {
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index f73f2837b8..0cec169915 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -343,7 +343,7 @@ func XTestValues(t testingT) {
+ 	c1 := WithValue(Background(), k1, "c1k1")
+ 	check(c1, "c1", "c1k1", "", "")
+ 
+-	if got, want := fmt.Sprint(c1), `context.Background.WithValue(1, "c1k1")`; got != want {
++	if got, want := fmt.Sprint(c1), `context.Background.WithValue(type context.key1, val c1k1)`; got != want {
+ 		t.Errorf("c.String() = %q want %q", got, want)
+ 	}
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e9ea0fabd8..92b115eb53 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -249,7 +249,7 @@ var pkgDeps = map[string][]string{
+ 	"compress/gzip":                  {"L4", "compress/flate"},
+ 	"compress/lzw":                   {"L4"},
+ 	"compress/zlib":                  {"L4", "compress/flate"},
+-	"context":                        {"errors", "fmt", "internal/reflectlite", "sync", "time"},
++	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
+ 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+ 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
+ 	"debug/dwarf":                    {"L4"},
+@@ -520,15 +520,21 @@ func TestDependencies(t *testing.T) {
+ 	}
+ 	sort.Strings(all)
+ 
++	sawImport := map[string]map[string]bool{} // from package => to package => true
++
+ 	for _, pkg := range all {
+ 		imports, err := findImports(pkg)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+ 		}
++		if sawImport[pkg] == nil {
++			sawImport[pkg] = map[string]bool{}
++		}
+ 		ok := allowed(pkg)
+ 		var bad []string
+ 		for _, imp := range imports {
++			sawImport[pkg][imp] = true
+ 			if !ok[imp] {
+ 				bad = append(bad, imp)
+ 			}
+@@ -537,6 +543,34 @@ func TestDependencies(t *testing.T) {
+ 			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+ 		}
+ 	}
++
++	// depPath returns the path between the given from and to packages.
++	// It returns the empty string if there's no dependency path.
++	var depPath func(string, string) string
++	depPath = func(from, to string) string {
++		if sawImport[from][to] {
++			return from + " => " + to
++		}
++		for pkg := range sawImport[from] {
++			if p := depPath(pkg, to); p != "" {
++				return from + " => " + p
++			}
++		}
++		return ""
++	}
++
++	// Also test some high-level policy goals are being met by not finding
++	// these dependency paths:
++	badPaths := []struct{ from, to string }{
++		{"net", "unicode"},
++	}
++
++	for _, path := range badPaths {
++		if how := depPath(path.from, path.to); how != "" {
++			t.Logf("TODO(issue 30440): policy violation: %s", how)
++		}
++	}
++
+ }
+ 
+ var buildIgnore = []byte("\n// +build ignore")
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index faecb8755d..3375464647 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -47,6 +47,13 @@ type Type interface {
+ 	// Comparable reports whether values of this type are comparable.
+ 	Comparable() bool
+ 
++	// String returns a string representation of the type.
++	// The string representation may use shortened package names
++	// (e.g., base64 instead of "encoding/base64") and is not
++	// guaranteed to be unique among types. To test for type identity,
++	// compare the Types directly.
++	String() string
++
+ 	// Elem returns a type's element type.
+ 	// It panics if the type's Kind is not Ptr.
+ 	Elem() Type

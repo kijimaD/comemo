@@ -21,7 +21,7 @@ Date:   Tue Nov 1 16:04:50 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/os3_solaris.go        |  6 ++++--
  src/runtime/os_aix.go             | 13 +++----------
  src/runtime/os_darwin.go          |  4 +++-
@@ -33,3 +33,223 @@ Date:   Tue Nov 1 16:04:50 2022 -0700
  src/runtime/os_openbsd_syscall.go | 12 ++++++++----
  src/runtime/retry.go              | 23 +++++++++++++++++++++++
  10 files changed, 75 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 3bc23e17be..ffac4b6492 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -172,11 +172,13 @@ func newosproc(mp *m) {
+ 	// Disable signals during create, so that the new thread starts
+ 	// with signals disabled. It will enable them in minit.
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret = pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
++	ret = retryOnEAGAIN(func() int32 {
++		return pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+-		if ret == -_EAGAIN {
++		if ret == _EAGAIN {
+ 			println("runtime: may need to increase max user processes (ulimit -u)")
+ 		}
+ 		throw("newosproc")
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 1a534db0e4..7c5947d06f 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -211,16 +211,9 @@ func newosproc(mp *m) {
+ 	// Disable signals during create, so that the new thread starts
+ 	// with signals disabled. It will enable them in minit.
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	var ret int32
+-	for tries := 0; tries < 20; tries++ {
+-		// pthread_create can fail with EAGAIN for no reasons
+-		// but it will be ok if it retries.
+-		ret = pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
+-		if ret != _EAGAIN {
+-			break
+-		}
+-		usleep(uint32(tries+1) * 1000) // Milliseconds.
+-	}
++	ret := retryOnEAGAIN(func() int32 {
++		return pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 45032c782f..af5c18c301 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -230,7 +230,9 @@ func newosproc(mp *m) {
+ 	// setup and then calls mstart.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
++	err = retryOnEAGAIN(func() int32 {
++		return pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+ 		writeErrStr(failthreadcreate)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 979a7d1642..e467578c32 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -162,7 +162,10 @@ func newosproc(mp *m) {
+ 	}
+ 
+ 	// TODO: Check for error.
+-	lwp_create(&params)
++	retryOnEAGAIN(func() int32 {
++		lwp_create(&params)
++		return 0
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ }
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 3b7ae2a0f6..f53cb115a1 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -213,10 +213,14 @@ func newosproc(mp *m) {
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
++	ret := retryOnEAGAIN(func() int32 {
++		errno := thr_new(&param, int32(unsafe.Sizeof(param)))
++		// thr_new returns negative errno
++		return -errno
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+-	if ret < 0 {
+-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
++	if ret != 0 {
++		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+ 		throw("newosproc")
+ 	}
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 8e30ee338e..3ad1e3b8fc 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -176,12 +176,20 @@ func newosproc(mp *m) {
+ 	// with signals disabled. It will enable them in minit.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
++	ret := retryOnEAGAIN(func() int32 {
++		r := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
++		// clone returns positive TID, negative errno.
++		// We don't care about the TID.
++		if r >= 0 {
++			return 0
++		}
++		return -r
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+-	if ret < 0 {
+-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+-		if ret == -_EAGAIN {
++	if ret != 0 {
++		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
++		if ret == _EAGAIN {
+ 			println("runtime: may need to increase max user processes (ulimit -u)")
+ 		}
+ 		throw("newosproc")
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 0273d33c05..ce59618af4 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -227,11 +227,15 @@ func newosproc(mp *m) {
+ 
+ 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
+ 
+-	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
++	ret := retryOnEAGAIN(func() int32 {
++		errno := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
++		// lwp_create returns negative errno
++		return -errno
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+-	if ret < 0 {
+-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+-		if ret == -_EAGAIN {
++	if ret != 0 {
++		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", ret, ")\n")
++		if ret == _EAGAIN {
+ 			println("runtime: may need to increase max user processes (ulimit -p)")
+ 		}
+ 		throw("runtime.newosproc")
+diff --git a/src/runtime/os_openbsd_libc.go b/src/runtime/os_openbsd_libc.go
+index f0478b0936..201f1629d9 100644
+--- a/src/runtime/os_openbsd_libc.go
++++ b/src/runtime/os_openbsd_libc.go
+@@ -47,7 +47,9 @@ func newosproc(mp *m) {
+ 	// setup and then calls mstart.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	err := pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
++	err := retryOnEAGAIN(func() int32 {
++		return pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+ 		writeErrStr(failthreadcreate)
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+index 9d67a7ebbd..d784f76475 100644
+--- a/src/runtime/os_openbsd_syscall.go
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -34,12 +34,16 @@ func newosproc(mp *m) {
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
++	ret := retryOnEAGAIN(func() int32 {
++		errno := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
++		// tfork returns negative errno
++		return -errno
++	})
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+-	if ret < 0 {
+-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+-		if ret == -_EAGAIN {
++	if ret != 0 {
++		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", ret, ")\n")
++		if ret == _EAGAIN {
+ 			println("runtime: may need to increase max user processes (ulimit -p)")
+ 		}
+ 		throw("runtime.newosproc")
+diff --git a/src/runtime/retry.go b/src/runtime/retry.go
+new file mode 100644
+index 0000000000..2e2f813bbc
+--- /dev/null
++++ b/src/runtime/retry.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime
++
++// retryOnEAGAIN retries a function until it does not return EAGAIN.
++// It will use an increasing delay between calls, and retry up to 20 times.
++// The function argument is expected to return an errno value,
++// and retryOnEAGAIN will return any errno value other than EAGAIN.
++// If all retries return EAGAIN, then retryOnEAGAIN will return EAGAIN.
++func retryOnEAGAIN(fn func() int32) int32 {
++	for tries := 0; tries < 20; tries++ {
++		errno := fn()
++		if errno != _EAGAIN {
++			return errno
++		}
++		usleep_no_g(uint32(tries+1) * 1000) // milliseconds
++	}
++	return _EAGAIN
++}

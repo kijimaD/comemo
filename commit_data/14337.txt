@@ -7,6 +7,27 @@ Date:   Wed Nov 7 09:14:21 2012 -0500
     R=ken
     CC=golang-dev
     https://golang.org/cl/6815073
-
+---
  src/cmd/gc/export.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 7db713e481..50303afd80 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -273,13 +273,13 @@ dumpexporttype(Type *t)
+ 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
+ 	for(i=0; i<n; i++) {
+ 		f = m[i];
++		if(f->nointerface)
++			Bprint(bout, "\t//go:nointerface\n");
+ 		if (f->type->nname && f->type->nname->inl) { // nname was set by caninl
+ 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 			if(debug['l'] < 2)
+ 				typecheckinl(f->type->nname);
+-			if(f->nointerface)
+-				Bprint(bout, "\t//go:nointerface\n");
+ 			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
+ 			reexportdeplist(f->type->nname->inl);
+ 		} else

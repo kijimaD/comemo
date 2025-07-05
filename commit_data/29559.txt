@@ -23,6 +23,28 @@ Date:   Fri Sep 23 00:02:38 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/raceprof.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/raceprof.go b/src/runtime/testdata/testprogcgo/raceprof.go
+index 8f50a8a425..fe624c541f 100644
+--- a/src/runtime/testdata/testprogcgo/raceprof.go
++++ b/src/runtime/testdata/testprogcgo/raceprof.go
+@@ -15,6 +15,7 @@ package main
+ #include <signal.h>
+ #include <stdint.h>
+ #include <pthread.h>
++#include <sched.h>
+ 
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
+@@ -41,7 +42,7 @@ static void* raceprofThread(void* p) {
+ 
+ 	for (i = 0; i < 100; i++) {
+ 		pthread_kill(pthread_self(), SIGPROF);
+-		pthread_yield();
++		sched_yield();
+ 	}
+ 	return 0;
+ }

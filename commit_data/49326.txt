@@ -14,7 +14,58 @@ Date:   Fri Aug 6 13:21:25 2021 -0400
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/go1.17.html    | 14 +++++++-------
  src/time/format.go |  6 +++---
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index b65d13a040..c1b5ab3f6f 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -753,9 +753,9 @@ func Foo() bool {
+ 
+     <p><!-- CL 311572 -->
+       The new
+-      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
+-      and 
+-      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
++      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a>
++      and
++      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a>
+       structs represent the int16 and byte values that may be null. These can be used as
+       destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
+       similar to NullString.
+@@ -1205,11 +1205,11 @@ func Foo() bool {
+ 
+     <p><!-- CL 300996 -->
+       The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
+-      The following time formats are now accepted:
++      For example, the following time layouts are now accepted:
+       <ul>
+-        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
+-        <li>Mon Jan _2 14:06:03,120007 2006</li>
+-        <li>Mon Jan 2 14:06:03,120007 2006</li>
++        <li>2006-01-02 15:04:05,999999999 -0700 MST</li>
++        <li>Mon Jan _2 15:04:05,000000 2006</li>
++        <li>Monday, January 2 15:04:05,000 2006</li>
+       </ul>
+     </p>
+ 
+diff --git a/src/time/format.go b/src/time/format.go
+index bb173a21c2..f4b4f48142 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -77,9 +77,9 @@ import "errors"
+ // The formats  and 002 are space-padded and zero-padded
+ // three-character day of year; there is no unpadded day of year format.
+ //
+-// A decimal point followed by one or more zeros represents a fractional
+-// second, printed to the given number of decimal places.
+-// Either a comma or decimal point followed by one or more nines represents
++// A comma or decimal point followed by one or more zeros represents
++// a fractional second, printed to the given number of decimal places.
++// A comma or decimal point followed by one or more nines represents
+ // a fractional second, printed to the given number of decimal places, with
+ // trailing zeros removed.
+ // For example "15:04:05,000" or "15:04:05.000" formats or parses with

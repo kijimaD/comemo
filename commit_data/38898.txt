@@ -7,6 +7,20 @@ Date:   Wed Dec 5 16:36:18 2018 -0500
     Change-Id: Ic435090bda64d1061f2c3aac0aa94ed7a4800b0b
     Reviewed-on: https://go-review.googlesource.com/c/152743
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 3779c22a9d..ec2d7146e3 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -381,7 +381,7 @@ for {
+ <dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
+   <dd>
+     <p><!-- CL 151299 -->
+-      TODO: <a href="https://golang.org/cl/151299">https://golang.org/cl/151299</a>: update tzdata to 2018g
++    The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code> has been updated to version 2018g. Note that this ZIP file is only used if a time zone database is not provided by the operating system.
+     </p>
+ 
+ </dl><!-- lib/time -->

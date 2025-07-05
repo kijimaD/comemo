@@ -237,3 +237,23 @@ Date:   Tue Jul 19 16:55:13 2022 -0400
  test/run.go                                        |   1 -
  test/typeparam/issue53762.go                       |  18 +
  143 files changed, 3559 insertions(+), 995 deletions(-)
+
+diff --cc test/run.go
+index 49c7c157bd,cb1622ccc9..fc03e1796b
+--- a/test/run.go
++++ b/test/run.go
+@@@ -1964,12 -1964,8 +1964,11 @@@ var types2Failures32Bit = setOf
+  )
+  
+  var go118Failures = setOf(
+ -	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
+ -	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
+ +	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+ +	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+- 	"typeparam/issue53419.go",  // 1.18 compiler mishandles generic selector resolution
+ +	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+ +	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+ +	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
+  )
+  
+  // In all of these cases, the 1.17 compiler reports reasonable errors, but either the

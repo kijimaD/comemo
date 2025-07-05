@@ -11,6 +11,33 @@ Date:   Mon Feb 20 22:58:36 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/syscall/asm_linux_mipsx.s | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/asm_linux_mipsx.s b/src/syscall/asm_linux_mipsx.s
+index 957f2a8a69..40ab82b834 100644
+--- a/src/syscall/asm_linux_mipsx.s
++++ b/src/syscall/asm_linux_mipsx.s
+@@ -88,15 +88,15 @@ TEXT ·Syscall9(SB),NOSPLIT,$28-52
+ 	SYSCALL
+ 	BEQ	R7, ok9
+ 	MOVW	$-1, R1
+-	MOVW	R1, r1+28(FP)	// r1
+-	MOVW	R0, r2+32(FP)	// r2
+-	MOVW	R2, err+36(FP)	// errno
++	MOVW	R1, r1+40(FP)	// r1
++	MOVW	R0, r2+44(FP)	// r2
++	MOVW	R2, err+48(FP)	// errno
+ 	JAL	runtime·exitsyscall(SB)
+ 	RET
+ ok9:
+-	MOVW	R2, r1+28(FP)	// r1
+-	MOVW	R3, r2+32(FP)	// r2
+-	MOVW	R0, err+36(FP)	// errno
++	MOVW	R2, r1+40(FP)	// r1
++	MOVW	R3, r2+44(FP)	// r2
++	MOVW	R0, err+48(FP)	// errno
+ 	JAL	runtime·exitsyscall(SB)
+ 	RET
+ 

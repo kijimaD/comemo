@@ -14,8 +14,90 @@ Date:   Mon Apr 25 10:09:47 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/script_test.go                         | 28 +++++++++++++++++++++++
  src/cmd/go/testdata/script/README                 |  1 +
  src/cmd/go/testdata/script/check_goexperiment.txt | 10 ++++++++
  3 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 006c4346c7..4f519aa0ee 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"internal/txtar"
+ 	"io/fs"
+@@ -246,6 +247,24 @@ func goVersion() (string, error) {
+ 
+ var execCache par.Cache
+ 
++func goExperimentIsValid(expname string) bool {
++	for _, exp := range buildcfg.Experiment.All() {
++		if expname == exp || expname == "no"+exp || "no"+expname == exp {
++			return true
++		}
++	}
++	return false
++}
++
++func goExperimentIsEnabled(expname string) bool {
++	for _, exp := range buildcfg.Experiment.Enabled() {
++		if exp == expname {
++			return true
++		}
++	}
++	return false
++}
++
+ // run runs the test script.
+ func (ts *testScript) run() {
+ 	// Truncate log at end of last phase marker,
+@@ -444,6 +463,15 @@ Script:
+ 					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
+ 					break
+ 				}
++				if strings.HasPrefix(cond.tag, "GOEXPERIMENT:") {
++					rawval := strings.TrimPrefix(cond.tag, "GOEXPERIMENT:")
++					value := strings.TrimSpace(rawval)
++					if !goExperimentIsValid(value) {
++						ts.fatalf("unknown/unrecognized GOEXPERIMENT %q", value)
++					}
++					ok = goExperimentIsEnabled(value)
++					break
++				}
+ 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
+ 					ts.fatalf("unknown condition %q", cond.tag)
+ 				}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index e52917684f..6acef31018 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -99,6 +99,7 @@ should only run when the condition is satisfied. The available conditions are:
+    - [buildmode:value] for whether -buildmode=value is supported
+    - [trimpath] for whether the 'go' binary was built with -trimpath
+    - [mismatched-goroot] for whether the test's GOROOT_FINAL does not match the real GOROOT
++   - [GOEXPERIMENT:expname] for whether the GOEXPERIMENT 'expname' is enabled
+ 
+ A condition can be negated: [!short] means to run the rest of the line
+ when testing.Short() is false. Multiple conditions may be given for a single
+diff --git a/src/cmd/go/testdata/script/check_goexperiment.txt b/src/cmd/go/testdata/script/check_goexperiment.txt
+new file mode 100644
+index 0000000000..3434cb9d6d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/check_goexperiment.txt
+@@ -0,0 +1,10 @@
++# Test that [GOEXPERIMENT:x] is accepted.
++# Here fieldtrack is picked arbitrarily.
++
++[GOEXPERIMENT:nofieldtrack] env
++
++[GOEXPERIMENT:fieldtrack] env
++
++#[GOEXPERIMENT:crashme] env
++
++

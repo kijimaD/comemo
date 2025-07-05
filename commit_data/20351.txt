@@ -8,6 +8,22 @@ Date:   Wed Sep 3 00:56:31 2014 +0200
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/137920044
-
+---
  src/pkg/runtime/env_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/env_plan9.go b/src/pkg/runtime/env_plan9.go
+index b6dcb4c1ea..76e9867e03 100644
+--- a/src/pkg/runtime/env_plan9.go
++++ b/src/pkg/runtime/env_plan9.go
+@@ -31,6 +31,10 @@ func gogetenv(key string) string {
+ 		return ""
+ 	}
+ 	n := seek(fd, 0, 2) - 1
++	if n <= 0 {
++		close(fd)
++		return ""
++	}
+ 
+ 	p := make([]byte, n)
+ 

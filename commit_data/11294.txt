@@ -16,6 +16,19 @@ Date:   Fri Jan 20 13:34:25 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5532107
-
+---
  AUTHORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cd6d97abb6..25785eb024 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -30,6 +30,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
++Berengar Lehr <berengar.lehr@gmx.de>
+ Bobby Powers <bobbypowers@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>

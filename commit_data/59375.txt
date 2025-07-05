@@ -14,7 +14,7 @@ Date:   Fri Mar 8 10:12:41 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/heapdump.go    |  4 +---
  src/runtime/mcheckmark.go  |  4 +---
  src/runtime/mgc.go         |  4 +---
@@ -23,3 +23,155 @@ Date:   Fri Mar 8 10:12:41 2024 +0000
  src/runtime/mprof.go       | 12 +++---------
  src/runtime/profbuf.go     | 10 +++-------
  7 files changed, 12 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 8bae8c0636..c1c71fad48 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -735,9 +735,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
+ 		tmpbuf = (*[1 << 30]byte)(p)[:n]
+ 	}
+ 	// Convert heap bitmap to pointer bitmap.
+-	for i := uintptr(0); i < nptr/8+1; i++ {
+-		tmpbuf[i] = 0
+-	}
++	clear(tmpbuf[:nptr/8+1])
+ 	if goexperiment.AllocHeaders {
+ 		s := spanOf(p)
+ 		tp := s.typePointersOf(p, size)
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 73c1a10d23..581a5de955 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -52,9 +52,7 @@ func startCheckmarks() {
+ 			arena.checkmarks = bitmap
+ 		} else {
+ 			// Otherwise clear the existing bitmap.
+-			for i := range bitmap.b {
+-				bitmap.b[i] = 0
+-			}
++			clear(bitmap.b[:])
+ 		}
+ 	}
+ 	// Enable checkmarking.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 64fc0a688c..efadcdbc4e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1665,9 +1665,7 @@ func gcResetMarkState() {
+ 	unlock(&mheap_.lock)
+ 	for _, ai := range arenas {
+ 		ha := mheap_.arenas[ai.l1()][ai.l2()]
+-		for i := range ha.pageMarks {
+-			ha.pageMarks[i] = 0
+-		}
++		clear(ha.pageMarks[:])
+ 	}
+ 
+ 	work.bytesMarked = 0
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index d533f84180..7c117b0a9b 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -511,10 +511,7 @@ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
+ 		// either totally allocated or freed.
+ 		whole := p.summary[len(p.summary)-1][sc+1 : ec]
+ 		if alloc {
+-			// Should optimize into a memclr.
+-			for i := range whole {
+-				whole[i] = 0
+-			}
++			clear(whole)
+ 		} else {
+ 			for i := range whole {
+ 				whole[i] = freeChunkSum
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index 6b5f15dbd8..9f447557c6 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -85,18 +85,14 @@ func (b *pageBits) clearRange(i, n uint) {
+ 	_ = b[j/64]
+ 	// Clear leading bits.
+ 	b[i/64] &^= ^uint64(0) << (i % 64)
+-	for k := i/64 + 1; k < j/64; k++ {
+-		b[k] = 0
+-	}
++	clear(b[i/64+1 : j/64])
+ 	// Clear trailing bits.
+ 	b[j/64] &^= (uint64(1) << (j%64 + 1)) - 1
+ }
+ 
+ // clearAll frees all the bits of b.
+ func (b *pageBits) clearAll() {
+-	for i := range b {
+-		b[i] = 0
+-	}
++	clear(b[:])
+ }
+ 
+ // clearBlock64 clears the 64-bit aligned block of bits containing the i'th bit that
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index c232b15424..c0836afa8b 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -954,9 +954,7 @@ func record(r *MemProfileRecord, b *bucket) {
+ 		asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+ 	}
+ 	copy(r.Stack0[:], b.stk())
+-	for i := int(b.nstk); i < len(r.Stack0); i++ {
+-		r.Stack0[i] = 0
+-	}
++	clear(r.Stack0[b.nstk:])
+ }
+ 
+ func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {
+@@ -1012,9 +1010,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 				asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+ 			}
+ 			i := copy(r.Stack0[:], b.stk())
+-			for ; i < len(r.Stack0); i++ {
+-				r.Stack0[i] = 0
+-			}
++			clear(r.Stack0[i:])
+ 			p = p[1:]
+ 		}
+ 	}
+@@ -1042,9 +1038,7 @@ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 			r.Count = int64(bp.count)
+ 			r.Cycles = bp.cycles
+ 			i := copy(r.Stack0[:], b.stk())
+-			for ; i < len(r.Stack0); i++ {
+-				r.Stack0[i] = 0
+-			}
++			clear(r.Stack0[i:])
+ 			p = p[1:]
+ 		}
+ 	}
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index d3afbcd8c7..4be4bc9208 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -367,10 +367,8 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
+ 	data[0] = uint64(2 + b.hdrsize + uintptr(len(stk))) // length
+ 	data[1] = uint64(now)                               // time stamp
+ 	// header, zero-padded
+-	i := uintptr(copy(data[2:2+b.hdrsize], hdr))
+-	for ; i < b.hdrsize; i++ {
+-		data[2+i] = 0
+-	}
++	i := copy(data[2:2+b.hdrsize], hdr)
++	clear(data[2+i : 2+b.hdrsize])
+ 	for i, pc := range stk {
+ 		data[2+b.hdrsize+uintptr(i)] = uint64(pc)
+ 	}
+@@ -469,9 +467,7 @@ Read:
+ 			dst := b.overflowBuf
+ 			dst[0] = uint64(2 + b.hdrsize + 1)
+ 			dst[1] = time
+-			for i := uintptr(0); i < b.hdrsize; i++ {
+-				dst[2+i] = 0
+-			}
++			clear(dst[2 : 2+b.hdrsize])
+ 			dst[2+b.hdrsize] = uint64(count)
+ 			return dst[:2+b.hdrsize+1], overflowTag[:1], false
+ 		}

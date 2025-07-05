@@ -7,6 +7,20 @@ Date:   Mon Mar 4 10:36:45 2013 -0500
     R=golang-dev, remyoudompheng, bradfitz
     CC=golang-dev
     https://golang.org/cl/7419049
-
+---
  src/pkg/runtime/proc.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6b9f8eae80..4ce0a718cd 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -18,6 +18,8 @@
+ // P - processor, a resource that is required to execute Go code.
+ //     M must have an associated P to execute Go code, however it can be
+ //     blocked or in a syscall w/o an associated P.
++//
++// Design doc at http://golang.org/s/go11sched.
+ 
+ typedef struct Sched Sched;
+ struct Sched {

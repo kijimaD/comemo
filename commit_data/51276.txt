@@ -19,6 +19,37 @@ Date:   Wed Jan 5 14:20:30 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/client_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index c2ea6f4330..ea59f68f35 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"encoding/base64"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -21,6 +22,7 @@ import (
+ 	"net/http/httptest"
+ 	"net/url"
+ 	"reflect"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -1289,6 +1291,9 @@ func testClientTimeout(t *testing.T, h2 bool) {
+ 			t.Errorf("net.Error.Timeout = false; want true")
+ 		}
+ 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
++			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
++				testenv.SkipFlaky(t, 43120)
++			}
+ 			t.Errorf("error string = %q; missing timeout substring", got)
+ 		}
+ 

@@ -7,7 +7,32 @@ Date:   Sun May 13 21:20:39 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6120047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 45640272a6..ef0cf6b4ee 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -103,6 +103,7 @@ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
++Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+ Jani Monoses <jani.monoses@ubuntu.com>
+ Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c78d60c8e1..d6093ea187 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -154,6 +154,7 @@ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
++Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+ Jani Monoses <jani.monoses@ubuntu.com> <jani.monoses@gmail.com>
+ Jaroslavas Počepko <jp@webmaster.ms>
+ Jean-Marc Eurin <jmeurin@google.com>

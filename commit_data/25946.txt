@@ -13,7 +13,34 @@ Date:   Fri Dec 4 15:46:22 2015 -0500
     Change-Id: I73511bdd91258ecda181d60d2829add746d1198b
     Reviewed-on: https://go-review.googlesource.com/17451
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/main2.c              | 2 +-
  misc/cgo/testcshared/src/libgo2/libgo2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+index 14a8b3f4db..9752006f79 100644
+--- a/misc/cgo/testcshared/main2.c
++++ b/misc/cgo/testcshared/main2.c
+@@ -9,7 +9,7 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
+-#define fd (10)
++#define fd (100)
+ 
+ // Tests libgo2.so, which does not export any functions.
+ // Read a string from the file descriptor and print it.
+diff --git a/misc/cgo/testcshared/src/libgo2/libgo2.go b/misc/cgo/testcshared/src/libgo2/libgo2.go
+index 636679b978..1b69d8f09f 100644
+--- a/misc/cgo/testcshared/src/libgo2/libgo2.go
++++ b/misc/cgo/testcshared/src/libgo2/libgo2.go
+@@ -21,7 +21,7 @@ import (
+ // that the C code can also use.
+ 
+ const (
+-	fd = 10
++	fd = 100
+ )
+ 
+ func init() {

@@ -20,7 +20,7 @@ Date:   Thu Aug 21 17:25:13 2014 -0700
     R=golang-codereviews, josharian
     CC=golang-codereviews
     https://golang.org/cl/130440043
-
+---
  src/cmd/gofmt/gofmt_test.go              | 123 ++++++++++++++++++++-----------
  src/cmd/gofmt/testdata/composites.golden |   2 +
  src/cmd/gofmt/testdata/composites.input  |   2 +
@@ -59,3 +59,534 @@ Date:   Thu Aug 21 17:25:13 2014 -0700
  src/cmd/gofmt/testdata/stdin4.golden     |   2 +
  src/cmd/gofmt/testdata/stdin4.input      |   2 +
  37 files changed, 150 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index ca44f3dcf7..d1edb7bcc1 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -6,18 +6,60 @@ package main
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"io/ioutil"
++	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
++	"text/scanner"
+ )
+ 
+-func runTest(t *testing.T, in, out, flags string) {
++var update = flag.Bool("update", false, "update .golden files")
++
++// gofmtFlags looks for a comment of the form
++//
++//	//gofmt flags
++//
++// within the first maxLines lines of the given file,
++// and returns the flags string, if any. Otherwise it
++// returns the empty string.
++func gofmtFlags(filename string, maxLines int) string {
++	f, err := os.Open(filename)
++	if err != nil {
++		return "" // ignore errors - they will be found later
++	}
++	defer f.Close()
++
++	// initialize scanner
++	var s scanner.Scanner
++	s.Init(f)
++	s.Error = func(*scanner.Scanner, string) {}       // ignore errors
++	s.Mode = scanner.GoTokens &^ scanner.SkipComments // want comments
++
++	// look for //gofmt comment
++	for s.Line <= maxLines {
++		switch s.Scan() {
++		case scanner.Comment:
++			const prefix = "//gofmt "
++			if t := s.TokenText(); strings.HasPrefix(t, prefix) {
++				return strings.TrimSpace(t[len(prefix):])
++			}
++		case scanner.EOF:
++			return ""
++		}
++
++	}
++
++	return ""
++}
++
++func runTest(t *testing.T, in, out string) {
+ 	// process flags
+ 	*simplifyAST = false
+ 	*rewriteRule = ""
+ 	stdin := false
+-	for _, flag := range strings.Split(flags, " ") {
++	for _, flag := range strings.Split(gofmtFlags(in, 20), " ") {
+ 		elts := strings.SplitN(flag, "=", 2)
+ 		name := elts[0]
+ 		value := ""
+@@ -56,6 +98,17 @@ func runTest(t *testing.T, in, out, flags string) {
+ 	}
+ 
+ 	if got := buf.Bytes(); !bytes.Equal(got, expected) {
++		if *update {
++			if in != out {
++				if err := ioutil.WriteFile(out, got, 0666); err != nil {
++					t.Error(err)
++				}
++				return
++			}
++			// in == out: don't accidentally destroy input
++			t.Errorf("WARNING: -update did not rewrite input file %s", in)
++		}
++
+ 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
+ 		d, err := diff(expected, got)
+ 		if err == nil {
+@@ -67,53 +120,37 @@ func runTest(t *testing.T, in, out, flags string) {
+ 	}
+ }
+ 
+-var tests = []struct {
+-	in, flags string
+-}{
+-	{"gofmt.go", ""},
+-	{"gofmt_test.go", ""},
+-	{"testdata/composites.input", "-s"},
+-	{"testdata/slices1.input", "-s"},
+-	{"testdata/slices2.input", "-s"},
+-	{"testdata/ranges.input", "-s"},
+-	{"testdata/old.input", ""},
+-	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+-	{"testdata/rewrite2.input", "-r=int->bool"},
+-	{"testdata/rewrite3.input", "-r=x->x"},
+-	{"testdata/rewrite4.input", "-r=(x)->x"},
+-	{"testdata/rewrite5.input", "-r=x+x->2*x"},
+-	{"testdata/rewrite6.input", "-r=fun(x)->Fun(x)"},
+-	{"testdata/rewrite7.input", "-r=fun(x...)->Fun(x)"},
+-	{"testdata/rewrite8.input", "-r=interface{}->int"},
+-	{"testdata/stdin*.input", "-stdin"},
+-	{"testdata/comments.input", ""},
+-	{"testdata/import.input", ""},
+-	{"testdata/crlf.input", ""},        // test case for issue 3961; see also TestCRLF
+-	{"testdata/typeswitch.input", ""},  // test case for issue 4470
+-	{"testdata/emptydecl.input", "-s"}, // test case for issue 7631
+-}
+-
++// TestRewrite processes testdata/*.input files and compares them to the
++// corresponding testdata/*.golden files. The gofmt flags used to process
++// a file must be provided via a comment of the form
++//
++//	//gofmt flags
++//
++// in the processed file within the first 20 lines, if any.
+ func TestRewrite(t *testing.T) {
+-	for _, test := range tests {
+-		match, err := filepath.Glob(test.in)
+-		if err != nil {
+-			t.Error(err)
+-			continue
++	// determine input files
++	match, err := filepath.Glob("testdata/*.input")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// add larger examples
++	match = append(match, "gofmt.go", "gofmt_test.go")
++
++	for _, in := range match {
++		out := in // for files where input and output are identical
++		if strings.HasSuffix(in, ".input") {
++			out = in[:len(in)-len(".input")] + ".golden"
+ 		}
+-		for _, in := range match {
+-			out := in
+-			if strings.HasSuffix(in, ".input") {
+-				out = in[:len(in)-len(".input")] + ".golden"
+-			}
+-			runTest(t, in, out, test.flags)
+-			if in != out {
+-				// Check idempotence.
+-				runTest(t, out, out, test.flags)
+-			}
++		runTest(t, in, out)
++		if in != out {
++			// Check idempotence.
++			runTest(t, out, out)
+ 		}
+ 	}
+ }
+ 
++// Test case for issue 3961.
+ func TestCRLF(t *testing.T) {
+ 	const input = "testdata/crlf.input"   // must contain CR/LF's
+ 	const golden = "testdata/crlf.golden" // must not contain any CR's
+diff --git a/src/cmd/gofmt/testdata/composites.golden b/src/cmd/gofmt/testdata/composites.golden
+index b2825e732a..fc9c98e625 100644
+--- a/src/cmd/gofmt/testdata/composites.golden
++++ b/src/cmd/gofmt/testdata/composites.golden
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ package P
+ 
+ type T struct {
+diff --git a/src/cmd/gofmt/testdata/composites.input b/src/cmd/gofmt/testdata/composites.input
+index 7210dafc96..fc7598af99 100644
+--- a/src/cmd/gofmt/testdata/composites.input
++++ b/src/cmd/gofmt/testdata/composites.input
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ package P
+ 
+ type T struct {
+diff --git a/src/cmd/gofmt/testdata/crlf.golden b/src/cmd/gofmt/testdata/crlf.golden
+index 57679f770f..193dbacc72 100644
+--- a/src/cmd/gofmt/testdata/crlf.golden
++++ b/src/cmd/gofmt/testdata/crlf.golden
+@@ -2,6 +2,7 @@
+ 	Source containing CR/LF line endings.
+ 	The gofmt'ed output must only have LF
+ 	line endings.
++	Test case for issue 3961.
+ */
+ package main
+ 
+diff --git a/src/cmd/gofmt/testdata/crlf.input b/src/cmd/gofmt/testdata/crlf.input
+index 61a1aa0b4e..ae7e14dbf1 100644
+--- a/src/cmd/gofmt/testdata/crlf.input
++++ b/src/cmd/gofmt/testdata/crlf.input
+@@ -2,6 +2,7 @@
+ 	Source containing CR/LF line endings.
+ 	The gofmt'ed output must only have LF
+ 	line endings.
++	Test case for issue 3961.
+ */
+ package main
+ 
+diff --git a/src/cmd/gofmt/testdata/emptydecl.golden b/src/cmd/gofmt/testdata/emptydecl.golden
+index 9fe62c9738..33d6435e0a 100644
+--- a/src/cmd/gofmt/testdata/emptydecl.golden
++++ b/src/cmd/gofmt/testdata/emptydecl.golden
+@@ -1,3 +1,7 @@
++//gofmt -s
++
++// Test case for issue 7631.
++
+ package main
+ 
+ // Keep this declaration
+diff --git a/src/cmd/gofmt/testdata/emptydecl.input b/src/cmd/gofmt/testdata/emptydecl.input
+index d1cab00ef7..4948a61f0d 100644
+--- a/src/cmd/gofmt/testdata/emptydecl.input
++++ b/src/cmd/gofmt/testdata/emptydecl.input
+@@ -1,3 +1,7 @@
++//gofmt -s
++
++// Test case for issue 7631.
++
+ package main
+ 
+ // Keep this declaration
+diff --git a/src/cmd/gofmt/testdata/ranges.golden b/src/cmd/gofmt/testdata/ranges.golden
+index 42168526d1..506b3a035a 100644
+--- a/src/cmd/gofmt/testdata/ranges.golden
++++ b/src/cmd/gofmt/testdata/ranges.golden
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for range simplification.
+ package p
+ 
+diff --git a/src/cmd/gofmt/testdata/ranges.input b/src/cmd/gofmt/testdata/ranges.input
+index 4b02d51752..df5f8333c2 100644
+--- a/src/cmd/gofmt/testdata/ranges.input
++++ b/src/cmd/gofmt/testdata/ranges.input
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for range simplification.
+ package p
+ 
+diff --git a/src/cmd/gofmt/testdata/rewrite1.golden b/src/cmd/gofmt/testdata/rewrite1.golden
+index d9beb37058..3ee5373a79 100644
+--- a/src/cmd/gofmt/testdata/rewrite1.golden
++++ b/src/cmd/gofmt/testdata/rewrite1.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=Foo->Bar
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite1.input b/src/cmd/gofmt/testdata/rewrite1.input
+index bdb894320d..a84c8f7816 100644
+--- a/src/cmd/gofmt/testdata/rewrite1.input
++++ b/src/cmd/gofmt/testdata/rewrite1.input
+@@ -1,3 +1,5 @@
++//gofmt -r=Foo->Bar
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite2.golden b/src/cmd/gofmt/testdata/rewrite2.golden
+index 64c67ffa67..f980e03530 100644
+--- a/src/cmd/gofmt/testdata/rewrite2.golden
++++ b/src/cmd/gofmt/testdata/rewrite2.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=int->bool
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite2.input b/src/cmd/gofmt/testdata/rewrite2.input
+index 21171447a1..489be4e07d 100644
+--- a/src/cmd/gofmt/testdata/rewrite2.input
++++ b/src/cmd/gofmt/testdata/rewrite2.input
+@@ -1,3 +1,5 @@
++//gofmt -r=int->bool
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite3.golden b/src/cmd/gofmt/testdata/rewrite3.golden
+index 0d16d16011..261a220c65 100644
+--- a/src/cmd/gofmt/testdata/rewrite3.golden
++++ b/src/cmd/gofmt/testdata/rewrite3.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=x->x
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite3.input b/src/cmd/gofmt/testdata/rewrite3.input
+index 0d16d16011..261a220c65 100644
+--- a/src/cmd/gofmt/testdata/rewrite3.input
++++ b/src/cmd/gofmt/testdata/rewrite3.input
+@@ -1,3 +1,5 @@
++//gofmt -r=x->x
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite4.golden b/src/cmd/gofmt/testdata/rewrite4.golden
+index 8dfc81a074..b05547b4bf 100644
+--- a/src/cmd/gofmt/testdata/rewrite4.golden
++++ b/src/cmd/gofmt/testdata/rewrite4.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=(x)->x
++
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite4.input b/src/cmd/gofmt/testdata/rewrite4.input
+index 164cc0451f..0817099209 100644
+--- a/src/cmd/gofmt/testdata/rewrite4.input
++++ b/src/cmd/gofmt/testdata/rewrite4.input
+@@ -1,3 +1,5 @@
++//gofmt -r=(x)->x
++
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite5.golden b/src/cmd/gofmt/testdata/rewrite5.golden
+index 5a448a63d3..9beb34aee7 100644
+--- a/src/cmd/gofmt/testdata/rewrite5.golden
++++ b/src/cmd/gofmt/testdata/rewrite5.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=x+x->2*x
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite5.input b/src/cmd/gofmt/testdata/rewrite5.input
+index 0d759e69b6..d7a6122d07 100644
+--- a/src/cmd/gofmt/testdata/rewrite5.input
++++ b/src/cmd/gofmt/testdata/rewrite5.input
+@@ -1,3 +1,5 @@
++//gofmt -r=x+x->2*x
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite6.golden b/src/cmd/gofmt/testdata/rewrite6.golden
+index e565dbdd97..48ec9aa0df 100644
+--- a/src/cmd/gofmt/testdata/rewrite6.golden
++++ b/src/cmd/gofmt/testdata/rewrite6.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=fun(x)->Fun(x)
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite6.input b/src/cmd/gofmt/testdata/rewrite6.input
+index 8c088b3e87..b085a84fef 100644
+--- a/src/cmd/gofmt/testdata/rewrite6.input
++++ b/src/cmd/gofmt/testdata/rewrite6.input
+@@ -1,3 +1,5 @@
++//gofmt -r=fun(x)->Fun(x)
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite7.golden b/src/cmd/gofmt/testdata/rewrite7.golden
+index 29babad9f9..8386a0b2a3 100644
+--- a/src/cmd/gofmt/testdata/rewrite7.golden
++++ b/src/cmd/gofmt/testdata/rewrite7.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=fun(x...)->Fun(x)
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite7.input b/src/cmd/gofmt/testdata/rewrite7.input
+index 073e2a3e6f..c1984708e7 100644
+--- a/src/cmd/gofmt/testdata/rewrite7.input
++++ b/src/cmd/gofmt/testdata/rewrite7.input
+@@ -1,3 +1,5 @@
++//gofmt -r=fun(x...)->Fun(x)
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite8.golden b/src/cmd/gofmt/testdata/rewrite8.golden
+index cfc452b031..62f0419dfb 100644
+--- a/src/cmd/gofmt/testdata/rewrite8.golden
++++ b/src/cmd/gofmt/testdata/rewrite8.golden
+@@ -1,3 +1,5 @@
++//gofmt -r=interface{}->int
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/rewrite8.input b/src/cmd/gofmt/testdata/rewrite8.input
+index 235efa91cc..7964c5c75c 100644
+--- a/src/cmd/gofmt/testdata/rewrite8.input
++++ b/src/cmd/gofmt/testdata/rewrite8.input
+@@ -1,3 +1,5 @@
++//gofmt -r=interface{}->int
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/gofmt/testdata/slices1.golden b/src/cmd/gofmt/testdata/slices1.golden
+index 6633a5e001..04bc16f216 100644
+--- a/src/cmd/gofmt/testdata/slices1.golden
++++ b/src/cmd/gofmt/testdata/slices1.golden
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for slice expression simplification.
+ package p
+ 
+diff --git a/src/cmd/gofmt/testdata/slices1.input b/src/cmd/gofmt/testdata/slices1.input
+index 27e9cb8fef..1f25c43ccb 100644
+--- a/src/cmd/gofmt/testdata/slices1.input
++++ b/src/cmd/gofmt/testdata/slices1.input
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for slice expression simplification.
+ package p
+ 
+diff --git a/src/cmd/gofmt/testdata/slices2.golden b/src/cmd/gofmt/testdata/slices2.golden
+index 433788e1ee..ab657004e6 100644
+--- a/src/cmd/gofmt/testdata/slices2.golden
++++ b/src/cmd/gofmt/testdata/slices2.golden
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for slice expression simplification.
+ // Because of a dot import, these slices must remain untouched.
+ package p
+diff --git a/src/cmd/gofmt/testdata/slices2.input b/src/cmd/gofmt/testdata/slices2.input
+index 433788e1ee..ab657004e6 100644
+--- a/src/cmd/gofmt/testdata/slices2.input
++++ b/src/cmd/gofmt/testdata/slices2.input
+@@ -1,3 +1,5 @@
++//gofmt -s
++
+ // Test cases for slice expression simplification.
+ // Because of a dot import, these slices must remain untouched.
+ package p
+diff --git a/src/cmd/gofmt/testdata/stdin1.golden b/src/cmd/gofmt/testdata/stdin1.golden
+index ff8b0b7ab4..9e4dcd20fe 100644
+--- a/src/cmd/gofmt/testdata/stdin1.golden
++++ b/src/cmd/gofmt/testdata/stdin1.golden
+@@ -1,3 +1,5 @@
++	//gofmt -stdin
++
+ 	if x {
+ 		y
+ 	}
+diff --git a/src/cmd/gofmt/testdata/stdin1.input b/src/cmd/gofmt/testdata/stdin1.input
+index ff8b0b7ab4..9e4dcd20fe 100644
+--- a/src/cmd/gofmt/testdata/stdin1.input
++++ b/src/cmd/gofmt/testdata/stdin1.input
+@@ -1,3 +1,5 @@
++	//gofmt -stdin
++
+ 	if x {
+ 		y
+ 	}
+diff --git a/src/cmd/gofmt/testdata/stdin2.golden b/src/cmd/gofmt/testdata/stdin2.golden
+index 7eb1b54fec..57df355403 100644
+--- a/src/cmd/gofmt/testdata/stdin2.golden
++++ b/src/cmd/gofmt/testdata/stdin2.golden
+@@ -1,4 +1,4 @@
+-
++//gofmt -stdin
+ 
+ var x int
+ 
+diff --git a/src/cmd/gofmt/testdata/stdin2.input b/src/cmd/gofmt/testdata/stdin2.input
+index 99defd2d10..69d6bdd682 100644
+--- a/src/cmd/gofmt/testdata/stdin2.input
++++ b/src/cmd/gofmt/testdata/stdin2.input
+@@ -1,4 +1,4 @@
+-
++//gofmt -stdin
+ 
+ var x int
+ 
+diff --git a/src/cmd/gofmt/testdata/stdin3.golden b/src/cmd/gofmt/testdata/stdin3.golden
+index 1bf2f5a483..d6da0e417a 100644
+--- a/src/cmd/gofmt/testdata/stdin3.golden
++++ b/src/cmd/gofmt/testdata/stdin3.golden
+@@ -1,3 +1,4 @@
++		//gofmt -stdin
+ 
+ 		/* note: no newline at end of file */
+ 		for i := 0; i < 10; i++ {
+diff --git a/src/cmd/gofmt/testdata/stdin3.input b/src/cmd/gofmt/testdata/stdin3.input
+index d963bd0d21..ab46c1063b 100644
+--- a/src/cmd/gofmt/testdata/stdin3.input
++++ b/src/cmd/gofmt/testdata/stdin3.input
+@@ -1,3 +1,4 @@
++		//gofmt -stdin
+ 
+ 		/* note: no newline at end of file */
+ 		for i := 0; i < 10; i++ { s += i }
+diff --git a/src/cmd/gofmt/testdata/stdin4.golden b/src/cmd/gofmt/testdata/stdin4.golden
+index 5f73435517..0c7acace5d 100644
+--- a/src/cmd/gofmt/testdata/stdin4.golden
++++ b/src/cmd/gofmt/testdata/stdin4.golden
+@@ -1,3 +1,5 @@
++	//gofmt -stdin
++
+ 	// comment
+ 
+ 	i := 0
+diff --git a/src/cmd/gofmt/testdata/stdin4.input b/src/cmd/gofmt/testdata/stdin4.input
+index f02a54fb1a..1fc73f31e5 100644
+--- a/src/cmd/gofmt/testdata/stdin4.input
++++ b/src/cmd/gofmt/testdata/stdin4.input
+@@ -1,3 +1,5 @@
++	//gofmt -stdin
++
+ 	// comment
+ 	
+ 	i := 0

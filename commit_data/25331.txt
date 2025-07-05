@@ -15,7 +15,55 @@ Date:   Tue Oct 20 09:02:28 2015 -0700
     Change-Id: I932530e4f7f1bbebf833e12b000a5ce052bc9223
     Reviewed-on: https://go-review.googlesource.com/16104
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/template.go      |  1 +
  src/html/template/template_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 5cfac49d08..f0609ca635 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -230,6 +230,7 @@ func (t *Template) Clone() (*Template, error) {
+ 			set: make(map[string]*Template),
+ 		},
+ 	}
++	ret.set[ret.Name()] = ret
+ 	for _, x := range textClone.Templates() {
+ 		name := x.Name()
+ 		src := t.set[name]
+diff --git a/src/html/template/template_test.go b/src/html/template/template_test.go
+new file mode 100644
+index 0000000000..6f70d67de9
+--- /dev/null
++++ b/src/html/template/template_test.go
+@@ -0,0 +1,29 @@
++package template
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestTemplateClone(t *testing.T) {
++	// https://golang.org/issue/12996
++	orig := New("name")
++	clone, err := orig.Clone()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(clone.Templates()) != len(orig.Templates()) {
++		t.Fatalf("Invalid lenth of t.Clone().Templates()")
++	}
++
++	const want = "stuff"
++	parsed := Must(clone.Parse(want))
++	var buf bytes.Buffer
++	err = parsed.Execute(&buf, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got := buf.String(); got != want {
++		t.Fatalf("got %q; want %q", got, want)
++	}
++}

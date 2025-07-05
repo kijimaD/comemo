@@ -16,7 +16,55 @@ Date:   Thu Dec 16 16:28:38 2021 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
  src/go/types/union.go                          | 11 ++++++++++-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/testdata/fixedbugs/issue49602.go2 b/src/go/types/testdata/fixedbugs/issue49602.go2
+new file mode 100644
+index 0000000000..208501fafd
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49602.go2
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type M interface {
++	m()
++}
++
++type C interface {
++	comparable
++}
++
++type _ interface {
++	int | M          // ERROR cannot use p\.M in union \(p\.M contains methods\)
++	int | comparable // ERROR cannot use comparable in union
++	int | C          // ERROR cannot use p\.C in union \(p\.C embeds comparable\)
++}
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 7cd5b2a88b..9c59279447 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -111,7 +111,16 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+ 			// here, we must have at least two terms in the union.
+ 			if f != nil && !f.typeSet().IsTypeSet() {
+-				check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (interface contains methods)", t)
++				switch {
++				case f.typeSet().NumMethods() != 0:
++					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
++				case t.typ == universeComparable.Type():
++					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
++				case f.typeSet().comparable:
++					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
++				default:
++					panic("not a type set but no methods and not comparable")
++				}
+ 				continue // don't report another error for t
+ 			}
+ 

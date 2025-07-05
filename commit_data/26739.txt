@@ -15,6 +15,25 @@ Date:   Wed Feb 24 11:58:57 2016 -0800
     Reviewed-by: Burcu Dogan <jbd@google.com>
     Run-TryBot: Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 68f8f2b90a..b2f45b48f8 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -47,10 +47,10 @@ var sysdir = func() *sysDir {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		return &sysDir{
+-			"/system/framework",
++			"/system/lib",
+ 			[]string{
+-				"ext.jar",
+-				"framework.jar",
++				"libmedia.so",
++				"libpowermanager.so",
+ 			},
+ 		}
+ 	case "darwin":

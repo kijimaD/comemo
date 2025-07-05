@@ -20,6 +20,27 @@ Date:   Mon Aug 26 15:17:07 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/debug/buildinfo/buildinfo.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/buildinfo/buildinfo.go b/src/debug/buildinfo/buildinfo.go
+index f3d38b26e8..07f835127e 100644
+--- a/src/debug/buildinfo/buildinfo.go
++++ b/src/debug/buildinfo/buildinfo.go
+@@ -380,7 +380,14 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
+ 			}
+ 			if i%buildInfoAlign != 0 {
+ 				// Found magic, but misaligned. Keep searching.
+-				data = data[(i+buildInfoAlign-1)&^(buildInfoAlign-1):]
++				next := (i + buildInfoAlign - 1) &^ (buildInfoAlign - 1)
++				if next > len(data) {
++					// Corrupt object file: the remaining
++					// count says there is more data,
++					// but we didn't read it.
++					return 0, errNotGoExe
++				}
++				data = data[next:]
+ 				continue
+ 			}
+ 			// Good match!

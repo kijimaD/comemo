@@ -15,7 +15,68 @@ Date:   Mon Nov 28 14:23:07 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/internal/coverage/decodecounter/decodecounterfile.go | 8 ++++----
  src/internal/coverage/test/counter_test.go               | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/coverage/decodecounter/decodecounterfile.go b/src/internal/coverage/decodecounter/decodecounterfile.go
+index d1ae5e8386..fce060aaba 100644
+--- a/src/internal/coverage/decodecounter/decodecounterfile.go
++++ b/src/internal/coverage/decodecounter/decodecounterfile.go
+@@ -79,7 +79,7 @@ func checkMagic(v [4]byte) bool {
+ 
+ func (cdr *CounterDataReader) readFooter() error {
+ 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
+-	if _, err := cdr.mr.Seek(-ftrSize, os.SEEK_END); err != nil {
++	if _, err := cdr.mr.Seek(-ftrSize, io.SeekEnd); err != nil {
+ 		return err
+ 	}
+ 	if err := binary.Read(cdr.mr, binary.LittleEndian, &cdr.ftr); err != nil {
+@@ -115,13 +115,13 @@ func (cdr *CounterDataReader) readSegmentPreamble() error {
+ 		return err
+ 	}
+ 	// Seek past any padding to bring us up to a 4-byte boundary.
+-	if of, err := cdr.mr.Seek(0, os.SEEK_CUR); err != nil {
++	if of, err := cdr.mr.Seek(0, io.SeekCurrent); err != nil {
+ 		return err
+ 	} else {
+ 		rem := of % 4
+ 		if rem != 0 {
+ 			pad := 4 - rem
+-			if _, err := cdr.mr.Seek(pad, os.SEEK_CUR); err != nil {
++			if _, err := cdr.mr.Seek(pad, io.SeekCurrent); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -248,7 +248,7 @@ func (cdr *CounterDataReader) BeginNextSegment() (bool, error) {
+ 	cdr.fcnCount = 0
+ 	// Seek past footer from last segment.
+ 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
+-	if _, err := cdr.mr.Seek(ftrSize, os.SEEK_CUR); err != nil {
++	if _, err := cdr.mr.Seek(ftrSize, io.SeekCurrent); err != nil {
+ 		return false, err
+ 	}
+ 	// Read preamble for this segment.
+diff --git a/src/internal/coverage/test/counter_test.go b/src/internal/coverage/test/counter_test.go
+index 09ce235e2a..3fc111ea12 100644
+--- a/src/internal/coverage/test/counter_test.go
++++ b/src/internal/coverage/test/counter_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/coverage"
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/encodecounter"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -208,8 +209,7 @@ func TestCounterDataAppendSegment(t *testing.T) {
+ 	}
+ 
+ 	for sidx := 0; sidx < int(ns); sidx++ {
+-
+-		if off, err := inf.Seek(0, os.SEEK_CUR); err != nil {
++		if off, err := inf.Seek(0, io.SeekCurrent); err != nil {
+ 			t.Fatalf("Seek failed: %v", err)
+ 		} else {
+ 			t.Logf("sidx=%d off=%d\n", sidx, off)

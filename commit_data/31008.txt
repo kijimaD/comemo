@@ -23,7 +23,7 @@ Date:   Mon Dec 19 17:55:47 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/call.go             |   3 -
  src/go/types/check_test.go       |   2 +-
  src/go/types/decl.go             | 197 +++++++++++----------------------------
@@ -36,3 +36,983 @@ Date:   Mon Dec 19 17:55:47 2016 -0800
  src/go/types/typestring.go       |   1 +
  src/go/types/typexpr.go          |  62 +++++-------
  11 files changed, 315 insertions(+), 305 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 8e5c5371f2..194b1fea10 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -275,8 +275,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 	// so we don't need a "package" mode for operands: package names
+ 	// can only appear in qualified identifiers which are mapped to
+ 	// selector expressions.
+-	// (see also decl.go: checker.aliasDecl)
+-	// TODO(gri) factor this code out and share with checker.aliasDecl
+ 	if ident, ok := e.X.(*ast.Ident); ok {
+ 		_, obj := check.scope.LookupParent(ident.Name, check.pos)
+ 		if pname, _ := obj.(*PkgName); pname != nil {
+@@ -296,7 +294,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				// ok to continue
+ 			}
+ 			check.recordUse(e.Sel, exp)
+-			exp = original(exp)
+ 
+ 			// avoid further errors if the imported object is an alias that's broken
+ 			if exp == nil {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index f844575269..24b3365717 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -68,11 +68,11 @@ var tests = [][]string{
+ 	{"testdata/decls1.src"},
+ 	{"testdata/decls2a.src", "testdata/decls2b.src"},
+ 	{"testdata/decls3.src"},
++	{"testdata/decls4.src"},
+ 	{"testdata/const0.src"},
+ 	{"testdata/const1.src"},
+ 	{"testdata/constdecl.src"},
+ 	{"testdata/vardecl.src"},
+-	//{"testdata/aliasdecl.src"},
+ 	{"testdata/expr0.src"},
+ 	{"testdata/expr1.src"},
+ 	{"testdata/expr2.src"},
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 2472aa3434..7428f8f995 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -81,14 +81,10 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 		check.varDecl(obj, d.lhs, d.typ, d.init)
+ 	case *TypeName:
+ 		// invalid recursive types are detected via path
+-		check.typeDecl(obj, d.typ, def, path)
++		check.typeDecl(obj, d.typ, def, path, d.alias)
+ 	case *Func:
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
+-	// Alias-related code. Keep for now.
+-	// case *Alias:
+-	// 	// aliases cannot be recursive - no need to track dependencies
+-	// 	check.aliasDecl(obj, d)
+ 	default:
+ 		unreachable()
+ 	}
+@@ -219,33 +215,42 @@ func (n *Named) setUnderlying(typ Type) {
+ 	}
+ }
+ 
+-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName) {
++func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
+ 	assert(obj.typ == nil)
+ 
+ 	// type declarations cannot use iota
+ 	assert(check.iota == nil)
+ 
+-	named := &Named{obj: obj}
+-	def.setUnderlying(named)
+-	obj.typ = named // make sure recursive type declarations terminate
+-
+-	// determine underlying type of named
+-	check.typExpr(typ, named, append(path, obj))
+-
+-	// The underlying type of named may be itself a named type that is
+-	// incomplete:
+-	//
+-	//	type (
+-	//		A B
+-	//		B *C
+-	//		C A
+-	//	)
+-	//
+-	// The type of C is the (named) type of A which is incomplete,
+-	// and which has as its underlying type the named type B.
+-	// Determine the (final, unnamed) underlying type by resolving
+-	// any forward chain (they always end in an unnamed type).
+-	named.underlying = underlying(named.underlying)
++	if alias {
++
++		obj.typ = Typ[Invalid]
++		obj.typ = check.typExpr(typ, nil, append(path, obj))
++
++	} else {
++
++		named := &Named{obj: obj}
++		def.setUnderlying(named)
++		obj.typ = named // make sure recursive type declarations terminate
++
++		// determine underlying type of named
++		check.typExpr(typ, named, append(path, obj))
++
++		// The underlying type of named may be itself a named type that is
++		// incomplete:
++		//
++		//	type (
++		//		A B
++		//		B *C
++		//		C A
++		//	)
++		//
++		// The type of C is the (named) type of A which is incomplete,
++		// and which has as its underlying type the named type B.
++		// Determine the (final, unnamed) underlying type by resolving
++		// any forward chain (they always end in an unnamed type).
++		named.underlying = underlying(named.underlying)
++
++	}
+ 
+ 	// check and add associated methods
+ 	// TODO(gri) It's easy to create pathological cases where the
+@@ -268,21 +273,23 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 
+ 	// spec: "If the base type is a struct type, the non-blank method
+ 	// and field names must be distinct."
+-	base := obj.typ.(*Named)
+-	if t, _ := base.underlying.(*Struct); t != nil {
+-		for _, fld := range t.fields {
+-			if fld.name != "_" {
+-				assert(mset.insert(fld) == nil)
++	base, _ := obj.typ.(*Named) // nil if receiver base type is type alias
++	if base != nil {
++		if t, _ := base.underlying.(*Struct); t != nil {
++			for _, fld := range t.fields {
++				if fld.name != "_" {
++					assert(mset.insert(fld) == nil)
++				}
+ 			}
+ 		}
+-	}
+ 
+-	// Checker.Files may be called multiple times; additional package files
+-	// may add methods to already type-checked types. Add pre-existing methods
+-	// so that we can detect redeclarations.
+-	for _, m := range base.methods {
+-		assert(m.name != "_")
+-		assert(mset.insert(m) == nil)
++		// Checker.Files may be called multiple times; additional package files
++		// may add methods to already type-checked types. Add pre-existing methods
++		// so that we can detect redeclarations.
++		for _, m := range base.methods {
++			assert(m.name != "_")
++			assert(mset.insert(m) == nil)
++		}
+ 	}
+ 
+ 	// type-check methods
+@@ -295,7 +302,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 				case *Var:
+ 					check.errorf(m.pos, "field and method with the same name %s", m.name)
+ 				case *Func:
+-					check.errorf(m.pos, "method %s already declared for %s", m.name, base)
++					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+ 				default:
+ 					unreachable()
+ 				}
+@@ -303,9 +310,12 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 				continue
+ 			}
+ 		}
++
++		// type-check
+ 		check.objDecl(m, nil, nil)
++
+ 		// methods with blank _ names cannot be found - don't keep them
+-		if m.name != "_" {
++		if base != nil && m.name != "_" {
+ 			base.methods = append(base.methods, m)
+ 		}
+ 	}
+@@ -333,106 +343,6 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	}
+ }
+ 
+-// original returns the original Object if obj is an Alias;
+-// otherwise it returns obj. The result is never an Alias,
+-// but it may be nil.
+-func original(obj Object) Object {
+-	// an alias stands for the original object; use that one instead
+-	if alias, _ := obj.(*disabledAlias); alias != nil {
+-		obj = alias.orig
+-		// aliases always refer to non-alias originals
+-		if _, ok := obj.(*disabledAlias); ok {
+-			panic("original is an alias")
+-		}
+-	}
+-	return obj
+-}
+-
+-func (check *Checker) aliasDecl(obj *disabledAlias, decl *declInfo) {
+-	assert(obj.typ == nil)
+-
+-	// alias declarations cannot use iota
+-	assert(check.iota == nil)
+-
+-	// assume alias is invalid to start with
+-	obj.typ = Typ[Invalid]
+-
+-	// rhs must be package-qualified identifer pkg.sel (see also call.go: checker.selector)
+-	// TODO(gri) factor this code out and share with checker.selector
+-	rhs := decl.init
+-	var pkg *Package
+-	var sel *ast.Ident
+-	if sexpr, ok := rhs.(*ast.SelectorExpr); ok {
+-		if ident, ok := sexpr.X.(*ast.Ident); ok {
+-			_, obj := check.scope.LookupParent(ident.Name, check.pos)
+-			if pname, _ := obj.(*PkgName); pname != nil {
+-				assert(pname.pkg == check.pkg)
+-				check.recordUse(ident, pname)
+-				pname.used = true
+-				pkg = pname.imported
+-				sel = sexpr.Sel
+-			}
+-		}
+-	}
+-	if pkg == nil {
+-		check.errorf(rhs.Pos(), "invalid alias: %v is not a package-qualified identifier", rhs)
+-		return
+-	}
+-
+-	// qualified identifier must denote an exported object
+-	orig := pkg.scope.Lookup(sel.Name)
+-	if orig == nil || !orig.Exported() {
+-		if !pkg.fake {
+-			check.errorf(rhs.Pos(), "%s is not exported by package %s", sel.Name, pkg.name)
+-		}
+-		return
+-	}
+-	check.recordUse(sel, orig)
+-	orig = original(orig)
+-
+-	// avoid further errors if the imported object is an alias that's broken
+-	if orig == nil {
+-		return
+-	}
+-
+-	// An alias declaration must not refer to package unsafe.
+-	if orig.Pkg() == Unsafe {
+-		check.errorf(rhs.Pos(), "invalid alias: %s refers to package unsafe (%v)", obj.Name(), orig)
+-		return
+-	}
+-
+-	// The original must be of the same kind as the alias declaration.
+-	var why string
+-	switch obj.kind {
+-	case token.CONST:
+-		if _, ok := orig.(*Const); !ok {
+-			why = "constant"
+-		}
+-	case token.TYPE:
+-		if _, ok := orig.(*TypeName); !ok {
+-			why = "type"
+-		}
+-	case token.VAR:
+-		if _, ok := orig.(*Var); !ok {
+-			why = "variable"
+-		}
+-	case token.FUNC:
+-		if _, ok := orig.(*Func); !ok {
+-			why = "function"
+-		}
+-	default:
+-		unreachable()
+-	}
+-	if why != "" {
+-		check.errorf(rhs.Pos(), "invalid alias: %v is not a %s", orig, why)
+-		return
+-	}
+-
+-	// alias is valid
+-	obj.typ = orig.Type()
+-	obj.orig = orig
+-}
+-
+ func (check *Checker) declStmt(decl ast.Decl) {
+ 	pkg := check.pkg
+ 
+@@ -534,16 +444,13 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 				}
+ 
+ 			case *ast.TypeSpec:
+-				if s.Assign.IsValid() {
+-					check.errorf(s.Assign, "type alias declarations not yet implemented")
+-				}
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+ 				// spec: "The scope of a type identifier declared inside a function
+ 				// begins at the identifier in the TypeSpec and ends at the end of
+ 				// the innermost containing block."
+ 				scopePos := s.Name.Pos()
+ 				check.declare(check.scope, s.Name, obj, scopePos)
+-				check.typeDecl(obj, s.Type, nil, nil)
++				check.typeDecl(obj, s.Type, nil, nil, s.Assign.IsValid())
+ 
+ 			default:
+ 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 3caca5519b..ee8202d9e4 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -67,24 +67,22 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	}
+ 
+ 	typ, isPtr := deref(T)
+-	named, _ := typ.(*Named)
+ 
+ 	// *typ where typ is an interface has no methods.
+-	if isPtr {
+-		utyp := typ
+-		if named != nil {
+-			utyp = named.underlying
+-		}
+-		if _, ok := utyp.(*Interface); ok {
+-			return
+-		}
++	if isPtr && IsInterface(typ) {
++		return
+ 	}
+ 
+ 	// Start with typ as single entry at shallowest depth.
+-	// If typ is not a named type, insert a nil type instead.
+-	current := []embeddedType{{named, nil, isPtr, false}}
+-
+-	// named types that we have seen already, allocated lazily
++	current := []embeddedType{{typ, nil, isPtr, false}}
++
++	// Named types that we have seen already, allocated lazily.
++	// Used to avoid endless searches in case of recursive types.
++	// Since only Named types can be used for recursive types, we
++	// only need to track those.
++	// (If we ever allow type aliases to construct recursive types,
++	// we must use type identity rather than pointer equality for
++	// the map key comparison, as we do in consolidateMultiples.)
+ 	var seen map[*Named]bool
+ 
+ 	// search current depth
+@@ -93,11 +91,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 		// look for (pkg, name) in all types at current depth
+ 		for _, e := range current {
+-			// The very first time only, e.typ may be nil.
+-			// In this case, we don't have a named type and
+-			// we simply continue with the underlying type.
+-			if e.typ != nil {
+-				if seen[e.typ] {
++			typ := e.typ
++
++			// If we have a named type, we may have associated methods.
++			// Look for those first.
++			if named, _ := typ.(*Named); named != nil {
++				if seen[named] {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+ 					// were consolidated before). The type at that depth shadows
+@@ -108,10 +107,10 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 				if seen == nil {
+ 					seen = make(map[*Named]bool)
+ 				}
+-				seen[e.typ] = true
++				seen[named] = true
+ 
+ 				// look for a matching attached method
+-				if i, m := lookupMethod(e.typ.methods, pkg, name); m != nil {
++				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
+ 					// potential match
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+@@ -124,7 +123,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 				}
+ 
+ 				// continue with underlying type
+-				typ = e.typ.underlying
++				typ = named.underlying
+ 			}
+ 
+ 			switch t := typ.(type) {
+@@ -147,16 +146,15 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 					// we have a name collision on the same depth; in either
+ 					// case we don't need to look further).
+ 					// Embedded fields are always of the form T or *T where
+-					// T is a named type. If e.typ appeared multiple times at
++					// T is a type name. If e.typ appeared multiple times at
+ 					// this depth, f.typ appears multiple times at the next
+ 					// depth.
+ 					if obj == nil && f.anonymous {
+-						// Ignore embedded basic types - only user-defined
+-						// named types can have methods or struct fields.
+ 						typ, isPtr := deref(f.typ)
+-						if t, _ := typ.(*Named); t != nil {
+-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
+-						}
++						// TODO(gri) optimization: ignore types that can't
++						// have fields or methods (only Named, Struct, and
++						// Interface types need to be considered).
++						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
+ 					}
+ 				}
+ 
+@@ -193,12 +191,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	return nil, nil, false // not found
+ }
+ 
+-// embeddedType represents an embedded named type
++// embeddedType represents an embedded type
+ type embeddedType struct {
+-	typ       *Named // nil means use the outer typ variable instead
+-	index     []int  // embedded field indices, starting with index at depth 0
+-	indirect  bool   // if set, there was a pointer indirection on the path to this field
+-	multiples bool   // if set, typ appears multiple times at this depth
++	typ       Type
++	index     []int // embedded field indices, starting with index at depth 0
++	indirect  bool  // if set, there was a pointer indirection on the path to this field
++	multiples bool  // if set, typ appears multiple times at this depth
+ }
+ 
+ // consolidateMultiples collects multiple list entries with the same type
+@@ -209,10 +207,10 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
+ 		return list // at most one entry - nothing to do
+ 	}
+ 
+-	n := 0                       // number of entries w/ unique type
+-	prev := make(map[*Named]int) // index at which type was previously seen
++	n := 0                     // number of entries w/ unique type
++	prev := make(map[Type]int) // index at which type was previously seen
+ 	for _, e := range list {
+-		if i, found := prev[e.typ]; found {
++		if i, found := lookupType(prev, e.typ); found {
+ 			list[i].multiples = true
+ 			// ignore this entry
+ 		} else {
+@@ -224,6 +222,21 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
+ 	return list[:n]
+ }
+ 
++func lookupType(m map[Type]int, typ Type) (int, bool) {
++	// fast path: maybe the types are equal
++	if i, found := m[typ]; found {
++		return i, true
++	}
++
++	for t, i := range m {
++		if Identical(t, typ) {
++			return i, true
++		}
++	}
++
++	return 0, false
++}
++
+ // MissingMethod returns (nil, false) if V implements T, otherwise it
+ // returns a missing method required by T and whether it is missing or
+ // just has the wrong type.
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index b27f2dac34..4f791d9d51 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -72,24 +72,22 @@ func NewMethodSet(T Type) *MethodSet {
+ 	var base methodSet
+ 
+ 	typ, isPtr := deref(T)
+-	named, _ := typ.(*Named)
+ 
+ 	// *typ where typ is an interface has no methods.
+-	if isPtr {
+-		utyp := typ
+-		if named != nil {
+-			utyp = named.underlying
+-		}
+-		if _, ok := utyp.(*Interface); ok {
+-			return &emptyMethodSet
+-		}
++	if isPtr && IsInterface(typ) {
++		return &emptyMethodSet
+ 	}
+ 
+ 	// Start with typ as single entry at shallowest depth.
+-	// If typ is not a named type, insert a nil type instead.
+-	current := []embeddedType{{named, nil, isPtr, false}}
+-
+-	// named types that we have seen already, allocated lazily
++	current := []embeddedType{{typ, nil, isPtr, false}}
++
++	// Named types that we have seen already, allocated lazily.
++	// Used to avoid endless searches in case of recursive types.
++	// Since only Named types can be used for recursive types, we
++	// only need to track those.
++	// (If we ever allow type aliases to construct recursive types,
++	// we must use type identity rather than pointer equality for
++	// the map key comparison, as we do in consolidateMultiples.)
+ 	var seen map[*Named]bool
+ 
+ 	// collect methods at current depth
+@@ -101,11 +99,12 @@ func NewMethodSet(T Type) *MethodSet {
+ 		var mset methodSet
+ 
+ 		for _, e := range current {
+-			// The very first time only, e.typ may be nil.
+-			// In this case, we don't have a named type and
+-			// we simply continue with the underlying type.
+-			if e.typ != nil {
+-				if seen[e.typ] {
++			typ := e.typ
++
++			// If we have a named type, we may have associated methods.
++			// Look for those first.
++			if named, _ := typ.(*Named); named != nil {
++				if seen[named] {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+ 					// were consolidated before). The type at that depth shadows
+@@ -116,12 +115,12 @@ func NewMethodSet(T Type) *MethodSet {
+ 				if seen == nil {
+ 					seen = make(map[*Named]bool)
+ 				}
+-				seen[e.typ] = true
++				seen[named] = true
+ 
+-				mset = mset.add(e.typ.methods, e.index, e.indirect, e.multiples)
++				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
+ 
+ 				// continue with underlying type
+-				typ = e.typ.underlying
++				typ = named.underlying
+ 			}
+ 
+ 			switch t := typ.(type) {
+@@ -130,16 +129,15 @@ func NewMethodSet(T Type) *MethodSet {
+ 					fset = fset.add(f, e.multiples)
+ 
+ 					// Embedded fields are always of the form T or *T where
+-					// T is a named type. If typ appeared multiple times at
++					// T is a type name. If typ appeared multiple times at
+ 					// this depth, f.Type appears multiple times at the next
+ 					// depth.
+ 					if f.anonymous {
+-						// Ignore embedded basic types - only user-defined
+-						// named types can have methods or struct fields.
+ 						typ, isPtr := deref(f.typ)
+-						if t, _ := typ.(*Named); t != nil {
+-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
+-						}
++						// TODO(gri) optimization: ignore types that can't
++						// have fields or methods (only Named, Struct, and
++						// Interface types need to be considered).
++						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
+ 					}
+ 				}
+ 
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 6c0c5c4a24..57b82c5983 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -154,7 +154,7 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
+ func (obj *Const) Val() constant.Value { return obj.val }
+ func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
+ 
+-// A TypeName represents a declared type.
++// A TypeName represents a name for a (named or alias) type.
+ type TypeName struct {
+ 	object
+ }
+@@ -215,28 +215,6 @@ func (obj *Func) FullName() string {
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
+ 
+-// An Alias represents a declared alias.
+-type disabledAlias struct {
+-	object
+-	orig Object      // aliased constant, type, variable, or function; never an alias
+-	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (only needed during resolve phase)
+-}
+-
+-func disabledNewAlias(pos token.Pos, pkg *Package, name string, orig Object) *disabledAlias {
+-	var typ Type = Typ[Invalid]
+-	if orig != nil {
+-		typ = orig.Type()
+-	}
+-	// No need to set a valid Alias.kind - that field is only used during identifier
+-	// resolution (1st type-checker pass). We could store the field outside but it's
+-	// easier to keep it here.
+-	return &disabledAlias{object{nil, pos, pkg, name, typ, 0, token.NoPos}, orig, token.ILLEGAL}
+-}
+-
+-// Orig returns the aliased object, or nil if there was an error.
+-// The returned object is never an Alias.
+-func (obj *disabledAlias) disabledOrig() Object { return obj.orig }
+-
+ // A Label represents a declared label.
+ type Label struct {
+ 	object
+@@ -295,10 +273,6 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 		return
+ 
+-	// Alias-related code. Keep for now.
+-	// case *Alias:
+-	// 	buf.WriteString("alias")
+-
+ 	case *Label:
+ 		buf.WriteString("label")
+ 		typ = nil
+@@ -322,6 +296,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		writePackage(buf, obj.Pkg(), qf)
+ 	}
+ 	buf.WriteString(obj.Name())
++
++	// TODO(gri) indicate type alias if we have one
++
+ 	if typ != nil {
+ 		buf.WriteByte(' ')
+ 		WriteType(buf, typ, qf)
+@@ -353,15 +330,14 @@ func ObjectString(obj Object, qf Qualifier) string {
+ 	return buf.String()
+ }
+ 
+-func (obj *PkgName) String() string       { return ObjectString(obj, nil) }
+-func (obj *Const) String() string         { return ObjectString(obj, nil) }
+-func (obj *TypeName) String() string      { return ObjectString(obj, nil) }
+-func (obj *Var) String() string           { return ObjectString(obj, nil) }
+-func (obj *Func) String() string          { return ObjectString(obj, nil) }
+-func (obj *disabledAlias) String() string { return ObjectString(obj, nil) }
+-func (obj *Label) String() string         { return ObjectString(obj, nil) }
+-func (obj *Builtin) String() string       { return ObjectString(obj, nil) }
+-func (obj *Nil) String() string           { return ObjectString(obj, nil) }
++func (obj *PkgName) String() string  { return ObjectString(obj, nil) }
++func (obj *Const) String() string    { return ObjectString(obj, nil) }
++func (obj *TypeName) String() string { return ObjectString(obj, nil) }
++func (obj *Var) String() string      { return ObjectString(obj, nil) }
++func (obj *Func) String() string     { return ObjectString(obj, nil) }
++func (obj *Label) String() string    { return ObjectString(obj, nil) }
++func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
++func (obj *Nil) String() string      { return ObjectString(obj, nil) }
+ 
+ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
+ 	if f.typ != nil {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index d37f93de45..939f70a9ca 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -14,13 +14,14 @@ import (
+ 	"unicode"
+ )
+ 
+-// A declInfo describes a package-level const, type, var, func, or alias declaration.
++// A declInfo describes a package-level const, type, var, or func declaration.
+ type declInfo struct {
+ 	file  *Scope        // scope of file containing this declaration
+ 	lhs   []*Var        // lhs of n:1 variable declarations, or nil
+ 	typ   ast.Expr      // type, or nil
+ 	init  ast.Expr      // init/orig expression, or nil
+ 	fdecl *ast.FuncDecl // func declaration, or nil
++	alias bool          // type alias declaration
+ 
+ 	// The deps field tracks initialization expression dependencies.
+ 	// As a special (overloaded) case, it also tracks dependencies of
+@@ -274,13 +275,6 @@ func (check *Checker) collectObjects() {
+ 							check.declare(fileScope, nil, obj, token.NoPos)
+ 						}
+ 
+-					// Alias-related code. Keep for now.
+-					// case *ast.AliasSpec:
+-					// 	obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
+-					// 	obj.typ = nil // unresolved
+-					// 	obj.kind = d.Tok
+-					// 	check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
+-
+ 					case *ast.ValueSpec:
+ 						switch d.Tok {
+ 						case token.CONST:
+@@ -346,11 +340,8 @@ func (check *Checker) collectObjects() {
+ 						}
+ 
+ 					case *ast.TypeSpec:
+-						if s.Assign.IsValid() {
+-							check.errorf(s.Assign, "type alias declarations not yet implemented")
+-						}
+ 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
++						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type, alias: s.Assign.IsValid()})
+ 
+ 					default:
+ 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 3ed1b976e5..d4df386b13 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -208,11 +208,3 @@ func (BlankT) _() {}
+ func (BlankT) _(int) {}
+ func (BlankT) _() int { return 0 }
+ func (BlankT) _(int) int { return 0}
+-
+-// type alias declarations
+-// TODO(gri) complete this
+-type (
+-	__ = /* ERROR not yet implemented */ int
+-	a0 = /* ERROR not yet implemented */ int
+-	a1 = /* ERROR not yet implemented */ struct{}
+-)
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/decls4.src
+new file mode 100644
+index 0000000000..6030edb7cb
+--- /dev/null
++++ b/src/go/types/testdata/decls4.src
+@@ -0,0 +1,149 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// type aliases
++
++package decls4
++
++type (
++	T0 [10]int
++	T1 []byte
++	T2 struct {
++		x int
++	}
++	T3 interface{
++		m() T2
++	}
++	T4 func(int, T0) chan T2
++)
++
++type (
++	Ai = int
++	A0 = T0
++	A1 = T1
++	A2 = T2
++	A3 = T3
++	A4 = T4
++
++	A10 = [10]int
++	A11 = []byte
++	A12 = struct {
++		x int
++	}
++	A13 = interface{
++		m() A2
++	}
++	A14 = func(int, A0) chan A2
++)
++
++// check assignment compatibility due to equality of types
++var (
++	xi_ int
++	ai Ai = xi_
++
++	x0 T0
++	a0 A0 = x0
++
++	x1 T1
++	a1 A1 = x1
++
++	x2 T2
++	a2 A2 = x2
++
++	x3 T3
++	a3 A3 = x3
++
++	x4 T4
++	a4 A4 = x4
++)
++
++// alias receiver types
++func (Ai /* ERROR "invalid receiver" */) m1() {}
++func (T0) m1() {}
++func (A0) m1 /* ERROR already declared */ () {}
++func (A0) m2 () {}
++func (A10 /* ERROR invalid receiver */ ) m1() {}
++
++// x0 has methods m1, m2 declared via receiver type names T0 and A0
++var _ interface{ m1(); m2() } = x0
++
++// cycles
++type (
++	C2 /* ERROR illegal cycle */ = C2
++	C3 /* ERROR illegal cycle */ = C4
++	C4 = C3
++	C5 struct {
++		f *C6
++	}
++	C6 = C5
++	C7 /* ERROR illegal cycle */  struct {
++		f C8
++	}
++	C8 = C7
++)
++
++// embedded fields
++var (
++	s0 struct { T0 }
++	s1 struct { A0 } = s0 /* ERROR cannot use */ // embedded field names are different
++)
++
++// embedding and lookup of fields and methods
++func _(s struct{A0}) { s.A0 = x0 }
++
++type eX struct{xf int}
++
++func (eX) xm()
++
++type eY = struct{eX} // field/method set of eY includes xf, xm
++
++type eZ = *struct{eX} // field/method set of eZ includes xf, xm
++
++type eA struct {
++	eX // eX contributes xf, xm to eA
++}
++
++type eA2 struct {
++	*eX // *eX contributes xf, xm to eA
++}
++
++type eB struct {
++	eY // eY contributes xf, xm to eB
++}
++
++type eB2 struct {
++	*eY // *eY contributes xf, xm to eB
++}
++
++type eC struct {
++	eZ // eZ contributes xf, xm to eC
++}
++
++var (
++	_ = eA{}.xf
++	_ = eA{}.xm
++	_ = eA2{}.xf
++	_ = eA2{}.xm
++	_ = eB{}.xf
++	_ = eB{}.xm
++	_ = eB2{}.xf
++	_ = eB2{}.xm
++	_ = eC{}.xf
++	_ = eC{}.xm
++)
++
++// ambiguous selectors due to embedding via type aliases
++type eD struct {
++	eY
++	eZ
++}
++
++var (
++	_ = eD /* ERROR ambiguous selector */ {}.xf
++	_ = eD /* ERROR ambiguous selector */ {}.xm
++)
++
++var (
++	_ interface{ xm() } = eD /* ERROR missing method xm */ {}
++)
+\ No newline at end of file
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 47378e744c..0f8a7adc24 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -56,6 +56,7 @@ func RelativeTo(pkg *Package) Qualifier {
+ // This flag is exported in the x/tools/go/types package. We don't
+ // need it at the moment in the std repo and so we don't export it
+ // anymore. We should eventually try to remove it altogether.
++// TODO(gri) remove this
+ var gcCompatibilityMode bool
+ 
+ // TypeString returns the string representation of typ.
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index ecc0a7da02..1e906fc4d8 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -45,17 +45,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 		delete(check.unusedDotImports[scope], pkg)
+ 	}
+ 
+-	// Alias-related code. Keep for now.
+-	// An alias stands for the original object; use that one instead.
+-	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
+-	// if alias, _ := obj.(*Alias); alias != nil {
+-	// 	obj = original(obj)
+-	// 	if obj == nil || typ == Typ[Invalid] {
+-	// 		return
+-	// 	}
+-	// 	assert(typ == obj.Type())
+-	// }
+-
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+ 		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
+@@ -661,47 +650,41 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 			}
+ 		} else {
+ 			// anonymous field
+-			name := anonymousFieldIdent(f.Type)
++			// spec: "An embedded type must be specified as a type name T or as a pointer
++			// to a non-interface type name *T, and T itself may not be a pointer type."
+ 			pos := f.Type.Pos()
++			name := anonymousFieldIdent(f.Type)
++			if name == nil {
++				check.invalidAST(pos, "anonymous field type %s has no name", f.Type)
++				continue
++			}
+ 			t, isPtr := deref(typ)
+-			switch t := t.(type) {
++			// Because we have a name, typ must be of the form T or *T, where T is the name
++			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
++			switch t := t.Underlying().(type) {
+ 			case *Basic:
+ 				if t == Typ[Invalid] {
+ 					// error was reported before
+ 					continue
+ 				}
++
+ 				// unsafe.Pointer is treated like a regular pointer
+ 				if t.kind == UnsafePointer {
+ 					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+ 					continue
+ 				}
+-				add(f, name, true, pos)
+-
+-			case *Named:
+-				// spec: "An embedded type must be specified as a type name
+-				// T or as a pointer to a non-interface type name *T, and T
+-				// itself may not be a pointer type."
+-				switch u := t.underlying.(type) {
+-				case *Basic:
+-					// unsafe.Pointer is treated like a regular pointer
+-					if u.kind == UnsafePointer {
+-						check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+-						continue
+-					}
+-				case *Pointer:
+-					check.errorf(pos, "anonymous field type cannot be a pointer")
++
++			case *Pointer:
++				check.errorf(pos, "anonymous field type cannot be a pointer")
++				continue
++
++			case *Interface:
++				if isPtr {
++					check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
+ 					continue
+-				case *Interface:
+-					if isPtr {
+-						check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
+-						continue
+-					}
+ 				}
+-				add(f, name, true, pos)
+-
+-			default:
+-				check.invalidAST(pos, "anonymous field type %s must be named", typ)
+ 			}
++			add(f, name, true, pos)
+ 		}
+ 	}
+ 
+@@ -714,7 +697,10 @@ func anonymousFieldIdent(e ast.Expr) *ast.Ident {
+ 	case *ast.Ident:
+ 		return e
+ 	case *ast.StarExpr:
+-		return anonymousFieldIdent(e.X)
++		// *T is valid, but **T is not
++		if _, ok := e.X.(*ast.StarExpr); !ok {
++			return anonymousFieldIdent(e.X)
++		}
+ 	case *ast.SelectorExpr:
+ 		return e.Sel
+ 	}

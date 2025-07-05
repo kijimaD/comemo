@@ -14,7 +14,43 @@ Date:   Fri Mar 4 11:17:43 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/crash_test.go | 2 +-
  src/runtime/traceback.go  | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9b9ab4f3e1..d8cabcdda2 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -665,7 +665,7 @@ retry:
+ func TestBadTraceback(t *testing.T) {
+ 	output := runTestProg(t, "testprog", "BadTraceback")
+ 	for _, want := range []string{
+-		"runtime: unexpected return pc",
++		"unexpected return pc",
+ 		"called from 0xbad",
+ 		"00000bad",    // Smashed LR in hex dump
+ 		"<main.badLR", // Symbolization in hex dump (badLR1 or badLR2)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0cdd53cc93..23bce2bf34 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -113,7 +113,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	f := findfunc(frame.pc)
+ 	if !f.valid() {
+ 		if callback != nil || printing {
+-			print("runtime: unknown pc ", hex(frame.pc), "\n")
++			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
+ 			tracebackHexdump(gp.stack, &frame, 0)
+ 		}
+ 		if callback != nil {
+@@ -247,7 +247,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					doPrint = false
+ 				}
+ 				if callback != nil || doPrint {
+-					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
++					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+ 					tracebackHexdump(gp.stack, &frame, lrPtr)
+ 				}
+ 				if callback != nil {

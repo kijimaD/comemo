@@ -15,7 +15,42 @@ Date:   Thu Mar 4 22:27:41 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go | 2 +-
  test/fixedbugs/bug297.go                   | 7 ++++---
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 339fb00aa4..10a4c1b1dc 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -48,7 +48,7 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
+ }
+ 
+ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+-	if l.Type() == nil || l.Type() == nil {
++	if l.Type() == nil || r.Type() == nil {
+ 		return l, r, nil
+ 	}
+ 
+diff --git a/test/fixedbugs/bug297.go b/test/fixedbugs/bug297.go
+index c2bd253d05..70eb4ca9b2 100644
+--- a/test/fixedbugs/bug297.go
++++ b/test/fixedbugs/bug297.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,7 +9,8 @@
+ package main
+ 
+ type ByteSize float64
++
+ const (
+-	_ = iota;   // ignore first value by assigning to blank identifier
+-	KB ByteSize = 1<<(10*X) // ERROR "undefined"
++	_           = iota          // ignore first value by assigning to blank identifier
++	KB ByteSize = 1 << (10 * X) // ERROR "undefined"
+ )

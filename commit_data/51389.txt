@@ -14,7 +14,51 @@ Date:   Fri Jan 21 16:05:02 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/search.go               |  5 +++++
  src/cmd/go/testdata/script/work_root_is_symlink.txt | 20 ++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 799c48e50a..771968d023 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -54,6 +54,11 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	)
+ 
+ 	walkPkgs := func(root, importPathRoot string, prune pruning) {
++		// Follow root if it's a symlink so path == root comparisons don't
++		// spuriously fail when root is a symlink and it points to path.
++		if r, err := filepath.EvalSymlinks(root); err == nil {
++			root = r
++		}
+ 		root = filepath.Clean(root)
+ 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+ 			if err != nil {
+diff --git a/src/cmd/go/testdata/script/work_root_is_symlink.txt b/src/cmd/go/testdata/script/work_root_is_symlink.txt
+new file mode 100644
+index 0000000000..a1c0b46b67
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_root_is_symlink.txt
+@@ -0,0 +1,20 @@
++# Test that cmd/go follows the symlink and properly determines
++# the module boundary when the working directory is a symlink.
++
++[!symlink] skip
++
++symlink worksym -> workspace
++cd worksym
++go list all
++stdout example.com/workspace
++
++-- workspace/go.work --
++go 1.18
++
++use .
++-- workspace/go.mod --
++module example.com/workspace
++
++go  1.18
++-- workspace/pkg.go --
++package workspace
+\ No newline at end of file

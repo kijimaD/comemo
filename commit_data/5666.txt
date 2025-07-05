@@ -11,7 +11,257 @@ Date:   Tue Jun 15 17:41:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1712042
-
+---
  src/pkg/fmt/scan.go      | 53 +++++++++++++++++++++++----------
  src/pkg/fmt/scan_test.go | 76 +++++++++++++++++++++++++++++++++++++++---------
  2 files changed, 100 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 92990b421c..883a95d34a 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -220,14 +220,35 @@ func (s *ss) Token() (tok string, err os.Error) {
+ // from an io.Reader.  It is used if the Reader given to the scanner does
+ // not already implement ReadRuner.
+ type readRune struct {
+-	reader io.Reader
+-	buf    [utf8.UTFMax]byte
++	reader  io.Reader
++	buf     [utf8.UTFMax]byte // used only inside ReadRune
++	pending int               // number of bytes in pendBuf; only >0 for bad UTF-8
++	pendBuf [utf8.UTFMax]byte // bytes left over
++}
++
++// readByte returns the next byte from the input, which may be
++// left over from a previous read if the UTF-8 was ill-formed.
++func (r *readRune) readByte() (b byte, err os.Error) {
++	if r.pending > 0 {
++		b = r.pendBuf[0]
++		copy(r.pendBuf[0:], r.pendBuf[1:])
++		r.pending--
++		return
++	}
++	_, err = r.reader.Read(r.pendBuf[0:1])
++	return r.pendBuf[0], err
++}
++
++// unread saves the bytes for the next read.
++func (r *readRune) unread(buf []byte) {
++	copy(r.pendBuf[r.pending:], buf)
++	r.pending += len(buf)
+ }
+ 
+ // ReadRune returns the next UTF-8 encoded code point from the
+ // io.Reader inside r.
+-func (r readRune) ReadRune() (rune int, size int, err os.Error) {
+-	_, err = r.reader.Read(r.buf[0:1])
++func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
++	r.buf[0], err = r.readByte()
+ 	if err != nil {
+ 		return 0, 0, err
+ 	}
+@@ -235,20 +256,22 @@ func (r readRune) ReadRune() (rune int, size int, err os.Error) {
+ 		rune = int(r.buf[0])
+ 		return
+ 	}
+-	for size := 1; size < utf8.UTFMax; size++ {
+-		_, err = r.reader.Read(r.buf[size : size+1])
++	var n int
++	for n = 1; !utf8.FullRune(r.buf[0:n]); n++ {
++		r.buf[n], err = r.readByte()
+ 		if err != nil {
+-			break
+-		}
+-		if !utf8.FullRune(r.buf[0:]) {
+-			continue
+-		}
+-		if c, w := utf8.DecodeRune(r.buf[0:size]); w == size {
+-			rune = c
++			if err == os.EOF {
++				err = nil
++				break
++			}
+ 			return
+ 		}
+ 	}
+-	return utf8.RuneError, 1, err
++	rune, size = utf8.DecodeRune(r.buf[0:n])
++	if size < n { // an error
++		r.unread(r.buf[size:n])
++	}
++	return
+ }
+ 
+ 
+@@ -264,7 +287,7 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
+ 	if rr, ok := r.(readRuner); ok {
+ 		s.rr = rr
+ 	} else {
+-		s.rr = readRune{reader: r}
++		s.rr = &readRune{reader: r}
+ 	}
+ 	s.nlIsSpace = nlIsSpace
+ 	s.peekRune = -1
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index d876adc9f0..d316f2e4a3 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++	"utf8"
+ )
+ 
+ type ScanTest struct {
+@@ -108,6 +109,20 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
+ 
+ var xVal Xs
+ 
++// myStringReader implements Read but not ReadRune, allowing us to test our readRune wrapper
++// type that creates something that can read runes given only Read().
++type myStringReader struct {
++	r *strings.Reader
++}
++
++func (s *myStringReader) Read(p []byte) (n int, err os.Error) {
++	return s.r.Read(p)
++}
++
++func newReader(s string) *myStringReader {
++	return &myStringReader{strings.NewReader(s)}
++}
++
+ var scanTests = []ScanTest{
+ 	// Numbers
+ 	ScanTest{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
+@@ -176,6 +191,7 @@ var scanfTests = []ScanfTest{
+ 	ScanfTest{"%v", "-71\n", &intVal, -71},
+ 	ScanfTest{"%d", "72\n", &intVal, 72},
+ 	ScanfTest{"%c", "a\n", &intVal, 'a'},
++	ScanfTest{"%c", "\u5072\n", &intVal, 0x5072},
+ 	ScanfTest{"%c", "\u1234\n", &intVal, '\u1234'},
+ 	ScanfTest{"%d", "73\n", &int8Val, int8(73)},
+ 	ScanfTest{"%d", "+74\n", &int16Val, int16(74)},
+@@ -211,6 +227,7 @@ var scanfTests = []ScanfTest{
+ 	ScanfTest{"%v\n", "true\n", &renamedBoolVal, renamedBool(true)},
+ 	ScanfTest{"%t\n", "F\n", &renamedBoolVal, renamedBool(false)},
+ 	ScanfTest{"%v", "101\n", &renamedIntVal, renamedInt(101)},
++	ScanfTest{"%c", "\u0101\n", &renamedIntVal, renamedInt('\u0101')},
+ 	ScanfTest{"%o", "0146\n", &renamedIntVal, renamedInt(102)},
+ 	ScanfTest{"%v", "103\n", &renamedUintVal, renamedUint(103)},
+ 	ScanfTest{"%d", "104\n", &renamedUintVal, renamedUint(104)},
+@@ -276,6 +293,7 @@ var multiTests = []ScanfMultiTest{
+ 	ScanfMultiTest{"%3d22%3d", "33322333", args(&i, &j), args(333, 333), ""},
+ 	ScanfMultiTest{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), float(2.5)), ""},
+ 	ScanfMultiTest{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
++	ScanfMultiTest{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
+ 
+ 	// Custom scanner.
+ 	ScanfMultiTest{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
+@@ -285,18 +303,26 @@ var multiTests = []ScanfMultiTest{
+ 	ScanfMultiTest{"%d %d %d", "23 18", args(&i, &j), args(23, 18), "too few operands"},
+ 	ScanfMultiTest{"%d %d", "23 18 27", args(&i, &j, &k), args(23, 18), "too many operands"},
+ 	ScanfMultiTest{"%c", "\u0100", args(&int8Val), nil, "overflow"},
++
++	// Bad UTF-8: should see every byte.
++	ScanfMultiTest{"%c%c%c", "\xc2X\xc2", args(&i, &j, &k), args(utf8.RuneError, 'X', utf8.RuneError), ""},
+ }
+ 
+-func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
++func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Error)) {
+ 	for _, test := range scanTests {
+-		r := strings.NewReader(test.text)
++		var r io.Reader
++		if name == "StringReader" {
++			r = strings.NewReader(test.text)
++		} else {
++			r = newReader(test.text)
++		}
+ 		n, err := scan(r, test.in)
+ 		if err != nil {
+-			t.Errorf("got error scanning %q: %s", test.text, err)
++			t.Errorf("%s got error scanning %q: %s", name, test.text, err)
+ 			continue
+ 		}
+ 		if n != 1 {
+-			t.Errorf("count error on entry %q: got %d", test.text, n)
++			t.Errorf("%s count error on entry %q: got %d", name, test.text, n)
+ 			continue
+ 		}
+ 		// The incoming value may be a pointer
+@@ -306,17 +332,25 @@ func testScan(t *testing.T, scan func(r io.Reader, a ...interface{}) (int, os.Er
+ 		}
+ 		val := v.Interface()
+ 		if !reflect.DeepEqual(val, test.out) {
+-			t.Errorf("scanning %q: expected %v got %v, type %T", test.text, test.out, val, val)
++			t.Errorf("%s scanning %q: expected %v got %v, type %T", name, test.text, test.out, val, val)
+ 		}
+ 	}
+ }
+ 
+ func TestScan(t *testing.T) {
+-	testScan(t, Fscan)
++	testScan("StringReader", t, Fscan)
++}
++
++func TestMyReaderScan(t *testing.T) {
++	testScan("myStringReader", t, Fscan)
+ }
+ 
+ func TestScanln(t *testing.T) {
+-	testScan(t, Fscanln)
++	testScan("StringReader", t, Fscanln)
++}
++
++func TestMyReaderScanln(t *testing.T) {
++	testScan("myStringReader", t, Fscanln)
+ }
+ 
+ func TestScanf(t *testing.T) {
+@@ -359,17 +393,23 @@ func TestScanOverflow(t *testing.T) {
+ 
+ // TODO: there's no conversion from []T to ...T, but we can fake it.  These
+ // functions do the faking.  We index the table by the length of the param list.
+-var scanf = []func(string, string, []interface{}) (int, os.Error){
+-	0: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f) },
+-	1: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0]) },
+-	2: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1]) },
+-	3: func(s, f string, i []interface{}) (int, os.Error) { return Sscanf(s, f, i[0], i[1], i[2]) },
++var fscanf = []func(io.Reader, string, []interface{}) (int, os.Error){
++	0: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f) },
++	1: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0]) },
++	2: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1]) },
++	3: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1], i[2]) },
+ }
+ 
+-func TestScanfMulti(t *testing.T) {
++func testScanfMulti(name string, t *testing.T) {
+ 	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
+ 	for _, test := range multiTests {
+-		n, err := scanf[len(test.in)](test.text, test.format, test.in)
++		var r io.Reader
++		if name == "StringReader" {
++			r = strings.NewReader(test.text)
++		} else {
++			r = newReader(test.text)
++		}
++		n, err := fscanf[len(test.in)](r, test.format, test.in)
+ 		if err != nil {
+ 			if test.err == "" {
+ 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)
+@@ -398,6 +438,14 @@ func TestScanfMulti(t *testing.T) {
+ 	}
+ }
+ 
++func TestScanfMulti(t *testing.T) {
++	testScanfMulti("StringReader", t)
++}
++
++func TestMyReaderScanfMulti(t *testing.T) {
++	testScanfMulti("myStringReader", t)
++}
++
+ func TestScanMultiple(t *testing.T) {
+ 	var a int
+ 	var s string

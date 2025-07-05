@@ -9,6 +9,19 @@ Date:   Tue Aug 30 01:09:32 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 58b584c8ab..facfb41e38 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -329,6 +329,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
+ 		select {
+ 		case <-initialReqCancel:
+ 			doCancel()
++			timer.Stop()
+ 		case <-timer.C:
+ 			doCancel()
+ 		case <-stopTimerCh:

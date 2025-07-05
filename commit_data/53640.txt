@@ -15,7 +15,46 @@ Date:   Thu Aug 25 14:50:27 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/testdata/check/decls0.go |  2 +-
  src/go/types/typexpr.go               | 10 +++++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/testdata/check/decls0.go b/src/go/types/testdata/check/decls0.go
+index d8fcef0824..7ba90c0504 100644
+--- a/src/go/types/testdata/check/decls0.go
++++ b/src/go/types/testdata/check/decls0.go
+@@ -51,7 +51,7 @@ func _() { var init int; _ = init }
+ 
+ // invalid array types
+ type (
+-	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
++	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
+ 	// The error message below could be better. At the moment
+ 	// we believe an integer that is too large is not an integer.
+ 	// But at least we get an error.
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 13adb9f2a9..ff6bb36255 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -292,11 +292,19 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 		typ := new(Array)
+ 		def.setUnderlying(typ)
+-		typ.len = check.arrayLength(e.Len)
++		// Provide a more specific error when encountering a [...] array
++		// rather than leaving it to the handling of the ... expression.
++		if _, ok := e.Len.(*ast.Ellipsis); ok {
++			check.error(e.Len, _BadDotDotDotSyntax, "invalid use of [...] array (outside a composite literal)")
++			typ.len = -1
++		} else {
++			typ.len = check.arrayLength(e.Len)
++		}
+ 		typ.elem = check.varType(e.Elt)
+ 		if typ.len >= 0 {
+ 			return typ
+ 		}
++		// report error if we encountered [...]
+ 
+ 	case *ast.Ellipsis:
+ 		// dots are handled explicitly where they are legal

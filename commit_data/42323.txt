@@ -16,6 +16,20 @@ Date:   Tue Nov 26 21:16:43 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mheap.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 3f3e36728b..114c97b874 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1424,6 +1424,8 @@ func (h *mheap) scavengeAll() {
+ 	gp := getg()
+ 	gp.m.mallocing++
+ 	lock(&h.lock)
++	// Reset the scavenger address so we have access to the whole heap.
++	h.pages.resetScavengeAddr()
+ 	released := h.pages.scavenge(^uintptr(0), true)
+ 	unlock(&h.lock)
+ 	gp.m.mallocing--

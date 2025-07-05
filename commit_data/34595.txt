@@ -10,7 +10,34 @@ Date:   Thu Nov 2 12:35:25 2017 +0000
     Change-Id: I5784356e389d324703e20eec6203f147db92880f
     Reviewed-on: https://go-review.googlesource.com/75410
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/example_test.go | 2 +-
  src/time/format.go       | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 34df8daef2..1507f3f175 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -318,7 +318,7 @@ func ExampleParse() {
+ 	fmt.Println(t)
+ 
+ 	// Some valid layouts are invalid time values, due to format specifiers
+-	// such as _ for zero padding and Z for zone information.
++	// such as _ for space padding and Z for zone information.
+ 	// For example the RFC3339 layout 2006-01-02T15:04:05Z07:00
+ 	// contains both Z and a time zone offset in order to handle both valid options:
+ 	// 2006-01-02T15:04:05Z
+diff --git a/src/time/format.go b/src/time/format.go
+index d964f4ab75..a60474f026 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -19,7 +19,7 @@ import "errors"
+ // the same transformation to a general time value.
+ //
+ // Some valid layouts are invalid time values for time.Parse, due to formats
+-// such as _ for zero padding and Z for zone information.
++// such as _ for space padding and Z for zone information.
+ //
+ // Within the format string, an underscore _ represents a space that may be
+ // replaced by a digit if the following number (a day) has two digits; for

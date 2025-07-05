@@ -17,7 +17,64 @@ Date:   Tue Mar 17 10:50:40 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 28 ----------------------
  .../go/testdata/script/cgo_depends_on_syscall.txt  | 11 +++++++++
  2 files changed, 11 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 53027b7ccb..641cab8ddd 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1545,34 +1545,6 @@ func TestSymlinkWarning(t *testing.T) {
+ 	tg.grepStderr("ignoring symlink", "list should have reported symlink")
+ }
+ 
+-func TestCgoDependsOnSyscall(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
+-	}
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	if !canRace {
+-		t.Skip("skipping because race detector not supported")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-
+-	files, err := filepath.Glob(filepath.Join(runtime.GOROOT(), "pkg", "*_race"))
+-	tg.must(err)
+-	for _, file := range files {
+-		tg.check(robustio.RemoveAll(file))
+-	}
+-	tg.tempFile("src/foo/foo.go", `
+-		package foo
+-		//#include <stdio.h>
+-		import "C"`)
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("build", "-race", "foo")
+-}
+-
+ func TestCgoShowsFullPathNames(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+diff --git a/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt b/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt
+new file mode 100644
+index 0000000000..e5fa84fdbb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt
+@@ -0,0 +1,11 @@
++[!cgo] skip
++[!race] skip
++
++go list -race -deps foo
++stdout syscall
++
++-- foo/foo.go --
++package foo
++
++// #include <stdio.h>
++import "C"

@@ -9,6 +9,20 @@ Date:   Mon Mar 19 14:15:13 2018 -0400
     Change-Id: Id9b4cbd1a1ff032f1cc4606e9734ddcc64892ae5
     Reviewed-on: https://go-review.googlesource.com/101457
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index dbd2307e29..14b5f352d6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2494,7 +2494,7 @@ Examples of valid array, slice, and map literals:
+ 
+ <pre>
+ // list of prime numbers
+-primes := []int{2, 3, 5, 7, 9, 2147483647}
++primes := []int{2, 3, 5, 7, 2147483647}
+ 
+ // vowels[ch] is true if ch is a vowel
+ vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}

@@ -11,7 +11,32 @@ Date:   Mon Feb 28 14:34:11 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go | 1 +
  src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s  | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+index 68d9589bf2..843398d3b0 100644
+--- a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build riscv64
+ // +build riscv64
+ 
+ package testbranch
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+index cce296feb5..d7141e38c1 100644
+--- a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build riscv64
+ // +build riscv64
+ 
+ #include "textflag.h"

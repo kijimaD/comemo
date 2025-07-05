@@ -15,6 +15,69 @@ Date:   Thu Jun 30 22:11:22 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/h2_bundle.go | 44 +++++++++++++++++++++++---------------------
  1 file changed, 23 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 68c05d559c..352a41d414 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1992,6 +1992,29 @@ func http2transportExpectContinueTimeout(t1 *Transport) time.Duration {
+ 	return t1.ExpectContinueTimeout
+ }
+ 
++// isBadCipher reports whether the cipher is blacklisted by the HTTP/2 spec.
++func http2isBadCipher(cipher uint16) bool {
++	switch cipher {
++	case tls.TLS_RSA_WITH_RC4_128_SHA,
++		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
++		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
++		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
++		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
++		tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
++		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
++		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
++		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
++		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
++		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
++		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
++		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
++
++		return true
++	default:
++		return false
++	}
++}
++
+ type http2contextContext interface {
+ 	context.Context
+ }
+@@ -2999,27 +3022,6 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 	sc.serve()
+ }
+ 
+-// isBadCipher reports whether the cipher is blacklisted by the HTTP/2 spec.
+-func http2isBadCipher(cipher uint16) bool {
+-	switch cipher {
+-	case tls.TLS_RSA_WITH_RC4_128_SHA,
+-		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+-		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+-		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+-		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+-		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+-
+-		return true
+-	default:
+-		return false
+-	}
+-}
+-
+ func (sc *http2serverConn) rejectConn(err http2ErrCode, debug string) {
+ 	sc.vlogf("http2: server rejecting conn: %v, %s", err, debug)
+ 

@@ -11,6 +11,20 @@ Date:   Mon Mar 12 13:20:25 2012 +1100
     R=adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/5798051
-
+---
  misc/dist/bindist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index aa73f2f207..841aacaddf 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -203,7 +203,7 @@ func (b *Build) Do() error {
+ 			"--id", "com.googlecode.go",
+ 			"--title", "Go",
+ 			"--version", "1.0",
+-			"--target", "10.5")
++			"--target", "10.6")
+ 		targs = append(targs, targ)
+ 	case "windows":
+ 		// Create ZIP file.

@@ -9,6 +9,23 @@ Date:   Fri Jun 12 21:11:34 2015 -0700
     Change-Id: Ifc8574494848503c979d11e2766ba8da0f374068
     Reviewed-on: https://go-review.googlesource.com/11043
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/example_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index eb64e49f58..e449cd1df6 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Only run where builders (build.golang.org) have
++// access to compiled packages for import.
++//
++// +build !arm64,!nacl
++
+ package types_test
+ 
+ // This file shows examples of basic usage of the go/types API.

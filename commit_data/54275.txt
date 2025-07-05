@@ -17,7 +17,57 @@ Date:   Sat Oct 1 00:44:43 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/escape4.go | 5 +++++
  test/run.go     | 8 +-------
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/test/escape4.go b/test/escape4.go
+index 4e50231bf9..e381248476 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -38,6 +38,10 @@ func f2() {} // ERROR "can inline f2"
+ func f3() { panic(1) } // ERROR "can inline f3" "1 escapes to heap"
+ func f4() { recover() }
+ 
++// TODO(cuonglm): remove f5, f6 //go:noinline and update the error message
++//                once GOEXPERIMENT=nounified is gone.
++
++//go:noinline
+ func f5() *byte {
+ 	type T struct {
+ 		x [1]byte
+@@ -46,6 +50,7 @@ func f5() *byte {
+ 	return &t.x[0]
+ }
+ 
++//go:noinline
+ func f6() *byte {
+ 	type T struct {
+ 		x struct {
+diff --git a/test/run.go b/test/run.go
+index e33ab4cff3..5497c6c231 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -342,9 +342,7 @@ func (t *test) initExpectFail() {
+ 		failureSets = append(failureSets, types2Failures32Bit)
+ 	}
+ 
+-	if unifiedEnabled {
+-		failureSets = append(failureSets, unifiedFailures)
+-	} else {
++	if !unifiedEnabled {
+ 		failureSets = append(failureSets, go118Failures)
+ 	}
+ 
+@@ -2019,10 +2017,6 @@ var _ = setOf(
+ 	"fixedbugs/issue7525.go",  // types2 reports init cycle error on different line - ok otherwise
+ )
+ 
+-var unifiedFailures = setOf(
+-	"escape4.go", // unified IR can inline f5 and f6; test doesn't expect this
+-)
+-
+ func setOf(keys ...string) map[string]bool {
+ 	m := make(map[string]bool, len(keys))
+ 	for _, key := range keys {

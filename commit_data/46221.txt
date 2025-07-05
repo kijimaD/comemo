@@ -15,6 +15,49 @@ Date:   Mon Dec 14 22:03:29 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue11674.go | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/test/fixedbugs/issue11674.go b/test/fixedbugs/issue11674.go
+index e7d0bf298b..b43032deac 100644
+--- a/test/fixedbugs/issue11674.go
++++ b/test/fixedbugs/issue11674.go
+@@ -13,28 +13,28 @@ const x complex64 = 0
+ const y complex128 = 0
+ 
+ var _ = x / 1e-20
+-var _ = x / 1e-50   // ERROR "complex division by zero"
+-var _ = x / 1e-1000 // ERROR "complex division by zero"
++var _ = x / 1e-50   // GC_ERROR "complex division by zero"
++var _ = x / 1e-1000 // GC_ERROR "complex division by zero"
+ var _ = x / 1e-20i
+-var _ = x / 1e-50i   // ERROR "complex division by zero"
+-var _ = x / 1e-1000i // ERROR "complex division by zero"
++var _ = x / 1e-50i   // GC_ERROR "complex division by zero"
++var _ = x / 1e-1000i // GC_ERROR "complex division by zero"
+ 
+ var _ = x / 1e-45 // smallest positive float32
+ 
+ var _ = x / (1e-20 + 1e-20i)
+ var _ = x / (1e-50 + 1e-20i)
+ var _ = x / (1e-20 + 1e-50i)
+-var _ = x / (1e-50 + 1e-50i)     // ERROR "complex division by zero"
+-var _ = x / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
++var _ = x / (1e-50 + 1e-50i)     // GC_ERROR "complex division by zero"
++var _ = x / (1e-1000 + 1e-1000i) // GC_ERROR "complex division by zero"
+ 
+ var _ = y / 1e-50
+-var _ = y / 1e-1000 // ERROR "complex division by zero"
++var _ = y / 1e-1000 // GC_ERROR "complex division by zero"
+ var _ = y / 1e-50i
+-var _ = y / 1e-1000i // ERROR "complex division by zero"
++var _ = y / 1e-1000i // GC_ERROR "complex division by zero"
+ 
+ var _ = y / 5e-324 // smallest positive float64
+ 
+ var _ = y / (1e-50 + 1e-50)
+ var _ = y / (1e-1000 + 1e-50i)
+ var _ = y / (1e-50 + 1e-1000i)
+-var _ = y / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
++var _ = y / (1e-1000 + 1e-1000i) // GC_ERROR "complex division by zero"

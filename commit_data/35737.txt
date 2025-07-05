@@ -12,6 +12,22 @@ Date:   Mon Mar 5 22:00:34 2018 +0200
     Change-Id: I66609d21d2954e195d13648014681530eed8ea6c
     Reviewed-on: https://go-review.googlesource.com/98715
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index a7f8710b95..cab6a73d94 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -109,7 +109,9 @@ func (p *Process) Release() error {
+ 	return p.release()
+ }
+ 
+-// Kill causes the Process to exit immediately.
++// Kill causes the Process to exit immediately. Kill does not wait until
++// the Process has actually exited. This only kills the Process itself,
++// not any other processes it may have started.
+ func (p *Process) Kill() error {
+ 	return p.kill()
+ }

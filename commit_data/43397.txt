@@ -26,6 +26,37 @@ Date:   Wed Apr 1 05:27:49 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index dfc9d9aa22..14d088c7fd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1338,15 +1338,16 @@ opswitch:
+ 				Fatalf("walkexpr: invalid index %v", r)
+ 			}
+ 
+-			// if len < 0 { panicmakeslicelen }
+-			nif := nod(OIF, nod(OLT, l, nodintconst(0)), nil)
+-			nif.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
+-			nif = typecheck(nif, ctxStmt)
+-			init.Append(nif)
+-
+-			// if len > cap { panicmakeslicecap }
+-			nif = nod(OIF, nod(OGT, conv(l, types.Types[TUINT64]), nodintconst(i)), nil)
+-			nif.Nbody.Set1(mkcall("panicmakeslicecap", nil, init))
++			// cap is constrained to [0,2^31), so it's safe to do:
++			//
++			// if uint64(len) > cap {
++			//     if len < 0 { panicmakeslicelen() }
++			//     panicmakeslicecap()
++			// }
++			nif := nod(OIF, nod(OGT, conv(l, types.Types[TUINT64]), nodintconst(i)), nil)
++			niflen := nod(OIF, nod(OLT, l, nodintconst(0)), nil)
++			niflen.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
++			nif.Nbody.Append(niflen, mkcall("panicmakeslicecap", nil, init))
+ 			nif = typecheck(nif, ctxStmt)
+ 			init.Append(nif)
+ 

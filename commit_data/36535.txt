@@ -9,7 +9,168 @@ Date:   Mon Apr 30 19:01:57 2018 +0000
     Change-Id: Ic88a8daf67db949e5b59f9aa466b37e7f7890713
     Reviewed-on: https://go-review.googlesource.com/110395
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 78 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/internal/objabi/flag.go  | 39 ++++++++++++++++++++
  2 files changed, 117 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8f985bc0e3..fd607bfbd3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -14,6 +14,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
++	"math/rand"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -1552,6 +1553,8 @@ func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]by
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf
++	cleanup := passLongArgsInResponseFiles(cmd)
++	defer cleanup()
+ 	cmd.Dir = dir
+ 	cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
+ 	err := cmd.Run()
+@@ -2469,3 +2472,78 @@ func mkAbsFiles(dir string, files []string) []string {
+ 	}
+ 	return abs
+ }
++
++// passLongArgsInResponseFiles modifies cmd on Windows such that, for
++// certain programs, long arguments are passed in "response files", a
++// file on disk with the arguments, with one arg per line. An actual
++// argument starting with '@' means that the rest of the argument is
++// a filename of arguments to expand.
++//
++// See Issue 18468.
++func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
++	cleanup = func() {} // no cleanup by default
++
++	var argLen int
++	for _, arg := range cmd.Args {
++		argLen += len(arg)
++	}
++
++	// If we're not approaching 32KB of args, just pass args normally.
++	// (use 30KB instead to be conservative; not sure how accounting is done)
++	if !useResponseFile(cmd.Path, argLen) {
++		return
++	}
++
++	tf, err := ioutil.TempFile("", "args")
++	if err != nil {
++		log.Fatalf("error writing long arguments to response file: %v", err)
++	}
++	cleanup = func() { os.Remove(tf.Name()) }
++	var buf bytes.Buffer
++	for _, arg := range cmd.Args[1:] {
++		fmt.Fprintf(&buf, "%s\n", arg)
++	}
++	if _, err := tf.Write(buf.Bytes()); err != nil {
++		tf.Close()
++		cleanup()
++		log.Fatalf("error writing long arguments to response file: %v", err)
++	}
++	if err := tf.Close(); err != nil {
++		cleanup()
++		log.Fatalf("error writing long arguments to response file: %v", err)
++	}
++	cmd.Args = []string{cmd.Args[0], "@" + tf.Name()}
++	return cleanup
++}
++
++func useResponseFile(path string, argLen int) bool {
++	// Unless we're on Windows, don't use response files.
++	if runtime.GOOS != "windows" {
++		return false
++	}
++
++	// Unless the program uses objabi.Flagparse, which understands
++	// response files, don't use response files.
++	// TODO: do we need more commands? asm? cgo? For now, no.
++	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
++	switch prog {
++	case "compile", "link":
++	default:
++		return false
++	}
++
++	// Windows has a limit of 32 KB arguments. To be conservative and not
++	// worry about whether that includes spaces or not, just use 30 KB.
++	if argLen > (30 << 10) {
++		return true
++	}
++
++	// On the Go build system, use response files about 10% of the
++	// time, just to excercise this codepath.
++	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
++	if isBuilder && rand.Intn(10) == 0 {
++		return true
++	}
++
++	return false
++}
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index ecb9e39a6b..30cd7dccac 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -8,6 +8,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
++	"log"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -28,9 +30,46 @@ func Flagprint(w io.Writer) {
+ 
+ func Flagparse(usage func()) {
+ 	flag.Usage = usage
++	os.Args = expandArgs(os.Args)
+ 	flag.Parse()
+ }
+ 
++// expandArgs expands "response files" arguments in the provided slice.
++//
++// A "response file" argument starts with '@' and the rest of that
++// argument is a filename with CR-or-CRLF-separated arguments. Each
++// argument in the named files can also contain response file
++// arguments. See Issue 18468.
++//
++// The returned slice 'out' aliases 'in' iff the input did not contain
++// any response file arguments.
++//
++// TODO: handle relative paths of recursive expansions in different directories?
++// Is there a spec for this? Are relative paths allowed?
++func expandArgs(in []string) (out []string) {
++	// out is nil until we see a "@" argument.
++	for i, s := range in {
++		if strings.HasPrefix(s, "@") {
++			if out == nil {
++				out = make([]string, 0, len(in)*2)
++				out = append(out, in[:i]...)
++			}
++			slurp, err := ioutil.ReadFile(s[1:])
++			if err != nil {
++				log.Fatal(err)
++			}
++			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
++			out = append(out, expandArgs(args)...)
++		} else if out != nil {
++			out = append(out, s)
++		}
++	}
++	if out == nil {
++		return in
++	}
++	return
++}
++
+ func AddVersionFlag() {
+ 	flag.Var(versionFlag{}, "V", "print version and exit")
+ }

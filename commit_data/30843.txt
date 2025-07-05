@@ -12,6 +12,35 @@ Date:   Wed Dec 7 15:36:22 2016 -0800
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index aed5b8da9c..871fba0e5f 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -386,12 +386,22 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 		Sample:     make([]*profile.Sample, 0, len(keys)),
+ 		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
+ 	}
++	locMap := make(map[uintptr]*profile.Location)
+ 	for _, k := range keys {
+ 		stk := p.Stack(index[k])
+ 		c := count[k]
+ 		locs := make([]*profile.Location, len(stk))
+ 		for i, addr := range stk {
+-			locs[i] = &profile.Location{Address: uint64(addr) - 1}
++			loc := locMap[addr]
++			if loc == nil {
++				loc = &profile.Location{
++					ID:      uint64(len(locMap) + 1),
++					Address: uint64(addr - 1),
++				}
++				prof.Location = append(prof.Location, loc)
++				locMap[addr] = loc
++			}
++			locs[i] = loc
+ 		}
+ 		prof.Sample = append(prof.Sample, &profile.Sample{
+ 			Location: locs,

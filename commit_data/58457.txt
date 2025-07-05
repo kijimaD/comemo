@@ -35,8 +35,152 @@ Date:   Fri Oct 6 15:07:28 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgc.go      | 63 ++++++++++++++++++++-----------------------------
  src/runtime/proc.go     | 29 +++++++++++++++++++++--
  src/runtime/runtime2.go |  2 ++
  3 files changed, 55 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 30d2f1d385..d015d6dbab 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -824,31 +824,22 @@ top:
+ 
+ 	// Flush all local buffers and collect flushedWork flags.
+ 	gcMarkDoneFlushed = 0
+-	systemstack(func() {
+-		gp := getg().m.curg
+-		// Mark the user stack as preemptible so that it may be scanned.
+-		// Otherwise, our attempt to force all P's to a safepoint could
+-		// result in a deadlock as we attempt to preempt a worker that's
+-		// trying to preempt us (e.g. for a stack scan).
+-		casGToWaiting(gp, _Grunning, waitReasonGCMarkTermination)
+-		forEachP(func(pp *p) {
+-			// Flush the write barrier buffer, since this may add
+-			// work to the gcWork.
+-			wbBufFlush1(pp)
+-
+-			// Flush the gcWork, since this may create global work
+-			// and set the flushedWork flag.
+-			//
+-			// TODO(austin): Break up these workbufs to
+-			// better distribute work.
+-			pp.gcw.dispose()
+-			// Collect the flushedWork flag.
+-			if pp.gcw.flushedWork {
+-				atomic.Xadd(&gcMarkDoneFlushed, 1)
+-				pp.gcw.flushedWork = false
+-			}
+-		})
+-		casgstatus(gp, _Gwaiting, _Grunning)
++	forEachP(waitReasonGCMarkTermination, func(pp *p) {
++		// Flush the write barrier buffer, since this may add
++		// work to the gcWork.
++		wbBufFlush1(pp)
++
++		// Flush the gcWork, since this may create global work
++		// and set the flushedWork flag.
++		//
++		// TODO(austin): Break up these workbufs to
++		// better distribute work.
++		pp.gcw.dispose()
++		// Collect the flushedWork flag.
++		if pp.gcw.flushedWork {
++			atomic.Xadd(&gcMarkDoneFlushed, 1)
++			pp.gcw.flushedWork = false
++		}
+ 	})
+ 
+ 	if gcMarkDoneFlushed != 0 {
+@@ -1116,18 +1107,16 @@ func gcMarkTermination() {
+ 	//
+ 	// Also, flush the pinner cache, to avoid leaking that memory
+ 	// indefinitely.
+-	systemstack(func() {
+-		forEachP(func(pp *p) {
+-			pp.mcache.prepareForSweep()
+-			if pp.status == _Pidle {
+-				systemstack(func() {
+-					lock(&mheap_.lock)
+-					pp.pcache.flush(&mheap_.pages)
+-					unlock(&mheap_.lock)
+-				})
+-			}
+-			pp.pinnerCache = nil
+-		})
++	forEachP(waitReasonFlushProcCaches, func(pp *p) {
++		pp.mcache.prepareForSweep()
++		if pp.status == _Pidle {
++			systemstack(func() {
++				lock(&mheap_.lock)
++				pp.pcache.flush(&mheap_.pages)
++				unlock(&mheap_.lock)
++			})
++		}
++		pp.pinnerCache = nil
+ 	})
+ 	if sl.valid {
+ 		// Now that we've swept stale spans in mcaches, they don't
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ae2562a5b7..159c19caf3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1820,10 +1820,35 @@ found:
+ // fn will run on every CPU executing Go code, but it acts as a global
+ // memory barrier. GC uses this as a "ragged barrier."
+ //
+-// The caller must hold worldsema.
++// The caller must hold worldsema. fn must not refer to any
++// part of the current goroutine's stack, since the GC may move it.
++func forEachP(reason waitReason, fn func(*p)) {
++	systemstack(func() {
++		gp := getg().m.curg
++		// Mark the user stack as preemptible so that it may be scanned.
++		// Otherwise, our attempt to force all P's to a safepoint could
++		// result in a deadlock as we attempt to preempt a worker that's
++		// trying to preempt us (e.g. for a stack scan).
++		//
++		// N.B. The execution tracer is not aware of this status
++		// transition and handles it specially based on the
++		// wait reason.
++		casGToWaiting(gp, _Grunning, reason)
++		forEachPInternal(fn)
++		casgstatus(gp, _Gwaiting, _Grunning)
++	})
++}
++
++// forEachPInternal calls fn(p) for every P p when p reaches a GC safe point.
++// It is the internal implementation of forEachP.
++//
++// The caller must hold worldsema and either must ensure that a GC is not
++// running (otherwise this may deadlock with the GC trying to preempt this P)
++// or it must leave its goroutine in a preemptible state before it switches
++// to the systemstack. Due to these restrictions, prefer forEachP when possible.
+ //
+ //go:systemstack
+-func forEachP(fn func(*p)) {
++func forEachPInternal(fn func(*p)) {
+ 	mp := acquirem()
+ 	pp := getg().m.p.ptr()
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8bda2f7337..e7a3d4ed1b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1112,6 +1112,7 @@ const (
+ 	waitReasonDebugCall                               // "debug call"
+ 	waitReasonGCMarkTermination                       // "GC mark termination"
+ 	waitReasonStoppingTheWorld                        // "stopping the world"
++	waitReasonFlushProcCaches                         // "flushing proc caches"
+ )
+ 
+ var waitReasonStrings = [...]string{
+@@ -1147,6 +1148,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonDebugCall:             "debug call",
+ 	waitReasonGCMarkTermination:     "GC mark termination",
+ 	waitReasonStoppingTheWorld:      "stopping the world",
++	waitReasonFlushProcCaches:       "flushing proc caches",
+ }
+ 
+ func (w waitReason) String() string {

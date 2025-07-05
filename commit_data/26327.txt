@@ -9,6 +9,26 @@ Date:   Mon Jan 11 10:59:36 2016 -0800
     Change-Id: Icbb4d2f201590bc94672b8d8141b6e7901e11dc5
     Reviewed-on: https://go-review.googlesource.com/18510
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index b2ce79f07b..1adcdf9f8c 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -114,10 +114,10 @@ type Config struct {
+ 
+ 	// An importer is used to import packages referred to from
+ 	// import declarations.
+-	// If the installed importer implements Importer2, Import2
+-	// is called instead of Import.
+-	// An error is reported if an importer is needed but none
+-	// was installed.
++	// If the installed importer implements Importer2, the type
++	// checker calls Import2 instead of Import.
++	// The type checker reports an error if an importer is needed
++	// but none was installed.
+ 	Importer Importer
+ 
+ 	// If Sizes != nil, it provides the sizing functions for package unsafe.

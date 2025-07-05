@@ -17,8 +17,72 @@ Date:   Thu Sep 19 12:58:02 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                   |  4 ++--
  src/cmd/go/internal/modload/build.go              |  4 ++++
  src/cmd/go/testdata/script/mod_build_info_err.txt | 22 ++++++++++++++++++++++
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index daaa3ab0c1..b8cd36f1da 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1674,13 +1674,13 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		return
+ 	}
+ 
+-	if cfg.ModulesEnabled {
++	if cfg.ModulesEnabled && p.Error == nil {
+ 		mainPath := p.ImportPath
+ 		if p.Internal.CmdlineFiles {
+ 			mainPath = "command-line-arguments"
+ 		}
+ 		p.Module = ModPackageModuleInfo(mainPath)
+-		if p.Name == "main" {
++		if p.Name == "main" && len(p.DepsErrors) == 0 {
+ 			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index f049a1ad94..1309d1ad63 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -183,6 +183,10 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 	return info
+ }
+ 
++// PackageBuildInfo returns a string containing module version information
++// for modules providing packages named by path and deps. path and deps must
++// name packages that were resolved successfully with ImportPaths or one of
++// the Load functions.
+ func PackageBuildInfo(path string, deps []string) string {
+ 	if isStandardImportPath(path) || !Enabled() {
+ 		return ""
+diff --git a/src/cmd/go/testdata/script/mod_build_info_err.txt b/src/cmd/go/testdata/script/mod_build_info_err.txt
+new file mode 100644
+index 0000000000..5ceb154a48
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_build_info_err.txt
+@@ -0,0 +1,22 @@
++# This test verifies that line numbers are included in module import errors.
++# Verifies golang.org/issue/34393.
++
++go list -e -deps -f '{{with .Error}}{{.Pos}}: {{.Err}}{{end}}' ./main
++stdout 'bad[/\\]bad.go:3:8: malformed module path "string": missing dot in first path element'
++
++-- go.mod --
++module m
++
++go 1.13
++
++-- main/main.go --
++package main
++
++import _ "m/bad"
++
++func main() {}
++
++-- bad/bad.go --
++package bad
++
++import _ "string"

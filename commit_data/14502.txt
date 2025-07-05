@@ -9,6 +9,19 @@ Date:   Mon Nov 26 21:21:07 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6844096
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index dac718c31c..a7f21df760 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -198,6 +198,7 @@ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Feinberg <feinberg@google.com>
+ Jonathan Gold <jgold.bg@gmail.com>
++Jonathan Hseu <jhseu@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
+ Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>

@@ -7,6 +7,20 @@ Date:   Sat Jul 10 14:40:48 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/1805041
-
+---
  src/pkg/net/fd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 4673a94e42..4100f62575 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -230,7 +230,7 @@ func (s *pollServer) Run() {
+ 		} else {
+ 			netfd := s.LookupFD(fd, mode)
+ 			if netfd == nil {
+-				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
++				print("pollServer: unexpected wakeup for fd=", fd, " mode=", string(mode), "\n")
+ 				continue
+ 			}
+ 			s.WakeFD(netfd, mode)

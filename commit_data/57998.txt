@@ -12,6 +12,25 @@ Date:   Fri Sep 15 12:02:01 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/528715
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/ld/main.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b978cfc7d4..589b5065fd 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -236,6 +236,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		Exitf("dynamic linking required on %s; -d flag cannot be used", buildcfg.GOOS)
+ 	}
+ 
++	isPowerOfTwo := func(n int64) bool {
++		return n > 0 && n&(n-1) == 0
++	}
++	if *FlagRound != -1 && (*FlagRound < 4096 || !isPowerOfTwo(*FlagRound)) {
++		Exitf("invalid -R value 0x%x", *FlagRound)
++	}
++
+ 	checkStrictDups = *FlagStrictDups
+ 
+ 	switch flagW {

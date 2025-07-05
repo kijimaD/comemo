@@ -13,6 +13,20 @@ Date:   Tue Mar 29 23:34:37 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/elf/file_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 42caefa4cf..2fe6febb26 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -688,7 +688,7 @@ func TestCompressedSection(t *testing.T) {
+ 		if end > int64(len(buf)) {
+ 			end = int64(len(buf))
+ 		}
+-		n, err := sf.Read(buf[pos:end])
++		n, err := io.ReadFull(sf, buf[pos:end])
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}

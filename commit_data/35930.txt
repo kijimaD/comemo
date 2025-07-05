@@ -9,6 +9,23 @@ Date:   Wed Mar 21 09:54:22 2018 -0700
     Run-TryBot: Ross Light <light@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 3e12179542..cc6c5e26e4 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -174,9 +174,8 @@ func QueryUnescape(s string) (string, error) {
+ 
+ // PathUnescape does the inverse transformation of PathEscape,
+ // converting each 3-byte encoded substring of the form "%AB" into the
+-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
+-// It returns an error if any % is not followed by two hexadecimal
+-// digits.
++// hex-decoded byte 0xAB. It returns an error if any % is not followed
++// by two hexadecimal digits.
+ //
+ // PathUnescape is identical to QueryUnescape except that it does not
+ // unescape '+' to ' ' (space).

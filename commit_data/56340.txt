@@ -15,6 +15,20 @@ Date:   Fri Apr 28 23:44:50 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/text/template/funcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index dbea6e705a..b5a8c9ec50 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -23,7 +23,7 @@ import (
+ // Execute returns that error.
+ //
+ // Errors returned by Execute wrap the underlying error; call errors.As to
+-// uncover them.
++// unwrap them.
+ //
+ // When template execution invokes a function with an argument list, that list
+ // must be assignable to the function's parameter types. Functions meant to

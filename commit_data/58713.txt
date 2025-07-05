@@ -21,7 +21,7 @@ Date:   Thu Nov 30 12:25:43 2023 -0500
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/go1.22.txt                              |  36 +-
  src/go/build/deps_test.go                   |  13 +-
  src/internal/chacha8rand/chacha8.go         | 178 ++++++++++
@@ -34,3 +34,1692 @@ Date:   Thu Nov 30 12:25:43 2023 -0500
  src/math/rand/v2/chacha8.go                 |  46 +++
  src/math/rand/v2/chacha8_test.go            | 531 ++++++++++++++++++++++++++++
  11 files changed, 1515 insertions(+), 19 deletions(-)
+
+diff --git a/api/go1.22.txt b/api/go1.22.txt
+index ca67b4d6e8..90ab686b11 100644
+--- a/api/go1.22.txt
++++ b/api/go1.22.txt
+@@ -1,9 +1,9 @@
+ pkg archive/tar, method (*Writer) AddFS(fs.FS) error #58000
+-pkg archive/tar, type FileInfoNames interface, Gname(int) (string, error) #50102
+ pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
++pkg archive/tar, type FileInfoNames interface, Gname(int) (string, error) #50102
+ pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
+-pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
+ pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
++pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
+ pkg archive/tar, type FileInfoNames interface, Name() string #50102
+ pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
+ pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
+@@ -12,8 +12,8 @@ pkg archive/zip, method (*Writer) AddFS(fs.FS) error #54898
+ pkg cmp, func Or[$0 comparable](...$0) $0 #60204
+ pkg crypto/x509, func OIDFromInts([]uint64) (OID, error) #60665
+ pkg crypto/x509, method (*CertPool) AddCertWithConstraint(*Certificate, func([]*Certificate) error) #57178
+-pkg crypto/x509, method (OID) EqualASN1OID(asn1.ObjectIdentifier) bool #60665
+ pkg crypto/x509, method (OID) Equal(OID) bool #60665
++pkg crypto/x509, method (OID) EqualASN1OID(asn1.ObjectIdentifier) bool #60665
+ pkg crypto/x509, method (OID) String() string #60665
+ pkg crypto/x509, type Certificate struct, Policies []OID #60665
+ pkg crypto/x509, type OID struct #60665
+@@ -54,8 +54,8 @@ pkg go/types, func Unalias(Type) Type #63223
+ pkg go/types, method (*Alias) Obj() *TypeName #63223
+ pkg go/types, method (*Alias) String() string #63223
+ pkg go/types, method (*Alias) Underlying() Type #63223
+-pkg go/types, method (Checker) PkgNameOf(*ast.ImportSpec) *PkgName #62037
+ pkg go/types, method (*Info) PkgNameOf(*ast.ImportSpec) *PkgName #62037
++pkg go/types, method (Checker) PkgNameOf(*ast.ImportSpec) *PkgName #62037
+ pkg go/types, type Alias struct #63223
+ pkg go/types, type Info struct, FileVersions map[*ast.File]string #62605
+ pkg go/version, func Compare(string, string) int #62039
+@@ -68,24 +68,29 @@ pkg math/big, method (*Rat) FloatPrec() (int, bool) #50489
+ pkg math/rand/v2, func ExpFloat64() float64 #61716
+ pkg math/rand/v2, func Float32() float32 #61716
+ pkg math/rand/v2, func Float64() float64 #61716
++pkg math/rand/v2, func Int() int #61716
+ pkg math/rand/v2, func Int32() int32 #61716
+ pkg math/rand/v2, func Int32N(int32) int32 #61716
+ pkg math/rand/v2, func Int64() int64 #61716
+ pkg math/rand/v2, func Int64N(int64) int64 #61716
+-pkg math/rand/v2, func Int() int #61716
+ pkg math/rand/v2, func IntN(int) int #61716
+ pkg math/rand/v2, func N[$0 intType]($0) $0 #61716
+-pkg math/rand/v2, func NewPCG(uint64, uint64) *PCG #61716
+ pkg math/rand/v2, func New(Source) *Rand #61716
++pkg math/rand/v2, func NewChaCha8([32]uint8) *ChaCha8 #61716
++pkg math/rand/v2, func NewPCG(uint64, uint64) *PCG #61716
+ pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
+ pkg math/rand/v2, func NormFloat64() float64 #61716
+ pkg math/rand/v2, func Perm(int) []int #61716
+ pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
+-pkg math/rand/v2, func Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, func Uint32() uint32 #61716
+-pkg math/rand/v2, func Uint64N(uint64) uint64 #61716
++pkg math/rand/v2, func Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, func Uint64() uint64 #61716
++pkg math/rand/v2, func Uint64N(uint64) uint64 #61716
+ pkg math/rand/v2, func UintN(uint) uint #61716
++pkg math/rand/v2, method (*ChaCha8) MarshalBinary() ([]uint8, error) #61716
++pkg math/rand/v2, method (*ChaCha8) Seed([32]uint8) #61716
++pkg math/rand/v2, method (*ChaCha8) Uint64() uint64 #61716
++pkg math/rand/v2, method (*ChaCha8) UnmarshalBinary([]uint8) error #61716
+ pkg math/rand/v2, method (*PCG) MarshalBinary() ([]uint8, error) #61716
+ pkg math/rand/v2, method (*PCG) Seed(uint64, uint64) #61716
+ pkg math/rand/v2, method (*PCG) Uint64() uint64 #61716
+@@ -93,42 +98,43 @@ pkg math/rand/v2, method (*PCG) UnmarshalBinary([]uint8) error #61716
+ pkg math/rand/v2, method (*Rand) ExpFloat64() float64 #61716
+ pkg math/rand/v2, method (*Rand) Float32() float32 #61716
+ pkg math/rand/v2, method (*Rand) Float64() float64 #61716
++pkg math/rand/v2, method (*Rand) Int() int #61716
+ pkg math/rand/v2, method (*Rand) Int32() int32 #61716
+ pkg math/rand/v2, method (*Rand) Int32N(int32) int32 #61716
+ pkg math/rand/v2, method (*Rand) Int64() int64 #61716
+ pkg math/rand/v2, method (*Rand) Int64N(int64) int64 #61716
+-pkg math/rand/v2, method (*Rand) Int() int #61716
+ pkg math/rand/v2, method (*Rand) IntN(int) int #61716
+ pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
+ pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
+ pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
+-pkg math/rand/v2, method (*Rand) Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
+-pkg math/rand/v2, method (*Rand) Uint64N(uint64) uint64 #61716
++pkg math/rand/v2, method (*Rand) Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, method (*Rand) Uint64() uint64 #61716
++pkg math/rand/v2, method (*Rand) Uint64N(uint64) uint64 #61716
+ pkg math/rand/v2, method (*Rand) UintN(uint) uint #61716
+ pkg math/rand/v2, method (*Zipf) Uint64() uint64 #61716
++pkg math/rand/v2, type ChaCha8 struct #61716
+ pkg math/rand/v2, type PCG struct #61716
+ pkg math/rand/v2, type Rand struct #61716
+ pkg math/rand/v2, type Source interface { Uint64 } #61716
+ pkg math/rand/v2, type Source interface, Uint64() uint64 #61716
+ pkg math/rand/v2, type Zipf struct #61716
++pkg net, method (*TCPConn) WriteTo(io.Writer) (int64, error) #58808
+ pkg net/http, func FileServerFS(fs.FS) Handler #51971
+ pkg net/http, func NewFileTransportFS(fs.FS) RoundTripper #51971
+ pkg net/http, func ServeFileFS(ResponseWriter, *Request, fs.FS, string) #51971
+ pkg net/http, method (*Request) PathValue(string) string #61410
+ pkg net/http, method (*Request) SetPathValue(string, string) #61410
+-pkg net, method (*TCPConn) WriteTo(io.Writer) (int64, error) #58808
+ pkg net/netip, method (AddrPort) Compare(AddrPort) int #61642
+ pkg net/netip, method (Prefix) Compare(Prefix) int #61642
+ pkg os, method (*File) WriteTo(io.Writer) (int64, error) #58808
+ pkg reflect, func PtrTo //deprecated #59599
+ pkg reflect, func TypeFor[$0 interface{}]() Type #60088
+ pkg slices, func Concat[$0 interface{ ~[]$1 }, $1 interface{}](...$0) $0 #56353
+-pkg syscall (linux-386-cgo), type SysProcAttr struct, PidFD *int #51246
+ pkg syscall (linux-386), type SysProcAttr struct, PidFD *int #51246
+-pkg syscall (linux-amd64-cgo), type SysProcAttr struct, PidFD *int #51246
++pkg syscall (linux-386-cgo), type SysProcAttr struct, PidFD *int #51246
+ pkg syscall (linux-amd64), type SysProcAttr struct, PidFD *int #51246
+-pkg syscall (linux-arm-cgo), type SysProcAttr struct, PidFD *int #51246
++pkg syscall (linux-amd64-cgo), type SysProcAttr struct, PidFD *int #51246
+ pkg syscall (linux-arm), type SysProcAttr struct, PidFD *int #51246
++pkg syscall (linux-arm-cgo), type SysProcAttr struct, PidFD *int #51246
+ pkg testing/slogtest, func Run(*testing.T, func(*testing.T) slog.Handler, func(*testing.T) map[string]interface{}) #61758
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 147137262b..1b93e78c70 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -52,14 +52,19 @@ var depsRules = `
+ 
+ 	# These packages depend only on internal/goarch and unsafe.
+ 	internal/goarch, unsafe
+-	< internal/abi;
++	< internal/abi, internal/chacha8rand;
+ 
+ 	unsafe < maps;
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+-	internal/abi, internal/cpu, internal/goarch,
+-	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
+-	internal/goos, unsafe
++	internal/abi,
++	internal/chacha8rand,
++	internal/coverage/rtcov,
++	internal/cpu,
++	internal/goarch,
++	internal/godebugs,
++	internal/goexperiment,
++	internal/goos
+ 	< internal/bytealg
+ 	< internal/itoa
+ 	< internal/unsafeheader
+diff --git a/src/internal/chacha8rand/chacha8.go b/src/internal/chacha8rand/chacha8.go
+new file mode 100644
+index 0000000000..654ac1bc9d
+--- /dev/null
++++ b/src/internal/chacha8rand/chacha8.go
+@@ -0,0 +1,178 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package chacha8rand implements a pseudorandom generator
++// based on ChaCha8. It is used by both runtime and math/rand/v2
++// and must have no dependencies.
++package chacha8rand
++
++const (
++	ctrInc = 4  // increment counter by 4 between block calls
++	ctrMax = 16 // reseed when counter reaches 16
++	chunk  = 32 // each chunk produced by block is 32 uint64s
++	reseed = 4  // reseed with 4 words
++)
++
++// block is the chacha8rand block function.
++func block(seed *[4]uint64, blocks *[32]uint64, counter uint32)
++
++// A State holds the state for a single random generator.
++// It must be used from one goroutine at a time.
++// If used by multiple goroutines at a time, the goroutines
++// may see the same random values, but the code will not
++// crash or cause out-of-bounds memory accesses.
++type State struct {
++	buf  [32]uint64
++	seed [4]uint64
++	i    uint32
++	n    uint32
++	c    uint32
++}
++
++// Next returns the next random value, along with a boolean
++// indicating whether one was available.
++// If one is not available, the caller should call Refill
++// and then repeat the call to Next.
++//
++// Next is //go:nosplit to allow its use in the runtime
++// with per-m data without holding the per-m lock.
++//go:nosplit
++func (s *State) Next() (uint64, bool) {
++	i := s.i
++	if i >= s.n {
++		return 0, false
++	}
++	s.i = i + 1
++	return s.buf[i&31], true // i&31 eliminates bounds check
++}
++
++// Init seeds the State with the given seed value.
++func (s *State) Init(seed [32]byte) {
++	s.Init64([4]uint64{
++		leUint64(seed[0*8:]),
++		leUint64(seed[1*8:]),
++		leUint64(seed[2*8:]),
++		leUint64(seed[3*8:]),
++	})
++}
++
++// Init64 seeds the state with the given seed value.
++func (s *State) Init64(seed [4]uint64) {
++	s.seed = seed
++	block(&s.seed, &s.buf, 0)
++	s.c = 0
++	s.i = 0
++	s.n = chunk
++}
++
++// Refill refills the state with more random values.
++// After a call to Refill, an immediate call to Next will succeed
++// (unless multiple goroutines are incorrectly sharing a state).
++func (s *State) Refill() {
++	s.c += ctrInc
++	if s.c == ctrMax {
++		// Reseed with generated uint64s for forward secrecy.
++		// Normally this is done immediately after computing a block,
++		// but we do it immediately before computing the next block,
++		// to allow a much smaller serialized state (just the seed plus offset).
++		// This gives a delayed benefit for the forward secrecy
++		// (you can reconstruct the recent past given a memory dump),
++		// which we deem acceptable in exchange for the reduced size.
++		s.seed[0] = s.buf[len(s.buf)-reseed+0]
++		s.seed[1] = s.buf[len(s.buf)-reseed+1]
++		s.seed[2] = s.buf[len(s.buf)-reseed+2]
++		s.seed[3] = s.buf[len(s.buf)-reseed+3]
++		s.c = 0
++	}
++	block(&s.seed, &s.buf, s.c)
++	s.i = 0
++	s.n = uint32(len(s.buf))
++	if s.c == ctrMax-ctrInc {
++		s.n = uint32(len(s.buf)) - reseed
++	}
++}
++
++// Marshal marshals the state into a byte slice.
++// Marshal and Unmarshal are functions, not methods,
++// so that they will not be linked into the runtime
++// when it uses the State struct, since the runtime
++// does not need these.
++func Marshal(s *State) []byte {
++	data := make([]byte, 6*8)
++	copy(data, "chacha8:")
++	used := (s.c/ctrInc)*chunk + s.i
++	bePutUint64(data[1*8:], uint64(used))
++	for i, seed := range s.seed {
++		lePutUint64(data[(2+i)*8:], seed)
++	}
++	return data
++}
++
++type errUnmarshalChaCha8 struct{}
++
++func (*errUnmarshalChaCha8) Error() string {
++	return "invalid ChaCha8 encoding"
++}
++
++// Unmarshal unmarshals the state from a byte slice.
++func Unmarshal(s *State, data []byte) error {
++	if len(data) != 6*8 || string(data[:8]) != "chacha8:" {
++		return new(errUnmarshalChaCha8)
++	}
++	used := beUint64(data[1*8:])
++	if used > (ctrMax/ctrInc)*chunk-reseed {
++		return new(errUnmarshalChaCha8)
++	}
++	for i := range s.seed {
++		s.seed[i] = leUint64(data[(2+i)*8:])
++	}
++	s.c = ctrInc * (uint32(used) / chunk)
++	block(&s.seed, &s.buf, s.c)
++	s.i = uint32(used) % chunk
++	s.n = chunk
++	if s.c == ctrMax-ctrInc {
++		s.n = chunk - reseed
++	}
++	return nil
++}
++
++// binary.bigEndian.Uint64, copied to avoid dependency
++func beUint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++}
++
++// binary.bigEndian.PutUint64, copied to avoid dependency
++func bePutUint64(b []byte, v uint64) {
++	_ = b[7] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 56)
++	b[1] = byte(v >> 48)
++	b[2] = byte(v >> 40)
++	b[3] = byte(v >> 32)
++	b[4] = byte(v >> 24)
++	b[5] = byte(v >> 16)
++	b[6] = byte(v >> 8)
++	b[7] = byte(v)
++}
++
++// binary.littleEndian.Uint64, copied to avoid dependency
++func leUint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++}
++
++// binary.littleEndian.PutUint64, copied to avoid dependency
++func lePutUint64(b []byte, v uint64) {
++	_ = b[7] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++	b[4] = byte(v >> 32)
++	b[5] = byte(v >> 40)
++	b[6] = byte(v >> 48)
++	b[7] = byte(v >> 56)
++}
+diff --git a/src/internal/chacha8rand/chacha8_amd64.s b/src/internal/chacha8rand/chacha8_amd64.s
+new file mode 100644
+index 0000000000..cadd516c09
+--- /dev/null
++++ b/src/internal/chacha8rand/chacha8_amd64.s
+@@ -0,0 +1,177 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// ChaCha8 is ChaCha with 8 rounds.
++// See https://cr.yp.to/chacha/chacha-20080128.pdf.
++// See chacha8_generic.go for additional details.
++
++// ROL rotates the uint32s in register R left by N bits, using temporary T.
++#define ROL(N, R, T) \
++	MOVO R, T; PSLLL $(N), T; PSRLL $(32-(N)), R; PXOR T, R
++
++// ROL16 rotates the uint32s in register R left by 16, using temporary T if needed.
++#ifdef GOAMD64_v2
++#define ROL16(R, T) PSHUFB ·rol16<>(SB), R
++#else
++#define ROL16(R, T) ROL(16, R, T)
++#endif
++
++// ROL8 rotates the uint32s in register R left by 8, using temporary T if needed.
++#ifdef GOAMD64_v2
++#define ROL8(R, T) PSHUFB ·rol8<>(SB), R
++#else
++#define ROL8(R, T) ROL(8, R, T)
++#endif
++
++// QR is the ChaCha quarter-round on A, B, C, and D. T is an available temporary.
++#define QR(A, B, C, D, T) \
++	PADDD B, A; PXOR A, D; ROL16(D, T); \
++	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $12, T; PSRLL $20, B; PXOR T, B; \
++	PADDD B, A; PXOR A, D; ROL8(D, T); \
++	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $7, T; PSRLL $25, B; PXOR T, B
++
++// REPLREG replicates the register R into 4 uint32s in XR.
++#define REPLREG(R, XR) \
++	MOVQ R, XR; \
++	PSHUFD $0, XR, XR
++
++// REPL replicates the uint32 constant val into 4 uint32s in XR. It smashes DX.
++#define REPL(val, XR) \
++	MOVL $val, DX; \
++	REPLREG(DX, XR)
++
++// SEED copies the off'th uint32 of the seed into the register XR,
++// replicating it into all four stripes of the register.
++#define SEED(off, reg, XR) \
++	MOVL (4*off)(AX), reg; \
++	REPLREG(reg, XR) \
++
++// block runs 4 ChaCha8 block transformations in the four stripes of the X registers.
++
++// func block(seed *[8]uint32, blocks *[16][4]uint32, counter uint32)
++TEXT ·block(SB), NOSPLIT, $16
++	// seed in AX
++	// blocks in BX
++	// counter in CX
++	MOVQ seed+0(FP), AX
++	MOVQ blocks+8(FP), BX
++	MOVL counter+16(FP), CX
++
++	// Load initial constants into top row.
++	REPL(0x61707865, X0)
++	REPL(0x3320646e, X1)
++	REPL(0x79622d32, X2)
++	REPL(0x6b206574, X3)
++
++	// Load counter into bottom left cell.
++	// Each stripe gets a different counter: 0, 1, 2, 3.
++	// (PINSRD is not available in GOAMD64_v1,
++	// so just do it in memory on all systems.
++	// This is not on the critical path.)
++	MOVL CX, 0(SP)
++	INCL CX
++	MOVL CX, 4(SP)
++	INCL CX
++	MOVL CX, 8(SP)
++	INCL CX
++	MOVL CX, 12(SP)
++	MOVOU 0(SP), X12
++
++	// Load seed words into next two rows and into DI, SI, R8..R13
++	SEED(0, DI, X4)
++	SEED(1, SI, X5)
++	SEED(2, R8, X6)
++	SEED(3, R9, X7)
++	SEED(4, R10, X8)
++	SEED(5, R11, X9)
++	SEED(6, R12, X10)
++	SEED(7, R13, X11)
++
++	// Zeros for remaining two matrix entries.
++	// We have just enough XMM registers to hold the state,
++	// without one for the temporary, so we flush and restore
++	// some values to and from memory to provide a temporary.
++	// The initial temporary is X15, so zero its memory instead
++	// of X15 itself.
++	MOVL $0, DX
++	MOVQ DX, X13
++	MOVQ DX, X14
++	MOVOU X14, (15*16)(BX)
++
++	// 4 iterations. Each iteration is 8 quarter-rounds.
++	MOVL $4, DX
++loop:
++	QR(X0, X4, X8, X12, X15)
++	MOVOU X4, (4*16)(BX) // save X4
++	QR(X1, X5, X9, X13, X15)
++	MOVOU (15*16)(BX), X15 // reload X15; temp now X4
++	QR(X2, X6, X10, X14, X4)
++	QR(X3, X7, X11, X15, X4)
++
++	QR(X0, X5, X10, X15, X4)
++	MOVOU X15, (15*16)(BX) // save X15
++	QR(X1, X6, X11, X12, X4)
++	MOVOU (4*16)(BX), X4  // reload X4; temp now X15
++	QR(X2, X7, X8, X13, X15)
++	QR(X3, X4, X9, X14, X15)
++
++	DECL DX
++	JNZ loop
++
++	// Store interlaced blocks back to output buffer,
++	// adding original seed along the way.
++
++	// First the top and bottom rows.
++	MOVOU X0, (0*16)(BX)
++	MOVOU X1, (1*16)(BX)
++	MOVOU X2, (2*16)(BX)
++	MOVOU X3, (3*16)(BX)
++	MOVOU X12, (12*16)(BX)
++	MOVOU X13, (13*16)(BX)
++	MOVOU X14, (14*16)(BX)
++	// X15 has already been stored.
++
++	// Now we have X0-X3, X12-X15 available for temporaries.
++	// Add seed rows back to output. We left seed in DI, SI, R8..R13 above.
++	REPLREG(DI, X0)
++	REPLREG(SI, X1)
++	REPLREG(R8, X2)
++	REPLREG(R9, X3)
++	REPLREG(R10, X12)
++	REPLREG(R11, X13)
++	REPLREG(R12, X14)
++	REPLREG(R13, X15)
++	PADDD X0, X4
++	PADDD X1, X5
++	PADDD X2, X6
++	PADDD X3, X7
++	PADDD X12, X8
++	PADDD X13, X9
++	PADDD X14, X10
++	PADDD X15, X11
++	MOVOU X4, (4*16)(BX)
++	MOVOU X5, (5*16)(BX)
++	MOVOU X6, (6*16)(BX)
++	MOVOU X7, (7*16)(BX)
++	MOVOU X8, (8*16)(BX)
++	MOVOU X9, (9*16)(BX)
++	MOVOU X10, (10*16)(BX)
++	MOVOU X11, (11*16)(BX)
++
++	MOVL $0, AX
++	MOVQ AX, X15 // must be 0 on return
++
++	RET
++
++// rotate left 16 indexes for PSHUFB
++GLOBL ·rol16<>(SB), NOPTR|RODATA, $16
++DATA ·rol16<>+0(SB)/8, $0x0504070601000302
++DATA ·rol16<>+8(SB)/8, $0x0D0C0F0E09080B0A
++
++// rotate left 8 indexes for PSHUFB
++GLOBL ·rol8<>(SB), NOPTR|RODATA, $16
++DATA ·rol8<>+0(SB)/8, $0x0605040702010003
++DATA ·rol8<>+8(SB)/8, $0x0E0D0C0F0A09080B
+diff --git a/src/internal/chacha8rand/chacha8_arm64.s b/src/internal/chacha8rand/chacha8_arm64.s
+new file mode 100644
+index 0000000000..4f36a7021c
+--- /dev/null
++++ b/src/internal/chacha8rand/chacha8_arm64.s
+@@ -0,0 +1,106 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// QR is the ChaCha quarter-round on A, B, C, and D.
++// V30 is used as a temporary, and V31 is assumed to
++// hold the index table for rotate left 8.
++#define QR(A, B, C, D) \
++	VADD A.S4, B.S4, A.S4; VEOR D.B16, A.B16, D.B16;   VREV32 D.H8, D.H8; \
++	VADD C.S4, D.S4, C.S4; VEOR B.B16, C.B16, V30.B16; VSHL $12, V30.S4, B.S4; VSRI $20, V30.S4, B.S4 \
++	VADD A.S4, B.S4, A.S4; VEOR D.B16, A.B16, D.B16;   VTBL V31.B16, [D.B16], D.B16; \
++	VADD C.S4, D.S4, C.S4; VEOR B.B16, C.B16, V30.B16; VSHL  $7, V30.S4, B.S4; VSRI $25, V30.S4, B.S4
++
++// block runs 4 ChaCha8 block transformations in the four stripes of the V registers.
++
++// func block(seed *[8]uint32, blocks *[4][16]uint32, counter uint32)
++TEXT ·block(SB), NOSPLIT, $16
++	// seed in R0
++	// blocks in R1
++	MOVD seed+0(FP), R0
++	MOVD blocks+8(FP), R1
++	MOVW counter+16(FP), R2
++
++	// Load initial constants into top row.
++	MOVD $·chachaConst(SB), R10
++	VLD4R (R10), [V0.S4, V1.S4, V2.S4, V3.S4]
++
++	// Load increment and rotate 8 constants into V30, V31.
++	MOVD $·chachaIncRot(SB), R11
++	VLD1 (R11), [V30.S4, V31.S4]
++
++	VLD4R.P 16(R0), [V4.S4, V5.S4, V6.S4, V7.S4]
++	VLD4R.P 16(R0), [V8.S4, V9.S4, V10.S4, V11.S4]
++
++	// store counter to memory to replicate its uint32 halfs back out
++	MOVW R2, 0(RSP)
++	VLD1R 0(RSP), [V12.S4]
++
++	// Add 0, 1, 2, 3 to counter stripes.
++	VADD V30.S4, V12.S4, V12.S4
++
++	// Zeros for remaining two matrix entries.
++	VEOR V13.B16, V13.B16, V13.B16
++	VEOR V14.B16, V14.B16, V14.B16
++	VEOR V15.B16, V15.B16, V15.B16
++
++	// Save seed state for adding back later.
++	VMOV V4.B16, V20.B16
++	VMOV V5.B16, V21.B16
++	VMOV V6.B16, V22.B16
++	VMOV V7.B16, V23.B16
++	VMOV V8.B16, V24.B16
++	VMOV V9.B16, V25.B16
++	VMOV V10.B16, V26.B16
++	VMOV V11.B16, V27.B16
++
++	// 4 iterations. Each iteration is 8 quarter-rounds.
++	MOVD $4, R0
++loop:
++	QR(V0, V4, V8, V12)
++	QR(V1, V5, V9, V13)
++	QR(V2, V6, V10, V14)
++	QR(V3, V7, V11, V15)
++
++	QR(V0, V5, V10, V15)
++	QR(V1, V6, V11, V12)
++	QR(V2, V7, V8, V13)
++	QR(V3, V4, V9, V14)
++
++	SUB $1, R0
++	CBNZ R0, loop
++
++	// Add seed back.
++	VADD V4.S4, V20.S4, V4.S4
++	VADD V5.S4, V21.S4, V5.S4
++	VADD V6.S4, V22.S4, V6.S4
++	VADD V7.S4, V23.S4, V7.S4
++	VADD V8.S4, V24.S4, V8.S4
++	VADD V9.S4, V25.S4, V9.S4
++	VADD V10.S4, V26.S4, V10.S4
++	VADD V11.S4, V27.S4, V11.S4
++
++	// Store interlaced blocks back to output buffer.
++	VST1.P [ V0.B16,  V1.B16,  V2.B16,  V3.B16], 64(R1)
++	VST1.P [ V4.B16,  V5.B16,  V6.B16,  V7.B16], 64(R1)
++	VST1.P [ V8.B16,  V9.B16, V10.B16, V11.B16], 64(R1)
++	VST1.P [V12.B16, V13.B16, V14.B16, V15.B16], 64(R1)
++	RET
++
++GLOBL	·chachaConst(SB), NOPTR|RODATA, $32
++DATA	·chachaConst+0x00(SB)/4, $0x61707865
++DATA	·chachaConst+0x04(SB)/4, $0x3320646e
++DATA	·chachaConst+0x08(SB)/4, $0x79622d32
++DATA	·chachaConst+0x0c(SB)/4, $0x6b206574
++
++GLOBL	·chachaIncRot(SB), NOPTR|RODATA, $32
++DATA	·chachaIncRot+0x00(SB)/4, $0x00000000
++DATA	·chachaIncRot+0x04(SB)/4, $0x00000001
++DATA	·chachaIncRot+0x08(SB)/4, $0x00000002
++DATA	·chachaIncRot+0x0c(SB)/4, $0x00000003
++DATA	·chachaIncRot+0x10(SB)/4, $0x02010003
++DATA	·chachaIncRot+0x14(SB)/4, $0x06050407
++DATA	·chachaIncRot+0x18(SB)/4, $0x0A09080B
++DATA	·chachaIncRot+0x1c(SB)/4, $0x0E0D0C0F
+diff --git a/src/internal/chacha8rand/chacha8_generic.go b/src/internal/chacha8rand/chacha8_generic.go
+new file mode 100644
+index 0000000000..2a0f5cd1d6
+--- /dev/null
++++ b/src/internal/chacha8rand/chacha8_generic.go
+@@ -0,0 +1,235 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// ChaCha8 is ChaCha with 8 rounds.
++// See https://cr.yp.to/chacha/chacha-20080128.pdf.
++//
++// ChaCha8 operates on a 4x4 matrix of uint32 values, initially set to:
++//
++//	const1 const2 const3 const4
++//	seed   seed   seed   seed
++//	seed   seed   seed   seed
++//	counter64     0      0
++//
++// We use the same constants as ChaCha20 does, a random seed,
++// and a counter. Running ChaCha8 on this input produces
++// a 4x4 matrix of pseudo-random values with as much entropy
++// as the seed.
++//
++// Given SIMD registers that can hold N uint32s, it is possible
++// to run N ChaCha8 block transformations in parallel by filling
++// the first register with the N copies of const1, the second
++// with N copies of const2, and so on, and then running the operations.
++//
++// Each iteration of ChaCha8Rand operates over 32 bytes of input and
++// produces 992 bytes of RNG output, plus 32 bytes of input for the next
++// iteration.
++//
++// The 32 bytes of input are used as a ChaCha8 key, with a zero nonce, to
++// produce 1024 bytes of output (16 blocks, with counters 0 to 15).
++// First, for each block, the values 0x61707865, 0x3320646e, 0x79622d32,
++// 0x6b206574 are subtracted from the 32-bit little-endian words at
++// position 0, 1, 2, and 3 respectively, and an increasing counter
++// starting at zero is subtracted from each word at position 12. Then,
++// this stream is permuted such that for each sequence of four blocks,
++// first we output the first four bytes of each block, then the next four
++// bytes of each block, and so on. Finally, the last 32 bytes of output
++// are used as the input of the next iteration, and the remaining 992
++// bytes are the RNG output.
++//
++// See https://c2sp.org/chacha8rand for additional details.
++//
++// Normal ChaCha20 implementations for encryption use this same
++// parallelism but then have to deinterlace the results so that
++// it appears the blocks were generated separately. For the purposes
++// of generating random numbers, the interlacing is fine.
++// We are simply locked in to preserving the 4-way interlacing
++// in any future optimizations.
++package chacha8rand
++
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
++// setup sets up 4 ChaCha8 blocks in b32 with the counter and seed.
++// Note that b32 is [16][4]uint32 not [4][16]uint32: the blocks are interlaced
++// the same way they would be in a 4-way SIMD implementations.
++func setup(seed *[4]uint64, b32 *[16][4]uint32, counter uint32) {
++	// Convert to uint64 to do half as many stores to memory.
++	b := (*[16][2]uint64)(unsafe.Pointer(b32))
++
++	// Constants; same as in ChaCha20: "expand 32-byte k"
++	b[0][0] = 0x61707865_61707865
++	b[0][1] = 0x61707865_61707865
++
++	b[1][0] = 0x3320646e_3320646e
++	b[1][1] = 0x3320646e_3320646e
++
++	b[2][0] = 0x79622d32_79622d32
++	b[2][1] = 0x79622d32_79622d32
++
++	b[3][0] = 0x6b206574_6b206574
++	b[3][1] = 0x6b206574_6b206574
++
++	// Seed values.
++	var x64 uint64
++	var x uint32
++
++	x = uint32(seed[0])
++	x64 = uint64(x)<<32 | uint64(x)
++	b[4][0] = x64
++	b[4][1] = x64
++
++	x = uint32(seed[0] >> 32)
++	x64 = uint64(x)<<32 | uint64(x)
++	b[5][0] = x64
++	b[5][1] = x64
++
++	x = uint32(seed[1])
++	x64 = uint64(x)<<32 | uint64(x)
++	b[6][0] = x64
++	b[6][1] = x64
++
++	x = uint32(seed[1] >> 32)
++	x64 = uint64(x)<<32 | uint64(x)
++	b[7][0] = x64
++	b[7][1] = x64
++
++	x = uint32(seed[2])
++	x64 = uint64(x)<<32 | uint64(x)
++	b[8][0] = x64
++	b[8][1] = x64
++
++	x = uint32(seed[2] >> 32)
++	x64 = uint64(x)<<32 | uint64(x)
++	b[9][0] = x64
++	b[9][1] = x64
++
++	x = uint32(seed[3])
++	x64 = uint64(x)<<32 | uint64(x)
++	b[10][0] = x64
++	b[10][1] = x64
++
++	x = uint32(seed[3] >> 32)
++	x64 = uint64(x)<<32 | uint64(x)
++	b[11][0] = x64
++	b[11][1] = x64
++
++	// Counters.
++	if goarch.BigEndian {
++		b[12][0] = uint64(counter+0)<<32 | uint64(counter+1)
++		b[12][1] = uint64(counter+2)<<32 | uint64(counter+3)
++	} else {
++		b[12][0] = uint64(counter+0) | uint64(counter+1)<<32
++		b[12][1] = uint64(counter+2) | uint64(counter+3)<<32
++	}
++
++	// Zeros.
++	b[13][0] = 0
++	b[13][1] = 0
++	b[14][0] = 0
++	b[14][1] = 0
++
++	b[15][0] = 0
++	b[15][1] = 0
++}
++
++func _() {
++	// block and block_generic must have same type
++	x := block
++	x = block_generic
++	_ = x
++}
++
++// block_generic is the non-assembly block implementation,
++// for use on systems without special assembly.
++// Even on such systems, it is quite fast: on GOOS=386,
++// ChaCha8 using this code generates random values faster than PCG-DXSM.
++func block_generic(seed *[4]uint64, buf *[32]uint64, counter uint32) {
++	b := (*[16][4]uint32)(unsafe.Pointer(buf))
++
++	setup(seed, b, counter)
++
++	for i := range b[0] {
++		// Load block i from b[*][i] into local variables.
++		b0 := b[0][i]
++		b1 := b[1][i]
++		b2 := b[2][i]
++		b3 := b[3][i]
++		b4 := b[4][i]
++		b5 := b[5][i]
++		b6 := b[6][i]
++		b7 := b[7][i]
++		b8 := b[8][i]
++		b9 := b[9][i]
++		b10 := b[10][i]
++		b11 := b[11][i]
++		b12 := b[12][i]
++		b13 := b[13][i]
++		b14 := b[14][i]
++		b15 := b[15][i]
++
++		// 4 iterations of eight quarter-rounds each is 8 rounds
++		for round := 0; round < 4; round++ {
++			b0, b4, b8, b12 = qr(b0, b4, b8, b12)
++			b1, b5, b9, b13 = qr(b1, b5, b9, b13)
++			b2, b6, b10, b14 = qr(b2, b6, b10, b14)
++			b3, b7, b11, b15 = qr(b3, b7, b11, b15)
++
++			b0, b5, b10, b15 = qr(b0, b5, b10, b15)
++			b1, b6, b11, b12 = qr(b1, b6, b11, b12)
++			b2, b7, b8, b13 = qr(b2, b7, b8, b13)
++			b3, b4, b9, b14 = qr(b3, b4, b9, b14)
++		}
++
++		// Store block i back into b[*][i].
++		// Add b4..b11 back to the original key material,
++		// like in ChaCha20, to avoid trivial invertibility.
++		// There is no entropy in b0..b3 and b12..b15
++		// so we can skip the additions and save some time.
++		b[0][i] = b0
++		b[1][i] = b1
++		b[2][i] = b2
++		b[3][i] = b3
++		b[4][i] += b4
++		b[5][i] += b5
++		b[6][i] += b6
++		b[7][i] += b7
++		b[8][i] += b8
++		b[9][i] += b9
++		b[10][i] += b10
++		b[11][i] += b11
++		b[12][i] = b12
++		b[13][i] = b13
++		b[14][i] = b14
++		b[15][i] = b15
++	}
++
++	if goarch.BigEndian {
++		// On a big-endian system, reading the uint32 pairs as uint64s
++		// will word-swap them compared to little-endian, so we word-swap
++		// them here first to make the next swap get the right answer.
++		for i, x := range buf {
++			buf[i] = x>>32 | x<<32
++		}
++	}
++}
++
++// qr is the (inlinable) ChaCha8 quarter round.
++func qr(a, b, c, d uint32) (_a, _b, _c, _d uint32) {
++	a += b
++	d ^= a
++	d = d<<16 | d>>16
++	c += d
++	b ^= c
++	b = b<<12 | b>>20
++	a += b
++	d ^= a
++	d = d<<8 | d>>24
++	c += d
++	b ^= c
++	b = b<<7 | b>>25
++	return a, b, c, d
++}
+diff --git a/src/internal/chacha8rand/chacha8_stub.s b/src/internal/chacha8rand/chacha8_stub.s
+new file mode 100644
+index 0000000000..09be558fcb
+--- /dev/null
++++ b/src/internal/chacha8rand/chacha8_stub.s
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 && !arm64
++
++#include "textflag.h"
++
++// func block(counter uint64, seed *[8]uint32, blocks *[16][4]uint32)
++TEXT ·block(SB), NOSPLIT, $0
++	JMP ·block_generic(SB)
++
+diff --git a/src/internal/chacha8rand/export_test.go b/src/internal/chacha8rand/export_test.go
+new file mode 100644
+index 0000000000..70478a45c3
+--- /dev/null
++++ b/src/internal/chacha8rand/export_test.go
+@@ -0,0 +1,8 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package chacha8rand
++
++var Block = block
++var Block_generic = block_generic
+diff --git a/src/internal/chacha8rand/rand_test.go b/src/internal/chacha8rand/rand_test.go
+new file mode 100644
+index 0000000000..f4770999c9
+--- /dev/null
++++ b/src/internal/chacha8rand/rand_test.go
+@@ -0,0 +1,192 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package chacha8rand_test
++
++import (
++	"bytes"
++	"encoding/binary"
++	"fmt"
++	. "internal/chacha8rand"
++	"slices"
++	"testing"
++)
++
++func TestOutput(t *testing.T) {
++	var s State
++	s.Init(seed)
++	for i := range output {
++		for {
++			x, ok := s.Next()
++			if ok {
++				if x != output[i] {
++					t.Errorf("#%d: have %#x want %#x", i, x, output[i])
++				}
++				break
++			}
++			s.Refill()
++		}
++	}
++}
++
++func TestMarshal(t *testing.T) {
++	var s State
++	s.Init(seed)
++	for i := range output {
++		for {
++			b := Marshal(&s)
++			s = State{}
++			err := Unmarshal(&s, b)
++			if err != nil {
++				t.Fatalf("#%d: Unmarshal: %v", i, err)
++			}
++			x, ok := s.Next()
++			if ok {
++				if x != output[i] {
++					t.Fatalf("#%d: have %#x want %#x", i, x, output[i])
++				}
++				break
++			}
++			s.Refill()
++		}
++	}
++}
++
++func BenchmarkBlock(b *testing.B) {
++	var seed [4]uint64
++	var blocks [32]uint64
++
++	for i := 0; i < b.N; i++ {
++		Block(&seed, &blocks, 0)
++	}
++	b.SetBytes(32 * 8)
++}
++
++func TestBlockGeneric(t *testing.T) {
++	var b1, b2 [32]uint64
++	s := seed // byte seed
++	seed := [4]uint64{
++		binary.LittleEndian.Uint64(s[0*8:]),
++		binary.LittleEndian.Uint64(s[1*8:]),
++		binary.LittleEndian.Uint64(s[2*8:]),
++		binary.LittleEndian.Uint64(s[3*8:]),
++	}
++
++	Block(&seed, &b1, 4)
++	Block_generic(&seed, &b2, 4)
++	if !slices.Equal(b1[:], b2[:]) {
++		var out bytes.Buffer
++		fmt.Fprintf(&out, "%-18s %-18s\n", "block", "block_generic")
++		for i := range b1 {
++			suffix := ""
++			if b1[i] != b2[i] {
++				suffix = " mismatch!"
++			}
++			fmt.Fprintf(&out, "%#016x %#016x%s\n", b1[i], b2[i], suffix)
++		}
++		t.Errorf("block and block_generic disagree:\n%s", out.String())
++	}
++}
++
++// Golden output test to make sure algorithm never changes,
++// so that its use in math/rand/v2 stays stable.
++// See https://c2sp.org/chacha8rand.
++
++var seed = [32]byte([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"))
++
++var output = []uint64{
++	0xb773b6063d4616a5, 0x1160af22a66abc3c, 0x8c2599d9418d287c, 0x7ee07e037edc5cd6,
++	0xcfaa9ee02d1c16ad, 0x0e090eef8febea79, 0x3c82d271128b5b3e, 0x9c5addc11252a34f,
++	0xdf79bb617d6ceea6, 0x36d553591f9d736a, 0xeef0d14e181ee01f, 0x089bfc760ae58436,
++	0xd9e52b59cc2ad268, 0xeb2fb4444b1b8aba, 0x4f95c8a692c46661, 0xc3c6323217cae62c,
++	0x91ebb4367f4e2e7e, 0x784cf2c6a0ec9bc6, 0x5c34ec5c34eabe20, 0x4f0a8f515570daa8,
++	0xfc35dcb4113d6bf2, 0x5b0da44c645554bc, 0x6d963da3db21d9e1, 0xeeaefc3150e500f3,
++	0x2d37923dda3750a5, 0x380d7a626d4bc8b0, 0xeeaf68ede3d7ee49, 0xf4356695883b717c,
++	0x846a9021392495a4, 0x8e8510549630a61b, 0x18dc02545dbae493, 0x0f8f9ff0a65a3d43,
++	0xccf065f7190ff080, 0xfd76d1aa39673330, 0x95d232936cba6433, 0x6c7456d1070cbd17,
++	0x462acfdaff8c6562, 0x5bafab866d34fc6a, 0x0c862f78030a2988, 0xd39a83e407c3163d,
++	0xc00a2b7b45f22ebf, 0x564307c62466b1a9, 0x257e0424b0c072d4, 0x6fb55e99496c28fe,
++	0xae9873a88f5cd4e0, 0x4657362ac60d3773, 0x1c83f91ecdf23e8e, 0x6fdc0792c15387c0,
++	0x36dad2a30dfd2b5c, 0xa4b593290595bdb7, 0x4de18934e4cc02c5, 0xcdc0d604f015e3a7,
++	0xfba0dbf69ad80321, 0x60e8bea3d139de87, 0xd18a4d851ef48756, 0x6366447c2215f34a,
++	0x05682e97d3d007ee, 0x4c0e8978c6d54ab2, 0xcf1e9f6a6712edc2, 0x061439414c80cfd3,
++	0xd1a8b6e2745c0ead, 0x31a7918d45c410e8, 0xabcc61ad90216eec, 0x4040d92d2032a71a,
++	0x3cd2f66ffb40cd68, 0xdcd051c07295857a, 0xeab55cbcd9ab527e, 0x18471dce781bdaac,
++	0xf7f08cd144dc7252, 0x5804e0b13d7f40d1, 0x5cb1a446e4b2d35b, 0xe6d4a728d2138a06,
++	0x05223e40ca60dad8, 0x2d61ec3206ac6a68, 0xab692356874c17b8, 0xc30954417676de1c,
++	0x4f1ace3732225624, 0xfba9510813988338, 0x997f200f52752e11, 0x1116aaafe86221fa,
++	0x07ce3b5cb2a13519, 0x2956bc72bc458314, 0x4188b7926140eb78, 0x56ca6dbfd4adea4d,
++	0x7fe3c22349340ce5, 0x35c08f9c37675f8a, 0x11e1c7fbef5ed521, 0x98adc8464ec1bc75,
++	0xd163b2c73d1203f8, 0x8c761ee043a2f3f3, 0x24b99d6accecd7b7, 0x793e31aa112f0370,
++	0x8e87dc2a19285139, 0x4247ae04f7096e25, 0x514f3122926fe20f, 0xdc6fb3f045d2a7e9,
++	0x15cb30cecdd18eba, 0xcbc7fdecf6900274, 0x3fb5c696dc8ba021, 0xd1664417c8d274e6,
++	0x05f7e445ea457278, 0xf920bbca1b9db657, 0x0c1950b4da22cb99, 0xf875baf1af09e292,
++	0xbed3d7b84250f838, 0xf198e8080fd74160, 0xc9eda51d9b7ea703, 0xf709ef55439bf8f6,
++	0xd20c74feebf116fc, 0x305668eb146d7546, 0x829af3ec10d89787, 0x15b8f9697b551dbc,
++	0xfc823c6c8e64b8c9, 0x345585e8183b40bc, 0x674b4171d6581368, 0x1234d81cd670e9f7,
++	0x0e505210d8a55e19, 0xe8258d69eeeca0dc, 0x05d4c452e8baf67e, 0xe8dbe30116a45599,
++	0x1cf08ce1b1176f00, 0xccf7d0a4b81ecb49, 0x303fea136b2c430e, 0x861d6c139c06c871,
++	0x5f41df72e05e0487, 0x25bd7e1e1ae26b1d, 0xbe9f4004d662a41d, 0x65bf58d483188546,
++	0xd1b27cff69db13cc, 0x01a6663372c1bb36, 0x578dd7577b727f4d, 0x19c78f066c083cf6,
++	0xdbe014d4f9c391bb, 0x97fbb2dd1d13ffb3, 0x31c91e0af9ef8d4f, 0x094dfc98402a43ba,
++	0x069bd61bea37b752, 0x5b72d762e8d986ca, 0x72ee31865904bc85, 0xd1f5fdc5cd36c33e,
++	0xba9b4980a8947cad, 0xece8f05eac49ab43, 0x65fe1184abae38e7, 0x2d7cb9dea5d31452,
++	0xcc71489476e467e3, 0x4c03a258a578c68c, 0x00efdf9ecb0fd8fc, 0x9924cad471e2666d,
++	0x87f8668318f765e9, 0xcb4dc57c1b55f5d8, 0xd373835a86604859, 0xe526568b5540e482,
++	0x1f39040f08586fec, 0xb764f3f00293f8e6, 0x049443a2f6bd50a8, 0x76fec88697d3941a,
++	0x3efb70d039bae7a2, 0xe2f4611368eca8a8, 0x7c007a96e01d2425, 0xbbcce5768e69c5bf,
++	0x784fb4985c42aac3, 0xf72b5091aa223874, 0x3630333fb1e62e07, 0x8e7319ebdebbb8de,
++	0x2a3982bca959fa00, 0xb2b98b9f964ba9b3, 0xf7e31014adb71951, 0xebd0fca3703acc82,
++	0xec654e2a2fe6419a, 0xb326132d55a52e2c, 0x2248c57f44502978, 0x32710c2f342daf16,
++	0x0517b47b5acb2bec, 0x4c7a718fca270937, 0xd69142bed0bcc541, 0xe40ebcb8ff52ce88,
++	0x3e44a2dbc9f828d4, 0xc74c2f4f8f873f58, 0x3dbf648eb799e45b, 0x33f22475ee0e86f8,
++	0x1eb4f9ee16d47f65, 0x40f8d2b8712744e3, 0xb886b4da3cb14572, 0x2086326fbdd6f64d,
++	0xcc3de5907dd882b9, 0xa2e8b49a5ee909df, 0xdbfb8e7823964c10, 0x70dd6089ef0df8d5,
++	0x30141663cdd9c99f, 0x04b805325c240365, 0x7483d80314ac12d6, 0x2b271cb91aa7f5f9,
++	0x97e2245362abddf0, 0x5a84f614232a9fab, 0xf71125fcda4b7fa2, 0x1ca5a61d74b27267,
++	0x38cc6a9b3adbcb45, 0xdde1bb85dc653e39, 0xe9d0c8fa64f89fd4, 0x02c5fb1ecd2b4188,
++	0xf2bd137bca5756e5, 0xadefe25d121be155, 0x56cd1c3c5d893a8e, 0x4c50d337beb65bb9,
++	0x918c5151675cf567, 0xaba649ffcfb56a1e, 0x20c74ab26a2247cd, 0x71166bac853c08da,
++	0xb07befe2e584fc5d, 0xda45ff2a588dbf32, 0xdb98b03c4d75095e, 0x60285ae1aaa65a4c,
++	0xf93b686a263140b8, 0xde469752ee1c180e, 0xcec232dc04129aae, 0xeb916baa1835ea04,
++	0xd49c21c8b64388ff, 0x72a82d9658864888, 0x003348ef7eac66a8, 0x7f6f67e655b209eb,
++	0x532ffb0b7a941b25, 0xd940ade6128deede, 0xdf24f2a1af89fe23, 0x95aa3b4988195ae0,
++	0x3da649404f94be4a, 0x692dad132c3f7e27, 0x40aee76ecaaa9eb8, 0x1294a01e09655024,
++	0x6df797abdba4e4f5, 0xea2fb6024c1d7032, 0x5f4e0492295489fc, 0x57972914ea22e06a,
++	0x9a8137d133aad473, 0xa2e6dd6ae7cdf2f3, 0x9f42644f18086647, 0x16d03301c170bd3e,
++	0x908c416fa546656d, 0xe081503be22e123e, 0x077cf09116c4cc72, 0xcbd25cd264b7f229,
++	0x3db2f468ec594031, 0x46c00e734c9badd5, 0xd0ec0ac72075d861, 0x3037cb3cf80b7630,
++	0x574c3d7b3a2721c6, 0xae99906a0076824b, 0xb175a5418b532e70, 0xd8b3e251ee231ddd,
++	0xb433eec25dca1966, 0x530f30dc5cff9a93, 0x9ff03d98b53cd335, 0xafc4225076558cdf,
++	0xef81d3a28284402a, 0x110bdbf51c110a28, 0x9ae1b255d027e8f6, 0x7de3e0aa24688332,
++	0xe483c3ecd2067ee2, 0xf829328b276137e6, 0xa413ccad57562cad, 0xe6118e8b496acb1f,
++	0x8288dca6da5ec01f, 0xa53777dc88c17255, 0x8a00f1e0d5716eda, 0x618e6f47b7a720a8,
++	0x9e3907b0c692a841, 0x978b42ca963f34f3, 0x75e4b0cd98a7d7ef, 0xde4dbd6e0b5f4752,
++	0x0252e4153f34493f, 0x50f0e7d803734ef9, 0x237766a38ed167ee, 0x4124414001ee39a0,
++	0xd08df643e535bb21, 0x34f575b5a9a80b74, 0x2c343af87297f755, 0xcd8b6d99d821f7cb,
++	0xe376fd7256fc48ae, 0xe1b06e7334352885, 0xfa87b26f86c169eb, 0x36c1604665a971de,
++	0xdba147c2239c8e80, 0x6b208e69fc7f0e24, 0x8795395b6f2b60c3, 0x05dabee9194907f4,
++	0xb98175142f5ed902, 0x5e1701e2021ddc81, 0x0875aba2755eed08, 0x778d83289251de95,
++	0x3bfbe46a039ecb31, 0xb24704fce4cbd7f9, 0x6985ffe9a7c91e3d, 0xc8efb13df249dabb,
++	0xb1037e64b0f4c9f6, 0x55f69fd197d6b7c3, 0x672589d71d68a90c, 0xbebdb8224f50a77e,
++	0x3f589f80007374a7, 0xd307f4635954182a, 0xcff5850c10d4fd90, 0xc6da02dfb6408e15,
++	0x93daeef1e2b1a485, 0x65d833208aeea625, 0xe2b13fa13ed3b5fa, 0x67053538130fb68e,
++	0xc1042f6598218fa9, 0xee5badca749b8a2e, 0x6d22a3f947dae37d, 0xb62c6d1657f4dbaf,
++	0x6e007de69704c20b, 0x1af2b913fc3841d8, 0xdc0e47348e2e8e22, 0x9b1ddef1cf958b22,
++	0x632ed6b0233066b8, 0xddd02d3311bed8f2, 0xf147cfe1834656e9, 0x399aaa49d511597a,
++	0x6b14886979ec0309, 0x64fc4ac36b5afb97, 0xb82f78e07f7cf081, 0x10925c9a323d0e1b,
++	0xf451c79ee13c63f6, 0x7c2fc180317876c7, 0x35a12bd9eecb7d22, 0x335654a539621f90,
++	0xcc32a3f35db581f0, 0xc60748a80b2369cb, 0x7c4dd3b08591156b, 0xac1ced4b6de22291,
++	0xa32cfa2df134def5, 0x627108918dea2a53, 0x0555b1608fcb4ff4, 0x143ee7ac43aaa33c,
++	0xdae90ce7cf4fc218, 0x4d68fc2582bcf4b5, 0x37094e1849135d71, 0xf7857e09f3d49fd8,
++	0x007538c503768be7, 0xedf648ba2f6be601, 0xaa347664dd72513e, 0xbe63893c6ef23b86,
++	0x130b85710605af97, 0xdd765c6b1ef6ab56, 0xf3249a629a97dc6b, 0x2a114f9020fab8e5,
++	0x5a69e027cfc6ad08, 0x3c4ccb36f1a5e050, 0x2e9e7d596834f0a5, 0x2430be6858fce789,
++	0xe90b862f2466e597, 0x895e2884f159a9ec, 0x26ab8fa4902fcb57, 0xa6efff5c54e1fa50,
++	0x333ac4e5811a8255, 0xa58d515f02498611, 0xfe5a09dcb25c6ef4, 0x03898988ab5f5818,
++	0x289ff6242af6c617, 0x3d9dd59fd381ea23, 0x52d7d93d8a8aae51, 0xc76a123d511f786f,
++	0xf68901edaf00c46c, 0x8c630871b590de80, 0x05209c308991e091, 0x1f809f99b4788177,
++	0x11170c2eb6c19fd8, 0x44433c779062ba58, 0xc0acb51af1874c45, 0x9f2e134284809fa1,
++	0xedb523bd15c619fa, 0x02d97fd53ecc23c0, 0xacaf05a34462374c, 0xddd9c6d34bffa11f,
++}
+diff --git a/src/math/rand/v2/chacha8.go b/src/math/rand/v2/chacha8.go
+new file mode 100644
+index 0000000000..6b9aa72782
+--- /dev/null
++++ b/src/math/rand/v2/chacha8.go
+@@ -0,0 +1,46 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import "internal/chacha8rand"
++
++// A ChaCha8 is a ChaCha8-based cryptographically strong
++// random number generator.
++type ChaCha8 struct {
++	state chacha8rand.State
++}
++
++// NewChaCha8 returns a new ChaCha8 seeded with the given seed.
++func NewChaCha8(seed [32]byte) *ChaCha8 {
++	c := new(ChaCha8)
++	c.state.Init(seed)
++	return c
++}
++
++// Seed resets the ChaCha8 to behave the same way as NewChaCha8(seed).
++func (c *ChaCha8) Seed(seed [32]byte) {
++	c.state.Init(seed)
++}
++
++// Uint64 returns a uniformly distributed random uint64 value.
++func (c *ChaCha8) Uint64() uint64 {
++	for {
++		x, ok := c.state.Next()
++		if ok {
++			return x
++		}
++		c.state.Refill()
++	}
++}
++
++// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
++func (c *ChaCha8) UnmarshalBinary(data []byte) error {
++	return chacha8rand.Unmarshal(&c.state, data)
++}
++
++// MarshalBinary implements the encoding.BinaryMarshaler interface.
++func (c *ChaCha8) MarshalBinary() ([]byte, error) {
++	return chacha8rand.Marshal(&c.state), nil
++}
+diff --git a/src/math/rand/v2/chacha8_test.go b/src/math/rand/v2/chacha8_test.go
+new file mode 100644
+index 0000000000..2c55b479b2
+--- /dev/null
++++ b/src/math/rand/v2/chacha8_test.go
+@@ -0,0 +1,531 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand_test
++
++import (
++	. "math/rand/v2"
++	"testing"
++)
++
++func TestChaCha8(t *testing.T) {
++	p := NewChaCha8(chacha8seed)
++	for i, x := range chacha8output {
++		if u := p.Uint64(); u != x {
++			t.Errorf("ChaCha8 #%d = %#x, want %#x", i, u, x)
++		}
++	}
++
++	p.Seed(chacha8seed)
++	for i, x := range chacha8output {
++		if u := p.Uint64(); u != x {
++			t.Errorf("ChaCha8 #%d = %#x, want %#x", i, u, x)
++		}
++	}
++}
++
++func TestChaCha8Marshal(t *testing.T) {
++	p := NewChaCha8(chacha8seed)
++	for i, x := range chacha8output {
++		enc, err := p.MarshalBinary()
++		if err != nil {
++			t.Fatalf("#%d: MarshalBinary: %v", i, err)
++		}
++		if string(enc) != chacha8marshal[i] {
++			t.Fatalf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
++		}
++		*p = ChaCha8{}
++		if err := p.UnmarshalBinary(enc); err != nil {
++			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
++		}
++		if u := p.Uint64(); u != x {
++			t.Errorf("ChaCha8 #%d = %#x, want %#x", i, u, x)
++		}
++	}
++}
++
++func BenchmarkChaCha8(b *testing.B) {
++	p := NewChaCha8([32]byte{1, 2, 3, 4, 5})
++	var t uint64
++	for n := b.N; n > 0; n-- {
++		t += p.Uint64()
++	}
++	Sink = t
++}
++
++// Golden output test to make sure algorithm never changes,
++// so that its use in math/rand/v2 stays stable.
++
++var chacha8seed = [32]byte([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"))
++
++var chacha8output = []uint64{
++	0xb773b6063d4616a5, 0x1160af22a66abc3c, 0x8c2599d9418d287c, 0x7ee07e037edc5cd6,
++	0xcfaa9ee02d1c16ad, 0x0e090eef8febea79, 0x3c82d271128b5b3e, 0x9c5addc11252a34f,
++	0xdf79bb617d6ceea6, 0x36d553591f9d736a, 0xeef0d14e181ee01f, 0x089bfc760ae58436,
++	0xd9e52b59cc2ad268, 0xeb2fb4444b1b8aba, 0x4f95c8a692c46661, 0xc3c6323217cae62c,
++	0x91ebb4367f4e2e7e, 0x784cf2c6a0ec9bc6, 0x5c34ec5c34eabe20, 0x4f0a8f515570daa8,
++	0xfc35dcb4113d6bf2, 0x5b0da44c645554bc, 0x6d963da3db21d9e1, 0xeeaefc3150e500f3,
++	0x2d37923dda3750a5, 0x380d7a626d4bc8b0, 0xeeaf68ede3d7ee49, 0xf4356695883b717c,
++	0x846a9021392495a4, 0x8e8510549630a61b, 0x18dc02545dbae493, 0x0f8f9ff0a65a3d43,
++	0xccf065f7190ff080, 0xfd76d1aa39673330, 0x95d232936cba6433, 0x6c7456d1070cbd17,
++	0x462acfdaff8c6562, 0x5bafab866d34fc6a, 0x0c862f78030a2988, 0xd39a83e407c3163d,
++	0xc00a2b7b45f22ebf, 0x564307c62466b1a9, 0x257e0424b0c072d4, 0x6fb55e99496c28fe,
++	0xae9873a88f5cd4e0, 0x4657362ac60d3773, 0x1c83f91ecdf23e8e, 0x6fdc0792c15387c0,
++	0x36dad2a30dfd2b5c, 0xa4b593290595bdb7, 0x4de18934e4cc02c5, 0xcdc0d604f015e3a7,
++	0xfba0dbf69ad80321, 0x60e8bea3d139de87, 0xd18a4d851ef48756, 0x6366447c2215f34a,
++	0x05682e97d3d007ee, 0x4c0e8978c6d54ab2, 0xcf1e9f6a6712edc2, 0x061439414c80cfd3,
++	0xd1a8b6e2745c0ead, 0x31a7918d45c410e8, 0xabcc61ad90216eec, 0x4040d92d2032a71a,
++	0x3cd2f66ffb40cd68, 0xdcd051c07295857a, 0xeab55cbcd9ab527e, 0x18471dce781bdaac,
++	0xf7f08cd144dc7252, 0x5804e0b13d7f40d1, 0x5cb1a446e4b2d35b, 0xe6d4a728d2138a06,
++	0x05223e40ca60dad8, 0x2d61ec3206ac6a68, 0xab692356874c17b8, 0xc30954417676de1c,
++	0x4f1ace3732225624, 0xfba9510813988338, 0x997f200f52752e11, 0x1116aaafe86221fa,
++	0x07ce3b5cb2a13519, 0x2956bc72bc458314, 0x4188b7926140eb78, 0x56ca6dbfd4adea4d,
++	0x7fe3c22349340ce5, 0x35c08f9c37675f8a, 0x11e1c7fbef5ed521, 0x98adc8464ec1bc75,
++	0xd163b2c73d1203f8, 0x8c761ee043a2f3f3, 0x24b99d6accecd7b7, 0x793e31aa112f0370,
++	0x8e87dc2a19285139, 0x4247ae04f7096e25, 0x514f3122926fe20f, 0xdc6fb3f045d2a7e9,
++	0x15cb30cecdd18eba, 0xcbc7fdecf6900274, 0x3fb5c696dc8ba021, 0xd1664417c8d274e6,
++	0x05f7e445ea457278, 0xf920bbca1b9db657, 0x0c1950b4da22cb99, 0xf875baf1af09e292,
++	0xbed3d7b84250f838, 0xf198e8080fd74160, 0xc9eda51d9b7ea703, 0xf709ef55439bf8f6,
++	0xd20c74feebf116fc, 0x305668eb146d7546, 0x829af3ec10d89787, 0x15b8f9697b551dbc,
++	0xfc823c6c8e64b8c9, 0x345585e8183b40bc, 0x674b4171d6581368, 0x1234d81cd670e9f7,
++	0x0e505210d8a55e19, 0xe8258d69eeeca0dc, 0x05d4c452e8baf67e, 0xe8dbe30116a45599,
++	0x1cf08ce1b1176f00, 0xccf7d0a4b81ecb49, 0x303fea136b2c430e, 0x861d6c139c06c871,
++	0x5f41df72e05e0487, 0x25bd7e1e1ae26b1d, 0xbe9f4004d662a41d, 0x65bf58d483188546,
++	0xd1b27cff69db13cc, 0x01a6663372c1bb36, 0x578dd7577b727f4d, 0x19c78f066c083cf6,
++	0xdbe014d4f9c391bb, 0x97fbb2dd1d13ffb3, 0x31c91e0af9ef8d4f, 0x094dfc98402a43ba,
++	0x069bd61bea37b752, 0x5b72d762e8d986ca, 0x72ee31865904bc85, 0xd1f5fdc5cd36c33e,
++	0xba9b4980a8947cad, 0xece8f05eac49ab43, 0x65fe1184abae38e7, 0x2d7cb9dea5d31452,
++	0xcc71489476e467e3, 0x4c03a258a578c68c, 0x00efdf9ecb0fd8fc, 0x9924cad471e2666d,
++	0x87f8668318f765e9, 0xcb4dc57c1b55f5d8, 0xd373835a86604859, 0xe526568b5540e482,
++	0x1f39040f08586fec, 0xb764f3f00293f8e6, 0x049443a2f6bd50a8, 0x76fec88697d3941a,
++	0x3efb70d039bae7a2, 0xe2f4611368eca8a8, 0x7c007a96e01d2425, 0xbbcce5768e69c5bf,
++	0x784fb4985c42aac3, 0xf72b5091aa223874, 0x3630333fb1e62e07, 0x8e7319ebdebbb8de,
++	0x2a3982bca959fa00, 0xb2b98b9f964ba9b3, 0xf7e31014adb71951, 0xebd0fca3703acc82,
++	0xec654e2a2fe6419a, 0xb326132d55a52e2c, 0x2248c57f44502978, 0x32710c2f342daf16,
++	0x0517b47b5acb2bec, 0x4c7a718fca270937, 0xd69142bed0bcc541, 0xe40ebcb8ff52ce88,
++	0x3e44a2dbc9f828d4, 0xc74c2f4f8f873f58, 0x3dbf648eb799e45b, 0x33f22475ee0e86f8,
++	0x1eb4f9ee16d47f65, 0x40f8d2b8712744e3, 0xb886b4da3cb14572, 0x2086326fbdd6f64d,
++	0xcc3de5907dd882b9, 0xa2e8b49a5ee909df, 0xdbfb8e7823964c10, 0x70dd6089ef0df8d5,
++	0x30141663cdd9c99f, 0x04b805325c240365, 0x7483d80314ac12d6, 0x2b271cb91aa7f5f9,
++	0x97e2245362abddf0, 0x5a84f614232a9fab, 0xf71125fcda4b7fa2, 0x1ca5a61d74b27267,
++	0x38cc6a9b3adbcb45, 0xdde1bb85dc653e39, 0xe9d0c8fa64f89fd4, 0x02c5fb1ecd2b4188,
++	0xf2bd137bca5756e5, 0xadefe25d121be155, 0x56cd1c3c5d893a8e, 0x4c50d337beb65bb9,
++	0x918c5151675cf567, 0xaba649ffcfb56a1e, 0x20c74ab26a2247cd, 0x71166bac853c08da,
++	0xb07befe2e584fc5d, 0xda45ff2a588dbf32, 0xdb98b03c4d75095e, 0x60285ae1aaa65a4c,
++	0xf93b686a263140b8, 0xde469752ee1c180e, 0xcec232dc04129aae, 0xeb916baa1835ea04,
++	0xd49c21c8b64388ff, 0x72a82d9658864888, 0x003348ef7eac66a8, 0x7f6f67e655b209eb,
++	0x532ffb0b7a941b25, 0xd940ade6128deede, 0xdf24f2a1af89fe23, 0x95aa3b4988195ae0,
++	0x3da649404f94be4a, 0x692dad132c3f7e27, 0x40aee76ecaaa9eb8, 0x1294a01e09655024,
++	0x6df797abdba4e4f5, 0xea2fb6024c1d7032, 0x5f4e0492295489fc, 0x57972914ea22e06a,
++	0x9a8137d133aad473, 0xa2e6dd6ae7cdf2f3, 0x9f42644f18086647, 0x16d03301c170bd3e,
++	0x908c416fa546656d, 0xe081503be22e123e, 0x077cf09116c4cc72, 0xcbd25cd264b7f229,
++	0x3db2f468ec594031, 0x46c00e734c9badd5, 0xd0ec0ac72075d861, 0x3037cb3cf80b7630,
++	0x574c3d7b3a2721c6, 0xae99906a0076824b, 0xb175a5418b532e70, 0xd8b3e251ee231ddd,
++	0xb433eec25dca1966, 0x530f30dc5cff9a93, 0x9ff03d98b53cd335, 0xafc4225076558cdf,
++	0xef81d3a28284402a, 0x110bdbf51c110a28, 0x9ae1b255d027e8f6, 0x7de3e0aa24688332,
++	0xe483c3ecd2067ee2, 0xf829328b276137e6, 0xa413ccad57562cad, 0xe6118e8b496acb1f,
++	0x8288dca6da5ec01f, 0xa53777dc88c17255, 0x8a00f1e0d5716eda, 0x618e6f47b7a720a8,
++	0x9e3907b0c692a841, 0x978b42ca963f34f3, 0x75e4b0cd98a7d7ef, 0xde4dbd6e0b5f4752,
++	0x0252e4153f34493f, 0x50f0e7d803734ef9, 0x237766a38ed167ee, 0x4124414001ee39a0,
++	0xd08df643e535bb21, 0x34f575b5a9a80b74, 0x2c343af87297f755, 0xcd8b6d99d821f7cb,
++	0xe376fd7256fc48ae, 0xe1b06e7334352885, 0xfa87b26f86c169eb, 0x36c1604665a971de,
++	0xdba147c2239c8e80, 0x6b208e69fc7f0e24, 0x8795395b6f2b60c3, 0x05dabee9194907f4,
++	0xb98175142f5ed902, 0x5e1701e2021ddc81, 0x0875aba2755eed08, 0x778d83289251de95,
++	0x3bfbe46a039ecb31, 0xb24704fce4cbd7f9, 0x6985ffe9a7c91e3d, 0xc8efb13df249dabb,
++	0xb1037e64b0f4c9f6, 0x55f69fd197d6b7c3, 0x672589d71d68a90c, 0xbebdb8224f50a77e,
++	0x3f589f80007374a7, 0xd307f4635954182a, 0xcff5850c10d4fd90, 0xc6da02dfb6408e15,
++	0x93daeef1e2b1a485, 0x65d833208aeea625, 0xe2b13fa13ed3b5fa, 0x67053538130fb68e,
++	0xc1042f6598218fa9, 0xee5badca749b8a2e, 0x6d22a3f947dae37d, 0xb62c6d1657f4dbaf,
++	0x6e007de69704c20b, 0x1af2b913fc3841d8, 0xdc0e47348e2e8e22, 0x9b1ddef1cf958b22,
++	0x632ed6b0233066b8, 0xddd02d3311bed8f2, 0xf147cfe1834656e9, 0x399aaa49d511597a,
++	0x6b14886979ec0309, 0x64fc4ac36b5afb97, 0xb82f78e07f7cf081, 0x10925c9a323d0e1b,
++	0xf451c79ee13c63f6, 0x7c2fc180317876c7, 0x35a12bd9eecb7d22, 0x335654a539621f90,
++	0xcc32a3f35db581f0, 0xc60748a80b2369cb, 0x7c4dd3b08591156b, 0xac1ced4b6de22291,
++	0xa32cfa2df134def5, 0x627108918dea2a53, 0x0555b1608fcb4ff4, 0x143ee7ac43aaa33c,
++	0xdae90ce7cf4fc218, 0x4d68fc2582bcf4b5, 0x37094e1849135d71, 0xf7857e09f3d49fd8,
++	0x007538c503768be7, 0xedf648ba2f6be601, 0xaa347664dd72513e, 0xbe63893c6ef23b86,
++	0x130b85710605af97, 0xdd765c6b1ef6ab56, 0xf3249a629a97dc6b, 0x2a114f9020fab8e5,
++	0x5a69e027cfc6ad08, 0x3c4ccb36f1a5e050, 0x2e9e7d596834f0a5, 0x2430be6858fce789,
++	0xe90b862f2466e597, 0x895e2884f159a9ec, 0x26ab8fa4902fcb57, 0xa6efff5c54e1fa50,
++	0x333ac4e5811a8255, 0xa58d515f02498611, 0xfe5a09dcb25c6ef4, 0x03898988ab5f5818,
++	0x289ff6242af6c617, 0x3d9dd59fd381ea23, 0x52d7d93d8a8aae51, 0xc76a123d511f786f,
++	0xf68901edaf00c46c, 0x8c630871b590de80, 0x05209c308991e091, 0x1f809f99b4788177,
++	0x11170c2eb6c19fd8, 0x44433c779062ba58, 0xc0acb51af1874c45, 0x9f2e134284809fa1,
++	0xedb523bd15c619fa, 0x02d97fd53ecc23c0, 0xacaf05a34462374c, 0xddd9c6d34bffa11f,
++}
++
++var chacha8marshal = []string{
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x00ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\aABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\bABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\tABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\nABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\vABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\fABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\rABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0eABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0fABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x10ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x11ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x12ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x13ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x14ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x15ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x16ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x17ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x18ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x19ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1aABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1bABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1cABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1dABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1eABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1fABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00 ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00!ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00#ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00$ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00%ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00&ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00(ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00)ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00*ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00+ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00,ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00-ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00.ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00/ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x000ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x001ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x002ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x003ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x004ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x005ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x006ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x007ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x008ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x009ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00:ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00;ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00<ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00=ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00>ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00?ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00@ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00AABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00BABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00CABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00DABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00EABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00FABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00GABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00HABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00IABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00JABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00KABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00LABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00MABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00NABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00OABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00PABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00QABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00RABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00SABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00TABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00UABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00VABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00WABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00XABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00YABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00ZABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00[ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\\ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00]ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00^ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00`ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00aABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00bABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00cABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00dABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00eABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00fABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00gABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00hABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00iABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00jABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00kABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00lABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00mABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00nABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00oABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00pABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00qABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00rABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00sABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00tABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00uABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00vABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00wABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00xABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00yABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00zABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00{ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00|ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x01>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x02>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x03>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x04>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x05>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x06>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\a>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\b>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\t>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\n>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\v>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\f>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\r>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0e>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0f>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x10>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x11>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x12>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x13>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x14>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x15>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x16>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x17>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x18>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x19>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1a>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1b>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1c>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1d>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1e>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1f>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00 >\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00!>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\">\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00#>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00$>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00%>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00&>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00'>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00(>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00)>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00*>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00+>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00,>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00->\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00.>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00/>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x000>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x001>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x002>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x003>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x004>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x005>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x006>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x007>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x008>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x009>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00:>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00;>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00<>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00=>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00>>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00?>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00@>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00A>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00B>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00C>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00D>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00E>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00F>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00G>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00H>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00I>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00J>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00K>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00L>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00M>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00N>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00O>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00P>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00Q>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00R>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00S>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00T>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00U>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00V>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00W>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00X>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00Y>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00Z>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00[>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\\>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00]>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00^>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00_>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00`>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00a>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00b>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00c>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00d>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00e>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00f>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00g>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00h>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00i>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00j>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00k>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00l>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00m>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00n>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00o>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00p>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00q>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00r>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00s>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00t>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00u>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00v>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00w>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00x>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00y>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00z>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00{>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00|>\x15\x0e\xacHk4O\x11a\xa8R\xcd5\x9atr\x8cXO\x9c]\x10\xdf\xf61\xea\x11\x18\x06\x8a\xaa",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x01K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x02K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x03K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x04K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x05K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x06K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\aK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\bK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\tK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\nK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\vK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\fK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\rK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0eK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x0fK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x10K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x11K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x12K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x13K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x14K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x15K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x16K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x17K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x18K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x19K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1aK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1bK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1cK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1dK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1eK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x1fK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00 K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00!K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\"K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00#K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00$K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00%K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00&K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00'K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00(K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00)K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00*K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00+K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00,K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00-K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00.K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00/K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x000K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x001K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x002K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x003K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x004K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x005K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x006K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x007K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x008K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x009K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00:K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00;K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00<K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00=K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00>K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00?K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00@K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00AK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00BK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00CK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00DK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00EK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00FK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00GK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00HK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00IK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00JK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00KK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00LK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00MK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00NK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00OK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00PK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00QK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00RK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00SK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00TK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00UK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00VK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00WK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00XK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00YK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00ZK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00[K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\\K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00]K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00^K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00_K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00`K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00aK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00bK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00cK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00dK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00eK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00fK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00gK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00hK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00iK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00jK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00kK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00lK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00mK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00nK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00oK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00pK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00qK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00rK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00sK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00tK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00uK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00vK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00wK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00xK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00yK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00zK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00{K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
++}

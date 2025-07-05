@@ -9,7 +9,60 @@ Date:   Fri Oct 14 20:37:07 2011 +0100
     R=rsc, alex.brainman, bsiegert, hectorchu, bradfitz
     CC=golang-dev
     https://golang.org/cl/4978047
-
+---
  doc/progs/run    | 11 ++++++++---
  src/cmd/ld/lib.c |  5 +++++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 9d56049a88..7a6a603bb8 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -42,9 +42,13 @@ for i in \
+ 	$GC $i
+ done
+ 
++# Write to temporary file to avoid mingw bash bug.
++TMPFILE="/tmp/gotest3"
++
+ function testit {
+ 	$LD $1.$O
+-	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
++	./$O.out $2 2>&1 >"$TMPFILE" || true
++	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+ 		echo $1 failed: '"'$x'"' is not '"'$3'"'
+@@ -53,7 +57,8 @@ function testit {
+ 
+ function testitpipe {
+ 	$LD $1.$O
+-	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
++	./$O.out | $2 2>&1 >"$TMPFILE" || true
++	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+ 		echo $1 failed: '"'$x'"' is not '"'$3'"'
+@@ -88,4 +93,4 @@ testit server1 "" ""
+ testit eff_bytesize "" "1.00YB 9.09TB"
+ testit eff_sequence "" "[-1 2 6 16 44]"
+ 
+-rm -f $O.out *.$O
++rm -f $O.out $O.out.exe *.$O "$TMPFILE"
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 37379e1863..456d41f5a1 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -70,7 +70,12 @@ libinit(void)
+ 	// add goroot to the end of the libdir list.
+ 	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
++	// Unix doesn't like it when we write to a running (or, sometimes,
++	// recently run) binary, so remove the output file before writing it.
++	// On Windows 7, remove() can force the following create() to fail.
++#ifndef _WIN32
+ 	remove(outfile);
++#endif
+ 	cout = create(outfile, 1, 0775);
+ 	if(cout < 0) {
+ 		diag("cannot create %s", outfile);

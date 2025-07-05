@@ -13,9 +13,73 @@ Date:   Thu Jun 27 16:51:06 2013 -0400
     R=dvyukov
     CC=golang-dev
     https://golang.org/cl/10709043
-
+---
  src/pkg/runtime/asm_386.s   | 5 +++++
  src/pkg/runtime/asm_amd64.s | 5 +++++
  src/pkg/runtime/asm_arm.s   | 7 +++++++
  src/pkg/runtime/stack.c     | 2 +-
  4 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index cd1514e1e0..630f006bcb 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -254,6 +254,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	g(CX), AX
+ 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+ 
++	// Save our own state as the PC and SP to restore
++	// if this goroutine needs to be restarted.
++	MOVL	$reflect·call(SB), (g_sched+gobuf_pc)(AX)
++	MOVL	SP, (g_sched+gobuf_sp)(AX)
++
+ 	// Set up morestack arguments to call f on a new stack.
+ 	// We set f's frame size to 1, as a hint to newstack
+ 	// that this is a call from reflect·call.
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 0b7c3ded06..d43eb02835 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -231,6 +231,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
++	
++	// Save our own state as the PC and SP to restore
++	// if this goroutine needs to be restarted.
++	MOVQ	$reflect·call(SB), (g_sched+gobuf_pc)(AX)
++	MOVQ	SP, (g_sched+gobuf_sp)(AX)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+ 	// We set f's frame size to 1, as a hint to newstack
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index fd88b46b90..31bbca6afa 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -207,6 +207,13 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
+ 	MOVW	g,  (m_morebuf+gobuf_g)(m)
+ 
++	// Save our own state as the PC and SP to restore
++	// if this goroutine needs to be restarted.
++	MOVW	$reflect·call(SB), R11
++	MOVW	R11, (g_sched+gobuf_pc)(g)
++	MOVW	LR, (g_sched+gobuf_lr)(g)
++	MOVW	SP, (g_sched+gobuf_sp)(g)
++
+ 	// Set up morestack arguments to call f on a new stack.
+ 	// We set f's frame size to 1, as a hint to newstack
+ 	// that this is a call from reflect·call.
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 5480c46970..16dfa041a0 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -215,7 +215,7 @@ runtime·newstack(void)
+ 	if(!reflectcall)
+ 		runtime·rewindmorestack(&gp->sched);
+ 
+-	sp = m->morebuf.sp;
++	sp = gp->sched.sp;
+ 	if(thechar == '6' || thechar == '8') {
+ 		// The call to morestack cost a word.
+ 		sp -= sizeof(uintptr);

@@ -12,8 +12,220 @@ Date:   Fri Sep 29 14:30:51 2017 -0700
     Reviewed-by: Martin Kreichgauer <martinkr@google.com>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 77 ++++++++++++++++++++++++++++++++++++++
  src/crypto/x509/x509_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++
  src/go/build/deps_test.go    |  2 +-
  3 files changed, 166 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 39fd78df59..4dfbb6c81f 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -8,6 +8,8 @@ package pkix
+ 
+ import (
+ 	"encoding/asn1"
++	"encoding/hex"
++	"fmt"
+ 	"math/big"
+ 	"time"
+ )
+@@ -21,6 +23,75 @@ type AlgorithmIdentifier struct {
+ 
+ type RDNSequence []RelativeDistinguishedNameSET
+ 
++var attributeTypeNames = map[string]string{
++	"2.5.4.6":  "C",
++	"2.5.4.10": "O",
++	"2.5.4.11": "OU",
++	"2.5.4.3":  "CN",
++	"2.5.4.5":  "SERIALNUMBER",
++	"2.5.4.7":  "L",
++	"2.5.4.8":  "ST",
++	"2.5.4.9":  "STREET",
++	"2.5.4.17": "POSTALCODE",
++}
++
++// String implements the fmt.Stringer interface. It loosely follows the
++// string conversion rules for Distinguished Names from RFC 2253.
++func (r RDNSequence) String() string {
++	s := ""
++	for i := 0; i < len(r); i++ {
++		rdn := r[len(r)-1-i]
++		if i > 0 {
++			s += ","
++		}
++		for j, tv := range rdn {
++			if j > 0 {
++				s += "+"
++			}
++
++			oidString := tv.Type.String()
++			typeName, ok := attributeTypeNames[oidString]
++			if !ok {
++				derBytes, err := asn1.Marshal(tv.Value)
++				if err == nil {
++					s += oidString + "=#" + hex.EncodeToString(derBytes)
++					continue // No value escaping necessary.
++				}
++
++				typeName = oidString
++			}
++
++			valueString := fmt.Sprint(tv.Value)
++			escaped := make([]rune, 0, len(valueString))
++
++			for k, c := range valueString {
++				escape := false
++
++				switch c {
++				case ',', '+', '"', '\\', '<', '>', ';':
++					escape = true
++
++				case ' ':
++					escape = k == 0 || k == len(valueString)-1
++
++				case '#':
++					escape = k == 0
++				}
++
++				if escape {
++					escaped = append(escaped, '\\', c)
++				} else {
++					escaped = append(escaped, c)
++				}
++			}
++
++			s += typeName + "=" + string(escaped)
++		}
++	}
++
++	return s
++}
++
+ type RelativeDistinguishedNameSET []AttributeTypeAndValue
+ 
+ // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
+@@ -150,6 +221,12 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
+ 	return ret
+ }
+ 
++// String implements the fmt.Stringer interface. It loosely follows the
++// string conversion rules for Distinguished Names from RFC 2253.
++func (n Name) String() string {
++	return n.ToRDNSequence().String()
++}
++
+ // oidInAttributeTypeAndValue returns whether a type with the given OID exists
+ // in atv.
+ func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index a824bf6a03..425a8739c8 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1545,3 +1545,91 @@ func TestEmptyNameConstraints(t *testing.T) {
+ 		t.Errorf("expected %q in error but got %q", expected, str)
+ 	}
+ }
++
++func TestPKIXNameString(t *testing.T) {
++	pem, err := hex.DecodeString(certBytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	certs, err := ParseCertificates(pem)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tests := []struct {
++		dn   pkix.Name
++		want string
++	}{
++		{pkix.Name{
++			CommonName:         "Steve Kille",
++			Organization:       []string{"Isode Limited"},
++			OrganizationalUnit: []string{"RFCs"},
++			Locality:           []string{"Richmond"},
++			Province:           []string{"Surrey"},
++			StreetAddress:      []string{"The Square"},
++			PostalCode:         []string{"TW9 1DT"},
++			SerialNumber:       "RFC 2253",
++			Country:            []string{"GB"},
++		}, "SERIALNUMBER=RFC 2253,CN=Steve Kille,OU=RFCs,O=Isode Limited,POSTALCODE=TW9 1DT,STREET=The Square,L=Richmond,ST=Surrey,C=GB"},
++		{certs[0].Subject,
++			"CN=mail.google.com,O=Google Inc,L=Mountain View,ST=California,C=US"},
++		{pkix.Name{
++			Organization: []string{"#Google, Inc. \n-> 'Alphabet\" "},
++			Country:      []string{"US"},
++		}, "O=\\#Google\\, Inc. \n-\\> 'Alphabet\\\"\\ ,C=US"},
++		{pkix.Name{
++			CommonName:   "foo.com",
++			Organization: []string{"Gopher Industries"},
++			ExtraNames: []pkix.AttributeTypeAndValue{
++				{Type: asn1.ObjectIdentifier([]int{2, 5, 4, 3}), Value: "bar.com"}},
++		}, "CN=bar.com,O=Gopher Industries"},
++		{pkix.Name{
++			Locality: []string{"Gophertown"},
++			ExtraNames: []pkix.AttributeTypeAndValue{
++				{Type: asn1.ObjectIdentifier([]int{1, 2, 3, 4, 5}), Value: "golang.org"}},
++		}, "1.2.3.4.5=#130a676f6c616e672e6f7267,L=Gophertown"},
++	}
++
++	for i, test := range tests {
++		if got := test.dn.String(); got != test.want {
++			t.Errorf("#%d: String() = \n%s\n, want \n%s", i, got, test.want)
++		}
++	}
++}
++
++func TestRDNSequenceString(t *testing.T) {
++	// Test some extra cases that get lost in pkix.Name conversions such as
++	// multi-valued attributes.
++
++	var (
++		oidCountry            = []int{2, 5, 4, 6}
++		oidOrganization       = []int{2, 5, 4, 10}
++		oidOrganizationalUnit = []int{2, 5, 4, 11}
++		oidCommonName         = []int{2, 5, 4, 3}
++	)
++
++	tests := []struct {
++		seq  pkix.RDNSequence
++		want string
++	}{
++		{seq: pkix.RDNSequence{
++			pkix.RelativeDistinguishedNameSET{
++				pkix.AttributeTypeAndValue{Type: oidCountry, Value: "US"},
++			},
++			pkix.RelativeDistinguishedNameSET{
++				pkix.AttributeTypeAndValue{Type: oidOrganization, Value: "Widget Inc."},
++			},
++			pkix.RelativeDistinguishedNameSET{
++				pkix.AttributeTypeAndValue{Type: oidOrganizationalUnit, Value: "Sales"},
++				pkix.AttributeTypeAndValue{Type: oidCommonName, Value: "J. Smith"},
++			},
++		},
++		want: "OU=Sales+CN=J. Smith,O=Widget Inc.,C=US"},
++	}
++
++	for i, test := range tests {
++		if got := test.seq.String(); got != test.want {
++			t.Errorf("#%d: String() = \n%s\n, want \n%s", i, got, test.want)
++		}
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 041c52310a..275c4835dc 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -379,7 +379,7 @@ var pkgDeps = map[string][]string{
+ 		"L4", "CRYPTO-MATH", "OS", "CGO",
+ 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall",
+ 	},
+-	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
++	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
+ 
+ 	// Simple net+crypto-aware packages.
+ 	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},

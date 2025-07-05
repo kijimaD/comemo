@@ -11,7 +11,7 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  5 ++
  src/cmd/compile/internal/gc/main.go          |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +
@@ -21,3 +21,251 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
  src/cmd/vet/all/whitelist/arm64.txt          |  2 +
  src/runtime/asm_arm64.s                      | 99 ++++++++++++++++++++++++++++
  8 files changed, 150 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 6fa01912f5..ffb37ba705 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -636,6 +636,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Patch(p4, p)
+ 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
+ 		s.Call(v)
++	case ssa.OpARM64LoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
+ 	case ssa.OpARM64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := s.Prog(arm64.AMOVB)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4efd647682..5b3d7d616f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -408,7 +408,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	switch objabi.GOARCH {
+-	case "amd64", "amd64p32", "386", "arm":
++	case "amd64", "amd64p32", "386", "arm", "arm64":
+ 	default:
+ 		// Other architectures don't support the buffered
+ 		// write barrier yet.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 558e60f6e2..ba994479c7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -506,6 +506,9 @@
+ (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
+ (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ // Optimizations
+ 
+ // Absorb boolean tests into block
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 10a19cbd41..5764d6bb37 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -505,6 +505,11 @@ func init() {
+ 		// CBNZ		Rtmp, -3(PC)
+ 		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true, hasSideEffects: true},
++
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary,
++		// but clobbers R30 (LR) because it's a call.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e2ecca7bdb..b8aa0aa691 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1128,6 +1128,7 @@ const (
+ 	OpARM64LoweredAtomicCas32
+ 	OpARM64LoweredAtomicAnd8
+ 	OpARM64LoweredAtomicOr8
++	OpARM64LoweredWB
+ 
+ 	OpMIPSADD
+ 	OpMIPSADDconst
+@@ -14341,6 +14342,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4}, // R2
++				{1, 8}, // R3
++			},
++			clobbers: 9223372035244163072, // R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 1cb8de8a34..67b6d2fd20 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -701,6 +701,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpTrunc64to32_0(v)
+ 	case OpTrunc64to8:
+ 		return rewriteValueARM64_OpTrunc64to8_0(v)
++	case OpWB:
++		return rewriteValueARM64_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValueARM64_OpXor16_0(v)
+ 	case OpXor32:
+@@ -15678,6 +15680,24 @@ func rewriteValueARM64_OpTrunc64to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 24fc6f4223..af2d42a62f 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -9,3 +9,5 @@ runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+ runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e41ee7004d..2e08013097 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1055,3 +1055,102 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R3
+ 	MOVB	R3, ret+0(FP)
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - R2 is the destination of the write
++// - R3 is the value being written at R2
++// It clobbers condition codes.
++// It does not clobber any general-purpose registers,
++// but may clobber others (e.g., floating point registers)
++// The act of CALLing gcWriteBarrier will clobber R30 (LR).
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
++	// Save the registers clobbered by the fast path.
++	MOVD	R0, 200(RSP)
++	MOVD	R1, 208(RSP)
++	MOVD	g_m(g), R0
++	MOVD	m_p(R0), R0
++	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
++	// Increment wbBuf.next position.
++	ADD	$16, R1
++	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
++	MOVD	(p_wbBuf+wbBuf_end)(R0), R0
++	CMP	R1, R0
++	// Record the write.
++	MOVD	R3, -16(R1)	// Record value
++	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
++	MOVD	R0, -8(R1)	// Record *slot
++	// Is the buffer full? (flags set in CMP above)
++	BEQ	flush
++ret:
++	MOVD	200(RSP), R0
++	MOVD	208(RSP), R1
++	// Do the write.
++	MOVD	R3, (R2)
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	MOVD	R2, 8(RSP)	// Also first argument to wbBufFlush
++	MOVD	R3, 16(RSP)	// Also second argument to wbBufFlush
++	// R0 already saved
++	// R1 already saved
++	MOVD	R4, 24(RSP)
++	MOVD	R5, 32(RSP)
++	MOVD	R6, 40(RSP)
++	MOVD	R7, 48(RSP)
++	MOVD	R8, 56(RSP)
++	MOVD	R9, 64(RSP)
++	MOVD	R10, 72(RSP)
++	MOVD	R11, 80(RSP)
++	MOVD	R12, 88(RSP)
++	MOVD	R13, 96(RSP)
++	MOVD	R14, 104(RSP)
++	MOVD	R15, 112(RSP)
++	MOVD	R16, 120(RSP)
++	MOVD	R17, 128(RSP)
++	// R18 is unused.
++	MOVD	R19, 136(RSP)
++	MOVD	R20, 144(RSP)
++	MOVD	R21, 152(RSP)
++	MOVD	R22, 160(RSP)
++	MOVD	R23, 168(RSP)
++	MOVD	R24, 176(RSP)
++	MOVD	R25, 184(RSP)
++	MOVD	R26, 192(RSP)
++	// R27 is temp register.
++	// R28 is g.
++	// R29 is frame pointer (unused).
++	// R30 is LR, which was saved by the prologue.
++	// R31 is SP.
++
++	// This takes arguments R2 and R3.
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVD	8(RSP), R2
++	MOVD	16(RSP), R3
++	MOVD	24(RSP), R4
++	MOVD	32(RSP), R5
++	MOVD	40(RSP), R6
++	MOVD	48(RSP), R7
++	MOVD	56(RSP), R8
++	MOVD	64(RSP), R9
++	MOVD	72(RSP), R10
++	MOVD	80(RSP), R11
++	MOVD	88(RSP), R12
++	MOVD	96(RSP), R13
++	MOVD	104(RSP), R14
++	MOVD	112(RSP), R15
++	MOVD	120(RSP), R16
++	MOVD	128(RSP), R17
++	MOVD	136(RSP), R19
++	MOVD	144(RSP), R20
++	MOVD	152(RSP), R21
++	MOVD	160(RSP), R22
++	MOVD	168(RSP), R23
++	MOVD	176(RSP), R24
++	MOVD	184(RSP), R25
++	MOVD	192(RSP), R26
++	JMP	ret

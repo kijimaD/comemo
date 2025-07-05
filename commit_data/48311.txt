@@ -24,7 +24,7 @@ Date:   Wed May 5 23:03:22 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go                 |  96 +--------------------------------
  src/go/types/api_notypeparams.go    | 104 ++++++++++++++++++++++++++++++++++++
  src/go/types/api_typeparams.go      |  30 ++++++++---
@@ -32,3 +32,324 @@ Date:   Wed May 5 23:03:22 2021 -0400
  src/go/types/check.go               |   2 +-
  src/go/types/sanitize.go            |   5 +-
  6 files changed, 133 insertions(+), 108 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index da23c8c52a..ed62a785d6 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -160,101 +160,7 @@ func srcimporter_setUsesCgo(conf *Config) {
+ 	conf.go115UsesCgo = true
+ }
+ 
+-// Info holds result type information for a type-checked package.
+-// Only the information for which a map is provided is collected.
+-// If the package has type errors, the collected information may
+-// be incomplete.
+-type Info struct {
+-	// Types maps expressions to their types, and for constant
+-	// expressions, also their values. Invalid expressions are
+-	// omitted.
+-	//
+-	// For (possibly parenthesized) identifiers denoting built-in
+-	// functions, the recorded signatures are call-site specific:
+-	// if the call result is not a constant, the recorded type is
+-	// an argument-specific signature. Otherwise, the recorded type
+-	// is invalid.
+-	//
+-	// The Types map does not record the type of every identifier,
+-	// only those that appear where an arbitrary expression is
+-	// permitted. For instance, the identifier f in a selector
+-	// expression x.f is found only in the Selections map, the
+-	// identifier z in a variable declaration 'var z int' is found
+-	// only in the Defs map, and identifiers denoting packages in
+-	// qualified identifiers are collected in the Uses map.
+-	Types map[ast.Expr]TypeAndValue
+-
+-	// _Inferred maps calls of parameterized functions that use
+-	// type inference to the _Inferred type arguments and signature
+-	// of the function called. The recorded "call" expression may be
+-	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
+-	_Inferred map[ast.Expr]_Inferred
+-
+-	// Defs maps identifiers to the objects they define (including
+-	// package names, dots "." of dot-imports, and blank "_" identifiers).
+-	// For identifiers that do not denote objects (e.g., the package name
+-	// in package clauses, or symbolic variables t in t := x.(type) of
+-	// type switch headers), the corresponding objects are nil.
+-	//
+-	// For an embedded field, Defs returns the field *Var it defines.
+-	//
+-	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
+-	Defs map[*ast.Ident]Object
+-
+-	// Uses maps identifiers to the objects they denote.
+-	//
+-	// For an embedded field, Uses returns the *TypeName it denotes.
+-	//
+-	// Invariant: Uses[id].Pos() != id.Pos()
+-	Uses map[*ast.Ident]Object
+-
+-	// Implicits maps nodes to their implicitly declared objects, if any.
+-	// The following node and object types may appear:
+-	//
+-	//     node               declared object
+-	//
+-	//     *ast.ImportSpec    *PkgName for imports without renames
+-	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+-	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
+-	//
+-	Implicits map[ast.Node]Object
+-
+-	// Selections maps selector expressions (excluding qualified identifiers)
+-	// to their corresponding selections.
+-	Selections map[*ast.SelectorExpr]*Selection
+-
+-	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
+-	// associated with a specific node but with all files belonging to a package.
+-	// Thus, the package scope can be found in the type-checked Package object.
+-	// Scopes nest, with the Universe scope being the outermost scope, enclosing
+-	// the package scope, which contains (one or more) files scopes, which enclose
+-	// function scopes which in turn enclose statement and function literal scopes.
+-	// Note that even though package-level functions are declared in the package
+-	// scope, the function scopes are embedded in the file scope of the file
+-	// containing the function declaration.
+-	//
+-	// The following node types may appear in Scopes:
+-	//
+-	//     *ast.File
+-	//     *ast.FuncType
+-	//     *ast.BlockStmt
+-	//     *ast.IfStmt
+-	//     *ast.SwitchStmt
+-	//     *ast.TypeSwitchStmt
+-	//     *ast.CaseClause
+-	//     *ast.CommClause
+-	//     *ast.ForStmt
+-	//     *ast.RangeStmt
+-	//
+-	Scopes map[ast.Node]*Scope
+-
+-	// InitOrder is the list of package-level initializers in the order in which
+-	// they must be executed. Initializers referring to variables related by an
+-	// initialization dependency appear in topological order, the others appear
+-	// in source order. Variables without an initialization expression do not
+-	// appear in this list.
+-	InitOrder []*Initializer
+-}
++// The Info struct is found in api_notypeparams.go and api_typeparams.go.
+ 
+ // TypeOf returns the type of expression e, or nil if not found.
+ // Precondition: the Types, Uses and Defs maps are populated.
+diff --git a/src/go/types/api_notypeparams.go b/src/go/types/api_notypeparams.go
+new file mode 100644
+index 0000000000..9f7cb7eccf
+--- /dev/null
++++ b/src/go/types/api_notypeparams.go
+@@ -0,0 +1,104 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !typeparams
++// +build !typeparams
++
++package types
++
++import "go/ast"
++
++// Info holds result type information for a type-checked package.
++// Only the information for which a map is provided is collected.
++// If the package has type errors, the collected information may
++// be incomplete.
++type Info struct {
++	// Types maps expressions to their types, and for constant
++	// expressions, also their values. Invalid expressions are
++	// omitted.
++	//
++	// For (possibly parenthesized) identifiers denoting built-in
++	// functions, the recorded signatures are call-site specific:
++	// if the call result is not a constant, the recorded type is
++	// an argument-specific signature. Otherwise, the recorded type
++	// is invalid.
++	//
++	// The Types map does not record the type of every identifier,
++	// only those that appear where an arbitrary expression is
++	// permitted. For instance, the identifier f in a selector
++	// expression x.f is found only in the Selections map, the
++	// identifier z in a variable declaration 'var z int' is found
++	// only in the Defs map, and identifiers denoting packages in
++	// qualified identifiers are collected in the Uses map.
++	Types map[ast.Expr]TypeAndValue
++
++	// Defs maps identifiers to the objects they define (including
++	// package names, dots "." of dot-imports, and blank "_" identifiers).
++	// For identifiers that do not denote objects (e.g., the package name
++	// in package clauses, or symbolic variables t in t := x.(type) of
++	// type switch headers), the corresponding objects are nil.
++	//
++	// For an embedded field, Defs returns the field *Var it defines.
++	//
++	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
++	Defs map[*ast.Ident]Object
++
++	// Uses maps identifiers to the objects they denote.
++	//
++	// For an embedded field, Uses returns the *TypeName it denotes.
++	//
++	// Invariant: Uses[id].Pos() != id.Pos()
++	Uses map[*ast.Ident]Object
++
++	// Implicits maps nodes to their implicitly declared objects, if any.
++	// The following node and object types may appear:
++	//
++	//     node               declared object
++	//
++	//     *ast.ImportSpec    *PkgName for imports without renames
++	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
++	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
++	//
++	Implicits map[ast.Node]Object
++
++	// Selections maps selector expressions (excluding qualified identifiers)
++	// to their corresponding selections.
++	Selections map[*ast.SelectorExpr]*Selection
++
++	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
++	// associated with a specific node but with all files belonging to a package.
++	// Thus, the package scope can be found in the type-checked Package object.
++	// Scopes nest, with the Universe scope being the outermost scope, enclosing
++	// the package scope, which contains (one or more) files scopes, which enclose
++	// function scopes which in turn enclose statement and function literal scopes.
++	// Note that even though package-level functions are declared in the package
++	// scope, the function scopes are embedded in the file scope of the file
++	// containing the function declaration.
++	//
++	// The following node types may appear in Scopes:
++	//
++	//     *ast.File
++	//     *ast.FuncType
++	//     *ast.BlockStmt
++	//     *ast.IfStmt
++	//     *ast.SwitchStmt
++	//     *ast.TypeSwitchStmt
++	//     *ast.CaseClause
++	//     *ast.CommClause
++	//     *ast.ForStmt
++	//     *ast.RangeStmt
++	//
++	Scopes map[ast.Node]*Scope
++
++	// InitOrder is the list of package-level initializers in the order in which
++	// they must be executed. Initializers referring to variables related by an
++	// initialization dependency appear in topological order, the others appear
++	// in source order. Variables without an initialization expression do not
++	// appear in this list.
++	InitOrder []*Initializer
++}
++
++func getInferred(info *Info) map[ast.Expr]_Inferred {
++	return nil
++}
+diff --git a/src/go/types/api_typeparams.go b/src/go/types/api_typeparams.go
+index 639bc3b3bf..ed744c4dba 100644
+--- a/src/go/types/api_typeparams.go
++++ b/src/go/types/api_typeparams.go
+@@ -17,14 +17,6 @@ type (
+ 	TypeParam = _TypeParam
+ )
+ 
+-func GetInferred(info *Info) map[ast.Expr]Inferred {
+-	return info._Inferred
+-}
+-
+-func SetInferred(info *Info, inferred map[ast.Expr]Inferred) {
+-	info._Inferred = inferred
+-}
+-
+ func NewSum(types []Type) Type { return _NewSum(types) }
+ 
+ func (s *Signature) TParams() []*TypeName           { return s._TParams() }
+@@ -37,3 +29,25 @@ func (t *Interface) IsConstraint() bool { return t._IsConstraint() }
+ func (t *Named) TParams() []*TypeName { return t._TParams() }
+ func (t *Named) TArgs() []Type        { return t._TArgs() }
+ func (t *Named) SetTArgs(args []Type) { t._SetTArgs(args) }
++
++// Info is documented in api_notypeparams.go.
++type Info struct {
++	Types map[ast.Expr]TypeAndValue
++
++	// Inferred maps calls of parameterized functions that use type inference to
++	// the Inferred type arguments and signature of the function called. The
++	// recorded "call" expression may be an *ast.CallExpr (as in f(x)), or an
++	// *ast.IndexExpr (s in f[T]).
++	Inferred map[ast.Expr]_Inferred
++
++	Defs       map[*ast.Ident]Object
++	Uses       map[*ast.Ident]Object
++	Implicits  map[ast.Node]Object
++	Selections map[*ast.SelectorExpr]*Selection
++	Scopes     map[ast.Node]*Scope
++	InitOrder  []*Initializer
++}
++
++func getInferred(info *Info) map[ast.Expr]_Inferred {
++	return info.Inferred
++}
+diff --git a/src/go/types/api_typeparams_test.go b/src/go/types/api_typeparams_test.go
+index e6cccf8691..15c9bf09f9 100644
+--- a/src/go/types/api_typeparams_test.go
++++ b/src/go/types/api_typeparams_test.go
+@@ -88,7 +88,7 @@ func TestInferredInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{}
+-		SetInferred(&info, make(map[ast.Expr]Inferred))
++		info.Inferred = make(map[ast.Expr]Inferred)
+ 		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
+ 		if err != nil {
+ 			t.Errorf("package %s: %v", name, err)
+@@ -98,7 +98,7 @@ func TestInferredInfo(t *testing.T) {
+ 		// look for inferred type arguments and signature
+ 		var targs []Type
+ 		var sig *Signature
+-		for call, inf := range GetInferred(&info) {
++		for call, inf := range info.Inferred {
+ 			var fun ast.Expr
+ 			switch x := call.(type) {
+ 			case *ast.CallExpr:
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 1f64d3e3c3..25ea4906be 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -411,7 +411,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+ func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
+ 	assert(call != nil)
+ 	assert(sig != nil)
+-	if m := check._Inferred; m != nil {
++	if m := getInferred(check.Info); m != nil {
+ 		m[call] = _Inferred{targs, sig}
+ 	}
+ }
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index b905972d36..5970ab38c7 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -24,7 +24,8 @@ func sanitizeInfo(info *Info) {
+ 		}
+ 	}
+ 
+-	for e, inf := range info._Inferred {
++	inferred := getInferred(info)
++	for e, inf := range inferred {
+ 		changed := false
+ 		for i, targ := range inf.Targs {
+ 			if typ := s.typ(targ); typ != targ {
+@@ -37,7 +38,7 @@ func sanitizeInfo(info *Info) {
+ 			changed = true
+ 		}
+ 		if changed {
+-			info._Inferred[e] = inf
++			inferred[e] = inf
+ 		}
+ 	}
+ 

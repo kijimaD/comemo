@@ -44,6 +44,29 @@ Date:   Fri Apr 24 10:50:18 2015 -0400
     Change-Id: I6504e310cb9cf48a73d539c478b4dbcacde208b2
     Reviewed-on: https://go-review.googlesource.com/9308
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/cgen.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index c996be72fd..427c671947 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -1512,6 +1512,17 @@ func Agen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
++	if n.Op == OINDREG && n.Xoffset == 0 {
++		// Generate MOVW R0, R1 instead of MOVW $0(R0), R1.
++		// This allows better move propagation in the back ends
++		// (and maybe it helps the processor).
++		n1 := *n
++		n1.Op = OREGISTER
++		n1.Type = res.Type
++		Thearch.Gmove(&n1, res)
++		return
++	}
++
+ 	if n.Addable {
+ 		if n.Op == OREGISTER {
+ 			Fatal("agen OREGISTER")

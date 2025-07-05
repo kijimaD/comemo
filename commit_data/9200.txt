@@ -8,6 +8,21 @@ Date:   Mon Jul 25 12:25:44 2011 -0400
     R=golang-dev, lucio.dere, rsc
     CC=golang-dev
     https://golang.org/cl/4814051
-
+---
  src/cmd/ld/ldpe.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 049edeb23f..c2b34eee6b 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -311,8 +311,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 	
+ 	// enter sub-symbols into symbol table.
+-	// frist 2 entry is file name.
+-	for(i=2; i<obj->npesym; i++) {
++	for(i=0; i<obj->npesym; i++) {
+ 		if(obj->pesym[i].name == 0)
+ 			continue;
+ 		if(obj->pesym[i].name[0] == '.') //skip section

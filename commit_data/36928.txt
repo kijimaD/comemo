@@ -59,9 +59,91 @@ Date:   Fri Jun 1 18:55:36 2018 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/memclr_386.s    | 2 +-
  src/runtime/memclr_amd64.s  | 2 +-
  src/runtime/memmove_386.s   | 2 +-
  src/runtime/memmove_amd64.s | 3 ++-
  4 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 7d5dd38c0a..a6703b3641 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -16,6 +16,7 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
+ 
+ 	// MOVOU seems always faster than REP STOSL.
+ tail:
++	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
+ 	TESTL	BX, BX
+ 	JEQ	_0
+ 	CMPL	BX, $2
+@@ -38,7 +39,6 @@ tail:
+ 	JBE	_65through128
+ 	CMPL	BX, $256
+ 	JBE	_129through256
+-	// TODO: use branch table and BSR to make this just a single dispatch
+ 
+ loop:
+ 	MOVOU	X0, 0(DI)
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 63730eebfb..d79078fd00 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -17,6 +17,7 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 
+ 	// MOVOU seems always faster than REP STOSQ.
+ tail:
++	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
+ 	TESTQ	BX, BX
+ 	JEQ	_0
+ 	CMPQ	BX, $2
+@@ -39,7 +40,6 @@ tail:
+ 	JBE	_129through256
+ 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JE loop_preheader_avx2
+-	// TODO: use branch table and BSR to make this just a single dispatch
+ 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
+ 
+ loop:
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index 1bf86a5453..172ea40820 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -39,6 +39,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	// 128 because that is the maximum SSE register load (loading all data
+ 	// into registers lets us ignore copy direction).
+ tail:
++	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
+ 	TESTL	BX, BX
+ 	JEQ	move_0
+ 	CMPL	BX, $2
+@@ -58,7 +59,6 @@ tail:
+ 	JBE	move_33through64
+ 	CMPL	BX, $128
+ 	JBE	move_65through128
+-	// TODO: use branch table and BSR to make this just a single dispatch
+ 
+ nosse2:
+ /*
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index a671baf383..cb5cd02e45 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -43,6 +43,8 @@ tail:
+ 	// registers before writing it back.  move_256through2048 on the other
+ 	// hand can be used only when the memory regions don't overlap or the copy
+ 	// direction is forward.
++	//
++	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
+ 	TESTQ	BX, BX
+ 	JEQ	move_0
+ 	CMPQ	BX, $2
+@@ -63,7 +65,6 @@ tail:
+ 	JBE	move_65through128
+ 	CMPQ	BX, $256
+ 	JBE	move_129through256
+-	// TODO: use branch table and BSR to make this just a single dispatch
+ 
+ 	TESTB	$1, runtime·useAVXmemmove(SB)
+ 	JNZ	avxUnaligned

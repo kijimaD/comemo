@@ -9,8 +9,99 @@ Date:   Wed Apr 28 19:29:20 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1018042
-
+---
  src/pkg/xml/read_test.go |  2 +-
  src/pkg/xml/xml.go       | 10 ++++++++--
  src/pkg/xml/xml_test.go  | 26 ++++++++++++++++++++++----
  3 files changed, 31 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/xml/read_test.go
+index 97fa423d6a..a080c016fb 100644
+--- a/src/pkg/xml/read_test.go
++++ b/src/pkg/xml/read_test.go
+@@ -75,7 +75,7 @@ call sites.  I also wanted to verify that ExpandTabs was
+ not being used from outside intra_region_diff.py.
+ 
+ 
+-</summary></entry></feed>`
++</summary></entry></feed> 	   `
+ 
+ type Feed struct {
+ 	XMLName Name "http://www.w3.org/2005/Atom feed"
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 1ad1039f64..44c42c0359 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -758,9 +758,15 @@ func (p *Parser) text(quote int, cdata bool) []byte {
+ 	p.buf.Reset()
+ Input:
+ 	for {
+-		b, ok := p.mustgetc()
++		b, ok := p.getc()
+ 		if !ok {
+-			return nil
++			if cdata {
++				if p.err == os.EOF {
++					p.err = p.syntaxError("unexpected EOF in CDATA section")
++				}
++				return nil
++			}
++			break Input
+ 		}
+ 
+ 		// <![CDATA[ section ends with ]]>.
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index dab35df731..148bd2cd0c 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -102,7 +102,6 @@ var xmlInput = []string{
+ 	"<t",
+ 	"<t ",
+ 	"<t/",
+-	"<t/>c",
+ 	"<!",
+ 	"<!-",
+ 	"<!--",
+@@ -124,8 +123,6 @@ var xmlInput = []string{
+ 	"<t/><![CDATA[d]]",
+ 
+ 	// other Syntax errors
+-	" ",
+-	">",
+ 	"<>",
+ 	"<t/a",
+ 	"<0 />",
+@@ -140,7 +137,6 @@ var xmlInput = []string{
+ 	"<t a=>",
+ 	"<t a=v>",
+ 	//	"<![CDATA[d]]>",	// let the Token() caller handle
+-	"cdata",
+ 	"<t></e>",
+ 	"<t></>",
+ 	"<t></t!",
+@@ -369,3 +365,25 @@ func TestSyntaxErrorLineNum(t *testing.T) {
+ 		t.Error("SyntaxError didn't have correct line number.")
+ 	}
+ }
++
++func TestTrailingRawToken(t *testing.T) {
++	input := `<FOO></FOO>  `
++	p := NewParser(StringReader(input))
++	var err os.Error
++	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
++	}
++	if err != os.EOF {
++		t.Fatalf("p.RawToken() = _, %v, want _, os.EOF", err)
++	}
++}
++
++func TestTrailingToken(t *testing.T) {
++	input := `<FOO></FOO>  `
++	p := NewParser(StringReader(input))
++	var err os.Error
++	for _, err = p.Token(); err == nil; _, err = p.Token() {
++	}
++	if err != os.EOF {
++		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
++	}
++}

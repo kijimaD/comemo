@@ -12,6 +12,33 @@ Date:   Sat Aug 19 10:45:38 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/hashmap.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 17a69646ca..efb8a78024 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1124,17 +1124,13 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+-		if h.flags&oldIterator == 0 {
+-			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
++		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
++			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+-			ptr := add(unsafe.Pointer(b), dataOffset)
++			ptr := add(b, dataOffset)
+ 			n := uintptr(t.bucketsize) - dataOffset
+-			if t.bucket.kind&kindNoPointers == 0 {
+-				memclrHasPointers(ptr, n)
+-			} else {
+-				memclrNoHeapPointers(ptr, n)
+-			}
++			memclrHasPointers(ptr, n)
+ 		}
+ 	}
+ 

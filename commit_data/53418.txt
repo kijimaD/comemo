@@ -30,7 +30,7 @@ Date:   Fri Aug 12 17:51:55 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go         |  4 +-
  src/cmd/compile/internal/types2/instantiate.go | 79 ++++++++++++++++----------
  src/cmd/compile/internal/types2/lookup.go      |  6 +-
@@ -40,3 +40,442 @@ Date:   Fri Aug 12 17:51:55 2022 -0400
  src/go/types/lookup.go                         |  6 +-
  src/go/types/operand.go                        |  7 +--
  8 files changed, 112 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 94c290b9ee..ef1db13fb9 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -429,7 +429,7 @@ func AssertableTo(V *Interface, T Type) bool {
+ 	if T.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).newAssertableTo(V, T) == nil
++	return (*Checker)(nil).newAssertableTo(V, T)
+ }
+ 
+ // AssignableTo reports whether a value of type V is assignable to a variable
+@@ -467,7 +467,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if V.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(V, T) == nil
++	return (*Checker)(nil).implements(V, T, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 5833f8db7e..ddabeab72e 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -174,28 +174,27 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// need to instantiate it with the type arguments with which we instantiated
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+-		if err := check.implements(targs[i], bound); err != nil {
+-			return i, err
++		var reason string
++		if !check.implements(targs[i], bound, &reason) {
++			return i, errors.New(reason)
+ 		}
+ 	}
+ 	return -1, nil
+ }
+ 
+-// implements checks if V implements T and reports an error if it doesn't.
+-// The receiver may be nil if implements is called through an exported
+-// API call such as AssignableTo.
+-func (check *Checker) implements(V, T Type) error {
++// implements checks if V implements T. The receiver may be nil if implements
++// is called through an exported API call such as AssignableTo.
++//
++// If the provided reason is non-nil, it may be set to an error string
++// explaining why V does not implement T.
++func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+-		return nil // avoid follow-on errors
++		return true // avoid follow-on errors
+ 	}
+ 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+-		return nil // avoid follow-on errors (see issue #49541 for an example)
+-	}
+-
+-	errorf := func(format string, args ...interface{}) error {
+-		return errors.New(check.sprintf(format, args...))
++		return true // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+ 	Ti, _ := Tu.(*Interface)
+@@ -206,12 +205,15 @@ func (check *Checker) implements(V, T Type) error {
+ 		} else {
+ 			cause = check.sprintf("%s is not an interface", T)
+ 		}
+-		return errorf("%s does not implement %s (%s)", V, T, cause)
++		if reason != nil {
++			*reason = check.sprintf("%s does not implement %s (%s)", V, T, cause)
++		}
++		return false
+ 	}
+ 
+ 	// Every type satisfies the empty interface.
+ 	if Ti.Empty() {
+-		return nil
++		return true
+ 	}
+ 	// T is not the empty interface (i.e., the type set of T is restricted)
+ 
+@@ -219,31 +221,42 @@ func (check *Checker) implements(V, T Type) error {
+ 	// (The empty set is a subset of any set.)
+ 	Vi, _ := Vu.(*Interface)
+ 	if Vi != nil && Vi.typeSet().IsEmpty() {
+-		return nil
++		return true
+ 	}
+ 	// type set of V is not empty
+ 
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+-		return errorf("cannot implement %s (empty type set)", T)
++		if reason != nil {
++			*reason = check.sprintf("cannot implement %s (empty type set)", T)
++		}
++		return false
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		if reason != nil {
++			*reason = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		}
++		return false
+ 	}
+ 
+-	// If T is comparable, V must be comparable.
+-	// Remember as a pending error and report only if we don't have a more specific error.
+-	var pending error
+-	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+-		pending = errorf("%s does not implement comparable", V)
++	// Only check comparability if we don't have a more specific error.
++	checkComparability := func() bool {
++		// If T is comparable, V must be comparable.
++		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement comparable", V)
++			}
++			return false
++		}
++		return true
+ 	}
+ 
+ 	// V must also be in the set of types of T, if any.
+ 	// Constraints with empty type sets were already excluded above.
+ 	if !Ti.typeSet().hasTerms() {
+-		return pending // nothing to do
++		return checkComparability() // nothing to do
+ 	}
+ 
+ 	// If V is itself an interface, each of its possible types must be in the set
+@@ -252,9 +265,12 @@ func (check *Checker) implements(V, T Type) error {
+ 	if Vi != nil {
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+-			return errorf("%s does not implement %s", V, T)
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement %s", V, T)
++			}
++			return false
+ 		}
+-		return pending
++		return checkComparability()
+ 	}
+ 
+ 	// Otherwise, V's type must be included in the iface type set.
+@@ -275,12 +291,15 @@ func (check *Checker) implements(V, T Type) error {
+ 		}
+ 		return false
+ 	}) {
+-		if alt != nil {
+-			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+-		} else {
+-			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++		if reason != nil {
++			if alt != nil {
++				*reason = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++			} else {
++				*reason = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++			}
+ 		}
++		return false
+ 	}
+ 
+-	return pending
++	return checkComparability()
+ }
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 42cd338e24..b9770ae23e 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -449,14 +449,14 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
+ // newAssertableTo reports whether a value of type V can be asserted to have type T.
+ // It also implements behavior for interfaces that currently are only permitted
+ // in constraint position (we have not yet defined that behavior in the spec).
+-func (check *Checker) newAssertableTo(V *Interface, T Type) error {
++func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+ 	if IsInterface(T) {
+-		return nil
++		return true
+ 	}
+-	return check.implements(T, V)
++	return check.implements(T, V, nil)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer and returns its base and true.
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 548244e64d..1c58c2d7af 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -288,10 +288,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if err := check.implements(V, T); err != nil {
+-			if reason != nil {
+-				*reason = err.Error()
+-			}
++		if !check.implements(V, T, reason) {
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -299,7 +296,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(T, V) == nil {
++		if check.implements(T, V, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if reason != nil {
+ 				*reason = "need type assertion"
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 5e7be29b3c..09c91230fa 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -424,7 +424,7 @@ func AssertableTo(V *Interface, T Type) bool {
+ 	if T.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).newAssertableTo(V, T) == nil
++	return (*Checker)(nil).newAssertableTo(V, T)
+ }
+ 
+ // AssignableTo reports whether a value of type V is assignable to a variable
+@@ -462,7 +462,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if V.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(V, T) == nil
++	return (*Checker)(nil).implements(V, T, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index f7505854d1..35130cfe31 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -174,28 +174,27 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ 		// need to instantiate it with the type arguments with which we instantiated
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+-		if err := check.implements(targs[i], bound); err != nil {
+-			return i, err
++		var reason string
++		if !check.implements(targs[i], bound, &reason) {
++			return i, errors.New(reason)
+ 		}
+ 	}
+ 	return -1, nil
+ }
+ 
+-// implements checks if V implements T and reports an error if it doesn't.
+-// The receiver may be nil if implements is called through an exported
+-// API call such as AssignableTo.
+-func (check *Checker) implements(V, T Type) error {
++// implements checks if V implements T. The receiver may be nil if implements
++// is called through an exported API call such as AssignableTo.
++//
++// If the provided reason is non-nil, it may be set to an error string
++// explaining why V does not implement T.
++func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+-		return nil // avoid follow-on errors
++		return true // avoid follow-on errors
+ 	}
+ 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+-		return nil // avoid follow-on errors (see issue #49541 for an example)
+-	}
+-
+-	errorf := func(format string, args ...any) error {
+-		return errors.New(check.sprintf(format, args...))
++		return true // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+ 	Ti, _ := Tu.(*Interface)
+@@ -206,12 +205,15 @@ func (check *Checker) implements(V, T Type) error {
+ 		} else {
+ 			cause = check.sprintf("%s is not an interface", T)
+ 		}
+-		return errorf("%s does not implement %s (%s)", V, T, cause)
++		if reason != nil {
++			*reason = check.sprintf("%s does not implement %s (%s)", V, T, cause)
++		}
++		return false
+ 	}
+ 
+ 	// Every type satisfies the empty interface.
+ 	if Ti.Empty() {
+-		return nil
++		return true
+ 	}
+ 	// T is not the empty interface (i.e., the type set of T is restricted)
+ 
+@@ -219,31 +221,42 @@ func (check *Checker) implements(V, T Type) error {
+ 	// (The empty set is a subset of any set.)
+ 	Vi, _ := Vu.(*Interface)
+ 	if Vi != nil && Vi.typeSet().IsEmpty() {
+-		return nil
++		return true
+ 	}
+ 	// type set of V is not empty
+ 
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+-		return errorf("cannot implement %s (empty type set)", T)
++		if reason != nil {
++			*reason = check.sprintf("cannot implement %s (empty type set)", T)
++		}
++		return false
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		if reason != nil {
++			*reason = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		}
++		return false
+ 	}
+ 
+-	// If T is comparable, V must be comparable.
+-	// Remember as a pending error and report only if we don't have a more specific error.
+-	var pending error
+-	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+-		pending = errorf("%s does not implement comparable", V)
++	// Only check comparability if we don't have a more specific error.
++	checkComparability := func() bool {
++		// If T is comparable, V must be comparable.
++		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement comparable", V)
++			}
++			return false
++		}
++		return true
+ 	}
+ 
+ 	// V must also be in the set of types of T, if any.
+ 	// Constraints with empty type sets were already excluded above.
+ 	if !Ti.typeSet().hasTerms() {
+-		return pending // nothing to do
++		return checkComparability() // nothing to do
+ 	}
+ 
+ 	// If V is itself an interface, each of its possible types must be in the set
+@@ -252,9 +265,12 @@ func (check *Checker) implements(V, T Type) error {
+ 	if Vi != nil {
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+-			return errorf("%s does not implement %s", V, T)
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement %s", V, T)
++			}
++			return false
+ 		}
+-		return pending
++		return checkComparability()
+ 	}
+ 
+ 	// Otherwise, V's type must be included in the iface type set.
+@@ -275,12 +291,15 @@ func (check *Checker) implements(V, T Type) error {
+ 		}
+ 		return false
+ 	}) {
+-		if alt != nil {
+-			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+-		} else {
+-			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++		if reason != nil {
++			if alt != nil {
++				*reason = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++			} else {
++				*reason = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++			}
+ 		}
++		return false
+ 	}
+ 
+-	return pending
++	return checkComparability()
+ }
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 305b2003f7..78bf6f66f6 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -448,14 +448,14 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
+ // newAssertableTo reports whether a value of type V can be asserted to have type T.
+ // It also implements behavior for interfaces that currently are only permitted
+ // in constraint position (we have not yet defined that behavior in the spec).
+-func (check *Checker) newAssertableTo(V *Interface, T Type) error {
++func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+ 	if IsInterface(T) {
+-		return nil
++		return true
+ 	}
+-	return check.implements(T, V)
++	return check.implements(T, V, nil)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer and returns its base and true.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index f9f109aa69..7779f442ee 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -277,10 +277,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if err := check.implements(V, T); err != nil {
+-			if reason != nil {
+-				*reason = err.Error()
+-			}
++		if !check.implements(V, T, reason) {
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -288,7 +285,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(T, V) == nil {
++		if check.implements(T, V, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if reason != nil {
+ 				*reason = "need type assertion"

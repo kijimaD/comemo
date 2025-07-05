@@ -11,6 +11,31 @@ Date:   Sat Oct 13 19:05:22 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6649054
-
+---
  src/pkg/io/ioutil/tempfile.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 257e05d215..4a06e9756f 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -12,7 +12,7 @@ import (
+ 	"time"
+ )
+ 
+-// Random number state, accessed without lock; racy but harmless.
++// Random number state.
+ // We generate random temporary file names so that there's a good
+ // chance the file doesn't exist yet - keeps the number of tries in
+ // TempFile to a minimum.
+@@ -42,8 +42,8 @@ func nextSuffix() string {
+ // for temporary files (see os.TempDir).
+ // Multiple programs calling TempFile simultaneously
+ // will not choose the same file.  The caller can use f.Name()
+-// to find the name of the file.  It is the caller's responsibility to
+-// remove the file when no longer needed.
++// to find the pathname of the file.  It is the caller's responsibility
++// to remove the file when no longer needed.
+ func TempFile(dir, prefix string) (f *os.File, err error) {
+ 	if dir == "" {
+ 		dir = os.TempDir()

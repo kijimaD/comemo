@@ -10,9 +10,151 @@ Date:   Tue Aug 30 13:43:37 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       |  4 +--
  src/cmd/compile/internal/gc/reflect.go   |  2 +-
  src/cmd/compile/internal/gc/subr.go      | 44 +++++++++++++-------------------
  src/cmd/compile/internal/gc/typecheck.go |  4 +--
  4 files changed, 23 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index c487c237eb..48ba1f545e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1168,8 +1168,8 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 	}
+ 
+ 	pa := rf.Type // base type
+-	mt := methtype(pa, 1)
+-	if mt == nil {
++	mt := methtype(pa)
++	if mt == nil || mt.Sym == nil {
+ 		t = pa
+ 		if t == nil { // rely on typecheck having complained before
+ 			return
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 7ef825360b..4a396d293a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -282,7 +282,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
+ // Generates stub functions as needed.
+ func methods(t *Type) []*Sig {
+ 	// method type
+-	mt := methtype(t, 0)
++	mt := methtype(t)
+ 
+ 	if mt == nil {
+ 		return nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d8f9732bae..2e279b108e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -589,14 +589,15 @@ func isblanksym(s *Sym) bool {
+ 	return s != nil && s.Name == "_"
+ }
+ 
+-// given receiver of type t (t == r or t == *r)
+-// return type to hang methods off (r).
+-func methtype(t *Type, mustname int) *Type {
++// methtype returns the underlying type, if any,
++// that owns methods with receiver parameter t.
++// The result is either a named type or an anonymous struct.
++func methtype(t *Type) *Type {
+ 	if t == nil {
+ 		return nil
+ 	}
+ 
+-	// strip away pointer if it's there
++	// Strip away pointer if it's there.
+ 	if t.IsPtr() {
+ 		if t.Sym != nil {
+ 			return nil
+@@ -607,29 +608,20 @@ func methtype(t *Type, mustname int) *Type {
+ 		}
+ 	}
+ 
+-	// need a type name
+-	if t.Sym == nil && (mustname != 0 || !t.IsStruct()) {
++	// Must be a named type or anonymous struct.
++	if t.Sym == nil && !t.IsStruct() {
+ 		return nil
+ 	}
+ 
+-	// check types
+-	if !issimple[t.Etype] {
+-		switch t.Etype {
+-		default:
+-			return nil
+-
+-		case TSTRUCT,
+-			TARRAY,
+-			TSLICE,
+-			TMAP,
+-			TCHAN,
+-			TSTRING,
+-			TFUNC:
+-			break
+-		}
++	// Check types.
++	if issimple[t.Etype] {
++		return t
+ 	}
+-
+-	return t
++	switch t.Etype {
++	case TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRING, TSTRUCT:
++		return t
++	}
++	return nil
+ }
+ 
+ func cplxsubtype(et EType) EType {
+@@ -1487,7 +1479,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 		}
+ 	}
+ 
+-	u = methtype(t, 0)
++	u = methtype(t)
+ 	if u != nil {
+ 		for _, f := range u.Methods().Slice() {
+ 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
+@@ -1653,7 +1645,7 @@ func expand0(t *Type, followptr bool) {
+ 		return
+ 	}
+ 
+-	u = methtype(t, 0)
++	u = methtype(t)
+ 	if u != nil {
+ 		for _, f := range u.Methods().Slice() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+@@ -2015,7 +2007,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+ 		return true
+ 	}
+ 
+-	t = methtype(t, 0)
++	t = methtype(t)
+ 	if t != nil {
+ 		expandmeth(t)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c97b33d91b..f34f4751bc 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2359,7 +2359,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 
+ 	// Find the base type: methtype will fail if t
+ 	// is not of the form T or *T.
+-	mt := methtype(t, 0)
++	mt := methtype(t)
+ 	if mt == nil {
+ 		return false
+ 	}
+@@ -2410,7 +2410,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 
+ 	var f2 *Field
+ 	if n.Left.Type == t || n.Left.Type.Sym == nil {
+-		mt := methtype(t, 0)
++		mt := methtype(t)
+ 		if mt != nil {
+ 			// Use f2->method, not f2->xmethod: adddot has
+ 			// already inserted all the necessary embedded dots.

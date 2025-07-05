@@ -7,10 +7,125 @@ Date:   Mon Aug 24 13:41:47 2009 -0700
     R=ken
     OCL=33765
     CL=33765
-
+---
  src/cmd/gc/const.c       |  2 ++
  src/cmd/gc/go.h          |  2 +-
  src/cmd/gc/print.c       |  3 +++
  src/cmd/gc/typecheck.c   | 10 +++++++++-
  test/fixedbugs/bug197.go | 33 +++++++++++++++++++++++++++++++++
  5 files changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d774773a43..1433eb9ba5 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -77,6 +77,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 		return;
+ 	if(eqtype(t, n->type))
+ 		return;
++	if(!explicit && n->type->etype != TIDEAL && n->type != idealstring && n->type->etype != TNIL)
++		return;
+ 
+ //dump("convlit1", n);
+ 	if(n->op == OLITERAL) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 09b8da7695..f7d6f83c97 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -330,7 +330,7 @@ enum
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+ 	OCOMPSLICE, OCOMPMAP,
+-	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
++	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index bb79037258..70d80c5e6a 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -258,6 +258,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case OCONV:
++	case OCONVNOP:
++	case OCONVSLICE:
++	case OCONVIFACE:
+ 		fmtprint(f, "%T(", n->type);
+ 		exprfmt(f, n->left, 0);
+ 		fmtprint(f, ")");
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index bca203ee64..43351796b7 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -87,6 +87,8 @@ reswitch:
+ 		ok |= Erv;
+ 		if(n->iota && !(top & Eiota))
+ 			yyerror("use of iota not in constant initializer");
++		if(n->val.ctype == CTSTR)
++			n->type = idealstring;
+ 		goto ret;
+ 
+ 	case ONONAME:
+@@ -1268,7 +1270,9 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+ 	if(n->type == T)
+ 		return n;
+ 
+-	if(cvttype(t, n->type) && n->op == OLITERAL) {
++	if(n->op == OLITERAL)
++	if(explicit || n->type->etype == TIDEAL || n->type == idealstring || n->type->etype == TNIL)
++	if(cvttype(t, n->type)) {
+ 		// can convert literal in place
+ 		// TODO(rsc) is this needed?
+ 		n1 = nod(OXXX, N, N);
+@@ -1286,6 +1290,10 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+ 		return n;
+ 
+ 	case 0:
++		if(nconv) {
++			nconv->op = OCONVNOP;
++			return nconv;
++		}
+ 		return n;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug197.go b/test/fixedbugs/bug197.go
+new file mode 100644
+index 0000000000..501b94ce0f
+--- /dev/null
++++ b/test/fixedbugs/bug197.go
+@@ -0,0 +1,33 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T int
++type U int
++
++var x int
++
++var t T = int(0)	// ERROR "cannot use"
++var t1 T = int(x)	// ERROR "cannot use"
++var u U = int(0)	// ERROR "cannot use"
++var u1 U = int(x)	// ERROR "cannot use"
++
++type S string
++var s S
++
++var s1 = s + "hello"
++var s2 = "hello" + s
++var s3 = s + string("hello")	// ERROR "invalid operation"
++var s4 = string("hello") + s	// ERROR "invalid operation"
++
++var r string
++
++var r1 = r + "hello"
++var r2 = "hello" + r
++var r3 = r + string("hello")
++var r4 = string("hello") + r
++

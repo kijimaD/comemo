@@ -7,7 +7,30 @@ Date:   Tue Apr 24 23:17:16 2012 +0800
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5919054
-
+---
  src/cmd/5g/peep.c | 2 +-
  src/cmd/5g/reg.c  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index e87f5d6973..4874ee1103 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5g/peep.c
++// http://code.google.com/p/inferno-os/source/browse/utils/5c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 93724d0326..82e2166b84 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5g/reg.c
++// http://code.google.com/p/inferno-os/source/browse/utils/5c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)

@@ -58,6 +58,20 @@ Date:   Tue Dec 10 16:10:09 2013 +0400
     R=golang-dev, bradfitz, iant
     CC=golang-dev
     https://golang.org/cl/14656044
-
+---
  src/pkg/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index dddf5a3f25..f883ddbe90 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -791,7 +791,7 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+ 			req <- dc
+ 		}
+ 		return true
+-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > 0 && db.maxIdleConnsLocked() > db.freeConn.Len() {
++	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > db.freeConn.Len() {
+ 		dc.listElem = db.freeConn.PushFront(dc)
+ 		return true
+ 	}

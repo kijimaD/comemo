@@ -15,8 +15,81 @@ Date:   Thu Apr 3 15:39:48 2014 -0400
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/84030043
-
+---
  src/pkg/runtime/panic.c    | 16 +++++++++++++++-
  src/pkg/runtime/runtime.h  |  1 +
  src/pkg/runtime/vlop_arm.s |  4 ++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 0bf3b6a140..3af8cb67aa 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -498,7 +498,7 @@ runtime·canpanic(G *gp)
+ 	// and not stuck in a system call.
+ 	if(gp == nil || gp != m->curg)
+ 		return false;
+-	if(m->locks != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
++	if(m->locks-m->softfloat != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
+ 		return false;
+ 	if(gp->status != Grunning || gp->syscallsp != 0)
+ 		return false;
+@@ -526,6 +526,16 @@ runtime·panicstring(int8 *s)
+ {
+ 	Eface err;
+ 
++	// m->softfloat is set during software floating point,
++	// which might cause a fault during a memory load.
++	// It increments m->locks to avoid preemption.
++	// If we're panicking, the software floating point frames
++	// will be unwound, so decrement m->locks as they would.
++	if(m->softfloat) {
++		m->locks--;
++		m->softfloat = 0;
++	}
++
+ 	if(m->mallocing) {
+ 		runtime·printf("panic: %s\n", s);
+ 		runtime·throw("panic during malloc");
+@@ -534,6 +544,10 @@ runtime·panicstring(int8 *s)
+ 		runtime·printf("panic: %s\n", s);
+ 		runtime·throw("panic during gc");
+ 	}
++	if(m->locks) {
++		runtime·printf("panic: %s\n", s);
++		runtime·throw("panic holding locks");
++	}
+ 	runtime·newErrorCString(s, &err);
+ 	runtime·panic(err);
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 28c831a068..0ba1238734 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -312,6 +312,7 @@ struct	M
+ 	int32	throwing;
+ 	int32	gcing;
+ 	int32	locks;
++	int32	softfloat;
+ 	int32	dying;
+ 	int32	profilehz;
+ 	int32	helpgc;
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index 941de3e8db..80f516ec4f 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -75,10 +75,14 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
+ 	MOVW	m_locks(m), R1
+ 	ADD	$1, R1
+ 	MOVW	R1, m_locks(m)
++	MOVW	$1, R1
++	MOVW	R1, m_softfloat(m)
+ 	BL	runtime·_sfloat2(SB)
+ 	MOVW	m_locks(m), R1
+ 	SUB	$1, R1
+ 	MOVW	R1, m_locks(m)
++	MOVW	$0, R1
++	MOVW	R1, m_softfloat(m)
+ 	MOVW	R0, 0(R13)
+ 	MOVW	64(R13), R1
+ 	WORD	$0xe128f001	// msr cpsr_f, r1

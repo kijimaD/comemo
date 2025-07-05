@@ -13,7 +13,7 @@ Date:   Fri Aug 14 11:53:27 2009 -0700
     DELTA=1330  (1330 added, 0 deleted, 0 changed)
     OCL=33132
     CL=33285
-
+---
  src/pkg/big/Makefile      |  18 +++
  src/pkg/big/arith.go      | 239 +++++++++++++++++++++++++++++++++++
  src/pkg/big/arith_amd64.s | 219 ++++++++++++++++++++++++++++++++
@@ -25,3 +25,1394 @@ Date:   Fri Aug 14 11:53:27 2009 -0700
  src/pkg/big/bigZ_test.go  |  63 ++++++++++
  src/pkg/big/defs.go       |  19 +++
  10 files changed, 1330 insertions(+)
+
+diff --git a/src/pkg/big/Makefile b/src/pkg/big/Makefile
+new file mode 100644
+index 0000000000..d98f5b21bd
+--- /dev/null
++++ b/src/pkg/big/Makefile
+@@ -0,0 +1,18 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=big
++GOFILES=\
++	defs.go\
++	arith.go\
++	big.go\
++	bigN.go\
++	bigZ.go\
++
++OFILES=\
++	arith_$(GOARCH).$O\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+new file mode 100644
+index 0000000000..45b7a0cb25
+--- /dev/null
++++ b/src/pkg/big/arith.go
+@@ -0,0 +1,239 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides Go implementations of elementary multi-precision
++// arithmetic operations on word vectors. Needed for platforms without
++// assembly implementations of these routines.
++
++package big
++
++import "unsafe"
++
++
++// ----------------------------------------------------------------------------
++// Elementary operations on words
++
++func addWW_s(x, y, c Word) (z1, z0 Word)
++
++// z1<<_W + z0 = x+y+c, with c == 0 or 1
++func addWW(x, y, c Word) (z1, z0 Word) {
++	yc := y+c;
++	z0 = x+yc;
++	if z0 < x || yc < y {
++		z1 = 1;
++	}
++	return;
++}
++
++
++func subWW_s(x, y, c Word) (z1, z0 Word)
++
++// z1<<_W + z0 = x-y-c, with c == 0 or 1
++func subWW(x, y, c Word) (z1, z0 Word) {
++	yc := y+c;
++	z0 = x-yc;
++	if z0 > x || yc < y {
++		z1 = 1;
++	}
++	return;
++}
++
++
++// z1<<_W + z0 = x*y
++func mulW(x, y Word) (z1, z0 Word) {
++	// Split x and y into 2 halfWords each, multiply
++	// the halfWords separately while avoiding overflow,
++	// and return the product as 2 Words.
++
++	if x < y {
++		x, y = y, x
++	}
++
++	if x < _B2 {
++		// y < _B2 because y <= x
++		// sub-digits of x and y are (0, x) and (0, y)
++		// z = z[0] = x*y
++		z0 = x*y;
++		return;
++	}
++
++	if y < _B2 {
++		// sub-digits of x and y are (x1, x0) and (0, y)
++		// x = (x1*_B2 + x0)
++		// y = (y1*_B2 + y0)
++		x1, x0 := x>>_W2, x&_M2;
++
++		// x*y = t2*_B2*_B2 + t1*_B2 + t0
++		t0 := x0*y;
++		t1 := x1*y;
++
++		// compute result digits but avoid overflow
++		// z = z[1]*_B + z[0] = x*y
++		z0 = t1<<_W2 + t0;
++		z1 = (t1 + t0>>_W2) >> _W2;
++		return;
++	}
++
++	// general case
++	// sub-digits of x and y are (x1, x0) and (y1, y0)
++	// x = (x1*_B2 + x0)
++	// y = (y1*_B2 + y0)
++	x1, x0 := x>>_W2, x&_M2;
++	y1, y0 := y>>_W2, y&_M2;
++
++	// x*y = t2*_B2*_B2 + t1*_B2 + t0
++	t0 := x0*y0;
++	t1 := x1*y0 + x0*y1;
++	t2 := x1*y1;
++
++	// compute result digits but avoid overflow
++	// z = z[1]*_B + z[0] = x*y
++	z0 = t1<<_W2 + t0;
++	z1 = t2 + (t1 + t0>>_W2) >> _W2;
++	return;
++}
++
++
++// z1<<_W + z0 = x*y + c
++func mulAddWW(x, y, c Word) (z1, z0 Word) {
++	// Split x and y into 2 halfWords each, multiply
++	// the halfWords separately while avoiding overflow,
++	// and return the product as 2 Words.
++
++	// TODO(gri) Should implement special cases for faster execution.
++
++	// general case
++	// sub-digits of x, y, and c are (x1, x0), (y1, y0), (c1, c0)
++	// x = (x1*_B2 + x0)
++	// y = (y1*_B2 + y0)
++	x1, x0 := x>>_W2, x&_M2;
++	y1, y0 := y>>_W2, y&_M2;
++	c1, c0 := c>>_W2, c&_M2;
++
++	// x*y + c = t2*_B2*_B2 + t1*_B2 + t0
++	t0 := x0*y0 + c0;
++	t1 := x1*y0 + x0*y1 + c1;
++	t2 := x1*y1;
++
++	// compute result digits but avoid overflow
++	// z = z[1]*_B + z[0] = x*y
++	z0 = t1<<_W2 + t0;
++	z1 = t2 + (t1 + t0>>_W2) >> _W2;
++	return;
++}
++
++
++func divWW_s(x1, x0, y Word) (q, r Word)
++
++// q = (x1<<_W + x0 - r)/y
++func divWW(x1, x0, y Word) (q, r Word) {
++	if x1 == 0 {
++		q, r = x0/y, x0%y;
++		return;
++	}
++
++	// TODO(gri) implement general case w/o assembly code
++	q, r = divWW_s(x1, x0, y);
++	return;
++}
++
++
++// ----------------------------------------------------------------------------
++// Elementary operations on vectors
++
++// For each function f there is a corresponding function f_s which
++// implements the same functionality as f but is written in assembly.
++
++
++func addVV_s(z, x, y *Word, n int) (c Word)
++
++// addVV sets z and returns c such that z+c = x+y.
++// z, x, y are n-word vectors.
++func addVV(z, x, y *Word, n int) (c Word) {
++	for i := 0; i < n; i++ {
++		c, *z = addWW(*x, *y, c);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
++		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++
++	}
++	return
++}
++
++
++func subVV_s(z, x, y *Word, n int) (c Word)
++
++// subVV sets z and returns c such that z-c = x-y.
++// z, x, y are n-word vectors.
++func subVV(z, x, y *Word, n int) (c Word) {
++	for i := 0; i < n; i++ {
++		c, *z = subWW(*x, *y, c);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
++		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++	}
++	return
++}
++
++
++func addVW_s(z, x *Word, y Word, n int) (c Word)
++
++// addVW sets z and returns c such that z+c = x-y.
++// z, x are n-word vectors.
++func addVW(z, x *Word, y Word, n int) (c Word) {
++	c = y;
++	for i := 0; i < n; i++ {
++		c, *z = addWW(*x, c, 0);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++
++	}
++	return
++}
++
++func subVW_s(z, x *Word, y Word, n int) (c Word)
++
++// subVW sets z and returns c such that z-c = x-y.
++// z, x are n-word vectors.
++func subVW(z, x *Word, y Word, n int) (c Word) {
++	c = y;
++	for i := 0; i < n; i++ {
++		c, *z = subWW(*x, c, 0);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++
++	}
++	return
++}
++
++
++func mulVW_s(z, x *Word, y Word, n int) (c Word)
++
++// mulVW sets z and returns c such that z+c = x*y.
++// z, x are n-word vectors.
++func mulVW(z, x *Word, y Word, n int) (c Word) {
++	for i := 0; i < n; i++ {
++		c, *z = mulAddWW(*x, y, c);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++	}
++	return
++}
++
++
++func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
++
++// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
++// z, x are n-word vectors; xn is the extra word x[n] of x.
++func divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
++	r = xn;
++	x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + uintptr(n-1)*_S)));
++	z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + uintptr(n-1)*_S)));
++	for i := n-1; i >= 0; i-- {
++		*z, r = divWW(r, *x, y);
++		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) - _S)));
++		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) - _S)));
++	}
++	return;
++}
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+new file mode 100644
+index 0000000000..0853846a7e
+--- /dev/null
++++ b/src/pkg/big/arith_amd64.s
+@@ -0,0 +1,219 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides fast assembly versions of the routines in arith.go.
++//
++// Note: Eventually, these functions should be named like their corresponding
++//       Go implementations. For now their names have "_s" appended so that
++//       they can be linked and tested together.
++
++// ----------------------------------------------------------------------------
++// Elementary operations on words
++
++// func addWW_s(x, y, c Word) (z1, z0 Word)
++// z1<<_W + z0 = x+y+c, with c == 0 or 1
++TEXT big·addWW_s(SB),7,$0
++	MOVQ a+0(FP), AX
++	XORQ DX, DX
++	ADDQ a+8(FP), AX
++	ADCQ $0, DX
++	ADDQ a+16(FP), AX
++	ADCQ $0, DX
++	MOVQ DX, a+24(FP)
++	MOVQ AX, a+32(FP)
++	RET
++
++
++// func subWW_s(x, y, c Word) (z1, z0 Word)
++// z1<<_W + z0 = x-y-c, with c == 0 or 1
++TEXT big·subWW_s(SB),7,$0
++	MOVQ a+0(FP), AX
++	XORQ DX, DX
++	SUBQ a+8(FP), AX
++	ADCQ $0, DX
++	SUBQ a+16(FP), AX
++	ADCQ $0, DX
++	MOVQ DX, a+24(FP)
++	MOVQ AX, a+32(FP)
++	RET
++
++
++// func mulWW_s(x, y Word) (z1, z0 Word)
++// z1<<64 + z0 = x*y
++//
++TEXT big·mulWW_s(SB),7,$0
++	MOVQ a+0(FP), AX
++	MULQ a+8(FP)
++	MOVQ DX, a+16(FP)
++	MOVQ AX, a+24(FP)
++	RET
++
++
++// func mulAddWW_s(x, y, c Word) (z1, z0 Word)
++// z1<<64 + z0 = x*y + c
++//
++TEXT big·mulAddWW_s(SB),7,$0
++	MOVQ a+0(FP), AX
++	MULQ a+8(FP)
++	ADDQ a+16(FP), AX
++	ADCQ $0, DX
++	MOVQ DX, a+24(FP)
++	MOVQ AX, a+32(FP)
++	RET
++
++
++// func divWW_s(x1, x0, y Word) (q, r Word)
++// q = (x1<<64 + x0)/y + r
++//
++TEXT big·divWW_s(SB),7,$0
++	MOVQ a+0(FP), DX
++	MOVQ a+8(FP), AX
++	DIVQ a+16(FP)
++	MOVQ AX, a+24(FP)
++	MOVQ DX, a+32(FP)
++	RET
++
++
++// ----------------------------------------------------------------------------
++// Elementary operations on vectors
++
++// TODO(gri) - experiment with unrolled loops for faster execution
++
++// func addVV_s(z, x, y *Word, n int) (c Word)
++TEXT big·addVV_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), R9	// y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	XORQ DX, DX			// c = 0
++	JMP E1
++
++L1:	MOVQ (R8)(BX*8), AX
++	RCRQ $1, DX
++	ADCQ (R9)(BX*8), AX
++	RCLQ $1, DX
++	MOVQ AX, (R10)(BX*8)
++	ADDL $1, BX			// i++
++
++E1:	CMPQ BX, R11		// i < n
++	JL L1
++
++	MOVQ DX, a+32(FP)	// return c
++	RET
++
++
++// func subVV_s(z, x, y *Word, n int) (c Word)
++// (same as addVV_s except for SBBQ instead of ADCQ and label names)
++TEXT big·subVV_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), R9	// y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	XORQ DX, DX			// c = 0
++	JMP E2
++
++L2:	MOVQ (R8)(BX*8), AX
++	RCRQ $1, DX
++	SBBQ (R9)(BX*8), AX
++	RCLQ $1, DX
++	MOVQ AX, (R10)(BX*8)
++	ADDL $1, BX			// i++
++
++E2:	CMPQ BX, R11		// i < n
++	JL L2
++
++	MOVQ DX, a+32(FP)	// return c
++	RET
++
++
++// func addVW_s(z, x *Word, y Word, n int) (c Word)
++TEXT big·addVW_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), AX	// c = y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	JMP E3
++
++L3:	ADDQ (R8)(BX*8), AX
++	MOVQ AX, (R10)(BX*8)
++	RCLQ $1, AX
++	ANDQ $1, AX
++	ADDL $1, BX			// i++
++
++E3:	CMPQ BX, R11		// i < n
++	JL L3
++
++	MOVQ AX, a+32(FP)	// return c
++	RET
++
++
++// func subVW_s(z, x *Word, y Word, n int) (c Word)
++TEXT big·subVW_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), AX	// c = y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	JMP E4
++
++L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
++	SUBQ AX, DX
++	MOVQ DX, (R10)(BX*8)
++	RCLQ $1, AX
++	ANDQ $1, AX
++	ADDL $1, BX			// i++
++
++E4:	CMPQ BX, R11		// i < n
++	JL L4
++
++	MOVQ AX, a+32(FP)	// return c
++	RET
++
++
++// func mulVW_s(z, x *Word, y Word, n int) (c Word)
++TEXT big·mulVW_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), R9	// y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	XORQ CX, CX			// c = 0
++	JMP E5
++
++L5:	MOVQ (R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (R10)(BX*8)
++	MOVQ DX, CX
++	ADDL $1, BX			// i++
++
++E5:	CMPQ BX, R11		// i < n
++	JL L5
++
++	MOVQ CX, a+32(FP)	// return c
++	RET
++
++
++// divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
++TEXT big·divWVW_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), DX	// r = xn
++	MOVQ a+16(FP), R8	// x
++	MOVQ a+24(FP), R9	// y
++	MOVL a+32(FP), BX	// i = n
++	JMP E6
++
++L6:	MOVQ (R8)(BX*8), AX
++	DIVQ R9
++	MOVQ AX, (R10)(BX*8)
++
++E6:	SUBL $1, BX
++	JGE L6
++
++	MOVQ DX, a+40(FP)	// return r
++	RET
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+new file mode 100644
+index 0000000000..0544fa7c62
+--- /dev/null
++++ b/src/pkg/big/arith_test.go
+@@ -0,0 +1,213 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package big
++
++import "testing"
++
++
++type funWW func(x, y, c Word) (z1, z0 Word)
++type argWW struct { x, y, c, z1, z0 Word }
++
++var sumWW = []argWW{
++	argWW{0, 0, 0, 0, 0},
++	argWW{0, 1, 0, 0, 1},
++	argWW{0, 0, 1, 0, 1},
++	argWW{0, 1, 1, 0, 2},
++	argWW{12345, 67890, 0, 0, 80235},
++	argWW{12345, 67890, 1, 0, 80236},
++	argWW{_M, 1, 0, 1, 0},
++	argWW{_M, 0, 1, 1, 0},
++	argWW{_M, 1, 1, 1, 1},
++	argWW{_M, _M, 0, 1, _M-1},
++	argWW{_M, _M, 1, 1, _M},
++}
++
++
++func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
++	z1, z0 := f(a.x, a.y, a.c);
++	if z1 != a.z1 || z0 != a.z0 {
++		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0);
++	}
++}
++
++
++func TestFunWW(t *testing.T) {
++	for _, a := range sumWW {
++		arg := a;
++		testFunWW(t, "addWW", addWW, arg);
++		testFunWW(t, "addWW_s", addWW_s, arg);
++
++		arg = argWW{a.y, a.x, a.c, a.z1, a.z0};
++		testFunWW(t, "addWW symmetric", addWW, arg);
++		testFunWW(t, "addWW_s symmetric", addWW_s, arg);
++
++		arg = argWW{a.z0, a.x, a.c, a.z1, a.y};
++		testFunWW(t, "subWW", subWW, arg);
++		testFunWW(t, "subWW_s", subWW_s, arg);
++
++		arg = argWW{a.z0, a.y, a.c, a.z1, a.x};
++		testFunWW(t, "subWW symmetric", subWW, arg);
++		testFunWW(t, "subWW_s symmetric", subWW_s, arg);
++	}
++}
++
++
++func addr(x []Word) *Word {
++	if len(x) == 0 {
++		return nil;
++	}
++	return &x[0];
++}
++
++
++type funVV func(z, x, y *Word, n int) (c Word)
++type argVV struct { z, x, y []Word; c Word }
++
++var sumVV = []argVV{
++	argVV{},
++	argVV{[]Word{0}, []Word{0}, []Word{0}, 0},
++	argVV{[]Word{1}, []Word{1}, []Word{0}, 0},
++	argVV{[]Word{0}, []Word{_M}, []Word{1}, 1},
++	argVV{[]Word{80235}, []Word{12345}, []Word{67890}, 0},
++	argVV{[]Word{_M-1}, []Word{_M}, []Word{_M}, 1},
++	argVV{[]Word{0, 0, 0, 0}, []Word{_M, _M, _M, _M}, []Word{1, 0, 0, 0}, 1},
++	argVV{[]Word{0, 0, 0, _M}, []Word{_M, _M, _M, _M-1}, []Word{1, 0, 0, 0}, 0},
++	argVV{[]Word{0, 0, 0, 0}, []Word{_M, 0, _M, 0}, []Word{1, _M, 0, _M}, 1},
++}
++
++
++func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
++	n := len(a.z);
++	z := make([]Word, n);
++	c := f(addr(z), addr(a.x), addr(a.y), n);
++	for i, zi := range z {
++		if zi != a.z[i] {
++			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i]);
++			break;
++		}
++	}
++	if c != a.c {
++		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
++	}
++}
++
++
++func TestFunVV(t *testing.T) {
++	for _, a := range sumVV {
++		arg := a;
++		testFunVV(t, "addVV", addVV, arg);
++		testFunVV(t, "addVV_s", addVV_s, arg);
++
++		arg = argVV{a.z, a.y, a.x, a.c};
++		testFunVV(t, "addVV symmetric", addVV, arg);
++		testFunVV(t, "addVV_s symmetric", addVV_s, arg);
++
++		arg = argVV{a.x, a.z, a.y, a.c};
++		testFunVV(t, "subVV", subVV, arg);
++		testFunVV(t, "subVV_s", subVV_s, arg);
++
++		arg = argVV{a.y, a.z, a.x, a.c};
++		testFunVV(t, "subVV symmetric", subVV, arg);
++		testFunVV(t, "subVV_s symmetric", subVV_s, arg);
++	}
++}
++
++
++type funVW func(z, x *Word, y Word, n int) (c Word)
++type argVW struct { z, x []Word; y Word; c Word }
++
++var sumVW = []argVW{
++	argVW{},
++	argVW{[]Word{0}, []Word{0}, 0, 0},
++	argVW{[]Word{1}, []Word{0}, 1, 0},
++	argVW{[]Word{1}, []Word{1}, 0, 0},
++	argVW{[]Word{0}, []Word{_M}, 1, 1},
++	argVW{[]Word{0, 0, 0, 0}, []Word{_M, _M, _M, _M}, 1, 1},
++}
++
++var prodVW = []argVW{
++	argVW{},
++	argVW{[]Word{0}, []Word{0}, 0, 0},
++	argVW{[]Word{0}, []Word{_M}, 0, 0},
++	argVW{[]Word{0}, []Word{0}, _M, 0},
++	argVW{[]Word{1}, []Word{1}, 1, 0},
++	argVW{[]Word{22793}, []Word{991}, 23, 0},
++	argVW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0},
++	argVW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0},
++	argVW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0},
++	argVW{[]Word{_M<<1 & _M}, []Word{_M}, 1<<1, _M>>(_W-1)},
++	argVW{[]Word{_M<<7 & _M}, []Word{_M}, 1<<7, _M>>(_W-7)},
++	argVW{[]Word{_M<<7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
++}
++
++
++func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
++	n := len(a.z);
++	z := make([]Word, n);
++	c := f(addr(z), addr(a.x), a.y, n);
++	for i, zi := range z {
++		if zi != a.z[i] {
++			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i]);
++			break;
++		}
++	}
++	if c != a.c {
++		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
++	}
++}
++
++
++func TestFunVW(t *testing.T) {
++	for _, a := range sumVW {
++		arg := a;
++		testFunVW(t, "addVW", addVW, arg);
++		testFunVW(t, "addVW_s", addVW_s, arg);
++
++		arg = argVW{a.x, a.z, a.y, a.c};
++		testFunVW(t, "subVW", subVW, arg);
++		testFunVW(t, "subVW_s", subVW_s, arg);
++	}
++
++	for _, a := range prodVW {
++		arg := a;
++		testFunVW(t, "mulVW", mulVW, arg);
++		testFunVW(t, "mulVW_s", mulVW_s, arg);
++	}
++}
++
++
++// TODO(gri) Vector mul and div are not quite symmetric.
++//           make it symmetric, mulVW should become mulAddVWW.
++//           Correct decision may become obvious after implementing
++//           the higher-level routines.
++
++type funWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)
++type argWVW struct { z []Word; xn Word; x []Word; y Word; r Word }
++
++func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
++	n := len(a.z);
++	z := make([]Word, n);
++	r := f(addr(z), a.xn, addr(a.x), a.y, n);
++	for i, zi := range z {
++		if zi != a.z[i] {
++			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i]);
++			break;
++		}
++	}
++	if r != a.r {
++		t.Errorf("%s%+v\n\tgot r = %#x; want %#x", msg, a, r, a.r);
++	}
++}
++
++
++func TestFunVWW(t *testing.T) {
++	for _, a := range prodVW {
++		if a.y != 0 {
++			arg := argWVW{a.x, a.c, a.z, a.y, 0};
++			testFunWVW(t, "divWVW", divWVW, arg);
++			testFunWVW(t, "divWVW_s", divWVW_s, arg);
++		}
++	}
++}
+diff --git a/src/pkg/big/big.go b/src/pkg/big/big.go
+new file mode 100644
+index 0000000000..4c175f29f5
+--- /dev/null
++++ b/src/pkg/big/big.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A package for multi-precision arithmetic.
++// It implements the following numeric types:
++//
++//	W	unsigned single word with limited precision (uintptr)
++//	Z	signed integers
++//	Q	rational numbers
++//
++// Operations follow a regular naming scheme: The
++// operation name is followed by the type names of
++// the operands. Examples:
++//
++//	AddWW	implements W + W
++//	SubZZ	implements Z + Z
++//	MulZW	implements Z * W
++//
++// All operations returning a multi-precision result take the
++// result as the first argument; if it is one of the operands
++// it may be overwritten (and its memory reused). To enable
++// chaining of operations, the result is also returned.
++//
++package big
++
++// This file is intentionally left without declarations for now. It may
++// contain more documentation eventually; otherwise it should be removed.
+diff --git a/src/pkg/big/bigN.go b/src/pkg/big/bigN.go
+new file mode 100644
+index 0000000000..50d73a7916
+--- /dev/null
++++ b/src/pkg/big/bigN.go
+@@ -0,0 +1,315 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains operations on unsigned multi-precision integers.
++// These are the building blocks for the operations on signed integers
++// and rationals.
++
++package big
++
++// An unsigned integer x of the form
++//
++//   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
++//
++// with 0 <= x[i] < _B and 0 <= i < n is stored in a slice of length n,
++// with the digits x[i] as the slice elements.
++//
++// A number is normalized if the slice contains no leading 0 digits.
++// During arithmetic operations, denormalized values may occur but are
++// always normalized before returning the final result. The normalized
++// representation of 0 is the empty or nil slice (length = 0).
++
++func normN(z []Word) []Word {
++	i := len(z);
++	for i > 0 && z[i-1] == 0 {
++		i--;
++	}
++	z = z[0 : i];
++	return z;
++}
++
++
++func makeN(z []Word, m int) []Word {
++	if len(z) > m {
++		z = z[0 : m];  // has at least one extra word for a carry, if any
++		return z;  // reuse z
++	}
++	c := 4;  // minimum capacity
++	if m > c {
++		c = m;
++	}
++	return make([]Word, m, c+1);  // +1: extra word for a carry, if any
++}
++
++
++func newN(z []Word, x uint64) []Word {
++	if x == 0 {
++		return nil;  // len == 0
++	}
++
++	// single-digit values
++	if x == uint64(Word(x)) {
++		z = makeN(z, 1);
++		z[0] = Word(x);
++		return z;
++	}
++
++	// compute number of words n required to represent x
++	n := 0;
++	for t := x; t > 0; t >>= _W {
++		n++;
++	}
++
++	// split x into n words
++	z = makeN(z, n);
++	for i := 0; i < n; i++ {
++		z[i] = Word(x & _M);
++		x >>= _W;
++	}
++
++	return z;
++}
++
++
++func setN(z, x []Word) []Word {
++	z = makeN(z, len(x));
++	for i, d := range x {
++		z[i] = d;
++	}
++	return z;
++}
++
++
++func addNN(z, x, y []Word) []Word {
++	m := len(x);
++	n := len(y);
++
++	switch {
++	case m < n:
++		return addNN(z, y, x);
++	case m == 0:
++		// n == 0 because m >= n; result is 0
++		return makeN(z, 0);
++	case n == 0:
++		// result is x
++		return setN(z, x);
++	}
++
++	z = makeN(z, m);
++	c := addVV(&z[0], &x[0], &y[0], n);
++	if m > n {
++		c = addVW(&z[n], &x[n], c, m-n);
++	}
++	if c > 0 {
++		z = z[0 : m+1];
++		z[m] = c;
++	}
++
++	return z;
++}
++
++
++func subNN(z, x, y []Word) []Word {
++	m := len(x);
++	n := len(y);
++
++	switch {
++	case m < n:
++		panic("underflow");
++	case m == 0:
++		// n == 0 because m >= n; result is 0
++		return makeN(z, 0);
++	case n == 0:
++		// result is x
++		return setN(z, x);
++	}
++
++	z = makeN(z, m);
++	c := subVV(&z[0], &x[0], &y[0], n);
++	if m > n {
++		c = subVW(&z[n], &x[n], c, m-n);
++	}
++	if c != 0 {
++		panic("underflow");
++	}
++
++	z = normN(z);
++	return z;
++}
++
++
++func cmpNN(x, y []Word) int {
++	m := len(x);
++	n := len(y);
++	if m != n || m == 0 {
++		return m-n;
++	}
++
++	i := m-1;
++	for i > 0 && x[i] == y[i] {
++		i--;
++	}
++
++	z := 0;
++	switch {
++	case x[i] < y[i]: z = -1;
++	case x[i] > y[i]: z = 1;
++	}
++	return z;
++}
++
++
++func mulNW(z, x []Word, y Word) []Word {
++	m := len(x);
++	switch {
++	case m == 0 || y == 0:
++		return setN(z, nil);  // result is 0
++	case y == 1:
++		return setN(z, x);  // result is x
++	}
++	// m > 0
++	z = makeN(z, m+1);
++	c := mulVW(&z[0], &x[0], y, m);
++	if c > 0 {
++		z = z[0 : m+1];
++		z[m] = c;
++	}
++	return z;
++}
++
++
++func mulNN(z, x, y []Word) []Word {
++	panic("mulNN unimplemented");
++	return z
++}
++
++
++// q = (x-r)/y, with 0 <= r < y
++func divNW(z, x []Word, y Word) (q []Word, r Word) {
++	m := len(x);
++	switch {
++	case y == 0:
++		panic("division by zero");
++	case y == 1:
++		q = setN(z, x);  // result is x
++		return;
++	case m == 0:
++		q = setN(z, nil);  // result is 0
++		return;
++	}
++	// m > 0
++	z = makeN(z, m);
++	r = divWVW(&z[0], 0, &x[0], y, m);
++	q = normN(z);
++	return;
++}
++
++
++// log2 computes the binary logarithm of x.
++// The result is the integer n for which 2^n <= x < 2^(n+1).
++// If x == 0, the result is < 0.
++func log2(x Word) int {
++	n := 0;
++	for ; x > 0; x >>= 1 {
++		n++;
++	}
++	return n-1;
++}
++
++
++// log2N computes the binary logarithm of x.
++// The result is the integer n for which 2^n <= x < 2^(n+1).
++// If x == 0, the result is < 0.
++func log2N(x []Word) int {
++	m := len(x);
++	if m > 0 {
++		return (m-1)*int(_W) + log2(x[m-1]);
++	}
++	return -1;
++}
++
++
++func hexValue(ch byte) int {
++	var d byte;
++	switch {
++	case '0' <= ch && ch <= '9': d = ch - '0';
++	case 'a' <= ch && ch <= 'f': d = ch - 'a' + 10;
++	case 'A' <= ch && ch <= 'F': d = ch - 'A' + 10;
++	default: return -1;
++	}
++	return int(d);
++}
++
++
++// scanN returns the natural number corresponding to the
++// longest possible prefix of s representing a natural number in a
++// given conversion base, the actual conversion base used, and the
++// prefix length. The syntax of natural numbers follows the syntax
++// of unsigned integer literals in Go.
++//
++// If the base argument is 0, the string prefix determines the actual
++// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
++// ``0'' prefix selects base 8. Otherwise the selected base is 10.
++//
++func scanN(z []Word, s string, base int) ([]Word, int, int) {
++	// determine base if necessary
++	i, n := 0, len(s);
++	if base == 0 {
++		base = 10;
++		if n > 0 && s[0] == '0' {
++			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
++				base, i = 16, 2;
++			} else {
++				base, i = 8, 1;
++			}
++		}
++	}
++	if base < 2 || 16 < base {
++		panic("illegal base");
++	}
++
++	// convert string
++	z = makeN(z, len(z));
++	for ; i < n; i++ {
++		d := hexValue(s[i]);
++		if 0 <= d && d < base {
++			panic("scanN needs mulAddVWW");
++		} else {
++			break;
++		}
++	}
++
++	return z, base, i;
++}
++
++
++// string converts x to a string for a given base, with 2 <= base <= 16.
++// TODO(gri) in the style of the other routines, perhaps this should take
++//           a []byte buffer and return it
++func stringN(x []Word, base int) string {
++	if base < 2 || 16 < base {
++		panic("illegal base");
++	}
++
++	if len(x) == 0 {
++		return "0";
++	}
++
++	// allocate buffer for conversion
++	i := (log2N(x) + 1) / log2(Word(base)) + 1;  // +1: round up
++	s := make([]byte, i);
++
++	// don't destroy x
++	q := setN(nil, x);
++
++	// convert
++	for len(q) > 0 {
++		i--;
++		var r Word;
++		q, r = divNW(q, q, 10);
++		s[i] = "0123456789abcdef"[r];
++	};
++
++	return string(s[i : len(s)]);
++}
+diff --git a/src/pkg/big/bigN_test.go b/src/pkg/big/bigN_test.go
+new file mode 100644
+index 0000000000..48b78c48b6
+--- /dev/null
++++ b/src/pkg/big/bigN_test.go
+@@ -0,0 +1,77 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package big
++
++import "testing"
++
++func TestCmpNN(t *testing.T) {
++	// TODO(gri) write this test - all other tests depends on it
++}
++
++
++type funNN func(z, x, y []Word) []Word
++type argNN struct { z, x, y []Word }
++
++var sumNN = []argNN{
++	argNN{},
++	argNN{[]Word{1}, nil, []Word{1}},
++	argNN{[]Word{1111111110}, []Word{123456789}, []Word{987654321}},
++	argNN{[]Word{0, 0, 0, 1}, nil, []Word{0, 0, 0, 1}},
++	argNN{[]Word{0, 0, 0, 1111111110}, []Word{0, 0, 0, 123456789}, []Word{0, 0, 0, 987654321}},
++	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
++}
++
++
++func TestSetN(t *testing.T) {
++	for _, a := range sumNN {
++		z := setN(nil, a.z);
++		if cmpNN(z, a.z) != 0 {
++			t.Errorf("got z = %v; want %v", z, a.z);
++		}
++	}
++}
++
++
++func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
++	z := f(nil, a.x, a.y);
++	if cmpNN(z, a.z) != 0 {
++		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z);
++	}
++}
++
++
++func TestFunNN(t *testing.T) {
++	for _, a := range sumNN {
++		arg := a;
++		testFunNN(t, "addNN", addNN, arg);
++
++		arg = argNN{a.z, a.y, a.x};
++		testFunNN(t, "addNN symmetric", addNN, arg);
++
++		arg = argNN{a.x, a.z, a.y};
++		testFunNN(t, "subNN", subNN, arg);
++
++		arg = argNN{a.y, a.z, a.x};
++		testFunNN(t, "subNN symmetric", subNN, arg);
++	}
++}
++
++
++type strN struct { x []Word; b int; s string }
++var tabN = []strN{
++	strN{nil, 10,  "0"},
++	strN{[]Word{1}, 10, "1"},
++	strN{[]Word{10}, 10, "10"},
++	strN{[]Word{1234567890}, 10, "1234567890"},
++}
++
++func TestStringN(t *testing.T) {
++	for _, a := range tabN {
++		s := stringN(a.x, a.b);
++		if s != a.s {
++			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s);
++		}
++	}
++}
+diff --git a/src/pkg/big/bigZ.go b/src/pkg/big/bigZ.go
+new file mode 100644
+index 0000000000..03534eccfd
+--- /dev/null
++++ b/src/pkg/big/bigZ.go
+@@ -0,0 +1,139 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements signed multi-precision integers.
++
++package big
++
++// A Z represents a signed multi-precision integer.
++// The zero value for a Z represents the value 0.
++type Z struct {
++	neg bool;  // sign
++	m []Word;  // mantissa
++}
++
++
++// NewZ sets z to x.
++func NewZ(z Z, x int64) Z {
++	z.neg = false;
++	if x < 0 {
++		z.neg = true;
++		x = -x;
++	}
++	z.m = newN(z.m, uint64(x));
++	return z;
++}
++
++
++// SetZ sets z to x.
++func SetZ(z, x Z) Z {
++	z.neg = x.neg;
++	z.m = setN(z.m, x.m);
++	return z;
++}
++
++
++// AddZZ computes z = x+y.
++func AddZZ(z, x, y Z) Z {
++	if x.neg == y.neg {
++		// x + y == x + y
++		// (-x) + (-y) == -(x + y)
++		z.neg = x.neg;
++		z.m = addNN(z.m, x.m, y.m);
++	} else {
++		// x + (-y) == x - y == -(y - x)
++		// (-x) + y == y - x == -(x - y)
++		if cmpNN(x.m, y.m) >= 0 {
++			z.neg = x.neg;
++			z.m = subNN(z.m, x.m, y.m);
++		} else {
++			z.neg = !x.neg;
++			z.m = subNN(z.m, y.m, x.m);
++		}
++	}
++	if len(z.m) == 0 {
++		z.neg = false;  // 0 has no sign
++	}
++	return z
++}
++
++
++// AddZZ computes z = x-y.
++func SubZZ(z, x, y Z) Z {
++	if x.neg != y.neg {
++		// x - (-y) == x + y
++		// (-x) - y == -(x + y)
++		z.neg = x.neg;
++		z.m = addNN(z.m, x.m, y.m);
++	} else {
++		// x - y == x - y == -(y - x)
++		// (-x) - (-y) == y - x == -(x - y)
++		if cmpNN(x.m, y.m) >= 0 {
++			z.neg = x.neg;
++			z.m = subNN(z.m, x.m, y.m);
++		} else {
++			z.neg = !x.neg;
++			z.m = subNN(z.m, y.m, x.m);
++		}
++	}
++	if len(z.m) == 0 {
++		z.neg = false;  // 0 has no sign
++	}
++	return z
++}
++
++
++// MulZZ computes z = x*y.
++func MulZZ(z, x, y Z) Z {
++	// x * y == x * y
++	// x * (-y) == -(x * y)
++	// (-x) * y == -(x * y)
++	// (-x) * (-y) == x * y
++	z.neg = x.neg != y.neg;
++	z.m = mulNN(z.m, x.m, y.m);
++	return z
++}
++
++
++// NegZ computes z = -x.
++func NegZ(z, x Z) Z {
++	z.neg = len(x.m) > 0 && !x.neg;  // 0 has no sign
++	z.m = setN(z.m, x.m);
++	return z;
++}
++
++
++// Cmp compares x and y. The result is an int value that is
++//
++//   <  0 if x <  y
++//   == 0 if x == y
++//   >  0 if x >  y
++//
++func CmpZZ(x, y Z) (r int) {
++	// x cmp y == x cmp y
++	// x cmp (-y) == x
++	// (-x) cmp y == y
++	// (-x) cmp (-y) == -(x cmp y)
++	switch {
++	case x.neg == y.neg:
++		r = cmpNN(x.m, y.m);
++		if x.neg {
++			r = -r;
++		}
++	case x.neg:
++		r = -1;
++	default:
++		r = 1;
++	}
++	return;
++}
++
++
++func (x Z) String() string {
++	s := "";
++	if x.neg {
++		s = "-";
++	}
++	return s + stringN(x.m, 10);
++}
+diff --git a/src/pkg/big/bigZ_test.go b/src/pkg/big/bigZ_test.go
+new file mode 100644
+index 0000000000..ed6f4ff9b7
+--- /dev/null
++++ b/src/pkg/big/bigZ_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package big
++
++import "testing"
++
++
++func newZ(x int64) Z {
++	var z Z;
++	return NewZ(z, x);
++}
++
++
++type funZZ func(z, x, y Z) Z
++type argZZ struct { z, x, y Z }
++
++var sumZZ = []argZZ{
++	argZZ{newZ(0), newZ(0), newZ(0)},
++	argZZ{newZ(1), newZ(1), newZ(0)},
++	argZZ{newZ(1111111110), newZ(123456789), newZ(987654321)},
++	argZZ{newZ(-1), newZ(-1), newZ(0)},
++	argZZ{newZ(864197532), newZ(-123456789), newZ(987654321)},
++	argZZ{newZ(-1111111110), newZ(-123456789), newZ(-987654321)},
++}
++
++
++func TestSetZ(t *testing.T) {
++	for _, a := range sumZZ {
++		var z Z;
++		z = SetZ(z, a.z);
++		if CmpZZ(z, a.z) != 0 {
++			t.Errorf("got z = %v; want %v", z, a.z);
++		}
++	}
++}
++
++
++func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
++	var z Z;
++	z = f(z, a.x, a.y);
++	if CmpZZ(z, a.z) != 0 {
++		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z);
++	}
++}
++
++
++func TestFunZZ(t *testing.T) {
++	for _, a := range sumZZ {
++		arg := a;
++		testFunZZ(t, "AddZZ", AddZZ, arg);
++
++		arg = argZZ{a.z, a.y, a.x};
++		testFunZZ(t, "AddZZ symmetric", AddZZ, arg);
++
++		arg = argZZ{a.x, a.z, a.y};
++		testFunZZ(t, "SubZZ", SubZZ, arg);
++
++		arg = argZZ{a.y, a.z, a.x};
++		testFunZZ(t, "SubZZ symmetric", SubZZ, arg);
++	}
++}
+diff --git a/src/pkg/big/defs.go b/src/pkg/big/defs.go
+new file mode 100644
+index 0000000000..5972fa6421
+--- /dev/null
++++ b/src/pkg/big/defs.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package big
++
++import "unsafe"
++
++type Word uintptr
++
++const (
++	_S = uintptr(unsafe.Sizeof(Word));  // TODO(gri) should Sizeof return a uintptr?
++	_W = _S*8;
++	_B = 1<<_W;
++	_M = _B-1;
++	_W2 = _W/2;
++	_B2 = 1<<_W2;
++	_M2 = _B2-1;
++)

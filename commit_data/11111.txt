@@ -9,9 +9,66 @@ Date:   Wed Jan 11 21:26:54 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5529066
-
+---
  src/cmd/gc/fmt.c                 |  4 +++-
  test/fixedbugs/bug392.dir/one.go |  6 ++++++
  test/fixedbugs/bug392.dir/two.go |  4 ++++
  test/fixedbugs/bug392.go         | 11 +++++++++++
  4 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 10bf02130a..0eb5854aec 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1072,9 +1072,11 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OREGISTER:
+ 		return fmtprint(f, "%R", n->val.u.reg);
+ 
+-	case OLITERAL:  // this is still a bit of a mess
++	case OLITERAL:  // this is a bit of a mess
+ 		if(fmtmode == FErr && n->sym != S)
+ 			return fmtprint(f, "%S", n->sym);
++		if(n->val.ctype == CTNIL)
++			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
+ 		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
+ 			if(isptr[n->type->etype])
+ 				return fmtprint(f, "(%T)(%V)", n->type, &n->val);
+diff --git a/test/fixedbugs/bug392.dir/one.go b/test/fixedbugs/bug392.dir/one.go
+new file mode 100644
+index 0000000000..6353b88e1a
+--- /dev/null
++++ b/test/fixedbugs/bug392.dir/one.go
+@@ -0,0 +1,6 @@
++package one
++
++type file int
++func (file *file) isnil() bool { return file == nil }
++func (fil *file)  isnil2() bool { return fil == nil }
++
+diff --git a/test/fixedbugs/bug392.dir/two.go b/test/fixedbugs/bug392.dir/two.go
+new file mode 100644
+index 0000000000..8a5346ab72
+--- /dev/null
++++ b/test/fixedbugs/bug392.dir/two.go
+@@ -0,0 +1,4 @@
++package two
++
++import _ "./one"
++
+diff --git a/test/fixedbugs/bug392.go b/test/fixedbugs/bug392.go
+new file mode 100644
+index 0000000000..46781eb428
+--- /dev/null
++++ b/test/fixedbugs/bug392.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.dir/one.go && $G -ll $D/$F.dir/two.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// Issue 2678
++// -ll flag in command above is to force typecheck on import, needed to trigger the bug.
++// fixedbugs/bug392.dir/two.go:3: cannot call non-function *one.file (type one.file)
++
++package ignored

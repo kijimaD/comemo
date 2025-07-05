@@ -14,7 +14,32 @@ Date:   Tue Apr 12 14:54:51 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/399538
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  misc/boring/merge.sh   | 2 +-
  misc/boring/release.sh | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/boring/merge.sh b/misc/boring/merge.sh
+index b897a5ba66..b158a90fa9 100755
+--- a/misc/boring/merge.sh
++++ b/misc/boring/merge.sh
+@@ -30,5 +30,5 @@ if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
+     exit 1
+ fi
+ 
+-git codereview mail -r katie@golang.org,roland@golang.org,filippo@golang.org -trybot -trust HEAD
++git codereview mail -trybot HEAD
+ cd - && git worktree remove "$WORKTREE"
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+index 457ab39039..6ab440c91b 100755
+--- a/misc/boring/release.sh
++++ b/misc/boring/release.sh
+@@ -28,7 +28,7 @@ done
+ 
+ git add RELEASES
+ git commit -m "misc/boring: add new releases to RELEASES file"
+-git codereview mail -r katie@golang.org,roland@golang.org,filippo@golang.org -trust
++git codereview mail
+ 
+ rm *.tar.gz
+ cd - && git worktree remove "$WORKTREE"

@@ -18,10 +18,77 @@ Date:   Thu Sep 1 20:47:41 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 2 +-
  src/cmd/compile/internal/types2/resolver.go   | 2 +-
  src/go/types/resolver.go                      | 2 +-
  src/internal/types/testdata/check/decls1.go   | 6 +++---
  src/internal/types/testdata/check/main0.go    | 4 ++--
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index b0ec1f536c..98813ad5a7 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -299,7 +299,7 @@ func TestManual(t *testing.T) {
+ 
+ func TestCheck(t *testing.T) {
+ 	DefPredeclaredTestFuncs()
+-	testDirFiles(t, "../../../../internal/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
++	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
+ }
+ func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+ func TestExamples(t *testing.T) {
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 77881f493f..b7ba083627 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -421,7 +421,7 @@ func (check *Checker) collectObjects() {
+ 							hasTParamError = true
+ 						}
+ 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
+-							check.softErrorf(s, "func %s must have no arguments and no return values", name)
++							check.softErrorf(s.Name, "func %s must have no arguments and no return values", name)
+ 						}
+ 					}
+ 					// don't declare init functions in the package scope - they are invisible
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index c4a973a5b9..12ec55a144 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -411,7 +411,7 @@ func (check *Checker) collectObjects() {
+ 						}
+ 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
+ 							// TODO(rFindley) Should this be a hard error?
+-							check.softErrorf(d.decl, code, "func %s must have no arguments and no return values", name)
++							check.softErrorf(d.decl.Name, code, "func %s must have no arguments and no return values", name)
+ 						}
+ 					}
+ 					if name == "init" {
+diff --git a/src/internal/types/testdata/check/decls1.go b/src/internal/types/testdata/check/decls1.go
+index 6fe349b0b2..4052c86925 100644
+--- a/src/internal/types/testdata/check/decls1.go
++++ b/src/internal/types/testdata/check/decls1.go
+@@ -140,7 +140,7 @@ func (x *T) m3() {}
+ 
+ // Initialization functions
+ func init() {}
+-func /* ERROR "no arguments and no return values" */ init(int) {}
+-func /* ERROR "no arguments and no return values" */ init() int { return 0 }
+-func /* ERROR "no arguments and no return values" */ init(int) int { return 0 }
++func init /* ERROR "no arguments and no return values" */ (int) {}
++func init /* ERROR "no arguments and no return values" */ () int { return 0 }
++func init /* ERROR "no arguments and no return values" */ (int) int { return 0 }
+ func (T) init(int) int { return 0 }
+diff --git a/src/internal/types/testdata/check/main0.go b/src/internal/types/testdata/check/main0.go
+index f892938d4a..132a5fec45 100644
+--- a/src/internal/types/testdata/check/main0.go
++++ b/src/internal/types/testdata/check/main0.go
+@@ -5,5 +5,5 @@
+ package main
+ 
+ func main()
+-func /* ERROR "no arguments and no return values" */ main /* ERROR redeclared */ (int)
+-func /* ERROR "no arguments and no return values" */ main /* ERROR redeclared */ () int
++func main /* ERROR "no arguments and no return values" */ /* ERROR redeclared */ (int)
++func main /* ERROR "no arguments and no return values" */ /* ERROR redeclared */ () int

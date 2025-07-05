@@ -13,6 +13,52 @@ Date:   Mon Feb 26 13:26:39 2024 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/eval_test.go | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index dd9bd7f426..1521f2fe41 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"go/types"
+ 	"internal/testenv"
+ 	"strings"
+ 	"testing"
+@@ -295,3 +296,32 @@ func f(a int, s string) S {
+ 		}
+ 	}
+ }
++
++func TestIssue65898(t *testing.T) {
++	const src = `
++package p
++func _[A any](A) {}
++`
++
++	fset := token.NewFileSet()
++	f := mustParse(fset, src)
++
++	var conf types.Config
++	pkg, err := conf.Check(pkgName(src), fset, []*ast.File{f}, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, d := range f.Decls {
++		if fun, _ := d.(*ast.FuncDecl); fun != nil {
++			// type parameter A is not found at the start of the function type
++			if err := types.CheckExpr(fset, pkg, fun.Type.Pos(), fun.Type, nil); err == nil || !strings.Contains(err.Error(), "undefined") {
++				t.Fatalf("got %s, want undefined error", err)
++			}
++			// type parameter A must be found at the end of the function type
++			if err := types.CheckExpr(fset, pkg, fun.Type.End(), fun.Type, nil); err != nil {
++				t.Fatal(err)
++			}
++		}
++	}
++}

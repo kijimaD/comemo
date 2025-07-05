@@ -13,7 +13,54 @@ Date:   Tue Nov 24 21:07:05 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/160065
-
+---
  src/make.bash    | 9 ++++++---
  src/pkg/Makefile | 2 +-
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 7d0c2b350f..5807dbe4e9 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -31,10 +31,10 @@ amd64 | 386 | arm)
+ esac
+ 
+ case "$GOOS" in
+-darwin | linux | nacl | freebsd)
++darwin | freebsd | linux | nacl)
+ 	;;
+ *)
+-	echo '$GOOS is set to <'$GOOS'>, must be darwin, linux, or nacl' 1>&2
++	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, or nacl' 1>&2
+ 	exit 1
+ esac
+ 
+@@ -73,6 +73,10 @@ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+ 	fi
+ fi
+ 
++(
++	cd pkg;
++	bash deps.bash	# do this here so clean.bash will work in the pkg directory
++)
+ bash clean.bash
+ 
+ for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
+@@ -93,7 +97,6 @@ do
+ 				bash make.bash
+ 				;;
+ 			pkg)
+-				bash deps.bash
+ 				gomake install
+ 				;;
+ 			*)
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 549377db21..2b5e76c40a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -145,4 +145,4 @@ nuke: nuke.dirs
+ deps:
+ 	./deps.bash
+ 
+-include Make.deps
++-include Make.deps

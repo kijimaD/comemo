@@ -15,6 +15,22 @@ Date:   Wed Aug 26 03:18:30 2020 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/main.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 37fc522356..37de1acc31 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -133,6 +133,10 @@ func main() {
+ 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
+ 				gohostarch = "arm64"
+ 			}
++		case gohostos == "openbsd":
++			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
++				gohostarch = "mips64"
++			}
+ 		default:
+ 			fatalf("unknown architecture: %s", out)
+ 		}

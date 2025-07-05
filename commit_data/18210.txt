@@ -7,7 +7,7 @@ Date:   Thu Jan 9 19:29:10 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/48870044
-
+---
  src/cmd/go/pkg.go                             |   1 +
  src/cmd/link/dead.go                          |  11 ++
  src/cmd/link/debug.go                         |  11 ++
@@ -25,3 +25,934 @@ Date:   Thu Jan 9 19:29:10 2014 -0500
  src/cmd/link/util.go                          |  11 ++
  src/cmd/link/write.go                         |  14 ++
  16 files changed, 833 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 1805f05d92..a9b3ca74e6 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -307,6 +307,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/api":                              toTool,
+ 	"cmd/cgo":                              toTool,
+ 	"cmd/fix":                              toTool,
++	"cmd/link":                             toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/yacc":                             toTool,
+ 	"code.google.com/p/go.tools/cmd/cover": toTool,
+diff --git a/src/cmd/link/dead.go b/src/cmd/link/dead.go
+new file mode 100644
+index 0000000000..d129dd24d5
+--- /dev/null
++++ b/src/cmd/link/dead.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Removal of dead code and data.
++
++package main
++
++// dead removes unreachable code and data from the program.
++func (p *Prog) dead() {
++}
+diff --git a/src/cmd/link/debug.go b/src/cmd/link/debug.go
+new file mode 100644
+index 0000000000..ee20644fd0
+--- /dev/null
++++ b/src/cmd/link/debug.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generation of debug data structures (in the executable but not mapped at run time).
++// See also runtime.go.
++
++package main
++
++func (p *Prog) debug() {
++}
+diff --git a/src/cmd/link/layout.go b/src/cmd/link/layout.go
+new file mode 100644
+index 0000000000..1d6824ecb7
+--- /dev/null
++++ b/src/cmd/link/layout.go
+@@ -0,0 +1,158 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Executable image layout - address assignment.
++
++package main
++
++import (
++	"debug/goobj"
++)
++
++// A layoutSection describes a single section to add to the
++// final executable. Go binaries only have a fixed set of possible
++// sections, and the symbol kind determines the section.
++type layoutSection struct {
++	Segment string
++	Section string
++	Kind    goobj.SymKind
++	Index   int
++}
++
++// layout defines the layout of the generated Go executable.
++// The order of entries here is the order in the executable.
++// Entries with the same Segment name must be contiguous.
++var layout = []layoutSection{
++	{Segment: "text", Section: "text", Kind: goobj.STEXT},
++	{Segment: "data", Section: "data", Kind: goobj.SDATA},
++
++	// Later:
++	//	{"rodata", "type", goobj.STYPE},
++	//	{"rodata", "string", goobj.SSTRING},
++	//	{"rodata", "gostring", goobj.SGOSTRING},
++	//	{"rodata", "gofunc", goobj.SGOFUNC},
++	//	{"rodata", "rodata", goobj.SRODATA},
++	//	{"rodata", "functab", goobj.SFUNCTAB},
++	//	{"rodata", "typelink", goobj.STYPELINK},
++	//	{"rodata", "symtab", goobj.SSYMTAB},
++	//	{"rodata", "pclntab", goobj.SPCLNTAB},
++	//	{"data", "noptrdata", goobj.SNOPTRDATA},
++	//	{"data", "bss", goobj.SBSS},
++	//	{"data", "noptrbss", goobj.SNOPTRBSS},
++}
++
++// layoutByKind maps from SymKind to an entry in layout.
++var layoutByKind []*layoutSection
++
++func init() {
++	// Build index from symbol type to layout entry.
++	max := 0
++	for _, sect := range layout {
++		if max <= int(sect.Kind) {
++			max = int(sect.Kind) + 1
++		}
++	}
++	layoutByKind = make([]*layoutSection, max)
++	for i, sect := range layout {
++		layoutByKind[sect.Kind] = &layout[i]
++		sect.Index = i
++	}
++}
++
++// layout arranges symbols into sections and sections into segments,
++// and then it assigns addresses to segments, sections, and symbols.
++func (p *Prog) layout() {
++	sections := make([]*Section, len(layout))
++
++	// Assign symbols to sections using index, creating sections as needed.
++	// Could keep sections separated by type during input instead.
++	for _, sym := range p.Syms {
++		kind := sym.Kind
++		if kind < 0 || int(kind) >= len(layoutByKind) || layoutByKind[kind] == nil {
++			p.errorf("%s: unexpected symbol kind %v", sym.SymID, kind)
++			continue
++		}
++		lsect := layoutByKind[kind]
++		sect := sections[lsect.Index]
++		if sect == nil {
++			sect = &Section{
++				Name:  lsect.Section,
++				Align: 1,
++			}
++			sections[lsect.Index] = sect
++		}
++		if sym.Data.Size > 0 {
++			sect.InFile = true
++		}
++		sym.Section = sect
++		sect.Syms = append(sect.Syms, sym)
++
++		// TODO(rsc): Incorporate alignment information.
++		// First that information needs to be added to the object files.
++		//
++		// if sect.Align < Addr(sym.Align) {
++		//	sect.Align = Addr(sym.Align)
++		// }
++	}
++
++	// Assign sections to segments, creating segments as needed.
++	var seg *Segment
++	for i, sect := range sections {
++		if sect == nil {
++			continue
++		}
++		if seg == nil || seg.Name != layout[i].Segment {
++			seg = &Segment{
++				Name: layout[i].Segment,
++			}
++			p.Segments = append(p.Segments, seg)
++		}
++		sect.Segment = seg
++		seg.Sections = append(seg.Sections, sect)
++	}
++
++	// Assign addresses.
++
++	// TODO(rsc): This choice needs to be informed by both
++	// the formatter and the target architecture.
++	// And maybe eventually a command line flag (sigh).
++	const segAlign = 4096
++
++	// TODO(rsc): Use a larger amount on most systems, which will let the
++	// compiler eliminate more nil checks.
++	if p.UnmappedSize == 0 {
++		p.UnmappedSize = segAlign
++	}
++
++	// TODO(rsc): addr := Addr(0) when generating a shared library or PIE.
++	addr := p.UnmappedSize
++
++	// Account for initial file header.
++	hdrVirt, hdrFile := p.formatter.headerSize(p)
++	addr += hdrVirt
++
++	// Assign addresses to segments, sections, symbols.
++	// Assign sizes to segments, sections.
++	startVirt := addr
++	startFile := hdrFile
++	for _, seg := range p.Segments {
++		addr = round(addr, segAlign)
++		seg.VirtAddr = addr
++		seg.FileOffset = startFile + seg.VirtAddr - startVirt
++		for _, sect := range seg.Sections {
++			addr = round(addr, sect.Align)
++			sect.VirtAddr = addr
++			for _, sym := range sect.Syms {
++				// TODO(rsc): Respect alignment once we have that information.
++				sym.Addr = addr
++				addr += Addr(sym.Size)
++			}
++			sect.Size = addr - sect.VirtAddr
++			if sect.InFile {
++				seg.FileSize = addr - seg.VirtAddr
++			}
++		}
++		seg.VirtSize = addr
++	}
++}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+new file mode 100644
+index 0000000000..9480a21c05
+--- /dev/null
++++ b/src/cmd/link/link_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"debug/goobj"
++	"testing"
++)
++
++func TestLinkHello(t *testing.T) {
++	p := &Prog{
++		GOOS:   "darwin",
++		GOARCH: "amd64",
++		Error:  func(s string) { t.Error(s) },
++	}
++	var buf bytes.Buffer
++	p.link(&buf, "testdata/hello.6")
++	if p.NumError > 0 {
++		return
++	}
++	if len(p.Syms) != 2 || p.Syms[goobj.SymID{"_rt0_go", 0}] == nil || p.Syms[goobj.SymID{"hello", 1}] == nil {
++		t.Errorf("Syms = %v, want [_rt0_go hello<1>]", p.Syms)
++	}
++
++	checkGolden(t, buf.Bytes(), "testdata/link.hello.darwin.amd64")
++
++	// uncomment to leave file behind for execution:
++	// ioutil.WriteFile("a.out", buf.Bytes(), 0777)
++}
+diff --git a/src/cmd/link/load.go b/src/cmd/link/load.go
+new file mode 100644
+index 0000000000..c890ec2e50
+--- /dev/null
++++ b/src/cmd/link/load.go
+@@ -0,0 +1,98 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Loading of code and data fragments from package files into final image.
++
++package main
++
++import (
++	"encoding/binary"
++	"os"
++)
++
++// load allocates segment images, populates them with data
++// read from package files, and applies relocations to the data.
++func (p *Prog) load() {
++	// TODO(rsc): mmap the output file and store the data directly.
++	// That will make writing the output file more efficient.
++	for _, seg := range p.Segments {
++		seg.Data = make([]byte, seg.FileSize)
++	}
++	for _, pkg := range p.Packages {
++		p.loadPackage(pkg)
++	}
++}
++
++// loadPackage loads and relocates data for all the
++// symbols needed in the given package.
++func (p *Prog) loadPackage(pkg *Package) {
++	f, err := os.Open(pkg.File)
++	if err != nil {
++		p.errorf("%v", err)
++		return
++	}
++	defer f.Close()
++
++	// TODO(rsc): Mmap file into memory.
++
++	for _, sym := range pkg.Syms {
++		if sym.Data.Size == 0 {
++			continue
++		}
++		// TODO(rsc): If not using mmap, at least coalesce nearby reads.
++		seg := sym.Section.Segment
++		off := sym.Addr - seg.VirtAddr
++		data := seg.Data[off : off+Addr(sym.Data.Size)]
++		_, err := f.ReadAt(data, sym.Data.Offset)
++		if err != nil {
++			p.errorf("reading %v: %v", sym.SymID, err)
++		}
++		p.relocateSym(sym, data)
++	}
++}
++
++// TODO(rsc): These are the relocation types and should be
++// loaded from debug/goobj. They are not in debug/goobj
++// because they are different for each architecture.
++// The symbol file format needs to be revised to use an
++// architecture-independent set of numbers, and then
++// those should be fetched from debug/goobj instead of
++// defined here. These are the amd64 numbers.
++const (
++	D_ADDR  = 120
++	D_SIZE  = 246
++	D_PCREL = 247
++)
++
++// relocateSym applies relocations to sym's data.
++func (p *Prog) relocateSym(sym *Sym, data []byte) {
++	for i := range sym.Reloc {
++		r := &sym.Reloc[i]
++		targ := p.Syms[r.Sym]
++		if targ == nil {
++			p.errorf("%v: reference to undefined symbol %v", sym, r.Sym)
++			continue
++		}
++		val := targ.Addr + Addr(r.Add)
++		switch r.Type {
++		default:
++			p.errorf("%v: unknown relocation type %d", sym, r.Type)
++		case D_ADDR:
++			// ok
++		case D_PCREL:
++			val -= sym.Addr + Addr(r.Offset+r.Size)
++		}
++		frag := data[r.Offset : r.Offset+r.Size]
++		switch r.Size {
++		default:
++			p.errorf("%v: unknown relocation size %d", sym, r.Size)
++		case 4:
++			// TODO(rsc): Check for overflow?
++			// TODO(rsc): Handle big-endian systems.
++			binary.LittleEndian.PutUint32(frag, uint32(val))
++		case 8:
++			binary.LittleEndian.PutUint64(frag, uint64(val))
++		}
++	}
++}
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+new file mode 100644
+index 0000000000..b23f3f87b0
+--- /dev/null
++++ b/src/cmd/link/main.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Placeholder to keep build building.
++
++package main
++
++func main() {}
+diff --git a/src/cmd/link/prog.go b/src/cmd/link/prog.go
+new file mode 100644
+index 0000000000..ec98e863f2
+--- /dev/null
++++ b/src/cmd/link/prog.go
+@@ -0,0 +1,182 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"debug/goobj"
++	"fmt"
++	"go/build"
++	"io"
++	"os"
++)
++
++// A Prog holds state for constructing an executable (program) image.
++//
++// The usual sequence of operations on a Prog is:
++//
++//	p.init()
++//	p.scan(file)
++//	p.dead()
++//	p.runtime()
++//	p.layout()
++//	p.load()
++//	p.debug()
++//	p.write(w)
++//
++// p.init is in this file. The rest of the methods are in files
++// named for the method. The convenience method p.link runs
++// this sequence.
++//
++type Prog struct {
++	// Context
++	GOOS      string // target operating system
++	GOARCH    string // target architecture
++	Format    string // desired file format ("elf", "macho", ...)
++	formatter formatter
++	Error     func(string) // called to report an error (if set)
++	NumError  int          // number of errors printed
++
++	// Input
++	Packages   map[string]*Package  // loaded packages, by import path
++	Syms       map[goobj.SymID]*Sym // defined symbols, by symbol ID
++	Missing    map[goobj.SymID]bool // missing symbols, by symbol ID
++	MaxVersion int                  // max SymID.Version, for generating fresh symbol IDs
++
++	// Output
++	UnmappedSize Addr       // size of unmapped region at address 0
++	HeaderSize   Addr       // size of object file header
++	Entry        Addr       // virtual address where execution begins
++	Segments     []*Segment // loaded memory segments
++}
++
++// startSymID is the symbol where program execution begins.
++var startSymID = goobj.SymID{Name: "_rt0_go"}
++
++// A formatter takes care of the details of generating a particular
++// kind of executable file.
++type formatter interface {
++	// headerSize returns the footprint of the header for p
++	// in both virtual address space and file bytes.
++	// The footprint does not include any bytes stored at the
++	// end of the file.
++	headerSize(p *Prog) (virt, file Addr)
++
++	// write writes the executable file for p to w.
++	write(w io.Writer, p *Prog)
++}
++
++// An Addr represents a virtual memory address, a file address, or a size.
++// It must be a uint64, not a uintptr, so that a 32-bit linker can still generate a 64-bit binary.
++// It must be unsigned in order to link programs placed at very large start addresses.
++// Math involving Addrs must be checked carefully not to require negative numbers.
++type Addr uint64
++
++// A Package is a Go package loaded from a file.
++type Package struct {
++	*goobj.Package        // table of contents
++	File           string // file name for reopening
++	Syms           []*Sym // symbols defined by this package
++}
++
++// A Sym is a symbol defined in a loaded package.
++type Sym struct {
++	*goobj.Sym          // symbol metadata from package file
++	Package    *Package // package defining symbol
++	Section    *Section // section where symbol is placed in output program
++	Addr       Addr     // virtual address of symbol in output program
++}
++
++// A Segment is a loaded memory segment.
++// A Prog is expected to have segments named "text" and optionally "data",
++// in that order, before any other segments.
++type Segment struct {
++	Name       string     // name of segment: "text", "data", ...
++	VirtAddr   Addr       // virtual memory address of segment base
++	VirtSize   Addr       // size of segment in memory
++	FileOffset Addr       // file offset of segment base
++	FileSize   Addr       // size of segment in file; can be less than VirtSize
++	Sections   []*Section // sections inside segment
++	Data       []byte     // raw data of segment image
++}
++
++// A Section is part of a loaded memory segment.
++type Section struct {
++	Name     string   // name of section: "text", "rodata", "noptrbss", and so on
++	VirtAddr Addr     // virtual memory address of section base
++	Size     Addr     // size of section in memory
++	Align    Addr     // required alignment
++	InFile   bool     // section has image data in file (like data, unlike bss)
++	Syms     []*Sym   // symbols stored in section
++	Segment  *Segment // segment containing section
++}
++
++func (p *Prog) errorf(format string, args ...interface{}) {
++	if p.Error != nil {
++		p.Error(fmt.Sprintf(format, args...))
++	} else {
++		fmt.Fprintf(os.Stderr, format+"\n", args...)
++	}
++	p.NumError++
++}
++
++// link is the one-stop convenience method for running a link.
++// It writes to w the object file generated from using mainFile as the main package.
++func (p *Prog) link(w io.Writer, mainFile string) {
++	p.init()
++	p.scan(mainFile)
++	if p.NumError > 0 {
++		return
++	}
++	p.dead()
++	p.runtime()
++	p.layout()
++	if p.NumError > 0 {
++		return
++	}
++	p.load()
++	if p.NumError > 0 {
++		return
++	}
++	p.debug()
++	if p.NumError > 0 {
++		return
++	}
++	p.write(w)
++}
++
++// init initializes p for use by the other methods.
++func (p *Prog) init() {
++	// Set default context if not overridden.
++	if p.GOOS == "" {
++		p.GOOS = build.Default.GOOS
++	}
++	if p.GOARCH == "" {
++		p.GOARCH = build.Default.GOARCH
++	}
++	if p.Format == "" {
++		p.Format = goosFormat[p.GOOS]
++		if p.Format == "" {
++			p.errorf("no default file format for GOOS %q", p.GOOS)
++			return
++		}
++	}
++
++	// Derive internal context.
++	p.formatter = formatters[p.Format]
++	if p.formatter == nil {
++		p.errorf("unknown output file format %q", p.Format)
++		return
++	}
++}
++
++// goosFormat records the default format for each known GOOS value.
++var goosFormat = map[string]string{
++	"darwin": "darwin",
++}
++
++// formatters records the format implementation for each known format value.
++var formatters = map[string]formatter{
++	"darwin": machoFormat{},
++}
+diff --git a/src/cmd/link/prog_test.go b/src/cmd/link/prog_test.go
+new file mode 100644
+index 0000000000..8229b5b91f
+--- /dev/null
++++ b/src/cmd/link/prog_test.go
+@@ -0,0 +1,161 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"testing"
++)
++
++// shiftProg adjusts the addresses in p.
++// It adds vdelta to all virtual addresses and fdelta to all file offsets.
++func shiftProg(p *Prog, vdelta Addr, fdelta Addr) {
++	p.Entry += vdelta
++	for _, seg := range p.Segments {
++		seg.FileOffset += fdelta
++		seg.VirtAddr += vdelta
++		for _, sect := range seg.Sections {
++			sect.VirtAddr += vdelta
++			for _, sym := range sect.Syms {
++				sym.Addr += vdelta
++			}
++		}
++	}
++}
++
++// diffProg returns a list of differences between p and q,
++// assuming p is being checked and q is the correct answer.
++func diffProg(p, q *Prog) []string {
++	var errors []string
++	if p.UnmappedSize != q.UnmappedSize {
++		errors = append(errors, fmt.Sprintf("p.UnmappedSize = %#x, want %#x", p.UnmappedSize, q.UnmappedSize))
++	}
++	if p.HeaderSize != q.HeaderSize {
++		errors = append(errors, fmt.Sprintf("p.HeaderSize = %#x, want %#x", p.HeaderSize, q.HeaderSize))
++	}
++	if p.Entry != q.Entry {
++		errors = append(errors, fmt.Sprintf("p.Entry = %#x, want %#x", p.Entry, q.Entry))
++	}
++	for i := 0; i < len(p.Segments) || i < len(q.Segments); i++ {
++		if i >= len(p.Segments) {
++			errors = append(errors, fmt.Sprintf("p missing segment %q", q.Segments[i].Name))
++			continue
++		}
++		if i >= len(q.Segments) {
++			errors = append(errors, fmt.Sprintf("p has extra segment %q", p.Segments[i].Name))
++			continue
++		}
++		pseg := p.Segments[i]
++		qseg := q.Segments[i]
++		if pseg.Name != qseg.Name {
++			errors = append(errors, fmt.Sprintf("segment %d Name = %q, want %q", i, pseg.Name, qseg.Name))
++			continue // probably out of sync
++		}
++		if pseg.VirtAddr != qseg.VirtAddr {
++			errors = append(errors, fmt.Sprintf("segment %q VirtAddr = %#x, want %#x", pseg.Name, pseg.VirtAddr, qseg.VirtAddr))
++		}
++		if pseg.VirtSize != qseg.VirtSize {
++			errors = append(errors, fmt.Sprintf("segment %q VirtSize = %#x, want %#x", pseg.Name, pseg.VirtSize, qseg.VirtSize))
++		}
++		if pseg.FileOffset != qseg.FileOffset {
++			errors = append(errors, fmt.Sprintf("segment %q FileOffset = %#x, want %#x", pseg.Name, pseg.FileOffset, qseg.FileOffset))
++		}
++		if pseg.FileSize != qseg.FileSize {
++			errors = append(errors, fmt.Sprintf("segment %q FileSize = %#x, want %#x", pseg.Name, pseg.FileSize, qseg.FileSize))
++		}
++		if len(pseg.Data) != len(qseg.Data) {
++			errors = append(errors, fmt.Sprintf("segment %q len(Data) = %d, want %d", pseg.Name, len(pseg.Data), len(qseg.Data)))
++		} else if !bytes.Equal(pseg.Data, qseg.Data) {
++			errors = append(errors, fmt.Sprintf("segment %q Data mismatch:\n\thave %x\n\twant %x", pseg.Name, pseg.Data, qseg.Data))
++		}
++
++		for j := 0; j < len(pseg.Sections) || j < len(qseg.Sections); j++ {
++			if j >= len(pseg.Sections) {
++				errors = append(errors, fmt.Sprintf("segment %q missing section %q", qseg.Sections[i].Name))
++				continue
++			}
++			if j >= len(qseg.Sections) {
++				errors = append(errors, fmt.Sprintf("segment %q has extra section %q", pseg.Sections[i].Name))
++				continue
++			}
++			psect := pseg.Sections[j]
++			qsect := qseg.Sections[j]
++			if psect.Name != qsect.Name {
++				errors = append(errors, fmt.Sprintf("segment %q, section %d Name = %q, want %q", pseg.Name, j, psect.Name, qsect.Name))
++				continue // probably out of sync
++			}
++
++			if psect.VirtAddr != qsect.VirtAddr {
++				errors = append(errors, fmt.Sprintf("segment %q section %q VirtAddr = %#x, want %#x", pseg.Name, psect.Name, psect.VirtAddr, qsect.VirtAddr))
++			}
++			if psect.Size != qsect.Size {
++				errors = append(errors, fmt.Sprintf("segment %q section %q Size = %#x, want %#x", pseg.Name, psect.Name, psect.Size, qsect.Size))
++			}
++			if psect.Align != qsect.Align {
++				errors = append(errors, fmt.Sprintf("segment %q section %q Align = %#x, want %#x", pseg.Name, psect.Name, psect.Align, qsect.Align))
++			}
++		}
++	}
++
++	return errors
++}
++
++// cloneProg returns a deep copy of p.
++func cloneProg(p *Prog) *Prog {
++	q := new(Prog)
++	*q = *p
++	q.Segments = make([]*Segment, len(p.Segments))
++	for i, seg := range p.Segments {
++		q.Segments[i] = cloneSegment(seg)
++	}
++	return p
++}
++
++// cloneSegment returns a deep copy of seg.
++func cloneSegment(seg *Segment) *Segment {
++	t := new(Segment)
++	*t = *seg
++	t.Sections = make([]*Section, len(seg.Sections))
++	for i, sect := range seg.Sections {
++		t.Sections[i] = cloneSection(sect)
++	}
++	t.Data = make([]byte, len(seg.Data))
++	copy(t.Data, seg.Data)
++	return t
++}
++
++// cloneSection returns a deep copy of section.
++func cloneSection(sect *Section) *Section {
++	// At the moment, there's nothing we need to make a deep copy of.
++	t := new(Section)
++	*t = *sect
++	return t
++}
++
++// checkGolden checks that data matches the named file.
++// If not, it reports the error to the test.
++func checkGolden(t *testing.T, data []byte, name string) {
++	golden, err := ioutil.ReadFile(name)
++	if err != nil {
++		t.Errorf("%s: %v", name, err)
++		return
++	}
++	if !bytes.Equal(data, golden) {
++		// TODO(rsc): A better diff would be nice, as needed.
++		i := 0
++		for i < len(data) && i < len(golden) && data[i] == golden[i] {
++			i++
++		}
++		if i >= len(data) {
++			t.Errorf("%s: output file shorter than expected: have %d bytes, want %d", name, len(data), len(golden))
++		} else if i >= len(golden) {
++			t.Errorf("%s: output file larger than expected: have %d bytes, want %d", name, len(data), len(golden))
++		} else {
++			t.Errorf("%s: output file differs at byte %d: have %#02x, want %#02x", name, i, data[i], golden[i])
++		}
++	}
++}
+diff --git a/src/cmd/link/runtime.go b/src/cmd/link/runtime.go
+new file mode 100644
+index 0000000000..6522194da5
+--- /dev/null
++++ b/src/cmd/link/runtime.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generation of runtime-accessible data structures.
++// See also debug.go.
++
++package main
++
++func (p *Prog) runtime() {
++}
+diff --git a/src/cmd/link/scan.go b/src/cmd/link/scan.go
+new file mode 100644
+index 0000000000..951d173f46
+--- /dev/null
++++ b/src/cmd/link/scan.go
+@@ -0,0 +1,119 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Initial scan of packages making up a program.
++
++// TODO(rsc): Rename goobj.SymID.Version to StaticID to avoid confusion with the ELF meaning of version.
++// TODO(rsc): Fix file format so that SBSS/SNOPTRBSS with data is listed as SDATA/SNOPTRDATA.
++// TODO(rsc): Parallelize scan to overlap file i/o where possible.
++
++package main
++
++import (
++	"debug/goobj"
++	"os"
++	"strings"
++)
++
++// scan scans all packages making up the program, starting with package main defined in mainfile.
++func (p *Prog) scan(mainfile string) {
++	p.initScan()
++	p.scanFile("main", mainfile)
++	if len(p.Missing) != 0 {
++		// TODO(rsc): iterate in deterministic order
++		for sym := range p.Missing {
++			p.errorf("undefined: %s", sym)
++		}
++	}
++
++	// TODO(rsc): Walk import graph to diagnose cycles.
++}
++
++// initScan initializes the Prog fields needed by scan.
++func (p *Prog) initScan() {
++	p.Packages = make(map[string]*Package)
++	p.Syms = make(map[goobj.SymID]*Sym)
++	p.Missing = make(map[goobj.SymID]bool)
++	p.Missing[startSymID] = true
++}
++
++// scanFile reads file to learn about the package with the given import path.
++func (p *Prog) scanFile(pkgpath string, file string) {
++	pkg := &Package{
++		File: file,
++	}
++	p.Packages[pkgpath] = pkg
++
++	f, err := os.Open(file)
++	if err != nil {
++		p.errorf("%v", err)
++		return
++	}
++	gp, err := goobj.Parse(f, pkgpath)
++	f.Close()
++	if err != nil {
++		p.errorf("reading %s: %v", file, err)
++		return
++	}
++
++	// TODO(rsc): Change debug/goobj to record package name as gp.Name.
++	// TODO(rsc): If pkgpath == "main", check that gp.Name == "main".
++
++	pkg.Package = gp
++
++	for _, gs := range gp.Syms {
++		// TODO(rsc): Fix file format instead of this workaround.
++		if gs.Data.Size > 0 {
++			switch gs.Kind {
++			case goobj.SBSS:
++				gs.Kind = goobj.SDATA
++			case goobj.SNOPTRBSS:
++				gs.Kind = goobj.SNOPTRDATA
++			}
++		}
++
++		if gs.Version != 0 {
++			gs.Version += p.MaxVersion
++		}
++		for i := range gs.Reloc {
++			r := &gs.Reloc[i]
++			if r.Sym.Version != 0 {
++				r.Sym.Version += p.MaxVersion
++			}
++			if p.Syms[r.Sym] != nil {
++				p.Missing[r.Sym] = true
++			}
++		}
++		if old := p.Syms[gs.SymID]; old != nil {
++			p.errorf("symbol %s defined in both %s and %s", old.Package.File, file)
++			continue
++		}
++		s := &Sym{
++			Sym:     gs,
++			Package: pkg,
++		}
++		pkg.Syms = append(pkg.Syms, s)
++		p.Syms[gs.SymID] = s
++		delete(p.Missing, gs.SymID)
++	}
++	p.MaxVersion += pkg.MaxVersion
++
++	for i, pkgpath := range pkg.Imports {
++		// TODO(rsc): Fix file format to drop .a from recorded import path.
++		pkgpath = strings.TrimSuffix(pkgpath, ".a")
++		pkg.Imports[i] = pkgpath
++
++		p.scanImport(pkgpath)
++	}
++}
++
++// scanImport finds the object file for the given import path and then scans it.
++func (p *Prog) scanImport(pkgpath string) {
++	if p.Packages[pkgpath] != nil {
++		return // already loaded
++	}
++
++	// TODO(rsc): Implement correct search to find file.
++	p.scanFile(pkgpath, "/Users/rsc/rscgo/pkg/darwin_amd64/"+pkgpath+".a")
++}
+diff --git a/src/cmd/link/testdata/hello.6 b/src/cmd/link/testdata/hello.6
+new file mode 100644
+index 0000000000..26a04a2016
+Binary files /dev/null and b/src/cmd/link/testdata/hello.6 differ
+diff --git a/src/cmd/link/testdata/hello.s b/src/cmd/link/testdata/hello.s
+new file mode 100644
+index 0000000000..32ed675033
+--- /dev/null
++++ b/src/cmd/link/testdata/hello.s
+@@ -0,0 +1,15 @@
++TEXT _rt0_go(SB),7,$0
++	MOVL $1, DI
++	MOVL $hello<>(SB), SI
++	MOVL $12, DX
++	MOVL $0x2000004, AX
++	SYSCALL
++	MOVL $0, DI
++	MOVL $0x2000001, AX
++	SYSCALL
++	RET
++
++DATA hello<>+0(SB)/4, $"hell"
++DATA hello<>+4(SB)/4, $"o wo"
++DATA hello<>+8(SB)/4, $"rld\n"
++GLOBL hello<>(SB), $12
+diff --git a/src/cmd/link/testdata/link.hello.darwin.amd64 b/src/cmd/link/testdata/link.hello.darwin.amd64
+new file mode 100755
+index 0000000000..5d4db542a4
+Binary files /dev/null and b/src/cmd/link/testdata/link.hello.darwin.amd64 differ
+diff --git a/src/cmd/link/util.go b/src/cmd/link/util.go
+new file mode 100644
+index 0000000000..b8a6b2cb30
+--- /dev/null
++++ b/src/cmd/link/util.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// round returns size rounded up to the next multiple of align;
++// align must be a power of two.
++func round(size, align Addr) Addr {
++	return (size + align - 1) &^ (align - 1)
++}
+diff --git a/src/cmd/link/write.go b/src/cmd/link/write.go
+new file mode 100644
+index 0000000000..4577506c6a
+--- /dev/null
++++ b/src/cmd/link/write.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Writing of executable and (for hostlink mode) object files.
++
++package main
++
++import "io"
++
++func (p *Prog) write(w io.Writer) {
++	p.Entry = p.Syms[startSymID].Addr
++	p.formatter.write(w, p)
++}

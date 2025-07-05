@@ -11,7 +11,44 @@ Date:   Wed Apr 26 12:48:33 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go     | 3 ++-
  src/cmd/compile/internal/gc/reflect.go | 4 +++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0d598cebec..5064479fbb 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -137,7 +137,8 @@ func dumpobj1(outfile string, mode int) {
+ 
+ 	dumpglobls()
+ 	addptabs()
+-	dumptypestructs(externdcl)
++	addsignats(externdcl)
++	dumpsignats()
+ 	dumptabs()
+ 	dumpimportstrings()
+ 	dumpbasictypes()
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 509cef087a..55704741c5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1404,14 +1404,16 @@ func addsignat(t *types.Type) {
+ 	signatlist[formalType(t)] = true
+ }
+ 
+-func dumptypestructs(dcls []*Node) {
++func addsignats(dcls []*Node) {
+ 	// copy types from dcl list to signatlist
+ 	for _, n := range dcls {
+ 		if n.Op == OTYPE {
+ 			addsignat(n.Type)
+ 		}
+ 	}
++}
+ 
++func dumpsignats() {
+ 	// Process signatlist. Use a loop, as dtypesym adds
+ 	// entries to signatlist while it is being processed.
+ 	signats := make([]typeAndStr, len(signatlist))

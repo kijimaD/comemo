@@ -10,7 +10,125 @@ Date:   Mon Jan 14 08:44:16 2013 +0100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7100049
-
+---
  src/pkg/encoding/json/decode.go      | 34 ++++++++++++++++++++++++----------
  src/pkg/encoding/json/decode_test.go | 22 ++++++++++++++++++++++
  2 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index d86fd7711b..eb8c75b24a 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -347,15 +347,19 @@ func (d *decodeState) array(v reflect.Value) {
+ 
+ 	// Check type of target.
+ 	switch v.Kind() {
++	case reflect.Interface:
++		if v.NumMethod() == 0 {
++			// Decoding into nil interface?  Switch to non-reflect code.
++			v.Set(reflect.ValueOf(d.arrayInterface()))
++			return
++		}
++		// Otherwise it's invalid.
++		fallthrough
+ 	default:
+ 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
+ 		d.off--
+ 		d.next()
+ 		return
+-	case reflect.Interface:
+-		// Decoding into nil interface?  Switch to non-reflect code.
+-		v.Set(reflect.ValueOf(d.arrayInterface()))
+-		return
+ 	case reflect.Array:
+ 	case reflect.Slice:
+ 		break
+@@ -441,7 +445,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 	v = pv
+ 
+ 	// Decoding into nil interface?  Switch to non-reflect code.
+-	if v.Kind() == reflect.Interface {
++	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
+ 		v.Set(reflect.ValueOf(d.objectInterface()))
+ 		return
+ 	}
+@@ -459,11 +463,9 @@ func (d *decodeState) object(v reflect.Value) {
+ 			v.Set(reflect.MakeMap(t))
+ 		}
+ 	case reflect.Struct:
++
+ 	default:
+ 		d.saveError(&UnmarshalTypeError{"object", v.Type()})
+-	}
+-
+-	if !v.IsValid() {
+ 		d.off--
+ 		d.next() // skip over { } in input
+ 		return
+@@ -646,7 +648,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		case reflect.Bool:
+ 			v.SetBool(value)
+ 		case reflect.Interface:
+-			v.Set(reflect.ValueOf(value))
++			if v.NumMethod() == 0 {
++				v.Set(reflect.ValueOf(value))
++			} else {
++				d.saveError(&UnmarshalTypeError{"bool", v.Type()})
++			}
+ 		}
+ 
+ 	case '"': // string
+@@ -676,7 +682,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		case reflect.String:
+ 			v.SetString(string(s))
+ 		case reflect.Interface:
+-			v.Set(reflect.ValueOf(string(s)))
++			if v.NumMethod() == 0 {
++				v.Set(reflect.ValueOf(string(s)))
++			} else {
++				d.saveError(&UnmarshalTypeError{"string", v.Type()})
++			}
+ 		}
+ 
+ 	default: // number
+@@ -705,6 +715,10 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 				d.saveError(err)
+ 				break
+ 			}
++			if v.NumMethod() != 0 {
++				d.saveError(&UnmarshalTypeError{"number", v.Type()})
++				break
++			}
+ 			v.Set(reflect.ValueOf(n))
+ 
+ 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 562b5b5d88..4c75f19f4a 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1042,3 +1042,25 @@ func TestStringKind(t *testing.T) {
+ 	}
+ 
+ }
++
++var decodeTypeErrorTests = []struct {
++	dest interface{}
++	src  string
++}{
++	{new(string), `{"user": "name"}`}, // issue 4628.
++	{new(error), `{}`},                // issue 4222
++	{new(error), `[]`},
++	{new(error), `""`},
++	{new(error), `123`},
++	{new(error), `true`},
++}
++
++func TestUnmarshalTypeError(t *testing.T) {
++	for _, item := range decodeTypeErrorTests {
++		err := Unmarshal([]byte(item.src), item.dest)
++		if _, ok := err.(*UnmarshalTypeError); !ok {
++			t.Errorf("expected type error for Unmarshal(%q, type %T): got %v instead",
++				item.src, item.dest, err)
++		}
++	}
++}

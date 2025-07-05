@@ -16,6 +16,20 @@ Date:   Tue Jun 20 11:35:10 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 8f63a90299..29e862d832 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1971,7 +1971,7 @@ func (c *conn) serve(ctx context.Context) {
+ 					fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s: %s%s%d %s: %s", v.code, StatusText(v.code), v.text, errorHeaders, v.code, StatusText(v.code), v.text)
+ 					return
+ 				}
+-				publicErr := "400 Bad Request"
++				const publicErr = "400 Bad Request"
+ 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 				return
+ 			}

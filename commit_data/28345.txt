@@ -11,7 +11,97 @@ Date:   Sat May 14 07:54:02 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/gosym/symtab.go      | 19 ++++++++++++++-----
  src/debug/gosym/symtab_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 57 insertions(+), 5 deletions(-)
+
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index c8fa9a0b38..f5f9963095 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -40,8 +40,13 @@ func (s *Sym) Static() bool { return s.Type >= 'a' }
+ // PackageName returns the package part of the symbol name,
+ // or the empty string if there is none.
+ func (s *Sym) PackageName() string {
+-	if i := strings.Index(s.Name, "."); i != -1 {
+-		return s.Name[0:i]
++	pathend := strings.LastIndex(s.Name, "/")
++	if pathend < 0 {
++		pathend = 0
++	}
++
++	if i := strings.Index(s.Name[pathend:], "."); i != -1 {
++		return s.Name[:pathend+i]
+ 	}
+ 	return ""
+ }
+@@ -49,12 +54,16 @@ func (s *Sym) PackageName() string {
+ // ReceiverName returns the receiver type name of this symbol,
+ // or the empty string if there is none.
+ func (s *Sym) ReceiverName() string {
+-	l := strings.Index(s.Name, ".")
+-	r := strings.LastIndex(s.Name, ".")
++	pathend := strings.LastIndex(s.Name, "/")
++	if pathend < 0 {
++		pathend = 0
++	}
++	l := strings.Index(s.Name[pathend:], ".")
++	r := strings.LastIndex(s.Name[pathend:], ".")
+ 	if l == -1 || r == -1 || l == r {
+ 		return ""
+ 	}
+-	return s.Name[l+1 : r]
++	return s.Name[pathend+l+1 : pathend+r]
+ }
+ 
+ // BaseName returns the symbol name without the package or receiver name.
+diff --git a/src/debug/gosym/symtab_test.go b/src/debug/gosym/symtab_test.go
+new file mode 100644
+index 0000000000..08e86336b8
+--- /dev/null
++++ b/src/debug/gosym/symtab_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gosym
++
++import (
++	"fmt"
++	"testing"
++)
++
++func assertString(t *testing.T, dsc, out, tgt string) {
++	if out != tgt {
++		t.Fatalf("Expected: %q Actual: %q for %s", tgt, out, dsc)
++	}
++}
++
++func TestStandardLibPackage(t *testing.T) {
++	s1 := Sym{Name: "io.(*LimitedReader).Read"}
++	s2 := Sym{Name: "io.NewSectionReader"}
++	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "io")
++	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "io")
++	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "(*LimitedReader)")
++	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
++}
++
++func TestStandardLibPathPackage(t *testing.T) {
++	s1 := Sym{Name: "debug/gosym.(*LineTable).PCToLine"}
++	s2 := Sym{Name: "debug/gosym.NewTable"}
++	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "debug/gosym")
++	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "debug/gosym")
++	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "(*LineTable)")
++	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
++}
++
++func TestRemotePackage(t *testing.T) {
++	s1 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.(*FlagSet).PrintDefaults"}
++	s2 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.PrintDefaults"}
++	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "github.com/docker/doc.ker/pkg/mflag")
++	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "github.com/docker/doc.ker/pkg/mflag")
++	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "(*FlagSet)")
++	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
++}

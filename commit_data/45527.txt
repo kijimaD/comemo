@@ -16,7 +16,7 @@ Date:   Tue Oct 27 16:09:40 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/crash_unix_test.go                    |  9 +++
  src/runtime/os_js.go                              |  2 +-
  src/runtime/os_plan9.go                           |  2 +-
@@ -25,3 +25,251 @@ Date:   Tue Oct 27 16:09:40 2020 -0700
  src/runtime/signal_unix.go                        |  8 +-
  src/runtime/testdata/testprogcgo/needmdeadlock.go | 95 +++++++++++++++++++++++
  7 files changed, 127 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index fc87f37408..7aba3d4846 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -358,3 +358,12 @@ func TestSignalM(t *testing.T) {
+ 		t.Fatalf("signal sent to M %d, but received on M %d", want, got)
+ 	}
+ }
++
++// Issue #42207.
++func TestNeedmDeadlock(t *testing.T) {
++	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index ff0ee3aa6b..94983b358d 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -59,7 +59,7 @@ func mpreinit(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigsave(mp *m) {
++func sigsave(p *sigset) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index f3037a7508..62aecea060 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -184,7 +184,7 @@ func mpreinit(mp *m) {
+ 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
+ }
+ 
+-func msigsave(mp *m) {
++func sigsave(p *sigset) {
+ }
+ 
+ func msigrestore(sigmask sigset) {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 9dd140c952..ffb087f9db 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -873,7 +873,7 @@ func mpreinit(mp *m) {
+ }
+ 
+ //go:nosplit
+-func msigsave(mp *m) {
++func sigsave(p *sigset) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 87d4b6e568..b335e1184d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -598,7 +598,7 @@ func schedinit() {
+ 	typelinksinit() // uses maps, activeModules
+ 	itabsinit()     // uses activeModules
+ 
+-	msigsave(_g_.m)
++	sigsave(&_g_.m.sigmask)
+ 	initSigmask = _g_.m.sigmask
+ 
+ 	goargs()
+@@ -1707,6 +1707,18 @@ func needm() {
+ 		exit(1)
+ 	}
+ 
++	// Save and block signals before getting an M.
++	// The signal handler may call needm itself,
++	// and we must avoid a deadlock. Also, once g is installed,
++	// any incoming signals will try to execute,
++	// but we won't have the sigaltstack settings and other data
++	// set up appropriately until the end of minit, which will
++	// unblock the signals. This is the same dance as when
++	// starting a new m to run Go code via newosproc.
++	var sigmask sigset
++	sigsave(&sigmask)
++	sigblock()
++
+ 	// Lock extra list, take head, unlock popped list.
+ 	// nilokay=false is safe here because of the invariant above,
+ 	// that the extra list always contains or will soon contain
+@@ -1724,14 +1736,8 @@ func needm() {
+ 	extraMCount--
+ 	unlockextra(mp.schedlink.ptr())
+ 
+-	// Save and block signals before installing g.
+-	// Once g is installed, any incoming signals will try to execute,
+-	// but we won't have the sigaltstack settings and other data
+-	// set up appropriately until the end of minit, which will
+-	// unblock the signals. This is the same dance as when
+-	// starting a new m to run Go code via newosproc.
+-	msigsave(mp)
+-	sigblock()
++	// Store the original signal mask for use by minit.
++	mp.sigmask = sigmask
+ 
+ 	// Install g (= m->g0) and set the stack bounds
+ 	// to match the current stack. We don't actually know
+@@ -3676,7 +3682,7 @@ func beforefork() {
+ 	// a signal handler before exec if a signal is sent to the process
+ 	// group. See issue #18600.
+ 	gp.m.locks++
+-	msigsave(gp.m)
++	sigsave(&gp.m.sigmask)
+ 	sigblock()
+ 
+ 	// This function is called before fork in syscall package.
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 9318a9b8bc..bf4a319b37 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -1031,15 +1031,15 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	return true
+ }
+ 
+-// msigsave saves the current thread's signal mask into mp.sigmask.
++// sigsave saves the current thread's signal mask into *p.
+ // This is used to preserve the non-Go signal mask when a non-Go
+ // thread calls a Go function.
+ // This is nosplit and nowritebarrierrec because it is called by needm
+ // which may be called on a non-Go thread with no g available.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
++func sigsave(p *sigset) {
++	sigprocmask(_SIG_SETMASK, nil, p)
+ }
+ 
+ // msigrestore sets the current thread's signal mask to sigmask.
+@@ -1111,7 +1111,7 @@ func minitSignalStack() {
+ // thread's signal mask. When this is called all signals have been
+ // blocked for the thread.  This starts with m.sigmask, which was set
+ // either from initSigmask for a newly created thread or by calling
+-// msigsave if this is a non-Go thread calling a Go function. It
++// sigsave if this is a non-Go thread calling a Go function. It
+ // removes all essential signals from the mask, thus causing those
+ // signals to not be blocked. Then it sets the thread's signal mask.
+ // After this is called the thread can receive signals.
+diff --git a/src/runtime/testdata/testprogcgo/needmdeadlock.go b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+new file mode 100644
+index 0000000000..5a9c359006
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+@@ -0,0 +1,95 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++// This is for issue #42207.
++// During a call to needm we could get a SIGCHLD signal
++// which would itself call needm, causing a deadlock.
++
++/*
++#include <signal.h>
++#include <pthread.h>
++#include <sched.h>
++#include <unistd.h>
++
++extern void GoNeedM();
++
++#define SIGNALERS 10
++
++static void* needmSignalThread(void* p) {
++	pthread_t* pt = (pthread_t*)(p);
++	int i;
++
++	for (i = 0; i < 100; i++) {
++		if (pthread_kill(*pt, SIGCHLD) < 0) {
++			return NULL;
++		}
++		usleep(1);
++	}
++	return NULL;
++}
++
++// We don't need many calls, as the deadlock is only likely
++// to occur the first couple of times that needm is called.
++// After that there will likely be an extra M available.
++#define CALLS 10
++
++static void* needmCallbackThread(void* p) {
++	int i;
++
++	for (i = 0; i < SIGNALERS; i++) {
++		sched_yield(); // Help the signal threads get started.
++	}
++	for (i = 0; i < CALLS; i++) {
++		GoNeedM();
++	}
++	return NULL;
++}
++
++static void runNeedmSignalThread() {
++	int i;
++	pthread_t caller;
++	pthread_t s[SIGNALERS];
++
++	pthread_create(&caller, NULL, needmCallbackThread, NULL);
++	for (i = 0; i < SIGNALERS; i++) {
++		pthread_create(&s[i], NULL, needmSignalThread, &caller);
++	}
++	for (i = 0; i < SIGNALERS; i++) {
++		pthread_join(s[i], NULL);
++	}
++	pthread_join(caller, NULL);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"time"
++)
++
++func init() {
++	register("NeedmDeadlock", NeedmDeadlock)
++}
++
++//export GoNeedM
++func GoNeedM() {
++}
++
++func NeedmDeadlock() {
++	// The failure symptom is that the program hangs because of a
++	// deadlock in needm, so set an alarm.
++	go func() {
++		time.Sleep(5 * time.Second)
++		fmt.Println("Hung for 5 seconds")
++		os.Exit(1)
++	}()
++
++	C.runNeedmSignalThread()
++	fmt.Println("OK")
++}

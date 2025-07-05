@@ -19,7 +19,63 @@ Date:   Thu Oct 14 11:34:00 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/test.go             | 10 ++++++++--
  src/cmd/go/testdata/script/list_test_err.txt | 14 ++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index da6d1cb21d..4cefb62d51 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -678,10 +678,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ }
+ 
+ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
++	var why string
+ 	if !isTestFunc(fn, arg) {
+-		name := fn.Name.String()
++		why = fmt.Sprintf("must be: func %s(%s *testing.%s)", fn.Name.String(), strings.ToLower(arg), arg)
++	}
++	if fn.Type.TypeParams.NumFields() > 0 {
++		why = "test functions cannot have type parameters"
++	}
++	if why != "" {
+ 		pos := testFileSet.Position(fn.Pos())
+-		return fmt.Errorf("%s: wrong signature for %s, must be: func %s(%s *testing.%s)", pos, name, name, strings.ToLower(arg), arg)
++		return fmt.Errorf("%s: wrong signature for %s, %s", pos, fn.Name.String(), why)
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/go/testdata/script/list_test_err.txt b/src/cmd/go/testdata/script/list_test_err.txt
+index c6f1ecf400..25dbb969b0 100644
+--- a/src/cmd/go/testdata/script/list_test_err.txt
++++ b/src/cmd/go/testdata/script/list_test_err.txt
+@@ -44,6 +44,10 @@ stdout 'testdep_b <nil>'
+ stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
+ ! stderr 'wrong signature for TestBad'
+ 
++# go list prints a useful error for generic test functions
++! go list -test -deps genericerr
++stderr 'wrong signature for TestGeneric, test functions cannot have type parameters'
++
+ # go list prints partial information with error if test has cyclic import
+ ! go list -test -deps cycleerr
+ stdout cycleerr
+@@ -106,6 +110,16 @@ import (
+ 
+ func TestBad(t *testing.B) {}
+ 
++-- genericerr/genericerr.go --
++package genericerr
++
++-- genericerr/genericerr_test.go --
++package genericerr
++
++import "testing"
++
++func TestGeneric[T any](t *testing.T) {}
++
+ -- cycleerr/cycleerr_test.go --
+ package cycleerr
+ 

@@ -9,7 +9,43 @@ Date:   Thu Nov 12 18:26:45 2009 -0800
     
     R=rsc
     https://golang.org/cl/154102
-
+---
  src/cmd/gofmt/doc.go   | 2 --
  src/cmd/gofmt/gofmt.go | 4 ----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 5851fe2d99..b0ba5e5f2c 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -24,8 +24,6 @@ The flags are:
+ 		align with spaces instead of tabs.
+ 	-tabwidth=8
+ 		tab width in spaces.
+-	-align=true
+-		align columns.
+ 
+ Debugging flags:
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 4d2d14f521..bec4c88918 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -28,7 +28,6 @@ var (
+ 	trace		= flag.Bool("trace", false, "print parse trace");
+ 
+ 	// layout control
+-	align		= flag.Bool("align", true, "align columns");
+ 	tabwidth	= flag.Int("tabwidth", 8, "tab width");
+ 	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
+ )
+@@ -63,9 +62,6 @@ func parserMode() uint {
+ 
+ func printerMode() uint {
+ 	mode := uint(0);
+-	if !*align {
+-		mode |= printer.RawFormat
+-	}
+ 	if *usespaces {
+ 		mode |= printer.UseSpaces
+ 	}

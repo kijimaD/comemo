@@ -18,7 +18,39 @@ Date:   Mon Feb 18 14:43:06 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/comment.go      | 1 -
  src/go/doc/comment_test.go | 8 ++++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index 0ec42643fd..73857330fa 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -445,7 +445,6 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+ 					w.Write([]byte("\n"))
+ 				} else {
+ 					w.Write([]byte(preIndent))
+-					line = convertQuotes(line)
+ 					w.Write([]byte(line))
+ 				}
+ 			}
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index e0adeb2f5c..0687f3a62b 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -126,6 +126,14 @@ $	pre
+ $	pre2
+ `,
+ 	},
++	{
++		in: "Para.\n\tshould not be ``escaped''",
++		out: []block{
++			{opPara, []string{"Para.\n"}},
++			{opPre, []string{"should not be ``escaped''"}},
++		},
++		text: ".   Para.\n\n$	should not be ``escaped''",
++	},
+ }
+ 
+ func TestBlocks(t *testing.T) {

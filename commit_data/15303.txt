@@ -7,6 +7,24 @@ Date:   Tue Feb 19 19:20:44 2013 +0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/7323064
-
+---
  doc/gccgo_contribute.html | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 8ca13e4ef8..4d268e02c5 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -100,7 +100,9 @@ or <code>gcc/testsuite/go.dg</code> directories in the GCC repository.
+ 
+ <p>
+ Changes to the Go frontend should follow the same process as for the
+-main Go repository, only for the <code>gofrontend</code> project
+-rather than the <code>go</code> project.  Those changes will then be
+-merged into the GCC sources.
++main Go repository, only for the <code>gofrontend</code> project and
++the<code>gofrontend-dev@googlegroups.com</code> mailing list 
++rather than the <code>go</code> project and the
++<code>golang-dev@googlegroups.com</code> mailing list.  Those changes
++will then be merged into the GCC sources.
+ </p>

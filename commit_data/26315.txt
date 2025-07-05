@@ -17,7 +17,7 @@ Date:   Sat Dec 26 09:51:59 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcarchive/main.c   | 39 +++++++++++++++++++++++++++++++++++++++
  src/os/signal/doc.go           |  5 ++++-
  src/runtime/os1_darwin.go      | 17 +++++++++++++++++
@@ -42,3 +42,684 @@ Date:   Sat Dec 26 09:51:59 2015 -0800
  src/runtime/signal2_unix.go    | 14 ++++++++++++++
  src/runtime/signal_windows.go  |  2 +-
  23 files changed, 200 insertions(+), 12 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index cc3170de89..a90138f898 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -2,15 +2,44 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <signal.h>
+ #include <stdint.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ #include "p.h"
+ #include "libgo.h"
+ 
++static void (*oldHandler)(int, siginfo_t*, void*);
++
++static void handler(int signo, siginfo_t* info, void* ctxt) {
++	if (oldHandler) {
++		oldHandler(signo, info, ctxt);
++	}
++}
++
+ int main(void) {
++	struct sigaction sa;
++	struct sigaction osa;
+ 	int32_t res;
+ 
++	// Install our own signal handler.
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = handler;
++	sigemptyset(&sa.sa_mask);
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO;
++	memset(&osa, 0, sizeof osa);
++	sigemptyset(&osa.sa_mask);
++	if (sigaction(SIGSEGV, &sa, &osa) < 0) {
++		perror("sigaction");
++		return 2;
++	}
++	if (osa.sa_handler == SIG_DFL || (osa.sa_flags&SA_ONSTACK) == 0) {
++		fprintf(stderr, "Go runtime did not install signal handler\n");
++		return 2;
++	}
++	oldHandler = osa.sa_sigaction;
++
+ 	if (!DidInitRun()) {
+ 		fprintf(stderr, "ERROR: buildmode=c-archive init should run\n");
+ 		return 2;
+@@ -21,6 +50,16 @@ int main(void) {
+ 		return 2;
+ 	}
+ 
++	// Make sure our signal handler is still the one in use.
++	if (sigaction(SIGSEGV, NULL, &sa) < 0) {
++		perror("sigaction check");
++		return 2;
++	}
++	if (sa.sa_sigaction != handler) {
++		fprintf(stderr, "ERROR: wrong signal handler: %p != %p\n", sa.sa_sigaction, handler);
++		return 2;
++	}
++
+ 	res = FromPkg();
+ 	if (res != 1024) {
+ 		fprintf(stderr, "ERROR: FromPkg()=%d, want 1024\n", res);
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index f90492985f..80e66cffe5 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -172,7 +172,10 @@ When Go code is built with options like -buildmode=c-shared, it will
+ be run as part of an existing non-Go program. The non-Go code may
+ have already installed signal handlers when the Go code starts (that
+ may also happen in unusual cases when using cgo or SWIG; in that case,
+-the discussion here applies).
++the discussion here applies).  For -buildmode=c-archive the Go runtime
++will initialize signals at global constructor time.  For
++-buildmode=c-shared the Go runtime will initialize signals when the
++shared library is loaded.
+ 
+ If the Go runtime sees an existing signal handler for the SIGCANCEL or
+ SIGSETXID signals (which are used only on GNU/Linux), it will turn on
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index d34af6b216..b5a1f59119 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -125,6 +125,15 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+ var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+ 
++// Called to do synchronous initialization of Go code built with
++// -buildmode=c-archive or -buildmode=c-shared.
++// None of the Go runtime is initialized.
++//go:nosplit
++//go:nowritebarrierrec
++func libpreinit() {
++	initsig(true)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+@@ -459,6 +468,8 @@ func memlimit() uintptr {
+ 	return 0
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+@@ -471,6 +482,8 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(uint32(i), &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	var osa usigactiont
+ 	sigaction(uint32(i), nil, &osa)
+@@ -486,6 +499,8 @@ func setsigstack(i int32) {
+ 	sigaction(uint32(i), &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa usigactiont
+ 	sigaction(uint32(i), nil, &sa)
+@@ -505,6 +520,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	s := sigset(m[0])
+ 	sigprocmask(_SIG_SETMASK, &s, nil)
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 5f0f00cb3c..59ffb809d3 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -213,6 +213,8 @@ type sigactiont struct {
+ 	sa_mask      sigset
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+@@ -227,10 +229,14 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	throw("setsigstack")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -253,6 +259,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	var mask sigset
+ 	copy(mask.__bits[:], m[:])
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 52e8dcbc83..05d13439b8 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -220,6 +220,8 @@ type sigactiont struct {
+ 	sa_mask    sigset
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+@@ -234,10 +236,14 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	throw("setsigstack")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -260,6 +266,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m [(_NSIG + 31) / 32]uint32) {
+ 	var mask sigset
+ 	copy(mask.__bits[:], m[:])
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 961faddf10..747a1ac5e3 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -190,6 +190,15 @@ func goenvs() {
+ 	goenvs_unix()
+ }
+ 
++// Called to do synchronous initialization of Go code built with
++// -buildmode=c-archive or -buildmode=c-shared.
++// None of the Go runtime is initialized.
++//go:nosplit
++//go:nowritebarrierrec
++func libpreinit() {
++	initsig(true)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+@@ -298,6 +307,8 @@ func memlimit() uintptr {
+ func sigreturn()
+ func sigtramp()
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+@@ -316,12 +327,11 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 		fn = funcPC(sigtramp)
+ 	}
+ 	sa.sa_handler = fn
+-	// Qemu rejects rt_sigaction of SIGRTMAX (64).
+-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 && i != 64 {
+-		throw("rt_sigaction failure")
+-	}
++	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	var sa sigactiont
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+@@ -336,6 +346,8 @@ func setsigstack(i int32) {
+ 	}
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 
+@@ -362,6 +374,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	var mask sigset
+ 	sigcopyset(&mask, m)
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index c721261369..3af51b7017 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -67,7 +67,7 @@ func goenvs() {
+ 	goenvs_unix()
+ }
+ 
+-func initsig() {
++func initsig(preinit bool) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 2849b5aaf7..79524aaf27 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -206,6 +206,8 @@ type sigactiont struct {
+ 	sa_flags     int32
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+@@ -220,10 +222,14 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	throw("setsigstack")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -246,6 +252,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	var mask sigset
+ 	copy(mask.__bits[:], m[:])
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 24d847747d..7e1aa33f0b 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -220,6 +220,8 @@ type sigactiont struct {
+ 	sa_flags     int32
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+@@ -234,10 +236,14 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	throw("setsigstack")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -260,6 +266,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	sigprocmask(_SIG_SETMASK, sigset(m[0]))
+ }
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index a75e956d17..61ebc1dc20 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -107,7 +107,7 @@ func getRandomData(r []byte) {
+ func goenvs() {
+ }
+ 
+-func initsig() {
++func initsig(preinit bool) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index a112b2edd0..7d9ee5c00e 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -279,6 +279,8 @@ func memlimit() uintptr {
+ 
+ func sigtramp()
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+ 
+@@ -295,6 +297,8 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func setsigstack(i int32) {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -306,6 +310,8 @@ func setsigstack(i int32) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+@@ -328,6 +334,8 @@ func signalstack(s *stack) {
+ 	sigaltstack(&st, nil)
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func updatesigmask(m sigmask) {
+ 	var mask sigset
+ 	copy(mask.__sigbits[:], m[:])
+@@ -478,6 +486,8 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
+ 	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func raise(sig int32) /* int32 */ {
+ 	sysvicall1(&libc_raise, uintptr(sig))
+ }
+@@ -516,6 +526,8 @@ func setitimer(which int32, value *itimerval, ovalue *itimerval) /* int32 */ {
+ 	sysvicall3(&libc_setitimer, uintptr(which), uintptr(unsafe.Pointer(value)), uintptr(unsafe.Pointer(ovalue)))
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
+ 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
+ }
+@@ -527,6 +539,7 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
+ }
+ 
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
+ 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 23429fd774..b14aabde3d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1088,7 +1088,7 @@ func mstart1() {
+ 			cgoHasExtraM = true
+ 			newextram()
+ 		}
+-		initsig()
++		initsig(false)
+ 	}
+ 
+ 	if fn := _g_.m.mstartfn; fn != nil {
+diff --git a/src/runtime/rt0_darwin_386.s b/src/runtime/rt0_darwin_386.s
+index be2e5640ed..6b404db3a4 100644
+--- a/src/runtime/rt0_darwin_386.s
++++ b/src/runtime/rt0_darwin_386.s
+@@ -25,6 +25,10 @@ TEXT _rt0_386_darwin_lib(SB),NOSPLIT,$0
+ 	MOVL	12(BP), AX
+ 	MOVL	AX, _rt0_386_darwin_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVL	$runtime·libpreinit(SB), AX
++	CALL	AX
++
+ 	SUBL	$12, SP
+ 
+ 	// Create a new thread to do the runtime initialization and return.
+diff --git a/src/runtime/rt0_darwin_amd64.s b/src/runtime/rt0_darwin_amd64.s
+index c4ebc88522..ad46fd406d 100644
+--- a/src/runtime/rt0_darwin_amd64.s
++++ b/src/runtime/rt0_darwin_amd64.s
+@@ -23,6 +23,10 @@ TEXT _rt0_amd64_darwin_lib(SB),NOSPLIT,$0x48
+ 	MOVQ	DI, _rt0_amd64_darwin_lib_argc<>(SB)
+ 	MOVQ	SI, _rt0_amd64_darwin_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVQ	$runtime·libpreinit(SB), AX
++	CALL	AX
++
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVQ	_cgo_sys_thread_create(SB), AX
+ 	TESTQ	AX, AX
+diff --git a/src/runtime/rt0_darwin_arm.s b/src/runtime/rt0_darwin_arm.s
+index d60985060d..cbbea80ff8 100644
+--- a/src/runtime/rt0_darwin_arm.s
++++ b/src/runtime/rt0_darwin_arm.s
+@@ -25,6 +25,10 @@ TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
+ 	MOVW  R0, _rt0_arm_darwin_lib_argc<>(SB)
+ 	MOVW  R1, _rt0_arm_darwin_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVW	$runtime·libpreinit(SB), R3
++	CALL	(R3)
++
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVW  _cgo_sys_thread_create(SB), R3
+ 	CMP   $0, R3
+diff --git a/src/runtime/rt0_darwin_arm64.s b/src/runtime/rt0_darwin_arm64.s
+index e4e4a30f46..fa676c0abe 100644
+--- a/src/runtime/rt0_darwin_arm64.s
++++ b/src/runtime/rt0_darwin_arm64.s
+@@ -25,6 +25,11 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
+ 
+ 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
+ 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
++
++	// Synchronous initialization.
++	MOVD	$runtime·libpreinit(SB), R4
++	BL	(R4)
++
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVD  _cgo_sys_thread_create(SB), R4
+ 	MOVD  $_rt0_arm64_darwin_lib_go(SB), R0
+diff --git a/src/runtime/rt0_linux_386.s b/src/runtime/rt0_linux_386.s
+index 633e8069df..59a30b41e8 100644
+--- a/src/runtime/rt0_linux_386.s
++++ b/src/runtime/rt0_linux_386.s
+@@ -26,6 +26,10 @@ TEXT _rt0_386_linux_lib(SB),NOSPLIT,$0
+ 	MOVL	12(BP), AX
+ 	MOVL	AX, _rt0_386_linux_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVL	$runtime·libpreinit(SB), AX
++	CALL	AX
++
+ 	SUBL	$8, SP
+ 
+ 	// Create a new thread to do the runtime initialization.
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index 726b550d35..564b51c0b3 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -23,6 +23,10 @@ TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x48
+ 	MOVQ	DI, _rt0_amd64_linux_lib_argc<>(SB)
+ 	MOVQ	SI, _rt0_amd64_linux_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVQ	$runtime·libpreinit(SB), AX
++	CALL	AX
++
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVQ	_cgo_sys_thread_create(SB), AX
+ 	TESTQ	AX, AX
+diff --git a/src/runtime/rt0_linux_arm.s b/src/runtime/rt0_linux_arm.s
+index b71a3f9267..d28c15a43a 100644
+--- a/src/runtime/rt0_linux_arm.s
++++ b/src/runtime/rt0_linux_arm.s
+@@ -26,6 +26,10 @@ TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
+ 	MOVW	R0, _rt0_arm_linux_lib_argc<>(SB)
+ 	MOVW	R1, _rt0_arm_linux_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVW	$runtime·libpreinit(SB), R2
++	CALL	(R2)
++
+ 	// Create a new thread to do the runtime initialization.
+ 	MOVW	_cgo_sys_thread_create(SB), R2
+ 	CMP	$0, R2
+diff --git a/src/runtime/rt0_linux_arm64.s b/src/runtime/rt0_linux_arm64.s
+index 4027527168..2b32e35209 100644
+--- a/src/runtime/rt0_linux_arm64.s
++++ b/src/runtime/rt0_linux_arm64.s
+@@ -20,6 +20,10 @@ TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$40
+ 	MOVD	R0, _rt0_arm64_linux_lib_argc<>(SB)
+ 	MOVD	R1, _rt0_arm64_linux_lib_argv<>(SB)
+ 
++	// Synchronous initialization.
++	MOVD	$runtime·libpreinit(SB), R4
++	BL	(R4)
++
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVD	_cgo_sys_thread_create(SB), R4
+ 	CMP	$0, R4
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 19f37d9709..abb9639d96 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -34,15 +34,33 @@ var (
+ 	maskUpdatedChan chan struct{}
+ )
+ 
+-func initsig() {
++func init() {
+ 	// _NSIG is the number of signals on this operating system.
+ 	// sigtable should describe what to do for all the possible signals.
+ 	if len(sigtable) != _NSIG {
+ 		print("runtime: len(sigtable)=", len(sigtable), " _NSIG=", _NSIG, "\n")
+-		throw("initsig")
++		throw("bad sigtable len")
++	}
++}
++
++var signalsOK bool
++
++// Initialize signals.
++// Called by libpreinit so runtime may not be initialized.
++//go:nosplit
++//go:nowritebarrierrec
++func initsig(preinit bool) {
++	if !preinit {
++		// It's now OK for signal handlers to run.
++		signalsOK = true
++	}
++
++	// For c-archive/c-shared this is called by libpreinit with
++	// preinit == true.
++	if (isarchive || islibrary) && !preinit {
++		return
+ 	}
+ 
+-	// First call: basic setup.
+ 	for i := int32(0); i < _NSIG; i++ {
+ 		t := &sigtable[i]
+ 		if t.flags == 0 || t.flags&_SigDefault != 0 {
+@@ -64,6 +82,8 @@ func initsig() {
+ 	}
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigInstallGoHandler(sig int32) bool {
+ 	// For some signals, we respect an inherited SIG_IGN handler
+ 	// rather than insist on installing our own default handler.
+@@ -101,6 +121,7 @@ func sigenable(sig uint32) {
+ 		<-maskUpdatedChan
+ 		if t.flags&_SigHandling == 0 {
+ 			t.flags |= _SigHandling
++			fwdSig[sig] = getsig(int32(sig))
+ 			setsig(int32(sig), funcPC(sighandler), true)
+ 		}
+ 	}
+@@ -163,6 +184,8 @@ func sigpipe() {
+ // dieFromSignal kills the program with a signal.
+ // This provides the expected exit status for the shell.
+ // This is only called with fatal signals expected to kill the process.
++//go:nosplit
++//go:nowritebarrierrec
+ func dieFromSignal(sig int32) {
+ 	setsig(sig, _SIG_DFL, false)
+ 	updatesigmask(sigmask{})
+diff --git a/src/runtime/signal2_unix.go b/src/runtime/signal2_unix.go
+index 7481b8570a..3fe625f83c 100644
+--- a/src/runtime/signal2_unix.go
++++ b/src/runtime/signal2_unix.go
+@@ -22,6 +22,20 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 		return false
+ 	}
+ 	fwdFn := fwdSig[sig]
++
++	if !signalsOK {
++		// The only way we can get here is if we are in a
++		// library or archive, we installed a signal handler
++		// at program startup, but the Go runtime has not yet
++		// been initialized.
++		if fwdFn == _SIG_DFL {
++			dieFromSignal(int32(sig))
++		} else {
++			sigfwd(fwdFn, sig, info, ctx)
++		}
++		return true
++	}
++
+ 	flags := sigtable[sig].flags
+ 
+ 	// If there is no handler to forward to, no need to forward.
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 5cfa20fbfe..ab7183fe6b 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -191,7 +191,7 @@ func setBadSignalMsg() {
+ 
+ // Following are not implemented.
+ 
+-func initsig() {
++func initsig(preinit bool) {
+ }
+ 
+ func sigenable(sig uint32) {

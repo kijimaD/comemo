@@ -7,6 +7,20 @@ Date:   Thu May 14 12:26:27 2015 +0900
     Change-Id: I73c0aeb4b27fec84149c8e89753b27ff2190eabf
     Reviewed-on: https://go-review.googlesource.com/10074
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/error_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index c65d3f9d8a..772e0c7f5f 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -521,7 +521,7 @@ third:
+ func TestFileError(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+-		t.Skip("not supported on %s", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+ 	f, err := ioutil.TempFile("", "go-nettest")

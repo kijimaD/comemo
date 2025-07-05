@@ -10,6 +10,35 @@ Date:   Wed Apr 14 12:55:43 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pe.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 9643f9690c..3490dd698a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -534,12 +534,12 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 				break
+ 			}
+ 		}
+-		eaddr := int32(sect.Vaddr + sect.Length)
++		eaddr := int64(sect.Vaddr + sect.Length)
+ 		for _, s := range syms {
+ 			if !ldr.AttrReachable(s) {
+ 				continue
+ 			}
+-			if ldr.SymValue(s) >= int64(eaddr) {
++			if ldr.SymValue(s) >= eaddr {
+ 				break
+ 			}
+ 			// Compute external relocations on the go, and pass to PEreloc1
+@@ -559,7 +559,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
+ 				}
+ 				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+-					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
++					ctxt.Errorf(s, "unsupported obj reloc %v/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
+ 				}
+ 			}
+ 		}

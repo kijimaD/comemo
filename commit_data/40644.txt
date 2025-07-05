@@ -15,6 +15,20 @@ Date:   Fri Jun 7 22:59:40 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/env_write.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index e944d09e96..ea15087c5d 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -5,7 +5,7 @@ env AppData=$HOME/windowsappdata
+ env home=$HOME/plan9home
+ go env GOENV
+ [aix] stdout $HOME/.config/go/env
+-[darwin] stdout $HOME/Library/Application Support/go/env
++[darwin] stdout '$HOME/Library/Application Support/go/env'
+ [freebsd] stdout $HOME/.config/go/env
+ [linux] stdout $HOME/.config/go/env
+ [netbsd] stdout $HOME/.config/go/env

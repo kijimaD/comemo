@@ -12,10 +12,203 @@ Date:   Wed Mar 24 16:28:59 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/740041
-
+---
  lib/godoc/dirlist.html |  4 ++--
  lib/godoc/godoc.html   |  6 +++---
  lib/godoc/package.html | 16 ++++++++--------
  lib/godoc/search.html  | 12 ++++++------
  src/cmd/godoc/godoc.go |  9 +++++----
  5 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index a94f249d91..3c1e3aae01 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -18,9 +18,9 @@
+ </tr>
+ {.repeated section @}
+ <tr>
+-	<td align="left"><a href="{Name|html-esc}{@|dir/}">{Name|html}{@|dir/}</a></td>
++	<td align="left"><a href="{Name|html-esc}{@|dir/}">{Name|html-esc}{@|dir/}</a></td>
+ 	<td></td>
+-	<td align="right">{Size|html}</td>
++	<td align="right">{Size|html-esc}</td>
+ 	<td></td>
+ 	<td align="left">{Mtime_ns|time}</td>
+ </tr>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index f41b46a273..99cd55eae6 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -4,7 +4,7 @@
+ <head>
+ 
+   <meta http-equiv="content-type" content="text/html; charset=utf-8">
+-  <title>{Title|html}</title>
++  <title>{Title|html-esc}</title>
+ 
+   <link rel="stylesheet" type="text/css" href="/doc/style.css">
+   <script type="text/javascript" src="/doc/godocs.js"></script>
+@@ -121,7 +121,7 @@
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Last update</li>
+ 	<li>{Timestamp|time}</li>
+-	<li>Build version {Version|html}</li>
++	<li>Build version {Version|html-esc}</li>
+   </ul>
+ </div>
+ 
+@@ -133,7 +133,7 @@
+     </div>
+   {.end}
+ 
+-  <h1 id="generatedHeader">{Title|html}</h1>
++  <h1 id="generatedHeader">{Title|html-esc}</h1>
+ 
+   <!-- The Table of Contents is automatically inserted in this <div>.
+        Do not delete this <div>. -->
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index d0a5970b38..0eff78e45c 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -12,7 +12,7 @@
+ {.section PDoc}
+ 	<!-- PackageName is printed as title by the top-level template -->
+ 	{.section IsPkg}
+-		<p><code>import "{ImportPath|html}"</code></p>
++		<p><code>import "{ImportPath|html-esc}"</code></p>
+ 	{.end}
+ 	{Doc|html-comment}
+ 	{.section IsPkg}
+@@ -21,7 +21,7 @@
+ 			<h4>Package files</h4>
+ 			<span style="font-size:90%">
+ 			{.repeated section @}
+-				<a href="{@|url-src}">{@|localname}</a>
++				<a href="/{@|url-src}">{@|localname}</a>
+ 			{.end}
+ 			</span>
+ 			</p>
+@@ -43,14 +43,14 @@
+ 	{.end}
+ 	{.section Funcs}
+ 		{.repeated section @}
+-			<h2 id="{Name|html-esc}">func <a href="{Decl|url-pos}">{Name|html}</a></h2>
++			<h2 id="{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h2>
+ 			<p><code>{Decl|html}</code></p>
+ 			{Doc|html-comment}
+ 		{.end}
+ 	{.end}
+ 	{.section Types}
+ 		{.repeated section @}
+-			<h2 id="{Type.Name|html-esc}">type <a href="{Decl|url-pos}">{Type.Name|html}</a></h2>
++			<h2 id="{Type.Name|html-esc}">type <a href="/{Decl|url-pos}">{Type.Name|html-esc}</a></h2>
+ 			{Doc|html-comment}
+ 			<p><pre>{Decl|html}</pre></p>
+ 			{.repeated section Consts}
+@@ -62,12 +62,12 @@
+ 				<pre>{Decl|html}</pre>
+ 			{.end}
+ 			{.repeated section Factories}
+-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="{Decl|url-pos}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 			{.repeated section Methods}
+-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="{Decl|url-pos}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+@@ -103,9 +103,9 @@
+ 	{.repeated section List}
+ 		<tr>
+ 		{Depth|padding}
+-		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html}<a></td>
++		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html-esc}<a></td>
+ 		<td></td>
+-		<td align="left">{Synopsis|html}</td>
++		<td align="left">{Synopsis|html-esc}</td>
+ 		</tr>
+ 	{.end}
+ 	</table>
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 3d417aa271..febd7e5693 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -14,7 +14,7 @@
+ 	<p>
+ 	<span class="alert" style="font-size:120%">Did you mean: </span>
+ 	{.repeated section Alts}
+-		<a href="search?q={@|html-esc}" style="font-size:120%">{@|html}</a>
++		<a href="search?q={@|html-esc}" style="font-size:120%">{@|html-esc}</a>
+ 	{.end}
+ 	</p>
+ {.end}
+@@ -22,11 +22,11 @@
+ 	{.section Decls}
+ 		<h2 id="Global">Package-level declarations</h2>
+ 		{.repeated section @}
+-			<h3 id="Global_{Pak.Path|url-pkg}">package <a href="{Pak.Path|url-pkg}">{Pak.Name|html}</a></h3>
++			<h3 id="Global_{Pak.Path|url-pkg}">package <a href="/{Pak.Path|url-pkg}">{Pak.Name|html-esc}</a></h3>
+ 			{.repeated section Files}
+ 				{.repeated section Groups}
+ 					{.repeated section Infos}
+-						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
++						<a href="/{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
+ 						<pre>{@|infoSnippet}</pre>
+ 					{.end}
+ 				{.end}
+@@ -36,9 +36,9 @@
+ 	{.section Others}
+ 		<h2 id="Local">Local declarations and uses</h2>
+ 		{.repeated section @}
+-			<h3 id="Local_{Pak.Path|url-pkg}">package <a href="{Pak.Path|url-pkg}">{Pak.Name|html}</a></h3>
++			<h3 id="Local_{Pak.Path|url-pkg}">package <a href="/{Pak.Path|url-pkg}">{Pak.Name|html-esc}</a></h3>
+ 			{.repeated section Files}
+-				<a href="{File.Path|url-src}?h={Query|html-esc}">{File.Path|url-src}</a>
++				<a href="/{File.Path|url-src}?h={Query|html-esc}">{File.Path|url-src}</a>
+ 				<table class="layout">
+ 				{.repeated section Groups}
+ 					<tr>
+@@ -47,7 +47,7 @@
+ 					<td align="left" width="4"></td>
+ 					<td>
+ 					{.repeated section Infos}
+-						<a href="{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
++						<a href="/{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
+ 					{.end}
+ 					</td>
+ 					</tr>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 60a5c38641..bde1b4868b 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -692,7 +692,8 @@ func urlFmt(w io.Writer, x interface{}, format string) {
+ 	// map path
+ 	relpath := relativePath(path)
+ 
+-	// convert to URL
++	// convert to relative URLs so that they can also
++	// be used as relative file names in .txt templates
+ 	switch format {
+ 	default:
+ 		// we should never reach here, but be resilient
+@@ -705,13 +706,13 @@ func urlFmt(w io.Writer, x interface{}, format string) {
+ 		if strings.HasPrefix(relpath, "src/pkg/") {
+ 			relpath = relpath[len("src/pkg/"):]
+ 		}
+-		template.HTMLEscape(w, []byte(pkgHandler.pattern+relpath))
++		template.HTMLEscape(w, []byte(pkgHandler.pattern[1:]+relpath)) // remove trailing '/' for relative URL
+ 	case "url-src":
+-		template.HTMLEscape(w, []byte("/"+relpath))
++		template.HTMLEscape(w, []byte(relpath))
+ 	case "url-pos":
+ 		// line id's in html-printed source are of the
+ 		// form "L%d" where %d stands for the line number
+-		template.HTMLEscape(w, []byte("/"+relpath))
++		template.HTMLEscape(w, []byte(relpath))
+ 		fmt.Fprintf(w, "#L%d", line)
+ 	}
+ }

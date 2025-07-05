@@ -9,7 +9,96 @@ Date:   Thu Jul 16 10:12:43 2015 +1000
     Change-Id: Ifece75b8d1d822869df8abf654725a00bef4fc25
     Reviewed-on: https://go-review.googlesource.com/12280
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      |  5 +++--
  CONTRIBUTORS | 10 ++++++----
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 77a1c37fac..d4412104c9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -77,7 +77,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ato Araki <ato.araki@gmail.com>
+ Aulus Egnatius Varialus <varialus@gmail.com>
+ awaw fumin <awawfumin@gmail.com>
+-Aymerick <aymerick@jehanne.org>
++Aymerick Jéhanne <aymerick@jehanne.org>
+ Ben Burkert <ben@benburkert.com>
+ Ben Olive <sionide21@gmail.com>
+ Benjamin Black <b@b3k.us>
+@@ -101,8 +101,8 @@ Bryan Ford <brynosaurus@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
+ Carl Chatfield <carlchatfield@gmail.com>
+-Carlos C <uldericofilho@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
++Carlos Cirello <uldericofilho@gmail.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+ Cezar Sá Espinola <cezarsa@gmail.com>
+@@ -206,6 +206,7 @@ Gary Burd <gary@beagledreams.com>
+ Gautham Thambidorai <gautham.dorai@gmail.com>
+ Geert-Johan Riemer <gjr19912@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
++George Shammas <george@shamm.as> <georgyo@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ce57f65c0e..84e89fcb97 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -113,7 +113,7 @@ Ato Araki <ato.araki@gmail.com>
+ Aulus Egnatius Varialus <varialus@gmail.com>
+ Austin Clements <austin@google.com> <aclements@csail.mit.edu>
+ awaw fumin <awawfumin@gmail.com>
+-Aymerick <aymerick@jehanne.org>
++Aymerick Jéhanne <aymerick@jehanne.org>
+ Balazs Lecz <leczb@google.com>
+ Ben Burkert <ben@benburkert.com>
+ Ben Eitzen <eitzenb@golang.org>
+@@ -152,8 +152,8 @@ Carl Chatfield <carlchatfield@gmail.com>
+ Carl Jackson <carl@stripe.com>
+ Carl Mastrangelo <notcarl@google.com>
+ Carl Shapiro <cshapiro@google.com> <cshapiro@golang.org>
+-Carlos C <uldericofilho@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
++Carlos Cirello <uldericofilho@gmail.com>
+ Cary Hull <chull@google.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+@@ -286,6 +286,7 @@ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Gautham Thambidorai <gautham.dorai@gmail.com>
+ Geert-Johan Riemer <gjr19912@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
++George Shammas <george@shamm.as> <georgyo@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+@@ -474,7 +475,7 @@ Matt Jones <mrjones@google.com>
+ Matt Layher <mdlayher@gmail.com>
+ Matt Reiferson <mreiferson@gmail.com>
+ Matt T. Proud <matt.proud@gmail.com>
+-Matt Williams <gh@mattyw.net>
++Matt Williams <gh@mattyw.net> <mattyjwilliams@gmail.com>
+ Matthew Brennan <matty.brennan@gmail.com>
+ Matthew Cottingham <mattcottingham@gmail.com>
+ Matthew Dempsky <mdempsky@google.com>
+@@ -504,6 +505,7 @@ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
+ Michael Teichgräber <mteichgraeber@gmx.de> <mt4swm@googlemail.com>
+ Michael Vetter <g.bluehut@gmail.com>
+ Michał Derkacz <ziutek@lnet.pl>
++Michalis Kargakis <michaliskargakis@gmail.com>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mihai Borobocea <MihaiBorobocea@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
+@@ -631,7 +633,7 @@ Scott Ferguson <scottwferg@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Scott Schwartz <scotts@golang.org>
+ Sean Burford <sburford@google.com>
+-Sebastien Binet	<seb.binet@gmail.com>
++Sebastien Binet <seb.binet@gmail.com>
+ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>

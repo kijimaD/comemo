@@ -8,6 +8,25 @@ Date:   Sat Sep 22 07:25:41 2012 +1000
     R=golang-dev, iant, rsc, iant, devon.odell
     CC=golang-dev
     https://golang.org/cl/6553050
-
+---
  src/cmd/cgo/gcc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d16d0202f6..eee7602307 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1190,11 +1190,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		t.Go = name // publish before recursive calls
+ 		goIdent[name.Name] = name
+ 		switch dt.Kind {
+-		case "union", "class":
++		case "class", "union":
+ 			t.Go = c.Opaque(t.Size)
+ 			if t.C.Empty() {
+ 				t.C.Set("typeof(unsigned char[%d])", t.Size)
+ 			}
++			t.Align = 1 // TODO: should probably base this on field alignment.
+ 			typedef[name.Name] = t
+ 		case "struct":
+ 			g, csyntax, align := c.Struct(dt, pos)

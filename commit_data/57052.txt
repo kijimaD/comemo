@@ -13,6 +13,30 @@ Date:   Tue May 30 19:59:43 2023 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Bypass: Keith Randall <khr@golang.org>
-
+---
  src/runtime/trace.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 2f9e141b09..ac80ca2902 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -15,6 +15,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/goos"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -993,8 +994,9 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
+ 
+ // tracefpunwindoff returns true if frame pointer unwinding for the tracer is
+ // disabled via GODEBUG or not supported by the architecture.
++// TODO(#60254): support frame pointer unwinding on plan9/amd64.
+ func tracefpunwindoff() bool {
+-	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
++	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64) || goos.IsPlan9 == 1
+ }
+ 
+ // fpTracebackPCs populates pcBuf with the return addresses for each frame and

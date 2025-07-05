@@ -19,7 +19,48 @@ Date:   Tue Apr 19 15:14:26 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/pprof/mprof_test.go | 2 +-
  src/runtime/slice.go            | 9 +++++++--
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index d15102c703..0fff9d46d9 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -82,7 +82,7 @@ func TestMemoryProfiler(t *testing.T) {
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
+ `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+ 
+-		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
+ `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index f9414d7658..873e97ebff 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -55,7 +55,12 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
+ 		panic(errorString("makeslice: cap out of range"))
+ 	}
+ 
+-	p := newarray(t.elem, uintptr(cap))
++	et := t.elem
++	var flags uint32
++	if et.kind&kindNoPointers != 0 {
++		flags = flagNoScan
++	}
++	p := mallocgc(et.size*uintptr(cap), et, flags)
+ 	return slice{p, len, cap}
+ }
+ 
+@@ -130,7 +135,7 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 		memclr(add(p, lenmem), capmem-lenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+-		p = newarray(et, uintptr(newcap))
++		p = mallocgc(capmem, et, 0)
+ 		if !writeBarrier.enabled {
+ 			memmove(p, old.array, lenmem)
+ 		} else {

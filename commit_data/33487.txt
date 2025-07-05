@@ -9,8 +9,55 @@ Date:   Fri Jun 9 12:29:43 2017 -0400
     Change-Id: I3a1dcfb83a27d8ff50a658060a46e1a3f481f6c7
     Reviewed-on: https://go-review.googlesource.com/56276
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 6 ++++--
  src/cmd/go/go_test.go               | 1 +
  src/cmd/go/internal/help/helpdoc.go | 6 ++++--
  3 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c3d75ee793..5f7de4adc0 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -917,8 +917,10 @@
+ // comment, indicating that the package sources are included
+ // for documentation only and must not be used to build the
+ // package binary. This enables distribution of Go packages in
+-// their compiled form alone. See the go/build package documentation
+-// for more details.
++// their compiled form alone. Even binary-only packages require
++// accurate import blocks listing required dependencies, so that
++// those dependencies can be supplied when linking the resulting
++// command.
+ //
+ //
+ // GOPATH environment variable
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f0bdf97bd9..3aecc75f87 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3618,6 +3618,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
+ 
+ 		package p1
++		import _ "fmt"
+ 		func G()
+ 	`)
+ 	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (first)")
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index b9349ee889..508ff60862 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -565,8 +565,10 @@ Non-test Go source files can also include a //go:binary-only-package
+ comment, indicating that the package sources are included
+ for documentation only and must not be used to build the
+ package binary. This enables distribution of Go packages in
+-their compiled form alone. See the go/build package documentation
+-for more details.
++their compiled form alone. Even binary-only packages require
++accurate import blocks listing required dependencies, so that
++those dependencies can be supplied when linking the resulting
++command.
+ 	`,
+ }
+ 

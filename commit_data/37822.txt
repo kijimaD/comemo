@@ -16,6 +16,38 @@ Date:   Fri Aug 3 20:51:25 2018 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 06adccd9a4..d4f9dc4fbb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -805,10 +805,14 @@ func runInstall(dir string, ch chan struct{}) {
+ 		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
+ 	}
+ 	compile = append(compile, gofiles...)
+-	run(path, CheckExit|ShowOutput, compile...)
++	var wg sync.WaitGroup
++	// We use bgrun and immediately wait for it instead of calling run() synchronously.
++	// This executes all jobs through the bgwork channel and allows the process
++	// to exit cleanly in case an error occurs.
++	bgrun(&wg, path, compile...)
++	bgwait(&wg)
+ 
+ 	// Compile the files.
+-	var wg sync.WaitGroup
+ 	for _, p := range files {
+ 		if !strings.HasSuffix(p, ".s") {
+ 			continue
+@@ -858,7 +862,8 @@ func runInstall(dir string, ch chan struct{}) {
+ 
+ 	// Remove target before writing it.
+ 	xremove(link[targ])
+-	run("", CheckExit|ShowOutput, link...)
++	bgrun(&wg, "", link...)
++	bgwait(&wg)
+ }
+ 
+ // matchfield reports whether the field (x,y,z) matches this build.

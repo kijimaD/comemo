@@ -9,8 +9,130 @@ Date:   Sat Mar 2 10:56:51 2013 +0900
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/7445046
-
+---
  src/pkg/net/interface_bsd_test.go   | 10 ++++++----
  src/pkg/net/interface_linux_test.go | 12 +++++++-----
  src/pkg/net/interface_unix_test.go  |  8 ++++++--
  3 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/interface_bsd_test.go b/src/pkg/net/interface_bsd_test.go
+index c6e1bf731a..aa1141903b 100644
+--- a/src/pkg/net/interface_bsd_test.go
++++ b/src/pkg/net/interface_bsd_test.go
+@@ -11,11 +11,11 @@ import (
+ 	"os/exec"
+ )
+ 
+-func (ti *testInterface) setBroadcast(suffix int) {
++func (ti *testInterface) setBroadcast(suffix int) error {
+ 	ti.name = fmt.Sprintf("vlan%d", suffix)
+ 	xname, err := exec.LookPath("ifconfig")
+ 	if err != nil {
+-		xname = "ifconfig"
++		return err
+ 	}
+ 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+ 		Path: xname,
+@@ -25,15 +25,16 @@ func (ti *testInterface) setBroadcast(suffix int) {
+ 		Path: xname,
+ 		Args: []string{"ifconfig", ti.name, "destroy"},
+ 	})
++	return nil
+ }
+ 
+-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
++func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
+ 	ti.name = fmt.Sprintf("gif%d", suffix)
+ 	ti.local = local
+ 	ti.remote = remote
+ 	xname, err := exec.LookPath("ifconfig")
+ 	if err != nil {
+-		xname = "ifconfig"
++		return err
+ 	}
+ 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+ 		Path: xname,
+@@ -47,4 +48,5 @@ func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
+ 		Path: xname,
+ 		Args: []string{"ifconfig", ti.name, "destroy"},
+ 	})
++	return nil
+ }
+diff --git a/src/pkg/net/interface_linux_test.go b/src/pkg/net/interface_linux_test.go
+index 50d3dc6240..085d3de9d2 100644
+--- a/src/pkg/net/interface_linux_test.go
++++ b/src/pkg/net/interface_linux_test.go
+@@ -10,11 +10,11 @@ import (
+ 	"testing"
+ )
+ 
+-func (ti *testInterface) setBroadcast(suffix int) {
++func (ti *testInterface) setBroadcast(suffix int) error {
+ 	ti.name = fmt.Sprintf("gotest%d", suffix)
+ 	xname, err := exec.LookPath("ip")
+ 	if err != nil {
+-		xname = "ip"
++		return err
+ 	}
+ 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+ 		Path: xname,
+@@ -24,15 +24,16 @@ func (ti *testInterface) setBroadcast(suffix int) {
+ 		Path: xname,
+ 		Args: []string{"ip", "link", "delete", ti.name, "type", "dummy"},
+ 	})
++	return nil
+ }
+ 
+-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
++func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
+ 	ti.name = fmt.Sprintf("gotest%d", suffix)
+ 	ti.local = local
+ 	ti.remote = remote
+ 	xname, err := exec.LookPath("ip")
+ 	if err != nil {
+-		xname = "ip"
++		return err
+ 	}
+ 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+ 		Path: xname,
+@@ -44,12 +45,13 @@ func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
+ 	})
+ 	xname, err = exec.LookPath("ifconfig")
+ 	if err != nil {
+-		xname = "ifconfig"
++		return err
+ 	}
+ 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
+ 		Path: xname,
+ 		Args: []string{"ifconfig", ti.name, "inet", local, "dstaddr", remote},
+ 	})
++	return nil
+ }
+ 
+ const (
+diff --git a/src/pkg/net/interface_unix_test.go b/src/pkg/net/interface_unix_test.go
+index 2040d163e4..6dbd6e6e7b 100644
+--- a/src/pkg/net/interface_unix_test.go
++++ b/src/pkg/net/interface_unix_test.go
+@@ -53,7 +53,9 @@ func TestPointToPointInterface(t *testing.T) {
+ 	ip := ParseIP(remote)
+ 	for i := 0; i < 3; i++ {
+ 		ti := &testInterface{}
+-		ti.setPointToPoint(5963+i, local, remote)
++		if err := ti.setPointToPoint(5963+i, local, remote); err != nil {
++			t.Skipf("test requries external command: %v", err)
++		}
+ 		if err := ti.setup(); err != nil {
+ 			t.Fatalf("testInterface.setup failed: %v", err)
+ 		} else {
+@@ -98,7 +100,9 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
+ 			t.Fatalf("Interfaces failed: %v", err)
+ 		}
+ 		ti := &testInterface{}
+-		ti.setBroadcast(5682 + i)
++		if err := ti.setBroadcast(5682 + i); err != nil {
++			t.Skipf("test requires external command: %v", err)
++		}
+ 		if err := ti.setup(); err != nil {
+ 			t.Fatalf("testInterface.setup failed: %v", err)
+ 		} else {

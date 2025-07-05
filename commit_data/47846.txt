@@ -13,8 +13,176 @@ Date:   Tue Apr 13 14:12:43 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go | 67 ++++++++++++++++++++++++++++++++++++++
  src/runtime/plugin.go              |  3 +-
  src/runtime/symtab.go              | 12 +++++--
  3 files changed, 79 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index b894e8d30d..28a8c669c0 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -30,6 +30,18 @@ func TestMain(m *testing.M) {
+ 	os.Exit(testMain(m))
+ }
+ 
++// tmpDir is used to cleanup logged commands -- s/tmpDir/$TMPDIR/
++var tmpDir string
++
++// prettyPrintf prints lines with tmpDir sanitized.
++func prettyPrintf(format string, args ...interface{}) {
++	s := fmt.Sprintf(format, args...)
++	if tmpDir != "" {
++		s = strings.ReplaceAll(s, tmpDir, "$TMPDIR")
++	}
++	fmt.Print(s)
++}
++
+ func testMain(m *testing.M) int {
+ 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
+ 	// declaring the same path.
+@@ -39,6 +51,7 @@ func testMain(m *testing.M) int {
+ 		log.Panic(err)
+ 	}
+ 	defer os.RemoveAll(GOPATH)
++	tmpDir = GOPATH
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "testplugin")
+ 	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
+@@ -49,14 +62,20 @@ func testMain(m *testing.M) int {
+ 		if err := overlayDir(dstRoot, srcRoot); err != nil {
+ 			log.Panic(err)
+ 		}
++		prettyPrintf("mkdir -p %s\n", dstRoot)
++		prettyPrintf("rsync -a %s/ %s\n", srcRoot, dstRoot)
++
+ 		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
+ 			log.Panic(err)
+ 		}
++		prettyPrintf("echo 'module testplugin' > %s/go.mod\n", dstRoot)
+ 	}
+ 
+ 	os.Setenv("GOPATH", filepath.Join(GOPATH, "alt"))
+ 	if err := os.Chdir(altRoot); err != nil {
+ 		log.Panic(err)
++	} else {
++		prettyPrintf("cd %s\n", altRoot)
+ 	}
+ 	os.Setenv("PWD", altRoot)
+ 	goCmd(nil, "build", "-buildmode=plugin", "-o", filepath.Join(modRoot, "plugin-mismatch.so"), "./plugin-mismatch")
+@@ -64,6 +83,8 @@ func testMain(m *testing.M) int {
+ 	os.Setenv("GOPATH", GOPATH)
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
++	} else {
++		prettyPrintf("cd %s\n", modRoot)
+ 	}
+ 	os.Setenv("PWD", modRoot)
+ 
+@@ -78,6 +99,7 @@ func testMain(m *testing.M) int {
+ 	if err := os.WriteFile("plugin2-dup.so", so, 0444); err != nil {
+ 		log.Panic(err)
+ 	}
++	prettyPrintf("cp plugin2.so plugin2-dup.so\n")
+ 
+ 	goCmd(nil, "build", "-buildmode=plugin", "-o=sub/plugin1.so", "./sub/plugin1")
+ 	goCmd(nil, "build", "-buildmode=plugin", "-o=unnamed1.so", "./unnamed1/main.go")
+@@ -94,8 +116,53 @@ func goCmd(t *testing.T, op string, args ...string) {
+ 	run(t, "go", append([]string{op, "-gcflags", gcflags}, args...)...)
+ }
+ 
++// escape converts a string to something suitable for a shell command line.
++func escape(s string) string {
++	s = strings.Replace(s, "\\", "\\\\", -1)
++	s = strings.Replace(s, "'", "\\'", -1)
++	// Conservative guess at characters that will force quoting
++	if s == "" || strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
++		s = "'" + s + "'"
++	}
++	return s
++}
++
++// asCommandLine renders cmd as something that could be copy-and-pasted into a command line
++func asCommandLine(cwd string, cmd *exec.Cmd) string {
++	s := "("
++	if cmd.Dir != "" && cmd.Dir != cwd {
++		s += "cd" + escape(cmd.Dir) + ";"
++	}
++	for _, e := range cmd.Env {
++		if !strings.HasPrefix(e, "PATH=") &&
++			!strings.HasPrefix(e, "HOME=") &&
++			!strings.HasPrefix(e, "USER=") &&
++			!strings.HasPrefix(e, "SHELL=") {
++			s += " "
++			s += escape(e)
++		}
++	}
++	// These EVs are relevant to this test.
++	for _, e := range os.Environ() {
++		if strings.HasPrefix(e, "PWD=") ||
++			strings.HasPrefix(e, "GOPATH=") ||
++			strings.HasPrefix(e, "LD_LIBRARY_PATH=") {
++			s += " "
++			s += escape(e)
++		}
++	}
++	for _, a := range cmd.Args {
++		s += " "
++		s += escape(a)
++	}
++	s += " )"
++	return s
++}
++
+ func run(t *testing.T, bin string, args ...string) string {
+ 	cmd := exec.Command(bin, args...)
++	cmdLine := asCommandLine(".", cmd)
++	prettyPrintf("%s\n", cmdLine)
+ 	cmd.Stderr = new(strings.Builder)
+ 	out, err := cmd.Output()
+ 	if err != nil {
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 5e05be71ec..cd7fc5f848 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -115,7 +115,8 @@ func pluginftabverify(md *moduledata) {
+ 			entry2 = f2.entry
+ 		}
+ 		badtable = true
+-		println("ftab entry outside pc range: ", hex(entry), "/", hex(entry2), ": ", name, "/", name2)
++		println("ftab entry", hex(entry), "/", hex(entry2), ": ",
++			name, "/", name2, "outside pc range:[", hex(md.minpc), ",", hex(md.maxpc), "], modulename=", md.modulename, ", pluginpath=", md.pluginpath)
+ 	}
+ 	if badtable {
+ 		throw("runtime: plugin has bad symbol table")
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index c0630c874e..cf759153e7 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -561,7 +561,11 @@ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+ 	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
+-		println("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
++		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
++		if datap.pluginpath != "" {
++			print(", plugin:", datap.pluginpath)
++		}
++		println()
+ 		throw("invalid function symbol table\n")
+ 	}
+ 
+@@ -576,7 +580,11 @@ func moduledataverify1(datap *moduledata) {
+ 			if i+1 < nftab {
+ 				f2name = funcname(f2)
+ 			}
+-			println("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
++			print("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
++			if datap.pluginpath != "" {
++				print(", plugin:", datap.pluginpath)
++			}
++			println()
+ 			for j := 0; j <= i; j++ {
+ 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
+ 			}

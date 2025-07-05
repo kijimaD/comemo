@@ -24,8 +24,83 @@ Date:   Sat Feb 4 14:52:55 2023 +0000
     Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/image/jpeg/huffman.go     |  2 +-
  src/image/jpeg/reader.go      | 11 ++++-------
  src/image/jpeg/reader_test.go | 14 ++++++++++++++
  3 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/image/jpeg/huffman.go b/src/image/jpeg/huffman.go
+index 95aaf71e2f..72444369ab 100644
+--- a/src/image/jpeg/huffman.go
++++ b/src/image/jpeg/huffman.go
+@@ -49,7 +49,7 @@ func (d *decoder) ensureNBits(n int32) error {
+ 	for {
+ 		c, err := d.readByteStuffedByte()
+ 		if err != nil {
+-			if err == io.EOF {
++			if err == io.ErrUnexpectedEOF {
+ 				return errShortHuffmanData
+ 			}
+ 			return err
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index b34072396c..61f2b4020d 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -164,7 +164,10 @@ func (d *decoder) fill() error {
+ 	n, err := d.r.Read(d.bytes.buf[d.bytes.j:])
+ 	d.bytes.j += n
+ 	if n > 0 {
+-		err = nil
++		return nil
++	}
++	if err == io.EOF {
++		err = io.ErrUnexpectedEOF
+ 	}
+ 	return err
+ }
+@@ -261,9 +264,6 @@ func (d *decoder) readFull(p []byte) error {
+ 			break
+ 		}
+ 		if err := d.fill(); err != nil {
+-			if err == io.EOF {
+-				err = io.ErrUnexpectedEOF
+-			}
+ 			return err
+ 		}
+ 	}
+@@ -291,9 +291,6 @@ func (d *decoder) ignore(n int) error {
+ 			break
+ 		}
+ 		if err := d.fill(); err != nil {
+-			if err == io.EOF {
+-				err = io.ErrUnexpectedEOF
+-			}
+ 			return err
+ 		}
+ 	}
+diff --git a/src/image/jpeg/reader_test.go b/src/image/jpeg/reader_test.go
+index 02a2eb6509..cdac2dd756 100644
+--- a/src/image/jpeg/reader_test.go
++++ b/src/image/jpeg/reader_test.go
+@@ -490,6 +490,20 @@ func TestExtraneousData(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue56724(t *testing.T) {
++	b, err := os.ReadFile("../testdata/video-001.jpeg")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	b = b[:24] // truncate image data
++
++	_, err = Decode(bytes.NewReader(b))
++	if err != io.ErrUnexpectedEOF {
++		t.Errorf("got: %v, want: %v", err, io.ErrUnexpectedEOF)
++	}
++}
++
+ func benchmarkDecode(b *testing.B, filename string) {
+ 	data, err := os.ReadFile(filename)
+ 	if err != nil {

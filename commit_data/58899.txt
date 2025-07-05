@@ -15,6 +15,19 @@ Date:   Fri Jan 19 19:01:54 2024 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/net_fake.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 525ff32296..60b52b79fd 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -23,7 +23,6 @@ import (
+ 
+ var (
+ 	sockets         sync.Map // fakeSockAddr → *netFD
+-	fakeSocketIDs   sync.Map // fakeNetFD.id → *netFD
+ 	fakePorts       sync.Map // int (port #) → *netFD
+ 	nextPortCounter atomic.Int32
+ )

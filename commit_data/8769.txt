@@ -7,7 +7,7 @@ Date:   Fri Jun 17 15:23:27 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4646042
-
+---
  src/cmd/5g/reg.c          |  1 +
  src/cmd/6g/reg.c          |  1 +
  src/cmd/8g/reg.c          |  1 +
@@ -16,3 +16,151 @@ Date:   Fri Jun 17 15:23:27 2011 -0400
  src/cmd/gc/subr.c         | 30 ++++++++++++++++++++++++++----
  src/pkg/runtime/error.go  |  5 +++++
  7 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 5fba02c9e0..a4c61e4808 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1525,6 +1525,7 @@ noreturn(Prog *p)
+ 		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+ 		symlist[3] = pkglookup("panic", runtimepkg);
++		symlist[4] = pkglookup("panicwrap", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index af9b29cbcd..4d42630471 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1677,6 +1677,7 @@ noreturn(Prog *p)
+ 		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+ 		symlist[3] = pkglookup("panic", runtimepkg);
++		symlist[4] = pkglookup("panicwrap", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index a2f3def373..a4828c3a39 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1533,6 +1533,7 @@ noreturn(Prog *p)
+ 		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+ 		symlist[3] = pkglookup("panic", runtimepkg);
++		symlist[4] = pkglookup("panicwrap", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index c9bf501d1b..7659ac5bb3 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -6,6 +6,7 @@ char *runtimeimport =
+ 	"func \"\".panicslice ()\n"
+ 	"func \"\".throwreturn ()\n"
+ 	"func \"\".throwinit ()\n"
++	"func \"\".panicwrap (? string, ? string, ? string)\n"
+ 	"func \"\".panic (? interface { })\n"
+ 	"func \"\".recover (? *int32) interface { }\n"
+ 	"func \"\".printbool (? bool)\n"
+@@ -22,6 +23,7 @@ char *runtimeimport =
+ 	"func \"\".printsp ()\n"
+ 	"func \"\".goprintf ()\n"
+ 	"func \"\".concatstring ()\n"
++	"func \"\".append ()\n"
+ 	"func \"\".appendslice (typ *uint8, x any, y []any) any\n"
+ 	"func \"\".cmpstring (? string, ? string) int\n"
+ 	"func \"\".slicestring (? string, ? int, ? int) string\n"
+@@ -81,7 +83,7 @@ char *runtimeimport =
+ 	"func \"\".selectgo (sel *uint8)\n"
+ 	"func \"\".block ()\n"
+ 	"func \"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
+-	"func \"\".growslice (typ *uint8, old []any, cap int64) []any\n"
++	"func \"\".growslice (typ *uint8, old []any, n int64) []any\n"
+ 	"func \"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
+ 	"func \"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
+ 	"func \"\".slicearray (old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 00fc720b86..e13c95db93 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -15,6 +15,7 @@ func panicindex()
+ func panicslice()
+ func throwreturn()
+ func throwinit()
++func panicwrap(string, string, string)
+ 
+ func panic(interface{})
+ func recover(*int32) interface{}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 49797f9df6..8eb60de319 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3131,8 +3131,9 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	NodeList *l, *args, *in, *out;
+ 	Type *tpad;
+ 	int isddd;
++	Val v;
+ 
+-	if(0 && debug['r'])
++	if(debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
+@@ -3174,17 +3175,38 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		args = list(args, l->n->left);
+ 		isddd = l->n->left->isddd;
+ 	}
++	
++	// generate nil pointer check for better error
++	if(isptr[rcvr->etype] && rcvr->type == getthisx(method->type)->type->type) {
++		// generating wrapper from *T to T.
++		n = nod(OIF, N, N);
++		n->ntest = nod(OEQ, this->left, nodnil());
++		// these strings are already in the reflect tables,
++		// so no space cost to use them here.
++		l = nil;
++		v.ctype = CTSTR;
++		v.u.sval = strlit(rcvr->type->sym->pkg->name);  // package name
++		l = list(l, nodlit(v));
++		v.u.sval = strlit(rcvr->type->sym->name);  // type name
++		l = list(l, nodlit(v));
++		v.u.sval = strlit(method->sym->name);
++		l = list(l, nodlit(v));  // method name
++		call = nod(OCALL, syslook("panicwrap", 0), N);
++		call->list = l;
++		n->nbody = list1(call);
++		fn->nbody = list(fn->nbody, n);
++	}
+ 
+ 	// generate call
+ 	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
+ 	call->list = args;
+ 	call->isddd = isddd;
+-	fn->nbody = list1(call);
+ 	if(method->type->outtuple > 0) {
+ 		n = nod(ORETURN, N, N);
+-		n->list = fn->nbody;
+-		fn->nbody = list1(n);
++		n->list = list1(call);
++		call = n;
+ 	}
++	fn->nbody = list(fn->nbody, call);
+ 
+ 	if(0 && debug['r'])
+ 		dumplist("genwrapper body", fn->nbody);
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index 289d78f49f..6c37f888f2 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -131,3 +131,8 @@ func printany(i interface{}) {
+ 		print("(", typestring(i), ") ", i)
+ 	}
+ }
++
++// called from generated code
++func panicwrap(pkg, typ, meth string) {
++	panic("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer")
++}

@@ -7,7 +7,59 @@ Date:   Thu Dec 18 21:11:56 2008 -0800
     R=ken
     OCL=21565
     CL=21565
-
+---
  src/cmd/gc/subr.c |  2 +-
  src/cmd/gc/walk.c | 10 ++++++----
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c1fbb5ae90..a561b761a6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -440,7 +440,7 @@ aindex(Node *b, Type *t)
+ 	r = typ(TARRAY);
+ 	r->type = t;
+ 	r->bound = bound;
+-	dowidth(r);
++	checkwidth(r);
+ 	return r;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b2bea4f62a..54645438a0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1995,6 +1995,7 @@ newcompat(Node *n)
+ 	if(t == T)
+ 		goto bad;
+ 
++/*
+ 	if(isptr[t->etype]) {
+ 		if(t->type == T)
+ 			goto bad;
+@@ -2012,12 +2013,13 @@ newcompat(Node *n)
+ 		r->type = n->type;
+ 		goto ret;
+ 	}
++*/
+ 
+ 	switch(t->etype) {
+ 	default:
+-		goto bad;
+-
+-	case TSTRUCT:
++//		goto bad;
++//
++//	case TSTRUCT:
+ 		if(n->left != N)
+ 			yyerror("dont know what new(,e) means");
+ 
+@@ -3510,7 +3512,7 @@ maplit(Node *n)
+ 	tempname(var, t);
+ 
+ 	a = nod(ONEW, N, N);
+-	a->type = t;
++	a->type = t->type;
+ 	a = nod(OAS, var, a);
+ 	addtop = list(addtop, a);
+ 

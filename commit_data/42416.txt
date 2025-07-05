@@ -13,6 +13,28 @@ Date:   Sat Oct 5 13:05:56 2019 +0200
     Change-Id: I773495b2194d7bb7619b13c1a28cbc76e8f69aac
     Reviewed-on: https://go-review.googlesource.com/c/go/+/199139
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/template.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 2c5ff013e3..e0c096207c 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -119,12 +119,12 @@ func (t *Template) copy(c *common) *Template {
+ 	}
+ }
+ 
+-// AddParseTree adds parse tree for template with given name and associates it with t.
+-// If the template does not already exist, it will create a new one.
+-// If the template does exist, it will be replaced.
++// AddParseTree associates the argument parse tree with the template t, giving
++// it the specified name. If the template has not been defined, this tree becomes
++// its definition. If it has been defined and already has that name, the existing
++// definition is replaced; otherwise a new template is created, defined, and returned.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+ 	t.init()
+-	// If the name is the name of this template, overwrite this template.
+ 	nt := t
+ 	if name != t.name {
+ 		nt = t.New(name)

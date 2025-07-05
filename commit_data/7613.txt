@@ -9,7 +9,7 @@ Date:   Thu Mar 3 14:41:09 2011 +1100
     R=rsc, gri, r, r2
     CC=golang-dev
     https://golang.org/cl/4172056
-
+---
  misc/dashboard/builder/Makefile   |   1 +
  misc/dashboard/builder/doc.go     |   9 +++
  misc/dashboard/builder/exec.go    |  11 ++++
@@ -18,3 +18,453 @@ Date:   Thu Mar 3 14:41:09 2011 +1100
  misc/dashboard/builder/main.go    | 113 ++++++++++++++++++++++++++++++++------
  misc/dashboard/builder/package.go |  66 ++++++++++++++++++++++
  7 files changed, 257 insertions(+), 16 deletions(-)
+
+diff --git a/misc/dashboard/builder/Makefile b/misc/dashboard/builder/Makefile
+index 7270a3f425..cff47942aa 100644
+--- a/misc/dashboard/builder/Makefile
++++ b/misc/dashboard/builder/Makefile
+@@ -10,5 +10,6 @@ GOFILES=\
+ 	hg.go\
+ 	http.go\
+ 	main.go\
++	package.go\
+ 
+ include ../../../src/Make.cmd
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+index 54a9adfc04..a28658a957 100644
+--- a/misc/dashboard/builder/doc.go
++++ b/misc/dashboard/builder/doc.go
+@@ -38,6 +38,15 @@ Optional flags:
+ 
+   -release: Build and deliver binary release archive
+ 
++  -rev=N: Build revision N and exit
++  
++  -cmd="./all.bash": Build command (specify absolute or relative to go/src)
++
++  -v: Verbose logging
++
++  -external: External package builder mode (will not report Go build
++     state to dashboard, issue releases, or run benchmarks)
++
+ The key file should be located at $HOME/.gobuilder or, for a builder-specific
+ key, $HOME/.gobuilder-$BUILDER (eg, $HOME/.gobuilder-linux-amd64).
+ 
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 6236c915a5..53ea93ac58 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -1,15 +1,23 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+ 	"bytes"
+ 	"exec"
+ 	"io"
++	"log"
+ 	"os"
+ 	"strings"
+ )
+ 
+ // run is a simple wrapper for exec.Run/Close
+ func run(envv []string, dir string, argv ...string) os.Error {
++	if *verbose {
++		log.Println("run", argv)
++	}
+ 	bin, err := pathLookup(argv[0])
+ 	if err != nil {
+ 		return err
+@@ -25,6 +33,9 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ // runLog runs a process and returns the combined stdout/stderr, 
+ // as well as writing it to logfile (if specified).
+ func runLog(envv []string, logfile, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
++	if *verbose {
++		log.Println("runLog", argv)
++	}
+ 	bin, err := pathLookup(argv[0])
+ 	if err != nil {
+ 		return
+diff --git a/misc/dashboard/builder/hg.go b/misc/dashboard/builder/hg.go
+index 8dd33e4897..d4310845d1 100644
+--- a/misc/dashboard/builder/hg.go
++++ b/misc/dashboard/builder/hg.go
+@@ -1,8 +1,13 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+ 	"fmt"
+ 	"os"
++	"regexp"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -57,3 +62,25 @@ func getCommitParts(rev string) (parts []string, err os.Error) {
+ 	}
+ 	return strings.Split(s, ">", 5), nil
+ }
++
++var revisionRe = regexp.MustCompile(`([0-9]+):[0-9a-f]+$`)
++
++// getTag fetches a Commit by finding the first hg tag that matches re.
++func getTag(re *regexp.Regexp) (c Commit, tag string, err os.Error) {
++	o, _, err := runLog(nil, "", goroot, "hg", "tags")
++	for _, l := range strings.Split(o, "\n", -1) {
++		tag = re.FindString(l)
++		if tag == "" {
++			continue
++		}
++		s := revisionRe.FindStringSubmatch(l)
++		if s == nil {
++			err = os.NewError("couldn't find revision number")
++			return
++		}
++		c, err = getCommit(s[1])
++		return
++	}
++	err = os.NewError("no matching tag found")
++	return
++}
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 02f2810617..dba19ba8fd 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+@@ -6,8 +10,11 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"http"
++	"json"
++	"log"
+ 	"os"
+ 	"regexp"
++	"strconv"
+ )
+ 
+ // getHighWater returns the current highwater revision hash for this builder
+@@ -63,7 +70,46 @@ func (b *Builder) recordBenchmarks(benchLog string, c Commit) os.Error {
+ 	})
+ }
+ 
++// getPackages fetches a list of package paths from the dashboard
++func getPackages() (pkgs []string, err os.Error) {
++	r, _, err := http.Get(fmt.Sprintf("http://%v/package?fmt=json", *dashboard))
++	if err != nil {
++		return
++	}
++	defer r.Body.Close()
++	d := json.NewDecoder(r.Body)
++	var resp struct {
++		Packages []struct {
++			Path string
++		}
++	}
++	if err = d.Decode(&resp); err != nil {
++		return
++	}
++	for _, p := range resp.Packages {
++		pkgs = append(pkgs, p.Path)
++	}
++	return
++}
++
++// updatePackage sends package build results and info to the dashboard
++func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, c Commit) os.Error {
++	args := map[string]string{
++		"builder": b.name,
++		"key":     b.key,
++		"path":    pkg,
++		"state":   strconv.Btoa(state),
++		"log":     buildLog,
++		"info":    info,
++		"go_rev":  strconv.Itoa(c.num),
++	}
++	return httpCommand("package", args)
++}
++
+ func httpCommand(cmd string, args map[string]string) os.Error {
++	if *verbose {
++		log.Println("httpCommand", cmd, args)
++	}
+ 	url := fmt.Sprintf("http://%v/%v", *dashboard, cmd)
+ 	_, err := http.PostForm(url, args)
+ 	return err
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 7e80934e14..fc11d365ef 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+@@ -15,13 +19,24 @@ import (
+ )
+ 
+ const (
+-	codeProject  = "go"
+-	codePyScript = "misc/dashboard/googlecode_upload.py"
+-	hgUrl        = "https://go.googlecode.com/hg/"
+-	waitInterval = 10e9 // time to wait before checking for new revs
+-	mkdirPerm    = 0750
++	codeProject      = "go"
++	codePyScript     = "misc/dashboard/googlecode_upload.py"
++	hgUrl            = "https://go.googlecode.com/hg/"
++	waitInterval     = 10e9 // time to wait before checking for new revs
++	mkdirPerm        = 0750
++	pkgBuildInterval = 1e9 * 60 * 60 * 24 // rebuild packages every 24 hours
+ )
+ 
++// These variables are copied from the gobuilder's environment
++// to the envv of its subprocesses.
++var extraEnv = []string{
++	"GOHOSTOS",
++	"GOHOSTARCH",
++	"PATH",
++	"DISABLE_NET_TESTS",
++	"GOARM",
++}
++
+ type Builder struct {
+ 	name         string
+ 	goos, goarch string
+@@ -43,6 +58,8 @@ var (
+ 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+ 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
++	external      = flag.Bool("external", false, "Build external packages")
++	verbose       = flag.Bool("v", false, "verbose")
+ )
+ 
+ var (
+@@ -70,6 +87,8 @@ func main() {
+ 		}
+ 		builders[i] = b
+ 	}
++
++	// set up work environment
+ 	if err := os.RemoveAll(*buildroot); err != nil {
+ 		log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
+ 	}
+@@ -79,6 +98,7 @@ func main() {
+ 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
+ 		log.Fatal("Error cloning repository:", err)
+ 	}
++
+ 	// if specified, build revision and return
+ 	if *buildRevision != "" {
+ 		c, err := getCommit(*buildRevision)
+@@ -93,6 +113,16 @@ func main() {
+ 		}
+ 		return
+ 	}
++
++	// external package build mode
++	if *external {
++		if len(builders) != 1 {
++			log.Fatal("only one goos-goarch should be specified with -external")
++		}
++		builders[0].buildExternal()
++	}
++
++	// go continuous build mode (default)
+ 	// check for new commits and build them
+ 	for {
+ 		err := run(nil, goroot, "hg", "pull", "-u")
+@@ -179,6 +209,44 @@ func NewBuilder(builder string) (*Builder, os.Error) {
+ 	return b, nil
+ }
+ 
++// buildExternal downloads and builds external packages, and
++// reports their build status to the dashboard.
++// It will re-build all packages after pkgBuildInterval nanoseconds or
++// a new release tag is found.
++func (b *Builder) buildExternal() {
++	var prevTag string
++	var nextBuild int64
++	for {
++		time.Sleep(waitInterval)
++		err := run(nil, goroot, "hg", "pull", "-u")
++		if err != nil {
++			log.Println("hg pull failed:", err)
++			continue
++		}
++		c, tag, err := getTag(releaseRegexp)
++		if err != nil {
++			log.Println(err)
++			continue
++		}
++		if *verbose {
++			log.Println("latest release:", tag)
++		}
++		// don't rebuild if there's no new release
++		// and it's been less than pkgBuildInterval
++		// nanoseconds since the last build.
++		if tag == prevTag && time.Nanoseconds() < nextBuild {
++			continue
++		}
++		// buildCommit will also build the packages
++		if err := b.buildCommit(c); err != nil {
++			log.Println(err)
++			continue
++		}
++		prevTag = tag
++		nextBuild = time.Nanoseconds() + pkgBuildInterval
++	}
++}
++
+ // build checks for a new commit for this builder
+ // and builds it if one is found. 
+ // It returns true if a build was attempted.
+@@ -262,23 +330,23 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 		return
+ 	}
+ 
+-	// set up environment for build/bench execution
+-	env := []string{
+-		"GOOS=" + b.goos,
+-		"GOARCH=" + b.goarch,
+-		"GOHOSTOS=" + os.Getenv("GOHOSTOS"),
+-		"GOHOSTARCH=" + os.Getenv("GOHOSTARCH"),
+-		"GOROOT_FINAL=/usr/local/go",
+-		"PATH=" + os.Getenv("PATH"),
+-	}
+ 	srcDir := path.Join(workpath, "go", "src")
+ 
+ 	// build
+ 	logfile := path.Join(workpath, "build.log")
+-	buildLog, status, err := runLog(env, logfile, srcDir, *buildCmd)
++	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
+ 	if err != nil {
+ 		return fmt.Errorf("all.bash: %s", err)
+ 	}
++
++	// if we're in external mode, build all packages and return
++	if *external {
++		if status != 0 {
++			return os.NewError("go build failed")
++		}
++		return b.buildPackages(workpath, c)
++	}
++
+ 	if status != 0 {
+ 		// record failure
+ 		return b.recordResult(buildLog, c)
+@@ -307,7 +375,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	// if this is a release, create tgz and upload to google code
+ 	if release := releaseRegexp.FindString(c.desc); release != "" {
+ 		// clean out build state
+-		err = run(env, srcDir, "./clean.bash", "--nopkg")
++		err = run(b.envv(), srcDir, "./clean.bash", "--nopkg")
+ 		if err != nil {
+ 			return fmt.Errorf("clean.bash: %s", err)
+ 		}
+@@ -329,6 +397,19 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	return
+ }
+ 
++// envv returns an environment for build/bench execution
++func (b *Builder) envv() []string {
++	e := []string{
++		"GOOS=" + b.goos,
++		"GOARCH=" + b.goarch,
++		"GOROOT_FINAL=/usr/local/go",
++	}
++	for _, k := range extraEnv {
++		e = append(e, k+"="+os.Getenv(k))
++	}
++	return e
++}
++
+ func isDirectory(name string) bool {
+ 	s, err := os.Stat(name)
+ 	return err == nil && s.IsDirectory()
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+new file mode 100644
+index 0000000000..6e9f9ff396
+--- /dev/null
++++ b/misc/dashboard/builder/package.go
+@@ -0,0 +1,66 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/doc"
++	"go/parser"
++	"go/token"
++	"log"
++	"os"
++	"path"
++)
++
++func (b *Builder) buildPackages(workpath string, c Commit) os.Error {
++	pkgs, err := getPackages()
++	if err != nil {
++		return err
++	}
++	for _, p := range pkgs {
++		goroot := path.Join(workpath, "go")
++		goinstall := path.Join(goroot, "bin", "goinstall")
++		envv := append(b.envv(), "GOROOT="+goroot)
++
++		// goinstall
++		buildLog, code, err := runLog(envv, "", goroot, goinstall, p)
++		if err != nil {
++			log.Printf("goinstall %v: %v", p, err)
++			continue
++		}
++		built := code != 0
++
++		// get doc comment from package source
++		info, err := getPackageComment(p, path.Join(goroot, "pkg", p))
++		if err != nil {
++			log.Printf("goinstall %v: %v", p, err)
++		}
++
++		// update dashboard with build state + info
++		err = b.updatePackage(p, built, buildLog, info, c)
++		if err != nil {
++			log.Printf("updatePackage %v: %v", p, err)
++		}
++	}
++	return nil
++}
++
++func getPackageComment(pkg, pkgpath string) (info string, err os.Error) {
++	fset := token.NewFileSet()
++	pkgs, err := parser.ParseDir(fset, pkgpath, nil, parser.PackageClauseOnly|parser.ParseComments)
++	if err != nil {
++		return
++	}
++	for name := range pkgs {
++		if name == "main" {
++			continue
++		}
++		if info != "" {
++			return "", os.NewError("multiple non-main package docs")
++		}
++		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
++		info = pdoc.Doc
++	}
++	return
++}

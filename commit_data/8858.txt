@@ -7,8 +7,103 @@ Date:   Mon Jun 27 11:03:43 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4626067
-
+---
  src/pkg/http/fs.go         | 12 ++++--------
  src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
  src/pkg/http/server.go     | 16 ++++++++++++++++
  3 files changed, 44 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 56512980c8..866abe6a4b 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -192,23 +192,19 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
+ }
+ 
+ type fileHandler struct {
+-	root   string
+-	prefix string
++	root string
+ }
+ 
+ // FileServer returns a handler that serves HTTP requests
+ // with the contents of the file system rooted at root.
+ // It strips prefix from the incoming requests before
+ // looking up the file name in the file system.
+-func FileServer(root, prefix string) Handler { return &fileHandler{root, prefix} }
++func FileServer(root, prefix string) Handler {
++	return StripPrefix(prefix, &fileHandler{root})
++}
+ 
+ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 	path := r.URL.Path
+-	if !strings.HasPrefix(path, f.prefix) {
+-		NotFound(w, r)
+-		return
+-	}
+-	path = path[len(f.prefix):]
+ 	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
+ }
+ 
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 207646f9a0..a6a566a9c3 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -798,6 +798,30 @@ func TestNoDate(t *testing.T) {
+ 	}
+ }
+ 
++func TestStripPrefix(t *testing.T) {
++	h := HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("X-Path", r.URL.Path)
++	})
++	ts := httptest.NewServer(StripPrefix("/foo", h))
++	defer ts.Close()
++
++	res, err := Get(ts.URL + "/foo/bar")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if g, e := res.Header.Get("X-Path"), "/bar"; g != e {
++		t.Errorf("test 1: got %s, want %s", g, e)
++	}
++
++	res, err = Get(ts.URL + "/bar")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if g, e := res.StatusCode, 404; g != e {
++		t.Errorf("test 2: got status %v, want %v", g, e)
++	}
++}
++
+ type errorListener struct {
+ 	errs []os.Error
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 03b9cd86f6..1e06c24af3 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -592,6 +592,22 @@ func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", Sta
+ // that replies to each request with a ``404 page not found'' reply.
+ func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
+ 
++// StripPrefix returns a handler that serves HTTP requests
++// by removing the given prefix from the request URL's Path
++// and invoking the handler h. StripPrefix handles a
++// request for a path that doesn't begin with prefix by
++// replying with an HTTP 404 not found error.
++func StripPrefix(prefix string, h Handler) Handler {
++	return HandlerFunc(func(w ResponseWriter, r *Request) {
++		if !strings.HasPrefix(r.URL.Path, prefix) {
++			NotFound(w, r)
++			return
++		}
++		r.URL.Path = r.URL.Path[len(prefix):]
++		h.ServeHTTP(w, r)
++	})
++}
++
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
+ func Redirect(w ResponseWriter, r *Request, url string, code int) {

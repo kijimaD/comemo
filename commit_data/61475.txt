@@ -19,8 +19,115 @@ Date:   Wed Nov 13 00:08:49 2024 +0100
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/envcmd/env.go   | 11 ++++++++---
  src/cmd/go/internal/modload/load.go |  2 +-
  src/cmd/go/internal/work/build.go   |  8 ++++----
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 426427cd76..505f99168c 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"unicode"
+@@ -78,11 +79,13 @@ var (
+ func MkEnv() []cfg.EnvVar {
+ 	envFile, envFileChanged, _ := cfg.EnvFile()
+ 	env := []cfg.EnvVar{
++		// NOTE: Keep this list (and in general, all lists in source code) sorted by name.
+ 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
+ 		{Name: "GOARCH", Value: cfg.Goarch, Changed: cfg.Goarch != runtime.GOARCH},
+ 		{Name: "GOAUTH", Value: cfg.GOAUTH, Changed: cfg.GOAUTHChanged},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
+ 		{Name: "GOCACHE"},
++		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+ 		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
+ 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+ 
+@@ -106,14 +109,13 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+ 		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
++		{Name: "GOTELEMETRY", Value: telemetry.Mode()},
++		{Name: "GOTELEMETRYDIR", Value: telemetry.Dir()},
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+ 		{Name: "GOTOOLCHAIN"},
+ 		{Name: "GOTOOLDIR", Value: build.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+-		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+-		{Name: "GOTELEMETRY", Value: telemetry.Mode()},
+-		{Name: "GOTELEMETRYDIR", Value: telemetry.Dir()},
+ 	}
+ 
+ 	for i := range env {
+@@ -480,6 +482,9 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
+ 
+ // PrintEnv prints the environment variables to w.
+ func PrintEnv(w io.Writer, env []cfg.EnvVar, onlyChanged bool) {
++	env = slices.Clone(env)
++	slices.SortFunc(env, func(x, y cfg.EnvVar) int { return strings.Compare(x.Name, y.Name) })
++
+ 	for _, e := range env {
+ 		if e.Name != "TERM" {
+ 			if runtime.GOOS != "plan9" && bytes.Contains([]byte(e.Value), []byte{0}) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2a7e5fbe8b..4a60e92fb9 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -348,7 +348,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 				}
+ 
+ 			case m.Pattern() == "tool":
+-				for tool, _ := range MainModules.Tools() {
++				for tool := range MainModules.Tools() {
+ 					m.Pkgs = append(m.Pkgs, tool)
+ 				}
+ 			default:
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 27246436e4..4d05d79722 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -313,9 +313,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	}
+ 
++	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
+ 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
+ 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+ 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
++	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
+ 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
+ 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+ 	if mask&OmitModFlag == 0 {
+@@ -332,21 +334,19 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
++	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+ 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
+ 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+-	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
+ 
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+-	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
+ 	cmd.Flag.StringVar(&cfg.DebugRuntimeTrace, "debug-runtime-trace", "", "")
++	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
+ }
+ 
+ // AddCoverFlags adds coverage-related flags to "cmd". If the

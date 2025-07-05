@@ -20,9 +20,101 @@ Date:   Tue Mar 12 12:51:44 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/x509.go      |  1 +
  src/crypto/x509/x509_test.go | 11 +++++++++++
  src/encoding/gob/encode.go   |  2 +-
  src/encoding/gob/type.go     | 15 +++++++++++++--
  4 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 636a345eef..bbe11f7945 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -780,6 +780,7 @@ type Certificate struct {
+ 	PolicyIdentifiers []asn1.ObjectIdentifier
+ 
+ 	// Policies contains all policy identifiers included in the certificate.
++	// In Go 1.22, encoding/gob cannot handle and ignores this field.
+ 	Policies []OID
+ }
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index ead0453f66..548b8d940e 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"crypto/x509/pkix"
+ 	"encoding/asn1"
+ 	"encoding/base64"
++	"encoding/gob"
+ 	"encoding/hex"
+ 	"encoding/pem"
+ 	"fmt"
+@@ -3999,3 +4000,13 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
+ 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+ 	}
+ }
++
++func TestGob(t *testing.T) {
++	// Test that gob does not reject Certificate.
++	// See go.dev/issue/65633.
++	cert := new(Certificate)
++	err := gob.NewEncoder(io.Discard).Encode(cert)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 5f4d2539fa..c83071c717 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -601,7 +601,7 @@ func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+ 	if ut.externalEnc == 0 && srt.Kind() == reflect.Struct {
+ 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
+ 			f := srt.Field(fieldNum)
+-			if !isSent(&f) {
++			if !isSent(srt, &f) {
+ 				continue
+ 			}
+ 			op, indir := encOpFor(f.Type, seen, building)
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 30d8ca61c4..3b1dde492c 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -538,7 +538,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 		idToTypeSlice[st.id()] = st
+ 		for i := 0; i < t.NumField(); i++ {
+ 			f := t.Field(i)
+-			if !isSent(&f) {
++			if !isSent(t, &f) {
+ 				continue
+ 			}
+ 			typ := userType(f.Type).base
+@@ -576,7 +576,7 @@ func isExported(name string) bool {
+ // isSent reports whether this struct field is to be transmitted.
+ // It will be transmitted only if it is exported and not a chan or func field
+ // or pointer to chan or func.
+-func isSent(field *reflect.StructField) bool {
++func isSent(struct_ reflect.Type, field *reflect.StructField) bool {
+ 	if !isExported(field.Name) {
+ 		return false
+ 	}
+@@ -589,6 +589,17 @@ func isSent(field *reflect.StructField) bool {
+ 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
+ 		return false
+ 	}
++
++	// Special case for Go 1.22: the x509.Certificate.Policies
++	// field is unencodable but also unused by default.
++	// Ignore it, so that x509.Certificate continues to be encodeable.
++	// Go 1.23 will add the right methods so that gob can
++	// handle the Policies field, and then we can remove this check.
++	// See go.dev/issue/65633.
++	if field.Name == "Policies" && struct_.PkgPath() == "crypto/x509" && struct_.Name() == "Certificate" {
++		return false
++	}
++
+ 	return true
+ }
+ 

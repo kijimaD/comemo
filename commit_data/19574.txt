@@ -8,6 +8,35 @@ Date:   Thu Jun 19 01:49:14 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/102830043
-
+---
  src/pkg/testing/quick/quick.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index bc79cc3292..909c65f788 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -225,12 +225,12 @@ func (s *CheckEqualError) Error() string {
+ // 			t.Error(err)
+ // 		}
+ // 	}
+-func Check(function interface{}, config *Config) (err error) {
++func Check(f interface{}, config *Config) (err error) {
+ 	if config == nil {
+ 		config = &defaultConfig
+ 	}
+ 
+-	f, fType, ok := functionAndType(function)
++	fVal, fType, ok := functionAndType(f)
+ 	if !ok {
+ 		err = SetupError("argument is not a function")
+ 		return
+@@ -255,7 +255,7 @@ func Check(function interface{}, config *Config) (err error) {
+ 			return
+ 		}
+ 
+-		if !f.Call(arguments)[0].Bool() {
++		if !fVal.Call(arguments)[0].Bool() {
+ 			err = &CheckError{i + 1, toInterfaces(arguments)}
+ 			return
+ 		}

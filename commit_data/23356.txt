@@ -39,7 +39,150 @@ Date:   Fri May 8 16:38:08 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/escape.go      | 57 ++++++++++---------------------------------------
  src/html/escape_test.go | 40 +++++++++++++++++++++++++++++++++-
  2 files changed, 50 insertions(+), 47 deletions(-)
+
+diff --git a/src/html/escape.go b/src/html/escape.go
+index dd5dfa7cd7..f50a4b937a 100644
+--- a/src/html/escape.go
++++ b/src/html/escape.go
+@@ -6,7 +6,6 @@
+ package html
+ 
+ import (
+-	"bytes"
+ 	"strings"
+ 	"unicode/utf8"
+ )
+@@ -187,52 +186,20 @@ func unescape(b []byte) []byte {
+ 	return b
+ }
+ 
+-const escapedChars = `&'<>"`
+-
+-func escape(w writer, s string) error {
+-	i := strings.IndexAny(s, escapedChars)
+-	for i != -1 {
+-		if _, err := w.WriteString(s[:i]); err != nil {
+-			return err
+-		}
+-		var esc string
+-		switch s[i] {
+-		case '&':
+-			esc = "&amp;"
+-		case '\'':
+-			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+-			esc = "&#39;"
+-		case '<':
+-			esc = "&lt;"
+-		case '>':
+-			esc = "&gt;"
+-		case '"':
+-			// "&#34;" is shorter than "&quot;".
+-			esc = "&#34;"
+-		default:
+-			panic("unrecognized escape character")
+-		}
+-		s = s[i+1:]
+-		if _, err := w.WriteString(esc); err != nil {
+-			return err
+-		}
+-		i = strings.IndexAny(s, escapedChars)
+-	}
+-	_, err := w.WriteString(s)
+-	return err
+-}
++var htmlEscaper = strings.NewReplacer(
++	`&`, "&amp;",
++	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
++	`<`, "&lt;",
++	`>`, "&gt;",
++	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
++)
+ 
+ // EscapeString escapes special characters like "<" to become "&lt;". It
+ // escapes only five such characters: <, >, &, ' and ".
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func EscapeString(s string) string {
+-	if strings.IndexAny(s, escapedChars) == -1 {
+-		return s
+-	}
+-	var buf bytes.Buffer
+-	escape(&buf, s)
+-	return buf.String()
++	return htmlEscaper.Replace(s)
+ }
+ 
+ // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
+@@ -241,10 +208,8 @@ func EscapeString(s string) string {
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func UnescapeString(s string) string {
+-	for _, c := range s {
+-		if c == '&' {
+-			return string(unescape([]byte(s)))
+-		}
++	if !strings.Contains(s, "&") {
++		return s
+ 	}
+-	return s
++	return string(unescape([]byte(s)))
+ }
+diff --git a/src/html/escape_test.go b/src/html/escape_test.go
+index 2d7ad8ac26..3702626a3d 100644
+--- a/src/html/escape_test.go
++++ b/src/html/escape_test.go
+@@ -4,7 +4,10 @@
+ 
+ package html
+ 
+-import "testing"
++import (
++	"strings"
++	"testing"
++)
+ 
+ type unescapeTest struct {
+ 	// A short description of the test case.
+@@ -113,3 +116,38 @@ func TestUnescapeEscape(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var (
++	benchEscapeData = strings.Repeat("AAAAA < BBBBB > CCCCC & DDDDD ' EEEEE \" ", 100)
++	benchEscapeNone = strings.Repeat("AAAAA x BBBBB x CCCCC x DDDDD x EEEEE x ", 100)
++)
++
++func BenchmarkEscape(b *testing.B) {
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(EscapeString(benchEscapeData))
++	}
++}
++
++func BenchmarkEscapeNone(b *testing.B) {
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(EscapeString(benchEscapeNone))
++	}
++}
++
++func BenchmarkUnescape(b *testing.B) {
++	s := EscapeString(benchEscapeData)
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(UnescapeString(s))
++	}
++}
++
++func BenchmarkUnescapeNone(b *testing.B) {
++	s := EscapeString(benchEscapeNone)
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(UnescapeString(s))
++	}
++}

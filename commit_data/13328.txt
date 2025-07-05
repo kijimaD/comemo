@@ -59,7 +59,75 @@ Date:   Fri Jun 8 17:35:14 2012 -0400
     R=rsc, 0xe2.0x9a.0x9b, mirtchovski
     CC=golang-dev, minux.ma
     https://golang.org/cl/6297047
-
+---
  src/pkg/runtime/malloc.goc | 15 +++++++++++++++
  src/pkg/runtime/malloc.h   | 20 ++++++++++----------
  2 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 44b68a728d..2dff981fb4 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -72,6 +72,14 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		// setup for mark sweep
+ 		runtime·markspan(v, 0, 0, true);
+ 	}
++
++	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
++		// purge cache stats to prevent overflow
++		runtime·lock(&runtime·mheap);
++		runtime·purgecachedstats(m);
++		runtime·unlock(&runtime·mheap);
++	}
++
+ 	if(!(flag & FlagNoGC))
+ 		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
+ 
+@@ -170,6 +178,13 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 	MSpan *s;
+ 
+ 	m->mcache->local_nlookup++;
++	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
++		// purge cache stats to prevent overflow
++		runtime·lock(&runtime·mheap);
++		runtime·purgecachedstats(m);
++		runtime·unlock(&runtime·mheap);
++	}
++
+ 	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
+ 	if(sp)
+ 		*sp = s;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 065f86a42a..f2408f18f2 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -273,19 +273,19 @@ struct MCacheList
+ struct MCache
+ {
+ 	MCacheList list[NumSizeClasses];
+-	uint64 size;
+-	int64 local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
+-	int64 local_objects;	// objects allocated (or freed) from cache since last lock of heap
+-	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
+-	int64 local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
+-	int64 local_nmalloc;	// number of mallocs since last lock of heap
+-	int64 local_nfree;	// number of frees since last lock of heap
+-	int64 local_nlookup;	// number of pointer lookups since last lock of heap
++	uintptr size;
++	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
++	intptr local_objects;	// objects allocated (or freed) from cache since last lock of heap
++	intptr local_alloc;	// bytes allocated (or freed) since last lock of heap
++	uintptr local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
++	uintptr local_nmalloc;	// number of mallocs since last lock of heap
++	uintptr local_nfree;	// number of frees since last lock of heap
++	uintptr local_nlookup;	// number of pointer lookups since last lock of heap
+ 	int32 next_sample;	// trigger heap sample after allocating this many bytes
+ 	// Statistics about allocation size classes since last lock of heap
+ 	struct {
+-		int64 nmalloc;
+-		int64 nfree;
++		uintptr nmalloc;
++		uintptr nfree;
+ 	} local_by_size[NumSizeClasses];
+ 
+ };

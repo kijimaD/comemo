@@ -9,6 +9,20 @@ Date:   Wed Apr 3 08:30:20 2013 -0700
     R=golang-dev, bradfitz, dave, fullung
     CC=golang-dev
     https://golang.org/cl/8300044
-
+---
  src/pkg/bytes/equal_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/bytes/equal_test.go b/src/pkg/bytes/equal_test.go
+index a393d5e7de..1bf19a74b8 100644
+--- a/src/pkg/bytes/equal_test.go
++++ b/src/pkg/bytes/equal_test.go
+@@ -30,6 +30,8 @@ func TestEqualNearPageBoundary(t *testing.T) {
+ 	}
+ 	syscall.Mprotect(b[i-pagesize:i], 0)
+ 	syscall.Mprotect(b[i+pagesize:i+2*pagesize], 0)
++	defer syscall.Mprotect(b[i-pagesize:i], syscall.PROT_READ|syscall.PROT_WRITE)
++	defer syscall.Mprotect(b[i+pagesize:i+2*pagesize], syscall.PROT_READ|syscall.PROT_WRITE)
+ 
+ 	// both of these should fault
+ 	//pagesize += int(b[i-1])

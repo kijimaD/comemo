@@ -14,10 +14,88 @@ Date:   Fri Feb 11 08:54:29 2022 -0500
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/reader.go           | 1 +
  src/go/doc/testdata/b.0.golden | 3 +++
  src/go/doc/testdata/b.1.golden | 6 ++++++
  src/go/doc/testdata/b.2.golden | 3 +++
  src/go/doc/testdata/b.go       | 6 ++++++
  5 files changed, 19 insertions(+)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index de1d422106..d9e721d01b 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -927,6 +927,7 @@ var predeclaredTypes = map[string]bool{
+ 	"any":        true,
+ 	"bool":       true,
+ 	"byte":       true,
++	"comparable": true,
+ 	"complex64":  true,
+ 	"complex128": true,
+ 	"error":      true,
+diff --git a/src/go/doc/testdata/b.0.golden b/src/go/doc/testdata/b.0.golden
+index 9d93392eaa..c06246a7b1 100644
+--- a/src/go/doc/testdata/b.0.golden
++++ b/src/go/doc/testdata/b.0.golden
+@@ -46,6 +46,9 @@ VARIABLES
+ 
+ 
+ FUNCTIONS
++	// Associated with comparable type if AllDecls is set. 
++	func ComparableFactory() comparable
++
+ 	// 
+ 	func F(x int) int
+ 
+diff --git a/src/go/doc/testdata/b.1.golden b/src/go/doc/testdata/b.1.golden
+index 66c47b5c2a..2b62c3400c 100644
+--- a/src/go/doc/testdata/b.1.golden
++++ b/src/go/doc/testdata/b.1.golden
+@@ -38,6 +38,12 @@ TYPES
+ 	// 
+ 	func (x *T) M()
+ 
++	// Should only appear if AllDecls is set. 
++	type comparable struct{}	// overrides a predeclared type comparable
++
++	// Associated with comparable type if AllDecls is set. 
++	func ComparableFactory() comparable
++
+ 	// 
+ 	type notExported int
+ 
+diff --git a/src/go/doc/testdata/b.2.golden b/src/go/doc/testdata/b.2.golden
+index 9d93392eaa..c06246a7b1 100644
+--- a/src/go/doc/testdata/b.2.golden
++++ b/src/go/doc/testdata/b.2.golden
+@@ -46,6 +46,9 @@ VARIABLES
+ 
+ 
+ FUNCTIONS
++	// Associated with comparable type if AllDecls is set. 
++	func ComparableFactory() comparable
++
+ 	// 
+ 	func F(x int) int
+ 
+diff --git a/src/go/doc/testdata/b.go b/src/go/doc/testdata/b.go
+index e50663b3df..61b512bc8a 100644
+--- a/src/go/doc/testdata/b.go
++++ b/src/go/doc/testdata/b.go
+@@ -27,9 +27,15 @@ func UintFactory() uint {}
+ // Associated with uint type if AllDecls is set.
+ func uintFactory() uint {}
+ 
++// Associated with comparable type if AllDecls is set.
++func ComparableFactory() comparable {}
++
+ // Should only appear if AllDecls is set.
+ type uint struct{} // overrides a predeclared type uint
+ 
++// Should only appear if AllDecls is set.
++type comparable struct{} // overrides a predeclared type comparable
++
+ // ----------------------------------------------------------------------------
+ // Exported declarations associated with non-exported types must always be shown.
+ 

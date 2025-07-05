@@ -11,9 +11,105 @@ Date:   Sun Apr 7 16:41:11 2019 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                      |  5 ++++-
  src/cmd/go/internal/base/base.go           |  4 ++++
  src/cmd/go/internal/test/test.go           | 18 ++++++++++++++++--
  src/cmd/go/testdata/script/test_status.txt | 18 ++++++++++++++++++
  4 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0ea0bad9a9..b774ac2da7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1285,7 +1285,10 @@
+ // line. If a package test fails, go test prints the full test output.
+ // If invoked with the -bench or -v flag, go test prints the full
+ // output even for passing package tests, in order to display the
+-// requested benchmark results or verbose logging.
++// requested benchmark results or verbose logging. After the package
++// tests for all of the listed packages finish, and their output is
++// printed, go test prints a final 'FAIL' status if any package test
++// has failed.
+ //
+ // In package list mode only, go test caches successful package test
+ // results to avoid unnecessary repeated running of tests. When the
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 028f9b6aef..272da55681 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -132,6 +132,10 @@ func SetExitStatus(n int) {
+ 	exitMu.Unlock()
+ }
+ 
++func GetExitStatus() int {
++	return exitStatus
++}
++
+ // Run runs the command, with stdout and stderr
+ // connected to the go command's own stdout and stderr.
+ // If the command fails, Run reports the error using Errorf.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 98a8c8756c..fa6205918e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -102,7 +102,10 @@ package test passes, go test prints only the final 'ok' summary
+ line. If a package test fails, go test prints the full test output.
+ If invoked with the -bench or -v flag, go test prints the full
+ output even for passing package tests, in order to display the
+-requested benchmark results or verbose logging.
++requested benchmark results or verbose logging. After the package
++tests for all of the listed packages finish, and their output is
++printed, go test prints a final 'FAIL' status if any package test
++has failed.
+ 
+ In package list mode only, go test caches successful package test
+ results to avoid unnecessary repeated running of tests. When the
+@@ -735,7 +738,7 @@ func runTest(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	// Ultimately the goal is to print the output.
+-	root := &work.Action{Mode: "go test", Deps: prints}
++	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
+ 
+ 	// Force the printing of results to happen in order,
+ 	// one at a time.
+@@ -1632,3 +1635,14 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
+ 	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
+ 	return nil
+ }
++
++// printExitStatus is the action for printing the exit status
++func printExitStatus(b *work.Builder, a *work.Action) error {
++	if !testJSON && len(pkgArgs) != 0 {
++		if base.GetExitStatus() != 0 {
++			fmt.Println("FAIL")
++			return nil
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/go/testdata/script/test_status.txt b/src/cmd/go/testdata/script/test_status.txt
+new file mode 100644
+index 0000000000..aa6ad3c50d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_status.txt
+@@ -0,0 +1,18 @@
++env GO111MODULE=off
++
++! go test x y
++stdout ^FAIL\s+x
++stdout ^ok\s+y
++stdout (?-m)FAIL\n$
++
++-- x/x_test.go --
++package x
++
++import "testing"
++
++func TestNothingJustFail(t *testing.T) {
++    t.Fail()
++}
++
++-- y/y_test.go --
++package y

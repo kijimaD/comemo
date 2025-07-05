@@ -13,6 +13,28 @@ Date:   Tue Dec 16 15:53:41 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/1692
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug493.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug493.go b/test/fixedbugs/bug493.go
+new file mode 100644
+index 0000000000..643e9af4b8
+--- /dev/null
++++ b/test/fixedbugs/bug493.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case that gccgo failed to compile.
++
++package p
++
++func F() []string {
++	return []string{""}
++}
++
++var V = append(F())

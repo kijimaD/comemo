@@ -13,8 +13,65 @@ Date:   Wed May 22 14:22:50 2013 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/9651044
-
+---
  src/pkg/go/ast/ast.go          |  2 +-
  src/pkg/go/doc/example.go      |  2 +-
  src/pkg/go/doc/example_test.go | 10 +++++-----
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index e8599184a6..f26ff6b1af 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -439,7 +439,7 @@ func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
+ func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
+ func (x *StructType) Pos() token.Pos     { return x.Struct }
+ func (x *FuncType) Pos() token.Pos {
+-	if x.Func.IsValid() {
++	if x.Func.IsValid() || x.Params == nil { // see issue 3870
+ 		return x.Func
+ 	}
+ 	return x.Params.Pos() // interface method declarations have no "func" keyword
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 2761083c7e..2358ed3890 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -265,7 +265,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 	// Synthesize main function.
+ 	funcDecl := &ast.FuncDecl{
+ 		Name: ast.NewIdent("main"),
+-		Type: &ast.FuncType{},
++		Type: &ast.FuncType{Params: &ast.FieldList{}}, // FuncType.Params must be non-nil
+ 		Body: body,
+ 	}
+ 
+diff --git a/src/pkg/go/doc/example_test.go b/src/pkg/go/doc/example_test.go
+index e0477e3f69..e154ea8bfc 100644
+--- a/src/pkg/go/doc/example_test.go
++++ b/src/pkg/go/doc/example_test.go
+@@ -159,8 +159,8 @@ func main() {
+ `
+ 
+ func TestExamples(t *testing.T) {
+-	fs := token.NewFileSet()
+-	file, err := parser.ParseFile(fs, "test.go", strings.NewReader(exampleTestFile), parser.ParseComments)
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleTestFile), parser.ParseComments)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -174,11 +174,11 @@ func TestExamples(t *testing.T) {
+ 			if e.Play == nil {
+ 				g = "<nil>"
+ 			} else {
+-				b := new(bytes.Buffer)
+-				if err := format.Node(b, fs, e.Play); err != nil {
++				var buf bytes.Buffer
++				if err := format.Node(&buf, fset, e.Play); err != nil {
+ 					t.Fatal(err)
+ 				}
+-				g = b.String()
++				g = buf.String()
+ 			}
+ 			if g != w {
+ 				t.Errorf("%s: got Play == %q, want %q", c.Name, g, w)

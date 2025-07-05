@@ -17,7 +17,45 @@ Date:   Wed May 5 09:23:52 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  4 ++++
  test/fixedbugs/issue45947.go           | 16 ++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 339ea77509..e07bb3b324 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1394,6 +1394,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		return ir.NewBlockStmt(base.Pos, init)
+ 
+ 	case ir.OGOTO:
++		if subst.newclofn != nil {
++			// Don't do special substitutions if inside a closure
++			break
++		}
+ 		n := n.(*ir.BranchStmt)
+ 		m := ir.Copy(n).(*ir.BranchStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+diff --git a/test/fixedbugs/issue45947.go b/test/fixedbugs/issue45947.go
+new file mode 100644
+index 0000000000..4086449340
+--- /dev/null
++++ b/test/fixedbugs/issue45947.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	_ = func() func() {
++		return func() {
++		l:
++			goto l
++		}
++	}()
++}

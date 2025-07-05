@@ -9,6 +9,29 @@ Date:   Thu Sep 1 13:43:03 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4975047
-
+---
  src/libmach/executable.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index fa0fa1b5fd..9d45323021 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -811,7 +811,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		buf = malloc(sh[ep->shstrndx].size);
+ 		if (buf == 0)
+ 			goto done;
+-		memset(buf, 0, sizeof buf);
++		memset(buf, 0, sh[ep->shstrndx].size);
+ 		seek(fd, sh[ep->shstrndx].offset, 0);
+ 		i = read(fd, buf, sh[ep->shstrndx].size);
+ 		USED(i);	// shut up ubuntu gcc
+@@ -989,7 +989,7 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		buf = malloc(sh[ep->shstrndx].size);
+ 		if (buf == 0)
+ 			goto done;
+-		memset(buf, 0, sizeof buf);
++		memset(buf, 0, sh[ep->shstrndx].size);
+ 		seek(fd, sh[ep->shstrndx].offset, 0);
+ 		i = read(fd, buf, sh[ep->shstrndx].size);
+ 		USED(i);	// shut up ubuntu gcc

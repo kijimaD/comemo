@@ -9,6 +9,29 @@ Date:   Mon Jun 29 15:13:18 2009 -0700
     DELTA=12  (0 added, 12 deleted, 0 changed)
     OCL=30865
     CL=30868
-
+---
  test/export.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/test/export.go b/test/export.go
+deleted file mode 100644
+index 8fe76d5f1c..0000000000
+--- a/test/export.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// errchk $G $D/$F.go
+-
+-package main
+-
+-type A struct		// ERROR "incomplete"
+-type B interface	// ERROR "incomplete"
+-
+-type C struct
+-type D interface
+-
+-type C struct { }
+-type D interface { }

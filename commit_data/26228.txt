@@ -11,7 +11,109 @@ Date:   Mon Jan 4 16:19:38 2016 -0800
     Change-Id: I345467ece0e49e31b2806d6fce2f1937b17905a6
     Reviewed-on: https://go-review.googlesource.com/18229
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/signal/signal_test.go |  3 ++-
  src/runtime/signal1_unix.go  | 55 ++++++++++++++++++++++++++++----------------
  2 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 291c5f113e..56d786e501 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -182,13 +182,14 @@ func TestStop(t *testing.T) {
+ 	sigs := []syscall.Signal{
+ 		syscall.SIGWINCH,
+ 		syscall.SIGHUP,
++		syscall.SIGUSR1,
+ 	}
+ 
+ 	for _, sig := range sigs {
+ 		// Send the signal.
+ 		// If it's SIGWINCH, we should not see it.
+ 		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
+-		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
++		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
+ 			syscall.Kill(syscall.Getpid(), sig)
+ 		}
+ 		time.Sleep(100 * time.Millisecond)
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 4f4d2af6ea..19f37d9709 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -50,26 +50,12 @@ func initsig() {
+ 		}
+ 		fwdSig[i] = getsig(i)
+ 
+-		// For some signals, we respect an inherited SIG_IGN handler
+-		// rather than insist on installing our own default handler.
+-		// Even these signals can be fetched using the os/signal package.
+-		switch i {
+-		case _SIGHUP, _SIGINT:
+-			if fwdSig[i] == _SIG_IGN {
+-				continue
++		if !sigInstallGoHandler(i) {
++			// Even if we are not installing a signal handler,
++			// set SA_ONSTACK if necessary.
++			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
++				setsigstack(i)
+ 			}
+-		}
+-
+-		if t.flags&_SigSetStack != 0 {
+-			setsigstack(i)
+-			continue
+-		}
+-
+-		// When built using c-archive or c-shared, only
+-		// install signal handlers for synchronous signals.
+-		// Set SA_ONSTACK for other signals if necessary.
+-		if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
+-			setsigstack(i)
+ 			continue
+ 		}
+ 
+@@ -78,6 +64,31 @@ func initsig() {
+ 	}
+ }
+ 
++func sigInstallGoHandler(sig int32) bool {
++	// For some signals, we respect an inherited SIG_IGN handler
++	// rather than insist on installing our own default handler.
++	// Even these signals can be fetched using the os/signal package.
++	switch sig {
++	case _SIGHUP, _SIGINT:
++		if fwdSig[sig] == _SIG_IGN {
++			return false
++		}
++	}
++
++	t := &sigtable[sig]
++	if t.flags&_SigSetStack != 0 {
++		return false
++	}
++
++	// When built using c-archive or c-shared, only install signal
++	// handlers for synchronous signals.
++	if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
++		return false
++	}
++
++	return true
++}
++
+ func sigenable(sig uint32) {
+ 	if sig >= uint32(len(sigtable)) {
+ 		return
+@@ -105,7 +116,11 @@ func sigdisable(sig uint32) {
+ 		ensureSigM()
+ 		disableSigChan <- sig
+ 		<-maskUpdatedChan
+-		if t.flags&_SigHandling != 0 {
++
++		// If initsig does not install a signal handler for a
++		// signal, then to go back to the state before Notify
++		// we should remove the one we installed.
++		if !sigInstallGoHandler(int32(sig)) {
+ 			t.flags &^= _SigHandling
+ 			setsig(int32(sig), fwdSig[sig], true)
+ 		}

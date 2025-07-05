@@ -12,7 +12,63 @@ Date:   Mon Nov 13 22:32:19 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78113
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/sym.go | 5 ++++-
  src/cmd/trace/trace.go      | 7 +++++--
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 2d32f5a436..3fc17fa850 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -34,6 +34,7 @@ package obj
+ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"log"
+ 	"math"
+ )
+ 
+@@ -44,7 +45,9 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt.Arch = arch
+ 	ctxt.Pathname = objabi.WorkingDir()
+ 
+-	ctxt.Headtype.Set(objabi.GOOS)
++	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
++		log.Fatalf("unknown goos %s", objabi.GOOS)
++	}
+ 
+ 	ctxt.Flag_optimize = true
+ 	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 7178287751..d69c5feebc 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -278,7 +278,7 @@ type traceContext struct {
+ 
+ 	heapStats, prevHeapStats     heapStats
+ 	threadStats, prevThreadStats threadStats
+-	gstates, prevGstates         [gStateCount]uint64
++	gstates, prevGstates         [gStateCount]int64
+ }
+ 
+ type heapStats struct {
+@@ -449,6 +449,9 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 		if setGStateErr != nil {
+ 			return ctx.data, setGStateErr
+ 		}
++		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
++			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
++		}
+ 
+ 		// Ignore events that are from uninteresting goroutines
+ 		// or outside of the interesting timeframe.
+@@ -644,7 +647,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
+ 	if ctx.prevGstates == ctx.gstates {
+ 		return
+ 	}
+-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable], ctx.gstates[gWaitingGC]}})
++	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
+ 	ctx.prevGstates = ctx.gstates
+ }
+ 

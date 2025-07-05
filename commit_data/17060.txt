@@ -11,8 +11,161 @@ Date:   Tue Aug 6 12:03:38 2013 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/12421043
-
+---
  src/pkg/archive/zip/reader.go   | 11 ++-----
  src/pkg/archive/zip/register.go | 71 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/archive/zip/writer.go   | 18 ++++-------
  3 files changed, 81 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index f19cf2d1f1..4221a826c0 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -6,13 +6,11 @@ package zip
+ 
+ import (
+ 	"bufio"
+-	"compress/flate"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"hash/crc32"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ )
+ 
+@@ -125,15 +123,12 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 	}
+ 	size := int64(f.CompressedSize64)
+ 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
+-	switch f.Method {
+-	case Store: // (no compression)
+-		rc = ioutil.NopCloser(r)
+-	case Deflate:
+-		rc = flate.NewReader(r)
+-	default:
++	dcomp := decompressor(f.Method)
++	if dcomp == nil {
+ 		err = ErrAlgorithm
+ 		return
+ 	}
++	rc = dcomp(r)
+ 	var desr io.Reader
+ 	if f.hasDataDescriptor() {
+ 		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
+diff --git a/src/pkg/archive/zip/register.go b/src/pkg/archive/zip/register.go
+new file mode 100644
+index 0000000000..c046f081b7
+--- /dev/null
++++ b/src/pkg/archive/zip/register.go
+@@ -0,0 +1,71 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zip
++
++import (
++	"compress/flate"
++	"io"
++	"io/ioutil"
++	"sync"
++)
++
++// A Compressor returns a compressing writer, writing to the
++// provided writer. On Close, any pending data should be flushed.
++type Compressor func(io.Writer) (io.WriteCloser, error)
++
++// Decompressor is a function that wraps a Reader with a decompressing Reader.
++// The decompressed ReadCloser is returned to callers who open files from
++// within the archive.  These callers are responsible for closing this reader
++// when they're finished reading.
++type Decompressor func(io.Reader) io.ReadCloser
++
++var (
++	mu sync.RWMutex // guards compressor and decompressor maps
++
++	compressors = map[uint16]Compressor{
++		Store:   func(w io.Writer) (io.WriteCloser, error) { return &nopCloser{w}, nil },
++		Deflate: func(w io.Writer) (io.WriteCloser, error) { return flate.NewWriter(w, 5) },
++	}
++
++	decompressors = map[uint16]Decompressor{
++		Store:   ioutil.NopCloser,
++		Deflate: flate.NewReader,
++	}
++)
++
++// RegisterDecompressor allows custom decompressors for a specified method ID.
++func RegisterDecompressor(method uint16, d Decompressor) {
++	mu.Lock()
++	defer mu.Unlock()
++
++	if _, ok := decompressors[method]; ok {
++		panic("decompressor already registered")
++	}
++	decompressors[method] = d
++}
++
++// RegisterCompressor registers custom compressors for a specified method ID.
++// The common methods Store and Deflate are built in.
++func RegisterCompressor(method uint16, comp Compressor) {
++	mu.Lock()
++	defer mu.Unlock()
++
++	if _, ok := compressors[method]; ok {
++		panic("compressor already registered")
++	}
++	compressors[method] = comp
++}
++
++func compressor(method uint16) Compressor {
++	mu.RLock()
++	defer mu.RUnlock()
++	return compressors[method]
++}
++
++func decompressor(method uint16) Decompressor {
++	mu.RLock()
++	defer mu.RUnlock()
++	return decompressors[method]
++}
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index e9f147cea6..6c9800a78f 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -6,7 +6,6 @@ package zip
+ 
+ import (
+ 	"bufio"
+-	"compress/flate"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+@@ -198,18 +197,15 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 		compCount: &countWriter{w: w.cw},
+ 		crc32:     crc32.NewIEEE(),
+ 	}
+-	switch fh.Method {
+-	case Store:
+-		fw.comp = nopCloser{fw.compCount}
+-	case Deflate:
+-		var err error
+-		fw.comp, err = flate.NewWriter(fw.compCount, 5)
+-		if err != nil {
+-			return nil, err
+-		}
+-	default:
++	comp := compressor(fh.Method)
++	if comp == nil {
+ 		return nil, ErrAlgorithm
+ 	}
++	var err error
++	fw.comp, err = comp(fw.compCount)
++	if err != nil {
++		return nil, err
++	}
+ 	fw.rawCount = &countWriter{w: fw.comp}
+ 
+ 	h := &header{

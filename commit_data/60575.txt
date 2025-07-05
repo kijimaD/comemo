@@ -12,6 +12,20 @@ Date:   Thu Aug 1 02:47:35 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/go/types/iter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/iter.go b/src/go/types/iter.go
+index e6dee158fd..dcd15bdfae 100644
+--- a/src/go/types/iter.go
++++ b/src/go/types/iter.go
+@@ -106,7 +106,7 @@ func (t *Tuple) Variables() iter.Seq[*Var] {
+ 	}
+ }
+ 
+-// MethodSet returns a go1.23 iterator over the methods of a method set.
++// Methods returns a go1.23 iterator over the methods of a method set.
+ //
+ // Example: for method := range s.Methods() { ... }
+ func (s *MethodSet) Methods() iter.Seq[*Selection] {

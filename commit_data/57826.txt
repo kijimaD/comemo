@@ -14,8 +14,70 @@ Date:   Fri Sep 1 12:52:48 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/crash_test.go                      | 11 +++++++++++
  src/runtime/crash_unix_test.go                 |  2 ++
  src/runtime/testdata/testprogcgo/threadprof.go |  4 +++-
  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 5eccf86e1a..df75658750 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -24,10 +24,21 @@ import (
+ var toRemove []string
+ 
+ func TestMain(m *testing.M) {
++	_, coreErrBefore := os.Stat("core")
++
+ 	status := m.Run()
+ 	for _, file := range toRemove {
+ 		os.RemoveAll(file)
+ 	}
++
++	_, coreErrAfter := os.Stat("core")
++	if coreErrBefore != nil && coreErrAfter == nil {
++		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
++		if status == 0 {
++			status = 1
++		}
++	}
++
+ 	os.Exit(status)
+ }
+ 
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 8f6880b417..fbd7626225 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -91,6 +91,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 
+ 	cmd := testenv.Command(t, exe, "CrashDumpsAllThreads")
+ 	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Dir = t.TempDir() // put any core file in tempdir
+ 	cmd.Env = append(cmd.Env,
+ 		"GOTRACEBACK=crash",
+ 		// Set GOGC=off. Because of golang.org/issue/10958, the tight
+@@ -164,6 +165,7 @@ func TestPanicSystemstack(t *testing.T) {
+ 	t.Parallel()
+ 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
+ 	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Dir = t.TempDir() // put any core file in tempdir
+ 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+ 	pr, pw, err := os.Pipe()
+ 	if err != nil {
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+index d62d4b4be8..00b511d23b 100644
+--- a/src/runtime/testdata/testprogcgo/threadprof.go
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -92,7 +92,9 @@ func CgoExternalThreadSignal() {
+ 		return
+ 	}
+ 
+-	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
++	cmd := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash")
++	cmd.Dir = os.TempDir() // put any core file in tempdir
++	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		fmt.Println("C signal did not crash as expected")
+ 		fmt.Printf("\n%s\n", out)

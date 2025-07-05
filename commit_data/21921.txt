@@ -16,9 +16,327 @@ Date:   Fri Jan 9 12:26:48 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2606
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/cgen.c |  3 ++-
  src/cmd/6g/cgen.c | 29 ++++++++++++++---------------
  src/cmd/8g/cgen.c | 31 ++++++++++++++++---------------
  src/cmd/9g/cgen.c | 29 ++++++++++++++---------------
  4 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index aa64d05ed0..90cc88d5a7 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1626,6 +1626,8 @@ cadable(Node *n)
+ /*
+  * copy a composite value by moving its individual components.
+  * Slices, strings and interfaces are supported.
++ * Small structs or arrays with elements of basic type are
++ * also supported.
+  * nr is N when assigning a zero value.
+  * return 1 if can do, 0 if cant.
+  */
+@@ -1700,7 +1702,6 @@ componentgen(Node *nr, Node *nl)
+ 		freer = 1;
+ 	}
+ 
+-	
+ 	// nl and nr are 'cadable' which basically means they are names (variables) now.
+ 	// If they are the same variable, don't generate any code, because the
+ 	// VARDEF we generate will mark the old value as dead incorrectly.
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index fa7d1eefbe..2a25724361 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1539,7 +1539,7 @@ cadable(Node *n)
+ int
+ componentgen(Node *nr, Node *nl)
+ {
+-	Node nodl, nodr;
++	Node nodl, nodr, tmp;
+ 	Type *t;
+ 	int freel, freer;
+ 	vlong fldcount;
+@@ -1599,6 +1599,12 @@ componentgen(Node *nr, Node *nl)
+ 			igen(nr, &nodr, N);
+ 			freer = 1;
+ 		}
++	} else {
++		// When zeroing, prepare a register containing zero.
++		nodconst(&tmp, nl->type, 0);
++		regalloc(&nodr, types[TUINT], N);
++		gmove(&tmp, &nodr);
++		freer = 1;
+ 	}
+ 	
+ 	// nl and nr are 'cadable' which basically means they are names (variables) now.
+@@ -1635,8 +1641,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1645,8 +1650,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_cap-Array_nel;
+@@ -1655,8 +1659,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_cap-Array_nel;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1670,8 +1673,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1680,8 +1682,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1695,8 +1696,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1705,8 +1705,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index a0e39c0ffe..c38aa0bcc1 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1373,13 +1373,15 @@ cadable(Node *n)
+ /*
+  * copy a composite value by moving its individual components.
+  * Slices, strings and interfaces are supported.
++ * Small structs or arrays with elements of basic type are
++ * also supported.
+  * nr is N when assigning a zero value.
+  * return 1 if can do, 0 if can't.
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+ {
+-	Node nodl, nodr;
++	Node nodl, nodr, tmp;
+ 	Type *t;
+ 	int freel, freer;
+ 	vlong fldcount;
+@@ -1439,6 +1441,12 @@ componentgen(Node *nr, Node *nl)
+ 			igen(nr, &nodr, N);
+ 			freer = 1;
+ 		}
++	} else {
++		// When zeroing, prepare a register containing zero.
++		nodconst(&tmp, nl->type, 0);
++		regalloc(&nodr, types[TUINT], N);
++		gmove(&tmp, &nodr);
++		freer = 1;
+ 	}
+ 	
+ 	// nl and nr are 'cadable' which basically means they are names (variables) now.
+@@ -1475,8 +1483,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1485,8 +1492,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_cap-Array_nel;
+@@ -1495,8 +1501,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_cap-Array_nel;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1510,8 +1515,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1520,8 +1524,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1535,8 +1538,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1545,8 +1547,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index e4520fb44d..b73f207fb3 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -1554,7 +1554,7 @@ cadable(Node *n)
+ int
+ componentgen(Node *nr, Node *nl)
+ {
+-	Node nodl, nodr;
++	Node nodl, nodr, tmp;
+ 	Type *t;
+ 	int freel, freer;
+ 	vlong fldcount;
+@@ -1614,6 +1614,12 @@ componentgen(Node *nr, Node *nl)
+ 			igen(nr, &nodr, N);
+ 			freer = 1;
+ 		}
++	} else {
++		// When zeroing, prepare a register containing zero.
++		nodconst(&tmp, nl->type, 0);
++		regalloc(&nodr, types[TUINT], N);
++		gmove(&tmp, &nodr);
++		freer = 1;
+ 	}
+ 	
+ 	// nl and nr are 'cadable' which basically means they are names (variables) now.
+@@ -1650,8 +1656,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1660,8 +1665,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_cap-Array_nel;
+@@ -1670,8 +1674,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_cap-Array_nel;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1685,8 +1688,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1695,8 +1697,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+@@ -1710,8 +1711,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		nodl.xoffset += Array_nel-Array_array;
+@@ -1720,8 +1720,7 @@ componentgen(Node *nr, Node *nl)
+ 		if(nr != N) {
+ 			nodr.xoffset += Array_nel-Array_array;
+ 			nodr.type = nodl.type;
+-		} else
+-			nodconst(&nodr, nodl.type, 0);
++		}
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;

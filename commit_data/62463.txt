@@ -16,7 +16,7 @@ Date:   Fri Feb 21 17:13:20 2025 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/3-tools.md                                |   8 ++
  src/cmd/cgo/internal/test/issue4029.go             |   6 +-
  src/cmd/cgo/internal/test/test.go                  |   7 +-
@@ -38,3 +38,694 @@ Date:   Fri Feb 21 17:13:20 2025 -0800
  src/runtime/vdso_test.go                           |   5 +
  src/syscall/exec_linux_test.go                     |   5 +
  20 files changed, 394 insertions(+), 7 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 5638f240a5..5b52fe200d 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -2,5 +2,13 @@
+ 
+ ### Go command {#go-command}
+ 
++The `go build` `-asan` option now defaults to doing leak detection at
++program exit.
++This will report an error if memory allocated by C is not freed and is
++not referenced by any other memory allocated by either C or Go.
++These new error reports may be disabled by setting
++`ASAN_OPTIONS=detect_leaks=0` in the environment when running the
++program.
++
+ ### Cgo {#cgo}
+ 
+diff --git a/src/cmd/cgo/internal/test/issue4029.go b/src/cmd/cgo/internal/test/issue4029.go
+index 506c999bdb..702af3f531 100644
+--- a/src/cmd/cgo/internal/test/issue4029.go
++++ b/src/cmd/cgo/internal/test/issue4029.go
+@@ -11,6 +11,7 @@ package cgotest
+ 
+ /*
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <dlfcn.h>
+ #cgo linux LDFLAGS: -ldl
+ 
+@@ -24,6 +25,7 @@ import "C"
+ 
+ import (
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var callbacks int
+@@ -66,7 +68,9 @@ func loadThySelf(t *testing.T, symbol string) {
+ 	}
+ 	defer C.dlclose4029(this_process)
+ 
+-	symbol_address := C.dlsym4029(this_process, C.CString(symbol))
++	symCStr := C.CString(symbol)
++	defer C.free(unsafe.Pointer(symCStr))
++	symbol_address := C.dlsym4029(this_process, symCStr)
+ 	if symbol_address == 0 {
+ 		t.Error("dlsym:", C.GoString(C.dlerror()))
+ 		return
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index fcac076225..844b2dd42c 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -1098,6 +1098,7 @@ func testErrno(t *testing.T) {
+ func testMultipleAssign(t *testing.T) {
+ 	p := C.CString("234")
+ 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
++	defer C.free(unsafe.Pointer(p))
+ 	if runtime.GOOS == "openbsd" {
+ 		// Bug in OpenBSD strtol(3) - base > 36 succeeds.
+ 		if (n != 0 && n != 239089) || m != 234 {
+@@ -1106,7 +1107,6 @@ func testMultipleAssign(t *testing.T) {
+ 	} else if n != 0 || m != 234 {
+ 		t.Fatal("Strtol x2: ", n, m)
+ 	}
+-	C.free(unsafe.Pointer(p))
+ }
+ 
+ var (
+@@ -1632,7 +1632,9 @@ func testNaming(t *testing.T) {
+ 
+ func test6907(t *testing.T) {
+ 	want := "yarn"
+-	if got := C.GoString(C.Issue6907CopyString(want)); got != want {
++	s := C.Issue6907CopyString(want)
++	defer C.free(unsafe.Pointer(s))
++	if got := C.GoString(s); got != want {
+ 		t.Errorf("C.GoString(C.Issue6907CopyString(%q)) == %q, want %q", want, got, want)
+ 	}
+ }
+@@ -1881,6 +1883,7 @@ func test17537(t *testing.T) {
+ 	}
+ 
+ 	p := (*C.char)(C.malloc(1))
++	defer C.free(unsafe.Pointer(p))
+ 	*p = 17
+ 	if got, want := C.F17537(&p), C.int(17); got != want {
+ 		t.Errorf("got %d, want %d", got, want)
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 96a9e71cd7..193d24d52c 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -328,6 +328,12 @@ func compilerRequiredAsanVersion(goos, goarch string) bool {
+ 	}
+ }
+ 
++// compilerRequiredLsanVersion reports whether the compiler is the
++// version required by Lsan.
++func compilerRequiredLsanVersion(goos, goarch string) bool {
++	return compilerRequiredAsanVersion(goos, goarch)
++}
++
+ type compilerCheck struct {
+ 	once sync.Once
+ 	err  error
+@@ -377,7 +383,7 @@ func configure(sanitizer string) *config {
+ 			c.ldFlags = append(c.ldFlags, "-fPIC", "-static-libtsan")
+ 		}
+ 
+-	case "address":
++	case "address", "leak":
+ 		c.goFlags = append(c.goFlags, "-asan")
+ 		// Set the debug mode to print the C stack trace.
+ 		c.cFlags = append(c.cFlags, "-g")
+diff --git a/src/cmd/cgo/internal/testsanitizers/lsan_test.go b/src/cmd/cgo/internal/testsanitizers/lsan_test.go
+new file mode 100644
+index 0000000000..4dde3d20ec
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/lsan_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux || (freebsd && amd64)
++
++package sanitizers_test
++
++import (
++	"internal/platform"
++	"internal/testenv"
++	"strings"
++	"testing"
++)
++
++func TestLSAN(t *testing.T) {
++	config := mustHaveLSAN(t)
++
++	t.Parallel()
++	mustRun(t, config.goCmd("build", "std"))
++
++	cases := []struct {
++		src           string
++		leakError     string
++		errorLocation string
++	}{
++		{src: "lsan1.go", leakError: "detected memory leaks", errorLocation: "lsan1.go:11"},
++		{src: "lsan2.go"},
++		{src: "lsan3.go"},
++	}
++	for _, tc := range cases {
++		name := strings.TrimSuffix(tc.src, ".go")
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++
++			dir := newTempDir(t)
++			defer dir.RemoveAll(t)
++
++			outPath := dir.Join(name)
++			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
++
++			cmd := hangProneCmd(outPath)
++			if tc.leakError == "" {
++				mustRun(t, cmd)
++			} else {
++				outb, err := cmd.CombinedOutput()
++				out := string(outb)
++				if err != nil || len(out) > 0 {
++					t.Logf("%s\n%v\n%s", cmd, err, out)
++				}
++				if err != nil && strings.Contains(out, tc.leakError) {
++					// This string is output if the
++					// sanitizer library needs a
++					// symbolizer program and can't find it.
++					const noSymbolizer = "external symbolizer"
++					if tc.errorLocation != "" &&
++						!strings.Contains(out, tc.errorLocation) &&
++						!strings.Contains(out, noSymbolizer) &&
++						compilerSupportsLocation() {
++
++						t.Errorf("output does not contain expected location of the error %q", tc.errorLocation)
++					}
++				} else {
++					t.Errorf("output does not contain expected leak error %q", tc.leakError)
++				}
++
++				// Make sure we can disable the leak check.
++				cmd = hangProneCmd(outPath)
++				replaceEnv(cmd, "ASAN_OPTIONS", "detect_leaks=0")
++				mustRun(t, cmd)
++			}
++		})
++	}
++}
++
++func mustHaveLSAN(t *testing.T) *config {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	goos, err := goEnv("GOOS")
++	if err != nil {
++		t.Fatal(err)
++	}
++	goarch, err := goEnv("GOARCH")
++	if err != nil {
++		t.Fatal(err)
++	}
++	// LSAN is a subset of ASAN, so just check for ASAN support.
++	if !platform.ASanSupported(goos, goarch) {
++		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
++	}
++
++	if !compilerRequiredLsanVersion(goos, goarch) {
++		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
++	}
++
++	requireOvercommit(t)
++
++	config := configure("leak")
++	config.skipIfCSanitizerBroken(t)
++
++	return config
++}
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/lsan1.go b/src/cmd/cgo/internal/testsanitizers/testdata/lsan1.go
+new file mode 100644
+index 0000000000..5f99bd4886
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/lsan1.go
+@@ -0,0 +1,39 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++
++int* test() {
++  return malloc(sizeof(int));
++}
++
++void clearStack(int n) {
++  if (n > 0) {
++    clearStack(n - 1);
++  }
++}
++
++*/
++import "C"
++
++//go:noinline
++func F() {
++	C.test()
++}
++
++func clearStack(n int) {
++	if n > 0 {
++		clearStack(n - 1)
++	}
++}
++
++func main() {
++	// Test should fail: memory allocated by C is leaked.
++	F()
++	clearStack(100)
++	C.clearStack(100)
++}
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/lsan2.go b/src/cmd/cgo/internal/testsanitizers/testdata/lsan2.go
+new file mode 100644
+index 0000000000..b904d138c0
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/lsan2.go
+@@ -0,0 +1,42 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++
++int* test() {
++   return malloc(sizeof(int));
++}
++
++void clearStack(int n) {
++  if (n > 0) {
++    clearStack(n - 1);
++  }
++}
++
++*/
++import "C"
++
++var p *C.int
++
++//go:noinline
++func F() {
++	p = C.test()
++}
++
++func clearStack(n int) {
++	if n > 0 {
++		clearStack(n - 1)
++	}
++}
++
++func main() {
++	// Test should pass: memory allocated by C does not leak
++	// because a Go global variable points to it.
++	F()
++	clearStack(100)
++	C.clearStack(100)
++}
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/lsan3.go b/src/cmd/cgo/internal/testsanitizers/testdata/lsan3.go
+new file mode 100644
+index 0000000000..824e1535d1
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/lsan3.go
+@@ -0,0 +1,46 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++
++int* test() {
++   return malloc(sizeof(int));
++}
++
++void clearStack(int n) {
++  if (n > 0) {
++    clearStack(n - 1);
++  }
++}
++
++*/
++import "C"
++
++type S struct {
++	p *C.int
++}
++
++var p *S
++
++//go:noinline
++func F() {
++	p = &S{p: C.test()}
++}
++
++func clearStack(n int) {
++	if n > 0 {
++		clearStack(n - 1)
++	}
++}
++
++func main() {
++	// Test should pass: memory allocated by C does not leak
++	// because a Go global variable points to it.
++	F()
++	clearStack(100)
++	C.clearStack(100)
++}
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 6fb1d00c3c..adef8fa7bf 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -61,6 +61,11 @@ func asanpoison(addr unsafe.Pointer, sz uintptr)
+ //go:noescape
+ func asanregisterglobals(addr unsafe.Pointer, n uintptr)
+ 
++//go:noescape
++func lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++
++func lsandoleakcheck()
++
+ // These are called from asan_GOARCH.s
+ //
+ //go:cgo_import_static __asan_read_go
+@@ -68,3 +73,5 @@ func asanregisterglobals(addr unsafe.Pointer, n uintptr)
+ //go:cgo_import_static __asan_unpoison_go
+ //go:cgo_import_static __asan_poison_go
+ //go:cgo_import_static __asan_register_globals_go
++//go:cgo_import_static __lsan_register_root_region_go
++//go:cgo_import_static __lsan_do_leak_check_go
+diff --git a/src/runtime/asan/asan.go b/src/runtime/asan/asan.go
+index ef70b0145b..efdd911f2b 100644
+--- a/src/runtime/asan/asan.go
++++ b/src/runtime/asan/asan.go
+@@ -13,6 +13,7 @@ package asan
+ #include <stdbool.h>
+ #include <stdint.h>
+ #include <sanitizer/asan_interface.h>
++#include <sanitizer/lsan_interface.h>
+ 
+ void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc) {
+ 	if (__asan_region_is_poisoned(addr, sz)) {
+@@ -34,6 +35,14 @@ void __asan_poison_go(void *addr, uintptr_t sz) {
+ 	__asan_poison_memory_region(addr, sz);
+ }
+ 
++void __lsan_register_root_region_go(void *addr, uintptr_t sz) {
++	__lsan_register_root_region(addr, sz);
++}
++
++void __lsan_do_leak_check_go(void) {
++	__lsan_do_leak_check();
++}
++
+ // Keep in sync with the definition in compiler-rt
+ // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_interface_internal.h#L41
+ // This structure is used to describe the source location of
+diff --git a/src/runtime/asan0.go b/src/runtime/asan0.go
+index bcfd96f1ab..eb70367a29 100644
+--- a/src/runtime/asan0.go
++++ b/src/runtime/asan0.go
+@@ -21,3 +21,5 @@ func asanwrite(addr unsafe.Pointer, sz uintptr)           { throw("asan") }
+ func asanunpoison(addr unsafe.Pointer, sz uintptr)        { throw("asan") }
+ func asanpoison(addr unsafe.Pointer, sz uintptr)          { throw("asan") }
+ func asanregisterglobals(addr unsafe.Pointer, sz uintptr) { throw("asan") }
++func lsanregisterrootregion(unsafe.Pointer, uintptr)      { throw("asan") }
++func lsandoleakcheck()                                    { throw("asan") }
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+index 195faf4e6d..3f9df4fec8 100644
+--- a/src/runtime/asan_amd64.s
++++ b/src/runtime/asan_amd64.s
+@@ -69,6 +69,20 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
+ 	MOVQ	$__asan_register_globals_go(SB), AX
+ 	JMP	asancall<>(SB)
+ 
++// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	n+8(FP), RARG1
++	// void __lsan_register_root_region_go(void *addr, uintptr_t sz)
++	MOVQ	$__lsan_register_root_region_go(SB), AX
++	JMP	asancall<>(SB)
++
++// func runtime·lsandoleakcheck()
++TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
++	// void __lsan_do_leak_check_go(void);
++	MOVQ	$__lsan_do_leak_check_go(SB), AX
++	JMP	asancall<>(SB)
++
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	get_tls(R12)
+diff --git a/src/runtime/asan_arm64.s b/src/runtime/asan_arm64.s
+index dfa3f81bf2..5447d210e5 100644
+--- a/src/runtime/asan_arm64.s
++++ b/src/runtime/asan_arm64.s
+@@ -58,6 +58,20 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
+ 	MOVD	$__asan_register_globals_go(SB), FARG
+ 	JMP	asancall<>(SB)
+ 
++// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	n+8(FP), RARG1
++	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
++	MOVD	$__lsan_register_root_region_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// func runtime·lsandoleakcheck()
++TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
++	// void __lsan_do_leak_check_go(void);
++	MOVD	$__lsan_do_leak_check_go(SB), FARG
++	JMP	asancall<>(SB)
++
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOVD	RSP, R19                  // callee-saved
+diff --git a/src/runtime/asan_loong64.s b/src/runtime/asan_loong64.s
+index 0034a31687..3abcf889b8 100644
+--- a/src/runtime/asan_loong64.s
++++ b/src/runtime/asan_loong64.s
+@@ -58,6 +58,20 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
+ 	MOVV	$__asan_register_globals_go(SB), FARG
+ 	JMP	asancall<>(SB)
+ 
++// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
++	MOVV	addr+0(FP), RARG0
++	MOVV	n+8(FP), RARG1
++	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
++	MOVV	$__lsan_register_root_region_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// func runtime·lsandoleakcheck()
++TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
++	// void __lsan_do_leak_check_go(void);
++	MOVV	$__lsan_do_leak_check_go(SB), FARG
++	JMP	asancall<>(SB)
++
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOVV	R3, R23         // callee-saved
+diff --git a/src/runtime/asan_ppc64le.s b/src/runtime/asan_ppc64le.s
+index d13301a1b1..2fc5772a28 100644
+--- a/src/runtime/asan_ppc64le.s
++++ b/src/runtime/asan_ppc64le.s
+@@ -58,6 +58,20 @@ TEXT	runtime·asanregisterglobals(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVD	$__asan_register_globals_go(SB), FARG
+ 	BR	asancall<>(SB)
+ 
++// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·lsanregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	n+8(FP), RARG1
++	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
++	MOVD	$__lsan_register_root_region_go(SB), FARG
++	BR	asancall<>(SB)
++
++// func runtime·lsandoleakcheck()
++TEXT	runtime·lsandoleakcheck(SB), NOSPLIT|NOFRAME, $0-0
++	// void __lsan_do_leak_check_go(void);
++	MOVD	$__lsan_do_leak_check_go(SB), FARG
++	BR	asancall<>(SB)
++
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	// LR saved in generated prologue
+diff --git a/src/runtime/asan_riscv64.s b/src/runtime/asan_riscv64.s
+index 6fcd94d4b1..f5ddb21a25 100644
+--- a/src/runtime/asan_riscv64.s
++++ b/src/runtime/asan_riscv64.s
+@@ -52,6 +52,20 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
+ 	MOV	$__asan_register_globals_go(SB), X14
+ 	JMP	asancall<>(SB)
+ 
++// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
++	MOV	addr+0(FP), X10
++	MOV	n+8(FP), X11
++	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
++	MOV	$__lsan_register_root_region_go(SB), X14
++	JMP	asancall<>(SB)
++
++// func runtime·lsandoleakcheck()
++TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
++	// void __lsan_do_leak_check_go(void);
++	MOV	$__lsan_do_leak_check_go(SB), X14
++	JMP	asancall<>(SB)
++
+ // Switches SP to g0 stack and calls (X14). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOV	X2, X8		// callee-saved
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 6bb91b371a..d45a0ccfb8 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -49,7 +49,15 @@ import "unsafe"
+ func sysAlloc(n uintptr, sysStat *sysMemStat, vmaName string) unsafe.Pointer {
+ 	sysStat.add(int64(n))
+ 	gcController.mappedReady.Add(int64(n))
+-	return sysAllocOS(n, vmaName)
++	p := sysAllocOS(n, vmaName)
++
++	// When using ASAN leak detection, we must tell ASAN about
++	// cases where we store pointers in mmapped memory.
++	if asanenabled {
++		lsanregisterrootregion(p, n)
++	}
++
++	return p
+ }
+ 
+ // sysUnused transitions a memory region from Ready to Prepared. It notifies the
+@@ -143,7 +151,15 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ // may use larger alignment, so the caller must be careful to realign the
+ // memory obtained by sysReserve.
+ func sysReserve(v unsafe.Pointer, n uintptr, vmaName string) unsafe.Pointer {
+-	return sysReserveOS(v, n, vmaName)
++	p := sysReserveOS(v, n, vmaName)
++
++	// When using ASAN leak detection, we must tell ASAN about
++	// cases where we store pointers in mmapped memory.
++	if asanenabled {
++		lsanregisterrootregion(p, n)
++	}
++
++	return p
+ }
+ 
+ // sysMap transitions a memory region from Reserved to Prepared. It ensures the
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c467f4c49d..74c19e9e43 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -281,11 +281,27 @@ func main() {
+ 	}
+ 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+ 	fn()
++
++	exitHooksRun := false
+ 	if raceenabled {
+ 		runExitHooks(0) // run hooks now, since racefini does not return
++		exitHooksRun = true
+ 		racefini()
+ 	}
+ 
++	// Check for C memory leaks if using ASAN and we've made cgo calls,
++	// or if we are running as a library in a C program.
++	// We always make one cgo call, above, to notify_runtime_init_done,
++	// so we ignore that one.
++	// No point in leak checking if no cgo calls, since leak checking
++	// just looks for objects allocated using malloc and friends.
++	// Just checking iscgo doesn't help because asan implies iscgo.
++	if asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
++		runExitHooks(0) // lsandoleakcheck may not return
++		exitHooksRun = true
++		lsandoleakcheck()
++	}
++
+ 	// Make racy client program work: if panicking on
+ 	// another goroutine at the same time as main returns,
+ 	// let the other goroutine finish printing the panic trace.
+@@ -302,7 +318,9 @@ func main() {
+ 	if panicking.Load() != 0 {
+ 		gopark(nil, nil, waitReasonPanicWait, traceBlockForever, 1)
+ 	}
+-	runExitHooks(0)
++	if !exitHooksRun {
++		runExitHooks(0)
++	}
+ 
+ 	exit(0)
+ 	for {
+@@ -319,6 +337,11 @@ func os_beforeExit(exitCode int) {
+ 	if exitCode == 0 && raceenabled {
+ 		racefini()
+ 	}
++
++	// See comment in main, above.
++	if exitCode == 0 && asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
++		lsandoleakcheck()
++	}
+ }
+ 
+ func init() {
+diff --git a/src/runtime/vdso_test.go b/src/runtime/vdso_test.go
+index d025ba50c2..b0f5fbe728 100644
+--- a/src/runtime/vdso_test.go
++++ b/src/runtime/vdso_test.go
+@@ -8,6 +8,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"internal/asan"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -20,6 +21,10 @@ import (
+ // TestUsingVDSO tests that we are actually using the VDSO to fetch
+ // the time.
+ func TestUsingVDSO(t *testing.T) {
++	if asan.Enabled {
++		t.Skip("test fails with ASAN beause the ASAN leak checker won't run under strace")
++	}
++
+ 	const calls = 100
+ 
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 04973dc9ad..69d4916944 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/asan"
+ 	"internal/platform"
+ 	"internal/syscall/unix"
+ 	"internal/testenv"
+@@ -334,6 +335,10 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 
+ // Test for Issue 29789: unshare fails when uid/gid mapping is specified
+ func TestUnshareUidGidMapping(t *testing.T) {
++	if asan.Enabled {
++		t.Skip("test fails with ASAN beause the ASAN leak checker fails finding memory regions")
++	}
++
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		defer os.Exit(0)
+ 		if err := syscall.Chroot(os.TempDir()); err != nil {

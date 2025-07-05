@@ -9,7 +9,33 @@ Date:   Wed Nov 4 12:41:04 2015 -0500
     Change-Id: I0a284ad2a46826ce82486479ea4e79f0f470292f
     Reviewed-on: https://go-review.googlesource.com/16635
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.6.txt        | 1 +
  src/cmd/dist/util.go | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index f01138f5fe..816c3ae962 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -1,5 +1,6 @@
+ Tools:
+ 
++cmd/dist: use clang on FreeBSD (https://golang.org/cl/16635)
+ cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+ cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
+ cmd/go: add -msan option (https://golang.org/cl/16169)
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index d1e5787d66..c29e781226 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -404,6 +404,9 @@ func main() {
+ 		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
+ 			gohostarch = "amd64"
+ 		}
++	case "freebsd":
++		// Since FreeBSD 10 gcc is no longer part of the base system.
++		defaultclang = true
+ 	case "solaris":
+ 		// Even on 64-bit platform, solaris uname -m prints i86pc.
+ 		out := run("", CheckExit, "isainfo", "-n")

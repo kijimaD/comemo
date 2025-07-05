@@ -8,7 +8,35 @@ Date:   Tue Aug 28 15:33:05 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6501051
-
+---
  test/bench/shootout/timing.log | 6 ++++++
  test/bench/shootout/timing.sh  | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/test/bench/shootout/timing.log b/test/bench/shootout/timing.log
+index c89f562e8e..95d7982a27 100644
+--- a/test/bench/shootout/timing.log
++++ b/test/bench/shootout/timing.log
+@@ -1063,3 +1063,9 @@ pidigits 10000
+ 	gc pidigits	3.51u 0.00s 3.52r # -6%
+ 	gc_B pidigits	3.51u 0.00s 3.52r # -6%
+ 
++# Aug 28, 2012
++# After some assembler work in package big.
++pidigits 10000
++	gc pidigits	2.85u 0.02s 2.88r # -22%
++	gc_B pidigits	2.88u 0.01s 2.90r # -21%
++
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index 47707e7438..890c7e8093 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -176,7 +176,7 @@ meteor() {
+ 
+ pidigits() {
+ 	runonly echo 'pidigits 10000'
+-	runonly 'gcc -O2 pidigits.c -lgmp' a.out 10000
++	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+ 	run 'gccgo -O2 pidigits.go' a.out -n 10000
+ 	run 'gc pidigits' $O.out -n 10000
+ 	run 'gc_B  pidigits' $O.out -n 10000

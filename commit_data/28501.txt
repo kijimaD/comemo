@@ -14,10 +14,95 @@ Date:   Sat May 28 03:06:33 2016 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dial_test.go         |  7 ++-----
  src/net/main_plan9_test.go   |  1 +
  src/net/main_unix_test.go    |  1 +
  src/net/main_windows_test.go |  1 +
  src/net/timeout_test.go      | 13 -------------
  5 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 5365677011..9fe507e901 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -87,17 +87,14 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	// socktest.Switch.
+ 	// It may happen when the Dial call bumps against TCP
+ 	// simultaneous open. See selfConnect in tcpsock_posix.go.
+-	defer func() {
+-		sw.Set(socktest.FilterClose, nil)
+-		forceCloseSockets()
+-	}()
++	defer func() { sw.Set(socktest.FilterClose, nil) }()
+ 	var mu sync.Mutex
+ 	var attempts int
+ 	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
+ 		mu.Lock()
+ 		attempts++
+ 		mu.Unlock()
+-		return nil, errTimedout
++		return nil, nil
+ 	})
+ 
+ 	const N = 100
+diff --git a/src/net/main_plan9_test.go b/src/net/main_plan9_test.go
+index 94501cada9..2bc5be88be 100644
+--- a/src/net/main_plan9_test.go
++++ b/src/net/main_plan9_test.go
+@@ -8,6 +8,7 @@ func installTestHooks() {}
+ 
+ func uninstallTestHooks() {}
+ 
++// forceCloseSockets must be called only from TestMain.
+ func forceCloseSockets() {}
+ 
+ func enableSocketConnect() {}
+diff --git a/src/net/main_unix_test.go b/src/net/main_unix_test.go
+index bfb4cd0065..0cc129f34d 100644
+--- a/src/net/main_unix_test.go
++++ b/src/net/main_unix_test.go
+@@ -45,6 +45,7 @@ func uninstallTestHooks() {
+ 	}
+ }
+ 
++// forceCloseSockets must be called only from TestMain.
+ func forceCloseSockets() {
+ 	for s := range sw.Sockets() {
+ 		closeFunc(s)
+diff --git a/src/net/main_windows_test.go b/src/net/main_windows_test.go
+index b879717425..6ea318c2a5 100644
+--- a/src/net/main_windows_test.go
++++ b/src/net/main_windows_test.go
+@@ -32,6 +32,7 @@ func uninstallTestHooks() {
+ 	acceptFunc = origAccept
+ }
+ 
++// forceCloseSockets must be called only from TestMain.
+ func forceCloseSockets() {
+ 	for s := range sw.Sockets() {
+ 		closeFunc(s)
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 7991a579fd..14797eedb7 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -41,19 +41,6 @@ func TestDialTimeout(t *testing.T) {
+ 	defer func() { testHookDialChannel = origTestHookDialChannel }()
+ 	defer sw.Set(socktest.FilterConnect, nil)
+ 
+-	// Avoid tracking open-close jitterbugs between netFD and
+-	// socket that leads to confusion of information inside
+-	// socktest.Switch.
+-	// It may happen when the Dial call bumps against TCP
+-	// simultaneous open. See selfConnect in tcpsock_posix.go.
+-	defer func() {
+-		sw.Set(socktest.FilterClose, nil)
+-		forceCloseSockets()
+-	}()
+-	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
+-		return nil, errTimedout
+-	})
+-
+ 	for i, tt := range dialTimeoutTests {
+ 		switch runtime.GOOS {
+ 		case "plan9", "windows":

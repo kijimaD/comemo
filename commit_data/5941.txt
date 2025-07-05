@@ -7,6 +7,24 @@ Date:   Tue Aug 3 13:03:40 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1678063
-
+---
  src/cmd/gotest/gotest | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index b9bd93fac0..cea2ab9058 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -31,12 +31,6 @@ fi
+ 
+ E="$GORUN"
+ 
+-# TODO(kaib): proper emulator strategy
+-case x"$GOARCH" in
+-xarm)
+-	export E=${GORUN:-qemu-arm -cpu cortex-a8}
+-esac
+-
+ # Allow overrides
+ GC="$GOBIN/${_GC:-$GC} -I _test"
+ GL="$GOBIN/${GL:-$LD} -L _test"

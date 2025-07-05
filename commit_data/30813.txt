@@ -23,6 +23,19 @@ Date:   Wed Dec 7 07:55:21 2016 -0600
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ed8193294e..1e2a9eadc5 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2114,6 +2114,7 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*S
+ 		// Create new section, set the starting Vaddr
+ 		sect = addsection(&Segtext, ".text", 05)
+ 		sect.Vaddr = va
++		sym.Sect = sect
+ 
+ 		// Create a symbol for the start of the secondary text sections
+ 		ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect

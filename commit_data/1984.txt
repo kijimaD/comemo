@@ -9,10 +9,158 @@ Date:   Thu Apr 9 00:10:46 2009 -0700
     DELTA=54  (47 added, 2 deleted, 5 changed)
     OCL=27250
     CL=27250
-
+---
  src/lib/Makefile                  |  2 +-
  src/lib/template/Makefile         | 12 ++++++++++--
  src/lib/template/format.go        | 28 ++++++++++++++++++++++++++++
  src/lib/template/template.go      | 16 ++++++++++++----
  src/lib/template/template_test.go |  2 ++
  5 files changed, 53 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 6b485e3fdd..367265f228 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -120,6 +120,6 @@ strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
+ sync.dirinstall:
+ syscall.dirinstall: sync.dirinstall
+ tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
+-template.dirinstall: bufio.install fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
++template.dirinstall: fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
+ time.dirinstall: once.install os.dirinstall io.dirinstall
+ 
+diff --git a/src/lib/template/Makefile b/src/lib/template/Makefile
+index 856ba185eb..2634af433b 100644
+--- a/src/lib/template/Makefile
++++ b/src/lib/template/Makefile
+@@ -32,18 +32,26 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
++	format.$O\
++
++O2=\
+ 	template.$O\
+ 
+-template.a: a1
++template.a: a1 a2
+ 
+ a1:	$(O1)
+-	$(AR) grc template.a template.$O
++	$(AR) grc template.a format.$O
+ 	rm -f $(O1)
+ 
++a2:	$(O2)
++	$(AR) grc template.a template.$O
++	rm -f $(O2)
++
+ newpkg: clean
+ 	$(AR) grc template.a
+ 
+ $(O1): newpkg
++$(O2): a1
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/template.a
+diff --git a/src/lib/template/format.go b/src/lib/template/format.go
+new file mode 100644
+index 0000000000..ee90fed616
+--- /dev/null
++++ b/src/lib/template/format.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Template library: default formatters
++
++package template
++
++import (
++	"fmt";
++	"reflect";
++)
++
++// HtmlFormatter formats arbitrary values for HTML
++// TODO: do something for real.
++func HtmlFormatter(v reflect.Value) string {
++	s := fmt.Sprint(reflect.Indirect(v).Interface());
++	return s;
++}
++
++// StringFormatter formats returns the default string representation.
++// It is stored under the name "str" and is the default formatter.
++// You can override the default formatter by storing your default
++// under the name "" in your custom formatter map.
++func StringFormatter(v reflect.Value) string {
++	s := fmt.Sprint(reflect.Indirect(v).Interface());
++	return s;
++}
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index fd6a863d25..1702889f4d 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -4,16 +4,15 @@
+ 
+ // Template library.  See http://code.google.com/p/json-template/wiki/Reference
+ // TODO: document this here as well.
+-
+ package template
+ 
+ import (
+-	"bufio";
+ 	"fmt";
+ 	"io";
+ 	"os";
+ 	"reflect";
+ 	"strings";
++	"template";
+ )
+ 
+ var ErrLBrace = os.NewError("unexpected opening brace")
+@@ -51,6 +50,13 @@ const (
+ // names to the functions that implement them.
+ type FormatterMap map[string] func(reflect.Value) string
+ 
++// Built-in formatters.
++var builtins = FormatterMap {
++	"html" : HtmlFormatter,
++	"str" : StringFormatter,
++	"" : StringFormatter,
++}
++
+ type template struct {
+ 	errorchan	chan *os.Error;	// for erroring out
+ 	linenum	*int;	// shared by all templates derived from this one
+@@ -439,11 +445,13 @@ func (t *template) evalVariable(name_formatter string) string {
+ 		formatter = name_formatter[bar+1:len(name_formatter)];
+ 	}
+ 	val := t.varValue(name);
++	// is it in user-supplied map?
+ 	if fn, ok := t.fmap[formatter]; ok {
+ 		return fn(val)
+ 	}
+-	if formatter == "" {
+-		return fmt.Sprint(val.Interface())
++	// is it in builtin map?
++	if fn, ok := builtins[formatter]; ok {
++		return fn(val)
+ 	}
+ 	t.error(ErrNoFormatter, ": ", formatter);
+ 	panic("notreached");
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index a67a888ea0..ef9b28ab81 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -143,9 +143,11 @@ var tests = []*Test {
+ 	&Test{
+ 		"{.section pdata }\n"
+ 		"{header|uppercase}={integer|+1}\n"
++		"{header|html}={integer|str}\n"
+ 		"{.end}\n",
+ 
+ 		"HEADER=78\n"
++		"Header=77\n"
+ 	},
+ }
+ 

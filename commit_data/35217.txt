@@ -9,6 +9,37 @@ Date:   Thu Jan 11 09:53:56 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/buildid_linux.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/buildid_linux.go b/misc/cgo/test/buildid_linux.go
+index 47dd87128f..84d3edb664 100644
+--- a/misc/cgo/test/buildid_linux.go
++++ b/misc/cgo/test/buildid_linux.go
+@@ -27,6 +27,7 @@ func testBuildID(t *testing.T) {
+ 	defer f.Close()
+ 
+ 	c := 0
++sections:
+ 	for i, s := range f.Sections {
+ 		if s.Type != elf.SHT_NOTE {
+ 			continue
+@@ -47,7 +48,7 @@ func testBuildID(t *testing.T) {
+ 
+ 			if len(d) < 12 {
+ 				t.Logf("note section %d too short (%d < 12)", i, len(d))
+-				continue
++				continue sections
+ 			}
+ 
+ 			namesz := f.ByteOrder.Uint32(d)
+@@ -59,7 +60,7 @@ func testBuildID(t *testing.T) {
+ 
+ 			if int(12+an+ad) > len(d) {
+ 				t.Logf("note section %d too short for header (%d < 12 + align(%d,4) + align(%d,4))", i, len(d), namesz, descsz)
+-				continue
++				continue sections
+ 			}
+ 
+ 			// 3 == NT_GNU_BUILD_ID

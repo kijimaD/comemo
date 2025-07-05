@@ -16,6 +16,20 @@ Date:   Thu Feb 25 15:16:25 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: David du Colombier <0intro@gmail.com>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 6a2d48eeda..5fc23f098b 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -308,7 +308,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err
+ 	}
+ 	for _, line := range lines {
+ 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
+-			txt = append(txt, absDomainName([]byte(line[i+1:])))
++			txt = append(txt, line[i+1:])
+ 		}
+ 	}
+ 	return

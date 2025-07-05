@@ -14,7 +14,7 @@ Date:   Tue Sep 21 14:05:57 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  1 +
  src/runtime/debugcall.go                  |  2 +-
  src/runtime/debuglog.go                   |  4 ++--
@@ -28,3 +28,372 @@ Date:   Tue Sep 21 14:05:57 2021 -0700
  src/runtime/symtab.go                     | 29 +++++++++++++++++------------
  src/runtime/traceback.go                  | 26 +++++++++++++-------------
  12 files changed, 44 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 4f20ec1bd1..06afe835e2 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -65,6 +65,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*bmap).keys",
+ 			"(*bmap).overflow",
+ 			"(*waitq).enqueue",
++			"(*_func).entry",
+ 
+ 			// GC-related ones
+ 			"cgoInRange",
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index ad66a18c26..a1440f7649 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -78,7 +78,7 @@ func debugCallCheck(pc uintptr) string {
+ 		}
+ 
+ 		// Check that this isn't an unsafe-point.
+-		if pc != f.entry {
++		if pc != f.entry() {
+ 			pc--
+ 		}
+ 		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 3ce3273f4d..588b54d1f5 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -802,7 +802,7 @@ func printDebugLog() {
+ // pc is a return PC that must first be converted to a call PC.
+ func printDebugLogPC(pc uintptr, returnPC bool) {
+ 	fn := findfunc(pc)
+-	if returnPC && (!fn.valid() || pc > fn.entry) {
++	if returnPC && (!fn.valid() || pc > fn.entry()) {
+ 		// TODO(austin): Don't back up if the previous frame
+ 		// was a sigpanic.
+ 		pc--
+@@ -814,7 +814,7 @@ func printDebugLogPC(pc uintptr, returnPC bool) {
+ 	} else {
+ 		name := funcname(fn)
+ 		file, line := funcline(fn, pc)
+-		print(" [", name, "+", hex(pc-fn.entry),
++		print(" [", name, "+", hex(pc-fn.entry()),
+ 			" ", file, ":", line, "]")
+ 	}
+ }
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 8fb30d95b9..871637a09e 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -259,7 +259,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	// Figure out what we can about our stack map
+ 	pc := s.pc
+ 	pcdata := int32(-1) // Use the entry map at function entry
+-	if pc != f.entry {
++	if pc != f.entry() {
+ 		pc--
+ 		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
+ 	}
+@@ -284,7 +284,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	dumpint(uint64(child.depth))                       // # of frames deep on the stack
+ 	dumpint(uint64(uintptr(unsafe.Pointer(child.sp)))) // sp of child, or 0 if bottom of stack
+ 	dumpmemrange(unsafe.Pointer(s.sp), s.fp-s.sp)      // frame contents
+-	dumpint(uint64(f.entry))
++	dumpint(uint64(f.entry()))
+ 	dumpint(uint64(s.pc))
+ 	dumpint(uint64(s.continpc))
+ 	name := funcname(f)
+@@ -631,7 +631,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ 			dumpint(0)
+ 		} else {
+ 			dumpstr(funcname(f))
+-			if i > 0 && pc > f.entry {
++			if i > 0 && pc > f.entry() {
+ 				pc--
+ 			}
+ 			file, line := funcline(f, pc)
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e4bdceb32f..942898716e 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -626,7 +626,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
+ 				// deferreturn that runs any remaining
+ 				// defers and then returns from the
+ 				// function.
+-				d1.pc = frame.fn.entry + uintptr(frame.fn.deferreturn)
++				d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
+ 				d1.varp = frame.varp
+ 				d1.fd = fd
+ 				// Save the SP/PC associated with current frame,
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index cd7fc5f848..500663bfe2 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -112,7 +112,7 @@ func pluginftabverify(md *moduledata) {
+ 		f2 := findfunc(entry)
+ 		if f2.valid() {
+ 			name2 = funcname(f2)
+-			entry2 = f2.entry
++			entry2 = f2.entry()
+ 		}
+ 		badtable = true
+ 		println("ftab entry", hex(entry), "/", hex(entry2), ": ",
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 334bac779e..18566a7459 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -451,7 +451,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		return true, startpc
+ 	case _PCDATA_RestartAtEntry:
+ 		// Restart from the function entry at resumption.
+-		return true, f.entry
++		return true, f.entry()
+ 	}
+ 	return true, pc
+ }
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index 59a91203b9..b2a642bb86 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -293,7 +293,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
+ 		// Can we symbolize val?
+ 		fn := findfunc(val)
+ 		if fn.valid() {
+-			print("<", funcname(fn), "+", hex(val-fn.entry), "> ")
++			print("<", funcname(fn), "+", hex(val-fn.entry()), "> ")
+ 		}
+ 	}
+ 	minhexdigits = 0
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 442042eb16..8188872ae8 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -858,7 +858,7 @@ const (
+ // Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+-	entry   uintptr // start pc
++	entryPC uintptr // start pc
+ 	nameoff int32   // function name
+ 
+ 	args        int32  // in/out args size
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 368ad6efa4..cccec49f8e 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -966,7 +966,7 @@ func newstack() {
+ 		f := findfunc(gp.sched.pc)
+ 		if f.valid() {
+ 			pcname = funcname(f)
+-			pcoff = gp.sched.pc - f.entry
++			pcoff = gp.sched.pc - f.entry()
+ 		}
+ 		print("runtime: newstack at ", pcname, "+", hex(pcoff),
+ 			" sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+@@ -1240,7 +1240,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 
+ 	f := frame.fn
+ 	pcdata := int32(-1)
+-	if targetpc != f.entry {
++	if targetpc != f.entry() {
+ 		// Back up to the CALL. If we're at the function entry
+ 		// point, we want to use the entry map (-1), even if
+ 		// the first instruction of the function changes the
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 0f4ad5ab95..a11e22130d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -206,7 +206,7 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+ 		}
+ 		lastFuncID = inltree[ix].funcID
+ 		// Back up to an instruction in the "caller".
+-		tracepc = f.entry + uintptr(inltree[ix].parentPc)
++		tracepc = f.entry() + uintptr(inltree[ix].parentPc)
+ 		pc = tracepc + 1
+ 	}
+ 
+@@ -651,7 +651,7 @@ func FuncForPC(pc uintptr) *Func {
+ 			file, line := funcline(f, pc)
+ 			fi := &funcinl{
+ 				ones:  ^uintptr(0),
+-				entry: f.entry, // entry of the real (the outermost) function.
++				entry: f.entry(), // entry of the real (the outermost) function.
+ 				name:  name,
+ 				file:  file,
+ 				line:  int(line),
+@@ -682,7 +682,7 @@ func (f *Func) Entry() uintptr {
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+ 		return fi.entry
+ 	}
+-	return fn.entry
++	return fn.entry()
+ }
+ 
+ // FileLine returns the file name and line number of the
+@@ -731,7 +731,12 @@ func (f funcInfo) _Func() *Func {
+ 
+ // isInlined reports whether f should be re-interpreted as a *funcinl.
+ func (f *_func) isInlined() bool {
+-	return f.entry == ^uintptr(0) // see comment for funcinl.ones
++	return f.entryPC == ^uintptr(0) // see comment for funcinl.ones
++}
++
++// entry returns the entry PC for f.
++func (f *_func) entry() uintptr {
++	return f.entryPC
+ }
+ 
+ // findfunc looks up function metadata for a PC.
+@@ -838,19 +843,19 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 
+ 	if !f.valid() {
+ 		if strict && panicking == 0 {
+-			print("runtime: no module data for ", hex(f.entry), "\n")
++			print("runtime: no module data for ", hex(f.entry()), "\n")
+ 			throw("no module data")
+ 		}
+ 		return -1, 0
+ 	}
+ 	datap := f.datap
+ 	p := datap.pctab[off:]
+-	pc := f.entry
++	pc := f.entry()
+ 	prevpc := pc
+ 	val := int32(-1)
+ 	for {
+ 		var ok bool
+-		p, ok = step(p, &pc, &val, pc == f.entry)
++		p, ok = step(p, &pc, &val, pc == f.entry())
+ 		if !ok {
+ 			break
+ 		}
+@@ -887,11 +892,11 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+ 
+ 	p = datap.pctab[off:]
+-	pc = f.entry
++	pc = f.entry()
+ 	val = -1
+ 	for {
+ 		var ok bool
+-		p, ok = step(p, &pc, &val, pc == f.entry)
++		p, ok = step(p, &pc, &val, pc == f.entry())
+ 		if !ok {
+ 			break
+ 		}
+@@ -975,7 +980,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
+ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+ 	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
+ 	if x&(goarch.PtrSize-1) != 0 {
+-		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
++		print("invalid spdelta ", funcname(f), " ", hex(f.entry()), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 	}
+ 	return x
+ }
+@@ -984,12 +989,12 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+ func funcMaxSPDelta(f funcInfo) int32 {
+ 	datap := f.datap
+ 	p := datap.pctab[f.pcsp:]
+-	pc := f.entry
++	pc := f.entry()
+ 	val := int32(-1)
+ 	max := int32(0)
+ 	for {
+ 		var ok bool
+-		p, ok = step(p, &pc, &val, pc == f.entry)
++		p, ok = step(p, &pc, &val, pc == f.entry())
+ 		if !ok {
+ 			return max
+ 		}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8c0979eec2..530d572095 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -297,7 +297,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.continpc = frame.pc
+ 		if waspanic {
+ 			if frame.fn.deferreturn != 0 {
+-				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
++				frame.continpc = frame.fn.entry() + uintptr(frame.fn.deferreturn) + 1
+ 				// Note: this may perhaps keep return variables alive longer than
+ 				// strictly necessary, as we are using "function has a defer statement"
+ 				// as a proxy for "function actually deferred something". It seems
+@@ -333,7 +333,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// See issue 34123.
+ 			// The pc can be at function entry when the frame is initialized without
+ 			// actually running code, like runtime.mstart.
+-			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
++			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry() {
+ 				pc++
+ 			} else {
+ 				tracepc--
+@@ -357,7 +357,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					}
+ 					lastFuncID = inltree[ix].funcID
+ 					// Back up to an instruction in the "caller".
+-					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
++					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
+ 					pc = tracepc + 1
+ 				}
+ 			}
+@@ -384,7 +384,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 			// backup to CALL instruction to read inlining info (same logic as below)
+ 			tracepc := frame.pc
+-			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
++			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry() && !waspanic {
+ 				tracepc--
+ 			}
+ 			// If there is inlining info, print the inner frames.
+@@ -412,7 +412,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					}
+ 					lastFuncID = inltree[ix].funcID
+ 					// Back up to an instruction in the "caller".
+-					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
++					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
+ 				}
+ 			}
+ 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, lastFuncID) {
+@@ -430,8 +430,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				printArgs(f, argp)
+ 				print(")\n")
+ 				print("\t", file, ":", line)
+-				if frame.pc > f.entry {
+-					print(" +", hex(frame.pc-f.entry))
++				if frame.pc > f.entry() {
++					print(" +", hex(frame.pc-f.entry()))
+ 				}
+ 				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
+ 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
+@@ -668,7 +668,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 				// in the return values.
+ 				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
+ 			}
+-			if mv.fn != f.entry {
++			if mv.fn != f.entry() {
+ 				print("runtime: confused by ", funcname(f), "\n")
+ 				throw("reflect mismatch")
+ 			}
+@@ -728,13 +728,13 @@ func printcreatedby(gp *g) {
+ func printcreatedby1(f funcInfo, pc uintptr) {
+ 	print("created by ", funcname(f), "\n")
+ 	tracepc := pc // back up to CALL instruction for funcline.
+-	if pc > f.entry {
++	if pc > f.entry() {
+ 		tracepc -= sys.PCQuantum
+ 	}
+ 	file, line := funcline(f, tracepc)
+ 	print("\t", file, ":", line)
+-	if pc > f.entry {
+-		print(" +", hex(pc-f.entry))
++	if pc > f.entry() {
++		print(" +", hex(pc-f.entry()))
+ 	}
+ 	print("\n")
+ }
+@@ -842,8 +842,8 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ 	}
+ 	print(name, "(...)\n")
+ 	print("\t", file, ":", line)
+-	if pc > f.entry {
+-		print(" +", hex(pc-f.entry))
++	if pc > f.entry() {
++		print(" +", hex(pc-f.entry()))
+ 	}
+ 	print("\n")
+ }

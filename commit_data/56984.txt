@@ -28,6 +28,22 @@ Date:   Mon Jun 5 21:30:18 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 15996534ec..1bf178d0ad 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1206,10 +1206,6 @@ func clean() {
+ 				}
+ 			}
+ 		}
+-		// Remove generated binary named for directory.
+-		if strings.HasPrefix(name, "cmd/") {
+-			xremove(pathf("%s/%s", path, name[4:]))
+-		}
+ 	}
+ 
+ 	// remove runtimegen files.

@@ -11,7 +11,32 @@ Date:   Sun Jun 14 16:20:13 2020 +0000
     GitHub-Pull-Request: golang/go#39584
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237821
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f8d1eb8616..909013052e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1044,6 +1044,7 @@ Niels Widger <niels.widger@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nik Nyby <nnyby@columbia.edu>
+ Nikhil Benesch <nikhil.benesch@gmail.com>
++Nikita Gillmann <nikita@n0.is> <ng0@n0.is>
+ Niklas Schnelle <niklas.schnelle@gmail.com>
+ Niko Dziemba <niko@dziemba.com>
+ Nikolay Turpitko <nikolay@turpitko.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c64ab4311b..dec3246176 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1654,6 +1654,7 @@ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Nik Nyby <nnyby@columbia.edu>
+ Nikhil Benesch <nikhil.benesch@gmail.com>
++Nikita Gillmann <nikita@n0.is> <ng0@n0.is>
+ Nikita Kryuchkov <nkryuchkov10@gmail.com>
+ Nikita Vanyasin <nikita.vanyasin@gmail.com>
+ Niklas Schnelle <niklas.schnelle@gmail.com>

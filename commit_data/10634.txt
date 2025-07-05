@@ -11,8 +11,76 @@ Date:   Tue Dec 6 16:38:02 2011 -0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5453065
-
+---
  src/pkg/net/http/Makefile             |  5 -----
  src/pkg/net/http/transport.go         | 14 ++++----------
  src/pkg/net/http/transport_windows.go | 21 ---------------------
  3 files changed, 4 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/net/http/Makefile b/src/pkg/net/http/Makefile
+index 4bf33a629d..807bc32447 100644
+--- a/src/pkg/net/http/Makefile
++++ b/src/pkg/net/http/Makefile
+@@ -21,9 +21,4 @@ GOFILES=\
+ 	transfer.go\
+ 	transport.go\
+ 
+-GOFILES_windows=\
+-	transport_windows.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+ include ../../../Make.pkg
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index e622e41f0a..dc70be43f2 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -519,17 +519,11 @@ func (pc *persistConn) readLoop() {
+ 
+ 	for alive {
+ 		pb, err := pc.br.Peek(1)
+-		if err != nil {
+-			if remoteSideClosed(err) && !pc.expectingResponse() {
+-				// Remote side closed on us.  (We probably hit their
+-				// max idle timeout)
+-				pc.close()
+-				return
+-			}
+-		}
+ 		if !pc.expectingResponse() {
+-			log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
+-				string(pb), err)
++			if len(pb) > 0 {
++				log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
++					string(pb), err)
++			}
+ 			pc.close()
+ 			return
+ 		}
+diff --git a/src/pkg/net/http/transport_windows.go b/src/pkg/net/http/transport_windows.go
+deleted file mode 100644
+index c9ef2c2ab6..0000000000
+--- a/src/pkg/net/http/transport_windows.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package http
+-
+-import (
+-	"net"
+-	"syscall"
+-)
+-
+-func init() {
+-	remoteSideClosedFunc = func(err error) (out bool) {
+-		op, ok := err.(*net.OpError)
+-		if ok && op.Op == "WSARecv" && op.Net == "tcp" && op.Err == syscall.Errno(10058) {
+-			// TODO(brainman,rsc): Fix whatever is generating this.
+-			return true
+-		}
+-		return false
+-	}
+-}

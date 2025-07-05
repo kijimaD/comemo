@@ -9,7 +9,7 @@ Date:   Thu Aug 3 10:52:42 2017 -0700
     Change-Id: I5585726773b822dba0be0196961132323ebbe084
     Reviewed-on: https://go-review.googlesource.com/53071
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/articles/wiki/final-noclosure.go     | 3 ++-
  doc/articles/wiki/final-noerror.go       | 3 ++-
  doc/articles/wiki/final-parsetemplate.go | 3 ++-
@@ -23,3 +23,224 @@ Date:   Thu Aug 3 10:52:42 2017 -0700
  doc/articles/wiki/part3-errorhandling.go | 3 ++-
  doc/articles/wiki/part3.go               | 3 ++-
  12 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/doc/articles/wiki/final-noclosure.go b/doc/articles/wiki/final-noclosure.go
+index d72ca805b8..b4ce255742 100644
+--- a/doc/articles/wiki/final-noclosure.go
++++ b/doc/articles/wiki/final-noclosure.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"regexp"
+ )
+@@ -98,5 +99,5 @@ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+ 	http.HandleFunc("/save/", saveHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/final-noerror.go b/doc/articles/wiki/final-noerror.go
+index 86d8da751f..42a22da9dd 100644
+--- a/doc/articles/wiki/final-noerror.go
++++ b/doc/articles/wiki/final-noerror.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -49,5 +50,5 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
+ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/final-parsetemplate.go b/doc/articles/wiki/final-parsetemplate.go
+index 5ff8bf60c5..a9aa7f2894 100644
+--- a/doc/articles/wiki/final-parsetemplate.go
++++ b/doc/articles/wiki/final-parsetemplate.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"regexp"
+ )
+@@ -87,5 +88,5 @@ func main() {
+ 	http.HandleFunc("/view/", makeHandler(viewHandler))
+ 	http.HandleFunc("/edit/", makeHandler(editHandler))
+ 	http.HandleFunc("/save/", makeHandler(saveHandler))
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/final-template.go b/doc/articles/wiki/final-template.go
+index 719157da95..7ea480e50a 100644
+--- a/doc/articles/wiki/final-template.go
++++ b/doc/articles/wiki/final-template.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -61,5 +62,5 @@ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+ 	http.HandleFunc("/save/", saveHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/final-test.patch b/doc/articles/wiki/final-test.patch
+index 499ad789b3..510825b319 100644
+--- a/doc/articles/wiki/final-test.patch
++++ b/doc/articles/wiki/final-test.patch
+@@ -16,7 +16,7 @@
+   	http.HandleFunc("/edit/", makeHandler(editHandler))
+   	http.HandleFunc("/save/", makeHandler(saveHandler))
+   
+-! 	http.ListenAndServe(":8080", nil)
++! 	log.Fatal(http.ListenAndServe(":8080", nil))
+   }
+ --- 87,101 ----
+   	http.HandleFunc("/edit/", makeHandler(editHandler))
+diff --git a/doc/articles/wiki/final.go b/doc/articles/wiki/final.go
+index 139a323010..0f6646ba87 100644
+--- a/doc/articles/wiki/final.go
++++ b/doc/articles/wiki/final.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"regexp"
+ )
+@@ -85,5 +86,5 @@ func main() {
+ 	http.HandleFunc("/edit/", makeHandler(editHandler))
+ 	http.HandleFunc("/save/", makeHandler(saveHandler))
+ 
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/http-sample.go b/doc/articles/wiki/http-sample.go
+index ac8cc4f2d6..9bc2084c67 100644
+--- a/doc/articles/wiki/http-sample.go
++++ b/doc/articles/wiki/http-sample.go
+@@ -2,6 +2,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -11,5 +12,5 @@ func handler(w http.ResponseWriter, r *http.Request) {
+ 
+ func main() {
+ 	http.HandleFunc("/", handler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index b6b080df96..e5054f7bf7 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -213,6 +213,12 @@ worry about its second parameter, <code>nil</code>, for now.)
+ This function will block until the program is terminated.
+ </p>
+ 
++<p>
++<code>ListenAndServe</code> always returns an error, since it only returns when an
++unexpected error occurs.
++In order to log that error we wrap the function call with <code>log.Fatal</code>.
++</p>
++
+ <p>
+ The function <code>handler</code> is of the type <code>http.HandlerFunc</code>.
+ It takes an <code>http.ResponseWriter</code> and an <code>http.Request</code> as
+diff --git a/doc/articles/wiki/notemplate.go b/doc/articles/wiki/notemplate.go
+index be214d1111..0fda7a98ce 100644
+--- a/doc/articles/wiki/notemplate.go
++++ b/doc/articles/wiki/notemplate.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -52,5 +53,5 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/part2.go b/doc/articles/wiki/part2.go
+index c0231693ef..30f9dcf146 100644
+--- a/doc/articles/wiki/part2.go
++++ b/doc/articles/wiki/part2.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -37,5 +38,5 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
+ 
+ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/part3-errorhandling.go b/doc/articles/wiki/part3-errorhandling.go
+index bb4ecda84b..34b13a6086 100644
+--- a/doc/articles/wiki/part3-errorhandling.go
++++ b/doc/articles/wiki/part3-errorhandling.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -69,5 +70,5 @@ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+ 	http.HandleFunc("/save/", saveHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/doc/articles/wiki/part3.go b/doc/articles/wiki/part3.go
+index 174f3abcd7..5e5d5056c4 100644
+--- a/doc/articles/wiki/part3.go
++++ b/doc/articles/wiki/part3.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"html/template"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ )
+ 
+@@ -53,5 +54,5 @@ func main() {
+ 	http.HandleFunc("/view/", viewHandler)
+ 	http.HandleFunc("/edit/", editHandler)
+ 	//http.HandleFunc("/save/", saveHandler)
+-	http.ListenAndServe(":8080", nil)
++	log.Fatal(http.ListenAndServe(":8080", nil))
+ }

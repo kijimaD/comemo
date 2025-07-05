@@ -7,7 +7,7 @@ Date:   Fri Sep 24 11:55:48 2010 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/2273042
-
+---
  src/cmd/cgo/util.go                      |  4 ++--
  src/cmd/goyacc/goyacc.go                 |  2 +-
  src/pkg/encoding/ascii85/ascii85_test.go |  2 +-
@@ -38,3 +38,581 @@ Date:   Fri Sep 24 11:55:48 2010 -0400
  test/defer.go                            |  2 +-
  test/fixedbugs/bug252.go                 |  4 ++--
  29 files changed, 62 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 3911982951..5c7fc7205c 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -67,7 +67,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 
+ // Die with an error message.
+ func fatal(msg string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, msg+"\n", args)
++	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+ 	os.Exit(2)
+ }
+ 
+@@ -79,7 +79,7 @@ func error(pos token.Position, msg string, args ...interface{}) {
+ 	if pos.IsValid() {
+ 		fmt.Fprintf(os.Stderr, "%s: ", pos)
+ 	}
+-	fmt.Fprintf(os.Stderr, msg, args)
++	fmt.Fprintf(os.Stderr, msg, args...)
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
+ 
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 45dced1b3e..ff7dcd2501 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3052,7 +3052,7 @@ func create(s string, m uint32) *bufio.Writer {
+ //
+ func error(s string, v ...interface{}) {
+ 	nerrors++
+-	fmt.Fprintf(stderr, s, v)
++	fmt.Fprintf(stderr, s, v...)
+ 	fmt.Fprintf(stderr, ": %v:%v\n", infile, lineno)
+ 	if fatfl != 0 {
+ 		summary()
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 738e1cc1bd..d3e9d501a7 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -34,7 +34,7 @@ var bigtest = pairs[len(pairs)-1]
+ 
+ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+ 	if args[len(args)-2] != args[len(args)-1] {
+-		t.Errorf(msg, args)
++		t.Errorf(msg, args...)
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index c14785f1b4..de96b5cc53 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -48,7 +48,7 @@ var bigtest = testpair{
+ 
+ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+ 	if args[len(args)-2] != args[len(args)-1] {
+-		t.Errorf(msg, args)
++		t.Errorf(msg, args...)
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index a31f14d3cf..2c6c157433 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -17,7 +17,7 @@ type testpair struct {
+ 
+ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+ 	if args[len(args)-2] != args[len(args)-1] {
+-		t.Errorf(msg, args)
++		t.Errorf(msg, args...)
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index e77f445b5a..979dedd973 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -697,7 +697,7 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
+ // written and an os.Error, if any.
+ //
+ func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, os.Error) {
+-	data, err := f.Eval(env, args)
++	data, err := f.Eval(env, args...)
+ 	if err != nil {
+ 		// TODO should we print partial result in case of error?
+ 		return 0, err
+@@ -711,7 +711,7 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int,
+ // number of bytes written and an os.Error, if any.
+ //
+ func (f Format) Print(args ...interface{}) (int, os.Error) {
+-	return f.Fprint(os.Stdout, nil, args)
++	return f.Fprint(os.Stdout, nil, args...)
+ }
+ 
+ 
+@@ -722,7 +722,7 @@ func (f Format) Print(args ...interface{}) (int, os.Error) {
+ //
+ func (f Format) Sprint(args ...interface{}) string {
+ 	var buf bytes.Buffer
+-	_, err := f.Fprint(&buf, nil, args)
++	_, err := f.Fprint(&buf, nil, args...)
+ 	if err != nil {
+ 		var i interface{} = args
+ 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(i), err)
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+index 9088947178..66794cfde5 100644
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ b/src/pkg/exp/datafmt/datafmt_test.go
+@@ -24,7 +24,7 @@ func verify(t *testing.T, f Format, expected string, args ...interface{}) {
+ 	if f == nil {
+ 		return // allow other tests to run
+ 	}
+-	result := f.Sprint(args)
++	result := f.Sprint(args...)
+ 	if result != expected {
+ 		t.Errorf(
+ 			"result  : `%s`\nexpected: `%s`\n\n",
+@@ -97,7 +97,7 @@ func check(t *testing.T, form, expected string, args ...interface{}) {
+ 	if f == nil {
+ 		return // allow other tests to run
+ 	}
+-	result := f.Sprint(args)
++	result := f.Sprint(args...)
+ 	if result != expected {
+ 		t.Errorf(
+ 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
+diff --git a/src/pkg/exp/eval/compiler.go b/src/pkg/exp/eval/compiler.go
+index 3e37bfbaa5..764df8e7d2 100644
+--- a/src/pkg/exp/eval/compiler.go
++++ b/src/pkg/exp/eval/compiler.go
+@@ -28,7 +28,7 @@ type compiler struct {
+ }
+ 
+ func (a *compiler) diagAt(pos positioned, format string, args ...interface{}) {
+-	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args))
++	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args...))
+ 	a.numErrors++
+ }
+ 
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 9054ad8fbe..8a051495ce 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -65,7 +65,7 @@ func (a *exprInfo) newExpr(t Type, desc string) *expr {
+ }
+ 
+ func (a *exprInfo) diag(format string, args ...interface{}) {
+-	a.diagAt(&a.pos, format, args)
++	a.diagAt(&a.pos, format, args...)
+ }
+ 
+ func (a *exprInfo) diagOpType(op token.Token, vt Type) {
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 95ddbea65b..2c63890ff3 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -28,7 +28,7 @@ type stmtCompiler struct {
+ }
+ 
+ func (a *stmtCompiler) diag(format string, args ...interface{}) {
+-	a.diagAt(&a.pos, format, args)
++	a.diagAt(&a.pos, format, args...)
+ }
+ 
+ /*
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 33095627dc..8fcde73fe2 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -146,7 +146,7 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (n int, error os.Erro
+ // Printf formats according to a format specifier and writes to standard output.
+ // It returns the number of bytes written and any write error encountered.
+ func Printf(format string, a ...interface{}) (n int, errno os.Error) {
+-	n, errno = Fprintf(os.Stdout, format, a)
++	n, errno = Fprintf(os.Stdout, format, a...)
+ 	return n, errno
+ }
+ 
+@@ -176,7 +176,7 @@ func Fprint(w io.Writer, a ...interface{}) (n int, error os.Error) {
+ // Spaces are added between operands when neither is a string.
+ // It returns the number of bytes written and any write error encountered.
+ func Print(a ...interface{}) (n int, errno os.Error) {
+-	n, errno = Fprint(os.Stdout, a)
++	n, errno = Fprint(os.Stdout, a...)
+ 	return n, errno
+ }
+ 
+@@ -209,7 +209,7 @@ func Fprintln(w io.Writer, a ...interface{}) (n int, error os.Error) {
+ // Spaces are always added between operands and a newline is appended.
+ // It returns the number of bytes written and any write error encountered.
+ func Println(a ...interface{}) (n int, errno os.Error) {
+-	n, errno = Fprintln(os.Stdout, a)
++	n, errno = Fprintln(os.Stdout, a...)
+ 	return n, errno
+ }
+ 
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index fefd556c7e..41a12d9957 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -60,20 +60,20 @@ type Scanner interface {
+ // as space.  It returns the number of items successfully scanned.
+ // If that is less than the number of arguments, err will report why.
+ func Scan(a ...interface{}) (n int, err os.Error) {
+-	return Fscan(os.Stdin, a)
++	return Fscan(os.Stdin, a...)
+ }
+ 
+ // Scanln is similar to Scan, but stops scanning at a newline and
+ // after the final item there must be a newline or EOF.
+ func Scanln(a ...interface{}) (n int, err os.Error) {
+-	return Fscanln(os.Stdin, a)
++	return Fscanln(os.Stdin, a...)
+ }
+ 
+ // Scanf scans text read from standard input, storing successive
+ // space-separated values into successive arguments as determined by
+ // the format.  It returns the number of items successfully scanned.
+ func Scanf(format string, a ...interface{}) (n int, err os.Error) {
+-	return Fscanf(os.Stdin, format, a)
++	return Fscanf(os.Stdin, format, a...)
+ }
+ 
+ // Sscan scans the argument string, storing successive space-separated
+@@ -81,20 +81,20 @@ func Scanf(format string, a ...interface{}) (n int, err os.Error) {
+ // returns the number of items successfully scanned.  If that is less
+ // than the number of arguments, err will report why.
+ func Sscan(str string, a ...interface{}) (n int, err os.Error) {
+-	return Fscan(strings.NewReader(str), a)
++	return Fscan(strings.NewReader(str), a...)
+ }
+ 
+ // Sscanln is similar to Sscan, but stops scanning at a newline and
+ // after the final item there must be a newline or EOF.
+ func Sscanln(str string, a ...interface{}) (n int, err os.Error) {
+-	return Fscanln(strings.NewReader(str), a)
++	return Fscanln(strings.NewReader(str), a...)
+ }
+ 
+ // Sscanf scans the argument string, storing successive space-separated
+ // values into successive arguments as determined by the format.  It
+ // returns the number of items successfully parsed.
+ func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
+-	return Fscanf(strings.NewReader(str), format, a)
++	return Fscanf(strings.NewReader(str), format, a...)
+ }
+ 
+ // Fscan scans text read from r, storing successive space-separated
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index b477ebc86c..d71490d4a9 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -124,7 +124,7 @@ type localError struct {
+ 
+ // printf is a convenience wrapper that takes care of print errors.
+ func (p *printer) printf(format string, args ...interface{}) {
+-	n, err := fmt.Fprintf(p, format, args)
++	n, err := fmt.Fprintf(p, format, args...)
+ 	p.written += n
+ 	if err != nil {
+ 		panic(localError{err})
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e13640a91a..b20cf10b8a 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -90,7 +90,7 @@ func (p *parser) printTrace(a ...interface{}) {
+ 		fmt.Print(dots)
+ 	}
+ 	fmt.Print(dots[0:i])
+-	fmt.Println(a)
++	fmt.Println(a...)
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 3e6299da77..b985f6ed3e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -105,7 +105,7 @@ func (p *printer) init(output io.Writer, cfg *Config) {
+ func (p *printer) internalError(msg ...interface{}) {
+ 	if debug {
+ 		fmt.Print(p.pos.String() + ": ")
+-		fmt.Println(msg)
++		fmt.Println(msg...)
+ 		panic("go/printer")
+ 	}
+ }
+diff --git a/src/pkg/go/typechecker/typechecker.go b/src/pkg/go/typechecker/typechecker.go
+index f8b05ddb4f..64b429d125 100644
+--- a/src/pkg/go/typechecker/typechecker.go
++++ b/src/pkg/go/typechecker/typechecker.go
+@@ -70,7 +70,7 @@ type typechecker struct {
+ 
+ 
+ func (tc *typechecker) Errorf(pos token.Position, format string, args ...interface{}) {
+-	tc.Error(pos, fmt.Sprintf(format, args))
++	tc.Error(pos, fmt.Sprintf(format, args...))
+ }
+ 
+ 
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 28d6204eb6..f6612205fb 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -150,32 +150,32 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
+ 
+ // Logf is analogous to Printf() for a Logger.
+ func (l *Logger) Logf(format string, v ...interface{}) {
+-	l.Output(2, fmt.Sprintf(format, v))
++	l.Output(2, fmt.Sprintf(format, v...))
+ }
+ 
+ // Log is analogous to Print() for a Logger.
+-func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v)) }
++func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
+-func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v)) }
++func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v...)) }
+ 
+ // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+-func Stderr(v ...interface{}) { stderr.Output(2, fmt.Sprintln(v)) }
++func Stderr(v ...interface{}) { stderr.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
+-func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v)) }
++func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v...)) }
+ 
+ // Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
+-func Stderrf(format string, v ...interface{}) { stderr.Output(2, fmt.Sprintf(format, v)) }
++func Stderrf(format string, v ...interface{}) { stderr.Output(2, fmt.Sprintf(format, v...)) }
+ 
+ // Exit is equivalent to Stderr() followed by a call to os.Exit(1).
+-func Exit(v ...interface{}) { exit.Output(2, fmt.Sprintln(v)) }
++func Exit(v ...interface{}) { exit.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
+-func Exitf(format string, v ...interface{}) { exit.Output(2, fmt.Sprintf(format, v)) }
++func Exitf(format string, v ...interface{}) { exit.Output(2, fmt.Sprintf(format, v...)) }
+ 
+ // Crash is equivalent to Stderr() followed by a call to panic().
+-func Crash(v ...interface{}) { crash.Output(2, fmt.Sprintln(v)) }
++func Crash(v ...interface{}) { crash.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Crashf is equivalent to Stderrf() followed by a call to panic().
+-func Crashf(format string, v ...interface{}) { crash.Output(2, fmt.Sprintf(format, v)) }
++func Crashf(format string, v ...interface{}) { crash.Output(2, fmt.Sprintf(format, v...)) }
+diff --git a/src/pkg/net/textproto/textproto.go b/src/pkg/net/textproto/textproto.go
+index 694af1829e..f62009c523 100644
+--- a/src/pkg/net/textproto/textproto.go
++++ b/src/pkg/net/textproto/textproto.go
+@@ -113,7 +113,7 @@ func Dial(network, addr string) (*Conn, os.Error) {
+ func (c *Conn) Cmd(format string, args ...interface{}) (id uint, err os.Error) {
+ 	id = c.Next()
+ 	c.StartRequest(id)
+-	err = c.PrintfLine(format, args)
++	err = c.PrintfLine(format, args...)
+ 	c.EndRequest(id)
+ 	if err != nil {
+ 		return 0, err
+diff --git a/src/pkg/net/textproto/writer.go b/src/pkg/net/textproto/writer.go
+index b99b0144d7..4e705f6c3e 100644
+--- a/src/pkg/net/textproto/writer.go
++++ b/src/pkg/net/textproto/writer.go
+@@ -29,7 +29,7 @@ var dotcrnl = []byte{'.', '\r', '\n'}
+ // PrintfLine writes the formatted output followed by \r\n.
+ func (w *Writer) PrintfLine(format string, args ...interface{}) os.Error {
+ 	w.closeDot()
+-	fmt.Fprintf(w.W, format, args)
++	fmt.Fprintf(w.W, format, args...)
+ 	w.W.Write(crnl)
+ 	return w.W.Flush()
+ }
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 73a070c95c..2d70aeddf0 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -34,7 +34,7 @@ import (
+ // expLog is a logging convenience function.  The first argument must be a string.
+ func expLog(args ...interface{}) {
+ 	args[0] = "netchan export: " + args[0].(string)
+-	log.Stderr(args)
++	log.Stderr(args...)
+ }
+ 
+ // An Exporter allows a set of channels to be published on a single
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index 48fdb7bad9..fadfc7a99b 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -17,7 +17,7 @@ import (
+ // impLog is a logging convenience function.  The first argument must be a string.
+ func impLog(args ...interface{}) {
+ 	args[0] = "netchan import: " + args[0].(string)
+-	log.Stderr(args)
++	log.Stderr(args...)
+ }
+ 
+ // An Importer allows a set of channels to be imported from a single
+diff --git a/src/pkg/nntp/nntp.go b/src/pkg/nntp/nntp.go
+index 8f343dc8f8..ce7a2ccd2d 100644
+--- a/src/pkg/nntp/nntp.go
++++ b/src/pkg/nntp/nntp.go
+@@ -270,7 +270,7 @@ func (c *Conn) cmd(expectCode uint, format string, args ...interface{}) (code ui
+ 		}
+ 		c.br = nil
+ 	}
+-	if _, err := fmt.Fprintf(c.conn, format+"\r\n", args); err != nil {
++	if _, err := fmt.Fprintf(c.conn, format+"\r\n", args...); err != nil {
+ 		return 0, "", err
+ 	}
+ 	line, err = c.r.ReadString('\n')
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 513dcd967c..592e696b52 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -118,7 +118,7 @@ var jointests = []JoinTest{
+ // join takes a []string and passes it to Join.
+ func join(elem []string, args ...string) string {
+ 	args = elem
+-	return Join(args)
++	return Join(args...)
+ }
+ 
+ func TestJoin(t *testing.T) {
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index d4640fabb1..0defe948fe 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -185,13 +185,13 @@ func New(fmap FormatterMap) *Template {
+ 
+ // Report error and stop executing.  The line number must be provided explicitly.
+ func (t *Template) execError(st *state, line int, err string, args ...interface{}) {
+-	panic(&Error{line, fmt.Sprintf(err, args)})
++	panic(&Error{line, fmt.Sprintf(err, args...)})
+ }
+ 
+ // Report error, panic to terminate parsing.
+ // The line number comes from the template state.
+ func (t *Template) parseError(err string, args ...interface{}) {
+-	panic(&Error{t.linenum, fmt.Sprintf(err, args)})
++	panic(&Error{t.linenum, fmt.Sprintf(err, args...)})
+ }
+ 
+ // -- Lexical analysis
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 763b65b05c..a3a7e5994d 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -89,35 +89,35 @@ func (t *T) FailNow() {
+ 
+ // Log formats its arguments using default formatting, analogous to Print(),
+ // and records the text in the error log.
+-func (t *T) Log(args ...interface{}) { t.errors += "\t" + tabify(fmt.Sprintln(args)) }
++func (t *T) Log(args ...interface{}) { t.errors += "\t" + tabify(fmt.Sprintln(args...)) }
+ 
+ // Log formats its arguments according to the format, analogous to Printf(),
+ // and records the text in the error log.
+ func (t *T) Logf(format string, args ...interface{}) {
+-	t.errors += "\t" + tabify(fmt.Sprintf(format, args))
++	t.errors += "\t" + tabify(fmt.Sprintf(format, args...))
+ }
+ 
+ // Error is equivalent to Log() followed by Fail().
+ func (t *T) Error(args ...interface{}) {
+-	t.Log(args)
++	t.Log(args...)
+ 	t.Fail()
+ }
+ 
+ // Errorf is equivalent to Logf() followed by Fail().
+ func (t *T) Errorf(format string, args ...interface{}) {
+-	t.Logf(format, args)
++	t.Logf(format, args...)
+ 	t.Fail()
+ }
+ 
+ // Fatal is equivalent to Log() followed by FailNow().
+ func (t *T) Fatal(args ...interface{}) {
+-	t.Log(args)
++	t.Log(args...)
+ 	t.FailNow()
+ }
+ 
+ // Fatalf is equivalent to Logf() followed by FailNow().
+ func (t *T) Fatalf(format string, args ...interface{}) {
+-	t.Logf(format, args)
++	t.Logf(format, args...)
+ 	t.FailNow()
+ }
+ 
+diff --git a/test/bench/pidigits.go b/test/bench/pidigits.go
+index dcfb502ce2..55da379438 100644
+--- a/test/bench/pidigits.go
++++ b/test/bench/pidigits.go
+@@ -100,7 +100,7 @@ func eliminate_digit(d int64) {
+ 
+ func printf(s string, arg ...interface{}) {
+ 	if !*silent {
+-		fmt.Printf(s, arg)
++		fmt.Printf(s, arg...)
+ 	}
+ }
+ 
+diff --git a/test/ddd.go b/test/ddd.go
+index c9949c36e2..92a3a318a3 100644
+--- a/test/ddd.go
++++ b/test/ddd.go
+@@ -14,13 +14,13 @@ func sum(args ...int) int {
+ 	return s
+ }
+ 
+-func sumC(args ...int) int { return func() int { return sum(args) }() }
++func sumC(args ...int) int { return func() int { return sum(args...) }() }
+ 
+-var sumD = func(args ...int) int { return sum(args) }
++var sumD = func(args ...int) int { return sum(args...) }
+ 
+-var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } }()
++var sumE = func() func(...int) int { return func(args ...int) int { return sum(args...) } }()
+ 
+-var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
++var sumF = func(args ...int) func() int { return func() int { return sum(args...) } }
+ 
+ func sumA(args []int) int {
+ 	s := 0
+@@ -30,7 +30,7 @@ func sumA(args []int) int {
+ 	return s
+ }
+ 
+-func sum2(args ...int) int { return 2 * sum(args) }
++func sum2(args ...int) int { return 2 * sum(args...) }
+ 
+ func sum3(args ...int) int { return 3 * sumA(args) }
+ 
+@@ -46,9 +46,9 @@ type T []T
+ 
+ func ln(args ...T) int { return len(args) }
+ 
+-func ln2(args ...T) int { return 2 * ln(args) }
++func ln2(args ...T) int { return 2 * ln(args...) }
+ 
+-func (*T) Sum(args ...int) int { return sum(args) }
++func (*T) Sum(args ...int) int { return sum(args...) }
+ 
+ type U struct {
+ 	*T
+diff --git a/test/defer.go b/test/defer.go
+index 8b8312235d..bef8fbe26a 100644
+--- a/test/defer.go
++++ b/test/defer.go
+@@ -26,7 +26,7 @@ func test1() {
+ 	}
+ }
+ 
+-func addDotDotDot(v ...interface{}) { result += fmt.Sprint(v) }
++func addDotDotDot(v ...interface{}) { result += fmt.Sprint(v...) }
+ 
+ func test2helper() {
+ 	for i := 0; i < 10; i++ {
+diff --git a/test/fixedbugs/bug252.go b/test/fixedbugs/bug252.go
+index bd11b86ebf..5615f84fa1 100644
+--- a/test/fixedbugs/bug252.go
++++ b/test/fixedbugs/bug252.go
+@@ -7,9 +7,9 @@
+ package main
+ 
+ func f(args ...int) {
+-	g(args)	// ERROR "[.][.][.] mismatch"
++	g(args)	// ERROR "[.][.][.]"
+ }
+ 
+ func g(args ...interface{}) {
+-	f(args)	// ERROR "[.][.][.] mismatch"
++	f(args)	// ERROR "[.][.][.]"
+ }

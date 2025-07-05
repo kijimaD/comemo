@@ -11,9 +11,152 @@ Date:   Fri Jul 24 14:51:51 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12660
     Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 25 +++++++++++++++++++++----
  src/cmd/compile/internal/ssa/gen/genericOps.go |  6 ++----
  src/cmd/compile/internal/ssa/opGen.go          |  8 ++++----
  src/cmd/compile/internal/ssa/regalloc.go       |  8 ++++----
  4 files changed, 31 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e9f99b1799..7a3396482f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1639,23 +1639,23 @@ func genValue(v *ssa.Value) {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = y
+ 		}
+-	case ssa.OpLoadReg8:
++	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+ 			v.Unimplementedf("load flags not implemented: %v", v.LongString())
+ 			return
+ 		}
+-		p := Prog(x86.AMOVQ)
++		p := Prog(movSize(v.Type.Size()))
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = x86.REG_SP
+ 		p.From.Offset = localOffset(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpStoreReg8:
++	case ssa.OpStoreReg:
+ 		if v.Type.IsFlags() {
+ 			v.Unimplementedf("store flags not implemented: %v", v.LongString())
+ 			return
+ 		}
+-		p := Prog(x86.AMOVQ)
++		p := Prog(movSize(v.Type.Size()))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_MEM
+@@ -1711,6 +1711,23 @@ func genValue(v *ssa.Value) {
+ 	}
+ }
+ 
++// movSize returns the MOV instruction of the given width.
++func movSize(width int64) (asm int) {
++	switch width {
++	case 1:
++		asm = x86.AMOVB
++	case 2:
++		asm = x86.AMOVW
++	case 4:
++		asm = x86.AMOVL
++	case 8:
++		asm = x86.AMOVQ
++	default:
++		panic(fmt.Errorf("bad movSize %d", width))
++	}
++	return asm
++}
++
+ // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
+ func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
+ 	p := Prog(as)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 4014fd5009..1b5f098ec4 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -178,10 +178,8 @@ var genericOps = []opData{
+ 	// semantically identical to OpCopy; they do not take/return
+ 	// stores like regular memory ops do.  We can get away without memory
+ 	// args because we know there is no aliasing of spill slots on the stack.
+-	// TODO: remove these, make them arch-specific ops stored
+-	// in the fields of Config instead.
+-	{name: "StoreReg8"},
+-	{name: "LoadReg8"},
++	{name: "StoreReg"},
++	{name: "LoadReg"},
+ 
+ 	// Used during ssa construction.  Like Copy, but the arg has not been specified yet.
+ 	{name: "FwdRef"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8c1ef0b9d9..5302c90442 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -243,8 +243,8 @@ const (
+ 	OpStringMake
+ 	OpStringPtr
+ 	OpStringLen
+-	OpStoreReg8
+-	OpLoadReg8
++	OpStoreReg
++	OpLoadReg
+ 	OpFwdRef
+ )
+ 
+@@ -1590,11 +1590,11 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StoreReg8",
++		name:    "StoreReg",
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "LoadReg8",
++		name:    "LoadReg",
+ 		generic: true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index f46fe25be4..101eedd93f 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -240,7 +240,7 @@ func regalloc(f *Func) {
+ 						c := regs[r].c
+ 						if regs[r].dirty && lastUse[x.ID] > idx {
+ 							// Write x back to home.  Its value is currently held in c.
+-							x.Op = OpStoreReg8
++							x.Op = OpStoreReg
+ 							x.Aux = nil
+ 							x.resetArgs()
+ 							x.AddArg(c)
+@@ -276,7 +276,7 @@ func regalloc(f *Func) {
+ 						c = b.NewValue1(w.Line, OpCopy, w.Type, regs[s].c)
+ 					} else {
+ 						// Load from home location
+-						c = b.NewValue1(w.Line, OpLoadReg8, w.Type, w)
++						c = b.NewValue1(w.Line, OpLoadReg, w.Type, w)
+ 					}
+ 					home = setloc(home, c, &registers[r])
+ 					// Remember what we did
+@@ -319,7 +319,7 @@ func regalloc(f *Func) {
+ 					c := regs[r].c
+ 					if regs[r].dirty && lastUse[x.ID] > idx {
+ 						// Write x back to home.  Its value is currently held in c.
+-						x.Op = OpStoreReg8
++						x.Op = OpStoreReg
+ 						x.Aux = nil
+ 						x.resetArgs()
+ 						x.AddArg(c)
+@@ -373,7 +373,7 @@ func regalloc(f *Func) {
+ 			}
+ 
+ 			// change v to be a copy of c
+-			v.Op = OpStoreReg8
++			v.Op = OpStoreReg
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(c)

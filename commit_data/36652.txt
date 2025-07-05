@@ -29,7 +29,7 @@ Date:   Mon Apr 30 23:52:14 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/pcln.go      | 26 +++++++++++++++++++------
  src/cmd/internal/obj/x86/obj6.go  | 10 ++++++++++
  src/cmd/internal/src/pos.go       | 40 +++++++++++++++++++++++++++++++++------
@@ -37,3 +37,305 @@ Date:   Mon Apr 30 23:52:14 2018 -0400
  src/cmd/internal/src/xpos.go      |  6 ++++++
  src/cmd/link/internal/ld/dwarf.go | 21 ++++++++++++++++----
  6 files changed, 127 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 09b56ac66f..d72d797ee5 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -9,6 +9,11 @@ import (
+ 	"log"
+ )
+ 
++const (
++	PrologueEnd   = 2 + iota // overload "is_stmt" to include prologue_end
++	EpilogueBegin            // overload "is_stmt" to include epilogue_end
++)
++
+ func addvarint(d *Pcdata, v uint32) {
+ 	for ; v >= 0x80; v >>= 7 {
+ 		d.P = append(d.P, uint8(v|0x80))
+@@ -235,6 +240,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
+ 
+ // pctostmt returns either,
+ // if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
++//     bit-or'd with whether the current statement is a prologue end or epilogue begin
+ // else (phase == 1), zero.
+ //
+ func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+@@ -242,14 +248,22 @@ func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg int
+ 		return 0 // Ignored; also different from initial value of -1, if that ever matters.
+ 	}
+ 	s := p.Pos.IsStmt()
+-	if s == src.PosIsStmt {
+-		return 1
++	l := p.Pos.Xlogue()
++
++	var is_stmt int32
++
++	// PrologueEnd, at least, is passed to the next instruction
++	switch l {
++	case src.PosPrologueEnd:
++		is_stmt = PrologueEnd
++	case src.PosEpilogueBegin:
++		is_stmt = EpilogueBegin
+ 	}
+-	if s == src.PosNotStmt { // includes NoSrcPos case
+-		return 0
++
++	if s != src.PosNotStmt {
++		is_stmt |= 1 // either PosDefaultStmt from asm, or PosIsStmt from go
+ 	}
+-	// Line numbers in .s files will have no special setting, therefore default to is_stmt=1.
+-	return 1
++	return is_stmt
+ }
+ 
+ // pctopcdata computes the pcdata value in effect at p.
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index c2d508d96e..59a2e20d6b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -33,6 +33,7 @@ package x86
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"math"
+ 	"strings"
+@@ -676,6 +677,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
+ 	}
+ 
++	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
++	// TODO: are there other cases (e.g., wrapper functions) that need marking?
++	markedPrologue := false
++
+ 	if autoffset != 0 {
+ 		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
+ 			ctxt.Diag("unaligned stack size %d", autoffset)
+@@ -685,6 +690,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(autoffset)
+ 		p.Spadj = autoffset
++		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
++		markedPrologue = true
+ 	}
+ 
+ 	deltasp := autoffset
+@@ -700,6 +707,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.To.Reg = REG_SP
+ 		p.To.Scale = 1
+ 		p.To.Offset = int64(autoffset) - int64(bpsize)
++		if !markedPrologue {
++			p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
++		}
+ 
+ 		// Move current frame to BP
+ 		p = obj.Appendp(p, newprog)
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 1cf68f28b5..110a57b98d 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -293,7 +293,7 @@ func (b *PosBase) InliningIndex() int {
+ // A lico is a compact encoding of a LIne and COlumn number.
+ type lico uint32
+ 
+-// Layout constants: 22 bits for line, 8 bits for column, 2 for isStmt
++// Layout constants: 20 bits for line, 8 bits for column, 2 for isStmt, 2 for pro/epilogue
+ // (If this is too tight, we can either make lico 64b wide,
+ // or we can introduce a tiered encoding where we remove column
+ // information as line numbers grow bigger; similar to what gcc
+@@ -301,13 +301,18 @@ type lico uint32
+ // The bitfield order is chosen to make IsStmt be the least significant
+ // part of a position; its use is to communicate statement edges through
+ // instruction scrambling in code generation, not to impose an order.
++// TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
++// because they have almost no interaction with other uses of the position.
+ const (
+-	lineBits, lineMax     = 22, 1<<lineBits - 1
++	lineBits, lineMax     = 20, 1<<lineBits - 1
+ 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
+-	colBits, colMax       = 32 - lineBits - isStmtBits, 1<<colBits - 1
+-	isStmtShift           = 0
+-	colShift              = isStmtBits + isStmtShift
+-	lineShift             = colBits + colShift
++	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
++	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
++
++	isStmtShift = 0
++	xlogueShift = isStmtBits + isStmtShift
++	colShift    = xlogueBits + xlogueShift
++	lineShift   = colBits + colShift
+ )
+ const (
+ 	// It is expected that the front end or a phase in SSA will usually generate positions tagged with
+@@ -342,6 +347,14 @@ const (
+ 	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
+ )
+ 
++type PosXlogue uint
++
++const (
++	PosDefaultLogue PosXlogue = iota
++	PosPrologueEnd
++	PosEpilogueBegin
++)
++
+ func makeLico(line, col uint) lico {
+ 	if line > lineMax {
+ 		// cannot represent line, use max. line so we have some information
+@@ -363,6 +376,9 @@ func (x lico) IsStmt() uint {
+ 	}
+ 	return uint(x) >> isStmtShift & isStmtMax
+ }
++func (x lico) Xlogue() PosXlogue {
++	return PosXlogue(uint(x) >> xlogueShift & xlogueMax)
++}
+ 
+ // withNotStmt returns a lico for the same location, but not a statement
+ func (x lico) withNotStmt() lico {
+@@ -379,6 +395,18 @@ func (x lico) withIsStmt() lico {
+ 	return x.withStmt(PosIsStmt)
+ }
+ 
++// withLogue attaches a prologue/epilogue attribute to a lico
++func (x lico) withXlogue(xlogue PosXlogue) lico {
++	if x == 0 {
++		if xlogue == 0 {
++			return x
++		}
++		// Normalize 0 to "not a statement"
++		x = lico(PosNotStmt << isStmtShift)
++	}
++	return lico(uint(x) & ^uint(xlogueMax<<xlogueShift) | (uint(xlogue) << xlogueShift))
++}
++
+ // withStmt returns a lico for the same location with specified is_stmt attribute
+ func (x lico) withStmt(stmt uint) lico {
+ 	if x == 0 {
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index 94a527b992..d6131bab4c 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -184,3 +184,43 @@ func TestIsStmt(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestLogue(t *testing.T) {
++	defp := fmt.Sprintf(":%d", PosDefaultLogue)
++	pro := fmt.Sprintf(":%d", PosPrologueEnd)
++	epi := fmt.Sprintf(":%d", PosEpilogueBegin)
++
++	defs := fmt.Sprintf(":%d", PosDefaultStmt)
++	not := fmt.Sprintf(":%d", PosNotStmt)
++
++	for i, test := range []struct {
++		x         lico
++		string    string
++		line, col uint
++	}{
++		{makeLico(0, 0).withXlogue(PosDefaultLogue), ":0" + not + defp, 0, 0},
++		{makeLico(0, 0).withXlogue(PosPrologueEnd), ":0" + not + pro, 0, 0},
++		{makeLico(0, 0).withXlogue(PosEpilogueBegin), ":0" + not + epi, 0, 0},
++
++		{makeLico(0, 1).withXlogue(PosDefaultLogue), ":0:1" + defs + defp, 0, 1},
++		{makeLico(0, 1).withXlogue(PosPrologueEnd), ":0:1" + defs + pro, 0, 1},
++		{makeLico(0, 1).withXlogue(PosEpilogueBegin), ":0:1" + defs + epi, 0, 1},
++
++		{makeLico(1, 0).withXlogue(PosDefaultLogue), ":1" + defs + defp, 1, 0},
++		{makeLico(1, 0).withXlogue(PosPrologueEnd), ":1" + defs + pro, 1, 0},
++		{makeLico(1, 0).withXlogue(PosEpilogueBegin), ":1" + defs + epi, 1, 0},
++
++		{makeLico(1, 1).withXlogue(PosDefaultLogue), ":1:1" + defs + defp, 1, 1},
++		{makeLico(1, 1).withXlogue(PosPrologueEnd), ":1:1" + defs + pro, 1, 1},
++		{makeLico(1, 1).withXlogue(PosEpilogueBegin), ":1:1" + defs + epi, 1, 1},
++
++		{makeLico(lineMax, 1).withXlogue(PosDefaultLogue), fmt.Sprintf(":%d:1", lineMax) + defs + defp, lineMax, 1},
++		{makeLico(lineMax, 1).withXlogue(PosPrologueEnd), fmt.Sprintf(":%d:1", lineMax) + defs + pro, lineMax, 1},
++		{makeLico(lineMax, 1).withXlogue(PosEpilogueBegin), fmt.Sprintf(":%d:1", lineMax) + defs + epi, lineMax, 1},
++	} {
++		x := test.x
++		if got := format("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d:%d", x.IsStmt(), x.Xlogue()); got != test.string {
++			t.Errorf("%d: %s: got %q", i, test.string, got)
++		}
++	}
++}
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index b03aafa2c7..d7ec91f92c 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -60,6 +60,12 @@ func (p XPos) WithIsStmt() XPos {
+ 	return p
+ }
+ 
++// WithXlogue returns the same location but marked with DWARF function prologue/epilogue
++func (p XPos) WithXlogue(x PosXlogue) XPos {
++	p.lico = p.lico.withXlogue(x)
++	return p
++}
++
+ func (p XPos) LineNumber() string {
+ 	if !p.IsKnown() {
+ 		return "?"
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 9a75ad96f1..cfb7867e2d 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -15,6 +15,7 @@ package ld
+ 
+ import (
+ 	"cmd/internal/dwarf"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+@@ -953,7 +954,7 @@ const (
+ 	LINE_BASE   = -4
+ 	LINE_RANGE  = 10
+ 	PC_RANGE    = (255 - OPCODE_BASE) / LINE_RANGE
+-	OPCODE_BASE = 10
++	OPCODE_BASE = 11
+ )
+ 
+ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uint64, deltaLC int64) {
+@@ -1157,7 +1158,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	unitLengthOffset := ls.Size
+ 	ls.AddUint32(ctxt.Arch, 0) // unit_length (*), filled in at end.
+ 	unitstart = ls.Size
+-	ls.AddUint16(ctxt.Arch, 2) // dwarf version (appendix F)
++	ls.AddUint16(ctxt.Arch, 3) // dwarf version (appendix F)
+ 	headerLengthOffset := ls.Size
+ 	ls.AddUint32(ctxt.Arch, 0) // header_length (*), filled in at end.
+ 	headerstart = ls.Size
+@@ -1177,6 +1178,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	ls.AddUint8(0)                // standard_opcode_lengths[7]
+ 	ls.AddUint8(0)                // standard_opcode_lengths[8]
+ 	ls.AddUint8(1)                // standard_opcode_lengths[9]
++	ls.AddUint8(0)                // standard_opcode_lengths[10]
+ 	ls.AddUint8(0)                // include_directories  (empty)
+ 
+ 	// Create the file table. fileNums maps from global file
+@@ -1271,8 +1273,19 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 
+ 			// Only changed if it advanced
+ 			if is_stmt != uint8(pcstmt.value) {
+-				is_stmt = uint8(pcstmt.value)
+-				ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
++				new_stmt := uint8(pcstmt.value)
++				switch new_stmt &^ 1 {
++				case obj.PrologueEnd:
++					ls.AddUint8(uint8(dwarf.DW_LNS_set_prologue_end))
++				case obj.EpilogueBegin:
++					// TODO if there is a use for this, add it.
++					// Don't forget to increase OPCODE_BASE by 1 and add entry for standard_opcode_lengths[11]
++				}
++				new_stmt &= 1
++				if is_stmt != new_stmt {
++					is_stmt = new_stmt
++					ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
++				}
+ 			}
+ 
+ 			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.

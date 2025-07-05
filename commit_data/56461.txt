@@ -23,8 +23,129 @@ Date:   Fri May 5 16:50:56 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go             | 10 ++++++++--
  src/cmd/go/internal/modload/load.go               | 16 ++++++++++++----
  src/cmd/go/testdata/script/mod_sum_issue56222.txt | 15 ++++++++++++++-
  3 files changed, 34 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index ec1632b175..843fa2c084 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -256,7 +256,13 @@ func (e *invalidImportError) Unwrap() error {
+ // If the package is present in exactly one module, importFromModules will
+ // return the module, its root directory, and a list of other modules that
+ // lexically could have provided the package but did not.
+-func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
++//
++// If skipModFile is true, the go.mod file for the package is not loaded. This
++// allows 'go mod tidy' to preserve a minor checksum-preservation bug
++// (https://go.dev/issue/56222) for modules with 'go' versions between 1.17 and
++// 1.20, preventing unnecessary go.sum churn and network access in those
++// modules.
++func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph, skipModFile bool) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
+ 	invalidf := func(format string, args ...interface{}) (module.Version, string, string, []module.Version, error) {
+ 		return module.Version{}, "", "", nil, &invalidImportError{
+ 			importPath: path,
+@@ -442,7 +448,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 			// If the module graph is pruned and this is a test-only dependency
+ 			// of a package in "all", we didn't necessarily load that file
+ 			// when we read the module graph, so do it now to be sure.
+-			if cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
++			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
+ 				if _, err := goModSummary(mods[0]); err != nil {
+ 					return module.Version{}, "", "", nil, err
+ 				}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 405b7935e0..9b6a81dd7c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -823,6 +823,10 @@ type loader struct {
+ 	// transitively *imported by* the packages and tests in the main module.)
+ 	allClosesOverTests bool
+ 
++	// skipImportModFiles indicates whether we may skip loading go.mod files
++	// for imported packages (as in 'go mod tidy' in Go 1.17–1.20).
++	skipImportModFiles bool
++
+ 	work *par.Queue
+ 
+ 	// reset on each iteration
+@@ -1003,6 +1007,10 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			// version higher than the go.mod version adds nothing.
+ 			ld.TidyCompatibleVersion = ld.GoVersion
+ 		}
++
++		if semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) < 0 {
++			ld.skipImportModFiles = true
++		}
+ 	}
+ 
+ 	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+@@ -1398,7 +1406,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 				//
+ 				// In some sense, we can think of this as ‘upgraded the module providing
+ 				// pkg.path from "none" to a version higher than "none"’.
+-				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
++				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil, ld.skipImportModFiles); err == nil {
+ 					changed = true
+ 					break
+ 				}
+@@ -1609,7 +1617,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 			// If the main module is tidy and the package is in "all" — or if we're
+ 			// lucky — we can identify all of its imports without actually loading the
+ 			// full module graph.
+-			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
++			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil, ld.skipImportModFiles)
+ 			if err != nil {
+ 				var missing *ImportMissingError
+ 				if errors.As(err, &missing) && ld.ResolveMissingImports {
+@@ -1697,7 +1705,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 	}
+ 
+ 	var modroot string
+-	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
++	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
+ 	if pkg.dir == "" {
+ 		return
+ 	}
+@@ -1956,7 +1964,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 
+ 		pkg := pkg
+ 		ld.work.Add(func() {
+-			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
++			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg, ld.skipImportModFiles)
+ 			if mod != pkg.mod {
+ 				mismatches := <-mismatchMu
+ 				mismatches[pkg] = mismatch{mod: mod, err: err}
+diff --git a/src/cmd/go/testdata/script/mod_sum_issue56222.txt b/src/cmd/go/testdata/script/mod_sum_issue56222.txt
+index aaffc7d107..9578a1f54f 100644
+--- a/src/cmd/go/testdata/script/mod_sum_issue56222.txt
++++ b/src/cmd/go/testdata/script/mod_sum_issue56222.txt
+@@ -36,11 +36,24 @@ go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{e
+ stdout 1.18
+ 
+ 
++# Even at go 1.20 or earlier, 'go mod tidy' shouldn't need go.mod files or
++# checksums that it won't record.
++
++go mod tidy -go=1.20
++go clean -modcache  # Remove checksums from the module cache, so that only go.sum is used.
++
++env OLDSUMDB=$GOSUMDB
++env GOSUMDB=bad
++go mod tidy
++
++env GOSUMDB=$OLDSUMDB
++
++
+ # Regardless of the go version in go.mod, 'go get -t' should fetch
+ # enough checksums to run 'go test' on the named package.
+ 
+ rm p
+-go mod tidy
++go mod tidy -go=1.20
+ go list -m all
+ ! stdout example.com/generics
+ go get -t example.com/m2/q@v1.0.0

@@ -15,6 +15,32 @@ Date:   Thu May 12 15:47:21 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a9a7f19d3f..f90c87126f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -268,14 +268,14 @@ func PkgFuncName(f *Func) string {
+ 	s := f.Sym()
+ 	pkg := s.Pkg
+ 
+-	p := base.Ctxt.Pkgpath
+-	if pkg != nil && pkg.Path != "" {
+-		p = pkg.Path
+-	}
+-	if p == "" {
++	// TODO(mdempsky): Remove after submitting CL 393715? This matches
++	// how PkgFuncName has historically handled local functions, but
++	// drchase points out it contradicts the documentation.
++	if pkg == types.LocalPkg {
+ 		return s.Name
+ 	}
+-	return p + "." + s.Name
++
++	return pkg.Path + "." + s.Name
+ }
+ 
+ var CurFunc *Func

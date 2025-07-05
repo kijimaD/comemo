@@ -9,6 +9,40 @@ Date:   Thu May 18 13:53:43 2017 -0700
     Change-Id: I143c670c3940231e29f1814e0a03165682f53243
     Reviewed-on: https://go-review.googlesource.com/43621
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  test/fixedbugs/issue18636.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/test/fixedbugs/issue18636.go b/test/fixedbugs/issue18636.go
+new file mode 100644
+index 0000000000..2704fc46ee
+--- /dev/null
++++ b/test/fixedbugs/issue18636.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime/debug"
++
++type Foo struct {
++	A [1 << 20]byte
++	B string
++}
++
++func run(c chan bool) {
++	f := new(Foo)
++	*f = Foo{B: "hello"}
++	c <- true
++}
++
++func main() {
++	debug.SetMaxStack(1 << 16)
++	c := make(chan bool)
++	go run(c)
++	<-c
++}

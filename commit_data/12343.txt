@@ -7,6 +7,21 @@ Date:   Sat Mar 3 12:48:35 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5728050
-
+---
  doc/reference.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/reference.html b/doc/reference.html
+index 71812bfc6a..5d8180846e 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -3,7 +3,8 @@
+ }-->
+ 
+ <img src="/doc/gopher/ref.png" align="right"/>
+-<p>Keep these under your pillow.</p>
++
++<p>Good bathroom reading.</p>
+ 
+ <div>
+ 

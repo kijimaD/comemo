@@ -7,6 +7,35 @@ Date:   Mon Dec 19 17:36:02 2016 -0800
     Change-Id: I5670e9924b21fb2466b2b32aa01a922e9a0a0f8a
     Reviewed-on: https://go-review.googlesource.com/34652
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 17 -----------------
  1 file changed, 17 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 1ea0188af1..95b09dc997 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -642,23 +642,6 @@ Optimizations and minor bug fixes are not listed.
+   </dd>
+ </dl>
+ 
+-<dl id="archive_zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+-  <dd>
+-
+-    <p> <!-- CL 18274 -->
+-      The
+-      <a href="/pkg/archive/zip/#Reader"><code>Reader</code></a>
+-      now supports modification times in
+-      the NTFS, UNIX, and Extended Time Stamp metadata fields.
+-      <!-- CL 30811 -->
+-      The
+-      <a href="/pkg/archive/zip/#Writer"><code>Writer</code></a>
+-      now writes Extended Time Stamp fields.
+-    </p>
+-
+-  </dd>
+-</dl>
+-
+ <dl id="compress_flate"><dt><a href="/pkg/compress/flate/">compress/flate</a></dt>
+   <dd>
+ 

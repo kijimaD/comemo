@@ -19,7 +19,72 @@ Date:   Thu Aug 31 22:02:37 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/70971
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/reflect/all_test.go | 25 +++++++++++++++++++++++++
  src/reflect/value.go    | 10 ++++++++--
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5a5c91b751..33694fd10e 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 	"unicode"
+@@ -1546,6 +1547,30 @@ func TestCallWithStruct(t *testing.T) {
+ 	}
+ }
+ 
++func TestCallReturnsEmpty(t *testing.T) {
++	// Issue 21717: past-the-end pointer write in Call with
++	// nonzero-sized frame and zero-sized return value.
++	runtime.GC()
++	var finalized uint32
++	f := func() (emptyStruct, *int) {
++		i := new(int)
++		runtime.SetFinalizer(i, func(*int) { atomic.StoreUint32(&finalized, 1) })
++		return emptyStruct{}, i
++	}
++	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
++	timeout := time.After(5 * time.Second)
++	for atomic.LoadUint32(&finalized) == 0 {
++		select {
++		case <-timeout:
++			t.Fatal("finalizer did not run")
++		default:
++		}
++		runtime.Gosched()
++		runtime.GC()
++	}
++	runtime.KeepAlive(v)
++}
++
+ func BenchmarkCall(b *testing.B) {
+ 	fv := ValueOf(func(a, b string) {})
+ 	b.ReportAllocs()
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 8488e8dec1..2b0ca05c70 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -456,8 +456,14 @@ func (v Value) call(op string, in []Value) []Value {
+ 			tv := t.Out(i)
+ 			a := uintptr(tv.Align())
+ 			off = (off + a - 1) &^ (a - 1)
+-			fl := flagIndir | flag(tv.Kind())
+-			ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
++			if tv.Size() != 0 {
++				fl := flagIndir | flag(tv.Kind())
++				ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
++			} else {
++				// For zero-sized return value, args+off may point to the next object.
++				// In this case, return the zero value instead.
++				ret[i] = Zero(tv)
++			}
+ 			off += tv.Size()
+ 		}
+ 	}

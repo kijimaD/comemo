@@ -8,7 +8,46 @@ Date:   Tue May 5 13:41:46 2009 -0700
     DELTA=42  (20 added, 22 deleted, 0 changed)
     OCL=28295
     CL=28295
-
+---
  test/{bugs => fixedbugs}/bug117.go | 6 +++++-
  test/golden.out                    | 6 ------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/test/bugs/bug117.go b/test/fixedbugs/bug117.go
+similarity index 66%
+rename from test/bugs/bug117.go
+rename to test/fixedbugs/bug117.go
+index a18e68849a..cc3ac34ce9 100644
+--- a/test/bugs/bug117.go
++++ b/test/fixedbugs/bug117.go
+@@ -10,8 +10,12 @@ type PS *S
+ func (p *S) get() int {
+   return p.a
+ }
++
+ func fn(p PS) int {
+-  return p.get()
++  // p has type PS, and PS has no methods.
++  // (a compiler might see that p is a pointer
++  // and go looking in S without noticing PS.)
++  return p.get()	// ERROR "undefined DOT"
+ }
+ func main() {
+   s := S{1};
+diff --git a/test/golden.out b/test/golden.out
+index 72680adea3..223aa96144 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -85,12 +85,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug117.go
+-bugs/bug117.go:9: undefined DOT get on PS
+-bugs/bug117.go:9: illegal types for operand: RETURN
+-	int
+-BUG: should compile
+-
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 

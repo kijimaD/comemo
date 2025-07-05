@@ -12,9 +12,167 @@ Date:   Thu Oct 29 15:49:05 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html                                    | 10 +++++
  src/cmd/go/alldocs.go                              | 15 +++++--
  src/cmd/go/internal/modget/get.go                  | 49 ++++++++++++++++++----
  .../testdata/script/mod_get_deprecate_install.txt  | 22 ++++++++++
  4 files changed, 83 insertions(+), 13 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index a97c369885..c6e217e726 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -71,6 +71,16 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: write and link to blog post
+ </p>
+ 
++<p><!-- golang.org/issue/40276 -->
++  <code>go</code> <code>install</code>, with or without a version suffix (as
++  described above), is now the recommended way to build and install packages in
++  module mode. <code>go</code> <code>get</code> should be used with the
++  <code>-d</code> flag to adjust the current module's dependencies without
++  building packages, and use of <code>go</code> <code>get</code> to build and
++  install packages is deprecated. In a future release, the <code>-d</code> flag
++  will always be enabled.
++</p>
++
+ <p><!-- golang.org/issue/24031 -->
+   <code>retract</code> directives may now be used in a <code>go.mod</code> file
+   to indicate that certain published versions of the module should not be used
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e68fa55d09..4461be2d09 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -673,6 +673,17 @@
+ // The second step is to download (if needed), build, and install
+ // the named packages.
+ //
++// The -d flag instructs get to skip this step, downloading source code
++// needed to build the named packages and their dependencies, but not
++// building or installing.
++//
++// Building and installing packages with get is deprecated. In a future release,
++// the -d flag will be enabled by default, and 'go get' will be only be used to
++// adjust dependencies of the current module. To install a package using
++// dependencies from the current module, use 'go install'. To install a package
++// ignoring the current module, use 'go install' with an @version suffix like
++// "@latest" after each argument.
++//
+ // If an argument names a module but not a package (because there is no
+ // Go source code in the module's root directory), then the install step
+ // is skipped for that argument, instead of causing a build failure.
+@@ -684,10 +695,6 @@
+ // adds the latest golang.org/x/perf and then installs the commands in that
+ // latest version.
+ //
+-// The -d flag instructs get to download the source code needed to build
+-// the named packages, including downloading necessary dependencies,
+-// but not to build and install them.
+-//
+ // With no package arguments, 'go get' applies to Go package in the
+ // current directory, if any. In particular, 'go get -u' and
+ // 'go get -u=patch' update all the dependencies of that package.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6ab242944a..5b8eebf7cb 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -144,6 +144,17 @@ GONOSUMDB. See 'go help environment' for details.
+ The second step is to download (if needed), build, and install
+ the named packages.
+ 
++The -d flag instructs get to skip this step, downloading source code
++needed to build the named packages and their dependencies, but not
++building or installing.
++
++Building and installing packages with get is deprecated. In a future release,
++the -d flag will be enabled by default, and 'go get' will be only be used to
++adjust dependencies of the current module. To install a package using
++dependencies from the current module, use 'go install'. To install a package
++ignoring the current module, use 'go install' with an @version suffix like
++"@latest" after each argument.
++
+ If an argument names a module but not a package (because there is no
+ Go source code in the module's root directory), then the install step
+ is skipped for that argument, instead of causing a build failure.
+@@ -155,10 +166,6 @@ the module versions. For example, 'go get golang.org/x/perf/cmd/...'
+ adds the latest golang.org/x/perf and then installs the commands in that
+ latest version.
+ 
+-The -d flag instructs get to download the source code needed to build
+-the named packages, including downloading necessary dependencies,
+-but not to build and install them.
+-
+ With no package arguments, 'go get' applies to Go package in the
+ current directory, if any. In particular, 'go get -u' and
+ 'go get -u=patch' update all the dependencies of that package.
+@@ -436,12 +443,36 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Note that 'go get -u' without arguments is equivalent to
+ 	// 'go get -u .', so we'll typically build the package in the current
+ 	// directory.
+-	if !*getD {
+-		if len(pkgPatterns) > 0 {
+-			work.BuildInit()
+-			pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+-			work.InstallPackages(ctx, pkgPatterns, pkgs)
++	if !*getD && len(pkgPatterns) > 0 {
++		work.BuildInit()
++		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
++		work.InstallPackages(ctx, pkgPatterns, pkgs)
++
++		haveExe := false
++		for _, pkg := range pkgs {
++			if pkg.Name == "main" {
++				haveExe = true
++				break
++			}
++		}
++		if haveExe {
++			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
++			var altMsg string
++			if modload.HasModRoot() {
++				altMsg = `
++	To adjust dependencies of the current module, use 'go get -d'.
++	To install using requirements of the current module, use 'go install'.
++	To install ignoring the current module, use 'go install' with a version,
++	like 'go install example.com/cmd@latest'.
++`
++			} else {
++				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
++			}
++			fmt.Fprint(os.Stderr, altMsg)
++			fmt.Fprint(os.Stderr, "\tSee 'go help get' and 'go help install' for more information.\n")
+ 		}
++		// TODO(golang.org/issue/40276): link to HTML documentation explaining
++		// what's changing and gives more examples.
+ 	}
+ 
+ 	// Everything succeeded. Update go.mod.
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+new file mode 100644
+index 0000000000..7f5bcad410
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -0,0 +1,22 @@
++[short] skip
++
++env GO111MODULE=on
++
++# 'go get' outside a module with an executable prints a deprecation message.
++go get example.com/cmd/a
++stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr 'Use ''go install pkg@version'' instead.'
++
++
++go mod init m
++
++# 'go get' inside a module with a non-main package does not print a message.
++# This will stop building in the future, but it's the command we want to use.
++go get rsc.io/quote
++! stderr deprecated
++
++# 'go get' inside a module with an executable prints a different
++# deprecation message.
++go get example.com/cmd/a
++stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr 'To adjust dependencies of the current module, use ''go get -d'''

@@ -9,7 +9,7 @@ Date:   Sat Jul 12 17:16:22 2008 -0700
     where a is auto size and b is parameter size
     
     SVN=126946
-
+---
  src/cmd/6a/a.y                | 49 ++++++++++++++++++++++++++++---------------
  src/cmd/6a/lex.c              |  2 +-
  src/cmd/6c/list.c             | 35 +++++++++++++++++++++++++------
@@ -22,3 +22,435 @@ Date:   Sat Jul 12 17:16:22 2008 -0700
  src/runtime/rt0_amd64.s       |  4 ++--
  src/runtime/sys_amd64_linux.s | 22 +++++++++----------
  11 files changed, 111 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 3f0493130a..a6d755d043 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -46,15 +46,16 @@
+ %left	'+' '-'
+ %left	'*' '/' '%'
+ %token	<lval>	LTYPE0 LTYPE1 LTYPE2 LTYPE3 LTYPE4
+-%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI LTYPEXC LTYPEX LTYPERT
++%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPEG
++%token	<lval>	LTYPES LTYPEM LTYPEI LTYPEXC LTYPEX LTYPERT
+ %token	<lval>	LCONST LFP LPC LSB
+ %token	<lval>	LBREG LLREG LSREG LFREG LMREG LXREG
+ %token	<dval>	LFCONST
+ %token	<sval>	LSCONST LSP
+ %token	<sym>	LNAME LLAB LVAR
+-%type	<lval>	con con3 expr pointer offset
+-%type	<gen>	mem imm imm3 reg nam rel rem rim rom omem nmem
+-%type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10
++%type	<lval>	con con2 expr pointer offset
++%type	<gen>	mem imm imm2 reg nam rel rem rim rom omem nmem
++%type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10 spec11
+ %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
+ %%
+ prog:
+@@ -106,6 +107,7 @@ inst:
+ |	LTYPEXC spec8	{ outcode($1, &$2); }
+ |	LTYPEX spec9	{ outcode($1, &$2); }
+ |	LTYPERT spec10	{ outcode($1, &$2); }
++|	LTYPEG spec11	{ outcode($1, &$2); }
+ 
+ nonnon:
+ 	{
+@@ -177,12 +179,12 @@ spec1:	/* DATA */
+ 	}
+ 
+ spec2:	/* TEXT */
+-	mem ',' imm3
++	mem ',' imm2
+ 	{
+ 		$$.from = $1;
+ 		$$.to = $3;
+ 	}
+-|	mem ',' con ',' imm3
++|	mem ',' con ',' imm2
+ 	{
+ 		$$.from = $1;
+ 		$$.from.scale = $3;
+@@ -281,6 +283,19 @@ spec10:	/* RET/RETF */
+ 		$$.to = nullgen;
+ 	}
+ 
++spec11:	/* GLOBL */
++	mem ',' imm
++	{
++		$$.from = $1;
++		$$.to = $3;
++	}
++|	mem ',' con ',' imm
++	{
++		$$.from = $1;
++		$$.from.scale = $3;
++		$$.to = $5;
++	}
++
+ rem:
+ 	reg
+ |	mem
+@@ -363,9 +378,8 @@ reg:
+ 		$$ = nullgen;
+ 		$$.type = $1;
+ 	}
+-
+-imm3:
+-	'$' con3
++imm2:
++	'$' con2
+ 	{
+ 		$$ = nullgen;
+ 		$$.type = D_CONST;
+@@ -556,23 +570,24 @@ con:
+ 		$$ = $2;
+ 	}
+ 
+-con3:
++con2:
+ 	LCONST
++	{
++		$$ = $1 & 0xffffffffLL;
++	}
+ |	'-' LCONST
+ 	{
+-		$$ = -$2;
++		$$ = -$2 & 0xffffffffLL;
+ 	}
+-|	LCONST '-' LCONST '-' LCONST
++|	LCONST '-' LCONST
+ 	{
+ 		$$ = ($1 & 0xffffffffLL) +
+-			(($3 & 0xffffLL) << 32) +
+-			(($5 & 0xffffLL) << 48);
++			(($3 & 0xffffLL) << 32);
+ 	}
+-|	'-' LCONST '-' LCONST '-' LCONST
++|	'-' LCONST '-' LCONST
+ 	{
+ 		$$ = (-$2 & 0xffffffffLL) +
+-			(($4 & 0xffffLL) << 32) +
+-			(($6 & 0xffffLL) << 48);
++			(($4 & 0xffffLL) << 32);
+ 	}
+ 
+ expr:
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 1a1e30f152..6bd20783be 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -398,7 +398,7 @@ struct
+ 	"EMMS",		LTYPE0,	AEMMS,
+ 	"END",		LTYPE0,	AEND,
+ 	"ENTER",	LTYPE2,	AENTER,
+-	"GLOBL",	LTYPET,	AGLOBL,
++	"GLOBL",	LTYPEG,	AGLOBL,
+ 	"HLT",		LTYPE0,	AHLT,
+ 	"IDIVB",	LTYPE2,	AIDIVB,
+ 	"IDIVL",	LTYPE2,	AIDIVL,
+diff --git a/src/cmd/6c/list.c b/src/cmd/6c/list.c
+index 4aae5a3a7e..094f5a2064 100644
+--- a/src/cmd/6c/list.c
++++ b/src/cmd/6c/list.c
+@@ -76,15 +76,26 @@ Pconv(Fmt *fp)
+ 	Prog *p;
+ 
+ 	p = va_arg(fp->args, Prog*);
+-	if(p->as == ADATA)
++	switch(p->as) {
++	case ADATA:
+ 		sprint(str, "	%A	%D/%d,%D",
+ 			p->as, &p->from, p->from.scale, &p->to);
+-	else if(p->as == ATEXT)
+-		sprint(str, "	%A	%D,%d,%D",
+-			p->as, &p->from, p->from.scale, &p->to);
+-	else
+-		sprint(str, "	%A	%D,%D",
++		break;
++
++	case ATEXT:
++		if(p->from.scale) {
++			sprint(str, "	%A	%D,%d,%lD",
++				p->as, &p->from, p->from.scale, &p->to);
++			break;
++		}
++		sprint(str, "	%A	%D,%lD",
+ 			p->as, &p->from, &p->to);
++		break;
++
++	defaul:
++		sprint(str, "	%A	%D,%lD", p->as, &p->from, &p->to);
++		break;
++	}
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -106,6 +117,18 @@ Dconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, Adr*);
+ 	i = a->type;
++
++	if(fp->flags & FmtLong) {
++		if(i != D_CONST) {
++			// ATEXT dst is not constant
++			sprint(str, "!!%D", a);
++			goto brk;
++		}
++		sprint(str, "$%lld-%lld", a->offset&0xffffffffLL,
++			(a->offset>>32)&0xffffffffLL);
++		goto brk;
++	}
++
+ 	if(i >= D_INDIR) {
+ 		if(a->offset)
+ 			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
+diff --git a/src/cmd/6c/pgen.c b/src/cmd/6c/pgen.c
+index ae0b1b40cd..22ecd5f9c8 100644
+--- a/src/cmd/6c/pgen.c
++++ b/src/cmd/6c/pgen.c
+@@ -30,11 +30,37 @@
+ 
+ #include "gc.h"
+ 
++vlong
++argsize(void)
++{
++	Type *t;
++	long s;
++
++//print("t=%T\n", thisfn);
++	s = 0;
++	for(t=thisfn->down; t!=T; t=t->down) {
++		switch(t->etype) {
++		case TVOID:
++			break;
++		case TDOT:
++			s += 64;
++			break;
++		default:
++			s = align(s, t, Aarg1);
++			s = align(s, t, Aarg2);
++			break;
++		}
++//print("	%d %T\n", s, t);
++	}
++	return (s+7) & ~7;
++}
++
+ void
+ codgen(Node *n, Node *nn)
+ {
+ 	Prog *sp;
+ 	Node *n1, nod, nod1;
++	vlong v;
+ 
+ 	cursafe = 0;
+ 	curarg = 0;
+@@ -52,7 +78,11 @@ codgen(Node *n, Node *nn)
+ 			break;
+ 	}
+ 	nearln = nn->lineno;
+-	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
++
++	v = argsize() << 32;
++	v |= stkoff & 0xffffffff;
++
++	gpseudo(ATEXT, n1->sym, nodgconst(v, types[TVLONG]));
+ 	sp = p;
+ 
+ 	/*
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index b43f373c3e..5d8a2fe09c 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -175,6 +175,7 @@ dowidth(Type *t)
+ 		w = widstruct(*getthis(t), 0, 0);
+ 		w = widstruct(*getinarg(t), w, 0);
+ 		w = widstruct(*getoutarg(t), w, 1);
++		t->argwid = w;
+ 		w = 0;
+ 		break;
+ 	}
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e4dfa2c4bd..0fcfe717c8 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -22,7 +22,7 @@ compile(Node *fn)
+ 	Plist *pl;
+ 	Node nod1;
+ 	Prog *ptxt;
+-	long lno, argsiz;
++	long lno;
+ 
+ if(newproc == N) {
+ 	newproc = nod(ONAME, N, N);
+@@ -70,10 +70,7 @@ if(newproc == N) {
+ 	pc->lineno = lineno;
+ 
+ 	// fill in argument size
+-	argsiz = getthisx(curfn->type) -> width;
+-	argsiz += getinargx(curfn->type) -> width;
+-	argsiz += getoutargx(curfn->type) -> width;
+-	ptxt->to.offset = rnd(argsiz, maxround);
++	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
+ 
+ 	// fill in final stack size
+ 	ptxt->to.offset <<= 32;
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 789e7cec20..dc0d01fe1f 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -425,12 +425,5 @@ parsetextconst(vlong arg)
+ 	textarg = (arg >> 32) & 0xffffffffLL;
+ 	if(textarg & 0x80000000LL)
+ 		textarg = 0;
+-	if(textarg <= 0)
+-		textarg = 100;
+-	if(textarg > textstksiz) {
+-		textarg = textstksiz;
+-		if(textarg <= 0)
+-			textarg = 0;
+-	}
+ 	textarg = (textarg+7) & ~7LL;
+ }
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index d997971662..4aadf7a2c0 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -37,7 +37,7 @@ uchar	ynone[] =
+ };
+ uchar	ytext[] =
+ {
+-	Ymb,	Yi32,	Zpseudo,1,
++	Ymb,	Yi64,	Zpseudo,1,
+ 	0
+ };
+ uchar	ynop[] =
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d1877b66d5..d51e0d08f5 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -96,10 +96,8 @@ struct	Type
+ 	Type*	nforw;
+ 
+ 	// TFUNCT
+-//	Type*	this;
+-//	Type*	argout;
+-//	Type*	argin;
+ 	Node*	nname;
++	vlong	argwid;
+ 
+ 	// TARRAY
+ 	long	bound;
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 71b1fd8f30..aad67cbbda 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -46,11 +46,11 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	notok(SB)		// never returns
+ 	RET
+ 
+-TEXT	sys·breakpoint(SB),7,$-8
++TEXT	sys·breakpoint(SB),7,$0
+ 	BYTE	$0xcc
+ 	RET
+ 
+-TEXT	FLUSH(SB),7,$-8
++TEXT	FLUSH(SB),7,$0
+ 	RET
+ 
+ /*
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index c49ae2ffb7..37247a7399 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -6,13 +6,13 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
+-TEXT	sys·exit(SB),1,$-8
++TEXT	sys·exit(SB),1,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$60, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	sys·write(SB),1,$-8
++TEXT	sys·write(SB),1,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -20,27 +20,27 @@ TEXT	sys·write(SB),1,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	open(SB),1,$-8
++TEXT	open(SB),1,$0-16
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	$2, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	close(SB),1,$-8
++TEXT	close(SB),1,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$3, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	fstat(SB),1,$-8
++TEXT	fstat(SB),1,$0-16
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	$5, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	read(SB),1,$-8
++TEXT	read(SB),1,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -48,7 +48,7 @@ TEXT	read(SB),1,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	sys·rt_sigaction(SB),1,$-8
++TEXT	sys·rt_sigaction(SB),1,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -58,14 +58,14 @@ TEXT	sys·rt_sigaction(SB),1,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	sigtramp(SB),1,$24
++TEXT	sigtramp(SB),1,$24-16
+ 	MOVQ	DI,0(SP)
+ 	MOVQ	SI,8(SP)
+ 	MOVQ	DX,16(SP)
+ 	CALL	sighandler(SB)
+ 	RET
+ 
+-TEXT	sys·mmap(SB),1,$-8
++TEXT	sys·mmap(SB),1,$0-32
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+@@ -88,12 +88,12 @@ TEXT	sys·mmap(SB),1,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT	notok(SB),1,$-8
++TEXT	notok(SB),7,$0
+ 	MOVL	$0xf1, BP
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	sys·memclr(SB),1,$-8
++TEXT	sys·memclr(SB),1,$0-16
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
+ 	ADDL	$7, CX

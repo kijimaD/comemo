@@ -15,7 +15,33 @@ Date:   Fri May 4 10:10:59 2018 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/print.go          | 2 +-
  src/cmd/vet/testdata/print.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index e4e99641ef..6728d88d45 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -721,7 +721,7 @@ const (
+ 	flagsRE    = `[+\-#]*`
+ 	indexOptRE = `(\[[0-9]+\])?`
+ 	numOptRE   = `([0-9]+|` + indexOptRE + `\*)?`
+-	verbRE     = `[bcdefgopqstvxEFGUX]`
++	verbRE     = `[bcdefgopqstvxEFGTUX]`
+ )
+ 
+ // checkPrint checks a call to an unformatted print routine such as Println.
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 459b08141b..34f4e2865a 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -148,6 +148,7 @@ func PrintfTests() {
+ 	fmt.Println()                               // not an error
+ 	fmt.Println("%s", "hi")                     // ERROR "Println call has possible formatting directive %s"
+ 	fmt.Println("%v", "hi")                     // ERROR "Println call has possible formatting directive %v"
++	fmt.Println("%T", "hi")                     // ERROR "Println call has possible formatting directive %T"
+ 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
+ 	fmt.Printf("%s", "hi", 3)                   // ERROR "Printf call needs 1 arg but has 2 args"
+ 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // ERROR "Sprintf call needs 1 arg but has 2 args"

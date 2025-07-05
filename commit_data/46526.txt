@@ -28,9 +28,261 @@ Date:   Wed Jan 6 23:05:22 2021 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/histogram.go         | 32 ++++++++++++++++++++++++++++----
  src/runtime/metrics.go           | 32 +++++++++++++++++++++++---------
  src/runtime/metrics/histogram.go | 29 ++++++++++++++++-------------
  src/runtime/metrics_test.go      | 36 ++++++++++++++++++++++++++++++++----
  4 files changed, 99 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index d48e856cd0..42baa6c5e2 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"unsafe"
+ )
+ 
+ const (
+@@ -69,7 +70,13 @@ const (
+ // for concurrent use. It is also safe to read all the values
+ // atomically.
+ type timeHistogram struct {
+-	counts    [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
++	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
++
++	// underflow counts all the times we got a negative duration
++	// sample. Because of how time works on some platforms, it's
++	// possible to measure negative durations. We could ignore them,
++	// but we record them anyway because it's better to have some
++	// signal that it's happening than just missing samples.
+ 	underflow uint64
+ }
+ 
+@@ -107,14 +114,30 @@ func (h *timeHistogram) record(duration int64) {
+ 	atomic.Xadd64(&h.counts[superBucket*timeHistNumSubBuckets+subBucket], 1)
+ }
+ 
++const (
++	fInf    = 0x7FF0000000000000
++	fNegInf = 0xFFF0000000000000
++)
++
++func float64Inf() float64 {
++	inf := uint64(fInf)
++	return *(*float64)(unsafe.Pointer(&inf))
++}
++
++func float64NegInf() float64 {
++	inf := uint64(fNegInf)
++	return *(*float64)(unsafe.Pointer(&inf))
++}
++
+ // timeHistogramMetricsBuckets generates a slice of boundaries for
+ // the timeHistogram. These boundaries are represented in seconds,
+ // not nanoseconds like the timeHistogram represents durations.
+ func timeHistogramMetricsBuckets() []float64 {
+-	b := make([]float64, timeHistTotalBuckets-1)
++	b := make([]float64, timeHistTotalBuckets+1)
++	b[0] = float64NegInf()
+ 	for i := 0; i < timeHistNumSuperBuckets; i++ {
+ 		superBucketMin := uint64(0)
+-		// The (inclusive) minimum for the first bucket is 0.
++		// The (inclusive) minimum for the first non-negative bucket is 0.
+ 		if i > 0 {
+ 			// The minimum for the second bucket will be
+ 			// 1 << timeHistSubBucketBits, indicating that all
+@@ -141,8 +164,9 @@ func timeHistogramMetricsBuckets() []float64 {
+ 
+ 			// Convert the subBucketMin which is in nanoseconds to a float64 seconds value.
+ 			// These values will all be exactly representable by a float64.
+-			b[i*timeHistNumSubBuckets+j] = float64(subBucketMin) / 1e9
++			b[i*timeHistNumSubBuckets+j+1] = float64(subBucketMin) / 1e9
+ 		}
+ 	}
++	b[len(b)-1] = float64Inf()
+ 	return b
+ }
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 1d191e6298..4d37a56f4c 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -41,8 +41,13 @@ func initMetrics() {
+ 	if metricsInit {
+ 		return
+ 	}
+-	sizeClassBuckets = make([]float64, _NumSizeClasses)
+-	for i := range sizeClassBuckets {
++
++	sizeClassBuckets = make([]float64, _NumSizeClasses, _NumSizeClasses+1)
++	// Skip size class 0 which is a stand-in for large objects, but large
++	// objects are tracked separately (and they actually get placed in
++	// the last bucket, not the first).
++	sizeClassBuckets[0] = 1 // The smallest allocation is 1 byte in size.
++	for i := 1; i < _NumSizeClasses; i++ {
+ 		// Size classes have an inclusive upper-bound
+ 		// and exclusive lower bound (e.g. 48-byte size class is
+ 		// (32, 48]) whereas we want and inclusive lower-bound
+@@ -56,6 +61,8 @@ func initMetrics() {
+ 		// boundaries.
+ 		sizeClassBuckets[i] = float64(class_to_size[i] + 1)
+ 	}
++	sizeClassBuckets = append(sizeClassBuckets, float64Inf())
++
+ 	timeHistBuckets = timeHistogramMetricsBuckets()
+ 	metrics = map[string]metricData{
+ 		"/gc/cycles/automatic:gc-cycles": {
+@@ -84,8 +91,10 @@ func initMetrics() {
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+ 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
+-				for i := range hist.buckets {
+-					hist.counts[i] = uint64(in.heapStats.smallAllocCount[i])
++				// Cut off the first index which is ostensibly for size class 0,
++				// but large objects are tracked separately so it's actually unused.
++				for i, count := range in.heapStats.smallAllocCount[1:] {
++					hist.counts[i] = uint64(count)
+ 				}
+ 			},
+ 		},
+@@ -94,8 +103,10 @@ func initMetrics() {
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+ 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
+-				for i := range hist.buckets {
+-					hist.counts[i] = uint64(in.heapStats.smallFreeCount[i])
++				// Cut off the first index which is ostensibly for size class 0,
++				// but large objects are tracked separately so it's actually unused.
++				for i, count := range in.heapStats.smallFreeCount[1:] {
++					hist.counts[i] = uint64(count)
+ 				}
+ 			},
+ 		},
+@@ -116,8 +127,11 @@ func initMetrics() {
+ 		"/gc/pauses:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(timeHistBuckets)
++				// The bottom-most bucket, containing negative values, is tracked
++				// as a separately as underflow, so fill that in manually and then
++				// iterate over the rest.
+ 				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+-				for i := range hist.buckets {
++				for i := range memstats.gcPauseDist.counts {
+ 					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+ 				}
+ 			},
+@@ -437,8 +451,8 @@ func (v *metricValue) float64HistOrInit(buckets []float64) *metricFloat64Histogr
+ 		v.pointer = unsafe.Pointer(hist)
+ 	}
+ 	hist.buckets = buckets
+-	if len(hist.counts) != len(hist.buckets)+1 {
+-		hist.counts = make([]uint64, len(buckets)+1)
++	if len(hist.counts) != len(hist.buckets)-1 {
++		hist.counts = make([]uint64, len(buckets)-1)
+ 	}
+ 	return hist
+ }
+diff --git a/src/runtime/metrics/histogram.go b/src/runtime/metrics/histogram.go
+index e1364e1e26..956422bf84 100644
+--- a/src/runtime/metrics/histogram.go
++++ b/src/runtime/metrics/histogram.go
+@@ -6,25 +6,28 @@ package metrics
+ 
+ // Float64Histogram represents a distribution of float64 values.
+ type Float64Histogram struct {
+-	// Counts contains the weights for each histogram bucket. The length of
+-	// Counts is equal to the length of Buckets (in the metric description)
+-	// plus one to account for the implicit minimum bucket.
++	// Counts contains the weights for each histogram bucket.
+ 	//
+-	// Given N buckets, the following is the mathematical relationship between
+-	// Counts and Buckets.
+-	// count[0] is the weight of the range (-inf, bucket[0])
+-	// count[n] is the weight of the range [bucket[n], bucket[n+1]), for 0 < n < N-1
+-	// count[N-1] is the weight of the range [bucket[N-1], inf)
++	// Given N buckets, Count[n] is the weight of the range
++	// [bucket[n], bucket[n+1]), for 0 <= n < N.
+ 	Counts []uint64
+ 
+-	// Buckets contains the boundaries between histogram buckets, in increasing order.
++	// Buckets contains the boundaries of the histogram buckets, in increasing order.
+ 	//
+-	// Because this slice contains boundaries, there are len(Buckets)+1 counts:
+-	// a count for all values less than the first boundary, a count covering each
+-	// [slice[i], slice[i+1]) interval, and a count for all values greater than or
+-	// equal to the last boundary.
++	// Buckets[0] is the inclusive lower bound of the minimum bucket while
++	// Buckets[len(Buckets)-1] is the exclusive upper bound of the maximum bucket.
++	// Hence, there are len(Buckets)-1 counts. Furthermore, len(Buckets) != 1, always,
++	// since at least two boundaries are required to describe one bucket (and 0
++	// boundaries are used to describe 0 buckets).
++	//
++	// Buckets[0] is permitted to have value -Inf and Buckets[len(Buckets)-1] is
++	// permitted to have value Inf.
+ 	//
+ 	// For a given metric name, the value of Buckets is guaranteed not to change
+ 	// between calls until program exit.
++	//
++	// This slice value is permitted to alias with other Float64Histograms' Buckets
++	// fields, so the values within should only ever be read. If they need to be
++	// modified, the user must make a copy.
+ 	Buckets []float64
+ }
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 0ee469ae29..5109058ed1 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -70,6 +70,34 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
+ 		case "/memory/classes/total:bytes":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
++		case "/gc/heap/allocs-by-size:objects":
++			hist := samples[i].Value.Float64Histogram()
++			// Skip size class 0 in BySize, because it's always empty and not represented
++			// in the histogram.
++			for i, sc := range mstats.BySize[1:] {
++				if b, s := hist.Buckets[i+1], float64(sc.Size+1); b != s {
++					t.Errorf("bucket does not match size class: got %f, want %f", b, s)
++					// The rest of the checks aren't expected to work anyway.
++					continue
++				}
++				if c, m := hist.Counts[i], sc.Mallocs; c != m {
++					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, m)
++				}
++			}
++		case "/gc/heap/frees-by-size:objects":
++			hist := samples[i].Value.Float64Histogram()
++			// Skip size class 0 in BySize, because it's always empty and not represented
++			// in the histogram.
++			for i, sc := range mstats.BySize[1:] {
++				if b, s := hist.Buckets[i+1], float64(sc.Size+1); b != s {
++					t.Errorf("bucket does not match size class: got %f, want %f", b, s)
++					// The rest of the checks aren't expected to work anyway.
++					continue
++				}
++				if c, f := hist.Counts[i], sc.Frees; c != f {
++					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, f)
++				}
++			}
+ 		case "/gc/heap/objects:objects":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		case "/gc/heap/goal:bytes":
+@@ -154,11 +182,11 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 	if totalVirtual.got != totalVirtual.want {
+ 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
+ 	}
+-	if objects.alloc.Counts[0] > 0 {
+-		t.Error("found counts for objects of non-positive size in allocs-by-size")
++	if b, c := len(objects.alloc.Buckets), len(objects.alloc.Counts); b != c+1 {
++		t.Errorf("allocs-by-size has wrong bucket or counts length: %d buckets, %d counts", b, c)
+ 	}
+-	if objects.free.Counts[0] > 0 {
+-		t.Error("found counts for objects of non-positive size in frees-by-size")
++	if b, c := len(objects.free.Buckets), len(objects.free.Counts); b != c+1 {
++		t.Errorf("frees-by-size has wrong bucket or counts length: %d buckets, %d counts", b, c)
+ 	}
+ 	if len(objects.alloc.Buckets) != len(objects.free.Buckets) {
+ 		t.Error("allocs-by-size and frees-by-size buckets don't match in length")

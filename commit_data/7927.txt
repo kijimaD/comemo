@@ -8,7 +8,7 @@ Date:   Tue Mar 29 13:29:20 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4323044
-
+---
  src/cmd/Makefile                         |   2 +-
  src/cmd/gotest/Makefile                  |  15 +--
  src/cmd/gotest/doc.go                    |  16 ++-
@@ -16,3 +16,327 @@ Date:   Tue Mar 29 13:29:20 2011 -0700
  src/cmd/gotest/{ngotest.go => gotest.go} |   0
  src/pkg/Makefile                         |   4 +-
  6 files changed, 22 insertions(+), 227 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 0d18f64fee..5a37733de9 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -18,7 +18,6 @@ DIRS=\
+ 	gc\
+ 	godefs\
+ 	gopack\
+-	gotest\
+ 	gotry\
+ 	nm\
+ 	prof\
+@@ -45,6 +44,7 @@ CLEANDIRS=\
+ 	gofix\
+ 	gofmt\
+ 	goinstall\
++	gotest\
+ 	gotype\
+ 	goyacc\
+ 	hgpatch\
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index 9ef0f0c1aa..131ac36717 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -4,15 +4,8 @@
+ 
+ include ../../Make.inc
+ 
+-TARG=install
+-
+-clean:
+-	@true
+-
+-install: install-gotest
+-
+-install-%: %
+-	! test -f "$(GOBIN)"/$* || chmod u+w "$(GOBIN)"/$*
+-	sed 's`@@GOROOT@@`$(GOROOT_FINAL)`' $* >"$(GOBIN)"/$*
+-	chmod +x "$(GOBIN)"/$*
++TARG=gotest
++GOFILES=\
++	gotest.go\
+ 
++include ../../Make.cmd
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 015622c817..81b920ddc9 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -36,9 +36,14 @@ The package is built in a special subdirectory so it does not
+ interfere with the non-test installation.
+ 
+ Usage:
+-	gotest [pkg_test.go ...]
++	gotest [-c] [-x] [testflags...] [pkg_test.go...]
+ 
+-The resulting binary, called (for amd64) 6.out, has several flags.
++The flags specific to gotest include -x, which prints each subcommand
++gotest executes, and -c, which causes gotest to compile the test
++binary but not run it.  The testflags are passed to the test binary
++and are documented below.
++
++The resulting test binary, called (for amd64) 6.out, has several flags.
+ 
+ Usage:
+ 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
+@@ -70,5 +75,12 @@ The -test.short package tells long-running tests to shorten their
+ run time. It is off by default but set by all.bash so installations
+ of the Go tree can do a sanity check but not spend time running the
+ full test suite.
++
++For convenience, each -test.X flag of the test binary is also
++available as the flag -X in gotest itself.  For instance, the command
++	gotest -v -test.cpuprofile=prof.out
++will compile the test binary and then run it as
++	6.out -test.v -cpuprofile=prof.out
++
+ */
+ package documentation
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+deleted file mode 100755
+index d00c9d4cd2..0000000000
+--- a/src/cmd/gotest/gotest
++++ /dev/null
+@@ -1,212 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Using all the *_test.go files in the current directory, write out a file
+-# _testmain.go that runs all its tests. Compile everything and run the
+-# tests.
+-# If files are named on the command line, use them instead of *_test.go.
+-
+-# Makes egrep,grep work better in general if we put them
+-# in ordinary C mode instead of what the current language is.
+-unset LANG
+-export LC_ALL=C
+-export LC_CTYPE=C
+-
+-_GC=$GC	# Make.inc will overwrite this
+-
+-if [ ! -f [Mm]akefile ]; then
+-	echo 'please create a Makefile for gotest; see http://golang.org/doc/code.html for details' 1>&2
+-	exit 2
+-fi
+-
+-export GOROOT=${GOROOT:-"@@GOROOT@@"}
+-eval $(gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+-if [ -z "$O" ]; then
+-	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+-	exit 2
+-fi
+-
+-E="$GORUN"
+-
+-# Allow overrides
+-GC="${_GC:-$GC} -I _test"
+-GL="${GL:-$LD} -L _test"
+-AS="$AS"
+-CC="$CC"
+-LD="$LD"
+-export GC GL O AS CC LD
+-
+-gofiles=""
+-loop=true
+-while $loop; do
+-	case "x$1" in
+-	x-*)
+-		loop=false
+-		;;
+-	x)
+-		loop=false
+-		;;
+-	*)
+-		gofiles="$gofiles $1"
+-		shift
+-		;;
+-	esac
+-done
+-
+-case "x$gofiles" in
+-x)
+-	gofiles=$(echo -n $(ls *_test.go 2>/dev/null))
+-esac
+-
+-case "x$gofiles" in
+-x)
+-	echo 'no test files found (*_test.go)' 1>&2
+-	exit 2
+-esac
+-
+-# Run any commands given in sources, like
+-#   // gotest: $GC foo.go
+-# to build any test-only dependencies.
+-sed -n 's/^\/\/ gotest: //p' $gofiles | sh -e || exit 1
+-
+-# Split $gofiles into external gofiles (those in *_test packages)
+-# and internal ones (those in the main package).
+-xgofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep ':.*_test' | sed 's/:.*//'))
+-gofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep -v ':.*_test' | sed 's/:.*//'))
+-
+-# External $O file
+-xofile=""
+-havex=false
+-if [ "x$xgofiles" != "x" ]; then
+-	xofile="_xtest_.$O"
+-	havex=true
+-fi
+-
+-set -e
+-
+-gomake testpackage-clean
+-gomake testpackage "GOTESTFILES=$gofiles"
+-if $havex; then
+-	$GC -o $xofile $xgofiles
+-fi
+-
+-# They all compile; now generate the code to call them.
+-
+-# Suppress output to stdout on Linux
+-MAKEFLAGS=
+-MAKELEVEL=
+-
+-# usage: nmgrep pattern file...
+-nmgrep() {
+-	pat="$1"
+-	shift
+-	for i
+-	do
+-		# Package symbol "".Foo is pkg.Foo when imported in Go.
+-		# Figure out pkg.
+-		case "$i" in
+-		*.a)
+-			pkg=$(gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 's/ .*//' | sed 1q)
+-			;;
+-		*)
+-			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
+-			;;
+-		esac
+-		6nm -s "$i" | egrep ' T .*\.'"$pat"'$' |
+-		sed 's/.* //; /\..*\./d; s/""\./'"$pkg"'./g'
+-	done
+-}
+-
+-localname() {
+-	# The package main has been renamed to __main__ when imported.
+-	# Adjust its uses.
+-	echo $1 | sed 's/^main\./__main__./'
+-}
+-
+-importpath=$(gomake -s importpath)
+-{
+-	# test functions are named TestFoo
+-	# the grep -v eliminates methods and other special names
+-	# that have multiple dots.
+-	pattern='Test([^a-z].*)?'
+-	tests=$(nmgrep $pattern _test/$importpath.a $xofile)
+-	if [ "x$tests" = x ]; then
+-		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+-		exit 2
+-	fi
+-	# benchmarks are named BenchmarkFoo.
+-	pattern='Benchmark([^a-z].*)?'
+-	benchmarks=$(nmgrep $pattern _test/$importpath.a $xofile)
+-
+-	# package spec
+-	echo 'package main'
+-	echo
+-	# imports
+-	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
+-		case "$importpath" in
+-		testing)
+-			;;
+-		main)
+-			# Import path main is reserved, so import with
+-			# explicit reference to ./_test/main instead.
+-			# Also, the file we are writing defines a function named main,
+-			# so rename this import to __main__ to avoid name conflict.
+-			echo 'import __main__ "./_test/main"'
+-			;;
+-		*)
+-			echo 'import "'$importpath'"'
+-			;;
+-		esac
+-	fi
+-	if $havex; then
+-		echo 'import "./_xtest_"'
+-	fi
+-	echo 'import "testing"'
+-	echo 'import __os__     "os"' # rename in case tested package is called os
+-	echo 'import __regexp__ "regexp"' # rename in case tested package is called regexp
+-	# test array
+-	echo
+-	echo 'var tests = []testing.InternalTest{'
+-	for i in $tests
+-	do
+-		j=$(localname $i)
+-		echo '	{"'$i'", '$j'},'
+-	done
+-	echo '}'
+-	# benchmark array
+-	# The comment makes the multiline declaration
+-	# gofmt-safe even when there are no benchmarks.
+-	echo 'var benchmarks = []testing.InternalBenchmark{ //'
+-	for i in $benchmarks
+-	do
+-		j=$(localname $i)
+-		echo '	{"'$i'", '$j'},'
+-	done
+-	echo '}'
+-	# body
+-	echo \
+-'
+-var matchPat string
+-var matchRe *__regexp__.Regexp
+-
+-func matchString(pat, str string) (result bool, err __os__.Error) {
+-	if matchRe == nil || matchPat != pat {
+-		matchPat = pat
+-		matchRe, err = __regexp__.Compile(matchPat)
+-		if err != nil {
+-			return
+-		}
+-	}
+-	return matchRe.MatchString(str), nil
+-}
+-
+-func main() {
+-	testing.Main(matchString, tests, benchmarks)
+-}'
+-}>_testmain.go
+-
+-$GC _testmain.go
+-$GL _testmain.$O
+-$E ./$O.out "$@"
+diff --git a/src/cmd/gotest/ngotest.go b/src/cmd/gotest/gotest.go
+similarity index 100%
+rename from src/cmd/gotest/ngotest.go
+rename to src/cmd/gotest/gotest.go
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c5f3e0710a..7fc45e5b67 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -157,8 +157,9 @@ DIRS=\
+ 	../cmd/godoc\
+ 	../cmd/gofix\
+ 	../cmd/gofmt\
+-	../cmd/gotype\
+ 	../cmd/goinstall\
++	../cmd/gotest\
++	../cmd/gotype\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\
+@@ -192,6 +193,7 @@ NOTEST+=\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gofmt\
++	../cmd/gotest\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\

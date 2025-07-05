@@ -23,6 +23,23 @@ Date:   Thu Oct 12 11:57:36 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/listen_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index c15b6bdc8f..96624f98ce 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -723,9 +723,9 @@ func TestClosingListener(t *testing.T) {
+ 
+ 	ln.Close()
+ 
+-	ln, err = Listen("tcp", addr.String())
++	ln2, err := Listen("tcp", addr.String())
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	ln.Close()
++	ln2.Close()
+ }

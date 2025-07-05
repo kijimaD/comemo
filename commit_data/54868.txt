@@ -23,8 +23,138 @@ Date:   Tue Nov 8 17:48:48 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go  |  9 +++++++++
  src/runtime/lfstack.go      |  6 ++++--
  src/runtime/lfstack_test.go | 31 ++++++++++++++-----------------
  3 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index bc1b3353e5..e7476e606b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -69,6 +69,9 @@ func LFStackPush(head *uint64, node *LFNode) {
+ func LFStackPop(head *uint64) *LFNode {
+ 	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+ }
++func LFNodeValidate(node *LFNode) {
++	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
++}
+ 
+ func Netpoll(delta int64) {
+ 	systemstack(func() {
+@@ -1709,3 +1712,9 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+ func FrameStartLine(f *Frame) int {
+ 	return f.startLine
+ }
++
++// PersistentAlloc allocates some memory that lives outside the Go heap.
++// This memory will never be freed; use sparingly.
++func PersistentAlloc(n uintptr) unsafe.Pointer {
++	return persistentalloc(n, 0, &memstats.other_sys)
++}
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index 406561a275..306a8e888a 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -18,8 +18,7 @@ import (
+ // This stack is intrusive. Nodes must embed lfnode as the first field.
+ //
+ // The stack does not keep GC-visible pointers to nodes, so the caller
+-// is responsible for ensuring the nodes are not garbage collected
+-// (typically by allocating them from manually-managed memory).
++// must ensure the nodes are allocated outside the Go heap.
+ type lfstack uint64
+ 
+ func (head *lfstack) push(node *lfnode) {
+@@ -59,6 +58,9 @@ func (head *lfstack) empty() bool {
+ // lfnodeValidate panics if node is not a valid address for use with
+ // lfstack.push. This only needs to be called when node is allocated.
+ func lfnodeValidate(node *lfnode) {
++	if base, _, _ := findObject(uintptr(unsafe.Pointer(node)), 0, 0); base != 0 {
++		throw("lfstack node allocated from the heap")
++	}
+ 	if lfstackUnpack(lfstackPack(node, ^uintptr(0))) != node {
+ 		printlock()
+ 		println("runtime: bad lfnode address", hex(uintptr(unsafe.Pointer(node))))
+diff --git a/src/runtime/lfstack_test.go b/src/runtime/lfstack_test.go
+index d0a1b6ba06..e36297e541 100644
+--- a/src/runtime/lfstack_test.go
++++ b/src/runtime/lfstack_test.go
+@@ -16,6 +16,17 @@ type MyNode struct {
+ 	data int
+ }
+ 
++// allocMyNode allocates nodes that are stored in an lfstack
++// outside the Go heap.
++// We require lfstack objects to live outside the heap so that
++// checkptr passes on the unsafe shenanigans used.
++func allocMyNode(data int) *MyNode {
++	n := (*MyNode)(PersistentAlloc(unsafe.Sizeof(MyNode{})))
++	LFNodeValidate(&n.LFNode)
++	n.data = data
++	return n
++}
++
+ func fromMyNode(node *MyNode) *LFNode {
+ 	return (*LFNode)(unsafe.Pointer(node))
+ }
+@@ -30,22 +41,17 @@ func TestLFStack(t *testing.T) {
+ 	stack := new(uint64)
+ 	global = stack // force heap allocation
+ 
+-	// Need to keep additional references to nodes, the stack is not all that type-safe.
+-	var nodes []*MyNode
+-
+ 	// Check the stack is initially empty.
+ 	if LFStackPop(stack) != nil {
+ 		t.Fatalf("stack is not empty")
+ 	}
+ 
+ 	// Push one element.
+-	node := &MyNode{data: 42}
+-	nodes = append(nodes, node)
++	node := allocMyNode(42)
+ 	LFStackPush(stack, fromMyNode(node))
+ 
+ 	// Push another.
+-	node = &MyNode{data: 43}
+-	nodes = append(nodes, node)
++	node = allocMyNode(43)
+ 	LFStackPush(stack, fromMyNode(node))
+ 
+ 	// Pop one element.
+@@ -75,8 +81,6 @@ func TestLFStack(t *testing.T) {
+ 	}
+ }
+ 
+-var stress []*MyNode
+-
+ func TestLFStackStress(t *testing.T) {
+ 	const K = 100
+ 	P := 4 * GOMAXPROCS(-1)
+@@ -86,15 +90,11 @@ func TestLFStackStress(t *testing.T) {
+ 	}
+ 	// Create 2 stacks.
+ 	stacks := [2]*uint64{new(uint64), new(uint64)}
+-	// Need to keep additional references to nodes,
+-	// the lock-free stack is not type-safe.
+-	stress = nil
+ 	// Push K elements randomly onto the stacks.
+ 	sum := 0
+ 	for i := 0; i < K; i++ {
+ 		sum += i
+-		node := &MyNode{data: i}
+-		stress = append(stress, node)
++		node := allocMyNode(i)
+ 		LFStackPush(stacks[i%2], fromMyNode(node))
+ 	}
+ 	c := make(chan bool, P)
+@@ -134,7 +134,4 @@ func TestLFStackStress(t *testing.T) {
+ 	if sum2 != sum {
+ 		t.Fatalf("Wrong sum %d/%d", sum2, sum)
+ 	}
+-
+-	// Let nodes be collected now.
+-	stress = nil
+ }

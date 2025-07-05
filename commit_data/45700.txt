@@ -19,7 +19,99 @@ Date:   Mon Nov 2 08:48:23 2020 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/testing/benchmark.go      | 20 ++++++++++++--------
  src/testing/benchmark_test.go | 21 +++++++++++----------
  2 files changed, 23 insertions(+), 18 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 1b81ec3a2d..a8f75e9712 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -451,23 +451,27 @@ func (r BenchmarkResult) String() string {
+ 
+ func prettyPrint(w io.Writer, x float64, unit string) {
+ 	// Print all numbers with 10 places before the decimal point
+-	// and small numbers with three sig figs.
++	// and small numbers with four sig figs. Field widths are
++	// chosen to fit the whole part in 10 places while aligning
++	// the decimal point of all fractional formats.
+ 	var format string
+ 	switch y := math.Abs(x); {
+-	case y == 0 || y >= 99.95:
++	case y == 0 || y >= 999.95:
+ 		format = "%10.0f %s"
+-	case y >= 9.995:
++	case y >= 99.995:
+ 		format = "%12.1f %s"
+-	case y >= 0.9995:
++	case y >= 9.9995:
+ 		format = "%13.2f %s"
+-	case y >= 0.09995:
++	case y >= 0.99995:
+ 		format = "%14.3f %s"
+-	case y >= 0.009995:
++	case y >= 0.099995:
+ 		format = "%15.4f %s"
+-	case y >= 0.0009995:
++	case y >= 0.0099995:
+ 		format = "%16.5f %s"
+-	default:
++	case y >= 0.00099995:
+ 		format = "%17.6f %s"
++	default:
++		format = "%18.7f %s"
+ 	}
+ 	fmt.Fprintf(w, format, x, unit)
+ }
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 1434c2613f..4c1cbd1933 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -22,13 +22,14 @@ var prettyPrintTests = []struct {
+ 	{0, "         0 x"},
+ 	{1234.1, "      1234 x"},
+ 	{-1234.1, "     -1234 x"},
+-	{99.950001, "       100 x"},
+-	{99.949999, "        99.9 x"},
+-	{9.9950001, "        10.0 x"},
+-	{9.9949999, "         9.99 x"},
+-	{-9.9949999, "        -9.99 x"},
+-	{0.0099950001, "         0.0100 x"},
+-	{0.0099949999, "         0.00999 x"},
++	{999.950001, "      1000 x"},
++	{999.949999, "       999.9 x"},
++	{99.9950001, "       100.0 x"},
++	{99.9949999, "        99.99 x"},
++	{-99.9949999, "       -99.99 x"},
++	{0.000999950001, "         0.001000 x"},
++	{0.000999949999, "         0.0009999 x"}, // smallest case
++	{0.0000999949999, "         0.0001000 x"},
+ }
+ 
+ func TestPrettyPrint(t *testing.T) {
+@@ -50,13 +51,13 @@ func TestResultString(t *testing.T) {
+ 	if r.NsPerOp() != 2 {
+ 		t.Errorf("NsPerOp: expected 2, actual %v", r.NsPerOp())
+ 	}
+-	if want, got := "     100\t         2.40 ns/op", r.String(); want != got {
++	if want, got := "     100\t         2.400 ns/op", r.String(); want != got {
+ 		t.Errorf("String: expected %q, actual %q", want, got)
+ 	}
+ 
+ 	// Test sub-1 ns/op (issue #31005)
+ 	r.T = 40 * time.Nanosecond
+-	if want, got := "     100\t         0.400 ns/op", r.String(); want != got {
++	if want, got := "     100\t         0.4000 ns/op", r.String(); want != got {
+ 		t.Errorf("String: expected %q, actual %q", want, got)
+ 	}
+ 
+@@ -130,7 +131,7 @@ func TestReportMetric(t *testing.T) {
+ 	}
+ 	// Test stringing.
+ 	res.N = 1 // Make the output stable
+-	want := "       1\t     12345 ns/op\t         0.200 frobs/op"
++	want := "       1\t     12345 ns/op\t         0.2000 frobs/op"
+ 	if want != res.String() {
+ 		t.Errorf("expected %q, actual %q", want, res.String())
+ 	}

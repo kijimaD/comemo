@@ -11,7 +11,87 @@ Date:   Wed Jan 11 15:31:48 2017 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go  | 11 +----------
  src/cmd/compile/internal/gc/noder.go | 27 +++++++++++++++++++++------
  2 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 46c02b46e5..1f4f18eb80 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -325,16 +325,7 @@ func Main() {
+ 	loadsys()
+ 
+ 	timings.Start("fe", "parse")
+-	var lines uint
+-	for _, infile := range flag.Args() {
+-		block = 1
+-		iota_ = -1000000
+-		imported_unsafe = false
+-		lines += parseFile(infile)
+-		if nsyntaxerrors != 0 {
+-			errorexit()
+-		}
+-	}
++	lines := parseFiles(flag.Args())
+ 	timings.Stop()
+ 	timings.AddEvent(int64(lines), "lines")
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 27edffea33..3744da6165 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -16,6 +16,17 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++func parseFiles(filenames []string) uint {
++	var lines uint
++	for _, filename := range filenames {
++		lines += parseFile(filename)
++		if nsyntaxerrors != 0 {
++			errorexit()
++		}
++	}
++	return lines
++}
++
+ func parseFile(filename string) uint {
+ 	f, err := os.Open(filename)
+ 	if err != nil {
+@@ -30,12 +41,6 @@ func parseFile(filename string) uint {
+ 
+ 	p.file(file)
+ 
+-	if !imported_unsafe {
+-		for _, pos := range p.linknames {
+-			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+-		}
+-	}
+-
+ 	if nsyntaxerrors == 0 {
+ 		testdclstack()
+ 	}
+@@ -55,11 +60,21 @@ type noder struct {
+ }
+ 
+ func (p *noder) file(file *syntax.File) {
++	block = 1
++	iota_ = -1000000
++	imported_unsafe = false
++
+ 	p.lineno(file.PkgName)
+ 	mkpackage(file.PkgName.Value)
+ 
+ 	xtop = append(xtop, p.decls(file.DeclList)...)
+ 
++	if !imported_unsafe {
++		for _, pos := range p.linknames {
++			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
++		}
++	}
++
+ 	// For compatibility with old code only (comparisons w/ toolstash):
+ 	// The old line number tracking simply continued incrementing the
+ 	// virtual line number (lexlineno) and using it also for lineno.

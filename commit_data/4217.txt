@@ -6,6 +6,62 @@ Date:   Tue Nov 24 15:42:46 2009 -0800
     
     R=rsc
     https://golang.org/cl/157160
-
+---
  src/pkg/math/all_test.go | 37 +++++++++++++++++++++++++++++++++++++
  1 file changed, 37 insertions(+)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 0999228375..60ce6de245 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -169,6 +169,7 @@ func tolerance(a, b, e float64) bool {
+ 	}
+ 	return d < e;
+ }
++func kindaclose(a, b float64) bool	{ return tolerance(a, b, 1e-8) }
+ func close(a, b float64) bool		{ return tolerance(a, b, 1e-14) }
+ func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
+ 
+@@ -274,6 +275,42 @@ func TestHypot(t *testing.T) {
+ 	}
+ }
+ 
++// Check that math functions of high angle values
++// return similar results to low angle values
++func TestLargeSin(t *testing.T) {
++	large := float64(100000 * Pi);
++	for i := 0; i < len(vf); i++ {
++		f1 := Sin(vf[i]);
++		f2 := Sin(vf[i] + large);
++		if !kindaclose(f1, f2) {
++			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f1, f2)
++		}
++	}
++}
++
++func TestLargeCos(t *testing.T) {
++	large := float64(100000 * Pi);
++	for i := 0; i < len(vf); i++ {
++		f1 := Cos(vf[i]);
++		f2 := Cos(vf[i] + large);
++		if !kindaclose(f1, f2) {
++			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f1, f2)
++		}
++	}
++}
++
++
++func TestLargeTan(t *testing.T) {
++	large := float64(100000 * Pi);
++	for i := 0; i < len(vf); i++ {
++		f1 := Tan(vf[i]);
++		f2 := Tan(vf[i] + large);
++		if !kindaclose(f1, f2) {
++			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f1, f2)
++		}
++	}
++}
++
+ // Check that math constants are accepted by compiler
+ // and have right value (assumes strconv.Atof works).
+ // http://code.google.com/p/go/issues/detail?id=201

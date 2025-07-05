@@ -9,8 +9,155 @@ Date:   Tue Oct 18 23:51:06 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/internal/atomic/atomic_test.go |  7 +--
  src/sync/atomic/asm_mipsx.s                | 85 ++++++++++++++++++++++++++++++
  src/sync/atomic/atomic_test.go             | 15 +++---
  3 files changed, 98 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index d5dc552b95..d0a39a1433 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -7,6 +7,7 @@ package atomic_test
+ import (
+ 	"runtime"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -51,13 +52,13 @@ func TestXadduintptr(t *testing.T) {
+ // Tests that xadduintptr correctly updates 64-bit values. The place where
+ // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
+ func TestXadduintptrOnUint64(t *testing.T) {
+-	/*	if runtime.BigEndian != 0 {
++	if sys.BigEndian != 0 {
+ 		// On big endian architectures, we never use xadduintptr to update
+ 		// 64-bit values and hence we skip the test.  (Note that functions
+ 		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
+ 		// big-endianness.)
+-		return
+-	}*/
++		t.Skip("skip xadduintptr on big endian architecture")
++	}
+ 	const inc = 100
+ 	val := uint64(0)
+ 	atomic.Xadduintptr((*uintptr)(unsafe.Pointer(&val)), inc)
+diff --git a/src/sync/atomic/asm_mipsx.s b/src/sync/atomic/asm_mipsx.s
+new file mode 100644
+index 0000000000..cf3318ff85
+--- /dev/null
++++ b/src/sync/atomic/asm_mipsx.s
+@@ -0,0 +1,85 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++#include "textflag.h"
++
++TEXT ·SwapInt32(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Xchg(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Xchg(SB)
++
++TEXT ·SwapInt64(SB),NOSPLIT,$0-24
++	JMP	runtime∕internal∕atomic·Xchg64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0-24
++	JMP	runtime∕internal∕atomic·Xchg64(SB)
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0-20
++	JMP	runtime∕internal∕atomic·Xchg(SB)
++
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
++	JMP	runtime∕internal∕atomic·Cas(SB)
++
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
++	JMP	runtime∕internal∕atomic·Cas(SB)
++
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-13
++	JMP	runtime∕internal∕atomic·Cas(SB)
++
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-21
++	JMP	runtime∕internal∕atomic·Cas64(SB)
++
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-21
++	JMP	runtime∕internal∕atomic·Cas64(SB)
++
++TEXT ·AddInt32(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Xadd(SB)
++
++TEXT ·AddUint32(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Xadd(SB)
++
++TEXT ·AddUintptr(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Xadd(SB)
++
++TEXT ·AddInt64(SB),NOSPLIT,$0-20
++	JMP	runtime∕internal∕atomic·Xadd64(SB)
++
++TEXT ·AddUint64(SB),NOSPLIT,$0-20
++	JMP	runtime∕internal∕atomic·Xadd64(SB)
++
++TEXT ·LoadInt32(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·LoadUint32(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·LoadInt64(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Load64(SB)
++
++TEXT ·LoadUint64(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Load64(SB)
++
++TEXT ·LoadUintptr(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·LoadPointer(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·StoreInt32(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Store(SB)
++
++TEXT ·StoreUint32(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Store(SB)
++
++TEXT ·StoreInt64(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
++TEXT ·StoreUint64(SB),NOSPLIT,$0-12
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
++TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
++	JMP	runtime∕internal∕atomic·Store(SB)
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 4f44f48f51..a230d63329 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1389,12 +1389,15 @@ func TestUnaligned64(t *testing.T) {
+ 	// Unaligned 64-bit atomics on 32-bit systems are
+ 	// a continual source of pain. Test that on 32-bit systems they crash
+ 	// instead of failing silently.
+-	if unsafe.Sizeof(int(0)) != 4 {
+-		t.Skip("test only runs on 32-bit systems")
+-	}
+-	if runtime.GOARCH == "amd64p32" {
+-		// amd64p32 can handle unaligned atomics.
+-		t.Skip("test not needed on amd64p32")
++
++	switch runtime.GOARCH {
++	default:
++		if unsafe.Sizeof(int(0)) != 4 {
++			t.Skip("test only runs on 32-bit systems")
++		}
++	case "amd64p32", "mips", "mipsle":
++		// amd64p32 and mips can handle unaligned atomics.
++		t.Skipf("test not needed on %v", runtime.GOARCH)
+ 	}
+ 
+ 	x := make([]uint32, 4)

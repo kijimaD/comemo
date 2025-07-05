@@ -16,6 +16,35 @@ Date:   Sat Jun 4 19:32:04 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/database/sql/driver/driver.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 43fa579bda..daf282bf74 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -192,9 +192,9 @@ type Execer interface {
+ // DB.Exec will first prepare a query, execute the statement, and then
+ // close the statement.
+ //
+-// ExecerContext may return ErrSkip.
++// ExecContext may return ErrSkip.
+ //
+-// ExecerContext must honor the context timeout and return when the context is canceled.
++// ExecContext must honor the context timeout and return when the context is canceled.
+ type ExecerContext interface {
+ 	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
+ }
+@@ -219,9 +219,9 @@ type Queryer interface {
+ // DB.Query will first prepare a query, execute the statement, and then
+ // close the statement.
+ //
+-// QueryerContext may return ErrSkip.
++// QueryContext may return ErrSkip.
+ //
+-// QueryerContext must honor the context timeout and return when the context is canceled.
++// QueryContext must honor the context timeout and return when the context is canceled.
+ type QueryerContext interface {
+ 	QueryContext(ctx context.Context, query string, args []NamedValue) (Rows, error)
+ }

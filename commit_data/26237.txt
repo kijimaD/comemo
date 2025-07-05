@@ -9,6 +9,23 @@ Date:   Wed Jan 6 11:12:10 2016 -0500
     Change-Id: I82f49d07841e89fc4f3fde9ea41e710a634579d0
     Reviewed-on: https://go-review.googlesource.com/18313
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index d52c7113f6..1b42954cc3 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -401,9 +401,8 @@ func main() {
+ 	switch gohostos {
+ 	case "darwin":
+ 		// Even on 64-bit platform, darwin uname -m prints i386.
+-		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
+-			gohostarch = "amd64"
+-		}
++		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
++		gohostarch = "amd64"
+ 	case "freebsd":
+ 		// Since FreeBSD 10 gcc is no longer part of the base system.
+ 		defaultclang = true

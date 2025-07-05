@@ -18,9 +18,366 @@ Date:   Fri Jul 14 13:24:55 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testcshared/cshared_test.go   | 18 +++++--
  .../internal/testcshared/testdata/libgo5/libgo5.go | 19 +++++--
  src/cmd/cgo/internal/testcshared/testdata/main4.c  | 22 ++++----
  src/cmd/cgo/internal/testcshared/testdata/main5.c  | 62 ++++++++++++----------
  4 files changed, 72 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testcshared/cshared_test.go b/src/cmd/cgo/internal/testcshared/cshared_test.go
+index 7fe6782b9e..7e9a274d05 100644
+--- a/src/cmd/cgo/internal/testcshared/cshared_test.go
++++ b/src/cmd/cgo/internal/testcshared/cshared_test.go
+@@ -182,6 +182,8 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
+ 	if len(extraEnv) > 0 {
+ 		cmd.Env = append(os.Environ(), extraEnv...)
+ 	}
++	stderr := new(strings.Builder)
++	cmd.Stderr = stderr
+ 
+ 	if GOOS != "windows" {
+ 		// TestUnexportedSymbols relies on file descriptor 30
+@@ -192,11 +194,13 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
+ 		cmd.ExtraFiles = make([]*os.File, 28)
+ 	}
+ 
+-	out, err := cmd.CombinedOutput()
++	t.Logf("run: %v", args)
++	out, err := cmd.Output()
++	if stderr.Len() > 0 {
++		t.Logf("stderr:\n%s", stderr)
++	}
+ 	if err != nil {
+ 		t.Fatalf("command failed: %v\n%v\n%s\n", args, err, out)
+-	} else {
+-		t.Logf("run: %v", args)
+ 	}
+ 	return string(out)
+ }
+@@ -602,9 +606,13 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+ 	defer os.Remove(bin)
+ 	defer os.Remove(pkgname + ".h")
+ 
+-	out := runExe(t, nil, bin, "./"+libname)
++	args := []string{bin, "./" + libname}
++	if testing.Verbose() {
++		args = append(args, "verbose")
++	}
++	out := runExe(t, nil, args...)
+ 	if strings.TrimSpace(out) != "PASS" {
+-		t.Error(run(t, nil, bin, libname, "verbose"))
++		t.Errorf("%v%s", args, out)
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/internal/testcshared/testdata/libgo5/libgo5.go b/src/cmd/cgo/internal/testcshared/testdata/libgo5/libgo5.go
+index 4ca44e5894..c70dd681fa 100644
+--- a/src/cmd/cgo/internal/testcshared/testdata/libgo5/libgo5.go
++++ b/src/cmd/cgo/internal/testcshared/testdata/libgo5/libgo5.go
+@@ -31,15 +31,24 @@ func ResetSIGIO() {
+ 	signal.Reset(syscall.SIGIO)
+ }
+ 
+-// SawSIGIO returns whether we saw a SIGIO within a brief pause.
++// AwaitSIGIO blocks indefinitely until a SIGIO is reported.
++//
++//export AwaitSIGIO
++func AwaitSIGIO() {
++	<-sigioChan
++}
++
++// SawSIGIO reports whether we saw a SIGIO within a brief pause.
+ //
+ //export SawSIGIO
+-func SawSIGIO() C.int {
++func SawSIGIO() bool {
++	timer := time.NewTimer(100 * time.Millisecond)
+ 	select {
+ 	case <-sigioChan:
+-		return 1
+-	case <-time.After(100 * time.Millisecond):
+-		return 0
++		timer.Stop()
++		return true
++	case <-timer.C:
++		return false
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/internal/testcshared/testdata/main4.c b/src/cmd/cgo/internal/testcshared/testdata/main4.c
+index 6c16364070..467a611ae7 100644
+--- a/src/cmd/cgo/internal/testcshared/testdata/main4.c
++++ b/src/cmd/cgo/internal/testcshared/testdata/main4.c
+@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
+ 	setsid();
+ 
+ 	if (verbose) {
+-		printf("calling sigaction\n");
++		fprintf(stderr, "calling sigaction\n");
+ 	}
+ 
+ 	memset(&sa, 0, sizeof sa);
+@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling dlopen\n");
++		fprintf(stderr, "calling dlopen\n");
+ 	}
+ 
+ 	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
+@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling dlsym\n");
++		fprintf(stderr, "calling dlsym\n");
+ 	}
+ 
+ 	// Start some goroutines.
+@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling RunGoroutines\n");
++		fprintf(stderr, "calling RunGoroutines\n");
+ 	}
+ 
+ 	fn();
+@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
+ 	// will be delivered to a goroutine.
+ 
+ 	if (verbose) {
+-		printf("calling pthread_sigmask\n");
++		fprintf(stderr, "calling pthread_sigmask\n");
+ 	}
+ 
+ 	if (sigemptyset(&mask) < 0) {
+@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling kill\n");
++		fprintf(stderr, "calling kill\n");
+ 	}
+ 
+ 	if (kill(0, SIGIO) < 0) {
+@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("waiting for sigioSeen\n");
++		fprintf(stderr, "waiting for sigioSeen\n");
+ 	}
+ 
+ 	// Wait until the signal has been delivered.
+@@ -178,13 +178,13 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling setjmp\n");
++		fprintf(stderr, "calling setjmp\n");
+ 	}
+ 
+ 	// Test that a SIGSEGV on this thread is delivered to us.
+ 	if (setjmp(jmp) == 0) {
+ 		if (verbose) {
+-			printf("triggering SIGSEGV\n");
++			fprintf(stderr, "triggering SIGSEGV\n");
+ 		}
+ 
+ 		*nullPointer = '\0';
+@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling dlsym\n");
++		fprintf(stderr, "calling dlsym\n");
+ 	}
+ 
+ 	// Make sure that a SIGSEGV in Go causes a run-time panic.
+@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling TestSEGV\n");
++		fprintf(stderr, "calling TestSEGV\n");
+ 	}
+ 
+ 	fn();
+diff --git a/src/cmd/cgo/internal/testcshared/testdata/main5.c b/src/cmd/cgo/internal/testcshared/testdata/main5.c
+index e7bebab1ad..563329e331 100644
+--- a/src/cmd/cgo/internal/testcshared/testdata/main5.c
++++ b/src/cmd/cgo/internal/testcshared/testdata/main5.c
+@@ -7,6 +7,7 @@
+ // This is a lot like ../testcarchive/main3.c.
+ 
+ #include <signal.h>
++#include <stdbool.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -29,8 +30,10 @@ int main(int argc, char** argv) {
+ 	int verbose;
+ 	struct sigaction sa;
+ 	void* handle;
+-	void (*fn1)(void);
+-	int (*sawSIGIO)(void);
++	void (*catchSIGIO)(void);
++	void (*resetSIGIO)(void);
++	void (*awaitSIGIO)();
++	bool (*sawSIGIO)();
+ 	int i;
+ 	struct timespec ts;
+ 
+@@ -38,7 +41,7 @@ int main(int argc, char** argv) {
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+ 
+ 	if (verbose) {
+-		printf("calling sigaction\n");
++		fprintf(stderr, "calling sigaction\n");
+ 	}
+ 
+ 	memset(&sa, 0, sizeof sa);
+@@ -52,7 +55,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling dlopen\n");
++		fprintf(stderr, "calling dlopen\n");
+ 	}
+ 
+ 	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
+@@ -65,7 +68,7 @@ int main(int argc, char** argv) {
+ 	// installed for SIGIO.
+ 
+ 	if (verbose) {
+-		printf("raising SIGIO\n");
++		fprintf(stderr, "raising SIGIO\n");
+ 	}
+ 
+ 	if (raise(SIGIO) < 0) {
+@@ -73,7 +76,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("waiting for sigioSeen\n");
++		fprintf(stderr, "waiting for sigioSeen\n");
+ 	}
+ 
+ 	// Wait until the signal has been delivered.
+@@ -94,23 +97,23 @@ int main(int argc, char** argv) {
+ 	// Tell the Go code to catch SIGIO.
+ 
+ 	if (verbose) {
+-		printf("calling dlsym\n");
++		fprintf(stderr, "calling dlsym\n");
+ 	}
+ 
+-	fn1 = (void(*)(void))dlsym(handle, "CatchSIGIO");
+-	if (fn1 == NULL) {
++	catchSIGIO = (void(*)(void))dlsym(handle, "CatchSIGIO");
++	if (catchSIGIO == NULL) {
+ 		fprintf(stderr, "%s\n", dlerror());
+ 		exit(EXIT_FAILURE);
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling CatchSIGIO\n");
++		fprintf(stderr, "calling CatchSIGIO\n");
+ 	}
+ 
+-	fn1();
++	catchSIGIO();
+ 
+ 	if (verbose) {
+-		printf("raising SIGIO\n");
++		fprintf(stderr, "raising SIGIO\n");
+ 	}
+ 
+ 	if (raise(SIGIO) < 0) {
+@@ -118,24 +121,21 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling dlsym\n");
++		fprintf(stderr, "calling dlsym\n");
+ 	}
+ 
+ 	// Check that the Go code saw SIGIO.
+-	sawSIGIO = (int (*)(void))dlsym(handle, "SawSIGIO");
+-	if (sawSIGIO == NULL) {
++	awaitSIGIO = (void (*)(void))dlsym(handle, "AwaitSIGIO");
++	if (awaitSIGIO == NULL) {
+ 		fprintf(stderr, "%s\n", dlerror());
+ 		exit(EXIT_FAILURE);
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling SawSIGIO\n");
++		fprintf(stderr, "calling AwaitSIGIO\n");
+ 	}
+ 
+-	if (!sawSIGIO()) {
+-		fprintf(stderr, "Go handler did not see SIGIO\n");
+-		exit(EXIT_FAILURE);
+-	}
++	awaitSIGIO();
+ 
+ 	if (sigioSeen != 0) {
+ 		fprintf(stderr, "C handler saw SIGIO when only Go handler should have\n");
+@@ -145,23 +145,29 @@ int main(int argc, char** argv) {
+ 	// Tell the Go code to stop catching SIGIO.
+ 
+ 	if (verbose) {
+-		printf("calling dlsym\n");
++		fprintf(stderr, "calling dlsym\n");
+ 	}
+ 
+-	fn1 = (void(*)(void))dlsym(handle, "ResetSIGIO");
+-	if (fn1 == NULL) {
++	resetSIGIO = (void (*)(void))dlsym(handle, "ResetSIGIO");
++	if (resetSIGIO == NULL) {
+ 		fprintf(stderr, "%s\n", dlerror());
+ 		exit(EXIT_FAILURE);
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling ResetSIGIO\n");
++		fprintf(stderr, "calling ResetSIGIO\n");
+ 	}
+ 
+-	fn1();
++	resetSIGIO();
++
++	sawSIGIO = (bool (*)(void))dlsym(handle, "SawSIGIO");
++	if (sawSIGIO == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
+ 
+ 	if (verbose) {
+-		printf("raising SIGIO\n");
++		fprintf(stderr, "raising SIGIO\n");
+ 	}
+ 
+ 	if (raise(SIGIO) < 0) {
+@@ -169,7 +175,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("calling SawSIGIO\n");
++		fprintf(stderr, "calling SawSIGIO\n");
+ 	}
+ 
+ 	if (sawSIGIO()) {
+@@ -178,7 +184,7 @@ int main(int argc, char** argv) {
+ 	}
+ 
+ 	if (verbose) {
+-		printf("waiting for sigioSeen\n");
++		fprintf(stderr, "waiting for sigioSeen\n");
+ 	}
+ 
+ 	// Wait until the signal has been delivered.

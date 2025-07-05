@@ -9,6 +9,20 @@ Date:   Thu Mar 11 09:46:16 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/444041
-
+---
  src/pkg/syslog/syslog_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index a2801c502d..6a8ae3012c 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -31,7 +31,7 @@ func startServer(done chan<- string) {
+ 		log.Exitf("net.ListenPacket failed udp :0 %v", e)
+ 	}
+ 	serverAddr = c.LocalAddr().String()
+-	c.SetReadTimeout(10e6) // 10ms
++	c.SetReadTimeout(100e6) // 100ms
+ 	go runSyslog(c, done)
+ }
+ 

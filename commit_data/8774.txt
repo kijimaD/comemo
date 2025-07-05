@@ -7,6 +7,36 @@ Date:   Sat Jun 18 20:31:38 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4639046
-
+---
  doc/go_faq.html | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 953092f051..ef70033ace 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -598,6 +598,24 @@ the interface idea. Sometimes, though, they're necessary to resolve ambiguities
+ among similar interfaces.
+ </p>
+ 
++<h3 id="convert_slice_of_interface">
++Can I convert a []T to an []interface{}?</h3>
++
++<p>
++Not directly because they do not have the same representation in memory.
++It is necessary to copy the elements individually to the destination
++slice. This example converts a slice of <code>int</code> to a slice of
++<code>interface{}</code>:
++</p>
++
++<pre>
++t := []int{1, 2, 3, 4}
++s := make([]interface{}, len(t))
++for i, v := range t {
++	s[i] = v
++}
++</pre>
++
+ <h2 id="values">Values</h2>
+ 
+ <h3 id="conversions">

@@ -18,7 +18,71 @@ Date:   Tue Oct 23 15:39:07 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/clean/clean.go | 17 ++++++++++++++++-
  src/cmd/go/internal/test/test.go   |  3 ++-
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index b12bd981a7..73e04960d2 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -10,6 +10,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ 	"time"
+ 
+@@ -17,6 +18,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+@@ -146,7 +148,20 @@ func runClean(cmd *base.Command, args []string) {
+ 		// right now are to be ignored.
+ 		dir := cache.DefaultDir()
+ 		if dir != "off" {
+-			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
++			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
++			if err == nil {
++				now := time.Now().UnixNano()
++				buf, _ := ioutil.ReadAll(f)
++				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
++				if now > prev {
++					if err = f.Truncate(0); err == nil {
++						_, err = fmt.Fprintf(f, "%d\n", now)
++					}
++				}
++				if closeErr := f.Close(); err == nil {
++					err = closeErr
++				}
++			}
+ 			if err != nil {
+ 				base.Errorf("go clean -testcache: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b38eb4c41d..8dfb3df22d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+@@ -566,7 +567,7 @@ func runTest(cmd *base.Command, args []string) {
+ 	// (We implement go clean -testcache by writing an expiration date
+ 	// instead of searching out and deleting test result cache entries.)
+ 	if dir := cache.DefaultDir(); dir != "off" {
+-		if data, _ := ioutil.ReadFile(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
++		if data, _ := lockedfile.Read(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+ 			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
+ 				testCacheExpire = time.Unix(0, t)
+ 			}

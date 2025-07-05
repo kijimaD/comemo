@@ -9,7 +9,26 @@ Date:   Wed Apr 3 20:32:50 2013 +1100
     R=gobot
     CC=golang-dev
     https://golang.org/cl/8305043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index baf35355e7..4217c998d0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -299,3 +299,4 @@ Yusuke Kagiwada <block.rxckin.beats@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Ziad Hatahet <hatahet@gmail.com>
++Zorion Arrizabalaga <zorionk@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 64c5369da0..d08e3428c2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -422,3 +422,4 @@ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Yves Junqueira <yves.junqueira@gmail.com>
+ Ziad Hatahet <hatahet@gmail.com>
++Zorion Arrizabalaga <zorionk@gmail.com>

@@ -12,6 +12,31 @@ Date:   Wed Mar 28 14:42:05 2018 -0700
     Change-Id: Ic46915eee1d3b7e57d8d1886834ddfb2e8e66e62
     Reviewed-on: https://go-review.googlesource.com/103238
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bufio/bufio.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index ad9c9f5ddf..72545a7509 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -462,6 +462,8 @@ func (b *Reader) ReadString(delim byte) (string, error) {
+ 
+ // WriteTo implements io.WriterTo.
+ // This may make multiple calls to the Read method of the underlying Reader.
++// If the underlying reader supports the WriteTo method,
++// this calls the underlying WriteTo without buffering.
+ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 	n, err = b.writeBuf(w)
+ 	if err != nil {
+@@ -684,7 +686,9 @@ func (b *Writer) WriteString(s string) (int, error) {
+ 	return nn, nil
+ }
+ 
+-// ReadFrom implements io.ReaderFrom.
++// ReadFrom implements io.ReaderFrom. If the underlying writer
++// supports the ReadFrom method, and b has no buffered data yet,
++// this calls the underlying ReadFrom without buffering.
+ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+ 	if b.Buffered() == 0 {
+ 		if w, ok := b.wr.(io.ReaderFrom); ok {

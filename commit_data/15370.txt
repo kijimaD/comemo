@@ -7,7 +7,50 @@ Date:   Thu Feb 21 20:06:26 2013 -0800
     R=adonovan, minux.ma, alex.brainman, akumar, rminnich
     CC=golang-dev, lucio.dere
     https://golang.org/cl/7300078
-
+---
  src/pkg/exp/ssa/interp/external_plan9.go | 26 ++++++++++++++++++++++++++
  src/pkg/exp/ssa/interp/external_unix.go  |  1 -
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/ssa/interp/external_plan9.go b/src/pkg/exp/ssa/interp/external_plan9.go
+new file mode 100644
+index 0000000000..5f17cacda6
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/external_plan9.go
+@@ -0,0 +1,26 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package interp
++
++import (
++	"exp/ssa"
++	"syscall"
++)
++
++func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
++	panic("syscall.Kill not yet implemented")
++}
++
++func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	p := args[1].([]value)
++	b := make([]byte, 0, len(p))
++	for i := range p {
++		b = append(b, p[i].(byte))
++	}
++	n, _ := syscall.Write(args[0].(int), b)
++	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
++	return tuple{n, err}
++}
+diff --git a/src/pkg/exp/ssa/interp/external_unix.go b/src/pkg/exp/ssa/interp/external_unix.go
+index e021ff7214..afc874535f 100644
+--- a/src/pkg/exp/ssa/interp/external_unix.go
++++ b/src/pkg/exp/ssa/interp/external_unix.go
+@@ -28,5 +28,4 @@ func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+ 	n, _ := syscall.Write(args[0].(int), b)
+ 	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
+ 	return tuple{n, err}
+-
+ }

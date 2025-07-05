@@ -25,8 +25,141 @@ Date:   Thu Aug 18 03:53:58 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 17 +++++++++++++----
  src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++++---------
  src/cmd/link/internal/ld/dwarf_test.go   |  4 ----
  3 files changed, 30 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 9280232fc9..1acc8c7fb6 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1490,7 +1490,7 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 	if name.Sym().Name == dictParamName {
+ 		r.dictParam = name
+ 	} else {
+-		if ctxt == ir.PAUTO {
++		if r.synthetic == nil {
+ 			r.Sync(pkgbits.SyncAddLocal)
+ 			if r.p.SyncMarkers() {
+ 				want := r.Int()
+@@ -1498,12 +1498,10 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 					base.FatalfAt(name.Pos(), "locals table has desynced")
+ 				}
+ 			}
++			r.varDictIndex(name)
+ 		}
+ 
+ 		r.locals = append(r.locals, name)
+-
+-		// TODO(go.dev/issue/54514): Set name.DictIndex for variables of
+-		// derived type and enable cmd/link/internal/ld.TestDictIndex.
+ 	}
+ 
+ 	name.SetUsed(true)
+@@ -3062,6 +3060,17 @@ func (r *reader) rtype0(pos src.XPos) (typ *types.Type, rtype ir.Node) {
+ 	return
+ }
+ 
++// varDictIndex populates name.DictIndex if name is a derived type.
++func (r *reader) varDictIndex(name *ir.Name) {
++	if r.Bool() {
++		idx := 1 + r.dict.rtypesOffset() + r.Len()
++		if int(uint16(idx)) != idx {
++			base.FatalfAt(name.Pos(), "DictIndex overflow for %v: %v", name, idx)
++		}
++		name.DictIndex = uint16(idx)
++	}
++}
++
+ func (r *reader) itab(pos src.XPos) (typ *types.Type, typRType ir.Node, iface *types.Type, ifaceRType ir.Node, itab ir.Node) {
+ 	if r.Bool() { // derived types
+ 		idx := r.Len()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index a90aec9fc8..6c2ef033f6 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1090,20 +1090,19 @@ func (w *writer) funcargs(sig *types2.Signature) {
+ 
+ func (w *writer) funcarg(param *types2.Var, result bool) {
+ 	if param.Name() != "" || result {
+-		w.addLocal(param, true)
++		w.addLocal(param)
+ 	}
+ }
+ 
+ // addLocal records the declaration of a new local variable.
+-func (w *writer) addLocal(obj *types2.Var, isParam bool) {
++func (w *writer) addLocal(obj *types2.Var) {
+ 	idx := len(w.localsIdx)
+ 
+-	if !isParam {
+-		w.Sync(pkgbits.SyncAddLocal)
+-		if w.p.SyncMarkers() {
+-			w.Int(idx)
+-		}
++	w.Sync(pkgbits.SyncAddLocal)
++	if w.p.SyncMarkers() {
++		w.Int(idx)
+ 	}
++	w.varDictIndex(obj)
+ 
+ 	if w.localsIdx == nil {
+ 		w.localsIdx = make(map[*types2.Var]int)
+@@ -1295,7 +1294,7 @@ func (w *writer) assign(expr syntax.Expr) {
+ 
+ 			// TODO(mdempsky): Minimize locals index size by deferring
+ 			// this until the variables actually come into scope.
+-			w.addLocal(obj, false)
++			w.addLocal(obj)
+ 			return
+ 		}
+ 	}
+@@ -1558,7 +1557,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 
+ 			obj := obj.(*types2.Var)
+ 			w.typ(obj.Type())
+-			w.addLocal(obj, false)
++			w.addLocal(obj)
+ 		}
+ 
+ 		w.stmts(clause.Body)
+@@ -2177,6 +2176,15 @@ func (w *writer) rtype(typ types2.Type) {
+ 	}
+ }
+ 
++// varDictIndex writes out information for populating DictIndex for
++// the ir.Name that will represent obj.
++func (w *writer) varDictIndex(obj *types2.Var) {
++	info := w.p.typIdx(obj.Type(), w.dict)
++	if w.Bool(info.derived) {
++		w.Len(w.dict.rtypeIdx(info))
++	}
++}
++
+ func isUntyped(typ types2.Type) bool {
+ 	basic, ok := typ.(*types2.Basic)
+ 	return ok && basic.Info()&types2.IsUntyped != 0
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 4ac3dbdcfd..4b50371161 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"debug/dwarf"
+ 	"debug/pe"
+ 	"fmt"
+-	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -1597,9 +1596,6 @@ func TestDictIndex(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if buildcfg.Experiment.Unified {
+-		t.Skip("GOEXPERIMENT=unified does not emit dictionaries yet")
+-	}
+ 	t.Parallel()
+ 
+ 	const prog = `

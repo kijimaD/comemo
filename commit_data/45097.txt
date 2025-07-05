@@ -15,6 +15,20 @@ Date:   Thu Oct 1 16:22:19 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index a73bcf8fca..88a406deb9 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -196,7 +196,7 @@ const (
+ 	ClassParamOut                     // return value
+ )
+ 
+-const go116lateCallExpansion = true
++const go116lateCallExpansion = false
+ 
+ // LateCallExpansionEnabledWithin returns true if late call expansion should be tested
+ // within compilation of a function/method triggered by GOSSAHASH (defaults to "yes").

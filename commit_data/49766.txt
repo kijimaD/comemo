@@ -34,9 +34,229 @@ Date:   Fri Sep 3 21:35:59 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/abi/abi.go           | 28 ++++++++------------------
  src/reflect/abi.go                | 42 +++++++++++++++++++++++++++++++++++++++
  src/reflect/float32reg_generic.go | 21 ++++++++++++++++++++
  src/reflect/value.go              | 24 +++++++++++-----------
  4 files changed, 83 insertions(+), 32 deletions(-)
+
+diff --git a/src/internal/abi/abi.go b/src/internal/abi/abi.go
+index eadff248d9..46dc593bd7 100644
+--- a/src/internal/abi/abi.go
++++ b/src/internal/abi/abi.go
+@@ -19,6 +19,14 @@ import (
+ // when it may not be safe to keep them only in the integer
+ // register space otherwise.
+ type RegArgs struct {
++	// Values in these slots should be precisely the bit-by-bit
++	// representation of how they would appear in a register.
++	//
++	// This means that on big endian arches, integer values should
++	// be in the top bits of the slot. Floats are usually just
++	// directly represented, but some architectures treat narrow
++	// width floating point values specially (e.g. they're promoted
++	// first, or they need to be NaN-boxed).
+ 	Ints   [IntArgRegs]uintptr  // untyped integer registers
+ 	Floats [FloatArgRegs]uint64 // untyped float registers
+ 
+@@ -56,26 +64,6 @@ func (r *RegArgs) IntRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Ints[reg])) + offset)
+ }
+ 
+-// FloatRegArgAddr returns a pointer inside of r.Floats[reg] that is appropriately
+-// offset for an argument of size argSize.
+-//
+-// argSize must be non-zero, fit in a register, and a power-of-two.
+-//
+-// This method is a helper for dealing with the endianness of different CPU
+-// architectures, since sub-word-sized arguments in big endian architectures
+-// need to be "aligned" to the upper edge of the register to be interpreted
+-// by the CPU correctly.
+-func (r *RegArgs) FloatRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
+-	if argSize > EffectiveFloatRegSize || argSize == 0 || argSize&(argSize-1) != 0 {
+-		panic("invalid argSize")
+-	}
+-	offset := uintptr(0)
+-	if goarch.BigEndian {
+-		offset = EffectiveFloatRegSize - argSize
+-	}
+-	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Floats[reg])) + offset)
+-}
+-
+ // IntArgRegBitmap is a bitmap large enough to hold one bit per
+ // integer argument/return register.
+ type IntArgRegBitmap [(IntArgRegs + 7) / 8]uint8
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 9ddde3ae57..2ce7ca2615 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -467,3 +467,45 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 	out.stackBytes -= retOffset
+ 	return abiDesc{in, out, stackCallArgsSize, retOffset, spill, stackPtrs, inRegPtrs, outRegPtrs}
+ }
++
++// intFromReg loads an argSize sized integer from reg and places it at to.
++//
++// argSize must be non-zero, fit in a register, and a power-of-two.
++func intFromReg(r *abi.RegArgs, reg int, argSize uintptr, to unsafe.Pointer) {
++	memmove(to, r.IntRegArgAddr(reg, argSize), argSize)
++}
++
++// intToReg loads an argSize sized integer and stores it into reg.
++//
++// argSize must be non-zero, fit in a register, and a power-of-two.
++func intToReg(r *abi.RegArgs, reg int, argSize uintptr, from unsafe.Pointer) {
++	memmove(r.IntRegArgAddr(reg, argSize), from, argSize)
++}
++
++// floatFromReg loads a float value from its register representation in r.
++//
++// argSize must be 4 or 8.
++func floatFromReg(r *abi.RegArgs, reg int, argSize uintptr, to unsafe.Pointer) {
++	switch argSize {
++	case 4:
++		*(*float32)(to) = archFloat32FromReg(r.Floats[reg])
++	case 8:
++		*(*float64)(to) = *(*float64)(unsafe.Pointer(&r.Floats[reg]))
++	default:
++		panic("bad argSize")
++	}
++}
++
++// floatToReg stores a float value in its register representation in r.
++//
++// argSize must be either 4 or 8.
++func floatToReg(r *abi.RegArgs, reg int, argSize uintptr, from unsafe.Pointer) {
++	switch argSize {
++	case 4:
++		r.Floats[reg] = archFloat32ToReg(*(*float32)(from))
++	case 8:
++		r.Floats[reg] = *(*uint64)(from)
++	default:
++		panic("bad argSize")
++	}
++}
+diff --git a/src/reflect/float32reg_generic.go b/src/reflect/float32reg_generic.go
+new file mode 100644
+index 0000000000..381d458057
+--- /dev/null
++++ b/src/reflect/float32reg_generic.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflect
++
++import "unsafe"
++
++// This file implements a straightforward conversion of a float32
++// value into its representation in a register. This conversion
++// applies for amd64 and arm64. It is also chosen for the case of
++// zero argument registers, but is not used.
++
++func archFloat32FromReg(reg uint64) float32 {
++	i := uint32(reg)
++	return *(*float32)(unsafe.Pointer(&i))
++}
++
++func archFloat32ToReg(val float32) uint64 {
++	return uint64(*(*uint32)(unsafe.Pointer(&val)))
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 3c2172135e..bf29d1bb3a 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -508,7 +508,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 				// Copy values to "integer registers."
+ 				if v.flag&flagIndir != 0 {
+ 					offset := add(v.ptr, st.offset, "precomputed value offset")
+-					memmove(regArgs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
++					intToReg(&regArgs, st.ireg, st.size, offset)
+ 				} else {
+ 					if st.kind == abiStepPointer {
+ 						// Duplicate this pointer in the pointer area of the
+@@ -524,7 +524,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 					panic("attempted to copy pointer to FP register")
+ 				}
+ 				offset := add(v.ptr, st.offset, "precomputed value offset")
+-				memmove(regArgs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
++				floatToReg(&regArgs, st.freg, st.size, offset)
+ 			default:
+ 				panic("unknown ABI part kind")
+ 			}
+@@ -610,13 +610,13 @@ func (v Value) call(op string, in []Value) []Value {
+ 				switch st.kind {
+ 				case abiStepIntReg:
+ 					offset := add(s, st.offset, "precomputed value offset")
+-					memmove(offset, regArgs.IntRegArgAddr(st.ireg, st.size), st.size)
++					intFromReg(&regArgs, st.ireg, st.size, offset)
+ 				case abiStepPointer:
+ 					s := add(s, st.offset, "precomputed value offset")
+ 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
+ 				case abiStepFloatReg:
+ 					offset := add(s, st.offset, "precomputed value offset")
+-					memmove(offset, regArgs.FloatRegArgAddr(st.freg, st.size), st.size)
++					floatFromReg(&regArgs, st.freg, st.size, offset)
+ 				case abiStepStack:
+ 					panic("register-based return value has stack component")
+ 				default:
+@@ -698,13 +698,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 					switch st.kind {
+ 					case abiStepIntReg:
+ 						offset := add(v.ptr, st.offset, "precomputed value offset")
+-						memmove(offset, regs.IntRegArgAddr(st.ireg, st.size), st.size)
++						intFromReg(regs, st.ireg, st.size, offset)
+ 					case abiStepPointer:
+ 						s := add(v.ptr, st.offset, "precomputed value offset")
+ 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
+ 					case abiStepFloatReg:
+ 						offset := add(v.ptr, st.offset, "precomputed value offset")
+-						memmove(offset, regs.FloatRegArgAddr(st.freg, st.size), st.size)
++						floatFromReg(regs, st.freg, st.size, offset)
+ 					case abiStepStack:
+ 						panic("register-based return value has stack component")
+ 					default:
+@@ -784,7 +784,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 					// Copy values to "integer registers."
+ 					if v.flag&flagIndir != 0 {
+ 						offset := add(v.ptr, st.offset, "precomputed value offset")
+-						memmove(regs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
++						intToReg(regs, st.ireg, st.size, offset)
+ 					} else {
+ 						// Only populate the Ints space on the return path.
+ 						// This is safe because out is kept alive until the
+@@ -799,7 +799,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 						panic("attempted to copy pointer to FP register")
+ 					}
+ 					offset := add(v.ptr, st.offset, "precomputed value offset")
+-					memmove(regs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
++					floatToReg(regs, st.freg, st.size, offset)
+ 				default:
+ 					panic("unknown ABI part kind")
+ 				}
+@@ -982,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
+ 					fallthrough // We need to make sure this ends up in Ints, too.
+ 				case abiStepIntReg:
+-					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
++					intToReg(&methodRegs, mStep.ireg, mStep.size, from)
+ 				case abiStepFloatReg:
+-					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
++					floatToReg(&methodRegs, mStep.freg, mStep.size, from)
+ 				default:
+ 					panic("unexpected method step")
+ 				}
+@@ -1000,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 					// Do the pointer copy directly so we get a write barrier.
+ 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
+ 				case abiStepIntReg:
+-					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
++					intFromReg(valueRegs, vStep.ireg, vStep.size, to)
+ 				case abiStepFloatReg:
+-					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
++					floatFromReg(valueRegs, vStep.freg, vStep.size, to)
+ 				default:
+ 					panic("unexpected value step")
+ 				}

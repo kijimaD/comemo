@@ -29,7 +29,7 @@ Date:   Tue Feb 2 12:17:57 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go             |  34 +++--
  src/cmd/compile/internal/ir/node.go             |   3 +-
  src/cmd/compile/internal/ir/node_gen.go         |  53 +++----
@@ -50,3 +50,734 @@ Date:   Tue Feb 2 12:17:57 2021 -0800
  src/cmd/compile/internal/walk/stmt.go           |   4 +-
  src/cmd/compile/internal/walk/walk.go           |   2 +-
  19 files changed, 180 insertions(+), 189 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 7c60334c04..d68bcfe60c 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -153,12 +153,11 @@ const (
+ 	CallUseStmt // results not used - call is a statement
+ )
+ 
+-// A CallExpr is a function call X[Targs](Args).
++// A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+ 	origNode
+ 	X         Node
+-	Targs     Nodes
+ 	Args      Nodes
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+@@ -166,12 +165,11 @@ type CallExpr struct {
+ 	NoInline  bool
+ }
+ 
+-func NewCallExpr(pos src.XPos, op Op, fun Node, targs, args []Node) *CallExpr {
++func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+ 	n := &CallExpr{X: fun}
+ 	n.pos = pos
+ 	n.orig = n
+ 	n.SetOp(op)
+-	n.Targs = targs
+ 	n.Args = args
+ 	return n
+ }
+@@ -307,20 +305,6 @@ func (n *IndexExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A ListExpr is list of expressions
+-type ListExpr struct {
+-	miniExpr
+-	List Nodes
+-}
+-
+-func NewListExpr(pos src.XPos, list []Node) *ListExpr {
+-	n := &ListExpr{}
+-	n.pos = pos
+-	n.op = OLIST
+-	n.List = list
+-	return n
+-}
+-
+ // A KeyExpr is a Key: Value composite literal key.
+ type KeyExpr struct {
+ 	miniExpr
+@@ -686,6 +670,20 @@ func (n *UnaryExpr) SetOp(op Op) {
+ 	}
+ }
+ 
++// An InstExpr is a generic function or type instantiation.
++type InstExpr struct {
++	miniExpr
++	X     Node
++	Targs []Node
++}
++
++func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
++	n := &InstExpr{X: x, Targs: targs}
++	n.pos = pos
++	n.op = op
++	return n
++}
++
+ func IsZero(n Node) bool {
+ 	switch n.Op() {
+ 	case ONIL:
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 590c428ac5..59643713fa 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -190,7 +190,6 @@ const (
+ 	OGT            // Left > Right
+ 	ODEREF         // *Left
+ 	OINDEX         // Left[Right] (index of array or slice)
+-	OLIST          // list of expressions
+ 	OINDEXMAP      // Left[Right] (index of map)
+ 	OKEY           // Left:Right (key:value in struct/array/map literal)
+ 	OSTRUCTKEY     // Sym:Left (key:value in struct literal, after type checking)
+@@ -279,6 +278,8 @@ const (
+ 	// OTYPESW:  Left := Right.(type) (appears as .Left of OSWITCH)
+ 	//   Left is nil if there is no type-switch variable
+ 	OTYPESW
++	OFUNCINST // instantiation of a generic function
++	OTYPEINST // instantiation of a generic type
+ 
+ 	// types
+ 	OTCHAN   // chan int
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 6f5eceb86d..22855d7163 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -249,7 +249,6 @@ func (n *CallExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *CallExpr) copy() Node {
+ 	c := *n
+ 	c.init = copyNodes(c.init)
+-	c.Targs = copyNodes(c.Targs)
+ 	c.Args = copyNodes(c.Args)
+ 	c.KeepAlive = copyNames(c.KeepAlive)
+ 	return &c
+@@ -261,9 +260,6 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ 	if n.X != nil && do(n.X) {
+ 		return true
+ 	}
+-	if doNodes(n.Targs, do) {
+-		return true
+-	}
+ 	if doNodes(n.Args, do) {
+ 		return true
+ 	}
+@@ -277,7 +273,6 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+ 		n.X = edit(n.X).(Node)
+ 	}
+-	editNodes(n.Targs, edit)
+ 	editNodes(n.Args, edit)
+ 	editNames(n.KeepAlive, edit)
+ }
+@@ -674,6 +669,33 @@ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.ReturnVars, edit)
+ }
+ 
++func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *InstExpr) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	c.Targs = copyNodes(c.Targs)
++	return &c
++}
++func (n *InstExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if doNodes(n.Targs, do) {
++		return true
++	}
++	return false
++}
++func (n *InstExpr) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.X != nil {
++		n.X = edit(n.X).(Node)
++	}
++	editNodes(n.Targs, edit)
++}
++
+ func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *InterfaceType) copy() Node {
+ 	c := *n
+@@ -750,27 +772,6 @@ func (n *LinksymOffsetExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+ 
+-func (n *ListExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+-func (n *ListExpr) copy() Node {
+-	c := *n
+-	c.init = copyNodes(c.init)
+-	c.List = copyNodes(c.List)
+-	return &c
+-}
+-func (n *ListExpr) doChildren(do func(Node) bool) bool {
+-	if doNodes(n.init, do) {
+-		return true
+-	}
+-	if doNodes(n.List, do) {
+-		return true
+-	}
+-	return false
+-}
+-func (n *ListExpr) editChildren(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-	editNodes(n.List, edit)
+-}
+-
+ func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *LogicalExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 390b0eecfe..65456df356 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -74,98 +74,99 @@ func _() {
+ 	_ = x[OGT-63]
+ 	_ = x[ODEREF-64]
+ 	_ = x[OINDEX-65]
+-	_ = x[OLIST-66]
+-	_ = x[OINDEXMAP-67]
+-	_ = x[OKEY-68]
+-	_ = x[OSTRUCTKEY-69]
+-	_ = x[OLEN-70]
+-	_ = x[OMAKE-71]
+-	_ = x[OMAKECHAN-72]
+-	_ = x[OMAKEMAP-73]
+-	_ = x[OMAKESLICE-74]
+-	_ = x[OMAKESLICECOPY-75]
+-	_ = x[OMUL-76]
+-	_ = x[ODIV-77]
+-	_ = x[OMOD-78]
+-	_ = x[OLSH-79]
+-	_ = x[ORSH-80]
+-	_ = x[OAND-81]
+-	_ = x[OANDNOT-82]
+-	_ = x[ONEW-83]
+-	_ = x[ONOT-84]
+-	_ = x[OBITNOT-85]
+-	_ = x[OPLUS-86]
+-	_ = x[ONEG-87]
+-	_ = x[OOROR-88]
+-	_ = x[OPANIC-89]
+-	_ = x[OPRINT-90]
+-	_ = x[OPRINTN-91]
+-	_ = x[OPAREN-92]
+-	_ = x[OSEND-93]
+-	_ = x[OSLICE-94]
+-	_ = x[OSLICEARR-95]
+-	_ = x[OSLICESTR-96]
+-	_ = x[OSLICE3-97]
+-	_ = x[OSLICE3ARR-98]
+-	_ = x[OSLICEHEADER-99]
+-	_ = x[ORECOVER-100]
+-	_ = x[ORECV-101]
+-	_ = x[ORUNESTR-102]
+-	_ = x[OSELRECV2-103]
+-	_ = x[OIOTA-104]
+-	_ = x[OREAL-105]
+-	_ = x[OIMAG-106]
+-	_ = x[OCOMPLEX-107]
+-	_ = x[OALIGNOF-108]
+-	_ = x[OOFFSETOF-109]
+-	_ = x[OSIZEOF-110]
+-	_ = x[OMETHEXPR-111]
+-	_ = x[OSTMTEXPR-112]
+-	_ = x[OBLOCK-113]
+-	_ = x[OBREAK-114]
+-	_ = x[OCASE-115]
+-	_ = x[OCONTINUE-116]
+-	_ = x[ODEFER-117]
+-	_ = x[OFALL-118]
+-	_ = x[OFOR-119]
+-	_ = x[OFORUNTIL-120]
+-	_ = x[OGOTO-121]
+-	_ = x[OIF-122]
+-	_ = x[OLABEL-123]
+-	_ = x[OGO-124]
+-	_ = x[ORANGE-125]
+-	_ = x[ORETURN-126]
+-	_ = x[OSELECT-127]
+-	_ = x[OSWITCH-128]
+-	_ = x[OTYPESW-129]
+-	_ = x[OTCHAN-130]
+-	_ = x[OTMAP-131]
+-	_ = x[OTSTRUCT-132]
+-	_ = x[OTINTER-133]
+-	_ = x[OTFUNC-134]
+-	_ = x[OTARRAY-135]
+-	_ = x[OTSLICE-136]
+-	_ = x[OINLCALL-137]
+-	_ = x[OEFACE-138]
+-	_ = x[OITAB-139]
+-	_ = x[OIDATA-140]
+-	_ = x[OSPTR-141]
+-	_ = x[OCFUNC-142]
+-	_ = x[OCHECKNIL-143]
+-	_ = x[OVARDEF-144]
+-	_ = x[OVARKILL-145]
+-	_ = x[OVARLIVE-146]
+-	_ = x[ORESULT-147]
+-	_ = x[OINLMARK-148]
+-	_ = x[OLINKSYMOFFSET-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OEND-152]
++	_ = x[OINDEXMAP-66]
++	_ = x[OKEY-67]
++	_ = x[OSTRUCTKEY-68]
++	_ = x[OLEN-69]
++	_ = x[OMAKE-70]
++	_ = x[OMAKECHAN-71]
++	_ = x[OMAKEMAP-72]
++	_ = x[OMAKESLICE-73]
++	_ = x[OMAKESLICECOPY-74]
++	_ = x[OMUL-75]
++	_ = x[ODIV-76]
++	_ = x[OMOD-77]
++	_ = x[OLSH-78]
++	_ = x[ORSH-79]
++	_ = x[OAND-80]
++	_ = x[OANDNOT-81]
++	_ = x[ONEW-82]
++	_ = x[ONOT-83]
++	_ = x[OBITNOT-84]
++	_ = x[OPLUS-85]
++	_ = x[ONEG-86]
++	_ = x[OOROR-87]
++	_ = x[OPANIC-88]
++	_ = x[OPRINT-89]
++	_ = x[OPRINTN-90]
++	_ = x[OPAREN-91]
++	_ = x[OSEND-92]
++	_ = x[OSLICE-93]
++	_ = x[OSLICEARR-94]
++	_ = x[OSLICESTR-95]
++	_ = x[OSLICE3-96]
++	_ = x[OSLICE3ARR-97]
++	_ = x[OSLICEHEADER-98]
++	_ = x[ORECOVER-99]
++	_ = x[ORECV-100]
++	_ = x[ORUNESTR-101]
++	_ = x[OSELRECV2-102]
++	_ = x[OIOTA-103]
++	_ = x[OREAL-104]
++	_ = x[OIMAG-105]
++	_ = x[OCOMPLEX-106]
++	_ = x[OALIGNOF-107]
++	_ = x[OOFFSETOF-108]
++	_ = x[OSIZEOF-109]
++	_ = x[OMETHEXPR-110]
++	_ = x[OSTMTEXPR-111]
++	_ = x[OBLOCK-112]
++	_ = x[OBREAK-113]
++	_ = x[OCASE-114]
++	_ = x[OCONTINUE-115]
++	_ = x[ODEFER-116]
++	_ = x[OFALL-117]
++	_ = x[OFOR-118]
++	_ = x[OFORUNTIL-119]
++	_ = x[OGOTO-120]
++	_ = x[OIF-121]
++	_ = x[OLABEL-122]
++	_ = x[OGO-123]
++	_ = x[ORANGE-124]
++	_ = x[ORETURN-125]
++	_ = x[OSELECT-126]
++	_ = x[OSWITCH-127]
++	_ = x[OTYPESW-128]
++	_ = x[OFUNCINST-129]
++	_ = x[OTYPEINST-130]
++	_ = x[OTCHAN-131]
++	_ = x[OTMAP-132]
++	_ = x[OTSTRUCT-133]
++	_ = x[OTINTER-134]
++	_ = x[OTFUNC-135]
++	_ = x[OTARRAY-136]
++	_ = x[OTSLICE-137]
++	_ = x[OINLCALL-138]
++	_ = x[OEFACE-139]
++	_ = x[OITAB-140]
++	_ = x[OIDATA-141]
++	_ = x[OSPTR-142]
++	_ = x[OCFUNC-143]
++	_ = x[OCHECKNIL-144]
++	_ = x[OVARDEF-145]
++	_ = x[OVARKILL-146]
++	_ = x[OVARLIVE-147]
++	_ = x[ORESULT-148]
++	_ = x[OINLMARK-149]
++	_ = x[OLINKSYMOFFSET-150]
++	_ = x[OTAILCALL-151]
++	_ = x[OGETG-152]
++	_ = x[OEND-153]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXLISTINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTYPEINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 384, 392, 395, 404, 407, 411, 419, 426, 435, 448, 451, 454, 457, 460, 463, 466, 472, 475, 478, 484, 488, 491, 495, 500, 505, 511, 516, 520, 525, 533, 541, 547, 556, 567, 574, 578, 585, 593, 597, 601, 605, 612, 619, 627, 633, 641, 649, 654, 659, 663, 671, 676, 680, 683, 691, 695, 697, 702, 704, 709, 715, 721, 727, 733, 738, 742, 749, 755, 760, 766, 772, 779, 784, 788, 793, 797, 802, 810, 816, 823, 830, 836, 843, 856, 864, 868, 871}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 737, 745, 750, 754, 761, 767, 772, 778, 784, 791, 796, 800, 805, 809, 814, 822, 828, 835, 842, 848, 855, 868, 876, 880, 883}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 41d54441d4..3c18bdcc24 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -99,23 +99,28 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		}
+ 		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
+ 	case *syntax.IndexExpr:
+-		var index ir.Node
+-
+-		// We are using IndexExpr in two ways, as an standard index
+-		// operation (with expression) and as a function/type
+-		// instantiation (with a type list). We will soon make this
+-		// clearer by having separate function/type instantiation nodes.
++		var targs []ir.Node
+ 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
+-			// List of types for a generic function call or type instantiation
+-			index = ir.NewListExpr(pos, g.exprList(expr.Index))
++			targs = g.exprList(expr.Index)
+ 		} else {
+-			index = g.expr(expr.Index)
+-			if index.Op() == ir.OTYPE {
+-				// Single type for a generic function call or type instantiation
+-				index = ir.NewListExpr(pos, []ir.Node{index})
++			index := g.expr(expr.Index)
++			if index.Op() != ir.OTYPE {
++				// This is just a normal index expression
++				return Index(pos, g.expr(expr.X), index)
+ 			}
++			// This is generic function instantiation with a single type
++			targs = []ir.Node{index}
++		}
++		// This is a generic function instantiation
++		x := g.expr(expr.X)
++		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
++			panic("Incorrect argument for generic func instantiation")
+ 		}
+-		return Index(pos, g.typ(typ), g.expr(expr.X), index)
++		// This could also be an OTYPEINST once we can handle those examples.
++		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
++		typed(g.typ(typ), n)
++		return n
++
+ 	case *syntax.ParenExpr:
+ 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
+ 	case *syntax.SelectorExpr:
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index d97dacfc8b..fcbb3a6ce5 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -83,13 +83,13 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	// TODO(mdempsky): This should not be so difficult.
+ 	if fun.Op() == ir.OTYPE {
+ 		// Actually a type conversion, not a function call.
+-		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
++		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 		return typecheck.Expr(n)
+ 	}
+ 
+ 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+ 		// Call to a builtin function.
+-		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
++		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 		n.IsDDD = dots
+ 		switch fun.BuiltinOp {
+ 		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
+@@ -116,20 +116,10 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 		}
+ 	}
+ 
+-	var targs []ir.Node
+-	if indexExpr, ok := fun.(*ir.IndexExpr); ok {
+-		if indexExpr.Index.Op() == ir.OLIST {
+-			// Called function is an instantiated generic function
+-			fun = indexExpr.X
+-			// Don't need to copy, since the node list was just created
+-			targs = indexExpr.Index.(*ir.ListExpr).List
+-		}
+-	}
+-
+-	n := ir.NewCallExpr(pos, ir.OCALL, fun, targs, args)
++	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 	n.IsDDD = dots
+ 
+-	if targs == nil {
++	if n.X.Op() != ir.OFUNCINST {
+ 		// If no type params, still do normal typechecking, since we're
+ 		// still missing some things done by tcCall below (mainly
+ 		// typecheckargs and typecheckaste).
+@@ -233,12 +223,7 @@ func method(typ *types.Type, index int) *types.Field {
+ 	return types.ReceiverBaseType(typ).Methods().Index(index)
+ }
+ 
+-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
+-	if index.Op() == ir.OLIST {
+-		n := ir.NewIndexExpr(pos, x, index)
+-		typed(typ, n)
+-		return n
+-	}
++func Index(pos src.XPos, x, index ir.Node) ir.Node {
+ 	// TODO(mdempsky): Avoid typecheck.Expr (which will call tcIndex)
+ 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+ }
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 492c2c242a..1c38f1a934 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -755,7 +755,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		}
+ 		return ir.NewBinaryExpr(pos, op, x, y)
+ 	case *syntax.CallExpr:
+-		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil, p.exprs(expr.ArgList))
++		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), p.exprs(expr.ArgList))
+ 		n.IsDDD = expr.HasDots
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 3d8729069a..faa431a9d1 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -176,7 +176,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		loop.PtrInit().Append(init)
+ 
+ 		// h = hashel(&p[i], h)
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+ 
+ 		nx := ir.NewIndexExpr(base.Pos, np, ni)
+ 		nx.SetBounded(true)
+@@ -202,7 +202,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 			// Hash non-memory fields with appropriate hash function.
+ 			if !isRegularMemory(f.Type) {
+ 				hashel := hashfor(f.Type)
+-				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
++				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+ 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 				na := typecheck.NodAddr(nx)
+ 				call.Args.Append(na)
+@@ -217,7 +217,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 
+ 			// h = hashel(&p.first, size, h)
+ 			hashel := hashmem(f.Type)
+-			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
++			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+ 			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 			na := typecheck.NodAddr(nx)
+ 			call.Args.Append(na)
+@@ -672,7 +672,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 
+ 	fn := typecheck.LookupRuntime("memequal")
+ 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{sptr, tptr, ir.Copy(slen)})
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
+ 	typecheck.Call(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+@@ -709,7 +709,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ 	sdata.SetTypecheck(1)
+ 	tdata.SetTypecheck(1)
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{stab, sdata, tdata})
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
+ 	typecheck.Call(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
+@@ -725,7 +725,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
+ 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
+ 
+ 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 	call.Args.Append(nx)
+ 	call.Args.Append(ny)
+ 	if needsize {
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index c1385e6dab..632e0f48d4 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1747,7 +1747,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		// generating wrapper from *T to T.
+ 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+ 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil)
+ 		n.Body = []ir.Node{call}
+ 		fn.Body.Append(n)
+ 	}
+@@ -1772,7 +1772,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
+ 	} else {
+ 		fn.SetWrapper(true) // ignore frame for panic+recover matching
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+ 		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		if method.Type.NumResults() > 0 {
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index b22a5ef2be..5bebce1db5 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -305,7 +305,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 
+ 		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
+ 	} else {
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+ 		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		tail = call
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index a44af10bbb..7ab5f68ce3 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -254,7 +254,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+ 	ptr.SetByval(true)
+ 	fn.ClosureVars = append(fn.ClosureVars, ptr)
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil, nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
+ 	call.Args = ir.ParamNames(tfn.Type())
+ 	call.IsDDD = tfn.Type().IsVariadic()
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 201b217e8e..7b5b113b15 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1068,7 +1068,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OCALL:
+ 		pos := r.pos()
+ 		init := r.stmtList()
+-		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), nil, r.exprList())
++		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
+ 		*n.PtrInit() = init
+ 		n.IsDDD = r.bool()
+ 		return n
+@@ -1236,5 +1236,5 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
+ }
+ 
+ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+-	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil, nil)
++	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 60cbd66370..97f9de9c1d 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -631,7 +631,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			continue
+ 		}
+ 
+-		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil, nil)
++		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
+ 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
+ 			t := params[0].Type
+ 			if !types.Identical(t, n.Type()) {
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index a076cdbe1a..f4b5387c06 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -160,7 +160,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		fn, needsize := eqFor(t)
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 		call.Args.Append(typecheck.NodAddr(cmpl))
+ 		call.Args.Append(typecheck.NodAddr(cmpr))
+ 		if needsize {
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 95f9d18f8c..73442dc404 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -416,7 +416,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 
+ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+-	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil, nil)
++	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
+ 	a.SetEsc(n.Esc())
+ 	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(int64(len(n.List)))}
+ 	litas(m, a, init)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 30bac5462f..fa8e2c0bb8 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -145,7 +145,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		types.CalcSize(fromType)
+ 		fn = typecheck.SubstArgTypes(fn, fromType)
+ 		types.CalcSize(fn.Type())
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 		call.Args = []ir.Node{n.X}
+ 		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeExpr(walkExpr(typecheck.Expr(call), init), init))
+ 		e.SetType(toType)
+@@ -180,7 +180,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	fn := typecheck.LookupRuntime(fnname)
+ 	fn = typecheck.SubstArgTypes(fn, fromType, toType)
+ 	types.CalcSize(fn.Type())
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 	call.Args = []ir.Node{tab, v}
+ 	return walkExpr(typecheck.Expr(call), init)
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index b7aeb53e43..d7a20206c8 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -469,7 +469,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	cat := typecheck.LookupRuntime(fn)
+-	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil, nil)
++	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
+ 	r.Args = args
+ 	r1 := typecheck.Expr(r)
+ 	r1 = walkExpr(r1, init)
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 8a076ca558..46a621c2ba 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -278,7 +278,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
+ 	}
+-	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, nil, args)
++	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, args)
+ 	if !isBuiltinCall {
+ 		call.SetOp(ir.OCALL)
+ 		call.IsDDD = n.IsDDD
+@@ -291,6 +291,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	typecheck.Stmts(fn.Body)
+ 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+ 
+-	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, nil, n.Args)
++	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.Args)
+ 	return walkExpr(typecheck.Stmt(call), init)
+ }
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 91b7e34d54..b47d96dc4c 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -113,7 +113,7 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
+ 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+ 	}
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, va)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
+ 	typecheck.Call(call)
+ 	call.SetType(t)
+ 	return walkExpr(call, init).(*ir.CallExpr)

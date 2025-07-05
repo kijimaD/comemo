@@ -34,7 +34,7 @@ Date:   Fri Jul 7 16:16:30 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go     | 31 +++++++++++++++---------------
  src/cmd/compile/internal/noder/unified.go  |  2 +-
  src/cmd/compile/internal/ssagen/nowb.go    |  2 +-
@@ -44,3 +44,192 @@ Date:   Fri Jul 7 16:16:30 2023 -0400
  src/cmd/compile/internal/walk/expr.go      |  2 +-
  test/nowritebarrier.go                     |  6 ++++--
  8 files changed, 38 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index bb3d872d75..739705aa8a 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -505,6 +505,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 	if n == nil {
+ 		return false
+ 	}
++opSwitch:
+ 	switch n.Op() {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case ir.OCALLFUNC:
+@@ -516,22 +517,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		var cheap bool
+ 		if n.X.Op() == ir.ONAME {
+ 			name := n.X.(*ir.Name)
+-			if name.Class == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
+-				fn := name.Sym().Name
+-				if fn == "getcallerpc" || fn == "getcallersp" {
++			if name.Class == ir.PFUNC {
++				switch fn := types.RuntimeSymName(name.Sym()); fn {
++				case "getcallerpc", "getcallersp":
+ 					v.reason = "call to " + fn
+ 					return true
+-				}
+-				if fn == "throw" {
++				case "throw":
+ 					v.budget -= inlineExtraThrowCost
+-					break
++					break opSwitch
+ 				}
+-			}
+-			// Special case for reflect.noescpae. It does just type
+-			// conversions to appease the escape analysis, and doesn't
+-			// generate code.
+-			if name.Class == ir.PFUNC && types.IsReflectPkg(name.Sym().Pkg) {
+-				if name.Sym().Name == "noescape" {
++				// Special case for reflect.noescape. It does just type
++				// conversions to appease the escape analysis, and doesn't
++				// generate code.
++				if types.ReflectSymName(name.Sym()) == "noescape" {
+ 					cheap = true
+ 				}
+ 			}
+@@ -553,7 +551,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 			if meth := ir.MethodExprName(n.X); meth != nil {
+ 				if fn := meth.Func; fn != nil {
+ 					s := fn.Sym()
+-					if types.IsRuntimePkg(s.Pkg) && s.Name == "heapBits.nextArena" {
++					if types.RuntimeSymName(s) == "heapBits.nextArena" {
+ 						// Special case: explicitly allow mid-stack inlining of
+ 						// runtime.heapBits.next even though it calls slow-path
+ 						// runtime.heapBits.nextArena.
+@@ -906,8 +904,11 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 			// even when package reflect was compiled without it (#35073).
+ 			if meth := ir.MethodExprName(n.X); meth != nil {
+ 				s := meth.Sym()
+-				if base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+-					return n
++				if base.Debug.Checkptr != 0 {
++					switch types.ReflectSymName(s) {
++					case "Value.UnsafeAddr", "Value.Pointer":
++						return n
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 58d4e02937..e534f0b725 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -109,7 +109,7 @@ func unified(m posMap, noders []*noder) {
+ 	// For functions originally came from package runtime,
+ 	// mark as norace to prevent instrumenting, see issue #60439.
+ 	for _, fn := range target.Funcs {
+-		if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
++		if !base.Flag.CompilingRuntime && types.RuntimeSymName(fn.Sym()) != "" {
+ 			fn.Pragma |= ir.Norace
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 3ef0952eff..68da39f352 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -82,7 +82,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 	if fn.Class != ir.PFUNC || fn.Defn == nil {
+ 		return
+ 	}
+-	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
++	if types.RuntimeSymName(fn.Sym()) != "systemstack" {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 414dd17826..c4b053e690 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -278,7 +278,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		n.SetType(l.Type().Result(0).Type)
+ 
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
+-			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
++			if sym := n.X.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
+ 				// Emit code for runtime.getg() directly instead of calling function.
+ 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
+ 				// so that the ordering pass can make sure to preserve the semantics of the original code
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index eafa3f3ef1..bd63f651a5 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1841,17 +1841,22 @@ func IsMethodApplicable(t *Type, m *Field) bool {
+ 	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || IsInterfaceMethod(m.Type) || m.Embedded == 2
+ }
+ 
+-// IsRuntimePkg reports whether p is package runtime.
+-func IsRuntimePkg(p *Pkg) bool {
+-	if base.Flag.CompilingRuntime && p == LocalPkg {
+-		return true
++// RuntimeSymName returns the name of s if it's in package "runtime"; otherwise
++// it returns "".
++func RuntimeSymName(s *Sym) string {
++	if s.Pkg.Path == "runtime" {
++		return s.Name
+ 	}
+-	return p.Path == "runtime"
++	return ""
+ }
+ 
+-// IsReflectPkg reports whether p is package reflect.
+-func IsReflectPkg(p *Pkg) bool {
+-	return p.Path == "reflect"
++// ReflectSymName returns the name of s if it's in package "reflect"; otherwise
++// it returns "".
++func ReflectSymName(s *Sym) string {
++	if s.Pkg.Path == "reflect" {
++		return s.Name
++	}
++	return ""
+ }
+ 
+ // IsNoInstrumentPkg reports whether p is a package that
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 11951179a5..799ab5770d 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -631,7 +631,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			on = typecheck.LookupRuntime("printslice")
+ 			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
+ 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
+-			if types.IsRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
++			if types.RuntimeSymName(n.Type().Sym()) == "hex" {
+ 				on = typecheck.LookupRuntime("printhex")
+ 			} else {
+ 				on = typecheck.LookupRuntime("printuint")
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 85a6d1fc33..4b83773932 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -993,7 +993,7 @@ func usemethod(n *ir.CallExpr) {
+ 
+ 	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
+ 	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
+-	if s := t.Result(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
++	if s := t.Result(0).Type.Sym(); s != nil && types.ReflectSymName(s) == "Method" {
+ 		ir.CurFunc.SetReflectMethod(true)
+ 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
+ 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
+diff --git a/test/nowritebarrier.go b/test/nowritebarrier.go
+index 654f16d0d2..d176e28b5a 100644
+--- a/test/nowritebarrier.go
++++ b/test/nowritebarrier.go
+@@ -1,12 +1,14 @@
+-// errorcheck -+
++// errorcheck -+ -p=runtime
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Test go:nowritebarrier and related directives.
++// This must appear to be in package runtime so the compiler
++// recognizes "systemstack".
+ 
+-package p
++package runtime
+ 
+ type t struct {
+ 	f *t

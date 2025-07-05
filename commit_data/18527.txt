@@ -16,6 +16,36 @@ Date:   Fri Feb 14 13:24:48 2014 +0400
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/59490046
-
+---
  src/pkg/runtime/proc.c | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 47cb304083..b782d0fe1a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2441,8 +2441,14 @@ checkdead(void)
+ 	run = runtime·sched.mcount - runtime·sched.nmidle - runtime·sched.nmidlelocked - 1;
+ 	if(run > 0)
+ 		return;
++	// If we are dying because of a signal caught on an already idle thread,
++	// freezetheworld will cause all running threads to block.
++	// And runtime will essentially enter into deadlock state,
++	// except that there is a thread that will call runtime·exit soon.
++	if(runtime·panicking > 0)
++		return;
+ 	if(run < 0) {
+-		runtime·printf("checkdead: nmidle=%d nmidlelocked=%d mcount=%d\n",
++		runtime·printf("runtime: checkdead: nmidle=%d nmidlelocked=%d mcount=%d\n",
+ 			runtime·sched.nmidle, runtime·sched.nmidlelocked, runtime·sched.mcount);
+ 		runtime·throw("checkdead: inconsistent counts");
+ 	}
+@@ -2457,7 +2463,7 @@ checkdead(void)
+ 			grunning++;
+ 		else if(s == Grunnable || s == Grunning || s == Gsyscall) {
+ 			runtime·unlock(&allglock);
+-			runtime·printf("checkdead: find g %D in status %d\n", gp->goid, s);
++			runtime·printf("runtime: checkdead: find g %D in status %d\n", gp->goid, s);
+ 			runtime·throw("checkdead: runnable g");
+ 		}
+ 	}

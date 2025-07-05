@@ -10,7 +10,32 @@ Date:   Thu Mar 14 17:53:01 2013 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7830043
-
+---
  src/pkg/runtime/os_netbsd.c | 1 -
  src/pkg/runtime/os_netbsd.h | 1 +
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 2e8e758999..d4b874f4c2 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -30,7 +30,6 @@ extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *mp, G *gp, void
+ extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
+ extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
+ extern int32 runtime·lwp_self(void);
+-extern void runtime·lwp_tramp(void);
+ 
+ // From NetBSD's <sys/sysctl.h>
+ #define	CTL_HW	6
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 84e0b241d1..c193ae0b4a 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -17,6 +17,7 @@ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
++extern void runtime·lwp_tramp(void);
+ 
+ #define	NSIG 33
+ #define	SI_USER	0

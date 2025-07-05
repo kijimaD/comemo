@@ -9,6 +9,21 @@ Date:   Wed Mar 27 14:32:51 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7641055
-
+---
  src/cmd/6l/span.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index b0b666f04c..460a34f2fe 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -881,7 +881,8 @@ putrelv:
+ 		r = addrel(cursym);
+ 		*r = rel;
+ 		r->off = curp->pc + andptr - and;
+-	} else if(iself && linkmode == LinkExternal && a->type == D_INDIR+D_FS) {
++	} else if(iself && linkmode == LinkExternal && a->type == D_INDIR+D_FS
++		&& HEADTYPE != Hopenbsd) {
+ 		Reloc *r;
+ 		Sym *s;
+ 		

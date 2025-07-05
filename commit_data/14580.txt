@@ -9,6 +9,38 @@ Date:   Thu Dec 6 09:31:42 2012 -0800
     R=rsc, iant, r, ken
     CC=golang-dev
     https://golang.org/cl/6862046
-
+---
  doc/go_spec.html | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f58c323216..d72460da8e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3316,7 +3316,7 @@ argument that is the receiver of the method.
+ 
+ <pre class="ebnf">
+ MethodExpr    = ReceiverType "." MethodName .
+-ReceiverType  = TypeName | "(" "*" TypeName ")" .
++ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
+ </pre>
+ 
+ <p>
+@@ -3353,13 +3353,15 @@ func(tv T, a int) int
+ 
+ <p>
+ That function may be called normally with an explicit receiver, so
+-these three invocations are equivalent:
++these five invocations are equivalent:
+ </p>
+ 
+ <pre>
+ t.Mv(7)
+ T.Mv(t, 7)
+-f := T.Mv; f(t, 7)
++(T).Mv(t, t)
++f1 := T.Mv; f1(t, 7)
++f2 := (T).Mv; f2(t, 7)
+ </pre>
+ 
+ <p>

@@ -8,7 +8,7 @@ Date:   Fri Apr 1 03:49:43 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/21377
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/global_test.go | 2 +-
  src/cmd/gofmt/gofmt_test.go                | 4 ++--
  src/compress/flate/writer_test.go          | 2 +-
@@ -20,3 +20,143 @@ Date:   Fri Apr 1 03:49:43 2016 +0200
  src/html/template/escape_test.go           | 2 +-
  src/internal/trace/parser.go               | 2 +-
  10 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/global_test.go b/src/cmd/compile/internal/gc/global_test.go
+index 54d3ed1b7d..f0139e763c 100644
+--- a/src/cmd/compile/internal/gc/global_test.go
++++ b/src/cmd/compile/internal/gc/global_test.go
+@@ -59,7 +59,7 @@ func main() {
+ 	if err != nil {
+ 		log.Fatalf("could not read target: %v", err)
+ 	}
+-	if bytes.Index(out, []byte("scanInt")) != -1 {
++	if bytes.Contains(out, []byte("scanInt")) {
+ 		log.Fatalf("scanf code not removed from helloworld")
+ 	}
+ }
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index d1edb7bcc1..dea012764b 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -159,7 +159,7 @@ func TestCRLF(t *testing.T) {
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+-	if bytes.Index(data, []byte("\r\n")) < 0 {
++	if !bytes.Contains(data, []byte("\r\n")) {
+ 		t.Errorf("%s contains no CR/LF's", input)
+ 	}
+ 
+@@ -167,7 +167,7 @@ func TestCRLF(t *testing.T) {
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+-	if bytes.Index(data, []byte("\r")) >= 0 {
++	if bytes.Contains(data, []byte("\r")) {
+ 		t.Errorf("%s contains CR's", golden)
+ 	}
+ }
+diff --git a/src/compress/flate/writer_test.go b/src/compress/flate/writer_test.go
+index dd479bea82..633cadf2b7 100644
+--- a/src/compress/flate/writer_test.go
++++ b/src/compress/flate/writer_test.go
+@@ -196,7 +196,7 @@ func testDeterministic(i int, t *testing.T) {
+ 	b1b := b1.Bytes()
+ 	b2b := b2.Bytes()
+ 
+-	if bytes.Compare(b1b, b2b) != 0 {
++	if !bytes.Equal(b1b, b2b) {
+ 		t.Errorf("level %d did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b2b))
+ 	}
+ }
+diff --git a/src/crypto/cipher/xor_test.go b/src/crypto/cipher/xor_test.go
+index cc1c9d72d5..d9187eb726 100644
+--- a/src/crypto/cipher/xor_test.go
++++ b/src/crypto/cipher/xor_test.go
+@@ -19,7 +19,7 @@ func TestXOR(t *testing.T) {
+ 				d2 := make([]byte, 1024+alignD)[alignD:]
+ 				xorBytes(d1, p, q)
+ 				safeXORBytes(d2, p, q)
+-				if bytes.Compare(d1, d2) != 0 {
++				if !bytes.Equal(d1, d2) {
+ 					t.Error("not equal")
+ 				}
+ 			}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index a08cdeff05..bacf7ded29 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -382,7 +382,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 					continue
+ 				}
+ 				for k, cert := range chain {
+-					if strings.Index(nameToKey(&cert.Subject), expectedChain[k]) == -1 {
++					if !strings.Contains(nameToKey(&cert.Subject), expectedChain[k]) {
+ 						continue TryNextExpected
+ 					}
+ 				}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d1ef0274bc..cd70a27da3 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -488,7 +488,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: ExtraExtensions didn't override SubjectKeyId", test.name)
+ 		}
+ 
+-		if bytes.Index(derBytes, extraExtensionData) == -1 {
++		if !bytes.Contains(derBytes, extraExtensionData) {
+ 			t.Errorf("%s: didn't find extra extension in DER output", test.name)
+ 		}
+ 
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index ec4822b5c1..609c790520 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -856,7 +856,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 				}
+ 			case reflect.Slice:
+ 				b := vf.Bytes()
+-				dashDash = bytes.Index(b, ddBytes) >= 0
++				dashDash = bytes.Contains(b, ddBytes)
+ 				dashLast = b[len(b)-1] == '-'
+ 				if !dashDash {
+ 					p.Write(b)
+diff --git a/src/html/template/css.go b/src/html/template/css.go
+index 318464835f..4c27cce85a 100644
+--- a/src/html/template/css.go
++++ b/src/html/template/css.go
+@@ -249,7 +249,7 @@ func cssValueFilter(args ...interface{}) string {
+ 		}
+ 	}
+ 	id = bytes.ToLower(id)
+-	if bytes.Index(id, expressionBytes) != -1 || bytes.Index(id, mozBindingBytes) != -1 {
++	if bytes.Contains(id, expressionBytes) || bytes.Contains(id, mozBindingBytes) {
+ 		return filterFailsafe
+ 	}
+ 	return string(b)
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 707394e3b0..023ee57d59 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -990,7 +990,7 @@ func TestErrors(t *testing.T) {
+ 			}
+ 			continue
+ 		}
+-		if strings.Index(got, test.err) == -1 {
++		if !strings.Contains(got, test.err) {
+ 			t.Errorf("input=%q: error\n\t%q\ndoes not contain expected string\n\t%q", test.input, got, test.err)
+ 			continue
+ 		}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 00e5d75a2e..e325678733 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -94,7 +94,7 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
+ 	if off != 16 || err != nil {
+ 		return nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
+ 	}
+-	if bytes.Compare(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) != 0 {
++	if !bytes.Equal(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) {
+ 		return nil, fmt.Errorf("not a trace file")
+ 	}
+ 

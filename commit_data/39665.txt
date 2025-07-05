@@ -12,6 +12,57 @@ Date:   Tue Mar 12 14:41:09 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167081
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/internal/obj/x86/issue19518_test.go | 16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/issue19518_test.go b/src/cmd/internal/obj/x86/issue19518_test.go
+index 4a29285ff1..1b0fb4a8b1 100644
+--- a/src/cmd/internal/obj/x86/issue19518_test.go
++++ b/src/cmd/internal/obj/x86/issue19518_test.go
+@@ -32,10 +32,6 @@ func main() {
+ `
+ 
+ func objdumpOutput(t *testing.T) []byte {
+-	cwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+ 	tmpdir, err := ioutil.TempDir("", "19518")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -63,15 +59,13 @@ func objdumpOutput(t *testing.T) []byte {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	err = os.Chdir(tmpdir)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++
+ 	cmd := exec.Command(
+ 		testenv.GoToolPath(t), "build", "-o",
+ 		filepath.Join(tmpdir, "output"))
+ 
+ 	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
++	cmd.Dir = tmpdir
+ 
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -81,14 +75,12 @@ func objdumpOutput(t *testing.T) []byte {
+ 		testenv.GoToolPath(t), "tool", "objdump", "-s", "testASM",
+ 		filepath.Join(tmpdir, "output"))
+ 	cmd2.Env = cmd.Env
++	cmd2.Dir = tmpdir
+ 	objout, err := cmd2.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("error %s output %s", err, objout)
+ 	}
+-	err = os.Chdir(cwd)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++
+ 	return objout
+ }
+ 

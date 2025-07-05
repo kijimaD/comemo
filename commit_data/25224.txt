@@ -16,7 +16,102 @@ Date:   Sun Oct 4 22:47:27 2015 -0400
     Change-Id: Ia27db17de8a3f1e462a5d7137d4b5dc72f99a04e
     Reviewed-on: https://go-review.googlesource.com/15406
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     |  8 ++++----
  src/runtime/mgcmark.go | 18 ++++++++++--------
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0727391775..3cf642d9b2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1334,7 +1334,7 @@ func gcBgMarkWorker(p *p) {
+ 		default:
+ 			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+ 		case gcMarkWorkerDedicatedMode:
+-			gcDrain(&p.gcw, gcBgCreditSlack, gcDrainBlock)
++			gcDrain(&p.gcw, gcDrainBlock|gcDrainFlushBgCredit)
+ 			// gcDrain did the xadd(&work.nwait +1) to
+ 			// match the decrement above. It only returns
+ 			// at a mark completion point.
+@@ -1343,7 +1343,7 @@ func gcBgMarkWorker(p *p) {
+ 				throw("gcDrain returned with buffer")
+ 			}
+ 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
+-			gcDrain(&p.gcw, gcBgCreditSlack, gcDrainUntilPreempt)
++			gcDrain(&p.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+ 
+ 			// If we are nearing the end of mark, dispose
+ 			// of the cache promptly. We must do this
+@@ -1454,7 +1454,7 @@ func gcMark(start_time int64) {
+ 	parfordo(work.markfor)
+ 
+ 	var gcw gcWork
+-	gcDrain(&gcw, -1, gcDrainBlock)
++	gcDrain(&gcw, gcDrainBlock)
+ 	gcw.dispose()
+ 
+ 	if work.full != 0 {
+@@ -1717,7 +1717,7 @@ func gchelper() {
+ 	parfordo(work.markfor)
+ 	if gcphase != _GCscan {
+ 		var gcw gcWork
+-		gcDrain(&gcw, -1, gcDrainBlock) // blocks in getfull
++		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
+ 		gcw.dispose()
+ 	}
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 4337d71f37..c3134bda29 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -553,6 +553,7 @@ type gcDrainFlags int
+ 
+ const (
+ 	gcDrainUntilPreempt gcDrainFlags = 1 << iota
++	gcDrainFlushBgCredit
+ 
+ 	// gcDrainBlock is the opposite of gcDrainUntilPreempt. This
+ 	// is the default, but callers should use the constant for
+@@ -567,21 +568,22 @@ const (
+ // g.preempt is set. Otherwise, this will block until all dedicated
+ // workers are blocked in gcDrain.
+ //
+-// If flushScanCredit != -1, gcDrain flushes accumulated scan work
+-// credit to gcController.bgScanCredit whenever gcw's local scan work
+-// credit exceeds flushScanCredit.
++// If flags&gcDrainFlushBgCredit != 0, gcDrain flushes scan work
++// credit to gcController.bgScanCredit every gcBgCreditSlack units of
++// scan work.
+ //go:nowritebarrier
+-func gcDrain(gcw *gcWork, flushScanCredit int64, flags gcDrainFlags) {
++func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	if !writeBarrierEnabled {
+ 		throw("gcDrain phase incorrect")
+ 	}
+ 
+ 	blocking := flags&gcDrainUntilPreempt == 0
++	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+ 
+ 	var lastScanFlush, nextScanFlush int64
+-	if flushScanCredit != -1 {
++	if flushBgCredit {
+ 		lastScanFlush = gcw.scanWork
+-		nextScanFlush = lastScanFlush + flushScanCredit
++		nextScanFlush = lastScanFlush + gcBgCreditSlack
+ 	} else {
+ 		nextScanFlush = int64(^uint64(0) >> 1)
+ 	}
+@@ -618,10 +620,10 @@ func gcDrain(gcw *gcWork, flushScanCredit int64, flags gcDrainFlags) {
+ 			credit := gcw.scanWork - lastScanFlush
+ 			xaddint64(&gcController.bgScanCredit, credit)
+ 			lastScanFlush = gcw.scanWork
+-			nextScanFlush = lastScanFlush + flushScanCredit
++			nextScanFlush = lastScanFlush + gcBgCreditSlack
+ 		}
+ 	}
+-	if flushScanCredit != -1 {
++	if flushBgCredit {
+ 		credit := gcw.scanWork - lastScanFlush
+ 		xaddint64(&gcController.bgScanCredit, credit)
+ 	}

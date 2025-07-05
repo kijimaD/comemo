@@ -19,7 +19,39 @@ Date:   Sat Jun 12 18:44:51 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/noder.go      | 2 ++
  src/cmd/compile/internal/staticdata/embed.go | 7 -------
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 63822d3089..d417edcbd5 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1886,6 +1886,8 @@ func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+ 		return errors.New("go:embed cannot apply to var without type")
+ 	case withinFunc:
+ 		return errors.New("go:embed cannot apply to var inside func")
++	case !types.AllowsGoVersion(types.LocalPkg, 1, 16):
++		return fmt.Errorf("go:embed requires go1.16 or later (-lang was set to %s; check go.mod)", base.Flag.Lang)
+ 
+ 	default:
+ 		return nil
+diff --git a/src/cmd/compile/internal/staticdata/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+index 8936c4f5b4..0730d346b2 100644
+--- a/src/cmd/compile/internal/staticdata/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -108,13 +108,6 @@ func WriteEmbed(v *ir.Name) {
+ 	// TODO(mdempsky): User errors should be reported by the frontend.
+ 
+ 	commentPos := (*v.Embed)[0].Pos
+-	if !types.AllowsGoVersion(types.LocalPkg, 1, 16) {
+-		prevPos := base.Pos
+-		base.Pos = commentPos
+-		base.ErrorfVers("go1.16", "go:embed")
+-		base.Pos = prevPos
+-		return
+-	}
+ 	if base.Flag.Cfg.Embed.Patterns == nil {
+ 		base.ErrorfAt(commentPos, "invalid go:embed: build system did not supply embed configuration")
+ 		return

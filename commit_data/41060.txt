@@ -21,9 +21,192 @@ Date:   Mon Aug 5 11:28:52 2019 +0000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/signal_windows.go           |  6 ++++
  src/runtime/signal_windows_test.go      | 61 +++++++++++++++++++++++++++++++++
  src/runtime/testdata/testwinlib/main.c  | 57 ++++++++++++++++++++++++++++++
  src/runtime/testdata/testwinlib/main.go | 28 +++++++++++++++
  4 files changed, 152 insertions(+)
+
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 3fc1ec5886..3b2c06b39c 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -171,6 +171,12 @@ var testingWER bool
+ //
+ //go:nosplit
+ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
++	if islibrary || isarchive {
++		// Go DLL/archive has been loaded in a non-go program.
++		// If the exception does not originate from go, the go runtime
++		// should not take responsibility of crashing the process.
++		return _EXCEPTION_CONTINUE_SEARCH
++	}
+ 	if testingWER {
+ 		return _EXCEPTION_CONTINUE_SEARCH
+ 	}
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+new file mode 100644
+index 0000000000..c56da15292
+--- /dev/null
++++ b/src/runtime/signal_windows_test.go
+@@ -0,0 +1,61 @@
++// +build windows
++
++package runtime_test
++
++import (
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	if runtime.GOARCH != "amd64" {
++		t.Skip("this test can only run on windows/amd64")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveExecPath(t, "gcc")
++	testprog.Lock()
++	defer testprog.Unlock()
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.Remove(dir)
++
++	// build go dll
++	dll := filepath.Join(dir, "testwinlib.dll")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "--buildmode", "c-shared", "testdata/testwinlib/main.go")
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build go library: %s\n%s", err, out)
++	}
++
++	// build c program
++	exe := filepath.Join(dir, "test.exe")
++	cmd = exec.Command("gcc", "-L"+dir, "-I"+dir, "-ltestwinlib", "-o", exe, "testdata/testwinlib/main.c")
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build c exe: %s\n%s", err, out)
++	}
++
++	// run test program
++	cmd = exec.Command(exe)
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failure while running executable: %s\n%s", err, out)
++	}
++	expectedOutput := "exceptionCount: 1\ncontinueCount: 1\n"
++	// cleaning output
++	cleanedOut := strings.ReplaceAll(string(out), "\r\n", "\n")
++	if cleanedOut != expectedOutput {
++		t.Errorf("expected output %q, got %q", expectedOutput, cleanedOut)
++	}
++}
+diff --git a/src/runtime/testdata/testwinlib/main.c b/src/runtime/testdata/testwinlib/main.c
+new file mode 100644
+index 0000000000..e84a32f753
+--- /dev/null
++++ b/src/runtime/testdata/testwinlib/main.c
+@@ -0,0 +1,57 @@
++#include <stdio.h>
++#include <windows.h>
++#include "testwinlib.h"
++
++int exceptionCount;
++int continueCount;
++LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
++{
++    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
++    {
++        exceptionCount++;
++        // prepare context to resume execution
++        CONTEXT *c = ExceptionInfo->ContextRecord;
++        c->Rip = *(ULONG_PTR *)c->Rsp;
++        c->Rsp += 8;
++        return EXCEPTION_CONTINUE_EXECUTION;
++    }
++    return EXCEPTION_CONTINUE_SEARCH;
++}
++LONG WINAPI customContinueHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
++{
++    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
++    {
++        continueCount++;
++        return EXCEPTION_CONTINUE_EXECUTION;
++    }
++    return EXCEPTION_CONTINUE_SEARCH;
++}
++
++void throwFromC()
++{
++    DebugBreak();
++}
++int main()
++{
++    // simulate a "lazily" attached debugger, by calling some go code before attaching the exception/continue handler
++    Dummy();
++    exceptionCount = 0;
++    continueCount = 0;
++    void *exceptionHandlerHandle = AddVectoredExceptionHandler(0, customExceptionHandlder);
++    if (NULL == exceptionHandlerHandle)
++    {
++        printf("cannot add vectored exception handler\n");
++        return 2;
++    }
++    void *continueHandlerHandle = AddVectoredContinueHandler(0, customContinueHandlder);
++    if (NULL == continueHandlerHandle)
++    {
++        printf("cannot add vectored continue handler\n");
++        return 2;
++    }
++    CallMeBack(throwFromC);
++    RemoveVectoredContinueHandler(continueHandlerHandle);
++    RemoveVectoredExceptionHandler(exceptionHandlerHandle);
++    printf("exceptionCount: %d\ncontinueCount: %d\n", exceptionCount, continueCount);
++    return 0;
++}
+\ No newline at end of file
+diff --git a/src/runtime/testdata/testwinlib/main.go b/src/runtime/testdata/testwinlib/main.go
+new file mode 100644
+index 0000000000..400eaa1c82
+--- /dev/null
++++ b/src/runtime/testdata/testwinlib/main.go
+@@ -0,0 +1,28 @@
++// +build windows,cgo
++
++package main
++
++// #include <windows.h>
++// typedef void(*callmeBackFunc)();
++// static void bridgeCallback(callmeBackFunc callback) {
++//	callback();
++//}
++import "C"
++
++// CallMeBack call backs C code.
++//export CallMeBack
++func CallMeBack(callback C.callmeBackFunc) {
++	C.bridgeCallback(callback)
++}
++
++// Dummy is called by the C code before registering the exception/continue handlers simulating a debugger.
++// This makes sure that the Go runtime's lastcontinuehandler is reached before the C continue handler and thus,
++// validate that it does not crash the program before another handler could take an action.
++// The idea here is to reproduce what happens when you attach a debugger to a running program.
++// It also simulate the behavior of the .Net debugger, which register its exception/continue handlers lazily.
++//export Dummy
++func Dummy() int {
++	return 42
++}
++
++func main() {}

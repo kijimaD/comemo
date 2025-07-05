@@ -9,7 +9,135 @@ Date:   Sun Apr 7 18:19:16 2013 -0700
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/8377046
-
+---
  src/pkg/runtime/hashmap.c   | 33 ++++++++++++++++++++++++---------
  src/pkg/runtime/map_test.go | 25 ++++++++++++++++++++++---
  2 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 4ebfffd6c4..0f32d94e0f 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -95,8 +95,8 @@ struct Bucket
+ struct Hmap
+ {
+ 	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
++	uint32  flags;
+ 	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
+-	uint8   flags;
+ 	uint8   keysize;      // key size in bytes
+ 	uint8   valuesize;    // value size in bytes
+ 	uint16  bucketsize;   // bucket size in bytes
+@@ -767,6 +767,8 @@ struct hash_iter
+ static void
+ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
+ {
++	uint32 old;
++
+ 	if(sizeof(struct hash_iter) / sizeof(uintptr) != 11) {
+ 		runtime·throw("hash_iter size incorrect"); // see ../../cmd/gc/range.c
+ 	}
+@@ -783,7 +785,14 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
+ 	it->bptr = nil;
+ 
+ 	// Remember we have an iterator.
+-	h->flags |= Iterator | OldIterator;  // careful: see issue 5120.
++	// Can run concurrently with another hash_iter_init() and with reflect·mapiterinit().
++	for(;;) {
++		old = h->flags;
++		if((old&(Iterator|OldIterator)) == (Iterator|OldIterator))
++			break;
++		if(runtime·cas(&h->flags, old, old|Iterator|OldIterator))
++			break;
++	}
+ 
+ 	if(h->buckets == nil) {
+ 		// Empty map. Force next hash_next to exit without
+@@ -1370,18 +1379,24 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ void
+ reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ {
+-	uint8 flags;
++	uint32 old, new;
+ 
+ 	if(h != nil && t->key->size > sizeof(void*)) {
+ 		// reflect·mapiterkey returns pointers to key data,
+ 		// and reflect holds them, so we cannot free key data
+ 		// eagerly anymore.
+-		flags = h->flags;
+-		if(flags & IndirectKey)
+-			flags &= ~CanFreeKey;
+-		else
+-			flags &= ~CanFreeBucket;
+-		h->flags = flags;
++		// Can run concurrently with another reflect·mapiterinit() and with hash_iter_init().
++		for(;;) {
++			old = h->flags;
++			if(old & IndirectKey)
++				new = old & ~CanFreeKey;
++			else
++				new = old & ~CanFreeBucket;
++			if(new == old)
++				break;
++			if(runtime·cas(&h->flags, old, new))
++				break;
++		}
+ 	}
+ 
+ 	it = runtime·mal(sizeof *it);
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index 6b1e700c36..9f9c40d156 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -7,7 +7,7 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"math"
+-	"os"
++	"reflect"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+@@ -234,8 +234,8 @@ func TestIterGrowWithGC(t *testing.T) {
+ 	}
+ }
+ 
+-func TestConcurrentReadsAfterGrowth(t *testing.T) {
+-	if os.Getenv("GOMAXPROCS") == "" {
++func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
++	if runtime.GOMAXPROCS(-1) == 1 {
+ 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+ 	}
+ 	numLoop := 10
+@@ -262,12 +262,31 @@ func TestConcurrentReadsAfterGrowth(t *testing.T) {
+ 						_ = m[key]
+ 					}
+ 				}()
++				if useReflect {
++					wg.Add(1)
++					go func() {
++						defer wg.Done()
++						mv := reflect.ValueOf(m)
++						keys := mv.MapKeys()
++						for _, k := range keys {
++							mv.MapIndex(k)
++						}
++					}()
++				}
+ 			}
+ 			wg.Wait()
+ 		}
+ 	}
+ }
+ 
++func TestConcurrentReadsAfterGrowth(t *testing.T) {
++	testConcurrentReadsAfterGrowth(t, false)
++}
++
++func TestConcurrentReadsAfterGrowthReflect(t *testing.T) {
++	testConcurrentReadsAfterGrowth(t, true)
++}
++
+ func TestBigItems(t *testing.T) {
+ 	var key [256]string
+ 	for i := 0; i < 256; i++ {

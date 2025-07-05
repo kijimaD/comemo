@@ -7,7 +7,7 @@ Date:   Thu Apr 1 22:31:27 2010 -0700
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/871042
-
+---
  src/cmd/5g/cgen.c          |  4 +--
  src/cmd/5g/gg.h            |  4 +--
  src/cmd/5g/ggen.c          | 80 +++++++++---------------------------------
@@ -38,3 +38,1154 @@ Date:   Thu Apr 1 22:31:27 2010 -0700
  test/recover.go            | 34 +++++++++---------
  test/recover2.go           | 86 ++++++++++++++++++++++++++++++++++++++++++++++
  29 files changed, 241 insertions(+), 225 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index ce931600ec..cf701a50a0 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -573,7 +573,7 @@ agen(Node *n, Node *res)
+ 					regfree(&n4);
+ 					regfree(&n5);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-					ginscall(throwindex, 0);
++					ginscall(panicindex, 0);
+ 					patch(p1, pc);
+ 				}
+ 
+@@ -627,7 +627,7 @@ agen(Node *n, Node *res)
+ 			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
+ 			regfree(&n4);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-			ginscall(throwindex, 0);
++			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 6477452b92..c62efeb6ce 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -60,8 +60,8 @@ EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+-EXTERN	Node*	throwindex;
+-EXTERN	Node*	throwslice;
++EXTERN	Node*	panicindex;
++EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+ EXTERN	long	unmappedzero;
+ EXTERN	int	maxstksize;
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 5831d597e4..3243bb8634 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -23,8 +23,8 @@ compile(Node *fn)
+ 		newproc = sysfunc("newproc");
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
+-		throwindex = sysfunc("throwindex");
+-		throwslice = sysfunc("throwslice");
++		panicindex = sysfunc("panicindex");
++		panicslice = sysfunc("panicslice");
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+@@ -142,8 +142,8 @@ ginscall(Node *f, int proc)
+ 		afunclit(&p->to);
+ 		break;
+ 
+-	// TODO(kaib): unify newproc and defer if you can figure out how not to break things
+ 	case 1:	// call in new proc (go)
++	case 2:	// deferred call (defer)
+ 		regalloc(&r, types[tptr], N);
+ 		p = gins(AMOVW, N, &r);
+ 		p->from.type = D_OREG;
+@@ -173,71 +173,23 @@ ginscall(Node *f, int proc)
+ 		p->to.offset = 4;
+ 		regfree(&r);
+ 
+-		ginscall(newproc, 0);
+-
+-		regalloc(&r, types[tptr], N);
+-		p = gins(AMOVW, N, &r);
+-		p->from.type = D_OREG;
+-		p->from.reg = REGSP;
+-		p->from.offset = 0;
+-
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
+-		p->to.reg = REGSP;
+-		p->to.offset = 12;
+-		p->scond |= C_WBIT;
+-		regfree(&r);
+-
+-		break;
++		if(proc == 1)
++			ginscall(newproc, 0);
++		else
++			ginscall(deferproc, 0);
+ 
+-	case 2:	// deferred call (defer)
+-		regalloc(&r, types[tptr], N);
+-		p = gins(AMOVW, N, &r);
+-		p->from.type = D_OREG;
++		nodreg(&r, types[tptr], 1);
++		p = gins(AMOVW, N, N);
++		p->from.type = D_CONST;
+ 		p->from.reg = REGSP;
+-		
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
++		p->from.offset = 12;
+ 		p->to.reg = REGSP;
+-		p->to.offset = -8;
+-		p->scond |= C_WBIT;
++		p->to.type = D_REG;
+ 
+-		memset(&n1, 0, sizeof n1);
+-		n1.op = OADDR;
+-		n1.left = f;
+-		gins(AMOVW, &n1, &r);
+-
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
+-		p->to.reg = REGSP;
+-		p->to.offset = 8;
+-
+-		nodconst(&con, types[TINT32], argsize(f->type));
+-		gins(AMOVW, &con, &r);
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
+-		p->to.reg = REGSP;
+-		p->to.offset = 4;
+-		regfree(&r);
+-
+-		ginscall(deferproc, 0);
+-
+-		nodreg(&r, types[tptr], D_R1);
+-		p = gins(AMOVW, N, &r);
+-		p->from.type = D_OREG;
+-		p->from.reg = REGSP;
+-		p->from.offset = 0;
+-
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
+-		p->to.reg = REGSP;
+-		p->to.offset = 8;
+-		p->scond |= C_WBIT;
+-		
+ 		if(proc == 2) {
+ 			nodconst(&con, types[TINT32], 0);
+-			nodreg(&r, types[tptr], D_R0);
+-			gins(ACMP, &con, &r);
++			p = gins(ACMP, &con, N);
++			p->reg = 0;
+ 			patch(gbranch(ABNE, T), pret);
+ 		}
+ 		break;
+@@ -773,7 +725,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 			if(cl > cr) {
+ 				if(throwpc == nil) {
+ 					throwpc = pc;
+-					ginscall(throwslice, 0);
++					ginscall(panicslice, 0);
+ 				} else
+ 					patch(gbranch(AB, T), throwpc);
+ 			}
+@@ -807,7 +759,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 	if(throwpc == nil) {
+ 		p1 = gbranch(optoas(op, types[TUINT32]), T);
+ 		throwpc = pc;
+-		ginscall(throwslice, 0);
++		ginscall(panicslice, 0);
+ 		patch(p1, pc);
+ 	} else {
+ 		op = brcom(op);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ad9cad67e0..ef78157472 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1724,7 +1724,7 @@ oindex:
+ 		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
+ 		regfree(&n3);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-		ginscall(throwindex, 0);
++		ginscall(panicindex, 0);
+ 		patch(p1, pc);
+ 	}
+ 
+@@ -1780,7 +1780,7 @@ oindex_const:
+ 			regfree(&n4);
+ 			regfree(&n3);
+ 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-			ginscall(throwindex, 0);
++			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 05e36d2a75..30c1904290 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -527,7 +527,7 @@ agen(Node *n, Node *res)
+ 					nodconst(&n2, types[TUINT64], v);
+ 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-					ginscall(throwindex, 0);
++					ginscall(panicindex, 0);
+ 					patch(p1, pc);
+ 				}
+ 
+@@ -573,7 +573,7 @@ agen(Node *n, Node *res)
+ 				nodconst(&n1, types[TUINT64], nl->type->bound);
+ 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-			ginscall(throwindex, 0);
++			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 34b28c0574..875c773588 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -54,8 +54,8 @@ EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+-EXTERN	Node*	throwindex;
+-EXTERN	Node*	throwslice;
++EXTERN	Node*	panicindex;
++EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+ EXTERN	vlong	unmappedzero;
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 10cd582937..a92d945724 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -23,8 +23,8 @@ compile(Node *fn)
+ 		newproc = sysfunc("newproc");
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
+-		throwindex = sysfunc("throwindex");
+-		throwslice = sysfunc("throwslice");
++		panicindex = sysfunc("panicindex");
++		panicslice = sysfunc("panicslice");
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+@@ -1119,7 +1119,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 			if(cl > cr) {
+ 				if(throwpc == nil) {
+ 					throwpc = pc;
+-					ginscall(throwslice, 0);
++					ginscall(panicslice, 0);
+ 				} else
+ 					patch(gbranch(AJMP, T), throwpc);
+ 			}
+@@ -1137,7 +1137,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 	if(throwpc == nil) {
+ 		p1 = gbranch(optoas(op, types[TUINT32]), T);
+ 		throwpc = pc;
+-		ginscall(throwslice, 0);
++		ginscall(panicslice, 0);
+ 		patch(p1, pc);
+ 	} else {
+ 		op = brcom(op);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c5f4dbe451..e9ad6c0946 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1867,7 +1867,7 @@ oindex:
+ 		}
+ 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-		ginscall(throwindex, 0);
++		ginscall(panicindex, 0);
+ 		patch(p1, pc);
+ 	}
+ 
+@@ -1924,7 +1924,7 @@ oindex_const:
+ 			nodconst(&n2, types[TUINT64], v);
+ 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-			ginscall(throwindex, 0);
++			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+@@ -1958,7 +1958,7 @@ oindex_const_sudo:
+ 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
+ 		p1->from = *a;
+ 		p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-		ginscall(throwindex, 0);
++		ginscall(panicindex, 0);
+ 		patch(p1, pc);
+ 		a->offset -= Array_nel;
+ 	}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index c8dd9a3ee1..10a00b38df 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1555,10 +1555,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", runtimepkg);
+-		symlist[1] = pkglookup("throwslice", runtimepkg);
++		symlist[0] = pkglookup("panicindex", runtimepkg);
++		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panicl", runtimepkg);
++		symlist[3] = pkglookup("panic", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 6a21225072..d7a5ab33ab 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -549,7 +549,7 @@ agen(Node *n, Node *res)
+ 					nodconst(&n2, types[TUINT32], v);
+ 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-					ginscall(throwindex, 0);
++					ginscall(panicindex, 0);
+ 					patch(p1, pc);
+ 				}
+ 
+@@ -595,7 +595,7 @@ agen(Node *n, Node *res)
+ 				nodconst(&n1, types[TUINT32], nl->type->bound);
+ 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-			ginscall(throwindex, 0);
++			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index fcef11c3e1..a00d69711c 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -64,8 +64,8 @@ EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+-EXTERN	Node*	throwindex;
+-EXTERN	Node*	throwslice;
++EXTERN	Node*	panicindex;
++EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+ EXTERN	int	maxstksize;
+ extern	uint32	unmappedzero;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 193058e206..c1cad74bee 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -23,8 +23,8 @@ compile(Node *fn)
+ 		newproc = sysfunc("newproc");
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
+-		throwindex = sysfunc("throwindex");
+-		throwslice = sysfunc("throwslice");
++		panicindex = sysfunc("panicindex");
++		panicslice = sysfunc("panicslice");
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+@@ -824,7 +824,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 			if(cl > cr) {
+ 				if(throwpc == nil) {
+ 					throwpc = pc;
+-					ginscall(throwslice, 0);
++					ginscall(panicslice, 0);
+ 				} else
+ 					patch(gbranch(AJMP, T), throwpc);
+ 			}
+@@ -842,7 +842,7 @@ cmpandthrow(Node *nl, Node *nr)
+ 	if(throwpc == nil) {
+ 		p1 = gbranch(optoas(op, types[TUINT32]), T);
+ 		throwpc = pc;
+-		ginscall(throwslice, 0);
++		ginscall(panicslice, 0);
+ 		patch(p1, pc);
+ 	} else {
+ 		op = brcom(op);
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 50f47d9ca2..e23205c68f 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1447,10 +1447,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", runtimepkg);
+-		symlist[1] = pkglookup("throwslice", runtimepkg);
++		symlist[0] = pkglookup("panicindex", runtimepkg);
++		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panicl", runtimepkg);
++		symlist[3] = pkglookup("panic", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+index 899d8163f4..1b3138a7f4 100644
+--- a/src/cmd/cov/main.c
++++ b/src/cmd/cov/main.c
+@@ -201,10 +201,10 @@ missing(uvlong pc, uvlong epc)
+ 	}
+ 
+ 	if(epc - pc == 5) {
+-		// check for CALL sys.throwindex
++		// check for CALL sys.panicindex
+ 		buf[0] = 0;
+ 		machdata->das(text, pc, 0, buf, sizeof buf);
+-		if(strstr(buf, "throwindex"))
++		if(strstr(buf, "panicindex"))
+ 			return;
+ 	}
+ 
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 59a917a9ae..94efa412bf 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,7 +1,8 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"func \"\".mal (? int32) *any\n"
+-	"func \"\".throwindex ()\n"
++	"func \"\".panicindex ()\n"
++	"func \"\".panicslice ()\n"
+ 	"func \"\".throwreturn ()\n"
+ 	"func \"\".throwinit ()\n"
+ 	"func \"\".panic (? interface { })\n"
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 79c0e3720f..f9799c5231 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -276,7 +276,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ODOTTYPE:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, ".(");
+-		exprfmt(f, n->right, 0);
++		if(n->right != N)
++			exprfmt(f, n->right, 0);
++		else
++			fmtprint(f, "%T", n->type);
+ 		fmtprint(f, ")");
+ 		break;
+ 
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index ba79ab92d3..e08e1f6017 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -11,7 +11,8 @@ package PACKAGE
+ // emitted by compiler, not referred to by go programs
+ 
+ func mal(int32) *any
+-func throwindex()
++func panicindex()
++func panicslice()
+ func throwreturn()
+ func throwinit()
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 37b5efa6f8..ced798e6ba 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1846,8 +1846,6 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 	if(defer) {
+ 		if(op == OPRINTN)
+ 			fmtprint(&fmt, "\n");
+-		if(op == OPANIC)
+-			fmtprint(&fmt, "%%!");
+ 		on = syslook("printf", 1);
+ 		on->type = functype(nil, intypes, nil);
+ 		args->n = nod(OLITERAL, N, N);
+@@ -1863,10 +1861,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 		typechecklist(calls, Etop);
+ 		walkexprlist(calls, init);
+ 
+-		if(op == OPANIC)
+-			r = mkcall("panicl", T, nil);
+-		else
+-			r = nod(OEMPTY, N, N);
++		r = nod(OEMPTY, N, N);
+ 		typecheck(&r, Etop);
+ 		walkexpr(&r, init);
+ 		r->ninit = calls;
+diff --git a/src/pkg/runtime/complex.c b/src/pkg/runtime/complex.c
+index 72c65467d4..ca6ed79ba3 100644
+--- a/src/pkg/runtime/complex.c
++++ b/src/pkg/runtime/complex.c
+@@ -20,7 +20,7 @@ void
+ 		b = -b;
+ 	if(a <= b) {
+ 		if(b == 0)
+-			throw("complex divide");
++			panicstring("complex divide by zero");
+ 		ratio = denreal/denimag;
+ 		denom = denreal*ratio + denimag;
+ 		quoreal = (numreal*ratio + numimag) / denom;
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index a7d3bedb9c..673e77b2c1 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -7,7 +7,12 @@ package runtime
+ // The Error interface identifies a run time error.
+ type Error interface {
+ 	String() string
+-	RuntimeError() // no-op that uniquely identifies runtime.Error
++
++	// RuntimeError is a no-op function but
++	// serves to distinguish types that are runtime
++	// errors from ordinary os.Errors: a type is a
++	// runtime error if it has a RuntimeError method.
++	RuntimeError()
+ }
+ 
+ // A TypeAssertionError explains a failed type assertion.
+@@ -21,6 +26,8 @@ type TypeAssertionError struct {
+ 	missingMethod   string // one method needed by Interface, missing from Concrete
+ }
+ 
++func (*TypeAssertionError) RuntimeError() {}
++
+ func (e *TypeAssertionError) String() string {
+ 	inter := e.interfaceString
+ 	if inter == "" {
+@@ -57,8 +64,6 @@ func (e *TypeAssertionError) MissingMethod() string {
+ 	return e.missingMethod
+ }
+ 
+-func (*TypeAssertionError) RuntimeError() {}
+-
+ // For calling from C.
+ func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
+ 	var t1, t2, t3 Type
+@@ -88,12 +93,26 @@ func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *st
+ 	*ret = &TypeAssertionError{t1, t2, t3, s1, s2, s3, meth}
+ }
+ 
++// An errorString represents a runtime error described by a single string.
++type errorString string
++
++func (e errorString) RuntimeError() {}
++
++func (e errorString) String() string {
++	return "runtime error: " + string(e)
++}
++
++// For calling from C.
++func newErrorString(s string, ret *interface{}) {
++	*ret = errorString(s)
++}
++
+ type stringer interface {
+ 	String() string
+ }
+ 
+ // For calling from C.
+-// Prints an argument to panic.
++// Prints an argument passed to panic.
+ // There's room for arbitrary complexity here, but we keep it
+ // simple and handle just a few important cases: int, string, and Stringer.
+ func printany(i interface{}) {
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index ccb5cfdb56..f27264b682 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -770,10 +770,6 @@ void
+ 
+ 	mapaccess(h, ak, av, &pres);
+ 
+-// new spec -- all elements have "zero" value
+-//	if(!pres)
+-//		throw("runtime.mapaccess1: key not in map");
+-
+ 	if(debug) {
+ 		prints("runtime.mapaccess1: map=");
+ 		·printpointer(h);
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 1af7ca7f56..28e3edeeef 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -457,6 +457,7 @@ static uintptr
+ ifacehash1(void *data, Type *t)
+ {
+ 	int32 alg, wid;
++	Eface err;
+ 
+ 	if(t == nil)
+ 		return 0;
+@@ -464,12 +465,10 @@ ifacehash1(void *data, Type *t)
+ 	alg = t->alg;
+ 	wid = t->size;
+ 	if(algarray[alg].hash == nohash) {
+-		// calling nohash will throw too,
++		// calling nohash will panic too,
+ 		// but we can print a better error.
+-		printf("hash of unhashable type %S\n", *t->string);
+-		if(alg == AFAKE)
+-			throw("fake interface hash");
+-		throw("interface hash");
++		·newErrorString(catstring(gostring((byte*)"hash of unhashable type "), *t->string), &err);
++		·panic(err);
+ 	}
+ 	if(wid <= sizeof(data))
+ 		return algarray[alg].hash(wid, &data);
+@@ -494,17 +493,16 @@ static bool
+ ifaceeq1(void *data1, void *data2, Type *t)
+ {
+ 	int32 alg, wid;
++	Eface err;
+ 
+ 	alg = t->alg;
+ 	wid = t->size;
+ 
+ 	if(algarray[alg].equal == noequal) {
+-		// calling noequal will throw too,
++		// calling noequal will panic too,
+ 		// but we can print a better error.
+-		printf("comparing uncomparable type %S\n", *t->string);
+-		if(alg == AFAKE)
+-			throw("fake interface compare");
+-		throw("interface compare");
++		·newErrorString(catstring(gostring((byte*)"comparing uncomparable type "), *t->string), &err);
++		·panic(err);
+ 	}
+ 
+ 	if(wid <= sizeof(data1))
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 02509deb69..27c59218c7 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -42,27 +42,29 @@ panic(int32 unused)
+ }
+ 
+ void
+-·throwindex(void)
++·panicindex(void)
+ {
+-	throw("index out of range");
++	panicstring("index out of range");
+ }
+ 
+ void
+-·throwslice(void)
++·panicslice(void)
+ {
+-	throw("slice out of range");
++	panicstring("slice bounds out of range");
+ }
+ 
+ void
+ ·throwreturn(void)
+ {
+-	throw("no return at end of a typed function");
++	// can only happen if compiler is broken
++	throw("no return at end of a typed function - compiler is broken");
+ }
+ 
+ void
+ ·throwinit(void)
+ {
+-	throw("recursive call during initialization");
++	// can only happen with linker skew
++	throw("recursive call during initialization - linker skew");
+ }
+ 
+ void
+@@ -75,6 +77,15 @@ throw(int8 *s)
+ 	exit(1);	// even more not reached
+ }
+ 
++void
++panicstring(int8 *s)
++{
++	Eface err;
++	
++	·newErrorString(gostring((byte*)s), &err);
++	·panic(err);
++}
++
+ void
+ mcpy(byte *t, byte *f, uint32 n)
+ {
+@@ -421,7 +432,7 @@ nohash(uint32 s, void *a)
+ {
+ 	USED(s);
+ 	USED(a);
+-	throw("hash of unhashable type");
++	panicstring("hash of unhashable type");
+ 	return 0;
+ }
+ 
+@@ -431,27 +442,10 @@ noequal(uint32 s, void *a, void *b)
+ 	USED(s);
+ 	USED(a);
+ 	USED(b);
+-	throw("comparing uncomparable types");
++	panicstring("comparing uncomparable types");
+ 	return 0;
+ }
+ 
+-static void
+-noprint(uint32 s, void *a)
+-{
+-	USED(s);
+-	USED(a);
+-	throw("print of unprintable type");
+-}
+-
+-static void
+-nocopy(uint32 s, void *a, void *b)
+-{
+-	USED(s);
+-	USED(a);
+-	USED(b);
+-	throw("copy of uncopyable type");
+-}
+-
+ Alg
+ algarray[] =
+ {
+@@ -460,7 +454,6 @@ algarray[] =
+ [ASTRING]	{ strhash, strequal, strprint, memcopy },
+ [AINTER]		{ interhash, interequal, interprint, memcopy },
+ [ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
+-[AFAKE]	{ nohash, noequal, noprint, nocopy },
+ };
+ 
+ #pragma textflag 7
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b4011b7588..415dddb867 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -300,7 +300,6 @@ enum
+ 	ASTRING,
+ 	AINTER,
+ 	ANILINTER,
+-	AFAKE,
+ 	Amax
+ };
+ 
+@@ -369,6 +368,7 @@ void	goargs(void);
+ void	FLUSH(void*);
+ void*	getu(void);
+ void	throw(int8*);
++void	panicstring(int8*);
+ uint32	rnd(uint32, uint32);
+ void	prints(int8*);
+ void	printf(int8*, ...);
+@@ -379,6 +379,7 @@ void	memmove(void*, void*, uint32);
+ void*	mal(uintptr);
+ void*	malx(uintptr size, int32 skip_delta);
+ uint32	cmpstring(String, String);
++String	catstring(String, String);
+ String	gostring(byte*);
+ String	gostringw(uint16*);
+ void	initsig(void);
+@@ -416,6 +417,7 @@ void	free(void *v);
+ void	addfinalizer(void*, void(*fn)(void*), int32);
+ void	walkfintab(void (*fn)(void*));
+ void	runpanic(Panic*);
++void*	getcallersp(void*);
+ 
+ void	exit(int32);
+ void	breakpoint(void);
+@@ -531,13 +533,15 @@ void	runtime_printslice(Slice);
+ void	runtime_printcomplex(Complex128);
+ void	reflect·call(byte*, byte*, uint32);
+ void	·panic(Eface);
+-
++void	·panicindex(void);
++void	·panicslice(void);
+ /*
+  * runtime c-called (but written in Go)
+  */
+ void ·newError(String, Eface*);
+ void	·printany(Eface);
+ void	·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
++void	·newErrorString(String, Eface*);
+ 
+ /*
+  * wrapped for go users
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 03572e822b..ca2585c796 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -36,19 +36,6 @@ void
+ 	}
+ }
+ 
+-static void
+-throwslice(uint32 lb, uint32 hb, uint32 n)
+-{
+-	prints("slice[");
+-	·printint(lb);
+-	prints(":");
+-	·printint(hb);
+-	prints("] of [");
+-	·printint(n);
+-	prints("] array\n");
+-	throw("array slice");
+-}
+-
+ // sliceslice(old []any, lb int, hb int, width int) (ary []any);
+ void
+ ·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+@@ -71,7 +58,7 @@ void
+ 			·printint(old.cap);
+ 			prints("\n");
+ 		}
+-		throwslice(lb, hb, old.cap);
++		·panicslice();
+ 	}
+ 
+ 	// new array is inside old array
+@@ -116,7 +103,7 @@ void
+ 			·printint(old.cap);
+ 			prints("\n");
+ 		}
+-		throwslice(lb, old.len, old.cap);
++		·panicslice();
+ 	}
+ 
+ 	// new array is inside old array
+@@ -165,7 +152,7 @@ void
+ 			·printint(width);
+ 			prints("\n");
+ 		}
+-		throwslice(lb, hb, nel);
++		·panicslice();
+ 	}
+ 
+ 	// new array is inside old array
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 4a96b83ec0..005b0ffc80 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -78,34 +78,25 @@ gostringw(uint16 *str)
+ 	return s;
+ }
+ 
+-func catstring(s1 String, s2 String) (s3 String) {
+-	if(s1.len == 0) {
+-		s3 = s2;
+-		goto out;
+-	}
+-	if(s2.len == 0) {
+-		s3 = s1;
+-		goto out;
+-	}
++String
++catstring(String s1, String s2)
++{
++	String s3;
++
++	if(s1.len == 0)
++		return s2;
++	if(s2.len == 0)
++		return s1;
+ 
+ 	s3 = gostringsize(s1.len + s2.len);
+ 	mcpy(s3.str, s1.str, s1.len);
+ 	mcpy(s3.str+s1.len, s2.str, s2.len);
+-out:
++	return s3;
+ }
+ 
+-static void
+-prbounds(int8* s, int32 a, int32 b, int32 c)
+-{
+-	prints(s);
+-	prints(" ");
+-	·printint(a);
+-	prints("<");
+-	·printint(b);
+-	prints(">");
+-	·printint(c);
+-	prints("\n");
+-	throw("string bounds");
++
++func catstring(s1 String, s2 String) (s3 String) {
++	s3 = catstring(s1, s2);
+ }
+ 
+ uint32
+@@ -159,9 +150,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 
+ 	if(lindex < 0 || lindex > si.len ||
+ 	   hindex < lindex || hindex > si.len) {
+-		·printpc(&si);
+-		prints(" ");
+-		prbounds("slice", lindex, si.len, hindex);
++	   	·panicslice();
+ 	}
+ 
+ 	l = hindex-lindex;
+@@ -177,9 +166,7 @@ func slicestring1(si String, lindex int32) (so String) {
+ 	int32 l;
+ 
+ 	if(lindex < 0 || lindex > si.len) {
+-		·printpc(&si);
+-		prints(" ");
+-		prbounds("slice", lindex, si.len, si.len);
++		·panicslice();
+ 	}
+ 
+ 	l = si.len-lindex;
+@@ -193,9 +180,7 @@ func slicestring1(si String, lindex int32) (so String) {
+ 
+ func indexstring(s String, i int32) (b byte) {
+ 	if(i < 0 || i >= s.len) {
+-		·printpc(&s);
+-		prints(" ");
+-		prbounds("index", 0, i, s.len);
++		·panicindex();
+ 	}
+ 
+ 	b = s.str[i];
+diff --git a/test/golden.out b/test/golden.out
+index 2bb6f110f7..e0b6ad6242 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -2,26 +2,22 @@
+ == ./
+ 
+ =========== ./cmp2.go
+-comparing uncomparable type []int
+-throw: interface compare
++panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+ 
+ =========== ./cmp3.go
+-comparing uncomparable type []int
+-throw: interface compare
++panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+ 
+ =========== ./cmp4.go
+-hash of unhashable type []int
+-throw: interface hash
++panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+ 
+ =========== ./cmp5.go
+-hash of unhashable type []int
+-throw: interface hash
++panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+ 
+diff --git a/test/recover.go b/test/recover.go
+index 8b47b82475..ca6f072886 100644
+--- a/test/recover.go
++++ b/test/recover.go
+@@ -23,21 +23,21 @@ func main() {
+ }
+ 
+ func die() {
+-	runtime.Breakpoint()	// can't depend on panic
++	runtime.Breakpoint() // can't depend on panic
+ }
+ 
+ func mustRecover(x interface{}) {
+-	mustNotRecover()	// because it's not a defer call
++	mustNotRecover() // because it's not a defer call
+ 	v := recover()
+ 	if v == nil {
+ 		println("missing recover")
+-		die()	// panic is useless here
++		die() // panic is useless here
+ 	}
+ 	if v != x {
+ 		println("wrong value", v, x)
+ 		die()
+ 	}
+-	
++
+ 	// the value should be gone now regardless
+ 	v = recover()
+ 	if v != nil {
+@@ -49,19 +49,19 @@ func mustRecover(x interface{}) {
+ func mustNotRecover() {
+ 	v := recover()
+ 	if v != nil {
+-		println("spurious recover")
++		println("spurious recover", v)
+ 		die()
+ 	}
+ }
+ 
+ func withoutRecover() {
+-	mustNotRecover()	// because it's a sub-call
++	mustNotRecover() // because it's a sub-call
+ }
+ 
+ func test1() {
+-	defer mustNotRecover()	// because mustRecover will squelch it
+-	defer mustRecover(1)	// because of panic below
+-	defer withoutRecover()	// should be no-op, leaving for mustRecover to find
++	defer mustNotRecover() // because mustRecover will squelch it
++	defer mustRecover(1)   // because of panic below
++	defer withoutRecover() // should be no-op, leaving for mustRecover to find
+ 	panic(1)
+ }
+ 
+@@ -102,14 +102,14 @@ func test2() {
+ 	// It does not see the panic when called from a call within a deferred call (too late)
+ 	// nor does it see the panic when it *is* the deferred call (too early).
+ 	defer mustRecover(2)
+-	defer recover()	// should be no-op
++	defer recover() // should be no-op
+ 	panic(2)
+ }
+ 
+ func test3() {
+ 	defer mustNotRecover()
+ 	defer func() {
+-		recover()	// should squelch
++		recover() // should squelch
+ 	}()
+ 	panic(3)
+ }
+@@ -118,7 +118,7 @@ func test4() {
+ 	// Equivalent to test3 but using defer to make the call.
+ 	defer mustNotRecover()
+ 	defer func() {
+-		defer recover()	// should squelch
++		defer recover() // should squelch
+ 	}()
+ 	panic(4)
+ }
+@@ -154,8 +154,8 @@ func test5() {
+ 		println("wrong value", v, 5)
+ 		die()
+ 	}
+-	
+-	s := try(func() { }, "hi").(string)
++
++	s := try(func() {}, "hi").(string)
+ 	if s != "hi" {
+ 		println("wrong value", s, "hi")
+ 		die()
+@@ -166,8 +166,8 @@ func test5() {
+ 		println("try1 wrong value", v, 5)
+ 		die()
+ 	}
+-	
+-	s = try1(func() { }, "hi").(string)
++
++	s = try1(func() {}, "hi").(string)
+ 	if s != "hi" {
+ 		println("try1 wrong value", s, "hi")
+ 		die()
+@@ -183,7 +183,7 @@ func big(mustRecover bool) {
+ 	x[0] = 1
+ 	x[99999] = 1
+ 	_ = x
+-	
++
+ 	v := recover()
+ 	if mustRecover {
+ 		if v == nil {
+diff --git a/test/recover2.go b/test/recover2.go
+new file mode 100644
+index 0000000000..96d591a15b
+--- /dev/null
++++ b/test/recover2.go
+@@ -0,0 +1,86 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of recover for run-time errors.
++
++// TODO(rsc):
++//	integer divide by zero?
++//	null pointer accesses
++
++package main
++
++import (
++	"os"
++	"strings"
++)
++
++var x = make([]byte, 10)
++
++func main() {
++	test1()
++	test2()
++	test3()
++	test4()
++	test5()
++	test6()
++	test7()
++}
++
++func mustRecover(s string) {
++	v := recover()
++	if v == nil {
++		panic("expected panic")
++	}
++	if e := v.(os.Error).String(); strings.Index(e, s) < 0 {
++		panic("want: " + s + "; have: " + e)
++	}
++}
++
++func test1() {
++	defer mustRecover("index")
++	println(x[123])
++}
++
++func test2() {
++	defer mustRecover("slice")
++	println(x[5:15])
++}
++
++func test3() {
++	defer mustRecover("slice")
++	println(x[11:9])
++}
++
++func test4() {
++	defer mustRecover("interface")
++	var x interface{} = 1
++	println(x.(float))
++}
++
++type T struct {
++	a, b int
++}
++
++func test5() {
++	defer mustRecover("uncomparable")
++	var x T
++	var z interface{} = x
++	println(z != z)
++}
++
++func test6() {
++	defer mustRecover("unhashable")
++	var x T
++	var z interface{} = x
++	m := make(map[interface{}]int)
++	m[z] = 1
++}
++
++func test7() {
++	defer mustRecover("complex divide by zero")
++	var x, y complex
++	println(x / y)
++}

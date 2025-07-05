@@ -24,7 +24,7 @@ Date:   Thu May 15 16:47:53 2014 -0400
     R=golang-codereviews, r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/95460046
-
+---
  src/pkg/syscall/asm_darwin_386.s     | 13 ++++++++-----
  src/pkg/syscall/asm_darwin_amd64.s   | 11 +++++++----
  src/pkg/syscall/asm_freebsd_386.s    | 13 ++++++++-----
@@ -42,3 +42,759 @@ Date:   Thu May 15 16:47:53 2014 -0400
  src/pkg/syscall/syscall_linux_386.go |  3 +++
  src/pkg/syscall/syscall_plan9.go     |  2 +-
  16 files changed, 102 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index 2ddfb3bbd3..9b4dfa81df 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -12,7 +15,7 @@
+ // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
+ // Trap # in AX, args on stack above caller pc.
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -63,7 +66,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-56
++TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -93,7 +96,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -114,7 +117,7 @@ ok1:
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+diff --git a/src/pkg/syscall/asm_darwin_amd64.s b/src/pkg/syscall/asm_darwin_amd64.s
+index c1970b71d9..19ea05be72 100644
+--- a/src/pkg/syscall/asm_darwin_amd64.s
++++ b/src/pkg/syscall/asm_darwin_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -12,7 +15,7 @@
+ // func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-88
++TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -60,7 +63,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-64
++TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -81,7 +84,7 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+diff --git a/src/pkg/syscall/asm_freebsd_386.s b/src/pkg/syscall/asm_freebsd_386.s
+index d24216fddc..91a46b1062 100644
+--- a/src/pkg/syscall/asm_freebsd_386.s
++++ b/src/pkg/syscall/asm_freebsd_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -12,7 +15,7 @@
+ // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
+ // Trap # in AX, args on stack above caller pc.
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -63,7 +66,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-56
++TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -93,7 +96,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -114,7 +117,7 @@ ok1:
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+diff --git a/src/pkg/syscall/asm_freebsd_amd64.s b/src/pkg/syscall/asm_freebsd_amd64.s
+index fca7f371ed..7abb36828a 100644
+--- a/src/pkg/syscall/asm_freebsd_amd64.s
++++ b/src/pkg/syscall/asm_freebsd_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -18,7 +21,7 @@
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64)
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -41,7 +44,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-88
++TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -64,7 +67,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-112
++TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX
+ 	MOVQ	16(SP), DI
+@@ -97,7 +100,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-64
++TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -117,7 +120,7 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index cf2ab02abe..668fc2bee5 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -11,7 +14,7 @@
+ // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ // Trap # in AX, args in BX CX DX SI DI, return in AX
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+@@ -36,7 +39,7 @@ ok:
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+@@ -62,7 +65,7 @@ ok6:
+ 	RET
+ 
+ // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+ 	MOVL	12(SP), CX
+@@ -84,7 +87,7 @@ ok1:
+ 	RET
+ 
+ // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+ 	MOVL	12(SP), CX
+@@ -110,7 +113,7 @@ ok2:
+ 
+ // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+ // Kernel interface gets call sub-number and pointer to a0.
+-TEXT ·socketcall(SB),NOSPLIT,$0-40
++TEXT ·socketcall(SB),NOSPLIT,$0-36
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
+ 	MOVL	4(SP), BX	// socket call number
+@@ -134,7 +137,7 @@ oksock:
+ 
+ // func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+ // Kernel interface gets call sub-number and pointer to a0.
+-TEXT ·rawsocketcall(SB),NOSPLIT,$0-40
++TEXT ·rawsocketcall(SB),NOSPLIT,$0-36
+ 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
+ 	MOVL	4(SP), BX	// socket call number
+ 	LEAL		8(SP), CX	// pointer to call arguments
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index 28a2a58092..d75096dec0 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -13,7 +16,7 @@
+ // Note that this differs from "standard" ABI convention, which
+ // would pass 4th arg in CX, not R10.
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -38,7 +41,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·Syscall6(SB),NOSPLIT,$0-88
++TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+@@ -63,7 +66,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-64
++TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -85,7 +88,7 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
+-TEXT ·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+diff --git a/src/pkg/syscall/asm_nacl_386.s b/src/pkg/syscall/asm_nacl_386.s
+index 7f330d3d6c..de7c3cc5da 100644
+--- a/src/pkg/syscall/asm_nacl_386.s
++++ b/src/pkg/syscall/asm_nacl_386.s
+@@ -15,7 +15,7 @@
+ #define NACL_SYSJMP(code) \
+ 	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
+ 
+-TEXT syscall·Syscall(SB),NOSPLIT,$12-32
++TEXT syscall·Syscall(SB),NOSPLIT,$12-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX
+ 	MOVL	a1+4(FP), BX
+@@ -32,12 +32,12 @@ TEXT syscall·Syscall(SB),NOSPLIT,$12-32
+ 	MOVL	$-1, r1+16(FP)
+ 	MOVL	$-1, r2+20(FP)
+ 	NEGL	AX
+-	MOVL	AX, errno+24(FP)
++	MOVL	AX, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVL	AX, r1+16(FP)
+ 	MOVL	DX, r2+20(FP)
+-	MOVL	$0, errno+24(FP)
++	MOVL	$0, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET	
+diff --git a/src/pkg/syscall/asm_nacl_amd64p32.s b/src/pkg/syscall/asm_nacl_amd64p32.s
+index 0ff6ece3d4..de030ec806 100644
+--- a/src/pkg/syscall/asm_nacl_amd64p32.s
++++ b/src/pkg/syscall/asm_nacl_amd64p32.s
+@@ -15,7 +15,7 @@
+ #define NACL_SYSJMP(code) \
+ 	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
+ 
+-TEXT syscall·Syscall(SB),NOSPLIT,$0-32
++TEXT syscall·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX
+ 	MOVL	a1+4(FP), DI
+@@ -30,12 +30,12 @@ TEXT syscall·Syscall(SB),NOSPLIT,$0-32
+ 	MOVL	$-1, r1+16(FP)
+ 	MOVL	$-1, r2+20(FP)
+ 	NEGL	AX
+-	MOVL	AX, errno+24(FP)
++	MOVL	AX, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVL	AX, r1+16(FP)
+ 	MOVL	DX, r2+20(FP)
+-	MOVL	$0, errno+24(FP)
++	MOVL	$0, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET	
+diff --git a/src/pkg/syscall/asm_netbsd_386.s b/src/pkg/syscall/asm_netbsd_386.s
+index 8caade2551..40b30b4053 100644
+--- a/src/pkg/syscall/asm_netbsd_386.s
++++ b/src/pkg/syscall/asm_netbsd_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -12,7 +15,7 @@
+ // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
+ // Trap # in AX, args on stack above caller pc.
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -63,7 +66,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-56
++TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -93,7 +96,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -114,7 +117,7 @@ ok1:
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+diff --git a/src/pkg/syscall/asm_netbsd_amd64.s b/src/pkg/syscall/asm_netbsd_amd64.s
+index e0b8b3cb8b..94ad0284ad 100644
+--- a/src/pkg/syscall/asm_netbsd_amd64.s
++++ b/src/pkg/syscall/asm_netbsd_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -13,7 +16,7 @@
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-88
++TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -59,7 +62,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-112
++TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -91,7 +94,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-64
++TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -111,7 +114,7 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+diff --git a/src/pkg/syscall/asm_openbsd_386.s b/src/pkg/syscall/asm_openbsd_386.s
+index a383496611..7dd2e373f7 100644
+--- a/src/pkg/syscall/asm_openbsd_386.s
++++ b/src/pkg/syscall/asm_openbsd_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -12,7 +15,7 @@
+ // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
+ // Trap # in AX, args on stack above caller pc.
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -63,7 +66,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-56
++TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+@@ -93,7 +96,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -114,7 +117,7 @@ ok1:
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+diff --git a/src/pkg/syscall/asm_openbsd_amd64.s b/src/pkg/syscall/asm_openbsd_amd64.s
+index 1bf25f1dbd..e127bf220c 100644
+--- a/src/pkg/syscall/asm_openbsd_amd64.s
++++ b/src/pkg/syscall/asm_openbsd_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -13,7 +16,7 @@
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -36,7 +39,7 @@ ok:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-88
++TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -59,7 +62,7 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall9(SB),NOSPLIT,$0-112
++TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	MOVQ	16(SP), DI
+@@ -91,7 +94,7 @@ ok9:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-64
++TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -111,7 +114,7 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+diff --git a/src/pkg/syscall/asm_plan9_386.s b/src/pkg/syscall/asm_plan9_386.s
+index 7ebd206908..f8c07c407a 100644
+--- a/src/pkg/syscall/asm_plan9_386.s
++++ b/src/pkg/syscall/asm_plan9_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -87,7 +90,7 @@ copyresult4:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -102,7 +105,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-32
+ 	MOVL	AX, err+28(SP)
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -123,7 +126,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
+ #define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
+ 
+ //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
+-TEXT ·seek(SB),NOSPLIT,$0-40
++TEXT ·seek(SB),NOSPLIT,$0-36
+ 	LEAL	newoffset+24(SP), AX
+ 	MOVL	AX, placeholder+4(SP)
+ 	
+diff --git a/src/pkg/syscall/asm_plan9_amd64.s b/src/pkg/syscall/asm_plan9_amd64.s
+index 880bf7c6f5..2154a87d59 100644
+--- a/src/pkg/syscall/asm_plan9_amd64.s
++++ b/src/pkg/syscall/asm_plan9_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ #include "../../cmd/ld/textflag.h"
+ 
+ //
+@@ -91,7 +94,7 @@ copyresult4:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-64
++TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVQ	$0x8000, AX	// for NxM
+ 	MOVQ	8(SP), BP	// syscall entry
+ 	// slide args down on top of system call number
+@@ -107,7 +110,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-64
+ 	MOVQ	AX, err+56(SP)
+ 	RET
+ 
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	$0x8000, AX	// for NxM
+ 	MOVQ	8(SP), BP	// syscall entry
+ 	// slide args down on top of system call number
+@@ -129,7 +132,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
+ #define SYS_SEEK 39	/* from zsysnum_plan9_amd64.go */
+ 
+ //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
+-TEXT ·seek(SB),NOSPLIT,$0-64
++TEXT ·seek(SB),NOSPLIT,$0-56
+ 	LEAQ	newoffset+40(SP), AX
+ 	MOVQ	AX, placeholder+8(SP)
+ 	
+@@ -160,7 +163,7 @@ copyresult6:
+ 
+ //func exit(code int)
+ // Import runtime·exit for cleanly exiting.
+-TEXT ·exit(SB),NOSPLIT,$8-4
++TEXT ·exit(SB),NOSPLIT,$8-8
+ 	MOVQ	code+0(FP), AX
+ 	MOVQ	AX, 0(SP)
+ 	CALL	runtime·exit(SB)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index e8943944d5..4487848f73 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
++// so that go vet can check that they are correct.
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 2e1c064c46..a8c340541f 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -83,7 +83,7 @@ func errstr() string {
+ }
+ 
+ // Implemented in assembly to import from runtime.
+-func exit(int)
++func exit(code int)
+ 
+ func Exit(code int) { exit(code) }
+ 

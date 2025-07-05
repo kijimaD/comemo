@@ -65,8 +65,109 @@ Date:   Mon Apr 9 13:05:43 2012 +0400
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5992055
-
+---
  src/pkg/runtime/malloc.h |  5 +++--
  src/pkg/runtime/mgc0.c   | 16 +++++++++-------
  src/pkg/runtime/mheap.c  | 17 +++++++++++++++--
  3 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index d846f6810b..52997bac6c 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -306,7 +306,6 @@ struct MSpan
+ {
+ 	MSpan	*next;		// in a span linked list
+ 	MSpan	*prev;		// in a span linked list
+-	MSpan	*allnext;	// in the list of all spans
+ 	PageID	start;		// starting page number
+ 	uintptr	npages;		// number of pages in span
+ 	MLink	*freelist;	// list of free objects
+@@ -351,7 +350,9 @@ struct MHeap
+ 	Lock;
+ 	MSpan free[MaxMHeapList];	// free lists of given length
+ 	MSpan large;			// free lists length >= MaxMHeapList
+-	MSpan *allspans;
++	MSpan **allspans;
++	uint32	nspan;
++	uint32	nspancap;
+ 
+ 	// span lookup
+ 	MSpan *map[1<<MHeapMap_Bits];
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 98d1c42549..76b460d134 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -123,7 +123,7 @@ static struct {
+ 	Note	alldone;
+ 	Lock	markgate;
+ 	Lock	sweepgate;
+-	MSpan	*spans;
++	uint32	spanidx;
+ 
+ 	Lock;
+ 	byte	*chunk;
+@@ -728,16 +728,18 @@ static void sweepspan(MSpan *s);
+ static void
+ sweep(void)
+ {
+-	MSpan *s;
++	MSpan *s, **allspans;
+ 	int64 now;
++	uint32 spanidx, nspan;
+ 
+ 	now = runtime·nanotime();
++	nspan = runtime·mheap.nspan;
++	allspans = runtime·mheap.allspans;
+ 	for(;;) {
+-		s = work.spans;
+-		if(s == nil)
++		spanidx = runtime·xadd(&work.spanidx, 1) - 1;
++		if(spanidx >= nspan)
+ 			break;
+-		if(!runtime·casp(&work.spans, s, s->allnext))
+-			continue;
++		s = allspans[spanidx];
+ 
+ 		// Stamp newly unused spans. The scavenger will use that
+ 		// info to potentially give back some pages to the OS.
+@@ -969,7 +971,7 @@ runtime·gc(int32 force)
+ 		mark(debug_scanblock);
+ 	t1 = runtime·nanotime();
+ 
+-	work.spans = runtime·mheap.allspans;
++	work.spanidx = 0;
+ 	runtime·unlock(&work.sweepgate);  // let the helpers in
+ 	sweep();
+ 	if(work.nproc > 1)
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index c877bfca91..077217dc5d 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -27,11 +27,24 @@ RecordSpan(void *vh, byte *p)
+ {
+ 	MHeap *h;
+ 	MSpan *s;
++	MSpan **all;
++	uint32 cap;
+ 
+ 	h = vh;
+ 	s = (MSpan*)p;
+-	s->allnext = h->allspans;
+-	h->allspans = s;
++	if(h->nspan >= h->nspancap) {
++		cap = 64*1024/sizeof(all[0]);
++		if(cap < h->nspancap*3/2)
++			cap = h->nspancap*3/2;
++		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
++		if(h->allspans) {
++			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
++			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
++		}
++		h->allspans = all;
++		h->nspancap = cap;
++	}
++	h->allspans[h->nspan++] = s;
+ }
+ 
+ // Initialize the heap; fetch memory using alloc.

@@ -9,7 +9,62 @@ Date:   Wed Dec 14 15:54:10 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5484060
-
+---
  src/cmd/gc/sinit.c       |  7 ++++---
  test/fixedbugs/bug387.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 8798d2136b..73a0af799e 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -707,9 +707,10 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 
+ 	// set auto to point at new temp or heap (3 assign)
+ 	if(n->esc == EscNone) {
+-		a = temp(t);
+-		*init = list(*init, nod(OAS, a, N));  // zero new temp
+-		a = nod(OADDR, a, N);
++		a = nod(OAS, temp(t), N);
++		typecheck(&a, Etop);
++		*init = list(*init, a);  // zero new temp
++		a = nod(OADDR, a->left, N);
+ 	} else {
+ 		a = nod(ONEW, N, N);
+ 		a->list = list1(typenod(t));
+diff --git a/test/fixedbugs/bug387.go b/test/fixedbugs/bug387.go
+new file mode 100644
+index 0000000000..c9db4aea89
+--- /dev/null
++++ b/test/fixedbugs/bug387.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go || echo "Bug387"
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2549
++
++/*  Used to die with
++missing typecheck: [7f5bf07b4438]
++
++.   AS l(45)
++.   .   NAME-main.autotmp_0017 u(1) a(1) l(45) x(0+0) class(PAUTO)
++esc(N) tc(1) used(1) ARRAY-[2]string
++internal compiler error: missing typecheck 
++*/
++package main
++
++import (
++        "fmt"
++        "path/filepath"
++)
++
++func main() {
++        switch _, err := filepath.Glob(filepath.Join(".", "vnc")); {
++        case err != nil:
++                fmt.Println(err)
++        }
++}
++

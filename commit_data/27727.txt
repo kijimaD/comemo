@@ -7,7 +7,60 @@ Date:   Mon Apr 11 11:04:15 2016 +1000
     Change-Id: I7bbdd9600e0d9a647aeea16f1ae9e42a4e0cf44d
     Reviewed-on: https://go-review.googlesource.com/21823
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go | 8 +++++---
  src/cmd/go/test.go    | 8 +++++---
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1f5981055c..ac975c0ab7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1347,8 +1347,8 @@ control the execution of any test:
+ 
+ 	-bench regexp
+ 	    Run benchmarks matching the regular expression.
+-	    By default, no benchmarks run. To run all benchmarks,
+-	    use '-bench .' or '-bench=.'.
++	    By default, no benchmarks run.
++	    To run all benchmarks, use '-bench=.'.
+ 
+ 	-benchmem
+ 	    Print memory allocation statistics for benchmarks.
+@@ -1435,7 +1435,9 @@ control the execution of any test:
+ 
+ 	-run regexp
+ 	    Run only those tests and examples matching the regular
+-	    expression.
++	    expression. By default, all tests run.
++	    To skip all tests, use a pattern that matches no test names,
++	    such as '-run=^$'.
+ 
+ 	-short
+ 	    Tell long-running tests to shorten their run time.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a17bc4e982..8dbd9e22bf 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -126,8 +126,8 @@ control the execution of any test:
+ const testFlag2 = `
+ 	-bench regexp
+ 	    Run benchmarks matching the regular expression.
+-	    By default, no benchmarks run. To run all benchmarks,
+-	    use '-bench .' or '-bench=.'.
++	    By default, no benchmarks run.
++	    To run all benchmarks, use '-bench=.'.
+ 
+ 	-benchmem
+ 	    Print memory allocation statistics for benchmarks.
+@@ -214,7 +214,9 @@ const testFlag2 = `
+ 
+ 	-run regexp
+ 	    Run only those tests and examples matching the regular
+-	    expression.
++	    expression. By default, all tests run.
++	    To skip all tests, use a pattern that matches no test names,
++	    such as '-run=^$'.
+ 
+ 	-short
+ 	    Tell long-running tests to shorten their run time.

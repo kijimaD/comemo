@@ -12,6 +12,20 @@ Date:   Wed Sep 3 00:56:50 2014 +0200
     R=rsc, mattn.jp, iant
     CC=golang-codereviews
     https://golang.org/cl/135280043
-
+---
  src/pkg/runtime/print1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/print1.go b/src/pkg/runtime/print1.go
+index 28faa7cbbb..93f83ed26f 100644
+--- a/src/pkg/runtime/print1.go
++++ b/src/pkg/runtime/print1.go
+@@ -54,7 +54,7 @@ func snprintf(dst *byte, n int32, s *byte) {
+ 
+ 	gp := getg()
+ 	gp.writebuf = buf[0:0 : n-1] // leave room for NUL, this is called from C
+-	vprintf(gostring(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
++	vprintf(gostringnocopy(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
+ 	buf[len(gp.writebuf)] = '\x00'
+ 	gp.writebuf = nil
+ }

@@ -22,6 +22,22 @@ Date:   Fri Apr 30 01:51:16 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 6c863351ff..f76befcfe3 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -243,8 +243,8 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 	if build.IsLocalImport(path) {
+ 		return module.Version{}, "", fmt.Errorf("relative import not supported")
+ 	}
+-	if path == "C" || path == "unsafe" {
+-		// There's no directory for import "C" or import "unsafe".
++	if path == "C" {
++		// There's no directory for import "C".
+ 		return module.Version{}, "", nil
+ 	}
+ 	// Before any further lookup, check that the path is valid.

@@ -11,7 +11,7 @@ Date:   Tue May 29 23:53:19 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go            | 53 +++++++++++++++++++++++++---------------------
  src/net/dial_test.go       | 18 +++++++++-------
  src/net/iprawsock.go       | 12 +++++++++--
@@ -27,3 +27,643 @@ Date:   Tue May 29 23:53:19 2018 +0100
  src/net/unixsock_plan9.go  |  6 +++---
  src/net/unixsock_posix.go  | 12 +++++------
  14 files changed, 111 insertions(+), 91 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index f8b4aa2274..3ea049ca46 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -306,8 +306,8 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
+ 	return d.Dial(network, address)
+ }
+ 
+-// dialParam contains a Dial's parameters and configuration.
+-type dialParam struct {
++// sysDialer contains a Dial's parameters and configuration.
++type sysDialer struct {
+ 	Dialer
+ 	network, address string
+ }
+@@ -377,7 +377,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
+ 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
+ 	}
+ 
+-	dp := &dialParam{
++	sd := &sysDialer{
+ 		Dialer:  *d,
+ 		network: network,
+ 		address: address,
+@@ -392,9 +392,9 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
+ 
+ 	var c Conn
+ 	if len(fallbacks) > 0 {
+-		c, err = dialParallel(ctx, dp, primaries, fallbacks)
++		c, err = sd.dialParallel(ctx, primaries, fallbacks)
+ 	} else {
+-		c, err = dialSerial(ctx, dp, primaries)
++		c, err = sd.dialSerial(ctx, primaries)
+ 	}
+ 	if err != nil {
+ 		return nil, err
+@@ -412,9 +412,9 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
+ // head start. It returns the first established connection and
+ // closes the others. Otherwise it returns an error from the first
+ // primary address.
+-func dialParallel(ctx context.Context, dp *dialParam, primaries, fallbacks addrList) (Conn, error) {
++func (sd *sysDialer) dialParallel(ctx context.Context, primaries, fallbacks addrList) (Conn, error) {
+ 	if len(fallbacks) == 0 {
+-		return dialSerial(ctx, dp, primaries)
++		return sd.dialSerial(ctx, primaries)
+ 	}
+ 
+ 	returned := make(chan struct{})
+@@ -433,7 +433,7 @@ func dialParallel(ctx context.Context, dp *dialParam, primaries, fallbacks addrL
+ 		if !primary {
+ 			ras = fallbacks
+ 		}
+-		c, err := dialSerial(ctx, dp, ras)
++		c, err := sd.dialSerial(ctx, ras)
+ 		select {
+ 		case results <- dialResult{Conn: c, error: err, primary: primary, done: true}:
+ 		case <-returned:
+@@ -451,7 +451,7 @@ func dialParallel(ctx context.Context, dp *dialParam, primaries, fallbacks addrL
+ 	go startRacer(primaryCtx, true)
+ 
+ 	// Start the timer for the fallback racer.
+-	fallbackTimer := time.NewTimer(dp.fallbackDelay())
++	fallbackTimer := time.NewTimer(sd.fallbackDelay())
+ 	defer fallbackTimer.Stop()
+ 
+ 	for {
+@@ -486,13 +486,13 @@ func dialParallel(ctx context.Context, dp *dialParam, primaries, fallbacks addrL
+ 
+ // dialSerial connects to a list of addresses in sequence, returning
+ // either the first successful connection, or the first error.
+-func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) {
++func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error) {
+ 	var firstErr error // The error from the first address is most relevant.
+ 
+ 	for i, ra := range ras {
+ 		select {
+ 		case <-ctx.Done():
+-			return nil, &OpError{Op: "dial", Net: dp.network, Source: dp.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
++			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
+ 		default:
+ 		}
+ 
+@@ -501,7 +501,7 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error)
+ 		if err != nil {
+ 			// Ran out of time.
+ 			if firstErr == nil {
+-				firstErr = &OpError{Op: "dial", Net: dp.network, Source: dp.LocalAddr, Addr: ra, Err: err}
++				firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
+ 			}
+ 			break
+ 		}
+@@ -512,7 +512,7 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error)
+ 			defer cancel()
+ 		}
+ 
+-		c, err := dialSingle(dialCtx, dp, ra)
++		c, err := sd.dialSingle(dialCtx, ra)
+ 		if err == nil {
+ 			return c, nil
+ 		}
+@@ -522,47 +522,52 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error)
+ 	}
+ 
+ 	if firstErr == nil {
+-		firstErr = &OpError{Op: "dial", Net: dp.network, Source: nil, Addr: nil, Err: errMissingAddress}
++		firstErr = &OpError{Op: "dial", Net: sd.network, Source: nil, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	return nil, firstErr
+ }
+ 
+ // dialSingle attempts to establish and returns a single connection to
+ // the destination address.
+-func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
++func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error) {
+ 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
+ 	if trace != nil {
+ 		raStr := ra.String()
+ 		if trace.ConnectStart != nil {
+-			trace.ConnectStart(dp.network, raStr)
++			trace.ConnectStart(sd.network, raStr)
+ 		}
+ 		if trace.ConnectDone != nil {
+-			defer func() { trace.ConnectDone(dp.network, raStr, err) }()
++			defer func() { trace.ConnectDone(sd.network, raStr, err) }()
+ 		}
+ 	}
+-	la := dp.LocalAddr
++	la := sd.LocalAddr
+ 	switch ra := ra.(type) {
+ 	case *TCPAddr:
+ 		la, _ := la.(*TCPAddr)
+-		c, err = dialTCP(ctx, dp.network, la, ra)
++		c, err = sd.dialTCP(ctx, la, ra)
+ 	case *UDPAddr:
+ 		la, _ := la.(*UDPAddr)
+-		c, err = dialUDP(ctx, dp.network, la, ra)
++		c, err = sd.dialUDP(ctx, la, ra)
+ 	case *IPAddr:
+ 		la, _ := la.(*IPAddr)
+-		c, err = dialIP(ctx, dp.network, la, ra)
++		c, err = sd.dialIP(ctx, la, ra)
+ 	case *UnixAddr:
+ 		la, _ := la.(*UnixAddr)
+-		c, err = dialUnix(ctx, dp.network, la, ra)
++		c, err = sd.dialUnix(ctx, la, ra)
+ 	default:
+-		return nil, &OpError{Op: "dial", Net: dp.network, Source: la, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: dp.address}}
++		return nil, &OpError{Op: "dial", Net: sd.network, Source: la, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: sd.address}}
+ 	}
+ 	if err != nil {
+-		return nil, &OpError{Op: "dial", Net: dp.network, Source: la, Addr: ra, Err: err} // c is non-nil interface containing nil pointer
++		return nil, &OpError{Op: "dial", Net: sd.network, Source: la, Addr: ra, Err: err} // c is non-nil interface containing nil pointer
+ 	}
+ 	return c, nil
+ }
+ 
++// sysListener contains a Listen's parameters and configuration.
++type sysListener struct {
++	network, address string
++}
++
+ // Listen announces on the local network address.
+ //
+ // The network must be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 811e417cd7..96d8921ec8 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -142,8 +142,9 @@ const (
+ // In some environments, the slow IPs may be explicitly unreachable, and fail
+ // more quickly than expected. This test hook prevents dialTCP from returning
+ // before the deadline.
+-func slowDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	c, err := doDialTCP(ctx, net, laddr, raddr)
++func slowDialTCP(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	sd := &sysDialer{network: network, address: raddr.String()}
++	c, err := sd.doDialTCP(ctx, laddr, raddr)
+ 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
+ 		// Wait for the deadline, or indefinitely if none exists.
+ 		<-ctx.Done()
+@@ -295,12 +296,12 @@ func TestDialParallel(t *testing.T) {
+ 			FallbackDelay: fallbackDelay,
+ 		}
+ 		startTime := time.Now()
+-		dp := &dialParam{
++		sd := &sysDialer{
+ 			Dialer:  d,
+ 			network: "tcp",
+ 			address: "?",
+ 		}
+-		c, err := dialParallel(context.Background(), dp, primaries, fallbacks)
++		c, err := sd.dialParallel(context.Background(), primaries, fallbacks)
+ 		elapsed := time.Since(startTime)
+ 
+ 		if c != nil {
+@@ -331,7 +332,7 @@ func TestDialParallel(t *testing.T) {
+ 			wg.Done()
+ 		}()
+ 		startTime = time.Now()
+-		c, err = dialParallel(ctx, dp, primaries, fallbacks)
++		c, err = sd.dialParallel(ctx, primaries, fallbacks)
+ 		if c != nil {
+ 			c.Close()
+ 		}
+@@ -467,13 +468,14 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 		// Now ignore the provided context (which will be canceled) and use a
+ 		// different one to make sure this completes with a valid connection,
+ 		// which we hope to be closed below:
+-		return doDialTCP(context.Background(), net, laddr, raddr)
++		sd := &sysDialer{network: net, address: raddr.String()}
++		return sd.doDialTCP(context.Background(), laddr, raddr)
+ 	}
+ 
+ 	d := Dialer{
+ 		FallbackDelay: fallbackDelay,
+ 	}
+-	dp := &dialParam{
++	sd := &sysDialer{
+ 		Dialer:  d,
+ 		network: "tcp",
+ 		address: "?",
+@@ -488,7 +490,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 	}
+ 
+ 	// dialParallel returns one connection (and closes the other.)
+-	c, err := dialParallel(context.Background(), dp, makeAddr("127.0.0.1"), makeAddr("::1"))
++	c, err := sd.dialParallel(context.Background(), makeAddr("127.0.0.1"), makeAddr("::1"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 72cbc39433..95bab50e4e 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -209,7 +209,11 @@ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
+ // If the IP field of raddr is nil or an unspecified IP address, the
+ // local system is assumed.
+ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+-	c, err := dialIP(context.Background(), network, laddr, raddr)
++	if raddr == nil {
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
++	}
++	sd := &sysDialer{network: network, address: raddr.String()}
++	c, err := sd.dialIP(context.Background(), laddr, raddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+@@ -224,7 +228,11 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+ // ListenIP listens on all available IP addresses of the local system
+ // except multicast IP addresses.
+ func ListenIP(network string, laddr *IPAddr) (*IPConn, error) {
+-	c, err := listenIP(context.Background(), network, laddr)
++	if laddr == nil {
++		laddr = &IPAddr{}
++	}
++	sl := &sysListener{network: network, address: laddr.String()}
++	c, err := sl.listenIP(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+diff --git a/src/net/iprawsock_plan9.go b/src/net/iprawsock_plan9.go
+index 6aebea169c..ebe5808864 100644
+--- a/src/net/iprawsock_plan9.go
++++ b/src/net/iprawsock_plan9.go
+@@ -25,10 +25,10 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error)
+ 	return 0, 0, syscall.EPLAN9
+ }
+ 
+-func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
++func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
++func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 64c601602f..7dafd20bf6 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -112,18 +112,15 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error)
+ 	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
+-func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+-	network, proto, err := parseNetwork(ctx, netProto, true)
++func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn, error) {
++	network, proto, err := parseNetwork(ctx, sd.network, true)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	switch network {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(netProto)
+-	}
+-	if raddr == nil {
+-		return nil, errMissingAddress
++		return nil, UnknownNetworkError(sd.network)
+ 	}
+ 	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial")
+ 	if err != nil {
+@@ -132,15 +129,15 @@ func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn
+ 	return newIPConn(fd), nil
+ }
+ 
+-func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
+-	network, proto, err := parseNetwork(ctx, netProto, true)
++func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, error) {
++	network, proto, err := parseNetwork(ctx, sl.network, true)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	switch network {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(netProto)
++		return nil, UnknownNetworkError(sl.network)
+ 	}
+ 	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen")
+ 	if err != nil {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 0421ce5674..6e628f667f 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -212,7 +212,8 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := dialTCP(context.Background(), network, laddr, raddr)
++	sd := &sysDialer{network: network, address: raddr.String()}
++	c, err := sd.dialTCP(context.Background(), laddr, raddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+@@ -328,7 +329,8 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+-	ln, err := listenTCP(context.Background(), network, laddr)
++	sl := &sysListener{network: network, address: laddr.String()}
++	ln, err := sl.listenTCP(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index e37f0657c0..f70ef6f43a 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -14,23 +14,23 @@ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
+ 	return genericReadFrom(c, r)
+ }
+ 
+-func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
++func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	if testHookDialTCP != nil {
+-		return testHookDialTCP(ctx, net, laddr, raddr)
++		return testHookDialTCP(ctx, sd.network, laddr, raddr)
+ 	}
+-	return doDialTCP(ctx, net, laddr, raddr)
++	return sd.doDialTCP(ctx, laddr, raddr)
+ }
+ 
+-func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	switch net {
++func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	switch sd.network {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(sd.network)
+ 	}
+ 	if raddr == nil {
+ 		return nil, errMissingAddress
+ 	}
+-	fd, err := dialPlan9(ctx, net, laddr, raddr)
++	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -69,8 +69,8 @@ func (ln *TCPListener) file() (*os.File, error) {
+ 	return f, nil
+ }
+ 
+-func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
+-	fd, err := listenPlan9(ctx, network, laddr)
++func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
++	fd, err := listenPlan9(ctx, sl.network, laddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index f6fd93158a..6061c16986 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -54,15 +54,15 @@ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
+ 	return genericReadFrom(c, r)
+ }
+ 
+-func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
++func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	if testHookDialTCP != nil {
+-		return testHookDialTCP(ctx, net, laddr, raddr)
++		return testHookDialTCP(ctx, sd.network, laddr, raddr)
+ 	}
+-	return doDialTCP(ctx, net, laddr, raddr)
++	return sd.doDialTCP(ctx, laddr, raddr)
+ }
+ 
+-func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	fd, err := internetSocket(ctx, net, laddr, raddr, syscall.SOCK_STREAM, 0, "dial")
++func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial")
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+@@ -92,7 +92,7 @@ func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn
+ 		if err == nil {
+ 			fd.Close()
+ 		}
+-		fd, err = internetSocket(ctx, net, laddr, raddr, syscall.SOCK_STREAM, 0, "dial")
++		fd, err = internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial")
+ 	}
+ 
+ 	if err != nil {
+@@ -155,8 +155,8 @@ func (ln *TCPListener) file() (*os.File, error) {
+ 	return f, nil
+ }
+ 
+-func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
+-	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_STREAM, 0, "listen")
++func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
++	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_STREAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 158265f06f..937b9270bd 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -208,7 +208,8 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := dialUDP(context.Background(), network, laddr, raddr)
++	sd := &sysDialer{network: network, address: raddr.String()}
++	c, err := sd.dialUDP(context.Background(), laddr, raddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+@@ -233,7 +234,8 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
+ 	if laddr == nil {
+ 		laddr = &UDPAddr{}
+ 	}
+-	c, err := listenUDP(context.Background(), network, laddr)
++	sl := &sysListener{network: network, address: laddr.String()}
++	c, err := sl.listenUDP(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+@@ -266,7 +268,8 @@ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPCon
+ 	if gaddr == nil || gaddr.IP == nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
+ 	}
+-	c, err := listenMulticastUDP(context.Background(), network, ifi, gaddr)
++	sl := &sysListener{network: network, address: gaddr.String()}
++	c, err := sl.listenMulticastUDP(context.Background(), ifi, gaddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
+ 	}
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index 1ce7f88c62..563d943507 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -55,8 +55,8 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
+ 	return 0, 0, syscall.EPLAN9
+ }
+ 
+-func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+-	fd, err := dialPlan9(ctx, net, laddr, raddr)
++func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
++	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -91,8 +91,8 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
+ 	return h, b
+ }
+ 
+-func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, error) {
+-	l, err := listenPlan9(ctx, network, laddr)
++func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
++	l, err := listenPlan9(ctx, sl.network, laddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -108,8 +108,8 @@ func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, e
+ 	return newUDPConn(fd), err
+ }
+ 
+-func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+-	l, err := listenPlan9(ctx, network, gaddr)
++func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
++	l, err := listenPlan9(ctx, sl.network, gaddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index a126506d34..4e96f4781d 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -94,24 +94,24 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
+ 	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
+-func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+-	fd, err := internetSocket(ctx, net, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial")
++func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
++	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return newUDPConn(fd), nil
+ }
+ 
+-func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, error) {
+-	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen")
++func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
++	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return newUDPConn(fd), nil
+ }
+ 
+-func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+-	fd, err := internetSocket(ctx, network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen")
++func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
++	fd, err := internetSocket(ctx, sl.network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 551280f936..bd7dc39848 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -200,7 +200,8 @@ func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ 	default:
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+-	c, err := dialUnix(context.Background(), network, laddr, raddr)
++	sd := &sysDialer{network: network, address: raddr.String()}
++	c, err := sd.dialUnix(context.Background(), laddr, raddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+@@ -316,7 +317,8 @@ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
+ 	}
+-	ln, err := listenUnix(context.Background(), network, laddr)
++	sa := &sysListener{network: network, address: laddr.String()}
++	ln, err := sa.listenUnix(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+@@ -335,7 +337,8 @@ func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := listenUnixgram(context.Background(), network, laddr)
++	sa := &sysListener{network: network, address: laddr.String()}
++	c, err := sa.listenUnixgram(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index e70eb211bb..6ebd4d7d3b 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -26,7 +26,7 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
+ 	return 0, 0, syscall.EPLAN9
+ }
+ 
+-func dialUnix(ctx context.Context, network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
++func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+@@ -42,10 +42,10 @@ func (ln *UnixListener) file() (*os.File, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
++func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixListener, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-func listenUnixgram(ctx context.Context, network string, laddr *UnixAddr) (*UnixConn, error) {
++func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index a8f892e6c4..f627567af5 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -150,8 +150,8 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
+ 	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
+-func dialUnix(ctx context.Context, net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+-	fd, err := unixSocket(ctx, net, laddr, raddr, "dial")
++func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*UnixConn, error) {
++	fd, err := unixSocket(ctx, sd.network, laddr, raddr, "dial")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -206,16 +206,16 @@ func (l *UnixListener) SetUnlinkOnClose(unlink bool) {
+ 	l.unlink = unlink
+ }
+ 
+-func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
+-	fd, err := unixSocket(ctx, network, laddr, nil, "listen")
++func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixListener, error) {
++	fd, err := unixSocket(ctx, sl.network, laddr, nil, "listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return &UnixListener{fd: fd, path: fd.laddr.String(), unlink: true}, nil
+ }
+ 
+-func listenUnixgram(ctx context.Context, network string, laddr *UnixAddr) (*UnixConn, error) {
+-	fd, err := unixSocket(ctx, network, laddr, nil, "listen")
++func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
++	fd, err := unixSocket(ctx, sl.network, laddr, nil, "listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}

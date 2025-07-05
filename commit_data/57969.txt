@@ -9,7 +9,69 @@ Date:   Wed Sep 13 15:58:25 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/server.go      |  2 +-
  src/net/http/server_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 6fe917e086..7ce078ced4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2605,7 +2605,7 @@ func (mux *ServeMux) registerErr(pattern string, handler Handler) error {
+ 
+ 	pat, err := parsePattern(pattern)
+ 	if err != nil {
+-		return err
++		return fmt.Errorf("parsing %q: %w", pattern, err)
+ 	}
+ 
+ 	// Get the caller's location, for better conflict error messages.
+diff --git a/src/net/http/server_test.go b/src/net/http/server_test.go
+index 0e7bdb2f37..b0cc093d43 100644
+--- a/src/net/http/server_test.go
++++ b/src/net/http/server_test.go
+@@ -9,6 +9,7 @@ package http
+ import (
+ 	"fmt"
+ 	"net/url"
++	"regexp"
+ 	"testing"
+ 	"time"
+ )
+@@ -117,6 +118,35 @@ func TestFindHandler(t *testing.T) {
+ 	}
+ }
+ 
++func TestRegisterErr(t *testing.T) {
++	mux := NewServeMux()
++	h := &handler{}
++	mux.Handle("/a", h)
++
++	for _, test := range []struct {
++		pattern    string
++		handler    Handler
++		wantRegexp string
++	}{
++		{"", h, "invalid pattern"},
++		{"/", nil, "nil handler"},
++		{"/", HandlerFunc(nil), "nil handler"},
++		{"/{x", h, `parsing "/\{x": bad wildcard segment`},
++		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
++	} {
++		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {
++			err := mux.registerErr(test.pattern, test.handler)
++			if err == nil {
++				t.Fatal("got nil error")
++			}
++			re := regexp.MustCompile(test.wantRegexp)
++			if g := err.Error(); !re.MatchString(g) {
++				t.Errorf("\ngot %q\nwant string matching %q", g, test.wantRegexp)
++			}
++		})
++	}
++}
++
+ func TestExactMatch(t *testing.T) {
+ 	for _, test := range []struct {
+ 		pattern string

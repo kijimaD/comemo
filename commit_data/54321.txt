@@ -15,7 +15,43 @@ Date:   Wed Oct 5 12:56:46 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/scanner/scanner_test.go | 2 +-
  src/os/str.go                  | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index d31b34a4a0..4f320ee9f7 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -666,7 +666,7 @@ func TestInit(t *testing.T) {
+ 	}
+ }
+ 
+-func TestStdErrorHander(t *testing.T) {
++func TestStdErrorHandler(t *testing.T) {
+ 	const src = "@\n" + // illegal character, cause an error
+ 		"@ @\n" + // two errors on the same line
+ 		"//line File2:20\n" +
+diff --git a/src/os/str.go b/src/os/str.go
+index 35643e0d2f..242c945caf 100644
+--- a/src/os/str.go
++++ b/src/os/str.go
+@@ -6,7 +6,7 @@
+ 
+ package os
+ 
+-// itox converts val (an int) to a hexdecimal string.
++// itox converts val (an int) to a hexadecimal string.
+ func itox(val int) string {
+ 	if val < 0 {
+ 		return "-" + uitox(uint(-val))
+@@ -16,7 +16,7 @@ func itox(val int) string {
+ 
+ const hex = "0123456789abcdef"
+ 
+-// uitox converts val (a uint) to a hexdecimal string.
++// uitox converts val (a uint) to a hexadecimal string.
+ func uitox(val uint) string {
+ 	if val == 0 { // avoid string allocation
+ 		return "0x0"

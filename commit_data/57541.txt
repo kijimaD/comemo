@@ -14,7 +14,7 @@ Date:   Fri Aug 11 11:24:07 2023 -0400
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modconv/convert.go             |  105 --
  src/cmd/go/internal/modconv/dep.go                 |  132 --
  src/cmd/go/internal/modconv/glide.go               |   41 -
@@ -62,3 +62,4173 @@ Date:   Fri Aug 11 11:24:07 2023 -0400
  src/cmd/go/testdata/script/mod_init_dep.txt        |   40 -
  src/cmd/go/testdata/script/mod_init_glide.txt      |   35 -
  46 files changed, 1 insertion(+), 3864 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert.go b/src/cmd/go/internal/modconv/convert.go
+deleted file mode 100644
+index 9c861f8e99..0000000000
+--- a/src/cmd/go/internal/modconv/convert.go
++++ /dev/null
+@@ -1,105 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"fmt"
+-	"os"
+-	"runtime"
+-	"sort"
+-	"strings"
+-
+-	"cmd/go/internal/base"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+-)
+-
+-// ConvertLegacyConfig converts legacy config to modfile.
+-// The file argument is slash-delimited.
+-func ConvertLegacyConfig(f *modfile.File, file string, data []byte, queryPackage func(path, rev string) (module.Version, error)) error {
+-	i := strings.LastIndex(file, "/")
+-	j := -2
+-	if i >= 0 {
+-		j = strings.LastIndex(file[:i], "/")
+-	}
+-	convert := Converters[file[i+1:]]
+-	if convert == nil && j != -2 {
+-		convert = Converters[file[j+1:]]
+-	}
+-	if convert == nil {
+-		return fmt.Errorf("unknown legacy config file %s", file)
+-	}
+-	mf, err := convert(file, data)
+-	if err != nil {
+-		return fmt.Errorf("parsing %s: %v", file, err)
+-	}
+-
+-	// Convert requirements block, which may use raw SHA1 hashes as versions,
+-	// to valid semver requirement list, respecting major versions.
+-	versions := make([]module.Version, len(mf.Require))
+-	replace := make(map[string]*modfile.Replace)
+-
+-	for _, r := range mf.Replace {
+-		replace[r.New.Path] = r
+-		replace[r.Old.Path] = r
+-	}
+-
+-	type token struct{}
+-	sem := make(chan token, runtime.GOMAXPROCS(0))
+-	for i, r := range mf.Require {
+-		m := r.Mod
+-		if m.Path == "" {
+-			continue
+-		}
+-		if re, ok := replace[m.Path]; ok {
+-			m = re.New
+-		}
+-		sem <- token{}
+-		go func(i int, m module.Version) {
+-			defer func() { <-sem }()
+-			version, err := queryPackage(m.Path, m.Version)
+-			if err != nil {
+-				fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), m.Path, m.Version, err)
+-				return
+-			}
+-
+-			versions[i] = version
+-		}(i, m)
+-	}
+-	// Fill semaphore channel to wait for all tasks to finish.
+-	for n := cap(sem); n > 0; n-- {
+-		sem <- token{}
+-	}
+-
+-	need := map[string]string{}
+-	for _, v := range versions {
+-		if v.Path == "" {
+-			continue
+-		}
+-		// Don't use semver.Max here; need to preserve +incompatible suffix.
+-		if needv, ok := need[v.Path]; !ok || semver.Compare(needv, v.Version) < 0 {
+-			need[v.Path] = v.Version
+-		}
+-	}
+-	paths := make([]string, 0, len(need))
+-	for path := range need {
+-		paths = append(paths, path)
+-	}
+-	sort.Strings(paths)
+-	for _, path := range paths {
+-		if re, ok := replace[path]; ok {
+-			err := f.AddReplace(re.Old.Path, re.Old.Version, path, need[path])
+-			if err != nil {
+-				return fmt.Errorf("add replace: %v", err)
+-			}
+-		}
+-		f.AddNewRequire(path, need[path], false)
+-	}
+-
+-	f.Cleanup()
+-	return nil
+-}
+diff --git a/src/cmd/go/internal/modconv/dep.go b/src/cmd/go/internal/modconv/dep.go
+deleted file mode 100644
+index 9bea761b49..0000000000
+--- a/src/cmd/go/internal/modconv/dep.go
++++ /dev/null
+@@ -1,132 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"fmt"
+-	"internal/lazyregexp"
+-	"net/url"
+-	"path"
+-	"strconv"
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+-)
+-
+-func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+-	type pkg struct {
+-		Path    string
+-		Version string
+-		Source  string
+-	}
+-	mf := new(modfile.File)
+-	var list []pkg
+-	var r *pkg
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
+-		if i := strings.Index(line, "#"); i >= 0 {
+-			line = line[:i]
+-		}
+-		line = strings.TrimSpace(line)
+-		if line == "[[projects]]" {
+-			list = append(list, pkg{})
+-			r = &list[len(list)-1]
+-			continue
+-		}
+-		if strings.HasPrefix(line, "[") {
+-			r = nil
+-			continue
+-		}
+-		if r == nil {
+-			continue
+-		}
+-		before, after, found := strings.Cut(line, "=")
+-		if !found {
+-			continue
+-		}
+-		key := strings.TrimSpace(before)
+-		val := strings.TrimSpace(after)
+-		if len(val) >= 2 && val[0] == '"' && val[len(val)-1] == '"' {
+-			q, err := strconv.Unquote(val) // Go unquoting, but close enough for now
+-			if err != nil {
+-				return nil, fmt.Errorf("%s:%d: invalid quoted string: %v", file, lineno, err)
+-			}
+-			val = q
+-		}
+-		switch key {
+-		case "name":
+-			r.Path = val
+-		case "source":
+-			r.Source = val
+-		case "revision", "version":
+-			// Note: key "version" should take priority over "revision",
+-			// and it does, because dep writes toml keys in alphabetical order,
+-			// so we see version (if present) second.
+-			if key == "version" {
+-				if !semver.IsValid(val) || semver.Canonical(val) != val {
+-					break
+-				}
+-			}
+-			r.Version = val
+-		}
+-	}
+-	for _, r := range list {
+-		if r.Path == "" || r.Version == "" {
+-			return nil, fmt.Errorf("%s: empty [[projects]] stanza (%s)", file, r.Path)
+-		}
+-		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: r.Path, Version: r.Version}})
+-
+-		if r.Source != "" {
+-			// Convert "source" to import path, such as
+-			// git@test.com:x/y.git and https://test.com/x/y.git.
+-			// We get "test.com/x/y" at last.
+-			source, err := decodeSource(r.Source)
+-			if err != nil {
+-				return nil, err
+-			}
+-			old := module.Version{Path: r.Path, Version: r.Version}
+-			new := module.Version{Path: source, Version: r.Version}
+-			mf.Replace = append(mf.Replace, &modfile.Replace{Old: old, New: new})
+-		}
+-	}
+-	return mf, nil
+-}
+-
+-var scpSyntaxReg = lazyregexp.New(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+-
+-func decodeSource(source string) (string, error) {
+-	var u *url.URL
+-	var p string
+-	if m := scpSyntaxReg.FindStringSubmatch(source); m != nil {
+-		// Match SCP-like syntax and convert it to a URL.
+-		// Eg, "git@github.com:user/repo" becomes
+-		// "ssh://git@github.com/user/repo".
+-		u = &url.URL{
+-			Scheme: "ssh",
+-			User:   url.User(m[1]),
+-			Host:   m[2],
+-			Path:   "/" + m[3],
+-		}
+-	} else {
+-		var err error
+-		u, err = url.Parse(source)
+-		if err != nil {
+-			return "", fmt.Errorf("%q is not a valid URI", source)
+-		}
+-	}
+-
+-	// If no scheme was passed, then the entire path will have been put into
+-	// u.Path. Either way, construct the normalized path correctly.
+-	if u.Host == "" {
+-		p = source
+-	} else {
+-		p = path.Join(u.Host, u.Path)
+-	}
+-	p = strings.TrimSuffix(p, ".git")
+-	p = strings.TrimSuffix(p, ".hg")
+-	return p, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/glide.go b/src/cmd/go/internal/modconv/glide.go
+deleted file mode 100644
+index d1de3f7139..0000000000
+--- a/src/cmd/go/internal/modconv/glide.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseGlideLock(file string, data []byte) (*modfile.File, error) {
+-	mf := new(modfile.File)
+-	imports := false
+-	name := ""
+-	for _, line := range strings.Split(string(data), "\n") {
+-		if line == "" {
+-			continue
+-		}
+-		if strings.HasPrefix(line, "imports:") {
+-			imports = true
+-		} else if line[0] != '-' && line[0] != ' ' && line[0] != '\t' {
+-			imports = false
+-		}
+-		if !imports {
+-			continue
+-		}
+-		if strings.HasPrefix(line, "- name:") {
+-			name = strings.TrimSpace(line[len("- name:"):])
+-		}
+-		if strings.HasPrefix(line, "  version:") {
+-			version := strings.TrimSpace(line[len("  version:"):])
+-			if name != "" && version != "" {
+-				mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: name, Version: version}})
+-			}
+-		}
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/glock.go b/src/cmd/go/internal/modconv/glock.go
+deleted file mode 100644
+index b8dc204617..0000000000
+--- a/src/cmd/go/internal/modconv/glock.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseGLOCKFILE(file string, data []byte) (*modfile.File, error) {
+-	mf := new(modfile.File)
+-	for _, line := range strings.Split(string(data), "\n") {
+-		f := strings.Fields(line)
+-		if len(f) >= 2 && f[0] != "cmd" {
+-			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[1]}})
+-		}
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/godeps.go b/src/cmd/go/internal/modconv/godeps.go
+deleted file mode 100644
+index 09c0fa3dda..0000000000
+--- a/src/cmd/go/internal/modconv/godeps.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"encoding/json"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseGodepsJSON(file string, data []byte) (*modfile.File, error) {
+-	var cfg struct {
+-		ImportPath string
+-		Deps       []struct {
+-			ImportPath string
+-			Rev        string
+-		}
+-	}
+-	if err := json.Unmarshal(data, &cfg); err != nil {
+-		return nil, err
+-	}
+-	mf := new(modfile.File)
+-	for _, d := range cfg.Deps {
+-		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: d.ImportPath, Version: d.Rev}})
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/modconv.go b/src/cmd/go/internal/modconv/modconv.go
+deleted file mode 100644
+index dc0607235f..0000000000
+--- a/src/cmd/go/internal/modconv/modconv.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import "golang.org/x/mod/modfile"
+-
+-var Converters = map[string]func(string, []byte) (*modfile.File, error){
+-	"GLOCKFILE":          ParseGLOCKFILE,
+-	"Godeps/Godeps.json": ParseGodepsJSON,
+-	"Gopkg.lock":         ParseGopkgLock,
+-	"dependencies.tsv":   ParseDependenciesTSV,
+-	"glide.lock":         ParseGlideLock,
+-	"vendor.conf":        ParseVendorConf,
+-	"vendor.yml":         ParseVendorYML,
+-	"vendor/manifest":    ParseVendorManifest,
+-	"vendor/vendor.json": ParseVendorJSON,
+-}
+diff --git a/src/cmd/go/internal/modconv/modconv_test.go b/src/cmd/go/internal/modconv/modconv_test.go
+deleted file mode 100644
+index 750525d404..0000000000
+--- a/src/cmd/go/internal/modconv/modconv_test.go
++++ /dev/null
+@@ -1,69 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"os"
+-	"path/filepath"
+-	"testing"
+-)
+-
+-var extMap = map[string]string{
+-	".dep":       "Gopkg.lock",
+-	".glide":     "glide.lock",
+-	".glock":     "GLOCKFILE",
+-	".godeps":    "Godeps/Godeps.json",
+-	".tsv":       "dependencies.tsv",
+-	".vconf":     "vendor.conf",
+-	".vjson":     "vendor/vendor.json",
+-	".vyml":      "vendor.yml",
+-	".vmanifest": "vendor/manifest",
+-}
+-
+-func Test(t *testing.T) {
+-	tests, _ := filepath.Glob("testdata/*")
+-	if len(tests) == 0 {
+-		t.Fatalf("no tests found")
+-	}
+-	for _, test := range tests {
+-		file := filepath.Base(test)
+-		ext := filepath.Ext(file)
+-		if ext == ".out" {
+-			continue
+-		}
+-		t.Run(file, func(t *testing.T) {
+-			if extMap[ext] == "" {
+-				t.Fatal("unknown extension")
+-			}
+-			if Converters[extMap[ext]] == nil {
+-				t.Fatalf("Converters[%q] == nil", extMap[ext])
+-			}
+-			data, err := os.ReadFile(test)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			out, err := Converters[extMap[ext]](test, data)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			want, err := os.ReadFile(test[:len(test)-len(ext)] + ".out")
+-			if err != nil {
+-				t.Error(err)
+-			}
+-			var buf bytes.Buffer
+-			for _, r := range out.Require {
+-				fmt.Fprintf(&buf, "%s %s\n", r.Mod.Path, r.Mod.Version)
+-			}
+-			for _, r := range out.Replace {
+-				fmt.Fprintf(&buf, "replace: %s %s %s %s\n", r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
+-			}
+-			if !bytes.Equal(buf.Bytes(), want) {
+-				t.Errorf("have:\n%s\nwant:\n%s", buf.Bytes(), want)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/cmd/go/internal/modconv/testdata/cockroach.glock b/src/cmd/go/internal/modconv/testdata/cockroach.glock
+deleted file mode 100644
+index 221c8acdfd..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/cockroach.glock
++++ /dev/null
+@@ -1,41 +0,0 @@
+-cmd github.com/cockroachdb/c-protobuf/cmd/protoc
+-cmd github.com/cockroachdb/yacc
+-cmd github.com/gogo/protobuf/protoc-gen-gogo
+-cmd github.com/golang/lint/golint
+-cmd github.com/jteeuwen/go-bindata/go-bindata
+-cmd github.com/kisielk/errcheck
+-cmd github.com/robfig/glock
+-cmd github.com/tebeka/go2xunit
+-cmd golang.org/x/tools/cmd/goimports
+-cmd golang.org/x/tools/cmd/stringer
+-github.com/agtorre/gocolorize f42b554bf7f006936130c9bb4f971afd2d87f671
+-github.com/biogo/store e1f74b3c58befe661feed7fa4cf52436de753128
+-github.com/cockroachdb/c-lz4 6e71f140a365017bbe0904710007f8725fd3f809
+-github.com/cockroachdb/c-protobuf 0f9ab7b988ca7474cf76b9a961ab03c0552abcb3
+-github.com/cockroachdb/c-rocksdb 7fc876fe79b96de0e25069c9ae27e6444637bd54
+-github.com/cockroachdb/c-snappy 618733f9e5bab8463b9049117a335a7a1bfc9fd5
+-github.com/cockroachdb/yacc 572e006f8e6b0061ebda949d13744f5108389514
+-github.com/coreos/etcd 18ecc297bc913bed6fc093d66b1fa22020dba7dc
+-github.com/docker/docker 7374852be9def787921aea2ca831771982badecf
+-github.com/elazarl/go-bindata-assetfs 3dcc96556217539f50599357fb481ac0dc7439b9
+-github.com/gogo/protobuf 98e73e511a62a9c232152f94999112c80142a813
+-github.com/golang/lint 7b7f4364ff76043e6c3610281525fabc0d90f0e4
+-github.com/google/btree cc6329d4279e3f025a53a83c397d2339b5705c45
+-github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-github.com/jteeuwen/go-bindata dce55d09e24ac40a6e725c8420902b86554f8046
+-github.com/julienschmidt/httprouter 6aacfd5ab513e34f7e64ea9627ab9670371b34e7
+-github.com/kisielk/errcheck 50b84cf7fa18ee2985b8c63ba3de5edd604b9259
+-github.com/kisielk/gotool d678387370a2eb9b5b0a33218bc8c9d8de15b6be
+-github.com/lib/pq a8d8d01c4f91602f876bf5aa210274e8203a6b45
+-github.com/montanaflynn/stats 44fb56da2a2a67d394dec0e18a82dd316f192529
+-github.com/peterh/liner 1bb0d1c1a25ed393d8feb09bab039b2b1b1fbced
+-github.com/robfig/glock cb3c3ec56de988289cab7bbd284eddc04dfee6c9
+-github.com/samalba/dockerclient 12570e600d71374233e5056ba315f657ced496c7
+-github.com/spf13/cobra 66816bcd0378e248c613e3c443c020f544c28804
+-github.com/spf13/pflag 67cbc198fd11dab704b214c1e629a97af392c085
+-github.com/tebeka/go2xunit d45000af2242dd0e7b8c7b07d82a1068adc5fd40
+-golang.org/x/crypto cc04154d65fb9296747569b107cfd05380b1ea3e
+-golang.org/x/net 8bfde94a845cb31000de3266ac83edbda58dab09
+-golang.org/x/text d4cc1b1e16b49d6dafc4982403b40fe89c512cd5
+-golang.org/x/tools d02228d1857b9f49cd0252788516ff5584266eb6
+-gopkg.in/yaml.v1 9f9df34309c04878acc86042b16630b0f696e1de
+diff --git a/src/cmd/go/internal/modconv/testdata/cockroach.out b/src/cmd/go/internal/modconv/testdata/cockroach.out
+deleted file mode 100644
+index 30cdbb7bf2..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/cockroach.out
++++ /dev/null
+@@ -1,31 +0,0 @@
+-github.com/agtorre/gocolorize f42b554bf7f006936130c9bb4f971afd2d87f671
+-github.com/biogo/store e1f74b3c58befe661feed7fa4cf52436de753128
+-github.com/cockroachdb/c-lz4 6e71f140a365017bbe0904710007f8725fd3f809
+-github.com/cockroachdb/c-protobuf 0f9ab7b988ca7474cf76b9a961ab03c0552abcb3
+-github.com/cockroachdb/c-rocksdb 7fc876fe79b96de0e25069c9ae27e6444637bd54
+-github.com/cockroachdb/c-snappy 618733f9e5bab8463b9049117a335a7a1bfc9fd5
+-github.com/cockroachdb/yacc 572e006f8e6b0061ebda949d13744f5108389514
+-github.com/coreos/etcd 18ecc297bc913bed6fc093d66b1fa22020dba7dc
+-github.com/docker/docker 7374852be9def787921aea2ca831771982badecf
+-github.com/elazarl/go-bindata-assetfs 3dcc96556217539f50599357fb481ac0dc7439b9
+-github.com/gogo/protobuf 98e73e511a62a9c232152f94999112c80142a813
+-github.com/golang/lint 7b7f4364ff76043e6c3610281525fabc0d90f0e4
+-github.com/google/btree cc6329d4279e3f025a53a83c397d2339b5705c45
+-github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-github.com/jteeuwen/go-bindata dce55d09e24ac40a6e725c8420902b86554f8046
+-github.com/julienschmidt/httprouter 6aacfd5ab513e34f7e64ea9627ab9670371b34e7
+-github.com/kisielk/errcheck 50b84cf7fa18ee2985b8c63ba3de5edd604b9259
+-github.com/kisielk/gotool d678387370a2eb9b5b0a33218bc8c9d8de15b6be
+-github.com/lib/pq a8d8d01c4f91602f876bf5aa210274e8203a6b45
+-github.com/montanaflynn/stats 44fb56da2a2a67d394dec0e18a82dd316f192529
+-github.com/peterh/liner 1bb0d1c1a25ed393d8feb09bab039b2b1b1fbced
+-github.com/robfig/glock cb3c3ec56de988289cab7bbd284eddc04dfee6c9
+-github.com/samalba/dockerclient 12570e600d71374233e5056ba315f657ced496c7
+-github.com/spf13/cobra 66816bcd0378e248c613e3c443c020f544c28804
+-github.com/spf13/pflag 67cbc198fd11dab704b214c1e629a97af392c085
+-github.com/tebeka/go2xunit d45000af2242dd0e7b8c7b07d82a1068adc5fd40
+-golang.org/x/crypto cc04154d65fb9296747569b107cfd05380b1ea3e
+-golang.org/x/net 8bfde94a845cb31000de3266ac83edbda58dab09
+-golang.org/x/text d4cc1b1e16b49d6dafc4982403b40fe89c512cd5
+-golang.org/x/tools d02228d1857b9f49cd0252788516ff5584266eb6
+-gopkg.in/yaml.v1 9f9df34309c04878acc86042b16630b0f696e1de
+diff --git a/src/cmd/go/internal/modconv/testdata/dockermachine.godeps b/src/cmd/go/internal/modconv/testdata/dockermachine.godeps
+deleted file mode 100644
+index a551002a04..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/dockermachine.godeps
++++ /dev/null
+@@ -1,159 +0,0 @@
+-{
+-	"ImportPath": "github.com/docker/machine",
+-	"GoVersion": "go1.4.2",
+-	"Deps": [
+-		{
+-			"ImportPath": "code.google.com/p/goauth2/oauth",
+-			"Comment": "weekly-56",
+-			"Rev": "afe77d958c701557ec5dc56f6936fcc194d15520"
+-		},
+-		{
+-			"ImportPath": "github.com/MSOpenTech/azure-sdk-for-go",
+-			"Comment": "v1.1-17-g515f3ec",
+-			"Rev": "515f3ec74ce6a5b31e934cefae997c97bd0a1b1e"
+-		},
+-		{
+-			"ImportPath": "github.com/cenkalti/backoff",
+-			"Rev": "9831e1e25c874e0a0601b6dc43641071414eec7a"
+-		},
+-		{
+-			"ImportPath": "github.com/codegangsta/cli",
+-			"Comment": "1.2.0-64-ge1712f3",
+-			"Rev": "e1712f381785e32046927f64a7c86fe569203196"
+-		},
+-		{
+-			"ImportPath": "github.com/digitalocean/godo",
+-			"Comment": "v0.5.0",
+-			"Rev": "5478aae80694de1d2d0e02c386bbedd201266234"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/dockerversion",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/engine",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/archive",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/fileutils",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/ioutils",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/mflag",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/parsers",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/pools",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/promise",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/system",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/term",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/timeutils",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/units",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/pkg/version",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
+-			"Comment": "v1.5.0",
+-			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+-		},
+-		{
+-			"ImportPath": "github.com/docker/libtrust",
+-			"Rev": "c54fbb67c1f1e68d7d6f8d2ad7c9360404616a41"
+-		},
+-		{
+-			"ImportPath": "github.com/google/go-querystring/query",
+-			"Rev": "30f7a39f4a218feb5325f3aebc60c32a572a8274"
+-		},
+-		{
+-			"ImportPath": "github.com/mitchellh/mapstructure",
+-			"Rev": "740c764bc6149d3f1806231418adb9f52c11bcbf"
+-		},
+-		{
+-			"ImportPath": "github.com/rackspace/gophercloud",
+-			"Comment": "v1.0.0-558-ce0f487",
+-			"Rev": "ce0f487f6747ab43c4e4404722df25349385bebd"
+-		},
+-		{
+-			"ImportPath": "github.com/skarademir/naturalsort",
+-			"Rev": "983d4d86054d80f91fd04dd62ec52c1d078ce403"
+-		},
+-		{
+-			"ImportPath": "github.com/smartystreets/go-aws-auth",
+-			"Rev": "1f0db8c0ee6362470abe06a94e3385927ed72a4b"
+-		},
+-		{
+-			"ImportPath": "github.com/stretchr/testify/assert",
+-			"Rev": "e4ec8152c15fc46bd5056ce65997a07c7d415325"
+-		},
+-		{
+-			"ImportPath": "github.com/pyr/egoscale/src/egoscale",
+-			"Rev": "bbaa67324aeeacc90430c1fe0a9c620d3929512e"
+-		},
+-		{
+-			"ImportPath": "github.com/tent/http-link-go",
+-			"Rev": "ac974c61c2f990f4115b119354b5e0b47550e888"
+-		},
+-		{
+-			"ImportPath": "github.com/vmware/govcloudair",
+-			"Comment": "v0.0.2",
+-			"Rev": "66a23eaabc61518f91769939ff541886fe1dceef"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/crypto/ssh",
+-			"Rev": "1fbbd62cfec66bd39d91e97749579579d4d3037e"
+-		},
+-		{
+-			"ImportPath": "google.golang.org/api/compute/v1",
+-			"Rev": "aa91ac681e18e52b1a0dfe29b9d8354e88c0dcf5"
+-		},
+-		{
+-			"ImportPath": "google.golang.org/api/googleapi",
+-			"Rev": "aa91ac681e18e52b1a0dfe29b9d8354e88c0dcf5"
+-		}
+-	]
+-}
+diff --git a/src/cmd/go/internal/modconv/testdata/dockermachine.out b/src/cmd/go/internal/modconv/testdata/dockermachine.out
+deleted file mode 100644
+index 0b39ceaccb..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/dockermachine.out
++++ /dev/null
+@@ -1,33 +0,0 @@
+-code.google.com/p/goauth2/oauth afe77d958c701557ec5dc56f6936fcc194d15520
+-github.com/MSOpenTech/azure-sdk-for-go 515f3ec74ce6a5b31e934cefae997c97bd0a1b1e
+-github.com/cenkalti/backoff 9831e1e25c874e0a0601b6dc43641071414eec7a
+-github.com/codegangsta/cli e1712f381785e32046927f64a7c86fe569203196
+-github.com/digitalocean/godo 5478aae80694de1d2d0e02c386bbedd201266234
+-github.com/docker/docker/dockerversion a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/engine a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/archive a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/fileutils a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/ioutils a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/mflag a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/parsers a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/pools a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/promise a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/system a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/term a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/timeutils a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/units a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/pkg/version a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar a8a31eff10544860d2188dddabdee4d727545796
+-github.com/docker/libtrust c54fbb67c1f1e68d7d6f8d2ad7c9360404616a41
+-github.com/google/go-querystring/query 30f7a39f4a218feb5325f3aebc60c32a572a8274
+-github.com/mitchellh/mapstructure 740c764bc6149d3f1806231418adb9f52c11bcbf
+-github.com/rackspace/gophercloud ce0f487f6747ab43c4e4404722df25349385bebd
+-github.com/skarademir/naturalsort 983d4d86054d80f91fd04dd62ec52c1d078ce403
+-github.com/smartystreets/go-aws-auth 1f0db8c0ee6362470abe06a94e3385927ed72a4b
+-github.com/stretchr/testify/assert e4ec8152c15fc46bd5056ce65997a07c7d415325
+-github.com/pyr/egoscale/src/egoscale bbaa67324aeeacc90430c1fe0a9c620d3929512e
+-github.com/tent/http-link-go ac974c61c2f990f4115b119354b5e0b47550e888
+-github.com/vmware/govcloudair 66a23eaabc61518f91769939ff541886fe1dceef
+-golang.org/x/crypto/ssh 1fbbd62cfec66bd39d91e97749579579d4d3037e
+-google.golang.org/api/compute/v1 aa91ac681e18e52b1a0dfe29b9d8354e88c0dcf5
+-google.golang.org/api/googleapi aa91ac681e18e52b1a0dfe29b9d8354e88c0dcf5
+diff --git a/src/cmd/go/internal/modconv/testdata/dockerman.glide b/src/cmd/go/internal/modconv/testdata/dockerman.glide
+deleted file mode 100644
+index 5ec765a4c6..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/dockerman.glide
++++ /dev/null
+@@ -1,52 +0,0 @@
+-hash: ead3ea293a6143fe41069ebec814bf197d8c43a92cc7666b1f7e21a419b46feb
+-updated: 2016-06-20T21:53:35.420817456Z
+-imports:
+-- name: github.com/BurntSushi/toml
+-  version: f0aeabca5a127c4078abb8c8d64298b147264b55
+-- name: github.com/cpuguy83/go-md2man
+-  version: a65d4d2de4d5f7c74868dfa9b202a3c8be315aaa
+-  subpackages:
+-  - md2man
+-- name: github.com/fsnotify/fsnotify
+-  version: 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
+-- name: github.com/hashicorp/hcl
+-  version: da486364306ed66c218be9b7953e19173447c18b
+-  subpackages:
+-  - hcl/ast
+-  - hcl/parser
+-  - hcl/token
+-  - json/parser
+-  - hcl/scanner
+-  - hcl/strconv
+-  - json/scanner
+-  - json/token
+-- name: github.com/inconshreveable/mousetrap
+-  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-- name: github.com/magiconair/properties
+-  version: c265cfa48dda6474e208715ca93e987829f572f8
+-- name: github.com/mitchellh/mapstructure
+-  version: d2dd0262208475919e1a362f675cfc0e7c10e905
+-- name: github.com/russross/blackfriday
+-  version: 1d6b8e9301e720b08a8938b8c25c018285885438
+-- name: github.com/shurcooL/sanitized_anchor_name
+-  version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
+-- name: github.com/spf13/cast
+-  version: 27b586b42e29bec072fe7379259cc719e1289da6
+-- name: github.com/spf13/jwalterweatherman
+-  version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
+-- name: github.com/spf13/pflag
+-  version: dabebe21bf790f782ea4c7bbd2efc430de182afd
+-- name: github.com/spf13/viper
+-  version: c1ccc378a054ea8d4e38d8c67f6938d4760b53dd
+-- name: golang.org/x/sys
+-  version: 62bee037599929a6e9146f29d10dd5208c43507d
+-  subpackages:
+-  - unix
+-- name: gopkg.in/yaml.v2
+-  version: a83829b6f1293c91addabc89d0571c246397bbf4
+-- name: github.com/spf13/cobra
+-  repo: https://github.com/dnephin/cobra
+-  subpackages:
+-  - doc
+-  version: v1.3
+-devImports: []
+diff --git a/src/cmd/go/internal/modconv/testdata/dockerman.out b/src/cmd/go/internal/modconv/testdata/dockerman.out
+deleted file mode 100644
+index 5e6370b31c..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/dockerman.out
++++ /dev/null
+@@ -1,16 +0,0 @@
+-github.com/BurntSushi/toml f0aeabca5a127c4078abb8c8d64298b147264b55
+-github.com/cpuguy83/go-md2man a65d4d2de4d5f7c74868dfa9b202a3c8be315aaa
+-github.com/fsnotify/fsnotify 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
+-github.com/hashicorp/hcl da486364306ed66c218be9b7953e19173447c18b
+-github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-github.com/magiconair/properties c265cfa48dda6474e208715ca93e987829f572f8
+-github.com/mitchellh/mapstructure d2dd0262208475919e1a362f675cfc0e7c10e905
+-github.com/russross/blackfriday 1d6b8e9301e720b08a8938b8c25c018285885438
+-github.com/shurcooL/sanitized_anchor_name 10ef21a441db47d8b13ebcc5fd2310f636973c77
+-github.com/spf13/cast 27b586b42e29bec072fe7379259cc719e1289da6
+-github.com/spf13/jwalterweatherman 33c24e77fb80341fe7130ee7c594256ff08ccc46
+-github.com/spf13/pflag dabebe21bf790f782ea4c7bbd2efc430de182afd
+-github.com/spf13/viper c1ccc378a054ea8d4e38d8c67f6938d4760b53dd
+-golang.org/x/sys 62bee037599929a6e9146f29d10dd5208c43507d
+-gopkg.in/yaml.v2 a83829b6f1293c91addabc89d0571c246397bbf4
+-github.com/spf13/cobra v1.3
+diff --git a/src/cmd/go/internal/modconv/testdata/govmomi.out b/src/cmd/go/internal/modconv/testdata/govmomi.out
+deleted file mode 100644
+index 188c458b3d..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/govmomi.out
++++ /dev/null
+@@ -1,5 +0,0 @@
+-github.com/davecgh/go-xdr/xdr2 4930550ba2e22f87187498acfd78348b15f4e7a8
+-github.com/google/uuid 6a5e28554805e78ea6141142aba763936c4761c0
+-github.com/kr/pretty 2ee9d7453c02ef7fa518a83ae23644eb8872186a
+-github.com/kr/pty 95d05c1eef33a45bd58676b6ce28d105839b8d0b
+-github.com/vmware/vmw-guestinfo 25eff159a728be87e103a0b8045e08273f4dbec4
+diff --git a/src/cmd/go/internal/modconv/testdata/govmomi.vmanifest b/src/cmd/go/internal/modconv/testdata/govmomi.vmanifest
+deleted file mode 100644
+index b89e4ab5ee..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/govmomi.vmanifest
++++ /dev/null
+@@ -1,46 +0,0 @@
+-{
+-	"version": 0,
+-	"dependencies": [
+-		{
+-			"importpath": "github.com/davecgh/go-xdr/xdr2",
+-			"repository": "https://github.com/rasky/go-xdr",
+-			"vcs": "git",
+-			"revision": "4930550ba2e22f87187498acfd78348b15f4e7a8",
+-			"branch": "improvements",
+-			"path": "/xdr2",
+-			"notests": true
+-		},
+-		{
+-			"importpath": "github.com/google/uuid",
+-			"repository": "https://github.com/google/uuid",
+-			"vcs": "git",
+-			"revision": "6a5e28554805e78ea6141142aba763936c4761c0",
+-			"branch": "master",
+-			"notests": true
+-		},
+-		{
+-			"importpath": "github.com/kr/pretty",
+-			"repository": "https://github.com/dougm/pretty",
+-			"vcs": "git",
+-			"revision": "2ee9d7453c02ef7fa518a83ae23644eb8872186a",
+-			"branch": "govmomi",
+-			"notests": true
+-		},
+-		{
+-			"importpath": "github.com/kr/pty",
+-			"repository": "https://github.com/kr/pty",
+-			"vcs": "git",
+-			"revision": "95d05c1eef33a45bd58676b6ce28d105839b8d0b",
+-			"branch": "master",
+-			"notests": true
+-		},
+-		{
+-			"importpath": "github.com/vmware/vmw-guestinfo",
+-			"repository": "https://github.com/vmware/vmw-guestinfo",
+-			"vcs": "git",
+-			"revision": "25eff159a728be87e103a0b8045e08273f4dbec4",
+-			"branch": "master",
+-			"notests": true
+-		}
+-	]
+-}
+diff --git a/src/cmd/go/internal/modconv/testdata/juju.out b/src/cmd/go/internal/modconv/testdata/juju.out
+deleted file mode 100644
+index c2430b1e26..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/juju.out
++++ /dev/null
+@@ -1,106 +0,0 @@
+-github.com/Azure/azure-sdk-for-go 902d95d9f311ae585ee98cfd18f418b467d60d5a
+-github.com/Azure/go-autorest 6f40a8acfe03270d792cb8155e2942c09d7cff95
+-github.com/ajstarks/svgo 89e3ac64b5b3e403a5e7c35ea4f98d45db7b4518
+-github.com/altoros/gosigma 31228935eec685587914528585da4eb9b073c76d
+-github.com/beorn7/perks 3ac7bf7a47d159a033b107610db8a1b6575507a4
+-github.com/bmizerany/pat c068ca2f0aacee5ac3681d68e4d0a003b7d1fd2c
+-github.com/coreos/go-systemd 7b2428fec40033549c68f54e26e89e7ca9a9ce31
+-github.com/dgrijalva/jwt-go 01aeca54ebda6e0fbfafd0a524d234159c05ec20
+-github.com/dustin/go-humanize 145fabdb1ab757076a70a886d092a3af27f66f4c
+-github.com/godbus/dbus 32c6cc29c14570de4cf6d7e7737d68fb2d01ad15
+-github.com/golang/protobuf 4bd1920723d7b7c925de087aa32e2187708897f7
+-github.com/google/go-querystring 9235644dd9e52eeae6fa48efd539fdc351a0af53
+-github.com/gorilla/schema 08023a0215e7fc27a9aecd8b8c50913c40019478
+-github.com/gorilla/websocket 804cb600d06b10672f2fbc0a336a7bee507a428e
+-github.com/gosuri/uitable 36ee7e946282a3fb1cfecd476ddc9b35d8847e42
+-github.com/joyent/gocommon ade826b8b54e81a779ccb29d358a45ba24b7809c
+-github.com/joyent/gosdc 2f11feadd2d9891e92296a1077c3e2e56939547d
+-github.com/joyent/gosign 0da0d5f1342065321c97812b1f4ac0c2b0bab56c
+-github.com/juju/ansiterm b99631de12cf04a906c1d4e4ec54fb86eae5863d
+-github.com/juju/blobstore 06056004b3d7b54bbb7984d830c537bad00fec21
+-github.com/juju/bundlechanges 7725027b95e0d54635e0fb11efc2debdcdf19f75
+-github.com/juju/cmd 9425a576247f348b9b40afe3b60085de63470de5
+-github.com/juju/description d3742c23561884cd7d759ef7142340af1d22cab0
+-github.com/juju/errors 1b5e39b83d1835fa480e0c2ddefb040ee82d58b3
+-github.com/juju/gnuflag 4e76c56581859c14d9d87e1ddbe29e1c0f10195f
+-github.com/juju/go4 40d72ab9641a2a8c36a9c46a51e28367115c8e59
+-github.com/juju/gojsonpointer afe8b77aa08f272b49e01b82de78510c11f61500
+-github.com/juju/gojsonreference f0d24ac5ee330baa21721cdff56d45e4ee42628e
+-github.com/juju/gojsonschema e1ad140384f254c82f89450d9a7c8dd38a632838
+-github.com/juju/gomaasapi cfbc096bd45f276c17a391efc4db710b60ae3ad7
+-github.com/juju/httpprof 14bf14c307672fd2456bdbf35d19cf0ccd3cf565
+-github.com/juju/httprequest 266fd1e9debf09c037a63f074d099a2da4559ece
+-github.com/juju/idmclient 4dc25171f675da4206b71695d3fd80e519ad05c1
+-github.com/juju/jsonschema a0ef8b74ebcffeeff9fc374854deb4af388f037e
+-github.com/juju/loggo 21bc4c63e8b435779a080e39e592969b7b90b889
+-github.com/juju/mempool 24974d6c264fe5a29716e7d56ea24c4bd904b7cc
+-github.com/juju/mutex 59c26ee163447c5c57f63ff71610d433862013de
+-github.com/juju/persistent-cookiejar 5243747bf8f2d0897f6c7a52799327dc97d585e8
+-github.com/juju/pubsub 9dcaca7eb4340dbf685aa7b3ad4cc4f8691a33d4
+-github.com/juju/replicaset 6b5becf2232ce76656ea765d8d915d41755a1513
+-github.com/juju/retry 62c62032529169c7ec02fa48f93349604c345e1f
+-github.com/juju/rfc ebdbbdb950cd039a531d15cdc2ac2cbd94f068ee
+-github.com/juju/romulus 98d6700423d63971f10ca14afea9ecf2b9b99f0f
+-github.com/juju/schema 075de04f9b7d7580d60a1e12a0b3f50bb18e6998
+-github.com/juju/terms-client 9b925afd677234e4146dde3cb1a11e187cbed64e
+-github.com/juju/testing fce9bc4ebf7a77310c262ac4884e03b778eae06a
+-github.com/juju/txn 28898197906200d603394d8e4ce537436529f1c5
+-github.com/juju/usso 68a59c96c178fbbad65926e7f93db50a2cd14f33
+-github.com/juju/utils 9f8aeb9b09e2d8c769be8317ccfa23f7eec62c26
+-github.com/juju/version 1f41e27e54f21acccf9b2dddae063a782a8a7ceb
+-github.com/juju/webbrowser 54b8c57083b4afb7dc75da7f13e2967b2606a507
+-github.com/juju/xml eb759a627588d35166bc505fceb51b88500e291e
+-github.com/juju/zip f6b1e93fa2e29a1d7d49b566b2b51efb060c982a
+-github.com/julienschmidt/httprouter 77a895ad01ebc98a4dc95d8355bc825ce80a56f6
+-github.com/lestrrat/go-jspointer f4881e611bdbe9fb413a7780721ef8400a1f2341
+-github.com/lestrrat/go-jsref e452c7b5801d1c6494c9e7e0cbc7498c0f88dfd1
+-github.com/lestrrat/go-jsschema b09d7650b822d2ea3dc83d5091a5e2acd8330051
+-github.com/lestrrat/go-jsval b1258a10419fe0693f7b35ad65cd5074bc0ba1e5
+-github.com/lestrrat/go-pdebug 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
+-github.com/lestrrat/go-structinfo f74c056fe41f860aa6264478c664a6fff8a64298
+-github.com/lunixbochs/vtclean 4fbf7632a2c6d3fbdb9931439bdbbeded02cbe36
+-github.com/lxc/lxd 23da0234979fa6299565b91b529a6dbeb42ee36d
+-github.com/masterzen/azure-sdk-for-go ee4f0065d00cd12b542f18f5bc45799e88163b12
+-github.com/masterzen/simplexml 4572e39b1ab9fe03ee513ce6fc7e289e98482190
+-github.com/masterzen/winrm 7a535cd943fccaeed196718896beec3fb51aff41
+-github.com/masterzen/xmlpath 13f4951698adc0fa9c1dda3e275d489a24201161
+-github.com/mattn/go-colorable ed8eb9e318d7a84ce5915b495b7d35e0cfe7b5a8
+-github.com/mattn/go-isatty 66b8e73f3f5cda9f96b69efd03dd3d7fc4a5cdb8
+-github.com/mattn/go-runewidth d96d1bd051f2bd9e7e43d602782b37b93b1b5666
+-github.com/matttproud/golang_protobuf_extensions c12348ce28de40eed0136aa2b644d0ee0650e56c
+-github.com/nu7hatch/gouuid 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
+-github.com/pkg/errors 839d9e913e063e28dfd0e6c7b7512793e0a48be9
+-github.com/prometheus/client_golang 575f371f7862609249a1be4c9145f429fe065e32
+-github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+-github.com/prometheus/common dd586c1c5abb0be59e60f942c22af711a2008cb4
+-github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+-github.com/rogpeppe/fastuuid 6724a57986aff9bff1a1770e9347036def7c89f6
+-github.com/vmware/govmomi c0c7ce63df7edd78e713257b924c89d9a2dac119
+-golang.org/x/crypto 8e06e8ddd9629eb88639aba897641bff8031f1d3
+-golang.org/x/net ea47fc708ee3e20177f3ca3716217c4ab75942cb
+-golang.org/x/oauth2 11c60b6f71a6ad48ed6f93c65fa4c6f9b1b5b46a
+-golang.org/x/sys 7a6e5648d140666db5d920909e082ca00a87ba2c
+-golang.org/x/text 2910a502d2bf9e43193af9d68ca516529614eed3
+-google.golang.org/api 0d3983fb069cb6651353fc44c5cb604e263f2a93
+-google.golang.org/cloud f20d6dcccb44ed49de45ae3703312cb46e627db1
+-gopkg.in/amz.v3 8c3190dff075bf5442c9eedbf8f8ed6144a099e7
+-gopkg.in/check.v1 4f90aeace3a26ad7021961c297b22c42160c7b25
+-gopkg.in/errgo.v1 442357a80af5c6bf9b6d51ae791a39c3421004f3
+-gopkg.in/goose.v1 ac43167b647feacdd9a1e34ee81e574551bc748d
+-gopkg.in/ini.v1 776aa739ce9373377cd16f526cdf06cb4c89b40f
+-gopkg.in/juju/blobstore.v2 51fa6e26128d74e445c72d3a91af555151cc3654
+-gopkg.in/juju/charm.v6-unstable 83771c4919d6810bce5b7e63f46bea5fbfed0b93
+-gopkg.in/juju/charmrepo.v2-unstable e79aa298df89ea887c9bffec46063c24bfb730f7
+-gopkg.in/juju/charmstore.v5-unstable fd1eef3002fc6b6daff5e97efab6f5056d22dcc7
+-gopkg.in/juju/environschema.v1 7359fc7857abe2b11b5b3e23811a9c64cb6b01e0
+-gopkg.in/juju/jujusvg.v2 d82160011935ef79fc7aca84aba2c6f74700fe75
+-gopkg.in/juju/names.v2 0847c26d322a121e52614f969fb82eae2820c715
+-gopkg.in/juju/worker.v1 6965b9d826717287bb002e02d1fd4d079978083e
+-gopkg.in/macaroon-bakery.v1 469b44e6f1f9479e115c8ae879ef80695be624d5
+-gopkg.in/macaroon.v1 ab3940c6c16510a850e1c2dd628b919f0f3f1464
+-gopkg.in/mgo.v2 f2b6f6c918c452ad107eec89615f074e3bd80e33
+-gopkg.in/natefinch/lumberjack.v2 514cbda263a734ae8caac038dadf05f8f3f9f738
+-gopkg.in/natefinch/npipe.v2 c1b8fa8bdccecb0b8db834ee0b92fdbcfa606dd6
+-gopkg.in/retry.v1 c09f6b86ba4d5d2cf5bdf0665364aec9fd4815db
+-gopkg.in/tomb.v1 dd632973f1e7218eb1089048e0798ec9ae7dceb8
+-gopkg.in/yaml.v2 a3f3340b5840cee44f372bddb5880fcbc419b46a
+diff --git a/src/cmd/go/internal/modconv/testdata/juju.tsv b/src/cmd/go/internal/modconv/testdata/juju.tsv
+deleted file mode 100644
+index 0bddcef81c..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/juju.tsv
++++ /dev/null
+@@ -1,106 +0,0 @@
+-github.com/Azure/azure-sdk-for-go	git	902d95d9f311ae585ee98cfd18f418b467d60d5a	2016-07-20T05:16:58Z
+-github.com/Azure/go-autorest	git	6f40a8acfe03270d792cb8155e2942c09d7cff95	2016-07-19T23:14:56Z
+-github.com/ajstarks/svgo	git	89e3ac64b5b3e403a5e7c35ea4f98d45db7b4518	2014-10-04T21:11:59Z
+-github.com/altoros/gosigma	git	31228935eec685587914528585da4eb9b073c76d	2015-04-08T14:52:32Z
+-github.com/beorn7/perks	git	3ac7bf7a47d159a033b107610db8a1b6575507a4	2016-02-29T21:34:45Z
+-github.com/bmizerany/pat	git	c068ca2f0aacee5ac3681d68e4d0a003b7d1fd2c	2016-02-17T10:32:42Z
+-github.com/coreos/go-systemd	git	7b2428fec40033549c68f54e26e89e7ca9a9ce31	2016-02-02T21:14:25Z
+-github.com/dgrijalva/jwt-go	git	01aeca54ebda6e0fbfafd0a524d234159c05ec20	2016-07-05T20:30:06Z
+-github.com/dustin/go-humanize	git	145fabdb1ab757076a70a886d092a3af27f66f4c	2014-12-28T07:11:48Z
+-github.com/godbus/dbus	git	32c6cc29c14570de4cf6d7e7737d68fb2d01ad15	2016-05-06T22:25:50Z
+-github.com/golang/protobuf	git	4bd1920723d7b7c925de087aa32e2187708897f7	2016-11-09T07:27:36Z
+-github.com/google/go-querystring	git	9235644dd9e52eeae6fa48efd539fdc351a0af53	2016-04-01T23:30:42Z
+-github.com/gorilla/schema	git	08023a0215e7fc27a9aecd8b8c50913c40019478	2016-04-26T23:15:12Z
+-github.com/gorilla/websocket	git	804cb600d06b10672f2fbc0a336a7bee507a428e	2017-02-14T17:41:18Z
+-github.com/gosuri/uitable	git	36ee7e946282a3fb1cfecd476ddc9b35d8847e42	2016-04-04T20:39:58Z
+-github.com/joyent/gocommon	git	ade826b8b54e81a779ccb29d358a45ba24b7809c	2016-03-20T19:31:33Z
+-github.com/joyent/gosdc	git	2f11feadd2d9891e92296a1077c3e2e56939547d	2014-05-24T00:08:15Z
+-github.com/joyent/gosign	git	0da0d5f1342065321c97812b1f4ac0c2b0bab56c	2014-05-24T00:07:34Z
+-github.com/juju/ansiterm	git	b99631de12cf04a906c1d4e4ec54fb86eae5863d	2016-09-07T23:45:32Z
+-github.com/juju/blobstore	git	06056004b3d7b54bbb7984d830c537bad00fec21	2015-07-29T11:18:58Z
+-github.com/juju/bundlechanges	git	7725027b95e0d54635e0fb11efc2debdcdf19f75	2016-12-15T16:06:52Z
+-github.com/juju/cmd	git	9425a576247f348b9b40afe3b60085de63470de5	2017-03-20T01:37:09Z
+-github.com/juju/description	git	d3742c23561884cd7d759ef7142340af1d22cab0	2017-03-20T07:46:40Z
+-github.com/juju/errors	git	1b5e39b83d1835fa480e0c2ddefb040ee82d58b3	2015-09-16T12:56:42Z
+-github.com/juju/gnuflag	git	4e76c56581859c14d9d87e1ddbe29e1c0f10195f	2016-08-09T16:52:14Z
+-github.com/juju/go4	git	40d72ab9641a2a8c36a9c46a51e28367115c8e59	2016-02-22T16:32:58Z
+-github.com/juju/gojsonpointer	git	afe8b77aa08f272b49e01b82de78510c11f61500	2015-02-04T19:46:29Z
+-github.com/juju/gojsonreference	git	f0d24ac5ee330baa21721cdff56d45e4ee42628e	2015-02-04T19:46:33Z
+-github.com/juju/gojsonschema	git	e1ad140384f254c82f89450d9a7c8dd38a632838	2015-03-12T17:00:16Z
+-github.com/juju/gomaasapi	git	cfbc096bd45f276c17a391efc4db710b60ae3ad7	2017-02-27T07:51:07Z
+-github.com/juju/httpprof	git	14bf14c307672fd2456bdbf35d19cf0ccd3cf565	2014-12-17T16:00:36Z
+-github.com/juju/httprequest	git	266fd1e9debf09c037a63f074d099a2da4559ece	2016-10-06T15:09:09Z
+-github.com/juju/idmclient	git	4dc25171f675da4206b71695d3fd80e519ad05c1	2017-02-09T16:27:49Z
+-github.com/juju/jsonschema	git	a0ef8b74ebcffeeff9fc374854deb4af388f037e	2016-11-02T18:19:19Z
+-github.com/juju/loggo	git	21bc4c63e8b435779a080e39e592969b7b90b889	2017-02-22T12:20:47Z
+-github.com/juju/mempool	git	24974d6c264fe5a29716e7d56ea24c4bd904b7cc	2016-02-05T10:49:27Z
+-github.com/juju/mutex	git	59c26ee163447c5c57f63ff71610d433862013de	2016-06-17T01:09:07Z
+-github.com/juju/persistent-cookiejar	git	5243747bf8f2d0897f6c7a52799327dc97d585e8	2016-11-15T13:33:28Z
+-github.com/juju/pubsub	git	9dcaca7eb4340dbf685aa7b3ad4cc4f8691a33d4	2016-07-28T03:00:34Z
+-github.com/juju/replicaset	git	6b5becf2232ce76656ea765d8d915d41755a1513	2016-11-25T16:08:49Z
+-github.com/juju/retry	git	62c62032529169c7ec02fa48f93349604c345e1f	2015-10-29T02:48:21Z
+-github.com/juju/rfc	git	ebdbbdb950cd039a531d15cdc2ac2cbd94f068ee	2016-07-11T02:42:13Z
+-github.com/juju/romulus	git	98d6700423d63971f10ca14afea9ecf2b9b99f0f	2017-01-23T14:29:29Z
+-github.com/juju/schema	git	075de04f9b7d7580d60a1e12a0b3f50bb18e6998	2016-04-20T04:42:03Z
+-github.com/juju/terms-client	git	9b925afd677234e4146dde3cb1a11e187cbed64e	2016-08-09T13:19:00Z
+-github.com/juju/testing	git	fce9bc4ebf7a77310c262ac4884e03b778eae06a	2017-02-22T09:01:19Z
+-github.com/juju/txn	git	28898197906200d603394d8e4ce537436529f1c5	2016-11-16T04:07:55Z
+-github.com/juju/usso	git	68a59c96c178fbbad65926e7f93db50a2cd14f33	2016-04-01T10:44:24Z
+-github.com/juju/utils	git	9f8aeb9b09e2d8c769be8317ccfa23f7eec62c26	2017-02-15T08:19:00Z
+-github.com/juju/version	git	1f41e27e54f21acccf9b2dddae063a782a8a7ceb	2016-10-31T05:19:06Z
+-github.com/juju/webbrowser	git	54b8c57083b4afb7dc75da7f13e2967b2606a507	2016-03-09T14:36:29Z
+-github.com/juju/xml	git	eb759a627588d35166bc505fceb51b88500e291e	2015-04-13T13:11:21Z
+-github.com/juju/zip	git	f6b1e93fa2e29a1d7d49b566b2b51efb060c982a	2016-02-05T10:52:21Z
+-github.com/julienschmidt/httprouter	git	77a895ad01ebc98a4dc95d8355bc825ce80a56f6	2015-10-13T22:55:20Z
+-github.com/lestrrat/go-jspointer	git	f4881e611bdbe9fb413a7780721ef8400a1f2341	2016-02-29T02:13:54Z
+-github.com/lestrrat/go-jsref	git	e452c7b5801d1c6494c9e7e0cbc7498c0f88dfd1	2016-06-01T01:32:40Z
+-github.com/lestrrat/go-jsschema	git	b09d7650b822d2ea3dc83d5091a5e2acd8330051	2016-09-03T13:19:57Z
+-github.com/lestrrat/go-jsval	git	b1258a10419fe0693f7b35ad65cd5074bc0ba1e5	2016-10-12T04:57:17Z
+-github.com/lestrrat/go-pdebug	git	2e6eaaa5717f81bda41d27070d3c966f40a1e75f	2016-08-17T06:33:33Z
+-github.com/lestrrat/go-structinfo	git	f74c056fe41f860aa6264478c664a6fff8a64298	2016-03-08T13:11:05Z
+-github.com/lunixbochs/vtclean	git	4fbf7632a2c6d3fbdb9931439bdbbeded02cbe36	2016-01-25T03:51:06Z
+-github.com/lxc/lxd	git	23da0234979fa6299565b91b529a6dbeb42ee36d	2017-02-16T05:29:42Z
+-github.com/masterzen/azure-sdk-for-go	git	ee4f0065d00cd12b542f18f5bc45799e88163b12	2016-10-14T13:56:28Z
+-github.com/masterzen/simplexml	git	4572e39b1ab9fe03ee513ce6fc7e289e98482190	2016-06-08T18:30:07Z
+-github.com/masterzen/winrm	git	7a535cd943fccaeed196718896beec3fb51aff41	2016-10-14T15:10:40Z
+-github.com/masterzen/xmlpath	git	13f4951698adc0fa9c1dda3e275d489a24201161	2014-02-18T18:59:01Z
+-github.com/mattn/go-colorable	git	ed8eb9e318d7a84ce5915b495b7d35e0cfe7b5a8	2016-07-31T23:54:17Z
+-github.com/mattn/go-isatty	git	66b8e73f3f5cda9f96b69efd03dd3d7fc4a5cdb8	2016-08-06T12:27:52Z
+-github.com/mattn/go-runewidth	git	d96d1bd051f2bd9e7e43d602782b37b93b1b5666	2015-11-18T07:21:59Z
+-github.com/matttproud/golang_protobuf_extensions	git	c12348ce28de40eed0136aa2b644d0ee0650e56c	2016-04-24T11:30:07Z
+-github.com/nu7hatch/gouuid	git	179d4d0c4d8d407a32af483c2354df1d2c91e6c3	2013-12-21T20:05:32Z
+-github.com/pkg/errors	git	839d9e913e063e28dfd0e6c7b7512793e0a48be9	2016-10-02T05:25:12Z
+-github.com/prometheus/client_golang	git	575f371f7862609249a1be4c9145f429fe065e32	2016-11-24T15:57:32Z
+-github.com/prometheus/client_model	git	fa8ad6fec33561be4280a8f0514318c79d7f6cb6	2015-02-12T10:17:44Z
+-github.com/prometheus/common	git	dd586c1c5abb0be59e60f942c22af711a2008cb4	2016-05-03T22:05:32Z
+-github.com/prometheus/procfs	git	abf152e5f3e97f2fafac028d2cc06c1feb87ffa5	2016-04-11T19:08:41Z
+-github.com/rogpeppe/fastuuid	git	6724a57986aff9bff1a1770e9347036def7c89f6	2015-01-06T09:32:20Z
+-github.com/vmware/govmomi	git	c0c7ce63df7edd78e713257b924c89d9a2dac119	2016-06-30T15:37:42Z
+-golang.org/x/crypto	git	8e06e8ddd9629eb88639aba897641bff8031f1d3	2016-09-22T17:06:29Z
+-golang.org/x/net	git	ea47fc708ee3e20177f3ca3716217c4ab75942cb	2015-08-29T23:03:18Z
+-golang.org/x/oauth2	git	11c60b6f71a6ad48ed6f93c65fa4c6f9b1b5b46a	2015-03-25T02:00:22Z
+-golang.org/x/sys	git	7a6e5648d140666db5d920909e082ca00a87ba2c	2017-02-01T05:12:45Z
+-golang.org/x/text	git	2910a502d2bf9e43193af9d68ca516529614eed3	2016-07-26T16:48:57Z
+-google.golang.org/api	git	0d3983fb069cb6651353fc44c5cb604e263f2a93	2014-12-10T23:51:26Z
+-google.golang.org/cloud	git	f20d6dcccb44ed49de45ae3703312cb46e627db1	2015-03-19T22:36:35Z
+-gopkg.in/amz.v3	git	8c3190dff075bf5442c9eedbf8f8ed6144a099e7	2016-12-15T13:08:49Z
+-gopkg.in/check.v1	git	4f90aeace3a26ad7021961c297b22c42160c7b25	2016-01-05T16:49:36Z
+-gopkg.in/errgo.v1	git	442357a80af5c6bf9b6d51ae791a39c3421004f3	2016-12-22T12:58:16Z
+-gopkg.in/goose.v1	git	ac43167b647feacdd9a1e34ee81e574551bc748d	2017-02-15T01:56:23Z
+-gopkg.in/ini.v1	git	776aa739ce9373377cd16f526cdf06cb4c89b40f	2016-02-22T23:24:41Z
+-gopkg.in/juju/blobstore.v2	git	51fa6e26128d74e445c72d3a91af555151cc3654	2016-01-25T02:37:03Z
+-gopkg.in/juju/charm.v6-unstable	git	83771c4919d6810bce5b7e63f46bea5fbfed0b93	2016-10-03T20:31:18Z
+-gopkg.in/juju/charmrepo.v2-unstable	git	e79aa298df89ea887c9bffec46063c24bfb730f7	2016-11-17T15:25:28Z
+-gopkg.in/juju/charmstore.v5-unstable	git	fd1eef3002fc6b6daff5e97efab6f5056d22dcc7	2016-09-16T10:09:07Z
+-gopkg.in/juju/environschema.v1	git	7359fc7857abe2b11b5b3e23811a9c64cb6b01e0	2015-11-04T11:58:10Z
+-gopkg.in/juju/jujusvg.v2	git	d82160011935ef79fc7aca84aba2c6f74700fe75	2016-06-09T10:52:15Z
+-gopkg.in/juju/names.v2	git	0847c26d322a121e52614f969fb82eae2820c715	2016-11-02T13:43:03Z
+-gopkg.in/juju/worker.v1	git	6965b9d826717287bb002e02d1fd4d079978083e	2017-03-08T00:24:58Z
+-gopkg.in/macaroon-bakery.v1	git	469b44e6f1f9479e115c8ae879ef80695be624d5	2016-06-22T12:14:21Z
+-gopkg.in/macaroon.v1	git	ab3940c6c16510a850e1c2dd628b919f0f3f1464	2015-01-21T11:42:31Z
+-gopkg.in/mgo.v2	git	f2b6f6c918c452ad107eec89615f074e3bd80e33	2016-08-18T01:52:18Z
+-gopkg.in/natefinch/lumberjack.v2	git	514cbda263a734ae8caac038dadf05f8f3f9f738	2016-01-25T11:17:49Z
+-gopkg.in/natefinch/npipe.v2	git	c1b8fa8bdccecb0b8db834ee0b92fdbcfa606dd6	2016-06-21T03:49:01Z
+-gopkg.in/retry.v1	git	c09f6b86ba4d5d2cf5bdf0665364aec9fd4815db	2016-10-25T18:14:30Z
+-gopkg.in/tomb.v1	git	dd632973f1e7218eb1089048e0798ec9ae7dceb8	2014-10-24T13:56:13Z
+-gopkg.in/yaml.v2	git	a3f3340b5840cee44f372bddb5880fcbc419b46a	2017-02-08T14:18:51Z
+diff --git a/src/cmd/go/internal/modconv/testdata/moby.out b/src/cmd/go/internal/modconv/testdata/moby.out
+deleted file mode 100644
+index 2cb2e056a8..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/moby.out
++++ /dev/null
+@@ -1,105 +0,0 @@
+-github.com/Azure/go-ansiterm d6e3b3328b783f23731bc4d058875b0371ff8109
+-github.com/Microsoft/hcsshim v0.6.5
+-github.com/Microsoft/go-winio v0.4.5
+-github.com/davecgh/go-spew 346938d642f2ec3594ed81d874461961cd0faa76
+-github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
+-github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609
+-github.com/gorilla/context v1.1
+-github.com/gorilla/mux v1.1
+-github.com/Microsoft/opengcs v0.3.4
+-github.com/kr/pty 5cf931ef8f
+-github.com/mattn/go-shellwords v1.0.3
+-github.com/sirupsen/logrus v1.0.3
+-github.com/tchap/go-patricia v2.2.6
+-github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
+-golang.org/x/net 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+-golang.org/x/sys 07c182904dbd53199946ba614a412c61d3c548f5
+-github.com/docker/go-units 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
+-github.com/docker/go-connections 3ede32e2033de7505e6500d6c868c2b9ed9f169d
+-golang.org/x/text f72d8390a633d5dfb0cc84043294db9f6c935756
+-github.com/stretchr/testify 4d4bfba8f1d1027c4fdbe371823030df51419987
+-github.com/pmezard/go-difflib v1.0.0
+-github.com/gotestyourself/gotestyourself v1.1.0
+-github.com/RackSec/srslog 456df3a81436d29ba874f3590eeeee25d666f8a5
+-github.com/imdario/mergo 0.2.1
+-golang.org/x/sync de49d9dcd27d4f764488181bea099dfe6179bcf0
+-github.com/containerd/continuity 22694c680ee48fb8f50015b44618517e2bde77e8
+-github.com/moby/buildkit aaff9d591ef128560018433fe61beb802e149de8
+-github.com/tonistiigi/fsutil dea3a0da73aee887fc02142d995be764106ac5e2
+-github.com/docker/libnetwork 68f1039f172434709a4550fe92e3e058406c74ce
+-github.com/docker/go-events 9461782956ad83b30282bf90e31fa6a70c255ba9
+-github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
+-github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
+-github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
+-github.com/hashicorp/memberlist v0.1.0
+-github.com/sean-/seed e2103e2c35297fb7e17febb81e49b312087a2372
+-github.com/hashicorp/go-sockaddr acd314c5781ea706c710d9ea70069fd2e110d61d
+-github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
+-github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
+-github.com/docker/libkv 1d8431073ae03cdaedb198a89722f3aab6d418ef
+-github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
+-github.com/vishvananda/netlink bd6d5de5ccef2d66b0a26177928d0d8895d7f969
+-github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
+-github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
+-github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
+-github.com/coreos/etcd v3.2.1
+-github.com/coreos/go-semver v0.2.0
+-github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
+-github.com/hashicorp/consul v0.5.2
+-github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
+-github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
+-github.com/docker/distribution edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c
+-github.com/vbatts/tar-split v0.10.1
+-github.com/opencontainers/go-digest a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+-github.com/mistifyio/go-zfs 22c9b32c84eb0d0c6f4043b6e90fc94073de92fa
+-github.com/pborman/uuid v1.0
+-google.golang.org/grpc v1.3.0
+-github.com/opencontainers/runc 0351df1c5a66838d0c392b4ac4cf9450de844e2d
+-github.com/opencontainers/image-spec 372ad780f63454fbbbbcc7cf80e5b90245c13e13
+-github.com/opencontainers/runtime-spec v1.0.0
+-github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
+-github.com/coreos/go-systemd v4
+-github.com/godbus/dbus v4.0.0
+-github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
+-github.com/golang/protobuf 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+-github.com/Graylog2/go-gelf v2
+-github.com/fluent/fluent-logger-golang v1.2.1
+-github.com/philhofer/fwd 98c11a7a6ec829d672b03833c3d69a7fae1ca972
+-github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
+-github.com/fsnotify/fsnotify v1.4.2
+-github.com/aws/aws-sdk-go v1.4.22
+-github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
+-github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
+-github.com/bsphere/le_go 7a984a84b5492ae539b79b62fb4a10afc63c7bcf
+-golang.org/x/oauth2 96382aa079b72d8c014eb0c50f6c223d1e6a2de0
+-google.golang.org/api 3cc2e591b550923a2c5f0ab5a803feda924d5823
+-cloud.google.com/go 9d965e63e8cceb1b5d7977a202f0fcb8866d6525
+-github.com/googleapis/gax-go da06d194a00e19ce00d9011a13931c3f6f6887c7
+-google.golang.org/genproto d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+-github.com/containerd/containerd 06b9cb35161009dcb7123345749fef02f7cea8e0
+-github.com/tonistiigi/fifo 1405643975692217d6720f8b54aeee1bf2cd5cf4
+-github.com/docker/swarmkit 872861d2ae46958af7ead1d5fffb092c73afbaf0
+-github.com/gogo/protobuf v0.4
+-github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
+-github.com/google/certificate-transparency d90e65c3a07988180c5b1ece71791c0b6506826e
+-golang.org/x/crypto 558b6879de74bc843225cde5686419267ff707ca
+-golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb
+-github.com/hashicorp/go-memdb cb9a474f84cc5e41b273b20c6927680b2a8776ad
+-github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
+-github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
+-github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+-github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
+-github.com/prometheus/client_golang 52437c81da6b127a9925d17eb3a382a2e5fd395e
+-github.com/beorn7/perks 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+-github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+-github.com/prometheus/common ebdfc6da46522d58825777cf1f90490a5b1ef1d8
+-github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+-github.com/matttproud/golang_protobuf_extensions v1.0.0
+-github.com/pkg/errors 839d9e913e063e28dfd0e6c7b7512793e0a48be9
+-github.com/grpc-ecosystem/go-grpc-prometheus 6b7015e65d366bf3f19b2b2a000a831940f0f7e0
+-github.com/spf13/cobra v1.5.1
+-github.com/spf13/pflag 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+-github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+-github.com/docker/go-metrics d466d4f6fd960e01820085bd7e1a24426ee7ef18
+-github.com/opencontainers/selinux v1.0.0-rc1
+diff --git a/src/cmd/go/internal/modconv/testdata/moby.vconf b/src/cmd/go/internal/modconv/testdata/moby.vconf
+deleted file mode 100644
+index 53b90d1e37..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/moby.vconf
++++ /dev/null
+@@ -1,149 +0,0 @@
+-# the following lines are in sorted order, FYI
+-github.com/Azure/go-ansiterm d6e3b3328b783f23731bc4d058875b0371ff8109
+-github.com/Microsoft/hcsshim v0.6.5
+-github.com/Microsoft/go-winio v0.4.5
+-github.com/davecgh/go-spew 346938d642f2ec3594ed81d874461961cd0faa76
+-github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
+-github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609 https://github.com/cpuguy83/check.git
+-github.com/gorilla/context v1.1
+-github.com/gorilla/mux v1.1
+-github.com/Microsoft/opengcs v0.3.4
+-github.com/kr/pty 5cf931ef8f
+-github.com/mattn/go-shellwords v1.0.3
+-github.com/sirupsen/logrus v1.0.3
+-github.com/tchap/go-patricia v2.2.6
+-github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
+-golang.org/x/net 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+-golang.org/x/sys 07c182904dbd53199946ba614a412c61d3c548f5
+-github.com/docker/go-units 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
+-github.com/docker/go-connections 3ede32e2033de7505e6500d6c868c2b9ed9f169d
+-golang.org/x/text f72d8390a633d5dfb0cc84043294db9f6c935756
+-github.com/stretchr/testify 4d4bfba8f1d1027c4fdbe371823030df51419987
+-github.com/pmezard/go-difflib v1.0.0
+-github.com/gotestyourself/gotestyourself v1.1.0
+-
+-github.com/RackSec/srslog 456df3a81436d29ba874f3590eeeee25d666f8a5
+-github.com/imdario/mergo 0.2.1
+-golang.org/x/sync de49d9dcd27d4f764488181bea099dfe6179bcf0
+-
+-github.com/containerd/continuity 22694c680ee48fb8f50015b44618517e2bde77e8
+-github.com/moby/buildkit aaff9d591ef128560018433fe61beb802e149de8
+-github.com/tonistiigi/fsutil dea3a0da73aee887fc02142d995be764106ac5e2
+-
+-#get libnetwork packages
+-github.com/docker/libnetwork 68f1039f172434709a4550fe92e3e058406c74ce 
+-github.com/docker/go-events 9461782956ad83b30282bf90e31fa6a70c255ba9
+-github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
+-github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
+-github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
+-github.com/hashicorp/memberlist v0.1.0
+-github.com/sean-/seed e2103e2c35297fb7e17febb81e49b312087a2372
+-github.com/hashicorp/go-sockaddr acd314c5781ea706c710d9ea70069fd2e110d61d
+-github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
+-github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
+-github.com/docker/libkv 1d8431073ae03cdaedb198a89722f3aab6d418ef
+-github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
+-github.com/vishvananda/netlink bd6d5de5ccef2d66b0a26177928d0d8895d7f969
+-github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
+-github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
+-github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
+-github.com/coreos/etcd v3.2.1
+-github.com/coreos/go-semver v0.2.0
+-github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
+-github.com/hashicorp/consul v0.5.2
+-github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
+-github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
+-
+-# get graph and distribution packages
+-github.com/docker/distribution edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c
+-github.com/vbatts/tar-split v0.10.1
+-github.com/opencontainers/go-digest a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+-
+-# get go-zfs packages
+-github.com/mistifyio/go-zfs 22c9b32c84eb0d0c6f4043b6e90fc94073de92fa
+-github.com/pborman/uuid v1.0
+-
+-google.golang.org/grpc v1.3.0
+-
+-# When updating, also update RUNC_COMMIT in hack/dockerfile/binaries-commits accordingly
+-github.com/opencontainers/runc 0351df1c5a66838d0c392b4ac4cf9450de844e2d
+-github.com/opencontainers/image-spec 372ad780f63454fbbbbcc7cf80e5b90245c13e13
+-github.com/opencontainers/runtime-spec v1.0.0
+-
+-github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
+-
+-# libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
+-github.com/coreos/go-systemd v4
+-github.com/godbus/dbus v4.0.0
+-github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
+-github.com/golang/protobuf 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+-
+-# gelf logging driver deps
+-github.com/Graylog2/go-gelf v2
+-
+-github.com/fluent/fluent-logger-golang v1.2.1
+-# fluent-logger-golang deps
+-github.com/philhofer/fwd 98c11a7a6ec829d672b03833c3d69a7fae1ca972
+-github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
+-
+-# fsnotify
+-github.com/fsnotify/fsnotify v1.4.2
+-
+-# awslogs deps
+-github.com/aws/aws-sdk-go v1.4.22
+-github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
+-github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
+-
+-# logentries
+-github.com/bsphere/le_go 7a984a84b5492ae539b79b62fb4a10afc63c7bcf
+-
+-# gcplogs deps
+-golang.org/x/oauth2 96382aa079b72d8c014eb0c50f6c223d1e6a2de0
+-google.golang.org/api 3cc2e591b550923a2c5f0ab5a803feda924d5823
+-cloud.google.com/go 9d965e63e8cceb1b5d7977a202f0fcb8866d6525
+-github.com/googleapis/gax-go da06d194a00e19ce00d9011a13931c3f6f6887c7
+-google.golang.org/genproto d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+-
+-# containerd
+-github.com/containerd/containerd 06b9cb35161009dcb7123345749fef02f7cea8e0
+-github.com/tonistiigi/fifo 1405643975692217d6720f8b54aeee1bf2cd5cf4
+-
+-# cluster
+-github.com/docker/swarmkit 872861d2ae46958af7ead1d5fffb092c73afbaf0
+-github.com/gogo/protobuf v0.4
+-github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
+-github.com/google/certificate-transparency d90e65c3a07988180c5b1ece71791c0b6506826e
+-golang.org/x/crypto 558b6879de74bc843225cde5686419267ff707ca
+-golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb
+-github.com/hashicorp/go-memdb cb9a474f84cc5e41b273b20c6927680b2a8776ad
+-github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
+-github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
+-github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+-github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
+-github.com/prometheus/client_golang 52437c81da6b127a9925d17eb3a382a2e5fd395e
+-github.com/beorn7/perks 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+-github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+-github.com/prometheus/common ebdfc6da46522d58825777cf1f90490a5b1ef1d8
+-github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+-github.com/matttproud/golang_protobuf_extensions v1.0.0
+-github.com/pkg/errors 839d9e913e063e28dfd0e6c7b7512793e0a48be9
+-github.com/grpc-ecosystem/go-grpc-prometheus 6b7015e65d366bf3f19b2b2a000a831940f0f7e0
+-
+-# cli
+-github.com/spf13/cobra v1.5.1 https://github.com/dnephin/cobra.git
+-github.com/spf13/pflag 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+-github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+-github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c https://github.com/ijc25/Gotty
+-
+-# metrics
+-github.com/docker/go-metrics d466d4f6fd960e01820085bd7e1a24426ee7ef18
+-
+-github.com/opencontainers/selinux v1.0.0-rc1
+-
+-# archive/tar
+-# mkdir -p ./vendor/archive
+-# git clone git://github.com/tonistiigi/go-1.git ./go
+-# git --git-dir ./go/.git --work-tree ./go checkout revert-prefix-ignore
+-# cp -a go/src/archive/tar ./vendor/archive/tar
+-# rm -rf ./go
+-# vndr
+diff --git a/src/cmd/go/internal/modconv/testdata/panicparse.out b/src/cmd/go/internal/modconv/testdata/panicparse.out
+deleted file mode 100644
+index 8830033c6b..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/panicparse.out
++++ /dev/null
+@@ -1,8 +0,0 @@
+-github.com/kr/pretty 737b74a46c4bf788349f72cb256fed10aea4d0ac
+-github.com/kr/text 7cafcd837844e784b526369c9bce262804aebc60
+-github.com/maruel/ut a9c9f15ccfa6f8b90182a53df32f4745586fbae3
+-github.com/mattn/go-colorable 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
+-github.com/mattn/go-isatty 56b76bdf51f7708750eac80fa38b952bb9f32639
+-github.com/mgutz/ansi c286dcecd19ff979eeb73ea444e479b903f2cfcb
+-github.com/pmezard/go-difflib 792786c7400a136282c1664665ae0a8db921c6c2
+-golang.org/x/sys a646d33e2ee3172a661fc09bca23bb4889a41bc8
+diff --git a/src/cmd/go/internal/modconv/testdata/panicparse.vyml b/src/cmd/go/internal/modconv/testdata/panicparse.vyml
+deleted file mode 100644
+index ff3d43f5f2..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/panicparse.vyml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-vendors:
+-- path: github.com/kr/pretty
+-  rev: 737b74a46c4bf788349f72cb256fed10aea4d0ac
+-- path: github.com/kr/text
+-  rev: 7cafcd837844e784b526369c9bce262804aebc60
+-- path: github.com/maruel/ut
+-  rev: a9c9f15ccfa6f8b90182a53df32f4745586fbae3
+-- path: github.com/mattn/go-colorable
+-  rev: 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
+-- path: github.com/mattn/go-isatty
+-  rev: 56b76bdf51f7708750eac80fa38b952bb9f32639
+-- path: github.com/mgutz/ansi
+-  rev: c286dcecd19ff979eeb73ea444e479b903f2cfcb
+-- path: github.com/pmezard/go-difflib
+-  rev: 792786c7400a136282c1664665ae0a8db921c6c2
+-- path: golang.org/x/sys
+-  rev: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+diff --git a/src/cmd/go/internal/modconv/testdata/prometheus.out b/src/cmd/go/internal/modconv/testdata/prometheus.out
+deleted file mode 100644
+index d11b8ecc72..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/prometheus.out
++++ /dev/null
+@@ -1,258 +0,0 @@
+-cloud.google.com/go/compute/metadata c589d0c9f0d81640c518354c7bcae77d99820aa3
+-cloud.google.com/go/internal c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/Azure/azure-sdk-for-go/arm/compute bd73d950fa4440dae889bd9917bff7cef539f86e
+-github.com/Azure/azure-sdk-for-go/arm/network bd73d950fa4440dae889bd9917bff7cef539f86e
+-github.com/Azure/go-autorest/autorest 8a25372bbfec739b8719a9e3987400d15ef9e179
+-github.com/Azure/go-autorest/autorest/azure 8a25372bbfec739b8719a9e3987400d15ef9e179
+-github.com/Azure/go-autorest/autorest/date 8a25372bbfec739b8719a9e3987400d15ef9e179
+-github.com/Azure/go-autorest/autorest/to 8a25372bbfec739b8719a9e3987400d15ef9e179
+-github.com/Azure/go-autorest/autorest/validation 8a25372bbfec739b8719a9e3987400d15ef9e179
+-github.com/PuerkitoBio/purell c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/PuerkitoBio/urlesc c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/asaskevich/govalidator 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
+-github.com/aws/aws-sdk-go/aws 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/awserr 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/awsutil 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/client 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/client/metadata 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/corehandlers 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/credentials 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/credentials/endpointcreds 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/credentials/stscreds 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/defaults 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/ec2metadata 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/request 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/session 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/aws/signer/v4 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/endpoints 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol/ec2query 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol/query 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol/query/queryutil 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol/rest 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/private/waiter 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/service/ec2 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/aws/aws-sdk-go/service/sts 707203bc55114ed114446bf57949c5c211d8b7c0
+-github.com/beorn7/perks/quantile 3ac7bf7a47d159a033b107610db8a1b6575507a4
+-github.com/blang/semver c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/go-oidc/http c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/go-oidc/jose c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/go-oidc/key c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/go-oidc/oauth2 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/go-oidc/oidc c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/pkg/health c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/pkg/httputil c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/coreos/pkg/timeutil c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/davecgh/go-spew/spew c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/dgrijalva/jwt-go 9ed569b5d1ac936e6494082958d63a6aa4fff99a
+-github.com/docker/distribution/digest c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/docker/distribution/reference c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/emicklei/go-restful c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/emicklei/go-restful/log c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/emicklei/go-restful/swagger c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/ghodss/yaml c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/go-ini/ini 6e4869b434bd001f6983749881c7ead3545887d8
+-github.com/go-openapi/jsonpointer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/go-openapi/jsonreference c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/go-openapi/spec c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/go-openapi/swag c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/gogo/protobuf/proto c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/gogo/protobuf/sortkeys c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/golang/glog c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/golang/protobuf/proto 98fa357170587e470c5f27d3c3ea0947b71eb455
+-github.com/golang/snappy d9eb7a3d35ec988b8585d4a0068e462c27d28380
+-github.com/google/gofuzz c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/hashicorp/consul/api daacc4be8bee214e3fc4b32a6dd385f5ef1b4c36
+-github.com/hashicorp/go-cleanhttp ad28ea4487f05916463e2423a55166280e8254b5
+-github.com/hashicorp/serf/coordinate 1d4fa605f6ff3ed628d7ae5eda7c0e56803e72a5
+-github.com/influxdb/influxdb/client 291aaeb9485b43b16875c238482b2f7d0a22a13b
+-github.com/influxdb/influxdb/tsdb 291aaeb9485b43b16875c238482b2f7d0a22a13b
+-github.com/jmespath/go-jmespath bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
+-github.com/jonboulle/clockwork c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/juju/ratelimit c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/julienschmidt/httprouter 109e267447e95ad1bb48b758e40dd7453eb7b039
+-github.com/mailru/easyjson/buffer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/mailru/easyjson/jlexer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/mailru/easyjson/jwriter c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/matttproud/golang_protobuf_extensions/pbutil fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
+-github.com/miekg/dns 58f52c57ce9df13460ac68200cef30a008b9c468
+-github.com/pborman/uuid c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/pmezard/go-difflib/difflib d77da356e56a7428ad25149ca77381849a6a5232
+-github.com/prometheus/client_golang/prometheus c5b7fccd204277076155f10851dad72b76a49317
+-github.com/prometheus/client_model/go fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+-github.com/prometheus/common/expfmt 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/common/log 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/common/model 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/common/route 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/common/version 85637ea67b04b5c3bb25e671dacded2977f8f9f6
+-github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+-github.com/samuel/go-zookeeper/zk 177002e16a0061912f02377e2dd8951a8b3551bc
+-github.com/spf13/pflag c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/stretchr/testify/assert d77da356e56a7428ad25149ca77381849a6a5232
+-github.com/stretchr/testify/require d77da356e56a7428ad25149ca77381849a6a5232
+-github.com/syndtr/goleveldb/leveldb 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/cache 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/comparer 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/errors 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/filter 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/iterator 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/journal 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/memdb 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/opt 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/storage 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/table 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/syndtr/goleveldb/leveldb/util 6b4daa5362b502898ddf367c5c11deb9e7a5c727
+-github.com/ugorji/go/codec c589d0c9f0d81640c518354c7bcae77d99820aa3
+-github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
+-golang.org/x/net/context b336a971b799939dd16ae9b1df8334cb8b977c4d
+-golang.org/x/net/context/ctxhttp b336a971b799939dd16ae9b1df8334cb8b977c4d
+-golang.org/x/net/http2 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/net/http2/hpack c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/net/idna c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/net/internal/timeseries 6250b412798208e6c90b03b7c4f226de5aa299e2
+-golang.org/x/net/lex/httplex c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/net/netutil bc3663df0ac92f928d419e31e0d2af22e683a5a2
+-golang.org/x/oauth2 65a8d08c6292395d47053be10b3c5e91960def76
+-golang.org/x/oauth2/google 65a8d08c6292395d47053be10b3c5e91960def76
+-golang.org/x/oauth2/internal 65a8d08c6292395d47053be10b3c5e91960def76
+-golang.org/x/oauth2/jws 65a8d08c6292395d47053be10b3c5e91960def76
+-golang.org/x/oauth2/jwt 65a8d08c6292395d47053be10b3c5e91960def76
+-golang.org/x/sys/unix c200b10b5d5e122be351b67af224adc6128af5bf
+-golang.org/x/sys/windows c200b10b5d5e122be351b67af224adc6128af5bf
+-golang.org/x/sys/windows/registry c200b10b5d5e122be351b67af224adc6128af5bf
+-golang.org/x/sys/windows/svc/eventlog c200b10b5d5e122be351b67af224adc6128af5bf
+-golang.org/x/text/cases c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/internal/tag c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/language c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/runes c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/secure/bidirule c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/secure/precis c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/transform c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/unicode/bidi c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/unicode/norm c589d0c9f0d81640c518354c7bcae77d99820aa3
+-golang.org/x/text/width c589d0c9f0d81640c518354c7bcae77d99820aa3
+-google.golang.org/api/compute/v1 63ade871fd3aec1225809d496e81ec91ab76ea29
+-google.golang.org/api/gensupport 63ade871fd3aec1225809d496e81ec91ab76ea29
+-google.golang.org/api/googleapi 63ade871fd3aec1225809d496e81ec91ab76ea29
+-google.golang.org/api/googleapi/internal/uritemplates 63ade871fd3aec1225809d496e81ec91ab76ea29
+-google.golang.org/appengine 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/app_identity 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/base 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/datastore 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/log 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/modules 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/internal/remote_api 4f7eeb5305a4ba1966344836ba4af9996b7b4e05
+-google.golang.org/appengine/internal/urlfetch 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/appengine/urlfetch 267c27e7492265b84fc6719503b14a1e17975d79
+-google.golang.org/cloud/compute/metadata 0a83eba2cadb60eb22123673c8fb6fca02b03c94
+-google.golang.org/cloud/internal 0a83eba2cadb60eb22123673c8fb6fca02b03c94
+-gopkg.in/fsnotify.v1 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
+-gopkg.in/inf.v0 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-gopkg.in/yaml.v2 7ad95dd0798a40da1ccdff6dff35fd177b5edf40
+-k8s.io/client-go/1.5/discovery c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/apps/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/authentication/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/authorization/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/autoscaling/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/batch/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/certificates/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/core/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/policy/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/rbac/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/kubernetes/typed/storage/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/errors c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/meta c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/meta/metatypes c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/resource c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/unversioned c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/api/validation/path c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apimachinery c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apimachinery/announced c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apimachinery/registered c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/apps c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/apps/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/apps/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authentication c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authentication/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authentication/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authorization c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authorization/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/authorization/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/autoscaling c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/autoscaling/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/autoscaling/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/batch c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/batch/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/batch/v1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/batch/v2alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/certificates c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/certificates/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/certificates/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/extensions c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/extensions/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/policy c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/policy/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/policy/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/rbac c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/rbac/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/rbac/v1alpha1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/storage c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/storage/install c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/apis/storage/v1beta1 c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/auth/user c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/conversion c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/conversion/queryparams c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/fields c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/genericapiserver/openapi/common c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/labels c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer/json c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer/protobuf c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer/recognizer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer/streaming c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/runtime/serializer/versioning c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/selection c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/third_party/forked/golang/reflect c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/types c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/cert c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/clock c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/errors c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/flowcontrol c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/framer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/integer c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/intstr c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/json c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/labels c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/net c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/parsers c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/rand c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/runtime c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/sets c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/uuid c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/validation c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/validation/field c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/wait c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/util/yaml c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/version c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/watch c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/pkg/watch/versioned c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/plugin/pkg/client/auth c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/plugin/pkg/client/auth/gcp c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/plugin/pkg/client/auth/oidc c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/rest c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/tools/cache c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/tools/clientcmd/api c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/tools/metrics c589d0c9f0d81640c518354c7bcae77d99820aa3
+-k8s.io/client-go/1.5/transport c589d0c9f0d81640c518354c7bcae77d99820aa3
+diff --git a/src/cmd/go/internal/modconv/testdata/prometheus.vjson b/src/cmd/go/internal/modconv/testdata/prometheus.vjson
+deleted file mode 100644
+index 648bec4260..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/prometheus.vjson
++++ /dev/null
+@@ -1,1605 +0,0 @@
+-{
+-	"comment": "",
+-	"ignore": "test appengine",
+-	"package": [
+-		{
+-			"checksumSHA1": "Cslv4/ITyQmgjSUhNXFu8q5bqOU=",
+-			"origin": "k8s.io/client-go/1.5/vendor/cloud.google.com/go/compute/metadata",
+-			"path": "cloud.google.com/go/compute/metadata",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "hiJXjkFEGy+sDFf6O58Ocdy9Rnk=",
+-			"origin": "k8s.io/client-go/1.5/vendor/cloud.google.com/go/internal",
+-			"path": "cloud.google.com/go/internal",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "oIt4tXgFYnZJBsCac1BQLnTWALM=",
+-			"path": "github.com/Azure/azure-sdk-for-go/arm/compute",
+-			"revision": "bd73d950fa4440dae889bd9917bff7cef539f86e",
+-			"revisionTime": "2016-10-28T18:31:11Z"
+-		},
+-		{
+-			"checksumSHA1": "QKi6LiSyD5GnRK8ExpMgZl4XiMI=",
+-			"path": "github.com/Azure/azure-sdk-for-go/arm/network",
+-			"revision": "bd73d950fa4440dae889bd9917bff7cef539f86e",
+-			"revisionTime": "2016-10-28T18:31:11Z"
+-		},
+-		{
+-			"checksumSHA1": "eVSHe6GIHj9/ziFrQLZ1SC7Nn6k=",
+-			"path": "github.com/Azure/go-autorest/autorest",
+-			"revision": "8a25372bbfec739b8719a9e3987400d15ef9e179",
+-			"revisionTime": "2016-10-25T18:07:34Z"
+-		},
+-		{
+-			"checksumSHA1": "0sYi0JprevG/PZjtMbOh8h0pt0g=",
+-			"path": "github.com/Azure/go-autorest/autorest/azure",
+-			"revision": "8a25372bbfec739b8719a9e3987400d15ef9e179",
+-			"revisionTime": "2016-10-25T18:07:34Z"
+-		},
+-		{
+-			"checksumSHA1": "q9Qz8PAxK5FTOZwgYKe5Lj38u4c=",
+-			"path": "github.com/Azure/go-autorest/autorest/date",
+-			"revision": "8a25372bbfec739b8719a9e3987400d15ef9e179",
+-			"revisionTime": "2016-10-25T18:07:34Z"
+-		},
+-		{
+-			"checksumSHA1": "Ev8qCsbFjDlMlX0N2tYAhYQFpUc=",
+-			"path": "github.com/Azure/go-autorest/autorest/to",
+-			"revision": "8a25372bbfec739b8719a9e3987400d15ef9e179",
+-			"revisionTime": "2016-10-25T18:07:34Z"
+-		},
+-		{
+-			"checksumSHA1": "oBixceM+55gdk47iff8DSEIh3po=",
+-			"path": "github.com/Azure/go-autorest/autorest/validation",
+-			"revision": "8a25372bbfec739b8719a9e3987400d15ef9e179",
+-			"revisionTime": "2016-10-25T18:07:34Z"
+-		},
+-		{
+-			"checksumSHA1": "IatnluZB5jTVUncMN134e4VOV34=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/PuerkitoBio/purell",
+-			"path": "github.com/PuerkitoBio/purell",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "E/Tz8z0B/gaR551g+XqPKAhcteM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/PuerkitoBio/urlesc",
+-			"path": "github.com/PuerkitoBio/urlesc",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "BdLdZP/C2uOO3lqk9X3NCKFpXa4=",
+-			"path": "github.com/asaskevich/govalidator",
+-			"revision": "7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877",
+-			"revisionTime": "2016-10-01T16:31:30Z"
+-		},
+-		{
+-			"checksumSHA1": "WNfR3yhLjRC5/uccgju/bwrdsxQ=",
+-			"path": "github.com/aws/aws-sdk-go/aws",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "Y9W+4GimK4Fuxq+vyIskVYFRnX4=",
+-			"path": "github.com/aws/aws-sdk-go/aws/awserr",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "+q4vdl3l1Wom8K1wfIpJ4jlFsbY=",
+-			"path": "github.com/aws/aws-sdk-go/aws/awsutil",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "/232RBWA3KnT7U+wciPS2+wmvR0=",
+-			"path": "github.com/aws/aws-sdk-go/aws/client",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "ieAJ+Cvp/PKv1LpUEnUXpc3OI6E=",
+-			"path": "github.com/aws/aws-sdk-go/aws/client/metadata",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "c1N3Loy3AS9zD+m5CzpPNAED39U=",
+-			"path": "github.com/aws/aws-sdk-go/aws/corehandlers",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "zu5C95rmCZff6NYZb62lEaT5ibE=",
+-			"path": "github.com/aws/aws-sdk-go/aws/credentials",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "KQiUK/zr3mqnAXD7x/X55/iNme0=",
+-			"path": "github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "NUJUTWlc1sV8b7WjfiYc4JZbXl0=",
+-			"path": "github.com/aws/aws-sdk-go/aws/credentials/endpointcreds",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "4Ipx+5xN0gso+cENC2MHMWmQlR4=",
+-			"path": "github.com/aws/aws-sdk-go/aws/credentials/stscreds",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "DwhFsNluCFEwqzyp3hbJR3q2Wqs=",
+-			"path": "github.com/aws/aws-sdk-go/aws/defaults",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "8E0fEBUJY/1lJOyVxzTxMGQGInk=",
+-			"path": "github.com/aws/aws-sdk-go/aws/ec2metadata",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "5Ac22YMTBmrX/CXaEIXzWljr8UY=",
+-			"path": "github.com/aws/aws-sdk-go/aws/request",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "eOo6evLMAxQfo7Qkc5/h5euN1Sw=",
+-			"path": "github.com/aws/aws-sdk-go/aws/session",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "diXvBs1LRC0RJ9WK6sllWKdzC04=",
+-			"path": "github.com/aws/aws-sdk-go/aws/signer/v4",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "Esab5F8KswqkTdB4TtjSvZgs56k=",
+-			"path": "github.com/aws/aws-sdk-go/private/endpoints",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "wk7EyvDaHwb5qqoOP/4d3cV0708=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "1QmQ3FqV37w0Zi44qv8pA1GeR0A=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol/ec2query",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "ZqY5RWavBLWTo6j9xqdyBEaNFRk=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol/query",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "5xzix1R8prUyWxgLnzUQoxTsfik=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol/query/queryutil",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "TW/7U+/8ormL7acf6z2rv2hDD+s=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol/rest",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "eUEkjyMPAuekKBE4ou+nM9tXEas=",
+-			"path": "github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "Eo9yODN5U99BK0pMzoqnBm7PCrY=",
+-			"path": "github.com/aws/aws-sdk-go/private/waiter",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "6h4tJ9wVtbYb9wG4srtUxyPoAYM=",
+-			"path": "github.com/aws/aws-sdk-go/service/ec2",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "ouwhxcAsIYQ6oJbMRdLW/Ys/iyg=",
+-			"path": "github.com/aws/aws-sdk-go/service/sts",
+-			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
+-			"revisionTime": "2016-11-02T21:59:28Z"
+-		},
+-		{
+-			"checksumSHA1": "4QnLdmB1kG3N+KlDd1N+G9TWAGQ=",
+-			"path": "github.com/beorn7/perks/quantile",
+-			"revision": "3ac7bf7a47d159a033b107610db8a1b6575507a4",
+-			"revisionTime": "2016-02-29T21:34:45Z"
+-		},
+-		{
+-			"checksumSHA1": "n+s4YwtzpMWW5Rt0dEaQa7NHDGQ=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/blang/semver",
+-			"path": "github.com/blang/semver",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Z2AOGSmDKKvI6nuxa+UPjQWpIeM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/go-oidc/http",
+-			"path": "github.com/coreos/go-oidc/http",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "8yvt1xKCgNwuuavJdxRnvaIjrIc=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/go-oidc/jose",
+-			"path": "github.com/coreos/go-oidc/jose",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "zhXKrWBSSJLqZxVE/Xsw0M9ynFQ=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/go-oidc/key",
+-			"path": "github.com/coreos/go-oidc/key",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "bkW0mnXvmHQwHprW/6wrbpP7lAk=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/go-oidc/oauth2",
+-			"path": "github.com/coreos/go-oidc/oauth2",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "E1x2k5FdhJ+dzFrh3kCmC6aJfVw=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/go-oidc/oidc",
+-			"path": "github.com/coreos/go-oidc/oidc",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "O0UMBRCOD9ItMayDqLQ2MJEjkVE=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/pkg/health",
+-			"path": "github.com/coreos/pkg/health",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "74vyZz/d49FZXMbFaHOfCGvSLj0=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/pkg/httputil",
+-			"path": "github.com/coreos/pkg/httputil",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "etBdQ0LN6ojGunfvUt6B5C3FNrQ=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/coreos/pkg/timeutil",
+-			"path": "github.com/coreos/pkg/timeutil",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "SdSd7pyjONWWTHc5XE3AhglLo34=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/davecgh/go-spew/spew",
+-			"path": "github.com/davecgh/go-spew/spew",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "2Fy1Y6Z3lRRX1891WF/+HT4XS2I=",
+-			"path": "github.com/dgrijalva/jwt-go",
+-			"revision": "9ed569b5d1ac936e6494082958d63a6aa4fff99a",
+-			"revisionTime": "2016-11-01T19:39:35Z"
+-		},
+-		{
+-			"checksumSHA1": "f1wARLDzsF/JoyN01yoxXEwFIp8=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/docker/distribution/digest",
+-			"path": "github.com/docker/distribution/digest",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "PzXRTLmmqWXxmDqdIXLcRYBma18=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/docker/distribution/reference",
+-			"path": "github.com/docker/distribution/reference",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "1vQR+ZyudsjKio6RNKmWhwzGTb0=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/emicklei/go-restful",
+-			"path": "github.com/emicklei/go-restful",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "3xWz4fZ9xW+CfADpYoPFcZCYJ4E=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/emicklei/go-restful/log",
+-			"path": "github.com/emicklei/go-restful/log",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "J7CtF9gIs2yH9A7lPQDDrhYxiRk=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/emicklei/go-restful/swagger",
+-			"path": "github.com/emicklei/go-restful/swagger",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ww7LVo7jNJ1o6sfRcromEHKyY+o=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/ghodss/yaml",
+-			"path": "github.com/ghodss/yaml",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "cVyhKIRI2gQrgpn5qrBeAqErmWM=",
+-			"path": "github.com/go-ini/ini",
+-			"revision": "6e4869b434bd001f6983749881c7ead3545887d8",
+-			"revisionTime": "2016-08-27T06:11:18Z"
+-		},
+-		{
+-			"checksumSHA1": "NaZnW0tKj/b0k5WzcMD0twrLbrE=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/go-openapi/jsonpointer",
+-			"path": "github.com/go-openapi/jsonpointer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "3LJXjMDxPY+veIqzQtiAvK3hXnY=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/go-openapi/jsonreference",
+-			"path": "github.com/go-openapi/jsonreference",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "faeB3fny260hQ/gEfEXa1ZQTGtk=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/go-openapi/spec",
+-			"path": "github.com/go-openapi/spec",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "wGpZwJ5HZtReou8A3WEV1Gdxs6k=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/go-openapi/swag",
+-			"path": "github.com/go-openapi/swag",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "BIyZQL97iG7mzZ2UMR3XpiXbZdc=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/gogo/protobuf/proto",
+-			"path": "github.com/gogo/protobuf/proto",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "e6cMbpJj41MpihS5eP4SIliRBK4=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/gogo/protobuf/sortkeys",
+-			"path": "github.com/gogo/protobuf/sortkeys",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "URsJa4y/sUUw/STmbeYx9EKqaYE=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/golang/glog",
+-			"path": "github.com/golang/glog",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "yDh5kmmr0zEF1r+rvYqbZcR7iLs=",
+-			"path": "github.com/golang/protobuf/proto",
+-			"revision": "98fa357170587e470c5f27d3c3ea0947b71eb455",
+-			"revisionTime": "2016-10-12T20:53:35Z"
+-		},
+-		{
+-			"checksumSHA1": "2a/SsTUBMKtcM6VtpbdPGO+c6c8=",
+-			"path": "github.com/golang/snappy",
+-			"revision": "d9eb7a3d35ec988b8585d4a0068e462c27d28380",
+-			"revisionTime": "2016-05-29T05:00:41Z"
+-		},
+-		{
+-			"checksumSHA1": "/yFfUp3tGt6cK22UVzbq8SjPDCU=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/google/gofuzz",
+-			"path": "github.com/google/gofuzz",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "LclVLJYrBi03PBjsVPpgoMbUDQ8=",
+-			"path": "github.com/hashicorp/consul/api",
+-			"revision": "daacc4be8bee214e3fc4b32a6dd385f5ef1b4c36",
+-			"revisionTime": "2016-10-28T04:06:46Z"
+-		},
+-		{
+-			"checksumSHA1": "Uzyon2091lmwacNsl1hCytjhHtg=",
+-			"path": "github.com/hashicorp/go-cleanhttp",
+-			"revision": "ad28ea4487f05916463e2423a55166280e8254b5",
+-			"revisionTime": "2016-04-07T17:41:26Z"
+-		},
+-		{
+-			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
+-			"path": "github.com/hashicorp/serf/coordinate",
+-			"revision": "1d4fa605f6ff3ed628d7ae5eda7c0e56803e72a5",
+-			"revisionTime": "2016-10-07T00:41:22Z"
+-		},
+-		{
+-			"path": "github.com/influxdb/influxdb/client",
+-			"revision": "291aaeb9485b43b16875c238482b2f7d0a22a13b",
+-			"revisionTime": "2015-09-16T14:41:53+02:00"
+-		},
+-		{
+-			"path": "github.com/influxdb/influxdb/tsdb",
+-			"revision": "291aaeb9485b43b16875c238482b2f7d0a22a13b",
+-			"revisionTime": "2015-09-16T14:41:53+02:00"
+-		},
+-		{
+-			"checksumSHA1": "0ZrwvB6KoGPj2PoDNSEJwxQ6Mog=",
+-			"path": "github.com/jmespath/go-jmespath",
+-			"revision": "bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d",
+-			"revisionTime": "2016-08-03T19:07:31Z"
+-		},
+-		{
+-			"checksumSHA1": "9ZVOEbIXnTuYpVqce4en8rwlkPE=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/jonboulle/clockwork",
+-			"path": "github.com/jonboulle/clockwork",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "gA95N2LM2hEJLoqrTPaFsSWDJ2Y=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/juju/ratelimit",
+-			"path": "github.com/juju/ratelimit",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Farach1xcmsQYrhiUfkwF2rbIaE=",
+-			"path": "github.com/julienschmidt/httprouter",
+-			"revision": "109e267447e95ad1bb48b758e40dd7453eb7b039",
+-			"revisionTime": "2015-09-05T19:25:33+02:00"
+-		},
+-		{
+-			"checksumSHA1": "urY45++NYCue4nh4k8OjUFnIGfU=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/mailru/easyjson/buffer",
+-			"path": "github.com/mailru/easyjson/buffer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "yTDKAM4KBgOvXRsZC50zg0OChvM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/mailru/easyjson/jlexer",
+-			"path": "github.com/mailru/easyjson/jlexer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "4+d+6rhM1pei6lBguhqSEW7LaXs=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/mailru/easyjson/jwriter",
+-			"path": "github.com/mailru/easyjson/jwriter",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Q2vw4HZBbnU8BLFt8VrzStwqSJg=",
+-			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
+-			"revision": "fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a",
+-			"revisionTime": "2015-04-06T19:39:34+02:00"
+-		},
+-		{
+-			"checksumSHA1": "Wahi4g/9XiHhSLAJ+8jskg71PCU=",
+-			"path": "github.com/miekg/dns",
+-			"revision": "58f52c57ce9df13460ac68200cef30a008b9c468",
+-			"revisionTime": "2016-10-18T06:08:08Z"
+-		},
+-		{
+-			"checksumSHA1": "3YJklSuzSE1Rt8A+2dhiWSmf/fw=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/pborman/uuid",
+-			"path": "github.com/pborman/uuid",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "zKKp5SZ3d3ycKe4EKMNT0BqAWBw=",
+-			"origin": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+-			"path": "github.com/pmezard/go-difflib/difflib",
+-			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+-			"revisionTime": "2016-06-15T09:26:46Z"
+-		},
+-		{
+-			"checksumSHA1": "KkB+77Ziom7N6RzSbyUwYGrmDeU=",
+-			"path": "github.com/prometheus/client_golang/prometheus",
+-			"revision": "c5b7fccd204277076155f10851dad72b76a49317",
+-			"revisionTime": "2016-08-17T15:48:24Z"
+-		},
+-		{
+-			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",
+-			"path": "github.com/prometheus/client_model/go",
+-			"revision": "fa8ad6fec33561be4280a8f0514318c79d7f6cb6",
+-			"revisionTime": "2015-02-12T10:17:44Z"
+-		},
+-		{
+-			"checksumSHA1": "mHyjbJ3BWOfUV6q9f5PBt0gaY1k=",
+-			"path": "github.com/prometheus/common/expfmt",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "GWlM3d2vPYyNATtTFgftS10/A9w=",
+-			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "UU6hIfhVjnAYDADQEfE/3T7Ddm8=",
+-			"path": "github.com/prometheus/common/log",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "nFie+rxcX5WdIv1diZ+fu3aj6lE=",
+-			"path": "github.com/prometheus/common/model",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "QQKJYoGcY10nIHxhBEHwjwUZQzk=",
+-			"path": "github.com/prometheus/common/route",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "91KYK0SpvkaMJJA2+BcxbVnyRO0=",
+-			"path": "github.com/prometheus/common/version",
+-			"revision": "85637ea67b04b5c3bb25e671dacded2977f8f9f6",
+-			"revisionTime": "2016-10-02T21:02:34Z"
+-		},
+-		{
+-			"checksumSHA1": "W218eJZPXJG783fUr/z6IaAZyes=",
+-			"path": "github.com/prometheus/procfs",
+-			"revision": "abf152e5f3e97f2fafac028d2cc06c1feb87ffa5",
+-			"revisionTime": "2016-04-11T19:08:41Z"
+-		},
+-		{
+-			"checksumSHA1": "+49Vr4Me28p3cR+gxX5SUQHbbas=",
+-			"path": "github.com/samuel/go-zookeeper/zk",
+-			"revision": "177002e16a0061912f02377e2dd8951a8b3551bc",
+-			"revisionTime": "2015-08-17T10:50:50-07:00"
+-		},
+-		{
+-			"checksumSHA1": "YuPBOVkkE3uuBh4RcRUTF0n+frs=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/spf13/pflag",
+-			"path": "github.com/spf13/pflag",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "iydUphwYqZRq3WhstEdGsbvBAKs=",
+-			"path": "github.com/stretchr/testify/assert",
+-			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+-			"revisionTime": "2016-06-15T09:26:46Z"
+-		},
+-		{
+-			"checksumSHA1": "P9FJpir2c4G5PA46qEkaWy3l60U=",
+-			"path": "github.com/stretchr/testify/require",
+-			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+-			"revisionTime": "2016-06-15T09:26:46Z"
+-		},
+-		{
+-			"checksumSHA1": "VhcnDY37sYAnL8WjfYQN9YYl+W4=",
+-			"path": "github.com/syndtr/goleveldb/leveldb",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "EKIow7XkgNdWvR/982ffIZxKG8Y=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/cache",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "5KPgnvCPlR0ysDAqo6jApzRQ3tw=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/comparer",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "1DRAxdlWzS4U0xKN/yQ/fdNN7f0=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/errors",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "eqKeD6DS7eNCtxVYZEHHRKkyZrw=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/filter",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "8dXuAVIsbtaMiGGuHjzGR6Ny/5c=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/iterator",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "gJY7bRpELtO0PJpZXgPQ2BYFJ88=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/journal",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "j+uaQ6DwJ50dkIdfMQu1TXdlQcY=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/memdb",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "UmQeotV+m8/FduKEfLOhjdp18rs=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/opt",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "/Wvv9HeJTN9UUjdjwUlz7X4ioIo=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/storage",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "JTJA+u8zk7EXy1UUmpFPNGvtO2A=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/table",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "4zil8Gwg8VPkDn1YzlgCvtukJFU=",
+-			"path": "github.com/syndtr/goleveldb/leveldb/util",
+-			"revision": "6b4daa5362b502898ddf367c5c11deb9e7a5c727",
+-			"revisionTime": "2016-10-11T05:00:08Z"
+-		},
+-		{
+-			"checksumSHA1": "f6Aew+ZA+HBAXCw6/xTST3mB0Lw=",
+-			"origin": "k8s.io/client-go/1.5/vendor/github.com/ugorji/go/codec",
+-			"path": "github.com/ugorji/go/codec",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "sFD8LpJPQtWLwGda3edjf5mNUbs=",
+-			"path": "github.com/vaughan0/go-ini",
+-			"revision": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1",
+-			"revisionTime": "2013-09-23T16:52:12+02:00"
+-		},
+-		{
+-			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
+-			"path": "golang.org/x/net/context",
+-			"revision": "b336a971b799939dd16ae9b1df8334cb8b977c4d",
+-			"revisionTime": "2016-10-27T19:58:04Z"
+-		},
+-		{
+-			"checksumSHA1": "WHc3uByvGaMcnSoI21fhzYgbOgg=",
+-			"path": "golang.org/x/net/context/ctxhttp",
+-			"revision": "b336a971b799939dd16ae9b1df8334cb8b977c4d",
+-			"revisionTime": "2016-10-27T19:58:04Z"
+-		},
+-		{
+-			"checksumSHA1": "SPYGC6DQrH9jICccUsOfbvvhB4g=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/net/http2",
+-			"path": "golang.org/x/net/http2",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "EYNaHp7XdLWRydUCE0amEkKAtgk=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/net/http2/hpack",
+-			"path": "golang.org/x/net/http2/hpack",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "gXiSniT8fevWOVPVKopYgrdzi60=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/net/idna",
+-			"path": "golang.org/x/net/idna",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "/k7k6eJDkxXx6K9Zpo/OwNm58XM=",
+-			"path": "golang.org/x/net/internal/timeseries",
+-			"revision": "6250b412798208e6c90b03b7c4f226de5aa299e2",
+-			"revisionTime": "2016-08-24T22:20:41Z"
+-		},
+-		{
+-			"checksumSHA1": "yhndhWXMs/VSEDLks4dNyFMQStA=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/net/lex/httplex",
+-			"path": "golang.org/x/net/lex/httplex",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "7WASrg0PEueWDDRHkFhEEN6Qrms=",
+-			"path": "golang.org/x/net/netutil",
+-			"revision": "bc3663df0ac92f928d419e31e0d2af22e683a5a2",
+-			"revisionTime": "2016-06-21T20:48:10Z"
+-		},
+-		{
+-			"checksumSHA1": "mktBVED98G2vv+OKcSgtnFVZC1Y=",
+-			"path": "golang.org/x/oauth2",
+-			"revision": "65a8d08c6292395d47053be10b3c5e91960def76",
+-			"revisionTime": "2016-06-07T03:33:14Z"
+-		},
+-		{
+-			"checksumSHA1": "2rk6lthfQa5Rfydj8j7+dilKGbo=",
+-			"path": "golang.org/x/oauth2/google",
+-			"revision": "65a8d08c6292395d47053be10b3c5e91960def76",
+-			"revisionTime": "2016-06-07T03:33:14Z"
+-		},
+-		{
+-			"checksumSHA1": "W/GiDqzsagBnR7/yEvxatMhUDBs=",
+-			"path": "golang.org/x/oauth2/internal",
+-			"revision": "65a8d08c6292395d47053be10b3c5e91960def76",
+-			"revisionTime": "2016-06-07T03:33:14Z"
+-		},
+-		{
+-			"checksumSHA1": "CPTYHWrVL4jA0B1IuC0hvgcE2AQ=",
+-			"path": "golang.org/x/oauth2/jws",
+-			"revision": "65a8d08c6292395d47053be10b3c5e91960def76",
+-			"revisionTime": "2016-06-07T03:33:14Z"
+-		},
+-		{
+-			"checksumSHA1": "xifBSq0Pn6pIoPA/o3tyzq8X4Ds=",
+-			"path": "golang.org/x/oauth2/jwt",
+-			"revision": "65a8d08c6292395d47053be10b3c5e91960def76",
+-			"revisionTime": "2016-06-07T03:33:14Z"
+-		},
+-		{
+-			"checksumSHA1": "aVgPDgwY3/t4J/JOw9H3FVMHqh0=",
+-			"path": "golang.org/x/sys/unix",
+-			"revision": "c200b10b5d5e122be351b67af224adc6128af5bf",
+-			"revisionTime": "2016-10-22T18:22:21Z"
+-		},
+-		{
+-			"checksumSHA1": "fpW2dhGFC6SrVzipJx7fjg2DIH8=",
+-			"path": "golang.org/x/sys/windows",
+-			"revision": "c200b10b5d5e122be351b67af224adc6128af5bf",
+-			"revisionTime": "2016-10-22T18:22:21Z"
+-		},
+-		{
+-			"checksumSHA1": "PjYlbMS0ttyZYlaevvjA/gV3g1c=",
+-			"path": "golang.org/x/sys/windows/registry",
+-			"revision": "c200b10b5d5e122be351b67af224adc6128af5bf",
+-			"revisionTime": "2016-10-22T18:22:21Z"
+-		},
+-		{
+-			"checksumSHA1": "uVlUSSKplihZG7N+QJ6fzDZ4Kh8=",
+-			"path": "golang.org/x/sys/windows/svc/eventlog",
+-			"revision": "c200b10b5d5e122be351b67af224adc6128af5bf",
+-			"revisionTime": "2016-10-22T18:22:21Z"
+-		},
+-		{
+-			"checksumSHA1": "QQpKbWuqvhmxVr/hfEYdWzzcXRM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/cases",
+-			"path": "golang.org/x/text/cases",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "iAsGo/kxvnwILbJVUCd0ZcqZO/Q=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/internal/tag",
+-			"path": "golang.org/x/text/internal/tag",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "mQ6PCGHY7K0oPjKbYD8wsTjm/P8=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/language",
+-			"path": "golang.org/x/text/language",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "WpeH2TweiuiZAQVTJNO5vyZAQQA=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/runes",
+-			"path": "golang.org/x/text/runes",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "1VjEPyjdi0xOiIN/Alkqiad/B/c=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/secure/bidirule",
+-			"path": "golang.org/x/text/secure/bidirule",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "FcK7VslktIAWj5jnWVnU2SesBq0=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/secure/precis",
+-			"path": "golang.org/x/text/secure/precis",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "nwlu7UTwYbCj9l5f3a7t2ROwNzM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/transform",
+-			"path": "golang.org/x/text/transform",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "nWJ9R1+Xw41f/mM3b7BYtv77CfI=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/unicode/bidi",
+-			"path": "golang.org/x/text/unicode/bidi",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "BAZ96wCGUj6HdY9sG60Yw09KWA4=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/unicode/norm",
+-			"path": "golang.org/x/text/unicode/norm",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "AZMILKWqLP99UilLgbGZ+uzIVrM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/width",
+-			"path": "golang.org/x/text/width",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "AjdmRXf0fiy6Bec9mNlsGsmZi1k=",
+-			"path": "google.golang.org/api/compute/v1",
+-			"revision": "63ade871fd3aec1225809d496e81ec91ab76ea29",
+-			"revisionTime": "2016-05-31T06:42:46Z"
+-		},
+-		{
+-			"checksumSHA1": "OtsMVXY89Hc/bBXdDp84atFQawM=",
+-			"path": "google.golang.org/api/gensupport",
+-			"revision": "63ade871fd3aec1225809d496e81ec91ab76ea29",
+-			"revisionTime": "2016-05-31T06:42:46Z"
+-		},
+-		{
+-			"checksumSHA1": "yQREK/OWrz9PLljbr127+xFk6J0=",
+-			"path": "google.golang.org/api/googleapi",
+-			"revision": "63ade871fd3aec1225809d496e81ec91ab76ea29",
+-			"revisionTime": "2016-05-31T06:42:46Z"
+-		},
+-		{
+-			"checksumSHA1": "ii4ET3JHk3vkMUEcg+9t/1RZSUU=",
+-			"path": "google.golang.org/api/googleapi/internal/uritemplates",
+-			"revision": "63ade871fd3aec1225809d496e81ec91ab76ea29",
+-			"revisionTime": "2016-05-31T06:42:46Z"
+-		},
+-		{
+-			"checksumSHA1": "N3KZEuQ9O1QwJXcCJbe7Czwroo4=",
+-			"path": "google.golang.org/appengine",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "G9Xp1ScdsfcKsw+PcWunivRRP3o=",
+-			"path": "google.golang.org/appengine/internal",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "x6Thdfyasqd68dWZWqzWWeIfAfI=",
+-			"path": "google.golang.org/appengine/internal/app_identity",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "TsNO8P0xUlLNyh3Ic/tzSp/fDWM=",
+-			"path": "google.golang.org/appengine/internal/base",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "5QsV5oLGSfKZqTCVXP6NRz5T4Tw=",
+-			"path": "google.golang.org/appengine/internal/datastore",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "Gep2T9zmVYV8qZfK2gu3zrmG6QE=",
+-			"path": "google.golang.org/appengine/internal/log",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "eLZVX1EHLclFtQnjDIszsdyWRHo=",
+-			"path": "google.golang.org/appengine/internal/modules",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "a1XY7rz3BieOVqVI2Et6rKiwQCk=",
+-			"path": "google.golang.org/appengine/internal/remote_api",
+-			"revision": "4f7eeb5305a4ba1966344836ba4af9996b7b4e05",
+-			"revisionTime": "2016-08-19T23:33:10Z"
+-		},
+-		{
+-			"checksumSHA1": "QtAbHtHmDzcf6vOV9eqlCpKgjiw=",
+-			"path": "google.golang.org/appengine/internal/urlfetch",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "akOV9pYnCbcPA8wJUutSQVibdyg=",
+-			"path": "google.golang.org/appengine/urlfetch",
+-			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+-			"revisionTime": "2016-06-21T05:59:22Z"
+-		},
+-		{
+-			"checksumSHA1": "Wp8g9MHRmK8SwcyGVCoGtPx+5Lo=",
+-			"path": "google.golang.org/cloud/compute/metadata",
+-			"revision": "0a83eba2cadb60eb22123673c8fb6fca02b03c94",
+-			"revisionTime": "2016-06-21T15:59:29Z"
+-		},
+-		{
+-			"checksumSHA1": "U7dGDNwEHORvJFMoNSXErKE7ITg=",
+-			"path": "google.golang.org/cloud/internal",
+-			"revision": "0a83eba2cadb60eb22123673c8fb6fca02b03c94",
+-			"revisionTime": "2016-06-21T15:59:29Z"
+-		},
+-		{
+-			"checksumSHA1": "JfVmsMwyeeepbdw4q4wpN07BuFg=",
+-			"path": "gopkg.in/fsnotify.v1",
+-			"revision": "30411dbcefb7a1da7e84f75530ad3abe4011b4f8",
+-			"revisionTime": "2016-04-12T13:37:56Z"
+-		},
+-		{
+-			"checksumSHA1": "pfQwQtWlFezJq0Viroa/L+v+yDM=",
+-			"origin": "k8s.io/client-go/1.5/vendor/gopkg.in/inf.v0",
+-			"path": "gopkg.in/inf.v0",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "KgT+peLCcuh0/m2mpoOZXuxXmwc=",
+-			"path": "gopkg.in/yaml.v2",
+-			"revision": "7ad95dd0798a40da1ccdff6dff35fd177b5edf40",
+-			"revisionTime": "2015-06-24T11:29:02+01:00"
+-		},
+-		{
+-			"checksumSHA1": "st0Nbu4zwLcP3mz03lDOJVZtn8Y=",
+-			"path": "k8s.io/client-go/1.5/discovery",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "S+OzpkipMb46LGZoWuveqSLAcoM=",
+-			"path": "k8s.io/client-go/1.5/kubernetes",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "yCBn8ig1TUMrk+ljtK0nDr7E5Vo=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/apps/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ZRnUz5NrpvJsXAjtnRdEv5UYhSI=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/authentication/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "TY55Np20olmPMzXgfVlIUIyqv04=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/authorization/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "FRByJsFff/6lPH20FtJPaK1NPWI=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/autoscaling/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "3Cy2as7HnQ2FDcvpNbatpFWx0P4=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/batch/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "RUKywApIbSLLsfkYxXzifh7HIvs=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/certificates/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "4+Lsxu+sYgzsS2JOHP7CdrZLSKc=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/core/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "H8jzevN03YUfmf2krJt0qj2P9sU=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "hrpA6xxtwj3oMcQbFxI2cDhO2ZA=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/policy/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "B2+F12NeMwrOHvHK2ALyEcr3UGA=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/rbac/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "h2eSNUym87RWPlez7UKujShwrUQ=",
+-			"path": "k8s.io/client-go/1.5/kubernetes/typed/storage/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "+oIykJ3A0wYjAWbbrGo0jNnMLXw=",
+-			"path": "k8s.io/client-go/1.5/pkg/api",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "UsUsIdhuy5Ej2vI0hbmSsrimoaQ=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/errors",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Eo6LLHFqG6YznIAKr2mVjuqUj6k=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "dYznkLcCEai21z1dX8kZY7uDsck=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/meta",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "b06esG4xMj/YNFD85Lqq00cx+Yo=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/meta/metatypes",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "L9svak1yut0Mx8r9VLDOwpqZzBk=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/resource",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "m7jGshKDLH9kdokfa6MwAqzxRQk=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/unversioned",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "iI6s5WAexr1PEfqrbvuscB+oVik=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ikac34qI/IkTWHnfi8pPl9irPyo=",
+-			"path": "k8s.io/client-go/1.5/pkg/api/validation/path",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "MJyygSPp8N6z+7SPtcROz4PEwas=",
+-			"path": "k8s.io/client-go/1.5/pkg/apimachinery",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "EGb4IcSTQ1VXCmX0xcyG5GpWId8=",
+-			"path": "k8s.io/client-go/1.5/pkg/apimachinery/announced",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "vhSyuINHQhCsDKTyBmvJT1HzDHI=",
+-			"path": "k8s.io/client-go/1.5/pkg/apimachinery/registered",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "rXeBnwLg8ZFe6m5/Ki7tELVBYDk=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/apps",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "KzHaG858KV1tBh5cuLInNcm+G5s=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/apps/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "fynWdchlRbPaxuST2oGDKiKLTqE=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/apps/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "hreIYssoH4Ef/+Aglpitn3GNLR4=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authentication",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "EgUqJH4CqB9vXVg6T8II2OEt5LE=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authentication/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Z3DKgomzRPGcBv/8hlL6pfnIpXI=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authentication/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "GpuScB2Z+NOT4WIQg1mVvVSDUts=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authorization",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "+u3UD+HY9lBH+PFi/2B4W564JEw=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authorization/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "zIFzgWjmlWNLHGHMpCpDCvoLtKY=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/authorization/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "tdpzQFQyVkt5kCLTvtKTVqT+maE=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/autoscaling",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "nb6LbYGS5tv8H8Ovptg6M7XuDZ4=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/autoscaling/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "DNb1/nl/5RDdckRrJoXBRagzJXs=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/autoscaling/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "4bLhH2vNl5l4Qp6MjLhWyWVAPE0=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/batch",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "RpAAEynmxlvOlLLZK1KEUQRnYzk=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/batch/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "uWJ2BHmjL/Gq4FFlNkqiN6vvPyM=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/batch/v1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "mHWt/p724dKeP1vqLtWQCye7zaE=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/batch/v2alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "6dJ1dGfXkB3A42TOtMaY/rvv4N8=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/certificates",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Bkrhm6HbFYANwtzUE8eza9SWBk0=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/certificates/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "nRRPIBQ5O3Ad24kscNtK+gPC+fk=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/certificates/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "KUMhoaOg9GXHN/aAVvSLO18SgqU=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/extensions",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "eSo2VhNAYtesvmpEPqn05goW4LY=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/extensions/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "DunWIPrCC5iGMWzkaaugMOxD+hg=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "rVGYi2ko0E7vL5OZSMYX+NAGPYw=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/policy",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "llJHd2H0LzABGB6BcletzIHnexo=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/policy/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "j44bqyY13ldnuCtysYE8nRkMD7o=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/policy/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "vT7rFxowcKMTYc55mddePqUFRgE=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/rbac",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "r1MzUXsG+Zyn30aU8I5R5dgrJPA=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/rbac/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "aNfO8xn8VDO3fM9CpVCe6EIB+GA=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/rbac/v1alpha1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "rQCxrbisCXmj2wymlYG63kcTL9I=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/storage",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "wZyxh5nt5Eh6kF7YNAIYukKWWy0=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/storage/install",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "P8ANOt/I4Cs3QtjVXWmDA/gpQdg=",
+-			"path": "k8s.io/client-go/1.5/pkg/apis/storage/v1beta1",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "qnVPwzvNLz2mmr3BXdU9qIhQXXU=",
+-			"path": "k8s.io/client-go/1.5/pkg/auth/user",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "KrIchxhapSs242yAy8yrTS1XlZo=",
+-			"path": "k8s.io/client-go/1.5/pkg/conversion",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "weZqKFcOhcnF47eDDHXzluCKSF0=",
+-			"path": "k8s.io/client-go/1.5/pkg/conversion/queryparams",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "T3EMfyXZX5939/OOQ1JU+Nmbk4k=",
+-			"path": "k8s.io/client-go/1.5/pkg/fields",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "2v11s3EBH8UBl2qfImT29tQN2kM=",
+-			"path": "k8s.io/client-go/1.5/pkg/genericapiserver/openapi/common",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "GvBlph6PywK3zguou/T9kKNNdoQ=",
+-			"path": "k8s.io/client-go/1.5/pkg/labels",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Vtrgy827r0rWzIAgvIWY4flu740=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "SEcZqRATexhgHvDn+eHvMc07UJs=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "qzYKG9YZSj8l/W1QVTOrGAry/BM=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer/json",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "F7h+8zZ0JPLYkac4KgSVljguBE4=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer/protobuf",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "CvySOL8C85e3y7EWQ+Au4cwUZJM=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer/recognizer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "eCitoKeIun+lJzYFhAfdSIIicSM=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer/streaming",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "kVWvZuLGltJ4YqQsiaCLRRLDDK0=",
+-			"path": "k8s.io/client-go/1.5/pkg/runtime/serializer/versioning",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "m51+LAeQ9RK1KHX+l2iGcwbVCKs=",
+-			"path": "k8s.io/client-go/1.5/pkg/selection",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "dp4IWcC3U6a0HeOdVCDQWODWCbw=",
+-			"path": "k8s.io/client-go/1.5/pkg/third_party/forked/golang/reflect",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ER898XJD1ox4d71gKZD8TLtTSpM=",
+-			"path": "k8s.io/client-go/1.5/pkg/types",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "BVdXtnLDlmBQksRPfHOIG+qdeVg=",
+-			"path": "k8s.io/client-go/1.5/pkg/util",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "nnh8Sa4dCupxRI4bbKaozGp1d/A=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/cert",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "S32d5uduNlwouM8+mIz+ALpliUQ=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/clock",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Y6rWC0TUw2/uUeUjJ7kazyEUzBQ=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/errors",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "C7IfEAdCOePw3/IraaZCNXuYXLw=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/flowcontrol",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "EuslQHnhBSRXaWimYqLEqhMPV48=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/framer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ByO18NbZwiifFr8qtLyfJAHXguA=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/integer",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ww+RfsoIlUBDwThg2oqC5QVz33Y=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/intstr",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "7E8f8dLlXW7u6r9sggMjvB4HEiw=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/json",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "d0pFZxMJG9j95acNmaIM1l+X+QU=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/labels",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "wCN7u1lE+25neM9jXeI7aE8EAfk=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/net",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "g+kBkxcb+tYmFtRRly+VE+JAIfw=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/parsers",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "S4wUnE5VkaWWrkLbgPL/1oNLJ4g=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/rand",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "8j9c2PqTKybtnymXbStNYRexRj8=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/runtime",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "aAz4e8hLGs0+ZAz1TdA5tY/9e1A=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/sets",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "P/fwh6QZ5tsjVyHTaASDWL3WaGs=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/uuid",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "P9Bq/1qbF4SvnN9HyCTRpbUz7sQ=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/validation",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "D0JIEjlP69cuPOZEdsSKeFgsnI8=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/validation/field",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "T7ba8t8i+BtgClMgL+aMZM94fcI=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/wait",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "6RCTv/KDiw7as4KeyrgU3XrUSQI=",
+-			"path": "k8s.io/client-go/1.5/pkg/util/yaml",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "OwKlsSeKtz1FBVC9cQ5gWRL5pKc=",
+-			"path": "k8s.io/client-go/1.5/pkg/version",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Oil9WGw/dODbpBopn6LWQGS3DYg=",
+-			"path": "k8s.io/client-go/1.5/pkg/watch",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "r5alnRCbLaPsbTeJjjTVn/bt6uw=",
+-			"path": "k8s.io/client-go/1.5/pkg/watch/versioned",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "X1+ltyfHui/XCwDupXIf39+9gWQ=",
+-			"path": "k8s.io/client-go/1.5/plugin/pkg/client/auth",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "KYy+js37AS0ZT08g5uBr1ZoMPmE=",
+-			"path": "k8s.io/client-go/1.5/plugin/pkg/client/auth/gcp",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "wQ9G5++lbQpejqCzGHo037N3YcY=",
+-			"path": "k8s.io/client-go/1.5/plugin/pkg/client/auth/oidc",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "ABe8YfZVEDoRpAUqp2BKP8o1VIA=",
+-			"path": "k8s.io/client-go/1.5/rest",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "Gbe0Vs9hkI7X5hhbXUuWdRFffSI=",
+-			"path": "k8s.io/client-go/1.5/tools/cache",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "K/oOznXABjqSS1c2Fs407c5F8KA=",
+-			"path": "k8s.io/client-go/1.5/tools/clientcmd/api",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "c1PQ4WJRfpA9BYcFHW2+46hu5IE=",
+-			"path": "k8s.io/client-go/1.5/tools/metrics",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		},
+-		{
+-			"checksumSHA1": "e4W2q+6wvjejv3V0UCI1mewTTro=",
+-			"path": "k8s.io/client-go/1.5/transport",
+-			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
+-			"revisionTime": "2016-09-30T00:14:02Z"
+-		}
+-	],
+-	"rootPath": "github.com/prometheus/prometheus"
+-}
+diff --git a/src/cmd/go/internal/modconv/testdata/traefik.dep b/src/cmd/go/internal/modconv/testdata/traefik.dep
+deleted file mode 100644
+index 8510f0f849..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/traefik.dep
++++ /dev/null
+@@ -1,79 +0,0 @@
+-# This file is autogenerated, do not edit; changes may be undone by the next 'dep ensure'.
+-
+-[[projects]]
+-  name = "github.com/Nvveen/Gotty"
+-  packages = ["."]
+-  revision = "a8b993ba6abdb0e0c12b0125c603323a71c7790c"
+-  source = "github.com/ijc25/Gotty"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/OpenDNS/vegadns2client"
+-  packages = ["."]
+-  revision = "a3fa4a771d87bda2514a90a157e1fed1b6897d2e"
+-
+-[[projects]]
+-  name = "github.com/PuerkitoBio/purell"
+-  packages = ["."]
+-  revision = "8a290539e2e8629dbc4e6bad948158f790ec31f4"
+-  version = "v1.0.0"
+-
+-[[projects]]
+-  name = "github.com/PuerkitoBio/urlesc"
+-  packages = ["."]
+-  revision = "5bd2802263f21d8788851d5305584c82a5c75d7e"
+-
+-[[projects]]
+-  name = "github.com/Shopify/sarama"
+-  packages = ["."]
+-  revision = "70f6a705d4a17af059acbc6946fb2bd30762acd7"
+-
+-[[projects]]
+-  name = "github.com/VividCortex/gohistogram"
+-  packages = ["."]
+-  revision = "51564d9861991fb0ad0f531c99ef602d0f9866e6"
+-  version = "v1.0.0"
+-
+-[[projects]]
+-  branch = "containous-fork"
+-  name = "github.com/abbot/go-http-auth"
+-  packages = ["."]
+-  revision = "65b0cdae8d7fe5c05c7430e055938ef6d24a66c9"
+-  source = "github.com/containous/go-http-auth"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/abronan/valkeyrie"
+-  packages = [
+-    ".",
+-    "store",
+-    "store/boltdb",
+-    "store/consul",
+-    "store/etcd/v2",
+-    "store/etcd/v3",
+-    "store/zookeeper"
+-  ]
+-  revision = "063d875e3c5fd734fa2aa12fac83829f62acfc70"
+-  
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/mesosphere/mesos-dns"
+-  packages = [
+-    "detect",
+-    "errorutil",
+-    "logging",
+-    "models",
+-    "records",
+-    "records/labels",
+-    "records/state",
+-    "util"
+-  ]
+-  revision = "b47dc4c19f215e98da687b15b4c64e70f629bea5"
+-  source = "git@github.com:containous/mesos-dns.git"
+-
+-  [[projects]]
+-  name = "gopkg.in/fsnotify.v1"
+-  packages = ["."]
+-  revision = "629574ca2a5df945712d3079857300b5e4da0236"
+-  source = "github.com/fsnotify/fsnotify"
+-  version = "v1.4.2"
+\ No newline at end of file
+diff --git a/src/cmd/go/internal/modconv/testdata/traefik.out b/src/cmd/go/internal/modconv/testdata/traefik.out
+deleted file mode 100644
+index 5054295383..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/traefik.out
++++ /dev/null
+@@ -1,14 +0,0 @@
+-github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+-github.com/OpenDNS/vegadns2client a3fa4a771d87bda2514a90a157e1fed1b6897d2e
+-github.com/PuerkitoBio/purell v1.0.0
+-github.com/PuerkitoBio/urlesc 5bd2802263f21d8788851d5305584c82a5c75d7e
+-github.com/Shopify/sarama 70f6a705d4a17af059acbc6946fb2bd30762acd7
+-github.com/VividCortex/gohistogram v1.0.0
+-github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
+-github.com/abronan/valkeyrie 063d875e3c5fd734fa2aa12fac83829f62acfc70
+-github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
+-gopkg.in/fsnotify.v1 v1.4.2
+-replace: github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c github.com/ijc25/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+-replace: github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9 github.com/containous/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
+-replace: github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5 github.com/containous/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
+-replace: gopkg.in/fsnotify.v1 v1.4.2 github.com/fsnotify/fsnotify v1.4.2
+diff --git a/src/cmd/go/internal/modconv/testdata/upspin.dep b/src/cmd/go/internal/modconv/testdata/upspin.dep
+deleted file mode 100644
+index be77bcb928..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/upspin.dep
++++ /dev/null
+@@ -1,57 +0,0 @@
+-# This file is autogenerated, do not edit; changes may be undone by the next 'dep ensure'.
+-
+-
+-[[projects]]
+-  branch = "master"
+-  name = "bazil.org/fuse"
+-  packages = [".","fs","fuseutil"]
+-  revision = "371fbbdaa8987b715bdd21d6adc4c9b20155f748"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/NYTimes/gziphandler"
+-  packages = ["."]
+-  revision = "97ae7fbaf81620fe97840685304a78a306a39c64"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/golang/protobuf"
+-  packages = ["proto"]
+-  revision = "1643683e1b54a9e88ad26d98f81400c8c9d9f4f9"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "github.com/russross/blackfriday"
+-  packages = ["."]
+-  revision = "6d1ef893fcb01b4f50cb6e57ed7df3e2e627b6b2"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "golang.org/x/crypto"
+-  packages = ["acme","acme/autocert","hkdf"]
+-  revision = "13931e22f9e72ea58bb73048bc752b48c6d4d4ac"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "golang.org/x/net"
+-  packages = ["context"]
+-  revision = "4b14673ba32bee7f5ac0f990a48f033919fd418b"
+-
+-[[projects]]
+-  branch = "master"
+-  name = "golang.org/x/text"
+-  packages = ["cases","internal","internal/gen","internal/tag","internal/triegen","internal/ucd","language","runes","secure/bidirule","secure/precis","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable","width"]
+-  revision = "6eab0e8f74e86c598ec3b6fad4888e0c11482d48"
+-
+-[[projects]]
+-  branch = "v2"
+-  name = "gopkg.in/yaml.v2"
+-  packages = ["."]
+-  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+-
+-[solve-meta]
+-  analyzer-name = "dep"
+-  analyzer-version = 1
+-  inputs-digest = "2246e647ba1c78b0b9f948f9fb072fff1467284fb138709c063e99736f646b90"
+-  solver-name = "gps-cdcl"
+-  solver-version = 1
+diff --git a/src/cmd/go/internal/modconv/testdata/upspin.out b/src/cmd/go/internal/modconv/testdata/upspin.out
+deleted file mode 100644
+index 00597db848..0000000000
+--- a/src/cmd/go/internal/modconv/testdata/upspin.out
++++ /dev/null
+@@ -1,8 +0,0 @@
+-bazil.org/fuse 371fbbdaa8987b715bdd21d6adc4c9b20155f748
+-github.com/NYTimes/gziphandler 97ae7fbaf81620fe97840685304a78a306a39c64
+-github.com/golang/protobuf 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
+-github.com/russross/blackfriday 6d1ef893fcb01b4f50cb6e57ed7df3e2e627b6b2
+-golang.org/x/crypto 13931e22f9e72ea58bb73048bc752b48c6d4d4ac
+-golang.org/x/net 4b14673ba32bee7f5ac0f990a48f033919fd418b
+-golang.org/x/text 6eab0e8f74e86c598ec3b6fad4888e0c11482d48
+-gopkg.in/yaml.v2 eb3733d160e74a9c7e442f435eb3bea458e1d19f
+diff --git a/src/cmd/go/internal/modconv/tsv.go b/src/cmd/go/internal/modconv/tsv.go
+deleted file mode 100644
+index 4649579f65..0000000000
+--- a/src/cmd/go/internal/modconv/tsv.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseDependenciesTSV(file string, data []byte) (*modfile.File, error) {
+-	mf := new(modfile.File)
+-	for _, line := range strings.Split(string(data), "\n") {
+-		f := strings.Split(line, "\t")
+-		if len(f) >= 3 {
+-			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[2]}})
+-		}
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/vconf.go b/src/cmd/go/internal/modconv/vconf.go
+deleted file mode 100644
+index 9bad2baf8f..0000000000
+--- a/src/cmd/go/internal/modconv/vconf.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseVendorConf(file string, data []byte) (*modfile.File, error) {
+-	mf := new(modfile.File)
+-	for _, line := range strings.Split(string(data), "\n") {
+-		if i := strings.Index(line, "#"); i >= 0 {
+-			line = line[:i]
+-		}
+-		f := strings.Fields(line)
+-		if len(f) >= 2 {
+-			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[1]}})
+-		}
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/vjson.go b/src/cmd/go/internal/modconv/vjson.go
+deleted file mode 100644
+index 1bd025c980..0000000000
+--- a/src/cmd/go/internal/modconv/vjson.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"encoding/json"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseVendorJSON(file string, data []byte) (*modfile.File, error) {
+-	var cfg struct {
+-		Package []struct {
+-			Path     string
+-			Revision string
+-		}
+-	}
+-	if err := json.Unmarshal(data, &cfg); err != nil {
+-		return nil, err
+-	}
+-	mf := new(modfile.File)
+-	for _, d := range cfg.Package {
+-		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: d.Path, Version: d.Revision}})
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/vmanifest.go b/src/cmd/go/internal/modconv/vmanifest.go
+deleted file mode 100644
+index bcf00083a5..0000000000
+--- a/src/cmd/go/internal/modconv/vmanifest.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"encoding/json"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseVendorManifest(file string, data []byte) (*modfile.File, error) {
+-	var cfg struct {
+-		Dependencies []struct {
+-			ImportPath string
+-			Revision   string
+-		}
+-	}
+-	if err := json.Unmarshal(data, &cfg); err != nil {
+-		return nil, err
+-	}
+-	mf := new(modfile.File)
+-	for _, d := range cfg.Dependencies {
+-		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: d.ImportPath, Version: d.Revision}})
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modconv/vyml.go b/src/cmd/go/internal/modconv/vyml.go
+deleted file mode 100644
+index cfa41941d5..0000000000
+--- a/src/cmd/go/internal/modconv/vyml.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"strings"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func ParseVendorYML(file string, data []byte) (*modfile.File, error) {
+-	mf := new(modfile.File)
+-	vendors := false
+-	path := ""
+-	for _, line := range strings.Split(string(data), "\n") {
+-		if line == "" {
+-			continue
+-		}
+-		if strings.HasPrefix(line, "vendors:") {
+-			vendors = true
+-		} else if line[0] != '-' && line[0] != ' ' && line[0] != '\t' {
+-			vendors = false
+-		}
+-		if !vendors {
+-			continue
+-		}
+-		if strings.HasPrefix(line, "- path:") {
+-			path = strings.TrimSpace(line[len("- path:"):])
+-		}
+-		if strings.HasPrefix(line, "  rev:") {
+-			rev := strings.TrimSpace(line[len("  rev:"):])
+-			if path != "" && rev != "" {
+-				mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: path, Version: rev}})
+-			}
+-		}
+-	}
+-	return mf, nil
+-}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8629dff201..e1575de2e0 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -25,7 +25,6 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/modconv"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+ 
+@@ -1049,16 +1048,8 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
+ 	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
+ 
+-	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
+-	if convertedFrom != "" {
+-		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
+-	}
+-	if err != nil {
+-		base.Fatal(err)
+-	}
+-
+ 	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
+-	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
++	rs, err := updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 	if err != nil {
+ 		base.Fatal(err)
+ 	}
+@@ -1476,36 +1467,6 @@ func mustHaveCompleteRequirements() bool {
+ 	return cfg.BuildMod != "mod" && !inWorkspaceMode()
+ }
+ 
+-// convertLegacyConfig imports module requirements from a legacy vendoring
+-// configuration file, if one is present.
+-func convertLegacyConfig(modFile *modfile.File, modRoot string) (from string, err error) {
+-	noneSelected := func(path string) (version string) { return "none" }
+-	queryPackage := func(path, rev string) (module.Version, error) {
+-		pkgMods, modOnly, err := QueryPattern(context.Background(), path, rev, noneSelected, nil)
+-		if err != nil {
+-			return module.Version{}, err
+-		}
+-		if len(pkgMods) > 0 {
+-			return pkgMods[0].Mod, nil
+-		}
+-		return modOnly.Mod, nil
+-	}
+-	for _, name := range altConfigs {
+-		cfg := filepath.Join(modRoot, name)
+-		data, err := os.ReadFile(cfg)
+-		if err == nil {
+-			convert := modconv.Converters[name]
+-			if convert == nil {
+-				return "", nil
+-			}
+-			cfg = filepath.ToSlash(cfg)
+-			err := modconv.ConvertLegacyConfig(modFile, cfg, data, queryPackage)
+-			return name, err
+-		}
+-	}
+-	return "", nil
+-}
+-
+ // addGoStmt adds a go directive to the go.mod file if it does not already
+ // include one. The 'go' version added, if any, is the latest version supported
+ // by this toolchain.
+@@ -1524,17 +1485,6 @@ func forceGoStmt(modFile *modfile.File, mod module.Version, v string) {
+ }
+ 
+ var altConfigs = []string{
+-	"Gopkg.lock",
+-
+-	"GLOCKFILE",
+-	"Godeps/Godeps.json",
+-	"dependencies.tsv",
+-	"glide.lock",
+-	"vendor.conf",
+-	"vendor.yml",
+-	"vendor/manifest",
+-	"vendor/vendor.json",
+-
+ 	".git/config",
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert.txt b/src/cmd/go/testdata/script/mod_convert.txt
+deleted file mode 100644
+index 922d9246c3..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert.txt
++++ /dev/null
+@@ -1,70 +0,0 @@
+-[!net:github.com] skip
+-[!net:golang.org] skip
+-[!net:gopkg.in] skip
+-[!git] skip
+-
+-env GO111MODULE=on
+-env GOPROXY=
+-env GOSUMDB=
+-
+-go mod download github.com/docker/distribution@v0.0.0-20150410205453-85de3967aa93
+-mkdir x/Godeps
+-cp $GOPATH/pkg/mod/github.com/docker/distribution@v0.0.0-20150410205453-85de3967aa93/Godeps/Godeps.json x/Godeps
+-cd x
+-go mod init github.com/docker/distribution
+-cmpenv go.mod go.mod.want
+-
+-[!net:google.golang.org] skip
+-[!net:cloud.google.com] skip
+-
+-go mod download github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0
+-cp $GOPATH/pkg/mod/github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0/Gopkg.lock ../y
+-cd ../y
+-go mod init github.com/fishy/gcsbucket
+-cmpenv go.mod go.mod.want
+-
+--- x/go.mod.want --
+-module github.com/docker/distribution
+-
+-go $goversion
+-
+-require (
+-	github.com/AdRoll/goamz v0.0.0-20150130162828-d3664b76d905
+-	github.com/MSOpenTech/azure-sdk-for-go v0.0.0-20150323223030-d90753bcad2e
+-	github.com/Sirupsen/logrus v0.7.3
+-	github.com/bugsnag/bugsnag-go v1.0.3-0.20141110184014-b1d153021fcd
+-	github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+-	github.com/bugsnag/panicwrap v0.0.0-20141110184334-e5f9854865b9
+-	github.com/codegangsta/cli v1.4.2-0.20150131031259-6086d7927ec3
+-	github.com/docker/docker v1.4.2-0.20150204013315-165ea5c158cf
+-	github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
+-	github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7
+-	github.com/gorilla/context v0.0.0-20140604161150-14f550f51af5
+-	github.com/gorilla/handlers v0.0.0-20140825150757-0e84b7d810c1
+-	github.com/gorilla/mux v0.0.0-20140926153814-e444e69cbd2e
+-	github.com/jlhawn/go-crypto v0.0.0-20150401213827-cd738dde20f0
+-	github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
+-	github.com/yvasiyarov/gorelic v0.0.7-0.20141212073537-a9bba5b9ab50
+-	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
+-	golang.org/x/net v0.0.0-20150202051010-1dfe7915deaf
+-	gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789
+-	gopkg.in/yaml.v2 v2.0.0-20150116202057-bef53efd0c76
+-)
+--- y/go.mod.want --
+-module github.com/fishy/gcsbucket
+-
+-go $goversion
+-
+-require (
+-	cloud.google.com/go v0.18.0
+-	github.com/fishy/fsdb v0.0.0-20180217030800-5527ded01371
+-	github.com/golang/protobuf v1.0.0
+-	github.com/googleapis/gax-go v2.0.0+incompatible
+-	golang.org/x/net v0.0.0-20180216171745-136a25c244d3
+-	golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
+-	golang.org/x/text v0.3.1-0.20180208041248-4e4a3210bb54
+-	google.golang.org/api v0.0.0-20180217000815-c7a403bb5fe1
+-	google.golang.org/appengine v1.0.0
+-	google.golang.org/genproto v0.0.0-20180206005123-2b5a72b8730b
+-	google.golang.org/grpc v1.10.0
+-)
+diff --git a/src/cmd/go/testdata/script/mod_convert_dep.txt b/src/cmd/go/testdata/script/mod_convert_dep.txt
+deleted file mode 100644
+index 875a836fd2..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_dep.txt
++++ /dev/null
+@@ -1,30 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found Gopkg.lock in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+-# In Plan 9, directories are automatically created in /n.
+-# For example, /n/Gopkg.lock always exists, but it's a directory.
+-# Test that we ignore directories when trying to find alternate config files.
+-cd $WORK/gopkgdir/x
+-! go list .
+-stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+-! stderr 'Gopkg.lock'
+-
+--- $WORK/test/Gopkg.lock --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+--- $WORK/gopkgdir/Gopkg.lock/README.txt --
+-../Gopkg.lock is a directory, not a file.
+--- $WORK/gopkgdir/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_glide.txt b/src/cmd/go/testdata/script/mod_convert_glide.txt
+deleted file mode 100644
+index 9f1fff51bf..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_glide.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found glide.lock in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/glide.lock --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_glockfile.txt b/src/cmd/go/testdata/script/mod_convert_glockfile.txt
+deleted file mode 100644
+index 6aa0794888..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_glockfile.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found GLOCKFILE in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/GLOCKFILE --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_godeps.txt b/src/cmd/go/testdata/script/mod_convert_godeps.txt
+deleted file mode 100644
+index da7b6c1059..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_godeps.txt
++++ /dev/null
+@@ -1,19 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found Godeps/Godeps.json in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/Godeps/Godeps.json --
+-{}
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv.txt b/src/cmd/go/testdata/script/mod_convert_tsv.txt
+deleted file mode 100644
+index 6015ac8754..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_tsv.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found dependencies.tsv in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/dependencies.tsv --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+deleted file mode 100644
+index 6ff69933e8..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
++++ /dev/null
+@@ -1,29 +0,0 @@
+-env GO111MODULE=on
+-env GOPROXY=direct
+-env GOSUMDB=off
+-
+-[short] skip
+-[!git] skip
+-
+-# secure fetch should report insecure warning
+-cd $WORK/test
+-go mod init
+-stderr 'redirected .* to insecure URL'
+-
+-# insecure fetch should not
+-env GOINSECURE=*.golang.org
+-rm go.mod
+-go mod init
+-! stderr 'redirected .* to insecure URL'
+-
+-# insecure fetch invalid path should report insecure warning
+-env GOINSECURE=foo.golang.org
+-rm go.mod
+-go mod init
+-stderr 'redirected .* to insecure URL'
+-
+--- $WORK/test/dependencies.tsv --
+-vcs-test.golang.org/insecure/go/insecure	git	6fecd21f7c0c	2019-09-04T18:39:48Z 
+-
+--- $WORK/test/x.go --
+-package x // import "m"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt b/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
+deleted file mode 100644
+index 57ec4191a4..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found vendor.conf in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/vendor.conf --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+deleted file mode 100644
+index df6db36574..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
++++ /dev/null
+@@ -1,19 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found vendor/vendor.json in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m
+-stdout '^m$'
+-
+--- $WORK/test/vendor/vendor.json --
+-{}
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+deleted file mode 100644
+index 8b6a1414be..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
++++ /dev/null
+@@ -1,19 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found vendor/manifest in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m
+-stdout '^m$'
+-
+--- $WORK/test/vendor/manifest --
+-{}
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt b/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
+deleted file mode 100644
+index 4ed140a25a..0000000000
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-env GO111MODULE=on
+-
+-# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+-# However, we should suggest 'go mod init' if we can find an alternate config file.
+-cd $WORK/test/x
+-! go list .
+-stderr 'found vendor.yml in .*[/\\]test'
+-stderr '\s*cd \.\. && go mod init'
+-
+-# The command we suggested should succeed.
+-cd ..
+-go mod init
+-go list -m all
+-stdout '^m$'
+-
+--- $WORK/test/vendor.yml --
+--- $WORK/test/x/x.go --
+-package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+deleted file mode 100644
+index 76b4867860..0000000000
+--- a/src/cmd/go/testdata/script/mod_init_dep.txt
++++ /dev/null
+@@ -1,40 +0,0 @@
+-env GO111MODULE=on
+-env GOFLAGS=-mod=mod
+-
+-# go mod init should populate go.mod from Gopkg.lock
+-go mod init x
+-stderr 'copying requirements from Gopkg.lock'
+-go list -m all
+-stdout 'rsc.io/sampler v1.0.0'
+-
+-# test dep replacement
+-cd y
+-go mod init
+-cmpenv go.mod go.mod.replace
+-
+--- x.go --
+-package x
+-
+--- Gopkg.lock --
+-[[projects]]
+-  name = "rsc.io/sampler"
+-  version = "v1.0.0"
+-
+--- y/Gopkg.lock --
+-[[projects]]
+-  name = "z"
+-  revision = "v1.0.0"
+-  source = "rsc.io/quote"
+-
+--- y/y.go --
+-package y // import "y"
+-import _ "z"
+-
+--- y/go.mod.replace --
+-module y
+-
+-go $goversion
+-
+-replace z v1.0.0 => rsc.io/quote v1.0.0
+-
+-require rsc.io/quote v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_init_glide.txt b/src/cmd/go/testdata/script/mod_init_glide.txt
+deleted file mode 100644
+index 0d087eb607..0000000000
+--- a/src/cmd/go/testdata/script/mod_init_glide.txt
++++ /dev/null
+@@ -1,35 +0,0 @@
+-[!net:github.com] skip
+-[!git] skip
+-
+-env GO111MODULE=on
+-env GOPROXY=direct
+-env GOSUMDB=
+-
+-# Regression test for golang.org/issue/32161:
+-# 'go mod init' did not locate tags when resolving a commit to a pseudo-version.
+-go mod init x
+-cmpenv go.mod go.mod.out
+-
+--- main.go --
+-package main
+-
+-import (
+-	_ "github.com/rsc/legacytest"
+-)
+-
+-func main() {}
+-
+--- glide.lock --
+-imports:
+-- name: github.com/rsc/legacytest
+-  version: fb3c628075e32f7f3c248a3abbdafd69ad6e21e1
+-
+--- glide.yaml --
+-package: x
+-
+--- go.mod.out --
+-module x
+-
+-go $goversion
+-
+-require github.com/rsc/legacytest v1.1.0-pre.0.20180717164849-fb3c628075e3

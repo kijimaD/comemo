@@ -7,7 +7,40 @@ Date:   Mon Sep 26 00:10:21 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5128041
-
+---
  src/pkg/exp/template/html/transition.go | 3 ---
  src/pkg/exp/template/html/url.go        | 4 ----
  2 files changed, 7 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/transition.go b/src/pkg/exp/template/html/transition.go
+index dd8cd59a6f..15548043b6 100644
+--- a/src/pkg/exp/template/html/transition.go
++++ b/src/pkg/exp/template/html/transition.go
+@@ -9,9 +9,6 @@ import (
+ 	"strings"
+ )
+ 
+-// TODO: ensure transition error messages contain template name and ideally
+-// line info.
+-
+ // transitionFunc is the array of context transition functions for text nodes.
+ // A transition function takes a context and template text input, and returns
+ // the updated context and the number of bytes consumed from the front of the
+diff --git a/src/pkg/exp/template/html/url.go b/src/pkg/exp/template/html/url.go
+index 8a43e63645..8fdc8f77e8 100644
+--- a/src/pkg/exp/template/html/url.go
++++ b/src/pkg/exp/template/html/url.go
+@@ -21,13 +21,9 @@ func urlFilter(args ...interface{}) string {
+ 	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+ 		protocol := strings.ToLower(s[:i])
+ 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
+-			// Return a value that someone investigating a bug
+-			// report can put into a search engine.
+ 			return "#" + filterFailsafe
+ 		}
+ 	}
+-	// TODO: Once we handle <style>#id { background: url({{.Img}}) }</style>
+-	// we will need to stop this from HTML escaping and pipeline sanitizers.
+ 	return s
+ }
+ 

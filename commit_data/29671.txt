@@ -20,6 +20,20 @@ Date:   Mon Oct 3 11:52:20 2016 -0400
     Change-Id: I1c68ea9d0a5bbd3dd1b7ce329d92b0f05e2e0877
     Reviewed-on: https://go-review.googlesource.com/30137
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mfinal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index b3f30dd5ae..f9344882b1 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -231,7 +231,7 @@ func runfinq() {
+ // address of a local variable.
+ // The argument finalizer must be a function that takes a single argument
+ // to which obj's type can be assigned, and can have arbitrary ignored return
+-// values. If either of these is not true, SetFinalizer aborts the
++// values. If either of these is not true, SetFinalizer may abort the
+ // program.
+ //
+ // Finalizers are run in dependency order: if A points at B, both have

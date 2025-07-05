@@ -14,6 +14,41 @@ Date:   Wed Aug 22 22:23:56 2012 +1000
     R=golang-dev, iant, aram, lucio.dere, minux.ma
     CC=golang-dev
     https://golang.org/cl/6470044
-
+---
  src/cmd/go/build.go | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e12698f9f0..fd11a4dcba 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1427,6 +1427,16 @@ func gccgoPrefix(p *Package) string {
+ 	return "go_" + p.ImportPath
+ }
+ 
++// libgcc returns the filename for libgcc, as determined by invoking gcc with
++// the -print-libgcc-file-name option.
++func (b *builder) libgcc(p *Package) (string, error) {
++	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
++	if err != nil {
++		return "", nil
++	}
++	return strings.Trim(string(f), "\r\n"), nil
++}
++
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	cfile = mkAbs(p.Dir, cfile)
+@@ -1571,7 +1581,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 			bareLDFLAGS = append(bareLDFLAGS, f)
+ 		}
+ 	}
+-	staticLibs := []string{"-lgcc"}
++	libgcc, err := b.libgcc(p)
++	if err != nil {
++		return nil, nil, err
++	}
++	staticLibs := []string{libgcc}
+ 	if goos == "windows" {
+ 		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
+ 	}

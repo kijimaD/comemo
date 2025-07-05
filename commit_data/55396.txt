@@ -14,7 +14,7 @@ Date:   Tue Jan 31 14:59:19 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go        |  2 +-
  src/cmd/compile/internal/types2/expr.go        |  8 ++++----
  src/cmd/compile/internal/types2/infer.go       |  2 +-
@@ -34,3 +34,331 @@ Date:   Tue Jan 31 14:59:19 2023 -0800
  src/go/types/testdata/local/shifts.go          |  2 +-
  src/go/types/unify.go                          |  2 +-
  18 files changed, 31 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 1544ee11f4..0ac0f6196a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -405,7 +405,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ 			// expression and not the current constant declaration. Use
+ 			// the constant identifier position for any errors during
+ 			// init expression evaluation since that is all we have
+-			// (see issues #42991, #42992).
++			// (see issues go.dev/issue/42991, go.dev/issue/42992).
+ 			check.errpos = obj.pos
+ 		}
+ 		check.expr(&x, init)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 472e30a069..0be2a4533c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -960,7 +960,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 
+ 		if isUntyped(y.typ) {
+ 			// Caution: Check for representability here, rather than in the switch
+-			// below, because isInteger includes untyped integers (was bug #43697).
++			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
+ 			check.representable(y, Typ[Uint])
+ 			if y.mode == invalid {
+ 				x.mode = invalid
+@@ -978,7 +978,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 			}
+ 		case isUntyped(y.typ):
+ 			// This is incorrect, but preserves pre-existing behavior.
+-			// See also bug #47410.
++			// See also go.dev/issue/47410.
+ 			check.convertUntyped(y, Typ[Uint])
+ 			if y.mode == invalid {
+ 				x.mode = invalid
+@@ -1355,11 +1355,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 				// init expression/func declaration which contains
+ 				// them: use existing package-level declaration info.
+ 				decl := check.decl // capture for use in closure below
+-				iota := check.iota // capture for use in closure below (#22345)
++				iota := check.iota // capture for use in closure below (go.dev/issue/22345)
+ 				// Don't type-check right away because the function may
+ 				// be part of a type definition to which the function
+ 				// body refers. Instead, type-check as soon as possible,
+-				// but before the enclosing scope contents changes (#22992).
++				// but before the enclosing scope contents changes (go.dev/issue/22992).
+ 				check.later(func() {
+ 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
+ 				}).describef(e, "func literal")
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index b9defb3e81..24213134f5 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -505,7 +505,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+ 					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+ 					// type, the core type will be the named type T0, which doesn't match T1.
+-					// Yet the instantiation of P with T1 is clearly valid (see #53650).
++					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
+ 					// Reporting an error if unification fails would be incorrect in this case.
+ 					// On the other hand, it is safe to ignore failing unification during constraint
+ 					// type inference because if the failure is true, an error will be reported when
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 96d87fe66a..0c3b96ff2d 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -399,7 +399,8 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 
+ 		altS, mS := check.funcString(alt, false), check.funcString(m, false)
+ 		if altS == mS {
+-			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.  See #54258.
++			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
++			// See go.dev/issue/54258.
+ 			altS, mS = check.funcString(alt, true), check.funcString(m, true)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 61c6721f80..8e0dfe2881 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -154,7 +154,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			} else if len(tparams) < len(recvTParams) {
+ 				// Reporting an error here is a stop-gap measure to avoid crashes in the
+ 				// compiler when a type parameter/argument cannot be inferred later. It
+-				// may lead to follow-on errors (see issues #51339, #51343).
++				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
+ 				// TODO(gri) find a better solution
+ 				got := measure(len(tparams), "type parameter")
+ 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
+@@ -204,7 +204,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		sig.recv = recv
+ 
+ 		// Delay validation of receiver type as it may cause premature expansion
+-		// of types the receiver type is dependent on (see issues #51232, #51233).
++		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
+ 		check.later(func() {
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 			rtyp, _ := deref(recv.typ)
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 28df06c989..c5903a12d3 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -222,7 +222,7 @@ func TestStdKen(t *testing.T) {
+ var excluded = map[string]bool{
+ 	"builtin": true,
+ 
+-	// See #46027: some imports are missing for this submodule.
++	// go.dev/issue/46027: some imports are missing for this submodule.
+ 	"crypto/internal/edwards25519/field/_asm": true,
+ 	"crypto/internal/bigmod/_asm":             true,
+ }
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 1ddaef39ab..f87ef11b98 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -796,7 +796,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 			}
+ 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+ 			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
+-			// "at the end of the TypeSwitchCase" in #16794 instead?
++			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
+ 			scopePos := clause.Pos() // for default clause (len(List) == 0)
+ 			if n := len(cases); n > 0 {
+ 				scopePos = syntax.EndPos(cases[n-1])
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index cddc7f070b..9fe9c17803 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -325,7 +325,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			// If typ.base is invalid, it's unlikely that *base is particularly
+ 			// useful - even a valid dereferenciation will lead to an invalid
+ 			// type again, and in some cases we get unexpected follow-on errors
+-			// (e.g., see #49005). Return an invalid type instead.
++			// (e.g., go.dev/issue/49005). Return an invalid type instead.
+ 			if typ.base == Typ[Invalid] {
+ 				return Typ[Invalid]
+ 			}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index bdafdf9c6a..aff8a147e4 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -14,7 +14,7 @@ import (
+ 
+ const (
+ 	// Upper limit for recursion depth. Used to catch infinite recursions
+-	// due to implementation issues (e.g., see issues #48619, #48656).
++	// due to implementation issues (e.g., see issues go.dev/issue/48619, go.dev/issue/48656).
+ 	unificationDepthLimit = 50
+ 
+ 	// Whether to panic when unificationDepthLimit is reached.
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 938e85ed68..0783f921eb 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -946,7 +946,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 
+ 		// We can type-check this fine but we're introducing a synthetic
+ 		// type parameter for the result. It's not clear what the API
+-		// implications are here. Report an error for 1.18 (see #50912),
++		// implications are here. Report an error for 1.18 (see go.dev/issue/50912),
+ 		// but continue type-checking.
+ 		var code Code
+ 		switch id {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 7d9cc1757b..393d8f34e2 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -474,7 +474,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool)
+ 			// expression and not the current constant declaration. Use
+ 			// the constant identifier position for any errors during
+ 			// init expression evaluation since that is all we have
+-			// (see issues #42991, #42992).
++			// (see issues go.dev/issue/42991, go.dev/issue/42992).
+ 			check.errpos = atPos(obj.pos)
+ 		}
+ 		check.expr(&x, init)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index f09a29b126..d67bc8b756 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -695,7 +695,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			if !hasNil(target) {
+ 				return nil, nil, InvalidUntypedConversion
+ 			}
+-			// Preserve the type of nil as UntypedNil: see #13061.
++			// Preserve the type of nil as UntypedNil: see go.dev/issue/13061.
+ 			return Typ[UntypedNil], nil, 0
+ 		default:
+ 			return nil, nil, InvalidUntypedConversion
+@@ -711,7 +711,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			}) {
+ 				return nil, nil, InvalidUntypedConversion
+ 			}
+-			// keep nil untyped (was bug #39755)
++			// keep nil untyped (was bug go.dev/issue/39755)
+ 			if x.isNil() {
+ 				return Typ[UntypedNil], nil, 0
+ 			}
+@@ -938,7 +938,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 		if isUntyped(y.typ) {
+ 			// Caution: Check for representability here, rather than in the switch
+-			// below, because isInteger includes untyped integers (was bug #43697).
++			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
+ 			check.representable(y, Typ[Uint])
+ 			if y.mode == invalid {
+ 				x.mode = invalid
+@@ -956,7 +956,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			}
+ 		case isUntyped(y.typ):
+ 			// This is incorrect, but preserves pre-existing behavior.
+-			// See also bug #47410.
++			// See also go.dev/issue/47410.
+ 			check.convertUntyped(y, Typ[Uint])
+ 			if y.mode == invalid {
+ 				x.mode = invalid
+@@ -1333,11 +1333,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 				// init expression/func declaration which contains
+ 				// them: use existing package-level declaration info.
+ 				decl := check.decl // capture for use in closure below
+-				iota := check.iota // capture for use in closure below (#22345)
++				iota := check.iota // capture for use in closure below (go.dev/issue/22345)
+ 				// Don't type-check right away because the function may
+ 				// be part of a type definition to which the function
+ 				// body refers. Instead, type-check as soon as possible,
+-				// but before the enclosing scope contents changes (#22992).
++				// but before the enclosing scope contents changes (go.dev/issue/22992).
+ 				check.later(func() {
+ 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
+ 				}).describef(e, "func literal")
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 70d256bed7..9589b0749a 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -507,7 +507,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+ 					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+ 					// type, the core type will be the named type T0, which doesn't match T1.
+-					// Yet the instantiation of P with T1 is clearly valid (see #53650).
++					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
+ 					// Reporting an error if unification fails would be incorrect in this case.
+ 					// On the other hand, it is safe to ignore failing unification during constraint
+ 					// type inference because if the failure is true, an error will be reported when
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 2d6501b739..331c308656 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -401,7 +401,8 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 
+ 		altS, mS := check.funcString(alt, false), check.funcString(m, false)
+ 		if altS == mS {
+-			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.  See #54258.
++			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
++			// See go.dev/issue/54258.
+ 			altS, mS = check.funcString(alt, true), check.funcString(m, true)
+ 		}
+ 
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 5986ec83a7..8285f1b3d4 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -158,7 +158,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			} else if len(tparams) < len(recvTParams) {
+ 				// Reporting an error here is a stop-gap measure to avoid crashes in the
+ 				// compiler when a type parameter/argument cannot be inferred later. It
+-				// may lead to follow-on errors (see issues #51339, #51343).
++				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
+ 				// TODO(gri) find a better solution
+ 				got := measure(len(tparams), "type parameter")
+ 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
+@@ -207,7 +207,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		sig.recv = recv
+ 
+ 		// Delay validation of receiver type as it may cause premature expansion
+-		// of types the receiver type is dependent on (see issues #51232, #51233).
++		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
+ 		check.later(func() {
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 			rtyp, _ := deref(recv.typ)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index afc413c914..f2290c5725 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -192,7 +192,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+-		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for #34151
++		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for go.dev/issue/34151
+ 		"issue42058a.go", // go/types does not have constraints on channel element size
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+@@ -224,7 +224,7 @@ func TestStdKen(t *testing.T) {
+ var excluded = map[string]bool{
+ 	"builtin": true,
+ 
+-	// See #46027: some imports are missing for this submodule.
++	// See go.dev/issue/46027: some imports are missing for this submodule.
+ 	"crypto/internal/edwards25519/field/_asm": true,
+ 	"crypto/internal/bigmod/_asm":             true,
+ }
+diff --git a/src/go/types/testdata/local/shifts.go b/src/go/types/testdata/local/shifts.go
+index a9b50035d7..790daa3529 100644
+--- a/src/go/types/testdata/local/shifts.go
++++ b/src/go/types/testdata/local/shifts.go
+@@ -7,7 +7,7 @@
+ // correctly with types2 at the moment. See go.dev/issue/52080.
+ // Make sure we keep testing them with go/types.
+ //
+-// TODO(gri) Once #52080 is fixed, this file can be
++// TODO(gri) Once go.dev/issue/52080 is fixed, this file can be
+ //           deleted in favor of the re-enabled tests
+ //           in the shared file.
+ 
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 03c4739814..8265aa82b4 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -16,7 +16,7 @@ import (
+ 
+ const (
+ 	// Upper limit for recursion depth. Used to catch infinite recursions
+-	// due to implementation issues (e.g., see issues #48619, #48656).
++	// due to implementation issues (e.g., see issues go.dev/issue/48619, go.dev/issue/48656).
+ 	unificationDepthLimit = 50
+ 
+ 	// Whether to panic when unificationDepthLimit is reached.

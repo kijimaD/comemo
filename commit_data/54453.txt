@@ -24,10 +24,209 @@ Date:   Fri Oct 14 17:30:45 2022 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/signal_windows_test.go           | 55 ++++++++++++++++++++++++++++
  src/runtime/sys_windows_arm.s                | 10 ++++-
  src/runtime/sys_windows_arm64.s              | 11 ++++--
  src/runtime/testdata/testwinlibthrow/main.go | 23 ++++++++++++
  src/runtime/testdata/testwinlibthrow/veh.cpp | 53 +++++++++++++++++++++++++++
  5 files changed, 147 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 8b32ad8974..fe74ad56bf 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -17,6 +17,61 @@ import (
+ 	"testing"
+ )
+ 
++func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveExecPath(t, "g++")
++	testprog.Lock()
++	defer testprog.Unlock()
++	dir := t.TempDir()
++
++	// build c program
++	dll := filepath.Join(dir, "veh.dll")
++	cmd := exec.Command("g++", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.cpp", "-static", "-lstdc++")
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build c exe: %s\n%s", err, out)
++	}
++
++	// build go exe
++	exe := filepath.Join(dir, "test.exe")
++	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinlibthrow/main.go")
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build go library: %s\n%s", err, out)
++	}
++
++	// run test program in same thread
++	cmd = exec.Command(exe)
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err == nil {
++		t.Fatal("error expected")
++	}
++	if _, ok := err.(*exec.ExitError); ok && len(out) > 0 {
++		if !bytes.Contains(out, []byte("Exception 0x2a")) {
++			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
++		}
++	} else {
++		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
++	}
++	// run test program in a new thread
++	cmd = exec.Command(exe, "thread")
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err == nil {
++		t.Fatal("error expected")
++	}
++	if err, ok := err.(*exec.ExitError); ok {
++		if err.ExitCode() != 42 {
++			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
++		}
++	} else {
++		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
++	}
++}
++
+ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 5dc576a260..db6d8f1a08 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -123,8 +123,14 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R1, R7			// Save param1
+ 
+ 	BL      runtime·load_g(SB)
+-	CMP	$0, g			// is there a current g?
+-	BL.EQ	runtime·badsignal2(SB)
++	CMP	$0,	g		// is there a current g?
++	BNE	g_ok
++	ADD	$(8+20), R13	// free locals
++	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
++	MOVW	$0, R0		// continue 
++	BEQ	return
++
++g_ok:
+ 
+ 	// save g and SP in case of stack switch
+ 	MOVW	R13, 24(R13)
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index b39df4f124..4702a4d7d2 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -147,10 +147,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
+ 
+ 	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
+-	CMP	$0, g			// is there a current g?
+-	BNE	2(PC)
+-	BL	runtime·badsignal2(SB)
++	CMP	$0,	g		// is there a current g?
++	BNE	g_ok
++	MOVD	R7, LR
++	MOVD	R16, R27	// restore R27
++	MOVD	R17, g		// restore R28
++	MOVD	$0, R0		// continue 
++	RET
+ 
++g_ok:
+ 	// Do we need to switch to the g0 stack?
+ 	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
+ 	MOVD	g_m(g), R2		// R2 = m
+diff --git a/src/runtime/testdata/testwinlibthrow/main.go b/src/runtime/testdata/testwinlibthrow/main.go
+new file mode 100644
+index 0000000000..50c483f401
+--- /dev/null
++++ b/src/runtime/testdata/testwinlibthrow/main.go
+@@ -0,0 +1,23 @@
++package main
++
++import (
++	"os"
++	"syscall"
++)
++
++func main() {
++	dll := syscall.MustLoadDLL("veh.dll")
++	RaiseExcept := dll.MustFindProc("RaiseExcept")
++	RaiseNoExcept := dll.MustFindProc("RaiseNoExcept")
++	ThreadRaiseExcept := dll.MustFindProc("ThreadRaiseExcept")
++	ThreadRaiseNoExcept := dll.MustFindProc("ThreadRaiseNoExcept")
++
++	thread := len(os.Args) > 1 && os.Args[1] == "thread"
++	if !thread {
++		RaiseExcept.Call()
++		RaiseNoExcept.Call()
++	} else {
++		ThreadRaiseExcept.Call()
++		ThreadRaiseNoExcept.Call()
++	}
++}
+diff --git a/src/runtime/testdata/testwinlibthrow/veh.cpp b/src/runtime/testdata/testwinlibthrow/veh.cpp
+new file mode 100644
+index 0000000000..ed7015a064
+--- /dev/null
++++ b/src/runtime/testdata/testwinlibthrow/veh.cpp
+@@ -0,0 +1,53 @@
++//go:build ignore
++
++#include <windows.h>
++
++extern "C" __declspec(dllexport)
++void RaiseExcept(void)
++{
++    try
++    {
++        RaiseException(42, 0, 0, 0);
++    }
++    catch (...)
++    {
++    }
++}
++
++extern "C" __declspec(dllexport)
++void RaiseNoExcept(void)
++{
++    RaiseException(42, 0, 0, 0);
++}
++
++static DWORD WINAPI ThreadRaiser(void* Context)
++{
++    if (Context)
++        RaiseExcept();
++    else
++        RaiseNoExcept();
++    return 0;
++}
++
++static void ThreadRaiseXxx(int except)
++{
++    static int dummy;
++    HANDLE thread = CreateThread(0, 0, ThreadRaiser, except ? &dummy : 0, 0, 0);
++    if (0 != thread)
++    {
++        WaitForSingleObject(thread, INFINITE);
++        CloseHandle(thread);
++    }
++}
++
++extern "C" __declspec(dllexport)
++void ThreadRaiseExcept(void)
++{
++    ThreadRaiseXxx(1);
++}
++
++extern "C" __declspec(dllexport)
++void ThreadRaiseNoExcept(void)
++{
++    ThreadRaiseXxx(0);
++}

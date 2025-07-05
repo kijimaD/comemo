@@ -7,6 +7,19 @@ Date:   Wed Jun 30 14:42:58 2010 +1000
     R=gri
     CC=golang-dev
     https://golang.org/cl/1679045
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f3bae984cc..68c5934137 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -85,6 +85,7 @@ Kei Son <hey.calmdown@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
++Kirklin McDonald <kirklin.mcdonald@gmail.com>
+ Kyle Consalus <consalus@gmail.com>
+ Larry Hosken <lahosken@golang.org>
+ Mark Zavislak <zavislak@google.com>

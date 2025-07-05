@@ -21,7 +21,81 @@ Date:   Mon Jun 28 19:36:53 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go        | 27 ++++++++++++++++++++++++++-
  src/cmd/go/internal/modfetch/sumdb.go |  6 ++++--
  2 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b9632ea3c9..c8747d6c11 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -56,6 +56,10 @@ var (
+ 
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+ 	DebugTrace       string // -debug-trace flag
++
++	// GoPathError is set when GOPATH is not set. it contains an
++	// explanation why GOPATH is unset.
++	GoPathError string
+ )
+ 
+ func defaultContext() build.Context {
+@@ -73,7 +77,7 @@ func defaultContext() build.Context {
+ 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
+ 	}
+ 
+-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
++	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
+ 
+ 	// Override defaults computed in go/build with defaults
+ 	// from go environment configuration file, if known.
+@@ -402,3 +406,24 @@ func gopathDir(rel string) string {
+ 	}
+ 	return filepath.Join(list[0], rel)
+ }
++
++func gopath(ctxt build.Context) string {
++	if len(ctxt.GOPATH) > 0 {
++		return ctxt.GOPATH
++	}
++	env := "HOME"
++	if runtime.GOOS == "windows" {
++		env = "USERPROFILE"
++	} else if runtime.GOOS == "plan9" {
++		env = "home"
++	}
++	if home := os.Getenv(env); home != "" {
++		def := filepath.Join(home, "go")
++		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
++			GoPathError = "cannot set GOROOT as GOPATH"
++		}
++		return ""
++	}
++	GoPathError = fmt.Sprintf("%s is not set", env)
++	return ""
++}
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index f233cba6df..79961b4324 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -201,7 +201,8 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
+ 	}
+ 
+ 	if cfg.SumdbDir == "" {
+-		return nil, errors.New("could not locate sumdb file: missing $GOPATH")
++		return nil, fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
++			cfg.GoPathError)
+ 	}
+ 	targ := filepath.Join(cfg.SumdbDir, file)
+ 	data, err = lockedfile.Read(targ)
+@@ -220,7 +221,8 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
+ 		return fmt.Errorf("cannot write key")
+ 	}
+ 	if cfg.SumdbDir == "" {
+-		return errors.New("could not locate sumdb file: missing $GOPATH")
++		return fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
++			cfg.GoPathError)
+ 	}
+ 	targ := filepath.Join(cfg.SumdbDir, file)
+ 	os.MkdirAll(filepath.Dir(targ), 0777)

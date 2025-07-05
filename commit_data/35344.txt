@@ -26,8 +26,140 @@ Date:   Thu Jan 11 21:52:27 2018 -0800
     Change-Id: Ib4dcb52094f13c235e840c9672e439ea65fef961
     Reviewed-on: https://go-review.googlesource.com/87498
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/printer/printer_test.go | 23 +++++++++++++++++++++++
  src/go/scanner/scanner.go      | 15 ++++++++++-----
  src/go/scanner/scanner_test.go | 26 ++++++++++++++++++++++++--
  3 files changed, 57 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 5984d2c4d2..e06604a407 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -710,3 +710,26 @@ type bar int	// comment2
+ 		t.Errorf("got %q, want %q", buf.String(), bar)
+ 	}
+ }
++
++func TestIssue11151(t *testing.T) {
++	const src = "package p\t/*\r/1\r*\r/2*\r\r\r\r/3*\r\r+\r\r/4*/\n"
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var buf bytes.Buffer
++	Fprint(&buf, fset, f)
++	got := buf.String()
++	const want = "package p\t/*/1*\r/2*\r/3*+/4*/\n" // \r following opening /* should be stripped
++	if got != want {
++		t.Errorf("\ngot : %q\nwant: %q", got, want)
++	}
++
++	// the resulting program must be valid
++	_, err = parser.ParseFile(fset, "", got, 0)
++	if err != nil {
++		t.Errorf("%v\norig: %q\ngot : %q", err, src, got)
++	}
++}
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index a86e4eb668..5e0a4a4cec 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -204,7 +204,7 @@ func (s *Scanner) scanComment() string {
+ exit:
+ 	lit := s.src[offs:s.offset]
+ 	if hasCR {
+-		lit = stripCR(lit)
++		lit = stripCR(lit, lit[1] == '*')
+ 	}
+ 
+ 	return string(lit)
+@@ -480,11 +480,16 @@ func (s *Scanner) scanString() string {
+ 	return string(s.src[offs:s.offset])
+ }
+ 
+-func stripCR(b []byte) []byte {
++func stripCR(b []byte, comment bool) []byte {
+ 	c := make([]byte, len(b))
+ 	i := 0
+-	for _, ch := range b {
+-		if ch != '\r' {
++	for j, ch := range b {
++		// In a /*-style comment, don't strip \r from *\r/ (incl.
++		// sequences of \r from *\r\r...\r/) since the resulting
++		// */ would terminate the comment too early unless the \r
++		// is immediately following the opening /* in which case
++		// it's ok because /*/ is not closed yet (issue #11151).
++		if ch != '\r' || comment && i > len("/*") && c[i-1] == '*' && j+1 < len(b) && b[j+1] == '/' {
+ 			c[i] = ch
+ 			i++
+ 		}
+@@ -514,7 +519,7 @@ func (s *Scanner) scanRawString() string {
+ 
+ 	lit := s.src[offs:s.offset]
+ 	if hasCR {
+-		lit = stripCR(lit)
++		lit = stripCR(lit, false)
+ 	}
+ 
+ 	return string(lit)
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index ff41c036f0..f70d9322ac 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -45,6 +45,8 @@ var tokens = [...]elt{
+ 	{token.COMMENT, "/* a comment */", special},
+ 	{token.COMMENT, "// a comment \n", special},
+ 	{token.COMMENT, "/*\r*/", special},
++	{token.COMMENT, "/**\r/*/", special}, // issue 11151
++	{token.COMMENT, "/**\r\r/*/", special},
+ 	{token.COMMENT, "//\r\n", special},
+ 
+ 	// Identifiers and basic type literals
+@@ -270,7 +272,7 @@ func TestScan(t *testing.T) {
+ 		switch e.tok {
+ 		case token.COMMENT:
+ 			// no CRs in comments
+-			elit = string(stripCR([]byte(e.lit)))
++			elit = string(stripCR([]byte(e.lit), e.lit[1] == '*'))
+ 			//-style comment literal doesn't contain newline
+ 			if elit[1] == '/' {
+ 				elit = elit[0 : len(elit)-1]
+@@ -284,7 +286,7 @@ func TestScan(t *testing.T) {
+ 				// no CRs in raw string literals
+ 				elit = e.lit
+ 				if elit[0] == '`' {
+-					elit = string(stripCR([]byte(elit)))
++					elit = string(stripCR([]byte(elit), false))
+ 				}
+ 			} else if e.tok.IsKeyword() {
+ 				elit = e.lit
+@@ -309,6 +311,26 @@ func TestScan(t *testing.T) {
+ 	}
+ }
+ 
++func TestStripCR(t *testing.T) {
++	for _, test := range []struct{ have, want string }{
++		{"//\n", "//\n"},
++		{"//\r\n", "//\n"},
++		{"//\r\r\r\n", "//\n"},
++		{"//\r*\r/\r\n", "//*/\n"},
++		{"/**/", "/**/"},
++		{"/*\r/*/", "/*/*/"},
++		{"/*\r*/", "/**/"},
++		{"/**\r/*/", "/**\r/*/"},
++		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
++		{"/*\r\r\r\r*/", "/**/"},
++	} {
++		got := string(stripCR([]byte(test.have), len(test.have) >= 2 && test.have[1] == '*'))
++		if got != test.want {
++			t.Errorf("stripCR(%q) = %q; want %q", test.have, got, test.want)
++		}
++	}
++}
++
+ func checkSemi(t *testing.T, line string, mode Mode) {
+ 	var S Scanner
+ 	file := fset.AddFile("TestSemis", fset.Base(), len(line))

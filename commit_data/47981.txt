@@ -13,7 +13,7 @@ Date:   Sun Mar 14 14:24:47 2021 -0700
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go          |   5 +-
  src/cmd/compile/internal/ir/expr.go                |   2 +-
  src/cmd/compile/internal/ir/fmt.go                 |   4 +-
@@ -48,3 +48,941 @@ Date:   Sun Mar 14 14:24:47 2021 -0700
  test/convert4.go                                   |  86 +++++++
  test/escape_slice.go                               |   4 +
  33 files changed, 380 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 6bebe5422f..b706d7d2c8 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -669,7 +669,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 			k = e.spill(k, n)
+ 		}
+ 		e.expr(k.note(n, "interface-converted"), n.X)
+-
++	case ir.OSLICE2ARRPTR:
++		// the slice pointer flows directly to the result
++		n := n.(*ir.ConvExpr)
++		e.expr(k, n.X)
+ 	case ir.ORECV:
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.X)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 112d3941ce..a9f8c6eae5 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -277,7 +277,7 @@ func (n *ConvExpr) SetOp(op Op) {
+ 	switch op {
+ 	default:
+ 		panic(n.no("SetOp " + op.String()))
+-	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR:
++	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
+ 		n.op = op
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 1a05079dac..8eb1cffc59 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -206,6 +206,7 @@ var OpPrec = []int{
+ 	OPRINT:         8,
+ 	ORUNESTR:       8,
+ 	OSIZEOF:        8,
++	OSLICE2ARRPTR:  8,
+ 	OSTR2BYTES:     8,
+ 	OSTR2RUNES:     8,
+ 	OSTRUCTLIT:     8,
+@@ -804,7 +805,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		ORUNES2STR,
+ 		OSTR2BYTES,
+ 		OSTR2RUNES,
+-		ORUNESTR:
++		ORUNESTR,
++		OSLICE2ARRPTR:
+ 		n := n.(*ConvExpr)
+ 		if n.Type() == nil || n.Type().Sym() == nil {
+ 			fmt.Fprintf(s, "(%v)", n.Type())
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index b6be74296f..b4db79e5c2 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -137,6 +137,7 @@ const (
+ 	OSTR2BYTES    // Type(Left) (Type is []byte, Left is a string)
+ 	OSTR2BYTESTMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
+ 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
++	OSLICE2ARRPTR // Type(Left) (Type is *[N]T, Left is a []T)
+ 	// Left = Right or (if Colas=true) Left := Right
+ 	// If Colas, then Ninit includes a DCL node for Left.
+ 	OAS
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index cfd36c7b3d..156ffd69ba 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -29,143 +29,144 @@ func _() {
+ 	_ = x[OSTR2BYTES-18]
+ 	_ = x[OSTR2BYTESTMP-19]
+ 	_ = x[OSTR2RUNES-20]
+-	_ = x[OAS-21]
+-	_ = x[OAS2-22]
+-	_ = x[OAS2DOTTYPE-23]
+-	_ = x[OAS2FUNC-24]
+-	_ = x[OAS2MAPR-25]
+-	_ = x[OAS2RECV-26]
+-	_ = x[OASOP-27]
+-	_ = x[OCALL-28]
+-	_ = x[OCALLFUNC-29]
+-	_ = x[OCALLMETH-30]
+-	_ = x[OCALLINTER-31]
+-	_ = x[OCALLPART-32]
+-	_ = x[OCAP-33]
+-	_ = x[OCLOSE-34]
+-	_ = x[OCLOSURE-35]
+-	_ = x[OCOMPLIT-36]
+-	_ = x[OMAPLIT-37]
+-	_ = x[OSTRUCTLIT-38]
+-	_ = x[OARRAYLIT-39]
+-	_ = x[OSLICELIT-40]
+-	_ = x[OPTRLIT-41]
+-	_ = x[OCONV-42]
+-	_ = x[OCONVIFACE-43]
+-	_ = x[OCONVNOP-44]
+-	_ = x[OCOPY-45]
+-	_ = x[ODCL-46]
+-	_ = x[ODCLFUNC-47]
+-	_ = x[ODCLCONST-48]
+-	_ = x[ODCLTYPE-49]
+-	_ = x[ODELETE-50]
+-	_ = x[ODOT-51]
+-	_ = x[ODOTPTR-52]
+-	_ = x[ODOTMETH-53]
+-	_ = x[ODOTINTER-54]
+-	_ = x[OXDOT-55]
+-	_ = x[ODOTTYPE-56]
+-	_ = x[ODOTTYPE2-57]
+-	_ = x[OEQ-58]
+-	_ = x[ONE-59]
+-	_ = x[OLT-60]
+-	_ = x[OLE-61]
+-	_ = x[OGE-62]
+-	_ = x[OGT-63]
+-	_ = x[ODEREF-64]
+-	_ = x[OINDEX-65]
+-	_ = x[OINDEXMAP-66]
+-	_ = x[OKEY-67]
+-	_ = x[OSTRUCTKEY-68]
+-	_ = x[OLEN-69]
+-	_ = x[OMAKE-70]
+-	_ = x[OMAKECHAN-71]
+-	_ = x[OMAKEMAP-72]
+-	_ = x[OMAKESLICE-73]
+-	_ = x[OMAKESLICECOPY-74]
+-	_ = x[OMUL-75]
+-	_ = x[ODIV-76]
+-	_ = x[OMOD-77]
+-	_ = x[OLSH-78]
+-	_ = x[ORSH-79]
+-	_ = x[OAND-80]
+-	_ = x[OANDNOT-81]
+-	_ = x[ONEW-82]
+-	_ = x[ONOT-83]
+-	_ = x[OBITNOT-84]
+-	_ = x[OPLUS-85]
+-	_ = x[ONEG-86]
+-	_ = x[OOROR-87]
+-	_ = x[OPANIC-88]
+-	_ = x[OPRINT-89]
+-	_ = x[OPRINTN-90]
+-	_ = x[OPAREN-91]
+-	_ = x[OSEND-92]
+-	_ = x[OSLICE-93]
+-	_ = x[OSLICEARR-94]
+-	_ = x[OSLICESTR-95]
+-	_ = x[OSLICE3-96]
+-	_ = x[OSLICE3ARR-97]
+-	_ = x[OSLICEHEADER-98]
+-	_ = x[ORECOVER-99]
+-	_ = x[ORECV-100]
+-	_ = x[ORUNESTR-101]
+-	_ = x[OSELRECV2-102]
+-	_ = x[OIOTA-103]
+-	_ = x[OREAL-104]
+-	_ = x[OIMAG-105]
+-	_ = x[OCOMPLEX-106]
+-	_ = x[OALIGNOF-107]
+-	_ = x[OOFFSETOF-108]
+-	_ = x[OSIZEOF-109]
+-	_ = x[OMETHEXPR-110]
+-	_ = x[OSTMTEXPR-111]
+-	_ = x[OBLOCK-112]
+-	_ = x[OBREAK-113]
+-	_ = x[OCASE-114]
+-	_ = x[OCONTINUE-115]
+-	_ = x[ODEFER-116]
+-	_ = x[OFALL-117]
+-	_ = x[OFOR-118]
+-	_ = x[OFORUNTIL-119]
+-	_ = x[OGOTO-120]
+-	_ = x[OIF-121]
+-	_ = x[OLABEL-122]
+-	_ = x[OGO-123]
+-	_ = x[ORANGE-124]
+-	_ = x[ORETURN-125]
+-	_ = x[OSELECT-126]
+-	_ = x[OSWITCH-127]
+-	_ = x[OTYPESW-128]
+-	_ = x[OFUNCINST-129]
+-	_ = x[OTCHAN-130]
+-	_ = x[OTMAP-131]
+-	_ = x[OTSTRUCT-132]
+-	_ = x[OTINTER-133]
+-	_ = x[OTFUNC-134]
+-	_ = x[OTARRAY-135]
+-	_ = x[OTSLICE-136]
+-	_ = x[OINLCALL-137]
+-	_ = x[OEFACE-138]
+-	_ = x[OITAB-139]
+-	_ = x[OIDATA-140]
+-	_ = x[OSPTR-141]
+-	_ = x[OCFUNC-142]
+-	_ = x[OCHECKNIL-143]
+-	_ = x[OVARDEF-144]
+-	_ = x[OVARKILL-145]
+-	_ = x[OVARLIVE-146]
+-	_ = x[ORESULT-147]
+-	_ = x[OINLMARK-148]
+-	_ = x[OLINKSYMOFFSET-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OEND-152]
++	_ = x[OSLICE2ARRPTR-21]
++	_ = x[OAS-22]
++	_ = x[OAS2-23]
++	_ = x[OAS2DOTTYPE-24]
++	_ = x[OAS2FUNC-25]
++	_ = x[OAS2MAPR-26]
++	_ = x[OAS2RECV-27]
++	_ = x[OASOP-28]
++	_ = x[OCALL-29]
++	_ = x[OCALLFUNC-30]
++	_ = x[OCALLMETH-31]
++	_ = x[OCALLINTER-32]
++	_ = x[OCALLPART-33]
++	_ = x[OCAP-34]
++	_ = x[OCLOSE-35]
++	_ = x[OCLOSURE-36]
++	_ = x[OCOMPLIT-37]
++	_ = x[OMAPLIT-38]
++	_ = x[OSTRUCTLIT-39]
++	_ = x[OARRAYLIT-40]
++	_ = x[OSLICELIT-41]
++	_ = x[OPTRLIT-42]
++	_ = x[OCONV-43]
++	_ = x[OCONVIFACE-44]
++	_ = x[OCONVNOP-45]
++	_ = x[OCOPY-46]
++	_ = x[ODCL-47]
++	_ = x[ODCLFUNC-48]
++	_ = x[ODCLCONST-49]
++	_ = x[ODCLTYPE-50]
++	_ = x[ODELETE-51]
++	_ = x[ODOT-52]
++	_ = x[ODOTPTR-53]
++	_ = x[ODOTMETH-54]
++	_ = x[ODOTINTER-55]
++	_ = x[OXDOT-56]
++	_ = x[ODOTTYPE-57]
++	_ = x[ODOTTYPE2-58]
++	_ = x[OEQ-59]
++	_ = x[ONE-60]
++	_ = x[OLT-61]
++	_ = x[OLE-62]
++	_ = x[OGE-63]
++	_ = x[OGT-64]
++	_ = x[ODEREF-65]
++	_ = x[OINDEX-66]
++	_ = x[OINDEXMAP-67]
++	_ = x[OKEY-68]
++	_ = x[OSTRUCTKEY-69]
++	_ = x[OLEN-70]
++	_ = x[OMAKE-71]
++	_ = x[OMAKECHAN-72]
++	_ = x[OMAKEMAP-73]
++	_ = x[OMAKESLICE-74]
++	_ = x[OMAKESLICECOPY-75]
++	_ = x[OMUL-76]
++	_ = x[ODIV-77]
++	_ = x[OMOD-78]
++	_ = x[OLSH-79]
++	_ = x[ORSH-80]
++	_ = x[OAND-81]
++	_ = x[OANDNOT-82]
++	_ = x[ONEW-83]
++	_ = x[ONOT-84]
++	_ = x[OBITNOT-85]
++	_ = x[OPLUS-86]
++	_ = x[ONEG-87]
++	_ = x[OOROR-88]
++	_ = x[OPANIC-89]
++	_ = x[OPRINT-90]
++	_ = x[OPRINTN-91]
++	_ = x[OPAREN-92]
++	_ = x[OSEND-93]
++	_ = x[OSLICE-94]
++	_ = x[OSLICEARR-95]
++	_ = x[OSLICESTR-96]
++	_ = x[OSLICE3-97]
++	_ = x[OSLICE3ARR-98]
++	_ = x[OSLICEHEADER-99]
++	_ = x[ORECOVER-100]
++	_ = x[ORECV-101]
++	_ = x[ORUNESTR-102]
++	_ = x[OSELRECV2-103]
++	_ = x[OIOTA-104]
++	_ = x[OREAL-105]
++	_ = x[OIMAG-106]
++	_ = x[OCOMPLEX-107]
++	_ = x[OALIGNOF-108]
++	_ = x[OOFFSETOF-109]
++	_ = x[OSIZEOF-110]
++	_ = x[OMETHEXPR-111]
++	_ = x[OSTMTEXPR-112]
++	_ = x[OBLOCK-113]
++	_ = x[OBREAK-114]
++	_ = x[OCASE-115]
++	_ = x[OCONTINUE-116]
++	_ = x[ODEFER-117]
++	_ = x[OFALL-118]
++	_ = x[OFOR-119]
++	_ = x[OFORUNTIL-120]
++	_ = x[OGOTO-121]
++	_ = x[OIF-122]
++	_ = x[OLABEL-123]
++	_ = x[OGO-124]
++	_ = x[ORANGE-125]
++	_ = x[ORETURN-126]
++	_ = x[OSELECT-127]
++	_ = x[OSWITCH-128]
++	_ = x[OTYPESW-129]
++	_ = x[OFUNCINST-130]
++	_ = x[OTCHAN-131]
++	_ = x[OTMAP-132]
++	_ = x[OTSTRUCT-133]
++	_ = x[OTINTER-134]
++	_ = x[OTFUNC-135]
++	_ = x[OTARRAY-136]
++	_ = x[OTSLICE-137]
++	_ = x[OINLCALL-138]
++	_ = x[OEFACE-139]
++	_ = x[OITAB-140]
++	_ = x[OIDATA-141]
++	_ = x[OSPTR-142]
++	_ = x[OCFUNC-143]
++	_ = x[OCHECKNIL-144]
++	_ = x[OVARDEF-145]
++	_ = x[OVARKILL-146]
++	_ = x[OVARLIVE-147]
++	_ = x[ORESULT-148]
++	_ = x[OINLMARK-149]
++	_ = x[OLINKSYMOFFSET-150]
++	_ = x[OTAILCALL-151]
++	_ = x[OGETG-152]
++	_ = x[OEND-153]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 737, 742, 746, 753, 759, 764, 770, 776, 783, 788, 792, 797, 801, 806, 814, 820, 827, 834, 840, 847, 860, 868, 872, 875}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 213, 216, 221, 228, 235, 241, 250, 258, 266, 272, 276, 285, 292, 296, 299, 306, 314, 321, 327, 330, 336, 343, 351, 355, 362, 370, 372, 374, 376, 378, 380, 382, 387, 392, 400, 403, 412, 415, 419, 427, 434, 443, 456, 459, 462, 465, 468, 471, 474, 480, 483, 486, 492, 496, 499, 503, 508, 513, 519, 524, 528, 533, 541, 549, 555, 564, 575, 582, 586, 593, 601, 605, 609, 613, 620, 627, 635, 641, 649, 657, 662, 667, 671, 679, 684, 688, 691, 699, 703, 705, 710, 712, 717, 723, 729, 735, 741, 749, 754, 758, 765, 771, 776, 782, 788, 795, 800, 804, 809, 813, 818, 826, 832, 839, 846, 852, 859, 872, 880, 884, 887}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index be460457a8..46c2388e7b 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -508,7 +508,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
+ 		locs = x.splitSlots(ls, ".ptr", 0, x.typs.BytePtr)
+ 
+-	case OpSlicePtr:
++	case OpSlicePtr, OpSlicePtrUnchecked:
+ 		w := selector.Args[0]
+ 		ls := x.rewriteSelect(leaf, w, offset, regOffset)
+ 		locs = x.splitSlots(ls, ".ptr", 0, types.NewPtr(w.Type.Elem()))
+@@ -1202,7 +1202,7 @@ func expandCalls(f *Func) {
+ 			case OpStructSelect, OpArraySelect,
+ 				OpIData, OpITab,
+ 				OpStringPtr, OpStringLen,
+-				OpSlicePtr, OpSliceLen, OpSliceCap,
++				OpSlicePtr, OpSliceLen, OpSliceCap, OpSlicePtrUnchecked,
+ 				OpComplexReal, OpComplexImag,
+ 				OpInt64Hi, OpInt64Lo:
+ 				w := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/gen/dec.rules b/src/cmd/compile/internal/ssa/gen/dec.rules
+index 4c677f8418..b19489870d 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec.rules
+@@ -56,6 +56,7 @@
+ (SlicePtr (SliceMake ptr _ _ )) => ptr
+ (SliceLen (SliceMake _ len _)) => len
+ (SliceCap (SliceMake _ _ cap)) => cap
++(SlicePtrUnchecked (SliceMake ptr _ _ )) => ptr
+ 
+ (Load <t> ptr mem) && t.IsSlice() =>
+   (SliceMake
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index c38d22e07f..9f6664386c 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -479,6 +479,10 @@ var genericOps = []opData{
+ 	{name: "SlicePtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
+ 	{name: "SliceLen", argLength: 1},                 // len(arg0)
+ 	{name: "SliceCap", argLength: 1},                 // cap(arg0)
++	// SlicePtrUnchecked, like SlicePtr, extracts the pointer from a slice.
++	// SlicePtr values are assumed non-nil, because they are guarded by bounds checks.
++	// SlicePtrUnchecked values can be nil.
++	{name: "SlicePtrUnchecked", argLength: 1},
+ 
+ 	// Complex (part/whole)
+ 	{name: "ComplexMake", argLength: 2}, // arg0=real, arg1=imag
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index b99a7a6646..f09a08abcf 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -469,6 +469,7 @@ const (
+ 	BoundsSlice3BU                      // ... with unsigned high
+ 	BoundsSlice3C                       // 3-arg slicing operation, 0 <= low <= high failed
+ 	BoundsSlice3CU                      // ... with unsigned low
++	BoundsConvert                       // conversion to array pointer failed
+ 	BoundsKindCount
+ )
+ 
+@@ -496,7 +497,8 @@ func boundsABI(b int64) int {
+ 	case BoundsSlice3Alen,
+ 		BoundsSlice3AlenU,
+ 		BoundsSlice3Acap,
+-		BoundsSlice3AcapU:
++		BoundsSlice3AcapU,
++		BoundsConvert:
+ 		return 0
+ 	case BoundsSliceAlen,
+ 		BoundsSliceAlenU,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8c753ea2a3..2f56625397 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2834,6 +2834,7 @@ const (
+ 	OpSlicePtr
+ 	OpSliceLen
+ 	OpSliceCap
++	OpSlicePtrUnchecked
+ 	OpComplexMake
+ 	OpComplexReal
+ 	OpComplexImag
+@@ -35898,6 +35899,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "SlicePtrUnchecked",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "ComplexMake",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 4b7db60551..2a73a5ddc8 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -23,6 +23,8 @@ func rewriteValuedec(v *Value) bool {
+ 		return rewriteValuedec_OpSliceLen(v)
+ 	case OpSlicePtr:
+ 		return rewriteValuedec_OpSlicePtr(v)
++	case OpSlicePtrUnchecked:
++		return rewriteValuedec_OpSlicePtrUnchecked(v)
+ 	case OpStore:
+ 		return rewriteValuedec_OpStore(v)
+ 	case OpStringLen:
+@@ -248,6 +250,20 @@ func rewriteValuedec_OpSlicePtr(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuedec_OpSlicePtrUnchecked(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SlicePtrUnchecked (SliceMake ptr _ _ ))
++	// result: ptr
++	for {
++		if v_0.Op != OpSliceMake {
++			break
++		}
++		ptr := v_0.Args[0]
++		v.copyOf(ptr)
++		return true
++	}
++	return false
++}
+ func rewriteValuedec_OpStore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c5b1ae2e4a..10f02fc987 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -164,6 +164,7 @@ func InitConfig() {
+ 		BoundsCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeFunc("goPanicSlice3BU")
+ 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("goPanicSlice3C")
+ 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("goPanicSlice3CU")
++		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("goPanicSliceConvert")
+ 	} else {
+ 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("panicIndex")
+ 		BoundsCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeFunc("panicIndexU")
+@@ -181,6 +182,7 @@ func InitConfig() {
+ 		BoundsCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeFunc("panicSlice3BU")
+ 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("panicSlice3C")
+ 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("panicSlice3CU")
++		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("panicSliceConvert")
+ 	}
+ 	if Arch.LinkArch.PtrSize == 4 {
+ 		ExtendCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeVar("panicExtendIndex")
+@@ -3148,6 +3150,18 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
+ 		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
+ 
++	case ir.OSLICE2ARRPTR:
++		// if arrlen > slice.len {
++		//   panic(...)
++		// }
++		// slice.ptr
++		n := n.(*ir.ConvExpr)
++		v := s.expr(n.X)
++		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
++		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
++		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
++		return s.newValue1(ssa.OpSlicePtrUnchecked, types.Types[types.TINT], v)
++
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+ 		if ir.IsIntrinsicCall(n) {
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index d83791df8b..0631a67780 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -39,6 +39,7 @@ var runtimeDecls = [...]struct {
+ 	{"goPanicSlice3BU", funcTag, 18},
+ 	{"goPanicSlice3C", funcTag, 16},
+ 	{"goPanicSlice3CU", funcTag, 18},
++	{"goPanicSliceConvert", funcTag, 16},
+ 	{"printbool", funcTag, 19},
+ 	{"printfloat", funcTag, 21},
+ 	{"printint", funcTag, 23},
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index 183ae40456..e736f913b6 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -46,6 +46,7 @@ func goPanicSlice3B(x int, y int)
+ func goPanicSlice3BU(x uint, y int)
+ func goPanicSlice3C(x int, y int)
+ func goPanicSlice3CU(x uint, y int)
++func goPanicSliceConvert(x int, y int)
+ 
+ func printbool(bool)
+ func printfloat(float64)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 76c565ebee..9ee7a94b1f 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -574,7 +574,7 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 		return ir.OCONVNOP, ""
+ 	}
+ 
+-	// src is map and dst is a pointer to corresponding hmap.
++	// 10. src is map and dst is a pointer to corresponding hmap.
+ 	// This rule is needed for the implementation detail that
+ 	// go gc maps are implemented as a pointer to a hmap struct.
+ 	if src.Kind() == types.TMAP && dst.IsPtr() &&
+@@ -582,6 +582,16 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 		return ir.OCONVNOP, ""
+ 	}
+ 
++	// 11. src is a slice and dst is a pointer-to-array.
++	// They must have same element type.
++	if src.IsSlice() && dst.IsPtr() && dst.Elem().IsArray() &&
++		types.Identical(src.Elem(), dst.Elem().Elem()) {
++		if !types.AllowsGoVersion(curpkg(), 1, 17) {
++			return ir.OXXX, ":\n\tconversion of slices to array pointers only supported as of -lang=go1.17"
++		}
++		return ir.OSLICE2ARRPTR, ""
++	}
++
+ 	return ir.OXXX, ""
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index b3b16131ce..68048f28d3 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1578,6 +1578,9 @@ func TestConvertibleTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{newDefined(Typ[Int]), new(Struct), false},
+ 		{Typ[UntypedInt], Typ[Int], true},
++		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
++		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
+ 		// Untyped string values are not permitted by the spec, so the below
+ 		// behavior is undefined.
+ 		{Typ[UntypedString], Typ[String], true},
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index eabed7ba9b..51be50e9ad 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -135,6 +135,18 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 		return true
+ 	}
+ 
++	// "x is a slice, T is a pointer-to-array type,
++	// and the slice and array types have identical element types."
++	if s := asSlice(V); s != nil {
++		if p := asPointer(T); p != nil {
++			if a := asArray(p.Elem()); a != nil {
++				if check.identical(s.Elem(), a.Elem()) {
++					return true
++				}
++			}
++		}
++	}
++
+ 	return false
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 6affbd4aec..a50473db52 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -205,6 +205,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		n := n.(*ir.ConvExpr)
+ 		return walkConv(n, init)
+ 
++	case ir.OSLICE2ARRPTR:
++		n := n.(*ir.ConvExpr)
++		n.X = walkExpr(n.X, init)
++		return n
++
+ 	case ir.ODIV, ir.OMOD:
+ 		n := n.(*ir.BinaryExpr)
+ 		return walkDivMod(n, init)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 29f71137df..8f9218c864 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -163,6 +163,10 @@ func TestStdTest(t *testing.T) {
+ 		"embedfunc.go",   // tests //go:embed
+ 		"embedvers.go",   // tests //go:embed
+ 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
++
++		"convert2.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
++		"convert4.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
++		"escape_slice.go", // temporary: go/types doesn't know yet about converting from slices to array pointers
+ 	)
+ }
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5cf6827c21..45f8bf1003 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1473,6 +1473,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
+ 	MOVL	AX, x+0(FP)
+ 	MOVL	CX, y+4(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
++	MOVL	DX, x+0(FP)
++	MOVL	BX, y+4(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+ 
+ // Extended versions for 64-bit indexes.
+ TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1e6d8189c9..d2848e5a45 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2091,6 +2091,14 @@ TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, y+8(FP)
+ #endif
+ 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
++TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	DX, AX
++#else
++	MOVQ	DX, x+0(FP)
++	MOVQ	BX, y+8(FP)
++#endif
++	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+ 
+ #ifdef GOOS_android
+ // Use the free TLS_SLOT_APP slot #2 on Android Q.
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 9896ab4383..f468b77ee3 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -992,6 +992,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
+ 	MOVW	R0, x+0(FP)
+ 	MOVW	R1, y+4(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
++	MOVW	R2, x+0(FP)
++	MOVW	R3, y+4(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+ 
+ // Extended versions for 64-bit indexes.
+ TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2e120dcf1e..2d495397a8 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1314,3 +1314,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	MOVD	R2, x+0(FP)
++	MOVD	R3, y+8(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index cee4b528bb..c3b57e472a 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -805,3 +805,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOVV	R1, x+0(FP)
+ 	MOVV	R2, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	MOVV	R3, x+0(FP)
++	MOVV	R4, y+8(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 17fbc902c2..1d828b03cf 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -801,6 +801,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
+ 	MOVW	R1, x+0(FP)
+ 	MOVW	R2, y+4(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
++	MOVW	R3, x+0(FP)
++	MOVW	R4, y+4(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+ 
+ // Extended versions for 64-bit indexes.
+ TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 6544048497..2c39b38912 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1022,3 +1022,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOVD	R3, x+0(FP)
+ 	MOVD	R4, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	MOVD	R5, x+0(FP)
++	MOVD	R6, y+8(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index d8d5252ed5..ef7af4e10d 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -806,6 +806,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOV	T0, x+0(FP)
+ 	MOV	T1, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	MOV	T2, x+0(FP)
++	MOV	T3, y+8(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+ 
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 4748e00aa8..fb38271630 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -906,3 +906,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	MOVD	R2, x+0(FP)
++	MOVD	R3, y+8(FP)
++	JMP	runtime·goPanicSliceConvert(SB)
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 9e6cdf35dd..91f83ae126 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -134,6 +134,7 @@ const (
+ 	boundsSlice3B    // s[?:x:y], 0 <= x <= y failed (but boundsSlice3A didn't happen)
+ 	boundsSlice3C    // s[x:y:?], 0 <= x <= y failed (but boundsSlice3A/B didn't happen)
+ 
++	boundsConvert // (*[x]T)(s), 0 <= x <= len(s) failed
+ 	// Note: in the above, len(s) and cap(s) are stored in y
+ )
+ 
+@@ -149,6 +150,7 @@ var boundsErrorFmts = [...]string{
+ 	boundsSlice3Acap: "slice bounds out of range [::%x] with capacity %y",
+ 	boundsSlice3B:    "slice bounds out of range [:%x:%y]",
+ 	boundsSlice3C:    "slice bounds out of range [%x:%y:]",
++	boundsConvert:    "cannot convert slice with length %y to pointer to array with length %x",
+ }
+ 
+ // boundsNegErrorFmts are overriding formats if x is negative. In this case there's no need to report y.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index f8f2f39dbb..f6c38aafcc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -160,6 +160,12 @@ func goPanicSlice3CU(x uint, y int) {
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
+ }
+ 
++// failures in the conversion (*[x]T)s, 0 <= x <= y, x == cap(s)
++func goPanicSliceConvert(x int, y int) {
++	panicCheck1(getcallerpc(), "slice length too short to convert to pointer to array")
++	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
++}
++
+ // Implemented in assembly, as they take arguments in registers.
+ // Declared here to mark them as ABIInternal.
+ func panicIndex(x int, y int)
+@@ -178,6 +184,7 @@ func panicSlice3B(x int, y int)
+ func panicSlice3BU(x uint, y int)
+ func panicSlice3C(x int, y int)
+ func panicSlice3CU(x uint, y int)
++func panicSliceConvert(x int, y int)
+ 
+ var shiftError = error(errorString("negative shift amount"))
+ 
+diff --git a/test/convert2.go b/test/convert2.go
+index e7044b2453..8e43967aaa 100644
+--- a/test/convert2.go
++++ b/test/convert2.go
+@@ -313,3 +313,17 @@ func _() {
+ 	t = u       // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u) // ERROR "cannot convert"
+ }
++
++func _() {
++	var s []byte
++	_ = ([4]byte)(s) // ERROR "cannot convert"
++	_ = (*[4]byte)(s)
++
++	type A [4]byte
++	_ = (A)(s) // ERROR "cannot convert"
++	_ = (*A)(s)
++
++	type P *[4]byte
++	_ = (P)(s)
++	_ = (*P)(s) // ERROR "cannot convert"
++}
+diff --git a/test/convert4.go b/test/convert4.go
+new file mode 100644
+index 0000000000..2bc9c96a52
+--- /dev/null
++++ b/test/convert4.go
+@@ -0,0 +1,86 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test conversion from slice to array pointer.
++
++package main
++
++func wantPanic(fn func(), s string) {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("expected panic")
++		}
++		if got := err.(error).Error(); got != s {
++			panic("expected panic " + s + " got " + got)
++		}
++	}()
++	fn()
++}
++
++func main() {
++	s := make([]byte, 8, 10)
++	if p := (*[8]byte)(s); &p[0] != &s[0] {
++		panic("*[8]byte conversion failed")
++	}
++	wantPanic(
++		func() {
++			_ = (*[9]byte)(s)
++		},
++		"runtime error: cannot convert slice with length 8 to pointer to array with length 9",
++	)
++
++	var n []byte
++	if p := (*[0]byte)(n); p != nil {
++		panic("nil slice converted to *[0]byte should be nil")
++	}
++
++	z := make([]byte, 0)
++	if p := (*[0]byte)(z); p == nil {
++		panic("empty slice converted to *[0]byte should be non-nil")
++	}
++
++	// Test with named types
++	type Slice []int
++	type Int4 [4]int
++	type PInt4 *[4]int
++	ii := make(Slice, 4)
++	if p := (*Int4)(ii); &p[0] != &ii[0] {
++		panic("*Int4 conversion failed")
++	}
++	if p := PInt4(ii); &p[0] != &ii[0] {
++		panic("PInt4 conversion failed")
++	}
++}
++
++// test static variable conversion
++
++var (
++	ss  = make([]string, 10)
++	s5  = (*[5]string)(ss)
++	s10 = (*[10]string)(ss)
++
++	ns  []string
++	ns0 = (*[0]string)(ns)
++
++	zs  = make([]string, 0)
++	zs0 = (*[0]string)(zs)
++)
++
++func init() {
++	if &ss[0] != &s5[0] {
++		panic("s5 conversion failed")
++	}
++	if &ss[0] != &s10[0] {
++		panic("s5 conversion failed")
++	}
++	if ns0 != nil {
++		panic("ns0 should be nil")
++	}
++	if zs0 == nil {
++		panic("zs0 should not be nil")
++	}
++}
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index 6ce852e9c5..d60414736c 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -101,6 +101,10 @@ func slice11() {
+ 	_ = s
+ }
+ 
++func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r1 level=0$"
++	return (*[1]int)(x)
++}
++
+ func envForDir(dir string) []string { // ERROR "dir does not escape"
+ 	env := os.Environ()
+ 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"

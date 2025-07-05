@@ -13,7 +13,7 @@ Date:   Fri Feb 2 11:22:57 2024 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/internal/syscall/defs_linux.go         |  9 ++++
  src/runtime/internal/syscall/defs_linux_386.go     |  2 +
  src/runtime/internal/syscall/defs_linux_amd64.go   |  2 +
@@ -28,3 +28,328 @@ Date:   Fri Feb 2 11:22:57 2024 +0800
  src/runtime/internal/syscall/syscall_linux.go      |  5 +++
  src/runtime/netpoll_epoll.go                       | 48 +++++++++++-----------
  13 files changed, 58 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/internal/syscall/defs_linux.go b/src/runtime/internal/syscall/defs_linux.go
+new file mode 100644
+index 0000000000..242a67b4bc
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	EFD_CLOEXEC = 0x80000
++)
+diff --git a/src/runtime/internal/syscall/defs_linux_386.go b/src/runtime/internal/syscall/defs_linux_386.go
+index dc723a60b2..fa0ca5ed0a 100644
+--- a/src/runtime/internal/syscall/defs_linux_386.go
++++ b/src/runtime/internal/syscall/defs_linux_386.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 319
+ 	SYS_EPOLL_CREATE1 = 329
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 328
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_amd64.go b/src/runtime/internal/syscall/defs_linux_amd64.go
+index 886eb5bda2..71bd906ed4 100644
+--- a/src/runtime/internal/syscall/defs_linux_amd64.go
++++ b/src/runtime/internal/syscall/defs_linux_amd64.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 281
+ 	SYS_EPOLL_CREATE1 = 291
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 290
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_arm.go b/src/runtime/internal/syscall/defs_linux_arm.go
+index 8f812a2f68..146cda5fcb 100644
+--- a/src/runtime/internal/syscall/defs_linux_arm.go
++++ b/src/runtime/internal/syscall/defs_linux_arm.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 346
+ 	SYS_EPOLL_CREATE1 = 357
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 356
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_arm64.go b/src/runtime/internal/syscall/defs_linux_arm64.go
+index 48e11b0c51..0500b317e9 100644
+--- a/src/runtime/internal/syscall/defs_linux_arm64.go
++++ b/src/runtime/internal/syscall/defs_linux_arm64.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 19
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_loong64.go b/src/runtime/internal/syscall/defs_linux_loong64.go
+index b78ef81861..2c67b7b568 100644
+--- a/src/runtime/internal/syscall/defs_linux_loong64.go
++++ b/src/runtime/internal/syscall/defs_linux_loong64.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 19
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_mips64x.go b/src/runtime/internal/syscall/defs_linux_mips64x.go
+index 92b49ca969..3031af241b 100644
+--- a/src/runtime/internal/syscall/defs_linux_mips64x.go
++++ b/src/runtime/internal/syscall/defs_linux_mips64x.go
+@@ -12,6 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 5272
+ 	SYS_EPOLL_CREATE1 = 5285
+ 	SYS_EPOLL_PWAIT2  = 5441
++	SYS_EVENTFD2      = 5284
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -23,6 +24,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x80
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_mipsx.go b/src/runtime/internal/syscall/defs_linux_mipsx.go
+index e28d09c7f1..4d51921abd 100644
+--- a/src/runtime/internal/syscall/defs_linux_mipsx.go
++++ b/src/runtime/internal/syscall/defs_linux_mipsx.go
+@@ -12,6 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 4313
+ 	SYS_EPOLL_CREATE1 = 4326
+ 	SYS_EPOLL_PWAIT2  = 4441
++	SYS_EVENTFD2      = 4325
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -23,6 +24,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x80
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_ppc64x.go b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+index a74483eb6d..fcd15e60a2 100644
+--- a/src/runtime/internal/syscall/defs_linux_ppc64x.go
++++ b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+@@ -12,6 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 303
+ 	SYS_EPOLL_CREATE1 = 315
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 314
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -23,6 +24,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_riscv64.go b/src/runtime/internal/syscall/defs_linux_riscv64.go
+index b78ef81861..2c67b7b568 100644
+--- a/src/runtime/internal/syscall/defs_linux_riscv64.go
++++ b/src/runtime/internal/syscall/defs_linux_riscv64.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 19
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_s390x.go b/src/runtime/internal/syscall/defs_linux_s390x.go
+index a7bb1ba66d..c1deed6c74 100644
+--- a/src/runtime/internal/syscall/defs_linux_s390x.go
++++ b/src/runtime/internal/syscall/defs_linux_s390x.go
+@@ -10,6 +10,7 @@ const (
+ 	SYS_EPOLL_PWAIT   = 312
+ 	SYS_EPOLL_CREATE1 = 327
+ 	SYS_EPOLL_PWAIT2  = 441
++	SYS_EVENTFD2      = 323
+ 
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+@@ -21,6 +22,7 @@ const (
+ 	EPOLL_CTL_ADD = 0x1
+ 	EPOLL_CTL_DEL = 0x2
+ 	EPOLL_CTL_MOD = 0x3
++	EFD_NONBLOCK  = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/syscall_linux.go b/src/runtime/internal/syscall/syscall_linux.go
+index 7209634edb..cb88659394 100644
+--- a/src/runtime/internal/syscall/syscall_linux.go
++++ b/src/runtime/internal/syscall/syscall_linux.go
+@@ -60,3 +60,8 @@ func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
+ 	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
+ 	return e
+ }
++
++func Eventfd(initval, flags int32) (fd int32, errno uintptr) {
++	r1, _, e := Syscall6(SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0, 0, 0, 0)
++	return int32(r1), e
++}
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index cda19fbc27..a8062b7dc3 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -13,11 +13,9 @@ import (
+ )
+ 
+ var (
+-	epfd int32 = -1 // epoll descriptor
+-
+-	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+-
+-	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
++	epfd           int32         = -1 // epoll descriptor
++	netpollEventFd uintptr            // eventfd for netpollBreak
++	netpollWakeSig atomic.Uint32      // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func netpollinit() {
+@@ -27,26 +25,25 @@ func netpollinit() {
+ 		println("runtime: epollcreate failed with", errno)
+ 		throw("runtime: netpollinit failed")
+ 	}
+-	r, w, errpipe := nonblockingPipe()
+-	if errpipe != 0 {
+-		println("runtime: pipe failed with", -errpipe)
+-		throw("runtime: pipe failed")
++	efd, errno := syscall.Eventfd(0, syscall.EFD_CLOEXEC|syscall.EFD_NONBLOCK)
++	if errno != 0 {
++		println("runtime: eventfd failed with", -errno)
++		throw("runtime: eventfd failed")
+ 	}
+ 	ev := syscall.EpollEvent{
+ 		Events: syscall.EPOLLIN,
+ 	}
+-	*(**uintptr)(unsafe.Pointer(&ev.Data)) = &netpollBreakRd
+-	errno = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, r, &ev)
++	*(**uintptr)(unsafe.Pointer(&ev.Data)) = &netpollEventFd
++	errno = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, efd, &ev)
+ 	if errno != 0 {
+ 		println("runtime: epollctl failed with", errno)
+ 		throw("runtime: epollctl failed")
+ 	}
+-	netpollBreakRd = uintptr(r)
+-	netpollBreakWr = uintptr(w)
++	netpollEventFd = uintptr(efd)
+ }
+ 
+ func netpollIsPollDescriptor(fd uintptr) bool {
+-	return fd == uintptr(epfd) || fd == netpollBreakRd || fd == netpollBreakWr
++	return fd == uintptr(epfd) || fd == netpollEventFd
+ }
+ 
+ func netpollopen(fd uintptr, pd *pollDesc) uintptr {
+@@ -73,10 +70,11 @@ func netpollBreak() {
+ 		return
+ 	}
+ 
++	var one uint64 = 1
++	oneSize := int32(unsafe.Sizeof(one))
+ 	for {
+-		var b byte
+-		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+-		if n == 1 {
++		n := write(netpollEventFd, noescape(unsafe.Pointer(&one)), oneSize)
++		if n == oneSize {
+ 			break
+ 		}
+ 		if n == -_EINTR {
+@@ -136,17 +134,19 @@ retry:
+ 			continue
+ 		}
+ 
+-		if *(**uintptr)(unsafe.Pointer(&ev.Data)) == &netpollBreakRd {
++		if *(**uintptr)(unsafe.Pointer(&ev.Data)) == &netpollEventFd {
+ 			if ev.Events != syscall.EPOLLIN {
+-				println("runtime: netpoll: break fd ready for", ev.Events)
+-				throw("runtime: netpoll: break fd ready for something unexpected")
++				println("runtime: netpoll: eventfd ready for", ev.Events)
++				throw("runtime: netpoll: eventfd ready for something unexpected")
+ 			}
+ 			if delay != 0 {
+ 				// netpollBreak could be picked up by a
+-				// nonblocking poll. Only read the byte
+-				// if blocking.
+-				var tmp [16]byte
+-				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
++				// nonblocking poll. Only read the 8-byte
++				// integer if blocking.
++				// Since EFD_SEMAPHORE was not specified,
++				// the eventfd counter will be reset to 0.
++				var one uint64
++				read(int32(netpollEventFd), noescape(unsafe.Pointer(&one)), int32(unsafe.Sizeof(one)))
+ 				netpollWakeSig.Store(0)
+ 			}
+ 			continue

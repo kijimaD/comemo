@@ -12,7 +12,7 @@ Date:   Tue Oct 27 10:34:31 2009 -0700
     
     R=rsc
     http://go/go-review/1014011
-
+---
  doc/style.css          |  46 ++++++++++-
  lib/godoc/godoc.html   |  20 +++--
  lib/godoc/search.html  |  65 +++++++++++++++
@@ -20,3 +20,619 @@ Date:   Tue Oct 27 10:34:31 2009 -0700
  src/cmd/godoc/godoc.go | 209 ++++++++++++++++++++++++++++++++++++++-----------
  src/cmd/godoc/spec.go  |  16 ++--
  6 files changed, 296 insertions(+), 62 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index cd344df9cf..84c29c077b 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -151,10 +151,54 @@ div#linkList li.navhead {
+ /* ------------------------------------------------------------------------- */
+ /* Styles used by go/printer Styler implementations. */
+ 
++a.noline {
++  text-decoration: none;
++}
++
+ span.comment {
+   color: #0000a0;
+ }
+ 
+ span.highlight {
+-  background-color: #00ff00;
++  background-color: #81F781;
++}
++
++
++/* ------------------------------------------------------------------------- */
++/* Styles used by infoClassFmt */
++
++a.import {
++  text-decoration: none;
++  background-color: #D8D8D8;
++}
++
++a.const {
++  text-decoration: none;
++  background-color: #F5A9A9;
++}
++
++a.type {
++  text-decoration: none;
++  background-color: #F2F5A9;
++}
++
++a.var {
++  text-decoration: none;
++  background-color: #A9F5A9;
++}
++
++a.func {
++  text-decoration: none;
++  background-color: #A9D0F5;
++}
++
++a.method {
++  text-decoration: none;
++  background-color: #D0A9F5;
++}
++
++a.use {
++  text-decoration: none;
++  color: #FFFFFF;
++  background-color: #5858FA;
+ }
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index ddde999a16..b77a1301bb 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -4,7 +4,7 @@
+ <head>
+ 
+   <meta http-equiv="content-type" content="text/html; charset=utf-8">
+-  <title>{title}</title>
++  <title>{Title}</title>
+ 
+   <link rel="stylesheet" type="text/css" href="/doc/style.css">
+   <script type="text/javascript" src="/doc/godocs.js"></script>
+@@ -37,29 +37,35 @@
+     <li><a href="/doc/go_lang_faq.html">Language Design FAQ</a></li>
+     <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
+ 
++    <li class="blank">&nbsp;</li>
++    <li class="navhead">How To</li>
++    <li><a href="/doc/install.html">Install Go</a></li>
++    <li><a href="/doc/contribute.html">Contribute code</a></li>
++
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Programming</li>
+     <li><a href="/pkg">Package documentation</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+-    <li class="navhead">How To</li>
+-    <li><a href="/doc/install.html">Install Go</a></li>
+-    <li><a href="/doc/contribute.html">Contribute code</a></li>
++    <li class="navhead">Go code search</li>
++    <form method="GET" action="/search" class="search">
++    <input name="q" value="{Query}" size="25" />
++    <input type="submit" value="Go" />
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Last update</li>
+-	<li>{timestamp}</li>
++	<li>{Timestamp}</li>
+   </ul>
+ </div>
+ 
+ <div id="content">
+-  <h1>{title}</h1>
++  <h1>{Title}</h1>
+ 
+   <!-- The Table of Contents is automatically inserted in this <div>.
+        Do not delete this <div>. -->
+   <div id="nav"></div>
+ 
+-  {content}
++  {Content}
+ </div>
+ 
+ <div id="footer">
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+new file mode 100644
+index 0000000000..419a9f8d0d
+--- /dev/null
++++ b/lib/godoc/search.html
+@@ -0,0 +1,65 @@
++<!--
++	Copyright 2009 The Go Authors. All rights reserved.
++	Use of this source code is governed by a BSD-style
++	license that can be found in the LICENSE file.
++-->
++
++{.section Accurate}
++{.or}
++	<p>
++	<span class="alert" style="font-size:120%">Indexing in progress - result may be inaccurate</span>
++	</p>
++{.end}
++{.section Alt}
++	<p>
++	<span class="alert" style="font-size:120%">Did you mean: </span>
++	{.repeated section Alts}
++		<a href="search?q={@|html}" style="font-size:120%">{@|html}</a>
++	{.end}
++	</p>
++{.end}
++{.section Hit}
++	{.section Decls}
++		<h2>Package-level declarations</h2>
++		{.repeated section @}
++			<h3>package {Pak.Name|html}</h3>
++			{.repeated section Files}
++				{.repeated section Infos}
++					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
++					<pre>{@|infoSnippet}</pre>
++				{.end}
++			{.end}
++		{.end}
++	{.end}
++	{.section Others}
++		<h2>Local declarations and uses</h2>
++		<p>
++		Legend:
++		{.repeated section Legend}
++			<a class="{@}">{@}</a>
++		{.end}
++		</p>
++		{.repeated section @}
++			<h3>package {Pak.Name|html}</h3>
++			<table border="0" cellspacing="2">
++			{.repeated section Files}
++				<tr>
++				<td valign="top">
++					<a href="{File.Path|html}?h={Query|html}" class="noline">{File.Path|html}:</a>
++				</td>
++				<td>
++				{.repeated section Infos}
++					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}" class="{@|infoClass}">{@|infoLine}</a>
++				{.end}
++				</td>
++				</tr>
++			{.end}
++			</table>
++		{.end}
++	{.end}
++{.or}
++	<p>
++	A legal query is a single identifier (such as <a href="search?q=ToLower">ToLower</a>)
++	or a qualified identifier (such as <a href="search?q=math.Sin">math.Sin</a>).
++	</p>
++{.end}
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 00463a5ea5..cbaa5b3cda 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -7,6 +7,8 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=godoc
+ GOFILES=\
+ 	godoc.go\
++	index.go\
++	snippet.go\
+ 	spec.go\
+ 
+ include $(GOROOT)/src/Make.cmd
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 64e2607a90..168c816f92 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -27,26 +27,26 @@
+ package main
+ 
+ import (
+-			"bytes";
+-			"container/vector";
+-			"flag";
+-			"fmt";
+-			"go/ast";
+-			"go/doc";
+-			"go/parser";
+-			"go/printer";
+-			"go/scanner";
+-			"go/token";
+-			"http";
+-			"io";
+-			"log";
+-			"os";
+-	pathutil	"path";
+-			"sort";
+-			"strings";
+-			"sync";
+-			"template";
+-			"time";
++	"bytes";
++	"container/vector";
++	"flag";
++	"fmt";
++	"go/ast";
++	"go/doc";
++	"go/parser";
++	"go/printer";
++	"go/scanner";
++	"go/token";
++	"http";
++	"io";
++	"log";
++	"os";
++	pathutil "path";
++	"sort";
++	"strings";
++	"sync";
++	"template";
++	"time";
+ )
+ 
+ 
+@@ -59,9 +59,9 @@ const Pkg = "/pkg/"	// name for auto-generated package documentation tree
+ // An RWValue wraps a value and permits mutually exclusive
+ // access to it and records the time the value was last set.
+ type RWValue struct {
+-	mutex	sync.RWMutex;
+-	value	interface{};
+-	timestamp	int64;  // time of last set(), in seconds since epoch
++	mutex		sync.RWMutex;
++	value		interface{};
++	timestamp	int64;	// time of last set(), in seconds since epoch
+ }
+ 
+ 
+@@ -138,7 +138,12 @@ func init() {
+ func isGoFile(dir *os.Dir) bool {
+ 	return dir.IsRegular() &&
+ 		!strings.HasPrefix(dir.Name, ".") &&	// ignore .files
+-		pathutil.Ext(dir.Name) == ".go" &&
++		pathutil.Ext(dir.Name) == ".go";
++}
++
++
++func isPkgFile(dir *os.Dir) bool {
++	return isGoFile(dir) &&
+ 		!strings.HasSuffix(dir.Name, "_test.go");	// ignore test files
+ }
+ 
+@@ -231,7 +236,7 @@ func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
+ }
+ 
+ 
+-func (s *Styler) Comment(c *ast.Comment, line []byte)  (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HtmlTag) {
+ 	text = line;
+ 	// minimal syntax-coloring of comments for now - people will want more
+ 	// (don't do anything more until there's a button to turn it on/off)
+@@ -240,13 +245,13 @@ func (s *Styler) Comment(c *ast.Comment, line []byte)  (text []byte, tag printer
+ }
+ 
+ 
+-func (s *Styler) BasicLit(x *ast.BasicLit)  (text []byte, tag printer.HtmlTag) {
++func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HtmlTag) {
+ 	text = x.Value;
+ 	return;
+ }
+ 
+ 
+-func (s *Styler) Ident(id *ast.Ident)  (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
+ 	text = strings.Bytes(id.Value);
+ 	if s.highlight == id.Value {
+ 		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
+@@ -255,23 +260,22 @@ func (s *Styler) Ident(id *ast.Ident)  (text []byte, tag printer.HtmlTag) {
+ }
+ 
+ 
+-func (s *Styler) Token(tok token.Token)  (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HtmlTag) {
+ 	text = strings.Bytes(tok.String());
+ 	return;
+ }
+ 
+ 
+-
+ // ----------------------------------------------------------------------------
+ // Templates
+ 
+ // Write an AST-node to w; optionally html-escaped.
+-func writeNode(w io.Writer, node interface{}, html bool, style printer.Styler) {
++func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
+ 	mode := printer.UseSpaces;
+ 	if html {
+ 		mode |= printer.GenHTML;
+ 	}
+-	(&printer.Config{mode, *tabwidth, style}).Fprint(w, node);
++	(&printer.Config{mode, *tabwidth, styler}).Fprint(w, node);
+ }
+ 
+ 
+@@ -344,11 +348,55 @@ func linkFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
++var infoClasses = [nKinds]string{
++	"import",	// ImportDecl
++	"const",	// ConstDecl
++	"type",	// TypeDecl
++	"var",	// VarDecl
++	"func",	// FuncDecl
++	"method",	// MethodDecl
++	"use",	// Use
++}
++
++
++// Template formatter for "infoClass" format.
++func infoClassFmt(w io.Writer, x interface{}, format string) {
++	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);
++}
++
++
++// Template formatter for "infoLine" format.
++func infoLineFmt(w io.Writer, x interface{}, format string) {
++	info := x.(SpotInfo);
++	line := info.Lori();
++	if info.IsIndex() {
++		index, _ := searchIndex.get();
++		line = index.(*Index).Snippet(line).Line;
++	}
++	fmt.Fprintf(w, "%d", line);
++}
++
++
++// Template formatter for "infoSnippet" format.
++func infoSnippetFmt(w io.Writer, x interface{}, format string) {
++	info := x.(SpotInfo);
++	text := `<span class="alert">no snippet text available</span>`;
++	if info.IsIndex() {
++		index, _ := searchIndex.get();
++		text = index.(*Index).Snippet(info.Lori()).Text;
++	}
++	fmt.Fprintf(w, "%s", text);
++}
++
++
+ var fmap = template.FormatterMap{
+ 	"": textFmt,
+ 	"html": htmlFmt,
+ 	"html-comment": htmlCommentFmt,
+ 	"link": linkFmt,
++	"infoClass": infoClassFmt,
++	"infoLine": infoLineFmt,
++	"infoSnippet": infoSnippetFmt,
+ }
+ 
+ 
+@@ -371,7 +419,8 @@ var (
+ 	packageHtml,
+ 	packageText,
+ 	parseerrorHtml,
+-	parseerrorText *template.Template;
++	parseerrorText,
++	searchHtml *template.Template;
+ )
+ 
+ func readTemplates() {
+@@ -382,24 +431,27 @@ func readTemplates() {
+ 	packageText = readTemplate("package.txt");
+ 	parseerrorHtml = readTemplate("parseerror.html");
+ 	parseerrorText = readTemplate("parseerror.txt");
++	searchHtml = readTemplate("search.html");
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Generic HTML wrapper
+ 
+-func servePage(c *http.Conn, title, content interface{}) {
++func servePage(c *http.Conn, title, query string, content []byte) {
+ 	type Data struct {
+-		title		interface{};
+-		timestamp	string;
+-		content		interface{};
++		Title		string;
++		Timestamp	string;
++		Query		string;
++		Content		[]byte;
+ 	}
+ 
+ 	_, ts := syncTime.get();
+ 	d := Data{
+-		title: title,
+-		timestamp: time.SecondsToLocalTime(ts).String(),
+-		content: content,
++		Title: title,
++		Timestamp: time.SecondsToLocalTime(ts).String(),
++		Query: query,
++		Content: content,
+ 	};
+ 
+ 	if err := godocHtml.Execute(&d, c); err != nil {
+@@ -451,7 +503,7 @@ func serveHtmlDoc(c *http.Conn, r *http.Request, filename string) {
+ 	}
+ 
+ 	title := commentText(src);
+-	servePage(c, title, src);
++	servePage(c, title, "", src);
+ }
+ 
+ 
+@@ -461,11 +513,11 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
+ 	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
+ 		log.Stderrf("parseerrorHtml.Execute: %s", err);
+ 	}
+-	servePage(c, "Parse errors in source file " + errors.filename, buf.Bytes());
++	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
+ }
+ 
+ 
+-func serveGoSource(c *http.Conn, filename string, style printer.Styler) {
++func serveGoSource(c *http.Conn, filename string, styler printer.Styler) {
+ 	path := pathutil.Join(goroot, filename);
+ 	prog, errors := parse(path, parser.ParseComments);
+ 	if errors != nil {
+@@ -475,10 +527,10 @@ func serveGoSource(c *http.Conn, filename string, style printer.Styler) {
+ 
+ 	var buf bytes.Buffer;
+ 	fmt.Fprintln(&buf, "<pre>");
+-	writeNode(&buf, prog, true, style);
++	writeNode(&buf, prog, true, styler);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+-	servePage(c, "Source file " + filename, buf.Bytes());
++	servePage(c, "Source file " + filename, "", buf.Bytes());
+ }
+ 
+ 
+@@ -560,7 +612,7 @@ func getPageInfo(path string) PageInfo {
+ 	var subdirlist vector.Vector;
+ 	subdirlist.Init(0);
+ 	filter := func(d *os.Dir) bool {
+-		if isGoFile(d) {
++		if isPkgFile(d) {
+ 			// Some directories contain main packages: Only accept
+ 			// files that belong to the expected package so that
+ 			// parser.ParsePackage doesn't return "multiple packages
+@@ -634,7 +686,48 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 		title = "Package " + info.PDoc.PackageName;
+ 	}
+ 
+-	servePage(c, title, buf.Bytes());
++	servePage(c, title, "", buf.Bytes());
++}
++
++
++// ----------------------------------------------------------------------------
++// Search
++
++var searchIndex RWValue
++
++type SearchResult struct {
++	Query		string;
++	Hit		*LookupResult;
++	Alt		*AltWords;
++	Accurate	bool;
++	Legend		[]string;
++}
++
++func search(c *http.Conn, r *http.Request) {
++	query := r.FormValue("q");
++	var result SearchResult;
++
++	if index, timestamp := searchIndex.get(); index != nil {
++		result.Query = query;
++		result.Hit, result.Alt = index.(*Index).Lookup(query);
++		_, ts := syncTime.get();
++		result.Accurate = timestamp >= ts;
++		result.Legend = &infoClasses;
++	}
++
++	var buf bytes.Buffer;
++	if err := searchHtml.Execute(result, &buf); err != nil {
++		log.Stderrf("searchHtml.Execute: %s", err);
++	}
++
++	var title string;
++	if result.Hit != nil {
++		title = fmt.Sprintf(`Results for query %q`, query);
++	} else {
++		title = fmt.Sprintf(`No results found for query %q`, query);
++	}
++
++	servePage(c, title, query, buf.Bytes());
+ }
+ 
+ 
+@@ -754,6 +847,7 @@ func main() {
+ 		if *syncCmd != "" {
+ 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
+ 		}
++		http.Handle("/search", http.HandlerFunc(search));
+ 		http.Handle("/", http.HandlerFunc(serveFile));
+ 
+ 		// The server may have been restarted; always wait 1sec to
+@@ -776,6 +870,29 @@ func main() {
+ 			}();
+ 		}
+ 
++		// Start indexing goroutine.
++		go func() {
++			for {
++				_, ts := syncTime.get();
++				if _, timestamp := searchIndex.get(); timestamp < ts {
++					// index possibly out of date - make a new one
++					// (could use a channel to send an explicit signal
++					// from the sync goroutine, but this solution is
++					// more decoupled, trivial, and works well enough)
++					start := time.Nanoseconds();
++					index := NewIndex(".");
++					stop := time.Nanoseconds();
++					searchIndex.set(index);
++					if *verbose {
++						secs := float64((stop-start)/1e6)/1e3;
++						nwords, nspots := index.Size();
++						log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
++					}
++				}
++				time.Sleep(1*60e9);	// try once a minute
++			}
++		}();
++
+ 		// Start http server.
+ 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
+ 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index e942195174..ee9ff4e048 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -49,7 +49,7 @@ func (p *ebnfParser) next() {
+ 
+ 
+ func (p *ebnfParser) Error(pos token.Position, msg string) {
+-	fmt.Fprintf(p.out, "<font color=red>error: %s</font>", msg);
++	fmt.Fprintf(p.out, `<span class="alert">error: %s</span>`, msg);
+ }
+ 
+ 
+@@ -83,7 +83,7 @@ func (p *ebnfParser) parseIdentifier(def bool) {
+ 	if def {
+ 		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name);
+ 	} else {
+-		fmt.Fprintf(p.out, `<a href="#%s" style="text-decoration: none;">%s</a>`, name, name);
++		fmt.Fprintf(p.out, `<a href="#%s" class="noline">%s</a>`, name, name);
+ 	}
+ 	p.prev += len(name);	// skip identifier when calling flush
+ }
+@@ -165,8 +165,8 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
+ 
+ // Markers around EBNF sections
+ var (
+-	open	= strings.Bytes(`<pre class="ebnf">`);
+-	close	= strings.Bytes(`</pre>`);
++	openTag		= strings.Bytes(`<pre class="ebnf">`);
++	closeTag	= strings.Bytes(`</pre>`);
+ )
+ 
+ 
+@@ -175,14 +175,14 @@ func linkify(out io.Writer, src []byte) {
+ 		n := len(src);
+ 
+ 		// i: beginning of EBNF text (or end of source)
+-		i := bytes.Index(src, open);
++		i := bytes.Index(src, openTag);
+ 		if i < 0 {
+-			i = n-len(open);
++			i = n-len(openTag);
+ 		}
+-		i += len(open);
++		i += len(openTag);
+ 
+ 		// j: end of EBNF text (or end of source)
+-		j := bytes.Index(src[i:n], close);	// close marker
++		j := bytes.Index(src[i:n], closeTag);	// close marker
+ 		if j < 0 {
+ 			j = n-i;
+ 		}

@@ -16,8 +16,116 @@ Date:   Fri Aug 30 15:59:16 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/iimport.go   |  2 +-
  src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++++-----------------
  src/cmd/compile/internal/types/type.go   |  2 +-
  3 files changed, 19 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 4f44c54868..1d4329b4b1 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -300,7 +300,7 @@ func (r *importReader) doDecl(n *Node) {
+ 		// after the underlying type has been assigned.
+ 		defercheckwidth()
+ 		underlying := r.typ()
+-		copytype(typenod(t), underlying)
++		setUnderlying(t, underlying)
+ 		resumecheckwidth()
+ 
+ 		if underlying.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 610c9066b8..5d5348fe2c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3442,26 +3442,28 @@ func checkMapKeys() {
+ 	mapqueue = nil
+ }
+ 
+-func copytype(n *Node, t *types.Type) {
+-	if t.Etype == TFORW {
++func setUnderlying(t, underlying *types.Type) {
++	if underlying.Etype == TFORW {
+ 		// This type isn't computed yet; when it is, update n.
+-		t.ForwardType().Copyto = append(t.ForwardType().Copyto, asTypesNode(n))
++		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
+ 		return
+ 	}
+ 
+-	embedlineno := n.Type.ForwardType().Embedlineno
+-	l := n.Type.ForwardType().Copyto
+-
+-	cache := n.Type.Cache
++	n := asNode(t.Nod)
++	ft := t.ForwardType()
++	cache := t.Cache
+ 
+ 	// TODO(mdempsky): Fix Type rekinding.
+-	*n.Type = *t
++	*t = *underlying
+ 
+-	t = n.Type
++	// Restore unnecessarily clobbered attributes.
++	t.Nod = asTypesNode(n)
+ 	t.Sym = n.Sym
+ 	if n.Name != nil {
+ 		t.Vargen = n.Name.Vargen
+ 	}
++	t.Cache = cache
++	t.SetDeferwidth(false)
+ 
+ 	// spec: "The declared type does not inherit any methods bound
+ 	// to the existing type, but the method set of an interface
+@@ -3471,24 +3473,20 @@ func copytype(n *Node, t *types.Type) {
+ 		*t.AllMethods() = types.Fields{}
+ 	}
+ 
+-	t.Nod = asTypesNode(n)
+-	t.SetDeferwidth(false)
+-	t.Cache = cache
+-
+ 	// Propagate go:notinheap pragma from the Name to the Type.
+ 	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}
+ 
+-	// Update nodes waiting on this type.
+-	for _, n := range l {
+-		copytype(asNode(n), t)
++	// Update types waiting on this type.
++	for _, w := range ft.Copyto {
++		setUnderlying(w, t)
+ 	}
+ 
+ 	// Double-check use of type as embedded type.
+-	if embedlineno.IsKnown() {
++	if ft.Embedlineno.IsKnown() {
+ 		if t.IsPtr() || t.IsUnsafePtr() {
+-			yyerrorl(embedlineno, "embedded type cannot be a pointer")
++			yyerrorl(ft.Embedlineno, "embedded type cannot be a pointer")
+ 		}
+ 	}
+ }
+@@ -3509,7 +3507,7 @@ func typecheckdeftype(n *Node) {
+ 	} else {
+ 		// copy new type and clear fields
+ 		// that don't come along.
+-		copytype(n, t)
++		setUnderlying(n.Type, t)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e4ab40c4fd..2c8409b3b3 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -236,7 +236,7 @@ func (t *Type) MapType() *Map {
+ 
+ // Forward contains Type fields specific to forward types.
+ type Forward struct {
+-	Copyto      []*Node  // where to copy the eventual value to
++	Copyto      []*Type  // where to copy the eventual value to
+ 	Embedlineno src.XPos // first use of this type as an embedded type
+ }
+ 

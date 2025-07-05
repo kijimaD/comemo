@@ -9,7 +9,7 @@ Date:   Wed Apr 13 16:18:09 2011 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/4406042
-
+---
  src/cmd/5c/peep.c | 4 ++--
  src/cmd/5c/txt.c  | 4 ++++
  src/cmd/6c/peep.c | 4 ++--
@@ -18,3 +18,129 @@ Date:   Wed Apr 13 16:18:09 2011 -0400
  src/cmd/8c/txt.c  | 4 ++++
  src/quietgcc.bash | 7 +------
  7 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index 8945ee7321..c15bf0fc4c 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -1100,7 +1100,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1118,7 +1118,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index f5619f8004..4be1f6f620 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -400,6 +400,10 @@ regsalloc(Node *n, Node *nn)
+ void
+ regaalloc1(Node *n, Node *nn)
+ {
++	if(REGARG < 0) {
++		fatal(n, "regaalloc1 and REGARG<0");
++		return;
++	}
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+ 	curarg = align(curarg, nn->type, Aarg1, nil);
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 13fd25e737..8b82adbf56 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -797,7 +797,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ACALL:	/* funny */
+-		if(REGARG >= 0 && v->type == REGARG)
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 2;
+ 
+ 		if(s != A) {
+@@ -810,7 +810,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ATEXT:	/* funny */
+-		if(REGARG >= 0 && v->type == REGARG)
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index a78ba227bc..12fc5b498a 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -436,8 +436,10 @@ regsalloc(Node *n, Node *nn)
+ void
+ regaalloc1(Node *n, Node *nn)
+ {
+-	if(REGARG < 0)
+-		diag(n, "regaalloc1 and REGARG<0");
++	if(REGARG < 0) {
++		fatal(n, "regaalloc1 and REGARG<0");
++		return;
++	}
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+ 	curarg = align(curarg, nn->type, Aarg1, nil);
+diff --git a/src/cmd/8c/peep.c b/src/cmd/8c/peep.c
+index 9e18fc94d2..9511a5579e 100644
+--- a/src/cmd/8c/peep.c
++++ b/src/cmd/8c/peep.c
+@@ -713,7 +713,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ACALL:	/* funny */
+-		if(REGARG >= 0 && v->type == REGARG)
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 2;
+ 
+ 		if(s != A) {
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 0dd387d11a..b2e0148a0a 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -397,6 +397,10 @@ regsalloc(Node *n, Node *nn)
+ void
+ regaalloc1(Node *n, Node *nn)
+ {
++	if(REGARG < 0) {
++		fatal(n, "regaalloc1 and REGARG<0");
++		return;
++	}
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+ 	curarg = align(curarg, nn->type, Aarg1, nil);
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index 748fc593e0..e29ee4f642 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -35,15 +35,10 @@ esac
+ tmp=/tmp/qcc.$$.$USER.out
+ $gcc -Wall -Wno-sign-compare -Wno-missing-braces \
+ 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
++	-Werror \
+ 	"$@" >$tmp 2>&1
+ status=$?
+ egrep -v "$ignore" $tmp | uniq | tee $tmp.1
+ 
+-# Make incompatible pointer type "warnings" stop the build.
+-# Not quite perfect--we should remove the object file--but
+-# a step in the right direction.
+-if egrep 'incompatible pointer type' $tmp.1 >/dev/null; then
+-	status=1
+-fi
+ rm -f $tmp $tmp.1
+ exit $status

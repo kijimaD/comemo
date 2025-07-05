@@ -10,7 +10,54 @@ Date:   Thu Jul 29 18:14:49 2010 -0700
     R=go-dev
     CC=golang-dev
     https://golang.org/cl/1860045
-
+---
  test/bugs/bug300.go | 29 +++++++++++++++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 32 insertions(+)
+
+diff --git a/test/bugs/bug300.go b/test/bugs/bug300.go
+new file mode 100644
+index 0000000000..dbed509391
+--- /dev/null
++++ b/test/bugs/bug300.go
+@@ -0,0 +1,29 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	x, y *T
++}
++
++func main() {
++	// legal composite literals
++	_ = struct{}{}
++	_ = [42]int{}
++	_ = [...]int{}
++	_ = []int{}
++	_ = map[int]int{}
++	_ = T{}
++
++	// illegal composite literals: parentheses not allowed around literal type
++	_ = (struct{}){}	// ERROR "xxx"
++	_ = ([42]int){}		// ERROR "xxx"
++	_ = ([...]int){}	// ERROR "xxx"
++	_ = ([]int){}		// ERROR "xxx"
++	_ = (map[int]int){}	// ERROR "xxx"
++	_ = (T){}		// ERROR "xxx"
++}
+diff --git a/test/golden.out b/test/golden.out
+index 25dbc914bb..5999db6616 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -186,3 +186,6 @@ errchk: bugs/bug299.go: unmatched error messages:
+ ==================================================
+ bugs/bug299.go:19: syntax error: unexpected }
+ ==================================================
++
++=========== bugs/bug300.go
++BUG: errchk: command succeeded unexpectedly

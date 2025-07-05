@@ -7,6 +7,29 @@ Date:   Wed Mar 6 16:56:53 2013 -0500
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/7540043
-
+---
  src/pkg/net/http/httputil/dump_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index 5afe9ba74e..3e87c27bc3 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -68,7 +68,7 @@ var dumpTests = []dumpTest{
+ 
+ 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
+ 
+@@ -80,7 +80,7 @@ var dumpTests = []dumpTest{
+ 
+ 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
+ }

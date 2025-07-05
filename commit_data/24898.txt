@@ -11,6 +11,25 @@ Date:   Tue Sep 8 10:58:21 2015 -0700
     Change-Id: I9354b7eaa76000498465c4a5cbab7246de9ecb7c
     Reviewed-on: https://go-review.googlesource.com/14382
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index ecbd4c549e..2c77cf4169 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -504,6 +504,13 @@ SWIG support has been updated such that
+ now require SWIG 3.0.6 or later.
+ </li>
+ 
++<li>
++The <code>install</code> subcommand now removes the
++binary created by the <code>build</code> subcommand
++in the source directory, if present,
++to avoid problems having two binaries present in the tree.
++</li>
++
+ <li>
+ The <code>std</code> (standard library) wildcard package name
+ now excludes commands.

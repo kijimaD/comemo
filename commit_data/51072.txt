@@ -12,6 +12,20 @@ Date:   Wed Dec 1 13:56:53 2021 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 31aa17209f..fb4d03151e 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -377,7 +377,7 @@ proposal</a>.
+ <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+   <dd>
+     <p><!-- CL 340261 -->
+-      TODO: <a href="https://golang.org/cl/340261">https://golang.org/cl/340261</a>: deprecate (net.Error).Temporary
++      <a href="/pkg/net#Error"><code>net.Error.Temporary</code></a> has been deprecated.
+     </p>
+   </dd>
+ </dl><!-- net -->

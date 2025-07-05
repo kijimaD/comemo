@@ -10,8 +10,141 @@ Date:   Tue Jan 4 15:13:33 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/375475
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go            | 30 ++++++++++++++--------
  .../types2/testdata/fixedbugs/issue50372.go        | 27 +++++++++++++++++++
  test/fixedbugs/issue50372.go                       | 29 +++++++++++++++++++++
  3 files changed, 76 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index ab64882c02..ae9cc69c99 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -810,32 +810,34 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
+ 	// scope already opened
+ 
+-	// check expression to iterate over
+-	var x operand
+-	check.expr(&x, rclause.X)
+-
+ 	// determine lhs, if any
+ 	sKey := rclause.Lhs // possibly nil
+-	var sValue syntax.Expr
++	var sValue, sExtra syntax.Expr
+ 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+-		if len(p.ElemList) != 2 {
++		if len(p.ElemList) < 2 {
+ 			check.error(s, invalidAST+"invalid lhs in range clause")
+ 			return
+ 		}
++		// len(p.ElemList) >= 2
+ 		sKey = p.ElemList[0]
+ 		sValue = p.ElemList[1]
++		if len(p.ElemList) > 2 {
++			// delay error reporting until we know more
++			sExtra = p.ElemList[2]
++		}
+ 	}
+ 
++	// check expression to iterate over
++	var x operand
++	check.expr(&x, rclause.X)
++
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a structural type.
+ 		var cause string
+ 		u := structuralType(x.typ)
+-		switch t := u.(type) {
+-		case nil:
+-			cause = check.sprintf("%s has no structural type", x.typ)
+-		case *Chan:
++		if t, _ := u.(*Chan); t != nil {
+ 			if sValue != nil {
+ 				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
+ 				// ok to continue
+@@ -843,6 +845,14 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			if t.dir == SendOnly {
+ 				cause = "receive from send-only channel"
+ 			}
++		} else {
++			if sExtra != nil {
++				check.softErrorf(sExtra, "range clause permits at most two iteration variables")
++				// ok to continue
++			}
++			if u == nil {
++				cause = check.sprintf("%s has no structural type", x.typ)
++			}
+ 		}
+ 		key, val = rangeKeyVal(u)
+ 		if key == nil || cause != "" {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
+new file mode 100644
+index 0000000000..0f15dc0b62
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(s []int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j = range s {}
++        for i, j, k /* ERROR range clause permits at most two iteration variables */ = range s {}
++        for i, j, k /* ERROR range clause permits at most two iteration variables */, l = range s {}
++}
++
++func _(s chan int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j /* ERROR range over .* permits only one iteration variable */ = range s {}
++        for i, j /* ERROR range over .* permits only one iteration variable */, k = range s {}
++        for i, j /* ERROR range over .* permits only one iteration variable */, k, l = range s {}
++}
+diff --git a/test/fixedbugs/issue50372.go b/test/fixedbugs/issue50372.go
+new file mode 100644
+index 0000000000..30a171d5a6
+--- /dev/null
++++ b/test/fixedbugs/issue50372.go
+@@ -0,0 +1,29 @@
++// errorcheck -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(s []int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j = range s {}
++        for i, j, k = range s {} // ERROR "range clause permits at most two iteration variables"
++        for i, j, k, l = range s {} // ERROR "range clause permits at most two iteration variables"
++}
++
++func _(s chan int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j = range s {} // ERROR "range over .* permits only one iteration variable"
++        for i, j, k = range s {} // ERROR "range over .* permits only one iteration variable"
++        for i, j, k, l = range s {} // ERROR "range over .* permits only one iteration variable"
++}

@@ -15,7 +15,119 @@ Date:   Thu Sep 22 14:09:21 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 28 ++++++----------
  test/codegen/issue54467.go             | 59 ++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 88d43b9915..bafa385579 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1588,18 +1588,16 @@ func (s *state) stmt(n ir.Node) {
+ 		}
+ 
+ 		// mayOverlap keeps track of whether the LHS and RHS might
+-		// refer to overlapping memory.
+-		mayOverlap := true
+-		if n.Y == nil {
+-			// Not a move at all, mayOverlap is not relevant.
+-		} else if n.Def {
+-			// A variable being defined cannot overlap anything else.
+-			mayOverlap = false
+-		} else if n.X.Op() == ir.ONAME && n.Y.Op() == ir.ONAME {
+-			// Two named things never overlap.
+-			// (Or they are identical, which we treat as nonoverlapping.)
+-			mayOverlap = false
+-		} else if n.Y.Op() == ir.ODEREF {
++		// refer to partially overlapping memory. Partial overlapping can
++		// only happen for arrays, see the comment in moveWhichMayOverlap.
++		//
++		// If both sides of the assignment are not dereferences, then partial
++		// overlap can't happen. Partial overlap can only occur only when the
++		// arrays referenced are strictly smaller parts of the same base array.
++		// If one side of the assignment is a full array, then partial overlap
++		// can't happen. (The arrays are either disjoint or identical.)
++		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && n.Y.Op() == ir.ODEREF)
++		if n.Y != nil && n.Y.Op() == ir.ODEREF {
+ 			p := n.Y.(*ir.StarExpr).X
+ 			for p.Op() == ir.OCONVNOP {
+ 				p = p.(*ir.ConvExpr).X
+@@ -1609,12 +1607,6 @@ func (s *state) stmt(n ir.Node) {
+ 				// That memory can't overlap with the memory being written.
+ 				mayOverlap = false
+ 			}
+-		} else if n.Y.Op() == ir.ORESULT || n.Y.Op() == ir.OCALLFUNC || n.Y.Op() == ir.OCALLINTER {
+-			// When copying values out of the return area of a call, we know
+-			// the source and destination don't overlap. Importantly, we must
+-			// set mayOverlap so we don't introduce a call to memmove while
+-			// we still have live data in the argument area.
+-			mayOverlap = false
+ 		}
+ 
+ 		// Evaluate RHS.
+diff --git a/test/codegen/issue54467.go b/test/codegen/issue54467.go
+new file mode 100644
+index 0000000000..d34b3278f0
+--- /dev/null
++++ b/test/codegen/issue54467.go
+@@ -0,0 +1,59 @@
++// asmcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func f1(x *[4]int, y *[4]int) {
++	// amd64:".*memmove"
++	*x = *y
++}
++func f2(x *[4]int, y [4]int) {
++	// amd64:-".*memmove"
++	*x = y
++}
++func f3(x *[4]int, y *[4]int) {
++	// amd64:-".*memmove"
++	t := *y
++	// amd64:-".*memmove"
++	*x = t
++}
++func f4(x *[4]int, y [4]int) {
++	// amd64:-".*memmove"
++	t := y
++	// amd64:-".*memmove"
++	*x = t
++}
++
++type T struct {
++	a [4]int
++}
++
++func f5(x, y *T) {
++	// amd64:-".*memmove"
++	x.a = y.a
++}
++func f6(x *T, y T) {
++	// amd64:-".*memmove"
++	x.a = y.a
++}
++func f7(x *T, y *[4]int) {
++	// amd64:-".*memmove"
++	x.a = *y
++}
++func f8(x *[4]int, y *T) {
++	// amd64:-".*memmove"
++	*x = y.a
++}
++
++func f9(x [][4]int, y [][4]int, i, j int) {
++	// amd64:-".*memmove"
++	x[i] = y[j]
++}
++
++func f10() []byte {
++	// amd64:-".*memmove"
++	return []byte("aReasonablyBigTestString")
++}

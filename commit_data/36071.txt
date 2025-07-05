@@ -36,7 +36,7 @@ Date:   Mon Apr 2 15:38:57 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 17 ----------
  src/cmd/compile/internal/gc/closure.go |  4 +--
  src/cmd/compile/internal/gc/export.go  | 59 ++++++----------------------------
@@ -44,3 +44,241 @@ Date:   Mon Apr 2 15:38:57 2018 -0700
  src/cmd/compile/internal/gc/subr.go    |  2 +-
  src/cmd/compile/internal/types/sym.go  | 28 +++++++---------
  6 files changed, 25 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3c663d4bca..63de140372 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -261,13 +261,6 @@ func export(out *bufio.Writer, trace bool) int {
+ 		p.marked = make(map[*types.Type]bool)
+ 		for _, n := range exportlist {
+ 			sym := n.Sym
+-			if sym.Exported() {
+-				// Closures are added to exportlist, but with Exported
+-				// already set. The export code below skips over them, so
+-				// we have to here as well.
+-				// TODO(mdempsky): Investigate why. This seems suspicious.
+-				continue
+-			}
+ 			p.markType(asNode(sym.Def).Type)
+ 		}
+ 		p.marked = nil
+@@ -278,11 +271,6 @@ func export(out *bufio.Writer, trace bool) int {
+ 	for _, n := range exportlist[:numglobals] {
+ 		sym := n.Sym
+ 
+-		if sym.Exported() {
+-			continue
+-		}
+-		sym.SetExported(true)
+-
+ 		// TODO(gri) Closures have dots in their names;
+ 		// e.g., TestFloatZeroValue.func1 in math/big tests.
+ 		if strings.Contains(sym.Name, ".") {
+@@ -337,11 +325,6 @@ func export(out *bufio.Writer, trace bool) int {
+ 		// are different optimization opportunities, but factor
+ 		// eventually.
+ 
+-		if sym.Exported() {
+-			continue
+-		}
+-		sym.SetExported(true)
+-
+ 		// TODO(gri) Closures have dots in their names;
+ 		// e.g., TestFloatZeroValue.func1 in math/big tests.
+ 		if strings.Contains(sym.Name, ".") {
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 113556e356..2d7688d8ef 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -91,7 +91,7 @@ func typecheckclosure(clo *Node, top int) {
+ 	}
+ 
+ 	xfunc.Func.Nname.Sym = closurename(Curfn)
+-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
++	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
+ 	declare(xfunc.Func.Nname, PFUNC)
+ 	xfunc = typecheck(xfunc, Etop)
+ 
+@@ -496,7 +496,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 
+ 	xfunc.Func.SetDupok(true)
+ 	xfunc.Func.Nname = newfuncname(sym)
+-	xfunc.Func.Nname.Sym.SetExported(true) // disable export
++	xfunc.Func.Nname.Sym.SetOnExportList(true) // disable export
+ 	xfunc.Func.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Func.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Func.Nname, PFUNC)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 10ce23b16c..37b0984479 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -28,40 +28,21 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
+ 
+ var asmlist []*Node
+ 
+-// Mark n's symbol as exported
++// exportsym marks n for export (or reexport).
+ func exportsym(n *Node) {
+-	if n == nil || n.Sym == nil {
+-		return
+-	}
+-	if n.Sym.Export() || n.Sym.Package() {
+-		if n.Sym.Package() {
+-			Fatalf("export/package mismatch: %v", n.Sym)
+-		}
++	if n.Sym.OnExportList() {
+ 		return
+ 	}
++	n.Sym.SetOnExportList(true)
+ 
+-	n.Sym.SetExport(true)
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("export symbol %v\n", n.Sym)
+-	}
+-
+-	// Ensure original types are on exportlist before type aliases.
+-	if IsAlias(n.Sym) {
+-		exportlist = append(exportlist, asNode(n.Sym.Def))
+-	}
+-
+-	exportlist = append(exportlist, n)
+-}
+-
+-// reexportsym marks n for reexport.
+-func reexportsym(n *Node) {
+-	if exportedsym(n.Sym) {
+-		return
++		if n.Sym.Pkg == localpkg {
++			fmt.Printf("export symbol %v\n", n.Sym)
++		} else {
++			fmt.Printf("reexport name %v\n", n.Sym)
++		}
+ 	}
+ 
+-	if Debug['E'] != 0 {
+-		fmt.Printf("reexport name %v\n", n.Sym)
+-	}
+ 	exportlist = append(exportlist, n)
+ }
+ 
+@@ -77,19 +58,8 @@ func initname(s string) bool {
+ 	return s == "init"
+ }
+ 
+-// exportedsym reports whether a symbol will be visible
+-// to files that import our package.
+-func exportedsym(sym *types.Sym) bool {
+-	// Builtins are visible everywhere.
+-	if sym.Pkg == builtinpkg || sym.Origpkg == builtinpkg {
+-		return true
+-	}
+-
+-	return sym.Pkg == localpkg && exportname(sym.Name)
+-}
+-
+ func autoexport(n *Node, ctxt Class) {
+-	if n == nil || n.Sym == nil {
++	if n.Sym.Pkg != localpkg {
+ 		return
+ 	}
+ 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
+@@ -102,7 +72,7 @@ func autoexport(n *Node, ctxt Class) {
+ 	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
+ 		exportsym(n)
+ 	}
+-	if asmhdr != "" && n.Sym.Pkg == localpkg && !n.Sym.Asm() {
++	if asmhdr != "" && !n.Sym.Asm() {
+ 		n.Sym.SetAsm(true)
+ 		asmlist = append(asmlist, n)
+ 	}
+@@ -160,15 +130,6 @@ func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
+ 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
+ 		redeclare(s, pkgstr)
+ 	}
+-
+-	// mark the symbol so it is not reexported
+-	if asNode(s.Def) == nil {
+-		if exportname(s.Name) || initname(s.Name) {
+-			s.SetExport(true)
+-		} else {
+-			s.SetPackage(true) // package scope
+-		}
+-	}
+ }
+ 
+ // pkgtype returns the named type declared by symbol s.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8f4560f698..71c8a71bb7 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -208,7 +208,7 @@ func inlFlood(n *Node) {
+ 			// because they're reexported alongside their
+ 			// receiver type.
+ 			if n.Class() == PEXTERN || n.Class() == PFUNC && !n.isMethodExpression() {
+-				reexportsym(n)
++				exportsym(n)
+ 			}
+ 
+ 		case OCALLFUNC, OCALLMETH:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0351de41d5..8679d0ac8d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1689,9 +1689,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 	t.List.Set(append(l, in...))
+ 	t.Rlist.Set(out)
+ 
++	newnam.SetOnExportList(true) // prevent export; see closure.go
+ 	fn := dclfunc(newnam, t)
+ 	fn.Func.SetDupok(true)
+-	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
+ 
+ 	// arg list
+ 	var args []*Node
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 1b9d01dab5..00328fa44f 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -35,30 +35,24 @@ type Sym struct {
+ }
+ 
+ const (
+-	symExport = 1 << iota // added to exportlist (no need to add again)
+-	symPackage
+-	symExported // already written out by export
++	symOnExportList = 1 << iota // added to exportlist (no need to add again)
+ 	symUniq
+ 	symSiggen
+ 	symAsm
+ 	symAlgGen
+ )
+ 
+-func (sym *Sym) Export() bool   { return sym.flags&symExport != 0 }
+-func (sym *Sym) Package() bool  { return sym.flags&symPackage != 0 }
+-func (sym *Sym) Exported() bool { return sym.flags&symExported != 0 }
+-func (sym *Sym) Uniq() bool     { return sym.flags&symUniq != 0 }
+-func (sym *Sym) Siggen() bool   { return sym.flags&symSiggen != 0 }
+-func (sym *Sym) Asm() bool      { return sym.flags&symAsm != 0 }
+-func (sym *Sym) AlgGen() bool   { return sym.flags&symAlgGen != 0 }
++func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
++func (sym *Sym) Uniq() bool         { return sym.flags&symUniq != 0 }
++func (sym *Sym) Siggen() bool       { return sym.flags&symSiggen != 0 }
++func (sym *Sym) Asm() bool          { return sym.flags&symAsm != 0 }
++func (sym *Sym) AlgGen() bool       { return sym.flags&symAlgGen != 0 }
+ 
+-func (sym *Sym) SetExport(b bool)   { sym.flags.set(symExport, b) }
+-func (sym *Sym) SetPackage(b bool)  { sym.flags.set(symPackage, b) }
+-func (sym *Sym) SetExported(b bool) { sym.flags.set(symExported, b) }
+-func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
+-func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
+-func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
+-func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
++func (sym *Sym) SetOnExportList(b bool) { sym.flags.set(symOnExportList, b) }
++func (sym *Sym) SetUniq(b bool)         { sym.flags.set(symUniq, b) }
++func (sym *Sym) SetSiggen(b bool)       { sym.flags.set(symSiggen, b) }
++func (sym *Sym) SetAsm(b bool)          { sym.flags.set(symAsm, b) }
++func (sym *Sym) SetAlgGen(b bool)       { sym.flags.set(symAlgGen, b) }
+ 
+ func (sym *Sym) IsBlank() bool {
+ 	return sym != nil && sym.Name == "_"

@@ -11,8 +11,54 @@ Date:   Thu Apr 14 09:39:40 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/asmdecl.go      |  5 +++++
  src/cmd/vet/testdata/asm.go |  2 ++
  src/cmd/vet/testdata/asm1.s | 11 +++++++++++
  3 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+index 1b313cfe1b..389da353fc 100644
+--- a/src/cmd/vet/asmdecl.go
++++ b/src/cmd/vet/asmdecl.go
+@@ -559,6 +559,11 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 				src = 8
+ 				break
+ 			}
++			if strings.HasPrefix(op, "P") && strings.HasSuffix(op, "RD") {
++				// PINSRD, PEXTRD, etc
++				src = 4
++				break
++			}
+ 			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "F") || strings.HasSuffix(op, "FP")) {
+ 				// FMOVFP, FXCHF, etc
+ 				src = 4
+diff --git a/src/cmd/vet/testdata/asm.go b/src/cmd/vet/testdata/asm.go
+index 9a3d5315ad..81947102ec 100644
+--- a/src/cmd/vet/testdata/asm.go
++++ b/src/cmd/vet/testdata/asm.go
+@@ -31,3 +31,5 @@ func nosplit(x int)
+ func rodata(x int)
+ func noptr(x int)
+ func wrapper(x int)
++
++func f15271() (x uint32)
+diff --git a/src/cmd/vet/testdata/asm1.s b/src/cmd/vet/testdata/asm1.s
+index 62f423cd8b..2c6f13b137 100644
+--- a/src/cmd/vet/testdata/asm1.s
++++ b/src/cmd/vet/testdata/asm1.s
+@@ -252,3 +252,14 @@ TEXT ·returnnamed(SB),0,$0-41
+ 
+ TEXT ·returnintmissing(SB),0,$0-8
+ 	RET // ERROR "RET without writing to 8-byte ret\+0\(FP\)"
++
++
++// issue 15271
++TEXT ·f15271(SB), NOSPLIT, $0-4
++    // Stick 123 into the low 32 bits of X0.
++    MOVQ $123, AX
++    PINSRD $0, AX, X0
++
++    // Return them.
++    PEXTRD $0, X0, x+0(FP)
++    RET

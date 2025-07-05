@@ -7,6 +7,21 @@ Date:   Tue Mar 23 18:13:16 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/695041
-
+---
  src/cmd/goinstall/main.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 1be2bd600a..bc6301baa2 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -180,7 +180,8 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
+ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+ 	bin, err := exec.LookPath(cmd[0])
+ 	if err != nil {
+-		return err
++		// report binary as well as the error
++		return os.NewError(cmd[0] + ": " + err.String())
+ 	}
+ 	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+ 	if *verbose {

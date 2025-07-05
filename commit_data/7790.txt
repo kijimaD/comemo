@@ -8,7 +8,34 @@ Date:   Thu Mar 17 09:11:08 2011 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4282052
-
+---
  lib/codereview/codereview.py   | 2 +-
  misc/dashboard/builder/main.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 78e7e1b30b..7043abc1ea 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -779,7 +779,7 @@ def Incoming(ui, repo, opts):
+ 	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
+ 	return incoming
+ 
+-desc_re = '^(.+: |tag release\.|release\.|fix build)'
++desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build)'
+ 
+ desc_msg = '''Your CL description appears not to use the standard form.
+ 
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index fc11d365ef..735717e28d 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -64,7 +64,7 @@ var (
+ 
+ var (
+ 	goroot        string
+-	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-.]+`)
++	releaseRegexp = regexp.MustCompile(`^(release|weekly)\.[0-9\-.]+`)
+ 	benchRequests vector.Vector
+ )
+ 

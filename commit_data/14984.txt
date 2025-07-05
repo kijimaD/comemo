@@ -7,7 +7,47 @@ Date:   Fri Jan 25 08:27:34 2013 +1100
     R=golang-dev, iant, kamil.kisiel, minux.ma
     CC=golang-dev
     https://golang.org/cl/7203049
-
+---
  doc/contrib.html |  3 +++
  doc/help.html    | 12 +++++++++---
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index ec4efc26b8..ab4de34d74 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -94,6 +94,9 @@ mailing list is for general Go discussion.</p>
+ <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+ <p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
+ 
++<h3 id="pluscom"><a href="https://plus.google.com/communities/114112804251407510571">The Go+ community</a></h3>
++<p>The Google+ community for Go enthusiasts.</p>
++
+ <h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
+ <p>The Go project's Google+ page.</p>
+ 
+diff --git a/doc/help.html b/doc/help.html
+index fadf80a038..3478b9e60c 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -28,11 +28,17 @@ archives and consult the <a href="/doc/go_faq.html">FAQ</a> and
+ <p>Get live support at <b>#go-nuts</b> on <b>irc.freenode.net</b>, the official
+ Go IRC channel.</p>
+ 
++<h3 id="pluscom"><a href="https://plus.google.com/communities/114112804251407510571">The Go+ community</a></h3>
++<p>The Google+ community for Go enthusiasts.</p>
++
++<h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
++<p>The Go project's Google+ page.</p>
++
+ <h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
+ <p>The Go project's official Twitter account.</p>
+ <p>Tweeting your about problem with the <code>#golang</code> hashtag usually
+ generates some helpful responses.</p>
+ 
+-<h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
+-<p>The Go project's Google+ page.</p>
+-
++<h3 id="blog"><a href="http://blog.golang.org/">The Go Blog</a></h3>
++<p>The official blog of the Go project, featuring news and in-depth articles by
++the Go team and guests.</p>

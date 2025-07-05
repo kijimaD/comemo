@@ -33,6 +33,20 @@ Date:   Sun Mar 24 19:33:19 2019 +0300
     Change-Id: I7e6d64cd5f8f5218cb40f52f0015168a8674aabb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168883
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 64274a0a36..b60e238781 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -100,7 +100,7 @@ func (e InvalidHostError) Error() string {
+ // reserved characters correctly. See golang.org/issue/5684.
+ func shouldEscape(c byte, mode encoding) bool {
+ 	// §2.3 Unreserved characters (alphanum)
+-	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
++	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
+ 		return false
+ 	}
+ 

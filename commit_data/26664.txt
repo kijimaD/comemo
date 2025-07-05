@@ -9,6 +9,20 @@ Date:   Sat Feb 20 11:16:21 2016 -0800
     Change-Id: I49c39e3ac810eea57d15c1433608daec212c9792
     Reviewed-on: https://go-review.googlesource.com/19760
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index a6f65bec62..55d988b70a 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -832,7 +832,7 @@ func isSpace(c int) bool {
+ }
+ 
+ func isAlpha(c int) bool {
+-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
++	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+ }
+ 
+ func isDigit(c int) bool {

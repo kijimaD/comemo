@@ -15,7 +15,34 @@ Date:   Wed Jan 5 00:16:40 2022 +0100
     Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ip.go      | 3 +++
  src/net/ip_test.go | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index b016bef144..54c52881cf 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -545,6 +545,9 @@ func (n *IPNet) Network() string { return "ip+net" }
+ // character and a mask expressed as hexadecimal form with no
+ // punctuation like "198.51.100.0/c000ff00".
+ func (n *IPNet) String() string {
++	if n == nil {
++		return "<nil>"
++	}
+ 	nn, m := networkNumberAndMask(n)
+ 	if nn == nil || m == nil {
+ 		return "<nil>"
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 777461ad27..8f1590cfd5 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -407,6 +407,7 @@ var ipNetStringTests = []struct {
+ 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
+ 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
+ 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
++	{nil, "<nil>"},
+ }
+ 
+ func TestIPNetString(t *testing.T) {

@@ -12,7 +12,45 @@ Date:   Fri Apr 29 15:19:11 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgocall.go | 5 ++---
  src/runtime/mgcmark.go | 5 ++---
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index fa996d2405..887343edd1 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -559,12 +559,11 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 		}
+ 		n := span.elemsize
+ 		for i = uintptr(0); i < n; i += sys.PtrSize {
+-			bits := hbits.bits()
+-			if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
++			if i >= 2*sys.PtrSize && !hbits.morePointers() {
+ 				// No more possible pointers.
+ 				break
+ 			}
+-			if bits&bitPointer != 0 {
++			if hbits.isPointer() {
+ 				if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
+ 					panic(errorString(msg))
+ 				}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 14449c3d4b..8c8ce67fbf 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1132,11 +1132,10 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		// in the type bit for the one word. The only one-word objects
+ 		// are pointers, or else they'd be merged with other non-pointer
+ 		// data into larger allocations.
+-		bits := hbits.bits()
+-		if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
++		if i >= 2*sys.PtrSize && !hbits.morePointers() {
+ 			break // no more pointers in this object
+ 		}
+-		if bits&bitPointer == 0 {
++		if !hbits.isPointer() {
+ 			continue // not a pointer
+ 		}
+ 

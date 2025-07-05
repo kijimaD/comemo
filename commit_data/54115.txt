@@ -12,7 +12,7 @@ Date:   Thu Sep 22 13:20:37 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/433055
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go            |  5 ++-
  src/cmd/compile/internal/types2/expr.go            |  8 ++--
  src/go/types/decl.go                               |  4 +-
@@ -44,3 +44,866 @@ Date:   Thu Sep 22 13:20:37 2022 -0700
  .../types/testdata/fixedbugs/issue52698.go         |  2 +-
  .../types/testdata/fixedbugs/issue52915.go         |  2 +-
  30 files changed, 112 insertions(+), 111 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index bc92b64b7e..f9d1431b82 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -328,10 +328,11 @@ func (check *Checker) cycleError(cycle []Object) {
+ 		check.validAlias(tname, Typ[Invalid])
+ 	}
+ 	var err error_
+-	if tname != nil && check.conf.CompilerErrorMessages {
++	err.code = _InvalidDeclCycle
++	if tname != nil {
+ 		err.errorf(obj, "invalid recursive type %s", objName)
+ 	} else {
+-		err.errorf(obj, "illegal cycle in declaration of %s", objName)
++		err.errorf(obj, "invalid cycle in declaration of %s", objName)
+ 	}
+ 	for range cycle {
+ 		err.errorf(obj, "%s refers to", objName)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 9834926b11..d3e54d051b 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1392,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.fields == nil {
+-				check.error(e, _InvalidDeclCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			if len(e.ElemList) == 0 {
+@@ -1468,7 +1468,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// This is a stop-gap solution. Should use Checker.objPath to report entire
+ 			// path starting with earliest declaration in the source. TODO(gri) fix this.
+ 			if utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			n := check.indexedElts(e.ElemList, utyp.elem, utyp.len)
+@@ -1495,7 +1495,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the slice referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			check.indexedElts(e.ElemList, utyp.elem, -1)
+@@ -1504,7 +1504,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the map referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.key == nil || utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			// If the map key type is an interface (but not a type parameter),
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index a14df45dca..a370c5c646 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -325,10 +325,10 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	if tname != nil && tname.IsAlias() {
+ 		check.validAlias(tname, Typ[Invalid])
+ 	}
+-	if tname != nil && compilerErrorMessages {
++	if tname != nil {
+ 		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", objName)
+ 	} else {
+-		check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", objName)
++		check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
+ 	}
+ 	for range cycle {
+ 		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index c3cf46c137..be03f2f423 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1371,7 +1371,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.fields == nil {
+-				check.error(e, _InvalidDeclCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			if len(e.Elts) == 0 {
+@@ -1445,7 +1445,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// This is a stop-gap solution. Should use Checker.objPath to report entire
+ 			// path starting with earliest declaration in the source. TODO(gri) fix this.
+ 			if utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
+@@ -1472,7 +1472,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// Prevent crash if the slice referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			check.indexedElts(e.Elts, utyp.elem, -1)
+@@ -1481,7 +1481,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// Prevent crash if the map referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.key == nil || utyp.elem == nil {
+-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+ 				goto Error
+ 			}
+ 			// If the map key type is an interface (but not a type parameter),
+diff --git a/src/internal/types/testdata/check/cycles0.go b/src/internal/types/testdata/check/cycles0.go
+index 998f9f7da9..aaf82d49d2 100644
+--- a/src/internal/types/testdata/check/cycles0.go
++++ b/src/internal/types/testdata/check/cycles0.go
+@@ -8,10 +8,10 @@ import "unsafe"
+ 
+ type (
+ 	T0 int
+-	T1 /* ERROR cycle */ T1
++	T1 /* ERROR invalid recursive type */ T1
+ 	T2 *T2
+ 
+-	T3 /* ERROR cycle */ T4
++	T3 /* ERROR invalid recursive type */ T4
+ 	T4 T5
+ 	T5 T3
+ 
+@@ -20,10 +20,10 @@ type (
+ 	T8 T6
+ 
+ 	// arrays
+-	A0 /* ERROR cycle */ [10]A0
++	A0 /* ERROR invalid recursive type */ [10]A0
+ 	A1 [10]*A1
+ 
+-	A2 /* ERROR cycle */ [10]A3
++	A2 /* ERROR invalid recursive type */ [10]A3
+ 	A3 [10]A4
+ 	A4 A2
+ 
+@@ -34,12 +34,12 @@ type (
+ 	L0 []L0
+ 
+ 	// structs
+-	S0 /* ERROR cycle */ struct{ _ S0 }
+-	S1 /* ERROR cycle */ struct{ S1 }
++	S0 /* ERROR invalid recursive type */ struct{ _ S0 }
++	S1 /* ERROR invalid recursive type */ struct{ S1 }
+ 	S2 struct{ _ *S2 }
+ 	S3 struct{ *S3 }
+ 
+-	S4 /* ERROR cycle */ struct{ S5 }
++	S4 /* ERROR invalid recursive type */ struct{ S5 }
+ 	S5 struct{ S6 }
+ 	S6 S4
+ 
+@@ -53,9 +53,9 @@ type (
+ 	F2 func(F2) F2
+ 
+ 	// interfaces
+-	I0 /* ERROR cycle */ interface{ I0 }
++	I0 /* ERROR invalid recursive type */ interface{ I0 }
+ 
+-	I1 /* ERROR cycle */ interface{ I2 }
++	I1 /* ERROR invalid recursive type */ interface{ I2 }
+ 	I2 interface{ I3 }
+ 	I3 interface{ I1 }
+ 
+@@ -74,7 +74,7 @@ type (
+ 
+ // test case for issue #34771
+ type (
+-	AA /* ERROR cycle */ B
++	AA /* ERROR invalid recursive type */ B
+ 	B C
+ 	C [10]D
+ 	D E
+@@ -83,7 +83,7 @@ type (
+ 
+ func _() {
+ 	type (
+-		t1 /* ERROR cycle */ t1
++		t1 /* ERROR invalid recursive type */ t1
+ 		t2 *t2
+ 
+ 		t3 t4 /* ERROR undeclared */
+@@ -91,15 +91,15 @@ func _() {
+ 		t5 t3
+ 
+ 		// arrays
+-		a0 /* ERROR cycle */ [10]a0
++		a0 /* ERROR invalid recursive type */ [10]a0
+ 		a1 [10]*a1
+ 
+ 		// slices
+ 		l0 []l0
+ 
+ 		// structs
+-		s0 /* ERROR cycle */ struct{ _ s0 }
+-		s1 /* ERROR cycle */ struct{ s1 }
++		s0 /* ERROR invalid recursive type */ struct{ _ s0 }
++		s1 /* ERROR invalid recursive type */ struct{ s1 }
+ 		s2 struct{ _ *s2 }
+ 		s3 struct{ *s3 }
+ 
+@@ -112,7 +112,7 @@ func _() {
+ 		f2 func(f2) f2
+ 
+ 		// interfaces
+-		i0 /* ERROR cycle */ interface{ i0 }
++		i0 /* ERROR invalid recursive type */ interface{ i0 }
+ 
+ 		// maps
+ 		m0 map[m0 /* ERROR invalid map key */ ]m0
+@@ -135,32 +135,32 @@ type S struct {
+ 
+ type (
+ 	P1 *T9
+-	T9 /* ERROR cycle */ T9
++	T9 /* ERROR invalid recursive type */ T9
+ 
+-	T10 /* ERROR cycle */ T10
++	T10 /* ERROR invalid recursive type */ T10
+ 	P2 *T10
+ )
+ 
+ func (T11) m() {}
+ 
+-type T11 /* ERROR cycle */ struct{ T11 }
++type T11 /* ERROR invalid recursive type */ struct{ T11 }
+ 
+-type T12 /* ERROR cycle */ struct{ T12 }
++type T12 /* ERROR invalid recursive type */ struct{ T12 }
+ 
+ func (*T12) m() {}
+ 
+ type (
+ 	P3 *T13
+-	T13 /* ERROR cycle */ T13
++	T13 /* ERROR invalid recursive type */ T13
+ )
+ 
+ // test cases for issue 18643
+ // (type cycle detection when non-type expressions are involved)
+ type (
+-	T14 [len(T14 /* ERROR cycle */ {})]int
+-	T15 [][len(T15 /* ERROR cycle */ {})]int
+-	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
+-	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int
++	T14 [len(T14 /* ERROR invalid recursive type */ {})]int
++	T15 [][len(T15 /* ERROR invalid recursive type */ {})]int
++	T16 map[[len(T16 /* ERROR invalid recursive type */ {1:2})]int]int
++	T17 map[int][len(T17 /* ERROR invalid recursive type */ {1:2})]int
+ )
+ 
+ // Test case for types depending on function literals (see also #22992).
+@@ -169,7 +169,7 @@ type T22 = chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
+ 
+ func _() {
+ 	type T0 func(T0)
+-	type T1 /* ERROR cycle */ = func(T1)
++	type T1 /* ERROR invalid recursive type */ = func(T1)
+ 	type T2 chan [unsafe.Sizeof(func(ch T2){ _ = <-ch })]byte
+-	type T3 /* ERROR cycle */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
++	type T3 /* ERROR invalid recursive type */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
+ }
+diff --git a/src/internal/types/testdata/check/cycles2.go b/src/internal/types/testdata/check/cycles2.go
+index 1a7f40ae4b..8480b2939f 100644
+--- a/src/internal/types/testdata/check/cycles2.go
++++ b/src/internal/types/testdata/check/cycles2.go
+@@ -70,25 +70,25 @@ type T interface {
+ 
+ // Variations of this test case.
+ 
+-type T1 /* ERROR cycle */ interface {
++type T1 /* ERROR invalid recursive type */ interface {
+ 	m() [x1.m()[0]]int
+ }
+ 
+ var x1 T1
+ 
+-type T2 /* ERROR cycle */ interface {
++type T2 /* ERROR invalid recursive type */ interface {
+ 	m() [len(x2.m())]int
+ }
+ 
+ var x2 T2
+ 
+-type T3 /* ERROR cycle */ interface {
++type T3 /* ERROR invalid recursive type */ interface {
+ 	m() [unsafe.Sizeof(x3.m)]int
+ }
+ 
+ var x3 T3
+ 
+-type T4 /* ERROR cycle */ interface {
++type T4 /* ERROR invalid recursive type */ interface {
+ 	m() [unsafe.Sizeof(cast4(x4.m))]int // cast is invalid but we have a cycle, so all bets are off
+ }
+ 
+diff --git a/src/internal/types/testdata/check/cycles3.go b/src/internal/types/testdata/check/cycles3.go
+index 5e89b627f0..4330551402 100644
+--- a/src/internal/types/testdata/check/cycles3.go
++++ b/src/internal/types/testdata/check/cycles3.go
+@@ -48,7 +48,7 @@ type (
+ )
+ 
+ type (
+-	U /* ERROR cycle */ interface {
++	U /* ERROR invalid recursive type */ interface {
+ 		V
+ 	}
+ 
+diff --git a/src/internal/types/testdata/check/cycles5.go b/src/internal/types/testdata/check/cycles5.go
+index c932ef92d0..68aa913682 100644
+--- a/src/internal/types/testdata/check/cycles5.go
++++ b/src/internal/types/testdata/check/cycles5.go
+@@ -98,12 +98,12 @@ var _ = err.Error()
+ 
+ type (
+ 	T1 interface { T2 }
+-	T2 /* ERROR cycle */ T2
++	T2 /* ERROR invalid recursive type */ T2
+ )
+ 
+ type (
+ 	T3 interface { T4 }
+-	T4 /* ERROR cycle */ T5
++	T4 /* ERROR invalid recursive type */ T5
+ 	T5 = T6
+ 	T6 = T7
+ 	T7 = T4
+@@ -121,8 +121,8 @@ type I interface {
+ 
+ // test cases for varias alias cycles
+ 
+-type T10 /* ERROR cycle */ = *T10                 // issue #25141
+-type T11 /* ERROR cycle */ = interface{ f(T11) }  // issue #23139
++type T10 /* ERROR invalid recursive type */ = *T10                 // issue #25141
++type T11 /* ERROR invalid recursive type */ = interface{ f(T11) }  // issue #23139
+ 
+ // issue #18640
+ type (
+@@ -154,7 +154,7 @@ type (
+ )
+ 
+ // issue #8699
+-type T12 /* ERROR cycle */ [len(a12)]int
++type T12 /* ERROR invalid recursive type */ [len(a12)]int
+ var a12 = makeArray()
+ func makeArray() (res T12) { return }
+ 
+@@ -170,7 +170,7 @@ func f() [len(arr)]int
+ func ff(ff /* ERROR not a type */ )
+ func gg((gg /* ERROR not a type */ ))
+ 
+-type T13 /* ERROR cycle */ [len(b13)]int
++type T13 /* ERROR invalid recursive type */ [len(b13)]int
+ var b13 T13
+ 
+ func g1() [unsafe.Sizeof(g1)]int
+@@ -190,7 +190,7 @@ var c14 /* ERROR cycle */ T14
+ type T14 [uintptr(unsafe.Sizeof(&c14))]byte
+ 
+ // issue #34333
+-type T15 /* ERROR cycle */ struct {
++type T15 /* ERROR invalid recursive type */ struct {
+ 	f func() T16
+ 	b T16
+ }
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index 7ba90c0504..9f7a006a20 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -71,10 +71,10 @@ type (
+ type (
+ 	Pi pi /* ERROR "not a type" */
+ 
+-	a /* ERROR "illegal cycle" */ a
++	a /* ERROR "invalid recursive type" */ a
+ 	a /* ERROR "redeclared" */ int
+ 
+-	b /* ERROR "illegal cycle" */ c
++	b /* ERROR "invalid recursive type" */ c
+ 	c d
+ 	d e
+ 	e b
+@@ -101,10 +101,10 @@ type (
+ 	S3 struct {
+ 		x S2
+ 	}
+-	S4/* ERROR "illegal cycle" */ struct {
++	S4/* ERROR "invalid recursive type" */ struct {
+ 		S4
+ 	}
+-	S5 /* ERROR "illegal cycle" */ struct {
++	S5 /* ERROR "invalid recursive type" */ struct {
+ 		S6
+ 	}
+ 	S6 struct {
+@@ -118,8 +118,8 @@ type (
+ 	L2 []int
+ 
+ 	A1 [10.0]int
+-	A2 /* ERROR "illegal cycle" */ [10]A2
+-	A3 /* ERROR "illegal cycle" */ [10]struct {
++	A2 /* ERROR "invalid recursive type" */ [10]A2
++	A3 /* ERROR "invalid recursive type" */ [10]struct {
+ 		x A4
+ 	}
+ 	A4 [10]A3
+@@ -154,10 +154,10 @@ type (
+ 		I1
+ 		I1
+ 	}
+-	I8 /* ERROR "illegal cycle" */ interface {
++	I8 /* ERROR "invalid recursive type" */ interface {
+ 		I8
+ 	}
+-	I9 /* ERROR "illegal cycle" */ interface {
++	I9 /* ERROR "invalid recursive type" */ interface {
+ 		I10
+ 	}
+ 	I10 interface {
+diff --git a/src/internal/types/testdata/check/decls4.go b/src/internal/types/testdata/check/decls4.go
+index 2ce180fbbb..c1294eec86 100644
+--- a/src/internal/types/testdata/check/decls4.go
++++ b/src/internal/types/testdata/check/decls4.go
+@@ -100,7 +100,7 @@ func (V1) n() {}
+ 
+ // alias receiver types (invalid due to cycles)
+ type (
+-	W0 /* ERROR illegal cycle */ = W1
++	W0 /* ERROR invalid recursive type */ = W1
+ 	W1 = (W2)
+ 	W2 = ((W0))
+ )
+@@ -120,14 +120,14 @@ func (B1 /* ERROR cannot define new methods on non-local type int */ ) n() {}
+ 
+ // cycles
+ type (
+-	C2 /* ERROR illegal cycle */ = C2
+-	C3 /* ERROR illegal cycle */ = C4
++	C2 /* ERROR invalid recursive type */ = C2
++	C3 /* ERROR invalid recursive type */ = C4
+ 	C4 = C3
+ 	C5 struct {
+ 		f *C6
+ 	}
+ 	C6 = C5
+-	C7 /* ERROR illegal cycle */  struct {
++	C7 /* ERROR invalid recursive type */  struct {
+ 		f C8
+ 	}
+ 	C8 = C7
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index bb9b8bdc43..5d6ed2bea7 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -277,7 +277,7 @@ type E = interface {
+ 
+ // Test case from issue.
+ // cmd/compile reports a cycle as well.
+-type issue25301b /* ERROR cycle */ = interface {
++type issue25301b /* ERROR invalid recursive type */ = interface {
+ 	m() interface{ issue25301b }
+ }
+ 
+diff --git a/src/internal/types/testdata/check/issues1.go b/src/internal/types/testdata/check/issues1.go
+index 41a19ad637..b986023cc1 100644
+--- a/src/internal/types/testdata/check/issues1.go
++++ b/src/internal/types/testdata/check/issues1.go
+@@ -143,8 +143,8 @@ type List3[TElem any] struct {
+ }
+ 
+ // Infinite generic type declarations must lead to an error.
+-type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
+-type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
++type inf1[T any] struct{ _ inf1 /* ERROR invalid recursive type */ [T] }
++type inf2[T any] struct{ inf2 /* ERROR invalid recursive type */ [T] }
+ 
+ // The implementation of conversions T(x) between integers and floating-point
+ // numbers checks that both T and x have either integer or floating-point
+diff --git a/src/internal/types/testdata/check/typeinst0.go b/src/internal/types/testdata/check/typeinst0.go
+index 6423cb801f..c21cb53d0c 100644
+--- a/src/internal/types/testdata/check/typeinst0.go
++++ b/src/internal/types/testdata/check/typeinst0.go
+@@ -58,5 +58,5 @@ var _ T3[int] = T3[int](List[int]{1, 2, 3})
+ 
+ // Self-recursive generic types are not permitted
+ 
+-type self1[P any] self1 /* ERROR illegal cycle */ [P]
++type self1[P any] self1 /* ERROR invalid recursive type */ [P]
+ type self2[P any] *self2[P] // this is ok
+diff --git a/src/internal/types/testdata/fixedbugs/issue39634.go b/src/internal/types/testdata/fixedbugs/issue39634.go
+index 9df72f990e..9ec208454a 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39634.go
++++ b/src/internal/types/testdata/fixedbugs/issue39634.go
+@@ -35,7 +35,7 @@ type foo8[A any] interface { ~A /* ERROR cannot be a type parameter */ }
+ func bar8[A foo8[A]](a A) {}
+ 
+ // crash 9
+-type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
++type foo9[A any] interface { foo9 /* ERROR invalid recursive type */ [A] }
+ func _() { var _ = new(foo9[int]) }
+ 
+ // crash 12
+@@ -65,11 +65,11 @@ type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
+ type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
+ 
+ // crash 20
+-type Z20 /* ERROR illegal cycle */ interface{ Z20 }
++type Z20 /* ERROR invalid recursive type */ interface{ Z20 }
+ func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
+ 
+ // crash 21
+-type Z21 /* ERROR illegal cycle */ interface{ Z21 }
++type Z21 /* ERROR invalid recursive type */ interface{ Z21 }
+ func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
+ 
+ // crash 24
+diff --git a/src/internal/types/testdata/fixedbugs/issue39938.go b/src/internal/types/testdata/fixedbugs/issue39938.go
+index 6bc9284849..633698d611 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39938.go
++++ b/src/internal/types/testdata/fixedbugs/issue39938.go
+@@ -23,7 +23,7 @@ type T1 struct {
+         _ E1[T1]
+ }
+ 
+-type T2 /* ERROR illegal cycle */ struct {
++type T2 /* ERROR invalid recursive type */ struct {
+         _ E2[T2]
+ }
+ 
+@@ -31,7 +31,7 @@ type T3 struct {
+         _ E3[T3]
+ }
+ 
+-type T4 /* ERROR illegal cycle */ [10]E5[T4]
++type T4 /* ERROR invalid recursive type */ [10]E5[T4]
+ 
+ type T5 struct {
+ 	_ E0[E2[T5]]
+@@ -49,6 +49,6 @@ type T8 struct {
+ 	_ E0[[]E2[E0[E2[E2[T8]]]]]
+ }
+ 
+-type T9 /* ERROR illegal cycle */ [10]E2[E5[E2[T9]]]
++type T9 /* ERROR invalid recursive type */ [10]E2[E5[E2[T9]]]
+ 
+ type T10 [10]E2[E5[E2[func(T10)]]]
+diff --git a/src/internal/types/testdata/fixedbugs/issue41124.go b/src/internal/types/testdata/fixedbugs/issue41124.go
+index 4550dd732c..80d1ff4750 100644
+--- a/src/internal/types/testdata/fixedbugs/issue41124.go
++++ b/src/internal/types/testdata/fixedbugs/issue41124.go
+@@ -6,7 +6,7 @@ package p
+ 
+ // Test case from issue.
+ 
+-type Nat /* ERROR cycle */ interface {
++type Nat /* ERROR invalid recursive type */ interface {
+ 	Zero|Succ
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue45550.go b/src/internal/types/testdata/fixedbugs/issue45550.go
+index 3eeaca0957..498b1eb680 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45550.go
++++ b/src/internal/types/testdata/fixedbugs/issue45550.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-type Builder /* ERROR illegal cycle */ [T interface{ struct{ Builder[T] } }] struct{}
++type Builder /* ERROR invalid recursive type */ [T interface{ struct{ Builder[T] } }] struct{}
+ type myBuilder struct {
+ 	Builder[myBuilder]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue46461.go b/src/internal/types/testdata/fixedbugs/issue46461.go
+index 4432402a30..fce06f7ec7 100644
+--- a/src/internal/types/testdata/fixedbugs/issue46461.go
++++ b/src/internal/types/testdata/fixedbugs/issue46461.go
+@@ -5,16 +5,16 @@
+ package p
+ 
+ // test case 1
+-type T /* ERROR illegal cycle */ [U interface{ M() T[U] }] int
++type T /* ERROR invalid recursive type */ [U interface{ M() T[U] }] int
+ 
+ type X int
+ 
+ func (X) M() T[X] { return 0 }
+ 
+ // test case 2
+-type A /* ERROR illegal cycle */ [T interface{ A[T] }] interface{}
++type A /* ERROR invalid recursive type */ [T interface{ A[T] }] interface{}
+ 
+ // test case 3
+-type A2 /* ERROR illegal cycle */ [U interface{ A2[U] }] interface{ M() A2[U] }
++type A2 /* ERROR invalid recursive type */ [U interface{ A2[U] }] interface{ M() A2[U] }
+ 
+ type I interface{ A2[I]; M() A2[I] }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47796.go b/src/internal/types/testdata/fixedbugs/issue47796.go
+index 6667ba4fec..4c59106e2e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47796.go
++++ b/src/internal/types/testdata/fixedbugs/issue47796.go
+@@ -6,16 +6,16 @@ package p
+ 
+ // parameterized types with self-recursive constraints
+ type (
+-	T1 /* ERROR illegal cycle */ [P T1[P]]                            interface{}
+-	T2 /* ERROR illegal cycle */ [P, Q T2[P, Q]]                      interface{}
++	T1 /* ERROR invalid recursive type */ [P T1[P]]                            interface{}
++	T2 /* ERROR invalid recursive type */ [P, Q T2[P, Q]]                      interface{}
+ 	T3[P T2[P, Q], Q interface{ ~string }] interface{}
+ 
+-	T4a /* ERROR illegal cycle */ [P T4a[P]]                                                        interface{ ~int }
+-	T4b /* ERROR illegal cycle */ [P T4b[int]]                                                      interface{ ~int }
+-	T4c /* ERROR illegal cycle */ [P T4c[string]] interface{ ~int }
++	T4a /* ERROR invalid recursive type */ [P T4a[P]]                                                        interface{ ~int }
++	T4b /* ERROR invalid recursive type */ [P T4b[int]]                                                      interface{ ~int }
++	T4c /* ERROR invalid recursive type */ [P T4c[string]] interface{ ~int }
+ 
+ 	// mutually recursive constraints
+-	T5 /* ERROR illegal cycle */ [P T6[P]] interface{ int }
++	T5 /* ERROR invalid recursive type */ [P T6[P]] interface{ int }
+ 	T6[P T5[P]] interface{ int }
+ )
+ 
+@@ -28,6 +28,6 @@ var (
+ 
+ // test case from issue
+ 
+-type Eq /* ERROR illegal cycle */ [a Eq[a]] interface {
++type Eq /* ERROR invalid recursive type */ [a Eq[a]] interface {
+ 	Equal(that a) bool
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue48529.go b/src/internal/types/testdata/fixedbugs/issue48529.go
+index a3653fa19c..d7a70b166f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48529.go
++++ b/src/internal/types/testdata/fixedbugs/issue48529.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-type T /* ERROR illegal cycle */ [U interface{ M() T[U, int] }] int
++type T /* ERROR invalid recursive type */ [U interface{ M() T[U, int] }] int
+ 
+ type X int
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue48582.go b/src/internal/types/testdata/fixedbugs/issue48582.go
+index c12091be79..9e1d526abf 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48582.go
++++ b/src/internal/types/testdata/fixedbugs/issue48582.go
+@@ -4,11 +4,11 @@
+ 
+ package p
+ 
+-type N /* ERROR cycle */ interface {
++type N /* ERROR invalid recursive type */ interface {
+ 	int | N
+ }
+ 
+-type A /* ERROR cycle */ interface {
++type A /* ERROR invalid recursive type */ interface {
+ 	int | B
+ }
+ 
+@@ -16,7 +16,7 @@ type B interface {
+ 	int | A
+ }
+ 
+-type S /* ERROR cycle */ struct {
++type S /* ERROR invalid recursive type */ struct {
+ 	I // ERROR interface contains type constraints
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue48819.go b/src/internal/types/testdata/fixedbugs/issue48819.go
+index 9262110ea0..95e40ea009 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48819.go
++++ b/src/internal/types/testdata/fixedbugs/issue48819.go
+@@ -6,7 +6,7 @@ package p
+ 
+ import "unsafe"
+ 
+-type T /* ERROR illegal cycle in declaration of T */ struct {
++type T /* ERROR invalid recursive type T */ struct {
+ 	T
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue48951.go b/src/internal/types/testdata/fixedbugs/issue48951.go
+index a9365281ee..c94b027799 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48951.go
++++ b/src/internal/types/testdata/fixedbugs/issue48951.go
+@@ -5,17 +5,17 @@
+ package p
+ 
+ type (
+-        A1[P any] [10]A1 /* ERROR illegal cycle */ [P]
+-        A2[P any] [10]A2 /* ERROR illegal cycle */ [*P]
++        A1[P any] [10]A1 /* ERROR invalid recursive type */ [P]
++        A2[P any] [10]A2 /* ERROR invalid recursive type */ [*P]
+         A3[P any] [10]*A3[P]
+ 
+         L1[P any] []L1[P]
+ 
+-        S1[P any] struct{ f S1 /* ERROR illegal cycle */ [P] }
+-        S2[P any] struct{ f S2 /* ERROR illegal cycle */ [*P] } // like example in issue
++        S1[P any] struct{ f S1 /* ERROR invalid recursive type */ [P] }
++        S2[P any] struct{ f S2 /* ERROR invalid recursive type */ [*P] } // like example in issue
+         S3[P any] struct{ f *S3[P] }
+ 
+-        I1[P any] interface{ I1 /* ERROR illegal cycle */ [P] }
+-        I2[P any] interface{ I2 /* ERROR illegal cycle */ [*P] }
++        I1[P any] interface{ I1 /* ERROR invalid recursive type */ [P] }
++        I2[P any] interface{ I2 /* ERROR invalid recursive type */ [*P] }
+         I3[P any] interface{ *I3 /* ERROR interface contains type constraints */ [P] }
+ )
+diff --git a/src/internal/types/testdata/fixedbugs/issue48962.go b/src/internal/types/testdata/fixedbugs/issue48962.go
+index 4270da1c73..05c681dcb9 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48962.go
++++ b/src/internal/types/testdata/fixedbugs/issue48962.go
+@@ -8,6 +8,6 @@ type T0[P any] struct {
+ 	f P
+ }
+ 
+-type T1 /* ERROR illegal cycle */ struct {
++type T1 /* ERROR invalid recursive type */ struct {
+ 	_ T0[T1]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49043.go b/src/internal/types/testdata/fixedbugs/issue49043.go
+index a360457d9f..8fe8629feb 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49043.go
++++ b/src/internal/types/testdata/fixedbugs/issue49043.go
+@@ -6,13 +6,13 @@ package p
+ 
+ // The example from the issue.
+ type (
+-	N[P any] M /* ERROR illegal cycle */ [P]
+-	M[P any] N /* ERROR illegal cycle */ [P]
++	N[P any] M /* ERROR invalid recursive type */ [P]
++	M[P any] N /* ERROR invalid recursive type */ [P]
+ )
+ 
+ // A slightly more complicated case.
+ type (
+-	A[P any] B /* ERROR illegal cycle */ [P]
++	A[P any] B /* ERROR invalid recursive type */ [P]
+ 	B[P any] C[P]
+ 	C[P any] A[P]
+ )
+diff --git a/src/internal/types/testdata/fixedbugs/issue49276.go b/src/internal/types/testdata/fixedbugs/issue49276.go
+index 8839087b50..ab5794a1c5 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49276.go
++++ b/src/internal/types/testdata/fixedbugs/issue49276.go
+@@ -6,7 +6,7 @@ package p
+ 
+ import "unsafe"
+ 
+-type S /* ERROR illegal cycle in declaration of S */ struct {
++type S /* ERROR invalid recursive type S */ struct {
+ 	_ [unsafe.Sizeof(s)]byte
+ }
+ 
+@@ -15,7 +15,7 @@ var s S
+ // Since f is a pointer, this case could be valid.
+ // But it's pathological and not worth the expense.
+ type T struct {
+-	f *[unsafe.Sizeof(T /* ERROR illegal cycle in type declaration */ {})]int
++	f *[unsafe.Sizeof(T /* ERROR invalid recursive type */ {})]int
+ }
+ 
+ // a mutually recursive case using unsafe.Sizeof
+@@ -25,7 +25,7 @@ type (
+ 	}
+ 
+ 	B1 struct {
+-		_ [unsafe.Sizeof(A1 /* ERROR illegal cycle in type declaration */ {})]int
++		_ [unsafe.Sizeof(A1 /* ERROR invalid recursive type */ {})]int
+ 	}
+ )
+ 
+@@ -36,11 +36,11 @@ type (
+ 	}
+ 
+ 	B2 struct {
+-		f [len(A2 /* ERROR illegal cycle in type declaration */ {}.f)]int
++		f [len(A2 /* ERROR invalid recursive type */ {}.f)]int
+ 	}
+ )
+ 
+ // test case from issue
+ type a struct {
+-	_ [42 - unsafe.Sizeof(a /* ERROR illegal cycle in type declaration */ {})]byte
++	_ [42 - unsafe.Sizeof(a /* ERROR invalid recursive type */ {})]byte
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49439.go b/src/internal/types/testdata/fixedbugs/issue49439.go
+index 6cc838b3b3..b8ad4955ab 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49439.go
++++ b/src/internal/types/testdata/fixedbugs/issue49439.go
+@@ -6,12 +6,12 @@ package p
+ 
+ import "unsafe"
+ 
+-type T0 /* ERROR illegal cycle */ [P T0[P]] struct{}
++type T0 /* ERROR invalid recursive type */ [P T0[P]] struct{}
+ 
+-type T1 /* ERROR illegal cycle */ [P T2[P]] struct{}
++type T1 /* ERROR invalid recursive type */ [P T2[P]] struct{}
+ type T2[P T1[P]] struct{}
+ 
+-type T3 /* ERROR illegal cycle */ [P interface{ ~struct{ f T3[int] } }] struct{}
++type T3 /* ERROR invalid recursive type */ [P interface{ ~struct{ f T3[int] } }] struct{}
+ 
+ // valid cycle in M
+ type N[P M[P]] struct{}
+@@ -23,4 +23,4 @@ type TC[P [unsafe.Sizeof(func() {
+ })]byte] struct{}
+ 
+ // test case from issue
+-type X /* ERROR illegal cycle */ [T any, PT X[T]] interface{}
++type X /* ERROR invalid recursive type */ [T any, PT X[T]] interface{}
+diff --git a/src/internal/types/testdata/fixedbugs/issue51509.go b/src/internal/types/testdata/fixedbugs/issue51509.go
+index 5ae47176d0..64f5d7e5ba 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51509.go
++++ b/src/internal/types/testdata/fixedbugs/issue51509.go
+@@ -4,4 +4,4 @@
+ 
+ package p
+ 
+-type T /* ERROR illegal cycle */ T.x
++type T /* ERROR invalid recursive type */ T.x
+diff --git a/src/internal/types/testdata/fixedbugs/issue52698.go b/src/internal/types/testdata/fixedbugs/issue52698.go
+index d1b06a210d..ca794f8b16 100644
+--- a/src/internal/types/testdata/fixedbugs/issue52698.go
++++ b/src/internal/types/testdata/fixedbugs/issue52698.go
+@@ -9,7 +9,7 @@ type T[P any] struct {
+ 	_ P
+ }
+ 
+-type S /* ERROR illegal cycle */ struct {
++type S /* ERROR invalid recursive type */ struct {
+ 	_ T[S]
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue52915.go b/src/internal/types/testdata/fixedbugs/issue52915.go
+index 2c38e5bcca..6c43386efc 100644
+--- a/src/internal/types/testdata/fixedbugs/issue52915.go
++++ b/src/internal/types/testdata/fixedbugs/issue52915.go
+@@ -7,7 +7,7 @@ package p
+ import "unsafe"
+ 
+ type T[P any] struct {
+-	T /* ERROR illegal cycle */ [P]
++	T /* ERROR   invalid recursive type */ [P]
+ }
+ 
+ func _[P any]() {

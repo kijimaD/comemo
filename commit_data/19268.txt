@@ -15,6 +15,24 @@ Date:   Fri May 2 12:12:40 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/94070044
-
+---
  src/pkg/os/file_unix.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index bc478b1cc5..76168339d2 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -174,9 +174,11 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 
+ // Darwin and FreeBSD can't read or write 2GB+ at a time,
+ // even on 64-bit systems. See golang.org/issue/7812.
++// Use 1GB instead of, say, 2GB-1, to keep subsequent
++// reads aligned.
+ const (
+ 	needsMaxRW = runtime.GOOS == "darwin" || runtime.GOOS == "freebsd"
+-	maxRW      = 2<<30 - 1
++	maxRW      = 1 << 30
+ )
+ 
+ // read reads up to len(b) bytes from the File.

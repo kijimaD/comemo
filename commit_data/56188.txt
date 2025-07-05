@@ -13,6 +13,51 @@ Date:   Wed Dec 28 11:21:47 2022 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/test/issue57434_test.go | 38 ++++++++++++++++++++++++
  1 file changed, 38 insertions(+)
+
+diff --git a/src/cmd/compile/internal/test/issue57434_test.go b/src/cmd/compile/internal/test/issue57434_test.go
+new file mode 100644
+index 0000000000..6a34b54a07
+--- /dev/null
++++ b/src/cmd/compile/internal/test/issue57434_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"testing"
++)
++
++var output int
++
++type Object struct {
++	Val int
++}
++
++func (o *Object) Initialize() *Object {
++	o.Val = 5
++	return o
++}
++
++func (o *Object) Update() *Object {
++	o.Val = o.Val + 1
++	return o
++}
++
++func TestAutotmpLoopDepth(t *testing.T) {
++	f := func() {
++		for i := 0; i < 10; i++ {
++			var obj Object
++			obj.Initialize().Update()
++			output = obj.Val
++		}
++	}
++	if n := testing.AllocsPerRun(10, f); n > 0 {
++		t.Error("obj moved to heap")
++	}
++}

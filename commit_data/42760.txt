@@ -13,7 +13,61 @@ Date:   Wed Jan 8 14:05:02 2020 -0500
     Change-Id: I1832e15e6a15301e075d2ec9d5169a77f11328fb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213822
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                          | 21 ---------------------
  src/cmd/go/testdata/script/build_test_only.txt | 15 +++++++++++++++
  2 files changed, 15 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 03f482628f..ade3330e2c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2303,27 +2303,6 @@ func TestListTemplateContextFunction(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoBuildTestOnly(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.tempFile("src/testonly/t_test.go", `package testonly`)
+-	tg.tempFile("src/testonly2/t.go", `package testonly2`)
+-	tg.cd(tg.path("src"))
+-
+-	// Named explicitly, test-only packages should be reported as unbuildable/uninstallable,
+-	// even if there is a wildcard also matching.
+-	tg.runFail("build", "testonly", "testonly...")
+-	tg.grepStderr("no non-test Go files in", "go build ./xtestonly produced unexpected error")
+-	tg.runFail("install", "./testonly")
+-	tg.grepStderr("no non-test Go files in", "go install ./testonly produced unexpected error")
+-
+-	// Named through a wildcards, the test-only packages should be silently ignored.
+-	tg.run("build", "testonly...")
+-	tg.run("install", "./testonly...")
+-}
+-
+ func TestGoTestXtestonlyWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/build_test_only.txt b/src/cmd/go/testdata/script/build_test_only.txt
+new file mode 100644
+index 0000000000..54dd59772a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_test_only.txt
+@@ -0,0 +1,15 @@
++# Named explicitly, test-only packages should be reported as
++# unbuildable/uninstallable, even if there is a wildcard also matching.
++! go build testonly testonly...
++stderr 'no non-test Go files in'
++! go install ./testonly
++stderr 'no non-test Go files in'
++
++# Named through a wildcard, the test-only packages should be silently ignored.
++go build testonly...
++go install ./testonly...
++
++-- testonly/t_test.go --
++package testonly
++-- testonly2/t.go --
++package testonly2

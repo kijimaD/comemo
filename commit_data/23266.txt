@@ -10,7 +10,46 @@ Date:   Fri Apr 24 15:37:53 2015 +0200
     Change-Id: If5ec4ef924e4c56489e0d426976f7e5fad79be9b
     Reviewed-on: https://go-review.googlesource.com/9259
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/writer.go      |  2 +-
  src/archive/tar/writer_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index dafb2cabf3..9dbc01a2ff 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -355,7 +355,7 @@ func paxHeader(msg string) string {
+ // hdr.Size bytes are written after WriteHeader.
+ func (tw *Writer) Write(b []byte) (n int, err error) {
+ 	if tw.closed {
+-		err = ErrWriteTooLong
++		err = ErrWriteAfterClose
+ 		return
+ 	}
+ 	overwrite := false
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 5e42e322f9..650899a10e 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -489,3 +489,20 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestWriteAfterClose(t *testing.T) {
++	var buffer bytes.Buffer
++	tw := NewWriter(&buffer)
++
++	hdr := &Header{
++		Name: "small.txt",
++		Size: 5,
++	}
++	if err := tw.WriteHeader(hdr); err != nil {
++		t.Fatalf("Failed to write header: %s", err)
++	}
++	tw.Close()
++	if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
++		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
++	}
++}

@@ -8,7 +8,44 @@ Date:   Mon Feb 20 09:51:25 2012 +1100
     R=rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5673068
-
+---
  src/pkg/syscall/syscall_windows.go | 4 +++-
  src/pkg/syscall/ztypes_windows.go  | 3 +++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 00208d6bc0..fde3bef50e 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -77,6 +77,8 @@ func Getpagesize() int { return 4096 }
+ // Errno is the Windows error number.
+ type Errno uintptr
+ 
++func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
++
+ func (e Errno) Error() string {
+ 	// deal with special go errors
+ 	idx := int(e - APPLICATION_ERROR)
+@@ -86,7 +88,7 @@ func (e Errno) Error() string {
+ 	// ask windows for the remaining errors
+ 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
+ 	b := make([]uint16, 300)
+-	n, err := FormatMessage(flags, 0, uint32(e), 0, b, nil)
++	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
+ 	if err != nil {
+ 		return "error " + itoa(int(e)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
+ 	}
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 9a9112c1fa..5a7a50c08d 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -116,6 +116,9 @@ const (
+ 	FILE_CURRENT = 1
+ 	FILE_END     = 2
+ 
++	LANG_ENGLISH       = 0x09
++	SUBLANG_ENGLISH_US = 0x01
++
+ 	FORMAT_MESSAGE_ALLOCATE_BUFFER = 256
+ 	FORMAT_MESSAGE_IGNORE_INSERTS  = 512
+ 	FORMAT_MESSAGE_FROM_STRING     = 1024

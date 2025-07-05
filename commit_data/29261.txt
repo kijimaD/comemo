@@ -11,8 +11,168 @@ Date:   Sun Sep 4 23:51:22 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 12 ++++-----
  src/cmd/compile/internal/ssa/opGen.go        | 38 ++++++++++++++++------------
  test/fixedbugs/issue16985.go                 | 37 +++++++++++++++++++++++++++
  3 files changed, 65 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index d8659a51b0..53aa1dffe7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -526,8 +526,8 @@ func init() {
+ 		// *(arg1+auxint+aux) += arg0.  arg2=mem.
+ 		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
+ 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+-		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true},
+-		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true},
++		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true},
++		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true},
+ 		{name: "AddTupleFirst32", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+ 		{name: "AddTupleFirst64", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+ 
+@@ -550,12 +550,12 @@ func init() {
+ 		//    JEQ ...
+ 		// but we can't do that because memory-using ops can't generate flags yet
+ 		// (flagalloc wants to move flag-generating instructions around).
+-		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff"},
+-		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff"},
++		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true},
++		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true},
+ 
+ 		// Atomic memory updates.
+-		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff"}, // *(arg0+auxint+aux) &= arg1
+-		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff"},   // *(arg0+auxint+aux) |= arg1
++		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true}, // *(arg0+auxint+aux) &= arg1
++		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true},   // *(arg0+auxint+aux) |= arg1
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7e332025b3..229009fa5f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -6872,6 +6872,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:      auxSymOff,
+ 		argLen:       3,
+ 		resultInArg0: true,
++		clobberFlags: true,
+ 		asm:          x86.AXADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -6888,6 +6889,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:      auxSymOff,
+ 		argLen:       3,
+ 		resultInArg0: true,
++		clobberFlags: true,
+ 		asm:          x86.AXADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -6910,10 +6912,11 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:    "CMPXCHGLlock",
+-		auxType: auxSymOff,
+-		argLen:  4,
+-		asm:     x86.ACMPXCHGL,
++		name:         "CMPXCHGLlock",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		asm:          x86.ACMPXCHGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1},     // AX
+@@ -6928,10 +6931,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "CMPXCHGQlock",
+-		auxType: auxSymOff,
+-		argLen:  4,
+-		asm:     x86.ACMPXCHGQ,
++		name:         "CMPXCHGQlock",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		asm:          x86.ACMPXCHGQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1},     // AX
+@@ -6946,10 +6950,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ANDBlock",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AANDB,
++		name:         "ANDBlock",
++		auxType:      auxSymOff,
++		argLen:       3,
++		clobberFlags: true,
++		asm:          x86.AANDB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -6958,10 +6963,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ORBlock",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AORB,
++		name:         "ORBlock",
++		auxType:      auxSymOff,
++		argLen:       3,
++		clobberFlags: true,
++		asm:          x86.AORB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+diff --git a/test/fixedbugs/issue16985.go b/test/fixedbugs/issue16985.go
+new file mode 100644
+index 0000000000..0cb0dae51c
+--- /dev/null
++++ b/test/fixedbugs/issue16985.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 16985: intrinsified AMD64 atomic ops should clobber flags
++
++package main
++
++import "sync/atomic"
++
++var count uint32
++
++func main() {
++	buffer := []byte("T")
++	for i := 0; i < len(buffer); {
++		atomic.AddUint32(&count, 1)
++		_ = buffer[i]
++		i++
++		i++
++	}
++
++	for i := 0; i < len(buffer); {
++		atomic.CompareAndSwapUint32(&count, 0, 1)
++		_ = buffer[i]
++		i++
++		i++
++	}
++
++	for i := 0; i < len(buffer); {
++		atomic.SwapUint32(&count, 1)
++		_ = buffer[i]
++		i++
++		i++
++	}
++}

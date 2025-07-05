@@ -7,6 +7,24 @@ Date:   Wed Sep 1 15:15:37 2010 -0700
     R=golang-dev, gri1, gri
     CC=golang-dev
     https://golang.org/cl/2083042
-
+---
  src/pkg/scanner/scanner.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index 0f864f8ff3..11aa9f43f3 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -236,8 +236,10 @@ func (s *Scanner) next() int {
+ 				if s.srcEnd == 0 {
+ 					return EOF
+ 				}
+-				s.error(err.String())
+-				break
++				if err != os.EOF {
++					s.error(err.String())
++					break
++				}
+ 			}
+ 		}
+ 		// at least one byte

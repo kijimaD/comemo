@@ -18,7 +18,7 @@ Date:   Fri Jan 11 17:16:28 2019 -0200
     Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/install-source.html           | 11 +++++++++++
  src/cmd/dist/build.go             | 11 +++++++++++
  src/cmd/dist/buildruntime.go      |  2 ++
@@ -27,3 +27,159 @@ Date:   Fri Jan 11 17:16:28 2019 -0200
  src/cmd/internal/objabi/util.go   | 12 ++++++++++++
  test/run.go                       |  4 ++--
  7 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index bbe7cdfd00..c11151be64 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -627,6 +627,17 @@ contains further details regarding Go's ARM support.
+ </p>
+ </li>
+ 
++<li><code>$GOPPC64</code> (for <code>ppc64</code> and <code>ppc64le</code> only)
++<p>
++This variable sets the processor level (i.e. Instruction Set Architecture version)
++for which the compiler will target. The default is <code>power8</code>.
++</p>
++<ul>
++	<li><code>GOPPC64=power8</code>: generate ISA v2.07 instructions</li>
++	<li><code>GOPPC64=power9</code>: generate ISA v3.00 instructions</li>
++</ul>
++</li>
++
+ </ul>
+ 
+ <p>
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 87739a510d..539227232a 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -33,6 +33,7 @@ var (
+ 	go386            string
+ 	gomips           string
+ 	gomips64         string
++	goppc64          string
+ 	goroot           string
+ 	goroot_final     string
+ 	goextlinkenabled string
+@@ -159,6 +160,12 @@ func xinit() {
+ 	}
+ 	gomips64 = b
+ 
++	b = os.Getenv("GOPPC64")
++	if b == "" {
++		b = "power8"
++	}
++	goppc64 = b
++
+ 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
+ 		fatalf("$GOROOT is not set correctly or not exported\n"+
+ 			"\tGOROOT=%s\n"+
+@@ -219,6 +226,7 @@ func xinit() {
+ 	os.Setenv("GOOS", goos)
+ 	os.Setenv("GOMIPS", gomips)
+ 	os.Setenv("GOMIPS64", gomips64)
++	os.Setenv("GOPPC64", goppc64)
+ 	os.Setenv("GOROOT", goroot)
+ 	os.Setenv("GOROOT_FINAL", goroot_final)
+ 
+@@ -1117,6 +1125,9 @@ func cmdenv() {
+ 	if goarch == "mips64" || goarch == "mips64le" {
+ 		xprintf(format, "GOMIPS64", gomips64)
+ 	}
++	if goarch == "ppc64" || goarch == "ppc64le" {
++		xprintf(format, "GOPPC64", goppc64)
++	}
+ 
+ 	if *path {
+ 		sep := ":"
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index d5462792f8..2744951597 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -45,6 +45,7 @@ func mkzversion(dir, file string) {
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOMIPS = <gomips>
+ //	const defaultGOMIPS64 = <gomips64>
++//	const defaultGOPPC64 = <goppc64>
+ //	const defaultGOOS = runtime.GOOS
+ //	const defaultGOARCH = runtime.GOARCH
+ //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+@@ -73,6 +74,7 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
++	fmt.Fprintf(&buf, "const defaultGOPPC64 = `%s`\n", goppc64)
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 31c1fb84ef..80a154b066 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -104,6 +104,7 @@ var (
+ 	GO386    = objabi.GO386
+ 	GOMIPS   = objabi.GOMIPS
+ 	GOMIPS64 = objabi.GOMIPS64
++	GOPPC64  = fmt.Sprintf("%s%d", "power", objabi.GOPPC64)
+ )
+ 
+ // Update build context to use our computed GOROOT.
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index ae98d3999a..08291dfb14 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -81,6 +81,8 @@ func MkEnv() []cfg.EnvVar {
+ 		env = append(env, cfg.EnvVar{Name: "GOMIPS", Value: cfg.GOMIPS})
+ 	case "mips64", "mips64le":
+ 		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
++	case "ppc64", "ppc64le":
++		env = append(env, cfg.EnvVar{Name: "GOPPC64", Value: cfg.GOPPC64})
+ 	}
+ 
+ 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 907f75cb4f..665c8b3be6 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -28,6 +28,7 @@ var (
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+ 	GOMIPS64 = gomips64()
++	GOPPC64  = goppc64()
+ 	GO_LDSO  = defaultGO_LDSO
+ 	Version  = version
+ )
+@@ -64,6 +65,17 @@ func gomips64() string {
+ 	panic("unreachable")
+ }
+ 
++func goppc64() int {
++	switch v := envOr("GOPPC64", defaultGOPPC64); v {
++	case "power8":
++		return 8
++	case "power9":
++		return 9
++	}
++	log.Fatalf("Invalid GOPPC64 value. Must be power8 or power9.")
++	panic("unreachable")
++}
++
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }
+diff --git a/test/run.go b/test/run.go
+index ad38d420c9..7a764d5f8d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1382,8 +1382,8 @@ var (
+ 		"arm64":   {},
+ 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
+ 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
+-		"ppc64":   {},
+-		"ppc64le": {},
++		"ppc64":   {"GOPPC64", "power8", "power9"},
++		"ppc64le": {"GOPPC64", "power8", "power9"},
+ 		"s390x":   {},
+ 	}
+ )

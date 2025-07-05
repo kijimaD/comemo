@@ -15,7 +15,7 @@ Date:   Tue Jul 28 16:04:50 2015 -0700
     Change-Id: Ic4adfbec55c8257f88117bc732fa664486262868
     Reviewed-on: https://go-review.googlesource.com/12813
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  132 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  154 ++-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  142 +-
@@ -24,3 +24,4815 @@ Date:   Tue Jul 28 16:04:50 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 1311 +++++++++++++-----
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1729 +++++++++++++++++++++---
  7 files changed, 2865 insertions(+), 631 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4334dc729a..7344d222cd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1628,10 +1628,12 @@ func genValue(v *ssa.Value) {
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
++	// 2-address opcode arithmetic, symmetric
+ 	case ssa.OpAMD64ADDB,
+ 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
+-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW,
+-		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB:
++		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
++		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
++		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v.Args[1])
+@@ -1652,59 +1654,47 @@ func genValue(v *ssa.Value) {
+ 		} else {
+ 			p.From.Reg = x
+ 		}
+-	case ssa.OpAMD64ADDQconst:
+-		// TODO: use addq instead of leaq if target is in the right register.
+-		p := Prog(x86.ALEAQ)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = regnum(v.Args[0])
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64MULQconst:
++	// 2-address opcode arithmetic, not symmetric
++	case ssa.OpAMD64SUBQ, ssa.OpAMD64SUBL, ssa.OpAMD64SUBW, ssa.OpAMD64SUBB:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+-		if r != x {
+-			p := Prog(x86.AMOVQ)
++		y := regnum(v.Args[1])
++		var neg bool
++		if y == r {
++			// compute -(y-x) instead
++			x, y = y, x
++			neg = true
++		}
++		if x != r {
++			p := Prog(regMoveAMD64(v.Type.Size()))
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+ 		}
+-		p := Prog(x86.AIMULQ)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
++
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
+-		// instead of using the MOVQ above.
+-		//p.From3 = new(obj.Addr)
+-		//p.From3.Type = obj.TYPE_REG
+-		//p.From3.Reg = regnum(v.Args[0])
+-	case ssa.OpAMD64SUBQconst:
+-		// This code compensates for the fact that the register allocator
+-		// doesn't understand 2-address instructions yet.  TODO: fix that.
+-		x := regnum(v.Args[0])
+-		r := regnum(v)
+-		if x != r {
+-			p := Prog(x86.AMOVQ)
++		p.From.Reg = y
++		if neg {
++			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
+ 			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
++			p.From.Reg = r
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+ 		}
+-		p := Prog(x86.ASUBQ)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHRQ, ssa.OpAMD64SARQ:
++	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
++		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
++		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+ 		if x != r {
+ 			if r == x86.REG_CX {
+ 				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+ 			}
+-			p := Prog(x86.AMOVQ)
++			p := Prog(regMoveAMD64(v.Type.Size()))
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+@@ -1715,11 +1705,57 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[1]) // should be CX
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64ANDQconst, ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst, ssa.OpAMD64XORQconst:
++	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst:
++		// TODO: use addq instead of leaq if target is in the right register.
++		var asm int
++		switch v.Op {
++		case ssa.OpAMD64ADDQconst:
++			asm = x86.ALEAQ
++		case ssa.OpAMD64ADDLconst:
++			asm = x86.ALEAL
++		case ssa.OpAMD64ADDWconst:
++			asm = x86.ALEAW
++		}
++		p := Prog(asm)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
++	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst:
++		r := regnum(v)
++		x := regnum(v.Args[0])
++		if r != x {
++			p := Prog(regMoveAMD64(v.Type.Size()))
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++		}
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
++		// instead of using the MOVQ above.
++		//p.From3 = new(obj.Addr)
++		//p.From3.Type = obj.TYPE_REG
++		//p.From3.Reg = regnum(v.Args[0])
++	case ssa.OpAMD64ADDBconst,
++		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
++		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
++		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
++		ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
++		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
++		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
++		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst:
++		// This code compensates for the fact that the register allocator
++		// doesn't understand 2-address instructions yet.  TODO: fix that.
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+ 		if x != r {
+-			p := Prog(x86.AMOVQ)
++			p := Prog(regMoveAMD64(v.Type.Size()))
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+@@ -1732,7 +1768,7 @@ func genValue(v *ssa.Value) {
+ 		p.To.Reg = r
+ 	case ssa.OpAMD64SBBQcarrymask:
+ 		r := regnum(v)
+-		p := Prog(x86.ASBBQ)
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = r
+ 		p.To.Type = obj.TYPE_REG
+@@ -1785,14 +1821,16 @@ func genValue(v *ssa.Value) {
+ 		addAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
++	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB,
++		ssa.OpAMD64TESTQ, ssa.OpAMD64TESTL, ssa.OpAMD64TESTW, ssa.OpAMD64TESTB:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[1])
+-	case ssa.OpAMD64CMPQconst:
+-		p := Prog(x86.ACMPQ)
++	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst,
++		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_CONST
+@@ -1943,6 +1981,16 @@ func genValue(v *ssa.Value) {
+ 		p := Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
++	case ssa.OpAMD64InvertFlags:
++		v.Fatalf("InvertFlags should never make it to codegen %v", v)
++	case ssa.OpAMD64REPSTOSQ:
++		Prog(x86.AREP)
++		Prog(x86.ASTOSQ)
++		v.Unimplementedf("REPSTOSQ clobbers not implemented: %s", v.LongString())
++	case ssa.OpAMD64REPMOVSB:
++		Prog(x86.AREP)
++		Prog(x86.AMOVSB)
++		v.Unimplementedf("REPMOVSB clobbers not implemented: %s", v.LongString())
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 4ceb6185c5..08c1d98481 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -16,6 +16,20 @@
+ (Add16 x y) -> (ADDW x y)
+ (Add8 x y) -> (ADDB x y)
+ 
++(Sub64 x y) -> (SUBQ x y)
++(Sub32 x y) -> (SUBL x y)
++(Sub16 x y) -> (SUBW x y)
++(Sub8 x y) -> (SUBB x y)
++
++(Mul64 x y) -> (MULQ x y)
++(MulPtr x y) -> (MULQ x y)
++(Mul32 x y) -> (MULL x y)
++(Mul16 x y) -> (MULW x y)
++// Note: we use 16-bit multiply instructions for 8-bit multiplies because
++// the 16-bit multiply instructions are more forgiving (they operate on
++// any register instead of just AX/DX).
++(Mul8 x y) -> (MULW x y)
++
+ (And64 x y) -> (ANDQ x y)
+ (And32 x y) -> (ANDL x y)
+ (And16 x y) -> (ANDW x y)
+@@ -26,25 +40,16 @@
+ (Or16 x y) -> (ORW x y)
+ (Or8 x y) -> (ORB x y)
+ 
+-(Sub64 x y) -> (SUBQ x y)
+-(Sub32 x y) -> (SUBL x y)
+-(Sub16 x y) -> (SUBW x y)
+-(Sub8 x y) -> (SUBB x y)
++(Xor64 x y) -> (XORQ x y)
++(Xor32 x y) -> (XORL x y)
++(Xor16 x y) -> (XORW x y)
++(Xor8 x y) -> (XORB x y)
+ 
+ (Neg64 x) -> (NEGQ x)
+ (Neg32 x) -> (NEGL x)
+ (Neg16 x) -> (NEGW x)
+ (Neg8 x) -> (NEGB x)
+ 
+-(Mul64 x y) -> (MULQ x y)
+-(MulPtr x y) -> (MULQ x y)
+-(Mul32 x y) -> (MULL x y)
+-(Mul16 x y) -> (MULW x y)
+-// Note: we use 16-bit multiply instructions for 8-bit multiplies because
+-// the 16-bit multiply instructions are more forgiving (they operate on
+-// any register instead of just AX/DX).
+-(Mul8 x y) -> (MULW x y)
+-
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to16 x) -> (MOVBQSX x)
+ (SignExt8to32 x) -> (MOVBQSX x)
+@@ -76,8 +81,43 @@
+ // Note: unsigned shifts need to return 0 if shift amount is >= 64.
+ //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
+ //   result = mask & arg << shift
++// TODO: define ops per right-hand side size, like Lsh64x32 for int64(x)<<uint32(y)?
+ (Lsh64 <t> x y) && y.Type.Size() == 8 ->
+ 	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
++(Lsh64 <t> x y) && y.Type.Size() == 4 ->
++	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
++(Lsh64 <t> x y) && y.Type.Size() == 2 ->
++	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
++(Lsh64 <t> x y) && y.Type.Size() == 1 ->
++	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
++
++(Lsh32 <t> x y) && y.Type.Size() == 8 ->
++	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
++(Lsh32 <t> x y) && y.Type.Size() == 4 ->
++	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
++(Lsh32 <t> x y) && y.Type.Size() == 2 ->
++	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
++(Lsh32 <t> x y) && y.Type.Size() == 1 ->
++	(ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
++
++(Lsh16 <t> x y) && y.Type.Size() == 8 ->
++	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
++(Lsh16 <t> x y) && y.Type.Size() == 4 ->
++	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
++(Lsh16 <t> x y) && y.Type.Size() == 2 ->
++	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
++(Lsh16 <t> x y) && y.Type.Size() == 1 ->
++	(ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
++
++(Lsh8 <t> x y) && y.Type.Size() == 8 ->
++	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
++(Lsh8 <t> x y) && y.Type.Size() == 4 ->
++	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
++(Lsh8 <t> x y) && y.Type.Size() == 2 ->
++	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
++(Lsh8 <t> x y) && y.Type.Size() == 1 ->
++	(ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
++
+ (Rsh64U <t> x y) && y.Type.Size() == 8 ->
+ 	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+ 
+@@ -158,7 +198,7 @@
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
+ 
+-(Not x) -> (XORQconst [1] x)
++(Not x) -> (XORBconst [1] x)
+ 
+ (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+@@ -193,20 +233,86 @@
+ // TODO: Should this be a separate pass?
+ 
+ // fold constants into instructions
+-// TODO: restrict c to int32 range for all?
+ (ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
+ (ADDQ (MOVQconst [c]) x) && is32Bit(c) -> (ADDQconst [c] x)
+-(SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
+-(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
++(ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
++(ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
++(ADDW x (MOVWconst [c])) -> (ADDWconst [c] x)
++(ADDW (MOVWconst [c]) x) -> (ADDWconst [c] x)
++(ADDB x (MOVBconst [c])) -> (ADDBconst [c] x)
++(ADDB (MOVBconst [c]) x) -> (ADDBconst [c] x)
++
++(SUBQ x (MOVQconst [c])) && is32Bit(c) -> (SUBQconst x [c])
++(SUBQ (MOVQconst [c]) x) && is32Bit(c) -> (NEGQ (SUBQconst <v.Type> x [c]))
++(SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
++(SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))
++(SUBW x (MOVWconst [c])) -> (SUBWconst x [c])
++(SUBW (MOVWconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [c]))
++(SUBB x (MOVBconst [c])) -> (SUBBconst x [c])
++(SUBB (MOVBconst [c]) x) -> (NEGB (SUBBconst <v.Type> x [c]))
++
+ (MULQ x (MOVQconst [c])) && is32Bit(c) -> (MULQconst [c] x)
+ (MULQ (MOVQconst [c]) x) && is32Bit(c) -> (MULQconst [c] x)
+-(ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
+-(ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
+-(SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
+-(SHRQ x (MOVQconst [c])) -> (SHRQconst [c] x)
+-(SARQ x (MOVQconst [c])) -> (SARQconst [c] x)
+-(CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
+-(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
++(MULL x (MOVLconst [c])) -> (MULLconst [c] x)
++(MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
++(MULW x (MOVWconst [c])) -> (MULWconst [c] x)
++(MULW (MOVWconst [c]) x) -> (MULWconst [c] x)
++
++(ANDQ x (MOVQconst [c])) && is32Bit(c) -> (ANDQconst [c] x)
++(ANDQ (MOVQconst [c]) x) && is32Bit(c) -> (ANDQconst [c] x)
++(ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
++(ANDL (MOVLconst [c]) x) -> (ANDLconst [c] x)
++(ANDW x (MOVWconst [c])) -> (ANDWconst [c] x)
++(ANDW (MOVWconst [c]) x) -> (ANDWconst [c] x)
++(ANDB x (MOVBconst [c])) -> (ANDBconst [c] x)
++(ANDB (MOVBconst [c]) x) -> (ANDBconst [c] x)
++
++(ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
++(ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
++(ORL x (MOVLconst [c])) -> (ORLconst [c] x)
++(ORL (MOVLconst [c]) x) -> (ORLconst [c] x)
++(ORW x (MOVWconst [c])) -> (ORWconst [c] x)
++(ORW (MOVWconst [c]) x) -> (ORWconst [c] x)
++(ORB x (MOVBconst [c])) -> (ORBconst [c] x)
++(ORB (MOVBconst [c]) x) -> (ORBconst [c] x)
++
++(XORQ x (MOVQconst [c])) && is32Bit(c) -> (XORQconst [c] x)
++(XORQ (MOVQconst [c]) x) && is32Bit(c) -> (XORQconst [c] x)
++(XORL x (MOVLconst [c])) -> (XORLconst [c] x)
++(XORL (MOVLconst [c]) x) -> (XORLconst [c] x)
++(XORW x (MOVWconst [c])) -> (XORWconst [c] x)
++(XORW (MOVWconst [c]) x) -> (XORWconst [c] x)
++(XORB x (MOVBconst [c])) -> (XORBconst [c] x)
++(XORB (MOVBconst [c]) x) -> (XORBconst [c] x)
++
++(SHLQ x (MOVQconst [c])) -> (SHLQconst [c&63] x)
++(SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
++(SHLW x (MOVWconst [c])) -> (SHLWconst [c&31] x)
++(SHLB x (MOVBconst [c])) -> (SHLBconst [c&31] x)
++
++(SHRQ x (MOVQconst [c])) -> (SHRQconst [c&63] x)
++(SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
++(SHRW x (MOVWconst [c])) -> (SHRWconst [c&31] x)
++(SHRB x (MOVBconst [c])) -> (SHRBconst [c&31] x)
++
++(SARQ x (MOVQconst [c])) -> (SARQconst [c&63] x)
++(SARL x (MOVLconst [c])) -> (SARLconst [c&31] x)
++(SARW x (MOVWconst [c])) -> (SARWconst [c&31] x)
++(SARB x (MOVBconst [c])) -> (SARBconst [c&31] x)
++
++// Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
++// because the x86 instructions are defined to use all 5 bits of the shift even
++// for the small shifts.  I don't think we'll ever generate a weird shift (e.g.
++// (SHLW x (MOVWconst [24])), but just in case.
++
++(CMPQ x (MOVQconst [c])) && is32Bit(c) -> (CMPQconst x [c])
++(CMPQ (MOVQconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
++(CMPL x (MOVLconst [c])) -> (CMPLconst x [c])
++(CMPL (MOVLconst [c]) x) -> (InvertFlags (CMPLconst <TypeFlags> x [c]))
++(CMPW x (MOVWconst [c])) -> (CMPWconst x [c])
++(CMPW (MOVWconst [c]) x) -> (InvertFlags (CMPWconst <TypeFlags> x [c]))
++(CMPB x (MOVBconst [c])) -> (CMPBconst x [c])
++(CMPB (MOVBconst [c]) x) -> (InvertFlags (CMPBconst <TypeFlags> x [c]))
+ 
+ // strength reduction
+ (MULQconst [-1] x) -> (NEGQ x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 1983ae8c44..a595469134 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -96,25 +96,110 @@ func init() {
+ 
+ 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
+ 	var AMD64ops = []opData{
++		// binary ops
++		{name: "ADDQ", reg: gp21, asm: "ADDQ"},      // arg0 + arg1
++		{name: "ADDL", reg: gp21, asm: "ADDL"},      // arg0 + arg1
++		{name: "ADDW", reg: gp21, asm: "ADDW"},      // arg0 + arg1
++		{name: "ADDB", reg: gp21, asm: "ADDB"},      // arg0 + arg1
++		{name: "ADDQconst", reg: gp11, asm: "ADDQ"}, // arg0 + auxint
++		{name: "ADDLconst", reg: gp11, asm: "ADDL"}, // arg0 + auxint
++		{name: "ADDWconst", reg: gp11, asm: "ADDW"}, // arg0 + auxint
++		{name: "ADDBconst", reg: gp11, asm: "ADDB"}, // arg0 + auxint
++
++		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
++		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
++		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
++		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
++		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
++		{name: "SUBLconst", reg: gp11, asm: "SUBL"}, // arg0 - auxint
++		{name: "SUBWconst", reg: gp11, asm: "SUBW"}, // arg0 - auxint
++		{name: "SUBBconst", reg: gp11, asm: "SUBB"}, // arg0 - auxint
++
+ 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
++		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
++		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+ 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
+-		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"},  // arg0 << arg1, shift amount is mod 64
+-		{name: "SHLQconst", reg: gp11, asm: "SHLQ"},  // arg0 << auxint, shift amount 0-63
+-		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"},  // unsigned arg0 >> arg1, shift amount is mod 64
+-		{name: "SHRQconst", reg: gp11, asm: "SHRQ"},  // unsigned arg0 >> auxint, shift amount 0-63
+-		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
+-		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
++		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
++		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
++
++		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
++		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
++		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
++		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
++		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
++		{name: "ANDLconst", reg: gp11, asm: "ANDL"}, // arg0 & auxint
++		{name: "ANDWconst", reg: gp11, asm: "ANDW"}, // arg0 & auxint
++		{name: "ANDBconst", reg: gp11, asm: "ANDB"}, // arg0 & auxint
++
++		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
++		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
++		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
++		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
++		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
++		{name: "ORLconst", reg: gp11, asm: "ORL"}, // arg0 | auxint
++		{name: "ORWconst", reg: gp11, asm: "ORW"}, // arg0 | auxint
++		{name: "ORBconst", reg: gp11, asm: "ORB"}, // arg0 | auxint
+ 
+-		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
++		{name: "XORQ", reg: gp21, asm: "XORQ"},      // arg0 ^ arg1
++		{name: "XORL", reg: gp21, asm: "XORL"},      // arg0 ^ arg1
++		{name: "XORW", reg: gp21, asm: "XORW"},      // arg0 ^ arg1
++		{name: "XORB", reg: gp21, asm: "XORB"},      // arg0 ^ arg1
++		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0 ^ auxint
++		{name: "XORLconst", reg: gp11, asm: "XORL"}, // arg0 ^ auxint
++		{name: "XORWconst", reg: gp11, asm: "XORW"}, // arg0 ^ auxint
++		{name: "XORBconst", reg: gp11, asm: "XORB"}, // arg0 ^ auxint
+ 
+ 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
+-		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
+ 		{name: "CMPL", reg: gp2flags, asm: "CMPL"},      // arg0 compare to arg1
+ 		{name: "CMPW", reg: gp2flags, asm: "CMPW"},      // arg0 compare to arg1
+ 		{name: "CMPB", reg: gp2flags, asm: "CMPB"},      // arg0 compare to arg1
++		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
++		{name: "CMPLconst", reg: gp1flags, asm: "CMPL"}, // arg0 compare to auxint
++		{name: "CMPWconst", reg: gp1flags, asm: "CMPW"}, // arg0 compare to auxint
++		{name: "CMPBconst", reg: gp1flags, asm: "CMPB"}, // arg0 compare to auxint
+ 
+-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"}, // (arg0 & arg1) compare to 0
+-		{name: "TESTB", reg: gp2flags, asm: "TESTB"}, // (arg0 & arg1) compare to 0
++		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},      // (arg0 & arg1) compare to 0
++		{name: "TESTL", reg: gp2flags, asm: "TESTL"},      // (arg0 & arg1) compare to 0
++		{name: "TESTW", reg: gp2flags, asm: "TESTW"},      // (arg0 & arg1) compare to 0
++		{name: "TESTB", reg: gp2flags, asm: "TESTB"},      // (arg0 & arg1) compare to 0
++		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ"}, // (arg0 & auxint) compare to 0
++		{name: "TESTLconst", reg: gp1flags, asm: "TESTL"}, // (arg0 & auxint) compare to 0
++		{name: "TESTWconst", reg: gp1flags, asm: "TESTW"}, // (arg0 & auxint) compare to 0
++		{name: "TESTBconst", reg: gp1flags, asm: "TESTB"}, // (arg0 & auxint) compare to 0
++
++		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"}, // arg0 << arg1, shift amount is mod 64
++		{name: "SHLL", reg: gp21shift, asm: "SHLL"}, // arg0 << arg1, shift amount is mod 32
++		{name: "SHLW", reg: gp21shift, asm: "SHLW"}, // arg0 << arg1, shift amount is mod 32
++		{name: "SHLB", reg: gp21shift, asm: "SHLB"}, // arg0 << arg1, shift amount is mod 32
++		{name: "SHLQconst", reg: gp11, asm: "SHLQ"}, // arg0 << auxint, shift amount 0-63
++		{name: "SHLLconst", reg: gp11, asm: "SHLL"}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLWconst", reg: gp11, asm: "SHLW"}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLBconst", reg: gp11, asm: "SHLB"}, // arg0 << auxint, shift amount 0-31
++		// Note: x86 is weird, the 16 and 8 byte shifts still use all 5 bits of shift amount!
++
++		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
++		{name: "SHRL", reg: gp21shift, asm: "SHRL"}, // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRW", reg: gp21shift, asm: "SHRW"}, // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRB", reg: gp21shift, asm: "SHRB"}, // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRQconst", reg: gp11, asm: "SHRQ"}, // unsigned arg0 >> auxint, shift amount 0-63
++		{name: "SHRLconst", reg: gp11, asm: "SHRL"}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRWconst", reg: gp11, asm: "SHRW"}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRBconst", reg: gp11, asm: "SHRB"}, // unsigned arg0 >> auxint, shift amount 0-31
++
++		{name: "SARQ", reg: gp21shift, asm: "SARQ"}, // signed arg0 >> arg1, shift amount is mod 64
++		{name: "SARL", reg: gp21shift, asm: "SARL"}, // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARW", reg: gp21shift, asm: "SARW"}, // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARB", reg: gp21shift, asm: "SARB"}, // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARQconst", reg: gp11, asm: "SARQ"}, // signed arg0 >> auxint, shift amount 0-63
++		{name: "SARLconst", reg: gp11, asm: "SARL"}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARWconst", reg: gp11, asm: "SARW"}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARBconst", reg: gp11, asm: "SARB"}, // signed arg0 >> auxint, shift amount 0-31
++
++		// unary ops
++		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
++		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
++		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
++		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
+ 
+ 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 
+@@ -166,49 +251,12 @@ func init() {
+ 		// TODO: implement this when register clobbering works
+ 		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
+ 
+-		// Load/store from global. Same as the above loads, but arg0 is missing and
+-		// aux is a GlobalOffset instead of an int64.
+-		{name: "MOVQloadglobal"},  // Load from aux.(GlobalOffset).  arg0 = memory
+-		{name: "MOVQstoreglobal"}, // store arg0 to aux.(GlobalOffset).  arg1=memory, returns memory.
+-
+ 		//TODO: set register clobber to everything?
+ 		{name: "CALLstatic"},                                                            // call static function aux.(*gc.Sym).  arg0=mem, returns mem
+ 		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
+ 
+ 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+ 
+-		{name: "ADDQ", reg: gp21},              // arg0 + arg1
+-		{name: "ADDQconst", reg: gp11},         // arg0 + auxint
+-		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0 + arg1
+-		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0 + arg1
+-		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0 + arg1
+-
+-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
+-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
+-		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
+-		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
+-		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
+-
+-		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
+-		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
+-		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
+-		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
+-
+-		{name: "MULL", reg: gp21, asm: "IMULL"}, // arg0*arg1
+-		{name: "MULW", reg: gp21, asm: "IMULW"}, // arg0*arg1
+-
+-		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
+-		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
+-		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
+-		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
+-		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
+-
+-		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
+-		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
+-		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
+-		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
+-		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
+-
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+ 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+ 		// then we do (SETL (InvertFlags (CMPQ b a))) instead.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 0459a2edc0..9e71dbdb74 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -37,6 +37,11 @@ var genericOps = []opData{
+ 	{name: "Or32"},
+ 	{name: "Or64"},
+ 
++	{name: "Xor8"}, // arg0 ^ arg1
++	{name: "Xor16"},
++	{name: "Xor32"},
++	{name: "Xor64"},
++
+ 	{name: "Lsh8"}, // arg0 << arg1
+ 	{name: "Lsh16"},
+ 	{name: "Lsh32"},
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 007d33ec23..ddc2c6df96 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/format"
+ 	"io/ioutil"
+ 	"log"
++	"regexp"
+ )
+ 
+ type arch struct {
+@@ -164,6 +165,28 @@ func genOp() {
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
++
++	// Check that ../gc/ssa.go handles all the arch-specific opcodes.
++	// This is very much a hack, but it is better than nothing.
++	ssa, err := ioutil.ReadFile("../../gc/ssa.go")
++	if err != nil {
++		log.Fatalf("can't read ../../gc/ssa.go: %v", err)
++	}
++	for _, a := range archs {
++		if a.name == "generic" {
++			continue
++		}
++		for _, v := range a.ops {
++			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
++			match, err := regexp.Match(pattern, ssa)
++			if err != nil {
++				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
++			}
++			if !match {
++				log.Fatalf("Op%s%s has no code generation in ../../gc/ssa.go", a.name, v.name)
++			}
++		}
++	}
+ }
+ 
+ // Name returns the name of the architecture for use in Op* and Block* enumerations.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4fe098136f..c4b4e80a11 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -51,22 +51,96 @@ func (k BlockKind) String() string { return blockString[k] }
+ const (
+ 	OpInvalid Op = iota
+ 
++	OpAMD64ADDQ
++	OpAMD64ADDL
++	OpAMD64ADDW
++	OpAMD64ADDB
++	OpAMD64ADDQconst
++	OpAMD64ADDLconst
++	OpAMD64ADDWconst
++	OpAMD64ADDBconst
++	OpAMD64SUBQ
++	OpAMD64SUBL
++	OpAMD64SUBW
++	OpAMD64SUBB
++	OpAMD64SUBQconst
++	OpAMD64SUBLconst
++	OpAMD64SUBWconst
++	OpAMD64SUBBconst
+ 	OpAMD64MULQ
++	OpAMD64MULL
++	OpAMD64MULW
+ 	OpAMD64MULQconst
+-	OpAMD64SHLQ
+-	OpAMD64SHLQconst
+-	OpAMD64SHRQ
+-	OpAMD64SHRQconst
+-	OpAMD64SARQ
+-	OpAMD64SARQconst
++	OpAMD64MULLconst
++	OpAMD64MULWconst
++	OpAMD64ANDQ
++	OpAMD64ANDL
++	OpAMD64ANDW
++	OpAMD64ANDB
++	OpAMD64ANDQconst
++	OpAMD64ANDLconst
++	OpAMD64ANDWconst
++	OpAMD64ANDBconst
++	OpAMD64ORQ
++	OpAMD64ORL
++	OpAMD64ORW
++	OpAMD64ORB
++	OpAMD64ORQconst
++	OpAMD64ORLconst
++	OpAMD64ORWconst
++	OpAMD64ORBconst
++	OpAMD64XORQ
++	OpAMD64XORL
++	OpAMD64XORW
++	OpAMD64XORB
+ 	OpAMD64XORQconst
++	OpAMD64XORLconst
++	OpAMD64XORWconst
++	OpAMD64XORBconst
+ 	OpAMD64CMPQ
+-	OpAMD64CMPQconst
+ 	OpAMD64CMPL
+ 	OpAMD64CMPW
+ 	OpAMD64CMPB
++	OpAMD64CMPQconst
++	OpAMD64CMPLconst
++	OpAMD64CMPWconst
++	OpAMD64CMPBconst
+ 	OpAMD64TESTQ
++	OpAMD64TESTL
++	OpAMD64TESTW
+ 	OpAMD64TESTB
++	OpAMD64TESTQconst
++	OpAMD64TESTLconst
++	OpAMD64TESTWconst
++	OpAMD64TESTBconst
++	OpAMD64SHLQ
++	OpAMD64SHLL
++	OpAMD64SHLW
++	OpAMD64SHLB
++	OpAMD64SHLQconst
++	OpAMD64SHLLconst
++	OpAMD64SHLWconst
++	OpAMD64SHLBconst
++	OpAMD64SHRQ
++	OpAMD64SHRL
++	OpAMD64SHRW
++	OpAMD64SHRB
++	OpAMD64SHRQconst
++	OpAMD64SHRLconst
++	OpAMD64SHRWconst
++	OpAMD64SHRBconst
++	OpAMD64SARQ
++	OpAMD64SARL
++	OpAMD64SARW
++	OpAMD64SARB
++	OpAMD64SARQconst
++	OpAMD64SARLconst
++	OpAMD64SARWconst
++	OpAMD64SARBconst
++	OpAMD64NEGQ
++	OpAMD64NEGL
++	OpAMD64NEGW
++	OpAMD64NEGB
+ 	OpAMD64SBBQcarrymask
+ 	OpAMD64SETEQ
+ 	OpAMD64SETNE
+@@ -108,37 +182,9 @@ const (
+ 	OpAMD64MOVQstoreidx8
+ 	OpAMD64MOVXzero
+ 	OpAMD64REPSTOSQ
+-	OpAMD64MOVQloadglobal
+-	OpAMD64MOVQstoreglobal
+ 	OpAMD64CALLstatic
+ 	OpAMD64CALLclosure
+ 	OpAMD64REPMOVSB
+-	OpAMD64ADDQ
+-	OpAMD64ADDQconst
+-	OpAMD64ADDL
+-	OpAMD64ADDW
+-	OpAMD64ADDB
+-	OpAMD64SUBQ
+-	OpAMD64SUBQconst
+-	OpAMD64SUBL
+-	OpAMD64SUBW
+-	OpAMD64SUBB
+-	OpAMD64NEGQ
+-	OpAMD64NEGL
+-	OpAMD64NEGW
+-	OpAMD64NEGB
+-	OpAMD64MULL
+-	OpAMD64MULW
+-	OpAMD64ANDQ
+-	OpAMD64ANDQconst
+-	OpAMD64ANDL
+-	OpAMD64ANDW
+-	OpAMD64ANDB
+-	OpAMD64ORQ
+-	OpAMD64ORQconst
+-	OpAMD64ORL
+-	OpAMD64ORW
+-	OpAMD64ORB
+ 	OpAMD64InvertFlags
+ 
+ 	OpAdd8
+@@ -163,6 +209,10 @@ const (
+ 	OpOr16
+ 	OpOr32
+ 	OpOr64
++	OpXor8
++	OpXor16
++	OpXor32
++	OpXor64
+ 	OpLsh8
+ 	OpLsh16
+ 	OpLsh32
+@@ -286,8 +336,8 @@ var opcodeTable = [...]opInfo{
+ 	{name: "OpInvalid"},
+ 
+ 	{
+-		name: "MULQ",
+-		asm:  x86.AIMULQ,
++		name: "ADDQ",
++		asm:  x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -299,11 +349,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULQconst",
+-		asm:  x86.AIMULQ,
++		name: "ADDL",
++		asm:  x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -311,12 +362,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLQ",
+-		asm:  x86.ASHLQ,
++		name: "ADDW",
++		asm:  x86.AADDW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -324,11 +375,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLQconst",
+-		asm:  x86.ASHLQ,
++		name: "ADDB",
++		asm:  x86.AADDB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -336,12 +388,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRQ",
+-		asm:  x86.ASHRQ,
++		name: "ADDQconst",
++		asm:  x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -349,8 +400,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRQconst",
+-		asm:  x86.ASHRQ,
++		name: "ADDLconst",
++		asm:  x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -361,12 +412,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARQ",
+-		asm:  x86.ASARQ,
++		name: "ADDWconst",
++		asm:  x86.AADDW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -374,8 +424,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARQconst",
+-		asm:  x86.ASARQ,
++		name: "ADDBconst",
++		asm:  x86.AADDB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -386,11 +436,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "XORQconst",
+-		asm:  x86.AXORQ,
++		name: "SUBQ",
++		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -398,101 +449,99 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMPQ",
+-		asm:  x86.ACMPQ,
++		name: "SUBL",
++		asm:  x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "CMPQconst",
+-		asm:  x86.ACMPQ,
++		name: "SUBW",
++		asm:  x86.ASUBW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "CMPL",
+-		asm:  x86.ACMPL,
++		name: "SUBB",
++		asm:  x86.ASUBB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "CMPW",
+-		asm:  x86.ACMPW,
++		name: "SUBQconst",
++		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "CMPB",
+-		asm:  x86.ACMPB,
++		name: "SUBLconst",
++		asm:  x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "TESTQ",
+-		asm:  x86.ATESTQ,
++		name: "SUBWconst",
++		asm:  x86.ASUBW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "TESTB",
+-		asm:  x86.ATESTB,
++		name: "SUBBconst",
++		asm:  x86.ASUBB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+-				8589934592, // .FLAGS
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "SBBQcarrymask",
+-		asm:  x86.ASBBQ,
++		name: "MULQ",
++		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -500,11 +549,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETEQ",
+-		asm:  x86.ASETEQ,
++		name: "MULL",
++		asm:  x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -512,11 +562,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETNE",
+-		asm:  x86.ASETNE,
++		name: "MULW",
++		asm:  x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -524,11 +575,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETL",
+-		asm:  x86.ASETLT,
++		name: "MULQconst",
++		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -536,11 +587,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETLE",
+-		asm:  x86.ASETLE,
++		name: "MULLconst",
++		asm:  x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -548,11 +599,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETG",
+-		asm:  x86.ASETGT,
++		name: "MULWconst",
++		asm:  x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -560,11 +611,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETGE",
+-		asm:  x86.ASETGE,
++		name: "ANDQ",
++		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -572,11 +624,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETB",
+-		asm:  x86.ASETCS,
++		name: "ANDL",
++		asm:  x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -584,11 +637,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETBE",
+-		asm:  x86.ASETLS,
++		name: "ANDW",
++		asm:  x86.AANDW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -596,11 +650,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETA",
+-		asm:  x86.ASETHI,
++		name: "ANDB",
++		asm:  x86.AANDB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -608,11 +663,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SETAE",
+-		asm:  x86.ASETCC,
++		name: "ANDQconst",
++		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -620,12 +675,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMOVQCC",
++		name: "ANDLconst",
++		asm:  x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				8589934592, // .FLAGS
+-				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -633,8 +687,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQSX",
+-		asm:  x86.AMOVBQSX,
++		name: "ANDWconst",
++		asm:  x86.AANDW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -645,8 +699,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQZX",
+-		asm:  x86.AMOVBQZX,
++		name: "ANDBconst",
++		asm:  x86.AANDB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -657,11 +711,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWQSX",
+-		asm:  x86.AMOVWQSX,
++		name: "ORQ",
++		asm:  x86.AORQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -669,11 +724,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWQZX",
+-		asm:  x86.AMOVWQZX,
++		name: "ORL",
++		asm:  x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -681,11 +737,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLQSX",
+-		asm:  x86.AMOVLQSX,
++		name: "ORW",
++		asm:  x86.AORW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -693,11 +750,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLQZX",
+-		asm:  x86.AMOVLQZX,
++		name: "ORB",
++		asm:  x86.AORB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -705,46 +763,511 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBconst",
+-		asm:  x86.AMOVB,
++		name: "ORQconst",
++		asm:  x86.AORQ,
+ 		reg: regInfo{
+-			outputs: []regMask{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORLconst",
++		asm:  x86.AORL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORWconst",
++		asm:  x86.AORW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORBconst",
++		asm:  x86.AORB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORQ",
++		asm:  x86.AXORQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORL",
++		asm:  x86.AXORL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORW",
++		asm:  x86.AXORW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORB",
++		asm:  x86.AXORB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORQconst",
++		asm:  x86.AXORQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORLconst",
++		asm:  x86.AXORL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORWconst",
++		asm:  x86.AXORW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "XORBconst",
++		asm:  x86.AXORB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "CMPQ",
++		asm:  x86.ACMPQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPL",
++		asm:  x86.ACMPL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPW",
++		asm:  x86.ACMPW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPB",
++		asm:  x86.ACMPB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPQconst",
++		asm:  x86.ACMPQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPLconst",
++		asm:  x86.ACMPL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPWconst",
++		asm:  x86.ACMPW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPBconst",
++		asm:  x86.ACMPB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTQ",
++		asm:  x86.ATESTQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTL",
++		asm:  x86.ATESTL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTW",
++		asm:  x86.ATESTW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTB",
++		asm:  x86.ATESTB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTQconst",
++		asm:  x86.ATESTQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTLconst",
++		asm:  x86.ATESTL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTWconst",
++		asm:  x86.ATESTW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "TESTBconst",
++		asm:  x86.ATESTB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "SHLQ",
++		asm:  x86.ASHLQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLL",
++		asm:  x86.ASHLL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLW",
++		asm:  x86.ASHLW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLB",
++		asm:  x86.ASHLB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLQconst",
++		asm:  x86.ASHLQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLLconst",
++		asm:  x86.ASHLL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLWconst",
++		asm:  x86.ASHLW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHLBconst",
++		asm:  x86.ASHLB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SHRQ",
++		asm:  x86.ASHRQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
++			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVWconst",
+-		asm:  x86.AMOVW,
++		name: "SHRL",
++		asm:  x86.ASHRL,
+ 		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVLconst",
+-		asm:  x86.AMOVL,
++		name: "SHRW",
++		asm:  x86.ASHRW,
+ 		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVQconst",
+-		asm:  x86.AMOVQ,
++		name: "SHRB",
++		asm:  x86.ASHRB,
+ 		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
++			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ",
++		name: "SHRQconst",
++		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -752,11 +1275,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ1",
++		name: "SHRLconst",
++		asm:  x86.ASHRL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -764,11 +1287,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ2",
++		name: "SHRWconst",
++		asm:  x86.ASHRW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -776,11 +1299,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ4",
++		name: "SHRBconst",
++		asm:  x86.ASHRB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -788,11 +1311,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ8",
++		name: "SARQ",
++		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -800,12 +1324,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBload",
+-		asm:  x86.AMOVB,
++		name: "SARL",
++		asm:  x86.ASARL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -813,12 +1337,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQSXload",
+-		asm:  x86.AMOVBQSX,
++		name: "SARW",
++		asm:  x86.ASARW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -826,12 +1350,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQZXload",
+-		asm:  x86.AMOVBQZX,
++		name: "SARB",
++		asm:  x86.ASARB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -839,12 +1363,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWload",
+-		asm:  x86.AMOVW,
++		name: "SARQconst",
++		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -852,12 +1375,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLload",
+-		asm:  x86.AMOVL,
++		name: "SARLconst",
++		asm:  x86.ASARL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -865,12 +1387,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQload",
+-		asm:  x86.AMOVQ,
++		name: "SARWconst",
++		asm:  x86.ASARW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -878,13 +1399,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQloadidx8",
+-		asm:  x86.AMOVQ,
++		name: "SARBconst",
++		asm:  x86.ASARB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -892,119 +1411,192 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBstore",
+-		asm:  x86.AMOVB,
++		name: "NEGQ",
++		asm:  x86.ANEGQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVWstore",
+-		asm:  x86.AMOVW,
++		name: "NEGL",
++		asm:  x86.ANEGL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVLstore",
+-		asm:  x86.AMOVL,
++		name: "NEGW",
++		asm:  x86.ANEGW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVQstore",
+-		asm:  x86.AMOVQ,
++		name: "NEGB",
++		asm:  x86.ANEGB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVQstoreidx8",
+-		asm:  x86.AMOVQ,
++		name: "SBBQcarrymask",
++		asm:  x86.ASBBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "MOVXzero",
++		name: "SETEQ",
++		asm:  x86.ASETEQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "REPSTOSQ",
++		name: "SETNE",
++		asm:  x86.ASETNE,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				128, // .DI
+-				2,   // .CX
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 131, // .AX .CX .DI
+ 		},
+ 	},
+ 	{
+-		name: "MOVQloadglobal",
+-		reg:  regInfo{},
++		name: "SETL",
++		asm:  x86.ASETLT,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
+ 	},
+ 	{
+-		name: "MOVQstoreglobal",
+-		reg:  regInfo{},
++		name: "SETLE",
++		asm:  x86.ASETLE,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
+ 	},
+ 	{
+-		name: "CALLstatic",
+-		reg:  regInfo{},
++		name: "SETG",
++		asm:  x86.ASETGT,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
+ 	},
+ 	{
+-		name: "CALLclosure",
++		name: "SETGE",
++		asm:  x86.ASETGE,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				4,     // .DX
+-				0,
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "REPMOVSB",
++		name: "SETB",
++		asm:  x86.ASETCS,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				128, // .DI
+-				64,  // .SI
+-				2,   // .CX
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SETBE",
++		asm:  x86.ASETLS,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SETA",
++		asm:  x86.ASETHI,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SETAE",
++		asm:  x86.ASETCC,
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 194, // .CX .SI .DI
+ 		},
+ 	},
+ 	{
+-		name: "ADDQ",
++		name: "CMOVQCC",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				8589934592, // .FLAGS
++				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65519,      // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1012,7 +1604,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDQconst",
++		name: "MOVBQSX",
++		asm:  x86.AMOVBQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1023,12 +1616,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDL",
+-		asm:  x86.AADDL,
++		name: "MOVBQZX",
++		asm:  x86.AMOVBQZX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1036,12 +1628,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDW",
+-		asm:  x86.AADDW,
++		name: "MOVWQSX",
++		asm:  x86.AMOVWQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1049,12 +1640,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDB",
+-		asm:  x86.AADDB,
++		name: "MOVWQZX",
++		asm:  x86.AMOVWQZX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1062,12 +1652,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBQ",
+-		asm:  x86.ASUBQ,
++		name: "MOVLQSX",
++		asm:  x86.AMOVLQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1075,8 +1664,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBQconst",
+-		asm:  x86.ASUBQ,
++		name: "MOVLQZX",
++		asm:  x86.AMOVLQZX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1087,50 +1676,46 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBL",
+-		asm:  x86.ASUBL,
++		name: "MOVBconst",
++		asm:  x86.AMOVB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "SUBW",
+-		asm:  x86.ASUBW,
++		name: "MOVWconst",
++		asm:  x86.AMOVW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "SUBB",
+-		asm:  x86.ASUBB,
++		name: "MOVLconst",
++		asm:  x86.AMOVL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++		},
++	},
++	{
++		name: "MOVQconst",
++		asm:  x86.AMOVQ,
++		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "NEGQ",
+-		asm:  x86.ANEGQ,
++		name: "LEAQ",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1138,11 +1723,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "NEGL",
+-		asm:  x86.ANEGL,
++		name: "LEAQ1",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1150,11 +1735,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "NEGW",
+-		asm:  x86.ANEGW,
++		name: "LEAQ2",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1162,11 +1747,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "NEGB",
+-		asm:  x86.ANEGB,
++		name: "LEAQ4",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1174,12 +1759,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULL",
+-		asm:  x86.AIMULL,
++		name: "LEAQ8",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1187,12 +1771,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULW",
+-		asm:  x86.AIMULW,
++		name: "MOVBload",
++		asm:  x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1200,12 +1784,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDQ",
+-		asm:  x86.AANDQ,
++		name: "MOVBQSXload",
++		asm:  x86.AMOVBQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1213,11 +1797,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDQconst",
+-		asm:  x86.AANDQ,
++		name: "MOVBQZXload",
++		asm:  x86.AMOVBQZX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1225,12 +1810,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDL",
+-		asm:  x86.AANDL,
++		name: "MOVWload",
++		asm:  x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1238,12 +1823,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDW",
+-		asm:  x86.AANDW,
++		name: "MOVLload",
++		asm:  x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1251,12 +1836,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDB",
+-		asm:  x86.AANDB,
++		name: "MOVQload",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1264,12 +1849,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORQ",
+-		asm:  x86.AORQ,
++		name: "MOVQloadidx8",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1277,54 +1863,103 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORQconst",
+-		asm:  x86.AORQ,
++		name: "MOVBstore",
++		asm:  x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++		},
++	},
++	{
++		name: "MOVWstore",
++		asm:  x86.AMOVW,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "ORL",
+-		asm:  x86.AORL,
++		name: "MOVLstore",
++		asm:  x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++		},
++	},
++	{
++		name: "MOVQstore",
++		asm:  x86.AMOVQ,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "ORW",
+-		asm:  x86.AORW,
++		name: "MOVQstoreidx8",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				0,
+ 			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++		},
++	},
++	{
++		name: "MOVXzero",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
+ 			},
+ 		},
+ 	},
+ 	{
+-		name: "ORB",
+-		asm:  x86.AORB,
++		name: "REPSTOSQ",
++		reg: regInfo{
++			inputs: []regMask{
++				128, // .DI
++				2,   // .CX
++			},
++			clobbers: 131, // .AX .CX .DI
++		},
++	},
++	{
++		name: "CALLstatic",
++		reg:  regInfo{},
++	},
++	{
++		name: "CALLclosure",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4,     // .DX
++				0,
+ 			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++		},
++	},
++	{
++		name: "REPMOVSB",
++		reg: regInfo{
++			inputs: []regMask{
++				128, // .DI
++				64,  // .SI
++				2,   // .CX
+ 			},
++			clobbers: 194, // .CX .SI .DI
+ 		},
+ 	},
+ 	{
+@@ -1420,6 +2055,22 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Or64",
+ 		generic: true,
+ 	},
++	{
++		name:    "Xor8",
++		generic: true,
++	},
++	{
++		name:    "Xor16",
++		generic: true,
++	},
++	{
++		name:    "Xor32",
++		generic: true,
++	},
++	{
++		name:    "Xor64",
++		generic: true,
++	},
+ 	{
+ 		name:    "Lsh8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ec8e381201..398ea231f1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4,6 +4,88 @@ package ssa
+ 
+ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	switch v.Op {
++	case OpAMD64ADDB:
++		// match: (ADDB x (MOVBconst [c]))
++		// cond:
++		// result: (ADDBconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto endab690db69bfd8192eea57a2f9f76bf84
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ADDBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto endab690db69bfd8192eea57a2f9f76bf84
++	endab690db69bfd8192eea57a2f9f76bf84:
++		;
++		// match: (ADDB (MOVBconst [c]) x)
++		// cond:
++		// result: (ADDBconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto end28aa1a4abe7e1abcdd64135e9967d39d
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ADDBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end28aa1a4abe7e1abcdd64135e9967d39d
++	end28aa1a4abe7e1abcdd64135e9967d39d:
++		;
++	case OpAMD64ADDL:
++		// match: (ADDL x (MOVLconst [c]))
++		// cond:
++		// result: (ADDLconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end8d6d3b99a7be8da6b7a254b7e709cc95
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ADDLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end8d6d3b99a7be8da6b7a254b7e709cc95
++	end8d6d3b99a7be8da6b7a254b7e709cc95:
++		;
++		// match: (ADDL (MOVLconst [c]) x)
++		// cond:
++		// result: (ADDLconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVLconst {
++				goto end739561e08a561e26ce3634dc0d5ec733
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ADDLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end739561e08a561e26ce3634dc0d5ec733
++	end739561e08a561e26ce3634dc0d5ec733:
++		;
+ 	case OpAMD64ADDQ:
+ 		// match: (ADDQ x (MOVQconst [c]))
+ 		// cond: is32Bit(c)
+@@ -116,16 +198,142 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end288952f259d4a1842f1e8d5c389b3f28
+ 	end288952f259d4a1842f1e8d5c389b3f28:
+ 		;
++	case OpAMD64ADDW:
++		// match: (ADDW x (MOVWconst [c]))
++		// cond:
++		// result: (ADDWconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto end1aabd2317de77c7dfc4876fd7e4c5011
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ADDWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end1aabd2317de77c7dfc4876fd7e4c5011
++	end1aabd2317de77c7dfc4876fd7e4c5011:
++		;
++		// match: (ADDW (MOVWconst [c]) x)
++		// cond:
++		// result: (ADDWconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVWconst {
++				goto ende3aede99966f388afc624f9e86676fd2
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ADDWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto ende3aede99966f388afc624f9e86676fd2
++	ende3aede99966f388afc624f9e86676fd2:
++		;
++	case OpAMD64ANDB:
++		// match: (ANDB x (MOVBconst [c]))
++		// cond:
++		// result: (ANDBconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto endd275ec2e73768cb3d201478fc934e06c
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ANDBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto endd275ec2e73768cb3d201478fc934e06c
++	endd275ec2e73768cb3d201478fc934e06c:
++		;
++		// match: (ANDB (MOVBconst [c]) x)
++		// cond:
++		// result: (ANDBconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto end4068edac2ae0f354cf581db210288b98
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ANDBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end4068edac2ae0f354cf581db210288b98
++	end4068edac2ae0f354cf581db210288b98:
++		;
++	case OpAMD64ANDL:
++		// match: (ANDL x (MOVLconst [c]))
++		// cond:
++		// result: (ANDLconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end0a4c49d9a26759c0fd21369dafcd7abb
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ANDLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end0a4c49d9a26759c0fd21369dafcd7abb
++	end0a4c49d9a26759c0fd21369dafcd7abb:
++		;
++		// match: (ANDL (MOVLconst [c]) x)
++		// cond:
++		// result: (ANDLconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVLconst {
++				goto end0529ba323d9b6f15c41add401ef67959
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ANDLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end0529ba323d9b6f15c41add401ef67959
++	end0529ba323d9b6f15c41add401ef67959:
++		;
+ 	case OpAMD64ANDQ:
+ 		// match: (ANDQ x (MOVQconst [c]))
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (ANDQconst [c] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto endb98096e3bbb90933e39c88bf41c688a9
++				goto end048fadc69e81103480015b84b9cafff7
+ 			}
+ 			c := v.Args[1].AuxInt
++			if !(is32Bit(c)) {
++				goto end048fadc69e81103480015b84b9cafff7
++			}
+ 			v.Op = OpAMD64ANDQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -134,18 +342,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endb98096e3bbb90933e39c88bf41c688a9
+-	endb98096e3bbb90933e39c88bf41c688a9:
++		goto end048fadc69e81103480015b84b9cafff7
++	end048fadc69e81103480015b84b9cafff7:
+ 		;
+ 		// match: (ANDQ (MOVQconst [c]) x)
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (ANDQconst [c] x)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVQconst {
+-				goto endd313fd1897a0d2bc79eff70159a81b6b
++				goto end3035a3bf650b708705fd27dd857ab0a4
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			x := v.Args[1]
++			if !(is32Bit(c)) {
++				goto end3035a3bf650b708705fd27dd857ab0a4
++			}
+ 			v.Op = OpAMD64ANDQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -154,8 +365,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endd313fd1897a0d2bc79eff70159a81b6b
+-	endd313fd1897a0d2bc79eff70159a81b6b:
++		goto end3035a3bf650b708705fd27dd857ab0a4
++	end3035a3bf650b708705fd27dd857ab0a4:
+ 		;
+ 	case OpAMD64ANDQconst:
+ 		// match: (ANDQconst [0] _)
+@@ -193,6 +404,47 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end646afc7b328db89ad16ebfa156ae26e5
+ 	end646afc7b328db89ad16ebfa156ae26e5:
+ 		;
++	case OpAMD64ANDW:
++		// match: (ANDW x (MOVWconst [c]))
++		// cond:
++		// result: (ANDWconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto enda77a39f65a5eb3436a5842eab69a3103
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64ANDWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto enda77a39f65a5eb3436a5842eab69a3103
++	enda77a39f65a5eb3436a5842eab69a3103:
++		;
++		// match: (ANDW (MOVWconst [c]) x)
++		// cond:
++		// result: (ANDWconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVWconst {
++				goto endea2a25eb525a5dbf6d5132d84ea4e7a5
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64ANDWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto endea2a25eb525a5dbf6d5132d84ea4e7a5
++	endea2a25eb525a5dbf6d5132d84ea4e7a5:
++		;
+ 	case OpAdd16:
+ 		// match: (Add16 x y)
+ 		// cond:
+@@ -426,17 +678,17 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end6ad8b1758415a9afe758272b34970d5d
+ 	end6ad8b1758415a9afe758272b34970d5d:
+ 		;
+-	case OpAMD64CMPQ:
+-		// match: (CMPQ x (MOVQconst [c]))
++	case OpAMD64CMPB:
++		// match: (CMPB x (MOVBconst [c]))
+ 		// cond:
+-		// result: (CMPQconst x [c])
++		// result: (CMPBconst x [c])
+ 		{
+ 			x := v.Args[0]
+-			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto end32ef1328af280ac18fa8045a3502dae9
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto end52190c0b8759133aa6c540944965c4c0
+ 			}
+ 			c := v.Args[1].AuxInt
+-			v.Op = OpAMD64CMPQconst
++			v.Op = OpAMD64CMPBconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+@@ -444,15 +696,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = c
+ 			return true
+ 		}
+-		goto end32ef1328af280ac18fa8045a3502dae9
+-	end32ef1328af280ac18fa8045a3502dae9:
++		goto end52190c0b8759133aa6c540944965c4c0
++	end52190c0b8759133aa6c540944965c4c0:
+ 		;
+-		// match: (CMPQ (MOVQconst [c]) x)
++		// match: (CMPB (MOVBconst [c]) x)
+ 		// cond:
+-		// result: (InvertFlags (CMPQconst <TypeFlags> x [c]))
++		// result: (InvertFlags (CMPBconst <TypeFlags> x [c]))
+ 		{
+-			if v.Args[0].Op != OpAMD64MOVQconst {
+-				goto endf8ca12fe79290bc82b11cfa463bc9413
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto end6798593f4f9a27e90de089b3248187fd
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			x := v.Args[1]
+@@ -460,88 +712,226 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
+ 			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+ 			v0.AuxInt = c
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endf8ca12fe79290bc82b11cfa463bc9413
+-	endf8ca12fe79290bc82b11cfa463bc9413:
++		goto end6798593f4f9a27e90de089b3248187fd
++	end6798593f4f9a27e90de089b3248187fd:
+ 		;
+-	case OpClosureCall:
+-		// match: (ClosureCall [argwid] entry closure mem)
++	case OpAMD64CMPL:
++		// match: (CMPL x (MOVLconst [c]))
+ 		// cond:
+-		// result: (CALLclosure [argwid] entry closure mem)
++		// result: (CMPLconst x [c])
+ 		{
+-			argwid := v.AuxInt
+-			entry := v.Args[0]
+-			closure := v.Args[1]
+-			mem := v.Args[2]
+-			v.Op = OpAMD64CALLclosure
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end49ff4559c4bdecb2aef0c905e2d9a6cf
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64CMPLconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = argwid
+-			v.AddArg(entry)
+-			v.AddArg(closure)
+-			v.AddArg(mem)
++			v.AddArg(x)
++			v.AuxInt = c
+ 			return true
+ 		}
+-		goto endfd75d26316012d86cb71d0dd1214259b
+-	endfd75d26316012d86cb71d0dd1214259b:
++		goto end49ff4559c4bdecb2aef0c905e2d9a6cf
++	end49ff4559c4bdecb2aef0c905e2d9a6cf:
+ 		;
+-	case OpConst16:
+-		// match: (Const16 [val])
++		// match: (CMPL (MOVLconst [c]) x)
+ 		// cond:
+-		// result: (MOVWconst [val])
++		// result: (InvertFlags (CMPLconst <TypeFlags> x [c]))
+ 		{
+-			val := v.AuxInt
+-			v.Op = OpAMD64MOVWconst
++			if v.Args[0].Op != OpAMD64MOVLconst {
++				goto end3c04e861f07a442be9e2f5e0e0d07cce
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64InvertFlags
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = val
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end2c6c92f297873b8ac12bd035d56d001e
+-	end2c6c92f297873b8ac12bd035d56d001e:
++		goto end3c04e861f07a442be9e2f5e0e0d07cce
++	end3c04e861f07a442be9e2f5e0e0d07cce:
+ 		;
+-	case OpConst32:
+-		// match: (Const32 [val])
+-		// cond:
+-		// result: (MOVLconst [val])
++	case OpAMD64CMPQ:
++		// match: (CMPQ x (MOVQconst [c]))
++		// cond: is32Bit(c)
++		// result: (CMPQconst x [c])
+ 		{
+-			val := v.AuxInt
+-			v.Op = OpAMD64MOVLconst
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVQconst {
++				goto end3bbb2c6caa57853a7561738ce3c0c630
++			}
++			c := v.Args[1].AuxInt
++			if !(is32Bit(c)) {
++				goto end3bbb2c6caa57853a7561738ce3c0c630
++			}
++			v.Op = OpAMD64CMPQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = val
++			v.AddArg(x)
++			v.AuxInt = c
+ 			return true
+ 		}
+-		goto enddae5807662af67143a3ac3ad9c63bae5
+-	enddae5807662af67143a3ac3ad9c63bae5:
++		goto end3bbb2c6caa57853a7561738ce3c0c630
++	end3bbb2c6caa57853a7561738ce3c0c630:
+ 		;
+-	case OpConst64:
+-		// match: (Const64 [val])
+-		// cond:
+-		// result: (MOVQconst [val])
++		// match: (CMPQ (MOVQconst [c]) x)
++		// cond: is32Bit(c)
++		// result: (InvertFlags (CMPQconst <TypeFlags> x [c]))
+ 		{
+-			val := v.AuxInt
+-			v.Op = OpAMD64MOVQconst
++			if v.Args[0].Op != OpAMD64MOVQconst {
++				goto end5edbe48a495a51ecabd3b2c0ed44a3d3
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			if !(is32Bit(c)) {
++				goto end5edbe48a495a51ecabd3b2c0ed44a3d3
++			}
++			v.Op = OpAMD64InvertFlags
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = val
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endc630434ae7f143ab69d5f482a9b52b5f
+-	endc630434ae7f143ab69d5f482a9b52b5f:
++		goto end5edbe48a495a51ecabd3b2c0ed44a3d3
++	end5edbe48a495a51ecabd3b2c0ed44a3d3:
+ 		;
+-	case OpConst8:
+-		// match: (Const8 [val])
++	case OpAMD64CMPW:
++		// match: (CMPW x (MOVWconst [c]))
++		// cond:
++		// result: (CMPWconst x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto end310a9ba58ac35c97587e08c63fe8a46c
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64CMPWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AuxInt = c
++			return true
++		}
++		goto end310a9ba58ac35c97587e08c63fe8a46c
++	end310a9ba58ac35c97587e08c63fe8a46c:
++		;
++		// match: (CMPW (MOVWconst [c]) x)
++		// cond:
++		// result: (InvertFlags (CMPWconst <TypeFlags> x [c]))
++		{
++			if v.Args[0].Op != OpAMD64MOVWconst {
++				goto end1ce191aaab0f4dd3b98dafdfbfac13ce
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64InvertFlags
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
++			return true
++		}
++		goto end1ce191aaab0f4dd3b98dafdfbfac13ce
++	end1ce191aaab0f4dd3b98dafdfbfac13ce:
++		;
++	case OpClosureCall:
++		// match: (ClosureCall [argwid] entry closure mem)
++		// cond:
++		// result: (CALLclosure [argwid] entry closure mem)
++		{
++			argwid := v.AuxInt
++			entry := v.Args[0]
++			closure := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpAMD64CALLclosure
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = argwid
++			v.AddArg(entry)
++			v.AddArg(closure)
++			v.AddArg(mem)
++			return true
++		}
++		goto endfd75d26316012d86cb71d0dd1214259b
++	endfd75d26316012d86cb71d0dd1214259b:
++		;
++	case OpConst16:
++		// match: (Const16 [val])
++		// cond:
++		// result: (MOVWconst [val])
++		{
++			val := v.AuxInt
++			v.Op = OpAMD64MOVWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto end2c6c92f297873b8ac12bd035d56d001e
++	end2c6c92f297873b8ac12bd035d56d001e:
++		;
++	case OpConst32:
++		// match: (Const32 [val])
++		// cond:
++		// result: (MOVLconst [val])
++		{
++			val := v.AuxInt
++			v.Op = OpAMD64MOVLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto enddae5807662af67143a3ac3ad9c63bae5
++	enddae5807662af67143a3ac3ad9c63bae5:
++		;
++	case OpConst64:
++		// match: (Const64 [val])
++		// cond:
++		// result: (MOVQconst [val])
++		{
++			val := v.AuxInt
++			v.Op = OpAMD64MOVQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto endc630434ae7f143ab69d5f482a9b52b5f
++	endc630434ae7f143ab69d5f482a9b52b5f:
++		;
++	case OpConst8:
++		// match: (Const8 [val])
+ 		// cond:
+ 		// result: (MOVBconst [val])
+ 		{
+@@ -1415,189 +1805,672 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endf8e7a24c25692045bbcfd2c9356d1a8c
+-	endf8e7a24c25692045bbcfd2c9356d1a8c:
++		goto endf8e7a24c25692045bbcfd2c9356d1a8c
++	endf8e7a24c25692045bbcfd2c9356d1a8c:
++		;
++	case OpLess64U:
++		// match: (Less64U x y)
++		// cond:
++		// result: (SETB (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end2fac0a2c2e972b5e04b5062d5786b87d
++	end2fac0a2c2e972b5e04b5062d5786b87d:
++		;
++	case OpLess8:
++		// match: (Less8  x y)
++		// cond:
++		// result: (SETL (CMPB <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end445ad05f8d23dfecf246ce083f1ea167
++	end445ad05f8d23dfecf246ce083f1ea167:
++		;
++	case OpLess8U:
++		// match: (Less8U  x y)
++		// cond:
++		// result: (SETB (CMPB <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end816d1dff858c45836dfa337262e04649
++	end816d1dff858c45836dfa337262e04649:
++		;
++	case OpLoad:
++		// match: (Load <t> ptr mem)
++		// cond: (is64BitInt(t) || isPtr(t))
++		// result: (MOVQload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(is64BitInt(t) || isPtr(t)) {
++				goto end7c4c53acf57ebc5f03273652ba1d5934
++			}
++			v.Op = OpAMD64MOVQload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end7c4c53acf57ebc5f03273652ba1d5934
++	end7c4c53acf57ebc5f03273652ba1d5934:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: is32BitInt(t)
++		// result: (MOVLload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(is32BitInt(t)) {
++				goto ende1cfcb15bfbcfd448ce303d0882a4057
++			}
++			v.Op = OpAMD64MOVLload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto ende1cfcb15bfbcfd448ce303d0882a4057
++	ende1cfcb15bfbcfd448ce303d0882a4057:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: is16BitInt(t)
++		// result: (MOVWload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(is16BitInt(t)) {
++				goto end2d0a1304501ed9f4e9e2d288505a9c7c
++			}
++			v.Op = OpAMD64MOVWload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end2d0a1304501ed9f4e9e2d288505a9c7c
++	end2d0a1304501ed9f4e9e2d288505a9c7c:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: (t.IsBoolean() || is8BitInt(t))
++		// result: (MOVBload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(t.IsBoolean() || is8BitInt(t)) {
++				goto end8f83bf72293670e75b22d6627bd13f0b
++			}
++			v.Op = OpAMD64MOVBload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end8f83bf72293670e75b22d6627bd13f0b
++	end8f83bf72293670e75b22d6627bd13f0b:
++		;
++	case OpLsh16:
++		// match: (Lsh16 <t> x y)
++		// cond: y.Type.Size() == 8
++		// result: (ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 8) {
++				goto end9166a3780ca3803c83366354d3a65f97
++			}
++			v.Op = OpAMD64ANDW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLW, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 16
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto end9166a3780ca3803c83366354d3a65f97
++	end9166a3780ca3803c83366354d3a65f97:
++		;
++		// match: (Lsh16 <t> x y)
++		// cond: y.Type.Size() == 4
++		// result: (ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 4) {
++				goto end98eca16b509ba61a4f1a2a88515c361a
++			}
++			v.Op = OpAMD64ANDW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLW, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 16
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto end98eca16b509ba61a4f1a2a88515c361a
++	end98eca16b509ba61a4f1a2a88515c361a:
++		;
++		// match: (Lsh16 <t> x y)
++		// cond: y.Type.Size() == 2
++		// result: (ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 2) {
++				goto endc7fcf199a736cb4d357cf3fcb7c50a8c
++			}
++			v.Op = OpAMD64ANDW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLW, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 16
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto endc7fcf199a736cb4d357cf3fcb7c50a8c
++	endc7fcf199a736cb4d357cf3fcb7c50a8c:
++		;
++		// match: (Lsh16 <t> x y)
++		// cond: y.Type.Size() == 1
++		// result: (ANDW (SHLW <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 1) {
++				goto end9e3a5a11aba0afdb8ca441ffce4753d9
++			}
++			v.Op = OpAMD64ANDW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLW, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 16
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto end9e3a5a11aba0afdb8ca441ffce4753d9
++	end9e3a5a11aba0afdb8ca441ffce4753d9:
++		;
++	case OpLsh32:
++		// match: (Lsh32 <t> x y)
++		// cond: y.Type.Size() == 8
++		// result: (ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 8) {
++				goto endab577f61b4a2efbe1237218f1b54549a
++			}
++			v.Op = OpAMD64ANDL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLL, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 32
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto endab577f61b4a2efbe1237218f1b54549a
++	endab577f61b4a2efbe1237218f1b54549a:
++		;
++		// match: (Lsh32 <t> x y)
++		// cond: y.Type.Size() == 4
++		// result: (ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 4) {
++				goto enda578175209f6057910ff36338eda5fb1
++			}
++			v.Op = OpAMD64ANDL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLL, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 32
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto enda578175209f6057910ff36338eda5fb1
++	enda578175209f6057910ff36338eda5fb1:
++		;
++		// match: (Lsh32 <t> x y)
++		// cond: y.Type.Size() == 2
++		// result: (ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 2) {
++				goto enda2c69e15bc12bbc7dd51384b20cb506b
++			}
++			v.Op = OpAMD64ANDL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLL, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 32
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto enda2c69e15bc12bbc7dd51384b20cb506b
++	enda2c69e15bc12bbc7dd51384b20cb506b:
++		;
++		// match: (Lsh32 <t> x y)
++		// cond: y.Type.Size() == 1
++		// result: (ANDL (SHLL <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 1) {
++				goto endd92c60db1f5cd24f7362925f3867b0b8
++			}
++			v.Op = OpAMD64ANDL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLL, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 32
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto endd92c60db1f5cd24f7362925f3867b0b8
++	endd92c60db1f5cd24f7362925f3867b0b8:
+ 		;
+-	case OpLess64U:
+-		// match: (Less64U x y)
+-		// cond:
+-		// result: (SETB (CMPQ <TypeFlags> x y))
++	case OpLsh64:
++		// match: (Lsh64 <t> x y)
++		// cond: y.Type.Size() == 8
++		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+ 		{
++			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			v.Op = OpAMD64SETB
++			if !(y.Type.Size() == 8) {
++				goto end04273c7a426341c8f3ecfaa5d653dc6b
++			}
++			v.Op = OpAMD64ANDQ
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
+-			v0.Type = TypeFlags
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLQ, TypeInvalid)
++			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 64
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end2fac0a2c2e972b5e04b5062d5786b87d
+-	end2fac0a2c2e972b5e04b5062d5786b87d:
++		goto end04273c7a426341c8f3ecfaa5d653dc6b
++	end04273c7a426341c8f3ecfaa5d653dc6b:
+ 		;
+-	case OpLess8:
+-		// match: (Less8  x y)
+-		// cond:
+-		// result: (SETL (CMPB <TypeFlags> x y))
++		// match: (Lsh64 <t> x y)
++		// cond: y.Type.Size() == 4
++		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+ 		{
++			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			v.Op = OpAMD64SETL
++			if !(y.Type.Size() == 4) {
++				goto end3125a3a8c16279a0b5564bf85f86b80e
++			}
++			v.Op = OpAMD64ANDQ
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
+-			v0.Type = TypeFlags
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLQ, TypeInvalid)
++			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 64
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end445ad05f8d23dfecf246ce083f1ea167
+-	end445ad05f8d23dfecf246ce083f1ea167:
++		goto end3125a3a8c16279a0b5564bf85f86b80e
++	end3125a3a8c16279a0b5564bf85f86b80e:
+ 		;
+-	case OpLess8U:
+-		// match: (Less8U  x y)
+-		// cond:
+-		// result: (SETB (CMPB <TypeFlags> x y))
++		// match: (Lsh64 <t> x y)
++		// cond: y.Type.Size() == 2
++		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+ 		{
++			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			v.Op = OpAMD64SETB
++			if !(y.Type.Size() == 2) {
++				goto end09bfd4e5a4caa96665f86d9f011096d1
++			}
++			v.Op = OpAMD64ANDQ
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
+-			v0.Type = TypeFlags
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLQ, TypeInvalid)
++			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 64
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end816d1dff858c45836dfa337262e04649
+-	end816d1dff858c45836dfa337262e04649:
++		goto end09bfd4e5a4caa96665f86d9f011096d1
++	end09bfd4e5a4caa96665f86d9f011096d1:
+ 		;
+-	case OpLoad:
+-		// match: (Load <t> ptr mem)
+-		// cond: (is64BitInt(t) || isPtr(t))
+-		// result: (MOVQload ptr mem)
++		// match: (Lsh64 <t> x y)
++		// cond: y.Type.Size() == 1
++		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
+ 		{
+ 			t := v.Type
+-			ptr := v.Args[0]
+-			mem := v.Args[1]
+-			if !(is64BitInt(t) || isPtr(t)) {
+-				goto end7c4c53acf57ebc5f03273652ba1d5934
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 1) {
++				goto endac7a6dc89cc3a624c731db84269c45dc
+ 			}
+-			v.Op = OpAMD64MOVQload
++			v.Op = OpAMD64ANDQ
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLQ, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 64
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end7c4c53acf57ebc5f03273652ba1d5934
+-	end7c4c53acf57ebc5f03273652ba1d5934:
++		goto endac7a6dc89cc3a624c731db84269c45dc
++	endac7a6dc89cc3a624c731db84269c45dc:
+ 		;
+-		// match: (Load <t> ptr mem)
+-		// cond: is32BitInt(t)
+-		// result: (MOVLload ptr mem)
++	case OpLsh8:
++		// match: (Lsh8 <t> x y)
++		// cond: y.Type.Size() == 8
++		// result: (ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+ 		{
+ 			t := v.Type
+-			ptr := v.Args[0]
+-			mem := v.Args[1]
+-			if !(is32BitInt(t)) {
+-				goto ende1cfcb15bfbcfd448ce303d0882a4057
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 8) {
++				goto end0ea866cfdfddf55bae152ae48bbcb493
+ 			}
+-			v.Op = OpAMD64MOVLload
++			v.Op = OpAMD64ANDB
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLB, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 8
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto ende1cfcb15bfbcfd448ce303d0882a4057
+-	ende1cfcb15bfbcfd448ce303d0882a4057:
++		goto end0ea866cfdfddf55bae152ae48bbcb493
++	end0ea866cfdfddf55bae152ae48bbcb493:
+ 		;
+-		// match: (Load <t> ptr mem)
+-		// cond: is16BitInt(t)
+-		// result: (MOVWload ptr mem)
++		// match: (Lsh8 <t> x y)
++		// cond: y.Type.Size() == 4
++		// result: (ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+ 		{
+ 			t := v.Type
+-			ptr := v.Args[0]
+-			mem := v.Args[1]
+-			if !(is16BitInt(t)) {
+-				goto end2d0a1304501ed9f4e9e2d288505a9c7c
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 4) {
++				goto ende5a086576704a75e2f863a67b5a05775
+ 			}
+-			v.Op = OpAMD64MOVWload
++			v.Op = OpAMD64ANDB
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLB, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 8
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end2d0a1304501ed9f4e9e2d288505a9c7c
+-	end2d0a1304501ed9f4e9e2d288505a9c7c:
++		goto ende5a086576704a75e2f863a67b5a05775
++	ende5a086576704a75e2f863a67b5a05775:
+ 		;
+-		// match: (Load <t> ptr mem)
+-		// cond: (t.IsBoolean() || is8BitInt(t))
+-		// result: (MOVBload ptr mem)
++		// match: (Lsh8 <t> x y)
++		// cond: y.Type.Size() == 2
++		// result: (ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+ 		{
+ 			t := v.Type
+-			ptr := v.Args[0]
+-			mem := v.Args[1]
+-			if !(t.IsBoolean() || is8BitInt(t)) {
+-				goto end8f83bf72293670e75b22d6627bd13f0b
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(y.Type.Size() == 2) {
++				goto enda094363dfc1068d4b96c55fcc60d1101
+ 			}
+-			v.Op = OpAMD64MOVBload
++			v.Op = OpAMD64ANDB
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLB, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
++			v1.Type = t
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
++			v2.Type = TypeFlags
++			v2.AuxInt = 8
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end8f83bf72293670e75b22d6627bd13f0b
+-	end8f83bf72293670e75b22d6627bd13f0b:
++		goto enda094363dfc1068d4b96c55fcc60d1101
++	enda094363dfc1068d4b96c55fcc60d1101:
+ 		;
+-	case OpLsh64:
+-		// match: (Lsh64 <t> x y)
+-		// cond: y.Type.Size() == 8
+-		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
++		// match: (Lsh8 <t> x y)
++		// cond: y.Type.Size() == 1
++		// result: (ANDB (SHLB <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+ 		{
+ 			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(y.Type.Size() == 8) {
+-				goto end04273c7a426341c8f3ecfaa5d653dc6b
++			if !(y.Type.Size() == 1) {
++				goto end099e72e70658eeb9e3cad6e1f9ad0137
+ 			}
+-			v.Op = OpAMD64ANDQ
++			v.Op = OpAMD64ANDB
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLQ, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SHLB, TypeInvalid)
+ 			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			v.AddArg(v0)
+ 			v1 := v.Block.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
+ 			v1.Type = t
+-			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
++			v2 := v.Block.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
+ 			v2.Type = TypeFlags
+-			v2.AuxInt = 64
++			v2.AuxInt = 8
+ 			v2.AddArg(y)
+ 			v1.AddArg(v2)
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end04273c7a426341c8f3ecfaa5d653dc6b
+-	end04273c7a426341c8f3ecfaa5d653dc6b:
++		goto end099e72e70658eeb9e3cad6e1f9ad0137
++	end099e72e70658eeb9e3cad6e1f9ad0137:
+ 		;
+ 	case OpAMD64MOVBQSX:
+ 		// match: (MOVBQSX (MOVBload ptr mem))
+@@ -1992,6 +2865,47 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end4e7df15ee55bdd73d8ecd61b759134d4
+ 	end4e7df15ee55bdd73d8ecd61b759134d4:
+ 		;
++	case OpAMD64MULL:
++		// match: (MULL x (MOVLconst [c]))
++		// cond:
++		// result: (MULLconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end893477a261bcad6c2821b77c83075c6c
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64MULLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end893477a261bcad6c2821b77c83075c6c
++	end893477a261bcad6c2821b77c83075c6c:
++		;
++		// match: (MULL (MOVLconst [c]) x)
++		// cond:
++		// result: (MULLconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVLconst {
++				goto end8a0f957c528a54eecb0dbfc5d96e017a
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64MULLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end8a0f957c528a54eecb0dbfc5d96e017a
++	end8a0f957c528a54eecb0dbfc5d96e017a:
++		;
+ 	case OpAMD64MULQ:
+ 		// match: (MULQ x (MOVQconst [c]))
+ 		// cond: is32Bit(c)
+@@ -2163,12 +3077,53 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = log2(c)
++			v.AuxInt = log2(c)
++			v.AddArg(x)
++			return true
++		}
++		goto end75076953dbfe022526a153eda99b39b2
++	end75076953dbfe022526a153eda99b39b2:
++		;
++	case OpAMD64MULW:
++		// match: (MULW x (MOVWconst [c]))
++		// cond:
++		// result: (MULWconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto end542112cc08217d4bdffc1a645d290ffb
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64MULWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end542112cc08217d4bdffc1a645d290ffb
++	end542112cc08217d4bdffc1a645d290ffb:
++		;
++		// match: (MULW (MOVWconst [c]) x)
++		// cond:
++		// result: (MULWconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVWconst {
++				goto endd97b4245ced2b3d27d8c555b06281de4
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64MULWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end75076953dbfe022526a153eda99b39b2
+-	end75076953dbfe022526a153eda99b39b2:
++		goto endd97b4245ced2b3d27d8c555b06281de4
++	endd97b4245ced2b3d27d8c555b06281de4:
+ 		;
+ 	case OpMove:
+ 		// match: (Move [size] dst src mem)
+@@ -2457,10 +3412,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpNot:
+ 		// match: (Not x)
+ 		// cond:
+-		// result: (XORQconst [1] x)
++		// result: (XORBconst [1] x)
+ 		{
+ 			x := v.Args[0]
+-			v.Op = OpAMD64XORQconst
++			v.Op = OpAMD64XORBconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+@@ -2468,8 +3423,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endaabd7f5e27417cf3182cd5e4f4360410
+-	endaabd7f5e27417cf3182cd5e4f4360410:
++		goto end73973101aad60079c62fa64624e21db1
++	end73973101aad60079c62fa64624e21db1:
+ 		;
+ 	case OpOffPtr:
+ 		// match: (OffPtr [off] ptr)
+@@ -2629,26 +3584,89 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endfd6815c0dc9f8dff6c3ec6add7a23569
+ 	endfd6815c0dc9f8dff6c3ec6add7a23569:
+ 		;
++	case OpAMD64SARB:
++		// match: (SARB x (MOVBconst [c]))
++		// cond:
++		// result: (SARBconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto end3bf3d17717aa6c04462e56d1c87902ce
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SARBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto end3bf3d17717aa6c04462e56d1c87902ce
++	end3bf3d17717aa6c04462e56d1c87902ce:
++		;
++	case OpAMD64SARL:
++		// match: (SARL x (MOVLconst [c]))
++		// cond:
++		// result: (SARLconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto ende586a72c1b232ee0b63e37c71eeb8470
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SARLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto ende586a72c1b232ee0b63e37c71eeb8470
++	ende586a72c1b232ee0b63e37c71eeb8470:
++		;
+ 	case OpAMD64SARQ:
+ 		// match: (SARQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (SARQconst [c] x)
++		// result: (SARQconst [c&63] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto end031712b4008075e25a5827dcb8dd3ebb
++				goto end25e720ab203be2745dded5550e6d8a7c
+ 			}
+ 			c := v.Args[1].AuxInt
+ 			v.Op = OpAMD64SARQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = c
++			v.AuxInt = c & 63
++			v.AddArg(x)
++			return true
++		}
++		goto end25e720ab203be2745dded5550e6d8a7c
++	end25e720ab203be2745dded5550e6d8a7c:
++		;
++	case OpAMD64SARW:
++		// match: (SARW x (MOVWconst [c]))
++		// cond:
++		// result: (SARWconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto endc46e3f211f94238f9a0aec3c498af490
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SARWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end031712b4008075e25a5827dcb8dd3ebb
+-	end031712b4008075e25a5827dcb8dd3ebb:
++		goto endc46e3f211f94238f9a0aec3c498af490
++	endc46e3f211f94238f9a0aec3c498af490:
+ 		;
+ 	case OpAMD64SBBQcarrymask:
+ 		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
+@@ -2891,58 +3909,275 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endbc71811b789475308014550f638026eb
+ 	endbc71811b789475308014550f638026eb:
+ 		;
++	case OpAMD64SHLB:
++		// match: (SHLB x (MOVBconst [c]))
++		// cond:
++		// result: (SHLBconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto end2d0d0111d831d8a575b5627284a6337a
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHLBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto end2d0d0111d831d8a575b5627284a6337a
++	end2d0d0111d831d8a575b5627284a6337a:
++		;
++	case OpAMD64SHLL:
++		// match: (SHLL x (MOVLconst [c]))
++		// cond:
++		// result: (SHLLconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end633f9ddcfbb63374c895a5f78da75d25
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHLLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto end633f9ddcfbb63374c895a5f78da75d25
++	end633f9ddcfbb63374c895a5f78da75d25:
++		;
+ 	case OpAMD64SHLQ:
+ 		// match: (SHLQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (SHLQconst [c] x)
++		// result: (SHLQconst [c&63] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto endcca412bead06dc3d56ef034a82d184d6
++				goto end4d7e3a945cacdd6b6c8c0de6f465d4ae
+ 			}
+ 			c := v.Args[1].AuxInt
+ 			v.Op = OpAMD64SHLQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = c
++			v.AuxInt = c & 63
++			v.AddArg(x)
++			return true
++		}
++		goto end4d7e3a945cacdd6b6c8c0de6f465d4ae
++	end4d7e3a945cacdd6b6c8c0de6f465d4ae:
++		;
++	case OpAMD64SHLW:
++		// match: (SHLW x (MOVWconst [c]))
++		// cond:
++		// result: (SHLWconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto endba96a52aa58d28b3357828051e0e695c
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHLWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto endba96a52aa58d28b3357828051e0e695c
++	endba96a52aa58d28b3357828051e0e695c:
++		;
++	case OpAMD64SHRB:
++		// match: (SHRB x (MOVBconst [c]))
++		// cond:
++		// result: (SHRBconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto enddb1cd5aaa826d43fa4f6d1b2b8795e58
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHRBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto enddb1cd5aaa826d43fa4f6d1b2b8795e58
++	enddb1cd5aaa826d43fa4f6d1b2b8795e58:
++		;
++	case OpAMD64SHRL:
++		// match: (SHRL x (MOVLconst [c]))
++		// cond:
++		// result: (SHRLconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end344b8b9202e1925e8d0561f1c21412fc
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHRLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endcca412bead06dc3d56ef034a82d184d6
+-	endcca412bead06dc3d56ef034a82d184d6:
++		goto end344b8b9202e1925e8d0561f1c21412fc
++	end344b8b9202e1925e8d0561f1c21412fc:
+ 		;
+ 	case OpAMD64SHRQ:
+ 		// match: (SHRQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (SHRQconst [c] x)
++		// result: (SHRQconst [c&63] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto endbb0d3a04dd2b810cb3dbdf7ef665f22b
++				goto end699d35e2d5cfa08b8a3b1c8a183ddcf3
+ 			}
+ 			c := v.Args[1].AuxInt
+ 			v.Op = OpAMD64SHRQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
++			v.AuxInt = c & 63
++			v.AddArg(x)
++			return true
++		}
++		goto end699d35e2d5cfa08b8a3b1c8a183ddcf3
++	end699d35e2d5cfa08b8a3b1c8a183ddcf3:
++		;
++	case OpAMD64SHRW:
++		// match: (SHRW x (MOVWconst [c]))
++		// cond:
++		// result: (SHRWconst [c&31] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto endd75ff1f9b3e9ec9c942a39b6179da1b3
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SHRWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto endd75ff1f9b3e9ec9c942a39b6179da1b3
++	endd75ff1f9b3e9ec9c942a39b6179da1b3:
++		;
++	case OpAMD64SUBB:
++		// match: (SUBB x (MOVBconst [c]))
++		// cond:
++		// result: (SUBBconst x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto end9ca5d2a70e2df1a5a3ed6786bce1f7b2
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SUBBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
+ 			v.AuxInt = c
++			return true
++		}
++		goto end9ca5d2a70e2df1a5a3ed6786bce1f7b2
++	end9ca5d2a70e2df1a5a3ed6786bce1f7b2:
++		;
++		// match: (SUBB (MOVBconst [c]) x)
++		// cond:
++		// result: (NEGB (SUBBconst <v.Type> x [c]))
++		{
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto endc288755d69b04d24a6aac32a73956411
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64NEGB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SUBBconst, TypeInvalid)
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
++			return true
++		}
++		goto endc288755d69b04d24a6aac32a73956411
++	endc288755d69b04d24a6aac32a73956411:
++		;
++	case OpAMD64SUBL:
++		// match: (SUBL x (MOVLconst [c]))
++		// cond:
++		// result: (SUBLconst x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLconst {
++				goto end178c1d6c86f9c16f6497586c2f7d8625
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SUBLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
+ 			v.AddArg(x)
++			v.AuxInt = c
++			return true
++		}
++		goto end178c1d6c86f9c16f6497586c2f7d8625
++	end178c1d6c86f9c16f6497586c2f7d8625:
++		;
++		// match: (SUBL (MOVLconst [c]) x)
++		// cond:
++		// result: (NEGL (SUBLconst <v.Type> x [c]))
++		{
++			if v.Args[0].Op != OpAMD64MOVLconst {
++				goto endb0efe6e15ec20486b849534a00483ae2
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64NEGL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SUBLconst, TypeInvalid)
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endbb0d3a04dd2b810cb3dbdf7ef665f22b
+-	endbb0d3a04dd2b810cb3dbdf7ef665f22b:
++		goto endb0efe6e15ec20486b849534a00483ae2
++	endb0efe6e15ec20486b849534a00483ae2:
+ 		;
+ 	case OpAMD64SUBQ:
+ 		// match: (SUBQ x (MOVQconst [c]))
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (SUBQconst x [c])
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto end5a74a63bd9ad15437717c6df3b25eebb
++				goto end9bbb7b20824a498752c605942fad89c2
+ 			}
+ 			c := v.Args[1].AuxInt
++			if !(is32Bit(c)) {
++				goto end9bbb7b20824a498752c605942fad89c2
++			}
+ 			v.Op = OpAMD64SUBQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -2951,32 +4186,78 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = c
+ 			return true
+ 		}
+-		goto end5a74a63bd9ad15437717c6df3b25eebb
+-	end5a74a63bd9ad15437717c6df3b25eebb:
++		goto end9bbb7b20824a498752c605942fad89c2
++	end9bbb7b20824a498752c605942fad89c2:
+ 		;
+-		// match: (SUBQ <t> (MOVQconst [c]) x)
+-		// cond:
+-		// result: (NEGQ (SUBQconst <t> x [c]))
++		// match: (SUBQ (MOVQconst [c]) x)
++		// cond: is32Bit(c)
++		// result: (NEGQ (SUBQconst <v.Type> x [c]))
+ 		{
+-			t := v.Type
+ 			if v.Args[0].Op != OpAMD64MOVQconst {
+-				goto end78e66b6fc298684ff4ac8aec5ce873c9
++				goto end8beb96de3efee9206d1bd4b7d777d2cb
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			x := v.Args[1]
++			if !(is32Bit(c)) {
++				goto end8beb96de3efee9206d1bd4b7d777d2cb
++			}
+ 			v.Op = OpAMD64NEGQ
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64SUBQconst, TypeInvalid)
+-			v0.Type = t
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v0.AuxInt = c
++			v.AddArg(v0)
++			return true
++		}
++		goto end8beb96de3efee9206d1bd4b7d777d2cb
++	end8beb96de3efee9206d1bd4b7d777d2cb:
++		;
++	case OpAMD64SUBW:
++		// match: (SUBW x (MOVWconst [c]))
++		// cond:
++		// result: (SUBWconst x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWconst {
++				goto end135aa9100b2f61d58b37cede37b63731
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64SUBWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AuxInt = c
++			return true
++		}
++		goto end135aa9100b2f61d58b37cede37b63731
++	end135aa9100b2f61d58b37cede37b63731:
++		;
++		// match: (SUBW (MOVWconst [c]) x)
++		// cond:
++		// result: (NEGW (SUBWconst <v.Type> x [c]))
++		{
++			if v.Args[0].Op != OpAMD64MOVWconst {
++				goto end44d23f7e65a4b1c42d0e6463f8e493b6
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64NEGW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64SUBWconst, TypeInvalid)
++			v0.Type = v.Type
+ 			v0.AddArg(x)
+ 			v0.AuxInt = c
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end78e66b6fc298684ff4ac8aec5ce873c9
+-	end78e66b6fc298684ff4ac8aec5ce873c9:
++		goto end44d23f7e65a4b1c42d0e6463f8e493b6
++	end44d23f7e65a4b1c42d0e6463f8e493b6:
+ 		;
+ 	case OpSignExt16to32:
+ 		// match: (SignExt16to32 x)
+@@ -3373,6 +4654,78 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endc4c1a1b86edd0f082339d17eb5096ad0
+ 	endc4c1a1b86edd0f082339d17eb5096ad0:
+ 		;
++	case OpXor16:
++		// match: (Xor16 x y)
++		// cond:
++		// result: (XORW x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64XORW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end20efdd5dfd5130abf818de5546a991a0
++	end20efdd5dfd5130abf818de5546a991a0:
++		;
++	case OpXor32:
++		// match: (Xor32 x y)
++		// cond:
++		// result: (XORL x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64XORL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end9da6bce98b437e2609488346116a75d8
++	end9da6bce98b437e2609488346116a75d8:
++		;
++	case OpXor64:
++		// match: (Xor64 x y)
++		// cond:
++		// result: (XORQ x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64XORQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto endc88cd189c2a6f07ecff324ed94809f8f
++	endc88cd189c2a6f07ecff324ed94809f8f:
++		;
++	case OpXor8:
++		// match: (Xor8 x y)
++		// cond:
++		// result: (XORB x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64XORB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end50f4434ef96916d3e65ad3cc236d1723
++	end50f4434ef96916d3e65ad3cc236d1723:
++		;
+ 	case OpZero:
+ 		// match: (Zero [0] _ mem)
+ 		// cond:

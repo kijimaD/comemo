@@ -8,6 +8,32 @@ Date:   Wed Aug 13 14:00:10 2014 +1000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/129040043
-
+---
  misc/makerelease/makerelease.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index f67cd5414c..1f60f87045 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -154,6 +154,7 @@ func main() {
+ 			log.Fatalln("setupOAuthClient:", err)
+ 		}
+ 	}
++	ok := true
+ 	for _, targ := range flag.Args() {
+ 		var b Build
+ 		if m := fileRe.FindStringSubmatch(targ); m != nil {
+@@ -205,8 +206,12 @@ func main() {
+ 		}
+ 		if err := b.Do(); err != nil {
+ 			log.Printf("%s: %v", targ, err)
++			ok = false
+ 		}
+ 	}
++	if !ok {
++		os.Exit(1)
++	}
+ }
+ 
+ type Build struct {

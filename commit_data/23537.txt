@@ -21,7 +21,7 @@ Date:   Wed May 20 15:16:34 2015 -0400
     Change-Id: I770c111baff28a9ed5f8beb601cf09dacc561b83
     Reviewed-on: https://go-review.googlesource.com/10268
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go  | 13 ++++++++
  src/cmd/compile/internal/gc/lex.go  |  6 ++--
  src/cmd/compile/internal/gc/pgen.go | 19 ------------
@@ -29,3 +29,240 @@ Date:   Wed May 20 15:16:34 2015 -0400
  test/escape5.go                     |  7 ++---
  test/escape_array.go                | 62 +++++++++++++++++++++++++++++++++----
  6 files changed, 96 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4c1f52521d..578ce33a81 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -586,6 +586,19 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 	}
+ 
++	// Big stuff escapes unconditionally
++	// "Big" conditions that were scattered around in walk have been gathered here
++	if n.Esc != EscHeap && n.Type != nil && (n.Type.Width > MaxStackVarSize ||
++		n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
++		n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
++		if Debug['m'] > 1 {
++			Warnl(int(n.Lineno), "%v is too large for stack", n)
++		}
++		n.Esc = EscHeap
++		addrescapes(n)
++		escassign(e, &e.theSink, n)
++	}
++
+ 	esc(e, n.Left, n)
+ 	esc(e, n.Right, n)
+ 	esc(e, n.Ntest, n)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 3b93207ef1..974ca9282e 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -446,12 +446,10 @@ func Main() {
+ 	// which stores the addresses of stack variables into the closure.
+ 	// If the closure does not escape, it needs to be on the stack
+ 	// or else the stack copier will not update it.
++	// Large values are also moved off stack in escape analysis;
++	// because large values may contain pointers, it must happen early.
+ 	escapes(xtop)
+ 
+-	// Escape analysis moved escaped values off stack.
+-	// Move large values off stack too.
+-	movelarge(xtop)
+-
+ 	// Phase 7: Transform closure bodies to properly reference captured variables.
+ 	// This needs to happen before walk, because closures must be transformed
+ 	// before walk reaches a call of a closure.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1b67cf2c3e..5fb0776f3c 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -301,25 +301,6 @@ func allocauto(ptxt *obj.Prog) {
+ 	}
+ }
+ 
+-func movelarge(l *NodeList) {
+-	for ; l != nil; l = l.Next {
+-		if l.N.Op == ODCLFUNC {
+-			movelargefn(l.N)
+-		}
+-	}
+-}
+-
+-func movelargefn(fn *Node) {
+-	var n *Node
+-
+-	for l := fn.Func.Dcl; l != nil; l = l.Next {
+-		n = l.N
+-		if n.Class == PAUTO && n.Type != nil && n.Type.Width > MaxStackVarSize {
+-			addrescapes(n)
+-		}
+-	}
+-}
+-
+ func Cgen_checknil(n *Node) {
+ 	if Disable_checknil != 0 {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b5b8611e5b..11117666c7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -352,6 +352,20 @@ func walkstmt(np **Node) {
+ 	*np = n
+ }
+ 
++func isSmallMakeSlice(n *Node) bool {
++	if n.Op != OMAKESLICE {
++		return false
++	}
++	l := n.Left
++	r := n.Right
++	if r == nil {
++		r = l
++	}
++	t := n.Type
++
++	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.(*Mpint)) < (1<<16)/t.Type.Width)
++}
++
+ /*
+  * walk the whole tree of the body of an
+  * expression or simple statement.
+@@ -1320,7 +1334,10 @@ func walkexpr(np **Node, init **NodeList) {
+ 		goto ret
+ 
+ 	case ONEW:
+-		if n.Esc == EscNone && n.Type.Type.Width < 1<<16 {
++		if n.Esc == EscNone {
++			if n.Type.Type.Width >= 1<<16 {
++				Fatal("Large ONEW with EscNone, %v", n)
++			}
+ 			r := temp(n.Type.Type)
+ 			r = Nod(OAS, r, nil) // zero temp
+ 			typecheck(&r, Etop)
+@@ -1458,7 +1475,10 @@ func walkexpr(np **Node, init **NodeList) {
+ 			l = r
+ 		}
+ 		t := n.Type
+-		if n.Esc == EscNone && Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.(*Mpint)) < (1<<16)/t.Type.Width) {
++		if n.Esc == EscNone {
++			if !isSmallMakeSlice(n) {
++				Fatal("Non-small OMAKESLICE with EscNone, %v", n)
++			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+ 			t = aindex(r, t.Type) // [r]T
+diff --git a/test/escape5.go b/test/escape5.go
+index 1d411b32d4..6a138ea090 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -117,7 +117,6 @@ func leakrecursive2(p, q *int) (*int, *int) { // ERROR "leaking param: p" "leaki
+ 	return p, q
+ }
+ 
+-
+ var global interface{}
+ 
+ type T1 struct {
+@@ -141,12 +140,12 @@ func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param:
+ 
+ func f9() {
+ 	var j T1 // ERROR "moved to heap: j"
+-	f8(&j) // ERROR "&j escapes to heap"
++	f8(&j)   // ERROR "&j escapes to heap"
+ }
+ 
+ func f10() {
+ 	// These don't escape but are too big for the stack
+-	var x [1<<30]byte // ERROR "moved to heap: x"
+-	var y = make([]byte, 1<<30) // ERROR "does not escape"
++	var x [1 << 30]byte         // ERROR "moved to heap: x"
++	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
+ 	_ = x[0] + y[0]
+ }
+diff --git a/test/escape_array.go b/test/escape_array.go
+index ac51fe7ca6..5da77713d2 100644
+--- a/test/escape_array.go
++++ b/test/escape_array.go
+@@ -4,10 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test escape analysis for function parameters.
+-
+-// In this test almost everything is BAD except the simplest cases
+-// where input directly flows to output.
++// Test escape analysis for arrays and some large things
+ 
+ package foo
+ 
+@@ -59,14 +56,67 @@ func fup(x *U, y *string) *string { // ERROR "leaking param: x to result ~r2 lev
+ 	return x[1]
+ }
+ 
+-// BAD: would be nice to record that *y (content) is what leaks, not y itself
+ func fum(x *U, y **string) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
+ 	x[0] = *y
+ 	return x[1]
+ }
+ 
+-// BAD: would be nice to record that y[0] (content) is what leaks, not y itself
+ func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
+ 	x[0] = y[0]
+ 	return x[1]
+ }
++
++// These two tests verify that:
++// small array literals are stack allocated;
++// pointers stored in small array literals do not escape;
++// large array literals are heap allocated;
++// pointers stored in large array literals escape.
++func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "hugeLeaks1 y does not escape" "mark escaped content: x"
++	a := [10]*string{*y}
++	_ = a
++	// 4 x 4,000,000 exceeds MaxStackVarSize, therefore it must be heap allocated if pointers are 4 bytes or larger.
++	b := [4000000]*string{*x} // ERROR "moved to heap: b"
++	_ = b
++}
++
++func hugeLeaks2(x *string, y *string) { // ERROR "leaking param: x" "hugeLeaks2 y does not escape"
++	a := [10]*string{y}
++	_ = a
++	// 4 x 4,000,000 exceeds MaxStackVarSize, therefore it must be heap allocated if pointers are 4 bytes or larger.
++	b := [4000000]*string{x} // ERROR "moved to heap: b"
++	_ = b
++}
++
++// BAD: x need not leak.
++func doesNew1(x *string, y *string) { // ERROR "leaking param: x" "leaking param: y"
++	a := new([10]*string) // ERROR "new\(\[10\]\*string\) does not escape"
++	a[0] = x
++	b := new([65537]*string) // ERROR "new\(\[65537\]\*string\) escapes to heap"
++	b[0] = y
++}
++
++type a10 struct {
++	s *string
++	i [10]int32
++}
++
++type a65537 struct {
++	s *string
++	i [65537]int32
++}
++
++// BAD: x need not leak.
++func doesNew2(x *string, y *string) { // ERROR "leaking param: x" "leaking param: y"
++	a := new(a10) // ERROR "new\(a10\) does not escape"
++	a.s = x
++	b := new(a65537) // ERROR "new\(a65537\) escapes to heap"
++	b.s = y
++}
++
++// BAD: x need not leak.
++func doesMakeSlice(x *string, y *string) { // ERROR "leaking param: x" "leaking param: y"
++	a := make([]*string, 10) // ERROR "make\(\[\]\*string, 10\) does not escape"
++	a[0] = x
++	b := make([]*string, 65537) // ERROR "make\(\[\]\*string, 65537\) escapes to heap"
++	b[0] = y
++}

@@ -18,9 +18,361 @@ Date:   Mon Apr 17 15:51:29 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/compare/compare.go     |  33 ++++-
  src/cmd/compile/internal/ssa/_gen/generic.rules |  27 ++++
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 161 ++++++++++++++++++++++--
  test/codegen/comparisons.go                     |  41 ++++++
  4 files changed, 251 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index d8ae7bf24a..0e78013cf3 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -259,9 +259,40 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 	slen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
+ 	tlen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
+ 
++	// Pick the 3rd arg to memequal. Both slen and tlen are fine to use, because we short
++	// circuit the memequal call if they aren't the same. But if one is a constant some
++	// memequal optimizations are easier to apply.
++	probablyConstant := func(n ir.Node) bool {
++		if n.Op() == ir.OCONVNOP {
++			n = n.(*ir.ConvExpr).X
++		}
++		if n.Op() == ir.OLITERAL {
++			return true
++		}
++		if n.Op() != ir.ONAME {
++			return false
++		}
++		name := n.(*ir.Name)
++		if name.Class != ir.PAUTO {
++			return false
++		}
++		if def := name.Defn; def == nil {
++			// n starts out as the empty string
++			return true
++		} else if def.Op() == ir.OAS && (def.(*ir.AssignStmt).Y == nil || def.(*ir.AssignStmt).Y.Op() == ir.OLITERAL) {
++			// n starts out as a constant string
++			return true
++		}
++		return false
++	}
++	cmplen := slen
++	if probablyConstant(t) && !probablyConstant(s) {
++		cmplen = tlen
++	}
++
+ 	fn := typecheck.LookupRuntime("memequal")
+ 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+-	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(slen)}, false).(*ir.CallExpr)
++	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+ 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 98aedb5cde..175a7456b1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2068,24 +2068,51 @@
+   && symIsRO(scon)
+   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
+ 
++(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [1]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
++
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
+   && isSameCall(callAux, "runtime.memequal")
+   && symIsRO(scon)
+   && canLoadUnaligned(config)
+   => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+ 
++(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [2]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config)
++  => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
+   && isSameCall(callAux, "runtime.memequal")
+   && symIsRO(scon)
+   && canLoadUnaligned(config)
+   => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+ 
++(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [4]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config)
++  => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
+   && isSameCall(callAux, "runtime.memequal")
+   && symIsRO(scon)
+   && canLoadUnaligned(config) && config.PtrSize == 8
+   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+ 
++(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [8]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config) && config.PtrSize == 8
++  => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
++(StaticLECall {callAux} _ _ (Const64 [0]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  => (MakeResult (ConstBool <typ.Bool> [true]) mem)
++
+ // Turn known-size calls to memclrNoHeapPointers into a Zero.
+ // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
+ (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7baa384353..6026eac279 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -11096,16 +11096,6 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(true)
+ 		return true
+ 	}
+-	// match: (IsNonNil (LocalAddr _ _))
+-	// result: (ConstBool [true])
+-	for {
+-		if v_0.Op != OpLocalAddr {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = boolToAuxInt(true)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
+@@ -27793,6 +27783,39 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [1]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon)
++	// result: (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_0.Aux)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		sptr := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 1 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq8, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst8, typ.Int8)
++		v2.AuxInt = int8ToAuxInt(int8(read8(scon, 0)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
+ 	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
+ 	// result: (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+@@ -27826,6 +27849,39 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [2]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
++	// result: (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_0.Aux)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		sptr := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 2 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq16, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst16, typ.Int16)
++		v2.AuxInt = int16ToAuxInt(int16(read16(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
+ 	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
+ 	// result: (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+@@ -27859,6 +27915,39 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [4]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
++	// result: (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_0.Aux)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		sptr := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 4 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
++		v2.AuxInt = int32ToAuxInt(int32(read32(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
+ 	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+ 	// result: (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+@@ -27892,6 +27981,58 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [8]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
++	// result: (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_0.Aux)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		sptr := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 8 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int64)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
++		v2.AuxInt = int64ToAuxInt(int64(read64(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
++	// match: (StaticLECall {callAux} _ _ (Const64 [0]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal")
++	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 0 || !(isSameCall(callAux, "runtime.memequal")) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
++		v0.AuxInt = boolToAuxInt(true)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	// match: (StaticLECall {callAux} _ (Const64 [0]) (Const64 [0]) mem)
+ 	// cond: isSameCall(callAux, "runtime.makeslice")
+ 	// result: (MakeResult (Addr <v.Type.FieldType(0)> {ir.Syms.Zerobase} (SB)) mem)
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 6ffc73482a..071b68facf 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -747,3 +747,44 @@ func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
+ 	}
+ 	return c1 + c2 + c3 + c4
+ }
++
++func cmp1(val string) bool {
++	var z string
++	// amd64:-".*memequal"
++	return z == val
++}
++
++func cmp2(val string) bool {
++	var z string
++	// amd64:-".*memequal"
++	return val == z
++}
++
++func cmp3(val string) bool {
++	z := "food"
++	// amd64:-".*memequal"
++	return z == val
++}
++
++func cmp4(val string) bool {
++	z := "food"
++	// amd64:-".*memequal"
++	return val == z
++}
++
++func cmp5[T comparable](val T) bool {
++	var z T
++	// amd64:-".*memequal"
++	return z == val
++}
++
++func cmp6[T comparable](val T) bool {
++	var z T
++	// amd64:-".*memequal"
++	return val == z
++}
++
++func cmp7() {
++	cmp5[string]("") // force instantiation
++	cmp6[string]("") // force instantiation
++}

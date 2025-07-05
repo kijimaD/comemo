@@ -18,7 +18,7 @@ Date:   Sat Oct 22 09:47:05 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/http/http.go             | 19 +++++++++++++++++++
  src/net/http/readrequest_test.go | 26 +++++++++++++-------------
  src/net/http/request.go          | 12 ++++++++----
@@ -27,3 +27,291 @@ Date:   Sat Oct 22 09:47:05 2016 -0700
  src/net/http/server.go           | 22 ++--------------------
  src/net/http/transfer.go         |  6 +++---
  7 files changed, 47 insertions(+), 42 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 7e0b77506b..40018453c6 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -5,6 +5,7 @@
+ package http
+ 
+ import (
++	"io"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -81,3 +82,21 @@ func hexEscapeNonASCII(s string) string {
+ 	}
+ 	return string(b)
+ }
++
++// NoBody is an io.ReadCloser with no bytes. Read always returns EOF
++// and Close always returns nil. It can be used in an outgoing client
++// request to explicitly signal that a request has zero bytes.
++// An alternative, however, is to simply set Request.Body to nil.
++var NoBody = noBody{}
++
++type noBody struct{}
++
++func (noBody) Read([]byte) (int, error)         { return 0, io.EOF }
++func (noBody) Close() error                     { return nil }
++func (noBody) WriteTo(io.Writer) (int64, error) { return 0, nil }
++
++var (
++	// verify that an io.Copy from NoBody won't require a buffer:
++	_ io.WriterTo   = NoBody
++	_ io.ReadCloser = NoBody
++)
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 4bf646b0a6..28a148b9ac 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -25,7 +25,7 @@ type reqTest struct {
+ }
+ 
+ var noError = ""
+-var noBody = ""
++var noBodyStr = ""
+ var noTrailer Header = nil
+ 
+ var reqTests = []reqTest{
+@@ -95,7 +95,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "/",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -121,7 +121,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "//user@host/is/actually/a/path/",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -131,7 +131,7 @@ var reqTests = []reqTest{
+ 		"GET ../../../../etc/passwd HTTP/1.1\r\n" +
+ 			"Host: test\r\n\r\n",
+ 		nil,
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		"parse ../../../../etc/passwd: invalid URI for request",
+ 	},
+@@ -141,7 +141,7 @@ var reqTests = []reqTest{
+ 		"GET  HTTP/1.1\r\n" +
+ 			"Host: test\r\n\r\n",
+ 		nil,
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		"parse : empty url",
+ 	},
+@@ -227,7 +227,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "www.google.com:443",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -251,7 +251,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "127.0.0.1:6060",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -275,7 +275,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "/_goRPC_",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -299,7 +299,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "*",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -323,7 +323,7 @@ var reqTests = []reqTest{
+ 			RequestURI:    "*",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -350,7 +350,7 @@ var reqTests = []reqTest{
+ 			RequestURI: "/",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -376,7 +376,7 @@ var reqTests = []reqTest{
+ 			RequestURI: "/",
+ 		},
+ 
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+@@ -397,7 +397,7 @@ var reqTests = []reqTest{
+ 			ContentLength: -1,
+ 			Close:         true,
+ 		},
+-		noBody,
++		noBodyStr,
+ 		noTrailer,
+ 		noError,
+ 	},
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 551310cab0..5b0bbe2170 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -771,10 +771,14 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 		// For client requests, Request.ContentLength of 0
+ 		// means either actually 0, or unknown. The only way
+ 		// to explicitly say that the ContentLength is zero is
+-		// to set the Body to nil.
++		// to set the Body to nil. But turns out too much code
++		// depends on NewRequest returning a non-nil Body,
++		// so we use a well-known ReadCloser variable instead
++		// and have the http package also treat that sentinel
++		// variable to mean explicitly zero.
+ 		if req.ContentLength == 0 {
+-			req.Body = nil
+-			req.GetBody = nil
++			req.Body = NoBody
++			req.GetBody = func() (io.ReadCloser, error) { return NoBody, nil }
+ 		}
+ 	}
+ 
+@@ -1252,7 +1256,7 @@ func (r *Request) isReplayable() bool {
+ // outgoingLength reports the Content-Length of this outgoing (Client) request.
+ // It maps 0 into -1 (unknown) when the Body is non-nil.
+ func (r *Request) outgoingLength() int64 {
+-	if r.Body == nil {
++	if r.Body == nil || r.Body == NoBody {
+ 		return 0
+ 	}
+ 	if r.ContentLength != 0 {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index e463d79492..3c965c1e8a 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -511,7 +511,7 @@ func TestNewRequestContentLength(t *testing.T) {
+ 		if req.ContentLength != tt.want {
+ 			t.Errorf("test[%d]: ContentLength(%T) = %d; want %d", i, tt.r, req.ContentLength, tt.want)
+ 		}
+-		if (req.ContentLength == 0) != (req.Body == nil) {
++		if (req.ContentLength == 0) != (req.Body == NoBody) {
+ 			t.Errorf("test[%d]: ContentLength = %d but Body non-nil is %v", i, req.ContentLength, req.Body != nil)
+ 		}
+ 	}
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index e04ecb9a1b..ae118fb386 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -261,7 +261,7 @@ func (r *Response) Write(w io.Writer) error {
+ 		if n == 0 {
+ 			// Reset it to a known zero reader, in case underlying one
+ 			// is unhappy being read repeatedly.
+-			r1.Body = eofReader
++			r1.Body = NoBody
+ 		} else {
+ 			r1.ContentLength = -1
+ 			r1.Body = struct {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ad89d0cfbe..c47cc328fc 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1776,7 +1776,7 @@ func registerOnHitEOF(rc io.ReadCloser, fn func()) {
+ // requestBodyRemains reports whether future calls to Read
+ // on rc might yield more data.
+ func requestBodyRemains(rc io.ReadCloser) bool {
+-	if rc == eofReader {
++	if rc == NoBody {
+ 		return false
+ 	}
+ 	switch v := rc.(type) {
+@@ -2702,24 +2702,6 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 	}
+ }
+ 
+-type eofReaderWithWriteTo struct{}
+-
+-func (eofReaderWithWriteTo) WriteTo(io.Writer) (int64, error) { return 0, nil }
+-func (eofReaderWithWriteTo) Read([]byte) (int, error)         { return 0, io.EOF }
+-
+-// eofReader is a non-nil io.ReadCloser that always returns EOF.
+-// It has a WriteTo method so io.Copy won't need a buffer.
+-var eofReader = &struct {
+-	eofReaderWithWriteTo
+-	io.Closer
+-}{
+-	eofReaderWithWriteTo{},
+-	ioutil.NopCloser(nil),
+-}
+-
+-// Verify that an io.Copy from an eofReader won't require a buffer.
+-var _ io.WriterTo = eofReader
+-
+ // initNPNRequest is an HTTP handler that initializes certain
+ // uninitialized fields in its *Request. Such partially-initialized
+ // Requests come from NPN protocol handlers.
+@@ -2734,7 +2716,7 @@ func (h initNPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
+ 		*req.TLS = h.c.ConnectionState()
+ 	}
+ 	if req.Body == nil {
+-		req.Body = eofReader
++		req.Body = NoBody
+ 	}
+ 	if req.RemoteAddr == "" {
+ 		req.RemoteAddr = h.c.RemoteAddr().String()
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index f34c703110..beafb7ac97 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -367,12 +367,12 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	switch {
+ 	case chunked(t.TransferEncoding):
+ 		if noBodyExpected(t.RequestMethod) {
+-			t.Body = eofReader
++			t.Body = NoBody
+ 		} else {
+ 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+ 		}
+ 	case realLength == 0:
+-		t.Body = eofReader
++		t.Body = NoBody
+ 	case realLength > 0:
+ 		t.Body = &body{src: io.LimitReader(r, realLength), closing: t.Close}
+ 	default:
+@@ -382,7 +382,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 			t.Body = &body{src: r, closing: t.Close}
+ 		} else {
+ 			// Persistent connection (i.e. HTTP/1.1)
+-			t.Body = eofReader
++			t.Body = NoBody
+ 		}
+ 	}
+ 

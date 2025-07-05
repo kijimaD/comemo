@@ -7,8 +7,94 @@ Date:   Wed Feb 8 15:26:47 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5646055
-
+---
  src/Make.dist        |  4 ++++
  src/cmd/dist/build.c | 12 +++++-------
  src/cmd/dist/unix.c  |  6 +++---
  3 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.dist b/src/Make.dist
+index 78e6edf04e..cae892de9c 100644
+--- a/src/Make.dist
++++ b/src/Make.dist
+@@ -3,12 +3,16 @@
+ # license that can be found in the LICENSE file.
+ 
+ # Run go tool dist to install a command.
++# The -v causes dist to print the name of each directory as it runs.
+ # The -vv causes dist to print each build command as it runs.
+ # go tool dist clean cleans all directories, not just this one,
+ # but it's as close as we can get.
+ 
+ # Default target (first).
+ install:
++	go tool dist install -v
++
++verbose:
+ 	go tool dist install -vv
+ 
+ clean:
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index fff4d62eac..c84a7ec7f6 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -501,6 +501,9 @@ install(char *dir)
+ 	Time ttarg, t;
+ 	int i, j, k, n, doclean;
+ 
++	if(vflag)
++		xprintf("%s\n", dir);
++
+ 	binit(&b);
+ 	binit(&b1);
+ 	binit(&path);
+@@ -1242,7 +1245,6 @@ cmdbootstrap(int argc, char **argv)
+ {
+ 	int i;
+ 	Buf b;
+-	char *p;
+ 
+ 	ARGBEGIN{
+ 	case 'v':
+@@ -1259,12 +1261,8 @@ cmdbootstrap(int argc, char **argv)
+ 	setup();
+ 	
+ 	binit(&b);
+-	for(i=0; i<nelem(buildorder); i++) {
+-		p = bprintf(&b, buildorder[i], gochar);
+-		if(vflag > 0)
+-			xprintf("%s\n", p);
+-		install(p);
+-	}
++	for(i=0; i<nelem(buildorder); i++)
++		install(bprintf(&b, buildorder[i], gochar));
+ 	bfree(&b);
+ }
+ 
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 348b01e08b..e687142e90 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -386,7 +386,7 @@ xmkdirall(char *p)
+ void
+ xremove(char *p)
+ {
+-	if(vflag > 1)
++	if(vflag > 2)
+ 		xprintf("rm %s\n", p);
+ 	unlink(p);
+ }
+@@ -408,11 +408,11 @@ xremoveall(char *p)
+ 			bprintf(&b, "%s/%s", p, dir.p[i]);
+ 			xremoveall(bstr(&b));
+ 		}
+-		if(vflag > 1)
++		if(vflag > 2)
+ 			xprintf("rm %s\n", p);
+ 		rmdir(p);
+ 	} else {
+-		if(vflag > 1)
++		if(vflag > 2)
+ 			xprintf("rm %s\n", p);
+ 		unlink(p);
+ 	}

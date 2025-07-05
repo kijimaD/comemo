@@ -9,6 +9,20 @@ Date:   Thu Nov 17 14:39:11 2016 +0000
     Change-Id: Ia1a04796353c83358a38a6b63f2a0cd3c6926f09
     Reviewed-on: https://go-review.googlesource.com/33338
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 023647501a..f77048338a 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -46,7 +46,7 @@ type fmt struct {
+ 	wid  int // width
+ 	prec int // precision
+ 
+-	// intbuf is large enought to store %b of an int64 with a sign and
++	// intbuf is large enough to store %b of an int64 with a sign and
+ 	// avoids padding at the end of the struct on 32 bit architectures.
+ 	intbuf [68]byte
+ }

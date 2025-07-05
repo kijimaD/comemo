@@ -7,7 +7,80 @@ Date:   Mon Dec 9 09:58:35 2013 -0800
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/39530043
-
+---
  src/cmd/ld/pobj.c  |  2 +-
  src/liblink/obj6.c | 16 +++++++---------
  2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 8883d37866..2274c2fb55 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -186,8 +186,8 @@ main(int argc, char *argv[])
+ 		mark(linklookup(ctxt, "runtime.read_tls_fallback", 0));
+ 	}
+ 
+-	deadcode();
+ 	patch();
++	deadcode();
+ 	follow();
+ 	dostkoff();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index bd24d1d9e8..8c165335e3 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -225,9 +225,9 @@ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+ 	Prog *q;
+-	LSym *gmsym;
+-	
+-	gmsym = nil; // TODO
++
++	if(ctxt->gmsym == nil)
++		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+ 
+ 	if(ctxt->headtype == Hwindows) { 
+ 		// Windows
+@@ -286,16 +286,14 @@ progedit(Link *ctxt, Prog *p)
+ 		//   op runtime.tlsgm(SB), reg
+ 		// to
+ 		//   NOP
+-		if(gmsym != nil && p->from.sym == gmsym) {
++		if(ctxt->gmsym != nil && p->from.sym == ctxt->gmsym) {
+ 			p->as = ANOP;
+ 			p->from.type = D_NONE;
+ 			p->to.type = D_NONE;
+ 			p->from.sym = nil;
+ 			p->to.sym = nil;
+-			return;
+ 		}
+ 	} else {
+-		/*
+ 		// Convert TLS reads of the form
+ 		//   op n(GS), reg
+ 		// to
+@@ -311,10 +309,9 @@ progedit(Link *ctxt, Prog *p)
+ 			q->from.offset = p->from.offset;
+ 			p->as = AMOVQ;
+ 			p->from.type = D_EXTERN;
+-			p->from.sym = gmsym;
++			p->from.sym = ctxt->gmsym;
+ 			p->from.offset = 0;
+ 		}
+-		*/
+ 	}
+ }
+ 
+@@ -359,8 +356,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	uint32 i;
+ 	vlong textstksiz, textarg;
+ 
+-	if(ctxt->gmsym == nil) {
++	if(ctxt->gmsym == nil)
+ 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
++	if(ctxt->symmorestack[0] == nil) {
+ 		if(nelem(morename) > nelem(ctxt->symmorestack))
+ 			sysfatal("Link.symmorestack needs at least %d elements", nelem(morename));
+ 		for(i=0; i<nelem(morename); i++)

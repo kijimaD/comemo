@@ -7,6 +7,19 @@ Date:   Tue Jul 16 17:37:22 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11386043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f858fa475d..a3f7db4b20 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -156,6 +156,7 @@ Dmitriy Vyukov <dvyukov@google.com>
+ Dmitry Chestnykh <dchest@gmail.com>
+ Dominik Honnef <dominik.honnef@gmail.com>
+ Donovan Hide <donovanhide@gmail.com>
++Drew Hintz <adhintz@google.com>
+ Duncan Holm <mail@frou.org>
+ Dustin Shields-Cloues <dcloues@gmail.com>
+ Eden Li <eden.li@gmail.com>

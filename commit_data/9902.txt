@@ -7,7 +7,93 @@ Date:   Thu Oct 6 22:47:24 2011 -0700
     R=r, rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5234041
-
+---
  src/pkg/utf8/utf8.go      | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/utf8/utf8_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+)
+
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 8910e17d77..3cd919d1d9 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -354,3 +354,40 @@ func RuneCountInString(s string) (n int) {
+ // an encoded rune.  Second and subsequent bytes always have the top
+ // two bits set to 10.
+ func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
++
++// Valid reports whether p consists entirely of valid UTF-8-encoded runes.
++func Valid(p []byte) bool {
++	i := 0
++	for i < len(p) {
++		if p[i] < RuneSelf {
++			i++
++		} else {
++			_, size := DecodeRune(p[i:])
++			if size == 1 {
++				// All valid runes of size of 1 (those
++				// below RuneSelf) were handled above.
++				// This must be a RuneError.
++				return false
++			}
++			i += size
++		}
++	}
++	return true
++}
++
++// ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
++func ValidString(s string) bool {
++	for i, r := range s {
++		if r == RuneError {
++			// The RuneError value can be an error
++			// sentinel value (if it's size 1) or the same
++			// value encoded properly. Decode it to see if
++			// it's the 1 byte sentinel value.
++			_, size := DecodeRuneInString(s[i:])
++			if size == 1 {
++				return false
++			}
++		}
++	}
++	return true
++}
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 7a1db93e55..6cbbebc1a3 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -274,6 +274,35 @@ func TestRuneCount(t *testing.T) {
+ 	}
+ }
+ 
++type ValidTest struct {
++	in  string
++	out bool
++}
++
++var validTests = []ValidTest{
++	{"", true},
++	{"a", true},
++	{"abc", true},
++	{"Ж", true},
++	{"ЖЖ", true},
++	{"брэд-ЛГТМ", true},
++	{"☺☻☹", true},
++	{string([]byte{66, 250}), false},
++	{string([]byte{66, 250, 67}), false},
++	{"a\uFFFDb", true},
++}
++
++func TestValid(t *testing.T) {
++	for i, tt := range validTests {
++		if Valid([]byte(tt.in)) != tt.out {
++			t.Errorf("%d. Valid(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
++		}
++		if ValidString(tt.in) != tt.out {
++			t.Errorf("%d. ValidString(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
++		}
++	}
++}
++
+ func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		RuneCountInString("0123456789")

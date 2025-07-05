@@ -19,7 +19,59 @@ Date:   Tue Jun 29 10:11:31 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 17 ++++++++++++-----
  test/fixedbugs/issue46957.go                    | 13 +++++++++++++
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index bf52941b2c..359f662369 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1460,15 +1460,22 @@ toomany:
+ }
+ 
+ func errorDetails(nl ir.Nodes, tstruct *types.Type, isddd bool) string {
+-	// If we don't know any type at a call site, let's suppress any return
+-	// message signatures. See Issue https://golang.org/issues/19012.
++	// Suppress any return message signatures if:
++	//
++	// (1) We don't know any type at a call site (see #19012).
++	// (2) Any node has an unknown type.
++	// (3) Invalid type for variadic parameter (see #46957).
+ 	if tstruct == nil {
+-		return ""
++		return "" // case 1
+ 	}
+-	// If any node has an unknown type, suppress it as well
++
++	if isddd && !nl[len(nl)-1].Type().IsSlice() {
++		return "" // case 3
++	}
++
+ 	for _, n := range nl {
+ 		if n.Type() == nil {
+-			return ""
++			return "" // case 2
+ 		}
+ 	}
+ 	return fmt.Sprintf("\n\thave %s\n\twant %v", fmtSignature(nl, isddd), tstruct)
+diff --git a/test/fixedbugs/issue46957.go b/test/fixedbugs/issue46957.go
+new file mode 100644
+index 0000000000..f3ed3c3def
+--- /dev/null
++++ b/test/fixedbugs/issue46957.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(a int, b ...int) {}
++
++func main() {
++	f(nil...) // ERROR "not enough arguments in call to f$"
++}

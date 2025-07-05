@@ -9,6 +9,20 @@ Date:   Wed Feb 12 08:17:30 2020 +0900
     Change-Id: I0b8f06c04cf397c6330ffb43ac3ae5c2f7cf3138
     Reviewed-on: https://go-review.googlesource.com/c/go/+/219157
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/web/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/web/api.go b/src/cmd/go/internal/web/api.go
+index ad99eb2f8c..209ed6861a 100644
+--- a/src/cmd/go/internal/web/api.go
++++ b/src/cmd/go/internal/web/api.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package web defines minimal helper routines for accessing HTTP/HTTPS
+-// resources without requiring external dependenicies on the net package.
++// resources without requiring external dependencies on the net package.
+ //
+ // If the cmd_go_bootstrap build tag is present, web avoids the use of the net
+ // package and returns errors for all network operations.

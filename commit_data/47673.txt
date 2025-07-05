@@ -17,7 +17,76 @@ Date:   Mon Mar 29 17:00:15 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  | 28 +++++++++++++++++++---
  .../testdata/script/mod_get_deprecate_install.txt  | 22 +++++++++++++++++
  2 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index a9447f6c57..c6e380b197 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -385,10 +385,32 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			pkgs = append(pkgs, pkg)
+ 		}
+ 		load.CheckPackageErrors(pkgs)
++
++		haveExe := false
++		for _, pkg := range pkgs {
++			if pkg.Name == "main" {
++				haveExe = true
++				break
++			}
++		}
++		if haveExe {
++			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
++			var altMsg string
++			if modload.HasModRoot() {
++				altMsg = `
++	To adjust and download dependencies of the current module, use 'go get -d'.
++	To install using requirements of the current module, use 'go install'.
++	To install ignoring the current module, use 'go install' with a version,
++	like 'go install example.com/cmd@latest'.
++`
++			} else {
++				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
++			}
++			fmt.Fprint(os.Stderr, altMsg)
++			fmt.Fprintf(os.Stderr, "\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n\tor run 'go help get' or 'go help install'.\n")
++		}
++
+ 		work.InstallPackages(ctx, pkgPatterns, pkgs)
+-		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
+-		// installing main packages. 'go install pkg' or 'go install pkg@version'
+-		// should be used instead. Give the specific argument to use if possible.
+ 	}
+ 
+ 	if !modload.HasModRoot() {
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+new file mode 100644
+index 0000000000..d832b5f2e8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -0,0 +1,22 @@
++[short] skip
++
++env GO111MODULE=on
++
++# 'go get' outside a module with an executable prints a deprecation message.
++go get example.com/cmd/a
++stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr 'Use ''go install pkg@version'' instead.'
++
++
++go mod init m
++
++# 'go get' inside a module with a non-main package does not print a message.
++# This will stop building in the future, but it's the command we want to use.
++go get rsc.io/quote
++! stderr deprecated
++
++# 'go get' inside a module with an executable prints a different
++# deprecation message.
++go get example.com/cmd/a
++stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr 'To adjust and download dependencies of the current module, use ''go get -d'''

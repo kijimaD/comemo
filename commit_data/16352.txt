@@ -9,6 +9,28 @@ Date:   Mon May 20 13:27:53 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/9595044
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d5701cbd60..0015cbfb5d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 14, 2013",
++	"Subtitle": "Version of May 20, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4620,7 +4620,7 @@ channel         c  chan E, &lt;-chan E       element  e  E
+ For an array, pointer to array, or slice value <code>a</code>, the index iteration
+ values are produced in increasing order, starting at element index 0.
+ If only the first iteration variable is present, the range loop produces
+-iteration values from 0 up to <code>len(a)</code> and does not index into the array
++iteration values from 0 up to <code>len(a)-1</code> and does not index into the array
+ or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
+ </li>
+ 

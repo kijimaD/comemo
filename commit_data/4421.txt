@@ -8,9 +8,130 @@ Date:   Tue Dec 15 14:26:50 2009 -0800
     
     R=ken2
     https://golang.org/cl/180045
-
+---
  src/cmd/gc/dcl.c         | 10 +++++++---
  src/cmd/gc/go.h          |  2 +-
  src/cmd/gc/go.y          |  8 +++++++-
  test/fixedbugs/bug228.go | 19 +++++++++++++++++++
  4 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 338a6213a6..e17ccfb22e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -961,7 +961,7 @@ findtype(NodeList *l)
+ }
+ 
+ NodeList*
+-checkarglist(NodeList *all)
++checkarglist(NodeList *all, int input)
+ {
+ 	int named;
+ 	Node *n, *t, *nextt;
+@@ -1015,8 +1015,12 @@ checkarglist(NodeList *all)
+ 		if(n != N)
+ 			n = newname(n->sym);
+ 		n = nod(ODCLFIELD, n, t);
+-		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
+-			yyerror("only last argument can have type ...");
++		if(n->right != N && n->right->op == OTYPE && isddd(n->right->type)) {
++			if(!input)
++				yyerror("cannot use ... in output argument list");
++			else if(l->next != nil)
++				yyerror("can only use ... as final argument in list");
++		}
+ 		l->n = n;
+ 	}
+ 	return all;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b1378af4c8..692dc77bfc 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -955,7 +955,7 @@ Type*	newtype(Sym*);
+ Type*	oldtype(Sym*);
+ void	fninit(NodeList*);
+ Node*	nametodcl(Node*, Type*);
+-NodeList*	checkarglist(NodeList*);
++NodeList*	checkarglist(NodeList*, int);
+ void	checkwidth(Type*);
+ void	defercheckwidth(void);
+ void	resumecheckwidth(void);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2fd36e751e..a8b921db5a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1070,6 +1070,7 @@ fndcl:
+ 	{
+ 		Node *n;
+ 
++		$3 = checkarglist($3, 1);
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		$$->nname = $1;
+ 		if($3 == nil && $5 == nil)
+@@ -1085,6 +1086,8 @@ fndcl:
+ 	{
+ 		Node *rcvr, *t;
+ 
++		$2 = checkarglist($2, 0);
++		$6 = checkarglist($6, 1);
+ 		$$ = N;
+ 		if($2 == nil) {
+ 			yyerror("method has no receiver");
+@@ -1113,6 +1116,7 @@ fndcl:
+ fntype:
+ 	LFUNC '(' oarg_type_list_ocomma ')' fnres
+ 	{
++		$3 = checkarglist($3, 1);
+ 		$$ = nod(OTFUNC, N, N);
+ 		$$->list = $3;
+ 		$$->rlist = $5;
+@@ -1140,6 +1144,7 @@ fnres:
+ 	}
+ |	'(' oarg_type_list_ocomma ')'
+ 	{
++		$2 = checkarglist($2, 0);
+ 		$$ = $2;
+ 	}
+ 
+@@ -1280,6 +1285,7 @@ indcl:
+ 	'(' oarg_type_list_ocomma ')' fnres
+ 	{
+ 		// without func keyword
++		$2 = checkarglist($2, 0);
+ 		$$ = nod(OTFUNC, fakethis(), N);
+ 		$$->list = $2;
+ 		$$->rlist = $4;
+@@ -1320,7 +1326,7 @@ oarg_type_list_ocomma:
+ 	}
+ |	arg_type_list ocomma
+ 	{
+-		$$ = checkarglist($1);
++		$$ = $1;
+ 	}
+ 
+ /*
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+new file mode 100644
+index 0000000000..682152ed91
+--- /dev/null
++++ b/test/fixedbugs/bug228.go
+@@ -0,0 +1,19 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(x int, y ...)	// ok
++
++func g(x int, y float) (...)	// ERROR "[.][.][.]"
++
++func h(x, y ...)		// ERROR "[.][.][.]"
++
++func i(x int, y ..., z float)	// ERROR "[.][.][.]"
++
++var x ...;		// ERROR "[.][.][.]|syntax"
++
++type T ...;		// ERROR "[.][.][.]|syntax"

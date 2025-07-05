@@ -39,7 +39,59 @@ Date:   Thu Feb 4 01:39:18 2021 -0800
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/archive/tar/strconv.go      | 21 ++++++++++++++++++++-
  src/archive/tar/strconv_test.go |  7 +++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index 6d0a403808..f0b61e6dba 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -265,8 +265,27 @@ func parsePAXRecord(s string) (k, v, r string, err error) {
+ 		return "", "", s, ErrHeader
+ 	}
+ 
++	afterSpace := int64(sp + 1)
++	beforeLastNewLine := n - 1
++	// In some cases, "length" was perhaps padded/malformed, and
++	// trying to index past where the space supposedly is goes past
++	// the end of the actual record.
++	// For example:
++	//    "0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319"
++	//                                  ^     ^
++	//                                  |     |
++	//                                  |  afterSpace=35
++	//                                  |
++	//                          beforeLastNewLine=29
++	// yet indexOf(firstSpace) MUST BE before endOfRecord.
++	//
++	// See https://golang.org/issues/40196.
++	if afterSpace >= beforeLastNewLine {
++		return "", "", s, ErrHeader
++	}
++
+ 	// Extract everything between the space and the final newline.
+-	rec, nl, rem := s[sp+1:n-1], s[n-1:n], s[n:]
++	rec, nl, rem := s[afterSpace:beforeLastNewLine], s[beforeLastNewLine:n], s[n:]
+ 	if nl != "\n" {
+ 		return "", "", s, ErrHeader
+ 	}
+diff --git a/src/archive/tar/strconv_test.go b/src/archive/tar/strconv_test.go
+index dd3505a758..add65e272a 100644
+--- a/src/archive/tar/strconv_test.go
++++ b/src/archive/tar/strconv_test.go
+@@ -368,6 +368,13 @@ func TestParsePAXRecord(t *testing.T) {
+ 		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
+ 		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
+ 		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
++		{"0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319", "0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319", "mtime", "1432668921.098285006", false},
++		{"06 k=v\n", "06 k=v\n", "", "", false},
++		{"00006 k=v\n", "00006 k=v\n", "", "", false},
++		{"000006 k=v\n", "000006 k=v\n", "", "", false},
++		{"000000 k=v\n", "000000 k=v\n", "", "", false},
++		{"0 k=v\n", "0 k=v\n", "", "", false},
++		{"+0000005 x=\n", "+0000005 x=\n", "", "", false},
+ 	}
+ 
+ 	for _, v := range vectors {

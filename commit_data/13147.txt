@@ -7,9 +7,293 @@ Date:   Thu May 24 11:33:11 2012 +1000
     R=golang-dev, rsc, devon.odell
     CC=golang-dev
     https://golang.org/cl/6222044
-
+---
  src/pkg/runtime/os_netbsd.h           |  2 +-
  src/pkg/runtime/signal_netbsd_amd64.c | 12 ++++++
  src/pkg/runtime/sys_netbsd_amd64.s    | 61 +++++++++++------------------
  src/pkg/runtime/thread_netbsd.c       | 74 +++++++++++++++++++++++++----------
  4 files changed, 88 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 50983a3e5e..794b294ff5 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -16,9 +16,9 @@ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ void	runtime·sigpanic(void);
+ 
++void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+-void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.c b/src/pkg/runtime/signal_netbsd_amd64.c
+index f8172c31f0..1971106e38 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.c
++++ b/src/pkg/runtime/signal_netbsd_amd64.c
+@@ -7,6 +7,7 @@
+ #include "signals_GOOS.h"
+ #include "os_GOOS.h"
+ 
++extern void runtime·lwp_tramp(void);
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+@@ -143,3 +144,14 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	sa._sa_u._sa_sigaction = (void*)fn;
+ 	runtime·sigaction(i, &sa, nil);
+ }
++
++void
++runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *m, G *g, void (*fn)(void))
++{
++	// Machine dependent mcontext initialisation for LWP.
++	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
++	mc->__gregs[REG_RSP] = (uint64)stack;
++	mc->__gregs[REG_R8] = (uint64)m;
++	mc->__gregs[REG_R9] = (uint64)g;
++	mc->__gregs[REG_R12] = (uint64)fn;
++}
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 940eb22675..d29d65a743 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -8,42 +8,25 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-// int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-TEXT runtime·rfork_thread(SB),7,$0
+-	MOVL	flags+8(SP), DI
+-	MOVQ	stack+16(SP), SI
++// int64 lwp_create(void *context, uintptr flags, void *lwpid)
++TEXT runtime·lwp_create(SB),7,$0
+ 
+-	// Copy m, g, fn off parent stack for use by child.
+-	MOVQ	mm+24(SP), R8
+-	MOVQ	gg+32(SP), R9
+-	MOVQ	fn+40(SP), R12
+-
+-	MOVL	$251, AX		// sys_rfork
++	MOVQ	context+0(FP), DI
++	MOVQ	flags+8(FP), SI
++	MOVQ	lwpid+16(FP), DX
++	MOVL	$309, AX		// sys__lwp_create
+ 	SYSCALL
+-
+-	// Return if rfork syscall failed
+-	JCC	3(PC)
++	JCC	2(PC)
+ 	NEGL	AX
+ 	RET
+ 
+-	// In parent, return.
+-	CMPL	AX, $0
+-	JEQ	2(PC)
+-	RET
+-
+-	// In child, on new stack.
+-	MOVQ	SI, SP
+-
+-	// Initialize m->procid to thread ID
+-	MOVL	$299, AX		// sys_getthrid
+-	SYSCALL
+-	MOVQ	AX, m_procid(R8)
+-
++TEXT runtime·lwp_tramp(SB),7,$0
++	
+ 	// Set FS to point at m->tls.
+ 	LEAQ	m_tls(R8), DI
+ 	CALL	runtime·settls(SB)
+ 
+-	// In child, set up new stack
++	// Set up new stack.
+ 	get_tls(CX)
+ 	MOVQ	R8, m(CX)
+ 	MOVQ	R9, g(CX)
+@@ -52,8 +35,8 @@ TEXT runtime·rfork_thread(SB),7,$0
+ 	// Call fn
+ 	CALL	R12
+ 
+-	// It shouldn't return.  If it does, exit
+-	MOVL	$302, AX		// sys_threxit
++	// It shouldn't return.  If it does, exit.
++	MOVL	$310, AX		// sys__lwp_exit
+ 	SYSCALL
+ 	JMP	-3(PC)			// keep exiting
+ 
+@@ -62,19 +45,19 @@ TEXT runtime·osyield(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thrsleep(SB),7,$0
+-	MOVQ	8(SP), DI		// arg 1 - ident
+-	MOVL	16(SP), SI		// arg 2 - clock_id
+-	MOVQ	24(SP), DX		// arg 3 - tp
+-	MOVQ	32(SP), R10		// arg 4 - lock
+-	MOVL	$300, AX		// sys_thrsleep
++TEXT runtime·lwp_park(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 - abstime
++	MOVL	16(SP), SI		// arg 2 - unpark
++	MOVQ	24(SP), DX		// arg 3 - hint
++	MOVQ	32(SP), R10		// arg 4 - unparkhint
++	MOVL	$434, AX		// sys__lwp_park
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thrwakeup(SB),7,$0
+-	MOVQ	8(SP), DI		// arg 1 - ident
+-	MOVL	16(SP), SI		// arg 2 - n
+-	MOVL	$301, AX		// sys_thrwakeup
++TEXT runtime·lwp_unpark(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 - lwp
++	MOVL	16(SP), SI		// arg 2 - hint
++	MOVL	$321, AX		// sys__lwp_unpark
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 1b2df85cd1..72557c713e 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -11,7 +11,7 @@ enum
+ 	ESRCH = 3,
+ 	ENOTSUP = 91,
+ 
+-	// From NetBSD's sys/time.h
++	// From NetBSD's <sys/time.h>
+ 	CLOCK_REALTIME = 0,
+ 	CLOCK_VIRTUAL = 1,
+ 	CLOCK_PROF = 2,
+@@ -20,9 +20,14 @@ enum
+ 
+ extern SigTab runtime·sigtab[];
+ 
+-extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
+-extern int32 runtime·thrwakeup(void *ident, int32 n);
++static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
++static Sigset sigset_none;
++
++extern void runtime·getcontext(UcontextT *context);
++extern int32 runtime·lwp_create(UcontextT *context, uintptr flags, void *lwpid);
++extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *m, G *g, void (*fn)(void));
++extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
++extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
+ 
+ // From NetBSD's <sys/sysctl.h>
+ #define	CTL_HW	6
+@@ -68,13 +73,30 @@ runtime·semasleep(int64 ns)
+ 		if(m->waitsemacount == 0) {
+ 			// sleep until semaphore != 0 or timeout.
+ 			// thrsleep unlocks m->waitsemalock.
+-			if(ns < 0)
+-				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
+-			else {
++			if(ns < 0) {
++				// TODO(jsing) - potential deadlock!
++				//
++				// There is a potential deadlock here since we
++				// have to release the waitsemalock mutex
++				// before we call lwp_park() to suspend the
++				// thread. This allows another thread to
++				// release the lock and call lwp_unpark()
++				// before the thread is actually suspended.
++				// If this occurs the current thread will end
++				// up sleeping indefinitely. Unfortunately
++				// the NetBSD kernel does not appear to provide
++				// a mechanism for unlocking the userspace
++				// mutex once the thread is actually parked.
++				runtime·atomicstore(&m->waitsemalock, 0);
++				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
++			} else {
+ 				ns += runtime·nanotime();
+ 				ts.tv_sec = ns/1000000000LL;
+ 				ts.tv_nsec = ns%1000000000LL;
+-				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock);
++				// TODO(jsing) - potential deadlock!
++				// See above for details.
++				runtime·atomicstore(&m->waitsemalock, 0);
++				runtime·lwp_park(&ts, 0, &m->waitsemacount, nil);
+ 			}
+ 			// reacquire lock
+ 			while(runtime·xchg(&m->waitsemalock, 1))
+@@ -112,28 +134,26 @@ runtime·semawakeup(M *mp)
+ 	while(runtime·xchg(&mp->waitsemalock, 1))
+ 		runtime·osyield();
+ 	mp->waitsemacount++;
+-	ret = runtime·thrwakeup(&mp->waitsemacount, 1);
++	// TODO(jsing) - potential deadlock, see semasleep() for details.
++	// Confirm that LWP is parked before unparking...
++	ret = runtime·lwp_unpark(mp->procid, &mp->waitsemacount);
+ 	if(ret != 0 && ret != ESRCH)
+ 		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
+ 	// spin-mutex unlock
+ 	runtime·atomicstore(&mp->waitsemalock, 0);
+ }
+ 
+-// From NetBSD's sys/param.h
+-#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
+-#define	RFMEM		(1<<5)	/* share `address space' */
+-#define	RFNOWAIT	(1<<6)	/* parent need not wait() on child */
+-#define	RFTHREAD	(1<<13)	/* create a thread, not a process */
++// From NetBSD's <sys/ucontext.h>
++#define _UC_SIGMASK	0x01
++#define _UC_CPU		0x04
+ 
+ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+-	int32 flags;
++	UcontextT uc;
+ 	int32 ret;
+ 
+-	flags = RFPROC | RFTHREAD | RFMEM | RFNOWAIT;
+-
+-	if (0) {
++	if(0) {
+ 		runtime·printf(
+ 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+@@ -141,10 +161,18 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 
+-	if((ret = runtime·rfork_thread(flags, stk, m, g, fn)) < 0) {
++	runtime·getcontext(&uc);
++	
++	uc.uc_flags = _UC_SIGMASK | _UC_CPU;
++	uc.uc_link = nil;
++	uc.uc_sigmask = sigset_all;
++
++	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, m, g, fn);
++
++	ret = runtime·lwp_create(&uc, 0, &m->procid);
++
++	if(ret < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
+-		if (ret == -ENOTSUP)
+-			runtime·printf("runtime: is kern.rthreads disabled?\n");
+ 		runtime·throw("runtime.newosproc");
+ 	}
+ }
+@@ -153,6 +181,9 @@ void
+ runtime·osinit(void)
+ {
+ 	runtime·ncpu = getncpu();
++
++	// Main thread is always LWP 1.
++	m->procid = 1;
+ }
+ 
+ void
+@@ -168,6 +199,7 @@ runtime·minit(void)
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
+ 
+ void

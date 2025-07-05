@@ -11,10 +11,140 @@ Date:   Wed Nov 23 09:10:30 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/convert.go       | 19 +++++++++++++++++++
  src/database/sql/driver/driver.go | 15 ++++++++++-----
  src/database/sql/fakedb_test.go   |  4 ++--
  src/database/sql/sql.go           |  2 ++
  src/database/sql/sql_test.go      |  4 ++--
  5 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 4b4dfc40d7..ea2f377810 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -13,6 +13,8 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"time"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
+@@ -24,6 +26,17 @@ func describeNamedValue(nv *driver.NamedValue) string {
+ 	return fmt.Sprintf("with name %q", nv.Name)
+ }
+ 
++func validateNamedValueName(name string) error {
++	if len(name) == 0 {
++		return nil
++	}
++	r, _ := utf8.DecodeRuneInString(name)
++	if unicode.IsLetter(r) {
++		return nil
++	}
++	return fmt.Errorf("name %q does not begin with a letter", name)
++}
++
+ // driverArgs converts arguments from callers of Stmt.Exec and
+ // Stmt.Query into driver Values.
+ //
+@@ -43,6 +56,9 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 			nv := &nvargs[n]
+ 			nv.Ordinal = n + 1
+ 			if np, ok := arg.(NamedArg); ok {
++				if err := validateNamedValueName(np.Name); err != nil {
++					return nil, err
++				}
+ 				arg = np.Value
+ 				nvargs[n].Name = np.Name
+ 			}
+@@ -60,6 +76,9 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 		nv := &nvargs[n]
+ 		nv.Ordinal = n + 1
+ 		if np, ok := arg.(NamedArg); ok {
++			if err := validateNamedValueName(np.Name); err != nil {
++				return nil, err
++			}
+ 			arg = np.Value
+ 			nv.Name = np.Name
+ 		}
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index c8cbbf0696..2e47cd9ee7 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -27,13 +27,18 @@ import (
+ type Value interface{}
+ 
+ // NamedValue holds both the value name and value.
+-// The Ordinal is the position of the parameter starting from one and is always set.
+-// If the Name is not empty it should be used for the parameter identifier and
+-// not the ordinal position.
+ type NamedValue struct {
+-	Name    string
++	// If the Name is not empty it should be used for the parameter identifier and
++	// not the ordinal position.
++	//
++	// Name will not have a symbol prefix.
++	Name string
++
++	// Ordinal position of the parameter starting from one and is always set.
+ 	Ordinal int
+-	Value   Value
++
++	// Value is the parameter value.
++	Value Value
+ }
+ 
+ // Driver is the interface that must be implemented by a database
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 416b97d501..4b15f5bec7 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -713,7 +713,7 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
+ 			} else {
+ 				// Assign value from argument placeholder name.
+ 				for _, a := range args {
+-					if a.Name == strvalue {
++					if a.Name == strvalue[1:] {
+ 						val = a.Value
+ 						break
+ 					}
+@@ -818,7 +818,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
+ 				} else {
+ 					// Assign arg value from placeholder name.
+ 					for _, a := range args {
+-						if a.Name == wcol.Placeholder {
++						if a.Name == wcol.Placeholder[1:] {
+ 							argValue = a.Value
+ 							break
+ 						}
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index a620707b2d..e11a9dadd0 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -76,6 +76,8 @@ type NamedArg struct {
+ 
+ 	// Name of the parameter placeholder. If empty the ordinal position in the
+ 	// argument list will be used.
++	//
++	// Name must omit any symbol prefix.
+ 	Name string
+ 
+ 	// Value of the parameter. It may be assigned the same value types as
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 27fb765cde..02746a2e30 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -486,8 +486,8 @@ func TestQueryNamedArg(t *testing.T) {
+ 	rows, err := db.Query(
+ 		// Ensure the name and age parameters only match on placeholder name, not position.
+ 		"SELECT|people|age,name|name=?name,age=?age",
+-		Named("?age", 2),
+-		Named("?name", "Bob"),
++		Named("age", 2),
++		Named("name", "Bob"),
+ 	)
+ 	if err != nil {
+ 		t.Fatalf("Query: %v", err)

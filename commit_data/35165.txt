@@ -13,6 +13,58 @@ Date:   Thu Jan 4 00:42:10 2018 -0600
     Change-Id: Ib02dc9f972da185b25554568fe6f8bc411d9c0b7
     Reviewed-on: https://go-review.googlesource.com/86115
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/handshake_client.go | 32 ++++++++++++++++++++------------
  1 file changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index dc529c96d6..e5e0df2ee3 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -372,26 +372,34 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 		}
+ 	}
+ 
+-	if hs.serverHello.ocspStapling {
+-		msg, err = c.readHandshake()
+-		if err != nil {
+-			return err
+-		}
+-		cs, ok := msg.(*certificateStatusMsg)
+-		if !ok {
++	msg, err = c.readHandshake()
++	if err != nil {
++		return err
++	}
++
++	cs, ok := msg.(*certificateStatusMsg)
++	if ok {
++		// RFC4366 on Certificate Status Request:
++		// The server MAY return a "certificate_status" message.
++
++		if !hs.serverHello.ocspStapling {
++			// If a server returns a "CertificateStatus" message, then the
++			// server MUST have included an extension of type "status_request"
++			// with empty "extension_data" in the extended server hello.
++
+ 			c.sendAlert(alertUnexpectedMessage)
+-			return unexpectedMessageError(cs, msg)
++			return errors.New("tls: received unexpected CertificateStatus message")
+ 		}
+ 		hs.finishedHash.Write(cs.marshal())
+ 
+ 		if cs.statusType == statusTypeOCSP {
+ 			c.ocspResponse = cs.response
+ 		}
+-	}
+ 
+-	msg, err = c.readHandshake()
+-	if err != nil {
+-		return err
++		msg, err = c.readHandshake()
++		if err != nil {
++			return err
++		}
+ 	}
+ 
+ 	keyAgreement := hs.suite.ka(c.vers)

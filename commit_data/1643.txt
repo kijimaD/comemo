@@ -8,6 +8,19 @@ Date:   Sat Feb 7 14:48:32 2009 -0800
     DELTA=2  (2 added, 0 deleted, 0 changed)
     OCL=24643
     CL=24643
-
+---
  src/cmd/gc/sysimport.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index da12b6361a..4d682d675d 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -65,5 +65,7 @@ char *sysimport =
+ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"type unsafe.Pointer *any\n"
++	"func unsafe.Offsetof (? any) (? int)\n"
++	"func unsafe.Sizeof (? any) (? int)\n"
+ 	"\n"
+ 	"$$\n";

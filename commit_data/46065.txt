@@ -15,7 +15,7 @@ Date:   Tue Oct 6 17:54:50 2020 -0400
     Trust: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt        | 77 +++++++++++++++++++++++--
  src/cmd/go/testdata/script/test_fuzz_chatty.txt | 21 +++++--
  src/internal/fuzz/fuzz.go                       | 35 +++++++++--
@@ -23,3 +23,375 @@ Date:   Tue Oct 6 17:54:50 2020 -0400
  src/testing/internal/testdeps/deps.go           |  4 ++
  src/testing/testing.go                          |  4 +-
  6 files changed, 161 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 2a3e6e26c7..5ab1c320d7 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -1,5 +1,10 @@
++# Test that calling f.Error in a fuzz target causes a non-zero exit status.
++! go test -fuzz Fuzz error_fuzz_test.go
++! stdout ^ok
++stdout FAIL
++
+ # Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
+-! go test fail_fuzz_test.go
++! go test fatal_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+@@ -9,7 +14,7 @@ stdout ok
+ ! stdout FAIL
+ 
+ # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
+-! go test -fuzz Fuzz fail_fuzz_test.go
++! go test -fuzz Fuzz fatal_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+@@ -96,12 +101,39 @@ stdout 'off by one error'
+ ! stdout ^ok
+ stdout FAIL
+ 
+--- fail_fuzz_test.go --
+-package fail_fuzz
++# Test fatal with testdata seed corpus
++! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
++! stdout ^ok
++stdout FAIL
++stdout 'fatal here'
++
++# Test pass with testdata seed corpus
++go test -run FuzzPass corpustesting/fuzz_testdata_corpus_test.go
++stdout ok
++! stdout FAIL
++! stdout 'fatal here'
++
++# Test pass with file in other nested testdata directory
++go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
++stdout ok
++! stdout FAIL
++! stdout 'fatal here'
++
++-- error_fuzz_test.go --
++package error_fuzz
+ 
+ import "testing"
+ 
+-func FuzzFail(f *testing.F) {
++func Fuzz(f *testing.F) {
++    f.Error("error in target")
++}
++
++-- fatal_fuzz_test.go --
++package fatal_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
+     f.Fatal("fatal in target")
+ }
+ 
+@@ -259,4 +291,37 @@ func FuzzNilPanic(f *testing.F) {
+             panic(nil)
+         }
+     })
+-}
+\ No newline at end of file
++}
++
++-- corpustesting/fuzz_testdata_corpus_test.go --
++package fuzz_testdata_corpus
++
++import "testing"
++
++func fuzzFn(f *testing.F) {
++    f.Helper()
++    f.Fuzz(func(t *testing.T, b []byte) {
++        if string(b) == "12345\n" {
++            t.Fatal("fatal here")
++        }
++    })
++}
++
++func FuzzFail(f *testing.F) {
++    fuzzFn(f)
++}
++
++func FuzzPass(f *testing.F) {
++    fuzzFn(f)
++}
++
++func FuzzInNestedDir(f *testing.F) {
++    fuzzFn(f)
++}
++
++-- corpustesting/testdata/corpus/FuzzFail/1 --
++12345
++-- corpustesting/testdata/corpus/FuzzPass/1 --
++00000
++-- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
++12345
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index 56b20bedad..a881d54bdc 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -1,10 +1,15 @@
+ [short] skip
+ 
+-# Run chatty fuzz targets with an error and fatal.
+-! go test -v chatty_fail_fuzz_test.go
++# Run chatty fuzz targets with an error.
++! go test -v chatty_error_fuzz_test.go
+ ! stdout '^ok'
+ stdout 'FAIL'
+ stdout 'error in target'
++
++# Run chatty fuzz targets with a fatal.
++! go test -v chatty_fatal_fuzz_test.go
++! stdout '^ok'
++stdout 'FAIL'
+ stdout 'fatal in target'
+ 
+ # Run chatty fuzz target with a panic
+@@ -26,13 +31,21 @@ stdout PASS
+ stdout 'all good here'
+ ! stdout FAIL
+ 
+--- chatty_fail_fuzz_test.go --
+-package chatty_fail_fuzz
++-- chatty_error_fuzz_test.go --
++package chatty_error_fuzz
+ 
+ import "testing"
+ 
+ func Fuzz(f *testing.F) {
+     f.Error("error in target")
++}
++
++-- chatty_fatal_fuzz_test.go --
++package chatty_fatal_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
+     f.Fatal("fatal in target")
+ }
+ 
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 4f1d204834..d7187d043e 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -8,7 +8,10 @@
+ package fuzz
+ 
+ import (
++	"fmt"
++	"io/ioutil"
+ 	"os"
++	"path/filepath"
+ 	"runtime"
+ 	"sync"
+ 	"time"
+@@ -24,9 +27,10 @@ import (
+ // parallel is the number of worker processes to run in parallel. If parallel
+ // is 0, CoordinateFuzzing will run GOMAXPROCS workers.
+ //
+-// seed is a list of seed values added by the fuzz target with testing.F.Add.
+-// Seed values from testdata and GOFUZZCACHE should not be included in this
+-// list; this function loads them separately.
++// seed is a list of seed values added by the fuzz target with testing.F.Add and
++// in testdata.
++// Seed values from GOFUZZCACHE should not be included in this list; this
++// function loads them separately.
+ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 	if parallel == 0 {
+ 		parallel = runtime.GOMAXPROCS(0)
+@@ -67,7 +71,6 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 		corpus.entries = append(corpus.entries, corpusEntry{b: []byte{0}})
+ 	}
+ 
+-	// TODO(jayconrod,katiehockman): read corpus from testdata.
+ 	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
+ 
+ 	// Start workers.
+@@ -141,3 +144,27 @@ type coordinator struct {
+ 	// values from this channel.
+ 	inputC chan corpusEntry
+ }
++
++// ReadCorpus reads the corpus from the testdata directory in this target's
++// package.
++func ReadCorpus(name string) ([][]byte, error) {
++	testdataDir := filepath.Join("testdata/corpus", name)
++	files, err := ioutil.ReadDir(testdataDir)
++	if os.IsNotExist(err) {
++		return nil, nil // No corpus to read
++	} else if err != nil {
++		return nil, fmt.Errorf("testing: reading seed corpus from testdata: %v", err)
++	}
++	var corpus [][]byte
++	for _, file := range files {
++		if file.IsDir() {
++			continue
++		}
++		bytes, err := ioutil.ReadFile(filepath.Join(testdataDir, file.Name()))
++		if err != nil {
++			return nil, fmt.Errorf("testing: failed to read corpus file: %v", err)
++		}
++		corpus = append(corpus, bytes)
++	}
++	return corpus, nil
++}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 766242f75d..ff13e0b4e0 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -44,6 +44,14 @@ type corpusEntry struct {
+ 	b []byte
+ }
+ 
++func bytesToCorpus(bytes [][]byte) []corpusEntry {
++	c := make([]corpusEntry, len(bytes))
++	for i, b := range bytes {
++		c[i].b = b
++	}
++	return c
++}
++
+ // Add will add the arguments to the seed corpus for the fuzz target. This will
+ // be a no-op if called after or within the Fuzz function. The args must match
+ // those in the Fuzz function.
+@@ -76,6 +84,14 @@ func (f *F) Fuzz(ff interface{}) {
+ 		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
+ 	}
+ 
++	// Load seed corpus
++	c, err := f.context.readCorpus(f.name)
++	if err != nil {
++		f.Fatal(err)
++	}
++	f.corpus = append(f.corpus, bytesToCorpus(c)...)
++	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
++
+ 	defer runtime.Goexit() // exit after this function
+ 
+ 	var errStr string
+@@ -187,22 +203,22 @@ func (f *F) report() {
+ }
+ 
+ // run runs each fuzz target in its own goroutine with its own *F.
+-func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
+-	innerF := &F{
++func (f *F) run(ft InternalFuzzTarget) (ran, ok bool) {
++	f = &F{
+ 		common: common{
+ 			signal: make(chan bool),
+-			name:   name,
++			name:   ft.Name,
+ 			chatty: f.chatty,
+ 			w:      f.w,
+ 		},
+ 		context: f.context,
+ 	}
+-	if innerF.chatty != nil {
+-		innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
++	if f.chatty != nil {
++		f.chatty.Updatef(ft.Name, "=== RUN   %s\n", ft.Name)
+ 	}
+-	go innerF.runTarget(fn)
+-	<-innerF.signal
+-	return innerF.ran, !innerF.failed
++	go f.runTarget(ft.Fn)
++	<-f.signal
++	return f.ran, !f.failed
+ }
+ 
+ // runTarget runs the given target, handling panics and exits
+@@ -254,17 +270,21 @@ type fuzzContext struct {
+ 	fuzzMatch         *matcher
+ 	coordinateFuzzing func(int, [][]byte) error
+ 	runFuzzWorker     func(func([]byte) error) error
++	readCorpus        func(string) ([][]byte, error)
+ }
+ 
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+ // only run the f.Fuzz function for each seed corpus without using the fuzzing
+ // engine to generate or mutate inputs.
+-func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
++func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+ 	ok = true
+ 	if len(fuzzTargets) == 0 || *isFuzzWorker {
+ 		return ran, ok
+ 	}
+-	ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
++	ctx := &fuzzContext{
++		runMatch:   newMatcher(deps.MatchString, *match, "-test.run"),
++		readCorpus: deps.ReadCorpus,
++	}
+ 	var fts []InternalFuzzTarget
+ 	for _, ft := range fuzzTargets {
+ 		if _, matched, _ := ctx.runMatch.fullName(nil, ft.Name); matched {
+@@ -278,7 +298,7 @@ func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
+ 		fuzzFunc: func(f *F) {
+ 			for _, ft := range fts {
+ 				// Run each fuzz target in it's own goroutine.
+-				ftRan, ftOk := f.run(ft.Name, ft.Fn)
++				ftRan, ftOk := f.run(ft)
+ 				ran = ran || ftRan
+ 				ok = ok && ftOk
+ 			}
+@@ -302,7 +322,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
+ 		return false, true
+ 	}
+-	ctx := &fuzzContext{fuzzMatch: newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")}
++	ctx := &fuzzContext{
++		fuzzMatch:  newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz"),
++		readCorpus: deps.ReadCorpus,
++	}
+ 	if *isFuzzWorker {
+ 		ctx.runFuzzWorker = deps.RunFuzzWorker
+ 	} else {
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 9665092f4c..acd38d78cb 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -135,3 +135,7 @@ func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte) error {
+ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+ 	return fuzz.RunFuzzWorker(fn)
+ }
++
++func (TestDeps) ReadCorpus(name string) ([][]byte, error) {
++	return fuzz.ReadCorpus(name)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2c2e77dc4b..f44b7ca7a5 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1326,6 +1326,7 @@ func (f matchStringOnly) StopTestLog() error                          { return e
+ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+ func (f matchStringOnly) CoordinateFuzzing(int, [][]byte) error       { return errMain }
+ func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error      { return errMain }
++func (f matchStringOnly) ReadCorpus(name string) ([][]byte, error)    { return nil, errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1370,6 +1371,7 @@ type testDeps interface {
+ 	WriteProfileTo(string, io.Writer, int) error
+ 	CoordinateFuzzing(int, [][]byte) error
+ 	RunFuzzWorker(func([]byte) error) error
++	ReadCorpus(name string) ([][]byte, error)
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+@@ -1423,7 +1425,7 @@ func (m *M) Run() (code int) {
+ 	deadline := m.startAlarm()
+ 	haveExamples = len(m.examples) > 0
+ 	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+-	fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps.MatchString, m.fuzzTargets)
++	fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets)
+ 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+ 	m.stopAlarm()
+ 	if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {

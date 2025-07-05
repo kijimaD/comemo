@@ -12,7 +12,69 @@ Date:   Sun Mar 22 20:38:42 2020 -0300
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js |  4 ++--
  src/syscall/js/js.go   | 12 ++++++------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 5ac4032993..8cb297f379 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -447,7 +447,7 @@
+ 					"syscall/js.copyBytesToGo": (sp) => {
+ 						const dst = loadSlice(sp + 8);
+ 						const src = loadValue(sp + 32);
+-						if (!(src instanceof Uint8Array)) {
++						if (!(src instanceof Uint8Array || src instanceof Uint8ClampedArray)) {
+ 							this.mem.setUint8(sp + 48, 0);
+ 							return;
+ 						}
+@@ -461,7 +461,7 @@
+ 					"syscall/js.copyBytesToJS": (sp) => {
+ 						const dst = loadValue(sp + 8);
+ 						const src = loadSlice(sp + 16);
+-						if (!(dst instanceof Uint8Array)) {
++						if (!(dst instanceof Uint8Array || dst instanceof Uint8ClampedArray)) {
+ 							this.mem.setUint8(sp + 48, 0);
+ 							return;
+ 						}
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 8a04399171..a48bbd4dd7 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -565,28 +565,28 @@ func (e *ValueError) Error() string {
+ 	return "syscall/js: call of " + e.Method + " on " + e.Type.String()
+ }
+ 
+-// CopyBytesToGo copies bytes from the Uint8Array src to dst.
++// CopyBytesToGo copies bytes from src to dst.
++// It panics if src is not an Uint8Array or Uint8ClampedArray.
+ // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+-// CopyBytesToGo panics if src is not an Uint8Array.
+ func CopyBytesToGo(dst []byte, src Value) int {
+ 	n, ok := copyBytesToGo(dst, src.ref)
+ 	runtime.KeepAlive(src)
+ 	if !ok {
+-		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array")
++		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array or Uint8ClampedArray")
+ 	}
+ 	return n
+ }
+ 
+ func copyBytesToGo(dst []byte, src ref) (int, bool)
+ 
+-// CopyBytesToJS copies bytes from src to the Uint8Array dst.
++// CopyBytesToJS copies bytes from src to dst.
++// It panics if dst is not an Uint8Array or Uint8ClampedArray.
+ // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
+-// CopyBytesToJS panics if dst is not an Uint8Array.
+ func CopyBytesToJS(dst Value, src []byte) int {
+ 	n, ok := copyBytesToJS(dst.ref, src)
+ 	runtime.KeepAlive(dst)
+ 	if !ok {
+-		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array")
++		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array or Uint8ClampedArray")
+ 	}
+ 	return n
+ }

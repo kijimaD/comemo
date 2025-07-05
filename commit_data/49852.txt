@@ -15,7 +15,32 @@ Date:   Thu Sep 16 15:09:31 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 1 +
  src/go/types/api_test.go                    | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 5a20738631..cd5a61332a 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -145,6 +145,7 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 
+ 		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
++		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 4472748685..d4f9bb65c9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -152,6 +152,7 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 
+ 		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
++		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
+ 	}
+ 
+ 	for _, test := range tests {

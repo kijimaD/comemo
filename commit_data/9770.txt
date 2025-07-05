@@ -29,9 +29,84 @@ Date:   Wed Sep 21 17:25:48 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5081051
-
+---
  test/fixedbugs/bug363.go  | 4 ++--
  test/interface/pointer.go | 2 +-
  test/method2.go           | 8 ++++----
  test/shift1.go            | 8 ++++----
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/test/fixedbugs/bug363.go b/test/fixedbugs/bug363.go
+index 7a9952642d..04fcfe1a87 100644
+--- a/test/fixedbugs/bug363.go
++++ b/test/fixedbugs/bug363.go
+@@ -10,10 +10,10 @@ package main
+ 
+ func main() {
+ 	var i uint = 33
+-	var a = (1<<i) + 4.5  // ERROR "shift of type float64|shift of non-integer"
++	var a = (1<<i) + 4.5  // ERROR "shift of type float64|invalid.*shift"
+ 	println(a)
+ 	
+-	var b = (1<<i) + 4.0  // ERROR "shift of type float64|shift of non-integer"
++	var b = (1<<i) + 4.0  // ERROR "shift of type float64|invalid.*shift"
+ 	println(b)
+ 
+ 	var c int64 = (1<<i) + 4.0  // ok - it's all int64
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index fe4d8e3ef9..f1e363cbff 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -33,5 +33,5 @@ func main() {
+ 	print("call addinst\n")
+ 	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
+ 	print("return from  addinst\n")
+-	var y *Inst = new(Start)  // ERROR "pointer to interface"
++	var y *Inst = new(Start)  // ERROR "pointer to interface|incompatible type"
+ }
+diff --git a/test/method2.go b/test/method2.go
+index 2fdc9fc3c5..039779efbe 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -12,14 +12,14 @@ type T struct {
+ type P *T
+ type P1 *T
+ 
+-func (p P) val() int   { return 1 } // ERROR "receiver.* pointer"
+-func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer"
++func (p P) val() int   { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
++func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer or interface receiver"
+ 
+ type I interface{}
+ type I1 interface{}
+ 
+-func (p I) val() int { return 1 } // ERROR "receiver.*interface"
+-func (p *I1) val() int { return 1 } // ERROR "receiver.*interface"
++func (p I) val() int { return 1 } // ERROR "receiver.*interface|invalid pointer or interface receiver"
++func (p *I1) val() int { return 1 } // ERROR "receiver.*interface|invalid pointer or interface receiver"
+ 
+ type Val interface {
+ 	val() int
+diff --git a/test/shift1.go b/test/shift1.go
+index 6a8e26e5e6..c197eef66e 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -15,14 +15,14 @@ func h(x float64) int     { return 0 }
+ // from the spec
+ var (
+ 	s uint    = 33
+-	u         = 1.0 << s // ERROR "invalid operation"
+-	v float32 = 1 << s   // ERROR "invalid operation" "as type float32"
++	u         = 1.0 << s // ERROR "invalid operation|shift of non-integer operand"
++	v float32 = 1 << s   // ERROR "invalid" "as type float32"
+ )
+ 
+ // non-constant shift expressions
+ var (
+-	e1       = g(2.0 << s) // ERROR "invalid operation" "as type interface"
+-	f1       = h(2 << s)   // ERROR "invalid operation" "as type float64"
++	e1       = g(2.0 << s) // ERROR "invalid" "as type interface"
++	f1       = h(2 << s)   // ERROR "invalid" "as type float64"
+ 	g1 int64 = 1.1 << s    // ERROR "truncated"
+ )
+ 

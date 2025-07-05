@@ -12,7 +12,7 @@ Date:   Fri Apr 30 00:34:54 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                 | 10 ++++++-
  src/cmd/go/internal/modcmd/vendor.go            |  9 ++++++
  src/cmd/go/testdata/script/mod_vendor_gomod.txt | 38 +++++++++++++++++++++++++
@@ -20,3 +20,124 @@ Date:   Fri Apr 30 00:34:54 2021 -0400
  src/cmd/vendor/golang.org/x/term/go.sum         |  2 --
  src/cmd/vendor/golang.org/x/xerrors/go.mod      |  3 --
  6 files changed, 56 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index ef1472d90a..b670d1b149 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -120,7 +120,7 @@ Do not send CLs removing the interior tags from such phrases.
+   files.)
+ </p>
+ 
+-<h4 id="vendor-go-versions"><code>go</code> versions in <code>vendor/modules.txt</code></h4>
++<h4 id="vendor"><code>vendor</code> contents</h4>
+ 
+ <p><!-- golang.org/issue/36876 -->
+   If the main module specifies <code>go</code> <code>1.17</code> or higher,
+@@ -130,6 +130,14 @@ Do not send CLs removing the interior tags from such phrases.
+   version is used when building the module's packages from vendored source code.
+ </p>
+ 
++<p><!-- golang.org/issue/42970 -->
++  If the main module specifies <code>go</code> <code>1.17</code> or higher,
++  <code>go</code> <code>mod</code> <code>vendor</code> now omits <code>go.mod</code>
++  and <code>go.sum</code> files for vendored dependencies, which can otherwise
++  interfere with the ability of the <code>go</code> command to identify the correct
++  module root when invoked within the <code>vendor</code> tree.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 86eab89065..8e1c0432f7 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -340,6 +340,15 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 	if strings.HasSuffix(info.Name(), "_test.go") {
+ 		return false
+ 	}
++	if info.Name() == "go.mod" || info.Name() == "go.sum" {
++		if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.17") >= 0 {
++			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
++			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
++			// an arbitrary directory within the vendor tree as a module root.
++			// (See https://golang.org/issue/42970.)
++			return false
++		}
++	}
+ 	if strings.HasSuffix(info.Name(), ".go") {
+ 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
+ 		if err != nil {
+diff --git a/src/cmd/go/testdata/script/mod_vendor_gomod.txt b/src/cmd/go/testdata/script/mod_vendor_gomod.txt
+new file mode 100644
+index 0000000000..3f6ea3561a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_gomod.txt
+@@ -0,0 +1,38 @@
++# https://golang.org/issue/42970: As of Go 1.17, go.mod and go.sum files should
++# be stripped from vendored dependencies.
++
++go mod vendor
++cd vendor/example.net/x
++go list all
++! stdout '^example.net/m'
++stdout '^example.net/x$'
++exists ./go.sum
++
++cd ../../..
++go mod edit -go=1.17
++go mod vendor
++cd vendor/example.net/x
++go list all
++stdout '^example.net/m$'
++stdout '^example.net/x$'
++! exists ./go.sum
++
++-- go.mod --
++module example.net/m
++
++go 1.16
++
++require example.net/x v0.1.0
++
++replace example.net/x v0.1.0 => ./x
++-- m.go --
++package m
++
++import _ "example.net/x"
++-- x/go.mod --
++module example.net/x
++
++go 1.16
++-- x/go.sum --
++-- x/x.go --
++package x
+diff --git a/src/cmd/vendor/golang.org/x/term/go.mod b/src/cmd/vendor/golang.org/x/term/go.mod
+deleted file mode 100644
+index d45f52851e..0000000000
+--- a/src/cmd/vendor/golang.org/x/term/go.mod
++++ /dev/null
+@@ -1,5 +0,0 @@
+-module golang.org/x/term
+-
+-go 1.11
+-
+-require golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
+diff --git a/src/cmd/vendor/golang.org/x/term/go.sum b/src/cmd/vendor/golang.org/x/term/go.sum
+deleted file mode 100644
+index de9e09c654..0000000000
+--- a/src/cmd/vendor/golang.org/x/term/go.sum
++++ /dev/null
+@@ -1,2 +0,0 @@
+-golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 h1:nxC68pudNYkKU6jWhgrqdreuFiOQWj1Fs7T3VrH4Pjw=
+-golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/go.mod b/src/cmd/vendor/golang.org/x/xerrors/go.mod
+deleted file mode 100644
+index 870d4f612d..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/go.mod
++++ /dev/null
+@@ -1,3 +0,0 @@
+-module golang.org/x/xerrors
+-
+-go 1.11

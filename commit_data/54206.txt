@@ -17,10 +17,950 @@ Date:   Thu Apr 14 15:44:20 2022 -0400
     Change-Id: I34ee6cee52e5597fa3698b8b04f1b34a2a2a418f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/401236
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  api/next/51430.txt                       |   5 +
  src/runtime/coverage/apis.go             | 176 ++++++++++++++
  src/runtime/coverage/emit.go             |  45 +++-
  src/runtime/coverage/emitdata_test.go    | 404 +++++++++++++++++++++++++++++++
  src/runtime/coverage/testdata/harness.go | 258 ++++++++++++++++++++
  5 files changed, 887 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/51430.txt b/api/next/51430.txt
+new file mode 100644
+index 0000000000..99ec4170f9
+--- /dev/null
++++ b/api/next/51430.txt
+@@ -0,0 +1,5 @@
++pkg runtime/coverage, func EmitMetaDataToDir(string) error #51430
++pkg runtime/coverage, func EmitMetaDataToWriter(io.Writer) error #51430
++pkg runtime/coverage, func EmitCounterDataToDir(string) error #51430
++pkg runtime/coverage, func EmitCounterDataToWriter(io.Writer) error #51430
++pkg runtime/coverage, func ClearCoverageCounters() error #51430
+diff --git a/src/runtime/coverage/apis.go b/src/runtime/coverage/apis.go
+new file mode 100644
+index 0000000000..aa7fa97951
+--- /dev/null
++++ b/src/runtime/coverage/apis.go
+@@ -0,0 +1,176 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++import (
++	"fmt"
++	"internal/coverage"
++	"io"
++	"reflect"
++	"unsafe"
++)
++
++// EmitMetaDataToDir writes a coverage meta-data file for the
++// currently running program to the directory specified in 'dir'. An
++// error will be returned if the operation can't be completed
++// successfully (for example, if the currently running program was not
++// built with "-cover", or if the directory does not exist).
++func EmitMetaDataToDir(dir string) error {
++	if !finalHashComputed {
++		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
++	}
++	return emitMetaDataToDirectory(dir, getCovMetaList())
++}
++
++// EmitMetaDataToWriter writes the meta-data content (the payload that
++// would normally be emitted to a meta-data file) for currently
++// running program to the the writer 'w'. An error will be returned if
++// the operation can't be completed successfully (for example, if the
++// currently running program was not built with "-cover", or if a
++// write fails).
++func EmitMetaDataToWriter(w io.Writer) error {
++	if w == nil {
++		return fmt.Errorf("error: nil writer in EmitMetaDataToWriter")
++	}
++	if !finalHashComputed {
++		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
++	}
++	ml := getCovMetaList()
++	return writeMetaData(w, ml, cmode, cgran, finalHash)
++}
++
++// EmitCounterDataToDir writes a coverage counter-data file for the
++// currently running program to the directory specified in 'dir'. An
++// error will be returned if the operation can't be completed
++// successfully (for example, if the currently running program was not
++// built with "-cover", or if the directory does not exist). The
++// counter data written will be a snapshot taken at the point of the
++// call.
++func EmitCounterDataToDir(dir string) error {
++	return emitCounterDataToDirectory(dir)
++}
++
++// EmitCounterDataToWriter writes coverage counter-data content for
++// the currently running program to the writer 'w'. An error will be
++// returned if the operation can't be completed successfully (for
++// example, if the currently running program was not built with
++// "-cover", or if a write fails). The counter data written will be a
++// snapshot taken at the point of the invocation.
++func EmitCounterDataToWriter(w io.Writer) error {
++	if w == nil {
++		return fmt.Errorf("error: nil writer in EmitCounterDataToWriter")
++	}
++	// Ask the runtime for the list of coverage counter symbols.
++	cl := getCovCounterList()
++	if len(cl) == 0 {
++		return fmt.Errorf("program not built with -cover")
++	}
++	if !finalHashComputed {
++		return fmt.Errorf("meta-data not written yet, unable to write counter data")
++	}
++
++	pm := getCovPkgMap()
++	s := &emitState{
++		counterlist: cl,
++		pkgmap:      pm,
++	}
++	return s.emitCounterDataToWriter(w)
++}
++
++// ClearCoverageCounters clears/resets all coverage counter variables
++// in the currently running program. It returns an error if the
++// program in question was not built with the "-cover" flag. Clearing
++// of coverage counters is also not supported for programs not using
++// atomic counter mode (see more detailed comments below for the
++// rationale here).
++func ClearCoverageCounters() error {
++	cl := getCovCounterList()
++	if len(cl) == 0 {
++		return fmt.Errorf("program not built with -cover")
++	}
++	if cmode != coverage.CtrModeAtomic {
++		return fmt.Errorf("ClearCoverageCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
++	}
++
++	// Implementation note: this function would be faster and simpler
++	// if we could just zero out the entire counter array, but for the
++	// moment we go through and zero out just the slots in the array
++	// corresponding to the counter values. We do this to avoid the
++	// following bad scenario: suppose that a user builds their Go
++	// program with "-cover", and that program has a function (call it
++	// main.XYZ) that invokes ClearCoverageCounters:
++	//
++	//     func XYZ() {
++	//       ... do some stuff ...
++	//       coverage.ClearCoverageCounters()
++	//       if someCondition {   <<--- HERE
++	//         ...
++	//       }
++	//     }
++	//
++	// At the point where ClearCoverageCounters executes, main.XYZ has
++	// not yet finished running, thus as soon as the call returns the
++	// line marked "HERE" above will trigger the writing of a non-zero
++	// value into main.XYZ's counter slab. However since we've just
++	// finished clearing the entire counter segment, we will have lost
++	// the values in the prolog portion of main.XYZ's counter slab
++	// (nctrs, pkgid, funcid). This means that later on at the end of
++	// program execution as we walk through the entire counter array
++	// for the program looking for executed functions, we'll zoom past
++	// main.XYZ's prolog (which was zero'd) and hit the non-zero
++	// counter value corresponding to the "HERE" block, which will then
++	// be interpreted as the start of another live function. Things
++	// will go downhill from there.
++	//
++	// This same scenario is also a potential risk if the program is
++	// running on an architecture that permits reordering of writes/stores,
++	// since the inconsistency described above could arise here. Example
++	// scenario:
++	//
++	//     func ABC() {
++	//       ...                    // prolog
++	//       if alwaysTrue() {
++	//         XYZ()                // counter update here
++	//       }
++	//     }
++	//
++	// In the instrumented version of ABC, the prolog of the function
++	// will contain a series of stores to the initial portion of the
++	// counter array to write number-of-counters, pkgid, funcid. Later
++	// in the function there is also a store to increment a counter
++	// for the block containing the call to XYZ(). If the CPU is
++	// allowed to reorder stores and decides to issue the XYZ store
++	// before the prolog stores, this could be observable as an
++	// inconsistency similar to the one above. Hence the requirement
++	// for atomic counter mode: according to package atomic docs,
++	// "...operations that happen in a specific order on one thread,
++	// will always be observed to happen in exactly that order by
++	// another thread". Thus we can be sure that there will be no
++	// inconsistency when reading the counter array from the thread
++	// running ClearCoverageCounters.
++
++	var sd []uint32
++
++	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
++	for _, c := range cl {
++		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
++		bufHdr.Len = int(c.Len)
++		bufHdr.Cap = int(c.Len)
++		for i := 0; i < len(sd); i++ {
++			// Skip ahead until the next non-zero value.
++			if sd[i] == 0 {
++				continue
++			}
++			// We found a function that was executed; clear its counters.
++			nCtrs := sd[i]
++			for j := 0; j < int(nCtrs); j++ {
++				sd[i+coverage.FirstCtrOffset+j] = 0
++			}
++			// Move to next function.
++			i += coverage.FirstCtrOffset + int(nCtrs) - 1
++		}
++	}
++	return nil
++}
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index 99d23dec10..076dd695bb 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -335,6 +335,14 @@ func emitCounterDataToDirectory(outdir string) error {
+ 	return nil
+ }
+ 
++// emitMetaData emits counter data for this coverage run to an io.Writer.
++func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
++	if err := s.emitCounterDataFile(finalHash, w); err != nil {
++		return err
++	}
++	return nil
++}
++
+ // openMetaFile determines whether we need to emit a meta-data output
+ // file, or whether we can reuse the existing file in the coverage out
+ // dir. It updates mfname/mftmp/mf fields in 's', returning an error
+@@ -470,9 +478,28 @@ func (s *emitState) NumFuncs() (int, error) {
+ 
+ 			// We found a function that was executed.
+ 			nCtrs := sd[i]
++
++			// Check to make sure that we have at least one live
++			// counter. See the implementation note in ClearCoverageCounters
++			// for a description of why this is needed.
++			isLive := false
++			st := i + coverage.FirstCtrOffset
++			counters := sd[st : st+int(nCtrs)]
++			for i := 0; i < len(counters); i++ {
++				if counters[i] != 0 {
++					isLive = true
++					break
++				}
++			}
++			if !isLive {
++				// Skip this function.
++				i += coverage.FirstCtrOffset + int(nCtrs) - 1
++				continue
++			}
++
+ 			totalFuncs++
+ 
+-			// Skip over this function.
++			// Move to the next function.
+ 			i += coverage.FirstCtrOffset + int(nCtrs) - 1
+ 		}
+ 	}
+@@ -501,6 +528,22 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ 			cst := i + coverage.FirstCtrOffset
+ 			counters := sd[cst : cst+int(nCtrs)]
+ 
++			// Check to make sure that we have at least one live
++			// counter. See the implementation note in ClearCoverageCounters
++			// for a description of why this is needed.
++			isLive := false
++			for i := 0; i < len(counters); i++ {
++				if counters[i] != 0 {
++					isLive = true
++					break
++				}
++			}
++			if !isLive {
++				// Skip this function.
++				i += coverage.FirstCtrOffset + int(nCtrs) - 1
++				continue
++			}
++
+ 			if s.debug {
+ 				if pkgId != dpkg {
+ 					dpkg = pkgId
+diff --git a/src/runtime/coverage/emitdata_test.go b/src/runtime/coverage/emitdata_test.go
+new file mode 100644
+index 0000000000..2541052b5f
+--- /dev/null
++++ b/src/runtime/coverage/emitdata_test.go
+@@ -0,0 +1,404 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++import (
++	"fmt"
++	"internal/coverage"
++	"internal/goexperiment"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++// Set to true for debugging (linux only).
++const fixedTestDir = false
++
++func TestCoverageApis(t *testing.T) {
++	if !goexperiment.CoverageRedesign {
++		t.Skipf("skipping new coverage tests (experiment not enabled)")
++	}
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++	if fixedTestDir {
++		dir = "/tmp/qqqzzz"
++		os.RemoveAll(dir)
++		mkdir(t, dir)
++	}
++
++	// Build harness.
++	bdir := mkdir(t, filepath.Join(dir, "build"))
++	hargs := []string{"-cover", "-coverpkg=all"}
++	if testing.CoverMode() != "" {
++		hargs = append(hargs, "-covermode="+testing.CoverMode())
++	}
++	harnessPath := buildHarness(t, bdir, hargs)
++
++	t.Logf("harness path is %s", harnessPath)
++
++	// Sub-tests for each API we want to inspect, plus
++	// extras for error testing.
++	t.Run("emitToDir", func(t *testing.T) {
++		t.Parallel()
++		testEmitToDir(t, harnessPath, dir)
++	})
++	t.Run("emitToWriter", func(t *testing.T) {
++		t.Parallel()
++		testEmitToWriter(t, harnessPath, dir)
++	})
++	t.Run("emitToNonexistentDir", func(t *testing.T) {
++		t.Parallel()
++		testEmitToNonexistentDir(t, harnessPath, dir)
++	})
++	t.Run("emitToNilWriter", func(t *testing.T) {
++		t.Parallel()
++		testEmitToNilWriter(t, harnessPath, dir)
++	})
++	t.Run("emitToFailingWriter", func(t *testing.T) {
++		t.Parallel()
++		testEmitToFailingWriter(t, harnessPath, dir)
++	})
++	t.Run("emitWithCounterClear", func(t *testing.T) {
++		t.Parallel()
++		testEmitWithCounterClear(t, harnessPath, dir)
++	})
++
++}
++
++// upmergeCoverData helps improve coverage data for this package
++// itself. If this test itself is being invoked with "-cover", then
++// what we'd like is for package coverage data (that is, coverage for
++// routines in "runtime/coverage") to be incorporated into the test
++// run from the "harness.exe" runs we've just done. We can accomplish
++// this by doing a merge from the harness gocoverdir's to the test
++// gocoverdir.
++func upmergeCoverData(t *testing.T, gocoverdir string) {
++	if testing.CoverMode() == "" {
++		return
++	}
++	testGoCoverDir := os.Getenv("GOCOVERDIR")
++	if testGoCoverDir == "" {
++		return
++	}
++	args := []string{"tool", "covdata", "merge", "-pkg=runtime/coverage",
++		"-o", testGoCoverDir, "-i", gocoverdir}
++	t.Logf("up-merge of covdata from %s to %s", gocoverdir, testGoCoverDir)
++	t.Logf("executing: go %+v", args)
++	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	if b, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("covdata merge failed (%v): %s", err, b)
++	}
++}
++
++// buildHarness builds the helper program "harness.exe".
++func buildHarness(t *testing.T, dir string, opts []string) string {
++	harnessPath := filepath.Join(dir, "harness.exe")
++	harnessSrc := filepath.Join("testdata", "harness.go")
++	args := []string{"build", "-o", harnessPath}
++	args = append(args, opts...)
++	args = append(args, harnessSrc)
++	//t.Logf("harness build: go %+v\n", args)
++	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	if b, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("build failed (%v): %s", err, b)
++	}
++	return harnessPath
++}
++
++func mkdir(t *testing.T, d string) string {
++	t.Helper()
++	if err := os.Mkdir(d, 0777); err != nil {
++		t.Fatalf("mkdir failed: %v", err)
++	}
++	return d
++}
++
++// updateGoCoverDir updates the specified environment 'env' to set
++// GOCOVERDIR to 'gcd' (if setGoCoverDir is TRUE) or removes
++// GOCOVERDIR from the environment (if setGoCoverDir is false).
++func updateGoCoverDir(env []string, gcd string, setGoCoverDir bool) []string {
++	rv := []string{}
++	found := false
++	for _, v := range env {
++		if strings.HasPrefix(v, "GOCOVERDIR=") {
++			if !setGoCoverDir {
++				continue
++			}
++			v = "GOCOVERDIR=" + gcd
++			found = true
++		}
++		rv = append(rv, v)
++	}
++	if !found && setGoCoverDir {
++		rv = append(rv, "GOCOVERDIR="+gcd)
++	}
++	return rv
++}
++
++func runHarness(t *testing.T, harnessPath string, tp string, setGoCoverDir bool, rdir, edir string) (string, error) {
++	t.Logf("running: %s -tp %s -o %s with rdir=%s and GOCOVERDIR=%v", harnessPath, tp, edir, rdir, setGoCoverDir)
++	cmd := exec.Command(harnessPath, "-tp", tp, "-o", edir)
++	cmd.Dir = rdir
++	cmd.Env = updateGoCoverDir(os.Environ(), rdir, setGoCoverDir)
++	b, err := cmd.CombinedOutput()
++	//t.Logf("harness run output: %s\n", string(b))
++	return string(b), err
++}
++
++func testForSpecificFunctions(t *testing.T, dir string, want []string, avoid []string) string {
++	args := []string{"tool", "covdata", "debugdump",
++		"-live", "-pkg=main", "-i=" + dir}
++	t.Logf("running: go %v\n", args)
++	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	b, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("'go tool covdata failed (%v): %s", err, b)
++	}
++	output := string(b)
++	rval := ""
++	for _, f := range want {
++		wf := "Func: " + f
++		if strings.Contains(output, wf) {
++			continue
++		}
++		rval += fmt.Sprintf("error: output should contain %q but does not\n", wf)
++	}
++	for _, f := range avoid {
++		wf := "Func: " + f
++		if strings.Contains(output, wf) {
++			rval += fmt.Sprintf("error: output should not contain %q but does\n", wf)
++		}
++	}
++	return rval
++}
++
++func withAndWithoutRunner(f func(setit bool, tag string)) {
++	// Run 'f' with and without GOCOVERDIR set.
++	for i := 0; i < 2; i++ {
++		tag := "x"
++		setGoCoverDir := true
++		if i == 0 {
++			setGoCoverDir = false
++			tag = "y"
++		}
++		f(setGoCoverDir, tag)
++	}
++}
++
++func mktestdirs(t *testing.T, tag, tp, dir string) (string, string) {
++	t.Helper()
++	rdir := mkdir(t, filepath.Join(dir, tp+"-rdir-"+tag))
++	edir := mkdir(t, filepath.Join(dir, tp+"-edir-"+tag))
++	return rdir, edir
++}
++
++func testEmitToDir(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		tp := "emitToDir"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++		output, err := runHarness(t, harnessPath, tp,
++			setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp emitDir': %v", err)
++		}
++
++		// Just check to make sure meta-data file and counter data file were
++		// written. Another alternative would be to run "go tool covdata"
++		// or equivalent, but for now, this is what we've got.
++		dents, err := os.ReadDir(edir)
++		if err != nil {
++			t.Fatalf("os.ReadDir(%s) failed: %v", edir, err)
++		}
++		mfc := 0
++		cdc := 0
++		for _, e := range dents {
++			if e.IsDir() {
++				continue
++			}
++			if strings.HasPrefix(e.Name(), coverage.MetaFilePref) {
++				mfc++
++			} else if strings.HasPrefix(e.Name(), coverage.CounterFilePref) {
++				cdc++
++			}
++		}
++		wantmf := 1
++		wantcf := 1
++		if mfc != wantmf {
++			t.Errorf("EmitToDir: want %d meta-data files, got %d\n", wantmf, mfc)
++		}
++		if cdc != wantcf {
++			t.Errorf("EmitToDir: want %d counter-data files, got %d\n", wantcf, cdc)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitToWriter(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		tp := "emitToWriter"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		want := []string{"main", tp}
++		avoid := []string{"final"}
++		if msg := testForSpecificFunctions(t, edir, want, avoid); msg != "" {
++			t.Errorf("coverage data from %q output match failed: %s", tp, msg)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitToNonexistentDir(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		tp := "emitToNonexistentDir"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitToUnwritableDir(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++
++		tp := "emitToUnwritableDir"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++
++		// Make edir unwritable.
++		if err := os.Chmod(edir, 0555); err != nil {
++			t.Fatalf("chmod failed: %v", err)
++		}
++		defer os.Chmod(edir, 0777)
++
++		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitToNilWriter(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		tp := "emitToNilWriter"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitToFailingWriter(t *testing.T, harnessPath string, dir string) {
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		tp := "emitToFailingWriter"
++		rdir, edir := mktestdirs(t, tag, tp, dir)
++		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		upmergeCoverData(t, edir)
++		upmergeCoverData(t, rdir)
++	})
++}
++
++func testEmitWithCounterClear(t *testing.T, harnessPath string, dir string) {
++	// Ensure that we have two versions of the harness: one built with
++	// -covermode=atomic and one built with -covermode=set (we need
++	// both modes to test all of the functionality).
++	var nonatomicHarnessPath, atomicHarnessPath string
++	if testing.CoverMode() != "atomic" {
++		nonatomicHarnessPath = harnessPath
++		bdir2 := mkdir(t, filepath.Join(dir, "build2"))
++		hargs := []string{"-covermode=atomic", "-coverpkg=all"}
++		atomicHarnessPath = buildHarness(t, bdir2, hargs)
++	} else {
++		atomicHarnessPath = harnessPath
++		mode := "set"
++		if testing.CoverMode() != "" && testing.CoverMode() != "atomic" {
++			mode = testing.CoverMode()
++		}
++		// Build a special nonatomic covermode version of the harness
++		// (we need both modes to test all of the functionality).
++		bdir2 := mkdir(t, filepath.Join(dir, "build2"))
++		hargs := []string{"-covermode=" + mode, "-coverpkg=all"}
++		nonatomicHarnessPath = buildHarness(t, bdir2, hargs)
++	}
++
++	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
++		// First a run with the nonatomic harness path, which we
++		// expect to fail.
++		tp := "emitWithCounterClear"
++		rdir1, edir1 := mktestdirs(t, tag, tp+"1", dir)
++		output, err := runHarness(t, nonatomicHarnessPath, tp,
++			setGoCoverDir, rdir1, edir1)
++		if err == nil {
++			t.Logf("%s", output)
++			t.Fatalf("running '%s -tp %s': unexpected success",
++				nonatomicHarnessPath, tp)
++		}
++
++		// Next a run with the atomic harness path, which we
++		// expect to succeed.
++		rdir2, edir2 := mktestdirs(t, tag, tp+"2", dir)
++		output, err = runHarness(t, atomicHarnessPath, tp,
++			setGoCoverDir, rdir2, edir2)
++		if err != nil {
++			t.Logf("%s", output)
++			t.Fatalf("running 'harness -tp %s': %v", tp, err)
++		}
++		want := []string{tp, "postClear"}
++		avoid := []string{"preClear", "main", "final"}
++		if msg := testForSpecificFunctions(t, edir2, want, avoid); msg != "" {
++			t.Logf("%s", output)
++			t.Errorf("coverage data from %q output match failed: %s", tp, msg)
++		}
++
++		if testing.CoverMode() == "atomic" {
++			upmergeCoverData(t, edir2)
++			upmergeCoverData(t, rdir2)
++		} else {
++			upmergeCoverData(t, edir1)
++			upmergeCoverData(t, rdir1)
++		}
++	})
++}
++
++func TestApisOnNocoverBinary(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++
++	// Build harness with no -cover.
++	bdir := mkdir(t, filepath.Join(dir, "nocover"))
++	edir := mkdir(t, filepath.Join(dir, "emitDirNo"))
++	harnessPath := buildHarness(t, bdir, nil)
++	output, err := runHarness(t, harnessPath, "emitToDir", false, edir, edir)
++	if err == nil {
++		t.Fatalf("expected error on TestApisOnNocoverBinary harness run")
++	}
++	const want = "not built with -cover"
++	if !strings.Contains(output, want) {
++		t.Errorf("error output does not contain %q: %s", want, output)
++	}
++}
+diff --git a/src/runtime/coverage/testdata/harness.go b/src/runtime/coverage/testdata/harness.go
+new file mode 100644
+index 0000000000..cc3eb722d1
+--- /dev/null
++++ b/src/runtime/coverage/testdata/harness.go
+@@ -0,0 +1,258 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"internal/coverage/slicewriter"
++	"io"
++	"io/ioutil"
++	"log"
++	"path/filepath"
++	"runtime/coverage"
++	"strings"
++)
++
++var verbflag = flag.Int("v", 0, "Verbose trace output level")
++var testpointflag = flag.String("tp", "", "Testpoint to run")
++var outdirflag = flag.String("o", "", "Output dir into which to emit")
++
++func emitToWriter() {
++	log.SetPrefix("emitToWriter: ")
++	var slwm slicewriter.WriteSeeker
++	if err := coverage.EmitMetaDataToWriter(&slwm); err != nil {
++		log.Fatalf("error: EmitMetaDataToWriter returns %v", err)
++	}
++	mf := filepath.Join(*outdirflag, "covmeta.0abcdef")
++	if err := ioutil.WriteFile(mf, slwm.BytesWritten(), 0666); err != nil {
++		log.Fatalf("error: writing %s: %v", mf, err)
++	}
++	var slwc slicewriter.WriteSeeker
++	if err := coverage.EmitCounterDataToWriter(&slwc); err != nil {
++		log.Fatalf("error: EmitCounterDataToWriter returns %v", err)
++	}
++	cf := filepath.Join(*outdirflag, "covcounters.0abcdef.99.77")
++	if err := ioutil.WriteFile(cf, slwc.BytesWritten(), 0666); err != nil {
++		log.Fatalf("error: writing %s: %v", cf, err)
++	}
++}
++
++func emitToDir() {
++	log.SetPrefix("emitToDir: ")
++	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
++		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
++	}
++	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
++		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
++	}
++}
++
++func emitToNonexistentDir() {
++	log.SetPrefix("emitToNonexistentDir: ")
++
++	want := []string{
++		"no such file or directory",             // linux-ish
++		"system cannot find the file specified", // windows
++	}
++
++	checkWant := func(which string, got string) {
++		found := false
++		for _, w := range want {
++			if strings.Contains(got, w) {
++				found = true
++				break
++			}
++		}
++		if !found {
++			log.Fatalf("%s emit to bad dir: got error:\n  %v\nwanted error with one of:\n  %+v", which, got, want)
++		}
++	}
++
++	// Mangle the output directory to produce something nonexistent.
++	mangled := *outdirflag + "_MANGLED"
++	if err := coverage.EmitMetaDataToDir(mangled); err == nil {
++		log.Fatal("expected error from EmitMetaDataToDir to nonexistent dir")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		checkWant("meta data", got)
++	}
++
++	// Now try to emit counter data file to a bad dir.
++	if err := coverage.EmitCounterDataToDir(mangled); err == nil {
++		log.Fatal("expected error emitting counter data to bad dir")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		checkWant("counter data", got)
++	}
++}
++
++func emitToUnwritableDir() {
++	log.SetPrefix("emitToUnwritableDir: ")
++
++	want := "permission denied"
++
++	if err := coverage.EmitMetaDataToDir(*outdirflag); err == nil {
++		log.Fatal("expected error from EmitMetaDataToDir to unwritable dir")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		if !strings.Contains(got, want) {
++			log.Fatalf("meta-data emit to unwritable dir: wanted error containing %q got %q", want, got)
++		}
++	}
++
++	// Similarly with writing counter data.
++	if err := coverage.EmitCounterDataToDir(*outdirflag); err == nil {
++		log.Fatal("expected error emitting counter data to unwritable dir")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		if !strings.Contains(got, want) {
++			log.Fatalf("emitting counter data to unwritable dir: wanted error containing %q got %q", want, got)
++		}
++	}
++}
++
++func emitToNilWriter() {
++	log.SetPrefix("emitToWriter: ")
++	want := "nil writer"
++	var bad io.WriteSeeker
++	if err := coverage.EmitMetaDataToWriter(bad); err == nil {
++		log.Fatal("expected error passing nil writer for meta emit")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		if !strings.Contains(got, want) {
++			log.Fatalf("emitting meta-data passing nil writer: wanted error containing %q got %q", want, got)
++		}
++	}
++
++	if err := coverage.EmitCounterDataToWriter(bad); err == nil {
++		log.Fatal("expected error passing nil writer for counter emit")
++	} else {
++		got := fmt.Sprintf("%v", err)
++		if !strings.Contains(got, want) {
++			log.Fatalf("emitting counter data passing nil writer: wanted error containing %q got %q", want, got)
++		}
++	}
++}
++
++type failingWriter struct {
++	writeCount int
++	writeLimit int
++	slws       slicewriter.WriteSeeker
++}
++
++func (f *failingWriter) Write(p []byte) (n int, err error) {
++	c := f.writeCount
++	f.writeCount++
++	if f.writeLimit < 0 || c < f.writeLimit {
++		return f.slws.Write(p)
++	}
++	return 0, fmt.Errorf("manufactured write error")
++}
++
++func (f *failingWriter) Seek(offset int64, whence int) (int64, error) {
++	return f.slws.Seek(offset, whence)
++}
++
++func (f *failingWriter) reset(lim int) {
++	f.writeCount = 0
++	f.writeLimit = lim
++	f.slws = slicewriter.WriteSeeker{}
++}
++
++func writeStressTest(tag string, testf func(testf *failingWriter) error) {
++	// Invoke the function initially without the write limit
++	// set, to capture the number of writes performed.
++	fw := &failingWriter{writeLimit: -1}
++	testf(fw)
++
++	// Now that we know how many writes are going to happen, run the
++	// function repeatedly, each time with a Write operation set to
++	// fail at a new spot. The goal here is to make sure that:
++	// A) an error is reported, and B) nothing crashes.
++	tot := fw.writeCount
++	for i := 0; i < tot; i++ {
++		fw.reset(i)
++		err := testf(fw)
++		if err == nil {
++			log.Fatalf("no error from write %d tag %s", i, tag)
++		}
++	}
++}
++
++func postClear() int {
++	return 42
++}
++
++func preClear() int {
++	return 42
++}
++
++// This test is designed to ensure that write errors are properly
++// handled by the code that writes out coverage data. It repeatedly
++// invokes the 'emit to writer' apis using a specially crafted writer
++// that captures the total number of expected writes, then replays the
++// execution N times with a manufactured write error at the
++// appropriate spot.
++func emitToFailingWriter() {
++	log.SetPrefix("emitToFailingWriter: ")
++
++	writeStressTest("emit-meta", func(f *failingWriter) error {
++		return coverage.EmitMetaDataToWriter(f)
++	})
++	writeStressTest("emit-counter", func(f *failingWriter) error {
++		return coverage.EmitCounterDataToWriter(f)
++	})
++}
++
++func emitWithCounterClear() {
++	log.SetPrefix("emitWitCounterClear: ")
++	preClear()
++	if err := coverage.ClearCoverageCounters(); err != nil {
++		log.Fatalf("clear failed: %v", err)
++	}
++	postClear()
++	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
++		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
++	}
++	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
++		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
++	}
++}
++
++func final() int {
++	println("I run last.")
++	return 43
++}
++
++func main() {
++	log.SetFlags(0)
++	flag.Parse()
++	if *testpointflag == "" {
++		log.Fatalf("error: no testpoint (use -tp flag)")
++	}
++	if *outdirflag == "" {
++		log.Fatalf("error: no output dir specified (use -o flag)")
++	}
++	switch *testpointflag {
++	case "emitToDir":
++		emitToDir()
++	case "emitToWriter":
++		emitToWriter()
++	case "emitToNonexistentDir":
++		emitToNonexistentDir()
++	case "emitToUnwritableDir":
++		emitToUnwritableDir()
++	case "emitToNilWriter":
++		emitToNilWriter()
++	case "emitToFailingWriter":
++		emitToFailingWriter()
++	case "emitWithCounterClear":
++		emitWithCounterClear()
++	default:
++		log.Fatalf("error: unknown testpoint %q", *testpointflag)
++	}
++	final()
++}

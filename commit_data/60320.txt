@@ -18,9 +18,112 @@ Date:   Mon Jun 17 19:19:56 2024 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/work/exec.go               |  1 +
  src/cmd/go/internal/work/gc.go                 |  5 ++-
  src/cmd/go/testdata/script/run_vers.txt        | 10 ++++++
  src/cmd/go/testdata/script/vet_commandline.txt | 43 ++++++++++++++++++++++++++
  4 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8dd9802f4f..c4852d82ae 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1180,6 +1180,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
+ 		PackageFile:  make(map[string]string),
+ 		Standard:     make(map[string]bool),
+ 	}
++	vcfg.GoVersion = "go" + gover.Local()
+ 	if a.Package.Module != nil {
+ 		v := a.Package.Module.GoVersion
+ 		if v == "" {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index c6041aa22a..99bcaf9266 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -66,15 +66,18 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 
+ 	pkgpath := pkgPath(a)
+ 	defaultGcFlags := []string{"-p", pkgpath}
++	vers := gover.Local()
+ 	if p.Module != nil {
+ 		v := p.Module.GoVersion
+ 		if v == "" {
+ 			v = gover.DefaultGoModVersion
+ 		}
++		// TODO(samthanawalla): Investigate when allowedVersion is not true.
+ 		if allowedVersion(v) {
+-			defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(v))
++			vers = v
+ 		}
+ 	}
++	defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(vers))
+ 	if p.Standard {
+ 		defaultGcFlags = append(defaultGcFlags, "-std")
+ 	}
+diff --git a/src/cmd/go/testdata/script/run_vers.txt b/src/cmd/go/testdata/script/run_vers.txt
+new file mode 100644
+index 0000000000..770481a6cd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_vers.txt
+@@ -0,0 +1,10 @@
++# go.dev/issue/66092
++# This test ensures that files listed on the commandline will pass
++# the language version to the compiler.
++# All compilations should specify some -lang.
++
++go build -n x.go
++stderr '-lang=go1\.[0-9]+'
++
++-- x.go --
++package main
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/vet_commandline.txt b/src/cmd/go/testdata/script/vet_commandline.txt
+new file mode 100644
+index 0000000000..51e65bbca4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vet_commandline.txt
+@@ -0,0 +1,43 @@
++# go.dev/issue/65612
++# go vet should set the GoVersion for command line files.
++
++env TESTGO_VERSION=go1.22.1
++env TESTGO_VERSION_SWITCH=switch
++
++go vet -n -json example.com/m
++stderr '"GoVersion": "go1.22.0"'
++
++# A command line file should use the local go version.
++go vet -n -json main.go
++stderr '"GoVersion": "go1.22.1"'
++
++# In workspace mode, the command line file version should use go.work version.
++cp go.work.orig go.work
++go vet -n -json example.com/m
++stderr '"GoVersion": "go1.22.0'
++
++go vet -n -json main.go
++stderr '"GoVersion": "go1.22.2'
++
++# Without go.mod or go.work, the command line file version should use local go version .
++env TESTGO_VERSION=go1.22.3
++rm go.mod
++rm go.work
++
++! go vet -n -json example.com/m
++
++go vet -n -json main.go
++stderr '"GoVersion": "go1.22.3"'
++
++-- go.mod --
++module example.com/m
++
++go 1.22.0
++
++-- go.work.orig --
++go 1.22.2
++
++use .
++
++-- main.go --
++package main

@@ -9,6 +9,21 @@ Date:   Mon Apr 20 11:32:11 2015 -0400
     Change-Id: I19c8d614cd756821ce400ca7a338029002780b18
     Reviewed-on: https://go-review.googlesource.com/9076
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/dist/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8a0c692f1a..4a6688b8f6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -381,8 +381,7 @@ func (t *tester) buildmode(mode string) bool {
+ 			return false
+ 		case t.goos == "darwin":
+ 			switch t.goarch {
+-			case "amd64", "arm":
+-				// TODO(crawshaw): add darwin/arm64
++			case "amd64", "arm", "arm64":
+ 				return true
+ 			default:
+ 				return false

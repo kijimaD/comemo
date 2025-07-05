@@ -24,8 +24,50 @@ Date:   Mon Jun 21 20:03:58 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go         | 1 +
  src/cmd/compile/internal/noder/quirks.go       | 5 +----
  src/cmd/compile/internal/noder/unified_test.go | 2 +-
  3 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index fd42021946..e2245e1c26 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -48,6 +48,7 @@ type DebugFlags struct {
+ 	TypeAssert           int    `help:"print information about type assertion inlining"`
+ 	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
+ 	Unified              int    `help:"enable unified IR construction"`
++	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
+ 	WB                   int    `help:"print information about write barriers"`
+ 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+ 
+diff --git a/src/cmd/compile/internal/noder/quirks.go b/src/cmd/compile/internal/noder/quirks.go
+index 28a729f276..91b4c22025 100644
+--- a/src/cmd/compile/internal/noder/quirks.go
++++ b/src/cmd/compile/internal/noder/quirks.go
+@@ -23,10 +23,7 @@ import (
+ // quirksMode controls whether behavior specific to satisfying
+ // toolstash -cmp is used.
+ func quirksMode() bool {
+-	// Currently, unified IR doesn't try to be compatible with
+-	// -d=inlfuncswithclosures=1, so we overload this as a flag for
+-	// enabling quirks mode.
+-	return base.Debug.InlFuncsWithClosures == 0
++	return base.Debug.UnifiedQuirks != 0
+ }
+ 
+ // posBasesOf returns all of the position bases in the source files,
+diff --git a/src/cmd/compile/internal/noder/unified_test.go b/src/cmd/compile/internal/noder/unified_test.go
+index 242fa1282f..4732892f6c 100644
+--- a/src/cmd/compile/internal/noder/unified_test.go
++++ b/src/cmd/compile/internal/noder/unified_test.go
+@@ -59,7 +59,7 @@ func TestUnifiedCompare(t *testing.T) {
+ 			}
+ 
+ 			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0")
+-			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0")
++			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
+ 
+ 			if len(pkgs1) != len(pkgs2) {
+ 				t.Fatalf("length mismatch: %v != %v", len(pkgs1), len(pkgs2))

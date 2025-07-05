@@ -21,7 +21,163 @@ Date:   Wed Jun 10 00:30:32 2015 +0200
     Change-Id: Ib61155b4f2e2de3873d508d63a1f4be759426d67
     Reviewed-on: https://go-review.googlesource.com/13830
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/testing/quick/quick.go      | 38 ++++++++++++++++++++---------
  src/testing/quick/quick_test.go | 53 ++++++++++++++++++++++++++++++++++-------
  2 files changed, 71 insertions(+), 20 deletions(-)
+
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 13c56cdf48..187195c759 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -52,8 +52,15 @@ const complexSize = 50
+ // If the type implements the Generator interface, that will be used.
+ // Note: To create arbitrary values for structs, all the fields must be exported.
+ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
++	return sizedValue(t, rand, complexSize)
++}
++
++// sizedValue returns an arbitrary value of the given type. The size
++// hint is used for shrinking as a function of indirection level so
++// that recursive data structures will terminate.
++func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value, ok bool) {
+ 	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
+-		return m.Generate(rand, complexSize), true
++		return m.Generate(rand, size), true
+ 	}
+ 
+ 	v := reflect.New(t).Elem()
+@@ -91,21 +98,21 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 	case reflect.Uintptr:
+ 		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Map:
+-		numElems := rand.Intn(complexSize)
++		numElems := rand.Intn(size)
+ 		v.Set(reflect.MakeMap(concrete))
+ 		for i := 0; i < numElems; i++ {
+-			key, ok1 := Value(concrete.Key(), rand)
+-			value, ok2 := Value(concrete.Elem(), rand)
++			key, ok1 := sizedValue(concrete.Key(), rand, size)
++			value, ok2 := sizedValue(concrete.Elem(), rand, size)
+ 			if !ok1 || !ok2 {
+ 				return reflect.Value{}, false
+ 			}
+ 			v.SetMapIndex(key, value)
+ 		}
+ 	case reflect.Ptr:
+-		if rand.Intn(complexSize) == 0 {
++		if rand.Intn(size) == 0 {
+ 			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
+ 		} else {
+-			elem, ok := Value(concrete.Elem(), rand)
++			elem, ok := sizedValue(concrete.Elem(), rand, size)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+@@ -113,10 +120,11 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 			v.Elem().Set(elem)
+ 		}
+ 	case reflect.Slice:
+-		numElems := rand.Intn(complexSize)
++		numElems := rand.Intn(size)
++		sizeLeft := size - numElems
+ 		v.Set(reflect.MakeSlice(concrete, numElems, numElems))
+ 		for i := 0; i < numElems; i++ {
+-			elem, ok := Value(concrete.Elem(), rand)
++			elem, ok := sizedValue(concrete.Elem(), rand, sizeLeft)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+@@ -124,7 +132,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 		}
+ 	case reflect.Array:
+ 		for i := 0; i < v.Len(); i++ {
+-			elem, ok := Value(concrete.Elem(), rand)
++			elem, ok := sizedValue(concrete.Elem(), rand, size)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+@@ -138,8 +146,16 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 		}
+ 		v.SetString(string(codePoints))
+ 	case reflect.Struct:
+-		for i := 0; i < v.NumField(); i++ {
+-			elem, ok := Value(concrete.Field(i).Type, rand)
++		n := v.NumField()
++		// Divide sizeLeft evenly among the struct fields.
++		sizeLeft := size
++		if n > sizeLeft {
++			sizeLeft = 1
++		} else if n > 0 {
++			sizeLeft /= n
++		}
++		for i := 0; i < n; i++ {
++			elem, ok := sizedValue(concrete.Field(i).Type, rand, sizeLeft)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+diff --git a/src/testing/quick/quick_test.go b/src/testing/quick/quick_test.go
+index c79f30ea1d..fe443592f8 100644
+--- a/src/testing/quick/quick_test.go
++++ b/src/testing/quick/quick_test.go
+@@ -259,16 +259,51 @@ func TestFailure(t *testing.T) {
+ 	}
+ }
+ 
+-// The following test didn't terminate because nil pointers were not
+-// generated.
+-// Issue 8818.
+-func TestNilPointers(t *testing.T) {
+-	type Recursive struct {
+-		Next *Recursive
++// Recursive data structures didn't terminate.
++// Issues 8818 and 11148.
++func TestRecursive(t *testing.T) {
++	type R struct {
++		Ptr      *R
++		SliceP   []*R
++		Slice    []R
++		Map      map[int]R
++		MapP     map[int]*R
++		MapR     map[*R]*R
++		SliceMap []map[int]R
+ 	}
+ 
+-	f := func(rec Recursive) bool {
+-		return true
+-	}
++	f := func(r R) bool { return true }
++	Check(f, nil)
++}
++
++func TestEmptyStruct(t *testing.T) {
++	f := func(struct{}) bool { return true }
++	Check(f, nil)
++}
++
++type (
++	A struct{ B *B }
++	B struct{ A *A }
++)
++
++func TestMutuallyRecursive(t *testing.T) {
++	f := func(a A) bool { return true }
+ 	Check(f, nil)
+ }
++
++// Some serialization formats (e.g. encoding/pem) cannot distinguish
++// between a nil and an empty map or slice, so avoid generating the
++// zero value for these.
++func TestNonZeroSliceAndMap(t *testing.T) {
++	type Q struct {
++		M map[int]int
++		S []int
++	}
++	f := func(q Q) bool {
++		return q.M != nil && q.S != nil
++	}
++	err := Check(f, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++}

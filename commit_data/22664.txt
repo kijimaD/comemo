@@ -7,6 +7,20 @@ Date:   Wed Apr 1 11:49:24 2015 -0400
     Change-Id: I32ec2d8cb838fb850b3779726cf347dac21dff68
     Reviewed-on: https://go-review.googlesource.com/8322
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/compress/flate/deflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 8c79df0c60..169a0c7b2e 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -24,7 +24,7 @@ const (
+ 	maxMatchLength     = 258 // The longest match for the compressor
+ 	minOffsetSize      = 1   // The shortest offset that makes any sense
+ 
+-	// The maximum number of tokens we put into a single flat block, just too
++	// The maximum number of tokens we put into a single flat block, just to
+ 	// stop things from getting too large.
+ 	maxFlateBlockTokens = 1 << 14
+ 	maxStoreBlockSize   = 65535

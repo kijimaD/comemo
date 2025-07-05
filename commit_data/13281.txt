@@ -18,7 +18,7 @@ Date:   Mon Jun 4 17:07:59 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6279049
-
+---
  src/cmd/gc/closure.c | 38 +++++++++++++++++++------------
  src/cmd/gc/esc.c     | 63 ++++++++++++++++++++++------------------------------
  src/cmd/gc/fmt.c     |  4 +++-
@@ -26,3 +26,343 @@ Date:   Mon Jun 4 17:07:59 2012 -0400
  src/cmd/gc/lex.c     | 25 +++++----------------
  src/cmd/gc/sinit.c   |  3 +++
  6 files changed, 64 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index fa44e40fae..acf666c79e 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -75,6 +75,8 @@ closurebody(NodeList *body)
+ 	return func;
+ }
+ 
++static Node* makeclosure(Node *func, int nowrap);
++
+ void
+ typecheckclosure(Node *func, int top)
+ {
+@@ -85,12 +87,12 @@ typecheckclosure(Node *func, int top)
+ 	oldfn = curfn;
+ 	typecheck(&func->ntype, Etype);
+ 	func->type = func->ntype->type;
+-	if(curfn == nil) {
+-		xtop = list(xtop, func);
+-		return;
+-	}
+-
+-	if(func->type != T) {
++	
++	// Type check the body now, but only if we're inside a function.
++	// At top level (in a variable initialization: curfn==nil) we're not
++	// ready to type check code yet; we'll check it later, because the
++	// underlying closure function we create is added to xtop.
++	if(curfn && func->type != T) {
+ 		curfn = func;
+ 		typechecklist(func->nbody, Etop);
+ 		curfn = oldfn;
+@@ -120,18 +122,19 @@ typecheckclosure(Node *func, int top)
+ 		func->enter = list(func->enter, v->heapaddr);
+ 		v->heapaddr = N;
+ 	}
++
++	// Create top-level function 
++	xtop = list(xtop, makeclosure(func, func->cvars==nil || (top&Ecall)));
+ }
+ 
+ static Node*
+-makeclosure(Node *func, NodeList **init, int nowrap)
++makeclosure(Node *func, int nowrap)
+ {
+ 	Node *xtype, *v, *addr, *xfunc;
+ 	NodeList *l;
+ 	static int closgen;
+ 	char *p;
+ 
+-	USED(init);
+-
+ 	/*
+ 	 * wrap body in external function
+ 	 * with extra closure parameters.
+@@ -168,8 +171,9 @@ makeclosure(Node *func, NodeList **init, int nowrap)
+ 
+ 	// create the function
+ 	xfunc = nod(ODCLFUNC, N, N);
+-	snprint(namebuf, sizeof namebuf, "_func_%.3d", ++closgen);
++	snprint(namebuf, sizeof namebuf, "func·%.3d", ++closgen);
+ 	xfunc->nname = newname(lookup(namebuf));
++	xfunc->nname->sym->flags |= SymExported; // disable export
+ 	xfunc->nname->ntype = xtype;
+ 	xfunc->nname->defn = xfunc;
+ 	declare(xfunc->nname, PFUNC);
+@@ -180,7 +184,13 @@ makeclosure(Node *func, NodeList **init, int nowrap)
+ 	if(xfunc->nbody == nil)
+ 		fatal("empty body - won't generate any code");
+ 	typecheck(&xfunc, Etop);
+-	closures = list(closures, xfunc);
++	
++	xfunc->closure = func;
++	func->closure = xfunc;
++	
++	func->nbody = nil;
++	func->list = nil;
++	func->rlist = nil;
+ 
+ 	return xfunc;
+ }
+@@ -194,7 +204,7 @@ walkclosure(Node *func, NodeList **init)
+ 
+ 	// no closure vars, don't bother wrapping
+ 	if(func->cvars == nil)
+-		return makeclosure(func, init, 1)->nname;
++		return func->closure->nname;
+ 
+ 	/*
+ 	 * wrap body in external function
+@@ -202,7 +212,7 @@ walkclosure(Node *func, NodeList **init)
+ 	 */
+ 
+ 	// create the function
+-	xfunc = makeclosure(func, init, 0);
++	xfunc = func->closure;
+ 	xtype = xfunc->nname->ntype;
+ 
+ 	// prepare call of sys.closure that turns external func into func literal value.
+@@ -250,7 +260,7 @@ walkcallclosure(Node *n, NodeList **init)
+ 	// New arg list for n. First the closure-args
+ 	// and then the original parameter list.
+ 	n->list = concat(n->left->enter, n->list);
+-	n->left = makeclosure(n->left, init, 1)->nname;
++	n->left = n->left->closure->nname;
+ 	dowidth(n->left->type);
+ 	n->type = getoutargx(n->left->type);
+ 	// for a single valued function, pull the field type out of the struct
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 8a265ce59a..c76f8e0b35 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -74,7 +74,7 @@ escapes(NodeList *all)
+ 
+ 	// flow-analyze functions
+ 	for(l=all; l; l=l->next)
+-		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE)
++		if(l->n->op == ODCLFUNC)
+ 			escfunc(l->n);
+ 
+ 	// print("escapes: %d dsts, %d edges\n", dstcount, edgecount);
+@@ -102,7 +102,7 @@ escapes(NodeList *all)
+ static void
+ escfunc(Node *func)
+ {
+-	Node *savefn, *n;
++	Node *savefn;
+ 	NodeList *ll;
+ 	int saveld;
+ 
+@@ -130,23 +130,6 @@ escfunc(Node *func)
+ 		}
+ 	}
+ 
+-	// walk will take the address of cvar->closure later and assign it to cvar.
+-	// linking a fake oaddr node directly to the closure handles the case
+-	// of the closure itself leaking.  Following the flow of the value to th
+-	// paramref is done in escflow, because if we did that here, it would look
+-	// like the original is assigned out of its loop depth, whereas it's just
+-	// assigned to something in an inner function.  A paramref itself is never
+-	// moved to the heap, only its original.
+-	for(ll=curfn->cvars; ll; ll=ll->next) {
+-		if(ll->n->op == OXXX)  // see dcl.c:398
+-			continue;
+-
+-		n = nod(OADDR, ll->n->closure, N);
+-		n->lineno = ll->n->lineno;
+-		typecheck(&n, Erv);
+-		escassign(curfn, n);
+-	}
+-
+ 	escloopdepthlist(curfn->nbody);
+ 	esclist(curfn->nbody);
+ 	curfn = savefn;
+@@ -217,6 +200,7 @@ esc(Node *n)
+ {
+ 	int lno;
+ 	NodeList *ll, *lr;
++	Node *a;
+ 
+ 	if(n == N)
+ 		return;
+@@ -226,19 +210,16 @@ esc(Node *n)
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		loopdepth++;
+ 
+-	if(n->op == OCLOSURE) {
+-		escfunc(n);
+-	} else {
+-		esc(n->left);
+-		esc(n->right);
+-		esc(n->ntest);
+-		esc(n->nincr);
+-		esclist(n->ninit);
+-		esclist(n->nbody);
+-		esclist(n->nelse);
+-		esclist(n->list);
+-		esclist(n->rlist);
+-	}
++	esc(n->left);
++	esc(n->right);
++	esc(n->ntest);
++	esc(n->nincr);
++	esclist(n->ninit);
++	esclist(n->nbody);
++	esclist(n->nelse);
++	esclist(n->list);
++	esclist(n->rlist);
++
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		loopdepth--;
+ 
+@@ -388,6 +369,16 @@ esc(Node *n)
+ 		break;
+ 	
+ 	case OCLOSURE:
++		// Link addresses of captured variables to closure.
++		for(ll=n->cvars; ll; ll=ll->next) {
++			if(ll->n->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
++				continue;
++			a = nod(OADDR, ll->n->closure, N);
++			a->lineno = ll->n->lineno;
++			typecheck(&a, Erv);
++			escassign(n, a);
++		}
++		// fallthrough
+ 	case OADDR:
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+@@ -726,11 +717,9 @@ escwalk(int level, Node *dst, Node *src)
+ 			if(debug['m'])
+ 				warnl(src->lineno, "leaking param: %hN", src);
+ 		}
+-		// handle the missing flow ref <- orig
+-		// a paramref is automagically dereferenced, and taking its
+-		// address produces the address of the original, so all we have to do here
+-		// is keep track of the value flow, so level is unchanged.
+-		// alternatively, we could have substituted PPARAMREFs with their ->closure in esc/escassign/flow,
++
++		// Treat a PPARAMREF closure variable as equivalent to the
++		// original variable.
+ 		if(src->class == PPARAMREF) {
+ 			if(leaks && debug['m'])
+ 				warnl(src->lineno, "leaking closure reference %hN", src);
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index a54af9ec12..2ac28846ac 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1154,7 +1154,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCLOSURE:
+ 		if(fmtmode == FErr)
+ 			return fmtstrcpy(f, "func literal");
+-		return fmtprint(f, "%T { %H }", n->type, n->nbody);
++		if(n->nbody)
++			return fmtprint(f, "%T { %H }", n->type, n->nbody);
++		return fmtprint(f, "%T { %H }", n->type, n->closure->nbody);
+ 
+ 	case OCOMPLIT:
+ 		if(fmtmode == FErr)
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index efce56057d..45a71495d4 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -366,8 +366,8 @@ inlnode(Node **np)
+ 		}
+ 
+ 	case OCLOSURE:
+-		// TODO do them here instead of in lex.c phase 6b, so escape analysis
+-		// can avoid more heapmoves.
++		// TODO do them here (or earlier) instead of in walkcallclosure,
++		// so escape analysis can avoid more heapmoves.
+ 		return;
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 4b108ffc9b..16dfd7c92c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -187,7 +187,7 @@ int
+ main(int argc, char *argv[])
+ {
+ 	int i, c;
+-	NodeList *l, *batch;
++	NodeList *l;
+ 	char *p;
+ 
+ #ifdef	SIGBUS	
+@@ -335,6 +335,7 @@ main(int argc, char *argv[])
+ 		frame(1);
+ 
+ 	// Process top-level declarations in phases.
++
+ 	// Phase 1: const, type, and names and types of funcs.
+ 	//   This will gather all the information about types
+ 	//   and methods but doesn't depend on any of it.
+@@ -368,7 +369,7 @@ main(int argc, char *argv[])
+ 		errorexit();
+ 
+ 	// Phase 4: Inlining
+-	if (debug['l'] > 1) {
++	if(debug['l'] > 1) {
+ 		// Typecheck imported function bodies if debug['l'] > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for(l=importlist; l; l=l->next)
+@@ -381,7 +382,7 @@ main(int argc, char *argv[])
+ 			errorexit();
+ 	}
+ 
+-	if (debug['l']) {
++	if(debug['l']) {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+ 		for(l=xtop; l; l=l->next)
+ 			if(l->n->op == ODCLFUNC)
+@@ -393,7 +394,7 @@ main(int argc, char *argv[])
+ 				inlcalls(l->n);
+ 	}
+ 
+-	// Phase 5: escape analysis.
++	// Phase 5: Escape analysis.
+ 	if(!debug['N'])
+ 		escapes(xtop);
+ 
+@@ -405,21 +406,7 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+-	// Phase 6b: Compile all closures.
+-	// Can generate more closures, so run in batches.
+-	while(closures) {
+-		batch = closures;
+-		closures = nil;
+-		if(debug['l'])
+-			for(l=batch; l; l=l->next)
+-				inlcalls(l->n);
+-		if(!debug['N'])
+-			escapes(batch);
+-		for(l=batch; l; l=l->next)
+-			funccompile(l->n, 1);
+-	}
+-
+-	// Phase 7: check external declarations.
++	// Phase 6: Check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 335d9b2538..34e6ea1a57 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -167,6 +167,9 @@ init2(Node *n, NodeList **out)
+ 	init2list(n->rlist, out);
+ 	init2list(n->nbody, out);
+ 	init2list(n->nelse, out);
++	
++	if(n->op == OCLOSURE)
++		init2list(n->closure->nbody, out);
+ }
+ 
+ static void

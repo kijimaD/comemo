@@ -22,9 +22,1080 @@ Date:   Fri Aug 18 08:37:58 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arithConst.go | 680 +++++++++++++++++++++
  .../internal/gc/testdata/gen/arithConstGen.go      |   2 +-
  src/cmd/compile/internal/ssa/gen/generic.rules     |   2 +
  src/cmd/compile/internal/ssa/rewritegeneric.go     |  41 ++
  4 files changed, 724 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arithConst.go b/src/cmd/compile/internal/gc/testdata/arithConst.go
+index cadea7b3bc..ef42359c4b 100644
+--- a/src/cmd/compile/internal/gc/testdata/arithConst.go
++++ b/src/cmd/compile/internal/gc/testdata/arithConst.go
+@@ -35,6 +35,16 @@ func add_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 + a
+ }
+ 
++//go:noinline
++func add_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a + 9223372036854775808
++}
++
++//go:noinline
++func add_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 + a
++}
++
+ //go:noinline
+ func add_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a + 18446744073709551615
+@@ -75,6 +85,16 @@ func sub_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 - a
+ }
+ 
++//go:noinline
++func sub_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a - 9223372036854775808
++}
++
++//go:noinline
++func sub_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 - a
++}
++
+ //go:noinline
+ func sub_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a - 18446744073709551615
+@@ -110,6 +130,16 @@ func div_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 / a
+ }
+ 
++//go:noinline
++func div_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a / 9223372036854775808
++}
++
++//go:noinline
++func div_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 / a
++}
++
+ //go:noinline
+ func div_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a / 18446744073709551615
+@@ -150,6 +180,16 @@ func mul_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 * a
+ }
+ 
++//go:noinline
++func mul_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a * 9223372036854775808
++}
++
++//go:noinline
++func mul_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 * a
++}
++
+ //go:noinline
+ func mul_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a * 18446744073709551615
+@@ -190,6 +230,16 @@ func lsh_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 << a
+ }
+ 
++//go:noinline
++func lsh_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a << uint64(9223372036854775808)
++}
++
++//go:noinline
++func lsh_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 << a
++}
++
+ //go:noinline
+ func lsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a << uint64(18446744073709551615)
+@@ -230,6 +280,16 @@ func rsh_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 >> a
+ }
+ 
++//go:noinline
++func rsh_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a >> uint64(9223372036854775808)
++}
++
++//go:noinline
++func rsh_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 >> a
++}
++
+ //go:noinline
+ func rsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a >> uint64(18446744073709551615)
+@@ -265,6 +325,16 @@ func mod_4294967296_uint64_ssa(a uint64) uint64 {
+ 	return 4294967296 % a
+ }
+ 
++//go:noinline
++func mod_uint64_9223372036854775808_ssa(a uint64) uint64 {
++	return a % 9223372036854775808
++}
++
++//go:noinline
++func mod_9223372036854775808_uint64_ssa(a uint64) uint64 {
++	return 9223372036854775808 % a
++}
++
+ //go:noinline
+ func mod_uint64_18446744073709551615_ssa(a uint64) uint64 {
+ 	return a % 18446744073709551615
+@@ -2319,6 +2389,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := add_0_uint64_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("add_uint64 0%s9223372036854775808 = %d, wanted 9223372036854775808\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_0_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("add_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `+`, got)
++		failed = true
++	}
++
+ 	if got := add_0_uint64_ssa(18446744073709551615); got != 18446744073709551615 {
+ 		fmt.Printf("add_uint64 0%s18446744073709551615 = %d, wanted 18446744073709551615\n", `+`, got)
+ 		failed = true
+@@ -2359,6 +2439,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := add_1_uint64_ssa(9223372036854775808); got != 9223372036854775809 {
++		fmt.Printf("add_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775809\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_1_ssa(9223372036854775808); got != 9223372036854775809 {
++		fmt.Printf("add_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775809\n", `+`, got)
++		failed = true
++	}
++
+ 	if got := add_1_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("add_uint64 1%s18446744073709551615 = %d, wanted 0\n", `+`, got)
+ 		failed = true
+@@ -2399,6 +2489,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := add_4294967296_uint64_ssa(9223372036854775808); got != 9223372041149743104 {
++		fmt.Printf("add_uint64 4294967296%s9223372036854775808 = %d, wanted 9223372041149743104\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_4294967296_ssa(9223372036854775808); got != 9223372041149743104 {
++		fmt.Printf("add_uint64 9223372036854775808%s4294967296 = %d, wanted 9223372041149743104\n", `+`, got)
++		failed = true
++	}
++
+ 	if got := add_4294967296_uint64_ssa(18446744073709551615); got != 4294967295 {
+ 		fmt.Printf("add_uint64 4294967296%s18446744073709551615 = %d, wanted 4294967295\n", `+`, got)
+ 		failed = true
+@@ -2409,6 +2509,56 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := add_9223372036854775808_uint64_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("add_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_9223372036854775808_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("add_uint64 0%s9223372036854775808 = %d, wanted 9223372036854775808\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_9223372036854775808_uint64_ssa(1); got != 9223372036854775809 {
++		fmt.Printf("add_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775809\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_9223372036854775808_ssa(1); got != 9223372036854775809 {
++		fmt.Printf("add_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775809\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_9223372036854775808_uint64_ssa(4294967296); got != 9223372041149743104 {
++		fmt.Printf("add_uint64 9223372036854775808%s4294967296 = %d, wanted 9223372041149743104\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_9223372036854775808_ssa(4294967296); got != 9223372041149743104 {
++		fmt.Printf("add_uint64 4294967296%s9223372036854775808 = %d, wanted 9223372041149743104\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("add_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("add_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_9223372036854775808_uint64_ssa(18446744073709551615); got != 9223372036854775807 {
++		fmt.Printf("add_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775807\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_9223372036854775808_ssa(18446744073709551615); got != 9223372036854775807 {
++		fmt.Printf("add_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `+`, got)
++		failed = true
++	}
++
+ 	if got := add_18446744073709551615_uint64_ssa(0); got != 18446744073709551615 {
+ 		fmt.Printf("add_uint64 18446744073709551615%s0 = %d, wanted 18446744073709551615\n", `+`, got)
+ 		failed = true
+@@ -2439,6 +2589,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := add_18446744073709551615_uint64_ssa(9223372036854775808); got != 9223372036854775807 {
++		fmt.Printf("add_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `+`, got)
++		failed = true
++	}
++
++	if got := add_uint64_18446744073709551615_ssa(9223372036854775808); got != 9223372036854775807 {
++		fmt.Printf("add_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775807\n", `+`, got)
++		failed = true
++	}
++
+ 	if got := add_18446744073709551615_uint64_ssa(18446744073709551615); got != 18446744073709551614 {
+ 		fmt.Printf("add_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 18446744073709551614\n", `+`, got)
+ 		failed = true
+@@ -2479,6 +2639,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := sub_0_uint64_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("sub_uint64 0%s9223372036854775808 = %d, wanted 9223372036854775808\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_0_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("sub_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `-`, got)
++		failed = true
++	}
++
+ 	if got := sub_0_uint64_ssa(18446744073709551615); got != 1 {
+ 		fmt.Printf("sub_uint64 0%s18446744073709551615 = %d, wanted 1\n", `-`, got)
+ 		failed = true
+@@ -2519,6 +2689,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := sub_1_uint64_ssa(9223372036854775808); got != 9223372036854775809 {
++		fmt.Printf("sub_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775809\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_1_ssa(9223372036854775808); got != 9223372036854775807 {
++		fmt.Printf("sub_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775807\n", `-`, got)
++		failed = true
++	}
++
+ 	if got := sub_1_uint64_ssa(18446744073709551615); got != 2 {
+ 		fmt.Printf("sub_uint64 1%s18446744073709551615 = %d, wanted 2\n", `-`, got)
+ 		failed = true
+@@ -2559,6 +2739,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := sub_4294967296_uint64_ssa(9223372036854775808); got != 9223372041149743104 {
++		fmt.Printf("sub_uint64 4294967296%s9223372036854775808 = %d, wanted 9223372041149743104\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_4294967296_ssa(9223372036854775808); got != 9223372032559808512 {
++		fmt.Printf("sub_uint64 9223372036854775808%s4294967296 = %d, wanted 9223372032559808512\n", `-`, got)
++		failed = true
++	}
++
+ 	if got := sub_4294967296_uint64_ssa(18446744073709551615); got != 4294967297 {
+ 		fmt.Printf("sub_uint64 4294967296%s18446744073709551615 = %d, wanted 4294967297\n", `-`, got)
+ 		failed = true
+@@ -2569,6 +2759,56 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := sub_9223372036854775808_uint64_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("sub_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_9223372036854775808_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("sub_uint64 0%s9223372036854775808 = %d, wanted 9223372036854775808\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_9223372036854775808_uint64_ssa(1); got != 9223372036854775807 {
++		fmt.Printf("sub_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775807\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_9223372036854775808_ssa(1); got != 9223372036854775809 {
++		fmt.Printf("sub_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775809\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_9223372036854775808_uint64_ssa(4294967296); got != 9223372032559808512 {
++		fmt.Printf("sub_uint64 9223372036854775808%s4294967296 = %d, wanted 9223372032559808512\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_9223372036854775808_ssa(4294967296); got != 9223372041149743104 {
++		fmt.Printf("sub_uint64 4294967296%s9223372036854775808 = %d, wanted 9223372041149743104\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("sub_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("sub_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_9223372036854775808_uint64_ssa(18446744073709551615); got != 9223372036854775809 {
++		fmt.Printf("sub_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775809\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_9223372036854775808_ssa(18446744073709551615); got != 9223372036854775807 {
++		fmt.Printf("sub_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `-`, got)
++		failed = true
++	}
++
+ 	if got := sub_18446744073709551615_uint64_ssa(0); got != 18446744073709551615 {
+ 		fmt.Printf("sub_uint64 18446744073709551615%s0 = %d, wanted 18446744073709551615\n", `-`, got)
+ 		failed = true
+@@ -2599,6 +2839,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := sub_18446744073709551615_uint64_ssa(9223372036854775808); got != 9223372036854775807 {
++		fmt.Printf("sub_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `-`, got)
++		failed = true
++	}
++
++	if got := sub_uint64_18446744073709551615_ssa(9223372036854775808); got != 9223372036854775809 {
++		fmt.Printf("sub_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775809\n", `-`, got)
++		failed = true
++	}
++
+ 	if got := sub_18446744073709551615_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("sub_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 0\n", `-`, got)
+ 		failed = true
+@@ -2619,6 +2869,11 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := div_0_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("div_uint64 0%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
+ 	if got := div_0_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("div_uint64 0%s18446744073709551615 = %d, wanted 0\n", `/`, got)
+ 		failed = true
+@@ -2649,6 +2904,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := div_1_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("div_uint64 1%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_1_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("div_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775808\n", `/`, got)
++		failed = true
++	}
++
+ 	if got := div_1_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("div_uint64 1%s18446744073709551615 = %d, wanted 0\n", `/`, got)
+ 		failed = true
+@@ -2684,6 +2949,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := div_4294967296_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("div_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_4294967296_ssa(9223372036854775808); got != 2147483648 {
++		fmt.Printf("div_uint64 9223372036854775808%s4294967296 = %d, wanted 2147483648\n", `/`, got)
++		failed = true
++	}
++
+ 	if got := div_4294967296_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("div_uint64 4294967296%s18446744073709551615 = %d, wanted 0\n", `/`, got)
+ 		failed = true
+@@ -2694,6 +2969,51 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := div_uint64_9223372036854775808_ssa(0); got != 0 {
++		fmt.Printf("div_uint64 0%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_9223372036854775808_uint64_ssa(1); got != 9223372036854775808 {
++		fmt.Printf("div_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775808\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_9223372036854775808_ssa(1); got != 0 {
++		fmt.Printf("div_uint64 1%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_9223372036854775808_uint64_ssa(4294967296); got != 2147483648 {
++		fmt.Printf("div_uint64 9223372036854775808%s4294967296 = %d, wanted 2147483648\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_9223372036854775808_ssa(4294967296); got != 0 {
++		fmt.Printf("div_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_9223372036854775808_uint64_ssa(9223372036854775808); got != 1 {
++		fmt.Printf("div_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 1\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_9223372036854775808_ssa(9223372036854775808); got != 1 {
++		fmt.Printf("div_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 1\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_9223372036854775808_uint64_ssa(18446744073709551615); got != 0 {
++		fmt.Printf("div_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_9223372036854775808_ssa(18446744073709551615); got != 1 {
++		fmt.Printf("div_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 1\n", `/`, got)
++		failed = true
++	}
++
+ 	if got := div_uint64_18446744073709551615_ssa(0); got != 0 {
+ 		fmt.Printf("div_uint64 0%s18446744073709551615 = %d, wanted 0\n", `/`, got)
+ 		failed = true
+@@ -2719,6 +3039,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := div_18446744073709551615_uint64_ssa(9223372036854775808); got != 1 {
++		fmt.Printf("div_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 1\n", `/`, got)
++		failed = true
++	}
++
++	if got := div_uint64_18446744073709551615_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("div_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `/`, got)
++		failed = true
++	}
++
+ 	if got := div_18446744073709551615_uint64_ssa(18446744073709551615); got != 1 {
+ 		fmt.Printf("div_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 1\n", `/`, got)
+ 		failed = true
+@@ -2759,6 +3089,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mul_0_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 0%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_0_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s0 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
+ 	if got := mul_0_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("mul_uint64 0%s18446744073709551615 = %d, wanted 0\n", `*`, got)
+ 		failed = true
+@@ -2799,6 +3139,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mul_1_uint64_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_1_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
+ 	if got := mul_1_uint64_ssa(18446744073709551615); got != 18446744073709551615 {
+ 		fmt.Printf("mul_uint64 1%s18446744073709551615 = %d, wanted 18446744073709551615\n", `*`, got)
+ 		failed = true
+@@ -2839,6 +3189,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mul_4294967296_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_4294967296_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
+ 	if got := mul_4294967296_uint64_ssa(18446744073709551615); got != 18446744069414584320 {
+ 		fmt.Printf("mul_uint64 4294967296%s18446744073709551615 = %d, wanted 18446744069414584320\n", `*`, got)
+ 		failed = true
+@@ -2849,6 +3209,56 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mul_9223372036854775808_uint64_ssa(0); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s0 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_9223372036854775808_ssa(0); got != 0 {
++		fmt.Printf("mul_uint64 0%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_9223372036854775808_uint64_ssa(1); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 9223372036854775808%s1 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_9223372036854775808_ssa(1); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 1%s9223372036854775808 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_9223372036854775808_uint64_ssa(4294967296); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_9223372036854775808_ssa(4294967296); got != 0 {
++		fmt.Printf("mul_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mul_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_9223372036854775808_uint64_ssa(18446744073709551615); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_9223372036854775808_ssa(18446744073709551615); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
+ 	if got := mul_18446744073709551615_uint64_ssa(0); got != 0 {
+ 		fmt.Printf("mul_uint64 18446744073709551615%s0 = %d, wanted 0\n", `*`, got)
+ 		failed = true
+@@ -2879,6 +3289,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mul_18446744073709551615_uint64_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
++	if got := mul_uint64_18446744073709551615_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("mul_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775808\n", `*`, got)
++		failed = true
++	}
++
+ 	if got := mul_18446744073709551615_uint64_ssa(18446744073709551615); got != 1 {
+ 		fmt.Printf("mul_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 1\n", `*`, got)
+ 		failed = true
+@@ -2919,6 +3339,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := lsh_0_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 0%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_0_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `<<`, got)
++		failed = true
++	}
++
+ 	if got := lsh_0_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("lsh_uint64 0%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
+ 		failed = true
+@@ -2959,6 +3389,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := lsh_1_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 1%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_1_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s1 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
+ 	if got := lsh_1_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("lsh_uint64 1%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
+ 		failed = true
+@@ -2999,6 +3439,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := lsh_4294967296_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_4294967296_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
+ 	if got := lsh_4294967296_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("lsh_uint64 4294967296%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
+ 		failed = true
+@@ -3009,6 +3459,56 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := lsh_9223372036854775808_uint64_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_9223372036854775808_ssa(0); got != 0 {
++		fmt.Printf("lsh_uint64 0%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_9223372036854775808_uint64_ssa(1); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s1 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_9223372036854775808_ssa(1); got != 0 {
++		fmt.Printf("lsh_uint64 1%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_9223372036854775808_uint64_ssa(4294967296); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_9223372036854775808_ssa(4294967296); got != 0 {
++		fmt.Printf("lsh_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_9223372036854775808_uint64_ssa(18446744073709551615); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_9223372036854775808_ssa(18446744073709551615); got != 0 {
++		fmt.Printf("lsh_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
+ 	if got := lsh_18446744073709551615_uint64_ssa(0); got != 18446744073709551615 {
+ 		fmt.Printf("lsh_uint64 18446744073709551615%s0 = %d, wanted 18446744073709551615\n", `<<`, got)
+ 		failed = true
+@@ -3039,6 +3539,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := lsh_18446744073709551615_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
++	if got := lsh_uint64_18446744073709551615_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("lsh_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
++		failed = true
++	}
++
+ 	if got := lsh_18446744073709551615_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("lsh_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 0\n", `<<`, got)
+ 		failed = true
+@@ -3079,6 +3589,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := rsh_0_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 0%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_0_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `>>`, got)
++		failed = true
++	}
++
+ 	if got := rsh_0_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("rsh_uint64 0%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
+ 		failed = true
+@@ -3119,6 +3639,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := rsh_1_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 1%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_1_ssa(9223372036854775808); got != 4611686018427387904 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s1 = %d, wanted 4611686018427387904\n", `>>`, got)
++		failed = true
++	}
++
+ 	if got := rsh_1_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("rsh_uint64 1%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
+ 		failed = true
+@@ -3159,6 +3689,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := rsh_4294967296_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_4294967296_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
+ 	if got := rsh_4294967296_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("rsh_uint64 4294967296%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
+ 		failed = true
+@@ -3169,6 +3709,56 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := rsh_9223372036854775808_uint64_ssa(0); got != 9223372036854775808 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s0 = %d, wanted 9223372036854775808\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_9223372036854775808_ssa(0); got != 0 {
++		fmt.Printf("rsh_uint64 0%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_9223372036854775808_uint64_ssa(1); got != 4611686018427387904 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s1 = %d, wanted 4611686018427387904\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_9223372036854775808_ssa(1); got != 0 {
++		fmt.Printf("rsh_uint64 1%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_9223372036854775808_uint64_ssa(4294967296); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_9223372036854775808_ssa(4294967296); got != 0 {
++		fmt.Printf("rsh_uint64 4294967296%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_9223372036854775808_uint64_ssa(18446744073709551615); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_9223372036854775808_ssa(18446744073709551615); got != 0 {
++		fmt.Printf("rsh_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
+ 	if got := rsh_18446744073709551615_uint64_ssa(0); got != 18446744073709551615 {
+ 		fmt.Printf("rsh_uint64 18446744073709551615%s0 = %d, wanted 18446744073709551615\n", `>>`, got)
+ 		failed = true
+@@ -3199,6 +3789,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := rsh_18446744073709551615_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
++	if got := rsh_uint64_18446744073709551615_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("rsh_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
++		failed = true
++	}
++
+ 	if got := rsh_18446744073709551615_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("rsh_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 0\n", `>>`, got)
+ 		failed = true
+@@ -3219,6 +3819,11 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mod_0_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mod_uint64 0%s9223372036854775808 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
+ 	if got := mod_0_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("mod_uint64 0%s18446744073709551615 = %d, wanted 0\n", `%`, got)
+ 		failed = true
+@@ -3249,6 +3854,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mod_1_uint64_ssa(9223372036854775808); got != 1 {
++		fmt.Printf("mod_uint64 1%s9223372036854775808 = %d, wanted 1\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_1_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s1 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
+ 	if got := mod_1_uint64_ssa(18446744073709551615); got != 1 {
+ 		fmt.Printf("mod_uint64 1%s18446744073709551615 = %d, wanted 1\n", `%`, got)
+ 		failed = true
+@@ -3284,6 +3899,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mod_4294967296_uint64_ssa(9223372036854775808); got != 4294967296 {
++		fmt.Printf("mod_uint64 4294967296%s9223372036854775808 = %d, wanted 4294967296\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_4294967296_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
+ 	if got := mod_4294967296_uint64_ssa(18446744073709551615); got != 4294967296 {
+ 		fmt.Printf("mod_uint64 4294967296%s18446744073709551615 = %d, wanted 4294967296\n", `%`, got)
+ 		failed = true
+@@ -3294,6 +3919,51 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mod_uint64_9223372036854775808_ssa(0); got != 0 {
++		fmt.Printf("mod_uint64 0%s9223372036854775808 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_9223372036854775808_uint64_ssa(1); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s1 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_9223372036854775808_ssa(1); got != 1 {
++		fmt.Printf("mod_uint64 1%s9223372036854775808 = %d, wanted 1\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_9223372036854775808_uint64_ssa(4294967296); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s4294967296 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_9223372036854775808_ssa(4294967296); got != 4294967296 {
++		fmt.Printf("mod_uint64 4294967296%s9223372036854775808 = %d, wanted 4294967296\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_9223372036854775808_uint64_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_9223372036854775808_ssa(9223372036854775808); got != 0 {
++		fmt.Printf("mod_uint64 9223372036854775808%s9223372036854775808 = %d, wanted 0\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_9223372036854775808_uint64_ssa(18446744073709551615); got != 9223372036854775808 {
++		fmt.Printf("mod_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775808\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_9223372036854775808_ssa(18446744073709551615); got != 9223372036854775807 {
++		fmt.Printf("mod_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `%`, got)
++		failed = true
++	}
++
+ 	if got := mod_uint64_18446744073709551615_ssa(0); got != 0 {
+ 		fmt.Printf("mod_uint64 0%s18446744073709551615 = %d, wanted 0\n", `%`, got)
+ 		failed = true
+@@ -3319,6 +3989,16 @@ func main() {
+ 		failed = true
+ 	}
+ 
++	if got := mod_18446744073709551615_uint64_ssa(9223372036854775808); got != 9223372036854775807 {
++		fmt.Printf("mod_uint64 18446744073709551615%s9223372036854775808 = %d, wanted 9223372036854775807\n", `%`, got)
++		failed = true
++	}
++
++	if got := mod_uint64_18446744073709551615_ssa(9223372036854775808); got != 9223372036854775808 {
++		fmt.Printf("mod_uint64 9223372036854775808%s18446744073709551615 = %d, wanted 9223372036854775808\n", `%`, got)
++		failed = true
++	}
++
+ 	if got := mod_18446744073709551615_uint64_ssa(18446744073709551615); got != 0 {
+ 		fmt.Printf("mod_uint64 18446744073709551615%s18446744073709551615 = %d, wanted 0\n", `%`, got)
+ 		failed = true
+diff --git a/src/cmd/compile/internal/gc/testdata/gen/arithConstGen.go b/src/cmd/compile/internal/gc/testdata/gen/arithConstGen.go
+index 07a3749b16..ac1c8d93e8 100644
+--- a/src/cmd/compile/internal/gc/testdata/gen/arithConstGen.go
++++ b/src/cmd/compile/internal/gc/testdata/gen/arithConstGen.go
+@@ -31,7 +31,7 @@ type szD struct {
+ }
+ 
+ var szs = []szD{
+-	{name: "uint64", sn: "64", u: []uint64{0, 1, 4294967296, 0xffffFFFFffffFFFF}},
++	{name: "uint64", sn: "64", u: []uint64{0, 1, 4294967296, 0x8000000000000000, 0xffffFFFFffffFFFF}},
+ 	{name: "int64", sn: "64", i: []int64{-0x8000000000000000, -0x7FFFFFFFFFFFFFFF,
+ 		-4294967296, -1, 0, 1, 4294967296, 0x7FFFFFFFFFFFFFFE, 0x7FFFFFFFFFFFFFFF}},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index b8d7381420..944a84df85 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -945,6 +945,7 @@
+ (Div16u n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
+ (Div32u n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
+ (Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
++(Div64u n (Const64 [-1<<63]))                          -> (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
+ 
+ // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
+ // For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
+@@ -1177,6 +1178,7 @@
+ (Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
+ (Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
+ (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
++(Mod64u <t> n (Const64 [-1<<63]))                          -> (And64 n (Const64 <t> [1<<63-1]))
+ 
+ // Signed mod by negative constant.
+ (Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 95b2c62f07..c67e4f90eb 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7240,6 +7240,26 @@ func rewriteValuegeneric_OpDiv64u_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Div64u n (Const64 [-1<<63]))
++	// cond:
++	// result: (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != -1<<63 {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v0.AuxInt = 63
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Div64u x (Const64 [c]))
+ 	// cond: umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0
+ 	// result: (Rsh64Ux64 <typ.UInt64>     (Hmul64u <typ.UInt64>       (Const64 <typ.UInt64> [int64(1<<63+umagic(64,c).m/2)])       x)     (Const64 <typ.UInt64> [umagic(64,c).s-1]))
+@@ -12061,6 +12081,27 @@ func rewriteValuegeneric_OpMod64u_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Mod64u <t> n (Const64 [-1<<63]))
++	// cond:
++	// result: (And64 n (Const64 <t> [1<<63-1]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != -1<<63 {
++			break
++		}
++		v.reset(OpAnd64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, t)
++		v0.AuxInt = 1<<63 - 1
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Mod64u <t> x (Const64 [c]))
+ 	// cond: x.Op != OpConst64 && c > 0 && umagicOK(64,c)
+ 	// result: (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))

@@ -50,6 +50,89 @@ Date:   Tue Apr 16 09:15:41 2024 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/binary/binary.go | 68 ++++++++++++++++++-------------------------
  1 file changed, 28 insertions(+), 40 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 634995a5bd..291e494dd4 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -722,49 +722,37 @@ func (e *encoder) value(v reflect.Value) {
+ 	case reflect.Bool:
+ 		e.bool(v.Bool())
+ 
+-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		switch v.Type().Kind() {
+-		case reflect.Int8:
+-			e.int8(int8(v.Int()))
+-		case reflect.Int16:
+-			e.int16(int16(v.Int()))
+-		case reflect.Int32:
+-			e.int32(int32(v.Int()))
+-		case reflect.Int64:
+-			e.int64(v.Int())
+-		}
++	case reflect.Int8:
++		e.int8(int8(v.Int()))
++	case reflect.Int16:
++		e.int16(int16(v.Int()))
++	case reflect.Int32:
++		e.int32(int32(v.Int()))
++	case reflect.Int64:
++		e.int64(v.Int())
+ 
+-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		switch v.Type().Kind() {
+-		case reflect.Uint8:
+-			e.uint8(uint8(v.Uint()))
+-		case reflect.Uint16:
+-			e.uint16(uint16(v.Uint()))
+-		case reflect.Uint32:
+-			e.uint32(uint32(v.Uint()))
+-		case reflect.Uint64:
+-			e.uint64(v.Uint())
+-		}
++	case reflect.Uint8:
++		e.uint8(uint8(v.Uint()))
++	case reflect.Uint16:
++		e.uint16(uint16(v.Uint()))
++	case reflect.Uint32:
++		e.uint32(uint32(v.Uint()))
++	case reflect.Uint64:
++		e.uint64(v.Uint())
+ 
+-	case reflect.Float32, reflect.Float64:
+-		switch v.Type().Kind() {
+-		case reflect.Float32:
+-			e.uint32(math.Float32bits(float32(v.Float())))
+-		case reflect.Float64:
+-			e.uint64(math.Float64bits(v.Float()))
+-		}
++	case reflect.Float32:
++		e.uint32(math.Float32bits(float32(v.Float())))
++	case reflect.Float64:
++		e.uint64(math.Float64bits(v.Float()))
+ 
+-	case reflect.Complex64, reflect.Complex128:
+-		switch v.Type().Kind() {
+-		case reflect.Complex64:
+-			x := v.Complex()
+-			e.uint32(math.Float32bits(float32(real(x))))
+-			e.uint32(math.Float32bits(float32(imag(x))))
+-		case reflect.Complex128:
+-			x := v.Complex()
+-			e.uint64(math.Float64bits(real(x)))
+-			e.uint64(math.Float64bits(imag(x)))
+-		}
++	case reflect.Complex64:
++		x := v.Complex()
++		e.uint32(math.Float32bits(float32(real(x))))
++		e.uint32(math.Float32bits(float32(imag(x))))
++	case reflect.Complex128:
++		x := v.Complex()
++		e.uint64(math.Float64bits(real(x)))
++		e.uint64(math.Float64bits(imag(x)))
+ 	}
+ }
+ 

@@ -9,7 +9,7 @@ Date:   Thu Mar 5 14:37:59 2020 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 2 +-
  src/cmd/link/internal/arm/asm.go     | 2 +-
  src/cmd/link/internal/arm64/asm.go   | 2 +-
@@ -22,3 +22,161 @@ Date:   Thu Mar 5 14:37:59 2020 -0500
  src/cmd/link/internal/s390x/asm.go   | 2 +-
  src/cmd/link/internal/x86/asm.go     | 2 +-
  11 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 9b87170b06..8065aa549d 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -107,7 +107,7 @@ func makeWritable(s *sym.Symbol) {
+ 	}
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 765882f0e0..c7ec1e5678 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -116,7 +116,7 @@ func braddoff(a int32, b int32) int32 {
+ 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 01eb7864d6..684326fc64 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -92,7 +92,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 010bfcafc5..bef049d7b2 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -673,7 +673,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+ 			// don't worry if Adddynrel returns false.
+-			thearch.Adddynrel(ctxt, target, syms, s, r)
++			thearch.Adddynrel(target, syms, s, r)
+ 			continue
+ 		}
+ 
+@@ -681,7 +681,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+-			if !thearch.Adddynrel(ctxt, target, syms, s, r) {
++			if !thearch.Adddynrel(target, syms, s, r) {
+ 				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 1b07dc5a91..e2051035c9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -171,7 +171,7 @@ type Arch struct {
+ 	Openbsddynld   string
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+-	Adddynrel      func(*Link, *Target, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
++	Adddynrel      func(*Target, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+ 	Archinit       func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in
+ 	// relocation processing (invoked by 'relocsym'); it handles
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index ab55099084..de2979eff7 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -45,7 +45,7 @@ func gentext(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 442147c4e2..b465d8a45f 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -43,7 +43,7 @@ import (
+ 
+ func gentext(ctxt *ld.Link) {}
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index ef477b277c..bc9c8d65a8 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -263,7 +263,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
+ 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	if target.IsElf() {
+ 		return addelfdynrel(target, syms, s, r)
+ 	} else if target.IsAIX() {
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index c6b9a48bd4..585548d26a 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -18,11 +18,11 @@ import (
+ func gentext(ctxt *ld.Link) {
+ }
+ 
+-func adddynrela(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
++func adddynrela(target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
+ 	log.Fatalf("adddynrela not implemented")
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 73cf5a0907..35e248522a 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -105,7 +105,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 	r.InitExt()
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 0f09e76b4b..c6570ea1a3 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -168,7 +168,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {

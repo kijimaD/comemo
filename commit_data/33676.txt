@@ -12,6 +12,28 @@ Date:   Fri Aug 25 23:10:50 2017 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/testdata/copylock_func.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/copylock_func.go b/src/cmd/vet/testdata/copylock_func.go
+index 0f7ffcbccb..280747a3bf 100644
+--- a/src/cmd/vet/testdata/copylock_func.go
++++ b/src/cmd/vet/testdata/copylock_func.go
+@@ -11,12 +11,14 @@ import "sync"
+ 
+ func OkFunc(*sync.Mutex) {}
+ func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes lock by value: sync.Mutex"
++func BadFunc2(sync.Map)  {} // ERROR "BadFunc2 passes lock by value: sync.Map contains sync.Mutex"
+ func OkRet() *sync.Mutex {}
+ func BadRet() sync.Mutex {} // Don't warn about results
+ 
+ var (
+-	OkClosure  = func(*sync.Mutex) {}
+-	BadClosure = func(sync.Mutex) {} // ERROR "func passes lock by value: sync.Mutex"
++	OkClosure   = func(*sync.Mutex) {}
++	BadClosure  = func(sync.Mutex) {} // ERROR "func passes lock by value: sync.Mutex"
++	BadClosure2 = func(sync.Map) {}   // ERROR "func passes lock by value: sync.Map contains sync.Mutex"
+ )
+ 
+ type EmbeddedRWMutex struct {

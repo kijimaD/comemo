@@ -13,7 +13,76 @@ Date:   Sat Oct 24 21:30:59 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go     | 30 ++++++++++++++++++++++--------
  src/runtime/mgcmark.go |  9 +--------
  2 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4d75d635d6..5db5941228 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1116,6 +1116,27 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	}
+ }
+ 
++// gcMarkDone transitions the GC from mark 1 to mark 2 and from mark 2
++// to mark termination.
++//
++// This should be called when all mark work has been drained. In mark
++// 1, this includes all root marking jobs, global work buffers, and
++// active work buffers in assists and background workers; however,
++// work may still be cached in per-P work buffers. In mark 2, per-P
++// caches are disabled.
++func gcMarkDone() {
++	// TODO(austin): This should perform the transition rather
++	// than handing it off to the coordinator.
++	if gcBlackenPromptly {
++		if work.bgMark1.done == 0 {
++			throw("completing mark 2, but bgMark1.done == 0")
++		}
++		work.bgMark2.complete()
++	} else {
++		work.bgMark1.complete()
++	}
++}
++
+ func gc(mode gcMode) {
+ 	// If mode == gcBackgroundMode, world is not stopped.
+ 	// If mode != gcBackgroundMode, world is stopped.
+@@ -1468,14 +1489,7 @@ func gcBgMarkWorker(p *p) {
+ 		// If this worker reached a background mark completion
+ 		// point, signal the main GC goroutine.
+ 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+-			if gcBlackenPromptly {
+-				if work.bgMark1.done == 0 {
+-					throw("completing mark 2, but bgMark1.done == 0")
+-				}
+-				work.bgMark2.complete()
+-			} else {
+-				work.bgMark1.complete()
+-			}
++			gcMarkDone()
+ 		}
+ 
+ 		duration := nanotime() - startTime
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 0f1359669e..fd969da317 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -409,14 +409,7 @@ retry:
+ 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+ 			// This has reached a background completion
+ 			// point.
+-			if gcBlackenPromptly {
+-				if work.bgMark1.done == 0 {
+-					throw("completing mark 2, but bgMark1.done == 0")
+-				}
+-				work.bgMark2.complete()
+-			} else {
+-				work.bgMark1.complete()
+-			}
++			gcMarkDone()
+ 			completed = true
+ 		}
+ 		duration := nanotime() - startTime

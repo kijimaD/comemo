@@ -23,8 +23,214 @@ Date:   Tue Aug 22 09:35:46 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/crypto/aes/asm_arm64.s       | 107 +++++++++++++++++++++++++++++++++++++++
  src/crypto/aes/cipher_arm64.go   |  73 ++++++++++++++++++++++++++
  src/crypto/aes/cipher_generic.go |   2 +-
  3 files changed, 181 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/aes/asm_arm64.s b/src/crypto/aes/asm_arm64.s
+new file mode 100644
+index 0000000000..d2e8c8597f
+--- /dev/null
++++ b/src/crypto/aes/asm_arm64.s
+@@ -0,0 +1,107 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
++	MOVD	nr+0(FP), R9
++	MOVD	xk+8(FP), R10
++	MOVD	dst+16(FP), R11
++	MOVD	src+24(FP), R12
++
++	VLD1	(R12), [V0.B16]
++
++	CMP	$12, R9
++	BLT	enc128
++	BEQ	enc196
++enc256:
++	VLD1.P	32(R10), [V1.B16, V2.B16]
++	AESE	V1.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V2.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++enc196:
++	VLD1.P	32(R10), [V3.B16, V4.B16]
++	AESE	V3.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V4.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++enc128:
++	VLD1.P	64(R10), [V5.B16, V6.B16, V7.B16, V8.B16]
++	VLD1.P	64(R10), [V9.B16, V10.B16, V11.B16, V12.B16]
++	VLD1.P	48(R10), [V13.B16, V14.B16, V15.B16]
++	AESE	V5.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V6.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V7.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V8.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V9.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V10.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V11.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V12.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V13.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V14.B16, V0.B16
++	VEOR    V0.B16, V15.B16, V0.B16
++	VST1	[V0.B16], (R11)
++	RET
++
++// func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
++	MOVD	nr+0(FP), R9
++	MOVD	xk+8(FP), R10
++	MOVD	dst+16(FP), R11
++	MOVD	src+24(FP), R12
++
++	VLD1	(R12), [V0.B16]
++
++	CMP	$12, R9
++	BLT	dec128
++	BEQ	dec196
++dec256:
++	VLD1.P	32(R10), [V1.B16, V2.B16]
++	AESD	V1.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V2.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++dec196:
++	VLD1.P	32(R10), [V3.B16, V4.B16]
++	AESD	V3.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V4.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++dec128:
++	VLD1.P	64(R10), [V5.B16, V6.B16, V7.B16, V8.B16]
++	VLD1.P	64(R10), [V9.B16, V10.B16, V11.B16, V12.B16]
++	VLD1.P	48(R10), [V13.B16, V14.B16, V15.B16]
++	AESD	V5.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V6.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V7.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V8.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V9.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V10.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V11.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V12.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V13.B16, V0.B16
++	AESIMC	V0.B16, V0.B16
++	AESD	V14.B16, V0.B16
++	VEOR    V0.B16, V15.B16, V0.B16
++	VST1	[V0.B16], (R11)
++	RET
+diff --git a/src/crypto/aes/cipher_arm64.go b/src/crypto/aes/cipher_arm64.go
+new file mode 100644
+index 0000000000..c8027eec8b
+--- /dev/null
++++ b/src/crypto/aes/cipher_arm64.go
+@@ -0,0 +1,73 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/cipher"
++	"internal/cpu"
++	"math/bits"
++)
++
++// defined in asm_arm64.s
++//go:noescape
++func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++//go:noescape
++func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++type aesCipherAsm struct {
++	aesCipher
++}
++
++func newCipher(key []byte) (cipher.Block, error) {
++	if !cpu.ARM64.HasAES {
++		return newCipherGeneric(key)
++	}
++	n := len(key) + 28
++	c := aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}
++	arm64ExpandKey(key, c.enc, c.dec)
++	return &c, nil
++}
++
++func (c *aesCipherAsm) BlockSize() int { return BlockSize }
++
++func (c *aesCipherAsm) Encrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
++	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
++}
++
++func (c *aesCipherAsm) Decrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
++	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
++}
++
++func arm64ExpandKey(key []byte, enc, dec []uint32) {
++	expandKeyGo(key, enc, dec)
++	nk := len(enc)
++	for i := 0; i < nk; i++ {
++		enc[i] = bits.ReverseBytes32(enc[i])
++		dec[i] = bits.ReverseBytes32(dec[i])
++	}
++}
++
++// expandKey is used by BenchmarkExpand to ensure that the asm implementation
++// of key expansion is used for the benchmark when it is available.
++func expandKey(key []byte, enc, dec []uint32) {
++	if cpu.ARM64.HasAES {
++		arm64ExpandKey(key, enc, dec)
++	} else {
++		expandKeyGo(key, enc, dec)
++	}
++}
+diff --git a/src/crypto/aes/cipher_generic.go b/src/crypto/aes/cipher_generic.go
+index ca74aa80c9..80a68b4ef0 100644
+--- a/src/crypto/aes/cipher_generic.go
++++ b/src/crypto/aes/cipher_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!s390x,!ppc64le
++// +build !amd64,!s390x,!ppc64le,!arm64
+ 
+ package aes
+ 

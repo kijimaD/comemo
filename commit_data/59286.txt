@@ -13,6 +13,20 @@ Date:   Wed Feb 28 09:30:08 2024 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Auto-Submit: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/testing/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index d50ea793e0..baf1c7243c 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -199,7 +199,7 @@ var supportedTypes = map[reflect.Type]bool{
+ // the (*F).Fuzz function are (*F).Failed and (*F).Name.
+ //
+ // This function should be fast and deterministic, and its behavior should not
+-// depend on shared state. No mutatable input arguments, or pointers to them,
++// depend on shared state. No mutable input arguments, or pointers to them,
+ // should be retained between executions of the fuzz function, as the memory
+ // backing them may be mutated during a subsequent invocation. ff must not
+ // modify the underlying data of the arguments provided by the fuzzing engine.

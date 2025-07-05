@@ -20,7 +20,59 @@ Date:   Fri Apr 9 16:08:28 2021 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/debug_test.go |  8 ++++++--
  src/runtime/proc.go       | 14 ++++++++------
  2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index c4c41f95f2..7f9e460303 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -9,8 +9,12 @@
+ // spends all of its time in the race runtime, which isn't a safe
+ // point.
+ 
+-//go:build amd64 && linux && !race
+-// +build amd64,linux,!race
++// TODO(register args): We skip this under GOEXPERIMENT=regabidefer
++// because debugCallWrap passes a non-empty frame to newproc1,
++// triggering a panic.
++
++//go:build amd64 && linux && !race && !goexperiment.regabidefer
++// +build amd64,linux,!race,!goexperiment.regabidefer
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d545a143a0..6c1c5dd917 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4020,12 +4020,6 @@ func malg(stacksize int32) *g {
+ //
+ //go:nosplit
+ func newproc(siz int32, fn *funcval) {
+-	if goexperiment.RegabiDefer && siz != 0 {
+-		// TODO: When we commit to GOEXPERIMENT=regabidefer,
+-		// rewrite newproc's comment, since it will no longer
+-		// have a funny stack layout or need to be nosplit.
+-		throw("go with non-empty frame")
+-	}
+ 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+ 	gp := getg()
+ 	pc := getcallerpc()
+@@ -4051,6 +4045,14 @@ func newproc(siz int32, fn *funcval) {
+ //
+ //go:systemstack
+ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
++	if goexperiment.RegabiDefer && narg != 0 {
++		// TODO: When we commit to GOEXPERIMENT=regabidefer,
++		// rewrite the comments for newproc and newproc1.
++		// newproc will no longer have a funny stack layout or
++		// need to be nosplit.
++		throw("go with non-empty frame")
++	}
++
+ 	_g_ := getg()
+ 
+ 	if fn == nil {

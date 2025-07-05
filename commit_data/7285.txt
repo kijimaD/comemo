@@ -7,7 +7,7 @@ Date:   Mon Jan 31 12:27:28 2011 +0100
     R=rsc, mattn
     CC=golang-dev
     https://golang.org/cl/4047047
-
+---
  src/cmd/cc/godefs.c                     | 101 ++++++++--------
  src/cmd/ld/dwarf.c                      |  81 +++++++------
  src/pkg/runtime/Makefile                |  11 +-
@@ -30,3 +30,1340 @@ Date:   Mon Jan 31 12:27:28 2011 +0100
  src/pkg/runtime/type.h                  |   5 +
  src/pkg/runtime/windows/runtime_defs.go |  22 ----
  21 files changed, 183 insertions(+), 671 deletions(-)
+
+diff --git a/src/cmd/cc/godefs.c b/src/cmd/cc/godefs.c
+index 70a546f783..9503cb2f25 100644
+--- a/src/cmd/cc/godefs.c
++++ b/src/cmd/cc/godefs.c
+@@ -40,7 +40,7 @@ static char *kwd[] =
+ 	"_byte",
+ 	"_case",
+ 	"_chan",
+-	"_complex32",
++	"_complex128",
+ 	"_complex64",
+ 	"_const",
+ 	"_continue",
+@@ -66,6 +66,7 @@ static char *kwd[] =
+ 	"_intptr",
+ 	"_map",
+ 	"_package",
++	"_panic",
+ 	"_range",
+ 	"_return",
+ 	"_select",
+@@ -87,32 +88,53 @@ static char*
+ pmap(char *s)
+ {
+ 	int i, bot, top, mid;
+-	char *n;
+ 
+-	if (!upper) {
+-		bot = -1;
+-		top = nelem(kwd);
+-		while(top - bot > 1){
+-			mid = (bot + top) / 2;
+-			i = strcmp(kwd[mid]+1, s);
+-			if(i == 0)
+-				return kwd[mid];
+-
+-			if(i < 0)
+-				bot = mid;
+-			else
+-				top = mid;
+-		}
++	bot = -1;
++	top = nelem(kwd);
++	while(top - bot > 1){
++		mid = (bot + top) / 2;
++		i = strcmp(kwd[mid]+1, s);
++		if(i == 0)
++			return kwd[mid];
++		if(i < 0)
++			bot = mid;
++		else
++			top = mid;
+ 	}
+ 
++	return s;
++}
++
++
++int
++Uconv(Fmt *fp)
++{
++	char str[STRINGSZ+1];
++	char *s, *n;
++	int i;
++
++	str[0] = 0;
++	s = va_arg(fp->args, char*);
++
+ 	// strip package name
+ 	n = strrchr(s, '.');
+ 	if(n != nil)
+ 		s = n + 1;
+ 
+-	return s;
++	if(s && *s) {
++		if(upper)
++			str[0] = toupper(*s);
++		else
++			str[0] = tolower(*s);
++		for(i = 1; i < STRINGSZ && s[i] != 0; i++)
++			str[i] = tolower(s[i]);
++		str[i] = 0;
++	}
++
++	return fmtstrcpy(fp, pmap(str));
+ }
+ 
++
+ static Sym*
+ findsue(Type *t)
+ {
+@@ -205,7 +227,7 @@ printtypename(Type *t)
+ 		s = findsue(t->link);
+ 		n = "bad";
+ 		if(s != S)
+-			n = pmap(s->name);
++			n = s->name;
+ 		else if(t->tag)
+ 			n = t->tag->name;
+ 		if(strcmp(n, "String") == 0){
+@@ -255,37 +277,14 @@ dontrun(void)
+ 	}
+ 
+ 	upper = debug['Q'];
+-
+ 	return 0;
+ }
+ 
+-int
+-Uconv(Fmt *fp)
+-{
+-	char str[STRINGSZ+1];
+-	char *s;
+-	int i;
+-
+-	str[0] = 0;
+-	s = va_arg(fp->args, char*);
+-	if(s && *s) {
+-		if(upper)
+-			str[0] = toupper(*s);
+-		else
+-			str[0] = tolower(*s);
+-		for(i = 1; i < STRINGSZ && s[i] != 0; i++)
+-			str[i] = tolower(s[i]);
+-		str[i] = 0;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+ void
+ godeftype(Type *t)
+ {
+ 	Sym *s;
+ 	Type *l;
+-	char *an;
+ 	int gotone;
+ 
+ 	if(dontrun())
+@@ -296,13 +295,12 @@ godeftype(Type *t)
+ 	case TSTRUCT:
+ 		s = findsue(t->link);
+ 		if(s == S) {
+-			Bprint(&outbuf, "/* can't find Sue for %T */\n\n", t);
++			Bprint(&outbuf, "/* can't find %T */\n\n", t);
+ 			return;
+ 		}
+-		an = pmap(s->name);
+-		gotone = 0; // for unions, take first member of size equal to union
+ 
+-		Bprint(&outbuf, "type %U struct {\n", an);
++		gotone = 0; // for unions, take first member of size equal to union
++		Bprint(&outbuf, "type %U struct {\n", s->name);
+ 		for(l = t->link; l != T; l = l->down) {
+ 			Bprint(&outbuf, "\t");
+ 			if(t->etype == TUNION) {
+@@ -312,12 +310,13 @@ godeftype(Type *t)
+ 					Bprint(&outbuf, "// (union)\t");
+ 			}
+ 			if(l->sym != nil)  // not anonymous field
+-				Bprint(&outbuf, "%U\t", pmap(l->sym->name));
++				Bprint(&outbuf, "%U\t", l->sym->name);
+ 			printtypename(l);
+ 			Bprint(&outbuf, "\n");
+ 		}
+ 		Bprint(&outbuf, "}\n\n");
+ 		break;
++
+ 	default:
+ 		Bprint(&outbuf, "/* %T */\n\n", t);
+ 		break;
+@@ -340,13 +339,13 @@ godefvar(Sym *s)
+ 	switch(t->etype) {
+ 	case TENUM:
+ 		if(!typefd[t->etype])
+-			Bprint(&outbuf, "const %U = %lld\n", pmap(s->name), s->vconst);
++			Bprint(&outbuf, "const %U = %lld\n", s->name, s->vconst);
+ 		else
+-			Bprint(&outbuf, "const %U = %f\n;", pmap(s->name), s->fconst);
++			Bprint(&outbuf, "const %U = %f\n;", s->name, s->fconst);
+ 		break;
+ 
+ 	case TFUNC:
+-		Bprint(&outbuf, "func %U(", pmap(s->name));
++		Bprint(&outbuf, "func %U(", s->name);
+ 		n = 'a';
+ 		for(t1 = t->down; t1 != T; t1 = t1->down) {
+ 			if(t1->etype == TVOID)
+@@ -368,7 +367,7 @@ godefvar(Sym *s)
+ 		switch(s->class) {
+ 		case CTYPEDEF:
+ 			if(!typesu[t->etype]) {
+-				Bprint(&outbuf, "// type %U\t", pmap(s->name));
++				Bprint(&outbuf, "// type %U\t", s->name);
+ 				printtypename(t);
+ 				Bprint(&outbuf, "\n");
+ 			}
+@@ -378,7 +377,7 @@ godefvar(Sym *s)
+ 		case CGLOBL:
+ 			if(strchr(s->name, '$') != nil)	 // TODO(lvd)
+ 			    break;
+-			Bprint(&outbuf, "var %U\t", pmap(s->name));
++			Bprint(&outbuf, "var %U\t", s->name);
+ 			printtypename(t);
+ 			Bprint(&outbuf, "\n");
+ 			break;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 62f339d6dd..5df3515f5d 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -454,19 +454,6 @@ getattr(DWDie *die, uint8 attr)
+ 	return nil;
+ }
+ 
+-static void
+-delattr(DWDie *die, uint8 attr)
+-{
+-	DWAttr **a;
+-
+-	a = &die->attr;
+-	while (*a != nil)
+-		if ((*a)->atr == attr)
+-			*a = (*a)->link;
+-		else
+-			a = &((*a)->link);
+-}
+-
+ // Every DIE has at least a DW_AT_name attribute (but it will only be
+ // written out if it is listed in the abbrev).	If its parent is
+ // keeping an index, the new DIE will be inserted there.
+@@ -990,6 +977,20 @@ enum {
+ 
+ static DWDie* defptrto(DWDie *dwtype);	// below
+ 
++// Lookup predefined types
++static Sym*
++lookup_or_diag(char *n)
++{
++	Sym *s;
++
++	s = lookup(n, 0);
++	if (s->size == 0) {
++		diag("dwarf: missing type: %s", n);
++		errorexit();
++	}
++	return s;
++}
++
+ // Define gotype, for composite ones recurse into constituents.
+ static DWDie*
+ defgotype(Sym *gotype)
+@@ -1008,7 +1009,7 @@ defgotype(Sym *gotype)
+ 		diag("Type name doesn't start with \".type\": %s", gotype->name);
+ 		return find_or_diag(&dwtypes, "<unspecified>");
+ 	}
+-	name = gotype->name + 5;  // Altenatively decode from Type.string
++	name = gotype->name + 5;  // could also decode from Type.string
+ 
+ 	die = find(&dwtypes, name);
+ 	if (die != nil)
+@@ -1118,9 +1119,9 @@ defgotype(Sym *gotype)
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		nfields = decodetype_ifacemethodcount(gotype);
+ 		if (nfields == 0)
+-			s = lookup("type.runtime.eface", 0);
++			s = lookup_or_diag("type.runtime.eface");
+ 		else
+-			s = lookup("type.runtime.iface", 0);
++			s = lookup_or_diag("type.runtime.iface");
+ 		newrefattr(die, DW_AT_type, defgotype(s));
+ 		break;
+ 
+@@ -1237,7 +1238,7 @@ synthesizestringtypes(DWDie* die)
+ {
+ 	DWDie *prototype;
+ 
+-	prototype = defgotype(lookup("type.runtime.string_", 0));
++	prototype = defgotype(lookup_or_diag("type.runtime._string"));
+ 	if (prototype == nil)
+ 		return;
+ 
+@@ -1253,7 +1254,7 @@ synthesizeslicetypes(DWDie *die)
+ {
+ 	DWDie *prototype, *elem;
+ 
+-	prototype = defgotype(lookup("type.runtime.slice",0));
++	prototype = defgotype(lookup_or_diag("type.runtime.slice"));
+ 	if (prototype == nil)
+ 		return;
+ 
+@@ -1292,22 +1293,22 @@ synthesizemaptypes(DWDie *die)
+ {
+ 
+ 	DWDie *hash, *hash_subtable, *hash_entry,
+-		*dwh, *dwhs, *dwhe, *keytype, *valtype, *fld;
++		*dwh, *dwhs, *dwhe, *dwhash, *keytype, *valtype, *fld;
+ 	int hashsize, keysize, valsize, datsize, valsize_in_hash, datavo;
+ 	DWAttr *a;
+ 
+-	hash		= defgotype(lookup("type.runtime.hash",0));
+-	hash_subtable	= defgotype(lookup("type.runtime.hash_subtable",0));
+-	hash_entry	= defgotype(lookup("type.runtime.hash_entry",0));
++	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
++	hash_subtable	= defgotype(lookup_or_diag("type.runtime.hash_subtable"));
++	hash_entry	= defgotype(lookup_or_diag("type.runtime.hash_entry"));
+ 
+ 	if (hash == nil || hash_subtable == nil || hash_entry == nil)
+ 		return;
+ 
+-	dwh = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
+-	if (dwh == nil)
++	dwhash = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
++	if (dwhash == nil)
+ 		return;
+ 
+-	hashsize = getattr(dwh, DW_AT_byte_size)->value;
++	hashsize = getattr(dwhash, DW_AT_byte_size)->value;
+ 
+ 	for (; die != nil; die = die->link) {
+ 		if (die->abbrev != DW_ABRV_MAPTYPE)
+@@ -1339,13 +1340,19 @@ synthesizemaptypes(DWDie *die)
+ 			mkinternaltypename("hash_entry",
+ 				getattr(keytype, DW_AT_name)->data,
+ 				getattr(valtype, DW_AT_name)->data));
+-		copychildren(dwhe, hash_entry);
+-		substitutetype(dwhe, "key", keytype);
++
++		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "hash");
++		newrefattr(fld, DW_AT_type, dwhash);
++		newmemberoffsetattr(fld, 0);
++
++		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "key");
++		newrefattr(fld, DW_AT_type, keytype);
++		newmemberoffsetattr(fld, hashsize);
++
++		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "val");
+ 		if (valsize > MaxValsize)
+ 			valtype = defptrto(valtype);
+-		substitutetype(dwhe, "val", valtype);
+-		fld = find_or_diag(dwhe, "val");
+-		delattr(fld, DW_AT_data_member_location);
++		newrefattr(fld, DW_AT_type, valtype);
+ 		newmemberoffsetattr(fld, hashsize + datavo);
+ 		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, NULL);
+ 
+@@ -1382,10 +1389,10 @@ synthesizechantypes(DWDie *die)
+ 	DWAttr *a;
+ 	int elemsize, linksize, sudogsize;
+ 
+-	sudog = defgotype(lookup("type.runtime.sudoG",0));
+-	waitq = defgotype(lookup("type.runtime.waitQ",0));
+-	link  = defgotype(lookup("type.runtime.link",0));
+-	hchan = defgotype(lookup("type.runtime.hChan",0));
++	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
++	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
++	link  = defgotype(lookup_or_diag("type.runtime.link"));
++	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
+ 	if (sudog == nil || waitq == nil || link == nil || hchan == nil)
+ 		return;
+ 
+@@ -2331,9 +2338,9 @@ dwarfemitdebugsections(void)
+ 	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+-	defgotype(lookup("type.runtime.commonType",0));
+-	defgotype(lookup("type.runtime.InterfaceType",0));
+-	defgotype(lookup("type.runtime.itab",0));
++	defgotype(lookup_or_diag("type.runtime.commonType"));
++	defgotype(lookup_or_diag("type.runtime.InterfaceType"));
++	defgotype(lookup_or_diag("type.runtime.itab"));
+ 
+ 	genasmsym(defdwsymb);
+ 
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index ab761b0d62..e9488cfb50 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -26,12 +26,7 @@ GOFILES=\
+ 	softfloat64.go\
+ 	type.go\
+ 	version.go\
+-	chan_defs.go\
+-	hashmap_defs.go\
+-	iface_defs.go\
+-	malloc_defs.go\
+ 	runtime_defs.go\
+-	$(GOOS)/runtime_defs.go\
+ 
+ OFILES_windows=\
+ 	syscall.$O\
+@@ -117,7 +112,7 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f goc2c mkversion version.go */asm.h runtime.acid.* $$(ls *.goc | sed 's/goc$$/c/')
++	rm -f goc2c mkversion version.go */asm.h runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/')
+ 
+ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	./mkasmh.sh >$@.x
+@@ -160,3 +155,7 @@ ifeq ($(GOARCH),386)
+ traceback.$O:	amd64/traceback.c
+ 	$(CC) $(CFLAGS) $<
+ endif
++
++runtime_defs.go: proc.c iface.c hashmap.c chan.c
++	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh $^ > $@.x
++	mv -f $@.x $@
+diff --git a/src/pkg/runtime/chan_defs.go b/src/pkg/runtime/chan_defs.go
+deleted file mode 100644
+index 5cfea6e15a..0000000000
+--- a/src/pkg/runtime/chan_defs.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is chan.c
+-
+-package runtime
+-
+-type sudoG struct {
+-	g      *g_
+-	selgen uint32
+-	offset int16
+-	isfree int8
+-	link   *sudoG
+-	elem   [8]byte
+-}
+-
+-type waitQ struct {
+-	first *sudoG
+-	last  *sudoG
+-}
+-
+-type hChan struct {
+-	qcount    uint32
+-	dataqsiz  uint32
+-	elemsize  uint16
+-	closed    uint16
+-	elemalign uint8
+-	elemalg   *alg
+-	senddataq *link
+-	recvdataq *link
+-	recvq     waitQ
+-	sendq     waitQ
+-	free      sudoG
+-	lock
+-}
+-
+-type link struct {
+-	link *link
+-	elem [8]byte
+-}
+-
+-type scase struct {
+-	chan_ *hChan
+-	pc    *byte
+-	send  uint16
+-	so    uint16
+-	elemp *byte // union elem [8]byte
+-}
+-
+-type select_ struct {
+-	tcase uint16
+-	ncase uint16
+-	link  *select_
+-	scase [1]*scase
+-}
+diff --git a/src/pkg/runtime/darwin/runtime_defs.go b/src/pkg/runtime/darwin/runtime_defs.go
+deleted file mode 100644
+index cf0b414a95..0000000000
+--- a/src/pkg/runtime/darwin/runtime_defs.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-type lock struct {
+-	key  uint32
+-	sema uint32
+-}
+-
+-type usema struct {
+-	u uint32
+-	k uint32
+-}
+-
+-
+-type note struct {
+-	wakeup int32
+-	sema   usema
+-}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 77c3e8e3a6..dba28324c4 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -31,6 +31,19 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+ // It returns the number of entries written to pc.
+ func Callers(skip int, pc []uintptr) int
+ 
++type Func struct { // Keep in sync with runtime.h:struct Func
++	name   string
++	typ    string  // go type string
++	src    string  // src file name
++	pcln   []byte  // pc/ln tab for this func
++	entry  uintptr // entry pc
++	pc0    uintptr // starting pc, ln for table
++	ln0    int32
++	frame  int32 // stack frame size
++	args   int32 // number of 32-bit in/out args
++	locals int32 // number of 32-bit locals
++}
++
+ // FuncForPC returns a *Func describing the function that contains the
+ // given program counter address, or else nil.
+ func FuncForPC(pc uintptr) *Func
+diff --git a/src/pkg/runtime/freebsd/runtime_defs.go b/src/pkg/runtime/freebsd/runtime_defs.go
+deleted file mode 100644
+index 86de13316e..0000000000
+--- a/src/pkg/runtime/freebsd/runtime_defs.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// OS-Specific Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-type lock struct {
+-	key  uint32
+-	sema uint32
+-}
+-
+-type note lock
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index a03202ed67..f0d5ce90a7 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -9,7 +9,7 @@
+ /* Return a pointer to the struct/union of type "type"
+    whose "field" field is addressed by pointer "p". */
+ 
+-struct hash {	   /* a hash table; initialize with hash_init() */
++struct Hmap {	   /* a hash table; initialize with hash_init() */
+ 	uint32 count;	  /* elements in table - must be first */
+ 
+ 	uint8 datasize;   /* amount of data to store in entry */
+@@ -82,7 +82,7 @@ struct hash_subtable {
+ 
+ /* return a hash layer with 2**power empty entries */
+ static struct hash_subtable *
+-hash_subtable_new (struct hash *h, int32 power, int32 used)
++hash_subtable_new (Hmap *h, int32 power, int32 used)
+ {
+ 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+ 	int32 bytes = elemsize << power;
+@@ -127,7 +127,7 @@ init_sizes (int64 hint, int32 *init_power, int32 *max_power)
+ }
+ 
+ static void
+-hash_init (struct hash *h,
++hash_init (Hmap *h,
+ 		int32 datasize,
+ 		hash_hash_t (*data_hash) (uint32, void *),
+ 		uint32 (*data_eq) (uint32, void *, void *),
+@@ -200,10 +200,10 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
+ 
+ static int32
+ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+-		struct hash *h, void *data, void **pres);
++		Hmap *h, void *data, void **pres);
+ 
+ static void
+-hash_conv (struct hash *h,
++hash_conv (Hmap *h,
+ 		struct hash_subtable *st, int32 flags,
+ 		hash_hash_t hash,
+ 		struct hash_entry *e)
+@@ -266,7 +266,7 @@ hash_conv (struct hash *h,
+ }
+ 
+ static void
+-hash_grow (struct hash *h, struct hash_subtable **pst, int32 flags)
++hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
+ {
+ 	struct hash_subtable *old_st = *pst;
+ 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+@@ -290,7 +290,7 @@ hash_grow (struct hash *h, struct hash_subtable **pst, int32 flags)
+ }
+ 
+ static int32
+-hash_lookup (struct hash *h, void *data, void **pres)
++hash_lookup (Hmap *h, void *data, void **pres)
+ {
+ 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+ 	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
+@@ -331,7 +331,7 @@ hash_lookup (struct hash *h, void *data, void **pres)
+ }
+ 
+ static int32
+-hash_remove (struct hash *h, void *data, void *arg)
++hash_remove (Hmap *h, void *data, void *arg)
+ {
+ 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+ 	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
+@@ -374,7 +374,7 @@ hash_remove (struct hash *h, void *data, void *arg)
+ 
+ static int32
+ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+-				 struct hash *h, void *data, void **pres)
++				 Hmap *h, void *data, void **pres)
+ {
+ 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+ 
+@@ -455,7 +455,7 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+ }
+ 
+ static int32
+-hash_insert (struct hash *h, void *data, void **pres)
++hash_insert (Hmap *h, void *data, void **pres)
+ {
+ 	int32 rc = hash_insert_internal (&h->st, 0, (*h->data_hash) (h->keysize, data), h, data, pres);
+ 
+@@ -464,7 +464,7 @@ hash_insert (struct hash *h, void *data, void **pres)
+ }
+ 
+ static uint32
+-hash_count (struct hash *h)
++hash_count (Hmap *h)
+ {
+ 	return (h->count);
+ }
+@@ -571,7 +571,7 @@ hash_next (struct hash_iter *it)
+ }
+ 
+ static void
+-hash_iter_init (struct hash *h, struct hash_iter *it)
++hash_iter_init (Hmap *h, struct hash_iter *it)
+ {
+ 	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+ 	it->changes = h->changes;
+@@ -607,7 +607,7 @@ clean_st (struct hash_subtable *st, int32 *slots, int32 *used)
+ }
+ 
+ static void
+-hash_destroy (struct hash *h)
++hash_destroy (Hmap *h)
+ {
+ 	int32 slots = 0;
+ 	int32 used = 0;
+@@ -646,7 +646,7 @@ hash_visit_internal (struct hash_subtable *st,
+ }
+ 
+ static void
+-hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
++hash_visit (Hmap *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
+ {
+ 	hash_visit_internal (h->st, 0, 0, data_visit, arg);
+ }
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 0737535b55..d0fd3527fc 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -70,7 +70,7 @@
+ #define free(x)	runtime·free(x)
+ #define memmove(a,b,c)	runtime·memmove(a, b, c)
+ 
+-struct hash;		/* opaque */
++struct Hmap;		/* opaque */
+ struct hash_subtable;	/* opaque */
+ struct hash_entry;	/* opaque */
+ 
+@@ -83,7 +83,7 @@ struct hash_iter {
+ 	int32	changes;	/* number of changes observed last time */
+ 	int32	i;		/* stack pointer in subtable_state */
+ 	hash_hash_t last_hash;	/* last hash value returned */
+-	struct hash *h;		/* the hash table */
++	struct Hmap *h;		/* the hash table */
+ 	struct hash_iter_sub {
+ 		struct hash_entry *e;		/* pointer into subtable */
+ 		struct hash_entry *start;	/* start of subtable */
+diff --git a/src/pkg/runtime/hashmap_defs.go b/src/pkg/runtime/hashmap_defs.go
+deleted file mode 100644
+index 57780df879..0000000000
+--- a/src/pkg/runtime/hashmap_defs.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is hashmap.[c,h]
+-
+-package runtime
+-
+-type hash_hash uintptr
+-
+-type hash_entry struct {
+-	hash hash_hash
+-	key  byte // dwarf.c substitutes the real type
+-	val  byte // for key and val
+-}
+-
+-type hash_subtable struct {
+-	power       uint8
+-	used        uint8
+-	datasize    uint8
+-	max_probes  uint8
+-	limit_bytes int16
+-	end         *hash_entry
+-	entry       hash_entry // TODO: [0]hash_entry
+-}
+-
+-type hash struct {
+-	count       uint32
+-	datasize    uint8
+-	max_power   uint8
+-	max_probes  uint8
+-	indirectval uint8
+-	changes     int32
+-	data_hash   func(uint32, uintptr) hash_hash
+-	data_eq     func(uint32, uintptr, uintptr) uint32
+-	data_del    func(uint32, uintptr, uintptr)
+-	st          *hash_subtable
+-	keysize     uint32
+-	valsize     uint32
+-	datavo      uint32
+-	ko0         uint32
+-	vo0         uint32
+-	ko1         uint32
+-	vo1         uint32
+-	po1         uint32
+-	ko2         uint32
+-	vo2         uint32
+-	po2         uint32
+-	keyalg      *alg
+-	valalg      *alg
+-}
+diff --git a/src/pkg/runtime/iface_defs.go b/src/pkg/runtime/iface_defs.go
+deleted file mode 100644
+index 69d52ef9a6..0000000000
+--- a/src/pkg/runtime/iface_defs.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-/*
+- * Must match iface.c:/Itable and compilers.
+- * NOTE: type.go has an Itable, that is the version of Itab used by the reflection code.
+- */
+-type itab struct {
+-	Itype  *Type
+-	Type   *Type
+-	link   *itab
+-	bad    int32
+-	unused int32
+-	Fn     func() // TODO: [0]func()
+-}
+diff --git a/src/pkg/runtime/linux/runtime_defs.go b/src/pkg/runtime/linux/runtime_defs.go
+deleted file mode 100644
+index 86de13316e..0000000000
+--- a/src/pkg/runtime/linux/runtime_defs.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// OS-Specific Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-type lock struct {
+-	key  uint32
+-	sema uint32
+-}
+-
+-type note lock
+diff --git a/src/pkg/runtime/malloc_defs.go b/src/pkg/runtime/malloc_defs.go
+deleted file mode 100644
+index 9ee9812d10..0000000000
+--- a/src/pkg/runtime/malloc_defs.go
++++ /dev/null
+@@ -1,129 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is malloc.h
+-
+-package runtime
+-
+-import "unsafe"
+-
+-const (
+-	pageShift = 12
+-	pageSize  = 1 << pageShift
+-	pageMask  = pageSize - 1
+-)
+-
+-type pageID uintptr
+-
+-const (
+-	numSizeClasses   = 67
+-	maxSmallSize     = 32 << 10
+-	fixAllocChunk    = 128 << 10
+-	maxMCacheListLen = 256
+-	maxMCacheSize    = 2 << 20
+-	maxMHeapList     = 1 << 8 // 1 << (20 - pageShift)
+-	heapAllocChunk   = 1 << 20
+-)
+-
+-type mLink struct {
+-	next *mLink
+-}
+-
+-type fixAlloc struct {
+-	size   uintptr
+-	alloc  func(uintptr)
+-	first  func(unsafe.Pointer, *byte)
+-	arg    unsafe.Pointer
+-	list   *mLink
+-	chunk  *byte
+-	nchunk uint32
+-	inuse  uintptr
+-	sys    uintptr
+-}
+-
+-
+-// MStats? used to be in extern.go
+-
+-type mCacheList struct {
+-	list     *mLink
+-	nlist    uint32
+-	nlistmin uint32
+-}
+-
+-type mCache struct {
+-	list          [numSizeClasses]mCacheList
+-	size          uint64
+-	local_alloc   int64
+-	local_objects int64
+-	next_sample   int32
+-}
+-
+-type mSpan struct {
+-	next      *mSpan
+-	prev      *mSpan
+-	allnext   *mSpan
+-	start     pageID
+-	npages    uintptr
+-	freelist  *mLink
+-	ref       uint32
+-	sizeclass uint32
+-	state     uint32
+-	//	union {
+-	gcref *uint32 // sizeclass > 0
+-	//		gcref0 uint32;	// sizeclass == 0
+-	//	}
+-}
+-
+-type mCentral struct {
+-	lock
+-	sizeclass int32
+-	nonempty  mSpan
+-	empty     mSpan
+-	nfree     int32
+-}
+-
+-type mHeap struct {
+-	lock
+-	free        [maxMHeapList]mSpan
+-	large       mSpan
+-	allspans    *mSpan
+-	min         *byte
+-	max         *byte
+-	closure_min *byte
+-	closure_max *byte
+-
+-	central [numSizeClasses]struct {
+-		pad [64]byte
+-		// union: mCentral
+-	}
+-
+-	spanalloc  fixAlloc
+-	cachealloc fixAlloc
+-}
+-
+-const (
+-	refFree = iota
+-	refStack
+-	refNone
+-	refSome
+-	refcountOverhead = 4
+-	refNoPointers    = 0x80000000
+-	refHasFinalizer  = 0x40000000
+-	refProfiled      = 0x20000000
+-	refNoProfiling   = 0x10000000
+-	refFlags         = 0xFFFF0000
+-)
+-
+-const (
+-	mProf_None = iota
+-	mProf_Sample
+-	mProf_All
+-)
+-
+-type finalizer struct {
+-	next *finalizer
+-	fn   func(unsafe.Pointer)
+-	arg  unsafe.Pointer
+-	nret int32
+-}
+diff --git a/src/pkg/runtime/mkgodefs.sh b/src/pkg/runtime/mkgodefs.sh
+new file mode 100755
+index 0000000000..b6e97213e0
+--- /dev/null
++++ b/src/pkg/runtime/mkgodefs.sh
+@@ -0,0 +1,39 @@
++#!/bin/sh
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++
++cat <<EOF
++// Go definitions for C variables and types.
++// AUTOMATICALLY GENERATED BY THE FOLLOWING COMMAND. DO NOT EDIT.
++// CC="$CC" CFLAGS="$CFLAGS" ./mkgodefs.sh $@
++
++package runtime
++import "unsafe"
++var _ unsafe.Pointer
++
++EOF
++
++for i in "$@"; do
++	$CC $CFLAGS -q $i
++done | awk '
++/^func/ { next }
++/^const/ { next }
++/^\/\/.*type/ { next }
++
++/^(const|func|type|var) / {
++	if(seen[$2]++) {
++        	skip = /{[^}]*$/;
++		next;
++	}
++}
++
++skip {
++	skip = !/^}/
++	next;
++}
++
++{print}
++'
+diff --git a/src/pkg/runtime/plan9/runtime_defs.go b/src/pkg/runtime/plan9/runtime_defs.go
+deleted file mode 100644
+index cf0b414a95..0000000000
+--- a/src/pkg/runtime/plan9/runtime_defs.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-type lock struct {
+-	key  uint32
+-	sema uint32
+-}
+-
+-type usema struct {
+-	u uint32
+-	k uint32
+-}
+-
+-
+-type note struct {
+-	wakeup int32
+-	sema   usema
+-}
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index a7ca94cdb0..677e9bde4c 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -161,7 +161,7 @@ def is_iface(val):
+ 
+ def is_eface(val):
+ 	try:
+-		return str(val['type_'].type) == "runtime.Type *" \
++		return str(val['_type'].type) == "struct runtime._type *" \
+ 		      and str(val['data'].type) == "void *"
+ 	except:
+ 		pass
+@@ -185,14 +185,14 @@ def iface_dtype(obj):
+ 	"Decode type of the data field of an eface or iface struct."
+ 
+ 	if is_iface(obj):
+-		go_type_ptr = obj['tab']['Type']
++		go_type_ptr = obj['tab']['_type']
+ 	elif is_eface(obj):
+-		go_type_ptr = obj['type_']
++		go_type_ptr = obj['_type']
+ 	else:
+ 		return
+ 
+ 	ct = gdb.lookup_type("struct runtime.commonType").pointer()
+-	dynamic_go_type = go_type_ptr['data'].cast(ct).dereference()
++	dynamic_go_type = go_type_ptr['ptr'].cast(ct).dereference()
+ 	dtype_name = dynamic_go_type['string'].dereference()['str'].string()
+ 	type_size = int(dynamic_go_type['size'])
+ 	uintptr_size = int(dynamic_go_type['size'].type.sizeof)  # size is itself an uintptr
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 462ac6f0ac..54ae5c0c3e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -63,7 +63,7 @@ typedef	struct	Eface		Eface;
+ typedef	struct	Type		Type;
+ typedef	struct	Defer		Defer;
+ typedef	struct	Panic		Panic;
+-typedef	struct	hash		Hmap;
++typedef	struct	Hmap		Hmap;
+ typedef	struct	Hchan		Hchan;
+ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
+diff --git a/src/pkg/runtime/runtime_defs.go b/src/pkg/runtime/runtime_defs.go
+deleted file mode 100644
+index 0e751c169d..0000000000
+--- a/src/pkg/runtime/runtime_defs.go
++++ /dev/null
+@@ -1,200 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is runtime.h
+-
+-// TODO(lvd): automate conversion to all the _defs.go files
+-
+-package runtime
+-
+-import "unsafe"
+-
+-const (
+-	gidle = iota
+-	grunnable
+-	grunning
+-	gsyscall
+-	gwaiting
+-	gmoribund
+-	gdead
+-	grecovery
+-)
+-
+-// const ( Structrnd = sizeof(uintptr) )
+-
+-type string_ struct {
+-	str *byte
+-	len int32
+-}
+-
+-type iface struct {
+-	tab  *itab
+-	data unsafe.Pointer
+-}
+-
+-type eface struct {
+-	type_ *Type
+-	data  unsafe.Pointer
+-}
+-
+-type complex64 struct {
+-	real float32
+-	imag float32
+-}
+-
+-type complex128 struct {
+-	real float64
+-	imag float64
+-}
+-
+-type slice struct {
+-	array *byte
+-	len   uint32
+-	cap   uint32
+-}
+-
+-type gobuf struct {
+-	sp unsafe.Pointer
+-	pc unsafe.Pointer
+-	g  *g_
+-}
+-
+-type g_ struct {
+-	stackguard  unsafe.Pointer
+-	stackbase   unsafe.Pointer
+-	defer_      *defer_
+-	panic_      *panic_
+-	sched       gobuf
+-	stack0      unsafe.Pointer
+-	entry       unsafe.Pointer
+-	alllink     *g_
+-	param       unsafe.Pointer
+-	status      int16
+-	goid        int32
+-	selgen      uint32
+-	schedlink   *g_
+-	readyonstop bool
+-	ispanic     bool
+-	m           *m_
+-	lockedm     *m_
+-	sig         int32
+-	sigcode0    uintptr
+-	sigcode1    uintptr
+-}
+-
+-type m_ struct {
+-	g0            *g_
+-	morepc        unsafe.Pointer
+-	moreargp      unsafe.Pointer
+-	morebuf       gobuf
+-	moreframesize uint32
+-	moreargsize   uint32
+-	cret          uintptr
+-	procid        uint64
+-	gsignal       *g_
+-	tls           [8]uint32
+-	sched         gobuf
+-	curg          *g_
+-	id            int32
+-	mallocing     int32
+-	gcing         int32
+-	locks         int32
+-	nomemprof     int32
+-	waitnextg     int32
+-	havenextg     note
+-	nextg         *g_
+-	alllink       *m_
+-	schedlink     *m_
+-	machport      uint32
+-	mcache        *mCache
+-	lockedg       *g_
+-	freg          [8]uint64
+-	// gostack	unsafe.Pointer  // __WINDOWS__
+-}
+-
+-type stktop struct {
+-	stackguard *uint8
+-	stackbase  *uint8
+-	gobuf      gobuf
+-	args       uint32
+-	fp         *uint8
+-	free       bool
+-	panic_     bool
+-}
+-
+-type alg struct {
+-	hash  func(uint32, unsafe.Pointer) uintptr
+-	equal func(uint32, unsafe.Pointer, unsafe.Pointer) uint32
+-	print func(uint32, unsafe.Pointer)
+-	copy  func(uint32, unsafe.Pointer, unsafe.Pointer)
+-}
+-
+-type sigtab struct {
+-	flags int32
+-	name  *int8
+-}
+-
+-const (
+-	sigCatch = (1 << iota)
+-	sigIgnore
+-	sigRestart
+-	sigQueue
+-	sigPanic
+-)
+-
+-type Func struct {
+-	name   string
+-	typ    string
+-	src    string
+-	pcln   []byte
+-	entry  uintptr
+-	pc0    uintptr
+-	ln0    int32
+-	frame  int32
+-	args   int32
+-	locals int32
+-}
+-
+-const (
+-	aMEM = iota
+-	aNOEQ
+-	aSTRING
+-	aINTER
+-	aNILINTER
+-	aMEMWORD
+-	amax
+-)
+-
+-type defer_ struct {
+-	siz  int32
+-	sp   unsafe.Pointer
+-	pc   unsafe.Pointer
+-	fn   unsafe.Pointer
+-	link *defer_
+-	args [8]byte // padded to actual size
+-}
+-
+-type panic_ struct {
+-	arg       eface
+-	stackbase unsafe.Pointer
+-	link      *panic_
+-	recovered bool
+-}
+-
+-/*
+- * External data.
+- */
+-
+-var (
+-	algarray    [amax]alg
+-	emptystring string
+-	allg        *g_
+-	allm        *m_
+-	goidgen     int32
+-	gomaxprocs  int32
+-	panicking   int32
+-	fd          int32
+-	gcwaiting   int32
+-	goos        *int8
+-)
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index a350d4a0b1..87268db4cf 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -70,7 +70,7 @@ const (
+ )
+ 
+ // Method on non-interface type
+-type method struct {
++type _method struct { // underscore is to avoid collision with C
+ 	name    *string        // name of method
+ 	pkgPath *string        // nil for exported Names; otherwise import path
+ 	mtyp    *Type          // method type (without receiver)
+@@ -84,9 +84,9 @@ type method struct {
+ // Using a pointer to this struct reduces the overall size required
+ // to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	name    *string  // name of type
+-	pkgPath *string  // import path; nil for built-in types like int, string
+-	methods []method // methods associated with type
++	name    *string   // name of type
++	pkgPath *string   // import path; nil for built-in types like int, string
++	methods []_method // methods associated with type
+ }
+ 
+ // BoolType represents a boolean type.
+@@ -151,7 +151,7 @@ type FuncType struct {
+ }
+ 
+ // Method on interface type
+-type imethod struct {
++type _imethod struct { // underscore is to avoid collision with C
+ 	name    *string // name of method
+ 	pkgPath *string // nil for exported Names; otherwise import path
+ 	typ     *Type   // .(*FuncType) underneath
+@@ -160,7 +160,7 @@ type imethod struct {
+ // InterfaceType represents an interface type.
+ type InterfaceType struct {
+ 	commonType
+-	methods []imethod // sorted by hash
++	methods []_imethod // sorted by hash
+ }
+ 
+ // MapType represents a map type.
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 3fb368ebd9..c7d9dace27 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -4,6 +4,11 @@
+ 
+ /*
+  * Runtime type representation; master is type.go
++ *
++ * The *Types here correspond 1-1 to type.go's *Type's, but are
++ * prefixed with an extra header of 2 pointers, corresponding to the
++ * interface{} structure, which itself is called type Type again on
++ * the Go side.
+  */
+ 
+ typedef struct CommonType CommonType;
+diff --git a/src/pkg/runtime/windows/runtime_defs.go b/src/pkg/runtime/windows/runtime_defs.go
+deleted file mode 100644
+index 34a9b32597..0000000000
+--- a/src/pkg/runtime/windows/runtime_defs.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-import "unsafe"
+-
+-const (
+-	Windows = 1
+-)
+-
+-// const ( Structrnd = sizeof(uintptr) )
+-
+-type lock struct {
+-	key   uint32
+-	event unsafe.Pointer
+-}
+-
+-type note lock

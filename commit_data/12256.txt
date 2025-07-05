@@ -10,6 +10,21 @@ Date:   Wed Feb 29 02:22:28 2012 +0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5700070
-
+---
  src/cmd/dist/unix.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 76622a4d88..e6d82e14ef 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -641,6 +641,9 @@ main(int argc, char **argv)
+ 	Buf b;
+ 	struct utsname u;
+ 
++	setvbuf(stdout, nil, _IOLBF, 0);
++	setvbuf(stderr, nil, _IOLBF, 0);
++
+ 	binit(&b);
+ 	
+ 	slash = "/";

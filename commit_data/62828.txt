@@ -14,6 +14,31 @@ Date:   Fri Apr 11 15:14:11 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/url/url.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 8786d9655b..2a57659460 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1280,7 +1280,18 @@ func validUserinfo(s string) bool {
+ 		}
+ 		switch r {
+ 		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
+-			'(', ')', '*', '+', ',', ';', '=', '%', '@':
++			'(', ')', '*', '+', ',', ';', '=', '%':
++			continue
++		case '@':
++			// `RFC 3986 section 3.2.1` does not allow '@' in userinfo.
++			// It is a delimiter between userinfo and host.
++			// However, URLs are diverse, and in some cases,
++			// the userinfo may contain an '@' character,
++			// for example, in "http://username:p@ssword@google.com",
++			// the string "username:p@ssword" should be treated as valid userinfo.
++			// Ref:
++			//   https://go.dev/issue/3439
++			//   https://go.dev/issue/22655
+ 			continue
+ 		default:
+ 			return false

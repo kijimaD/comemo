@@ -7,8 +7,109 @@ Date:   Fri Jan 18 17:05:04 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7252045
-
+---
  src/pkg/net/fd_windows.go     |  1 +
  src/pkg/net/lookup_windows.go | 43 ++++++++++++++++++++++++++++++++++++++++---
  src/pkg/net/port_test.go      |  2 +-
  3 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index ea6ef10ec1..0bf361d443 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -37,6 +37,7 @@ func sysInit() {
+ 	}
+ 	canCancelIO = syscall.LoadCancelIoEx() == nil
+ 	if syscall.LoadGetAddrInfo() == nil {
++		lookupPort = newLookupPort
+ 		lookupIP = newLookupIP
+ 	}
+ }
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index 390fe7f440..b433d0cbbd 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -17,6 +17,11 @@ var (
+ 	serventLock  sync.Mutex
+ )
+ 
++var (
++	lookupPort = oldLookupPort
++	lookupIP   = oldLookupIP
++)
++
+ // lookupProtocol looks up IP protocol name and returns correspondent protocol number.
+ func lookupProtocol(name string) (proto int, err error) {
+ 	protoentLock.Lock()
+@@ -40,8 +45,6 @@ func lookupHost(name string) (addrs []string, err error) {
+ 	return
+ }
+ 
+-var lookupIP = oldLookupIP
+-
+ func oldLookupIP(name string) (addrs []IP, err error) {
+ 	hostentLock.Lock()
+ 	defer hostentLock.Unlock()
+@@ -92,7 +95,7 @@ func newLookupIP(name string) (addrs []IP, err error) {
+ 	return addrs, nil
+ }
+ 
+-func lookupPort(network, service string) (port int, err error) {
++func oldLookupPort(network, service string) (port int, err error) {
+ 	switch network {
+ 	case "tcp4", "tcp6":
+ 		network = "tcp"
+@@ -108,6 +111,40 @@ func lookupPort(network, service string) (port int, err error) {
+ 	return int(syscall.Ntohs(s.Port)), nil
+ }
+ 
++func newLookupPort(network, service string) (port int, err error) {
++	var stype int32
++	switch network {
++	case "tcp4", "tcp6":
++		stype = syscall.SOCK_STREAM
++	case "udp4", "udp6":
++		stype = syscall.SOCK_DGRAM
++	}
++	hints := syscall.AddrinfoW{
++		Family:   syscall.AF_UNSPEC,
++		Socktype: stype,
++		Protocol: syscall.IPPROTO_IP,
++	}
++	var result *syscall.AddrinfoW
++	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
++	if e != nil {
++		return 0, os.NewSyscallError("GetAddrInfoW", e)
++	}
++	defer syscall.FreeAddrInfoW(result)
++	if result == nil {
++		return 0, os.NewSyscallError("LookupPort", syscall.EINVAL)
++	}
++	addr := unsafe.Pointer(result.Addr)
++	switch result.Family {
++	case syscall.AF_INET:
++		a := (*syscall.RawSockaddrInet4)(addr)
++		return int(syscall.Ntohs(a.Port)), nil
++	case syscall.AF_INET6:
++		a := (*syscall.RawSockaddrInet6)(addr)
++		return int(syscall.Ntohs(a.Port)), nil
++	}
++	return 0, os.NewSyscallError("LookupPort", syscall.EINVAL)
++}
++
+ func lookupCNAME(name string) (cname string, err error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
+diff --git a/src/pkg/net/port_test.go b/src/pkg/net/port_test.go
+index 329b169f34..9e8968f359 100644
+--- a/src/pkg/net/port_test.go
++++ b/src/pkg/net/port_test.go
+@@ -46,7 +46,7 @@ func TestLookupPort(t *testing.T) {
+ 	for i := 0; i < len(porttests); i++ {
+ 		tt := porttests[i]
+ 		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
+-			t.Errorf("LookupPort(%q, %q) = %v, %s; want %v",
++			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v",
+ 				tt.netw, tt.name, port, err, tt.port)
+ 		}
+ 	}

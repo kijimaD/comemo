@@ -14,7 +14,62 @@ Date:   Sun Jul 31 23:10:35 2016 +0700
     Change-Id: Iafc7984692cc83cff58f7c1e01267bf78b3a20a9
     Reviewed-on: https://go-review.googlesource.com/25352
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/env.go           |  2 +-
  src/os/env_unix_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index aa83ee3a97..a03b8f68f5 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -37,7 +37,7 @@ func ExpandEnv(s string) string {
+ // shell variable such as $*.
+ func isShellSpecialVar(c uint8) bool {
+ 	switch c {
+-	case '*', '#', '$', '@', '!', '?', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
++	case '*', '#', '$', '@', '!', '?', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/os/env_unix_test.go b/src/os/env_unix_test.go
+index 5ec07ee1b1..f7b67ebbb8 100644
+--- a/src/os/env_unix_test.go
++++ b/src/os/env_unix_test.go
+@@ -7,6 +7,7 @@
+ package os_test
+ 
+ import (
++	"fmt"
+ 	. "os"
+ 	"testing"
+ )
+@@ -28,3 +29,28 @@ func TestSetenvUnixEinval(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var shellSpecialVarTests = []struct {
++	k, v string
++}{
++	{"*", "asterisk"},
++	{"#", "pound"},
++	{"$", "dollar"},
++	{"@", "at"},
++	{"!", "exclamation mark"},
++	{"?", "question mark"},
++	{"-", "dash"},
++}
++
++func TestExpandEnvShellSpecialVar(t *testing.T) {
++	for _, tt := range shellSpecialVarTests {
++		Setenv(tt.k, tt.v)
++		defer Unsetenv(tt.k)
++
++		argRaw := fmt.Sprintf("$%s", tt.k)
++		argWithBrace := fmt.Sprintf("${%s}", tt.k)
++		if gotRaw, gotBrace := ExpandEnv(argRaw), ExpandEnv(argWithBrace); gotRaw != gotBrace {
++			t.Errorf("ExpandEnv(%q) = %q, ExpandEnv(%q) = %q; expect them to be equal", argRaw, gotRaw, argWithBrace, gotBrace)
++		}
++	}
++}

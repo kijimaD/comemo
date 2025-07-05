@@ -15,6 +15,20 @@ Date:   Sat May 26 19:25:31 2018 +0300
     Change-Id: Ide04b7365d8f10e4650edf4e188dd58bdf42cc26
     Reviewed-on: https://go-review.googlesource.com/114822
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_freebsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index d0d7b69ace..b3fc6a34ac 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -382,7 +382,7 @@ const (
+ 	_AT_NULL     = 0  // Terminates the vector
+ 	_AT_PAGESZ   = 6  // Page size in bytes
+ 	_AT_TIMEKEEP = 22 // Pointer to timehands.
+-	_AT_HWCAP    = 26 // CPU feature flags
++	_AT_HWCAP    = 25 // CPU feature flags
+ )
+ 
+ func sysauxv(auxv []uintptr) {

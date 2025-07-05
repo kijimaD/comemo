@@ -14,7 +14,52 @@ Date:   Fri Jun 19 12:29:42 2015 -0400
     Change-Id: Icdbf2329c1aa11dbe2396a71eb5fc2a85bd4afd5
     Reviewed-on: https://go-review.googlesource.com/11254
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mbarrier.go | 13 +++++++++++++
  src/runtime/mgcmark.go  |  9 +++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 95ee2ab672..b83955b112 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -58,6 +58,19 @@ import "unsafe"
+ // barriers, which will slow down both the mutator and the GC, we always grey
+ // the ptr object regardless of the slot's color.
+ //
++// Another place where we intentionally omit memory barriers is when
++// accessing mheap_.arena_used to check if a pointer points into the
++// heap. On relaxed memory machines, it's possible for a mutator to
++// extend the size of the heap by updating arena_used, allocate an
++// object from this new region, and publish a pointer to that object,
++// but for tracing running on another processor to observe the pointer
++// but use the old value of arena_used. In this case, tracing will not
++// mark the object, even though it's reachable. However, the mutator
++// is guaranteed to execute a write barrier when it publishes the
++// pointer, so it will take care of marking the object. A general
++// consequence of this is that the garbage collector may cache the
++// value of mheap_.arena_used. (See issue #9984.)
++//
+ //
+ // Stack writes:
+ //
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 57dc2560dd..c7d175b1f8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -768,6 +768,15 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ // object (it ignores n).
+ //go:nowritebarrier
+ func scanobject(b uintptr, gcw *gcWork) {
++	// Note that arena_used may change concurrently during
++	// scanobject and hence scanobject may encounter a pointer to
++	// a newly allocated heap object that is *not* in
++	// [start,used). It will not mark this object; however, we
++	// know that it was just installed by a mutator, which means
++	// that mutator will execute a write barrier and take care of
++	// marking it. This is even more pronounced on relaxed memory
++	// architectures since we access arena_used without barriers
++	// or synchronization, but the same logic applies.
+ 	arena_start := mheap_.arena_start
+ 	arena_used := mheap_.arena_used
+ 

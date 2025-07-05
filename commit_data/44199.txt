@@ -10,8 +10,65 @@ Date:   Thu May 21 16:33:20 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234886
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 4 ----
  src/cmd/link/internal/ld/main.go   | 4 ++--
  src/cmd/link/internal/ld/symtab.go | 2 +-
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f414b8d914..dba91976a1 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -690,16 +690,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		fallthrough
+ 
+ 	case objabi.Hplan9:
+-		break
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+ 		objabi.Hopenbsd,
+ 		objabi.Hdragonfly,
+ 		objabi.Hsolaris:
+-		ld.Flag8 = true /* 64-bit addresses */
+-
+ 	case objabi.Hwindows:
+ 		break
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 17c7821d70..0c18d512d3 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -84,7 +84,7 @@ var (
+ 	FlagS           = flag.Bool("s", false, "disable symbol table")
+ 	flagU           = flag.Bool("u", false, "reject unsafe packages")
+ 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
+-	Flag8           bool // use 64-bit addresses in symbol table
++	flag8           bool // use 64-bit addresses in symbol table
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+@@ -121,7 +121,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	// TODO(matloob): define these above and then check flag values here
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+-		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
++		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
+ 	flagHeadType := flag.String("H", "", "set header `type`")
+ 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index de5b1cc0d0..61072cb0cf 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -259,7 +259,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType)
+ 	}
+ 	l := 4
+ 	addr := ldr.SymValue(s)
+-	if ctxt.IsAMD64() && !Flag8 {
++	if ctxt.IsAMD64() && !flag8 {
+ 		ctxt.Out.Write32b(uint32(addr >> 32))
+ 		l = 8
+ 	}

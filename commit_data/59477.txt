@@ -18,7 +18,7 @@ Date:   Sun Feb 25 21:21:31 2024 +0000
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/syscall/asan.go            | 22 ----------------------
  src/syscall/asan0.go           | 19 -------------------
  src/syscall/msan.go            | 22 ----------------------
@@ -26,3 +26,236 @@ Date:   Sun Feb 25 21:21:31 2024 +0000
  src/syscall/syscall_unix.go    | 34 ++++++++++++++++++----------------
  src/syscall/syscall_windows.go | 18 ++++++++++--------
  6 files changed, 28 insertions(+), 106 deletions(-)
+
+diff --git a/src/syscall/asan.go b/src/syscall/asan.go
+deleted file mode 100644
+index eff30781e4..0000000000
+--- a/src/syscall/asan.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build asan
+-
+-package syscall
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const asanenabled = true
+-
+-func asanRead(addr unsafe.Pointer, len int) {
+-	runtime.ASanRead(addr, len)
+-}
+-
+-func asanWrite(addr unsafe.Pointer, len int) {
+-	runtime.ASanWrite(addr, len)
+-}
+diff --git a/src/syscall/asan0.go b/src/syscall/asan0.go
+deleted file mode 100644
+index 08bc44dea1..0000000000
+--- a/src/syscall/asan0.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !asan
+-
+-package syscall
+-
+-import (
+-	"unsafe"
+-)
+-
+-const asanenabled = false
+-
+-func asanRead(addr unsafe.Pointer, len int) {
+-}
+-
+-func asanWrite(addr unsafe.Pointer, len int) {
+-}
+diff --git a/src/syscall/msan.go b/src/syscall/msan.go
+deleted file mode 100644
+index 89c580799f..0000000000
+--- a/src/syscall/msan.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build msan
+-
+-package syscall
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const msanenabled = true
+-
+-func msanRead(addr unsafe.Pointer, len int) {
+-	runtime.MSanRead(addr, len)
+-}
+-
+-func msanWrite(addr unsafe.Pointer, len int) {
+-	runtime.MSanWrite(addr, len)
+-}
+diff --git a/src/syscall/msan0.go b/src/syscall/msan0.go
+deleted file mode 100644
+index fba8a5f716..0000000000
+--- a/src/syscall/msan0.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !msan
+-
+-package syscall
+-
+-import (
+-	"unsafe"
+-)
+-
+-const msanenabled = false
+-
+-func msanRead(addr unsafe.Pointer, len int) {
+-}
+-
+-func msanWrite(addr unsafe.Pointer, len int) {
+-}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 0d3fe31e7a..79aac51c8f 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -8,8 +8,10 @@ package syscall
+ 
+ import (
+ 	errorspkg "errors"
++	"internal/asan"
+ 	"internal/bytealg"
+ 	"internal/itoa"
++	"internal/msan"
+ 	"internal/oserror"
+ 	"internal/race"
+ 	"runtime"
+@@ -187,11 +189,11 @@ func Read(fd int, p []byte) (n int, err error) {
+ 			race.Acquire(unsafe.Pointer(&ioSync))
+ 		}
+ 	}
+-	if msanenabled && n > 0 {
+-		msanWrite(unsafe.Pointer(&p[0]), n)
++	if msan.Enabled && n > 0 {
++		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+-	if asanenabled && n > 0 {
+-		asanWrite(unsafe.Pointer(&p[0]), n)
++	if asan.Enabled && n > 0 {
++		asan.Write(unsafe.Pointer(&p[0]), n)
+ 	}
+ 	return
+ }
+@@ -211,11 +213,11 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	if race.Enabled && n > 0 {
+ 		race.ReadRange(unsafe.Pointer(&p[0]), n)
+ 	}
+-	if msanenabled && n > 0 {
+-		msanRead(unsafe.Pointer(&p[0]), n)
++	if msan.Enabled && n > 0 {
++		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+-	if asanenabled && n > 0 {
+-		asanRead(unsafe.Pointer(&p[0]), n)
++	if asan.Enabled && n > 0 {
++		asan.Read(unsafe.Pointer(&p[0]), n)
+ 	}
+ 	return
+ }
+@@ -230,11 +232,11 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 			race.Acquire(unsafe.Pointer(&ioSync))
+ 		}
+ 	}
+-	if msanenabled && n > 0 {
+-		msanWrite(unsafe.Pointer(&p[0]), n)
++	if msan.Enabled && n > 0 {
++		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+-	if asanenabled && n > 0 {
+-		asanWrite(unsafe.Pointer(&p[0]), n)
++	if asan.Enabled && n > 0 {
++		asan.Write(unsafe.Pointer(&p[0]), n)
+ 	}
+ 	return
+ }
+@@ -247,11 +249,11 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	if race.Enabled && n > 0 {
+ 		race.ReadRange(unsafe.Pointer(&p[0]), n)
+ 	}
+-	if msanenabled && n > 0 {
+-		msanRead(unsafe.Pointer(&p[0]), n)
++	if msan.Enabled && n > 0 {
++		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+-	if asanenabled && n > 0 {
+-		asanRead(unsafe.Pointer(&p[0]), n)
++	if asan.Enabled && n > 0 {
++		asan.Read(unsafe.Pointer(&p[0]), n)
+ 	}
+ 	return
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index bfd0d50fa7..032f814304 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -8,8 +8,10 @@ package syscall
+ 
+ import (
+ 	errorspkg "errors"
++	"internal/asan"
+ 	"internal/bytealg"
+ 	"internal/itoa"
++	"internal/msan"
+ 	"internal/oserror"
+ 	"internal/race"
+ 	"runtime"
+@@ -446,11 +448,11 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+ 		}
+ 		race.Acquire(unsafe.Pointer(&ioSync))
+ 	}
+-	if msanenabled && *done > 0 {
+-		msanWrite(unsafe.Pointer(&p[0]), int(*done))
++	if msan.Enabled && *done > 0 {
++		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+-	if asanenabled && *done > 0 {
+-		asanWrite(unsafe.Pointer(&p[0]), int(*done))
++	if asan.Enabled && *done > 0 {
++		asan.Write(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+ 	return err
+ }
+@@ -463,11 +465,11 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error
+ 	if race.Enabled && *done > 0 {
+ 		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	if msanenabled && *done > 0 {
+-		msanRead(unsafe.Pointer(&p[0]), int(*done))
++	if msan.Enabled && *done > 0 {
++		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+-	if asanenabled && *done > 0 {
+-		asanRead(unsafe.Pointer(&p[0]), int(*done))
++	if asan.Enabled && *done > 0 {
++		asan.Read(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+ 	return err
+ }

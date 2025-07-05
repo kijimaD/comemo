@@ -15,8 +15,84 @@ Date:   Mon Aug 29 16:40:31 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/signature.go          |  2 +-
  .../internal/types2/testdata/fixedbugs/issue48827.go  | 19 +++++++++++++++++++
  src/cmd/compile/internal/types2/typexpr.go            | 16 +++++++++++-----
  3 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 1b61b368d2..d6a8e70902 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -130,7 +130,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// Also: Don't report an error via genericType since it will be reported
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+-				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
++				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
+ 					recvTParams = recv.TypeParams().list()
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
+new file mode 100644
+index 0000000000..52ccd1ce0c
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type G[P any] int
++
++type (
++	_ G[int]
++	_ G[G /* ERROR "cannot use.*without instantiation" */]
++	_ bool /* ERROR "invalid operation: bool\[int\] \(bool is not a generic type\)" */ [int]
++	_ bool /* ERROR "invalid operation: bool\[G\] \(bool is not a generic type\)" */[G]
++)
++
++// The example from the issue.
++func _() {
++	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1]{})
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 692feb9751..262f5af332 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -191,13 +191,15 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
+ 	return typ
+ }
+ 
+-// genericType is like typ but the type must be an (uninstantiated) generic type.
+-func (check *Checker) genericType(e syntax.Expr, reportErr bool) Type {
++// genericType is like typ but the type must be an (uninstantiated) generic
++// type. If reason is non-nil and the type expression was a valid type but not
++// generic, reason will be populated with a message describing the error.
++func (check *Checker) genericType(e syntax.Expr, reason *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+ 	if typ != Typ[Invalid] && !isGeneric(typ) {
+-		if reportErr {
+-			check.errorf(e, "%s is not a generic type", typ)
++		if reason != nil {
++			*reason = check.sprintf("%s is not a generic type", typ)
+ 		}
+ 		typ = Typ[Invalid]
+ 	}
+@@ -415,7 +417,11 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		}()
+ 	}
+ 
+-	gtyp := check.genericType(x, true)
++	var reason string
++	gtyp := check.genericType(x, &reason)
++	if reason != "" {
++		check.errorf(x, invalidOp+"%s%s (%s)", x, xlist, reason)
++	}
+ 	if gtyp == Typ[Invalid] {
+ 		return gtyp // error already reported
+ 	}

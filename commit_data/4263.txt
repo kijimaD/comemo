@@ -11,6 +11,67 @@ Date:   Tue Dec 1 15:54:49 2009 -0800
     R=rsc, dho, agl, agl1
     CC=ukai
     https://golang.org/cl/163055
-
+---
  src/pkg/websocket/websocket.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index 0fd32cd4cd..373961d570 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -52,14 +52,14 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 	for {
+ 		frameByte, err := ws.buf.ReadByte();
+ 		if err != nil {
+-			return
++			return n, err
+ 		}
+ 		if (frameByte & 0x80) == 0x80 {
+ 			length := 0;
+ 			for {
+ 				c, err := ws.buf.ReadByte();
+ 				if err != nil {
+-					return
++					return n, err
+ 				}
+ 				if (c & 0x80) == 0x80 {
+ 					length = length*128 + int(c&0x7f)
+@@ -70,7 +70,7 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 			for length > 0 {
+ 				_, err := ws.buf.ReadByte();
+ 				if err != nil {
+-					return
++					return n, err
+ 				}
+ 				length--;
+ 			}
+@@ -78,10 +78,10 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 			for {
+ 				c, err := ws.buf.ReadByte();
+ 				if err != nil {
+-					return
++					return n, err
+ 				}
+ 				if c == '\xff' {
+-					return
++					return n, err
+ 				}
+ 				if frameByte == 0 {
+ 					if n+1 <= cap(msg) {
+@@ -91,13 +91,13 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 					n++;
+ 				}
+ 				if n >= cap(msg) {
+-					err = os.E2BIG;
+-					return;
++					return n, os.E2BIG
+ 				}
+ 			}
+ 		}
+ 	}
+-	return;
++
++	panic("unreachable");
+ }
+ 
+ func (ws *Conn) Write(msg []byte) (n int, err os.Error) {

@@ -57,6 +57,41 @@ Date:   Sat Nov 3 09:09:28 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/type.go | 17 ++++++-----------
  1 file changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index b20039239b..45355e5798 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -665,23 +665,18 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 		}
+ 
+ 	case TSTRUCT:
++		// Make a copy of all fields, including ones whose type does not change.
++		// This prevents aliasing across functions, which can lead to later
++		// fields getting their Offset incorrectly overwritten.
+ 		fields := t.FieldSlice()
+-		var nfs []*Field
++		nfs := make([]*Field, len(fields))
+ 		for i, f := range fields {
+ 			nft := SubstAny(f.Type, types)
+-			if nft == f.Type {
+-				continue
+-			}
+-			if nfs == nil {
+-				nfs = append([]*Field(nil), fields...)
+-			}
+ 			nfs[i] = f.Copy()
+ 			nfs[i].Type = nft
+ 		}
+-		if nfs != nil {
+-			t = t.copy()
+-			t.SetFields(nfs)
+-		}
++		t = t.copy()
++		t.SetFields(nfs)
+ 	}
+ 
+ 	return t

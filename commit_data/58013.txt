@@ -11,7 +11,43 @@ Date:   Mon Sep 18 10:57:28 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/expr.go      | 2 +-
  src/go/types/interface.go | 6 ++----
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 2b020a570a..b018939730 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1334,7 +1334,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 		}
+ 		// x.(type) expressions are handled explicitly in type switches
+ 		if e.Type == nil {
+-			// Don't use invalidAST because this can occur in the AST produced by
++			// Don't use InvalidSyntaxTree because this can occur in the AST produced by
+ 			// go/parser.
+ 			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
+ 			goto Error
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index ac909fa4d6..3aed723542 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -188,15 +188,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			continue // ignore
+ 		}
+ 
+-		// Always type-check method type parameters but complain if they are not enabled.
+-		// (This extra check is needed here because interface method signatures don't have
+-		// a receiver specification.)
++		// The go/parser doesn't accept method type parameters but an ast.FuncType may have them.
+ 		if sig.tparams != nil {
+ 			var at positioner = f.Type
+ 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
+ 				at = ftyp.TypeParams
+ 			}
+-			check.error(at, InvalidMethodTypeParams, "methods cannot have type parameters")
++			check.error(at, InvalidSyntaxTree, "methods cannot have type parameters")
+ 		}
+ 
+ 		// use named receiver type if available (for better error messages)

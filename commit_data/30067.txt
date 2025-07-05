@@ -11,6 +11,19 @@ Date:   Sun Oct 23 23:13:59 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 228a3f2580..34bbc6603e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -267,6 +267,7 @@ func TestQueryContext(t *testing.T) {
+ 	prepares0 := numPrepares(t, db)
+ 
+ 	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
+ 
+ 	rows, err := db.QueryContext(ctx, "SELECT|people|age,name|")
+ 	if err != nil {

@@ -15,7 +15,65 @@ Date:   Tue Feb 2 18:08:50 2021 +0100
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/bug/bug.go     |  8 ++++++--
  src/cmd/go/testdata/script/bug.txt | 14 +++++++++++++-
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 4aa08b4ff6..df63c579d9 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -81,7 +81,7 @@ func printGoVersion(w io.Writer) {
+ 	fmt.Fprintf(w, "### What version of Go are you using (`go version`)?\n\n")
+ 	fmt.Fprintf(w, "<pre>\n")
+ 	fmt.Fprintf(w, "$ go version\n")
+-	printCmdOut(w, "", "go", "version")
++	fmt.Fprintf(w, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+ 	fmt.Fprintf(w, "</pre>\n")
+ 	fmt.Fprintf(w, "\n")
+ }
+@@ -90,7 +90,11 @@ func printEnvDetails(w io.Writer) {
+ 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
+ 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
+ 	fmt.Fprintf(w, "$ go env\n")
+-	printCmdOut(w, "", "go", "env")
++	goexe, err := os.Executable()
++	if err != nil {
++		goexe = filepath.Join(runtime.GOROOT(), "bin/go")
++	}
++	printCmdOut(w, "", goexe, "env")
+ 	printGoDetails(w)
+ 	printOSDetails(w)
+ 	printCDetails(w)
+diff --git a/src/cmd/go/testdata/script/bug.txt b/src/cmd/go/testdata/script/bug.txt
+index b9bbaaad33..571d507358 100644
+--- a/src/cmd/go/testdata/script/bug.txt
++++ b/src/cmd/go/testdata/script/bug.txt
+@@ -1,9 +1,11 @@
+ # Verify that go bug creates the appropriate URL issue body
+ 
+ [!linux] skip
++[short] skip
+ 
+ go install
+-env BROWSER=$GOPATH/bin/browser
++go build -o $TMPDIR/go ./go
++env BROWSER=$GOPATH/bin/browser PATH=$TMPDIR:$PATH
+ go bug
+ exists $TMPDIR/browser
+ grep '^go version' $TMPDIR/browser
+@@ -44,3 +46,13 @@ func main() {
+ 	}
+ }
+ 
++-- go/main.go --
++package main
++
++import (
++    "os"
++)
++
++func main() {
++    os.Exit(1)
++}

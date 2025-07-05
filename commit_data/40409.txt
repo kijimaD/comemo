@@ -42,7 +42,55 @@ Date:   Thu May 9 11:31:04 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cache.go    |  8 ++++++++
  src/cmd/compile/internal/ssa/regalloc.go | 10 ++++++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index 6c8cc50e1e..dbec2e139c 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -32,6 +32,8 @@ type Cache struct {
+ 		live           []bool
+ 		q              []*Value
+ 	}
++	// Reusable regalloc state.
++	regallocValues []valState
+ 
+ 	ValueToProgAfter []*obj.Prog
+ 	debugState       debugState
+@@ -56,6 +58,12 @@ func (c *Cache) Reset() {
+ 		xl[i] = nil
+ 	}
+ 
++	// regalloc sets the length of c.regallocValues to whatever it may use,
++	// so clear according to length.
++	for i := range c.regallocValues {
++		c.regallocValues[i] = valState{}
++	}
++
+ 	// liveOrderStmts gets used multiple times during compilation of a function.
+ 	// We don't know where the high water mark was, so reslice to cap and search.
+ 	c.deadcode.liveOrderStmts = c.deadcode.liveOrderStmts[:cap(c.deadcode.liveOrderStmts)]
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index a265479316..b6fae5e0a3 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -651,8 +651,14 @@ func (s *regAllocState) init(f *Func) {
+ 	}
+ 
+ 	s.regs = make([]regState, s.numRegs)
+-	s.values = make([]valState, f.NumValues())
+-	s.orig = make([]*Value, f.NumValues())
++	nv := f.NumValues()
++	if cap(s.f.Cache.regallocValues) >= nv {
++		s.f.Cache.regallocValues = s.f.Cache.regallocValues[:nv]
++	} else {
++		s.f.Cache.regallocValues = make([]valState, nv)
++	}
++	s.values = s.f.Cache.regallocValues
++	s.orig = make([]*Value, nv)
+ 	s.copies = make(map[*Value]bool)
+ 	for _, b := range s.visitOrder {
+ 		for _, v := range b.Values {

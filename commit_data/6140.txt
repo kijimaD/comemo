@@ -7,6 +7,29 @@ Date:   Tue Aug 31 14:18:20 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2029042
-
+---
  src/pkg/strconv/quote.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 53774ee6f8..ca62296d64 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -100,11 +100,12 @@ func unhex(b byte) (v int, ok bool) {
+ // UnquoteChar decodes the first character or byte in the escaped string
+ // or character literal represented by the string s.
+ // It returns four values:
+-// 1) value, the decoded Unicode code point or byte value;
+-// 2) multibyte, a boolean indicating whether the decoded character
+-//    requires a multibyte UTF-8 representation;
+-// 3) tail, the remainder of the string after the character; and
+-// 4) an error that will be nil if the character is syntactically valid.
++//
++//	1) value, the decoded Unicode code point or byte value;
++//	2) multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
++//	3) tail, the remainder of the string after the character; and
++//	4) an error that will be nil if the character is syntactically valid.
++//
+ // The second argument, quote, specifies the type of literal being parsed
+ // and therefore which escaped quote character is permitted.
+ // If set to a single quote, it permits the sequence \' and disallows unescaped '.

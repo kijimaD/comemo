@@ -9,6 +9,28 @@ Date:   Tue Feb 27 11:53:35 2018 -0800
     Change-Id: I61c450dee5975492192453738f734f772e95c1a5
     Reviewed-on: https://go-review.googlesource.com/97515
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 1226ca7a5a..ad8416e9e1 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -73,14 +73,14 @@ type Types struct {
+ 	BytePtrPtr *types.Type
+ }
+ 
+-// Instantiate the SSA type pointers.
++// NewTypes creates and populates a Types.
+ func NewTypes() *Types {
+ 	t := new(Types)
+ 	t.SetTypPtrs()
+ 	return t
+ }
+ 
+-// Populate the SSA type pointers.
++// SetTypPtrs populates t.
+ func (t *Types) SetTypPtrs() {
+ 	t.Bool = types.Types[types.TBOOL]
+ 	t.Int8 = types.Types[types.TINT8]

@@ -14,10 +14,824 @@ Date:   Tue Apr 28 19:11:37 2009 -0700
     TBR=r
     OCL=28004
     CL=28004
-
+---
  usr/gri/pretty/Makefile.iant |  38 +-------
  usr/gri/pretty/ast.txt       | 217 +++++++++++++++++++++++++++++++++++++++----
  usr/gri/pretty/format.go     | 168 ++++++++++++++++++++-------------
  usr/gri/pretty/godoc.go      |  54 ++++++-----
  usr/gri/pretty/pretty.go     |   2 +-
  5 files changed, 341 insertions(+), 138 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index fe5e2d2a99..03d9c30423 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -6,22 +6,12 @@
+ 
+ GO = /home/iant/go/bin/gccgo
+ 
+-LDFLAGS = -Wl,-R,/home/iant/go/lib
++LDFLAGS = -Wl,-R,/home/iant/go/lib,-static-libgo
+ 
+ PRETTY_OBJS = \
+-	ast.o \
+-	compilation.o \
+-	globals.o \
+-	object.o \
+-	parser.o \
+-	platform.o \
++	astprinter.o \
++	format.o \
+ 	pretty.o \
+-	printer.o \
+-	scanner.o \
+-	type.o \
+-	typechecker.o \
+-	universe.o \
+-	utils.o
+ 
+ pretty: $(PRETTY_OBJS)
+ 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+@@ -36,27 +26,7 @@ clean:
+ 	rm -f pretty *.o  *~
+ 
+ 
+-pretty.o:	 platform.o printer.o compilation.o
+-
+-compilation.o:	 platform.o scanner.o parser.o ast.o typechecker.o
+-
+-ast.o:	 scanner.o
+-
+-scanner.o:	 utils.o
+-
+-parser.o:	 scanner.o ast.o
+-
+-platform.o:	 utils.o
+-
+-printer.o:	 scanner.o ast.o
+-
+-typechecker.o:   ast.o universe.o globals.o type.o
+-
+-universe.o:      globals.o object.o type.o
+-
+-object.o:        globals.o
+-
+-type.o:          globals.o object.o
++pretty.o:	 astprinter.o format.o
+ 
+ .SUFFIXES:
+ .SUFFIXES: .go .o
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+index fd9d9302c4..fbf1fdc9e9 100644
+--- a/usr/gri/pretty/ast.txt
++++ b/usr/gri/pretty/ast.txt
+@@ -1,40 +1,217 @@
+-//string =
+-//	"%s";
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+-pointer =
++// ----------------------------------------------------------------------------
++// Debugging
++
++token.Token =
++	^ : "%s";
++
++
++// Format file for printing AST nodes (package "ast").
++ast;
++
++// ----------------------------------------------------------------------------
++// TODO should these be automatic?
++
++Expr =
++	"expr ";
++	//*;
++
++Stmt =
+ 	*;
+ 
+-array =
++Decl =
+ 	*;
+ 
+-//token.Token =
+-//	"token<%d>";  // this could be a Go-installed formatter
++// ----------------------------------------------------------------------------
++// Comments
+ 
+-ast
+-	;
++Comment =
++	Text : "%s\n";
+ 
+ Comments =
+-	"comments\n";
++	{*};
++
++
++// ----------------------------------------------------------------------------
++// Expressions & Types
++
++Field =
++	{Names ", "} Type;
++
++BadExpr =
++	"BAD EXPR";
+ 
+ Ident =
+ 	Value;
+ 
+-Program =
+-	"package " Name "\n\n" {Decls "\n\n"};
++Elipsis =
++	"...";
+ 
+-GenDecl =
+-	Doc
+-	Tok " (\n"
+-	")\n";
++IntLit =
++	Value : "%s";
++
++FloatLit =
++	Value : "%s";
++
++CharLit =
++	Value : "%s";
++
++StringLit =
++	Value : "%s";
++
++StringList =
++	{ Strings };
++
++FuncLit =
++	"func ";
++
++CompositeLit =
++	Type "{}";
++
++ParenExpr =
++	"(" X ")";
++
++SelectorExpr =
++	X "." Sel;
++
++IndexExpr =
++	X "[" Index "]";
++
++SliceExpr =
++	X "[" Begin " : " End "]";
++
++TypeAssertExpr =
++	X ".(" Type ")";
++
++CallExpr =
++	Fun "(" {Args} ")";
++
++StarExpr =
++	"*" X;
++
++UnaryExpr =
++	Op X;
++
++BinaryExpr =
++	X Op Y;
++
++KeyValueExpr =
++	Key ": " Value;
++
++ArrayType =
++	"[" Len "]" Elt;
++
++SliceType =
++	"[]" Elt;
++
++StructType =
++	"struct {\n"
++	"}";
+ 
+ FuncType =
+-	"(" ")";
++	"(" {Params " "} ")";
++
++// BUG take this one away and the code crashes
++InterfaceType =
++	"interface {}";
++
++MapType =
++	"map[" Key "]" Value;
++
++ChanType =
++	"chan";
++
++
++// ----------------------------------------------------------------------------
++// Statements
++
++BadStmt =
++	"BAD STMT";
++
++DeclStmt =
++	Decl;
++
++EmptyStmt =
++	;
++
++LabeledStmt =
++	Label ":\t" Stmt;
++
++ExprStmt =
++	X;
++
++IncDecStmt =
++	X Tok;
++
++AssignStmt =
++	"assignment " {Lhs ", "};
++	//{Lhs ", "} Tok {Rhs ", "};
++
++GoStmt =
++	"go " Call;
++
++ReturnStmt =
++	"return" {" " Results};
++
++BranchStmt =
++	Tok [" " Label];
+ 
+ BlockStmt =
+-	"{\n" "}\n";
++	"{\n" {List ";\n"} "}\n";
++
++IfStmt =
++	"if " "{" [Body] "}" [Else];
++
++SwitchStmt =
++	"switch {}";
++
++TypeSwitchStmt =
++	"switch {}";
++
++SelectStmt =
++	"select {}";
++
++ForStmt =
++	"for {}";
+ 
++RangeStmt =
++	"range";
++
++
++// ----------------------------------------------------------------------------
++// Declarations
++
++Spec =
++	*;
++
++ImportSpec =
++	"import";
++
++ValueSpec =
++	"value";
++
++TypeSpec =
++	"type";
++
++BadDecl =
++	"BAD DECL";
++
++GenDecl =
++	Doc
++	Tok " (\n"
++	")\n";
++	
+ FuncDecl =
+-	"func " Name Type [" " Body];
++	"func " ["(" Recv ") "] Name Type [" " Body];
+ 	
+-Decl =
+-	^;
+\ No newline at end of file
++
++// ----------------------------------------------------------------------------
++// Program
++
++Program =
++	Doc
++	"package " Name "\n\n"
++	{Decls "\n\n"};
+diff --git a/usr/gri/pretty/format.go b/usr/gri/pretty/format.go
+index 39fe519351..62009d2c89 100644
+--- a/usr/gri/pretty/format.go
++++ b/usr/gri/pretty/format.go
+@@ -11,16 +11,17 @@
+ 	(strings), references to fields, and alternative, grouped, optional,
+ 	and repetitive sub-expressions.
+ 
+-	When printing a value, its type name is used to lookup the production
++	When printing a value, its type name is used to look up the production
+ 	to be printed. Literal values are printed as is, field references are
+-	resolved and the respective field value is printed instead (using its
+-	type-specific production), and alternative, grouped, optional, and
++	resolved and the respective field values are printed instead (using their
++	type-specific productions), and alternative, grouped, optional, and
+ 	repetitive sub-expressions are printed depending on whether they contain
+ 	"empty" fields or not. A field is empty if its value is nil.
+ */
+ package format
+ 
+ import (
++	"flag";
+ 	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+@@ -31,6 +32,10 @@ import (
+ )
+ 
+ 
++// TODO remove once the code works
++var debug = flag.Bool("d", false, "debug mode");
++
++
+ // ----------------------------------------------------------------------------
+ // Format representation
+ 
+@@ -75,11 +80,6 @@ type (
+ )
+ 
+ 
+-// TODO If we had a basic accessor mechanism in the language (a field
+-// "f T" automatically implements a corresponding accessor "f() T", this
+-// could be expressed more easily by simply providing the field.
+-//
+-
+ func (x *alternative) String() string {
+ 	return fmt.Sprintf("(%v | %v)", x.x, x.y);
+ }
+@@ -130,20 +130,20 @@ func (x *custom) String() string {
+ 		Expression  = Term { "|" Term } .
+ 		Term        = Factor { Factor } .
+ 		Factor      = string_literal | Field | Group | Option | Repetition .
+-		Field		= ( "^" | "*" | Name ) [ ":" Expression ] .
++		Field       = ( "^" | "*" | Name ) [ ":" Expression ] .
+ 		Group       = "(" Expression ")" .
+ 		Option      = "[" Expression "]" .
+ 		Repetition  = "{" Expression "}" .
+ 
+ 	The syntax of white space, comments, identifiers, and string literals is
+ 	the same as in Go.
+-	
++
+ 	A production name corresponds to a Go type name of the form
+ 
+ 		PackageName.TypeName
+ 
+ 	(for instance format.Format). A production of the form
+-	
++
+ 		Name;
+ 
+ 	specifies a package name which is prepended to all subsequent production
+@@ -471,13 +471,23 @@ func fieldIndex(v reflect.StructValue, fieldname string) int {
+ }
+ 
+ 
+-func getField(v reflect.StructValue, fieldname string) reflect.Value {
++func getField(v reflect.StructValue, i int) reflect.Value {
++	fld := v.Field(i);
++	if tmp, is_interface := fld.(reflect.InterfaceValue); is_interface {
++		// TODO do I have to check something for nil here?
++		fld = reflect.NewValue(tmp.Get());
++	}
++	return fld;
++}
++
++
++func getFieldByName(v reflect.StructValue, fieldname string) reflect.Value {
+ 	i := fieldIndex(v, fieldname);
+ 	if i < 0 {
+ 		panicln("field not found:", fieldname);
+ 	}
+ 
+-	return v.Field(i);
++	return getField(v, i);
+ }
+ 
+ 
+@@ -521,6 +531,8 @@ func typename(value reflect.Value) string {
+ 
+ var defaults = map [int] expr {
+ 	reflect.ArrayKind: &field{"*", nil},
++	reflect.DotDotDotKind: &field{"*", nil},
++	reflect.InterfaceKind: &field{"*", nil},
+ 	reflect.MapKind: &field{"*", nil},
+ 	reflect.PtrKind: &field{"*", nil},
+ }
+@@ -568,41 +580,53 @@ func printf(w io.Write, format []byte, value reflect.Value) {
+ }
+ 
+ 
+-// Returns true if a non-empty field value was found.
+-func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bool {
+-	debug := false;  // enable for debugging
+-	if debug {
+-		fmt.Printf("print(%v, = %v, %v, %d)\n", w, fexpr, value.Interface(), index);
++// TODO once 6g bug found
++func print(s string, a ...) {
++	/*
++	f0 := reflect.NewValue(a).(reflect.StructValue).Field(0);
++	if t, is_iface := f0.(reflect.InterfaceValue); is_iface {
++		f0 = reflect.NewValue(t.Get());
+ 	}
++	*/
++	fmt.Printf(s, a)
++}
++
++
++func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
+ 
++// Returns true if a non-empty field value was found.
++func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+ 	if fexpr == nil {
+ 		return true;
+ 	}
+ 
++	if value == nil {
++		panic("should not be possible");
++	}
++
+ 	switch t := fexpr.(type) {
+ 	case *alternative:
+ 		// - print the contents of the first alternative with a non-empty field
+ 		// - result is true if there is at least one non-empty field
+-		b := false;
+ 		var buf io.ByteBuffer;
+-		if f.print(&buf, t.x, value, index) {
++		if f.print(&buf, t.x, value, index, level) {
+ 			w.Write(buf.Data());
+-			b = true;
++			return true;
+ 		} else {
+ 			buf.Reset();
+-			if f.print(&buf, t.y, value, 0) {
++			if f.print(&buf, t.y, value, 0, level) {
+ 				w.Write(buf.Data());
+-				b = true;
++				return true;
+ 			}
+ 		}
+-		return b;
++		return false;
+ 
+ 	case *sequence:
+ 		// - print the contents of the sequence
+ 		// - result is true if there is no empty field
+ 		// TODO do we need to buffer here? why not?
+-		b1 := f.print(w, t.x, value, index);
+-		b2 := f.print(w, t.y, value, index);
++		b1 := f.print(w, t.x, value, index, level);
++		b2 := f.print(w, t.y, value, index, level);
+ 		return b1 && b2;
+ 
+ 	case *field:
+@@ -616,13 +640,10 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ 
+ 		case "*":
+ 			// indirect
++			if value.Addr() == nil {  // TODO is this right?
++				return false;
++			}
+ 			switch v := value.(type) {
+-			case reflect.PtrValue:
+-				if v.Get() == nil {
+-					return false;
+-				}
+-				value = v.Sub();
+-
+ 			case reflect.ArrayValue:
+ 				if index < 0 || v.Len() <= index {
+ 					return false;
+@@ -632,8 +653,14 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ 			case reflect.MapValue:
+ 				panic("reflection support for maps incomplete");
+ 
++			case reflect.PtrValue:
++				if v.Get() == nil {  // TODO is this right?
++					return false;
++				}
++				value = v.Sub();
++
+ 			case reflect.InterfaceValue:
+-				if v.Get() == nil {
++				if v.Get() == nil {  // TODO is this right?
+ 					return false;
+ 				}
+ 				value = v.Value();
+@@ -642,10 +669,15 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ 				panic("not a ptr, array, map, or interface");  // TODO fix this
+ 			}
+ 
++			if value == nil {
++				fmt.Fprint(w, "NIL");  // TODO debugging
++				return false;
++			}
++
+ 		default:
+ 			// field
+ 			if s, is_struct := value.(reflect.StructValue); is_struct {
+-				value = getField(s, t.name);
++				value = getFieldByName(s, t.name);
+ 			} else {
+ 				panic ("not a struct");  // TODO fix this
+ 			}
+@@ -658,16 +690,7 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ 			fexpr = f.getFormat(value);
+ 		}
+ 
+-		return f.print(w, fexpr, value, index);
+-		// BUG (6g?) crash with code below
+-		/*
+-		var buf io.ByteBuffer;
+-		if f.print(&buf, fexpr, value, index) {
+-			w.Write(buf.Data());
+-			return true;
+-		}
+-		return false;
+-		*/
++		return f.print(w, fexpr, value, index, level);
+ 
+ 	case *literal:
+ 		// - print the literal
+@@ -677,27 +700,20 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ 
+ 	case *option:
+ 		// print the contents of the option if it contains a non-empty field
+-		//var foobar bool;  // BUG w/o this declaration the code works!!!
+ 		var buf io.ByteBuffer;
+-		if f.print(&buf, t.x, value, 0) {
++		if f.print(&buf, t.x, value, 0, level) {
+ 			w.Write(buf.Data());
+-			return true;
+ 		}
+-		return false;
++		return true;
+ 
+ 	case *repetition:
+ 		// print the contents of the repetition while there is a non-empty field
+-		b := false;
+-		for i := 0; ; i++ {
+-			var buf io.ByteBuffer;
+-			if f.print(&buf, t.x, value, i) {
+-				w.Write(buf.Data());
+-				b = true;
+-			} else {
+-				break;
+-			}
++		var buf io.ByteBuffer;
++		for i := 0; f.print(&buf, t.x, value, i, level); i++ {
++			w.Write(buf.Data());
++			buf.Reset();
+ 		}
+-		return b;
++		return true;
+ 		
+ 	case *custom:
+ 		return t.f(w, value.Interface(), t.name);
+@@ -708,6 +724,34 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ }
+ 
+ 
++func printTrace(indent int, format string, a ...) {
++	const dots =
++		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
++		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
++	const n = len(dots);
++	i := 2*indent;
++	for ; i > n; i -= n {
++		fmt.Print(dots);
++	}
++	fmt.Print(dots[0 : i]);
++	fmt.Printf(format, a);
++}
++
++
++func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
++	if *debug {
++		printTrace(level, "%v, %d {\n", fexpr, /*value.Interface(), */index);
++	}
++
++	result := f.print0(w, fexpr, value, index, level+1);
++
++	if *debug {
++		printTrace(level, "} %v\n", result);
++	}
++	return result;
++}
++
++
+ // TODO proper error reporting
+ 
+ // Fprint formats each argument according to the format f
+@@ -716,13 +760,13 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
+ func (f Format) Fprint(w io.Write, args ...) {
+ 	value := reflect.NewValue(args).(reflect.StructValue);
+ 	for i := 0; i < value.Len(); i++ {
+-		fld := value.Field(i);
+-		f.print(w, f.getFormat(fld), fld, -1);
++		fld := getField(value, i);
++		f.print(w, f.getFormat(fld), fld, -1, 0);
+ 	}
+ }
+ 
+ 
+-// Fprint formats each argument according to the format f
++// Print formats each argument according to the format f
+ // and writes to standard output.
+ //
+ func (f Format) Print(args ...) {
+@@ -730,7 +774,7 @@ func (f Format) Print(args ...) {
+ }
+ 
+ 
+-// Fprint formats each argument according to the format f
++// Sprint formats each argument according to the format f
+ // and returns the resulting string.
+ //
+ func (f Format) Sprint(args ...) string {
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index e05402f177..64add11856 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -52,11 +52,6 @@ import (
+ )
+ 
+ 
+-// TODO: tell flag package about usage string
+-const usageString =
+-	"usage: godoc package [name ...]\n"
+-	"	godoc -http=:6060\n"
+-
+ const Pkg = "/pkg/"	// name for auto-generated package documentation tree
+ 
+ 
+@@ -66,6 +61,7 @@ var (
+ 	// file system roots
+ 	goroot string;
+ 	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
++	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+@@ -81,7 +77,7 @@ func init() {
+ 	var err os.Error;
+ 	goroot, err = os.Getenv("GOROOT");
+ 	if err != nil {
+-		goroot = "/home/r/go-build/go";
++		goroot = "/home/r/go-release/go";
+ 	}
+ 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
+ }
+@@ -312,13 +308,11 @@ var fmap = template.FormatterMap{
+ }
+ 
+ 
+-// TODO: const templateDir = "lib/godoc"
+-const templateDir = "usr/gri/pretty"
+-
+ func readTemplate(name string) *template.Template {
+-	data, err := ReadFile(templateDir + "/" + name);
++	path := pathutil.Join(*tmplroot, name);
++	data, err := ReadFile(path);
+ 	if err != nil {
+-		log.Exitf("ReadFile %s: %v", name, err);
++		log.Exitf("ReadFile %s: %v", path, err);
+ 	}
+ 	t, err1 := template.Parse(string(data), fmap);
+ 	if err1 != nil {
+@@ -461,7 +455,7 @@ func addFile(pmap map[string]*pakDesc, dirname, filename, importprefix string) {
+ 		return;
+ 	}
+ 	// determine package name
+-	path := dirname + "/" + filename;
++	path := pathutil.Join(dirname, filename);
+ 	prog, errors := parse(path, parser.PackageClauseOnly);
+ 	if prog == nil {
+ 		return;
+@@ -560,7 +554,17 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
+ 
+ 		if i == 0 {
+ 			// first file - initialize doc
+-			r.Init(prog.Name.Value, p.importpath);
++			// canonicalize importpath
++			// (e.g. such that "template/template" becomes just "template")
++			// TODO This should not be needed here as similar functionality
++			//      is elsewhere, but w/o this fix the output is incorrect
++			//      for, say: "godoc template/template". Temporary work-around.
++			path := p.importpath;
++			dir, name := pathutil.Split(pathutil.Clean(path));
++			if name == prog.Name.Value {
++				path = pathutil.Clean(dir);
++			}
++			r.Init(prog.Name.Value, path);
+ 		}
+ 		i++;
+ 		r.AddProgram(prog);
+@@ -624,29 +628,31 @@ func findPackages(name string) *pakInfo {
+ 	info := new(pakInfo);
+ 
+ 	// Build list of packages.
++	pmap := make(map[string]*pakDesc);
++
+ 	// If the path names a directory, scan that directory
+ 	// for a package with the name matching the directory name.
+ 	// Otherwise assume it is a package name inside
+ 	// a directory, so scan the parent.
+-	pmap := make(map[string]*pakDesc);
+ 	cname := pathutil.Clean(name);
+ 	if cname == "" {
+ 		cname = "."
+ 	}
+ 	dir := pathutil.Join(*pkgroot, cname);
+-	url := pathutil.Join(Pkg, cname);
++
+ 	if isDir(dir) {
+-		parent, pak := pathutil.Split(dir);
+ 		addDirectory(pmap, dir, cname, &info.Subdirs);
+ 		paks := mapValues(pmap);
+ 		if len(paks) == 1 {
+ 			p := paks[0];
++			_, pak := pathutil.Split(dir);
+ 			if p.dirname == dir && p.pakname == pak {
+ 				info.Package = p;
+ 				info.Path = cname;
+ 				return info;
+ 			}
+ 		}
++		
+ 		info.Packages = paks;
+ 		if cname == "." {
+ 			info.Path = "";
+@@ -656,12 +662,13 @@ func findPackages(name string) *pakInfo {
+ 		return info;
+ 	}
+ 
+-	// Otherwise, have parentdir/pak.  Look for package pak in dir.
+-	parentdir, pak := pathutil.Split(dir);
+-	parentname, nam := pathutil.Split(cname);
++	// Otherwise, have parentdir/pak.  Look for package pak in parentdir.
++	parentdir, _ := pathutil.Split(dir);
++	parentname, _ := pathutil.Split(cname);
+ 	if parentname == "" {
+ 		parentname = "."
+ 	}
++
+ 	addDirectory(pmap, parentdir, parentname, nil);
+ 	if p, ok := pmap[cname]; ok {
+ 		info.Package = p;
+@@ -703,7 +710,11 @@ func LoggingHandler(h http.Handler) http.Handler {
+ 
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, usageString);
++	fmt.Fprintf(os.Stderr,
++		"usage: godoc package [name ...]\n"
++		"	godoc -http=:6060\n"
++	);
++	flag.PrintDefaults();
+ 	sys.Exit(1);
+ }
+ 
+@@ -736,6 +747,7 @@ func main() {
+ 			log.Stderrf("address = %s\n", *httpaddr);
+ 			log.Stderrf("goroot = %s\n", goroot);
+ 			log.Stderrf("pkgroot = %s\n", *pkgroot);
++			log.Stderrf("tmplroot = %s\n", *tmplroot);
+ 			handler = LoggingHandler(handler);
+ 		}
+ 
+@@ -774,7 +786,7 @@ func main() {
+ 
+ 	if flag.NArg() > 1 {
+ 		args := flag.Args();
+-		doc.Filter(args[1:len(args)]);
++		doc.Filter(args[1 : len(args)]);
+ 	}
+ 
+ 	packageText.Execute(doc, os.Stdout);
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index b37f80bfb4..81bb4d45e4 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -39,7 +39,7 @@ func init() {
+ 
+ 
+ func usage() {
+-	print("usage: pretty { flags } { files }\n");
++	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
+ 	flag.PrintDefaults();
+ 	sys.Exit(0);
+ }

@@ -14,6 +14,20 @@ Date:   Wed Jul 5 10:09:05 2017 +0200
     Change-Id: Id4f48d59d7d513fa24b2e42795c2baa5ceb78f36
     Reviewed-on: https://go-review.googlesource.com/47470
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/label.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 44da3f8737..35647ee3ce 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -52,7 +52,7 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ }
+ 
+ // Labels takes an even number of strings representing key-value pairs
+-// and makes a LabelList containing them.
++// and makes a LabelSet containing them.
+ // A label overwrites a prior label with the same key.
+ func Labels(args ...string) LabelSet {
+ 	if len(args)%2 != 0 {

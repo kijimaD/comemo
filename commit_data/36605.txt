@@ -31,7 +31,39 @@ Date:   Wed Apr 25 11:45:53 2018 +0900
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/js.go      | 8 ++++++++
  src/html/template/js_test.go | 1 +
  2 files changed, 9 insertions(+)
+
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 239395f8d3..e02fdb9751 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -123,6 +123,14 @@ var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+ // indirectToJSONMarshaler returns the value, after dereferencing as many times
+ // as necessary to reach the base type (or nil) or an implementation of json.Marshal.
+ func indirectToJSONMarshaler(a interface{}) interface{} {
++	// text/template now supports passing untyped nil as a func call
++	// argument, so we must support it. Otherwise we'd panic below, as one
++	// cannot call the Type or Interface methods on an invalid
++	// reflect.Value. See golang.org/issue/18716.
++	if a == nil {
++		return nil
++	}
++
+ 	v := reflect.ValueOf(a)
+ 	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+ 		v = v.Elem()
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 7484f60b54..cf2a0d2987 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -149,6 +149,7 @@ func TestJSValEscaper(t *testing.T) {
+ 		{"]]>", `"]]\u003e"`},
+ 		{"</script", `"\u003c/script"`},
+ 		{"\U0001D11E", "\"\U0001D11E\""}, // or "\uD834\uDD1E"
++		{nil, " null "},
+ 	}
+ 
+ 	for _, test := range tests {

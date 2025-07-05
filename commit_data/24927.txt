@@ -15,9 +15,181 @@ Date:   Mon Jun 8 08:42:28 2015 -0700
     Change-Id: I9ade53c1dfb3c1a2870d68d07201bc8128e9f217
     Reviewed-on: https://go-review.googlesource.com/10843
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 58 +++++++++++++++++++++++++++++++---
  src/reflect/type.go                    | 29 +++++++++++++++++
  src/runtime/hashmap.go                 |  4 ++-
  src/runtime/type.go                    |  1 +
  4 files changed, 86 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f579ef83a6..3e69056737 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -943,10 +943,8 @@ func weaktypesym(t *Type) *Sym {
+ 	return s
+ }
+ 
+-/*
+- * Returns 1 if t has a reflexive equality operator.
+- * That is, if x==x for all x of type t.
+- */
++// isreflexive reports whether t has a reflexive equality operator.
++// That is, if x==x for all x of type t.
+ func isreflexive(t *Type) bool {
+ 	switch t.Etype {
+ 	case TBOOL,
+@@ -987,7 +985,6 @@ func isreflexive(t *Type) bool {
+ 				return false
+ 			}
+ 		}
+-
+ 		return true
+ 
+ 	default:
+@@ -996,6 +993,56 @@ func isreflexive(t *Type) bool {
+ 	}
+ }
+ 
++// needkeyupdate reports whether map updates with t as a key
++// need the key to be updated.
++func needkeyupdate(t *Type) bool {
++	switch t.Etype {
++	case TBOOL,
++		TINT,
++		TUINT,
++		TINT8,
++		TUINT8,
++		TINT16,
++		TUINT16,
++		TINT32,
++		TUINT32,
++		TINT64,
++		TUINT64,
++		TUINTPTR,
++		TPTR32,
++		TPTR64,
++		TUNSAFEPTR,
++		TCHAN:
++		return false
++
++	case TFLOAT32, // floats can be +0/-0
++		TFLOAT64,
++		TCOMPLEX64,
++		TCOMPLEX128,
++		TINTER,
++		TSTRING: // strings might have smaller backing stores
++		return true
++
++	case TARRAY:
++		if Isslice(t) {
++			Fatalf("slice can't be a map key: %v", t)
++		}
++		return needkeyupdate(t.Type)
++
++	case TSTRUCT:
++		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++			if needkeyupdate(t1.Type) {
++				return true
++			}
++		}
++		return false
++
++	default:
++		Fatalf("bad type for map key: %v", t)
++		return true
++	}
++}
++
+ func dtypesym(t *Type) *Sym {
+ 	// Replace byte, rune aliases with real type.
+ 	// They've been separate internally to make error messages
+@@ -1176,6 +1223,7 @@ ok:
+ 
+ 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
++		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Down))))
+ 
+ 	case TPTR32, TPTR64:
+ 		if t.Type.Etype == TANY {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 95eaf2c228..e98c960a03 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -347,6 +347,7 @@ type mapType struct {
+ 	indirectvalue uint8  // store ptr to value instead of value itself
+ 	bucketsize    uint16 // size of bucket
+ 	reflexivekey  bool   // true if k==k for all keys
++	needkeyupdate bool   // true if we need to update key on an overwrite
+ }
+ 
+ // ptrType represents a pointer type.
+@@ -1525,6 +1526,7 @@ func MapOf(key, elem Type) Type {
+ 	}
+ 	mt.bucketsize = uint16(mt.bucket.size)
+ 	mt.reflexivekey = isReflexive(ktyp)
++	mt.needkeyupdate = needKeyUpdate(ktyp)
+ 	mt.uncommonType = nil
+ 	mt.ptrToThis = nil
+ 
+@@ -1669,6 +1671,33 @@ func isReflexive(t *rtype) bool {
+ 	}
+ }
+ 
++// needKeyUpdate reports whether map overwrites require the key to be copied.
++func needKeyUpdate(t *rtype) bool {
++	switch t.Kind() {
++	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Ptr, UnsafePointer:
++		return false
++	case Float32, Float64, Complex64, Complex128, Interface, String:
++		// Float keys can be updated from +0 to -0.
++		// String keys can be updated to use a smaller backing store.
++		// Interfaces might have floats of strings in them.
++		return true
++	case Array:
++		tt := (*arrayType)(unsafe.Pointer(t))
++		return needKeyUpdate(tt.elem)
++	case Struct:
++		tt := (*structType)(unsafe.Pointer(t))
++		for _, f := range tt.fields {
++			if needKeyUpdate(f.typ) {
++				return true
++			}
++		}
++		return false
++	default:
++		// Func, Map, Slice, Invalid
++		panic("needKeyUpdate called on non-key type " + t.String())
++	}
++}
++
+ // Make sure these routines stay in sync with ../../runtime/hashmap.go!
+ // These types exist only for GC, so we only fill out GC relevant info.
+ // Currently, that's just size and the GC program.  We also fill in string
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 9eca9cf5bf..2db73bc845 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -460,7 +460,9 @@ again:
+ 				continue
+ 			}
+ 			// already have a mapping for key.  Update it.
+-			typedmemmove(t.key, k2, key)
++			if t.needkeyupdate {
++				typedmemmove(t.key, k2, key)
++			}
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 			v2 := v
+ 			if t.indirectvalue {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 1321af8d1d..033f12fd42 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -67,6 +67,7 @@ type maptype struct {
+ 	indirectvalue bool   // store ptr to value instead of value itself
+ 	bucketsize    uint16 // size of bucket
+ 	reflexivekey  bool   // true if k==k for all keys
++	needkeyupdate bool   // true if we need to update key on an overwrite
+ }
+ 
+ type chantype struct {

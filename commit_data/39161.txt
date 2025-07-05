@@ -12,7 +12,41 @@ Date:   Thu Jan 10 05:14:40 2019 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface.go | 4 ++--
  src/net/unixsock.go  | 7 +++++--
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 8d29a44db8..58248560a2 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -13,8 +13,8 @@ import (
+ // BUG(mikio): On JS and NaCl, methods and functions related to
+ // Interface are not implemented.
+ 
+-// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
+-// the MulticastAddrs method of Interface is not implemented.
++// BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and
++// Solaris, the MulticastAddrs method of Interface is not implemented.
+ 
+ var (
+ 	errInvalidInterface         = errors.New("invalid network interface")
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 3ae62f6a8b..ae912a46dd 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -12,8 +12,11 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On JS, NaCl, Plan 9 and Windows, methods and functions
+-// related to UnixConn and UnixListener are not implemented.
++// BUG(mikio): On JS, NaCl and Plan 9, methods and functions related
++// to UnixConn and UnixListener are not implemented.
++
++// BUG(mikio): On Windows, methods and functions related to UnixConn
++// and UnixListener don't work for "unixgram" and "unixpacket".
+ 
+ // UnixAddr represents the address of a Unix domain socket end point.
+ type UnixAddr struct {

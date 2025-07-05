@@ -13,6 +13,33 @@ Date:   Tue Nov 28 03:38:03 2017 +0000
     Change-Id: I6690f5cffb21bf8ae06a314b7a45cafff8bcee13
     Reviewed-on: https://go-review.googlesource.com/84275
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 1ac8ce886c..87df89e812 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2435,6 +2435,10 @@ func TestMod(t *testing.T) {
+ 			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+ 		}
+ 	}
++	// verify precision of result for extreme inputs
++	if f := Mod(5.9790119248836734e+200, 1.1258465975523544); 0.6447968302508578 != f {
++		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want 0.6447968302508578", f)
++	}
+ }
+ 
+ func TestFrexp(t *testing.T) {
+@@ -2776,6 +2780,10 @@ func TestRemainder(t *testing.T) {
+ 			t.Errorf("Remainder(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+ 		}
+ 	}
++	// verify precision of result for extreme inputs
++	if f := Remainder(5.9790119248836734e+200, 1.1258465975523544); -0.4810497673014966 != f {
++		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want -0.4810497673014966", f)
++	}
+ }
+ 
+ func TestRound(t *testing.T) {

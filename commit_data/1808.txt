@@ -11,7 +11,7 @@ Date:   Wed Mar 11 12:51:10 2009 -0700
     DELTA=281  (79 added, 3 deleted, 199 changed)
     OCL=25891
     CL=26130
-
+---
  src/lib/exec.go                |  22 +++---
  src/lib/http/server.go         | 162 ++++++++++++++++++++++++++++++-----------
  src/lib/http/triv.go           |   5 +-
@@ -32,3 +32,1173 @@ Date:   Wed Mar 11 12:51:10 2009 -0700
  usr/gri/pretty/template.go     |  12 +--
  usr/gri/pretty/untab.go        |   2 +-
  19 files changed, 270 insertions(+), 194 deletions(-)
+
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+index 36ded93e04..c832c17ffc 100644
+--- a/src/lib/exec.go
++++ b/src/lib/exec.go
+@@ -18,20 +18,20 @@ const (
+ )
+ 
+ // A Cmd represents a running command.
+-// Stdin, Stdout, and Stderr are file descriptors to pipes
++// Stdin, Stdout, and Stderr are Files representing pipes
+ // connected to the running command's standard input, output, and error,
+ // or else nil, depending on the arguments to Run.
+ // Pid is the running command's operating system process ID.
+ type Cmd struct {
+-	Stdin *os.FD;
+-	Stdout *os.FD;
+-	Stderr *os.FD;
++	Stdin *os.File;
++	Stdout *os.File;
++	Stderr *os.File;
+ 	Pid int;
+ }
+ 
+-// Given mode (DevNull, etc), return fd for child
+-// and fd to record in Cmd structure.
+-func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
++// Given mode (DevNull, etc), return file for child
++// and file to record in Cmd structure.
++func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
+ 	switch mode {
+ 	case DevNull:
+ 		rw := os.O_WRONLY;
+@@ -80,17 +80,17 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
+ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
+ {
+ 	p = new(Cmd);
+-	var fd [3]*os.FD;
++	var fd [3]*os.File;
+ 
+-	if fd[0], p.Stdin, err = modeToFDs(stdin, 0); err != nil {
++	if fd[0], p.Stdin, err = modeToFiles(stdin, 0); err != nil {
+ 		goto Error;
+ 	}
+-	if fd[1], p.Stdout, err = modeToFDs(stdout, 1); err != nil {
++	if fd[1], p.Stdout, err = modeToFiles(stdout, 1); err != nil {
+ 		goto Error;
+ 	}
+ 	if stderr == MergeWithStdout {
+ 		p.Stderr = p.Stdout;
+-	} else if fd[2], p.Stderr, err = modeToFDs(stderr, 2); err != nil {
++	} else if fd[2], p.Stderr, err = modeToFiles(stderr, 2); err != nil {
+ 		goto Error;
+ 	}
+ 
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index ffb81cc90c..df2ce3698a 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -22,23 +22,28 @@ import (
+ 	"strconv";
+ )
+ 
+-var ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
+-var ErrHijacked = os.NewError("Conn has been hijacked")
++// Errors introduced by the HTTP server.
++var (
++	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush");
++	ErrHijacked = os.NewError("Conn has been hijacked");
++)
+ 
+ type Conn struct
+ 
+-// Interface implemented by servers using this library.
++// Objects implemeting the Handler interface can be
++// registered to serve a particular path or subtree
++// in the HTTP server.
+ type Handler interface {
+ 	ServeHTTP(*Conn, *Request);
+ }
+ 
+-// Active HTTP connection (server side).
++// A Conn represents the server side of a single active HTTP connection.
+ type Conn struct {
+ 	RemoteAddr string;	// network address of remote side
+-	Req *Request;	// current HTTP request
++	Req *Request;		// current HTTP request
+ 
+-	fd io.ReadWriteClose;	// i/o connection
+-	buf *bufio.BufReadWrite;	// buffered fd
++	rwc io.ReadWriteClose;	// i/o connection
++	buf *bufio.BufReadWrite;	// buffered rwc
+ 	handler Handler;	// request handler
+ 	hijacked bool;	// connection has been hijacked by handler
+ 
+@@ -54,7 +59,7 @@ func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err
+ 	c = new(Conn);
+ 	c.RemoteAddr = raddr;
+ 	c.handler = handler;
+-	c.fd = rwc;
++	c.rwc = rwc;
+ 	br := bufio.NewBufRead(rwc);
+ 	bw := bufio.NewBufWrite(rwc);
+ 	c.buf = bufio.NewBufReadWrite(br, bw);
+@@ -99,11 +104,25 @@ func (c *Conn) readRequest() (req *Request, err *os.Error) {
+ 	return req, nil
+ }
+ 
++// SetHeader sets a header line in the eventual reply.
++// For example, SetHeader("Content-Type", "text/html; charset=utf-8")
++// will result in the header line
++//
++//	Content-Type: text/html; charset=utf-8
++//
++// being sent.  UTF-8 encoded HTML is the default setting for
++// Content-Type in this library, so users need not make that
++// particular call.  Calls to SetHeader after WriteHeader (or Write)
++// are ignored.
+ func (c *Conn) SetHeader(hdr, val string) {
+ 	c.header[CanonicalHeaderKey(hdr)] = val;
+ }
+ 
+-// Write header.
++// WriteHeader sends an HTTP response header with status code.
++// If WriteHeader is not called explicitly, the first call to Write
++// will trigger an implicit WriteHeader(http.StatusOK).
++// Thus explicit calls to WriteHeader are mainly used to
++// send error codes.
+ func (c *Conn) WriteHeader(code int) {
+ 	if c.hijacked {
+ 		log.Stderr("http: Conn.WriteHeader on hijacked connection");
+@@ -133,10 +152,10 @@ func (c *Conn) WriteHeader(code int) {
+ 	io.WriteString(c.buf, "\r\n");
+ }
+ 
+-// TODO(rsc): BUG in 6g: must return "nn int" not "n int"
+-// so that the implicit struct assignment in
+-// return c.buf.Write(data) works.  oops
+-func (c *Conn) Write(data []byte) (nn int, err *os.Error) {
++// Write writes the data to the connection as part of an HTTP reply.
++// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
++// before writing the data.
++func (c *Conn) Write(data []byte) (n int, err *os.Error) {
+ 	if c.hijacked {
+ 		log.Stderr("http: Conn.Write on hijacked connection");
+ 		return 0, ErrHijacked
+@@ -175,9 +194,9 @@ func (c *Conn) close() {
+ 		c.buf.Flush();
+ 		c.buf = nil;
+ 	}
+-	if c.fd != nil {
+-		c.fd.Close();
+-		c.fd = nil;
++	if c.rwc != nil {
++		c.rwc.Close();
++		c.rwc = nil;
+ 	}
+ }
+ 
+@@ -203,25 +222,30 @@ func (c *Conn) serve() {
+ 	c.close();
+ }
+ 
+-// Allow client to take over the connection.
+-// After a handler calls c.Hijack(), the HTTP server library
+-// will never touch the connection again.
+-// It is the caller's responsibility to manage and close
+-// the connection.
+-func (c *Conn) Hijack() (fd io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
++// Hijack lets the caller take over the connection.
++// After a call to c.Hijack(), the HTTP server library
++// will not do anything else with the connection.
++// It becomes the caller's responsibility to manage
++// and close the connection.
++func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
+ 	if c.hijacked {
+ 		return nil, nil, ErrHijacked;
+ 	}
+ 	c.hijacked = true;
+-	fd = c.fd;
++	rwc = c.rwc;
+ 	buf = c.buf;
+-	c.fd = nil;
++	c.rwc = nil;
+ 	c.buf = nil;
+ 	return;
+ }
+ 
+-// Adapter: can use HandlerFunc(f) as Handler
++// The HandlerFunc type is an adapter to allow the use of
++// ordinary functions as HTTP handlers.  If f is a function
++// with the appropriate signature, HandlerFunc(f) is a
++// Handler object that calls f.
+ type HandlerFunc func(*Conn, *Request)
++
++// ServeHTTP calls f(c, req).
+ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
+ 	f(c, req);
+ }
+@@ -235,7 +259,11 @@ func notFound(c *Conn, req *Request) {
+ 	io.WriteString(c, "404 page not found\n");
+ }
+ 
+-var NotFoundHandler = HandlerFunc(notFound)
++// NotFoundHandler returns a simple request handler
++// that replies to each request with a ``404 page not found'' reply.
++func NotFoundHandler() Handler {
++	return HandlerFunc(notFound)
++}
+ 
+ // Redirect to a fixed URL
+ type redirectHandler struct {
+@@ -246,28 +274,42 @@ func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
+ 	c.WriteHeader(StatusMovedPermanently);
+ }
+ 
+-func RedirectHandler(to string) Handler {
+-	return &redirectHandler{to};
++// RedirectHandler returns a request handler that redirects
++// each request it receives to the given url.
++func RedirectHandler(url string) Handler {
++	return &redirectHandler{url};
+ }
+ 
+-// Path-based HTTP request multiplexer.
+-// Patterns name fixed paths, like "/favicon.ico",
+-// or subtrees, like "/images/".
+-// For now, patterns must begin with /.
+-// Eventually, might want to allow host name
+-// at beginning of pattern, so that you could register
+-//	/codesearch
+-//	codesearch.google.com/
+-// but not take over /.
+-
++// ServeMux is an HTTP request multiplexer.
++// It matches the URL of each incoming request against a list of registered
++// patterns and calls the handler for the pattern that
++// most closely matches the URL.
++//
++// Patterns named fixed paths, like "/favicon.ico",
++// or subtrees, like "/images/" (note the trailing slash).
++// Patterns must begin with /.
++// Longer patterns take precedence over shorter ones, so that
++// if there are handlers registered for both "/images/"
++// and "/images/thumbnails/", the latter handler will be
++// called for paths beginning "/images/thumbnails/" and the
++// former will receiver requests for any other paths in the
++// "/images/" subtree.
++//
++// In the future, the pattern syntax may be relaxed to allow
++// an optional host-name at the beginning of the pattern,
++// so that a handler might register for the two patterns
++// "/codesearch" and "codesearch.google.com/"
++// without taking over requests for http://www.google.com/.
+ type ServeMux struct {
+ 	m map[string] Handler
+ }
+ 
++// NewServeMux allocates and returns a new ServeMux.
+ func NewServeMux() *ServeMux {
+ 	return &ServeMux{make(map[string] Handler)};
+ }
+ 
++// DefaultServeMux is the default ServeMux used by Serve.
+ var DefaultServeMux = NewServeMux();
+ 
+ // Does path match pattern?
+@@ -283,6 +325,8 @@ func pathMatch(pattern, path string) bool {
+ 	return len(path) >= n && path[0:n] == pattern;
+ }
+ 
++// ServeHTTP dispatches the request to the handler whose
++// pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+ 	// Most-specific (longest) pattern wins.
+ 	var h Handler;
+@@ -297,11 +341,12 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+ 		}
+ 	}
+ 	if h == nil {
+-		h = NotFoundHandler;
++		h = NotFoundHandler();
+ 	}
+ 	h.ServeHTTP(c, req);
+ }
+ 
++// Handle registers the handler for the given pattern.
+ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	if pattern == "" || pattern[0] != '/' {
+ 		panicln("http: invalid pattern", pattern);
+@@ -317,12 +362,16 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	}
+ }
+ 
+-func Handle(pattern string, h Handler) {
+-	DefaultServeMux.Handle(pattern, h);
++// Handle registers the handler for the given pattern
++// in the DefaultServeMux.
++func Handle(pattern string, handler Handler) {
++	DefaultServeMux.Handle(pattern, handler);
+ }
+ 
+-
+-// Web server: listening on l, call handler.ServeHTTP for each request.
++// Serve accepts incoming HTTP connections on the listener l,
++// creating a new service thread for each.  The service threads
++// read requests and then call handler to reply to them.
++// Handler is typically nil, in which case the DefaultServeMux is used.
+ func Serve(l net.Listener, handler Handler) *os.Error {
+ 	if handler == nil {
+ 		handler = DefaultServeMux;
+@@ -341,7 +390,32 @@ func Serve(l net.Listener, handler Handler) *os.Error {
+ 	panic("not reached")
+ }
+ 
+-// Web server: listen on address, call f for each request.
++// ListenAndServe listens on the TCP network address addr
++// and then calls Serve with handler to handle requests
++// on incoming connections.  Handler is typically nil,
++// in which case the DefaultServeMux is used.
++//
++// A trivial example server is:
++//
++//	package main
++//
++//	import (
++//		"http";
++//		"io";
++//	)
++//
++//	// hello world, the web server
++//	func HelloServer(c *http.Conn, req *http.Request) {
++//		io.WriteString(c, "hello, world!\n");
++//	}
++//
++//	func main() {
++//		http.Handle("/hello", http.HandlerFunc(HelloServer));
++//		err := http.ListenAndServe(":12345", nil);
++//		if err != nil {
++//			panic("ListenAndServe: ", err.String())
++//		}
++//	}
+ func ListenAndServe(addr string, handler Handler) *os.Error {
+ 	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index ea17d15ba2..daf5eb8c0c 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -35,14 +35,15 @@ var webroot = flag.String("root", "/home/rsc", "web root directory")
+ func FileServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+ 	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
+-	fd, err := os.Open(path, os.O_RDONLY, 0);
++	f, err := os.Open(path, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		c.WriteHeader(http.StatusNotFound);
+ 		fmt.Fprintf(c, "open %s: %v\n", path, err);
+ 		return;
+ 	}
+-	n, err1 := io.Copy(fd, c);
++	n, err1 := io.Copy(f, c);
+ 	fmt.Fprintf(c, "[%d bytes]\n", n);
++	f.Close();
+ }
+ 
+ // simple flag server
+diff --git a/src/lib/log_test.go b/src/lib/log_test.go
+index 23e58b9901..2d9e1ab30f 100644
+--- a/src/lib/log_test.go
++++ b/src/lib/log_test.go
+@@ -47,14 +47,14 @@ var tests = []tester {
+ 
+ // Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
+ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {
+-	fd0, fd1, err1 := os.Pipe();
++	r, w, err1 := os.Pipe();
+ 	if err1 != nil {
+ 		t.Fatal("pipe", err1);
+ 	}
+-	defer fd0.Close();
+-	defer fd1.Close();
+-	buf := bufio.NewBufRead(fd0);
+-	l := NewLogger(fd1, nil, prefix, flag);
++	defer r.Close();
++	defer w.Close();
++	buf := bufio.NewBufRead(r);
++	l := NewLogger(w, nil, prefix, flag);
+ 	if useLogf {
+ 		l.Logf("hello %d world", 23);
+ 	} else {
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 7509231925..6066bd5cd2 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -18,7 +18,7 @@ import (
+ type netFD struct {
+ 	// immutable until Close
+ 	fd int64;
+-	osfd *os.FD;
++	file *os.File;
+ 	cr chan *netFD;
+ 	cw chan *netFD;
+ 	net string;
+@@ -90,7 +90,7 @@ func setBlock(fd int64) {
+ 
+ type pollServer struct {
+ 	cr, cw chan *netFD;	// buffered >= 1
+-	pr, pw *os.FD;
++	pr, pw *os.File;
+ 	pending map[int64] *netFD;
+ 	poll *pollster;	// low-level OS hooks
+ 	deadline int64;	// next deadline (nsec since 1970)
+@@ -309,14 +309,14 @@ func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
+ 	f.net = net;
+ 	f.laddr = laddr;
+ 	f.raddr = raddr;
+-	f.osfd = os.NewFD(fd, "net: " + net + " " + laddr + " " + raddr);
++	f.file = os.NewFile(fd, "net: " + net + " " + laddr + " " + raddr);
+ 	f.cr = make(chan *netFD, 1);
+ 	f.cw = make(chan *netFD, 1);
+ 	return f, nil
+ }
+ 
+ func (fd *netFD) Close() *os.Error {
+-	if fd == nil || fd.osfd == nil {
++	if fd == nil || fd.file == nil {
+ 		return os.EINVAL
+ 	}
+ 
+@@ -326,16 +326,16 @@ func (fd *netFD) Close() *os.Error {
+ 	// we can handle the extra OS processes.
+ 	// Otherwise we'll need to use the pollserver
+ 	// for Close too.  Sigh.
+-	setBlock(fd.osfd.Fd());
++	setBlock(fd.file.Fd());
+ 
+-	e := fd.osfd.Close();
+-	fd.osfd = nil;
++	e := fd.file.Close();
++	fd.file = nil;
+ 	fd.fd = -1;
+ 	return e
+ }
+ 
+ func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
+-	if fd == nil || fd.osfd == nil {
++	if fd == nil || fd.file == nil {
+ 		return -1, os.EINVAL
+ 	}
+ 	fd.rio.Lock();
+@@ -345,16 +345,16 @@ func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
+ 	} else {
+ 		fd.rdeadline = 0;
+ 	}
+-	n, err = fd.osfd.Read(p);
++	n, err = fd.file.Read(p);
+ 	for err == os.EAGAIN && fd.rdeadline >= 0 {
+ 		pollserver.WaitRead(fd);
+-		n, err = fd.osfd.Read(p)
++		n, err = fd.file.Read(p)
+ 	}
+ 	return n, err
+ }
+ 
+ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
+-	if fd == nil || fd.osfd == nil {
++	if fd == nil || fd.file == nil {
+ 		return -1, os.EINVAL
+ 	}
+ 	fd.wio.Lock();
+@@ -367,7 +367,7 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
+ 	err = nil;
+ 	nn := 0;
+ 	for nn < len(p) {
+-		n, err = fd.osfd.Write(p[nn:len(p)]);
++		n, err = fd.file.Write(p[nn:len(p)]);
+ 		if n > 0 {
+ 			nn += n
+ 		}
+@@ -388,7 +388,7 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
+ func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error)
+ 
+ func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
+-	if fd == nil || fd.osfd == nil {
++	if fd == nil || fd.file == nil {
+ 		return nil, os.EINVAL
+ 	}
+ 
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 7ea5d2d4c6..e3e7baaa53 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -187,11 +187,11 @@ type connBase struct {
+ 	raddr string;
+ }
+ 
+-func (c *connBase) FD() *os.FD {
++func (c *connBase) File() *os.File {
+ 	if c == nil {
+ 		return nil
+ 	}
+-	return c.fd.osfd;
++	return c.fd.file;
+ }
+ 
+ func (c *connBase) sysFD() int64 {
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index e9aaf06305..194f412908 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -13,12 +13,12 @@ import (
+ )
+ 
+ type file struct {
+-	fd *os.FD;
++	file *os.File;
+ 	data []byte;
+ }
+ 
+ func (f *file) close() {
+-	f.fd.Close()
++	f.file.Close()
+ }
+ 
+ func (f *file) getLineFromData() (s string, ok bool) {
+@@ -46,7 +46,7 @@ func (f *file) readLine() (s string, ok bool) {
+ 	}
+ 	if len(f.data) < cap(f.data) {
+ 		ln := len(f.data);
+-		n, err := io.Readn(f.fd, f.data[ln:cap(f.data)]);
++		n, err := io.Readn(f.file, f.data[ln:cap(f.data)]);
+ 		if n >= 0 {
+ 			f.data = f.data[0:ln+n];
+ 		}
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 41f6211359..c62f74dfc7 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -15,15 +15,15 @@ const (
+ )
+ 
+ // Negative count means read until EOF.
+-func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+-	// If this fd has no dirinfo, create one.
+-	if fd.dirinfo == nil {
+-		fd.dirinfo = new(dirInfo);
++func readdirnames(file *File, count int) (names []string, err *os.Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = new(dirInfo);
+ 		// The buffer must be at least a block long.
+ 		// TODO(r): use fstatfs to find fs block size.
+-		fd.dirinfo.buf = make([]byte, blockSize);
++		file.dirinfo.buf = make([]byte, blockSize);
+ 	}
+-	d := fd.dirinfo;
++	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+ 		size = 100
+@@ -34,7 +34,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 		if d.bufp == d.nbuf {
+ 			var errno int64;
+ 			// Final argument is (basep *int64) and the syscall doesn't take nil.
+-			d.nbuf, errno = syscall.Getdirentries(fd.fd, &d.buf[0], int64(len(d.buf)), new(int64));
++			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));
+ 			if d.nbuf < 0 {
+ 				return names, os.ErrnoToError(errno)
+ 			}
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index 7a2ec73004..cbb0d13dbd 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -24,15 +24,15 @@ func clen(n []byte) int {
+ }
+ 
+ // Negative count means read until EOF.
+-func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+-	// If this fd has no dirinfo, create one.
+-	if fd.dirinfo == nil {
+-		fd.dirinfo = new(dirInfo);
++func readdirnames(file *File, count int) (names []string, err *os.Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = new(dirInfo);
+ 		// The buffer must be at least a block long.
+ 		// TODO(r): use fstatfs to find fs block size.
+-		fd.dirinfo.buf = make([]byte, blockSize);
++		file.dirinfo.buf = make([]byte, blockSize);
+ 	}
+-	d := fd.dirinfo;
++	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+ 		size = 100
+@@ -43,7 +43,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 		if d.bufp == d.nbuf {
+ 			var errno int64;
+ 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
+-			d.nbuf, errno = syscall.Getdents(fd.fd, dbuf, int64(len(d.buf)));
++			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
+ 			if d.nbuf < 0 {
+ 				return names, os.ErrnoToError(errno)
+ 			}
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+index b16a6c47a6..f987f7aa1f 100644
+--- a/src/lib/os/exec.go
++++ b/src/lib/os/exec.go
+@@ -15,7 +15,7 @@ import (
+ // file descriptors to be set up in the new process: fd[0] will be Unix file
+ // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+ // will cause the child to have no open file descriptor with that index.
+-func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
++func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
+ 	(pid int, err *Error)
+ {
+ 	// Create array of integer (system) fds.
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 1fb2a64090..3010deeab7 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -11,45 +11,44 @@ import (
+ 	"syscall";
+ )
+ 
+-// Auxiliary information if the FD describes a directory
++// Auxiliary information if the File describes a directory
+ type dirInfo struct {	// TODO(r): 6g bug means this can't be private
+ 	buf	[]byte;	// buffer for directory I/O
+ 	nbuf	int64;	// length of buf; return value from Getdirentries
+ 	bufp	int64;	// location of next record in buf.
+ }
+ 
+-// FD represents an open file.
+-// TODO(r): is FD the right name? Would File be better?
+-type FD struct {
++// File represents an open file descriptor.
++type File struct {
+ 	fd int64;
+ 	name	string;
+ 	dirinfo	*dirInfo;	// nil unless directory being read
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+-func (fd *FD) Fd() int64 {
+-	return fd.fd
++func (file *File) Fd() int64 {
++	return file.fd
+ }
+ 
+ // Name returns the name of the file as presented to Open.
+-func (fd *FD) Name() string {
+-	return fd.name
++func (file *File) Name() string {
++	return file.name
+ }
+ 
+-// NewFD returns a new FD with the given file descriptor and name.
+-func NewFD(fd int64, name string) *FD {
+-	if fd < 0 {
++// NewFile returns a new File with the given file descriptor and name.
++func NewFile(file int64, name string) *File {
++	if file < 0 {
+ 		return nil
+ 	}
+-	return &FD{fd, name, nil}
++	return &File{file, name, nil}
+ }
+ 
+-// Stdin, Stdout, and Stderr are open FDs pointing to the standard input,
++// Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+ // standard output, and standard error file descriptors.
+ var (
+-	Stdin = NewFD(0, "/dev/stdin");
+-	Stdout = NewFD(1, "/dev/stdout");
+-	Stderr = NewFD(2, "/dev/stderr");
++	Stdin  = NewFile(0, "/dev/stdin");
++	Stdout = NewFile(1, "/dev/stdout");
++	Stderr = NewFile(2, "/dev/stderr");
+ )
+ 
+ // Flags to Open wrapping those of the underlying system. Not all flags
+@@ -69,9 +68,9 @@ const (
+ )
+ 
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+-// if applicable.  If successful, methods on the returned FD can be used for I/O.
+-// It returns the FD and an Error, if any.
+-func Open(name string, flag int, perm int) (fd *FD, err *Error) {
++// if applicable.  If successful, methods on the returned File can be used for I/O.
++// It returns the File and an Error, if any.
++func Open(name string, flag int, perm int) (file *File, err *Error) {
+ 	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e);
+@@ -83,31 +82,31 @@ func Open(name string, flag int, perm int) (fd *FD, err *Error) {
+ 		syscall.CloseOnExec(r);
+ 	}
+ 
+-	return NewFD(r, name), ErrnoToError(e)
++	return NewFile(r, name), ErrnoToError(e)
+ }
+ 
+-// Close closes the FD, rendering it unusable for I/O.
++// Close closes the File, rendering it unusable for I/O.
+ // It returns an Error, if any.
+-func (fd *FD) Close() *Error {
+-	if fd == nil {
++func (file *File) Close() *Error {
++	if file == nil {
+ 		return EINVAL
+ 	}
+-	r, e := syscall.Close(fd.fd);
+-	fd.fd = -1;  // so it can't be closed again
++	r, e := syscall.Close(file.fd);
++	file.fd = -1;  // so it can't be closed again
+ 	return ErrnoToError(e)
+ }
+ 
+-// Read reads up to len(b) bytes from the FD.
++// Read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an Error, if any.
+ // EOF is signaled by a zero count with a nil Error.
+ // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+-func (fd *FD) Read(b []byte) (ret int, err *Error) {
+-	if fd == nil {
++func (file *File) Read(b []byte) (ret int, err *Error) {
++	if file == nil {
+ 		return 0, EINVAL
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Read(file.fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -115,16 +114,16 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+-// Write writes len(b) bytes to the FD.
++// Write writes len(b) bytes to the File.
+ // It returns the number of bytes written and an Error, if any.
+ // If the byte count differs from len(b), it usually implies an error occurred.
+-func (fd *FD) Write(b []byte) (ret int, err *Error) {
+-	if fd == nil {
++func (file *File) Write(b []byte) (ret int, err *Error) {
++	if file == nil {
+ 		return 0, EINVAL
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Write(file.fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -132,16 +131,16 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+-// Seek sets the offset for the next Read or Write on FD to offset, interpreted
++// Seek sets the offset for the next Read or Write on file to offset, interpreted
+ // according to whence: 0 means relative to the origin of the file, 1 means
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an Error, if any.
+-func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
+-	r, e := syscall.Seek(fd.fd, offset, int64(whence));
++func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
++	r, e := syscall.Seek(file.fd, offset, int64(whence));
+ 	if e != 0 {
+ 		return -1, ErrnoToError(e)
+ 	}
+-	if fd.dirinfo != nil && r != 0 {
++	if file.dirinfo != nil && r != 0 {
+ 		return -1, ErrnoToError(syscall.EISDIR)
+ 	}
+ 	return r, nil
+@@ -149,20 +148,20 @@ func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
+ 
+ // WriteString is like Write, but writes the contents of string s rather than
+ // an array of bytes.
+-func (fd *FD) WriteString(s string) (ret int, err *Error) {
+-	if fd == nil {
++func (file *File) WriteString(s string) (ret int, err *Error) {
++	if file == nil {
+ 		return 0, EINVAL
+ 	}
+-	r, e := syscall.Write(fd.fd, syscall.StringBytePtr(s), int64(len(s)));
++	r, e := syscall.Write(file.fd, syscall.StringBytePtr(s), int64(len(s)));
+ 	if r < 0 {
+ 		r = 0
+ 	}
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+-// Pipe returns a connected pair of FDs; reads from r return bytes written to w.
+-// It returns the FDs and an Error, if any.
+-func Pipe() (r *FD, w *FD, err *Error) {
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an Error, if any.
++func Pipe() (r *File, w *File, err *Error) {
+ 	var p [2]int64;
+ 
+ 	// See ../syscall/exec.go for description of lock.
+@@ -176,7 +175,7 @@ func Pipe() (r *FD, w *FD, err *Error) {
+ 	syscall.CloseOnExec(p[1]);
+ 	syscall.ForkLock.RUnlock();
+ 
+-	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
++	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+ }
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+@@ -199,15 +198,15 @@ func Stat(name string) (dir *Dir, err *Error) {
+ 	return dirFromStat(name, new(Dir), stat), nil
+ }
+ 
+-// Fstat returns the Dir structure describing the file associated with the FD.
++// Stat returns the Dir structure describing file.
+ // It returns the Dir and an error, if any.
+-func Fstat(fd *FD) (dir *Dir, err *Error) {
++func (file *File) Stat() (dir *Dir, err *Error) {
+ 	stat := new(syscall.Stat_t);
+-	r, e := syscall.Fstat(fd.fd, stat);
++	r, e := syscall.Fstat(file.fd, stat);
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e)
+ 	}
+-	return dirFromStat(fd.name, new(Dir), stat), nil
++	return dirFromStat(file.name, new(Dir), stat), nil
+ }
+ 
+ // Lstat returns the Dir structure describing the named file. If the file
+@@ -224,26 +223,29 @@ func Lstat(name string) (dir *Dir, err *Error) {
+ 
+ // Readdirnames has a non-portable implemenation so its code is separated into an
+ // operating-system-dependent file.
++func readdirnames(file *File, count int) (names []string, err *os.Error)
+ 
+-// Readdirnames reads the contents of the directory associated with fd and
++// Readdirnames reads the contents of the directory associated with file and
+ // returns an array of up to count names, in directory order.  Subsequent
+-// calls on the same fd will yield further names.
++// calls on the same file will yield further names.
+ // A negative count means to read until EOF.
+ // It returns the array and an Error, if any.
+-func Readdirnames(fd *FD, count int) (names []string, err *os.Error)
++func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
++	return readdirnames(file, count);
++}
+ 
+-// Readdir reads the contents of the directory associated with fd and
++// Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count Dir structures, in directory order.  Subsequent
+-// calls on the same fd will yield further Dirs.
++// calls on the same file will yield further Dirs.
+ // A negative count means to read until EOF.
+ // It returns the array and an Error, if any.
+-func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+-	dirname := fd.name;
++func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
++	dirname := file.name;
+ 	if dirname == "" {
+ 		dirname = ".";
+ 	}
+ 	dirname += "/";
+-	names, err1 := Readdirnames(fd, count);
++	names, err1 := file.Readdirnames(count);
+ 	if err1 != nil {
+ 		return nil, err1
+ 	}
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 535008e1d5..2f0cd883c9 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -29,16 +29,16 @@ var etc = []string{
+ 	"passwd",
+ }
+ 
+-func size(file string, t *testing.T) uint64 {
+-	fd, err := Open(file, O_RDONLY, 0);
+-	defer fd.Close();
++func size(name string, t *testing.T) uint64 {
++	file, err := Open(name, O_RDONLY, 0);
++	defer file.Close();
+ 	if err != nil {
+ 		t.Fatal("open failed:", err);
+ 	}
+ 	var buf [100]byte;
+ 	len := 0;
+ 	for {
+-		n, e := fd.Read(buf);
++		n, e := file.Read(buf);
+ 		if n < 0 || e != nil {
+ 			t.Fatal("read failed:", err);
+ 		}
+@@ -65,12 +65,12 @@ func TestStat(t *testing.T) {
+ }
+ 
+ func TestFstat(t *testing.T) {
+-	fd, err1 := Open("/etc/passwd", O_RDONLY, 0);
+-	defer fd.Close();
++	file, err1 := Open("/etc/passwd", O_RDONLY, 0);
++	defer file.Close();
+ 	if err1 != nil {
+ 		t.Fatal("open failed:", err1);
+ 	}
+-	dir, err2 := Fstat(fd);
++	dir, err2 := file.Stat();
+ 	if err2 != nil {
+ 		t.Fatal("fstat failed:", err2);
+ 	}
+@@ -98,12 +98,12 @@ func TestLstat(t *testing.T) {
+ }
+ 
+ func testReaddirnames(dir string, contents []string, t *testing.T) {
+-	fd, err := Open(dir, O_RDONLY, 0);
+-	defer fd.Close();
++	file, err := Open(dir, O_RDONLY, 0);
++	defer file.Close();
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err);
+ 	}
+-	s, err2 := Readdirnames(fd, -1);
++	s, err2 := file.Readdirnames(-1);
+ 	if err2 != nil {
+ 		t.Fatalf("readdirnames %q failed: %v", err2);
+ 	}
+@@ -124,12 +124,12 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ }
+ 
+ func testReaddir(dir string, contents []string, t *testing.T) {
+-	fd, err := Open(dir, O_RDONLY, 0);
+-	defer fd.Close();
++	file, err := Open(dir, O_RDONLY, 0);
++	defer file.Close();
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err);
+ 	}
+-	s, err2 := Readdir(fd, -1);
++	s, err2 := file.Readdir(-1);
+ 	if err2 != nil {
+ 		t.Fatalf("readdir %q failed: %v", dir, err2);
+ 	}
+@@ -160,13 +160,13 @@ func TestReaddir(t *testing.T) {
+ }
+ 
+ // Read the directory one entry at a time.
+-func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
++func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 	names := make([]string, length);
+ 	count := 0;
+ 	for {
+-		d, err := Readdirnames(fd, 1);
++		d, err := file.Readdirnames(1);
+ 		if err != nil {
+-			t.Fatalf("readdir %q failed: %v", fd.Name(), err);
++			t.Fatalf("readdir %q failed: %v", file.Name(), err);
+ 		}
+ 		if len(d) == 0 {
+ 			break
+@@ -181,20 +181,20 @@ func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
+ // as reading it all at once.
+ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	dir := "/usr/bin";	// big directory that doesn't change often.
+-	fd, err := Open(dir, O_RDONLY, 0);
+-	defer fd.Close();
++	file, err := Open(dir, O_RDONLY, 0);
++	defer file.Close();
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err);
+ 	}
+-	all, err1 := Readdirnames(fd, -1);
++	all, err1 := file.Readdirnames(-1);
+ 	if err1 != nil {
+ 		t.Fatalf("readdirnames %q failed: %v", dir, err1);
+ 	}
+-	fd1, err2 := Open(dir, O_RDONLY, 0);
++	file1, err2 := Open(dir, O_RDONLY, 0);
+ 	if err2 != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err2);
+ 	}
+-	small := smallReaddirnames(fd1, len(all)+100, t);	// +100 in case we screw up
++	small := smallReaddirnames(file1, len(all)+100, t);	// +100 in case we screw up
+ 	for i, n := range all {
+ 		if small[i] != n {
+ 			t.Errorf("small read %q %q mismatch: %v", small[i], n);
+diff --git a/src/lib/strconv/fp_test.go b/src/lib/strconv/fp_test.go
+index 7bc85a32c5..33491fab2a 100644
+--- a/src/lib/strconv/fp_test.go
++++ b/src/lib/strconv/fp_test.go
+@@ -94,12 +94,13 @@ func myatof32(s string) (f float32, ok bool) {
+ }
+ 
+ func TestFp(t *testing.T) {
+-	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
++	f, err := os.Open("testfp.txt", os.O_RDONLY, 0);
+ 	if err != nil {
+ 		panicln("testfp: open testfp.txt:", err.String());
+ 	}
++	defer f.Close();
+ 
+-	b := bufio.NewBufRead(fd);
++	b := bufio.NewBufRead(f);
+ 
+ 	lineno := 0;
+ 	for {
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 62f86499e5..8790f0ecd1 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -204,13 +204,13 @@ func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
+ }
+ 
+ func readfile(name string, max int) (p []byte, err *os.Error) {
+-	fd, e := os.Open(name, os.O_RDONLY, 0);
++	f, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+ 		return nil, e;
+ 	}
+ 	p = make([]byte, max);
+-	n, err1 := io.Readn(fd, p);
+-	fd.Close();
++	n, err1 := io.Readn(f, p);
++	f.Close();
+ 	if err1 == nil {	// too long
+ 		return nil, badZoneinfo;
+ 	}
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 4a90204783..aa8ce109b2 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -136,12 +136,10 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 
+ 
+ func fileExists(name string) bool {
+-	fd, err := os.Open(name, os.O_RDONLY, 0);
+-	defer fd.Close();
++	dir, err := os.Stat(name);
+ 	return err == nil;
+ }
+ 
+-
+ /*
+ func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {
+ 	src := decl.Val.(*AST.BasicLit).Val;
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index 284a9d5073..450ef56b27 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -57,13 +57,13 @@ func serveDir(c *http.Conn, dirname string) {
+ 		return;
+ 	}
+ 
+-	list, err2 := os.Readdir(fd, -1);
++	list, err2 := fd.Readdir(-1);
+ 	if err2 != nil {
+ 		c.WriteHeader(http.StatusNotFound);
+ 		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
+ 		return;
+ 	}
+-	
++
+ 	sort.Sort(DirArray(list));
+ 
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+@@ -71,7 +71,7 @@ func serveDir(c *http.Conn, dirname string) {
+ 	fmt.Fprintf(c, "<b>%s</b>\n", path);
+ 
+ 	// Print contents in 3 sections: directories, go files, everything else
+-	
++
+ 	// 1) directories
+ 	fmt.Fprintln(c, "<p>");
+ 	for i, entry := range list {
+@@ -106,7 +106,7 @@ func serveFile(c *http.Conn, filename string) {
+ 		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
+ 		return;
+ 	}
+-	
++
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+ 	Printer.Print(c, true, prog);
+ }
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+index 8aced7b9fc..ed68030524 100644
+--- a/usr/gri/pretty/platform.go
++++ b/usr/gri/pretty/platform.go
+@@ -38,13 +38,13 @@ const (
+ )
+ 
+ func readfile(filename string) ([]byte, *OS.Error) {
+-	fd, err := OS.Open(filename, OS.O_RDONLY, 0);
++	f, err := OS.Open(filename, OS.O_RDONLY, 0);
+ 	if err != nil {
+ 		return []byte{}, err;
+ 	}
+ 	var buf [1<<20]byte;
+-	n, err1 := IO.Readn(fd, buf);
+-	fd.Close();
++	n, err1 := IO.Readn(f, buf);
++	f.Close();
+ 	if err1 == IO.ErrEOF {
+ 		err1 = nil;
+ 	}
+diff --git a/usr/gri/pretty/template.go b/usr/gri/pretty/template.go
+index 13d72556ba..70b8b7eceb 100644
+--- a/usr/gri/pretty/template.go
++++ b/usr/gri/pretty/template.go
+@@ -16,14 +16,14 @@ type Template struct {
+ 
+ 
+ func (T *Template) Init(filename string) *os.Error {
+-	fd, err0 := os.Open(filename, os.O_RDONLY, 0);
+-	defer fd.Close();
++	f, err0 := os.Open(filename, os.O_RDONLY, 0);
++	defer f.Close();
+ 	if err0 != nil {
+ 		return err0;
+ 	}
+ 
+ 	var buf io.ByteBuffer;
+-	len, err1 := io.Copy(fd, &buf);
++	len, err1 := io.Copy(f, &buf);
+ 	if err1 == io.ErrEOF {
+ 		err1 = nil;
+ 	}
+@@ -32,7 +32,7 @@ func (T *Template) Init(filename string) *os.Error {
+ 	}
+ 
+ 	T.template = buf.Data();
+-	
++
+ 	return nil;
+ }
+ 
+@@ -76,7 +76,7 @@ type Substitution map [string] func()
+ func (T *Template) Apply(w io.Write, prefix string, subs Substitution) *os.Error {
+ 	i0 := 0;  // position from which to write from the template
+ 	i1 := 0;  // position from which to look for the next prefix
+-	
++
+ 	for {
+ 		// look for a prefix
+ 		i2 := find(T.template, prefix, i1);  // position of prefix, if any
+@@ -90,7 +90,7 @@ func (T *Template) Apply(w io.Write, prefix string, subs Substitution) *os.Error
+ 		for key, action := range subs {
+ 			if match(T.template[i1 : len(T.template)], key) {
+ 				// found a match
+-				i1 += len(key);  // next search starting pos				
++				i1 += len(key);  // next search starting pos
+ 				len, err := w.Write(T.template[i0 : i2]);  // TODO handle errors
+ 				i0 = i1;  // skip placeholder
+ 				action();
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 419264f4df..9b7c596298 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -25,7 +25,7 @@ func error(format string, params ...) {
+ }
+ 
+ 
+-func untab(name string, src *os.FD, dst *tabwriter.Writer) {
++func untab(name string, src *os.File, dst *tabwriter.Writer) {
+ 	n, err := io.Copy(src, dst);
+ 	if err != nil {
+ 		error("error while processing %s (%v)", name, err);

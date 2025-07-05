@@ -13,9 +13,62 @@ Date:   Tue Oct 13 10:05:13 2015 -0700
     Change-Id: I83811b9c10c617139713a626b4a34ab05564d4fe
     Reviewed-on: https://go-review.googlesource.com/15802
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/test/buildid_linux.go | 2 +-
  misc/cgo/test/callback.go      | 2 +-
  misc/cgo/test/env.go           | 2 +-
  misc/cgo/test/issue7665.go     | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/buildid_linux.go b/misc/cgo/test/buildid_linux.go
+index a3a86edfca..2641dd5a61 100644
+--- a/misc/cgo/test/buildid_linux.go
++++ b/misc/cgo/test/buildid_linux.go
+@@ -22,7 +22,7 @@ func testBuildID(t *testing.T) {
+ 		if os.IsNotExist(err) {
+ 			t.Skip("no /proc/self/exe")
+ 		}
+-		t.Fatalf("opening /proc/self/exe: ", err)
++		t.Fatal("opening /proc/self/exe: ", err)
+ 	}
+ 	defer f.Close()
+ 
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index bff770fa8d..3967e711d1 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -177,7 +177,7 @@ func testCallbackCallers(t *testing.T) {
+ 	for i := 0; i < n; i++ {
+ 		f := runtime.FuncForPC(pc[i])
+ 		if f == nil {
+-			t.Fatalf("expected non-nil Func for pc %p", pc[i])
++			t.Fatalf("expected non-nil Func for pc %d", pc[i])
+ 		}
+ 		fname := f.Name()
+ 		// Remove the prepended pathname from automatically
+diff --git a/misc/cgo/test/env.go b/misc/cgo/test/env.go
+index 8d3ba5877b..b2081b7283 100644
+--- a/misc/cgo/test/env.go
++++ b/misc/cgo/test/env.go
+@@ -31,7 +31,7 @@ func testSetEnv(t *testing.T) {
+ 	keyc := C.CString(key)
+ 	defer C.free(unsafe.Pointer(keyc))
+ 	v := C.getenv(keyc)
+-	if v == (*C.char)(unsafe.Pointer(uintptr(0))) {
++	if uintptr(unsafe.Pointer(v)) == 0 {
+ 		t.Fatal("getenv returned NULL")
+ 	}
+ 	vs := C.GoString(v)
+diff --git a/misc/cgo/test/issue7665.go b/misc/cgo/test/issue7665.go
+index 4f36dce756..da9713178d 100644
+--- a/misc/cgo/test/issue7665.go
++++ b/misc/cgo/test/issue7665.go
+@@ -19,7 +19,7 @@ var bad7665 unsafe.Pointer = C.f7665
+ var good7665 uintptr = uintptr(C.f7665)
+ 
+ func test7665(t *testing.T) {
+-	if bad7665 == nil || bad7665 != unsafe.Pointer(good7665) {
++	if bad7665 == nil || uintptr(bad7665) != good7665 {
+ 		t.Errorf("ptrs = %p, %#x, want same non-nil pointer", bad7665, good7665)
+ 	}
+ }

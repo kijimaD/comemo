@@ -7,7 +7,57 @@ Date:   Mon Jul 20 18:42:45 2015 -0700
     Change-Id: Ib33f3b1cfa09f410675d275e214d8ddc246c53c3
     Reviewed-on: https://go-review.googlesource.com/12548
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 7 +++----
  src/cmd/compile/internal/ssa/TODO  | 3 +++
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96756b11d0..9b5606a32f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -22,6 +22,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	usessa = strings.HasSuffix(name, "_ssa")
+ 
+ 	if usessa {
++		fmt.Println("generating SSA for", name)
+ 		dumplist("buildssa-enter", fn.Func.Enter)
+ 		dumplist("buildssa-body", fn.Nbody)
+ 	}
+@@ -481,16 +482,14 @@ func (s *state) stmt(n *Node) {
+ 
+ 		s.startBlock(bThen)
+ 		s.stmtList(n.Nbody)
+-		b = s.endBlock()
+-		if b != nil {
++		if b := s.endBlock(); b != nil {
+ 			addEdge(b, bEnd)
+ 		}
+ 
+ 		if n.Rlist != nil {
+ 			s.startBlock(bElse)
+ 			s.stmtList(n.Rlist)
+-			b = s.endBlock()
+-			if b != nil {
++			if b := s.endBlock(); b != nil {
+ 				addEdge(b, bEnd)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index cfaf520510..0074ded5d1 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -27,6 +27,7 @@ Regalloc
+  - Handle 2-address instructions.
+  - Floating point registers
+  - Make calls clobber all registers
++ - Make liveness analysis non-quadratic.
+ 
+ StackAlloc:
+  - Sort variables so all ptr-containing ones are first (so stack
+@@ -60,3 +61,5 @@ Other
+    expression subtrees in the output.
+  - Implement memory zeroing with REPSTOSQ and DuffZero
+  - make deadstore work with zeroing.
++ - Add a value range propagation optimization pass.
++   Use it for bounds check elimination and bitwidth reduction.

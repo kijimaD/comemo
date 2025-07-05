@@ -12,7 +12,63 @@ Date:   Fri Feb 21 13:51:22 2014 -0500
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/67020043
-
+---
  src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
  src/pkg/reflect/value.go    |  5 ++++-
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 23e4e235f2..c1f95d6049 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -15,6 +15,7 @@ import (
+ 	. "reflect"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -3692,3 +3693,26 @@ func TestBigZero(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFieldByIndexNil(t *testing.T) {
++	type P struct {
++		F int
++	}
++	type T struct {
++		*P
++	}
++	v := ValueOf(T{})
++
++	v.FieldByName("P") // should be fine
++
++	defer func() {
++		if err := recover(); err == nil {
++			t.Fatalf("no error")
++		} else if !strings.Contains(fmt.Sprint(err), "nil pointer to embedded struct") {
++			t.Fatalf(`err=%q, wanted error containing "nil pointer to embedded struct"`, err)
++		}
++	}()
++	v.FieldByName("F") // should panic
++
++	t.Fatalf("did not panic")
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 1edb1f0465..fba0e1ef68 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -889,7 +889,10 @@ func (v Value) FieldByIndex(index []int) Value {
+ 	v.mustBe(Struct)
+ 	for i, x := range index {
+ 		if i > 0 {
+-			if v.Kind() == Ptr && v.Elem().Kind() == Struct {
++			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
++				if v.IsNil() {
++					panic("reflect: indirection through nil pointer to embedded struct")
++				}
+ 				v = v.Elem()
+ 			}
+ 		}

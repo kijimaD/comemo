@@ -10,6 +10,19 @@ Date:   Fri Aug 23 17:28:15 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13189044
-
+---
  src/cmd/gc/sinit.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 51c5f70222..19faf4e956 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -686,6 +686,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	t->bound = mpgetfix(n->right->val.u.xval);
+ 	t->width = 0;
+ 	t->sym = nil;
++	t->haspointers = 0;
+ 	dowidth(t);
+ 
+ 	if(ctxt != 0) {

@@ -14,9 +14,131 @@ Date:   Tue Dec 6 17:42:42 2016 -0500
     Change-Id: I990ab7a313c1b3b7a50a3d44535c460d7c54f47d
     Reviewed-on: https://go-review.googlesource.com/34067
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.8.txt              |  1 +
  src/runtime/malloc_test.go | 11 +++++++++--
  src/runtime/mgc.go         |  9 ++++++++-
  src/runtime/mstats.go      |  7 +++++--
  4 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/api/go1.8.txt b/api/go1.8.txt
+index d93de98e1a..6ca0f3638c 100644
+--- a/api/go1.8.txt
++++ b/api/go1.8.txt
+@@ -238,6 +238,7 @@ pkg plugin, type Symbol interface {}
+ pkg reflect, func Swapper(interface{}) func(int, int)
+ pkg runtime, func MutexProfile([]BlockProfileRecord) (int, bool)
+ pkg runtime, func SetMutexProfileFraction(int) int
++pkg runtime, type MemStats struct, NumForcedGC uint32
+ pkg sort, func Slice(interface{}, func(int, int) bool)
+ pkg sort, func SliceIsSorted(interface{}, func(int, int) bool) bool
+ pkg sort, func SliceStable(interface{}, func(int, int) bool)
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 767b51f453..0cf9cfbf42 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -13,6 +13,9 @@ import (
+ )
+ 
+ func TestMemStats(t *testing.T) {
++	// Make sure there's at least one forced GC.
++	GC()
++
+ 	// Test that MemStats has sane values.
+ 	st := new(MemStats)
+ 	ReadMemStats(st)
+@@ -24,7 +27,7 @@ func TestMemStats(t *testing.T) {
+ 		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
+ 		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
+ 		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
+-		st.NextGC == 0 {
++		st.NextGC == 0 || st.NumForcedGC == 0 {
+ 		t.Fatalf("Zero value: %+v", *st)
+ 	}
+ 
+@@ -33,7 +36,7 @@ func TestMemStats(t *testing.T) {
+ 		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
+ 		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
+ 		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
+-		st.NextGC > 1e10 || st.NumGC > 1e9 || st.PauseTotalNs > 1e11 {
++		st.NextGC > 1e10 || st.NumGC > 1e9 || st.NumForcedGC > 1e9 || st.PauseTotalNs > 1e11 {
+ 		t.Fatalf("Insanely high value (overflow?): %+v", *st)
+ 	}
+ 
+@@ -72,6 +75,10 @@ func TestMemStats(t *testing.T) {
+ 			t.Fatalf("PauseTotalNs(%d) < sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+ 		}
+ 	}
++
++	if st.NumForcedGC > st.NumGC {
++		t.Fatalf("NumForcedGC(%d) > NumGC(%d)", st.NumForcedGC, st.NumGC)
++	}
+ }
+ 
+ func TestStringConcatenationAllocs(t *testing.T) {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index cc79d4cfff..0f0b0962e9 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -902,7 +902,7 @@ type gcMode int
+ const (
+ 	gcBackgroundMode gcMode = iota // concurrent GC and sweep
+ 	gcForceMode                    // stop-the-world GC now, concurrent sweep
+-	gcForceBlockMode               // stop-the-world GC now and STW sweep
++	gcForceBlockMode               // stop-the-world GC now and STW sweep (forced by user)
+ )
+ 
+ // gcShouldStart returns true if the exit condition for the _GCoff
+@@ -966,6 +966,9 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 		}
+ 	}
+ 
++	// For stats, check if this GC was forced by the user.
++	forced := mode != gcBackgroundMode
++
+ 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
+ 	// We do this after re-checking the transition condition so
+ 	// that multiple goroutines that detect the heap trigger don't
+@@ -1070,6 +1073,10 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 		work.tMark, work.tMarkTerm = t, t
+ 		work.heapGoal = work.heap0
+ 
++		if forced {
++			memstats.numforcedgc++
++		}
++
+ 		// Perform mark termination. This will restart the world.
+ 		gcMarkTermination()
+ 	}
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index b80ab11389..4e111a14fe 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -77,6 +77,7 @@ type mstats struct {
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+ 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+ 	numgc           uint32
++	numforcedgc     uint32  // number of user-forced GCs
+ 	gc_cpu_fraction float64 // fraction of CPU time used by GC
+ 	enablegc        bool
+ 	debuggc         bool
+@@ -100,8 +101,6 @@ type mstats struct {
+ 	// must be complete.
+ 	gc_trigger uint64
+ 
+-	_ uint32 // force 8-byte alignment of heap_live and prevent an alignment check crash on MIPS32.
+-
+ 	// heap_live is the number of bytes considered live by the GC.
+ 	// That is: retained by the most recent GC plus allocated
+ 	// since then. heap_live <= heap_alloc, since heap_alloc
+@@ -365,6 +364,10 @@ type MemStats struct {
+ 	// NumGC is the number of completed GC cycles.
+ 	NumGC uint32
+ 
++	// NumForcedGC is the number of GC cycles that were forced by
++	// the application calling the GC function.
++	NumForcedGC uint32
++
+ 	// GCCPUFraction is the fraction of this program's available
+ 	// CPU time used by the GC since the program started.
+ 	//

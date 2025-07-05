@@ -10,8 +10,82 @@ Date:   Mon Oct 16 14:20:01 2017 +1300
     Reviewed-on: https://go-review.googlesource.com/71050
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go       | 8 ++++----
  src/cmd/link/internal/sym/attribute.go | 8 ++++++--
  src/cmd/link/internal/sym/symkind.go   | 1 -
  3 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b770366d2f..6384c81d5c 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -181,8 +181,8 @@ func emitPcln(ctxt *Link, s *sym.Symbol) bool {
+ 	}
+ 	// We want to generate func table entries only for the "lowest level" symbols,
+ 	// not containers of subsymbols.
+-	if s.Type&sym.SCONTAINER != 0 {
+-		return false
++	if s.Attr.Container() {
++		return true
+ 	}
+ 	return true
+ }
+@@ -213,10 +213,10 @@ func (ctxt *Link) pclntab() {
+ 	//	offset to file table [4 bytes]
+ 	nfunc := int32(0)
+ 
+-	// Find container symbols, mark them with sym.SCONTAINER
++	// Find container symbols and mark them as such.
+ 	for _, s := range ctxt.Textp {
+ 		if s.Outer != nil {
+-			s.Outer.Type |= sym.SCONTAINER
++			s.Outer.Attr |= sym.AttrContainer
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/sym/attribute.go b/src/cmd/link/internal/sym/attribute.go
+index 27b45eef32..1a14c932d5 100644
+--- a/src/cmd/link/internal/sym/attribute.go
++++ b/src/cmd/link/internal/sym/attribute.go
+@@ -5,7 +5,7 @@
+ package sym
+ 
+ // Attribute is a set of common symbol attributes.
+-type Attribute int16
++type Attribute uint16
+ 
+ const (
+ 	// AttrDuplicateOK marks a symbol that can be present in multiple object
+@@ -57,7 +57,10 @@ const (
+ 	// the final executable. Only relevant when internally linking
+ 	// on an ELF platform.
+ 	AttrVisibilityHidden
+-	// 15 attributes defined so far.
++	// AttrContainer is set on text symbols that are present as the .Outer for some
++	// other symbol.
++	AttrContainer
++	// 16 attributes defined so far.
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -75,6 +78,7 @@ func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+ func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
+ func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
+ func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
++func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index a47fa041de..4b92917846 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -107,7 +107,6 @@ const (
+ 	SDWARFLOC
+ 	SSUB       = SymKind(1 << 8)
+ 	SMASK      = SymKind(SSUB - 1)
+-	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are

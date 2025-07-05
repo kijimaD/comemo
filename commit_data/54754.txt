@@ -13,7 +13,80 @@ Date:   Mon Sep 27 12:06:43 2021 +0200
     Run-TryBot: Changkun Ou <mail@changkun.de>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/testing/panic_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  src/testing/testing.go    |  6 ++++--
  2 files changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+index 6b8b95391d..fafcff790e 100644
+--- a/src/testing/panic_test.go
++++ b/src/testing/panic_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -208,3 +209,42 @@ func TestPanicHelper(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestMorePanic(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	testCases := []struct {
++		desc  string
++		flags []string
++		want  string
++	}{
++		{
++			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
++			flags: []string{"-test.run=TestGoexitInCleanupAfterPanicHelper"},
++			want: `panic: die
++	panic: test executed panic(nil) or runtime.Goexit`,
++		},
++	}
++
++	for _, tc := range testCases {
++		cmd := exec.Command(os.Args[0], tc.flags...)
++		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
++		b, _ := cmd.CombinedOutput()
++		got := string(b)
++		want := tc.want
++		re := makeRegexp(want)
++		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
++			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
++		}
++	}
++}
++
++func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++
++	t.Cleanup(func() { runtime.Goexit() })
++	t.Parallel()
++	panic("die")
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index b2a65e95d3..8d3129fbcd 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1462,8 +1462,10 @@ func tRunner(t *T, fn func(t *T)) {
+ 				finished = p.finished
+ 				p.mu.RUnlock()
+ 				if finished {
+-					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
+-					err = nil
++					if !t.isParallel {
++						t.Errorf("%v: subtest may have called FailNow on a parent test", err)
++						err = nil
++					}
+ 					signal = false
+ 					break
+ 				}

@@ -14,7 +14,7 @@ Date:   Tue Apr 21 19:54:37 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go   | 4 ++--
  src/cmd/link/internal/ld/go.go         | 1 +
  src/cmd/link/internal/ld/lib.go        | 2 +-
@@ -22,3 +22,114 @@ Date:   Tue Apr 21 19:54:37 2020 -0400
  src/cmd/link/internal/ld/main.go       | 4 ----
  src/cmd/link/internal/loader/loader.go | 9 +--------
  6 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 26c468c7a5..bb74b9e70d 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -45,7 +45,7 @@ type deadcodePass struct {
+ func (d *deadcodePass) init() {
+ 	d.ldr.InitReachable()
+ 	d.ifaceMethod = make(map[methodsig]bool)
+-	if d.ctxt.Reachparent != nil {
++	if objabi.Fieldtrack_enabled != 0 {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
+ 	heap.Init(&d.wq)
+@@ -190,7 +190,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
+ 		d.wq.push(symIdx)
+ 		d.ldr.SetAttrReachable(symIdx, true)
+-		if d.ctxt.Reachparent != nil {
++		if objabi.Fieldtrack_enabled != 0 {
+ 			d.ldr.Reachparent[symIdx] = parent
+ 		}
+ 		if *flagDumpDep {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 3b9d4ba7cc..8474cefa39 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -383,6 +383,7 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 			}
+ 		}
+ 	}
++	l.Reachparent = nil // we are done with it
+ 	if *flagFieldTrack == "" {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 76f8e36556..4bc7187292 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2812,7 +2812,7 @@ func (ctxt *Link) loadlibfull() {
+ 	}
+ 
+ 	// Pull the symbols out.
+-	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
++	ctxt.loader.ExtractSymbols(ctxt.Syms)
+ 	ctxt.lookup = ctxt.Syms.ROLookup
+ 
+ 	// Recreate dynexp using *sym.Symbol instead of loader.Sym
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 97599661c5..f6441a5b65 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -82,9 +82,6 @@ type Link struct {
+ 
+ 	tramps []loader.Sym // trampolines
+ 
+-	// Used to implement field tracking.
+-	Reachparent map[*sym.Symbol]*sym.Symbol
+-
+ 	compUnits []*sym.CompilationUnit // DWARF compilation units
+ 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 32a2eff2b5..91656170b8 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/benchmark"
+-	"cmd/link/internal/sym"
+ 	"flag"
+ 	"log"
+ 	"os"
+@@ -156,9 +155,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 
+-	if objabi.Fieldtrack_enabled != 0 {
+-		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
+-	}
+ 	checkStrictDups = *FlagStrictDups
+ 
+ 	startProfile()
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 9fd2bb28b6..1dbe4dfe3c 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2128,7 +2128,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
+ 
+ // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
+ // ported to the new symbol type.
+-func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbol) {
++func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
+ 	// created via loader.Create (marked with versions less than zero), since
+ 	// if we tried to add these we'd wind up with collisions. We do, however,
+@@ -2148,13 +2148,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
+ 		}
+ 	}
+ 
+-	for i, s := range l.Reachparent {
+-		if i == 0 {
+-			continue
+-		}
+-		rp[l.Syms[i]] = l.Syms[s]
+-	}
+-
+ 	// Provide lookup functions for sym.Symbols.
+ 	l.SymLookup = func(name string, ver int) *sym.Symbol {
+ 		i := l.LookupOrCreateSym(name, ver)

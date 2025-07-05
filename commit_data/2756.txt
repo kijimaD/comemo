@@ -7,6 +7,23 @@ Date:   Mon Jul 20 13:29:56 2009 -0700
     R=ken
     OCL=31865
     CL=31867
-
+---
  src/cmd/gc/walk.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 65c4f7efd6..be3f0b9cb7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -606,7 +606,10 @@ reswitch:
+ 			ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
+ 			n->list = reorder1(ll);
+ 			if(isselect(n)) {
+-				// clear output bool - special prob with selectsend
++				// special prob with selectsend and selectrecv:
++				// if chan is nil, they don't know big the channel
++				// element is and therefore don't know how to find
++				// the output bool, so we clear it before the call.
+ 				Node *b;
+ 				b = nodbool(0);
+ 				lr = ascompatte(n->op, getoutarg(t), list1(b), 0, init);

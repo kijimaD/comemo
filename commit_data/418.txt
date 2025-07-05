@@ -9,7 +9,7 @@ Date:   Thu Jul 24 15:57:30 2008 -0700
     DELTA=638  (433 added, 21 deleted, 184 changed)
     OCL=13426
     CL=13438
-
+---
  src/cmd/6g/gen.c               |  11 ++
  src/cmd/6g/gg.h                |   1 +
  src/cmd/gc/go.h                |   7 +-
@@ -24,3 +24,1450 @@ Date:   Thu Jul 24 15:57:30 2008 -0700
  src/runtime/sys_amd64_darwin.s |  10 +-
  src/runtime/sys_amd64_linux.s  |  10 +-
  13 files changed, 616 insertions(+), 204 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 3bab7425f7..dfc343d158 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -255,6 +255,17 @@ loop:
+ 		breakpc = sbreak;
+ 		break;
+ 
++	case OSELECT:
++		gen(n->ninit);
++		sbreak = breakpc;
++		p1 = gbranch(AJMP, T);			// 		goto test
++		breakpc = gbranch(AJMP, T);		// break:	goto done
++		patch(p1, pc);				// test:
++		gen(n->nbody);				//		select() body
++		patch(breakpc, pc);			// done:
++		breakpc = sbreak;
++		break;
++
+ 	case OASOP:
+ 		cgen_asop(n);
+ 		break;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index c6ee3ab4b3..9b35228528 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -107,6 +107,7 @@ void	compile(Node*);
+ void	proglist(void);
+ void	gen(Node*);
+ void	swgen(Node*);
++void	selgen(Node*);
+ Node*	lookdot(Node*, Node*, int);
+ void	inarggen(void);
+ void	agen_inter(Node*, Node*);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9a49f6f12c..9e37c79465 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -219,8 +219,8 @@ enum
+ 	OLIST, OCMP,
+ 	OPTR, OARRAY,
+ 	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
+-	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL, OSELECT,
+-	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY,
++	OAS, OASOP, OCASE, OXCASE, OSCASE, OFALL, OXFALL,
++	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY, OSELECT,
+ 
+ 	OOROR,
+ 	OANDAND,
+@@ -575,6 +575,7 @@ void	walktype(Node*, int);
+ void	walkbool(Node*);
+ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
++void	walkselect(Node*);
+ int	whatis(Node*);
+ void	walkdot(Node*, int);
+ Node*	ascompatee(int, Node**, Node**);
+@@ -585,7 +586,9 @@ Node*	prcompat(Node*);
+ Node*	nodpanic(long);
+ Node*	newcompat(Node*);
+ Node*	stringop(Node*, int);
++Type*	fixmap(Type*);
+ Node*	mapop(Node*, int);
++Type*	fixchan(Type*);
+ Node*	chanop(Node*, int);
+ Node*	convas(Node*);
+ void	arrayconv(Type*, Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 13c08baf02..769c95333f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -338,8 +338,6 @@ complex_stmt:
+ |	LSWITCH if_stmt
+ 	{
+ 		popdcl();
+-		if(!casebody($2->nbody))
+-			yyerror("switch statement must have case labels");
+ 		$$ = $2;
+ 		$$->op = OSWITCH;
+ 		//if($$->ninit != N && $$->ntest == N)
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+index 7d6a8ecdc4..c920cde61a 100755
+--- a/src/cmd/gc/mksys.bash
++++ b/src/cmd/gc/mksys.bash
+@@ -7,6 +7,7 @@
+ 6g sys.go
+ echo '1,/((/d
+ /))/+1,$d
++g/init_.*_function/d
+ 1,$s/foop/sys/g
+ 1,$s/^[ 	]*/	"/g
+ 1,$s/$/\\n"/g
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b9c0da5407..8609f39dfc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -603,6 +603,7 @@ opnames[] =
+ 	[OCALLINTER]	= "CALLINTER",
+ 	[OCASE]		= "CASE",
+ 	[OXCASE]	= "XCASE",
++	[OSCASE]	= "SCASE",
+ 	[OCMP]		= "CMP",
+ 	[OFALL]		= "FALL",
+ 	[OCONV]		= "CONV",
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 06848c1f32..502d44914b 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -51,6 +51,11 @@ func	chanrecv3(hchan *chan any) (elem any, pres bool);
+ func	chansend1(hchan *chan any, elem any);
+ func	chansend2(hchan *chan any, elem any) (pres bool);
+ 
++func	newselect(size uint32) (sel *byte);
++func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
++func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++func	selectgo(sel *byte);
++
+ func	gosched();
+ func	goexit();
+ 
+@@ -112,6 +117,12 @@ export
+ 	chansend1
+ 	chansend2
+ 
++	// select
++	newselect
++	selectsend
++	selectrecv
++	selectgo
++
+ 	// go routines
+ 	gosched
+ 	goexit
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index b5964087e3..571c7e83ec 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -3,10 +3,10 @@ char*	sysimport =
+ 	"type sys._esys_002 {}\n"
+ 	"type sys.any 24\n"
+ 	"type sys._esys_003 *sys.any\n"
+-	"type sys._osys_332 {_esys_330 sys._esys_003}\n"
++	"type sys._osys_361 {_esys_359 sys._esys_003}\n"
+ 	"type sys.uint32 6\n"
+-	"type sys._isys_334 {_esys_331 sys.uint32}\n"
+-	"type sys._esys_001 (sys._esys_002 sys._osys_332 sys._isys_334)\n"
++	"type sys._isys_363 {_esys_360 sys.uint32}\n"
++	"type sys._esys_001 (sys._esys_002 sys._osys_361 sys._isys_363)\n"
+ 	"var !sys.mal sys._esys_001\n"
+ 	"type sys._esys_005 {}\n"
+ 	"type sys._esys_006 {}\n"
+@@ -16,249 +16,282 @@ char*	sysimport =
+ 	"type sys._esys_009 {}\n"
+ 	"type sys._esys_010 {}\n"
+ 	"type sys.int32 5\n"
+-	"type sys._isys_340 {_esys_339 sys.int32}\n"
+-	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_340)\n"
++	"type sys._isys_369 {_esys_368 sys.int32}\n"
++	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_369)\n"
+ 	"var !sys.panicl sys._esys_008\n"
+ 	"type sys._esys_012 {}\n"
+ 	"type sys._esys_013 {}\n"
+ 	"type sys.bool 12\n"
+-	"type sys._isys_345 {_esys_344 sys.bool}\n"
+-	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_345)\n"
++	"type sys._isys_374 {_esys_373 sys.bool}\n"
++	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_374)\n"
+ 	"var !sys.printbool sys._esys_011\n"
+ 	"type sys._esys_015 {}\n"
+ 	"type sys._esys_016 {}\n"
+ 	"type sys.float64 10\n"
+-	"type sys._isys_350 {_esys_349 sys.float64}\n"
+-	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_350)\n"
++	"type sys._isys_379 {_esys_378 sys.float64}\n"
++	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_379)\n"
+ 	"var !sys.printfloat sys._esys_014\n"
+ 	"type sys._esys_018 {}\n"
+ 	"type sys._esys_019 {}\n"
+ 	"type sys.int64 7\n"
+-	"type sys._isys_355 {_esys_354 sys.int64}\n"
+-	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_355)\n"
++	"type sys._isys_384 {_esys_383 sys.int64}\n"
++	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_384)\n"
+ 	"var !sys.printint sys._esys_017\n"
+ 	"type sys._esys_021 {}\n"
+ 	"type sys._esys_022 {}\n"
+ 	"type sys._esys_023 25\n"
+ 	"type sys.string *sys._esys_023\n"
+-	"type sys._isys_360 {_esys_359 sys.string}\n"
+-	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_360)\n"
++	"type sys._isys_389 {_esys_388 sys.string}\n"
++	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_389)\n"
+ 	"var !sys.printstring sys._esys_020\n"
+ 	"type sys._esys_025 {}\n"
+ 	"type sys._esys_026 {}\n"
+ 	"type sys._esys_027 *sys.any\n"
+-	"type sys._isys_365 {_esys_364 sys._esys_027}\n"
+-	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_365)\n"
++	"type sys._isys_394 {_esys_393 sys._esys_027}\n"
++	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_394)\n"
+ 	"var !sys.printpointer sys._esys_024\n"
+ 	"type sys._esys_029 {}\n"
+-	"type sys._osys_372 {_esys_369 sys.string}\n"
+-	"type sys._isys_374 {_esys_370 sys.string _esys_371 sys.string}\n"
+-	"type sys._esys_028 (sys._esys_029 sys._osys_372 sys._isys_374)\n"
++	"type sys._osys_401 {_esys_398 sys.string}\n"
++	"type sys._isys_403 {_esys_399 sys.string _esys_400 sys.string}\n"
++	"type sys._esys_028 (sys._esys_029 sys._osys_401 sys._isys_403)\n"
+ 	"var !sys.catstring sys._esys_028\n"
+ 	"type sys._esys_031 {}\n"
+-	"type sys._osys_382 {_esys_379 sys.int32}\n"
+-	"type sys._isys_384 {_esys_380 sys.string _esys_381 sys.string}\n"
+-	"type sys._esys_030 (sys._esys_031 sys._osys_382 sys._isys_384)\n"
++	"type sys._osys_411 {_esys_408 sys.int32}\n"
++	"type sys._isys_413 {_esys_409 sys.string _esys_410 sys.string}\n"
++	"type sys._esys_030 (sys._esys_031 sys._osys_411 sys._isys_413)\n"
+ 	"var !sys.cmpstring sys._esys_030\n"
+ 	"type sys._esys_033 {}\n"
+-	"type sys._osys_393 {_esys_389 sys.string}\n"
+-	"type sys._isys_395 {_esys_390 sys.string _esys_391 sys.int32 _esys_392 sys.int32}\n"
+-	"type sys._esys_032 (sys._esys_033 sys._osys_393 sys._isys_395)\n"
++	"type sys._osys_422 {_esys_418 sys.string}\n"
++	"type sys._isys_424 {_esys_419 sys.string _esys_420 sys.int32 _esys_421 sys.int32}\n"
++	"type sys._esys_032 (sys._esys_033 sys._osys_422 sys._isys_424)\n"
+ 	"var !sys.slicestring sys._esys_032\n"
+ 	"type sys._esys_035 {}\n"
+ 	"type sys.uint8 2\n"
+-	"type sys._osys_404 {_esys_401 sys.uint8}\n"
+-	"type sys._isys_406 {_esys_402 sys.string _esys_403 sys.int32}\n"
+-	"type sys._esys_034 (sys._esys_035 sys._osys_404 sys._isys_406)\n"
++	"type sys._osys_433 {_esys_430 sys.uint8}\n"
++	"type sys._isys_435 {_esys_431 sys.string _esys_432 sys.int32}\n"
++	"type sys._esys_034 (sys._esys_035 sys._osys_433 sys._isys_435)\n"
+ 	"var !sys.indexstring sys._esys_034\n"
+ 	"type sys._esys_037 {}\n"
+-	"type sys._osys_413 {_esys_411 sys.string}\n"
+-	"type sys._isys_415 {_esys_412 sys.int64}\n"
+-	"type sys._esys_036 (sys._esys_037 sys._osys_413 sys._isys_415)\n"
++	"type sys._osys_442 {_esys_440 sys.string}\n"
++	"type sys._isys_444 {_esys_441 sys.int64}\n"
++	"type sys._esys_036 (sys._esys_037 sys._osys_442 sys._isys_444)\n"
+ 	"var !sys.intstring sys._esys_036\n"
+ 	"type sys._esys_039 {}\n"
+-	"type sys._osys_422 {_esys_419 sys.string}\n"
++	"type sys._osys_451 {_esys_448 sys.string}\n"
+ 	"type sys._esys_040 *sys.uint8\n"
+-	"type sys._isys_424 {_esys_420 sys._esys_040 _esys_421 sys.int32}\n"
+-	"type sys._esys_038 (sys._esys_039 sys._osys_422 sys._isys_424)\n"
++	"type sys._isys_453 {_esys_449 sys._esys_040 _esys_450 sys.int32}\n"
++	"type sys._esys_038 (sys._esys_039 sys._osys_451 sys._isys_453)\n"
+ 	"var !sys.byteastring sys._esys_038\n"
+ 	"type sys._esys_042 {}\n"
+ 	"type sys._esys_043 <>\n"
+-	"type sys._osys_433 {_esys_429 sys._esys_043}\n"
++	"type sys._osys_462 {_esys_458 sys._esys_043}\n"
+ 	"type sys._esys_044 *sys.uint8\n"
+ 	"type sys._esys_045 *sys.uint8\n"
+-	"type sys._ssys_440 {}\n"
+-	"type sys._esys_046 *sys._ssys_440\n"
+-	"type sys._isys_435 {_esys_430 sys._esys_044 _esys_431 sys._esys_045 _esys_432 sys._esys_046}\n"
+-	"type sys._esys_041 (sys._esys_042 sys._osys_433 sys._isys_435)\n"
++	"type sys._ssys_469 {}\n"
++	"type sys._esys_046 *sys._ssys_469\n"
++	"type sys._isys_464 {_esys_459 sys._esys_044 _esys_460 sys._esys_045 _esys_461 sys._esys_046}\n"
++	"type sys._esys_041 (sys._esys_042 sys._osys_462 sys._isys_464)\n"
+ 	"var !sys.mkiface sys._esys_041\n"
+ 	"type sys._esys_048 {}\n"
+-	"type sys._osys_444 {_esys_443 sys.int32}\n"
++	"type sys._osys_473 {_esys_472 sys.int32}\n"
+ 	"type sys._esys_049 {}\n"
+-	"type sys._esys_047 (sys._esys_048 sys._osys_444 sys._esys_049)\n"
++	"type sys._esys_047 (sys._esys_048 sys._osys_473 sys._esys_049)\n"
+ 	"var !sys.argc sys._esys_047\n"
+ 	"type sys._esys_051 {}\n"
+-	"type sys._osys_448 {_esys_447 sys.int32}\n"
++	"type sys._osys_477 {_esys_476 sys.int32}\n"
+ 	"type sys._esys_052 {}\n"
+-	"type sys._esys_050 (sys._esys_051 sys._osys_448 sys._esys_052)\n"
++	"type sys._esys_050 (sys._esys_051 sys._osys_477 sys._esys_052)\n"
+ 	"var !sys.envc sys._esys_050\n"
+ 	"type sys._esys_054 {}\n"
+-	"type sys._osys_453 {_esys_451 sys.string}\n"
+-	"type sys._isys_455 {_esys_452 sys.int32}\n"
+-	"type sys._esys_053 (sys._esys_054 sys._osys_453 sys._isys_455)\n"
++	"type sys._osys_482 {_esys_480 sys.string}\n"
++	"type sys._isys_484 {_esys_481 sys.int32}\n"
++	"type sys._esys_053 (sys._esys_054 sys._osys_482 sys._isys_484)\n"
+ 	"var !sys.argv sys._esys_053\n"
+ 	"type sys._esys_056 {}\n"
+-	"type sys._osys_461 {_esys_459 sys.string}\n"
+-	"type sys._isys_463 {_esys_460 sys.int32}\n"
+-	"type sys._esys_055 (sys._esys_056 sys._osys_461 sys._isys_463)\n"
++	"type sys._osys_490 {_esys_488 sys.string}\n"
++	"type sys._isys_492 {_esys_489 sys.int32}\n"
++	"type sys._esys_055 (sys._esys_056 sys._osys_490 sys._isys_492)\n"
+ 	"var !sys.envv sys._esys_055\n"
+ 	"type sys._esys_058 {}\n"
+-	"type sys._osys_470 {_esys_467 sys.float64 _esys_468 sys.int32}\n"
+-	"type sys._isys_472 {_esys_469 sys.float64}\n"
+-	"type sys._esys_057 (sys._esys_058 sys._osys_470 sys._isys_472)\n"
++	"type sys._osys_499 {_esys_496 sys.float64 _esys_497 sys.int32}\n"
++	"type sys._isys_501 {_esys_498 sys.float64}\n"
++	"type sys._esys_057 (sys._esys_058 sys._osys_499 sys._isys_501)\n"
+ 	"var !sys.frexp sys._esys_057\n"
+ 	"type sys._esys_060 {}\n"
+-	"type sys._osys_479 {_esys_476 sys.float64}\n"
+-	"type sys._isys_481 {_esys_477 sys.float64 _esys_478 sys.int32}\n"
+-	"type sys._esys_059 (sys._esys_060 sys._osys_479 sys._isys_481)\n"
++	"type sys._osys_508 {_esys_505 sys.float64}\n"
++	"type sys._isys_510 {_esys_506 sys.float64 _esys_507 sys.int32}\n"
++	"type sys._esys_059 (sys._esys_060 sys._osys_508 sys._isys_510)\n"
+ 	"var !sys.ldexp sys._esys_059\n"
+ 	"type sys._esys_062 {}\n"
+-	"type sys._osys_489 {_esys_486 sys.float64 _esys_487 sys.float64}\n"
+-	"type sys._isys_491 {_esys_488 sys.float64}\n"
+-	"type sys._esys_061 (sys._esys_062 sys._osys_489 sys._isys_491)\n"
++	"type sys._osys_518 {_esys_515 sys.float64 _esys_516 sys.float64}\n"
++	"type sys._isys_520 {_esys_517 sys.float64}\n"
++	"type sys._esys_061 (sys._esys_062 sys._osys_518 sys._isys_520)\n"
+ 	"var !sys.modf sys._esys_061\n"
+ 	"type sys._esys_064 {}\n"
+-	"type sys._osys_498 {_esys_495 sys.bool}\n"
+-	"type sys._isys_500 {_esys_496 sys.float64 _esys_497 sys.int32}\n"
+-	"type sys._esys_063 (sys._esys_064 sys._osys_498 sys._isys_500)\n"
++	"type sys._osys_527 {_esys_524 sys.bool}\n"
++	"type sys._isys_529 {_esys_525 sys.float64 _esys_526 sys.int32}\n"
++	"type sys._esys_063 (sys._esys_064 sys._osys_527 sys._isys_529)\n"
+ 	"var !sys.isInf sys._esys_063\n"
+ 	"type sys._esys_066 {}\n"
+-	"type sys._osys_507 {_esys_505 sys.bool}\n"
+-	"type sys._isys_509 {_esys_506 sys.float64}\n"
+-	"type sys._esys_065 (sys._esys_066 sys._osys_507 sys._isys_509)\n"
++	"type sys._osys_536 {_esys_534 sys.bool}\n"
++	"type sys._isys_538 {_esys_535 sys.float64}\n"
++	"type sys._esys_065 (sys._esys_066 sys._osys_536 sys._isys_538)\n"
+ 	"var !sys.isNaN sys._esys_065\n"
+ 	"type sys._esys_068 {}\n"
+-	"type sys._osys_515 {_esys_513 sys.float64}\n"
+-	"type sys._isys_517 {_esys_514 sys.int32}\n"
+-	"type sys._esys_067 (sys._esys_068 sys._osys_515 sys._isys_517)\n"
++	"type sys._osys_544 {_esys_542 sys.float64}\n"
++	"type sys._isys_546 {_esys_543 sys.int32}\n"
++	"type sys._esys_067 (sys._esys_068 sys._osys_544 sys._isys_546)\n"
+ 	"var !sys.Inf sys._esys_067\n"
+ 	"type sys._esys_070 {}\n"
+-	"type sys._osys_522 {_esys_521 sys.float64}\n"
++	"type sys._osys_551 {_esys_550 sys.float64}\n"
+ 	"type sys._esys_071 {}\n"
+-	"type sys._esys_069 (sys._esys_070 sys._osys_522 sys._esys_071)\n"
++	"type sys._esys_069 (sys._esys_070 sys._osys_551 sys._esys_071)\n"
+ 	"var !sys.NaN sys._esys_069\n"
+ 	"type sys._esys_073 {}\n"
+ 	"type sys._esys_075 [sys.any] sys.any\n"
+ 	"type sys._esys_074 *sys._esys_075\n"
+-	"type sys._osys_525 {hmap sys._esys_074}\n"
+-	"type sys._isys_527 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_072 (sys._esys_073 sys._osys_525 sys._isys_527)\n"
++	"type sys._osys_554 {hmap sys._esys_074}\n"
++	"type sys._isys_556 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_072 (sys._esys_073 sys._osys_554 sys._isys_556)\n"
+ 	"var !sys.newmap sys._esys_072\n"
+ 	"type sys._esys_077 {}\n"
+-	"type sys._osys_536 {val sys.any}\n"
++	"type sys._osys_565 {val sys.any}\n"
+ 	"type sys._esys_079 [sys.any] sys.any\n"
+ 	"type sys._esys_078 *sys._esys_079\n"
+-	"type sys._isys_538 {hmap sys._esys_078 key sys.any}\n"
+-	"type sys._esys_076 (sys._esys_077 sys._osys_536 sys._isys_538)\n"
++	"type sys._isys_567 {hmap sys._esys_078 key sys.any}\n"
++	"type sys._esys_076 (sys._esys_077 sys._osys_565 sys._isys_567)\n"
+ 	"var !sys.mapaccess1 sys._esys_076\n"
+ 	"type sys._esys_081 {}\n"
+-	"type sys._osys_544 {val sys.any pres sys.bool}\n"
++	"type sys._osys_573 {val sys.any pres sys.bool}\n"
+ 	"type sys._esys_083 [sys.any] sys.any\n"
+ 	"type sys._esys_082 *sys._esys_083\n"
+-	"type sys._isys_546 {hmap sys._esys_082 key sys.any}\n"
+-	"type sys._esys_080 (sys._esys_081 sys._osys_544 sys._isys_546)\n"
++	"type sys._isys_575 {hmap sys._esys_082 key sys.any}\n"
++	"type sys._esys_080 (sys._esys_081 sys._osys_573 sys._isys_575)\n"
+ 	"var !sys.mapaccess2 sys._esys_080\n"
+ 	"type sys._esys_085 {}\n"
+ 	"type sys._esys_086 {}\n"
+ 	"type sys._esys_088 [sys.any] sys.any\n"
+ 	"type sys._esys_087 *sys._esys_088\n"
+-	"type sys._isys_553 {hmap sys._esys_087 key sys.any val sys.any}\n"
+-	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_553)\n"
++	"type sys._isys_582 {hmap sys._esys_087 key sys.any val sys.any}\n"
++	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_582)\n"
+ 	"var !sys.mapassign1 sys._esys_084\n"
+ 	"type sys._esys_090 {}\n"
+ 	"type sys._esys_091 {}\n"
+ 	"type sys._esys_093 [sys.any] sys.any\n"
+ 	"type sys._esys_092 *sys._esys_093\n"
+-	"type sys._isys_559 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
+-	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_559)\n"
++	"type sys._isys_588 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
++	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_588)\n"
+ 	"var !sys.mapassign2 sys._esys_089\n"
+ 	"type sys._esys_095 {}\n"
+ 	"type sys._esys_097 1 sys.any\n"
+ 	"type sys._esys_096 *sys._esys_097\n"
+-	"type sys._osys_566 {hchan sys._esys_096}\n"
+-	"type sys._isys_568 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_094 (sys._esys_095 sys._osys_566 sys._isys_568)\n"
++	"type sys._osys_595 {hchan sys._esys_096}\n"
++	"type sys._isys_597 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_094 (sys._esys_095 sys._osys_595 sys._isys_597)\n"
+ 	"var !sys.newchan sys._esys_094\n"
+ 	"type sys._esys_099 {}\n"
+-	"type sys._osys_575 {elem sys.any}\n"
++	"type sys._osys_604 {elem sys.any}\n"
+ 	"type sys._esys_101 1 sys.any\n"
+ 	"type sys._esys_100 *sys._esys_101\n"
+-	"type sys._isys_577 {hchan sys._esys_100}\n"
+-	"type sys._esys_098 (sys._esys_099 sys._osys_575 sys._isys_577)\n"
++	"type sys._isys_606 {hchan sys._esys_100}\n"
++	"type sys._esys_098 (sys._esys_099 sys._osys_604 sys._isys_606)\n"
+ 	"var !sys.chanrecv1 sys._esys_098\n"
+ 	"type sys._esys_103 {}\n"
+-	"type sys._osys_582 {elem sys.any pres sys.bool}\n"
++	"type sys._osys_611 {elem sys.any pres sys.bool}\n"
+ 	"type sys._esys_105 1 sys.any\n"
+ 	"type sys._esys_104 *sys._esys_105\n"
+-	"type sys._isys_584 {hchan sys._esys_104}\n"
+-	"type sys._esys_102 (sys._esys_103 sys._osys_582 sys._isys_584)\n"
++	"type sys._isys_613 {hchan sys._esys_104}\n"
++	"type sys._esys_102 (sys._esys_103 sys._osys_611 sys._isys_613)\n"
+ 	"var !sys.chanrecv2 sys._esys_102\n"
+ 	"type sys._esys_107 {}\n"
+-	"type sys._osys_590 {elem sys.any pres sys.bool}\n"
++	"type sys._osys_619 {elem sys.any pres sys.bool}\n"
+ 	"type sys._esys_109 1 sys.any\n"
+ 	"type sys._esys_108 *sys._esys_109\n"
+-	"type sys._isys_592 {hchan sys._esys_108}\n"
+-	"type sys._esys_106 (sys._esys_107 sys._osys_590 sys._isys_592)\n"
++	"type sys._isys_621 {hchan sys._esys_108}\n"
++	"type sys._esys_106 (sys._esys_107 sys._osys_619 sys._isys_621)\n"
+ 	"var !sys.chanrecv3 sys._esys_106\n"
+ 	"type sys._esys_111 {}\n"
+ 	"type sys._esys_112 {}\n"
+ 	"type sys._esys_114 1 sys.any\n"
+ 	"type sys._esys_113 *sys._esys_114\n"
+-	"type sys._isys_598 {hchan sys._esys_113 elem sys.any}\n"
+-	"type sys._esys_110 (sys._esys_111 sys._esys_112 sys._isys_598)\n"
++	"type sys._isys_627 {hchan sys._esys_113 elem sys.any}\n"
++	"type sys._esys_110 (sys._esys_111 sys._esys_112 sys._isys_627)\n"
+ 	"var !sys.chansend1 sys._esys_110\n"
+ 	"type sys._esys_116 {}\n"
+-	"type sys._osys_603 {pres sys.bool}\n"
++	"type sys._osys_632 {pres sys.bool}\n"
+ 	"type sys._esys_118 1 sys.any\n"
+ 	"type sys._esys_117 *sys._esys_118\n"
+-	"type sys._isys_605 {hchan sys._esys_117 elem sys.any}\n"
+-	"type sys._esys_115 (sys._esys_116 sys._osys_603 sys._isys_605)\n"
++	"type sys._isys_634 {hchan sys._esys_117 elem sys.any}\n"
++	"type sys._esys_115 (sys._esys_116 sys._osys_632 sys._isys_634)\n"
+ 	"var !sys.chansend2 sys._esys_115\n"
+ 	"type sys._esys_120 {}\n"
+-	"type sys._esys_121 {}\n"
+-	"type sys._esys_122 {}\n"
+-	"type sys._esys_119 (sys._esys_120 sys._esys_121 sys._esys_122)\n"
+-	"var !sys.gosched sys._esys_119\n"
+-	"type sys._esys_124 {}\n"
+-	"type sys._esys_125 {}\n"
+-	"type sys._esys_126 {}\n"
+-	"type sys._esys_123 (sys._esys_124 sys._esys_125 sys._esys_126)\n"
+-	"var !sys.goexit sys._esys_123\n"
++	"type sys._esys_121 *sys.uint8\n"
++	"type sys._osys_640 {sel sys._esys_121}\n"
++	"type sys._isys_642 {size sys.uint32}\n"
++	"type sys._esys_119 (sys._esys_120 sys._osys_640 sys._isys_642)\n"
++	"var !sys.newselect sys._esys_119\n"
++	"type sys._esys_123 {}\n"
++	"type sys._osys_647 {selected sys.bool}\n"
++	"type sys._esys_124 *sys.uint8\n"
++	"type sys._esys_126 1 sys.any\n"
++	"type sys._esys_125 *sys._esys_126\n"
++	"type sys._isys_649 {sel sys._esys_124 hchan sys._esys_125 elem sys.any}\n"
++	"type sys._esys_122 (sys._esys_123 sys._osys_647 sys._isys_649)\n"
++	"var !sys.selectsend sys._esys_122\n"
+ 	"type sys._esys_128 {}\n"
+-	"type sys._osys_616 {_esys_613 sys.string _esys_614 sys.bool}\n"
+-	"type sys._isys_618 {_esys_615 sys.string}\n"
+-	"type sys._esys_127 (sys._esys_128 sys._osys_616 sys._isys_618)\n"
+-	"var !sys.readfile sys._esys_127\n"
+-	"type sys._esys_130 {}\n"
+-	"type sys._osys_625 {_esys_622 sys.bool}\n"
+-	"type sys._isys_627 {_esys_623 sys.string _esys_624 sys.string}\n"
+-	"type sys._esys_129 (sys._esys_130 sys._osys_625 sys._isys_627)\n"
+-	"var !sys.writefile sys._esys_129\n"
+-	"type sys._esys_132 {}\n"
+-	"type sys._osys_637 {_esys_632 sys.int32 _esys_633 sys.int32}\n"
+-	"type sys._esys_133 *sys.uint8\n"
+-	"type sys._isys_639 {_esys_634 sys._esys_133 _esys_635 sys.int32 _esys_636 sys.int32}\n"
+-	"type sys._esys_131 (sys._esys_132 sys._osys_637 sys._isys_639)\n"
+-	"var !sys.bytestorune sys._esys_131\n"
++	"type sys._osys_656 {selected sys.bool}\n"
++	"type sys._esys_129 *sys.uint8\n"
++	"type sys._esys_131 1 sys.any\n"
++	"type sys._esys_130 *sys._esys_131\n"
++	"type sys._esys_132 *sys.any\n"
++	"type sys._isys_658 {sel sys._esys_129 hchan sys._esys_130 elem sys._esys_132}\n"
++	"type sys._esys_127 (sys._esys_128 sys._osys_656 sys._isys_658)\n"
++	"var !sys.selectrecv sys._esys_127\n"
++	"type sys._esys_134 {}\n"
+ 	"type sys._esys_135 {}\n"
+-	"type sys._osys_650 {_esys_645 sys.int32 _esys_646 sys.int32}\n"
+-	"type sys._isys_652 {_esys_647 sys.string _esys_648 sys.int32 _esys_649 sys.int32}\n"
+-	"type sys._esys_134 (sys._esys_135 sys._osys_650 sys._isys_652)\n"
+-	"var !sys.stringtorune sys._esys_134\n"
+-	"type sys._esys_137 {}\n"
++	"type sys._esys_136 *sys.uint8\n"
++	"type sys._isys_665 {sel sys._esys_136}\n"
++	"type sys._esys_133 (sys._esys_134 sys._esys_135 sys._isys_665)\n"
++	"var !sys.selectgo sys._esys_133\n"
+ 	"type sys._esys_138 {}\n"
+-	"type sys._isys_659 {_esys_658 sys.int32}\n"
+-	"type sys._esys_136 (sys._esys_137 sys._esys_138 sys._isys_659)\n"
+-	"var !sys.exit sys._esys_136\n"
++	"type sys._esys_139 {}\n"
++	"type sys._esys_140 {}\n"
++	"type sys._esys_137 (sys._esys_138 sys._esys_139 sys._esys_140)\n"
++	"var !sys.gosched sys._esys_137\n"
++	"type sys._esys_142 {}\n"
++	"type sys._esys_143 {}\n"
++	"type sys._esys_144 {}\n"
++	"type sys._esys_141 (sys._esys_142 sys._esys_143 sys._esys_144)\n"
++	"var !sys.goexit sys._esys_141\n"
++	"type sys._esys_146 {}\n"
++	"type sys._osys_674 {_esys_671 sys.string _esys_672 sys.bool}\n"
++	"type sys._isys_676 {_esys_673 sys.string}\n"
++	"type sys._esys_145 (sys._esys_146 sys._osys_674 sys._isys_676)\n"
++	"var !sys.readfile sys._esys_145\n"
++	"type sys._esys_148 {}\n"
++	"type sys._osys_683 {_esys_680 sys.bool}\n"
++	"type sys._isys_685 {_esys_681 sys.string _esys_682 sys.string}\n"
++	"type sys._esys_147 (sys._esys_148 sys._osys_683 sys._isys_685)\n"
++	"var !sys.writefile sys._esys_147\n"
++	"type sys._esys_150 {}\n"
++	"type sys._osys_695 {_esys_690 sys.int32 _esys_691 sys.int32}\n"
++	"type sys._esys_151 *sys.uint8\n"
++	"type sys._isys_697 {_esys_692 sys._esys_151 _esys_693 sys.int32 _esys_694 sys.int32}\n"
++	"type sys._esys_149 (sys._esys_150 sys._osys_695 sys._isys_697)\n"
++	"var !sys.bytestorune sys._esys_149\n"
++	"type sys._esys_153 {}\n"
++	"type sys._osys_708 {_esys_703 sys.int32 _esys_704 sys.int32}\n"
++	"type sys._isys_710 {_esys_705 sys.string _esys_706 sys.int32 _esys_707 sys.int32}\n"
++	"type sys._esys_152 (sys._esys_153 sys._osys_708 sys._isys_710)\n"
++	"var !sys.stringtorune sys._esys_152\n"
++	"type sys._esys_155 {}\n"
++	"type sys._esys_156 {}\n"
++	"type sys._isys_717 {_esys_716 sys.int32}\n"
++	"type sys._esys_154 (sys._esys_155 sys._esys_156 sys._isys_717)\n"
++	"var !sys.exit sys._esys_154\n"
++	"type sys._esys_158 {}\n"
++	"type sys._esys_159 {}\n"
++	"type sys._esys_160 {}\n"
++	"type sys._esys_157 (sys._esys_158 sys._esys_159 sys._esys_160)\n"
+ 	"))\n"
+ ;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 576fe90b02..422b551367 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -70,7 +70,7 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->left, Erv);
+-		*n = *nod(OLIST, prcompat(n->left), nodpanic(n->lineno));
++		*n = *list(prcompat(n->left), nodpanic(n->lineno));
+ 		goto ret;
+ 
+ 	case OLITERAL:
+@@ -121,6 +121,9 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 
++		if(!casebody(n->nbody))
++			yyerror("switch statement must have case labels");
++
+ 		if(n->ntest == N)
+ 			n->ntest = booltrue;
+ 		walktype(n->ninit, Etop);
+@@ -142,6 +145,20 @@ loop:
+ 		walktype(n->nincr, Erv);
+ 		goto ret;
+ 
++	case OSELECT:
++		if(top != Etop)
++			goto nottop;
++
++		walkselect(n);
++		goto ret;
++
++	case OSCASE:
++		if(top != Etop)
++			goto nottop;
++//		walktype(n->left, Erv);	SPECIAL
++		n = n->right;
++		goto loop;
++
+ 	case OEMPTY:
+ 		if(top != Etop)
+ 			goto nottop;
+@@ -216,7 +233,7 @@ loop:
+ 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
+ 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
+ 			if(l != N)
+-				r = nod(OLIST, r, l);
++				r = list(r, l);
+ 			n->left->left = N;
+ 			ullmancalc(n->left);
+ 			n->right = reorder1(r);
+@@ -255,7 +272,7 @@ loop:
+ 				walktype(r, Erv);
+ 				l = ascompatet(n->op, &n->left, &r->type, 0);
+ 				if(l != N) {
+-					*n = *nod(OLIST, r, reorder2(l));
++					*n = *list(r, reorder2(l));
+ 				}
+ 				goto ret;
+ 			}
+@@ -591,8 +608,8 @@ loop:
+ 	case OSEND:
+ 		if(top == Elv)
+ 			goto nottop;
+-		walktype(n->left, Erv);
+-		walktype(n->right, Erv);
++		walktype(n->left, Erv);		// chan
++		walktype(n->right, Erv);	// e
+ 		*n = *chanop(n, top);
+ 		goto ret;
+ 
+@@ -805,7 +822,7 @@ sw2(Node *c, Type *place)
+ }
+ 
+ /*
+- * check that selected type
++ * check that switch type
+  * is compat with all the cases
+  */
+ Type*
+@@ -897,6 +914,125 @@ loop:
+ 	goto loop;
+ }
+ 
++Node*
++selcase(Node *c, Node *var)
++{
++	Node *a, *r, *on;
++	Type *t;
++
++	walktype(c->left, Erv);		// chan
++	walktype(c->right, Erv);	// elem
++	t = fixchan(c->left->type);
++	if(t == T)
++		return;
++
++	convlit(c->right, t->type);
++	if(!ascompat(t->type, c->right->type)) {
++		badtype(c->op, t->type, c->right->type);
++		return;
++	}
++
++	// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
++	on = syslook("selectsend", 1);
++	argtype(on, t->type);
++	argtype(on, t->type);
++
++	a = c->right;		// elem
++	r = a;
++	a = c->left;		// chan
++	r = list(a, r);
++	a = var;		// sel-var
++	r = list(a, r);
++
++	a = nod(OCALL, on, r);
++	r = nod(OIF, N, N);
++	r->ntest = a;
++
++	return r;
++
++}
++
++void
++walkselect(Node *sel)
++{
++	Iter iter;
++	Node *n, *oc, *on, *r;
++	Node *var, *bod, *res;
++	int count;
++	long lno;
++
++	lno = setlineno(sel);
++
++	// generate sel-struct
++	var = nod(OXXX, N, N);
++	tempname(var, ptrto(types[TUINT8]));
++
++	n = listfirst(&iter, &sel->left);
++	if(n == N || n->op != OXCASE)
++		yyerror("first select statement must be a case");
++
++	count = 0;	// number of cases
++	res = N;	// entire select body
++	bod = N;	// body of each case
++	oc = N;		// last case
++
++	for(count=0; n!=N; n=listnext(&iter)) {
++		setlineno(n);
++
++		switch(n->op) {
++		default:
++			bod = list(bod, n);
++			break;
++
++		case OXCASE:
++			switch(n->left->op) {
++			default:
++				yyerror("select cases must be send or recv");
++				break;
++
++			case OSEND:
++				if(oc != N) {
++					bod = list(bod, nod(OBREAK, N, N));
++					oc->nbody = rev(bod);
++				}
++				oc = selcase(n->left, var);
++				res = list(res, oc);
++				break;
++			}
++			bod = N;
++			count++;
++			break;
++		}
++	}
++	if(oc != N) {
++		bod = list(bod, nod(OBREAK, N, N));
++		oc->nbody = rev(bod);
++	}
++	setlineno(sel);
++
++	// selectgo(sel *byte);
++	on = syslook("selectgo", 0);
++	r = nod(OCALL, on, var);		// sel-var
++	res = list(res, r);
++
++	// newselect(size uint32) (sel *byte);
++	on = syslook("newselect", 0);
++
++	r = nod(OXXX, N, N);
++	nodconst(r, types[TINT32], count);	// count
++	r = nod(OCALL, on, r);
++	r = nod(OAS, var, r);
++
++	sel->ninit = r;
++	sel->nbody = rev(res);
++	sel->left = N;
++
++	walktype(sel->ninit, Etop);
++	walktype(sel->nbody, Etop);
++
++	lineno = lno;
++}
++
+ /*
+  * allowable type combinations for
+  * normal binary operations.
+@@ -1053,7 +1189,7 @@ loop:
+ 	if(nn == N)
+ 		nn = a;
+ 	else
+-		nn = nod(OLIST, a, nn);
++		nn = list(a, nn);
+ 
+ 	l = listnext(&savel);
+ 	r = listnext(&saver);
+@@ -1093,7 +1229,7 @@ loop:
+ 	if(nn == N)
+ 		nn = a;
+ 	else
+-		nn = nod(OLIST, a, nn);
++		nn = list(a, nn);
+ 
+ 	l = listnext(&savel);
+ 	r = structnext(&saver);
+@@ -1134,7 +1270,7 @@ loop:
+ 	if(nn == N)
+ 		nn = a;
+ 	else
+-		nn = nod(OLIST, a, nn);
++		nn = list(a, nn);
+ 
+ 	l = structnext(&savel);
+ 	r = listnext(&saver);
+@@ -1230,7 +1366,7 @@ loop:
+ 	if(r == N)
+ 		r = nod(OCALL, on, l);
+ 	else
+-		r = nod(OLIST, r, nod(OCALL, on, l));
++		r = list(r, nod(OCALL, on, l));
+ 
+ 	l = listnext(&save);
+ 	goto loop;
+@@ -1305,7 +1441,7 @@ stringop(Node *n, int top)
+ 	case OLT:
+ 		// sys_cmpstring(s1, s2) :: 0
+ 		on = syslook("cmpstring", 0);
+-		r = nod(OLIST, n->left, n->right);
++		r = list(n->left, n->right);
+ 		r = nod(OCALL, on, r);
+ 		c = nodintconst(0);
+ 		r = nod(n->op, r, c);
+@@ -1314,7 +1450,7 @@ stringop(Node *n, int top)
+ 	case OADD:
+ 		// sys_catstring(s1, s2)
+ 		on = syslook("catstring", 0);
+-		r = nod(OLIST, n->left, n->right);
++		r = list(n->left, n->right);
+ 		r = nod(OCALL, on, r);
+ 		break;
+ 
+@@ -1328,7 +1464,7 @@ stringop(Node *n, int top)
+ 			// s1 = sys_catstring(s1, s2)
+ 			if(n->etype != OADD)
+ 				fatal("stringop: not cat");
+-			r = nod(OLIST, n->left, n->right);
++			r = list(n->left, n->right);
+ 			on = syslook("catstring", 0);
+ 			r = nod(OCALL, on, r);
+ 			r = nod(OAS, n->left, r);
+@@ -1344,8 +1480,8 @@ stringop(Node *n, int top)
+ 		c = nod(OCONV, n->right->right, N);
+ 		c->type = types[TINT32];
+ 
+-		r = nod(OLIST, r, c);
+-		r = nod(OLIST, n->left, r);
++		r = list(r, c);
++		r = list(n->left, r);
+ 		on = syslook("slicestring", 0);
+ 		r = nod(OCALL, on, r);
+ 		break;
+@@ -1360,7 +1496,7 @@ stringop(Node *n, int top)
+ 		}
+ 		r = nod(OCONV, n->right, N);
+ 		r->type = types[TINT32];
+-		r = nod(OLIST, c, r);
++		r = list(c, r);
+ 		on = syslook("indexstring", 0);
+ 		r = nod(OCALL, on, r);
+ 		break;
+@@ -1382,7 +1518,7 @@ stringop(Node *n, int top)
+ 		l = isbytearray(n->left->type);
+ 		c = nodintconst(l-1);
+ 
+-		r = nod(OLIST, r, c);
++		r = list(r, c);
+ 		on = syslook("byteastring", 0);
+ 		r = nod(OCALL, on, r);
+ 		break;
+@@ -1499,13 +1635,13 @@ mapop(Node *n, int top)
+ 			a = nodintconst(0);
+ 		r = a;
+ 		a = nodintconst(algtype(t->type));	// val algorithm
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = nodintconst(algtype(t->down));	// key algorithm
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = nodintconst(t->type->width);	// val width
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = nodintconst(t->down->width);	// key width
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("newmap", 1);
+ 
+@@ -1541,7 +1677,7 @@ mapop(Node *n, int top)
+ 
+ 		r = a;
+ 		a = n->left;				// map
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("mapaccess1", 1);
+ 
+@@ -1579,9 +1715,9 @@ mapop(Node *n, int top)
+ 		a = n->right;				// val
+ 		r = a;
+ 		a = n->left->right;			// key
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = n->left->left;			// map
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("mapassign1", 1);
+ 
+@@ -1608,11 +1744,11 @@ mapop(Node *n, int top)
+ 		a = n->right->right;			// pres
+ 		r = a;
+ 		a = n->right->left;			// val
+-		r =nod(OLIST, a, r);
++		r =list(a, r);
+ 		a = n->left->right;			// key
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = n->left->left;			// map
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("mapassign2", 1);
+ 
+@@ -1639,7 +1775,7 @@ mapop(Node *n, int top)
+ 		a = n->right->right;			// key
+ 		r = a;
+ 		a = n->right->left;			// map
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("mapaccess2", 1);
+ 
+@@ -1695,9 +1831,9 @@ chanop(Node *n, int top)
+ 			a = nodintconst(0);
+ 		r = a;
+ 		a = nodintconst(algtype(t->type));	// elem algorithm
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 		a = nodintconst(t->type->width);	// elem width
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("newchan", 1);
+ 		argtype(on, t->type);	// any-1
+@@ -1789,7 +1925,7 @@ fatal("recv2 not yet");
+ 		a = n->right;			// e
+ 		r = a;
+ 		a = n->left;			// chan
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("chansend1", 1);
+ 		argtype(on, t->type);	// any-1
+@@ -1807,7 +1943,7 @@ fatal("recv2 not yet");
+ 		a = n->right;			// e
+ 		r = a;
+ 		a = n->left;			// chan
+-		r = nod(OLIST, a, r);
++		r = list(a, r);
+ 
+ 		on = syslook("chansend2", 1);
+ 		argtype(on, t->type);	// any-1
+@@ -1981,7 +2117,7 @@ colas(Node *nl, Node *nr)
+ 		if(n == N)
+ 			n = a;
+ 		else
+-			n = nod(OLIST, n, a);
++			n = list(n, a);
+ 
+ 		l = listnext(&savel);
+ 		r = listnext(&saver);
+@@ -2017,7 +2153,7 @@ multi:
+ 			if(n == N)
+ 				n = a;
+ 			else
+-				n = nod(OLIST, n, a);
++				n = list(n, a);
+ 			l = listnext(&savel);
+ 			t = structnext(&saver);
+ 		}
+@@ -2039,7 +2175,7 @@ multi:
+ 		a = old2new(nl->left, t->type);
+ 		n = a;
+ 		a = old2new(nl->right, types[TBOOL]);
+-		n = nod(OLIST, n, a);
++		n = list(n, a);
+ 		break;
+ 
+ 	case ORECV:
+@@ -2052,7 +2188,7 @@ multi:
+ 		a = old2new(nl->left, t->type->type);
+ 		n = a;
+ 		a = old2new(nl->right, types[TBOOL]);
+-		n = nod(OLIST, n, a);
++		n = list(n, a);
+ 	}
+ 	n = rev(n);
+ 	return n;
+@@ -2107,15 +2243,15 @@ loop2:
+ 		r = rev(r);
+ 		g = rev(g);
+ 		if(g != N)
+-			f = nod(OLIST, g, f);
+-		r = nod(OLIST, f, r);
++			f = list(g, f);
++		r = list(f, r);
+ 		return r;
+ 	}
+ 	if(l->ullman < UINF) {
+ 		if(r == N)
+ 			r = l;
+ 		else
+-			r = nod(OLIST, l, r);
++			r = list(l, r);
+ 		goto more;
+ 	}
+ 	if(f == N) {
+@@ -2131,7 +2267,7 @@ loop2:
+ 	if(g == N)
+ 		g = a;
+ 	else
+-		g = nod(OLIST, a, g);
++		g = list(a, g);
+ 
+ 	// put normal arg assignment on list
+ 	// with fncall replaced by tempname
+@@ -2139,7 +2275,7 @@ loop2:
+ 	if(r == N)
+ 		r = l;
+ 	else
+-		r = nod(OLIST, l, r);
++		r = list(l, r);
+ 
+ more:
+ 	l = listnext(&save);
+@@ -2256,7 +2392,7 @@ reorder3(Node *n)
+ 					if(r == N)
+ 						r = q;
+ 					else
+-						r = nod(OLIST, r, q);
++						r = list(r, q);
+ 					break;
+ 				}
+ 			}
+@@ -2275,7 +2411,7 @@ reorder3(Node *n)
+ 		if(q == N)
+ 			q = l1;
+ 		else
+-			q = nod(OLIST, q, l1);
++			q = list(q, l1);
+ 		l1 = listnext(&save1);
+ 	}
+ 
+@@ -2285,7 +2421,7 @@ reorder3(Node *n)
+ 		if(q == N)
+ 			q = l1;
+ 		else
+-			q = nod(OLIST, q, l1);
++			q = list(q, l1);
+ 		l1 = listnext(&save1);
+ 	}
+ 
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 99f9b23857..9f48c5d7ca 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -10,10 +10,13 @@ typedef	struct	Hchan	Hchan;
+ typedef	struct	Link	Link;
+ typedef	struct	WaitQ	WaitQ;
+ typedef	struct	SudoG	SudoG;
++typedef	struct	Select	Select;
++typedef	struct	Scase	Scase;
+ 
+ struct	SudoG
+ {
+ 	G*	g;		// g and selgen constitute
++	byte	elem[8];	// synch data element
+ 	int64	selgen;		// a weak pointer to g
+ 	SudoG*	link;
+ };
+@@ -29,8 +32,8 @@ struct	Hchan
+ 	uint32	elemsize;
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint32	qcount;			// total data in the q
+-	uint32	eo;			// vararg of element
+-	uint32	po;			// vararg of present bool
++	uint16	eo;			// vararg of element
++	uint16	po;			// vararg of present bool
+ 	Alg*	elemalg;		// interface for element type
+ 	Link*	senddataq;		// pointer for sender
+ 	Link*	recvdataq;		// pointer for receiver
+@@ -41,14 +44,33 @@ struct	Hchan
+ 
+ struct	Link
+ {
+-	Link*	link;
+-	byte	elem[8];
++	Link*	link;			// asynch queue circular linked list
++	byte	elem[8];		// asynch queue data element
+ };
+ 
+-static SudoG*	dequeue(WaitQ*, Hchan*);
+-static void	enqueue(WaitQ*, SudoG*);
+-static SudoG*	allocsg(Hchan*);
+-static void	freesg(Hchan*, SudoG*);
++struct	Scase
++{
++	Hchan*	chan;			// chan
++	byte*	pc;			// return pc
++	uint16	send;			// 0-recv 1-send
++	uint16	so;			// vararg of selected bool
++	byte	elem[8];		// element
++};
++
++struct	Select
++{
++	uint16	tcase;			// total count of scase[]
++	uint16	ncase;			// currently filled scase[]
++	Scase	scase[1];		// one per case
++};
++
++static	SudoG*	dequeue(WaitQ*, Hchan*);
++static	void	enqueue(WaitQ*, SudoG*);
++static	SudoG*	allocsg(Hchan*);
++static	void	freesg(Hchan*, SudoG*);
++static	uint32	gcd(uint32, uint32);
++static	uint32	fastrand1(void);
++static	uint32	fastrand2(void);
+ 
+ // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+ void
+@@ -134,16 +156,15 @@ sys·chansend1(Hchan* c, ...)
+ 
+ 	sgr = dequeue(&c->recvq, c);
+ 	if(sgr != nil) {
+-		gr = sgr->g;
+-		freesg(c, sgr);
++		c->elemalg->copy(c->elemsize, sgr->elem, ae);
+ 
+-		c->elemalg->copy(c->elemsize, gr->elem, ae);
++		gr = sgr->g;
+ 		gr->status = Grunnable;
+ 		return;
+ 	}
+ 
+-	c->elemalg->copy(c->elemsize, g->elem, ae);
+ 	sgr = allocsg(c);
++	c->elemalg->copy(c->elemsize, sgr->elem, ae);
+ 	g->status = Gwaiting;
+ 	enqueue(&c->sendq, sgr);
+ 	sys·gosched();
+@@ -191,9 +212,8 @@ sys·chansend2(Hchan* c, ...)
+ 	sgr = dequeue(&c->recvq, c);
+ 	if(sgr != nil) {
+ 		gr = sgr->g;
+-		freesg(c, sgr);
++		c->elemalg->copy(c->elemsize, sgr->elem, ae);
+ 
+-		c->elemalg->copy(c->elemsize, gr->elem, ae);
+ 		gr->status = Grunnable;
+ 		*ap = true;
+ 		return;
+@@ -237,18 +257,20 @@ sys·chanrecv1(Hchan* c, ...)
+ 
+ 	sgs = dequeue(&c->sendq, c);
+ 	if(sgs != nil) {
+-		gs = sgs->g;
+-		freesg(c, sgs);
++		c->elemalg->copy(c->elemsize, ae, sgs->elem);
+ 
+-		c->elemalg->copy(c->elemsize, ae, gs->elem);
++		gs = sgs->g;
+ 		gs->status = Grunnable;
++
++		freesg(c, sgs);
+ 		return;
+ 	}
+ 	sgs = allocsg(c);
+ 	g->status = Gwaiting;
+ 	enqueue(&c->recvq, sgs);
+ 	sys·gosched();
+-	c->elemalg->copy(c->elemsize, ae, g->elem);
++	c->elemalg->copy(c->elemsize, ae, sgs->elem);
++	freesg(c, sgs);
+ 	return;
+ 
+ asynch:
+@@ -291,11 +313,12 @@ sys·chanrecv2(Hchan* c, ...)
+ 
+ 	sgs = dequeue(&c->sendq, c);
+ 	if(sgs != nil) {
+-		gs = sgs->g;
+-		freesg(c, sgs);
++		c->elemalg->copy(c->elemsize, ae, sgs->elem);
+ 
+-		c->elemalg->copy(c->elemsize, ae, gs->elem);
++		gs = sgs->g;
+ 		gs->status = Grunnable;
++
++		freesg(c, sgs);
+ 		*ap = true;
+ 		return;
+ 	}
+@@ -320,6 +343,150 @@ asynch:
+ 	*ap = true;
+ }
+ 
++// newselect(size uint32) (sel *byte);
++void
++sys·newselect(int32 size, Select *sel)
++{
++	int32 n;
++
++	n = 0;
++	if(size > 1)
++		n = size-1;
++	sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
++	sel->tcase = size;
++	sel->ncase = 0;
++	FLUSH(&sel);
++	if(debug) {
++		prints("newselect s=");
++		sys·printpointer(sel);
++		prints("\n");
++	}
++}
++
++// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
++void
++sys·selectsend(Select *sel, Hchan *c, ...)
++{
++	int32 i, eo;
++	Scase *cas;
++	byte *as, *ae;
++
++	// return val, selected, is preset to false
++	if(c == nil)
++		return;
++
++	i = sel->ncase;
++	if(i >= sel->tcase)
++		throw("selectsend: too many cases");
++	sel->ncase = i+1;
++	cas = &sel->scase[i];
++
++	cas->pc = sys·getcallerpc(&sel);
++	cas->chan = c;
++
++	eo = rnd(sizeof(sel), sizeof(c));
++	eo = rnd(eo+sizeof(c), c->elemsize);
++	cas->so = rnd(eo+c->elemsize, 1);
++	cas->send = 1;
++
++	ae = (byte*)&sel + eo;
++	c->elemalg->copy(c->elemsize, cas->elem, ae);
++
++	as = (byte*)&sel + cas->so;
++	*as = false;
++
++	if(debug) {
++		prints("newselect s=");
++		sys·printpointer(sel);
++		prints(" pc=");
++		sys·printpointer(cas->pc);
++		prints(" chan=");
++		sys·printpointer(cas->chan);
++		prints(" po=");
++		sys·printint(cas->so);
++		prints(" send=");
++		sys·printint(cas->send);
++		prints("\n");
++	}
++}
++
++// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++void
++sys·selectrecv(Select *sel, Hchan *c, ...)
++{
++	throw("selectrecv");
++}
++
++// selectgo(sel *byte);
++void
++sys·selectgo(Select *sel)
++{
++	uint32 p, o, i;
++	Scase *cas;
++	Hchan *c;
++
++	byte *ae, *as;
++	SudoG *sgr;
++	G *gr;
++
++	if(sel->ncase < 1) {
++		throw("selectgo: no cases");
++	}
++
++	// select a (relative) prime
++	for(i=0;; i++) {
++		p = fastrand1();
++		if(gcd(p, sel->ncase) == 1)
++			break;
++		if(i > 1000) {
++			throw("selectgo: failed to select prime");
++		}
++	}
++	o = fastrand2();
++
++	p %= sel->ncase;
++	o %= sel->ncase;
++
++	// pass 1 - look for something that can go
++	for(i=0; i<sel->ncase; i++) {
++		cas = &sel->scase[o];
++		c = cas->chan;
++		if(cas->send) {
++			if(c->dataqsiz > 0) {
++				throw("selectgo: asynch");
++			}
++			sgr = dequeue(&c->recvq, c);
++			if(sgr == nil)
++				continue;
++
++			c->elemalg->copy(c->elemsize, sgr->elem, cas->elem);
++			gr = sgr->g;
++			gr->status = Grunnable;
++
++			goto retc;
++		}
++
++		o += p;
++		if(o >= sel->ncase)
++			o -= sel->ncase;
++	}
++
++	if(debug) {
++		prints("selectgo s=");
++		sys·printpointer(sel);
++		prints(" p=");
++		sys·printpointer((void*)p);
++		prints("\n");
++	}
++
++	throw("selectgo");
++
++retc:
++	sys·setcallerpc(&sel, cas->pc);
++	as = (byte*)&sel + cas->so;
++	*as = true;
++}
++
+ static SudoG*
+ dequeue(WaitQ *q, Hchan *c)
+ {
+@@ -377,3 +544,41 @@ freesg(Hchan *c, SudoG *sg)
+ 	sg->link = c->free;
+ 	c->free = sg;
+ }
++
++static uint32
++gcd(uint32 u, uint32 v)
++{
++	for(;;) {
++		if(u > v) {
++			if(v == 0)
++				return u;
++			u = u%v;
++			continue;
++		}
++		if(u == 0)
++			return v;
++		v = v%u;
++	}
++}
++
++static uint32
++fastrand1(void)
++{
++	static uint32 x = 0x49f6428aUL;
++
++	x += x;
++	if(x & 0x80000000L)
++		x ^= 0x88888eefUL;
++	return x;
++}
++
++static uint32
++fastrand2(void)
++{
++	static uint32 x = 0x49f6428aUL;
++
++	x += x;
++	if(x & 0x80000000L)
++		x ^= 0xfafd871bUL;
++	return x;
++}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index df14b76783..fe6ef5457a 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -110,7 +110,6 @@ struct	G
+ 	int32	status;
+ 	int32	goid;
+ 	int64	selgen;		// valid sudog pointer
+-	byte	elem[8];	// transfer element for chan
+ };
+ struct	M
+ {
+@@ -205,6 +204,7 @@ void	sys·write(int32, void*, int32);
+ void	sys·breakpoint(void);
+ uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys·memclr(byte*, uint32);
++void	sys·setcallerpc(void*, void*);
+ void*	sys·getcallerpc(void*);
+ void	sys·sigaction(int64, void*, void*);
+ void	sys·rt_sigaction(int64, void*, void*, uint64);
+diff --git a/src/runtime/sys_amd64_darwin.s b/src/runtime/sys_amd64_darwin.s
+index 26ceaaf6ea..39549cb4b3 100644
+--- a/src/runtime/sys_amd64_darwin.s
++++ b/src/runtime/sys_amd64_darwin.s
+@@ -110,6 +110,12 @@ TEXT	sys·memclr(SB),1,$-8
+ 	RET
+ 
+ TEXT	sys·getcallerpc+0(SB),1,$0
+-	MOVQ	x+0(FP),AX
+-	MOVQ	-8(AX),AX
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	-8(AX),AX		// get calling pc
++	RET
++
++TEXT	sys·setcallerpc+0(SB),1,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	x+8(FP), BX
++	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index e98ca52456..106159dc8e 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -114,6 +114,12 @@ TEXT	sys·memclr(SB),1,$0-16
+ 	RET
+ 
+ TEXT	sys·getcallerpc+0(SB),1,$0
+-	MOVQ	x+0(FP),AX
+-	MOVQ	-8(AX),AX
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	-8(AX),AX		// get calling pc
++	RET
++
++TEXT	sys·setcallerpc+0(SB),1,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	x+8(FP), BX
++	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET

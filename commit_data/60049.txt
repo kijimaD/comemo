@@ -19,8 +19,61 @@ Date:   Fri May 17 15:32:13 2024 -0400
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/internal/runtime/atomic/atomic_andor_generic.go | 11 +++++++++++
  src/internal/runtime/atomic/atomic_mipsx.go         |  2 ++
  src/runtime/runtime2.go                             |  4 ++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/internal/runtime/atomic/atomic_andor_generic.go b/src/internal/runtime/atomic/atomic_andor_generic.go
+index 6c12037d94..433ee0bd6c 100644
+--- a/src/internal/runtime/atomic/atomic_andor_generic.go
++++ b/src/internal/runtime/atomic/atomic_andor_generic.go
+@@ -4,8 +4,19 @@
+ 
+ //go:build arm || wasm
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//
++//go:linkname And32
++//go:linkname Or32
++//go:linkname And64
++//go:linkname Or64
++//go:linkname Anduintptr
++//go:linkname Oruintptr
++
+ package atomic
+ 
++import _ "unsafe" // For linkname
++
+ //go:nosplit
+ func And32(ptr *uint32, val uint32) uint32 {
+ 	for {
+diff --git a/src/internal/runtime/atomic/atomic_mipsx.go b/src/internal/runtime/atomic/atomic_mipsx.go
+index 26c8047599..aba4143ea6 100644
+--- a/src/internal/runtime/atomic/atomic_mipsx.go
++++ b/src/internal/runtime/atomic/atomic_mipsx.go
+@@ -11,6 +11,8 @@
+ //go:linkname Cas64
+ //go:linkname Load64
+ //go:linkname Store64
++//go:linkname Or64
++//go:linkname And64
+ 
+ package atomic
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 228340c394..ff11414e3e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1232,6 +1232,10 @@ var (
+ 	timerpMask pMask
+ )
+ 
++// goarmsoftfp is used by runtime/cgo assembly.
++//
++//go:linkname goarmsoftfp
++
+ var (
+ 	// Pool of GC parked background workers. Entries are type
+ 	// *gcBgMarkWorkerNode.

@@ -11,6 +11,20 @@ Date:   Fri Sep 16 00:17:33 2016 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5dcb29ea05..1d3bfbe14f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -286,7 +286,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 	orig := r
+ 	r = r.Name.Defn.Right
+ 
+-	for r.Op == OCONVNOP && !Eqtype(r.Type, l.Type) {
++	for r.Op == OCONVNOP && !eqtype(r.Type, l.Type) {
+ 		r = r.Left
+ 	}
+ 

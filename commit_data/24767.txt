@@ -7,6 +7,20 @@ Date:   Fri Aug 28 17:30:59 2015 -0700
     Change-Id: I33c2c222ea884d9ff57800ea5185644b5d8e591a
     Reviewed-on: https://go-review.googlesource.com/14034
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index c78c80c43b..ef4ba5842d 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -180,7 +180,7 @@ func (d Weekday) String() string { return days[d] }
+ // everywhere.
+ //
+ // The calendar runs on an exact 400 year cycle: a 400-year calendar
+-// printed for 1970-2469 will apply as well to 2470-2869.  Even the days
++// printed for 1970-2469 will apply as well to 2370-2769.  Even the days
+ // of the week match up.  It simplifies the computations to choose the
+ // cycle boundaries so that the exceptional years are always delayed as
+ // long as possible.  That means choosing a year equal to 1 mod 400, so

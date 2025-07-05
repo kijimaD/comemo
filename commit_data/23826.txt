@@ -16,10 +16,514 @@ Date:   Tue Jun 16 11:11:16 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11130
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 106 ++-------------------------
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  61 +++++++--------
  src/cmd/compile/internal/ssa/gen/main.go     |  11 +++
  src/cmd/compile/internal/ssa/op.go           |   1 +
  src/cmd/compile/internal/ssa/opGen.go        |  23 ++++++
  5 files changed, 75 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1d7cb287a7..3e898bb3a7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -802,7 +802,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64SHLQ:
++	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHRQ, ssa.OpAMD64SARQ:
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+ 		if x != r {
+@@ -816,66 +816,12 @@ func genValue(v *ssa.Value) {
+ 			p.To.Reg = r
+ 			x = r
+ 		}
+-		p := Prog(x86.ASHLQ)
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[1]) // should be CX
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64SHRQ:
+-		x := regnum(v.Args[0])
+-		r := regnum(v)
+-		if x != r {
+-			if r == x86.REG_CX {
+-				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+-			}
+-			p := Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = r
+-			x = r
+-		}
+-		p := Prog(x86.ASHRQ)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = regnum(v.Args[1]) // should be CX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-	case ssa.OpAMD64SARQ:
+-		x := regnum(v.Args[0])
+-		r := regnum(v)
+-		if x != r {
+-			if r == x86.REG_CX {
+-				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+-			}
+-			p := Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = r
+-			x = r
+-		}
+-		p := Prog(x86.ASARQ)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = regnum(v.Args[1]) // should be CX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-	case ssa.OpAMD64SHLQconst:
+-		x := regnum(v.Args[0])
+-		r := regnum(v)
+-		if x != r {
+-			p := Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = r
+-			x = r
+-		}
+-		p := Prog(x86.ASHLQ)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-	case ssa.OpAMD64SHRQconst:
++	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst:
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+ 		if x != r {
+@@ -886,27 +832,10 @@ func genValue(v *ssa.Value) {
+ 			p.To.Reg = r
+ 			x = r
+ 		}
+-		p := Prog(x86.ASHRQ)
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-	case ssa.OpAMD64SARQconst:
+-		x := regnum(v.Args[0])
+-		r := regnum(v)
+-		if x != r {
+-			p := Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = r
+-			x = r
+-		}
+-		p := Prog(x86.ASARQ)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+ 	case ssa.OpAMD64SBBQcarrymask:
+ 		r := regnum(v)
+ 		p := Prog(x86.ASBBQ)
+@@ -967,8 +896,8 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64CMPQ:
+-		p := Prog(x86.ACMPQ)
++	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+@@ -979,18 +908,6 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = v.AuxInt
+-	case ssa.OpAMD64TESTB:
+-		p := Prog(x86.ATESTB)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = regnum(v.Args[0])
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v.Args[1])
+-	case ssa.OpAMD64TESTQ:
+-		p := Prog(x86.ATESTQ)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = regnum(v.Args[0])
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v.Args[1])
+ 	case ssa.OpAMD64MOVQconst:
+ 		x := regnum(v)
+ 		p := Prog(x86.AMOVQ)
+@@ -998,15 +915,8 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
+-	case ssa.OpAMD64MOVQload:
+-		p := Prog(x86.AMOVQ)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = regnum(v.Args[0])
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64MOVBload:
+-		p := Prog(x86.AMOVB)
++	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVBload:
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.From.Offset = v.AuxInt
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 13aff4cba7..0b79a8247c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -4,7 +4,10 @@
+ 
+ package main
+ 
+-import "strings"
++import (
++	"cmd/internal/obj/x86"
++	"strings"
++)
+ 
+ // copied from ../../amd64/reg.go
+ var regNamesAMD64 = []string{
+@@ -92,29 +95,29 @@ func init() {
+ 
+ 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
+ 	var AMD64ops = []opData{
+-		{name: "ADDQ", reg: gp21},      // arg0 + arg1
+-		{name: "ADDQconst", reg: gp11}, // arg0 + auxint
+-		{name: "SUBQ", reg: gp21},      // arg0 - arg1
+-		{name: "SUBQconst", reg: gp11}, // arg0 - auxint
+-		{name: "MULQ", reg: gp21},      // arg0 * arg1
+-		{name: "MULQconst", reg: gp11}, // arg0 * auxint
+-		{name: "ANDQ", reg: gp21},      // arg0 & arg1
+-		{name: "ANDQconst", reg: gp11}, // arg0 & auxint
+-		{name: "SHLQ", reg: gp21shift}, // arg0 << arg1, shift amount is mod 64
+-		{name: "SHLQconst", reg: gp11}, // arg0 << auxint, shift amount 0-63
+-		{name: "SHRQ", reg: gp21shift}, // unsigned arg0 >> arg1, shift amount is mod 64
+-		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> auxint, shift amount 0-63
+-		{name: "SARQ", reg: gp21shift}, // signed arg0 >> arg1, shift amount is mod 64
+-		{name: "SARQconst", reg: gp11}, // signed arg0 >> auxint, shift amount 0-63
++		{name: "ADDQ", reg: gp21},                       // arg0 + arg1
++		{name: "ADDQconst", reg: gp11},                  // arg0 + auxint
++		{name: "SUBQ", reg: gp21, asm: x86.ASUBQ},       // arg0 - arg1
++		{name: "SUBQconst", reg: gp11, asm: x86.ASUBQ},  // arg0 - auxint
++		{name: "MULQ", reg: gp21, asm: x86.AIMULQ},      // arg0 * arg1
++		{name: "MULQconst", reg: gp11, asm: x86.AIMULQ}, // arg0 * auxint
++		{name: "ANDQ", reg: gp21, asm: x86.AANDQ},       // arg0 & arg1
++		{name: "ANDQconst", reg: gp11, asm: x86.AANDQ},  // arg0 & auxint
++		{name: "SHLQ", reg: gp21shift, asm: x86.ASHLQ},  // arg0 << arg1, shift amount is mod 64
++		{name: "SHLQconst", reg: gp11, asm: x86.ASHLQ},  // arg0 << auxint, shift amount 0-63
++		{name: "SHRQ", reg: gp21shift, asm: x86.ASHRQ},  // unsigned arg0 >> arg1, shift amount is mod 64
++		{name: "SHRQconst", reg: gp11, asm: x86.ASHRQ},  // unsigned arg0 >> auxint, shift amount 0-63
++		{name: "SARQ", reg: gp21shift, asm: x86.ASARQ},  // signed arg0 >> arg1, shift amount is mod 64
++		{name: "SARQconst", reg: gp11, asm: x86.ASARQ},  // signed arg0 >> auxint, shift amount 0-63
+ 
+ 		{name: "NEGQ", reg: gp11}, // -arg0
+ 
+-		{name: "CMPQ", reg: gp2flags},      // arg0 compare to arg1
+-		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to auxint
+-		{name: "TESTQ", reg: gp2flags},     // (arg0 & arg1) compare to 0
+-		{name: "TESTB", reg: gp2flags},     // (arg0 & arg1) compare to 0
++		{name: "CMPQ", reg: gp2flags, asm: x86.ACMPQ},      // arg0 compare to arg1
++		{name: "CMPQconst", reg: gp1flags, asm: x86.ACMPQ}, // arg0 compare to auxint
++		{name: "TESTQ", reg: gp2flags, asm: x86.ATESTQ},    // (arg0 & arg1) compare to 0
++		{name: "TESTB", reg: gp2flags, asm: x86.ATESTB},    // (arg0 & arg1) compare to 0
+ 
+-		{name: "SBBQcarrymask", reg: flagsgp1}, // (int64)(-1) if carry is set, 0 if carry is clear.
++		{name: "SBBQcarrymask", reg: flagsgp1, asm: x86.ASBBQ}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 
+ 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
+ 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
+@@ -132,14 +135,14 @@ func init() {
+ 		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
+ 		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
+ 
+-		{name: "MOVBload", reg: gpload},          // load byte from arg0+auxint. arg1=mem
+-		{name: "MOVBQZXload", reg: gpload},       // ditto, extend to uint64
+-		{name: "MOVBQSXload", reg: gpload},       // ditto, extend to int64
+-		{name: "MOVQload", reg: gpload},          // load 8 bytes from arg0+auxint. arg1=mem
+-		{name: "MOVQloadidx8", reg: gploadidx},   // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
+-		{name: "MOVBstore", reg: gpstore},        // store byte in arg1 to arg0+auxint. arg2=mem
+-		{name: "MOVQstore", reg: gpstore},        // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+-		{name: "MOVQstoreidx8", reg: gpstoreidx}, // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
++		{name: "MOVBload", reg: gpload},                   // load byte from arg0+auxint. arg1=mem
++		{name: "MOVBQZXload", reg: gpload},                // ditto, extend to uint64
++		{name: "MOVBQSXload", reg: gpload},                // ditto, extend to int64
++		{name: "MOVQload", reg: gpload},                   // load 8 bytes from arg0+auxint. arg1=mem
++		{name: "MOVQloadidx8", reg: gploadidx},            // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
++		{name: "MOVBstore", reg: gpstore, asm: x86.AMOVB}, // store byte in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVQstore", reg: gpstore, asm: x86.AMOVQ}, // store 8 bytes in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVQstoreidx8", reg: gpstoreidx},          // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+ 
+ 		// Load/store from global. Same as the above loads, but arg0 is missing and
+ 		// aux is a GlobalOffset instead of an int64.
+@@ -152,7 +155,7 @@ func init() {
+ 
+ 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+ 
+-		{name: "ADDL", reg: gp21}, // arg0+arg1
++		{name: "ADDL", reg: gp21, asm: x86.AADDL}, // arg0+arg1
+ 
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+ 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 33b8be51d2..a700964759 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -9,6 +9,8 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/obj"
++	"cmd/internal/obj/x86"
+ 	"fmt"
+ 	"go/format"
+ 	"io/ioutil"
+@@ -25,6 +27,7 @@ type arch struct {
+ type opData struct {
+ 	name string
+ 	reg  regInfo
++	asm  int16
+ }
+ 
+ type blockData struct {
+@@ -60,12 +63,15 @@ func main() {
+ 	genOp()
+ 	genLower()
+ }
++
+ func genOp() {
+ 	w := new(bytes.Buffer)
+ 	fmt.Fprintf(w, "// autogenerated: do not edit!\n")
+ 	fmt.Fprintf(w, "// generated from gen/*Ops.go\n")
+ 	fmt.Fprintln(w, "package ssa")
+ 
++	fmt.Fprintln(w, "import \"cmd/internal/obj/x86\"")
++
+ 	// generate Block* declarations
+ 	fmt.Fprintln(w, "const (")
+ 	fmt.Fprintln(w, "blockInvalid BlockKind = iota")
+@@ -108,6 +114,9 @@ func genOp() {
+ 		for _, v := range a.ops {
+ 			fmt.Fprintln(w, "{")
+ 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
++			if v.asm != 0 {
++				fmt.Fprintf(w, "asm: x86.A%s,\n", x86.Anames[v.asm-obj.ABaseAMD64])
++			}
+ 			fmt.Fprintln(w, "reg:regInfo{")
+ 			fmt.Fprintln(w, "inputs: []regMask{")
+ 			for _, r := range v.reg.inputs {
+@@ -129,6 +138,8 @@ func genOp() {
+ 	}
+ 	fmt.Fprintln(w, "}")
+ 
++	fmt.Fprintln(w, "func (o Op) Asm() int {return opcodeTable[o].asm}")
++
+ 	// generate op string method
+ 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 1103a67d0b..4ca8c770cb 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -14,6 +14,7 @@ type Op int32
+ 
+ type opInfo struct {
+ 	name    string
++	asm     int
+ 	reg     regInfo
+ 	generic bool // this is a generic (arch-independent) opcode
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1115032c98..0b827cf4f0 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2,6 +2,8 @@
+ // generated from gen/*Ops.go
+ package ssa
+ 
++import "cmd/internal/obj/x86"
++
+ const (
+ 	blockInvalid BlockKind = iota
+ 
+@@ -164,6 +166,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SUBQ",
++		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -177,6 +180,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SUBQconst",
++		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -189,6 +193,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "MULQ",
++		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -202,6 +207,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "MULQconst",
++		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -214,6 +220,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "ANDQ",
++		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -227,6 +234,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "ANDQconst",
++		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -239,6 +247,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SHLQ",
++		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -252,6 +261,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SHLQconst",
++		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -264,6 +274,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SHRQ",
++		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -277,6 +288,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SHRQconst",
++		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -289,6 +301,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SARQ",
++		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -302,6 +315,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SARQconst",
++		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -326,6 +340,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "CMPQ",
++		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -339,6 +354,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "CMPQconst",
++		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -351,6 +367,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "TESTQ",
++		asm:  x86.ATESTQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -364,6 +381,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "TESTB",
++		asm:  x86.ATESTB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -377,6 +395,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SBBQcarrymask",
++		asm:  x86.ASBBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -613,6 +632,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "MOVBstore",
++		asm:  x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -625,6 +645,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "MOVQstore",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -698,6 +719,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "ADDL",
++		asm:  x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -1044,4 +1066,5 @@ var opcodeTable = [...]opInfo{
+ 	},
+ }
+ 
++func (o Op) Asm() int       { return opcodeTable[o].asm }
+ func (o Op) String() string { return opcodeTable[o].name }

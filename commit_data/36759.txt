@@ -35,7 +35,7 @@ Date:   Wed May 23 16:35:56 2018 -0700
     Change-Id: I272acd498754179efaf0590ca49d3eb4eee4348e
     Reviewed-on: https://go-review.googlesource.com/114317
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gccgoimporter/parser.go           |  6 ++--
  src/go/internal/gcimporter/bimport.go             |  6 ++--
  src/go/internal/gcimporter/gcimporter_test.go     | 26 ++++++++++++--
@@ -47,3 +47,353 @@ Date:   Wed May 23 16:35:56 2018 -0700
  src/go/types/typexpr.go                           | 24 +++++++------
  src/go/types/universe.go                          |  2 +-
  10 files changed, 127 insertions(+), 34 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 4b3d899efd..7b4cc06760 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -585,13 +585,13 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
+ 	p.expectKeyword("interface")
+ 
+ 	var methods []*types.Func
+-	var typs []*types.Named
++	var embeddeds []types.Type
+ 
+ 	p.expect('{')
+ 	for p.tok != '}' && p.tok != scanner.EOF {
+ 		if p.tok == '?' {
+ 			p.next()
+-			typs = append(typs, p.parseType(pkg).(*types.Named))
++			embeddeds = append(embeddeds, p.parseType(pkg))
+ 		} else {
+ 			method := p.parseFunc(pkg)
+ 			methods = append(methods, method)
+@@ -600,7 +600,7 @@ func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
+ 	}
+ 	p.expect('}')
+ 
+-	return types.NewInterface(methods, typs)
++	return types.NewInterface2(methods, embeddeds)
+ }
+ 
+ // PointerType = "*" ("any" | Type) .
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index e736c4067b..73ce465eab 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -529,13 +529,13 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
+ 			p.record(nil)
+ 		}
+ 
+-		var embeddeds []*types.Named
++		var embeddeds []types.Type
+ 		for n := p.int(); n > 0; n-- {
+ 			p.pos()
+-			embeddeds = append(embeddeds, p.typ(parent, nil).(*types.Named))
++			embeddeds = append(embeddeds, p.typ(parent, nil))
+ 		}
+ 
+-		t := types.NewInterface(p.methodList(parent, tname), embeddeds)
++		t := types.NewInterface2(p.methodList(parent, tname), embeddeds)
+ 		p.interfaceList = append(p.interfaceList, t)
+ 		if p.trackAllTypes {
+ 			p.typList[n] = t
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 4d5757fce9..a8745eea3e 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -286,10 +286,12 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 		}
+ 	}
+ 
+-	// check embedded interfaces (they are named, too)
++	// check embedded interfaces (if they are named, too)
+ 	for i := 0; i < iface.NumEmbeddeds(); i++ {
+ 		// embedding of interfaces cannot have cycles; recursion will terminate
+-		verifyInterfaceMethodRecvs(t, iface.Embedded(i), level+1)
++		if etype, _ := iface.EmbeddedType(i).(*types.Named); etype != nil {
++			verifyInterfaceMethodRecvs(t, etype, level+1)
++		}
+ 	}
+ }
+ 
+@@ -507,6 +509,26 @@ func TestIssue20046(t *testing.T) {
+ 		t.Fatalf("V.M not found (index = %v, indirect = %v)", index, indirect)
+ 	}
+ }
++func TestIssue25301(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	if f := compile(t, "testdata", "issue25301.go"); f != "" {
++		defer os.Remove(f)
++	}
++
++	importPkg(t, "./testdata/issue25301")
++}
+ 
+ func importPkg(t *testing.T, path string) *types.Package {
+ 	pkg, err := Import(make(map[string]*types.Package), path, ".", nil)
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index cd3046897a..1d13449ef6 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -500,10 +500,10 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 	case interfaceType:
+ 		r.currPkg = r.pkg()
+ 
+-		embeddeds := make([]*types.Named, r.uint64())
++		embeddeds := make([]types.Type, r.uint64())
+ 		for i := range embeddeds {
+ 			_ = r.pos()
+-			embeddeds[i] = r.typ().(*types.Named)
++			embeddeds[i] = r.typ()
+ 		}
+ 
+ 		methods := make([]*types.Func, r.uint64())
+@@ -522,7 +522,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
+ 		}
+ 
+-		typ := types.NewInterface(methods, embeddeds)
++		typ := types.NewInterface2(methods, embeddeds)
+ 		r.p.interfaceList = append(r.p.interfaceList, typ)
+ 		return typ
+ 	}
+diff --git a/src/go/internal/gcimporter/testdata/issue25301.go b/src/go/internal/gcimporter/testdata/issue25301.go
+new file mode 100644
+index 0000000000..e3dc98b4e1
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/issue25301.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue25301
++
++type (
++	A = interface {
++		M()
++	}
++	T interface {
++		A
++	}
++	S struct{}
++)
++
++func (S) M() { println("m") }
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index da6dc6320a..9750bdc2e2 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -248,3 +248,25 @@ func issue25438() {
+ 	if
+ 	{ /* ERROR missing condition */ }
+ }
++
++// Test that we can embed alias type names in interfaces.
++type issue25301 interface {
++	E
++}
++
++type E = interface {
++	m()
++}
++
++// Test case from issue. Eventually we may disallow this due
++// to the cycle via the alias type name. But for now we make
++// sure this is accepted.
++type issue25301b = interface {
++	m() interface{ issue25301b }
++}
++
++type issue25301c interface {
++	notE // ERROR struct\{\} is not an interface
++}
++
++type notE = struct{}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 9c52e24fa3..f274e30ab6 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -242,8 +242,8 @@ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+ // An Interface represents an interface type.
+ type Interface struct {
+-	methods   []*Func  // ordered list of explicitly declared methods
+-	embeddeds []*Named // ordered list of explicitly embedded types
++	methods   []*Func // ordered list of explicitly declared methods
++	embeddeds []Type  // ordered list of explicitly embedded types
+ 
+ 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+ }
+@@ -256,9 +256,29 @@ var emptyInterface = Interface{allMethods: markComplete}
+ var markComplete = make([]*Func, 0)
+ 
+ // NewInterface returns a new (incomplete) interface for the given methods and embedded types.
++// Each embedded type must have an underlying type of interface type.
+ // NewInterface takes ownership of the provided methods and may modify their types by setting
+ // missing receivers. To compute the method set of the interface, Complete must be called.
++//
++// Deprecated: Use NewInterface2 instead which allows any (even non-defined) interface types
++// to be embedded. This is necessary for interfaces that embed alias type names referring to
++// non-defined (literal) interface types.
+ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
++	var tnames []Type
++	if len(embeddeds) > 0 {
++		tnames := make([]Type, len(embeddeds))
++		for i, t := range embeddeds {
++			tnames[i] = t
++		}
++	}
++	return NewInterface2(methods, tnames)
++}
++
++// NewInterface2 returns a new (incomplete) interface for the given methods and embedded types.
++// Each embedded type must have an underlying type of interface type.
++// NewInterface2 takes ownership of the provided methods and may modify their types by setting
++// missing receivers. To compute the method set of the interface, Complete must be called.
++func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
+ 	typ := new(Interface)
+ 
+ 	if len(methods) == 0 && len(embeddeds) == 0 {
+@@ -277,8 +297,13 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ 	}
+ 	sort.Sort(byUniqueMethodName(methods))
+ 
+-	if embeddeds != nil {
+-		sort.Sort(byUniqueTypeName(embeddeds))
++	if len(embeddeds) > 0 {
++		for _, t := range embeddeds {
++			if !IsInterface(t) {
++				panic("embedded type is not an interface")
++			}
++		}
++		sort.Stable(byUniqueTypeName(embeddeds))
+ 	}
+ 
+ 	typ.methods = methods
+@@ -296,9 +321,14 @@ func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
+ // NumEmbeddeds returns the number of embedded types in interface t.
+ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
+ 
+-// Embedded returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+-// The types are ordered by the corresponding TypeName's unique Id.
+-func (t *Interface) Embedded(i int) *Named { return t.embeddeds[i] }
++// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
++// The result is nil if the i'th embedded type is not a defined type.
++//
++// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
++func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
++
++// EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
++func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
+ 
+ // NumMethods returns the total number of methods of interface t.
+ func (t *Interface) NumMethods() int { return len(t.allMethods) }
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 8d4c9f00b9..78f67d1f05 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -146,10 +146,10 @@ func TestIncompleteInterfaces(t *testing.T) {
+ 	}{
+ 		{new(Interface), "interface{/* incomplete */}"},
+ 		{new(Interface).Complete(), "interface{}"},
+-		{NewInterface(nil, nil), "interface{/* incomplete */}"},
+-		{NewInterface(nil, nil).Complete(), "interface{}"},
+-		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
+-		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
++		{NewInterface2(nil, nil), "interface{/* incomplete */}"},
++		{NewInterface2(nil, nil).Complete(), "interface{}"},
++		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
++		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
+ 	} {
+ 		got := test.typ.String()
+ 		if got != test.want {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index ae4358d50f..999383ed27 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -511,10 +511,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 				if typ == Typ[Invalid] {
+ 					continue // error reported before
+ 				}
+-				if !isNamed(typ) {
+-					check.invalidAST(f.Type.Pos(), "%s is not a named type", f.Type)
+-					continue
+-				}
+ 				embed, _ := typ.Underlying().(*Interface)
+ 				if embed == nil {
+ 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
+@@ -528,13 +524,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 					unreachable()
+ 				}
+ 				// collect interface
+-				// (at this point we know that typ must be a named, non-basic type)
+-				ityp.embeddeds = append(ityp.embeddeds, typ.(*Named))
++				ityp.embeddeds = append(ityp.embeddeds, typ)
+ 			}
+ 		}
+-		// sort to match NewInterface
++		// sort to match NewInterface/NewInterface2
+ 		// TODO(gri) we may be able to switch to source order
+-		sort.Sort(byUniqueTypeName(ityp.embeddeds))
++		sort.Stable(byUniqueTypeName(ityp.embeddeds))
+ 	})
+ 
+ 	// compute method set
+@@ -605,7 +600,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	}
+ 	check.context = savedContext
+ 
+-	// sort to match NewInterface
++	// sort to match NewInterface/NewInterface2
+ 	// TODO(gri) we may be able to switch to source order
+ 	sort.Sort(byUniqueMethodName(ityp.methods))
+ 
+@@ -617,12 +612,19 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ }
+ 
+ // byUniqueTypeName named type lists can be sorted by their unique type names.
+-type byUniqueTypeName []*Named
++type byUniqueTypeName []Type
+ 
+ func (a byUniqueTypeName) Len() int           { return len(a) }
+-func (a byUniqueTypeName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
++func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
+ func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
++func sortName(t Type) string {
++	if named, _ := t.(*Named); named != nil {
++		return named.obj.Id()
++	}
++	return ""
++}
++
+ // byUniqueMethodName method lists can be sorted by their unique method names.
+ type byUniqueMethodName []*Func
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index a22832c338..286ef7ba46 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -80,7 +80,7 @@ func defPredeclaredTypes() {
+ 	res := NewVar(token.NoPos, nil, "", Typ[String])
+ 	sig := &Signature{results: NewTuple(res)}
+ 	err := NewFunc(token.NoPos, nil, "Error", sig)
+-	typ := &Named{underlying: NewInterface([]*Func{err}, nil).Complete()}
++	typ := &Named{underlying: NewInterface2([]*Func{err}, nil).Complete()}
+ 	sig.recv = NewVar(token.NoPos, nil, "", typ)
+ 	def(NewTypeName(token.NoPos, nil, "error", typ))
+ }

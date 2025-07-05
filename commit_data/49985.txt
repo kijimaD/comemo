@@ -22,10 +22,161 @@ Date:   Fri Sep 24 23:11:18 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go    |  8 ++++----
  src/cmd/compile/internal/noder/helpers.go |  6 ------
  src/cmd/compile/internal/noder/irgen.go   |  6 ++++++
  src/cmd/compile/internal/noder/stmt.go    | 12 ++++++------
  test/typeparam/issue48609.go              | 18 ++++++++++++++++++
  5 files changed, 34 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 1f40503302..9852ad964c 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -168,7 +168,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			if index.Op() != ir.OTYPE {
+ 				// This is just a normal index expression
+ 				n := Index(pos, g.typ(typ), g.expr(expr.X), index)
+-				if !delayTransform() {
++				if !g.delayTransform() {
+ 					// transformIndex will modify n.Type() for OINDEXMAP.
+ 					transformIndex(n)
+ 				}
+@@ -206,7 +206,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.SliceExpr:
+ 		n := Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+-		if !delayTransform() {
++		if !g.delayTransform() {
+ 			transformSlice(n)
+ 		}
+ 		return n
+@@ -218,7 +218,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		switch op := g.op(expr.Op, binOps[:]); op {
+ 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
+ 			n := Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
+-			if !delayTransform() {
++			if !g.delayTransform() {
+ 				transformCompare(n)
+ 			}
+ 			return n
+@@ -228,7 +228,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
+ 		default:
+ 			n := Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
+-			if op == ir.OADD && !delayTransform() {
++			if op == ir.OADD && !g.delayTransform() {
+ 				return transformAdd(n)
+ 			}
+ 			return n
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index aecda86e9d..e8a1540307 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -317,9 +317,3 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
+ 	}
+ 	return ir.NewAssignOpStmt(pos, op, x, bl)
+ }
+-
+-// delayTransform returns true if we should delay all transforms, because we are
+-// creating the nodes for a generic function/method.
+-func delayTransform() bool {
+-	return ir.CurFunc != nil && ir.CurFunc.Type().HasTParam()
+-}
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 4f1b4e6bfd..e01e753a1d 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -319,3 +319,9 @@ func (g *irgen) unhandled(what string, p poser) {
+ 	base.FatalfAt(g.pos(p), "unhandled %s: %T", what, p)
+ 	panic("unreachable")
+ }
++
++// delayTransform returns true if we should delay all transforms, because we are
++// creating the nodes for a generic function/method.
++func (g *irgen) delayTransform() bool {
++	return g.topFuncIsGeneric
++}
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 805a4710c4..aedb09e21e 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -40,7 +40,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		return wrapname(g.pos(stmt.X), g.expr(stmt.X))
+ 	case *syntax.SendStmt:
+ 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+-		if !delayTransform() {
++		if !g.delayTransform() {
+ 			transformSend(n)
+ 		}
+ 		n.SetTypecheck(1)
+@@ -62,7 +62,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 				lhs := g.expr(stmt.Lhs)
+ 				n = ir.NewAssignOpStmt(g.pos(stmt), op, lhs, rhs)
+ 			}
+-			if !delayTransform() {
++			if !g.delayTransform() {
+ 				transformAsOp(n)
+ 			}
+ 			n.SetTypecheck(1)
+@@ -77,7 +77,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 			n := ir.NewAssignStmt(g.pos(stmt), lhs[0], rhs[0])
+ 			n.Def = initDefn(n, names)
+ 
+-			if !delayTransform() {
++			if !g.delayTransform() {
+ 				lhs, rhs := []ir.Node{n.X}, []ir.Node{n.Y}
+ 				transformAssign(n, lhs, rhs)
+ 				n.X, n.Y = lhs[0], rhs[0]
+@@ -88,7 +88,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 
+ 		n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, lhs, rhs)
+ 		n.Def = initDefn(n, names)
+-		if !delayTransform() {
++		if !g.delayTransform() {
+ 			transformAssign(n, n.Lhs, n.Rhs)
+ 		}
+ 		n.SetTypecheck(1)
+@@ -100,7 +100,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
+ 	case *syntax.ReturnStmt:
+ 		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
+-		if !delayTransform() {
++		if !g.delayTransform() {
+ 			transformReturn(n)
+ 		}
+ 		n.SetTypecheck(1)
+@@ -112,7 +112,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 	case *syntax.SelectStmt:
+ 		n := g.selectStmt(stmt)
+ 
+-		if !delayTransform() {
++		if !g.delayTransform() {
+ 			transformSelect(n.(*ir.SelectStmt))
+ 		}
+ 		n.SetTypecheck(1)
+diff --git a/test/typeparam/issue48609.go b/test/typeparam/issue48609.go
+new file mode 100644
+index 0000000000..3ca9d6e7d6
+--- /dev/null
++++ b/test/typeparam/issue48609.go
+@@ -0,0 +1,18 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "constraints"
++
++func f[T constraints.Chan[E], E any](e E) T {
++	ch := make(T)
++	go func() {
++		defer close(ch)
++		ch <- e
++	}()
++	return ch
++}

@@ -11,6 +11,41 @@ Date:   Sun Oct 2 21:07:40 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/example_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index a38e2889e6..5ccb21af6a 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -6,6 +6,7 @@ package exec_test
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+@@ -13,6 +14,7 @@ import (
+ 	"log"
+ 	"os/exec"
+ 	"strings"
++	"time"
+ )
+ 
+ func ExampleLookPath() {
+@@ -123,3 +125,13 @@ func ExampleCmd_CombinedOutput() {
+ 	}
+ 	fmt.Printf("%s\n", stdoutStderr)
+ }
++
++func ExampleCommandContext() {
++	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
++	defer cancel()
++
++	if err := exec.CommandContext(ctx, "sleep", "5").Run(); err != nil {
++		// This will fail after 100 milliseconds. The 5 second sleep
++		// will be interrupted.
++	}
++}

@@ -9,8 +9,68 @@ Date:   Sun Mar 11 17:55:15 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5754082
-
+---
  src/cmd/api/goapi.go                       | 9 ++++++++-
  src/cmd/api/testdata/src/pkg/p1/golden.txt | 4 +++-
  src/cmd/api/testdata/src/pkg/p1/p1.go      | 6 ++++++
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 552e2f331e..1782b73ceb 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -579,7 +579,14 @@ func (w *Walker) varValueType(vi interface{}) (string, error) {
+ 			}
+ 		}
+ 		// maybe a function call; maybe a conversion.  Need to lookup type.
+-		return "", fmt.Errorf("not a known function %q", w.nodeString(v.Fun))
++		// TODO(bradfitz): this is a hack, but arguably most of this tool is,
++		// until the Go AST has type information.
++		nodeStr := w.nodeString(v.Fun)
++		switch nodeStr {
++		case "string", "[]byte":
++			return nodeStr, nil
++		}
++		return "", fmt.Errorf("not a known function %q", nodeStr)
+ 	default:
+ 		return "", fmt.Errorf("unknown const value type %T", vi)
+ 	}
+diff --git a/src/cmd/api/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+index 3a1b3f5350..e334e5776e 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+@@ -58,14 +58,16 @@ pkg p1, type T struct
+ pkg p1, type TPtrExported struct
+ pkg p1, type TPtrExported struct, embedded *Embedded
+ pkg p1, type TPtrUnexported struct
++pkg p1, var ByteConv []byte
+ pkg p1, var ChecksumError error
+ pkg p1, var SIPtr *SI
+ pkg p1, var SIPtr2 *SI
+ pkg p1, var SIVal SI
++pkg p1, var StrConv string
+ pkg p1, var V string
+-pkg p1, var VError Error
+ pkg p1, var V1 uint64
+ pkg p1, var V2 p2.Twoer
++pkg p1, var VError Error
+ pkg p1, var X I
+ pkg p1, var X int64
+ pkg p1, var Y int
+diff --git a/src/cmd/api/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+index 9d2afa913e..d965bb75e7 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/p1.go
++++ b/src/cmd/api/testdata/src/pkg/p1/p1.go
+@@ -27,6 +27,12 @@ var (
+ 	V2     = ptwo.G()
+ )
+ 
++// Variables with conversions:
++var (
++	StrConv  = string("foo")
++	ByteConv = []byte("foo")
++)
++
+ var ChecksumError = ptwo.NewError("gzip checksum error")
+ 
+ const B = 2

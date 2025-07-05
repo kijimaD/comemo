@@ -10,6 +10,33 @@ Date:   Wed Oct 4 00:02:37 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/68021
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  doc/contribute.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 8c5a228558..681fcc21de 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -681,8 +681,8 @@ reviewers asking them to visit the issue's URL and make comments on the change.
+ When done, the reviewer adds comments through the Gerrit user interface
+ and clicks "Reply" to send comments back.
+ You will receive a mail notification when this happens.
+-You must reply through the web interface.
+-(Unlike with the old Rietveld review system, replying by mail has no effect.)
++You may reply through the web interface or
++<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
+ </p>
+ 
+ <h3 id="revise">Revise and resend</h3>
+@@ -696,8 +696,8 @@ all the changes and comments made in the single URL.
+ </p>
+ 
+ <p>
+-You must respond to review comments through the web interface.
+-(Unlike with the old Rietveld review system, responding by mail has no effect.)
++You may respond to review comments through the web interface or
++<a href="https://gerrit-review.googlesource.com/Documentation/intro-user.html#reply-by-email">via email</a>.
+ </p>
+ 
+ <p>

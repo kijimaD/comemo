@@ -15,6 +15,35 @@ Date:   Thu Sep 28 20:44:21 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 426417ce79..3fdbf1e492 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -113,6 +113,23 @@ func TestIntendedInlining(t *testing.T) {
+ 			"RuneLen",
+ 			"ValidRune",
+ 		},
++		"reflect": {
++			"Value.CanAddr",
++			"Value.CanSet",
++			"Value.IsValid",
++			"add",
++			"align",
++			"flag.kind",
++			"flag.ro",
++
++			// TODO: these use panic, need mid-stack
++			// inlining
++			// "Value.CanInterface",
++			// "Value.pointer",
++			// "flag.mustBe",
++			// "flag.mustBeAssignable",
++			// "flag.mustBeExported",
++		},
+ 		"regexp": {
+ 			"(*bitState).push",
+ 		},

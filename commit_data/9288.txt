@@ -7,6 +7,22 @@ Date:   Thu Aug 4 16:22:22 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4806049
-
+---
  src/pkg/gob/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 258a01e158..b2f716c4b5 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -81,8 +81,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ }
+ 
+ var (
+-	gobEncoderInterfaceType = reflect.TypeOf(new(GobEncoder)).Elem()
+-	gobDecoderInterfaceType = reflect.TypeOf(new(GobDecoder)).Elem()
++	gobEncoderInterfaceType = reflect.TypeOf((*GobEncoder)(nil)).Elem()
++	gobDecoderInterfaceType = reflect.TypeOf((*GobDecoder)(nil)).Elem()
+ )
+ 
+ // implementsInterface reports whether the type implements the

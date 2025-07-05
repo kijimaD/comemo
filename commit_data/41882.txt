@@ -15,7 +15,80 @@ Date:   Tue Aug 21 17:11:30 2018 -0500
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/xml.go      |  5 ++++-
  src/encoding/xml/xml_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index ca059440a1..5e73dcf731 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -286,7 +286,10 @@ func (d *Decoder) Token() (Token, error) {
+ 		t = d.nextToken
+ 		d.nextToken = nil
+ 	} else if t, err = d.rawToken(); err != nil {
+-		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
++		switch {
++		case err == io.EOF && d.t != nil:
++			err = nil
++		case err == io.EOF && d.stk != nil && d.stk.kind != stkEOF:
+ 			err = d.syntaxError("unexpected EOF")
+ 		}
+ 		return t, err
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index ee4ffa2420..efddca43e9 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -14,6 +14,51 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++type toks struct {
++	earlyEOF bool
++	t        []Token
++}
++
++func (t *toks) Token() (Token, error) {
++	if len(t.t) == 0 {
++		return nil, io.EOF
++	}
++	var tok Token
++	tok, t.t = t.t[0], t.t[1:]
++	if t.earlyEOF && len(t.t) == 0 {
++		return tok, io.EOF
++	}
++	return tok, nil
++}
++
++func TestDecodeEOF(t *testing.T) {
++	start := StartElement{Name: Name{Local: "test"}}
++	t.Run("EarlyEOF", func(t *testing.T) {
++		d := NewTokenDecoder(&toks{earlyEOF: true, t: []Token{
++			start,
++			start.End(),
++		}})
++		err := d.Decode(&struct {
++			XMLName Name `xml:"test"`
++		}{})
++		if err != nil {
++			t.Error(err)
++		}
++	})
++	t.Run("LateEOF", func(t *testing.T) {
++		d := NewTokenDecoder(&toks{t: []Token{
++			start,
++			start.End(),
++		}})
++		err := d.Decode(&struct {
++			XMLName Name `xml:"test"`
++		}{})
++		if err != nil {
++			t.Error(err)
++		}
++	})
++}
++
+ const testInput = `
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"

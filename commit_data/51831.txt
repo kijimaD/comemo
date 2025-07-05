@@ -13,6 +13,32 @@ Date:   Thu May 27 16:11:52 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/rpc/server.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index f53ea75f9c..0b3e6e3c58 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -239,16 +239,16 @@ func (server *Server) register(rcvr any, name string, useName bool) error {
+ 	s := new(service)
+ 	s.typ = reflect.TypeOf(rcvr)
+ 	s.rcvr = reflect.ValueOf(rcvr)
+-	sname := reflect.Indirect(s.rcvr).Type().Name()
+-	if useName {
+-		sname = name
++	sname := name
++	if !useName {
++		sname = reflect.Indirect(s.rcvr).Type().Name()
+ 	}
+ 	if sname == "" {
+ 		s := "rpc.Register: no service name for type " + s.typ.String()
+ 		log.Print(s)
+ 		return errors.New(s)
+ 	}
+-	if !token.IsExported(sname) && !useName {
++	if !useName && !token.IsExported(sname) {
+ 		s := "rpc.Register: type " + sname + " is not exported"
+ 		log.Print(s)
+ 		return errors.New(s)

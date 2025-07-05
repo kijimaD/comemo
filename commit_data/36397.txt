@@ -11,6 +11,20 @@ Date:   Wed Apr 25 16:03:53 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 6ae668fa89..f6e9b8b061 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1380,7 +1380,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+ 	}
+ 
+ 	if i := strings.LastIndex(name, "."); i >= 0 {
+-		Fatalf("unexpected dot in identifier:", name)
++		Fatalf("unexpected dot in identifier: %v", name)
+ 	}
+ 
+ 	if v > 0 {

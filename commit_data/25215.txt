@@ -7,6 +7,20 @@ Date:   Fri Oct 9 13:54:35 2015 +0100
     Change-Id: I51edc77ad4621ad8f3908e69dcb7b4eab086b5fe
     Reviewed-on: https://go-review.googlesource.com/15680
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 65e32b8b89..0f370a5b8e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -148,7 +148,7 @@ Brendan O'Dea <bod@golang.org>
+ Brett Cannon <bcannon@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
+-Brian Gitonga Marete <marete@toshnix.com> <bgmarete@gmail.com>
++Brian Gitonga Marete <marete@toshnix.com> <bgmarete@gmail.com> <bgm@google.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
+ Brian Smith <ohohvi@gmail.com>

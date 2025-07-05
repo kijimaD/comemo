@@ -7,7 +7,52 @@ Date:   Wed May 13 18:05:27 2009 -0700
     R=ken
     OCL=28785
     CL=28785
-
+---
  test/bugs/bug150.go | 23 +++++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 27 insertions(+)
+
+diff --git a/test/bugs/bug150.go b/test/bugs/bug150.go
+new file mode 100644
+index 0000000000..fc25444b65
+--- /dev/null
++++ b/test/bugs/bug150.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go || echo BUG: bug150 
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T int
++func (t T) M()
++
++type M interface { M() } 
++
++func g() (T, T)
++
++func f() (a, b M) {
++	a, b = g();
++	return;
++}
++
++/*
++bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
++*/
+diff --git a/test/golden.out b/test/golden.out
+index d201fb9fbe..4b3221c6ec 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -105,6 +105,10 @@ BUG: should crash
+ bugs/bug149.go:14: cannot convert []uint8 constant to string
+ BUG: should compile
+ 
++=========== bugs/bug150.go
++bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
++BUG: bug150
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

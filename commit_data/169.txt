@@ -5,7 +5,260 @@ Date:   Fri Jun 13 12:54:21 2008 -0700
     add symbol tables and line/pc information to 6.outs
     
     SVN=122699
-
+---
  src/cmd/6l/asm.c | 143 ++++++++++++++++++++++++++++++++++---------------------
  src/cmd/6l/l.h   |   2 +-
  2 files changed, 90 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index bae36b9b56..44c70b4d37 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -124,6 +124,9 @@ asmb(void)
+ 	int a;
+ 	uchar *op1;
+ 	vlong vl, va, fo, w;
++	int strtabsize;
++
++	strtabsize = 0;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -187,6 +190,10 @@ asmb(void)
+ 		break;
+ 
+ 	case 7:
++		debug['8'] = 1;	/* 64-bit addresses */
++		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
++		strtabsize = linuxstrtable();
++		cflush();
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		myseek(cout, v);
+ 		break;
+@@ -221,17 +228,15 @@ asmb(void)
+ 		default:
+ 		case 2:
+ 		case 5:
+-debug['s'] = 1;
++			debug['s'] = 1;
+ 			seek(cout, HEADR+textsize+datsize, 0);
+ 			break;
+-		case 7:
+-debug['s'] = 1;
+-			seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+-			linuxstrtable();
+-			break;
+ 		case 6:
+ 			debug['s'] = 1;
+ 			break;
++		case 7:
++			seek(cout, rnd(HEADR+textsize, INITRND)+datsize+strtabsize, 0);
++			break;
+ 		}
+ 		if(!debug['s'])
+ 			asmsym();
+@@ -402,13 +407,15 @@ debug['s'] = 1;
+ 		wputl(56);			/* Phdr size */
+ 		wputl(3);			/* # of Phdrs */
+ 		wputl(64);			/* Shdr size */
+-		wputl(5);			/* # of Shdrs */
++		if (!debug['s'])
++			wputl(7);			/* # of Shdrs */
++		else
++			wputl(5);			/* # of Shdrs */
+ 		wputl(4);			/* Shdr with strings */
+ 
+-fo = 0;
+-va = INITRND;
+-w = HEADR+textsize;
+-
++		fo = 0;
++		va = INITRND;
++		w = HEADR+textsize;
+ 
+ 		linuxphdr(1,			/* text - type = PT_LOAD */
+ 			1L+4L,			/* text - flags = PF_X+PF_R */
+@@ -419,9 +426,9 @@ w = HEADR+textsize;
+ 			w,			/* memory size */
+ 			INITRND);		/* alignment */
+ 
+-fo = rnd(fo+w, INITRND);
+-va = rnd(va+w, INITRND);
+-w = datsize;
++		fo = rnd(fo+w, INITRND);
++		va = rnd(va+w, INITRND);
++		w = datsize;
+ 
+ 		linuxphdr(1,			/* data - type = PT_LOAD */
+ 			2L+4L,			/* data - flags = PF_W+PF_R */
+@@ -452,10 +459,10 @@ w = datsize;
+ 			0,			/* align */
+ 			0);			/* entsize */
+ 
+-stroffset = 1;
+-fo = 0;
+-va = INITRND;
+-w = HEADR+textsize;
++		stroffset = 1;  /* 0 means no name, so start at 1 */
++		fo = 0;
++		va = INITRND;
++		w = HEADR+textsize;
+ 
+ 		linuxshdr(".text",		/* name */
+ 			1,			/* type */
+@@ -468,9 +475,9 @@ w = HEADR+textsize;
+ 			8,			/* align */
+ 			0);			/* entsize */
+ 
+-fo = rnd(fo+w, INITRND);
+-va = rnd(va+w, INITRND);
+-w = datsize;
++		fo = rnd(fo+w, INITRND);
++		va = rnd(va+w, INITRND);
++		w = datsize;
+ 
+ 		linuxshdr(".data",		/* name */
+ 			1,			/* type */
+@@ -483,9 +490,9 @@ w = datsize;
+ 			8,			/* align */
+ 			0);			/* entsize */
+ 
+-fo += w;
+-va += w;
+-w = bsssize;
++		fo += w;
++		va += w;
++		w = bsssize;
+ 
+ 		linuxshdr(".bss",		/* name */
+ 			8,			/* type */
+@@ -498,9 +505,7 @@ w = bsssize;
+ 			8,			/* align */
+ 			0);			/* entsize */
+ 
+-w = stroffset +
+-	strlen(".shstrtab")+1;
+-//	strlen(".gosymtab")+1;
++		w = strtabsize;
+ 
+ 		linuxshdr(".shstrtab",		/* name */
+ 			3,			/* type */
+@@ -513,18 +518,36 @@ w = stroffset +
+ 			8,			/* align */
+ 			0);			/* entsize */
+ 
+-//fo += w;
+-//
+-//		linuxshdr(".gosymtab",		/* name */
+-//			2,			/* type */
+-//			0,			/* flags */
+-//			0,			/* addr */
+-//			fo,			/* off */
+-//			0,			/* size */
+-//			0,			/* link */
+-//			0,			/* info */
+-//			8,			/* align */
+-//			0);			/* entsize */
++		if (debug['s'])
++			break;
++
++		fo += w;
++		w = symsize;
++
++		linuxshdr(".gosymtab",		/* name */
++			2,			/* type */
++			0,			/* flags */
++			0,			/* addr */
++			fo,			/* off */
++			w,			/* size */
++			0,			/* link */
++			0,			/* info */
++			8,			/* align */
++			24);			/* entsize */
++		
++		fo += w;
++		w = lcsize;
++
++		linuxshdr(".gopclntab",		/* name */
++			2,			/* type */
++			0,			/* flags */
++			0,			/* addr */
++			fo,			/* off */
++			w,			/* size */
++			0,			/* link */
++			0,			/* info */
++			8,			/* align */
++			24);			/* entsize */
+ 		break;
+ 	}
+ 	cflush();
+@@ -796,7 +819,10 @@ linuxheadr(void)
+ 	a += 64;	/* .data seg */
+ 	a += 64;	/* .bss sect */
+ 	a += 64;	/* .shstrtab sect - strings for headers */
+-//	a += 64;	/* .gosymtab sect */
++	if (!debug['s']) {
++		a += 64;	/* .gosymtab sect */
++		a += 64;	/* .gopclntab sect */
++	}
+ 
+ 	return a;
+ }
+@@ -837,21 +863,30 @@ linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
+ 		stroffset += strlen(name)+1;
+ }
+ 
+-void
++int
++putstrtab(char* name) {
++	int w;
++
++	w = strlen(name)+1;
++	strnput(name, w);
++	return w;
++}
++
++int
+ linuxstrtable(void)
+ {
+ 	char *name;
+-
+-	name = "";
+-	strnput(name, strlen(name)+1);
+-	name = ".text";
+-	strnput(name, strlen(name)+1);
+-	name = ".data";
+-	strnput(name, strlen(name)+1);
+-	name = ".bss";
+-	strnput(name, strlen(name)+1);
+-	name = ".shstrtab";
+-	strnput(name, strlen(name)+1);
+-//	name = ".gosymtab";
+-//	strnput(name, strlen(name)+1);
++	int size;
++
++	size = 0;
++	size += putstrtab("");
++	size += putstrtab(".text");
++	size += putstrtab(".data");
++	size += putstrtab(".bss");
++	size += putstrtab(".shstrtab");
++	if (!debug['s']) {
++		size += putstrtab(".gosymtab");
++		size += putstrtab(".gopclntab");
++	}
++	return size;
+ }
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 63cdc7c00a..17fb35d293 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -431,7 +431,7 @@ void	linuxphdr(int type, int flags, vlong foff,
+ 	vlong filesize, vlong memsize, vlong align);
+ void	linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
+ 	vlong size, ulong link, ulong info, vlong align, vlong entsize);
+-void	linuxstrtable(void);
++int	linuxstrtable(void);
+ 
+ 
+ #pragma	varargck	type	"D"	Adr*

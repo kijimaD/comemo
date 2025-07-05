@@ -12,7 +12,43 @@ Date:   Sun Sep 4 20:07:22 2022 +0800
     Auto-Submit: Rob Pike <r@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 4 ++--
  src/cmd/doc/pkg.go      | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 5887ad3395..6a259ae19e 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -1012,7 +1012,7 @@ func TestDotSlashLookup(t *testing.T) {
+ 	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	var flagSet flag.FlagSet
+ 	err = do(&b, &flagSet, []string{"./template"})
+ 	if err != nil {
+@@ -1030,7 +1030,7 @@ func TestDotSlashLookup(t *testing.T) {
+ // when there should be no output at all. Issue 37969.
+ func TestNoPackageClauseWhenNoMatch(t *testing.T) {
+ 	maybeSkip(t)
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	var flagSet flag.FlagSet
+ 	err := do(&b, &flagSet, []string{"template.ZZZ"})
+ 	// Expect an error.
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 35f2eb24bf..4cebdc957a 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -420,7 +420,7 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+ 
+ 	default:
+ 		// As a fallback, use default formatter for all unknown node types.
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		format.Node(buf, pkg.fs, node)
+ 		s := buf.String()
+ 		if strings.Contains(s, "\n") {

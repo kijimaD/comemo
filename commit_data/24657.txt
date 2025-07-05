@@ -27,7 +27,75 @@ Date:   Tue Aug 18 14:17:30 2015 -0700
     Change-Id: Ibe838853ef4046c92f76adbded8cca3b1e449e0b
     Reviewed-on: https://go-review.googlesource.com/13685
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go              | 12 +++++++++---
  src/cmd/compile/internal/gc/testdata/ctl_ssa.go | 15 +++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f2dd20bcb4..6a5ecbf04d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1313,7 +1313,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				len = s.constInt(Types[TINT], n.Left.Type.Bound)
+ 				elemtype = n.Left.Type.Type
+ 			}
+-			s.boundsCheck(i, len)
++			if !n.Bounded {
++				s.boundsCheck(i, len)
++			}
+ 			return s.newValue2(ssa.OpArrayIndex, elemtype, a, i)
+ 		} else { // slice
+ 			p := s.addr(n)
+@@ -1530,7 +1532,9 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
+-			s.boundsCheck(i, len)
++			if !n.Bounded {
++				s.boundsCheck(i, len)
++			}
+ 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+ 		} else { // array
+@@ -1538,7 +1542,9 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+ 			len := s.constInt(Types[TINT], n.Left.Type.Bound)
+-			s.boundsCheck(i, len)
++			if !n.Bounded {
++				s.boundsCheck(i, len)
++			}
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
+ 		}
+ 	case OIND:
+diff --git a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+index 7377c9aee8..f7c3b80799 100644
+--- a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+@@ -43,10 +43,25 @@ func testPhiControl() {
+ 	}
+ }
+ 
++func emptyRange_ssa(b []byte) bool {
++	for _, x := range b {
++		_ = x
++	}
++	return true
++}
++
++func testEmptyRange() {
++	if !emptyRange_ssa([]byte{}) {
++		println("emptyRange_ssa([]byte{})=false, want true")
++		failed = true
++	}
++}
++
+ var failed = false
+ 
+ func main() {
+ 	testPhiControl()
++	testEmptyRange()
+ 	if failed {
+ 		panic("failed")
+ 	}

@@ -7,6 +7,19 @@ Date:   Thu May 12 11:21:00 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4515070
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c2ebaf32b6..9dca085e0e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -116,6 +116,7 @@ Jan Mercl <befelemepeseveze@gmail.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
++Johan Euphrosine <proppy@google.com>
+ John DeNero <denero@google.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jos Visser <josv@google.com>

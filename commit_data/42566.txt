@@ -11,6 +11,23 @@ Date:   Wed Jan 15 19:29:33 2020 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/tls/tls.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 228f4a79ab..af44485f44 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -116,9 +116,10 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
+ 
+ 	if timeout != 0 {
+ 		errChannel = make(chan error, 2)
+-		time.AfterFunc(timeout, func() {
++		timer := time.AfterFunc(timeout, func() {
+ 			errChannel <- timeoutError{}
+ 		})
++		defer timer.Stop()
+ 	}
+ 
+ 	rawConn, err := dialer.Dial(network, addr)

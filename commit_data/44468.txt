@@ -16,6 +16,51 @@ Date:   Wed Jul 8 16:57:10 2020 -0400
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/net/ipsock_plan9.go | 28 ++++++++++++++++++++++++++--
  1 file changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 99d3e3971a..23082366aa 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -206,9 +206,9 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
+ 		return nil, err
+ 	}
+ 	if la := plan9LocalAddr(laddr); la == "" {
+-		_, err = f.WriteString("connect " + dest)
++		err = hangupCtlWrite(ctx, proto, f, "connect "+dest)
+ 	} else {
+-		_, err = f.WriteString("connect " + dest + " " + la)
++		err = hangupCtlWrite(ctx, proto, f, "connect "+dest+" "+la)
+ 	}
+ 	if err != nil {
+ 		f.Close()
+@@ -339,3 +339,27 @@ func plan9LocalAddr(addr Addr) string {
+ 	}
+ 	return ip.String() + "!" + itoa(port)
+ }
++
++func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {
++	if proto != "tcp" {
++		_, err := ctl.WriteString(msg)
++		return err
++	}
++	written := make(chan struct{})
++	errc := make(chan error)
++	go func() {
++		select {
++		case <-ctx.Done():
++			ctl.WriteString("hangup")
++			errc <- mapErr(ctx.Err())
++		case <-written:
++			errc <- nil
++		}
++	}()
++	_, err := ctl.WriteString(msg)
++	close(written)
++	if e := <-errc; err == nil && e != nil { // we hung up
++		return e
++	}
++	return err
++}

@@ -9,6 +9,23 @@ Date:   Fri Feb 17 12:47:56 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5675072
-
+---
  src/pkg/debug/dwarf/open.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 9543297e18..37a518b6d3 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -31,8 +31,9 @@ type Data struct {
+ }
+ 
+ // New returns a new Data object initialized from the given parameters.
+-// Clients should typically use [TODO(rsc): method to be named later] instead of calling
+-// New directly.
++// Rather than calling this function directly, clients should typically use
++// the DWARF method of the File type of the appropriate package debug/elf,
++// debug/macho, or debug/pe.
+ //
+ // The []byte arguments are the data from the corresponding debug section
+ // in the object file; for example, for an ELF object, abbrev is the contents of

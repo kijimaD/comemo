@@ -9,7 +9,336 @@ Date:   Tue Jan 13 14:18:13 2015 -0500
     Change-Id: Ie5f7ab3a1075a9c8defbf5f827a8658e3eb55cab
     Reviewed-on: https://go-review.googlesource.com/2746
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/asm_darwin_386.s   | 93 ++++++++++++++++++++---------------------
  src/syscall/asm_darwin_amd64.s | 95 ++++++++++++++++++++----------------------
  2 files changed, 91 insertions(+), 97 deletions(-)
+
+diff --git a/src/syscall/asm_darwin_386.s b/src/syscall/asm_darwin_386.s
+index 7205deb12d..dee7116423 100644
+--- a/src/syscall/asm_darwin_386.s
++++ b/src/syscall/asm_darwin_386.s
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -18,34 +15,34 @@
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok
+-	MOVL	$-1, 20(SP)	// r1
+-	MOVL	$-1, 24(SP)	// r2
+-	MOVL	AX, 28(SP)		// errno
++	MOVL	$-1, r1+16(FP)
++	MOVL	$-1, r2+20(FP)
++	MOVL	AX, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+-	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2
+-	MOVL	$0, 28(SP)	// errno
++	MOVL	AX, r1+16(FP)
++	MOVL	DX, r2+20(FP)
++	MOVL	$0, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -55,24 +52,24 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok6
+-	MOVL	$-1, 32(SP)	// r1
+-	MOVL	$-1, 36(SP)	// r2
+-	MOVL	AX, 40(SP)		// errno
++	MOVL	$-1, r1+28(FP)
++	MOVL	$-1, r2+32(FP)
++	MOVL	AX, err+36(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+-	MOVL	AX, 32(SP)	// r1
+-	MOVL	DX, 36(SP)	// r2
+-	MOVL	$0, 40(SP)	// errno
++	MOVL	AX, r1+28(FP)
++	MOVL	DX, r2+32(FP)
++	MOVL	$0, err+36(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	num+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		num+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -85,44 +82,44 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok9
+-	MOVL	$-1, 44(SP)	// r1
+-	MOVL	$-1, 48(SP)	// r2
+-	MOVL	AX, 52(SP)		// errno
++	MOVL	$-1, r1+40(FP)
++	MOVL	$-1, r2+44(FP)
++	MOVL	AX, err+48(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok9:
+-	MOVL	AX, 44(SP)	// r1
+-	MOVL	DX, 48(SP)	// r2
+-	MOVL	$0, 52(SP)	// errno
++	MOVL	AX, r1+40(FP)
++	MOVL	DX, r2+44(FP)
++	MOVL	$0, err+48(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok1
+-	MOVL	$-1, 20(SP)	// r1
+-	MOVL	$-1, 24(SP)	// r2
+-	MOVL	AX, 28(SP)		// errno
++	MOVL	$-1, r1+16(FP)
++	MOVL	$-1, r2+20(FP)
++	MOVL	AX, err+24(FP)
+ 	RET
+ ok1:
+-	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2
+-	MOVL	$0, 28(SP)	// errno
++	MOVL	AX, r1+16(FP)
++	MOVL	DX, r2+20(FP)
++	MOVL	$0, err+24(FP)
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -132,12 +129,12 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok2
+-	MOVL	$-1, 32(SP)	// r1
+-	MOVL	$-1, 36(SP)	// r2
+-	MOVL	AX, 40(SP)		// errno
++	MOVL	$-1, r1+28(FP)
++	MOVL	$-1, r2+32(FP)
++	MOVL	AX, err+36(FP)
+ 	RET
+ ok2:
+-	MOVL	AX, 32(SP)	// r1
+-	MOVL	DX, 36(SP)	// r2
+-	MOVL	$0, 40(SP)	// errno
++	MOVL	AX, r1+28(FP)
++	MOVL	DX, r2+32(FP)
++	MOVL	$0, err+36(FP)
+ 	RET
+diff --git a/src/syscall/asm_darwin_amd64.s b/src/syscall/asm_darwin_amd64.s
+index e57199d2b6..9cf9bcb63a 100644
+--- a/src/syscall/asm_darwin_amd64.s
++++ b/src/syscall/asm_darwin_amd64.s
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -18,90 +15,90 @@
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
+ 	MOVQ	$0, R10
+ 	MOVQ	$0, R8
+ 	MOVQ	$0, R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+ 	JCC	ok
+-	MOVQ	$-1, 40(SP)	// r1
+-	MOVQ	$0, 48(SP)	// r2
+-	MOVQ	AX, 56(SP)  // errno
++	MOVQ	$-1, r1+32(FP)
++	MOVQ	$0, r2+40(FP)
++	MOVQ	AX, err+48(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+-	MOVQ	AX, 40(SP)	// r1
+-	MOVQ	DX, 48(SP)	// r2
+-	MOVQ	$0, 56(SP)	// errno
++	MOVQ	AX, r1+32(FP)
++	MOVQ	DX, r2+40(FP)
++	MOVQ	$0, err+48(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+ 	JCC	ok6
+-	MOVQ	$-1, 64(SP)	// r1
+-	MOVQ	$0, 72(SP)	// r2
+-	MOVQ	AX, 80(SP)  // errno
++	MOVQ	$-1, r1+56(FP)
++	MOVQ	$0, r2+64(FP)
++	MOVQ	AX, err+72(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+-	MOVQ	AX, 64(SP)	// r1
+-	MOVQ	DX, 72(SP)	// r2
+-	MOVQ	$0, 80(SP)	// errno
++	MOVQ	AX, r1+56(FP)
++	MOVQ	DX, r2+64(FP)
++	MOVQ	$0, err+72(FP)
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
+ 	MOVQ	$0, R10
+ 	MOVQ	$0, R8
+ 	MOVQ	$0, R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+ 	JCC	ok1
+-	MOVQ	$-1, 40(SP)	// r1
+-	MOVQ	$0, 48(SP)	// r2
+-	MOVQ	AX, 56(SP)  // errno
++	MOVQ	$-1, r1+32(FP)
++	MOVQ	$0, r2+40(FP)
++	MOVQ	AX, err+48(FP)
+ 	RET
+ ok1:
+-	MOVQ	AX, 40(SP)	// r1
+-	MOVQ	DX, 48(SP)	// r2
+-	MOVQ	$0, 56(SP)	// errno
++	MOVQ	AX, r1+32(FP)
++	MOVQ	DX, r2+40(FP)
++	MOVQ	$0, err+48(FP)
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+ 	JCC	ok2
+-	MOVQ	$-1, 64(SP)	// r1
+-	MOVQ	$0, 72(SP)	// r2
+-	MOVQ	AX, 80(SP)  // errno
++	MOVQ	$-1, r1+56(FP)
++	MOVQ	$0, r2+64(FP)
++	MOVQ	AX, err+72(FP)
+ 	RET
+ ok2:
+-	MOVQ	AX, 64(SP)	// r1
+-	MOVQ	DX, 72(SP)	// r2
+-	MOVQ	$0, 80(SP)	// errno
++	MOVQ	AX, r1+56(FP)
++	MOVQ	DX, r2+64(FP)
++	MOVQ	$0, err+72(FP)
+ 	RET

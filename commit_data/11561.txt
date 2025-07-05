@@ -7,10 +7,107 @@ Date:   Thu Feb 2 14:08:48 2012 -0500
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5605050
-
+---
  src/pkg/os/exec.go              | 4 ++--
  src/pkg/os/exec_windows.go      | 6 +++---
  src/pkg/syscall/exec_plan9.go   | 2 +-
  src/pkg/syscall/exec_unix.go    | 2 +-
  src/pkg/syscall/exec_windows.go | 4 ++--
  5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index 33e223fd29..6e0f168c76 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -12,11 +12,11 @@ import (
+ // Process stores the information about a process created by StartProcess.
+ type Process struct {
+ 	Pid    int
+-	handle int
++	handle uintptr
+ 	done   bool // process has been successfuly waited on
+ }
+ 
+-func newProcess(pid, handle int) *Process {
++func newProcess(pid int, handle uintptr) *Process {
+ 	p := &Process{Pid: pid, handle: handle}
+ 	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index c7e25f9853..b89f91c197 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -46,14 +46,14 @@ func (p *Process) Signal(sig Signal) error {
+ 
+ // Release releases any resources associated with the Process.
+ func (p *Process) Release() error {
+-	if p.handle == -1 {
++	if p.handle == uintptr(syscall.InvalidHandle) {
+ 		return EINVAL
+ 	}
+ 	e := syscall.CloseHandle(syscall.Handle(p.handle))
+ 	if e != nil {
+ 		return NewSyscallError("CloseHandle", e)
+ 	}
+-	p.handle = -1
++	p.handle = uintptr(syscall.InvalidHandle)
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+ 	return nil
+@@ -66,7 +66,7 @@ func findProcess(pid int) (p *Process, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("OpenProcess", e)
+ 	}
+-	return newProcess(pid, int(h)), nil
++	return newProcess(pid, uintptr(h)), nil
+ }
+ 
+ func init() {
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index 788666b2f2..de6421c239 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -483,7 +483,7 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ }
+ 
+ // StartProcess wraps ForkExec for package os.
+-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+ 	pid, err = forkExec(argv0, argv, attr)
+ 	return pid, 0, err
+ }
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index ad3cf48c80..b70e1880b9 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -208,7 +208,7 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ }
+ 
+ // StartProcess wraps ForkExec for package os.
+-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+ 	pid, err = forkExec(argv0, argv, attr)
+ 	return pid, 0, err
+ }
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 2826e2f35a..6cb25a7d00 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -232,7 +232,7 @@ type SysProcAttr struct {
+ var zeroProcAttr ProcAttr
+ var zeroSysProcAttr SysProcAttr
+ 
+-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+ 	if len(argv0) == 0 {
+ 		return 0, 0, EWINDOWS
+ 	}
+@@ -319,7 +319,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
+ 	}
+ 	defer CloseHandle(Handle(pi.Thread))
+ 
+-	return int(pi.ProcessId), int(pi.Process), nil
++	return int(pi.ProcessId), uintptr(pi.Process), nil
+ }
+ 
+ func Exec(argv0 string, argv []string, envv []string) (err error) {

@@ -8,8 +8,55 @@ Date:   Wed Aug 20 14:02:11 2014 -0700
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/131980043
-
+---
  src/pkg/runtime/alg.go         | 6 ++++++
  src/pkg/runtime/alg.goc        | 5 -----
  src/pkg/runtime/export_test.go | 5 +----
  3 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 650f684950..ff296b692e 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -273,3 +273,9 @@ func ifaceHash(i interface {
+ }, seed uintptr) uintptr {
+ 	return goalg(&algarray[alg_INTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+ }
++
++// Testing adapter for memclr
++func memclrBytes(b []byte) {
++	s := (*sliceStruct)(unsafe.Pointer(&b))
++	memclr(s.array, uintptr(s.len))
++}
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index f9e8892929..aa0c79d476 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -287,8 +287,3 @@ runtime·hashinit(void)
+ 		}
+ 	}
+ }
+-
+-// Testing adapter for memclr
+-func memclrBytes(s Slice) {
+-	runtime·memclr(s.array, s.len);
+-}
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 32c34aade6..adbc1e9955 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -78,13 +78,10 @@ var Int32Hash = int32Hash
+ var Int64Hash = int64Hash
+ var EfaceHash = efaceHash
+ var IfaceHash = ifaceHash
++var MemclrBytes = memclrBytes
+ 
+ var HashLoad = &hashLoad
+ 
+-func memclrBytes(b []byte)
+-
+-var MemclrBytes = memclrBytes
+-
+ func gogoBytes() int32
+ 
+ var GogoBytes = gogoBytes

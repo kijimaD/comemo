@@ -7,7 +7,7 @@ Date:   Tue Oct 20 08:03:43 2009 -0700
     R=ken
     OCL=35919
     CL=35919
-
+---
  src/cmd/6g/cgen.c                             |  11 +++
  src/cmd/6g/gg.h                               |   3 +-
  src/cmd/6g/ggen.c                             |  22 +++++-
@@ -29,3 +29,940 @@ Date:   Tue Oct 20 08:03:43 2009 -0700
  test/nilptr/structfieldaddr.go                |  33 ++++++++
  test/run                                      |   2 +-
  20 files changed, 483 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 5cceefd8f9..1986e56065 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -610,6 +610,17 @@ agen(Node *n, Node *res)
+ 	case ODOTPTR:
+ 		cgen(nl, res);
+ 		if(n->xoffset != 0) {
++			// explicit check for nil if struct is large enough
++			// that we might derive too big a pointer.
++			if(nl->type->type->width >= unmappedzero) {
++				regalloc(&n1, types[tptr], res);
++				gmove(res, &n1);
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gins(ATESTB, nodintconst(0), &n1);
++				regfree(&n1);
++			}
+ 			nodconst(&n1, types[TINT64], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+ 		}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 75f6c7918b..8d0c383856 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -57,6 +57,7 @@ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
+ EXTERN	Node*	throwslice;
+ EXTERN	Node*	throwreturn;
++EXTERN	vlong	unmappedzero;
+ 
+ /*
+  * gen.c
+@@ -92,7 +93,7 @@ void	sgen(Node*, Node*, int32);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+-void	naddr(Node*, Addr*);
++void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
+ int	cgen_inline(Node*, Node*);
+ void	restx(Node*, Node*);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 90811ae4e3..a920ae9f08 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1137,7 +1137,7 @@ cgen_inline(Node *n, Node *res)
+ 		goto no;
+ 	if(!n->left->addable)
+ 		goto no;
+-	if(strcmp(n->left->sym->package, "sys") != 0)
++	if(strcmp(n->left->sym->package, "runtime") != 0)
+ 		goto no;
+ 	if(strcmp(n->left->sym->name, "slicearray") == 0)
+ 		goto slicearray;
+@@ -1215,6 +1215,16 @@ slicearray:
+ 	}
+ 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+ 
++	// if slice could be too big, dereference to
++	// catch nil array pointer.
++	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
++		n2 = nodes[0];
++		n2.xoffset = 0;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		gins(ATESTB, nodintconst(0), &n2);
++	}
++
+ 	for(i=0; i<5; i++) {
+ 		if(nodes[i].op == OREGISTER)
+ 			regfree(&nodes[i]);
+@@ -1241,6 +1251,16 @@ arraytoslice:
+ 	n2.xoffset += Array_array;
+ 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+ 
++	// if slice could be too big, dereference to
++	// catch nil array pointer.
++	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
++		n2 = nodes[0];
++		n2.xoffset = 0;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		gins(ATESTB, nodintconst(0), &n2);
++	}
++
+ 	for(i=0; i<2; i++) {
+ 		if(nodes[i].op == OREGISTER)
+ 			regfree(&nodes[i]);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 2fd9d94009..20b79c0be9 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -30,6 +30,10 @@
+ 
+ #include "gg.h"
+ 
++// TODO(rsc): Can make this bigger if we move
++// the text segment up higher in 6l for all GOOS.
++vlong unmappedzero = 4096;
++
+ void
+ clearp(Prog *p)
+ {
+@@ -832,6 +836,7 @@ gins(int as, Node *f, Node *t)
+ //	Node nod;
+ //	int32 v;
+ 	Prog *p;
++	Addr af, at;
+ 
+ //	if(f != N && f->op == OINDEX) {
+ //		regalloc(&nod, &regnode, Z);
+@@ -861,22 +866,46 @@ gins(int as, Node *f, Node *t)
+ 			return nil;
+ 	}
+ 
++	memset(&af, 0, sizeof af);
++	memset(&at, 0, sizeof at);
++	if(f != N)
++		naddr(f, &af, 1);
++	if(t != N)
++		naddr(t, &at, 1);
+ 	p = prog(as);
+ 	if(f != N)
+-		naddr(f, &p->from);
++		p->from = af;
+ 	if(t != N)
+-		naddr(t, &p->to);
++		p->to = at;
+ 	if(debug['g'])
+ 		print("%P\n", p);
+ 	return p;
+ }
+ 
++static void
++checkoffset(Addr *a, int canemitcode)
++{
++	Prog *p;
++
++	if(a->offset < unmappedzero)
++		return;
++	if(!canemitcode)
++		fatal("checkoffset %#llx, cannot emit code", a->offset);
++
++	// cannot rely on unmapped nil page at 0 to catch
++	// reference with large offset.  instead, emit explicit
++	// test of 0(reg).
++	p = gins(ATESTB, nodintconst(0), N);
++	p->to = *a;
++	p->to.offset = 0;
++}
++
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+  */
+ void
+-naddr(Node *n, Addr *a)
++naddr(Node *n, Addr *a, int canemitcode)
+ {
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+@@ -920,6 +949,7 @@ naddr(Node *n, Addr *a)
+ 		a->type = n->val.u.reg+D_INDIR;
+ 		a->sym = n->sym;
+ 		a->offset = n->xoffset;
++		checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OPARAM:
+@@ -1002,7 +1032,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OADDR:
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		if(a->type >= D_INDIR) {
+ 			a->type -= D_INDIR;
+ 			break;
+@@ -1018,24 +1048,28 @@ naddr(Node *n, Addr *a)
+ 
+ 	case OLEN:
+ 		// len of string or slice
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		a->offset += Array_nel;
++		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
++			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OCAP:
+ 		// cap of string or slice
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		a->offset += Array_cap;
++		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
++			checkoffset(a, canemitcode);
+ 		break;
+ 
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+ //			v = n->right->vconst;
+-//			naddr(n->left, a);
++//			naddr(n->left, a, canemitcode);
+ //		} else
+ //		if(n->left->op == OLITERAL) {
+ //			v = n->left->vconst;
+-//			naddr(n->right, a);
++//			naddr(n->right, a, canemitcode);
+ //		} else
+ //			goto bad;
+ //		a->offset += v;
+@@ -1618,7 +1652,6 @@ optoas(int op, Type *t)
+ enum
+ {
+ 	ODynam	= 1<<0,
+-	OPtrto	= 1<<1,
+ };
+ 
+ static	Node	clean[20];
+@@ -1707,7 +1740,7 @@ lit:
+ 	reg1 = &clean[cleani-2];
+ 	reg->op = OEMPTY;
+ 	reg1->op = OEMPTY;
+-	naddr(n, a);
++	naddr(n, a, 1);
+ 	goto yes;
+ 
+ odot:
+@@ -1720,7 +1753,7 @@ odot:
+ 		n1 = *nn;
+ 		n1.type = n->type;
+ 		n1.xoffset += oary[0];
+-		naddr(&n1, a);
++		naddr(&n1, a, 1);
+ 		goto yes;
+ 	}
+ 
+@@ -1744,7 +1777,7 @@ odot:
+ 
+ 	a->type = D_NONE;
+ 	a->index = D_NONE;
+-	naddr(&n1, a);
++	naddr(&n1, a, 1);
+ 	goto yes;
+ 
+ oindex:
+@@ -1755,18 +1788,12 @@ oindex:
+ 
+ 	// set o to type of array
+ 	o = 0;
+-	if(isptr[l->type->etype]) {
+-		o += OPtrto;
+-		if(l->type->type->etype != TARRAY)
+-			fatal("not ptr ary");
+-		if(l->type->type->bound < 0)
+-			o += ODynam;
+-	} else {
+-		if(l->type->etype != TARRAY)
+-			fatal("not ary");
+-		if(l->type->bound < 0)
+-			o += ODynam;
+-	}
++	if(isptr[l->type->etype])
++		fatal("ptr ary");
++	if(l->type->etype != TARRAY)
++		fatal("not ary");
++	if(l->type->bound < 0)
++		o += ODynam;
+ 
+ 	w = n->type->width;
+ 	if(isconst(r, CTINT))
+@@ -1785,10 +1812,7 @@ oindex:
+ 	// load the array (reg)
+ 	if(l->ullman > r->ullman) {
+ 		regalloc(reg, types[tptr], N);
+-		if(o & OPtrto)
+-			cgen(l, reg);
+-		else
+-			agen(l, reg);
++		agen(l, reg);
+ 	}
+ 
+ 	// load the index (reg1)
+@@ -1804,10 +1828,7 @@ oindex:
+ 	// load the array (reg)
+ 	if(l->ullman <= r->ullman) {
+ 		regalloc(reg, types[tptr], N);
+-		if(o & OPtrto)
+-			cgen(l, reg);
+-		else
+-			agen(l, reg);
++		agen(l, reg);
+ 	}
+ 
+ 	// check bounds
+@@ -1818,9 +1839,16 @@ oindex:
+ 			n2.type = types[tptr];
+ 			n2.xoffset = Array_nel;
+ 		} else {
++			if(l->type->width >= unmappedzero && l->op == OIND) {
++				// cannot rely on page protections to
++				// catch array ptr == 0, so dereference.
++				n2 = *reg;
++				n2.op = OINDREG;
++				n2.type = types[TUINT8];
++				n2.xoffset = 0;
++				gins(ATESTB, nodintconst(0), &n2);
++			}
+ 			nodconst(&n2, types[TUINT64], l->type->bound);
+-			if(o & OPtrto)
+-				nodconst(&n2, types[TUINT64], l->type->type->bound);
+ 		}
+ 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+@@ -1836,7 +1864,7 @@ oindex:
+ 		gmove(&n2, reg);
+ 	}
+ 
+-	naddr(reg1, a);
++	naddr(reg1, a, 1);
+ 	a->offset = 0;
+ 	a->scale = w;
+ 	a->index = a->type;
+@@ -1850,10 +1878,7 @@ oindex_const:
+ 	// can multiply by width statically
+ 
+ 	regalloc(reg, types[tptr], N);
+-	if(o & OPtrto)
+-		cgen(l, reg);
+-	else
+-		agen(l, reg);
++	agen(l, reg);
+ 
+ 	v = mpgetfix(r->val.u.xval);
+ 	if(o & ODynam) {
+@@ -1881,10 +1906,6 @@ oindex_const:
+ 		if(v < 0) {
+ 			yyerror("out of bounds on array");
+ 		} else
+-		if(o & OPtrto) {
+-			if(v >= l->type->type->bound)
+-				yyerror("out of bounds on array");
+-		} else
+ 		if(v >= l->type->bound) {
+ 			yyerror("out of bounds on array");
+ 		}
+@@ -1895,7 +1916,7 @@ oindex_const:
+ 	n2.xoffset = v*w;
+ 	a->type = D_NONE;
+ 	a->index = D_NONE;
+-	naddr(&n2, a);
++	naddr(&n2, a, 1);
+ 	goto yes;
+ 
+ yes:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 1d19b32d80..83c2c9d9f4 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -81,7 +81,7 @@ setoutvar(void)
+ 	while(t != T) {
+ 		n = nodarg(t, 1);
+ 		a = zprog.from;
+-		naddr(n, &a);
++		naddr(n, &a, 0);
+ 		bit = mkvar(R, &a);
+ 		for(z=0; z<BITS; z++)
+ 			ovar.b[z] |= bit.b[z];
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index e0c617ac10..ba43fa05ba 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -63,7 +63,7 @@ widstruct(Type *t, uint32 o, int flag)
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+ 		dowidth(f->type);
+-		if(f->type->width < 0 || f->type->width > 100000000)
++		if(f->type->width < 0)
+ 			fatal("invalid width %lld", f->type->width);
+ 		w = f->type->width;
+ 		m = arrayelemwidth(f->type);
+@@ -239,7 +239,7 @@ dowidth(Type *t)
+ 		// width of func type is pointer
+ 		w = widthptr;
+ 		break;
+-	
++
+ 	case TFUNCARGS:
+ 		// function is 3 cated structures;
+ 		// compute their widths as side-effect.
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e65ce55519..06a05895b1 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -41,12 +41,12 @@ adderr(int line, char *fmt, va_list arg)
+ {
+ 	Fmt f;
+ 	Error *p;
+-	
++
+ 	fmtstrinit(&f);
+ 	fmtprint(&f, "%L: ", line);
+ 	fmtvprint(&f, fmt, arg);
+ 	fmtprint(&f, "\n");
+-	
++
+ 	if(nerr >= merr) {
+ 		if(merr == 0)
+ 			merr = 16;
+@@ -71,7 +71,7 @@ static int
+ errcmp(const void *va, const void *vb)
+ {
+ 	Error *a, *b;
+-	
++
+ 	a = (Error*)va;
+ 	b = (Error*)vb;
+ 	if(a->lineno != b->lineno)
+@@ -109,11 +109,11 @@ void
+ yyerrorl(int line, char *fmt, ...)
+ {
+ 	va_list arg;
+-	
++
+ 	va_start(arg, fmt);
+ 	adderr(line, fmt, arg);
+ 	va_end(arg);
+-	
++
+ 	hcrash();
+ 	nerrors++;
+ 	if(nerrors >= 10 && !debug['e'])
+@@ -2394,7 +2394,6 @@ Node*
+ safeval(Node *n, NodeList **init)
+ {
+ 	Node *l;
+-	Node *r;
+ 	Node *a;
+ 
+ 	// is this a local variable or a dot of a local variable?
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 040029e5ea..722802c004 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -100,6 +100,13 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ void
+ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ {
++	if(nel > 0 && old == nil) {
++		// crash if old == nil.
++		// could give a better message
++		// but this is consistent with all the in-line checks
++		// that the compiler inserts for other uses.
++		*old = 0;
++	}
+ 
+ 	if(hb > nel || lb > hb) {
+ 		if(debug) {
+@@ -146,6 +153,13 @@ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, S
+ void
+ runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
+ {
++	if(nel > 0 && old == nil) {
++		// crash if old == nil.
++		// could give a better message
++		// but this is consistent with all the in-line checks
++		// that the compiler inserts for other uses.
++		*old = 0;
++	}
+ 
+ 	// new dope to old array
+ 	ret.len = nel;
+diff --git a/test/golden.out b/test/golden.out
+index 2f21c1d205..79c2990bb1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -92,6 +92,68 @@ throw: interface conversion
+ 
+ panic PC=xxx
+ 
++== nilptr/
++
++=========== nilptr/arrayindex.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/arrayindex1.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/arraytoslice.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/arraytoslice1.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/arraytoslice2.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/slicearray.go
++SIGSEGV: segmentation violation
++Faulting address: 0xa
++pc: xxx
++
++
++=========== nilptr/structfield.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/structfield1.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/structfield2.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== nilptr/structfieldaddr.go
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
+ == fixedbugs/
+ 
+ =========== fixedbugs/bug016.go
+@@ -140,9 +202,5 @@ panic PC=xxx
+ 
+ == bugs/
+ 
+-=========== bugs/bug162.go
+-123
+-BUG: should fail
+-
+ =========== bugs/bug193.go
+ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+diff --git a/test/bugs/bug162.go b/test/nilptr/arrayindex.go
+similarity index 91%
+rename from test/bugs/bug162.go
+rename to test/nilptr/arrayindex.go
+index 717f1f0a4d..0bc6bf4a89 100644
+--- a/test/bugs/bug162.go
++++ b/test/nilptr/arrayindex.go
+@@ -21,5 +21,5 @@ func main() {
+ 	// Pointer offsets and array indices, if they are
+ 	// very large, need to dereference the base pointer
+ 	// to trigger a trap.
+-	println(p[uintptr(unsafe.Pointer(&x))]);
++	println(p[uintptr(unsafe.Pointer(&x))]);	// should crash
+ }
+diff --git a/test/nilptr/arrayindex1.go b/test/nilptr/arrayindex1.go
+new file mode 100644
+index 0000000000..ac72b789d6
+--- /dev/null
++++ b/test/nilptr/arrayindex1.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into p[] with a large
++	// enough index jumps out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	// Pointer offsets and array indices, if they are
++	// very large, need to dereference the base pointer
++	// to trigger a trap.
++	var p *[1<<30]byte = nil;
++	println(p[256<<20]);	// very likely to be inside dummy, but should crash
++}
+diff --git a/test/nilptr/arraytoslice.go b/test/nilptr/arraytoslice.go
+new file mode 100644
+index 0000000000..07ecfe01f9
+--- /dev/null
++++ b/test/nilptr/arraytoslice.go
+@@ -0,0 +1,35 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func f([]byte) {
++	panic("unreachable");
++}
++
++var dummy [512<<20]byte;	// give us a big address space
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into p[] with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	//
++	// To avoid needing a check on every slice beyond the
++	// usual len and cap, we require the *array -> slice
++	// conversion to do the check.
++	var p *[1<<30]byte = nil;
++	f(p);	// should crash
++}
+diff --git a/test/nilptr/arraytoslice1.go b/test/nilptr/arraytoslice1.go
+new file mode 100644
+index 0000000000..78c0d8538d
+--- /dev/null
++++ b/test/nilptr/arraytoslice1.go
+@@ -0,0 +1,32 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into p[] with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	//
++	// To avoid needing a check on every slice beyond the
++	// usual len and cap, we require the *array -> slice
++	// conversion to do the check.
++	var p *[1<<30]byte = nil;
++	var x []byte = p;	// should crash
++	_ = x;
++}
+diff --git a/test/nilptr/arraytoslice2.go b/test/nilptr/arraytoslice2.go
+new file mode 100644
+index 0000000000..52a238eb29
+--- /dev/null
++++ b/test/nilptr/arraytoslice2.go
+@@ -0,0 +1,33 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++var q *[1<<30]byte;
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into p[] with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	//
++	// To avoid needing a check on every slice beyond the
++	// usual len and cap, we require the *array -> slice
++	// conversion to do the check.
++	var x []byte;
++	var y = &x;
++	*y = q;	// should crash (uses arraytoslice runtime routine)
++}
+diff --git a/test/nilptr/slicearray.go b/test/nilptr/slicearray.go
+new file mode 100644
+index 0000000000..d1d2a25d99
+--- /dev/null
++++ b/test/nilptr/slicearray.go
+@@ -0,0 +1,31 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into p[] with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	//
++	// To avoid needing a check on every slice beyond the
++	// usual len and cap, we require the slice operation
++	// to do the check.
++	var p *[1<<30]byte = nil;
++	var _ []byte = p[10:len(p)-10];	// should crash
++}
+diff --git a/test/nilptr/structfield.go b/test/nilptr/structfield.go
+new file mode 100644
+index 0000000000..51da7a9a57
+--- /dev/null
++++ b/test/nilptr/structfield.go
+@@ -0,0 +1,33 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++type T struct {
++	x [256<<20] byte;
++	i int;
++}
++
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into t with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	// We require the pointer dereference to check.
++	var t *T;
++	println(t.i);	// should crash
++}
+diff --git a/test/nilptr/structfield1.go b/test/nilptr/structfield1.go
+new file mode 100644
+index 0000000000..5390a643d6
+--- /dev/null
++++ b/test/nilptr/structfield1.go
+@@ -0,0 +1,36 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++type T struct {
++	x [256<<20] byte;
++	i int;
++}
++
++func f() *T {
++	return nil;
++}
++
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into t with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	// We require the pointer dereference to check.
++	println(f().i);	// should crash
++}
+diff --git a/test/nilptr/structfield2.go b/test/nilptr/structfield2.go
+new file mode 100644
+index 0000000000..f11e3df67d
+--- /dev/null
++++ b/test/nilptr/structfield2.go
+@@ -0,0 +1,35 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++type T struct {
++	x [256<<20] byte;
++	i int;
++}
++
++var y *T;
++var x = &y;
++
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into t with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	// We require the pointer dereference to check.
++	println((*x).i);	// should crash
++}
+diff --git a/test/nilptr/structfieldaddr.go b/test/nilptr/structfieldaddr.go
+new file mode 100644
+index 0000000000..5ac5deeb6b
+--- /dev/null
++++ b/test/nilptr/structfieldaddr.go
+@@ -0,0 +1,33 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var dummy [512<<20]byte;	// give us a big address space
++type T struct {
++	x [256<<20] byte;
++	i int;
++}
++
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out");
++	}
++
++	// The problem here is that indexing into t with a large
++	// enough index can jump out of the unmapped section
++	// at the beginning of memory and into valid memory.
++	// We require the address calculation to check.
++	var t *T;
++	println(&t.i);	// should crash
++}
+diff --git a/test/run b/test/run
+index 8b3bc4149c..aa4b6003d2 100755
+--- a/test/run
++++ b/test/run
+@@ -43,7 +43,7 @@ ulimit -v 4000000
+ 
+ true >pass.out >times.out
+ 
+-for dir in . ken chan interface fixedbugs bugs
++for dir in . ken chan interface nilptr fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'

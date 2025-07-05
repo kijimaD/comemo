@@ -9,6 +9,20 @@ Date:   Thu Feb 19 19:47:13 2015 -0500
     Change-Id: Iad08b58f894173a7b34396275b72db34f3031fe3
     Reviewed-on: https://go-review.googlesource.com/5352
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index db1c93b8ac..aebbc3e39a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1630,7 +1630,7 @@ func (gcToolchain) linker() string {
+ // verifyCompiler specifies whether to check the compilers written in Go
+ // against the assemblers written in C. If set, asm will run both (say) 6g and new6g
+ // and fail if the two produce different output files.
+-const verifyCompiler = true
++const verifyCompiler = false
+ 
+ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+ 	if archive != "" {

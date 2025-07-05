@@ -9,7 +9,38 @@ Date:   Wed Apr 8 12:28:44 2015 -0700
     Change-Id: I4aa9d3d9f468c33f9996295bafcbed097de0389f
     Reviewed-on: https://go-review.googlesource.com/8660
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 5 +++++
  src/math/big/float_test.go | 3 +++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index ed55e8e513..35ad2567e7 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -71,6 +71,11 @@ type ErrNaN struct {
+ 	msg string
+ }
+ 
++// ErrNan implements the error interface.
++func (err ErrNaN) Error() string {
++	return err.msg
++}
++
+ // NewFloat allocates and returns a new Float set to x,
+ // with precision 53 and rounding mode ToNearestEven.
+ // NewFloat panics with ErrNaN if x is a NaN.
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 2a48ec4465..5b5a0247b1 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -12,6 +12,9 @@ import (
+ 	"testing"
+ )
+ 
++// Verify that ErrNaN implements the error interface.
++var _ error = ErrNaN{}
++
+ func (x *Float) uint64() uint64 {
+ 	u, acc := x.Uint64()
+ 	if acc != Exact {

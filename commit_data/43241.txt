@@ -14,7 +14,7 @@ Date:   Mon Mar 16 08:13:16 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/objfile.go        |  4 +++-
  src/cmd/internal/obj/objfile2.go       |  6 +++---
  src/cmd/internal/obj/plist.go          |  5 +----
@@ -22,3 +22,117 @@ Date:   Mon Mar 16 08:13:16 2020 -0400
  src/cmd/link/internal/ld/dwarf.go      |  3 +++
  src/cmd/link/internal/loader/loader.go | 10 ++++++++--
  6 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 717d471569..8a8e0c47c3 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -207,7 +207,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+ 	if s.Func.dwarfInfoSym == nil {
+-		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
++		s.Func.dwarfInfoSym = &LSym{
++			Type: objabi.SDWARFINFO,
++		}
+ 		if ctxt.Flag_locationlists {
+ 			s.Func.dwarfLocSym = &LSym{
+ 				Type: objabi.SDWARFLOC,
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index d3e4bd4bea..95f920eef5 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -299,7 +299,7 @@ func (w *writer) Aux(s *LSym) {
+ 			o.Write(w.Writer)
+ 		}
+ 
+-		if s.Func.dwarfInfoSym != nil {
++		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
+ 			o := goobj2.Aux{
+ 				Type: goobj2.AuxDwarfInfo,
+ 				Sym:  makeSymRef(s.Func.dwarfInfoSym),
+@@ -339,7 +339,7 @@ func nAuxSym(s *LSym) int {
+ 	if s.Func != nil {
+ 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
+ 		n += 1 + len(s.Func.Pcln.Funcdata)
+-		if s.Func.dwarfInfoSym != nil {
++		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
+ 			n++
+ 		}
+ 		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
+@@ -419,7 +419,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		s.Func.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym}
++		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
+ 		for _, s := range dwsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 917343ea57..57438d57ea 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -139,10 +139,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	info, _, _, _, _ := ctxt.dwarfSym(s)
+-	info.Type = objabi.SDWARFINFO
+-	info.Set(AttrDuplicateOK, s.DuplicateOK())
+-	ctxt.Data = append(ctxt.Data, info)
++	ctxt.dwarfSym(s)
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index ff5526ed45..ee97281f4d 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -330,7 +330,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 			fn(fsym, filesym)
+ 		}
+ 	}
+-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym}
++	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
+ 	for _, dws := range dwsyms {
+ 		if dws == nil || dws.Size == 0 {
+ 			continue
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 9c583086d7..0a8edcfd54 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1912,6 +1912,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 			for _, s := range unit.Textp2 { // textp2 has been dead-code-eliminated already.
+ 				fnSym := loader.Sym(s)
+ 				infosym, _, rangesym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
++				if infosym == 0 {
++					continue
++				}
+ 				d.ldr.SetAttrNotInSymbolTable(infosym, true)
+ 				d.ldr.SetAttrReachable(infosym, true)
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 91798d470a..6a068937af 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2140,11 +2140,17 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		osym := goobj2.Sym{}
+ 		osym.Read(r.Reader, r.SymOff(i))
+ 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+-		if name == "" {
++		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
++		// NB: for the test below, we can skip most anonymous symbols
++		// since they will never be turned into sym.Symbols (ex:
++		// funcdata), however DWARF subprogram DIE symbols (which are
++		// nameless) will eventually need to be turned into
++		// sym.Symbols (with relocations), so the simplest thing to do
++		// is include them as part of this loop.
++		if name == "" && t != sym.SDWARFINFO {
+ 			continue
+ 		}
+ 		ver := abiToVer(osym.ABI, r.version)
+-		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+ 		if t == sym.SXREF {
+ 			log.Fatalf("bad sxref")
+ 		}

@@ -7,6 +7,20 @@ Date:   Tue Jun 12 12:17:51 2018 +0000
     Change-Id: I67aac387359378cf7aa8f7cafa6557ebf1338baf
     Reviewed-on: https://go-review.googlesource.com/118176
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.6.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 9594736e65..902a82d517 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -116,7 +116,7 @@ instead of generated from <a href="/cmd/yacc/">yacc</a>.
+ <p>
+ The compiler, linker, and <code>go</code> command have a new flag <code>-msan</code>,
+ analogous to <code>-race</code> and only available on linux/amd64,
+-that enables interoperation with the <a href="http://clang.llvm.org/docs/MemorySanitizer.html">Clang MemorySanitizer</a>.
++that enables interoperation with the <a href="https://clang.llvm.org/docs/MemorySanitizer.html">Clang MemorySanitizer</a>.
+ Such interoperation is useful mainly for testing a program containing suspect C or C++ code.
+ </p>
+ 

@@ -11,6 +11,19 @@ Date:   Thu Apr 23 16:28:15 2015 -0400
     Change-Id: I715ee4ef08f5bf8d9f53cee84e8fb31a237e2d43
     Reviewed-on: https://go-review.googlesource.com/9295
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index f0704bdb5d..a1ebf03e69 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -187,6 +187,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+ 			printunlock()
+ 			throw("objectstart: bad pointer in unexpected span")
+ 		}
++		return
+ 	}
+ 	// If this span holds object of a power of 2 size, just mask off the bits to
+ 	// the interior of the object. Otherwise use the size to get the base.

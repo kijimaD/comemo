@@ -11,6 +11,45 @@ Date:   Wed Jul 11 10:51:13 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue26335.go | 32 ++++++++++++++++++++++++++++++++
  1 file changed, 32 insertions(+)
+
+diff --git a/test/fixedbugs/issue26335.go b/test/fixedbugs/issue26335.go
+new file mode 100644
+index 0000000000..a97b4b6c72
+--- /dev/null
++++ b/test/fixedbugs/issue26335.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo mishandled passing a struct with an empty field through
++// reflect.Value.Call.
++
++package main
++
++import (
++	"reflect"
++)
++
++type Empty struct {
++	f1, f2 *byte
++	empty struct{}
++}
++
++func F(e Empty, s []string) {
++	if len(s) != 1 || s[0] != "hi" {
++		panic("bad slice")
++	}
++}
++
++func main() {
++	reflect.ValueOf(F).Call([]reflect.Value{
++		reflect.ValueOf(Empty{}),
++		reflect.ValueOf([]string{"hi"}),
++	})
++}

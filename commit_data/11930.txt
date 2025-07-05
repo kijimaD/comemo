@@ -7,6 +7,20 @@ Date:   Tue Feb 14 21:31:20 2012 -0800
     R=rsc, iant, iant
     CC=golang-dev
     https://golang.org/cl/5656058
-
+---
  src/pkg/syscall/exec_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+index b9ce3676e4..70f3e6217b 100644
+--- a/src/pkg/syscall/exec_linux.go
++++ b/src/pkg/syscall/exec_linux.go
+@@ -18,7 +18,7 @@ type SysProcAttr struct {
+ 	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+ 	Setctty    bool        // Set controlling terminal to fd 0
+ 	Noctty     bool        // Detach fd 0 from controlling terminal
+-	Pdeathsig  int         // Signal that the process will get when its parent dies (Linux only)
++	Pdeathsig  Signal      // Signal that the process will get when its parent dies (Linux only)
+ }
+ 
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.

@@ -9,6 +9,60 @@ Date:   Tue May 26 12:14:55 2009 -0700
     DELTA=83  (73 added, 3 deleted, 7 changed)
     OCL=29276
     CL=29382
-
+---
  src/cmd/5l/obj.c | 24 +++++++++++++++---------
  1 file changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 990c3597e1..b3cf056a3e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -30,6 +30,7 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
++#include	"compat.h"
+ #include	<ar.h>
+ 
+ #ifndef	DEFAULT
+@@ -144,6 +145,10 @@ main(int argc, char *argv[])
+ 		diag("usage: 5l [-options] objects");
+ 		errorexit();
+ 	}
++	mywhatsys();	// get goroot, goarch, goos
++	if(strcmp(goarch, thestring) != 0)
++		print("goarch is not known: %s\n", goarch);
++
+ 	if(!debug['9'] && !debug['U'] && !debug['B'])
+ 		debug[DEFAULT] = 1;
+ 	if(HEADTYPE == -1) {
+@@ -259,19 +264,20 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	if(INITENTRY == 0) {
+-		INITENTRY = "_main";
+-		if(debug['p'])
+-			INITENTRY = "_mainp";
+-		if(!debug['l'])
+-			lookup(INITENTRY, 0)->type = SXREF;
+-	} else
+-		lookup(INITENTRY, 0)->type = SXREF;
++	if(INITENTRY == nil) {
++ 		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
++		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
++	}
++	lookup(INITENTRY, 0)->type = SXREF;
+ 
+ 	while(*argv)
+ 		objfile(*argv++);
+-	if(!debug['l'])
++	if(!debug['l']) {
+ 		loadlib();
++		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
++		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
++		objfile(a);
++	}
+ 	firstp = firstp->link;
+ 	if(firstp == P)
+ 		goto out;

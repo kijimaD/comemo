@@ -7,6 +7,20 @@ Date:   Tue Dec 20 20:37:58 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5505052
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 3546c5d2be..c793956103 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -89,7 +89,7 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
+ (
+ 	cd "$GOROOT"/src/pkg/runtime
+ 	./autogen.sh
+-	make install  # copy runtime.h to pkg directory
++	gomake install  # copy runtime.h to pkg directory
+ ) || exit 1
+ 
+ if $USE_GO_TOOL; then

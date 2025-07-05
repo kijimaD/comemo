@@ -9,6 +9,22 @@ Date:   Sun Oct 8 22:00:34 2017 -0700
     Change-Id: If47ec9a25da6b480868d8eeccc518dc97d48bda7
     Reviewed-on: https://go-review.googlesource.com/69230
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  misc/cgo/testcshared/cshared_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index b81ec3b4c1..3c87850b39 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -210,7 +210,9 @@ func runExe(t *testing.T, env []string, args ...string) string {
+ 
+ func runCC(t *testing.T, args ...string) string {
+ 	t.Helper()
+-	return run(t, nil, append(cc, args...)...)
++	// This function is run in parallel, so append to a copy of cc
++	// rather than cc itself.
++	return run(t, nil, append(append([]string(nil), cc...), args...)...)
+ }
+ 
+ func createHeaders() error {

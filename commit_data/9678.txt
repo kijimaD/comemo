@@ -7,8 +7,50 @@ Date:   Wed Sep 14 11:29:18 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/4978065
-
+---
  src/cmd/gofmt/gofmt_test.go       | 1 +
  src/cmd/gofmt/testdata/old.golden | 9 +++++++++
  src/cmd/gofmt/testdata/old.input  | 8 ++++++++
  3 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 59cd56e072..87b02dad7d 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -73,6 +73,7 @@ var tests = []struct {
+ 	{"gofmt.go", ""},
+ 	{"gofmt_test.go", ""},
+ 	{"testdata/composites.input", "-s"},
++	{"testdata/old.input", ""},
+ 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+ 	{"testdata/rewrite2.input", "-r=int->bool"},
+ 	{"testdata/stdin*.input", "-stdin"},
+diff --git a/src/cmd/gofmt/testdata/old.golden b/src/cmd/gofmt/testdata/old.golden
+new file mode 100644
+index 0000000000..95a0b72a0e
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/old.golden
+@@ -0,0 +1,9 @@
++package P
++
++func f() {
++	if x {
++		y
++	} else {
++		z
++	}
++}
+diff --git a/src/cmd/gofmt/testdata/old.input b/src/cmd/gofmt/testdata/old.input
+new file mode 100644
+index 0000000000..e24eed215d
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/old.input
+@@ -0,0 +1,8 @@
++package P
++
++func f() {
++	if x {
++		y
++	} else
++		z
++}

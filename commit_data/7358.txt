@@ -7,8 +7,61 @@ Date:   Thu Feb 3 14:17:20 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4128054
-
+---
  src/cmd/gc/go.y  | 8 --------
  src/cmd/gc/lex.c | 9 +++++++++
  src/cmd/ld/go.c  | 2 --
  3 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 994840ee83..86e3cae33c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -242,14 +242,6 @@ import_package:
+ 		
+ 		if(safemode && !curio.importsafe)
+ 			yyerror("cannot import unsafe package %Z", importpkg->path);
+-
+-		// NOTE(rsc): This is no longer a technical restriction:
+-		// the 6g tool chain would work just fine without giving
+-		// special meaning to a package being named main.
+-		// Other implementations might need the restriction
+-		// (gccgo does), so it stays in the language and the compiler.
+-		if(strcmp($2->name, "main") == 0)
+-			yyerror("cannot import package main");
+ 	}
+ 
+ import_safety:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2148d7523b..e79d3b0f8f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -423,6 +423,15 @@ importfile(Val *f, int line)
+ 		errorexit();
+ 	}
+ 
++	// The package name main is no longer reserved,
++	// but we reserve the import path "main" to identify
++	// the main package, just as we reserve the import 
++	// path "math" to identify the standard math package.
++	if(strcmp(f->u.sval->s, "main") == 0) {
++		yyerror("cannot import \"main\"");
++		errorexit();
++	}
++
+ 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
+ 		if(safemode) {
+ 			yyerror("cannot import package unsafe");
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 8966b2a1fc..2c6a6d084b 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -148,8 +148,6 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 		}
+ 		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
+ 			fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
+-		else if(strcmp(pkg, "main") != 0 && strcmp(name, "main") == 0)
+-			fprint(2, "%s: %s: importing %s, found package main", argv0, filename, pkg);
+ 		loadpkgdata(filename, pkg, p0, p1 - p0);
+ 	}
+ 

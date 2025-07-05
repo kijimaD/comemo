@@ -14,6 +14,20 @@ Date:   Mon Oct 17 11:28:52 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 949924517a..5e14a87dfa 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
+-// The inlining facility makes 2 passes: first caninl determines which
++// The inlining facility makes 2 passes: first CanInline determines which
+ // functions are suitable for inlining, and for those that are it
+ // saves a copy of the body. Then InlineCalls walks each function body to
+ // expand calls to inlinable functions.

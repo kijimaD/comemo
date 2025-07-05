@@ -20,7 +20,7 @@ Date:   Tue Feb 9 16:09:30 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt              | 3 +++
  src/cmd/go/testdata/script/test_fuzz_cache.txt        | 3 +++
  src/cmd/go/testdata/script/test_fuzz_chatty.txt       | 3 +++
@@ -29,3 +29,81 @@ Date:   Tue Feb 9 16:09:30 2021 -0500
  src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 3 +++
  src/cmd/go/testdata/script/test_fuzz_mutator.txt      | 3 +++
  7 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 4a761d1fd9..eb65e0db2a 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ # Test that calling f.Error in a fuzz target causes a non-zero exit status.
+ ! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 error_fuzz_test.go
+ ! stdout ^ok
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index ad8334ae7d..b4f59271ea 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index a881d54bdc..b70bb9e49f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ [short] skip
+ 
+ # Run chatty fuzz targets with an error.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 0fc2f74e31..1da095f06c 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ [short] skip
+ 
+ # There are no seed values, so 'go test' should finish quickly.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index 6161438c2a..44ebf0bf66 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ # Matches only fuzz targets to test.
+ go test standalone_fuzz_test.go
+ ! stdout '^ok.*\[no tests to run\]'
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 2d5e1e5fd7..b45e7d77c7 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ # Tests that a crash caused by a mutator-discovered input writes the bad input
+ # to testdata, and fails+reports correctly. This tests the end-to-end behavior
+ # of the mutator finding a crash while fuzzing, adding it as a regression test
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index bc7edf3cc5..a84fc35c5c 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -1,3 +1,6 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
+ # Test basic fuzzing mutator behavior.
+ #
+ # fuzz_test.go has two fuzz targets (FuzzA, FuzzB) which both add a seed value.

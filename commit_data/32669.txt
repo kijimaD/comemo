@@ -18,6 +18,36 @@ Date:   Sat May 13 08:29:47 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/html.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index e98c5dc460..d554907beb 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -142,13 +142,13 @@ dd.ssa-prog {
+ <script type="text/javascript">
+ // ordered list of all available highlight colors
+ var highlights = [
+-    "highlight-yellow",
+     "highlight-aquamarine",
+     "highlight-coral",
+     "highlight-lightpink",
+     "highlight-lightsteelblue",
+     "highlight-palegreen",
+-    "highlight-lightgray"
++    "highlight-lightgray",
++    "highlight-yellow"
+ ];
+ 
+ // state: which value is highlighted this color?
+@@ -264,8 +264,6 @@ function toggle_visibility(id) {
+ </script>
+ 
+ </head>`)
+-	// TODO: Add javascript click handlers for blocks
+-	// to outline that block across all phases
+ 	w.WriteString("<body>")
+ 	w.WriteString("<h1>")
+ 	w.WriteString(html.EscapeString(name))

@@ -14,7 +14,7 @@ Date:   Mon Dec 6 16:38:28 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2674041
-
+---
  src/cmd/8l/asm.c                      |  1 -
  src/cmd/8l/obj.c                      |  2 +-
  src/cmd/ld/data.c                     |  4 ++++
@@ -23,3 +23,159 @@ Date:   Mon Dec 6 16:38:28 2010 -0500
  src/pkg/runtime/plan9/runtime_defs.go | 23 +++++++++++++++++++++++
  src/pkg/runtime/plan9/thread.c        | 16 ++++++++--------
  7 files changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index fd2984955e..3900dd2a1f 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -386,7 +386,6 @@ asmb(void)
+ 			break;
+ 		case 2:
+ 			seek(cout, HEADR+segtext.filelen+segdata.filelen, 0);
+-			symo = HEADR+segtext.filelen+segdata.filelen;
+ 			break;
+ 		case 3:
+ 		case 4:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 73a01311f5..1c3407206d 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -192,7 +192,7 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+-			INITRND = 4096;
++			INITRND = 1;
+ 		break;
+ 	case 3:	/* MS-DOS .COM */
+ 		HEADR = 0;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index ddcbcaa849..f2081178c0 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -739,6 +739,10 @@ address(void)
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+ 	if(thechar == '8' && HEADTYPE == 10)	// Windows PE
+ 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
++	if(thechar == '8' && HEADTYPE == 2) {	// Plan 9		
++		segdata.vaddr = va = rnd(va, 4096);
++		segdata.fileoff = segtext.fileoff + segtext.filelen;
++	}
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
+diff --git a/src/pkg/runtime/plan9/386/signal.c b/src/pkg/runtime/plan9/386/signal.c
+index 95fb2ca225..6bde098466 100644
+--- a/src/pkg/runtime/plan9/386/signal.c
++++ b/src/pkg/runtime/plan9/386/signal.c
+@@ -8,3 +8,9 @@ void
+ runtime·gettime(int64*, int32*) 
+ {
+ }
++
++String
++runtime·signame(int32)
++{
++	return runtime·emptystring;
++}
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/plan9/mem.c
+index 7e36f9534c..651e6728ed 100644
+--- a/src/pkg/runtime/plan9/mem.c
++++ b/src/pkg/runtime/plan9/mem.c
+@@ -20,7 +20,7 @@ runtime·SysAlloc(uintptr ask)
+ 	
+ 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
+ 	bl = ((uintptr)bloc + Round) & ~Round;
+-	if(brk_((void*)(bl + ask)) < 0)
++	if(runtime·brk_((void*)(bl + ask)) < 0)
+ 		return (void*)-1;
+ 	bloc = (byte*)bl + ask;
+ 	return (void*)bl;
+diff --git a/src/pkg/runtime/plan9/runtime_defs.go b/src/pkg/runtime/plan9/runtime_defs.go
+new file mode 100644
+index 0000000000..cf0b414a95
+--- /dev/null
++++ b/src/pkg/runtime/plan9/runtime_defs.go
+@@ -0,0 +1,23 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type usema struct {
++	u uint32
++	k uint32
++}
++
++
++type note struct {
++	wakeup int32
++	sema   usema
++}
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index 81e3bffbbe..f1bd1ffbe2 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -36,10 +36,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
+-			stk, m, g, fn, rfork, m->id, m->tls[0], &m);
++			stk, m, g, fn, runtime·rfork, m->id, m->tls[0], &m);
+ 	}        
+ 	
+-	if (rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
++	if (runtime·rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
+ 		runtime·throw("newosproc: rfork failed");
+ }
+ 
+@@ -63,10 +63,10 @@ runtime·lock(Lock *l)
+ 		runtime·throw("lock count");
+ 	m->locks++;
+ 	
+-	if(xadd(&l->key, 1) == 1)
++	if(runtime·xadd(&l->key, 1) == 1)
+ 		return; // changed from 0 -> 1; we hold lock
+ 	// otherwise wait in kernel
+-	while(plan9_semacquire(&l->sema, 1) < 0) {
++	while(runtime·plan9_semacquire(&l->sema, 1) < 0) {
+ 		/* interrupted; try again */
+ 	}
+ }
+@@ -78,7 +78,7 @@ runtime·unlock(Lock *l)
+ 	if(m->locks < 0)
+ 		runtime·throw("lock count");
+ 
+-	if(xadd(&l->key, -1) == 0)
++	if(runtime·xadd(&l->key, -1) == 0)
+ 		return; // changed from 1 -> 0: no contention
+ 	
+ 	runtime·plan9_semrelease(&l->sema, 1);
+@@ -98,8 +98,8 @@ runtime·destroylock(Lock *l)
+ void
+ runtime·usemacquire(Usema *s)
+ {
+-	if((int32)xadd(&s->u, -1) < 0)
+-		while(plan9_semacquire(&s->k, 1) < 0) {
++	if((int32)runtime·xadd(&s->u, -1) < 0)
++		while(runtime·plan9_semacquire(&s->k, 1) < 0) {
+ 			/* interrupted; try again */
+ 		}
+ }
+@@ -107,7 +107,7 @@ runtime·usemacquire(Usema *s)
+ void
+ runtime·usemrelease(Usema *s)
+ {
+-	if((int32)xadd(&s->u, 1) <= 0)
++	if((int32)runtime·xadd(&s->u, 1) <= 0)
+ 		runtime·plan9_semrelease(&s->k, 1);
+ }
+ 

@@ -50,6 +50,27 @@ Date:   Mon Aug 7 00:53:33 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/internal/bytealg/count_amd64.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/bytealg/count_amd64.s b/src/internal/bytealg/count_amd64.s
+index efb17f84b7..807c289113 100644
+--- a/src/internal/bytealg/count_amd64.s
++++ b/src/internal/bytealg/count_amd64.s
+@@ -57,6 +57,7 @@ sse:
+ 	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
+ 	JMP	sseloopentry
+ 
++	PCALIGN $16
+ sseloop:
+ 	// Move the next 16-byte chunk of the data into X1.
+ 	MOVOU	(DI), X1
+@@ -163,6 +164,7 @@ avx2:
+ 	MOVD AX, X0
+ 	LEAQ -32(SI)(BX*1), R11
+ 	VPBROADCASTB  X0, Y1
++	PCALIGN $32
+ avx2_loop:
+ 	VMOVDQU (DI), Y2
+ 	VPCMPEQB Y1, Y2, Y3

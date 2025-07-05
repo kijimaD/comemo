@@ -12,7 +12,84 @@ Date:   Tue Aug 23 22:50:08 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4942051
-
+---
  src/pkg/reflect/all_test.go | 25 +++++++++++++++++++++++++
  src/pkg/reflect/value.go    | 25 +++++++++++++++++++++++++
  2 files changed, 50 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index d63e986fde..610ba4b667 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1562,3 +1562,28 @@ func TestTagGet(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestBytes(t *testing.T) {
++	type B []byte
++	x := B{1, 2, 3, 4}
++	y := ValueOf(x).Bytes()
++	if !bytes.Equal(x, y) {
++		t.Fatalf("ValueOf(%v).Bytes() = %v", x, y)
++	}
++	if &x[0] != &y[0] {
++		t.Errorf("ValueOf(%p).Bytes() = %p", &x[0], &y[0])
++	}
++}
++
++func TestSetBytes(t *testing.T) {
++	type B []byte
++	var x B
++	y := []byte{1, 2, 3, 4}
++	ValueOf(&x).Elem().SetBytes(y)
++	if !bytes.Equal(x, y) {
++		t.Fatalf("ValueOf(%v).Bytes() = %v", x, y)
++	}
++	if &x[0] != &y[0] {
++		t.Errorf("ValueOf(%p).Bytes() = %p", &x[0], &y[0])
++	}
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index d3c510ac2d..99b1f24eaf 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -398,6 +398,18 @@ func (v Value) Bool() bool {
+ 	return *(*bool)(unsafe.Pointer(&iv.word))
+ }
+ 
++// Bytes returns v's underlying value.
++// It panics if v's underlying value is not a slice of bytes.
++func (v Value) Bytes() []byte {
++	iv := v.internal()
++	iv.mustBe(Slice)
++	typ := iv.typ.toType()
++	if typ.Elem().Kind() != Uint8 {
++		panic("reflect.Value.Bytes of non-byte slice")
++	}
++	return *(*[]byte)(iv.addr)
++}
++
+ // CanAddr returns true if the value's address can be obtained with Addr.
+ // Such values are called addressable.  A value is addressable if it is
+ // an element of a slice, an element of an addressable array,
+@@ -1224,6 +1236,19 @@ func (v Value) SetBool(x bool) {
+ 	*(*bool)(iv.addr) = x
+ }
+ 
++// SetBytes sets v's underlying value.
++// It panics if v's underlying value is not a slice of bytes.
++func (v Value) SetBytes(x []byte) {
++	iv := v.internal()
++	iv.mustBeAssignable()
++	iv.mustBe(Slice)
++	typ := iv.typ.toType()
++	if typ.Elem().Kind() != Uint8 {
++		panic("reflect.Value.SetBytes of non-byte slice")
++	}
++	*(*[]byte)(iv.addr) = x
++}
++
+ // SetComplex sets v's underlying value to x.
+ // It panics if v's Kind is not Complex64 or Complex128, or if CanSet() is false.
+ func (v Value) SetComplex(x complex128) {

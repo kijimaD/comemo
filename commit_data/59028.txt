@@ -15,6 +15,27 @@ Date:   Mon Oct 23 14:32:44 2023 -0700
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go/internal/gccgoimporter/parser.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index a7d2094e0c..e8ee74783b 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -902,6 +902,7 @@ const (
+ 	gccgoBuiltinERROR      = 19
+ 	gccgoBuiltinBYTE       = 20
+ 	gccgoBuiltinRUNE       = 21
++	gccgoBuiltinANY        = 22
+ )
+ 
+ func lookupBuiltinType(typ int) types.Type {
+@@ -926,6 +927,7 @@ func lookupBuiltinType(typ int) types.Type {
+ 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
+ 		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
+ 		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
++		gccgoBuiltinANY:        types.Universe.Lookup("any").Type(),
+ 	}[typ]
+ }
+ 

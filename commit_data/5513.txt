@@ -7,7 +7,7 @@ Date:   Fri May 21 17:30:40 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/684041
-
+---
  src/pkg/net/Makefile      |   1 +
  src/pkg/net/ipraw_test.go | 117 ++++++++++++++++
  src/pkg/net/iprawsock.go  | 351 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -17,3 +17,667 @@ Date:   Fri May 21 17:30:40 2010 -0700
  src/pkg/net/tcpsock.go    |   4 +-
  src/pkg/net/udpsock.go    |   4 +-
  8 files changed, 519 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 95360539b6..b018d05af3 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -14,6 +14,7 @@ GOFILES=\
+ 	hosts.go\
+ 	ip.go\
+ 	ipsock.go\
++	iprawsock.go\
+ 	net.go\
+ 	parse.go\
+ 	pipe.go\
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+new file mode 100644
+index 0000000000..6d9fb965ab
+--- /dev/null
++++ b/src/pkg/net/ipraw_test.go
+@@ -0,0 +1,117 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++// TODO(cw): ListenPacket test, Read() test, ipv6 test &
++// Dial()/Listen() level tests
++
++package net
++
++import (
++	"bytes"
++	"flag"
++	"os"
++	"testing"
++)
++
++const ICMP_ECHO_REQUEST = 8
++const ICMP_ECHO_REPLY = 0
++
++// returns a suitable 'ping request' packet, with id & seq and a
++// payload length of pktlen
++func makePingRequest(id, seq, pktlen int, filler []byte) []byte {
++	p := make([]byte, pktlen)
++	copy(p[8:], bytes.Repeat(filler, (pktlen-8)/len(filler)+1))
++
++	p[0] = ICMP_ECHO_REQUEST // type
++	p[1] = 0                 // code
++	p[2] = 0                 // cksum
++	p[3] = 0                 // cksum
++	p[4] = uint8(id >> 8)    // id
++	p[5] = uint8(id & 0xff)  // id
++	p[6] = uint8(seq >> 8)   // sequence
++	p[7] = uint8(seq & 0xff) // sequence
++
++	// calculate icmp checksum
++	cklen := len(p)
++	s := uint32(0)
++	for i := 0; i < (cklen - 1); i += 2 {
++		s += uint32(p[i+1])<<8 | uint32(p[i])
++	}
++	if cklen&1 == 1 {
++		s += uint32(p[cklen-1])
++	}
++	s = (s >> 16) + (s & 0xffff)
++	s = s + (s >> 16)
++
++	// place checksum back in header; using ^= avoids the
++	// assumption the checksum bytes are zero
++	p[2] ^= uint8(^s & 0xff)
++	p[3] ^= uint8(^s >> 8)
++
++	return p
++}
++
++func parsePingReply(p []byte) (id, seq int) {
++	id = int(p[4])<<8 | int(p[5])
++	seq = int(p[6])<<8 | int(p[7])
++	return
++}
++
++var srchost = flag.String("srchost", "", "Source of the ICMP ECHO request")
++var dsthost = flag.String("dsthost", "localhost", "Destination for the ICMP ECHO request")
++
++// test (raw) IP socket using ICMP
++func TestICMP(t *testing.T) {
++	if os.Getuid() != 0 {
++		t.Logf("test disabled; must be root")
++		return
++	}
++
++	var laddr *IPAddr
++	if *srchost != "" {
++		laddr, err := ResolveIPAddr(*srchost)
++		if err != nil {
++			t.Fatalf(`net.ResolveIPAddr("%v") = %v, %v`, *srchost, laddr, err)
++		}
++	}
++
++	raddr, err := ResolveIPAddr(*dsthost)
++	if err != nil {
++		t.Fatalf(`net.ResolveIPAddr("%v") = %v, %v`, *dsthost, raddr, err)
++	}
++
++	c, err := ListenIP("ip4:icmp", laddr)
++	if err != nil {
++		t.Fatalf(`net.ListenIP("ip4:icmp", %v) = %v, %v`, *srchost, c, err)
++	}
++
++	sendid := os.Getpid()
++	const sendseq = 61455
++	const pingpktlen = 128
++	sendpkt := makePingRequest(sendid, sendseq, pingpktlen, []byte("Go Go Gadget Ping!!!"))
++
++	n, err := c.WriteToIP(sendpkt, raddr)
++	if err != nil || n != pingpktlen {
++		t.Fatalf(`net.WriteToIP(..., %v) = %v, %v`, raddr, n, err)
++	}
++
++	c.SetTimeout(100e6)
++	resp := make([]byte, 1024)
++	for {
++		n, from, err := c.ReadFrom(resp)
++		if err != nil {
++			t.Fatalf(`ReadFrom(...) = %v, %v, %v`, n, from, err)
++		}
++		if resp[0] != ICMP_ECHO_REPLY {
++			continue
++		}
++		rcvid, rcvseq := parsePingReply(resp)
++		if rcvid != sendid || rcvseq != sendseq {
++			t.Fatal(`Ping reply saw id,seq=%v,%v (expected %v, %v)`, rcvid, rcvseq, sendid, sendseq)
++		}
++		return
++	}
++	t.Fatalf("saw no ping return")
++}
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+new file mode 100644
+index 0000000000..e7eee1a4bf
+--- /dev/null
++++ b/src/pkg/net/iprawsock.go
+@@ -0,0 +1,351 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// (Raw) IP sockets
++
++package net
++
++import (
++	"once"
++	"os"
++	"syscall"
++)
++
++func sockaddrToIP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &IPAddr{&sa.Addr}
++	case *syscall.SockaddrInet6:
++		return &IPAddr{&sa.Addr}
++	}
++	return nil
++}
++
++// IPAddr represents the address of a IP end point.
++type IPAddr struct {
++	IP IP
++}
++
++// Network returns the address's network name, "ip".
++func (a *IPAddr) Network() string { return "ip" }
++
++func (a *IPAddr) String() string { return a.IP.String() }
++
++func (a *IPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET
++	}
++	if ip := a.IP.To4(); ip != nil {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
++}
++
++func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, 0)
++}
++
++func (a *IPAddr) toAddr() sockaddr {
++	if a == nil { // nil *IPAddr
++		return nil // nil interface
++	}
++	return a
++}
++
++// ResolveIPAddr parses addr as a IP address and resolves domain
++// names to numeric addresses.  A literal IPv6 host address must be
++// enclosed in square brackets, as in "[::]".
++func ResolveIPAddr(addr string) (*IPAddr, os.Error) {
++	ip, err := hostToIP(addr)
++	if err != nil {
++		return nil, err
++	}
++	return &IPAddr{ip}, nil
++}
++
++// IPConn is the implementation of the Conn and PacketConn
++// interfaces for IP network connections.
++type IPConn struct {
++	fd *netFD
++}
++
++func newIPConn(fd *netFD) *IPConn { return &IPConn{fd} }
++
++func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *IPConn) Read(b []byte) (n int, err os.Error) {
++	n, _, err = c.ReadFrom(b)
++	return
++}
++
++// Write implements the net.Conn Write method.
++func (c *IPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the IP connection.
++func (c *IPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close()
++	c.fd = nil
++	return err
++}
++
++// LocalAddr returns the local network address.
++func (c *IPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *IPAddr.
++func (c *IPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *IPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec)
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec)
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *IPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *IPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// IP-specific methods.
++
++// ReadFromIP reads a IP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromIP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetTimeout and
++// SetReadTimeout.
++func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	// TODO(cw,rsc): consider using readv if we know the family
++	// type to avoid the header trim/copy
++	n, sa, err := c.fd.ReadFrom(b)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		addr = &IPAddr{&sa.Addr}
++		if len(b) >= 4 { // discard ipv4 header
++			hsize := (int(b[0]) & 0xf) * 4
++			copy(b, b[hsize:])
++			n -= hsize
++		}
++	case *syscall.SockaddrInet6:
++		addr = &IPAddr{&sa.Addr}
++	}
++	return
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromIP(b)
++	return n, uaddr.toAddr(), err
++}
++
++// WriteToIP writes a IP packet to addr via c, copying the payload from b.
++//
++// WriteToIP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	sa, err1 := addr.sockaddr(c.fd.family)
++	if err1 != nil {
++		return 0, &OpError{Op: "write", Net: "ip", Addr: addr, Error: err1}
++	}
++	return c.fd.WriteTo(b, sa)
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*IPAddr)
++	if !ok {
++		return 0, &OpError{"writeto", "ip", addr, os.EINVAL}
++	}
++	return c.WriteToIP(b, a)
++}
++
++// Convert "host" into IP address.
++func hostToIP(host string) (ip IP, err os.Error) {
++	var addr IP
++	// Try as an IP address.
++	addr = ParseIP(host)
++	if addr == nil {
++		// Not an IP address.  Try as a DNS name.
++		_, addrs, err1 := LookupHost(host)
++		if err1 != nil {
++			err = err1
++			goto Error
++		}
++		addr = ParseIP(addrs[0])
++		if addr == nil {
++			// should not happen
++			err = &AddrError{"LookupHost returned invalid address", addrs[0]}
++			goto Error
++		}
++	}
++
++	return addr, nil
++
++Error:
++	return nil, err
++}
++
++
++var protocols map[string]int
++
++func readProtocols() {
++	protocols = make(map[string]int)
++	if file, err := open("/etc/protocols"); err == nil {
++		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++			// tcp    6   TCP    # transmission control protocol
++			if i := byteIndex(line, '#'); i >= 0 {
++				line = line[0:i]
++			}
++			f := getFields(line)
++			if len(f) < 2 {
++				continue
++			}
++			if proto, _, ok := dtoi(f[1], 0); ok {
++				protocols[f[0]] = proto
++				for _, alias := range f[2:] {
++					protocols[alias] = proto
++				}
++			}
++		}
++		file.close()
++	}
++}
++
++func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
++	once.Do(readProtocols)
++	i := last(netProto, ':')
++	if i+1 >= len(netProto) { // no colon
++		return "", 0, os.ErrorString("no IP protocol specified")
++	}
++	net = netProto[0:i]
++	protostr := netProto[i+1:]
++	proto, i, ok := dtoi(protostr, 0)
++	if !ok || i != len(protostr) {
++		// lookup by name
++		proto, ok = protocols[protostr]
++		if ok {
++			return
++		}
++	}
++	return
++}
++
++// DialIP connects to the remote address raddr on the network net,
++// which must be "ip", "ip4", or "ip6".
++func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
++	net, proto, err := netProtoSplit(netProto)
++	if err != nil {
++		return
++	}
++	switch prefixBefore(net, ':') {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "ip", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	if e != nil {
++		return nil, e
++	}
++	return newIPConn(fd), nil
++}
++
++// ListenIP listens for incoming IP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send IP
++// packets with per-packet addressing.
++func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
++	net, proto, err := netProtoSplit(netProto)
++	if err != nil {
++		return
++	}
++	switch prefixBefore(net, ':') {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	if e != nil {
++		return nil, e
++	}
++	return newIPConn(fd), nil
++}
++
++// BindToDevice binds an IPConn to a network interface.
++func (c *IPConn) BindToDevice(device string) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	c.fd.incref()
++	defer c.fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
++}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 3453aaab16..e4b442e73c 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -46,7 +46,7 @@ type sockaddr interface {
+ 	family() int
+ }
+ 
+-func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
++func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+ 	// Figure out IP version.
+ 	// If network has a suffix like "tcp4", obey it.
+ 	var oserr os.Error
+@@ -77,7 +77,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
+ 			goto Error
+ 		}
+ 	}
+-	fd, oserr = socket(net, family, proto, 0, la, ra, toAddr)
++	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
+ 	if oserr != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 3f0b834c24..ba54412e94 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -8,7 +8,6 @@
+ package net
+ 
+ // TODO(rsc):
+-//	support for raw IP sockets
+ //	support for raw ethernet sockets
+ 
+ import "os"
+@@ -125,7 +124,8 @@ type Listener interface {
+ // for the connection.
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+-// "udp", "udp4" (IPv4-only), and "udp6" (IPv6-only).
++// "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
++// (IPv4-only) and "ip6" IPv6-only).
+ //
+ // For IP networks, addresses have the form host:port.  If host is
+ // a literal IPv6 address, it must be enclosed in square brackets.
+@@ -137,7 +137,7 @@ type Listener interface {
+ //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
+ //
+ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+-	switch net {
++	switch prefixBefore(net, ':') {
+ 	case "tcp", "tcp4", "tcp6":
+ 		var la, ra *TCPAddr
+ 		if laddr != "" {
+@@ -189,6 +189,24 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 			return nil, err
+ 		}
+ 		return c, nil
++	case "ip", "ip4", "ip6":
++		var la, ra *IPAddr
++		if laddr != "" {
++			if la, err = ResolveIPAddr(laddr); err != nil {
++				goto Error
++			}
++		}
++		if raddr != "" {
++			if ra, err = ResolveIPAddr(raddr); err != nil {
++				goto Error
++			}
++		}
++		c, err := DialIP(net, la, ra)
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
++
+ 	}
+ 	err = UnknownNetworkError(net)
+ Error:
+@@ -232,7 +250,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
+ // The network string net must be a packet-oriented network:
+ // "udp", "udp4", "udp6", or "unixgram".
+ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+-	switch net {
++	switch prefixBefore(net, ':') {
+ 	case "udp", "udp4", "udp6":
+ 		var la *UDPAddr
+ 		if laddr != "" {
+@@ -257,6 +275,18 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+ 			return nil, err
+ 		}
+ 		return c, nil
++	case "ip", "ip4", "ip6":
++		var la *IPAddr
++		if laddr != "" {
++			if la, err = ResolveIPAddr(laddr); err != nil {
++				return nil, err
++			}
++		}
++		c, err := ListenIP(net, la)
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
+ 	}
+ 	return nil, UnknownNetworkError(net)
+ }
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 2bc0db4655..605f3110b7 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -192,6 +192,16 @@ func count(s string, b byte) int {
+ 	return n
+ }
+ 
++// Returns the prefix of s up to but not including the character c
++func prefixBefore(s string, c byte) string {
++	for i, v := range s {
++		if v == int(c) {
++			return s[0:i]
++		}
++	}
++	return s
++}
++
+ // Index of rightmost occurrence of b in s.
+ func last(s string, b byte) int {
+ 	i := len(s)
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 5b09f2d8c0..2221922325 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -198,7 +198,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, "dial", sockaddrToTCP)
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+ 	if e != nil {
+ 		return nil, e
+ 	}
+@@ -217,7 +217,7 @@ type TCPListener struct {
+ // If laddr has a port of 0, it means to listen on some available port.
+ // The caller can use l.Addr() to retrieve the chosen address.
+ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, "listen", sockaddrToTCP)
++	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index f38f52f272..6de69a9c9b 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -233,7 +233,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, "dial", sockaddrToUDP)
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+ 	if e != nil {
+ 		return nil, e
+ 	}
+@@ -253,7 +253,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, "dial", sockaddrToUDP)
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+ 	if e != nil {
+ 		return nil, e
+ 	}

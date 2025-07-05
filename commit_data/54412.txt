@@ -14,7 +14,33 @@ Date:   Fri Oct 14 09:13:38 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/elf/elf.go      | 2 +-
  src/debug/elf/elf_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 77d7b0988c..02cda16510 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -735,7 +735,7 @@ const (
+ )
+ 
+ var compressionStrings = []intName{
+-	{0, "COMPRESS_ZLIB"},
++	{1, "COMPRESS_ZLIB"},
+ 	{0x60000000, "COMPRESS_LOOS"},
+ 	{0x6fffffff, "COMPRESS_HIOS"},
+ 	{0x70000000, "COMPRESS_LOPROC"},
+diff --git a/src/debug/elf/elf_test.go b/src/debug/elf/elf_test.go
+index a61b491090..814c6bd6cc 100644
+--- a/src/debug/elf/elf_test.go
++++ b/src/debug/elf/elf_test.go
+@@ -37,6 +37,7 @@ var nameTests = []nameTest{
+ 	{R_SPARC_GOT22, "R_SPARC_GOT22"},
+ 	{ET_LOOS + 5, "ET_LOOS+5"},
+ 	{ProgFlag(0x50), "0x50"},
++	{COMPRESS_ZLIB + 1, "COMPRESS_ZLIB+1"},
+ }
+ 
+ func TestNames(t *testing.T) {

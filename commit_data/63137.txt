@@ -17,6 +17,20 @@ Date:   Wed May 21 10:58:32 2025 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/link_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index f26495a2b1..c3614c73f0 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -195,7 +195,7 @@ func TestIssue33979(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	// N.B. go build below explictly doesn't pass through
+ 	// -asan/-msan/-race, so we don't care about those.
+-	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
++	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
+ 
+ 	t.Parallel()
+ 

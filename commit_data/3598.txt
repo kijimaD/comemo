@@ -11,10 +11,237 @@ Date:   Mon Oct 19 22:47:25 2009 -0700
     DELTA=67  (3 added, 54 deleted, 10 changed)
     OCL=35910
     CL=35910
-
+---
  src/cmd/5g/cgen.c   | 26 ++++++++------------------
  src/cmd/5g/cgen64.c |  8 ++------
  src/cmd/5g/gg.h     |  2 --
  src/cmd/5g/gsubr.c  | 36 ------------------------------------
  test/arm-pass.txt   |  5 +++--
  5 files changed, 13 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index a05dcf621c..bba552f333 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -18,7 +18,7 @@ mgen(Node *n, Node *n1, Node *rg)
+ 		return;
+ 	}
+ 	if(n->type->width > widthptr)
+-		tempalloc(n1, n->type);
++		tempname(n1, n->type);
+ 	else
+ 		regalloc(n1, n->type, rg);
+ 	cgen(n, n1);
+@@ -27,9 +27,7 @@ mgen(Node *n, Node *n1, Node *rg)
+ void
+ mfree(Node *n)
+ {
+-	if(n->ostk)
+-		tempfree(n);
+-	else if(n->op == OREGISTER)
++	if(n->op == OREGISTER)
+ 		regfree(n);
+ }
+ 
+@@ -482,30 +480,27 @@ agen(Node *n, Node *res)
+ 		if(nr->addable) {
+ 			agenr(nl, &n3, res);
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, types[TINT32]);
++				tempname(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+-				tempfree(&tmp);
+ 			}
+ 		} else if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, types[TINT32]);
++				tempname(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+-				tempfree(&tmp);
+ 			}
+ 			regalloc(&n3, types[tptr], res);
+ 			agen(nl, &n3);
+ 		} else {
+-			tempalloc(&tmp, types[TINT32]);
++			tempname(&tmp, types[TINT32]);
+ 			cgen(nr, &tmp);
+ 			nr = &tmp;
+ 			agenr(nl, &n3, res);
+ 			regalloc(&n1, tmp.type, N);
+ 			gins(optoas(OAS, tmp.type), &tmp, &n1);
+-			tempfree(&tmp);
+ 		}
+ 
+ 		// &a is in &n3 (allocated in res)
+@@ -722,11 +717,10 @@ agenr(Node *n, Node *a, Node *res)
+ {
+ 	Node n1;
+ 
+-	tempalloc(&n1, types[tptr]);
++	tempname(&n1, types[tptr]);
+ 	agen(n, &n1);
+ 	regalloc(a, types[tptr], res);
+ 	gmove(&n1, a);
+-	tempfree(&n1);
+ }
+ 
+ /*
+@@ -922,20 +916,16 @@ bgen(Node *n, int true, Prog *to)
+ 
+ 		if(is64(nr->type)) {
+ 			if(!nl->addable) {
+-				tempalloc(&n1, nl->type);
++				tempname(&n1, nl->type);
+ 				cgen(nl, &n1);
+ 				nl = &n1;
+ 			}
+ 			if(!nr->addable) {
+-				tempalloc(&n2, nr->type);
++				tempname(&n2, nr->type);
+ 				cgen(nr, &n2);
+ 				nr = &n2;
+ 			}
+ 			cmp64(nl, nr, a, to);
+-			if(nr == &n2)
+-				tempfree(&n2);
+-			if(nl == &n1)
+-				tempfree(&n1);
+ 			break;
+ 		}
+ 
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 02ffe32761..a22f4a548c 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -27,7 +27,7 @@ cgen64(Node *n, Node *res)
+ 
+ 	l = n->left;
+ 	if(!l->addable) {
+-		tempalloc(&t1, l->type);
++		tempname(&t1, l->type);
+ 		cgen(l, &t1);
+ 		l = &t1;
+ 	}
+@@ -96,7 +96,7 @@ cgen64(Node *n, Node *res)
+ 	// setup for binary operators
+ 	r = n->right;
+ 	if(r != N && !r->addable) {
+-		tempalloc(&t2, r->type);
++		tempname(&t2, r->type);
+ 		cgen(r, &t2);
+ 		r = &t2;
+ 	}
+@@ -622,10 +622,6 @@ orsh_break:
+ 	splitclean();
+ 
+ //out:
+-	if(r == &t2)
+-		tempfree(&t2);
+-	if(l == &t1)
+-		tempfree(&t1);
+ 	regfree(&al);
+ 	regfree(&ah);
+ }
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 867c34139c..56bb0c5570 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -128,8 +128,6 @@ void	ginit(void);
+ void	gclean(void);
+ void	regalloc(Node*, Type*, Node*);
+ void	regfree(Node*);
+-void	tempalloc(Node*, Type*);
+-void	tempfree(Node*);
+ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ceb97cc651..44c7e26702 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -294,42 +294,6 @@ regfree(Node *n)
+ 	reg[i]--;
+ }
+ 
+-void
+-tempalloc(Node *n, Type *t)
+-{
+-	int w;
+-
+-	dowidth(t);
+-
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
+-	n->sym = S;
+-	n->type = t;
+-	n->etype = t->etype;
+-	n->class = PAUTO;
+-	n->addable = 1;
+-	n->ullman = 1;
+-	n->noescape = 1;
+-	n->ostk = stksize;
+-
+-	w = t->width;
+-	stksize += w;
+-	stksize = rnd(stksize, w);
+-	n->xoffset = -stksize;
+-//print("tempalloc %d -> %d from %p\n", n->ostk, n->xoffset, __builtin_return_address(0));
+-	if(stksize > maxstksize)
+-		maxstksize = stksize;
+-}
+-
+-void
+-tempfree(Node *n)
+-{
+-//print("tempfree %d\n", n->xoffset);
+-	if(n->xoffset != -stksize)
+-		fatal("tempfree %lld %d", -n->xoffset, stksize);
+-	stksize = n->ostk;
+-}
+-
+ /*
+  * initialize n to be register r of type t.
+  */
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index fabe039ce8..b1746c9972 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -4,10 +4,8 @@ assign.go
+ bigalg.go
+ blank.go
+ blank1.go
+-bugs/bug136.go
+ bugs/bug162.go
+ bugs/bug193.go
+-bugs/bug196.go
+ chan/perm.go
+ chan/select.go
+ char_lit.go
+@@ -146,6 +144,7 @@ fixedbugs/bug131.go
+ fixedbugs/bug132.go
+ fixedbugs/bug133.go
+ fixedbugs/bug135.go
++fixedbugs/bug136.go
+ fixedbugs/bug137.go
+ fixedbugs/bug139.go
+ fixedbugs/bug140.go
+@@ -200,6 +199,7 @@ fixedbugs/bug191.go
+ fixedbugs/bug192.go
+ fixedbugs/bug194.go
+ fixedbugs/bug195.go
++fixedbugs/bug196.go
+ fixedbugs/bug197.go
+ fixedbugs/bug198.go
+ fixedbugs/bug199.go
+@@ -278,6 +278,7 @@ ken/slicearray.go
+ ken/sliceslice.go
+ ken/string.go
+ ken/strvar.go
++literal.go
+ method.go
+ method1.go
+ method2.go

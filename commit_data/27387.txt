@@ -12,6 +12,44 @@ Date:   Thu Mar 24 01:55:42 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/21046
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/slice.go | 21 +++++++++------------
  1 file changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 5e88ed9453..d35ecadb16 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -62,23 +62,20 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 	}
+ 
+ 	newcap := old.cap
+-	if newcap+newcap < cap {
++	doublecap := newcap + newcap
++	if cap > doublecap {
+ 		newcap = cap
+ 	} else {
+-		for {
+-			if old.len < 1024 {
+-				newcap += newcap
+-			} else {
++		if old.len < 1024 {
++			newcap = doublecap
++		} else {
++			for newcap < cap {
+ 				newcap += newcap / 4
+ 			}
+-			if newcap >= cap {
+-				break
+-			}
+ 		}
+-	}
+-
+-	if uintptr(newcap) >= maxcap {
+-		panic(errorString("growslice: cap out of range"))
++		if uintptr(newcap) > maxcap {
++			panic(errorString("growslice: cap out of range"))
++		}
+ 	}
+ 
+ 	lenmem := uintptr(old.len) * et.size

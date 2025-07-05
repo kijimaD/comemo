@@ -7,6 +7,28 @@ Date:   Thu Mar 17 14:08:32 2016 -0400
     Change-Id: I85c0bcf02842cc32dbc9bfdcea27efe871173574
     Reviewed-on: https://go-review.googlesource.com/20774
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime2.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 89774791eb..a54dc552c1 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -210,6 +210,16 @@ type gobuf struct {
+ 	bp   uintptr // for GOEXPERIMENT=framepointer
+ }
+ 
++// sudog represents a g in a wait list, such as for sending/receiving
++// on a channel.
++//
++// sudog is necessary because the g ↔ synchronization object relation
++// is many-to-many. A g can be on many wait lists, so there may be
++// many sudogs for one g; and many gs may be waiting on the same
++// synchronization object, so there may be many sudogs for one object.
++//
++// sudogs are allocated from a special pool. Use acquireSudog and
++// releaseSudog to allocate and free them.
+ type sudog struct {
+ 	// The following fields are protected by the hchan.lock of the
+ 	// channel this sudog is blocking on. shrinkstack depends on

@@ -7,6 +7,21 @@ Date:   Mon Dec 24 03:48:17 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7000045
-
+---
  doc/articles/wiki/test.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 8bd8580f02..02ed1894a5 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -20,7 +20,8 @@ wiki_pid=$!
+ 
+ ./get.bin --wait_for_port=5s http://$addr/edit/Test > test_edit.out
+ diff -u test_edit.out test_edit.good
+-./get.bin -post=body=some%20content http://$addr/save/Test
++./get.bin -post=body=some%20content http://$addr/save/Test > test_save.out
++diff -u test_save.out test_view.good # should be the same as viewing
+ diff -u Test.txt test_Test.txt.good
+ ./get.bin http://$addr/view/Test > test_view.out
+ diff -u test_view.out test_view.good

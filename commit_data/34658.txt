@@ -35,7 +35,7 @@ Date:   Mon Aug 28 12:07:58 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/74970
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/reader.go                 | 145 ++++++++++++++-----
  src/archive/zip/reader_test.go            | 225 ++++++++++++++++++++++--------
  src/archive/zip/struct.go                 |  78 +++++++++--
@@ -50,3 +50,895 @@ Date:   Mon Aug 28 12:07:58 2017 -0700
  src/archive/zip/writer_test.go            |  26 ++++
  src/archive/zip/zip_test.go               |   4 +-
  13 files changed, 403 insertions(+), 120 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 615ae2fdcd..ae01786386 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -13,6 +13,7 @@ import (
+ 	"hash/crc32"
+ 	"io"
+ 	"os"
++	"time"
+ )
+ 
+ var (
+@@ -284,48 +285,106 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	needCSize := f.CompressedSize == ^uint32(0)
+ 	needHeaderOffset := f.headerOffset == int64(^uint32(0))
+ 
+-	if len(f.Extra) > 0 {
+-		// Best effort to find what we need.
+-		// Other zip authors might not even follow the basic format,
+-		// and we'll just ignore the Extra content in that case.
+-		b := readBuf(f.Extra)
+-		for len(b) >= 4 { // need at least tag and size
+-			tag := b.uint16()
+-			size := b.uint16()
+-			if int(size) > len(b) {
+-				break
++	// Best effort to find what we need.
++	// Other zip authors might not even follow the basic format,
++	// and we'll just ignore the Extra content in that case.
++	var modified time.Time
++parseExtras:
++	for extra := readBuf(f.Extra); len(extra) >= 4; { // need at least tag and size
++		fieldTag := extra.uint16()
++		fieldSize := int(extra.uint16())
++		if len(extra) < fieldSize {
++			break
++		}
++		fieldBuf := extra.sub(fieldSize)
++
++		switch fieldTag {
++		case zip64ExtraID:
++			// update directory values from the zip64 extra block.
++			// They should only be consulted if the sizes read earlier
++			// are maxed out.
++			// See golang.org/issue/13367.
++			if needUSize {
++				needUSize = false
++				if len(fieldBuf) < 8 {
++					return ErrFormat
++				}
++				f.UncompressedSize64 = fieldBuf.uint64()
++			}
++			if needCSize {
++				needCSize = false
++				if len(fieldBuf) < 8 {
++					return ErrFormat
++				}
++				f.CompressedSize64 = fieldBuf.uint64()
+ 			}
+-			if tag == zip64ExtraId {
+-				// update directory values from the zip64 extra block.
+-				// They should only be consulted if the sizes read earlier
+-				// are maxed out.
+-				// See golang.org/issue/13367.
+-				eb := readBuf(b[:size])
+-
+-				if needUSize {
+-					needUSize = false
+-					if len(eb) < 8 {
+-						return ErrFormat
+-					}
+-					f.UncompressedSize64 = eb.uint64()
++			if needHeaderOffset {
++				needHeaderOffset = false
++				if len(fieldBuf) < 8 {
++					return ErrFormat
+ 				}
+-				if needCSize {
+-					needCSize = false
+-					if len(eb) < 8 {
+-						return ErrFormat
+-					}
+-					f.CompressedSize64 = eb.uint64()
++				f.headerOffset = int64(fieldBuf.uint64())
++			}
++		case ntfsExtraID:
++			if len(fieldBuf) < 4 {
++				continue parseExtras
++			}
++			fieldBuf.uint32()        // reserved (ignored)
++			for len(fieldBuf) >= 4 { // need at least tag and size
++				attrTag := fieldBuf.uint16()
++				attrSize := int(fieldBuf.uint16())
++				if len(fieldBuf) < attrSize {
++					continue parseExtras
+ 				}
+-				if needHeaderOffset {
+-					needHeaderOffset = false
+-					if len(eb) < 8 {
+-						return ErrFormat
+-					}
+-					f.headerOffset = int64(eb.uint64())
++				attrBuf := fieldBuf.sub(attrSize)
++				if attrTag != 1 || attrSize != 24 {
++					continue // Ignore irrelevant attributes
+ 				}
+-				break
++
++				const ticksPerSecond = 1e7    // Windows timestamp resolution
++				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
++				secs := int64(ts / ticksPerSecond)
++				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
++				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
++				modified = time.Unix(epoch.Unix()+secs, nsecs)
++			}
++		case unixExtraID:
++			if len(fieldBuf) < 8 {
++				continue parseExtras
++			}
++			fieldBuf.uint32()              // AcTime (ignored)
++			ts := int64(fieldBuf.uint32()) // ModTime since Unix epoch
++			modified = time.Unix(ts, 0)
++		case extTimeExtraID:
++			if len(fieldBuf) < 5 || fieldBuf.uint8()&1 == 0 {
++				continue parseExtras
+ 			}
+-			b = b[size:]
++			ts := int64(fieldBuf.uint32()) // ModTime since Unix epoch
++			modified = time.Unix(ts, 0)
++		case infoZipUnixExtraID:
++			if len(fieldBuf) < 4 {
++				continue parseExtras
++			}
++			ts := int64(fieldBuf.uint32()) // ModTime since Unix epoch
++			modified = time.Unix(ts, 0)
++		}
++	}
++
++	msdosModified := msDosTimeToTime(f.ModifiedDate, f.ModifiedTime)
++	f.Modified = msdosModified
++	if !modified.IsZero() {
++		f.Modified = modified.In(time.UTC)
++
++		// If legacy MS-DOS timestamps are set, we can use the delta between
++		// the legacy and extended versions to estimate timezone offset.
++		//
++		// A non-UTC timezone is always used (even if offset is zero).
++		// Thus, FileHeader.Modified.Location() == time.UTC is useful for
++		// determining whether extended timestamps are present.
++		// This is necessary for users that need to do additional time
++		// calculations when dealing with legacy ZIP formats.
++		if f.ModifiedTime != 0 || f.ModifiedDate != 0 {
++			f.Modified = modified.In(timeZone(msdosModified.Sub(modified)))
+ 		}
+ 	}
+ 
+@@ -508,6 +567,12 @@ func findSignatureInBlock(b []byte) int {
+ 
+ type readBuf []byte
+ 
++func (b *readBuf) uint8() uint8 {
++	v := (*b)[0]
++	*b = (*b)[1:]
++	return v
++}
++
+ func (b *readBuf) uint16() uint16 {
+ 	v := binary.LittleEndian.Uint16(*b)
+ 	*b = (*b)[2:]
+@@ -525,3 +590,9 @@ func (b *readBuf) uint64() uint64 {
+ 	*b = (*b)[8:]
+ 	return v
+ }
++
++func (b *readBuf) sub(n int) readBuf {
++	b2 := (*b)[:n]
++	*b = (*b)[n:]
++	return b2
++}
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index dfaae78436..d2d051b223 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -27,9 +27,9 @@ type ZipTest struct {
+ }
+ 
+ type ZipTestFile struct {
+-	Name  string
+-	Mode  os.FileMode
+-	Mtime string // optional, modified time in format "mm-dd-yy hh:mm:ss"
++	Name    string
++	Mode    os.FileMode
++	ModTime time.Time // optional, modified time in format "mm-dd-yy hh:mm:ss"
+ 
+ 	// Information describing expected zip file content.
+ 	// First, reading the entire content should produce the error ContentErr.
+@@ -47,16 +47,6 @@ type ZipTestFile struct {
+ 	Size       uint64
+ }
+ 
+-// Caution: The Mtime values found for the test files should correspond to
+-//          the values listed with unzip -l <zipfile>. However, the values
+-//          listed by unzip appear to be off by some hours. When creating
+-//          fresh test files and testing them, this issue is not present.
+-//          The test files were created in Sydney, so there might be a time
+-//          zone issue. The time zone information does have to be encoded
+-//          somewhere, because otherwise unzip -l could not provide a different
+-//          time from what the archive/zip package provides, but there appears
+-//          to be no documentation about this.
+-
+ var tests = []ZipTest{
+ 	{
+ 		Name:    "test.zip",
+@@ -65,14 +55,14 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "test.txt",
+ 				Content: []byte("This is a test text file.\n"),
+-				Mtime:   "09-05-10 12:12:02",
++				ModTime: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 			{
+-				Name:  "gophercolor16x16.png",
+-				File:  "gophercolor16x16.png",
+-				Mtime: "09-05-10 15:52:58",
+-				Mode:  0644,
++				Name:    "gophercolor16x16.png",
++				File:    "gophercolor16x16.png",
++				ModTime: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
++				Mode:    0644,
+ 			},
+ 		},
+ 	},
+@@ -83,14 +73,14 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "test.txt",
+ 				Content: []byte("This is a test text file.\n"),
+-				Mtime:   "09-05-10 12:12:02",
++				ModTime: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 			{
+-				Name:  "gophercolor16x16.png",
+-				File:  "gophercolor16x16.png",
+-				Mtime: "09-05-10 15:52:58",
+-				Mode:  0644,
++				Name:    "gophercolor16x16.png",
++				File:    "gophercolor16x16.png",
++				ModTime: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
++				Mode:    0644,
+ 			},
+ 		},
+ 	},
+@@ -101,7 +91,7 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "r/r.zip",
+ 				Content: rZipBytes(),
+-				Mtime:   "03-04-10 00:24:16",
++				ModTime: time.Date(2010, 3, 4, 0, 24, 16, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 		},
+@@ -112,6 +102,7 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "symlink",
+ 				Content: []byte("../target"),
++				ModTime: time.Date(2012, 2, 3, 19, 56, 48, 0, timeZone(-2*time.Hour)),
+ 				Mode:    0777 | os.ModeSymlink,
+ 			},
+ 		},
+@@ -129,7 +120,7 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "filename",
+ 				Content: []byte("This is a test textfile.\n"),
+-				Mtime:   "02-02-11 13:06:20",
++				ModTime: time.Date(2011, 2, 2, 13, 6, 20, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 		},
+@@ -137,12 +128,62 @@ var tests = []ZipTest{
+ 	{
+ 		// created in windows XP file manager.
+ 		Name: "winxp.zip",
+-		File: crossPlatform,
++		File: []ZipTestFile{
++			{
++				Name:    "hello",
++				Content: []byte("world \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 4, 24, 0, time.UTC),
++				Mode:    0666,
++			},
++			{
++				Name:    "dir/bar",
++				Content: []byte("foo \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 4, 50, 0, time.UTC),
++				Mode:    0666,
++			},
++			{
++				Name:    "dir/empty/",
++				Content: []byte{},
++				ModTime: time.Date(2011, 12, 8, 10, 8, 6, 0, time.UTC),
++				Mode:    os.ModeDir | 0777,
++			},
++			{
++				Name:    "readonly",
++				Content: []byte("important \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 6, 8, 0, time.UTC),
++				Mode:    0444,
++			},
++		},
+ 	},
+ 	{
+ 		// created by Zip 3.0 under Linux
+ 		Name: "unix.zip",
+-		File: crossPlatform,
++		File: []ZipTestFile{
++			{
++				Name:    "hello",
++				Content: []byte("world \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 4, 24, 0, timeZone(0)),
++				Mode:    0666,
++			},
++			{
++				Name:    "dir/bar",
++				Content: []byte("foo \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 4, 50, 0, timeZone(0)),
++				Mode:    0666,
++			},
++			{
++				Name:    "dir/empty/",
++				Content: []byte{},
++				ModTime: time.Date(2011, 12, 8, 10, 8, 6, 0, timeZone(0)),
++				Mode:    os.ModeDir | 0777,
++			},
++			{
++				Name:    "readonly",
++				Content: []byte("important \r\n"),
++				ModTime: time.Date(2011, 12, 8, 10, 6, 8, 0, timeZone(0)),
++				Mode:    0444,
++			},
++		},
+ 	},
+ 	{
+ 		// created by Go, before we wrote the "optional" data
+@@ -152,13 +193,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "foo.txt",
+ 				Content: []byte("foo\n"),
+-				Mtime:   "03-08-12 16:59:10",
++				ModTime: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-08-12 16:59:12",
++				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -171,11 +212,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "foo.txt",
+ 				Content: []byte("foo\n"),
++				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
++				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 		},
+@@ -187,12 +230,14 @@ var tests = []ZipTest{
+ 			{
+ 				Name:       "foo.txt",
+ 				Content:    []byte("foo\n"),
++				ModTime:    time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+ 				Mode:       0666,
+ 				ContentErr: ErrChecksum,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
++				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 		},
+@@ -205,13 +250,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "foo.txt",
+ 				Content: []byte("foo\n"),
+-				Mtime:   "03-08-12 16:59:10",
++				ModTime: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-08-12 16:59:12",
++				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -225,14 +270,14 @@ var tests = []ZipTest{
+ 			{
+ 				Name:       "foo.txt",
+ 				Content:    []byte("foo\n"),
+-				Mtime:      "03-08-12 16:59:10",
++				ModTime:    time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
+ 				Mode:       0644,
+ 				ContentErr: ErrChecksum,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-08-12 16:59:12",
++				ModTime: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -243,7 +288,7 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "README",
+ 				Content: []byte("This small file is in ZIP64 format.\n"),
+-				Mtime:   "08-10-12 14:33:32",
++				ModTime: time.Date(2012, 8, 10, 14, 33, 32, 0, time.UTC),
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -255,7 +300,7 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "README",
+ 				Content: []byte("This small file is in ZIP64 format.\n"),
+-				Mtime:   "08-10-12 14:33:32",
++				ModTime: time.Date(2012, 8, 10, 14, 33, 32, 0, timeZone(-4*time.Hour)),
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -269,32 +314,94 @@ var tests = []ZipTest{
+ 				Name:    "big.file",
+ 				Content: nil,
+ 				Size:    1<<32 - 1,
++				ModTime: time.Date(1979, 11, 30, 0, 0, 0, 0, time.UTC),
+ 				Mode:    0666,
+ 			},
+ 		},
+ 	},
+-}
+-
+-var crossPlatform = []ZipTestFile{
+ 	{
+-		Name:    "hello",
+-		Content: []byte("world \r\n"),
+-		Mode:    0666,
++		Name: "time-7zip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
++				Mode:    0666,
++			},
++		},
++	},
++	{
++		Name: "time-infozip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
++				Mode:    0644,
++			},
++		},
++	},
++	{
++		Name: "time-osx.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 17, 27, 0, timeZone(-7*time.Hour)),
++				Mode:    0644,
++			},
++		},
+ 	},
+ 	{
+-		Name:    "dir/bar",
+-		Content: []byte("foo \r\n"),
+-		Mode:    0666,
++		Name: "time-win7.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 58, 0, time.UTC),
++				Mode:    0666,
++			},
++		},
++	},
++	{
++		Name: "time-winrar.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244817900, timeZone(-7*time.Hour)),
++				Mode:    0666,
++			},
++		},
+ 	},
+ 	{
+-		Name:    "dir/empty/",
+-		Content: []byte{},
+-		Mode:    os.ModeDir | 0777,
++		Name: "time-winzip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 244000000, timeZone(-7*time.Hour)),
++				Mode:    0666,
++			},
++		},
+ 	},
+ 	{
+-		Name:    "readonly",
+-		Content: []byte("important \r\n"),
+-		Mode:    0444,
++		Name: "time-go.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte{},
++				Size:    1<<32 - 1,
++				ModTime: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
++				Mode:    0666,
++			},
++		},
+ 	},
+ }
+ 
+@@ -363,20 +470,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	}
+ }
+ 
++func equalTimeAndZone(t1, t2 time.Time) bool {
++	name1, offset1 := t1.Zone()
++	name2, offset2 := t2.Zone()
++	return t1.Equal(t2) && name1 == name2 && offset1 == offset2
++}
++
+ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	if f.Name != ft.Name {
+ 		t.Errorf("%s: name=%q, want %q", zt.Name, f.Name, ft.Name)
+ 	}
+-
+-	if ft.Mtime != "" {
+-		mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
+-		if err != nil {
+-			t.Error(err)
+-			return
+-		}
+-		if ft := f.ModTime(); !ft.Equal(mtime) {
+-			t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, ft, mtime)
+-		}
++	if !equalTimeAndZone(f.Modified, ft.ModTime) {
++		t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, f.Modified, ft.ModTime)
+ 	}
+ 
+ 	testFileMode(t, zt.Name, f, ft.Mode)
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 0be210e8e7..668d018fdf 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -46,23 +46,35 @@ const (
+ 	directory64LocLen        = 20         //
+ 	directory64EndLen        = 56         // + extra
+ 
+-	// Constants for the first byte in CreatorVersion
++	// Constants for the first byte in CreatorVersion.
+ 	creatorFAT    = 0
+ 	creatorUnix   = 3
+ 	creatorNTFS   = 11
+ 	creatorVFAT   = 14
+ 	creatorMacOSX = 19
+ 
+-	// version numbers
++	// Version numbers.
+ 	zipVersion20 = 20 // 2.0
+ 	zipVersion45 = 45 // 4.5 (reads and writes zip64 archives)
+ 
+-	// limits for non zip64 files
++	// Limits for non zip64 files.
+ 	uint16max = (1 << 16) - 1
+ 	uint32max = (1 << 32) - 1
+ 
+-	// extra header id's
+-	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
++	// Extra header IDs.
++	//
++	// IDs 0..31 are reserved for official use by PKWARE.
++	// IDs above that range are defined by third-party vendors.
++	// Since ZIP lacked high precision timestamps (nor a official specification
++	// of the timezone used for the date fields), many competing extra fields
++	// have been invented. Pervasive use effectively makes them "official".
++	//
++	// See http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
++	zip64ExtraID       = 0x0001 // Zip64 extended information
++	ntfsExtraID        = 0x000a // NTFS
++	unixExtraID        = 0x000d // UNIX
++	extTimeExtraID     = 0x5455 // Extended timestamp
++	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix extension
+ )
+ 
+ // FileHeader describes a file within a zip file.
+@@ -74,12 +86,24 @@ type FileHeader struct {
+ 	// are allowed.
+ 	Name string
+ 
+-	CreatorVersion     uint16
+-	ReaderVersion      uint16
+-	Flags              uint16
+-	Method             uint16
+-	ModifiedTime       uint16 // MS-DOS time
+-	ModifiedDate       uint16 // MS-DOS date
++	CreatorVersion uint16
++	ReaderVersion  uint16
++	Flags          uint16
++	Method         uint16
++
++	// Modified is the modified time of the file.
++	//
++	// When reading, an extended timestamp is preferred over the legacy MS-DOS
++	// date field, and the offset between the times is used as the timezone.
++	// If only the MS-DOS date is present, the timezone is assumed to be UTC.
++	//
++	// When writing, an extended timestamp (which is timezone-agnostic) is
++	// always emitted. The legacy MS-DOS date field is encoded according to the
++	// location of the Modified time.
++	Modified     time.Time
++	ModifiedTime uint16 // Deprecated: Legacy MS-DOS date; use Modified instead.
++	ModifiedDate uint16 // Deprecated: Legacy MS-DOS time; use Modified instead.
++
+ 	CRC32              uint32
+ 	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
+ 	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
+@@ -144,6 +168,21 @@ type directoryEnd struct {
+ 	comment            string
+ }
+ 
++// timeZone returns a *time.Location based on the provided offset.
++// If the offset is non-sensible, then this uses an offset of zero.
++func timeZone(offset time.Duration) *time.Location {
++	const (
++		minOffset   = -12 * time.Hour  // E.g., Baker island at -12:00
++		maxOffset   = +14 * time.Hour  // E.g., Line island at +14:00
++		offsetAlias = 15 * time.Minute // E.g., Nepal at +5:45
++	)
++	offset = offset.Round(offsetAlias)
++	if offset < minOffset || maxOffset < offset {
++		offset = 0
++	}
++	return time.FixedZone("", int(offset/time.Second))
++}
++
+ // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
+ // The resolution is 2s.
+ // See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+@@ -168,21 +207,30 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ // The resolution is 2s.
+ // See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
+ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+-	t = t.In(time.UTC)
+ 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
+ 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
+ 	return
+ }
+ 
+ // ModTime returns the modification time in UTC.
+-// The resolution is 2s.
++// This returns Modified if non-zero, otherwise it computes the timestamp
++// from the legacy ModifiedDate and ModifiedTime fields.
++//
++// Deprecated: Use Modified instead.
+ func (h *FileHeader) ModTime() time.Time {
++	if !h.Modified.IsZero() {
++		return h.Modified.In(time.UTC) // Convert to UTC for compatibility
++	}
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
+-// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time in UTC.
+-// The resolution is 2s.
++// SetModTime sets the Modified, ModifiedTime, and ModifiedDate fields
++// to the given time in UTC.
++//
++// Deprecated: Use Modified instead.
+ func (h *FileHeader) SetModTime(t time.Time) {
++	t = t.In(time.UTC) // Convert to UTC for compatibility
++	h.Modified = t
+ 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
+ }
+ 
+diff --git a/src/archive/zip/testdata/time-7zip.zip b/src/archive/zip/testdata/time-7zip.zip
+new file mode 100644
+index 0000000000..4f74819d11
+Binary files /dev/null and b/src/archive/zip/testdata/time-7zip.zip differ
+diff --git a/src/archive/zip/testdata/time-go.zip b/src/archive/zip/testdata/time-go.zip
+new file mode 100644
+index 0000000000..f008805fa4
+Binary files /dev/null and b/src/archive/zip/testdata/time-go.zip differ
+diff --git a/src/archive/zip/testdata/time-infozip.zip b/src/archive/zip/testdata/time-infozip.zip
+new file mode 100644
+index 0000000000..8e6394891f
+Binary files /dev/null and b/src/archive/zip/testdata/time-infozip.zip differ
+diff --git a/src/archive/zip/testdata/time-osx.zip b/src/archive/zip/testdata/time-osx.zip
+new file mode 100644
+index 0000000000..e82c5c229e
+Binary files /dev/null and b/src/archive/zip/testdata/time-osx.zip differ
+diff --git a/src/archive/zip/testdata/time-win7.zip b/src/archive/zip/testdata/time-win7.zip
+new file mode 100644
+index 0000000000..8ba222b224
+Binary files /dev/null and b/src/archive/zip/testdata/time-win7.zip differ
+diff --git a/src/archive/zip/testdata/time-winrar.zip b/src/archive/zip/testdata/time-winrar.zip
+new file mode 100644
+index 0000000000..a8a19b0f8e
+Binary files /dev/null and b/src/archive/zip/testdata/time-winrar.zip differ
+diff --git a/src/archive/zip/testdata/time-winzip.zip b/src/archive/zip/testdata/time-winzip.zip
+new file mode 100644
+index 0000000000..f6e8f8ba06
+Binary files /dev/null and b/src/archive/zip/testdata/time-winzip.zip differ
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 53fc19c590..9fb9cee1ae 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -103,7 +103,7 @@ func (w *Writer) Close() error {
+ 			// append a zip64 extra block to Extra
+ 			var buf [28]byte // 2x uint16 + 3x uint64
+ 			eb := writeBuf(buf[:])
+-			eb.uint16(zip64ExtraId)
++			eb.uint16(zip64ExtraID)
+ 			eb.uint16(24) // size = 3x uint64
+ 			eb.uint64(h.UncompressedSize64)
+ 			eb.uint64(h.CompressedSize64)
+@@ -231,13 +231,13 @@ func detectUTF8(s string) (valid, require bool) {
+ 	return true, require
+ }
+ 
+-// CreateHeader adds a file to the zip file using the provided FileHeader
+-// for the file metadata.
+-// It returns a Writer to which the file contents should be written.
++// CreateHeader adds a file to the zip archive using the provided FileHeader
++// for the file metadata. Writer takes ownership of fh and may mutate
++// its fields. The caller must not modify fh after calling CreateHeader.
+ //
++// This returns a Writer to which the file contents should be written.
+ // The file's contents must be written to the io.Writer before the next
+-// call to Create, CreateHeader, or Close. The provided FileHeader fh
+-// must not be modified after a call to CreateHeader.
++// call to Create, CreateHeader, or Close.
+ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	if w.last != nil && !w.last.closed {
+ 		if err := w.last.close(); err != nil {
+@@ -279,6 +279,34 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
+ 	fh.ReaderVersion = zipVersion20
+ 
++	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
++	if !fh.Modified.IsZero() {
++		// Contrary to the FileHeader.SetModTime method, we intentionally
++		// do not convert to UTC, because we assume the user intends to encode
++		// the date using the specified timezone. A user may want this control
++		// because many legacy ZIP readers interpret the timestamp according
++		// to the local timezone.
++		//
++		// The timezone is only non-UTC if a user directly sets the Modified
++		// field directly themselves. All other approaches sets UTC.
++		fh.ModifiedDate, fh.ModifiedTime = timeToMsDosTime(fh.Modified)
++
++		// Use "extended timestamp" format since this is what Info-ZIP uses.
++		// Nearly every major ZIP implementation uses a different format,
++		// but at least most seem to be able to understand the other formats.
++		//
++		// This format happens to be identical for both local and central header
++		// if modification time is the only timestamp being encoded.
++		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
++		mt := uint32(fh.ModTime().Unix())
++		eb := writeBuf(mbuf[:])
++		eb.uint16(extTimeExtraID)
++		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
++		eb.uint8(1)   // Flags: ModTime
++		eb.uint32(mt) // ModTime
++		fh.Extra = append(fh.Extra, mbuf[:]...)
++	}
++
+ 	fw := &fileWriter{
+ 		zipw:      w.cw,
+ 		compCount: &countWriter{w: w.cw},
+@@ -448,6 +476,11 @@ func (w nopCloser) Close() error {
+ 
+ type writeBuf []byte
+ 
++func (b *writeBuf) uint8(v uint8) {
++	(*b)[0] = v
++	*b = (*b)[1:]
++}
++
+ func (b *writeBuf) uint16(v uint16) {
+ 	binary.LittleEndian.PutUint16(*b, v)
+ 	*b = (*b)[2:]
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index e0bcad61d3..acca97e9b6 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -6,12 +6,14 @@ package zip
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"math/rand"
+ 	"os"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ // TODO(adg): a more sophisticated test suite
+@@ -199,6 +201,30 @@ func TestWriterUTF8(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriterTime(t *testing.T) {
++	var buf bytes.Buffer
++	h := &FileHeader{
++		Name:     "test.txt",
++		Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
++	}
++	w := NewWriter(&buf)
++	if _, err := w.CreateHeader(h); err != nil {
++		t.Fatalf("unexpected CreateHeader error: %v", err)
++	}
++	if err := w.Close(); err != nil {
++		t.Fatalf("unexpected Close error: %v", err)
++	}
++
++	want, err := ioutil.ReadFile("testdata/time-go.zip")
++	if err != nil {
++		t.Fatalf("unexpected ReadFile error: %v", err)
++	}
++	if got := buf.Bytes(); !bytes.Equal(got, want) {
++		fmt.Printf("%x\n%x\n", got, want)
++		t.Error("contents of time-go.zip differ")
++	}
++}
++
+ func TestWriterOffset(t *testing.T) {
+ 	largeData := make([]byte, 1<<17)
+ 	if _, err := rand.Read(largeData); err != nil {
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 7d1546c91f..7e02cb0eea 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -645,7 +645,7 @@ func TestHeaderTooShort(t *testing.T) {
+ 	h := FileHeader{
+ 		Name:   "foo.txt",
+ 		Method: Deflate,
+-		Extra:  []byte{zip64ExtraId}, // missing size and second half of tag, but Extra is best-effort parsing
++		Extra:  []byte{zip64ExtraID}, // missing size and second half of tag, but Extra is best-effort parsing
+ 	}
+ 	testValidHeader(&h, t)
+ }
+@@ -692,7 +692,7 @@ func TestHeaderIgnoredSize(t *testing.T) {
+ 	h := FileHeader{
+ 		Name:   "foo.txt",
+ 		Method: Deflate,
+-		Extra:  []byte{zip64ExtraId & 0xFF, zip64ExtraId >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
++		Extra:  []byte{zip64ExtraID & 0xFF, zip64ExtraID >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
+ 	}
+ 	testValidHeader(&h, t)
+ }

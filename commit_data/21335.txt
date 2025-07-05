@@ -9,6 +9,34 @@ Date:   Mon Dec 22 16:46:25 2014 -0500
     Change-Id: If4a75d11d14f70b6840d339aaec4b940dc406493
     Reviewed-on: https://go-review.googlesource.com/2012
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/liblink/obj9.c | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index a1ead3a0f3..2b6456d423 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -619,6 +619,22 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			p->link = q;
+ 			p = q;
+ 
++			if(0) {
++				// Debug bad returns
++				q = ctxt->arch->prg();
++				q->as = AMOVD;
++				q->lineno = p->lineno;
++				q->from.type = D_OREG;
++				q->from.offset = 0;
++				q->from.reg = REGTMP;
++				q->to.type = D_REG;
++				q->to.reg = REGTMP;
++
++				q->link = p->link;
++				p->link = q;
++				p = q;
++			}
++
+ 			if(autosize) {
+ 				q = ctxt->arch->prg();
+ 				q->as = AADD;

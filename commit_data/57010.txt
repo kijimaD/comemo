@@ -12,6 +12,26 @@ Date:   Tue Jun 6 21:27:20 2023 +0000
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.21.html | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index daaa3444b7..15533a2809 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -884,8 +884,12 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/38651 -->
+-      TODO: <a href="https://go.dev/issue/38651">https://go.dev/issue/38651</a>: add &#39;created by goroutine number&#39; to stack traces
++    <p><!-- https://go.dev/issue/38651, CL 435337 -->
++      Textual stack traces produced by Go programs, such as those
++      produced when crashing, calling <code>runtime.Stack</code>, or
++      collecting a goroutine profile with <code>debug=2</code>, now
++      include the IDs of the goroutines that created each goroutine in
++      the stack trace.
+     </p>
+ 
+     <p><!-- https://go.dev/issue/57441, CL 474915 -->

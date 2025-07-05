@@ -8,6 +8,44 @@ Date:   Tue May 1 20:01:00 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/112197
     Reviewed-by: Peter Weinberger <pjw@google.com>
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/trace.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index fcba0cbc3f..31ef3b6892 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -185,11 +185,15 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		// If goid argument is present, we are rendering a trace for this particular goroutine.
+ 		goid, err := strconv.ParseUint(goids, 10, 64)
+ 		if err != nil {
+-			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
++			log.Printf("failed to parse goid parameter %q: %v", goids, err)
+ 			return
+ 		}
+ 		analyzeGoroutines(res.Events)
+-		g := gs[goid]
++		g, ok := gs[goid]
++		if !ok {
++			log.Printf("failed to find goroutine %d", goid)
++			return
++		}
+ 		params.mode = modeGoroutineOriented
+ 		params.startTime = g.StartTime
+ 		if g.EndTime != 0 {
+@@ -249,12 +253,12 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		// If start/end arguments are present, we are rendering a range of the trace.
+ 		start, err = strconv.ParseInt(startStr, 10, 64)
+ 		if err != nil {
+-			log.Printf("failed to parse start parameter '%v': %v", startStr, err)
++			log.Printf("failed to parse start parameter %q: %v", startStr, err)
+ 			return
+ 		}
+ 		end, err = strconv.ParseInt(endStr, 10, 64)
+ 		if err != nil {
+-			log.Printf("failed to parse end parameter '%v': %v", endStr, err)
++			log.Printf("failed to parse end parameter %q: %v", endStr, err)
+ 			return
+ 		}
+ 	}

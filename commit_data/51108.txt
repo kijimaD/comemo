@@ -35,7 +35,7 @@ Date:   Mon Aug 23 17:27:40 2021 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go      | 14 +++++++++++++-
  src/runtime/malloc.go           | 20 +++++++++++++-------
  src/runtime/mgcscavenge_test.go |  5 ++++-
@@ -44,3 +44,182 @@ Date:   Mon Aug 23 17:27:40 2021 +0000
  src/runtime/mpagealloc_test.go  |  9 +++++++--
  src/runtime/mpagecache_test.go  |  5 ++++-
  7 files changed, 43 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ef601f770c..4a03f24ded 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1048,7 +1048,19 @@ func FreePageAlloc(pp *PageAlloc) {
+ //
+ // This should not be higher than 0x100*pallocChunkBytes to support
+ // mips and mipsle, which only have 31-bit address spaces.
+-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*goos.IsAix))
++var BaseChunkIdx = func() ChunkIdx {
++	var prefix uintptr
++	if pageAlloc64Bit != 0 {
++		prefix = 0xc000
++	} else {
++		prefix = 0x100
++	}
++	baseAddr := prefix * pallocChunkBytes
++	if goos.IsAix != 0 {
++		baseAddr += arenaBaseOffset
++	}
++	return ChunkIdx(chunkIndex(baseAddr))
++}()
+ 
+ // PageBase returns an address given a chunk index and a page index
+ // relative to that chunk.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e267e2df23..6ed6ceade2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -201,15 +201,21 @@ const (
+ 	// we further limit it to 31 bits.
+ 	//
+ 	// On ios/arm64, although 64-bit pointers are presumably
+-	// available, pointers are truncated to 33 bits. Furthermore,
+-	// only the top 4 GiB of the address space are actually available
+-	// to the application, but we allow the whole 33 bits anyway for
+-	// simplicity.
+-	// TODO(mknyszek): Consider limiting it to 32 bits and using
+-	// arenaBaseOffset to offset into the top 4 GiB.
++	// available, pointers are truncated to 33 bits in iOS <14.
++	// Furthermore, only the top 4 GiB of the address space are
++	// actually available to the application. In iOS >=14, more
++	// of the address space is available, and the OS can now
++	// provide addresses outside of those 33 bits. Pick 40 bits
++	// as a reasonable balance between address space usage by the
++	// page allocator, and flexibility for what mmap'd regions
++	// we'll accept for the heap. We can't just move to the full
++	// 48 bits because this uses too much address space for older
++	// iOS versions.
++	// TODO(mknyszek): Once iOS <14 is deprecated, promote ios/arm64
++	// to a 48-bit address space like every other arm64 platform.
+ 	//
+ 	// WebAssembly currently has a limit of 4GB linear memory.
+-	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 33*goos.IsIos*goarch.IsArm64
++	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 40*goos.IsIos*goarch.IsArm64
+ 
+ 	// maxAlloc is the maximum size of an allocation. On 64-bit,
+ 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index b186cad2f4..0659293c60 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/goos"
+ 	"math/rand"
+ 	. "runtime"
+ 	"testing"
+@@ -408,7 +409,9 @@ func TestPageAllocScavenge(t *testing.T) {
+ 			},
+ 		},
+ 	}
+-	if PageAlloc64Bit != 0 {
++	// Disable these tests on iOS since we have a small address space.
++	// See #46860.
++	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+ 		tests["ScavAllVeryDiscontiguous"] = setup{
+ 			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:          {},
+diff --git a/src/runtime/mpagealloc_32bit.go b/src/runtime/mpagealloc_32bit.go
+index 1d863f2fda..8c83b93412 100644
+--- a/src/runtime/mpagealloc_32bit.go
++++ b/src/runtime/mpagealloc_32bit.go
+@@ -2,19 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build 386 || arm || mips || mipsle || wasm || (ios && arm64)
++//go:build 386 || arm || mips || mipsle || wasm
+ 
+ // wasm is a treated as a 32-bit architecture for the purposes of the page
+ // allocator, even though it has 64-bit pointers. This is because any wasm
+ // pointer always has its top 32 bits as zero, so the effective heap address
+ // space is only 2^32 bytes in size (see heapAddrBits).
+ 
+-// ios/arm64 is treated as a 32-bit architecture for the purposes of the
+-// page allocator, even though it has 64-bit pointers and a 33-bit address
+-// space (see heapAddrBits). The 33 bit address space cannot be rounded up
+-// to 64 bits because there are too many summary levels to fit in just 33
+-// bits.
+-
+ package runtime
+ 
+ import "unsafe"
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 782628c91d..1bacfbe0fa 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || (!ios && arm64) || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
+-
+-// See mpagealloc_32bit.go for why ios/arm64 is excluded here.
++//go:build amd64 || arm64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mpagealloc_test.go b/src/runtime/mpagealloc_test.go
+index 5d979fa95b..f2b82e3f50 100644
+--- a/src/runtime/mpagealloc_test.go
++++ b/src/runtime/mpagealloc_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/goos"
+ 	. "runtime"
+ 	"testing"
+ )
+@@ -165,7 +166,9 @@ func TestPageAllocGrow(t *testing.T) {
+ 			},
+ 		},
+ 	}
+-	if PageAlloc64Bit != 0 {
++	// Disable these tests on iOS since we have a small address space.
++	// See #46860.
++	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+ 		tests["ExtremelyDiscontiguous"] = test{
+ 			chunks: []ChunkIdx{
+ 				BaseChunkIdx,
+@@ -571,7 +574,9 @@ func TestPageAllocAlloc(t *testing.T) {
+ 			},
+ 		},
+ 	}
+-	if PageAlloc64Bit != 0 {
++	// Disable these tests on iOS since we have a small address space.
++	// See #46860.
++	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+ 		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+ 
+ 		// This test attempts to trigger a bug wherein we look at unmapped summary
+diff --git a/src/runtime/mpagecache_test.go b/src/runtime/mpagecache_test.go
+index 69084f9a84..6cb0620f7b 100644
+--- a/src/runtime/mpagecache_test.go
++++ b/src/runtime/mpagecache_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/goos"
+ 	"math/rand"
+ 	. "runtime"
+ 	"testing"
+@@ -372,7 +373,9 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 			},
+ 		},
+ 	}
+-	if PageAlloc64Bit != 0 {
++	// Disable these tests on iOS since we have a small address space.
++	// See #46860.
++	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+ 		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+ 
+ 		// This test is similar to the one with the same name for

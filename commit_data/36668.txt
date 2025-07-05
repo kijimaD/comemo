@@ -14,6 +14,29 @@ Date:   Wed May 16 12:56:54 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/select.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index fccb53b44c..3a3ac6b7ac 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -191,14 +191,15 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 		}
+ 		lockorder[j] = o
+ 	}
+-	/*
++
++	if debugSelect {
+ 		for i := 0; i+1 < ncases; i++ {
+ 			if scases[lockorder[i]].c.sortkey() > scases[lockorder[i+1]].c.sortkey() {
+ 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
+ 				throw("select: broken sort")
+ 			}
+ 		}
+-	*/
++	}
+ 
+ 	// lock all the channels involved in the select
+ 	sellock(scases, lockorder)

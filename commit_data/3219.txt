@@ -8,8 +8,98 @@ Date:   Thu Sep 3 17:22:20 2009 -0700
     DELTA=21  (5 added, 10 deleted, 6 changed)
     OCL=34355
     CL=34355
-
+---
  usr/austin/eval/stmt.go      | 18 +++++-------------
  usr/austin/eval/stmt_test.go |  3 +++
  usr/austin/eval/world.go     |  4 ++--
  3 files changed, 10 insertions(+), 15 deletions(-)
+
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 00087fd546..0d657c1d7f 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -335,26 +335,21 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
+ 		a.silentErrors++;
+ 
+ 	case *ast.FuncDecl:
+-		log.Crash("FuncDecl at statement level");
++		if !a.block.global {
++			log.Crash("FuncDecl at statement level");
++		}
+ 
+ 	case *ast.GenDecl:
+-		switch decl.Tok {
+-		case token.IMPORT:
++		if decl.Tok == token.IMPORT && !a.block.global {
+ 			log.Crash("import at statement level");
+-		case token.CONST:
+-			log.Crashf("%v not implemented", decl.Tok);
+-		case token.TYPE:
+-			a.compileTypeDecl(a.block, decl);
+-		case token.VAR:
+-			a.compileVarDecl(decl);
+ 		}
+ 
+ 	default:
+ 		log.Crashf("Unexpected Decl type %T", s.Decl);
+ 	}
++	a.compileDecl(s.Decl);
+ }
+ 
+-// decl might or might not be at top level;
+ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
+ 	for _, spec := range decl.Specs {
+ 		spec := spec.(*ast.ValueSpec);
+@@ -380,7 +375,6 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
+ 	}
+ }
+ 
+-// decl is top level
+ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 	switch d := decl.(type) {
+ 	case *ast.BadDecl:
+@@ -395,8 +389,6 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 		// Declare and initialize v before compiling func
+ 		// so that body can refer to itself.
+ 		c := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
+-		// TODO(rsc): How to mark v as constant
+-		// so the type checker rejects assignments to it?
+ 		fn := a.compileFunc(a.block, decl, d.Body);
+ 		if fn == nil {
+ 			return;
+diff --git a/usr/austin/eval/stmt_test.go b/usr/austin/eval/stmt_test.go
+index 0324a40f17..77e907088a 100644
+--- a/usr/austin/eval/stmt_test.go
++++ b/usr/austin/eval/stmt_test.go
+@@ -331,6 +331,9 @@ var stmtTests = []test {
+ 	CErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
+ 	CErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
+ 	RErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
++	
++	// Functions
++	Val2("func fib(n int) int { if n <= 2 { return n } return fib(n-1) + fib(n-2) }", "fib(4)", 5, "fib(10)", 89),
+ }
+ 
+ func TestStmt(t *testing.T) {
+diff --git a/usr/austin/eval/world.go b/usr/austin/eval/world.go
+index a2a905055c..e307019135 100644
+--- a/usr/austin/eval/world.go
++++ b/usr/austin/eval/world.go
+@@ -73,7 +73,7 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
+ 	return &stmtCode{w, fc.get()}, nil;
+ }
+ 
+-func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {
++func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {	
+ 	stmts := make([]ast.Stmt, len(decls));
+ 	for i, d := range decls {
+ 		stmts[i] = &ast.DeclStmt{d};
+@@ -144,7 +144,7 @@ func (w *World) Compile(text string) (Code, os.Error) {
+ 
+ 	// Otherwise try as DeclList.
+ 	decls, err1 := parser.ParseDeclList("input", text);
+-	if err == nil {
++	if err1 == nil {
+ 		return w.compileDecls(decls);
+ 	}
+ 

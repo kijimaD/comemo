@@ -7,9 +7,346 @@ Date:   Sun Nov 1 05:49:07 2009 -0800
     
     R=r
     http://go/go-review/1015008
-
+---
  src/pkg/json/generic.go     |  3 ++
  src/pkg/json/parse.go       |  4 +++
  src/pkg/json/struct.go      | 70 +++++++++++++++++++++++++++++----------
  src/pkg/json/struct_test.go | 81 +++++++++++++++++++++++++++++----------------
  4 files changed, 111 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/json/generic.go b/src/pkg/json/generic.go
+index 7486db5679..d53c4f6b0b 100644
+--- a/src/pkg/json/generic.go
++++ b/src/pkg/json/generic.go
+@@ -364,6 +364,9 @@ func (b *_JsonBuilder) Key(k string) Builder {
+ 	return bb;
+ }
+ 
++func (b *_JsonBuilder) Flush() {
++}
++
+ // StringToJson parses the string s as a JSON-syntax string
+ // and returns the generic JSON object representation.
+ // On success, StringToJson returns with ok set to true and errtok empty.
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index af610b5d1b..ba291e940a 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -296,6 +296,9 @@ type Builder interface {
+ 	// Create sub-Builders
+ 	Elem(i int) Builder;
+ 	Key(s string) Builder;
++
++	// Flush changes to parent Builder if necessary.
++	Flush();
+ }
+ 
+ func parse(lex *_Lexer, build Builder) bool {
+@@ -392,6 +395,7 @@ Switch:
+ 	if ok {
+ 		lex.Next();
+ 	}
++	build.Flush();
+ 	return ok;
+ }
+ 
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 4fc70a814b..03e2966c88 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -12,11 +12,15 @@ import (
+ 	"strings";
+ )
+ 
+-type _StructBuilder struct {
++type structBuilder struct {
+ 	val reflect.Value;
++
++	// if map_ != nil, write val to map_[key] on each change
++	map_ *reflect.MapValue;
++	key reflect.Value;
+ }
+ 
+-var nobuilder *_StructBuilder
++var nobuilder *structBuilder
+ 
+ func isfloat(v reflect.Value) bool {
+ 	switch v.(type) {
+@@ -62,7 +66,18 @@ func setint(v reflect.Value, i int64) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Int64(i int64) {
++// If updating b.val is not enough to update the original,
++// copy a changed b.val out to the original.
++func (b *structBuilder) Flush() {
++	if b == nil {
++		return;
++	}
++	if b.map_ != nil {
++		b.map_.SetElem(b.key, b.val);
++	}
++}
++
++func (b *structBuilder) Int64(i int64) {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -74,7 +89,7 @@ func (b *_StructBuilder) Int64(i int64) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Uint64(i uint64) {
++func (b *structBuilder) Uint64(i uint64) {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -86,7 +101,7 @@ func (b *_StructBuilder) Uint64(i uint64) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Float64(f float64) {
++func (b *structBuilder) Float64(f float64) {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -98,9 +113,9 @@ func (b *_StructBuilder) Float64(f float64) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Null() {}
++func (b *structBuilder) Null() {}
+ 
+-func (b *_StructBuilder) String(s string) {
++func (b *structBuilder) String(s string) {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -109,7 +124,7 @@ func (b *_StructBuilder) String(s string) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Bool(tf bool) {
++func (b *structBuilder) Bool(tf bool) {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -118,7 +133,7 @@ func (b *_StructBuilder) Bool(tf bool) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Array() {
++func (b *structBuilder) Array() {
+ 	if b == nil {
+ 		return;
+ 	}
+@@ -129,14 +144,14 @@ func (b *_StructBuilder) Array() {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Elem(i int) Builder {
++func (b *structBuilder) Elem(i int) Builder {
+ 	if b == nil || i < 0 {
+ 		return nobuilder;
+ 	}
+ 	switch v := b.val.(type) {
+ 	case *reflect.ArrayValue:
+ 		if i < v.Len() {
+-			return &_StructBuilder{v.Elem(i)};
++			return &structBuilder{val: v.Elem(i)};
+ 		}
+ 	case *reflect.SliceValue:
+ 		if i > v.Cap() {
+@@ -155,36 +170,55 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 			v.SetLen(i+1);
+ 		}
+ 		if i < v.Len() {
+-			return &_StructBuilder{v.Elem(i)};
++			return &structBuilder{val: v.Elem(i)};
+ 		}
+ 	}
+ 	return nobuilder;
+ }
+ 
+-func (b *_StructBuilder) Map() {
++func (b *structBuilder) Map() {
+ 	if b == nil {
+ 		return;
+ 	}
+-	if v, ok := b.val.(*reflect.PtrValue); ok {
++	if v, ok := b.val.(*reflect.PtrValue); ok && v.IsNil() {
+ 		if v.IsNil() {
+ 			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()));
++			b.Flush();
+ 		}
++		b.map_ = nil;
++		b.val = v.Elem();
++	}
++	if v, ok := b.val.(*reflect.MapValue); ok && v.IsNil() {
++		v.Set(reflect.MakeMap(v.Type().(*reflect.MapType)));
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Key(k string) Builder {
++func (b *structBuilder) Key(k string) Builder {
+ 	if b == nil {
+ 		return nobuilder;
+ 	}
+-	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
++	switch v := reflect.Indirect(b.val).(type) {
++	case *reflect.StructValue:
+ 		t := v.Type().(*reflect.StructType);
+ 		// Case-insensitive field lookup.
+ 		k = strings.ToLower(k);
+ 		for i := 0; i < t.NumField(); i++ {
+ 			if strings.ToLower(t.Field(i).Name) == k {
+-				return &_StructBuilder{v.Field(i)};
++				return &structBuilder{val: v.Field(i)};
+ 			}
+ 		}
++	case *reflect.MapValue:
++		t := v.Type().(*reflect.MapType);
++		if t.Key() != reflect.Typeof(k) {
++			break;
++		}
++		key := reflect.NewValue(k);
++		elem := v.Elem(key);
++		if elem == nil {
++			v.SetElem(key, reflect.MakeZero(t.Elem()));
++			elem = v.Elem(key);
++		}
++		return &structBuilder{val: elem, map_: v, key: key};
+ 	}
+ 	return nobuilder;
+ }
+@@ -249,7 +283,7 @@ func (b *_StructBuilder) Key(k string) Builder {
+ // On a syntax error, it returns with ok set to false and errtok
+ // set to the offending token.
+ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+-	b := &_StructBuilder{reflect.NewValue(val)};
++	b := &structBuilder{val: reflect.NewValue(val)};
+ 	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+ 		return false, errtok;
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index 42b54b9dbb..bdcc2fdddf 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -5,10 +5,11 @@
+ package json
+ 
+ import (
++	"reflect";
+ 	"testing";
+ )
+ 
+-type _MyStruct struct {
++type myStruct struct {
+ 	T	bool;
+ 	F	bool;
+ 	S	string;
+@@ -26,17 +27,36 @@ type _MyStruct struct {
+ 	Fl32	float32;
+ 	Fl64	float64;
+ 	A	[]string;
+-	My	*_MyStruct;
++	My	*myStruct;
++	Map	map[string][]int;
++	MapStruct map[string]myStruct;
++	MapPtrStruct map[string]*myStruct;
+ }
+ 
+-const _Encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
++const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
+ 	` "u8":5,"u16":6,"u32":7,"u64":8,`
+ 	` "i":-9,"u":10,"bogusfield":"should be ignored",`
+ 	` "fl":11.5,"fl32":12.25,"fl64":13.75,`
+-	` "a":["x","y","z"],"my":{"s":"subguy"}}`
++	` "a":["x","y","z"],"my":{"s":"subguy"},`
++	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},`
++	`"mapstruct":{"m1":{"u8":8}},`
++	`"mapptrstruct":{"m1":{"u8":8}}}`
+ 
++var decodedMap = map[string][]int{
++	"k1": []int{1,2,3},
++	"k2": []int{},
++	"k3": []int{3,4},
++}
++
++var decodedMapStruct = map[string]myStruct{
++	"m1": myStruct{U8: 8},
++}
++
++var decodedMapPtrStruct = map[string]*myStruct{
++	"m1": &myStruct{U8: 8},
++}
+ 
+-func _Check(t *testing.T, ok bool, name string, v interface{}) {
++func check(t *testing.T, ok bool, name string, v interface{}) {
+ 	if !ok {
+ 		t.Errorf("%s = %v (BAD)", name, v);
+ 	} else {
+@@ -45,36 +65,39 @@ func _Check(t *testing.T, ok bool, name string, v interface{}) {
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+-	var m _MyStruct;
++	var m myStruct;
+ 	m.F = true;
+-	ok, errtok := Unmarshal(_Encoded, &m);
++	ok, errtok := Unmarshal(encoded, &m);
+ 	if !ok {
+ 		t.Fatalf("Unmarshal failed near %s", errtok);
+ 	}
+-	_Check(t, m.T == true, "t", m.T);
+-	_Check(t, m.F == false, "f", m.F);
+-	_Check(t, m.S == "abc", "s", m.S);
+-	_Check(t, m.I8 == 1, "i8", m.I8);
+-	_Check(t, m.I16 == 2, "i16", m.I16);
+-	_Check(t, m.I32 == 3, "i32", m.I32);
+-	_Check(t, m.I64 == 4, "i64", m.I64);
+-	_Check(t, m.U8 == 5, "u8", m.U8);
+-	_Check(t, m.U16 == 6, "u16", m.U16);
+-	_Check(t, m.U32 == 7, "u32", m.U32);
+-	_Check(t, m.U64 == 8, "u64", m.U64);
+-	_Check(t, m.I == -9, "i", m.I);
+-	_Check(t, m.U == 10, "u", m.U);
+-	_Check(t, m.Fl == 11.5, "fl", m.Fl);
+-	_Check(t, m.Fl32 == 12.25, "fl32", m.Fl32);
+-	_Check(t, m.Fl64 == 13.75, "fl64", m.Fl64);
+-	_Check(t, m.A != nil, "a", m.A);
++	check(t, m.T == true, "t", m.T);
++	check(t, m.F == false, "f", m.F);
++	check(t, m.S == "abc", "s", m.S);
++	check(t, m.I8 == 1, "i8", m.I8);
++	check(t, m.I16 == 2, "i16", m.I16);
++	check(t, m.I32 == 3, "i32", m.I32);
++	check(t, m.I64 == 4, "i64", m.I64);
++	check(t, m.U8 == 5, "u8", m.U8);
++	check(t, m.U16 == 6, "u16", m.U16);
++	check(t, m.U32 == 7, "u32", m.U32);
++	check(t, m.U64 == 8, "u64", m.U64);
++	check(t, m.I == -9, "i", m.I);
++	check(t, m.U == 10, "u", m.U);
++	check(t, m.Fl == 11.5, "fl", m.Fl);
++	check(t, m.Fl32 == 12.25, "fl32", m.Fl32);
++	check(t, m.Fl64 == 13.75, "fl64", m.Fl64);
++	check(t, m.A != nil, "a", m.A);
+ 	if m.A != nil {
+-		_Check(t, m.A[0] == "x", "a[0]", m.A[0]);
+-		_Check(t, m.A[1] == "y", "a[1]", m.A[1]);
+-		_Check(t, m.A[2] == "z", "a[2]", m.A[2]);
++		check(t, m.A[0] == "x", "a[0]", m.A[0]);
++		check(t, m.A[1] == "y", "a[1]", m.A[1]);
++		check(t, m.A[2] == "z", "a[2]", m.A[2]);
+ 	}
+-	_Check(t, m.My != nil, "my", m.My);
++	check(t, m.My != nil, "my", m.My);
+ 	if m.My != nil {
+-		_Check(t, m.My.S == "subguy", "my.s", m.My.S);
++		check(t, m.My.S == "subguy", "my.s", m.My.S);
+ 	}
++	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map);
++	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct);
++	check(t, reflect.DeepEqual(m.MapPtrStruct, decodedMapPtrStruct), "mapptrstruct", m.MapPtrStruct);
+ }

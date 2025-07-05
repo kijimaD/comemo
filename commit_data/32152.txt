@@ -14,6 +14,24 @@ Date:   Sat Apr 8 08:03:51 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/40050
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index eb89789a2f..66af2bf01c 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1558,12 +1558,6 @@ func (a typesByString) Len() int           { return len(a) }
+ func (a typesByString) Less(i, j int) bool { return a[i].s < a[j].s }
+ func (a typesByString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+-type pkgByPath []*types.Pkg
+-
+-func (a pkgByPath) Len() int           { return len(a) }
+-func (a pkgByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
+-func (a pkgByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ func dalgsym(t *types.Type) *types.Sym {
+ 	var s *types.Sym
+ 	var hashfunc *types.Sym

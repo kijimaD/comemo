@@ -9,9 +9,244 @@ Date:   Thu Feb 12 12:14:02 2015 +1100
     Change-Id: Ic077d7dbb133c7b812856e758d696d6fed557afd
     Reviewed-on: https://go-review.googlesource.com/4650
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs_windows_386.go   | 16 +++++++++++++
  src/runtime/defs_windows_amd64.go | 23 +++++++++++++++++++
  src/runtime/os1_windows_386.go    | 40 ++++++++++-----------------------
  src/runtime/os1_windows_amd64.go  | 47 ++++++++++-----------------------------
  4 files changed, 63 insertions(+), 63 deletions(-)
+
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index c860f74a3f..bac6ce78ce 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -107,6 +107,22 @@ func (c *context) sp() uintptr { return uintptr(c.esp) }
+ func (c *context) setip(x uintptr) { c.eip = uint32(x) }
+ func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
+ 
++func dumpregs(r *context) {
++	print("eax     ", hex(r.eax), "\n")
++	print("ebx     ", hex(r.ebx), "\n")
++	print("ecx     ", hex(r.ecx), "\n")
++	print("edx     ", hex(r.edx), "\n")
++	print("edi     ", hex(r.edi), "\n")
++	print("esi     ", hex(r.esi), "\n")
++	print("ebp     ", hex(r.ebp), "\n")
++	print("esp     ", hex(r.esp), "\n")
++	print("eip     ", hex(r.eip), "\n")
++	print("eflags  ", hex(r.eflags), "\n")
++	print("cs      ", hex(r.segcs), "\n")
++	print("fs      ", hex(r.segfs), "\n")
++	print("gs      ", hex(r.seggs), "\n")
++}
++
+ type overlapped struct {
+ 	internal     uint32
+ 	internalhigh uint32
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index d1e55ec426..6e04568114 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -122,6 +122,29 @@ func (c *context) sp() uintptr { return uintptr(c.rsp) }
+ func (c *context) setip(x uintptr) { c.rip = uint64(x) }
+ func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
+ 
++func dumpregs(r *context) {
++	print("rax     ", hex(r.rax), "\n")
++	print("rbx     ", hex(r.rbx), "\n")
++	print("rcx     ", hex(r.rcx), "\n")
++	print("rdi     ", hex(r.rdi), "\n")
++	print("rsi     ", hex(r.rsi), "\n")
++	print("rbp     ", hex(r.rbp), "\n")
++	print("rsp     ", hex(r.rsp), "\n")
++	print("r8      ", hex(r.r8), "\n")
++	print("r9      ", hex(r.r9), "\n")
++	print("r10     ", hex(r.r10), "\n")
++	print("r11     ", hex(r.r11), "\n")
++	print("r12     ", hex(r.r12), "\n")
++	print("r13     ", hex(r.r13), "\n")
++	print("r14     ", hex(r.r14), "\n")
++	print("r15     ", hex(r.r15), "\n")
++	print("rip     ", hex(r.rip), "\n")
++	print("rflags  ", hex(r.eflags), "\n")
++	print("cs      ", hex(r.segcs), "\n")
++	print("fs      ", hex(r.segfs), "\n")
++	print("gs      ", hex(r.seggs), "\n")
++}
++
+ type overlapped struct {
+ 	internal     uint64
+ 	internalhigh uint64
+diff --git a/src/runtime/os1_windows_386.go b/src/runtime/os1_windows_386.go
+index e5fe7486cb..f7d5fa7fdf 100644
+--- a/src/runtime/os1_windows_386.go
++++ b/src/runtime/os1_windows_386.go
+@@ -8,26 +8,10 @@ import (
+ 	"unsafe"
+ )
+ 
+-func dumpregs(r *context) {
+-	print("eax     ", hex(r.eax), "\n")
+-	print("ebx     ", hex(r.ebx), "\n")
+-	print("ecx     ", hex(r.ecx), "\n")
+-	print("edx     ", hex(r.edx), "\n")
+-	print("edi     ", hex(r.edi), "\n")
+-	print("esi     ", hex(r.esi), "\n")
+-	print("ebp     ", hex(r.ebp), "\n")
+-	print("esp     ", hex(r.esp), "\n")
+-	print("eip     ", hex(r.eip), "\n")
+-	print("eflags  ", hex(r.eflags), "\n")
+-	print("cs      ", hex(r.segcs), "\n")
+-	print("fs      ", hex(r.segfs), "\n")
+-	print("gs      ", hex(r.seggs), "\n")
+-}
+-
+ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code).
+-	if r.eip < uint32(themoduledata.text) || uint32(themoduledata.etext) < r.eip {
++	if r.ip() < themoduledata.text || themoduledata.etext < r.ip() {
+ 		return false
+ 	}
+ 
+@@ -53,21 +37,21 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	gp.sig = info.exceptioncode
+ 	gp.sigcode0 = uintptr(info.exceptioninformation[0])
+ 	gp.sigcode1 = uintptr(info.exceptioninformation[1])
+-	gp.sigpc = uintptr(r.eip)
++	gp.sigpc = r.ip()
+ 
+-	// Only push runtime·sigpanic if r->eip != 0.
+-	// If r->eip == 0, probably panicked because of a
++	// Only push runtime·sigpanic if r.ip() != 0.
++	// If r.ip() == 0, probably panicked because of a
+ 	// call to a nil func.  Not pushing that onto sp will
+ 	// make the trace look like a call to runtime·sigpanic instead.
+ 	// (Otherwise the trace will end at runtime·sigpanic and we
+ 	// won't get to see who faulted.)
+-	if r.eip != 0 {
+-		sp := unsafe.Pointer(uintptr(r.esp))
++	if r.ip() != 0 {
++		sp := unsafe.Pointer(r.sp())
+ 		sp = add(sp, ^uintptr(unsafe.Sizeof(uintptr(0))-1)) // sp--
+-		*((*uintptr)(sp)) = uintptr(r.eip)
+-		r.esp = uint32(uintptr(sp))
++		*((*uintptr)(sp)) = r.ip()
++		r.setsp(uintptr(sp))
+ 	}
+-	r.eip = uint32(funcPC(sigpanic))
++	r.setip(funcPC(sigpanic))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
+@@ -87,9 +71,9 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	}
+ 	panicking = 1
+ 
+-	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.eip), "\n")
++	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
+ 
+-	print("PC=", hex(r.eip), "\n")
++	print("PC=", hex(r.ip()), "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -98,7 +82,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 
+ 	var docrash bool
+ 	if gotraceback(&docrash) > 0 {
+-		tracebacktrap(uintptr(r.eip), uintptr(r.esp), 0, gp)
++		tracebacktrap(r.ip(), r.sp(), 0, gp)
+ 		tracebackothers(gp)
+ 		dumpregs(r)
+ 	}
+diff --git a/src/runtime/os1_windows_amd64.go b/src/runtime/os1_windows_amd64.go
+index 37a97b7382..a681f0f12b 100644
+--- a/src/runtime/os1_windows_amd64.go
++++ b/src/runtime/os1_windows_amd64.go
+@@ -8,33 +8,10 @@ import (
+ 	"unsafe"
+ )
+ 
+-func dumpregs(r *context) {
+-	print("rax     ", hex(r.rax), "\n")
+-	print("rbx     ", hex(r.rbx), "\n")
+-	print("rcx     ", hex(r.rcx), "\n")
+-	print("rdi     ", hex(r.rdi), "\n")
+-	print("rsi     ", hex(r.rsi), "\n")
+-	print("rbp     ", hex(r.rbp), "\n")
+-	print("rsp     ", hex(r.rsp), "\n")
+-	print("r8      ", hex(r.r8), "\n")
+-	print("r9      ", hex(r.r9), "\n")
+-	print("r10     ", hex(r.r10), "\n")
+-	print("r11     ", hex(r.r11), "\n")
+-	print("r12     ", hex(r.r12), "\n")
+-	print("r13     ", hex(r.r13), "\n")
+-	print("r14     ", hex(r.r14), "\n")
+-	print("r15     ", hex(r.r15), "\n")
+-	print("rip     ", hex(r.rip), "\n")
+-	print("rflags  ", hex(r.eflags), "\n")
+-	print("cs      ", hex(r.segcs), "\n")
+-	print("fs      ", hex(r.segfs), "\n")
+-	print("gs      ", hex(r.seggs), "\n")
+-}
+-
+ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code).
+-	if r.rip < uint64(themoduledata.text) || uint64(themoduledata.etext) < r.rip {
++	if r.ip() < themoduledata.text || themoduledata.etext < r.ip() {
+ 		return false
+ 	}
+ 
+@@ -61,21 +38,21 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	gp.sig = info.exceptioncode
+ 	gp.sigcode0 = uintptr(info.exceptioninformation[0])
+ 	gp.sigcode1 = uintptr(info.exceptioninformation[1])
+-	gp.sigpc = uintptr(r.rip)
++	gp.sigpc = r.ip()
+ 
+-	// Only push runtime·sigpanic if r->rip != 0.
+-	// If r->rip == 0, probably panicked because of a
++	// Only push runtime·sigpanic if r.ip() != 0.
++	// If r.ip() == 0, probably panicked because of a
+ 	// call to a nil func.  Not pushing that onto sp will
+ 	// make the trace look like a call to runtime·sigpanic instead.
+ 	// (Otherwise the trace will end at runtime·sigpanic and we
+ 	// won't get to see who faulted.)
+-	if r.rip != 0 {
+-		sp := unsafe.Pointer(uintptr(r.rsp))
++	if r.ip() != 0 {
++		sp := unsafe.Pointer(r.sp())
+ 		sp = add(sp, ^uintptr(unsafe.Sizeof(uintptr(0))-1)) // sp--
+-		*((*uintptr)(sp)) = uintptr(r.rip)
+-		r.rsp = uint64(uintptr(sp))
++		*((*uintptr)(sp)) = r.ip()
++		r.setsp(uintptr(sp))
+ 	}
+-	r.rip = uint64(funcPC(sigpanic))
++	r.setip(funcPC(sigpanic))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
+@@ -106,9 +83,9 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) uint32 {
+ 	}
+ 	panicking = 1
+ 
+-	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.rip), "\n")
++	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
+ 
+-	print("PC=", hex(r.rip), "\n")
++	print("PC=", hex(r.ip()), "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -117,7 +94,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) uint32 {
+ 
+ 	var docrash bool
+ 	if gotraceback(&docrash) > 0 {
+-		tracebacktrap(uintptr(r.rip), uintptr(r.rsp), 0, gp)
++		tracebacktrap(r.ip(), r.sp(), 0, gp)
+ 		tracebackothers(gp)
+ 		dumpregs(r)
+ 	}

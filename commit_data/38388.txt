@@ -35,7 +35,83 @@ Date:   Wed Oct 24 12:01:13 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/c/144112
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 27 +++++++++++++++++++++++++--
  src/cmd/link/internal/ld/lib.go  | 19 +++++++++++++++++--
  2 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6ae263431c..99a500f11f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2080,14 +2080,37 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files.
+-func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, objs []string) error {
++func (b *Builder) gccld(p *load.Package, objdir, outfile string, flags []string, objs []string) error {
+ 	var cmd []string
+ 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
+ 		cmd = b.GxxCmd(p.Dir, objdir)
+ 	} else {
+ 		cmd = b.GccCmd(p.Dir, objdir)
+ 	}
+-	return b.run(nil, p.Dir, p.ImportPath, b.cCompilerEnv(), cmd, "-o", out, objs, flags)
++
++	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
++	dir := p.Dir
++	out, err := b.runOut(dir, b.cCompilerEnv(), cmdargs...)
++	if len(out) > 0 {
++		// Filter out useless linker warnings caused by bugs outside Go.
++		// See also cmd/link/internal/ld's hostlink method.
++		var save [][]byte
++		for _, line := range bytes.SplitAfter(out, []byte("\n")) {
++			// golang.org/issue/26073 - Apple Xcode bug
++			if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
++				continue
++			}
++			save = append(save, line)
++		}
++		out = bytes.Join(save, nil)
++		if len(out) > 0 {
++			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
++			if err != nil {
++				err = errPrintedOutput
++			}
++		}
++	}
++	return err
+ }
+ 
+ // Grab these before main helpfully overwrites them.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0f5617246b..2075066e31 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1338,9 +1338,24 @@ func (ctxt *Link) hostlink() {
+ 		ctxt.Logf("\n")
+ 	}
+ 
+-	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
++	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
++	if err != nil {
+ 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+-	} else if len(out) > 0 {
++	}
++
++	// Filter out useless linker warnings caused by bugs outside Go.
++	// See also cmd/go/internal/work/exec.go's gccld method.
++	var save [][]byte
++	for _, line := range bytes.SplitAfter(out, []byte("\n")) {
++		// golang.org/issue/26073 - Apple Xcode bug
++		if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
++			continue
++		}
++		save = append(save, line)
++	}
++	out = bytes.Join(save, nil)
++
++	if len(out) > 0 {
+ 		// always print external output even if the command is successful, so that we don't
+ 		// swallow linker warnings (see https://golang.org/issue/17935).
+ 		ctxt.Logf("%s", out)

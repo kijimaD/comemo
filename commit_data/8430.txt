@@ -7,6 +7,19 @@ Date:   Wed May 18 13:12:38 2011 -0400
     R=alex.brainman, rsc
     CC=golang-dev, vcc.163
     https://golang.org/cl/4532069
-
+---
  src/cmd/6l/asm.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index c976ac50e4..6dffa20f24 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -829,6 +829,7 @@ asmb(void)
+ 			}
+ 			break;
+ 		case Hwindows:
++			seek(cout, symo, 0);
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 

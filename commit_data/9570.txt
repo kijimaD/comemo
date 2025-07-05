@@ -7,7 +7,93 @@ Date:   Wed Aug 31 17:38:41 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4973050
-
+---
  src/pkg/flag/flag.go      | 19 ++++++++++++++++++-
  src/pkg/flag/flag_test.go |  6 ++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 01bbc37700..38b65d1a1e 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -204,6 +204,7 @@ type FlagSet struct {
+ 	Usage func()
+ 
+ 	name          string
++	parsed        bool
+ 	actual        map[string]*Flag
+ 	formal        map[string]*Flag
+ 	args          []string // arguments after flags
+@@ -318,10 +319,15 @@ func defaultUsage(f *FlagSet) {
+ 	f.PrintDefaults()
+ }
+ 
++// NOTE: Usage is not just defaultUsage(commandLine)
++// because it serves (via godoc flag Usage) as the example
++// for how to write your own usage function.
++
+ // Usage prints to standard error a usage message documenting all defined command-line flags.
+ // The function is a variable that may be changed to point to a custom function.
+ var Usage = func() {
+-	defaultUsage(commandLine)
++	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
++	PrintDefaults()
+ }
+ 
+ // NFlag returns the number of flags that have been set.
+@@ -660,6 +666,7 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
+ // are defined and before flags are accessed by the program.
+ // The return value will be ErrHelp if -help was set but not defined.
+ func (f *FlagSet) Parse(arguments []string) os.Error {
++	f.parsed = true
+ 	f.args = arguments
+ 	for {
+ 		seen, err := f.parseOne()
+@@ -681,6 +688,11 @@ func (f *FlagSet) Parse(arguments []string) os.Error {
+ 	return nil
+ }
+ 
++// Parsed reports whether f.Parse has been called.
++func (f *FlagSet) Parsed() bool {
++	return f.parsed
++}
++
+ // Parse parses the command-line flags from os.Args[1:].  Must be called
+ // after all flags are defined and before flags are accessed by the program.
+ func Parse() {
+@@ -688,6 +700,11 @@ func Parse() {
+ 	commandLine.Parse(os.Args[1:])
+ }
+ 
++// Parsed returns true if the command-line flags have been parsed.
++func Parsed() bool {
++	return commandLine.Parsed()
++}
++
+ // The default set of command-line flags, parsed from os.Args.
+ var commandLine = NewFlagSet(os.Args[0], ExitOnError)
+ 
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index 63d0a9fc89..19c0deaf5c 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -98,6 +98,9 @@ func TestUsage(t *testing.T) {
+ }
+ 
+ func testParse(f *FlagSet, t *testing.T) {
++	if f.Parsed() {
++		t.Error("f.Parse() = true before Parse")
++	}
+ 	boolFlag := f.Bool("bool", false, "bool value")
+ 	bool2Flag := f.Bool("bool2", false, "bool2 value")
+ 	intFlag := f.Int("int", 0, "int value")
+@@ -121,6 +124,9 @@ func testParse(f *FlagSet, t *testing.T) {
+ 	if err := f.Parse(args); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if !f.Parsed() {
++		t.Error("f.Parse() = false after Parse")
++	}
+ 	if *boolFlag != true {
+ 		t.Error("bool flag should be true, is ", *boolFlag)
+ 	}

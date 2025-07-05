@@ -14,6 +14,24 @@ Date:   Thu Jun 23 14:11:59 2022 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/dwarf/line.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index bb281fbdd9..4df4a1751f 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -215,7 +215,11 @@ func (r *LineReader) readHeader(compDir string) error {
+ 	} else {
+ 		headerLength = Offset(buf.uint32())
+ 	}
+-	r.programOffset = buf.off + headerLength
++	programOffset := buf.off + headerLength
++	if programOffset > r.endOffset {
++		return DecodeError{"line", hdrOffset, fmt.Sprintf("malformed line table: program offset %d exceeds end offset %d", programOffset, r.endOffset)}
++	}
++	r.programOffset = programOffset
+ 	r.minInstructionLength = int(buf.uint8())
+ 	if r.version >= 4 {
+ 		// [DWARF4 6.2.4]

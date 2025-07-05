@@ -12,6 +12,25 @@ Date:   Tue Apr 9 03:34:59 2024 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/ld/main.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 5a4d7f9451..c19dd2565b 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -499,7 +499,12 @@ func startProfile() {
+ 		if err := pprof.StartCPUProfile(f); err != nil {
+ 			log.Fatalf("%v", err)
+ 		}
+-		AtExit(pprof.StopCPUProfile)
++		AtExit(func() {
++			pprof.StopCPUProfile()
++			if err = f.Close(); err != nil {
++				log.Fatalf("error closing cpu profile: %v", err)
++			}
++		})
+ 	}
+ 	if *memprofile != "" {
+ 		if *memprofilerate != 0 {

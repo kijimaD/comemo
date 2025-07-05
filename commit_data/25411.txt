@@ -7,6 +7,28 @@ Date:   Tue Oct 13 21:34:47 2015 -0700
     Change-Id: I8cc9783fd044bed48347824dcf973c61c78275a5
     Reviewed-on: https://go-review.googlesource.com/15833
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/exec.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 233d34a02b..f45cbb212f 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -523,7 +523,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 		return zero
+ 	}
+ 	typ := receiver.Type()
+-	receiver, _ = indirect(receiver)
++	receiver, isNil := indirect(receiver)
+ 	// Unless it's an interface, need to get to a value of type *T to guarantee
+ 	// we see all methods of T and *T.
+ 	ptr := receiver
+@@ -535,7 +535,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	}
+ 	hasArgs := len(args) > 1 || final.IsValid()
+ 	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
+-	receiver, isNil := indirect(receiver)
+ 	if isNil {
+ 		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+ 	}

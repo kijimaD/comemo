@@ -14,7 +14,247 @@ Date:   Thu Dec 9 14:52:49 2021 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go      |  46 +++++++
  src/cmd/go/testdata/script/work_prune_all.txt | 176 ++++++++++++++++++++++++++
  2 files changed, 222 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 38ba150002..6f9072c8c4 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -386,6 +386,52 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 	}
+ 	<-loadQueue.Idle()
+ 
++	// Reload any dependencies of the main modules which are not
++	// at their selected versions at workspace mode, because the
++	// requirements don't accurately reflect the transitive imports.
++	if pruning == workspace {
++		// hasDepsInAll contains the set of modules that need to be loaded
++		// at workspace pruning because any of their dependencies may
++		// provide packages in all.
++		hasDepsInAll := make(map[string]bool)
++		seen := map[module.Version]bool{}
++		for _, m := range roots {
++			hasDepsInAll[m.Path] = true
++			seen[m] = true
++		}
++		// This loop will terminate because it will call enqueue on each version of
++		// each dependency of the modules in hasDepsInAll at most once (and only
++		// calls enqueue on successively increasing versions of each dependency).
++		for {
++			needsEnqueueing := map[module.Version]bool{}
++			for p := range hasDepsInAll {
++				m := module.Version{Path: p, Version: mg.g.Selected(p)}
++				reqs, ok := mg.g.RequiredBy(m)
++				if !ok {
++					needsEnqueueing[m] = true
++					continue
++				}
++				for _, r := range reqs {
++					s := module.Version{Path: r.Path, Version: mg.g.Selected(r.Path)}
++					if cmpVersion(s.Version, r.Version) > 0 && !seen[s] {
++						needsEnqueueing[s] = true
++					}
++				}
++			}
++			// add all needs enqueueing to paths we care about
++			if len(needsEnqueueing) == 0 {
++				break
++			}
++
++			for p := range needsEnqueueing {
++				enqueue(p, workspace)
++				seen[p] = true
++				hasDepsInAll[p.Path] = true
++			}
++			<-loadQueue.Idle()
++		}
++	}
++
+ 	if hasError {
+ 		return mg, mg.findError()
+ 	}
+diff --git a/src/cmd/go/testdata/script/work_prune_all.txt b/src/cmd/go/testdata/script/work_prune_all.txt
+new file mode 100644
+index 0000000000..a7ad9c04af
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_prune_all.txt
+@@ -0,0 +1,176 @@
++# This test makes sure workspace mode's handling of the module graph
++# is compatible with module pruning. The graph we load from either of
++# the workspace modules should be the same, even if their graphs
++# don't overlap.
++#
++# This is the module graph in the test:
++#
++#  example.com/p -> example.com/q v1.0.0
++#  example.com/a -> example.com/b v1.0.0 -> example.com/q v1.1.0 -> example.com/w v1.0.0 -> example.com/x v1.0.0 -> example.com/y v1.0.0
++#                |-> example.com/z v1.0.0                        |-> example.com/z v1.1.0
++#                            |-> example.com/q v1.0.5 -> example.com/r v1.0.0
++# If we didn't load the whole graph and didn't load the dependencies of b
++# when loading p, we would end up loading q v1.0.0, rather than v1.1.0,
++# which is selected by MVS.
++
++go list -m all
++stdout 'example.com/w v1.0.0'
++stdout 'example.com/q v1.1.0'
++stdout 'example.com/z v1.1.0'
++stdout 'example.com/x v1.0.0'
++! stdout 'example.com/r'
++! stdout 'example.com/y'
++
++-- go.work --
++go 1.18
++
++use (
++	./a
++	./p
++)
++
++replace example.com/b v1.0.0 => ./b
++replace example.com/q v1.0.0 => ./q1_0_0
++replace example.com/q v1.0.5 => ./q1_0_5
++replace example.com/q v1.1.0 => ./q1_1_0
++replace example.com/r v1.0.0 => ./r
++replace example.com/w v1.0.0 => ./w
++replace example.com/x v1.0.0 => ./x
++replace example.com/y v1.0.0 => ./y
++replace example.com/z v1.0.0 => ./z1_0_0
++replace example.com/z v1.1.0 => ./z1_1_0
++
++-- a/go.mod --
++module example.com/a
++
++go 1.18
++
++require example.com/b v1.0.0
++require example.com/z v1.0.0
++-- a/foo.go --
++package main
++
++import "example.com/b"
++
++func main() {
++	b.B()
++}
++-- b/go.mod --
++module example.com/b
++
++go 1.18
++
++require example.com/q v1.1.0
++-- b/b.go --
++package b
++
++func B() {
++}
++-- p/go.mod --
++module example.com/p
++
++go 1.18
++
++require example.com/q v1.0.0
++
++replace example.com/q v1.0.0 => ../q1_0_0
++replace example.com/q v1.1.0 => ../q1_1_0
++-- p/main.go --
++package main
++
++import "example.com/q"
++
++func main() {
++	q.PrintVersion()
++}
++-- q1_0_0/go.mod --
++module example.com/q
++
++go 1.18
++-- q1_0_0/q.go --
++package q
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.0.0")
++}
++-- q1_0_5/go.mod --
++module example.com/q
++
++go 1.18
++
++require example.com/r v1.0.0
++-- q1_0_5/q.go --
++package q
++
++import _ "example.com/r"
++-- q1_1_0/go.mod --
++module example.com/q
++
++require example.com/w v1.0.0
++require example.com/z v1.1.0
++
++go 1.18
++-- q1_1_0/q.go --
++package q
++
++import _ "example.com/w"
++import _ "example.com/z"
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.1.0")
++}
++-- r/go.mod --
++module example.com/r
++
++go 1.18
++
++require example.com/r v1.0.0
++-- r/r.go --
++package r
++-- w/go.mod --
++module example.com/w
++
++go 1.18
++
++require example.com/x v1.0.0
++-- w/w.go --
++package w
++-- w/w_test.go --
++package w
++
++import _ "example.com/x"
++-- x/go.mod --
++module example.com/x
++
++go 1.18
++-- x/x.go --
++package x
++-- x/x_test.go --
++package x
++import _ "example.com/y"
++-- y/go.mod --
++module example.com/y
++
++go 1.18
++-- y/y.go --
++package y
++-- z1_0_0/go.mod --
++module example.com/z
++
++go 1.18
++
++require example.com/q v1.0.5
++-- z1_0_0/z.go --
++package z
++
++import _ "example.com/q"
++-- z1_1_0/go.mod --
++module example.com/z
++
++go 1.18
++-- z1_1_0/z.go --
++package z

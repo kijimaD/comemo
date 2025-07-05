@@ -7,8 +7,138 @@ Date:   Mon Sep 24 20:55:11 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6554062
-
+---
  src/cmd/5g/opt.h | 20 ++++++++++++--------
  src/cmd/6g/opt.h | 20 ++++++++++++--------
  src/cmd/8g/opt.h | 20 ++++++++++++--------
  3 files changed, 36 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index 7a0070fc9d..0f738188dd 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -49,12 +49,16 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++// A Reg is a wrapper around a single Prog (one instruction) that holds
++// register optimization information while the optimizer runs.
++// r->prog is the instruction.
++// r->prog->regp points back to r.
+ struct	Reg
+ {
+ 
+-	Bits	set;
+-	Bits	use1;
+-	Bits	use2;
++	Bits	set;  		// variables written by this instruction.
++	Bits	use1; 		// variables read by prog->from.
++	Bits	use2; 		// variables read by prog->to.
+ 
+ 	Bits	refbehind;
+ 	Bits	refahead;
+@@ -70,13 +74,13 @@ struct	Reg
+ 	uint16	loop;		// x5 for every loop
+ 	uchar	refset;		// diagnostic generated
+ 
+-	Reg*	p1;
+-	Reg*	p2;
++	Reg*	p1;     	// predecessors of this instruction: p1,
++	Reg*	p2;     	// and then p2 linked though p2link.
+ 	Reg*	p2link;
+-	Reg*	s1;
++	Reg*	s1;     	// successors of this instruction (at most two: s1 and s2).
+ 	Reg*	s2;
+-	Reg*	link;
+-	Prog*	prog;
++	Reg*	link;   	// next instruction in function code
++	Prog*	prog;   	// actual instruction
+ };
+ #define	R	((Reg*)0)
+ 
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index 9a8866b8d1..5fb24737e8 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -49,12 +49,16 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++// A Reg is a wrapper around a single Prog (one instruction) that holds
++// register optimization information while the optimizer runs.
++// r->prog is the instruction.
++// r->prog->regp points back to r.
+ struct	Reg
+ {
+ 
+-	Bits	set;
+-	Bits	use1;
+-	Bits	use2;
++	Bits	set;  		// variables written by this instruction.
++	Bits	use1; 		// variables read by prog->from.
++	Bits	use2; 		// variables read by prog->to.
+ 
+ 	Bits	refbehind;
+ 	Bits	refahead;
+@@ -70,13 +74,13 @@ struct	Reg
+ 	uint16	loop;		// x5 for every loop
+ 	uchar	refset;		// diagnostic generated
+ 
+-	Reg*	p1;
+-	Reg*	p2;
++	Reg*	p1;     	// predecessors of this instruction: p1,
++	Reg*	p2;     	// and then p2 linked though p2link.
+ 	Reg*	p2link;
+-	Reg*	s1;
++	Reg*	s1;     	// successors of this instruction (at most two: s1 and s2).
+ 	Reg*	s2;
+-	Reg*	link;
+-	Prog*	prog;
++	Reg*	link;   	// next instruction in function code
++	Prog*	prog;   	// actual instruction
+ };
+ #define	R	((Reg*)0)
+ 
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index ed6eb15ab4..b80043e0f1 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -47,12 +47,16 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++// A Reg is a wrapper around a single Prog (one instruction) that holds
++// register optimization information while the optimizer runs.
++// r->prog is the instruction.
++// r->prog->regp points back to r.
+ struct	Reg
+ {
+ 
+-	Bits	set;
+-	Bits	use1;
+-	Bits	use2;
++	Bits	set;  		// variables written by this instruction.
++	Bits	use1; 		// variables read by prog->from.
++	Bits	use2; 		// variables read by prog->to.
+ 
+ 	Bits	refbehind;
+ 	Bits	refahead;
+@@ -68,13 +72,13 @@ struct	Reg
+ 	uint16	loop;		// x5 for every loop
+ 	uchar	refset;		// diagnostic generated
+ 
+-	Reg*	p1;
+-	Reg*	p2;
++	Reg*	p1;     	// predecessors of this instruction: p1,
++	Reg*	p2;     	// and then p2 linked though p2link.
+ 	Reg*	p2link;
+-	Reg*	s1;
++	Reg*	s1;     	// successors of this instruction (at most two: s1 and s2).
+ 	Reg*	s2;
+-	Reg*	link;
+-	Prog*	prog;
++	Reg*	link;   	// next instruction in function code
++	Prog*	prog;   	// actual instruction
+ };
+ #define	R	((Reg*)0)
+ 

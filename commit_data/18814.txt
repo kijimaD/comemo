@@ -8,6 +8,20 @@ Date:   Mon Mar 10 07:57:58 2014 +0100
     R=rsc, dave, iant
     CC=golang-codereviews
     https://golang.org/cl/73160043
-
+---
  src/pkg/runtime/asm_amd64p32.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 93c1c8fbae..47e1d52a8b 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -617,7 +617,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+ // Not implemented.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
++TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
+ 	MOVL	0, AX
+ 	RET
+ 

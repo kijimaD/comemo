@@ -18,6 +18,27 @@ Date:   Wed Apr 9 21:23:36 2014 +0200
     R=rsc, dave, khr, brad, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/84690044
-
+---
  src/cmd/6g/ggen.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 2633b19e4d..991783bc57 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -42,12 +42,12 @@ defframe(Prog *ptxt)
+ 			continue;
+ 		if(n->class != PAUTO)
+ 			fatal("needzero class %d", n->class);
+-		if(n->type->width % widthreg != 0 || n->xoffset % widthreg != 0 || n->type->width == 0)
++		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
+ 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+ 
+-		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthptr) {
++		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthreg) {
+ 			// merge with range we already have
+-			lo = n->xoffset;
++			lo = rnd(n->xoffset, widthreg);
+ 			continue;
+ 		}
+ 		// zero old range

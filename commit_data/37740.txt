@@ -13,6 +13,20 @@ Date:   Fri Aug 3 11:50:55 2018 -0500
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index e21415a3fd..95a4a67817 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -70,7 +70,7 @@ func ExampleFileMode() {
+ func ExampleIsNotExist() {
+ 	filename := "a-nonexistent-file"
+ 	if _, err := os.Stat(filename); os.IsNotExist(err) {
+-		fmt.Printf("file does not exist")
++		fmt.Println("file does not exist")
+ 	}
+ 	// Output:
+ 	// file does not exist

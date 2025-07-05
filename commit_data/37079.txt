@@ -11,6 +11,20 @@ Date:   Tue Jun 26 03:33:20 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/asm_darwin_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/asm_darwin_amd64.s b/src/syscall/asm_darwin_amd64.s
+index 01f461b8b0..eab4fcdc06 100644
+--- a/src/syscall/asm_darwin_amd64.s
++++ b/src/syscall/asm_darwin_amd64.s
+@@ -117,7 +117,7 @@ ok1:
+ 	MOVQ	$0, err+48(FP)
+ 	RET
+ 
+-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++// func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	a1+8(FP), DI
+ 	MOVQ	a2+16(FP), SI

@@ -9,7 +9,80 @@ Date:   Sun Feb 3 11:19:22 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7261044
-
+---
  src/cmd/gc/inl.c            | 14 ++++++++++++++
  test/fixedbugs/issue4748.go | 20 ++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 7b2a5ca649..1cc13a3045 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -510,6 +510,8 @@ tinlvar(Type *t)
+ 	return nblank;
+ }
+ 
++static int inlgen;
++
+ // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
+ // On return ninit has the parameter assignments, the nbody is the
+ // inlined function body and list, rlist contain the input, output
+@@ -730,6 +732,7 @@ mkinlcall1(Node **np, Node *fn, int isddd)
+ 	}
+ 
+ 	inlretlabel = newlabel();
++	inlgen++;
+ 	body = inlsubstlist(fn->inl);
+ 
+ 	body = list(body, nod(OGOTO, inlretlabel, N));	// avoid 'not used' when function doesnt have return
+@@ -855,6 +858,7 @@ inlsubstlist(NodeList *ll)
+ static Node*
+ inlsubst(Node *n)
+ {
++	char *p;
+ 	Node *m, *as;
+ 	NodeList *ll;
+ 
+@@ -897,6 +901,16 @@ inlsubst(Node *n)
+ 		typecheck(&m, Etop);
+ //		dump("Return after substitution", m);
+ 		return m;
++	
++	case OGOTO:
++	case OLABEL:
++		m = nod(OXXX, N, N);
++		*m = *n;
++		m->ninit = nil;
++		p = smprint("%s·%d", n->left->sym->name, inlgen);	
++		m->left = newname(lookup(p));
++		free(p);
++		return m;	
+ 	}
+ 
+ 
+diff --git a/test/fixedbugs/issue4748.go b/test/fixedbugs/issue4748.go
+new file mode 100644
+index 0000000000..73c75393cf
+--- /dev/null
++++ b/test/fixedbugs/issue4748.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4748.
++// This program used to complain because inlining created two exit labels.
++
++package main
++
++func jump() {
++        goto exit
++exit:
++        return
++}
++func main() {
++        jump()
++        jump()
++}

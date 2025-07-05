@@ -15,6 +15,19 @@ Date:   Wed Nov 1 11:46:59 2023 +0100
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/mkall.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index ae80c44bea..a3bc767628 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -367,6 +367,7 @@ openbsd_ppc64)
+ 	# API consistent between platforms.
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+ 	mkasm="go run mkasm.go"
++	;;
+ openbsd_riscv64)
+ 	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+ 	mkerrors="$mkerrors -m64"

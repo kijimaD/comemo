@@ -9,6 +9,22 @@ Date:   Thu Aug 26 13:32:50 2010 -0400
     R=rsc, aclements
     CC=golang-dev
     https://golang.org/cl/1981041
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index e27ee7438e..0b02219887 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -27,8 +27,8 @@
+ 
+ (defvar go-mode-syntax-table
+   (let ((st (make-syntax-table)))
+-    ;; Symbols
+-    (modify-syntax-entry ?_  "_" st)
++    ;; Add _ to :word: character class
++    (modify-syntax-entry ?_  "w" st)
+ 
+     ;; Operators (punctuation)
+     (modify-syntax-entry ?+  "." st)

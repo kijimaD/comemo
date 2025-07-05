@@ -10,7 +10,7 @@ Date:   Thu Nov 25 12:22:36 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/go/internal/generate/generate.go | 2 +-
  src/cmd/go/internal/get/get.go           | 2 +-
  src/cmd/go/internal/list/list.go         | 2 +-
@@ -21,3 +21,132 @@ Date:   Thu Nov 25 12:22:36 2021 +0100
  src/cmd/go/internal/work/buildid.go      | 2 +-
  src/cmd/go/internal/work/gccgo.go        | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index a3873d1138..4c17f42930 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -25,8 +25,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdGenerate = &base.Command{
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index f46313dcff..8cf8fe6645 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -17,10 +17,10 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/web"
+ 	"cmd/go/internal/work"
+-	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 8c85ddcf21..5ecd384787 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -23,8 +23,8 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdList = &base.Command{
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 8a18dfbe93..6122428c9c 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -22,8 +22,8 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/trace"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ )
+ 
+ var TestMainDeps = []string{
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 1eb484de9d..33808ea109 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -21,8 +21,8 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/trace"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 03895d27eb..878cee367e 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -18,8 +18,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdRun = &base.Command{
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index b2ce80325a..77a75fd51c 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -26,8 +26,8 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/web"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/web"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index d4f2a716d7..4e9189a363 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -15,8 +15,8 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+-	"cmd/internal/buildid"
+ 	"cmd/go/internal/str"
++	"cmd/internal/buildid"
+ )
+ 
+ // Build IDs
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 60181b99e4..1499536932 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -16,8 +16,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+-	"cmd/internal/pkgpath"
+ 	"cmd/go/internal/str"
++	"cmd/internal/pkgpath"
+ )
+ 
+ // The Gccgo toolchain.

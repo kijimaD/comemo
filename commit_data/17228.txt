@@ -9,7 +9,32 @@ Date:   Wed Aug 14 09:22:26 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/12933043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4c6335fb85..4b10f9315d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -206,6 +206,7 @@ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se>
+ Matt Jibson <matt.jibson@gmail.com>
++Matt Joiner <anacrolix@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f8e64c3250..1071fdd4d0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -304,6 +304,7 @@ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
+ Matt Brown <mdbrown@google.com>
+ Matt Jibson <matt.jibson@gmail.com>
++Matt Joiner <anacrolix@gmail.com>
+ Matt Jones <mrjones@google.com>
+ Matthew Dempsky <mdempsky@google.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>

@@ -9,6 +9,26 @@ Date:   Thu Nov 8 10:36:29 2012 +1100
     R=r, minux.ma
     CC=golang-dev
     https://golang.org/cl/6814098
-
+---
  src/pkg/image/jpeg/reader.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 5b1e61774e..24dd65defc 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -236,6 +236,14 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+ 			return nil, FormatError("missing 0xff marker start")
+ 		}
+ 		marker := d.tmp[1]
++		for marker == 0xff {
++			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
++			// number of fill bytes, which are bytes assigned code X'FF'".
++			marker, err = d.r.ReadByte()
++			if err != nil {
++				return nil, err
++			}
++		}
+ 		if marker == eoiMarker { // End Of Image.
+ 			break
+ 		}

@@ -12,10 +12,244 @@ Date:   Tue Mar 16 14:17:42 2010 -0700
     R=rsc
     CC=adg, golang-dev
     https://golang.org/cl/578042
-
+---
  doc/popups.js           | 24 +++++++++++++++++
  doc/style.css           | 13 +++++++++
  lib/godoc/source.html   | 23 ++++++++++++++++
  src/cmd/godoc/godoc.go  | 71 ++++++++++++++++++++++++++++++++++++++++++++-----
  src/pkg/go/ast/scope.go | 13 +++++++++
  5 files changed, 138 insertions(+), 6 deletions(-)
+
+diff --git a/doc/popups.js b/doc/popups.js
+new file mode 100644
+index 0000000000..23ccc8c75c
+--- /dev/null
++++ b/doc/popups.js
+@@ -0,0 +1,24 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++function godocs_bindPopups(data) {
++
++  $('#content span').bind('mouseenter', function() {
++    var id = $(this).attr('id');
++    //var txt = $(this).text();
++    if (typeof data[id] == 'undefined')
++	return;
++    var content = data[id];
++
++    var $el = $('.popup', this);
++    if (!$el.length) { // create it
++      $el = $('<div class="popup"></div>');
++      $el.prependTo(this).css($(this).offset()).text(content);
++    }
++  });
++  $('#content span').bind('mouseleave', function() {
++    $('.popup', this).remove();
++  });
++
++}
+diff --git a/doc/style.css b/doc/style.css
+index 25ea6c3450..184b80e6e2 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -211,6 +211,19 @@ span.highlight {
+   border: 2px solid #ba9836;
+ }
+ 
++/* same color scheme as for gettingStarted */
++#content .popup {
++  position: absolute;
++  border: 1px solid #ba9836;
++  background-color: #fffff0;
++  margin-top: 3em;
++  padding: 3px;
++}
++
++#content .identifier,
++#content .type {
++  color: #008;
++}
+ 
+ /* ------------------------------------------------------------------------- */
+ /* Styles for the frontpage */
+diff --git a/lib/godoc/source.html b/lib/godoc/source.html
+new file mode 100644
+index 0000000000..645517012a
+--- /dev/null
++++ b/lib/godoc/source.html
+@@ -0,0 +1,23 @@
++<!--
++	Copyright 2009 The Go Authors. All rights reserved.
++	Use of this source code is governed by a BSD-style
++	license that can be found in the LICENSE file.
++-->
++
++<script src="http://www.google.com/jsapi"></script>
++<script src="/doc/popups.js"></script>
++<script>
++var popup_data = [
++{.repeated section Data}
++	'{@|popupInfo}',
++{.end}
++]
++
++google.load("jquery", "1");
++google.setOnLoadCallback(function() {.meta-left}
++        godocs_bindPopups(popup_data);
++{.meta-right});
++</script>
++
++{# Source is HTML-escaped elsewhere}
++<pre>{Source}</pre>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 067f82a5f9..286ecc99ec 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -441,6 +441,36 @@ func (root *Directory) listing(skipRoot bool) *DirList {
+ type Styler struct {
+ 	linetags  bool
+ 	highlight string
++	objmap    map[*ast.Object]int
++	count     int
++}
++
++
++func newStyler(highlight string) *Styler {
++	return &Styler{true, highlight, make(map[*ast.Object]int), 0}
++}
++
++
++func (s *Styler) id(obj *ast.Object) int {
++	n, found := s.objmap[obj]
++	if !found {
++		n = s.count
++		s.objmap[obj] = n
++		s.count++
++	}
++	return n
++}
++
++
++func (s *Styler) mapping() []*ast.Object {
++	if s.objmap == nil {
++		return nil
++	}
++	m := make([]*ast.Object, s.count)
++	for obj, i := range s.objmap {
++		m[i] = obj
++	}
++	return m
+ }
+ 
+ 
+@@ -477,8 +507,15 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
+ 
+ func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+ 	text = []byte(id.Name())
++	var str string
++	if s.objmap != nil {
++		str = fmt.Sprintf(` id="%d"`, s.id(id.Obj))
++	}
+ 	if s.highlight == id.Name() {
+-		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
++		str += ` class="highlight"`
++	}
++	if str != "" {
++		tag = printer.HTMLTag{"<span" + str + ">", "</span>"}
+ 	}
+ 	return
+ }
+@@ -761,6 +798,19 @@ func localnameFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
++// Template formatter for "popupInfo" format.
++func popupInfoFmt(w io.Writer, x interface{}, format string) {
++	obj := x.(*ast.Object)
++	// for now, show object kind and name; eventually
++	// do something more interesting (show declaration,
++	// for instance)
++	if obj.Kind != ast.Err {
++		fmt.Fprintf(w, "%s ", obj.Kind)
++	}
++	template.HTMLEscape(w, []byte(obj.Name))
++}
++
++
+ var fmap = template.FormatterMap{
+ 	"":             textFmt,
+ 	"html":         htmlFmt,
+@@ -776,6 +826,7 @@ var fmap = template.FormatterMap{
+ 	"time":         timeFmt,
+ 	"dir/":         dirslashFmt,
+ 	"localname":    localnameFmt,
++	"popupInfo":    popupInfoFmt,
+ }
+ 
+ 
+@@ -799,7 +850,8 @@ var (
+ 	godocHTML,
+ 	packageHTML,
+ 	packageText,
+-	searchHTML *template.Template
++	searchHTML,
++	sourceHTML *template.Template
+ )
+ 
+ func readTemplates() {
+@@ -810,6 +862,7 @@ func readTemplates() {
+ 	packageHTML = readTemplate("package.html")
+ 	packageText = readTemplate("package.txt")
+ 	searchHTML = readTemplate("search.html")
++	sourceHTML = readTemplate("source.html")
+ }
+ 
+ 
+@@ -913,11 +966,17 @@ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	fmt.Fprintln(&buf, "<pre>")
+-	writeNode(&buf, file, true, &Styler{linetags: true, highlight: r.FormValue("h")})
+-	fmt.Fprintln(&buf, "</pre>")
++	styler := newStyler(r.FormValue("h"))
++	writeNode(&buf, file, true, styler)
++
++	type SourceInfo struct {
++		Source []byte
++		Data   []*ast.Object
++	}
++	info := &SourceInfo{buf.Bytes(), styler.mapping()}
+ 
+-	servePage(c, "Source file "+relpath, "", buf.Bytes())
++	contents := applyTemplate(sourceHTML, "sourceHTML", info)
++	servePage(c, "Source file "+relpath, "", contents)
+ }
+ 
+ 
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 28e4f8db08..32b9d9d9f9 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -19,6 +19,19 @@ const (
+ )
+ 
+ 
++var objKindStrings = [...]string{
++	Err: "<unknown object kind>",
++	Pkg: "package",
++	Con: "const",
++	Typ: "type",
++	Var: "var",
++	Fun: "func",
++}
++
++
++func (kind ObjKind) String() string { return objKindStrings[kind] }
++
++
+ // An Object describes a language entity such as a package,
+ // constant, type, variable, or function (incl. methods).
+ //

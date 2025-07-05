@@ -9,8 +9,110 @@ Date:   Fri Jan 4 07:53:42 2013 -0800
     R=golang-dev, dave, patrick, rsc
     CC=golang-dev
     https://golang.org/cl/7051043
-
+---
  src/pkg/runtime/alg.c     |  8 ++++----
  src/pkg/runtime/iface.c   | 15 +++++++--------
  src/pkg/runtime/runtime.h |  4 ++--
  3 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index c7424bc262..ad85b43aef 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -19,13 +19,13 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
+ 	uintptr hash;
+ 
+ 	b = a;
+-	hash = M0;
++	hash = M0 ^ *h;
+ 	while(s > 0) {
+ 		hash = (hash ^ *b) * M1;
+ 		b++;
+ 		s--;
+ 	}
+-	*h = (*h ^ hash) * M1;
++	*h = hash;
+ }
+ 
+ void
+@@ -355,7 +355,7 @@ void
+ runtime·interhash(uintptr *h, uintptr s, void *a)
+ {
+ 	USED(s);
+-	*h = (*h ^ runtime·ifacehash(*(Iface*)a)) * M1;
++	*h = runtime·ifacehash(*(Iface*)a, *h ^ M0) * M1;
+ }
+ 
+ void
+@@ -389,7 +389,7 @@ void
+ runtime·nilinterhash(uintptr *h, uintptr s, void *a)
+ {
+ 	USED(s);
+-	*h = (*h ^ runtime·efacehash(*(Eface*)a)) * M1;
++	*h = runtime·efacehash(*(Eface*)a, *h ^ M0) * M1;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 3a7c45fd14..370edffb81 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -546,10 +546,10 @@ runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
+ }
+ 
+ static uintptr
+-ifacehash1(void *data, Type *t)
++ifacehash1(void *data, Type *t, uintptr h)
+ {
+ 	Alg *alg;
+-	uintptr size, h;
++	uintptr size;
+ 	Eface err;
+ 
+ 	if(t == nil)
+@@ -563,7 +563,6 @@ ifacehash1(void *data, Type *t)
+ 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
+ 		runtime·panic(err);
+ 	}
+-	h = 0;
+ 	if(size <= sizeof(data))
+ 		alg->hash(&h, size, &data);
+ 	else
+@@ -572,17 +571,17 @@ ifacehash1(void *data, Type *t)
+ }
+ 
+ uintptr
+-runtime·ifacehash(Iface a)
++runtime·ifacehash(Iface a, uintptr h)
+ {
+ 	if(a.tab == nil)
+-		return 0;
+-	return ifacehash1(a.data, a.tab->type);
++		return h;
++	return ifacehash1(a.data, a.tab->type, h);
+ }
+ 
+ uintptr
+-runtime·efacehash(Eface a)
++runtime·efacehash(Eface a, uintptr h)
+ {
+-	return ifacehash1(a.data, a.type);
++	return ifacehash1(a.data, a.type, h);
+ }
+ 
+ static bool
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0c941f819b..a228b06e32 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -644,8 +644,8 @@ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+-uintptr	runtime·ifacehash(Iface);
+-uintptr	runtime·efacehash(Eface);
++uintptr	runtime·ifacehash(Iface, uintptr);
++uintptr	runtime·efacehash(Eface, uintptr);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·free(void *v);
+ bool	runtime·addfinalizer(void*, void(*fn)(void*), uintptr);

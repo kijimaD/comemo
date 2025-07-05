@@ -9,7 +9,32 @@ Date:   Thu Feb 13 15:27:36 2014 +1100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/62860043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cfc9f0c860..97e7e733e9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -27,6 +27,7 @@ Alexander Surma <surma@surmair.de>
+ Alexandre Normand <alexandre.normand@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
++Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0fd880aaf8..62f1a227b3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -55,6 +55,7 @@ Alexandre Normand <alexandre.normand@gmail.com>
+ Alexandru Moșoi <brtzsnr@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
++Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+ Alexis Imperial-Legrand <ail@google.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>

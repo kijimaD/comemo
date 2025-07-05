@@ -15,6 +15,22 @@ Date:   Tue Jan 8 00:54:58 2019 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 442ee9ca81..a988d1d702 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -39,9 +39,7 @@ func checkGdbEnvironment(t *testing.T) {
+ 	case "aix":
+ 		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
+ 	case "freebsd":
+-		if runtime.GOARCH == "arm" {
+-			t.Skip("skipping gdb tests on freebsd/arm; see https://golang.org/issue/29508")
+-		}
++		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
+ 	}
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")

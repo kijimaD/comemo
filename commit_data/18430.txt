@@ -8,6 +8,20 @@ Date:   Fri Feb 7 17:05:16 2014 +0100
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/60590047
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 7de01e3cf8..3c27d99154 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -3199,7 +3199,7 @@ typecheckdef(Node *n)
+ 		n->type->sym = n->sym;
+ 		nerrors0 = nerrors;
+ 		typecheckdeftype(n);
+-		if(n->type != T && n->type->etype == TFORW && nerrors > nerrors0) {
++		if(n->type->etype == TFORW && nerrors > nerrors0) {
+ 			// Something went wrong during type-checking,
+ 			// but it was reported. Silence future errors.
+ 			n->type->broke = 1;

@@ -9,6 +9,20 @@ Date:   Sat Feb 18 07:28:49 2017 +0000
     Change-Id: I291fa4ec3c61145162acd019e3f0e5dd3d7c97e9
     Reviewed-on: https://go-review.googlesource.com/37194
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 42a514bbc1..7670ab6c35 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -974,6 +974,8 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ }
+ 
+ // Query parses RawQuery and returns the corresponding values.
++// It silently discards malformed value pairs.
++// To check errors use ParseQuery.
+ func (u *URL) Query() Values {
+ 	v, _ := ParseQuery(u.RawQuery)
+ 	return v

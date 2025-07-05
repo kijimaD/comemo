@@ -7,7 +7,7 @@ Date:   Fri Feb 11 14:34:00 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4171043
-
+---
  src/pkg/syscall/mkerrors.sh              |  23 +++--
  src/pkg/syscall/syscall_bsd.go           |  54 ++++++++++-
  src/pkg/syscall/syscall_darwin.go        |  12 +++
@@ -23,3 +23,1450 @@ Date:   Fri Feb 11 14:34:00 2011 -0500
  src/pkg/syscall/ztypes_freebsd_386.go    | 160 +++++++++++++++++++++++++------
  src/pkg/syscall/ztypes_freebsd_amd64.go  | 160 +++++++++++++++++++++++++------
  14 files changed, 958 insertions(+), 113 deletions(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 41acf95ece..a13c0e91ba 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -38,23 +38,28 @@ includes_Darwin='
+ #define _DARWIN_C_SOURCE
+ #define KERNEL
+ #define _DARWIN_USE_64_BIT_INODE
+-#include <sys/cdefs.h>
+-#include <sys/wait.h>
++#include <sys/types.h>
+ #include <sys/event.h>
+ #include <sys/socket.h>
+ #include <sys/sockio.h>
++#include <sys/sysctl.h>
++#include <sys/wait.h>
+ #include <net/if.h>
++#include <net/route.h>
++#include <netinet/in.h>
+ #include <netinet/ip.h>
+ #include <netinet/ip_mroute.h>
+ '
+ 
+ includes_FreeBSD='
+-#include <sys/wait.h>
++#include <sys/types.h>
+ #include <sys/event.h>
+ #include <sys/socket.h>
+ #include <sys/sockio.h>
+-#include <net/route.h>
++#include <sys/sysctl.h>
++#include <sys/wait.h>
+ #include <net/if.h>
++#include <net/route.h>
+ #include <netinet/in.h>
+ #include <netinet/ip.h>
+ #include <netinet/ip_mroute.h>
+@@ -105,16 +110,22 @@ done
+ 		$2 ~ /^(MAP_FAILED)$/ {next}
+ 
+ 		$2 !~ /^ETH_/ &&
++		$2 !~ /^EPROC_/ &&
++		$2 !~ /^EQUIV_/ &&
++		$2 !~ /^EXPR_/ &&
+ 		$2 ~ /^E[A-Z0-9_]+$/ ||
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 == "IFNAMSIZ" ||
++		$2 == "CTL_NET" ||
++		$2 == "CTL_MAXNAME" ||
+ 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+-		$2 ~ /^SIO/ ||
++		$2 ~ /^SIOC/ ||
++		$2 !~ "WMESGLEN" &&
+ 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
+ 		$2 ~ /^__WCOREFLAG$/ {next}
+ 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index bf62f4e310..1f5b2ba9a3 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -223,8 +223,40 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0
+ }
+ 
++func (sa *SockaddrDatalink) sockaddr() (uintptr, _Socklen, int) {
++	if sa.Index == 0 {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Len = sa.Len
++	sa.raw.Family = AF_LINK
++	sa.raw.Index = sa.Index
++	sa.raw.Type = sa.Type
++	sa.raw.Nlen = sa.Nlen
++	sa.raw.Alen = sa.Alen
++	sa.raw.Slen = sa.Slen
++	for i := 0; i < len(sa.raw.Data); i++ {
++		sa.raw.Data[i] = sa.Data[i]
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrDatalink, 0
++}
++
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 	switch rsa.Addr.Family {
++	case AF_LINK:
++		pp := (*RawSockaddrDatalink)(unsafe.Pointer(rsa))
++		sa := new(SockaddrDatalink)
++		sa.Len = pp.Len
++		sa.Family = pp.Family
++		sa.Index = pp.Index
++		sa.Type = pp.Type
++		sa.Nlen = pp.Nlen
++		sa.Alen = pp.Alen
++		sa.Slen = pp.Slen
++		for i := 0; i < len(sa.Data); i++ {
++			sa.Data[i] = pp.Data[i]
++		}
++		return sa, 0
++
+ 	case AF_UNIX:
+ 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
+ 		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
+@@ -399,7 +431,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
+ 
+ // Translate "kern.hostname" to []_C_int{0,1,2,3}.
+ func nametomib(name string) (mib []_C_int, errno int) {
+-	const CTL_MAXNAME = 12
+ 	const siz = uintptr(unsafe.Sizeof(mib[0]))
+ 
+ 	// NOTE(rsc): It seems strange to set the buffer to have
+@@ -471,6 +502,27 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
+ }
+ 
++func SysctlNetRoute(fourth, fifth, sixth int) (value []byte, errno int) {
++	mib := []_C_int{CTL_NET, AF_ROUTE, 0, _C_int(fourth), _C_int(fifth), _C_int(sixth)}
++
++	// Find size.
++	n := uintptr(0)
++	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
++		return nil, errno
++	}
++	if n == 0 {
++		return nil, 0
++	}
++
++	// Read into buffer of that size.
++	b := make([]byte, n)
++	if errno = sysctl(mib, &b[0], &n, nil, 0); errno != 0 {
++		return nil, errno
++	}
++
++	return b[0:n], 0
++}
++
+ //sys	utimes(path string, timeval *[2]Timeval) (errno int)
+ func Utimes(path string, tv []Timeval) (errno int) {
+ 	if len(tv) != 2 {
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index ab83af5c15..552c9c1543 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -14,6 +14,18 @@ package syscall
+ 
+ const OS = "darwin"
+ 
++type SockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [12]int8
++	raw    RawSockaddrDatalink
++}
++
+ /*
+  * Wrapped
+  */
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index ee947be200..ed310663a3 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -14,6 +14,18 @@ package syscall
+ 
+ const OS = "freebsd"
+ 
++type SockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [46]int8
++	raw    RawSockaddrDatalink
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index 2e3a8cda6a..4096bcfd9f 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -11,12 +11,10 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #define _DARWIN_USE_64_BIT_INODE
+ #include <dirent.h>
+ #include <fcntl.h>
++#include <signal.h>
++#include <unistd.h>
+ #include <mach/mach.h>
+ #include <mach/message.h>
+-#include <netinet/in.h>
+-#include <netinet/tcp.h>
+-#include <signal.h>
+-#include <stdio.h>
+ #include <sys/event.h>
+ #include <sys/mman.h>
+ #include <sys/mount.h>
+@@ -25,12 +23,18 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <sys/resource.h>
+ #include <sys/select.h>
+ #include <sys/signal.h>
++#include <sys/socket.h>
+ #include <sys/stat.h>
+ #include <sys/time.h>
+ #include <sys/types.h>
+ #include <sys/un.h>
+ #include <sys/wait.h>
+-#include <unistd.h>
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/if_var.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
+ 
+ // Machine characteristics; for internal use.
+ 
+@@ -89,6 +93,7 @@ union sockaddr_all {
+ 	struct sockaddr_in s2;	// these pad it out
+ 	struct sockaddr_in6 s3;
+ 	struct sockaddr_un s4;
++	struct sockaddr_dl s5;
+ };
+ 
+ struct sockaddr_any {
+@@ -99,6 +104,7 @@ struct sockaddr_any {
+ typedef struct sockaddr_in $RawSockaddrInet4;
+ typedef struct sockaddr_in6 $RawSockaddrInet6;
+ typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr_dl $RawSockaddrDatalink;
+ typedef struct sockaddr $RawSockaddr;
+ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+@@ -113,6 +119,7 @@ enum {
+ 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
+ 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofIpMreq = sizeof(struct ip_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+@@ -134,3 +141,19 @@ typedef struct kevent $Kevent_t;
+ // Select
+ 
+ typedef fd_set $FdSet;
++
++// Routing and interface messages
++
++enum {
++	$SizeofIfMsghdr = sizeof(struct if_msghdr),
++	$SizeofIfData = sizeof(struct if_data),
++	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
++	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
++	$SizeofRtMetrics = sizeof(struct rt_metrics),
++};
++
++typedef struct if_msghdr $IfMsghdr;
++typedef struct if_data $IfData;
++typedef struct ifa_msghdr $IfaMsghdr;
++typedef struct rt_msghdr $RtMsghdr;
++typedef struct rt_metrics $RtMetrics;
+diff --git a/src/pkg/syscall/types_freebsd.c b/src/pkg/syscall/types_freebsd.c
+index a54c6ee33e..6fc8141347 100644
+--- a/src/pkg/syscall/types_freebsd.c
++++ b/src/pkg/syscall/types_freebsd.c
+@@ -7,14 +7,11 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+  */
+ 
+ #define KERNEL
+-#include <sys/cdefs.h>
+ #include <dirent.h>
+ #include <fcntl.h>
+-#include <sys/types.h>
+-#include <netinet/in.h>
+-#include <netinet/tcp.h>
+ #include <signal.h>
+ #include <stdio.h>
++#include <unistd.h>
+ #include <sys/event.h>
+ #include <sys/mman.h>
+ #include <sys/mount.h>
+@@ -26,9 +23,14 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <sys/socket.h>
+ #include <sys/stat.h>
+ #include <sys/time.h>
++#include <sys/types.h>
+ #include <sys/un.h>
+ #include <sys/wait.h>
+-#include <unistd.h>
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
+ 
+ // Machine characteristics; for internal use.
+ 
+@@ -101,6 +103,7 @@ union sockaddr_all {
+ 	struct sockaddr_in s2;	// these pad it out
+ 	struct sockaddr_in6 s3;
+ 	struct sockaddr_un s4;
++	struct sockaddr_dl s5;
+ };
+ 
+ struct sockaddr_any {
+@@ -111,6 +114,7 @@ struct sockaddr_any {
+ typedef struct sockaddr_in $RawSockaddrInet4;
+ typedef struct sockaddr_in6 $RawSockaddrInet6;
+ typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr_dl $RawSockaddrDatalink;
+ typedef struct sockaddr $RawSockaddr;
+ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+@@ -125,6 +129,7 @@ enum {
+ 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
+ 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofIpMreq = sizeof(struct ip_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+@@ -146,3 +151,19 @@ typedef struct kevent $Kevent_t;
+ // Select
+ 
+ typedef fd_set $FdSet;
++
++// Routing and interface messages
++
++enum {
++	$SizeofIfMsghdr = sizeof(struct if_msghdr),
++	$SizeofIfData = sizeof(struct if_data),
++	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
++	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
++	$SizeofRtMetrics = sizeof(struct rt_metrics),
++};
++
++typedef struct if_msghdr $IfMsghdr;
++typedef struct if_data $IfData;
++typedef struct ifa_msghdr $IfaMsghdr;
++typedef struct rt_msghdr $RtMsghdr;
++typedef struct rt_metrics $RtMetrics;
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 8f5f69b5b5..52b9862282 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -45,6 +45,8 @@ const (
+ 	AF_SYSTEM                   = 0x20
+ 	AF_UNIX                     = 0x1
+ 	AF_UNSPEC                   = 0
++	CTL_MAXNAME                 = 0xc
++	CTL_NET                     = 0x4
+ 	E2BIG                       = 0x7
+ 	EACCES                      = 0xd
+ 	EADDRINUSE                  = 0x30
+@@ -475,6 +477,15 @@ const (
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
+ 	MSG_WAITSTREAM              = 0x200
++	NAME_MAX                    = 0xff
++	NET_RT_DUMP                 = 0x1
++	NET_RT_DUMP2                = 0x7
++	NET_RT_FLAGS                = 0x2
++	NET_RT_IFLIST               = 0x3
++	NET_RT_IFLIST2              = 0x6
++	NET_RT_MAXID                = 0x8
++	NET_RT_STAT                 = 0x4
++	NET_RT_TRASH                = 0x5
+ 	O_ACCMODE                   = 0x3
+ 	O_ALERT                     = 0x20000000
+ 	O_APPEND                    = 0x8
+@@ -498,6 +509,77 @@ const (
+ 	O_SYNC                      = 0x80
+ 	O_TRUNC                     = 0x400
+ 	O_WRONLY                    = 0x1
++	RTAX_AUTHOR                 = 0x6
++	RTAX_BRD                    = 0x7
++	RTAX_DST                    = 0
++	RTAX_GATEWAY                = 0x1
++	RTAX_GENMASK                = 0x3
++	RTAX_IFA                    = 0x5
++	RTAX_IFP                    = 0x4
++	RTAX_MAX                    = 0x8
++	RTAX_NETMASK                = 0x2
++	RTA_AUTHOR                  = 0x40
++	RTA_BRD                     = 0x80
++	RTA_DST                     = 0x1
++	RTA_GATEWAY                 = 0x2
++	RTA_GENMASK                 = 0x8
++	RTA_IFA                     = 0x20
++	RTA_IFP                     = 0x10
++	RTA_NETMASK                 = 0x4
++	RTF_BLACKHOLE               = 0x1000
++	RTF_BROADCAST               = 0x400000
++	RTF_CLONING                 = 0x100
++	RTF_CONDEMNED               = 0x2000000
++	RTF_DELCLONE                = 0x80
++	RTF_DONE                    = 0x40
++	RTF_DYNAMIC                 = 0x10
++	RTF_GATEWAY                 = 0x2
++	RTF_HOST                    = 0x4
++	RTF_IFREF                   = 0x4000000
++	RTF_IFSCOPE                 = 0x1000000
++	RTF_LLINFO                  = 0x400
++	RTF_LOCAL                   = 0x200000
++	RTF_MODIFIED                = 0x20
++	RTF_MULTICAST               = 0x800000
++	RTF_PINNED                  = 0x100000
++	RTF_PRCLONING               = 0x10000
++	RTF_PROTO1                  = 0x8000
++	RTF_PROTO2                  = 0x4000
++	RTF_PROTO3                  = 0x40000
++	RTF_REJECT                  = 0x8
++	RTF_STATIC                  = 0x800
++	RTF_UP                      = 0x1
++	RTF_WASCLONED               = 0x20000
++	RTF_XRESOLVE                = 0x200
++	RTM_ADD                     = 0x1
++	RTM_CHANGE                  = 0x3
++	RTM_DELADDR                 = 0xd
++	RTM_DELETE                  = 0x2
++	RTM_DELMADDR                = 0x10
++	RTM_GET                     = 0x4
++	RTM_GET2                    = 0x14
++	RTM_IFINFO                  = 0xe
++	RTM_IFINFO2                 = 0x12
++	RTM_LOCK                    = 0x8
++	RTM_LOSING                  = 0x5
++	RTM_MISS                    = 0x7
++	RTM_NEWADDR                 = 0xc
++	RTM_NEWMADDR                = 0xf
++	RTM_NEWMADDR2               = 0x13
++	RTM_OLDADD                  = 0x9
++	RTM_OLDDEL                  = 0xa
++	RTM_REDIRECT                = 0x6
++	RTM_RESOLVE                 = 0xb
++	RTM_RTTUNIT                 = 0xf4240
++	RTM_VERSION                 = 0x5
++	RTV_EXPIRE                  = 0x4
++	RTV_HOPCOUNT                = 0x2
++	RTV_MTU                     = 0x1
++	RTV_RPIPE                   = 0x8
++	RTV_RTT                     = 0x40
++	RTV_RTTVAR                  = 0x80
++	RTV_SPIPE                   = 0x10
++	RTV_SSTHRESH                = 0x20
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+ 	SCM_TIMESTAMP               = 0x2
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index 75174a0d28..4e7a174eae 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -45,6 +45,8 @@ const (
+ 	AF_SYSTEM                   = 0x20
+ 	AF_UNIX                     = 0x1
+ 	AF_UNSPEC                   = 0
++	CTL_MAXNAME                 = 0xc
++	CTL_NET                     = 0x4
+ 	E2BIG                       = 0x7
+ 	EACCES                      = 0xd
+ 	EADDRINUSE                  = 0x30
+@@ -475,6 +477,15 @@ const (
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
+ 	MSG_WAITSTREAM              = 0x200
++	NAME_MAX                    = 0xff
++	NET_RT_DUMP                 = 0x1
++	NET_RT_DUMP2                = 0x7
++	NET_RT_FLAGS                = 0x2
++	NET_RT_IFLIST               = 0x3
++	NET_RT_IFLIST2              = 0x6
++	NET_RT_MAXID                = 0x8
++	NET_RT_STAT                 = 0x4
++	NET_RT_TRASH                = 0x5
+ 	O_ACCMODE                   = 0x3
+ 	O_ALERT                     = 0x20000000
+ 	O_APPEND                    = 0x8
+@@ -498,6 +509,77 @@ const (
+ 	O_SYNC                      = 0x80
+ 	O_TRUNC                     = 0x400
+ 	O_WRONLY                    = 0x1
++	RTAX_AUTHOR                 = 0x6
++	RTAX_BRD                    = 0x7
++	RTAX_DST                    = 0
++	RTAX_GATEWAY                = 0x1
++	RTAX_GENMASK                = 0x3
++	RTAX_IFA                    = 0x5
++	RTAX_IFP                    = 0x4
++	RTAX_MAX                    = 0x8
++	RTAX_NETMASK                = 0x2
++	RTA_AUTHOR                  = 0x40
++	RTA_BRD                     = 0x80
++	RTA_DST                     = 0x1
++	RTA_GATEWAY                 = 0x2
++	RTA_GENMASK                 = 0x8
++	RTA_IFA                     = 0x20
++	RTA_IFP                     = 0x10
++	RTA_NETMASK                 = 0x4
++	RTF_BLACKHOLE               = 0x1000
++	RTF_BROADCAST               = 0x400000
++	RTF_CLONING                 = 0x100
++	RTF_CONDEMNED               = 0x2000000
++	RTF_DELCLONE                = 0x80
++	RTF_DONE                    = 0x40
++	RTF_DYNAMIC                 = 0x10
++	RTF_GATEWAY                 = 0x2
++	RTF_HOST                    = 0x4
++	RTF_IFREF                   = 0x4000000
++	RTF_IFSCOPE                 = 0x1000000
++	RTF_LLINFO                  = 0x400
++	RTF_LOCAL                   = 0x200000
++	RTF_MODIFIED                = 0x20
++	RTF_MULTICAST               = 0x800000
++	RTF_PINNED                  = 0x100000
++	RTF_PRCLONING               = 0x10000
++	RTF_PROTO1                  = 0x8000
++	RTF_PROTO2                  = 0x4000
++	RTF_PROTO3                  = 0x40000
++	RTF_REJECT                  = 0x8
++	RTF_STATIC                  = 0x800
++	RTF_UP                      = 0x1
++	RTF_WASCLONED               = 0x20000
++	RTF_XRESOLVE                = 0x200
++	RTM_ADD                     = 0x1
++	RTM_CHANGE                  = 0x3
++	RTM_DELADDR                 = 0xd
++	RTM_DELETE                  = 0x2
++	RTM_DELMADDR                = 0x10
++	RTM_GET                     = 0x4
++	RTM_GET2                    = 0x14
++	RTM_IFINFO                  = 0xe
++	RTM_IFINFO2                 = 0x12
++	RTM_LOCK                    = 0x8
++	RTM_LOSING                  = 0x5
++	RTM_MISS                    = 0x7
++	RTM_NEWADDR                 = 0xc
++	RTM_NEWMADDR                = 0xf
++	RTM_NEWMADDR2               = 0x13
++	RTM_OLDADD                  = 0x9
++	RTM_OLDDEL                  = 0xa
++	RTM_REDIRECT                = 0x6
++	RTM_RESOLVE                 = 0xb
++	RTM_RTTUNIT                 = 0xf4240
++	RTM_VERSION                 = 0x5
++	RTV_EXPIRE                  = 0x4
++	RTV_HOPCOUNT                = 0x2
++	RTV_MTU                     = 0x1
++	RTV_RPIPE                   = 0x8
++	RTV_RTT                     = 0x40
++	RTV_RTTVAR                  = 0x80
++	RTV_SPIPE                   = 0x10
++	RTV_SSTHRESH                = 0x20
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+ 	SCM_TIMESTAMP               = 0x2
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index 5af1d4a1ac..d3d46ce034 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -94,6 +94,8 @@ const (
+ 	AF_VENDOR45                 = 0x81
+ 	AF_VENDOR46                 = 0x83
+ 	AF_VENDOR47                 = 0x85
++	CTL_MAXNAME                 = 0x18
++	CTL_NET                     = 0x4
+ 	E2BIG                       = 0x7
+ 	EACCES                      = 0xd
+ 	EADDRINUSE                  = 0x30
+@@ -540,6 +542,11 @@ const (
+ 	MSG_PEEK                    = 0x2
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
++	NET_RT_DUMP                 = 0x1
++	NET_RT_FLAGS                = 0x2
++	NET_RT_IFLIST               = 0x3
++	NET_RT_IFMALIST             = 0x4
++	NET_RT_MAXID                = 0x5
+ 	O_ACCMODE                   = 0x3
+ 	O_APPEND                    = 0x8
+ 	O_ASYNC                     = 0x40
+@@ -561,6 +568,75 @@ const (
+ 	O_TRUNC                     = 0x400
+ 	O_TTY_INIT                  = 0x80000
+ 	O_WRONLY                    = 0x1
++	RTAX_AUTHOR                 = 0x6
++	RTAX_BRD                    = 0x7
++	RTAX_DST                    = 0
++	RTAX_GATEWAY                = 0x1
++	RTAX_GENMASK                = 0x3
++	RTAX_IFA                    = 0x5
++	RTAX_IFP                    = 0x4
++	RTAX_MAX                    = 0x8
++	RTAX_NETMASK                = 0x2
++	RTA_AUTHOR                  = 0x40
++	RTA_BRD                     = 0x80
++	RTA_DST                     = 0x1
++	RTA_GATEWAY                 = 0x2
++	RTA_GENMASK                 = 0x8
++	RTA_IFA                     = 0x20
++	RTA_IFP                     = 0x10
++	RTA_NETMASK                 = 0x4
++	RTF_BLACKHOLE               = 0x1000
++	RTF_BROADCAST               = 0x400000
++	RTF_DONE                    = 0x40
++	RTF_DYNAMIC                 = 0x10
++	RTF_FMASK                   = 0x1004d808
++	RTF_GATEWAY                 = 0x2
++	RTF_HOST                    = 0x4
++	RTF_LLDATA                  = 0x400
++	RTF_LLINFO                  = 0x400
++	RTF_LOCAL                   = 0x200000
++	RTF_MODIFIED                = 0x20
++	RTF_MULTICAST               = 0x800000
++	RTF_PINNED                  = 0x100000
++	RTF_PRCLONING               = 0x10000
++	RTF_PROTO1                  = 0x8000
++	RTF_PROTO2                  = 0x4000
++	RTF_PROTO3                  = 0x40000
++	RTF_REJECT                  = 0x8
++	RTF_RNH_LOCKED              = 0x40000000
++	RTF_STATIC                  = 0x800
++	RTF_STICKY                  = 0x10000000
++	RTF_UP                      = 0x1
++	RTF_XRESOLVE                = 0x200
++	RTM_ADD                     = 0x1
++	RTM_CHANGE                  = 0x3
++	RTM_DELADDR                 = 0xd
++	RTM_DELETE                  = 0x2
++	RTM_DELMADDR                = 0x10
++	RTM_GET                     = 0x4
++	RTM_IEEE80211               = 0x12
++	RTM_IFANNOUNCE              = 0x11
++	RTM_IFINFO                  = 0xe
++	RTM_LOCK                    = 0x8
++	RTM_LOSING                  = 0x5
++	RTM_MISS                    = 0x7
++	RTM_NEWADDR                 = 0xc
++	RTM_NEWMADDR                = 0xf
++	RTM_OLDADD                  = 0x9
++	RTM_OLDDEL                  = 0xa
++	RTM_REDIRECT                = 0x6
++	RTM_RESOLVE                 = 0xb
++	RTM_RTTUNIT                 = 0xf4240
++	RTM_VERSION                 = 0x5
++	RTV_EXPIRE                  = 0x4
++	RTV_HOPCOUNT                = 0x2
++	RTV_MTU                     = 0x1
++	RTV_RPIPE                   = 0x8
++	RTV_RTT                     = 0x40
++	RTV_RTTVAR                  = 0x80
++	RTV_SPIPE                   = 0x10
++	RTV_SSTHRESH                = 0x20
++	RTV_WEIGHT                  = 0x100
+ 	SCM_BINTIME                 = 0x4
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 7e9d85754f..ce3ff5402d 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -94,6 +94,8 @@ const (
+ 	AF_VENDOR45                 = 0x81
+ 	AF_VENDOR46                 = 0x83
+ 	AF_VENDOR47                 = 0x85
++	CTL_MAXNAME                 = 0x18
++	CTL_NET                     = 0x4
+ 	E2BIG                       = 0x7
+ 	EACCES                      = 0xd
+ 	EADDRINUSE                  = 0x30
+@@ -540,6 +542,11 @@ const (
+ 	MSG_PEEK                    = 0x2
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
++	NET_RT_DUMP                 = 0x1
++	NET_RT_FLAGS                = 0x2
++	NET_RT_IFLIST               = 0x3
++	NET_RT_IFMALIST             = 0x4
++	NET_RT_MAXID                = 0x5
+ 	O_ACCMODE                   = 0x3
+ 	O_APPEND                    = 0x8
+ 	O_ASYNC                     = 0x40
+@@ -561,6 +568,75 @@ const (
+ 	O_TRUNC                     = 0x400
+ 	O_TTY_INIT                  = 0x80000
+ 	O_WRONLY                    = 0x1
++	RTAX_AUTHOR                 = 0x6
++	RTAX_BRD                    = 0x7
++	RTAX_DST                    = 0
++	RTAX_GATEWAY                = 0x1
++	RTAX_GENMASK                = 0x3
++	RTAX_IFA                    = 0x5
++	RTAX_IFP                    = 0x4
++	RTAX_MAX                    = 0x8
++	RTAX_NETMASK                = 0x2
++	RTA_AUTHOR                  = 0x40
++	RTA_BRD                     = 0x80
++	RTA_DST                     = 0x1
++	RTA_GATEWAY                 = 0x2
++	RTA_GENMASK                 = 0x8
++	RTA_IFA                     = 0x20
++	RTA_IFP                     = 0x10
++	RTA_NETMASK                 = 0x4
++	RTF_BLACKHOLE               = 0x1000
++	RTF_BROADCAST               = 0x400000
++	RTF_DONE                    = 0x40
++	RTF_DYNAMIC                 = 0x10
++	RTF_FMASK                   = 0x1004d808
++	RTF_GATEWAY                 = 0x2
++	RTF_HOST                    = 0x4
++	RTF_LLDATA                  = 0x400
++	RTF_LLINFO                  = 0x400
++	RTF_LOCAL                   = 0x200000
++	RTF_MODIFIED                = 0x20
++	RTF_MULTICAST               = 0x800000
++	RTF_PINNED                  = 0x100000
++	RTF_PRCLONING               = 0x10000
++	RTF_PROTO1                  = 0x8000
++	RTF_PROTO2                  = 0x4000
++	RTF_PROTO3                  = 0x40000
++	RTF_REJECT                  = 0x8
++	RTF_RNH_LOCKED              = 0x40000000
++	RTF_STATIC                  = 0x800
++	RTF_STICKY                  = 0x10000000
++	RTF_UP                      = 0x1
++	RTF_XRESOLVE                = 0x200
++	RTM_ADD                     = 0x1
++	RTM_CHANGE                  = 0x3
++	RTM_DELADDR                 = 0xd
++	RTM_DELETE                  = 0x2
++	RTM_DELMADDR                = 0x10
++	RTM_GET                     = 0x4
++	RTM_IEEE80211               = 0x12
++	RTM_IFANNOUNCE              = 0x11
++	RTM_IFINFO                  = 0xe
++	RTM_LOCK                    = 0x8
++	RTM_LOSING                  = 0x5
++	RTM_MISS                    = 0x7
++	RTM_NEWADDR                 = 0xc
++	RTM_NEWMADDR                = 0xf
++	RTM_OLDADD                  = 0x9
++	RTM_OLDDEL                  = 0xa
++	RTM_REDIRECT                = 0x6
++	RTM_RESOLVE                 = 0xb
++	RTM_RTTUNIT                 = 0xf4240
++	RTM_VERSION                 = 0x5
++	RTV_EXPIRE                  = 0x4
++	RTV_HOPCOUNT                = 0x2
++	RTV_MTU                     = 0x1
++	RTV_RPIPE                   = 0x8
++	RTV_RTT                     = 0x40
++	RTV_RTTVAR                  = 0x80
++	RTV_SPIPE                   = 0x10
++	RTV_SSTHRESH                = 0x20
++	RTV_WEIGHT                  = 0x100
+ 	SCM_BINTIME                 = 0x4
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 325c367d6d..736c654ab4 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -6,23 +6,29 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x4
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x4
+-	sizeofLongLong      = 0x8
+-	O_CLOEXEC           = 0
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x6c
+-	SizeofSockaddrUnix  = 0x6a
+-	SizeofLinger        = 0x8
+-	SizeofIpMreq        = 0x8
+-	SizeofMsghdr        = 0x1c
+-	SizeofCmsghdr       = 0xc
+-	PTRACE_TRACEME      = 0
+-	PTRACE_CONT         = 0x7
+-	PTRACE_KILL         = 0x8
++	sizeofPtr              = 0x4
++	sizeofShort            = 0x2
++	sizeofInt              = 0x4
++	sizeofLong             = 0x4
++	sizeofLongLong         = 0x8
++	O_CLOEXEC              = 0
++	SizeofSockaddrInet4    = 0x10
++	SizeofSockaddrInet6    = 0x1c
++	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrUnix     = 0x6a
++	SizeofSockaddrDatalink = 0x14
++	SizeofLinger           = 0x8
++	SizeofIpMreq           = 0x8
++	SizeofMsghdr           = 0x1c
++	SizeofCmsghdr          = 0xc
++	PTRACE_TRACEME         = 0
++	PTRACE_CONT            = 0x7
++	PTRACE_KILL            = 0x8
++	SizeofIfMsghdr         = 0x70
++	SizeofIfData           = 0x60
++	SizeofIfaMsghdr        = 0x14
++	SizeofRtMsghdr         = 0x5c
++	SizeofRtMetrics        = 0x38
+ )
+ 
+ // Types
+@@ -177,6 +183,17 @@ type RawSockaddrUnix struct {
+ 	Path   [104]int8
+ }
+ 
++type RawSockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [12]int8
++}
++
+ type RawSockaddr struct {
+ 	Len    uint8
+ 	Family uint8
+@@ -233,3 +250,87 @@ type Kevent_t struct {
+ type FdSet struct {
+ 	Bits [32]int32
+ }
++
++type IfMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Data         IfData
++}
++
++type IfData struct {
++	Type       uint8
++	Typelen    uint8
++	Physical   uint8
++	Addrlen    uint8
++	Hdrlen     uint8
++	Recvquota  uint8
++	Xmitquota  uint8
++	Unused1    uint8
++	Mtu        uint32
++	Metric     uint32
++	Baudrate   uint32
++	Ipackets   uint32
++	Ierrors    uint32
++	Opackets   uint32
++	Oerrors    uint32
++	Collisions uint32
++	Ibytes     uint32
++	Obytes     uint32
++	Imcasts    uint32
++	Omcasts    uint32
++	Iqdrops    uint32
++	Noproto    uint32
++	Recvtiming uint32
++	Xmittiming uint32
++	Lastchange Timeval
++	Unused2    uint32
++	Hwassist   uint32
++	Reserved1  uint32
++	Reserved2  uint32
++}
++
++type IfaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Metric       int32
++}
++
++type RtMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Flags        int32
++	Addrs        int32
++	Pid          int32
++	Seq          int32
++	Errno        int32
++	Use          int32
++	Inits        uint32
++	Rmx          RtMetrics
++}
++
++type RtMetrics struct {
++	Locks    uint32
++	Mtu      uint32
++	Hopcount uint32
++	Expire   int32
++	Recvpipe uint32
++	Sendpipe uint32
++	Ssthresh uint32
++	Rtt      uint32
++	Rttvar   uint32
++	Pksent   uint32
++	Filler   [4]uint32
++}
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 62615825d7..91ee457961 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -6,23 +6,29 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x8
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x8
+-	sizeofLongLong      = 0x8
+-	O_CLOEXEC           = 0
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x6c
+-	SizeofSockaddrUnix  = 0x6a
+-	SizeofLinger        = 0x8
+-	SizeofIpMreq        = 0x8
+-	SizeofMsghdr        = 0x30
+-	SizeofCmsghdr       = 0xc
+-	PTRACE_TRACEME      = 0
+-	PTRACE_CONT         = 0x7
+-	PTRACE_KILL         = 0x8
++	sizeofPtr              = 0x8
++	sizeofShort            = 0x2
++	sizeofInt              = 0x4
++	sizeofLong             = 0x8
++	sizeofLongLong         = 0x8
++	O_CLOEXEC              = 0
++	SizeofSockaddrInet4    = 0x10
++	SizeofSockaddrInet6    = 0x1c
++	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrUnix     = 0x6a
++	SizeofSockaddrDatalink = 0x14
++	SizeofLinger           = 0x8
++	SizeofIpMreq           = 0x8
++	SizeofMsghdr           = 0x30
++	SizeofCmsghdr          = 0xc
++	PTRACE_TRACEME         = 0
++	PTRACE_CONT            = 0x7
++	PTRACE_KILL            = 0x8
++	SizeofIfMsghdr         = 0x70
++	SizeofIfData           = 0x60
++	SizeofIfaMsghdr        = 0x14
++	SizeofRtMsghdr         = 0x5c
++	SizeofRtMetrics        = 0x38
+ )
+ 
+ // Types
+@@ -180,6 +186,17 @@ type RawSockaddrUnix struct {
+ 	Path   [104]int8
+ }
+ 
++type RawSockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [12]int8
++}
++
+ type RawSockaddr struct {
+ 	Len    uint8
+ 	Family uint8
+@@ -238,3 +255,87 @@ type Kevent_t struct {
+ type FdSet struct {
+ 	Bits [32]int32
+ }
++
++type IfMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Data         IfData
++}
++
++type IfData struct {
++	Type       uint8
++	Typelen    uint8
++	Physical   uint8
++	Addrlen    uint8
++	Hdrlen     uint8
++	Recvquota  uint8
++	Xmitquota  uint8
++	Unused1    uint8
++	Mtu        uint32
++	Metric     uint32
++	Baudrate   uint32
++	Ipackets   uint32
++	Ierrors    uint32
++	Opackets   uint32
++	Oerrors    uint32
++	Collisions uint32
++	Ibytes     uint32
++	Obytes     uint32
++	Imcasts    uint32
++	Omcasts    uint32
++	Iqdrops    uint32
++	Noproto    uint32
++	Recvtiming uint32
++	Xmittiming uint32
++	Lastchange [8]byte /* timeval32 */
++	Unused2    uint32
++	Hwassist   uint32
++	Reserved1  uint32
++	Reserved2  uint32
++}
++
++type IfaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Metric       int32
++}
++
++type RtMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Flags        int32
++	Addrs        int32
++	Pid          int32
++	Seq          int32
++	Errno        int32
++	Use          int32
++	Inits        uint32
++	Rmx          RtMetrics
++}
++
++type RtMetrics struct {
++	Locks    uint32
++	Mtu      uint32
++	Hopcount uint32
++	Expire   int32
++	Recvpipe uint32
++	Sendpipe uint32
++	Ssthresh uint32
++	Rtt      uint32
++	Rttvar   uint32
++	Pksent   uint32
++	Filler   [4]uint32
++}
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 8e6e88fb17..0f8e37abb9 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -6,37 +6,43 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x4
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x4
+-	sizeofLongLong      = 0x8
+-	O_CLOEXEC           = 0
+-	S_IFMT              = 0xf000
+-	S_IFIFO             = 0x1000
+-	S_IFCHR             = 0x2000
+-	S_IFDIR             = 0x4000
+-	S_IFBLK             = 0x6000
+-	S_IFREG             = 0x8000
+-	S_IFLNK             = 0xa000
+-	S_IFSOCK            = 0xc000
+-	S_ISUID             = 0x800
+-	S_ISGID             = 0x400
+-	S_ISVTX             = 0x200
+-	S_IRUSR             = 0x100
+-	S_IWUSR             = 0x80
+-	S_IXUSR             = 0x40
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x6c
+-	SizeofSockaddrUnix  = 0x6a
+-	SizeofLinger        = 0x8
+-	SizeofIpMreq        = 0x8
+-	SizeofMsghdr        = 0x1c
+-	SizeofCmsghdr       = 0xc
+-	PTRACE_TRACEME      = 0
+-	PTRACE_CONT         = 0x7
+-	PTRACE_KILL         = 0x8
++	sizeofPtr              = 0x4
++	sizeofShort            = 0x2
++	sizeofInt              = 0x4
++	sizeofLong             = 0x4
++	sizeofLongLong         = 0x8
++	O_CLOEXEC              = 0
++	S_IFMT                 = 0xf000
++	S_IFIFO                = 0x1000
++	S_IFCHR                = 0x2000
++	S_IFDIR                = 0x4000
++	S_IFBLK                = 0x6000
++	S_IFREG                = 0x8000
++	S_IFLNK                = 0xa000
++	S_IFSOCK               = 0xc000
++	S_ISUID                = 0x800
++	S_ISGID                = 0x400
++	S_ISVTX                = 0x200
++	S_IRUSR                = 0x100
++	S_IWUSR                = 0x80
++	S_IXUSR                = 0x40
++	SizeofSockaddrInet4    = 0x10
++	SizeofSockaddrInet6    = 0x1c
++	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrUnix     = 0x6a
++	SizeofSockaddrDatalink = 0x36
++	SizeofLinger           = 0x8
++	SizeofIpMreq           = 0x8
++	SizeofMsghdr           = 0x1c
++	SizeofCmsghdr          = 0xc
++	PTRACE_TRACEME         = 0
++	PTRACE_CONT            = 0x7
++	PTRACE_KILL            = 0x8
++	SizeofIfMsghdr         = 0x60
++	SizeofIfData           = 0x50
++	SizeofIfaMsghdr        = 0x14
++	SizeofRtMsghdr         = 0x5c
++	SizeofRtMetrics        = 0x38
+ )
+ 
+ // Types
+@@ -172,6 +178,17 @@ type RawSockaddrUnix struct {
+ 	Path   [104]int8
+ }
+ 
++type RawSockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [46]int8
++}
++
+ type RawSockaddr struct {
+ 	Len    uint8
+ 	Family uint8
+@@ -228,3 +245,84 @@ type Kevent_t struct {
+ type FdSet struct {
+ 	X__fds_bits [32]uint32
+ }
++
++type IfMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Data         IfData
++}
++
++type IfData struct {
++	Type        uint8
++	Physical    uint8
++	Addrlen     uint8
++	Hdrlen      uint8
++	Link_state  uint8
++	Spare_char1 uint8
++	Spare_char2 uint8
++	Datalen     uint8
++	Mtu         uint32
++	Metric      uint32
++	Baudrate    uint32
++	Ipackets    uint32
++	Ierrors     uint32
++	Opackets    uint32
++	Oerrors     uint32
++	Collisions  uint32
++	Ibytes      uint32
++	Obytes      uint32
++	Imcasts     uint32
++	Omcasts     uint32
++	Iqdrops     uint32
++	Noproto     uint32
++	Hwassist    uint32
++	Epoch       int32
++	Lastchange  Timeval
++}
++
++type IfaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Metric       int32
++}
++
++type RtMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Flags        int32
++	Addrs        int32
++	Pid          int32
++	Seq          int32
++	Errno        int32
++	Fmask        int32
++	Inits        uint32
++	Rmx          RtMetrics
++}
++
++type RtMetrics struct {
++	Locks    uint32
++	Mtu      uint32
++	Hopcount uint32
++	Expire   uint32
++	Recvpipe uint32
++	Sendpipe uint32
++	Ssthresh uint32
++	Rtt      uint32
++	Rttvar   uint32
++	Pksent   uint32
++	Weight   uint32
++	Filler   [3]uint32
++}
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index 8561917676..83a54f66b1 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -6,37 +6,43 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x8
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x8
+-	sizeofLongLong      = 0x8
+-	O_CLOEXEC           = 0
+-	S_IFMT              = 0xf000
+-	S_IFIFO             = 0x1000
+-	S_IFCHR             = 0x2000
+-	S_IFDIR             = 0x4000
+-	S_IFBLK             = 0x6000
+-	S_IFREG             = 0x8000
+-	S_IFLNK             = 0xa000
+-	S_IFSOCK            = 0xc000
+-	S_ISUID             = 0x800
+-	S_ISGID             = 0x400
+-	S_ISVTX             = 0x200
+-	S_IRUSR             = 0x100
+-	S_IWUSR             = 0x80
+-	S_IXUSR             = 0x40
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x6c
+-	SizeofSockaddrUnix  = 0x6a
+-	SizeofLinger        = 0x8
+-	SizeofIpMreq        = 0x8
+-	SizeofMsghdr        = 0x30
+-	SizeofCmsghdr       = 0xc
+-	PTRACE_TRACEME      = 0
+-	PTRACE_CONT         = 0x7
+-	PTRACE_KILL         = 0x8
++	sizeofPtr              = 0x8
++	sizeofShort            = 0x2
++	sizeofInt              = 0x4
++	sizeofLong             = 0x8
++	sizeofLongLong         = 0x8
++	O_CLOEXEC              = 0
++	S_IFMT                 = 0xf000
++	S_IFIFO                = 0x1000
++	S_IFCHR                = 0x2000
++	S_IFDIR                = 0x4000
++	S_IFBLK                = 0x6000
++	S_IFREG                = 0x8000
++	S_IFLNK                = 0xa000
++	S_IFSOCK               = 0xc000
++	S_ISUID                = 0x800
++	S_ISGID                = 0x400
++	S_ISVTX                = 0x200
++	S_IRUSR                = 0x100
++	S_IWUSR                = 0x80
++	S_IXUSR                = 0x40
++	SizeofSockaddrInet4    = 0x10
++	SizeofSockaddrInet6    = 0x1c
++	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrUnix     = 0x6a
++	SizeofSockaddrDatalink = 0x36
++	SizeofLinger           = 0x8
++	SizeofIpMreq           = 0x8
++	SizeofMsghdr           = 0x30
++	SizeofCmsghdr          = 0xc
++	PTRACE_TRACEME         = 0
++	PTRACE_CONT            = 0x7
++	PTRACE_KILL            = 0x8
++	SizeofIfMsghdr         = 0xa8
++	SizeofIfData           = 0x98
++	SizeofIfaMsghdr        = 0x14
++	SizeofRtMsghdr         = 0x98
++	SizeofRtMetrics        = 0x70
+ )
+ 
+ // Types
+@@ -173,6 +179,17 @@ type RawSockaddrUnix struct {
+ 	Path   [104]int8
+ }
+ 
++type RawSockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [46]int8
++}
++
+ type RawSockaddr struct {
+ 	Len    uint8
+ 	Family uint8
+@@ -231,3 +248,84 @@ type Kevent_t struct {
+ type FdSet struct {
+ 	X__fds_bits [16]uint64
+ }
++
++type IfMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Data         IfData
++}
++
++type IfData struct {
++	Type        uint8
++	Physical    uint8
++	Addrlen     uint8
++	Hdrlen      uint8
++	Link_state  uint8
++	Spare_char1 uint8
++	Spare_char2 uint8
++	Datalen     uint8
++	Mtu         uint64
++	Metric      uint64
++	Baudrate    uint64
++	Ipackets    uint64
++	Ierrors     uint64
++	Opackets    uint64
++	Oerrors     uint64
++	Collisions  uint64
++	Ibytes      uint64
++	Obytes      uint64
++	Imcasts     uint64
++	Omcasts     uint64
++	Iqdrops     uint64
++	Noproto     uint64
++	Hwassist    uint64
++	Epoch       int64
++	Lastchange  Timeval
++}
++
++type IfaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Metric       int32
++}
++
++type RtMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Flags        int32
++	Addrs        int32
++	Pid          int32
++	Seq          int32
++	Errno        int32
++	Fmask        int32
++	Inits        uint64
++	Rmx          RtMetrics
++}
++
++type RtMetrics struct {
++	Locks    uint64
++	Mtu      uint64
++	Hopcount uint64
++	Expire   uint64
++	Recvpipe uint64
++	Sendpipe uint64
++	Ssthresh uint64
++	Rtt      uint64
++	Rttvar   uint64
++	Pksent   uint64
++	Weight   uint64
++	Filler   [3]uint64
++}

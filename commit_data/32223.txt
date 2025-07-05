@@ -12,6 +12,43 @@ Date:   Thu Apr 13 06:08:20 2017 -0700
     Change-Id: Ib73e8c8b2942832589c3cc5d33ef35fdafe9965a
     Reviewed-on: https://go-review.googlesource.com/40508
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/main.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 03337a4e8b..64b3a0157a 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -217,6 +217,7 @@ func (p platform) vet() {
+ 
+ 	// Process vet output.
+ 	scan := bufio.NewScanner(stderr)
++	var parseFailed bool
+ NextLine:
+ 	for scan.Scan() {
+ 		line := scan.Text()
+@@ -235,7 +236,11 @@ NextLine:
+ 		case 3:
+ 			file, lineno, msg = fields[0], fields[1], fields[2]
+ 		default:
+-			log.Fatalf("could not parse vet output line:\n%s", line)
++			if !parseFailed {
++				parseFailed = true
++				fmt.Fprintln(os.Stderr, "failed to parse vet output:")
++			}
++			fmt.Println(os.Stderr, line)
+ 		}
+ 		msg = strings.TrimSpace(msg)
+ 
+@@ -258,6 +263,10 @@ NextLine:
+ 		}
+ 		w[key]--
+ 	}
++	if parseFailed {
++		atomic.StoreUint32(&failed, 1)
++		return
++	}
+ 	if scan.Err() != nil {
+ 		log.Fatalf("failed to scan vet output: %v", scan.Err())
+ 	}

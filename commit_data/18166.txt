@@ -23,8 +23,78 @@ Date:   Mon Jan 6 01:34:56 2014 +1100
     R=agl, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/35840044
-
+---
  src/pkg/crypto/sha1/sha1.go     | 10 ++--------
  src/pkg/crypto/sha256/sha256.go | 10 ++--------
  src/pkg/crypto/sha512/sha512.go | 10 ++--------
  3 files changed, 6 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 8eb3f7a798..9f1a96e364 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -62,16 +62,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	nn = len(p)
+ 	d.len += uint64(nn)
+ 	if d.nx > 0 {
+-		n := len(p)
+-		if n > chunk-d.nx {
+-			n = chunk - d.nx
+-		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		n := copy(d.x[d.nx:], p)
+ 		d.nx += n
+ 		if d.nx == chunk {
+-			block(d, d.x[0:])
++			block(d, d.x[:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 89628a1b75..d84cebf2ff 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -106,16 +106,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	nn = len(p)
+ 	d.len += uint64(nn)
+ 	if d.nx > 0 {
+-		n := len(p)
+-		if n > chunk-d.nx {
+-			n = chunk - d.nx
+-		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		n := copy(d.x[d.nx:], p)
+ 		d.nx += n
+ 		if d.nx == chunk {
+-			block(d, d.x[0:])
++			block(d, d.x[:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index d2ada51373..bca7a91e22 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -106,16 +106,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	nn = len(p)
+ 	d.len += uint64(nn)
+ 	if d.nx > 0 {
+-		n := len(p)
+-		if n > chunk-d.nx {
+-			n = chunk - d.nx
+-		}
+-		for i := 0; i < n; i++ {
+-			d.x[d.nx+i] = p[i]
+-		}
++		n := copy(d.x[d.nx:], p)
+ 		d.nx += n
+ 		if d.nx == chunk {
+-			block(d, d.x[0:])
++			block(d, d.x[:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]

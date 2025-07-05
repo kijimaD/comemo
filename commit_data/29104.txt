@@ -11,6 +11,43 @@ Date:   Thu Jul 7 16:21:53 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 21 ++++++++++++++-------
  1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 512342550b..5e432774a7 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -655,17 +655,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 	// TODO(rsc): Remove 'p.Mode == 64 &&'.
+ 	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
++		leaf := true
++	LeafSearch:
+ 		for q := p; q != nil; q = q.Link {
+-			if q.As == obj.ACALL {
+-				goto noleaf
+-			}
+-			if (q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO) && autoffset >= obj.StackSmall-8 {
+-				goto noleaf
++			switch q.As {
++			case obj.ACALL:
++				leaf = false
++				break LeafSearch
++			case obj.ADUFFCOPY, obj.ADUFFZERO:
++				if autoffset >= obj.StackSmall-8 {
++					leaf = false
++					break LeafSearch
++				}
+ 			}
+ 		}
+ 
+-		p.From3.Offset |= obj.NOSPLIT
+-	noleaf:
++		if leaf {
++			p.From3.Offset |= obj.NOSPLIT
++		}
+ 	}
+ 
+ 	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {

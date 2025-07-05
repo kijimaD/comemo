@@ -19,6 +19,19 @@ Date:   Wed Oct 2 17:20:12 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/617417
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/exec_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index a258b1591e..0009080d68 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -836,6 +836,6 @@ func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
+ 	}
+ 
+ 	for {
+-		RawSyscall(SYS_EXIT, 0, 0, 0)
++		RawSyscall(SYS_EXIT_GROUP, 0, 0, 0)
+ 	}
+ }

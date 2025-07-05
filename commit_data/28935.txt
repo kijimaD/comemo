@@ -14,7 +14,81 @@ Date:   Fri May 6 12:20:12 2016 -0400
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/conn.go                  |  3 ++-
  src/crypto/tls/handshake_server_test.go | 41 +++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 87bef23d91..ea299930a9 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1246,6 +1246,8 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 
+ 	var state ConnectionState
+ 	state.HandshakeComplete = c.handshakeComplete
++	state.ServerName = c.serverName
++
+ 	if c.handshakeComplete {
+ 		state.Version = c.vers
+ 		state.NegotiatedProtocol = c.clientProtocol
+@@ -1254,7 +1256,6 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 		state.CipherSuite = c.cipherSuite
+ 		state.PeerCertificates = c.peerCertificates
+ 		state.VerifiedChains = c.verifiedChains
+-		state.ServerName = c.serverName
+ 		state.SignedCertificateTimestamps = c.scts
+ 		state.OCSPResponse = c.ocspResponse
+ 		if !c.didResume {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 9ae5d11fc1..a8c1e05747 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1080,6 +1080,47 @@ func TestClientAuth(t *testing.T) {
+ 	runServerTestTLS12(t, test)
+ }
+ 
++func TestSNIGivenOnFailure(t *testing.T) {
++	const expectedServerName = "test.testing"
++
++	clientHello := &clientHelloMsg{
++		vers:               VersionTLS10,
++		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
++		compressionMethods: []uint8{compressionNone},
++		serverName:         expectedServerName,
++	}
++
++	serverConfig := testConfig.clone()
++	// Erase the server's cipher suites to ensure the handshake fails.
++	serverConfig.CipherSuites = nil
++
++	c, s := net.Pipe()
++	go func() {
++		cli := Client(c, testConfig)
++		cli.vers = clientHello.vers
++		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
++		c.Close()
++	}()
++	hs := serverHandshakeState{
++		c: Server(s, serverConfig),
++	}
++	_, err := hs.readClientHello()
++	defer s.Close()
++
++	if err == nil {
++		t.Error("No error reported from server")
++	}
++
++	cs := hs.c.ConnectionState()
++	if cs.HandshakeComplete {
++		t.Error("Handshake registered as complete")
++	}
++
++	if cs.ServerName != expectedServerName {
++		t.Errorf("Expected ServerName of %q, but got %q", expectedServerName, cs.ServerName)
++	}
++}
++
+ func bigFromString(s string) *big.Int {
+ 	ret := new(big.Int)
+ 	ret.SetString(s, 10)

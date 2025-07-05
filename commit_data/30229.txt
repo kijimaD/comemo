@@ -128,9 +128,347 @@ Date:   Thu Oct 20 03:16:22 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Martin Möhrmann <martisch@uos.de>
-
+---
  src/bytes/bytes.go          | 65 +++++++++++++++++++++++++++++++++++++++++----
  src/bytes/bytes_test.go     | 41 +++++++++++++++++++++++++++-
  src/strings/strings.go      | 62 +++++++++++++++++++++++++++++++++++++++---
  src/strings/strings_test.go | 44 ++++++++++++++++++++++++++++--
  4 files changed, 201 insertions(+), 11 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 40c7c23cd7..406a38257a 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -160,10 +160,19 @@ func IndexRune(s []byte, r rune) int {
+ // point in common.
+ func IndexAny(s []byte, chars string) int {
+ 	if len(chars) > 0 {
+-		var r rune
++		if len(s) > 8 {
++			if as, isASCII := makeASCIISet(chars); isASCII {
++				for i, c := range s {
++					if as.contains(c) {
++						return i
++					}
++				}
++				return -1
++			}
++		}
+ 		var width int
+ 		for i := 0; i < len(s); i += width {
+-			r = rune(s[i])
++			r := rune(s[i])
+ 			if r < utf8.RuneSelf {
+ 				width = 1
+ 			} else {
+@@ -185,11 +194,21 @@ func IndexAny(s []byte, chars string) int {
+ // there is no code point in common.
+ func LastIndexAny(s []byte, chars string) int {
+ 	if len(chars) > 0 {
++		if len(s) > 8 {
++			if as, isASCII := makeASCIISet(chars); isASCII {
++				for i := len(s) - 1; i >= 0; i-- {
++					if as.contains(s[i]) {
++						return i
++					}
++				}
++				return -1
++			}
++		}
+ 		for i := len(s); i > 0; {
+-			r, size := utf8.DecodeLastRune(s[0:i])
++			r, size := utf8.DecodeLastRune(s[:i])
+ 			i -= size
+-			for _, ch := range chars {
+-				if r == ch {
++			for _, c := range chars {
++				if r == c {
+ 					return i
+ 				}
+ 			}
+@@ -573,7 +592,43 @@ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
+ 	return -1
+ }
+ 
++// asciiSet is a 32-byte value, where each bit represents the presence of a
++// given ASCII character in the set. The 128-bits of the lower 16 bytes,
++// starting with the least-significant bit of the lowest word to the
++// most-significant bit of the highest word, map to the full range of all
++// 128 ASCII characters. The 128-bits of the upper 16 bytes will be zeroed,
++// ensuring that any non-ASCII character will be reported as not in the set.
++type asciiSet [8]uint32
++
++// makeASCIISet creates a set of ASCII characters and reports whether all
++// characters in chars are ASCII.
++func makeASCIISet(chars string) (as asciiSet, ok bool) {
++	for i := 0; i < len(chars); i++ {
++		c := chars[i]
++		if c >= utf8.RuneSelf {
++			return as, false
++		}
++		as[c>>5] |= 1 << uint(c&31)
++	}
++	return as, true
++}
++
++// contains reports whether c is inside the set.
++func (as *asciiSet) contains(c byte) bool {
++	return (as[c>>5] & (1 << uint(c&31))) != 0
++}
++
+ func makeCutsetFunc(cutset string) func(r rune) bool {
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return func(r rune) bool {
++			return r == rune(cutset[0])
++		}
++	}
++	if as, isASCII := makeASCIISet(cutset); isASCII {
++		return func(r rune) bool {
++			return r < utf8.RuneSelf && as.contains(byte(r))
++		}
++	}
+ 	return func(r rune) bool {
+ 		for _, c := range cutset {
+ 			if c == r {
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 146dc42b0d..26eac5e08c 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -167,8 +167,12 @@ var indexAnyTests = []BinOpTest{
+ 	{"abc", "xyz", -1},
+ 	{"abc", "xcz", 2},
+ 	{"ab☺c", "x☺yz", 2},
++	{"a☺b☻c☹d", "cx", len("a☺b☻")},
++	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
+ 	{"aRegExp*", ".(|)*+?^$[]", 7},
+ 	{dots + dots + dots, " ", -1},
++	{"012abcba210", "\xffb", 4},
++	{"012\x80bcb\x80210", "\xffb", 3},
+ }
+ 
+ var lastIndexAnyTests = []BinOpTest{
+@@ -180,9 +184,13 @@ var lastIndexAnyTests = []BinOpTest{
+ 	{"aaa", "a", 2},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "ab", 1},
+-	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
++	{"ab☺c", "x☺yz", 2},
++	{"a☺b☻c☹d", "cx", len("a☺b☻")},
++	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
+ 	{"a.RegExp*", ".(|)*+?^$[]", 8},
+ 	{dots + dots + dots, " ", -1},
++	{"012abcba210", "\xffb", 6},
++	{"012\x80bcb\x80210", "\xffb", 7},
+ }
+ 
+ // Execute f on each test case.  funcName should be the name of f; it's used
+@@ -1029,6 +1037,9 @@ var trimTests = []TrimTest{
+ 	{"Trim", "* listitem", " *", "listitem"},
+ 	{"Trim", `"quote"`, `"`, "quote"},
+ 	{"Trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
++	{"Trim", "\x80test\xff", "\xff", "test"},
++	{"Trim", " Ġ ", " ", "Ġ"},
++	{"Trim", " Ġİ0", "0 ", "Ġİ"},
+ 	//empty string tests
+ 	{"Trim", "abba", "", "abba"},
+ 	{"Trim", "", "123", ""},
+@@ -1448,3 +1459,31 @@ func BenchmarkBytesCompare(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkIndexAnyASCII(b *testing.B) {
++	x := Repeat([]byte{'#'}, 4096) // Never matches set
++	cs := "0123456789abcdef"
++	for k := 1; k <= 4096; k <<= 4 {
++		for j := 1; j <= 16; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					IndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkTrimASCII(b *testing.B) {
++	cs := "0123456789abcdef"
++	for k := 1; k <= 4096; k <<= 4 {
++		for j := 1; j <= 16; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				x := Repeat([]byte(cs[:j]), k) // Always matches set
++				for i := 0; i < b.N; i++ {
++					Trim(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 349989278d..60a281a6ac 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -169,6 +169,16 @@ func IndexRune(s string, r rune) int {
+ // from chars in s, or -1 if no Unicode code point from chars is present in s.
+ func IndexAny(s, chars string) int {
+ 	if len(chars) > 0 {
++		if len(s) > 8 {
++			if as, isASCII := makeASCIISet(chars); isASCII {
++				for i := 0; i < len(s); i++ {
++					if as.contains(s[i]) {
++						return i
++					}
++				}
++				return -1
++			}
++		}
+ 		for i, c := range s {
+ 			for _, m := range chars {
+ 				if c == m {
+@@ -185,11 +195,21 @@ func IndexAny(s, chars string) int {
+ // present in s.
+ func LastIndexAny(s, chars string) int {
+ 	if len(chars) > 0 {
++		if len(s) > 8 {
++			if as, isASCII := makeASCIISet(chars); isASCII {
++				for i := len(s) - 1; i >= 0; i-- {
++					if as.contains(s[i]) {
++						return i
++					}
++				}
++				return -1
++			}
++		}
+ 		for i := len(s); i > 0; {
+-			rune, size := utf8.DecodeLastRuneInString(s[0:i])
++			r, size := utf8.DecodeLastRuneInString(s[:i])
+ 			i -= size
+-			for _, m := range chars {
+-				if rune == m {
++			for _, c := range chars {
++				if r == c {
+ 					return i
+ 				}
+ 			}
+@@ -570,7 +590,43 @@ func lastIndexFunc(s string, f func(rune) bool, truth bool) int {
+ 	return -1
+ }
+ 
++// asciiSet is a 32-byte value, where each bit represents the presence of a
++// given ASCII character in the set. The 128-bits of the lower 16 bytes,
++// starting with the least-significant bit of the lowest word to the
++// most-significant bit of the highest word, map to the full range of all
++// 128 ASCII characters. The 128-bits of the upper 16 bytes will be zeroed,
++// ensuring that any non-ASCII character will be reported as not in the set.
++type asciiSet [8]uint32
++
++// makeASCIISet creates a set of ASCII characters and reports whether all
++// characters in chars are ASCII.
++func makeASCIISet(chars string) (as asciiSet, ok bool) {
++	for i := 0; i < len(chars); i++ {
++		c := chars[i]
++		if c >= utf8.RuneSelf {
++			return as, false
++		}
++		as[c>>5] |= 1 << uint(c&31)
++	}
++	return as, true
++}
++
++// contains reports whether c is inside the set.
++func (as *asciiSet) contains(c byte) bool {
++	return (as[c>>5] & (1 << uint(c&31))) != 0
++}
++
+ func makeCutsetFunc(cutset string) func(rune) bool {
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return func(r rune) bool {
++			return r == rune(cutset[0])
++		}
++	}
++	if as, isASCII := makeASCIISet(cutset); isASCII {
++		return func(r rune) bool {
++			return r < utf8.RuneSelf && as.contains(byte(r))
++		}
++	}
+ 	return func(r rune) bool { return IndexRune(cutset, r) >= 0 }
+ }
+ 
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 6815944899..68b5943c59 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -152,10 +152,15 @@ var indexAnyTests = []IndexTest{
+ 	{"aaa", "a", 0},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "xcz", 2},
+-	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
++	{"ab☺c", "x☺yz", 2},
++	{"a☺b☻c☹d", "cx", len("a☺b☻")},
++	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
+ 	{"aRegExp*", ".(|)*+?^$[]", 7},
+ 	{dots + dots + dots, " ", -1},
++	{"012abcba210", "\xffb", 4},
++	{"012\x80bcb\x80210", "\xffb", 3},
+ }
++
+ var lastIndexAnyTests = []IndexTest{
+ 	{"", "", -1},
+ 	{"", "a", -1},
+@@ -165,9 +170,13 @@ var lastIndexAnyTests = []IndexTest{
+ 	{"aaa", "a", 2},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "ab", 1},
+-	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
++	{"ab☺c", "x☺yz", 2},
++	{"a☺b☻c☹d", "cx", len("a☺b☻")},
++	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
+ 	{"a.RegExp*", ".(|)*+?^$[]", 8},
+ 	{dots + dots + dots, " ", -1},
++	{"012abcba210", "\xffb", 6},
++	{"012\x80bcb\x80210", "\xffb", 7},
+ }
+ 
+ // Execute f on each test case.  funcName should be the name of f; it's used
+@@ -668,6 +677,9 @@ var trimTests = []struct {
+ 	{"Trim", "* listitem", " *", "listitem"},
+ 	{"Trim", `"quote"`, `"`, "quote"},
+ 	{"Trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
++	{"Trim", "\x80test\xff", "\xff", "test"},
++	{"Trim", " Ġ ", " ", "Ġ"},
++	{"Trim", " Ġİ0", "0 ", "Ġİ"},
+ 	//empty string tests
+ 	{"Trim", "abba", "", "abba"},
+ 	{"Trim", "", "123", ""},
+@@ -1487,3 +1499,31 @@ func BenchmarkRepeat(b *testing.B) {
+ 		Repeat("-", 80)
+ 	}
+ }
++
++func BenchmarkIndexAnyASCII(b *testing.B) {
++	x := Repeat("#", 4096) // Never matches set
++	cs := "0123456789abcdef"
++	for k := 1; k <= 4096; k <<= 4 {
++		for j := 1; j <= 16; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					IndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkTrimASCII(b *testing.B) {
++	cs := "0123456789abcdef"
++	for k := 1; k <= 4096; k <<= 4 {
++		for j := 1; j <= 16; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				x := Repeat(cs[:j], k) // Always matches set
++				for i := 0; i < b.N; i++ {
++					Trim(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}

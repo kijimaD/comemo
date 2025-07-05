@@ -10,7 +10,7 @@ Date:   Fri Nov 4 17:03:50 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5341043
-
+---
  src/cmd/gc/go.y                   | 32 ++++++++++++++++----------------
  src/cmd/gc/walk.c                 | 33 +++++++++++++++++++++++++--------
  src/pkg/encoding/xml/read.go      |  2 +-
@@ -23,3 +23,275 @@ Date:   Fri Nov 4 17:03:50 2011 +0100
  test/fixedbugs/bug309.go          |  2 ++
  test/fixedbugs/bug373.go          | 32 ++++++++++++++++++++++++++++++++
  11 files changed, 82 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c349567f87..31ffc6d5ba 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -418,9 +418,7 @@ simple_stmt:
+ |	expr_list LCOLAS expr_list
+ 	{
+ 		if($3->n->op == OTYPESW) {
+-			Node *n;
+-			
+-			n = N;
++			$$ = nod(OTYPESW, N, $3->n->right);
+ 			if($3->next != nil)
+ 				yyerror("expr.(type) must be alone in list");
+ 			if($1->next != nil)
+@@ -428,8 +426,7 @@ simple_stmt:
+ 			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
+ 				yyerror("invalid variable name %N in type switch", $1->n);
+ 			else
+-				n = $1->n;
+-			$$ = nod(OTYPESW, n, $3->n->right);
++				$$->left = dclname($1->n->sym);  // it's a colas, so must not re-use an oldname.
+ 			break;
+ 		}
+ 		$$ = colas($1, $3);
+@@ -448,7 +445,7 @@ simple_stmt:
+ case:
+ 	LCASE expr_or_type_list ':'
+ 	{
+-		Node *n;
++		Node *n, *nn;
+ 
+ 		// will be converted to OCASE
+ 		// right will point to next case
+@@ -458,12 +455,13 @@ case:
+ 		$$->list = $2;
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+ 			// type switch - declare variable
+-			n = newname(n->sym);
+-			n->used = 1;	// TODO(rsc): better job here
+-			declare(n, dclcontext);
+-			$$->nname = n;
++			nn = newname(n->sym);
++			declare(nn, dclcontext);
++			$$->nname = nn;
++
++			// keep track of the instances for reporting unused
++			nn->defn = typesw->right;
+ 		}
+-		break;
+ 	}
+ |	LCASE expr_or_type_list '=' expr ':'
+ 	{
+@@ -494,16 +492,18 @@ case:
+ 	}
+ |	LDEFAULT ':'
+ 	{
+-		Node *n;
++		Node *n, *nn;
+ 
+ 		markdcl();
+ 		$$ = nod(OXCASE, N, N);
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+ 			// type switch - declare variable
+-			n = newname(n->sym);
+-			n->used = 1;	// TODO(rsc): better job here
+-			declare(n, dclcontext);
+-			$$->nname = n;
++			nn = newname(n->sym);
++			declare(nn, dclcontext);
++			$$->nname = nn;
++
++			// keep track of the instances for reporting unused
++			nn->defn = typesw->right;
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9ff4aedec3..373c1eef22 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -63,7 +63,6 @@ walk(Node *fn)
+ {
+ 	char s[50];
+ 	NodeList *l;
+-	Node *n;
+ 	int lno;
+ 
+ 	curfn = fn;
+@@ -77,15 +76,33 @@ walk(Node *fn)
+ 			yyerror("function ends without a return statement");
+ 
+ 	lno = lineno;
++
++	// Final typecheck for any unused variables.
++	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
++	for(l=fn->dcl; l; l=l->next)
++		if(l->n->op == ONAME && (l->n->class&~PHEAP) == PAUTO)
++			typecheck(&l->n, Erv | Easgn);
++
++	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
++	for(l=fn->dcl; l; l=l->next)
++		if(l->n->op == ONAME && (l->n->class&~PHEAP) == PAUTO && l->n->defn && l->n->defn->op == OTYPESW && l->n->used)
++			l->n->defn->left->used++;
++	
+ 	for(l=fn->dcl; l; l=l->next) {
+-		n = l->n;
+-		if(n->op != ONAME || n->class != PAUTO)
++		if(l->n->op != ONAME || (l->n->class&~PHEAP) != PAUTO || l->n->sym->name[0] == '&' || l->n->used)
+ 			continue;
+-		lineno = n->lineno;
+-		typecheck(&n, Erv | Easgn);	// only needed for unused variables
+-		if(!n->used && n->sym->name[0] != '&' && !nsyntaxerrors)
+-			yyerror("%S declared and not used", n->sym);
+-	}
++		if(l->n->defn && l->n->defn->op == OTYPESW) {
++			if(l->n->defn->left->used)
++				continue;
++			lineno = l->n->defn->left->lineno;
++			yyerror("%S declared and not used", l->n->sym);
++			l->n->defn->left->used = 1; // suppress repeats
++		} else {
++			lineno = l->n->lineno;
++			yyerror("%S declared and not used", l->n->sym);
++		}
++	}	
++
+ 	lineno = lno;
+ 	if(nerrors != 0)
+ 		return;
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index a88941c92b..e97abec55a 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -617,7 +617,7 @@ func (p *Parser) Skip() error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		switch t := tok.(type) {
++		switch tok.(type) {
+ 		case StartElement:
+ 			if err := p.Skip(); err != nil {
+ 				return err
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index 1ef95d9f95..7b0e35566f 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -131,7 +131,7 @@ func (x Const) Match(y Const) (u, v Const) {
+ // otherwise the result is invalid.
+ func (x Const) Convert(typ *Type) Const {
+ 	// TODO(gri) implement this
+-	switch x := x.val.(type) {
++	switch x.val.(type) {
+ 	case bool:
+ 	case *big.Int:
+ 	case *big.Rat:
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e2c9441372..55b8998b7d 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1131,7 +1131,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+ 
+ // checkExpr checks that x is an expression (and not a type).
+ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+-	switch t := unparen(x).(type) {
++	switch unparen(x).(type) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.BasicLit:
+diff --git a/test/fixedbugs/bug141.go b/test/fixedbugs/bug141.go
+index 756ba308d9..1b125e5d1e 100644
+--- a/test/fixedbugs/bug141.go
++++ b/test/fixedbugs/bug141.go
+@@ -20,7 +20,7 @@ type Getter interface {
+ 
+ func f1(p Empty) {
+ 	switch x := p.(type) {
+-	default: println("failed to match interface"); os.Exit(1);
++	default: println("failed to match interface", x); os.Exit(1);
+ 	case Getter: break;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug200.go b/test/fixedbugs/bug200.go
+index 123f687280..63b8633bd9 100644
+--- a/test/fixedbugs/bug200.go
++++ b/test/fixedbugs/bug200.go
+@@ -12,7 +12,7 @@ func main() {
+ 	// and worse, compiled the wrong code
+ 	// for one of them.
+ 	var x interface{};
+-	switch v := x.(type) {
++	switch x.(type) {
+ 	case func(int):
+ 	case func(f int):	// ERROR "duplicate"
+ 	}
+diff --git a/test/fixedbugs/bug213.go b/test/fixedbugs/bug213.go
+index 07d9f9029d..4d81dbb4de 100644
+--- a/test/fixedbugs/bug213.go
++++ b/test/fixedbugs/bug213.go
+@@ -7,7 +7,7 @@
+ package main
+ func main() {
+ 	var v interface{} = 0;
+-	switch x := v.(type) {
++	switch v.(type) {
+ 	case int:
+ 		fallthrough;		// ERROR "fallthrough"
+ 	default:
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index b6c816a5ce..adce366770 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -80,7 +80,7 @@ func main() {
+ 		case 2:
+ 			i = 3.14
+ 		}
+-		switch k := i.(type) {
++		switch i.(type) {
+ 		case p0.T:
+ 			if j != 0 {
+ 				println("type switch p0.T")
+diff --git a/test/fixedbugs/bug309.go b/test/fixedbugs/bug309.go
+index 07bebae74c..d893916cd9 100644
+--- a/test/fixedbugs/bug309.go
++++ b/test/fixedbugs/bug309.go
+@@ -15,5 +15,7 @@ func foo(t interface{}, c chan int) {
+ 		case <-c:
+ 			// bug was: internal compiler error: var without type, init: v
+ 		}
++	default:
++		_ = v
+ 	}
+ }
+diff --git a/test/fixedbugs/bug373.go b/test/fixedbugs/bug373.go
+new file mode 100644
+index 0000000000..934a6c7328
+--- /dev/null
++++ b/test/fixedbugs/bug373.go
+@@ -0,0 +1,32 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 873, 2162
++
++package foo
++
++func f(x interface{}) {
++	switch t := x.(type) {  // ERROR "declared and not used"
++	case int:
++	}
++}
++
++func g(x interface{}) {
++	switch t := x.(type) {
++	case int:
++	case float32:
++		println(t)
++	}
++}
++
++func h(x interface{}) {
++	switch t := x.(type) {
++	case int:
++	case float32:
++	default:
++		println(t)
++	}
++}

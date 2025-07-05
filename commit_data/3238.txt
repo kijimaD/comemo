@@ -9,7 +9,7 @@ Date:   Wed Sep 9 01:01:39 2009 -0700
     R=ken
     OCL=34295
     CL=34473
-
+---
  src/cmd/gc/align.c                 |   5 +-
  src/cmd/gc/const.c                 |   4 ++
  src/cmd/gc/dcl.c                   |   9 +--
@@ -26,3 +26,660 @@ Date:   Wed Sep 9 01:01:39 2009 -0700
  test/rename.go                     |  75 +++++++++++++++++++++
  test/rename1.go                    |  48 +++++++++++++
  15 files changed, 251 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 15738435f6..703182c0b1 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -237,7 +237,7 @@ typeinit(void)
+ {
+ 	int i, etype, sameas;
+ 	Type *t;
+-	Sym *s;
++	Sym *s, *s1;
+ 
+ 	if(widthptr == 0)
+ 		fatal("typeinit before betypeinit");
+@@ -403,6 +403,7 @@ typeinit(void)
+ 	/* pick up the backend typedefs */
+ 	for(i=0; typedefs[i].name; i++) {
+ 		s = lookup(typedefs[i].name);
++		s1 = pkglookup(typedefs[i].name, "/builtin/");
+ 
+ 		etype = typedefs[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+@@ -425,7 +426,7 @@ typeinit(void)
+ 
+ 		dowidth(t);
+ 		types[etype] = t;
+-		s->def = typenod(t);
++		s1->def = typenod(t);
+ 	}
+ 
+ 	Array_array = rnd(0, widthptr);
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 59bd9a3887..16daab043e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -722,6 +722,10 @@ defaultlit(Node **np, Type *t)
+ 		n->type = t;
+ 		return;
+ 	default:
++		if(n->left == N) {
++			dump("defaultlit", n);
++			fatal("defaultlit");
++		}
+ 		defaultlit(&n->left, t);
+ 		defaultlit(&n->right, t);
+ 		n->type = n->left->type;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 456e2e4eae..8e6c171845 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -417,10 +417,6 @@ dclname(Sym *s)
+ 	// referred to, in which case s->def is already
+ 	// set to an ONONAME.
+ 	if(dclcontext == PEXTERN && s->block <= 1) {
+-		// toss predefined name like "close"
+-		// TODO(rsc): put close in at the end.
+-		if(s->def != N && s->def->etype)
+-			s->def = N;
+ 		if(s->def == N)
+ 			oldname(s);
+ 		if(s->def->op == ONONAME)
+@@ -971,11 +967,8 @@ checkarglist(NodeList *all)
+ 			t = n;
+ 			n = N;
+ 		}
+-		if(n != N) {
+-			if(n->op == ONONAME && n->sym->def == n)
+-				n->sym->def = N;
++		if(n != N)
+ 			n = newname(n->sym);
+-		}
+ 		n = nod(ODCLFIELD, n, t);
+ 		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
+ 			yyerror("only last argument can have type ...");
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c933357c46..7b743fd958 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -356,6 +356,7 @@ enum
+ 	ORECV,
+ 	ORUNESTR,
+ 	OSELRECV,
++	OIOTA,
+ 
+ 	// stmts
+ 	OBLOCK,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bb8a5882d5..f784c862ab 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1582,8 +1582,9 @@ hidden_type1:
+ |	LNAME
+ 	{
+ 		// predefined name like uint8
++		$1 = pkglookup($1->name, "/builtin/");
+ 		if($1->def == N || $1->def->op != OTYPE) {
+-			yyerror("%S is not a type", $1);
++			yyerror("%s is not a type", $1->name);
+ 			$$ = T;
+ 		} else
+ 			$$ = $1->def->type;
+@@ -1660,11 +1661,15 @@ hidden_structdcl:
+ 	}
+ |	'?' hidden_type oliteral
+ 	{
+-		if(isptr[$2->etype]) {
+-			$$ = embedded($2->type->sym);
+-			$$->right = nod(OIND, $$->right, N);
+-		} else
+-			$$ = embedded($2->sym);
++		Sym *s;
++
++		s = $2->sym;
++		if(s == S && isptr[$2->etype])
++			s = $2->type->sym;
++		if(s && strcmp(s->package, "/builtin/") == 0)
++			s = lookup(s->name);
++		$$ = embedded(s);
++		$$->right = typenod($2);
+ 		$$->val = $3;
+ 	}
+ 
+@@ -1709,9 +1714,9 @@ hidden_constant:
+ 			yyerror("bad negated constant");
+ 		}
+ 	}
+-|	name
++|	sym
+ 	{
+-		$$ = $1;
++		$$ = oldname(pkglookup($1->name, "/builtin/"));
+ 		if($$->op != OLITERAL)
+ 			yyerror("bad constant %S", $$->sym);
+ 	}
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 42bbe04d79..fd78e446aa 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -8,8 +8,8 @@
+ #include <ar.h>
+ 
+ extern int yychar;
+-Sym *anysym;
+ char nopackage[] = "____";
++void lexfini(void);
+ 
+ #define	DBG	if(!debug['x']);else print
+ enum
+@@ -96,8 +96,8 @@ main(int argc, char *argv[])
+ 		if(curio.bin != nil)
+ 			Bterm(curio.bin);
+ 	}
+-
+ 	testdclstack();
++	lexfini();
+ 
+ 	typecheckok = 1;
+ 	if(debug['f'])
+@@ -278,9 +278,6 @@ importfile(Val *f)
+ 		return;
+ 	}
+ 
+-	if(!debug['A'])
+-		anysym->def = typenod(types[TANY]);
+-
+ 	if(!findpkg(f->u.sval))
+ 		fatal("can't find import: %Z", f->u.sval);
+ 	imp = Bopen(namebuf, OREAD);
+@@ -337,9 +334,6 @@ unimportfile(void)
+ {
+ 	linehist(nil, 0, 0);
+ 
+-	if(!debug['A'])
+-		anysym->def = nil;
+-
+ 	if(curio.bin != nil) {
+ 		Bterm(curio.bin);
+ 		curio.bin = nil;
+@@ -354,9 +348,6 @@ unimportfile(void)
+ void
+ cannedimports(char *file, char *cp)
+ {
+-	if(!debug['A'])
+-		anysym->def = typenod(types[TANY]);
+-
+ 	lexlineno++;		// if sys.6 is included on line 1,
+ 	linehist(file, 0, 0);	// the debugger gets confused
+ 
+@@ -1274,10 +1265,9 @@ void
+ lexinit(void)
+ {
+ 	int i, lex;
+-	Sym *s;
++	Sym *s, *s1;
+ 	Type *t;
+ 	int etype;
+-	Val v;
+ 
+ 	/*
+ 	 * initialize basic types array
+@@ -1287,7 +1277,6 @@ lexinit(void)
+ 		lex = syms[i].lexical;
+ 		s = lookup(syms[i].name);
+ 		s->lexical = lex;
+-		s->package = package;
+ 
+ 		etype = syms[i].etype;
+ 		if(etype != Txxx) {
+@@ -1302,48 +1291,26 @@ lexinit(void)
+ 					dowidth(t);
+ 				types[etype] = t;
+ 			}
+-			s->def = typenod(t);
+-			if(etype == TANY) {
+-				anysym = s;
+-				if(!debug['A'])
+-					s->def = nil;
+-			}
+-			continue;
+-		}
+-
+-		etype = syms[i].op;
+-		if(etype != OXXX) {
+-			s->def = nod(ONAME, N, N);
+-			s->def->sym = s;
+-			s->def->etype = etype;
+-			s->def->builtin = 1;
++			s1 = pkglookup(syms[i].name, "/builtin/");	// impossible pkg name for builtins
++			s1->lexical = LNAME;
++			s1->def = typenod(t);
+ 			continue;
+ 		}
+ 	}
+ 
+-	// there's only so much table-driven we can handle.
+-	// these are special cases.
+-	types[TNIL] = typ(TNIL);
+-	s = lookup("nil");
+-	v.ctype = CTNIL;
+-	s->def = nodlit(v);
++	s = lookup("iota");
++	s->def = nod(ONONAME, N, N);
++	s->def->iota = 1;
+ 	s->def->sym = s;
+-	s->block = -1;	// above top level
+-
+-	s = lookup("true");
++	
++	s = pkglookup("true", "/builtin/");
+ 	s->def = nodbool(1);
+-	s->def->sym = s;
+-	s->block = -1;	// above top level
++	s->def->sym = lookup("true");
+ 
+-	s = lookup("false");
++	s = pkglookup("false", "/builtin/");
+ 	s->def = nodbool(0);
+-	s->def->sym = s;
+-	s->block = -1;	// above top level
++	s->def->sym = lookup("false");
+ 
+-	s = lookup("iota");
+-	s->def = nodintconst(iota);
+-	s->def->iota = 1;	// flag to reevaluate on copy
+-	s->block = -1;	// above top level
+ 
+ 	// logically, the type of a string literal.
+ 	// types[TSTRING] is the named type string
+@@ -1362,6 +1329,63 @@ lexinit(void)
+ 	nblank = s->def;
+ }
+ 
++void
++lexfini(void)
++{
++	Sym *s;
++	int lex, etype, i;
++	Val v;
++
++	for(i=0; i<nelem(syms); i++) {
++		lex = syms[i].lexical;
++		if(lex != LNAME)
++			continue;
++		s = lookup(syms[i].name);
++		s->lexical = lex;
++
++		etype = syms[i].etype;
++		if(etype != Txxx && (etype != TANY || debug['A']))
++		if(s->def != N && s->def->op == ONONAME)
++			*s->def = *typenod(types[etype]);
++
++		etype = syms[i].op;
++		if(etype != OXXX && s->def != N && s->def->op == ONONAME) {
++			s->def->op = ONAME;
++			s->def->sym = s;
++			s->def->etype = etype;
++			s->def->builtin = 1;
++		}
++	}
++
++	for(i=0; typedefs[i].name; i++) {
++		s = lookup(typedefs[i].name);
++		if(s->def != N && s->def->op == ONONAME)
++			*s->def = *typenod(types[typedefs[i].etype]);
++	}
++
++	// there's only so much table-driven we can handle.
++	// these are special cases.
++	types[TNIL] = typ(TNIL);
++	s = lookup("nil");
++	if(s->def != N && s->def->op == ONONAME) {
++		v.ctype = CTNIL;
++		*s->def = *nodlit(v);
++		s->def->sym = s;
++	}
++
++	s = lookup("true");
++	if(s->def != N && s->def->op == ONONAME) {
++		*s->def = *nodbool(1);
++		s->def->sym = s;
++	}
++
++	s = lookup("false");
++	if(s->def != N && s->def->op == ONONAME) {
++		*s->def = *nodbool(0);
++		s->def->sym = s;
++	}
++}
++
+ struct
+ {
+ 	int	lex;
+@@ -1422,16 +1446,6 @@ lexname(int lex)
+ 	return buf;
+ }
+ 
+-int
+-specialsym(Sym *s)
+-{
+-	if(strcmp(s->name, "byte") == 0 && s->def->sym == lookup("uint8"))
+-		return 1;
+-	if(strcmp(s->name, "iota") == 0 && s->def->sym == S)
+-		return 1;
+-	return 0;
+-}
+-
+ void
+ mkpackage(char* pkg)
+ {
+@@ -1459,10 +1473,13 @@ mkpackage(char* pkg)
+ 				if(s->def->op == OPACK) {
+ 					// throw away top-level package name leftover
+ 					// from previous file.
++					// TODO(rsc): remember that there was a package
++					// name, so that the name cannot be redeclared
++					// as a non-package in other files.
+ 					s->def = N;
+ 					continue;
+ 				}
+-				if(s->def->sym != s && !specialsym(s)) {
++				if(s->def->sym != s) {
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
+ 					s->def = N;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index bfd91cf143..f2da5c003d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1324,13 +1324,13 @@ treecopy(Node *n)
+ 			abort();
+ 		break;
+ 
+-	case OLITERAL:
++	case ONONAME:
+ 		if(n->iota) {
+-			m = nodintconst(iota);
++			m = nod(OIOTA, n, nodintconst(iota));
+ 			break;
+ 		}
+ 		// fall through
+-	case ONONAME:
++	case OLITERAL:
+ 	case ONAME:
+ 	case OTYPE:
+ 		m = n;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index e83646f53a..7665cbf3c4 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -63,14 +63,25 @@ typecheck(Node **np, int top)
+ 		return N;
+ 	
+ 	// Skip typecheck if already done.
+-	// But re-typecheck ONAME node in case context has changed.
+-	if(n->typecheck == 1 && n->op != ONAME)
+-		return n;
++	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
++	if(n->typecheck == 1) {
++		switch(n->op) {
++		case ONAME:
++		case OTYPE:
++		case OLITERAL:
++		case OPACK:
++			break;
++		default:
++			return n;
++		}
++	}
++
+ 	if(n->typecheck == 2)
+ 		fatal("typecheck loop");
+ 	n->typecheck = 2;
+ 
+-	if(n->sym && n->walkdef != 1)
++redo:
++	if(n->sym)
+ 		walkdef(n);
+ 
+ 	lno = setlineno(n);
+@@ -88,10 +99,6 @@ reswitch:
+ 	 */
+ 	case OLITERAL:
+ 		ok |= Erv;
+-		if(n->iota && !(top & Eiota)) {
+-			yyerror("use of iota not in constant initializer");
+-			goto error;
+-		}
+ 		if(n->val.ctype == CTSTR)
+ 			n->type = idealstring;
+ 		goto ret;
+@@ -116,6 +123,15 @@ reswitch:
+ 		yyerror("use of package %S not in selector", n->sym);
+ 		goto error;
+ 
++	case OIOTA:
++		// looked like iota during parsing but might
++		// have been redefined.  decide.
++		if(n->left->op != ONONAME)
++			n = n->left;
++		else
++			n = n->right;
++		goto redo;
++
+ 	/*
+ 	 * types (OIND is with exprs)
+ 	 */
+@@ -1025,8 +1041,6 @@ error:
+ out:
+ 	lineno = lno;
+ 	n->typecheck = 1;
+-	if(n->iota)
+-		n->typecheck = 0;
+ 	*np = n;
+ 	return n;
+ }
+@@ -1592,7 +1606,7 @@ typecheckcomplit(Node **np)
+ 				len = i;
+ 				if(t->bound >= 0 && len > t->bound) {
+ 					setlineno(l);
+-					yyerror("array index out of bounds");
++					yyerror("array index %d out of bounds [0:%d]", len, t->bound);
+ 					t->bound = -1;	// no more errors
+ 				}
+ 			}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a8af6db49a..18c88867ae 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -161,7 +161,7 @@ walkdef(Node *n)
+ 			yyerror("xxx");
+ 		}
+ 		typecheck(&e, Erv | Eiota);
+-		if(e->op != OLITERAL) {
++		if(e->type != T && e->op != OLITERAL) {
+ 			yyerror("const initializer must be constant");
+ 			goto ret;
+ 		}
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index d75f37ac12..e995192ecf 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -13,7 +13,7 @@ import "unsafe"
+ type Word uintptr
+ 
+ const (
+-	_S = uintptr(unsafe.Sizeof(Word));  // TODO(gri) should Sizeof return a uintptr?
++	_S = uintptr(unsafe.Sizeof(Word(0)));  // TODO(gri) should Sizeof return a uintptr?
+ 	_W = _S*8;
+ 	_B = 1<<_W;
+ 	_M = _B-1;
+diff --git a/test/fixedbugs/bug186.go b/test/fixedbugs/bug186.go
+index a54934e2bd..dde794a5d7 100644
+--- a/test/fixedbugs/bug186.go
++++ b/test/fixedbugs/bug186.go
+@@ -12,7 +12,6 @@ func f(x int) { }
+ 
+ func main() {
+ 	f(X);
+-	f(iota);	// ERROR "iota.*initializer"
++	f(iota);	// ERROR "iota"
+ 	f(X);
+-	f(iota);	// ERROR "iota.*initializer"
+ }
+diff --git a/test/bugs/bug194.go b/test/fixedbugs/bug194.go
+similarity index 100%
+rename from test/bugs/bug194.go
+rename to test/fixedbugs/bug194.go
+diff --git a/test/golden.out b/test/golden.out
+index a5eb85bb3b..148471660a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -163,10 +163,6 @@ BUG: should compile
+ =========== bugs/bug193.go
+ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ 
+-=========== bugs/bug194.go
+-bugs/bug194.go:15: array index must be non-negative integer constant
+-BUG should compile and run
+-
+ =========== bugs/bug196.go
+ too many calls: 5
+ panic PC=xxx
+diff --git a/test/rename.go b/test/rename.go
+new file mode 100644
+index 0000000000..8d5441375c
+--- /dev/null
++++ b/test/rename.go
+@@ -0,0 +1,75 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	n :=
++		bool +
++		byte +
++		float +
++		float32 +
++		float64 + 
++		int +
++		int8 +
++		int16 +
++		int32 +
++		int64 +
++		uint +
++		uint8 +
++		uint16 +
++		uint32 +
++		uint64 +
++		uintptr +
++		true +
++		false +
++		iota +
++		nil + 
++		cap +
++		len +
++		make +
++		new +
++		panic +
++		panicln +
++		print +
++		println;
++	if n != 28*29/2 {
++		fmt.Println("BUG: wrong n", n, 28*29/2)
++	}
++}
++
++const (
++	bool = 1;
++	byte = 2;
++	float = 3;
++	float32 = 4;
++	float64 = 5;
++	int = 6;
++	int8 = 7;
++	int16 = 8;
++	int32 = 9;
++	int64 = 10;
++	uint = 11;
++	uint8 = 12;
++	uint16 = 13;
++	uint32 = 14;
++	uint64 = 15;
++	uintptr = 16;
++	true = 17;
++	false = 18;
++	iota = 19;
++	nil = 20;
++	cap = 21;
++	len = 22;
++	make = 23;
++	new = 24;
++	panic = 25;
++	panicln = 26;
++	print = 27;
++	println = 28;
++)
+diff --git a/test/rename1.go b/test/rename1.go
+new file mode 100644
+index 0000000000..eb98e7accf
+--- /dev/null
++++ b/test/rename1.go
+@@ -0,0 +1,48 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var n byte;	// ERROR "not a type"
++	var y = float(0);	// ERROR "cannot call"
++	const (
++		a = 1+iota;	// ERROR "string"
++	)
++
++}
++
++const (
++	bool = 1;
++	byte = 2;
++	float = 3;
++	float32 = 4;
++	float64 = 5;
++	int = 6;
++	int8 = 7;
++	int16 = 8;
++	int32 = 9;
++	int64 = 10;
++	uint = 11;
++	uint8 = 12;
++	uint16 = 13;
++	uint32 = 14;
++	uint64 = 15;
++	uintptr = 16;
++	true = 17;
++	false = 18;
++	iota = "abc";
++	nil = 20;
++	cap = 21;
++	len = 22;
++	make = 23;
++	new = 24;
++	panic = 25;
++	panicln = 26;
++	print = 27;
++	println = 28;
++)
++

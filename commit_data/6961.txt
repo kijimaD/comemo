@@ -7,8 +7,96 @@ Date:   Wed Dec 15 11:39:56 2010 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/3571043
-
+---
  src/pkg/html/parse.go      |  7 +++++++
  src/pkg/html/parse_test.go | 14 ++++++++++----
  src/pkg/html/token.go      |  5 +++--
  3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index feef431eb1..2ef90a8732 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -371,6 +371,13 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 			} else {
+ 				p.addElement(p.tok.Data, p.tok.Attr)
+ 			}
++		case "h1", "h2", "h3", "h4", "h5", "h6":
++			// TODO: auto-insert </p> if necessary.
++			switch n := p.top(); n.Data {
++			case "h1", "h2", "h3", "h4", "h5", "h6":
++				p.pop()
++			}
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
+ 			p.reconstructActiveFormattingElements()
+ 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index dbfc57f666..d153533b58 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -124,9 +125,14 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 21; i++ {
++		for i := 0; i < 22; i++ {
+ 			// Parse the #data section.
+-			doc, err := Parse(<-rc)
++			b, err := ioutil.ReadAll(<-rc)
++			if err != nil {
++				t.Fatal(err)
++			}
++			text := string(b)
++			doc, err := Parse(strings.NewReader(text))
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -139,13 +145,13 @@ func TestParser(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			// Compare the parsed tree to the #document section.
+-			b, err := ioutil.ReadAll(<-rc)
++			b, err = ioutil.ReadAll(<-rc)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			expected := string(b)
+ 			if actual != expected {
+-				t.Errorf("%s test #%d, actual vs expected:\n----\n%s----\n%s----", filename, i, actual, expected)
++				t.Errorf("%s test #%d %q, actual vs expected:\n----\n%s----\n%s----", filename, i, text, actual, expected)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index dc2a6ec5c3..d638838505 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -277,7 +277,7 @@ func (z *Tokenizer) trim(i int) int {
+ 	return k
+ }
+ 
+-// lower finds the largest alphabetic [a-zA-Z]* word at the start of z.buf[i:]
++// lower finds the largest alphabetic [0-9A-Za-z]* word at the start of z.buf[i:]
+ // and returns that word lower-cased, as well as the trimmed cursor location
+ // after that word.
+ func (z *Tokenizer) lower(i int) ([]byte, int) {
+@@ -285,8 +285,9 @@ func (z *Tokenizer) lower(i int) ([]byte, int) {
+ loop:
+ 	for ; i < z.p1; i++ {
+ 		c := z.buf[i]
+-		// TODO(nigeltao): Check what '0' <= c && c <= '9' should do.
+ 		switch {
++		case '0' <= c && c <= '9':
++			// No-op.
+ 		case 'A' <= c && c <= 'Z':
+ 			z.buf[i] = c + 'a' - 'A'
+ 		case 'a' <= c && c <= 'z':

@@ -14,7 +14,146 @@ Date:   Mon Mar 24 19:11:21 2014 -0400
     R=golang-codereviews, r, dominik.honnef, dvyukov, dan.kortschak, iant, 0xjnml
     CC=golang-codereviews
     https://golang.org/cl/75130045
-
+---
  doc/effective_go.html | 40 ++++++++++++++++------------------------
  doc/go_mem.html       | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 24 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 6006724e5a..ae04899e19 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2942,26 +2942,19 @@ means waiting until some receiver has retrieved a value.
+ <p>
+ A buffered channel can be used like a semaphore, for instance to
+ limit throughput.  In this example, incoming requests are passed
+-to <code>handle</code>, which receives a value from the channel, processes
+-the request, and then sends a value back to the channel
+-to ready the "semaphore" for the next consumer.
++to <code>handle</code>, which sends a value into the channel, processes
++the request, and then receives a value from the channel
++to ready the &ldquo;semaphore&rdquo; for the next consumer.
+ The capacity of the channel buffer limits the number of
+-simultaneous calls to <code>process</code>,
+-so during initialization we prime the channel by filling it to capacity.
++simultaneous calls to <code>process</code>.
+ </p>
+ <pre>
+ var sem = make(chan int, MaxOutstanding)
+ 
+ func handle(r *Request) {
+-    &lt;-sem          // Wait for active queue to drain.
+-    process(r)     // May take a long time.
+-    sem &lt;- 1       // Done; enable next request to run.
+-}
+-
+-func init() {
+-    for i := 0; i &lt; MaxOutstanding; i++ {
+-        sem &lt;- 1
+-    }
++    sem &lt;- 1    // Wait for active queue to drain.
++    process(r)  // May take a long time.
++    &lt;-sem       // Done; enable next request to run.
+ }
+ 
+ func Serve(queue chan *Request) {
+@@ -2973,10 +2966,9 @@ func Serve(queue chan *Request) {
+ </pre>
+ 
+ <p>
+-Because data synchronization occurs on a receive from a channel
+-(that is, the send "happens before" the receive; see
+-<a href="/ref/mem">The Go Memory Model</a>),
+-acquisition of the semaphore must be on a channel receive, not a send.
++Once <code>MaxOutstanding</code> handlers are executing <code>process</code>,
++any more will block trying to send into the filled channel buffer,
++until one of the existing handlers finishes and receives from the buffer.
+ </p>
+ 
+ <p>
+@@ -2993,10 +2985,10 @@ Here's an obvious solution, but beware it has a bug we'll fix subsequently:
+ <pre>
+ func Serve(queue chan *Request) {
+     for req := range queue {
+-        &lt;-sem
++        sem &lt;- 1
+         go func() {
+             process(req) // Buggy; see explanation below.
+-            sem &lt;- 1
++            &lt;-sem
+         }()
+     }
+ }</pre>
+@@ -3014,10 +3006,10 @@ to the closure in the goroutine:
+ <pre>
+ func Serve(queue chan *Request) {
+     for req := range queue {
+-        &lt;-sem
++        sem &lt;- 1
+         go func(req *Request) {
+             process(req)
+-            sem &lt;- 1
++            &lt;-sem
+         }(req)
+     }
+ }</pre>
+@@ -3032,11 +3024,11 @@ name, as in this example:
+ <pre>
+ func Serve(queue chan *Request) {
+     for req := range queue {
+-        &lt;-sem
+         req := req // Create new instance of req for the goroutine.
++        sem &lt;- 1
+         go func() {
+             process(req)
+-            sem &lt;- 1
++            &lt;-sem
+         }()
+     }
+ }</pre>
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 3e769daeca..69e7c8ce75 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -274,6 +274,41 @@ then the program would not be guaranteed to print
+ crash, or do something else.)
+ </p>
+ 
++<p class="rule">
++The <i>k</i>th send on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th receive from that channel completes.
++</p>
++
++<p>
++This rule generalizes the previous rule to buffered channels.
++It allows a counting semaphore to be modeled by a buffered channel:
++the number of items in the channel corresponds to the semaphore count,
++the capacity of the channel corresponds to the semaphore maximum,
++sending an item acquires the semaphore, and receiving an item releases
++the semaphore.
++This is a common idiom for rate-limiting work.
++</p>
++
++<p>
++This program starts a goroutine for every entry in the work list, but the
++goroutines coordinate using the <code>limit</code> channel to ensure
++that at most three are running work functions at a time.
++</p>
++
++<pre>
++var limit = make(chan int, 3)
++
++func main() {
++	for _, w := range work {
++		go func() {
++			limit <- 1
++			w()
++			<-limit
++		}()
++	}
++	select{}
++}
++</pre>
++
+ <h3>Locks</h3>
+ 
+ <p>

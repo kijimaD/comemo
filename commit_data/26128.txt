@@ -42,7 +42,56 @@ Date:   Thu Dec 17 00:21:13 2015 -0500
     Change-Id: Idf57eceb6d5518341a2f7f75eb8f8ab27ed4e0b4
     Reviewed-on: https://go-review.googlesource.com/17944
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 11 +++++++++++
  src/cmd/go/http.go    | 13 ++++++-------
  2 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f3dbe85c01..cb983e97e9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2118,6 +2118,17 @@ func TestGoGetRscIoToolstash(t *testing.T) {
+ 	tg.run("get", "./toolstash")
+ }
+ 
++// Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
++func TestGoGetHTTPS404(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempDir("src")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("get", "bazil.org/fuse/fs/fstestutil")
++}
++
+ // Test that you can not import a main package.
+ func TestIssue4210(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 7979c41b11..d558dcd0b9 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -84,15 +84,14 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body
+ 	}
+ 	urlStr, res, err := fetch("https")
+ 	if err != nil || res.StatusCode != 200 {
+-		if buildV {
+-			if err != nil {
+-				log.Printf("https fetch failed.")
+-			} else {
+-				log.Printf("ignoring https fetch with status code %d", res.StatusCode)
+-			}
++		if buildV && err != nil {
++			log.Printf("https fetch failed: %v", err)
+ 		}
+-		closeBody(res)
+ 		if security == insecure {
++			if buildV && res.StatusCode != 200 {
++				log.Printf("https fetch: status %s", res.Status)
++			}
++			closeBody(res)
+ 			urlStr, res, err = fetch("http")
+ 		}
+ 	}

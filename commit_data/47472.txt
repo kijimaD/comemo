@@ -75,6 +75,24 @@ Date:   Mon Mar 15 06:55:37 2021 +0000
     Trust: eric fang <eric.fang@arm.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/obj7.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 425cb88f7e..bed21dbe53 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -539,6 +539,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 
++			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
++				// A leaf function with a small stack can be marked
++				// NOSPLIT, avoiding a stack check.
++				p.From.Sym.Set(obj.AttrNoSplit, true)
++			}
++
+ 			if !p.From.Sym.NoSplit() {
+ 				p = c.stacksplit(p, c.autosize) // emit split check
+ 			}

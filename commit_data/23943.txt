@@ -9,10 +9,162 @@ Date:   Wed Jun 24 11:11:51 2015 -0400
     Change-Id: Idbb5c3faad472b77e9867dd2d4551fef5e4ac5f1
     Reviewed-on: https://go-review.googlesource.com/11421
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec.go      |  8 +++++++-
  src/text/template/exec_test.go |  8 +++++++-
  src/text/template/helper.go    |  2 ++
  src/text/template/option.go    |  1 +
  src/text/template/template.go  | 14 ++++++++++++++
  5 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 8e9edcfbe9..daba788b55 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -113,7 +113,10 @@ func errRecover(errp *error) {
+ // the output writer.
+ // A template may be executed safely in parallel.
+ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+-	tmpl := t.tmpl[name]
++	var tmpl *Template
++	if t.common != nil {
++		tmpl = t.tmpl[name]
++	}
+ 	if tmpl == nil {
+ 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
+ 	}
+@@ -146,6 +149,9 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ // it returns the empty string. For generating an error message here
+ // and in html/template.
+ func (t *Template) DefinedTemplates() string {
++	if t.common == nil {
++		return ""
++	}
+ 	var b bytes.Buffer
+ 	for name, tmpl := range t.tmpl {
+ 		if tmpl.Tree == nil || tmpl.Root == nil {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index f083547ed8..ba0e434f98 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -882,7 +882,13 @@ func TestTree(t *testing.T) {
+ 
+ func TestExecuteOnNewTemplate(t *testing.T) {
+ 	// This is issue 3872.
+-	_ = New("Name").Templates()
++	New("Name").Templates()
++	// This is issue 11379.
++	new(Template).Templates()
++	new(Template).Parse("")
++	new(Template).New("abc").Parse("")
++	new(Template).Execute(nil, nil)                // returns an error (but does not crash)
++	new(Template).ExecuteTemplate(nil, "XXX", nil) // returns an error (but does not crash)
+ }
+ 
+ const testTemplates = `{{define "one"}}one{{end}}{{define "two"}}two{{end}}`
+diff --git a/src/text/template/helper.go b/src/text/template/helper.go
+index 07d432bd3b..787ca62e5f 100644
+--- a/src/text/template/helper.go
++++ b/src/text/template/helper.go
+@@ -42,6 +42,7 @@ func ParseFiles(filenames ...string) (*Template, error) {
+ // contents before calling ParseFiles, t.Execute may fail. In that
+ // case use t.ExecuteTemplate to execute a valid template.
+ func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
++	t.init()
+ 	return parseFiles(t, filenames...)
+ }
+ 
+@@ -97,6 +98,7 @@ func ParseGlob(pattern string) (*Template, error) {
+ // equivalent to calling t.ParseFiles with the list of files matched by the
+ // pattern.
+ func (t *Template) ParseGlob(pattern string) (*Template, error) {
++	t.init()
+ 	return parseGlob(t, pattern)
+ }
+ 
+diff --git a/src/text/template/option.go b/src/text/template/option.go
+index fcdd8714a6..addce2d890 100644
+--- a/src/text/template/option.go
++++ b/src/text/template/option.go
+@@ -40,6 +40,7 @@ type option struct {
+ //		Execution stops immediately with an error.
+ //
+ func (t *Template) Option(opt ...string) *Template {
++	t.init()
+ 	for _, s := range opt {
+ 		t.setOption(s)
+ 	}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index de03a2e8a1..3e80982123 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -52,6 +52,7 @@ func (t *Template) Name() string {
+ // delimiters. The association, which is transitive, allows one template to
+ // invoke another with a {{template}} action.
+ func (t *Template) New(name string) *Template {
++	t.init()
+ 	nt := &Template{
+ 		name:       name,
+ 		common:     t.common,
+@@ -81,6 +82,9 @@ func (t *Template) init() {
+ func (t *Template) Clone() (*Template, error) {
+ 	nt := t.copy(nil)
+ 	nt.init()
++	if t.common == nil {
++		return nt, nil
++	}
+ 	for k, v := range t.tmpl {
+ 		if k == t.name {
+ 			nt.tmpl[t.name] = nt
+@@ -115,6 +119,7 @@ func (t *Template) copy(c *common) *Template {
+ // If the template does not already exist, it will create a new one.
+ // It is an error to reuse a name except to overwrite an empty template.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
++	t.init()
+ 	// If the name is the name of this template, overwrite this template.
+ 	// The associate method checks it's not a redefinition.
+ 	nt := t
+@@ -132,6 +137,9 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
+ 
+ // Templates returns a slice of defined templates associated with t.
+ func (t *Template) Templates() []*Template {
++	if t.common == nil {
++		return nil
++	}
+ 	// Return a slice so we don't expose the map.
+ 	m := make([]*Template, 0, len(t.tmpl))
+ 	for _, v := range t.tmpl {
+@@ -146,6 +154,7 @@ func (t *Template) Templates() []*Template {
+ // corresponding default: {{ or }}.
+ // The return value is the template, so calls can be chained.
+ func (t *Template) Delims(left, right string) *Template {
++	t.init()
+ 	t.leftDelim = left
+ 	t.rightDelim = right
+ 	return t
+@@ -156,6 +165,7 @@ func (t *Template) Delims(left, right string) *Template {
+ // type. However, it is legal to overwrite elements of the map. The return
+ // value is the template, so calls can be chained.
+ func (t *Template) Funcs(funcMap FuncMap) *Template {
++	t.init()
+ 	t.muFuncs.Lock()
+ 	defer t.muFuncs.Unlock()
+ 	addValueFuncs(t.execFuncs, funcMap)
+@@ -166,6 +176,9 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
+ // Lookup returns the template with the given name that is associated with t.
+ // It returns nil if there is no such template or the template has no definition.
+ func (t *Template) Lookup(name string) *Template {
++	if t.common == nil {
++		return nil
++	}
+ 	return t.tmpl[name]
+ }
+ 
+@@ -177,6 +190,7 @@ func (t *Template) Lookup(name string) *Template {
+ // (In multiple calls to Parse with the same receiver template, only one call
+ // can contain text other than space, comments, and template definitions.)
+ func (t *Template) Parse(text string) (*Template, error) {
++	t.init()
+ 	t.muFuncs.RLock()
+ 	trees, err := parse.Parse(t.name, text, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
+ 	t.muFuncs.RUnlock()

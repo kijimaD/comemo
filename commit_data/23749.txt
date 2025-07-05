@@ -7,6 +7,20 @@ Date:   Wed Jun 10 16:28:51 2015 +0300
     Change-Id: I82edd9364e1b4634006f5e043202a69f383dcdbe
     Reviewed-on: https://go-review.googlesource.com/10826
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/csv/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index d0a09044fb..ca81a41242 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -215,7 +215,7 @@ func (r *Reader) parseRecord() (fields []string, err error) {
+ 	r.column = -1
+ 
+ 	// Peek at the first rune.  If it is an error we are done.
+-	// If we are support comments and it is the comment character
++	// If we support comments and it is the comment character
+ 	// then skip to the end of line.
+ 
+ 	r1, _, err := r.r.ReadRune()

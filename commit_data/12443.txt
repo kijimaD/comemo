@@ -7,6 +7,36 @@ Date:   Wed Mar 7 14:06:16 2012 +1100
     R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5757058
-
+---
  src/pkg/exp/wingui/Makefile | 17 +----------------
  1 file changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/wingui/Makefile b/src/pkg/exp/wingui/Makefile
+index bf69c98a51..7b0fc31dae 100644
+--- a/src/pkg/exp/wingui/Makefile
++++ b/src/pkg/exp/wingui/Makefile
+@@ -2,23 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-GOOS=windows
+-
+-include ../../../Make.inc
+-
+-LD:=$(LD) -Hwindowsgui
+-
+-TARG=wingui
+-
+-GOFILES=\
+-	gui.go\
+-	winapi.go\
+-	zwinapi.go\
+-
+-include ../../../Make.cmd
+-
+ zwinapi.go: winapi.go
+ 	(echo '// +build windows'; \
+-	$(GOROOT)/src/pkg/syscall/mksyscall_windows.pl $<) \
++	../../syscall/mksyscall_windows.pl $<) \
+ 		| gofmt \
+ 		> $@

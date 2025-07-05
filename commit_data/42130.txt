@@ -9,7 +9,76 @@ Date:   Tue Oct 29 15:59:08 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/logopt/logopt_test.go |  8 ++++++--
  src/cmd/compile/internal/ssa/checkbce.go       | 16 ++++++++++++++--
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index ef71a78a1a..f2270fc978 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -20,12 +20,15 @@ type pair struct {a,b int}
+ func bar(y *pair) *int {
+ 	return &y.b
+ }
+-
++var a []int
+ func foo(w, z *pair) *int {
+ 	if *bar(w) > 0 {
+ 		return bar(z)
+ 	}
+-	return nil
++	if a[1] > 0 {
++		a = a[:2]
++	}
++	return &a[0]
+ }
+ `
+ 
+@@ -102,6 +105,7 @@ func TestLogOpt(t *testing.T) {
+ 		t.Logf("%s", slogged)
+ 		// below shows proper inlining and nilcheck
+ 		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"nilcheck","source":"go compiler","message":"","relatedInformation":[{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"}]}`)
++		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
+ 	})
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/checkbce.go b/src/cmd/compile/internal/ssa/checkbce.go
+index ab842b4296..6a9ce2be0a 100644
+--- a/src/cmd/compile/internal/ssa/checkbce.go
++++ b/src/cmd/compile/internal/ssa/checkbce.go
+@@ -4,19 +4,31 @@
+ 
+ package ssa
+ 
++import "cmd/compile/internal/logopt"
++
+ // checkbce prints all bounds checks that are present in the function.
+ // Useful to find regressions. checkbce is only activated when with
+ // corresponding debug options, so it's off by default.
+ // See test/checkbce.go
+ func checkbce(f *Func) {
+-	if f.pass.debug <= 0 {
++	if f.pass.debug <= 0 && !logopt.Enabled() {
+ 		return
+ 	}
+ 
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
+-				f.Warnl(v.Pos, "Found %v", v.Op)
++				if f.pass.debug > 0 {
++					f.Warnl(v.Pos, "Found %v", v.Op)
++				}
++				if logopt.Enabled() {
++					if v.Op == OpIsInBounds {
++						logopt.LogOpt(v.Pos, "isInBounds", "checkbce", f.Name)
++					}
++					if v.Op == OpIsSliceInBounds {
++						logopt.LogOpt(v.Pos, "isSliceInBounds", "checkbce", f.Name)
++					}
++				}
+ 			}
+ 		}
+ 	}

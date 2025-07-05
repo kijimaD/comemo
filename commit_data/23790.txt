@@ -9,6 +9,24 @@ Date:   Sat Jun 13 10:22:21 2015 -0700
     Change-Id: I9df8f17e6def7e34d07e3ddf2dd5dd8f0406aa04
     Reviewed-on: https://go-review.googlesource.com/11053
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3110fad270..36352d009d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -962,6 +962,12 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[1])
++	case ssa.OpAMD64TESTQ:
++		p := Prog(x86.ATESTQ)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v.Args[1])
+ 	case ssa.OpAMD64MOVQconst:
+ 		x := regnum(v)
+ 		p := Prog(x86.AMOVQ)

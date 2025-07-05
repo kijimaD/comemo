@@ -8,6 +8,20 @@ Date:   Wed Feb 8 15:12:56 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5647049
-
+---
  src/cmd/5l/obj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 0cc84d0eaf..4a3db99b00 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -540,7 +540,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->value = 0;
+ 		}
+-		if(s->type != SBSS) {
++		if(s->type != SBSS && !s->dupok) {
+ 			diag("redefinition: %s\n%P", s->name, p);
+ 			s->type = SBSS;
+ 			s->value = 0;

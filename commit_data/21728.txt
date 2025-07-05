@@ -14,7 +14,72 @@ Date:   Fri Jan 30 14:36:12 2015 +0300
     Change-Id: I3c141b71da11e38837c09408cf4f1d22e8f7f36e
     Reviewed-on: https://go-review.googlesource.com/3602
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/mem_plan9.go        | 13 ++++++++-----
  src/runtime/pprof/trace_test.go |  4 +---
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index a5d7c1a4cf..477a52700e 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -9,21 +9,24 @@ import "unsafe"
+ var bloc uintptr
+ var memlock mutex
+ 
+-const memRound = _PAGESIZE - 1
++func memRound(p uintptr) uintptr {
++	return (p + _PAGESIZE - 1) &^ (_PAGESIZE - 1)
++}
+ 
+ func initBloc() {
+-	bloc = uintptr(unsafe.Pointer(&end))
++	bloc = memRound(uintptr(unsafe.Pointer(&end)))
+ }
+ 
+ func sbrk(n uintptr) unsafe.Pointer {
+ 	lock(&memlock)
+ 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
+-	bl := (bloc + memRound) &^ memRound
++	bl := bloc
++	n = memRound(n)
+ 	if brk_(unsafe.Pointer(bl+n)) < 0 {
+ 		unlock(&memlock)
+ 		return nil
+ 	}
+-	bloc = bl + n
++	bloc += n
+ 	unlock(&memlock)
+ 	return unsafe.Pointer(bl)
+ }
+@@ -42,7 +45,7 @@ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+ 	// from tiny/mem.c
+ 	// Push pointer back if this is a free
+ 	// of the most recent sysAlloc.
+-	n += (n + memRound) &^ memRound
++	n = memRound(n)
+ 	if bloc == uintptr(v)+n {
+ 		bloc -= n
+ 	}
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index c42032455c..1b99830bfa 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -20,8 +20,6 @@ func skipTraceTestsIfNeeded(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "solaris":
+ 		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
+-	case "plan9":
+-		t.Skip("skipping: plan9 tests fail with out of memory (http://golang.org/issue/9712")
+ 	}
+ 
+ 	switch runtime.GOARCH {
+@@ -234,7 +232,7 @@ eventLoop:
+ 		for _, f := range ev.stk {
+ 			if strings.HasSuffix(f.file, "trace_test.go") &&
+ 				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
+-				f.line == 218 {
++				f.line == 216 {
+ 				found = true
+ 				break eventLoop
+ 			}

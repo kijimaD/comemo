@@ -30,7 +30,7 @@ Date:   Thu Aug 26 01:33:29 2021 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s |  13 ++-
  src/cmd/internal/obj/riscv/cpu.go           |  12 ++-
  src/cmd/internal/obj/riscv/obj.go           |  88 ++++++++---------
@@ -41,3 +41,673 @@ Date:   Thu Aug 26 01:33:29 2021 +1000
  src/cmd/link/internal/riscv64/asm.go        | 141 +++++++++++++++++++++++++---
  src/cmd/link/internal/riscv64/obj.go        |  14 ++-
  9 files changed, 269 insertions(+), 135 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 64b94a2a04..fe911a74f5 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -357,13 +357,12 @@ start:
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+-	// JMP and CALL to symbol are encoded as:
+-	//	AUIPC $0, TMP
+-	//	JALR $0, TMP
+-	// with a R_RISCV_PCREL_ITYPE relocation - the linker resolves the
+-	// real address and updates the immediates for both instructions.
+-	CALL	asmtest(SB)				// 970f0000
+-	JMP	asmtest(SB)				// 970f0000
++	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
++	// respectively), with a R_RISCV_CALL relocation. The linker resolves
++	// the real address and updates the immediate, using a trampoline in
++	// the case where the address is not directly reachable.
++	CALL	asmtest(SB)				// ef000000
++	JMP	asmtest(SB)				// 6f000000
+ 
+ 	// Branch pseudo-instructions
+ 	BEQZ	X5, 2(PC)				// 63840200
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index a258367ae9..ed88f621d9 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -260,6 +260,10 @@ const (
+ 	// corresponding *obj.Prog uses the temporary register.
+ 	USES_REG_TMP = 1 << iota
+ 
++	// NEED_CALL_RELOC is set on JAL instructions to indicate that a
++	// R_RISCV_CALL relocation is needed.
++	NEED_CALL_RELOC
++
+ 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
+ 	// it is the first instruction in an AUIPC + I-type pair that needs a
+ 	// R_RISCV_PCREL_ITYPE relocation.
+@@ -632,6 +636,10 @@ var unaryDst = map[obj.As]bool{
+ 
+ // Instruction encoding masks.
+ const (
++	// JTypeImmMask is a mask including only the immediate portion of
++	// J-type instructions.
++	JTypeImmMask = 0xfffff000
++
+ 	// ITypeImmMask is a mask including only the immediate portion of
+ 	// I-type instructions.
+ 	ITypeImmMask = 0xfff00000
+@@ -643,8 +651,4 @@ const (
+ 	// UTypeImmMask is a mask including only the immediate portion of
+ 	// U-type instructions.
+ 	UTypeImmMask = 0xfffff000
+-
+-	// UJTypeImmMask is a mask including only the immediate portion of
+-	// UJ-type instructions.
+-	UJTypeImmMask = UTypeImmMask
+ )
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f0ea21de97..b346b13577 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -30,41 +30,19 @@ import (
+ 
+ func buildop(ctxt *obj.Link) {}
+ 
+-// jalrToSym replaces p with a set of Progs needed to jump to the Sym in p.
+-// lr is the link register to use for the JALR.
+-// p must be a CALL, JMP or RET.
+-func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *obj.Prog {
+-	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET && p.As != obj.ADUFFZERO && p.As != obj.ADUFFCOPY {
+-		ctxt.Diag("unexpected Prog in jalrToSym: %v", p)
+-		return p
++func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
++	switch p.As {
++	case obj.ACALL, obj.AJMP, obj.ARET, obj.ADUFFZERO, obj.ADUFFCOPY:
++	default:
++		ctxt.Diag("unexpected Prog in jalToSym: %v", p)
++		return
+ 	}
+ 
+-	// TODO(jsing): Consider using a single JAL instruction and teaching
+-	// the linker to provide trampolines for the case where the destination
+-	// offset is too large. This would potentially reduce instructions for
+-	// the common case, but would require three instructions to go via the
+-	// trampoline.
+-
+-	to := p.To
+-
+-	p.As = AAUIPC
+-	p.Mark |= NEED_PCREL_ITYPE_RELOC
+-	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
+-	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+-	p.Reg = obj.REG_NONE
+-	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+-	p = obj.Appendp(p, newprog)
+-
+-	// Leave Sym only for the CALL reloc in assemble.
+-	p.As = AJALR
++	p.As = AJAL
++	p.Mark |= NEED_CALL_RELOC
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = lr
+ 	p.Reg = obj.REG_NONE
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = REG_TMP
+-	p.To.Sym = to.Sym
+-
+-	return p
+ }
+ 
+ // progedit is called individually for each *obj.Prog. It normalizes instruction
+@@ -531,7 +509,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
+ 			switch p.To.Type {
+ 			case obj.TYPE_MEM:
+-				jalrToSym(ctxt, p, newprog, REG_LR)
++				jalToSym(ctxt, p, REG_LR)
+ 			}
+ 
+ 		case obj.AJMP:
+@@ -539,8 +517,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			case obj.TYPE_MEM:
+ 				switch p.To.Name {
+ 				case obj.NAME_EXTERN, obj.NAME_STATIC:
+-					// JMP to symbol.
+-					jalrToSym(ctxt, p, newprog, REG_ZERO)
++					jalToSym(ctxt, p, REG_ZERO)
+ 				}
+ 			}
+ 
+@@ -566,7 +543,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if retJMP != nil {
+ 				p.As = obj.ARET
+ 				p.To.Sym = retJMP
+-				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
++				jalToSym(ctxt, p, REG_ZERO)
+ 			} else {
+ 				p.As = AJALR
+ 				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+@@ -640,8 +617,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					rescan = true
+ 				}
+ 			case AJAL:
++				// Linker will handle the intersymbol case and trampolines.
+ 				if p.To.Target() == nil {
+-					panic("intersymbol jumps should be expressed as AUIPC+JALR")
++					break
+ 				}
+ 				offset := p.To.Target().Pc - p.Pc
+ 				if offset < -(1<<20) || (1<<20) <= offset {
+@@ -676,7 +654,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// instructions will break everything--don't do it!
+ 	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+-		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
++		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+ 			switch p.To.Type {
+ 			case obj.TYPE_BRANCH:
+ 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
+@@ -684,6 +662,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				panic("unhandled type")
+ 			}
+ 
++		case AJAL:
++			// Linker will handle the intersymbol case and trampolines.
++			if p.To.Target() != nil {
++				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
++			}
++
+ 		case AAUIPC:
+ 			if p.From.Type == obj.TYPE_BRANCH {
+ 				low, high, err := Split32BitImmediate(p.From.Target().Pc - p.Pc)
+@@ -802,7 +786,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	if to_more != nil {
+ 		to_more.To.SetTarget(p)
+ 	}
+-	p = jalrToSym(ctxt, p, newprog, REG_X5)
++	jalToSym(ctxt, p, REG_X5)
+ 
+ 	// JMP start
+ 	p = obj.Appendp(p, newprog)
+@@ -1187,6 +1171,11 @@ func encodeU(ins *instruction) uint32 {
+ 	return imm<<12 | rd<<7 | enc.opcode
+ }
+ 
++// encodeJImmediate encodes an immediate for a J-type RISC-V instruction.
++func encodeJImmediate(imm uint32) uint32 {
++	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12
++}
++
+ // encodeJ encodes a J-type RISC-V instruction.
+ func encodeJ(ins *instruction) uint32 {
+ 	imm := immI(ins.as, ins.imm, 21)
+@@ -1195,7 +1184,7 @@ func encodeJ(ins *instruction) uint32 {
+ 	if enc == nil {
+ 		panic("encodeJ: could not encode instruction")
+ 	}
+-	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12 | rd<<7 | enc.opcode
++	return encodeJImmediate(imm) | rd<<7 | enc.opcode
+ }
+ 
+ func encodeRawIns(ins *instruction) uint32 {
+@@ -1207,6 +1196,16 @@ func encodeRawIns(ins *instruction) uint32 {
+ 	return uint32(ins.imm)
+ }
+ 
++func EncodeJImmediate(imm int64) (int64, error) {
++	if !immIFits(imm, 21) {
++		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
++	}
++	if imm&1 != 0 {
++		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
++	}
++	return int64(encodeJImmediate(uint32(imm))), nil
++}
++
+ func EncodeIImmediate(imm int64) (int64, error) {
+ 	if !immIFits(imm, 12) {
+ 		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+@@ -2035,17 +2034,18 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+-		case AJALR:
+-			if p.To.Sym != nil {
+-				// This is a CALL/JMP. We add a relocation only
+-				// for linker stack checking. No actual
+-				// relocation is needed.
++		case AJAL:
++			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+ 				rel := obj.Addrel(cursym)
+ 				rel.Off = int32(p.Pc)
+ 				rel.Siz = 4
+ 				rel.Sym = p.To.Sym
+ 				rel.Add = p.To.Offset
+-				rel.Type = objabi.R_CALLRISCV
++				rel.Type = objabi.R_RISCV_CALL
++			}
++		case AJALR:
++			if p.To.Sym != nil {
++				ctxt.Diag("%v: unexpected AJALR with to symbol", p)
+ 			}
+ 
+ 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 52827a6dee..0cc60fbe3b 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -59,8 +59,6 @@ const (
+ 	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
+ 	// of a CALL (JAL) instruction, by encoding the address into the instruction.
+ 	R_CALLMIPS
+-	// R_CALLRISCV marks RISC-V CALLs for stack checking.
+-	R_CALLRISCV
+ 	R_CONST
+ 	R_PCREL
+ 	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
+@@ -218,6 +216,15 @@ const (
+ 
+ 	// RISC-V.
+ 
++	// R_RISCV_CALL relocates a J-type instruction with a 21 bit PC-relative
++	// address.
++	R_RISCV_CALL
++
++	// R_RISCV_CALL_TRAMP is the same as R_RISCV_CALL but denotes the use of a
++	// trampoline, which we may be able to avoid during relocation. These are
++	// only used by the linker and are not emitted by the compiler or assembler.
++	R_RISCV_CALL_TRAMP
++
+ 	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
+ 	// AUIPC + I-type instruction pair.
+ 	R_RISCV_PCREL_ITYPE
+@@ -274,7 +281,7 @@ const (
+ // the target address in register or memory.
+ func (r RelocType) IsDirectCall() bool {
+ 	switch r {
+-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_CALLRISCV:
++	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 4638ef14d9..f2e06a5b21 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -20,59 +20,60 @@ func _() {
+ 	_ = x[R_CALLIND-10]
+ 	_ = x[R_CALLPOWER-11]
+ 	_ = x[R_CALLMIPS-12]
+-	_ = x[R_CALLRISCV-13]
+-	_ = x[R_CONST-14]
+-	_ = x[R_PCREL-15]
+-	_ = x[R_TLS_LE-16]
+-	_ = x[R_TLS_IE-17]
+-	_ = x[R_GOTOFF-18]
+-	_ = x[R_PLT0-19]
+-	_ = x[R_PLT1-20]
+-	_ = x[R_PLT2-21]
+-	_ = x[R_USEFIELD-22]
+-	_ = x[R_USETYPE-23]
+-	_ = x[R_USEIFACE-24]
+-	_ = x[R_USEIFACEMETHOD-25]
+-	_ = x[R_METHODOFF-26]
+-	_ = x[R_KEEP-27]
+-	_ = x[R_POWER_TOC-28]
+-	_ = x[R_GOTPCREL-29]
+-	_ = x[R_JMPMIPS-30]
+-	_ = x[R_DWARFSECREF-31]
+-	_ = x[R_DWARFFILEREF-32]
+-	_ = x[R_ARM64_TLS_LE-33]
+-	_ = x[R_ARM64_TLS_IE-34]
+-	_ = x[R_ARM64_GOTPCREL-35]
+-	_ = x[R_ARM64_GOT-36]
+-	_ = x[R_ARM64_PCREL-37]
+-	_ = x[R_ARM64_LDST8-38]
+-	_ = x[R_ARM64_LDST16-39]
+-	_ = x[R_ARM64_LDST32-40]
+-	_ = x[R_ARM64_LDST64-41]
+-	_ = x[R_ARM64_LDST128-42]
+-	_ = x[R_POWER_TLS_LE-43]
+-	_ = x[R_POWER_TLS_IE-44]
+-	_ = x[R_POWER_TLS-45]
+-	_ = x[R_ADDRPOWER_DS-46]
+-	_ = x[R_ADDRPOWER_GOT-47]
+-	_ = x[R_ADDRPOWER_PCREL-48]
+-	_ = x[R_ADDRPOWER_TOCREL-49]
+-	_ = x[R_ADDRPOWER_TOCREL_DS-50]
+-	_ = x[R_RISCV_PCREL_ITYPE-51]
+-	_ = x[R_RISCV_PCREL_STYPE-52]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-53]
+-	_ = x[R_RISCV_TLS_IE_STYPE-54]
+-	_ = x[R_PCRELDBL-55]
+-	_ = x[R_ADDRMIPSU-56]
+-	_ = x[R_ADDRMIPSTLS-57]
+-	_ = x[R_ADDRCUOFF-58]
+-	_ = x[R_WASMIMPORT-59]
+-	_ = x[R_XCOFFREF-60]
++	_ = x[R_CONST-13]
++	_ = x[R_PCREL-14]
++	_ = x[R_TLS_LE-15]
++	_ = x[R_TLS_IE-16]
++	_ = x[R_GOTOFF-17]
++	_ = x[R_PLT0-18]
++	_ = x[R_PLT1-19]
++	_ = x[R_PLT2-20]
++	_ = x[R_USEFIELD-21]
++	_ = x[R_USETYPE-22]
++	_ = x[R_USEIFACE-23]
++	_ = x[R_USEIFACEMETHOD-24]
++	_ = x[R_METHODOFF-25]
++	_ = x[R_KEEP-26]
++	_ = x[R_POWER_TOC-27]
++	_ = x[R_GOTPCREL-28]
++	_ = x[R_JMPMIPS-29]
++	_ = x[R_DWARFSECREF-30]
++	_ = x[R_DWARFFILEREF-31]
++	_ = x[R_ARM64_TLS_LE-32]
++	_ = x[R_ARM64_TLS_IE-33]
++	_ = x[R_ARM64_GOTPCREL-34]
++	_ = x[R_ARM64_GOT-35]
++	_ = x[R_ARM64_PCREL-36]
++	_ = x[R_ARM64_LDST8-37]
++	_ = x[R_ARM64_LDST16-38]
++	_ = x[R_ARM64_LDST32-39]
++	_ = x[R_ARM64_LDST64-40]
++	_ = x[R_ARM64_LDST128-41]
++	_ = x[R_POWER_TLS_LE-42]
++	_ = x[R_POWER_TLS_IE-43]
++	_ = x[R_POWER_TLS-44]
++	_ = x[R_ADDRPOWER_DS-45]
++	_ = x[R_ADDRPOWER_GOT-46]
++	_ = x[R_ADDRPOWER_PCREL-47]
++	_ = x[R_ADDRPOWER_TOCREL-48]
++	_ = x[R_ADDRPOWER_TOCREL_DS-49]
++	_ = x[R_RISCV_CALL-50]
++	_ = x[R_RISCV_CALL_TRAMP-51]
++	_ = x[R_RISCV_PCREL_ITYPE-52]
++	_ = x[R_RISCV_PCREL_STYPE-53]
++	_ = x[R_RISCV_TLS_IE_ITYPE-54]
++	_ = x[R_RISCV_TLS_IE_STYPE-55]
++	_ = x[R_PCRELDBL-56]
++	_ = x[R_ADDRMIPSU-57]
++	_ = x[R_ADDRMIPSTLS-58]
++	_ = x[R_ADDRCUOFF-59]
++	_ = x[R_WASMIMPORT-60]
++	_ = x[R_XCOFFREF-61]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 120, 127, 134, 142, 150, 158, 164, 170, 176, 186, 195, 205, 221, 232, 238, 249, 259, 268, 281, 295, 309, 323, 339, 350, 363, 376, 390, 404, 418, 433, 447, 461, 472, 486, 501, 518, 536, 557, 576, 595, 615, 635, 645, 656, 669, 680, 692, 702}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 221, 227, 238, 248, 257, 270, 284, 298, 312, 328, 339, 352, 365, 379, 393, 407, 422, 436, 450, 461, 475, 490, 507, 525, 546, 558, 576, 595, 614, 634, 654, 664, 675, 688, 699, 711, 721}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 21169f66ef..8de0e0df1a 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -92,10 +92,10 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
+ 	panic("unreachable")
+ }
+ 
+-// detect too-far jumps in function s, and add trampolines if necessary
+-// ARM, PPC64 & PPC64LE support trampoline insertion for internal and external linking
+-// On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
+-// where necessary.
++// Detect too-far jumps in function s, and add trampolines if necessary.
++// ARM, PPC64, PPC64LE and RISCV64 support trampoline insertion for internal
++// and external linking. On PPC64 and PPC64LE the text sections might be split
++// but will still insert trampolines where necessary.
+ func trampoline(ctxt *Link, s loader.Sym) {
+ 	if thearch.Trampoline == nil {
+ 		return // no need or no support of trampolines on this arch
+@@ -113,7 +113,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 		if !ldr.AttrReachable(rs) || ldr.SymType(rs) == sym.Sxxx {
+ 			continue // something is wrong. skip it here and we'll emit a better error later
+ 		}
+-		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
++
++		// RISC-V is only able to reach +/-1MiB via a JAL instruction,
++		// which we can readily exceed in the same package. As such, we
++		// need to generate trampolines when the address is unknown.
++		if ldr.SymValue(rs) == 0 && !ctxt.Target.IsRISCV64() && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
+ 			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
+ 				// Symbols in the same package are laid out together.
+ 				// Except that if SymPkg(s) == "", it is a host object symbol
+@@ -124,7 +128,6 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 				continue // runtime packages are laid out together
+ 			}
+ 		}
+-
+ 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5f4724970c..39dd4b916e 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -143,13 +143,8 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
+ 				switch target.Arch.Family {
+ 				case sys.AMD64, sys.I386:
+ 					deferreturn--
+-				case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
++				case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64:
+ 					// no change
+-				case sys.RISCV64:
+-					// TODO(jsing): The JALR instruction is marked with
+-					// R_CALLRISCV, whereas the actual reloc is currently
+-					// one instruction earlier starting with the AUIPC.
+-					deferreturn -= 4
+ 				case sys.S390X:
+ 					deferreturn -= 2
+ 				default:
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index ef941e52e9..cb53a605d7 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -96,10 +96,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		}
+ 		out.Write64(uint64(r.Xadd))
+ 
+-	case objabi.R_CALLRISCV:
+-		// Call relocations are currently handled via R_RISCV_PCREL_ITYPE.
+-		// TODO(jsing): Consider generating elf.R_RISCV_CALL instead of a
+-		// HI20/LO12_I pair.
++	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
+ 
+ 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
+ 		// Find the text symbol for the AUIPC instruction targeted
+@@ -156,10 +156,38 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
+ }
+ 
+ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
++	rs := r.Sym()
++	pc := ldr.SymValue(s) + int64(r.Off())
++
++	// If the call points to a trampoline, see if we can reach the symbol
++	// directly. This situation can occur when the relocation symbol is
++	// not assigned an address until after the trampolines are generated.
++	if r.Type() == objabi.R_RISCV_CALL_TRAMP {
++		relocs := ldr.Relocs(rs)
++		if relocs.Count() != 1 {
++			ldr.Errorf(s, "trampoline %v has %d relocations", ldr.SymName(rs), relocs.Count())
++		}
++		tr := relocs.At(0)
++		if tr.Type() != objabi.R_RISCV_PCREL_ITYPE {
++			ldr.Errorf(s, "trampoline %v has unexpected relocation %v", ldr.SymName(rs), tr.Type())
++		}
++		trs := tr.Sym()
++		if ldr.SymValue(trs) != 0 && ldr.SymType(trs) != sym.SDYNIMPORT && ldr.SymType(trs) != sym.SUNDEFEXT {
++			trsOff := ldr.SymValue(trs) + tr.Add() - pc
++			if trsOff >= -(1<<20) && trsOff < (1<<20) {
++				r.SetType(objabi.R_RISCV_CALL)
++				r.SetSym(trs)
++				r.SetAdd(tr.Add())
++				rs = trs
++			}
++		}
++
++	}
++
+ 	if target.IsExternal() {
+ 		switch r.Type() {
+-		case objabi.R_CALLRISCV:
+-			return val, 0, true
++		case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
++			return val, 1, true
+ 
+ 		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
+ 			return val, 2, true
+@@ -168,11 +196,19 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		return val, 0, false
+ 	}
+ 
+-	rs := r.Sym()
++	off := ldr.SymValue(rs) + r.Add() - pc
+ 
+ 	switch r.Type() {
+-	case objabi.R_CALLRISCV:
+-		// Nothing to do.
++	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
++		// Generate instruction immediates.
++		imm, err := riscv.EncodeJImmediate(off)
++		if err != nil {
++			ldr.Errorf(s, "cannot encode R_RISCV_CALL relocation offset for %s: %v", ldr.SymName(rs), err)
++		}
++		immMask := int64(riscv.JTypeImmMask)
++
++		val = (val &^ immMask) | int64(imm)
++
+ 		return val, 0, true
+ 
+ 	case objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
+@@ -186,9 +222,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		return ebreakIns<<32 | ebreakIns, 0, true
+ 
+ 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+-		pc := ldr.SymValue(s) + int64(r.Off())
+-		off := ldr.SymValue(rs) + r.Add() - pc
+-
+ 		// Generate AUIPC and second instruction immediates.
+ 		low, high, err := riscv.Split32BitImmediate(off)
+ 		if err != nil {
+@@ -237,8 +270,92 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
+ 
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
+ 	switch r.Type() {
++	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
++		return ld.ExtrelocSimple(ldr, r), true
++
+ 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
+ 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 	}
+ 	return loader.ExtReloc{}, false
+ }
++
++func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
++	relocs := ldr.Relocs(s)
++	r := relocs.At(ri)
++
++	switch r.Type() {
++	case objabi.R_RISCV_CALL:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		off := ldr.SymValue(rs) + r.Add() - pc
++
++		// Relocation symbol has an address and is directly reachable,
++		// therefore there is no need for a trampoline.
++		if ldr.SymValue(rs) != 0 && off >= -(1<<20) && off < (1<<20) && (*ld.FlagDebugTramp <= 1 || ldr.SymPkg(s) == ldr.SymPkg(rs)) {
++			break
++		}
++
++		// Relocation symbol is too far for a direct call or has not
++		// yet been given an address. See if an existing trampoline is
++		// reachable and if so, reuse it. Otherwise we need to create
++		// a new trampoline.
++		var tramp loader.Sym
++		for i := 0; ; i++ {
++			oName := ldr.SymName(rs)
++			name := fmt.Sprintf("%s-tramp%d", oName, i)
++			if r.Add() != 0 {
++				name = fmt.Sprintf("%s%+x-tramp%d", oName, r.Add(), i)
++			}
++			tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
++			ldr.SetAttrReachable(tramp, true)
++			if ldr.SymType(tramp) == sym.SDYNIMPORT {
++				// Do not reuse trampoline defined in other module.
++				continue
++			}
++			if oName == "runtime.deferreturn" {
++				ldr.SetIsDeferReturnTramp(tramp, true)
++			}
++			if ldr.SymValue(tramp) == 0 {
++				// Either trampoline does not exist or we found one
++				// that does not have an address assigned and will be
++				// laid down immediately after the current function.
++				break
++			}
++
++			trampOff := ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
++			if trampOff >= -(1<<20) && trampOff < (1<<20) {
++				// An existing trampoline that is reachable.
++				break
++			}
++		}
++		if ldr.SymType(tramp) == 0 {
++			trampb := ldr.MakeSymbolUpdater(tramp)
++			ctxt.AddTramp(trampb)
++			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
++		}
++		sb := ldr.MakeSymbolUpdater(s)
++		if ldr.SymValue(rs) == 0 {
++			// In this case the target symbol has not yet been assigned an
++			// address, so we have to assume a trampoline is required. Mark
++			// this as a call via a trampoline so that we can potentially
++			// switch to a direct call during relocation.
++			sb.SetRelocType(ri, objabi.R_RISCV_CALL_TRAMP)
++		}
++		relocs := sb.Relocs()
++		r := relocs.At(ri)
++		r.SetSym(tramp)
++		r.SetAdd(0)
++
++	default:
++		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
++	}
++}
++
++func genCallTramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
++	tramp.AddUint32(arch, 0x00000f97) // AUIPC	$0, X31
++	tramp.AddUint32(arch, 0x000f8067) // JALR		X0, (X31)
++
++	r, _ := tramp.AddRel(objabi.R_RISCV_PCREL_ITYPE)
++	r.SetSiz(8)
++	r.SetSym(target)
++	r.SetAdd(offset)
++}
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 917324d922..557e8932c9 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -27,9 +27,17 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Elfreloc1:        elfreloc1,
+ 		ElfrelocSize:     24,
+ 		Elfsetupplt:      elfsetupplt,
+-		Gentext:          gentext,
+-		GenSymsLate:      genSymsLate,
+-		Machoreloc1:      machoreloc1,
++
++		// TrampLimit is set such that we always run the trampoline
++		// generation code. This is necessary since calls to external
++		// symbols require the use of trampolines, regardless of the
++		// text size.
++		TrampLimit: 1,
++		Trampoline: trampoline,
++
++		Gentext:     gentext,
++		GenSymsLate: genSymsLate,
++		Machoreloc1: machoreloc1,
+ 
+ 		Linuxdynld: "/lib/ld.so.1",
+ 

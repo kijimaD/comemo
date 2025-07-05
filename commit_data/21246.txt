@@ -17,7 +17,7 @@ Date:   Wed Dec 10 11:01:55 2014 +1100
             doc/go1.4.html
     
     Change-Id: I1032686f2b3ac6dacaf8f114b8c35cdf221330ca
-
+---
  doc/code.html          |  4 ++--
  doc/contrib.html       | 12 ++++++------
  doc/devel/release.html |  3 +--
@@ -26,3 +26,140 @@ Date:   Wed Dec 10 11:01:55 2014 +1100
  doc/go_faq.html        |  2 +-
  doc/help.html          |  2 +-
  7 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index ce9f8636fa..a4638f9ffb 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -578,7 +578,7 @@ import "github.com/golang/example/stringutil"
+ <p>
+ This convention is the easiest way to make your Go packages available for
+ others to use.
+-The <a href="//code.google.com/p/go-wiki/wiki/Projects">Go Wiki</a>
++The <a href="//golang.org/wiki/Projects">Go Wiki</a>
+ and <a href="//godoc.org/">godoc.org</a>
+ provide lists of external Go projects.
+ </p>
+@@ -627,5 +627,5 @@ The official mailing list for discussion of the Go language is
+ 
+ <p>
+ Report bugs using the
+-<a href="//code.google.com/p/go/issues/list">Go issue tracker</a>.
++<a href="//golang.org/issue">Go issue tracker</a>.
+ </p>
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 8a674d647c..93a609fb20 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -50,7 +50,7 @@ Go 1 matures.
+ 
+ <h2 id="resources">Developer Resources</h2>
+ 
+-<h3 id="source"><a href="https://code.google.com/p/go/source">Source Code</a></h3>
++<h3 id="source"><a href="https://golang.org/change">Source Code</a></h3>
+ <p>Check out the Go source code.</p>
+ 
+ <h3 id="golang-dev"><a href="https://groups.google.com/group/golang-dev">Developer</a> and
+@@ -76,13 +76,13 @@ systems and architectures.</p>
+ 
+ <h2 id="howto">How you can help</h2>
+ 
+-<h3><a href="https://code.google.com/p/go/issues">Reporting issues</a></h3>
++<h3><a href="//golang.org/issue">Reporting issues</a></h3>
+ 
+ <p>
+ If you spot bugs, mistakes, or inconsistencies in the Go project's code or
+ documentation, please let us know by
+-<a href="https://code.google.com/p/go/issues/entry">filing a ticket</a>
+-on our <a href="https://code.google.com/p/go/issues">issue tracker</a>.
++<a href="//golang.org/issue/new">filing a ticket</a>
++on our <a href="//golang.org/issue">issue tracker</a>.
+ (Of course, you should check it's not an existing issue before creating
+ a new one.)
+ </p>
+@@ -101,8 +101,8 @@ To get started, read these <a href="/doc/contribute.html">contribution
+ guidelines</a> for information on design, testing, and our code review process.
+ </p>
+ <p>
+-Check <a href="https://code.google.com/p/go/issues">the tracker</a> for 
++Check <a href="//golang.org/issue">the tracker</a> for 
+ open issues that interest you. Those labeled
+-<a href="https://code.google.com/p/go/issues/list?q=status=HelpWanted">HelpWanted</a>
++<a href="https://github.com/golang/go/issues?q=is%3Aopen+is%3Aissue+label%3Ahelpwanted">helpwanted</a>
+ are particularly in need of outside help.
+ </p>
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 051bd1d369..5b5d6ab5e9 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -3,8 +3,7 @@
+ }-->
+ 
+ <p>This page summarizes the changes between official stable releases of Go.
+-The <a href="//code.google.com/p/go/source/list">Mercurial change log</a>
+-has the full details.</p>
++The <a href="//golang.org/change">change log</a> has the full details.</p>
+ 
+ <p>To update to a specific release, use:</p>
+ 
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 34c87dc64f..5a9c51ef1d 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -5,7 +5,7 @@
+ <p>This page summarizes the changes between tagged weekly snapshots of Go.
+ Such snapshots are no longer created. This page remains as a historical reference only.</p>
+ 
+-<p>For recent information, see the <a href="//code.google.com/p/go/source/list">Mercurial change log</a> and <a href="//groups.google.com/group/golang-dev/">development mailing list</a>.</p>
++<p>For recent information, see the <a href="//golang.org/change">change log</a> and <a href="//groups.google.com/group/golang-dev/">development mailing list</a>.</p>
+ 
+ <h2 id="2012-03-27">2012-03-27 (<a href="release.html#go1">Go 1</a>)</h2>
+ 
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 042de1bc7b..d51052b2e5 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -298,7 +298,7 @@ For example,
+ <h3 id="godoc">Changes to godoc</h3>
+ <p>
+ When invoked with the <code>-analysis</code> flag, 
+-<a href="//godoc.org/code.google.com/p/go.tools/cmd/godoc">godoc</a>
++<a href="//godoc.org/golang.org/x/tools/cmd/godoc">godoc</a>
+ now performs sophisticated <a href="/lib/godoc/analysis/help.html">static
+ analysis</a> of the code it indexes.  
+ The results of analysis are presented in both the source view and the
+@@ -318,7 +318,7 @@ call sites and their callees.
+ The program <code>misc/benchcmp</code> that compares
+ performance across benchmarking runs has been rewritten.
+ Once a shell and awk script in the main repository, it is now a Go program in the <code>go.tools</code> repo.
+-Documentation is <a href="//godoc.org/code.google.com/p/go.tools/cmd/benchcmp">here</a>.
++Documentation is <a href="//godoc.org/golang.org/x/tools/cmd/benchcmp">here</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 7a0a0bdb77..6b77f1c1ed 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -228,7 +228,7 @@ document server running in a production configuration on
+ </p>
+ 
+ <p>
+-Other examples include the <a href="https://code.google.com/p/vitess/">Vitess</a>
++Other examples include the <a href="//code.google.com/p/vitess/">Vitess</a>
+ system for large-scale SQL installations and Google's download server, <code>dl.google.com</code>,
+ which delivers Chrome binaries and other large installables such as <code>apt-get</code>
+ packages.
+diff --git a/doc/help.html b/doc/help.html
+index a307b2aadd..2cc47806c5 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -24,7 +24,7 @@ Need help with Go? Try these resources.
+ <p>
+ Search the <a href="//groups.google.com/group/golang-nuts">golang-nuts</a>
+ archives and consult the <a href="/doc/go_faq.html">FAQ</a> and
+-<a href="//code.google.com/p/go-wiki/wiki">wiki</a> before posting.
++<a href="//golang.org/wiki">wiki</a> before posting.
+ </p>
+ 
+ <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>

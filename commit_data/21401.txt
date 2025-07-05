@@ -10,6 +10,19 @@ Date:   Wed Dec 31 21:58:02 2014 -0500
     Change-Id: I4ff437ae0bfc61c989896c01904b6d33f9bdf0ec
     Reviewed-on: https://go-review.googlesource.com/2234
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgo/gcc_openbsd_386.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index b046bc8bdd..c4be9a0096 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -114,7 +114,6 @@ x_cgo_init(G *g, void (*setg)(void*))
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+-	void *handle;
+ 
+ 	setg_gcc = setg;
+ 	pthread_attr_init(&attr);

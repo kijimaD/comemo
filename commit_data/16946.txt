@@ -9,8 +9,58 @@ Date:   Wed Jul 31 16:58:28 2013 +1000
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/12001056
-
+---
  src/pkg/path/filepath/match.go      | 6 ++++++
  src/pkg/path/filepath/match_test.go | 5 +++++
  src/pkg/path/match_test.go          | 5 +++++
  3 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index db8b0260ca..3d84145d7f 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -132,6 +132,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 			r, n := utf8.DecodeRuneInString(s)
+ 			s = s[n:]
+ 			chunk = chunk[1:]
++			// We can't end right after '[', we're expecting at least
++			// a closing bracket and possibly a caret.
++			if len(chunk) == 0 {
++				err = ErrBadPattern
++				return
++			}
+ 			// possibly negated
+ 			negated := chunk[0] == '^'
+ 			if negated {
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index f1bc60e354..13108ce1ef 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -65,6 +65,11 @@ var matchTests = []MatchTest{
+ 	{"[-x]", "a", false, ErrBadPattern},
+ 	{"\\", "a", false, ErrBadPattern},
+ 	{"[a-b-c]", "a", false, ErrBadPattern},
++	{"[", "a", false, ErrBadPattern},
++	{"[^", "a", false, ErrBadPattern},
++	{"[^bc", "a", false, ErrBadPattern},
++	{"a[", "a", false, nil},
++	{"a[", "ab", false, ErrBadPattern},
+ 	{"*x", "xxx", true, nil},
+ }
+ 
+diff --git a/src/pkg/path/match_test.go b/src/pkg/path/match_test.go
+index 730b6b9039..6b0676f81f 100644
+--- a/src/pkg/path/match_test.go
++++ b/src/pkg/path/match_test.go
+@@ -61,6 +61,11 @@ var matchTests = []MatchTest{
+ 	{"[-x]", "a", false, ErrBadPattern},
+ 	{"\\", "a", false, ErrBadPattern},
+ 	{"[a-b-c]", "a", false, ErrBadPattern},
++	{"[", "a", false, ErrBadPattern},
++	{"[^", "a", false, ErrBadPattern},
++	{"[^bc", "a", false, ErrBadPattern},
++	{"a[", "a", false, nil},
++	{"a[", "ab", false, ErrBadPattern},
+ 	{"*x", "xxx", true, nil},
+ }
+ 

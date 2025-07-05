@@ -8,7 +8,47 @@ Date:   Mon Mar 29 10:34:16 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/827042
-
+---
  test/bugs/bug265.go | 22 ++++++++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 25 insertions(+)
+
+diff --git a/test/bugs/bug265.go b/test/bugs/bug265.go
+new file mode 100644
+index 0000000000..55f32ececc
+--- /dev/null
++++ b/test/bugs/bug265.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for http://code.google.com/p/go/issues/detail?id=700
++
++package main
++
++import "os"
++
++func f() (e int) {
++	_ = &e
++	return 999
++}
++
++func main() {
++	if f() != 999 {
++		os.Exit(1)
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 9e08b20e01..f83f15996c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -192,3 +192,6 @@ bal
+ barCount != 1
+ panic PC=xxx
+ BUG
++
++=========== bugs/bug265.go
++BUG

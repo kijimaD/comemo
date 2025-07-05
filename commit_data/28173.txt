@@ -14,8 +14,63 @@ Date:   Tue May 3 13:58:28 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go    |  4 ----
  src/cmd/compile/internal/ssa/config.go |  6 ------
  src/cmd/compile/internal/ssa/cse.go    | 11 ++++-------
  3 files changed, 4 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6f2ed6a839..3ce8bd16d2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1118,10 +1118,6 @@ func syslook(name string) *Node {
+ 	return s.Def
+ }
+ 
+-func (s *Sym) IsRuntimeCall(name string) bool {
+-	return s.Pkg == Runtimepkg && s.Name == name
+-}
+-
+ // typehash computes a hash value for type t to use in type switch
+ // statements.
+ func typehash(t *Type) uint32 {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index a60291ea53..2a676e39b3 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -116,12 +116,6 @@ type GCNode interface {
+ 	String() string
+ }
+ 
+-// GCSym is an interface that *gc.Sym implements.
+-// Using *gc.Sym directly would lead to import cycles.
+-type GCSym interface {
+-	IsRuntimeCall(name string) bool
+-}
+-
+ // NewConfig returns a new configuration object for the given architecture.
+ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
+ 	c := &Config{arch: arch, fe: fe}
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index d501f75e02..8cc0db1d17 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -257,13 +257,10 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
+ 	if v.Op == OpPhi && v.Block != w.Block {
+ 		return lt2Cmp(v.Block.ID < w.Block.ID)
+ 	}
+-
+-	switch v.Op {
+-	case OpStaticCall, OpAMD64CALLstatic, OpARMCALLstatic:
+-		sym := v.Aux.(GCSym)
+-		if sym.IsRuntimeCall("newobject") {
+-			return lt2Cmp(v.ID < w.ID)
+-		}
++	if v.Type.IsMemory() {
++		// We will never be able to CSE two values
++		// that generate memory.
++		return lt2Cmp(v.ID < w.ID)
+ 	}
+ 
+ 	if tc := v.Type.Compare(w.Type); tc != CMPeq {

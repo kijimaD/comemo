@@ -14,7 +14,34 @@ Date:   Sat Feb 18 05:45:34 2023 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_linux_mips64x.c | 2 +-
  src/runtime/cgo/gcc_linux_mipsx.c   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index fbe199a678..c059fd1255 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build mips64 || mips64le
++//go:build linux && (mips64 || mips64le)
+ 
+ #include <pthread.h>
+ #include <string.h>
+diff --git a/src/runtime/cgo/gcc_linux_mipsx.c b/src/runtime/cgo/gcc_linux_mipsx.c
+index 781afc097d..218b8fd6e1 100644
+--- a/src/runtime/cgo/gcc_linux_mipsx.c
++++ b/src/runtime/cgo/gcc_linux_mipsx.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build mips || mipsle
++//go:build linux && (mips || mipsle)
+ 
+ #include <pthread.h>
+ #include <string.h>

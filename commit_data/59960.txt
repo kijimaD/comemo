@@ -17,7 +17,7 @@ Date:   Sat May 11 09:37:50 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/aes/block.go                      | 38 +++++++++++++-------------
  src/crypto/aes/ctr_s390x.go                  | 10 +++----
  src/crypto/aes/gcm_ppc64x.go                 | 18 ++++++-------
@@ -43,3 +43,1030 @@ Date:   Sat May 11 09:37:50 2024 +0000
  src/crypto/tls/handshake_server_tls13.go     |  4 +--
  src/go/build/deps_test.go                    |  8 +++---
  24 files changed, 174 insertions(+), 176 deletions(-)
+
+diff --git a/src/crypto/aes/block.go b/src/crypto/aes/block.go
+index 53308ae92e..618eb7752a 100644
+--- a/src/crypto/aes/block.go
++++ b/src/crypto/aes/block.go
+@@ -36,17 +36,15 @@
+ 
+ package aes
+ 
+-import (
+-	"encoding/binary"
+-)
++import "internal/byteorder"
+ 
+ // Encrypt one block from src into dst, using the expanded key xk.
+ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ 	_ = src[15] // early bounds check
+-	s0 := binary.BigEndian.Uint32(src[0:4])
+-	s1 := binary.BigEndian.Uint32(src[4:8])
+-	s2 := binary.BigEndian.Uint32(src[8:12])
+-	s3 := binary.BigEndian.Uint32(src[12:16])
++	s0 := byteorder.BeUint32(src[0:4])
++	s1 := byteorder.BeUint32(src[4:8])
++	s2 := byteorder.BeUint32(src[8:12])
++	s3 := byteorder.BeUint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -80,19 +78,19 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s3 ^= xk[k+3]
+ 
+ 	_ = dst[15] // early bounds check
+-	binary.BigEndian.PutUint32(dst[0:4], s0)
+-	binary.BigEndian.PutUint32(dst[4:8], s1)
+-	binary.BigEndian.PutUint32(dst[8:12], s2)
+-	binary.BigEndian.PutUint32(dst[12:16], s3)
++	byteorder.BePutUint32(dst[0:4], s0)
++	byteorder.BePutUint32(dst[4:8], s1)
++	byteorder.BePutUint32(dst[8:12], s2)
++	byteorder.BePutUint32(dst[12:16], s3)
+ }
+ 
+ // Decrypt one block from src into dst, using the expanded key xk.
+ func decryptBlockGo(xk []uint32, dst, src []byte) {
+ 	_ = src[15] // early bounds check
+-	s0 := binary.BigEndian.Uint32(src[0:4])
+-	s1 := binary.BigEndian.Uint32(src[4:8])
+-	s2 := binary.BigEndian.Uint32(src[8:12])
+-	s3 := binary.BigEndian.Uint32(src[12:16])
++	s0 := byteorder.BeUint32(src[0:4])
++	s1 := byteorder.BeUint32(src[4:8])
++	s2 := byteorder.BeUint32(src[8:12])
++	s3 := byteorder.BeUint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -126,10 +124,10 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s3 ^= xk[k+3]
+ 
+ 	_ = dst[15] // early bounds check
+-	binary.BigEndian.PutUint32(dst[0:4], s0)
+-	binary.BigEndian.PutUint32(dst[4:8], s1)
+-	binary.BigEndian.PutUint32(dst[8:12], s2)
+-	binary.BigEndian.PutUint32(dst[12:16], s3)
++	byteorder.BePutUint32(dst[0:4], s0)
++	byteorder.BePutUint32(dst[4:8], s1)
++	byteorder.BePutUint32(dst[8:12], s2)
++	byteorder.BePutUint32(dst[12:16], s3)
+ }
+ 
+ // Apply sbox0 to each byte in w.
+@@ -150,7 +148,7 @@ func expandKeyGo(key []byte, enc, dec []uint32) {
+ 	var i int
+ 	nk := len(key) / 4
+ 	for i = 0; i < nk; i++ {
+-		enc[i] = binary.BigEndian.Uint32(key[4*i:])
++		enc[i] = byteorder.BeUint32(key[4*i:])
+ 	}
+ 	for ; i < len(enc); i++ {
+ 		t := enc[i-1]
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index e5249d1842..56b82d5885 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -9,7 +9,7 @@ package aes
+ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/alias"
+-	"encoding/binary"
++	"internal/byteorder"
+ )
+ 
+ // Assert that aesCipherAsm implements the ctrAble interface.
+@@ -41,8 +41,8 @@ func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
+ 	}
+ 	var ac aesctr
+ 	ac.block = c
+-	ac.ctr[0] = binary.BigEndian.Uint64(iv[0:]) // high bits
+-	ac.ctr[1] = binary.BigEndian.Uint64(iv[8:]) // low bits
++	ac.ctr[0] = byteorder.BeUint64(iv[0:]) // high bits
++	ac.ctr[1] = byteorder.BeUint64(iv[8:]) // low bits
+ 	ac.buffer = ac.storage[:0]
+ 	return &ac
+ }
+@@ -52,8 +52,8 @@ func (c *aesctr) refill() {
+ 	c.buffer = c.storage[:streamBufferSize]
+ 	c0, c1 := c.ctr[0], c.ctr[1]
+ 	for i := 0; i < streamBufferSize; i += 16 {
+-		binary.BigEndian.PutUint64(c.buffer[i+0:], c0)
+-		binary.BigEndian.PutUint64(c.buffer[i+8:], c1)
++		byteorder.BePutUint64(c.buffer[i+0:], c0)
++		byteorder.BePutUint64(c.buffer[i+8:], c1)
+ 
+ 		// Increment in big endian: c0 is high, c1 is low.
+ 		c1++
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index 3e6e9ab4c3..f1e85129a8 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -9,8 +9,8 @@ package aes
+ import (
+ 	"crypto/cipher"
+ 	"crypto/subtle"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"runtime"
+ )
+ 
+@@ -66,14 +66,14 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	// Reverse the bytes in each 8 byte chunk
+ 	// Load little endian, store big endian
+ 	if runtime.GOARCH == "ppc64le" {
+-		h1 = binary.LittleEndian.Uint64(hle[:8])
+-		h2 = binary.LittleEndian.Uint64(hle[8:])
++		h1 = byteorder.LeUint64(hle[:8])
++		h2 = byteorder.LeUint64(hle[8:])
+ 	} else {
+-		h1 = binary.BigEndian.Uint64(hle[:8])
+-		h2 = binary.BigEndian.Uint64(hle[8:])
++		h1 = byteorder.BeUint64(hle[:8])
++		h2 = byteorder.BeUint64(hle[8:])
+ 	}
+-	binary.BigEndian.PutUint64(hle[:8], h1)
+-	binary.BigEndian.PutUint64(hle[8:], h2)
++	byteorder.BePutUint64(hle[:8], h1)
++	byteorder.BePutUint64(hle[8:], h2)
+ 	gcmInit(&g.productTable, hle)
+ 
+ 	return g, nil
+@@ -126,8 +126,8 @@ func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+ // increments the rightmost 32-bits of the count value by 1.
+ func gcmInc32(counterBlock *[16]byte) {
+ 	c := counterBlock[len(counterBlock)-4:]
+-	x := binary.BigEndian.Uint32(c) + 1
+-	binary.BigEndian.PutUint32(c, x)
++	x := byteorder.BeUint32(c) + 1
++	byteorder.BePutUint32(c, x)
+ }
+ 
+ // paddedGHASH pads data with zeroes until its length is a multiple of
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 9da3e1a478..492ae5d83b 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -10,8 +10,8 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/alias"
+ 	"crypto/subtle"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"internal/cpu"
+ )
+ 
+@@ -25,14 +25,14 @@ type gcmCount [16]byte
+ 
+ // inc increments the rightmost 32-bits of the count value by 1.
+ func (x *gcmCount) inc() {
+-	binary.BigEndian.PutUint32(x[len(x)-4:], binary.BigEndian.Uint32(x[len(x)-4:])+1)
++	byteorder.BePutUint32(x[len(x)-4:], byteorder.BeUint32(x[len(x)-4:])+1)
+ }
+ 
+ // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
+ func gcmLengths(len0, len1 uint64) [16]byte {
+ 	v := [16]byte{}
+-	binary.BigEndian.PutUint64(v[0:], len0)
+-	binary.BigEndian.PutUint64(v[8:], len1)
++	byteorder.BePutUint64(v[0:], len0)
++	byteorder.BePutUint64(v[8:], len1)
+ 	return v
+ }
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 5b28b61f70..505be50c6a 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -7,8 +7,8 @@ package cipher
+ import (
+ 	"crypto/internal/alias"
+ 	"crypto/subtle"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ )
+ 
+ // AEAD is a cipher mode providing authenticated encryption with associated
+@@ -137,8 +137,8 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
+ 	// would expect, say, 4*key to be in index 4 of the table but due to
+ 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
+ 	x := gcmFieldElement{
+-		binary.BigEndian.Uint64(key[:8]),
+-		binary.BigEndian.Uint64(key[8:]),
++		byteorder.BeUint64(key[:8]),
++		byteorder.BeUint64(key[8:]),
+ 	}
+ 	g.productTable[reverseBits(1)] = x
+ 
+@@ -321,8 +321,8 @@ func (g *gcm) mul(y *gcmFieldElement) {
+ // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
+ func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
+ 	for len(blocks) > 0 {
+-		y.low ^= binary.BigEndian.Uint64(blocks)
+-		y.high ^= binary.BigEndian.Uint64(blocks[8:])
++		y.low ^= byteorder.BeUint64(blocks)
++		y.high ^= byteorder.BeUint64(blocks[8:])
+ 		g.mul(y)
+ 		blocks = blocks[gcmBlockSize:]
+ 	}
+@@ -345,7 +345,7 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
+ // and increments it.
+ func gcmInc32(counterBlock *[16]byte) {
+ 	ctr := counterBlock[len(counterBlock)-4:]
+-	binary.BigEndian.PutUint32(ctr, binary.BigEndian.Uint32(ctr)+1)
++	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
+ }
+ 
+ // sliceForAppend takes a slice and a requested number of bytes. It returns a
+@@ -401,8 +401,8 @@ func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+ 		g.update(&y, nonce)
+ 		y.high ^= uint64(len(nonce)) * 8
+ 		g.mul(&y)
+-		binary.BigEndian.PutUint64(counter[:8], y.low)
+-		binary.BigEndian.PutUint64(counter[8:], y.high)
++		byteorder.BePutUint64(counter[:8], y.low)
++		byteorder.BePutUint64(counter[8:], y.high)
+ 	}
+ }
+ 
+@@ -418,8 +418,8 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
+ 
+ 	g.mul(&y)
+ 
+-	binary.BigEndian.PutUint64(out, y.low)
+-	binary.BigEndian.PutUint64(out[8:], y.high)
++	byteorder.BePutUint64(out, y.low)
++	byteorder.BePutUint64(out[8:], y.high)
+ 
+ 	subtle.XORBytes(out, out, tagMask[:])
+ }
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index c525ab0e5c..7a68a472b4 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -5,12 +5,12 @@
+ package des
+ 
+ import (
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"sync"
+ )
+ 
+ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
+-	b := binary.BigEndian.Uint64(src)
++	b := byteorder.BeUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -32,7 +32,7 @@ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
+ 
+ 	// switch left & right and perform final permutation
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
+ }
+ 
+ // DES Feistel function. feistelBox must be initialized via
+@@ -218,7 +218,7 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
+ 	feistelBoxOnce.Do(initFeistelBox)
+ 
+ 	// apply PC1 permutation to key
+-	key := binary.BigEndian.Uint64(keyBytes)
++	key := byteorder.BeUint64(keyBytes)
+ 	permutedKey := permuteBlock(key, permutedChoice1[:])
+ 
+ 	// rotate halves of permuted key according to the rotation schedule
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index b0f456e692..04b73e7d3b 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -7,7 +7,7 @@ package des
+ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/alias"
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"strconv"
+ )
+ 
+@@ -95,7 +95,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+-	b := binary.BigEndian.Uint64(src)
++	b := byteorder.BeUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -116,7 +116,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+ 	right = (right << 31) | (right >> 1)
+ 
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
+ }
+ 
+ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+@@ -130,7 +130,7 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+-	b := binary.BigEndian.Uint64(src)
++	b := byteorder.BeUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -151,5 +151,5 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+ 	right = (right << 31) | (right >> 1)
+ 
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
+ }
+diff --git a/src/crypto/ecdh/nist.go b/src/crypto/ecdh/nist.go
+index b366491544..b91e8f38a5 100644
+--- a/src/crypto/ecdh/nist.go
++++ b/src/crypto/ecdh/nist.go
+@@ -8,8 +8,8 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/nistec"
+ 	"crypto/internal/randutil"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"io"
+ 	"math/bits"
+ )
+@@ -156,7 +156,7 @@ func isLess(a, b []byte) bool {
+ 	// Perform a subtraction with borrow.
+ 	var borrow uint64
+ 	for i := 0; i < len(bufA); i += 8 {
+-		limbA, limbB := binary.LittleEndian.Uint64(bufA[i:]), binary.LittleEndian.Uint64(bufB[i:])
++		limbA, limbB := byteorder.LeUint64(bufA[i:]), byteorder.LeUint64(bufB[i:])
+ 		_, borrow = bits.Sub64(limbA, limbB, borrow)
+ 	}
+ 
+diff --git a/src/crypto/internal/bigmod/nat.go b/src/crypto/internal/bigmod/nat.go
+index a16a24305d..5cbae40efe 100644
+--- a/src/crypto/internal/bigmod/nat.go
++++ b/src/crypto/internal/bigmod/nat.go
+@@ -5,8 +5,8 @@
+ package bigmod
+ 
+ import (
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"math/big"
+ 	"math/bits"
+ )
+@@ -170,9 +170,9 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
+ // big-endian encoded uint value.
+ func bigEndianUint(buf []byte) uint {
+ 	if _W == 64 {
+-		return uint(binary.BigEndian.Uint64(buf))
++		return uint(byteorder.BeUint64(buf))
+ 	}
+-	return uint(binary.BigEndian.Uint32(buf))
++	return uint(byteorder.BeUint32(buf))
+ }
+ 
+ func (x *Nat) setBytes(b []byte, m *Modulus) error {
+diff --git a/src/crypto/internal/edwards25519/field/fe.go b/src/crypto/internal/edwards25519/field/fe.go
+index 5518ef2b90..8a531f078e 100644
+--- a/src/crypto/internal/edwards25519/field/fe.go
++++ b/src/crypto/internal/edwards25519/field/fe.go
+@@ -7,8 +7,8 @@ package field
+ 
+ import (
+ 	"crypto/subtle"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -201,20 +201,20 @@ func (v *Element) SetBytes(x []byte) (*Element, error) {
+ 	}
+ 
+ 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
+-	v.l0 = binary.LittleEndian.Uint64(x[0:8])
++	v.l0 = byteorder.LeUint64(x[0:8])
+ 	v.l0 &= maskLow51Bits
+ 	// Bits 51:102 (bytes 6:14, bits 48:112, shift 3, mask 51).
+-	v.l1 = binary.LittleEndian.Uint64(x[6:14]) >> 3
++	v.l1 = byteorder.LeUint64(x[6:14]) >> 3
+ 	v.l1 &= maskLow51Bits
+ 	// Bits 102:153 (bytes 12:20, bits 96:160, shift 6, mask 51).
+-	v.l2 = binary.LittleEndian.Uint64(x[12:20]) >> 6
++	v.l2 = byteorder.LeUint64(x[12:20]) >> 6
+ 	v.l2 &= maskLow51Bits
+ 	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
+-	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
++	v.l3 = byteorder.LeUint64(x[19:27]) >> 1
+ 	v.l3 &= maskLow51Bits
+ 	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
+ 	// Note: not bytes 25:33, shift 4, to avoid overread.
+-	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
++	v.l4 = byteorder.LeUint64(x[24:32]) >> 12
+ 	v.l4 &= maskLow51Bits
+ 
+ 	return v, nil
+@@ -235,7 +235,7 @@ func (v *Element) bytes(out *[32]byte) []byte {
+ 	var buf [8]byte
+ 	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
+ 		bitsOffset := i * 51
+-		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
++		byteorder.LePutUint64(buf[:], l<<uint(bitsOffset%8))
+ 		for i, bb := range buf {
+ 			off := bitsOffset/8 + i
+ 			if off >= len(out) {
+diff --git a/src/crypto/internal/edwards25519/scalar.go b/src/crypto/internal/edwards25519/scalar.go
+index 3fd1653877..9f652faca1 100644
+--- a/src/crypto/internal/edwards25519/scalar.go
++++ b/src/crypto/internal/edwards25519/scalar.go
+@@ -5,8 +5,8 @@
+ package edwards25519
+ 
+ import (
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ )
+ 
+ // A Scalar is an integer modulo
+@@ -271,7 +271,7 @@ func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
+ 	var digits [5]uint64
+ 
+ 	for i := 0; i < 4; i++ {
+-		digits[i] = binary.LittleEndian.Uint64(b[i*8:])
++		digits[i] = byteorder.LeUint64(b[i*8:])
+ 	}
+ 
+ 	width := uint64(1 << w)
+diff --git a/src/crypto/internal/mlkem768/mlkem768.go b/src/crypto/internal/mlkem768/mlkem768.go
+index 24bedea84f..76c6e80b4e 100644
+--- a/src/crypto/internal/mlkem768/mlkem768.go
++++ b/src/crypto/internal/mlkem768/mlkem768.go
+@@ -30,8 +30,8 @@ package mlkem768
+ import (
+ 	"crypto/rand"
+ 	"crypto/subtle"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 
+ 	"golang.org/x/crypto/sha3"
+ )
+@@ -864,8 +864,8 @@ func sampleNTT(rho []byte, ii, jj byte) nttElement {
+ 			B.Read(buf[:])
+ 			off = 0
+ 		}
+-		d1 := binary.LittleEndian.Uint16(buf[off:]) & 0b1111_1111_1111
+-		d2 := binary.LittleEndian.Uint16(buf[off+1:]) >> 4
++		d1 := byteorder.LeUint16(buf[off:]) & 0b1111_1111_1111
++		d2 := byteorder.LeUint16(buf[off+1:]) >> 4
+ 		off += 3
+ 		if d1 < q {
+ 			a[j] = fieldElement(d1)
+diff --git a/src/crypto/internal/nistec/p256_asm.go b/src/crypto/internal/nistec/p256_asm.go
+index 1a523cc13c..5dbd7efbd5 100644
+--- a/src/crypto/internal/nistec/p256_asm.go
++++ b/src/crypto/internal/nistec/p256_asm.go
+@@ -16,8 +16,8 @@ package nistec
+ 
+ import (
+ 	_ "embed"
+-	"encoding/binary"
+ 	"errors"
++	"internal/byteorder"
+ 	"math/bits"
+ 	"runtime"
+ 	"unsafe"
+@@ -327,7 +327,7 @@ func init() {
+ 	if runtime.GOARCH == "s390x" {
+ 		var newTable [43 * 32 * 2 * 4]uint64
+ 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256PrecomputedPtr) {
+-			newTable[i] = binary.LittleEndian.Uint64(x[:])
++			newTable[i] = byteorder.LeUint64(x[:])
+ 		}
+ 		newTablePtr := unsafe.Pointer(&newTable)
+ 		p256PrecomputedPtr = &newTablePtr
+diff --git a/src/crypto/md5/gen.go b/src/crypto/md5/gen.go
+index cd2700a5cf..5290c3627c 100644
+--- a/src/crypto/md5/gen.go
++++ b/src/crypto/md5/gen.go
+@@ -201,7 +201,7 @@ var program = `// Copyright 2013 The Go Authors. All rights reserved.
+ package md5
+ 
+ import (
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -219,7 +219,7 @@ func blockGeneric(dig *digest, p []byte) {
+ 
+ 		// load input block
+ 		{{range $i := seq 16 -}}
+-			{{printf "x%x := binary.LittleEndian.Uint32(q[4*%#x:])" $i $i}}
++			{{printf "x%x := byteorder.LeUint32(q[4*%#x:])" $i $i}}
+ 		{{end}}
+ 
+ 		// round 1
+@@ -227,19 +227,19 @@ func blockGeneric(dig *digest, p []byte) {
+ 			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg2^arg3)&arg1)^arg3)+arg0+x%x+%#08x, %d)" (idx 1 $i) (index $.Table1 $i) $s | relabel}}
+ 			{{rotate -}}
+ 		{{end}}
+-	
++
+ 		// round 2
+ 		{{range $i, $s := dup 4 .Shift2 -}}
+ 			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg1^arg2)&arg3)^arg2)+arg0+x%x+%#08x, %d)" (idx 2 $i) (index $.Table2 $i) $s | relabel}}
+ 			{{rotate -}}
+ 		{{end}}
+-	
++
+ 		// round 3
+ 		{{range $i, $s := dup 4 .Shift3 -}}
+ 			{{printf "arg0 = arg1 + bits.RotateLeft32((arg1^arg2^arg3)+arg0+x%x+%#08x, %d)" (idx 3 $i) (index $.Table3 $i) $s | relabel}}
+ 			{{rotate -}}
+ 		{{end}}
+-	
++
+ 		// round 4
+ 		{{range $i, $s := dup 4 .Shift4 -}}
+ 			{{printf "arg0 = arg1 + bits.RotateLeft32((arg2^(arg1|^arg3))+arg0+x%x+%#08x, %d)" (idx 4 $i) (index $.Table4 $i) $s | relabel}}
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 83e9e4c07a..843678702b 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -12,9 +12,9 @@ package md5
+ 
+ import (
+ 	"crypto"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -59,13 +59,13 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = binary.BigEndian.AppendUint32(b, d.s[0])
+-	b = binary.BigEndian.AppendUint32(b, d.s[1])
+-	b = binary.BigEndian.AppendUint32(b, d.s[2])
+-	b = binary.BigEndian.AppendUint32(b, d.s[3])
++	b = byteorder.BeAppendUint32(b, d.s[0])
++	b = byteorder.BeAppendUint32(b, d.s[1])
++	b = byteorder.BeAppendUint32(b, d.s[2])
++	b = byteorder.BeAppendUint32(b, d.s[3])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-d.nx] // already zero
+-	b = binary.BigEndian.AppendUint64(b, d.len)
++	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -88,11 +88,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], binary.BigEndian.Uint64(b[0:8])
++	return b[8:], byteorder.BeUint64(b[0:8])
+ }
+ 
+ func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], binary.BigEndian.Uint32(b[0:4])
++	return b[4:], byteorder.BeUint32(b[0:4])
+ }
+ 
+ // New returns a new hash.Hash computing the MD5 checksum. The Hash also
+@@ -156,8 +156,8 @@ func (d *digest) checkSum() [Size]byte {
+ 	//
+ 	// 1 byte end marker :: 0-63 padding bytes :: 8 byte length
+ 	tmp := [1 + 63 + 8]byte{0x80}
+-	pad := (55 - d.len) % 64                             // calculate number of padding bytes
+-	binary.LittleEndian.PutUint64(tmp[1+pad:], d.len<<3) // append length in bits
++	pad := (55 - d.len) % 64                     // calculate number of padding bytes
++	byteorder.LePutUint64(tmp[1+pad:], d.len<<3) // append length in bits
+ 	d.Write(tmp[:1+pad+8])
+ 
+ 	// The previous write ensures that a whole number of
+@@ -167,10 +167,10 @@ func (d *digest) checkSum() [Size]byte {
+ 	}
+ 
+ 	var digest [Size]byte
+-	binary.LittleEndian.PutUint32(digest[0:], d.s[0])
+-	binary.LittleEndian.PutUint32(digest[4:], d.s[1])
+-	binary.LittleEndian.PutUint32(digest[8:], d.s[2])
+-	binary.LittleEndian.PutUint32(digest[12:], d.s[3])
++	byteorder.LePutUint32(digest[0:], d.s[0])
++	byteorder.LePutUint32(digest[4:], d.s[1])
++	byteorder.LePutUint32(digest[8:], d.s[2])
++	byteorder.LePutUint32(digest[12:], d.s[3])
+ 	return digest
+ }
+ 
+diff --git a/src/crypto/md5/md5block.go b/src/crypto/md5/md5block.go
+index 4ff289e860..473496b8d0 100644
+--- a/src/crypto/md5/md5block.go
++++ b/src/crypto/md5/md5block.go
+@@ -7,7 +7,7 @@
+ package md5
+ 
+ import (
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -24,22 +24,22 @@ func blockGeneric(dig *digest, p []byte) {
+ 		aa, bb, cc, dd := a, b, c, d
+ 
+ 		// load input block
+-		x0 := binary.LittleEndian.Uint32(q[4*0x0:])
+-		x1 := binary.LittleEndian.Uint32(q[4*0x1:])
+-		x2 := binary.LittleEndian.Uint32(q[4*0x2:])
+-		x3 := binary.LittleEndian.Uint32(q[4*0x3:])
+-		x4 := binary.LittleEndian.Uint32(q[4*0x4:])
+-		x5 := binary.LittleEndian.Uint32(q[4*0x5:])
+-		x6 := binary.LittleEndian.Uint32(q[4*0x6:])
+-		x7 := binary.LittleEndian.Uint32(q[4*0x7:])
+-		x8 := binary.LittleEndian.Uint32(q[4*0x8:])
+-		x9 := binary.LittleEndian.Uint32(q[4*0x9:])
+-		xa := binary.LittleEndian.Uint32(q[4*0xa:])
+-		xb := binary.LittleEndian.Uint32(q[4*0xb:])
+-		xc := binary.LittleEndian.Uint32(q[4*0xc:])
+-		xd := binary.LittleEndian.Uint32(q[4*0xd:])
+-		xe := binary.LittleEndian.Uint32(q[4*0xe:])
+-		xf := binary.LittleEndian.Uint32(q[4*0xf:])
++		x0 := byteorder.LeUint32(q[4*0x0:])
++		x1 := byteorder.LeUint32(q[4*0x1:])
++		x2 := byteorder.LeUint32(q[4*0x2:])
++		x3 := byteorder.LeUint32(q[4*0x3:])
++		x4 := byteorder.LeUint32(q[4*0x4:])
++		x5 := byteorder.LeUint32(q[4*0x5:])
++		x6 := byteorder.LeUint32(q[4*0x6:])
++		x7 := byteorder.LeUint32(q[4*0x7:])
++		x8 := byteorder.LeUint32(q[4*0x8:])
++		x9 := byteorder.LeUint32(q[4*0x9:])
++		xa := byteorder.LeUint32(q[4*0xa:])
++		xb := byteorder.LeUint32(q[4*0xb:])
++		xc := byteorder.LeUint32(q[4*0xc:])
++		xd := byteorder.LeUint32(q[4*0xd:])
++		xe := byteorder.LeUint32(q[4*0xe:])
++		xf := byteorder.LeUint32(q[4*0xf:])
+ 
+ 		// round 1
+ 		a = b + bits.RotateLeft32((((c^d)&b)^d)+a+x0+0xd76aa478, 7)
+diff --git a/src/crypto/rand/rand_plan9.go b/src/crypto/rand/rand_plan9.go
+index 8db19157a7..d5320210fd 100644
+--- a/src/crypto/rand/rand_plan9.go
++++ b/src/crypto/rand/rand_plan9.go
+@@ -9,7 +9,7 @@ package rand
+ 
+ import (
+ 	"crypto/aes"
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"io"
+ 	"os"
+ 	"sync"
+@@ -66,7 +66,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 		if counter == 0 {
+ 			panic("crypto/rand counter wrapped")
+ 		}
+-		binary.LittleEndian.PutUint64(block[:], counter)
++		byteorder.LePutUint64(block[:], counter)
+ 	}
+ 	blockCipher.Encrypt(r.key[:aes.BlockSize], block[:])
+ 	inc()
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index ac10fa1557..01f16b389e 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -11,9 +11,9 @@ package sha1
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -51,14 +51,14 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = binary.BigEndian.AppendUint32(b, d.h[0])
+-	b = binary.BigEndian.AppendUint32(b, d.h[1])
+-	b = binary.BigEndian.AppendUint32(b, d.h[2])
+-	b = binary.BigEndian.AppendUint32(b, d.h[3])
+-	b = binary.BigEndian.AppendUint32(b, d.h[4])
++	b = byteorder.BeAppendUint32(b, d.h[0])
++	b = byteorder.BeAppendUint32(b, d.h[1])
++	b = byteorder.BeAppendUint32(b, d.h[2])
++	b = byteorder.BeAppendUint32(b, d.h[3])
++	b = byteorder.BeAppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-d.nx] // already zero
+-	b = binary.BigEndian.AppendUint64(b, d.len)
++	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -167,7 +167,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	// Length in bits.
+ 	len <<= 3
+ 	padlen := tmp[:t+8]
+-	binary.BigEndian.PutUint64(padlen[t:], len)
++	byteorder.BePutUint64(padlen[t:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -176,11 +176,11 @@ func (d *digest) checkSum() [Size]byte {
+ 
+ 	var digest [Size]byte
+ 
+-	binary.BigEndian.PutUint32(digest[0:], d.h[0])
+-	binary.BigEndian.PutUint32(digest[4:], d.h[1])
+-	binary.BigEndian.PutUint32(digest[8:], d.h[2])
+-	binary.BigEndian.PutUint32(digest[12:], d.h[3])
+-	binary.BigEndian.PutUint32(digest[16:], d.h[4])
++	byteorder.BePutUint32(digest[0:], d.h[0])
++	byteorder.BePutUint32(digest[4:], d.h[1])
++	byteorder.BePutUint32(digest[8:], d.h[2])
++	byteorder.BePutUint32(digest[12:], d.h[3])
++	byteorder.BePutUint32(digest[16:], d.h[4])
+ 
+ 	return digest
+ }
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 0cc7fca0a6..cad651624c 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -9,9 +9,9 @@ package sha256
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -70,17 +70,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	} else {
+ 		b = append(b, magic256...)
+ 	}
+-	b = binary.BigEndian.AppendUint32(b, d.h[0])
+-	b = binary.BigEndian.AppendUint32(b, d.h[1])
+-	b = binary.BigEndian.AppendUint32(b, d.h[2])
+-	b = binary.BigEndian.AppendUint32(b, d.h[3])
+-	b = binary.BigEndian.AppendUint32(b, d.h[4])
+-	b = binary.BigEndian.AppendUint32(b, d.h[5])
+-	b = binary.BigEndian.AppendUint32(b, d.h[6])
+-	b = binary.BigEndian.AppendUint32(b, d.h[7])
++	b = byteorder.BeAppendUint32(b, d.h[0])
++	b = byteorder.BeAppendUint32(b, d.h[1])
++	b = byteorder.BeAppendUint32(b, d.h[2])
++	b = byteorder.BeAppendUint32(b, d.h[3])
++	b = byteorder.BeAppendUint32(b, d.h[4])
++	b = byteorder.BeAppendUint32(b, d.h[5])
++	b = byteorder.BeAppendUint32(b, d.h[6])
++	b = byteorder.BeAppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-d.nx] // already zero
+-	b = binary.BigEndian.AppendUint64(b, d.len)
++	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -226,7 +226,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	// Length in bits.
+ 	len <<= 3
+ 	padlen := tmp[:t+8]
+-	binary.BigEndian.PutUint64(padlen[t+0:], len)
++	byteorder.BePutUint64(padlen[t+0:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -235,15 +235,15 @@ func (d *digest) checkSum() [Size]byte {
+ 
+ 	var digest [Size]byte
+ 
+-	binary.BigEndian.PutUint32(digest[0:], d.h[0])
+-	binary.BigEndian.PutUint32(digest[4:], d.h[1])
+-	binary.BigEndian.PutUint32(digest[8:], d.h[2])
+-	binary.BigEndian.PutUint32(digest[12:], d.h[3])
+-	binary.BigEndian.PutUint32(digest[16:], d.h[4])
+-	binary.BigEndian.PutUint32(digest[20:], d.h[5])
+-	binary.BigEndian.PutUint32(digest[24:], d.h[6])
++	byteorder.BePutUint32(digest[0:], d.h[0])
++	byteorder.BePutUint32(digest[4:], d.h[1])
++	byteorder.BePutUint32(digest[8:], d.h[2])
++	byteorder.BePutUint32(digest[12:], d.h[3])
++	byteorder.BePutUint32(digest[16:], d.h[4])
++	byteorder.BePutUint32(digest[20:], d.h[5])
++	byteorder.BePutUint32(digest[24:], d.h[6])
+ 	if !d.is224 {
+-		binary.BigEndian.PutUint32(digest[28:], d.h[7])
++		byteorder.BePutUint32(digest[28:], d.h[7])
+ 	}
+ 
+ 	return digest
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 9ae1b3aae2..8fbaba575e 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -13,9 +13,9 @@ package sha512
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -153,17 +153,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	default:
+ 		return nil, errors.New("crypto/sha512: invalid hash function")
+ 	}
+-	b = binary.BigEndian.AppendUint64(b, d.h[0])
+-	b = binary.BigEndian.AppendUint64(b, d.h[1])
+-	b = binary.BigEndian.AppendUint64(b, d.h[2])
+-	b = binary.BigEndian.AppendUint64(b, d.h[3])
+-	b = binary.BigEndian.AppendUint64(b, d.h[4])
+-	b = binary.BigEndian.AppendUint64(b, d.h[5])
+-	b = binary.BigEndian.AppendUint64(b, d.h[6])
+-	b = binary.BigEndian.AppendUint64(b, d.h[7])
++	b = byteorder.BeAppendUint64(b, d.h[0])
++	b = byteorder.BeAppendUint64(b, d.h[1])
++	b = byteorder.BeAppendUint64(b, d.h[2])
++	b = byteorder.BeAppendUint64(b, d.h[3])
++	b = byteorder.BeAppendUint64(b, d.h[4])
++	b = byteorder.BeAppendUint64(b, d.h[5])
++	b = byteorder.BeAppendUint64(b, d.h[6])
++	b = byteorder.BeAppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-d.nx] // already zero
+-	b = binary.BigEndian.AppendUint64(b, d.len)
++	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -316,8 +316,8 @@ func (d *digest) checkSum() [Size]byte {
+ 	padlen := tmp[:t+16]
+ 	// Upper 64 bits are always zero, because len variable has type uint64,
+ 	// and tmp is already zeroed at that index, so we can skip updating it.
+-	// binary.BigEndian.PutUint64(padlen[t+0:], 0)
+-	binary.BigEndian.PutUint64(padlen[t+8:], len)
++	// byteorder.BePutUint64(padlen[t+0:], 0)
++	byteorder.BePutUint64(padlen[t+8:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -325,15 +325,15 @@ func (d *digest) checkSum() [Size]byte {
+ 	}
+ 
+ 	var digest [Size]byte
+-	binary.BigEndian.PutUint64(digest[0:], d.h[0])
+-	binary.BigEndian.PutUint64(digest[8:], d.h[1])
+-	binary.BigEndian.PutUint64(digest[16:], d.h[2])
+-	binary.BigEndian.PutUint64(digest[24:], d.h[3])
+-	binary.BigEndian.PutUint64(digest[32:], d.h[4])
+-	binary.BigEndian.PutUint64(digest[40:], d.h[5])
++	byteorder.BePutUint64(digest[0:], d.h[0])
++	byteorder.BePutUint64(digest[8:], d.h[1])
++	byteorder.BePutUint64(digest[16:], d.h[2])
++	byteorder.BePutUint64(digest[24:], d.h[3])
++	byteorder.BePutUint64(digest[32:], d.h[4])
++	byteorder.BePutUint64(digest[40:], d.h[5])
+ 	if d.function != crypto.SHA384 {
+-		binary.BigEndian.PutUint64(digest[48:], d.h[6])
+-		binary.BigEndian.PutUint64(digest[56:], d.h[7])
++		byteorder.BePutUint64(digest[48:], d.h[6])
++		byteorder.BePutUint64(digest[56:], d.h[7])
+ 	}
+ 
+ 	return digest
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index 731fcd6d95..e1a393c8bf 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -2,11 +2,11 @@ package tls
+ 
+ import (
+ 	"crypto/x509"
+-	"encoding/binary"
+ 	"encoding/json"
+ 	"encoding/pem"
+ 	"flag"
+ 	"fmt"
++	"internal/byteorder"
+ 	"internal/testenv"
+ 	"io"
+ 	"log"
+@@ -186,7 +186,7 @@ func bogoShim() {
+ 
+ 		// Write the shim ID we were passed as a little endian uint64
+ 		shimIDBytes := make([]byte, 8)
+-		binary.LittleEndian.PutUint64(shimIDBytes, *shimID)
++		byteorder.LePutUint64(shimIDBytes, *shimID)
+ 		if _, err := conn.Write(shimIDBytes); err != nil {
+ 			log.Fatalf("failed to write shim id: %s", err)
+ 		}
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index ee9e79afab..157c67ff86 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -10,10 +10,10 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"encoding/base64"
+-	"encoding/binary"
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"internal/byteorder"
+ 	"io"
+ 	"math/big"
+ 	"net"
+@@ -202,7 +202,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
+ 		var serverInfo bytes.Buffer
+ 		for _, ext := range test.extensions {
+ 			pem.Encode(&serverInfo, &pem.Block{
+-				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", binary.BigEndian.Uint16(ext)),
++				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BeUint16(ext)),
+ 				Bytes: ext,
+ 			})
+ 		}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 60a3883023..7f15d05b28 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -10,9 +10,9 @@ import (
+ 	"crypto"
+ 	"crypto/hmac"
+ 	"crypto/rsa"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ 	"io"
+ 	"time"
+ )
+@@ -866,7 +866,7 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
+ 	if _, err := c.config.rand().Read(ageAdd); err != nil {
+ 		return err
+ 	}
+-	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
++	m.ageAdd = byteorder.LeUint32(ageAdd)
+ 
+ 	if earlyData {
+ 		// RFC 9001, Section 4.6.1
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f4973e92b1..44976c7356 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -430,10 +430,8 @@ var depsRules = `
+ 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+-	# Unfortunately, stuck with reflect via encoding/binary.
+ 	crypto/internal/boring/sig,
+ 	crypto/internal/boring/syso,
+-	encoding/binary,
+ 	golang.org/x/sys/cpu,
+ 	hash, embed
+ 	< crypto
+@@ -455,12 +453,14 @@ var depsRules = `
+ 
+ 	crypto/boring
+ 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+-	  crypto/sha1, crypto/sha256, crypto/sha512,
+-	  golang.org/x/crypto/sha3;
++	  crypto/sha1, crypto/sha256, crypto/sha512;
+ 
+ 	crypto/boring, crypto/internal/edwards25519/field
+ 	< crypto/ecdh;
+ 
++	# Unfortunately, stuck with reflect via encoding/binary.
++	encoding/binary, crypto/boring < golang.org/x/crypto/sha3;
++
+ 	crypto/aes,
+ 	crypto/des,
+ 	crypto/ecdh,

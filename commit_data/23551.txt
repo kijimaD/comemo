@@ -19,7 +19,7 @@ Date:   Thu May 14 10:18:10 2015 +0900
     Change-Id: Ic7af3651e0372ec03774432fbb6b2eb0c455e994
     Reviewed-on: https://go-review.googlesource.com/10071
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipsock_posix.go  | 29 ++++++++++++++++++++---
  src/net/listen_test.go   |  6 ++---
  src/net/main_test.go     | 51 +++++++++++++++++++++++++++++++++++++++-
@@ -28,3 +28,354 @@ Date:   Thu May 14 10:18:10 2015 +0900
  src/net/tcpsock_posix.go |  5 ----
  src/net/udp_test.go      | 61 +++++++++++++++---------------------------------
  7 files changed, 102 insertions(+), 88 deletions(-)
+
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 56b9872fd1..83eaf855b4 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -9,10 +9,18 @@
+ package net
+ 
+ import (
++	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+ 
++// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
++// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
++// connections. This is due to the fact that IPv4 traffic will not be
++// routed to an IPv6 socket - two separate sockets are required if
++// both address families are to be supported.
++// See inet6(4) for details.
++
+ func probeIPv4Stack() bool {
+ 	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+@@ -41,13 +49,28 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	var probes = []struct {
+ 		laddr TCPAddr
+ 		value int
+-		ok    bool
+ 	}{
+ 		// IPv6 communication capability
+ 		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
+ 		// IPv6 IPv4-mapped address communication capability
+ 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
+ 	}
++	var supps [2]bool
++	switch runtime.GOOS {
++	case "dragonfly", "openbsd":
++		// Some released versions of DragonFly BSD pretend to
++		// accept IPV6_V6ONLY=0 successfully, but the state
++		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
++		// stops preteding, but the transition period would
++		// cause unpredictable behavior and we need to avoid
++		// it.
++		//
++		// OpenBSD also doesn't support IPV6_V6ONLY=0 but it
++		// never pretends to accept IPV6_V6OLY=0. It always
++		// returns an error and we don't need to probe the
++		// capability.
++		probes = probes[:1]
++	}
+ 
+ 	for i := range probes {
+ 		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+@@ -63,10 +86,10 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 		if err := syscall.Bind(s, sa); err != nil {
+ 			continue
+ 		}
+-		probes[i].ok = true
++		supps[i] = true
+ 	}
+ 
+-	return probes[0].ok, probes[1].ok
++	return supps[0], supps[1]
+ }
+ 
+ // favoriteAddrFamily returns the appropriate address family to
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 8f43c846d9..89d4d7e0de 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -218,8 +218,6 @@ var dualStackTCPListenerTests = []struct {
+ // listening address and same port.
+ func TestDualStackTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "dragonfly":
+-		t.Skip("not supported on DragonFly, see golang.org/issue/10729")
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+@@ -233,7 +231,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
++		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
+ 			tt.xerr = nil
+ 		}
+ 		var firstErr, secondErr error
+@@ -320,7 +318,7 @@ func TestDualStackUDPListener(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if runtime.GOOS == "openbsd" && differentWildcardAddr(tt.address1, tt.address2) {
++		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
+ 			tt.xerr = nil
+ 		}
+ 		var firstErr, secondErr error
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 62b8997091..f3f8b1a900 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -59,6 +59,16 @@ func TestMain(m *testing.M) {
+ 	os.Exit(st)
+ }
+ 
++type ipv6LinkLocalUnicastTest struct {
++	network, address string
++	nameLookup       bool
++}
++
++var (
++	ipv6LinkLocalUnicastTCPTests []ipv6LinkLocalUnicastTest
++	ipv6LinkLocalUnicastUDPTests []ipv6LinkLocalUnicastTest
++)
++
+ func setupTestData() {
+ 	if supportsIPv4 {
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+@@ -81,7 +91,8 @@ func setupTestData() {
+ 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
+ 	}
+ 
+-	if ifi := loopbackInterface(); ifi != nil {
++	ifi := loopbackInterface()
++	if ifi != nil {
+ 		index := fmt.Sprintf("%v", ifi.Index)
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+ 			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
+@@ -96,6 +107,44 @@ func setupTestData() {
+ 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
+ 		}...)
+ 	}
++
++	addr := ipv6LinkLocalUnicastAddr(ifi)
++	if addr != "" {
++		if runtime.GOOS != "dragonfly" {
++			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
++				{"tcp", "[" + addr + "%" + ifi.Name + "]:0", false},
++			}...)
++			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
++				{"udp", "[" + addr + "%" + ifi.Name + "]:0", false},
++			}...)
++		}
++		ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
++			{"tcp6", "[" + addr + "%" + ifi.Name + "]:0", false},
++		}...)
++		ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
++			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
++		}...)
++		switch runtime.GOOS {
++		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
++			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
++				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
++				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
++			}...)
++			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
++				{"udp", "[localhost%" + ifi.Name + "]:0", true},
++				{"udp6", "[localhost%" + ifi.Name + "]:0", true},
++			}...)
++		case "linux":
++			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
++				{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
++				{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
++			}...)
++			ipv6LinkLocalUnicastUDPTests = append(ipv6LinkLocalUnicastUDPTests, []ipv6LinkLocalUnicastTest{
++				{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
++				{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
++			}...)
++		}
++	}
+ }
+ 
+ func printRunningGoroutines() {
+diff --git a/src/net/sockopt_bsd.go b/src/net/sockopt_bsd.go
+index 00e4dbf376..1b4a586a7e 100644
+--- a/src/net/sockopt_bsd.go
++++ b/src/net/sockopt_bsd.go
+@@ -25,7 +25,7 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_PORTRANGE, syscall.IPV6_PORTRANGE_HIGH)
+ 		}
+ 	}
+-	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++	if supportsIPv4map && family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
+ 		// Allow both IP versions even if the OS default
+ 		// is otherwise.  Note that some operating systems
+ 		// never admit this option.
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index 64117449bd..2191c91fa3 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -367,39 +367,11 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv6 {
+-		t.Skip("ipv6 is not supported")
+-	}
+-	ifi := loopbackInterface()
+-	if ifi == nil {
+-		t.Skip("loopback interface not found")
+-	}
+-	laddr := ipv6LinkLocalUnicastAddr(ifi)
+-	if laddr == "" {
+-		t.Skip("ipv6 unicast address on loopback not found")
++		t.Skip("IPv6 is not supported")
+ 	}
+ 
+-	type test struct {
+-		net, addr  string
+-		nameLookup bool
+-	}
+-	var tests = []test{
+-		{"tcp", "[" + laddr + "%" + ifi.Name + "]:0", false},
+-		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+-	}
+-	switch runtime.GOOS {
+-	case "darwin", "freebsd", "openbsd", "netbsd":
+-		tests = append(tests, []test{
+-			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+-			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
+-		}...)
+-	case "linux":
+-		tests = append(tests, []test{
+-			{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+-			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+-		}...)
+-	}
+-	for i, tt := range tests {
+-		ln, err := Listen(tt.net, tt.addr)
++	for i, tt := range ipv6LinkLocalUnicastTCPTests {
++		ln, err := Listen(tt.network, tt.address)
+ 		if err != nil {
+ 			// It might return "LookupHost returned no
+ 			// suitable address" error on some platforms.
+@@ -420,7 +392,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
+ 		}
+ 
+-		c, err := Dial(tt.net, ls.Listener.Addr().String())
++		c, err := Dial(tt.network, ls.Listener.Addr().String())
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 1f43521a9e..51a8e97915 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -13,11 +13,6 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(rsc): On OpenBSD, listening on the "tcp" network does not listen for
+-// both IPv4 and IPv6 connections. This is due to the fact that IPv4 traffic
+-// will not be routed to an IPv6 socket - two separate sockets are required
+-// if both AFs are to be supported. See inet6(4) on OpenBSD for details.
+-
+ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index 2213468e79..b25f96a3fd 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -238,55 +238,32 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv6 {
+-		t.Skip("ipv6 is not supported")
+-	}
+-	ifi := loopbackInterface()
+-	if ifi == nil {
+-		t.Skip("loopback interface not found")
+-	}
+-	laddr := ipv6LinkLocalUnicastAddr(ifi)
+-	if laddr == "" {
+-		t.Skip("ipv6 unicast address on loopback not found")
++		t.Skip("IPv6 is not supported")
+ 	}
+ 
+-	type test struct {
+-		net, addr  string
+-		nameLookup bool
+-	}
+-	var tests = []test{
+-		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
+-		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+-	}
+-	// The first udp test fails on DragonFly - see issue 7473.
+-	if runtime.GOOS == "dragonfly" {
+-		tests = tests[1:]
+-	}
+-	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+-		tests = append(tests, []test{
+-			{"udp", "[localhost%" + ifi.Name + "]:0", true},
+-			{"udp6", "[localhost%" + ifi.Name + "]:0", true},
+-		}...)
+-	case "linux":
+-		tests = append(tests, []test{
+-			{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+-			{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+-		}...)
+-	}
+-	for _, tt := range tests {
+-		c1, err := ListenPacket(tt.net, tt.addr)
++	for i, tt := range ipv6LinkLocalUnicastUDPTests {
++		c1, err := ListenPacket(tt.network, tt.address)
+ 		if err != nil {
+ 			// It might return "LookupHost returned no
+ 			// suitable address" error on some platforms.
+ 			t.Log(err)
+ 			continue
+ 		}
+-		defer c1.Close()
++		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer ls.teardown()
++		ch := make(chan error, 1)
++		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, ch) }
++		if err := ls.buildup(handler); err != nil {
++			t.Fatal(err)
++		}
+ 		if la, ok := c1.LocalAddr().(*UDPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+ 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
+ 		}
+ 
+-		c2, err := Dial(tt.net, c1.LocalAddr().String())
++		c2, err := Dial(tt.network, ls.PacketConn.LocalAddr().String())
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -302,12 +279,12 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		b := make([]byte, 32)
+-		if _, from, err := c1.ReadFrom(b); err != nil {
++		if _, err := c2.Read(b); err != nil {
+ 			t.Fatal(err)
+-		} else {
+-			if ra, ok := from.(*UDPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
+-				t.Fatalf("got %v; expected a proper address with zone identifier", ra)
+-			}
++		}
++
++		for err := range ch {
++			t.Errorf("#%d: %v", i, err)
+ 		}
+ 	}
+ }

@@ -10,7 +10,7 @@ Date:   Mon Feb 18 14:40:47 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7312093
-
+---
  src/pkg/go/types/check.go         | 12 ++++++------
  src/pkg/go/types/check_test.go    |  1 +
  src/pkg/go/types/gcimporter.go    | 32 ++++++++++++++++++--------------
@@ -20,3 +20,366 @@ Date:   Mon Feb 18 14:40:47 2013 -0800
  src/pkg/go/types/stmt.go          |  2 +-
  src/pkg/go/types/universe.go      | 17 +++++++++++++----
  8 files changed, 62 insertions(+), 35 deletions(-)
+
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index e8af0af569..1a0fb04ae2 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -70,7 +70,7 @@ func (check *checker) lookup(ident *ast.Ident) Object {
+ 	}
+ 
+ 	if obj = check.objects[astObj]; obj == nil {
+-		obj = newObj(astObj)
++		obj = newObj(check.pkg, astObj)
+ 		check.objects[astObj] = obj
+ 	}
+ 	check.register(ident, obj)
+@@ -346,7 +346,7 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
+ 		scope = new(Scope)
+ 		check.methods[tname] = scope
+ 	}
+-	check.declareIdent(scope, meth.Name, &Func{Name: meth.Name.Name, decl: meth})
++	check.declareIdent(scope, meth.Name, &Func{Pkg: check.pkg, Name: meth.Name.Name, decl: meth})
+ }
+ 
+ func (check *checker) decl(decl ast.Decl) {
+@@ -378,7 +378,7 @@ func (check *checker) decl(decl ast.Decl) {
+ 		// since they are not in any scope. Create a dummy object for them.
+ 		if d.Name.Name == "init" {
+ 			assert(obj == nil) // all other functions should have an object
+-			obj = &Func{Name: d.Name.Name, decl: d}
++			obj = &Func{Pkg: check.pkg, Name: d.Name.Name, decl: d}
+ 			check.register(d.Name, obj)
+ 		}
+ 		check.object(obj, false)
+@@ -403,8 +403,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 		conversions: make(map[*ast.CallExpr]bool),
+ 	}
+ 
+-	// handle panics
++	// set results and handle panics
+ 	defer func() {
++		pkg = check.pkg
+ 		switch p := recover().(type) {
+ 		case nil, bailout:
+ 			// normal return or early exit
+@@ -422,8 +423,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 	if imp == nil {
+ 		imp = GcImport
+ 	}
+-	pkg, methods := check.resolve(imp)
+-	check.pkg = pkg
++	methods := check.resolve(imp)
+ 
+ 	// associate methods with types
+ 	for _, m := range methods {
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/go/types/check_test.go
+index 8e6a93bb4b..d68a8452a6 100644
+--- a/src/pkg/go/types/check_test.go
++++ b/src/pkg/go/types/check_test.go
+@@ -238,6 +238,7 @@ func TestCheck(t *testing.T) {
+ 	// the construction of the Universe var.
+ 	if !testBuiltinsDeclared {
+ 		testBuiltinsDeclared = true
++		// Pkg == nil for Universe objects
+ 		def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
+ 		def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
+ 	}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 0991bade14..d6b603cb8f 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -197,23 +197,25 @@ func (p *gcParser) next() {
+ 	}
+ }
+ 
+-func declConst(scope *Scope, name string) *Const {
++func declConst(pkg *Package, name string) *Const {
+ 	// the constant may have been imported before - if it exists
+ 	// already in the respective scope, return that constant
++	scope := pkg.Scope
+ 	if obj := scope.Lookup(name); obj != nil {
+ 		return obj.(*Const)
+ 	}
+ 	// otherwise create a new constant and insert it into the scope
+-	obj := &Const{Name: name}
++	obj := &Const{Pkg: pkg, Name: name}
+ 	scope.Insert(obj)
+ 	return obj
+ }
+ 
+-func declTypeName(scope *Scope, name string) *TypeName {
++func declTypeName(pkg *Package, name string) *TypeName {
++	scope := pkg.Scope
+ 	if obj := scope.Lookup(name); obj != nil {
+ 		return obj.(*TypeName)
+ 	}
+-	obj := &TypeName{Name: name}
++	obj := &TypeName{Pkg: pkg, Name: name}
+ 	// a named type may be referred to before the underlying type
+ 	// is known - set it up
+ 	obj.Type = &NamedType{Obj: obj}
+@@ -221,20 +223,22 @@ func declTypeName(scope *Scope, name string) *TypeName {
+ 	return obj
+ }
+ 
+-func declVar(scope *Scope, name string) *Var {
++func declVar(pkg *Package, name string) *Var {
++	scope := pkg.Scope
+ 	if obj := scope.Lookup(name); obj != nil {
+ 		return obj.(*Var)
+ 	}
+-	obj := &Var{Name: name}
++	obj := &Var{Pkg: pkg, Name: name}
+ 	scope.Insert(obj)
+ 	return obj
+ }
+ 
+-func declFunc(scope *Scope, name string) *Func {
++func declFunc(pkg *Package, name string) *Func {
++	scope := pkg.Scope
+ 	if obj := scope.Lookup(name); obj != nil {
+ 		return obj.(*Func)
+ 	}
+-	obj := &Func{Name: name}
++	obj := &Func{Pkg: pkg, Name: name}
+ 	scope.Insert(obj)
+ 	return obj
+ }
+@@ -507,7 +511,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
+ 	if p.tok == scanner.String {
+ 		p.next()
+ 	}
+-	par = &Var{Name: name, Type: typ}
++	par = &Var{Name: name, Type: typ} // Pkg == nil
+ 	return
+ }
+ 
+@@ -637,7 +641,7 @@ func (p *gcParser) parseType() Type {
+ 	case '@':
+ 		// TypeName
+ 		pkg, name := p.parseExportedName()
+-		return declTypeName(pkg.Scope, name).Type
++		return declTypeName(pkg, name).Type
+ 	case '[':
+ 		p.next() // look ahead
+ 		if p.tok == ']' {
+@@ -740,7 +744,7 @@ func (p *gcParser) parseNumber() (x operand) {
+ func (p *gcParser) parseConstDecl() {
+ 	p.expectKeyword("const")
+ 	pkg, name := p.parseExportedName()
+-	obj := declConst(pkg.Scope, name)
++	obj := declConst(pkg, name)
+ 	var x operand
+ 	if p.tok != '=' {
+ 		obj.Type = p.parseType()
+@@ -806,7 +810,7 @@ func (p *gcParser) parseConstDecl() {
+ func (p *gcParser) parseTypeDecl() {
+ 	p.expectKeyword("type")
+ 	pkg, name := p.parseExportedName()
+-	obj := declTypeName(pkg.Scope, name)
++	obj := declTypeName(pkg, name)
+ 
+ 	// The type object may have been imported before and thus already
+ 	// have a type associated with it. We still need to parse the type
+@@ -825,7 +829,7 @@ func (p *gcParser) parseTypeDecl() {
+ func (p *gcParser) parseVarDecl() {
+ 	p.expectKeyword("var")
+ 	pkg, name := p.parseExportedName()
+-	obj := declVar(pkg.Scope, name)
++	obj := declVar(pkg, name)
+ 	obj.Type = p.parseType()
+ }
+ 
+@@ -886,7 +890,7 @@ func (p *gcParser) parseFuncDecl() {
+ 	// "func" already consumed
+ 	pkg, name := p.parseExportedName()
+ 	typ := p.parseFunc()
+-	declFunc(pkg.Scope, name).Type = typ
++	declFunc(pkg, name).Type = typ
+ }
+ 
+ // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
+diff --git a/src/pkg/go/types/objects.go b/src/pkg/go/types/objects.go
+index dcd905b413..a3f86a9908 100644
+--- a/src/pkg/go/types/objects.go
++++ b/src/pkg/go/types/objects.go
+@@ -14,6 +14,7 @@ import (
+ // All objects implement the Object interface.
+ //
+ type Object interface {
++	GetPkg() *Package
+ 	GetName() string
+ 	GetType() Type
+ 	GetPos() token.Pos
+@@ -34,6 +35,7 @@ type Package struct {
+ 
+ // A Const represents a declared constant.
+ type Const struct {
++	Pkg  *Package
+ 	Name string
+ 	Type Type
+ 	Val  interface{}
+@@ -43,6 +45,7 @@ type Const struct {
+ 
+ // A TypeName represents a declared type.
+ type TypeName struct {
++	Pkg  *Package
+ 	Name string
+ 	Type Type // *NamedType or *Basic
+ 
+@@ -51,6 +54,7 @@ type TypeName struct {
+ 
+ // A Variable represents a declared variable (including function parameters and results).
+ type Var struct {
++	Pkg  *Package // nil for parameters
+ 	Name string
+ 	Type Type
+ 
+@@ -60,12 +64,19 @@ type Var struct {
+ 
+ // A Func represents a declared function.
+ type Func struct {
++	Pkg  *Package
+ 	Name string
+ 	Type Type // *Signature or *Builtin
+ 
+ 	decl *ast.FuncDecl
+ }
+ 
++func (obj *Package) GetPkg() *Package  { return obj }
++func (obj *Const) GetPkg() *Package    { return obj.Pkg }
++func (obj *TypeName) GetPkg() *Package { return obj.Pkg }
++func (obj *Var) GetPkg() *Package      { return obj.Pkg }
++func (obj *Func) GetPkg() *Package     { return obj.Pkg }
++
+ func (obj *Package) GetName() string  { return obj.Name }
+ func (obj *Const) GetName() string    { return obj.Name }
+ func (obj *TypeName) GetName() string { return obj.Name }
+@@ -126,7 +137,8 @@ func (*Func) anObject()     {}
+ // TODO(gri) Once we do identifier resolution completely in
+ //           in the typechecker, this functionality can go.
+ //
+-func newObj(astObj *ast.Object) Object {
++func newObj(pkg *Package, astObj *ast.Object) Object {
++	assert(pkg != nil)
+ 	name := astObj.Name
+ 	typ, _ := astObj.Type.(Type)
+ 	switch astObj.Kind {
+@@ -135,18 +147,18 @@ func newObj(astObj *ast.Object) Object {
+ 	case ast.Pkg:
+ 		unreachable()
+ 	case ast.Con:
+-		return &Const{Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
++		return &Const{Pkg: pkg, Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
+ 	case ast.Typ:
+-		return &TypeName{Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
++		return &TypeName{Pkg: pkg, Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
+ 	case ast.Var:
+ 		switch astObj.Decl.(type) {
+ 		case *ast.Field, *ast.ValueSpec, *ast.AssignStmt: // these are ok
+ 		default:
+ 			unreachable()
+ 		}
+-		return &Var{Name: name, Type: typ, decl: astObj.Decl}
++		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
+ 	case ast.Fun:
+-		return &Func{Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
++		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
+ 	case ast.Lbl:
+ 		unreachable() // for now
+ 	}
+diff --git a/src/pkg/go/types/resolve.go b/src/pkg/go/types/resolve.go
+index 112818f790..703a9c36b5 100644
+--- a/src/pkg/go/types/resolve.go
++++ b/src/pkg/go/types/resolve.go
+@@ -36,8 +36,9 @@ func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
+ 	return false
+ }
+ 
+-func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.FuncDecl) {
+-	pkg = &Package{Scope: &Scope{Outer: Universe}, Imports: make(map[string]*Package)}
++func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
++	pkg := &Package{Scope: &Scope{Outer: Universe}, Imports: make(map[string]*Package)}
++	check.pkg = pkg
+ 
+ 	// complete package scope
+ 	i := 0
+diff --git a/src/pkg/go/types/resolver_test.go b/src/pkg/go/types/resolver_test.go
+index 985d9a7c04..37251d4ba4 100644
+--- a/src/pkg/go/types/resolver_test.go
++++ b/src/pkg/go/types/resolver_test.go
+@@ -116,14 +116,14 @@ func TestResolveQualifiedIdents(t *testing.T) {
+ 				for _, list := range x.Fields.List {
+ 					for _, f := range list.Names {
+ 						assert(idents[f] == nil)
+-						idents[f] = &Var{Name: f.Name}
++						idents[f] = &Var{Pkg: pkg, Name: f.Name}
+ 					}
+ 				}
+ 			case *ast.InterfaceType:
+ 				for _, list := range x.Methods.List {
+ 					for _, f := range list.Names {
+ 						assert(idents[f] == nil)
+-						idents[f] = &Func{Name: f.Name}
++						idents[f] = &Func{Pkg: pkg, Name: f.Name}
+ 					}
+ 				}
+ 			case *ast.CompositeLit:
+@@ -131,7 +131,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
+ 					if kv, ok := e.(*ast.KeyValueExpr); ok {
+ 						if k, ok := kv.Key.(*ast.Ident); ok {
+ 							assert(idents[k] == nil)
+-							idents[k] = &Var{Name: k.Name}
++							idents[k] = &Var{Pkg: pkg, Name: k.Name}
+ 						}
+ 					}
+ 				}
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 11a2e7196d..05a65ca2c0 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -434,7 +434,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 				}
+ 				name := ast.NewIdent(res.Name)
+ 				name.NamePos = s.Pos()
+-				check.register(name, &Var{Name: res.Name, Type: res.Type})
++				check.register(name, &Var{Name: res.Name, Type: res.Type}) // Pkg == nil
+ 				lhs[i] = name
+ 			}
+ 			if len(s.Results) > 0 || !named {
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 707180deb5..b218525c1c 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -55,10 +55,10 @@ var aliases = [...]*Basic{
+ }
+ 
+ var predeclaredConstants = [...]*Const{
+-	{"true", Typ[UntypedBool], true, nil},
+-	{"false", Typ[UntypedBool], false, nil},
+-	{"iota", Typ[UntypedInt], zeroConst, nil},
+-	{"nil", Typ[UntypedNil], nilConst, nil},
++	{nil, "true", Typ[UntypedBool], true, nil},
++	{nil, "false", Typ[UntypedBool], false, nil},
++	{nil, "iota", Typ[UntypedInt], zeroConst, nil},
++	{nil, "nil", Typ[UntypedNil], nilConst, nil},
+ }
+ 
+ var predeclaredFunctions = [...]*builtin{
+@@ -130,6 +130,15 @@ func def(obj Object) {
+ 	scope := Universe
+ 	if ast.IsExported(name) {
+ 		scope = Unsafe.Scope
++		// set Pkg field
++		switch obj := obj.(type) {
++		case *TypeName:
++			obj.Pkg = Unsafe
++		case *Func:
++			obj.Pkg = Unsafe
++		default:
++			unreachable()
++		}
+ 	}
+ 	if scope.Insert(obj) != nil {
+ 		panic("internal error: double declaration")

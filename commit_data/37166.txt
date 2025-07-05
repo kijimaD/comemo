@@ -15,6 +15,27 @@ Date:   Thu Jul 5 09:54:50 2018 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/src/libgo3/libgo3.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/src/libgo3/libgo3.go b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+index e276a3c347..3725f7ab0f 100644
+--- a/misc/cgo/testcarchive/src/libgo3/libgo3.go
++++ b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+@@ -29,13 +29,13 @@ func ResetSIGIO() {
+ 	signal.Reset(syscall.SIGIO)
+ }
+ 
+-// SawSIGIO returns whether we saw a SIGIO within a brief pause.
++// SawSIGIO reports whether we saw a SIGIO.
+ //export SawSIGIO
+ func SawSIGIO() C.int {
+ 	select {
+ 	case <-sigioChan:
+ 		return 1
+-	case <-time.After(100 * time.Millisecond):
++	case <-time.After(5 * time.Second):
+ 		return 0
+ 	}
+ }

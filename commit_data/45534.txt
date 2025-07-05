@@ -13,6 +13,20 @@ Date:   Wed Oct 28 12:07:31 2020 +0100
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/coderepo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 28c5e67a28..4364fef6d1 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -648,7 +648,7 @@ var codeRepoVersionsTests = []struct {
+ 	{
+ 		vcs:      "git",
+ 		path:     "gopkg.in/russross/blackfriday.v2",
+-		versions: []string{"v2.0.0", "v2.0.1"},
++		versions: []string{"v2.0.0", "v2.0.1", "v2.1.0-pre.1"},
+ 	},
+ 	{
+ 		vcs:      "git",

@@ -16,6 +16,26 @@ Date:   Wed Dec 1 16:43:47 2021 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index b02bac13ba..193ee16fb6 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -433,7 +433,13 @@ proposal</a>.
+     </p>
+ 
+     <p><!-- CL 321891 -->
+-      TODO: <a href="https://golang.org/cl/321891">https://golang.org/cl/321891</a>: add MapIter.Reset
++      The new
++      <a href="/pkg/reflect/#MapIter.Reset"><code>MapIter.Reset</code></a>
++      method changes its receiver to iterate over a
++      different map. The use of
++      <a href="/pkg/reflect/#MapIter.Reset"><code>MapIter.Reset</code></a>
++      allows allocation-free iteration
++      over many maps.
+     </p>
+ 
+     <p><!-- CL 345486 -->

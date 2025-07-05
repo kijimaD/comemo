@@ -11,6 +11,24 @@ Date:   Mon Jun 23 17:38:17 2014 -0700
     R=golang-codereviews, robert.hencke, gobot, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/91880044
-
+---
  src/pkg/net/http/fs.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 8576cf844a..2c7ec53800 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -212,12 +212,6 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			code = StatusPartialContent
+ 			w.Header().Set("Content-Range", ra.contentRange(size))
+ 		case len(ranges) > 1:
+-			for _, ra := range ranges {
+-				if ra.start > size {
+-					Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+-					return
+-				}
+-			}
+ 			sendSize = rangesMIMESize(ranges, ctype, size)
+ 			code = StatusPartialContent
+ 

@@ -13,6 +13,36 @@ Date:   Fri Aug 4 12:37:52 2023 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/name.go | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index c6eff27272..0f565833d2 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -189,18 +189,12 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	return n
+ }
+ 
+-func (n *Name) Name() *Name         { return n }
+-func (n *Name) Sym() *types.Sym     { return n.sym }
+-func (n *Name) SetSym(x *types.Sym) { n.sym = x }
+-func (n *Name) SubOp() Op           { return n.BuiltinOp }
+-func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
+-func (n *Name) SetFunc(x *Func)     { n.Func = x }
+-func (n *Name) Offset() int64       { panic("Name.Offset") }
+-func (n *Name) SetOffset(x int64) {
+-	if x != 0 {
+-		panic("Name.SetOffset")
+-	}
+-}
++func (n *Name) Name() *Name            { return n }
++func (n *Name) Sym() *types.Sym        { return n.sym }
++func (n *Name) SetSym(x *types.Sym)    { n.sym = x }
++func (n *Name) SubOp() Op              { return n.BuiltinOp }
++func (n *Name) SetSubOp(x Op)          { n.BuiltinOp = x }
++func (n *Name) SetFunc(x *Func)        { n.Func = x }
+ func (n *Name) FrameOffset() int64     { return n.Offset_ }
+ func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+ 

@@ -17,9 +17,99 @@ Date:   Thu Aug 28 14:23:25 2014 -0700
     R=rsc, iant
     CC=golang-codereviews, jsing
     https://golang.org/cl/133190043
-
+---
  src/pkg/runtime/os_openbsd.c        |  2 +-
  src/pkg/runtime/os_openbsd.go       |  2 +-
  src/pkg/runtime/sys_openbsd_386.s   | 12 +++++-------
  src/pkg/runtime/sys_openbsd_amd64.s |  6 +++---
  4 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 220091535d..60db7efdd9 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -26,7 +26,7 @@ extern SigTab runtime·sigtab[];
+ static Sigset sigset_none;
+ static Sigset sigset_all = ~(Sigset)0;
+ 
+-extern int64 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
++extern int32 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+ extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
+ extern int32 runtime·thrwakeup(void *ident, int32 n);
+ 
+diff --git a/src/pkg/runtime/os_openbsd.go b/src/pkg/runtime/os_openbsd.go
+index 6bb6baa62c..4982f903e3 100644
+--- a/src/pkg/runtime/os_openbsd.go
++++ b/src/pkg/runtime/os_openbsd.go
+@@ -15,6 +15,6 @@ func raise(sig int32)
+ func kqueue() int32
+ func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
+ func closeonexec(fd int32)
+-func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int64
++func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int32
+ func thrsleep(ident unsafe.Pointer, clock_id int32, tsp, lock, abort unsafe.Pointer) int32
+ func thrwakeup(ident unsafe.Pointer, n int32) int32
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 596d45a023..d836a1f9ea 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -226,7 +226,7 @@ sigtramp_ret:
+ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 
+ 	// Copy mp, gp and fn from the parent stack onto the child stack.
+-	MOVL	psize+4(FP), AX
++	MOVL	param+0(FP), AX
+ 	MOVL	8(AX), CX		// tf_stack
+ 	SUBL	$16, CX
+ 	MOVL	CX, 8(AX)
+@@ -247,17 +247,15 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 	INT	$0x80
+ 
+ 	// Return if tfork syscall failed.
+-	JCC	5(PC)
++	JCC	4(PC)
+ 	NEGL	AX
+-	MOVL	AX, ret_lo+20(FP)
+-	MOVL	$-1, ret_hi+24(FP)
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+-	JEQ	4(PC)
+-	MOVL	AX, ret_lo+20(FP)
+-	MOVL	$0, ret_hi+24(FP)
++	JEQ	3(PC)
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect.
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index eb5010164c..e9371c3b63 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -11,7 +11,7 @@
+ 
+ #define CLOCK_MONOTONIC	$3
+ 
+-// int64 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
++// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·tfork(SB),NOSPLIT,$32
+ 
+ 	// Copy mp, gp and fn off parent stack for use by child.
+@@ -27,13 +27,13 @@ TEXT runtime·tfork(SB),NOSPLIT,$32
+ 	// Return if tfork syscall failed.
+ 	JCC	4(PC)
+ 	NEGQ	AX
+-	MOVQ	AX, ret+40(FP)
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+ 	JEQ	3(PC)
+-	MOVQ	AX, ret+40(FP)
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ 	// Set FS to point at m->tls.

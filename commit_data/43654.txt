@@ -13,6 +13,20 @@ Date:   Fri Apr 17 16:20:53 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/debug/pe/file_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 26a65941e1..d96cd30904 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -451,7 +451,7 @@ func testDWARF(t *testing.T, linktype int) {
+ 				}
+ 				offset := uintptr(addr) - imageBase
+ 				if offset != uintptr(wantoffset) {
+-					t.Fatal("Runtime offset (0x%x) did "+
++					t.Fatalf("Runtime offset (0x%x) did "+
+ 						"not match dwarf offset "+
+ 						"(0x%x)", wantoffset, offset)
+ 				}

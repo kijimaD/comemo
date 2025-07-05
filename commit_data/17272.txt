@@ -13,7 +13,7 @@ Date:   Thu Aug 15 14:38:32 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12970043
-
+---
  src/cmd/5g/cgen.c     |  64 +++---------------
  src/cmd/5g/ggen.c     |  41 +++++++++++
  src/cmd/5g/gsubr.c    |  81 ++++------------------
@@ -44,3 +44,1715 @@ Date:   Thu Aug 15 14:38:32 2013 -0400
  test/nilcheck.go      | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++
  test/nilptr2.go       | 128 +++++++++++++++++++++++++++++++++++
  29 files changed, 597 insertions(+), 344 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0c5700bb0c..467be22b5b 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -562,6 +562,7 @@ cgenindex(Node *n, Node *res, int bounded)
+ /*
+  * generate:
+  *	res = &n;
++ * The generated code checks that the result is not nil.
+  */
+ void
+ agen(Node *n, Node *res)
+@@ -689,25 +690,11 @@ agen(Node *n, Node *res)
+ 
+ 	case OIND:
+ 		cgen(nl, res);
++		cgen_checknil(res);
+ 		break;
+ 
+ 	case ODOT:
+ 		agen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.  If the left node
+-		// was ODOT we have already done the nil check.
+-		if(nl->op != ODOT)
+-		if(nl->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], N);
+-			gmove(res, &n1);
+-			regalloc(&n2, types[TUINT8], &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gmove(&n1, &n2);
+-			regfree(&n1);
+-			regfree(&n2);
+-		}
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[TINT32], n->xoffset);
+ 			regalloc(&n2, n1.type, N);
+@@ -723,19 +710,7 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOTPTR:
+ 		cgen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(nl->type->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], N);
+-			gmove(res, &n1);
+-			regalloc(&n2, types[TUINT8], &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gmove(&n1, &n2);
+-			regfree(&n1);
+-			regfree(&n2);
+-		}
++		cgen_checknil(res);
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[TINT32], n->xoffset);
+ 			regalloc(&n2, n1.type, N);
+@@ -761,11 +736,12 @@ ret:
+  *
+  * on exit, a has been changed to be *newreg.
+  * caller must regfree(a).
++ * The generated code checks that the result is not *nil.
+  */
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
+-	Node n1, n2;
++	Node n1;
+ 	int r;
+ 
+ 	if(debug['g']) {
+@@ -806,19 +782,7 @@ igen(Node *n, Node *a, Node *res)
+ 			regalloc(a, types[tptr], res);
+ 			cgen(n->left, a);
+ 		}
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(n->left->type->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], N);
+-			gmove(a, &n1);
+-			regalloc(&n2, types[TUINT8], &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gmove(&n1, &n2);
+-			regfree(&n1);
+-			regfree(&n2);
+-		}
++		cgen_checknil(a);
+ 		a->op = OINDREG;
+ 		a->xoffset = n->xoffset;
+ 		a->type = n->type;
+@@ -908,6 +872,7 @@ cgenr(Node *n, Node *a, Node *res)
+  *	newreg = &n;
+  *
+  * caller must regfree(a).
++ * The generated code checks that the result is not nil.
+  */
+ void
+ agenr(Node *n, Node *a, Node *res)
+@@ -939,6 +904,7 @@ agenr(Node *n, Node *a, Node *res)
+ 
+ 	case OIND:
+ 		cgenr(n->left, a, res);
++		cgen_checknil(a);
+ 		break;
+ 
+ 	case OINDEX:
+@@ -980,20 +946,6 @@ agenr(Node *n, Node *a, Node *res)
+ 		// i is in &n1 (if not constant)
+ 		// w is width
+ 
+-		// explicit check for nil if array is large enough
+-		// that we might derive too big a pointer.
+-		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+-			regalloc(&n4, types[tptr], N);
+-			gmove(&n3, &n4);
+-			regalloc(&tmp, types[TUINT8], &n4);
+-			n4.op = OINDREG;
+-			n4.type = types[TUINT8];
+-			n4.xoffset = 0;
+-			gmove(&n4, &tmp);
+-			regfree(&n4);
+-			regfree(&tmp);
+-		}
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 8946a9e51e..cd59aef2b4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -305,6 +305,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 
+ 	nodo.xoffset -= widthptr;
+ 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
++	cgen_checknil(&nodr); // in case offset is huge
+ 
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+ 	
+@@ -873,3 +874,43 @@ clearfat(Node *nl)
+ 	regfree(&dst);
+ 	regfree(&nz);
+ }
++
++// Called after regopt and peep have run.
++// Expand CHECKNIL pseudo-op into actual nil pointer check.
++void
++expandchecks(Prog *firstp)
++{
++	int reg;
++	Prog *p, *p1;
++
++	for(p = firstp; p != P; p = p->link) {
++		if(p->as != ACHECKNIL)
++			continue;
++		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
++			warnl(p->lineno, "nil check %D", &p->from);
++		if(p->from.type != D_REG)
++			fatal("invalid nil check %P", p);
++		reg = p->from.reg;
++		// check is
++		//	CMP arg, $0
++		//	MOV.EQ arg, 0(arg)
++		p1 = mal(sizeof *p1);
++		clearp(p1);
++		p1->link = p->link;
++		p->link = p1;
++		p1->lineno = p->lineno;
++		p1->loc = 9999;
++		p1->as = AMOVW;
++		p1->from.type = D_REG;
++		p1->from.reg = reg;
++		p1->to.type = D_OREG;
++		p1->to.reg = reg;
++		p1->to.offset = 0;
++		p1->scond = C_SCOND_EQ;
++		p->as = ACMP;
++		p->from.type = D_CONST;
++		p->from.reg = NREG;
++		p->from.offset = 0;
++		p->reg = reg;
++	}
++}
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 6f0a072ccc..481174b21c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1189,48 +1189,6 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
+ 	return p;
+ }
+ 
+-// Generate an instruction referencing *n
+-// to force segv on nil pointer dereference.
+-void
+-checkref(Node *n, int force)
+-{
+-	Node m1, m2;
+-
+-	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+-		return;
+-
+-	regalloc(&m1, types[TUINTPTR], n);
+-	regalloc(&m2, types[TUINT8], n);
+-	cgen(n, &m1);
+-	m1.xoffset = 0;
+-	m1.op = OINDREG;
+-	m1.type = types[TUINT8];
+-	gins(AMOVB, &m1, &m2);
+-	regfree(&m2);
+-	regfree(&m1);
+-}
+-
+-static void
+-checkoffset(Addr *a, int canemitcode)
+-{
+-	Prog *p;
+-	Node n1;
+-
+-	if(a->offset < unmappedzero)
+-		return;
+-	if(!canemitcode)
+-		fatal("checkoffset %#x, cannot emit code", a->offset);
+-
+-	// cannot rely on unmapped nil page at 0 to catch
+-	// reference with large offset.  instead, emit explicit
+-	// test of 0(reg).
+-	regalloc(&n1, types[TUINTPTR], N);
+-	p = gins(AMOVB, N, &n1);
+-	p->from = *a;
+-	p->from.offset = 0;
+-	regfree(&n1);
+-}
+-
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+@@ -1294,7 +1252,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->reg = n->val.u.reg;
+ 		a->sym = n->sym;
+ 		a->offset = n->xoffset;
+-		checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OPARAM:
+@@ -1402,8 +1359,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = TINT32;
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// len(nil)
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OLEN:
+@@ -1413,8 +1368,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// len(nil)
+ 		a->offset += Array_nel;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OCAP:
+@@ -1424,8 +1377,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// cap(nil)
+ 		a->offset += Array_cap;
+-		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OADDR:
+@@ -1932,6 +1883,7 @@ odot:
+ 		n1.xoffset = oary[0];
+ 	} else {
+ 		cgen(nn, reg);
++		cgen_checknil(reg);
+ 		n1.xoffset = -(oary[0]+1);
+ 	}
+ 
+@@ -1939,6 +1891,7 @@ odot:
+ 		if(oary[i] >= 0)
+ 			fatal("can't happen");
+ 		gins(AMOVW, &n1, reg);
++		cgen_checknil(reg);
+ 		n1.xoffset = -(oary[i]+1);
+ 	}
+ 
+@@ -1986,9 +1939,10 @@ oindex:
+ 	// load the array (reg)
+ 	if(l->ullman > r->ullman) {
+ 		regalloc(reg, types[tptr], N);
+-		if(o & OPtrto)
++		if(o & OPtrto) {
+ 			cgen(l, reg);
+-		else
++			cgen_checknil(reg);
++		} else
+ 			agen(l, reg);
+ 	}
+ 
+@@ -2005,9 +1959,10 @@ oindex:
+ 	// load the array (reg)
+ 	if(l->ullman <= r->ullman) {
+ 		regalloc(reg, types[tptr], N);
+-		if(o & OPtrto)
++		if(o & OPtrto) {
+ 			cgen(l, reg);
+-		else
++			cgen_checknil(reg);
++		} else
+ 			agen(l, reg);
+ 	}
+ 
+@@ -2019,20 +1974,10 @@ oindex:
+ 			n2.type = types[tptr];
+ 			n2.xoffset = Array_nel;
+ 		} else {
+-			if(l->type->width >= unmappedzero && l->op == OIND) {
+-				// cannot rely on page protections to
+-				// catch array ptr == 0, so dereference.
+-				n2 = *reg;
+-				n2.op = OINDREG;
+-				n2.type = types[TUINTPTR];
+-				n2.xoffset = 0;
+-				regalloc(&n3, n2.type, N);
+-				gins(AMOVW, &n2, &n3);
+-				regfree(&n3);
+-			}
+-			nodconst(&n2, types[TUINT32], l->type->bound);
+ 			if(o & OPtrto)
+ 				nodconst(&n2, types[TUINT32], l->type->type->bound);
++			else
++				nodconst(&n2, types[TUINT32], l->type->bound);
+ 		}
+ 		regalloc(&n3, n2.type, N);
+ 		cgen(&n2, &n3);
+@@ -2080,14 +2025,14 @@ oindex_const:
+ 	// can multiply by width statically
+ 
+ 	regalloc(reg, types[tptr], N);
+-	if(o & OPtrto)
++	if(o & OPtrto) {
+ 		cgen(l, reg);
+-	else
++		cgen_checknil(reg);
++	} else
+ 		agen(l, reg);
+ 
+ 	v = mpgetfix(r->val.u.xval);
+ 	if(o & ODynam) {
+-
+ 		if(!debug['B'] && !n->bounded) {
+ 			n1 = *reg;
+ 			n1.op = OINDREG;
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index fc6899d9ed..f96804d73d 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -36,7 +36,6 @@
+ 
+ static int	xtramodes(Graph*, Flow*, Adr*);
+ static int	shortprop(Flow *r);
+-static int	regtyp(Adr*);
+ static int	subprop(Flow*);
+ static int	copyprop(Graph*, Flow*);
+ static int	copy1(Adr*, Adr*, Flow*, int);
+@@ -240,7 +239,7 @@ loop1:
+ 	flowend(g);
+ }
+ 
+-static int
++int
+ regtyp(Adr *a)
+ {
+ 
+@@ -1055,6 +1054,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ADIVF:
+ 	case ADIVD:
+ 
++	case ACHECKNIL: /* read */
+ 	case ACMPF:	/* read, read, */
+ 	case ACMPD:
+ 	case ACMP:
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index dffad47c12..c3d7ca5a2f 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -28,6 +28,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[APCDATA]=	{Pseudo},
+ 	[AUNDEF]=	{OK},
+ 	[AUSEFIELD]=	{OK},
++	[ACHECKNIL]=	{LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 6b2f6e80ce..e8cf83ddd7 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -197,6 +197,7 @@ enum	as
+ 	ATYPE,
+ 	AFUNCDATA,
+ 	APCDATA,
++	ACHECKNIL,
+ 
+ 	ALAST,
+ };
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d2b51f0eb6..d08caf6c25 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -384,7 +384,11 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OADDR:
++		if(n->bounded) // let race detector avoid nil checks
++			disable_checknil++;
+ 		agen(nl, res);
++		if(n->bounded)
++			disable_checknil--;
+ 		break;
+ 
+ 	case OCALLMETH:
+@@ -518,8 +522,8 @@ ret:
+ }
+ 
+ /*
+- * allocate a register in res and generate
+- *  newreg = &n
++ * allocate a register (reusing res if possible) and generate
++ *  a = n
+  * The caller must call regfree(a).
+  */
+ void
+@@ -560,14 +564,16 @@ cgenr(Node *n, Node *a, Node *res)
+ }
+ 
+ /*
+- * allocate a register in res and generate
+- * res = &n
++ * allocate a register (reusing res if possible) and generate
++ * a = &n
++ * The caller must call regfree(a).
++ * The generated code checks that the result is not nil.
+  */
+ void
+ agenr(Node *n, Node *a, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, n4, n5, tmp, tmp2, nlen;
++	Node n1, n2, n3, n5, tmp, tmp2, nlen;
+ 	Prog *p1;
+ 	Type *t;
+ 	uint64 w;
+@@ -595,6 +601,7 @@ agenr(Node *n, Node *a, Node *res)
+ 
+ 	case OIND:
+ 		cgenr(n->left, a, res);
++		cgen_checknil(a);
+ 		break;
+ 
+ 	case OINDEX:
+@@ -656,18 +663,6 @@ agenr(Node *n, Node *a, Node *res)
+ 		// len(a) is in nlen (if needed)
+ 		// w is width
+ 
+-		// explicit check for nil if array is large enough
+-		// that we might derive too big a pointer.
+-		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+-			regalloc(&n4, types[tptr], &n3);
+-			gmove(&n3, &n4);
+-			n4.op = OINDREG;
+-			n4.type = types[TUINT8];
+-			n4.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n4);
+-			regfree(&n4);
+-		}
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+@@ -777,6 +772,7 @@ agenr(Node *n, Node *a, Node *res)
+ /*
+  * generate:
+  *	res = &n;
++ * The generated code checks that the result is not nil.
+  */
+ void
+ agen(Node *n, Node *res)
+@@ -882,43 +878,20 @@ agen(Node *n, Node *res)
+ 
+ 	case OIND:
+ 		cgen(nl, res);
++		cgen_checknil(res);
+ 		break;
+ 
+ 	case ODOT:
+ 		agen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.  If the left node
+-		// was ODOT we have already done the nil check.
+-		if(nl->op != ODOT)
+-		if(nl->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], res);
+-			gmove(res, &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-			regfree(&n1);
+-		}
+ 		if(n->xoffset != 0)
+ 			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		break;
+ 
+ 	case ODOTPTR:
+ 		cgen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(nl->type->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], res);
+-			gmove(res, &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-			regfree(&n1);
+-		}
+-		if(n->xoffset != 0) {
++		cgen_checknil(res);
++		if(n->xoffset != 0)
+ 			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+-		}
+ 		break;
+ 	}
+ 
+@@ -933,6 +906,7 @@ ret:
+  *
+  * on exit, a has been changed to be *newreg.
+  * caller must regfree(a).
++ * The generated code checks that the result is not *nil.
+  */
+ void
+ igen(Node *n, Node *a, Node *res)
+@@ -967,15 +941,7 @@ igen(Node *n, Node *a, Node *res)
+ 
+ 	case ODOTPTR:
+ 		cgenr(n->left, a, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(n->left->type->type->width >= unmappedzero) {
+-			n1 = *a;
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-		}
++		cgen_checknil(a);
+ 		a->op = OINDREG;
+ 		a->xoffset += n->xoffset;
+ 		a->type = n->type;
+@@ -1017,6 +983,7 @@ igen(Node *n, Node *a, Node *res)
+ 				igen(n->left, a, res);
+ 			else {
+ 				igen(n->left, &n1, res);
++				cgen_checknil(&n1);
+ 				regalloc(a, types[tptr], res);
+ 				gmove(&n1, a);
+ 				regfree(&n1);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index b0ef88cb95..259bb7c070 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -254,6 +254,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	regalloc(&nodr, types[tptr], &nodo);
+ 	if(n->left->xoffset == BADWIDTH)
+ 		fatal("cgen_callinter: badwidth");
++	cgen_checknil(&nodo); // in case offset is huge
+ 	nodo.op = OINDREG;
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+ 	if(proc == 0) {
+@@ -1065,3 +1066,51 @@ clearfat(Node *nl)
+ 	restx(&n1, &oldn1);
+ 	restx(&ax, &oldax);
+ }
++
++// Called after regopt and peep have run.
++// Expand CHECKNIL pseudo-op into actual nil pointer check.
++void
++expandchecks(Prog *firstp)
++{
++	Prog *p, *p1, *p2;
++
++	for(p = firstp; p != P; p = p->link) {
++		if(p->as != ACHECKNIL)
++			continue;
++		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
++			warnl(p->lineno, "nil check %D", &p->from);
++		// check is
++		//	CMP arg, $0
++		//	JNE 2(PC) (likely)
++		//	MOV AX, 0
++		p1 = mal(sizeof *p1);
++		p2 = mal(sizeof *p2);
++		clearp(p1);
++		clearp(p2);
++		p1->link = p2;
++		p2->link = p->link;
++		p->link = p1;
++		p1->lineno = p->lineno;
++		p2->lineno = p->lineno;
++		p1->loc = 9999;
++		p2->loc = 9999;
++		p->as = ACMPQ;
++		p->to.type = D_CONST;
++		p->to.offset = 0;
++		p1->as = AJNE;
++		p1->from.type = D_CONST;
++		p1->from.offset = 1; // likely
++		p1->to.type = D_BRANCH;
++		p1->to.u.branch = p2->link;
++		// crash by write to memory address 0.
++		// if possible, since we know arg is 0, use 0(arg),
++		// which will be shorter to encode than plain 0.
++		p2->as = AMOVL;
++		p2->from.type = D_AX;
++		if(regtyp(&p->from))
++			p2->to.type = p->from.type + D_INDIR;
++		else
++			p2->to.type = D_INDIR+D_NONE;
++		p2->to.offset = 0;
++	}
++}
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 88b1687922..9e8a2b229a 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1067,43 +1067,6 @@ gins(int as, Node *f, Node *t)
+ 	return p;
+ }
+ 
+-// Generate an instruction referencing *n
+-// to force segv on nil pointer dereference.
+-void
+-checkref(Node *n, int force)
+-{
+-	Node m;
+-
+-	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+-		return;
+-
+-	regalloc(&m, types[TUINTPTR], n);
+-	cgen(n, &m);
+-	m.xoffset = 0;
+-	m.op = OINDREG;
+-	m.type = types[TUINT8];
+-	gins(ATESTB, nodintconst(0), &m);
+-	regfree(&m);
+-}
+-
+-static void
+-checkoffset(Addr *a, int canemitcode)
+-{
+-	Prog *p;
+-
+-	if(a->offset < unmappedzero)
+-		return;
+-	if(!canemitcode)
+-		fatal("checkoffset %#llx, cannot emit code", a->offset);
+-
+-	// cannot rely on unmapped nil page at 0 to catch
+-	// reference with large offset. instead, emit explicit
+-	// test of 0(reg).
+-	p = gins(ATESTB, nodintconst(0), N);
+-	p->to = *a;
+-	p->to.offset = 0;
+-}
+-
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+@@ -1161,7 +1124,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->offset = n->xoffset;
+ 		if(a->offset != (int32)a->offset)
+ 			yyerror("offset %lld too large for OINDREG", a->offset);
+-		checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OPARAM:
+@@ -1280,8 +1242,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;  // itab(nil)
+ 		a->etype = tptr;
+ 		a->width = widthptr;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OLEN:
+@@ -1292,8 +1252,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = simtype[TUINT];
+ 		a->offset += Array_nel;
+ 		a->width = widthint;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OCAP:
+@@ -1304,8 +1262,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = simtype[TUINT];
+ 		a->offset += Array_cap;
+ 		a->width = widthint;
+-		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ //	case OADD:
+@@ -2045,6 +2001,7 @@ odot:
+ 		n1.xoffset = oary[0];
+ 	} else {
+ 		cgen(nn, reg);
++		cgen_checknil(reg);
+ 		n1.xoffset = -(oary[0]+1);
+ 	}
+ 
+@@ -2052,6 +2009,7 @@ odot:
+ 		if(oary[i] >= 0)
+ 			fatal("can't happen");
+ 		gins(AMOVQ, &n1, reg);
++		cgen_checknil(reg);
+ 		n1.xoffset = -(oary[i]+1);
+ 	}
+ 
+@@ -2117,16 +2075,6 @@ oindex:
+ 			o |= OAddable;
+ 	}
+ 
+-	if(!(o & ODynam) && l->type->width >= unmappedzero && l->op == OIND) {
+-		// cannot rely on page protections to
+-		// catch array ptr == 0, so dereference.
+-		n2 = *reg;
+-		n2.xoffset = 0;
+-		n2.op = OINDREG;
+-		n2.type = types[TUINT8];
+-		gins(ATESTB, nodintconst(0), &n2);
+-	}
+-
+ 	// check bounds
+ 	if(!debug['B'] && !n->bounded) {
+ 		// check bounds
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index c0fe97ece1..9b935ded8b 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -38,7 +38,6 @@ static void	elimshortmov(Graph *g);
+ static int	prevl(Flow *r, int reg);
+ static void	pushback(Flow *r);
+ static int	regconsttyp(Adr*);
+-static int	regtyp(Adr*);
+ static int	subprop(Flow*);
+ static int	copyprop(Graph*, Flow*);
+ static int	copy1(Adr*, Adr*, Flow*, int);
+@@ -374,7 +373,7 @@ excise(Flow *r)
+ 	ostats.ndelmov++;
+ }
+ 
+-static int
++int
+ regtyp(Adr *a)
+ {
+ 	int t;
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index b62dc63fe6..90571a21a7 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -40,6 +40,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[APCDATA]=	{Pseudo},
+ 	[AUNDEF]=	{OK},
+ 	[AUSEFIELD]=	{OK},
++	[ACHECKNIL]=	{LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index b96be60240..5fa73a65b1 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -761,6 +761,7 @@ enum	as
+ 	ATYPE,
+ 	AFUNCDATA,
+ 	APCDATA,
++	ACHECKNIL,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 9e797710d6..1662fe6028 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -476,12 +476,13 @@ igenindex(Node *n, Node *res, int bounded)
+ /*
+  * address gen
+  *	res = &n;
++ * The generated code checks that the result is not nil.
+  */
+ void
+ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, n4, tmp, nlen;
++	Node n1, n2, n3, tmp, nlen;
+ 	Type *t;
+ 	uint32 w;
+ 	uint64 v;
+@@ -606,16 +607,6 @@ agen(Node *n, Node *res)
+ 		// len(a) is in nlen (if needed)
+ 		// w is width
+ 
+-		// explicit check for nil if array is large enough
+-		// that we might derive too big a pointer.
+-		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+-			n4 = n3;
+-			n4.op = OINDREG;
+-			n4.type = types[TUINT8];
+-			n4.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n4);
+-		}
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+@@ -739,23 +730,11 @@ agen(Node *n, Node *res)
+ 
+ 	case OIND:
+ 		cgen(nl, res);
++		cgen_checknil(res);
+ 		break;
+ 
+ 	case ODOT:
+ 		agen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.  If the left node
+-		// was ODOT we have already done the nil check.
+-		if(nl->op != ODOT)
+-		if(nl->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], res);
+-			gmove(res, &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-			regfree(&n1);
+-		}
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[tptr], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+@@ -767,17 +746,7 @@ agen(Node *n, Node *res)
+ 		if(!isptr[t->etype])
+ 			fatal("agen: not ptr %N", n);
+ 		cgen(nl, res);
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(nl->type->type->width >= unmappedzero) {
+-			regalloc(&n1, types[tptr], res);
+-			gmove(res, &n1);
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-			regfree(&n1);
+-		}
++		cgen_checknil(res);
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[tptr], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+@@ -793,6 +762,7 @@ agen(Node *n, Node *res)
+  *
+  * on exit, a has been changed to be *newreg.
+  * caller must regfree(a).
++ * The generated code checks that the result is not *nil.
+  */
+ void
+ igen(Node *n, Node *a, Node *res)
+@@ -842,15 +812,7 @@ igen(Node *n, Node *a, Node *res)
+ 			regalloc(a, types[tptr], res);
+ 			cgen(n->left, a);
+ 		}
+-		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
+-		if(n->left->type->type->width >= unmappedzero) {
+-			n1 = *a;
+-			n1.op = OINDREG;
+-			n1.type = types[TUINT8];
+-			n1.xoffset = 0;
+-			gins(ATESTB, nodintconst(0), &n1);
+-		}
++		cgen_checknil(a);
+ 		a->op = OINDREG;
+ 		a->xoffset += n->xoffset;
+ 		a->type = n->type;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index cbe7a5e55e..609f6977f0 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -288,6 +288,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	regalloc(&nodr, types[tptr], &nodo);
+ 	if(n->left->xoffset == BADWIDTH)
+ 		fatal("cgen_callinter: badwidth");
++	cgen_checknil(&nodo);
+ 	nodo.op = OINDREG;
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+ 	
+@@ -1216,3 +1217,51 @@ ret:
+ 		patch(gbranch(optoas(a, nr->type), T, likely), to);
+ 
+ }
++
++// Called after regopt and peep have run.
++// Expand CHECKNIL pseudo-op into actual nil pointer check.
++void
++expandchecks(Prog *firstp)
++{
++	Prog *p, *p1, *p2;
++
++	for(p = firstp; p != P; p = p->link) {
++		if(p->as != ACHECKNIL)
++			continue;
++		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
++			warnl(p->lineno, "nil check %D", &p->from);
++		// check is
++		//	CMP arg, $0
++		//	JNE 2(PC) (likely)
++		//	MOV AX, 0
++		p1 = mal(sizeof *p1);
++		p2 = mal(sizeof *p2);
++		clearp(p1);
++		clearp(p2);
++		p1->link = p2;
++		p2->link = p->link;
++		p->link = p1;
++		p1->lineno = p->lineno;
++		p2->lineno = p->lineno;
++		p1->loc = 9999;
++		p2->loc = 9999;
++		p->as = ACMPL;
++		p->to.type = D_CONST;
++		p->to.offset = 0;
++		p1->as = AJNE;
++		p1->from.type = D_CONST;
++		p1->from.offset = 1; // likely
++		p1->to.type = D_BRANCH;
++		p1->to.u.branch = p2->link;
++		// crash by write to memory address 0.
++		// if possible, since we know arg is 0, use 0(arg),
++		// which will be shorter to encode than plain 0.
++		p2->as = AMOVL;
++		p2->from.type = D_AX;
++		if(regtyp(&p->from))
++			p2->to.type = p->from.type + D_INDIR;
++		else
++			p2->to.type = D_INDIR+D_NONE;
++		p2->to.offset = 0;
++	}
++}
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 703a0b5c12..4d4e55e375 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -2170,43 +2170,6 @@ gins(int as, Node *f, Node *t)
+ 	return p;
+ }
+ 
+-// Generate an instruction referencing *n
+-// to force segv on nil pointer dereference.
+-void
+-checkref(Node *n, int force)
+-{
+-	Node m;
+-
+-	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+-		return;
+-
+-	regalloc(&m, types[TUINTPTR], n);
+-	cgen(n, &m);
+-	m.xoffset = 0;
+-	m.op = OINDREG;
+-	m.type = types[TUINT8];
+-	gins(ATESTB, nodintconst(0), &m);
+-	regfree(&m);
+-}
+-
+-static void
+-checkoffset(Addr *a, int canemitcode)
+-{
+-	Prog *p;
+-
+-	if(a->offset < unmappedzero)
+-		return;
+-	if(!canemitcode)
+-		fatal("checkoffset %#x, cannot emit code", a->offset);
+-
+-	// cannot rely on unmapped nil page at 0 to catch
+-	// reference with large offset.  instead, emit explicit
+-	// test of 0(reg).
+-	p = gins(ATESTB, nodintconst(0), N);
+-	p->to = *a;
+-	p->to.offset = 0;
+-}
+-
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+@@ -2356,8 +2319,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;	// len(nil)
+ 		a->etype = tptr;
+ 		a->width = widthptr;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OLEN:
+@@ -2368,8 +2329,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = TUINT32;
+ 		a->offset += Array_nel;
+ 		a->width = 4;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OCAP:
+@@ -2380,8 +2339,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = TUINT32;
+ 		a->offset += Array_cap;
+ 		a->width = 4;
+-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+-			checkoffset(a, canemitcode);
+ 		break;
+ 
+ //	case OADD:
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 358b0977ae..6e4d8176c1 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -37,7 +37,6 @@
+ 
+ static void	conprop(Flow *r);
+ static void	elimshortmov(Graph*);
+-static int	regtyp(Adr*);
+ static int	subprop(Flow*);
+ static int	copyprop(Graph*, Flow*);
+ static int	copy1(Adr*, Adr*, Flow*, int);
+@@ -242,7 +241,7 @@ excise(Flow *r)
+ 	ostats.ndelmov++;
+ }
+ 
+-static int
++int
+ regtyp(Adr *a)
+ {
+ 	int t;
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index 05d69853b2..5fded770ea 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -40,6 +40,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[APCDATA]=	{Pseudo},
+ 	[AUNDEF]=	{OK},
+ 	[AUSEFIELD]=	{OK},
++	[ACHECKNIL]=	{LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index a804ae94ba..988e50f3e5 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -577,6 +577,7 @@ enum	as
+ 	ATYPE,
+ 	AFUNCDATA,
+ 	APCDATA,
++	ACHECKNIL,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 996504a114..8c40cb8d95 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -407,8 +407,10 @@ walkpartialcall(Node *n, NodeList **init)
+ 	// Like walkclosure above.
+ 
+ 	if(isinter(n->left->type)) {
++		// Trigger panic for method on nil interface now.
++		// Otherwise it happens in the wrapper and is confusing.
+ 		n->left = cheapexpr(n->left, init);
+-		checknotnil(n->left, init);
++		checknil(n->left, init);
+ 	}
+ 
+ 	typ = nod(OTSTRUCT, N, N);
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index c0cf99cf63..404e28e422 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -493,8 +493,8 @@ gen(Node *n)
+ 		cgen_ret(n);
+ 		break;
+ 	
+-	case OCHECKNOTNIL:
+-		checkref(n->left, 1);
++	case OCHECKNIL:
++		cgen_checknil(n->left);
+ 	}
+ 
+ ret:
+@@ -777,6 +777,8 @@ cgen_eface(Node *n, Node *res)
+  * n->left is s
+  * n->list is (cap(s)-lo(TUINT), hi-lo(TUINT)[, lo*width(TUINTPTR)])
+  * caller (cgen) guarantees res is an addable ONAME.
++ *
++ * called for OSLICE, OSLICE3, OSLICEARR, OSLICE3ARR, OSLICESTR.
+  */
+ void
+ cgen_slice(Node *n, Node *res)
+@@ -808,21 +810,26 @@ cgen_slice(Node *n, Node *res)
+ 	dst.xoffset += Array_array;
+ 	dst.type = types[TUINTPTR];
+ 
+-	if(n->op == OSLICEARR) {
+-		if(!isptr[n->left->type->etype])
+-			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+-		checkref(n->left, 0);
+-	}
+-
+ 	if(isnil(n->left)) {
+ 		tempname(&src, n->left->type);
+ 		cgen(n->left, &src);
+ 	} else
+ 		src = *n->left;
+-	src.xoffset += Array_array;
++	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
++		src.xoffset += Array_array;
+ 	src.type = types[TUINTPTR];
+ 
+-	if(offs == N) {
++	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
++		if(!isptr[n->left->type->etype])
++			fatal("slicearr is supposed to work on pointer: %+N\n", n);
++		cgen(&src, &dst);
++		cgen_checknil(&dst);
++		if(offs != N) {
++			add = nod(OADD, &dst, offs);
++			typecheck(&add, Erv);
++			cgen(add, &dst);
++		}
++	} else if(offs == N) {
+ 		cgen(&src, &dst);
+ 	} else {
+ 		add = nod(OADD, &src, offs);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f41923b635..c021e895ef 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -573,7 +573,7 @@ enum
+ 	OITAB,	// itable word of an interface value.
+ 	OCLOSUREVAR, // variable reference at beginning of closure function
+ 	OCFUNC,	// reference to c function pointer (not go func value)
+-	OCHECKNOTNIL, // emit code to ensure pointer/interface not nil
++	OCHECKNIL, // emit code to ensure pointer/interface not nil
+ 
+ 	// arch-specific registers
+ 	OREGISTER,	// a register, such as AX.
+@@ -865,6 +865,8 @@ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	litbuf[NSYMB];
+ EXTERN	int	debug[256];
++EXTERN	char*	debugstr;
++EXTERN	int	debug_checknil;
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	importmyname;	// my name for package
+ EXTERN	Pkg*	localpkg;	// package being compiled
+@@ -1445,16 +1447,18 @@ EXTERN	Prog*	firstpc;
+ EXTERN	Prog*	retpc;
+ 
+ EXTERN	Node*	nodfp;
++EXTERN	int	disable_checknil;
+ 
+ int	anyregalloc(void);
+ void	betypeinit(void);
+ void	bgen(Node *n, int true, int likely, Prog *to);
+-void	checkref(Node *n, int force);
+-void	checknotnil(Node*, NodeList**);
++void	checknil(Node*, NodeList**);
++void	expandchecks(Prog*);
+ void	cgen(Node*, Node*);
+ void	cgen_asop(Node *n);
+ void	cgen_call(Node *n, int proc);
+ void	cgen_callinter(Node *n, Node *res, int proc);
++void	cgen_checknil(Node*);
+ void	cgen_ret(Node *n);
+ void	clearfat(Node *n);
+ void	compile(Node*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 281c1c9d60..72094d7d84 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -44,6 +44,18 @@ static struct {
+ 	{nil, nil},
+ };
+ 
++// Debug arguments.
++// These can be specified with the -d flag, as in "-d checknil"
++// to set the debug_checknil variable. In general the list passed
++// to -d can be comma-separated.
++static struct {
++	char *name;
++	int *val;
++} debugtab[] = {
++	{"nil", &debug_checknil},
++	{nil, nil},
++};
++
+ static void
+ addexp(char *s)
+ {
+@@ -238,7 +250,7 @@ main(int argc, char *argv[])
+ 	flagfn0("V", "print compiler version", doversion);
+ 	flagcount("W", "debug parse tree after type checking", &debug['W']);
+ 	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
+-	flagcount("d", "debug declarations", &debug['d']);
++	flagstr("d", "list: print debug information about items in list", &debugstr);
+ 	flagcount("e", "no limit on number of errors reported", &debug['e']);
+ 	flagcount("f", "debug stack frames", &debug['f']);
+ 	flagcount("g", "debug code generation", &debug['g']);
+@@ -269,6 +281,24 @@ main(int argc, char *argv[])
+ 		racepkg = mkpkg(strlit("runtime/race"));
+ 		racepkg->name = "race";
+ 	}
++	
++	// parse -d argument
++	if(debugstr) {
++		char *f[100];
++		int i, j, nf;
++		
++		nf = getfields(debugstr, f, nelem(f), 1, ",");
++		for(i=0; i<nf; i++) {
++			for(j=0; debugtab[j].name != nil; j++) {
++				if(strcmp(debugtab[j].name, f[i]) == 0) {
++					*debugtab[j].val = 1;
++					break;
++				}
++			}
++			if(j == nelem(debugtab))
++				fatal("unknown debug information -d '%s'\n", f[i]);
++		}
++	}
+ 
+ 	// enable inlining.  for now:
+ 	//	default: inlining on.  (debug['l'] == 1)
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index f9ff41c1b0..583e77e4cc 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -171,6 +171,7 @@ compile(Node *fn)
+ 	if(!debug['N'] || debug['R'] || debug['P']) {
+ 		regopt(ptxt);
+ 	}
++	expandchecks(ptxt);
+ 
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
+@@ -504,3 +505,22 @@ movelargefn(Node *fn)
+ 			addrescapes(n);
+ 	}
+ }
++
++void
++cgen_checknil(Node *n)
++{
++	Node reg;
++
++	if(disable_checknil)
++		return;
++	while(n->op == ODOT || (n->op == OINDEX && isfixedarray(n->left->type->type))) // NOTE: not ODOTPTR
++		n = n->left;
++	if(thechar == '5' && n->op != OREGISTER) {
++		regalloc(&reg, types[tptr], N);
++		cgen(n, &reg);
++		gins(ACHECKNIL, &reg, N);
++		regfree(&reg);
++		return;
++	}
++	gins(ACHECKNIL, n, N);
++}
+diff --git a/src/cmd/gc/popt.h b/src/cmd/gc/popt.h
+index 65c2730969..4060185ed0 100644
+--- a/src/cmd/gc/popt.h
++++ b/src/cmd/gc/popt.h
+@@ -37,5 +37,6 @@ void	flowrpo(Graph*);
+ void	flowend(Graph*);
+ void	mergetemp(Prog*);
+ int	noreturn(Prog*);
++int	regtyp(Addr*);
+ Flow*	uniqp(Flow*);
+ Flow*	uniqs(Flow*);
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index b214645fa5..f8f6312806 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -398,7 +398,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	// does not require instrumentation
+ 	case OPRINT:     // don't bother instrumenting it
+ 	case OPRINTN:    // don't bother instrumenting it
+-	case OCHECKNOTNIL: // always followed by a read.
++	case OCHECKNIL: // always followed by a read.
+ 	case OPARAM:     // it appears only in fn->exit to copy heap params back
+ 	case OCLOSUREVAR:// immutable pointer to captured variable
+ 	case ODOTMETH:   // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+@@ -530,6 +530,7 @@ uintptraddr(Node *n)
+ 	Node *r;
+ 
+ 	r = nod(OADDR, n, N);
++	r->bounded = 1;
+ 	r = conv(r, types[TUNSAFEPTR]);
+ 	r = conv(r, types[TUINTPTR]);
+ 	return r;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d828c784b0..2f617ac9d0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3769,7 +3769,7 @@ isbadimport(Strlit *path)
+ }
+ 
+ void
+-checknotnil(Node *x, NodeList **init)
++checknil(Node *x, NodeList **init)
+ {
+ 	Node *n;
+ 	
+@@ -3777,7 +3777,7 @@ checknotnil(Node *x, NodeList **init)
+ 		x = nod(OITAB, x, N);
+ 		typecheck(&x, Erv);
+ 	}
+-	n = nod(OCHECKNOTNIL, x, N);
++	n = nod(OCHECKNIL, x, N);
+ 	n->typecheck = 1;
+ 	*init = list(*init, n);
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 7e5f678028..bc0a15e1a0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -184,7 +184,7 @@ walkstmt(Node **np)
+ 	case OLABEL:
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+-	case OCHECKNOTNIL:
++	case OCHECKNIL:
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -405,8 +405,9 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OIND:
+ 		if(n->left->type->type->width == 0) {
++			// No actual copy will be generated, so emit an explicit nil check.
+ 			n->left = cheapexpr(n->left, init);
+-			checknotnil(n->left, init);
++			checknil(n->left, init);
+ 		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+@@ -419,8 +420,9 @@ walkexpr(Node **np, NodeList **init)
+ 	case ODOTPTR:
+ 		usefield(n);
+ 		if(n->op == ODOTPTR && n->left->type->type->width == 0) {
++			// No actual copy will be generated, so emit an explicit nil check.
+ 			n->left = cheapexpr(n->left, init);
+-			checknotnil(n->left, init);
++			checknil(n->left, init);
+ 		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+diff --git a/test/nilcheck.go b/test/nilcheck.go
+new file mode 100644
+index 0000000000..fe05d05c92
+--- /dev/null
++++ b/test/nilcheck.go
+@@ -0,0 +1,184 @@
++// errorcheck -0 -N -d=nil
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that nil checks are inserted.
++// Optimization is disabled, so redundant checks are not removed.
++
++package p
++
++type Struct struct {
++	X int
++	Y float64
++}
++
++type BigStruct struct {
++	X int
++	Y float64
++	A [1<<20]int
++	Z string
++}
++
++type Empty struct {
++}
++
++type Empty1 struct {
++	Empty
++}
++
++var (
++	intp *int
++	arrayp *[10]int
++	array0p *[0]int
++	bigarrayp *[1<<26]int
++	structp *Struct
++	bigstructp *BigStruct
++	emptyp *Empty
++	empty1p *Empty1
++)
++
++func f1() {
++	_ = *intp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++	_ = *array0p // ERROR "nil check"
++	_ = *array0p // ERROR "nil check"
++	_ = *intp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++	_ = *structp // ERROR "nil check"
++	_ = *emptyp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++}
++
++func f2() {
++	var (
++		intp *int
++		arrayp *[10]int
++		array0p *[0]int
++		bigarrayp *[1<<20]int
++		structp *Struct
++		bigstructp *BigStruct
++		emptyp *Empty
++		empty1p *Empty1
++	)
++
++	_ = *intp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++	_ = *array0p // ERROR "nil check"
++	_ = *array0p // ERROR "nil check"
++	_ = *intp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++	_ = *structp // ERROR "nil check"
++	_ = *emptyp // ERROR "nil check"
++	_ = *arrayp // ERROR "nil check"
++	_ = *bigarrayp // ERROR "nil check"
++	_ = *bigstructp // ERROR "nil check"
++	_ = *empty1p // ERROR "nil check"
++}
++
++func fx10k() *[10000]int
++var b bool
++
++
++func f3(x *[10000]int) {
++	// Using a huge type and huge offsets so the compiler
++	// does not expect the memory hardware to fault.
++	_ = x[9999] // ERROR "nil check"
++	
++	for {
++		if x[9999] != 0 { // ERROR "nil check"
++			break
++		}
++	}
++	
++	x = fx10k() 
++	_ = x[9999] // ERROR "nil check"
++	if b {
++		_ = x[9999] // ERROR "nil check"
++	} else {
++		_ = x[9999] // ERROR "nil check"
++	}	
++	_ = x[9999] // ERROR "nil check"
++
++	x = fx10k() 
++	if b {
++		_ = x[9999] // ERROR "nil check"
++	} else {
++		_ = x[9999] // ERROR "nil check"
++	}	
++	_ = x[9999] // ERROR "nil check"
++	
++	fx10k()
++	// This one is a bit redundant, if we figured out that
++	// x wasn't going to change across the function call.
++	// But it's a little complex to do and in practice doesn't
++	// matter enough.
++	_ = x[9999] // ERROR "nil check"
++}
++
++func f3a() {
++	x := fx10k()
++	y := fx10k()
++	z := fx10k()
++	_ = &x[9] // ERROR "nil check"
++	y = z
++	_ = &x[9] // ERROR "nil check"
++	x = y
++	_ = &x[9] // ERROR "nil check"
++}
++
++func f3b() {
++	x := fx10k()
++	y := fx10k()
++	_ = &x[9] // ERROR "nil check"
++	y = x
++	_ = &x[9] // ERROR "nil check"
++	x = y
++	_ = &x[9] // ERROR "nil check"
++}
++
++func fx10() *[10]int 
++
++func f4(x *[10]int) {
++	// Most of these have no checks because a real memory reference follows,
++	// and the offset is small enough that if x is nil, the address will still be
++	// in the first unmapped page of memory.
++
++	_ = x[9] // ERROR "nil check"
++	
++	for {
++		if x[9] != 0 { // ERROR "nil check"
++			break
++		}
++	}
++	
++	x = fx10() 
++	_ = x[9] // ERROR "nil check"
++	if b {
++		_ = x[9] // ERROR "nil check"
++	} else {
++		_ = x[9] // ERROR "nil check"
++	}	
++	_ = x[9] // ERROR "nil check"
++
++	x = fx10() 
++	if b {
++		_ = x[9] // ERROR "nil check"
++	} else {
++		_ = &x[9] // ERROR "nil check"
++	}	
++	_ = x[9] // ERROR "nil check"
++	
++	fx10()
++	_ = x[9] // ERROR "nil check"
++	
++	x = fx10()
++	y := fx10()
++	_ = &x[9] // ERROR "nil check"
++	y = x
++	_ = &x[9] // ERROR "nil check"
++	x = y
++	_ = &x[9] // ERROR "nil check"
++}
++
+diff --git a/test/nilptr2.go b/test/nilptr2.go
+new file mode 100644
+index 0000000000..3d9ca0a7a0
+--- /dev/null
++++ b/test/nilptr2.go
+@@ -0,0 +1,128 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	ok := true
++	for _, tt := range tests {
++		func() {
++			defer func() {
++				if err := recover(); err == nil {
++					println(tt.name, "did not panic")
++					ok = false
++				}
++			}()
++			tt.fn()
++		}()
++	}
++	if !ok {
++		println("BUG")
++	}
++}
++
++var intp *int
++var slicep *[]byte
++var a10p *[10]int
++var a10Mp *[1<<20]int
++var structp *Struct
++var bigstructp *BigStruct
++var i int
++var m *M
++var m1 *M1
++var m2 *M2
++
++func use(interface{}) {
++}
++
++var tests = []struct{
++	name string
++	fn func()
++}{
++	// Edit .+1,/^}/s/^[^	].+/	{"&", func() { println(&) }},\n	{"\&&", func() { println(\&&) }},/g
++	{"*intp", func() { println(*intp) }},
++	{"&*intp", func() { println(&*intp) }},
++	{"*slicep", func() { println(*slicep) }},
++	{"&*slicep", func() { println(&*slicep) }},
++	{"(*slicep)[0]", func() { println((*slicep)[0]) }},
++	{"&(*slicep)[0]", func() { println(&(*slicep)[0]) }},
++	{"(*slicep)[i]", func() { println((*slicep)[i]) }},
++	{"&(*slicep)[i]", func() { println(&(*slicep)[i]) }},
++	{"*a10p", func() { use(*a10p) }},
++	{"&*a10p", func() { println(&*a10p) }},
++	{"a10p[0]", func() { println(a10p[0]) }},
++	{"&a10p[0]", func() { println(&a10p[0]) }},
++	{"a10p[i]", func() { println(a10p[i]) }},
++	{"&a10p[i]", func() { println(&a10p[i]) }},
++	{"*structp", func() { use(*structp) }},
++	{"&*structp", func() { println(&*structp) }},
++	{"structp.i", func() { println(structp.i) }},
++	{"&structp.i", func() { println(&structp.i) }},
++	{"structp.j", func() { println(structp.j) }},
++	{"&structp.j", func() { println(&structp.j) }},
++	{"structp.k", func() { println(structp.k) }},
++	{"&structp.k", func() { println(&structp.k) }},
++	{"structp.x[0]", func() { println(structp.x[0]) }},
++	{"&structp.x[0]", func() { println(&structp.x[0]) }},
++	{"structp.x[i]", func() { println(structp.x[i]) }},
++	{"&structp.x[i]", func() { println(&structp.x[i]) }},
++	{"structp.x[9]", func() { println(structp.x[9]) }},
++	{"&structp.x[9]", func() { println(&structp.x[9]) }},
++	{"structp.l", func() { println(structp.l) }},
++	{"&structp.l", func() { println(&structp.l) }},
++	{"*bigstructp", func() { use(*bigstructp) }},
++	{"&*bigstructp", func() { println(&*bigstructp) }},
++	{"bigstructp.i", func() { println(bigstructp.i) }},
++	{"&bigstructp.i", func() { println(&bigstructp.i) }},
++	{"bigstructp.j", func() { println(bigstructp.j) }},
++	{"&bigstructp.j", func() { println(&bigstructp.j) }},
++	{"bigstructp.k", func() { println(bigstructp.k) }},
++	{"&bigstructp.k", func() { println(&bigstructp.k) }},
++	{"bigstructp.x[0]", func() { println(bigstructp.x[0]) }},
++	{"&bigstructp.x[0]", func() { println(&bigstructp.x[0]) }},
++	{"bigstructp.x[i]", func() { println(bigstructp.x[i]) }},
++	{"&bigstructp.x[i]", func() { println(&bigstructp.x[i]) }},
++	{"bigstructp.x[9]", func() { println(bigstructp.x[9]) }},
++	{"&bigstructp.x[9]", func() { println(&bigstructp.x[9]) }},
++	{"bigstructp.x[200<<20]", func() { println(bigstructp.x[200<<20]) }},
++	{"&bigstructp.x[200<<20]", func() { println(&bigstructp.x[200<<20]) }},
++	{"bigstructp.l", func() { println(bigstructp.l) }},
++	{"&bigstructp.l", func() { println(&bigstructp.l) }},
++	{"m1.F()", func() { println(m1.F()) }},
++	{"m1.M.F()", func() { println(m1.M.F()) }},
++	{"m2.F()", func() { println(m2.F()) }},
++	{"m2.M.F()", func() { println(m2.M.F()) }},
++}
++
++type Struct struct {
++	i int
++	j float64
++	k string
++	x [10]int
++	l []byte
++}
++
++type BigStruct struct {
++	i int
++	j float64
++	k string
++	x [256<<20]byte
++	l []byte
++}
++
++type M struct {
++}
++
++func (m *M) F() int {return 0}
++
++type M1 struct {
++	M
++}
++
++type M2 struct {
++	x int
++	M
++}

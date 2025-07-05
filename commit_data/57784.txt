@@ -13,6 +13,29 @@ Date:   Tue Aug 29 23:45:52 2023 +0100
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/zip/struct.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 9a8e67cc69..bdcc45c729 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -17,7 +17,7 @@ for normal archives both fields will be the same. For files requiring
+ the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
+ fields must be used instead.
+ 
+-[ZIP specification]: https://www.pkware.com/appnote
++[ZIP specification]: https://support.pkware.com/pkzip/appnote
+ */
+ package zip
+ 
+@@ -82,7 +82,7 @@ const (
+ // FileHeader describes a file within a ZIP file.
+ // See the [ZIP specification] for details.
+ //
+-// [ZIP specification]: https://www.pkware.com/appnote
++// [ZIP specification]: https://support.pkware.com/pkzip/appnote
+ type FileHeader struct {
+ 	// Name is the name of the file.
+ 	//

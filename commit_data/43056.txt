@@ -18,6 +18,22 @@ Date:   Tue Mar 3 22:50:34 2020 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 56d13db805..058ef78f76 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1945,9 +1945,8 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		if t == 0 {
+ 			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
+ 		}
+-		if !l.attrReachable.Has(gi) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
++		if !l.attrReachable.Has(gi) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+ 			// No need to load unreachable symbols.
+-			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
+ 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
+ 			continue
+ 		}

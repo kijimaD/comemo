@@ -15,9 +15,208 @@ Date:   Sun Apr 19 21:17:27 2009 -0700
     DELTA=122  (122 added, 0 deleted, 0 changed)
     OCL=27617
     CL=27622
-
+---
  src/lib/Makefile      |  3 +++
  src/lib/exvar.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/exvar_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/http/triv.go  | 10 +++++++++
  4 files changed, 127 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 367265f228..640f329ddf 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -30,6 +30,7 @@ FILES=\
+ 	bignum\
+ 	bufio\
+ 	exec\
++	exvar\
+ 	flag\
+ 	log\
+ 	malloc\
+@@ -44,6 +45,7 @@ TEST=\
+ 	bignum\
+ 	bufio\
+ 	exec\
++	exvar\
+ 	flag\
+ 	log\
+ 	once\
+@@ -97,6 +99,7 @@ test: test.files
+ bignum.6: fmt.dirinstall
+ bufio.6: io.dirinstall os.dirinstall
+ exec.6: os.dirinstall strings.install
++exvar.6: fmt.dirinstall sync.dirinstall
+ flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+ path.6: io.dirinstall
+diff --git a/src/lib/exvar.go b/src/lib/exvar.go
+new file mode 100644
+index 0000000000..ccfd34acd9
+--- /dev/null
++++ b/src/lib/exvar.go
+@@ -0,0 +1,60 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The exvar package provides a standardized interface to public variables,
++// such as operation counters in servers.
++package exvar
++
++import (
++	"fmt";
++	"sync";
++)
++
++// Global state.
++var (
++	mutex sync.Mutex;
++	intVars = make(map[string] int);
++	mapVars = make(map[string] map[string] int);
++	// TODO(dsymonds):
++	// - string-valued vars
++	// - docstrings
++	// - dynamic lookup vars (via chan)
++)
++
++// Increment adds inc to the var called name.
++func Increment(name string, inc int) {
++	mutex.Lock();
++	defer mutex.Unlock();
++
++	if x, ok := intVars[name]; ok {
++		intVars[name] += inc
++	} else {
++		intVars[name] = inc
++	}
++}
++
++// Set sets the var called name to value.
++func Set(name string, value int) {
++	intVars[name] = value
++}
++
++// Get retrieves an integer-valued var called name.
++func Get(name string) (x int, ok bool) {
++	x, ok = intVars[name];
++	return
++}
++
++// TODO(dsymonds): Functions for map-valued vars.
++
++// String produces a string of all the vars in textual format.
++func String() string {
++	mutex.Lock();
++	defer mutex.Unlock();
++
++	s := "";
++	for name, value := range intVars {
++		s += fmt.Sprintln(name, value)
++	}
++	return s
++}
+diff --git a/src/lib/exvar_test.go b/src/lib/exvar_test.go
+new file mode 100644
+index 0000000000..2948fc6365
+--- /dev/null
++++ b/src/lib/exvar_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exvar
++
++import (
++	"exvar";
++	"fmt";
++	"testing";
++)
++
++func TestSimpleCounter(t *testing.T) {
++	// Unknown exvar should be zero, and return !ok.
++	x, ok := Get("requests");
++	if x != 0 || ok {
++		t.Errorf("Get(nonexistent) = (%v, %v), want (%v, %v)",
++		         x, ok, 0, false)
++	}
++
++	Increment("requests", 1);
++	Increment("requests", 3);
++	x, ok = Get("requests");
++	if x != 4 || !ok {
++		t.Errorf("Get('requests') = (%v, %v), want (%v, %v)",
++		         x, ok, 4, true)
++	}
++
++	out := String();
++	if out != "requests 4\n" {
++		t.Errorf("String() = \"%v\", want \"requests 4\n\"",
++		         out);
++	}
++}
++
++func hammer(name string, total int, done chan <- int) {
++	for i := 0; i < total; i++ {
++		Increment(name, 1)
++	}
++	done <- 1
++}
++
++func TestHammer(t *testing.T) {
++	Set("hammer-times", 0);
++	sync := make(chan int);
++	hammer_times := int(1e5);
++	go hammer("hammer-times", hammer_times, sync);
++	go hammer("hammer-times", hammer_times, sync);
++	<-sync;
++	<-sync;
++	if final, ok := Get("hammer-times"); final != 2 * hammer_times {
++		t.Errorf("hammer-times = %v, want %v", final, 2 * hammer_times)
++	}
++}
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index daf5eb8c0c..48e345e5e8 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bufio";
++	"exvar";
+ 	"flag";
+ 	"fmt";
+ 	"http";
+@@ -17,15 +18,23 @@ import (
+ 
+ // hello world, the web server
+ func HelloServer(c *http.Conn, req *http.Request) {
++	exvar.Increment("hello-requests", 1);
+ 	io.WriteString(c, "hello, world!\n");
+ }
+ 
++// Handler for /exvar requests.
++func ExvarServer(c *http.Conn, req *http.Request) {
++	c.SetHeader("content-type", "text/plain; charset=utf-8");
++	io.WriteString(c, exvar.String());
++}
++
+ // simple counter server
+ type Counter struct {
+ 	n int;
+ }
+ 
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
++	exvar.Increment("counter-requests", 1);
+ 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+ 	ctr.n++;
+ }
+@@ -92,6 +101,7 @@ func main() {
+ 	http.Handle("/args", http.HandlerFunc(ArgServer));
+ 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
+ 	http.Handle("/chan", ChanCreate());
++	http.Handle("/exvar", http.HandlerFunc(ExvarServer));
+ 	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+ 		panic("ListenAndServe: ", err.String())

@@ -8,7 +8,32 @@ Date:   Sat Nov 1 08:27:55 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/164410043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cea02ac3ec..48a262bbd7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -65,6 +65,7 @@ Aulus Egnatius Varialus <varialus@gmail.com>
+ Ben Olive <sionide21@gmail.com>
+ Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
++Benoit Sigoure <tsunanet@gmail.com>
+ Berengar Lehr <berengar.lehr@gmx.de>
+ Billie Harold Cleek <bhcleek@gmail.com>
+ Bjorn Tillenius <bjorn@tillenius.me>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8c5ceea8a6..ec69858b60 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -104,6 +104,7 @@ Ben Lynn <benlynn@gmail.com>
+ Ben Olive <sionide21@gmail.com>
+ Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
++Benoit Sigoure <tsunanet@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com> <bill.neubauer@gmail.com>
+ Bill Thiede <couchmoney@gmail.com>

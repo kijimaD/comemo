@@ -7,7 +7,71 @@ Date:   Tue Aug 29 13:09:59 2017 +1000
     Change-Id: I2c217e03779772605aa0b5a33ef80459333eeebc
     Reviewed-on: https://go-review.googlesource.com/59790
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 16 ----------------
  src/cmd/link/internal/ld/pe.go    | 21 ++++++++++++++++++---
  2 files changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 27d78c4ad8..582aec83b5 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1658,19 +1658,3 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ 		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+ 	}
+ }
+-
+-/*
+- * Windows PE
+- */
+-func dwarfaddpeheaders(ctxt *Link) {
+-	if *FlagW { // disable dwarf
+-		return
+-	}
+-	for _, sect := range Segdwarf.Sections {
+-		h := pefile.addDWARFSection(sect.Name, int(sect.Length))
+-		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
+-		if uint64(h.PointerToRawData) != fileoff {
+-			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+-		}
+-	}
+-}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 2add05f67f..5820c087a0 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -428,6 +428,23 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
+ 	return h
+ }
+ 
++// addDWARF adds DWARF information to the COFF file f.
++func (f *peFile) addDWARF() {
++	if *FlagS { // disable symbol table
++		return
++	}
++	if *FlagW { // disable dwarf
++		return
++	}
++	for _, sect := range Segdwarf.Sections {
++		h := f.addDWARFSection(sect.Name, int(sect.Length))
++		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
++		if uint64(h.PointerToRawData) != fileoff {
++			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
++		}
++	}
++}
++
+ // addInitArray adds .ctors COFF section to the file f.
+ func (f *peFile) addInitArray(ctxt *Link) *peSection {
+ 	// The size below was determined by the specification for array relocations,
+@@ -1307,9 +1324,7 @@ func Asmbpe(ctxt *Link) {
+ 		pefile.bssSect = b
+ 	}
+ 
+-	if !*FlagS {
+-		dwarfaddpeheaders(ctxt)
+-	}
++	pefile.addDWARF()
+ 
+ 	if Linkmode == LinkExternal {
+ 		pefile.ctorsSect = pefile.addInitArray(ctxt)

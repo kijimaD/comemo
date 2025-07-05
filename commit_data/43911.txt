@@ -18,7 +18,7 @@ Date:   Thu Apr 23 15:36:28 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |  5 ++
  src/cmd/compile/internal/ppc64/ssa.go        |  3 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 12 +++--
@@ -29,3 +29,493 @@ Date:   Thu Apr 23 15:36:28 2020 -0400
  src/cmd/internal/obj/ppc64/anames.go         | 12 -----
  src/cmd/internal/obj/ppc64/asm9.go           | 55 ++++++++-------------
  9 files changed, 171 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index 0fa26d14cc..35464f37fd 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -236,6 +236,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	DIVDEU R3, R4, R5               // 7ca41b12
+ 	DIVDEUCC R3, R4, R5             // 7ca41b13
+ 
++	REM R3, R4, R5                  // 7fe41bd67fff19d67cbf2050
++	REMU R3, R4, R5                 // 7fe41b967fff19d67bff00287cbf2050
++	REMD R3, R4, R5                 // 7fe41bd27fff19d27cbf2050
++	REMDU R3, R4, R5                // 7fe41b927fff19d27cbf2050
++
+ 	MODUD R3, R4, R5                // 7ca41a12
+ 	MODUW R3, R4, R5                // 7ca41a16
+ 	MODSD R3, R4, R5                // 7ca41e12
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index efb940b7d9..0efdd710fb 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -571,7 +571,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpPPC64ROTL, ssa.OpPPC64ROTLW,
+ 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
+ 		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
+-		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV:
++		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV,
++		ssa.OpPPC64MODUD, ssa.OpPPC64MODSD, ssa.OpPPC64MODUW, ssa.OpPPC64MODSW:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index e59bd3f90f..d8041e810f 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -15,10 +15,14 @@
+ (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+ (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))
+ (Mod8u x y) => (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+-(Mod64 x y) => (SUB x (MULLD y (DIVD x y)))
+-(Mod64u x y) => (SUB x (MULLD y (DIVDU x y)))
+-(Mod32 x y) => (SUB x (MULLW y (DIVW x y)))
+-(Mod32u x y) => (SUB x (MULLW y (DIVWU x y)))
++(Mod64 x y) && objabi.GOPPC64 >=9 => (MODSD x y)
++(Mod64 x y) && objabi.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
++(Mod64u x y) && objabi.GOPPC64 >= 9 => (MODUD x y)
++(Mod64u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
++(Mod32 x y) && objabi.GOPPC64 >= 9 => (MODSW x y)
++(Mod32 x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
++(Mod32u x y) && objabi.GOPPC64 >= 9 => (MODUW x y)
++(Mod32u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
+ 
+ // (x + y) / 2 with x>=y => (x - y) / 2 + y
+ (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 0199c8f713..63e0b93667 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -236,6 +236,10 @@ func init() {
+ 		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", typ: "Int64"}, // arg0/arg1 (unsigned 64-bit)
+ 		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", typ: "Int32"}, // arg0/arg1 (unsigned 32-bit)
+ 
++		{name: "MODUD", argLength: 2, reg: gp21, asm: "MODUD", typ: "UInt64"}, // arg0 % arg1 (unsigned 64-bit)
++		{name: "MODSD", argLength: 2, reg: gp21, asm: "MODSD", typ: "Int64"},  // arg0 % arg1 (signed 64-bit)
++		{name: "MODUW", argLength: 2, reg: gp21, asm: "MODUW", typ: "UInt32"}, // arg0 % arg1 (unsigned 32-bit)
++		{name: "MODSW", argLength: 2, reg: gp21, asm: "MODSW", typ: "Int32"},  // arg0 % arg1 (signed 32-bit)
+ 		// MOD is implemented as rem := arg0 - (arg0/arg1) * arg1
+ 
+ 		// Conversions are all float-to-float register operations.  "Integer" refers to encoding in the FP register.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d708c8480f..981be13200 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1777,6 +1777,10 @@ const (
+ 	OpPPC64DIVW
+ 	OpPPC64DIVDU
+ 	OpPPC64DIVWU
++	OpPPC64MODUD
++	OpPPC64MODSD
++	OpPPC64MODUW
++	OpPPC64MODSW
+ 	OpPPC64FCTIDZ
+ 	OpPPC64FCTIWZ
+ 	OpPPC64FCFID
+@@ -23379,6 +23383,62 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MODUD",
++		argLen: 2,
++		asm:    ppc64.AMODUD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MODSD",
++		argLen: 2,
++		asm:    ppc64.AMODSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MODUW",
++		argLen: 2,
++		asm:    ppc64.AMODUW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MODSW",
++		argLen: 2,
++		asm:    ppc64.AMODSW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "FCTIDZ",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 13c188e78d..0b798c6a72 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3231,10 +3231,27 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod32 x y)
++	// cond: objabi.GOPPC64 >= 9
++	// result: (MODSW x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64MODSW)
++		v.AddArg2(x, y)
++		return true
++	}
++	// match: (Mod32 x y)
++	// cond: objabi.GOPPC64 <= 8
+ 	// result: (SUB x (MULLW y (DIVW x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64SUB)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, typ.Int32)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64DIVW, typ.Int32)
+@@ -3243,6 +3260,7 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpMod32u(v *Value) bool {
+ 	v_1 := v.Args[1]
+@@ -3250,10 +3268,27 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod32u x y)
++	// cond: objabi.GOPPC64 >= 9
++	// result: (MODUW x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64MODUW)
++		v.AddArg2(x, y)
++		return true
++	}
++	// match: (Mod32u x y)
++	// cond: objabi.GOPPC64 <= 8
+ 	// result: (SUB x (MULLW y (DIVWU x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64SUB)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, typ.Int32)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64DIVWU, typ.Int32)
+@@ -3262,6 +3297,7 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpMod64(v *Value) bool {
+ 	v_1 := v.Args[1]
+@@ -3269,10 +3305,27 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod64 x y)
++	// cond: objabi.GOPPC64 >=9
++	// result: (MODSD x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64MODSD)
++		v.AddArg2(x, y)
++		return true
++	}
++	// match: (Mod64 x y)
++	// cond: objabi.GOPPC64 <=8
+ 	// result: (SUB x (MULLD y (DIVD x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64SUB)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MULLD, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64DIVD, typ.Int64)
+@@ -3281,6 +3334,7 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpMod64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+@@ -3288,10 +3342,27 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod64u x y)
++	// cond: objabi.GOPPC64 >= 9
++	// result: (MODUD x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64MODUD)
++		v.AddArg2(x, y)
++		return true
++	}
++	// match: (Mod64u x y)
++	// cond: objabi.GOPPC64 <= 8
+ 	// result: (SUB x (MULLD y (DIVDU x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64SUB)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MULLD, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64DIVDU, typ.Int64)
+@@ -3300,6 +3371,7 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpMod8(v *Value) bool {
+ 	v_1 := v.Args[1]
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 6642f25f89..8b32692778 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -569,13 +569,7 @@ const (
+ 	AORNCC
+ 	AORIS
+ 	AREM
+-	AREMCC
+-	AREMV
+-	AREMVCC
+ 	AREMU
+-	AREMUCC
+-	AREMUV
+-	AREMUVCC
+ 	ARFI
+ 	ARLWMI
+ 	ARLWMICC
+@@ -741,13 +735,7 @@ const (
+ 	/* 64-bit pseudo operation */
+ 	ADWORD
+ 	AREMD
+-	AREMDCC
+-	AREMDV
+-	AREMDVCC
+ 	AREMDU
+-	AREMDUCC
+-	AREMDUV
+-	AREMDUVCC
+ 
+ 	/* more 64-bit operations */
+ 	AHRFID
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 392356885a..287011877c 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -174,13 +174,7 @@ var Anames = []string{
+ 	"ORNCC",
+ 	"ORIS",
+ 	"REM",
+-	"REMCC",
+-	"REMV",
+-	"REMVCC",
+ 	"REMU",
+-	"REMUCC",
+-	"REMUV",
+-	"REMUVCC",
+ 	"RFI",
+ 	"RLWMI",
+ 	"RLWMICC",
+@@ -335,13 +329,7 @@ var Anames = []string{
+ 	"TD",
+ 	"DWORD",
+ 	"REMD",
+-	"REMDCC",
+-	"REMDV",
+-	"REMDVCC",
+ 	"REMDU",
+-	"REMDUCC",
+-	"REMDUV",
+-	"REMDUVCC",
+ 	"HRFID",
+ 	"POPCNTD",
+ 	"POPCNTW",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 7b73b9f786..0fd0744a42 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -378,8 +378,6 @@ var optab = []Optab{
+ 	{AREMU, C_REG, C_REG, C_NONE, C_REG, 50, 16, 0},
+ 	{AREMD, C_REG, C_NONE, C_NONE, C_REG, 51, 12, 0},
+ 	{AREMD, C_REG, C_REG, C_NONE, C_REG, 51, 12, 0},
+-	{AREMDU, C_REG, C_NONE, C_NONE, C_REG, 51, 12, 0},
+-	{AREMDU, C_REG, C_REG, C_NONE, C_REG, 51, 12, 0},
+ 	{AMTFSB0, C_SCON, C_NONE, C_NONE, C_NONE, 52, 4, 0},
+ 	{AMOVFL, C_FPSCR, C_NONE, C_NONE, C_FREG, 53, 4, 0},
+ 	{AMOVFL, C_FREG, C_NONE, C_NONE, C_FPSCR, 64, 4, 0},
+@@ -1265,31 +1263,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASTWCCC, r0)
+ 			opset(ASTHCCC, r0)
+ 			opset(ASTBCCC, r0)
+-
+ 			opset(ASTDCCC, r0)
+ 
+ 		case AREM: /* macro */
+-			opset(AREMCC, r0)
+-
+-			opset(AREMV, r0)
+-			opset(AREMVCC, r0)
++			opset(AREM, r0)
+ 
+ 		case AREMU:
+ 			opset(AREMU, r0)
+-			opset(AREMUCC, r0)
+-			opset(AREMUV, r0)
+-			opset(AREMUVCC, r0)
+ 
+ 		case AREMD:
+-			opset(AREMDCC, r0)
+-			opset(AREMDV, r0)
+-			opset(AREMDVCC, r0)
+-
+-		case AREMDU:
+ 			opset(AREMDU, r0)
+-			opset(AREMDUCC, r0)
+-			opset(AREMDUV, r0)
+-			opset(AREMDUVCC, r0)
+ 
+ 		case ADIVW: /* op Rb[,Ra],Rd */
+ 			opset(AMULHW, r0)
+@@ -3253,6 +3236,9 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
+ 		o2 = AOP_RRR(OP_MULLD, REGTMP, REGTMP, uint32(p.From.Reg))
+ 		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
++		/* cases 50,51: removed; can be reused. */
++
++		/* cases 50,51: removed; can be reused. */
+ 
+ 	case 52: /* mtfsbNx cr(n) */
+ 		v := c.regoff(&p.From) & 31
+@@ -3922,35 +3908,34 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case AMODSW:
+ 		return OPVCC(31, 779, 0, 0) /* modsw - v3.0 */
+ 
+-	// TODO: Should REMs be here?
+-	case AREM, ADIVW:
++	case ADIVW, AREM:
+ 		return OPVCC(31, 491, 0, 0)
+ 
+-	case AREMCC, ADIVWCC:
++	case ADIVWCC:
+ 		return OPVCC(31, 491, 0, 1)
+ 
+-	case AREMV, ADIVWV:
++	case ADIVWV:
+ 		return OPVCC(31, 491, 1, 0)
+ 
+-	case AREMVCC, ADIVWVCC:
++	case ADIVWVCC:
+ 		return OPVCC(31, 491, 1, 1)
+ 
+-	case AREMU, ADIVWU:
++	case ADIVWU, AREMU:
+ 		return OPVCC(31, 459, 0, 0)
+ 
+-	case AREMUCC, ADIVWUCC:
++	case ADIVWUCC:
+ 		return OPVCC(31, 459, 0, 1)
+ 
+-	case AREMUV, ADIVWUV:
++	case ADIVWUV:
+ 		return OPVCC(31, 459, 1, 0)
+ 
+-	case AREMUVCC, ADIVWUVCC:
++	case ADIVWUVCC:
+ 		return OPVCC(31, 459, 1, 1)
+ 
+-	case AREMD, ADIVD:
++	case ADIVD, AREMD:
+ 		return OPVCC(31, 489, 0, 0)
+ 
+-	case AREMDCC, ADIVDCC:
++	case ADIVDCC:
+ 		return OPVCC(31, 489, 0, 1)
+ 
+ 	case ADIVDE:
+@@ -3965,22 +3950,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case ADIVDEUCC:
+ 		return OPVCC(31, 393, 0, 1)
+ 
+-	case AREMDV, ADIVDV:
++	case ADIVDV:
+ 		return OPVCC(31, 489, 1, 0)
+ 
+-	case AREMDVCC, ADIVDVCC:
++	case ADIVDVCC:
+ 		return OPVCC(31, 489, 1, 1)
+ 
+-	case AREMDU, ADIVDU:
++	case ADIVDU, AREMDU:
+ 		return OPVCC(31, 457, 0, 0)
+ 
+-	case AREMDUCC, ADIVDUCC:
++	case ADIVDUCC:
+ 		return OPVCC(31, 457, 0, 1)
+ 
+-	case AREMDUV, ADIVDUV:
++	case ADIVDUV:
+ 		return OPVCC(31, 457, 1, 0)
+ 
+-	case AREMDUVCC, ADIVDUVCC:
++	case ADIVDUVCC:
+ 		return OPVCC(31, 457, 1, 1)
+ 
+ 	case AEIEIO:

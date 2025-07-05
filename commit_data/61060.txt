@@ -63,6 +63,33 @@ Date:   Sat Jul 13 12:18:04 2024 +0700
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 30703005b3..f2a9bd055a 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -575,15 +575,15 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 
+ 	// Check that the backtrace matches the source code.
+ 	types := []string{
+-		"[]main.astruct;",
+-		"bucket<string,main.astruct>;",
+-		"hash<string,main.astruct>;",
+-		"main.astruct;",
+-		"hash<string,main.astruct> * map[string]main.astruct;",
++		"[]main.astruct",
++		"bucket<string,main.astruct>",
++		"hash<string,main.astruct>",
++		"main.astruct",
++		"hash<string,main.astruct> * map[string]main.astruct",
+ 	}
+ 	for _, name := range types {
+ 		if !strings.Contains(sgot, name) {
+-			t.Fatalf("could not find %s in 'info typrs astruct' output", name)
++			t.Fatalf("could not find %q in 'info typrs astruct' output", name)
+ 		}
+ 	}
+ }

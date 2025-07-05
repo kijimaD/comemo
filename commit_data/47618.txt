@@ -19,7 +19,7 @@ Date:   Thu Apr 1 15:02:11 2021 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/abi.go            |  6 +++---
  src/reflect/regabiargs_off.go | 10 ++++++++++
  src/reflect/regabiargs_on.go  | 10 ++++++++++
@@ -27,3 +27,95 @@ Date:   Thu Apr 1 15:02:11 2021 +0000
  src/runtime/regabiargs_on.go  | 10 ++++++++++
  src/runtime/stubs.go          |  2 +-
  6 files changed, 44 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 002e4598b9..ab19695edc 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -28,9 +28,9 @@ import (
+ // commented out there should be the actual values once
+ // we're ready to use the register ABI everywhere.
+ var (
+-	intArgRegs   = 0          // abi.IntArgRegs
+-	floatArgRegs = 0          // abi.FloatArgRegs
+-	floatRegSize = uintptr(0) // uintptr(abi.EffectiveFloatRegSize)
++	intArgRegs   = abi.IntArgRegs * experimentRegabiArgs
++	floatArgRegs = abi.FloatArgRegs * experimentRegabiArgs
++	floatRegSize = uintptr(abi.EffectiveFloatRegSize * experimentRegabiArgs)
+ )
+ 
+ // abiStep represents an ABI "instruction." Each instruction
+diff --git a/src/reflect/regabiargs_off.go b/src/reflect/regabiargs_off.go
+new file mode 100644
+index 0000000000..655e955474
+--- /dev/null
++++ b/src/reflect/regabiargs_off.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !goexperiment.regabiargs
++// +build !goexperiment.regabiargs
++
++package reflect
++
++const experimentRegabiArgs = 0
+diff --git a/src/reflect/regabiargs_on.go b/src/reflect/regabiargs_on.go
+new file mode 100644
+index 0000000000..0f33b22ff9
+--- /dev/null
++++ b/src/reflect/regabiargs_on.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabiargs
++// +build goexperiment.regabiargs
++
++package reflect
++
++const experimentRegabiArgs = 1
+diff --git a/src/runtime/regabiargs_off.go b/src/runtime/regabiargs_off.go
+new file mode 100644
+index 0000000000..49d7bcc28d
+--- /dev/null
++++ b/src/runtime/regabiargs_off.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !goexperiment.regabiargs
++// +build !goexperiment.regabiargs
++
++package runtime
++
++const experimentRegabiArgs = 0
+diff --git a/src/runtime/regabiargs_on.go b/src/runtime/regabiargs_on.go
+new file mode 100644
+index 0000000000..935d3ec24b
+--- /dev/null
++++ b/src/runtime/regabiargs_on.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabiargs
++// +build goexperiment.regabiargs
++
++package runtime
++
++const experimentRegabiArgs = 1
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index a2e04a64a5..e2d4f0da3b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -423,4 +423,4 @@ func sigpanic0()
+ // everywhere.
+ //
+ // Protected by finlock.
+-var intArgRegs = 0 // abi.IntArgRegs
++var intArgRegs = abi.IntArgRegs * experimentRegabiArgs

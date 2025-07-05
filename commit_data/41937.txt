@@ -29,6 +29,47 @@ Date:   Wed Oct 30 22:24:27 2019 -0400
     Change-Id: I216d5291c432fe1f40b0b8f4f1b9d388807bf6c5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204438
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode2.go | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 2fbc0a94d6..a138bc97fa 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
++	"container/heap"
+ 	"fmt"
+ 	"unicode"
+ )
+@@ -23,8 +24,17 @@ var _ = fmt.Print
+ 
+ type workQueue []loader.Sym
+ 
+-func (q *workQueue) push(i loader.Sym) { *q = append(*q, i) }
+-func (q *workQueue) pop() loader.Sym   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
++// Implement container/heap.Interface.
++func (q *workQueue) Len() int           { return len(*q) }
++func (q *workQueue) Less(i, j int) bool { return (*q)[i] < (*q)[j] }
++func (q *workQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
++func (q *workQueue) Push(i interface{}) { *q = append(*q, i.(loader.Sym)) }
++func (q *workQueue) Pop() interface{}   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
++
++// Functions for deadcode pass to use.
++// Deadcode pass should call push/pop, not Push/Pop.
++func (q *workQueue) push(i loader.Sym) { heap.Push(q, i) }
++func (q *workQueue) pop() loader.Sym   { return heap.Pop(q).(loader.Sym) }
+ func (q *workQueue) empty() bool       { return len(*q) == 0 }
+ 
+ type deadcodePass2 struct {
+@@ -44,6 +54,7 @@ func (d *deadcodePass2) init() {
+ 	if d.ctxt.Reachparent != nil {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
++	heap.Init(&d.wq)
+ 
+ 	if d.ctxt.BuildMode == BuildModeShared {
+ 		// Mark all symbols defined in this library as reachable when

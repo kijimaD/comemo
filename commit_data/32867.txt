@@ -17,7 +17,51 @@ Date:   Thu Jun 8 21:43:54 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go  | 12 ------------
  src/net/http/transfer.go |  4 ++--
  2 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index f1e71d8b43..699b31a14e 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -349,18 +349,6 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ 		r.ProtoMajor == major && r.ProtoMinor >= minor
+ }
+ 
+-// protoAtLeastOutgoing is like ProtoAtLeast, but is for outgoing
+-// requests (see issue 18407) where these fields aren't supposed to
+-// matter.  As a minor fix for Go 1.8, at least treat (0, 0) as
+-// matching HTTP/1.1 or HTTP/1.0.  Only HTTP/1.1 is used.
+-// TODO(bradfitz): ideally remove this whole method. It shouldn't be used.
+-func (r *Request) protoAtLeastOutgoing(major, minor int) bool {
+-	if r.ProtoMajor == 0 && r.ProtoMinor == 0 && major == 1 && minor <= 1 {
+-		return true
+-	}
+-	return r.ProtoAtLeast(major, minor)
+-}
+-
+ // UserAgent returns the client's User-Agent, if sent in the request.
+ func (r *Request) UserAgent() string {
+ 	return r.Header.Get("User-Agent")
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index f87f80f51b..8faff2d74a 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -99,13 +99,13 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 		t.TransferEncoding = rr.TransferEncoding
+ 		t.Header = rr.Header
+ 		t.Trailer = rr.Trailer
+-		atLeastHTTP11 = rr.protoAtLeastOutgoing(1, 1)
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.outgoingLength()
+-		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 && t.shouldSendChunkedRequestBody() {
++		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && t.shouldSendChunkedRequestBody() {
+ 			t.TransferEncoding = []string{"chunked"}
+ 		}
++		atLeastHTTP11 = true // Transport requests are always 1.1 or 2.0
+ 	case *Response:
+ 		t.IsResponse = true
+ 		if rr.Request != nil {

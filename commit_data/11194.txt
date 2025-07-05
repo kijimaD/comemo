@@ -9,6 +9,22 @@ Date:   Mon Jan 16 18:13:34 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5541056
-
+---
  src/pkg/math/rand/rand.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/rand/rand.go b/src/pkg/math/rand/rand.go
+index 459aed1db4..8955219203 100644
+--- a/src/pkg/math/rand/rand.go
++++ b/src/pkg/math/rand/rand.go
+@@ -107,7 +107,9 @@ func (r *Rand) Perm(n int) []int {
+ 
+ var globalRand = New(&lockedSource{src: NewSource(1)})
+ 
+-// Seed uses the provided seed value to initialize the generator to a deterministic state.
++// Seed uses the provided seed value to initialize the generator to a
++// deterministic state. If Seed is not called, the generator behaves as
++// if seeded by Seed(1).
+ func Seed(seed int64) { globalRand.Seed(seed) }
+ 
+ // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.

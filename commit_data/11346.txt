@@ -36,7 +36,7 @@ Date:   Mon Jan 23 15:16:51 2012 -0500
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/5553059
-
+---
  src/buildscript.sh               |   9 +-
  src/buildscript/darwin_386.sh    |  46 ++---
  src/buildscript/darwin_amd64.sh  |  46 ++---
@@ -63,3 +63,2744 @@ Date:   Mon Jan 23 15:16:51 2012 -0500
  src/cmd/go/vcs.go                | 404 +++++++++++++++++++++++++++++++++++++++
  src/make.bash                    |  16 +-
  25 files changed, 1309 insertions(+), 479 deletions(-)
+
+diff --git a/src/buildscript.sh b/src/buildscript.sh
+index fdc65b8523..1afdb69593 100755
+--- a/src/buildscript.sh
++++ b/src/buildscript.sh
+@@ -29,10 +29,11 @@ set -e
+ 	# \ paths into / paths.  This avoids the \ being interpreted
+ 	# as a shell escape but also makes sure that we generate the
+ 	# same scripts on Unix and Windows systems.
+-	go install -a -n cmd/go | sed '
+-		s/$GOBIN/"$GOBIN"/g
+-		s/$GOROOT/"$GOROOT"/g
+-		s/$WORK/"$WORK"/g
++	go install -a -n -t cmd_go_bootstrap cmd/go | sed '
++		s/\$GOBIN/"$GOBIN"/g
++		s/\$GOROOT/"$GOROOT"/g
++		s/\$WORK/"$WORK"/g
++		s;"\$GOBIN"/go;&_bootstrap;g
+ 		s;\\;/;g
+ 	'
+ 	)>$targ
+diff --git a/src/buildscript/darwin_386.sh b/src/buildscript/darwin_386.sh
+index 6c8b997f0d..baa3fd6b78 100755
+--- a/src/buildscript/darwin_386.sh
++++ b/src/buildscript/darwin_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/darwin_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/darwin_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/darwin_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/darwin_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/darwin_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/darwin_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/darwin_amd64.sh b/src/buildscript/darwin_amd64.sh
+index 417e03fde3..e31d6f9e8b 100755
+--- a/src/buildscript/darwin_amd64.sh
++++ b/src/buildscript/darwin_amd64.sh
+@@ -322,7 +322,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/darwin_amd64/encoding/gob.a
+ 
+@@ -399,6 +399,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/darwin_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/darwin_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -410,16 +430,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/darwin_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/darwin_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -441,16 +451,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/darwin_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/freebsd_386.sh b/src/buildscript/freebsd_386.sh
+index 2427f91439..f17f9da188 100755
+--- a/src/buildscript/freebsd_386.sh
++++ b/src/buildscript/freebsd_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/freebsd_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/freebsd_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+index 6f632b4a5f..be0070ac16 100755
+--- a/src/buildscript/freebsd_amd64.sh
++++ b/src/buildscript/freebsd_amd64.sh
+@@ -322,7 +322,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/freebsd_amd64/encoding/gob.a
+ 
+@@ -399,6 +399,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -410,16 +430,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/freebsd_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -441,16 +451,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_386.sh b/src/buildscript/linux_386.sh
+index 4deb775f73..8ae424d395 100755
+--- a/src/buildscript/linux_386.sh
++++ b/src/buildscript/linux_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/linux_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/linux_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/linux_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_amd64.sh b/src/buildscript/linux_amd64.sh
+index da27acc3fb..4786f61748 100755
+--- a/src/buildscript/linux_amd64.sh
++++ b/src/buildscript/linux_amd64.sh
+@@ -322,7 +322,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/linux_amd64/encoding/gob.a
+ 
+@@ -399,6 +399,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/linux_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -410,16 +430,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/linux_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -441,16 +451,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_arm.sh b/src/buildscript/linux_arm.sh
+index aa68cf802d..bfa814343f 100755
+--- a/src/buildscript/linux_arm.sh
++++ b/src/buildscript/linux_arm.sh
+@@ -326,7 +326,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_arm/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-5g -o "$WORK"/encoding/gob/_obj/_go_.5 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++5g -o "$WORK"/encoding/gob/_obj/_go_.5 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.5
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/linux_arm/encoding/gob.a
+ 
+@@ -403,6 +403,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.5
+ cp "$WORK"/log.a "$GOROOT"/pkg/linux_arm/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++5g -o "$WORK"/path/_obj/_go_.5 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.5
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_arm/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++5g -o "$WORK"/go/build/_obj/_go_.5 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.5
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_arm/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -414,16 +434,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.5
+ mkdir -p "$GOROOT"/pkg/linux_arm/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_arm/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-5g -o "$WORK"/path/_obj/_go_.5 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.5
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_arm/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -445,16 +455,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.5
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_arm/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-5g -o "$WORK"/go/build/_obj/_go_.5 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.5
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_arm/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -494,8 +494,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.5
+ 5l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/netbsd_386.sh b/src/buildscript/netbsd_386.sh
+index 5c822f345b..6235a2f6dd 100755
+--- a/src/buildscript/netbsd_386.sh
++++ b/src/buildscript/netbsd_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/netbsd_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/netbsd_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/netbsd_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+index 0bfea9c114..cf4c91a36c 100755
+--- a/src/buildscript/netbsd_amd64.sh
++++ b/src/buildscript/netbsd_amd64.sh
+@@ -322,7 +322,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/netbsd_amd64/encoding/gob.a
+ 
+@@ -399,6 +399,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -410,16 +430,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/netbsd_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -441,16 +451,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/netbsd_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/openbsd_386.sh b/src/buildscript/openbsd_386.sh
+index be38d39441..5907822df2 100755
+--- a/src/buildscript/openbsd_386.sh
++++ b/src/buildscript/openbsd_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/openbsd_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/openbsd_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/openbsd_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+index 00b32a139c..7db8d8e423 100755
+--- a/src/buildscript/openbsd_amd64.sh
++++ b/src/buildscript/openbsd_amd64.sh
+@@ -322,7 +322,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/openbsd_amd64/encoding/gob.a
+ 
+@@ -399,6 +399,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -410,16 +430,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/openbsd_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -441,16 +451,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/openbsd_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/plan9_386.sh b/src/buildscript/plan9_386.sh
+index d1c3ec6474..9e3303ed82 100755
+--- a/src/buildscript/plan9_386.sh
++++ b/src/buildscript/plan9_386.sh
+@@ -323,7 +323,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/plan9_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/plan9_386/encoding/gob.a
+ 
+@@ -400,6 +400,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/plan9_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/plan9_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/plan9_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -411,16 +431,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/plan9_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/plan9_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/plan9_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/plan9_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/plan9_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/plan9_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index 13885d8a2d..3a3ec03da3 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -325,7 +325,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_386/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/windows_386/encoding/gob.a
+ 
+@@ -402,6 +402,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+ cp "$WORK"/log.a "$GOROOT"/pkg/windows_386/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/windows_386/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_386/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -413,16 +433,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/windows_386/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_386/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/windows_386/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -444,16 +454,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/windows_386/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_386/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -493,8 +493,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ 8l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go.exe
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index 6eb6349c93..1858b22063 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -324,7 +324,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_amd64/bufio.a
+ 
+ mkdir -p "$WORK"/encoding/gob/_obj/
+ cd "$GOROOT"/src/pkg/encoding/gob
+-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
++6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+ gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
+ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/windows_amd64/encoding/gob.a
+ 
+@@ -401,6 +401,26 @@ cd "$GOROOT"/src/pkg/log
+ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+ cp "$WORK"/log.a "$GOROOT"/pkg/windows_amd64/log.a
+ 
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
++
++#
++# go/build
++#
++
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
++
+ #
+ # os/exec
+ #
+@@ -412,16 +432,6 @@ gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/windows_amd64/os/
+ cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_amd64/os/exec.a
+ 
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
+-
+ #
+ # regexp/syntax
+ #
+@@ -443,16 +453,6 @@ cd "$GOROOT"/src/pkg/regexp
+ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/windows_amd64/regexp.a
+ 
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
+-
+ #
+ # net/url
+ #
+@@ -492,8 +492,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
++6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+ gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ 6l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go.exe
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe
+diff --git a/src/cmd/go/Makefile b/src/cmd/go/Makefile
+index cef0ac2ccd..295a14498c 100644
+--- a/src/cmd/go/Makefile
++++ b/src/cmd/go/Makefile
+@@ -11,6 +11,7 @@ GOFILES=\
+ 	get.go\
+ 	fmt.go\
+ 	help.go\
++	http.go\
+ 	list.go\
+ 	main.go\
+ 	pkg.go\
+@@ -19,5 +20,6 @@ GOFILES=\
+ 	testflag.go\
+ 	version.go\
+ 	vet.go\
++	vcs.go\
+ 
+ include ../../Make.cmd
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 23eacf970e..cbe36f52e9 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -22,7 +22,7 @@ import (
+ )
+ 
+ var cmdBuild = &Command{
+-	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [-p n] [importpath... | gofiles...]",
++	UsageLine: "build [-a] [-n] [-o output] [-p n] [-v] [-x] [importpath... | gofiles...]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -68,9 +68,10 @@ var buildN bool               // -n flag
+ var buildP = runtime.NumCPU() // -p flag
+ var buildV bool               // -v flag
+ var buildX bool               // -x flag
+-
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
+ 
++var buildContext = build.DefaultContext
++
+ // addBuildFlags adds the flags common to the build and install commands.
+ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.BoolVar(&buildA, "a", false, "")
+@@ -78,6 +79,25 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.IntVar(&buildP, "p", buildP, "")
+ 	cmd.Flag.BoolVar(&buildV, "v", false, "")
+ 	cmd.Flag.BoolVar(&buildX, "x", false, "")
++
++	// TODO(rsc): This -t flag is used by buildscript.sh but
++	// not documented.  Should be documented but the
++	// usage lines are getting too long.  Probably need to say
++	// that these flags are applicable to every command and
++	// document them in one help message instead of on every
++	// command's help message.
++	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "t", "")
++}
++
++type stringsFlag []string
++
++func (v *stringsFlag) Set(s string) error {
++	*v = append(*v, s)
++	return nil
++}
++
++func (v *stringsFlag) String() string {
++	return "<stringsFlag>"
+ }
+ 
+ func runBuild(cmd *Command, args []string) {
+@@ -89,7 +109,7 @@ func runBuild(cmd *Command, args []string) {
+ 		pkg := goFilesPackage(args, "")
+ 		pkgs = append(pkgs, pkg)
+ 	} else {
+-		pkgs = packages(args)
++		pkgs = packagesForBuild(args)
+ 	}
+ 
+ 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
+@@ -116,7 +136,7 @@ func runBuild(cmd *Command, args []string) {
+ }
+ 
+ var cmdInstall = &Command{
+-	UsageLine: "install [-a] [-n] [-v] [-x] [-p n] [importpath...]",
++	UsageLine: "install [-a] [-n] [-p n] [-v] [-x] [importpath...]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths,
+@@ -137,10 +157,12 @@ See also: go build, go get, go clean.
+ }
+ 
+ func runInstall(cmd *Command, args []string) {
++	pkgs := packagesForBuild(args)
++
+ 	var b builder
+ 	b.init()
+ 	a := &action{}
+-	for _, p := range packages(args) {
++	for _, p := range pkgs {
+ 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+ 	}
+ 	b.do(a)
+@@ -213,8 +235,8 @@ func (b *builder) init() {
+ 	var err error
+ 	b.actionCache = make(map[cacheKey]*action)
+ 	b.mkdirCache = make(map[string]bool)
+-	b.goarch = build.DefaultContext.GOARCH
+-	b.goos = build.DefaultContext.GOOS
++	b.goarch = buildContext.GOARCH
++	b.goos = buildContext.GOOS
+ 	b.goroot = build.Path[0].Path
+ 	b.gobin = build.Path[0].BinDir()
+ 	if b.goos == "windows" {
+@@ -267,12 +289,13 @@ func goFilesPackage(gofiles []string, target string) *Package {
+ 		}
+ 		dir = append(dir, fi)
+ 	}
+-	ctxt := build.DefaultContext
++	ctxt := buildContext
+ 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dir, nil }
+ 	pwd, _ := os.Getwd()
+-	pkg, err := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd)
+-	if err != nil {
+-		fatalf("%s", err)
++	var stk importStack
++	pkg := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd+"/.", &stk)
++	if pkg.Error != nil {
++		fatalf("%s", pkg.Error)
+ 	}
+ 	if target != "" {
+ 		pkg.target = target
+@@ -306,9 +329,10 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	}
+ 
+ 	if len(p.CgoFiles) > 0 {
+-		p1, err := loadPackage("cmd/cgo")
+-		if err != nil {
+-			fatalf("load cmd/cgo: %v", err)
++		var stk importStack
++		p1 := loadPackage("cmd/cgo", &stk)
++		if p1.Error != nil {
++			fatalf("load cmd/cgo: %v", p1.Error)
+ 		}
+ 		a.cgo = b.action(depMode, depMode, p1)
+ 		a.deps = append(a.deps, a.cgo)
+@@ -983,7 +1007,7 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	}
+ 	// gcc-4.5 and beyond require explicit "-pthread" flag
+ 	// for multithreading with pthread library.
+-	if build.DefaultContext.CgoEnabled {
++	if buildContext.CgoEnabled {
+ 		switch b.goos {
+ 		case "windows":
+ 			a = append(a, "-mthreads")
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 93d4d441c8..cd57d30256 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -2,24 +2,39 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO: Dashboard upload
++
+ package main
+ 
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"path/filepath"
++	"runtime"
++	"strconv"
++	"strings"
++)
++
+ var cmdGet = &Command{
+-	Run:       runGet,
+-	UsageLine: "get [importpath...]",
++	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [importpath...]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+-After downloading the code, 'go get' looks for a tag beginning
+-with "go." that corresponds to the local Go version.
+-For Go "release.r58" it looks for a tag named "go.r58".
+-For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
+-If the specific "go.X" tag is not found, it uses the latest earlier
+-version it can find.  Otherwise, it uses the default version for
+-the version control system: HEAD for git, tip for Mercurial,
+-and so on.
++The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
++and 'go install'.  See 'go help install'.
++
++The -d flag instructs get to stop after downloading the packages; that is,
++it instructs get not to install the packages.
++
++The -fix flag instructs get to run gofix on the downloaded packages
++before resolving dependencies or building the code.
++
++The -u flag instructs get to use the network to update the named packages
++and their dependencies.  By default, get uses the network to check out 
++missing packages but does not use it to look for updates to existing packages.
+ 
+ TODO: Explain versions better.
+ 
+@@ -32,8 +47,223 @@ See also: go build, go install, go clean.
+ 	`,
+ }
+ 
++var getD = cmdGet.Flag.Bool("d", false, "")
++var getU = cmdGet.Flag.Bool("u", false, "")
++var getFix = cmdGet.Flag.Bool("fix", false, "")
++
++func init() {
++	addBuildFlags(cmdGet)
++	cmdGet.Run = runGet // break init loop
++}
++
+ func runGet(cmd *Command, args []string) {
++	// Phase 1.  Download/update.
+ 	args = importPaths(args)
+-	_ = args
+-	panic("get not implemented")
++	var stk importStack
++	for _, arg := range args {
++		download(arg, &stk)
++	}
++	exitIfErrors()
++
++	if *getD {
++		// download only
++		return
++	}
++
++	// Phase 2. Install.
++
++	// Code we downloaded and all code that depends on it
++	// needs to be evicted from the package cache so that
++	// the information will be recomputed.  Instead of keeping
++	// track of the reverse dependency information, evict
++	// everything.
++	for name := range packageCache {
++		delete(packageCache, name)
++	}
++
++	runInstall(cmd, args)
++}
++
++// downloadCache records the import paths we have already
++// considered during the download, to avoid duplicate work when
++// there is more than one dependency sequence leading to
++// a particular package.
++var downloadCache = map[string]bool{}
++
++// downloadRootCache records the version control repository
++// root directories we have already considered during the download.
++// For example, all the packages in the code.google.com/p/codesearch repo
++// share the same root (the directory for that path), and we only need
++// to run the hg commands to consider each repository once.
++var downloadRootCache = map[string]bool{}
++
++// download runs the download half of the get command
++// for the package named by the argument.
++func download(arg string, stk *importStack) {
++	p := loadPackage(arg, stk)
++
++	// There's nothing to do if this is a package in the standard library.
++	if p.Standard {
++		return
++	}
++
++	// Only process each package once.
++	if downloadCache[arg] {
++		return
++	}
++	downloadCache[arg] = true
++
++	// Download if the package is missing, or update if we're using -u.
++	if p.Dir == "" || *getU {
++		// The actual download.
++		stk.push(p.ImportPath)
++		defer stk.pop()
++		if err := downloadPackage(p); err != nil {
++			errorf("%s", &PackageError{stk.copy(), err.Error()})
++			return
++		}
++
++		// Reread the package information from the updated files.
++		p = reloadPackage(arg, stk)
++		if p.Error != nil {
++			errorf("%s", p.Error)
++			return
++		}
++	}
++
++	if *getFix {
++		run(stringList("gofix", relPaths(p.gofiles)))
++
++		// The imports might have changed, so reload again.
++		p = reloadPackage(arg, stk)
++		if p.Error != nil {
++			errorf("%s", p.Error)
++			return
++		}
++	}
++
++	// Process dependencies, now that we know what they are.
++	for _, dep := range p.deps {
++		download(dep.ImportPath, stk)
++	}
++}
++
++// downloadPackage runs the create or download command
++// to make the first copy of or update a copy of the given package.
++func downloadPackage(p *Package) error {
++	// Analyze the import path to determine the version control system,
++	// repository, and the import path for the root of the repository.
++	vcs, repo, rootPath, err := vcsForImportPath(p.ImportPath)
++	if err != nil {
++		return err
++	}
++	if p.t == nil {
++		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
++		p.t = build.Path[0] // $GOROOT
++		if len(build.Path) > 1 {
++			p.t = build.Path[1] // first in $GOPATH
++		}
++		p.Dir = filepath.Join(p.t.SrcDir(), p.ImportPath)
++	}
++	root := filepath.Join(p.t.SrcDir(), rootPath)
++
++	// If we've considered this repository already, don't do it again.
++	if downloadRootCache[root] {
++		return nil
++	}
++	downloadRootCache[root] = true
++
++	if buildV {
++		fmt.Fprintf(os.Stderr, "%s (download)\n", rootPath)
++	}
++
++	// Check that this is an appropriate place for the repo to be checked out.
++	// The target directory must either not exist or have a repo checked out already.
++	meta := filepath.Join(root, "."+vcs.cmd)
++	st, err := os.Stat(meta)
++	if err == nil && !st.IsDir() {
++		return fmt.Errorf("%s exists but is not a directory", meta)
++	}
++	if err != nil {
++		// Metadata directory does not exist.  Prepare to checkout new copy.
++		// Some version control tools require the target directory not to exist.
++		// We require that too, just to avoid stepping on existing work.
++		if _, err := os.Stat(root); err == nil {
++			return fmt.Errorf("%s exists but %s does not - stale checkout?", root, meta)
++		}
++		// Some version control tools require the parent of the target to exist.
++		parent, _ := filepath.Split(root)
++		if err := os.MkdirAll(parent, 0777); err != nil {
++			return err
++		}
++		if err = vcs.create(root, repo); err != nil {
++			return err
++		}
++	} else {
++		// Metadata directory does exist; download incremental updates.
++		if err = vcs.download(root); err != nil {
++			return err
++		}
++	}
++
++	// Select and sync to appropriate version of the repository.
++	tags, err := vcs.tags(root)
++	if err != nil {
++		return err
++	}
++	vers := runtime.Version()
++	if i := strings.Index(vers, " "); i >= 0 {
++		vers = vers[:i]
++	}
++	tag := selectTag(vers, tags)
++	if tag == "" {
++		tag = vcs.tagDefault
++	}
++	if err := vcs.tagSync(root, tag); err != nil {
++		return err
++	}
++
++	return nil
++}
++
++// selectTag returns the closest matching tag for a given version.
++// Closest means the latest one that is not after the current release.
++// Version "release.rN" matches tags of the form "go.rN" (N being a decimal).
++// Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
++func selectTag(goVersion string, tags []string) (match string) {
++	const rPrefix = "release.r"
++	if strings.HasPrefix(goVersion, rPrefix) {
++		p := "go.r"
++		v, err := strconv.ParseFloat(goVersion[len(rPrefix):], 64)
++		if err != nil {
++			return ""
++		}
++		var matchf float64
++		for _, t := range tags {
++			if !strings.HasPrefix(t, p) {
++				continue
++			}
++			tf, err := strconv.ParseFloat(t[len(p):], 64)
++			if err != nil {
++				continue
++			}
++			if matchf < tf && tf <= v {
++				match, matchf = t, tf
++			}
++		}
++	}
++	const wPrefix = "weekly."
++	if strings.HasPrefix(goVersion, wPrefix) {
++		p := "go.weekly."
++		v := goVersion[len(wPrefix):]
++		for _, t := range tags {
++			if !strings.HasPrefix(t, p) {
++				continue
++			}
++			if match < t && t[len(p):] <= v {
++				match = t
++			}
++		}
++	}
++	return match
+ }
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 2ffaa2f13f..af211f98d2 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -11,16 +11,16 @@ import (
+ )
+ 
+ var cmdList = &Command{
+-	UsageLine: "list [-f format] [-json] [importpath...]",
++	UsageLine: "list [-e] [-f format] [-json] [importpath...]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+ 
+-The default output shows the package name and file system location:
++The default output shows the package import path:
+ 
+-    books /home/you/src/code.google.com/p/google-api-go-client/books/v1
+-    oauth /home/you/src/code.google.com/p/goauth2/oauth
+-    sqlite /home/you/src/code.google.com/p/sqlite
++    code.google.com/p/google-api-go-client/books/v1
++    code.google.com/p/goauth2/oauth
++    code.google.com/p/sqlite
+ 
+ The -f flag specifies an alternate format for the list,
+ using the syntax of package template.  The default output
+@@ -47,11 +47,26 @@ being passed to the template is:
+         // Dependency information
+         Imports []string // import paths used by this package
+         Deps    []string // all (recursively) imported dependencies
++        
++        // Error information
++        Incomplete bool            // this package or a dependency has an error
++        Error *PackageError        // error loading package
++        DepsErrors []*PackageError // errors loading dependencies
+     }
+ 
+ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
++The -e flag changes the handling of erroneous packages, those that
++cannot be found or are malformed.  By default, the list command
++prints an error to standard error for each erroneous package and
++omits the packages from consideration during the usual printing.
++With the -e flag, the list command never prints errors to standard
++error and instead processes the erroneous packages with the usual
++printing.  Erroneous packages will have a non-empty ImportPath and
++a non-nil Error field; other information may or may not be missing
++(zeroed).
++
+ For more about import paths, see 'go help importpath'.
+ 	`,
+ }
+@@ -60,6 +75,7 @@ func init() {
+ 	cmdList.Run = runList // break init cycle
+ }
+ 
++var listE = cmdList.Flag.Bool("e", false, "")
+ var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
+ var listJson = cmdList.Flag.Bool("json", false, "")
+ var nl = []byte{'\n'}
+@@ -87,7 +103,12 @@ func runList(cmd *Command, args []string) {
+ 		}
+ 	}
+ 
+-	for _, pkg := range packages(args) {
++	load := packages
++	if *listE {
++		load = packagesAndErrors
++	}
++
++	for _, pkg := range load(args) {
+ 		do(pkg)
+ 	}
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index fdea80916f..4f3e7f5682 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -246,9 +246,11 @@ func run(cmdargs ...interface{}) {
+ 	}
+ }
+ 
+-func runOut(cmdargs ...interface{}) []byte {
++func runOut(dir string, cmdargs ...interface{}) []byte {
+ 	cmdline := stringList(cmdargs...)
+-	out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
++	cmd := exec.Command(cmdline[0], cmdline[1:]...)
++	cmd.Dir = dir
++	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		os.Stderr.Write(out)
+ 		errorf("%v", err)
+@@ -283,7 +285,7 @@ func allPackages(pattern string) []string {
+ 	have := map[string]bool{
+ 		"builtin": true, // ignore pseudo-package that exists only for documentation
+ 	}
+-	if !build.DefaultContext.CgoEnabled {
++	if !buildContext.CgoEnabled {
+ 		have["runtime/cgo"] = true // ignore during walk
+ 	}
+ 	var pkgs []string
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 9c41c7db0b..09fa671279 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
+@@ -19,16 +18,18 @@ type Package struct {
+ 	// Note: These fields are part of the go command's public API.
+ 	// See list.go.  It is okay to add fields, but not to change or
+ 	// remove existing ones.  Keep in sync with list.go
+-	Name       string // package name
+-	Doc        string `json:",omitempty"` // package documentation string
+-	ImportPath string // import path of package in dir
+-	Dir        string // directory containing package sources
+-	Version    string `json:",omitempty"` // version of installed package (TODO)
+-	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
+-	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
++	ImportPath string        // import path of package in dir
++	Name       string        `json:",omitempty"` // package name
++	Doc        string        `json:",omitempty"` // package documentation string
++	Dir        string        `json:",omitempty"` // directory containing package sources
++	Version    string        `json:",omitempty"` // version of installed package (TODO)
++	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
++	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
++	Incomplete bool          `json:",omitempty"` // was there an error loading this package or dependencies?
++	Error      *PackageError `json:",omitempty"` // error loading this package (not dependencies)
+ 
+ 	// Source files
+-	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles and XTestGoFiles)
++	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles and XTestGoFiles)
+ 	TestGoFiles  []string `json:",omitempty"` // _test.go source files internal to the package they are testing
+ 	XTestGoFiles []string `json:",omitempty"` //_test.go source files external to the package they are testing
+ 	CFiles       []string `json:",omitempty"` // .c source files
+@@ -39,8 +40,9 @@ type Package struct {
+ 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
+ 
+ 	// Dependency information
+-	Imports []string `json:",omitempty"` // import paths used by this package
+-	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
++	Imports    []string        `json:",omitempty"` // import paths used by this package
++	Deps       []string        `json:",omitempty"` // all (recursively) imported dependencies
++	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
+ 
+ 	// Unexported fields are not part of the public API.
+ 	t       *build.Tree
+@@ -53,26 +55,76 @@ type Package struct {
+ 	fake    bool     // synthesized package
+ }
+ 
++// A PackageError describes an error loading information about a package.
++type PackageError struct {
++	ImportStack []string // shortest path from package named on command line to this one
++	Err         string   // the error itself
++}
++
++func (p *PackageError) Error() string {
++	return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
++}
++
++// An importStack is a stack of import paths.
++type importStack []string
++
++func (s *importStack) push(p string) {
++	*s = append(*s, p)
++}
++
++func (s *importStack) pop() {
++	*s = (*s)[0 : len(*s)-1]
++}
++
++func (s *importStack) copy() []string {
++	return append([]string{}, *s...)
++}
++
++// shorterThan returns true if sp is shorter than t.
++// We use this to record the shortest import sequence
++// that leads to a particular package.
++func (sp *importStack) shorterThan(t []string) bool {
++	s := *sp
++	if len(s) != len(t) {
++		return len(s) < len(t)
++	}
++	// If they are the same length, settle ties using string ordering.
++	for i := range s {
++		if s[i] != t[i] {
++			return s[i] < t[i]
++		}
++	}
++	return false // they are equal
++}
++
+ // packageCache is a lookup cache for loadPackage,
+ // so that if we look up a package multiple times
+ // we return the same pointer each time.
+ var packageCache = map[string]*Package{}
+ 
++// reloadPackage is like loadPackage but makes sure
++// not to use the package cache.
++func reloadPackage(arg string, stk *importStack) *Package {
++	p := packageCache[arg]
++	if p != nil {
++		delete(packageCache, p.Dir)
++		delete(packageCache, p.ImportPath)
++	}
++	return loadPackage(arg, stk)
++}
++
+ // loadPackage scans directory named by arg,
+ // which is either an import path or a file system path
+ // (if the latter, must be rooted or begin with . or ..),
+ // and returns a *Package describing the package
+ // found in that directory.
+-func loadPackage(arg string) (*Package, error) {
++func loadPackage(arg string, stk *importStack) *Package {
++	stk.push(arg)
++	defer stk.pop()
++
+ 	// Check package cache.
+ 	if p := packageCache[arg]; p != nil {
+-		// We use p.imports==nil to detect a package that
+-		// is in the midst of its own loadPackage call
+-		// (all the recursion below happens before p.imports gets set).
+-		if p.imports == nil {
+-			return nil, fmt.Errorf("import loop at %s", arg)
+-		}
+-		return p, nil
++		return reusePackage(p, stk)
+ 	}
+ 
+ 	// Find basic information about package path.
+@@ -101,9 +153,17 @@ func loadPackage(arg string) (*Package, error) {
+ 			err = nil
+ 		}
+ 	}
+-
+ 	if err != nil {
+-		return nil, err
++		p := &Package{
++			ImportPath: arg,
++			Error: &PackageError{
++				ImportStack: stk.copy(),
++				Err:         err.Error(),
++			},
++			Incomplete: true,
++		}
++		packageCache[arg] = p
++		return p
+ 	}
+ 
+ 	if dir == "" {
+@@ -112,57 +172,106 @@ func loadPackage(arg string) (*Package, error) {
+ 
+ 	// Maybe we know the package by its directory.
+ 	if p := packageCache[dir]; p != nil {
+-		if p.imports == nil {
+-			return nil, fmt.Errorf("import loop at %s", arg)
++		packageCache[importPath] = p
++		return reusePackage(p, stk)
++	}
++
++	return scanPackage(&buildContext, t, arg, importPath, dir, stk)
++}
++
++func reusePackage(p *Package, stk *importStack) *Package {
++	// We use p.imports==nil to detect a package that
++	// is in the midst of its own loadPackage call
++	// (all the recursion below happens before p.imports gets set).
++	if p.imports == nil {
++		if p.Error == nil {
++			p.Error = &PackageError{
++				ImportStack: stk.copy(),
++				Err:         "import loop",
++			}
+ 		}
+-		return p, nil
++		p.Incomplete = true
+ 	}
++	if p.Error != nil && stk.shorterThan(p.Error.ImportStack) {
++		p.Error.ImportStack = stk.copy()
++	}
++	return p
++}
+ 
+-	return scanPackage(&build.DefaultContext, t, arg, importPath, dir)
++// firstSentence returns the first sentence of the document text.
++// The sentence ends after the first period followed by a space.
++// The returned sentence will have no \n \r or \t characters and
++// will use only single spaces between words.
++func firstSentence(text string) string {
++	var b []byte
++	space := true
++Loop:
++	for i := 0; i < len(text); i++ {
++		switch c := text[i]; c {
++		case ' ', '\t', '\r', '\n':
++			if !space {
++				space = true
++				if len(b) > 0 && b[len(b)-1] == '.' {
++					break Loop
++				}
++				b = append(b, ' ')
++			}
++		default:
++			space = false
++			b = append(b, c)
++		}
++	}
++	return string(b)
+ }
+ 
+-func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string) (*Package, error) {
++func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
+ 	// Read the files in the directory to learn the structure
+ 	// of the package.
++	p := &Package{
++		ImportPath: importPath,
++		Dir:        dir,
++		Standard:   t.Goroot && !strings.Contains(importPath, "."),
++		t:          t,
++	}
++	packageCache[dir] = p
++	packageCache[importPath] = p
++
+ 	info, err := ctxt.ScanDir(dir)
+ 	if err != nil {
+-		return nil, err
++		p.Error = &PackageError{
++			ImportStack: stk.copy(),
++			Err:         err.Error(),
++		}
++		p.Incomplete = true
++		return p
+ 	}
+ 
+-	var target string
++	p.info = info
++	p.Name = info.Package
++	p.Doc = firstSentence(info.PackageComment.Text())
++	p.Imports = info.Imports
++	p.GoFiles = info.GoFiles
++	p.TestGoFiles = info.TestGoFiles
++	p.XTestGoFiles = info.XTestGoFiles
++	p.CFiles = info.CFiles
++	p.HFiles = info.HFiles
++	p.SFiles = info.SFiles
++	p.CgoFiles = info.CgoFiles
++	p.CgoCFLAGS = info.CgoCFLAGS
++	p.CgoLDFLAGS = info.CgoLDFLAGS
++
+ 	if info.Package == "main" {
+ 		_, elem := filepath.Split(importPath)
+-		target = filepath.Join(t.BinDir(), elem)
++		p.target = filepath.Join(t.BinDir(), elem)
+ 		if ctxt.GOOS == "windows" {
+-			target += ".exe"
++			p.target += ".exe"
+ 		}
+ 	} else {
+-		target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
+-	}
+-
+-	p := &Package{
+-		Name:         info.Package,
+-		Doc:          info.PackageComment.Text(),
+-		ImportPath:   importPath,
+-		Dir:          dir,
+-		Imports:      info.Imports,
+-		GoFiles:      info.GoFiles,
+-		TestGoFiles:  info.TestGoFiles,
+-		XTestGoFiles: info.XTestGoFiles,
+-		CFiles:       info.CFiles,
+-		HFiles:       info.HFiles,
+-		SFiles:       info.SFiles,
+-		CgoFiles:     info.CgoFiles,
+-		CgoCFLAGS:    info.CgoCFLAGS,
+-		CgoLDFLAGS:   info.CgoLDFLAGS,
+-		Standard:     t.Goroot && !strings.Contains(importPath, "."),
+-		target:       target,
+-		t:            t,
+-		info:         info,
++		p.target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
+ 	}
+ 
+ 	var built time.Time
+-	if fi, err := os.Stat(target); err == nil {
++	if fi, err := os.Stat(p.target); err == nil {
+ 		built = fi.ModTime()
+ 	}
+ 
+@@ -220,18 +329,11 @@ Stale:
+ 	imports := make([]*Package, 0, len(p.Imports))
+ 	deps := make(map[string]bool)
+ 	for _, path := range importPaths {
+-		deps[path] = true
+ 		if path == "C" {
+ 			continue
+ 		}
+-		p1, err := loadPackage(path)
+-		if err != nil {
+-			delete(packageCache, dir)
+-			delete(packageCache, importPath)
+-			// Add extra error detail to show full import chain.
+-			// Always useful, but especially useful in import loops.
+-			return nil, fmt.Errorf("%s: import %s\n\t%v", arg, path, err)
+-		}
++		deps[path] = true
++		p1 := loadPackage(path, stk)
+ 		imports = append(imports, p1)
+ 		for _, dep := range p1.Deps {
+ 			deps[dep] = true
+@@ -239,6 +341,9 @@ Stale:
+ 		if p1.Stale {
+ 			p.Stale = true
+ 		}
++		if p1.Incomplete {
++			p.Incomplete = true
++		}
+ 		// p1.target can be empty only if p1 is not a real package,
+ 		// such as package unsafe or the temporary packages
+ 		// created during go test.
+@@ -258,7 +363,14 @@ Stale:
+ 	}
+ 	sort.Strings(p.Deps)
+ 	for _, dep := range p.Deps {
+-		p.deps = append(p.deps, packageCache[dep])
++		p1 := packageCache[dep]
++		if p1 == nil {
++			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
++		}
++		p.deps = append(p.deps, p1)
++		if p1.Error != nil {
++			p.DepsErrors = append(p.DepsErrors, p1.Error)
++		}
+ 	}
+ 
+ 	// unsafe is a fake package and is never out-of-date.
+@@ -267,21 +379,67 @@ Stale:
+ 		p.target = ""
+ 	}
+ 
+-	return p, nil
++	return p
+ }
+ 
+ // packages returns the packages named by the
+-// command line arguments 'args'.
++// command line arguments 'args'.  If a named package
++// cannot be loaded at all (for example, if the directory does not exist),
++// then packages prints an error and does not include that
++// package in the results.  However, if errors occur trying
++// to load dependencies of a named package, the named
++// package is still returned, with p.Incomplete = true
++// and details in p.DepsErrors.
+ func packages(args []string) []*Package {
+ 	args = importPaths(args)
+ 	var pkgs []*Package
++	var stk importStack
+ 	for _, arg := range args {
+-		pkg, err := loadPackage(arg)
+-		if err != nil {
+-			errorf("%s", err)
++		pkg := loadPackage(arg, &stk)
++		if pkg.Error != nil {
++			errorf("%s", pkg.Error)
+ 			continue
+ 		}
+ 		pkgs = append(pkgs, pkg)
+ 	}
+ 	return pkgs
+ }
++
++// packagesAndErrors is like 'packages' but returns a 
++// *Package for every argument, even the ones that
++// cannot be loaded at all.
++// The packages that fail to load will have p.Error != nil.
++func packagesAndErrors(args []string) []*Package {
++	args = importPaths(args)
++	var pkgs []*Package
++	var stk importStack
++	for _, arg := range args {
++		pkgs = append(pkgs, loadPackage(arg, &stk))
++	}
++	return pkgs
++}
++
++// packagesForBuild is like 'packages' but fails if any of
++// the packages or their dependencies have errors
++// (cannot be built).
++func packagesForBuild(args []string) []*Package {
++	pkgs := packagesAndErrors(args)
++	printed := map[*PackageError]bool{}
++	for _, pkg := range pkgs {
++		if pkg.Error != nil {
++			errorf("%s", pkg.Error)
++		}
++		for _, err := range pkg.DepsErrors {
++			// Since these are errors in dependencies,
++			// the same error might show up multiple times,
++			// once in each package that depends on it.
++			// Only print each once.
++			if !printed[err] {
++				printed[err] = true
++				errorf("%s", err)
++			}
++		}
++	}
++	exitIfErrors()
++	return pkgs
++}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index c22476e7e5..714cd40518 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -4,12 +4,10 @@
+ 
+ package main
+ 
+-import (
+-	"strings"
+-)
++import "strings"
+ 
+ var cmdRun = &Command{
+-	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
++	UsageLine: "run [-a] [-n] [-x] gofiles... [arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+ Run compiles and runs the main package comprising the named Go source files.
+@@ -33,11 +31,15 @@ func init() {
+ func runRun(cmd *Command, args []string) {
+ 	var b builder
+ 	b.init()
+-	files, args := splitArgs(args)
++	i := 0
++	for i < len(args) && strings.HasSuffix(args[i], ".go") {
++		i++
++	}
++	files, cmdArgs := args[:i], args[i:]
+ 	p := goFilesPackage(files, "")
+ 	p.target = "" // must build - not up to date
+ 	a1 := b.action(modeBuild, modeBuild, p)
+-	a := &action{f: (*builder).runProgram, args: args, deps: []*action{a1}}
++	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
+ 	b.do(a)
+ }
+ 
+@@ -53,19 +55,3 @@ func (b *builder) runProgram(a *action) error {
+ 	run(a.deps[0].target, a.args)
+ 	return nil
+ }
+-
+-// Return the argument slices before and after the "--"
+-func splitArgs(args []string) (before, after []string) {
+-	dashes := len(args)
+-	for i, arg := range args {
+-		if arg == "--" {
+-			dashes = i
+-			break
+-		}
+-	}
+-	before = args[:dashes]
+-	if dashes < len(args) {
+-		after = args[dashes+1:]
+-	}
+-	return
+-}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e28eaeffcb..6cd49fe5a6 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -28,7 +28,7 @@ func init() {
+ 
+ var cmdTest = &Command{
+ 	CustomFlags: true,
+-	UsageLine:   "test [-c] [-x] [-file a.go -file b.go ...] [-p n] [importpath...] [flags for test binary]",
++	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]",
+ 	Short:       "test packages",
+ 	Long: `
+ 'Go test' automates testing the packages named by the import paths.
+@@ -184,18 +184,6 @@ See the documentation of the testing package for more information.
+ 		`,
+ }
+ 
+-// TODO(rsc): Rethink the flag handling.
+-// It might be better to do
+-//	go test [go-test-flags] [importpaths] [flags for test binary]
+-// If there are no import paths then the two flag sections
+-// run together, but we can deal with that.  Right now, 
+-//	go test -x  (ok)
+-//	go test -x math (NOT OK)
+-//	go test math -x (ok)
+-// which is weird, because the -x really does apply to go test, not to math.
+-// It is also possible that -file can go away.
+-// For now just use the gotest code.
+-
+ var (
+ 	testC        bool     // -c flag
+ 	testP        int      // -p flag
+@@ -216,7 +204,7 @@ func runTest(cmd *Command, args []string) {
+ 	// or when the -v flag has been given.
+ 	testShowPass = len(pkgArgs) == 0 || testV
+ 
+-	pkgs := packages(pkgArgs)
++	pkgs := packagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		fatalf("no packages to test")
+ 	}
+@@ -316,13 +304,16 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	// XTestGoFiles, so we build one list and use it for both
+ 	// ptest and pxtest.  No harm done.
+ 	var imports []*Package
++	var stk importStack
++	stk.push(p.ImportPath + "_test")
+ 	for _, path := range p.info.TestImports {
+-		p1, err := loadPackage(path)
+-		if err != nil {
+-			return nil, nil, nil, err
++		p1 := loadPackage(path, &stk)
++		if p1.Error != nil {
++			return nil, nil, nil, p1.Error
+ 		}
+ 		imports = append(imports, p1)
+ 	}
++	stk.pop()
+ 
+ 	// The ptest package needs to be importable under the
+ 	// same import path that p has, but we cannot put it in
+@@ -408,13 +399,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	}
+ 
+ 	// The generated main also imports testing and regexp.
+-	ptesting, err := loadPackage("testing")
+-	if err != nil {
+-		return nil, nil, nil, err
+-	}
+-	pregexp, err := loadPackage("regexp")
+-	if err != nil {
+-		return nil, nil, nil, err
++	stk.push("testmain")
++	ptesting := loadPackage("testing", &stk)
++	if ptesting.Error != nil {
++		return nil, nil, nil, ptesting.Error
++	}
++	pregexp := loadPackage("regexp", &stk)
++	if pregexp.Error != nil {
++		return nil, nil, nil, pregexp.Error
+ 	}
+ 	pmain.imports = append(pmain.imports, ptesting, pregexp)
+ 
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+new file mode 100644
+index 0000000000..b2abd988a4
+--- /dev/null
++++ b/src/cmd/go/vcs.go
+@@ -0,0 +1,404 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"encoding/json"
++	"fmt"
++	"os"
++	"os/exec"
++	"regexp"
++	"strings"
++)
++
++// A vcsCmd describes how to use a version control system
++// like Mercurial, Git, or Subversion.
++type vcsCmd struct {
++	name string
++	cmd  string // name of binary to invoke command
++
++	createCmd   string // command to download a fresh copy of a repository
++	downloadCmd string // command to download updates into an existing repository
++
++	tagCmd     []tagCmd // commands to list tags
++	tagDefault string   // default tag to use
++	tagSyncCmd string   // command to sync to specific tag
++}
++
++// A tagCmd describes a command to list available tags
++// that can be passed to tagSyncCmd.
++type tagCmd struct {
++	cmd     string // command to list tags
++	pattern string // regexp to extract tags from list
++}
++
++// vcsList lists the known version control systems
++var vcsList = []*vcsCmd{
++	vcsHg,
++	vcsGit,
++	vcsSvn,
++	vcsBzr,
++}
++
++// vcsByCmd returns the version control system for the given
++// command name (hg, git, svn, bzr).
++func vcsByCmd(cmd string) *vcsCmd {
++	for _, vcs := range vcsList {
++		if vcs.cmd == cmd {
++			return vcs
++		}
++	}
++	return nil
++}
++
++// vcsHg describes how to use Mercurial.
++var vcsHg = &vcsCmd{
++	name: "Mercurial",
++	cmd:  "hg",
++
++	createCmd:   "clone -U {repo} {dir}",
++	downloadCmd: "pull",
++
++	// We allow both tag and branch names as 'tags'
++	// for selecting a version.  This lets people have
++	// a go.release.r60 branch and a go.1 branch
++	// and make changes in both, without constantly
++	// editing .hgtags.
++	tagCmd: []tagCmd{
++		{"tags", `^(\S+)`},
++		{"branches", `^(\S+)`},
++	},
++	tagDefault: "default",
++	tagSyncCmd: "update -r {tag}",
++}
++
++// vcsGit describes how to use Git.
++var vcsGit = &vcsCmd{
++	name: "Git",
++	cmd:  "git",
++
++	createCmd:   "clone {repo} {dir}",
++	downloadCmd: "fetch",
++
++	tagCmd:     []tagCmd{{"tag", `^(\S+)$`}},
++	tagDefault: "master",
++	tagSyncCmd: "checkout {tag}",
++}
++
++// vcsBzr describes how to use Bazaar.
++var vcsBzr = &vcsCmd{
++	name: "Bazaar",
++	cmd:  "bzr",
++
++	createCmd:   "branch {repo} {dir}",
++	downloadCmd: "pull --overwrite", // TODO: REALLY?
++
++	tagCmd:     []tagCmd{{"tags", `^(\S+)`}},
++	tagDefault: "revno:-1",
++	tagSyncCmd: "update -r {tag}",
++}
++
++// vcsSvn describes how to use Subversion.
++var vcsSvn = &vcsCmd{
++	name: "Subversion",
++	cmd:  "svn",
++
++	createCmd:   "checkout {repo} {dir}",
++	downloadCmd: "update",
++
++	// There is no tag command in subversion.
++	// The branch information is all in the path names.
++}
++
++func (v *vcsCmd) String() string {
++	return v.name
++}
++
++// run runs the command line cmd in the given directory.
++// keyval is a list of key, value pairs.  run expands
++// instances of {key} in cmd into value, but only after
++// splitting cmd into individual arguments.
++// If an error occurs, run prints the command line and the
++// command's combined stdout+stderr to standard error.
++// Otherwise run discards the command's output.
++func (v *vcsCmd) run(dir string, cmd string, keyval ...string) error {
++	_, err := v.run1(dir, false, cmd, keyval)
++	return err
++}
++
++// runOutput is like run but returns the output of the command.
++func (v *vcsCmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
++	return v.run1(dir, true, cmd, keyval)
++}
++
++// run1 is the generalized implementation of run and runOutput.
++func (v *vcsCmd) run1(dir string, output bool, cmdline string, keyval []string) ([]byte, error) {
++	m := make(map[string]string)
++	for i := 0; i < len(keyval); i += 2 {
++		m[keyval[i]] = keyval[i+1]
++	}
++	args := strings.Fields(cmdline)
++	for i, arg := range args {
++		args[i] = expand(m, arg)
++	}
++
++	cmd := exec.Command(v.cmd, args...)
++	cmd.Dir = dir
++	if buildX {
++		fmt.Printf("cd %s\n", dir)
++		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
++	}
++	var buf bytes.Buffer
++	cmd.Stdout = &buf
++	cmd.Stderr = &buf
++	out := buf.Bytes()
++	err := cmd.Run()
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
++		os.Stderr.Write(out)
++		return nil, err
++	}
++	return out, nil
++}
++
++// create creates a new copy of repo in dir.
++// The parent of dir must exist; dir must not.
++func (v *vcsCmd) create(dir, repo string) error {
++	return v.run(".", v.createCmd, "dir", dir, "repo", repo)
++}
++
++// download downloads any new changes for the repo in dir.
++func (v *vcsCmd) download(dir string) error {
++	return v.run(dir, v.downloadCmd)
++}
++
++// tags returns the list of available tags for the repo in dir.
++func (v *vcsCmd) tags(dir string) ([]string, error) {
++	var tags []string
++	for _, tc := range v.tagCmd {
++		out, err := v.runOutput(dir, tc.cmd)
++		if err != nil {
++			return nil, err
++		}
++		re := regexp.MustCompile(`(?m-s)` + tc.pattern)
++		tags = append(tags, re.FindAllString(string(out), -1)...)
++	}
++	return tags, nil
++}
++
++// tagSync syncs the repo in dir to the named tag,
++// which either is a tag returned by tags or is v.tagDefault.
++func (v *vcsCmd) tagSync(dir, tag string) error {
++	if v.tagSyncCmd == "" {
++		return nil
++	}
++	return v.run(dir, v.tagSyncCmd, "tag", tag)
++}
++
++// A vcsPath is describes how to convert an import path into a
++// version control system and repository name.
++type vcsPath struct {
++	prefix string                              // prefix this description applies to
++	re     string                              // pattern for import path
++	repo   string                              // repository to use (expand with match of re)
++	vcs    string                              // version control system to use (expand with match of re)
++	check  func(match map[string]string) error // additional checks
++
++	regexp *regexp.Regexp // cached compiled form of re
++}
++
++// vcsForImportPath analyzes importPath to determine the
++// version control system, and code repository to use.
++// On return, repo is the repository URL and root is the
++// import path corresponding to the root of the repository
++// (thus root is a prefix of importPath).
++func vcsForImportPath(importPath string) (vcs *vcsCmd, repo, root string, err error) {
++	for _, srv := range vcsPaths {
++		if !strings.HasPrefix(importPath, srv.prefix) {
++			continue
++		}
++		m := srv.regexp.FindStringSubmatch(importPath)
++		if m == nil {
++			if srv.prefix != "" {
++				return nil, "", "", fmt.Errorf("invalid %s import path %q", srv.prefix, importPath)
++			}
++			continue
++		}
++
++		// Build map of named subexpression matches for expand.
++		match := map[string]string{
++			"prefix": srv.prefix,
++			"import": importPath,
++		}
++		for i, name := range srv.regexp.SubexpNames() {
++			if name != "" && match[name] == "" {
++				match[name] = m[i]
++			}
++		}
++		if srv.vcs != "" {
++			match["vcs"] = expand(match, srv.vcs)
++		}
++		if srv.repo != "" {
++			match["repo"] = expand(match, srv.repo)
++		}
++		if srv.check != nil {
++			if err := srv.check(match); err != nil {
++				return nil, "", "", err
++			}
++		}
++		vcs := vcsByCmd(match["vcs"])
++		if vcs == nil {
++			return nil, "", "", fmt.Errorf("unknown version control system %q", match["vcs"])
++		}
++		return vcs, match["repo"], match["root"], nil
++	}
++	return nil, "", "", fmt.Errorf("unrecognized import path %q", importPath)
++}
++
++// expand rewrites s to replace {k} with match[k] for each key k in match.
++func expand(match map[string]string, s string) string {
++	for k, v := range match {
++		s = strings.Replace(s, "{"+k+"}", v, -1)
++	}
++	return s
++}
++
++// vcsPaths lists the known vcs paths.
++var vcsPaths = []*vcsPath{
++	// Google Code - new syntax
++	{
++		prefix: "code.google.com/",
++		re:     `^(?P<root>code\.google\.com/p/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
++		repo:   "https://{root}",
++		check:  googleCodeVCS,
++	},
++
++	// Google Code - old syntax
++	{
++		re:    `^(?P<project>[a-z0-9_\-.]+)\.googlecode\.com/(git|hg|svn)(?P<path>/.*)?$`,
++		check: oldGoogleCode,
++	},
++
++	// Github
++	{
++		prefix: "github.com/",
++		re:     `^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
++		repo:   "https://{root}",
++		check:  noVCSSuffix,
++	},
++
++	// Bitbucket
++	{
++		prefix: "bitbucket.org/",
++		re:     `^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
++		repo:   "https://{root}",
++		check:  bitbucketVCS,
++	},
++
++	// Launchpad
++	{
++		prefix: "launchpad.net/",
++		re:     `^(?P<root>launchpad\.net/([A-Za-z0-9_.\-]+(/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
++		vcs:    "bzr",
++		repo:   "https://{root}",
++	},
++
++	// General syntax for any server.
++	{
++		re: `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
++	},
++}
++
++func init() {
++	// fill in cached regexps.
++	// Doing this eagerly discovers invalid regexp syntax
++	// without having to run a command that needs that regexp.
++	for _, srv := range vcsPaths {
++		srv.regexp = regexp.MustCompile(srv.re)
++	}
++}
++
++// noVCSSuffix checks that the repository name does not
++// end in .foo for any version control system foo.
++// The usual culprit is ".git".
++func noVCSSuffix(match map[string]string) error {
++	repo := match["repo"]
++	for _, vcs := range vcsList {
++		if strings.HasSuffix(repo, "."+vcs.cmd) {
++			return fmt.Errorf("invalid version control suffix in %s path", match["prefix"])
++		}
++	}
++	return nil
++}
++
++var googleCheckout = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
++
++// googleCodeVCS determines the version control system for
++// a code.google.com repository, by scraping the project's
++// /source/checkout page.
++func googleCodeVCS(match map[string]string) error {
++	if err := noVCSSuffix(match); err != nil {
++		return err
++	}
++	data, err := httpGET(expand(match, "https://code.google.com/p/{project}/source/checkout?repo={subrepo}"))
++	if err != nil {
++		return err
++	}
++
++	if m := googleCheckout.FindSubmatch(data); m != nil {
++		if vcs := vcsByCmd(string(m[1])); vcs != nil {
++			// Subversion requires the old URLs.
++			// TODO: Test.
++			if vcs == vcsSvn {
++				if match["subrepo"] != "" {
++					return fmt.Errorf("sub-repositories not supported in Google Code Subversion projects")
++				}
++				match["repo"] = expand(match, "https://{project}.googlecode.com/svn")
++			}
++			match["vcs"] = vcs.cmd
++			return nil
++		}
++	}
++
++	return fmt.Errorf("unable to detect version control system for code.google.com/ path")
++}
++
++// oldGoogleCode is invoked for old-style foo.googlecode.com paths.
++// It prints an error giving the equivalent new path.
++func oldGoogleCode(match map[string]string) error {
++	return fmt.Errorf("invalid Google Code import path: use %s instead",
++		expand(match, "code.google.com/p/{project}{path}"))
++}
++
++// bitbucketVCS determines the version control system for a
++// BitBucket repository, by using the BitBucket API.
++func bitbucketVCS(match map[string]string) error {
++	if err := noVCSSuffix(match); err != nil {
++		return err
++	}
++
++	var resp struct {
++		SCM string `json:"scm"`
++	}
++	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
++	data, err := httpGET(url)
++	if err != nil {
++		return err
++	}
++	if err := json.Unmarshal(data, &resp); err != nil {
++		return fmt.Errorf("decoding %s: %v", url, err)
++	}
++
++	if vcsByCmd(resp.SCM) != nil {
++		match["vcs"] = resp.SCM
++		if resp.SCM == "git" {
++			match["repo"] += ".git"
++		}
++		return nil
++	}
++
++	return fmt.Errorf("unable to detect version control system for bitbucket.org/ path")
++}
+diff --git a/src/make.bash b/src/make.bash
+index 3878d263f2..34708b5063 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -92,11 +92,21 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
+ 
+ if $USE_GO_TOOL; then
+ 	echo
+-	echo '# Building go command from bootstrap script.'
+-	./buildscript/${GOOS}_$GOARCH.sh
++	echo '# Building go_bootstrap command from bootstrap script.'
++	if ! ./buildscript/${GOOS}_$GOARCH.sh; then
++		echo '# Bootstrap script failed.'
++		if [ ! -x "$GOBIN/go" ]; then
++			exit 1
++		fi
++		echo '# Regenerating bootstrap script using pre-existing go binary.'
++		./buildscript.sh
++		./buildscript/${GOOS}_$GOARCH.sh
++	fi
+ 
+ 	echo '# Building Go code.'
+-	go install -a -v std
++	go_bootstrap install -a -v std
++	rm -f "$GOBIN/go_bootstrap"
++
+ else
+ 	echo; echo; echo %%%% making pkg %%%%; echo
+ 	gomake -C pkg install

@@ -7,7 +7,105 @@ Date:   Fri Jan 15 13:26:13 2010 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/181151
-
+---
  src/pkg/container/list/list.go      | 22 ++++++++++++++
  src/pkg/container/list/list_test.go | 59 +++++++++++++++++++++++++++++++++++++
  2 files changed, 81 insertions(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 9429c90a72..40c9680999 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -191,3 +191,25 @@ func (l *List) Iter() <-chan interface{} {
+ 	go l.iterate(c)
+ 	return c
+ }
++
++// PushBackList inserts each element of ol at the back of the list.
++func (l *List) PushBackList(ol *List) {
++	last := ol.Back()
++	for e := ol.Front(); e != nil; e = e.Next() {
++		l.PushBack(e.Value)
++		if e == last {
++			break
++		}
++	}
++}
++
++// PushFrontList inserts each element of ol at the front of the list. The ordering of the passed list is preserved.
++func (l *List) PushFrontList(ol *List) {
++	first := ol.Front()
++	for e := ol.Back(); e != nil; e = e.Prev() {
++		l.PushFront(e.Value)
++		if e == first {
++			break
++		}
++	}
++}
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index 846937a383..bf35c9dd9a 100644
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -134,3 +134,62 @@ func TestList(t *testing.T) {
+ 	checkListPointers(t, l, []*Element{})
+ 	checkListLen(t, l, 0)
+ }
++
++func checkList(t *testing.T, l *List, es []interface{}) {
++	if l.Len() != len(es) {
++		t.Errorf("list has len=%v, want %v", l.Len(), len(es))
++		return
++	}
++	i := 0
++	for le := range l.Iter() {
++		if le != es[i] {
++			t.Errorf("elt #%d has value=%v, want %v", i, le, es[i])
++		}
++		i++
++	}
++}
++
++func TestExtending(t *testing.T) {
++	l1 := New()
++	l2 := New()
++
++	l1.PushBack(1)
++	l1.PushBack(2)
++	l1.PushBack(3)
++
++	l2.PushBack(4)
++	l2.PushBack(5)
++
++	l3 := New()
++	l3.PushBackList(l1)
++	checkList(t, l3, []interface{}{1, 2, 3})
++	l3.PushBackList(l2)
++	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
++
++	l3 = New()
++	l3.PushFrontList(l2)
++	checkList(t, l3, []interface{}{4, 5})
++	l3.PushFrontList(l1)
++	checkList(t, l3, []interface{}{1, 2, 3, 4, 5})
++
++	checkList(t, l1, []interface{}{1, 2, 3})
++	checkList(t, l2, []interface{}{4, 5})
++
++	l3 = New()
++	l3.PushBackList(l1)
++	checkList(t, l3, []interface{}{1, 2, 3})
++	l3.PushBackList(l3)
++	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
++
++	l3 = New()
++	l3.PushFrontList(l1)
++	checkList(t, l3, []interface{}{1, 2, 3})
++	l3.PushFrontList(l3)
++	checkList(t, l3, []interface{}{1, 2, 3, 1, 2, 3})
++
++	l3 = New()
++	l1.PushBackList(l3)
++	checkList(t, l1, []interface{}{1, 2, 3})
++	l1.PushFrontList(l3)
++	checkList(t, l1, []interface{}{1, 2, 3})
++}

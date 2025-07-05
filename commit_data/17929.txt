@@ -7,7 +7,42 @@ Date:   Mon Dec 9 12:56:23 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/36300044
-
+---
  src/cmd/dist/build.c | 4 ++--
  src/cmd/go/build.go  | 5 +++--
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index c70d5798db..7834b30427 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -677,9 +677,9 @@ install(char *dir)
+ 			vadd(&gccargs, "-fno-caret-diagnostics");
+ 			// clang is too smart about unused command-line arguments
+ 			vadd(&gccargs, "-Qunused-arguments");
+-			// disable line wrapping in error messages
+-			vadd(&gccargs, "-fmessage-length=0");
+ 		}
++		// disable word wrapping in error messages
++		vadd(&gccargs, "-fmessage-length=0");
+ 		if(streq(gohostos, "darwin")) {
+ 			// golang.org/issue/5261
+ 			vadd(&gccargs, "-mmacosx-version-min=10.6");
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7d6913662c..0eb0554130 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1890,10 +1890,11 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 		a = append(a, "-fno-caret-diagnostics")
+ 		// clang is too smart about command-line arguments
+ 		a = append(a, "-Qunused-arguments")
+-		// disable word wrapping in error messages
+-		a = append(a, "-fmessage-length=0")
+ 	}
+ 
++	// disable word wrapping in error messages
++	a = append(a, "-fmessage-length=0")
++
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+ 	// See http://golang.org/issue/3253.

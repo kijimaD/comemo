@@ -20,6 +20,20 @@ Date:   Tue Mar 28 09:41:46 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2e121df3cc..c7cdea261d 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1688,7 +1688,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						}
+ 					}
+ 					// Avoid registers we're saving for other values.
+-					if mask&^desired.avoid&^s.nospill != 0 {
++					if mask&^desired.avoid&^s.nospill&^s.used != 0 {
+ 						mask &^= desired.avoid
+ 					}
+ 					r := s.allocReg(mask, v)

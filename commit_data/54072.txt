@@ -21,7 +21,7 @@ Date:   Tue Sep 20 12:24:07 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                  | 19 ++++++++--
  src/runtime/os_linux.go                        | 14 +++++++
  src/runtime/os_linux_be64.go                   |  1 -
@@ -33,3 +33,302 @@ Date:   Tue Sep 20 12:24:07 2022 -0700
  src/runtime/testdata/testprogcgo/segv.go       | 18 ++++-----
  src/runtime/testdata/testprogcgo/segv_linux.go | 51 ++++++++++++++++++++++++++
  10 files changed, 110 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 5e58712297..add5fee634 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -603,8 +603,14 @@ func TestSegv(t *testing.T) {
+ 		t.Skipf("no signals on %s", runtime.GOOS)
+ 	}
+ 
+-	for _, test := range []string{"Segv", "SegvInCgo"} {
++	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
+ 		test := test
++
++		// The tgkill variants only run on Linux.
++		if runtime.GOOS != "linux" && strings.HasPrefix(test, "Tgkill") {
++			continue
++		}
++
+ 		t.Run(test, func(t *testing.T) {
+ 			t.Parallel()
+ 			got := runTestProg(t, "testprogcgo", test)
+@@ -633,9 +639,14 @@ func TestSegv(t *testing.T) {
+ 				testenv.SkipFlaky(t, 50979)
+ 			}
+ 
+-			nowant := "runtime: "
+-			if strings.Contains(got, nowant) {
+-				t.Errorf("unexpectedly saw %q in output", nowant)
++			for _, nowant := range []string{"fatal error: ", "runtime: "} {
++				if strings.Contains(got, nowant) {
++					if runtime.GOOS == "darwin" && strings.Contains(got, "0xb01dfacedebac1e") {
++						// See the comment in signal_darwin_amd64.go.
++						t.Skip("skipping due to Darwin handling of malformed addresses")
++					}
++					t.Errorf("unexpectedly saw %q in output", nowant)
++				}
+ 			}
+ 		})
+ 	}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 3ae665c83d..53629ec90b 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -886,3 +886,17 @@ func runPerThreadSyscall() {
+ 
+ 	gp.m.needPerThreadSyscall.Store(0)
+ }
++
++const (
++	_SI_USER  = 0
++	_SI_TKILL = -6
++)
++
++// sigFromUser reports whether the signal was sent because of a call
++// to kill or tgkill.
++//
++//go:nosplit
++func (c *sigctxt) sigFromUser() bool {
++	code := int32(c.sigcode())
++	return code == _SI_USER || code == _SI_TKILL
++}
+diff --git a/src/runtime/os_linux_be64.go b/src/runtime/os_linux_be64.go
+index 537515fcf2..d8d4ac2497 100644
+--- a/src/runtime/os_linux_be64.go
++++ b/src/runtime/os_linux_be64.go
+@@ -11,7 +11,6 @@ package runtime
+ const (
+ 	_SS_DISABLE  = 2
+ 	_NSIG        = 65
+-	_SI_USER     = 0
+ 	_SIG_BLOCK   = 0
+ 	_SIG_UNBLOCK = 1
+ 	_SIG_SETMASK = 2
+diff --git a/src/runtime/os_linux_generic.go b/src/runtime/os_linux_generic.go
+index bed9e66e15..15fafc14ea 100644
+--- a/src/runtime/os_linux_generic.go
++++ b/src/runtime/os_linux_generic.go
+@@ -9,7 +9,6 @@ package runtime
+ const (
+ 	_SS_DISABLE  = 2
+ 	_NSIG        = 65
+-	_SI_USER     = 0
+ 	_SIG_BLOCK   = 0
+ 	_SIG_UNBLOCK = 1
+ 	_SIG_SETMASK = 2
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 188db01034..11d35bc020 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -27,7 +27,6 @@ func cputicks() int64 {
+ const (
+ 	_SS_DISABLE  = 2
+ 	_NSIG        = 129
+-	_SI_USER     = 0
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+diff --git a/src/runtime/os_linux_mipsx.go b/src/runtime/os_linux_mipsx.go
+index 73016f81d9..cdf83ff71d 100644
+--- a/src/runtime/os_linux_mipsx.go
++++ b/src/runtime/os_linux_mipsx.go
+@@ -21,7 +21,6 @@ func cputicks() int64 {
+ const (
+ 	_SS_DISABLE  = 2
+ 	_NSIG        = 128 + 1
+-	_SI_USER     = 0
+ 	_SIG_BLOCK   = 1
+ 	_SIG_UNBLOCK = 2
+ 	_SIG_SETMASK = 3
+diff --git a/src/runtime/os_unix_nonlinux.go b/src/runtime/os_unix_nonlinux.go
+new file mode 100644
+index 0000000000..b98753b8fe
+--- /dev/null
++++ b/src/runtime/os_unix_nonlinux.go
+@@ -0,0 +1,15 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !linux
++
++package runtime
++
++// sigFromUser reports whether the signal was sent because of a call
++// to kill.
++//
++//go:nosplit
++func (c *sigctxt) sigFromUser() bool {
++	return c.sigcode() == _SI_USER
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 545094c640..4c55e83747 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -662,7 +662,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if sig < uint32(len(sigtable)) {
+ 		flags = sigtable[sig].flags
+ 	}
+-	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 && gp.throwsplit {
++	if !c.sigFromUser() && flags&_SigPanic != 0 && gp.throwsplit {
+ 		// We can't safely sigpanic because it may grow the
+ 		// stack. Abort in the signal handler instead.
+ 		flags = _SigThrow
+@@ -672,7 +672,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		// causes a memory fault. Don't turn that into a panic.
+ 		flags = _SigThrow
+ 	}
+-	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++	if !c.sigFromUser() && flags&_SigPanic != 0 {
+ 		// The signal is going to cause a panic.
+ 		// Arrange the stack so that it looks like the point
+ 		// where the signal occurred made a call to the
+@@ -690,13 +690,13 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		return
+ 	}
+ 
+-	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++	if c.sigFromUser() || flags&_SigNotify != 0 {
+ 		if sigsend(sig) {
+ 			return
+ 		}
+ 	}
+ 
+-	if c.sigcode() == _SI_USER && signal_ignored(sig) {
++	if c.sigFromUser() && signal_ignored(sig) {
+ 		return
+ 	}
+ 
+@@ -706,7 +706,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	// _SigThrow means that we should exit now.
+ 	// If we get here with _SigPanic, it means that the signal
+-	// was sent to us by a program (c.sigcode() == _SI_USER);
++	// was sent to us by a program (c.sigFromUser() is true);
+ 	// in that case, if we didn't handle it in sigsend, we exit now.
+ 	if flags&(_SigThrow|_SigPanic) == 0 {
+ 		return
+@@ -929,7 +929,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 	//
+ 	// On FreeBSD, the libthr sigaction code prevents
+ 	// this from working so we fall through to raise.
+-	if GOOS != "freebsd" && (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
++	if GOOS != "freebsd" && (isarchive || islibrary) && handler == _SIG_DFL && !c.sigFromUser() {
+ 		return
+ 	}
+ 
+@@ -1110,7 +1110,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	// Unfortunately, user generated SIGPIPEs will also be forwarded, because si_code
+ 	// is set to _SI_USER even for a SIGPIPE raised from a write to a closed socket
+ 	// or pipe.
+-	if (c.sigcode() == _SI_USER || flags&_SigPanic == 0) && sig != _SIGPIPE {
++	if (c.sigFromUser() || flags&_SigPanic == 0) && sig != _SIGPIPE {
+ 		return false
+ 	}
+ 	// Determine if the signal occurred inside Go code. We test that:
+diff --git a/src/runtime/testdata/testprogcgo/segv.go b/src/runtime/testdata/testprogcgo/segv.go
+index 0632475228..bf5aa313b3 100644
+--- a/src/runtime/testdata/testprogcgo/segv.go
++++ b/src/runtime/testdata/testprogcgo/segv.go
+@@ -2,18 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !plan9 && !windows
+-// +build !plan9,!windows
++//go:build unix
++// +build unix
+ 
+ package main
+ 
++// #include <unistd.h>
+ // static void nop() {}
+ import "C"
+ 
+-import (
+-	"syscall"
+-	"time"
+-)
++import "syscall"
+ 
+ func init() {
+ 	register("Segv", Segv)
+@@ -35,8 +33,8 @@ func Segv() {
+ 
+ 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
+ 
+-	// Give the OS time to deliver the signal.
+-	time.Sleep(time.Second)
++	// Wait for the OS to deliver the signal.
++	C.pause()
+ }
+ 
+ func SegvInCgo() {
+@@ -52,6 +50,6 @@ func SegvInCgo() {
+ 
+ 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
+ 
+-	// Give the OS time to deliver the signal.
+-	time.Sleep(time.Second)
++	// Wait for the OS to deliver the signal.
++	C.pause()
+ }
+diff --git a/src/runtime/testdata/testprogcgo/segv_linux.go b/src/runtime/testdata/testprogcgo/segv_linux.go
+new file mode 100644
+index 0000000000..fe93778781
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/segv_linux.go
+@@ -0,0 +1,51 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include <unistd.h>
++// static void nop() {}
++import "C"
++
++import "syscall"
++
++func init() {
++	register("TgkillSegv", TgkillSegv)
++	register("TgkillSegvInCgo", TgkillSegvInCgo)
++}
++
++func TgkillSegv() {
++	c := make(chan bool)
++	go func() {
++		close(c)
++		for i := 0; ; i++ {
++			// Sum defined in segv.go.
++			Sum += i
++		}
++	}()
++
++	<-c
++
++	syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSEGV)
++
++	// Wait for the OS to deliver the signal.
++	C.pause()
++}
++
++func TgkillSegvInCgo() {
++	c := make(chan bool)
++	go func() {
++		close(c)
++		for {
++			C.nop()
++		}
++	}()
++
++	<-c
++
++	syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSEGV)
++
++	// Wait for the OS to deliver the signal.
++	C.pause()
++}

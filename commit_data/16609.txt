@@ -8,7 +8,7 @@ Date:   Thu Jun 20 16:14:40 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10448043
-
+---
  src/cmd/go/get.go                | 2 +-
  src/pkg/encoding/asn1/marshal.go | 4 ++--
  src/pkg/encoding/gob/encode.go   | 8 ++++----
@@ -20,3 +20,207 @@ Date:   Thu Jun 20 16:14:40 2013 -0700
  src/pkg/syscall/syscall_bsd.go   | 3 +--
  src/pkg/time/format.go           | 2 +-
  10 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 8c08ab2616..f9a1cfce46 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -286,7 +286,7 @@ func downloadPackage(p *Package) error {
+ 		}
+ 		// Some version control tools require the parent of the target to exist.
+ 		parent, _ := filepath.Split(root)
+-		if err := os.MkdirAll(parent, 0777); err != nil {
++		if err = os.MkdirAll(parent, 0777); err != nil {
+ 			return err
+ 		}
+ 		if err = vcs.create(root, repo); err != nil {
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index d38694d666..ed17e41a55 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -441,11 +441,11 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 			return
+ 		}
+ 
+-		var params fieldParameters
++		var fp fieldParameters
+ 		for i := 0; i < v.Len(); i++ {
+ 			var pre *forkableWriter
+ 			pre, out = out.fork()
+-			err = marshalField(pre, v.Index(i), params)
++			err = marshalField(pre, v.Index(i), fp)
+ 			if err != nil {
+ 				return
+ 			}
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index 6fcf8f9a5d..2726bcd7e7 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -575,21 +575,21 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				break
+ 			}
+ 			// Slices have a header; we decode it to find the underlying array.
+-			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
++			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				slice := (*reflect.SliceHeader)(p)
+ 				if !state.sendZero && slice.Len == 0 {
+ 					return
+ 				}
+ 				state.update(i)
+-				state.enc.encodeArray(state.b, unsafe.Pointer(slice.Data), *elemOp, t.Elem().Size(), indir, int(slice.Len))
++				state.enc.encodeArray(state.b, unsafe.Pointer(slice.Data), *elemOp, t.Elem().Size(), elemIndir, int(slice.Len))
+ 			}
+ 		case reflect.Array:
+ 			// True arrays have size in the type.
+-			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
++			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				state.update(i)
+-				state.enc.encodeArray(state.b, p, *elemOp, t.Elem().Size(), indir, t.Len())
++				state.enc.encodeArray(state.b, p, *elemOp, t.Elem().Size(), elemIndir, t.Len())
+ 			}
+ 		case reflect.Map:
+ 			keyOp, keyIndir := enc.encOpFor(t.Key(), inProgress)
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index fa9eb52c6a..2da95b58af 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -811,8 +811,8 @@ func (p *pp) printArg(arg interface{}, verb rune, plus, goSyntax bool, depth int
+ 		p.fmt.plus = oldPlus
+ 		p.fmt.sharp = oldSharp
+ 		// If the type is not simple, it might have methods.
+-		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+-			return wasString
++		if isString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
++			return isString
+ 		}
+ 		// Need to use reflection
+ 		return p.printReflectValue(reflect.ValueOf(arg), verb, plus, goSyntax, depth)
+@@ -849,8 +849,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, plus, goSyntax bool, dep
+ 	if value.CanInterface() {
+ 		p.arg = value.Interface()
+ 	}
+-	if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+-		return wasString
++	if isString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
++		return isString
+ 	}
+ 
+ 	return p.printReflectValue(value, verb, plus, goSyntax, depth)
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index d2d7867da7..c7e648579a 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -781,7 +781,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
+ 			}
+ 			s.error(err)
+ 		}
+-		n, err := strconv.Atoi(str[p+1:])
++		m, err := strconv.Atoi(str[p+1:])
+ 		if err != nil {
+ 			// Put full string into error.
+ 			if e, ok := err.(*strconv.NumError); ok {
+@@ -789,7 +789,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
+ 			}
+ 			s.error(err)
+ 		}
+-		return math.Ldexp(f, n)
++		return math.Ldexp(f, m)
+ 	}
+ 	f, err := strconv.ParseFloat(str, n)
+ 	if err != nil {
+@@ -858,8 +858,7 @@ func (s *ss) quotedString() string {
+ 				// In a legal backslash escape, no matter how long, only the character
+ 				// immediately after the escape can itself be a backslash or quote.
+ 				// Thus we only need to protect the first character after the backslash.
+-				r := s.mustReadRune()
+-				s.buf.WriteRune(r)
++				s.buf.WriteRune(s.mustReadRune())
+ 			} else if r == '"' {
+ 				break
+ 			}
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index e24fecc8d4..c7bd4d7bfa 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -381,7 +381,6 @@ func TestDialer(t *testing.T) {
+ 	defer ln.Close()
+ 	ch := make(chan error, 1)
+ 	go func() {
+-		var err error
+ 		c, err := ln.Accept()
+ 		if err != nil {
+ 			ch <- fmt.Errorf("Accept failed: %v", err)
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+index 5e63e9d9de..e1c3ff2215 100644
+--- a/src/pkg/net/unix_test.go
++++ b/src/pkg/net/unix_test.go
+@@ -212,7 +212,6 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 
+ 		var la *UnixAddr
+ 		if laddr != "" {
+-			var err error
+ 			if la, err = ResolveUnixAddr("unixgram", laddr); err != nil {
+ 				t.Fatalf("ResolveUnixAddr failed: %v", err)
+ 			}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 16c4120dc6..27abf59826 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -91,7 +91,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = RemoveAll(path); err != nil {
+ 		t.Fatalf("RemoveAll %q (first): %s", path, err)
+ 	}
+-	if _, err := Lstat(path); err == nil {
++	if _, err = Lstat(path); err == nil {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path)
+ 	}
+ 
+@@ -153,7 +153,7 @@ func TestRemoveAll(t *testing.T) {
+ 		Chmod(dpath, 0777)
+ 
+ 		for _, s := range []string{fpath, path + "/zzz"} {
+-			if _, err := Lstat(s); err == nil {
++			if _, err = Lstat(s); err == nil {
+ 				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
+ 			}
+ 		}
+@@ -161,7 +161,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = RemoveAll(path); err != nil {
+ 		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err)
+ 	}
+-	if _, err := Lstat(path); err == nil {
++	if _, err = Lstat(path); err == nil {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
+ 	}
+ }
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 3e7870a0a5..7dc57acf9b 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -532,10 +532,9 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	var ptr uintptr
+ 	var salen _Socklen
+ 	if to != nil {
+-		var err error
+ 		ptr, salen, err = to.sockaddr()
+ 		if err != nil {
+-			return err
++			return
+ 		}
+ 	}
+ 	var msg Msghdr
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 7fe0402312..7aa60e75dc 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -780,7 +780,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			// Special case: do we have a fractional second but no
+ 			// fractional second in the format?
+ 			if len(value) >= 2 && value[0] == '.' && isDigit(value, 1) {
+-				_, std, _ := nextStdChunk(layout)
++				_, std, _ = nextStdChunk(layout)
+ 				std &= stdMask
+ 				if std == stdFracSecond0 || std == stdFracSecond9 {
+ 					// Fractional second in the layout; proceed normally

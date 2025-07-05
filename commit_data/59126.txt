@@ -15,7 +15,45 @@ Date:   Fri Feb 16 21:16:29 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/reflect/all_test.go | 6 ++++++
  src/reflect/value.go    | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e77537c9a5..c85de721a0 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8027,6 +8027,7 @@ func TestValue_Comparable(t *testing.T) {
+ 	var a int
+ 	var s []int
+ 	var i interface{} = a
++	var iNil interface{}
+ 	var iSlice interface{} = s
+ 	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
+ 	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
+@@ -8035,6 +8036,11 @@ func TestValue_Comparable(t *testing.T) {
+ 		comparable bool
+ 		deref      bool
+ 	}{
++		{
++			ValueOf(&iNil),
++			true,
++			true,
++		},
+ 		{
+ 			ValueOf(32),
+ 			true,
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 87e595155b..adb81d4641 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3406,7 +3406,7 @@ func (v Value) Comparable() bool {
+ 		return v.Type().Comparable()
+ 
+ 	case Interface:
+-		return v.Elem().Comparable()
++		return v.IsNil() || v.Elem().Comparable()
+ 
+ 	case Struct:
+ 		for i := 0; i < v.NumField(); i++ {

@@ -17,7 +17,118 @@ Date:   Wed May 9 21:02:14 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/base32/base32.go      |  5 +++
  src/encoding/base32/base32_test.go | 80 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 85 insertions(+)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index e72ba74983..f3430654e1 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -409,9 +409,14 @@ func readEncodedData(r io.Reader, buf []byte, min int) (n int, err error) {
+ 		nn, err = r.Read(buf[n:])
+ 		n += nn
+ 	}
++	// data was read, less than min bytes could be read
+ 	if n < min && n > 0 && err == io.EOF {
+ 		err = io.ErrUnexpectedEOF
+ 	}
++	// no data was read, the buffer already contains some data
++	if min < 8 && n == 0 && err == io.EOF {
++		err = io.ErrUnexpectedEOF
++	}
+ 	return
+ }
+ 
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 56b229d15a..094ac288d6 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -530,6 +530,86 @@ func TestDecodeWithWrongPadding(t *testing.T) {
+ 	}
+ }
+ 
++func TestBufferedDecodingSameError(t *testing.T) {
++	testcases := []struct {
++		prefix            string
++		chunkCombinations [][]string
++		expected          error
++	}{
++		// NBSWY3DPO5XXE3DE == helloworld
++		// Test with "ZZ" as extra input
++		{"helloworld", [][]string{
++			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
++			[]string{"NBSWY3DPO5XXE3DE", "ZZ"},
++			[]string{"NBSWY3DPO5XXE3DEZZ"},
++			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
++			[]string{"NBSWY3DPO5XXE3", "DEZZ"},
++		}, io.ErrUnexpectedEOF},
++
++		// Test with "ZZY" as extra input
++		{"helloworld", [][]string{
++			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
++			[]string{"NBSWY3DPO5XXE3DE", "ZZY"},
++			[]string{"NBSWY3DPO5XXE3DEZZY"},
++			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
++			[]string{"NBSWY3DPO5XXE3", "DEZZY"},
++		}, io.ErrUnexpectedEOF},
++
++		// Normal case, this is valid input
++		{"helloworld", [][]string{
++			[]string{"NBSW", "Y3DP", "O5XX", "E3DE"},
++			[]string{"NBSWY3DPO5XXE3DE"},
++			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
++			[]string{"NBSWY3DPO5XXE3", "DE"},
++		}, nil},
++
++		// MZXW6YTB = fooba
++		{"fooba", [][]string{
++			[]string{"MZXW6YTBZZ"},
++			[]string{"MZXW6YTBZ", "Z"},
++			[]string{"MZXW6YTB", "ZZ"},
++			[]string{"MZXW6YT", "BZZ"},
++			[]string{"MZXW6Y", "TBZZ"},
++			[]string{"MZXW6Y", "TB", "ZZ"},
++			[]string{"MZXW6", "YTBZZ"},
++			[]string{"MZXW6", "YTB", "ZZ"},
++			[]string{"MZXW6", "YT", "BZZ"},
++		}, io.ErrUnexpectedEOF},
++
++		// Normal case, this is valid input
++		{"fooba", [][]string{
++			[]string{"MZXW6YTB"},
++			[]string{"MZXW6YT", "B"},
++			[]string{"MZXW6Y", "TB"},
++			[]string{"MZXW6", "YTB"},
++			[]string{"MZXW6", "YT", "B"},
++			[]string{"MZXW", "6YTB"},
++			[]string{"MZXW", "6Y", "TB"},
++		}, nil},
++	}
++
++	for _, testcase := range testcases {
++		for _, chunks := range testcase.chunkCombinations {
++			pr, pw := io.Pipe()
++
++			// Write the encoded chunks into the pipe
++			go func() {
++				for _, chunk := range chunks {
++					pw.Write([]byte(chunk))
++				}
++				pw.Close()
++			}()
++
++			decoder := NewDecoder(StdEncoding, pr)
++			_, err := ioutil.ReadAll(decoder)
++
++			if err != testcase.expected {
++				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
++			}
++		}
++	}
++}
++
+ func TestEncodedDecodedLen(t *testing.T) {
+ 	type test struct {
+ 		in      int

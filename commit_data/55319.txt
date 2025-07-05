@@ -18,10 +18,190 @@ Date:   Tue Jan 24 11:38:29 2023 -0600
     Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  test/codegen/arithmetic.go |  4 ++--
  test/codegen/bool.go       | 18 ++++++++----------
  test/codegen/copy.go       | 20 ++++++++++----------
  test/codegen/mathbits.go   |  4 ++--
  test/codegen/shift.go      | 21 ++++++++++-----------
  5 files changed, 32 insertions(+), 35 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 00311e8b7f..2f06ac58d6 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -162,8 +162,8 @@ func MergeMuls1(n int) int {
+ func MergeMuls2(n int) int {
+ 	// amd64:"IMUL3Q\t[$]23","(ADDQ\t[$]29)|(LEAQ\t29)"
+ 	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
+-	// ppc64le/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
+-	// ppc64le/power8:"MULLD\t[$]23","ADD\t[$]29"
++	// ppc64x/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
++	// ppc64x/power8:"MULLD\t[$]23","ADD\t[$]29"
+ 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
+ }
+ 
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index ecc21fa90a..286440d704 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -18,7 +18,6 @@ func convertNeq0B(x uint8, c bool) bool {
+ func convertNeq0W(x uint16, c bool) bool {
+ 	// amd64:"ANDL\t[$]1",-"SETNE"
+ 	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
+-	// ppc64le/power9:"ANDCC",-CMPW",-"ISEL"
+ 	b := x&1 != 0
+ 	return c && b
+ }
+@@ -38,22 +37,21 @@ func convertNeq0Q(x uint64, c bool) bool {
+ }
+ 
+ func convertNeqBool32(x uint32) bool {
+-        // ppc64x:"ANDCC",-"CMPW",-"ISEL"
+-        return x&1 != 0
++	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
++	return x&1 != 0
+ }
+ 
+ func convertEqBool32(x uint32) bool {
+-        // ppc64x:"ANDCC",-"CMPW","XOR",-"ISEL"
+-        // ppc64le/power9:"ANDCC","XOR",-"CMPW",-"ISEL"
+-        return x&1 == 0
++	// ppc64x:"ANDCC",-"CMPW","XOR",-"ISEL"
++	return x&1 == 0
+ }
+ 
+ func convertNeqBool64(x uint64) bool {
+-        // ppc64x:"ANDCC",-"CMP",-"ISEL"
+-        return x&1 != 0
++	// ppc64x:"ANDCC",-"CMP",-"ISEL"
++	return x&1 != 0
+ }
+ 
+ func convertEqBool64(x uint64) bool {
+-        // ppc64x:"ANDCC","XOR",-"CMP",-"ISEL"
+-        return x&1 == 0
++	// ppc64x:"ANDCC","XOR",-"CMP",-"ISEL"
++	return x&1 == 0
+ }
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index a885a81fb2..4c4c857460 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -43,8 +43,8 @@ var x [256]byte
+ func moveDisjointStack32() {
+ 	var s [32]byte
+ 	// ppc64x:-".*memmove"
+-	// ppc64le/power8:"LXVD2X",-"ADD",-"BC"
+-	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
++	// ppc64x/power8:"LXVD2X",-"ADD",-"BC"
++	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+ 	copy(s[:], x[:32])
+ 	runtime.KeepAlive(&s)
+ }
+@@ -52,8 +52,8 @@ func moveDisjointStack32() {
+ func moveDisjointStack64() {
+ 	var s [96]byte
+ 	// ppc64x:-".*memmove"
+-	// ppc64le/power8:"LXVD2X","ADD","BC"
+-	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
++	// ppc64x/power8:"LXVD2X","ADD","BC"
++	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+ 	copy(s[:], x[:96])
+ 	runtime.KeepAlive(&s)
+ }
+@@ -63,8 +63,8 @@ func moveDisjointStack() {
+ 	// s390x:-".*memmove"
+ 	// amd64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+-	// ppc64le/power8:"LXVD2X"
+-	// ppc64le/power9:"LXV",-"LXVD2X"
++	// ppc64x/power8:"LXVD2X"
++	// ppc64x/power9:"LXV",-"LXVD2X"
+ 	copy(s[:], x[:])
+ 	runtime.KeepAlive(&s)
+ }
+@@ -74,8 +74,8 @@ func moveDisjointArg(b *[256]byte) {
+ 	// s390x:-".*memmove"
+ 	// amd64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+-	// ppc64le/power8:"LXVD2X"
+-	// ppc64le/power9:"LXV",-"LXVD2X"
++	// ppc64x/power8:"LXVD2X"
++	// ppc64x/power9:"LXV",-"LXVD2X"
+ 	copy(s[:], b[:])
+ 	runtime.KeepAlive(&s)
+ }
+@@ -84,8 +84,8 @@ func moveDisjointNoOverlap(a *[256]byte) {
+ 	// s390x:-".*memmove"
+ 	// amd64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+-	// ppc64le/power8:"LXVD2X"
+-	// ppc64le/power9:"LXV",-"LXVD2X"
++	// ppc64x/power8:"LXVD2X"
++	// ppc64x/power9:"LXV",-"LXVD2X"
+ 	copy(a[:], a[128:])
+ }
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 788f739f14..09aa5a136e 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -308,8 +308,8 @@ func TrailingZeros64(n uint64) int {
+ }
+ 
+ func TrailingZeros64Subtract(n uint64) int {
+-	// ppc64le/power8:"NEG","SUBC","ANDN","POPCNTD"
+-	// ppc64le/power9:"SUBC","CNTTZD"
++	// ppc64x/power8:"NEG","SUBC","ANDN","POPCNTD"
++	// ppc64x/power9:"SUBC","CNTTZD"
+ 	return bits.TrailingZeros64(1 - n)
+ }
+ 
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 2b136361d5..d34ff9b428 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -86,8 +86,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
+ 
+ func rshMask64x64(v int64, s uint64) int64 {
+ 	// arm64:"ASR",-"AND",-"CSEL"
+-	// ppc64:"ANDCC",-"ORN",-"ISEL"
+-	// ppc64le:"ANDCC",-ORN",-"ISEL"
++	// ppc64x:"ANDCC",-"ORN",-"ISEL"
+ 	// riscv64:"SRA",-"OR",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	return v >> (s & 63)
+@@ -353,23 +352,23 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
+ 
+ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
+ 
+-	// ppc64le:-".*MOVW"
++	// ppc64x:-".*MOVW"
+ 	f := int32(v >> 32)
+-	// ppc64le:".*MOVW"
++	// ppc64x:".*MOVW"
+ 	f += int32(v >> 31)
+-	// ppc64le:-".*MOVH"
++	// ppc64x:-".*MOVH"
+ 	g := int16(v >> 48)
+-	// ppc64le:".*MOVH"
++	// ppc64x:".*MOVH"
+ 	g += int16(v >> 30)
+-	// ppc64le:-".*MOVH"
++	// ppc64x:-".*MOVH"
+ 	g += int16(f >> 16)
+-	// ppc64le:-".*MOVB"
++	// ppc64x:-".*MOVB"
+ 	h := int8(v >> 56)
+-	// ppc64le:".*MOVB"
++	// ppc64x:".*MOVB"
+ 	h += int8(v >> 28)
+-	// ppc64le:-".*MOVB"
++	// ppc64x:-".*MOVB"
+ 	h += int8(f >> 24)
+-	// ppc64le:".*MOVB"
++	// ppc64x:".*MOVB"
+ 	h += int8(f >> 16)
+ 	return int64(h), uint64(g)
+ }

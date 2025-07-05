@@ -7,6 +7,25 @@ Date:   Mon Apr 30 13:49:16 2018 -0400
     Change-Id: I9699b22d3a308cda685aa684b32dcde99333df46
     Reviewed-on: https://go-review.googlesource.com/110315
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 4de4adbd68..082fc74f48 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -88,6 +88,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.5">Go
+ 1.9.5 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.9.6 (released 2018/05/01) includes fixes to the compiler and go command.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.6">Go
++1.9.6 milestone</a> on our issue tracker for details.
++</p>
++
++
+ <h2 id="go1.8">go1.8 (released 2017/02/16)</h2>
+ 
+ <p>

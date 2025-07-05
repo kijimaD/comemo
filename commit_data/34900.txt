@@ -14,7 +14,115 @@ Date:   Thu Nov 23 18:21:52 2017 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/sendfile_windows.go |  9 +++++
  src/net/tcpsock_test.go               | 72 +++++++++++++++++++++++++++++++++++
  2 files changed, 81 insertions(+)
+
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index c1a2d6d176..4a15b75236 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -8,6 +8,15 @@ import "syscall"
+ 
+ // SendFile wraps the TransmitFile call.
+ func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
++	ft, err := syscall.GetFileType(src)
++	if err != nil {
++		return 0, err
++	}
++	// TransmitFile does not work with pipes
++	if ft == syscall.FILE_TYPE_PIPE {
++		return 0, syscall.ESPIPE
++	}
++
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 09f6516451..b85ffa62e1 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"sync"
+@@ -722,3 +723,74 @@ func TestTCPBig(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestCopyPipeIntoTCP(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++
++	errc := make(chan error, 1)
++	defer func() {
++		if err := <-errc; err != nil {
++			t.Error(err)
++		}
++	}()
++	go func() {
++		c, err := ln.Accept()
++		if err != nil {
++			errc <- err
++			return
++		}
++		defer c.Close()
++
++		buf := make([]byte, 100)
++		n, err := io.ReadFull(c, buf)
++		if err != io.ErrUnexpectedEOF || n != 2 {
++			errc <- fmt.Errorf("got err=%q n=%v; want err=%q n=2", err, n, io.ErrUnexpectedEOF)
++			return
++		}
++
++		errc <- nil
++	}()
++
++	c, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++
++	errc2 := make(chan error, 1)
++	defer func() {
++		if err := <-errc2; err != nil {
++			t.Error(err)
++		}
++	}()
++
++	defer w.Close()
++
++	go func() {
++		_, err := io.Copy(c, r)
++		errc2 <- err
++	}()
++
++	// Split write into 2 packets. That makes Windows TransmitFile
++	// drop second packet.
++	packet := make([]byte, 1)
++	_, err = w.Write(packet)
++	if err != nil {
++		t.Fatal(err)
++	}
++	time.Sleep(100 * time.Millisecond)
++	_, err = w.Write(packet)
++	if err != nil {
++		t.Fatal(err)
++	}
++}

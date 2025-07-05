@@ -12,6 +12,24 @@ Date:   Fri Jan 17 09:06:13 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/215217
     Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a875fe145f..030feb7112 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -776,9 +776,9 @@ func (c *common) Helper() {
+ 	c.helpers[callerName(1)] = struct{}{}
+ }
+ 
+-// Cleanup registers a function to be called when the test finishes.
+-// Cleanup functions will be called in last added, first called
+-// order.
++// Cleanup registers a function to be called when the test and all its
++// subtests complete. Cleanup functions will be called in last added,
++// first called order.
+ func (c *common) Cleanup(f func()) {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()

@@ -22,8 +22,128 @@ Date:   Thu May 19 10:07:41 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash | 10 ++++++++++
  misc/cgo/testsanitizers/tsan3.go  | 40 +++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/out.go                |  8 +++++++-
  3 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 76628abaff..8718815d3e 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -134,6 +134,16 @@ if test "$tsan" = "yes"; then
+ 	status=1
+     fi
+ 
++    if ! go run tsan3.go 2>$err; then
++	cat $err
++	echo "FAIL: tsan3"
++	status=1
++    elif grep -i warning $err >/dev/null 2>&1; then
++	cat $err
++	echo "FAIL: tsan3"
++	status=1
++    fi
++
+     rm -f $err
+ fi
+ 
+diff --git a/misc/cgo/testsanitizers/tsan3.go b/misc/cgo/testsanitizers/tsan3.go
+new file mode 100644
+index 0000000000..87f6c80f1b
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan3.go
+@@ -0,0 +1,40 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// The stubs for the C functions read and write the same slot on the
++// g0 stack when copying arguments in and out.
++
++/*
++#cgo CFLAGS: -fsanitize=thread
++#cgo LDFLAGS: -fsanitize=thread
++
++int Func1() {
++	return 0;
++}
++
++void Func2(int x) {
++	(void)x;
++}
++*/
++import "C"
++
++func main() {
++	const N = 10000
++	done := make(chan bool, N)
++	for i := 0; i < N; i++ {
++		go func() {
++			C.Func1()
++			done <- true
++		}()
++		go func() {
++			C.Func2(0)
++			done <- true
++		}()
++	}
++	for i := 0; i < 2*N; i++ {
++		<-done
++	}
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 265a3bbe6f..256b059e57 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -560,6 +560,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 
+ 	// Gcc wrapper unpacks the C argument struct
+ 	// and calls the actual C function.
++	fmt.Fprintf(fgcc, "CGO_NO_SANITIZE_THREAD\n")
+ 	if n.AddError {
+ 		fmt.Fprintf(fgcc, "int\n")
+ 	} else {
+@@ -635,6 +636,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ // wrapper, we can't refer to the function, since the reference is in
+ // a different file.
+ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
++	fmt.Fprintf(fgcc, "CGO_NO_SANITIZE_THREAD\n")
+ 	if t := n.FuncType.Result; t != nil {
+ 		fmt.Fprintf(fgcc, "%s\n", t.C.String())
+ 	} else {
+@@ -817,6 +819,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+ 
+ 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
++		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
+ 		fmt.Fprintf(fgcc, "\n%s\n", s)
+ 		fmt.Fprintf(fgcc, "{\n")
+ 		fmt.Fprintf(fgcc, "\t__SIZE_TYPE__ _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
+@@ -1020,7 +1023,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, goName)
+ 		fmt.Fprint(fgcc, "\n")
+ 
+-		fmt.Fprint(fgcc, "\n")
++		fmt.Fprint(fgcc, "\nCGO_NO_SANITIZE_THREAD\n")
+ 		fmt.Fprintf(fgcc, "%s %s %s {\n", cRet, exp.ExpName, cParams)
+ 		if resultCount > 0 {
+ 			fmt.Fprintf(fgcc, "\t%s r;\n", cRet)
+@@ -1304,11 +1307,14 @@ extern char* _cgo_topofstack(void);
+ 
+ // Prologue defining TSAN functions in C.
+ const noTsanProlog = `
++#define CGO_NO_SANITIZE_THREAD
+ #define _cgo_tsan_acquire()
+ #define _cgo_tsan_release()
+ `
+ 
+ const yesTsanProlog = `
++#define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
++
+ long long _cgo_sync __attribute__ ((common));
+ 
+ extern void __tsan_acquire(void*);

@@ -30,7 +30,7 @@ Date:   Mon Oct 3 16:58:34 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/crash_cgo_test.go               |  29 ++++++++
  src/runtime/os3_solaris.go                  |   2 +-
  src/runtime/os_darwin.go                    |   2 +-
@@ -38,3 +38,238 @@ Date:   Mon Oct 3 16:58:34 2016 -0700
  src/runtime/signal_unix.go                  |  16 +++--
  src/runtime/testdata/testprogcgo/racesig.go | 102 ++++++++++++++++++++++++++++
  6 files changed, 143 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 1e509c113a..2e2f95e5f0 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -319,3 +319,32 @@ func TestRaceProf(t *testing.T) {
+ 		t.Errorf("expected %q got %s", want, got)
+ 	}
+ }
++
++func TestRaceSignal(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++
++	testenv.MustHaveGoRun(t)
++
++	// This test requires building various packages with -race, so
++	// it's somewhat slow.
++	if testing.Short() {
++		t.Skip("skipping test in -short mode")
++	}
++
++	exe, err := buildTestProg(t, "testprogcgo", "-race")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
++	if err != nil {
++		t.Logf("%s\n", got)
++		t.Fatal(err)
++	}
++	want := "OK\n"
++	if string(got) != want {
++		t.Errorf("expected %q got %s", want, got)
++	}
++}
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index ad66797b71..d6def7ba43 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -287,7 +287,7 @@ func getsig(i uint32) uintptr {
+ // setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+-	s.ss_sp = (*byte)(unsafe.Pointer(sp))
++	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 03badb18e1..fa5aca2f99 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -536,7 +536,7 @@ func getsig(i uint32) uintptr {
+ // setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+-	s.ss_sp = (*byte)(unsafe.Pointer(sp))
++	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index ad9c1894dc..1adabe1a42 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -384,7 +384,7 @@ func getsig(i uint32) uintptr {
+ // setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+-	s.ss_sp = (*byte)(unsafe.Pointer(sp))
++	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+ }
+ 
+ func (c *sigctxt) fixsigcode(sig uint32) {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 47ac8e94e1..f0c27cedbf 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -221,12 +221,16 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
++			needm(0)
++			noSignalStack(sig)
++			dropm()
+ 		}
+ 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 		if sp < stsp || sp >= stsp+st.ss_size {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
++			needm(0)
++			sigNotOnStack(sig)
++			dropm()
+ 		}
+ 		setGsignalStack(&st)
+ 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+@@ -422,7 +426,7 @@ func ensureSigM() {
+ 
+ // This is called when we receive a signal when there is no signal stack.
+ // This can only happen if non-Go code calls sigaltstack to disable the
+-// signal stack. This is called via cgocallback to establish a stack.
++// signal stack.
+ func noSignalStack(sig uint32) {
+ 	println("signal", sig, "received on thread with no signal stack")
+ 	throw("non-Go code disabled sigaltstack")
+@@ -441,15 +445,13 @@ func sigNotOnStack(sig uint32) {
+ //go:norace
+ //go:nowritebarrierrec
+ func badsignal(sig uintptr, c *sigctxt) {
+-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c), 0)
+-}
+-
+-func badsignalgo(sig uintptr, c *sigctxt) {
++	needm(0)
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the
+ 		// Go code does not want to handle it.
+ 		raisebadsignal(uint32(sig), c)
+ 	}
++	dropm()
+ }
+ 
+ //go:noescape
+diff --git a/src/runtime/testdata/testprogcgo/racesig.go b/src/runtime/testdata/testprogcgo/racesig.go
+new file mode 100644
+index 0000000000..e126b8becb
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/racesig.go
+@@ -0,0 +1,102 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++
++package main
++
++// Test that an external C thread that is calling malloc can be hit
++// with SIGCHLD signals. This used to fail when built with the race
++// detector, because in that case the signal handler would indirectly
++// call the C malloc function.
++
++/*
++#include <errno.h>
++#include <signal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <pthread.h>
++#include <sched.h>
++#include <unistd.h>
++
++#define ALLOCERS 100
++#define SIGNALERS 10
++
++static void* signalThread(void* p) {
++	pthread_t* pt = (pthread_t*)(p);
++	int i, j;
++
++	for (i = 0; i < 100; i++) {
++		for (j = 0; j < ALLOCERS; j++) {
++			if (pthread_kill(pt[j], SIGCHLD) < 0) {
++				return;
++			}
++		}
++		usleep(1);
++	}
++	return NULL;
++}
++
++#define CALLS 100
++
++static void* mallocThread(void* p) {
++	int i;
++	void *a[CALLS];
++
++	for (i = 0; i < ALLOCERS; i++) {
++		sched_yield();
++	}
++	for (i = 0; i < CALLS; i++) {
++		a[i] = malloc(i);
++	}
++	for (i = 0; i < CALLS; i++) {
++		free(a[i]);
++	}
++	return NULL;
++}
++
++void runRaceSignalThread() {
++	int i;
++	pthread_t m[ALLOCERS];
++	pthread_t s[SIGNALERS];
++
++	for (i = 0; i < ALLOCERS; i++) {
++		pthread_create(&m[i], NULL, mallocThread, NULL);
++	}
++	for (i = 0; i < SIGNALERS; i++) {
++		pthread_create(&s[i], NULL, signalThread, &m[0]);
++	}
++	for (i = 0; i < SIGNALERS; i++) {
++		pthread_join(s[i], NULL);
++	}
++	for (i = 0; i < ALLOCERS; i++) {
++		pthread_join(m[i], NULL);
++	}
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"time"
++)
++
++func init() {
++	register("CgoRaceSignal", CgoRaceSignal)
++}
++
++func CgoRaceSignal() {
++	// The failure symptom is that the program hangs because of a
++	// deadlock in malloc, so set an alarm.
++	go func() {
++		time.Sleep(5 * time.Second)
++		fmt.Println("Hung for 5 seconds")
++		os.Exit(1)
++	}()
++
++	C.runRaceSignalThread()
++	fmt.Println("OK")
++}

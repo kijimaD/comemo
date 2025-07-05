@@ -14,7 +14,7 @@ Date:   Fri Sep 15 23:37:53 2023 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                            |  7 +++++++
  .../go/testdata/mod/example.com_deprecated_a_v1.0.0.txt    |  7 +++++++
  .../go/testdata/mod/example.com_deprecated_a_v1.9.0.txt    |  7 +++++++
@@ -24,3 +24,143 @@ Date:   Fri Sep 15 23:37:53 2023 +0700
  src/cmd/go/testdata/script/mod_list_deprecated.txt         |  2 +-
  src/cmd/go/testdata/script/mod_run_pkg_version.txt         | 14 ++++++++++++++
  8 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4b40cc9ddb..fd599b5189 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3322,6 +3322,13 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 		return nil, fmt.Errorf("%s: %w", args[0], err)
+ 	}
+ 	rootMod := qrs[0].Mod
++	deprecation, err := modload.CheckDeprecation(ctx, rootMod)
++	if err != nil {
++		return nil, fmt.Errorf("%s: %w", args[0], err)
++	}
++	if deprecation != "" {
++		fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", rootMod.Path, modload.ShortMessage(deprecation, ""))
++	}
+ 	data, err := modfetch.GoMod(ctx, rootMod.Path, rootMod.Version)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("%s: %w", args[0], err)
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt
+index 7c29621e83..252c0b8ddb 100644
+--- a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.0.0.txt
+@@ -10,3 +10,10 @@ module example.com/deprecated/a
+ go 1.17
+ -- a.go --
+ package a
++
++-- cmd/a/a.go --
++package main
++
++import "fmt"
++
++func main() { fmt.Println("a@v1.0.0") }
+diff --git a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt
+index 0613389d1f..bb57295861 100644
+--- a/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt
++++ b/src/cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt
+@@ -12,3 +12,10 @@ module example.com/deprecated/a
+ go 1.17
+ -- a.go --
+ package a
++
++-- cmd/a/a.go --
++package main
++
++import "fmt"
++
++func main() { fmt.Println("a@v1.9.0") }
+diff --git a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt
+index a68588eedb..0e18d5078a 100644
+--- a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt
++++ b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt
+@@ -12,3 +12,10 @@ module example.com/undeprecated
+ go 1.17
+ -- undeprecated.go --
+ package undeprecated
++
++-- cmd/a/a.go --
++package main
++
++import "fmt"
++
++func main() { fmt.Println("a@v1.0.0") }
+diff --git a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt
+index ecabf322ec..26fe07c5d6 100644
+--- a/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt
++++ b/src/cmd/go/testdata/mod/example.com_undeprecated_v1.0.1.txt
+@@ -12,3 +12,10 @@ module example.com/undeprecated
+ go 1.17
+ -- undeprecated.go --
+ package undeprecated
++
++-- cmd/a/a.go --
++package main
++
++import "fmt"
++
++func main() { fmt.Println("a@v1.0.1") }
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 89dfc1458c..98cf4e4087 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -182,6 +182,19 @@ env GO111MODULE=
+ # Verifies #43278.
+ go install -mod=readonly example.com/cmd/a@v1.0.0
+ 
++
++# 'go install pkg@version' should show a deprecation message if the module is deprecated.
++env GO111MODULE=on
++go install example.com/deprecated/a/cmd/a@latest
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++go install example.com/deprecated/a/cmd/a@v1.0.0
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++
++# 'go install pkg@version' does not show a deprecation message if the module is no longer
++# deprecated in its latest version, even if the module is deprecated in its current version.
++go install example.com/undeprecated/cmd/a@v1.0.0
++! stderr 'module.*is deprecated'
++
+ -- m/go.mod --
+ module m
+ 
+diff --git a/src/cmd/go/testdata/script/mod_list_deprecated.txt b/src/cmd/go/testdata/script/mod_list_deprecated.txt
+index ee985cccbf..4c1625cff0 100644
+--- a/src/cmd/go/testdata/script/mod_list_deprecated.txt
++++ b/src/cmd/go/testdata/script/mod_list_deprecated.txt
+@@ -47,6 +47,6 @@ require (
+ 	example.com/undeprecated v1.0.0
+ )
+ -- go.sum --
+-example.com/deprecated/a v1.9.0 h1:pRyvBIZheJpQVVnNW4Fdg8QuoqDgtkCreqZZbASV3BE=
++example.com/deprecated/a v1.9.0 h1:HeC7d0lb7umZa0vCCW+0W3WtBTulO+1Mr32m/Hwzeg8=
+ example.com/deprecated/a v1.9.0/go.mod h1:Z1uUVshSY9kh6l/2hZ8oA9SBviX2yfaeEpcLDz6AZwY=
+ example.com/undeprecated v1.0.0/go.mod h1:1qiRbdA9VzJXDqlG26Y41O5Z7YyO+jAD9do8XCZQ+Gg=
+diff --git a/src/cmd/go/testdata/script/mod_run_pkg_version.txt b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+index 969852c1ee..5846b9d3f7 100644
+--- a/src/cmd/go/testdata/script/mod_run_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+@@ -82,6 +82,20 @@ stdout '^a@v1.0.0$'
+ go run -mod=readonly example.com/cmd/a@v1.0.0
+ stdout '^a@v1.0.0$'
+ 
++
++# 'go run pkg@version' should show a deprecation message if the module is deprecated.
++go run example.com/deprecated/a/cmd/a@latest
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++stdout '^a@v1.9.0$'
++go run example.com/deprecated/a/cmd/a@v1.0.0
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++stdout '^a@v1.0.0$'
++
++# 'go run pkg@version' does not show a deprecation message if the module is no longer
++# deprecated in its latest version, even if the module is deprecated in its current version.
++go run example.com/undeprecated/cmd/a@v1.0.0
++! stderr 'module.*is deprecated'
++
+ -- m/go.mod --
+ module m
+ 

@@ -14,7 +14,50 @@ Date:   Wed Sep 12 10:41:29 2018 -0400
     Change-Id: I850cad6663e566f70fd123107d2e4e742c93b450
     Reviewed-on: https://go-review.googlesource.com/134915
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go            |  7 ++++++-
  src/cmd/go/testdata/script/mod_string_alias.txt | 14 ++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index cebb802db9..06636c4f4f 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -232,11 +232,16 @@ func findModule(target, path string) module.Version {
+ }
+ 
+ func ModInfoProg(info string) []byte {
++	// Inject a variable with the debug information as runtime/debug.modinfo,
++	// but compile it in package main so that it is specific to the binary.
++	// Populate it in an init func so that it will work with go:linkname,
++	// but use a string constant instead of the name 'string' in case
++	// package main shadows the built-in 'string' with some local declaration.
+ 	return []byte(fmt.Sprintf(`
+ 		package main
+ 		import _ "unsafe"
+ 		//go:linkname __debug_modinfo__ runtime/debug.modinfo
+-		var __debug_modinfo__ string
++		var __debug_modinfo__ = ""
+ 		func init() {
+ 			__debug_modinfo__ = %q
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_string_alias.txt b/src/cmd/go/testdata/script/mod_string_alias.txt
+new file mode 100644
+index 0000000000..5c3d4287cc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_string_alias.txt
+@@ -0,0 +1,14 @@
++[short] skip
++
++env GO111MODULE=on
++
++go mod init golang.org/issue/27584
++
++go build .
++
++-- main.go --
++package main
++
++type string = []int
++
++func main() {}

@@ -11,9 +11,80 @@ Date:   Thu Mar 21 12:59:39 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/go.mod                | 2 +-
  src/go.sum                | 4 ++--
  src/net/http/h2_bundle.go | 5 +++--
  src/vendor/modules.txt    | 2 +-
  4 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 5218575643..a6551ffabe 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.23
+ 
+ require (
+ 	golang.org/x/crypto v0.21.0
+-	golang.org/x/net v0.22.1-0.20240319212107-89f602b7bbf2
++	golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 034ae76a4c..2849ffd78f 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
+ golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
+-golang.org/x/net v0.22.1-0.20240319212107-89f602b7bbf2 h1:WNITMhTVrtUfe9GkWjUUqAD70V3VRB6IN+LNLoQIzhw=
+-golang.org/x/net v0.22.1-0.20240319212107-89f602b7bbf2/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
++golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949 h1:I5WNFtVW5hWIoi/wTQJWBBusF9HXZuGCgRt60a7T/pA=
++golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
+ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 168405e15f..af839dd1bf 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3916,6 +3916,7 @@ type http2Server struct {
+ 	// IdleTimeout specifies how long until idle clients should be
+ 	// closed with a GOAWAY frame. PING frames are not considered
+ 	// activity for the purposes of IdleTimeout.
++	// If zero or negative, there is no timeout.
+ 	IdleTimeout time.Duration
+ 
+ 	// MaxUploadBufferPerConnection is the size of the initial flow
+@@ -4719,7 +4720,7 @@ func (sc *http2serverConn) serve() {
+ 	sc.setConnState(StateActive)
+ 	sc.setConnState(StateIdle)
+ 
+-	if sc.srv.IdleTimeout != 0 {
++	if sc.srv.IdleTimeout > 0 {
+ 		sc.idleTimer = time.AfterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
+ 		defer sc.idleTimer.Stop()
+ 	}
+@@ -5434,7 +5435,7 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
+ 	delete(sc.streams, st.id)
+ 	if len(sc.streams) == 0 {
+ 		sc.setConnState(StateIdle)
+-		if sc.srv.IdleTimeout != 0 {
++		if sc.srv.IdleTimeout > 0 {
+ 			sc.idleTimer.Reset(sc.srv.IdleTimeout)
+ 		}
+ 		if http2h1ServerKeepAlivesDisabled(sc.hs) {
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index a0042a9a6d..9982c93f77 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.22.1-0.20240319212107-89f602b7bbf2
++# golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

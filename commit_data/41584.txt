@@ -11,7 +11,34 @@ Date:   Sun Oct 13 23:37:14 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 2 +-
  src/cmd/compile/internal/gc/order.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 3666ddbaa0..0c03aad12b 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -552,7 +552,7 @@ func tostr(v Val) Val {
+ 
+ func consttype(n *Node) Ctype {
+ 	if n == nil || n.Op != OLITERAL {
+-		return 0
++		return CTxxx
+ 	}
+ 	return n.Val().Ctype()
+ }
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 0e28f8267f..939f3df93a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -202,7 +202,7 @@ func isaddrokay(n *Node) bool {
+ // The result of addrTemp MUST be assigned back to n, e.g.
+ // 	n.Left = o.addrTemp(n.Left)
+ func (o *Order) addrTemp(n *Node) *Node {
+-	if consttype(n) > 0 {
++	if consttype(n) != CTxxx {
+ 		// TODO: expand this to all static composite literal nodes?
+ 		n = defaultlit(n, nil)
+ 		dowidth(n.Type)

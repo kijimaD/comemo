@@ -15,6 +15,22 @@ Date:   Mon Sep 30 11:08:43 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/numberlines.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index a39e597d59..3e6afd72ff 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -15,7 +15,9 @@ func isPoorStatementOp(op Op) bool {
+ 	switch op {
+ 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
+ 	// so that a debugger-user sees the stop before the panic, and can examine the value.
+-	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
++	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect,
++		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
++		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
+ 		return true
+ 	}
+ 	return false

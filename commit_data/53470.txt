@@ -11,6 +11,32 @@ Date:   Wed Aug 17 17:11:13 2022 +0800
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index d454949926..1050a60468 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -477,12 +477,14 @@ func (h heapBits) next() (heapBits, uintptr) {
+ // nextFast is like next, but can return 0 even when there are more pointers
+ // to be found. Callers should call next if nextFast returns 0 as its second
+ // return value.
+-//     if addr, h = h.nextFast(); addr == 0 {
+-//         if addr, h = h.next(); addr == 0 {
+-//             ... no more pointers ...
+-//         }
+-//     }
+-//     ... process pointer at addr ...
++//
++//	if addr, h = h.nextFast(); addr == 0 {
++//	    if addr, h = h.next(); addr == 0 {
++//	        ... no more pointers ...
++//	    }
++//	}
++//	... process pointer at addr ...
++//
+ // nextFast is designed to be inlineable.
+ //
+ //go:nosplit

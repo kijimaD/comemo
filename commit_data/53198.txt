@@ -17,6 +17,32 @@ Date:   Mon Aug 1 13:23:36 2022 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  test/typeparam/issue54135.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/test/typeparam/issue54135.go b/test/typeparam/issue54135.go
+index dffef60d0d..b489a51416 100644
+--- a/test/typeparam/issue54135.go
++++ b/test/typeparam/issue54135.go
+@@ -1,4 +1,4 @@
+-// compile
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -19,8 +19,12 @@ type Baz interface {
+ }
+ 
+ func check[T comparable](p Bar[T]) {
+-	_, _ = p.(any)
+-	_, _ = p.(Baz)
++	if x, ok := p.(any); !ok || x != p {
++		panic("FAIL")
++	}
++	if _, ok := p.(Baz); ok {
++		panic("FAIL")
++	}
+ }
+ 
+ func main() {

@@ -9,10 +9,133 @@ Date:   Sun Jul 1 13:10:01 2012 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6350062
-
+---
  src/pkg/runtime/malloc.goc | 18 +++++++++++++-----
  src/pkg/runtime/malloc.h   |  2 +-
  src/pkg/runtime/mgc0.c     |  4 ++--
  src/pkg/runtime/mheap.c    |  4 ++--
  src/pkg/runtime/runtime.h  |  1 +
  5 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 2dff981fb4..babe4d2f4c 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -76,7 +76,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
+ 		// purge cache stats to prevent overflow
+ 		runtime·lock(&runtime·mheap);
+-		runtime·purgecachedstats(m);
++		runtime·purgecachedstats(c);
+ 		runtime·unlock(&runtime·mheap);
+ 	}
+ 
+@@ -181,7 +181,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
+ 		// purge cache stats to prevent overflow
+ 		runtime·lock(&runtime·mheap);
+-		runtime·purgecachedstats(m);
++		runtime·purgecachedstats(m->mcache);
+ 		runtime·unlock(&runtime·mheap);
+ 	}
+ 
+@@ -234,6 +234,7 @@ runtime·allocmcache(void)
+ 	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+ 	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
+ 	runtime·unlock(&runtime·mheap);
++	runtime·memclr((byte*)c, sizeof(*c));
+ 
+ 	// Set first allocation sample size.
+ 	rate = runtime·MemProfileRate;
+@@ -246,12 +247,19 @@ runtime·allocmcache(void)
+ }
+ 
+ void
+-runtime·purgecachedstats(M* m)
++runtime·freemcache(MCache *c)
+ {
+-	MCache *c;
++	runtime·MCache_ReleaseAll(c);
++	runtime·lock(&runtime·mheap);
++	runtime·purgecachedstats(c);
++	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
++	runtime·unlock(&runtime·mheap);
++}
+ 
++void
++runtime·purgecachedstats(MCache *c)
++{
+ 	// Protected by either heap or GC lock.
+-	c = m->mcache;
+ 	mstats.heap_alloc += c->local_cachealloc;
+ 	c->local_cachealloc = 0;
+ 	mstats.heap_objects += c->local_objects;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index f2408f18f2..fee6e01789 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -401,7 +401,7 @@ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+ bool	runtime·blockspecial(void*);
+ void	runtime·setblockspecial(void*, bool);
+-void	runtime·purgecachedstats(M*);
++void	runtime·purgecachedstats(MCache*);
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 70d0a0f2e2..147c78ad80 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -823,7 +823,8 @@ cachestats(GCStats *stats)
+ 	stacks_inuse = 0;
+ 	stacks_sys = 0;
+ 	for(m=runtime·allm; m; m=m->alllink) {
+-		runtime·purgecachedstats(m);
++		c = m->mcache;
++		runtime·purgecachedstats(c);
+ 		stacks_inuse += m->stackalloc->inuse;
+ 		stacks_sys += m->stackalloc->sys;
+ 		if(stats) {
+@@ -833,7 +834,6 @@ cachestats(GCStats *stats)
+ 				dst[i] += src[i];
+ 			runtime·memclr((byte*)&m->gcstats, sizeof(m->gcstats));
+ 		}
+-		c = m->mcache;
+ 		for(i=0; i<nelem(c->local_by_size); i++) {
+ 			mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
+ 			c->local_by_size[i].nmalloc = 0;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index a8a435b20e..1ea7489049 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -71,7 +71,7 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32
+ 	MSpan *s;
+ 
+ 	runtime·lock(h);
+-	runtime·purgecachedstats(m);
++	runtime·purgecachedstats(m->mcache);
+ 	s = MHeap_AllocLocked(h, npage, sizeclass);
+ 	if(s != nil) {
+ 		mstats.heap_inuse += npage<<PageShift;
+@@ -271,7 +271,7 @@ void
+ runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+ {
+ 	runtime·lock(h);
+-	runtime·purgecachedstats(m);
++	runtime·purgecachedstats(m->mcache);
+ 	mstats.heap_inuse -= s->npages<<PageShift;
+ 	if(acct) {
+ 		mstats.heap_alloc -= s->npages<<PageShift;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cdd71726e5..07c1585c77 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -590,6 +590,7 @@ int32	runtime·funcline(Func*, uintptr);
+ void*	runtime·stackalloc(uint32);
+ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
++void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);

@@ -17,7 +17,50 @@ Date:   Tue Apr 18 10:20:15 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 3 +++
  src/go/types/assignments.go                    | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 02823fed2c..30ed9ae701 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -30,6 +30,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
+ 		// TODO(gri) do we need a new "generic" error code here?
+ 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
++		x.mode = invalid
+ 		return
+ 	}
+ 
+@@ -78,6 +79,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	// A generic (non-instantiated) function value cannot be assigned to a variable.
+ 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+ 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
++		x.mode = invalid
++		return
+ 	}
+ 
+ 	// spec: "If a left-hand side is the blank identifier, any typed or
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 68b07a7172..71fbbea46f 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -30,6 +30,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
+ 		// TODO(gri) do we need a new "generic" error code here?
+ 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
++		x.mode = invalid
+ 		return
+ 	}
+ 
+@@ -76,6 +77,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	// A generic (non-instantiated) function value cannot be assigned to a variable.
+ 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+ 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
++		x.mode = invalid
++		return
+ 	}
+ 
+ 	// spec: "If a left-hand side is the blank identifier, any typed or

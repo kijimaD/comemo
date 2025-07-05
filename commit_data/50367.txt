@@ -35,8 +35,57 @@ Date:   Mon Oct 18 23:10:43 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356710
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcpacer.go | 2 +-
  src/runtime/mgcsweep.go | 4 ++--
  src/runtime/mheap.go    | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index f858ab08d0..55f3bc926d 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -762,7 +762,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 			// Write pagesSweptBasis last, since this
+ 			// signals concurrent sweeps to recompute
+ 			// their debt.
+-			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
++			mheap_.pagesSweptBasis.Store(pagesSwept)
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 78d1f33925..aedd6c316e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -719,7 +719,7 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
+ 	}
+ 
+ retry:
+-	sweptBasis := atomic.Load64(&mheap_.pagesSweptBasis)
++	sweptBasis := mheap_.pagesSweptBasis.Load()
+ 
+ 	// Fix debt if necessary.
+ 	newHeapLive := uintptr(atomic.Load64(&gcController.heapLive)-mheap_.sweepHeapLiveBasis) + spanBytes
+@@ -729,7 +729,7 @@ retry:
+ 			mheap_.sweepPagesPerByte = 0
+ 			break
+ 		}
+-		if atomic.Load64(&mheap_.pagesSweptBasis) != sweptBasis {
++		if mheap_.pagesSweptBasis.Load() != sweptBasis {
+ 			// Sweep pacing changed. Recompute debt.
+ 			goto retry
+ 		}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 27f60771eb..90e55315a6 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -104,7 +104,7 @@ type mheap struct {
+ 	// progress has already been made.
+ 	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
+ 	pagesSwept         atomic.Uint64 // pages swept this cycle
+-	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
++	pagesSweptBasis    atomic.Uint64 // pagesSwept to use as the origin of the sweep ratio
+ 	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
+ 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
+ 	// TODO(austin): pagesInUse should be a uintptr, but the 386

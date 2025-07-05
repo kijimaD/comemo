@@ -10,6 +10,19 @@ Date:   Sat May 13 19:05:03 2023 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: xie cui <523516579@qq.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index fe67812580..7914cdaf6c 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -621,7 +621,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		}
+ 	}
+ 
+-	n.Args = args
+ 	funSym := n.X.Sym()
+ 	if base.Debug.Libfuzzer != 0 && funSym != nil {
+ 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {

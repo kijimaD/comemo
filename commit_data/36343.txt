@@ -20,7 +20,38 @@ Date:   Wed Apr 18 19:49:27 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64error.s | 4 ++++
  src/cmd/internal/obj/x86/asm6.go               | 6 ++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index da325c9d98..d5499aa13e 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -45,4 +45,8 @@ TEXT errors(SB),$0
+ 	ADDQ 433954697820(AX), AX       // ERROR "offset too large"
+ 	ADDL 433954697820(AX), AX       // ERROR "offset too large"
+ 	ADDW 433954697820(AX), AX       // ERROR "offset too large"
++	// Pseudo-registers should not be used as scaled index.
++	CALL (AX)(PC*1)                 // ERROR "invalid instruction"
++	CALL (AX)(SB*1)                 // ERROR "invalid instruction"
++	CALL (AX)(FP*1)                 // ERROR "invalid instruction"
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 6839734618..23b1231108 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2615,8 +2615,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		return Yxxx
+ 
+ 	case obj.TYPE_MEM:
+-		if a.Index == REG_SP {
+-			// Can't use SP as the index register
++		// Pseudo registers have negative index, but SP is
++		// not pseudo on x86, hence REG_SP check is not redundant.
++		if a.Index == REG_SP || a.Index < 0 {
++			// Can't use FP/SB/PC/SP as the index register.
+ 			return Yxxx
+ 		}
+ 		if a.Index >= REG_X0 && a.Index <= REG_X15 {

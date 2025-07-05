@@ -9,6 +9,20 @@ Date:   Mon Jun 6 14:30:48 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4530110
-
+---
  src/pkg/crypto/twofish/twofish.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/twofish/twofish.go b/src/pkg/crypto/twofish/twofish.go
+index 9303f03ffd..1a1aac9b99 100644
+--- a/src/pkg/crypto/twofish/twofish.go
++++ b/src/pkg/crypto/twofish/twofish.go
+@@ -116,7 +116,7 @@ func (c *Cipher) Reset() {
+ 		c.k[i] = 0
+ 	}
+ 	for i := range c.s {
+-		for j := 0; j < 265; j++ {
++		for j := 0; j < 256; j++ {
+ 			c.s[i][j] = 0
+ 		}
+ 	}

@@ -17,7 +17,41 @@ Date:   Thu Jul 26 12:46:50 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 10 ++++++++++
  src/cmd/compile/internal/gc/iimport.go |  1 +
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 5ce284dc73..3007c9cabf 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -952,6 +952,16 @@ func (w *exportWriter) funcExt(n *Node) {
+ 		if n.Func.ExportInline() {
+ 			w.p.doInline(n)
+ 		}
++
++		// Endlineno for inlined function.
++		if n.Name.Defn != nil {
++			w.pos(n.Name.Defn.Func.Endlineno)
++		} else {
++			// When the exported node was defined externally,
++			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
++			// Keep it as we don't distinguish this case in iimport.go.
++			w.pos(n.Func.Endlineno)
++		}
+ 	} else {
+ 		w.uint64(0)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 21151b5215..6f0fd6b6d2 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -679,6 +679,7 @@ func (r *importReader) funcExt(n *Node) {
+ 		n.Func.Inl = &Inline{
+ 			Cost: int32(u - 1),
+ 		}
++		n.Func.Endlineno = r.pos()
+ 	}
+ }
+ 

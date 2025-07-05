@@ -9,10 +9,281 @@ Date:   Tue Mar 3 03:45:22 2020 +1100
     Change-Id: I216e286d1860055f2a07fe2f772cd50f366ea097
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221691
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        |   2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  17 +++-
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   2 +
  src/cmd/compile/internal/ssa/opGen.go          |  28 ++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 123 +++++++++++++------------
  5 files changed, 107 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 798e54a907..631e069a4e 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -251,7 +251,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+ 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
+-		ssa.OpRISCV64NOT:
++		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index d6ed61a461..a4b141b4fb 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -84,10 +84,10 @@
+ (Xor16 ...) -> (XOR ...)
+ (Xor8  ...) -> (XOR ...)
+ 
+-(Neg64 x) -> (SUB (MOVDconst) x)
+-(Neg32 x) -> (SUB (MOVWconst) x)
+-(Neg16 x) -> (SUB (MOVHconst) x)
+-(Neg8  x) -> (SUB (MOVBconst) x)
++(Neg64  ...) -> (NEG ...)
++(Neg32  ...) -> (NEG ...)
++(Neg16  ...) -> (NEG ...)
++(Neg8   ...) -> (NEG ...)
+ (Neg32F ...) -> (FNEGS ...)
+ (Neg64F ...) -> (FNEGD ...)
+ 
+@@ -497,5 +497,14 @@
+ // Subtraction of zero with sign extension.
+ (SUBW x (MOVWconst [0])) -> (ADDIW [0] x)
+ 
++// Subtraction from zero.
++(SUB (MOVBconst [0]) x) -> (NEG x)
++(SUB (MOVHconst [0]) x) -> (NEG x)
++(SUB (MOVWconst [0]) x) -> (NEG x)
++(SUB (MOVDconst [0]) x) -> (NEG x)
++
++// Subtraction from zero with sign extension.
++(SUBW (MOVDconst [0]) x) -> (NEGW x)
++
+ // remove redundant *const ops
+ (ADDI [0]  x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 4a8d87c7fb..3fd28b3d10 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -131,6 +131,8 @@ func init() {
+ 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
+ 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
+ 		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
++		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW"},                  // -arg0 of 32 bits, sign extended to 64 bits
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
+ 		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 019c76ec0b..481b404bf3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1887,6 +1887,8 @@ const (
+ 	OpRISCV64ADD
+ 	OpRISCV64ADDI
+ 	OpRISCV64ADDIW
++	OpRISCV64NEG
++	OpRISCV64NEGW
+ 	OpRISCV64SUB
+ 	OpRISCV64SUBW
+ 	OpRISCV64MUL
+@@ -25058,6 +25060,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "NEG",
++		argLen: 1,
++		asm:    riscv.ANEG,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "NEGW",
++		argLen: 1,
++		asm:    riscv.ANEGW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "SUB",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index dcb1b60da1..692cd92cc8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -324,19 +324,23 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpMul8:
+ 		return rewriteValueRISCV64_OpMul8(v)
+ 	case OpNeg16:
+-		return rewriteValueRISCV64_OpNeg16(v)
++		v.Op = OpRISCV64NEG
++		return true
+ 	case OpNeg32:
+-		return rewriteValueRISCV64_OpNeg32(v)
++		v.Op = OpRISCV64NEG
++		return true
+ 	case OpNeg32F:
+ 		v.Op = OpRISCV64FNEGS
+ 		return true
+ 	case OpNeg64:
+-		return rewriteValueRISCV64_OpNeg64(v)
++		v.Op = OpRISCV64NEG
++		return true
+ 	case OpNeg64F:
+ 		v.Op = OpRISCV64FNEGD
+ 		return true
+ 	case OpNeg8:
+-		return rewriteValueRISCV64_OpNeg8(v)
++		v.Op = OpRISCV64NEG
++		return true
+ 	case OpNeq16:
+ 		return rewriteValueRISCV64_OpNeq16(v)
+ 	case OpNeq32:
+@@ -1950,62 +1954,6 @@ func rewriteValueRISCV64_OpMul8(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueRISCV64_OpNeg16(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (Neg16 x)
+-	// result: (SUB (MOVHconst) x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64SUB)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVHconst, typ.UInt16)
+-		v.AddArg2(v0, x)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpNeg32(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (Neg32 x)
+-	// result: (SUB (MOVWconst) x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64SUB)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVWconst, typ.UInt32)
+-		v.AddArg2(v0, x)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpNeg64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (Neg64 x)
+-	// result: (SUB (MOVDconst) x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64SUB)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v.AddArg2(v0, x)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpNeg8(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (Neg8 x)
+-	// result: (SUB (MOVBconst) x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64SUB)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVBconst, typ.UInt8)
+-		v.AddArg2(v0, x)
+-		return true
+-	}
+-}
+ func rewriteValueRISCV64_OpNeq16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -3212,6 +3160,50 @@ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (SUB (MOVBconst [0]) x)
++	// result: (NEG x)
++	for {
++		if v_0.Op != OpRISCV64MOVBconst || v_0.AuxInt != 0 {
++			break
++		}
++		x := v_1
++		v.reset(OpRISCV64NEG)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB (MOVHconst [0]) x)
++	// result: (NEG x)
++	for {
++		if v_0.Op != OpRISCV64MOVHconst || v_0.AuxInt != 0 {
++			break
++		}
++		x := v_1
++		v.reset(OpRISCV64NEG)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB (MOVWconst [0]) x)
++	// result: (NEG x)
++	for {
++		if v_0.Op != OpRISCV64MOVWconst || v_0.AuxInt != 0 {
++			break
++		}
++		x := v_1
++		v.reset(OpRISCV64NEG)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB (MOVDconst [0]) x)
++	// result: (NEG x)
++	for {
++		if v_0.Op != OpRISCV64MOVDconst || v_0.AuxInt != 0 {
++			break
++		}
++		x := v_1
++		v.reset(OpRISCV64NEG)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64SUBW(v *Value) bool {
+@@ -3229,6 +3221,17 @@ func rewriteValueRISCV64_OpRISCV64SUBW(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUBW (MOVDconst [0]) x)
++	// result: (NEGW x)
++	for {
++		if v_0.Op != OpRISCV64MOVDconst || v_0.AuxInt != 0 {
++			break
++		}
++		x := v_1
++		v.reset(OpRISCV64NEGW)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {

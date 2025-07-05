@@ -22,7 +22,7 @@ Date:   Tue Sep 29 17:45:02 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go              | 40 +++++++++++++---------
  src/cmd/go/internal/modload/load.go                | 25 ++++++++++----
  src/cmd/go/testdata/script/mod_bad_domain.txt      | 16 +++++++--
@@ -36,3 +36,434 @@ Date:   Tue Sep 29 17:45:02 2020 -0400
  src/cmd/go/testdata/script/mod_readonly.txt        | 27 ++++++++++++++-
  src/go/build/build_test.go                         | 11 +++++-
  12 files changed, 110 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 3642de851a..76fe6745d9 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -26,13 +26,15 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-var errImportMissing = errors.New("import missing")
+-
+ type ImportMissingError struct {
+ 	Path     string
+ 	Module   module.Version
+ 	QueryErr error
+ 
++	// inAll indicates whether Path is in the "all" package pattern,
++	// and thus would be added by 'go mod tidy'.
++	inAll bool
++
+ 	// newMissingVersion is set to a newer version of Module if one is present
+ 	// in the build list. When set, we can't automatically upgrade.
+ 	newMissingVersion string
+@@ -46,7 +48,19 @@ func (e *ImportMissingError) Error() string {
+ 		if e.QueryErr != nil {
+ 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
+ 		}
+-		return "cannot find module providing package " + e.Path
++		if cfg.BuildMod == "mod" {
++			return "cannot find module providing package " + e.Path
++		}
++
++		suggestion := ""
++		if !HasModRoot() {
++			suggestion = ": working directory is not part of a module"
++		} else if e.inAll {
++			suggestion = "; try 'go mod tidy' to add it"
++		} else {
++			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
++		}
++		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
+ 	}
+ 
+ 	if e.newMissingVersion != "" {
+@@ -132,7 +146,7 @@ func (e *invalidImportError) Unwrap() error {
+ // like "C" and "unsafe".
+ //
+ // If the package cannot be found in the current build list,
+-// importFromBuildList returns errImportMissing as the error.
++// importFromBuildList returns an *ImportMissingError.
+ func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
+ 	if strings.Contains(path, "@") {
+ 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
+@@ -144,6 +158,10 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
+ 		// There's no directory for import "C" or import "unsafe".
+ 		return module.Version{}, "", nil
+ 	}
++	// Before any further lookup, check that the path is valid.
++	if err := module.CheckImportPath(path); err != nil {
++		return module.Version{}, "", &invalidImportError{importPath: path, err: err}
++	}
+ 
+ 	// Is the package in the standard library?
+ 	pathIsStd := search.IsStandardImportPath(path)
+@@ -212,7 +230,7 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
+ 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+ 	}
+ 
+-	return module.Version{}, "", errImportMissing
++	return module.Version{}, "", &ImportMissingError{Path: path}
+ }
+ 
+ // queryImport attempts to locate a module that can be added to the current
+@@ -220,13 +238,6 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
+ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 	pathIsStd := search.IsStandardImportPath(path)
+ 
+-	if modRoot == "" && !allowMissingModuleImports {
+-		return module.Version{}, &ImportMissingError{
+-			Path:     path,
+-			QueryErr: errors.New("working directory is not part of a module"),
+-		}
+-	}
+-
+ 	// Not on build list.
+ 	// To avoid spurious remote fetches, next try the latest replacement for each
+ 	// module (golang.org/issue/26241). This should give a useful message
+@@ -291,11 +302,6 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		}
+ 	}
+ 
+-	// Before any further lookup, check that the path is valid.
+-	if err := module.CheckImportPath(path); err != nil {
+-		return module.Version{}, &invalidImportError{importPath: path, err: err}
+-	}
+-
+ 	if pathIsStd {
+ 		// This package isn't in the standard library, isn't in any module already
+ 		// in the build list, and isn't in any other module that the user has
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9194f9cc7c..4ddb817cf1 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -270,11 +270,19 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	// Report errors, if any.
+ 	checkMultiplePaths()
+ 	for _, pkg := range loaded.pkgs {
+-		if pkg.err != nil && !opts.SilenceErrors {
+-			if opts.AllowErrors {
+-				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+-			} else {
+-				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++		if pkg.err != nil {
++			if pkg.flags.has(pkgInAll) {
++				if imErr := (*ImportMissingError)(nil); errors.As(pkg.err, &imErr) {
++					imErr.inAll = true
++				}
++			}
++
++			if !opts.SilenceErrors {
++				if opts.AllowErrors {
++					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
++				} else {
++					base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++				}
+ 			}
+ 		}
+ 		if !pkg.isTest() {
+@@ -809,7 +817,7 @@ func loadFromRoots(params loaderParams) *loader {
+ 
+ 		ld.buildStacks()
+ 
+-		if !ld.resolveMissing {
++		if !ld.resolveMissing || (!HasModRoot() && !allowMissingModuleImports) {
+ 			// We've loaded as much as we can without resolving missing imports.
+ 			break
+ 		}
+@@ -872,12 +880,15 @@ func loadFromRoots(params loaderParams) *loader {
+ func (ld *loader) resolveMissingImports(addedModuleFor map[string]bool) (modAddedBy map[module.Version]*loadPkg) {
+ 	var needPkgs []*loadPkg
+ 	for _, pkg := range ld.pkgs {
++		if pkg.err == nil {
++			continue
++		}
+ 		if pkg.isTest() {
+ 			// If we are missing a test, we are also missing its non-test version, and
+ 			// we should only add the missing import once.
+ 			continue
+ 		}
+-		if pkg.err != errImportMissing {
++		if !errors.As(pkg.err, new(*ImportMissingError)) {
+ 			// Leave other errors for Import or load.Packages to report.
+ 			continue
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index ec0d474382..868a8d43d6 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -6,18 +6,30 @@ stderr '^go get appengine: package appengine is not in GOROOT \(.*\)$'
+ ! go get x/y.z
+ stderr 'malformed module path "x/y.z": missing dot in first path element'
+ 
++
+ # 'go list -m' should report errors about module names, never GOROOT.
+ ! go list -m -versions appengine
+ stderr 'malformed module path "appengine": missing dot in first path element'
+ ! go list -m -versions x/y.z
+ stderr 'malformed module path "x/y.z": missing dot in first path element'
+ 
++
+ # build should report all unsatisfied imports,
+ # but should be more definitive about non-module import paths
+ ! go build ./useappengine
+-stderr 'cannot find package'
++stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
+ ! go build ./usenonexistent
+-stderr 'cannot find module providing package nonexistent.rsc.io'
++stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; try ''go mod tidy'' to add it$'
++
++
++# 'get -d' should be similarly definitive
++
++go get -d ./useappengine  # TODO(#41315): This should fail.
++ # stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
++
++! go get -d  ./usenonexistent
++stderr '^x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
++
+ 
+ # go mod vendor and go mod tidy should ignore appengine imports.
+ rm usenonexistent/x.go
+diff --git a/src/cmd/go/testdata/script/mod_build_info_err.txt b/src/cmd/go/testdata/script/mod_build_info_err.txt
+index 4a6ee9e8bb..08e2a8a3c8 100644
+--- a/src/cmd/go/testdata/script/mod_build_info_err.txt
++++ b/src/cmd/go/testdata/script/mod_build_info_err.txt
+@@ -12,7 +12,7 @@ stderr '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": in
+ # TODO(#41688): This should include a file and line, and report the reason for the error..
+ # (Today it includes only an import stack, and does not indicate the actual problem.)
+ ! go get -d ./main
+-stderr '^m/main imports\n\tm/bad imports\n\t🐧.example.com/string: import missing$'
++stderr '^m/main imports\n\tm/bad imports\n\t🐧.example.com/string: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+index 53b789ecc5..49e17e6507 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+@@ -14,7 +14,7 @@ cmp go.mod.orig go.mod
+ 
+ ! go get example.net/pkgadded@v1.0.0 .
+ stderr -count=1 '^go: found example.net/pkgadded/subpkg in example.net/pkgadded v1\.2\.0$'  # TODO: We shouldn't even try v1.2.0.
+-stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: import missing'  # TODO: better error message
++stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
+ cmp go.mod.orig go.mod
+ 
+ go get example.net/pkgadded@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_get_errors.txt b/src/cmd/go/testdata/script/mod_get_errors.txt
+index 7ce045ff82..5c37058d1c 100644
+--- a/src/cmd/go/testdata/script/mod_get_errors.txt
++++ b/src/cmd/go/testdata/script/mod_get_errors.txt
+@@ -6,11 +6,11 @@ cp go.mod go.mod.orig
+ # the package in the current directory) cannot be resolved.
+ 
+ ! go get
+-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
++stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+ cmp go.mod.orig go.mod
+ 
+ ! go get -d
+-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
++stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+ cmp go.mod.orig go.mod
+ 
+ cd importsyntax
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index 948496241e..3a133663ec 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -19,7 +19,7 @@ exec $WORK/testimport$GOEXE other/x/y/z/w .
+ stdout w2.go
+ 
+ ! exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+-stderr 'cannot find module providing package gobuild.example.com/x/y/z/w'
++stderr 'no required module provides package gobuild.example.com/x/y/z/w; try ''go get -d gobuild.example.com/x/y/z/w'' to add it'
+ 
+ cd z
+ exec $WORK/testimport$GOEXE other/x/y/z/w .
+diff --git a/src/cmd/go/testdata/script/mod_indirect.txt b/src/cmd/go/testdata/script/mod_indirect.txt
+index 87a3f0b10f..6ea1cae98b 100644
+--- a/src/cmd/go/testdata/script/mod_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_indirect.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-# golang.org/issue/31248: module requirements imposed by dependency versions
++# golang.org/issue/31248: required modules imposed by dependency versions
+ # older than the selected version must still be taken into account.
+ 
+ env GOFLAGS=-mod=readonly
+diff --git a/src/cmd/go/testdata/script/mod_list_bad_import.txt b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+index b3e2fff67d..3cd50b0de2 100644
+--- a/src/cmd/go/testdata/script/mod_list_bad_import.txt
++++ b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+@@ -39,7 +39,7 @@ stdout example.com/notfound
+ 
+ # Listing the missing dependency directly should fail outright...
+ ! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+-stderr 'cannot find module providing package example.com/notfound'
++stderr 'no required module provides package example.com/notfound; try ''go get -d example.com/notfound'' to add it'
+ ! stdout error
+ ! stdout incomplete
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index e398f7bc40..d969fce145 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -39,6 +39,11 @@ stdout '^fmt$'
+ go list ./needmod/needmod.go
+ stdout 'command-line-arguments'
+ 
++# 'go list' on a package from a module should fail.
++! go list example.com/printversion
++stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
++
++
+ # 'go list -m' with an explicit version should resolve that version.
+ go list -m example.com/version@latest
+ stdout 'example.com/version v1.1.0'
+@@ -151,7 +156,7 @@ stderr 'cannot find main module'
+ 
+ # 'go build' of source files should fail if they import anything outside std.
+ ! go build -n ./needmod/needmod.go
+-stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
+ 
+ # 'go build' of source files should succeed if they do not import anything outside std.
+ go build -n -o ignore ./stdonly/stdonly.go
+@@ -174,7 +179,7 @@ go doc fmt
+ 
+ # 'go doc' should fail for a package path outside a module.
+ ! go doc example.com/version
+-stderr 'doc: cannot find module providing package example.com/version: working directory is not part of a module'
++stderr 'doc: no required module provides package example.com/version: working directory is not part of a module'
+ 
+ # 'go install' with a version should succeed if all constraints are met.
+ # See mod_install_pkg_version.
+@@ -184,12 +189,12 @@ exists $GOPATH/bin/printversion$GOEXE
+ 
+ # 'go install' should fail if a package argument must be resolved to a module.
+ ! go install example.com/printversion
+-stderr 'cannot find module providing package example.com/printversion: working directory is not part of a module'
++stderr 'no required module provides package example.com/printversion: working directory is not part of a module'
+ 
+ # 'go install' should fail if a source file imports a package that must be
+ # resolved to a module.
+ ! go install ./needmod/needmod.go
+-stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module'
+ 
+ 
+ # 'go run' with a verison should fail due to syntax.
+@@ -198,12 +203,12 @@ stderr 'can only use path@version syntax with'
+ 
+ # 'go run' should fail if a package argument must be resolved to a module.
+ ! go run example.com/printversion
+-stderr 'cannot find module providing package example.com/printversion: working directory is not part of a module'
++stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
+ 
+ # 'go run' should fail if a source file imports a package that must be
+ # resolved to a module.
+ ! go run ./needmod/needmod.go
+-stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
+ 
+ 
+ # 'go fmt' should be able to format files outside of a module.
+@@ -221,7 +226,7 @@ stdout 'main is example.com/printversion v0.1.0'
+ stdout 'using example.com/version v1.1.0'
+ 
+ # 'go get' of a versioned binary should build and install the latest version
+-# using its minimal module requirements, ignoring replacements and exclusions.
++# using its minimal required modules, ignoring replacements and exclusions.
+ go get example.com/printversion
+ exec ../bin/printversion
+ stdout 'path is example.com/printversion'
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index a8458fdea3..c2ee3ff97b 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -13,7 +13,7 @@ cmp go.mod go.mod.empty
+ # -mod=readonly should be set by default.
+ env GOFLAGS=
+ ! go list all
+-stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote$'
++stderr '^x.go:2:8: no required module provides package rsc\.io/quote; try ''go mod tidy'' to add it$'
+ cmp go.mod go.mod.empty
+ 
+ env GOFLAGS=-mod=readonly
+@@ -68,6 +68,23 @@ cp go.mod.indirect go.mod
+ go list all
+ cmp go.mod go.mod.indirect
+ 
++
++# If we identify a missing package as a dependency of some other package in the
++# main module, we should suggest 'go mod tidy' instead of resolving it.
++
++cp go.mod.untidy go.mod
++! go list all
++stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
++
++! go list -deps .
++stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
++
++# However, if we didn't see an import from the main module, we should suggest
++# 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
++! go list rsc.io/quote
++stderr '^no required module provides package rsc.io/quote; try ''go get -d rsc.io/quote'' to add it$'
++
++
+ -- go.mod --
+ module m
+ 
+@@ -103,3 +120,11 @@ require (
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+ )
++-- go.mod.untidy --
++module m
++
++go 1.20
++
++require (
++	rsc.io/sampler v1.3.0 // indirect
++)
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 3a4ad22f46..5a4a2d62f5 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -612,11 +612,13 @@ func TestImportPackageOutsideModule(t *testing.T) {
+ 	ctxt.GOPATH = gopath
+ 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
+ 
+-	want := "cannot find module providing package"
++	want := "working directory is not part of a module"
+ 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
+ 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
+ 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
+ 		t.Fatalf("error when importing package when no go.mod is present: got %q; want %q", errStr, want)
++	} else {
++		t.Logf(`ctxt.Import("example.com/p", _, FindOnly): %v`, err)
+ 	}
+ }
+ 
+@@ -677,9 +679,16 @@ func TestMissingImportErrorRepetition(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatal("unexpected success")
+ 	}
++
+ 	// Don't count the package path with a URL like https://...?go-get=1.
+ 	// See golang.org/issue/35986.
+ 	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
++
++	// Also don't count instances in suggested "go get" or similar commands
++	// (see https://golang.org/issue/41576). The suggested command typically
++	// follows a semicolon.
++	errStr = strings.SplitN(errStr, ";", 2)[0]
++
+ 	if n := strings.Count(errStr, pkgPath); n != 1 {
+ 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
+ 	}

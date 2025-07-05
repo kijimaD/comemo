@@ -9,7 +9,66 @@ Date:   Mon Apr 25 17:16:44 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4446061
-
+---
  src/cmd/gc/dcl.c | 26 ++++++++++++++++++++++++++
  test/method2.go  | 10 ++++++++--
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 80cb74408a..05ec080392 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1139,6 +1139,32 @@ addmethod(Sym *sf, Type *t, int local)
+ 	pa = pa->type;
+ 	f = methtype(pa);
+ 	if(f == T) {
++		t = pa;
++		if(t != T) {
++			if(isptr[t->etype]) {
++				if(t->sym != S) {
++					yyerror("invalid receiver type %T (%T is a pointer type)", pa, t);
++					return;
++				}
++				t = t->type;
++			}
++		}
++		if(t != T) {
++			if(t->sym == S) {
++				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
++				return;
++			}
++			if(isptr[t->etype]) {
++				yyerror("invalid receiver type %T (%T is a pointer type)", pa, t);
++				return;
++			}
++			if(t->etype == TINTER) {
++				yyerror("invalid receiver type %T (%T is an interface type)", pa, t);
++				return;
++			}
++		}
++		// Should have picked off all the reasons above,
++		// but just in case, fall back to generic error.
+ 		yyerror("invalid receiver type %T", pa);
+ 		return;
+ 	}
+diff --git a/test/method2.go b/test/method2.go
+index a72536e7b3..2fdc9fc3c5 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -12,8 +12,14 @@ type T struct {
+ type P *T
+ type P1 *T
+ 
+-func (p P) val() int   { return 1 } // ERROR "receiver"
+-func (p *P1) val() int { return 1 } // ERROR "receiver"
++func (p P) val() int   { return 1 } // ERROR "receiver.* pointer"
++func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer"
++
++type I interface{}
++type I1 interface{}
++
++func (p I) val() int { return 1 } // ERROR "receiver.*interface"
++func (p *I1) val() int { return 1 } // ERROR "receiver.*interface"
+ 
+ type Val interface {
+ 	val() int

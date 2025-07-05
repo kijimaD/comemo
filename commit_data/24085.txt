@@ -9,7 +9,66 @@ Date:   Thu Jun 25 09:56:08 2015 -0700
     Change-Id: Idd854facd5fa78c0334f86740f351d404f9a5b2d
     Reviewed-on: https://go-review.googlesource.com/11511
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go   | 14 ++++++++------
  src/cmd/go/go_test.go | 15 ++++++++++++++-
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 637198edd6..e678367ff8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -559,12 +559,14 @@ func runInstall(cmd *Command, args []string) {
+ 		// If it exists and is an executable file, remove it.
+ 		_, targ := filepath.Split(pkgs[0].ImportPath)
+ 		targ += exeSuffix
+-		fi, err := os.Stat(targ)
+-		if err == nil {
+-			m := fi.Mode()
+-			if m.IsRegular() {
+-				if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
+-					os.Remove(targ)
++		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
++			fi, err := os.Stat(targ)
++			if err == nil {
++				m := fi.Mode()
++				if m.IsRegular() {
++					if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
++						os.Remove(targ)
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f8d784545d..28bee16a00 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -439,7 +439,7 @@ func (tg *testgoData) grepCountBoth(match string) int {
+ // removed if it exists.
+ func (tg *testgoData) creatingTemp(path string) {
+ 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
+-		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory")
++		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
+ 	}
+ 	// If we have changed the working directory, make sure we have
+ 	// an absolute path, because we are going to change directory
+@@ -1109,6 +1109,19 @@ func TestInstallIntoGOBIN(t *testing.T) {
+ 	tg.wantExecutable("testdata/bin1/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin1/go-cmd-test")
+ }
+ 
++// Issue 11065
++func TestInstallToCurrentDirectoryCreatesExecutable(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	pkg := filepath.Join(tg.pwd(), "testdata", "src", "go-cmd-test")
++	tg.creatingTemp(filepath.Join(pkg, "go-cmd-test"+exeSuffix))
++	tg.setenv("GOBIN", pkg)
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.cd(pkg)
++	tg.run("install")
++	tg.wantExecutable("go-cmd-test"+exeSuffix, "go install did not write to current directory")
++}
++
+ // Without $GOBIN set, installing a program outside $GOPATH should fail
+ // (there is nowhere to install it).
+ func TestInstallWithoutDestinationFails(t *testing.T) {

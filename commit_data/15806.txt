@@ -10,6 +10,19 @@ Date:   Fri Mar 15 15:58:43 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7818048
-
+---
  src/pkg/net/http/z_last_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/http/z_last_test.go b/src/pkg/net/http/z_last_test.go
+index e27add9758..c000c537e4 100644
+--- a/src/pkg/net/http/z_last_test.go
++++ b/src/pkg/net/http/z_last_test.go
+@@ -24,6 +24,7 @@ func interestingGoroutines() (gs []string) {
+ 		stack := strings.TrimSpace(sl[1])
+ 		if stack == "" ||
+ 			strings.Contains(stack, "created by net.newPollServer") ||
++			strings.Contains(stack, "created by net.startServer") ||
+ 			strings.Contains(stack, "created by testing.RunTests") ||
+ 			strings.Contains(stack, "closeWriteAndWait") ||
+ 			strings.Contains(stack, "testing.Main(") {

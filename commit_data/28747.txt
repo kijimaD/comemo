@@ -13,7 +13,35 @@ Date:   Mon Jul 11 22:34:30 2016 -0700
     Change-Id: I733e93981ebb5c5c108ef9b03bf5494930b93cf3
     Reviewed-on: https://go-review.googlesource.com/24862
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/all_test.go | 2 ++
  src/reflect/type.go     | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index adde5829dc..bbb098f3eb 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2261,6 +2261,8 @@ func TestImportPath(t *testing.T) {
+ 		{TypeOf((*int64)(nil)), ""},
+ 		{TypeOf(map[string]int{}), ""},
+ 		{TypeOf((*error)(nil)).Elem(), ""},
++		{TypeOf((*Point)(nil)), ""},
++		{TypeOf((*Point)(nil)).Elem(), "reflect_test"},
+ 	}
+ 	for _, test := range tests {
+ 		if path := test.t.PkgPath(); path != test.path {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index bedfba45b1..de6e05fb6d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -876,6 +876,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ }
+ 
+ func (t *rtype) PkgPath() string {
++	if t.tflag&tflagNamed == 0 {
++		return ""
++	}
+ 	ut := t.uncommon()
+ 	if ut == nil {
+ 		return ""

@@ -13,6 +13,22 @@ Date:   Wed Aug 28 09:33:49 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/slices.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 200e653dde..b53419f84b 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -128,8 +128,8 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
+ // returning the modified slice.
+ // The elements at s[i:] are shifted up to make room.
+ // In the returned slice r, r[i] == v[0],
+-// and r[i+len(v)] == value originally at r[i].
+-// Insert panics if i is out of range.
++// and, if i < len(s), r[i+len(v)] == value originally at r[i].
++// Insert panics if i > len(s).
+ // This function is O(len(s) + len(v)).
+ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ 	_ = s[i:] // bounds check

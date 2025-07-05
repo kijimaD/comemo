@@ -8,7 +8,7 @@ Date:   Mon Aug 4 15:37:47 2008 -0700
     R=r
     OCL=13831
     CL=13833
-
+---
  usr/gri/gosrc/ast.go         |  9 ++--
  usr/gri/gosrc/base.go        |  8 ++--
  usr/gri/gosrc/compilation.go |  3 +-
@@ -25,3 +25,485 @@ Date:   Mon Aug 4 15:37:47 2008 -0700
  usr/gri/gosrc/utils.go       |  9 ++--
  usr/gri/gosrc/verifier.go    |  3 +-
  15 files changed, 81 insertions(+), 116 deletions(-)
+
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+index 70c1ecbe7c..8b565e5816 100644
+--- a/usr/gri/gosrc/ast.go
++++ b/usr/gri/gosrc/ast.go
+@@ -11,8 +11,7 @@ import Universe "universe"
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-export BinaryExpr
+-type BinaryExpr struct {
++export type BinaryExpr struct {
+ 	typ_ *Globals.Type;
+ 	op int;
+ 	x, y Globals.Expr;
+@@ -28,14 +27,12 @@ func (x *BinaryExpr) typ() *Globals.Type {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-export Block
+-type Block struct {
++export type Block struct {
+ 	// TODO fill in
+ }
+ 
+ 
+-export IfStat
+-type IfStat struct {
++export type IfStat struct {
+ 	cond Globals.Expr;
+ 	then_ Globals.Stat;
+ 	else_ Globals.Stat;
+diff --git a/usr/gri/gosrc/base.go b/usr/gri/gosrc/base.go
+index 0fb95a75e5..e7a14c859f 100755
+--- a/usr/gri/gosrc/base.go
++++ b/usr/gri/gosrc/base.go
+@@ -6,14 +6,12 @@
+ 
+ package base
+ 
+-type Foo int
++export type Foo int
+ 
+-type Bar *float;
++export type Bar *float;
+ 
+-type Node struct {
++export type Node struct {
+   left, right *Node;
+   val bool;
+   f Foo
+ }
+-
+-export Foo, Bar, Node
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index ec404dee71..dd1047136a 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -17,8 +17,7 @@ import Printer "printer"
+ import Verifier "verifier"
+ 
+ 
+-export Compile
+-func Compile(comp *Globals.Compilation, file_name string) {
++export func Compile(comp *Globals.Compilation, file_name string) {
+ 	src, ok := sys.readfile(file_name);
+ 	if !ok {
+ 		print "cannot open ", file_name, "\n"
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index cf95537861..01895e91e4 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -9,28 +9,32 @@ package decls
+ import "base"
+ import base2 "base"
+ 
+-const c0 int = 0
+-const c1 float = 1.
++export const c0 int = 0
++export const c1 float = 1.
+ const (
+-  c2 byte = 2;
+-  c3 int = 3;
+-  c4 float = 4.;
++	c2 byte = 2;
++	c3 int = 3;
++	c4 float = 4.;
+ )
+ 
+ 
+-type Node0 base.Node
+-type Node1 *base2.Node
++export type (
++	Node0 base.Node
++	Node1 *base2.Node
++)
+ 
+-type T0 byte
+-type T1 T0
++export type T0 byte
++export type T1 T0
++type (
++	T2 [10]T0;
++	T3 map [string] int;
++)
++export type T4 struct {
++	f1, f2, f3 int;
++	f4 [] float;
++};
+ type (
+-  T2 [10]T0;
+-  T3 map [string] int;
+-  T4 struct {
+-    f1, f2, f3 int;
+-    f4 [] float;
+-  };
+-  T5 *T4;
++	T5 *T4;
+ )
+ 
+ type F0 func ()
+@@ -42,67 +46,67 @@ type F5 func (a, b int, c float) (z T5, ok bool)
+ type F6 func (a int, b float) bool
+ type F7 func (a int, b float, c, d *bool) bool
+ 
++export type M0 func (p T5) . ();
+ type (
+-  M0 func (p T5) . ();
+-  M1 func (p T5) . (a int);
+-  M2 func (p T5) . (a, b int, c float);
+-  M3 func (p T5) . () bool;
+-  M4 func (p T5) . (a int) (z T5, ok bool);
+-  M5 func (p T5) . (a, b int, c float) (z T5, ok bool);
++	M1 func (p T5) . (a int);
++	M2 func (p T5) . (a, b int, c float);
++	M3 func (p T5) . () bool;
++	M4 func (p T5) . (a int) (z T5, ok bool);
+ )
++export type M5 func (p T5) . (a, b int, c float) (z T5, ok bool);
+ 
+ type T6 chan int
+ type T7 chan<- *T6
+ type T8 chan-< *T6
+ 
+ type T9 struct {
+-  p *T9;
+-  q [] *map [int] *T9;
+-  f *func(x, y *T9) *T9;
++	p *T9;
++	q [] *map [int] *T9;
++	f *func(x, y *T9) *T9;
+ }
+ 
+ type T10;
+ type T11 struct {
+-  p *T10;
++	p *T10;
+ }
+ 
+ type T10 struct {
+-  p *T11;
++	p *T11;
+ }
+ 
+ type T12 struct {
+-  p *T12
++	p *T12
+ }
+ 
+ 
+ type I0 interface {}
+ type I1 interface {
+-  Do0(q *I0);
+-  Do1(p *I1) bool;
++	Do0(q *I0);
++	Do1(p *I1) bool;
+ }
+-type I2 interface {
+-  M0();
+-  M1(a int);
+-  M2(a, b int, c float);
+-  M3() bool;
+-  M4(a int) (z T5, ok bool);
+-  M5(a, b int, c float) (z T5, ok bool);
++export type I2 interface {
++	M0();
++	M1(a int);
++	M2(a, b int, c float);
++	M3() bool;
++	M4(a int) (z T5, ok bool);
++	M5(a, b int, c float) (z T5, ok bool);
+ }
+ 
+ 
+ var v0 int
+ var v1 float = c1
+ 
+-var (
+-  v2 T2;
+-  v3 struct {
+-    f1, f2, f3 *M0;
+-  }
++export var (
++	v2 T2;
++	v3 struct {
++		f1, f2, f3 *M0;
++	}
+ )
+ 
+ 
+-func f0() {}
+-func f1(a int) {}
++export func f0() {}
++export func f1(a int) {}
+ func f2(a, b int, c float) {}
+ func f3() bool { return false; }
+ func f4(a int) (z T5, ok bool) {}
+@@ -118,9 +122,5 @@ func (p *T4) m2(a, b int, c float) {}
+ func (p *T4) m3() bool { return false; }
+ func (p *T4) m4(a int) (z T5, ok bool) { return; }
+ func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
+-  L: var x = a;
++	L: var x = a;
+ }
+-
+-export c0, c1, v2, v3
+-export T0, T1, T4, T4, T4, M0, M5, I2, f0, f1
+-export Node0, Node1
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 6d6767b4ba..3a0a6bfa86 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -282,8 +282,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ }
+ 
+ 
+-export Export
+-func Export(comp* Globals.Compilation, pkg_name string) {
++export func Export(comp* Globals.Compilation, pkg_name string) {
+ 	var E Exporter;
+ 	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 6c01660a7b..81e24aace4 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -103,8 +103,7 @@ export type Stat interface {
+ 
+ export var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
+ 
+-export NewObject
+-func NewObject(pos, kind int, ident string) *Object {
++export func NewObject(pos, kind int, ident string) *Object {
+ 	obj := new(Object);
+ 	obj.exported = false;
+ 	obj.pos = pos;
+@@ -116,8 +115,7 @@ func NewObject(pos, kind int, ident string) *Object {
+ }
+ 
+ 
+-export NewType
+-func NewType(form int) *Type {
++export func NewType(form int) *Type {
+ 	typ := new(Type);
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+@@ -125,8 +123,7 @@ func NewType(form int) *Type {
+ }
+ 
+ 
+-export NewPackage;
+-func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
++export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 	pkg := new(Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+@@ -137,14 +134,12 @@ func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ }
+ 
+ 
+-export NewList
+-func NewList() *List {
++export func NewList() *List {
+ 	return new(List);
+ }
+ 
+ 
+-export NewScope
+-func NewScope(parent *Scope) *Scope {
++export func NewScope(parent *Scope) *Scope {
+ 	scope := new(Scope);
+ 	scope.parent = parent;
+ 	scope.entries = NewList();
+@@ -152,8 +147,7 @@ func NewScope(parent *Scope) *Scope {
+ }
+ 
+ 
+-export NewCompilation;
+-func NewCompilation(flags *Flags) *Compilation {
++export func NewCompilation(flags *Flags) *Compilation {
+ 	comp := new(Compilation);
+ 	comp.flags = flags;
+ 	return comp;
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index a2cfa214e5..920b98be77 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -306,8 +306,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ }
+ 
+ 
+-export Import
+-func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
++export func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
+ 	var I Importer;
+ 	return (&I).Import(comp, Utils.FixExt(pkg_name));
+ }
+diff --git a/usr/gri/gosrc/object.go b/usr/gri/gosrc/object.go
+index 54ccb12e92..5bd2a6b3d8 100755
+--- a/usr/gri/gosrc/object.go
++++ b/usr/gri/gosrc/object.go
+@@ -19,8 +19,7 @@ export const /* kind */ (
+ // globals.go.
+ 
+ 
+-export KindStr
+-func KindStr(kind int) string {
++export func KindStr(kind int) string {
+ 	switch kind {
+ 	case BAD: return "BAD";
+ 	case CONST: return "CONST";
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index a19bd14734..10a0563c59 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -14,8 +14,7 @@ import Import "import"
+ import AST "ast"
+ 
+ 
+-export Parser
+-type Parser struct {
++export type Parser struct {
+ 	comp *Globals.Compilation;
+ 	semantic_checks bool;
+ 	verbose, indent int;
+@@ -1796,9 +1795,14 @@ func (P *Parser) ParseFuncDecl(exported bool) {
+ func (P *Parser) ParseExportDecl() {
+ 	P.Trace("ExportDecl");
+ 	
+-	// TODO this needs to be clarified - the current syntax is
+-	// "everything goes" - sigh...
++	// TODO This is deprecated syntax and should go away eventually.
++	// (Also at the moment the syntax is everything goes...)
+ 	//P.Expect(Scanner.EXPORT);
++
++	if !P.comp.flags.sixg {
++		P.Error(P.pos, "deprecated export syntax (use -6g to enable)");
++	}
++	
+ 	has_paren := false;
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index 7fd2ab98a3..d4b3779c23 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -259,8 +259,7 @@ func (P *Printer) PrintType(typ *Globals.Type) {
+ }
+ 
+ 
+-export PrintObject
+-func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
++export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
+ 	var P Printer;
+ 	(&P).Init(comp, print_all);
+ 	(&P).PrintObjectStruct(obj);
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index d8a15af421..8298b8b340 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -111,8 +111,7 @@ var Keywords *map [string] int;
+ var VerboseMsgs bool;  // error message customization
+ 
+ 
+-export TokenName
+-func TokenName(tok int) string {
++export func TokenName(tok int) string {
+ 	switch (tok) {
+ 	case ILLEGAL: return "illegal";
+ 	case EOF: return "eof";
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index 27801a05ec..1f8a0b1d2e 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -27,8 +27,7 @@ export const /* flag */ (
+ // globals.go.
+ 
+ 
+-export FormStr
+-func FormStr(form int) string {
++export func FormStr(form int) string {
+ 	switch form {
+ 	case UNDEF: return "UNDEF";
+ 	case BAD: return "BAD";
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 101c42a351..0de2c69ea6 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -9,24 +9,7 @@ import Object "object"
+ import Type "type"
+ 
+ 
+-export
+-	scope,
+-	types,
+-	undef_t, bad_t, nil_t,
+-	bool_t,
+-	uint8_t, uint16_t, uint32_t, uint64_t,
+-	int8_t, int16_t, int32_t, int64_t,
+-	float32_t, float64_t, float80_t,
+-	string_t, any_t,
+-	byte_t,
+-	ushort_t, uint_t, ulong_t,
+-	short_t, int_t, long_t,
+-	float_t, double_t,
+-	ptrint_t,
+-	true_, false_
+-	
+-
+-var (
++export var (
+ 	scope *Globals.Scope;
+ 	types *Globals.List;
+ 	
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+index bbf5039d0a..2dcd84a6ac 100644
+--- a/usr/gri/gosrc/utils.go
++++ b/usr/gri/gosrc/utils.go
+@@ -5,8 +5,7 @@
+ package Utils
+ 
+ 
+-export BaseName
+-func BaseName(s string) string {
++export func BaseName(s string) string {
+ 	// TODO this is not correct for non-ASCII strings!
+ 	i := len(s) - 1;
+ 	for i >= 0 && s[i] != '/' {
+@@ -19,8 +18,7 @@ func BaseName(s string) string {
+ }
+ 
+ 
+-export FixExt
+-func FixExt(s string) string {
++export func FixExt(s string) string {
+ 	i := len(s) - 3;  // 3 == len(".go");
+ 	if i >= 0 && s[i : len(s)] == ".go" {
+ 		s = s[0 : i];
+@@ -29,8 +27,7 @@ func FixExt(s string) string {
+ }
+ 
+ 
+-export GetEnv
+-func GetEnv(key string) string {
++export func GetEnv(key string) string {
+ 	n := len(key);
+ 	for i := 0; i < sys.envc(); i++ {
+ 		v := sys.envv(i);
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index 9aef51740f..af4eca116b 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -104,8 +104,7 @@ func VerifyPackage(pkg *Globals.Package, pno int) {
+ }
+ 
+ 
+-export Verify
+-func Verify(comp *Globals.Compilation) {
++export func Verify(comp *Globals.Compilation) {
+ 	for i := 0; i < comp.pkg_ref; i++ {
+ 		VerifyPackage(comp.pkg_list[i], i);
+ 	}

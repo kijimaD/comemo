@@ -12,7 +12,66 @@ Date:   Sun Aug 26 20:38:43 2018 -0700
     Change-Id: I081f30d5dc19281901551823f4f56be028b5f71a
     Reviewed-on: https://go-review.googlesource.com/131379
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go                  |  4 ++-
  src/cmd/go/testdata/script/build_cache_gomips.txt | 37 +++++++++++++++++++++++
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2822787e63..01414a3d57 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -224,7 +224,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		if len(p.SFiles) > 0 {
+ 			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
+ 		}
+-		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
++		// GO386, GOARM, GOMIPS, etc.
++		baseArch := strings.TrimSuffix(cfg.BuildContext.GOARCH, "le")
++		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(baseArch)))
+ 
+ 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
+ 		// or perhaps restrict the environment variables passed to subprocesses.
+diff --git a/src/cmd/go/testdata/script/build_cache_gomips.txt b/src/cmd/go/testdata/script/build_cache_gomips.txt
+new file mode 100644
+index 0000000000..c77acc3f2f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cache_gomips.txt
+@@ -0,0 +1,37 @@
++# Set up fresh GOCACHE.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
++# Building for mipsle without setting GOMIPS will use floating point registers.
++env GOARCH=mipsle
++env GOOS=linux
++go build -gcflags=-S f.go
++stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
++
++# Clean cache
++go clean -cache
++
++# Building with GOMIPS=softfloat will not use floating point registers
++env GOMIPS=softfloat
++go build -gcflags=-S f.go
++! stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
++
++# Clean cache
++go clean -cache
++
++# Build without setting GOMIPS
++env GOMIPS=
++go build -gcflags=-S f.go
++stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
++
++# Building with GOMIPS should still not use floating point registers.
++env GOMIPS=softfloat
++go build -gcflags=-S f.go
++! stderr ADDD.F[0-9]+,.F[0-9]+,.F[0-9]+
++
++-- f.go --
++package f
++
++func F(x float64) float64 {
++     return x + x
++}

@@ -21,7 +21,7 @@ Date:   Mon Oct 21 18:14:24 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  .../compile/internal/importer/gcimporter_test.go   | 65 +++++++++++++++++++++
  .../internal/importer/testdata/issue69912.go       |  9 +++
  src/cmd/compile/internal/types2/typexpr.go         | 15 +++--
@@ -29,3 +29,256 @@ Date:   Mon Oct 21 18:14:24 2024 +0000
  src/go/internal/gcimporter/testdata/issue69912.go  |  9 +++
  src/go/types/typexpr.go                            | 15 +++--
  6 files changed, 167 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 9235e4bb95..a202ee10de 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -6,6 +6,7 @@ package importer
+ 
+ import (
+ 	"bytes"
++	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
+ 	"go/build"
+@@ -16,6 +17,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -593,3 +595,66 @@ func lookupObj(t *testing.T, scope *types2.Scope, name string) types2.Object {
+ 	t.Fatalf("%s not found", name)
+ 	return nil
+ }
++
++// importMap implements the types2.Importer interface.
++type importMap map[string]*types2.Package
++
++func (m importMap) Import(path string) (*types2.Package, error) { return m[path], nil }
++
++func TestIssue69912(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	tmpdir := t.TempDir()
++	testoutdir := filepath.Join(tmpdir, "testdata")
++	if err := os.Mkdir(testoutdir, 0700); err != nil {
++		t.Fatalf("making output dir: %v", err)
++	}
++
++	compile(t, "testdata", "issue69912.go", testoutdir, nil)
++
++	issue69912, err := Import(make(map[string]*types2.Package), "./testdata/issue69912", tmpdir, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	check := func(pkgname, src string, imports importMap) (*types2.Package, error) {
++		f, err := syntax.Parse(syntax.NewFileBase(pkgname), strings.NewReader(src), nil, nil, 0)
++		if err != nil {
++			return nil, err
++		}
++		config := &types2.Config{
++			Importer: imports,
++		}
++		return config.Check(pkgname, []*syntax.File{f}, nil)
++	}
++
++	// Use the resulting package concurrently, via dot-imports, to exercise the
++	// race of issue #69912.
++	const pSrc = `package p
++
++import . "issue69912"
++
++type S struct {
++	f T
++}
++`
++	importer := importMap{
++		"issue69912": issue69912,
++	}
++	var wg sync.WaitGroup
++	for range 10 {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			if _, err := check("p", pSrc, importer); err != nil {
++				t.Errorf("Check failed: %v", err)
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/cmd/compile/internal/importer/testdata/issue69912.go b/src/cmd/compile/internal/importer/testdata/issue69912.go
+new file mode 100644
+index 0000000000..7c60354f70
+--- /dev/null
++++ b/src/cmd/compile/internal/importer/testdata/issue69912.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue69912
++
++// Define an arbitrary type name, which will be used to demonstrate
++// the race of issue #69912.
++type T int
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 61ef835c8a..10af5e79aa 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -63,13 +63,16 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 	// Type-check the object.
+ 	// Only call Checker.objDecl if the object doesn't have a type yet
+ 	// (in which case we must actually determine it) or the object is a
+-	// TypeName and we also want a type (in which case we might detect
+-	// a cycle which needs to be reported). Otherwise we can skip the
+-	// call and avoid a possible cycle error in favor of the more
+-	// informative "not a type/value" error that this function's caller
+-	// will issue (see go.dev/issue/25790).
++	// TypeName from the current package and we also want a type (in which case
++	// we might detect a cycle which needs to be reported). Otherwise we can skip
++	// the call and avoid a possible cycle error in favor of the more informative
++	// "not a type/value" error that this function's caller will issue (see
++	// go.dev/issue/25790).
++	//
++	// Note that it is important to avoid calling objDecl on objects from other
++	// packages, to avoid races: see issue #69912.
+ 	typ := obj.Type()
+-	if typ == nil || gotType && wantType {
++	if typ == nil || (gotType && wantType && obj.Pkg() == check.pkg) {
+ 		check.objDecl(obj, def)
+ 		typ = obj.Type() // type must have been assigned by Checker.objDecl
+ 	}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 3f6c7fb0d6..11bd22d717 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ 
+@@ -750,3 +751,68 @@ func lookupObj(t *testing.T, scope *types.Scope, name string) types.Object {
+ 	t.Fatalf("%s not found", name)
+ 	return nil
+ }
++
++// importMap implements the types.Importer interface.
++type importMap map[string]*types.Package
++
++func (m importMap) Import(path string) (*types.Package, error) { return m[path], nil }
++
++func TestIssue69912(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	tmpdir := t.TempDir()
++	testoutdir := filepath.Join(tmpdir, "testdata")
++	if err := os.Mkdir(testoutdir, 0700); err != nil {
++		t.Fatalf("making output dir: %v", err)
++	}
++
++	compile(t, "testdata", "issue69912.go", testoutdir, nil)
++
++	fset := token.NewFileSet()
++
++	issue69912, err := Import(fset, make(map[string]*types.Package), "./testdata/issue69912", tmpdir, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	check := func(pkgname, src string, imports importMap) (*types.Package, error) {
++		f, err := parser.ParseFile(fset, "a.go", src, 0)
++		if err != nil {
++			return nil, err
++		}
++		config := &types.Config{
++			Importer: imports,
++		}
++		return config.Check(pkgname, fset, []*ast.File{f}, nil)
++	}
++
++	// Use the resulting package concurrently, via dot-imports, to exercise the
++	// race of issue #69912.
++	const pSrc = `package p
++
++import . "issue69912"
++
++type S struct {
++	f T
++}
++`
++	importer := importMap{
++		"issue69912": issue69912,
++	}
++	var wg sync.WaitGroup
++	for range 10 {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			if _, err := check("p", pSrc, importer); err != nil {
++				t.Errorf("Check failed: %v", err)
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/go/internal/gcimporter/testdata/issue69912.go b/src/go/internal/gcimporter/testdata/issue69912.go
+new file mode 100644
+index 0000000000..7c60354f70
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/issue69912.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue69912
++
++// Define an arbitrary type name, which will be used to demonstrate
++// the race of issue #69912.
++type T int
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index c8514603b4..42c2f2ed98 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -63,13 +63,16 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 	// Type-check the object.
+ 	// Only call Checker.objDecl if the object doesn't have a type yet
+ 	// (in which case we must actually determine it) or the object is a
+-	// TypeName and we also want a type (in which case we might detect
+-	// a cycle which needs to be reported). Otherwise we can skip the
+-	// call and avoid a possible cycle error in favor of the more
+-	// informative "not a type/value" error that this function's caller
+-	// will issue (see go.dev/issue/25790).
++	// TypeName from the current package and we also want a type (in which case
++	// we might detect a cycle which needs to be reported). Otherwise we can skip
++	// the call and avoid a possible cycle error in favor of the more informative
++	// "not a type/value" error that this function's caller will issue (see
++	// go.dev/issue/25790).
++	//
++	// Note that it is important to avoid calling objDecl on objects from other
++	// packages, to avoid races: see issue #69912.
+ 	typ := obj.Type()
+-	if typ == nil || gotType && wantType {
++	if typ == nil || (gotType && wantType && obj.Pkg() == check.pkg) {
+ 		check.objDecl(obj, def)
+ 		typ = obj.Type() // type must have been assigned by Checker.objDecl
+ 	}

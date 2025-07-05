@@ -10,6 +10,20 @@ Date:   Wed Dec 15 11:49:43 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3666042
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index b4b085fc71..e8c84abec2 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -471,7 +471,7 @@ def LoadCL(ui, repo, name, web=True):
+ 	set_status("loaded CL " + name)
+ 	return cl, ''
+ 
+-global_status = ""
++global_status = None
+ 
+ def set_status(s):
+ 	# print >>sys.stderr, "\t", time.asctime(), s

@@ -16,7 +16,48 @@ Date:   Thu Mar 23 00:29:08 2023 -0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/json_handler.go      | 6 +++---
  src/log/slog/json_handler_test.go | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index 90ecc6a3a4..96545d58d6 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -79,7 +79,7 @@ func (h *JSONHandler) WithGroup(name string) Handler {
+ // Values are formatted as with encoding/json.Marshal, with the following
+ // exceptions:
+ //   - Floating-point NaNs and infinities are formatted as one of the strings
+-//     "NaN", "+Inf" or "-Inf".
++//     "NaN", "Infinity" or "-Infinity".
+ //   - Levels are formatted as with Level.String.
+ //   - HTML characters are not escaped.
+ //
+@@ -113,9 +113,9 @@ func appendJSONValue(s *handleState, v Value) error {
+ 		// json.Marshal fails on special floats, so handle them here.
+ 		switch {
+ 		case math.IsInf(f, 1):
+-			s.buf.WriteString(`"+Inf"`)
++			s.buf.WriteString(`"Infinity"`)
+ 		case math.IsInf(f, -1):
+-			s.buf.WriteString(`"-Inf"`)
++			s.buf.WriteString(`"-Infinity"`)
+ 		case math.IsNaN(f):
+ 			s.buf.WriteString(`"NaN"`)
+ 		default:
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index 55e05d58e3..0a38969f46 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -111,8 +111,8 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
+ 		want  string
+ 	}{
+ 		{math.NaN(), `"NaN"`},
+-		{math.Inf(+1), `"+Inf"`},
+-		{math.Inf(-1), `"-Inf"`},
++		{math.Inf(+1), `"Infinity"`},
++		{math.Inf(-1), `"-Infinity"`},
+ 		{LevelWarn, `"WARN"`},
+ 	} {
+ 		got := jsonValueString(t, AnyValue(test.value))

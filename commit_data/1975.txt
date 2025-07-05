@@ -7,7 +7,61 @@ Date:   Tue Apr 7 23:30:59 2009 -0700
     R=ken
     OCL=27202
     CL=27202
-
+---
  test/bugs/bug142.go | 31 +++++++++++++++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 36 insertions(+)
+
+diff --git a/test/bugs/bug142.go b/test/bugs/bug142.go
+new file mode 100644
+index 0000000000..e54458baf4
+--- /dev/null
++++ b/test/bugs/bug142.go
+@@ -0,0 +1,31 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug142
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func panic1(s string) bool {
++	panic(s);
++}
++
++func main() {
++	x := false && panic1("first") && panic1("second");
++	x = x == true && panic1("first") && panic1("second");
++}
++
++/*
++; 6.out
++second
++panic PC=0x250f98
++main·panic1+0x36 /Users/rsc/goX/test/bugs/bug142.go:6
++	main·panic1(0xae30, 0x0)
++main·main+0x23 /Users/rsc/goX/test/bugs/bug142.go:10
++	main·main()
++mainstart+0xf /Users/rsc/goX/src/runtime/amd64/asm.s:53
++	mainstart()
++sys·Goexit /Users/rsc/goX/src/runtime/proc.c:124
++	sys·Goexit()
++; 
++*/
+diff --git a/test/golden.out b/test/golden.out
+index ccd5ad9e8d..03900e5e56 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,6 +121,11 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
++=========== bugs/bug142.go
++second
++panic PC=xxx
++BUG: bug142
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

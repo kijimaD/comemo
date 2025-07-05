@@ -10,6 +10,20 @@ Date:   Sun Feb 25 15:24:08 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/96983
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/unsafe/unsafe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index ffe406e1ce..00961cffa3 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -158,7 +158,7 @@ type ArbitraryType int
+ //	hdr.Len = n
+ //
+ // In this usage hdr.Data is really an alternate way to refer to the underlying
+-// pointer in the slice header, not a uintptr variable itself.
++// pointer in the string header, not a uintptr variable itself.
+ //
+ // In general, reflect.SliceHeader and reflect.StringHeader should be used
+ // only as *reflect.SliceHeader and *reflect.StringHeader pointing at actual

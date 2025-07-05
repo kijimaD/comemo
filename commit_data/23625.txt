@@ -21,8 +21,145 @@ Date:   Wed May 20 15:29:53 2015 -0400
     Change-Id: Ifa9d956753be53d286d09cbc73d47fb34a18c0c6
     Reviewed-on: https://go-review.googlesource.com/10312
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc1.go    |  8 +++++---
  src/runtime/runtime2.go |  1 +
  src/runtime/stack1.go   | 22 ++++++++++++++--------
  3 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index c070f7d773..20664c4879 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2161,6 +2161,7 @@ func malg(stacksize int32) *g {
+ 		})
+ 		newg.stackguard0 = newg.stack.lo + _StackGuard
+ 		newg.stackguard1 = ^uintptr(0)
++		newg.stackAlloc = uintptr(stacksize)
+ 	}
+ 	return newg
+ }
+@@ -2276,11 +2277,11 @@ func gfput(_p_ *p, gp *g) {
+ 		throw("gfput: bad status (not Gdead)")
+ 	}
+ 
+-	stksize := gp.stack.hi - gp.stack.lo
++	stksize := gp.stackAlloc
+ 
+ 	if stksize != _FixedStack {
+ 		// non-standard stack size - free it.
+-		stackfree(gp.stack)
++		stackfree(gp.stack, gp.stackAlloc)
+ 		gp.stack.lo = 0
+ 		gp.stack.hi = 0
+ 		gp.stackguard0 = 0
+@@ -2330,9 +2331,10 @@ retry:
+ 				gp.stack = stackalloc(_FixedStack)
+ 			})
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
++			gp.stackAlloc = _FixedStack
+ 		} else {
+ 			if raceenabled {
+-				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
++				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
+ 			}
+ 		}
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3ee5d5d29d..1954d42a17 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -216,6 +216,7 @@ type g struct {
+ 
+ 	_panic       *_panic // innermost panic - offset known to liblink
+ 	_defer       *_defer // innermost defer
++	stackAlloc   uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
+ 	sched        gobuf
+ 	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+ 	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 27427af955..e593b8a3a8 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -246,13 +246,15 @@ func stackalloc(n uint32) stack {
+ 	return stack{uintptr(v), uintptr(v) + uintptr(n)}
+ }
+ 
+-func stackfree(stk stack) {
++func stackfree(stk stack, n uintptr) {
+ 	gp := getg()
+-	n := stk.hi - stk.lo
+ 	v := (unsafe.Pointer)(stk.lo)
+ 	if n&(n-1) != 0 {
+ 		throw("stack not a power of 2")
+ 	}
++	if stk.lo+n < stk.hi {
++		throw("bad stack size")
++	}
+ 	if stackDebug >= 1 {
+ 		println("stackfree", v, n)
+ 		memclr(v, n) // for testing, clobber stack data
+@@ -584,14 +586,16 @@ func copystack(gp *g, newsize uintptr) {
+ 	gp.stack = new
+ 	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+ 	gp.sched.sp = new.hi - used
++	oldsize := gp.stackAlloc
++	gp.stackAlloc = newsize
+ 
+ 	// free old stack
+ 	if stackPoisonCopy != 0 {
+ 		fillstack(old, 0xfc)
+ 	}
+-	if newsize > old.hi-old.lo {
++	if newsize > oldsize {
+ 		// growing, free stack immediately
+-		stackfree(old)
++		stackfree(old, oldsize)
+ 	} else {
+ 		// shrinking, queue up free operation.  We can't actually free the stack
+ 		// just yet because we might run into the following situation:
+@@ -604,6 +608,7 @@ func copystack(gp *g, newsize uintptr) {
+ 		// By not freeing, we prevent step #4 until GC is done.
+ 		lock(&stackpoolmu)
+ 		*(*stack)(unsafe.Pointer(old.lo)) = stackfreequeue
++		*(*uintptr)(unsafe.Pointer(old.lo + ptrSize)) = oldsize
+ 		stackfreequeue = old
+ 		unlock(&stackpoolmu)
+ 	}
+@@ -743,7 +748,7 @@ func newstack() {
+ 	}
+ 
+ 	// Allocate a bigger segment and move the stack.
+-	oldsize := int(gp.stack.hi - gp.stack.lo)
++	oldsize := int(gp.stackAlloc)
+ 	newsize := oldsize * 2
+ 	if uintptr(newsize) > maxstacksize {
+ 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+@@ -786,7 +791,7 @@ func shrinkstack(gp *g) {
+ 		if gp.stack.lo != 0 {
+ 			// Free whole stack - it will get reallocated
+ 			// if G is used again.
+-			stackfree(gp.stack)
++			stackfree(gp.stack, gp.stackAlloc)
+ 			gp.stack.lo = 0
+ 			gp.stack.hi = 0
+ 		}
+@@ -796,7 +801,7 @@ func shrinkstack(gp *g) {
+ 		throw("missing stack in shrinkstack")
+ 	}
+ 
+-	oldsize := gp.stack.hi - gp.stack.lo
++	oldsize := gp.stackAlloc
+ 	newsize := oldsize / 2
+ 	if newsize < _FixedStack {
+ 		return // don't shrink below the minimum-sized stack
+@@ -832,7 +837,8 @@ func shrinkfinish() {
+ 	unlock(&stackpoolmu)
+ 	for s.lo != 0 {
+ 		t := *(*stack)(unsafe.Pointer(s.lo))
+-		stackfree(s)
++		n := *(*uintptr)(unsafe.Pointer(s.lo + ptrSize))
++		stackfree(s, n)
+ 		s = t
+ 	}
+ }

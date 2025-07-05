@@ -16,7 +16,178 @@ Date:   Thu Jan 14 15:30:14 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/os/user/lookup_unix.go      | 73 ++++++++++++++++++++++++++++++++++-------
  src/os/user/lookup_unix_test.go | 16 +++++++--
  2 files changed, 75 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index ed8c2dee9d..97c611fad4 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -33,23 +33,72 @@ type lineFunc func(line []byte) (v interface{}, err error)
+ // readColonFile parses r as an /etc/group or /etc/passwd style file, running
+ // fn for each row. readColonFile returns a value, an error, or (nil, nil) if
+ // the end of the file is reached without a match.
+-func readColonFile(r io.Reader, fn lineFunc) (v interface{}, err error) {
+-	bs := bufio.NewScanner(r)
+-	for bs.Scan() {
+-		line := bs.Bytes()
++//
++// readCols is the minimum number of colon-separated fields that will be passed
++// to fn; in a long line additional fields may be silently discarded.
++func readColonFile(r io.Reader, fn lineFunc, readCols int) (v interface{}, err error) {
++	rd := bufio.NewReader(r)
++
++	// Read the file line-by-line.
++	for {
++		var isPrefix bool
++		var wholeLine []byte
++
++		// Read the next line. We do so in chunks (as much as reader's
++		// buffer is able to keep), check if we read enough columns
++		// already on each step and store final result in wholeLine.
++		for {
++			var line []byte
++			line, isPrefix, err = rd.ReadLine()
++
++			if err != nil {
++				// We should return (nil, nil) if EOF is reached
++				// without a match.
++				if err == io.EOF {
++					err = nil
++				}
++				return nil, err
++			}
++
++			// Simple common case: line is short enough to fit in a
++			// single reader's buffer.
++			if !isPrefix && len(wholeLine) == 0 {
++				wholeLine = line
++				break
++			}
++
++			wholeLine = append(wholeLine, line...)
++
++			// Check if we read the whole line (or enough columns)
++			// already.
++			if !isPrefix || bytes.Count(wholeLine, []byte{':'}) >= readCols {
++				break
++			}
++		}
++
+ 		// There's no spec for /etc/passwd or /etc/group, but we try to follow
+ 		// the same rules as the glibc parser, which allows comments and blank
+ 		// space at the beginning of a line.
+-		line = bytes.TrimSpace(line)
+-		if len(line) == 0 || line[0] == '#' {
++		wholeLine = bytes.TrimSpace(wholeLine)
++		if len(wholeLine) == 0 || wholeLine[0] == '#' {
+ 			continue
+ 		}
+-		v, err = fn(line)
++		v, err = fn(wholeLine)
+ 		if v != nil || err != nil {
+ 			return
+ 		}
++
++		// If necessary, skip the rest of the line
++		for ; isPrefix; _, isPrefix, err = rd.ReadLine() {
++			if err != nil {
++				// We should return (nil, nil) if EOF is reached without a match.
++				if err == io.EOF {
++					err = nil
++				}
++				return nil, err
++			}
++		}
+ 	}
+-	return nil, bs.Err()
+ }
+ 
+ func matchGroupIndexValue(value string, idx int) lineFunc {
+@@ -80,7 +129,7 @@ func matchGroupIndexValue(value string, idx int) lineFunc {
+ }
+ 
+ func findGroupId(id string, r io.Reader) (*Group, error) {
+-	if v, err := readColonFile(r, matchGroupIndexValue(id, 2)); err != nil {
++	if v, err := readColonFile(r, matchGroupIndexValue(id, 2), 3); err != nil {
+ 		return nil, err
+ 	} else if v != nil {
+ 		return v.(*Group), nil
+@@ -89,7 +138,7 @@ func findGroupId(id string, r io.Reader) (*Group, error) {
+ }
+ 
+ func findGroupName(name string, r io.Reader) (*Group, error) {
+-	if v, err := readColonFile(r, matchGroupIndexValue(name, 0)); err != nil {
++	if v, err := readColonFile(r, matchGroupIndexValue(name, 0), 3); err != nil {
+ 		return nil, err
+ 	} else if v != nil {
+ 		return v.(*Group), nil
+@@ -144,7 +193,7 @@ func findUserId(uid string, r io.Reader) (*User, error) {
+ 	if e != nil {
+ 		return nil, errors.New("user: invalid userid " + uid)
+ 	}
+-	if v, err := readColonFile(r, matchUserIndexValue(uid, 2)); err != nil {
++	if v, err := readColonFile(r, matchUserIndexValue(uid, 2), 6); err != nil {
+ 		return nil, err
+ 	} else if v != nil {
+ 		return v.(*User), nil
+@@ -153,7 +202,7 @@ func findUserId(uid string, r io.Reader) (*User, error) {
+ }
+ 
+ func findUsername(name string, r io.Reader) (*User, error) {
+-	if v, err := readColonFile(r, matchUserIndexValue(name, 0)); err != nil {
++	if v, err := readColonFile(r, matchUserIndexValue(name, 0), 6); err != nil {
+ 		return nil, err
+ 	} else if v != nil {
+ 		return v.(*User), nil
+diff --git a/src/os/user/lookup_unix_test.go b/src/os/user/lookup_unix_test.go
+index c697802171..060cfe186f 100644
+--- a/src/os/user/lookup_unix_test.go
++++ b/src/os/user/lookup_unix_test.go
+@@ -9,12 +9,13 @@
+ package user
+ 
+ import (
++	"fmt"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-const testGroupFile = `# See the opendirectoryd(8) man page for additional 
++var testGroupFile = `# See the opendirectoryd(8) man page for additional 
+ # information about Open Directory.
+ ##
+ nobody:*:-2:
+@@ -30,7 +31,7 @@ daemon:*:1:root
+ # comment:*:4:found
+      # comment:*:4:found
+ kmem:*:2:root
+-`
++` + largeGroup()
+ 
+ var groupTests = []struct {
+ 	in   string
+@@ -49,9 +50,20 @@ var groupTests = []struct {
+ 	{testGroupFile, "invalidgid", ""},
+ 	{testGroupFile, "indented", "7"},
+ 	{testGroupFile, "# comment", ""},
++	{testGroupFile, "largegroup", "1000"},
+ 	{"", "emptyfile", ""},
+ }
+ 
++// Generate a proper "largegroup" entry for testGroupFile string
++func largeGroup() (res string) {
++	var b strings.Builder
++	b.WriteString("largegroup:x:1000:user1")
++	for i := 2; i <= 7500; i++ {
++		fmt.Fprintf(&b, ",user%d", i)
++	}
++	return b.String()
++}
++
+ func TestFindGroupName(t *testing.T) {
+ 	for _, tt := range groupTests {
+ 		got, err := findGroupName(tt.name, strings.NewReader(tt.in))

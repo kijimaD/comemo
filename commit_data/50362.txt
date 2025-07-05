@@ -14,7 +14,67 @@ Date:   Wed Oct 20 12:18:40 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go           | 16 ++++++++--------
  .../internal/types2/testdata/examples/conversions.go2    | 14 ++++++++++++++
  2 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 8cd74b8f9a..112d728188 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -98,21 +98,21 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	switch {
+ 	case Vp != nil && Tp != nil:
+ 		x := *x // don't modify outer x
+-		return Vp.underIs(func(V Type) bool {
+-			x.typ = V
+-			return Tp.underIs(func(T Type) bool {
+-				return x.convertibleToImpl(check, T)
++		return Vp.is(func(V *term) bool {
++			x.typ = V.typ
++			return Tp.is(func(T *term) bool {
++				return x.convertibleToImpl(check, T.typ)
+ 			})
+ 		})
+ 	case Vp != nil:
+ 		x := *x // don't modify outer x
+-		return Vp.underIs(func(V Type) bool {
+-			x.typ = V
++		return Vp.is(func(V *term) bool {
++			x.typ = V.typ
+ 			return x.convertibleToImpl(check, T)
+ 		})
+ 	case Tp != nil:
+-		return Tp.underIs(func(T Type) bool {
+-			return x.convertibleToImpl(check, T)
++		return Tp.is(func(T *term) bool {
++			return x.convertibleToImpl(check, T.typ)
+ 		})
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/conversions.go2 b/src/cmd/compile/internal/types2/testdata/examples/conversions.go2
+index 7e9e9745bb..5c1b30a2b5 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/conversions.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/conversions.go2
+@@ -31,6 +31,20 @@ func _[X ~*Foo|~*Bar, T ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Foo|~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Far](x X) T { return T(x /* ERROR cannot convert */ ) }
+ 
++// Verify that the defined types in constraints are considered for the rule above.
++
++type (
++	B int
++	C int
++	X0 *B
++	T0 *C
++)
++
++func _(x X0) T0 { return T0(x /* ERROR cannot convert */ ) } // non-generic reference
++func _[X X0, T T0](x X) T { return T(x /* ERROR cannot convert */ ) }
++func _[T T0](x X0) T { return T(x /* ERROR cannot convert */ ) }
++func _[X X0](x X) T0 { return T0(x /* ERROR cannot convert */ ) }
++
+ // "x's type and T are both integer or floating point types"
+ 
+ func _[X Integer, T Integer](x X) T { return T(x) }

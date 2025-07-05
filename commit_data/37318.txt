@@ -9,6 +9,20 @@ Date:   Wed Jul 18 10:53:44 2018 +0200
     Change-Id: I6488196c8392987d69eca832ab4969aaafe1a26c
     Reviewed-on: https://go-review.googlesource.com/124658
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index e417bbf1be..79bc1a4fe8 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -275,7 +275,7 @@ func f(v interface{}) {
+   before running, tests that do not typecheck will now fail.
+ 
+   In particular, tests that contain an unused variable inside a
+-  closure compiled with Go1.10, because the Go compiler incorrectly
++  closure compiled with Go 1.10, because the Go compiler incorrectly
+   accepted them (<a href="https://golang.org/issues/3059">Issue #3059</a>),
+   but will now fail, since <code>go/types</code> correctly reports an
+   "unused variable" error in this case.

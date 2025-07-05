@@ -10,7 +10,68 @@ Date:   Mon Apr 26 10:00:18 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1008041
-
+---
  src/pkg/regexp/all_test.go | 9 +++++++++
  src/pkg/regexp/regexp.go   | 8 ++++----
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index c1f6795e72..62dad3aa01 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -28,6 +28,7 @@ var good_re = []string{
+ 	`[abc]`,
+ 	`[^1234]`,
+ 	`[^\n]`,
++	`\!\\`,
+ }
+ 
+ type stringError struct {
+@@ -100,6 +101,14 @@ var matches = []tester{
+ 	// fixed bugs
+ 	tester{`ab$`, "cab", vec{1, 3}},
+ 	tester{`axxb$`, "axxcb", vec{}},
++
++	// can backslash-escape any punctuation
++	tester{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
++		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
++	tester{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
++		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
++	tester{"\\`", "`", vec{0, 1}},
++	tester{"[\\`]+", "`", vec{0, 1}},
+ }
+ 
+ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index f8d03d743f..cdd5cacdda 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -298,8 +298,8 @@ func special(c int) bool {
+ 	return false
+ }
+ 
+-func specialcclass(c int) bool {
+-	for _, r := range `\-[]` {
++func ispunct(c int) bool {
++	for _, r := range "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" {
+ 		if c == r {
+ 			return true
+ 		}
+@@ -344,7 +344,7 @@ func (p *parser) charClass() instr {
+ 				p.error(ErrExtraneousBackslash)
+ 			case c == 'n':
+ 				c = '\n'
+-			case specialcclass(c):
++			case ispunct(c):
+ 				// c is as delivered
+ 			default:
+ 				p.error(ErrBadBackslash)
+@@ -439,7 +439,7 @@ func (p *parser) term() (start, end instr) {
+ 			p.error(ErrExtraneousBackslash)
+ 		case c == 'n':
+ 			c = '\n'
+-		case special(c):
++		case ispunct(c):
+ 			// c is as delivered
+ 		default:
+ 			p.error(ErrBadBackslash)

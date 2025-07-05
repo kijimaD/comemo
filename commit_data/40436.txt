@@ -11,8 +11,46 @@ Date:   Mon May 13 14:20:53 2019 -0400
     Change-Id: Icf3f21bc385cac9673ba29f0154680e970cf91f2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176899
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go      | 1 -
  src/runtime/mgcmark.go  | 2 --
  src/runtime/mgcsweep.go | 1 -
  3 files changed, 4 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index afee7f21f6..9eaacd933d 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1991,7 +1991,6 @@ func gcMarkWorkAvailable(p *p) bool {
+ // gcMark runs the mark (or, for concurrent GC, mark termination)
+ // All gcWork caches must be empty.
+ // STW is in effect at this point.
+-//TODO go:nowritebarrier
+ func gcMark(start_time int64) {
+ 	if debug.allocfreetrace > 0 {
+ 		tracegc()
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 91f79c44db..efa007aa97 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -255,8 +255,6 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+ //
+ // This does not free stacks of dead Gs cached on Ps, but having a few
+ // cached stacks around isn't a problem.
+-//
+-//TODO go:nowritebarrier
+ func markrootFreeGStacks() {
+ 	// Take list of dead Gs with stacks.
+ 	lock(&sched.gFree.lock)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 6ac3b03176..5f1c90bfe0 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -203,7 +203,6 @@ func (s *mspan) ensureSwept() {
+ // Returns true if the span was returned to heap.
+ // If preserve=true, don't return it to heap nor relink in mcentral lists;
+ // caller takes care of it.
+-//TODO go:nowritebarrier
+ func (s *mspan) sweep(preserve bool) bool {
+ 	// It's critical that we enter this function with preemption disabled,
+ 	// GC must not start while we are in the middle of this function.

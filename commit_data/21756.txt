@@ -9,6 +9,25 @@ Date:   Mon Feb 2 08:52:41 2015 +0100
     Change-Id: I33852fd19ffa92aa33b75b94b4bb505f4043a54a
     Reviewed-on: https://go-review.googlesource.com/3691
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 487eebcb84..63d7d44aa0 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -536,10 +536,11 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
+ // parseBasicAuth parses an HTTP Basic Authentication string.
+ // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
+ func parseBasicAuth(auth string) (username, password string, ok bool) {
+-	if !strings.HasPrefix(auth, "Basic ") {
++	const prefix = "Basic "
++	if !strings.HasPrefix(auth, prefix) {
+ 		return
+ 	}
+-	c, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
++	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+ 	if err != nil {
+ 		return
+ 	}

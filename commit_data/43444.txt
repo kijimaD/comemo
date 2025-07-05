@@ -24,9 +24,88 @@ Date:   Thu Apr 2 22:44:25 2020 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/api/goapi.go      | 11 +++++++++--
  src/cmd/api/goapi_test.go |  1 -
  src/cmd/dist/build.go     |  2 --
  src/cmd/go/go_test.go     |  4 ++--
  4 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 55f3e10991..9874b29292 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -60,8 +60,6 @@ var contexts = []*build.Context{
+ 	{GOOS: "linux", GOARCH: "amd64"},
+ 	{GOOS: "linux", GOARCH: "arm", CgoEnabled: true},
+ 	{GOOS: "linux", GOARCH: "arm"},
+-	{GOOS: "darwin", GOARCH: "386", CgoEnabled: true},
+-	{GOOS: "darwin", GOARCH: "386"},
+ 	{GOOS: "darwin", GOARCH: "amd64", CgoEnabled: true},
+ 	{GOOS: "darwin", GOARCH: "amd64"},
+ 	{GOOS: "windows", GOARCH: "amd64"},
+@@ -252,6 +250,13 @@ func featureWithoutContext(f string) string {
+ 	return spaceParensRx.ReplaceAllString(f, "")
+ }
+ 
++// portRemoved reports whether the given port-specific API feature is
++// okay to no longer exist because its port was removed.
++func portRemoved(feature string) bool {
++	return strings.Contains(feature, "(darwin-386)") ||
++		strings.Contains(feature, "(darwin-386-cgo)")
++}
++
+ func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
+ 	ok = true
+ 
+@@ -279,6 +284,8 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
+ 				// acknowledged by being in the file
+ 				// "api/except.txt". No need to print them out
+ 				// here.
++			} else if portRemoved(feature) {
++				// okay.
+ 			} else if featureSet[featureWithoutContext(feature)] {
+ 				// okay.
+ 			} else {
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 282f26f708..eaccc5ceb5 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -140,7 +140,6 @@ func TestCompareAPI(t *testing.T) {
+ 			name: "contexts reconverging",
+ 			required: []string{
+ 				"A",
+-				"pkg syscall (darwin-386), type RawSockaddrInet6 struct",
+ 				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
+ 			},
+ 			features: []string{
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 62e00b0856..ab55a98b74 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1515,9 +1515,7 @@ func checkNotStale(goBinary string, targets ...string) {
+ // by 'go tool dist list'.
+ var cgoEnabled = map[string]bool{
+ 	"aix/ppc64":       true,
+-	"darwin/386":      false, // Issue 31751
+ 	"darwin/amd64":    true,
+-	"darwin/arm":      true,
+ 	"darwin/arm64":    true,
+ 	"dragonfly/amd64": true,
+ 	"freebsd/386":     true,
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d446e457b5..33c3f48f85 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1946,9 +1946,9 @@ func TestGenerateUsesBuildContext(t *testing.T) {
+ 	tg.grepStdout("linux amd64", "unexpected GOOS/GOARCH combination")
+ 
+ 	tg.setenv("GOOS", "darwin")
+-	tg.setenv("GOARCH", "386")
++	tg.setenv("GOARCH", "arm64")
+ 	tg.run("generate", "gen")
+-	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
++	tg.grepStdout("darwin arm64", "unexpected GOOS/GOARCH combination")
+ }
+ 
+ func TestGoEnv(t *testing.T) {

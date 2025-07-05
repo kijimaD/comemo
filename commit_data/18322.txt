@@ -16,7 +16,7 @@ Date:   Wed Jan 22 10:30:10 2014 +0400
     R=alex.brainman, rsc
     CC=golang-codereviews
     https://golang.org/cl/44820047
-
+---
  src/pkg/runtime/cgo/gcc_windows_386.c   | 16 ++++++++++------
  src/pkg/runtime/cgo/gcc_windows_amd64.c | 14 ++++++++++----
  src/pkg/runtime/cgo/libcgo.h            |  1 +
@@ -30,3 +30,390 @@ Date:   Wed Jan 22 10:30:10 2014 +0400
  src/pkg/runtime/signal_amd64.c          |  2 +-
  src/pkg/runtime/signal_arm.c            |  2 +-
  12 files changed, 63 insertions(+), 55 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_windows_386.c b/src/pkg/runtime/cgo/gcc_windows_386.c
+index 02eab12e59..cdc866468f 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_386.c
++++ b/src/pkg/runtime/cgo/gcc_windows_386.c
+@@ -5,6 +5,8 @@
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>
++#include <stdlib.h>
++#include <stdio.h>
+ #include "libcgo.h"
+ 
+ static void threadentry(void*);
+@@ -25,14 +27,19 @@ x_cgo_init(G *g)
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+-	_beginthread(threadentry, 0, ts);
++	uintptr_t thandle;
++
++	thandle = _beginthread(threadentry, 0, ts);
++	if(thandle == -1) {
++		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++		abort();
++	}
+ }
+ 
+ static void
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+-	void *tls0;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -43,16 +50,13 @@ threadentry(void *v)
+ 	/*
+ 	 * Set specific keys in thread local storage.
+ 	 */
+-	tls0 = (void*)LocalAlloc(LPTR, 32);
+ 	asm volatile (
+ 		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
+ 		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
+ 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
+ 		"movl %2, 4(%%eax)\n"	// MOVL m, 4(FS)
+-		:: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%eax"
++		:: "r"(ts.tls), "r"(ts.g), "r"(ts.m) : "%eax"
+ 	);
+ 	
+ 	crosscall_386(ts.fn);
+-	
+-	LocalFree(tls0);
+ }
+diff --git a/src/pkg/runtime/cgo/gcc_windows_amd64.c b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+index f7695a1cc2..d8dd69b4a7 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+@@ -5,6 +5,8 @@
+ #define WIN64_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>
++#include <stdlib.h>
++#include <stdio.h>
+ #include "libcgo.h"
+ 
+ static void threadentry(void*);
+@@ -25,14 +27,19 @@ x_cgo_init(G *g)
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+-	_beginthread(threadentry, 0, ts);
++	uintptr_t thandle;
++
++	thandle = _beginthread(threadentry, 0, ts);
++	if(thandle == -1) {
++		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++		abort();
++	}
+ }
+ 
+ static void
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+-	void *tls0;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -43,13 +50,12 @@ threadentry(void *v)
+ 	/*
+ 	 * Set specific keys in thread local storage.
+ 	 */
+-	tls0 = (void*)LocalAlloc(LPTR, 64);
+ 	asm volatile (
+ 	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
+ 	  "movq %%gs:0x28, %%rax\n" // MOVQ 0x28(GS), tmp
+ 	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
+ 	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
+-	  :: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%rax"
++	  :: "r"(ts.tls), "r"(ts.g), "r"(ts.m) : "%rax"
+ 	);
+ 
+ 	crosscall_amd64(ts.fn);
+diff --git a/src/pkg/runtime/cgo/libcgo.h b/src/pkg/runtime/cgo/libcgo.h
+index 41a371c270..65ea3f3726 100644
+--- a/src/pkg/runtime/cgo/libcgo.h
++++ b/src/pkg/runtime/cgo/libcgo.h
+@@ -34,6 +34,7 @@ struct ThreadStart
+ {
+ 	uintptr m;
+ 	G *g;
++	uintptr *tls;
+ 	void (*fn)(void);
+ };
+ 
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index bcbc55e4d2..aa6360787a 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -86,10 +86,6 @@ runtime·osinit(void)
+ 	void *kernel32;
+ 	void *SetProcessPriorityBoost;
+ 
+-	// -1 = current process, -2 = current thread
+-	runtime·stdcall(runtime·DuplicateHandle, 7,
+-		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
+-		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
+ 	runtime·ncpu = getproccount();
+@@ -229,7 +225,6 @@ runtime·newosproc(M *mp, void *stk)
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
+ 		runtime·throw("runtime.newosproc");
+ 	}
+-	runtime·atomicstorep(&mp->thread, thandle);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+@@ -245,6 +240,14 @@ runtime·mpreinit(M *mp)
+ void
+ runtime·minit(void)
+ {
++	void *thandle;
++
++	// -1 = current process, -2 = current thread
++	runtime·stdcall(runtime·DuplicateHandle, 7,
++		(uintptr)-1, (uintptr)-2, (uintptr)-1, &thandle,
++		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
++	runtime·atomicstorep(&m->thread, thandle);
++
+ 	runtime·install_exception_handler();
+ }
+ 
+@@ -383,7 +386,7 @@ runtime·ctrlhandler1(uint32 type)
+ 	return 0;
+ }
+ 
+-extern void runtime·dosigprof(Context *r, G *gp);
++extern void runtime·dosigprof(Context *r, G *gp, M *mp);
+ extern void runtime·profileloop(void);
+ static void *profiletimer;
+ 
+@@ -402,13 +405,11 @@ profilem(M *mp)
+ 		tls = runtime·tls0;
+ 	gp = *(G**)tls;
+ 
+-	if(gp != nil && gp != mp->g0 && gp->status != Gsyscall) {
+-		// align Context to 16 bytes
+-		r = (Context*)((uintptr)(&rbuf[15]) & ~15);
+-		r->ContextFlags = CONTEXT_CONTROL;
+-		runtime·stdcall(runtime·GetThreadContext, 2, mp->thread, r);
+-		runtime·dosigprof(r, gp);
+-	}
++	// align Context to 16 bytes
++	r = (Context*)((uintptr)(&rbuf[15]) & ~15);
++	r->ContextFlags = CONTEXT_CONTROL;
++	runtime·stdcall(runtime·GetThreadContext, 2, mp->thread, r);
++	runtime·dosigprof(r, gp, mp);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index c377e5b6cf..5048f51d61 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -102,7 +102,7 @@ runtime·sigdisable(uint32 sig)
+ }
+ 
+ void
+-runtime·dosigprof(Context *r, G *gp)
++runtime·dosigprof(Context *r, G *gp, M *mp)
+ {
+-	runtime·sigprof((uint8*)r->Eip, (uint8*)r->Esp, nil, gp);
++	runtime·sigprof((uint8*)r->Eip, (uint8*)r->Esp, nil, gp, mp);
+ }
+diff --git a/src/pkg/runtime/os_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+index 97c48feb08..27094ff497 100644
+--- a/src/pkg/runtime/os_windows_amd64.c
++++ b/src/pkg/runtime/os_windows_amd64.c
+@@ -108,7 +108,7 @@ runtime·sigdisable(uint32 sig)
+ }
+ 
+ void
+-runtime·dosigprof(Context *r, G *gp)
++runtime·dosigprof(Context *r, G *gp, M *mp)
+ {
+-	runtime·sigprof((uint8*)r->Rip, (uint8*)r->Rsp, nil, gp);
++	runtime·sigprof((uint8*)r->Rip, (uint8*)r->Rsp, nil, gp, mp);
+ }
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 2cae44776c..4d911b1e99 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -33,10 +33,6 @@ func TestCPUProfile(t *testing.T) {
+ }
+ 
+ func TestCPUProfileMultithreaded(t *testing.T) {
+-	// TODO(brainman): delete when issue 6986 is fixed.
+-	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
+-		t.Skip("skipping broken test on windows-amd64-race")
+-	}
+ 	buf := make([]byte, 100000)
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+ 	testCPUProfile(t, []string{"crc32.ChecksumIEEE", "crc32.Update"}, func() {
+@@ -197,9 +193,6 @@ func TestCPUProfileWithFork(t *testing.T) {
+ // If it did, it would see inconsistent state and would either record an incorrect stack
+ // or crash because the stack was malformed.
+ func TestGoroutineSwitch(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("flaky test; see http://golang.org/issue/6417")
+-	}
+ 	// How much to try. These defaults take about 1 seconds
+ 	// on a 2012 MacBook Pro. The ones in short mode take
+ 	// about 0.1 seconds.
+@@ -252,10 +245,6 @@ func TestGoroutineSwitch(t *testing.T) {
+ 
+ // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
+ func TestMathBigDivide(t *testing.T) {
+-	// TODO(brainman): delete when issue 6986 is fixed.
+-	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
+-		t.Skip("skipping broken test on windows-amd64-race")
+-	}
+ 	testCPUProfile(t, nil, func() {
+ 		t := time.After(5 * time.Second)
+ 		pi := new(big.Int)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d6732d2c61..92d6f27da3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -638,6 +638,7 @@ struct CgoThreadStart
+ {
+ 	M *m;
+ 	G *g;
++	uintptr *tls;
+ 	void (*fn)(void);
+ };
+ 
+@@ -916,6 +917,7 @@ newm(void(*fn)(void), P *p)
+ 			runtime·throw("_cgo_thread_start missing");
+ 		ts.m = mp;
+ 		ts.g = mp->g0;
++		ts.tls = mp->tls;
+ 		ts.fn = runtime·mstart;
+ 		runtime·asmcgocall(_cgo_thread_start, &ts);
+ 		return;
+@@ -2074,18 +2076,25 @@ System(void)
+ 
+ // Called if we receive a SIGPROF signal.
+ void
+-runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
++runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ {
+ 	int32 n;
+ 	bool traceback;
++	MCache *mcache;
++	// Do not use global m in this function, use mp instead.
++	// On windows one m is sending reports about all the g's, so m means a wrong thing.
++	byte m;
++
++	m = 0;
++	USED(m);
+ 
+ 	if(prof.fn == nil || prof.hz == 0)
+ 		return;
+-	traceback = true;
+-	// Windows does profiling in a dedicated thread w/o m.
+-	if(!Windows && (m == nil || m->mcache == nil))
+-		traceback = false;
+-	
++
++	// Profiling runs concurrently with GC, so it must not allocate.
++	mcache = mp->mcache;
++	mp->mcache = nil;
++
+ 	// Define that a "user g" is a user-created goroutine, and a "system g"
+ 	// is one that is m->g0 or m->gsignal. We've only made sure that we
+ 	// can unwind user g's, so exclude the system g's.
+@@ -2158,24 +2167,21 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ 	// To recap, there are no constraints on the assembly being used for the
+ 	// transition. We simply require that g and SP match and that the PC is not
+ 	// in runtime.gogo.
+-	//
+-	// On Windows, one m is sending reports about all the g's, so gp == m->curg
+-	// is not a useful comparison. The profilem function in os_windows.c has
+-	// already checked that gp is a user g.
+-	if(gp == nil ||
+-	   (!Windows && gp != m->curg) ||
++	traceback = true;
++	if(gp == nil || gp != mp->curg ||
+ 	   (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
+ 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
+ 		traceback = false;
+ 
+ 	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
+ 	// we can not currently unwind through asmcgocall.
+-	if(m != nil && m->racecall)
++	if(mp != nil && mp->racecall)
+ 		traceback = false;
+ 
+ 	runtime·lock(&prof);
+ 	if(prof.fn == nil) {
+ 		runtime·unlock(&prof);
++		mp->mcache = mcache;
+ 		return;
+ 	}
+ 	n = 0;
+@@ -2188,6 +2194,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ 	}
+ 	prof.fn(prof.pcbuf, n);
+ 	runtime·unlock(&prof);
++	mp->mcache = mcache;
+ }
+ 
+ // Arrange to call fn with a traceback hz times a second.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6ce5df98e6..119b9e3b7d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -864,7 +864,7 @@ void	runtime·dopanic(int32);
+ void	runtime·startpanic(void);
+ void	runtime·freezetheworld(void);
+ void	runtime·unwindstack(G*, byte*);
+-void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
++void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp);
+ void	runtime·resetcpuprofiler(int32);
+ void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+ void	runtime·usleep(uint32);
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 5a913c6461..553ea87e49 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -39,7 +39,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp);
++		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp, m);
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index 6f3c785a45..2184b7f64b 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -47,7 +47,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp);
++		runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp, m);
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index a6e2396010..4f797346c8 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -46,7 +46,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
++		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp, m);
+ 		return;
+ 	}
+ 

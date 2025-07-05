@@ -17,7 +17,7 @@ Date:   Mon Mar 7 16:21:30 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/user/getgrouplist_darwin.c | 22 ++++++++++++++++
  src/os/user/getgrouplist_unix.c   | 14 ++++++++++
  src/os/user/listgroups_solaris.go | 17 ++++++++++++
@@ -25,3 +25,204 @@ Date:   Mon Mar 7 16:21:30 2016 -0800
  src/os/user/lookup_unix.go        | 37 ---------------------------
  src/os/user/user_test.go          |  3 +++
  6 files changed, 110 insertions(+), 37 deletions(-)
+
+diff --git a/src/os/user/getgrouplist_darwin.c b/src/os/user/getgrouplist_darwin.c
+new file mode 100644
+index 0000000000..6ad5614898
+--- /dev/null
++++ b/src/os/user/getgrouplist_darwin.c
+@@ -0,0 +1,22 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++#include <unistd.h>
++#include <sys/types.h>
++#include <stdlib.h>
++
++int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
++	int* buf = malloc(*ngroups * sizeof(int));
++	int rv = getgrouplist(user, (int) group, buf, ngroups);
++	int i;
++	if (rv == 0) {
++		for (i = 0; i < *ngroups; i++) {
++			groups[i] = (gid_t) buf[i];
++		}
++	}
++	free(buf);
++	return rv;
++}
+diff --git a/src/os/user/getgrouplist_unix.c b/src/os/user/getgrouplist_unix.c
+new file mode 100644
+index 0000000000..eb14f9ab8a
+--- /dev/null
++++ b/src/os/user/getgrouplist_unix.c
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++// +build dragonfly freebsd !android,linux netbsd openbsd
++
++#include <unistd.h>
++#include <sys/types.h>
++#include <grp.h>
++
++int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
++	return getgrouplist(user, group, groups, ngroups);
++}
+diff --git a/src/os/user/listgroups_solaris.go b/src/os/user/listgroups_solaris.go
+new file mode 100644
+index 0000000000..28a8a78dbb
+--- /dev/null
++++ b/src/os/user/listgroups_solaris.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++// Even though this file requires no C, it is used to provide a
++// listGroup stub because all the other Solaris calls work.  Otherwise,
++// this stub will conflict with the lookup_stubs.go fallback.
++
++package user
++
++import "fmt"
++
++func listGroups(u *User) ([]string, error) {
++	return nil, fmt.Errorf("user: list groups for %s: not supported on Solaris", u.Username)
++}
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+new file mode 100644
+index 0000000000..f78baaac1e
+--- /dev/null
++++ b/src/os/user/listgroups_unix.go
+@@ -0,0 +1,54 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly darwin freebsd !android,linux netbsd openbsd
++
++package user
++
++import (
++	"fmt"
++	"strconv"
++	"unsafe"
++)
++
++/*
++#include <unistd.h>
++#include <sys/types.h>
++#include <stdlib.h>
++
++extern int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups);
++*/
++import "C"
++
++func listGroups(u *User) ([]string, error) {
++	ug, err := strconv.Atoi(u.Gid)
++	if err != nil {
++		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
++	}
++	userGID := C.gid_t(ug)
++	nameC := C.CString(u.Username)
++	defer C.free(unsafe.Pointer(nameC))
++
++	n := C.int(256)
++	gidsC := make([]C.gid_t, n)
++	rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
++	if rv == -1 {
++		// More than initial buffer, but now n contains the correct size.
++		const maxGroups = 2048
++		if n > maxGroups {
++			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
++		}
++		gidsC = make([]C.gid_t, n)
++		rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
++		if rv == -1 {
++			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
++		}
++	}
++	gidsC = gidsC[:n]
++	gids := make([]string, 0, n)
++	for _, g := range gidsC[:n] {
++		gids = append(gids, strconv.Itoa(int(g)))
++	}
++	return gids, nil
++}
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 52d57c3884..579e0d5cb4 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -37,11 +37,6 @@ static int mygetgrgid_r(int gid, struct group *grp,
+ 	char *buf, size_t buflen, struct group **result) {
+  return getgrgid_r(gid, grp, buf, buflen, result);
+ }
+-
+-static int mygetgrouplist(const char *user, gid_t group, gid_t *groups,
+-	int *ngroups) {
+- return getgrouplist(user, group, groups, ngroups);
+-}
+ */
+ import "C"
+ 
+@@ -112,38 +107,6 @@ func lookupUnixUid(uid int) (*User, error) {
+ 	return buildUser(&pwd), nil
+ }
+ 
+-func listGroups(u *User) ([]string, error) {
+-	ug, err := strconv.Atoi(u.Gid)
+-	if err != nil {
+-		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
+-	}
+-	userGID := C.gid_t(ug)
+-	nameC := C.CString(u.Username)
+-	defer C.free(unsafe.Pointer(nameC))
+-
+-	n := C.int(256)
+-	gidsC := make([]C.gid_t, n)
+-	rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
+-	if rv == -1 {
+-		// More than initial buffer, but now n contains the correct size.
+-		const maxGroups = 2048
+-		if n > maxGroups {
+-			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
+-		}
+-		gidsC = make([]C.gid_t, n)
+-		rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
+-		if rv == -1 {
+-			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
+-		}
+-	}
+-	gidsC = gidsC[:n]
+-	gids := make([]string, 0, n)
+-	for _, g := range gidsC[:n] {
+-		gids = append(gids, strconv.Itoa(int(g)))
+-	}
+-	return gids, nil
+-}
+-
+ func buildUser(pwd *C.struct_passwd) *User {
+ 	u := &User{
+ 		Uid:      strconv.Itoa(int(pwd.pw_uid)),
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 222b339544..361c48a7bd 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -121,6 +121,9 @@ func TestLookupGroup(t *testing.T) {
+ 
+ func TestGroupIds(t *testing.T) {
+ 	checkGroup(t)
++	if runtime.GOOS == "solaris" {
++		t.Skip("skipping GroupIds, see golang.org/issue/14709")
++	}
+ 	user, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current(): %v", err)

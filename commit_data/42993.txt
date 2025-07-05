@@ -13,10 +13,217 @@ Date:   Mon Feb 24 21:03:54 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   |  6 ++--
  src/cmd/link/internal/ld/errors.go | 61 ++++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/link.go   | 48 +-----------------------------
  src/cmd/link/internal/ld/xcoff.go  |  4 +--
  src/cmd/link/internal/ppc64/asm.go |  2 +-
  5 files changed, 68 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 0e34f3667f..e4d081c564 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -100,7 +100,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
+ 		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
+ 			if r.Sym.File != s.File {
+ 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
+-					ctxt.ErrorUnresolved(s, r)
++					ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
+ 				}
+ 				// runtime and its dependent packages may call to each other.
+ 				// they are fine, as they will be laid down together.
+@@ -167,7 +167,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
+ 					continue
+ 				}
+ 			} else {
+-				ctxt.ErrorUnresolved(s, r)
++				ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
+ 				continue
+ 			}
+ 		}
+@@ -335,7 +335,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
+ 				// symbol which isn't in .data. However, as .text has the
+ 				// same address once loaded, this is possible.
+ 				if s.Sect.Seg == &Segdata {
+-					Xcoffadddynrel(ctxt, s, r)
++					Xcoffadddynrel(target, s, r)
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/errors.go b/src/cmd/link/internal/ld/errors.go
+new file mode 100644
+index 0000000000..0cbef036ed
+--- /dev/null
++++ b/src/cmd/link/internal/ld/errors.go
+@@ -0,0 +1,61 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package ld
++
++import (
++	"cmd/internal/obj"
++	"cmd/link/internal/sym"
++	"sync"
++)
++
++type unresolvedSymKey struct {
++	from *sym.Symbol // Symbol that referenced unresolved "to"
++	to   *sym.Symbol // Unresolved symbol referenced by "from"
++}
++
++// ErrorReporter is used to make error reporting thread safe.
++type ErrorReporter struct {
++	unresOnce  sync.Once
++	unresSyms  map[unresolvedSymKey]bool
++	unresMutex sync.Mutex
++}
++
++type roLookup func(name string, v int) *sym.Symbol
++
++// errorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
++func (reporter *ErrorReporter) errorUnresolved(lookup roLookup, s *sym.Symbol, r *sym.Reloc) {
++	reporter.unresOnce.Do(func() { reporter.unresSyms = make(map[unresolvedSymKey]bool) })
++
++	k := unresolvedSymKey{from: s, to: r.Sym}
++	reporter.unresMutex.Lock()
++	defer reporter.unresMutex.Unlock()
++	if !reporter.unresSyms[k] {
++		reporter.unresSyms[k] = true
++
++		// Try to find symbol under another ABI.
++		var reqABI, haveABI obj.ABI
++		haveABI = ^obj.ABI(0)
++		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
++		if ok {
++			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
++				v := sym.ABIToVersion(abi)
++				if v == -1 {
++					continue
++				}
++				if rs := lookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
++					haveABI = abi
++				}
++			}
++		}
++
++		// Give a special error message for main symbol (see #24809).
++		if r.Sym.Name == "main.main" {
++			Errorf(s, "function main is undeclared in the main package")
++		} else if haveABI != ^obj.ABI(0) {
++			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
++		} else {
++			Errorf(s, "relocation target %s not defined", r.Sym.Name)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index fdc0b04aac..677bc57d34 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -32,7 +32,6 @@ package ld
+ 
+ import (
+ 	"bufio"
+-	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -52,6 +51,7 @@ type Shlib struct {
+ // or for reading that input into the linker.
+ type Link struct {
+ 	Target
++	ErrorReporter
+ 	Out *OutBuf
+ 
+ 	Syms *sym.Symbols
+@@ -81,10 +81,6 @@ type Link struct {
+ 
+ 	tramps []*sym.Symbol // trampolines
+ 
+-	// unresolvedSymSet is a set of erroneous unresolved references.
+-	// Used to avoid duplicated error messages.
+-	unresolvedSymSet map[unresolvedSymKey]bool
+-
+ 	// Used to implement field tracking.
+ 	Reachparent map[*sym.Symbol]*sym.Symbol
+ 
+@@ -104,48 +100,6 @@ type cgodata struct {
+ 	directives [][]string
+ }
+ 
+-type unresolvedSymKey struct {
+-	from *sym.Symbol // Symbol that referenced unresolved "to"
+-	to   *sym.Symbol // Unresolved symbol referenced by "from"
+-}
+-
+-// ErrorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
+-func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+-	if ctxt.unresolvedSymSet == nil {
+-		ctxt.unresolvedSymSet = make(map[unresolvedSymKey]bool)
+-	}
+-
+-	k := unresolvedSymKey{from: s, to: r.Sym}
+-	if !ctxt.unresolvedSymSet[k] {
+-		ctxt.unresolvedSymSet[k] = true
+-
+-		// Try to find symbol under another ABI.
+-		var reqABI, haveABI obj.ABI
+-		haveABI = ^obj.ABI(0)
+-		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
+-		if ok {
+-			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
+-				v := sym.ABIToVersion(abi)
+-				if v == -1 {
+-					continue
+-				}
+-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
+-					haveABI = abi
+-				}
+-			}
+-		}
+-
+-		// Give a special error message for main symbol (see #24809).
+-		if r.Sym.Name == "main.main" {
+-			Errorf(s, "function main is undeclared in the main package")
+-		} else if haveABI != ^obj.ABI(0) {
+-			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
+-		} else {
+-			Errorf(s, "relocation target %s not defined", r.Sym.Name)
+-		}
+-	}
+-}
+-
+ // The smallest possible offset from the hardware stack pointer to a local
+ // variable on the stack. Architectures that use a link register save its value
+ // on the stack in the function prologue and so always have a pointer between
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 5b48e3c650..55a404cfb0 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1096,8 +1096,8 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
+ 
+ // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
+ // This relocation will be made by the loader.
+-func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
+-	if ctxt.LinkMode == LinkExternal {
++func Xcoffadddynrel(target *Target, s *sym.Symbol, r *sym.Reloc) bool {
++	if target.IsExternal() {
+ 		return true
+ 	}
+ 	if s.Type <= sym.SPCLNTAB {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 9fbcff551a..99173a5b9c 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -266,7 +266,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 	if ctxt.IsELF {
+ 		return addelfdynrel(ctxt, s, r)
+ 	} else if ctxt.HeadType == objabi.Haix {
+-		return ld.Xcoffadddynrel(ctxt, s, r)
++		return ld.Xcoffadddynrel(&ctxt.Target, s, r)
+ 	}
+ 	return false
+ }

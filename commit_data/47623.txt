@@ -10,6 +10,20 @@ Date:   Fri Apr 2 12:02:17 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/305169
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 668e698cbf..adc8195ace 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2538,7 +2538,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 			for i, list := range lists {
+ 				for _, s := range list {
+ 					sym := Sym(s)
+-					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
++					if !assignedToUnit.Has(sym) {
+ 						textp = append(textp, sym)
+ 						unit := l.SymUnit(sym)
+ 						if unit != nil {

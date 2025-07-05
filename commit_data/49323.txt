@@ -101,3 +101,48 @@ Date:   Thu Aug 12 12:18:51 2021 -0700
  src/runtime/time.go                                |  53 ++------
  src/testing/testing.go                             |   6 +-
  52 files changed, 850 insertions(+), 262 deletions(-)
+
+diff --cc src/go/types/check_test.go
+index 692004facf,f83abf11ce..8c8452c9c6
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@@ -351,17 -333,32 +351,24 @@@ func TestLongConstants(t *testing.T) 
+  // represent larger values.
+  func TestIndexRepresentability(t *testing.T) {
+  	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
+ -	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+ -}
+ -
+ -func TestIssue46453(t *testing.T) {
+ -	if typeparams.Enabled {
+ -		t.Skip("type params are enabled")
+ -	}
+ -	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+ -	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+ +	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+  }
+  
++ func TestIssue47243_TypedRHS(t *testing.T) {
++ 	// The RHS of the shift expression below overflows uint on 32bit platforms,
++ 	// but this is OK as it is explicitly typed.
++ 	const src = "package issue47243\n\nvar a uint64; var _ = a << uint64(4294967296)" // uint64(1<<32)
+ -	checkFiles(t, &StdSizes{4, 4}, "", []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
+++	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
++ }
++ 
+ -func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+ -func TestExamples(t *testing.T)  { testDir(t, "examples") }
+ -func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+ +func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+ +func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+ +func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+  
+ -func testDir(t *testing.T, dir string) {
+ +func testDirFiles(t *testing.T, dir string, manual bool) {
+  	testenv.MustHaveGoBuild(t)
+ +	dir = filepath.FromSlash(dir)
+  
+ -	dir = filepath.Join("testdata", dir)
+  	fis, err := os.ReadDir(dir)
+  	if err != nil {
+  		t.Error(err)

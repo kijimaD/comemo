@@ -29,7 +29,7 @@ Date:   Sun Aug 15 16:25:46 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/ld/config.go     |   2 +-
  src/cmd/link/internal/ld/elf.go        |   9 +-
  src/cmd/link/internal/ld/lib.go        |   2 +
@@ -43,3 +43,514 @@ Date:   Sun Aug 15 16:25:46 2021 +0800
  src/cmd/link/link_test.go              |   2 +
  src/cmd/link/main.go                   |   3 +
  12 files changed, 351 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 33ab7c3df3..6d19b8b5bb 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -199,7 +199,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/14449
+-	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.RISCV64) {
++	if iscgo && ctxt.Arch.InFamily(sys.Loong64, sys.MIPS64, sys.MIPS, sys.RISCV64) {
+ 		return true, buildcfg.GOARCH + " does not support internal cgo"
+ 	}
+ 	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 343803b47c..e57071d4ee 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -208,7 +208,7 @@ we write section and prog headers.
+ func Elfinit(ctxt *Link) {
+ 	ctxt.IsELF = true
+ 
+-	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
++	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
+ 		elfRelType = ".rela"
+ 	} else {
+ 		elfRelType = ".rel"
+@@ -223,10 +223,13 @@ func Elfinit(ctxt *Link) {
+ 			ehdr.Flags = 2 /* Version 2 ABI */
+ 		}
+ 		fallthrough
+-	case sys.AMD64, sys.ARM64, sys.MIPS64, sys.RISCV64:
++	case sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.RISCV64:
+ 		if ctxt.Arch.Family == sys.MIPS64 {
+ 			ehdr.Flags = 0x20000004 /* MIPS 3 CPIC */
+ 		}
++		if ctxt.Arch.Family == sys.Loong64 {
++			ehdr.Flags = 0x3 /* LoongArch lp64d */
++		}
+ 		if ctxt.Arch.Family == sys.RISCV64 {
+ 			ehdr.Flags = 0x4 /* RISCV Float ABI Double */
+ 		}
+@@ -1655,6 +1658,8 @@ func asmbElf(ctxt *Link) {
+ 		Exitf("unknown architecture in asmbelf: %v", ctxt.Arch.Family)
+ 	case sys.MIPS, sys.MIPS64:
+ 		eh.Machine = uint16(elf.EM_MIPS)
++	case sys.Loong64:
++		eh.Machine = uint16(elf.EM_LOONGARCH)
+ 	case sys.ARM:
+ 		eh.Machine = uint16(elf.EM_ARM)
+ 	case sys.AMD64:
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 04b2556ea1..19678adbd5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1899,6 +1899,8 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ 		if buildcfg.GOOS == "darwin" {
+ 			return []string{"-arch", "arm64"}
+ 		}
++	case sys.Loong64:
++		return []string{"-mabi=lp64d"}
+ 	case sys.MIPS64:
+ 		return []string{"-mabi=64"}
+ 	case sys.MIPS:
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 7003ed7858..7a7a4833aa 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -132,7 +132,7 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
+ 				switch target.Arch.Family {
+ 				case sys.AMD64, sys.I386:
+ 					deferreturn--
+-				case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64:
++				case sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64:
+ 					// no change
+ 				case sys.S390X:
+ 					deferreturn -= 2
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 58d45d1504..cc8e4181b6 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -112,6 +112,10 @@ func (t *Target) IsMIPS64() bool {
+ 	return t.Arch.Family == sys.MIPS64
+ }
+ 
++func (t *Target) IsLOONG64() bool {
++	return t.Arch.Family == sys.Loong64
++}
++
+ func (t *Target) IsPPC64() bool {
+ 	return t.Arch.Family == sys.PPC64
+ }
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 03813909de..f5b7907675 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -346,6 +346,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		if mach != elf.EM_MIPS || class != elf.ELFCLASS64 {
+ 			return errorf("elf object but not mips64")
+ 		}
++	case sys.Loong64:
++		if mach != elf.EM_LOONGARCH || class != elf.ELFCLASS64 {
++			return errorf("elf object but not loong64")
++		}
+ 
+ 	case sys.ARM:
+ 		if e != binary.LittleEndian || mach != elf.EM_ARM || class != elf.ELFCLASS32 {
+@@ -956,6 +960,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		ARM     = uint32(sys.ARM)
+ 		ARM64   = uint32(sys.ARM64)
+ 		I386    = uint32(sys.I386)
++		LOONG64 = uint32(sys.Loong64)
+ 		MIPS    = uint32(sys.MIPS)
+ 		MIPS64  = uint32(sys.MIPS64)
+ 		PPC64   = uint32(sys.PPC64)
+@@ -991,6 +996,15 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
+ 		return 4, 4, nil
+ 
++	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
++		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
++		LOONG64 | uint32(elf.R_LARCH_64)<<16,
++		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16:
++		return 4, 4, nil
++
+ 	case S390X | uint32(elf.R_390_8)<<16:
+ 		return 1, 1, nil
+ 
+diff --git a/src/cmd/link/internal/loong64/asm.go b/src/cmd/link/internal/loong64/asm.go
+new file mode 100644
+index 0000000000..0eb3a813b2
+--- /dev/null
++++ b/src/cmd/link/internal/loong64/asm.go
+@@ -0,0 +1,240 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package loong64
++
++import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/ld"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"debug/elf"
++	"log"
++)
++
++func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
++
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
++	log.Fatalf("adddynrel not implemented")
++	return false
++}
++
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
++	// loong64 ELF relocation (endian neutral)
++	//		offset     uint64
++	//		symreloc   uint64  // The high 32-bit is the symbol, the low 32-bit is the relocation type.
++	//		addend     int64
++
++	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
++	switch r.Type {
++	default:
++		return false
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
++		switch r.Size {
++		case 4:
++			out.Write64(uint64(sectoff))
++			out.Write64(uint64(elf.R_LARCH_32) | uint64(elfsym)<<32)
++			out.Write64(uint64(r.Xadd))
++		case 8:
++			out.Write64(uint64(sectoff))
++			out.Write64(uint64(elf.R_LARCH_64) | uint64(elfsym)<<32)
++			out.Write64(uint64(r.Xadd))
++		default:
++			return false
++		}
++	case objabi.R_ADDRLOONG64TLS:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_TLS_TPREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
++		out.Write64(uint64(0xfff))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_AND))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_U_10_12))
++		out.Write64(uint64(0x0))
++
++	case objabi.R_ADDRLOONG64TLSU:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_TLS_TPREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
++		out.Write64(uint64(0xc))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_SR))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_5_20) | uint64(0)<<32)
++		out.Write64(uint64(0x0))
++
++	case objabi.R_CALLLOONG64:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PLT_PCREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2))
++		out.Write64(uint64(0x0))
++	// The pcaddu12i + addi.d instructions is used to obtain address of a symbol on Loong64.
++	// The low 12-bit of the symbol address need to be added. The addi.d instruction have
++	// signed 12-bit immediate operand. The 0x800 (addr+U12 <=> addr+0x800+S12) is introduced
++	// to do sign extending from 12 bits. The 0x804 is 0x800 + 4, 4 is instruction bit
++	// width on Loong64 and is used to correct the PC of the addi.d instruction.
++	case objabi.R_ADDRLOONG64:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd + 0x4))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd + 0x804))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
++		out.Write64(uint64(0xc))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_SR))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
++		out.Write64(uint64(0xc))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_SL))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_SUB))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_10_12))
++		out.Write64(uint64(0x0))
++
++	case objabi.R_ADDRLOONG64U:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd + 0x800))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
++		out.Write64(uint64(0xc))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_SR))
++		out.Write64(uint64(0x0))
++
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_5_20) | uint64(0)<<32)
++		out.Write64(uint64(0x0))
++	}
++
++	return true
++}
++
++func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++	return
++}
++
++func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
++	return false
++}
++
++func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
++	rs := r.Sym()
++	if target.IsExternal() {
++		nExtReloc := 0
++		switch r.Type() {
++		default:
++			return val, 0, false
++		case objabi.R_ADDRLOONG64,
++			objabi.R_ADDRLOONG64U:
++			// set up addend for eventual relocation via outer symbol.
++			rs, _ := ld.FoldSubSymbolOffset(ldr, rs)
++			rst := ldr.SymType(rs)
++			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++			}
++			nExtReloc = 8 // need 8 ELF relocations. see elfreloc1
++			if r.Type() == objabi.R_ADDRLOONG64U {
++				nExtReloc = 4
++			}
++			return val, nExtReloc, true
++		case objabi.R_ADDRLOONG64TLS,
++			objabi.R_ADDRLOONG64TLSU,
++			objabi.R_CALLLOONG64,
++			objabi.R_JMPLOONG64:
++			nExtReloc = 4
++			if r.Type() == objabi.R_CALLLOONG64 || r.Type() == objabi.R_JMPLOONG64 {
++				nExtReloc = 2
++			}
++			return val, nExtReloc, true
++		}
++	}
++
++	const isOk = true
++	const noExtReloc = 0
++
++	switch r.Type() {
++	case objabi.R_CONST:
++		return r.Add(), noExtReloc, isOk
++	case objabi.R_GOTOFF:
++		return ldr.SymValue(r.Sym()) + r.Add() - ldr.SymValue(syms.GOT), noExtReloc, isOk
++	case objabi.R_ADDRLOONG64,
++		objabi.R_ADDRLOONG64U:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		t := ldr.SymAddr(rs) + r.Add() - pc
++		if r.Type() == objabi.R_ADDRLOONG64 {
++			return int64(val&0xffc003ff | (((t + 4 - ((t + 4 + 1<<11) >> 12 << 12)) << 10) & 0x3ffc00)), noExtReloc, isOk
++		}
++		return int64(val&0xfe00001f | (((t + 1<<11) >> 12 << 5) & 0x1ffffe0)), noExtReloc, isOk
++	case objabi.R_ADDRLOONG64TLS,
++		objabi.R_ADDRLOONG64TLSU:
++		t := ldr.SymAddr(rs) + r.Add()
++		if r.Type() == objabi.R_ADDRLOONG64TLS {
++			return int64(val&0xffc003ff | ((t & 0xfff) << 10)), noExtReloc, isOk
++		}
++		return int64(val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0)), noExtReloc, isOk
++	case objabi.R_CALLLOONG64,
++		objabi.R_JMPLOONG64:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		t := ldr.SymAddr(rs) + r.Add() - pc
++		return int64(val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16)), noExtReloc, isOk
++	}
++
++	return val, 0, false
++}
++
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
++	return -1
++}
++
++func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
++	switch r.Type() {
++	case objabi.R_ADDRLOONG64,
++		objabi.R_ADDRLOONG64U:
++		return ld.ExtrelocViaOuterSym(ldr, r, s), true
++
++	case objabi.R_ADDRLOONG64TLS,
++		objabi.R_ADDRLOONG64TLSU,
++		objabi.R_CONST,
++		objabi.R_GOTOFF,
++		objabi.R_CALLLOONG64,
++		objabi.R_JMPLOONG64:
++		return ld.ExtrelocSimple(ldr, r), true
++	}
++	return loader.ExtReloc{}, false
++}
+diff --git a/src/cmd/link/internal/loong64/l.go b/src/cmd/link/internal/loong64/l.go
+new file mode 100644
+index 0000000000..e97a8686bf
+--- /dev/null
++++ b/src/cmd/link/internal/loong64/l.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package loong64
++
++const (
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 8
++)
++
++/* Used by ../../internal/ld/dwarf.go */
++const (
++	dwarfRegSP = 3
++	dwarfRegLR = 1
++)
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+new file mode 100644
+index 0000000000..b564dfd05f
+--- /dev/null
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -0,0 +1,58 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package loong64
++
++import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/ld"
++)
++
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchLoong64
++
++	theArch := ld.Arch{
++		Funcalign:        funcAlign,
++		Maxalign:         maxAlign,
++		Minalign:         minAlign,
++		Dwarfregsp:       dwarfRegSP,
++		Dwarfreglr:       dwarfRegLR,
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Extreloc:         extreloc,
++		Elfreloc1:        elfreloc1,
++		ElfrelocSize:     24,
++		Elfsetupplt:      elfsetupplt,
++		Machoreloc1:      machoreloc1,
++		Gentext:          gentext,
++
++		Linuxdynld:     "/lib64/ld.so.1",
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++
++	return arch, theArch
++}
++
++func archinit(ctxt *ld.Link) {
++	switch ctxt.HeadType {
++	default:
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
++	case objabi.Hlinux: /* loong64 elf */
++		ld.Elfinit(ctxt)
++		ld.HEADR = ld.ELFRESERVE
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
++		}
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/sym/reloc.go b/src/cmd/link/internal/sym/reloc.go
+index a543233a1d..a44dcdd517 100644
+--- a/src/cmd/link/internal/sym/reloc.go
++++ b/src/cmd/link/internal/sym/reloc.go
+@@ -59,6 +59,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 			return elf.R_AARCH64(nr).String()
+ 		case sys.I386:
+ 			return elf.R_386(nr).String()
++		case sys.Loong64:
++			return elf.R_LARCH(nr).String()
+ 		case sys.MIPS, sys.MIPS64:
+ 			return elf.R_MIPS(nr).String()
+ 		case sys.PPC64:
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index b2614ea44c..45dc6b322d 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -175,6 +175,8 @@ func TestIssue33979(t *testing.T) {
+ 
+ 	// Skip test on platforms that do not support cgo internal linking.
+ 	switch runtime.GOARCH {
++	case "loong64":
++		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	case "mips", "mipsle", "mips64", "mips64le":
+ 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index d92478e61e..16e5a01151 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/link/internal/arm"
+ 	"cmd/link/internal/arm64"
+ 	"cmd/link/internal/ld"
++	"cmd/link/internal/loong64"
+ 	"cmd/link/internal/mips"
+ 	"cmd/link/internal/mips64"
+ 	"cmd/link/internal/ppc64"
+@@ -53,6 +54,8 @@ func main() {
+ 		arch, theArch = arm.Init()
+ 	case "arm64":
+ 		arch, theArch = arm64.Init()
++	case "loong64":
++		arch, theArch = loong64.Init()
+ 	case "mips", "mipsle":
+ 		arch, theArch = mips.Init()
+ 	case "mips64", "mips64le":

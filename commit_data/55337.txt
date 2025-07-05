@@ -17,6 +17,27 @@ Date:   Fri Dec 16 13:43:16 2022 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/internal/obj/dwarf.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 121a9f6ee9..3f4c6e8ef3 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -433,15 +433,10 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	scopes, _, startPos := ctxt.DebugInfo(s, absfn, curfn)
+ 	_, startLine := ctxt.getFileSymbolAndLine(startPos)
+ 	dwctxt := dwCtxt{ctxt}
+-	// TODO(prattmic): this returns nil for symbols outside of the current
+-	// package because s.Func() is empty. This doesn't matter because
+-	// PutAbstractFunc doesn't use Filesym. Use startPos or remove.
+-	filesym := ctxt.fileSymbol(s)
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+ 		Importpath:    myimportpath,
+ 		Info:          absfn,
+-		Filesym:       filesym,
+ 		Absfn:         absfn,
+ 		StartLine:     startLine,
+ 		External:      !s.Static(),

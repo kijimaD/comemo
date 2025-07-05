@@ -11,6 +11,27 @@ Date:   Sun Feb 28 22:06:11 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  misc/cgo/testsanitizers/test.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 69caa39b15..a1f3a06411 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -103,6 +103,7 @@ if test "$tsan" = "yes"; then
+     err=${TMPDIR}/tsanerr$$.out
+ 
+     if ! go run tsan.go 2>$err; then
++	cat $err
+ 	echo "FAIL: tsan"
+ 	status=1
+     elif grep -i warning $err >/dev/null 2>&1; then
+@@ -112,6 +113,7 @@ if test "$tsan" = "yes"; then
+     fi
+ 
+     if ! go run tsan2.go 2>$err; then
++	cat $err
+ 	echo "FAIL: tsan2"
+ 	status=1
+     elif grep -i warning $err >/dev/null 2>&1; then

@@ -22,7 +22,7 @@ Date:   Mon Dec 16 12:52:11 2013 -0500
     R=golang-dev, r, iant, alex.brainman
     CC=golang-dev
     https://golang.org/cl/40600043
-
+---
  src/cmd/dist/build.c |   4 +-
  src/cmd/go/pkg.go    |   1 +
  src/cmd/nm/Makefile  |   5 -
@@ -34,3 +34,968 @@ Date:   Mon Dec 16 12:52:11 2013 -0500
  src/cmd/nm/nm.go     | 176 ++++++++++++++++++++++
  src/cmd/nm/pe.go     |  54 +++++++
  10 files changed, 456 insertions(+), 428 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index f199c6bf5c..e7d1900a01 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1246,7 +1246,6 @@ static char *buildorder[] = {
+ 	"misc/pprof",
+ 
+ 	"cmd/addr2line",
+-	"cmd/nm",
+ 	"cmd/objdump",
+ 	"cmd/pack",
+ 	"cmd/prof",
+@@ -1325,8 +1324,7 @@ static char *cleantab[] = {
+ 	"cmd/addr2line",
+ 	"cmd/cc",
+ 	"cmd/gc",
+-	"cmd/go",
+-	"cmd/nm",
++	"cmd/go",	
+ 	"cmd/objdump",
+ 	"cmd/pack",
+ 	"cmd/prof",
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 71f14c74a2..1805f05d92 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -307,6 +307,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/api":                              toTool,
+ 	"cmd/cgo":                              toTool,
+ 	"cmd/fix":                              toTool,
++	"cmd/nm":                               toTool,
+ 	"cmd/yacc":                             toTool,
+ 	"code.google.com/p/go.tools/cmd/cover": toTool,
+ 	"code.google.com/p/go.tools/cmd/godoc": toBin,
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+deleted file mode 100644
+index 3f528d7517..0000000000
+--- a/src/cmd/nm/Makefile
++++ /dev/null
+@@ -1,5 +0,0 @@
+-# Copyright 2012 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.dist
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 8e88e2e639..619c2d12dd 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -1,23 +1,37 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
+-
+-/*
+-
+-Nm is a version of the Plan 9 nm command.  The original is documented at
+-
+-	http://plan9.bell-labs.com/magic/man2html/1/nm
+-
+-It prints the name list (symbol table) for programs compiled by gc as well as the
+-Plan 9 C compiler.
+-
+-This implementation adds the flag -S, which prints each symbol's size
+-in decimal after its address.
+-
+-Usage:
+-	go tool nm [-aghnsSTu] file
+-
+-*/
++// Nm lists the symbols defined or used by an object file, archive, or executable.
++//
++// Usage:
++//	go tool nm [options] file...
++//
++// The default output prints one line per symbol, with three space-separated
++// fields giving the address (in hexadecimal), type (a character), and name of
++// the symbol. The types are:
++//
++//	T	text (code) segment symbol
++//	t	static text segment symbol
++//	D	data segment symbol
++//	d	static data segment symbol
++//	B	bss segment symbol
++//	b	static bss segment symbol
++//	U	referenced but undefined symbol
++//
++// Following established convention, the address is omitted for undefined
++// symbols (type U).
++//
++// The options control the printed output:
++//
++//	-n
++//		an alias for -sort address (numeric),
++//		for compatiblity with other nm commands
++//	-size
++//		print symbol size in decimal between address and type
++//	-sort {address,name,none}
++//		sort output in the given order (default name)
++//	-type
++//		print symbol type after name
++//
+ package main
+diff --git a/src/cmd/nm/elf.go b/src/cmd/nm/elf.go
+new file mode 100644
+index 0000000000..6dc8d442b4
+--- /dev/null
++++ b/src/cmd/nm/elf.go
+@@ -0,0 +1,54 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of ELF executables (Linux, FreeBSD, and so on).
++
++package main
++
++import (
++	"debug/elf"
++	"os"
++)
++
++func elfSymbols(f *os.File) []Sym {
++	p, err := elf.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	elfSyms, err := p.Symbols()
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	var syms []Sym
++	for _, s := range elfSyms {
++		sym := Sym{Addr: s.Value, Name: s.Name, Size: int64(s.Size), Code: '?'}
++		switch s.Section {
++		case elf.SHN_UNDEF:
++			sym.Code = 'U'
++		case elf.SHN_COMMON:
++			sym.Code = 'B'
++		default:
++			i := int(s.Section)
++			if i <= 0 || i > len(p.Sections) {
++				break
++			}
++			sect := p.Sections[i-1]
++			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
++			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
++				sym.Code = 'T'
++			case elf.SHF_ALLOC:
++				sym.Code = 'R'
++			case elf.SHF_ALLOC | elf.SHF_WRITE:
++				sym.Code = 'D'
++			}
++		}
++		syms = append(syms, sym)
++	}
++
++	return syms
++}
+diff --git a/src/cmd/nm/goobj.go b/src/cmd/nm/goobj.go
+new file mode 100644
+index 0000000000..1ceefff9c0
+--- /dev/null
++++ b/src/cmd/nm/goobj.go
+@@ -0,0 +1,68 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of Go intermediate object files and archives.
++
++package main
++
++import (
++	"debug/goobj"
++	"fmt"
++	"os"
++)
++
++func goobjName(id goobj.SymID) string {
++	if id.Version == 0 {
++		return id.Name
++	}
++	return fmt.Sprintf("%s<%d>", id.Name, id.Version)
++}
++
++func goobjSymbols(f *os.File) []Sym {
++	pkg, err := goobj.Parse(f, `""`)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	seen := make(map[goobj.SymID]bool)
++
++	var syms []Sym
++	for _, s := range pkg.Syms {
++		seen[s.SymID] = true
++		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
++		switch s.Kind {
++		case goobj.STEXT, goobj.SELFRXSECT:
++			sym.Code = 'T'
++		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
++			sym.Code = 'R'
++		case goobj.SMACHOPLT, goobj.SELFSECT, goobj.SMACHO, goobj.SMACHOGOT, goobj.SNOPTRDATA, goobj.SINITARR, goobj.SDATA, goobj.SWINDOWS:
++			sym.Code = 'D'
++		case goobj.SBSS, goobj.SNOPTRBSS, goobj.STLSBSS:
++			sym.Code = 'B'
++		case goobj.SXREF, goobj.SMACHOSYMSTR, goobj.SMACHOSYMTAB, goobj.SMACHOINDIRECTPLT, goobj.SMACHOINDIRECTGOT, goobj.SFILE, goobj.SFILEPATH, goobj.SCONST, goobj.SDYNIMPORT, goobj.SHOSTOBJ:
++			sym.Code = 'X'
++		}
++		if s.Version != 0 {
++			sym.Code += 'a' - 'A'
++		}
++		syms = append(syms, sym)
++	}
++
++	for _, s := range pkg.Syms {
++		for _, r := range s.Reloc {
++			if !seen[r.Sym] {
++				seen[r.Sym] = true
++				sym := Sym{Name: goobjName(r.Sym), Code: 'U'}
++				if s.Version != 0 {
++					// should not happen but handle anyway
++					sym.Code = 'u'
++				}
++				syms = append(syms, sym)
++			}
++		}
++	}
++
++	return syms
++}
+diff --git a/src/cmd/nm/macho.go b/src/cmd/nm/macho.go
+new file mode 100644
+index 0000000000..c60bde55b4
+--- /dev/null
++++ b/src/cmd/nm/macho.go
+@@ -0,0 +1,69 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of Mach-O executables (OS X).
++
++package main
++
++import (
++	"debug/macho"
++	"os"
++	"sort"
++)
++
++func machoSymbols(f *os.File) []Sym {
++	p, err := macho.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	if p.Symtab == nil {
++		errorf("%s: no symbol table", f.Name())
++		return nil
++	}
++
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++	for _, s := range p.Symtab.Syms {
++		addrs = append(addrs, s.Value)
++	}
++	sort.Sort(uint64s(addrs))
++
++	var syms []Sym
++	for _, s := range p.Symtab.Syms {
++		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
++		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
++		if i < len(addrs) {
++			sym.Size = int64(addrs[i] - s.Value)
++		}
++		if s.Sect == 0 {
++			sym.Code = 'U'
++		} else if int(s.Sect) <= len(p.Sections) {
++			sect := p.Sections[s.Sect-1]
++			switch sect.Seg {
++			case "__TEXT":
++				sym.Code = 'R'
++			case "__DATA":
++				sym.Code = 'D'
++			}
++			switch sect.Seg + " " + sect.Name {
++			case "__TEXT __text":
++				sym.Code = 'T'
++			case "__DATA __bss", "__DATA __noptrbss":
++				sym.Code = 'B'
++			}
++		}
++		syms = append(syms, sym)
++	}
++
++	return syms
++}
++
++type uint64s []uint64
++
++func (x uint64s) Len() int           { return len(x) }
++func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+deleted file mode 100644
+index 8209424269..0000000000
+--- a/src/cmd/nm/nm.c
++++ /dev/null
+@@ -1,401 +0,0 @@
+-// Inferno utils/nm/nm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/nm/nm.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-/*
+- * nm.c -- drive nm
+- */
+-#include <u.h>
+-#include <libc.h>
+-#include <ar.h>
+-#include <bio.h>
+-#include <mach.h>
+-
+-enum{
+-	CHUNK	=	256	/* must be power of 2 */
+-};
+-
+-char	*errs;			/* exit status */
+-char	*filename;		/* current file */
+-char	symname[]="__.GOSYMDEF";	/* table of contents file name */
+-int	multifile;		/* processing multiple files */
+-int	aflag;
+-int	gflag;
+-int	hflag;
+-int	nflag;
+-int	sflag;
+-int	Sflag;
+-int	uflag;
+-int	Tflag;
+-int	tflag;
+-
+-Sym	**fnames;		/* file path translation table */
+-Sym	**symptr;
+-int	nsym;
+-Biobuf	bout;
+-
+-int	cmp(void*, void*);
+-void	error(char*, ...);
+-void	execsyms(int);
+-void	psym(Sym*, void*);
+-void	printsyms(Sym**, long);
+-void	doar(Biobuf*);
+-void	dofile(Biobuf*);
+-void	zenter(Sym*);
+-
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: nm [-aghnsSTu] file ...\n");
+-	exits("usage");
+-}
+-
+-void
+-main(int argc, char *argv[])
+-{
+-	int i;
+-	Biobuf	*bin;
+-
+-	Binit(&bout, 1, OWRITE);
+-	argv0 = argv[0];
+-	ARGBEGIN {
+-	default:	usage();
+-	case 'a':	aflag = 1; break;
+-	case 'g':	gflag = 1; break;
+-	case 'h':	hflag = 1; break;
+-	case 'n':	nflag = 1; break;
+-	case 's':	sflag = 1; break;
+-	case 'S':	nflag = Sflag = 1; break;
+-	case 'u':	uflag = 1; break;
+-	case 't':	tflag = 1; break;
+-	case 'T':	Tflag = 1; break;
+-	} ARGEND
+-	if (argc == 0)
+-		usage();
+-	if (argc > 1)
+-		multifile++;
+-	for(i=0; i<argc; i++){
+-		filename = argv[i];
+-		bin = Bopen(filename, OREAD);
+-		if(bin == 0){
+-			error("cannot open %s", filename);
+-			continue;
+-		}
+-		if (isar(bin))
+-			doar(bin);
+-		else{
+-			Bseek(bin, 0, 0);
+-			dofile(bin);
+-		}
+-		Bterm(bin);
+-	}
+-	exits(errs);
+-}
+-
+-/*
+- * read an archive file,
+- * processing the symbols for each intermediate file in it.
+- */
+-void
+-doar(Biobuf *bp)
+-{
+-	int offset, size, obj;
+-	char name[SARNAME];
+-
+-	multifile = 1;
+-	for (offset = Boffset(bp);;offset += size) {
+-		size = nextar(bp, offset, name);
+-		if (size < 0) {
+-			error("phase error on ar header %d", offset);
+-			return;
+-		}
+-		if (size == 0)
+-			return;
+-		if (strcmp(name, symname) == 0)
+-			continue;
+-		obj = objtype(bp, 0);
+-		if (obj < 0) {
+-			// perhaps foreign object
+-			if(strlen(name) > 2 && strcmp(name+strlen(name)-2, ".o") == 0)
+-				return;
+-			error("inconsistent file %s in %s",
+-					name, filename);
+-			return;
+-		}
+-		if (!readar(bp, obj, offset+size, 1)) {
+-			error("invalid symbol reference in file %s",
+-					name);
+-			return;
+-		}
+-		filename = name;
+-		nsym=0;
+-		objtraverse(psym, 0);
+-		printsyms(symptr, nsym);
+-	}
+-}
+-
+-/*
+- * process symbols in a file
+- */
+-void
+-dofile(Biobuf *bp)
+-{
+-	int obj;
+-
+-	obj = objtype(bp, 0);
+-	if (obj < 0)
+-		execsyms(Bfildes(bp));
+-	else
+-	if (readobj(bp, obj)) {
+-		nsym = 0;
+-		objtraverse(psym, 0);
+-		printsyms(symptr, nsym);
+-	}
+-}
+-
+-/*
+- * comparison routine for sorting the symbol table
+- *	this screws up on 'z' records when aflag == 1
+- */
+-int
+-cmp(void *vs, void *vt)
+-{
+-	Sym **s, **t;
+-
+-	s = vs;
+-	t = vt;
+-	if(nflag)	// sort on address (numeric) order
+-		if((*s)->value < (*t)->value)
+-			return -1;
+-		else
+-			return (*s)->value > (*t)->value;
+-	if(sflag)	// sort on file order (sequence)
+-		return (*s)->sequence - (*t)->sequence;
+-	return strcmp((*s)->name, (*t)->name);
+-}
+-/*
+- * enter a symbol in the table of filename elements
+- */
+-void
+-zenter(Sym *s)
+-{
+-	static int maxf = 0;
+-
+-	if (s->value > maxf) {
+-		maxf = (s->value+CHUNK-1) &~ (CHUNK-1);
+-		fnames = realloc(fnames, (maxf+1)*sizeof(*fnames));
+-		if(fnames == 0) {
+-			error("out of memory", argv0);
+-			exits("memory");
+-		}
+-	}
+-	fnames[s->value] = s;
+-}
+-
+-/*
+- * get the symbol table from an executable file, if it has one
+- */
+-void
+-execsyms(int fd)
+-{
+-	Fhdr f;
+-	Sym *s;
+-	int32 n;
+-
+-	seek(fd, 0, 0);
+-	if (crackhdr(fd, &f) == 0) {
+-		error("Can't read header for %s", filename);
+-		return;
+-	}
+-	if (syminit(fd, &f) < 0)
+-		return;
+-	s = symbase(&n);
+-	nsym = 0;
+-	while(n--)
+-		psym(s++, 0);
+-
+-	printsyms(symptr, nsym);
+-}
+-
+-void
+-psym(Sym *s, void* p)
+-{
+-	USED(p);
+-	switch(s->type) {
+-	case 'T':
+-	case 'L':
+-	case 'D':
+-	case 'B':
+-		if (uflag)
+-			return;
+-		if (!aflag && ((s->name[0] == '.' || s->name[0] == '$')))
+-			return;
+-		break;
+-	case 'b':
+-	case 'd':
+-	case 'l':
+-	case 't':
+-		if (uflag || gflag)
+-			return;
+-		if (!aflag && ((s->name[0] == '.' || s->name[0] == '$')))
+-			return;
+-		break;
+-	case 'U':
+-		if (gflag)
+-			return;
+-		break;
+-	case 'Z':
+-		if (!aflag)
+-			return;
+-		break;
+-	case 'm':
+-		if(!aflag || uflag || gflag)
+-			return;
+-		break;
+-	case 'f':	/* we only see a 'z' when the following is true*/
+-		if(!aflag || uflag || gflag)
+-			return;
+-		zenter(s);
+-		break;
+-	case 'a':
+-	case 'p':
+-	case 'z':
+-	default:
+-		if(!aflag || uflag || gflag)
+-			return;
+-		break;
+-	}
+-	symptr = realloc(symptr, (nsym+1)*sizeof(Sym*));
+-	if (symptr == 0) {
+-		error("out of memory");
+-		exits("memory");
+-	}
+-	symptr[nsym++] = s;
+-}
+-
+-const char *skipnames[] = {
+-	"bss",
+-	"data",
+-	"ebss",
+-	"edata",
+-	"egcbss",
+-	"egcdata",
+-	"enoptrbss",
+-	"enoptrdata",
+-	"epclntab",
+-	"erodata",
+-	"esymtab",
+-	"etext",
+-	"etypelink",
+-	"noptrbss",
+-	"noptrdata",
+-	"rodata",
+-	"text",
+-};
+-
+-int
+-skipsize(char *name)
+-{
+-	int i;
+-	
+-	for(i=0; i<nelem(skipnames); i++)
+-		if(strcmp(skipnames[i], name) == 0)
+-			return 1;
+-	return 0;
+-}
+-
+-void
+-printsyms(Sym **symptr, long nsym)
+-{
+-	int i, j, wid;
+-	Sym *s;
+-	char *cp;
+-	char path[512];
+-
+-	qsort(symptr, nsym, sizeof(*symptr), (void*)cmp);
+-
+-	wid = 0;
+-	for (i=0; i<nsym; i++) {
+-		s = symptr[i];
+-		if (s->value && wid == 0)
+-			wid = 8;
+-		else if (s->value >= 0x100000000LL && wid == 8)
+-			wid = 16;
+-	}
+-	for (i=0; i<nsym; i++) {
+-		s = symptr[i];
+-		if (multifile && !hflag)
+-			Bprint(&bout, "%s:", filename);
+-		if (s->type == 'z') {
+-			fileelem(fnames, (uchar *) s->name, path, 512);
+-			cp = path;
+-		} else
+-			cp = s->name;
+-		if (Tflag)
+-			Bprint(&bout, "%8ux ", s->sig);
+-		if (s->value || s->type == 'a' || s->type == 'p')
+-			Bprint(&bout, "%*llux ", wid, s->value);
+-		else
+-			Bprint(&bout, "%*s ", wid, "");
+-		if(Sflag && !skipsize(cp)) {
+-			vlong siz;
+-
+-			siz = 0;
+-			for(j=i+1; j<nsym; j++) {
+-				if(!skipsize(symptr[j]->name) && symptr[j]->type != 'a' && symptr[j]->type != 'p') {
+-					siz = symptr[j]->value - s->value;
+-					break;
+-				}
+-			}
+-			if(siz > 0)
+-				Bprint(&bout, "%*llud ", wid, siz);
+-		}
+-		Bprint(&bout, "%c %s", s->type, cp);
+-		if(tflag && s->gotype)
+-			Bprint(&bout, " %*llux", wid, s->gotype);
+-		Bprint(&bout, "\n");
+-	}
+-}
+-
+-void
+-error(char *fmt, ...)
+-{
+-	Fmt f;
+-	char buf[128];
+-	va_list arg;
+-
+-	fmtfdinit(&f, 2, buf, sizeof buf);
+-	fmtprint(&f, "%s: ", argv0);
+-	va_start(arg, fmt);
+-	fmtvprint(&f, fmt, arg);
+-	va_end(arg);
+-	fmtprint(&f, "\n");
+-	fmtfdflush(&f);
+-	errs = "errors";
+-}
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+new file mode 100644
+index 0000000000..c37d1cc007
+--- /dev/null
++++ b/src/cmd/nm/nm.go
+@@ -0,0 +1,176 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bufio"
++	"bytes"
++	"flag"
++	"fmt"
++	"io"
++	"log"
++	"os"
++	"sort"
++)
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: go tool nm [-n] [-size] [-sort order] [-type] file...\n")
++	os.Exit(2)
++}
++
++var (
++	sortOrder = flag.String("sort", "name", "")
++	printSize = flag.Bool("size", false, "")
++	printType = flag.Bool("type", false, "")
++)
++
++func init() {
++	flag.Var(nflag(0), "n", "") // alias for -sort address
++}
++
++type nflag int
++
++func (nflag) IsBoolFlag() bool {
++	return true
++}
++
++func (nflag) Set(value string) error {
++	if value == "true" {
++		*sortOrder = "address"
++	}
++	return nil
++}
++
++func (nflag) String() string {
++	if *sortOrder == "address" {
++		return "true"
++	}
++	return "false"
++}
++
++func main() {
++	log.SetFlags(0)
++	flag.Usage = usage
++	flag.Parse()
++
++	switch *sortOrder {
++	case "address", "name", "none":
++		// ok
++	default:
++		fmt.Fprintf(os.Stderr, "nm: unknown sort order %q\n", *sortOrder)
++		os.Exit(2)
++	}
++
++	args := flag.Args()
++	if len(args) == 0 {
++		flag.Usage()
++	}
++
++	for _, file := range args {
++		nm(file)
++	}
++
++	os.Exit(exitCode)
++}
++
++var exitCode = 0
++
++func errorf(format string, args ...interface{}) {
++	log.Printf(format, args...)
++	exitCode = 1
++}
++
++type Sym struct {
++	Addr uint64
++	Size int64
++	Code rune
++	Name string
++	Type string
++}
++
++var parsers = []struct {
++	prefix []byte
++	parse  func(*os.File) []Sym
++}{
++	{[]byte("!<arch>\n"), goobjSymbols},
++	{[]byte("go object "), goobjSymbols},
++	{[]byte("\x7FELF"), elfSymbols},
++	{[]byte("\xFE\xED\xFA\xCE"), machoSymbols},
++	{[]byte("\xFE\xED\xFA\xCF"), machoSymbols},
++	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
++	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
++	{[]byte("MZ"), peSymbols},
++}
++
++func nm(file string) {
++	f, err := os.Open(file)
++	if err != nil {
++		errorf("%v", err)
++		return
++	}
++	defer f.Close()
++
++	buf := make([]byte, 16)
++	io.ReadFull(f, buf)
++	f.Seek(0, 0)
++
++	var syms []Sym
++	for _, p := range parsers {
++		if bytes.HasPrefix(buf, p.prefix) {
++			syms = p.parse(f)
++			goto HaveSyms
++		}
++	}
++	errorf("%v: unknown file format", file)
++	return
++
++HaveSyms:
++	switch *sortOrder {
++	case "address":
++		sort.Sort(byAddr(syms))
++	case "name":
++		sort.Sort(byName(syms))
++	}
++
++	w := bufio.NewWriter(os.Stdout)
++	for _, sym := range syms {
++		if sym.Code == 'U' {
++			fmt.Fprintf(w, "%8s", "")
++		} else {
++			fmt.Fprintf(w, "%8x", sym.Addr)
++		}
++		if *printSize {
++			fmt.Fprintf(w, " %10d", sym.Size)
++		}
++		fmt.Fprintf(w, " %c %s", sym.Code, sym.Name)
++		if *printType && sym.Type != "" {
++			fmt.Fprintf(w, " %s", sym.Type)
++		}
++		fmt.Fprintf(w, "\n")
++	}
++	w.Flush()
++}
++
++func filter(syms []Sym, ok func(Sym) bool) []Sym {
++	out := syms[:0]
++	for _, sym := range syms {
++		if ok(sym) {
++			out = append(out, sym)
++		}
++	}
++	return out
++}
++
++type byAddr []Sym
++
++func (x byAddr) Len() int           { return len(x) }
++func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
++
++type byName []Sym
++
++func (x byName) Len() int           { return len(x) }
++func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
+diff --git a/src/cmd/nm/pe.go b/src/cmd/nm/pe.go
+new file mode 100644
+index 0000000000..bf78238d6e
+--- /dev/null
++++ b/src/cmd/nm/pe.go
+@@ -0,0 +1,54 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of PE executables (Microsoft Windows).
++
++package main
++
++import (
++	"debug/pe"
++	"os"
++)
++
++func peSymbols(f *os.File) []Sym {
++	p, err := pe.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	var syms []Sym
++	for _, s := range p.Symbols {
++		sym := Sym{Name: s.Name, Addr: uint64(s.Value), Code: '?'}
++		if s.SectionNumber == 0 {
++			sym.Code = 'U'
++		} else if int(s.SectionNumber) <= len(p.Sections) {
++			sect := p.Sections[s.SectionNumber-1]
++			const (
++				text  = 0x20
++				data  = 0x40
++				bss   = 0x80
++				permX = 0x20000000
++				permR = 0x40000000
++				permW = 0x80000000
++			)
++			ch := sect.Characteristics
++			switch {
++			case ch&text != 0:
++				sym.Code = 'T'
++			case ch&data != 0:
++				if ch&permW == 0 {
++					sym.Code = 'R'
++				} else {
++					sym.Code = 'D'
++				}
++			case ch&bss != 0:
++				sym.Code = 'B'
++			}
++		}
++		syms = append(syms, sym)
++	}
++
++	return syms
++}

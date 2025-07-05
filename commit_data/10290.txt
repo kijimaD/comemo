@@ -8,8 +8,224 @@ Date:   Tue Nov 8 15:34:23 2011 -0800
     R=rsc, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5316078
-
+---
  src/cmd/gofix/Makefile             |  1 +
  src/cmd/gofix/go1pkgrename.go      | 93 ++++++++++++++++++++++++++++++++++++
  src/cmd/gofix/go1pkgrename_test.go | 98 ++++++++++++++++++++++++++++++++++++++
  3 files changed, 192 insertions(+)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 85bef2815f..2887d5bd53 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	error.go\
+ 	filepath.go\
+ 	fix.go\
++	go1pkgrename.go\
+ 	htmlerr.go\
+ 	httpfinalurl.go\
+ 	httpfs.go\
+diff --git a/src/cmd/gofix/go1pkgrename.go b/src/cmd/gofix/go1pkgrename.go
+new file mode 100644
+index 0000000000..91e3cb1caa
+--- /dev/null
++++ b/src/cmd/gofix/go1pkgrename.go
+@@ -0,0 +1,93 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(go1pkgrenameFix)
++}
++
++var go1pkgrenameFix = fix{
++	"go1rename",
++	"2011-11-08",
++	go1pkgrename,
++	`Rewrite imports for packages moved during transition to Go 1.
++
++http://codereview.appspot.com/5316078
++`,
++}
++
++var go1PackageRenames = []struct{ old, new string }{
++	{"asn1", "encoding/asn1"},
++	{"big", "math/big"},
++	{"cmath", "math/cmplx"},
++	{"csv", "encoding/csv"},
++	{"exec", "os/exec"},
++	{"exp/template/html", "html/template"},
++	{"gob", "encoding/gob"},
++	{"http", "net/http"},
++	{"http/cgi", "net/http/cgi"},
++	{"http/fcgi", "net/http/fcgi"},
++	{"http/httptest", "net/http/httptest"},
++	{"http/pprof", "net/http/pprof"},
++	{"json", "encoding/json"},
++	{"mail", "net/mail"},
++	{"rpc", "net/rpc"},
++	{"rpc/jsonrpc", "net/rpc/jsonrpc"},
++	{"scanner", "text/scanner"},
++	{"smtp", "net/smtp"},
++	{"syslog", "log/syslog"},
++	{"tabwriter", "text/tabwriter"},
++	{"template", "text/template"},
++	{"template/parse", "text/template/parse"},
++	{"rand", "math/rand"},
++	{"url", "net/url"},
++	{"utf16", "unicode/utf16"},
++	{"utf8", "unicode/utf8"},
++	{"xml", "encoding/xml"},
++}
++
++var go1PackageNameRenames = []struct{ newPath, old, new string }{
++	{"html/template", "html", "template"},
++	{"math/cmplx", "cmath", "cmplx"},
++}
++
++func go1pkgrename(f *ast.File) bool {
++	fixed := false
++
++	// First update the imports.
++	for _, rename := range go1PackageRenames {
++		if !imports(f, rename.old) {
++			continue
++		}
++		if rewriteImport(f, rename.old, rename.new) {
++			fixed = true
++		}
++	}
++	if !fixed {
++		return false
++	}
++
++	// Now update the package names used by importers.
++	for _, rename := range go1PackageNameRenames {
++		// These are rare packages, so do the import test before walking.
++		if imports(f, rename.newPath) {
++			walk(f, func(n interface{}) {
++				if sel, ok := n.(*ast.SelectorExpr); ok {
++					if isTopName(sel.X, rename.old) {
++						// We know Sel.X is an Ident.
++						sel.X.(*ast.Ident).Name = rename.new
++						return
++					}
++				}
++			})
++		}
++	}
++
++	return fixed
++}
+diff --git a/src/cmd/gofix/go1pkgrename_test.go b/src/cmd/gofix/go1pkgrename_test.go
+new file mode 100644
+index 0000000000..464d67e7f0
+--- /dev/null
++++ b/src/cmd/gofix/go1pkgrename_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(go1renameTests, go1pkgrename)
++}
++
++var go1renameTests = []testCase{
++	{
++		Name: "go1rename.0",
++		In: `package main
++
++import (
++	"asn1"
++	"big"
++	"cmath"
++	"csv"
++	"exec"
++	"exp/template/html"
++	"gob"
++	"http"
++	"http/cgi"
++	"http/fcgi"
++	"http/httptest"
++	"http/pprof"
++	"json"
++	"mail"
++	"rand"
++	"rpc"
++	"rpc/jsonrpc"
++	"scanner"
++	"smtp"
++	"syslog"
++	"tabwriter"
++	"template"
++	"template/parse"
++	"url"
++	"utf16"
++	"utf8"
++	"xml"
++)
++`,
++		Out: `package main
++
++import (
++	"encoding/asn1"
++	"encoding/csv"
++	"encoding/gob"
++	"encoding/json"
++	"encoding/xml"
++	"html/template"
++	"log/syslog"
++	"math/big"
++	"math/cmplx"
++	"math/rand"
++	"net/http"
++	"net/http/cgi"
++	"net/http/fcgi"
++	"net/http/httptest"
++	"net/http/pprof"
++	"net/mail"
++	"net/rpc"
++	"net/rpc/jsonrpc"
++	"net/smtp"
++	"net/url"
++	"os/exec"
++	"text/scanner"
++	"text/tabwriter"
++	"text/template"
++	"text/template/parse"
++	"unicode/utf16"
++	"unicode/utf8"
++)
++`,
++	},
++	{
++		Name: "go1rename.1",
++		In: `package main
++
++import "cmath"
++import poot "exp/template/html"
++
++var _ = cmath.Sin
++var _ = poot.Poot
++`,
++		Out: `package main
++
++import "math/cmplx"
++import poot "html/template"
++
++var _ = cmplx.Sin
++var _ = poot.Poot
++`,
++	},
++}

@@ -41,8 +41,90 @@ Date:   Thu Apr 11 12:18:10 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/objabi/funcdata.go | 13 +++++++------
  src/runtime/funcdata.h              | 12 ++++++------
  src/runtime/symtab.go               | 16 +++++++++-------
  3 files changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 231d11b185..addbd2ac88 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -11,14 +11,15 @@ package objabi
+ // ../../../runtime/symtab.go.
+ 
+ const (
+-	PCDATA_StackMapIndex       = 0
+-	PCDATA_InlTreeIndex        = 1
+-	PCDATA_RegMapIndex         = 2
++	PCDATA_RegMapIndex   = 0
++	PCDATA_StackMapIndex = 1
++	PCDATA_InlTreeIndex  = 2
++
+ 	FUNCDATA_ArgsPointerMaps   = 0
+ 	FUNCDATA_LocalsPointerMaps = 1
+-	FUNCDATA_InlTree           = 2
+-	FUNCDATA_RegPointerMaps    = 3
+-	FUNCDATA_StackObjects      = 4
++	FUNCDATA_RegPointerMaps    = 2
++	FUNCDATA_StackObjects      = 3
++	FUNCDATA_InlTree           = 4
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 1ee67c8683..d9a35c51a0 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -8,15 +8,15 @@
+ //
+ // These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
+ 
+-#define PCDATA_StackMapIndex 0
+-#define PCDATA_InlTreeIndex 1
+-#define PCDATA_RegMapIndex 2
++#define PCDATA_RegMapIndex 0
++#define PCDATA_StackMapIndex 1
++#define PCDATA_InlTreeIndex 2
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
+-#define FUNCDATA_InlTree 2
+-#define FUNCDATA_RegPointerMaps 3
+-#define FUNCDATA_StackObjects 4
++#define FUNCDATA_RegPointerMaps 2
++#define FUNCDATA_StackObjects 3
++#define FUNCDATA_InlTree 4
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index d61affa54a..c0e8dc279b 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -198,15 +198,17 @@ func (f *Func) funcInfo() funcInfo {
+ //
+ // See funcdata.h and ../cmd/internal/objabi/funcdata.go.
+ const (
+-	_PCDATA_StackMapIndex       = 0
+-	_PCDATA_InlTreeIndex        = 1
+-	_PCDATA_RegMapIndex         = 2
++	_PCDATA_RegMapIndex   = 0
++	_PCDATA_StackMapIndex = 1
++	_PCDATA_InlTreeIndex  = 2
++
+ 	_FUNCDATA_ArgsPointerMaps   = 0
+ 	_FUNCDATA_LocalsPointerMaps = 1
+-	_FUNCDATA_InlTree           = 2
+-	_FUNCDATA_RegPointerMaps    = 3
+-	_FUNCDATA_StackObjects      = 4
+-	_ArgsSizeUnknown            = -0x80000000
++	_FUNCDATA_RegPointerMaps    = 2
++	_FUNCDATA_StackObjects      = 3
++	_FUNCDATA_InlTree           = 4
++
++	_ArgsSizeUnknown = -0x80000000
+ )
+ 
+ // A FuncID identifies particular functions that need to be treated

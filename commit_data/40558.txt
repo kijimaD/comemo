@@ -9,6 +9,21 @@ Date:   Tue May 28 02:45:21 2019 +0000
     GitHub-Pull-Request: golang/go#32225
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178797
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/buffer.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 190c468162..f19a4cfff0 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -21,9 +21,6 @@ type Buffer struct {
+ 	buf      []byte // contents are the bytes buf[off : len(buf)]
+ 	off      int    // read at &buf[off], write at &buf[len(buf)]
+ 	lastRead readOp // last read operation, so that Unread* can work correctly.
+-
+-	// FIXME: it would be advisable to align Buffer to cachelines to avoid false
+-	// sharing.
+ }
+ 
+ // The readOp constants describe the last action performed on

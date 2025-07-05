@@ -10,7 +10,58 @@ Date:   Mon Oct 5 17:51:54 2020 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  misc/ios/detect.go      | 2 +-
  misc/ios/go_ios_exec.go | 8 ++++----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index b4651dfbb8..d32bcc3202 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -6,7 +6,7 @@
+ 
+ // detect attempts to autodetect the correct
+ // values of the environment variables
+-// used by go_io_exec.
++// used by go_ios_exec.
+ // detect shells out to ideviceinfo, a third party program that can
+ // be obtained by following the instructions at
+ // https://github.com/libimobiledevice/libimobiledevice.
+diff --git a/misc/ios/go_ios_exec.go b/misc/ios/go_ios_exec.go
+index 063c19ec58..0acf1b259c 100644
+--- a/misc/ios/go_ios_exec.go
++++ b/misc/ios/go_ios_exec.go
+@@ -59,12 +59,12 @@ var lock *os.File
+ 
+ func main() {
+ 	log.SetFlags(0)
+-	log.SetPrefix("go_darwin_arm_exec: ")
++	log.SetPrefix("go_ios_exec: ")
+ 	if debug {
+ 		log.Println(strings.Join(os.Args, " "))
+ 	}
+ 	if len(os.Args) < 2 {
+-		log.Fatal("usage: go_darwin_arm_exec a.out")
++		log.Fatal("usage: go_ios_exec a.out")
+ 	}
+ 
+ 	// For compatibility with the old builders, use a fallback bundle ID
+@@ -79,7 +79,7 @@ func main() {
+ 
+ func runMain() (int, error) {
+ 	var err error
+-	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
++	tmpdir, err = ioutil.TempDir("", "go_ios_exec_")
+ 	if err != nil {
+ 		return 1, err
+ 	}
+@@ -100,7 +100,7 @@ func runMain() (int, error) {
+ 	//
+ 	// The lock file is never deleted, to avoid concurrent locks on distinct
+ 	// files with the same path.
+-	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec-"+deviceID+".lock")
++	lockName := filepath.Join(os.TempDir(), "go_ios_exec-"+deviceID+".lock")
+ 	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
+ 	if err != nil {
+ 		return 1, err

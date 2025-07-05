@@ -10,6 +10,19 @@ Date:   Thu Dec 12 17:18:37 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/41530044
-
+---
  test/fixedbugs/issue4510.dir/f1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue4510.dir/f1.go b/test/fixedbugs/issue4510.dir/f1.go
+index 1e642e4cee..7e2cffa5dd 100644
+--- a/test/fixedbugs/issue4510.dir/f1.go
++++ b/test/fixedbugs/issue4510.dir/f1.go
+@@ -4,6 +4,6 @@
+ 
+ package p
+ 
+-import "fmt" // ERROR "fmt redeclared"
++import "fmt" // ERROR "fmt redeclared|imported"
+ 
+ var _ = fmt.Printf

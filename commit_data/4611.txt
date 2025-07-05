@@ -9,7 +9,77 @@ Date:   Fri Jan 15 10:56:16 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186159
-
+---
  src/pkg/time/format.go    | 16 ++++++++++++----
  src/pkg/time/time_test.go | 20 ++++++++++++++++++++
  2 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 0e885d4652..22d92ebdbe 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -326,9 +326,9 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 		prevLayout := layout
+ 		layout = layout[i:]
+ 		// Ugly time zone handling.
+-		if reference == "Z" || reference == "z" {
++		if reference == "Z" {
+ 			// Special case for ISO8601 time zone: "Z" or "-0800"
+-			if reference == "Z" && value[0] == 'Z' {
++			if value[0] == 'Z' {
+ 				i = 1
+ 			} else if len(value) >= 5 {
+ 				i = 5
+@@ -338,11 +338,19 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 		} else {
+ 			c = value[0]
+ 			if charType(c) != pieceType {
+-				// could be a minus sign introducing a negative year
++				// Ugly management of signs.  Reference and data might differ.
++				// 1. Could be a minus sign introducing a negative year.
+ 				if c == '-' && pieceType != minus {
+ 					value = value[1:]
+-					sign = "-"
+ 					layout = prevLayout // don't consume reference item
++					sign = "-"
++					continue
++				}
++				// 2. Could be a plus sign for a +0100 time zone, represented by -0700 in the standard.
++				if c == '+' && pieceType == minus {
++					value = value[1:]
++					layout = prevLayout[1:] // absorb sign in both value and layout
++					sign = "+"
+ 					continue
+ 				}
+ 				return nil, &ParseError{Layout: alayout, Value: avalue, Message: formatErr + alayout}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index af1e50fa2b..2fb5b668ca 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -186,6 +186,26 @@ func TestParse(t *testing.T) {
+ 	}
+ }
+ 
++var rubyTests = []ParseTest{
++	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
++	// Ignore the time zone in the test. If it parses, it'll be OK.
++	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
++	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
++	ParseTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
++}
++
++// Problematic time zone format needs special tests.
++func TestRubyParse(t *testing.T) {
++	for _, test := range rubyTests {
++		time, err := Parse(test.format, test.value)
++		if err != nil {
++			t.Errorf("%s error: %v", test.name, err)
++		} else {
++			checkTime(time, &test, t)
++		}
++	}
++}
++
+ func checkTime(time *Time, test *ParseTest, t *testing.T) {
+ 	// The time should be Thu Feb  4 21:00:57 PST 2010
+ 	if test.yearSign*time.Year != 2010 {

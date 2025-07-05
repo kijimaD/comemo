@@ -7,6 +7,20 @@ Date:   Sun Jan 3 21:34:49 2016 +0100
     Change-Id: I6ea7339ff9412111319e46f2962c6b3880987a1e
     Reviewed-on: https://go-review.googlesource.com/18174
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 1e6ed05ad4..1692f0dbc0 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -139,7 +139,7 @@ and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
+ </p>
+ 
+ <p>
+-To use gccgo, you need to arrange for <code>$GOROOT_BOOSTRAP/bin/go</code> to be
++To use gccgo, you need to arrange for <code>$GOROOT_BOOTSTRAP/bin/go</code> to be
+ the go tool that comes as part of gccgo 5. For example on Ubuntu Vivid:
+ </p>
+ 

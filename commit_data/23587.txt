@@ -9,7 +9,71 @@ Date:   Thu May 28 11:58:42 2015 -0700
     Change-Id: Iac25645ba8181a56a75ddfcd29ff6d64c15c4f57
     Reviewed-on: https://go-review.googlesource.com/10466
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/testdata/issues.src | 24 ++++++++++++++++++++++++
  src/go/types/typexpr.go          | 18 ++++++------------
  2 files changed, 30 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index d08e0fd878..595a6342b7 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -71,3 +71,27 @@ func issue9473(a []int, b ...int) {
+ 	append_(f0(), f1()... /* ERROR cannot use */ )
+ 	append_(f0(), f2()... /* ERROR cannot use */ )
+ }
++
++// Check that embedding a non-interface type in an interface results in a good error message.
++func issue10979() {
++	type _ interface {
++		int /* ERROR int is not an interface */
++	}
++	type T struct{}
++	type _ interface {
++		T /* ERROR T is not an interface */
++	}
++	type _ interface {
++		nosuchtype /* ERROR undeclared name: nosuchtype */
++	}
++	type _ interface {
++		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
++	}
++	type _ interface {
++		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
++	}
++	type I interface {
++		I /* ERROR I\.m \(value of type func\(I\)\) is not a type */ .m
++		m()
++	}
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index f4e4dcb040..3fc1574e80 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -525,20 +525,14 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
+ 	for _, e := range embedded {
+ 		pos := e.Pos()
+ 		typ := check.typExpr(e, nil, path)
++		// Determine underlying embedded (possibly incomplete) type
++		// by following its forward chain.
+ 		named, _ := typ.(*Named)
+-		if named == nil {
+-			if typ != Typ[Invalid] {
+-				check.invalidAST(pos, "%s is not named type", typ)
+-			}
+-			continue
+-		}
+-		// determine underlying (possibly incomplete) type
+-		// by following its forward chain
+-		u := underlying(named)
+-		embed, _ := u.(*Interface)
++		under := underlying(named)
++		embed, _ := under.(*Interface)
+ 		if embed == nil {
+-			if u != Typ[Invalid] {
+-				check.errorf(pos, "%s is not an interface", named)
++			if typ != Typ[Invalid] {
++				check.errorf(pos, "%s is not an interface", typ)
+ 			}
+ 			continue
+ 		}

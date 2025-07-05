@@ -7,6 +7,19 @@ Date:   Fri Jul 22 22:45:14 2011 -0700
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/4809050
-
+---
  src/cmd/ld/go.c | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 1c77cca1a8..cc0262f040 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -864,6 +864,3 @@ importcycles(void)
+ 	for(p=pkgall; p; p=p->all)
+ 		cycle(p);
+ }
+-
+-
+-	
+\ No newline at end of file

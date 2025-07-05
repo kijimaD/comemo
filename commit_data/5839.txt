@@ -9,10 +9,211 @@ Date:   Sat Jul 17 16:54:03 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/1665051
-
+---
  src/cmd/8l/list.c               |  2 +-
  src/cmd/8l/pass.c               | 41 +++++++++++++++++++++++++++++++++++++----
  src/libcgo/linux_386.c          |  9 ++++++---
  src/pkg/runtime/linux/386/sys.s | 11 +++++++----
  src/pkg/runtime/mkasmh.sh       | 25 +++++++++++++++++++++++++
  5 files changed, 76 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index a5dbba7f80..e665992a3e 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -102,7 +102,7 @@ Dconv(Fmt *fp)
+ 	i = a->type;
+ 	if(i >= D_INDIR && i < 2*D_INDIR) {
+ 		if(a->offset)
+-			sprint(str, "%ld(%R)", a->offset, i-D_INDIR);
++			sprint(str, "%ld(%R)", (long)a->offset, i-D_INDIR);
+ 		else
+ 			sprint(str, "(%R)", i-D_INDIR);
+ 		goto brk;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index ace640d221..82b2fb1f3d 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -378,7 +378,7 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(HEADTYPE == 10) {
++		if(HEADTYPE == 10) {	// Windows
+ 			// Convert
+ 			//   op   n(GS), reg
+ 			// to
+@@ -391,7 +391,7 @@ patch(void)
+ 			&& p->to.type >= D_AX && p->to.type <= D_DI) {
+ 				q = appendp(p);
+ 				q->from = p->from;
+-				q->from.type += p->to.type-D_GS;
++				q->from.type = D_INDIR + p->to.type;
+ 				q->to = p->to;
+ 				q->as = p->as;
+ 				p->as = AMOVL;
+@@ -399,6 +399,23 @@ patch(void)
+ 				p->from.offset = 0x2C;
+ 			}
+ 		}
++		if(HEADTYPE == 7) {	// Linux
++			// Running binaries under Xen requires using
++			//	MOVL 0(GS), reg
++			// and then off(reg) instead of saying off(GS) directly
++			// when the offset is negative.
++			if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
++			&& p->to.type >= D_AX && p->to.type <= D_DI) {
++				q = appendp(p);
++				q->from = p->from;
++				q->from.type = D_INDIR + p->to.type;
++				q->to = p->to;
++				q->as = p->as;
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_GS;
++				p->from.offset = 0;
++			}
++		}
+ 		if(p->as == ATEXT)
+ 			curtext = p;
+ 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+@@ -616,7 +633,8 @@ dostkoff(void)
+ 			if(pmorestack != P)
+ 			if(!(p->from.scale & NOSPLIT)) {
+ 				p = appendp(p);	// load g into CX
+-				if(HEADTYPE == 10) {
++				switch(HEADTYPE) {
++				case 10:	// Windows
+ 					p->as = AMOVL;
+ 					p->from.type = D_INDIR+D_FS;
+ 					p->from.offset = 0x2c;
+@@ -627,7 +645,22 @@ dostkoff(void)
+ 					p->from.type = D_INDIR+D_CX;
+ 					p->from.offset = 0;
+ 					p->to.type = D_CX;
+-				} else {
++					break;
++				
++				case 7:	// Linux
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_GS;
++					p->from.offset = 0;
++					p->to.type = D_CX;
++
++					p = appendp(p);
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_CX;
++					p->from.offset = tlsoffset + 0;
++					p->to.type = D_CX;
++					break;
++
++				default:
+ 					p->as = AMOVL;
+ 					p->from.type = D_INDIR+D_GS;
+ 					p->from.offset = tlsoffset + 0;
+diff --git a/src/libcgo/linux_386.c b/src/libcgo/linux_386.c
+index 9d02455cc9..bca649a7e2 100644
+--- a/src/libcgo/linux_386.c
++++ b/src/libcgo/linux_386.c
+@@ -45,11 +45,14 @@ threadentry(void *v)
+ 	 * Set specific keys.  On Linux/ELF, the thread local storage
+ 	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
+ 	 * for the two words g and m at %gs:-8 and %gs:-4.
++	 * Xen requires us to access those words indirect from %gs:0
++	 * which points at itself.
+ 	 */
+ 	asm volatile (
+-		"movl %0, %%gs:-8\n"	// MOVL g, -8(GS)
+-		"movl %1, %%gs:-4\n"	// MOVL m, -4(GS)
+-		:: "r"(ts.g), "r"(ts.m)
++		"movl %%gs:0, %%eax\n"		// MOVL 0(GS), tmp
++		"movl %0, -8(%%eax)\n"	// MOVL g, -8(GS)
++		"movl %1, -4(%%eax)\n"	// MOVL m, -4(GS)
++		:: "r"(ts.g), "r"(ts.m) : "%eax"
+ 	);
+ 
+ 	crosscall_386(ts.fn);
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 57ffc4aa4f..35c3780cef 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -161,12 +161,12 @@ TEXT clone(SB),7,$0
+ 	// In child on new stack.  Reload registers (paranoia).
+ 	MOVL	0(SP), BX	// m
+ 	MOVL	4(SP), DX	// g
+-	MOVL	8(SP), CX	// fn
++	MOVL	8(SP), SI	// fn
+ 
+ 	MOVL	AX, m_procid(BX)	// save tid as m->procid
+ 
+ 	// set up ldt 7+id to point at m->tls.
+-	// m->tls is at m+40.  newosproc left the id in tls[0].
++	// newosproc left the id in tls[0].
+ 	LEAL	m_tls(BX), BP
+ 	MOVL	0(BP), DI
+ 	ADDL	$7, DI	// m0 is LDT#7. count up.
+@@ -186,7 +186,7 @@ TEXT clone(SB),7,$0
+ 	MOVL	DX, g(AX)
+ 	MOVL	BX, m(AX)
+ 
+-	CALL	stackcheck(SB)	// smashes AX
++	CALL	stackcheck(SB)	// smashes AX, CX
+ 	MOVL	0(DX), DX	// paranoia; check they are not nil
+ 	MOVL	0(BX), BX
+ 
+@@ -195,7 +195,7 @@ TEXT clone(SB),7,$0
+ 	CALL	emptyfunc(SB)
+ 	POPAL
+ 
+-	CALL	CX	// fn()
++	CALL	SI	// fn()
+ 	CALL	exit1(SB)
+ 	MOVL	$0x1234, 0x1005
+ 	RET
+@@ -247,8 +247,11 @@ TEXT setldt(SB),7,$32
+ 	 * To accommodate that rewrite, we translate
+ 	 * the address here and bump the limit to 0xffffffff (no limit)
+ 	 * so that -8(GS) maps to 0(address).
++	 * Also, the final 0(GS) (current 8(CX)) has to point
++	 * to itself, to mimic ELF.
+ 	 */
+ 	ADDL	$0x8, CX	// address
++	MOVL	CX, 0(CX)
+ 
+ 	// set up user_desc
+ 	LEAL	16(SP), AX	// struct user_desc
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index aae773cfee..df8ad88381 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -24,6 +24,31 @@ case "$GOARCH" in
+ 		echo '#define	g(r)	0(r)'
+ 		echo '#define	m(r)	4(r)'
+ 		;;
++	linux)
++		# On Linux systems, what we call 0(GS) and 4(GS) for g and m
++		# turn into %gs:-8 and %gs:-4 (using gcc syntax to denote
++		# what the machine sees as opposed to 8l input).
++		# 8l rewrites 0(GS) and 4(GS) into these.
++		#
++		# On Linux Xen, it is not allowed to use %gs:-8 and %gs:-4
++		# directly.  Instead, we have to store %gs:0 into a temporary
++		# register and then use -8(%reg) and -4(%reg).  This kind
++		# of addressing is correct even when not running Xen.
++		#
++		# 8l can rewrite MOVL 0(GS), CX into the appropriate pair
++		# of mov instructions, using CX as the intermediate register
++		# (safe because CX is about to be written to anyway).
++		# But 8l cannot handle other instructions, like storing into 0(GS),
++		# which is where these macros come into play.
++		# get_tls sets up the temporary and then g and r use it.
++		#
++		# The final wrinkle is that get_tls needs to read from %gs:0,
++		# but in 8l input it's called 8(GS), because 8l is going to
++		# subtract 8 from all the offsets, as described above.
++		echo '#define	get_tls(r)	MOVL 8(GS), r'
++		echo '#define	g(r)	-8(r)'
++		echo '#define	m(r)	-4(r)'
++		;;
+ 	*)
+ 		echo '#define	get_tls(r)'
+ 		echo '#define	g(r)	0(GS)'

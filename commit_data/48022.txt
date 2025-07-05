@@ -15,7 +15,45 @@ Date:   Thu Apr 22 11:36:29 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
  test/fixedbugs/issue45693.go              | 16 ++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 31d3f62d4e..d694133ec3 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -201,8 +201,9 @@ func elimDeadAutosGeneric(f *Func) {
+ 			panic("unhandled op with sym effect")
+ 		}
+ 
+-		if v.Uses == 0 && v.Op != OpNilCheck || len(args) == 0 {
++		if v.Uses == 0 && v.Op != OpNilCheck && !v.Op.IsCall() && !v.Op.HasSideEffects() || len(args) == 0 {
+ 			// Nil check has no use, but we need to keep it.
++			// Also keep calls and values that have side effects.
+ 			return
+ 		}
+ 
+diff --git a/test/fixedbugs/issue45693.go b/test/fixedbugs/issue45693.go
+new file mode 100644
+index 0000000000..20a0cec8ff
+--- /dev/null
++++ b/test/fixedbugs/issue45693.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 45693: ICE with register args.
++
++package p
++
++func f() {
++	var s string
++	s = s + "" + s + "" + s + ""
++	for {
++	}
++}

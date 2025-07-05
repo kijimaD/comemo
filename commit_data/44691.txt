@@ -14,7 +14,7 @@ Date:   Sat Aug 15 08:08:37 2020 -0700
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/asm5.go   |  3 ++
  src/cmd/internal/obj/arm/obj5.go   | 46 -------------------------------
  src/cmd/internal/obj/arm64/asm7.go |  3 ++
@@ -22,3 +22,286 @@ Date:   Sat Aug 15 08:08:37 2020 -0700
  src/cmd/internal/obj/mips/asm0.go  |  3 ++
  src/cmd/internal/obj/mips/obj0.go  | 26 ++----------------
  6 files changed, 14 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index f66f8aaf84..7b7e42ee2e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -327,6 +327,9 @@ var optab = []Optab{
+ 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_LCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_LCON, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0}, // nop variants, see #40689
++	{obj.ANOP, C_REG, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_FREG, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
+ 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 008118c47b..86831f2b44 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -276,67 +276,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	/*
+ 	 * find leaf subroutines
+-	 * strip NOPs
+-	 * expand RET
+-	 * expand BECOME pseudo
+ 	 */
+-	var q1 *obj.Prog
+-	var q *obj.Prog
+ 	for p := cursym.Func.Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ATEXT:
+ 			p.Mark |= LEAF
+ 
+-		case obj.ARET:
+-			break
+-
+ 		case ADIV, ADIVU, AMOD, AMODU:
+-			q = p
+ 			cursym.Func.Text.Mark &^= LEAF
+-			continue
+-
+-		case obj.ANOP:
+-			q1 = p.Link
+-			q.Link = q1 /* q is non-nop */
+-			if q1 != nil {
+-				q1.Mark |= p.Mark
+-			}
+-			continue
+ 
+ 		case ABL,
+ 			ABX,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+ 			cursym.Func.Text.Mark &^= LEAF
+-			fallthrough
+-
+-		case AB,
+-			ABEQ,
+-			ABNE,
+-			ABCS,
+-			ABHS,
+-			ABCC,
+-			ABLO,
+-			ABMI,
+-			ABPL,
+-			ABVS,
+-			ABVC,
+-			ABHI,
+-			ABLS,
+-			ABGE,
+-			ABLT,
+-			ABGT,
+-			ABLE:
+-			q1 = p.Pcond
+-			if q1 != nil {
+-				for q1.As == obj.ANOP {
+-					q1 = q1.Link
+-					p.Pcond = q1
+-				}
+-			}
+ 		}
+-
+-		q = p
+ 	}
+ 
+ 	var q2 *obj.Prog
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 8f8981479b..7a5a8ff38c 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -837,6 +837,9 @@ var optab = []Optab{
+ 	{obj.APCDATA, C_VCON, C_NONE, C_NONE, C_VCON, 0, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_VCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
++	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
+ 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index b046685ada..0d74430053 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -468,73 +468,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	/*
+ 	 * find leaf subroutines
+-	 * strip NOPs
+-	 * expand RET
+ 	 */
+-	q := (*obj.Prog)(nil)
+-	var q1 *obj.Prog
+ 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ATEXT:
+ 			p.Mark |= LEAF
+ 
+-		case obj.ARET:
+-			break
+-
+-		case obj.ANOP:
+-			if p.Link != nil {
+-				q1 = p.Link
+-				q.Link = q1 /* q is non-nop */
+-				q1.Mark |= p.Mark
+-			}
+-			continue
+-
+ 		case ABL,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+ 			c.cursym.Func.Text.Mark &^= LEAF
+-			fallthrough
+-
+-		case ACBNZ,
+-			ACBZ,
+-			ACBNZW,
+-			ACBZW,
+-			ATBZ,
+-			ATBNZ,
+-			AB,
+-			ABEQ,
+-			ABNE,
+-			ABCS,
+-			ABHS,
+-			ABCC,
+-			ABLO,
+-			ABMI,
+-			ABPL,
+-			ABVS,
+-			ABVC,
+-			ABHI,
+-			ABLS,
+-			ABGE,
+-			ABLT,
+-			ABGT,
+-			ABLE,
+-			AADR, /* strange */
+-			AADRP:
+-			q1 = p.Pcond
+-
+-			if q1 != nil {
+-				for q1.As == obj.ANOP {
+-					q1 = q1.Link
+-					p.Pcond = q1
+-				}
+-			}
+-
+-			break
+ 		}
+-
+-		q = p
+ 	}
+ 
++	var q *obj.Prog
++	var q1 *obj.Prog
+ 	var retjmp *obj.LSym
+ 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+ 		o := p.As
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index faa12bf133..faa827da9f 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -391,6 +391,9 @@ var optab = []Optab{
+ 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_SCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_LCON, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
++	{obj.ANOP, C_REG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
++	{obj.ANOP, C_FREG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
+ 
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 3106143844..77cad979a6 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -158,19 +158,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	/*
+ 	 * find leaf subroutines
+-	 * strip NOPs
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+ 
+-	var q *obj.Prog
+-	var q1 *obj.Prog
+ 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		/* too hard, just leave alone */
+ 		case obj.ATEXT:
+-			q = p
+-
+ 			p.Mark |= LABEL | LEAF | SYNC
+ 			if p.Link != nil {
+ 				p.Link.Mark |= LABEL
+@@ -179,7 +174,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		/* too hard, just leave alone */
+ 		case AMOVW,
+ 			AMOVV:
+-			q = p
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg >= REG_SPECIAL {
+ 				p.Mark |= LABEL | SYNC
+ 				break
+@@ -195,11 +189,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			ATLBWI,
+ 			ATLBP,
+ 			ATLBR:
+-			q = p
+ 			p.Mark |= LABEL | SYNC
+ 
+ 		case ANOR:
+-			q = p
+ 			if p.To.Type == obj.TYPE_REG {
+ 				if p.To.Reg == REGZERO {
+ 					p.Mark |= LABEL | SYNC
+@@ -235,8 +227,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			} else {
+ 				p.Mark |= BRANCH
+ 			}
+-			q = p
+-			q1 = p.Pcond
++			q1 := p.Pcond
+ 			if q1 != nil {
+ 				for q1.As == obj.ANOP {
+ 					q1 = q1.Link
+@@ -254,24 +245,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if q1 != nil {
+ 				q1.Mark |= LABEL
+ 			}
+-			continue
+ 
+ 		case ARET:
+-			q = p
+ 			if p.Link != nil {
+ 				p.Link.Mark |= LABEL
+ 			}
+-			continue
+-
+-		case obj.ANOP:
+-			q1 = p.Link
+-			q.Link = q1 /* q is non-nop */
+-			q1.Mark |= p.Mark
+-			continue
+-
+-		default:
+-			q = p
+-			continue
+ 		}
+ 	}
+ 
+@@ -284,6 +262,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		mov = AMOVW
+ 	}
+ 
++	var q *obj.Prog
++	var q1 *obj.Prog
+ 	autosize := int32(0)
+ 	var p1 *obj.Prog
+ 	var p2 *obj.Prog

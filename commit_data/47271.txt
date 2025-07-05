@@ -21,6 +21,19 @@ Date:   Mon Mar 8 18:44:27 2021 -0800
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index d16cff911b..f5f2258451 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1297,6 +1297,7 @@ func main() {
+   fmt.Println("Hello World")
+ }`
+ 	f := gobuild(t, dir, prog, NoOpt)
++	defer f.Close()
+ 	exe, err := pe.Open(f.path)
+ 	if err != nil {
+ 		t.Fatalf("error opening pe file: %v", err)

@@ -9,6 +9,23 @@ Date:   Thu May 23 14:13:02 2013 +1000
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7786047
-
+---
  src/cmd/go/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 3180dbeed2..a09a75cd3e 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -144,6 +144,11 @@ func main() {
+ 		}
+ 	}
+ 
++	if fi, err := os.Stat(goroot); err != nil || !fi.IsDir() {
++		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", goroot)
++		os.Exit(2)
++	}
++
+ 	for _, cmd := range commands {
+ 		if cmd.Name() == args[0] && cmd.Run != nil {
+ 			cmd.Flag.Usage = func() { cmd.Usage() }

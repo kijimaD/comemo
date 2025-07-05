@@ -15,8 +15,49 @@ Date:   Wed Jun 15 13:06:10 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  api/next/52746.txt      | 6 ++++++
  src/time/format.go      | 3 +++
  src/time/format_test.go | 3 +++
  3 files changed, 12 insertions(+)
+
+diff --git a/api/next/52746.txt b/api/next/52746.txt
+new file mode 100644
+index 0000000000..d6c3bd2749
+--- /dev/null
++++ b/api/next/52746.txt
+@@ -0,0 +1,6 @@
++pkg time, const DateOnly = "2006-01-02" #52746
++pkg time, const DateOnly ideal-string #52746
++pkg time, const DateTime = "2006-01-02 15:04:05" #52746
++pkg time, const DateTime ideal-string #52746
++pkg time, const TimeOnly = "15:04:05" #52746
++pkg time, const TimeOnly ideal-string #52746
+diff --git a/src/time/format.go b/src/time/format.go
+index 8431ff89b4..61a9eb3301 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -116,6 +116,9 @@ const (
+ 	StampMilli = "Jan _2 15:04:05.000"
+ 	StampMicro = "Jan _2 15:04:05.000000"
+ 	StampNano  = "Jan _2 15:04:05.000000000"
++	DateTime   = "2006-01-02 15:04:05"
++	DateOnly   = "2006-01-02"
++	TimeOnly   = "15:04:05"
+ )
+ 
+ const (
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 9ae2b8017a..fa8c846686 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -115,6 +115,9 @@ var formatTests = []FormatTest{
+ 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
+ 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
+ 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
++	{"DateTime", DateTime, "2009-02-04 21:00:57"},
++	{"DateOnly", DateOnly, "2009-02-04"},
++	{"TimeOnly", TimeOnly, "21:00:57"},
+ 	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
+ 	{"Year", "2006 6 06 _6 __6 ___6", "2009 6 09 _6 __6 ___6"},
+ 	{"Month", "Jan January 1 01 _1", "Feb February 2 02 _2"},

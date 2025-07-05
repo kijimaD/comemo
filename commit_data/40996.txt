@@ -17,7 +17,34 @@ Date:   Wed Aug 28 15:50:31 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  src/net/http/transport_test.go             | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 7f9dc0800f..f58e08867f 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -436,7 +436,7 @@ func TestReverseProxyCancelation(t *testing.T) {
+ 	}
+ 	if err == nil {
+ 		// This should be an error like:
+-		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
++		// Get "http://127.0.0.1:58079": read tcp 127.0.0.1:58079:
+ 		//    use of closed network connection
+ 		t.Error("Server.Client().Do() returned nil error; want non-nil error")
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 23afff5d84..2ea26f7f66 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2289,7 +2289,7 @@ func TestTransportCancelRequestInDial(t *testing.T) {
+ 	got := logbuf.String()
+ 	want := `dial: blocking
+ canceling
+-Get = Get http://something.no-network.tld/: net/http: request canceled while waiting for connection
++Get = Get "http://something.no-network.tld/": net/http: request canceled while waiting for connection
+ `
+ 	if got != want {
+ 		t.Errorf("Got events:\n%s\nWant:\n%s", got, want)

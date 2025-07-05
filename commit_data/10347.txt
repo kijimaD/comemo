@@ -13,8 +13,96 @@ Date:   Fri Nov 11 14:40:41 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5372054
-
+---
  src/pkg/io/ioutil/tempfile.go |  4 ++--
  src/pkg/net/hosts.go          |  6 +++---
  src/pkg/time/zoneinfo_unix.go | 12 +++++++++---
  3 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 658ea78bb7..71028e2267 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
++	"time"
+ )
+ 
+ // Random number state, accessed without lock; racy but harmless.
+@@ -17,8 +18,7 @@ import (
+ var rand uint32
+ 
+ func reseed() uint32 {
+-	sec, nsec, _ := os.Time()
+-	return uint32(sec*1e9 + nsec + int64(os.Getpid()))
++	return uint32(time.Nanoseconds() + int64(os.Getpid()))
+ }
+ 
+ func nextSuffix() string {
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index d75e9e038a..ddfb074ee8 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -7,8 +7,8 @@
+ package net
+ 
+ import (
+-	"os"
+ 	"sync"
++	"time"
+ )
+ 
+ const cacheMaxAge = int64(300) // 5 minutes.
+@@ -26,7 +26,7 @@ var hosts struct {
+ }
+ 
+ func readHosts() {
+-	now, _, _ := os.Time()
++	now := time.Seconds()
+ 	hp := hostsPath
+ 	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
+ 		hs := make(map[string][]string)
+@@ -51,7 +51,7 @@ func readHosts() {
+ 			}
+ 		}
+ 		// Update the data cache.
+-		hosts.time, _, _ = os.Time()
++		hosts.time = time.Seconds()
+ 		hosts.path = hp
+ 		hosts.byName = hs
+ 		hosts.byAddr = is
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 0dc4235313..b552e589aa 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -12,7 +12,7 @@
+ package time
+ 
+ import (
+-	"io/ioutil"
++	"bytes"
+ 	"os"
+ )
+ 
+@@ -180,11 +180,17 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ }
+ 
+ func readinfofile(name string) ([]zonetime, bool) {
+-	buf, err := ioutil.ReadFile(name)
++	var b bytes.Buffer
++
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, false
+ 	}
+-	return parseinfo(buf)
++	defer f.Close()
++	if _, err := b.ReadFrom(f); err != nil {
++		return nil, false
++	}
++	return parseinfo(b.Bytes())
+ }
+ 
+ func setupTestingZone() {

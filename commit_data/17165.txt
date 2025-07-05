@@ -10,10 +10,99 @@ Date:   Mon Aug 12 21:48:19 2013 +0400
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/12724044
-
+---
  src/pkg/runtime/malloc.goc | 8 ++------
  src/pkg/runtime/race.c     | 4 ++--
  src/pkg/runtime/race.h     | 2 +-
  src/pkg/runtime/race0.c    | 3 +--
  src/pkg/runtime/runtime.h  | 1 -
  5 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 9ab8e0756d..b146ae2540 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -141,10 +141,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
+ 		runtime·gc(0);
+ 
+-	if(raceenabled) {
+-		runtime·racemalloc(v, size, m->racepc);
+-		m->racepc = nil;
+-	}
++	if(raceenabled)
++		runtime·racemalloc(v, size);
+ 	return v;
+ }
+ 
+@@ -702,8 +700,6 @@ runtime·mal(uintptr n)
+ void
+ runtime·new(Type *typ, uint8 *ret)
+ {
+-	if(raceenabled)
+-		m->racepc = runtime·getcallerpc(&typ);
+ 	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoPointers : 0);
+ 	FLUSH(&ret);
+ }
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 875375da28..0f2a7b986e 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -138,13 +138,13 @@ runtime·racefuncexit(void)
+ }
+ 
+ void
+-runtime·racemalloc(void *p, uintptr sz, void *pc)
++runtime·racemalloc(void *p, uintptr sz)
+ {
+ 	// use m->curg because runtime·stackalloc() is called from g0
+ 	if(m->curg == nil)
+ 		return;
+ 	m->racecall = true;
+-	runtime∕race·Malloc(m->curg->racectx, p, sz, pc);
++	runtime∕race·Malloc(m->curg->racectx, p, sz, /* unused pc */ 0);
+ 	m->racecall = false;
+ }
+ 
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index 971783bf0c..f7aa99dc2a 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -16,7 +16,7 @@ uintptr	runtime·raceinit(void);
+ void	runtime·racefini(void);
+ 
+ void	runtime·racemapshadow(void *addr, uintptr size);
+-void	runtime·racemalloc(void *p, uintptr sz, void *pc);
++void	runtime·racemalloc(void *p, uintptr sz);
+ void	runtime·racefree(void *p);
+ uintptr	runtime·racegostart(void *pc);
+ void	runtime·racegoend(void);
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index 0ebc099838..b74b03583b 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -105,11 +105,10 @@ runtime·racefingo(void)
+ }
+ 
+ void
+-runtime·racemalloc(void *p, uintptr sz, void *pc)
++runtime·racemalloc(void *p, uintptr sz)
+ {
+ 	USED(p);
+ 	USED(sz);
+-	USED(pc);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a3edb5e955..a81408f40f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -339,7 +339,6 @@ struct	M
+ 	GCStats	gcstats;
+ 	bool	racecall;
+ 	bool	needextram;
+-	void*	racepc;
+ 	void	(*waitunlockf)(Lock*);
+ 	void*	waitlock;
+ 

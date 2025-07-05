@@ -42,7 +42,7 @@ Date:   Wed Apr 9 14:38:03 2025 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/escape/call.go   |   8 ++
  src/cmd/compile/internal/escape/escape.go |  12 ++-
  src/cmd/compile/internal/ssagen/ssa.go    | 123 +++++++++++++++++++++++++++++-
@@ -57,3 +57,616 @@ Date:   Wed Apr 9 14:38:03 2025 -0700
  test/fixedbugs/issue13799.go              |   4 +-
  test/inline_endian.go                     |  12 +--
  13 files changed, 255 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 1d7a0c9089..bd2e923da1 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -159,6 +159,14 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 		}
+ 		e.discard(call.RType)
+ 
++		// Model the new backing store that might be allocated by append.
++		// Its address flows to the result.
++		// Users of escape analysis can look at the escape information for OAPPEND
++		// and use that to decide where to allocate the backing store.
++		backingStore := e.spill(ks[0], call)
++		// As we have a boolean to prevent reuse, we can treat these allocations as outside any loops.
++		backingStore.dst.loopDepth = 0
++
+ 	case ir.OCOPY:
+ 		call := call.(*ir.BinaryExpr)
+ 		argument(e.mutatorHole(), call.X)
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index d6f0708a7f..5bd3038a9c 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -306,7 +306,11 @@ func (b *batch) finish(fns []*ir.Func) {
+ 				}
+ 			} else {
+ 				if base.Flag.LowerM != 0 && !goDeferWrapper {
+-					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
++					if n.Op() == ir.OAPPEND {
++						base.WarnfAt(n.Pos(), "append escapes to heap")
++					} else {
++						base.WarnfAt(n.Pos(), "%v escapes to heap", n)
++					}
+ 				}
+ 				if logopt.Enabled() {
+ 					var e_curfn *ir.Func // TODO(mdempsky): Fix.
+@@ -316,7 +320,11 @@ func (b *batch) finish(fns []*ir.Func) {
+ 			n.SetEsc(ir.EscHeap)
+ 		} else {
+ 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME && !goDeferWrapper {
+-				base.WarnfAt(n.Pos(), "%v does not escape", n)
++				if n.Op() == ir.OAPPEND {
++					base.WarnfAt(n.Pos(), "append does not escape")
++				} else {
++					base.WarnfAt(n.Pos(), "%v does not escape", n)
++				}
+ 			}
+ 			n.SetEsc(ir.EscNone)
+ 			if !loc.hasAttr(attrPersists) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index acb037dd56..984dd138c3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1054,6 +1054,9 @@ type state struct {
+ 	// They are all (OffPtr (Select0 (runtime call))) and have the correct types,
+ 	// but the offsets are not set yet, and the type of the runtime call is also not final.
+ 	pendingHeapAllocations []*ssa.Value
++
++	// First argument of append calls that could be stack allocated.
++	appendTargets map[ir.Node]bool
+ }
+ 
+ type funcLine struct {
+@@ -3735,6 +3738,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 
+ 	// Add number of new elements to length.
+ 	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
++	oldLen := l
+ 	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+ 
+ 	// Decide if we need to grow
+@@ -3754,6 +3758,123 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	b.AddEdgeTo(grow)
+ 	b.AddEdgeTo(assign)
+ 
++	// If the result of the append does not escape, we can use
++	// a stack-allocated backing store if len is small enough.
++	// A stack-allocated backing store could be used at every
++	// append that qualifies, but we limit it in some cases to
++	// avoid wasted code and stack space.
++	// TODO: handle ... append case.
++	maxStackSize := int64(base.Debug.VariableMakeThreshold)
++	if !inplace && n.Esc() == ir.EscNone && et.Size() > 0 && et.Size() <= maxStackSize && base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil) && !s.appendTargets[sn] {
++		// if l <= K {
++		//   if !used {
++		//     if oldLen == 0 {
++		//       var store [K]T
++		//       s = store[:l:K]
++		//       used = true
++		//     }
++		//   }
++		// }
++		// ... if we didn't use the stack backing store, call growslice ...
++		//
++		// oldLen==0 is not strictly necessary, but requiring it means
++		// we don't have to worry about copying existing elements.
++		// Allowing oldLen>0 would add complication. Worth it? I would guess not.
++		//
++		// TODO: instead of the used boolean, we could insist that this only applies
++		// to monotonic slices, those which once they have >0 entries never go back
++		// to 0 entries. Then oldLen==0 is enough.
++		//
++		// We also do this for append(x, ...) once for every x.
++		// It is ok to do it more often, but it is probably helpful only for
++		// the first instance. TODO: this could use more tuning. Using ir.Node
++		// as the key works for *ir.Name instances but probably nothing else.
++		if s.appendTargets == nil {
++			s.appendTargets = map[ir.Node]bool{}
++		}
++		s.appendTargets[sn] = true
++
++		K := maxStackSize / et.Size() // rounds down
++		KT := types.NewArray(et, K)
++		KT.SetNoalg(true)
++		types.CalcArraySize(KT)
++		// Align more than naturally for the type KT. See issue 73199.
++		align := types.NewArray(types.Types[types.TUINTPTR], 0)
++		types.CalcArraySize(align)
++		storeTyp := types.NewStruct([]*types.Field{
++			{Sym: types.BlankSym, Type: align},
++			{Sym: types.BlankSym, Type: KT},
++		})
++		storeTyp.SetNoalg(true)
++		types.CalcStructSize(storeTyp)
++
++		usedTestBlock := s.f.NewBlock(ssa.BlockPlain)
++		oldLenTestBlock := s.f.NewBlock(ssa.BlockPlain)
++		bodyBlock := s.f.NewBlock(ssa.BlockPlain)
++		growSlice := s.f.NewBlock(ssa.BlockPlain)
++
++		// Make "used" boolean.
++		tBool := types.Types[types.TBOOL]
++		used := typecheck.TempAt(n.Pos(), s.curfn, tBool)
++		s.defvars[s.f.Entry.ID][used] = s.constBool(false) // initialize this variable at fn entry
++
++		// Make backing store variable.
++		tInt := types.Types[types.TINT]
++		backingStore := typecheck.TempAt(n.Pos(), s.curfn, storeTyp)
++		backingStore.SetAddrtaken(true)
++
++		// if l <= K
++		s.startBlock(grow)
++		kTest := s.newValue2(s.ssaOp(ir.OLE, tInt), tBool, l, s.constInt(tInt, K))
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.SetControl(kTest)
++		b.AddEdgeTo(usedTestBlock)
++		b.AddEdgeTo(growSlice)
++		b.Likely = ssa.BranchLikely
++
++		// if !used
++		s.startBlock(usedTestBlock)
++		usedTest := s.newValue1(ssa.OpNot, tBool, s.expr(used))
++		b = s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.SetControl(usedTest)
++		b.AddEdgeTo(oldLenTestBlock)
++		b.AddEdgeTo(growSlice)
++		b.Likely = ssa.BranchLikely
++
++		// if oldLen == 0
++		s.startBlock(oldLenTestBlock)
++		oldLenTest := s.newValue2(s.ssaOp(ir.OEQ, tInt), tBool, oldLen, s.constInt(tInt, 0))
++		b = s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.SetControl(oldLenTest)
++		b.AddEdgeTo(bodyBlock)
++		b.AddEdgeTo(growSlice)
++		b.Likely = ssa.BranchLikely
++
++		// var store struct { _ [0]uintptr; arr [K]T }
++		s.startBlock(bodyBlock)
++		if et.HasPointers() {
++			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, backingStore, s.mem())
++		}
++		addr := s.addr(backingStore)
++		s.zero(storeTyp, addr)
++
++		// s = store.arr[:l:K]
++		s.vars[ptrVar] = addr
++		s.vars[lenVar] = l // nargs would also be ok because of the oldLen==0 test.
++		s.vars[capVar] = s.constInt(tInt, K)
++
++		// used = true
++		s.assign(used, s.constBool(true), false, 0)
++		b = s.endBlock()
++		b.AddEdgeTo(assign)
++
++		// New block to use for growslice call.
++		grow = growSlice
++	}
++
+ 	// Call growslice
+ 	s.startBlock(grow)
+ 	taddr := s.expr(n.Fun)
+@@ -3816,7 +3937,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	}
+ 
+ 	// Write args into slice.
+-	oldLen := s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
++	oldLen = s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+ 	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, oldLen)
+ 	for i, arg := range args {
+ 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(types.Types[types.TINT], int64(i)))
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 48729884df..72ec4052a8 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -388,52 +388,8 @@ func CalcSize(t *Type) {
+ 		if t.Elem() == nil {
+ 			break
+ 		}
+-
+-		CalcSize(t.Elem())
+-		t.SetNotInHeap(t.Elem().NotInHeap())
+-		if t.Elem().width != 0 {
+-			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
+-			if uint64(t.NumElem()) > cap {
+-				base.Errorf("type %L larger than address space", t)
+-			}
+-		}
+-		w = t.NumElem() * t.Elem().width
+-		t.align = t.Elem().align
+-
+-		// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
+-		// to be passed by register.
+-		switch t.NumElem() {
+-		case 0:
+-			t.intRegs = 0
+-			t.floatRegs = 0
+-		case 1:
+-			t.intRegs = t.Elem().intRegs
+-			t.floatRegs = t.Elem().floatRegs
+-		default:
+-			t.intRegs = math.MaxUint8
+-			t.floatRegs = math.MaxUint8
+-		}
+-		switch a := t.Elem().alg; a {
+-		case AMEM, ANOEQ, ANOALG:
+-			t.setAlg(a)
+-		default:
+-			switch t.NumElem() {
+-			case 0:
+-				// We checked above that the element type is comparable.
+-				t.setAlg(AMEM)
+-			case 1:
+-				// Single-element array is same as its lone element.
+-				t.setAlg(a)
+-			default:
+-				t.setAlg(ASPECIAL)
+-			}
+-		}
+-		if t.NumElem() > 0 {
+-			x := PtrDataSize(t.Elem())
+-			if x > 0 {
+-				t.ptrBytes = t.Elem().width*(t.NumElem()-1) + x
+-			}
+-		}
++		CalcArraySize(t)
++		w = t.width
+ 
+ 	case TSLICE:
+ 		if t.Elem() == nil {
+@@ -586,6 +542,63 @@ func CalcStructSize(t *Type) {
+ 	}
+ }
+ 
++// CalcArraySize calculates the size of t,
++// filling in t.width, t.align, t.alg, and t.ptrBytes,
++// even if size calculation is otherwise disabled.
++func CalcArraySize(t *Type) {
++	elem := t.Elem()
++	n := t.NumElem()
++	CalcSize(elem)
++	t.SetNotInHeap(elem.NotInHeap())
++	if elem.width != 0 {
++		cap := (uint64(MaxWidth) - 1) / uint64(elem.width)
++		if uint64(n) > cap {
++			base.Errorf("type %L larger than address space", t)
++		}
++	}
++
++	t.width = elem.width * n
++	t.align = elem.align
++	// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
++	// to be passed by register.
++	switch n {
++	case 0:
++		t.intRegs = 0
++		t.floatRegs = 0
++	case 1:
++		t.intRegs = elem.intRegs
++		t.floatRegs = elem.floatRegs
++	default:
++		t.intRegs = math.MaxUint8
++		t.floatRegs = math.MaxUint8
++	}
++	t.alg = AMEM // default
++	if t.Noalg() {
++		t.setAlg(ANOALG)
++	}
++	switch a := elem.alg; a {
++	case AMEM, ANOEQ, ANOALG:
++		t.setAlg(a)
++	default:
++		switch n {
++		case 0:
++			// We checked above that the element type is comparable.
++			t.setAlg(AMEM)
++		case 1:
++			// Single-element array is same as its lone element.
++			t.setAlg(a)
++		default:
++			t.setAlg(ASPECIAL)
++		}
++	}
++	if n > 0 {
++		x := PtrDataSize(elem)
++		if x > 0 {
++			t.ptrBytes = elem.width*(n-1) + x
++		}
++	}
++}
++
+ func (t *Type) widthCalculated() bool {
+ 	return t.align > 0
+ }
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index f23581acbe..0f2998b35b 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"internal/cpu"
+ 	"internal/runtime/atomic"
++	"internal/testenv"
+ 	"io"
+ 	"math/bits"
+ 	. "runtime"
+@@ -307,7 +308,7 @@ func TestTrailingZero(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAppendGrowth(t *testing.T) {
++func TestAppendGrowthHeap(t *testing.T) {
+ 	var x []int64
+ 	check := func(want int) {
+ 		if cap(x) != want {
+@@ -324,6 +325,29 @@ func TestAppendGrowth(t *testing.T) {
+ 			want = 2 * i
+ 		}
+ 	}
++	Escape(&x[0]) // suppress stack-allocated backing store
++}
++
++func TestAppendGrowthStack(t *testing.T) {
++	var x []int64
++	check := func(want int) {
++		if cap(x) != want {
++			t.Errorf("len=%d, cap=%d, want cap=%d", len(x), cap(x), want)
++		}
++	}
++
++	check(0)
++	want := 32 / 8 // 32 is the default for cmd/compile/internal/base.DebugFlags.VariableMakeThreshold
++	if Raceenabled || testenv.OptimizationOff() {
++		want = 1
++	}
++	for i := 1; i <= 100; i++ {
++		x = append(x, 1)
++		check(want)
++		if i&(i-1) == 0 {
++			want = max(want, 2*i)
++		}
++	}
+ }
+ 
+ var One = []int64{1}
+diff --git a/test/escape2.go b/test/escape2.go
+index 3e5d11f88e..a23d732061 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -494,13 +494,13 @@ func foo70(mv1 *MV, m M) { // ERROR "leaking param: m$" "leaking param: mv1$"
+ 
+ func foo71(x *int) []*int { // ERROR "leaking param: x$"
+ 	var y []*int
+-	y = append(y, x)
++	y = append(y, x) // ERROR "append escapes to heap"
+ 	return y
+ }
+ 
+ func foo71a(x int) []*int { // ERROR "moved to heap: x$"
+ 	var y []*int
+-	y = append(y, &x)
++	y = append(y, &x) // ERROR "append escapes to heap"
+ 	return y
+ }
+ 
+@@ -860,12 +860,12 @@ func foo104(x []*int) { // ERROR "leaking param content: x"
+ 
+ // does not leak x but does leak content
+ func foo105(x []*int) { // ERROR "leaking param content: x"
+-	_ = append(y, x...)
++	_ = append(y, x...) // ERROR "append does not escape"
+ }
+ 
+ // does leak x
+ func foo106(x *int) { // ERROR "leaking param: x$"
+-	_ = append(y, x)
++	_ = append(y, x) // ERROR "append does not escape"
+ }
+ 
+ func foo107(x *int) map[*int]*int { // ERROR "leaking param: x$"
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 2613152150..23d1ea2b9a 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -494,13 +494,13 @@ func foo70(mv1 *MV, m M) { // ERROR "leaking param: m$" "leaking param: mv1$"
+ 
+ func foo71(x *int) []*int { // ERROR "leaking param: x$"
+ 	var y []*int
+-	y = append(y, x)
++	y = append(y, x) // ERROR "append escapes to heap"
+ 	return y
+ }
+ 
+ func foo71a(x int) []*int { // ERROR "moved to heap: x$"
+ 	var y []*int
+-	y = append(y, &x)
++	y = append(y, &x) // ERROR "append escapes to heap"
+ 	return y
+ }
+ 
+@@ -860,12 +860,12 @@ func foo104(x []*int) { // ERROR "leaking param content: x"
+ 
+ // does not leak x but does leak content
+ func foo105(x []*int) { // ERROR "leaking param content: x"
+-	_ = append(y, x...)
++	_ = append(y, x...) // ERROR "append does not escape"
+ }
+ 
+ // does leak x
+ func foo106(x *int) { // ERROR "leaking param: x$"
+-	_ = append(y, x)
++	_ = append(y, x) // ERROR "append does not escape"
+ }
+ 
+ func foo107(x *int) map[*int]*int { // ERROR "leaking param: x$"
+diff --git a/test/escape_calls.go b/test/escape_calls.go
+index 5424c006ee..2525ef6139 100644
+--- a/test/escape_calls.go
++++ b/test/escape_calls.go
+@@ -48,7 +48,7 @@ func prototype(xyz []string) {} // ERROR "xyz does not escape"
+ func bar() {
+ 	var got [][]string
+ 	f := prototype
+-	f = func(ss []string) { got = append(got, ss) } // ERROR "leaking param: ss" "func literal does not escape"
++	f = func(ss []string) { got = append(got, ss) } // ERROR "leaking param: ss" "func literal does not escape" "append escapes to heap"
+ 	s := "string"
+ 	f([]string{s}) // ERROR "\[\]string{...} escapes to heap"
+ }
+diff --git a/test/escape_map.go b/test/escape_map.go
+index 23abaa1e0c..ef6f79b039 100644
+--- a/test/escape_map.go
++++ b/test/escape_map.go
+@@ -45,7 +45,7 @@ func map3() []*int {
+ 	m[&i] = &j
+ 	var r []*int
+ 	for k := range m {
+-		r = append(r, k)
++		r = append(r, k) // ERROR "append escapes to heap"
+ 	}
+ 	return r
+ }
+@@ -61,7 +61,7 @@ func map4() []*int {
+ 		// We want to test exactly "for k, v := range m" rather than "for _, v := range m".
+ 		// The following if is merely to use (but not leak) k.
+ 		if k != nil {
+-			r = append(r, v)
++			r = append(r, v) // ERROR "append escapes to heap"
+ 		}
+ 	}
+ 	return r
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index 65181e57d7..9ac94e48ba 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -18,29 +18,29 @@ var sink interface{}
+ func slice0() {
+ 	var s []*int
+ 	// BAD: i should not escape
+-	i := 0 // ERROR "moved to heap: i"
+-	s = append(s, &i)
++	i := 0            // ERROR "moved to heap: i"
++	s = append(s, &i) // ERROR "append does not escape"
+ 	_ = s
+ }
+ 
+ func slice1() *int {
+ 	var s []*int
+-	i := 0 // ERROR "moved to heap: i"
+-	s = append(s, &i)
++	i := 0            // ERROR "moved to heap: i"
++	s = append(s, &i) // ERROR "append does not escape"
+ 	return s[0]
+ }
+ 
+ func slice2() []*int {
+ 	var s []*int
+-	i := 0 // ERROR "moved to heap: i"
+-	s = append(s, &i)
++	i := 0            // ERROR "moved to heap: i"
++	s = append(s, &i) // ERROR "append escapes to heap"
+ 	return s
+ }
+ 
+ func slice3() *int {
+ 	var s []*int
+-	i := 0 // ERROR "moved to heap: i"
+-	s = append(s, &i)
++	i := 0            // ERROR "moved to heap: i"
++	s = append(s, &i) // ERROR "append does not escape"
+ 	for _, p := range s {
+ 		return p
+ 	}
+@@ -124,7 +124,7 @@ NextVar:
+ 				continue NextVar
+ 			}
+ 		}
+-		out = append(out, inkv)
++		out = append(out, inkv) // ERROR "append escapes to heap"
+ 	}
+ 	return out
+ }
+@@ -167,7 +167,7 @@ var resolveIPAddrTests = []resolveIPAddrTest{
+ }
+ 
+ func setupTestData() {
+-	resolveIPAddrTests = append(resolveIPAddrTests,
++	resolveIPAddrTests = append(resolveIPAddrTests, // ERROR "append escapes to heap"
+ 		[]resolveIPAddrTest{ // ERROR "\[\]resolveIPAddrTest{...} does not escape"
+ 			{"ip",
+ 				"localhost",
+diff --git a/test/fixedbugs/issue12006.go b/test/fixedbugs/issue12006.go
+index e878bc48e2..045ed043bb 100644
+--- a/test/fixedbugs/issue12006.go
++++ b/test/fixedbugs/issue12006.go
+@@ -17,14 +17,14 @@ func FooN(vals ...*int) (s int) { // ERROR "vals does not escape"
+ 
+ // Append forces heap allocation and copies entries in vals to heap, therefore they escape to heap.
+ func FooNx(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param content: vals"
+-	vals = append(vals, x)
++	vals = append(vals, x) // ERROR "append does not escape"
+ 	return FooN(vals...)
+ }
+ 
+ var sink []*int
+ 
+ func FooNy(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param: vals"
+-	vals = append(vals, x)
++	vals = append(vals, x) // ERROR "append escapes to heap"
+ 	sink = vals
+ 	return FooN(vals...)
+ }
+diff --git a/test/fixedbugs/issue13799.go b/test/fixedbugs/issue13799.go
+index f06f19829e..68a0c4af22 100644
+--- a/test/fixedbugs/issue13799.go
++++ b/test/fixedbugs/issue13799.go
+@@ -51,7 +51,7 @@ func test1(iter int) {
+ 		// var fn func() // this makes it work, because fn stays off heap
+ 		j := 0        // ERROR "moved to heap: j$"
+ 		fn = func() { // ERROR "func literal escapes to heap$"
+-			m[i] = append(m[i], 0)
++			m[i] = append(m[i], 0) // ERROR "append escapes to heap"
+ 			if j < 25 {
+ 				j++
+ 				fn()
+@@ -75,7 +75,7 @@ func test2(iter int) {
+ 		var fn func() // this makes it work, because fn stays off heap
+ 		j := 0
+ 		fn = func() { // ERROR "func literal does not escape$"
+-			m[i] = append(m[i], 0)
++			m[i] = append(m[i], 0) // ERROR "append escapes to heap"
+ 			if j < 25 {
+ 				j++
+ 				fn()
+diff --git a/test/inline_endian.go b/test/inline_endian.go
+index fc94321de0..0466b4adee 100644
+--- a/test/inline_endian.go
++++ b/test/inline_endian.go
+@@ -21,15 +21,15 @@ func endian(b []byte) uint64 { // ERROR "can inline endian" "b does not escape"
+ }
+ 
+ func appendLittleEndian(b []byte) []byte { // ERROR "can inline appendLittleEndian" "leaking param: b to result ~r0 level=0"
+-	b = binary.LittleEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.littleEndian.AppendUint64"
+-	b = binary.LittleEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.littleEndian.AppendUint32"
+-	b = binary.LittleEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.littleEndian.AppendUint16"
++	b = binary.LittleEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.littleEndian.AppendUint64" "append escapes to heap"
++	b = binary.LittleEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.littleEndian.AppendUint32" "append escapes to heap"
++	b = binary.LittleEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.littleEndian.AppendUint16" "append escapes to heap"
+ 	return b
+ }
+ 
+ func appendBigEndian(b []byte) []byte { // ERROR "can inline appendBigEndian" "leaking param: b to result ~r0 level=0"
+-	b = binary.BigEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.bigEndian.AppendUint64"
+-	b = binary.BigEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.bigEndian.AppendUint32"
+-	b = binary.BigEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.bigEndian.AppendUint16"
++	b = binary.BigEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.bigEndian.AppendUint64" "append escapes to heap"
++	b = binary.BigEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.bigEndian.AppendUint32" "append escapes to heap"
++	b = binary.BigEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.bigEndian.AppendUint16" "append escapes to heap"
+ 	return b
+ }

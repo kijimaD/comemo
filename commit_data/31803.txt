@@ -13,10 +13,208 @@ Date:   Thu Mar 16 22:34:38 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 28 +++++++++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |  5 ++
  src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
  src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
  src/cmd/compile/internal/ssa/rewriteARM64.go   | 66 ++++++++++++++++++++++++++
  5 files changed, 128 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bd04ff536e..773aecbddc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2749,6 +2749,34 @@ func init() {
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+ 	// LeadingZeros is handled because it trivially calls Len.
++	addF("math/bits", "Reverse64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
++		},
++		sys.ARM64)
++	addF("math/bits", "Reverse32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitRev32, Types[TINT], args[0])
++		},
++		sys.ARM64)
++	addF("math/bits", "Reverse16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitRev16, Types[TINT], args[0])
++		},
++		sys.ARM64)
++	addF("math/bits", "Reverse8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitRev8, Types[TINT], args[0])
++		},
++		sys.ARM64)
++	addF("math/bits", "Reverse",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			if s.config.IntSize == 4 {
++				return s.newValue1(ssa.OpBitRev32, Types[TINT], args[0])
++			}
++			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
++		},
++		sys.ARM64)
+ 
+ 	/******** sync/atomic ********/
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 9331ab154b..0654024ebc 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -91,6 +91,11 @@
+ (Bswap64 x) -> (REV x)
+ (Bswap32 x) -> (REVW x)
+ 
++(BitRev64 x) -> (RBIT x)
++(BitRev32 x) -> (RBITW x)
++(BitRev16 x) -> (SRLconst [48] (RBIT <config.fe.TypeUInt64()> x))
++(BitRev8 x) -> (SRLconst [56] (RBIT <config.fe.TypeUInt64()> x))
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index b4c2a015e1..a5ac62829e 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -244,6 +244,11 @@ var genericOps = []opData{
+ 	{name: "Bswap32", argLength: 1}, // Swap bytes
+ 	{name: "Bswap64", argLength: 1}, // Swap bytes
+ 
++	{name: "BitRev8", argLength: 1},  // Reverse the bits in arg[0]
++	{name: "BitRev16", argLength: 1}, // Reverse the bits in arg[0]
++	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
++	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
++
+ 	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
+ 
+ 	// Data movement, max argument length for Phi is indefinite so just pick
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 146c52ed9f..f5729243ba 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1767,6 +1767,10 @@ const (
+ 	OpBitLen64
+ 	OpBswap32
+ 	OpBswap64
++	OpBitRev8
++	OpBitRev16
++	OpBitRev32
++	OpBitRev64
+ 	OpSqrt
+ 	OpPhi
+ 	OpCopy
+@@ -21481,6 +21485,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "BitRev8",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "BitRev16",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "BitRev32",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "BitRev64",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Sqrt",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 10a3589598..cb48e664fe 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -252,6 +252,14 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpAvg64u(v, config)
+ 	case OpBitLen64:
+ 		return rewriteValueARM64_OpBitLen64(v, config)
++	case OpBitRev16:
++		return rewriteValueARM64_OpBitRev16(v, config)
++	case OpBitRev32:
++		return rewriteValueARM64_OpBitRev32(v, config)
++	case OpBitRev64:
++		return rewriteValueARM64_OpBitRev64(v, config)
++	case OpBitRev8:
++		return rewriteValueARM64_OpBitRev8(v, config)
+ 	case OpBswap32:
+ 		return rewriteValueARM64_OpBswap32(v, config)
+ 	case OpBswap64:
+@@ -9714,6 +9722,64 @@ func rewriteValueARM64_OpBitLen64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpBitRev16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (BitRev16 x)
++	// cond:
++	// result: (SRLconst [48] (RBIT <config.fe.TypeUInt64()> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64SRLconst)
++		v.AuxInt = 48
++		v0 := b.NewValue0(v.Pos, OpARM64RBIT, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpBitRev32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (BitRev32 x)
++	// cond:
++	// result: (RBITW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64RBITW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM64_OpBitRev64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (BitRev64 x)
++	// cond:
++	// result: (RBIT x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64RBIT)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM64_OpBitRev8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (BitRev8 x)
++	// cond:
++	// result: (SRLconst [56] (RBIT <config.fe.TypeUInt64()> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64SRLconst)
++		v.AuxInt = 56
++		v0 := b.NewValue0(v.Pos, OpARM64RBIT, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM64_OpBswap32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

@@ -6,6 +6,20 @@ Date:   Tue Nov 24 10:55:50 2009 -0800
     
     R=rsc
     https://golang.org/cl/157156
-
+---
  src/pkg/rpc/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 8ee4c7419b..827dbe1b41 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -61,7 +61,7 @@ func (client *Client) send(c *Call) {
+ 	client.enc.Encode(request);
+ 	err := client.enc.Encode(c.Args);
+ 	if err != nil {
+-		panicln("rpc: client encode error:", err)
++		panicln("rpc: client encode error:", err.String())
+ 	}
+ 	client.sending.Unlock();
+ }

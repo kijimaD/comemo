@@ -9,7 +9,7 @@ Date:   Wed Apr 27 22:18:09 2016 -0400
     Change-Id: Ic2004fc7b09f2dbbf83c41f8c6307757c0e1676d
     Reviewed-on: https://go-review.googlesource.com/19803
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go     | 49 ++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go     |  2 +
  src/cmd/link/internal/mips64/asm.go | 75 ++++++++++++++++++++++++++++++++++++-
@@ -17,3 +17,238 @@ Date:   Wed Apr 27 22:18:09 2016 -0400
  src/runtime/asm_mips64x.s           |  6 +--
  src/runtime/rt0_linux_mips64x.s     | 15 +++++---
  6 files changed, 139 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 15b8d7af93..fce099da45 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -489,6 +489,55 @@ const (
+ 	R_386_IRELATIVE     = 42
+ 	R_386_GOT32X        = 43
+ 
++	R_MIPS_NONE            = 0
++	R_MIPS_16              = 1
++	R_MIPS_32              = 2
++	R_MIPS_REL32           = 3
++	R_MIPS_26              = 4
++	R_MIPS_HI16            = 5
++	R_MIPS_LO16            = 6
++	R_MIPS_GPREL16         = 7
++	R_MIPS_LITERAL         = 8
++	R_MIPS_GOT16           = 9
++	R_MIPS_PC16            = 10
++	R_MIPS_CALL16          = 11
++	R_MIPS_GPREL32         = 12
++	R_MIPS_SHIFT5          = 16
++	R_MIPS_SHIFT6          = 17
++	R_MIPS_64              = 18
++	R_MIPS_GOT_DISP        = 19
++	R_MIPS_GOT_PAGE        = 20
++	R_MIPS_GOT_OFST        = 21
++	R_MIPS_GOT_HI16        = 22
++	R_MIPS_GOT_LO16        = 23
++	R_MIPS_SUB             = 24
++	R_MIPS_INSERT_A        = 25
++	R_MIPS_INSERT_B        = 26
++	R_MIPS_DELETE          = 27
++	R_MIPS_HIGHER          = 28
++	R_MIPS_HIGHEST         = 29
++	R_MIPS_CALL_HI16       = 30
++	R_MIPS_CALL_LO16       = 31
++	R_MIPS_SCN_DISP        = 32
++	R_MIPS_REL16           = 33
++	R_MIPS_ADD_IMMEDIATE   = 34
++	R_MIPS_PJUMP           = 35
++	R_MIPS_RELGOT          = 36
++	R_MIPS_JALR            = 37
++	R_MIPS_TLS_DTPMOD32    = 38
++	R_MIPS_TLS_DTPREL32    = 39
++	R_MIPS_TLS_DTPMOD64    = 40
++	R_MIPS_TLS_DTPREL64    = 41
++	R_MIPS_TLS_GD          = 42
++	R_MIPS_TLS_LDM         = 43
++	R_MIPS_TLS_DTPREL_HI16 = 44
++	R_MIPS_TLS_DTPREL_LO16 = 45
++	R_MIPS_TLS_GOTTPREL    = 46
++	R_MIPS_TLS_TPREL32     = 47
++	R_MIPS_TLS_TPREL64     = 48
++	R_MIPS_TLS_TPREL_HI16  = 49
++	R_MIPS_TLS_TPREL_LO16  = 50
++
+ 	R_PPC_NONE            = 0
+ 	R_PPC_ADDR32          = 1
+ 	R_PPC_ADDR24          = 2
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f6c7a0152b..a193704eb0 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1298,6 +1298,8 @@ func hostlinkArchArgs() []string {
+ 		return []string{"-marm"}
+ 	case sys.ARM64:
+ 		// nothing needed
++	case '0':
++		return []string{"-mabi=64"}
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 379a550a16..742ea8a727 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -45,7 +45,49 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ }
+ 
+ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+-	return -1
++	// mips64 ELF relocation (endian neutral)
++	//		offset	uint64
++	//		sym		uint32
++	//		ssym	uint8
++	//		type3	uint8
++	//		type2	uint8
++	//		type	uint8
++	//		addend	int64
++
++	ld.Thearch.Vput(uint64(sectoff))
++
++	elfsym := r.Xsym.ElfsymForReloc()
++	ld.Thearch.Lput(uint32(elfsym))
++	ld.Cput(0)
++	ld.Cput(0)
++	ld.Cput(0)
++	switch r.Type {
++	default:
++		return -1
++
++	case obj.R_ADDR:
++		switch r.Siz {
++		case 4:
++			ld.Cput(ld.R_MIPS_32)
++		case 8:
++			ld.Cput(ld.R_MIPS_64)
++		default:
++			return -1
++		}
++
++	case obj.R_ADDRMIPS:
++		ld.Cput(ld.R_MIPS_LO16)
++
++	case obj.R_ADDRMIPSU:
++		ld.Cput(ld.R_MIPS_HI16)
++
++	case obj.R_CALLMIPS,
++		obj.R_JMPMIPS:
++		ld.Cput(ld.R_MIPS_26)
++	}
++	ld.Thearch.Vput(uint64(r.Xadd))
++
++	return 0
+ }
+ 
+ func elfsetupplt() {
+@@ -58,7 +100,36 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 	if ld.Linkmode == ld.LinkExternal {
+-		return -1
++		switch r.Type {
++		default:
++			return -1
++
++		case obj.R_ADDRMIPS,
++			obj.R_ADDRMIPSU:
++			r.Done = 0
++
++			// set up addend for eventual relocation via outer symbol.
++			rs := r.Sym
++			r.Xadd = r.Add
++			for rs.Outer != nil {
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
++				rs = rs.Outer
++			}
++
++			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
++				ld.Diag("missing section for %s", rs.Name)
++			}
++			r.Xsym = rs
++
++			return 0
++
++		case obj.R_CALLMIPS,
++			obj.R_JMPMIPS:
++			r.Done = 0
++			r.Xsym = r.Sym
++			r.Xadd = r.Add
++			return 0
++		}
+ 	}
+ 
+ 	switch r.Type {
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 87bb3a079b..dabd326d21 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -107,6 +107,9 @@ func archinit() {
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+ 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+ 		}
++
++	case obj.Hlinux:
++		break
+ 	}
+ 
+ 	switch ld.HEADTYPE {
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index f55627ce61..85b71d2d90 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -12,14 +12,14 @@
+ #define	REGCTXT	R22
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+-	// R29 = stack; R1 = argc; R2 = argv
++	// R29 = stack; R4 = argc; R5 = argv
+ 
+ 	// initialize essential registers
+ 	JAL	runtime·reginit(SB)
+ 
+ 	ADDV	$-24, R29
+-	MOVW	R1, 8(R29) // argc
+-	MOVV	R2, 16(R29) // argv
++	MOVW	R4, 8(R29) // argc
++	MOVV	R5, 16(R29) // argv
+ 
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+diff --git a/src/runtime/rt0_linux_mips64x.s b/src/runtime/rt0_linux_mips64x.s
+index 6b596677be..beb4ef26ac 100644
+--- a/src/runtime/rt0_linux_mips64x.s
++++ b/src/runtime/rt0_linux_mips64x.s
+@@ -19,18 +19,21 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// sequence of string pointers followed by a NULL, and auxv.
+ 	// There is no TLS base pointer.
+ #ifdef GOARCH_mips64
+-	MOVW 4(R29), R1 // argc, big-endian ABI places int32 at offset 4
++	MOVW	4(R29), R4 // argc, big-endian ABI places int32 at offset 4
+ #else
+-	MOVW 0(R29), R1 // argc
++	MOVW	0(R29), R4 // argc
+ #endif
+-	ADDV $8, R29, R2 // argv
+-	JMP main(SB)
++	ADDV	$8, R29, R5 // argv
++	JMP	main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$-8
++	// in external linking, glibc jumps to main with argc in R4
++	// and argv in R5
++
+ 	// initalize REGSB = PC&0xffffffff00000000
+ 	BGEZAL	R0, 1(PC)
+ 	SRLV	$32, R31, RSB
+ 	SLLV	$32, RSB
+ 
+-	MOVV	$runtime·rt0_go(SB), R4
+-	JMP	(R4)
++	MOVV	$runtime·rt0_go(SB), R1
++	JMP	(R1)

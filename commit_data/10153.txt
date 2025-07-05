@@ -10,6 +10,22 @@ Date:   Mon Oct 31 13:34:59 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5305079
-
+---
  src/pkg/syscall/syscall_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index eacdd93c9c..16f8e7337e 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -245,6 +245,10 @@ func Await(w *Waitmsg) (err Error) {
+ 	w.Time[1] = uint32(atoi(f[2]))
+ 	w.Time[2] = uint32(atoi(f[3]))
+ 	w.Msg = cstring(f[4])
++	if w.Msg == "''" {
++		// await() returns '' for no error
++		w.Msg = ""
++	}
+ 	return
+ }
+ 

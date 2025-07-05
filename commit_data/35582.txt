@@ -53,7 +53,85 @@ Date:   Tue Feb 6 13:21:39 2018 -0500
     Change-Id: I88bb3cb1af3cb62e4643a8cbafd5823672b2e464
     Reviewed-on: https://go-review.googlesource.com/92355
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/cmd/trace/main.go  | 32 ++++++++++++++++++++++++++++++++
  src/cmd/trace/trace.go |  1 +
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 592b999742..856d411f86 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -16,7 +16,10 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"os"
++	"runtime"
+ 	"sync"
++
++	_ "net/http/pprof" // Required to use pprof
+ )
+ 
+ const usageMessage = "" +
+@@ -115,6 +118,7 @@ func main() {
+ 		trace.Print(res.Events)
+ 		os.Exit(0)
+ 	}
++	reportMemoryUsage("after parsing trace")
+ 
+ 	log.Print("Serializing trace...")
+ 	params := &traceParams{
+@@ -125,9 +129,11 @@ func main() {
+ 	if err != nil {
+ 		dief("%v\n", err)
+ 	}
++	reportMemoryUsage("after generating trace")
+ 
+ 	log.Print("Splitting trace...")
+ 	ranges = splitTrace(data)
++	reportMemoryUsage("after spliting trace")
+ 
+ 	addr := "http://" + ln.Addr().String()
+ 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
+@@ -210,3 +216,29 @@ func dief(msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, msg, args...)
+ 	os.Exit(1)
+ }
++
++var debugMemoryUsage bool
++
++func init() {
++	v := os.Getenv("DEBUG_MEMORY_USAGE")
++	debugMemoryUsage = v != ""
++}
++
++func reportMemoryUsage(msg string) {
++	if !debugMemoryUsage {
++		return
++	}
++	var s runtime.MemStats
++	runtime.ReadMemStats(&s)
++	w := os.Stderr
++	fmt.Fprintf(w, "%s\n", msg)
++	fmt.Fprintf(w, " Alloc:\t%d Bytes\n", s.Alloc)
++	fmt.Fprintf(w, " Sys:\t%d Bytes\n", s.Sys)
++	fmt.Fprintf(w, " HeapReleased:\t%d Bytes\n", s.HeapReleased)
++	fmt.Fprintf(w, " HeapSys:\t%d Bytes\n", s.HeapSys)
++	fmt.Fprintf(w, " HeapInUse:\t%d Bytes\n", s.HeapInuse)
++	fmt.Fprintf(w, " HeapAlloc:\t%d Bytes\n", s.HeapAlloc)
++	var dummy string
++	fmt.Printf("Enter to continue...")
++	fmt.Scanf("%s", &dummy)
++}
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 6fa459c7c2..9a675aecec 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -163,6 +163,7 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
+ 
+ // httpJsonTrace serves json trace, requested from within templTrace HTML.
+ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
++	defer reportMemoryUsage("after httpJsonTrace")
+ 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
+ 	res, err := parseTrace()
+ 	if err != nil {

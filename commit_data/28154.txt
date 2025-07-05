@@ -16,7 +16,51 @@ Date:   Sat Apr 30 21:11:26 2016 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 7 ++++++-
  src/net/http/server.go     | 7 +++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5f206b1873..661f355d0d 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4062,7 +4062,12 @@ func TestServerContext_ServerContextKey(t *testing.T) {
+ 		ctx := r.Context()
+ 		got := ctx.Value(ServerContextKey)
+ 		if _, ok := got.(*Server); !ok {
+-			t.Errorf("context value = %T; want *http.Server")
++			t.Errorf("context value = %T; want *http.Server", got)
++		}
++
++		got = ctx.Value(LocalAddrContextKey)
++		if _, ok := got.(net.Addr); !ok {
++			t.Errorf("local addr value = %T; want net.Addr", got)
+ 		}
+ 	}))
+ 	defer ts.Close()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c36f5a06ba..23fb84fcda 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -176,6 +176,12 @@ var (
+ 	// started the handler. The associated value will be of
+ 	// type *Server.
+ 	ServerContextKey = &contextKey{"http-server"}
++
++	// LocalAddrContextKey is a context key. It can be used in
++	// HTTP handlers with context.WithValue to access the address
++	// the local address the connection arrived on.
++	// The associated value will be of type net.Addr.
++	LocalAddrContextKey = &contextKey{"local-addr"}
+ )
+ 
+ // A conn represents the server side of an HTTP connection.
+@@ -2189,6 +2195,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ 	// use cases yet.
+ 	baseCtx := context.Background()
+ 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
++	ctx = context.WithValue(ctx, LocalAddrContextKey, l.Addr())
+ 	for {
+ 		rw, e := l.Accept()
+ 		if e != nil {

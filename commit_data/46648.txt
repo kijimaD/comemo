@@ -15,7 +15,7 @@ Date:   Mon Aug 24 03:13:54 2020 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go  |   4 +-
  src/cmd/link/internal/ld/lib.go   |   1 +
  src/cmd/link/internal/ld/main.go  |   8 ++
@@ -31,3 +31,771 @@ Date:   Mon Aug 24 03:13:54 2020 +1000
  src/runtime/sys_openbsd.go        |  77 +++++++++++++
  src/runtime/sys_openbsd_amd64.s   | 229 ++++++++++++++++++++++++--------------
  14 files changed, 418 insertions(+), 162 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3c5091e6a0..6013e0ab0a 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -206,8 +206,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		}
+ 
+ 		// We need to be able to reference dynimport symbols when linking against
+-		// shared libraries, and Solaris, Darwin and AIX need it always
+-		if !target.IsSolaris() && !target.IsDarwin() && !target.IsAIX() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
++		// shared libraries, and AIX, Darwin, OpenBSD and Solaris always need it.
++		if !target.IsAIX() && !target.IsDarwin() && !target.IsSolaris() && !target.IsOpenbsd() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
+ 			if !(target.IsPPC64() && target.IsExternal() && ldr.SymName(rs) == ".TOC.") {
+ 				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
+ 			}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index dd5e8ab2c5..014969664b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1273,6 +1273,7 @@ func (ctxt *Link) hostlink() {
+ 		}
+ 	case objabi.Hopenbsd:
+ 		argv = append(argv, "-Wl,-nopie")
++		argv = append(argv, "-pthread")
+ 	case objabi.Hwindows:
+ 		if windowsgui {
+ 			argv = append(argv, "-mwindows")
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 5c8293810f..64f52bc52f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -183,6 +183,14 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	interpreter = *flagInterpreter
+ 
++	if *flagBuildid == "" && ctxt.Target.IsOpenbsd() {
++		// TODO(jsing): Remove once direct syscalls are no longer in use.
++		// OpenBSD 6.7 onwards will not permit direct syscalls from a
++		// dynamically linked binary unless it identifies the binary
++		// contains a .note.go.buildid ELF note. See issue #36435.
++		*flagBuildid = "go-openbsd"
++	}
++
+ 	// enable benchmarking
+ 	var bench *benchmark.Metrics
+ 	if len(*benchmarkFlag) != 0 {
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 196252e1dd..4ac87089f2 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -181,6 +181,10 @@ needtls:
+ 	// skip TLS setup on Darwin
+ 	JMP ok
+ #endif
++#ifdef GOOS_openbsd
++	// skip TLS setup on OpenBSD
++	JMP ok
++#endif
+ 
+ 	LEAQ	runtime·m0+m_tls(SB), DI
+ 	CALL	runtime·settls(SB)
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 53e9d59a3c..57717abf7e 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -54,6 +54,8 @@ const (
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
++	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
++
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+@@ -129,3 +131,10 @@ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
+ 
+ type KeventT C.struct_kevent
++
++type Pthread C.pthread_t
++type PthreadAttr C.pthread_attr_t
++type PthreadCond C.pthread_cond_t
++type PthreadCondAttr C.pthread_condattr_t
++type PthreadMutex C.pthread_mutex_t
++type PthreadMutexAttr C.pthread_mutexattr_t
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index c187a98ae0..01ca934cea 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -30,6 +30,8 @@ const (
+ 	_SA_RESTART = 0x2
+ 	_SA_ONSTACK = 0x1
+ 
++	_PTHREAD_CREATE_DETACHED = 0x1
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -177,3 +179,10 @@ type keventt struct {
+ 	data   int64
+ 	udata  *byte
+ }
++
++type pthread uintptr
++type pthreadattr uintptr
++type pthreadcond uintptr
++type pthreadcondattr uintptr
++type pthreadmutex uintptr
++type pthreadmutexattr uintptr
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 490077bc29..61be627c27 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -47,9 +46,6 @@ func raiseproc(sig uint32)
+ func getthrid() int32
+ func thrkill(tid int32, sig int)
+ 
+-//go:noescape
+-func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
+-
+ //go:noescape
+ func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
+ 
+@@ -183,36 +179,6 @@ func semawakeup(mp *m) {
+ 	}
+ }
+ 
+-// May run with m.p==nil, so write barriers are not allowed.
+-//go:nowritebarrier
+-func newosproc(mp *m) {
+-	stk := unsafe.Pointer(mp.g0.stack.hi)
+-	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+-	}
+-
+-	// Stack pointer must point inside stack area (as marked with MAP_STACK),
+-	// rather than at the top of it.
+-	param := tforkt{
+-		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
+-		tf_tid:   nil, // minit will record tid
+-		tf_stack: uintptr(stk) - sys.PtrSize,
+-	}
+-
+-	var oset sigset
+-	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
+-	sigprocmask(_SIG_SETMASK, &oset, nil)
+-
+-	if ret < 0 {
+-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+-		if ret == -_EAGAIN {
+-			println("runtime: may need to increase max user processes (ulimit -p)")
+-		}
+-		throw("runtime.newosproc")
+-	}
+-}
+-
+ func osinit() {
+ 	ncpu = getncpu()
+ 	physPageSize = getPageSize()
+diff --git a/src/runtime/os_openbsd_libc.go b/src/runtime/os_openbsd_libc.go
+new file mode 100644
+index 0000000000..60735644f0
+--- /dev/null
++++ b/src/runtime/os_openbsd_libc.go
+@@ -0,0 +1,58 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,amd64
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++var failThreadCreate = []byte("runtime: failed to create new OS thread\n")
++
++// mstart_stub provides glue code to call mstart from pthread_create.
++func mstart_stub()
++
++// May run with m.p==nil, so write barriers are not allowed.
++//go:nowritebarrierrec
++func newosproc(mp *m) {
++	if false {
++		print("newosproc m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
++	}
++
++	// Initialize an attribute object.
++	var attr pthreadattr
++	if err := pthread_attr_init(&attr); err != 0 {
++		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		exit(1)
++	}
++
++	// Find out OS stack size for our own stack guard.
++	var stacksize uintptr
++	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
++		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		exit(1)
++	}
++	mp.g0.stack.hi = stacksize // for mstart
++
++	// Tell the pthread library we won't join with this thread.
++	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
++		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		exit(1)
++	}
++
++	// Finally, create the thread. It starts at mstart_stub, which does some low-level
++	// setup and then calls mstart.
++	var oset sigset
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
++	err := pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
++	sigprocmask(_SIG_SETMASK, &oset, nil)
++	if err != 0 {
++		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		exit(1)
++	}
++
++	pthread_attr_destroy(&attr)
++}
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+new file mode 100644
+index 0000000000..e91a97ca8e
+--- /dev/null
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -0,0 +1,45 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,!amd64
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++//go:noescape
++func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
++
++// May run with m.p==nil, so write barriers are not allowed.
++//go:nowritebarrier
++func newosproc(mp *m) {
++	stk := unsafe.Pointer(mp.g0.stack.hi)
++	if false {
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
++	}
++
++	// Stack pointer must point inside stack area (as marked with MAP_STACK),
++	// rather than at the top of it.
++	param := tforkt{
++		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
++		tf_tid:   nil, // minit will record tid
++		tf_stack: uintptr(stk) - sys.PtrSize,
++	}
++
++	var oset sigset
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
++	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
++	sigprocmask(_SIG_SETMASK, &oset, nil)
++
++	if ret < 0 {
++		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
++		if ret == -_EAGAIN {
++			println("runtime: may need to increase max user processes (ulimit -p)")
++		}
++		throw("runtime.newosproc")
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 46aa3b04a5..26cf7c7335 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1222,6 +1222,11 @@ func mStackIsSystemAllocated() bool {
+ 	switch GOOS {
+ 	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
+ 		return true
++	case "openbsd":
++		switch GOARCH {
++		case "amd64":
++			return true
++		}
+ 	}
+ 	return false
+ }
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 55845bf2e5..4a3f2fc453 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -6,50 +6,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Call fn with arg as its argument. Return what fn returns.
+-// fn is the raw pc value of the entry point of the desired function.
+-// Switches to the system stack, if not already there.
+-// Preserves the calling point as the location where a profiler traceback will begin.
+-//go:nosplit
+-func libcCall(fn, arg unsafe.Pointer) int32 {
+-	// Leave caller's PC/SP/G around for traceback.
+-	gp := getg()
+-	var mp *m
+-	if gp != nil {
+-		mp = gp.m
+-	}
+-	if mp != nil && mp.libcallsp == 0 {
+-		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
+-		// sp must be the last, because once async cpu profiler finds
+-		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
+-	} else {
+-		// Make sure we don't reset libcallsp. This makes
+-		// libcCall reentrant; We remember the g/pc/sp for the
+-		// first call on an M, until that libcCall instance
+-		// returns.  Reentrance only matters for signals, as
+-		// libc never calls back into Go.  The tricky case is
+-		// where we call libcX from an M and record g/pc/sp.
+-		// Before that call returns, a signal arrives on the
+-		// same M and the signal handling code calls another
+-		// libc function.  We don't want that second libcCall
+-		// from within the handler to be recorded, and we
+-		// don't want that call's completion to zero
+-		// libcallsp.
+-		// We don't need to set libcall* while we're in a sighandler
+-		// (even if we're not currently in libc) because we block all
+-		// signals while we're handling a signal. That includes the
+-		// profile signal, which is the one that uses the libcall* info.
+-		mp = nil
+-	}
+-	res := asmcgocall(fn, arg)
+-	if mp != nil {
+-		mp.libcallsp = 0
+-	}
+-	return res
+-}
+-
+ // The X versions of syscall expect the libc call to return a 64-bit result.
+ // Otherwise (the non-X version) expects a 32-bit result.
+ // This distinction is required because an error is indicated by returning -1,
+diff --git a/src/runtime/sys_libc.go b/src/runtime/sys_libc.go
+new file mode 100644
+index 0000000000..c97a97d77b
+--- /dev/null
++++ b/src/runtime/sys_libc.go
+@@ -0,0 +1,53 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin openbsd,amd64
++
++package runtime
++
++import "unsafe"
++
++// Call fn with arg as its argument. Return what fn returns.
++// fn is the raw pc value of the entry point of the desired function.
++// Switches to the system stack, if not already there.
++// Preserves the calling point as the location where a profiler traceback will begin.
++//go:nosplit
++func libcCall(fn, arg unsafe.Pointer) int32 {
++	// Leave caller's PC/SP/G around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil && mp.libcallsp == 0 {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp()
++	} else {
++		// Make sure we don't reset libcallsp. This makes
++		// libcCall reentrant; We remember the g/pc/sp for the
++		// first call on an M, until that libcCall instance
++		// returns.  Reentrance only matters for signals, as
++		// libc never calls back into Go.  The tricky case is
++		// where we call libcX from an M and record g/pc/sp.
++		// Before that call returns, a signal arrives on the
++		// same M and the signal handling code calls another
++		// libc function.  We don't want that second libcCall
++		// from within the handler to be recorded, and we
++		// don't want that call's completion to zero
++		// libcallsp.
++		// We don't need to set libcall* while we're in a sighandler
++		// (even if we're not currently in libc) because we block all
++		// signals while we're handling a signal. That includes the
++		// profile signal, which is the one that uses the libcall* info.
++		mp = nil
++	}
++	res := asmcgocall(fn, arg)
++	if mp != nil {
++		mp.libcallsp = 0
++	}
++	return res
++}
+diff --git a/src/runtime/sys_openbsd.go b/src/runtime/sys_openbsd.go
+new file mode 100644
+index 0000000000..4dfab7d7b0
+--- /dev/null
++++ b/src/runtime/sys_openbsd.go
+@@ -0,0 +1,77 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,amd64
++
++package runtime
++
++import "unsafe"
++
++// The *_trampoline functions convert from the Go calling convention to the C calling convention
++// and then call the underlying libc function. These are defined in sys_openbsd_$ARCH.s.
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_init(attr *pthreadattr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_init_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_destroy(attr *pthreadattr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_attr_destroy_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_destroy_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_getstacksize_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_setdetachstate(attr *pthreadattr, state int) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_setdetachstate_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_create_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_self() (t pthread) {
++	libcCall(unsafe.Pointer(funcPC(pthread_self_trampoline)), unsafe.Pointer(&t))
++	return
++}
++func pthread_self_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_kill(t pthread, sig uint32) {
++	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
++}
++func pthread_kill_trampoline()
++
++// Tell the linker that the libc_* functions are to be found
++// in a system library, with the libc_ prefix missing.
++
++//go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_create pthread_create "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_self pthread_self "libpthread.so"
++//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libpthread.so"
++
++//go:cgo_import_dynamic _ _ "libpthread.so"
++//go:cgo_import_dynamic _ _ "libc.so"
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 37d70ab9aa..455234d7cd 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
+-// System calls and other sys.stuff for AMD64, OpenBSD
+-// /usr/src/sys/kern/syscalls.master for syscall numbers.
++// System calls and other sys.stuff for AMD64, OpenBSD.
++// System calls are implemented in libc/libpthread, this file
++// contains trampolines that convert from Go to C calling convention.
++// Some direct system call implementations currently remain.
+ //
+ 
+ #include "go_asm.h"
+@@ -12,49 +14,159 @@
+ 
+ #define CLOCK_MONOTONIC	$3
+ 
+-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·tfork(SB),NOSPLIT,$32
++TEXT runtime·settls(SB),NOSPLIT,$0
++	// Nothing to do, pthread already set thread-local storage up.
++	RET
+ 
+-	// Copy mp, gp and fn off parent stack for use by child.
+-	MOVQ	mm+16(FP), R8
+-	MOVQ	gg+24(FP), R9
+-	MOVQ	fn+32(FP), R12
++// mstart_stub is the first function executed on a new thread started by pthread_create.
++// It just does some low-level setup and then calls mstart.
++// Note: called with the C calling convention.
++TEXT runtime·mstart_stub(SB),NOSPLIT,$0
++	// DI points to the m.
++	// We are already on m's g0 stack.
+ 
+-	MOVQ	param+0(FP), DI
+-	MOVQ	psize+8(FP), SI
+-	MOVL	$8, AX			// sys___tfork
+-	SYSCALL
++	// Save callee-save registers.
++	SUBQ	$48, SP
++	MOVQ	BX, 0(SP)
++	MOVQ	BP, 8(SP)
++	MOVQ	R12, 16(SP)
++	MOVQ	R13, 24(SP)
++	MOVQ	R14, 32(SP)
++	MOVQ	R15, 40(SP)
+ 
+-	// Return if tfork syscall failed.
+-	JCC	4(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+40(FP)
++	// Load g and save to TLS entry.
++	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
++	MOVQ	m_g0(DI), DX // g
++	MOVQ	DX, -8(FS)
++
++	// Someday the convention will be D is always cleared.
++	CLD
++
++	CALL	runtime·mstart(SB)
++
++	// Restore callee-save registers.
++	MOVQ	0(SP), BX
++	MOVQ	8(SP), BP
++	MOVQ	16(SP), R12
++	MOVQ	24(SP), R13
++	MOVQ	32(SP), R14
++	MOVQ	40(SP), R15
++
++	// Go is all done with this OS thread.
++	// Tell pthread everything is ok (we never join with this thread, so
++	// the value here doesn't really matter).
++	XORL	AX, AX
++
++	ADDQ	$48, SP
+ 	RET
+ 
+-	// In parent, return.
+-	CMPL	AX, $0
+-	JEQ	3(PC)
+-	MOVL	AX, ret+40(FP)
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
++	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+-	// Set FS to point at m->tls.
+-	LEAQ	m_tls(R8), DI
+-	CALL	runtime·settls(SB)
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX,  bx-8(SP)
++	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
+ 
+-	// In child, set up new stack.
+-	get_tls(CX)
+-	MOVQ	R8, g_m(R9)
+-	MOVQ	R9, g(CX)
+-	CALL	runtime·stackcheck(SB)
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
++	CALL	runtime·sigtrampgo(SB)
+ 
+-	// Call fn
+-	CALL	R12
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
++	RET
+ 
+-	// It shouldn't return. If it does, exit
+-	MOVQ	$0, DI			// arg 1 - notdead
+-	MOVL	$302, AX		// sys___threxit
+-	SYSCALL
+-	JMP	-3(PC)			// keep exiting
++//
++// These trampolines help convert from Go calling convention to C calling convention.
++// They should be called with asmcgocall.
++// A pointer to the arguments is passed in DI.
++// A single int32 result is returned in AX.
++// (For more results, make an args/results structure.)
++TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	0(DI), DI		// arg 1 - attr
++	CALL	libc_pthread_attr_init(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	0(DI), DI		// arg 1 - attr
++	CALL	libc_pthread_attr_destroy(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 - stacksize
++	MOVQ	0(DI), DI		// arg 1 - attr
++	CALL	libc_pthread_attr_getstacksize(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 - detachstate
++	MOVQ	0(DI), DI		// arg 1 - attr
++	CALL	libc_pthread_attr_setdetachstate(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	SUBQ	$16, SP
++	MOVQ	0(DI), SI		// arg 2 - attr
++	MOVQ	8(DI), DX		// arg 3 - start
++	MOVQ	16(DI), CX		// arg 4 - arg
++	MOVQ	SP, DI			// arg 1 - &thread (discarded)
++	CALL	libc_pthread_create(SB)
++	MOVQ	BP, SP
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	DI, BX			// BX is caller-save
++	CALL	libc_pthread_self(SB)
++	MOVQ	AX, 0(BX)		// return value
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 - sig
++	MOVQ	0(DI), DI		// arg 1 - thread
++	CALL	libc_pthread_kill(SB)
++	POPQ	BP
++	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$298, AX		// sys_sched_yield
+@@ -251,43 +363,6 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVQ	fn+0(FP),    AX
+-	MOVL	sig+8(FP),   DI
+-	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP),  DX
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	ANDQ	$~15, SP     // alignment for x86_64 ABI
+-	CALL	AX
+-	MOVQ	BP, SP
+-	POPQ	BP
+-	RET
+-
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX,  bx-8(SP)
+-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	CALL	runtime·sigtrampgo(SB)
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
+-	RET
+-
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 - addr
+ 	MOVQ	n+8(FP), SI		// arg 2 - len
+@@ -340,16 +415,6 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-// set tls base to DI
+-TEXT runtime·settls(SB),NOSPLIT,$0
+-	// adjust for ELF: wants to use -8(FS) for g
+-	ADDQ	$8, DI
+-	MOVQ	$329, AX		// sys___settcb
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
+-	RET
+-
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVQ	mib+0(FP), DI		// arg 1 - name
+ 	MOVL	miblen+8(FP), SI		// arg 2 - namelen

@@ -8,6 +8,26 @@ Date:   Fri May 16 13:18:14 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/93430044
-
+---
  doc/go1.3.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 056c4cbe81..bf72a052e7 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -457,6 +457,14 @@ now considers the <code>DEL</code> character, <code>U+007F</code>, to be
+ non-printing.
+ </li>
+ 
++<li>
++The <a href="/pkg/syscall/"><code>syscall</code></a> package now provides
++<a href="/pkg/syscall/#SendmsgN"><code>SendmsgN</code></a>
++as an alternate version of
++<a href="/pkg/syscall/#Sendmsg"><code>Sendmsg</code></a>
++that returns the number of bytes written.
++</li>
++
+ <li>
+ On Windows, the <a href="/pkg/syscall/"><code>syscall</code></a> package now
+ supports the cdecl calling convention through the addition of a new function

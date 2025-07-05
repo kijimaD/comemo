@@ -13,6 +13,29 @@ Date:   Mon Mar 18 13:43:04 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vendor_goversion.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index 38975c8a2b..18cd030fcd 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -7,7 +7,7 @@
+ 
+ go build example.net/need117
+ ! go build example.net/bad114
+-stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y( .*)?$'
++stderr '^bad114[/\\]bad114.go:15:2: duplicate method .?Y.?( .*)?$'
+ 
+ 
+ # With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
+@@ -43,7 +43,7 @@ go build example.net/need117
+ 
+ grep '^## explicit; go 1.13$' vendor/modules.txt
+ ! go build example.net/bad114
+-stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y( .+)?$'
++stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method .?Y.?( .*)?$'
+ 
+ -- go.mod --
+ module example.net/m

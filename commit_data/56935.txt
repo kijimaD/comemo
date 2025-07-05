@@ -10,6 +10,20 @@ Date:   Thu Jun 1 08:49:47 2023 -0700
     TryBot-Bypass: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.21.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 29feac2b71..da41a6e4a8 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -333,7 +333,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <p><!-- CL 487895 -->
+   The new <a href="/pkg/testing/slogtest">testing/slogtest</a> package can help
+-  to validate <a href="/pkg/log/slog#Handler">slog.Handler<a/> implementations.
++  to validate <a href="/pkg/log/slog#Handler">slog.Handler</a> implementations.
+ </p>
+ 
+ <h3 id="slices">New slices package</h3>

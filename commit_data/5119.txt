@@ -7,6 +7,20 @@ Date:   Wed Mar 24 08:59:09 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/720041
-
+---
  src/cmd/cc/cc.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 725a3cb089..944b79aa63 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -771,7 +771,7 @@ void	pragfpround(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+ void	pragdynimport(void);
+-void	pragdynexporg(void);
++void	pragdynexport(void);
+ 
+ /*
+  * calls to machine depend part

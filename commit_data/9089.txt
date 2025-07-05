@@ -14,7 +14,42 @@ Date:   Fri Jul 15 11:51:59 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4754041
-
+---
  src/cmd/8l/Makefile | 2 +-
  src/cmd/8l/l.h      | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index a85e3ffa7c..7d34e17049 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -31,7 +31,7 @@ OFILES=\
+ 
+ HFILES=\
+ 	l.h\
+-	../8l/8.out.h\
++	8.out.h\
+ 	../ld/dwarf.h\
+ 	../ld/elf.h\
+ 	../ld/macho.h\
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 7e7cd5d63b..65bee19737 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -31,7 +31,7 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	<bio.h>
+-#include	"../8l/8.out.h"
++#include	"8.out.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -262,7 +262,6 @@ EXTERN union
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"D"	Adr*
+-#pragma	varargck	type	"I"	int
+ #pragma	varargck	type	"I"	uchar*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int

@@ -7,6 +7,68 @@ Date:   Thu Dec 18 21:59:12 2008 -0800
     R=ken
     OCL=21568
     CL=21568
-
+---
  src/cmd/gc/walk.c | 43 ++++++++++++++++++++++++++++++++++++++++++-
  1 file changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a8f988b049..8460a82d78 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3450,7 +3450,7 @@ loop:
+ }
+ 
+ Node*
+-arraylit(Node *n)
++oldarraylit(Node *n)
+ {
+ 	Iter saver;
+ 	Type *t;
+@@ -3500,6 +3500,47 @@ loop:
+ 	goto loop;
+ }
+ 
++Node*
++arraylit(Node *n)
++{
++	Iter saver;
++	Type *t;
++	Node *var, *r, *a, *nas, *nnew, *ncon;
++	int idx;
++
++	t = n->type;
++	if(t->etype != TARRAY)
++		fatal("arraylit: not array");
++
++	if(t->bound >= 0)
++		fatal("arraylit: literal fixed arrays not implemented");
++	
++	var = nod(OXXX, N, N);
++	tempname(var, t);
++	
++	nnew = nod(ONEW, N, N);
++	nnew->type = t;
++	
++	nas = nod(OAS, var, nnew);
++	addtop = list(addtop, nas);
++
++	idx = 0;
++	r = listfirst(&saver, &n->left);
++	if(r != N && r->op == OEMPTY)
++		r = N;
++	while(r != N) {
++		// build list of var[c] = expr
++		a = nodintconst(idx);
++		a = nod(OINDEX, var, a);
++		a = nod(OAS, a, r);
++		addtop = list(addtop, a);
++		idx++;
++		r = listnext(&saver);
++	}
++	nnew->left = nodintconst(idx);
++	return var;
++}
++
+ Node*
+ maplit(Node *n)
+ {

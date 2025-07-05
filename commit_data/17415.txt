@@ -9,10 +9,286 @@ Date:   Wed Aug 28 19:51:02 2013 +0900
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/12916046
-
+---
  src/pkg/net/iprawsock_posix.go | 14 +++++++-------
  src/pkg/net/ipsock_posix.go    | 13 +------------
  src/pkg/net/tcpsock_posix.go   | 10 +++++-----
  src/pkg/net/udpsock_posix.go   | 20 ++++++++++----------
  src/pkg/net/unixsock_posix.go  | 28 ++++++++++------------------
  5 files changed, 33 insertions(+), 52 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 401adda867..d74068b39e 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -189,19 +189,19 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
+ 	net, proto, err := parseNetwork(netProto)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: err}
+ 	}
+ 	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(netProto)
++		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: UnknownNetworkError(netProto)}
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
++		return nil, &OpError{Op: "dial", Net: netProto, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: err}
+ 	}
+ 	return newIPConn(fd), nil
+ }
+@@ -213,16 +213,16 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
+ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	net, proto, err := parseNetwork(netProto)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: netProto, Addr: laddr, Err: err}
+ 	}
+ 	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(netProto)
++		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: UnknownNetworkError(netProto)}
+ 	}
+ 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: err}
+ 	}
+ 	return newIPConn(fd), nil
+ }
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 82a2a02edb..a83e525617 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -133,18 +133,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 
+ func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+-	fd, err = socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
+-	if err != nil {
+-		goto Error
+-	}
+-	return fd, nil
+-
+-Error:
+-	addr := raddr
+-	if mode == "listen" {
+-		addr = laddr
+-	}
+-	return nil, &OpError{mode, net, addr, err}
++	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
+ }
+ 
+ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 39a1656b30..512b74c3f8 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -150,10 +150,10 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{"dial", net, nil, errMissingAddress}
++		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	return dialTCP(net, laddr, raddr, noDeadline)
+ }
+@@ -193,7 +193,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 	}
+ 
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
+ 	}
+ 	return newTCPConn(fd), nil
+ }
+@@ -292,14 +292,14 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+ 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+ 	return &TCPListener{fd}, nil
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 1101e3e7db..67af4de188 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -173,10 +173,10 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{"dial", net, nil, errMissingAddress}
++		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	return dialUDP(net, laddr, raddr, noDeadline)
+ }
+@@ -184,7 +184,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+ 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
+ 	}
+ 	return newUDPConn(fd), nil
+ }
+@@ -200,14 +200,14 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if laddr == nil {
+ 		laddr = &UDPAddr{}
+ 	}
+ 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+ 	return newUDPConn(fd), nil
+ }
+@@ -220,25 +220,25 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "listen", Net: net, Addr: gaddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if gaddr == nil || gaddr.IP == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: gaddr, Err: err}
+ 	}
+ 	c := newUDPConn(fd)
+ 	if ip4 := gaddr.IP.To4(); ip4 != nil {
+ 		if err := listenIPv4MulticastUDP(c, ifi, ip4); err != nil {
+ 			c.Close()
+-			return nil, &OpError{"listen", net, &IPAddr{IP: ip4}, err}
++			return nil, &OpError{Op: "listen", Net: net, Addr: &IPAddr{IP: ip4}, Err: err}
+ 		}
+ 	} else {
+ 		if err := listenIPv6MulticastUDP(c, ifi, gaddr.IP); err != nil {
+ 			c.Close()
+-			return nil, &OpError{"listen", net, &IPAddr{IP: gaddr.IP}, err}
++			return nil, &OpError{Op: "listen", Net: net, Addr: &IPAddr{IP: gaddr.IP}, Err: err}
+ 		}
+ 	}
+ 	return c, nil
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 86dcbc1a0f..c71ee957e0 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -35,7 +35,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
+ 			raddr = nil
+ 		}
+ 		if raddr == nil && (sotype != syscall.SOCK_DGRAM || laddr == nil) {
+-			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
++			return nil, errMissingAddress
+ 		}
+ 	case "listen":
+ 	default:
+@@ -51,17 +51,9 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
+ 
+ 	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
+ 	if err != nil {
+-		goto error
++		return nil, err
+ 	}
+ 	return fd, nil
+-
+-error:
+-	addr := raddr
+-	switch mode {
+-	case "listen":
+-		addr = laddr
+-	}
+-	return nil, &OpError{Op: mode, Net: net, Addr: addr, Err: err}
+ }
+ 
+ func sockaddrToUnix(sa syscall.Sockaddr) Addr {
+@@ -250,7 +242,7 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ 	switch net {
+ 	case "unix", "unixgram", "unixpacket":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	return dialUnix(net, laddr, raddr, noDeadline)
+ }
+@@ -258,7 +250,7 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+ 	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
+ 	}
+ 	return newUnixConn(fd), nil
+ }
+@@ -277,14 +269,14 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	switch net {
+ 	case "unix", "unixpacket":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	fd, err := unixSocket(net, laddr, nil, "listen", noDeadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+ 	return &UnixListener{fd, laddr.Name}, nil
+ }
+@@ -365,14 +357,14 @@ func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
+ 	switch net {
+ 	case "unixgram":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	fd, err := unixSocket(net, laddr, nil, "listen", noDeadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+ 	return newUnixConn(fd), nil
+ }

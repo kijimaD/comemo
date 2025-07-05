@@ -17,9 +17,84 @@ Date:   Fri Nov 27 00:42:41 2020 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/os_darwin.go       | 6 ++++++
  src/runtime/sys_darwin.go      | 8 ++++++++
  src/runtime/sys_darwin_amd64.s | 3 +++
  src/runtime/sys_darwin_arm64.s | 6 ++++++
  4 files changed, 23 insertions(+)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 3f5bb7cf96..52f3cd1fef 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -283,6 +283,12 @@ func libpreinit() {
+ func mpreinit(mp *m) {
+ 	mp.gsignal = malg(32 * 1024) // OS X wants >= 8K
+ 	mp.gsignal.m = mp
++	if GOOS == "darwin" && GOARCH == "arm64" {
++		// mlock the signal stack to work around a kernel bug where it may
++		// SIGILL when the signal stack is not faulted in while a signal
++		// arrives. See issue 42774.
++		mlock(unsafe.Pointer(mp.gsignal.stack.hi-physPageSize), physPageSize)
++	}
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index a7983be2ef..c63ba8c6cd 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -226,6 +226,13 @@ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
+ }
+ func madvise_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func mlock(addr unsafe.Pointer, n uintptr) {
++	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
++}
++func mlock_trampoline()
++
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func read(fd int32, p unsafe.Pointer, n int32) int32 {
+@@ -465,6 +472,7 @@ func setNonblock(fd int32) {
+ //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_mlock mlock "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
+ 
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 129e1e1a96..9b5b23901d 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -105,6 +105,9 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+ 	POPQ	BP
+ 	RET
+ 
++TEXT runtime·mlock_trampoline(SB), NOSPLIT, $0
++	UNDEF // unimplemented
++
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+ 
+ TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 88cdb281d4..9d4d116c50 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -120,6 +120,12 @@ TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_madvise(SB)
+ 	RET
+ 
++TEXT runtime·mlock_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 len
++	MOVD	0(R0), R0	// arg 1 addr
++	BL	libc_mlock(SB)
++	RET
++
+ TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+ 	MOVD	8(R0), R1	// arg 2 new
+ 	MOVD	16(R0), R2	// arg 3 old

@@ -5,6 +5,19 @@ Date:   Tue Jul 1 09:02:04 2008 -0700
     - minor update
     
     SVN=125471
-
+---
  doc/go_lang.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index b01c730133..4d295e4381 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -305,6 +305,7 @@ type, a function, etc. An identifier must not be a reserved word.
+   a
+   _x
+   ThisIsVariable9
++  αβ
+ 
+ 
+ Reserved words

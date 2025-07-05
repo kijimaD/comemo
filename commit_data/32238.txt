@@ -12,6 +12,17 @@ Date:   Thu Apr 13 18:10:15 2017 +0000
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue10958.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue10958.go b/test/fixedbugs/issue10958.go
+index 9c258a0bce..2b76694138 100644
+--- a/test/fixedbugs/issue10958.go
++++ b/test/fixedbugs/issue10958.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,disabled_see_issue_18589
+ // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.

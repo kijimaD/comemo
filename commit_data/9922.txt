@@ -7,6 +7,19 @@ Date:   Tue Oct 11 13:07:01 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5229052
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9a5e927fc6..29f1916771 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -154,6 +154,7 @@ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net> <kevlar@google.com>
+ Larry Hosken <lahosken@golang.org>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Louis Kruger <louisk@google.com>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>

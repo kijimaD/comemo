@@ -35,6 +35,20 @@ Date:   Wed Jan 27 16:24:14 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/286633
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index 26034c9626..8a8cb4aa8c 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -2,7 +2,7 @@
+ # embedded in a package, that is referenced by a Go assembly function.
+ # See issue 33139.
+ [!gc] skip
+-[!exec:cc] skip
++[!cgo] skip
+ 
+ # External linking is not supported on linux/ppc64.
+ # See: https://github.com/golang/go/issues/8912

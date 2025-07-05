@@ -9,7 +9,127 @@ Date:   Fri Mar 22 12:19:21 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7783046
-
+---
  src/pkg/database/sql/convert.go      | 32 ++++++++++++++++++++++++++++++++
  src/pkg/database/sql/convert_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 62 insertions(+)
+
+diff --git a/src/pkg/database/sql/convert.go b/src/pkg/database/sql/convert.go
+index a12d564bc3..5530a5d905 100644
+--- a/src/pkg/database/sql/convert.go
++++ b/src/pkg/database/sql/convert.go
+@@ -122,6 +122,12 @@ func convertAssign(dest, src interface{}) error {
+ 			}
+ 			*d = s
+ 			return nil
++		case *RawBytes:
++			if d == nil {
++				return errNilPtr
++			}
++			*d = s
++			return nil
+ 		}
+ 	case nil:
+ 		switch d := dest.(type) {
+@@ -131,6 +137,12 @@ func convertAssign(dest, src interface{}) error {
+ 			}
+ 			*d = nil
+ 			return nil
++		case *RawBytes:
++			if d == nil {
++				return errNilPtr
++			}
++			*d = nil
++			return nil
+ 		}
+ 	}
+ 
+@@ -147,6 +159,26 @@ func convertAssign(dest, src interface{}) error {
+ 			*d = fmt.Sprintf("%v", src)
+ 			return nil
+ 		}
++	case *[]byte:
++		sv = reflect.ValueOf(src)
++		switch sv.Kind() {
++		case reflect.Bool,
++			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
++			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
++			reflect.Float32, reflect.Float64:
++			*d = []byte(fmt.Sprintf("%v", src))
++			return nil
++		}
++	case *RawBytes:
++		sv = reflect.ValueOf(src)
++		switch sv.Kind() {
++		case reflect.Bool,
++			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
++			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
++			reflect.Float32, reflect.Float64:
++			*d = RawBytes(fmt.Sprintf("%v", src))
++			return nil
++		}
+ 	case *bool:
+ 		bv, err := driver.Bool.ConvertValue(src)
+ 		if err == nil {
+diff --git a/src/pkg/database/sql/convert_test.go b/src/pkg/database/sql/convert_test.go
+index 9c362d7320..6aedeb0a46 100644
+--- a/src/pkg/database/sql/convert_test.go
++++ b/src/pkg/database/sql/convert_test.go
+@@ -22,6 +22,8 @@ type conversionTest struct {
+ 	wantint   int64
+ 	wantuint  uint64
+ 	wantstr   string
++	wantbytes []byte
++	wantraw   RawBytes
+ 	wantf32   float32
+ 	wantf64   float64
+ 	wanttime  time.Time
+@@ -35,6 +37,8 @@ type conversionTest struct {
+ // Target variables for scanning into.
+ var (
+ 	scanstr    string
++	scanbytes  []byte
++	scanraw    RawBytes
+ 	scanint    int
+ 	scanint8   int8
+ 	scanint16  int16
+@@ -56,6 +60,7 @@ var conversionTests = []conversionTest{
+ 	{s: someTime, d: &scantime, wanttime: someTime},
+ 
+ 	// To strings
++	{s: "string", d: &scanstr, wantstr: "string"},
+ 	{s: []byte("byteslice"), d: &scanstr, wantstr: "byteslice"},
+ 	{s: 123, d: &scanstr, wantstr: "123"},
+ 	{s: int8(123), d: &scanstr, wantstr: "123"},
+@@ -66,6 +71,31 @@ var conversionTests = []conversionTest{
+ 	{s: uint64(123), d: &scanstr, wantstr: "123"},
+ 	{s: 1.5, d: &scanstr, wantstr: "1.5"},
+ 
++	// To []byte
++	{s: nil, d: &scanbytes, wantbytes: nil},
++	{s: "string", d: &scanbytes, wantbytes: []byte("string")},
++	{s: []byte("byteslice"), d: &scanbytes, wantbytes: []byte("byteslice")},
++	{s: 123, d: &scanbytes, wantbytes: []byte("123")},
++	{s: int8(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: int64(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: uint8(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: uint16(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: uint32(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: uint64(123), d: &scanbytes, wantbytes: []byte("123")},
++	{s: 1.5, d: &scanbytes, wantbytes: []byte("1.5")},
++
++	// To RawBytes
++	{s: nil, d: &scanraw, wantraw: nil},
++	{s: []byte("byteslice"), d: &scanraw, wantraw: RawBytes("byteslice")},
++	{s: 123, d: &scanraw, wantraw: RawBytes("123")},
++	{s: int8(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: int64(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: uint8(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: uint16(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: uint32(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: uint64(123), d: &scanraw, wantraw: RawBytes("123")},
++	{s: 1.5, d: &scanraw, wantraw: RawBytes("1.5")},
++
+ 	// Strings to integers
+ 	{s: "255", d: &scanuint8, wantuint: 255},
+ 	{s: "256", d: &scanuint8, wanterr: `converting string "256" to a uint8: strconv.ParseUint: parsing "256": value out of range`},

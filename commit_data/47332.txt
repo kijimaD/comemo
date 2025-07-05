@@ -28,10 +28,324 @@ Date:   Fri Dec 11 17:03:17 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go            | 23 +++++++---
  src/cmd/go/internal/modfetch/cache.go         | 64 ++++++++++++++++++--------
  src/cmd/go/internal/modfetch/fetch.go         | 66 ++++++++++++++++++++++-----
  src/cmd/go/internal/renameio/renameio.go      |  8 +---
  src/cmd/go/internal/renameio/renameio_test.go |  2 +-
  5 files changed, 118 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 41f921641d..d592d70497 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -19,7 +19,7 @@ import (
+ 	"strings"
+ 	"time"
+ 
+-	"cmd/go/internal/renameio"
++	"cmd/go/internal/lockedfile"
+ )
+ 
+ // An ActionID is a cache action key, the hash of a complete description of a
+@@ -294,10 +294,17 @@ func (c *Cache) Trim() {
+ 	// We maintain in dir/trim.txt the time of the last completed cache trim.
+ 	// If the cache has been trimmed recently enough, do nothing.
+ 	// This is the common case.
+-	data, _ := renameio.ReadFile(filepath.Join(c.dir, "trim.txt"))
+-	t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+-	if err == nil && now.Sub(time.Unix(t, 0)) < trimInterval {
+-		return
++	// If the trim file is corrupt, detected if the file can't be parsed, or the
++	// trim time is too far in the future, attempt the trim anyway. It's possible that
++	// the cache was full when the corruption happened. Attempting a trim on
++	// an empty cache is cheap, so there wouldn't be a big performance hit in that case.
++	if data, err := lockedfile.Read(filepath.Join(c.dir, "trim.txt")); err == nil {
++		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
++			lastTrim := time.Unix(t, 0)
++			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
++				return
++			}
++		}
+ 	}
+ 
+ 	// Trim each of the 256 subdirectories.
+@@ -311,7 +318,11 @@ func (c *Cache) Trim() {
+ 
+ 	// Ignore errors from here: if we don't write the complete timestamp, the
+ 	// cache will appear older than it is, and we'll trim it again next time.
+-	renameio.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
++	var b bytes.Buffer
++	fmt.Fprintf(&b, "%d", now.Unix())
++	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
++		return
++	}
+ }
+ 
+ // trimSubdir trims a single cache subdirectory.
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 10f774568d..50a2898f24 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -104,7 +104,9 @@ func DownloadDir(m module.Version) (string, error) {
+ 
+ 	// Check if a .ziphash file exists. It should be created before the
+ 	// zip is extracted, but if it was deleted (by another program?), we need
+-	// to re-calculate it.
++	// to re-calculate it. Note that checkMod will repopulate the ziphash
++	// file if it doesn't exist, but if the module is excluded by checks
++	// through GONOSUMDB or GOPRIVATE, that check and repopulation won't happen.
+ 	ziphashPath, err := CachePath(m, "ziphash")
+ 	if err != nil {
+ 		return dir, err
+@@ -326,7 +328,7 @@ func InfoFile(path, version string) (string, error) {
+ 	}
+ 
+ 	// Stat should have populated the disk cache for us.
+-	file, _, err := readDiskStat(path, version)
++	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -378,7 +380,7 @@ func GoModFile(path, version string) (string, error) {
+ 		return "", err
+ 	}
+ 	// GoMod should have populated the disk cache for us.
+-	file, _, err := readDiskGoMod(path, version)
++	file, err := CachePath(module.Version{Path: path, Version: version}, "mod")
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -590,27 +592,34 @@ func writeDiskCache(file string, data []byte) error {
+ 
+ // rewriteVersionList rewrites the version list in dir
+ // after a new *.mod file has been written.
+-func rewriteVersionList(dir string) {
++func rewriteVersionList(dir string) (err error) {
+ 	if filepath.Base(dir) != "@v" {
+ 		base.Fatalf("go: internal error: misuse of rewriteVersionList")
+ 	}
+ 
+ 	listFile := filepath.Join(dir, "list")
+ 
+-	// We use a separate lockfile here instead of locking listFile itself because
+-	// we want to use Rename to write the file atomically. The list may be read by
+-	// a GOPROXY HTTP server, and if we crash midway through a rewrite (or if the
+-	// HTTP server ignores our locking and serves the file midway through a
+-	// rewrite) it's better to serve a stale list than a truncated one.
+-	unlock, err := lockedfile.MutexAt(listFile + ".lock").Lock()
++	// Lock listfile when writing to it to try to avoid corruption to the file.
++	// Under rare circumstances, for instance, if the system loses power in the
++	// middle of a write it is possible for corrupt data to be written. This is
++	// not a problem for the go command itself, but may be an issue if the the
++	// cache is being served by a GOPROXY HTTP server. This will be corrected
++	// the next time a new version of the module is fetched and the file is rewritten.
++	// TODO(matloob): golang.org/issue/43313 covers adding a go mod verify
++	// command that removes module versions that fail checksums. It should also
++	// remove list files that are detected to be corrupt.
++	f, err := lockedfile.Edit(listFile)
+ 	if err != nil {
+-		base.Fatalf("go: can't lock version list lockfile: %v", err)
++		return err
+ 	}
+-	defer unlock()
+-
++	defer func() {
++		if cerr := f.Close(); cerr != nil && err == nil {
++			err = cerr
++		}
++	}()
+ 	infos, err := os.ReadDir(dir)
+ 	if err != nil {
+-		return
++		return err
+ 	}
+ 	var list []string
+ 	for _, info := range infos {
+@@ -635,14 +644,29 @@ func rewriteVersionList(dir string) {
+ 		buf.WriteString(v)
+ 		buf.WriteString("\n")
+ 	}
+-	old, _ := renameio.ReadFile(listFile)
+-	if bytes.Equal(buf.Bytes(), old) {
+-		return
++	if fi, err := f.Stat(); err == nil && int(fi.Size()) == buf.Len() {
++		old := make([]byte, buf.Len()+1)
++		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old) {
++			return nil // No edit needed.
++		}
+ 	}
+-
+-	if err := renameio.WriteFile(listFile, buf.Bytes(), 0666); err != nil {
+-		base.Fatalf("go: failed to write version list: %v", err)
++	// Remove existing contents, so that when we truncate to the actual size it will zero-fill,
++	// and we will be able to detect (some) incomplete writes as files containing trailing NUL bytes.
++	if err := f.Truncate(0); err != nil {
++		return err
+ 	}
++	// Reserve the final size and zero-fill.
++	if err := f.Truncate(int64(buf.Len())); err != nil {
++		return err
++	}
++	// Write the actual contents. If this fails partway through,
++	// the remainder of the file should remain as zeroes.
++	if _, err := f.Write(buf.Bytes()); err != nil {
++		f.Truncate(0)
++		return err
++	}
++
++	return nil
+ }
+ 
+ func checkCacheDir() error {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 7b4ce2154c..4ee490c5ea 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -8,6 +8,8 @@ import (
+ 	"archive/zip"
+ 	"bytes"
+ 	"context"
++	"crypto/sha256"
++	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -296,12 +298,6 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 		}
+ 	}
+ 
+-	// Sync the file before renaming it: otherwise, after a crash the reader may
+-	// observe a 0-length file instead of the actual contents.
+-	// See https://golang.org/issue/22397#issuecomment-380831736.
+-	if err := f.Sync(); err != nil {
+-		return err
+-	}
+ 	if err := f.Close(); err != nil {
+ 		return err
+ 	}
+@@ -332,7 +328,21 @@ func hashZip(mod module.Version, zipfile, ziphashfile string) error {
+ 	if err := checkModSum(mod, hash); err != nil {
+ 		return err
+ 	}
+-	return renameio.WriteFile(ziphashfile, []byte(hash), 0666)
++	hf, err := lockedfile.Create(ziphashfile)
++	if err != nil {
++		return err
++	}
++	if err := hf.Truncate(int64(len(hash))); err != nil {
++		return err
++	}
++	if _, err := hf.WriteAt([]byte(hash), 0); err != nil {
++		return err
++	}
++	if err := hf.Close(); err != nil {
++		return err
++	}
++
++	return nil
+ }
+ 
+ // makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+@@ -483,11 +493,24 @@ func checkMod(mod module.Version) {
+ 	if err != nil {
+ 		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+-	data, err := renameio.ReadFile(ziphash)
++	data, err := lockedfile.Read(ziphash)
+ 	if err != nil {
+ 		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+-	h := strings.TrimSpace(string(data))
++	data = bytes.TrimSpace(data)
++	if !isValidSum(data) {
++		// Recreate ziphash file from zip file and use that to check the mod sum.
++		zip, err := CachePath(mod, "zip")
++		if err != nil {
++			base.Fatalf("verifying %v", module.VersionError(mod, err))
++		}
++		err = hashZip(mod, zip, ziphash)
++		if err != nil {
++			base.Fatalf("verifying %v", module.VersionError(mod, err))
++		}
++		return
++	}
++	h := string(data)
+ 	if !strings.HasPrefix(h, "h1:") {
+ 		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
+ 	}
+@@ -632,11 +655,32 @@ func Sum(mod module.Version) string {
+ 	if err != nil {
+ 		return ""
+ 	}
+-	data, err := renameio.ReadFile(ziphash)
++	data, err := lockedfile.Read(ziphash)
+ 	if err != nil {
+ 		return ""
+ 	}
+-	return strings.TrimSpace(string(data))
++	data = bytes.TrimSpace(data)
++	if !isValidSum(data) {
++		return ""
++	}
++	return string(data)
++}
++
++// isValidSum returns true if data is the valid contents of a zip hash file.
++// Certain critical files are written to disk by first truncating
++// then writing the actual bytes, so that if the write fails
++// the corrupt file should contain at least one of the null
++// bytes written by the truncate operation.
++func isValidSum(data []byte) bool {
++	if bytes.IndexByte(data, '\000') >= 0 {
++		return false
++	}
++
++	if len(data) != len("h1:")+base64.StdEncoding.EncodedLen(sha256.Size) {
++		return false
++	}
++
++	return true
+ }
+ 
+ // WriteGoSum writes the go.sum file if it needs to be updated.
+diff --git a/src/cmd/go/internal/renameio/renameio.go b/src/cmd/go/internal/renameio/renameio.go
+index 9788171d6e..811f4573a0 100644
+--- a/src/cmd/go/internal/renameio/renameio.go
++++ b/src/cmd/go/internal/renameio/renameio.go
+@@ -31,12 +31,6 @@ func Pattern(filename string) string {
+ //
+ // That ensures that the final location, if it exists, is always a complete file.
+ func WriteFile(filename string, data []byte, perm fs.FileMode) (err error) {
+-	return WriteToFile(filename, bytes.NewReader(data), perm)
+-}
+-
+-// WriteToFile is a variant of WriteFile that accepts the data as an io.Reader
+-// instead of a slice.
+-func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error) {
+ 	f, err := tempFile(filepath.Dir(filename), filepath.Base(filename), perm)
+ 	if err != nil {
+ 		return err
+@@ -51,7 +45,7 @@ func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error)
+ 		}
+ 	}()
+ 
+-	if _, err := io.Copy(f, data); err != nil {
++	if _, err := io.Copy(f, bytes.NewReader(data)); err != nil {
+ 		return err
+ 	}
+ 	// Sync the file before renaming it: otherwise, after a crash the reader may
+diff --git a/src/cmd/go/internal/renameio/renameio_test.go b/src/cmd/go/internal/renameio/renameio_test.go
+index dc3c1415db..1c8d7e311d 100644
+--- a/src/cmd/go/internal/renameio/renameio_test.go
++++ b/src/cmd/go/internal/renameio/renameio_test.go
+@@ -82,7 +82,7 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
+ 			}
+ 
+ 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
+-			data, err := ReadFile(path)
++			data, err := robustio.ReadFile(path)
+ 			if err == nil {
+ 				atomic.AddInt64(&readSuccesses, 1)
+ 			} else if robustio.IsEphemeralError(err) {

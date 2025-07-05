@@ -9,7 +9,47 @@ Date:   Sun Dec 28 19:18:54 2014 -0500
     Change-Id: I0dbbdded7f7924351c3d1841d60cb5c934b295b7
     Reviewed-on: https://go-review.googlesource.com/2143
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/gc/typecheck.c      |  4 ++++
  test/fixedbugs/issue8501.go | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index bc4214e37d..4512767c38 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1233,6 +1233,10 @@ reswitch:
+ 		ok |= Erv;
+ 		if(count(n->list) == 1) {
+ 			typechecklist(n->list, Efnstruct);
++			if(n->list->n->op != OCALLFUNC && n->list->n->op != OCALLMETH) {
++				yyerror("invalid operation: complex expects two arguments");
++				goto error;
++			}
+ 			t = n->list->n->left->type;
+ 			if(t->outtuple != 2) {
+ 				yyerror("invalid operation: complex expects two arguments, %N returns %d results", n->list->n, t->outtuple);
+diff --git a/test/fixedbugs/issue8501.go b/test/fixedbugs/issue8501.go
+new file mode 100644
+index 0000000000..90ba096be3
+--- /dev/null
++++ b/test/fixedbugs/issue8501.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct {
++	f float64
++}
++
++var t T
++
++func F() {
++	_ = complex(1.0) // ERROR "invalid operation|not enough arguments"
++	_ = complex(t.f) // ERROR "invalid operation|not enough arguments"
++}

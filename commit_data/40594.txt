@@ -18,7 +18,37 @@ Date:   Fri May 31 16:58:44 2019 +1000
     Change-Id: Ia3b67d8cee860ceb7caf8748cb7a80ff9c6276e0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/179581
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover.go         | 3 +++
  src/cmd/cover/testdata/test.go | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 1748606c5e..e04c8834bd 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -386,6 +386,9 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt,
+ 		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
+ 		return
+ 	}
++	// Make a copy of the list, as we may mutate it and should leave the
++	// existing list intact.
++	list = append([]ast.Stmt(nil), list...)
+ 	// We have a block (statement list), but it may have several basic blocks due to the
+ 	// appearance of statements that affect the flow of control.
+ 	for {
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+index 0b03ef91ab..b794962205 100644
+--- a/src/cmd/cover/testdata/test.go
++++ b/src/cmd/cover/testdata/test.go
+@@ -132,6 +132,10 @@ func testBlockRun() {
+ 
+ func testSwitch() {
+ 	for i := 0; i < 5; func() { i++; check(LINE, 5) }() {
++		goto label2
++	label1:
++		goto label1
++	label2:
+ 		switch i {
+ 		case 0:
+ 			check(LINE, 1)

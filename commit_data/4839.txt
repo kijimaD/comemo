@@ -7,7 +7,7 @@ Date:   Wed Feb 10 15:01:02 2010 -0800
     R=kaib
     CC=golang-dev
     https://golang.org/cl/206059
-
+---
  src/cmd/5l/5.out.h              |   9 +-
  src/cmd/5l/Makefile             |   2 +
  src/cmd/5l/asm.c                | 757 +++++++++++++++++++++++++++-------------
@@ -20,3 +20,1321 @@ Date:   Wed Feb 10 15:01:02 2010 -0800
  test/run                        |   8 +-
  test/run-arm                    |  25 +-
  11 files changed, 742 insertions(+), 273 deletions(-)
+
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 07f0596fbd..c06441c1cb 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -232,10 +232,10 @@ enum	as
+ 
+ #define	D_SHIFT		(D_NONE+19)
+ #define	D_FPCR		(D_NONE+20)
+-#define D_REGREG	(D_NONE+21)
+-#define D_ADDR		(D_NONE+22)
++#define	D_REGREG	(D_NONE+21)
++#define	D_ADDR		(D_NONE+22)
+ 
+-#define D_SBIG		(D_NONE+23)
++#define	D_SBIG		(D_NONE+23)
+ #define	D_CONST2	(D_NONE+24)
+ 
+ /* name */
+@@ -244,6 +244,9 @@ enum	as
+ #define	D_AUTO		(D_NONE+5)
+ #define	D_PARAM		(D_NONE+6)
+ 
++/* internal only */
++#define	D_SIZE		(D_NONE+40)
++
+ /*
+  * this is the ranlib header
+  */
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index aa175d14c6..b9780f098d 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -9,6 +9,7 @@ TARG=\
+ 
+ OFILES=\
+ 	asm.$O\
++	elf.$O\
+ 	enam.$O\
+ 	lib.$O\
+ 	list.$O\
+@@ -24,6 +25,7 @@ OFILES=\
+ HFILES=\
+ 	l.h\
+ 	../5l/5.out.h\
++	../ld/elf.h\
+ 
+ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 498e71b5ac..143a4076d1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -30,11 +30,14 @@
+ 
+ #include	"l.h"
+ #include	"../ld/lib.h"
++#include	"../ld/elf.h"
+ 
+ int32	OFFSET;
+ 
+ static Prog *PP;
+ 
++char linuxdynld[] = "/lib/ld-linux.so.2";
++
+ int32
+ entryvalue(void)
+ {
+@@ -60,16 +63,310 @@ entryvalue(void)
+ 	return s->value;
+ }
+ 
++vlong
++addstring(Sym *s, char *str)
++{
++	int n, m;
++	vlong r;
++	Prog *p;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	n = strlen(str)+1;
++	while(n > 0) {
++		m = n;
++		if(m > NSNAME)
++			m = NSNAME;
++		p = newdata(s, s->value, m, D_EXTERN);
++		p->to.type = D_SCONST;
++		p->to.sval = mal(NSNAME);
++		memmove(p->to.sval, str, m);
++		s->value += m;
++		str += m;
++		n -= m;
++	}
++	return r;
++}
++
++vlong
++adduintxx(Sym *s, uint64 v, int wid)
++{
++	vlong r;
++	Prog *p;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, wid, D_EXTERN);
++	s->value += wid;
++	p->to.type = D_CONST;
++	p->to.offset = v;
++	return r;
++}
++
++vlong
++adduint8(Sym *s, uint8 v)
++{
++	return adduintxx(s, v, 1);
++}
++
++vlong
++adduint16(Sym *s, uint16 v)
++{
++	return adduintxx(s, v, 2);
++}
++
++vlong
++adduint32(Sym *s, uint32 v)
++{
++	return adduintxx(s, v, 4);
++}
++
++vlong
++adduint64(Sym *s, uint64 v)
++{
++	return adduintxx(s, v, 8);
++}
++
++vlong
++addaddr(Sym *s, Sym *t)
++{
++	vlong r;
++	Prog *p;
++	enum { Ptrsize = 4 };
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, Ptrsize, D_EXTERN);
++	s->value += Ptrsize;
++	p->to.type = D_ADDR;
++	p->to.index = D_EXTERN;
++	p->to.offset = 0;
++	p->to.sym = t;
++	return r;
++}
++
++vlong
++addsize(Sym *s, Sym *t)
++{
++	vlong r;
++	Prog *p;
++	enum { Ptrsize = 4 };
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, Ptrsize, D_EXTERN);
++	s->value += Ptrsize;
++	p->to.type = D_SIZE;
++	p->to.index = D_EXTERN;
++	p->to.offset = 0;
++	p->to.sym = t;
++	return r;
++}
++
++enum {
++	ElfStrEmpty,
++	ElfStrInterp,
++	ElfStrHash,
++	ElfStrGot,
++	ElfStrGotPlt,
++	ElfStrDynamic,
++	ElfStrDynsym,
++	ElfStrDynstr,
++	ElfStrRel,
++	ElfStrText,
++	ElfStrData,
++	ElfStrBss,
++	ElfStrGosymtab,
++	ElfStrGopclntab,
++	ElfStrShstrtab,
++	NElfStr
++};
++
++vlong elfstr[NElfStr];
++
++void
++doelf(void)
++{
++	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
++	int h, nsym, t;
++
++	if(!iself)
++		return;
++
++	/* predefine strings we need for section headers */
++	shstrtab = lookup(".shstrtab", 0);
++	shstrtab->reachable = 1;
++	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
++	elfstr[ElfStrText] = addstring(shstrtab, ".text");
++	elfstr[ElfStrData] = addstring(shstrtab, ".data");
++	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	if(!debug['s']) {
++		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
++		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
++	}
++	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
++
++	if(!debug['d']) {	/* -d suppresses dynamic loader format */
++		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
++		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
++		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
++		elfstr[ElfStrGotPlt] = addstring(shstrtab, ".got.plt");
++		elfstr[ElfStrDynamic] = addstring(shstrtab, ".dynamic");
++		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
++		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
++		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
++
++		/* interpreter string */
++		s = lookup(".interp", 0);
++		s->reachable = 1;
++		s->type = SDATA;	// TODO: rodata
++
++		/* dynamic symbol table - first entry all zeros */
++		s = lookup(".dynsym", 0);
++		s->type = SDATA;
++		s->reachable = 1;
++		s->value += ELF32SYMSIZE;
++
++		/* dynamic string table */
++		s = lookup(".dynstr", 0);
++		addstring(s, "");
++		dynstr = s;
++
++		/* relocation table */
++		s = lookup(".rel", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* global offset table */
++		s = lookup(".got", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* got.plt - ??? */
++		s = lookup(".got.plt", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* define dynamic elf table */
++		s = lookup(".dynamic", 0);
++		dynamic = s;
++
++		/*
++		 * relocation entries for dynld symbols
++		 */
++		nsym = 1;	// sym 0 is reserved
++		for(h=0; h<NHASH; h++) {
++			for(s=hash[h]; s!=S; s=s->link) {
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++					continue;
++			#if 0
++				d = lookup(".rel", 0);
++				addaddr(d, s);
++				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
++				nsym++;
++
++				d = lookup(".dynsym", 0);
++				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
++				adduint32(d, 0);	/* value */
++				adduint32(d, 0);	/* size of object */
++				t = STB_GLOBAL << 4;
++				t |= STT_OBJECT;	// works for func too, empirically
++				adduint8(d, t);
++				adduint8(d, 0);	/* reserved */
++				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
++
++				if(needlib(s->dynldlib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
++			#endif
++			}
++		}
++
++		/*
++		 * hash table.
++		 * only entries that other objects need to find when
++		 * linking us need to be in the table.  right now that is
++		 * no entries.
++		 *
++		 * freebsd insists on having chains enough for all
++		 * the local symbols, though.  for now, we just lay
++		 * down a trivial hash table with 1 bucket and a long chain,
++		 * because no one is actually looking for our symbols.
++		 */
++		s = lookup(".hash", 0);
++		s->type = SDATA;	// TODO: rodata
++		s->reachable = 1;
++		adduint32(s, 1);	// nbucket
++		adduint32(s, nsym);	// nchain
++		adduint32(s, nsym-1);	// bucket 0
++		adduint32(s, 0);	// chain 0
++		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
++			adduint32(s, h-1);
++
++		/*
++		 * .dynamic table
++		 */
++		s = dynamic;
++		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
++		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
++		elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
++		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
++		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
++		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
++		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
++		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
++		elfwritedynent(s, DT_NULL, 0);
++	}
++}
++
++vlong
++datoff(vlong addr)
++{
++	if(addr >= INITDAT)
++		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
++	diag("datoff %#llx", addr);
++	return 0;
++}
++
++void
++shsym(Elf64_Shdr *sh, Sym *s)
++{
++	sh->addr = s->value + INITDAT;
++	sh->off = datoff(sh->addr);
++	sh->size = s->size;
++}
++
++void
++phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
++{
++	ph->vaddr = sh->addr;
++	ph->paddr = ph->vaddr;
++	ph->off = sh->off;
++	ph->filesz = sh->size;
++	ph->memsz = sh->size;
++	ph->align = sh->addralign;
++}
++
+ void
+ asmb(void)
+ {
+ 	Prog *p;
+ 	int32 t, etext;
+-	int np;
+-	vlong va, fo, w, symo;
++	int a, dynsym;
++	uint32 va, fo, w, symo, startva;
+ 	int strtabsize;
+ 	vlong symdatva = SYMDATVA;
+ 	Optab *o;
++	ElfEhdr *eh;
++	ElfPhdr *ph, *pph;
++	ElfShdr *sh;
+ 
+ 	strtabsize = 0;
+ 	symo = 0;
+@@ -135,11 +432,8 @@ asmb(void)
+ 		seek(cout, OFFSET, 0);
+ 		break;
+ 	case 6:
+-		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+-		strtabsize = linuxstrtable();
+-		cflush();
+-		t = rnd(HEADR+textsize, INITRND);
+-		seek(cout, t, 0);
++		OFFSET = rnd(HEADR+textsize, INITRND);
++		seek(cout, OFFSET, 0);
+ 		break;
+ 	}
+ 	if(dlm){
+@@ -275,179 +569,242 @@ asmb(void)
+ 		break;
+ 	case 6:
+ 		/* elf arm */
+-		strnput("\177ELF", 4);		/* e_ident */
+-		cput(1);			/* class = 32 bit */
+-		cput(1);			/* data = LSB */
+-		cput(1);			/* version = CURRENT */
+-		strnput("", 9);
+-
+-		wputl(2);			/* type = EXEC */
+-		wputl(40);			/* machine = ARM */
+-		lputl(1L);			/* version = CURRENT */
+-		lputl(entryvalue());		/* entry vaddr */
+-		lputl(52L);			/* offset to first phdr */
+-		np = 3;
+-		if(!debug['s'])
+-			np++;
+-		lputl(52L+32*np);		/* offset to first shdr */
+-		lputl(0L);			/* processor specific flags */
+-		wputl(52);			/* Ehdr size */
+-		wputl(32);			/* Phdr size */
+-		wputl(np);			/* # of Phdrs */
+-		wputl(40);			/* Shdr size */
+-		if (!debug['s'])
+-			wputl(7);			/* # of Shdrs */
+-		else
+-			wputl(5);			/* # of Shdrs */
+-		wputl(4);			/* Shdr with strings */
+-
++		eh = getElfEhdr();
+ 		fo = HEADR;
+-		va = rnd(INITTEXT, INITRND);
+-
++		va = INITTEXT;
++		startva = INITTEXT - fo;	/* va of byte 0 of file */
+ 		w = textsize;
++		
++		/* This null SHdr must appear before all others */
++		sh = newElfShdr(elfstr[ElfStrEmpty]);
++
++		/* program header info */
++		pph = newElfPhdr();
++		pph->type = PT_PHDR;
++		pph->flags = PF_R + PF_X;
++		pph->off = eh->ehsize;
++		pph->vaddr = INITTEXT - HEADR + pph->off;
++		pph->paddr = INITTEXT - HEADR + pph->off;
++		pph->align = INITRND;
++
++		if(!debug['d']) {
++			/* interpreter for dynamic linking */
++			sh = newElfShdr(elfstr[ElfStrInterp]);
++			sh->type = SHT_PROGBITS;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 1;
++			elfinterp(sh, startva, linuxdynld);
++
++			ph = newElfPhdr();
++			ph->type = PT_INTERP;
++			ph->flags = PF_R;
++			phsh(ph, sh);
++		}
+ 
+-		linuxphdr(1,			/* text - type = PT_LOAD */
+-			1L+4L,			/* text - flags = PF_X+PF_R */
+-			fo,			/* file offset */
+-			va,			/* vaddr */
+-			va,			/* paddr */
+-			w,			/* file size */
+-			w,			/* memory size */
+-			INITRND);		/* alignment */
++		ph = newElfPhdr();
++		ph->type = PT_LOAD;
++		ph->flags = PF_X+PF_R;
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->off = fo;
++		ph->filesz = w;
++		ph->memsz = w;
++		ph->align = INITRND;
+ 
+ 		fo = rnd(fo+w, INITRND);
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+-		linuxphdr(1,			/* data - type = PT_LOAD */
+-			2L+4L,			/* data - flags = PF_W+PF_R */
+-			fo,			/* file offset */
+-			va,			/* vaddr */
+-			va,			/* paddr */
+-			w,			/* file size */
+-			w+bsssize,		/* memory size */
+-			INITRND);		/* alignment */
++		ph = newElfPhdr();
++		ph->type = PT_LOAD;
++		ph->flags = PF_W+PF_R;
++		ph->off = fo;
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->filesz = w;
++		ph->memsz = w+bsssize;
++		ph->align = INITRND;
+ 
+ 		if(!debug['s']) {
+-			linuxphdr(1,			/* data - type = PT_LOAD */
+-				2L+4L,			/* data - flags = PF_W+PF_R */
+-				symo,		/* file offset */
+-				symdatva,			/* vaddr */
+-				symdatva,			/* paddr */
+-				8+symsize+lcsize,			/* file size */
+-				8+symsize+lcsize,		/* memory size */
+-				INITRND);		/* alignment */
++			ph = newElfPhdr();
++			ph->type = PT_LOAD;
++			ph->flags = PF_W+PF_R;
++			ph->off = symo;
++			ph->vaddr = symdatva;
++			ph->paddr = symdatva;
++			ph->filesz = 8+symsize+lcsize;
++			ph->memsz = 8+symsize+lcsize;
++			ph->align = INITRND;
+ 		}
+ 
+-		linuxphdr(0x6474e551,		/* gok - type = gok */
+-			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
+-			0,			/* file offset */
+-			0,			/* vaddr */
+-			0,			/* paddr */
+-			0,			/* file size */
+-			0,			/* memory size */
+-			8);			/* alignment */
+-
+-		linuxshdr(nil,			/* name */
+-			0,			/* type */
+-			0,			/* flags */
+-			0,			/* addr */
+-			0,			/* off */
+-			0,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			0,			/* align */
+-			0);			/* entsize */
+-
+-		stroffset = 1;  /* 0 means no name, so start at 1 */
+-		fo = HEADR;
+-		va = rnd(INITTEXT, INITRND);
++		/* Dynamic linking sections */
++		if (!debug['d']) {	/* -d suppresses dynamic loader format */
++			/* S headers for dynamic linking */
++			sh = newElfShdr(elfstr[ElfStrGot]);
++			sh->type = SHT_PROGBITS;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 4;
++			sh->addralign = 4;
++			shsym(sh, lookup(".got", 0));
++
++			sh = newElfShdr(elfstr[ElfStrGotPlt]);
++			sh->type = SHT_PROGBITS;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 4;
++			sh->addralign = 4;
++			shsym(sh, lookup(".got.plt", 0));
++
++			dynsym = eh->shnum;
++			sh = newElfShdr(elfstr[ElfStrDynsym]);
++			sh->type = SHT_DYNSYM;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = ELF32SYMSIZE;
++			sh->addralign = 4;
++			sh->link = dynsym+1;	// dynstr
++			// sh->info = index of first non-local symbol (number of local symbols)
++			shsym(sh, lookup(".dynsym", 0));
++
++			sh = newElfShdr(elfstr[ElfStrDynstr]);
++			sh->type = SHT_STRTAB;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 1;
++			shsym(sh, lookup(".dynstr", 0));
++
++			sh = newElfShdr(elfstr[ElfStrHash]);
++			sh->type = SHT_HASH;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = 4;
++			sh->addralign = 4;
++			sh->link = dynsym;
++			shsym(sh, lookup(".hash", 0));
++
++			sh = newElfShdr(elfstr[ElfStrRel]);
++			sh->type = SHT_REL;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = ELF32RELSIZE;
++			sh->addralign = 4;
++			sh->link = dynsym;
++			shsym(sh, lookup(".rel", 0));
++
++			/* sh and PT_DYNAMIC for .dynamic section */
++			sh = newElfShdr(elfstr[ElfStrDynamic]);
++			sh->type = SHT_DYNAMIC;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 8;
++			sh->addralign = 4;
++			sh->link = dynsym+1;	// dynstr
++			shsym(sh, lookup(".dynamic", 0));
++
++			ph = newElfPhdr();
++			ph->type = PT_DYNAMIC;
++			ph->flags = PF_R + PF_W;
++			phsh(ph, sh);
++
++			/*
++			 * Thread-local storage segment (really just size).
++			if(tlsoffset != 0) {
++				ph = newElfPhdr();
++				ph->type = PT_TLS;
++				ph->flags = PF_R;
++				ph->memsz = -tlsoffset;
++				ph->align = 4;
++			}
++			 */
++		}
++
++		ph = newElfPhdr();
++		ph->type = PT_GNU_STACK;
++		ph->flags = PF_W+PF_R;
++		ph->align = 4;
++
++		fo = ELFRESERVE;
++		va = startva + fo;
+ 		w = textsize;
+ 
+-		linuxshdr(".text",		/* name */
+-			1,			/* type */
+-			6,			/* flags */
+-			va,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			8,			/* align */
+-			0);			/* entsize */
++		sh = newElfShdr(elfstr[ElfStrText]);
++		sh->type = SHT_PROGBITS;
++		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
++		sh->addr = va;
++		sh->off = fo;
++		sh->size = w;
++		sh->addralign = 4;
+ 
+ 		fo = rnd(fo+w, INITRND);
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+-		linuxshdr(".data",		/* name */
+-			1,			/* type */
+-			3,			/* flags */
+-			va,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			8,			/* align */
+-			0);			/* entsize */
++		sh = newElfShdr(elfstr[ElfStrData]);
++		sh->type = SHT_PROGBITS;
++		sh->flags = SHF_WRITE+SHF_ALLOC;
++		sh->addr = va;
++		sh->off = fo;
++		sh->size = w;
++		sh->addralign = 4;
+ 
+ 		fo += w;
+ 		va += w;
+ 		w = bsssize;
+ 
+-		linuxshdr(".bss",		/* name */
+-			8,			/* type */
+-			3,			/* flags */
+-			va,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			8,			/* align */
+-			0);			/* entsize */
+-
+-		w = strtabsize;
+-
+-		linuxshdr(".shstrtab",		/* name */
+-			3,			/* type */
+-			0,			/* flags */
+-			0,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			1,			/* align */
+-			0);			/* entsize */
+-
+-		if (debug['s'])
+-			break;
+-
+-		fo = symo+8;
+-		w = symsize;
++		sh = newElfShdr(elfstr[ElfStrBss]);
++		sh->type = SHT_NOBITS;
++		sh->flags = SHF_WRITE+SHF_ALLOC;
++		sh->addr = va;
++		sh->off = fo;
++		sh->size = w;
++		sh->addralign = 4;
++
++		if (!debug['s']) {
++			fo = symo+8;
++			w = symsize;
++
++			sh = newElfShdr(elfstr[ElfStrGosymtab]);
++			sh->type = SHT_PROGBITS;
++			sh->off = fo;
++			sh->size = w;
++			sh->addralign = 1;
++
++			fo += w;
++			w = lcsize;
++
++			sh = newElfShdr(elfstr[ElfStrGopclntab]);
++			sh->type = SHT_PROGBITS;
++			sh->off = fo;
++			sh->size = w;
++			sh->addralign = 1;
++		}
+ 
+-		linuxshdr(".gosymtab",		/* name */
+-			1,			/* type 1 = SHT_PROGBITS */
+-			0,			/* flags */
+-			0,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			1,			/* align */
+-			24);			/* entsize */
++		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
++		sh->type = SHT_STRTAB;
++		sh->addralign = 1;
++		shsym(sh, lookup(".shstrtab", 0));
++
++		/* Main header */
++		eh->ident[EI_MAG0] = '\177';
++		eh->ident[EI_MAG1] = 'E';
++		eh->ident[EI_MAG2] = 'L';
++		eh->ident[EI_MAG3] = 'F';
++		eh->ident[EI_CLASS] = ELFCLASS32;
++		eh->ident[EI_DATA] = ELFDATA2LSB;
++		eh->ident[EI_VERSION] = EV_CURRENT;
++
++		eh->type = ET_EXEC;
++		eh->machine = EM_ARM;
++		eh->version = EV_CURRENT;
++		eh->entry = entryvalue();
++
++		if(pph != nil) {
++			pph->filesz = eh->phnum * eh->phentsize;
++			pph->memsz = pph->filesz;
++		}
+ 
+-		fo += w;
+-		w = lcsize;
+-
+-		linuxshdr(".gopclntab",		/* name */
+-			1,			/* type 1 = SHT_PROGBITS*/
+-			0,			/* flags */
+-			0,			/* addr */
+-			fo,			/* off */
+-			w,			/* size */
+-			0,			/* link */
+-			0,			/* info */
+-			1,			/* align */
+-			24);			/* entsize */
++		seek(cout, 0, 0);
++		a = 0;
++		a += elfwritehdr();
++		a += elfwritephdrs();
++		a += elfwriteshdrs();
++		cflush();
++		if(a+elfwriteinterp() > ELFRESERVE)
++			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+ 	cflush();
+@@ -920,7 +1277,10 @@ datblk(int32 s, int32 n, int str)
+ 					break;
+ 				case SDATA:
+ 				case SBSS:
+-					d += v->value + INITDAT;
++					if(p->to.type == D_SIZE)
++						d += v->size;
++					else
++						d += v->value + INITDAT;
+ 					break;
+ 				}
+ 				if(dlm)
+@@ -2071,90 +2431,3 @@ chipfloat(Ieee *e)
+ 	return -1;
+ }
+ 
+-uint32
+-linuxheadr(void)
+-{
+-	uint32 a;
+-
+-	a = 64;		/* a.out header */
+-
+-	a += 56;	/* page zero seg */
+-	a += 56;	/* text seg */
+-	a += 56;	/* stack seg */
+-
+-	a += 64;	/* nil sect */
+-	a += 64;	/* .text sect */
+-	a += 64;	/* .data seg */
+-	a += 64;	/* .bss sect */
+-	a += 64;	/* .shstrtab sect - strings for headers */
+-	if (!debug['s']) {
+-		a += 56;	/* symdat seg */
+-		a += 64;	/* .gosymtab sect */
+-		a += 64;	/* .gopclntab sect */
+-	}
+-
+-	return a;
+-}
+-
+-void
+-linuxphdr(int type, int flags, vlong foff,
+-	vlong vaddr, vlong paddr,
+-	vlong filesize, vlong memsize, vlong align)
+-{
+-
+-	lputl(type);			/* text - type = PT_LOAD */
+-	lputl(foff);			/* file offset */
+-	lputl(vaddr);			/* vaddr */
+-	lputl(paddr);			/* paddr */
+-	lputl(filesize);		/* file size */
+-	lputl(memsize);		/* memory size */
+-	lputl(flags);			/* text - flags = PF_X+PF_R */
+-	lputl(align);			/* alignment */
+-}
+-
+-void
+-linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+-	vlong size, uint32 link, uint32 info, vlong align, vlong entsize)
+-{
+-	lputl(stroffset);
+-	lputl(type);
+-	lputl(flags);
+-	lputl(addr);
+-	lputl(off);
+-	lputl(size);
+-	lputl(link);
+-	lputl(info);
+-	lputl(align);
+-	lputl(entsize);
+-
+-	if(name != nil)
+-		stroffset += strlen(name)+1;
+-}
+-
+-int
+-putstrtab(char* name)
+-{
+-	int w;
+-
+-	w = strlen(name)+1;
+-	strnput(name, w);
+-	return w;
+-}
+-
+-int
+-linuxstrtable(void)
+-{
+-	int size;
+-
+-	size = 0;
+-	size += putstrtab("");
+-	size += putstrtab(".text");
+-	size += putstrtab(".data");
+-	size += putstrtab(".bss");
+-	size += putstrtab(".shstrtab");
+-	if (!debug['s']) {
+-		size += putstrtab(".gosymtab");
+-		size += putstrtab(".gopclntab");
+-	}
+-	return size;
+-}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 8c00f11c1c..9a54122a71 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -127,6 +127,7 @@ struct	Sym
+ 	uchar	reachable;
+ 	int32	value;
+ 	int32	sig;
++	int32	size;
+ 	uchar	used;
+ 	uchar	thumb;	// thumb code
+ 	uchar	foreign;	// called by arm if thumb, by thumb if arm
+@@ -470,13 +471,20 @@ int	fninc(Sym *);
+ void	thumbcount(void);
+ void reachable(void);
+ void fnptrs(void);
+-
+-uint32	linuxheadr(void);
+-void	linuxphdr(int type, int flags, vlong foff,
+-	vlong vaddr, vlong paddr,
+-	vlong filesize, vlong memsize, vlong align);
+-void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+-	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
+-int	linuxstrtable(void);
++void	doelf(void);
++
++vlong		addaddr(Sym *s, Sym *t);
++vlong		addsize(Sym *s, Sym *t);
++vlong		addstring(Sym *s, char *str);
++vlong		adduint16(Sym *s, uint16 v);
++vlong		adduint32(Sym *s, uint32 v);
++vlong		adduint64(Sym *s, uint64 v);
++vlong		adduint8(Sym *s, uint8 v);
++vlong		adduintxx(Sym *s, uint64 v, int wid);
++
++/* Native is little-endian */
++#define	LPUT(a)	lputl(a)
++#define	WPUT(a)	wputl(a)
++#define	VPUT(a)	abort()
+ 
+ #endif
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 374e3dfd90..9f7aa19c33 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -31,6 +31,7 @@
+ #define	EXTERN
+ #include	"l.h"
+ #include	"../ld/lib.h"
++#include	"../ld/elf.h"
+ #include	<ar.h>
+ 
+ #ifndef	DEFAULT
+@@ -223,9 +224,11 @@ main(int argc, char *argv[])
+ 			INITRND = 1024;
+ 		break;
+ 	case 6:	/* arm elf */
+-		HEADR = linuxheadr();
++		debug['d'] = 1;	// no dynamic linking
++		elfinit();
++		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+-			INITTEXT = 0x8000;
++			INITTEXT = 0x8000 + HEADR;
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+@@ -300,12 +303,15 @@ main(int argc, char *argv[])
+ 			doprof2();
+ 	if(debug['u'])
+ 		reachable();
++	doelf();
+ 	dodata();
+ 	if(seenthumb && debug['f'])
+ 		fnptrs();
+ 	follow();
+-	if(firstp == P)
+-		goto out;
++	if(firstp == P) {
++		diag("no code");
++		errorexit();
++	}
+ 	softfloat();
+ 	noops();
+ 	span();
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index f05cca2639..42fb3f720f 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -92,6 +92,7 @@ dodata(void)
+ 		}
+ 		while(v & 3)
+ 			v++;
++		s->size = v;
+ 		s->value = v;
+ 		if(v > MINSIZ)
+ 			continue;
+@@ -113,6 +114,7 @@ dodata(void)
+ 			continue;
+ 		}
+ 		v = s->value;
++		s->size = v;
+ 		s->value = orig;
+ 		orig += v;
+ 	}
+@@ -130,6 +132,7 @@ dodata(void)
+ 		if(s->type != SBSS)
+ 			continue;
+ 		v = s->value;
++		s->size = v;
+ 		s->value = orig;
+ 		orig += v;
+ 	}
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 218bdd8f0d..78c03db3e5 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -16,6 +16,7 @@
+ 
+ #define SYS_exit (SYS_BASE + 1)
+ #define SYS_write (SYS_BASE + 4)
++#define SYS_gettimeofday (SYS_BASE + 78)
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_mmap2 (SYS_BASE + 192)
+ #define SYS_gettid (SYS_BASE + 224)
+@@ -60,6 +61,33 @@ TEXT ·mmap(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT gettime(SB),7,$32
++	/* dummy version - return 0,0 */
++	MOVW	$0, R1
++	MOVW	0(FP), R0
++	MOVW	R1, 0(R0)
++	MOVW	R1, 4(R0)
++	MOVW	4(FP), R0
++	MOVW	R1, 0(R0)
++
++/*
++	attempt at real version - seg faults
++
++	MOVW	$8(SP), R0
++	MOVW	$0, R1
++	MOVW	$SYS_gettimeofday, R7
++	SWI	$0
++
++	MOVW	0(FP), R0	// sec
++	MOVW	8(SP), R1
++	MOVW	R1, 0(R0)
++
++	MOVW	4(FP), R0	// usec
++	MOVW	12(SP), R1
++	MOVW	R1, 0(R0)
++*/
++	RET
++
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT futex(SB),7,$0
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index b1f5a79ab5..c2dae8c0d6 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -133,7 +133,6 @@ fixedbugs/bug120.go
+ fixedbugs/bug121.go
+ fixedbugs/bug122.go
+ fixedbugs/bug123.go
+-fixedbugs/bug125.go
+ fixedbugs/bug126.go
+ fixedbugs/bug127.go
+ fixedbugs/bug128.go
+@@ -171,7 +170,6 @@ fixedbugs/bug161.go
+ fixedbugs/bug163.go
+ fixedbugs/bug164.go
+ fixedbugs/bug165.go
+-fixedbugs/bug166.go
+ fixedbugs/bug167.go
+ fixedbugs/bug168.go
+ fixedbugs/bug169.go
+@@ -287,7 +285,6 @@ method3.go
+ named1.go
+ nil.go
+ parentype.go
+-peano.go
+ printbig.go
+ range.go
+ rename1.go
+@@ -304,4 +301,3 @@ turing.go
+ utf.go
+ varinit.go
+ vectors.go
+-x.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+new file mode 100644
+index 0000000000..e4cb19e167
+--- /dev/null
++++ b/test/golden-arm.out
+@@ -0,0 +1,141 @@
++
++=========== 64bit.go
++BUG: 64bit
++
++=========== chan/nonblock.go
++PASS
++
++=========== cmp2.go
++comparing uncomparable type []int
++throw: interface compare
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== cmp3.go
++comparing uncomparable type []int
++throw: interface compare
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== cmp4.go
++hash of unhashable type []int
++throw: interface hash
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== cmp5.go
++hash of unhashable type []int
++throw: interface hash
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== fixedbugs/bug016.go
++fixedbugs/bug016.go:11: constant -3 overflows uint
++
++=========== fixedbugs/bug027.go
++hi
++0 44444
++1 3333
++2 222
++3 11
++4 0
++0 44444
++1 3333
++2 222
++3 11
++4 0
++
++=========== fixedbugs/bug067.go
++ok
++
++=========== fixedbugs/bug070.go
++outer loop top k 0
++inner loop top i 0
++do break
++broke
++
++=========== fixedbugs/bug081.go
++fixedbugs/bug081.go:9: fatal error: typecheck loop
++
++=========== fixedbugs/bug093.go
++M
++
++=========== fixedbugs/bug113.go
++interface is int, not int32
++throw: interface conversion
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== fixedbugs/bug120.go
++Bad float64 const: 123.5 want 123.5 got %¤
++[1]   Segmentation fault      "${@}"
++BUG: bug120
++
++=========== fixedbugs/bug148.go
++2 3
++interface is main.T, not main.T
++throw: interface conversion
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== fixedbugs/bug154.go
++??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
++BUG: should not panic
++
++=========== fixedbugs/bug206.go
++??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
++BUG: bug206
++
++=========== helloworld.go
++hello, world
++
++=========== interface/fail.go
++*main.S is not main.I: missing method Foo
++throw: interface conversion
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== interface/returntype.go
++*main.S is not main.I2: missing method Name
++throw: interface conversion
++
++panic PC=xxx
++[1]   Segmentation fault      "${@}"
++
++=========== ken/intervar.go
++ print 1 bio 2 file 3 -- abc
++
++=========== ken/label.go
++100
++
++=========== ken/rob1.go
++9876543210
++
++=========== ken/rob2.go
++(defn foo (add 12 34))
++
++=========== ken/simpprint.go
++hello world
++
++=========== ken/simpswitch.go
++0out01out12out2aout34out4fiveout56out6aout78out89out9
++
++=========== ken/string.go
++abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
++
++=========== printbig.go
++-9223372036854775808
++9223372036854775807
++
++=========== sigchld.go
++survived SIGCHLD
++
++=========== turing.go
++Hello World!
+diff --git a/test/run b/test/run
+index 6d9a71fcab..74e6a9063f 100755
+--- a/test/run
++++ b/test/run
+@@ -89,10 +89,6 @@ done | # clean up some stack noise
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 
+-case $failed in
+-1)
+-	echo FAIL
+-esac
+ rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+ diffmsg=""
+ if ! diff run.out golden.out
+@@ -106,4 +102,8 @@ inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
+ 
+ echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
+ 
++if [ "$failed" != "0" ]; then
++	echo FAILED
++fi
++
+ exit $failed
+diff --git a/test/run-arm b/test/run-arm
+index 30bc1985ea..0b764a7fa5 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -13,7 +13,7 @@ X386)
+ 	;;
+ Xarm)
+ 	export A=5
+-	export E="qemu-arm -cpu cortex-a8 "
++	export E="${GORUN:-qemu-arm -cpu cortex-a8}"
+ 	;;
+ *)
+ 	echo 1>&2 run: unsupported '$GOARCH'
+@@ -42,20 +42,18 @@ do
+ 	dir=$(dirname $i)
+ 	export D=$dir
+ 	sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
+-	if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
++	if ! sh $RUNFILE >$TMP1FILE 2>&1
+ 	then
+ 		echo
+ 		echo "===========" $i
+ 		cat $TMP1FILE
+-		cat $TMP2FILE
+ 		echo >&2 fail: $i
+ 		touch $FAILEDFILE
+-	elif test -s $TMP1FILE || test -s $TMP2FILE
++	elif test -s $TMP1FILE
+ 	then
+ 		echo
+ 		echo "===========" $i
+ 		cat $TMP1FILE
+-		cat $TMP2FILE
+ 	elif [ $dir = "bugs" ]
+ 	then
+ 		echo $i succeeded with no output.
+@@ -68,16 +66,27 @@ done | # clean up some stack noise
+ 		s/^pc: 0x[0-9a-f]*/pc: xxx/
+ 		/^Trace\/breakpoint trap/d
+ 		/^Trace\/BPT trap/d
++		s!'$GOROOT'!$GOROOT!g
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 
+ failed=0
+-if test -f $FAILEDFILE; then
++rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
++diffmsg=""
++if ! diff run.out golden-arm.out
++then
++	diffmsg="; test output differs"
+ 	failed=1
+-	rm -f $FAILEDFILE
+ fi
+ 
+-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
++notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
++inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
++
++echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
++
++if [ "$failed" != "0" ]; then
++	echo FAILED
++fi
+ 
+ exit $failed

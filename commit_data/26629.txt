@@ -8,8 +8,67 @@ Date:   Thu Feb 4 14:16:58 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/19617
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/obj.go      | 18 ++++++++++++++++++
  src/cmd/internal/obj/objfile.go  |  1 +
  src/cmd/internal/obj/x86/asm6.go |  9 ---------
  3 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index 30ab54912e..343c93a6ee 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -281,3 +281,21 @@ func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
+ func Linkprfile(ctxt *Link, line int) {
+ 	fmt.Printf("%s ", ctxt.LineHist.LineString(line))
+ }
++
++func fieldtrack(ctxt *Link, cursym *LSym) {
++	p := cursym.Text
++	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
++		return
++	}
++	ctxt.Cursym = cursym
++
++	for ; p != nil; p = p.Link {
++		if p.As == AUSEFIELD {
++			r := Addrel(ctxt.Cursym)
++			r.Off = 0
++			r.Siz = 0
++			r.Sym = p.From.Sym
++			r.Type = R_USEFIELD
++		}
++	}
++}
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 8d4a506843..bae64f4a29 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -298,6 +298,7 @@ func Flushplist(ctxt *Link) {
+ 		ctxt.Arch.Follow(ctxt, s)
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
++		fieldtrack(ctxt, s)
+ 		linkpcln(ctxt, s)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 2b71822799..115350637f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4556,15 +4556,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 	ctxt.Andptr = ctxt.And[:]
+ 	ctxt.Asmode = int(p.Mode)
+ 
+-	if p.As == obj.AUSEFIELD {
+-		r := obj.Addrel(ctxt.Cursym)
+-		r.Off = 0
+-		r.Siz = 0
+-		r.Sym = p.From.Sym
+-		r.Type = obj.R_USEFIELD
+-		return
+-	}
+-
+ 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
+ 		switch p.As {
+ 		case obj.ARET:

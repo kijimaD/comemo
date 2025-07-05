@@ -19,7 +19,43 @@ Date:   Tue Feb 28 19:10:44 2023 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/doc.go              | 4 +---
  src/cmd/link/internal/ld/main.go | 2 +-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index a570132714..ce0166faa5 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -18,8 +18,6 @@ Flags:
+ 	-B note
+ 		Add an ELF_NT_GNU_BUILD_ID note when using ELF.
+ 		The value should start with 0x and be an even number of hex digits.
+-	-D address
+-		Set data segment address.
+ 	-E entry
+ 		Set entry symbol name.
+ 	-H type
+@@ -34,7 +32,7 @@ Flags:
+ 	-R quantum
+ 		Set address rounding quantum.
+ 	-T address
+-		Set text segment address.
++		Set the start address of text symbols.
+ 	-V
+ 		Print linker version and exit.
+ 	-X importpath.name=value
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 396eb221df..8511e5de63 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -98,7 +98,7 @@ var (
+ 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
+ 	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+ 	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
+-	FlagTextAddr      = flag.Int64("T", -1, "set text segment `address`")
++	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
+ 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
+ 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")

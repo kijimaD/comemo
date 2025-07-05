@@ -9,7 +9,138 @@ Date:   Thu Apr 28 15:43:42 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4431075
-
+---
  src/pkg/xml/read.go     |  9 ++----
  src/pkg/xml/xml_test.go | 81 ++++++++++++++++++++++++++-----------------------
  2 files changed, 46 insertions(+), 44 deletions(-)
+
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 554b2a61b7..e2b349c3ff 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -220,13 +220,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 	}
+ 
+ 	if pv := val; pv.Kind() == reflect.Ptr {
+-		if pv.Pointer() == 0 {
+-			zv := reflect.Zero(pv.Type().Elem())
+-			pv.Set(zv.Addr())
+-			val = zv
+-		} else {
+-			val = pv.Elem()
++		if pv.IsNil() {
++			pv.Set(reflect.New(pv.Type().Elem()))
+ 		}
++		val = pv.Elem()
+ 	}
+ 
+ 	var (
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index a99c1919ef..4e51cd53af 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -329,46 +329,50 @@ func TestSyntax(t *testing.T) {
+ }
+ 
+ type allScalars struct {
+-	True1   bool
+-	True2   bool
+-	False1  bool
+-	False2  bool
+-	Int     int
+-	Int8    int8
+-	Int16   int16
+-	Int32   int32
+-	Int64   int64
+-	Uint    int
+-	Uint8   uint8
+-	Uint16  uint16
+-	Uint32  uint32
+-	Uint64  uint64
+-	Uintptr uintptr
+-	Float32 float32
+-	Float64 float64
+-	String  string
++	True1     bool
++	True2     bool
++	False1    bool
++	False2    bool
++	Int       int
++	Int8      int8
++	Int16     int16
++	Int32     int32
++	Int64     int64
++	Uint      int
++	Uint8     uint8
++	Uint16    uint16
++	Uint32    uint32
++	Uint64    uint64
++	Uintptr   uintptr
++	Float32   float32
++	Float64   float64
++	String    string
++	PtrString *string
+ }
+ 
+ var all = allScalars{
+-	True1:   true,
+-	True2:   true,
+-	False1:  false,
+-	False2:  false,
+-	Int:     1,
+-	Int8:    -2,
+-	Int16:   3,
+-	Int32:   -4,
+-	Int64:   5,
+-	Uint:    6,
+-	Uint8:   7,
+-	Uint16:  8,
+-	Uint32:  9,
+-	Uint64:  10,
+-	Uintptr: 11,
+-	Float32: 13.0,
+-	Float64: 14.0,
+-	String:  "15",
+-}
++	True1:     true,
++	True2:     true,
++	False1:    false,
++	False2:    false,
++	Int:       1,
++	Int8:      -2,
++	Int16:     3,
++	Int32:     -4,
++	Int64:     5,
++	Uint:      6,
++	Uint8:     7,
++	Uint16:    8,
++	Uint32:    9,
++	Uint64:    10,
++	Uintptr:   11,
++	Float32:   13.0,
++	Float64:   14.0,
++	String:    "15",
++	PtrString: &sixteen,
++}
++
++var sixteen = "16"
+ 
+ const testScalarsInput = `<allscalars>
+ 	<true1>true</true1>
+@@ -390,6 +394,7 @@ const testScalarsInput = `<allscalars>
+ 	<float32>13.0</float32>
+ 	<float64>14.0</float64>
+ 	<string>15</string>
++	<ptrstring>16</ptrstring>
+ </allscalars>`
+ 
+ func TestAllScalars(t *testing.T) {
+@@ -401,7 +406,7 @@ func TestAllScalars(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if !reflect.DeepEqual(a, all) {
+-		t.Errorf("expected %+v got %+v", all, a)
++		t.Errorf("have %+v want %+v", a, all)
+ 	}
+ }
+ 

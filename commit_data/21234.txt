@@ -23,7 +23,7 @@ Date:   Wed Dec 10 14:20:17 2014 -0800
     Change-Id: Ia8ba03063acc64a9066b8ab2d79f2c9aaac1770f
     Reviewed-on: https://go-review.googlesource.com/1330
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/8a/lex.c        |   3 +
  src/cmd/8l/8.out.h      |   3 +
  src/liblink/asm8.c      |  10 ++
@@ -31,3 +31,607 @@ Date:   Wed Dec 10 14:20:17 2014 -0800
  src/runtime/asm_386.s   | 189 ++++++++++++++++++++++++++--------
  src/runtime/asm_amd64.s | 269 ++++++++++++++++++++++++++++++++++++++++--------
  6 files changed, 390 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 6ce6a18abe..7c172e0007 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -781,6 +781,9 @@ struct
+ 	"PMOVMSKB",	LTYPE3,	APMOVMSKB,
+ 	"PSADBW",	LTYPE3,	APSADBW,
+ 	"PSHUFB",	LTYPE3, APSHUFB,
++	"PSHUFHW",      LTYPEX, APSHUFHW,
++	"PSHUFL",       LTYPEX, APSHUFL,
++	"PSHUFLW",      LTYPEX, APSHUFLW,
+ 	"PSUBB",	LTYPE3,	APSUBB,
+ 	"PSUBL",	LTYPE3,	APSUBL,
+ 	"PSUBQ",	LTYPE3,	APSUBQ,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 596c5f61a8..3aa4775bfb 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -568,6 +568,9 @@ enum
+ 	AUNPCKLPS,
+ 	AXORPD,
+ 	AXORPS,
++	APSHUFHW,
++	APSHUFL,
++	APSHUFLW,
+ 
+ 	/* SSE 3+ */
+ 	AAESENC,
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index b6627d5fd7..24510cc6fc 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -611,6 +611,12 @@ static uchar	ymshufb[] =
+ 	0
+ };
+ 
++static uchar   yxshuf[] =
++{
++	Yxm,    Yxr,    Zibm_r, 2,
++	0
++};
++
+ static Optab optab[] =
+ /*	as, ytab, andproto, opcode */
+ {
+@@ -1141,6 +1147,10 @@ static Optab optab[] =
+ 	{ AUNPCKLPS,	yxm,	Pm, {0x14} },
+ 	{ AXORPD,	yxm,	Pe, {0x57} },
+ 	{ AXORPS,	yxm,	Pm, {0x57} },
++	{ APSHUFHW,	yxshuf,	Pf3, {0x70,(00)} },
++	{ APSHUFL,	yxshuf,	Pq, {0x70,(00)} },
++	{ APSHUFLW,	yxshuf,	Pf2, {0x70,(00)} },
++
+ 
+ 	{ AAESENC,	yaes,	Pq, {0x38,0xdc,(0)} },
+ 	{ APINSRD,	yinsrd,	Pq, {0x3a, 0x22, (00)} },
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 6e53f817a0..88bd1a5919 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -310,7 +310,7 @@ func goalg(a unsafe.Pointer) *typeAlg {
+ }
+ 
+ // used in asm_{386,amd64}.s
+-const hashRandomBytes = 32
++const hashRandomBytes = ptrSize / 4 * 64
+ 
+ var aeskeysched [hashRandomBytes]byte
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 7cc64a3a49..8436579cd2 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -906,57 +906,162 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-16
+ // AX: data
+ // CX: length
+ TEXT runtime·aeshashbody(SB),NOSPLIT,$0-16
+-	MOVL	h+8(FP), X0	// seed to low 32 bits of xmm0
+-	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
+-	MOVO	runtime·aeskeysched+0(SB), X2
+-	MOVO	runtime·aeskeysched+16(SB), X3
++	MOVL	h+8(FP), X6	// seed to low 64 bits of xmm6
++	PINSRD	$2, CX, X6	// size to high 64 bits of xmm6
++	PSHUFHW	$0, X6, X6	// replace size with its low 2 bytes repeated 4 times
++	MOVO	runtime·aeskeysched(SB), X7
+ 	CMPL	CX, $16
+-	JB	aessmall
+-aesloop:
+-	CMPL	CX, $16
+-	JBE	aesloopend
+-	MOVOU	(AX), X1
+-	AESENC	X2, X0
+-	AESENC	X1, X0
+-	SUBL	$16, CX
+-	ADDL	$16, AX
+-	JMP	aesloop
+-// 1-16 bytes remaining
+-aesloopend:
+-	// This load may overlap with the previous load above.
+-	// We'll hash some bytes twice, but that's ok.
+-	MOVOU	-16(AX)(CX*1), X1
+-	JMP	partial
+-// 0-15 bytes
+-aessmall:
++	JB	aes0to15
++	JE	aes16
++	CMPL	CX, $32
++	JBE	aes17to32
++	CMPL	CX, $64
++	JBE	aes33to64
++	JMP	aes65plus
++	
++aes0to15:
+ 	TESTL	CX, CX
+-	JE	finalize	// 0 bytes
++	JE	aes0
+ 
+-	CMPB	AX, $0xf0
+-	JA	highpartial
++	ADDL	$16, AX
++	TESTW	$0xff0, AX
++	JE	endofpage
+ 
+ 	// 16 bytes loaded at this address won't cross
+ 	// a page boundary, so we can load it directly.
+-	MOVOU	(AX), X1
++	MOVOU	-16(AX), X0
+ 	ADDL	CX, CX
+-	PAND	masks<>(SB)(CX*8), X1
+-	JMP	partial
+-highpartial:
++	PAND	masks<>(SB)(CX*8), X0
++
++	// scramble 3 times
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVL	X0, ret+12(FP)
++	RET
++
++endofpage:
+ 	// address ends in 1111xxxx.  Might be up against
+ 	// a page boundary, so load ending at last byte.
+ 	// Then shift bytes down using pshufb.
+-	MOVOU	-16(AX)(CX*1), X1
++	MOVOU	-32(AX)(CX*1), X0
+ 	ADDL	CX, CX
+-	PSHUFB	shifts<>(SB)(CX*8), X1
+-partial:
+-	// incorporate partial block into hash
+-	AESENC	X3, X0
+-	AESENC	X1, X0
+-finalize:	
+-	// finalize hash
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
++	PSHUFB	shifts<>(SB)(CX*8), X0
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVL	X0, ret+12(FP)
++	RET
++
++aes0:
++	// return input seed
++	MOVL	h+8(FP), AX
++	MOVL	AX, ret+12(FP)
++	RET
++
++aes16:
++	MOVOU	(AX), X0
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVL	X0, ret+12(FP)
++	RET
++
++
++aes17to32:
++	// load data to be hashed
++	MOVOU	(AX), X0
++	MOVOU	-16(AX)(CX*1), X1
++
++	// scramble 3 times
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X0
++	AESENC	X7, X1
++
++	// combine results
++	PXOR	X1, X0
++	MOVL	X0, ret+12(FP)
++	RET
++
++aes33to64:
++	MOVOU	(AX), X0
++	MOVOU	16(AX), X1
++	MOVOU	-32(AX)(CX*1), X2
++	MOVOU	-16(AX)(CX*1), X3
++	
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	runtime·aeskeysched+32(SB), X2
++	AESENC	runtime·aeskeysched+48(SB), X3
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++
++	PXOR	X2, X0
++	PXOR	X3, X1
++	PXOR	X1, X0
++	MOVL	X0, ret+12(FP)
++	RET
++
++aes65plus:
++	// start with last (possibly overlapping) block
++	MOVOU	-64(AX)(CX*1), X0
++	MOVOU	-48(AX)(CX*1), X1
++	MOVOU	-32(AX)(CX*1), X2
++	MOVOU	-16(AX)(CX*1), X3
++
++	// scramble state once
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	runtime·aeskeysched+32(SB), X2
++	AESENC	runtime·aeskeysched+48(SB), X3
++
++	// compute number of remaining 64-byte blocks
++	DECL	CX
++	SHRL	$6, CX
++	
++aesloop:
++	// scramble state, xor in a block
++	MOVOU	(AX), X4
++	MOVOU	16(AX), X5
++	AESENC	X4, X0
++	AESENC	X5, X1
++	MOVOU	32(AX), X4
++	MOVOU	48(AX), X5
++	AESENC	X4, X2
++	AESENC	X5, X3
++
++	// scramble state
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++
++	ADDL	$64, AX
++	DECL	CX
++	JNE	aesloop
++
++	// 2 more scrambles to finish
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++
++	PXOR	X2, X0
++	PXOR	X3, X1
++	PXOR	X1, X0
+ 	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+@@ -967,7 +1072,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-16
+ 	PINSRD	$1, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+-	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+@@ -978,7 +1083,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-16
+ 	PINSRD	$2, h+8(FP), X0	// seed
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+-	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 14be2fe92d..a8a827c1c5 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -872,62 +872,245 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-32
+ // AX: data
+ // CX: length
+ TEXT runtime·aeshashbody(SB),NOSPLIT,$0-32
+-	MOVQ	h+16(FP), X0	// seed to low 64 bits of xmm0
+-	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
+-	MOVO	runtime·aeskeysched+0(SB), X2
+-	MOVO	runtime·aeskeysched+16(SB), X3
++	MOVQ	h+16(FP), X6	// seed to low 64 bits of xmm6
++	PINSRQ	$1, CX, X6	// size to high 64 bits of xmm6
++	PSHUFHW	$0, X6, X6	// replace size with its low 2 bytes repeated 4 times
++	MOVO	runtime·aeskeysched(SB), X7
+ 	CMPQ	CX, $16
+-	JB	small
+-loop:
+-	CMPQ	CX, $16
+-	JBE	loopend
+-	MOVOU	(AX), X1
+-	AESENC	X2, X0
+-	AESENC	X1, X0
+-	SUBQ	$16, CX
+-	ADDQ	$16, AX
+-	JMP	loop
+-// 1-16 bytes remaining
+-loopend:
+-	// This load may overlap with the previous load above.
+-	// We'll hash some bytes twice, but that's ok.
+-	MOVOU	-16(AX)(CX*1), X1
+-	JMP	partial
+-// 0-15 bytes
+-small:
++	JB	aes0to15
++	JE	aes16
++	CMPQ	CX, $32
++	JBE	aes17to32
++	CMPQ	CX, $64
++	JBE	aes33to64
++	CMPQ	CX, $128
++	JBE	aes65to128
++	JMP	aes129plus
++
++aes0to15:
+ 	TESTQ	CX, CX
+-	JE	finalize	// 0 bytes
++	JE	aes0
+ 
+-	CMPB	AX, $0xf0
+-	JA	highpartial
++	ADDQ	$16, AX
++	TESTW	$0xff0, AX
++	JE	endofpage
+ 
+ 	// 16 bytes loaded at this address won't cross
+ 	// a page boundary, so we can load it directly.
+-	MOVOU	(AX), X1
++	MOVOU	-16(AX), X0
+ 	ADDQ	CX, CX
+ 	MOVQ	$masks<>(SB), BP
+-	PAND	(BP)(CX*8), X1
+-	JMP	partial
+-highpartial:
++	PAND	(BP)(CX*8), X0
++
++	// scramble 3 times
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++endofpage:
+ 	// address ends in 1111xxxx.  Might be up against
+ 	// a page boundary, so load ending at last byte.
+ 	// Then shift bytes down using pshufb.
+-	MOVOU	-16(AX)(CX*1), X1
++	MOVOU	-32(AX)(CX*1), X0
+ 	ADDQ	CX, CX
+ 	MOVQ	$shifts<>(SB), BP
+-	PSHUFB	(BP)(CX*8), X1
+-partial:
+-	// incorporate partial block into hash
+-	AESENC	X3, X0
+-	AESENC	X1, X0
+-finalize:	
+-	// finalize hash
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
+-	MOVQ	X0, res+24(FP)
++	PSHUFB	(BP)(CX*8), X0
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++aes0:
++	// return input seed
++	MOVQ	h+16(FP), AX
++	MOVQ	AX, ret+24(FP)
+ 	RET
+ 
++aes16:
++	MOVOU	(AX), X0
++	AESENC	X6, X0
++	AESENC	X7, X0
++	AESENC	X7, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++aes17to32:
++	// load data to be hashed
++	MOVOU	(AX), X0
++	MOVOU	-16(AX)(CX*1), X1
++
++	// scramble 3 times
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X0
++	AESENC	X7, X1
++
++	// combine results
++	PXOR	X1, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++aes33to64:
++	MOVOU	(AX), X0
++	MOVOU	16(AX), X1
++	MOVOU	-32(AX)(CX*1), X2
++	MOVOU	-16(AX)(CX*1), X3
++	
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	runtime·aeskeysched+32(SB), X2
++	AESENC	runtime·aeskeysched+48(SB), X3
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++
++	PXOR	X2, X0
++	PXOR	X3, X1
++	PXOR	X1, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++aes65to128:
++	MOVOU	(AX), X0
++	MOVOU	16(AX), X1
++	MOVOU	32(AX), X2
++	MOVOU	48(AX), X3
++	MOVOU	-64(AX)(CX*1), X4
++	MOVOU	-48(AX)(CX*1), X5
++	MOVOU	-32(AX)(CX*1), X8
++	MOVOU	-16(AX)(CX*1), X9
++	
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	runtime·aeskeysched+32(SB), X2
++	AESENC	runtime·aeskeysched+48(SB), X3
++	AESENC	runtime·aeskeysched+64(SB), X4
++	AESENC	runtime·aeskeysched+80(SB), X5
++	AESENC	runtime·aeskeysched+96(SB), X8
++	AESENC	runtime·aeskeysched+112(SB), X9
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X4
++	AESENC	X7, X5
++	AESENC	X7, X8
++	AESENC	X7, X9
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X4
++	AESENC	X7, X5
++	AESENC	X7, X8
++	AESENC	X7, X9
++
++	PXOR	X4, X0
++	PXOR	X5, X1
++	PXOR	X8, X2
++	PXOR	X9, X3
++	PXOR	X2, X0
++	PXOR	X3, X1
++	PXOR	X1, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++
++aes129plus:
++	// start with last (possibly overlapping) block
++	MOVOU	-128(AX)(CX*1), X0
++	MOVOU	-112(AX)(CX*1), X1
++	MOVOU	-96(AX)(CX*1), X2
++	MOVOU	-80(AX)(CX*1), X3
++	MOVOU	-64(AX)(CX*1), X4
++	MOVOU	-48(AX)(CX*1), X5
++	MOVOU	-32(AX)(CX*1), X8
++	MOVOU	-16(AX)(CX*1), X9
++
++	// scramble state once
++	AESENC	X6, X0
++	AESENC	runtime·aeskeysched+16(SB), X1
++	AESENC	runtime·aeskeysched+32(SB), X2
++	AESENC	runtime·aeskeysched+48(SB), X3
++	AESENC	runtime·aeskeysched+64(SB), X4
++	AESENC	runtime·aeskeysched+80(SB), X5
++	AESENC	runtime·aeskeysched+96(SB), X8
++	AESENC	runtime·aeskeysched+112(SB), X9
++
++	// compute number of remaining 128-byte blocks
++	DECQ	CX
++	SHRQ	$7, CX
++	
++aesloop:
++	// scramble state, xor in a block
++	MOVOU	(AX), X10
++	MOVOU	16(AX), X11
++	MOVOU	32(AX), X12
++	MOVOU	48(AX), X13
++	AESENC	X10, X0
++	AESENC	X11, X1
++	AESENC	X12, X2
++	AESENC	X13, X3
++	MOVOU	64(AX), X10
++	MOVOU	80(AX), X11
++	MOVOU	96(AX), X12
++	MOVOU	112(AX), X13
++	AESENC	X10, X4
++	AESENC	X11, X5
++	AESENC	X12, X8
++	AESENC	X13, X9
++
++	// scramble state
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X4
++	AESENC	X7, X5
++	AESENC	X7, X8
++	AESENC	X7, X9
++
++	ADDQ	$128, AX
++	DECQ	CX
++	JNE	aesloop
++
++	// 2 more scrambles to finish
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X4
++	AESENC	X7, X5
++	AESENC	X7, X8
++	AESENC	X7, X9
++	AESENC	X7, X0
++	AESENC	X7, X1
++	AESENC	X7, X2
++	AESENC	X7, X3
++	AESENC	X7, X4
++	AESENC	X7, X5
++	AESENC	X7, X8
++	AESENC	X7, X9
++
++	PXOR	X4, X0
++	PXOR	X5, X1
++	PXOR	X8, X2
++	PXOR	X9, X3
++	PXOR	X2, X0
++	PXOR	X3, X1
++	PXOR	X1, X0
++	MOVQ	X0, ret+24(FP)
++	RET
++	
+ TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	// s+8(FP) is ignored, it is always sizeof(int32)
+@@ -935,7 +1118,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
+ 	PINSRD	$2, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+-	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVQ	X0, ret+24(FP)
+ 	RET
+ 
+@@ -946,7 +1129,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
+ 	PINSRQ	$1, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+-	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVQ	X0, ret+24(FP)
+ 	RET
+ 

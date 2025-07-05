@@ -9,6 +9,20 @@ Date:   Thu Nov 17 15:41:18 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/timeout_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index dfaf061bc5..55bbf4402d 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -151,7 +151,7 @@ var acceptTimeoutTests = []struct {
+ }
+ 
+ func TestAcceptTimeout(t *testing.T) {
+-	t.Skip("flaky test; golang.org/issue/17948")
++	testenv.SkipFlaky(t, 17948)
+ 	t.Parallel()
+ 
+ 	switch runtime.GOOS {

@@ -15,7 +15,76 @@ Date:   Thu Dec 26 18:19:58 2019 -0500
     Change-Id: I1f3e7664d575219b6fc525bd88babed15d1bd3b2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212622
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 32 ----------------------
  .../script/build_cgo_consistent_results.txt        | 19 +++++++++++++
  2 files changed, 19 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8ca34d49ca..70dee65f7f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3320,38 +3320,6 @@ func TestParallelTest(t *testing.T) {
+ 	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
+ }
+ 
+-func TestCgoConsistentResults(t *testing.T) {
+-	tooSlow(t)
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	switch runtime.GOOS {
+-	case "solaris", "illumos":
+-		testenv.SkipFlaky(t, 13247)
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	exe1 := tg.path("cgotest1" + exeSuffix)
+-	exe2 := tg.path("cgotest2" + exeSuffix)
+-	tg.run("build", "-o", exe1, "cgotest")
+-	tg.run("build", "-x", "-o", exe2, "cgotest")
+-	b1, err := ioutil.ReadFile(exe1)
+-	tg.must(err)
+-	b2, err := ioutil.ReadFile(exe2)
+-	tg.must(err)
+-
+-	if !tg.doGrepMatch(`-fdebug-prefix-map=\$WORK`, &tg.stderr) {
+-		t.Skip("skipping because C compiler does not support -fdebug-prefix-map")
+-	}
+-	if !bytes.Equal(b1, b2) {
+-		t.Error("building cgotest twice did not produce the same output")
+-	}
+-}
+-
+ // Issue 14444: go get -u .../ duplicate loads errors
+ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/testdata/script/build_cgo_consistent_results.txt b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+new file mode 100644
+index 0000000000..42f1cc1a74
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+@@ -0,0 +1,19 @@
++[short] skip
++[!cgo] skip
++
++[solaris] skip "skipping on Solaris; see golang.org/issue/13247"
++[illumos] skip "skipping on Solaris; see golang.org/issue/13247"
++
++go build -o $WORK/exe1$GOEXE cgotest
++go build -x -o $WORK/exe2$GOEXE cgotest
++
++# TODO(matloob): skip if stderr does not contain '-fdebug-prefix-map=\$WORK'
++
++cmp $WORK/exe1$GOEXE $WORK/exe2$GOEXE
++
++-- cgotest/m.go --
++package cgotest
++
++import "C"
++
++var _ C.int

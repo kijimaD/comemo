@@ -10,6 +10,24 @@ Date:   Sun Aug 23 12:32:18 2015 +0000
     Change-Id: I7f38ef9fb528e2fd284bd0f190fbdf4a91956e55
     Reviewed-on: https://go-review.googlesource.com/13834
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/doc/pkg.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 569c7a3062..daa22e459d 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -467,11 +467,7 @@ func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
+ 	unexportedField := &ast.Field{
+ 		Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
+ 		Comment: &ast.CommentGroup{
+-			List: []*ast.Comment{
+-				&ast.Comment{
+-					Text: fmt.Sprintf("// Has unexported %s.\n", what),
+-				},
+-			},
++			List: []*ast.Comment{{Text: fmt.Sprintf("// Has unexported %s.\n", what)}},
+ 		},
+ 	}
+ 	return &ast.FieldList{

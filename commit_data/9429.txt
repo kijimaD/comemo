@@ -7,7 +7,49 @@ Date:   Mon Aug 22 08:18:03 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4932044
-
+---
  doc/effective_go.html | 5 +++--
  doc/effective_go.tmpl | 6 +++---
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 1540baac61..ec2973a07c 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2993,12 +2993,13 @@ from data items passed to <code>templ.Execute</code>, in this case the
+ form value.  
+ Within the template text (<code>templateStr</code>),
+ double-brace-delimited pieces denote template actions.
+-The piece from the <code></code> executes only if the value of the current data item, called <code>.</code>,
++The piece from the <code>{{if .}}</code>
++to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
+ is non-empty.
+ That is, when the string is empty, this piece of the template is suppressed.
+ </p>
+ <p>
+-The snippet <code>0</code> says to process the data with the function
++The snippet <code>{{urlquery .}}</code> says to process the data with the function
+ <code>urlquery</code>, which sanitizes the query string
+ for safe display on the web page.
+ </p>
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 850ba3aeb5..98ef642865 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -2945,13 +2945,13 @@ from data items passed to <code>templ.Execute</code>, in this case the
+ form value.  
+ Within the template text (<code>templateStr</code>),
+ double-brace-delimited pieces denote template actions.
+-The piece from the <code>{{if .}}</code>
+-to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code>,
++The piece from the <code>{{html "{{if .}}"}}</code>
++to <code>{{html "{{end}}"}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
+ is non-empty.
+ That is, when the string is empty, this piece of the template is suppressed.
+ </p>
+ <p>
+-The snippet <code>{{urlquery .}}</code> says to process the data with the function
++The snippet <code>{{html "{{urlquery .}}"}}</code> says to process the data with the function
+ <code>urlquery</code>, which sanitizes the query string
+ for safe display on the web page.
+ </p>

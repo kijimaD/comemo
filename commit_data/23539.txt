@@ -62,7 +62,7 @@ Date:   Mon May 18 11:00:24 2015 +0200
     Change-Id: I188098ba7eb85eae4c14861269cc466f2aa40e8c
     Reviewed-on: https://go-review.googlesource.com/10173
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_linux_test.go    |  9 ++--
  misc/cgo/test/sigprocmask_linux.c  | 35 +++++++++++++++
  misc/cgo/test/sigprocmask_linux.go | 38 ++++++++++++++++
@@ -84,3 +84,890 @@ Date:   Mon May 18 11:00:24 2015 +0200
  src/runtime/signal_netbsd.go       | 14 +++---
  src/runtime/signal_solaris.go      | 14 +++---
  20 files changed, 358 insertions(+), 80 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 6e1d1065f6..3cc2af5919 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -6,7 +6,8 @@ package cgotest
+ 
+ import "testing"
+ 
+-func TestSetgid(t *testing.T)  { testSetgid(t) }
+-func Test6997(t *testing.T)    { test6997(t) }
+-func TestBuildID(t *testing.T) { testBuildID(t) }
+-func Test9400(t *testing.T)    { test9400(t) }
++func TestSetgid(t *testing.T)      { testSetgid(t) }
++func Test6997(t *testing.T)        { test6997(t) }
++func TestBuildID(t *testing.T)     { testBuildID(t) }
++func Test9400(t *testing.T)        { test9400(t) }
++func TestSigProcMask(t *testing.T) { testSigProcMask(t) }
+diff --git a/misc/cgo/test/sigprocmask_linux.c b/misc/cgo/test/sigprocmask_linux.c
+new file mode 100644
+index 0000000000..6597e985ac
+--- /dev/null
++++ b/misc/cgo/test/sigprocmask_linux.c
+@@ -0,0 +1,35 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <signal.h>
++#include <stdlib.h>
++#include <pthread.h>
++#include <stdio.h>
++#include <unistd.h>
++
++extern void IntoGoAndBack();
++
++int CheckBlocked() {
++	sigset_t mask;
++	sigprocmask(SIG_BLOCK, NULL, &mask);
++	return sigismember(&mask, SIGIO);
++}
++
++static void* sigthreadfunc(void* unused) {
++	sigset_t mask;
++	sigemptyset(&mask);
++	sigaddset(&mask, SIGIO);
++	sigprocmask(SIG_BLOCK, &mask, NULL);
++	IntoGoAndBack();
++}
++
++int RunSigThread() {
++	pthread_t thread;
++	int r;
++
++	r = pthread_create(&thread, NULL, &sigthreadfunc, NULL);
++	if (r != 0)
++		return r;
++	return pthread_join(thread, NULL);
++}
+diff --git a/misc/cgo/test/sigprocmask_linux.go b/misc/cgo/test/sigprocmask_linux.go
+new file mode 100644
+index 0000000000..7d343e92c4
+--- /dev/null
++++ b/misc/cgo/test/sigprocmask_linux.go
+@@ -0,0 +1,38 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#cgo CFLAGS: -pthread
++#cgo LDFLAGS: -pthread
++extern int RunSigThread();
++extern int CheckBlocked();
++*/
++import "C"
++import (
++	"os"
++	"os/signal"
++	"syscall"
++	"testing"
++)
++
++var blocked bool
++
++//export IntoGoAndBack
++func IntoGoAndBack() {
++	// Verify that SIGIO stays blocked on the C thread
++	// even when unblocked for signal.Notify().
++	signal.Notify(make(chan os.Signal), syscall.SIGIO)
++	blocked = C.CheckBlocked() != 0
++}
++
++func testSigProcMask(t *testing.T) {
++	if r := C.RunSigThread(); r != 0 {
++		t.Error("pthread_create/pthread_join failed")
++	}
++	if !blocked {
++		t.Error("Go runtime unblocked SIGIO")
++	}
++}
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 10cf460f7f..1b74e3e653 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -8,7 +8,6 @@ import "unsafe"
+ 
+ //extern SigTabTT runtime·sigtab[];
+ 
+-var sigset_none = uint32(0)
+ var sigset_all = ^uint32(0)
+ 
+ func unimplemented(name string) {
+@@ -126,17 +125,36 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	sigprocmask(_SIG_SETMASK, nil, smask)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask &^= 1 << (uint32(i) - 1)
++		}
++	}
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*uint32)(unsafe.Pointer(&_g_.m.sigmask))
++	sigprocmask(_SIG_SETMASK, smask, nil)
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -447,6 +465,6 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++func updatesigmask(m sigmask) {
++	sigprocmask(_SIG_SETMASK, &m[0], nil)
+ }
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index a590aea39b..eb42b54e2b 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -12,7 +12,6 @@ const (
+ 	_HW_NCPU = 3
+ )
+ 
+-var sigset_none = sigset{}
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
+ func getncpu() int32 {
+@@ -120,6 +119,14 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	sigprocmask(nil, smask)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -130,11 +137,22 @@ func minit() {
+ 
+ 	// Initialize signal handling
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	sigprocmask(&sigset_none, nil)
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++		}
++	}
++	sigprocmask(&nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	sigprocmask(smask, nil)
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -215,6 +233,8 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(&sigset_none, nil)
++func updatesigmask(m sigmask) {
++	var mask sigset
++	copy(mask.__bits[:], m[:])
++	sigprocmask(&mask, nil)
+ }
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 8719a49286..f7f34bd386 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -12,7 +12,6 @@ const (
+ 	_HW_NCPU = 3
+ )
+ 
+-var sigset_none = sigset{}
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
+ func getncpu() int32 {
+@@ -119,6 +118,14 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	sigprocmask(nil, smask)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -132,11 +139,22 @@ func minit() {
+ 
+ 	// Initialize signal handling.
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	sigprocmask(&sigset_none, nil)
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++		}
++	}
++	sigprocmask(&nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	sigprocmask(smask, nil)
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -217,6 +235,8 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(&sigset_none, nil)
++func updatesigmask(m [(_NSIG + 31) / 32]uint32) {
++	var mask sigset
++	copy(mask.__bits[:], m[:])
++	sigprocmask(&mask, nil)
+ }
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index e4b18c79b3..02f98d7c5f 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-var sigset_none sigset
+ var sigset_all sigset = sigset{^uint32(0), ^uint32(0)}
+ 
+ // Linux futex.
+@@ -190,17 +189,36 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++		}
++	}
++	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -304,6 +322,8 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
++func updatesigmask(m sigmask) {
++	var mask sigset
++	copy(mask[:], m[:])
++	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
+ }
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index dbb5dec2fd..66e60f8b12 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -15,6 +15,9 @@ func mpreinit(mp *m) {
+ 
+ func sigtramp()
+ 
++func msigsave(mp *m) {
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 8df74b5593..3fb05989e7 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -17,7 +17,6 @@ const (
+ 	_CLOCK_MONOTONIC = 3
+ )
+ 
+-var sigset_none = sigset{}
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
+ // From NetBSD's <sys/sysctl.h>
+@@ -139,6 +138,14 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	sigprocmask(_SIG_SETMASK, nil, smask)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -147,11 +154,23 @@ func minit() {
+ 
+ 	// Initialize signal handling
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++		}
++	}
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	sigprocmask(_SIG_SETMASK, smask, nil)
++
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -206,6 +225,8 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++func updatesigmask(m sigmask) {
++	var mask sigset
++	copy(mask.__bits[:], m[:])
++	sigprocmask(_SIG_SETMASK, &mask, nil)
+ }
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 95729a56df..98af545f7f 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -148,6 +148,9 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
++func msigsave(mp *m) {
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -217,6 +220,6 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(_SIG_SETMASK, sigset_none)
++func updatesigmask(m sigmask) {
++	sigprocmask(_SIG_SETMASK, m[0])
+ }
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 1aae96a999..bda7057f44 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -18,6 +18,9 @@ func mpreinit(mp *m) {
+ 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
+ }
+ 
++func msigsave(mp *m) {
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 5719b320f5..bc472d0de9 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -292,6 +292,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ func mpreinit(mp *m) {
+ }
+ 
++func msigsave(mp *m) {
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 69ac5b4970..e4fe92de41 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -114,7 +114,6 @@ var (
+ 	libc_write libcFunc
+ )
+ 
+-var sigset_none = sigset{}
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
+ func getncpu() int32 {
+@@ -190,6 +189,14 @@ func mpreinit(mp *m) {
+ 
+ func miniterrno()
+ 
++func msigsave(mp *m) {
++	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
++		throw("insufficient storage for signal mask")
++	}
++	sigprocmask(_SIG_SETMASK, nil, smask)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -197,11 +204,23 @@ func minit() {
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+ 	// Initialize signal handling
+ 	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++
++	// restore signal mask from m.sigmask and unblock essential signals
++	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++		}
++	}
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
++	_g_ := getg()
++	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	sigprocmask(_SIG_SETMASK, smask, nil)
++
+ 	signalstack(nil, 0)
+ }
+ 
+@@ -278,8 +297,10 @@ func signalstack(p *byte, n int32) {
+ 	sigaltstack(&st, nil)
+ }
+ 
+-func unblocksignals() {
+-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++func updatesigmask(m sigmask) {
++	var mask sigset
++	copy(mask.__sigbits[:], m[:])
++	sigprocmask(_SIG_SETMASK, &mask, nil)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 27281406b8..c070f7d773 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -944,6 +944,7 @@ func needm(x byte) {
+ 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
+ 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ 
++	msigsave(mp)
+ 	// Initialize this thread to use the m.
+ 	asminit()
+ 	minit()
+@@ -1071,6 +1072,7 @@ func unlockextra(mp *m) {
+ func newm(fn func(), _p_ *p) {
+ 	mp := allocm(_p_, fn)
+ 	mp.nextp.set(_p_)
++	msigsave(mp)
+ 	if iscgo {
+ 		var ts cgothreadstart
+ 		if _cgo_thread_start == nil {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 83d8062baf..3ee5d5d29d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -266,6 +266,7 @@ type m struct {
+ 	// Fields not known to debuggers.
+ 	procid        uint64     // for debuggers, but offset not hard-coded
+ 	gsignal       *g         // signal-handling g
++	sigmask       [4]uintptr // storage for saved signal mask
+ 	tls           [4]uintptr // thread-local storage (for x86 extern register)
+ 	mstartfn      func()
+ 	curg          *g       // current running goroutine
+@@ -469,15 +470,16 @@ type sigtabtt struct {
+ }
+ 
+ const (
+-	_SigNotify   = 1 << 0 // let signal.Notify have signal, even if from kernel
+-	_SigKill     = 1 << 1 // if signal.Notify doesn't take it, exit quietly
+-	_SigThrow    = 1 << 2 // if signal.Notify doesn't take it, exit loudly
+-	_SigPanic    = 1 << 3 // if the signal is from the kernel, panic
+-	_SigDefault  = 1 << 4 // if the signal isn't explicitly requested, don't monitor it
+-	_SigHandling = 1 << 5 // our signal handler is registered
+-	_SigIgnored  = 1 << 6 // the signal was ignored before we registered for it
+-	_SigGoExit   = 1 << 7 // cause all runtime procs to exit (only used on Plan 9).
+-	_SigSetStack = 1 << 8 // add SA_ONSTACK to libc handler
++	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
++	_SigKill                 // if signal.Notify doesn't take it, exit quietly
++	_SigThrow                // if signal.Notify doesn't take it, exit loudly
++	_SigPanic                // if the signal is from the kernel, panic
++	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
++	_SigHandling             // our signal handler is registered
++	_SigIgnored              // the signal was ignored before we registered for it
++	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
++	_SigSetStack             // add SA_ONSTACK to libc handler
++	_SigUnblock              // unblocked in minit
+ )
+ 
+ // Layout of in-memory per-function information prepared by linker
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 7577d43a64..d3e9dac097 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -19,6 +19,19 @@ const (
+ // Signal forwarding is currently available only on Linux.
+ var fwdSig [_NSIG]uintptr
+ 
++// sigmask represents a general signal mask compatible with the GOOS
++// specific sigset types: the signal numbered x is represented by bit x-1
++// to match the representation expected by sigprocmask.
++type sigmask [(_NSIG + 31) / 32]uint32
++
++// channels for synchronizing signal mask updates with the signal mask
++// thread
++var (
++	disableSigChan  chan uint32
++	enableSigChan   chan uint32
++	maskUpdatedChan chan struct{}
++)
++
+ func initsig() {
+ 	// _NSIG is the number of signals on this operating system.
+ 	// sigtable should describe what to do for all the possible signals.
+@@ -61,12 +74,17 @@ func sigenable(sig uint32) {
+ 	}
+ 
+ 	t := &sigtable[sig]
+-	if t.flags&_SigNotify != 0 && t.flags&_SigHandling == 0 {
+-		t.flags |= _SigHandling
+-		if getsig(int32(sig)) == _SIG_IGN {
+-			t.flags |= _SigIgnored
++	if t.flags&_SigNotify != 0 {
++		ensureSigM()
++		enableSigChan <- sig
++		<-maskUpdatedChan
++		if t.flags&_SigHandling == 0 {
++			t.flags |= _SigHandling
++			if getsig(int32(sig)) == _SIG_IGN {
++				t.flags |= _SigIgnored
++			}
++			setsig(int32(sig), funcPC(sighandler), true)
+ 		}
+-		setsig(int32(sig), funcPC(sighandler), true)
+ 	}
+ }
+ 
+@@ -76,12 +94,17 @@ func sigdisable(sig uint32) {
+ 	}
+ 
+ 	t := &sigtable[sig]
+-	if t.flags&_SigNotify != 0 && t.flags&_SigHandling != 0 {
+-		t.flags &^= _SigHandling
+-		if t.flags&_SigIgnored != 0 {
+-			setsig(int32(sig), _SIG_IGN, true)
+-		} else {
+-			setsig(int32(sig), _SIG_DFL, true)
++	if t.flags&_SigNotify != 0 {
++		ensureSigM()
++		disableSigChan <- sig
++		<-maskUpdatedChan
++		if t.flags&_SigHandling != 0 {
++			t.flags &^= _SigHandling
++			if t.flags&_SigIgnored != 0 {
++				setsig(int32(sig), _SIG_IGN, true)
++			} else {
++				setsig(int32(sig), _SIG_DFL, true)
++			}
+ 		}
+ 	}
+ }
+@@ -130,7 +153,52 @@ func crash() {
+ 		}
+ 	}
+ 
+-	unblocksignals()
++	updatesigmask(sigmask{})
+ 	setsig(_SIGABRT, _SIG_DFL, false)
+ 	raise(_SIGABRT)
+ }
++
++// createSigM starts one global, sleeping thread to make sure at least one thread
++// is available to catch signals enabled for os/signal.
++func ensureSigM() {
++	if maskUpdatedChan != nil {
++		return
++	}
++	maskUpdatedChan = make(chan struct{})
++	disableSigChan = make(chan uint32)
++	enableSigChan = make(chan uint32)
++	go func() {
++		// Signal masks are per-thread, so make sure this goroutine stays on one
++		// thread.
++		LockOSThread()
++		defer UnlockOSThread()
++		// The sigBlocked mask contains the signals not active for os/signal,
++		// initially all signals except the essential. When signal.Notify()/Stop is called,
++		// sigenable/sigdisable in turn notify this thread to update its signal
++		// mask accordingly.
++		var sigBlocked sigmask
++		for i := range sigBlocked {
++			sigBlocked[i] = ^uint32(0)
++		}
++		for i := range sigtable {
++			if sigtable[i].flags&_SigUnblock != 0 {
++				sigBlocked[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++			}
++		}
++		updatesigmask(sigBlocked)
++		for {
++			select {
++			case sig := <-enableSigChan:
++				if b := sig - 1; b >= 0 {
++					sigBlocked[b/32] &^= (1 << (b & 31))
++				}
++			case sig := <-disableSigChan:
++				if b := sig - 1; b >= 0 {
++					sigBlocked[b/32] |= (1 << (b & 31))
++				}
++			}
++			updatesigmask(sigBlocked)
++			maskUpdatedChan <- struct{}{}
++		}
++	}()
++}
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 32ecce0d7d..6cd18653d5 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -16,14 +16,14 @@ var sigtable = [...]sigTabT{
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+ 	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
+ 	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
+-	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
+-	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap"},
+ 	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
+ 	/* 7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
+-	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating-point exception"},
+ 	/* 9 */ {0, "SIGKILL: kill"},
+-	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
+-	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+ 	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+@@ -32,14 +32,14 @@ var sigtable = [...]sigTabT{
+ 	/* 17 */ {0, "SIGSTOP: stop"},
+ 	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
+ 	/* 19 */ {0, "SIGCONT: continue after stop"},
+-	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 20 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
+ 	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
+ 	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
+ 	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
+ 	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
+ 	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
+-	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 27 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling alarm clock"},
+ 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
+ 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
+diff --git a/src/runtime/signal_linux.go b/src/runtime/signal_linux.go
+index f8250b9fa1..2f25b59663 100644
+--- a/src/runtime/signal_linux.go
++++ b/src/runtime/signal_linux.go
+@@ -16,20 +16,20 @@ var sigtable = [...]sigTabT{
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+ 	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
+ 	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
+-	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
+-	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap"},
+ 	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
+-	/* 7 */ {_SigPanic, "SIGBUS: bus error"},
+-	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 7 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
++	/* 8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating-point exception"},
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
+-	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+ 	/* 12 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
+-	/* 16 */ {_SigThrow, "SIGSTKFLT: stack fault"},
+-	/* 17 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 16 */ {_SigThrow + _SigUnblock, "SIGSTKFLT: stack fault"},
++	/* 17 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
+ 	/* 18 */ {0, "SIGCONT: continue"},
+ 	/* 19 */ {0, "SIGSTOP: stop, unblockable"},
+ 	/* 20 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
+@@ -39,7 +39,7 @@ var sigtable = [...]sigTabT{
+ 	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
+ 	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
+ 	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
+-	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 27 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling alarm clock"},
+ 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
+diff --git a/src/runtime/signal_netbsd.go b/src/runtime/signal_netbsd.go
+index 78afc59efa..d93a450d98 100644
+--- a/src/runtime/signal_netbsd.go
++++ b/src/runtime/signal_netbsd.go
+@@ -14,14 +14,14 @@ var sigtable = [...]sigTabT{
+ 	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+ 	/*  2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
+ 	/*  3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
+-	/*  4 */ {_SigThrow, "SIGILL: illegal instruction"},
+-	/*  5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/*  4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction"},
++	/*  5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap"},
+ 	/*  6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
+ 	/*  7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
+-	/*  8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/*  8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating-point exception"},
+ 	/*  9 */ {0, "SIGKILL: kill"},
+-	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
+-	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+ 	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+@@ -30,14 +30,14 @@ var sigtable = [...]sigTabT{
+ 	/* 17 */ {0, "SIGSTOP: stop"},
+ 	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
+ 	/* 19 */ {0, "SIGCONT: continue after stop"},
+-	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 20 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
+ 	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
+ 	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
+ 	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
+ 	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
+ 	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
+-	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 27 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling alarm clock"},
+ 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
+ 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
+diff --git a/src/runtime/signal_solaris.go b/src/runtime/signal_solaris.go
+index 2986c5aabc..d8ac676846 100644
+--- a/src/runtime/signal_solaris.go
++++ b/src/runtime/signal_solaris.go
+@@ -14,21 +14,21 @@ var sigtable = [...]sigTabT{
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: hangup"},
+ 	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt (rubout)"},
+ 	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit (ASCII FS)"},
+-	/* 4 */ {_SigThrow, "SIGILL: illegal instruction (not reset when caught)"},
+-	/* 5 */ {_SigThrow, "SIGTRAP: trace trap (not reset when caught)"},
++	/* 4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction (not reset when caught)"},
++	/* 5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap (not reset when caught)"},
+ 	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: used by abort, replace SIGIOT in the future"},
+ 	/* 7 */ {_SigThrow, "SIGEMT: EMT instruction"},
+-	/* 8 */ {_SigPanic, "SIGFPE: floating point exception"},
++	/* 8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating point exception"},
+ 	/* 9 */ {0, "SIGKILL: kill (cannot be caught or ignored)"},
+-	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
+-	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+ 	/* 12 */ {_SigThrow, "SIGSYS: bad argument to system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write on a pipe with no one to read it"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: software termination signal from kill"},
+ 	/* 16 */ {_SigNotify, "SIGUSR1: user defined signal 1"},
+ 	/* 17 */ {_SigNotify, "SIGUSR2: user defined signal 2"},
+-	/* 18 */ {_SigNotify, "SIGCHLD: child status change alias (POSIX)"},
++	/* 18 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status change alias (POSIX)"},
+ 	/* 19 */ {_SigNotify, "SIGPWR: power-fail restart"},
+ 	/* 20 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 21 */ {_SigNotify, "SIGURG: urgent socket condition"},
+@@ -39,7 +39,7 @@ var sigtable = [...]sigTabT{
+ 	/* 26 */ {_SigNotify + _SigDefault, "SIGTTIN: background tty read attempted"},
+ 	/* 27 */ {_SigNotify + _SigDefault, "SIGTTOU: background tty write attempted"},
+ 	/* 28 */ {_SigNotify, "SIGVTALRM: virtual timer expired"},
+-	/* 29 */ {_SigNotify, "SIGPROF: profiling timer expired"},
++	/* 29 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling timer expired"},
+ 	/* 30 */ {_SigNotify, "SIGXCPU: exceeded cpu limit"},
+ 	/* 31 */ {_SigNotify, "SIGXFSZ: exceeded file size limit"},
+ 	/* 32 */ {_SigNotify, "SIGWAITING: reserved signal no longer used by"},

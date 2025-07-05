@@ -7,7 +7,46 @@ Date:   Tue Dec 1 23:38:06 2009 -0800
     R=r
     CC=hurtonm
     https://golang.org/cl/164074
-
+---
  src/pkg/time/time.go      | 12 ++++++------
  src/pkg/time/time_test.go |  1 +
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 9ba6e4ebbb..9a767b458e 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -104,15 +104,15 @@ func SecondsToUTC(sec int64) *Time {
+ 		n := -day/daysPer400Years + 1;
+ 		year -= 400 * n;
+ 		day += daysPer400Years * n;
+-	} else {
+-		// Cut off 400 year cycles.
+-		n := day / daysPer400Years;
+-		year += 400 * n;
+-		day -= daysPer400Years * n;
+ 	}
+ 
++	// Cut off 400 year cycles.
++	n := day / daysPer400Years;
++	year += 400 * n;
++	day -= daysPer400Years * n;
++
+ 	// Cut off 100-year cycles
+-	n := day / daysPer100Years;
++	n = day / daysPer100Years;
+ 	year += 100 * n;
+ 	day -= daysPer100Years * n;
+ 
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 8133018f19..da1c7cbf36 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -26,6 +26,7 @@ var utctests = []TimeTest{
+ 	TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC"}},
+ 	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
+ 	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
++	TimeTest{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
+ 	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
+ 	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
+ 	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},

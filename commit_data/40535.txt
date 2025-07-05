@@ -11,6 +11,20 @@ Date:   Thu May 23 05:15:49 2019 +0000
     GitHub-Pull-Request: golang/go#32193
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bufio/scan.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index cefd261464..4e787c4b0a 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -73,7 +73,7 @@ var (
+ 
+ const (
+ 	// MaxScanTokenSize is the maximum size used to buffer a token
+-	// unless the user provides an explicit buffer with Scan.Buffer.
++	// unless the user provides an explicit buffer with Scanner.Buffer.
+ 	// The actual maximum token size may be smaller as the buffer
+ 	// may need to include, for instance, a newline.
+ 	MaxScanTokenSize = 64 * 1024

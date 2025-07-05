@@ -17,7 +17,7 @@ Date:   Thu Sep 13 10:26:21 2012 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6500117
-
+---
  src/cmd/5l/5.out.h              | 2 +-
  src/cmd/6l/6.out.h              | 2 +-
  src/cmd/8l/8.out.h              | 2 +-
@@ -27,3 +27,126 @@ Date:   Thu Sep 13 10:26:21 2012 -0400
  src/cmd/pack/ar.c               | 2 +-
  src/pkg/exp/types/exportdata.go | 7 ++++---
  8 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 1dea18c49e..23ff6210e3 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -276,7 +276,7 @@ enum	as
+ /*
+  * this is the ranlib header
+  */
+-#define	SYMDEF	"__.SYMDEF"
++#define	SYMDEF	"__.GOSYMDEF"
+ 
+ /*
+  * this is the simulated IEEE floating point
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index cd861c038e..01c2ba840b 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -865,7 +865,7 @@ enum
+ /*
+  * this is the ranlib header
+  */
+-#define	SYMDEF	"__.SYMDEF"
++#define	SYMDEF	"__.GOSYMDEF"
+ 
+ /*
+  * this is the simulated IEEE floating point
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 924ba93901..49e046207b 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -547,7 +547,7 @@ enum
+ /*
+  * this is the ranlib header
+  */
+-#define	SYMDEF	"__.SYMDEF"
++#define	SYMDEF	"__.GOSYMDEF"
+ 
+ /*
+  * this is the simulated IEEE floating point
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 0788a61514..3ef3fcc746 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -480,7 +480,7 @@ skiptopkgdef(Biobuf *b)
+ 	if(memcmp(p, "!<arch>\n", 8) != 0)
+ 		return 0;
+ 	/* symbol table is first; skip it */
+-	sz = arsize(b, "__.SYMDEF");
++	sz = arsize(b, "__.GOSYMDEF");
+ 	if(sz < 0)
+ 		return 0;
+ 	Bseek(b, sz, 1);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 2385809dbf..2026707c2f 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -366,7 +366,7 @@ objfile(char *file, char *pkg)
+ 		return;
+ 	}
+ 	
+-	/* skip over __.SYMDEF */
++	/* skip over __.GOSYMDEF */
+ 	off = Boffset(f);
+ 	if((l = nextar(f, off, &arhdr)) <= 0) {
+ 		diag("%s: short read on archive file symbol header", file);
+@@ -402,7 +402,7 @@ objfile(char *file, char *pkg)
+ 	 * the individual symbols that are unused.
+ 	 *
+ 	 * loading every object will also make it possible to
+-	 * load foreign objects not referenced by __.SYMDEF.
++	 * load foreign objects not referenced by __.GOSYMDEF.
+ 	 */
+ 	for(;;) {
+ 		l = nextar(f, off, &arhdr);
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+index 845b6c773a..6682390358 100644
+--- a/src/cmd/nm/nm.c
++++ b/src/cmd/nm/nm.c
+@@ -43,7 +43,7 @@ enum{
+ 
+ char	*errs;			/* exit status */
+ char	*filename;		/* current file */
+-char	symname[]="__.SYMDEF";	/* table of contents file name */
++char	symname[]="__.GOSYMDEF";	/* table of contents file name */
+ int	multifile;		/* processing multiple files */
+ int	aflag;
+ int	gflag;
+diff --git a/src/cmd/pack/ar.c b/src/cmd/pack/ar.c
+index 990094e5db..7053f841f3 100644
+--- a/src/cmd/pack/ar.c
++++ b/src/cmd/pack/ar.c
+@@ -111,7 +111,7 @@ char	*opt =		"uvnbailogS";
+ char	artemp[] =	"/tmp/vXXXXX";
+ char	movtemp[] =	"/tmp/v1XXXXX";
+ char	tailtemp[] =	"/tmp/v2XXXXX";
+-char	symdef[] =	"__.SYMDEF";
++char	symdef[] =	"__.GOSYMDEF";
+ char	pkgdef[] =	"__.PKGDEF";
+ 
+ int	aflag;				/* command line flags */
+diff --git a/src/pkg/exp/types/exportdata.go b/src/pkg/exp/types/exportdata.go
+index bca2038804..22190153bb 100644
+--- a/src/pkg/exp/types/exportdata.go
++++ b/src/pkg/exp/types/exportdata.go
+@@ -52,13 +52,14 @@ func FindGcExportData(r *bufio.Reader) (err error) {
+ 		var name string
+ 		var size int
+ 
+-		// First entry should be __.SYMDEF.
++		// First entry should be __.GOSYMDEF.
++		// Older archives used __.SYMDEF, so allow that too.
+ 		// Read and discard.
+ 		if name, size, err = readGopackHeader(r); err != nil {
+ 			return
+ 		}
+-		if name != "__.SYMDEF" {
+-			err = errors.New("go archive does not begin with __.SYMDEF")
++		if name != "__.SYMDEF" && name != "__.GOSYMDEF" {
++			err = errors.New("go archive does not begin with __.SYMDEF or __.GOSYMDEF")
+ 			return
+ 		}
+ 		const block = 4096

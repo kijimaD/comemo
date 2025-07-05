@@ -12,6 +12,27 @@ Date:   Tue Mar 12 13:06:55 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7628045
-
+---
  src/pkg/go/doc/reader.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index dd6a57299e..a1b7b84be9 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -533,10 +533,13 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int)
+ 
+ 	// copy existing receiver field and set new type
+ 	newField := *f.Decl.Recv.List[0]
++	origPos := newField.Type.Pos()
+ 	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
+-	var typ ast.Expr = ast.NewIdent(recvTypeName)
++	newIdent := &ast.Ident{NamePos: origPos, Name: recvTypeName}
++	var typ ast.Expr = newIdent
+ 	if !embeddedIsPtr && origRecvIsPtr {
+-		typ = &ast.StarExpr{X: typ}
++		newIdent.NamePos++ // '*' is one character
++		typ = &ast.StarExpr{Star: origPos, X: newIdent}
+ 	}
+ 	newField.Type = typ
+ 

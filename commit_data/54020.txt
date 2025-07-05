@@ -16,6 +16,25 @@ Date:   Wed Sep 14 21:01:04 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 15748c0fbb..f4a1f1800f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1775,6 +1775,13 @@ func (ctxt *Link) hostlink() {
+ 	if len(out) > 0 {
+ 		// always print external output even if the command is successful, so that we don't
+ 		// swallow linker warnings (see https://golang.org/issue/17935).
++		if ctxt.IsDarwin() && ctxt.IsAMD64() {
++			const noPieWarning = "ld: warning: -no_pie is deprecated when targeting new OS versions\n"
++			if i := bytes.Index(out, []byte(noPieWarning)); i >= 0 {
++				// swallow -no_pie deprecation warning, issue 54482
++				out = append(out[:i], out[i+len(noPieWarning):]...)
++			}
++		}
+ 		ctxt.Logf("%s", out)
+ 	}
+ 

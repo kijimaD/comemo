@@ -10,10 +10,146 @@ Date:   Wed Jul 8 14:57:51 2009 -0700
     DELTA=129  (67 added, 60 deleted, 2 changed)
     OCL=31353
     CL=31360
-
+---
  src/pkg/go/printer/data/golden1.go               | 25 ------------------------
  src/pkg/go/printer/printer_test.go               | 23 ++++++++++++++--------
  src/pkg/go/printer/testdata/golden1.go           | 25 ++++++++++++++++++++++++
  src/pkg/go/printer/{data => testdata}/golden1.x  |  0
  src/pkg/go/printer/{data => testdata}/source1.go |  0
  5 files changed, 40 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/go/printer/data/golden1.go b/src/pkg/go/printer/data/golden1.go
+deleted file mode 100644
+index 99205025ff..0000000000
+--- a/src/pkg/go/printer/data/golden1.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-package main
+-
+-import  "fmt" // fmt
+-
+-const c0 = 0 // zero
+-
+-const (
+-    c1  = iota; // c1
+-    c2  // c2
+-)
+-
+-type T struct {
+-    a, b, c int // 3 fields
+-}
+-
+-var x int // x
+-
+-var ()
+-
+-func f0() {
+-    const pi = 3.14;
+-    var s1 struct {}
+-    var s2 struct {} = struct {}{};
+-    x := pi
+-}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 421589a161..8390909294 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -6,6 +6,7 @@ package printer
+ 
+ import (
+ 	"bytes";
++	"flag";
+ 	"io";
+ 	"go/ast";
+ 	"go/parser";
+@@ -18,12 +19,16 @@ import (
+ 
+ 
+ const (
++	dataDir = "testdata";
+ 	tabwidth = 4;
+ 	padding = 1;
+-	tabchar = ' ';
++	tabchar = '\t';
+ )
+ 
+ 
++var update = flag.Bool("update", false, "update golden files");
++
++
+ func lineString(text []byte, i int) string {
+ 	i0 := i;
+ 	for i < len(text) && text[i] != '\n' {
+@@ -60,6 +65,14 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 	w.Flush();
+ 	res := buf.Data();
+ 
++	// update golden files if necessary
++	if *update {
++		if err := io.WriteFile(golden, res, 0644); err != nil {
++			t.Error(err);
++		}
++		return;
++	}
++
+ 	// get golden
+ 	gld, err := io.ReadFile(golden);
+ 	if err != nil {
+@@ -89,18 +102,12 @@ func check(t *testing.T, source, golden string, exports bool) {
+ }
+ 
+ 
+-const dataDir = "data";
+-
+ type entry struct {
+ 	source, golden string;
+ 	exports bool;
+ }
+ 
+-// Use gofmt to create/update the respective golden files:
+-//
+-//   gofmt source.go > golden.go
+-//   gofmt -x source.go > golden.x
+-//
++// Use gotest -update to create/update the respective golden files.
+ var data = []entry{
+ 	entry{ "source1.go", "golden1.go", false },
+ 	entry{ "source1.go", "golden1.x", true },
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/golden1.go
+new file mode 100644
+index 0000000000..f8fb9451b1
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/golden1.go
+@@ -0,0 +1,25 @@
++package main
++
++import 	"fmt"	// fmt
++
++const c0	= 0	// zero
++
++const (
++	c1	= iota;	// c1
++	c2	// c2
++)
++
++type T struct {
++	a, b, c	int	// 3 fields
++}
++
++var x int	// x
++
++var ()
++
++func f0() {
++	const pi	= 3.14;
++	var s1 struct {}
++	var s2 struct {}	= struct {}{};
++	x := pi
++}
+diff --git a/src/pkg/go/printer/data/golden1.x b/src/pkg/go/printer/testdata/golden1.x
+similarity index 100%
+rename from src/pkg/go/printer/data/golden1.x
+rename to src/pkg/go/printer/testdata/golden1.x
+diff --git a/src/pkg/go/printer/data/source1.go b/src/pkg/go/printer/testdata/source1.go
+similarity index 100%
+rename from src/pkg/go/printer/data/source1.go
+rename to src/pkg/go/printer/testdata/source1.go

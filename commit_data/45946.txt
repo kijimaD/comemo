@@ -25,7 +25,7 @@ Date:   Sun Nov 29 21:25:47 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go             |   2 +-
  src/cmd/compile/internal/ir/dump.go        |   4 +-
  src/cmd/compile/internal/ir/expr.go        | 725 ++++++++++++++++++++++++++++-
@@ -33,3 +33,1430 @@ Date:   Sun Nov 29 21:25:47 2020 -0500
  src/cmd/compile/internal/ir/node.go        | 504 +++-----------------
  src/cmd/compile/internal/ir/sizeof_test.go |   1 -
  6 files changed, 782 insertions(+), 459 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 32891aea66..09b06c4d93 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -29,7 +29,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ir.Name %+v":               "",
+ 	"*cmd/compile/internal/ir.Name %L":                "",
+ 	"*cmd/compile/internal/ir.Name %v":                "",
+-	"*cmd/compile/internal/ir.node %v":                "",
++	"*cmd/compile/internal/ir.SliceExpr %v":           "",
+ 	"*cmd/compile/internal/ssa.Block %s":              "",
+ 	"*cmd/compile/internal/ssa.Block %v":              "",
+ 	"*cmd/compile/internal/ssa.Func %s":               "",
+diff --git a/src/cmd/compile/internal/ir/dump.go b/src/cmd/compile/internal/ir/dump.go
+index fe1410969f..bff3a40855 100644
+--- a/src/cmd/compile/internal/ir/dump.go
++++ b/src/cmd/compile/internal/ir/dump.go
+@@ -200,9 +200,9 @@ func (p *dumper) dump(x reflect.Value, depth int) {
+ 		typ := x.Type()
+ 
+ 		isNode := false
+-		if n, ok := x.Interface().(node); ok {
++		if n, ok := x.Interface().(Node); ok {
+ 			isNode = true
+-			p.printf("%s %s {", n.op.String(), p.addr(x))
++			p.printf("%s %s {", n.Op().String(), p.addr(x))
+ 		} else {
+ 			p.printf("%s {", typ)
+ 		}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index f8e5f7641c..be9f486682 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -5,6 +5,7 @@
+ package ir
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -48,6 +49,182 @@ func (n *miniExpr) Init() Nodes           { return n.init }
+ func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
+ func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
+ 
++func toNtype(x Node) Ntype {
++	if x == nil {
++		return nil
++	}
++	if _, ok := x.(Ntype); !ok {
++		Dump("not Ntype", x)
++	}
++	return x.(Ntype)
++}
++
++// An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
++type AddStringExpr struct {
++	miniExpr
++	list Nodes
++}
++
++func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
++	n := &AddStringExpr{}
++	n.pos = pos
++	n.op = OADDSTR
++	n.list.Set(list)
++	return n
++}
++
++func (n *AddStringExpr) String() string                { return fmt.Sprint(n) }
++func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *AddStringExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *AddStringExpr) List() Nodes                   { return n.list }
++func (n *AddStringExpr) PtrList() *Nodes               { return &n.list }
++func (n *AddStringExpr) SetList(x Nodes)               { n.list = x }
++
++// An AddrExpr is an address-of expression &X.
++// It may end up being a normal address-of or an allocation of a composite literal.
++type AddrExpr struct {
++	miniExpr
++	X     Node
++	Alloc Node // preallocated storage if any
++}
++
++func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
++	n := &AddrExpr{X: x}
++	n.op = OADDR
++	n.pos = pos
++	return n
++}
++
++func (n *AddrExpr) String() string                { return fmt.Sprint(n) }
++func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *AddrExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *AddrExpr) Left() Node                    { return n.X }
++func (n *AddrExpr) SetLeft(x Node)                { n.X = x }
++func (n *AddrExpr) Right() Node                   { return n.Alloc }
++func (n *AddrExpr) SetRight(x Node)               { n.Alloc = x }
++
++func (n *AddrExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OADDR, OPTRLIT:
++		n.op = op
++	}
++}
++
++// A BinaryExpr is a binary expression X Op Y,
++// or Op(X, Y) for builtin functions that do not become calls.
++type BinaryExpr struct {
++	miniExpr
++	X Node
++	Y Node
++}
++
++func NewBinaryExpr(pos src.XPos, op Op, x, y Node) *BinaryExpr {
++	n := &BinaryExpr{X: x, Y: y}
++	n.pos = pos
++	n.SetOp(op)
++	return n
++}
++
++func (n *BinaryExpr) String() string                { return fmt.Sprint(n) }
++func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *BinaryExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *BinaryExpr) Left() Node                    { return n.X }
++func (n *BinaryExpr) SetLeft(x Node)                { n.X = x }
++func (n *BinaryExpr) Right() Node                   { return n.Y }
++func (n *BinaryExpr) SetRight(y Node)               { n.Y = y }
++
++func (n *BinaryExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OADD, OADDSTR, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
++		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
++		OCOPY, OCOMPLEX,
++		OEFACE:
++		n.op = op
++	}
++}
++
++// A CallExpr is a function call X(Args).
++type CallExpr struct {
++	miniExpr
++	orig     Node
++	X        Node
++	Args     Nodes
++	Rargs    Nodes // TODO(rsc): Delete.
++	body     Nodes // TODO(rsc): Delete.
++	DDD      bool
++	noInline bool
++}
++
++func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
++	n := &CallExpr{X: fun}
++	n.pos = pos
++	n.orig = n
++	n.op = OCALL
++	n.Args.Set(args)
++	return n
++}
++
++func (n *CallExpr) String() string                { return fmt.Sprint(n) }
++func (n *CallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *CallExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *CallExpr) Orig() Node                    { return n.orig }
++func (n *CallExpr) SetOrig(x Node)                { n.orig = x }
++func (n *CallExpr) Left() Node                    { return n.X }
++func (n *CallExpr) SetLeft(x Node)                { n.X = x }
++func (n *CallExpr) List() Nodes                   { return n.Args }
++func (n *CallExpr) PtrList() *Nodes               { return &n.Args }
++func (n *CallExpr) SetList(x Nodes)               { n.Args = x }
++func (n *CallExpr) Rlist() Nodes                  { return n.Rargs }
++func (n *CallExpr) PtrRlist() *Nodes              { return &n.Rargs }
++func (n *CallExpr) SetRlist(x Nodes)              { n.Rargs = x }
++func (n *CallExpr) IsDDD() bool                   { return n.DDD }
++func (n *CallExpr) SetIsDDD(x bool)               { n.DDD = x }
++func (n *CallExpr) NoInline() bool                { return n.noInline }
++func (n *CallExpr) SetNoInline(x bool)            { n.noInline = x }
++func (n *CallExpr) Body() Nodes                   { return n.body }
++func (n *CallExpr) PtrBody() *Nodes               { return &n.body }
++func (n *CallExpr) SetBody(x Nodes)               { n.body = x }
++
++func (n *CallExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
++		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
++		n.op = op
++	}
++}
++
++// A CallPartExpr is a method expression X.Method (uncalled).
++type CallPartExpr struct {
++	miniExpr
++	fn     *Func
++	X      Node
++	Method *Name
++}
++
++func NewCallPartExpr(pos src.XPos, x Node, method *Name, fn *Func) *CallPartExpr {
++	n := &CallPartExpr{fn: fn, X: x, Method: method}
++	n.op = OCALLPART
++	n.pos = pos
++	n.typ = fn.Type()
++	n.fn = fn
++	return n
++}
++
++func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
++func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *CallPartExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *CallPartExpr) Func() *Func                   { return n.fn }
++func (n *CallPartExpr) Left() Node                    { return n.X }
++func (n *CallPartExpr) Right() Node                   { return n.Method }
++func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
++func (n *CallPartExpr) SetRight(x Node)               { n.Method = x.(*Name) }
++
+ // A ClosureExpr is a function literal expression.
+ type ClosureExpr struct {
+ 	miniExpr
+@@ -85,31 +262,477 @@ func (n *ClosureRead) RawCopy() Node                 { c := *n; return &c }
+ func (n *ClosureRead) Type() *types.Type             { return n.typ }
+ func (n *ClosureRead) Offset() int64                 { return n.offset }
+ 
+-// A CallPartExpr is a method expression X.Method (uncalled).
+-type CallPartExpr struct {
++// A CompLitExpr is a composite literal Type{Vals}.
++// Before type-checking, the type is Ntype.
++type CompLitExpr struct {
++	miniExpr
++	orig  Node
++	Ntype Ntype
++	list  Nodes // initialized values
++}
++
++func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
++	n := &CompLitExpr{Ntype: typ}
++	n.pos = pos
++	n.op = OCOMPLIT
++	n.list.Set(list)
++	n.orig = n
++	return n
++}
++
++func (n *CompLitExpr) String() string                { return fmt.Sprint(n) }
++func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *CompLitExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *CompLitExpr) Orig() Node                    { return n.orig }
++func (n *CompLitExpr) SetOrig(x Node)                { n.orig = x }
++func (n *CompLitExpr) Right() Node                   { return n.Ntype }
++func (n *CompLitExpr) SetRight(x Node)               { n.Ntype = toNtype(x) }
++func (n *CompLitExpr) List() Nodes                   { return n.list }
++func (n *CompLitExpr) PtrList() *Nodes               { return &n.list }
++func (n *CompLitExpr) SetList(x Nodes)               { n.list = x }
++
++func (n *CompLitExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
++		n.op = op
++	}
++}
++
++// A ConvExpr is a conversion Type(X).
++// It may end up being a value or a type.
++type ConvExpr struct {
++	miniExpr
++	orig Node
++	X    Node
++}
++
++func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
++	n := &ConvExpr{X: x}
++	n.pos = pos
++	n.typ = typ
++	n.SetOp(op)
++	n.orig = n
++	return n
++}
++
++func (n *ConvExpr) String() string                { return fmt.Sprint(n) }
++func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ConvExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *ConvExpr) Orig() Node                    { return n.orig }
++func (n *ConvExpr) SetOrig(x Node)                { n.orig = x }
++func (n *ConvExpr) Left() Node                    { return n.X }
++func (n *ConvExpr) SetLeft(x Node)                { n.X = x }
++
++func (n *ConvExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR:
++		n.op = op
++	}
++}
++
++// An IndexExpr is an index expression X[Y].
++type IndexExpr struct {
++	miniExpr
++	X        Node
++	Index    Node
++	Assigned bool
++}
++
++func NewIndexExpr(pos src.XPos, x, index Node) *IndexExpr {
++	n := &IndexExpr{X: x, Index: index}
++	n.pos = pos
++	n.op = OINDEX
++	return n
++}
++
++func (n *IndexExpr) String() string                { return fmt.Sprint(n) }
++func (n *IndexExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *IndexExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *IndexExpr) Left() Node                    { return n.X }
++func (n *IndexExpr) SetLeft(x Node)                { n.X = x }
++func (n *IndexExpr) Right() Node                   { return n.Index }
++func (n *IndexExpr) SetRight(y Node)               { n.Index = y }
++func (n *IndexExpr) IndexMapLValue() bool          { return n.Assigned }
++func (n *IndexExpr) SetIndexMapLValue(x bool)      { n.Assigned = x }
++
++func (n *IndexExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OINDEX, OINDEXMAP:
++		n.op = op
++	}
++}
++
++// A KeyExpr is an X:Y composite literal key.
++// After type-checking, a key for a struct sets Sym to the field.
++type KeyExpr struct {
++	miniExpr
++	Key    Node
++	sym    *types.Sym
++	Value  Node
++	offset int64
++}
++
++func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
++	n := &KeyExpr{Key: key, Value: value}
++	n.pos = pos
++	n.op = OKEY
++	n.offset = types.BADWIDTH
++	return n
++}
++
++func (n *KeyExpr) String() string                { return fmt.Sprint(n) }
++func (n *KeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *KeyExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *KeyExpr) Left() Node                    { return n.Key }
++func (n *KeyExpr) SetLeft(x Node)                { n.Key = x }
++func (n *KeyExpr) Right() Node                   { return n.Value }
++func (n *KeyExpr) SetRight(y Node)               { n.Value = y }
++func (n *KeyExpr) Sym() *types.Sym               { return n.sym }
++func (n *KeyExpr) SetSym(x *types.Sym)           { n.sym = x }
++func (n *KeyExpr) Offset() int64                 { return n.offset }
++func (n *KeyExpr) SetOffset(x int64)             { n.offset = x }
++
++func (n *KeyExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OKEY, OSTRUCTKEY:
++		n.op = op
++	}
++}
++
++// An InlinedCallExpr is an inlined function call.
++type InlinedCallExpr struct {
++	miniExpr
++	body       Nodes
++	ReturnVars Nodes
++}
++
++func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
++	n := &InlinedCallExpr{}
++	n.pos = pos
++	n.op = OINLCALL
++	n.body.Set(body)
++	n.ReturnVars.Set(retvars)
++	return n
++}
++
++func (n *InlinedCallExpr) String() string                { return fmt.Sprint(n) }
++func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *InlinedCallExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *InlinedCallExpr) Body() Nodes                   { return n.body }
++func (n *InlinedCallExpr) PtrBody() *Nodes               { return &n.body }
++func (n *InlinedCallExpr) SetBody(x Nodes)               { n.body = x }
++func (n *InlinedCallExpr) Rlist() Nodes                  { return n.ReturnVars }
++func (n *InlinedCallExpr) PtrRlist() *Nodes              { return &n.ReturnVars }
++func (n *InlinedCallExpr) SetRlist(x Nodes)              { n.ReturnVars = x }
++
++// A MakeExpr is a make expression: make(Type[, Len[, Cap]]).
++// Op is OMAKECHAN, OMAKEMAP, OMAKESLICE, or OMAKESLICECOPY,
++// but *not* OMAKE (that's a pre-typechecking CallExpr).
++type MakeExpr struct {
++	miniExpr
++	Len Node
++	Cap Node
++}
++
++func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {
++	n := &MakeExpr{Len: len, Cap: cap}
++	n.pos = pos
++	n.SetOp(op)
++	return n
++}
++
++func (n *MakeExpr) String() string                { return fmt.Sprint(n) }
++func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *MakeExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *MakeExpr) Left() Node                    { return n.Len }
++func (n *MakeExpr) SetLeft(x Node)                { n.Len = x }
++func (n *MakeExpr) Right() Node                   { return n.Cap }
++func (n *MakeExpr) SetRight(x Node)               { n.Cap = x }
++
++func (n *MakeExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
++		n.op = op
++	}
++}
++
++// A MethodExpr is a method expression X.M (where X is an expression, not a type).
++type MethodExpr struct {
+ 	miniExpr
+-	fn     *Func
+ 	X      Node
+-	Method *Name
++	M      Node
++	sym    *types.Sym
++	offset int64
++	class  Class
+ }
+ 
+-func NewCallPartExpr(pos src.XPos, x Node, method *Name, fn *Func) *CallPartExpr {
+-	n := &CallPartExpr{fn: fn, X: x, Method: method}
+-	n.op = OCALLPART
++func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
++	n := &MethodExpr{X: x, M: m}
+ 	n.pos = pos
+-	n.typ = fn.Type()
+-	n.fn = fn
++	n.op = OMETHEXPR
++	n.offset = types.BADWIDTH
+ 	return n
+ }
+ 
+-func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
+-func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *CallPartExpr) RawCopy() Node                 { c := *n; return &c }
+-func (n *CallPartExpr) Func() *Func                   { return n.fn }
+-func (n *CallPartExpr) Left() Node                    { return n.X }
+-func (n *CallPartExpr) Right() Node                   { return n.Method }
+-func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
+-func (n *CallPartExpr) SetRight(x Node)               { n.Method = x.(*Name) }
++func (n *MethodExpr) String() string                { return fmt.Sprint(n) }
++func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *MethodExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *MethodExpr) Left() Node                    { return n.X }
++func (n *MethodExpr) SetLeft(x Node)                { n.X = x }
++func (n *MethodExpr) Right() Node                   { return n.M }
++func (n *MethodExpr) SetRight(y Node)               { n.M = y }
++func (n *MethodExpr) Sym() *types.Sym               { return n.sym }
++func (n *MethodExpr) SetSym(x *types.Sym)           { n.sym = x }
++func (n *MethodExpr) Offset() int64                 { return n.offset }
++func (n *MethodExpr) SetOffset(x int64)             { n.offset = x }
++func (n *MethodExpr) Class() Class                  { return n.class }
++func (n *MethodExpr) SetClass(x Class)              { n.class = x }
++
++// A NilExpr represents the predefined untyped constant nil.
++// (It may be copied and assigned a type, though.)
++type NilExpr struct {
++	miniExpr
++	sym *types.Sym // TODO: Remove
++}
++
++func NewNilExpr(pos src.XPos) *NilExpr {
++	n := &NilExpr{}
++	n.pos = pos
++	n.op = ONIL
++	return n
++}
++
++func (n *NilExpr) String() string                { return fmt.Sprint(n) }
++func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *NilExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *NilExpr) Sym() *types.Sym               { return n.sym }
++func (n *NilExpr) SetSym(x *types.Sym)           { n.sym = x }
++
++// A ParenExpr is a parenthesized expression (X).
++// It may end up being a value or a type.
++type ParenExpr struct {
++	miniExpr
++	X Node
++}
++
++func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
++	n := &ParenExpr{X: x}
++	n.op = OPAREN
++	n.pos = pos
++	return n
++}
++
++func (n *ParenExpr) String() string                { return fmt.Sprint(n) }
++func (n *ParenExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ParenExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *ParenExpr) Left() Node                    { return n.X }
++func (n *ParenExpr) SetLeft(x Node)                { n.X = x }
++
++func (*ParenExpr) CanBeNtype() {}
++
++// SetOTYPE changes n to be an OTYPE node returning t,
++// like all the type nodes in type.go.
++func (n *ParenExpr) SetOTYPE(t *types.Type) {
++	n.op = OTYPE
++	n.typ = t
++	if t.Nod == nil {
++		t.Nod = n
++	}
++}
++
++// A ResultExpr represents a direct access to a result slot on the stack frame.
++type ResultExpr struct {
++	miniExpr
++	offset int64
++}
++
++func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
++	n := &ResultExpr{offset: offset}
++	n.pos = pos
++	n.op = ORESULT
++	n.typ = typ
++	return n
++}
++
++func (n *ResultExpr) String() string                { return fmt.Sprint(n) }
++func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ResultExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *ResultExpr) Offset() int64                 { return n.offset }
++func (n *ResultExpr) SetOffset(x int64)             { n.offset = x }
++
++// A SelectorExpr is a selector expression X.Sym.
++type SelectorExpr struct {
++	miniExpr
++	X      Node
++	Sel    *types.Sym
++	offset int64
++}
++
++func NewSelectorExpr(pos src.XPos, x Node, sel *types.Sym) *SelectorExpr {
++	n := &SelectorExpr{X: x, Sel: sel}
++	n.pos = pos
++	n.op = OXDOT
++	n.offset = types.BADWIDTH
++	return n
++}
++
++func (n *SelectorExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
++		n.op = op
++	}
++}
++
++func (n *SelectorExpr) String() string                { return fmt.Sprint(n) }
++func (n *SelectorExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *SelectorExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *SelectorExpr) Left() Node                    { return n.X }
++func (n *SelectorExpr) SetLeft(x Node)                { n.X = x }
++func (n *SelectorExpr) Sym() *types.Sym               { return n.Sel }
++func (n *SelectorExpr) SetSym(x *types.Sym)           { n.Sel = x }
++func (n *SelectorExpr) Offset() int64                 { return n.offset }
++func (n *SelectorExpr) SetOffset(x int64)             { n.offset = x }
++
++// Before type-checking, bytes.Buffer is a SelectorExpr.
++// After type-checking it becomes a Name.
++func (*SelectorExpr) CanBeNtype() {}
++
++// A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
++type SliceExpr struct {
++	miniExpr
++	X    Node
++	list Nodes // TODO(rsc): Use separate Nodes
++}
++
++func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
++	n := &SliceExpr{X: x}
++	n.pos = pos
++	n.op = op
++	return n
++}
++
++func (n *SliceExpr) String() string                { return fmt.Sprint(n) }
++func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *SliceExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *SliceExpr) Left() Node                    { return n.X }
++func (n *SliceExpr) SetLeft(x Node)                { n.X = x }
++func (n *SliceExpr) List() Nodes                   { return n.list }
++func (n *SliceExpr) PtrList() *Nodes               { return &n.list }
++func (n *SliceExpr) SetList(x Nodes)               { n.list = x }
++
++func (n *SliceExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
++		n.op = op
++	}
++}
++
++// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
++// n must be a slice expression. max is nil if n is a simple slice expression.
++func (n *SliceExpr) SliceBounds() (low, high, max Node) {
++	if n.list.Len() == 0 {
++		return nil, nil, nil
++	}
++
++	switch n.Op() {
++	case OSLICE, OSLICEARR, OSLICESTR:
++		s := n.list.Slice()
++		return s[0], s[1], nil
++	case OSLICE3, OSLICE3ARR:
++		s := n.list.Slice()
++		return s[0], s[1], s[2]
++	}
++	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
++	return nil, nil, nil
++}
++
++// SetSliceBounds sets n's slice bounds, where n is a slice expression.
++// n must be a slice expression. If max is non-nil, n must be a full slice expression.
++func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
++	switch n.Op() {
++	case OSLICE, OSLICEARR, OSLICESTR:
++		if max != nil {
++			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
++		}
++		s := n.list.Slice()
++		if s == nil {
++			if low == nil && high == nil {
++				return
++			}
++			n.list.Set2(low, high)
++			return
++		}
++		s[0] = low
++		s[1] = high
++		return
++	case OSLICE3, OSLICE3ARR:
++		s := n.list.Slice()
++		if s == nil {
++			if low == nil && high == nil && max == nil {
++				return
++			}
++			n.list.Set3(low, high, max)
++			return
++		}
++		s[0] = low
++		s[1] = high
++		s[2] = max
++		return
++	}
++	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
++}
++
++// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
++// o must be a slicing op.
++func (o Op) IsSlice3() bool {
++	switch o {
++	case OSLICE, OSLICEARR, OSLICESTR:
++		return false
++	case OSLICE3, OSLICE3ARR:
++		return true
++	}
++	base.Fatalf("IsSlice3 op %v", o)
++	return false
++}
++
++// A SliceHeader expression constructs a slice header from its parts.
++type SliceHeaderExpr struct {
++	miniExpr
++	Ptr    Node
++	lenCap Nodes // TODO(rsc): Split into two Node fields
++}
++
++func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *SliceHeaderExpr {
++	n := &SliceHeaderExpr{Ptr: ptr}
++	n.pos = pos
++	n.op = OSLICEHEADER
++	n.typ = typ
++	n.lenCap.Set2(len, cap)
++	return n
++}
++
++func (n *SliceHeaderExpr) String() string                { return fmt.Sprint(n) }
++func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *SliceHeaderExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *SliceHeaderExpr) Left() Node                    { return n.Ptr }
++func (n *SliceHeaderExpr) SetLeft(x Node)                { n.Ptr = x }
++func (n *SliceHeaderExpr) List() Nodes                   { return n.lenCap }
++func (n *SliceHeaderExpr) PtrList() *Nodes               { return &n.lenCap }
++func (n *SliceHeaderExpr) SetList(x Nodes)               { n.lenCap = x }
+ 
+ // A StarExpr is a dereference expression *X.
+ // It may end up being a value or a type.
+@@ -154,3 +777,71 @@ func (n *StarExpr) DeepCopy(pos src.XPos) Node {
+ 	c.X = DeepCopy(pos, n.X)
+ 	return c
+ }
++
++// A TypeAssertionExpr is a selector expression X.(Type).
++// Before type-checking, the type is Ntype.
++type TypeAssertExpr struct {
++	miniExpr
++	X     Node
++	Ntype Node  // TODO: Should be Ntype, but reused as address of type structure
++	Itab  Nodes // Itab[0] is itab
++}
++
++func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
++	n := &TypeAssertExpr{X: x, Ntype: typ}
++	n.pos = pos
++	n.op = ODOTTYPE
++	return n
++}
++
++func (n *TypeAssertExpr) String() string                { return fmt.Sprint(n) }
++func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *TypeAssertExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *TypeAssertExpr) Left() Node                    { return n.X }
++func (n *TypeAssertExpr) SetLeft(x Node)                { n.X = x }
++func (n *TypeAssertExpr) Right() Node                   { return n.Ntype }
++func (n *TypeAssertExpr) SetRight(x Node)               { n.Ntype = x } // TODO: toNtype(x)
++func (n *TypeAssertExpr) List() Nodes                   { return n.Itab }
++func (n *TypeAssertExpr) PtrList() *Nodes               { return &n.Itab }
++func (n *TypeAssertExpr) SetList(x Nodes)               { n.Itab = x }
++
++func (n *TypeAssertExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case ODOTTYPE, ODOTTYPE2:
++		n.op = op
++	}
++}
++
++// A UnaryExpr is a unary expression Op X,
++// or Op(X) for a builtin function that does not end up being a call.
++type UnaryExpr struct {
++	miniExpr
++	X Node
++}
++
++func NewUnaryExpr(pos src.XPos, op Op, x Node) *UnaryExpr {
++	n := &UnaryExpr{X: x}
++	n.pos = pos
++	n.SetOp(op)
++	return n
++}
++
++func (n *UnaryExpr) String() string                { return fmt.Sprint(n) }
++func (n *UnaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *UnaryExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *UnaryExpr) Left() Node                    { return n.X }
++func (n *UnaryExpr) SetLeft(x Node)                { n.X = x }
++
++func (n *UnaryExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
++		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
++		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
++		OCHECKNIL, OCFUNC, OIDATA, OITAB, ONEWOBJ, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
++		n.op = op
++	}
++}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 4a08cca359..a111471222 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -277,10 +277,6 @@ type fmtNodes struct {
+ 
+ func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+ 
+-func (n *node) Format(s fmt.State, verb rune) {
+-	FmtNode(n, s, verb)
+-}
+-
+ func FmtNode(n Node, s fmt.State, verb rune) {
+ 	nodeFormat(n, s, verb, FErr)
+ }
+@@ -1806,7 +1802,6 @@ func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
+ 	}
+ }
+ 
+-func (n *node) String() string               { return fmt.Sprint(n) }
+ func modeString(n Node, mode FmtMode) string { return mode.Sprint(n) }
+ 
+ // "%L"  suffix with "(type %T)" where possible
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a4d19c39f8..9b407b36c0 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -118,140 +118,6 @@ type Node interface {
+ 	CanBeAnSSASym()
+ }
+ 
+-var _ Node = (*node)(nil)
+-
+-// A Node is a single node in the syntax tree.
+-// Actually the syntax tree is a syntax DAG, because there is only one
+-// node with Op=ONAME for a given instance of a variable x.
+-// The same is true for Op=OTYPE and Op=OLITERAL. See Node.mayBeShared.
+-type node struct {
+-	// Tree structure.
+-	// Generic recursive walks should follow these fields.
+-	left  Node
+-	right Node
+-	init  Nodes
+-	body  Nodes
+-	list  Nodes
+-	rlist Nodes
+-
+-	// most nodes
+-	typ  *types.Type
+-	orig Node // original form, for printing, and tracking copies of ONAMEs
+-
+-	sym *types.Sym // various
+-	opt interface{}
+-
+-	// Various. Usually an offset into a struct. For example:
+-	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+-	// - ODOT, ODOTPTR, and ORESULT use it to indicate offset relative to their base address.
+-	// - OSTRUCTKEY uses it to store the named field's offset.
+-	// - Named OLITERALs use it to store their ambient iota value.
+-	// - OINLMARK stores an index into the inlTree data structure.
+-	// - OCLOSURE uses it to store ambient iota value, if any.
+-	// Possibly still more uses. If you find any, document them.
+-	offset int64
+-
+-	pos src.XPos
+-
+-	flags bitset32
+-
+-	esc uint16 // EscXXX
+-
+-	op  Op
+-	aux uint8
+-}
+-
+-func (n *node) Left() Node            { return n.left }
+-func (n *node) SetLeft(x Node)        { n.left = x }
+-func (n *node) Right() Node           { return n.right }
+-func (n *node) SetRight(x Node)       { n.right = x }
+-func (n *node) Orig() Node            { return n.orig }
+-func (n *node) SetOrig(x Node)        { n.orig = x }
+-func (n *node) Type() *types.Type     { return n.typ }
+-func (n *node) SetType(x *types.Type) { n.typ = x }
+-func (n *node) Func() *Func           { return nil }
+-func (n *node) Name() *Name           { return nil }
+-func (n *node) Sym() *types.Sym       { return n.sym }
+-func (n *node) SetSym(x *types.Sym)   { n.sym = x }
+-func (n *node) Pos() src.XPos         { return n.pos }
+-func (n *node) SetPos(x src.XPos)     { n.pos = x }
+-func (n *node) Offset() int64         { return n.offset }
+-func (n *node) SetOffset(x int64)     { n.offset = x }
+-func (n *node) Esc() uint16           { return n.esc }
+-func (n *node) SetEsc(x uint16)       { n.esc = x }
+-func (n *node) Op() Op                { return n.op }
+-func (n *node) Init() Nodes           { return n.init }
+-func (n *node) SetInit(x Nodes)       { n.init = x }
+-func (n *node) PtrInit() *Nodes       { return &n.init }
+-func (n *node) Body() Nodes           { return n.body }
+-func (n *node) SetBody(x Nodes)       { n.body = x }
+-func (n *node) PtrBody() *Nodes       { return &n.body }
+-func (n *node) List() Nodes           { return n.list }
+-func (n *node) SetList(x Nodes)       { n.list = x }
+-func (n *node) PtrList() *Nodes       { return &n.list }
+-func (n *node) Rlist() Nodes          { return n.rlist }
+-func (n *node) SetRlist(x Nodes)      { n.rlist = x }
+-func (n *node) PtrRlist() *Nodes      { return &n.rlist }
+-func (n *node) MarkReadonly()         { panic("node.MarkReadOnly") }
+-func (n *node) Val() constant.Value   { panic("node.Val") }
+-func (n *node) SetVal(constant.Value) { panic("node.SetVal") }
+-func (n *node) Int64Val() int64       { panic("node.Int64Val") }
+-func (n *node) CanInt64() bool        { return false }
+-func (n *node) Uint64Val() uint64     { panic("node.Uint64Val") }
+-func (n *node) BoolVal() bool         { panic("node.BoolVal") }
+-func (n *node) StringVal() string     { panic("node.StringVal") }
+-
+-// node can be Ntype only because of OXDOT of undefined name.
+-// When that moves into its own syntax, can drop this.
+-func (n *node) CanBeNtype() {}
+-
+-func (n *node) SetOp(op Op) {
+-	if !okForNod[op] {
+-		panic("cannot node.SetOp " + op.String())
+-	}
+-	n.op = op
+-}
+-
+-func (n *node) ResetAux() {
+-	n.aux = 0
+-}
+-
+-func (n *node) SubOp() Op {
+-	switch n.Op() {
+-	case OASOP, ONAME:
+-	default:
+-		base.Fatalf("unexpected op: %v", n.Op())
+-	}
+-	return Op(n.aux)
+-}
+-
+-func (n *node) SetSubOp(op Op) {
+-	switch n.Op() {
+-	case OASOP, ONAME:
+-	default:
+-		base.Fatalf("unexpected op: %v", n.Op())
+-	}
+-	n.aux = uint8(op)
+-}
+-
+-func (n *node) IndexMapLValue() bool {
+-	if n.Op() != OINDEXMAP {
+-		base.Fatalf("unexpected op: %v", n.Op())
+-	}
+-	return n.aux != 0
+-}
+-
+-func (n *node) SetIndexMapLValue(b bool) {
+-	if n.Op() != OINDEXMAP {
+-		base.Fatalf("unexpected op: %v", n.Op())
+-	}
+-	if b {
+-		n.aux = 1
+-	} else {
+-		n.aux = 0
+-	}
+-}
+-
+ func IsSynthetic(n Node) bool {
+ 	name := n.Sym().Name
+ 	return name[0] == '.' || name[0] == '~'
+@@ -266,110 +132,6 @@ func IsAutoTmp(n Node) bool {
+ 	return n.Name().AutoTemp()
+ }
+ 
+-const (
+-	nodeClass, _     = iota, 1 << iota // PPARAM, PAUTO, PEXTERN, etc; three bits; first in the list because frequently accessed
+-	_, _                               // second nodeClass bit
+-	_, _                               // third nodeClass bit
+-	nodeWalkdef, _                     // tracks state during typecheckdef; 2 == loop detected; two bits
+-	_, _                               // second nodeWalkdef bit
+-	nodeTypecheck, _                   // tracks state during typechecking; 2 == loop detected; two bits
+-	_, _                               // second nodeTypecheck bit
+-	nodeInitorder, _                   // tracks state during init1; two bits
+-	_, _                               // second nodeInitorder bit
+-	_, nodeHasBreak
+-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+-	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP
+-	_, nodeIsDDD     // is the argument variadic
+-	_, nodeDiag      // already printed error about this
+-	_, nodeColas     // OAS resulting from :=
+-	_, nodeNonNil    // guaranteed to be non-nil
+-	_, nodeTransient // storage can be reused immediately after this statement
+-	_, nodeBounded   // bounds check unnecessary
+-	_, nodeHasCall   // expression contains a function call
+-	_, nodeLikely    // if statement condition likely
+-)
+-
+-func (n *node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
+-func (n *node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
+-func (n *node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
+-func (n *node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
+-
+-func (n *node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
+-func (n *node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
+-func (n *node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
+-func (n *node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
+-func (n *node) Diag() bool      { return n.flags&nodeDiag != 0 }
+-func (n *node) Colas() bool     { return n.flags&nodeColas != 0 }
+-func (n *node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
+-func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
+-func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+-func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+-func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
+-
+-func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+-func (n *node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+-func (n *node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
+-func (n *node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
+-
+-func (n *node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
+-func (n *node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
+-func (n *node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
+-func (n *node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
+-func (n *node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
+-func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+-func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+-func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+-func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+-
+-// MarkNonNil marks a pointer n as being guaranteed non-nil,
+-// on all code paths, at all times.
+-// During conversion to SSA, non-nil pointers won't have nil checks
+-// inserted before dereferencing. See state.exprPtr.
+-func (n *node) MarkNonNil() {
+-	if !n.Type().IsPtr() && !n.Type().IsUnsafePtr() {
+-		base.Fatalf("MarkNonNil(%v), type %v", n, n.Type())
+-	}
+-	n.flags.set(nodeNonNil, true)
+-}
+-
+-// SetBounded indicates whether operation n does not need safety checks.
+-// When n is an index or slice operation, n does not need bounds checks.
+-// When n is a dereferencing operation, n does not need nil checks.
+-// When n is a makeslice+copy operation, n does not need length and cap checks.
+-func (n *node) SetBounded(b bool) {
+-	switch n.Op() {
+-	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
+-		// No bounds checks needed.
+-	case ODOTPTR, ODEREF:
+-		// No nil check needed.
+-	case OMAKESLICECOPY:
+-		// No length and cap checks needed
+-		// since new slice and copied over slice data have same length.
+-	default:
+-		base.Fatalf("SetBounded(%v)", n)
+-	}
+-	n.flags.set(nodeBounded, b)
+-}
+-
+-// Opt returns the optimizer data for the node.
+-func (n *node) Opt() interface{} {
+-	return n.opt
+-}
+-
+-// SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
+-// SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+-func (n *node) SetOpt(x interface{}) {
+-	n.opt = x
+-}
+-
+-func (n *node) Iota() int64 {
+-	return n.Offset()
+-}
+-
+-func (n *node) SetIota(x int64) {
+-	n.SetOffset(x)
+-}
+-
+ // mayBeShared reports whether n may occur in multiple places in the AST.
+ // Extra care must be taken when mutating such a node.
+ func MayBeShared(n Node) bool {
+@@ -380,10 +142,6 @@ func MayBeShared(n Node) bool {
+ 	return false
+ }
+ 
+-// The compiler needs *Node to be assignable to cmd/compile/internal/ssa.Sym.
+-func (n *node) CanBeAnSSASym() {
+-}
+-
+ //go:generate stringer -type=Op -trimprefix=O
+ 
+ type Op uint8
+@@ -922,91 +680,15 @@ func OrigSym(s *types.Sym) *types.Sym {
+ 	return s
+ }
+ 
+-// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+-// n must be a slice expression. max is nil if n is a simple slice expression.
+-func (n *node) SliceBounds() (low, high, max Node) {
+-	if n.List().Len() == 0 {
+-		return nil, nil, nil
+-	}
+-
+-	switch n.Op() {
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		s := n.List().Slice()
+-		return s[0], s[1], nil
+-	case OSLICE3, OSLICE3ARR:
+-		s := n.List().Slice()
+-		return s[0], s[1], s[2]
+-	}
+-	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
+-	return nil, nil, nil
+-}
+-
+-// SetSliceBounds sets n's slice bounds, where n is a slice expression.
+-// n must be a slice expression. If max is non-nil, n must be a full slice expression.
+-func (n *node) SetSliceBounds(low, high, max Node) {
+-	switch n.Op() {
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		if max != nil {
+-			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
+-		}
+-		s := n.List().Slice()
+-		if s == nil {
+-			if low == nil && high == nil {
+-				return
+-			}
+-			n.PtrList().Set2(low, high)
+-			return
+-		}
+-		s[0] = low
+-		s[1] = high
+-		return
+-	case OSLICE3, OSLICE3ARR:
+-		s := n.List().Slice()
+-		if s == nil {
+-			if low == nil && high == nil && max == nil {
+-				return
+-			}
+-			n.PtrList().Set3(low, high, max)
+-			return
+-		}
+-		s[0] = low
+-		s[1] = high
+-		s[2] = max
+-		return
+-	}
+-	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
+-}
+-
+-// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+-// o must be a slicing op.
+-func (o Op) IsSlice3() bool {
+-	switch o {
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		return false
+-	case OSLICE3, OSLICE3ARR:
+-		return true
+-	}
+-	base.Fatalf("IsSlice3 op %v", o)
+-	return false
+-}
+-
+ func IsConst(n Node, ct constant.Kind) bool {
+ 	return ConstType(n) == ct
+ }
+ 
+-// rawcopy returns a shallow copy of n.
+-// Note: copy or sepcopy (rather than rawcopy) is usually the
+-//       correct choice (see comment with Node.copy, below).
+-func (n *node) RawCopy() Node {
+-	copy := *n
+-	return &copy
+-}
+-
+ // isNil reports whether n represents the universal untyped zero value "nil".
+ func IsNil(n Node) bool {
+ 	// Check n.Orig because constant propagation may produce typed nil constants,
+ 	// which don't exist in the Go spec.
+-	return Orig(n).Op() == ONIL
++	return n != nil && Orig(n).Op() == ONIL
+ }
+ 
+ func IsBlank(n Node) bool {
+@@ -1027,8 +709,26 @@ func Nod(op Op, nleft, nright Node) Node {
+ }
+ 
+ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+-	var n *node
+ 	switch op {
++	default:
++		panic("NodAt " + op.String())
++	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
++		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
++		OCOPY, OCOMPLEX,
++		OEFACE:
++		return NewBinaryExpr(pos, op, nleft, nright)
++	case OADDR, OPTRLIT:
++		return NewAddrExpr(pos, nleft)
++	case OADDSTR:
++		return NewAddStringExpr(pos, nil)
++	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
++		var typ Ntype
++		if nright != nil {
++			typ = nright.(Ntype)
++		}
++		n := NewCompLitExpr(pos, typ, nil)
++		n.SetOp(op)
++		return n
+ 	case OAS, OSELRECV:
+ 		n := NewAssignStmt(pos, nleft, nright)
+ 		n.SetOp(op)
+@@ -1039,12 +739,27 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return n
+ 	case OASOP:
+ 		return NewAssignOpStmt(pos, OXXX, nleft, nright)
++	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
++		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW, ONEWOBJ,
++		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
++		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
++		if nright != nil {
++			panic("unary nright")
++		}
++		return NewUnaryExpr(pos, op, nleft)
+ 	case OBLOCK:
+ 		return NewBlockStmt(pos, nil)
+ 	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
+ 		return NewBranchStmt(pos, op, nil)
++	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
++		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
++		n := NewCallExpr(pos, nleft, nil)
++		n.SetOp(op)
++		return n
+ 	case OCASE:
+ 		return NewCaseStmt(pos, nil, nil)
++	case OCONV, OCONVIFACE, OCONVNOP, ORUNESTR:
++		return NewConvExpr(pos, op, nil, nleft)
+ 	case ODCL, ODCLCONST, ODCLTYPE:
+ 		return NewDecl(pos, op, nleft)
+ 	case ODCLFUNC:
+@@ -1053,6 +768,18 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewDeferStmt(pos, nleft)
+ 	case ODEREF:
+ 		return NewStarExpr(pos, nleft)
++	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
++		n := NewSelectorExpr(pos, nleft, nil)
++		n.SetOp(op)
++		return n
++	case ODOTTYPE, ODOTTYPE2:
++		var typ Ntype
++		if nright != nil {
++			typ = nright.(Ntype)
++		}
++		n := NewTypeAssertExpr(pos, nleft, typ)
++		n.SetOp(op)
++		return n
+ 	case OEMPTY:
+ 		return NewEmptyStmt(pos)
+ 	case OFOR:
+@@ -1061,140 +788,51 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewGoStmt(pos, nleft)
+ 	case OIF:
+ 		return NewIfStmt(pos, nleft, nil, nil)
++	case OINDEX, OINDEXMAP:
++		n := NewIndexExpr(pos, nleft, nright)
++		n.SetOp(op)
++		return n
+ 	case OINLMARK:
+ 		return NewInlineMarkStmt(pos, types.BADWIDTH)
++	case OKEY, OSTRUCTKEY:
++		n := NewKeyExpr(pos, nleft, nright)
++		n.SetOp(op)
++		return n
+ 	case OLABEL:
+ 		return NewLabelStmt(pos, nil)
+ 	case OLITERAL, OTYPE, OIOTA:
+ 		n := newNameAt(pos, nil)
+ 		n.SetOp(op)
+ 		return n
++	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
++		return NewMakeExpr(pos, op, nleft, nright)
++	case OMETHEXPR:
++		return NewMethodExpr(pos, op, nleft, nright)
++	case ONIL:
++		return NewNilExpr(pos)
+ 	case OPACK:
+ 		return NewPkgName(pos, nil, nil)
++	case OPAREN:
++		return NewParenExpr(pos, nleft)
+ 	case ORANGE:
+ 		return NewRangeStmt(pos, nil, nright, nil)
++	case ORESULT:
++		return NewResultExpr(pos, nil, types.BADWIDTH)
+ 	case ORETURN:
+ 		return NewReturnStmt(pos, nil)
+ 	case OSELECT:
+ 		return NewSelectStmt(pos, nil)
+ 	case OSEND:
+ 		return NewSendStmt(pos, nleft, nright)
++	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
++		return NewSliceExpr(pos, op, nleft)
++	case OSLICEHEADER:
++		return NewSliceHeaderExpr(pos, nil, nleft, nil, nil)
+ 	case OSWITCH:
+ 		return NewSwitchStmt(pos, nleft, nil)
+ 	case OTYPESW:
+ 		return NewTypeSwitchGuard(pos, nleft, nright)
+-	default:
+-		n = new(node)
++	case OINLCALL:
++		return NewInlinedCallExpr(pos, nil, nil)
+ 	}
+-	n.SetOp(op)
+-	n.SetLeft(nleft)
+-	n.SetRight(nright)
+-	n.SetPos(pos)
+-	n.SetOffset(types.BADWIDTH)
+-	n.SetOrig(n)
+-	return n
+-}
+-
+-var okForNod = [OEND]bool{
+-	OADD:           true,
+-	OADDR:          true,
+-	OADDSTR:        true,
+-	OALIGNOF:       true,
+-	OAND:           true,
+-	OANDAND:        true,
+-	OANDNOT:        true,
+-	OAPPEND:        true,
+-	OARRAYLIT:      true,
+-	OBITNOT:        true,
+-	OBYTES2STR:     true,
+-	OBYTES2STRTMP:  true,
+-	OCALL:          true,
+-	OCALLFUNC:      true,
+-	OCALLINTER:     true,
+-	OCALLMETH:      true,
+-	OCAP:           true,
+-	OCFUNC:         true,
+-	OCHECKNIL:      true,
+-	OCLOSE:         true,
+-	OCOMPLEX:       true,
+-	OCOMPLIT:       true,
+-	OCONV:          true,
+-	OCONVIFACE:     true,
+-	OCONVNOP:       true,
+-	OCOPY:          true,
+-	ODELETE:        true,
+-	ODIV:           true,
+-	ODOT:           true,
+-	ODOTINTER:      true,
+-	ODOTMETH:       true,
+-	ODOTPTR:        true,
+-	ODOTTYPE:       true,
+-	ODOTTYPE2:      true,
+-	OEFACE:         true,
+-	OEQ:            true,
+-	OGE:            true,
+-	OGETG:          true,
+-	OGT:            true,
+-	OIDATA:         true,
+-	OIMAG:          true,
+-	OINDEX:         true,
+-	OINDEXMAP:      true,
+-	OINLCALL:       true,
+-	OITAB:          true,
+-	OKEY:           true,
+-	OLE:            true,
+-	OLEN:           true,
+-	OLSH:           true,
+-	OLT:            true,
+-	OMAKE:          true,
+-	OMAKECHAN:      true,
+-	OMAKEMAP:       true,
+-	OMAKESLICE:     true,
+-	OMAKESLICECOPY: true,
+-	OMAPLIT:        true,
+-	OMETHEXPR:      true,
+-	OMOD:           true,
+-	OMUL:           true,
+-	ONE:            true,
+-	ONEG:           true,
+-	ONEW:           true,
+-	ONEWOBJ:        true,
+-	ONIL:           true,
+-	ONOT:           true,
+-	OOFFSETOF:      true,
+-	OOR:            true,
+-	OOROR:          true,
+-	OPANIC:         true,
+-	OPAREN:         true,
+-	OPLUS:          true,
+-	OPRINT:         true,
+-	OPRINTN:        true,
+-	OPTRLIT:        true,
+-	OREAL:          true,
+-	ORECOVER:       true,
+-	ORECV:          true,
+-	ORESULT:        true,
+-	ORSH:           true,
+-	ORUNES2STR:     true,
+-	ORUNESTR:       true,
+-	OSIZEOF:        true,
+-	OSLICE:         true,
+-	OSLICE3:        true,
+-	OSLICE3ARR:     true,
+-	OSLICEARR:      true,
+-	OSLICEHEADER:   true,
+-	OSLICELIT:      true,
+-	OSLICESTR:      true,
+-	OSPTR:          true,
+-	OSTR2BYTES:     true,
+-	OSTR2BYTESTMP:  true,
+-	OSTR2RUNES:     true,
+-	OSTRUCTKEY:     true,
+-	OSTRUCTLIT:     true,
+-	OSUB:           true,
+-	OVARDEF:        true,
+-	OVARKILL:       true,
+-	OVARLIVE:       true,
+-	OXDOT:          true,
+-	OXOR:           true,
+ }
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 2f31ba8d34..4a133cb999 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -22,7 +22,6 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Func{}, 168, 288},
+ 		{Name{}, 128, 224},
+-		{node{}, 80, 136},
+ 	}
+ 
+ 	for _, tt := range tests {

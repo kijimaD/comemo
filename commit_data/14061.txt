@@ -9,7 +9,7 @@ Date:   Sun Oct 7 22:07:03 2012 +0400
     R=rsc, minux.ma
     CC=gobot, golang-dev
     https://golang.org/cl/6529053
-
+---
  src/pkg/go/build/deps_test.go |  2 +-
  src/pkg/sync/cond.go          | 18 ++++++++++++++++++
  src/pkg/sync/mutex.go         | 16 +++++++++++++++-
@@ -18,3 +18,369 @@ Date:   Sun Oct 7 22:07:03 2012 +0400
  src/pkg/sync/rwmutex.go       | 36 +++++++++++++++++++++++++++++++++++-
  src/pkg/sync/waitgroup.go     | 29 ++++++++++++++++++++++++++++-
  7 files changed, 159 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index e1f4f8c63e..efed739dd2 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -30,7 +30,7 @@ var pkgDeps = map[string][]string{
+ 	"errors":      {},
+ 	"io":          {"errors", "sync"},
+ 	"runtime":     {"unsafe"},
+-	"sync":        {"sync/atomic"},
++	"sync":        {"sync/atomic", "unsafe"},
+ 	"sync/atomic": {"unsafe"},
+ 	"unsafe":      {},
+ 
+diff --git a/src/pkg/sync/cond.go b/src/pkg/sync/cond.go
+index 1fc3deaf1e..491b985691 100644
+--- a/src/pkg/sync/cond.go
++++ b/src/pkg/sync/cond.go
+@@ -56,6 +56,9 @@ func NewCond(l Locker) *Cond {
+ //    c.L.Unlock()
+ //
+ func (c *Cond) Wait() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	c.m.Lock()
+ 	if c.newSema == nil {
+ 		c.newSema = new(uint32)
+@@ -63,6 +66,9 @@ func (c *Cond) Wait() {
+ 	s := c.newSema
+ 	c.newWaiters++
+ 	c.m.Unlock()
++	if raceenabled {
++		raceEnable()
++	}
+ 	c.L.Unlock()
+ 	runtime_Semacquire(s)
+ 	c.L.Lock()
+@@ -73,6 +79,9 @@ func (c *Cond) Wait() {
+ // It is allowed but not required for the caller to hold c.L
+ // during the call.
+ func (c *Cond) Signal() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	c.m.Lock()
+ 	if c.oldWaiters == 0 && c.newWaiters > 0 {
+ 		// Retire old generation; rename new to old.
+@@ -86,6 +95,9 @@ func (c *Cond) Signal() {
+ 		runtime_Semrelease(c.oldSema)
+ 	}
+ 	c.m.Unlock()
++	if raceenabled {
++		raceEnable()
++	}
+ }
+ 
+ // Broadcast wakes all goroutines waiting on c.
+@@ -93,6 +105,9 @@ func (c *Cond) Signal() {
+ // It is allowed but not required for the caller to hold c.L
+ // during the call.
+ func (c *Cond) Broadcast() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	c.m.Lock()
+ 	// Wake both generations.
+ 	if c.oldWaiters > 0 {
+@@ -109,4 +124,7 @@ func (c *Cond) Broadcast() {
+ 		c.newSema = nil
+ 	}
+ 	c.m.Unlock()
++	if raceenabled {
++		raceEnable()
++	}
+ }
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 9494cc3f82..b4629ebca5 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -10,7 +10,10 @@
+ // Values containing the types defined in this package should not be copied.
+ package sync
+ 
+-import "sync/atomic"
++import (
++	"sync/atomic"
++	"unsafe"
++)
+ 
+ // A Mutex is a mutual exclusion lock.
+ // Mutexes can be created as part of other structures;
+@@ -38,6 +41,9 @@ const (
+ func (m *Mutex) Lock() {
+ 	// Fast path: grab unlocked mutex.
+ 	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
++		if raceenabled {
++			raceAcquire(unsafe.Pointer(m))
++		}
+ 		return
+ 	}
+ 
+@@ -61,6 +67,10 @@ func (m *Mutex) Lock() {
+ 			awoke = true
+ 		}
+ 	}
++
++	if raceenabled {
++		raceAcquire(unsafe.Pointer(m))
++	}
+ }
+ 
+ // Unlock unlocks m.
+@@ -70,6 +80,10 @@ func (m *Mutex) Lock() {
+ // It is allowed for one goroutine to lock a Mutex and then
+ // arrange for another goroutine to unlock it.
+ func (m *Mutex) Unlock() {
++	if raceenabled {
++		raceRelease(unsafe.Pointer(m))
++	}
++
+ 	// Fast path: drop lock bit.
+ 	new := atomic.AddInt32(&m.state, -mutexLocked)
+ 	if (new+mutexLocked)&mutexLocked == 0 {
+diff --git a/src/pkg/sync/race.go b/src/pkg/sync/race.go
+new file mode 100644
+index 0000000000..d9431af6ff
+--- /dev/null
++++ b/src/pkg/sync/race.go
+@@ -0,0 +1,34 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package sync
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const raceenabled = true
++
++func raceAcquire(addr unsafe.Pointer) {
++	runtime.RaceAcquire(addr)
++}
++
++func raceRelease(addr unsafe.Pointer) {
++	runtime.RaceRelease(addr)
++}
++
++func raceReleaseMerge(addr unsafe.Pointer) {
++	runtime.RaceReleaseMerge(addr)
++}
++
++func raceDisable() {
++	runtime.RaceDisable()
++}
++
++func raceEnable() {
++	runtime.RaceEnable()
++}
+diff --git a/src/pkg/sync/race0.go b/src/pkg/sync/race0.go
+new file mode 100644
+index 0000000000..bef14f974f
+--- /dev/null
++++ b/src/pkg/sync/race0.go
+@@ -0,0 +1,28 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package sync
++
++import (
++	"unsafe"
++)
++
++const raceenabled = false
++
++func raceAcquire(addr unsafe.Pointer) {
++}
++
++func raceRelease(addr unsafe.Pointer) {
++}
++
++func raceReleaseMerge(addr unsafe.Pointer) {
++}
++
++func raceDisable() {
++}
++
++func raceEnable() {
++}
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index 782a9c3196..b494c64355 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -4,7 +4,10 @@
+ 
+ package sync
+ 
+-import "sync/atomic"
++import (
++	"sync/atomic"
++	"unsafe"
++)
+ 
+ // An RWMutex is a reader/writer mutual exclusion lock.
+ // The lock can be held by an arbitrary number of readers
+@@ -24,10 +27,17 @@ const rwmutexMaxReaders = 1 << 30
+ 
+ // RLock locks rw for reading.
+ func (rw *RWMutex) RLock() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+ 		// A writer is pending, wait for it.
+ 		runtime_Semacquire(&rw.readerSem)
+ 	}
++	if raceenabled {
++		raceEnable()
++		raceAcquire(unsafe.Pointer(&rw.readerSem))
++	}
+ }
+ 
+ // RUnlock undoes a single RLock call;
+@@ -35,6 +45,10 @@ func (rw *RWMutex) RLock() {
+ // It is a run-time error if rw is not locked for reading
+ // on entry to RUnlock.
+ func (rw *RWMutex) RUnlock() {
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
++		raceDisable()
++	}
+ 	if atomic.AddInt32(&rw.readerCount, -1) < 0 {
+ 		// A writer is pending.
+ 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+@@ -42,6 +56,9 @@ func (rw *RWMutex) RUnlock() {
+ 			runtime_Semrelease(&rw.writerSem)
+ 		}
+ 	}
++	if raceenabled {
++		raceEnable()
++	}
+ }
+ 
+ // Lock locks rw for writing.
+@@ -51,6 +68,9 @@ func (rw *RWMutex) RUnlock() {
+ // a blocked Lock call excludes new readers from acquiring
+ // the lock.
+ func (rw *RWMutex) Lock() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	// First, resolve competition with other writers.
+ 	rw.w.Lock()
+ 	// Announce to readers there is a pending writer.
+@@ -59,6 +79,11 @@ func (rw *RWMutex) Lock() {
+ 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
+ 		runtime_Semacquire(&rw.writerSem)
+ 	}
++	if raceenabled {
++		raceEnable()
++		raceAcquire(unsafe.Pointer(&rw.readerSem))
++		raceAcquire(unsafe.Pointer(&rw.writerSem))
++	}
+ }
+ 
+ // Unlock unlocks rw for writing.  It is a run-time error if rw is
+@@ -68,6 +93,12 @@ func (rw *RWMutex) Lock() {
+ // goroutine.  One goroutine may RLock (Lock) an RWMutex and then
+ // arrange for another goroutine to RUnlock (Unlock) it.
+ func (rw *RWMutex) Unlock() {
++	if raceenabled {
++		raceRelease(unsafe.Pointer(&rw.readerSem))
++		raceRelease(unsafe.Pointer(&rw.writerSem))
++		raceDisable()
++	}
++
+ 	// Announce to readers there is no active writer.
+ 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+ 	// Unblock blocked readers, if any.
+@@ -76,6 +107,9 @@ func (rw *RWMutex) Unlock() {
+ 	}
+ 	// Allow other writers to proceed.
+ 	rw.w.Unlock()
++	if raceenabled {
++		raceEnable()
++	}
+ }
+ 
+ // RLocker returns a Locker interface that implements
+diff --git a/src/pkg/sync/waitgroup.go b/src/pkg/sync/waitgroup.go
+index bc9e738e78..9b0ffec58b 100644
+--- a/src/pkg/sync/waitgroup.go
++++ b/src/pkg/sync/waitgroup.go
+@@ -4,7 +4,10 @@
+ 
+ package sync
+ 
+-import "sync/atomic"
++import (
++	"sync/atomic"
++	"unsafe"
++)
+ 
+ // A WaitGroup waits for a collection of goroutines to finish.
+ // The main goroutine calls Add to set the number of
+@@ -34,6 +37,11 @@ type WaitGroup struct {
+ // If the counter becomes zero, all goroutines blocked on Wait() are released.
+ // If the counter goes negative, Add panics.
+ func (wg *WaitGroup) Add(delta int) {
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(wg))
++		raceDisable()
++		defer raceEnable()
++	}
+ 	v := atomic.AddInt32(&wg.counter, int32(delta))
+ 	if v < 0 {
+ 		panic("sync: negative WaitGroup counter")
+@@ -57,7 +65,14 @@ func (wg *WaitGroup) Done() {
+ 
+ // Wait blocks until the WaitGroup counter is zero.
+ func (wg *WaitGroup) Wait() {
++	if raceenabled {
++		raceDisable()
++	}
+ 	if atomic.LoadInt32(&wg.counter) == 0 {
++		if raceenabled {
++			raceEnable()
++			raceAcquire(unsafe.Pointer(wg))
++		}
+ 		return
+ 	}
+ 	wg.m.Lock()
+@@ -68,7 +83,15 @@ func (wg *WaitGroup) Wait() {
+ 	// to avoid missing an Add.
+ 	if atomic.LoadInt32(&wg.counter) == 0 {
+ 		atomic.AddInt32(&wg.waiters, -1)
++		if raceenabled {
++			raceEnable()
++			raceAcquire(unsafe.Pointer(wg))
++			raceDisable()
++		}
+ 		wg.m.Unlock()
++		if raceenabled {
++			raceEnable()
++		}
+ 		return
+ 	}
+ 	if wg.sema == nil {
+@@ -77,4 +100,8 @@ func (wg *WaitGroup) Wait() {
+ 	s := wg.sema
+ 	wg.m.Unlock()
+ 	runtime_Semacquire(s)
++	if raceenabled {
++		raceEnable()
++		raceAcquire(unsafe.Pointer(wg))
++	}
+ }

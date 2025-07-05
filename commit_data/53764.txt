@@ -13,7 +13,76 @@ Date:   Mon Aug 29 17:27:22 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  .../compile/internal/types2/testdata/fixedbugs/issue51658.go | 12 ++++++++----
  src/go/types/testdata/fixedbugs/issue51658.go                | 12 ++++++++----
  2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go
+index c437c92d29..f32051caec 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This test checks syntax errors which differ between
++// go/parser and the syntax package.
++// TODO: consolidate eventually
++
+ package p
+ 
+-type F { // ERROR syntax error
++type F { // ERROR expected type|type declaration
+ 	float64
+-} // ERROR syntax error
++} // ERROR expected declaration|non-declaration statement
+ 
+ func _[T F | int](x T) {
+ 	_ = x == 0 // don't crash when recording type of 0
+@@ -14,9 +18,9 @@ func _[T F | int](x T) {
+ 
+ // test case from issue
+ 
+-type FloatType { // ERROR syntax error
++type FloatType { // ERROR expected type|type declaration
+ 	float32 | float64
+-} // ERROR syntax error
++} // ERROR expected declaration|non-declaration statement
+ 
+ type IntegerType interface {
+ 	int8 | int16 | int32 | int64 | int |
+diff --git a/src/go/types/testdata/fixedbugs/issue51658.go b/src/go/types/testdata/fixedbugs/issue51658.go
+index 04ce6a9760..f32051caec 100644
+--- a/src/go/types/testdata/fixedbugs/issue51658.go
++++ b/src/go/types/testdata/fixedbugs/issue51658.go
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This test checks syntax errors which differ between
++// go/parser and the syntax package.
++// TODO: consolidate eventually
++
+ package p
+ 
+-type F { // ERROR expected type
++type F { // ERROR expected type|type declaration
+ 	float64
+-} // ERROR expected declaration
++} // ERROR expected declaration|non-declaration statement
+ 
+ func _[T F | int](x T) {
+ 	_ = x == 0 // don't crash when recording type of 0
+@@ -14,9 +18,9 @@ func _[T F | int](x T) {
+ 
+ // test case from issue
+ 
+-type FloatType { // ERROR expected type
++type FloatType { // ERROR expected type|type declaration
+ 	float32 | float64
+-} // ERROR expected declaration
++} // ERROR expected declaration|non-declaration statement
+ 
+ type IntegerType interface {
+ 	int8 | int16 | int32 | int64 | int |

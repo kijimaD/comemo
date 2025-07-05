@@ -14,7 +14,43 @@ Date:   Mon Apr 17 12:32:12 2023 +0300
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/internal/coverage/defs.go           | 4 ++--
  src/internal/coverage/pods/pods_test.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/coverage/defs.go b/src/internal/coverage/defs.go
+index 4a41f57efd..8751b9f878 100644
+--- a/src/internal/coverage/defs.go
++++ b/src/internal/coverage/defs.go
+@@ -4,7 +4,7 @@
+ 
+ package coverage
+ 
+-// Types and constants related to the output files files written
++// Types and constants related to the output files written
+ // by code coverage tooling. When a coverage-instrumented binary
+ // is run, it emits two output files: a meta-data output file, and
+ // a counter data output file.
+@@ -172,7 +172,7 @@ type FuncDesc struct {
+ // jumps or control transfers). An "intraline" unit corresponds to a
+ // logical clause nested within some other simple unit. A simple unit
+ // will have a zero Parent value; for an intraline unit NxStmts will
+-// be zero and and Parent will be set to 1 plus the index of the
++// be zero and Parent will be set to 1 plus the index of the
+ // containing simple statement. Example:
+ //
+ //	L7:   q := 1
+diff --git a/src/internal/coverage/pods/pods_test.go b/src/internal/coverage/pods/pods_test.go
+index 28914c53cd..da28c06328 100644
+--- a/src/internal/coverage/pods/pods_test.go
++++ b/src/internal/coverage/pods/pods_test.go
+@@ -136,7 +136,7 @@ o2/covcounters.aaf2f89992379705dac844c0a2a1d45f.42.3 o:1
+ 		dbad := "/dev/null"
+ 		_, err = pods.CollectPods([]string{dbad}, true)
+ 		if err == nil {
+-			t.Errorf("exected error due to unreadable dir")
++			t.Errorf("executed error due to unreadable dir")
+ 		}
+ 	}
+ }

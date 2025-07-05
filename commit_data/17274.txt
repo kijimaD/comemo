@@ -10,8 +10,152 @@ Date:   Fri Aug 16 10:30:05 2013 +1000
     R=golang-dev, dsymonds, adg, rogpeppe, rsc
     CC=golang-dev
     https://golang.org/cl/12974043
-
+---
  src/cmd/go/doc.go  | 25 +------------------------
  src/cmd/go/fmt.go  | 44 +-------------------------------------------
  src/cmd/go/main.go |  3 ---
  3 files changed, 2 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index bb88570180..2fd5d79e7a 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -16,7 +16,6 @@ The commands are:
+ 
+     build       compile packages and dependencies
+     clean       remove object files
+-    doc         run godoc on package sources
+     env         print Go environment information
+     fix         run go tool fix on packages
+     fmt         run gofmt on package sources
+@@ -162,26 +161,6 @@ The -x flag causes clean to print remove commands as it executes them.
+ For more about specifying packages, see 'go help packages'.
+ 
+ 
+-Run godoc on package sources
+-
+-Usage:
+-
+-	go doc [-n] [-x] [packages]
+-
+-Doc runs the godoc command on the packages named by the
+-import paths.
+-
+-For more about godoc, see 'godoc godoc'.
+-For more about specifying packages, see 'go help packages'.
+-
+-The -n flag prints commands that would be executed.
+-The -x flag prints commands as they are executed.
+-
+-To run godoc with specific options, run godoc itself.
+-
+-See also: go fix, go fmt, go vet.
+-
+-
+ Print Go environment information
+ 
+ Usage:
+@@ -229,7 +208,7 @@ The -x flag prints commands as they are executed.
+ 
+ To run gofmt with specific options, run gofmt itself.
+ 
+-See also: go doc, go fix, go vet.
++See also: go fix, go vet.
+ 
+ 
+ Download and install packages and dependencies
+@@ -880,5 +859,3 @@ See the documentation of the testing package for more information.
+ 
+ */
+ package main
+-
+-// NOTE: cmdDoc is in fmt.go.
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 55c135ea9c..65dc3ca599 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -4,11 +4,8 @@
+ 
+ package main
+ 
+-import "os/exec"
+-
+ func init() {
+ 	addBuildFlagsNX(cmdFmt)
+-	addBuildFlagsNX(cmdDoc)
+ }
+ 
+ var cmdFmt = &Command{
+@@ -27,7 +24,7 @@ The -x flag prints commands as they are executed.
+ 
+ To run gofmt with specific options, run gofmt itself.
+ 
+-See also: go doc, go fix, go vet.
++See also: go fix, go vet.
+ 	`,
+ }
+ 
+@@ -39,42 +36,3 @@ func runFmt(cmd *Command, args []string) {
+ 		run(stringList("gofmt", "-l", "-w", relPaths(pkg.allgofiles)))
+ 	}
+ }
+-
+-var cmdDoc = &Command{
+-	Run:       runDoc,
+-	UsageLine: "doc [-n] [-x] [packages]",
+-	Short:     "run godoc on package sources",
+-	Long: `
+-Doc runs the godoc command on the packages named by the
+-import paths.
+-
+-For more about godoc, see 'godoc godoc'.
+-For more about specifying packages, see 'go help packages'.
+-
+-The -n flag prints commands that would be executed.
+-The -x flag prints commands as they are executed.
+-
+-To run godoc with specific options, run godoc itself.
+-
+-See also: go fix, go fmt, go vet.
+-	`,
+-}
+-
+-func runDoc(cmd *Command, args []string) {
+-	_, err := exec.LookPath("godoc")
+-	if err != nil {
+-		errorf("go doc: can't find godoc; to install:\n\tgo get code.google.com/p/go.tools/cmd/godoc")
+-		return
+-	}
+-	for _, pkg := range packages(args) {
+-		if pkg.ImportPath == "command-line arguments" {
+-			errorf("go doc: cannot use package file list")
+-			continue
+-		}
+-		if pkg.local {
+-			run("godoc", pkg.Dir)
+-		} else {
+-			run("godoc", pkg.ImportPath)
+-		}
+-	}
+-}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 3cee15651a..5fab64d4eb 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -76,7 +76,6 @@ func (c *Command) Runnable() bool {
+ var commands = []*Command{
+ 	cmdBuild,
+ 	cmdClean,
+-	cmdDoc,
+ 	cmdEnv,
+ 	cmdFix,
+ 	cmdFmt,
+@@ -213,8 +212,6 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
+ 
+ {{end}}*/
+ package main
+-
+-// NOTE: cmdDoc is in fmt.go.
+ `
+ 
+ // tmpl executes the given template text on data, writing the result to w.

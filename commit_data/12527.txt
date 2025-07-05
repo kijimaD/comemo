@@ -12,8 +12,125 @@ Date:   Fri Mar 9 01:31:09 2012 +0800
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5782043
-
+---
  src/cmd/gc/doc.go |  2 +-
  src/cmd/ld/doc.go | 71 ++++++++++++++++++++++++++++++-------------------------
  src/cmd/nm/doc.go |  3 ++-
  3 files changed, 42 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 5a2977eab0..163d3862c3 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -26,7 +26,7 @@ package P to read the files of P's dependencies, only the compiled output
+ of P.
+ 
+ Usage:
+-	6g [flags] file...
++	go tool 6g [flags] file...
+ The specified files must be Go source files and all part of the same package.
+ Substitute 6g with 8g or 5g where appropriate.
+ 
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 4728fccb8b..e99e504668 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -9,45 +9,52 @@ Ld is the portable code for a modified version of the Plan 9 linker.  The origin
+ 	http://plan9.bell-labs.com/magic/man2html/1/2l
+ 
+ It reads object files (.5, .6, or .8 files) and writes a binary named for the
+-architecture (5.out, 6.out, 8.out) by default.
++architecture (5.out, 6.out, 8.out) by default (if $GOOS is windows, a .exe suffix
++will be appended).
+ 
+ Major changes include:
+-	- support for ELF and Mach-O binary files
++	- support for ELF, Mach-O and PE binary files
+ 	- support for segmented stacks (this feature is implemented here, not in the compilers).
+ 
+ Original options are listed on the manual page linked above.
+ 
+-Options new in this version:
++Usage:
++	go tool 6l [flags] mainObj
++Substitute 6l with 8l or 5l as appropriate.
+ 
+--d
+-	Elide the dynamic linking header.  With this option, the binary
+-	is statically linked and does not refer to dynld.  Without this option
+-	(the default), the binary's contents are identical but it is loaded with dynld.
+--Hdarwin
+-	Write Apple Mach-O binaries (default when $GOOS is darwin)
+--Hlinux
+-	Write Linux ELF binaries (default when $GOOS is linux)
+--Hfreebsd
+-	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
+--Hnetbsd
+-	Write NetBSD ELF binaries (default when $GOOS is netbsd)
+--Hopenbsd
+-	Write OpenBSD ELF binaries (default when $GOOS is openbsd)
+--Hwindows
+-	Write Windows PE32+ binaries (default when $GOOS is windows)
+--I interpreter
+-	Set the ELF dynamic linker to use.
+--L dir1 -L dir2
+-	Search for libraries (package files) in dir1, dir2, etc.
+-	The default is the single location $GOROOT/pkg/$GOOS_amd64.
+--r dir1:dir2:...
+-	Set the dynamic linker search path when using ELF.
+--V
+-	Print the linker version.
+--X symbol value
+-	Set the value of an otherwise uninitialized string variable.
+-	The symbol name should be of the form importpath.name,
+-	as displayed in the symbol table printed by "go tool nm".
++Options new in this version:
+ 
++	-d
++		Elide the dynamic linking header.  With this option, the binary
++		is statically linked and does not refer to a dynamic linker.  Without this option
++		(the default), the binary's contents are identical but it is loaded with a dynamic
++		linker. This flag cannot be used when $GOOS is windows.
++	-Hdarwin     (only in 6l/8l)
++		Write Apple Mach-O binaries (default when $GOOS is darwin)
++	-Hlinux
++		Write Linux ELF binaries (default when $GOOS is linux)
++	-Hfreebsd    (only in 6l/8l)
++		Write FreeBSD ELF binaries (default when $GOOS is freebsd)
++	-Hnetbsd     (only in 6l/8l)
++		Write NetBSD ELF binaries (default when $GOOS is netbsd)
++	-Hopenbsd    (only in 6l/8l)
++		Write OpenBSD ELF binaries (default when $GOOS is openbsd)
++	-Hwindows    (only in 6l/8l)
++		Write Windows PE32+ Console binaries (default when $GOOS is windows)
++	-Hwindowsgui (only in 6l/8l)
++		Write Windows PE32+ GUI binaries
++	-I interpreter
++		Set the ELF dynamic linker to use.
++	-L dir1 -L dir2
++		Search for libraries (package files) in dir1, dir2, etc.
++		The default is the single location $GOROOT/pkg/$GOOS_$GOARCH.
++	-r dir1:dir2:...
++		Set the dynamic linker search path when using ELF.
++	-V
++		Print the linker version.
++	-X symbol value
++		Set the value of an otherwise uninitialized string variable.
++		The symbol name should be of the form importpath.name,
++		as displayed in the symbol table printed by "go tool nm".
+ */
+ package documentation
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 5e216b9223..c84369a5fd 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -14,7 +14,8 @@ Plan 9 C compiler.
+ This implementation adds the flag -S, which prints each symbol's size 
+ in decimal after its address.
+ 
+-It is installed as go tool nm and is architecture-independent.
++Usage:
++	go tool nm [-aghnsTu] file
+ 
+ */
+ package documentation

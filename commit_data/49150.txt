@@ -15,8 +15,83 @@ Date:   Wed Jul 21 19:57:56 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/runtime2.go |  2 +-
  src/runtime/time.go     |  5 -----
  src/time/sleep_test.go  | 34 ++++++++++++++++++++++++++++++++++
  3 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2a66826f34..8a15787382 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -681,7 +681,7 @@ type p struct {
+ 	// timerModifiedEarlier status. Because the timer may have been
+ 	// modified again, there need not be any timer with this value.
+ 	// This is updated using atomic functions.
+-	// This is 0 if the value is unknown.
++	// This is 0 if there are no timerModifiedEarlier timers.
+ 	timerModifiedEarliest uint64
+ 
+ 	// Per-P GC state
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index dee6a674e4..7b84d2af57 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -668,11 +668,6 @@ func adjusttimers(pp *p, now int64) {
+ 		if verifyTimers {
+ 			verifyTimerHeap(pp)
+ 		}
+-		// There are no timers to adjust, so it is safe to clear
+-		// timerModifiedEarliest. Do so in case it is stale.
+-		// Everything will work if we don't do this,
+-		// but clearing here may save future calls to adjusttimers.
+-		atomic.Store64(&pp.timerModifiedEarliest, 0)
+ 		return
+ 	}
+ 
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 6ee0631a85..e0172bf5e0 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -527,6 +527,40 @@ func TestZeroTimer(t *testing.T) {
+ 	}
+ }
+ 
++// Test that rapidly moving a timer earlier doesn't cause it to get dropped.
++// Issue 47329.
++func TestTimerModifiedEarlier(t *testing.T) {
++	past := Until(Unix(0, 0))
++	count := 1000
++	fail := 0
++	for i := 0; i < count; i++ {
++		timer := NewTimer(Hour)
++		for j := 0; j < 10; j++ {
++			if !timer.Stop() {
++				<-timer.C
++			}
++			timer.Reset(past)
++		}
++
++		deadline := NewTimer(10 * Second)
++		defer deadline.Stop()
++		now := Now()
++		select {
++		case <-timer.C:
++			if since := Since(now); since > 8*Second {
++				t.Errorf("timer took too long (%v)", since)
++				fail++
++			}
++		case <-deadline.C:
++			t.Error("deadline expired")
++		}
++	}
++
++	if fail > 0 {
++		t.Errorf("%d failures", fail)
++	}
++}
++
+ // Benchmark timer latency when the thread that creates the timer is busy with
+ // other work and the timers must be serviced by other threads.
+ // https://golang.org/issue/38860

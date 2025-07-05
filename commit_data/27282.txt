@@ -9,6 +9,19 @@ Date:   Fri Mar 18 12:10:47 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/print.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 862deb9dcb..1cf1246b5d 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -103,7 +103,6 @@ func (bp *buffer) WriteRune(r rune) {
+ }
+ 
+ type pp struct {
+-	n         int
+ 	panicking bool
+ 	erroring  bool // printing an error condition
+ 	buf       buffer

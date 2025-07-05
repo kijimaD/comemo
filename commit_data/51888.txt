@@ -13,7 +13,52 @@ Date:   Thu Mar 17 17:35:11 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/393659
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 11 ++++-------
  src/go/types/check_test.go                    | 11 ++++-------
  2 files changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index fa6d465acc..cdf440f9be 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -297,13 +297,10 @@ func TestManual(t *testing.T) {
+ 
+ // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+ 
+-func TestCheck(t *testing.T)    { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+-func TestSpec(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", 0, false) }
+-func TestExamples(t *testing.T) { testDirFiles(t, "testdata/examples", 0, false) }
+-func TestFixedbugs(t *testing.T) {
+-	DefPredeclaredTestFuncs()
+-	testDirFiles(t, "testdata/fixedbugs", 0, false)
+-}
++func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
++func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", 0, false) }
++func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
++func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 73b8de8fd4..592ced41ec 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -369,13 +369,10 @@ func TestIssue47243_TypedRHS(t *testing.T) {
+ 	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+-func TestCheck(t *testing.T)    { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+-func TestSpec(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", false) }
+-func TestExamples(t *testing.T) { testDirFiles(t, "testdata/examples", false) }
+-func TestFixedbugs(t *testing.T) {
+-	DefPredeclaredTestFuncs()
+-	testDirFiles(t, "testdata/fixedbugs", false)
+-}
++func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", false) }
++func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", false) }
++func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
++func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+ 
+ func testDirFiles(t *testing.T, dir string, manual bool) {
+ 	testenv.MustHaveGoBuild(t)

@@ -10,7 +10,7 @@ Date:   Sun Aug 3 23:03:31 2008 -0700
     DELTA=45  (6 added, 22 deleted, 17 changed)
     OCL=13790
     CL=13793
-
+---
  src/Make.conf              | 10 ++++++++++
  src/cmd/6a/Makefile        |  7 ++-----
  src/cmd/6c/Makefile        |  6 ++----
@@ -22,3 +22,201 @@ Date:   Sun Aug 3 23:03:31 2008 -0700
  src/libbio/Makefile        |  3 +--
  src/libmach_amd64/Makefile |  3 +--
  10 files changed, 24 insertions(+), 33 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+new file mode 100644
+index 0000000000..e6d8628aea
+--- /dev/null
++++ b/src/Make.conf
+@@ -0,0 +1,10 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CC=cc64
++LD=cc64
++CFLAGS=-ggdb -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++YFLAGS=-d
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index 4d987c1247..be34e99d36 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -2,10 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-YFLAGS=-d
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ TARG=\
+ 	6a\
+@@ -26,7 +23,7 @@ YFILES=\
+ 	a.y\
+ 
+ $(TARG): $(OFILES)
+-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index df92cee014..fcfeb22043 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -2,9 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ TARG=\
+ 	6c\
+@@ -32,7 +30,7 @@ LIB=\
+ 	../cc/cc.a$O
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index d119820e9e..4d27ae811d 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -2,9 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ TARG=\
+ 	6g
+@@ -27,7 +25,7 @@ LIB=\
+ 	../gc/gc.a$O
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index e87efafc93..c15f4ff1bd 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -2,9 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ TARG=\
+ 	6l\
+@@ -25,7 +23,7 @@ HFILES=\
+ 
+ 
+ $(TARG): $(OFILES)
+-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index 11f573e107..ec499b2970 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -2,9 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ # The directory is ar because the source is portable and general.
+ # We call the binary 6ar to avoid confusion and because this binary
+@@ -15,7 +13,7 @@ OFILES=\
+ 	ar.$O\
+ 
+ $(TARG): $(OFILES)
+-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index cf52c8818a..5d21241c43 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -2,10 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-YFLAGS=-d
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ LIB=\
+ 	cc.a$O\
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 8535c64b43..d5db24fe2f 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -2,10 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-YFLAGS=-d
+-CFLAGS=-I$(GOROOT)/include
+-BIN=$(HOME)/bin
+-O=o
++include ../../Make.conf
+ 
+ LIB=\
+ 	gc.a$O\
+diff --git a/src/libbio/Makefile b/src/libbio/Makefile
+index eddeac071d..02eaaa684f 100644
+--- a/src/libbio/Makefile
++++ b/src/libbio/Makefile
+@@ -22,8 +22,7 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-O=o
++include ../Make.conf
+ 
+ LIB=libbio.a
+ 
+diff --git a/src/libmach_amd64/Makefile b/src/libmach_amd64/Makefile
+index b8aa716b38..e4a80d8d29 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach_amd64/Makefile
+@@ -26,8 +26,7 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-CFLAGS=-I$(GOROOT)/include
+-O=o
++include ../Make.conf
+ 
+ LIB=libmach_amd64.a
+ OFILES=\

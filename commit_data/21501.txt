@@ -7,7 +7,32 @@ Date:   Fri Jan 9 11:31:23 2015 -0800
     Change-Id: Icecfe9223d8457de067391fffa9f0fcee4292be7
     Reviewed-on: https://go-review.googlesource.com/2620
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/print1_write.go         | 4 ++++
  src/runtime/print1_write_android.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/runtime/print1_write.go b/src/runtime/print1_write.go
+index 5fd7d6519c..6b1467b1c4 100644
+--- a/src/runtime/print1_write.go
++++ b/src/runtime/print1_write.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build !android
+ 
+ package runtime
+diff --git a/src/runtime/print1_write_android.go b/src/runtime/print1_write_android.go
+index d086e84b91..31093de70f 100644
+--- a/src/runtime/print1_write_android.go
++++ b/src/runtime/print1_write_android.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime
+ 
+ import "unsafe"

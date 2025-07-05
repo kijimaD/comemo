@@ -14,6 +14,23 @@ Date:   Thu Jul 23 12:19:09 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12574
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/{os/file_darwin.go => runtime/cgo/tmpdir_darwin.go} | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file_darwin.go b/src/runtime/cgo/tmpdir_darwin.go
+similarity index 98%
+rename from src/os/file_darwin.go
+rename to src/runtime/cgo/tmpdir_darwin.go
+index ee3a954683..1239c70de9 100644
+--- a/src/os/file_darwin.go
++++ b/src/runtime/cgo/tmpdir_darwin.go
+@@ -4,7 +4,7 @@
+ 
+ // +build arm arm64
+ 
+-package os
++package cgo
+ 
+ /*
+ #cgo CFLAGS: -x objective-c

@@ -7,7 +7,7 @@ Date:   Fri Sep 2 15:35:16 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4967052
-
+---
  src/cmd/gc/gen.c    | 10 ++++++++++
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/range.c  | 30 ++++++++++--------------------
@@ -17,3 +17,344 @@ Date:   Fri Sep 2 15:35:16 2011 -0400
  src/cmd/gc/swt.c    | 12 ++++--------
  src/cmd/gc/walk.c   | 33 +++++++++++----------------------
  8 files changed, 43 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index d585c451a2..fa08423503 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -877,3 +877,13 @@ tempname(Node *nn, Type *t)
+ 
+ 	*nn = *n;
+ }
++
++Node*
++temp(Type *t)
++{
++	Node *n;
++	
++	n = nod(OXXX, N, N);
++	tempname(n, t);
++	return n;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 42f2140255..19c3b57841 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -991,6 +991,7 @@ void	gen(Node *n);
+ void	genlist(NodeList *l);
+ Node*	sysfunc(char *name);
+ void	tempname(Node *n, Type *t);
++Node*	temp(Type*);
+ 
+ /*
+  *	init.c
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index bb22d234c5..5cbafd895a 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -123,8 +123,7 @@ walkrange(Node *n)
+ 		// no need to make a potentially expensive copy.
+ 		ha = a;
+ 	} else {
+-		ha = nod(OXXX, N, N);
+-		tempname(ha, a->type);
++		ha = temp(a->type);
+ 		init = list(init, nod(OAS, ha, a));
+ 	}
+ 
+@@ -133,17 +132,14 @@ walkrange(Node *n)
+ 		fatal("walkrange");
+ 
+ 	case TARRAY:
+-		hv1 = nod(OXXX, N, n);
+-		tempname(hv1, types[TINT]);
+-		hn = nod(OXXX, N, N);
+-		tempname(hn, types[TINT]);
++		hv1 = temp(types[TINT]);
++		hn = temp(types[TINT]);
+ 		hp = nil;
+ 
+ 		init = list(init, nod(OAS, hv1, N));
+ 		init = list(init, nod(OAS, hn, nod(OLEN, ha, N)));
+ 		if(v2) {
+-			hp = nod(OXXX, N, N);
+-			tempname(hp, ptrto(n->type->type));
++			hp = temp(ptrto(n->type->type));
+ 			tmp = nod(OINDEX, ha, nodintconst(0));
+ 			tmp->etype = 1;	// no bounds check
+ 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
+@@ -168,8 +164,7 @@ walkrange(Node *n)
+ 		th = typ(TARRAY);
+ 		th->type = ptrto(types[TUINT8]);
+ 		th->bound = (sizeof(struct Hiter) + widthptr - 1) / widthptr;
+-		hit = nod(OXXX, N, N);
+-		tempname(hit, th);
++		hit = temp(th);
+ 
+ 		fn = syslook("mapiterinit", 1);
+ 		argtype(fn, t->down);
+@@ -200,10 +195,8 @@ walkrange(Node *n)
+ 		break;
+ 
+ 	case TCHAN:
+-		hv1 = nod(OXXX, N, n);
+-		tempname(hv1, t->type);
+-		hb = nod(OXXX, N, N);
+-		tempname(hb, types[TBOOL]);
++		hv1 = temp(t->type);
++		hb = temp(types[TBOOL]);
+ 
+ 		n->ntest = nod(ONE, hb, nodbool(0));
+ 		a = nod(OAS2RECV, N, N);
+@@ -215,18 +208,15 @@ walkrange(Node *n)
+ 		break;
+ 
+ 	case TSTRING:
+-		ohv1 = nod(OXXX, N, N);
+-		tempname(ohv1, types[TINT]);
++		ohv1 = temp(types[TINT]);
+ 
+-		hv1 = nod(OXXX, N, N);
+-		tempname(hv1, types[TINT]);
++		hv1 = temp(types[TINT]);
+ 		init = list(init, nod(OAS, hv1, N));
+ 
+ 		if(v2 == N)
+ 			a = nod(OAS, hv1, mkcall("stringiter", types[TINT], nil, ha, hv1));
+ 		else {
+-			hv2 = nod(OXXX, N, N);
+-			tempname(hv2, types[TINT]);
++			hv2 = temp(types[TINT]);
+ 			a = nod(OAS2, N, N);
+ 			a->list = list(list1(hv1), hv2);
+ 			fn = syslook("stringiter2", 0);
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index cd6741ec8b..8ace1d4ee5 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -194,8 +194,7 @@ walkselect(Node *sel)
+ 					n->ntest->etype = 1;  // pointer does not escape
+ 					typecheck(&n->ntest, Erv);
+ 				} else {
+-					tmp = nod(OXXX, N, N);
+-					tempname(tmp, types[TBOOL]);
++					tmp = temp(types[TBOOL]);
+ 					a = nod(OADDR, tmp, N);
+ 					a->etype = 1;  // pointer does not escape
+ 					typecheck(&a, Erv);
+@@ -215,8 +214,7 @@ walkselect(Node *sel)
+ 				n->left->etype = 1;  // pointer does not escape
+ 				typecheck(&n->left, Erv);
+ 			} else {
+-				tmp = nod(OXXX, N, N);
+-				tempname(tmp, ch->type->type);
++				tmp = temp(ch->type->type);
+ 				a = nod(OADDR, tmp, N);
+ 				a->etype = 1;  // pointer does not escape
+ 				typecheck(&a, Erv);
+@@ -287,8 +285,7 @@ walkselect(Node *sel)
+ 
+ 	// generate sel-struct
+ 	setlineno(sel);
+-	var = nod(OXXX, N, N);
+-	tempname(var, ptrto(types[TUINT8]));
++	var = temp(ptrto(types[TUINT8]));
+ 	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
+ 	typecheck(&r, Etop);
+ 	init = list(init, r);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index d98f4fef29..18856cd3ac 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -689,13 +689,11 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	}
+ 
+ 	// make new auto *array (3 declare)
+-	vauto = nod(OXXX, N, N);
+-	tempname(vauto, ptrto(t));
++	vauto = temp(ptrto(t));
+ 
+ 	// set auto to point at new temp or heap (3 assign)
+ 	if(n->esc == EscNone) {
+-		a = nod(OXXX, N, N);
+-		tempname(a, t);
++		a = temp(t);
+ 		*init = list(*init, nod(OAS, a, N));  // zero new temp
+ 		a = nod(OADDR, a, N);
+ 	} else {
+@@ -859,8 +857,7 @@ ctxt = 0;
+ 		// for i = 0; i < len(vstat); i++ {
+ 		//	map[vstat[i].a] = vstat[i].b
+ 		// }
+-		index = nod(OXXX, N, N);
+-		tempname(index, types[TINT]);
++		index = temp(types[TINT]);
+ 
+ 		a = nod(OINDEX, vstat, index);
+ 		a->etype = 1;	// no bounds checking
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5ebb150212..a33dd2d114 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2788,8 +2788,7 @@ copyexpr(Node *n, Type *t, NodeList **init)
+ {
+ 	Node *a, *l;
+ 	
+-	l = nod(OXXX, N, N);
+-	tempname(l, t);
++	l = temp(t);
+ 	a = nod(OAS, l, n);
+ 	typecheck(&a, Etop);
+ 	walkexpr(&a, init);
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 163cdb84e2..0381132d03 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -515,8 +515,7 @@ exprswitch(Node *sw)
+ 	exprname = N;
+ 	cas = nil;
+ 	if(arg != Strue && arg != Sfalse) {
+-		exprname = nod(OXXX, N, N);
+-		tempname(exprname, sw->ntest->type);
++		exprname = temp(sw->ntest->type);
+ 		cas = list1(nod(OAS, exprname, sw->ntest));
+ 		typechecklist(cas, Etop);
+ 	}
+@@ -673,20 +672,17 @@ typeswitch(Node *sw)
+ 	 * predeclare temporary variables
+ 	 * and the boolean var
+ 	 */
+-	facename = nod(OXXX, N, N);
+-	tempname(facename, sw->ntest->right->type);
++	facename = temp(sw->ntest->right->type);
+ 	a = nod(OAS, facename, sw->ntest->right);
+ 	typecheck(&a, Etop);
+ 	cas = list(cas, a);
+ 
+ 	casebody(sw, facename);
+ 
+-	boolname = nod(OXXX, N, N);
+-	tempname(boolname, types[TBOOL]);
++	boolname = temp(types[TBOOL]);
+ 	typecheck(&boolname, Erv);
+ 
+-	hashname = nod(OXXX, N, N);
+-	tempname(hashname, types[TUINT32]);
++	hashname = temp(types[TUINT32]);
+ 	typecheck(&hashname, Erv);
+ 
+ 	t = sw->ntest->right->type;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 7ca7257179..8a84956a67 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -562,8 +562,7 @@ walkexpr(Node **np, NodeList **init)
+ 		// and map index has an implicit one.
+ 		lpost = nil;
+ 		if(l->op == OINDEXMAP) {
+-			var = nod(OXXX, N, N);
+-			tempname(var, l->type);
++			var = temp(l->type);
+ 			n->list->n = var;
+ 			a = nod(OAS, l, var);
+ 			typecheck(&a, Etop);
+@@ -571,8 +570,7 @@ walkexpr(Node **np, NodeList **init)
+ 		}
+ 		l = n->list->next->n;
+ 		if(l->op == OINDEXMAP) {
+-			var = nod(OXXX, N, N);
+-			tempname(var, l->type);
++			var = temp(l->type);
+ 			n->list->next->n = var;
+ 			a = nod(OAS, l, var);
+ 			typecheck(&a, Etop);
+@@ -975,8 +973,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case ONEW:
+ 		if(n->esc == EscNone && n->type->type->width < (1<<16)) {
+-			r = nod(OXXX, N, N);
+-			tempname(r, n->type->type);
++			r = temp(n->type->type);
+ 			*init = list(*init, nod(OAS, r, N));  // zero temp
+ 			r = nod(OADDR, r, N);
+ 			typecheck(&r, Erv);
+@@ -1164,8 +1161,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+-		nvar = nod(OXXX, N, N);
+-		tempname(nvar, n->type);
++		nvar = temp(n->type);
+ 		anylit(0, n, nvar, init);
+ 		n = nvar;
+ 		goto ret;
+@@ -1194,8 +1190,7 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
+ {
+ 	Node *nvar, *nas;
+ 
+-	nvar = nod(OXXX, N, N);
+-	tempname(nvar, t);
++	nvar = temp(t);
+ 	nas = nod(OAS, nvar, callnew(t->type));
+ 	typecheck(&nas, Etop);
+ 	walkexpr(&nas, init);
+@@ -1291,8 +1286,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 		// deferred until all the return arguments
+ 		// have been pulled from the output arguments
+ 		if(fncall(l, r->type)) {
+-			tmp = nod(OXXX, N, N);
+-			tempname(tmp, r->type);
++			tmp = temp(r->type);
+ 			typecheck(&tmp, Erv);
+ 			a = nod(OAS, l, tmp);
+ 			a = convas(a, init);
+@@ -1434,8 +1428,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
+ 		// copy into temporaries.
+ 		alist = nil;
+ 		for(l=structfirst(&savel, &r->type); l; l=structnext(&savel)) {
+-			a = nod(OXXX, N, N);
+-			tempname(a, l->type);
++			a = temp(l->type);
+ 			alist = list(alist, a);
+ 		}
+ 		a = nod(OAS2, N, N);
+@@ -1778,8 +1771,7 @@ reorder1(NodeList *all)
+ 		}
+ 
+ 		// make assignment of fncall to tempname
+-		a = nod(OXXX, N, N);
+-		tempname(a, n->right->type);
++		a = temp(n->right->type);
+ 		a = nod(OAS, a, n->right);
+ 		g = list(g, a);
+ 
+@@ -1882,8 +1874,7 @@ reorder3(NodeList *all)
+ 			if(c2 > c1) {
+ 				if(vmatch1(n1->left, n2->right)) {
+ 					// delay assignment to n1->left
+-					q = nod(OXXX, N, N);
+-					tempname(q, n1->right->type);
++					q = temp(n1->right->type);
+ 					q = nod(OAS, n1->left, q);
+ 					n1->left = q->right;
+ 					r = list(r, q);
+@@ -2146,8 +2137,7 @@ append(Node *n, NodeList **init)
+ 
+ 	l = nil;
+ 
+-	ns = nod(OXXX, N, N);             // var s
+-	tempname(ns, nsrc->type);
++	ns = temp(nsrc->type);
+ 	l = list(l, nod(OAS, ns, nsrc));  // s = src
+ 
+ 	na = nodintconst(argc);         // const argc
+@@ -2164,8 +2154,7 @@ append(Node *n, NodeList **init)
+ 					       conv(na, types[TINT64]))));
+ 	l = list(l, nx);
+ 
+-	nn = nod(OXXX, N, N);                            // var n
+-	tempname(nn, types[TINT]);
++	nn = temp(types[TINT]);
+ 	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));     // n = len(s)
+ 
+ 	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));   // ...s[:n+argc]

@@ -17,6 +17,23 @@ Date:   Tue Apr 16 08:52:42 2019 +0200
     Change-Id: Id2c41fdc983239eca039b49a54b8853c5669d127
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172158
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo_sigaction.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 3ef6800cd9..bc5e0786d9 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -39,7 +39,10 @@ func sigaction(sig uint32, new, old *sigactiont) {
+ 
+ 		var ret int32
+ 
+-		g := getg()
++		var g *g
++		if mainStarted {
++			g = getg()
++		}
+ 		sp := uintptr(unsafe.Pointer(&sig))
+ 		switch {
+ 		case g == nil:

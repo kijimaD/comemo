@@ -10,7 +10,60 @@ Date:   Thu Feb 13 16:43:52 2014 -0800
     R=golang-codereviews, gobot, gri
     CC=golang-codereviews
     https://golang.org/cl/60980043
-
+---
  src/pkg/container/list/list.go      |  8 ++++----
  src/pkg/container/list/list_test.go | 17 +++++++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 1cc7e311bb..0256768efe 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -180,18 +180,18 @@ func (l *List) MoveToBack(e *Element) {
+ }
+ 
+ // MoveBefore moves element e to its new position before mark.
+-// If e is not an element of l, or e == mark, the list is not modified.
++// If e or mark is not an element of l, or e == mark, the list is not modified.
+ func (l *List) MoveBefore(e, mark *Element) {
+-	if e.list != l || e == mark {
++	if e.list != l || e == mark || mark.list != l {
+ 		return
+ 	}
+ 	l.insert(l.remove(e), mark.prev)
+ }
+ 
+ // MoveAfter moves element e to its new position after mark.
+-// If e is not an element of l, or e == mark, the list is not modified.
++// If e or mark is not an element of l, or e == mark, the list is not modified.
+ func (l *List) MoveAfter(e, mark *Element) {
+-	if e.list != l || e == mark {
++	if e.list != l || e == mark || mark.list != l {
+ 		return
+ 	}
+ 	l.insert(l.remove(e), mark)
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index df06c423fe..4d8bfc2bf0 100644
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -324,3 +324,20 @@ func TestInsertAfterUnknownMark(t *testing.T) {
+ 	l.InsertAfter(1, new(Element))
+ 	checkList(t, &l, []interface{}{1, 2, 3})
+ }
++
++// Test that a list l is not modified when calling MoveAfter or MoveBefore with a mark that is not an element of l.
++func TestMoveUnkownMark(t *testing.T) {
++	var l1 List
++	e1 := l1.PushBack(1)
++
++	var l2 List
++	e2 := l2.PushBack(2)
++
++	l1.MoveAfter(e1, e2)
++	checkList(t, &l1, []interface{}{1})
++	checkList(t, &l2, []interface{}{2})
++
++	l1.MoveBefore(e1, e2)
++	checkList(t, &l1, []interface{}{1})
++	checkList(t, &l2, []interface{}{2})
++}

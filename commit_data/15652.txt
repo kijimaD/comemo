@@ -27,10 +27,186 @@ Date:   Fri Mar 8 20:22:38 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7629043
-
+---
  src/cmd/ld/data.c   | 63 +++++++++++++++--------------------------------------
  src/cmd/ld/elf.c    |  4 +++-
  src/cmd/ld/lib.c    |  2 --
  src/cmd/ld/lib.h    |  2 --
  src/cmd/ld/symtab.c |  6 ++---
  5 files changed, 22 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 3cdef28771..22cb4f3e60 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -199,7 +199,7 @@ relocsym(Sym *s)
+ 			if(r->sym)
+ 				o += symaddr(r->sym);
+ 			o += r->add - (s->value + r->off + r->siz);
+-			if(isobj && r->sym->type != SCONST) {
++			if(isobj && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
+ 				if(thechar == '6')
+ 					o = 0;
+ 				else
+@@ -950,11 +950,11 @@ dodata(void)
+ 	Bflush(&bso);
+ 
+ 	// define garbage collection symbols
+-	gcdata1 = lookup("gcdata1", 0);
+-	gcdata1->type = SGCDATA;
++	gcdata1 = lookup("gcdata", 0);
++	gcdata1->type = STYPE;
+ 	gcdata1->reachable = 1;
+-	gcbss1 = lookup("gcbss1", 0);
+-	gcbss1->type = SGCBSS;
++	gcbss1 = lookup("gcbss", 0);
++	gcbss1->type = STYPE;
+ 	gcbss1->reachable = 1;
+ 
+ 	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
+@@ -1154,7 +1154,7 @@ dodata(void)
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+-	/* type */
++	/* typelink */
+ 	sect = addsection(&segtext, ".typelink", 04);
+ 	sect->align = maxalign(s, STYPELINK);
+ 	datsize = rnd(datsize, sect->align);
+@@ -1170,38 +1170,6 @@ dodata(void)
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+-	/* gcdata */
+-	sect = addsection(&segtext, ".gcdata", 04);
+-	sect->align = maxalign(s, SGCDATA);
+-	datsize = rnd(datsize, sect->align);
+-	sect->vaddr = datsize;
+-	lookup("gcdata", 0)->sect = sect;
+-	lookup("egcdata", 0)->sect = sect;
+-	for(; s != nil && s->type == SGCDATA; s = s->next) {
+-		datsize = aligndatsize(datsize, s);
+-		s->sect = sect;
+-		s->type = SRODATA;
+-		s->value = datsize;
+-		datsize += s->size;
+-	}
+-	sect->len = datsize - sect->vaddr;
+-
+-	/* gcbss */
+-	sect = addsection(&segtext, ".gcbss", 04);
+-	sect->align = maxalign(s, SGCBSS);
+-	datsize = rnd(datsize, sect->align);
+-	sect->vaddr = datsize;
+-	lookup("gcbss", 0)->sect = sect;
+-	lookup("egcbss", 0)->sect = sect;
+-	for(; s != nil && s->type == SGCBSS; s = s->next) {
+-		datsize = aligndatsize(datsize, s);
+-		s->sect = sect;
+-		s->type = SRODATA;
+-		s->value = datsize;
+-		datsize += s->size;
+-	}
+-	sect->len = datsize - sect->vaddr;
+-
+ 	/* gosymtab */
+ 	sect = addsection(&segtext, ".gosymtab", 04);
+ 	sect->align = maxalign(s, SPCLNTAB-1);
+@@ -1295,7 +1263,7 @@ void
+ address(void)
+ {
+ 	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss, *datarelro;
+-	Section *gcdata, *gcbss, *typelink;
++	Section *typelink;
+ 	Sym *sym, *sub;
+ 	uvlong va;
+ 
+@@ -1349,9 +1317,7 @@ address(void)
+ 	text = segtext.sect;
+ 	rodata = text->next;
+ 	typelink = rodata->next;
+-	gcdata = typelink->next;
+-	gcbss = gcdata->next;
+-	symtab = gcbss->next;
++	symtab = typelink->next;
+ 	pclntab = symtab->next;
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+@@ -1374,10 +1340,15 @@ address(void)
+ 		xdefine("datarelro", SRODATA, datarelro->vaddr);
+ 		xdefine("edatarelro", SRODATA, datarelro->vaddr + datarelro->len);
+ 	}
+-	xdefine("gcdata", SGCDATA, gcdata->vaddr);
+-	xdefine("egcdata", SGCDATA, gcdata->vaddr + gcdata->len);
+-	xdefine("gcbss", SGCBSS, gcbss->vaddr);
+-	xdefine("egcbss", SGCBSS, gcbss->vaddr + gcbss->len);
++
++	sym = lookup("gcdata", 0);
++	xdefine("egcdata", STYPE, symaddr(sym) + sym->size);
++	lookup("egcdata", 0)->sect = sym->sect;
++
++	sym = lookup("gcbss", 0);
++	xdefine("egcbss", STYPE, symaddr(sym) + sym->size);
++	lookup("egcbss", 0)->sect = sym->sect;
++
+ 	xdefine("symtab", SRODATA, symtab->vaddr);
+ 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
+ 	xdefine("pclntab", SRODATA, pclntab->vaddr);
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 0eb2fa531c..0bd23d8ed0 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -843,7 +843,9 @@ elfrelocsect(Section *sect, Sym *first)
+ 			case D_ADDR:
+ 			case D_PCREL:
+ 				if(r->sym->type == SCONST)
+-					continue;
++					continue;	// handled in data.c:/^relocsym
++				if(r->type == D_PCREL && r->sym->sect == sym->sect)
++					continue;	// handled in data.c:/^relocsym
+ 				break;
+ 			}
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 99ff86aab9..2ca1d3e0da 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1805,8 +1805,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		case SSTRING:
+ 		case SGOSTRING:
+ 		case SWINDOWS:
+-		case SGCDATA:
+-		case SGCBSS:
+ 			if(!s->reachable)
+ 				continue;
+ 			put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 8b67932315..4cb52c6ba4 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -40,8 +40,6 @@ enum
+ 	SGOSTRING,
+ 	SRODATA,
+ 	STYPELINK,
+-	SGCDATA,
+-	SGCBSS,
+ 	SSYMTAB,
+ 	SPCLNTAB,
+ 	SELFROSECT,
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index d8b8b93289..6c69953cf1 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -434,10 +434,8 @@ symtab(void)
+ 		xdefine("datarelro", SDATARELRO, 0);
+ 		xdefine("edatarelro", SDATARELRO, 0);
+ 	}
+-	xdefine("gcdata", SGCDATA, 0);
+-	xdefine("egcdata", SGCDATA, 0);
+-	xdefine("gcbss", SGCBSS, 0);
+-	xdefine("egcbss", SGCBSS, 0);
++	xdefine("egcdata", STYPE, 0);
++	xdefine("egcbss", STYPE, 0);
+ 	xdefine("noptrdata", SNOPTRDATA, 0);
+ 	xdefine("enoptrdata", SNOPTRDATA, 0);
+ 	xdefine("data", SDATA, 0);

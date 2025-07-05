@@ -23,7 +23,7 @@ Date:   Mon Jun 10 12:01:49 2019 -0400
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 26 ++++++-----
  src/cmd/go/go_windows_test.go                      |  4 +-
  src/cmd/go/internal/renameio/renameio.go           |  6 ++-
@@ -33,3 +33,394 @@ Date:   Mon Jun 10 12:01:49 2019 -0400
  .../robustio_windows.go}                           | 18 +++++---
  src/cmd/go/script_test.go                          |  7 +--
  8 files changed, 99 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8a6beb8aee..9d82ac7dc8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -29,6 +29,7 @@ import (
+ 
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/robustio"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -685,7 +686,7 @@ func (tg *testgoData) creatingTemp(path string) {
+ 	if tg.wd != "" && !filepath.IsAbs(path) {
+ 		path = filepath.Join(tg.pwd(), path)
+ 	}
+-	tg.must(os.RemoveAll(path))
++	tg.must(robustio.RemoveAll(path))
+ 	tg.temps = append(tg.temps, path)
+ }
+ 
+@@ -887,7 +888,7 @@ func removeAll(dir string) error {
+ 		}
+ 		return nil
+ 	})
+-	return os.RemoveAll(dir)
++	return robustio.RemoveAll(dir)
+ }
+ 
+ // failSSH puts an ssh executable in the PATH that always fails.
+@@ -1181,7 +1182,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
+ 	case "svn":
+ 		// SVN doesn't believe in text files so we can't just edit the config.
+ 		// Check out a different repo into the wrong place.
+-		tg.must(os.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
++		tg.must(robustio.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
+ 		tg.run("get", "-d", "-u", "code.google.com/p/rsc-svn2/trunk")
+ 		tg.must(os.Rename(tg.path("src/code.google.com/p/rsc-svn2"), tg.path("src/code.google.com/p/rsc-svn")))
+ 	default:
+@@ -1693,7 +1694,7 @@ func TestInstalls(t *testing.T) {
+ 	goarch := strings.TrimSpace(tg.getStdout())
+ 	tg.setenv("GOARCH", goarch)
+ 	fixbin := filepath.Join(goroot, "pkg", "tool", goos+"_"+goarch, "fix") + exeSuffix
+-	tg.must(os.RemoveAll(fixbin))
++	tg.must(robustio.RemoveAll(fixbin))
+ 	tg.run("install", "cmd/fix")
+ 	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool")
+ 	tg.must(os.Remove(fixbin))
+@@ -2065,13 +2066,13 @@ func TestDefaultGOPATHGet(t *testing.T) {
+ 	tg.grepStderr("created GOPATH="+regexp.QuoteMeta(tg.path("home/go"))+"; see 'go help gopath'", "did not create GOPATH")
+ 
+ 	// no warning if directory already exists
+-	tg.must(os.RemoveAll(tg.path("home/go")))
++	tg.must(robustio.RemoveAll(tg.path("home/go")))
+ 	tg.tempDir("home/go")
+ 	tg.run("get", "github.com/golang/example/hello")
+ 	tg.grepStderrNot(".", "expected no output on standard error")
+ 
+ 	// error if $HOME/go is a file
+-	tg.must(os.RemoveAll(tg.path("home/go")))
++	tg.must(robustio.RemoveAll(tg.path("home/go")))
+ 	tg.tempFile("home/go", "")
+ 	tg.runFail("get", "github.com/golang/example/hello")
+ 	tg.grepStderr(`mkdir .*[/\\]go: .*(not a directory|cannot find the path)`, "expected error because $HOME/go is a file")
+@@ -2872,7 +2873,7 @@ func TestCgoDependsOnSyscall(t *testing.T) {
+ 	files, err := filepath.Glob(filepath.Join(runtime.GOROOT(), "pkg", "*_race"))
+ 	tg.must(err)
+ 	for _, file := range files {
+-		tg.check(os.RemoveAll(file))
++		tg.check(robustio.RemoveAll(file))
+ 	}
+ 	tg.tempFile("src/foo/foo.go", `
+ 		package foo
+@@ -3925,10 +3926,10 @@ func TestGoGetDomainRoot(t *testing.T) {
+ 	tg.run("get", "go-get-issue-9357.appspot.com")
+ 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
+ 
+-	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
++	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+ 	tg.run("get", "go-get-issue-9357.appspot.com")
+ 
+-	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
++	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+ 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
+ }
+ 
+@@ -4513,8 +4514,9 @@ func TestLinkXImportPathEscape(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
++	tg.makeTempdir()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	exe := "./linkx" + exeSuffix
++	exe := tg.path("linkx" + exeSuffix)
+ 	tg.creatingTemp(exe)
+ 	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked", "my.pkg/main")
+ 	out, err := exec.Command(exe).CombinedOutput()
+@@ -4750,7 +4752,7 @@ func TestExecutableGOROOT(t *testing.T) {
+ 		check(t, symGoTool, newRoot)
+ 	})
+ 
+-	tg.must(os.RemoveAll(tg.path("new/pkg")))
++	tg.must(robustio.RemoveAll(tg.path("new/pkg")))
+ 
+ 	// Binaries built in the new tree should report the
+ 	// new tree when they call runtime.GOROOT.
+@@ -5101,7 +5103,7 @@ func TestExecBuildX(t *testing.T) {
+ 	if len(matches) == 0 {
+ 		t.Fatal("no WORK directory")
+ 	}
+-	tg.must(os.RemoveAll(matches[1]))
++	tg.must(robustio.RemoveAll(matches[1]))
+ }
+ 
+ func TestParallelNumber(t *testing.T) {
+diff --git a/src/cmd/go/go_windows_test.go b/src/cmd/go/go_windows_test.go
+index d65d91f712..3999166ed9 100644
+--- a/src/cmd/go/go_windows_test.go
++++ b/src/cmd/go/go_windows_test.go
+@@ -12,6 +12,8 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
++
++	"cmd/go/internal/robustio"
+ )
+ 
+ func TestAbsolutePath(t *testing.T) {
+@@ -21,7 +23,7 @@ func TestAbsolutePath(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer os.RemoveAll(tmp)
++	defer robustio.RemoveAll(tmp)
+ 
+ 	file := filepath.Join(tmp, "a.go")
+ 	err = ioutil.WriteFile(file, []byte{}, 0644)
+diff --git a/src/cmd/go/internal/renameio/renameio.go b/src/cmd/go/internal/renameio/renameio.go
+index a34ce59b59..d573cc690d 100644
+--- a/src/cmd/go/internal/renameio/renameio.go
++++ b/src/cmd/go/internal/renameio/renameio.go
+@@ -12,6 +12,8 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
++
++	"cmd/go/internal/robustio"
+ )
+ 
+ const patternSuffix = ".tmp"
+@@ -61,7 +63,7 @@ func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error)
+ 		return err
+ 	}
+ 
+-	return rename(f.Name(), filename)
++	return robustio.Rename(f.Name(), filename)
+ }
+ 
+ // ReadFile is like ioutil.ReadFile, but on Windows retries spurious errors that
+@@ -74,7 +76,7 @@ func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error)
+ // 	- syscall.ERROR_FILE_NOT_FOUND
+ // 	- internal/syscall/windows.ERROR_SHARING_VIOLATION
+ func ReadFile(filename string) ([]byte, error) {
+-	return readFile(filename)
++	return robustio.ReadFile(filename)
+ }
+ 
+ // tempFile creates a new temporary file with given permission bits.
+diff --git a/src/cmd/go/internal/renameio/renameio_test.go b/src/cmd/go/internal/renameio/renameio_test.go
+index e06dee3057..81dba6d545 100644
+--- a/src/cmd/go/internal/renameio/renameio_test.go
++++ b/src/cmd/go/internal/renameio/renameio_test.go
+@@ -19,6 +19,8 @@ import (
+ 	"syscall"
+ 	"testing"
+ 	"time"
++
++	"cmd/go/internal/robustio"
+ )
+ 
+ func TestConcurrentReadsAndWrites(t *testing.T) {
+@@ -58,7 +60,7 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
+ 			chunk := buf[offset*8 : (offset+chunkWords)*8]
+ 			if err := WriteFile(path, chunk, 0666); err == nil {
+ 				atomic.AddInt64(&writeSuccesses, 1)
+-			} else if isEphemeralError(err) {
++			} else if robustio.IsEphemeralError(err) {
+ 				var (
+ 					errno syscall.Errno
+ 					dup   bool
+@@ -74,10 +76,10 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
+ 			}
+ 
+ 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
+-			data, err := ioutil.ReadFile(path)
++			data, err := ReadFile(path)
+ 			if err == nil {
+ 				atomic.AddInt64(&readSuccesses, 1)
+-			} else if isEphemeralError(err) {
++			} else if robustio.IsEphemeralError(err) {
+ 				var (
+ 					errno syscall.Errno
+ 					dup   bool
+diff --git a/src/cmd/go/internal/robustio/robustio.go b/src/cmd/go/internal/robustio/robustio.go
+new file mode 100644
+index 0000000000..76e47ad1ff
+--- /dev/null
++++ b/src/cmd/go/internal/robustio/robustio.go
+@@ -0,0 +1,53 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package robustio wraps I/O functions that are prone to failure on Windows,
++// transparently retrying errors up to an arbitrary timeout.
++//
++// Errors are classified heuristically and retries are bounded, so the functions
++// in this package do not completely eliminate spurious errors. However, they do
++// significantly reduce the rate of failure in practice.
++//
++// If so, the error will likely wrap one of:
++// The functions in this package do not completely eliminate spurious errors,
++// but substantially reduce their rate of occurrence in practice.
++package robustio
++
++// Rename is like os.Rename, but on Windows retries errors that may occur if the
++// file is concurrently read or overwritten.
++//
++// (See golang.org/issue/31247 and golang.org/issue/32188.)
++func Rename(oldpath, newpath string) error {
++	return rename(oldpath, newpath)
++}
++
++// ReadFile is like ioutil.ReadFile, but on Windows retries errors that may
++// occur if the file is concurrently replaced.
++//
++// (See golang.org/issue/31247 and golang.org/issue/32188.)
++func ReadFile(filename string) ([]byte, error) {
++	return readFile(filename)
++}
++
++// RemoveAll is like os.RemoveAll, but on Windows retries errors that may occur
++// if an executable file in the directory has recently been executed.
++//
++// (See golang.org/issue/19491.)
++func RemoveAll(path string) error {
++	return removeAll(path)
++}
++
++// IsEphemeralError reports whether err is one of the errors that the functions
++// in this package attempt to mitigate.
++//
++// Errors considered ephemeral include:
++// 	- syscall.ERROR_ACCESS_DENIED
++// 	- syscall.ERROR_FILE_NOT_FOUND
++// 	- internal/syscall/windows.ERROR_SHARING_VIOLATION
++//
++// This set may be expanded in the future; programs must not rely on the
++// non-ephemerality of any given error.
++func IsEphemeralError(err error) bool {
++	return isEphemeralError(err)
++}
+diff --git a/src/cmd/go/internal/renameio/rename.go b/src/cmd/go/internal/robustio/robustio_other.go
+similarity index 84%
+rename from src/cmd/go/internal/renameio/rename.go
+rename to src/cmd/go/internal/robustio/robustio_other.go
+index 9862ebd862..91ca56cb82 100644
+--- a/src/cmd/go/internal/renameio/rename.go
++++ b/src/cmd/go/internal/robustio/robustio_other.go
+@@ -4,7 +4,7 @@
+ 
+ //+build !windows
+ 
+-package renameio
++package robustio
+ 
+ import (
+ 	"io/ioutil"
+@@ -19,6 +19,10 @@ func readFile(filename string) ([]byte, error) {
+ 	return ioutil.ReadFile(filename)
+ }
+ 
++func removeAll(path string) error {
++	return os.RemoveAll(path)
++}
++
+ func isEphemeralError(err error) bool {
+ 	return false
+ }
+diff --git a/src/cmd/go/internal/renameio/rename_windows.go b/src/cmd/go/internal/robustio/robustio_windows.go
+similarity index 88%
+rename from src/cmd/go/internal/renameio/rename_windows.go
+rename to src/cmd/go/internal/robustio/robustio_windows.go
+index 7da8c9c2b5..a3d94e566f 100644
+--- a/src/cmd/go/internal/renameio/rename_windows.go
++++ b/src/cmd/go/internal/robustio/robustio_windows.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package renameio
++package robustio
+ 
+ import (
+ 	"errors"
+@@ -14,9 +14,10 @@ import (
+ 	"time"
+ )
+ 
++const arbitraryTimeout = 500 * time.Millisecond
++
+ // retry retries ephemeral errors from f up to an arbitrary timeout
+ // to work around spurious filesystem errors on Windows
+-// (see golang.org/issue/31247 and golang.org/issue/32188).
+ func retry(f func() (err error, mayRetry bool)) error {
+ 	var (
+ 		bestErr     error
+@@ -40,7 +41,7 @@ func retry(f func() (err error, mayRetry bool)) error {
+ 
+ 		if start.IsZero() {
+ 			start = time.Now()
+-		} else if d := time.Since(start) + nextSleep; d >= 500*time.Millisecond {
++		} else if d := time.Since(start) + nextSleep; d >= arbitraryTimeout {
+ 			break
+ 		}
+ 		time.Sleep(nextSleep)
+@@ -61,8 +62,6 @@ func retry(f func() (err error, mayRetry bool)) error {
+ //
+ // Empirical error rates with MoveFileEx are lower under modest concurrency, so
+ // for now we're sticking with what the os package already provides.
+-//
+-// TODO(bcmills): For Go 1.14, should we try changing os.Rename itself to do this?
+ func rename(oldpath, newpath string) (err error) {
+ 	return retry(func() (err error, mayRetry bool) {
+ 		err = os.Rename(oldpath, newpath)
+@@ -71,8 +70,6 @@ func rename(oldpath, newpath string) (err error) {
+ }
+ 
+ // readFile is like ioutil.ReadFile, but retries ephemeral errors.
+-//
+-// TODO(bcmills): For Go 1.14, should we try changing ioutil.ReadFile itself to do this?
+ func readFile(filename string) ([]byte, error) {
+ 	var b []byte
+ 	err := retry(func() (err error, mayRetry bool) {
+@@ -86,6 +83,13 @@ func readFile(filename string) ([]byte, error) {
+ 	return b, err
+ }
+ 
++func removeAll(path string) error {
++	return retry(func() (err error, mayRetry bool) {
++		err = os.RemoveAll(path)
++		return err, isEphemeralError(err)
++	})
++}
++
+ // isEphemeralError returns true if err may be resolved by waiting.
+ func isEphemeralError(err error) bool {
+ 	var errno syscall.Errno
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 87331599f6..4dcb4b4e0d 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/txtar"
+ 	"cmd/go/internal/work"
+ )
+@@ -388,7 +389,7 @@ func (ts *testScript) cmdCc(neg bool, args []string) {
+ 	var b work.Builder
+ 	b.Init()
+ 	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
+-	os.RemoveAll(b.WorkDir)
++	robustio.RemoveAll(b.WorkDir)
+ }
+ 
+ // cd changes to a different directory.
+@@ -669,8 +670,8 @@ func (ts *testScript) cmdRm(neg bool, args []string) {
+ 	}
+ 	for _, arg := range args {
+ 		file := ts.mkabs(arg)
+-		removeAll(file)              // does chmod and then attempts rm
+-		ts.check(os.RemoveAll(file)) // report error
++		removeAll(file)                    // does chmod and then attempts rm
++		ts.check(robustio.RemoveAll(file)) // report error
+ 	}
+ }
+ 

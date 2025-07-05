@@ -19,7 +19,7 @@ Date:   Fri Oct 19 17:42:11 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/link/internal/arm64/asm.go   |  2 +-
  src/cmd/link/internal/ld/dwarf.go    | 16 +++++++++++++---
  src/cmd/link/internal/ld/lib.go      |  2 +-
@@ -28,3 +28,148 @@ Date:   Fri Oct 19 17:42:11 2018 -0400
  src/cmd/link/internal/sym/symbol.go  |  8 ++++++++
  src/cmd/link/internal/sym/symbols.go |  9 ++++-----
  7 files changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 770590fd35..5ba038d147 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -256,7 +256,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
+ 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+ 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+ 			// add + R_ADDRARM64.
+-			if !(r.Sym.Version != 0 || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
++			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+ 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b733bc690e..d10f4ab3c3 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -346,10 +346,20 @@ func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
+ // If the symbol does not exist, it creates it if create is true,
+ // or returns nil otherwise.
+ func dwarfFuncSym(ctxt *Link, s *sym.Symbol, meta string, create bool) *sym.Symbol {
++	// All function ABIs use symbol version 0 for the DWARF data.
++	//
++	// TODO(austin): It may be useful to have DWARF info for ABI
++	// wrappers, in which case we may want these versions to
++	// align. Better yet, replace these name lookups with a
++	// general way to attach metadata to a symbol.
++	ver := 0
++	if s.IsFileLocal() {
++		ver = int(s.Version)
++	}
+ 	if create {
+-		return ctxt.Syms.Lookup(meta+s.Name, int(s.Version))
++		return ctxt.Syms.Lookup(meta+s.Name, ver)
+ 	}
+-	return ctxt.Syms.ROLookup(meta+s.Name, int(s.Version))
++	return ctxt.Syms.ROLookup(meta+s.Name, ver)
+ }
+ 
+ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
+@@ -853,7 +863,7 @@ func dwarfDefineGlobal(ctxt *Link, s *sym.Symbol, str string, v int64, gotype *s
+ 	}
+ 	dv := newdie(ctxt, ctxt.compUnitByPackage[lib].dwinfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
+ 	newabslocexprattr(dv, v, s)
+-	if s.Version == 0 {
++	if !s.IsFileLocal() {
+ 		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
+ 	}
+ 	dt := defgotype(ctxt, gotype)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 4b23ecc483..aa472ee07f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2129,7 +2129,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 		if s.Attr.NotInSymbolTable() {
+ 			continue
+ 		}
+-		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
++		if (s.Name == "" || s.Name[0] == '.') && !s.IsFileLocal() && s.Name != ".rathole" && s.Name != ".TOC." {
+ 			continue
+ 		}
+ 		switch s.Type {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index cf197f50b0..68251786ed 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -704,7 +704,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 			}
+ 		}
+ 		class := IMAGE_SYM_CLASS_EXTERNAL
+-		if s.Version != 0 || s.Attr.VisibilityHidden() || s.Attr.Local() {
++		if s.IsFileLocal() || s.Attr.VisibilityHidden() || s.Attr.Local() {
+ 			class = IMAGE_SYM_CLASS_STATIC
+ 		}
+ 		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index d2737deca5..276a3a1cbb 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+ 
+-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
++	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -224,7 +224,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
+ 	t := int(typ)
+ 	switch typ {
+ 	case TextSym, DataSym, BSSSym:
+-		if x.Version != 0 {
++		if x.IsFileLocal() {
+ 			t += 'a' - 'A'
+ 		}
+ 		fallthrough
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index a6c2aaea77..4faa991463 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -51,6 +51,10 @@ type AuxSymbol struct {
+ 	elftype elf.SymType
+ }
+ 
++const (
++	SymVerStatic = 10 // Minimum version used by static (file-local) syms
++)
++
+ func (s *Symbol) String() string {
+ 	if s.Version == 0 {
+ 		return s.Name
+@@ -58,6 +62,10 @@ func (s *Symbol) String() string {
+ 	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
+ }
+ 
++func (s *Symbol) IsFileLocal() bool {
++	return s.Version >= SymVerStatic
++}
++
+ func (s *Symbol) ElfsymForReloc() int32 {
+ 	// If putelfsym created a local version of this symbol, use that in all
+ 	// relocations.
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index d79d1d8b1d..d7266c840b 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -40,12 +40,11 @@ type Symbols struct {
+ }
+ 
+ func NewSymbols() *Symbols {
++	hash := make([]map[string]*Symbol, SymVerStatic)
++	// Preallocate about 2mb for hash of non static symbols
++	hash[0] = make(map[string]*Symbol, 100000)
+ 	return &Symbols{
+-		hash: []map[string]*Symbol{
+-			// preallocate about 2mb for hash of
+-			// non static symbols
+-			make(map[string]*Symbol, 100000),
+-		},
++		hash:   hash,
+ 		Allsym: make([]*Symbol, 0, 100000),
+ 	}
+ }

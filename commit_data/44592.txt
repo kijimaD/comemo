@@ -16,6 +16,20 @@ Date:   Thu Jul 23 23:27:05 2020 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sync/mutex_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index e61a853642..98c1bf2a5f 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -194,7 +194,7 @@ func TestMutexFairness(t *testing.T) {
+ 			}
+ 		}
+ 	}()
+-	done := make(chan bool)
++	done := make(chan bool, 1)
+ 	go func() {
+ 		for i := 0; i < 10; i++ {
+ 			time.Sleep(100 * time.Microsecond)

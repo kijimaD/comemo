@@ -17,7 +17,93 @@ Date:   Wed Aug 4 00:57:07 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go      | 10 ++++++++++
  src/bufio/bufio_test.go | 25 ++++++++++++++++++++++++-
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index ec928e7ad6..391ecf46b3 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -68,7 +68,12 @@ func (b *Reader) Size() int { return len(b.buf) }
+ 
+ // Reset discards any buffered data, resets all state, and switches
+ // the buffered reader to read from r.
++// Calling Reset on the zero value of Reader initializes the internal buffer
++// to the default size.
+ func (b *Reader) Reset(r io.Reader) {
++	if b.buf == nil {
++		b.buf = make([]byte, defaultBufSize)
++	}
+ 	b.reset(b.buf, r)
+ }
+ 
+@@ -590,7 +595,12 @@ func (b *Writer) Size() int { return len(b.buf) }
+ 
+ // Reset discards any unflushed buffered data, clears any error, and
+ // resets b to write its output to w.
++// Calling Reset on the zero value of Writer initializes the internal buffer
++// to the default size.
+ func (b *Writer) Reset(w io.Writer) {
++	if b.buf == nil {
++		b.buf = make([]byte, defaultBufSize)
++	}
+ 	b.err = nil
+ 	b.n = 0
+ 	b.wr = w
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index ebcc711db9..eb5136c9ea 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1312,6 +1312,7 @@ func TestReaderReset(t *testing.T) {
+ 	if string(buf) != "foo" {
+ 		t.Errorf("buf = %q; want foo", buf)
+ 	}
++
+ 	r.Reset(strings.NewReader("bar bar"))
+ 	all, err := io.ReadAll(r)
+ 	if err != nil {
+@@ -1320,12 +1321,23 @@ func TestReaderReset(t *testing.T) {
+ 	if string(all) != "bar bar" {
+ 		t.Errorf("ReadAll = %q; want bar bar", all)
+ 	}
++
++	*r = Reader{} // zero out the Reader
++	r.Reset(strings.NewReader("bar bar"))
++	all, err = io.ReadAll(r)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(all) != "bar bar" {
++		t.Errorf("ReadAll = %q; want bar bar", all)
++	}
+ }
+ 
+ func TestWriterReset(t *testing.T) {
+-	var buf1, buf2 bytes.Buffer
++	var buf1, buf2, buf3 bytes.Buffer
+ 	w := NewWriter(&buf1)
+ 	w.WriteString("foo")
++
+ 	w.Reset(&buf2) // and not flushed
+ 	w.WriteString("bar")
+ 	w.Flush()
+@@ -1335,6 +1347,17 @@ func TestWriterReset(t *testing.T) {
+ 	if buf2.String() != "bar" {
+ 		t.Errorf("buf2 = %q; want bar", buf2.String())
+ 	}
++
++	*w = Writer{}  // zero out the Writer
++	w.Reset(&buf3) // and not flushed
++	w.WriteString("bar")
++	w.Flush()
++	if buf1.String() != "" {
++		t.Errorf("buf1 = %q; want empty", buf1.String())
++	}
++	if buf3.String() != "bar" {
++		t.Errorf("buf3 = %q; want bar", buf3.String())
++	}
+ }
+ 
+ func TestReaderDiscard(t *testing.T) {

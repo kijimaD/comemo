@@ -63,10 +63,282 @@ Date:   Thu Jul 30 22:05:51 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12971
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 57 +++++++++++++++++++++++---------
  src/reflect/all_test.go                | 59 ++++++++++++++++++++++++++++------
  src/reflect/export_test.go             |  9 ++++++
  src/reflect/type.go                    | 29 ++++++++++++++---
  src/runtime/hashmap.go                 |  4 +--
  5 files changed, 128 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index fcb9b17eee..1ac4a03d32 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -146,21 +146,53 @@ func mapbucket(t *Type) *Type {
+ 
+ 	arr.Type = Types[TUINT8]
+ 	arr.Bound = BUCKETSIZE
+-	var field [4]*Type
+-	field[0] = makefield("topbits", arr)
++	field := make([]*Type, 0, 5)
++	field = append(field, makefield("topbits", arr))
+ 	arr = typ(TARRAY)
+ 	arr.Type = keytype
+ 	arr.Bound = BUCKETSIZE
+-	field[1] = makefield("keys", arr)
++	field = append(field, makefield("keys", arr))
+ 	arr = typ(TARRAY)
+ 	arr.Type = valtype
+ 	arr.Bound = BUCKETSIZE
+-	field[2] = makefield("values", arr)
+-	field[3] = makefield("overflow", Ptrto(bucket))
++	field = append(field, makefield("values", arr))
++
++	// Make sure the overflow pointer is the last memory in the struct,
++	// because the runtime assumes it can use size-ptrSize as the
++	// offset of the overflow pointer. We double-check that property
++	// below once the offsets and size are computed.
++	//
++	// BUCKETSIZE is 8, so the struct is aligned to 64 bits to this point.
++	// On 32-bit systems, the max alignment is 32-bit, and the
++	// overflow pointer will add another 32-bit field, and the struct
++	// will end with no padding.
++	// On 64-bit systems, the max alignment is 64-bit, and the
++	// overflow pointer will add another 64-bit field, and the struct
++	// will end with no padding.
++	// On nacl/amd64p32, however, the max alignment is 64-bit,
++	// but the overflow pointer will add only a 32-bit field,
++	// so if the struct needs 64-bit padding (because a key or value does)
++	// then it would end with an extra 32-bit padding field.
++	// Preempt that by emitting the padding here.
++	if int(t.Type.Align) > Widthptr || int(t.Down.Align) > Widthptr {
++		field = append(field, makefield("pad", Types[TUINTPTR]))
++	}
++
++	// If keys and values have no pointers, the map implementation
++	// can keep a list of overflow pointers on the side so that
++	// buckets can be marked as having no pointers.
++	// Arrange for the bucket to have no pointers by changing
++	// the type of the overflow field to uintptr in this case.
++	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
++	otyp := Ptrto(bucket)
++	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
++		otyp = Types[TUINTPTR]
++	}
++	ovf := makefield("overflow", otyp)
++	field = append(field, ovf)
+ 
+ 	// link up fields
+ 	bucket.Noalg = 1
+-
+ 	bucket.Local = t.Local
+ 	bucket.Type = field[0]
+ 	for n := int32(0); n < int32(len(field)-1); n++ {
+@@ -169,15 +201,10 @@ func mapbucket(t *Type) *Type {
+ 	field[len(field)-1].Down = nil
+ 	dowidth(bucket)
+ 
+-	// Pad to the native integer alignment.
+-	// This is usually the same as widthptr; the exception (as usual) is amd64p32.
+-	if Widthreg > Widthptr {
+-		bucket.Width += int64(Widthreg) - int64(Widthptr)
+-	}
+-
+-	// See comment on hmap.overflow in ../../runtime/hashmap.go.
+-	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
+-		bucket.Haspointers = 1 // no pointers
++	// Double-check that overflow field is final memory in struct,
++	// with no padding at end. See comment above.
++	if ovf.Width != bucket.Width-int64(Widthptr) {
++		Yyerror("bad math in mapbucket for %v", t)
+ 	}
+ 
+ 	t.Bucket = bucket
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index ee06b4c9f7..1748bf6630 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4576,7 +4576,7 @@ func TestGCBits(t *testing.T) {
+ 		_ [100]uintptr
+ 	}
+ 
+-	var Tscalar, Tptr, Tscalarptr, Tptrscalar, Tbigptrscalar Type
++	var Tscalar, Tint64, Tptr, Tscalarptr, Tptrscalar, Tbigptrscalar Type
+ 	{
+ 		// Building blocks for types constructed by reflect.
+ 		// This code is in a separate block so that code below
+@@ -4599,7 +4599,9 @@ func TestGCBits(t *testing.T) {
+ 			_ [100]*byte
+ 			_ [100]uintptr
+ 		}
++		type Int64 int64
+ 		Tscalar = TypeOf(Scalar{})
++		Tint64 = TypeOf(Int64(0))
+ 		Tptr = TypeOf(Ptr{})
+ 		Tscalarptr = TypeOf(Scalarptr{})
+ 		Tptrscalar = TypeOf(Ptrscalar{})
+@@ -4687,14 +4689,53 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
+ 
+ 	hdr := make([]byte, 8/PtrSize)
+-	verifyGCBits(t, MapBucketOf(Tscalar, Tptr), join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(Tscalarptr, Tptr), join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(Tscalar, Tscalar), empty)
+-	verifyGCBits(t, MapBucketOf(ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar)), join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar)), join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar)), join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar)), join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+-	verifyGCBits(t, MapBucketOf(ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar)), join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
++
++	verifyMapBucket := func(t *testing.T, k, e Type, m interface{}, want []byte) {
++		verifyGCBits(t, MapBucketOf(k, e), want)
++		verifyGCBits(t, CachedBucketOf(TypeOf(m)), want)
++	}
++	verifyMapBucket(t,
++		Tscalar, Tptr,
++		map[Xscalar]Xptr(nil),
++		join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
++	verifyMapBucket(t,
++		Tscalarptr, Tptr,
++		map[Xscalarptr]Xptr(nil),
++		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
++	verifyMapBucket(t, Tint64, Tptr,
++		map[int64]Xptr(nil),
++		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), naclpad(), lit(1)))
++	verifyMapBucket(t,
++		Tscalar, Tscalar,
++		map[Xscalar]Xscalar(nil),
++		empty)
++	verifyMapBucket(t,
++		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
++		map[[2]Xscalarptr][3]Xptrscalar(nil),
++		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
++	verifyMapBucket(t,
++		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
++		map[[64 / PtrSize]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
++		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
++	verifyMapBucket(t,
++		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
++		map[[64/PtrSize + 1]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
++		join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
++	verifyMapBucket(t,
++		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
++		map[[64 / PtrSize]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
++		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
++	verifyMapBucket(t,
++		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
++		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
++		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
++}
++
++func naclpad() []byte {
++	if runtime.GOARCH == "amd64p32" {
++		return lit(0)
++	}
++	return nil
+ }
+ 
+ func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index a4e2e7e28c..0b9d0fde9e 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -61,3 +61,12 @@ func gcbits(interface{}) []byte // provided by runtime
+ func MapBucketOf(x, y Type) Type {
+ 	return bucketOf(x.(*rtype), y.(*rtype))
+ }
++
++func CachedBucketOf(m Type) Type {
++	t := m.(*rtype)
++	if Kind(t.kind&kindMask) != Map {
++		panic("not map")
++	}
++	tt := (*mapType)(unsafe.Pointer(t))
++	return tt.bucket
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index f74aecfee9..e20e5cfc1e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1705,6 +1705,18 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	// they're guaranteed to have bitmaps instead of GC programs.
+ 	var gcdata *byte
+ 	var ptrdata uintptr
++	var overflowPad uintptr
++
++	// On NaCl, pad if needed to make overflow end at the proper struct alignment.
++	// On other systems, align > ptrSize is not possible.
++	if runtime.GOARCH == "amd64p32" && (ktyp.align > ptrSize || etyp.align > ptrSize) {
++		overflowPad = ptrSize
++	}
++	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
++	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
++		panic("reflect: bad size computation in MapOf")
++	}
++
+ 	if kind != kindNoPointers {
+ 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + ptrSize) / ptrSize
+ 		mask := make([]byte, (nptr+7)/8)
+@@ -1741,19 +1753,24 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 			}
+ 		}
+ 		base += bucketSize * etyp.size / ptrSize
++		base += overflowPad / ptrSize
+ 
+ 		word := base
+ 		mask[word/8] |= 1 << (word % 8)
+ 		gcdata = &mask[0]
+ 		ptrdata = (word + 1) * ptrSize
+-	}
+ 
+-	size := bucketSize*(1+ktyp.size+etyp.size) + ptrSize
+-	if runtime.GOARCH == "amd64p32" {
+-		size += ptrSize
++		// overflow word must be last
++		if ptrdata != size {
++			panic("reflect: bad layout computation in MapOf")
++		}
+ 	}
+ 
+ 	b := new(rtype)
++	b.align = ptrSize
++	if overflowPad > 0 {
++		b.align = 8
++	}
+ 	b.size = size
+ 	b.ptrdata = ptrdata
+ 	b.kind = kind
+@@ -2073,6 +2090,10 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 
+ 	// build dummy rtype holding gc program
+ 	x := new(rtype)
++	x.align = ptrSize
++	if runtime.GOARCH == "amd64p32" {
++		x.align = 8
++	}
+ 	x.size = offset
+ 	x.ptrdata = uintptr(ptrmap.n) * ptrSize
+ 	if ptrmap.n > 0 {
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index b199330a1e..917ed21590 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -159,7 +159,7 @@ func evacuated(b *bmap) bool {
+ }
+ 
+ func (b *bmap) overflow(t *maptype) *bmap {
+-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
++	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize))
+ }
+ 
+ func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
+@@ -167,7 +167,7 @@ func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
+ 		h.createOverflow()
+ 		*h.overflow[0] = append(*h.overflow[0], ovf)
+ 	}
+-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
++	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize)) = ovf
+ }
+ 
+ func (h *hmap) createOverflow() {

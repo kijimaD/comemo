@@ -23,8 +23,98 @@ Date:   Tue Dec 17 16:40:46 2019 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/trace/trace_test.go | 33 +++++++++++++++++++++++++++++++++
  src/runtime/proc.go         |  5 ++++-
  src/runtime/sema.go         |  6 +++---
  3 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/trace/trace_test.go b/src/cmd/trace/trace_test.go
+index 9e90f50d4b..ef2d06c961 100644
+--- a/src/cmd/trace/trace_test.go
++++ b/src/cmd/trace/trace_test.go
+@@ -12,7 +12,9 @@ import (
+ 	"io/ioutil"
+ 	rtrace "runtime/trace"
+ 	"strings"
++	"sync"
+ 	"testing"
++	"time"
+ )
+ 
+ // stacks is a fake stack map populated for test.
+@@ -233,3 +235,34 @@ func TestFoo(t *testing.T) {
+ 	}
+ 
+ }
++
++func TestDirectSemaphoreHandoff(t *testing.T) {
++	prog0 := func() {
++		var mu sync.Mutex
++		var wg sync.WaitGroup
++		mu.Lock()
++		// This is modeled after src/sync/mutex_test.go to trigger Mutex
++		// starvation mode, in which the goroutine that calls Unlock hands off
++		// both the semaphore and its remaining time slice. See issue 36186.
++		for i := 0; i < 2; i++ {
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++				for i := 0; i < 100; i++ {
++					mu.Lock()
++					time.Sleep(100 * time.Microsecond)
++					mu.Unlock()
++				}
++			}()
++		}
++		mu.Unlock()
++		wg.Wait()
++	}
++	if err := traceProgram(t, prog0, "TestDirectSemaphoreHandoff"); err != nil {
++		t.Fatalf("failed to trace the program: %v", err)
++	}
++	_, err := parseTrace()
++	if err != nil {
++		t.Fatalf("failed to parse the trace: %v", err)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d264e1d120..26af68e3c1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2767,7 +2767,7 @@ func preemptPark(gp *g) {
+ }
+ 
+ // goyield is like Gosched, but it:
+-// - does not emit a GoSched trace event
++// - emits a GoPreempt trace event instead of a GoSched trace event
+ // - puts the current G on the runq of the current P instead of the globrunq
+ func goyield() {
+ 	checkTimeouts()
+@@ -2775,6 +2775,9 @@ func goyield() {
+ }
+ 
+ func goyield_m(gp *g) {
++	if trace.enabled {
++		traceGoPreempt()
++	}
+ 	pp := gp.m.p.ptr()
+ 	casgstatus(gp, _Grunning, _Grunnable)
+ 	dropg()
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 7bbf871caa..9bfd4f96d5 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -199,9 +199,9 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
+ 			// the waiter G immediately.
+ 			// Note that waiter inherits our time slice: this is desirable
+ 			// to avoid having a highly contended semaphore hog the P
+-			// indefinitely. goyield is like Gosched, but it does not emit a
+-			// GoSched trace event and, more importantly, puts the current G
+-			// on the local runq instead of the global one.
++			// indefinitely. goyield is like Gosched, but it emits a
++			// "preempted" trace event instead and, more importantly, puts
++			// the current G on the local runq instead of the global one.
+ 			// We only do this in the starving regime (handoff=true), as in
+ 			// the non-starving case it is possible for a different waiter
+ 			// to acquire the semaphore while we are yielding/scheduling,

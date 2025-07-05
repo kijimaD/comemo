@@ -10,8 +10,64 @@ Date:   Wed Apr 9 08:34:17 2014 +0200
     R=gri, rsc
     CC=golang-codereviews
     https://golang.org/cl/85040045
-
+---
  src/cmd/gc/gen.c             |  4 ++++
  test/fixedbugs/issue7538a.go | 15 +++++++++++++++
  test/fixedbugs/issue7538b.go | 13 +++++++++++++
  3 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index b7cc621792..5a5c1c24c1 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -301,6 +301,10 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OLABEL:
++		if(isblanksym(n->left->sym)) {
++			break;
++		}
++		
+ 		lab = newlab(n);
+ 
+ 		// if there are pending gotos, resolve them all to the current pc.
+diff --git a/test/fixedbugs/issue7538a.go b/test/fixedbugs/issue7538a.go
+new file mode 100644
+index 0000000000..283d9eb1ba
+--- /dev/null
++++ b/test/fixedbugs/issue7538a.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7538: blank (_) labels handled incorrectly
++
++package p
++
++func f() {
++_:
++_:
++	goto _ // ERROR "not defined"
++}
+diff --git a/test/fixedbugs/issue7538b.go b/test/fixedbugs/issue7538b.go
+new file mode 100644
+index 0000000000..28cef5d608
+--- /dev/null
++++ b/test/fixedbugs/issue7538b.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7538: blank (_) labels handled incorrectly
++
++package p
++
++func f() {
++_:
++}

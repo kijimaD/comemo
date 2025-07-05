@@ -22,7 +22,7 @@ Date:   Mon May 22 07:42:42 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_386.s      | 13 -------------
  src/runtime/asm_amd64.s    | 20 --------------------
  src/runtime/asm_amd64p32.s | 21 ---------------------
@@ -36,3 +36,277 @@ Date:   Mon May 22 07:42:42 2017 +0200
  src/runtime/runtime1.go    |  4 ----
  src/runtime/stubs.go       |  5 -----
  12 files changed, 141 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5bbf2866f3..19fc601259 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1637,19 +1637,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	BYTE	$0x90	// NOP
+ 
+-// Prefetching doesn't seem to help.
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+-	RET
+-
+ // Add a module's moduledata to the linked list of moduledata objects. This
+ // is called from .init_array by a function generated in the linker and so
+ // follows the platform ABI wrt register preservation -- it only touches AX,
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6405be92de..ad19e21be7 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2339,26 +2339,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	BYTE	$0x90	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	MOVQ	addr+0(FP), AX
+-	PREFETCHT0	(AX)
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	MOVQ	addr+0(FP), AX
+-	PREFETCHT1	(AX)
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	MOVQ	addr+0(FP), AX
+-	PREFETCHT2	(AX)
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	MOVQ	addr+0(FP), AX
+-	PREFETCHNTA	(AX)
+-	RET
+-
+ // This is called from .init_array and follows the platform, not Go, ABI.
+ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	PUSHQ	R15 // The access to global variables below implicitly uses R15, which is callee-save
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 6367b3fef4..379ee1c7cc 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1042,27 +1042,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	BYTE	$0x90	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
+-	MOVL	addr+0(FP), AX
+-	PREFETCHT0	(AX)
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
+-	MOVL	addr+0(FP), AX
+-	PREFETCHT1	(AX)
+-	RET
+-
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+-	MOVL	addr+0(FP), AX
+-	PREFETCHT2	(AX)
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+-	MOVL	addr+0(FP), AX
+-	PREFETCHNTA	(AX)
+-	RET
+-
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	$1, ret+0(FP)
+ 	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 09b6759749..2c875fca77 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -973,18 +973,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	MOVW	R0, R0	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+-	RET
+-
+ // x -> x/1000000, x%1000000, called from Go with args, results on stack.
+ TEXT runtime·usplit(SB),NOSPLIT,$0-12
+ 	MOVW	x+0(FP), R0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 30ecec7675..9d6d963d7f 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -931,19 +931,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
+ 
+-// TODO(aram): use PRFM here.
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	RET
+-
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 57d45785f1..4763a42dcd 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -823,18 +823,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	NOR	R0, R0	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	RET
+-
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R1
+ 	MOVB	R1, ret+0(FP)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 536c3156b5..b3e85f9865 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -903,18 +903,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	NOR	R0, R0	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+-	RET
+-
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R1
+ 	MOVB	R1, ret+0(FP)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 616861ea7d..002a084147 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1353,18 +1353,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	MOVD	R0, R0	// NOP
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	RET
+-
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 20e740b927..0379c546d6 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -949,18 +949,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	BYTE $0x07; BYTE $0x00; // 2-byte nop
+ 
+-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	RET
+-
+-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	RET
+-
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 2a9f1b83e5..23afc7dd04 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -449,11 +449,6 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 	return
+ }
+ 
+-// prefetch the bits.
+-func (h heapBits) prefetch() {
+-	prefetchnta(uintptr(unsafe.Pointer((h.bitp))))
+-}
+-
+ // next returns the heapBits describing the next pointer-sized word in memory.
+ // That is, if h describes address p, h.next() describes p+ptrSize.
+ // Note that next does not modify h. The caller must record the result.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index c0733481a8..3ae30ab59e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -99,10 +99,6 @@ var test_z64, test_x64 uint64
+ func testAtomic64() {
+ 	test_z64 = 42
+ 	test_x64 = 0
+-	prefetcht0(uintptr(unsafe.Pointer(&test_z64)))
+-	prefetcht1(uintptr(unsafe.Pointer(&test_z64)))
+-	prefetcht2(uintptr(unsafe.Pointer(&test_z64)))
+-	prefetchnta(uintptr(unsafe.Pointer(&test_z64)))
+ 	if atomic.Cas64(&test_z64, test_x64, 1) {
+ 		throw("cas64 failed")
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index c4f32a8482..d9a7aa0966 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -276,11 +276,6 @@ func call1073741824(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
+ 
+ func systemstack_switch()
+ 
+-func prefetcht0(addr uintptr)
+-func prefetcht1(addr uintptr)
+-func prefetcht2(addr uintptr)
+-func prefetchnta(addr uintptr)
+-
+ // round n up to a multiple of a.  a must be a power of 2.
+ func round(n, a uintptr) uintptr {
+ 	return (n + a - 1) &^ (a - 1)

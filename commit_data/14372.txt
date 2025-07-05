@@ -10,8 +10,93 @@ Date:   Sat Nov 10 11:19:06 2012 -0800
     R=golang-dev, dave, dvyukov, minux.ma
     CC=golang-dev
     https://golang.org/cl/6819119
-
+---
  src/pkg/runtime/cgo/callbacks.c |  6 ++++++
  src/pkg/runtime/cgocall.c       | 10 ++++++++++
  src/pkg/runtime/runtime.h       | 13 ++++++++++++-
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index f36fb3fd7e..cefd67de87 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -33,7 +33,13 @@
+ static void
+ _cgo_allocate_internal(uintptr len, byte *ret)
+ {
++	CgoMal *c;
++
+ 	ret = runtime·mal(len);
++	c = runtime·mal(sizeof(*c));
++	c->next = m->cgomal;
++	c->alloc = ret;
++	m->cgomal = c;
+ 	FLUSH(&ret);
+ }
+ 
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index b96c286f10..7a20379a9d 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -135,6 +135,8 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		g->defer = &d;
+ 	}
+ 
++	m->ncgo++;
++
+ 	/*
+ 	 * Announce we are entering a system call
+ 	 * so that the scheduler knows to create another
+@@ -150,6 +152,14 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	runtime·asmcgocall(fn, arg);
+ 	runtime·exitsyscall();
+ 
++	m->ncgo--;
++	if(m->ncgo == 0) {
++		// We are going back to Go and are not in a recursive
++		// call.  Let the GC collect any memory allocated via
++		// _cgo_allocate that is no longer referenced.
++		m->cgomal = nil;
++	}
++
+ 	if(d.nofree) {
+ 		if(g->defer != &d || d.fn != (byte*)unlockm)
+ 			runtime·throw("runtime: bad defer entry in cgocallback");
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 51a5aeca91..c6b30ac73c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -81,6 +81,7 @@ typedef struct	GCStats		GCStats;
+ typedef struct	LFNode		LFNode;
+ typedef struct	ParFor		ParFor;
+ typedef struct	ParForThread	ParForThread;
++typedef struct	CgoMal		CgoMal;
+ 
+ /*
+  * Per-CPU declaration.
+@@ -249,7 +250,9 @@ struct	M
+ 	int32	profilehz;
+ 	int32	helpgc;
+ 	uint32	fastrand;
+-	uint64	ncgocall;
++	uint64	ncgocall;	// number of cgo calls in total
++	int32	ncgo;		// number of cgo calls currently in progress
++	CgoMal*	cgomal;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	alllink;	// on allm
+@@ -414,6 +417,14 @@ struct ParFor
+ 	uint64 nsleep;
+ };
+ 
++// Track memory allocated by code not written in Go during a cgo call,
++// so that the garbage collector can see them.
++struct CgoMal
++{
++	CgoMal	*next;
++	byte	*alloc;
++};
++
+ /*
+  * defined macros
+  *    you need super-gopher-guru privilege

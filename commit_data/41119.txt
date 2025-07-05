@@ -14,7 +14,134 @@ Date:   Thu Sep 5 11:15:59 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go | 22 +++++++++++-------
  test/escape_goto.go                   | 44 +++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index c03e50628d..d2e096d0f0 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -201,7 +201,7 @@ func (e *Escape) walkFunc(fn *Node) {
+ 
+ 	e.curfn = fn
+ 	e.loopDepth = 1
+-	e.stmts(fn.Nbody)
++	e.block(fn.Nbody)
+ }
+ 
+ // Below we implement the methods for walking the AST and recording
+@@ -284,14 +284,14 @@ func (e *Escape) stmt(n *Node) {
+ 
+ 	case OIF:
+ 		e.discard(n.Left)
+-		e.stmts(n.Nbody)
+-		e.stmts(n.Rlist)
++		e.block(n.Nbody)
++		e.block(n.Rlist)
+ 
+ 	case OFOR, OFORUNTIL:
+ 		e.loopDepth++
+ 		e.discard(n.Left)
+ 		e.stmt(n.Right)
+-		e.stmts(n.Nbody)
++		e.block(n.Nbody)
+ 		e.loopDepth--
+ 
+ 	case ORANGE:
+@@ -311,7 +311,7 @@ func (e *Escape) stmt(n *Node) {
+ 			}
+ 		}
+ 
+-		e.stmts(n.Nbody)
++		e.block(n.Nbody)
+ 		e.loopDepth--
+ 
+ 	case OSWITCH:
+@@ -340,13 +340,13 @@ func (e *Escape) stmt(n *Node) {
+ 			}
+ 
+ 			e.discards(cas.List)
+-			e.stmts(cas.Nbody)
++			e.block(cas.Nbody)
+ 		}
+ 
+ 	case OSELECT:
+ 		for _, cas := range n.List.Slice() {
+ 			e.stmt(cas.Left)
+-			e.stmts(cas.Nbody)
++			e.block(cas.Nbody)
+ 		}
+ 	case OSELRECV:
+ 		e.assign(n.Left, n.Right, "selrecv", n)
+@@ -398,12 +398,18 @@ func (e *Escape) stmt(n *Node) {
+ }
+ 
+ func (e *Escape) stmts(l Nodes) {
+-	// TODO(mdempsky): Preserve and restore e.loopDepth? See also #22438.
+ 	for _, n := range l.Slice() {
+ 		e.stmt(n)
+ 	}
+ }
+ 
++// block is like stmts, but preserves loopDepth.
++func (e *Escape) block(l Nodes) {
++	old := e.loopDepth
++	e.stmts(l)
++	e.loopDepth = old
++}
++
+ // expr models evaluating an expression n and flowing the result into
+ // hole k.
+ func (e *Escape) expr(k EscHole, n *Node) {
+diff --git a/test/escape_goto.go b/test/escape_goto.go
+new file mode 100644
+index 0000000000..f024a9afe3
+--- /dev/null
++++ b/test/escape_goto.go
+@@ -0,0 +1,44 @@
++// errorcheck -0 -m -l
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for goto statements.
++
++package escape
++
++var x bool
++
++func _() {
++	var p *int
++loop:
++	if x {
++		goto loop
++	}
++	// BAD: We should be able to recognize that there
++	// aren't any more "goto loop" after here.
++	p = new(int) // ERROR "escapes to heap"
++	_ = p
++}
++
++func _() {
++	var p *int
++	if x {
++	loop:
++		goto loop
++	} else {
++		p = new(int) // ERROR "does not escape"
++	}
++	_ = p
++}
++
++func _() {
++	var p *int
++	if x {
++	loop:
++		goto loop
++	}
++	p = new(int) // ERROR "does not escape"
++	_ = p
++}

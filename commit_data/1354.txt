@@ -7,6 +7,18 @@ Date:   Tue Dec 16 17:37:07 2008 -0800
     R=ken
     OCL=21377
     CL=21377
-
+---
  src/cmd/gc/go.y | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 429d2f32b5..7f67cdb89e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -2037,5 +2037,6 @@ latype:
+ 		yyerror("no type %s.%s", context, $3->name);
+ 		YYERROR;
+ 	}
++
+ /**/
+ 

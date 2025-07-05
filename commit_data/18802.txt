@@ -13,6 +13,22 @@ Date:   Fri Mar 7 20:28:18 2014 +0100
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/72270046
-
+---
  src/cmd/gc/pgen.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 37d603cb0f..3e1bff1794 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -429,8 +429,8 @@ allocauto(Prog* ptxt)
+ 		n->stkdelta = -stksize - n->xoffset;
+ 	}
+ 	stksize = rnd(stksize, widthreg);
+-	stkptrsize = rnd(stkptrsize, widthptr);
+-	stkzerosize = rnd(stkzerosize, widthptr);
++	stkptrsize = rnd(stkptrsize, widthreg);
++	stkzerosize = rnd(stkzerosize, widthreg);
+ 
+ 	fixautoused(ptxt);
+ 

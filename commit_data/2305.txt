@@ -10,7 +10,7 @@ Date:   Tue May 26 11:18:42 2009 -0700
     DELTA=178  (175 added, 0 deleted, 3 changed)
     OCL=29283
     CL=29380
-
+---
  src/cmd/5l/5.out.h             |  3 +-
  src/runtime/Makefile           |  6 ++-
  src/runtime/arm/asm.s          | 83 ++++++++++++++++++++++++++++++++++++++++++
@@ -22,3 +22,289 @@ Date:   Tue May 26 11:18:42 2009 -0700
  src/runtime/linux/arm/sys.s    | 15 ++++++++
  src/runtime/linux/defs_arm.c   | 54 +++++++++++++++++++++++++++
  10 files changed, 199 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 05da2252f9..ac463b4cdf 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -34,7 +34,8 @@
+ 
+ #define NOPROF		(1<<0)
+ #define DUPOK		(1<<1)
+-#define	ALLTHUMBS	(1<<2)
++#define NOSPLIT		(1<<2)
++#define	ALLTHUMBS	(1<<3)
+ 
+ #define	REGRET		0
+ #define	REGARG		0
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index cd3d3c3100..a0e03fa160 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -5,6 +5,7 @@
+ # Set SIZE to 32 or 64.
+ SIZE_386=32
+ SIZE_amd64=64
++SIZE_arm=32
+ SIZE=$(SIZE_$(GOARCH))
+ 
+ # Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
+@@ -14,6 +15,7 @@ CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
+ # Set O to right letter.
+ O_386=8
+ O_amd64=6
++O_arm=5
+ O=$(O_$(GOARCH))
+ 
+ # Tools
+@@ -79,10 +81,10 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ nuke:
+-	rm -f *.[68] *.a $(GOROOT)/lib/$(LIB)
++	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
+ 
+ clean:
+-	rm -f *.[68] *.a runtime.acid cgo2c
++	rm -f *.[568] *.a runtime.acid cgo2c
+ 
+ %.$O:	%.c
+ 	$(CC) $(CFLAGS) $<
+diff --git a/src/runtime/arm/asm.s b/src/runtime/arm/asm.s
+new file mode 100644
+index 0000000000..232ab4ddf0
+--- /dev/null
++++ b/src/runtime/arm/asm.s
+@@ -0,0 +1,83 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT _rt0_arm(SB),7,$0
++	// copy arguments forward on an even stack
++    //      	MOVW	$0(SP), R0
++    //	MOVL	0(SP), R1		// argc
++//	LEAL	4(SP), R1		// argv
++//	SUBL	$128, SP		// plenty of scratch
++//	ANDL	$~7, SP
++//	MOVL	AX, 120(SP)		// save argc, argv away
++//	MOVL	BX, 124(SP)
++
++
++// 	// write "go386\n"
++// 	PUSHL	$6
++// 	PUSHL	$hello(SB)
++// 	PUSHL	$1
++// 	CALL	sys·write(SB)
++// 	POPL	AX
++// 	POPL	AX
++// 	POPL	AX
++
++
++// 	CALL	ldt0setup(SB)
++
++	// set up %fs to refer to that ldt entry
++// 	MOVL	$(7*8+7), AX
++// 	MOVW	AX, FS
++
++// 	// store through it, to make sure it works
++// 	MOVL	$0x123, 0(FS)
++// 	MOVL	tls0(SB), AX
++// 	CMPL	AX, $0x123
++// 	JEQ	ok
++// 	MOVL	AX, 0
++// ok:
++
++// 	// set up m and g "registers"
++// 	// g is 0(FS), m is 4(FS)
++// 	LEAL	g0(SB), CX
++// 	MOVL	CX, 0(FS)
++// 	LEAL	m0(SB), AX
++// 	MOVL	AX, 4(FS)
++
++// 	// save m->g0 = g0
++// 	MOVL	CX, 0(AX)
++
++// 	// create istack out of the OS stack
++// 	LEAL	(-8192+104)(SP), AX	// TODO: 104?
++// 	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
++// 	MOVL	SP, 4(CX)	// 12(g) is base
++// 	CALL	emptyfunc(SB)	// fault if stack check is wrong
++
++// 	// convention is D is always cleared
++// 	CLD
++
++// 	CALL	check(SB)
++
++// 	// saved argc, argv
++// 	MOVL	120(SP), AX
++// 	MOVL	AX, 0(SP)
++// 	MOVL	124(SP), AX
++// 	MOVL	AX, 4(SP)
++// 	CALL	args(SB)
++// 	CALL	osinit(SB)
++// 	CALL	schedinit(SB)
++
++// 	// create a new goroutine to start program
++// 	PUSHL	$mainstart(SB)	// entry
++// 	PUSHL	$8	// arg size
++// 	CALL	sys·newproc(SB)
++// 	POPL	AX
++// 	POPL	AX
++
++// 	// start this M
++// 	CALL	mstart(SB)
++
++	BL	main�main(SB)
++	MOVW	$99, R0
++	SWI	$0x00900001
++
+diff --git a/src/runtime/arm/closure.c b/src/runtime/arm/closure.c
+new file mode 100644
+index 0000000000..024018d5a4
+--- /dev/null
++++ b/src/runtime/arm/closure.c
+@@ -0,0 +1,4 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+diff --git a/src/runtime/arm/traceback.s b/src/runtime/arm/traceback.s
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/runtime/linux/arm/defs.h b/src/runtime/linux/arm/defs.h
+new file mode 100644
+index 0000000000..caad669895
+--- /dev/null
++++ b/src/runtime/linux/arm/defs.h
+@@ -0,0 +1,27 @@
++// godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include defs_arm.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x20,
++	MAP_PRIVATE = 0x2,
++	SA_RESTART = 0x10000000,
++	SA_ONSTACK = 0x8000000,
++	SA_RESTORER = 0x4000000,
++	SA_SIGINFO = 0x4,
++};
++
++// Types
++#pragma pack on
++
++typedef struct Timespec Timespec;
++struct Timespec {
++	int32 tv_sec;
++	int32 tv_nsec;
++};
++#pragma pack off
+diff --git a/src/runtime/linux/arm/rt0.s b/src/runtime/linux/arm/rt0.s
+new file mode 100644
+index 0000000000..024547dddb
+--- /dev/null
++++ b/src/runtime/linux/arm/rt0.s
+@@ -0,0 +1,6 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT	_rt0_arm_linux(SB),7,$0
++	B	_rt0_arm(SB)
+diff --git a/src/runtime/linux/arm/signal.c b/src/runtime/linux/arm/signal.c
+new file mode 100644
+index 0000000000..024018d5a4
+--- /dev/null
++++ b/src/runtime/linux/arm/signal.c
+@@ -0,0 +1,4 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+diff --git a/src/runtime/linux/arm/sys.s b/src/runtime/linux/arm/sys.s
+new file mode 100644
+index 0000000000..f5db32305b
+--- /dev/null
++++ b/src/runtime/linux/arm/sys.s
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls and other sys.stuff for arm, Linux
++//
++
++TEXT write(SB),7,$0
++	MOVW	4(SP), R0
++	MOVW	8(SP), R1
++	MOVW	12(SP), R2
++    	SWI	$0x00900004  // syscall write
++	RET
++
+diff --git a/src/runtime/linux/defs_arm.c b/src/runtime/linux/defs_arm.c
+new file mode 100644
+index 0000000000..eaec051549
+--- /dev/null
++++ b/src/runtime/linux/defs_arm.c
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Input to godefs
++	godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f
++ -I/usr/local/google/src/linux-2.6.28/include defs_arm.c >arm/defs.h
++
++ * Another input file for ARM defs.h
++ */
++
++#include <asm/signal.h>
++#include <asm/mman.h>
++#include <asm/sigcontext.h>
++#include <asm/ucontext.h>
++
++/*
++#include <sys/signal.h>
++#include <sys/mman.h>
++#include <ucontext.h>
++*/
++
++#include <time.h>
++
++enum {
++	$PROT_NONE = PROT_NONE,
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$PROT_EXEC = PROT_EXEC,
++
++	$MAP_ANON = MAP_ANONYMOUS,
++	$MAP_PRIVATE = MAP_PRIVATE,
++
++	$SA_RESTART = SA_RESTART,
++	$SA_ONSTACK = SA_ONSTACK,
++	$SA_RESTORER = SA_RESTORER,
++	$SA_SIGINFO = SA_SIGINFO
++};
++
++
++
++
++//typedef struct _fpreg $Fpreg;
++//typedef struct _fpxreg $Fpxreg;
++//typedef struct _xmmreg $Xmmreg;
++//typedef struct _fpstate $Fpstate;
++typedef struct timespec $Timespec;
++//typedef struct timeval $Timeval;
++// typedef struct sigaction $Sigaction;
++// typedef siginfo_t $Siginfo;
++// typedef struct sigaltstack $Sigaltstack;
++// typedef struct sigcontext $Sigcontext;
++// typedef struct ucontext $Ucontext;

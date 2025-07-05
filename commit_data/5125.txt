@@ -9,7 +9,7 @@ Date:   Wed Mar 24 16:46:53 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/741041
-
+---
  src/cmd/goyacc/goyacc.go              |   2 +-
  src/pkg/crypto/block/cfb.go           |   2 +-
  src/pkg/crypto/block/eax.go           |   2 +-
@@ -90,3 +90,7369 @@ Date:   Wed Mar 24 16:46:53 2010 -0700
  test/rename1.go                       |  62 ++-
  test/stack.go                         |  57 +--
  79 files changed, 3093 insertions(+), 2105 deletions(-)
+
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 4d9a515a60..31ab32c7ea 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3090,7 +3090,7 @@ func ungetrune(f *bufio.Reader, c int) {
+ }
+ 
+ func write(f *bufio.Writer, b []byte, n int) int {
+-	println("write")
++	panic("write")
+ 	return 0
+ }
+ 
+diff --git a/src/pkg/crypto/block/cfb.go b/src/pkg/crypto/block/cfb.go
+index 82b289ac4c..177ae939d8 100644
+--- a/src/pkg/crypto/block/cfb.go
++++ b/src/pkg/crypto/block/cfb.go
+@@ -26,7 +26,7 @@ type cfbCipher struct {
+ 
+ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
+ 	if s == 0 || s%8 != 0 {
+-		panicln("crypto/block: invalid CFB mode", s)
++		panic("crypto/block: invalid CFB mode")
+ 	}
+ 	b := c.BlockSize()
+ 	x := new(cfbCipher)
+diff --git a/src/pkg/crypto/block/eax.go b/src/pkg/crypto/block/eax.go
+index fcd5fe20f7..cc3662787c 100644
+--- a/src/pkg/crypto/block/eax.go
++++ b/src/pkg/crypto/block/eax.go
+@@ -36,7 +36,7 @@ func (e *EAXTagError) String() string {
+ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac hash.Hash) {
+ 	n := len(iv)
+ 	if n != c.BlockSize() {
+-		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize())
++		panic(fmt.Sprintln("crypto/block: EAX: iv length", n, "!=", c.BlockSize()))
+ 	}
+ 	buf := make([]byte, n) // zeroed
+ 
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 0d7c4035fb..3767e63dba 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -24,10 +24,10 @@ func (c *IncCipher) BlockSize() int { return c.blockSize }
+ 
+ func (c *IncCipher) Encrypt(src, dst []byte) {
+ 	if !c.encrypting {
+-		panicln("encrypt: not encrypting")
++		panic("encrypt: not encrypting")
+ 	}
+ 	if len(src) != c.blockSize || len(dst) != c.blockSize {
+-		panicln("encrypt: wrong block size", c.blockSize, len(src), len(dst))
++		panic(fmt.Sprintln("encrypt: wrong block size", c.blockSize, len(src), len(dst)))
+ 	}
+ 	c.delta++
+ 	for i, b := range src {
+@@ -37,10 +37,10 @@ func (c *IncCipher) Encrypt(src, dst []byte) {
+ 
+ func (c *IncCipher) Decrypt(src, dst []byte) {
+ 	if c.encrypting {
+-		panicln("decrypt: not decrypting")
++		panic("decrypt: not decrypting")
+ 	}
+ 	if len(src) != c.blockSize || len(dst) != c.blockSize {
+-		panicln("decrypt: wrong block size", c.blockSize, len(src), len(dst))
++		panic(fmt.Sprintln("decrypt: wrong block size ", c.blockSize, " ", len(src), " ", len(dst)))
+ 	}
+ 	c.delta--
+ 	for i, b := range src {
+diff --git a/src/pkg/crypto/block/ofb.go b/src/pkg/crypto/block/ofb.go
+index bffdc53db1..0cd5e73c43 100644
+--- a/src/pkg/crypto/block/ofb.go
++++ b/src/pkg/crypto/block/ofb.go
+@@ -13,6 +13,7 @@
+ package block
+ 
+ import (
++	"fmt"
+ 	"io"
+ )
+ 
+@@ -26,7 +27,7 @@ func newOFBStream(c Cipher, iv []byte) *ofbStream {
+ 	x.c = c
+ 	n := len(iv)
+ 	if n != c.BlockSize() {
+-		panicln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize())
++		panic(fmt.Sprintln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize()))
+ 	}
+ 	x.iv = copy(iv)
+ 	return x
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index 793cb16fda..54d1ba3dc2 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -99,7 +99,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:8])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 16)
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 90774af6b7..f61273c08a 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -99,7 +99,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:8])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 16)
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index 9eb8340b7d..d485910563 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -103,7 +103,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:8])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 20)
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 98f0a06675..cd7d8fd20b 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -101,7 +101,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:8])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 20)
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 4023ad9d38..b95fd8ecb5 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -143,7 +143,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:8])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 32)
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 90cc21d735..9e8314898c 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -143,7 +143,7 @@ func (d0 *digest) Sum() []byte {
+ 	d.Write(tmp[0:16])
+ 
+ 	if d.nx != 0 {
+-		panicln("oops")
++		panic("d.nx != 0")
+ 	}
+ 
+ 	p := make([]byte, 64)
+diff --git a/src/pkg/exp/eval/abort.go b/src/pkg/exp/eval/abort.go
+index bfa89fa299..22e17cec40 100644
+--- a/src/pkg/exp/eval/abort.go
++++ b/src/pkg/exp/eval/abort.go
+@@ -14,7 +14,7 @@ import (
+ // causing the innermost Try to return err.
+ func (t *Thread) Abort(err os.Error) {
+ 	if t.abort == nil {
+-		panicln("abort:", err.String())
++		panic("abort: " + err.String())
+ 	}
+ 	t.abort <- err
+ 	runtime.Goexit()
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index dcd02abc2c..5547aee319 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -6,6 +6,7 @@ package eval
+ 
+ import (
+ 	"bignum"
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"log"
+@@ -340,7 +341,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
+ 		temp := b.DefineTemp(a.rmt)
+ 		tempIdx := temp.Index
+ 		if tempIdx < 0 {
+-			panicln("tempidx", tempIdx)
++			panic(fmt.Sprintln("tempidx", tempIdx))
+ 		}
+ 		if a.isMapUnpack {
+ 			rf := a.rs[0].evalMapValue
+@@ -1374,12 +1375,12 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 		expr.eval = func(*Thread) Value { return t.Zero() }
+ 		return expr
+ 
+-	case panicType, paniclnType, printType, printlnType:
++	case panicType, printType, printlnType:
+ 		evals := make([]func(*Thread) interface{}, len(as))
+ 		for i, x := range as {
+ 			evals[i] = x.asInterface()
+ 		}
+-		spaces := ft == paniclnType || ft == printlnType
++		spaces := ft == printlnType
+ 		newline := ft != printType
+ 		printer := func(t *Thread) {
+ 			for i, eval := range evals {
+@@ -1413,7 +1414,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 		}
+ 		expr := a.newExpr(EmptyType, "print")
+ 		expr.exec = printer
+-		if ft == panicType || ft == paniclnType {
++		if ft == panicType {
+ 			expr.exec = func(t *Thread) {
+ 				printer(t)
+ 				t.Abort(os.NewError("panic"))
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 55a09603e3..2b2a632cd0 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -702,7 +702,6 @@ var (
+ 	makeType    = &FuncType{builtin: "make"}
+ 	newType     = &FuncType{builtin: "new"}
+ 	panicType   = &FuncType{builtin: "panic"}
+-	paniclnType = &FuncType{builtin: "panicln"}
+ 	printType   = &FuncType{builtin: "print"}
+ 	printlnType = &FuncType{builtin: "println"}
+ )
+@@ -1237,7 +1236,6 @@ func init() {
+ 	universe.DefineConst("make", universePos, makeType, nil)
+ 	universe.DefineConst("new", universePos, newType, nil)
+ 	universe.DefineConst("panic", universePos, panicType, nil)
+-	universe.DefineConst("panicln", universePos, paniclnType, nil)
+ 	universe.DefineConst("print", universePos, printType, nil)
+ 	universe.DefineConst("println", universePos, printlnType, nil)
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index cfd4a73c85..195d6c6470 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -399,7 +399,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
+ 	srt, ok := rt.(*reflect.StructType)
+ 	if !ok {
+-		panicln("can't happen: non-struct")
++		panic("can't happen: non-struct")
+ 	}
+ 	engine := new(encEngine)
+ 	engine.instr = make([]encInstr, srt.NumField()+1) // +1 for terminator
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index ace80d6ad5..f08f2a04d0 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -114,7 +114,7 @@ func init() {
+ 	// Move the id space upwards to allow for growth in the predefined world
+ 	// without breaking existing files.
+ 	if nextId > firstUserId {
+-		panicln("nextId too large:", nextId)
++		panic(fmt.Sprintln("nextId too large:", nextId))
+ 	}
+ 	nextId = firstUserId
+ }
+@@ -303,7 +303,7 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
+ 
+ func checkId(want, got typeId) {
+ 	if want != got {
+-		panicln("bootstrap type wrong id:", got.Name(), got, "not", want)
++		panic("bootstrap type wrong id: " + got.Name() + " " + got.string() + " not " + want.string())
+ 	}
+ }
+ 
+@@ -312,7 +312,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ 	rt := reflect.Typeof(e)
+ 	_, present := types[rt]
+ 	if present {
+-		panicln("bootstrap type already present:", name)
++		panic("bootstrap type already present: " + name)
+ 	}
+ 	typ := &commonType{name: name}
+ 	types[rt] = typ
+@@ -356,7 +356,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
+ // typeLock must be held.
+ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 	if _, ok := rt.(*reflect.PtrType); ok {
+-		panicln("pointer type in getTypeInfo:", rt.String())
++		panic("pointer type in getTypeInfo: " + rt.String())
+ 	}
+ 	info, ok := typeInfoMap[rt]
+ 	if !ok {
+@@ -388,7 +388,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
+ 	t, err := getTypeInfo(rt)
+ 	if err != nil {
+-		panicln("getTypeInfo:", err.String())
++		panic("getTypeInfo: " + err.String())
+ 	}
+ 	return t
+ }
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 2c3d0442e2..3d4871f1db 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -28,7 +28,7 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
+ 	defer typeLock.Unlock()
+ 	t, err := getType(name, rt)
+ 	if err != nil {
+-		panicln("getTypeUnlocked:", err.String())
++		panic("getTypeUnlocked: " + err.String())
+ 	}
+ 	return t
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 39b498a7ac..dff0d1746e 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -511,7 +511,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+ // Handle registers the handler for the given pattern.
+ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	if pattern == "" || pattern[0] != '/' {
+-		panicln("http: invalid pattern", pattern)
++		panic("http: invalid pattern " + pattern)
+ 	}
+ 
+ 	mux.m[pattern] = handler
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index df5a39db4c..5619b9ec58 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -128,7 +128,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ 		return
+ 	}
+ 	if err := s.poll.AddFD(intfd, mode, false); err != nil {
+-		panicln("pollServer AddFD ", intfd, ": ", err.String(), "\n")
++		panic("pollServer AddFD " + err.String())
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index 190385afac..cced0580a4 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -111,7 +111,7 @@ func valueToString(val Value) string {
+ 		v := val
+ 		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")"
+ 	default:
+-		panicln("valueToString: can't print type ", typ.String())
++		panic("valueToString: can't print type " + typ.String())
+ 	}
+ 	return "valueToString: can't happen"
+ }
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 2abb9331a2..b82f1e23ed 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -649,7 +649,7 @@ func toType(i interface{}) Type {
+ 	case *runtime.StructType:
+ 		return (*StructType)(unsafe.Pointer(v))
+ 	}
+-	panicln("toType", i)
++	panic("toType")
+ }
+ 
+ // ArrayOrSliceType is the common interface implemented
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 4134da67ee..be786e91a3 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -503,7 +503,7 @@ func (v *UnsafePointerValue) SetValue(x Value) {
+ 
+ func typesMustMatch(t1, t2 Type) {
+ 	if t1 != t2 {
+-		panicln("type mismatch:", t1.String(), "!=", t2.String())
++		panic("type mismatch: " + t1.String() + " != " + t2.String())
+ 	}
+ }
+ 
+@@ -612,7 +612,7 @@ func (v *SliceValue) addr() addr { return addr(v.slice().Data) }
+ func (v *SliceValue) SetLen(n int) {
+ 	s := v.slice()
+ 	if n < 0 || n > int(s.Cap) {
+-		panicln("SetLen", n, "with capacity", s.Cap)
++		panic("reflect: slice length out of range in SetLen")
+ 	}
+ 	s.Len = n
+ }
+@@ -657,7 +657,7 @@ func (v *SliceValue) Elem(i int) Value {
+ 	typ := v.typ.(*SliceType).Elem()
+ 	n := v.Len()
+ 	if i < 0 || i >= n {
+-		panicln("index", i, "in array of length", n)
++		panic("reflect: slice index out of range")
+ 	}
+ 	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size())
+ 	return newValue(typ, p, v.canSet)
+@@ -1346,7 +1346,7 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 	case *UnsafePointerType:
+ 		return (*UnsafePointerValue)(v)
+ 	}
+-	panicln("newValue", typ.String())
++	panic("newValue" + typ.String())
+ }
+ 
+ // MakeZero returns a zero Value for the specified Type.
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index ecef271784..bf9a4bb40b 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -673,7 +673,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
+ func MustCompile(str string) *Regexp {
+ 	regexp, error := Compile(str)
+ 	if error != nil {
+-		panicln(`regexp: compiling "`, str, `": `, error.String())
++		panic(`regexp: compiling "` + str + `": ` + error.String())
+ 	}
+ 	return regexp
+ }
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 153c56d831..cee82ad3c8 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -61,7 +61,7 @@ func (client *Client) send(c *Call) {
+ 	client.enc.Encode(request)
+ 	err := client.enc.Encode(c.Args)
+ 	if err != nil {
+-		panicln("rpc: client encode error:", err.String())
++		panic("rpc: client encode error: " + err.String())
+ 	}
+ 	client.sending.Unlock()
+ }
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 98c0eadd32..3196891d25 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -49,7 +49,7 @@ func (t *Arith) Div(args *Args, reply *Reply) os.Error {
+ }
+ 
+ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
+-	panicln("ERROR")
++	panic("ERROR")
+ }
+ 
+ func startServer() {
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 2f0172a72d..62fcfc677a 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -96,7 +96,7 @@ func myatof32(s string) (f float32, ok bool) {
+ func TestFp(t *testing.T) {
+ 	f, err := os.Open("testfp.txt", os.O_RDONLY, 0)
+ 	if err != nil {
+-		panicln("testfp: open testfp.txt:", err.String())
++		t.Fatal("testfp: open testfp.txt:", err.String())
+ 	}
+ 	defer f.Close()
+ 
+@@ -109,7 +109,7 @@ func TestFp(t *testing.T) {
+ 			break
+ 		}
+ 		if err2 != nil {
+-			panicln("testfp: read testfp.txt:", err2.String())
++			t.Fatal("testfp: read testfp.txt: " + err2.String())
+ 		}
+ 		line = line[0 : len(line)-1]
+ 		lineno++
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index 076ffddbe3..1cad625303 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -31,7 +31,7 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
+ 			b.a[n+i] = buf[i]
+ 		}
+ 	} else {
+-		panicln("buffer.Write: buffer too small", n, m, cap(b.a))
++		panic("buffer.Write: buffer too small")
+ 	}
+ 	return len(buf), nil
+ }
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index 6584d47c18..e2bde0b253 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -624,7 +624,7 @@ func CompileRegexp(str string) (regexp *Regexp, error string) {
+ func MustCompile(str string) *Regexp {
+ 	regexp, error := CompileRegexp(str)
+ 	if error != "" {
+-		panicln(`regexp: compiling "`, str, `": `, error)
++		panic(`regexp: compiling "` + str + `": ` + error)
+ 	}
+ 	return regexp
+ }
+diff --git a/test/chan/select.go b/test/chan/select.go
+index 4c4ffa549a..be4eb3f42d 100644
+--- a/test/chan/select.go
++++ b/test/chan/select.go
+@@ -10,43 +10,47 @@ var counter uint
+ var shift uint
+ 
+ func GetValue() uint {
+-	counter++;
++	counter++
+ 	return 1 << shift
+ }
+ 
+ func Send(a, b chan uint) int {
+-	var i int;
++	var i int
+ 
+ LOOP:
+ 	for {
+ 		select {
+ 		case a <- GetValue():
+-			i++;
+-			a = nil;
++			i++
++			a = nil
+ 		case b <- GetValue():
+-			i++;
+-			b = nil;
++			i++
++			b = nil
+ 		default:
+-			break LOOP;
++			break LOOP
+ 		}
+-		shift++;
++		shift++
+ 	}
+-	return i;
++	return i
+ }
+ 
+ func main() {
+-	a := make(chan uint, 1);
+-	b := make(chan uint, 1);
++	a := make(chan uint, 1)
++	b := make(chan uint, 1)
+ 	if v := Send(a, b); v != 2 {
+-		panicln("Send returned", v, "!= 2");
++		println("Send returned", v, "!= 2")
++		panic("fail")
+ 	}
+-	if av, bv := <- a, <- b; av | bv != 3 {
+-		panicln("bad values", av, bv);
++	if av, bv := <-a, <-b; av|bv != 3 {
++		println("bad values", av, bv)
++		panic("fail")
+ 	}
+ 	if v := Send(a, nil); v != 1 {
+-		panicln("Send returned", v, "!= 1");
++		println("Send returned", v, "!= 1")
++		panic("fail")
+ 	}
+ 	if counter != 10 {
+-		panicln("counter is", counter, "!= 10");
++		println("counter is", counter, "!= 10")
++		panic("fail")
+ 	}
+ }
+diff --git a/test/chancap.go b/test/chancap.go
+index 15256f731d..3f3789fbcc 100644
+--- a/test/chancap.go
++++ b/test/chancap.go
+@@ -7,21 +7,23 @@
+ package main
+ 
+ func main() {
+-	c := make(chan int, 10);
++	c := make(chan int, 10)
+ 	if len(c) != 0 || cap(c) != 10 {
+-		panicln("chan len/cap ", len(c), cap(c), " want 0 10");
++		println("chan len/cap ", len(c), cap(c), " want 0 10")
++		panic("fail")
+ 	}
+ 
+ 	for i := 0; i < 3; i++ {
+-		c <- i;
++		c <- i
+ 	}
+ 	if len(c) != 3 || cap(c) != 10 {
+-		panicln("chan len/cap ", len(c), cap(c), " want 3 10");
++		println("chan len/cap ", len(c), cap(c), " want 3 10")
++		panic("fail")
+ 	}
+-	
+-	c = make(chan int);
++
++	c = make(chan int)
+ 	if len(c) != 0 || cap(c) != 0 {
+-		panicln("chan len/cap ", len(c), cap(c), " want 0 0");
++		println("chan len/cap ", len(c), cap(c), " want 0 0")
++		panic("fail")
+ 	}
+ }
+-
+diff --git a/test/closure.go b/test/closure.go
+index 8bb516d29c..54e4cf8eae 100644
+--- a/test/closure.go
++++ b/test/closure.go
+@@ -6,95 +6,96 @@
+ 
+ package main
+ 
+-var c = make(chan int);
++var c = make(chan int)
+ 
+ func check(a []int) {
+ 	for i := 0; i < len(a); i++ {
+-		n := <-c;
++		n := <-c
+ 		if n != a[i] {
+-			panicln("want", a[i], "got", n, "at", i);
++			println("want", a[i], "got", n, "at", i)
++			panic("fail")
+ 		}
+ 	}
+ }
+ 
+ func f() {
+-	var i, j int;
++	var i, j int
+ 
+-	i = 1;
+-	j = 2;
++	i = 1
++	j = 2
+ 	f := func() {
+-		c <- i;
+-		i = 4;
++		c <- i
++		i = 4
+ 		g := func() {
+-			c <- i;
+-			c <- j;
+-		};
+-		g();
+-		c <- i;
+-	};
+-	j = 5;
+-	f();
++			c <- i
++			c <- j
++		}
++		g()
++		c <- i
++	}
++	j = 5
++	f()
+ }
+ 
+ // Accumulator generator
+-func accum(n int) (func(int) int) {
++func accum(n int) func(int) int {
+ 	return func(i int) int {
+-		n += i;
+-		return n;
++		n += i
++		return n
+ 	}
+ }
+ 
+ func g(a, b func(int) int) {
+-	c <- a(2);
+-	c <- b(3);
+-	c <- a(4);
+-	c <- b(5);
++	c <- a(2)
++	c <- b(3)
++	c <- a(4)
++	c <- b(5)
+ }
+ 
+ func h() {
+-	var x8 byte = 100;
+-	var x64 int64 = 200;
++	var x8 byte = 100
++	var x64 int64 = 200
+ 
+-	c <- int(x8);
+-	c <- int(x64);
++	c <- int(x8)
++	c <- int(x64)
+ 	f := func(z int) {
+ 		g := func() {
+-			c <- int(x8);
+-			c <- int(x64);
+-			c <- z;
+-		};
+-		g();
+-		c <- int(x8);
+-		c <- int(x64);
+-		c <- int(z);
+-	};
+-	x8 = 101;
+-	x64 = 201;
+-	f(500);
++			c <- int(x8)
++			c <- int(x64)
++			c <- z
++		}
++		g()
++		c <- int(x8)
++		c <- int(x64)
++		c <- int(z)
++	}
++	x8 = 101
++	x64 = 201
++	f(500)
+ }
+ 
+-func newfunc() (func(int) int) {
+-	return func(x int) int { return x }
+-}
++func newfunc() func(int) int { return func(x int) int { return x } }
+ 
+ 
+ func main() {
+-	go f();
+-	check([]int{1,4,5,4});
++	go f()
++	check([]int{1, 4, 5, 4})
+ 
+-	a := accum(0);
+-	b := accum(1);
+-	go g(a, b);
+-	check([]int{2,4,6,9});
++	a := accum(0)
++	b := accum(1)
++	go g(a, b)
++	check([]int{2, 4, 6, 9})
+ 
+-	go h();
+-	check([]int{100,200,101,201,500,101,201,500});
++	go h()
++	check([]int{100, 200, 101, 201, 500, 101, 201, 500})
+ 
+-	x, y := newfunc(), newfunc();
++	x, y := newfunc(), newfunc()
+ 	if x == y {
+-		panicln("newfunc returned same func");
++		println("newfunc returned same func")
++		panic("fail")
+ 	}
+ 	if x(1) != 1 || y(2) != 2 {
+-		panicln("newfunc returned broken funcs");
++		println("newfunc returned broken funcs")
++		panic("fail")
+ 	}
+ }
+diff --git a/test/cmp1.go b/test/cmp1.go
+index a119f8746d..12e65bec53 100644
+--- a/test/cmp1.go
++++ b/test/cmp1.go
+@@ -8,65 +8,68 @@ package main
+ 
+ import "unsafe"
+ 
+-func use(bool) { }
++func use(bool) {}
+ 
+-func stringptr(s string) uintptr {
+-	return *(*uintptr)(unsafe.Pointer(&s));
+-}
++func stringptr(s string) uintptr { return *(*uintptr)(unsafe.Pointer(&s)) }
+ 
+ func isfalse(b bool) {
+-	if b { panicln("wanted false, got true") } // stack will explain where
++	if b {
++		// stack will explain where
++		panic("wanted false, got true")
++	}
+ }
+ 
+ func istrue(b bool) {
+-	if !b { panicln("wanted true, got false") } // stack will explain where
++	if !b {
++		// stack will explain where
++		panic("wanted true, got false")
++	}
+ }
+ 
+ func main() {
+-	var a []int;
+-	var b map[string]int;
++	var a []int
++	var b map[string]int
+ 
+-	var c string = "hello";
+-	var d string = "hel";	// try to get different pointer
+-	d = d + "lo";
++	var c string = "hello"
++	var d string = "hel" // try to get different pointer
++	d = d + "lo"
+ 	if stringptr(c) == stringptr(d) {
+ 		panic("compiler too smart -- got same string")
+ 	}
+ 
+-	var e = make(chan int);
++	var e = make(chan int)
++
++	var ia interface{} = a
++	var ib interface{} = b
++	var ic interface{} = c
++	var id interface{} = d
++	var ie interface{} = e
+ 
+-	var ia interface{} = a;
+-	var ib interface{} = b;
+-	var ic interface{} = c;
+-	var id interface{} = d;
+-	var ie interface{} = e;
+-	
+ 	// these comparisons are okay because
+ 	// string compare is okay and the others
+ 	// are comparisons where the types differ.
+-	isfalse(ia == ib);
+-	isfalse(ia == ic);
+-	isfalse(ia == id);
+-	isfalse(ib == ic);
+-	isfalse(ib == id);
+-	istrue(ic == id);
+-	istrue(ie == ie);
++	isfalse(ia == ib)
++	isfalse(ia == ic)
++	isfalse(ia == id)
++	isfalse(ib == ic)
++	isfalse(ib == id)
++	istrue(ic == id)
++	istrue(ie == ie)
+ 
+ 	// 6g used to let this go through as true.
+-	var g uint64 = 123;
+-	var h int64 = 123;
+-	var ig interface{} = g;
+-	var ih interface{} = h;
+-	isfalse(ig == ih);
++	var g uint64 = 123
++	var h int64 = 123
++	var ig interface{} = g
++	var ih interface{} = h
++	isfalse(ig == ih)
+ 
+ 	// map of interface should use == on interface values,
+ 	// not memory.
+ 	// TODO: should m[c], m[d] be valid here?
+-	var m = make(map[interface{}] int);
+-	m[ic] = 1;
+-	m[id] = 2;
++	var m = make(map[interface{}]int)
++	m[ic] = 1
++	m[id] = 2
+ 	if m[ic] != 2 {
+-		panic("m[ic] = ", m[ic]);
++		panic("m[ic] = ", m[ic])
+ 	}
+ }
+-
+diff --git a/test/const3.go b/test/const3.go
+index fc734377ee..d49df2b88f 100644
+--- a/test/const3.go
++++ b/test/const3.go
+@@ -9,21 +9,21 @@ package main
+ import "fmt"
+ 
+ type T int
+-func (t T) String() string {
+-	return fmt.Sprintf("T%d", t);
+-}
++
++func (t T) String() string { return fmt.Sprintf("T%d", t) }
+ 
+ const (
+-	A T = 1<<(1<<iota);
+-	B;
+-	C;
+-	D;
+-	E;
++	A T = 1 << (1 << iota)
++	B
++	C
++	D
++	E
+ )
+ 
+ func main() {
+-	s := fmt.Sprintf("%v %v %v %v %v", A, B, C, D, E);
++	s := fmt.Sprintf("%v %v %v %v %v", A, B, C, D, E)
+ 	if s != "T2 T4 T16 T256 T65536" {
+-		panicln("type info didn't propagate in const: got", s);
++		println("type info didn't propagate in const: got", s)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/convert.go b/test/convert.go
+index 6a50b39002..e7361aa87f 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -8,40 +8,37 @@ package main
+ 
+ import "reflect"
+ 
+-func typeof(x interface{}) string {
+-	return reflect.Typeof(x).String();
+-}
++func typeof(x interface{}) string { return reflect.Typeof(x).String() }
+ 
+-func f() int {
+-	return 0;
+-}
++func f() int { return 0 }
+ 
+-func g() int {
+-	return 0;
+-}
++func g() int { return 0 }
+ 
+ type T func() int
+ 
+-var m = map[string] T { "f": f }
++var m = map[string]T{"f": f}
+ 
+ type A int
+ type B int
+ 
+-var a A = 1;
+-var b B = 2;
+-var x int;
++var a A = 1
++var b B = 2
++var x int
+ 
+ func main() {
+-	want := typeof(g);
++	want := typeof(g)
+ 	if t := typeof(f); t != want {
+-		panicln("type of f is", t, "want", want);
++		println("type of f is", t, "want", want)
++		panic("fail")
+ 	}
+ 
+-	want = typeof(a);
++	want = typeof(a)
+ 	if t := typeof(+a); t != want {
+-		panicln("type of +a is", t, "want", want);
++		println("type of +a is", t, "want", want)
++		panic("fail")
+ 	}
+-	if t := typeof(a+0); t != want {
+-		panicln("type of a+0 is", t, "want", want);
++	if t := typeof(a + 0); t != want {
++		println("type of a+0 is", t, "want", want)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/ddd.go b/test/ddd.go
+index e633842f54..c9949c36e2 100644
+--- a/test/ddd.go
++++ b/test/ddd.go
+@@ -14,13 +14,11 @@ func sum(args ...int) int {
+ 	return s
+ }
+ 
+-func sumC(args ...int) int {
+-	return func() int { return sum(args) } ()
+-}
++func sumC(args ...int) int { return func() int { return sum(args) }() }
+ 
+ var sumD = func(args ...int) int { return sum(args) }
+ 
+-var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } } ()
++var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } }()
+ 
+ var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
+ 
+@@ -50,9 +48,7 @@ func ln(args ...T) int { return len(args) }
+ 
+ func ln2(args ...T) int { return 2 * ln(args) }
+ 
+-func (*T) Sum(args ...int) int {
+-	return sum(args)
+-}
++func (*T) Sum(args ...int) int { return sum(args) }
+ 
+ type U struct {
+ 	*T
+@@ -60,108 +56,143 @@ type U struct {
+ 
+ func main() {
+ 	if x := sum(1, 2, 3); x != 6 {
+-		panicln("sum 6", x)
++		println("sum 6", x)
++		panic("fail")
+ 	}
+ 	if x := sum(); x != 0 {
+-		panicln("sum 0", x)
++		println("sum 0", x)
++		panic("fail")
+ 	}
+ 	if x := sum(10); x != 10 {
+-		panicln("sum 10", x)
++		println("sum 10", x)
++		panic("fail")
+ 	}
+ 	if x := sum(1, 8); x != 9 {
+-		panicln("sum 9", x)
++		println("sum 9", x)
++		panic("fail")
+ 	}
+ 	if x := sumC(4, 5, 6); x != 15 {
+-		panicln("sumC 15", x)
++		println("sumC 15", x)
++		panic("fail")
+ 	}
+ 	if x := sumD(4, 5, 7); x != 16 {
+-		panicln("sumD 16", x)
++		println("sumD 16", x)
++		panic("fail")
+ 	}
+ 	if x := sumE(4, 5, 8); x != 17 {
+-		panicln("sumE 17", x)
++		println("sumE 17", x)
++		panic("fail")
+ 	}
+ 	if x := sumF(4, 5, 9)(); x != 18 {
+-		panicln("sumF 18", x)
++		println("sumF 18", x)
++		panic("fail")
+ 	}
+ 	if x := sum2(1, 2, 3); x != 2*6 {
+-		panicln("sum 6", x)
++		println("sum 6", x)
++		panic("fail")
+ 	}
+ 	if x := sum2(); x != 2*0 {
+-		panicln("sum 0", x)
++		println("sum 0", x)
++		panic("fail")
+ 	}
+ 	if x := sum2(10); x != 2*10 {
+-		panicln("sum 10", x)
++		println("sum 10", x)
++		panic("fail")
+ 	}
+ 	if x := sum2(1, 8); x != 2*9 {
+-		panicln("sum 9", x)
++		println("sum 9", x)
++		panic("fail")
+ 	}
+ 	if x := sum3(1, 2, 3); x != 3*6 {
+-		panicln("sum 6", x)
++		println("sum 6", x)
++		panic("fail")
+ 	}
+ 	if x := sum3(); x != 3*0 {
+-		panicln("sum 0", x)
++		println("sum 0", x)
++		panic("fail")
+ 	}
+ 	if x := sum3(10); x != 3*10 {
+-		panicln("sum 10", x)
++		println("sum 10", x)
++		panic("fail")
+ 	}
+ 	if x := sum3(1, 8); x != 3*9 {
+-		panicln("sum 9", x)
++		println("sum 9", x)
++		panic("fail")
+ 	}
+ 	if x := intersum(1, 2, 3); x != 6 {
+-		panicln("intersum 6", x)
++		println("intersum 6", x)
++		panic("fail")
+ 	}
+ 	if x := intersum(); x != 0 {
+-		panicln("intersum 0", x)
++		println("intersum 0", x)
++		panic("fail")
+ 	}
+ 	if x := intersum(10); x != 10 {
+-		panicln("intersum 10", x)
++		println("intersum 10", x)
++		panic("fail")
+ 	}
+ 	if x := intersum(1, 8); x != 9 {
+-		panicln("intersum 9", x)
++		println("intersum 9", x)
++		panic("fail")
+ 	}
+ 
+ 	if x := ln(nil, nil, nil); x != 3 {
+-		panicln("ln 3", x)
++		println("ln 3", x)
++		panic("fail")
+ 	}
+ 	if x := ln([]T{}); x != 1 {
+-		panicln("ln 1", x)
++		println("ln 1", x)
++		panic("fail")
+ 	}
+ 	if x := ln2(nil, nil, nil); x != 2*3 {
+-		panicln("ln2 3", x)
++		println("ln2 3", x)
++		panic("fail")
+ 	}
+ 	if x := ln2([]T{}); x != 2*1 {
+-		panicln("ln2 1", x)
++		println("ln2 1", x)
++		panic("fail")
+ 	}
+-	if x := ((*T)(nil)).Sum(1,3,5,7); x != 16 {
+-		panicln("(*T)(nil).Sum", x)
++	if x := ((*T)(nil)).Sum(1, 3, 5, 7); x != 16 {
++		println("(*T)(nil).Sum", x)
++		panic("fail")
+ 	}
+ 	if x := (*T).Sum(nil, 1, 3, 5, 6); x != 15 {
+-		panicln("(*T).Sum", x)
++		println("(*T).Sum", x)
++		panic("fail")
+ 	}
+-	if x := (&U{}).Sum(1,3,5,5); x != 14 {
+-		panicln("(&U{}).Sum", x)
++	if x := (&U{}).Sum(1, 3, 5, 5); x != 14 {
++		println("(&U{}).Sum", x)
++		panic("fail")
+ 	}
+ 	var u U
+-	if x := u.Sum(1,3,5,4); x != 13 {
+-		panicln("u.Sum", x)
++	if x := u.Sum(1, 3, 5, 4); x != 13 {
++		println("u.Sum", x)
++		panic("fail")
+ 	}
+-	if x := (&u).Sum(1,3,5,3); x != 12 {
+-		panicln("(&u).Sum", x)
++	if x := (&u).Sum(1, 3, 5, 3); x != 12 {
++		println("(&u).Sum", x)
++		panic("fail")
+ 	}
+-	var i interface { Sum(...int) int } = &u
+-	if x := i.Sum(2,3,5,7); x != 17 {
+-		panicln("i(=&u).Sum", x)
++	var i interface {
++		Sum(...int) int
++	} = &u
++	if x := i.Sum(2, 3, 5, 7); x != 17 {
++		println("i(=&u).Sum", x)
++		panic("fail")
+ 	}
+ 	i = u
+-	if x := i.Sum(2,3,5,6); x != 16 {
+-		panicln("i(=u).Sum", x)
++	if x := i.Sum(2, 3, 5, 6); x != 16 {
++		println("i(=u).Sum", x)
++		panic("fail")
+ 	}
+-/* TODO(rsc): Enable once nested method expressions work.
++	/* TODO(rsc): Enable once nested method expressions work.
+ 	if x := (*U).Sum(&U{}, 1, 3, 5, 2); x != 11 {
+-		panicln("(*U).Sum", x)
++		println("(*U).Sum", x)
++		panic("fail")
+ 	}
+ 	if x := U.Sum(U{}, 1, 3, 5, 1); x != 10 {
+-		panicln("U.Sum", x)
++		println("U.Sum", x)
++		panic("fail")
+ 	}
+-*/
++	*/
+ }
+diff --git a/test/ddd3.go b/test/ddd3.go
+index f5f9952d3f..5d5ebdf0fa 100644
+--- a/test/ddd3.go
++++ b/test/ddd3.go
+@@ -10,15 +10,19 @@ import "./ddd2"
+ 
+ func main() {
+ 	if x := ddd.Sum(1, 2, 3); x != 6 {
+-		panicln("ddd.Sum 6", x)
++		println("ddd.Sum 6", x)
++		panic("fail")
+ 	}
+ 	if x := ddd.Sum(); x != 0 {
+-		panicln("ddd.Sum 0", x)
++		println("ddd.Sum 0", x)
++		panic("fail")
+ 	}
+ 	if x := ddd.Sum(10); x != 10 {
+-		panicln("ddd.Sum 10", x)
++		println("ddd.Sum 10", x)
++		panic("fail")
+ 	}
+ 	if x := ddd.Sum(1, 8); x != 9 {
+-		panicln("ddd.Sum 9", x)
++		println("ddd.Sum 9", x)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug113.go b/test/fixedbugs/bug113.go
+index 4b9b1397a8..4fd322d531 100644
+--- a/test/fixedbugs/bug113.go
++++ b/test/fixedbugs/bug113.go
+@@ -5,16 +5,24 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-type I interface { };
+-func foo1(i int) int { return i }
++
++type I interface{}
++
++func foo1(i int) int     { return i }
+ func foo2(i int32) int32 { return i }
+ func main() {
+-	var i I;
+-	i = 1;
+-	var v1 = i.(int);
+-	if foo1(v1) != 1 { panicln(1) }
+-	var v2 = int32(i.(int));
+-	if foo2(v2) != 1 { panicln(2) }
+-	var v3 = i.(int32); // This type conversion should fail at runtime.
+-	if foo2(v3) != 1 { panicln(3) }
++	var i I
++	i = 1
++	var v1 = i.(int)
++	if foo1(v1) != 1 {
++		panic(1)
++	}
++	var v2 = int32(i.(int))
++	if foo2(v2) != 1 {
++		panic(2)
++	}
++	var v3 = i.(int32) // This type conversion should fail at runtime.
++	if foo2(v3) != 1 {
++		panic(3)
++	}
+ }
+diff --git a/test/fixedbugs/bug114.go b/test/fixedbugs/bug114.go
+index 33330fff8e..974b7cf26e 100644
+--- a/test/fixedbugs/bug114.go
++++ b/test/fixedbugs/bug114.go
+@@ -7,17 +7,20 @@
+ package main
+ 
+ const B32 = 1<<32 - 1
+-const C32 = (-1) & ((1<<32) - 1)
++const C32 = (-1) & ((1 << 32) - 1)
+ const D32 = ^0
+ 
+ func main() {
+ 	if B32 != 0xFFFFFFFF {
+-		panicln("1<<32 - 1 is", B32, "should be", 0xFFFFFFFF)
++		println("1<<32 - 1 is", B32, "should be", 0xFFFFFFFF)
++		panic("fail")
+ 	}
+ 	if C32 != 0xFFFFFFFF {
+-		panicln("(-1) & ((1<<32) - 1) is", C32, "should be", 0xFFFFFFFF)
++		println("(-1) & ((1<<32) - 1) is", C32, "should be", 0xFFFFFFFF)
++		panic("fail")
+ 	}
+ 	if D32 != -1 {
+-		panicln("^0 is", D32, "should be", -1)
++		println("^0 is", D32, "should be", -1)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug116.go b/test/fixedbugs/bug116.go
+index 32c99d46eb..42ca803432 100644
+--- a/test/fixedbugs/bug116.go
++++ b/test/fixedbugs/bug116.go
+@@ -7,28 +7,29 @@
+ package main
+ 
+ func main() {
+-	bad := false;
+-	if (-5>>1) != -3 {
+-		println("-5>>1 =", -5>>1, "want -3");
+-		bad = true;
++	bad := false
++	if (-5 >> 1) != -3 {
++		println("-5>>1 =", -5>>1, "want -3")
++		bad = true
+ 	}
+-	if (-4>>1) != -2 {
+-		println("-4>>1 =", -4>>1, "want -2");
+-		bad = true;
++	if (-4 >> 1) != -2 {
++		println("-4>>1 =", -4>>1, "want -2")
++		bad = true
+ 	}
+-	if (-3>>1) != -2 {
+-		println("-3>>1 =", -3>>1, "want -2");
+-		bad = true;
++	if (-3 >> 1) != -2 {
++		println("-3>>1 =", -3>>1, "want -2")
++		bad = true
+ 	}
+-	if (-2>>1) != -1 {
+-		println("-2>>1 =", -2>>1, "want -1");
+-		bad = true;
++	if (-2 >> 1) != -1 {
++		println("-2>>1 =", -2>>1, "want -1")
++		bad = true
+ 	}
+-	if (-1>>1) != -1 {
+-		println("-1>>1 =", -1>>1, "want -1");
+-		bad = true;
++	if (-1 >> 1) != -1 {
++		println("-1>>1 =", -1>>1, "want -1")
++		bad = true
+ 	}
+ 	if bad {
+-		panicln("errors");
++		println("errors")
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug119.go b/test/fixedbugs/bug119.go
+index c4ce80ce04..750507891c 100644
+--- a/test/fixedbugs/bug119.go
++++ b/test/fixedbugs/bug119.go
+@@ -7,13 +7,18 @@
+ package main
+ 
+ func foo(a []int) int {
+-	return a[0]  // this seems to do the wrong thing
++	return a[0] // this seems to do the wrong thing
+ }
+ 
+ func main() {
+-	a := &[]int{12};
+-	if x := (*a)[0]; x != 12 { panicln(2) }
+-	if x := foo(*a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
++	a := &[]int{12}
++	if x := (*a)[0]; x != 12 {
++		panic(2)
++	}
++	if x := foo(*a); x != 12 {
++		// fails (x is incorrect)
++		panic(3)
++	}
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug120.go b/test/fixedbugs/bug120.go
+index 06a07e8054..2a71957d84 100644
+--- a/test/fixedbugs/bug120.go
++++ b/test/fixedbugs/bug120.go
+@@ -7,20 +7,20 @@
+ package main
+ 
+ import "os"
+-import "strconv";
++import "strconv"
+ 
+ type Test struct {
+-	f float64;
+-	in string;
+-	out string;
++	f   float64
++	in  string
++	out string
+ }
+ 
+-var tests = []Test {
+-	Test{ 123.5, "123.5", "123.5" },
+-	Test{ 456.7, "456.7", "456.7" },
+-	Test{ 1e23+8.5e6, "1e23+8.5e6", "1.0000000000000001e+23" },
+-	Test{ 100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23" },
+-	Test{ 1e23+8388609, "1e23+8388609", "1.0000000000000001e+23" },
++var tests = []Test{
++	Test{123.5, "123.5", "123.5"},
++	Test{456.7, "456.7", "456.7"},
++	Test{1e23 + 8.5e6, "1e23+8.5e6", "1.0000000000000001e+23"},
++	Test{100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23"},
++	Test{1e23 + 8388609, "1e23+8388609", "1.0000000000000001e+23"},
+ 
+ 	// "x" = the floating point value from converting the string x.
+ 	// These are exactly representable in 64-bit floating point:
+@@ -33,27 +33,28 @@ var tests = []Test {
+ 	// The correct answer, of course, would be "1e23+8388608" = 1e23+8388608.
+ 	// This is not going to be correct until 6g has multiprecision floating point.
+ 	// A simpler case is "1e23+1", which should also round to 1e23+8388608.
+-	Test{ 1e23+8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23" },
+-	Test{ 1e23+1, "1e23+1", "1.0000000000000001e+23" },
++	Test{1e23 + 8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23"},
++	Test{1e23 + 1, "1e23+1", "1.0000000000000001e+23"},
+ }
+ 
+ func main() {
+-	ok := true;
++	ok := true
+ 	for i := 0; i < len(tests); i++ {
+-		t := tests[i];
+-		v := strconv.Ftoa64(t.f, 'g', -1);
++		t := tests[i]
++		v := strconv.Ftoa64(t.f, 'g', -1)
+ 		if v != t.out {
+-			println("Bad float64 const:", t.in, "want", t.out, "got", v);
+-			x, err := strconv.Atof64(t.out);
++			println("Bad float64 const:", t.in, "want", t.out, "got", v)
++			x, err := strconv.Atof64(t.out)
+ 			if err != nil {
+-				panicln("bug120: strconv.Atof64", t.out);
++				println("bug120: strconv.Atof64", t.out)
++				panic("fail")
+ 			}
+-			println("\twant exact:", strconv.Ftoa64(x, 'g', 1000));
+-			println("\tgot exact: ", strconv.Ftoa64(t.f, 'g', 1000));
+-			ok = false;
++			println("\twant exact:", strconv.Ftoa64(x, 'g', 1000))
++			println("\tgot exact: ", strconv.Ftoa64(t.f, 'g', 1000))
++			ok = false
+ 		}
+ 	}
+ 	if !ok {
+-		os.Exit(1);
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug147.go b/test/fixedbugs/bug147.go
+index e3e498b01b..a16630b871 100644
+--- a/test/fixedbugs/bug147.go
++++ b/test/fixedbugs/bug147.go
+@@ -5,18 +5,22 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
++
+ import "time"
++
+ func main() {
+-	var count int;
+-	c := make(chan byte);
++	var count int
++	c := make(chan byte)
+ 	go func(c chan byte) {
+-		<-c;
+-		count++;
+-		time.Sleep(1000000);
+-		count++;
+-		<-c;
+-	} (c);
+-	c <- 1;
+-	c <- 2;
+-	if count != 2 { panicln("synchronous send did not wait") }
++		<-c
++		count++
++		time.Sleep(1000000)
++		count++
++		<-c
++	}(c)
++	c <- 1
++	c <- 2
++	if count != 2 {
++		panic("synchronous send did not wait")
++	}
+ }
+diff --git a/test/fixedbugs/bug180.go b/test/fixedbugs/bug180.go
+index e293448605..96823fb3a5 100644
+--- a/test/fixedbugs/bug180.go
++++ b/test/fixedbugs/bug180.go
+@@ -6,12 +6,11 @@
+ 
+ package main
+ 
+-func shift(x int) int {
+-	return 1<<(1<<(1<<(uint(x))));
+-}
++func shift(x int) int { return 1 << (1 << (1 << (uint(x)))) }
+ 
+ func main() {
+ 	if n := shift(2); n != 1<<(1<<(1<<2)) {
+-		panicln("bad shift", n);
++		println("bad shift", n)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug184.go b/test/fixedbugs/bug184.go
+index 363af6c857..3cc9845356 100644
+--- a/test/fixedbugs/bug184.go
++++ b/test/fixedbugs/bug184.go
+@@ -9,45 +9,41 @@ package main
+ import "fmt"
+ 
+ type Buffer int
+-func (*Buffer) Read() {
+-}
+ 
+-type Reader interface { Read() }
++func (*Buffer) Read() {}
+ 
+-func f() *Buffer {
+-	return nil
++type Reader interface {
++	Read()
+ }
+ 
++func f() *Buffer { return nil }
++
+ func g() Reader {
+ 	// implicit interface conversion in assignment during return
+ 	return f()
+ }
+ 
+-func h() (b *Buffer, ok bool) {
+-	return
+-}
++func h() (b *Buffer, ok bool) { return }
+ 
+ func i() (r Reader, ok bool) {
+ 	// implicit interface conversion in multi-assignment during return
+-	return h();
++	return h()
+ }
+ 
+-func fmter() (s string, i int, t string) {
+-	return "%#x %q", 100, "hello"
+-}
++func fmter() (s string, i int, t string) { return "%#x %q", 100, "hello" }
+ 
+ func main() {
+-	b := g();
+-	bb, ok := b.(*Buffer);
+-	_, _, _ = b, bb, ok;
++	b := g()
++	bb, ok := b.(*Buffer)
++	_, _, _ = b, bb, ok
+ 
+-	b, ok = i();
+-	bb, ok = b.(*Buffer);
+-	_, _, _ = b, bb, ok;
++	b, ok = i()
++	bb, ok = b.(*Buffer)
++	_, _, _ = b, bb, ok
+ 
+-	s := fmt.Sprintf(fmter());
++	s := fmt.Sprintf(fmter())
+ 	if s != "0x64 \"hello\"" {
+-		panicln(s);
++		println(s)
++		panic("fail")
+ 	}
+ }
+-
+diff --git a/test/fixedbugs/bug185.go b/test/fixedbugs/bug185.go
+index 7f4bcb2c79..acae174f4b 100644
+--- a/test/fixedbugs/bug185.go
++++ b/test/fixedbugs/bug185.go
+@@ -6,28 +6,30 @@
+ 
+ package main
+ 
+-func g() { }
++func g() {}
+ 
+ func f1() (a, b int) {
+-	a, b = 2, 1;
+-	g();	// defeat optimizer
+-	return a, b;
++	a, b = 2, 1
++	g() // defeat optimizer
++	return a, b
+ }
+ 
+ func f2() (a, b int) {
+-	a, b = 1, 2;
+-	g();	// defeat optimizer
+-	return b, a;
++	a, b = 1, 2
++	g() // defeat optimizer
++	return b, a
+ }
+ 
+ func main() {
+-	x, y := f1();
++	x, y := f1()
+ 	if x != 2 || y != 1 {
+-		panicln("f1", x, y);
++		println("f1", x, y)
++		panic("fail")
+ 	}
+ 
+-	x, y = f2();
++	x, y = f2()
+ 	if x != 2 || y != 1 {
+-		panicln("f2", x, y);
++		println("f2", x, y)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug196.go b/test/fixedbugs/bug196.go
+index b903079508..ea8ab0dc19 100644
+--- a/test/fixedbugs/bug196.go
++++ b/test/fixedbugs/bug196.go
+@@ -6,46 +6,45 @@
+ 
+ package main
+ 
+-var m = map[int]int{ 0: 0, 1: 0 }
++var m = map[int]int{0: 0, 1: 0}
+ var nf = 0
+ var i int
+ 
+-func multi() (int, int) {
+-	return 1,2
+-}
++func multi() (int, int) { return 1, 2 }
+ 
+ func xxx() {
+-	var c chan int;
+-	x, ok := <-c;
++	var c chan int
++	x, ok := <-c
+ 
+-	var m map[int]int;
+-	x, ok = m[1];
++	var m map[int]int
++	x, ok = m[1]
+ 
+-	var i interface{};
+-	var xx int;
+-	xx, ok = i.(int);
++	var i interface{}
++	var xx int
++	xx, ok = i.(int)
+ 
+-	a,b := multi();
++	a, b := multi()
+ 
+-	_, _, _, _, _ = x, ok, xx, a, b;
++	_, _, _, _, _ = x, ok, xx, a, b
+ }
+ 
+ func f() map[int]int {
+-	nf++;
+-	return m;
++	nf++
++	return m
+ }
+ 
+ func g() *int {
+-	nf++;
++	nf++
+ 	return &i
+ }
+ 
+ func main() {
+-	f()[0]++;
+-	f()[1] += 2;
+-	*g() %= 2;
++	f()[0]++
++	f()[1] += 2
++	*g() %= 2
+ 	if nf != 3 {
+-		panicln("too many calls:", nf);
++		println("too many calls:", nf)
++		panic("fail")
+ 	}
+ 
+ }
+diff --git a/test/fixedbugs/bug199.go b/test/fixedbugs/bug199.go
+index c7bd21f11b..71226290f1 100644
+--- a/test/fixedbugs/bug199.go
++++ b/test/fixedbugs/bug199.go
+@@ -7,19 +7,21 @@
+ package main
+ 
+ type S struct {
+-	a []int;
++	a []int
+ }
++
+ var s = &S{make([]int, 10)}
+ 
+ func main() {
+-	s.a[f()] = 1	// 6g used to call f twice here
++	s.a[f()] = 1 // 6g used to call f twice here
+ }
+ 
+ var n int
+-func f() int{
++
++func f() int {
+ 	if n++; n > 1 {
+-		panicln("f twice");
++		println("f twice")
++		panic("fail")
+ 	}
+ 	return 0
+ }
+-
+diff --git a/test/fixedbugs/bug201.go b/test/fixedbugs/bug201.go
+index e72d8f9b9b..f7db62fc99 100644
+--- a/test/fixedbugs/bug201.go
++++ b/test/fixedbugs/bug201.go
+@@ -6,31 +6,43 @@
+ 
+ package main
+ 
+-type T1 struct { x, y int; }
+-type T2 struct { z, w byte; }
++type T1 struct {
++	x, y int
++}
++type T2 struct {
++	z, w byte
++}
+ type T3 T1
+ 
+ type MyInt int
+-func (MyInt) m(*T1) { }
++
++func (MyInt) m(*T1) {}
+ 
+ func main() {
+ 	{
+-		var i interface{} = new(T1);
+-		_, ok1 := i.(*T1);
+-		_, ok2 := i.(*T2);
+-		_, ok3 := i.(*T3);
++		var i interface{} = new(T1)
++		_, ok1 := i.(*T1)
++		_, ok2 := i.(*T2)
++		_, ok3 := i.(*T3)
+ 		if !ok1 || ok2 || ok3 {
+-			panicln("*T1", ok1, ok2, ok3);
++			println("*T1", ok1, ok2, ok3)
++			panic("fail")
+ 		}
+ 	}
+ 	{
+-		var i interface{} = MyInt(0);
+-		_, ok1 := i.(interface{ m(*T1) });
+-		_, ok2 := i.(interface{ m(*T2) });
+-		_, ok3 := i.(interface{ m(*T3) });
++		var i interface{} = MyInt(0)
++		_, ok1 := i.(interface {
++			m(*T1)
++		})
++		_, ok2 := i.(interface {
++			m(*T2)
++		})
++		_, ok3 := i.(interface {
++			m(*T3)
++		})
+ 		if !ok1 || ok2 || ok3 {
+-			panicln("T", ok1, ok2, ok3);
++			println("T", ok1, ok2, ok3)
++			panic("fail")
+ 		}
+ 	}
+ }
+-
+diff --git a/test/fixedbugs/bug242.go b/test/fixedbugs/bug242.go
+index 833e0a7dc7..5c21eaaf00 100644
+--- a/test/fixedbugs/bug242.go
++++ b/test/fixedbugs/bug242.go
+@@ -10,6 +10,7 @@ package main
+ 
+ var i byte = 0
+ var a [30]byte
++
+ func f() *byte {
+ 	i++
+ 	return &a[i-1]
+@@ -28,35 +29,39 @@ func x() (byte, byte) {
+ }
+ func e1(c chan byte, expected byte) chan byte {
+ 	if i != expected {
+-		panicln("e1: got", i, "expected", expected)
++		println("e1: got", i, "expected", expected)
++		panic("fail")
+ 	}
+ 	i++
+ 	return c
+ }
+ 
+-type Empty interface {}
++type Empty interface{}
+ type I interface {
+ 	Get() byte
+ }
+ type S1 struct {
+ 	i byte
+ }
+-func (p S1) Get() byte {
+-	return p.i
+-}
++
++func (p S1) Get() byte { return p.i }
++
+ type S2 struct {
+ 	i byte
+ }
++
+ func e2(p Empty, expected byte) Empty {
+ 	if i != expected {
+-		panicln("e2: got", i, "expected", expected)
++		println("e2: got", i, "expected", expected)
++		panic("fail")
+ 	}
+ 	i++
+ 	return p
+ }
+ func e3(p *I, expected byte) *I {
+ 	if i != expected {
+-		panicln("e3: got", i, "expected", expected)
++		println("e3: got", i, "expected", expected)
++		panic("fail")
+ 	}
+ 	i++
+ 	return p
+@@ -67,55 +72,60 @@ func main() {
+ 		a[i] = ' '
+ 	}
+ 
+-      // 0     1     2     3        4        5
++	// 0     1     2     3        4        5
+ 	*f(), *f(), *f() = gbyte(), gbyte(), gbyte()
+ 
+-      // 6     7     8
++	// 6     7     8
+ 	*f(), *f() = x()
+ 
+ 	m := make(map[byte]byte)
+ 	m[10] = 'A'
+ 	var p1, p2 bool
+-      // 9           10
++	// 9           10
+ 	*f(), p1 = m[gint()]
+-      // 11          12
++	// 11          12
+ 	*f(), p2 = m[gint()]
+ 	a[11] += '0'
+ 	if !p1 || p2 {
+-		panicln("bad map check", i, p1, p2)
++		println("bad map check", i, p1, p2)
++		panic("fail")
+ 	}
+ 
+ 	m[13] = 'B'
+-      //  13        14
++	//  13        14
+ 	m[gint()] = gbyte(), false
+ 	if _, present := m[13]; present {
+-		panicln("bad map removal")
++		println("bad map removal")
++		panic("fail")
+ 	}
+ 
+ 	c := make(chan byte, 1)
+ 	c <- 'C'
+-      // 15          16
++	// 15          16
+ 	*f(), p1 = <-e1(c, 16)
+-      // 17          18
++	// 17          18
+ 	*f(), p2 = <-e1(c, 18)
+ 	a[17] += '0'
+ 	if !p1 || p2 {
+-		panicln("bad chan check", i, p1, p2)
++		println("bad chan check", i, p1, p2)
++		panic("fail")
+ 	}
+ 
+ 	s1 := S1{'D'}
+ 	s2 := S2{'E'}
+ 	var iv I
+-      // 19                20
++	// 19                20
+ 	*e3(&iv, 19), p1 = e2(s1, 20).(I)
+-      // 21                22
++	// 21                22
+ 	*e3(&iv, 21), p2 = e2(s2, 22).(I)
+ 	if !p1 || p2 {
+-		panicln("bad interface check", i, p1, p2)
++		println("bad interface check", i, p1, p2)
++		panic("fail")
+ 	}
+ 
+ 	s := string(a[0:i])
+ 	if s != "def   ii A 0   C 0     " {
+-		panicln("bad array results:", s)
++		println("bad array results:", s)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug246.go b/test/fixedbugs/bug246.go
+index 1c4dc0d537..12041eb1d4 100644
+--- a/test/fixedbugs/bug246.go
++++ b/test/fixedbugs/bug246.go
+@@ -15,8 +15,9 @@ func main() {
+ 
+ 	// fails
+ 	x2 := (*int)(unsafe.Pointer(uintptr(0x234)))
+-	
++
+ 	if x1 != x2 {
+-		panicln("mismatch", x1, x2)
++		println("mismatch", x1, x2)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug247.go b/test/fixedbugs/bug247.go
+index 1ae30f2d9a..2f56b88d47 100644
+--- a/test/fixedbugs/bug247.go
++++ b/test/fixedbugs/bug247.go
+@@ -15,6 +15,7 @@ func main() {
+ 	var i interface{} = Count
+ 	j := i.(int)
+ 	if j != Count {
+-		panicln("j=", j)
++		println("j=", j)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index 4e02b5d9a7..68c0ce0bc4 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -39,27 +39,33 @@ func main() {
+ 
+ 	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
+ 	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
+-		panicln("bad v0 path", len(s), s)
++		println("bad v0 path", len(s), s)
++		panic("fail")
+ 	}
+ 	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
+-		panicln("bad v1 path", s)
++		println("bad v1 path", s)
++		panic("fail")
+ 	}
+ 
+ 	// check that dynamic interface check doesn't get confused
+ 	var i interface{} = t0(0)
+ 	if _, ok := i.(I1); ok {
+-		panicln("used t0 as i1")
++		println("used t0 as i1")
++		panic("fail")
+ 	}
+ 	if _, ok := i.(p1.I); ok {
+-		panicln("used t0 as p1.I")
++		println("used t0 as p1.I")
++		panic("fail")
+ 	}
+ 
+ 	i = t1(1)
+ 	if _, ok := i.(I0); ok {
+-		panicln("used t1 as i0")
++		println("used t1 as i0")
++		panic("fail")
+ 	}
+ 	if _, ok := i.(p0.I); ok {
+-		panicln("used t1 as p0.I")
++		println("used t1 as p0.I")
++		panic("fail")
+ 	}
+ 
+ 	// check that type switch works.
+@@ -77,15 +83,18 @@ func main() {
+ 		switch k := i.(type) {
+ 		case p0.T:
+ 			if j != 0 {
+-				panicln("type switch p0.T")
++				println("type switch p0.T")
++				panic("fail")
+ 			}
+ 		case p1.T:
+ 			if j != 1 {
+-				panicln("type switch p1.T")
++				println("type switch p1.T")
++				panic("fail")
+ 			}
+ 		default:
+ 			if j != 2 {
+-				panicln("type switch default", j)
++				println("type switch default", j)
++				panic("fail")
+ 			}
+ 		}
+ 	}
+diff --git a/test/fixedbugs/bug254.go b/test/fixedbugs/bug254.go
+index f351eb84e9..c0c7f249ed 100644
+--- a/test/fixedbugs/bug254.go
++++ b/test/fixedbugs/bug254.go
+@@ -11,6 +11,7 @@ var b [1e1]int
+ 
+ func main() {
+ 	if len(a) != 10 || len(b) != 10 {
+-		panicln("len", len(a), len(b))
++		println("len", len(a), len(b))
++		panic("fail")
+ 	}
+ }
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index adb90e4681..115aeb695e 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -60,7 +60,8 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ 	// get package AST
+ 	pkgs, err := parser.ParseDir(dirpath, filter, parser.ParseComments)
+ 	if err != nil {
+-		panicln("parse", dirpath, err.String())
++		println("parse", dirpath, err.String())
++		panic("fail")
+ 	}
+ 	return pkgs
+ }
+diff --git a/test/indirect.go b/test/indirect.go
+index 06c1dcce7b..cfddde9ce2 100644
+--- a/test/indirect.go
++++ b/test/indirect.go
+@@ -32,7 +32,7 @@ func crash() {
+ 	// these uses of nil pointers
+ 	// would crash but should type check
+ 	println("crash",
+-		len(a1) + cap(a1));
++		len(a1)+cap(a1))
+ }
+ 
+ func nocrash() {
+@@ -42,41 +42,44 @@ func nocrash() {
+ 	// it decides there are type errors.
+ 	// it might also help in the traceback.
+ 	x :=
+-		len(m0)+
+-		len(m3);
++		len(m0) +
++			len(m3)
+ 	if x != 1 {
+-		panicln("wrong maplen");
++		println("wrong maplen")
++		panic("fail")
+ 	}
+ 
+ 	x =
+-		len(s0)+
+-		len(s3);
++		len(s0) +
++			len(s3)
+ 	if x != 1 {
+-		panicln("wrong stringlen");
++		println("wrong stringlen")
++		panic("fail")
+ 	}
+ 
+ 	x =
+-		len(a0)+
+-		len(a2);
++		len(a0) +
++			len(a2)
+ 	if x != 20 {
+-		panicln("wrong arraylen");
++		println("wrong arraylen")
++		panic("fail")
+ 	}
+ 
+ 	x =
+-		len(b0)+
+-		len(b3);
++		len(b0) +
++			len(b3)
+ 	if x != 3 {
+-		panicln("wrong slicelen");
++		println("wrong slicelen")
++		panic("fail")
+ 	}
+ 
+ 	x =
+-		cap(b0)+
+-		cap(b3);
++		cap(b0) +
++			cap(b3)
+ 	if x != 3 {
+-		panicln("wrong slicecap");
++		println("wrong slicecap")
++		panic("fail")
+ 	}
+ }
+ 
+-func main() {
+-	nocrash();
+-}
++func main() { nocrash() }
+diff --git a/test/initcomma.go b/test/initcomma.go
+index 44053f1459..195d4575f7 100644
+--- a/test/initcomma.go
++++ b/test/initcomma.go
+@@ -6,29 +6,74 @@
+ 
+ package main
+ 
+-var a = []int { 1,2, }
+-var b = [5]int { 1,2,3 }
+-var c = []int { 1 }
+-var d = [...]int { 1,2,3 }
++var a = []int{1, 2}
++var b = [5]int{1, 2, 3}
++var c = []int{1}
++var d = [...]int{1, 2, 3}
+ 
+ func main() {
+-	if len(a) != 2 { panicln("len a", len(a)) }
+-	if len(b) != 5 { panicln("len b", len(b)) }
+-	if len(c) != 1 { panicln("len d", len(c)) }
+-	if len(d) != 3 { panicln("len c", len(d)) }
++	if len(a) != 2 {
++		println("len a", len(a))
++		panic("fail")
++	}
++	if len(b) != 5 {
++		println("len b", len(b))
++		panic("fail")
++	}
++	if len(c) != 1 {
++		println("len d", len(c))
++		panic("fail")
++	}
++	if len(d) != 3 {
++		println("len c", len(d))
++		panic("fail")
++	}
+ 
+-	if a[0] != 1 { panicln("a[0]", a[0]) }
+-	if a[1] != 2 { panicln("a[1]", a[1]) }
++	if a[0] != 1 {
++		println("a[0]", a[0])
++		panic("fail")
++	}
++	if a[1] != 2 {
++		println("a[1]", a[1])
++		panic("fail")
++	}
+ 
+-	if b[0] != 1 { panicln("b[0]", b[0]) }
+-	if b[1] != 2 { panicln("b[1]", b[1]) }
+-	if b[2] != 3 { panicln("b[2]", b[2]) }
+-	if b[3] != 0 { panicln("b[3]", b[3]) }
+-	if b[4] != 0 { panicln("b[4]", b[4]) }
++	if b[0] != 1 {
++		println("b[0]", b[0])
++		panic("fail")
++	}
++	if b[1] != 2 {
++		println("b[1]", b[1])
++		panic("fail")
++	}
++	if b[2] != 3 {
++		println("b[2]", b[2])
++		panic("fail")
++	}
++	if b[3] != 0 {
++		println("b[3]", b[3])
++		panic("fail")
++	}
++	if b[4] != 0 {
++		println("b[4]", b[4])
++		panic("fail")
++	}
+ 
+-	if c[0] != 1 { panicln("c[0]", c[0]) }
++	if c[0] != 1 {
++		println("c[0]", c[0])
++		panic("fail")
++	}
+ 
+-	if d[0] != 1 { panicln("d[0]", d[0]) }
+-	if d[1] != 2 { panicln("d[1]", d[1]) }
+-	if d[2] != 3 { panicln("d[2]", d[2]) }
++	if d[0] != 1 {
++		println("d[0]", d[0])
++		panic("fail")
++	}
++	if d[1] != 2 {
++		println("d[1]", d[1])
++		panic("fail")
++	}
++	if d[2] != 3 {
++		println("d[2]", d[2])
++		panic("fail")
++	}
+ }
+diff --git a/test/intcvt.go b/test/intcvt.go
+index a54d276e6b..407bcfd9ba 100644
+--- a/test/intcvt.go
++++ b/test/intcvt.go
+@@ -7,133 +7,173 @@
+ package main
+ 
+ const (
+-	ci8 = -1<<7;
+-	ci16 = -1<<15 + 100;
+-	ci32 = -1<<31 + 100000;
+-	ci64 = -1<<63 + 10000000001;
+-	
+-	cu8 = 1<<8 - 1;
+-	cu16 = 1<<16 - 1234;
+-	cu32 = 1<<32 - 1234567;
+-	cu64 = 1<<64 - 1234567890123;
+-
+-	cf32 = 1e8 + 0.5;
+-	cf64 = -1e8 + 0.5;
++	ci8  = -1 << 7
++	ci16 = -1<<15 + 100
++	ci32 = -1<<31 + 100000
++	ci64 = -1<<63 + 10000000001
++
++	cu8  = 1<<8 - 1
++	cu16 = 1<<16 - 1234
++	cu32 = 1<<32 - 1234567
++	cu64 = 1<<64 - 1234567890123
++
++	cf32 = 1e8 + 0.5
++	cf64 = -1e8 + 0.5
+ )
+ 
+ var (
+-	i8 int8 = ci8;
+-	i16 int16 = ci16;
+-	i32 int32 = ci32;
+-	i64 int64 = ci64;
+-
+-	u8 uint8 = cu8;
+-	u16 uint16 = cu16;
+-	u32 uint32 = cu32;
+-	u64 uint64 = cu64;
+-	
+-//	f32 float32 = 1e8 + 0.5;
+-//	f64 float64 = -1e8 + 0.5;
++	i8  int8  = ci8
++	i16 int16 = ci16
++	i32 int32 = ci32
++	i64 int64 = ci64
++
++	u8  uint8  = cu8
++	u16 uint16 = cu16
++	u32 uint32 = cu32
++	u64 uint64 = cu64
++
++	//	f32 float32 = 1e8 + 0.5
++	//	f64 float64 = -1e8 + 0.5
+ )
+ 
+-func chki8(i, v int8) { if i != v { panicln(i, "!=", v) } }
+-func chki16(i, v int16) { if i != v { panicln(i, "!=", v) } }
+-func chki32(i, v int32) { if i != v { panicln(i, "!=", v) } }
+-func chki64(i, v int64) { if i != v { panicln(i, "!=", v) } }
+-func chku8(i, v uint8) { if i != v { panicln(i, "!=", v) } }
+-func chku16(i, v uint16) { if i != v { panicln(i, "!=", v) } }
+-func chku32(i, v uint32) { if i != v { panicln(i, "!=", v) } }
+-func chku64(i, v uint64) { if i != v { panicln(i, "!=", v) } }
+-//func chkf32(f, v float32) { if f != v { panicln(f, "!=", v) } }
+-//func chkf64(f, v float64) { if f != v { panicln(f, "!=", v) } }
++func chki8(i, v int8) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chki16(i, v int16) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chki32(i, v int32) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chki64(i, v int64) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chku8(i, v uint8) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chku16(i, v uint16) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chku32(i, v uint32) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++func chku64(i, v uint64) {
++	if i != v {
++		println(i, "!=", v)
++		panic("fail")
++	}
++}
++//func chkf32(f, v float32) { if f != v { println(f, "!=", v); panic("fail") } }
++//func chkf64(f, v float64) { if f != v { println(f, "!=", v); panic("fail") } }
+ 
+ func main() {
+-	chki8(int8(i8), ci8 & 0xff - 1<<8);
+-	chki8(int8(i16), ci16 & 0xff);
+-	chki8(int8(i32), ci32 & 0xff - 1<<8);
+-	chki8(int8(i64), ci64 & 0xff);
+-	chki8(int8(u8), cu8 & 0xff - 1<<8);
+-	chki8(int8(u16), cu16 & 0xff);
+-	chki8(int8(u32), cu32 & 0xff);
+-	chki8(int8(u64), cu64 & 0xff);
+-//	chki8(int8(f32), 0);
+-//	chki8(int8(f64), 0);
+-
+-	chki16(int16(i8), ci8 & 0xffff - 1<<16);
+-	chki16(int16(i16), ci16 & 0xffff - 1<<16);
+-	chki16(int16(i32), ci32 & 0xffff - 1<<16);
+-	chki16(int16(i64), ci64 & 0xffff - 1<<16);
+-	chki16(int16(u8), cu8 & 0xffff);
+-	chki16(int16(u16), cu16 & 0xffff - 1<<16);
+-	chki16(int16(u32), cu32 & 0xffff);
+-	chki16(int16(u64), cu64 & 0xffff - 1<<16);
+-//	chki16(int16(f32), 0);
+-//	chki16(int16(f64), 0);
+-
+-	chki32(int32(i8), ci8 & 0xffffffff - 1<<32);
+-	chki32(int32(i16), ci16 & 0xffffffff - 1<<32);
+-	chki32(int32(i32), ci32 & 0xffffffff - 1<<32);
+-	chki32(int32(i64), ci64 & 0xffffffff);
+-	chki32(int32(u8), cu8 & 0xffffffff);
+-	chki32(int32(u16), cu16 & 0xffffffff);
+-	chki32(int32(u32), cu32 & 0xffffffff - 1<<32);
+-	chki32(int32(u64), cu64 & 0xffffffff - 1<<32);
+-//	chki32(int32(f32), 0);
+-//	chki32(int32(f64), 0);
+-
+-	chki64(int64(i8), ci8 & 0xffffffffffffffff - 1<<64);
+-	chki64(int64(i16), ci16 & 0xffffffffffffffff - 1<<64);
+-	chki64(int64(i32), ci32 & 0xffffffffffffffff - 1<<64);
+-	chki64(int64(i64), ci64 & 0xffffffffffffffff - 1<<64);
+-	chki64(int64(u8), cu8 & 0xffffffffffffffff);
+-	chki64(int64(u16), cu16 & 0xffffffffffffffff);
+-	chki64(int64(u32), cu32 & 0xffffffffffffffff);
+-	chki64(int64(u64), cu64 & 0xffffffffffffffff - 1<<64);
+-//	chki64(int64(f32), 0);
+-//	chki64(int64(f64), 0);
+-
+-
+-	chku8(uint8(i8), ci8 & 0xff);
+-	chku8(uint8(i16), ci16 & 0xff);
+-	chku8(uint8(i32), ci32 & 0xff);
+-	chku8(uint8(i64), ci64 & 0xff);
+-	chku8(uint8(u8), cu8 & 0xff);
+-	chku8(uint8(u16), cu16 & 0xff);
+-	chku8(uint8(u32), cu32 & 0xff);
+-	chku8(uint8(u64), cu64 & 0xff);
+-//	chku8(uint8(f32), 0);
+-//	chku8(uint8(f64), 0);
+-
+-	chku16(uint16(i8), ci8 & 0xffff);
+-	chku16(uint16(i16), ci16 & 0xffff);
+-	chku16(uint16(i32), ci32 & 0xffff);
+-	chku16(uint16(i64), ci64 & 0xffff);
+-	chku16(uint16(u8), cu8 & 0xffff);
+-	chku16(uint16(u16), cu16 & 0xffff);
+-	chku16(uint16(u32), cu32 & 0xffff);
+-	chku16(uint16(u64), cu64 & 0xffff);
+-//	chku16(uint16(f32), 0);
+-//	chku16(uint16(f64), 0);
+-
+-	chku32(uint32(i8), ci8 & 0xffffffff);
+-	chku32(uint32(i16), ci16 & 0xffffffff);
+-	chku32(uint32(i32), ci32 & 0xffffffff);
+-	chku32(uint32(i64), ci64 & 0xffffffff);
+-	chku32(uint32(u8), cu8 & 0xffffffff);
+-	chku32(uint32(u16), cu16 & 0xffffffff);
+-	chku32(uint32(u32), cu32 & 0xffffffff);
+-	chku32(uint32(u64), cu64 & 0xffffffff);
+-//	chku32(uint32(f32), 0);
+-//	chku32(uint32(f64), 0);
+-
+-	chku64(uint64(i8), ci8 & 0xffffffffffffffff);
+-	chku64(uint64(i16), ci16 & 0xffffffffffffffff);
+-	chku64(uint64(i32), ci32 & 0xffffffffffffffff);
+-	chku64(uint64(i64), ci64 & 0xffffffffffffffff);
+-	chku64(uint64(u8), cu8 & 0xffffffffffffffff);
+-	chku64(uint64(u16), cu16 & 0xffffffffffffffff);
+-	chku64(uint64(u32), cu32 & 0xffffffffffffffff);
+-	chku64(uint64(u64), cu64 & 0xffffffffffffffff);
+-//	chku64(uint64(f32), 0);
+-//	chku64(uint64(f64), 0);
++	chki8(int8(i8), ci8&0xff-1<<8)
++	chki8(int8(i16), ci16&0xff)
++	chki8(int8(i32), ci32&0xff-1<<8)
++	chki8(int8(i64), ci64&0xff)
++	chki8(int8(u8), cu8&0xff-1<<8)
++	chki8(int8(u16), cu16&0xff)
++	chki8(int8(u32), cu32&0xff)
++	chki8(int8(u64), cu64&0xff)
++	//	chki8(int8(f32), 0)
++	//	chki8(int8(f64), 0)
++
++	chki16(int16(i8), ci8&0xffff-1<<16)
++	chki16(int16(i16), ci16&0xffff-1<<16)
++	chki16(int16(i32), ci32&0xffff-1<<16)
++	chki16(int16(i64), ci64&0xffff-1<<16)
++	chki16(int16(u8), cu8&0xffff)
++	chki16(int16(u16), cu16&0xffff-1<<16)
++	chki16(int16(u32), cu32&0xffff)
++	chki16(int16(u64), cu64&0xffff-1<<16)
++	//	chki16(int16(f32), 0)
++	//	chki16(int16(f64), 0)
++
++	chki32(int32(i8), ci8&0xffffffff-1<<32)
++	chki32(int32(i16), ci16&0xffffffff-1<<32)
++	chki32(int32(i32), ci32&0xffffffff-1<<32)
++	chki32(int32(i64), ci64&0xffffffff)
++	chki32(int32(u8), cu8&0xffffffff)
++	chki32(int32(u16), cu16&0xffffffff)
++	chki32(int32(u32), cu32&0xffffffff-1<<32)
++	chki32(int32(u64), cu64&0xffffffff-1<<32)
++	//	chki32(int32(f32), 0)
++	//	chki32(int32(f64), 0)
++
++	chki64(int64(i8), ci8&0xffffffffffffffff-1<<64)
++	chki64(int64(i16), ci16&0xffffffffffffffff-1<<64)
++	chki64(int64(i32), ci32&0xffffffffffffffff-1<<64)
++	chki64(int64(i64), ci64&0xffffffffffffffff-1<<64)
++	chki64(int64(u8), cu8&0xffffffffffffffff)
++	chki64(int64(u16), cu16&0xffffffffffffffff)
++	chki64(int64(u32), cu32&0xffffffffffffffff)
++	chki64(int64(u64), cu64&0xffffffffffffffff-1<<64)
++	//	chki64(int64(f32), 0)
++	//	chki64(int64(f64), 0)
++
++
++	chku8(uint8(i8), ci8&0xff)
++	chku8(uint8(i16), ci16&0xff)
++	chku8(uint8(i32), ci32&0xff)
++	chku8(uint8(i64), ci64&0xff)
++	chku8(uint8(u8), cu8&0xff)
++	chku8(uint8(u16), cu16&0xff)
++	chku8(uint8(u32), cu32&0xff)
++	chku8(uint8(u64), cu64&0xff)
++	//	chku8(uint8(f32), 0)
++	//	chku8(uint8(f64), 0)
++
++	chku16(uint16(i8), ci8&0xffff)
++	chku16(uint16(i16), ci16&0xffff)
++	chku16(uint16(i32), ci32&0xffff)
++	chku16(uint16(i64), ci64&0xffff)
++	chku16(uint16(u8), cu8&0xffff)
++	chku16(uint16(u16), cu16&0xffff)
++	chku16(uint16(u32), cu32&0xffff)
++	chku16(uint16(u64), cu64&0xffff)
++	//	chku16(uint16(f32), 0)
++	//	chku16(uint16(f64), 0)
++
++	chku32(uint32(i8), ci8&0xffffffff)
++	chku32(uint32(i16), ci16&0xffffffff)
++	chku32(uint32(i32), ci32&0xffffffff)
++	chku32(uint32(i64), ci64&0xffffffff)
++	chku32(uint32(u8), cu8&0xffffffff)
++	chku32(uint32(u16), cu16&0xffffffff)
++	chku32(uint32(u32), cu32&0xffffffff)
++	chku32(uint32(u64), cu64&0xffffffff)
++	//	chku32(uint32(f32), 0)
++	//	chku32(uint32(f64), 0)
++
++	chku64(uint64(i8), ci8&0xffffffffffffffff)
++	chku64(uint64(i16), ci16&0xffffffffffffffff)
++	chku64(uint64(i32), ci32&0xffffffffffffffff)
++	chku64(uint64(i64), ci64&0xffffffffffffffff)
++	chku64(uint64(u8), cu8&0xffffffffffffffff)
++	chku64(uint64(u16), cu16&0xffffffffffffffff)
++	chku64(uint64(u32), cu32&0xffffffffffffffff)
++	chku64(uint64(u64), cu64&0xffffffffffffffff)
++	//	chku64(uint64(f32), 0)
++	//	chku64(uint64(f64), 0)
+ }
+diff --git a/test/interface/receiver.go b/test/interface/receiver.go
+index 87c26937f3..59f3986d7f 100644
+--- a/test/interface/receiver.go
++++ b/test/interface/receiver.go
+@@ -10,6 +10,7 @@
+ package main
+ 
+ type T int
++
+ var nv, np int
+ 
+ func (t T) V() {
+@@ -26,87 +27,94 @@ func (t *T) P() {
+ 	np++
+ }
+ 
+-type V interface { V() }
+-type P interface { P(); V() }
++type V interface {
++	V()
++}
++type P interface {
++	P()
++	V()
++}
+ 
+ type S struct {
+-	T;
++	T
+ }
+ 
+ type SP struct {
+-	*T;
++	*T
+ }
+ 
+ func main() {
+-	var t T;
+-	var v V;
+-	var p P;
++	var t T
++	var v V
++	var p P
+ 
+-	t = 42;
++	t = 42
+ 
+-	t.P();
+-	t.V();
++	t.P()
++	t.V()
+ 
+-	v = t;
+-	v.V();
++	v = t
++	v.V()
+ 
+-	p = &t;
+-	p.P();
+-	p.V();
++	p = &t
++	p.P()
++	p.V()
+ 
+-	v = &t;
+-	v.V();
++	v = &t
++	v.V()
+ 
+-//	p = t;	// ERROR
+-	var i interface{} = t;
++	//	p = t;	// ERROR
++	var i interface{} = t
+ 	if _, ok := i.(P); ok {
+-		panicln("dynamic i.(P) succeeded incorrectly");
++		println("dynamic i.(P) succeeded incorrectly")
++		panic("fail")
+ 	}
+ 
+-//	println("--struct--");
+-	var s S;
+-	s.T = 42;
+-	s.P();
+-	s.V();
++	//	println("--struct--");
++	var s S
++	s.T = 42
++	s.P()
++	s.V()
+ 
+-	v = s;
+-	s.V();
++	v = s
++	s.V()
+ 
+-	p = &s;
+-	p.P();
+-	p.V();
++	p = &s
++	p.P()
++	p.V()
+ 
+-	v = &s;
+-	v.V();
++	v = &s
++	v.V()
+ 
+-//	p = s;	// ERROR
+-	var j interface{} = s;
++	//	p = s;	// ERROR
++	var j interface{} = s
+ 	if _, ok := j.(P); ok {
+-		panicln("dynamic j.(P) succeeded incorrectly");
++		println("dynamic j.(P) succeeded incorrectly")
++		panic("fail")
+ 	}
+ 
+-//	println("--struct pointer--");
+-	var sp SP;
+-	sp.T = &t;
+-	sp.P();
+-	sp.V();
++	//	println("--struct pointer--");
++	var sp SP
++	sp.T = &t
++	sp.P()
++	sp.V()
+ 
+-	v = sp;
+-	sp.V();
++	v = sp
++	sp.V()
+ 
+-	p = &sp;
+-	p.P();
+-	p.V();
++	p = &sp
++	p.P()
++	p.V()
+ 
+-	v = &sp;
+-	v.V();
++	v = &sp
++	v.V()
+ 
+-	p = sp;	// not error
+-	p.P();
+-	p.V();
++	p = sp // not error
++	p.P()
++	p.V()
+ 
+ 	if nv != 13 || np != 7 {
+-		panicln("bad count", nv, np)
++		println("bad count", nv, np)
++		panic("fail")
+ 	}
+ }
+-
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index d4c4f460f3..e5fc033f3d 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -8,47 +8,46 @@ package main
+ 
+ import "runtime"
+ 
+-const	N	= 1000;		// sent messages
+-const	M	= 10;		// receiving goroutines
+-const	W	= 2;		// channel buffering
+-var	h	[N]int;		// marking of send/recv
++const N = 1000 // sent messages
++const M = 10   // receiving goroutines
++const W = 2    // channel buffering
++var h [N]int   // marking of send/recv
+ 
+-func
+-r(c chan int, m int) {
++func r(c chan int, m int) {
+ 	for {
+ 		select {
+-		case r := <- c:
++		case r := <-c:
+ 			if h[r] != 1 {
+-				panicln("r",
++				println("r",
+ 					"m=", m,
+ 					"r=", r,
+-					"h=", h[r]);
++					"h=", h[r])
++				panic("fail")
+ 			}
+-			h[r] = 2;
++			h[r] = 2
+ 		}
+ 	}
+ }
+ 
+-func
+-s(c chan int) {
+-	for n:=0; n<N; n++ {
+-		r := n;
++func s(c chan int) {
++	for n := 0; n < N; n++ {
++		r := n
+ 		if h[r] != 0 {
+-			panicln("s");
++			println("s")
++			panic("fail")
+ 		}
+-		h[r] = 1;
+-		c <- r;
++		h[r] = 1
++		c <- r
+ 	}
+ }
+ 
+-func
+-main() {
+-	c := make(chan int, W);
+-	for m:=0; m<M; m++ {
+-		go r(c, m);
+-		runtime.Gosched();
++func main() {
++	c := make(chan int, W)
++	for m := 0; m < M; m++ {
++		go r(c, m)
++		runtime.Gosched()
+ 	}
+-	runtime.Gosched();
+-	runtime.Gosched();
+-	s(c);
++	runtime.Gosched()
++	runtime.Gosched()
++	s(c)
+ }
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+index 379e2e10b8..26b1139928 100644
+--- a/test/ken/cplx1.go
++++ b/test/ken/cplx1.go
+@@ -19,22 +19,26 @@ func main() {
+ 	// constants
+ 	b = (5 + 6i) == C1
+ 	if !b {
+-		panicln("const bool 1", b)
++		println("const bool 1", b)
++		panic("fail")
+ 	}
+ 
+ 	b = (5 + 6i) != C1
+ 	if b {
+-		panicln("const bool 2", b)
++		println("const bool 2", b)
++		panic("fail")
+ 	}
+ 
+ 	b = C1 == (5 + 6i)
+ 	if !b {
+-		panicln("const bool 3", b)
++		println("const bool 3", b)
++		panic("fail")
+ 	}
+ 
+ 	b = C1 != (5 + 6i)
+ 	if b {
+-		panicln("const bool 4", b)
++		println("const bool 4", b)
++		panic("fail")
+ 	}
+ 
+ 	// vars passed through parameters
+@@ -49,37 +53,45 @@ func booltest(a complex, r bool) {
+ 
+ 	b = a == C1
+ 	if b != r {
+-		panicln("param bool 1", a, b, r)
++		println("param bool 1", a, b, r)
++		panic("fail")
+ 	}
+ 
+ 	b = a != C1
+ 	if b == r {
+-		panicln("param bool 2", a, b, r)
++		println("param bool 2", a, b, r)
++		panic("fail")
+ 	}
+ 
+ 	b = C1 == a
+ 	if b != r {
+-		panicln("param bool 3", a, b, r)
++		println("param bool 3", a, b, r)
++		panic("fail")
+ 	}
+ 
+ 	b = C1 != a
+ 	if b == r {
+-		panicln("param bool 4", a, b, r)
++		println("param bool 4", a, b, r)
++		panic("fail")
+ 	}
+ 
+ 	if r {
+ 		if a != C1 {
+-			panicln("param bool 5", a, b, r)
++			println("param bool 5", a, b, r)
++			panic("fail")
+ 		}
+ 		if C1 != a {
+-			panicln("param bool 6", a, b, r)
++			println("param bool 6", a, b, r)
++			panic("fail")
+ 		}
+ 	} else {
+ 		if a == C1 {
+-			panicln("param bool 6", a, b, r)
++			println("param bool 6", a, b, r)
++			panic("fail")
+ 		}
+ 		if C1 == a {
+-			panicln("param bool 7", a, b, r)
++			println("param bool 7", a, b, r)
++			panic("fail")
+ 		}
+ 	}
+ }
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index 7d3e5d735a..5a66dc9a95 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -30,66 +30,79 @@ func main() {
+ 
+ 	r := 5 + 0i
+ 	if r != R {
+-		panicln("opcode 1", r, R)
++		println("opcode 1", r, R)
++		panic("fail")
+ 	}
+ 
+ 	i := 6i
+ 	if i != I {
+-		panicln("opcode 2", i, I)
++		println("opcode 2", i, I)
++		panic("fail")
+ 	}
+ 
+ 	c1 := r + i
+ 	if c1 != C1 {
+-		panicln("opcode x", c1, C1)
++		println("opcode x", c1, C1)
++		panic("fail")
+ 	}
+ 
+ 	c2 := r - i
+ 	if c2 != C2 {
+-		panicln("opcode x", c2, C2)
++		println("opcode x", c2, C2)
++		panic("fail")
+ 	}
+ 
+ 	c3 := -(r + i)
+ 	if c3 != C3 {
+-		panicln("opcode x", c3, C3)
++		println("opcode x", c3, C3)
++		panic("fail")
+ 	}
+ 
+ 	c4 := -(r - i)
+ 	if c4 != C4 {
+-		panicln("opcode x", c4, C4)
++		println("opcode x", c4, C4)
++		panic("fail")
+ 	}
+ 
+ 	c5 := c1 + r
+ 	if c5 != C5 {
+-		panicln("opcode x", c5, C5)
++		println("opcode x", c5, C5)
++		panic("fail")
+ 	}
+ 
+ 	c6 := c1 + i
+ 	if c6 != C6 {
+-		panicln("opcode x", c6, C6)
++		println("opcode x", c6, C6)
++		panic("fail")
+ 	}
+ 
+ 	ca := c5 + c6
+ 	if ca != Ca {
+-		panicln("opcode x", ca, Ca)
++		println("opcode x", ca, Ca)
++		panic("fail")
+ 	}
+ 
+ 	cb := c5 - c6
+ 	if cb != Cb {
+-		panicln("opcode x", cb, Cb)
++		println("opcode x", cb, Cb)
++		panic("fail")
+ 	}
+ 
+ 	cc := c5 * c6
+ 	if cc != Cc {
+-		panicln("opcode x", cc, Cc)
++		println("opcode x", cc, Cc)
++		panic("fail")
+ 	}
+ 
+ 	cd := c5 / c6
+ 	if cd != Cd {
+-		panicln("opcode x", cd, Cd)
++		println("opcode x", cd, Cd)
++		panic("fail")
+ 	}
+ 
+ 	ce := cd * c6
+ 	if ce != Ce {
+-		panicln("opcode x", ce, Ce)
++		println("opcode x", ce, Ce)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 4143dc5817..c3b9092cdc 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -6,447 +6,627 @@
+ 
+ package main
+ 
+-import	"rand"
++import "rand"
+ 
+-const	Count	= 1e5
++const Count = 1e5
+ 
+-func
+-i64rand() int64 {
++func i64rand() int64 {
+ 	for {
+-		a := int64(rand.Uint32());
+-		a = (a<<32) | int64(rand.Uint32());
+-		a >>= uint(rand.Intn(64));
++		a := int64(rand.Uint32())
++		a = (a << 32) | int64(rand.Uint32())
++		a >>= uint(rand.Intn(64))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i64test(a,b,c int64) {
+-	d := a/c;
++func i64test(a, b, c int64) {
++	d := a / c
+ 	if d != b {
+-		panicln("i64", a, b, c, d);
++		println("i64", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i64run() {
+-	var a, b int64;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i64rand();
+-
+-		b = a/1;	i64test(a,b,1);
+-		b = a/2;	i64test(a,b,2);
+-		b = a/3;	i64test(a,b,3);
+-		b = a/4;	i64test(a,b,4);
+-		b = a/5;	i64test(a,b,5);
+-		b = a/6;	i64test(a,b,6);
+-		b = a/7;	i64test(a,b,7);
+-		b = a/8;	i64test(a,b,8);
+-		b = a/10;	i64test(a,b,10);
+-		b = a/16;	i64test(a,b,16);
+-		b = a/20;	i64test(a,b,20);
+-		b = a/32;	i64test(a,b,32);
+-		b = a/60;	i64test(a,b,60);
+-		b = a/64;	i64test(a,b,64);
+-		b = a/128;	i64test(a,b,128);
+-		b = a/256;	i64test(a,b,256);
+-		b = a/16384;	i64test(a,b,16384);
+-
+-		b = a/-1;	i64test(a,b,-1);
+-		b = a/-2;	i64test(a,b,-2);
+-		b = a/-3;	i64test(a,b,-3);
+-		b = a/-4;	i64test(a,b,-4);
+-		b = a/-5;	i64test(a,b,-5);
+-		b = a/-6;	i64test(a,b,-6);
+-		b = a/-7;	i64test(a,b,-7);
+-		b = a/-8;	i64test(a,b,-8);
+-		b = a/-10;	i64test(a,b,-10);
+-		b = a/-16;	i64test(a,b,-16);
+-		b = a/-20;	i64test(a,b,-20);
+-		b = a/-32;	i64test(a,b,-32);
+-		b = a/-60;	i64test(a,b,-60);
+-		b = a/-64;	i64test(a,b,-64);
+-		b = a/-128;	i64test(a,b,-128);
+-		b = a/-256;	i64test(a,b,-256);
+-		b = a/-16384;	i64test(a,b,-16384);
++func i64run() {
++	var a, b int64
++
++	for i := 0; i < Count; i++ {
++		a = i64rand()
++
++		b = a / 1
++		i64test(a, b, 1)
++		b = a / 2
++		i64test(a, b, 2)
++		b = a / 3
++		i64test(a, b, 3)
++		b = a / 4
++		i64test(a, b, 4)
++		b = a / 5
++		i64test(a, b, 5)
++		b = a / 6
++		i64test(a, b, 6)
++		b = a / 7
++		i64test(a, b, 7)
++		b = a / 8
++		i64test(a, b, 8)
++		b = a / 10
++		i64test(a, b, 10)
++		b = a / 16
++		i64test(a, b, 16)
++		b = a / 20
++		i64test(a, b, 20)
++		b = a / 32
++		i64test(a, b, 32)
++		b = a / 60
++		i64test(a, b, 60)
++		b = a / 64
++		i64test(a, b, 64)
++		b = a / 128
++		i64test(a, b, 128)
++		b = a / 256
++		i64test(a, b, 256)
++		b = a / 16384
++		i64test(a, b, 16384)
++
++		b = a / -1
++		i64test(a, b, -1)
++		b = a / -2
++		i64test(a, b, -2)
++		b = a / -3
++		i64test(a, b, -3)
++		b = a / -4
++		i64test(a, b, -4)
++		b = a / -5
++		i64test(a, b, -5)
++		b = a / -6
++		i64test(a, b, -6)
++		b = a / -7
++		i64test(a, b, -7)
++		b = a / -8
++		i64test(a, b, -8)
++		b = a / -10
++		i64test(a, b, -10)
++		b = a / -16
++		i64test(a, b, -16)
++		b = a / -20
++		i64test(a, b, -20)
++		b = a / -32
++		i64test(a, b, -32)
++		b = a / -60
++		i64test(a, b, -60)
++		b = a / -64
++		i64test(a, b, -64)
++		b = a / -128
++		i64test(a, b, -128)
++		b = a / -256
++		i64test(a, b, -256)
++		b = a / -16384
++		i64test(a, b, -16384)
+ 	}
+ }
+ 
+-func
+-u64rand() uint64 {
+-	a := uint64(rand.Uint32());
+-	a = (a<<32) | uint64(rand.Uint32());
+-	a >>= uint(rand.Intn(64));
+-	return a;
++func u64rand() uint64 {
++	a := uint64(rand.Uint32())
++	a = (a << 32) | uint64(rand.Uint32())
++	a >>= uint(rand.Intn(64))
++	return a
+ }
+ 
+-func
+-u64test(a,b,c uint64) {
+-	d := a/c;
++func u64test(a, b, c uint64) {
++	d := a / c
+ 	if d != b {
+-		panicln("u64", a, b, c, d);
++		println("u64", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u64run() {
+-	var a, b uint64;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u64rand();
+-
+-		b = a/1;	u64test(a,b,1);
+-		b = a/2;	u64test(a,b,2);
+-		b = a/3;	u64test(a,b,3);
+-		b = a/4;	u64test(a,b,4);
+-		b = a/5;	u64test(a,b,5);
+-		b = a/6;	u64test(a,b,6);
+-		b = a/7;	u64test(a,b,7);
+-		b = a/8;	u64test(a,b,8);
+-		b = a/10;	u64test(a,b,10);
+-		b = a/16;	u64test(a,b,16);
+-		b = a/20;	u64test(a,b,20);
+-		b = a/32;	u64test(a,b,32);
+-		b = a/60;	u64test(a,b,60);
+-		b = a/64;	u64test(a,b,64);
+-		b = a/128;	u64test(a,b,128);
+-		b = a/256;	u64test(a,b,256);
+-		b = a/16384;	u64test(a,b,16384);
++func u64run() {
++	var a, b uint64
++
++	for i := 0; i < Count; i++ {
++		a = u64rand()
++
++		b = a / 1
++		u64test(a, b, 1)
++		b = a / 2
++		u64test(a, b, 2)
++		b = a / 3
++		u64test(a, b, 3)
++		b = a / 4
++		u64test(a, b, 4)
++		b = a / 5
++		u64test(a, b, 5)
++		b = a / 6
++		u64test(a, b, 6)
++		b = a / 7
++		u64test(a, b, 7)
++		b = a / 8
++		u64test(a, b, 8)
++		b = a / 10
++		u64test(a, b, 10)
++		b = a / 16
++		u64test(a, b, 16)
++		b = a / 20
++		u64test(a, b, 20)
++		b = a / 32
++		u64test(a, b, 32)
++		b = a / 60
++		u64test(a, b, 60)
++		b = a / 64
++		u64test(a, b, 64)
++		b = a / 128
++		u64test(a, b, 128)
++		b = a / 256
++		u64test(a, b, 256)
++		b = a / 16384
++		u64test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i32rand() int32 {
++func i32rand() int32 {
+ 	for {
+-		a := int32(rand.Uint32());
+-		a >>= uint(rand.Intn(32));
++		a := int32(rand.Uint32())
++		a >>= uint(rand.Intn(32))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i32test(a,b,c int32) {
+-	d := a/c;
++func i32test(a, b, c int32) {
++	d := a / c
+ 	if d != b {
+-		panicln("i32", a, b, c, d);
++		println("i32", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i32run() {
+-	var a, b int32;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i32rand();
+-
+-		b = a/1;	i32test(a,b,1);
+-		b = a/2;	i32test(a,b,2);
+-		b = a/3;	i32test(a,b,3);
+-		b = a/4;	i32test(a,b,4);
+-		b = a/5;	i32test(a,b,5);
+-		b = a/6;	i32test(a,b,6);
+-		b = a/7;	i32test(a,b,7);
+-		b = a/8;	i32test(a,b,8);
+-		b = a/10;	i32test(a,b,10);
+-		b = a/16;	i32test(a,b,16);
+-		b = a/20;	i32test(a,b,20);
+-		b = a/32;	i32test(a,b,32);
+-		b = a/60;	i32test(a,b,60);
+-		b = a/64;	i32test(a,b,64);
+-		b = a/128;	i32test(a,b,128);
+-		b = a/256;	i32test(a,b,256);
+-		b = a/16384;	i32test(a,b,16384);
+-
+-		b = a/-1;	i32test(a,b,-1);
+-		b = a/-2;	i32test(a,b,-2);
+-		b = a/-3;	i32test(a,b,-3);
+-		b = a/-4;	i32test(a,b,-4);
+-		b = a/-5;	i32test(a,b,-5);
+-		b = a/-6;	i32test(a,b,-6);
+-		b = a/-7;	i32test(a,b,-7);
+-		b = a/-8;	i32test(a,b,-8);
+-		b = a/-10;	i32test(a,b,-10);
+-		b = a/-16;	i32test(a,b,-16);
+-		b = a/-20;	i32test(a,b,-20);
+-		b = a/-32;	i32test(a,b,-32);
+-		b = a/-60;	i32test(a,b,-60);
+-		b = a/-64;	i32test(a,b,-64);
+-		b = a/-128;	i32test(a,b,-128);
+-		b = a/-256;	i32test(a,b,-256);
++func i32run() {
++	var a, b int32
++
++	for i := 0; i < Count; i++ {
++		a = i32rand()
++
++		b = a / 1
++		i32test(a, b, 1)
++		b = a / 2
++		i32test(a, b, 2)
++		b = a / 3
++		i32test(a, b, 3)
++		b = a / 4
++		i32test(a, b, 4)
++		b = a / 5
++		i32test(a, b, 5)
++		b = a / 6
++		i32test(a, b, 6)
++		b = a / 7
++		i32test(a, b, 7)
++		b = a / 8
++		i32test(a, b, 8)
++		b = a / 10
++		i32test(a, b, 10)
++		b = a / 16
++		i32test(a, b, 16)
++		b = a / 20
++		i32test(a, b, 20)
++		b = a / 32
++		i32test(a, b, 32)
++		b = a / 60
++		i32test(a, b, 60)
++		b = a / 64
++		i32test(a, b, 64)
++		b = a / 128
++		i32test(a, b, 128)
++		b = a / 256
++		i32test(a, b, 256)
++		b = a / 16384
++		i32test(a, b, 16384)
++
++		b = a / -1
++		i32test(a, b, -1)
++		b = a / -2
++		i32test(a, b, -2)
++		b = a / -3
++		i32test(a, b, -3)
++		b = a / -4
++		i32test(a, b, -4)
++		b = a / -5
++		i32test(a, b, -5)
++		b = a / -6
++		i32test(a, b, -6)
++		b = a / -7
++		i32test(a, b, -7)
++		b = a / -8
++		i32test(a, b, -8)
++		b = a / -10
++		i32test(a, b, -10)
++		b = a / -16
++		i32test(a, b, -16)
++		b = a / -20
++		i32test(a, b, -20)
++		b = a / -32
++		i32test(a, b, -32)
++		b = a / -60
++		i32test(a, b, -60)
++		b = a / -64
++		i32test(a, b, -64)
++		b = a / -128
++		i32test(a, b, -128)
++		b = a / -256
++		i32test(a, b, -256)
+ 	}
+ }
+ 
+-func
+-u32rand() uint32 {
+-	a := uint32(rand.Uint32());
+-	a >>= uint(rand.Intn(32));
+-	return a;
++func u32rand() uint32 {
++	a := uint32(rand.Uint32())
++	a >>= uint(rand.Intn(32))
++	return a
+ }
+ 
+-func
+-u32test(a,b,c uint32) {
+-	d := a/c;
++func u32test(a, b, c uint32) {
++	d := a / c
+ 	if d != b {
+-		panicln("u32", a, b, c, d);
++		println("u32", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u32run() {
+-	var a, b uint32;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u32rand();
+-
+-		b = a/1;	u32test(a,b,1);
+-		b = a/2;	u32test(a,b,2);
+-		b = a/3;	u32test(a,b,3);
+-		b = a/4;	u32test(a,b,4);
+-		b = a/5;	u32test(a,b,5);
+-		b = a/6;	u32test(a,b,6);
+-		b = a/7;	u32test(a,b,7);
+-		b = a/8;	u32test(a,b,8);
+-		b = a/10;	u32test(a,b,10);
+-		b = a/16;	u32test(a,b,16);
+-		b = a/20;	u32test(a,b,20);
+-		b = a/32;	u32test(a,b,32);
+-		b = a/60;	u32test(a,b,60);
+-		b = a/64;	u32test(a,b,64);
+-		b = a/128;	u32test(a,b,128);
+-		b = a/256;	u32test(a,b,256);
+-		b = a/16384;	u32test(a,b,16384);
++func u32run() {
++	var a, b uint32
++
++	for i := 0; i < Count; i++ {
++		a = u32rand()
++
++		b = a / 1
++		u32test(a, b, 1)
++		b = a / 2
++		u32test(a, b, 2)
++		b = a / 3
++		u32test(a, b, 3)
++		b = a / 4
++		u32test(a, b, 4)
++		b = a / 5
++		u32test(a, b, 5)
++		b = a / 6
++		u32test(a, b, 6)
++		b = a / 7
++		u32test(a, b, 7)
++		b = a / 8
++		u32test(a, b, 8)
++		b = a / 10
++		u32test(a, b, 10)
++		b = a / 16
++		u32test(a, b, 16)
++		b = a / 20
++		u32test(a, b, 20)
++		b = a / 32
++		u32test(a, b, 32)
++		b = a / 60
++		u32test(a, b, 60)
++		b = a / 64
++		u32test(a, b, 64)
++		b = a / 128
++		u32test(a, b, 128)
++		b = a / 256
++		u32test(a, b, 256)
++		b = a / 16384
++		u32test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i16rand() int16 {
++func i16rand() int16 {
+ 	for {
+-		a := int16(rand.Uint32());
+-		a >>= uint(rand.Intn(16));
++		a := int16(rand.Uint32())
++		a >>= uint(rand.Intn(16))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i16test(a,b,c int16) {
+-	d := a/c;
++func i16test(a, b, c int16) {
++	d := a / c
+ 	if d != b {
+-		panicln("i16", a, b, c, d);
++		println("i16", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i16run() {
+-	var a, b int16;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i16rand();
+-
+-		b = a/1;	i16test(a,b,1);
+-		b = a/2;	i16test(a,b,2);
+-		b = a/3;	i16test(a,b,3);
+-		b = a/4;	i16test(a,b,4);
+-		b = a/5;	i16test(a,b,5);
+-		b = a/6;	i16test(a,b,6);
+-		b = a/7;	i16test(a,b,7);
+-		b = a/8;	i16test(a,b,8);
+-		b = a/10;	i16test(a,b,10);
+-		b = a/16;	i16test(a,b,16);
+-		b = a/20;	i16test(a,b,20);
+-		b = a/32;	i16test(a,b,32);
+-		b = a/60;	i16test(a,b,60);
+-		b = a/64;	i16test(a,b,64);
+-		b = a/128;	i16test(a,b,128);
+-		b = a/256;	i16test(a,b,256);
+-		b = a/16384;	i16test(a,b,16384);
+-
+-		b = a/-1;	i16test(a,b,-1);
+-		b = a/-2;	i16test(a,b,-2);
+-		b = a/-3;	i16test(a,b,-3);
+-		b = a/-4;	i16test(a,b,-4);
+-		b = a/-5;	i16test(a,b,-5);
+-		b = a/-6;	i16test(a,b,-6);
+-		b = a/-7;	i16test(a,b,-7);
+-		b = a/-8;	i16test(a,b,-8);
+-		b = a/-10;	i16test(a,b,-10);
+-		b = a/-16;	i16test(a,b,-16);
+-		b = a/-20;	i16test(a,b,-20);
+-		b = a/-32;	i16test(a,b,-32);
+-		b = a/-60;	i16test(a,b,-60);
+-		b = a/-64;	i16test(a,b,-64);
+-		b = a/-128;	i16test(a,b,-128);
+-		b = a/-256;	i16test(a,b,-256);
+-		b = a/-16384;	i16test(a,b,-16384);
++func i16run() {
++	var a, b int16
++
++	for i := 0; i < Count; i++ {
++		a = i16rand()
++
++		b = a / 1
++		i16test(a, b, 1)
++		b = a / 2
++		i16test(a, b, 2)
++		b = a / 3
++		i16test(a, b, 3)
++		b = a / 4
++		i16test(a, b, 4)
++		b = a / 5
++		i16test(a, b, 5)
++		b = a / 6
++		i16test(a, b, 6)
++		b = a / 7
++		i16test(a, b, 7)
++		b = a / 8
++		i16test(a, b, 8)
++		b = a / 10
++		i16test(a, b, 10)
++		b = a / 16
++		i16test(a, b, 16)
++		b = a / 20
++		i16test(a, b, 20)
++		b = a / 32
++		i16test(a, b, 32)
++		b = a / 60
++		i16test(a, b, 60)
++		b = a / 64
++		i16test(a, b, 64)
++		b = a / 128
++		i16test(a, b, 128)
++		b = a / 256
++		i16test(a, b, 256)
++		b = a / 16384
++		i16test(a, b, 16384)
++
++		b = a / -1
++		i16test(a, b, -1)
++		b = a / -2
++		i16test(a, b, -2)
++		b = a / -3
++		i16test(a, b, -3)
++		b = a / -4
++		i16test(a, b, -4)
++		b = a / -5
++		i16test(a, b, -5)
++		b = a / -6
++		i16test(a, b, -6)
++		b = a / -7
++		i16test(a, b, -7)
++		b = a / -8
++		i16test(a, b, -8)
++		b = a / -10
++		i16test(a, b, -10)
++		b = a / -16
++		i16test(a, b, -16)
++		b = a / -20
++		i16test(a, b, -20)
++		b = a / -32
++		i16test(a, b, -32)
++		b = a / -60
++		i16test(a, b, -60)
++		b = a / -64
++		i16test(a, b, -64)
++		b = a / -128
++		i16test(a, b, -128)
++		b = a / -256
++		i16test(a, b, -256)
++		b = a / -16384
++		i16test(a, b, -16384)
+ 	}
+ }
+ 
+-func
+-u16rand() uint16 {
+-	a := uint16(rand.Uint32());
+-	a >>= uint(rand.Intn(16));
+-	return a;
++func u16rand() uint16 {
++	a := uint16(rand.Uint32())
++	a >>= uint(rand.Intn(16))
++	return a
+ }
+ 
+-func
+-u16test(a,b,c uint16) {
+-	d := a/c;
++func u16test(a, b, c uint16) {
++	d := a / c
+ 	if d != b {
+-		panicln("u16", a, b, c, d);
++		println("u16", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u16run() {
+-	var a, b uint16;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u16rand();
+-
+-		b = a/1;	u16test(a,b,1);
+-		b = a/2;	u16test(a,b,2);
+-		b = a/3;	u16test(a,b,3);
+-		b = a/4;	u16test(a,b,4);
+-		b = a/5;	u16test(a,b,5);
+-		b = a/6;	u16test(a,b,6);
+-		b = a/7;	u16test(a,b,7);
+-		b = a/8;	u16test(a,b,8);
+-		b = a/10;	u16test(a,b,10);
+-		b = a/16;	u16test(a,b,16);
+-		b = a/20;	u16test(a,b,20);
+-		b = a/32;	u16test(a,b,32);
+-		b = a/60;	u16test(a,b,60);
+-		b = a/64;	u16test(a,b,64);
+-		b = a/128;	u16test(a,b,128);
+-		b = a/256;	u16test(a,b,256);
+-		b = a/16384;	u16test(a,b,16384);
++func u16run() {
++	var a, b uint16
++
++	for i := 0; i < Count; i++ {
++		a = u16rand()
++
++		b = a / 1
++		u16test(a, b, 1)
++		b = a / 2
++		u16test(a, b, 2)
++		b = a / 3
++		u16test(a, b, 3)
++		b = a / 4
++		u16test(a, b, 4)
++		b = a / 5
++		u16test(a, b, 5)
++		b = a / 6
++		u16test(a, b, 6)
++		b = a / 7
++		u16test(a, b, 7)
++		b = a / 8
++		u16test(a, b, 8)
++		b = a / 10
++		u16test(a, b, 10)
++		b = a / 16
++		u16test(a, b, 16)
++		b = a / 20
++		u16test(a, b, 20)
++		b = a / 32
++		u16test(a, b, 32)
++		b = a / 60
++		u16test(a, b, 60)
++		b = a / 64
++		u16test(a, b, 64)
++		b = a / 128
++		u16test(a, b, 128)
++		b = a / 256
++		u16test(a, b, 256)
++		b = a / 16384
++		u16test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i8rand() int8 {
++func i8rand() int8 {
+ 	for {
+-		a := int8(rand.Uint32());
+-		a >>= uint(rand.Intn(8));
++		a := int8(rand.Uint32())
++		a >>= uint(rand.Intn(8))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i8test(a,b,c int8) {
+-	d := a/c;
++func i8test(a, b, c int8) {
++	d := a / c
+ 	if d != b {
+-		panicln("i8", a, b, c, d);
++		println("i8", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i8run() {
+-	var a, b int8;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i8rand();
+-
+-		b = a/1;	i8test(a,b,1);
+-		b = a/2;	i8test(a,b,2);
+-		b = a/3;	i8test(a,b,3);
+-		b = a/4;	i8test(a,b,4);
+-		b = a/5;	i8test(a,b,5);
+-		b = a/6;	i8test(a,b,6);
+-		b = a/7;	i8test(a,b,7);
+-		b = a/8;	i8test(a,b,8);
+-		b = a/10;	i8test(a,b,10);
+-		b = a/8;	i8test(a,b,8);
+-		b = a/20;	i8test(a,b,20);
+-		b = a/32;	i8test(a,b,32);
+-		b = a/60;	i8test(a,b,60);
+-		b = a/64;	i8test(a,b,64);
+-		b = a/127;	i8test(a,b,127);
+-
+-		b = a/-1;	i8test(a,b,-1);
+-		b = a/-2;	i8test(a,b,-2);
+-		b = a/-3;	i8test(a,b,-3);
+-		b = a/-4;	i8test(a,b,-4);
+-		b = a/-5;	i8test(a,b,-5);
+-		b = a/-6;	i8test(a,b,-6);
+-		b = a/-7;	i8test(a,b,-7);
+-		b = a/-8;	i8test(a,b,-8);
+-		b = a/-10;	i8test(a,b,-10);
+-		b = a/-8;	i8test(a,b,-8);
+-		b = a/-20;	i8test(a,b,-20);
+-		b = a/-32;	i8test(a,b,-32);
+-		b = a/-60;	i8test(a,b,-60);
+-		b = a/-64;	i8test(a,b,-64);
+-		b = a/-128;	i8test(a,b,-128);
++func i8run() {
++	var a, b int8
++
++	for i := 0; i < Count; i++ {
++		a = i8rand()
++
++		b = a / 1
++		i8test(a, b, 1)
++		b = a / 2
++		i8test(a, b, 2)
++		b = a / 3
++		i8test(a, b, 3)
++		b = a / 4
++		i8test(a, b, 4)
++		b = a / 5
++		i8test(a, b, 5)
++		b = a / 6
++		i8test(a, b, 6)
++		b = a / 7
++		i8test(a, b, 7)
++		b = a / 8
++		i8test(a, b, 8)
++		b = a / 10
++		i8test(a, b, 10)
++		b = a / 8
++		i8test(a, b, 8)
++		b = a / 20
++		i8test(a, b, 20)
++		b = a / 32
++		i8test(a, b, 32)
++		b = a / 60
++		i8test(a, b, 60)
++		b = a / 64
++		i8test(a, b, 64)
++		b = a / 127
++		i8test(a, b, 127)
++
++		b = a / -1
++		i8test(a, b, -1)
++		b = a / -2
++		i8test(a, b, -2)
++		b = a / -3
++		i8test(a, b, -3)
++		b = a / -4
++		i8test(a, b, -4)
++		b = a / -5
++		i8test(a, b, -5)
++		b = a / -6
++		i8test(a, b, -6)
++		b = a / -7
++		i8test(a, b, -7)
++		b = a / -8
++		i8test(a, b, -8)
++		b = a / -10
++		i8test(a, b, -10)
++		b = a / -8
++		i8test(a, b, -8)
++		b = a / -20
++		i8test(a, b, -20)
++		b = a / -32
++		i8test(a, b, -32)
++		b = a / -60
++		i8test(a, b, -60)
++		b = a / -64
++		i8test(a, b, -64)
++		b = a / -128
++		i8test(a, b, -128)
+ 	}
+ }
+ 
+-func
+-u8rand() uint8 {
+-	a := uint8(rand.Uint32());
+-	a >>= uint(rand.Intn(8));
+-	return a;
++func u8rand() uint8 {
++	a := uint8(rand.Uint32())
++	a >>= uint(rand.Intn(8))
++	return a
+ }
+ 
+-func
+-u8test(a,b,c uint8) {
+-	d := a/c;
++func u8test(a, b, c uint8) {
++	d := a / c
+ 	if d != b {
+-		panicln("u8", a, b, c, d);
++		println("u8", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u8run() {
+-	var a, b uint8;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u8rand();
+-
+-		b = a/1;	u8test(a,b,1);
+-		b = a/2;	u8test(a,b,2);
+-		b = a/3;	u8test(a,b,3);
+-		b = a/4;	u8test(a,b,4);
+-		b = a/5;	u8test(a,b,5);
+-		b = a/6;	u8test(a,b,6);
+-		b = a/7;	u8test(a,b,7);
+-		b = a/8;	u8test(a,b,8);
+-		b = a/10;	u8test(a,b,10);
+-		b = a/8;	u8test(a,b,8);
+-		b = a/20;	u8test(a,b,20);
+-		b = a/32;	u8test(a,b,32);
+-		b = a/60;	u8test(a,b,60);
+-		b = a/64;	u8test(a,b,64);
+-		b = a/128;	u8test(a,b,128);
+-		b = a/184;	u8test(a,b,184);
++func u8run() {
++	var a, b uint8
++
++	for i := 0; i < Count; i++ {
++		a = u8rand()
++
++		b = a / 1
++		u8test(a, b, 1)
++		b = a / 2
++		u8test(a, b, 2)
++		b = a / 3
++		u8test(a, b, 3)
++		b = a / 4
++		u8test(a, b, 4)
++		b = a / 5
++		u8test(a, b, 5)
++		b = a / 6
++		u8test(a, b, 6)
++		b = a / 7
++		u8test(a, b, 7)
++		b = a / 8
++		u8test(a, b, 8)
++		b = a / 10
++		u8test(a, b, 10)
++		b = a / 8
++		u8test(a, b, 8)
++		b = a / 20
++		u8test(a, b, 20)
++		b = a / 32
++		u8test(a, b, 32)
++		b = a / 60
++		u8test(a, b, 60)
++		b = a / 64
++		u8test(a, b, 64)
++		b = a / 128
++		u8test(a, b, 128)
++		b = a / 184
++		u8test(a, b, 184)
+ 	}
+ }
+ 
+-func
+-main() {
+-	xtest();
+-	i64run();
+-	u64run();
+-	i32run();
+-	u32run();
+-	i16run();
+-	u16run();
+-	i8run();
+-	u8run();
++func main() {
++	xtest()
++	i64run()
++	u64run()
++	i32run()
++	u32run()
++	i16run()
++	u16run()
++	i8run()
++	u8run()
+ }
+ 
+-func
+-xtest() {
++func xtest() {
+ }
+diff --git a/test/ken/divmod.go b/test/ken/divmod.go
+index 73c26927b5..dc44ea245b 100644
+--- a/test/ken/divmod.go
++++ b/test/ken/divmod.go
+@@ -6,205 +6,242 @@
+ 
+ package main
+ 
+-const
+-(
++const (
+ 	// example from the spec
+-	n1	= +5;
+-	n2	= -5;
+-	d1	= +3;
+-	d2	= -3;
+-
+-	q1	= +1;
+-	q2	= -1;
+-	q3	= -1;
+-	q4	= +1;
+-
+-	r1	= +2;
+-	r2	= -2;
+-	r3	= +2;
+-	r4	= -2;
++	n1 = +5
++	n2 = -5
++	d1 = +3
++	d2 = -3
++
++	q1 = +1
++	q2 = -1
++	q3 = -1
++	q4 = +1
++
++	r1 = +2
++	r2 = -2
++	r3 = +2
++	r4 = -2
+ )
+ 
+-func
+-main() {
++func main() {
+ 	/* ideals */
+ 	if n1/d1 != q1 || n1%d1 != r1 {
+-		panicln("ideal-1", n1, d1, n1/d1, n1%d1);
++		println("ideal-1", n1, d1, n1/d1, n1%d1)
++		panic("fail")
+ 	}
+ 	if n2/d1 != q2 || n2%d1 != r2 {
+-		panicln("ideal-2", n2, d1, n2/d1, n2%d1);
++		println("ideal-2", n2, d1, n2/d1, n2%d1)
++		panic("fail")
+ 	}
+ 	if n1/d2 != q3 || n1%d2 != r3 {
+-		panicln("ideal-3", n1, d2, n1/d2, n1%d2);
++		println("ideal-3", n1, d2, n1/d2, n1%d2)
++		panic("fail")
+ 	}
+ 	if n2/d2 != q4 || n2%d2 != r4 {
+-		panicln("ideal-4", n2, d2, n2/d2, n2%d2);
++		println("ideal-4", n2, d2, n2/d2, n2%d2)
++		panic("fail")
+ 	}
+ 
+ 	/* int */
+-	var in1 int = +5;
+-	var in2 int = -5;
+-	var id1 int = +3;
+-	var id2 int = -3;
++	var in1 int = +5
++	var in2 int = -5
++	var id1 int = +3
++	var id2 int = -3
+ 
+ 	if in1/id1 != q1 || in1%id1 != r1 {
+-		panicln("int-1", in1, id1, in1/id1, in1%id1);
++		println("int-1", in1, id1, in1/id1, in1%id1)
++		panic("fail")
+ 	}
+ 	if in2/id1 != q2 || in2%id1 != r2 {
+-		panicln("int-2", in2, id1, in2/id1, in2%id1);
++		println("int-2", in2, id1, in2/id1, in2%id1)
++		panic("fail")
+ 	}
+ 	if in1/id2 != q3 || in1%id2 != r3 {
+-		panicln("int-3", in1, id2, in1/id2, in1%id2);
++		println("int-3", in1, id2, in1/id2, in1%id2)
++		panic("fail")
+ 	}
+ 	if in2/id2 != q4 || in2%id2 != r4 {
+-		panicln("int-4", in2, id2, in2/id2, in2%id2);
++		println("int-4", in2, id2, in2/id2, in2%id2)
++		panic("fail")
+ 	}
+ 
+ 	/* int8 */
+-	var bn1 int8 = +5;
+-	var bn2 int8 = -5;
+-	var bd1 int8 = +3;
+-	var bd2 int8 = -3;
++	var bn1 int8 = +5
++	var bn2 int8 = -5
++	var bd1 int8 = +3
++	var bd2 int8 = -3
+ 
+ 	if bn1/bd1 != q1 || bn1%bd1 != r1 {
+-		panicln("int8-1", bn1, bd1, bn1/bd1, bn1%bd1);
++		println("int8-1", bn1, bd1, bn1/bd1, bn1%bd1)
++		panic("fail")
+ 	}
+ 	if bn2/bd1 != q2 || bn2%bd1 != r2 {
+-		panicln("int8-2", bn2, bd1, bn2/bd1, bn2%bd1);
++		println("int8-2", bn2, bd1, bn2/bd1, bn2%bd1)
++		panic("fail")
+ 	}
+ 	if bn1/bd2 != q3 || bn1%bd2 != r3 {
+-		panicln("int8-3", bn1, bd2, bn1/bd2, bn1%bd2);
++		println("int8-3", bn1, bd2, bn1/bd2, bn1%bd2)
++		panic("fail")
+ 	}
+ 	if bn2/bd2 != q4 || bn2%bd2 != r4 {
+-		panicln("int8-4", bn2, bd2, bn2/bd2, bn2%bd2);
++		println("int8-4", bn2, bd2, bn2/bd2, bn2%bd2)
++		panic("fail")
+ 	}
+ 
+ 	/* int16 */
+-	var sn1 int16 = +5;
+-	var sn2 int16 = -5;
+-	var sd1 int16 = +3;
+-	var sd2 int16 = -3;
++	var sn1 int16 = +5
++	var sn2 int16 = -5
++	var sd1 int16 = +3
++	var sd2 int16 = -3
+ 
+ 	if sn1/sd1 != q1 || sn1%sd1 != r1 {
+-		panicln("int16-1", sn1, sd1, sn1/sd1, sn1%sd1);
++		println("int16-1", sn1, sd1, sn1/sd1, sn1%sd1)
++		panic("fail")
+ 	}
+ 	if sn2/sd1 != q2 || sn2%sd1 != r2 {
+-		panicln("int16-2", sn2, sd1, sn2/sd1, sn2%sd1);
++		println("int16-2", sn2, sd1, sn2/sd1, sn2%sd1)
++		panic("fail")
+ 	}
+ 	if sn1/sd2 != q3 || sn1%sd2 != r3 {
+-		panicln("int16-3", sn1, sd2, sn1/sd2, sn1%sd2);
++		println("int16-3", sn1, sd2, sn1/sd2, sn1%sd2)
++		panic("fail")
+ 	}
+ 	if sn2/sd2 != q4 || sn2%sd2 != r4 {
+-		panicln("int16-4", sn2, sd2, sn2/sd2, sn2%sd2);
++		println("int16-4", sn2, sd2, sn2/sd2, sn2%sd2)
++		panic("fail")
+ 	}
+ 
+ 	/* int32 */
+-	var ln1 int32 = +5;
+-	var ln2 int32 = -5;
+-	var ld1 int32 = +3;
+-	var ld2 int32 = -3;
++	var ln1 int32 = +5
++	var ln2 int32 = -5
++	var ld1 int32 = +3
++	var ld2 int32 = -3
+ 
+ 	if ln1/ld1 != q1 || ln1%ld1 != r1 {
+-		panicln("int32-1", ln1, ld1, ln1/ld1, ln1%ld1);
++		println("int32-1", ln1, ld1, ln1/ld1, ln1%ld1)
++		panic("fail")
+ 	}
+ 	if ln2/ld1 != q2 || ln2%ld1 != r2 {
+-		panicln("int32-2", ln2, ld1, ln2/ld1, ln2%ld1);
++		println("int32-2", ln2, ld1, ln2/ld1, ln2%ld1)
++		panic("fail")
+ 	}
+ 	if ln1/ld2 != q3 || ln1%ld2 != r3 {
+-		panicln("int32-3", ln1, ld2, ln1/ld2, ln1%ld2);
++		println("int32-3", ln1, ld2, ln1/ld2, ln1%ld2)
++		panic("fail")
+ 	}
+ 	if ln2/ld2 != q4 || ln2%ld2 != r4 {
+-		panicln("int32-4", ln2, ld2, ln2/ld2, ln2%ld2);
++		println("int32-4", ln2, ld2, ln2/ld2, ln2%ld2)
++		panic("fail")
+ 	}
+ 
+ 	/* int64 */
+-	var qn1 int64 = +5;
+-	var qn2 int64 = -5;
+-	var qd1 int64 = +3;
+-	var qd2 int64 = -3;
++	var qn1 int64 = +5
++	var qn2 int64 = -5
++	var qd1 int64 = +3
++	var qd2 int64 = -3
+ 
+ 	if qn1/qd1 != q1 || qn1%qd1 != r1 {
+-		panicln("int64-1", qn1, qd1, qn1/qd1, qn1%qd1);
++		println("int64-1", qn1, qd1, qn1/qd1, qn1%qd1)
++		panic("fail")
+ 	}
+ 	if qn2/qd1 != q2 || qn2%qd1 != r2 {
+-		panicln("int64-2", qn2, qd1, qn2/qd1, qn2%qd1);
++		println("int64-2", qn2, qd1, qn2/qd1, qn2%qd1)
++		panic("fail")
+ 	}
+ 	if qn1/qd2 != q3 || qn1%qd2 != r3 {
+-		panicln("int64-3", qn1, qd2, qn1/qd2, qn1%qd2);
++		println("int64-3", qn1, qd2, qn1/qd2, qn1%qd2)
++		panic("fail")
+ 	}
+ 	if qn2/qd2 != q4 || qn2%qd2 != r4 {
+-		panicln("int64-4", qn2, qd2, qn2/qd2, qn2%qd2);
++		println("int64-4", qn2, qd2, qn2/qd2, qn2%qd2)
++		panic("fail")
+ 	}
+ 
+ 	if n1/qd1 != q1 || n1%qd1 != r1 {
+-		panicln("mixed int64-1", n1, qd1, n1/qd1, n1%qd1);
++		println("mixed int64-1", n1, qd1, n1/qd1, n1%qd1)
++		panic("fail")
+ 	}
+ 	if n2/qd1 != q2 || n2%qd1 != r2 {
+-		panicln("mixed int64-2", n2, qd1, n2/qd1, n2%qd1);
++		println("mixed int64-2", n2, qd1, n2/qd1, n2%qd1)
++		panic("fail")
+ 	}
+ 	if n1/qd2 != q3 || n1%qd2 != r3 {
+-		panicln("mixed int64-3", n1, qd2, n1/qd2, n1%qd2);
++		println("mixed int64-3", n1, qd2, n1/qd2, n1%qd2)
++		panic("fail")
+ 	}
+ 	if n2/qd2 != q4 || n2%qd2 != r4 {
+-		panicln("mixed int64-4", n2, qd2, n2/qd2, n2%qd2);
++		println("mixed int64-4", n2, qd2, n2/qd2, n2%qd2)
++		panic("fail")
+ 	}
+ 
+ 	if qn1/d1 != q1 || qn1%d1 != r1 {
+-		panicln("mixed int64-5", qn1, d1, qn1/d1, qn1%d1);
++		println("mixed int64-5", qn1, d1, qn1/d1, qn1%d1)
++		panic("fail")
+ 	}
+ 	if qn2/d1 != q2 || qn2%d1 != r2 {
+-		panicln("mixed int64-6", qn2, d1, qn2/d1, qn2%d1);
++		println("mixed int64-6", qn2, d1, qn2/d1, qn2%d1)
++		panic("fail")
+ 	}
+ 	if qn1/d2 != q3 || qn1%d2 != r3 {
+-		panicln("mixed int64-7", qn1, d2, qn1/d2, qn1%d2);
++		println("mixed int64-7", qn1, d2, qn1/d2, qn1%d2)
++		panic("fail")
+ 	}
+ 	if qn2/d2 != q4 || qn2%d2 != r4 {
+-		panicln("mixed int64-8", qn2, d2, qn2/d2, qn2%d2);
++		println("mixed int64-8", qn2, d2, qn2/d2, qn2%d2)
++		panic("fail")
+ 	}
+ 
+ 	/* uint */
+-	var uin1 uint = +5;
+-	var uid1 uint = +3;
++	var uin1 uint = +5
++	var uid1 uint = +3
+ 
+ 	if uin1/uid1 != q1 || uin1%uid1 != r1 {
+-		panicln("uint", uin1, uid1, uin1/uid1, uin1%uid1);
++		println("uint", uin1, uid1, uin1/uid1, uin1%uid1)
++		panic("fail")
+ 	}
+ 
+ 	/* uint8 */
+-	var ubn1 uint8 = +5;
+-	var ubd1 uint8 = +3;
++	var ubn1 uint8 = +5
++	var ubd1 uint8 = +3
+ 
+ 	if ubn1/ubd1 != q1 || ubn1%ubd1 != r1 {
+-		panicln("uint8", ubn1, ubd1, ubn1/ubd1, ubn1%ubd1);
++		println("uint8", ubn1, ubd1, ubn1/ubd1, ubn1%ubd1)
++		panic("fail")
+ 	}
+ 
+ 	/* uint16 */
+-	var usn1 uint16 = +5;
+-	var usd1 uint16 = +3;
++	var usn1 uint16 = +5
++	var usd1 uint16 = +3
+ 
+ 	if usn1/usd1 != q1 || usn1%usd1 != r1 {
+-		panicln("uint16", usn1, usd1, usn1/usd1, usn1%usd1);
++		println("uint16", usn1, usd1, usn1/usd1, usn1%usd1)
++		panic("fail")
+ 	}
+ 
+ 	/* uint32 */
+-	var uln1 uint32 = +5;
+-	var uld1 uint32 = +3;
++	var uln1 uint32 = +5
++	var uld1 uint32 = +3
+ 
+ 	if uln1/uld1 != q1 || uln1%uld1 != r1 {
+-		panicln("uint32", uln1, uld1, uln1/uld1, uln1%uld1);
++		println("uint32", uln1, uld1, uln1/uld1, uln1%uld1)
++		panic("fail")
+ 	}
+ 
+ 	/* uint64 */
+-	var uqn1 uint64 = +5;
+-	var uqd1 uint64 = +3;
++	var uqn1 uint64 = +5
++	var uqd1 uint64 = +3
+ 
+ 	if uqn1/uqd1 != q1 || uqn1%uqd1 != r1 {
+-		panicln("uint64", uqn1, uqd1, uqn1/uqd1, uqn1%uqd1);
++		println("uint64", uqn1, uqd1, uqn1/uqd1, uqn1%uqd1)
++		panic("fail")
+ 	}
+ 	if n1/uqd1 != q1 || n1%uqd1 != r1 {
+-		panicln("mixed uint64-1", n1, uqd1, n1/uqd1, n1%uqd1);
++		println("mixed uint64-1", n1, uqd1, n1/uqd1, n1%uqd1)
++		panic("fail")
+ 	}
+ 	if uqn1/d1 != q1 || uqn1%d1 != r1 {
+-		panicln("mixed uint64-2", uqn1, d1, uqn1/d1, uqn1%d1);
++		println("mixed uint64-2", uqn1, d1, uqn1/d1, uqn1%d1)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index 893485bfa2..9805e479bb 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -7,63 +7,67 @@
+ package main
+ 
+ 
+-type
+-I	interface {
+-	test1() int;
+-	test2() int;
+-	test3() int;
+-	test4() int;
+-	test5() int;
+-	test6() int;
+-	test7() int;
+-};
++type I interface {
++	test1() int
++	test2() int
++	test3() int
++	test4() int
++	test5() int
++	test6() int
++	test7() int
++}
+ 
+ /******
+  ******
+  ******/
+ 
+-type
+-SubpSubp	struct {
+-	a7	int;
+-	a	int;
++type SubpSubp struct {
++	a7 int
++	a  int
+ }
++
+ func (p *SubpSubp) test7() int {
+-	if p.a != p.a7 { panicln("SubpSubp", p, p.a7) }
++	if p.a != p.a7 {
++		println("SubpSubp", p, p.a7)
++		panic("fail")
++	}
+ 	return p.a
+ }
+-func (p *SubpSubp) testx() {
+-	println("SubpSubp", p, p.a7);
+-}
++func (p *SubpSubp) testx() { println("SubpSubp", p, p.a7) }
+ 
+ /******
+  ******
+  ******/
+ 
+-type
+-SubpSub	struct {
+-	a6	int;
+-		SubpSubp;
+-	a	int;
++type SubpSub struct {
++	a6 int
++	SubpSubp
++	a int
+ }
++
+ func (p *SubpSub) test6() int {
+-	if p.a != p.a6 { panicln("SubpSub", p, p.a6) }
++	if p.a != p.a6 {
++		println("SubpSub", p, p.a6)
++		panic("fail")
++	}
+ 	return p.a
+ }
+-func (p *SubpSub) testx() {
+-	println("SubpSub", p, p.a6);
+-}
++func (p *SubpSub) testx() { println("SubpSub", p, p.a6) }
+ 
+ /******
+  ******
+  ******/
+ 
+-type
+-SubSubp	struct {
+-	a5	int;
+-	a	int;
++type SubSubp struct {
++	a5 int
++	a  int
+ }
++
+ func (p *SubSubp) test5() int {
+-	if p.a != p.a5 { panicln("SubpSub", p, p.a5) }
++	if p.a != p.a5 {
++		println("SubpSub", p, p.a5)
++		panic("fail")
++	}
+ 	return p.a
+ }
+ 
+@@ -71,13 +75,16 @@ func (p *SubSubp) test5() int {
+  ******
+  ******/
+ 
+-type
+-SubSub	struct {
+-	a4	int;
+-	a	int;
++type SubSub struct {
++	a4 int
++	a  int
+ }
++
+ func (p *SubSub) test4() int {
+-	if p.a != p.a4 { panicln("SubpSub", p, p.a4) }
++	if p.a != p.a4 {
++		println("SubpSub", p, p.a4)
++		panic("fail")
++	}
+ 	return p.a
+ }
+ 
+@@ -85,15 +92,18 @@ func (p *SubSub) test4() int {
+  ******
+  ******/
+ 
+-type
+-Subp	struct {
+-	a3	int;
+-		*SubpSubp;
+-		SubpSub;
+-	a	int;
++type Subp struct {
++	a3 int
++	*SubpSubp
++	SubpSub
++	a int
+ }
++
+ func (p *Subp) test3() int {
+-	if p.a != p.a3 { panicln("SubpSub", p, p.a3) }
++	if p.a != p.a3 {
++		println("SubpSub", p, p.a3)
++		panic("fail")
++	}
+ 	return p.a
+ }
+ 
+@@ -101,16 +111,18 @@ func (p *Subp) test3() int {
+  ******
+  ******/
+ 
+-type
+-Sub	struct
+-{
+-	a2	int;
+-		*SubSubp;
+-		SubSub;
+-	a	int;
++type Sub struct {
++	a2 int
++	*SubSubp
++	SubSub
++	a int
+ }
++
+ func (p *Sub) test2() int {
+-	if p.a != p.a2 { panicln("SubpSub", p, p.a2) }
++	if p.a != p.a2 {
++		println("SubpSub", p, p.a2)
++		panic("fail")
++	}
+ 	return p.a
+ }
+ 
+@@ -118,15 +130,18 @@ func (p *Sub) test2() int {
+  ******
+  ******/
+ 
+-type
+-S	struct {
+-	a1	int;
+-		Sub;
+-		*Subp;
+-	a	int;
++type S struct {
++	a1 int
++	Sub
++	*Subp
++	a int
+ }
++
+ func (p *S) test1() int {
+-	if p.a != p.a1 { panicln("SubpSub", p, p.a1) }
++	if p.a != p.a1 {
++		println("SubpSub", p, p.a1)
++		panic("fail")
++	}
+ 	return p.a
+ }
+ 
+@@ -134,77 +149,169 @@ func (p *S) test1() int {
+  ******
+  ******/
+ 
+-func
+-main() {
+-	var i I;
+-	var s *S;
++func main() {
++	var i I
++	var s *S
+ 
+ 	// allocate
+-	s = new(S);
+-	s.Subp = new(Subp);
+-	s.Sub.SubSubp = new(SubSubp);
+-	s.Subp.SubpSubp = new(SubpSubp);
++	s = new(S)
++	s.Subp = new(Subp)
++	s.Sub.SubSubp = new(SubSubp)
++	s.Subp.SubpSubp = new(SubpSubp)
+ 
+ 	// explicit assignment
+-	s.a = 1;
+-	s.Sub.a = 2;
+-	s.Subp.a = 3;
+-	s.Sub.SubSub.a = 4;
+-	s.Sub.SubSubp.a = 5;
+-	s.Subp.SubpSub.a = 6;
+-	s.Subp.SubpSubp.a = 7;
++	s.a = 1
++	s.Sub.a = 2
++	s.Subp.a = 3
++	s.Sub.SubSub.a = 4
++	s.Sub.SubSubp.a = 5
++	s.Subp.SubpSub.a = 6
++	s.Subp.SubpSubp.a = 7
+ 
+ 	// embedded (unique) assignment
+-	s.a1 = 1;
+-	s.a2 = 2;
+-	s.a3 = 3;
+-	s.a4 = 4;
+-	s.a5 = 5;
+-	s.a6 = 6;
+-	s.a7 = 7;
++	s.a1 = 1
++	s.a2 = 2
++	s.a3 = 3
++	s.a4 = 4
++	s.a5 = 5
++	s.a6 = 6
++	s.a7 = 7
+ 
+ 	// unique calls with explicit &
+-	if s.test1() != 1 { panicln("t1", 1) }
+-	if (&s.Sub).test2() != 2 { panicln("t1", 2) }
+-	if s.Subp.test3() != 3 { panicln("t1", 3) }
+-	if (&s.Sub.SubSub).test4() != 4 { panicln("t1", 4) }
+-	if s.Sub.SubSubp.test5() != 5 { panicln("t1", 5) }
+-	if (&s.Subp.SubpSub).test6() != 6 { panicln("t1", 6) }
+-	if s.Subp.SubpSubp.test7() != 7 { panicln("t1", 7) }
++	if s.test1() != 1 {
++		println("t1", 1)
++		panic("fail")
++	}
++	if (&s.Sub).test2() != 2 {
++		println("t1", 2)
++		panic("fail")
++	}
++	if s.Subp.test3() != 3 {
++		println("t1", 3)
++		panic("fail")
++	}
++	if (&s.Sub.SubSub).test4() != 4 {
++		println("t1", 4)
++		panic("fail")
++	}
++	if s.Sub.SubSubp.test5() != 5 {
++		println("t1", 5)
++		panic("fail")
++	}
++	if (&s.Subp.SubpSub).test6() != 6 {
++		println("t1", 6)
++		panic("fail")
++	}
++	if s.Subp.SubpSubp.test7() != 7 {
++		println("t1", 7)
++		panic("fail")
++	}
+ 
+ 	// automatic &
+-	if s.Sub.test2() != 2 { panicln("t2", 2) }
+-	if s.Sub.SubSub.test4() != 4 { panicln("t2", 4) }
+-	if s.Subp.SubpSub.test6() != 6 { panicln("t2", 6) }
++	if s.Sub.test2() != 2 {
++		println("t2", 2)
++		panic("fail")
++	}
++	if s.Sub.SubSub.test4() != 4 {
++		println("t2", 4)
++		panic("fail")
++	}
++	if s.Subp.SubpSub.test6() != 6 {
++		println("t2", 6)
++		panic("fail")
++	}
+ 
+ 	// embedded calls
+-	if s.test1() != s.a1 { panicln("t3", 1) }
+-	if s.test2() != s.a2 { panicln("t3", 2) }
+-	if s.test3() != s.a3 { panicln("t3", 3) }
+-	if s.test4() != s.a4 { panicln("t3", 4) }
+-	if s.test5() != s.a5 { panicln("t3", 5) }
+-	if s.test6() != s.a6 { panicln("t3", 6) }
+-	if s.test7() != s.a7 { panicln("t3", 7) }
++	if s.test1() != s.a1 {
++		println("t3", 1)
++		panic("fail")
++	}
++	if s.test2() != s.a2 {
++		println("t3", 2)
++		panic("fail")
++	}
++	if s.test3() != s.a3 {
++		println("t3", 3)
++		panic("fail")
++	}
++	if s.test4() != s.a4 {
++		println("t3", 4)
++		panic("fail")
++	}
++	if s.test5() != s.a5 {
++		println("t3", 5)
++		panic("fail")
++	}
++	if s.test6() != s.a6 {
++		println("t3", 6)
++		panic("fail")
++	}
++	if s.test7() != s.a7 {
++		println("t3", 7)
++		panic("fail")
++	}
+ 
+ 	// run it thru an interface
+-	i = s;
+-	s = i.(*S);
++	i = s
++	s = i.(*S)
+ 
+ 	// same as t3
+-	if s.test1() != s.a1 { panicln("t4", 1) }
+-	if s.test2() != s.a2 { panicln("t4", 2) }
+-	if s.test3() != s.a3 { panicln("t4", 3) }
+-	if s.test4() != s.a4 { panicln("t4", 4) }
+-	if s.test5() != s.a5 { panicln("t4", 5) }
+-	if s.test6() != s.a6 { panicln("t4", 6) }
+-	if s.test7() != s.a7 { panicln("t4", 7) }
++	if s.test1() != s.a1 {
++		println("t4", 1)
++		panic("fail")
++	}
++	if s.test2() != s.a2 {
++		println("t4", 2)
++		panic("fail")
++	}
++	if s.test3() != s.a3 {
++		println("t4", 3)
++		panic("fail")
++	}
++	if s.test4() != s.a4 {
++		println("t4", 4)
++		panic("fail")
++	}
++	if s.test5() != s.a5 {
++		println("t4", 5)
++		panic("fail")
++	}
++	if s.test6() != s.a6 {
++		println("t4", 6)
++		panic("fail")
++	}
++	if s.test7() != s.a7 {
++		println("t4", 7)
++		panic("fail")
++	}
+ 
+ 	// call interface
+-	if i.test1() != s.test1() { panicln("t5", 1) }
+-	if i.test2() != s.test2() { panicln("t5", 2) }
+-	if i.test3() != s.test3() { panicln("t5", 3) }
+-	if i.test4() != s.test4() { panicln("t5", 4) }
+-	if i.test5() != s.test5() { panicln("t5", 5) }
+-	if i.test6() != s.test6() { panicln("t5", 6) }
+-	if i.test7() != s.test7() { panicln("t5", 7) }
++	if i.test1() != s.test1() {
++		println("t5", 1)
++		panic("fail")
++	}
++	if i.test2() != s.test2() {
++		println("t5", 2)
++		panic("fail")
++	}
++	if i.test3() != s.test3() {
++		println("t5", 3)
++		panic("fail")
++	}
++	if i.test4() != s.test4() {
++		println("t5", 4)
++		panic("fail")
++	}
++	if i.test5() != s.test5() {
++		println("t5", 5)
++		panic("fail")
++	}
++	if i.test6() != s.test6() {
++		println("t5", 6)
++		panic("fail")
++	}
++	if i.test7() != s.test7() {
++		println("t5", 7)
++		panic("fail")
++	}
+ }
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index 5199c4174a..9bb50886a4 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -6,98 +6,177 @@
+ 
+ package main
+ 
+-type	myint		int;
+-type	mystring	string;
+-type	I0		interface {};
+-
+-func
+-f() {
+-	var ia, ib I0;
+-	var i myint;
+-	var s mystring;
+-
+-	if ia != ib { panicln("1"); }
+-
+-	i = 1;
+-	ia = i;
+-	ib = i;
+-	if ia != ib { panicln("2"); }
+-	if ia == nil { panicln("3"); }
+-
+-	i = 2;
+-	ia = i;
+-	if ia == ib { panicln("4"); }
+-
+-	ia = nil;
+-	if ia == ib { panicln("5"); }
+-
+-	ib = nil;
+-	if ia != ib { panicln("6"); }
+-
+-	if ia != nil { panicln("7"); }
+-
+-	s = "abc";
+-	ia = s;
+-	ib = nil;
+-	if ia == ib { panicln("8"); }
+-
+-	s = "def";
+-	ib = s;
+-	if ia == ib { panicln("9"); }
+-
+-	s = "abc";
+-	ib = s;
+-	if ia != ib { panicln("a"); }
++type myint int
++type mystring string
++type I0 interface{}
++
++func f() {
++	var ia, ib I0
++	var i myint
++	var s mystring
++
++	if ia != ib {
++		panic("1")
++	}
++
++	i = 1
++	ia = i
++	ib = i
++	if ia != ib {
++		panic("2")
++	}
++	if ia == nil {
++		panic("3")
++	}
++
++	i = 2
++	ia = i
++	if ia == ib {
++		panic("4")
++	}
++
++	ia = nil
++	if ia == ib {
++		panic("5")
++	}
++
++	ib = nil
++	if ia != ib {
++		panic("6")
++	}
++
++	if ia != nil {
++		panic("7")
++	}
++
++	s = "abc"
++	ia = s
++	ib = nil
++	if ia == ib {
++		panic("8")
++	}
++
++	s = "def"
++	ib = s
++	if ia == ib {
++		panic("9")
++	}
++
++	s = "abc"
++	ib = s
++	if ia != ib {
++		panic("a")
++	}
+ }
+ 
+-func
+-main() {
+-	var ia [20]I0;
+-	var b bool;
+-	var s string;
+-	var i8 int8;
+-	var i16 int16;
+-	var i32 int32;
+-	var i64 int64;
+-	var u8 uint8;
+-	var u16 uint16;
+-	var u32 uint32;
+-	var u64 uint64;
+-
+-	f();
+-
+-	ia[0] = "xxx";
+-	ia[1] = 12345;
+-	ia[2] = true;
+-
+-	s = "now is";	ia[3] = s;
+-	b = false;	ia[4] = b;
+-
+-	i8 = 29;	ia[5] = i8;
+-	i16 = 994;	ia[6] = i16;
+-	i32 = 3434;	ia[7] = i32;
+-	i64 = 1234567;	ia[8] = i64;
+-
+-	u8 = 12;	ia[9] = u8;
+-	u16 = 799;	ia[10] = u16;
+-	u32 = 4455;	ia[11] = u32;
+-	u64 = 765432;	ia[12] = u64;
+-
+-	s = ia[0].(string);	if s != "xxx" { panicln(0,s); }
+-	i32 = int32(ia[1].(int));
+-			if i32 != 12345 { panicln(1,i32); }
+-	b = ia[2].(bool);	if b != true { panicln(2,b); }
+-
+-	s = ia[3].(string);	if s != "now is" { panicln(3,s); }
+-	b = ia[4].(bool);	if b != false { panicln(4,b); }
+-
+-	i8 = ia[5].(int8);	if i8 != 29 { panicln(5,i8); }
+-	i16 = ia[6].(int16);	if i16 != 994 { panicln(6,i16); }
+-	i32 = ia[7].(int32);	if i32 != 3434 { panicln(7,i32); }
+-	i64 = ia[8].(int64);	if i64 != 1234567 { panicln(8,i64); }
+-
+-	u8 = ia[9].(uint8);	if u8 != 12 { panicln(5,u8); }
+-	u16 = ia[10].(uint16);	if u16 != 799 { panicln(6,u16); }
+-	u32 = ia[11].(uint32);	if u32 != 4455 { panicln(7,u32); }
+-	u64 = ia[12].(uint64);	if u64 != 765432 { panicln(8,u64); }
++func main() {
++	var ia [20]I0
++	var b bool
++	var s string
++	var i8 int8
++	var i16 int16
++	var i32 int32
++	var i64 int64
++	var u8 uint8
++	var u16 uint16
++	var u32 uint32
++	var u64 uint64
++
++	f()
++
++	ia[0] = "xxx"
++	ia[1] = 12345
++	ia[2] = true
++
++	s = "now is"
++	ia[3] = s
++	b = false
++	ia[4] = b
++
++	i8 = 29
++	ia[5] = i8
++	i16 = 994
++	ia[6] = i16
++	i32 = 3434
++	ia[7] = i32
++	i64 = 1234567
++	ia[8] = i64
++
++	u8 = 12
++	ia[9] = u8
++	u16 = 799
++	ia[10] = u16
++	u32 = 4455
++	ia[11] = u32
++	u64 = 765432
++	ia[12] = u64
++
++	s = ia[0].(string)
++	if s != "xxx" {
++		println(0, s)
++		panic("fail")
++	}
++	i32 = int32(ia[1].(int))
++	if i32 != 12345 {
++		println(1, i32)
++		panic("fail")
++	}
++	b = ia[2].(bool)
++	if b != true {
++		println(2, b)
++		panic("fail")
++	}
++
++	s = ia[3].(string)
++	if s != "now is" {
++		println(3, s)
++		panic("fail")
++	}
++	b = ia[4].(bool)
++	if b != false {
++		println(4, b)
++		panic("fail")
++	}
++
++	i8 = ia[5].(int8)
++	if i8 != 29 {
++		println(5, i8)
++		panic("fail")
++	}
++	i16 = ia[6].(int16)
++	if i16 != 994 {
++		println(6, i16)
++		panic("fail")
++	}
++	i32 = ia[7].(int32)
++	if i32 != 3434 {
++		println(7, i32)
++		panic("fail")
++	}
++	i64 = ia[8].(int64)
++	if i64 != 1234567 {
++		println(8, i64)
++		panic("fail")
++	}
++
++	u8 = ia[9].(uint8)
++	if u8 != 12 {
++		println(5, u8)
++		panic("fail")
++	}
++	u16 = ia[10].(uint16)
++	if u16 != 799 {
++		println(6, u16)
++		panic("fail")
++	}
++	u32 = ia[11].(uint32)
++	if u32 != 4455 {
++		println(7, u32)
++		panic("fail")
++	}
++	u64 = ia[12].(uint64)
++	if u64 != 765432 {
++		println(8, u64)
++		panic("fail")
++	}
+ }
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index fa53d0b256..acb8831ef7 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -6,447 +6,627 @@
+ 
+ package main
+ 
+-import	"rand"
++import "rand"
+ 
+-const	Count	= 1e5
++const Count = 1e5
+ 
+-func
+-i64rand() int64 {
++func i64rand() int64 {
+ 	for {
+-		a := int64(rand.Uint32());
+-		a = (a<<32) | int64(rand.Uint32());
+-		a >>= uint(rand.Intn(64));
++		a := int64(rand.Uint32())
++		a = (a << 32) | int64(rand.Uint32())
++		a >>= uint(rand.Intn(64))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i64test(a,b,c int64) {
+-	d := a%c;
++func i64test(a, b, c int64) {
++	d := a % c
+ 	if d != b {
+-		panicln("i64", a, b, c, d);
++		println("i64", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i64run() {
+-	var a, b int64;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i64rand();
+-
+-		b = a%1;	i64test(a,b,1);
+-		b = a%2;	i64test(a,b,2);
+-		b = a%3;	i64test(a,b,3);
+-		b = a%4;	i64test(a,b,4);
+-		b = a%5;	i64test(a,b,5);
+-		b = a%6;	i64test(a,b,6);
+-		b = a%7;	i64test(a,b,7);
+-		b = a%8;	i64test(a,b,8);
+-		b = a%10;	i64test(a,b,10);
+-		b = a%16;	i64test(a,b,16);
+-		b = a%20;	i64test(a,b,20);
+-		b = a%32;	i64test(a,b,32);
+-		b = a%60;	i64test(a,b,60);
+-		b = a%64;	i64test(a,b,64);
+-		b = a%128;	i64test(a,b,128);
+-		b = a%256;	i64test(a,b,256);
+-		b = a%16384;	i64test(a,b,16384);
+-
+-		b = a%-1;	i64test(a,b,-1);
+-		b = a%-2;	i64test(a,b,-2);
+-		b = a%-3;	i64test(a,b,-3);
+-		b = a%-4;	i64test(a,b,-4);
+-		b = a%-5;	i64test(a,b,-5);
+-		b = a%-6;	i64test(a,b,-6);
+-		b = a%-7;	i64test(a,b,-7);
+-		b = a%-8;	i64test(a,b,-8);
+-		b = a%-10;	i64test(a,b,-10);
+-		b = a%-16;	i64test(a,b,-16);
+-		b = a%-20;	i64test(a,b,-20);
+-		b = a%-32;	i64test(a,b,-32);
+-		b = a%-60;	i64test(a,b,-60);
+-		b = a%-64;	i64test(a,b,-64);
+-		b = a%-128;	i64test(a,b,-128);
+-		b = a%-256;	i64test(a,b,-256);
+-		b = a%-16384;	i64test(a,b,-16384);
++func i64run() {
++	var a, b int64
++
++	for i := 0; i < Count; i++ {
++		a = i64rand()
++
++		b = a % 1
++		i64test(a, b, 1)
++		b = a % 2
++		i64test(a, b, 2)
++		b = a % 3
++		i64test(a, b, 3)
++		b = a % 4
++		i64test(a, b, 4)
++		b = a % 5
++		i64test(a, b, 5)
++		b = a % 6
++		i64test(a, b, 6)
++		b = a % 7
++		i64test(a, b, 7)
++		b = a % 8
++		i64test(a, b, 8)
++		b = a % 10
++		i64test(a, b, 10)
++		b = a % 16
++		i64test(a, b, 16)
++		b = a % 20
++		i64test(a, b, 20)
++		b = a % 32
++		i64test(a, b, 32)
++		b = a % 60
++		i64test(a, b, 60)
++		b = a % 64
++		i64test(a, b, 64)
++		b = a % 128
++		i64test(a, b, 128)
++		b = a % 256
++		i64test(a, b, 256)
++		b = a % 16384
++		i64test(a, b, 16384)
++
++		b = a % -1
++		i64test(a, b, -1)
++		b = a % -2
++		i64test(a, b, -2)
++		b = a % -3
++		i64test(a, b, -3)
++		b = a % -4
++		i64test(a, b, -4)
++		b = a % -5
++		i64test(a, b, -5)
++		b = a % -6
++		i64test(a, b, -6)
++		b = a % -7
++		i64test(a, b, -7)
++		b = a % -8
++		i64test(a, b, -8)
++		b = a % -10
++		i64test(a, b, -10)
++		b = a % -16
++		i64test(a, b, -16)
++		b = a % -20
++		i64test(a, b, -20)
++		b = a % -32
++		i64test(a, b, -32)
++		b = a % -60
++		i64test(a, b, -60)
++		b = a % -64
++		i64test(a, b, -64)
++		b = a % -128
++		i64test(a, b, -128)
++		b = a % -256
++		i64test(a, b, -256)
++		b = a % -16384
++		i64test(a, b, -16384)
+ 	}
+ }
+ 
+-func
+-u64rand() uint64 {
+-	a := uint64(rand.Uint32());
+-	a = (a<<32) | uint64(rand.Uint32());
+-	a >>= uint(rand.Intn(64));
+-	return a;
++func u64rand() uint64 {
++	a := uint64(rand.Uint32())
++	a = (a << 32) | uint64(rand.Uint32())
++	a >>= uint(rand.Intn(64))
++	return a
+ }
+ 
+-func
+-u64test(a,b,c uint64) {
+-	d := a%c;
++func u64test(a, b, c uint64) {
++	d := a % c
+ 	if d != b {
+-		panicln("u64", a, b, c, d);
++		println("u64", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u64run() {
+-	var a, b uint64;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u64rand();
+-
+-		b = a%1;	u64test(a,b,1);
+-		b = a%2;	u64test(a,b,2);
+-		b = a%3;	u64test(a,b,3);
+-		b = a%4;	u64test(a,b,4);
+-		b = a%5;	u64test(a,b,5);
+-		b = a%6;	u64test(a,b,6);
+-		b = a%7;	u64test(a,b,7);
+-		b = a%8;	u64test(a,b,8);
+-		b = a%10;	u64test(a,b,10);
+-		b = a%16;	u64test(a,b,16);
+-		b = a%20;	u64test(a,b,20);
+-		b = a%32;	u64test(a,b,32);
+-		b = a%60;	u64test(a,b,60);
+-		b = a%64;	u64test(a,b,64);
+-		b = a%128;	u64test(a,b,128);
+-		b = a%256;	u64test(a,b,256);
+-		b = a%16384;	u64test(a,b,16384);
++func u64run() {
++	var a, b uint64
++
++	for i := 0; i < Count; i++ {
++		a = u64rand()
++
++		b = a % 1
++		u64test(a, b, 1)
++		b = a % 2
++		u64test(a, b, 2)
++		b = a % 3
++		u64test(a, b, 3)
++		b = a % 4
++		u64test(a, b, 4)
++		b = a % 5
++		u64test(a, b, 5)
++		b = a % 6
++		u64test(a, b, 6)
++		b = a % 7
++		u64test(a, b, 7)
++		b = a % 8
++		u64test(a, b, 8)
++		b = a % 10
++		u64test(a, b, 10)
++		b = a % 16
++		u64test(a, b, 16)
++		b = a % 20
++		u64test(a, b, 20)
++		b = a % 32
++		u64test(a, b, 32)
++		b = a % 60
++		u64test(a, b, 60)
++		b = a % 64
++		u64test(a, b, 64)
++		b = a % 128
++		u64test(a, b, 128)
++		b = a % 256
++		u64test(a, b, 256)
++		b = a % 16384
++		u64test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i32rand() int32 {
++func i32rand() int32 {
+ 	for {
+-		a := int32(rand.Uint32());
+-		a >>= uint(rand.Intn(32));
++		a := int32(rand.Uint32())
++		a >>= uint(rand.Intn(32))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i32test(a,b,c int32) {
+-	d := a%c;
++func i32test(a, b, c int32) {
++	d := a % c
+ 	if d != b {
+-		panicln("i32", a, b, c, d);
++		println("i32", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i32run() {
+-	var a, b int32;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i32rand();
+-
+-		b = a%1;	i32test(a,b,1);
+-		b = a%2;	i32test(a,b,2);
+-		b = a%3;	i32test(a,b,3);
+-		b = a%4;	i32test(a,b,4);
+-		b = a%5;	i32test(a,b,5);
+-		b = a%6;	i32test(a,b,6);
+-		b = a%7;	i32test(a,b,7);
+-		b = a%8;	i32test(a,b,8);
+-		b = a%10;	i32test(a,b,10);
+-		b = a%16;	i32test(a,b,16);
+-		b = a%20;	i32test(a,b,20);
+-		b = a%32;	i32test(a,b,32);
+-		b = a%60;	i32test(a,b,60);
+-		b = a%64;	i32test(a,b,64);
+-		b = a%128;	i32test(a,b,128);
+-		b = a%256;	i32test(a,b,256);
+-		b = a%16384;	i32test(a,b,16384);
+-
+-		b = a%-1;	i32test(a,b,-1);
+-		b = a%-2;	i32test(a,b,-2);
+-		b = a%-3;	i32test(a,b,-3);
+-		b = a%-4;	i32test(a,b,-4);
+-		b = a%-5;	i32test(a,b,-5);
+-		b = a%-6;	i32test(a,b,-6);
+-		b = a%-7;	i32test(a,b,-7);
+-		b = a%-8;	i32test(a,b,-8);
+-		b = a%-10;	i32test(a,b,-10);
+-		b = a%-16;	i32test(a,b,-16);
+-		b = a%-20;	i32test(a,b,-20);
+-		b = a%-32;	i32test(a,b,-32);
+-		b = a%-60;	i32test(a,b,-60);
+-		b = a%-64;	i32test(a,b,-64);
+-		b = a%-128;	i32test(a,b,-128);
+-		b = a%-256;	i32test(a,b,-256);
++func i32run() {
++	var a, b int32
++
++	for i := 0; i < Count; i++ {
++		a = i32rand()
++
++		b = a % 1
++		i32test(a, b, 1)
++		b = a % 2
++		i32test(a, b, 2)
++		b = a % 3
++		i32test(a, b, 3)
++		b = a % 4
++		i32test(a, b, 4)
++		b = a % 5
++		i32test(a, b, 5)
++		b = a % 6
++		i32test(a, b, 6)
++		b = a % 7
++		i32test(a, b, 7)
++		b = a % 8
++		i32test(a, b, 8)
++		b = a % 10
++		i32test(a, b, 10)
++		b = a % 16
++		i32test(a, b, 16)
++		b = a % 20
++		i32test(a, b, 20)
++		b = a % 32
++		i32test(a, b, 32)
++		b = a % 60
++		i32test(a, b, 60)
++		b = a % 64
++		i32test(a, b, 64)
++		b = a % 128
++		i32test(a, b, 128)
++		b = a % 256
++		i32test(a, b, 256)
++		b = a % 16384
++		i32test(a, b, 16384)
++
++		b = a % -1
++		i32test(a, b, -1)
++		b = a % -2
++		i32test(a, b, -2)
++		b = a % -3
++		i32test(a, b, -3)
++		b = a % -4
++		i32test(a, b, -4)
++		b = a % -5
++		i32test(a, b, -5)
++		b = a % -6
++		i32test(a, b, -6)
++		b = a % -7
++		i32test(a, b, -7)
++		b = a % -8
++		i32test(a, b, -8)
++		b = a % -10
++		i32test(a, b, -10)
++		b = a % -16
++		i32test(a, b, -16)
++		b = a % -20
++		i32test(a, b, -20)
++		b = a % -32
++		i32test(a, b, -32)
++		b = a % -60
++		i32test(a, b, -60)
++		b = a % -64
++		i32test(a, b, -64)
++		b = a % -128
++		i32test(a, b, -128)
++		b = a % -256
++		i32test(a, b, -256)
+ 	}
+ }
+ 
+-func
+-u32rand() uint32 {
+-	a := uint32(rand.Uint32());
+-	a >>= uint(rand.Intn(32));
+-	return a;
++func u32rand() uint32 {
++	a := uint32(rand.Uint32())
++	a >>= uint(rand.Intn(32))
++	return a
+ }
+ 
+-func
+-u32test(a,b,c uint32) {
+-	d := a%c;
++func u32test(a, b, c uint32) {
++	d := a % c
+ 	if d != b {
+-		panicln("u32", a, b, c, d);
++		println("u32", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u32run() {
+-	var a, b uint32;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u32rand();
+-
+-		b = a%1;	u32test(a,b,1);
+-		b = a%2;	u32test(a,b,2);
+-		b = a%3;	u32test(a,b,3);
+-		b = a%4;	u32test(a,b,4);
+-		b = a%5;	u32test(a,b,5);
+-		b = a%6;	u32test(a,b,6);
+-		b = a%7;	u32test(a,b,7);
+-		b = a%8;	u32test(a,b,8);
+-		b = a%10;	u32test(a,b,10);
+-		b = a%16;	u32test(a,b,16);
+-		b = a%20;	u32test(a,b,20);
+-		b = a%32;	u32test(a,b,32);
+-		b = a%60;	u32test(a,b,60);
+-		b = a%64;	u32test(a,b,64);
+-		b = a%128;	u32test(a,b,128);
+-		b = a%256;	u32test(a,b,256);
+-		b = a%16384;	u32test(a,b,16384);
++func u32run() {
++	var a, b uint32
++
++	for i := 0; i < Count; i++ {
++		a = u32rand()
++
++		b = a % 1
++		u32test(a, b, 1)
++		b = a % 2
++		u32test(a, b, 2)
++		b = a % 3
++		u32test(a, b, 3)
++		b = a % 4
++		u32test(a, b, 4)
++		b = a % 5
++		u32test(a, b, 5)
++		b = a % 6
++		u32test(a, b, 6)
++		b = a % 7
++		u32test(a, b, 7)
++		b = a % 8
++		u32test(a, b, 8)
++		b = a % 10
++		u32test(a, b, 10)
++		b = a % 16
++		u32test(a, b, 16)
++		b = a % 20
++		u32test(a, b, 20)
++		b = a % 32
++		u32test(a, b, 32)
++		b = a % 60
++		u32test(a, b, 60)
++		b = a % 64
++		u32test(a, b, 64)
++		b = a % 128
++		u32test(a, b, 128)
++		b = a % 256
++		u32test(a, b, 256)
++		b = a % 16384
++		u32test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i16rand() int16 {
++func i16rand() int16 {
+ 	for {
+-		a := int16(rand.Uint32());
+-		a >>= uint(rand.Intn(16));
++		a := int16(rand.Uint32())
++		a >>= uint(rand.Intn(16))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i16test(a,b,c int16) {
+-	d := a%c;
++func i16test(a, b, c int16) {
++	d := a % c
+ 	if d != b {
+-		panicln("i16", a, b, c, d);
++		println("i16", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i16run() {
+-	var a, b int16;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i16rand();
+-
+-		b = a%1;	i16test(a,b,1);
+-		b = a%2;	i16test(a,b,2);
+-		b = a%3;	i16test(a,b,3);
+-		b = a%4;	i16test(a,b,4);
+-		b = a%5;	i16test(a,b,5);
+-		b = a%6;	i16test(a,b,6);
+-		b = a%7;	i16test(a,b,7);
+-		b = a%8;	i16test(a,b,8);
+-		b = a%10;	i16test(a,b,10);
+-		b = a%16;	i16test(a,b,16);
+-		b = a%20;	i16test(a,b,20);
+-		b = a%32;	i16test(a,b,32);
+-		b = a%60;	i16test(a,b,60);
+-		b = a%64;	i16test(a,b,64);
+-		b = a%128;	i16test(a,b,128);
+-		b = a%256;	i16test(a,b,256);
+-		b = a%16384;	i16test(a,b,16384);
+-
+-		b = a%-1;	i16test(a,b,-1);
+-		b = a%-2;	i16test(a,b,-2);
+-		b = a%-3;	i16test(a,b,-3);
+-		b = a%-4;	i16test(a,b,-4);
+-		b = a%-5;	i16test(a,b,-5);
+-		b = a%-6;	i16test(a,b,-6);
+-		b = a%-7;	i16test(a,b,-7);
+-		b = a%-8;	i16test(a,b,-8);
+-		b = a%-10;	i16test(a,b,-10);
+-		b = a%-16;	i16test(a,b,-16);
+-		b = a%-20;	i16test(a,b,-20);
+-		b = a%-32;	i16test(a,b,-32);
+-		b = a%-60;	i16test(a,b,-60);
+-		b = a%-64;	i16test(a,b,-64);
+-		b = a%-128;	i16test(a,b,-128);
+-		b = a%-256;	i16test(a,b,-256);
+-		b = a%-16384;	i16test(a,b,-16384);
++func i16run() {
++	var a, b int16
++
++	for i := 0; i < Count; i++ {
++		a = i16rand()
++
++		b = a % 1
++		i16test(a, b, 1)
++		b = a % 2
++		i16test(a, b, 2)
++		b = a % 3
++		i16test(a, b, 3)
++		b = a % 4
++		i16test(a, b, 4)
++		b = a % 5
++		i16test(a, b, 5)
++		b = a % 6
++		i16test(a, b, 6)
++		b = a % 7
++		i16test(a, b, 7)
++		b = a % 8
++		i16test(a, b, 8)
++		b = a % 10
++		i16test(a, b, 10)
++		b = a % 16
++		i16test(a, b, 16)
++		b = a % 20
++		i16test(a, b, 20)
++		b = a % 32
++		i16test(a, b, 32)
++		b = a % 60
++		i16test(a, b, 60)
++		b = a % 64
++		i16test(a, b, 64)
++		b = a % 128
++		i16test(a, b, 128)
++		b = a % 256
++		i16test(a, b, 256)
++		b = a % 16384
++		i16test(a, b, 16384)
++
++		b = a % -1
++		i16test(a, b, -1)
++		b = a % -2
++		i16test(a, b, -2)
++		b = a % -3
++		i16test(a, b, -3)
++		b = a % -4
++		i16test(a, b, -4)
++		b = a % -5
++		i16test(a, b, -5)
++		b = a % -6
++		i16test(a, b, -6)
++		b = a % -7
++		i16test(a, b, -7)
++		b = a % -8
++		i16test(a, b, -8)
++		b = a % -10
++		i16test(a, b, -10)
++		b = a % -16
++		i16test(a, b, -16)
++		b = a % -20
++		i16test(a, b, -20)
++		b = a % -32
++		i16test(a, b, -32)
++		b = a % -60
++		i16test(a, b, -60)
++		b = a % -64
++		i16test(a, b, -64)
++		b = a % -128
++		i16test(a, b, -128)
++		b = a % -256
++		i16test(a, b, -256)
++		b = a % -16384
++		i16test(a, b, -16384)
+ 	}
+ }
+ 
+-func
+-u16rand() uint16 {
+-	a := uint16(rand.Uint32());
+-	a >>= uint(rand.Intn(16));
+-	return a;
++func u16rand() uint16 {
++	a := uint16(rand.Uint32())
++	a >>= uint(rand.Intn(16))
++	return a
+ }
+ 
+-func
+-u16test(a,b,c uint16) {
+-	d := a%c;
++func u16test(a, b, c uint16) {
++	d := a % c
+ 	if d != b {
+-		panicln("u16", a, b, c, d);
++		println("u16", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u16run() {
+-	var a, b uint16;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u16rand();
+-
+-		b = a%1;	u16test(a,b,1);
+-		b = a%2;	u16test(a,b,2);
+-		b = a%3;	u16test(a,b,3);
+-		b = a%4;	u16test(a,b,4);
+-		b = a%5;	u16test(a,b,5);
+-		b = a%6;	u16test(a,b,6);
+-		b = a%7;	u16test(a,b,7);
+-		b = a%8;	u16test(a,b,8);
+-		b = a%10;	u16test(a,b,10);
+-		b = a%16;	u16test(a,b,16);
+-		b = a%20;	u16test(a,b,20);
+-		b = a%32;	u16test(a,b,32);
+-		b = a%60;	u16test(a,b,60);
+-		b = a%64;	u16test(a,b,64);
+-		b = a%128;	u16test(a,b,128);
+-		b = a%256;	u16test(a,b,256);
+-		b = a%16384;	u16test(a,b,16384);
++func u16run() {
++	var a, b uint16
++
++	for i := 0; i < Count; i++ {
++		a = u16rand()
++
++		b = a % 1
++		u16test(a, b, 1)
++		b = a % 2
++		u16test(a, b, 2)
++		b = a % 3
++		u16test(a, b, 3)
++		b = a % 4
++		u16test(a, b, 4)
++		b = a % 5
++		u16test(a, b, 5)
++		b = a % 6
++		u16test(a, b, 6)
++		b = a % 7
++		u16test(a, b, 7)
++		b = a % 8
++		u16test(a, b, 8)
++		b = a % 10
++		u16test(a, b, 10)
++		b = a % 16
++		u16test(a, b, 16)
++		b = a % 20
++		u16test(a, b, 20)
++		b = a % 32
++		u16test(a, b, 32)
++		b = a % 60
++		u16test(a, b, 60)
++		b = a % 64
++		u16test(a, b, 64)
++		b = a % 128
++		u16test(a, b, 128)
++		b = a % 256
++		u16test(a, b, 256)
++		b = a % 16384
++		u16test(a, b, 16384)
+ 	}
+ }
+ 
+-func
+-i8rand() int8 {
++func i8rand() int8 {
+ 	for {
+-		a := int8(rand.Uint32());
+-		a >>= uint(rand.Intn(8));
++		a := int8(rand.Uint32())
++		a >>= uint(rand.Intn(8))
+ 		if -a != a {
+-			return a;
++			return a
+ 		}
+ 	}
+-	return 0;	// impossible
++	return 0 // impossible
+ }
+ 
+-func
+-i8test(a,b,c int8) {
+-	d := a%c;
++func i8test(a, b, c int8) {
++	d := a % c
+ 	if d != b {
+-		panicln("i8", a, b, c, d);
++		println("i8", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-i8run() {
+-	var a, b int8;
+-
+-	for i:=0; i<Count; i++ {
+-		a = i8rand();
+-
+-		b = a%1;	i8test(a,b,1);
+-		b = a%2;	i8test(a,b,2);
+-		b = a%3;	i8test(a,b,3);
+-		b = a%4;	i8test(a,b,4);
+-		b = a%5;	i8test(a,b,5);
+-		b = a%6;	i8test(a,b,6);
+-		b = a%7;	i8test(a,b,7);
+-		b = a%8;	i8test(a,b,8);
+-		b = a%10;	i8test(a,b,10);
+-		b = a%8;	i8test(a,b,8);
+-		b = a%20;	i8test(a,b,20);
+-		b = a%32;	i8test(a,b,32);
+-		b = a%60;	i8test(a,b,60);
+-		b = a%64;	i8test(a,b,64);
+-		b = a%127;	i8test(a,b,127);
+-
+-		b = a%-1;	i8test(a,b,-1);
+-		b = a%-2;	i8test(a,b,-2);
+-		b = a%-3;	i8test(a,b,-3);
+-		b = a%-4;	i8test(a,b,-4);
+-		b = a%-5;	i8test(a,b,-5);
+-		b = a%-6;	i8test(a,b,-6);
+-		b = a%-7;	i8test(a,b,-7);
+-		b = a%-8;	i8test(a,b,-8);
+-		b = a%-10;	i8test(a,b,-10);
+-		b = a%-8;	i8test(a,b,-8);
+-		b = a%-20;	i8test(a,b,-20);
+-		b = a%-32;	i8test(a,b,-32);
+-		b = a%-60;	i8test(a,b,-60);
+-		b = a%-64;	i8test(a,b,-64);
+-		b = a%-128;	i8test(a,b,-128);
+-		b = a%-101;	i8test(a,b,-101);
++func i8run() {
++	var a, b int8
++
++	for i := 0; i < Count; i++ {
++		a = i8rand()
++
++		b = a % 1
++		i8test(a, b, 1)
++		b = a % 2
++		i8test(a, b, 2)
++		b = a % 3
++		i8test(a, b, 3)
++		b = a % 4
++		i8test(a, b, 4)
++		b = a % 5
++		i8test(a, b, 5)
++		b = a % 6
++		i8test(a, b, 6)
++		b = a % 7
++		i8test(a, b, 7)
++		b = a % 8
++		i8test(a, b, 8)
++		b = a % 10
++		i8test(a, b, 10)
++		b = a % 8
++		i8test(a, b, 8)
++		b = a % 20
++		i8test(a, b, 20)
++		b = a % 32
++		i8test(a, b, 32)
++		b = a % 60
++		i8test(a, b, 60)
++		b = a % 64
++		i8test(a, b, 64)
++		b = a % 127
++		i8test(a, b, 127)
++
++		b = a % -1
++		i8test(a, b, -1)
++		b = a % -2
++		i8test(a, b, -2)
++		b = a % -3
++		i8test(a, b, -3)
++		b = a % -4
++		i8test(a, b, -4)
++		b = a % -5
++		i8test(a, b, -5)
++		b = a % -6
++		i8test(a, b, -6)
++		b = a % -7
++		i8test(a, b, -7)
++		b = a % -8
++		i8test(a, b, -8)
++		b = a % -10
++		i8test(a, b, -10)
++		b = a % -8
++		i8test(a, b, -8)
++		b = a % -20
++		i8test(a, b, -20)
++		b = a % -32
++		i8test(a, b, -32)
++		b = a % -60
++		i8test(a, b, -60)
++		b = a % -64
++		i8test(a, b, -64)
++		b = a % -128
++		i8test(a, b, -128)
++		b = a % -101
++		i8test(a, b, -101)
+ 	}
+ }
+ 
+-func
+-u8rand() uint8 {
+-	a := uint8(rand.Uint32());
+-	a >>= uint(rand.Intn(8));
+-	return a;
++func u8rand() uint8 {
++	a := uint8(rand.Uint32())
++	a >>= uint(rand.Intn(8))
++	return a
+ }
+ 
+-func
+-u8test(a,b,c uint8) {
+-	d := a%c;
++func u8test(a, b, c uint8) {
++	d := a % c
+ 	if d != b {
+-		panicln("u8", a, b, c, d);
++		println("u8", a, b, c, d)
++		panic("fail")
+ 	}
+ }
+ 
+-func
+-u8run() {
+-	var a, b uint8;
+-
+-	for i:=0; i<Count; i++ {
+-		a = u8rand();
+-
+-		b = a%1;	u8test(a,b,1);
+-		b = a%2;	u8test(a,b,2);
+-		b = a%3;	u8test(a,b,3);
+-		b = a%4;	u8test(a,b,4);
+-		b = a%5;	u8test(a,b,5);
+-		b = a%6;	u8test(a,b,6);
+-		b = a%7;	u8test(a,b,7);
+-		b = a%8;	u8test(a,b,8);
+-		b = a%10;	u8test(a,b,10);
+-		b = a%8;	u8test(a,b,8);
+-		b = a%20;	u8test(a,b,20);
+-		b = a%32;	u8test(a,b,32);
+-		b = a%60;	u8test(a,b,60);
+-		b = a%64;	u8test(a,b,64);
+-		b = a%127;	u8test(a,b,127);
++func u8run() {
++	var a, b uint8
++
++	for i := 0; i < Count; i++ {
++		a = u8rand()
++
++		b = a % 1
++		u8test(a, b, 1)
++		b = a % 2
++		u8test(a, b, 2)
++		b = a % 3
++		u8test(a, b, 3)
++		b = a % 4
++		u8test(a, b, 4)
++		b = a % 5
++		u8test(a, b, 5)
++		b = a % 6
++		u8test(a, b, 6)
++		b = a % 7
++		u8test(a, b, 7)
++		b = a % 8
++		u8test(a, b, 8)
++		b = a % 10
++		u8test(a, b, 10)
++		b = a % 8
++		u8test(a, b, 8)
++		b = a % 20
++		u8test(a, b, 20)
++		b = a % 32
++		u8test(a, b, 32)
++		b = a % 60
++		u8test(a, b, 60)
++		b = a % 64
++		u8test(a, b, 64)
++		b = a % 127
++		u8test(a, b, 127)
+ 	}
+ }
+ 
+-func
+-main() {
+-	xtest();
+-	i64run();
+-	u64run();
+-	i32run();
+-	u32run();
+-	i16run();
+-	u16run();
+-	i8run();
+-	u8run();
++func main() {
++	xtest()
++	i64run()
++	u64run()
++	i32run()
++	u32run()
++	i16run()
++	u16run()
++	i8run()
++	u8run()
+ }
+ 
+-func
+-xtest() {
++func xtest() {
+ }
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 8da830247c..9535fd497d 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -6,105 +6,114 @@
+ 
+ package main
+ 
+-const	size	= 16;
++const size = 16
+ 
+-var	a	[size]byte;
+-var	p	[]byte;
+-var	m	map[int]byte;
++var a [size]byte
++var p []byte
++var m map[int]byte
+ 
+-func
+-f(k int) byte {
+-	return byte(k*10007 % size);
++func f(k int) byte {
++	return byte(k * 10007 % size)
+ }
+ 
+-func
+-init() {
+-	p = make([]byte, size);
+-	m = make(map[int]byte);
+-	for k:=0; k<size; k++ {
+-		v := f(k);
+-		a[k] = v;
+-		p[k] = v;
+-		m[k] = v;
++func init() {
++	p = make([]byte, size)
++	m = make(map[int]byte)
++	for k := 0; k < size; k++ {
++		v := f(k)
++		a[k] = v
++		p[k] = v
++		m[k] = v
+ 	}
+ }
+ 
+-func
+-main() {
+-	var i int;
++func main() {
++	var i int
+ 
+ 	/*
+ 	 * key only
+ 	 */
+-	i = 0;
++	i = 0
+ 	for k := range a {
+-		v := a[k];
++		v := a[k]
+ 		if v != f(k) {
+-			panicln("key array range", k, v, a[k]);
++			println("key array range", k, v, a[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key array size", i);
++		println("key array size", i)
++		panic("fail")
+ 	}
+ 
+-	i = 0;
++	i = 0
+ 	for k := range p {
+-		v := p[k];
++		v := p[k]
+ 		if v != f(k) {
+-			panicln("key pointer range", k, v, p[k]);
++			println("key pointer range", k, v, p[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key pointer size", i);
++		println("key pointer size", i)
++		panic("fail")
+ 	}
+ 
+-	i = 0;
++	i = 0
+ 	for k := range m {
+-		v := m[k];
++		v := m[k]
+ 		if v != f(k) {
+-			panicln("key map range", k, v, m[k]);
++			println("key map range", k, v, m[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key map size", i);
++		println("key map size", i)
++		panic("fail")
+ 	}
+ 
+ 	/*
+ 	 * key,value
+ 	 */
+-	i = 0;
+-	for k,v := range a {
++	i = 0
++	for k, v := range a {
+ 		if v != f(k) {
+-			panicln("key:value array range", k, v, a[k]);
++			println("key:value array range", k, v, a[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key:value array size", i);
++		println("key:value array size", i)
++		panic("fail")
+ 	}
+ 
+-	i = 0;
+-	for k,v := range p {
++	i = 0
++	for k, v := range p {
+ 		if v != f(k) {
+-			panicln("key:value pointer range", k, v, p[k]);
++			println("key:value pointer range", k, v, p[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key:value pointer size", i);
++		println("key:value pointer size", i)
++		panic("fail")
+ 	}
+ 
+-	i = 0;
+-	for k,v := range m {
++	i = 0
++	for k, v := range m {
+ 		if v != f(k) {
+-			panicln("key:value map range", k, v, m[k]);
++			println("key:value map range", k, v, m[k])
++			panic("fail")
+ 		}
+-		i++;
++		i++
+ 	}
+ 	if i != size {
+-		panicln("key:value map size", i);
++		println("key:value map size", i)
++		panic("fail")
+ 	}
+ }
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index f24c7fc9c2..76ec809310 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -6,131 +6,185 @@
+ 
+ package main
+ 
+-var	bx	[10]byte
+-var	by	[]byte;
+-var	fx	[10]float
+-var	fy	[]float;
+-var	lb,hb	int
+-var	t	int
+-
+-func
+-main() {
+-	lb = 0; hb = 10;
+-	by = &bx; tstb();
+-
+-	lb = 0; hb = 10;
+-	fy = &fx; tstf();
++var bx [10]byte
++var by []byte
++var fx [10]float
++var fy []float
++var lb, hb int
++var t int
++
++func main() {
++	lb = 0
++	hb = 10
++	by = &bx
++	tstb()
++
++	lb = 0
++	hb = 10
++	fy = &fx
++	tstf()
+ 
+ 	// width 1 (byte)
+-	lb = 0; hb = 10;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:10]; tstb();
+-	by = bx[lb:]; tstb();
+-	by = bx[0:hb]; tstb();
+-	by = bx[0:10]; tstb();
+-	by = bx[0:]; tstb();
+-
+-	lb = 2; hb = 10;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:10]; tstb();
+-	by = bx[lb:]; tstb();
+-	by = bx[2:hb]; tstb();
+-	by = bx[2:10]; tstb();
+-	by = bx[2:]; tstb();
+-
+-	lb = 0; hb = 8;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:8]; tstb();
+-	by = bx[0:hb]; tstb();
+-	by = bx[0:8]; tstb();
+-
+-	lb = 2; hb = 8;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:8]; tstb();
+-	by = bx[2:hb]; tstb();
+-	by = bx[2:8]; tstb();
++	lb = 0
++	hb = 10
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:10]
++	tstb()
++	by = bx[lb:]
++	tstb()
++	by = bx[0:hb]
++	tstb()
++	by = bx[0:10]
++	tstb()
++	by = bx[0:]
++	tstb()
++
++	lb = 2
++	hb = 10
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:10]
++	tstb()
++	by = bx[lb:]
++	tstb()
++	by = bx[2:hb]
++	tstb()
++	by = bx[2:10]
++	tstb()
++	by = bx[2:]
++	tstb()
++
++	lb = 0
++	hb = 8
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:8]
++	tstb()
++	by = bx[0:hb]
++	tstb()
++	by = bx[0:8]
++	tstb()
++
++	lb = 2
++	hb = 8
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:8]
++	tstb()
++	by = bx[2:hb]
++	tstb()
++	by = bx[2:8]
++	tstb()
+ 
+ 	// width 4 (float)
+-	lb = 0; hb = 10;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:10]; tstf();
+-	fy = fx[lb:]; tstf();
+-	fy = fx[0:hb]; tstf();
+-	fy = fx[0:10]; tstf();
+-	fy = fx[0:]; tstf();
+-
+-	lb = 2; hb = 10;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:10]; tstf();
+-	fy = fx[lb:]; tstf();
+-	fy = fx[2:hb]; tstf();
+-	fy = fx[2:10]; tstf();
+-	fy = fx[2:]; tstf();
+-
+-	lb = 0; hb = 8;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:8]; tstf();
+-	fy = fx[0:hb]; tstf();
+-	fy = fx[0:8]; tstf();
+-
+-	lb = 2; hb = 8;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:8]; tstf();
+-	fy = fx[2:hb]; tstf();
+-	fy = fx[2:8]; tstf();
++	lb = 0
++	hb = 10
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:10]
++	tstf()
++	fy = fx[lb:]
++	tstf()
++	fy = fx[0:hb]
++	tstf()
++	fy = fx[0:10]
++	tstf()
++	fy = fx[0:]
++	tstf()
++
++	lb = 2
++	hb = 10
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:10]
++	tstf()
++	fy = fx[lb:]
++	tstf()
++	fy = fx[2:hb]
++	tstf()
++	fy = fx[2:10]
++	tstf()
++	fy = fx[2:]
++	tstf()
++
++	lb = 0
++	hb = 8
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:8]
++	tstf()
++	fy = fx[0:hb]
++	tstf()
++	fy = fx[0:8]
++	tstf()
++
++	lb = 2
++	hb = 8
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:8]
++	tstf()
++	fy = fx[2:hb]
++	tstf()
++	fy = fx[2:8]
++	tstf()
+ }
+ 
+-func
+-tstb() {
+-	t++;
++func tstb() {
++	t++
+ 	if len(by) != hb-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"len=", len(by), "hb-lb=", hb-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"len=", len(by), "hb-lb=", hb-lb)
++		panic("fail")
+ 	}
+ 	if cap(by) != len(bx)-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"cap=", cap(by), "len(bx)-lb=", len(bx)-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"cap=", cap(by), "len(bx)-lb=", len(bx)-lb)
++		panic("fail")
+ 	}
+-	for i:=lb; i<hb; i++ {
++	for i := lb; i < hb; i++ {
+ 		if bx[i] != by[i-lb] {
+-			panicln("t=", t, "lb=", lb, "hb=", hb,
++			println("t=", t, "lb=", lb, "hb=", hb,
+ 				"bx[", i, "]=", bx[i],
+-				"by[", i-lb, "]=", by[i-lb]);
++				"by[", i-lb, "]=", by[i-lb])
++			panic("fail")
+ 		}
+ 	}
+-	by = nil;
++	by = nil
+ }
+ 
+-func
+-tstf() {
+-	t++;
++func tstf() {
++	t++
+ 	if len(fy) != hb-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"len=", len(fy), "hb-lb=", hb-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"len=", len(fy), "hb-lb=", hb-lb)
++		panic("fail")
+ 	}
+ 	if cap(fy) != len(fx)-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"cap=", cap(fy), "len(fx)-lb=", len(fx)-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"cap=", cap(fy), "len(fx)-lb=", len(fx)-lb)
++		panic("fail")
+ 	}
+-	for i:=lb; i<hb; i++ {
++	for i := lb; i < hb; i++ {
+ 		if fx[i] != fy[i-lb] {
+-			panicln("t=", t, "lb=", lb, "hb=", hb,
++			println("t=", t, "lb=", lb, "hb=", hb,
+ 				"fx[", i, "]=", fx[i],
+-				"fy[", i-lb, "]=", fy[i-lb]);
++				"fy[", i-lb, "]=", fy[i-lb])
++			panic("fail")
+ 		}
+ 	}
+-	fy = nil;
++	fy = nil
+ }
+ 
+-func
+-init() {
+-	for i:=0; i<len(bx); i++ {
+-		bx[i] = byte(i+20);
++func init() {
++	for i := 0; i < len(bx); i++ {
++		bx[i] = byte(i + 20)
+ 	}
+-	by = nil;
++	by = nil
+ 
+-	for i:=0; i<len(fx); i++ {
+-		fx[i] = float(i+20);
++	for i := 0; i < len(fx); i++ {
++		fx[i] = float(i + 20)
+ 	}
+-	fy = nil;
++	fy = nil
+ }
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index 7b38082bb6..7e7f1b4aca 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -6,128 +6,178 @@
+ 
+ package main
+ 
+-var	bx	[]byte
+-var	by	[]byte;
+-var	fx	[]float
+-var	fy	[]float;
+-var	lb,hb	int
+-var	t	int
++var bx []byte
++var by []byte
++var fx []float
++var fy []float
++var lb, hb int
++var t int
+ 
+-func
+-main() {
++func main() {
+ 
+ 	// width 1 (byte)
+-	lb = 0; hb = 10;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:10]; tstb();
+-	by = bx[lb:]; tstb();
+-	by = bx[0:hb]; tstb();
+-	by = bx[0:10]; tstb();
+-	by = bx[0:]; tstb();
+-
+-	lb = 2; hb = 10;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:10]; tstb();
+-	by = bx[lb:]; tstb();
+-	by = bx[2:hb]; tstb();
+-	by = bx[2:10]; tstb();
+-	by = bx[2:]; tstb();
+-
+-	lb = 0; hb = 8;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:8]; tstb();
+-	by = bx[0:hb]; tstb();
+-	by = bx[0:8]; tstb();
+-
+-	lb = 2; hb = 8;
+-	by = bx[lb:hb]; tstb();
+-	by = bx[lb:8]; tstb();
+-	by = bx[2:hb]; tstb();
+-	by = bx[2:8]; tstb();
++	lb = 0
++	hb = 10
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:10]
++	tstb()
++	by = bx[lb:]
++	tstb()
++	by = bx[0:hb]
++	tstb()
++	by = bx[0:10]
++	tstb()
++	by = bx[0:]
++	tstb()
++
++	lb = 2
++	hb = 10
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:10]
++	tstb()
++	by = bx[lb:]
++	tstb()
++	by = bx[2:hb]
++	tstb()
++	by = bx[2:10]
++	tstb()
++	by = bx[2:]
++	tstb()
++
++	lb = 0
++	hb = 8
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:8]
++	tstb()
++	by = bx[0:hb]
++	tstb()
++	by = bx[0:8]
++	tstb()
++
++	lb = 2
++	hb = 8
++	by = bx[lb:hb]
++	tstb()
++	by = bx[lb:8]
++	tstb()
++	by = bx[2:hb]
++	tstb()
++	by = bx[2:8]
++	tstb()
+ 
+ 	// width 4 (float)
+-	lb = 0; hb = 10;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:10]; tstf();
+-	fy = fx[lb:]; tstf();
+-	fy = fx[0:hb]; tstf();
+-	fy = fx[0:10]; tstf();
+-	fy = fx[0:]; tstf();
+-
+-	lb = 2; hb = 10;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:10]; tstf();
+-	fy = fx[lb:]; tstf();
+-	fy = fx[2:hb]; tstf();
+-	fy = fx[2:10]; tstf();
+-	fy = fx[2:]; tstf();
+-
+-	lb = 0; hb = 8;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:8]; tstf();
+-	fy = fx[0:hb]; tstf();
+-	fy = fx[0:8]; tstf();
+-
+-	lb = 2; hb = 8;
+-	fy = fx[lb:hb]; tstf();
+-	fy = fx[lb:8]; tstf();
+-	fy = fx[2:hb]; tstf();
+-	fy = fx[2:8]; tstf();
++	lb = 0
++	hb = 10
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:10]
++	tstf()
++	fy = fx[lb:]
++	tstf()
++	fy = fx[0:hb]
++	tstf()
++	fy = fx[0:10]
++	tstf()
++	fy = fx[0:]
++	tstf()
++
++	lb = 2
++	hb = 10
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:10]
++	tstf()
++	fy = fx[lb:]
++	tstf()
++	fy = fx[2:hb]
++	tstf()
++	fy = fx[2:10]
++	tstf()
++	fy = fx[2:]
++	tstf()
++
++	lb = 0
++	hb = 8
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:8]
++	tstf()
++	fy = fx[0:hb]
++	tstf()
++	fy = fx[0:8]
++	tstf()
++
++	lb = 2
++	hb = 8
++	fy = fx[lb:hb]
++	tstf()
++	fy = fx[lb:8]
++	tstf()
++	fy = fx[2:hb]
++	tstf()
++	fy = fx[2:8]
++	tstf()
+ }
+ 
+-func
+-tstb() {
+-	t++;
++func tstb() {
++	t++
+ 	if len(by) != hb-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"len=", len(by), "hb-lb=", hb-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"len=", len(by), "hb-lb=", hb-lb)
++		panic("fail")
+ 	}
+ 	if cap(by) != len(bx)-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"cap=", cap(by), "len(bx)-lb=", len(bx)-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"cap=", cap(by), "len(bx)-lb=", len(bx)-lb)
++		panic("fail")
+ 	}
+-	for i:=lb; i<hb; i++ {
++	for i := lb; i < hb; i++ {
+ 		if bx[i] != by[i-lb] {
+-			panicln("t=", t, "lb=", lb, "hb=", hb,
++			println("t=", t, "lb=", lb, "hb=", hb,
+ 				"bx[", i, "]=", bx[i],
+-				"by[", i-lb, "]=", by[i-lb]);
++				"by[", i-lb, "]=", by[i-lb])
++			panic("fail")
+ 		}
+ 	}
+-	by = nil;
++	by = nil
+ }
+ 
+-func
+-tstf() {
+-	t++;
++func tstf() {
++	t++
+ 	if len(fy) != hb-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"len=", len(fy), "hb-lb=", hb-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"len=", len(fy), "hb-lb=", hb-lb)
++		panic("fail")
+ 	}
+ 	if cap(fy) != len(fx)-lb {
+-		panicln("t=", t, "lb=", lb, "hb=", hb,
+-			"cap=", cap(fy), "len(fx)-lb=", len(fx)-lb);
++		println("t=", t, "lb=", lb, "hb=", hb,
++			"cap=", cap(fy), "len(fx)-lb=", len(fx)-lb)
++		panic("fail")
+ 	}
+-	for i:=lb; i<hb; i++ {
++	for i := lb; i < hb; i++ {
+ 		if fx[i] != fy[i-lb] {
+-			panicln("t=", t, "lb=", lb, "hb=", hb,
++			println("t=", t, "lb=", lb, "hb=", hb,
+ 				"fx[", i, "]=", fx[i],
+-				"fy[", i-lb, "]=", fy[i-lb]);
++				"fy[", i-lb, "]=", fy[i-lb])
++			panic("fail")
+ 		}
+ 	}
+-	fy = nil;
++	fy = nil
+ }
+ 
+-func
+-init() {
+-	bx = make([]byte, 10);
+-	for i:=0; i<len(bx); i++ {
+-		bx[i] = byte(i+20);
++func init() {
++	bx = make([]byte, 10)
++	for i := 0; i < len(bx); i++ {
++		bx[i] = byte(i + 20)
+ 	}
+-	by = nil;
++	by = nil
+ 
+-	fx = make([]float, 10);
+-	for i:=0; i<len(fx); i++ {
+-		fx[i] = float(i+20);
++	fx = make([]float, 10)
++	for i := 0; i < len(fx); i++ {
++		fx[i] = float(i + 20)
+ 	}
+-	fy = nil;
++	fy = nil
+ }
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index 4c832583e0..918b806337 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -27,14 +27,16 @@ var final [N]int
+ 
+ func finalA(a *A) {
+ 	if final[a.n] != 0 {
+-		panicln("finalA", a.n, final[a.n])
++		println("finalA", a.n, final[a.n])
++		panic("fail")
+ 	}
+ 	final[a.n] = 1
+ }
+ 
+ func finalB(b *B) {
+ 	if final[b.n] != 1 {
+-		panicln("finalB", b.n, final[b.n])
++		println("finalB", b.n, final[b.n])
++		panic("fail")
+ 	}
+ 	final[b.n] = 2
+ 	nfinal++
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index 8129926da5..bb43e2d46a 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -27,7 +27,8 @@ func bigger() {
+ 			println("Footprint", footprint, " for ", allocated)
+ 		}
+ 		if footprint > 1e9 {
+-			panicln("too big")
++			println("too big")
++			panic("fail")
+ 		}
+ 	}
+ }
+@@ -77,7 +78,8 @@ func main() {
+ 		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
+ 		//	obj, size, ref, ok := allocator.find(ptr);
+ 		//	if obj != base || *ref != 0 || !ok {
+-		//		panicln("find", siz, obj, ref, ok);
++		//		println("find", siz, obj, ref, ok)
++		//		panic("fail")
+ 		//	}
+ 		blocks[b].base = base
+ 		blocks[b].siz = siz
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index ab49aae880..e7f3f06f4e 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -24,7 +24,8 @@ func bigger() {
+ 			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes")
+ 		}
+ 		if st.Sys > 1e9 {
+-			panicln("too big")
++			println("too big")
++			panic("fail")
+ 		}
+ 	}
+ }
+@@ -39,7 +40,8 @@ func main() {
+ 				println("First alloc:", j)
+ 			}
+ 			if a := runtime.MemStats.Alloc; a != 0 {
+-				panicln("no allocations but stats report", a, "bytes allocated")
++				println("no allocations but stats report", a, "bytes allocated")
++				panic("fail")
+ 			}
+ 			b := runtime.Alloc(uintptr(j))
+ 			during := runtime.MemStats.Alloc
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 99cdcfb85f..eb67bed86b 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -47,10 +47,12 @@ func AllocAndFree(size, count int) {
+ 		b[i] = runtime.Alloc(uintptr(size))
+ 		base, n := runtime.Lookup(b[i])
+ 		if base != b[i] || !OkAmount(uintptr(size), n) {
+-			panicln("lookup failed: got", base, n, "for", b[i])
++			println("lookup failed: got", base, n, "for", b[i])
++			panic("fail")
+ 		}
+ 		if runtime.MemStats.Sys > 1e9 {
+-			panicln("too much memory allocated")
++			println("too much memory allocated")
++			panic("fail")
+ 		}
+ 	}
+ 	n2 := stats.Alloc
+@@ -66,14 +68,17 @@ func AllocAndFree(size, count int) {
+ 		alloc := uintptr(stats.Alloc)
+ 		base, n := runtime.Lookup(b[i])
+ 		if base != b[i] || !OkAmount(uintptr(size), n) {
+-			panicln("lookup failed: got", base, n, "for", b[i])
++			println("lookup failed: got", base, n, "for", b[i])
++			panic("fail")
+ 		}
+ 		runtime.Free(b[i])
+ 		if stats.Alloc != uint64(alloc-n) {
+-			panicln("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
++			println("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
++			panic("fail")
+ 		}
+ 		if runtime.MemStats.Sys > 1e9 {
+-			panicln("too much memory allocated")
++			println("too much memory allocated")
++			panic("fail")
+ 		}
+ 	}
+ 	n4 := stats.Alloc
+@@ -82,7 +87,8 @@ func AllocAndFree(size, count int) {
+ 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
+ 	}
+ 	if n2-n1 != n3-n4 {
+-		panicln("wrong alloc count: ", n2-n1, n3-n4)
++		println("wrong alloc count: ", n2-n1, n3-n4)
++		panic("fail")
+ 	}
+ }
+ 
+diff --git a/test/method.go b/test/method.go
+index 4d58a5de66..c751c1f1b5 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -10,12 +10,14 @@ type S string
+ type S1 string
+ type I int
+ type I1 int
+-type T struct { x int }
++type T struct {
++	x int
++}
+ type T1 T
+ 
+-func (s S) val() int { return 1 }
++func (s S) val() int   { return 1 }
+ func (s *S1) val() int { return 2 }
+-func (i I) val() int { return 3 }
++func (i I) val() int   { return 3 }
+ func (i *I1) val() int { return 4 }
+ //func (t T) val() int { return 7 }
+ func (t *T1) val() int { return 8 }
+@@ -24,37 +26,86 @@ type Val interface {
+ 	val() int
+ }
+ 
+-func val(v Val) int {
+-	return v.val()
+-}
++func val(v Val) int { return v.val() }
+ 
+ func main() {
+-	var s S;
+-	var ps *S1;
+-	var i I;
+-	var pi *I1;
+-	var pt *T1;
+-
+-	if s.val() != 1 { panicln("s.val:", s.val()) }
+-	if S.val(s) != 1 { panicln("S.val(s):", S.val(s)) }
+-	if (*S).val(&s) != 1 { panicln("(*S).val(s):", (*S).val(&s)) }
+-	if ps.val() != 2 { panicln("ps.val:", ps.val()) }
+-	if (*S1).val(ps) != 2 { panicln("(*S1).val(ps):", (*S1).val(ps)) }
+-	if i.val() != 3 { panicln("i.val:", i.val()) }
+-	if I.val(i) != 3 { panicln("I.val(i):", I.val(i)) }
+-	if (*I).val(&i) != 3 { panicln("(*I).val(&i):", (*I).val(&i)) }
+-	if pi.val() != 4 { panicln("pi.val:", pi.val()) }
+-	if (*I1).val(pi) != 4 { panicln("(*I1).val(pi):", (*I1).val(pi)) }
+-//	if t.val() != 7 { panicln("t.val:", t.val()) }
+-	if pt.val() != 8 { panicln("pt.val:", pt.val()) }
+-	if (*T1).val(pt) != 8 { panicln("(*T1).val(pt):", (*T1).val(pt)) }
+-
+-	if val(s) != 1 { panicln("s.val:", val(s)) }
+-	if val(ps) != 2 { panicln("ps.val:", val(ps)) }
+-	if val(i) != 3 { panicln("i.val:", val(i)) }
+-	if val(pi) != 4 { panicln("pi.val:", val(pi)) }
+-//	if val(t) != 7 { panicln("t.val:", val(t)) }
+-	if val(pt) != 8 { panicln("pt.val:", val(pt)) }
+-	
+-//	if Val.val(i) != 3 { panicln("Val.val(i):", Val.val(i)) }
++	var s S
++	var ps *S1
++	var i I
++	var pi *I1
++	var pt *T1
++
++	if s.val() != 1 {
++		println("s.val:", s.val())
++		panic("fail")
++	}
++	if S.val(s) != 1 {
++		println("S.val(s):", S.val(s))
++		panic("fail")
++	}
++	if (*S).val(&s) != 1 {
++		println("(*S).val(s):", (*S).val(&s))
++		panic("fail")
++	}
++	if ps.val() != 2 {
++		println("ps.val:", ps.val())
++		panic("fail")
++	}
++	if (*S1).val(ps) != 2 {
++		println("(*S1).val(ps):", (*S1).val(ps))
++		panic("fail")
++	}
++	if i.val() != 3 {
++		println("i.val:", i.val())
++		panic("fail")
++	}
++	if I.val(i) != 3 {
++		println("I.val(i):", I.val(i))
++		panic("fail")
++	}
++	if (*I).val(&i) != 3 {
++		println("(*I).val(&i):", (*I).val(&i))
++		panic("fail")
++	}
++	if pi.val() != 4 {
++		println("pi.val:", pi.val())
++		panic("fail")
++	}
++	if (*I1).val(pi) != 4 {
++		println("(*I1).val(pi):", (*I1).val(pi))
++		panic("fail")
++	}
++	//	if t.val() != 7 { prinln("t.val:", t.val()); panic("fail") }
++	if pt.val() != 8 {
++		println("pt.val:", pt.val())
++		panic("fail")
++	}
++	if (*T1).val(pt) != 8 {
++		println("(*T1).val(pt):", (*T1).val(pt))
++		panic("fail")
++	}
++
++	if val(s) != 1 {
++		println("s.val:", val(s))
++		panic("fail")
++	}
++	if val(ps) != 2 {
++		println("ps.val:", val(ps))
++		panic("fail")
++	}
++	if val(i) != 3 {
++		println("i.val:", val(i))
++		panic("fail")
++	}
++	if val(pi) != 4 {
++		println("pi.val:", val(pi))
++		panic("fail")
++	}
++	//	if val(t) != 7 { println("t.val:", val(t)); panic("fail") }
++	if val(pt) != 8 {
++		println("pt.val:", val(pt))
++		panic("fail")
++	}
++
++	//	if Val.val(i) != 3 { println("Val.val(i):", Val.val(i)); panic("fail") }
+ }
+diff --git a/test/method3.go b/test/method3.go
+index 20ced1eb23..7946a87502 100644
+--- a/test/method3.go
++++ b/test/method3.go
+@@ -8,7 +8,8 @@
+ 
+ package main
+ 
+-type T [] int
++type T []int
++
+ func (t T) Len() int { return len(t) }
+ 
+ type I interface {
+@@ -16,16 +17,19 @@ type I interface {
+ }
+ 
+ func main() {
+-	var t T = T{0,1,2,3,4};
+-	var i I;
+-	i = t;
++	var t T = T{0, 1, 2, 3, 4}
++	var i I
++	i = t
+ 	if i.Len() != 5 {
+-		panicln("i.Len", i.Len());
++		println("i.Len", i.Len())
++		panic("fail")
+ 	}
+ 	if T.Len(t) != 5 {
+-		panicln("T.Len", T.Len(t));
++		println("T.Len", T.Len(t))
++		panic("fail")
+ 	}
+ 	if (*T).Len(&t) != 5 {
+-		panicln("(*T).Len", (*T).Len(&t));
++		println("(*T).Len", (*T).Len(&t))
++		panic("fail")
+ 	}
+ }
+diff --git a/test/range.go b/test/range.go
+index 48237a715e..9093d714bc 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -10,46 +10,50 @@ package main
+ 
+ func gen(c chan int, lo, hi int) {
+ 	for i := lo; i <= hi; i++ {
+-		c <- i;
++		c <- i
+ 	}
+-	close(c);
++	close(c)
+ }
+ 
+ func seq(lo, hi int) chan int {
+-	c := make(chan int);
+-	go gen(c, lo, hi);
+-	return c;
++	c := make(chan int)
++	go gen(c, lo, hi)
++	return c
+ }
+ 
+ func testchan() {
+-	s := "";
++	s := ""
+ 	for i := range seq('a', 'z') {
+-		s += string(i);
++		s += string(i)
+ 	}
+ 	if s != "abcdefghijklmnopqrstuvwxyz" {
+-		panicln("Wanted lowercase alphabet; got", s);
++		println("Wanted lowercase alphabet; got", s)
++		panic("fail")
+ 	}
+ }
+ 
+ // test that range over array only evaluates
+ // the expression after "range" once.
+ 
+-var nmake = 0;
++var nmake = 0
++
+ func makearray() []int {
+-	nmake++;
+-	return []int{1,2,3,4,5};
++	nmake++
++	return []int{1, 2, 3, 4, 5}
+ }
+ 
+ func testarray() {
+-	s := 0;
++	s := 0
+ 	for _, v := range makearray() {
+-		s += v;
++		s += v
+ 	}
+ 	if nmake != 1 {
+-		panicln("range called makearray", nmake, "times");
++		println("range called makearray", nmake, "times")
++		panic("fail")
+ 	}
+ 	if s != 15 {
+-		panicln("wrong sum ranging over makearray");
++		println("wrong sum ranging over makearray")
++		panic("fail")
+ 	}
+ }
+ 
+@@ -57,6 +61,7 @@ func testarray() {
+ // exactly once per iteration.
+ 
+ var ncalls = 0
++
+ func getvar(p *int) *int {
+ 	ncalls++
+ 	return p
+@@ -71,23 +76,27 @@ func testcalls() {
+ 		sv += v
+ 	}
+ 	if ncalls != 4 {
+-		panicln("wrong number of calls:", ncalls, "!= 4")
++		println("wrong number of calls:", ncalls, "!= 4")
++		panic("fail")
+ 	}
+ 	if si != 1 || sv != 3 {
+-		panicln("wrong sum in testcalls", si, sv)
++		println("wrong sum in testcalls", si, sv)
++		panic("fail")
+ 	}
+ 
+ 	ncalls = 0
+ 	for *getvar(&i), *getvar(&v) = range [0]int{} {
+-		panicln("loop ran on empty array")
++		println("loop ran on empty array")
++		panic("fail")
+ 	}
+ 	if ncalls != 0 {
+-		panicln("wrong number of calls:", ncalls, "!= 0")
++		println("wrong number of calls:", ncalls, "!= 0")
++		panic("fail")
+ 	}
+ }
+ 
+ func main() {
+-	testchan();
+-	testarray();
+-	testcalls();
++	testchan()
++	testarray()
++	testcalls()
+ }
+diff --git a/test/rename.go b/test/rename.go
+index 8d5441375c..f21ef015b2 100644
+--- a/test/rename.go
++++ b/test/rename.go
+@@ -11,65 +11,63 @@ import "fmt"
+ func main() {
+ 	n :=
+ 		bool +
+-		byte +
+-		float +
+-		float32 +
+-		float64 + 
+-		int +
+-		int8 +
+-		int16 +
+-		int32 +
+-		int64 +
+-		uint +
+-		uint8 +
+-		uint16 +
+-		uint32 +
+-		uint64 +
+-		uintptr +
+-		true +
+-		false +
+-		iota +
+-		nil + 
+-		cap +
+-		len +
+-		make +
+-		new +
+-		panic +
+-		panicln +
+-		print +
+-		println;
+-	if n != 28*29/2 {
+-		fmt.Println("BUG: wrong n", n, 28*29/2)
++			byte +
++			float +
++			float32 +
++			float64 +
++			int +
++			int8 +
++			int16 +
++			int32 +
++			int64 +
++			uint +
++			uint8 +
++			uint16 +
++			uint32 +
++			uint64 +
++			uintptr +
++			true +
++			false +
++			iota +
++			nil +
++			cap +
++			len +
++			make +
++			new +
++			panic +
++			print +
++			println
++	if n != 27*28/2 {
++		fmt.Println("BUG: wrong n", n, 27*28/2)
+ 	}
+ }
+ 
+ const (
+-	bool = 1;
+-	byte = 2;
+-	float = 3;
+-	float32 = 4;
+-	float64 = 5;
+-	int = 6;
+-	int8 = 7;
+-	int16 = 8;
+-	int32 = 9;
+-	int64 = 10;
+-	uint = 11;
+-	uint8 = 12;
+-	uint16 = 13;
+-	uint32 = 14;
+-	uint64 = 15;
+-	uintptr = 16;
+-	true = 17;
+-	false = 18;
+-	iota = 19;
+-	nil = 20;
+-	cap = 21;
+-	len = 22;
+-	make = 23;
+-	new = 24;
+-	panic = 25;
+-	panicln = 26;
+-	print = 27;
+-	println = 28;
++	bool    = 1
++	byte    = 2
++	float   = 3
++	float32 = 4
++	float64 = 5
++	int     = 6
++	int8    = 7
++	int16   = 8
++	int32   = 9
++	int64   = 10
++	uint    = 11
++	uint8   = 12
++	uint16  = 13
++	uint32  = 14
++	uint64  = 15
++	uintptr = 16
++	true    = 17
++	false   = 18
++	iota    = 19
++	nil     = 20
++	cap     = 21
++	len     = 22
++	make    = 23
++	new     = 24
++	panic   = 25
++	print   = 26
++	println = 27
+ )
+diff --git a/test/rename1.go b/test/rename1.go
+index 2224773e9f..f239999986 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -7,42 +7,40 @@
+ package main
+ 
+ func main() {
+-	var n byte;	// ERROR "not a type|expected type"
+-	var y = float(0);	// ERROR "cannot call|expected function"
++	var n byte       // ERROR "not a type|expected type"
++	var y = float(0) // ERROR "cannot call|expected function"
+ 	const (
+-		a = 1+iota;	// ERROR "string|incompatible types"
++		a = 1 + iota // ERROR "string|incompatible types"
+ 	)
+ 
+ }
+ 
+ const (
+-	bool = 1;
+-	byte = 2;
+-	float = 3;
+-	float32 = 4;
+-	float64 = 5;
+-	int = 6;
+-	int8 = 7;
+-	int16 = 8;
+-	int32 = 9;
+-	int64 = 10;
+-	uint = 11;
+-	uint8 = 12;
+-	uint16 = 13;
+-	uint32 = 14;
+-	uint64 = 15;
+-	uintptr = 16;
+-	true = 17;
+-	false = 18;
+-	iota = "abc";
+-	nil = 20;
+-	cap = 21;
+-	len = 22;
+-	make = 23;
+-	new = 24;
+-	panic = 25;
+-	panicln = 26;
+-	print = 27;
+-	println = 28;
++	bool    = 1
++	byte    = 2
++	float   = 3
++	float32 = 4
++	float64 = 5
++	int     = 6
++	int8    = 7
++	int16   = 8
++	int32   = 9
++	int64   = 10
++	uint    = 11
++	uint8   = 12
++	uint16  = 13
++	uint32  = 14
++	uint64  = 15
++	uintptr = 16
++	true    = 17
++	false   = 18
++	iota    = "abc"
++	nil     = 20
++	cap     = 21
++	len     = 22
++	make    = 23
++	new     = 24
++	panic   = 25
++	print   = 26
++	println = 27
+ )
+-
+diff --git a/test/stack.go b/test/stack.go
+index ffc9ac14b0..168830f70a 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -9,61 +9,64 @@
+ 
+ package main
+ 
+-type T [20] int;
++type T [20]int
+ 
+ func g(c chan int, t T) {
+-	s := 0;
++	s := 0
+ 	for i := 0; i < len(t); i++ {
+-		s += t[i];
++		s += t[i]
+ 	}
+-	c <- s;
++	c <- s
+ }
+ 
+ func d(t T) {
+-	s := 0;
++	s := 0
+ 	for i := 0; i < len(t); i++ {
+-		s += t[i];
++		s += t[i]
+ 	}
+ 	if s != len(t) {
+-		panicln("bad defer", s);
++		println("bad defer", s)
++		panic("fail")
+ 	}
+ }
+ 
+-var c = make(chan int);
+-var t T;
+-var b = []byte{1,2,3,4,5,6,7,8,9,10};
++var c = make(chan int)
++var t T
++var b = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+ 
+ func recur(n int) {
+-	ss := string(b);
++	ss := string(b)
+ 	if len(ss) != len(b) {
+-		panic("bad []byte -> string");
++		panic("bad []byte -> string")
+ 	}
+-	go g(c, t);
+-	s := <-c;
++	go g(c, t)
++	s := <-c
+ 	if s != len(t) {
+-		panicln("bad go", s);
++		println("bad go", s)
++		panic("fail")
+ 	}
+ 	f := func(t T) int {
+-		s := 0;
++		s := 0
+ 		for i := 0; i < len(t); i++ {
+-			s += t[i];
++			s += t[i]
+ 		}
+-		s += n;
+-		return s;
+-	};
+-	s = f(t);
+-	if s != len(t) + n {
+-		panicln("bad func", s, "at level", n);
++		s += n
++		return s
++	}
++	s = f(t)
++	if s != len(t)+n {
++		println("bad func", s, "at level", n)
++		panic("fail")
+ 	}
+ 	if n > 0 {
+-		recur(n-1);
++		recur(n - 1)
+ 	}
+-	defer d(t);
++	defer d(t)
+ }
+ 
+ func main() {
+ 	for i := 0; i < len(t); i++ {
+-		t[i] = 1;
++		t[i] = 1
+ 	}
+-	recur(10000);
++	recur(10000)
+ }

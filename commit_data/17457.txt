@@ -7,8 +7,70 @@ Date:   Sat Aug 31 09:33:38 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13328045
-
+---
  src/cmd/8l/asm.c  | 1 +
  src/cmd/8l/obj.c  | 4 ++++
  src/cmd/ld/doc.go | 2 +-
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index f7e33b7c6c..3be37ea22c 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -847,6 +847,7 @@ asmb(void)
+ 	case Hfreebsd:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
++	case Hdragonfly:
+ 		asmbelf(symo);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 316d79f451..e049de7b07 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -53,6 +53,7 @@ Header headers[] = {
+ 	"msdoscom", Hmsdoscom,
+ 	"msdosexe", Hmsdosexe,
+ 	"darwin", Hdarwin,
++	"dragonfly", Hdragonfly,
+ 	"linux", Hlinux,
+ 	"freebsd", Hfreebsd,
+ 	"netbsd", Hnetbsd,
+@@ -69,6 +70,7 @@ Header headers[] = {
+  *	-Hmsdoscom -Tx -Rx			is MS-DOS .COM
+  *	-Hmsdosexe -Tx -Rx			is fake MS-DOS .EXE
+  *	-Hdarwin -Tx -Rx			is Apple Mach-O
++ *	-Hdragonfly -Tx -Rx			is DragonFly ELF32
+  *	-Hlinux -Tx -Rx				is Linux ELF32
+  *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
+  *	-Hnetbsd -Tx -Rx			is NetBSD ELF32
+@@ -153,6 +155,7 @@ main(int argc, char *argv[])
+ 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+ 		break;
+ 	case Hdarwin:
++	case Hdragonfly:
+ 	case Hfreebsd:
+ 	case Hlinux:
+ 	case Hnetbsd:
+@@ -242,6 +245,7 @@ main(int argc, char *argv[])
+ 	case Hfreebsd:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
++	case Hdragonfly:
+ 		/*
+ 		 * ELF uses TLS offsets negative from %gs.
+ 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 06b4116247..2adda25f22 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -33,7 +33,7 @@ Options new in this version:
+ 		linker. This flag cannot be used when $GOOS is windows.
+ 	-H darwin     (only in 6l/8l)
+ 		Write Apple Mach-O binaries (default when $GOOS is darwin)
+-	-H dragonfly  (only in 6l)
++	-H dragonfly  (only in 6l/8l)
+ 		Write DragonFly ELF binaries (default when $GOOS is dragonfly)
+ 	-H linux
+ 		Write Linux ELF binaries (default when $GOOS is linux)

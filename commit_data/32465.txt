@@ -14,8 +14,104 @@ Date:   Tue Apr 25 20:21:50 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ipsock_plan9.go |  2 +-
  src/net/lookup_unix.go  | 39 +++++++++++++++++++++------------------
  src/net/port_unix.go    |  3 ++-
  3 files changed, 24 insertions(+), 20 deletions(-)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 7e24fbc227..312e4adb47 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -28,6 +28,7 @@ func probe(filename, query string) bool {
+ 	if file, err = open(filename); err != nil {
+ 		return false
+ 	}
++	defer file.close()
+ 
+ 	r := false
+ 	for line, ok := file.readLine(); ok && !r; line, ok = file.readLine() {
+@@ -42,7 +43,6 @@ func probe(filename, query string) bool {
+ 			}
+ 		}
+ 	}
+-	file.close()
+ 	return r
+ }
+ 
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 8d4b7bddf4..158cc94a99 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -16,28 +16,31 @@ var onceReadProtocols sync.Once
+ // readProtocols loads contents of /etc/protocols into protocols map
+ // for quick access.
+ func readProtocols() {
+-	if file, err := open("/etc/protocols"); err == nil {
+-		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+-			// tcp    6   TCP    # transmission control protocol
+-			if i := byteIndex(line, '#'); i >= 0 {
+-				line = line[0:i]
+-			}
+-			f := getFields(line)
+-			if len(f) < 2 {
+-				continue
++	file, err := open("/etc/protocols")
++	if err != nil {
++		return
++	}
++	defer file.close()
++
++	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++		// tcp    6   TCP    # transmission control protocol
++		if i := byteIndex(line, '#'); i >= 0 {
++			line = line[0:i]
++		}
++		f := getFields(line)
++		if len(f) < 2 {
++			continue
++		}
++		if proto, _, ok := dtoi(f[1]); ok {
++			if _, ok := protocols[f[0]]; !ok {
++				protocols[f[0]] = proto
+ 			}
+-			if proto, _, ok := dtoi(f[1]); ok {
+-				if _, ok := protocols[f[0]]; !ok {
+-					protocols[f[0]] = proto
+-				}
+-				for _, alias := range f[2:] {
+-					if _, ok := protocols[alias]; !ok {
+-						protocols[alias] = proto
+-					}
++			for _, alias := range f[2:] {
++				if _, ok := protocols[alias]; !ok {
++					protocols[alias] = proto
+ 				}
+ 			}
+ 		}
+-		file.close()
+ 	}
+ }
+ 
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 868d1e4784..829f51fcf0 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -17,6 +17,8 @@ func readServices() {
+ 	if err != nil {
+ 		return
+ 	}
++	defer file.close()
++
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		// "http 80/tcp www www-http # World Wide Web HTTP"
+ 		if i := byteIndex(line, '#'); i >= 0 {
+@@ -43,7 +45,6 @@ func readServices() {
+ 			}
+ 		}
+ 	}
+-	file.close()
+ }
+ 
+ // goLookupPort is the native Go implementation of LookupPort.

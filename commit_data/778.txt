@@ -7,7 +7,92 @@ Date:   Tue Sep 30 13:49:31 2008 -0700
     R=ken
     OCL=16218
     CL=16218
-
+---
  src/cmd/gc/dcl.c    |  3 ++-
  src/cmd/gc/export.c | 21 +++++++++++++--------
  2 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7101673994..faef3bc634 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -335,7 +335,7 @@ addmethod(Node *n, Type *t, int local)
+ 	return;
+ 
+ bad:
+-	yyerror("unknown method pointer: %T", pa);
++	yyerror("unknown method pointer: %T %S %S", pa, sf, st);
+ }
+ 
+ /*
+@@ -748,6 +748,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 	s->oname = n;
+ 	s->offset = 0;
+ 	s->vblock = block;
++	s->lexical = LNAME;
+ 
+ 	n->type = t;
+ 	n->vargen = gen;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 94147ffe16..9590711169 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -263,7 +263,7 @@ dumpe(Sym *s)
+ {
+ 	switch(s->lexical) {
+ 	default:
+-		yyerror("unknown export symbol: %S", s, s->lexical);
++		yyerror("unknown export symbol: %S", s);
+ 		break;
+ 	case LPACK:
+ 		yyerror("package export symbol: %S", s);
+@@ -288,6 +288,7 @@ void
+ dumpm(Sym *s)
+ {
+ 	Type *t, *f;
++	Dcl *back, *d1;
+ 
+ 	switch(s->lexical) {
+ 	default:
+@@ -305,17 +306,27 @@ dumpm(Sym *s)
+ 	}
+ 
+ 	for(f=t->method; f!=T; f=f->down) {
++		back = exportlist->back;
++
+ 		if(f->etype != TFIELD)
+ 			fatal("dumpexporttype: method not field: %lT", f);
+ 		reexport(f->type);
+ 		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
++	
++		if(back != exportlist->back) {
++			// redo first pass on new entries
++			for(d1=back; d1!=D; d1=d1->forw) {
++				lineno = d1->lineno;
++				dumpe(d1->dsym);
++			}
++		}
+ 	}
+ }
+ 
+ void
+ dumpexport(void)
+ {
+-	Dcl *d;
++	Dcl *d, *d1;
+ 	int32 lno;
+ 
+ 	lno = lineno;
+@@ -337,12 +348,6 @@ dumpexport(void)
+ 		dumpm(d->dsym);
+ 	}
+ 
+-	// third pass pick up redefs from previous passes
+-	for(d=exportlist->forw; d!=D; d=d->forw) {
+-		lineno = d->lineno;
+-		dumpe(d->dsym);
+-	}
+-
+ 	Bprint(bout, "   ))\n");
+ 
+ 	lineno = lno;

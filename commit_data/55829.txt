@@ -16,6 +16,35 @@ Date:   Thu Mar 16 19:23:34 2023 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_windows.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index fe052d7e72..9f660c1f52 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -142,7 +142,11 @@ func (e Errno) Error() string {
+ 	return string(utf16.Decode(b[:n]))
+ }
+ 
+-const _ERROR_BAD_NETPATH = Errno(53)
++const (
++	_ERROR_NOT_SUPPORTED        = Errno(50)
++	_ERROR_BAD_NETPATH          = Errno(53)
++	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
++)
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+@@ -162,7 +166,9 @@ func (e Errno) Is(target error) bool {
+ 			e == ERROR_PATH_NOT_FOUND ||
+ 			e == ENOENT
+ 	case errorspkg.ErrUnsupported:
+-		return e == ENOSYS ||
++		return e == _ERROR_NOT_SUPPORTED ||
++			e == _ERROR_CALL_NOT_IMPLEMENTED ||
++			e == ENOSYS ||
+ 			e == ENOTSUP ||
+ 			e == EOPNOTSUPP ||
+ 			e == EWINDOWS

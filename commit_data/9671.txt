@@ -27,6 +27,19 @@ Date:   Tue Sep 13 18:50:02 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5003047
-
+---
  src/pkg/template/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/template/Makefile b/src/pkg/template/Makefile
+index 3ed3b03308..730b287aff 100644
+--- a/src/pkg/template/Makefile
++++ b/src/pkg/template/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.inc
+ 
+ TARG=template
+ GOFILES=\
++	doc.go\
+ 	exec.go\
+ 	funcs.go\
+ 	helper.go\

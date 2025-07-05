@@ -13,6 +13,30 @@ Date:   Tue Mar 8 13:32:34 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_swigcxx.txt | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_swigcxx.txt b/src/cmd/go/testdata/script/list_swigcxx.txt
+index d4227a80e8..4220487a28 100644
+--- a/src/cmd/go/testdata/script/list_swigcxx.txt
++++ b/src/cmd/go/testdata/script/list_swigcxx.txt
+@@ -6,7 +6,7 @@
+ 
+ # CompiledGoFiles should contain 4 files:
+ #  a.go
+-#  a.swigcxx.go
++#  _cgo_import.go [gc only]
+ #  _cgo_gotypes.go
+ #  a.cgo1.go
+ #
+@@ -16,7 +16,8 @@
+ go list -f '{{.CompiledGoFiles}}' -compiled=true example/swig
+ 
+ stdout a\.go
+-stdout -count=3 $GOCACHE
++[gc] stdout -count=3 $GOCACHE
++[gccgo] stdout -count=2 $GOCACHE
+ 
+ -- go.mod --
+ module example

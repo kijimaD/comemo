@@ -121,8 +121,114 @@ Date:   Sat Apr 19 12:31:26 2025 +0200
     TryBot-Bypass: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/phiopt.go | 27 +++++++++++++++++++++++++++
  test/codegen/bool.go                   | 24 ++++++++++++++++++++++++
  test/phiopt.go                         | 22 ++++++++++++++++++++++
  3 files changed, 73 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 037845eacf..034ee4c661 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -119,6 +119,33 @@ func phiopt(f *Func) {
+ 					continue
+ 				}
+ 			}
++			// Replaces
++			//   if a { x = value } else { x = a } with x = a && value.
++			// Requires that value dominates x.
++			if v.Args[1-reverse] == b0.Controls[0] {
++				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
++					v.reset(OpAndB)
++					v.SetArgs2(b0.Controls[0], tmp)
++					if f.pass.debug > 0 {
++						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
++					}
++					continue
++				}
++			}
++
++			// Replaces
++			//   if a { x = a } else { x = value } with x = a || value.
++			// Requires that value dominates x.
++			if v.Args[reverse] == b0.Controls[0] {
++				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
++					v.reset(OpOrB)
++					v.SetArgs2(b0.Controls[0], tmp)
++					if f.pass.debug > 0 {
++						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
++					}
++					continue
++				}
++			}
+ 		}
+ 	}
+ 	// strengthen phi optimization.
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index 2024759a5c..760dbbcf7b 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -62,6 +62,30 @@ func convertEqBool64(x uint64) bool {
+ 	return x&1 == 0
+ }
+ 
++func phiAnd(a, b bool) bool {
++	var x bool
++	// amd64:-"TESTB"
++	if a {
++		x = b
++	} else {
++		x = a
++	}
++	// amd64:"ANDL"
++	return x
++}
++
++func phiOr(a, b bool) bool {
++	var x bool
++	// amd64:-"TESTB"
++	if a {
++		x = a
++	} else {
++		x = b
++	}
++	// amd64:"ORL"
++	return x
++}
++
+ func TestSetEq64(x uint64, y uint64) bool {
+ 	// ppc64x/power10:"SETBC\tCR0EQ",-"ISEL"
+ 	// ppc64x/power9:"CMP","ISEL",-"SETBC\tCR0EQ"
+diff --git a/test/phiopt.go b/test/phiopt.go
+index 9e21bfdba5..206a117fbb 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -129,5 +129,27 @@ func f9(a, b int) bool {
+ 	return c
+ }
+ 
++//go:noinline
++func f10and(a bool, b bool) bool {
++	var x bool
++	if a {
++		x = b
++	} else {
++		x = a
++	}
++	return x // ERROR "converted OpPhi to AndB$"
++}
++
++//go:noinline
++func f11or(a bool, b bool) bool {
++	var x bool
++	if a {
++		x = a
++	} else {
++		x = b
++	}
++	return x // ERROR "converted OpPhi to OrB$"
++}
++
+ func main() {
+ }

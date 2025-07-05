@@ -14,8 +14,48 @@ Date:   Tue Oct 20 09:06:42 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/flags/flags.go | 2 +-
  src/cmd/dist/build.go               | 2 +-
  src/cmd/go/internal/work/gc.go      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 0765439959..426e0156aa 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -24,7 +24,7 @@ var (
+ 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+ 	Importpath       = flag.String("p", "", "set expected package import to path")
+ 	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+-	CompilingRuntime = flag.Bool("compilingRuntime", false, "source to be compiled is part of the Go runtime")
++	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
+ )
+ 
+ var (
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 11da38ebdf..d902addb0c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -833,7 +833,7 @@ func runInstall(pkg string, ch chan struct{}) {
+ 	}
+ 	goasmh := pathf("%s/go_asm.h", workdir)
+ 	if IsRuntimePackagePath(pkg) {
+-		asmArgs = append(asmArgs, "-compilingRuntime")
++		asmArgs = append(asmArgs, "-compiling-runtime")
+ 		if os.Getenv("GOEXPERIMENT") == "regabi" {
+ 			// In order to make it easier to port runtime assembly
+ 			// to the register ABI, we introduce a macro
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 2df4a52ba5..e93031431c 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -293,7 +293,7 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 		}
+ 	}
+ 	if objabi.IsRuntimePackagePath(pkgpath) {
+-		args = append(args, "-compilingRuntime")
++		args = append(args, "-compiling-runtime")
+ 		if objabi.Regabi_enabled != 0 {
+ 			// In order to make it easier to port runtime assembly
+ 			// to the register ABI, we introduce a macro

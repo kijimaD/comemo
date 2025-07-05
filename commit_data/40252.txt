@@ -19,6 +19,25 @@ Date:   Thu Apr 25 22:39:56 2019 -0700
     Change-Id: Ieb31c04ff0354d6fae7e173b59bcfadb8b0464cd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174037
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/proc.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1871d3b248..b8ee616eaa 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4187,7 +4187,12 @@ func checkdead() {
+ 	// for details.)
+ 	var run0 int32
+ 	if !iscgo && cgoHasExtraM {
+-		run0 = 1
++		mp := lockextra(true)
++		haveExtraM := extraMCount > 0
++		unlockextra(mp)
++		if haveExtraM {
++			run0 = 1
++		}
+ 	}
+ 
+ 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys

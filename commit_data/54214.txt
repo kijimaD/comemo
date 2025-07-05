@@ -12,10 +12,76 @@ Date:   Thu Sep 29 11:18:09 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go           | 2 +-
  src/cmd/compile/internal/types2/operand.go        | 2 +-
  src/go/types/decl.go                              | 2 +-
  src/go/types/operand.go                           | 2 +-
  src/internal/types/testdata/examples/functions.go | 4 ++--
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index ec9f154664..b99e1dcd77 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -753,7 +753,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	obj.color_ = saved
+ 
+ 	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
+-		check.softErrorf(fdecl, _BadDecl, "parameterized function is missing function body")
++		check.softErrorf(fdecl, _BadDecl, "generic function is missing function body")
+ 	}
+ 
+ 	// function body must be type-checked after global declarations
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index aadcc3a8db..07a5d16bbc 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -174,7 +174,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 		if x.typ != Typ[Invalid] {
+ 			var intro string
+ 			if isGeneric(x.typ) {
+-				intro = " of parameterized type "
++				intro = " of generic type "
+ 			} else {
+ 				intro = " of type "
+ 			}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 628c7bb5d9..b610985f76 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -824,7 +824,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	obj.color_ = saved
+ 
+ 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
+-		check.softErrorf(fdecl.Name, _BadDecl, "parameterized function is missing function body")
++		check.softErrorf(fdecl.Name, _BadDecl, "generic function is missing function body")
+ 	}
+ 
+ 	// function body must be type-checked after global declarations
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 4cb7a36460..e398ba14f2 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -161,7 +161,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 		if x.typ != Typ[Invalid] {
+ 			var intro string
+ 			if isGeneric(x.typ) {
+-				intro = " of parameterized type "
++				intro = " of generic type "
+ 			} else {
+ 				intro = " of type "
+ 			}
+diff --git a/src/internal/types/testdata/examples/functions.go b/src/internal/types/testdata/examples/functions.go
+index 244c9dd228..47e1c35f3d 100644
+--- a/src/internal/types/testdata/examples/functions.go
++++ b/src/internal/types/testdata/examples/functions.go
+@@ -214,6 +214,6 @@ func _() {
+ 	h /* ERROR cannot index */ [] /* ERROR operand */ ()
+ }
+ 
+-// Parameterized functions must have a function body.
++// Generic functions must have a function body.
+ 
+-func _ /* ERROR missing function body */ [P any]()
++func _ /* ERROR generic function is missing function body */ [P any]()

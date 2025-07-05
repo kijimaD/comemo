@@ -16,7 +16,7 @@ Date:   Tue Jun 21 14:27:40 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24312
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  8 +++++++-
  src/cmd/compile/internal/gc/export.go  |  4 ++++
  test/fixedbugs/issue16133.dir/a1.go    |  7 +++++++
@@ -25,3 +25,116 @@ Date:   Tue Jun 21 14:27:40 2016 -0700
  test/fixedbugs/issue16133.dir/c.go     | 10 ++++++++++
  test/fixedbugs/issue16133.go           | 10 ++++++++++
  7 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 36aa0e8b9c..5a4d9a3c55 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -239,14 +239,20 @@ func (p *importer) pkg() *Pkg {
+ 		Fatalf("importer: package path %q for pkg index %d", path, len(p.pkgList))
+ 	}
+ 
++	// see importimport (export.go)
+ 	pkg := importpkg
+ 	if path != "" {
+ 		pkg = mkpkg(path)
+ 	}
+ 	if pkg.Name == "" {
+ 		pkg.Name = name
++		numImport[name]++
+ 	} else if pkg.Name != name {
+-		Fatalf("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
++		Yyerror("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
++	}
++	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
++		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
++		errorexit()
+ 	}
+ 	p.pkgList = append(p.pkgList, pkg)
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 1148b27f02..911ef0f327 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -479,6 +479,10 @@ func pkgtype(s *Sym) *Type {
+ 	return s.Def.Type
+ }
+ 
++// numImport tracks how often a package with a given name is imported.
++// It is used to provide a better error message (by using the package
++// path to disambiguate) if a package that appears multiple times with
++// the same name appears in an error message.
+ var numImport = make(map[string]int)
+ 
+ func importimport(s *Sym, path string) {
+diff --git a/test/fixedbugs/issue16133.dir/a1.go b/test/fixedbugs/issue16133.dir/a1.go
+new file mode 100644
+index 0000000000..497cccf363
+--- /dev/null
++++ b/test/fixedbugs/issue16133.dir/a1.go
+@@ -0,0 +1,7 @@
++package a
++
++type X string
++
++func NewX() X {
++	return ""
++}
+diff --git a/test/fixedbugs/issue16133.dir/a2.go b/test/fixedbugs/issue16133.dir/a2.go
+new file mode 100644
+index 0000000000..497cccf363
+--- /dev/null
++++ b/test/fixedbugs/issue16133.dir/a2.go
+@@ -0,0 +1,7 @@
++package a
++
++type X string
++
++func NewX() X {
++	return ""
++}
+diff --git a/test/fixedbugs/issue16133.dir/b.go b/test/fixedbugs/issue16133.dir/b.go
+new file mode 100644
+index 0000000000..be1bebf889
+--- /dev/null
++++ b/test/fixedbugs/issue16133.dir/b.go
+@@ -0,0 +1,7 @@
++package b
++
++import "./a2"
++
++type T struct {
++	X a.X
++}
+diff --git a/test/fixedbugs/issue16133.dir/c.go b/test/fixedbugs/issue16133.dir/c.go
+new file mode 100644
+index 0000000000..b25fe5a9dd
+--- /dev/null
++++ b/test/fixedbugs/issue16133.dir/c.go
+@@ -0,0 +1,10 @@
++package p
++
++import (
++	"./a1"
++	"./b"
++)
++
++var _ = b.T{
++	X: a.NewX(), // ERROR `cannot use "a1"\.NewX\(\)`
++}
+diff --git a/test/fixedbugs/issue16133.go b/test/fixedbugs/issue16133.go
+new file mode 100644
+index 0000000000..4afffc5489
+--- /dev/null
++++ b/test/fixedbugs/issue16133.go
+@@ -0,0 +1,10 @@
++// errorcheckdir -s
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify error messages referring to multiple different
++// packages with the same package name.
++
++package ignored

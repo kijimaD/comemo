@@ -7,9 +7,121 @@ Date:   Fri Oct 7 02:06:33 2016 +0900
     Change-Id: Id2a9fc1e9e70eaf5f25ddc7476061e06abcf60e4
     Reviewed-on: https://go-review.googlesource.com/30573
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go   |  2 +-
  src/cmd/compile/internal/gc/go.go    |  2 +-
  src/cmd/compile/internal/gc/gsubr.go | 14 +++++++-------
  src/cmd/compile/internal/gc/ssa.go   | 14 +++++++-------
  4 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index fa54e709cf..9928b522d3 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1259,7 +1259,7 @@ func funccompile(n *Node) {
+ 	funcdepth = n.Func.Depth + 1
+ 	compile(n)
+ 	Curfn = nil
+-	Pc = nil
++	pc = nil
+ 	funcdepth = 0
+ 	dclcontext = PEXTERN
+ 	if nerrors != 0 {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 4756ce3446..32b62fa293 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -274,7 +274,7 @@ var writearchive bool
+ 
+ var Nacl bool
+ 
+-var Pc *obj.Prog
++var pc *obj.Prog
+ 
+ var nodfp *Node
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 469080d5a8..fec983d515 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -38,10 +38,10 @@ import (
+ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+ 
+-	p = Pc
+-	Pc = Ctxt.NewProg()
+-	Clearp(Pc)
+-	p.Link = Pc
++	p = pc
++	pc = Ctxt.NewProg()
++	Clearp(pc)
++	p.Link = pc
+ 
+ 	if lineno == 0 && Debug['K'] != 0 {
+ 		Warn("prog: line 0")
+@@ -170,9 +170,9 @@ func Addrconst(a *obj.Addr, v int64) {
+ func newplist() *obj.Plist {
+ 	pl := obj.Linknewplist(Ctxt)
+ 
+-	Pc = Ctxt.NewProg()
+-	Clearp(Pc)
+-	pl.Firstpc = Pc
++	pc = Ctxt.NewProg()
++	Clearp(pc)
++	pl.Firstpc = pc
+ 
+ 	return pl
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7309e5d9b1..e4eefd22a7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4052,7 +4052,7 @@ type SSAGenState struct {
+ 
+ // Pc returns the current Prog.
+ func (s *SSAGenState) Pc() *obj.Prog {
+-	return Pc
++	return pc
+ }
+ 
+ // SetLineno sets the current source line number.
+@@ -4077,7 +4077,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+ 		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+ 		f.Logf("genssa %s\n", f.Name)
+-		blockProgs[Pc] = f.Blocks[0]
++		blockProgs[pc] = f.Blocks[0]
+ 	}
+ 
+ 	if Thearch.Use387 {
+@@ -4089,14 +4089,14 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+-		s.bstart[b.ID] = Pc
++		s.bstart[b.ID] = pc
+ 		// Emit values in block
+ 		Thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+-			x := Pc
++			x := pc
+ 			Thearch.SSAGenValue(&s, v)
+ 			if logProgs {
+-				for ; x != Pc; x = x.Link {
++				for ; x != pc; x = x.Link {
+ 					valueProgs[x] = v
+ 				}
+ 			}
+@@ -4110,10 +4110,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			// line numbers for otherwise empty blocks.
+ 			next = f.Blocks[i+1]
+ 		}
+-		x := Pc
++		x := pc
+ 		Thearch.SSAGenBlock(&s, b, next)
+ 		if logProgs {
+-			for ; x != Pc; x = x.Link {
++			for ; x != pc; x = x.Link {
+ 				blockProgs[x] = b
+ 			}
+ 		}

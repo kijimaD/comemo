@@ -30,8 +30,65 @@ Date:   Fri Aug 9 17:43:11 2024 +0000
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  misc/wasm/wasm_exec.js      | 8 ++++++++
  misc/wasm/wasm_exec_node.js | 1 +
  src/syscall/fs_js.go        | 7 +++----
  3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index bc6f210242..0f635d6d54 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -73,6 +73,14 @@
+ 		}
+ 	}
+ 
++	if (!globalThis.path) {
++		globalThis.path = {
++			resolve(...pathSegments) {
++				return pathSegments.join("/");
++			}
++		}
++	}
++
+ 	if (!globalThis.crypto) {
+ 		throw new Error("globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)");
+ 	}
+diff --git a/misc/wasm/wasm_exec_node.js b/misc/wasm/wasm_exec_node.js
+index 986069087b..dd65b19867 100644
+--- a/misc/wasm/wasm_exec_node.js
++++ b/misc/wasm/wasm_exec_node.js
+@@ -11,6 +11,7 @@ if (process.argv.length < 3) {
+ 
+ globalThis.require = require;
+ globalThis.fs = require("fs");
++globalThis.path = require("path");
+ globalThis.TextEncoder = require("util").TextEncoder;
+ globalThis.TextDecoder = require("util").TextDecoder;
+ 
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 793b9a2d41..b6138ebeb1 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -16,6 +16,7 @@ import (
+ func now() (sec int64, nsec int32)
+ 
+ var jsProcess = js.Global().Get("process")
++var jsPath = js.Global().Get("path")
+ var jsFS = js.Global().Get("fs")
+ var constants = jsFS.Get("constants")
+ 
+@@ -101,10 +102,8 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 		}
+ 	}
+ 
+-	if path[0] != '/' {
+-		cwd := jsProcess.Call("cwd").String()
+-		path = cwd + "/" + path
+-	}
++	path = jsPath.Call("resolve", path).String()
++
+ 	f := &jsFile{
+ 		path:    path,
+ 		entries: entries,

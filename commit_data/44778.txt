@@ -12,7 +12,7 @@ Date:   Fri Aug 21 11:09:45 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go      |  4 ++--
  src/cmd/compile/internal/ssa/regalloc.go |  2 +-
  src/cmd/internal/obj/arm64/obj7.go       | 10 +++++-----
@@ -28,3 +28,309 @@ Date:   Fri Aug 21 11:09:45 2020 -0700
  src/runtime/stack.go                     |  6 +-----
  src/runtime/traceback.go                 |  6 +++---
  14 files changed, 28 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ca8cccf4ae..74262595b0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -507,7 +507,7 @@ func createSimpleVar(fnsym *obj.LSym, n *Node) *dwarf.Var {
+ 		if Ctxt.FixedFrameSize() == 0 {
+ 			offs -= int64(Widthptr)
+ 		}
+-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
++		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+ 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+ 			offs -= int64(Widthptr)
+ 		}
+@@ -703,7 +703,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
+ 		if Ctxt.FixedFrameSize() == 0 {
+ 			base -= int64(Widthptr)
+ 		}
+-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
++		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+ 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+ 			base -= int64(Widthptr)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index a2be7bb596..64c6aed3e7 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -588,7 +588,7 @@ func (s *regAllocState) init(f *Func) {
+ 	if s.f.Config.hasGReg {
+ 		s.allocatable &^= 1 << s.GReg
+ 	}
+-	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
++	if objabi.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+ 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
+ 	if s.f.Config.LinkReg != -1 {
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0d74430053..f54429fabe 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -621,7 +621,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
+ 
+-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++			if objabi.Framepointer_enabled {
+ 				q1 = obj.Appendp(q1, c.newprog)
+ 				q1.Pos = p.Pos
+ 				q1.As = AMOVD
+@@ -764,7 +764,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					p.To.Reg = REGSP
+ 					p.Spadj = -c.autosize
+ 
+-					if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++					if objabi.Framepointer_enabled {
+ 						p = obj.Appendp(p, c.newprog)
+ 						p.As = ASUB
+ 						p.From.Type = obj.TYPE_CONST
+@@ -777,7 +777,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			} else {
+ 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
+ 
+-				if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++				if objabi.Framepointer_enabled {
+ 					p.As = AMOVD
+ 					p.From.Type = obj.TYPE_MEM
+ 					p.From.Reg = REGSP
+@@ -865,7 +865,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 		case obj.ADUFFCOPY:
+-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++			if objabi.Framepointer_enabled {
+ 				//  ADR	ret_addr, R27
+ 				//  STP	(FP, R27), -24(SP)
+ 				//  SUB	24, SP, FP
+@@ -918,7 +918,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 		case obj.ADUFFZERO:
+-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++			if objabi.Framepointer_enabled {
+ 				//  ADR	ret_addr, R27
+ 				//  STP	(FP, R27), -24(SP)
+ 				//  SUB	24, SP, FP
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 311e5ae2e8..1fc90db864 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -682,10 +682,9 @@ type Link struct {
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+ 
+-	InParallel           bool // parallel backend phase in effect
+-	Framepointer_enabled bool
+-	UseBASEntries        bool // use Base Address Selection Entries in location lists and PC ranges
+-	IsAsm                bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
++	InParallel    bool // parallel backend phase in effect
++	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
++	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+ 
+ 	// state for writing objects
+ 	Text []*LSym
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 34f61b7f62..d58877ee15 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -53,7 +53,6 @@ func Linknew(arch *LinkArch) *Link {
+ 	}
+ 
+ 	ctxt.Flag_optimize = true
+-	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
+ 	return ctxt
+ }
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 82a2e6adc4..a530636373 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4833,12 +4833,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					ctxt.Diag("directly calling duff when dynamically linking Go")
+ 				}
+ 
+-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
++				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+ 					// Maintain BP around call, since duffcopy/duffzero can't do it
+ 					// (the call jumps into the middle of the function).
+ 					// This makes it possible to see call sites for duffcopy/duffzero in
+ 					// BP-based profiling tools like Linux perf (which is the
+-					// whole point of obj.Framepointer_enabled).
++					// whole point of maintaining frame pointers in Go).
+ 					// MOVQ BP, -16(SP)
+ 					// LEAQ -16(SP), BP
+ 					ab.Put(bpduff1)
+@@ -4852,7 +4852,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				r.Siz = 4
+ 				ab.PutInt32(0)
+ 
+-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
++				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+ 					// Pop BP pushed above.
+ 					// MOVQ 0(BP), BP
+ 					ab.Put(bpduff2)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index c1e5bea055..016c247ff5 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -582,7 +582,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	var bpsize int
+-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
++	if ctxt.Arch.Family == sys.AMD64 &&
+ 		!p.From.Sym.NoFrame() && // (1) below
+ 		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
+ 		!(autoffset == 0 && !hasCall) { // (3) below
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index f7873a42b9..6c5a9ba441 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -133,9 +133,8 @@ func init() {
+ 	}
+ }
+ 
+-func Framepointer_enabled(goos, goarch string) bool {
+-	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && (goos == "linux" || goos == "darwin"))
+-}
++// Note: must agree with runtime.framepointer_enabled.
++var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
+ 
+ func addexp(s string) {
+ 	// Could do general integer parsing here, but the runtime copy doesn't yet.
+@@ -159,7 +158,6 @@ func addexp(s string) {
+ }
+ 
+ var (
+-	framepointer_enabled      int = 1
+ 	Fieldtrack_enabled        int
+ 	Preemptibleloops_enabled  int
+ 	Staticlockranking_enabled int
+@@ -174,7 +172,6 @@ var exper = []struct {
+ 	val  *int
+ }{
+ 	{"fieldtrack", &Fieldtrack_enabled},
+-	{"framepointer", &framepointer_enabled},
+ 	{"preemptibleloops", &Preemptibleloops_enabled},
+ 	{"staticlockranking", &Staticlockranking_enabled},
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 09c7bbfb53..d6ee437bca 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -775,14 +775,6 @@ func (ctxt *Link) linksetup() {
+ 			sb.SetSize(0)
+ 			sb.AddUint8(uint8(objabi.GOARM))
+ 		}
+-
+-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+-			fpe := ctxt.loader.LookupOrCreateSym("runtime.framepointer_enabled", 0)
+-			sb := ctxt.loader.MakeSymbolUpdater(fpe)
+-			sb.SetType(sym.SNOPTRDATA)
+-			sb.SetSize(0)
+-			sb.AddUint8(1)
+-		}
+ 	} else {
+ 		// If OTOH the module does not contain the runtime package,
+ 		// create a local symbol for the moduledata.
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 099aa540e0..427ed0ffb9 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -286,13 +286,8 @@ func cgocallbackg1(ctxt uintptr) {
+ 		// Additional two words (16-byte alignment) are for saving FP.
+ 		cb = (*args)(unsafe.Pointer(sp + 7*sys.PtrSize))
+ 	case "amd64":
+-		// On amd64, stack frame is two words, plus caller PC.
+-		if framepointer_enabled {
+-			// In this case, there's also saved BP.
+-			cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+-			break
+-		}
+-		cb = (*args)(unsafe.Pointer(sp + 3*sys.PtrSize))
++		// On amd64, stack frame is two words, plus caller PC and BP.
++		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+ 	case "386":
+ 		// On 386, stack frame is three words, plus caller PC.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5e38b3194c..341d52aea8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5459,9 +5459,6 @@ func setMaxThreads(in int) (out int) {
+ }
+ 
+ func haveexperiment(name string) bool {
+-	if name == "framepointer" {
+-		return framepointer_enabled // set by linker
+-	}
+ 	x := sys.Goexperiment
+ 	for x != "" {
+ 		xname := ""
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 64c6cc7198..a3157037e7 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -329,7 +329,7 @@ type gobuf struct {
+ 	ctxt unsafe.Pointer
+ 	ret  sys.Uintreg
+ 	lr   uintptr
+-	bp   uintptr // for GOEXPERIMENT=framepointer
++	bp   uintptr // for framepointer-enabled architectures
+ }
+ 
+ // sudog represents a g in a wait list, such as for sending/receiving
+@@ -1046,8 +1046,7 @@ var (
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+ 
+-	goarm                uint8 // set by cmd/link on arm systems
+-	framepointer_enabled bool  // set by cmd/link
++	goarm uint8 // set by cmd/link on arm systems
+ )
+ 
+ // Set by the linker so the runtime can determine the buildmode.
+@@ -1055,3 +1054,6 @@ var (
+ 	islibrary bool // -buildmode=c-shared
+ 	isarchive bool // -buildmode=c-archive
+ )
++
++// Must agree with cmd/internal/objabi.Framepointer_enabled.
++const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 0e930f60db..403b3c313e 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -648,12 +648,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	}
+ 
+ 	// Adjust saved base pointer if there is one.
++	// TODO what about arm64 frame pointer adjustment?
+ 	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
+-		if !framepointer_enabled {
+-			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
+-			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
+-			throw("bad frame layout")
+-		}
+ 		if stackDebug >= 3 {
+ 			print("      saved bp\n")
+ 		}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 7850eceafa..94f4a44976 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -269,9 +269,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.varp -= sys.RegSize
+ 		}
+ 
+-		// If framepointer_enabled and there's a frame, then
+-		// there's a saved bp here.
+-		if frame.varp > frame.sp && (framepointer_enabled && GOARCH == "amd64" || GOARCH == "arm64") {
++		// For architectures with frame pointers, if there's
++		// a frame, then there's a saved frame pointer here.
++		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
+ 			frame.varp -= sys.RegSize
+ 		}
+ 

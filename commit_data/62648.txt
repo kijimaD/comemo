@@ -17,6 +17,22 @@ Date:   Wed Dec 11 18:09:32 2024 +0100
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f9ae5fe677..d3b6857a75 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2094,8 +2094,8 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ARORI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+ 	ARORIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
+-	AORCB & obj.AMask:  {enc: iIIEncoding},
+-	AREV8 & obj.AMask:  {enc: iIIEncoding},
++	AORCB & obj.AMask:  {enc: rIIEncoding},
++	AREV8 & obj.AMask:  {enc: rIIEncoding},
+ 
+ 	// 28.4.4: Single-bit Instructions (Zbs)
+ 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},

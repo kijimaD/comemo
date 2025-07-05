@@ -16,6 +16,42 @@ Date:   Mon Sep 26 16:04:10 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5558bc1819..1d1f325bc7 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -68,7 +68,6 @@ type tester struct {
+ 
+ 	cgoEnabled bool
+ 	partial    bool
+-	haveTime   bool // the 'time' binary is available
+ 
+ 	tests        []distTest
+ 	timeoutScale int
+@@ -111,12 +110,6 @@ func (t *tester) run() {
+ 
+ 	t.runNames = flag.Args()
+ 
+-	if t.hasBash() {
+-		if _, err := exec.LookPath("time"); err == nil {
+-			t.haveTime = true
+-		}
+-	}
+-
+ 	// Set GOTRACEBACK to system if the user didn't set a level explicitly.
+ 	// Since we're running tests for Go, we want as much detail as possible
+ 	// if something goes wrong.
+@@ -891,9 +884,6 @@ func (t *tester) isRegisteredTestName(testName string) bool {
+ 
+ func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
+ 	bin, args := flattenCmdline(cmdline)
+-	if bin == "time" && !t.haveTime {
+-		bin, args = args[0], args[1:]
+-	}
+ 	if t.isRegisteredTestName(name) {
+ 		panic("duplicate registered test name " + name)
+ 	}

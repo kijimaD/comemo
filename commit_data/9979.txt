@@ -18,7 +18,78 @@ Date:   Fri Oct 14 14:27:45 2011 -0400
     R=golang-dev, ukai, cw, rsc
     CC=golang-dev
     https://golang.org/cl/5233059
-
+---
  src/pkg/websocket/hybi.go      |  2 +-
  src/pkg/websocket/hybi_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/websocket/hybi.go b/src/pkg/websocket/hybi.go
+index c832dfc832..fe08b3d738 100644
+--- a/src/pkg/websocket/hybi.go
++++ b/src/pkg/websocket/hybi.go
+@@ -476,7 +476,7 @@ func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Reques
+ 	// HTTP version can be safely ignored.
+ 
+ 	if strings.ToLower(req.Header.Get("Upgrade")) != "websocket" ||
+-		strings.ToLower(req.Header.Get("Connection")) != "upgrade" {
++		!strings.Contains(strings.ToLower(req.Header.Get("Connection")), "upgrade") {
+ 		return http.StatusBadRequest, ErrNotWebSocket
+ 	}
+ 
+diff --git a/src/pkg/websocket/hybi_test.go b/src/pkg/websocket/hybi_test.go
+index 71d1893b30..9db57e3f1b 100644
+--- a/src/pkg/websocket/hybi_test.go
++++ b/src/pkg/websocket/hybi_test.go
+@@ -533,3 +533,52 @@ func TestHybiClientReadWithMasking(t *testing.T) {
+ 		t.Errorf("read 1st frame, expect %q, but got %q", os.EOF, err)
+ 	}
+ }
++
++// Test the hybiServerHandshaker supports firefox implementation and
++// checks Connection request header include (but it's not necessary 
++// equal to) "upgrade"   
++func TestHybiServerFirefoxHandshake(t *testing.T) {
++	config := new(Config)
++	handshaker := &hybiServerHandshaker{Config: config}
++	br := bufio.NewReader(strings.NewReader(`GET /chat HTTP/1.1
++Host: server.example.com
++Upgrade: websocket
++Connection: keep-alive, upgrade
++Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
++Origin: http://example.com
++Sec-WebSocket-Protocol: chat, superchat
++Sec-WebSocket-Version: 13
++
++`))
++	req, err := http.ReadRequest(br)
++	if err != nil {
++		t.Fatal("request", err)
++	}
++	code, err := handshaker.ReadHandshake(br, req)
++	if err != nil {
++		t.Errorf("handshake failed: %v", err)
++	}
++	if code != http.StatusSwitchingProtocols {
++		t.Errorf("status expected %q but got %q", http.StatusSwitchingProtocols, code)
++	}
++	b := bytes.NewBuffer([]byte{})
++	bw := bufio.NewWriter(b)
++
++	config.Protocol = []string{"chat"}
++
++	err = handshaker.AcceptHandshake(bw)
++	if err != nil {
++		t.Errorf("handshake response failed: %v", err)
++	}
++	expectedResponse := strings.Join([]string{
++		"HTTP/1.1 101 Switching Protocols",
++		"Upgrade: websocket",
++		"Connection: Upgrade",
++		"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=",
++		"Sec-WebSocket-Protocol: chat",
++		"", ""}, "\r\n")
++
++	if b.String() != expectedResponse {
++		t.Errorf("handshake expected %q but got %q", expectedResponse, b.String())
++	}
++}

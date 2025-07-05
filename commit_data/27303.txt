@@ -11,7 +11,100 @@ Date:   Fri Mar 18 10:50:00 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  3 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 39 ++++++++++++++++++++++++++
  2 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index cbb8fc625c..8458619bf2 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -48,6 +48,7 @@
+ (Add32F (Const32F [c]) (Const32F [d])) -> 
+         (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
+ (Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
++(AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
+ 
+ (Sub8 (Const8 [c]) (Const8 [d])) -> (Const8 [c-d])
+ (Sub16 (Const16 [c]) (Const16 [d])) -> (Const16 [c-d])
+@@ -156,6 +157,7 @@
+ (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
+ (Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
+ 
++// AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
+ (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
+ (Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
+ (Add16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [c]) x)
+@@ -443,6 +445,7 @@
+ 
+ // Collapse OffPtr
+ (OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
++(OffPtr p [0]) && v.Type.Compare(p.Type) == CMPeq -> p
+ 
+ 
+ // indexing operations
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bf08dd102b..9b304d8acf 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -20,6 +20,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpAdd64F(v, config)
+ 	case OpAdd8:
+ 		return rewriteValuegeneric_OpAdd8(v, config)
++	case OpAddPtr:
++		return rewriteValuegeneric_OpAddPtr(v, config)
+ 	case OpAnd16:
+ 		return rewriteValuegeneric_OpAnd16(v, config)
+ 	case OpAnd32:
+@@ -617,6 +619,27 @@ func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AddPtr <t> x (Const64 [c]))
++	// cond:
++	// result: (OffPtr <t> x [c])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		v.reset(OpOffPtr)
++		v.Type = t
++		v.AddArg(x)
++		v.AuxInt = c
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5242,6 +5265,22 @@ func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
+ 		v.AuxInt = a + b
+ 		return true
+ 	}
++	// match: (OffPtr p [0])
++	// cond: v.Type.Compare(p.Type) == CMPeq
++	// result: p
++	for {
++		p := v.Args[0]
++		if v.AuxInt != 0 {
++			break
++		}
++		if !(v.Type.Compare(p.Type) == CMPeq) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = p.Type
++		v.AddArg(p)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpOr16(v *Value, config *Config) bool {

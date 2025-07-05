@@ -13,6 +13,25 @@ Date:   Fri Aug 11 11:00:44 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/fuzz/mutator.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index bb960660ae..4310d57c5c 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -44,13 +44,6 @@ func (m *mutator) chooseLen(n int) int {
+ 	}
+ }
+ 
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // mutate performs several mutations on the provided values.
+ func (m *mutator) mutate(vals []any, maxBytes int) {
+ 	// TODO(katiehockman): pull some of these functions into helper methods and

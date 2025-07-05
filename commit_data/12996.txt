@@ -9,7 +9,79 @@ Date:   Mon Apr 30 22:47:51 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6135053
-
+---
  misc/dashboard/codereview/dashboard/cl.go   | 10 +++++++---
  misc/dashboard/codereview/dashboard/mail.go | 18 ++++++++++++++++++
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index fe20eb8e6d..a77028994c 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -45,8 +45,9 @@ type CL struct {
+ 	LGTMs       []string
+ 
+ 	// Mail information.
+-	Subject    string   `datastore:",noindex"`
+-	Recipients []string `datastore:",noindex"`
++	Subject       string   `datastore:",noindex"`
++	Recipients    []string `datastore:",noindex"`
++	LastMessageID string   `datastore:",noindex"`
+ 
+ 	// These are person IDs (e.g. "rsc"); they may be empty
+ 	Author   string
+@@ -193,6 +194,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
+ 					Subject: cl.Subject + " (issue " + n + ")",
+ 					Body:    "R=" + rev + "\n\n(sent by gocodereview)",
+ 				}
++				// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
++				// when the appengine/mail package supports that.
+ 				sendMailLater.Call(c, msg)
+ 			}
+ 		}
+@@ -339,7 +342,8 @@ func updateCL(c appengine.Context, n string) error {
+ 		if err != nil && err != datastore.ErrNoSuchEntity {
+ 			return err
+ 		} else if err == nil {
+-			// Reviewer is the only field that needs preserving.
++			// LastMessageID and Reviewer need preserving.
++			cl.LastMessageID = ocl.LastMessageID
+ 			cl.Reviewer = ocl.Reviewer
+ 		}
+ 		_, err = datastore.Put(c, key, cl)
+diff --git a/misc/dashboard/codereview/dashboard/mail.go b/misc/dashboard/codereview/dashboard/mail.go
+index bd9ca19d48..a4bf1ac3e2 100644
+--- a/misc/dashboard/codereview/dashboard/mail.go
++++ b/misc/dashboard/codereview/dashboard/mail.go
+@@ -9,6 +9,7 @@ import (
+ 	"time"
+ 
+ 	"appengine"
++	"appengine/datastore"
+ )
+ 
+ func init() {
+@@ -35,6 +36,23 @@ func handleMail(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	c.Infof("Found issue %q", m[1])
++
++	// Track the MessageID.
++	key := datastore.NewKey(c, "CL", m[1], 0, nil)
++	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
++		cl := new(CL)
++		err := datastore.Get(c, key, cl)
++		if err != nil && err != datastore.ErrNoSuchEntity {
++			return err
++		}
++		cl.LastMessageID = msg.Header.Get("Message-ID")
++		_, err = datastore.Put(c, key, cl)
++		return err
++	}, nil)
++	if err != nil {
++		c.Errorf("datastore transaction failed: %v", err)
++	}
++
+ 	// Update the CL after a delay to give Rietveld a chance to catch up.
+ 	UpdateCLLater(c, m[1], 10*time.Second)
+ }

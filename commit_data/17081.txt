@@ -17,9 +17,126 @@ Date:   Wed Aug 7 13:49:37 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/12482044
-
+---
  misc/dist/bindist.go |  1 -
  src/cmd/api/run.go   | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/run.bash         |  9 +++-----
  src/run.bat          |  2 +-
  4 files changed, 69 insertions(+), 8 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index f56a88dc6b..754bd280c2 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -50,7 +50,6 @@ const (
+ var preBuildCleanFiles = []string{
+ 	"lib/codereview",
+ 	"misc/dashboard/godashboard",
+-	"src/cmd/api",
+ 	"src/cmd/cov",
+ 	"src/cmd/prof",
+ 	"src/pkg/exp",
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+new file mode 100644
+index 0000000000..8137b23429
+--- /dev/null
++++ b/src/cmd/api/run.go
+@@ -0,0 +1,65 @@
++// +build from_src_run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The run program is invoked via "go run" from src/run.bash or
++// src/run.bat conditionally builds and runs the cmd/api tool.
++//
++// TODO(bradfitz): the "conditional" condition is always true.
++// We should only do this if the user has the hg codereview extension
++// enabled and verifies that the go.tools subrepo is checked out with
++// a suitably recently version. In prep for the cmd/api rewrite.
++package main
++
++import (
++	"fmt"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strconv"
++)
++
++var goroot string
++
++func main() {
++	log.SetFlags(0)
++	goroot = os.Getenv("GOROOT") // should be set by run.{bash,bat}
++	if goroot == "" {
++		log.Fatal("No $GOROOT set.")
++	}
++	isGoDeveloper := exec.Command("hg", "pq").Run() == nil
++	if !isGoDeveloper && !forceAPICheck() {
++		fmt.Println("Skipping cmd/api checks; hg codereview extension not available and GO_FORCE_API_CHECK not set")
++		return
++	}
++
++	out, err := exec.Command("go", "install", "--tags=api_tool", "cmd/api").CombinedOutput()
++	if err != nil {
++		log.Fatalf("Error installing cmd/api: %v\n%s", err, out)
++	}
++	out, err = exec.Command("go", "tool", "api",
++		"-c", file("go1", "go1.1"),
++		"-next", file("next"),
++		"-except", file("except")).CombinedOutput()
++	if err != nil {
++		log.Fatalf("Error running API checker: %v\n%s", err, out)
++	}
++}
++
++// file expands s to $GOROOT/api/s.txt.
++// If there are more than 1, they're comma-separated.
++func file(s ...string) string {
++	if len(s) > 1 {
++		return file(s[0]) + "," + file(s[1:]...)
++	}
++	return filepath.Join(goroot, "api", s[0]+".txt")
++}
++
++// GO_FORCE_API_CHECK is set by builders.
++func forceAPICheck() bool {
++	v, _ := strconv.ParseBool(os.Getenv("GO_FORCE_API_CHECK"))
++	return v
++}
+diff --git a/src/run.bash b/src/run.bash
+index ded465b668..178290327a 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -180,12 +180,9 @@ unset GOMAXPROCS
+ time go run run.go || exit 1
+ ) || exit $?
+ 
+-if [ -d "$GOROOT/src/cmd/api" ]
+-then
+-	echo
+-	echo '# Checking API compatibility.'
+-	go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.txt -except $GOROOT/api/except.txt
+-fi
++echo
++echo '# Checking API compatibility.'
++go run --tags=from_src_run $GOROOT/src/cmd/api/run.go
+ 
+ echo
+ echo ALL TESTS PASSED
+diff --git a/src/run.bat b/src/run.bat
+index 724ae2d9f5..36f594bb87 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -121,7 +121,7 @@ set GOMAXPROCS=%OLDGOMAXPROCS%
+ set OLDGOMAXPROCS=
+ 
+ echo # Checking API compatibility.
+-go tool api -c ..\api\go1.txt,..\api\go1.1.txt -next ..\api\next.txt -except ..\api\except.txt
++go run --tags=from_src_run "%GOROOT%\src\cmd\api\run.go"
+ if errorlevel 1 goto fail
+ echo.
+ 

@@ -10,7 +10,34 @@ Date:   Mon Aug 18 18:14:54 2014 -0700
     R=rsc, ruiu
     CC=golang-codereviews
     https://golang.org/cl/126400043
-
+---
  src/liblink/asm6.c | 2 +-
  src/liblink/asm8.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index e25c85053a..576f349750 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1302,7 +1302,7 @@ static Optab optab[] =
+ 	{ ASETNE,	yscond,	Pm, {0x95,(00)} },
+ 	{ ASETOC,	yscond,	Pm, {0x91,(00)} },
+ 	{ ASETOS,	yscond,	Pm, {0x90,(00)} },
+-	{ ASETPC,	yscond,	Pm, {0x96,(00)} },
++	{ ASETPC,	yscond,	Pm, {0x9b,(00)} },
+ 	{ ASETPL,	yscond,	Pm, {0x99,(00)} },
+ 	{ ASETPS,	yscond,	Pm, {0x9a,(00)} },
+ 	{ ASHLB,	yshb,	Pb, {0xd0,(04),0xc0,(04),0xd2,(04)} },
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index f40b92bf84..6035017b2c 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -813,7 +813,7 @@ static Optab optab[] =
+ 	{ ASETNE,	yscond,	Pm, {0x95,(00)} },
+ 	{ ASETOC,	yscond,	Pm, {0x91,(00)} },
+ 	{ ASETOS,	yscond,	Pm, {0x90,(00)} },
+-	{ ASETPC,	yscond,	Pm, {0x96,(00)} },
++	{ ASETPC,	yscond,	Pm, {0x9b,(00)} },
+ 	{ ASETPL,	yscond,	Pm, {0x99,(00)} },
+ 	{ ASETPS,	yscond,	Pm, {0x9a,(00)} },
+ 	{ ACDQ,		ynone,	Px, {0x99} },

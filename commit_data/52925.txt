@@ -19,6 +19,28 @@ Date:   Wed Jun 8 15:08:33 2022 +0530
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/netip/netip.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index eae9c29ea7..bb83371a55 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1310,14 +1310,14 @@ func ParsePrefix(s string) (Prefix, error) {
+ 	bitsStr := s[i+1:]
+ 	bits, err := strconv.Atoi(bitsStr)
+ 	if err != nil {
+-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + ": bad bits after slash: " + strconv.Quote(bitsStr))
++		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+ 	}
+ 	maxBits := 32
+ 	if ip.Is6() {
+ 		maxBits = 128
+ 	}
+ 	if bits < 0 || bits > maxBits {
+-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + ": prefix length out of range")
++		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): prefix length out of range")
+ 	}
+ 	return PrefixFrom(ip, bits), nil
+ }

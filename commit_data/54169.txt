@@ -11,6 +11,21 @@ Date:   Tue Jul 19 15:09:21 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/time/time.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 0cd7a7e8a2..5da61510c1 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1112,6 +1112,9 @@ func Now() Time {
+ 	mono -= startNano
+ 	sec += unixToInternal - minWall
+ 	if uint64(sec)>>33 != 0 {
++		// Seconds field overflowed the 33 bits available when
++		// storing a monotonic time. This will be true after
++		// March 16, 2157.
+ 		return Time{uint64(nsec), sec + minWall, Local}
+ 	}
+ 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}

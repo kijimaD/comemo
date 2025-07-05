@@ -15,7 +15,40 @@ Date:   Mon Sep 8 14:54:00 2014 -0700
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/142760043
-
+---
  src/go/parser/parser.go     | 2 ++
  src/go/parser/short_test.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 9c62076f25..4a005d8ffa 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -641,6 +641,7 @@ func (p *parser) parseArrayType() ast.Expr {
+ 	}
+ 
+ 	lbrack := p.expect(token.LBRACK)
++	p.exprLev++
+ 	var len ast.Expr
+ 	// always permit ellipsis for more fault-tolerant parsing
+ 	if p.tok == token.ELLIPSIS {
+@@ -649,6 +650,7 @@ func (p *parser) parseArrayType() ast.Expr {
+ 	} else if p.tok != token.RBRACK {
+ 		len = p.parseRhs()
+ 	}
++	p.exprLev--
+ 	p.expect(token.RBRACK)
+ 	elt := p.parseType()
+ 
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index f861086ddb..05e44de28a 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -39,6 +39,7 @@ var valids = []string{
+ 	`package p; func ((*T),) m() {}`,
+ 	`package p; func (*(T),) m() {}`,
+ 	`package p; func _(x []int) { for range x {} }`,
++	`package p; func _() { if [T{}.n]int{} {} }`,
+ }
+ 
+ func TestValid(t *testing.T) {

@@ -7,7 +7,89 @@ Date:   Sun Oct 31 17:46:26 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2813041
-
+---
  src/lib9/utf/Makefile     | 16 ++++++++++++++++
  src/lib9/utf/mkrunetype.c | 19 ++++++++-----------
  2 files changed, 24 insertions(+), 11 deletions(-)
+
+diff --git a/src/lib9/utf/Makefile b/src/lib9/utf/Makefile
+new file mode 100644
+index 0000000000..bd15f9eabf
+--- /dev/null
++++ b/src/lib9/utf/Makefile
+@@ -0,0 +1,16 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# The library is built by the Makefile in the parent directory.
++# This Makefile only builds mkrunetype.
++
++include ../../Make.inc
++O:=$(HOST_O)
++
++TARG=mkrunetype
++
++OFILES=\
++	mkrunetype.$O\
++
++include ../../Make.ccmd
+diff --git a/src/lib9/utf/mkrunetype.c b/src/lib9/utf/mkrunetype.c
+index f1a9f8a77a..848056451d 100644
+--- a/src/lib9/utf/mkrunetype.c
++++ b/src/lib9/utf/mkrunetype.c
+@@ -32,11 +32,9 @@
+  * isdigitrune is true iff c is a numeric-digit category.
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include <stdio.h>
+-#include <stdlib.h>
+-#include <stdarg.h>
+-#include <string.h>
+-#include <libgen.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+@@ -149,8 +147,8 @@ main(int argc, char *argv[]){
+ 	last = -1;
+ 	while(getunicodeline(in, fields, buf)){
+ 		code = getcode(fields[FIELD_CODE]);
+-                if (code >= NRUNES)
+-                  fatal("code-point value too big: %x", code);
++		if (code >= NRUNES)
++			fatal("code-point value too big: %x", code);
+ 		if(code <= last)
+ 			fatal("bad code sequence: %x then %x", last, code);
+ 		last = code;
+@@ -588,8 +586,7 @@ mkisronly(const char* label, char* prop) {
+ static void
+ mktables(char *src, int usepairs)
+ {
+-	printf("/* generated automatically by mkrunetype.c from %s */\n\n",
+-		basename(src));
++	printf("/* generated automatically by mkrunetype.c from %s */\n\n", src);
+ 
+ 	/*
+ 	 * we special case the space and digit tables, since they are assumed
+@@ -703,8 +700,8 @@ getcode(char *s)
+ 	int i, code;
+ 
+ 	code = 0;
+-        i = 0;
+-        /* Parse a hex number */
++	i = 0;
++	/* Parse a hex number */
+ 	while(s[i]) {
+ 		code <<= 4;
+ 		if(s[i] >= '0' && s[i] <= '9')
+@@ -713,7 +710,7 @@ getcode(char *s)
+ 			code += s[i] - 'A' + 10;
+ 		else
+ 			fatal("bad code char '%c'", s[i]);
+-                i++;
++		i++;
+ 	}
+ 	return code;
+ }

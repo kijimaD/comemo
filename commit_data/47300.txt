@@ -12,6 +12,19 @@ Date:   Wed Mar 10 11:30:24 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_go1.18_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/types/api_go1.18_test.go b/src/go/types/api_go1.18_test.go
+index bbbf70581d..e60fe23201 100644
+--- a/src/go/types/api_go1.18_test.go
++++ b/src/go/types/api_go1.18_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build go1.18
++// +build go1.18
+ 
+ package types_test
+ 

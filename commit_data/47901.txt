@@ -15,7 +15,7 @@ Date:   Fri Apr 2 14:45:26 2021 +0800
     Reviewed-by: Aofei Sheng <aofei@aofeisheng.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modconv/convert.go             |   9 +-
  src/cmd/go/internal/modconv/convert_test.go        | 189 ---------------------
  src/cmd/go/internal/modfetch/repo.go               |  56 ------
@@ -25,3 +25,451 @@ Date:   Fri Apr 2 14:45:26 2021 +0800
  src/cmd/go/testdata/script/mod_init_dep.txt        |   4 -
  src/cmd/go/testdata/script/mod_init_glide.txt      |   1 +
  8 files changed, 82 insertions(+), 256 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert.go b/src/cmd/go/internal/modconv/convert.go
+index 5d4165c944..9c861f8e99 100644
+--- a/src/cmd/go/internal/modconv/convert.go
++++ b/src/cmd/go/internal/modconv/convert.go
+@@ -12,7 +12,6 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/modfetch"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -21,7 +20,7 @@ import (
+ 
+ // ConvertLegacyConfig converts legacy config to modfile.
+ // The file argument is slash-delimited.
+-func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
++func ConvertLegacyConfig(f *modfile.File, file string, data []byte, queryPackage func(path, rev string) (module.Version, error)) error {
+ 	i := strings.LastIndex(file, "/")
+ 	j := -2
+ 	if i >= 0 {
+@@ -62,15 +61,13 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+ 		sem <- token{}
+ 		go func(i int, m module.Version) {
+ 			defer func() { <-sem }()
+-			repo, info, err := modfetch.ImportRepoRev(m.Path, m.Version)
++			version, err := queryPackage(m.Path, m.Version)
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), m.Path, m.Version, err)
+ 				return
+ 			}
+ 
+-			path := repo.ModulePath()
+-			versions[i].Path = path
+-			versions[i].Version = info.Version
++			versions[i] = version
+ 		}(i, m)
+ 	}
+ 	// Fill semaphore channel to wait for all tasks to finish.
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+deleted file mode 100644
+index 66b9ff4f38..0000000000
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ /dev/null
+@@ -1,189 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modconv
+-
+-import (
+-	"bytes"
+-	"context"
+-	"fmt"
+-	"internal/testenv"
+-	"log"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"strings"
+-	"testing"
+-
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/modfetch"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+-)
+-
+-func TestMain(m *testing.M) {
+-	os.Exit(testMain(m))
+-}
+-
+-func testMain(m *testing.M) int {
+-	cfg.GOPROXY = "direct"
+-
+-	if _, err := exec.LookPath("git"); err != nil {
+-		fmt.Fprintln(os.Stderr, "skipping because git binary not found")
+-		fmt.Println("PASS")
+-		return 0
+-	}
+-
+-	dir, err := os.MkdirTemp("", "modconv-test-")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
+-
+-	return m.Run()
+-}
+-
+-func TestConvertLegacyConfig(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	if testing.Verbose() {
+-		old := cfg.BuildX
+-		defer func() {
+-			cfg.BuildX = old
+-		}()
+-		cfg.BuildX = true
+-	}
+-
+-	var tests = []struct {
+-		path  string
+-		vers  string
+-		gomod string
+-	}{
+-		/*
+-			Different versions of git seem to find or not find
+-			github.com/Masterminds/semver's a93e51b5a57e,
+-			which is an unmerged pull request.
+-			We'd rather not provide access to unmerged pull requests,
+-			so the line is removed from the golden file here,
+-			but some git commands still find it somehow.
+-
+-			{
+-				// Gopkg.lock parsing.
+-				"github.com/golang/dep", "v0.4.0",
+-				`module github.com/golang/dep
+-
+-				require (
+-					github.com/Masterminds/vcs v1.11.1
+-					github.com/armon/go-radix v0.0.0-20160115234725-4239b77079c7
+-					github.com/boltdb/bolt v1.3.1
+-					github.com/go-yaml/yaml v0.0.0-20170407172122-cd8b52f8269e
+-					github.com/golang/protobuf v0.0.0-20170901042739-5afd06f9d81a
+-					github.com/jmank88/nuts v0.3.0
+-					github.com/nightlyone/lockfile v0.0.0-20170707060451-e83dc5e7bba0
+-					github.com/pelletier/go-toml v0.0.0-20171218135716-b8b5e7696574
+-					github.com/pkg/errors v0.8.0
+-					github.com/sdboyer/constext v0.0.0-20170321163424-836a14457353
+-					golang.org/x/net v0.0.0-20170828231752-66aacef3dd8a
+-					golang.org/x/sync v0.0.0-20170517211232-f52d1811a629
+-					golang.org/x/sys v0.0.0-20170830134202-bb24a47a89ea
+-				)`,
+-			},
+-		*/
+-
+-		// TODO: https://github.com/docker/distribution uses vendor.conf
+-
+-		{
+-			// Godeps.json parsing.
+-			// TODO: Should v2.0.0 work here too?
+-			"github.com/docker/distribution", "v0.0.0-20150410205453-85de3967aa93",
+-			`module github.com/docker/distribution
+-
+-			require (
+-				github.com/AdRoll/goamz v0.0.0-20150130162828-d3664b76d905
+-				github.com/MSOpenTech/azure-sdk-for-go v0.0.0-20150323223030-d90753bcad2e
+-				github.com/Sirupsen/logrus v0.7.3
+-				github.com/bugsnag/bugsnag-go v1.0.3-0.20141110184014-b1d153021fcd
+-				github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+-				github.com/bugsnag/panicwrap v0.0.0-20141110184334-e5f9854865b9
+-				github.com/codegangsta/cli v1.4.2-0.20150131031259-6086d7927ec3
+-				github.com/docker/docker v1.4.2-0.20150204013315-165ea5c158cf
+-				github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
+-				github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7
+-				github.com/gorilla/context v0.0.0-20140604161150-14f550f51af5
+-				github.com/gorilla/handlers v0.0.0-20140825150757-0e84b7d810c1
+-				github.com/gorilla/mux v0.0.0-20140926153814-e444e69cbd2e
+-				github.com/jlhawn/go-crypto v0.0.0-20150401213827-cd738dde20f0
+-				github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
+-				github.com/yvasiyarov/gorelic v0.0.7-0.20141212073537-a9bba5b9ab50
+-				github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
+-				golang.org/x/net v0.0.0-20150202051010-1dfe7915deaf
+-				gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789
+-				gopkg.in/yaml.v2 v2.0.0-20150116202057-bef53efd0c76
+-			)`,
+-		},
+-
+-		{
+-			// golang.org/issue/24585 - confusion about v2.0.0 tag in legacy non-v2 module
+-			"github.com/fishy/gcsbucket", "v0.0.0-20180217031846-618d60fe84e0",
+-			`module github.com/fishy/gcsbucket
+-
+-			require (
+-				cloud.google.com/go v0.18.0
+-				github.com/fishy/fsdb v0.0.0-20180217030800-5527ded01371
+-				github.com/golang/protobuf v1.0.0
+-				github.com/googleapis/gax-go v2.0.0+incompatible
+-				golang.org/x/net v0.0.0-20180216171745-136a25c244d3
+-				golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
+-				golang.org/x/text v0.3.1-0.20180208041248-4e4a3210bb54
+-				google.golang.org/api v0.0.0-20180217000815-c7a403bb5fe1
+-				google.golang.org/appengine v1.0.0
+-				google.golang.org/genproto v0.0.0-20180206005123-2b5a72b8730b
+-				google.golang.org/grpc v1.10.0
+-			)`,
+-		},
+-	}
+-
+-	ctx := context.Background()
+-
+-	for _, tt := range tests {
+-		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"_"+tt.vers, func(t *testing.T) {
+-			f, err := modfile.Parse("golden", []byte(tt.gomod), nil)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			want, err := f.Format()
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-
+-			dir, err := modfetch.Download(ctx, module.Version{Path: tt.path, Version: tt.vers})
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-
+-			for name := range Converters {
+-				file := filepath.Join(dir, name)
+-				data, err := os.ReadFile(file)
+-				if err == nil {
+-					f := new(modfile.File)
+-					f.AddModuleStmt(tt.path)
+-					if err := ConvertLegacyConfig(f, filepath.ToSlash(file), data); err != nil {
+-						t.Fatal(err)
+-					}
+-					out, err := f.Format()
+-					if err != nil {
+-						t.Fatalf("format after conversion: %v", err)
+-					}
+-					if !bytes.Equal(out, want) {
+-						t.Fatalf("final go.mod:\n%s\n\nwant:\n%s", out, want)
+-					}
+-					return
+-				}
+-			}
+-			t.Fatalf("no converter found for %s@%s", tt.path, tt.vers)
+-		})
+-	}
+-}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 46923cb7dc..20469c5432 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -169,15 +169,6 @@ type RevInfo struct {
+ // and it can check that the path can be resolved to a target repository.
+ // To avoid version control access except when absolutely necessary,
+ // Lookup does not attempt to connect to the repository itself.
+-//
+-// The ImportRepoRev function is a variant of Import which is limited
+-// to code in a source code repository at a particular revision identifier
+-// (usually a commit hash or source code repository tag, not necessarily
+-// a module version).
+-// ImportRepoRev is used when converting legacy dependency requirements
+-// from older systems into go.mod files. Those older systems worked
+-// at either package or repository granularity, and most of the time they
+-// recorded commit hashes, not tagged versions.
+ 
+ var lookupCache par.Cache
+ 
+@@ -297,53 +288,6 @@ func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
+ 	return code, nil
+ }
+ 
+-// ImportRepoRev returns the module and version to use to access
+-// the given import path loaded from the source code repository that
+-// the original "go get" would have used, at the specific repository revision
+-// (typically a commit hash, but possibly also a source control tag).
+-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
+-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
+-	}
+-
+-	// Note: Because we are converting a code reference from a legacy
+-	// version control system, we ignore meta tags about modules
+-	// and use only direct source control entries (get.IgnoreMod).
+-	security := web.SecureOnly
+-	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
+-		security = web.Insecure
+-	}
+-	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	code, err := lookupCodeRepo(rr)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	revInfo, err := code.Stat(rev)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	// TODO: Look in repo to find path, check for go.mod files.
+-	// For now we're just assuming rr.Root is the module path,
+-	// which is true in the absence of go.mod files.
+-
+-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	info, err := repo.(*codeRepo).convert(revInfo, rev)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-	return repo, info, nil
+-}
+-
+ // A loggingRepo is a wrapper around an underlying Repo
+ // that prints a log message at the start and end of each call.
+ // It can be inserted when debugging.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 120afef4ff..45852edbd1 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -728,6 +728,17 @@ func setDefaultBuildMod() {
+ // convertLegacyConfig imports module requirements from a legacy vendoring
+ // configuration file, if one is present.
+ func convertLegacyConfig(modPath string) (from string, err error) {
++	noneSelected := func(path string) (version string) { return "none" }
++	queryPackage := func(path, rev string) (module.Version, error) {
++		pkgMods, modOnly, err := QueryPattern(context.Background(), path, rev, noneSelected, nil)
++		if err != nil {
++			return module.Version{}, err
++		}
++		if len(pkgMods) > 0 {
++			return pkgMods[0].Mod, nil
++		}
++		return modOnly.Mod, nil
++	}
+ 	for _, name := range altConfigs {
+ 		cfg := filepath.Join(modRoot, name)
+ 		data, err := os.ReadFile(cfg)
+@@ -737,7 +748,7 @@ func convertLegacyConfig(modPath string) (from string, err error) {
+ 				return "", nil
+ 			}
+ 			cfg = filepath.ToSlash(cfg)
+-			err := modconv.ConvertLegacyConfig(modFile, cfg, data)
++			err := modconv.ConvertLegacyConfig(modFile, cfg, data, queryPackage)
+ 			return name, err
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_convert.txt b/src/cmd/go/testdata/script/mod_convert.txt
+new file mode 100644
+index 0000000000..6e9b136356
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert.txt
+@@ -0,0 +1,64 @@
++[short] skip
++
++env GO111MODULE=on
++env GOPROXY=
++env GOSUMDB=
++
++go mod download github.com/docker/distribution@v0.0.0-20150410205453-85de3967aa93
++mkdir x/Godeps
++cp $GOPATH/pkg/mod/github.com/docker/distribution@v0.0.0-20150410205453-85de3967aa93/Godeps/Godeps.json x/Godeps
++cd x
++go mod init github.com/docker/distribution
++cmpenv go.mod go.mod.want
++
++go mod download github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0
++cp $GOPATH/pkg/mod/github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0/Gopkg.lock ../y
++cd ../y
++go mod init github.com/fishy/gcsbucket
++cmpenv go.mod go.mod.want
++
++-- x/go.mod.want --
++module github.com/docker/distribution
++
++go $goversion
++
++require (
++	github.com/AdRoll/goamz v0.0.0-20150130162828-d3664b76d905
++	github.com/MSOpenTech/azure-sdk-for-go v0.0.0-20150323223030-d90753bcad2e
++	github.com/Sirupsen/logrus v0.7.3
++	github.com/bugsnag/bugsnag-go v1.0.3-0.20141110184014-b1d153021fcd
++	github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
++	github.com/bugsnag/panicwrap v0.0.0-20141110184334-e5f9854865b9
++	github.com/codegangsta/cli v1.4.2-0.20150131031259-6086d7927ec3
++	github.com/docker/docker v1.4.2-0.20150204013315-165ea5c158cf
++	github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
++	github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7
++	github.com/gorilla/context v0.0.0-20140604161150-14f550f51af5
++	github.com/gorilla/handlers v0.0.0-20140825150757-0e84b7d810c1
++	github.com/gorilla/mux v0.0.0-20140926153814-e444e69cbd2e
++	github.com/jlhawn/go-crypto v0.0.0-20150401213827-cd738dde20f0
++	github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
++	github.com/yvasiyarov/gorelic v0.0.7-0.20141212073537-a9bba5b9ab50
++	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
++	golang.org/x/net v0.0.0-20150202051010-1dfe7915deaf
++	gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789
++	gopkg.in/yaml.v2 v2.0.0-20150116202057-bef53efd0c76
++)
++-- y/go.mod.want --
++module github.com/fishy/gcsbucket
++
++go $goversion
++
++require (
++	cloud.google.com/go v0.18.0
++	github.com/fishy/fsdb v0.0.0-20180217030800-5527ded01371
++	github.com/golang/protobuf v1.0.0
++	github.com/googleapis/gax-go v2.0.0+incompatible
++	golang.org/x/net v0.0.0-20180216171745-136a25c244d3
++	golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
++	golang.org/x/text v0.3.1-0.20180208041248-4e4a3210bb54
++	google.golang.org/api v0.0.0-20180217000815-c7a403bb5fe1
++	google.golang.org/appengine v1.0.0
++	google.golang.org/genproto v0.0.0-20180206005123-2b5a72b8730b
++	google.golang.org/grpc v1.10.0
++)
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+index ddb0c08199..283e2d9936 100644
+--- a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
++++ b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+@@ -1,4 +1,6 @@
+ env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
+ 
+ [!net] skip
+ [!exec:git] skip
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+index f8cf1d563a..76b4867860 100644
+--- a/src/cmd/go/testdata/script/mod_init_dep.txt
++++ b/src/cmd/go/testdata/script/mod_init_dep.txt
+@@ -1,10 +1,6 @@
+ env GO111MODULE=on
+ env GOFLAGS=-mod=mod
+ 
+-# modconv uses git directly to examine what old 'go get' would
+-[!net] skip
+-[!exec:git] skip
+-
+ # go mod init should populate go.mod from Gopkg.lock
+ go mod init x
+ stderr 'copying requirements from Gopkg.lock'
+diff --git a/src/cmd/go/testdata/script/mod_init_glide.txt b/src/cmd/go/testdata/script/mod_init_glide.txt
+index a351a6ae4b..373810c768 100644
+--- a/src/cmd/go/testdata/script/mod_init_glide.txt
++++ b/src/cmd/go/testdata/script/mod_init_glide.txt
+@@ -3,6 +3,7 @@
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
++env GOSUMDB=
+ 
+ # Regression test for golang.org/issue/32161:
+ # 'go mod init' did not locate tags when resolving a commit to a pseudo-version.

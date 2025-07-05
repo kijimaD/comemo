@@ -11,6 +11,20 @@ Date:   Tue Feb 5 07:06:00 2013 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7279045
-
+---
  src/pkg/container/heap/example_pq_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/heap/example_pq_test.go b/src/pkg/container/heap/example_pq_test.go
+index 0f91de138e..8cbeb8d708 100644
+--- a/src/pkg/container/heap/example_pq_test.go
++++ b/src/pkg/container/heap/example_pq_test.go
+@@ -14,7 +14,7 @@ import (
+ type Item struct {
+ 	value    string // The value of the item; arbitrary.
+ 	priority int    // The priority of the item in the queue.
+-	// The index is needed by changePriority and is maintained by the heap.Interface methods.
++	// The index is needed by update and is maintained by the heap.Interface methods.
+ 	index int // The index of the item in the heap.
+ }
+ 

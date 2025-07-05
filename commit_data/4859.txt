@@ -7,7 +7,7 @@ Date:   Tue Feb 16 11:43:25 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/207071
-
+---
  src/pkg/syscall/syscall_darwin.go         | 2 +-
  src/pkg/syscall/syscall_freebsd.go        | 2 +-
  src/pkg/syscall/zsyscall_darwin_386.go    | 6 +++---
@@ -15,3 +15,98 @@ Date:   Tue Feb 16 11:43:25 2010 -0800
  src/pkg/syscall/zsyscall_freebsd_386.go   | 6 +++---
  src/pkg/syscall/zsyscall_freebsd_amd64.go | 6 +++---
  6 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 1946ecd78c..291ea557b0 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -552,7 +552,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Symlink(path string, link string) (errno int)
+ //sys	Sync() (errno int)
+ //sys	Truncate(path string, length int64) (errno int)
+-//sys	Umask(newmask int) (errno int)
++//sys	Umask(newmask int) (oldmask int)
+ //sys	Undelete(path string) (errno int)
+ //sys	Unlink(path string) (errno int)
+ //sys	Unmount(path string, flags int) (errno int)
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 906955e979..f5bb454124 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -549,7 +549,7 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ //sys	Symlink(path string, link string) (errno int)
+ //sys	Sync() (errno int)
+ //sys	Truncate(path string, length int64) (errno int)
+-//sys	Umask(newmask int) (errno int)
++//sys	Umask(newmask int) (oldmask int)
+ //sys	Undelete(path string) (errno int)
+ //sys	Unlink(path string) (errno int)
+ //sys	Unmount(path string, flags int) (errno int)
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 6442f078b3..92525e3a80 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -623,9 +623,9 @@ func Truncate(path string, length int64) (errno int) {
+ 	return
+ }
+ 
+-func Umask(newmask int) (errno int) {
+-	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
+-	errno = int(e1)
++func Umask(newmask int) (oldmask int) {
++	r0, _, _ := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
++	oldmask = int(r0)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 5f4f9ee1d2..a0fc52c85e 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -623,9 +623,9 @@ func Truncate(path string, length int64) (errno int) {
+ 	return
+ }
+ 
+-func Umask(newmask int) (errno int) {
+-	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
+-	errno = int(e1)
++func Umask(newmask int) (oldmask int) {
++	r0, _, _ := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
++	oldmask = int(r0)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 9e165086a4..9e22134180 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -623,9 +623,9 @@ func Truncate(path string, length int64) (errno int) {
+ 	return
+ }
+ 
+-func Umask(newmask int) (errno int) {
+-	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
+-	errno = int(e1)
++func Umask(newmask int) (oldmask int) {
++	r0, _, _ := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
++	oldmask = int(r0)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index f6d42bcd34..da67cdb829 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -623,9 +623,9 @@ func Truncate(path string, length int64) (errno int) {
+ 	return
+ }
+ 
+-func Umask(newmask int) (errno int) {
+-	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
+-	errno = int(e1)
++func Umask(newmask int) (oldmask int) {
++	r0, _, _ := Syscall(SYS_UMASK, uintptr(newmask), 0, 0)
++	oldmask = int(r0)
+ 	return
+ }
+ 

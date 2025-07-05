@@ -6,7 +6,26 @@ Date:   Wed Nov 18 09:17:47 2009 -0800
     
     R=rsc
     https://golang.org/cl/156075
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index df0b064a08..7aefd945bb 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -20,3 +20,4 @@ Google Inc.
+ Kevin Ballard <kevin@sb.org>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1162ce5c45..dddb2326a5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -63,3 +63,4 @@ Stephen Ma <stephenm@golang.org>
+ Tom Szymanski <tgs@google.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Vish Subramanian <vish@google.com>
++William Josephson <wjosephson@gmail.com>

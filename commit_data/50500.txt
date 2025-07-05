@@ -14,7 +14,58 @@ Date:   Sun Oct 24 15:44:15 2021 +1100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/exec.go      |  5 ++++-
  src/text/template/exec_test.go | 23 +++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 7e44497530..c42cbb2ad3 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -635,10 +635,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	case reflect.Struct:
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
+-			field := receiver.FieldByIndex(tField.Index)
++			field, err := receiver.FieldByIndexErr(tField.Index)
+ 			if !tField.IsExported() {
+ 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+ 			}
++			if err != nil {
++				s.errorf("%v", err)
++			}
+ 			// If it's a function, we must call it.
+ 			if hasArgs {
+ 				s.errorf("%s has arguments but cannot be invoked as function", fieldName)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 9c0772945e..3c40aa901e 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1787,3 +1787,26 @@ func TestIssue39807(t *testing.T) {
+ 
+ 	wg.Wait()
+ }
++
++// Issue 48215: embedded nil pointer causes panic.
++// Fixed by adding FieldByIndexErr to the reflect package.
++func TestIssue48215(t *testing.T) {
++	type A struct {
++		S string
++	}
++	type B struct {
++		*A
++	}
++	tmpl, err := New("").Parse(`{{ .S }}`)
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = tmpl.Execute(io.Discard, B{})
++	// We expect an error, not a panic.
++	if err == nil {
++		t.Fatal("did not get error for nil embedded struct")
++	}
++	if !strings.Contains(err.Error(), "reflect: indirection through nil pointer to embedded struct field A") {
++		t.Fatal(err)
++	}
++}

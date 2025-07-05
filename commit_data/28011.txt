@@ -11,7 +11,7 @@ Date:   Mon Apr 25 13:24:48 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 15 ++-------------
  src/cmd/compile/internal/gc/bimport.go | 13 +++----------
  src/cmd/compile/internal/gc/dcl.go     |  2 +-
@@ -24,3 +24,298 @@ Date:   Mon Apr 25 13:24:48 2016 -0700
  src/cmd/compile/internal/gc/walk.go    |  2 +-
  test/fixedbugs/issue15439.go           | 25 +++++++++++++++++++++++++
  11 files changed, 48 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index bf1354c71f..c635129ccc 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -720,18 +720,7 @@ func (p *exporter) field(f *Field) {
+ 	p.pos(f.Sym.Def)
+ 	p.fieldName(f.Sym, f)
+ 	p.typ(f.Type)
+-	// TODO(gri) Do we care that a non-present tag cannot be distinguished
+-	// from a present but empty ta string? (reflect doesn't seem to make
+-	// a difference). Investigate.
+-	p.note(f.Note)
+-}
+-
+-func (p *exporter) note(n *string) {
+-	var s string
+-	if n != nil {
+-		s = *n
+-	}
+-	p.string(s)
++	p.string(f.Note)
+ }
+ 
+ func (p *exporter) methodList(t *Type) {
+@@ -847,7 +836,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	// TODO(gri) This is compiler-specific (escape info).
+ 	// Move into compiler-specific section eventually?
+ 	// (Not having escape info causes tests to fail, e.g. runtime GCInfoTest)
+-	p.note(q.Note)
++	p.string(q.Note)
+ }
+ 
+ func parName(f *Field, numbered bool) string {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 3665bbdec2..7fed8b1342 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -457,7 +457,7 @@ func (p *importer) field() *Node {
+ 	p.pos()
+ 	sym := p.fieldName()
+ 	typ := p.typ()
+-	note := p.note()
++	note := p.string()
+ 
+ 	var n *Node
+ 	if sym.Name != "" {
+@@ -475,18 +475,11 @@ func (p *importer) field() *Node {
+ 		n = embedded(s, pkg)
+ 		n.Right = typenod(typ)
+ 	}
+-	n.SetVal(note)
++	n.SetVal(Val{U: note})
+ 
+ 	return n
+ }
+ 
+-func (p *importer) note() (v Val) {
+-	if s := p.string(); s != "" {
+-		v.U = s
+-	}
+-	return
+-}
+-
+ // parser.go:hidden_interfacedcl_list
+ func (p *importer) methodList() (methods []*Node) {
+ 	if n := p.int(); n > 0 {
+@@ -572,7 +565,7 @@ func (p *importer) param(named bool) *Node {
+ 
+ 	// TODO(gri) This is compiler-specific (escape info).
+ 	// Move into compiler-specific section eventually?
+-	n.SetVal(p.note())
++	n.SetVal(Val{U: p.string()})
+ 
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 7f6e167488..ca9caf69d7 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -757,7 +757,7 @@ func structfield(n *Node) *Field {
+ 
+ 	switch u := n.Val().U.(type) {
+ 	case string:
+-		f.Note = &u
++		f.Note = u
+ 	default:
+ 		Yyerror("field annotation must be string")
+ 	case nil:
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2f4e5fb6ef..795e688090 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1181,7 +1181,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
+ 
+ // mktag returns the string representation for an escape analysis tag.
+-func mktag(mask int) *string {
++func mktag(mask int) string {
+ 	switch mask & EscMask {
+ 	case EscNone, EscReturn:
+ 		break
+@@ -1191,22 +1191,22 @@ func mktag(mask int) *string {
+ 	}
+ 
+ 	if mask < len(tags) && tags[mask] != "" {
+-		return &tags[mask]
++		return tags[mask]
+ 	}
+ 
+ 	s := fmt.Sprintf("esc:0x%x", mask)
+ 	if mask < len(tags) {
+ 		tags[mask] = s
+ 	}
+-	return &s
++	return s
+ }
+ 
+ // parsetag decodes an escape analysis tag and returns the esc value.
+-func parsetag(note *string) uint16 {
+-	if note == nil || !strings.HasPrefix(*note, "esc:") {
++func parsetag(note string) uint16 {
++	if !strings.HasPrefix(note, "esc:") {
+ 		return EscUnknown
+ 	}
+-	n, _ := strconv.ParseInt((*note)[4:], 0, 0)
++	n, _ := strconv.ParseInt(note[4:], 0, 0)
+ 	em := uint16(n)
+ 	if em == 0 {
+ 		return EscNone
+@@ -1268,7 +1268,7 @@ func describeEscape(em uint16) string {
+ 
+ // escassignfromtag models the input-to-output assignment flow of one of a function
+ // calls arguments, where the flow is encoded in "note".
+-func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
++func escassignfromtag(e *EscState, note string, dsts Nodes, src *Node) uint16 {
+ 	em := parsetag(note)
+ 	if src.Op == OLITERAL {
+ 		return em
+@@ -1997,7 +1997,7 @@ func esctag(e *EscState, func_ *Node) {
+ 					}
+ 					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
+ 				}
+-				t.Note = &unsafeUintptrTag
++				t.Note = unsafeUintptrTag
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 27ece1d393..3bd3874845 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1700,8 +1700,8 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 	// (The escape analysis tags do not apply to func vars.)
+ 	// But it must not suppress struct field tags.
+ 	// See golang.org/issue/13777 and golang.org/issue/14331.
+-	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != nil {
+-		str += " " + strconv.Quote(*f.Note)
++	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != "" {
++		str += " " + strconv.Quote(f.Note)
+ 	}
+ 
+ 	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7373479ac9..7e7bda466d 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -373,7 +373,7 @@ func ordercall(n *Node, order *Order) {
+ 			if t == nil {
+ 				break
+ 			}
+-			if t.Note != nil && *t.Note == unsafeUintptrTag {
++			if t.Note == unsafeUintptrTag {
+ 				xp := n.List.Addr(i)
+ 				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
+ 					xp = &(*xp).Left
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 727b9939e9..a578820256 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -501,14 +501,11 @@ func isExportedField(ft *Field) bool {
+ 
+ // dnameField dumps a reflect.name for a struct field.
+ func dnameField(s *Sym, ot int, ft *Field) int {
+-	var name, tag string
++	var name string
+ 	if ft.Sym != nil && ft.Embedded == 0 {
+ 		name = ft.Sym.Name
+ 	}
+-	if ft.Note != nil {
+-		tag = *ft.Note
+-	}
+-	nsym := dname(name, tag, nil, isExportedField(ft))
++	nsym := dname(name, ft.Note, nil, isExportedField(ft))
+ 	return dsymptrLSym(Linksym(s), ot, nsym, 0)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 38f21eb585..f2f2a70446 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -619,10 +619,6 @@ func cplxsubtype(et EType) EType {
+ 	return 0
+ }
+ 
+-func eqnote(a, b *string) bool {
+-	return a == b || a != nil && b != nil && *a == *b
+-}
+-
+ // Eqtype reports whether t1 and t2 are identical, following the spec rules.
+ //
+ // Any cyclic type must go through a named type, and if one is
+@@ -670,7 +666,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 		t1, i1 := IterFields(t1)
+ 		t2, i2 := IterFields(t2)
+ 		for ; t1 != nil && t2 != nil; t1, t2 = i1.Next(), i2.Next() {
+-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || !eqnote(t1.Note, t2.Note) {
++			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || t1.Note != t2.Note {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index da295bba78..9f049babc2 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -300,7 +300,7 @@ type Field struct {
+ 	// or interface Type.
+ 	Offset int64
+ 
+-	Note *string // literal string annotation
++	Note string // literal string annotation
+ }
+ 
+ // End returns the offset of the first byte immediately after this field.
+@@ -1003,15 +1003,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 				return cmpForNe(t1.Embedded < x1.Embedded)
+ 			}
+ 			if t1.Note != x1.Note {
+-				if t1.Note == nil {
+-					return ssa.CMPlt
+-				}
+-				if x1.Note == nil {
+-					return ssa.CMPgt
+-				}
+-				if *t1.Note != *x1.Note {
+-					return cmpForNe(*t1.Note < *x1.Note)
+-				}
++				return cmpForNe(t1.Note < x1.Note)
+ 			}
+ 			if c := t1.Sym.cmpsym(x1.Sym); c != ssa.CMPeq {
+ 				return c
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e8fee67d05..0c7c5fa7aa 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3807,7 +3807,7 @@ func usefield(n *Node) {
+ 	if field == nil {
+ 		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
+ 	}
+-	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
++	if !strings.Contains(field.Note, "go:\"track\"") {
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue15439.go b/test/fixedbugs/issue15439.go
+new file mode 100644
+index 0000000000..840a3c02a8
+--- /dev/null
++++ b/test/fixedbugs/issue15439.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++func main() {
++	a := &struct{ x int }{}
++	b := &struct{ x int "" }{}
++
++	ta := reflect.TypeOf(a)
++	tb := reflect.TypeOf(b)
++
++	// Ensure cmd/compile treats absent and empty tags as equivalent.
++	a = b
++
++	// Ensure package reflect treats absent and empty tags as equivalent.
++	if !tb.AssignableTo(ta) {
++		panic("fail")
++	}
++}

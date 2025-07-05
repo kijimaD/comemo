@@ -11,10 +11,168 @@ Date:   Sun Feb 21 13:56:08 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                |  9 +++++++++
  src/runtime/crash_test.go                    | 16 +++++++++++++++
  src/runtime/panic.go                         | 19 ++++++++++++++++++
  src/runtime/testdata/testprog/deadlock.go    | 25 +++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/deadlock.go | 30 ++++++++++++++++++++++++++++
  5 files changed, 99 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 7685582aa8..63769e801c 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -178,3 +178,12 @@ func TestCgoCheckBytes(t *testing.T) {
+ 		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
+ 	}
+ }
++
++func TestCgoPanicDeadlock(t *testing.T) {
++	// test issue 14432
++	got := runTestProg(t, "testprogcgo", "CgoPanicDeadlock")
++	want := "panic: cgo error\n\n"
++	if !strings.HasPrefix(got, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, got)
++	}
++}
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 5f0e77b0dc..de45e832f8 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -336,3 +336,19 @@ func TestPanicTraceback(t *testing.T) {
+ 		output = output[idx[1]:]
+ 	}
+ }
++
++func testPanicDeadlock(t *testing.T, name string, want string) {
++	// test issue 14432
++	output := runTestProg(t, "testprog", name)
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++func TestPanicDeadlockGosched(t *testing.T) {
++	testPanicDeadlock(t, "GoschedInPanic", "panic: errorThatGosched\n\n")
++}
++
++func TestPanicDeadlockSyscall(t *testing.T) {
++	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ba07330e35..349e997395 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -333,6 +333,21 @@ func Goexit() {
+ 	goexit1()
+ }
+ 
++// Call all Error and String methods before freezing the world.
++// Used when crashing with panicking.
++// This must match types handled by printany.
++func preprintpanics(p *_panic) {
++	for p != nil {
++		switch v := p.arg.(type) {
++		case error:
++			p.arg = v.Error()
++		case stringer:
++			p.arg = v.String()
++		}
++		p = p.link
++	}
++}
++
+ // Print all currently active panics.  Used when crashing.
+ func printpanics(p *_panic) {
+ 	if p.link != nil {
+@@ -459,6 +474,10 @@ func gopanic(e interface{}) {
+ 	}
+ 
+ 	// ran out of deferred calls - old-school panic now
++	// Because it is unsafe to call arbitrary user code after freezing
++	// the world, we call preprintpanics to invoke all necessary Error
++	// and String methods to prepare the panic strings before startpanic.
++	preprintpanics(gp._panic)
+ 	startpanic()
+ 	printpanics(gp._panic)
+ 	dopanic(0)       // should not return
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index 73fbf6224d..ff9c82d61b 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -30,6 +30,8 @@ func init() {
+ 	register("PanicAfterGoexit", PanicAfterGoexit)
+ 	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
+ 	register("PanicTraceback", PanicTraceback)
++	register("GoschedInPanic", GoschedInPanic)
++	register("SyscallInPanic", SyscallInPanic)
+ }
+ 
+ func SimpleDeadlock() {
+@@ -152,6 +154,29 @@ func GoexitInPanic() {
+ 	runtime.Goexit()
+ }
+ 
++type errorThatGosched struct{}
++
++func (errorThatGosched) Error() string {
++	runtime.Gosched()
++	return "errorThatGosched"
++}
++
++func GoschedInPanic() {
++	panic(errorThatGosched{})
++}
++
++type errorThatPrint struct{}
++
++func (errorThatPrint) Error() string {
++	fmt.Println("1")
++	fmt.Println("2")
++	return "3"
++}
++
++func SyscallInPanic() {
++	panic(errorThatPrint{})
++}
++
+ func PanicAfterGoexit() {
+ 	defer func() {
+ 		panic("hello")
+diff --git a/src/runtime/testdata/testprogcgo/deadlock.go b/src/runtime/testdata/testprogcgo/deadlock.go
+new file mode 100644
+index 0000000000..ac8855af3b
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/deadlock.go
+@@ -0,0 +1,30 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++char *geterror() {
++	return "cgo error";
++}
++*/
++import "C"
++import (
++	"fmt"
++)
++
++func init() {
++	register("CgoPanicDeadlock", CgoPanicDeadlock)
++}
++
++type cgoError struct{}
++
++func (cgoError) Error() string {
++	fmt.Print("") // necessary to trigger the deadlock
++	return C.GoString(C.geterror())
++}
++
++func CgoPanicDeadlock() {
++	panic(cgoError{})
++}

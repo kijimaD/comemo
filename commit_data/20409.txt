@@ -11,7 +11,7 @@ Date:   Sat Sep 6 10:07:23 2014 -0700
     R=golang-codereviews, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/133660043
-
+---
  misc/cgo/test/backdoor/runtime.c | 14 --------------
  misc/cgo/test/backdoor/thunk.s   | 16 +++++++++++++++
  src/pkg/runtime/export_test.go   | 11 +++++++----
@@ -20,3 +20,214 @@ Date:   Sat Sep 6 10:07:23 2014 -0700
  src/pkg/runtime/proc_test.go     |  4 ++--
  src/pkg/runtime/runtime.h        |  1 -
  7 files changed, 49 insertions(+), 44 deletions(-)
+
+diff --git a/misc/cgo/test/backdoor/runtime.c b/misc/cgo/test/backdoor/runtime.c
+index 7e6b448724..87ee44eb6f 100644
+--- a/misc/cgo/test/backdoor/runtime.c
++++ b/misc/cgo/test/backdoor/runtime.c
+@@ -10,20 +10,6 @@
+ 
+ typedef char bool;
+ 
+-bool runtime·lockedOSThread(void);
+-
+-static void
+-FLUSH(void*)
+-{
+-}
+-
+-void
+-·LockedOSThread(bool b)
+-{
+-	b = runtime·lockedOSThread();
+-	FLUSH(&b);
+-}
+-
+ // This is what a cgo-compiled stub declaration looks like.
+ void
+ ·Issue7695(struct{void *y[8*sizeof(void*)];}p)
+diff --git a/misc/cgo/test/backdoor/thunk.s b/misc/cgo/test/backdoor/thunk.s
+new file mode 100644
+index 0000000000..ae735c8a34
+--- /dev/null
++++ b/misc/cgo/test/backdoor/thunk.s
+@@ -0,0 +1,16 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Assembly to get into package runtime without using exported symbols.
++
++// +build amd64 amd64p32 arm 386
++
++#include "textflag.h"
++
++#ifdef GOARCH_arm
++#define JMP B
++#endif
++
++TEXT ·LockedOSThread(SB),NOSPLIT,$0-0
++	JMP	runtime·lockedOSThread(SB)
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 3df02626af..07ef26f25a 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -18,7 +18,7 @@ var Fcmp64 = fcmp64
+ var Fintto64 = fintto64
+ var F64toint = f64toint
+ 
+-func lockedOSThread() bool
++// in asm_*.s
+ func stackguard() (sp, limit uintptr)
+ 
+ var Entersyscall = entersyscall
+@@ -127,9 +127,12 @@ func GCMask(x interface{}) (ret []byte) {
+ 
+ func testSchedLocalQueue()
+ func testSchedLocalQueueSteal()
+-
+-var TestSchedLocalQueue1 = testSchedLocalQueue
+-var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
++func RunSchedLocalQueueTest() {
++	onM(testSchedLocalQueue)
++}
++func RunSchedLocalQueueStealTest() {
++	onM(testSchedLocalQueueSteal)
++}
+ 
+ var HaveGoodHash = haveGoodHash
+ var StringHash = stringHash
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 56c35c5a44..c9a56a4bbd 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2594,12 +2594,6 @@ badunlockOSThread(void)
+ 	runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
+ }
+ 
+-bool
+-runtime·lockedOSThread(void)
+-{
+-	return g->lockedm != nil && g->m->lockedg != nil;
+-}
+-
+ #pragma textflag NOSPLIT
+ int32
+ runtime·gcount(void)
+@@ -3552,24 +3546,25 @@ runqsteal(P *p, P *p2)
+ void
+ runtime·testSchedLocalQueue(void)
+ {
+-	P p;
+-	G gs[nelem(p.runq)];
++	P *p;
++	G *gs;
+ 	int32 i, j;
+ 
+-	runtime·memclr((byte*)&p, sizeof(p));
++	p = (P*)runtime·mallocgc(sizeof(*p), nil, FlagNoScan);
++	gs = (G*)runtime·mallocgc(nelem(p->runq)*sizeof(*gs), nil, FlagNoScan);
+ 
+-	for(i = 0; i < nelem(gs); i++) {
+-		if(runqget(&p) != nil)
++	for(i = 0; i < nelem(p->runq); i++) {
++		if(runqget(p) != nil)
+ 			runtime·throw("runq is not empty initially");
+ 		for(j = 0; j < i; j++)
+-			runqput(&p, &gs[i]);
++			runqput(p, &gs[i]);
+ 		for(j = 0; j < i; j++) {
+-			if(runqget(&p) != &gs[i]) {
++			if(runqget(p) != &gs[i]) {
+ 				runtime·printf("bad element at iter %d/%d\n", i, j);
+ 				runtime·throw("bad element");
+ 			}
+ 		}
+-		if(runqget(&p) != nil)
++		if(runqget(p) != nil)
+ 			runtime·throw("runq is not empty afterwards");
+ 	}
+ }
+@@ -3577,29 +3572,30 @@ runtime·testSchedLocalQueue(void)
+ void
+ runtime·testSchedLocalQueueSteal(void)
+ {
+-	P p1, p2;
+-	G gs[nelem(p1.runq)], *gp;
++	P *p1, *p2;
++	G *gs, *gp;
+ 	int32 i, j, s;
+ 
+-	runtime·memclr((byte*)&p1, sizeof(p1));
+-	runtime·memclr((byte*)&p2, sizeof(p2));
++	p1 = (P*)runtime·mallocgc(sizeof(*p1), nil, FlagNoScan);
++	p2 = (P*)runtime·mallocgc(sizeof(*p2), nil, FlagNoScan);
++	gs = (G*)runtime·mallocgc(nelem(p1->runq)*sizeof(*gs), nil, FlagNoScan);
+ 
+-	for(i = 0; i < nelem(gs); i++) {
++	for(i = 0; i < nelem(p1->runq); i++) {
+ 		for(j = 0; j < i; j++) {
+ 			gs[j].sig = 0;
+-			runqput(&p1, &gs[j]);
++			runqput(p1, &gs[j]);
+ 		}
+-		gp = runqsteal(&p2, &p1);
++		gp = runqsteal(p2, p1);
+ 		s = 0;
+ 		if(gp) {
+ 			s++;
+ 			gp->sig++;
+ 		}
+-		while(gp = runqget(&p2)) {
++		while(gp = runqget(p2)) {
+ 			s++;
+ 			gp->sig++;
+ 		}
+-		while(gp = runqget(&p1))
++		while(gp = runqget(p1))
+ 			gp->sig++;
+ 		for(j = 0; j < i; j++) {
+ 			if(gs[j].sig != 1) {
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index d02f7ed7c9..f324d5c90f 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -100,3 +100,8 @@ func badmcall(fn func(*g)) {
+ func badmcall2(fn func(*g)) {
+ 	gothrow("runtime: mcall function returned")
+ }
++
++func lockedOSThread() bool {
++	gp := getg()
++	return gp.lockedm != nil && gp.m.lockedg != nil
++}
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 1f597f58e4..aa9bc81ac4 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -366,11 +366,11 @@ func nonleaf(stop chan int) bool {
+ }
+ 
+ func TestSchedLocalQueue(t *testing.T) {
+-	runtime.TestSchedLocalQueue1()
++	runtime.RunSchedLocalQueueTest()
+ }
+ 
+ func TestSchedLocalQueueSteal(t *testing.T) {
+-	runtime.TestSchedLocalQueueSteal1()
++	runtime.RunSchedLocalQueueStealTest()
+ }
+ 
+ func benchmarkStackGrowth(b *testing.B, rec int) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4f279db3fb..52796f6fe4 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1060,7 +1060,6 @@ void	runtime·procyield(uint32);
+ void	runtime·osyield(void);
+ void	runtime·lockOSThread(void);
+ void	runtime·unlockOSThread(void);
+-bool	runtime·lockedOSThread(void);
+ 
+ bool	runtime·showframe(Func*, G*);
+ void	runtime·printcreatedby(G*);

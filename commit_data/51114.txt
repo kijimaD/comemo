@@ -13,6 +13,24 @@ Date:   Thu Dec 2 13:33:18 2021 -0500
     Trust: Jeremy Faller <jeremy@golang.org>
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 7a4869cf6a..77c26bc257 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -740,7 +740,11 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+   <dd>
+     <p><!-- CL 319769 -->
+-      TODO: <a href="https://golang.org/cl/319769">https://golang.org/cl/319769</a>: add Mutex.TryLock, RWMutex.TryLock, RWMutex.TryRLock
++      The new methods
++      <a href="/pkg/sync#Mutex.TryLock"><code>Mutex.TryLock</code></a>,
++      <a href="/pkg/sync#RWMutex.TryLock"><code>RWMutex.TryLock</code></a>, and
++      <a href="/pkg/sync#RWMutex.TryRLock"><code>RWMutex.TryRLock</code></a>,
++      will acquire the lock if it is not currently held.
+     </p>
+   </dd>
+ </dl><!-- sync -->

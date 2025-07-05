@@ -7,6 +7,20 @@ Date:   Tue Mar 26 09:37:17 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7725049
-
+---
  doc/go1.1.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index a5ea59c97a..01c43d248d 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -495,7 +495,7 @@ and
+ <a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>
+ construct new
+ <a href="/pkg/reflect/#Type"><code>Types</code></a>
+-from existing types, for example to construct a the type <code>[]T</code> given
++from existing types, for example to construct the type <code>[]T</code> given
+ only <code>T</code>.
+ </p>
+ 

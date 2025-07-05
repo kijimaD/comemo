@@ -12,6 +12,24 @@ Date:   Mon Mar 8 03:15:25 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/errors/wrap.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 7928fe673e..4eb4f9ae37 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -83,10 +83,10 @@ func As(err error, target interface{}) bool {
+ 	if typ.Kind() != reflectlite.Ptr || val.IsNil() {
+ 		panic("errors: target must be a non-nil pointer")
+ 	}
+-	if e := typ.Elem(); e.Kind() != reflectlite.Interface && !e.Implements(errorType) {
++	targetType := typ.Elem()
++	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
+ 		panic("errors: *target must be interface or implement error")
+ 	}
+-	targetType := typ.Elem()
+ 	for err != nil {
+ 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
+ 			val.Elem().Set(reflectlite.ValueOf(err))

@@ -7,6 +7,19 @@ Date:   Wed Feb 5 06:50:46 2020 -0800
     Change-Id: Iabe46677f24fef6e482a4beca774dbfc553026a2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217778
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/race/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index d3c5153d8a..7e948cb681 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -1,6 +1,6 @@
+ runtime/race package contains the data race detector runtime library.
+ It is based on ThreadSanitizer race detector, that is currently a part of
+-the LLVM project (http://llvm.org/git/compiler-rt.git).
++the LLVM project (https://github.com/llvm/llvm-project/tree/master/compiler-rt).
+ 
+ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 

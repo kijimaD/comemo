@@ -13,8 +13,262 @@ Date:   Mon Apr 30 19:25:46 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go      |  6 +++
  src/runtime/sys_darwin_386.s   | 96 ++++++++++++++++++++++++++++--------------
  src/runtime/sys_darwin_amd64.s | 73 +++++++++++++++++---------------
  3 files changed, 110 insertions(+), 65 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 35a9bd6f30..e278920767 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -86,6 +86,12 @@ func pthread_self_trampoline() pthread
+ //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+ 
++//go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
++
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+ //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 07844a7eb1..8dc4efc631 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -72,29 +72,69 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVL	$197, AX
+-	INT	$0x80
+-	JAE	ok
+-	MOVL	$0, p+24(FP)
+-	MOVL	AX, err+28(FP)
+-	RET
++TEXT runtime·mmap(SB),NOSPLIT,$0-32
++	MOVL	addr+0(FP), AX		// arg 1 addr
++	MOVL	n+4(FP), CX		// arg 2 len
++	MOVL	prot+8(FP), DX		// arg 3 prot
++	MOVL	flags+12(FP), BX	// arg 4 flags
++	MOVL	fd+16(FP), DI		// arg 5 fid
++	MOVL	off+20(FP), SI		// arg 6 offset
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	BX, 12(SP)
++	MOVL	DI, 16(SP)
++	MOVL	SI, 20(SP)
++	CALL	libc_mmap(SB)
++	XORL	DX, DX
++	CMPL	AX, $-1
++	JNE	ok
++	CALL	libc_error(SB)
++	MOVL	(AX), DX		// errno
++	XORL	AX, AX
+ ok:
++	MOVL	BP, SP
++	POPL	BP
+ 	MOVL	AX, p+24(FP)
+-	MOVL	$0, err+28(FP)
++	MOVL	DX, err+28(FP)
+ 	RET
+ 
+-TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVL	$75, AX
+-	INT	$0x80
++TEXT runtime·madvise(SB),NOSPLIT,$0-12
++	MOVL	addr+0(FP), AX		// arg 1 addr
++	MOVL	n+4(FP), CX		// arg 2 len
++	MOVL	flags+8(FP), DX		// arg 3 advice
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$12, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	CALL	libc_madvise(SB)
+ 	// ignore failure - maybe pages are locked
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVL	$73, AX
+-	INT	$0x80
+-	JAE	2(PC)
++TEXT runtime·munmap(SB),NOSPLIT,$0-8
++	MOVL	addr+0(FP), AX		// arg 1 addr
++	MOVL	n+4(FP), CX		// arg 2 len
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	CALL	libc_munmap(SB)
++	TESTL	AX, AX
++	JEQ	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0
+@@ -322,24 +362,16 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),NOSPLIT,$32
+-	MOVL	$0, DX
++TEXT runtime·usleep(SB),NOSPLIT,$0-4
+ 	MOVL	usec+0(FP), AX
+-	MOVL	$1000000, CX
+-	DIVL	CX
+-	MOVL	AX, 24(SP)  // sec
+-	MOVL	DX, 28(SP)  // usec
+-
+-	// select(0, 0, 0, 0, &tv)
+-	MOVL	$0, 0(SP)  // "return PC" - ignored
+-	MOVL	$0, 4(SP)
+-	MOVL	$0, 8(SP)
+-	MOVL	$0, 12(SP)
+-	MOVL	$0, 16(SP)
+-	LEAL	24(SP), AX
+-	MOVL	AX, 20(SP)
+-	MOVL	$93, AX
+-	INT	$0x80
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$4, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	CALL	libc_usleep(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ // Invoke Mach system call.
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 039a5a613e..1fbc5c52d6 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -92,13 +92,17 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·madvise(SB), NOSPLIT, $0
++TEXT runtime·madvise(SB), NOSPLIT, $0-20
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+-	MOVL	flags+16(FP), DX		// arg 3 advice
+-	MOVL	$(0x2000000+75), AX	// syscall entry madvise
+-	SYSCALL
++	MOVL	flags+16(FP), DX	// arg 3 advice
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_madvise(SB)
+ 	// ignore failure - maybe pages are locked
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ // OS X comm page time offsets
+@@ -345,31 +349,42 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
+ 	SYSCALL
+ 	INT $3 // not reached
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0-48
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	prot+16(FP), DX		// arg 3 prot
+-	MOVL	flags+20(FP), R10		// arg 4 flags
++	MOVL	flags+20(FP), CX	// arg 4 flags
+ 	MOVL	fd+24(FP), R8		// arg 5 fid
+ 	MOVL	off+28(FP), R9		// arg 6 offset
+-	MOVL	$(0x2000000+197), AX	// syscall entry
+-	SYSCALL
+-	JCC	ok
+-	MOVQ	$0, p+32(FP)
+-	MOVQ	AX, err+40(FP)
+-	RET
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_mmap(SB)
++	XORL	DX, DX
++	CMPQ	AX, $-1
++	JNE	ok
++	CALL	libc_error(SB)
++	MOVQ	(AX), DX		// errno
++	XORL	AX, AX
+ ok:
++	MOVQ	BP, SP
++	POPQ	BP
+ 	MOVQ	AX, p+32(FP)
+-	MOVQ	$0, err+40(FP)
++	MOVQ	DX, err+40(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0-16
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+-	MOVL	$(0x2000000+73), AX	// syscall entry
+-	SYSCALL
+-	JCC	2(PC)
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_munmap(SB)
++	TESTQ	AX, AX
++	JEQ	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+@@ -381,22 +396,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),NOSPLIT,$16
+-	MOVL	$0, DX
+-	MOVL	usec+0(FP), AX
+-	MOVL	$1000000, CX
+-	DIVL	CX
+-	MOVQ	AX, 0(SP)  // sec
+-	MOVL	DX, 8(SP)  // usec
+-
+-	// select(0, 0, 0, 0, &tv)
+-	MOVL	$0, DI
+-	MOVL	$0, SI
+-	MOVL	$0, DX
+-	MOVL	$0, R10
+-	MOVQ	SP, R8
+-	MOVL	$(0x2000000+93), AX
+-	SYSCALL
++TEXT runtime·usleep(SB),NOSPLIT,$0-4
++	MOVL	usec+0(FP), DI
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_usleep(SB)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.

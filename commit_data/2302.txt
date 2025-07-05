@@ -9,7 +9,48 @@ Date:   Sun May 24 15:04:43 2009 -0700
     DELTA=21  (21 added, 0 deleted, 0 changed)
     OCL=29320
     CL=29338
-
+---
  src/lib/exvar/exvar.go      |  8 ++++++++
  src/lib/exvar/exvar_test.go | 13 +++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/lib/exvar/exvar.go b/src/lib/exvar/exvar.go
+index fea5683374..6473f7af62 100644
+--- a/src/lib/exvar/exvar.go
++++ b/src/lib/exvar/exvar.go
+@@ -128,6 +128,14 @@ func (v *String) Set(value string) {
+ 	v.s = value;
+ }
+ 
++// IntFunc wraps a func() int64 to create a value that satisfies the Var interface.
++// The function will be called each time the Var is evaluated.
++type IntFunc func() int64;
++
++func (v IntFunc) String() string {
++	return strconv.Itoa64(v())
++}
++
+ 
+ // All published variables.
+ var vars map[string] Var = make(map[string] Var);
+diff --git a/src/lib/exvar/exvar_test.go b/src/lib/exvar/exvar_test.go
+index 28fbf3cf22..8b028bccb8 100644
+--- a/src/lib/exvar/exvar_test.go
++++ b/src/lib/exvar/exvar_test.go
+@@ -78,3 +78,16 @@ func TestMapCounter(t *testing.T) {
+ 		t.Error("red = %v, want 3", x)
+ 	}
+ }
++
++func TestIntFunc(t *testing.T) {
++	x := int(4);
++	ix := IntFunc(func() int64 { return int64(x) });
++	if s := ix.String(); s != "4" {
++		t.Errorf("ix.String() = %v, want 4", s);
++	}
++
++	x++;
++	if s := ix.String(); s != "5" {
++		t.Errorf("ix.String() = %v, want 5", s);
++	}
++}

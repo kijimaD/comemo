@@ -8,7 +8,32 @@ Date:   Sat Nov 20 01:49:32 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/365754
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8d7e196732..6f304f3672 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1479,6 +1479,7 @@ Zemanta d.o.o.
+ Zev Goldstein <zev.goldstein@gmail.com>
+ Zheng Dayu <davidzheng23@gmail.com>
+ Zhongtao Chen <chenzhongtao@126.com>
++Zhou Guangyuan <zhouguangyuan.xian@gmail.com>
+ Zhou Peng <p@ctriple.cn>
+ Ziad Hatahet <hatahet@gmail.com>
+ Zizhao Zhang <btw515wolf2@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a548cb0e2f..7f74b0ce5b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -2746,6 +2746,7 @@ Zhengyu He <hzy@google.com>
+ Zhongpeng Lin <zplin@uber.com>
+ Zhongtao Chen <chenzhongtao@126.com>
+ Zhongwei Yao <zhongwei.yao@arm.com>
++Zhou Guangyuan <zhouguangyuan.xian@gmail.com>
+ Zhou Peng <p@ctriple.cn>
+ Ziad Hatahet <hatahet@gmail.com>
+ Ziheng Liu <lzhfromustc@gmail.com>

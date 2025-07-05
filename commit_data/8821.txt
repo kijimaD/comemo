@@ -7,7 +7,32 @@ Date:   Wed Jun 22 17:00:46 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4639064
-
+---
  src/Make.ccmd | 1 +
  src/Make.clib | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index f04864ab65..40cc3a0e8a 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -36,6 +36,7 @@ y.tab.c: y.tab.h
+ 
+ all: $(TARG)
+ 
++# Use $(PWD)/$*.c so that gdb shows full path in stack traces.
+ %.$(HOST_O): %.c
+ 	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
+ 
+diff --git a/src/Make.clib b/src/Make.clib
+index 25fe88463c..4a7ea02d9b 100644
+--- a/src/Make.clib
++++ b/src/Make.clib
+@@ -6,6 +6,7 @@
+ 
+ all: $(LIB)
+ 
++# Use $(PWD)/$*.c so that gdb shows full path in stack traces.
+ %.$(HOST_O): %.c
+ 	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
+ 

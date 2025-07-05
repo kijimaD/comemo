@@ -13,7 +13,34 @@ Date:   Thu Aug 30 11:33:19 2018 -0400
     Change-Id: I81b90dbd918162a20c60a821340898eaf02e648d
     Reviewed-on: https://go-review.googlesource.com/132235
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go | 2 ++
  src/go/types/builtins.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1fe20794ea..cde07f2b4b 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -261,6 +261,8 @@ func TestTypesInfo(t *testing.T) {
+ 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+ 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+ 		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
++		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
++		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 05e032423c..d3f0c4d40d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -476,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// panic(x)
+ 		// record panic call if inside a function with result parameters
+ 		// (for use in Checker.isTerminating)
+-		if check.sig.results.Len() > 0 {
++		if check.sig != nil && check.sig.results.Len() > 0 {
+ 			// function has result parameters
+ 			p := check.isPanic
+ 			if p == nil {

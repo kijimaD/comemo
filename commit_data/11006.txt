@@ -7,9 +7,82 @@ Date:   Sun Dec 25 16:07:05 2011 +1100
     R=golang-dev, gustavo, r
     CC=golang-dev
     https://golang.org/cl/5498077
-
+---
  src/Make.pkg               | 2 +-
  src/cmd/go/test.go         | 4 ++--
  src/cmd/gotest/doc.go      | 4 ++--
  src/pkg/testing/testing.go | 4 ++--
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 91562af92a..3a7ffd812b 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -65,7 +65,7 @@ test:
+ 	gotest
+ 
+ testshort:
+-	gotest -test.short -test.timeout=120
++	gotest -test.short -test.timeout=2m
+ 
+ bench:
+ 	gotest -test.bench=. -test.run="Do not run tests"
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 4904703ec3..1807e42f72 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -118,8 +118,8 @@ The resulting test binary, called test.out, has its own flags:
+ 	    the Go tree can run a sanity check but not spend time running
+ 	    exhaustive tests.
+ 
+-	-test.timeout n
+-		If a test runs longer than n seconds, panic.
++	-test.timeout t
++		If a test runs longer than t, panic.
+ 
+ 	-test.benchtime n
+ 		Run enough iterations of each benchmark to take n seconds.
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index bb01b54ed3..8d729f0253 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -75,7 +75,7 @@ Usage:
+ 		[-test.cpuprofile=cpu.out] \
+ 		[-test.memprofile=mem.out] [-test.memprofilerate=1] \
+ 		[-test.parallel=$GOMAXPROCS] \
+-		[-test.timeout=10] [-test.short] \
++		[-test.timeout=10s] [-test.short] \
+ 		[-test.benchtime=3] [-test.cpu=1,2,3,4]
+ 
+ The -test.v flag causes the tests to be logged as they run.  The
+@@ -117,7 +117,7 @@ time.  It is off by default but set by all.bash so installations of
+ the Go tree can do a sanity check but not spend time running
+ exhaustive tests.
+ 
+-The -test.timeout flag sets a timeout for the test in seconds.  If the
++The -test.timeout flag sets a timeout for the test.  If the
+ test runs for longer than that, it will panic, dumping a stack trace
+ of all existing goroutines.
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 16890e0b3f..a61ac0ea0b 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -63,7 +63,7 @@ var (
+ 	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+ 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+ 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+-	timeout        = flag.Int64("test.timeout", 0, "if > 0, sets time limit for tests in seconds")
++	timeout        = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+ 	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+ 	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+ 
+@@ -346,7 +346,7 @@ var timer *time.Timer
+ // startAlarm starts an alarm if requested.
+ func startAlarm() {
+ 	if *timeout > 0 {
+-		timer = time.AfterFunc(time.Duration(*timeout)*time.Second, alarm)
++		timer = time.AfterFunc(*timeout, alarm)
+ 	}
+ }
+ 

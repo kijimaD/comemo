@@ -13,7 +13,45 @@ Date:   Thu Jun 15 12:23:09 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/lock_sema.go | 6 +++---
  src/runtime/runtime2.go  | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 68fcb564af..b41f805cee 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -71,7 +71,7 @@ Loop:
+ 			// for this lock, chained through m->nextwaitm.
+ 			// Queue this M.
+ 			for {
+-				gp.m.nextwaitm = v &^ locked
++				gp.m.nextwaitm = muintptr(v &^ locked)
+ 				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
+ 					break
+ 				}
+@@ -103,8 +103,8 @@ func unlock(l *mutex) {
+ 		} else {
+ 			// Other M's are waiting for the lock.
+ 			// Dequeue an M.
+-			mp = (*m)(unsafe.Pointer(v &^ locked))
+-			if atomic.Casuintptr(&l.key, v, mp.nextwaitm) {
++			mp = muintptr(v &^ locked).ptr()
++			if atomic.Casuintptr(&l.key, v, uintptr(mp.nextwaitm)) {
+ 				// Dequeued an M.  Wake it.
+ 				semawakeup(mp)
+ 				break
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 325152aea4..3f99de65d5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -432,7 +432,7 @@ type m struct {
+ 	fflag         uint32         // floating point compare flags
+ 	lockedExt     uint32         // tracking for external LockOSThread
+ 	lockedInt     uint32         // tracking for internal lockOSThread
+-	nextwaitm     uintptr        // next m waiting for lock
++	nextwaitm     muintptr       // next m waiting for lock
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+ 	waitlock      unsafe.Pointer
+ 	waittraceev   byte

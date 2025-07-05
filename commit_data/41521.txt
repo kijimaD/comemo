@@ -11,7 +11,7 @@ Date:   Tue Oct 8 14:51:30 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                                   |  7 +++++++
  src/cmd/go/internal/list/list.go                  |  3 +++
  src/cmd/go/internal/modload/build.go              |  3 ++-
@@ -20,3 +20,188 @@ Date:   Tue Oct 8 14:51:30 2019 -0400
  src/cmd/go/testdata/script/mod_vendor_auto.txt    | 12 ++++--------
  src/cmd/go/testdata/script/mod_vendor_replace.txt |  4 ++--
  7 files changed, 40 insertions(+), 18 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 361684358b..eedc53226b 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -69,6 +69,13 @@ TODO
+   <code>go.mod</code> file.
+ </p>
+ 
++<p>
++  <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
++  transitive dependencies that do not provide packages in
++  the <code>vendor</code> directory. It now fails explicitly if
++  <code>-mod=vendor</code> is set.
++</p>
++
+ <p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+   The <code>go</code> <code>get</code> command no longer accepts
+   the <code>-mod</code> flag. Previously, the flag's setting either
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 67819939e6..d8c75776bb 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -384,6 +384,9 @@ func runList(cmd *base.Command, args []string) {
+ 		if modload.Init(); !modload.Enabled() {
+ 			base.Fatalf("go list -m: not using modules")
+ 		}
++		if cfg.BuildMod == "vendor" {
++			base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory")
++		}
+ 		modload.LoadBuildList()
+ 
+ 		mods := modload.ListModules(args, *listU, *listVersions)
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 1309d1ad63..4105c47ba7 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -120,7 +120,8 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 	}
+ 
+ 	if cfg.BuildMod == "vendor" {
+-		info.Dir = filepath.Join(ModRoot(), "vendor", m.Path)
++		// The vendor directory doesn't contain enough information to reconstruct
++		// anything more about the module.
+ 		return info
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index c532cee9cb..21fec5b85f 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -6,12 +6,12 @@ env GOPATH=$WORK/empty
+ env GOPROXY=file:///nonexist
+ 
+ go list -mod=vendor
+-go list -mod=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
++go list -mod=vendor -f '{{with .Module}}{{.Path}} {{.Version}}{{end}} {{.Dir}}' all
+ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+-stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
++stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+ 
+ ! go list -mod=vendor -m rsc.io/quote@latest
+-stderr 'module lookup disabled by -mod=vendor'
++stderr 'go list -m: can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
+ ! go get -mod=vendor -u
+ stderr 'flag provided but not defined: -mod'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 991a6d1926..9b716906e5 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -1,11 +1,15 @@
+ env GO111MODULE=on
+ 
++# Without vendoring, a build should succeed unless -mod=vendor is set.
+ [!short] go build
+ [!short] ! go build -mod=vendor
+ 
++# Without vendoring, 'go list' should report the replacement directory for
++# a package in a replaced module.
+ go list -f {{.Dir}} x
+ stdout 'src[\\/]x'
+ 
++# 'go mod vendor' should copy all replaced modules to the vendor directory.
+ go mod vendor -v
+ stderr '^# x v1.0.0 => ./x'
+ stderr '^x'
+@@ -16,28 +20,38 @@ stderr '^z'
+ ! stderr '^w'
+ grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
+ 
++# An explicit '-mod=mod' should ignore the vendor directory.
+ go list -mod=mod -f {{.Dir}} x
+ stdout 'src[\\/]x'
+ 
+ go list -mod=mod -f {{.Dir}} -m x
+ stdout 'src[\\/]x'
+ 
++# An explicit '-mod=vendor' should report package directories within
++# the vendor directory.
+ go list -mod=vendor -f {{.Dir}} x
+ stdout 'src[\\/]vendor[\\/]x'
+ 
+-go list -mod=vendor -f {{.Dir}} -m x
+-stdout 'src[\\/]vendor[\\/]x'
++# 'go list -mod=vendor -m' does not have enough information to list modules
++# accurately, and should fail.
++! go list -mod=vendor -f {{.Dir}} -m x
++stderr 'can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
+ 
+-go list -mod=mod -f {{.Dir}} -m w
++# 'go list -mod=mod' should report packages outside the import graph,
++# but 'go list -mod=vendor' should error out for them.
++go list -mod=mod -f {{.Dir}} w
+ stdout 'src[\\/]w'
+ 
+ ! go list -mod=vendor -f {{.Dir}} w
+ stderr 'src[\\/]vendor[\\/]w'
+ 
++# Test dependencies should not be copied.
+ ! exists vendor/x/testdata
+ ! exists vendor/a/foo/bar/b/ignored.go
+ ! exists vendor/a/foo/bar/b/main_test.go
+ 
++# Licenses and other metadata for each module should be copied
++# if any package within their module is copied.
+ exists vendor/a/foo/AUTHORS.txt
+ exists vendor/a/foo/CONTRIBUTORS
+ exists vendor/a/foo/LICENSE
+@@ -55,7 +69,8 @@ exists vendor/mysite/myname/mypkg/LICENSE.txt
+ 
+ [short] stop
+ 
+-go build
++# 'go build' and 'go test' using vendored packages should succeed.
++go build -mod=mod
+ go build -mod=vendor
+ go test -mod=vendor . ./subdir
+ go test -mod=vendor ./...
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index 44f9fd4d38..c80aa6ad63 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -15,15 +15,11 @@ stdout '^'$WORK'[/\\]auto$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+-go list -m all
+-stdout '^example.com/auto$'
+-stdout 'example.com/printversion v1.0.0'
+-stdout 'example.com/version v1.0.0'
++! go list -m all
++stderr 'can''t list modules with -mod=vendor'
+ 
+-go list -m -f '{{.Dir}}' all
+-stdout '^'$WORK'[/\\]auto$'
+-stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+-stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++! go list -m -f '{{.Dir}}' all
++stderr 'can''t list modules with -mod=vendor'
+ 
+ # An explicit -mod=mod should force the vendor directory to be ignored.
+ env GOFLAGS=-mod=mod
+diff --git a/src/cmd/go/testdata/script/mod_vendor_replace.txt b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+index 6bc1c77ed3..a251daa6c1 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_replace.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+ # Before vendoring, we expect to see the original directory.
+-go list -f '{{.Version}} {{.Dir}}' -m rsc.io/quote/v3
++go list -f '{{with .Module}}{{.Version}}{{end}} {{.Dir}}' rsc.io/quote/v3
+ stdout 'v3.0.0'
+ stdout '.*[/\\]not-rsc.io[/\\]quote[/\\]v3'
+ 
+@@ -15,7 +15,7 @@ go mod vendor
+ # without attempting to look up the non-replaced version.
+ cmp vendor/rsc.io/quote/v3/quote.go local/not-rsc.io/quote/v3/quote.go
+ 
+-go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m rsc.io/quote/v3
++go list -mod=vendor -f '{{with .Module}}{{.Version}}{{end}} {{.Dir}}' rsc.io/quote/v3
+ stdout 'v3.0.0'
+ stdout '.*[/\\]vendor[/\\]rsc.io[/\\]quote[/\\]v3'
+ ! stderr 'finding'

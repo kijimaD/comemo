@@ -10,8 +10,106 @@ Date:   Wed Jan 6 07:47:56 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/183125
-
+---
  src/Make.conf    |  8 ++------
  src/Make.pkg     | 10 ++--------
  src/pkg/Makefile | 16 ++++++++++++----
  3 files changed, 16 insertions(+), 18 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index a90ed0da4d..fa7177aa83 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -6,17 +6,13 @@ CFLAGS=-ggdb -I"$(GOROOT)"/include -O2 -fno-inline
+ O=o
+ YFLAGS=-d
+ # GNU Make syntax:
+-ifndef GOBIN
+ nullstring :=
+ space := $(nullstring) # a space at the end
++ifndef GOBIN
+ QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+ GOBIN=$(QUOTED_HOME)/bin
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+-else
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ endif
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ 
+ CC=$(QUOTED_GOBIN)/quietgcc
+ LD=$(QUOTED_GOBIN)/quietgcc
+diff --git a/src/Make.pkg b/src/Make.pkg
+index b315b2ee1e..d4196b6e84 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -6,17 +6,13 @@ all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
+-ifndef GOBIN
+ nullstring :=
+ space := $(nullstring) # a space at the end
++ifndef GOBIN
+ QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+ GOBIN=$(QUOTED_HOME)/bin
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+-else
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ endif
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ 
+ # GNU Make 3.80 has a bug in lastword
+ # elem=$(lastword $(subst /, ,$(TARG)))
+@@ -30,8 +26,6 @@ dir=$(patsubst %/$(elem),%,$(TARG))
+ endif
+ 
+ # ugly hack to deal with whitespaces in $GOROOT
+-nullstring :=
+-space := $(nullstring) # a space at the end
+ QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+ 
+ pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index f37502d58d..0caa0dd3fd 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -9,6 +9,14 @@
+ #
+ # to rebuild the dependency information in Make.deps.
+ 
++nullstring :=
++space := $(nullstring) # a space at the end
++ifndef GOBIN
++QUOTED_HOME=$(subst $(space),\ ,$(HOME))
++GOBIN=$(QUOTED_HOME)/bin
++endif
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++
+ all: install
+ 
+ DIRS=\
+@@ -135,16 +143,16 @@ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+ test.dirs: $(addsuffix .test, $(TEST))
+ 
+ %.clean:
+-	+cd $* && gomake clean
++	+cd $* && $(QUOTED_GOBIN)/gomake clean
+ 
+ %.install:
+-	+cd $* && gomake install
++	+cd $* && $(QUOTED_GOBIN)/gomake install
+ 
+ %.nuke:
+-	+cd $* && gomake nuke
++	+cd $* && $(QUOTED_GOBIN)/gomake nuke
+ 
+ %.test:
+-	+cd $* && gomake test
++	+cd $* && $(QUOTED_GOBIN)/gomake test
+ 
+ clean: clean.dirs
+ 

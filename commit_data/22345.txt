@@ -11,7 +11,7 @@ Date:   Thu Mar 5 18:20:54 2015 +1100
     Change-Id: I02a3d1131efc4e12b78b83372c1b50f8b160c194
     Reviewed-on: https://go-review.googlesource.com/6911
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/closure.go   |  4 ++--
  src/cmd/internal/gc/fmt.go       |  2 +-
  src/cmd/internal/gc/plive.go     | 10 +++++-----
@@ -21,3 +21,180 @@ Date:   Thu Mar 5 18:20:54 2015 +1100
  src/cmd/internal/gc/typecheck.go |  8 ++++----
  src/cmd/internal/gc/walk.go      |  6 +++---
  8 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index d6f657f125..1f47547a7d 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -254,10 +254,10 @@ func capturevars(xfunc *Node) {
+ 		v.Outerexpr = nil
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outer.Class != PPARAMOUT && v.Closure.Addrtaken == 0 && v.Closure.Assigned == 0 && v.Type.Width <= 128 {
++		if outer.Class != PPARAMOUT && !v.Closure.Addrtaken && v.Closure.Assigned == 0 && v.Type.Width <= 128 {
+ 			v.Byval = 1
+ 		} else {
+-			v.Closure.Addrtaken = 1
++			v.Closure.Addrtaken = true
+ 			outer = Nod(OADDR, outer, nil)
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 46b02f7b1f..6124ae5096 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -281,7 +281,7 @@ func Jconv(n *Node, flag int) string {
+ 		fp += fmt.Sprintf(" embedded(%d)", n.Embedded)
+ 	}
+ 
+-	if n.Addrtaken != 0 {
++	if n.Addrtaken {
+ 		fp += " addrtaken"
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 97e870b57a..27ea38d95c 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -587,7 +587,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 			// non-tail-call return instructions; see note above
+ 			// the for loop for details.
+ 			case PPARAMOUT:
+-				if node.Addrtaken == 0 && prog.To.Type == obj.TYPE_NONE {
++				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
+ 					bvset(uevar, int32(i))
+ 				}
+ 			}
+@@ -602,7 +602,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 		for i, node := range vars {
+ 			switch node.Class &^ PHEAP {
+ 			case PPARAM:
+-				if node.Addrtaken != 0 {
++				if node.Addrtaken {
+ 					bvset(avarinit, int32(i))
+ 				}
+ 				bvset(varkill, int32(i))
+@@ -626,7 +626,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 				if pos >= int32(len(vars)) || vars[pos] != from.Node {
+ 					Fatal("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
+ 				}
+-				if ((from.Node).(*Node)).Addrtaken != 0 {
++				if ((from.Node).(*Node)).Addrtaken {
+ 					bvset(avarinit, pos)
+ 				} else {
+ 					if info.Flags&(LeftRead|LeftAddr) != 0 {
+@@ -657,7 +657,7 @@ Next:
+ 				if pos >= int32(len(vars)) || vars[pos] != to.Node {
+ 					Fatal("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
+ 				}
+-				if ((to.Node).(*Node)).Addrtaken != 0 {
++				if ((to.Node).(*Node)).Addrtaken {
+ 					if prog.As != obj.AVARKILL {
+ 						bvset(avarinit, pos)
+ 					}
+@@ -742,7 +742,7 @@ func printnode(node *Node) {
+ 		p = "^"
+ 	}
+ 	a := ""
+-	if node.Addrtaken != 0 {
++	if node.Addrtaken {
+ 		a = "@"
+ 	}
+ 	fmt.Printf(" %v%s%s", Nconv(node, 0), p, a)
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index 9b4645223c..41200bac6f 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -371,7 +371,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	// If we were better about _ elision, _ = &x would suffice too.
+ 	// The broader := in a closure problem is mentioned in a comment in
+ 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
+-	if node.Addrtaken != 0 {
++	if node.Addrtaken {
+ 		v.addr = 1
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index a6e9bf3ad8..ef043a7819 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -1994,7 +1994,7 @@ func cheapexpr(n *Node, init **NodeList) *Node {
+  * assignment to it.
+  */
+ func localexpr(n *Node, t *Type, init **NodeList) *Node {
+-	if n.Op == ONAME && (n.Addrtaken == 0 || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
++	if n.Op == ONAME && (!n.Addrtaken || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 6303502af0..a81f8420cf 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -47,7 +47,7 @@ type Node struct {
+ 	Isddd          uint8
+ 	Readonly       bool
+ 	Implicit       uint8
+-	Addrtaken      uint8 // address taken, even if not moved to heap
++	Addrtaken      bool  // address taken, even if not moved to heap
+ 	Assigned       uint8 // is the variable ever assigned to
+ 	Captured       uint8 // is the variable captured by a closure
+ 	Byval          uint8 // is the variable captured by value or by reference
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 764b333980..f6d51d6418 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -825,18 +825,18 @@ OpSwitch:
+ 		r := outervalue(n.Left)
+ 		var l *Node
+ 		for l = n.Left; l != r; l = l.Left {
+-			l.Addrtaken = 1
++			l.Addrtaken = true
+ 			if l.Closure != nil {
+-				l.Closure.Addrtaken = 1
++				l.Closure.Addrtaken = true
+ 			}
+ 		}
+ 
+ 		if l.Orig != l && l.Op == ONAME {
+ 			Fatal("found non-orig name node %v", Nconv(l, 0))
+ 		}
+-		l.Addrtaken = 1
++		l.Addrtaken = true
+ 		if l.Closure != nil {
+-			l.Closure.Addrtaken = 1
++			l.Closure.Addrtaken = true
+ 		}
+ 		defaultlit(&n.Left, nil)
+ 		l = n.Left
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index a96ce07905..7ba66b044f 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -96,7 +96,7 @@ func paramoutheap(fn *Node) int {
+ 		switch l.N.Class {
+ 		case PPARAMOUT,
+ 			PPARAMOUT | PHEAP:
+-			return int(l.N.Addrtaken)
++			return bool2int(l.N.Addrtaken)
+ 
+ 			// stop early - parameters are over
+ 		case PAUTO,
+@@ -2516,7 +2516,7 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
+ 		case PAUTO,
+ 			PPARAM,
+ 			PPARAMOUT:
+-			if n.Addrtaken != 0 {
++			if n.Addrtaken {
+ 				varwrite = 1
+ 				continue
+ 			}
+@@ -2568,7 +2568,7 @@ func varexpr(n *Node) bool {
+ 		case PAUTO,
+ 			PPARAM,
+ 			PPARAMOUT:
+-			if n.Addrtaken == 0 {
++			if !n.Addrtaken {
+ 				return true
+ 			}
+ 		}

@@ -16,7 +16,69 @@ Date:   Sat Dec 26 23:09:54 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go |  4 ----
  src/cmd/compile/internal/ir/type.go   | 28 ----------------------------
  2 files changed, 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index bc6fa3cd30..5c36b729c7 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -169,10 +169,6 @@ func forNodeFields(typName string, typ *types.Struct, f func(name string, is fun
+ 		case "orig":
+ 			continue
+ 		}
+-		switch typName + "." + v.Name() {
+-		case "AddStringExpr.Alloc":
+-			continue
+-		}
+ 		f(v.Name(), func(t types.Type) bool { return types.Identical(t, v.Type()) })
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 5e6d76229d..bd3a05d06e 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -115,14 +115,6 @@ func (n *StructType) SetOTYPE(t *types.Type) {
+ 	n.Fields = nil
+ }
+ 
+-func deepCopyFields(pos src.XPos, fields []*Field) []*Field {
+-	var out []*Field
+-	for _, f := range fields {
+-		out = append(out, f.deepCopy(pos))
+-	}
+-	return out
+-}
+-
+ // An InterfaceType represents a struct { ... } type syntax.
+ type InterfaceType struct {
+ 	miniType
+@@ -250,26 +242,6 @@ func editFields(list []*Field, edit func(Node) Node) {
+ 	}
+ }
+ 
+-func (f *Field) deepCopy(pos src.XPos) *Field {
+-	if f == nil {
+-		return nil
+-	}
+-	fpos := pos
+-	if !pos.IsKnown() {
+-		fpos = f.Pos
+-	}
+-	decl := f.Decl
+-	if decl != nil {
+-		decl = DeepCopy(pos, decl).(*Name)
+-	}
+-	ntype := f.Ntype
+-	if ntype != nil {
+-		ntype = DeepCopy(pos, ntype).(Ntype)
+-	}
+-	// No keyed literal here: if a new struct field is added, we want this to stop compiling.
+-	return &Field{fpos, f.Sym, ntype, f.Type, f.Embedded, f.IsDDD, f.Note, decl}
+-}
+-
+ // A SliceType represents a []Elem type syntax.
+ // If DDD is true, it's the ...Elem at the end of a function list.
+ type SliceType struct {

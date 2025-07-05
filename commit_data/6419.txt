@@ -9,7 +9,52 @@ Date:   Tue Sep 28 23:51:55 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2137048
-
+---
  src/Make.inc      | 13 +++++++++++++
  src/pkg/deps.bash |  2 ++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 6af9145f9e..858cb3a683 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -90,6 +90,14 @@ HOST_YFLAGS=-d
+ HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2 -fno-inline
+ PWD=$(shell pwd)
+ 
++# Make environment more standard.
++LANG:=
++LC_ALL:=C
++LC_CTYPE:=C
++GREP_OPTIONS:=
++GREP_COLORS:=
++export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
++
+ go-env:
+ 	@echo export GOARCH=$(GOARCH)
+ 	@echo export GOOS=$(GOOS)
+@@ -100,6 +108,11 @@ go-env:
+ 	@echo export LD="$(LD)"
+ 	@echo export OS="$(OS)"
+ 	@echo export CFLAGS="$(CFLAGS)"
++	@echo export LANG="$(LANG)"
++	@echo export LC_ALL="$(LC_ALL)"
++	@echo export LC_CTYPE="$(LC_CTYPE)"
++	@echo export GREP_OPTIONS="$(GREP_OPTIONS)"
++	@echo export GREP_COLORS="$(GREP_COLORS)"
+ 	@echo MAKE_GO_ENV_WORKED=1
+ 
+ # Don't let the targets in this file be used
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 0acaef678a..8267e4bde1 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++eval $(gomake --no-print-directory -f ../Make.inc go-env)
++
+ OUT="Make.deps"
+ TMP="Make.deps.tmp"
+ 

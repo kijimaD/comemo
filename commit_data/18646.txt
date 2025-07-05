@@ -9,6 +9,21 @@ Date:   Tue Feb 25 11:31:09 2014 -0500
     TBR=dfc
     CC=golang-codereviews
     https://golang.org/cl/68610043
-
+---
  src/pkg/runtime/panic.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index f4f2148d54..6e5be3e677 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -487,3 +487,9 @@ runtime·Goexit(void)
+ 	rundefer();
+ 	runtime·goexit();
+ }
++
++void
++runtime·panicdivide(void)
++{
++	runtime·panicstring("integer divide by zero");
++}

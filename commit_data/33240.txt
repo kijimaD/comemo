@@ -16,6 +16,20 @@ Date:   Tue Aug 8 03:06:02 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/net/lookup_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index f81e220fc8..1037b81a3b 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -198,7 +198,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port
+ func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+ 	lines, err := queryDNS(ctx, name, "cname")
+ 	if err != nil {
+-		if stringsHasSuffix(err.Error(), "dns failure") {
++		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
+ 			cname = name + "."
+ 			err = nil
+ 		}

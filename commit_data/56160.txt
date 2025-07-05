@@ -11,6 +11,11 @@ Date:   Thu Apr 13 11:05:57 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  src/internal/types/testdata/fixedbugs/{54942.go => issue54942.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/internal/types/testdata/fixedbugs/54942.go b/src/internal/types/testdata/fixedbugs/issue54942.go
+similarity index 100%
+rename from src/internal/types/testdata/fixedbugs/54942.go
+rename to src/internal/types/testdata/fixedbugs/issue54942.go

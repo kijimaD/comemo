@@ -7,6 +7,20 @@ Date:   Mon Dec 5 13:44:22 2011 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5451092
-
+---
  misc/dashboard/app/build/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 1d166bdc94..dacfa52226 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -36,7 +36,7 @@ const testPkg = "code.google.com/p/go.more"
+ var testPackage = &Package{Name: "Test", Path: testPkg}
+ 
+ var testPackages = []*Package{
+-	{Name: "Go", Path: ""},
++	&Package{Name: "Go", Path: ""},
+ 	testPackage,
+ }
+ 

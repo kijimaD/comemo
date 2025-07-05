@@ -7,9 +7,22 @@ Date:   Tue Mar 12 14:29:25 2013 -0700
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/7765043
-
+---
  misc/bbedit/Go.plist                | 0
  misc/notepadplus/README             | 0
  misc/notepadplus/go.xml             | 0
  misc/notepadplus/userDefineLang.xml | 0
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+old mode 100755
+new mode 100644
+diff --git a/misc/notepadplus/README b/misc/notepadplus/README
+old mode 100755
+new mode 100644
+diff --git a/misc/notepadplus/go.xml b/misc/notepadplus/go.xml
+old mode 100755
+new mode 100644
+diff --git a/misc/notepadplus/userDefineLang.xml b/misc/notepadplus/userDefineLang.xml
+old mode 100755
+new mode 100644

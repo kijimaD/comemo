@@ -24,7 +24,48 @@ Date:   Wed Nov 17 01:36:15 2021 +0700
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/big/ratconv.go      | 2 +-
  src/math/big/ratconv_test.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 90053a9c81..dadd4d7b8e 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -113,7 +113,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 
+ 	// special-case 0 (see also issue #16176)
+ 	if len(z.a.abs) == 0 {
+-		return z, true
++		return z.norm(), true
+ 	}
+ 	// len(z.a.abs) > 0
+ 
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index e55e655718..45a35608f4 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"math"
++	"reflect"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -205,6 +206,14 @@ func TestRatSetString(t *testing.T) {
+ 	}
+ }
+ 
++func TestRatSetStringZero(t *testing.T) {
++	got, _ := new(Rat).SetString("0")
++	want := new(Rat).SetInt64(0)
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("got %#+v, want %#+v", got, want)
++	}
++}
++
+ func TestRatScan(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	for i, test := range setStringTests {

@@ -13,7 +13,7 @@ Date:   Mon Nov 21 15:32:52 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                     |  21 +++
  src/cmd/go/internal/load/pkg.go                    |   8 +-
  src/cmd/go/internal/modcmd/download.go             |   8 +-
@@ -39,3 +39,2995 @@ Date:   Mon Nov 21 15:32:52 2022 -0500
  src/cmd/go/internal/modload/mvs.go                 |   4 +-
  src/cmd/go/internal/modload/query.go               |  56 ++++----
  24 files changed, 500 insertions(+), 401 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index edb82d01f5..c3c46f0e1d 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -8,6 +8,7 @@ package cfg
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"go/build"
+ 	"internal/buildcfg"
+@@ -573,3 +574,23 @@ func gopath(ctxt build.Context) string {
+ 	GoPathError = fmt.Sprintf("%s is not set", env)
+ 	return ""
+ }
++
++// WithBuildXWriter returns a Context in which BuildX output is written
++// to given io.Writer.
++func WithBuildXWriter(ctx context.Context, xLog io.Writer) context.Context {
++	return context.WithValue(ctx, buildXContextKey{}, xLog)
++}
++
++type buildXContextKey struct{}
++
++// BuildXWriter returns nil if BuildX is false, or
++// the writer to which BuildX output should be written otherwise.
++func BuildXWriter(ctx context.Context) (io.Writer, bool) {
++	if !BuildX {
++		return nil, false
++	}
++	if v := ctx.Value(buildXContextKey{}); v != nil {
++		return v.(io.Writer), true
++	}
++	return os.Stderr, true
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1d5c074fdc..7878619a35 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2024,7 +2024,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		// Consider starting this as a background goroutine and retrieving the result
+ 		// asynchronously when we're actually ready to build the package, or when we
+ 		// actually need to evaluate whether the package's metadata is stale.
+-		p.setBuildInfo(opts.AutoVCS)
++		p.setBuildInfo(ctx, opts.AutoVCS)
+ 	}
+ 
+ 	// If cgo is not enabled, ignore cgo supporting sources
+@@ -2267,7 +2267,7 @@ var vcsStatusCache par.ErrCache[string, vcs.Status]
+ //
+ // Note that the GoVersion field is not set here to avoid encoding it twice.
+ // It is stored separately in the binary, mostly for historical reasons.
+-func (p *Package) setBuildInfo(autoVCS bool) {
++func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 	setPkgErrorf := func(format string, args ...any) {
+ 		if p.Error == nil {
+ 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
+@@ -2288,7 +2288,7 @@ func (p *Package) setBuildInfo(autoVCS bool) {
+ 		if mi.Replace != nil {
+ 			dm.Replace = debugModFromModinfo(mi.Replace)
+ 		} else if mi.Version != "" {
+-			dm.Sum = modfetch.Sum(module.Version{Path: mi.Path, Version: mi.Version})
++			dm.Sum = modfetch.Sum(ctx, module.Version{Path: mi.Path, Version: mi.Version})
+ 		}
+ 		return dm
+ 	}
+@@ -3280,7 +3280,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 		return nil, fmt.Errorf("%s: %w", args[0], err)
+ 	}
+ 	rootMod := qrs[0].Mod
+-	data, err := modfetch.GoMod(rootMod.Path, rootMod.Version)
++	data, err := modfetch.GoMod(ctx, rootMod.Path, rootMod.Version)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("%s: %w", args[0], err)
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 302ab2fb6b..97fa8b8fda 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -283,18 +283,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ // leaving the results (including any error) in m itself.
+ func DownloadModule(ctx context.Context, m *ModuleJSON) {
+ 	var err error
+-	_, file, err := modfetch.InfoFile(m.Path, m.Version)
++	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
+ 	if err != nil {
+ 		m.Error = err.Error()
+ 		return
+ 	}
+ 	m.Info = file
+-	m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
++	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
+ 	if err != nil {
+ 		m.Error = err.Error()
+ 		return
+ 	}
+-	m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
++	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
+ 	if err != nil {
+ 		m.Error = err.Error()
+ 		return
+@@ -305,7 +305,7 @@ func DownloadModule(ctx context.Context, m *ModuleJSON) {
+ 		m.Error = err.Error()
+ 		return
+ 	}
+-	m.Sum = modfetch.Sum(mod)
++	m.Sum = modfetch.Sum(ctx, mod)
+ 	m.Dir, err = modfetch.Download(ctx, mod)
+ 	if err != nil {
+ 		m.Error = err.Error()
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 5fd13f2627..4f8d0bd3e0 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -248,7 +248,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+ 	// previous versions of the 'go' command from making simultaneous edits.
+-	if unlock, err := modfetch.SideLock(); err == nil {
++	if unlock, err := modfetch.SideLock(ctx); err == nil {
+ 		defer unlock()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 20fa966792..861f56b265 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -67,7 +67,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 		errsChans[i] = errsc
+ 		mod := mod // use a copy to avoid data races
+ 		go func() {
+-			errsc <- verifyMod(mod)
++			errsc <- verifyMod(ctx, mod)
+ 			<-sem
+ 		}()
+ 	}
+@@ -85,13 +85,13 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ }
+ 
+-func verifyMod(mod module.Version) []error {
++func verifyMod(ctx context.Context, mod module.Version) []error {
+ 	var errs []error
+-	zip, zipErr := modfetch.CachePath(mod, "zip")
++	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
+ 	if zipErr == nil {
+ 		_, zipErr = os.Stat(zip)
+ 	}
+-	dir, dirErr := modfetch.DownloadDir(mod)
++	dir, dirErr := modfetch.DownloadDir(ctx, mod)
+ 	data, err := os.ReadFile(zip + "hash")
+ 	if err != nil {
+ 		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 8217450b57..62e1110a6f 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -6,6 +6,7 @@ package modfetch
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -29,8 +30,8 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-func cacheDir(path string) (string, error) {
+-	if err := checkCacheDir(); err != nil {
++func cacheDir(ctx context.Context, path string) (string, error) {
++	if err := checkCacheDir(ctx); err != nil {
+ 		return "", err
+ 	}
+ 	enc, err := module.EscapePath(path)
+@@ -40,8 +41,8 @@ func cacheDir(path string) (string, error) {
+ 	return filepath.Join(cfg.GOMODCACHE, "cache/download", enc, "/@v"), nil
+ }
+ 
+-func CachePath(m module.Version, suffix string) (string, error) {
+-	dir, err := cacheDir(m.Path)
++func CachePath(ctx context.Context, m module.Version, suffix string) (string, error) {
++	dir, err := cacheDir(ctx, m.Path)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -63,8 +64,8 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ // An error satisfying errors.Is(err, fs.ErrNotExist) will be returned
+ // along with the directory if the directory does not exist or if the directory
+ // is not completely populated.
+-func DownloadDir(m module.Version) (string, error) {
+-	if err := checkCacheDir(); err != nil {
++func DownloadDir(ctx context.Context, m module.Version) (string, error) {
++	if err := checkCacheDir(ctx); err != nil {
+ 		return "", err
+ 	}
+ 	enc, err := module.EscapePath(m.Path)
+@@ -94,7 +95,7 @@ func DownloadDir(m module.Version) (string, error) {
+ 
+ 	// Check if a .partial file exists. This is created at the beginning of
+ 	// a download and removed after the zip is extracted.
+-	partialPath, err := CachePath(m, "partial")
++	partialPath, err := CachePath(ctx, m, "partial")
+ 	if err != nil {
+ 		return dir, err
+ 	}
+@@ -109,7 +110,7 @@ func DownloadDir(m module.Version) (string, error) {
+ 	// to re-calculate it. Note that checkMod will repopulate the ziphash
+ 	// file if it doesn't exist, but if the module is excluded by checks
+ 	// through GONOSUMDB or GOPRIVATE, that check and repopulation won't happen.
+-	ziphashPath, err := CachePath(m, "ziphash")
++	ziphashPath, err := CachePath(ctx, m, "ziphash")
+ 	if err != nil {
+ 		return dir, err
+ 	}
+@@ -135,8 +136,8 @@ func (e *DownloadDirPartialError) Is(err error) bool { return err == fs.ErrNotEx
+ 
+ // lockVersion locks a file within the module cache that guards the downloading
+ // and extraction of the zipfile for the given module version.
+-func lockVersion(mod module.Version) (unlock func(), err error) {
+-	path, err := CachePath(mod, "lock")
++func lockVersion(ctx context.Context, mod module.Version) (unlock func(), err error) {
++	path, err := CachePath(ctx, mod, "lock")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -150,8 +151,8 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
+ // edits to files outside the cache, such as go.sum and go.mod files in the
+ // user's working directory.
+ // If err is nil, the caller MUST eventually call the unlock function.
+-func SideLock() (unlock func(), err error) {
+-	if err := checkCacheDir(); err != nil {
++func SideLock(ctx context.Context) (unlock func(), err error) {
++	if err := checkCacheDir(ctx); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -176,21 +177,21 @@ type cachingRepo struct {
+ 	gomodCache    par.ErrCache[string, []byte]
+ 
+ 	once     sync.Once
+-	initRepo func() (Repo, error)
++	initRepo func(context.Context) (Repo, error)
+ 	r        Repo
+ }
+ 
+-func newCachingRepo(path string, initRepo func() (Repo, error)) *cachingRepo {
++func newCachingRepo(ctx context.Context, path string, initRepo func(context.Context) (Repo, error)) *cachingRepo {
+ 	return &cachingRepo{
+ 		path:     path,
+ 		initRepo: initRepo,
+ 	}
+ }
+ 
+-func (r *cachingRepo) repo() Repo {
++func (r *cachingRepo) repo(ctx context.Context) Repo {
+ 	r.once.Do(func() {
+ 		var err error
+-		r.r, err = r.initRepo()
++		r.r, err = r.initRepo(ctx)
+ 		if err != nil {
+ 			r.r = errRepo{r.path, err}
+ 		}
+@@ -198,17 +199,17 @@ func (r *cachingRepo) repo() Repo {
+ 	return r.r
+ }
+ 
+-func (r *cachingRepo) CheckReuse(old *codehost.Origin) error {
+-	return r.repo().CheckReuse(old)
++func (r *cachingRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
++	return r.repo(ctx).CheckReuse(ctx, old)
+ }
+ 
+ func (r *cachingRepo) ModulePath() string {
+ 	return r.path
+ }
+ 
+-func (r *cachingRepo) Versions(prefix string) (*Versions, error) {
++func (r *cachingRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
+ 	v, err := r.versionsCache.Do(prefix, func() (*Versions, error) {
+-		return r.repo().Versions(prefix)
++		return r.repo(ctx).Versions(ctx, prefix)
+ 	})
+ 
+ 	if err != nil {
+@@ -225,25 +226,25 @@ type cachedInfo struct {
+ 	err  error
+ }
+ 
+-func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
++func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
+-		file, info, err := readDiskStat(r.path, rev)
++		file, info, err := readDiskStat(ctx, r.path, rev)
+ 		if err == nil {
+ 			return info, err
+ 		}
+ 
+-		info, err = r.repo().Stat(rev)
++		info, err = r.repo(ctx).Stat(ctx, rev)
+ 		if err == nil {
+ 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
+ 			// then save the information under the proper version, for future use.
+ 			if info.Version != rev {
+-				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
++				file, _ = CachePath(ctx, module.Version{Path: r.path, Version: info.Version}, "info")
+ 				r.statCache.Do(info.Version, func() (*RevInfo, error) {
+ 					return info, nil
+ 				})
+ 			}
+ 
+-			if err := writeDiskStat(file, info); err != nil {
++			if err := writeDiskStat(ctx, file, info); err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
+ 			}
+ 		}
+@@ -256,17 +257,17 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 	return info, err
+ }
+ 
+-func (r *cachingRepo) Latest() (*RevInfo, error) {
++func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
+ 	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
+-		info, err := r.repo().Latest()
++		info, err := r.repo(ctx).Latest(ctx)
+ 
+ 		// Save info for likely future Stat call.
+ 		if err == nil {
+ 			r.statCache.Do(info.Version, func() (*RevInfo, error) {
+ 				return info, nil
+ 			})
+-			if file, _, err := readDiskStat(r.path, info.Version); err != nil {
+-				writeDiskStat(file, info)
++			if file, _, err := readDiskStat(ctx, r.path, info.Version); err != nil {
++				writeDiskStat(ctx, file, info)
+ 			}
+ 		}
+ 
+@@ -279,20 +280,20 @@ func (r *cachingRepo) Latest() (*RevInfo, error) {
+ 	return info, err
+ }
+ 
+-func (r *cachingRepo) GoMod(version string) ([]byte, error) {
++func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
+ 	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
+-		file, text, err := readDiskGoMod(r.path, version)
++		file, text, err := readDiskGoMod(ctx, r.path, version)
+ 		if err == nil {
+ 			// Note: readDiskGoMod already called checkGoMod.
+ 			return text, nil
+ 		}
+ 
+-		text, err = r.repo().GoMod(version)
++		text, err = r.repo(ctx).GoMod(ctx, version)
+ 		if err == nil {
+ 			if err := checkGoMod(r.path, version, text); err != nil {
+ 				return text, err
+ 			}
+-			if err := writeDiskGoMod(file, text); err != nil {
++			if err := writeDiskGoMod(ctx, file, text); err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
+ 			}
+ 		}
+@@ -304,25 +305,25 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+ 	return append([]byte(nil), text...), nil
+ }
+ 
+-func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+-	return r.repo().Zip(dst, version)
++func (r *cachingRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
++	return r.repo(ctx).Zip(ctx, dst, version)
+ }
+ 
+-// InfoFile is like Lookup(path).Stat(version) but also returns the name of the file
++// InfoFile is like Lookup(ctx, path).Stat(version) but also returns the name of the file
+ // containing the cached information.
+-func InfoFile(path, version string) (*RevInfo, string, error) {
++func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, error) {
+ 	if !semver.IsValid(version) {
+ 		return nil, "", fmt.Errorf("invalid version %q", version)
+ 	}
+ 
+-	if file, info, err := readDiskStat(path, version); err == nil {
++	if file, info, err := readDiskStat(ctx, path, version); err == nil {
+ 		return info, file, nil
+ 	}
+ 
+ 	var info *RevInfo
+ 	var err2info map[error]*RevInfo
+ 	err := TryProxies(func(proxy string) error {
+-		i, err := Lookup(proxy, path).Stat(version)
++		i, err := Lookup(ctx, proxy, path).Stat(ctx, version)
+ 		if err == nil {
+ 			info = i
+ 		} else {
+@@ -338,28 +339,28 @@ func InfoFile(path, version string) (*RevInfo, string, error) {
+ 	}
+ 
+ 	// Stat should have populated the disk cache for us.
+-	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
++	file, err := CachePath(ctx, module.Version{Path: path, Version: version}, "info")
+ 	if err != nil {
+ 		return nil, "", err
+ 	}
+ 	return info, file, nil
+ }
+ 
+-// GoMod is like Lookup(path).GoMod(rev) but avoids the
++// GoMod is like Lookup(ctx, path).GoMod(rev) but avoids the
+ // repository path resolution in Lookup if the result is
+ // already cached on local disk.
+-func GoMod(path, rev string) ([]byte, error) {
++func GoMod(ctx context.Context, path, rev string) ([]byte, error) {
+ 	// Convert commit hash to pseudo-version
+ 	// to increase cache hit rate.
+ 	if !semver.IsValid(rev) {
+-		if _, info, err := readDiskStat(path, rev); err == nil {
++		if _, info, err := readDiskStat(ctx, path, rev); err == nil {
+ 			rev = info.Version
+ 		} else {
+ 			if errors.Is(err, statCacheErr) {
+ 				return nil, err
+ 			}
+ 			err := TryProxies(func(proxy string) error {
+-				info, err := Lookup(proxy, path).Stat(rev)
++				info, err := Lookup(ctx, proxy, path).Stat(ctx, rev)
+ 				if err == nil {
+ 					rev = info.Version
+ 				}
+@@ -371,13 +372,13 @@ func GoMod(path, rev string) ([]byte, error) {
+ 		}
+ 	}
+ 
+-	_, data, err := readDiskGoMod(path, rev)
++	_, data, err := readDiskGoMod(ctx, path, rev)
+ 	if err == nil {
+ 		return data, nil
+ 	}
+ 
+ 	err = TryProxies(func(proxy string) (err error) {
+-		data, err = Lookup(proxy, path).GoMod(rev)
++		data, err = Lookup(ctx, proxy, path).GoMod(ctx, rev)
+ 		return err
+ 	})
+ 	return data, err
+@@ -385,15 +386,15 @@ func GoMod(path, rev string) ([]byte, error) {
+ 
+ // GoModFile is like GoMod but returns the name of the file containing
+ // the cached information.
+-func GoModFile(path, version string) (string, error) {
++func GoModFile(ctx context.Context, path, version string) (string, error) {
+ 	if !semver.IsValid(version) {
+ 		return "", fmt.Errorf("invalid version %q", version)
+ 	}
+-	if _, err := GoMod(path, version); err != nil {
++	if _, err := GoMod(ctx, path, version); err != nil {
+ 		return "", err
+ 	}
+ 	// GoMod should have populated the disk cache for us.
+-	file, err := CachePath(module.Version{Path: path, Version: version}, "mod")
++	file, err := CachePath(ctx, module.Version{Path: path, Version: version}, "mod")
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -402,11 +403,11 @@ func GoModFile(path, version string) (string, error) {
+ 
+ // GoModSum returns the go.sum entry for the module version's go.mod file.
+ // (That is, it returns the entry listed in go.sum as "path version/go.mod".)
+-func GoModSum(path, version string) (string, error) {
++func GoModSum(ctx context.Context, path, version string) (string, error) {
+ 	if !semver.IsValid(version) {
+ 		return "", fmt.Errorf("invalid version %q", version)
+ 	}
+-	data, err := GoMod(path, version)
++	data, err := GoMod(ctx, path, version)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -423,8 +424,8 @@ var errNotCached = fmt.Errorf("not in cache")
+ // returning the name of the cache file and the result.
+ // If the read fails, the caller can use
+ // writeDiskStat(file, info) to write a new cache entry.
+-func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+-	file, data, err := readDiskCache(path, rev, "info")
++func readDiskStat(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
++	file, data, err := readDiskCache(ctx, path, rev, "info")
+ 	if err != nil {
+ 		// If the cache already contains a pseudo-version with the given hash, we
+ 		// would previously return that pseudo-version without checking upstream.
+@@ -446,7 +447,7 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+ 		// Fall back to this resolution scheme only if the GOPROXY setting prohibits
+ 		// us from resolving upstream tags.
+ 		if cfg.GOPROXY == "off" {
+-			if file, info, err := readDiskStatByHash(path, rev); err == nil {
++			if file, info, err := readDiskStatByHash(ctx, path, rev); err == nil {
+ 				return file, info, nil
+ 			}
+ 		}
+@@ -461,7 +462,7 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+ 	// Remarshal and update the cache file if needed.
+ 	data2, err := json.Marshal(info)
+ 	if err == nil && !bytes.Equal(data2, data) {
+-		writeDiskCache(file, data)
++		writeDiskCache(ctx, file, data)
+ 	}
+ 	return file, info, nil
+ }
+@@ -475,7 +476,7 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+ // Without this check we'd be doing network I/O to the remote repo
+ // just to find out about a commit we already know about
+ // (and have cached under its pseudo-version).
+-func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error) {
++func readDiskStatByHash(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
+ 	if cfg.GOMODCACHE == "" {
+ 		// Do not download to current directory.
+ 		return "", nil, errNotCached
+@@ -485,7 +486,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
+ 		return "", nil, errNotCached
+ 	}
+ 	rev = rev[:12]
+-	cdir, err := cacheDir(path)
++	cdir, err := cacheDir(ctx, path)
+ 	if err != nil {
+ 		return "", nil, errNotCached
+ 	}
+@@ -510,7 +511,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
+ 			v := strings.TrimSuffix(name, ".info")
+ 			if module.IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
+ 				maxVersion = v
+-				file, info, err = readDiskStat(path, strings.TrimSuffix(name, ".info"))
++				file, info, err = readDiskStat(ctx, path, strings.TrimSuffix(name, ".info"))
+ 			}
+ 		}
+ 	}
+@@ -528,8 +529,8 @@ var oldVgoPrefix = []byte("//vgo 0.0.")
+ // returning the name of the cache file and the result.
+ // If the read fails, the caller can use
+ // writeDiskGoMod(file, data) to write a new cache entry.
+-func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
+-	file, data, err = readDiskCache(path, rev, "mod")
++func readDiskGoMod(ctx context.Context, path, rev string) (file string, data []byte, err error) {
++	file, data, err = readDiskCache(ctx, path, rev, "mod")
+ 
+ 	// If the file has an old auto-conversion prefix, pretend it's not there.
+ 	if bytes.HasPrefix(data, oldVgoPrefix) {
+@@ -551,8 +552,8 @@ func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
+ // It returns the name of the cache file and the content of the file.
+ // If the read fails, the caller can use
+ // writeDiskCache(file, data) to write a new cache entry.
+-func readDiskCache(path, rev, suffix string) (file string, data []byte, err error) {
+-	file, err = CachePath(module.Version{Path: path, Version: rev}, suffix)
++func readDiskCache(ctx context.Context, path, rev, suffix string) (file string, data []byte, err error) {
++	file, err = CachePath(ctx, module.Version{Path: path, Version: rev}, suffix)
+ 	if err != nil {
+ 		return "", nil, errNotCached
+ 	}
+@@ -565,7 +566,7 @@ func readDiskCache(path, rev, suffix string) (file string, data []byte, err erro
+ 
+ // writeDiskStat writes a stat result cache entry.
+ // The file name must have been returned by a previous call to readDiskStat.
+-func writeDiskStat(file string, info *RevInfo) error {
++func writeDiskStat(ctx context.Context, file string, info *RevInfo) error {
+ 	if file == "" {
+ 		return nil
+ 	}
+@@ -593,18 +594,18 @@ func writeDiskStat(file string, info *RevInfo) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	return writeDiskCache(file, js)
++	return writeDiskCache(ctx, file, js)
+ }
+ 
+ // writeDiskGoMod writes a go.mod cache entry.
+ // The file name must have been returned by a previous call to readDiskGoMod.
+-func writeDiskGoMod(file string, text []byte) error {
+-	return writeDiskCache(file, text)
++func writeDiskGoMod(ctx context.Context, file string, text []byte) error {
++	return writeDiskCache(ctx, file, text)
+ }
+ 
+ // writeDiskCache is the generic "write to a cache file" implementation.
+ // The file must have been returned by a previous call to readDiskCache.
+-func writeDiskCache(file string, data []byte) error {
++func writeDiskCache(ctx context.Context, file string, data []byte) error {
+ 	if file == "" {
+ 		return nil
+ 	}
+@@ -615,7 +616,7 @@ func writeDiskCache(file string, data []byte) error {
+ 
+ 	// Write the file to a temporary location, and then rename it to its final
+ 	// path to reduce the likelihood of a corrupt file existing at that final path.
+-	f, err := tempFile(filepath.Dir(file), filepath.Base(file), 0666)
++	f, err := tempFile(ctx, filepath.Dir(file), filepath.Base(file), 0666)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -640,17 +641,20 @@ func writeDiskCache(file string, data []byte) error {
+ 	}
+ 
+ 	if strings.HasSuffix(file, ".mod") {
+-		rewriteVersionList(filepath.Dir(file))
++		rewriteVersionList(ctx, filepath.Dir(file))
+ 	}
+ 	return nil
+ }
+ 
+ // tempFile creates a new temporary file with given permission bits.
+-func tempFile(dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
++func tempFile(ctx context.Context, dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
+ 	for i := 0; i < 10000; i++ {
+ 		name := filepath.Join(dir, prefix+strconv.Itoa(rand.Intn(1000000000))+".tmp")
+ 		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+ 		if os.IsExist(err) {
++			if ctx.Err() != nil {
++				return nil, ctx.Err()
++			}
+ 			continue
+ 		}
+ 		break
+@@ -660,7 +664,7 @@ func tempFile(dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
+ 
+ // rewriteVersionList rewrites the version list in dir
+ // after a new *.mod file has been written.
+-func rewriteVersionList(dir string) (err error) {
++func rewriteVersionList(ctx context.Context, dir string) (err error) {
+ 	if filepath.Base(dir) != "@v" {
+ 		base.Fatalf("go: internal error: misuse of rewriteVersionList")
+ 	}
+@@ -743,7 +747,7 @@ var (
+ 
+ // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
+ // error is returned if it does not.
+-func checkCacheDir() error {
++func checkCacheDir(ctx context.Context) error {
+ 	if cfg.GOMODCACHE == "" {
+ 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+ 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+diff --git a/src/cmd/go/internal/modfetch/cache_test.go b/src/cmd/go/internal/modfetch/cache_test.go
+index 722c984e37..6aada66716 100644
+--- a/src/cmd/go/internal/modfetch/cache_test.go
++++ b/src/cmd/go/internal/modfetch/cache_test.go
+@@ -5,19 +5,22 @@
+ package modfetch
+ 
+ import (
++	"context"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+ )
+ 
+ func TestWriteDiskCache(t *testing.T) {
++	ctx := context.Background()
++
+ 	tmpdir, err := os.MkdirTemp("", "go-writeCache-test-")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	err = writeDiskCache(filepath.Join(tmpdir, "file"), []byte("data"))
++	err = writeDiskCache(ctx, filepath.Join(tmpdir, "file"), []byte("data"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 7e763bee99..ca57762786 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -8,6 +8,7 @@ package codehost
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"io"
+@@ -46,26 +47,26 @@ type Repo interface {
+ 	// taken from can be reused.
+ 	// The subdir gives subdirectory name where the module root is expected to be found,
+ 	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
+-	CheckReuse(old *Origin, subdir string) error
++	CheckReuse(ctx context.Context, old *Origin, subdir string) error
+ 
+ 	// List lists all tags with the given prefix.
+-	Tags(prefix string) (*Tags, error)
++	Tags(ctx context.Context, prefix string) (*Tags, error)
+ 
+ 	// Stat returns information about the revision rev.
+ 	// A revision can be any identifier known to the underlying service:
+ 	// commit hash, branch, tag, and so on.
+-	Stat(rev string) (*RevInfo, error)
++	Stat(ctx context.Context, rev string) (*RevInfo, error)
+ 
+ 	// Latest returns the latest revision on the default branch,
+ 	// whatever that means in the underlying implementation.
+-	Latest() (*RevInfo, error)
++	Latest(ctx context.Context) (*RevInfo, error)
+ 
+ 	// ReadFile reads the given file in the file tree corresponding to revision rev.
+ 	// It should refuse to read more than maxSize bytes.
+ 	//
+ 	// If the requested file does not exist it should return an error for which
+ 	// os.IsNotExist(err) returns true.
+-	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
++	ReadFile(ctx context.Context, rev, file string, maxSize int64) (data []byte, err error)
+ 
+ 	// ReadZip downloads a zip file for the subdir subdirectory
+ 	// of the given revision to a new file in a given temporary directory.
+@@ -73,17 +74,17 @@ type Repo interface {
+ 	// It returns a ReadCloser for a streamed copy of the zip file.
+ 	// All files in the zip file are expected to be
+ 	// nested in a single top-level directory, whose name is not specified.
+-	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
++	ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
+ 
+ 	// RecentTag returns the most recent tag on rev or one of its predecessors
+ 	// with the given prefix. allowed may be used to filter out unwanted versions.
+-	RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error)
++	RecentTag(ctx context.Context, rev, prefix string, allowed func(tag string) bool) (tag string, err error)
+ 
+ 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
+ 	//
+ 	// DescendsFrom must return true for any tag returned by RecentTag for the
+ 	// same revision.
+-	DescendsFrom(rev, tag string) (bool, error)
++	DescendsFrom(ctx context.Context, rev, tag string) (bool, error)
+ }
+ 
+ // An Origin describes the provenance of a given repo method result.
+@@ -224,7 +225,7 @@ func ShortenSHA1(rev string) string {
+ 
+ // WorkDir returns the name of the cached work directory to use for the
+ // given repository type and name.
+-func WorkDir(typ, name string) (dir, lockfile string, err error) {
++func WorkDir(ctx context.Context, typ, name string) (dir, lockfile string, err error) {
+ 	if cfg.GOMODCACHE == "" {
+ 		return "", "", fmt.Errorf("neither GOPATH nor GOMODCACHE are set")
+ 	}
+@@ -240,16 +241,17 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
+ 	key := typ + ":" + name
+ 	dir = filepath.Join(cfg.GOMODCACHE, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+ 
+-	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
++	xLog, buildX := cfg.BuildXWriter(ctx)
++	if buildX {
++		fmt.Fprintf(xLog, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
+ 	}
+ 	if err := os.MkdirAll(filepath.Dir(dir), 0777); err != nil {
+ 		return "", "", err
+ 	}
+ 
+ 	lockfile = dir + ".lock"
+-	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "# lock %s\n", lockfile)
++	if buildX {
++		fmt.Fprintf(xLog, "# lock %s\n", lockfile)
+ 	}
+ 
+ 	unlock, err := lockedfile.MutexAt(lockfile).Lock()
+@@ -266,15 +268,15 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
+ 		if have != key {
+ 			return "", "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
+ 		}
+-		if cfg.BuildX {
+-			fmt.Fprintf(os.Stderr, "# %s for %s %s\n", dir, typ, name)
++		if buildX {
++			fmt.Fprintf(xLog, "# %s for %s %s\n", dir, typ, name)
+ 		}
+ 		return dir, lockfile, nil
+ 	}
+ 
+ 	// Info file or directory missing. Start from scratch.
+-	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", dir, typ, name)
++	if xLog != nil {
++		fmt.Fprintf(xLog, "mkdir -p %s # %s %s\n", dir, typ, name)
+ 	}
+ 	os.RemoveAll(dir)
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+@@ -313,15 +315,15 @@ var dirLock sync.Map
+ // It returns the standard output and, for a non-zero exit,
+ // a *RunError indicating the command, exit status, and standard error.
+ // Standard error is unavailable for commands that exit successfully.
+-func Run(dir string, cmdline ...any) ([]byte, error) {
+-	return RunWithStdin(dir, nil, cmdline...)
++func Run(ctx context.Context, dir string, cmdline ...any) ([]byte, error) {
++	return RunWithStdin(ctx, dir, nil, cmdline...)
+ }
+ 
+ // bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
+ // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
+ var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
+ 
+-func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
++func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+ 	if dir != "" {
+ 		muIface, ok := dirLock.Load(dir)
+ 		if !ok {
+@@ -336,7 +338,7 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+ 	if os.Getenv("TESTGOVCS") == "panic" {
+ 		panic(fmt.Sprintf("use of vcs: %v", cmd))
+ 	}
+-	if cfg.BuildX {
++	if xLog, ok := cfg.BuildXWriter(ctx); ok {
+ 		text := new(strings.Builder)
+ 		if dir != "" {
+ 			text.WriteString("cd ")
+@@ -362,17 +364,18 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+ 				text.WriteString(arg)
+ 			}
+ 		}
+-		fmt.Fprintf(os.Stderr, "%s\n", text)
++		fmt.Fprintf(xLog, "%s\n", text)
+ 		start := time.Now()
+ 		defer func() {
+-			fmt.Fprintf(os.Stderr, "%.3fs # %s\n", time.Since(start).Seconds(), text)
++			fmt.Fprintf(xLog, "%.3fs # %s\n", time.Since(start).Seconds(), text)
+ 		}()
+ 	}
+ 	// TODO: Impose limits on command output size.
+ 	// TODO: Set environment to get English error messages.
+ 	var stderr bytes.Buffer
+ 	var stdout bytes.Buffer
+-	c := exec.Command(cmd[0], cmd[1:]...)
++	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
++	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
+ 	c.Dir = dir
+ 	c.Stdin = stdin
+ 	c.Stderr = &stderr
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index d18f890789..60ec616c69 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -6,6 +6,7 @@ package codehost
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"crypto/sha256"
+ 	"encoding/base64"
+ 	"errors"
+@@ -32,8 +33,8 @@ import (
+ 
+ // LocalGitRepo is like Repo but accepts both Git remote references
+ // and paths to repositories on the local file system.
+-func LocalGitRepo(remote string) (Repo, error) {
+-	return newGitRepoCached(remote, true)
++func LocalGitRepo(ctx context.Context, remote string) (Repo, error) {
++	return newGitRepoCached(ctx, remote, true)
+ }
+ 
+ // A notExistError wraps another error to retain its original text
+@@ -54,18 +55,18 @@ type gitCacheKey struct {
+ 	localOK bool
+ }
+ 
+-func newGitRepoCached(remote string, localOK bool) (Repo, error) {
++func newGitRepoCached(ctx context.Context, remote string, localOK bool) (Repo, error) {
+ 	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
+-		return newGitRepo(remote, localOK)
++		return newGitRepo(ctx, remote, localOK)
+ 	})
+ }
+ 
+-func newGitRepo(remote string, localOK bool) (Repo, error) {
++func newGitRepo(ctx context.Context, remote string, localOK bool) (Repo, error) {
+ 	r := &gitRepo{remote: remote}
+ 	if strings.Contains(remote, "://") {
+ 		// This is a remote path.
+ 		var err error
+-		r.dir, r.mu.Path, err = WorkDir(gitWorkDirType, r.remote)
++		r.dir, r.mu.Path, err = WorkDir(ctx, gitWorkDirType, r.remote)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -77,7 +78,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 		defer unlock()
+ 
+ 		if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
+-			if _, err := Run(r.dir, "git", "init", "--bare"); err != nil {
++			if _, err := Run(ctx, r.dir, "git", "init", "--bare"); err != nil {
+ 				os.RemoveAll(r.dir)
+ 				return nil, err
+ 			}
+@@ -85,7 +86,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 			// but this lets us say git fetch origin instead, which
+ 			// is a little nicer. More importantly, using a named remote
+ 			// avoids a problem with Git LFS. See golang.org/issue/25605.
+-			if _, err := Run(r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
++			if _, err := Run(ctx, r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
+ 				os.RemoveAll(r.dir)
+ 				return nil, err
+ 			}
+@@ -99,7 +100,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 				// long branch names.
+ 				//
+ 				// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
+-				if _, err := Run(r.dir, "git", "config", "core.longpaths", "true"); err != nil {
++				if _, err := Run(ctx, r.dir, "git", "config", "core.longpaths", "true"); err != nil {
+ 					os.RemoveAll(r.dir)
+ 					return nil, err
+ 				}
+@@ -133,6 +134,8 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ }
+ 
+ type gitRepo struct {
++	ctx context.Context
++
+ 	remote, remoteURL string
+ 	local             bool
+ 	dir               string
+@@ -163,11 +166,11 @@ const (
+ // loadLocalTags loads tag references from the local git cache
+ // into the map r.localTags.
+ // Should only be called as r.localTagsOnce.Do(r.loadLocalTags).
+-func (r *gitRepo) loadLocalTags() {
++func (r *gitRepo) loadLocalTags(ctx context.Context) {
+ 	// The git protocol sends all known refs and ls-remote filters them on the client side,
+ 	// so we might as well record both heads and tags in one shot.
+ 	// Most of the time we only care about tags but sometimes we care about heads too.
+-	out, err := Run(r.dir, "git", "tag", "-l")
++	out, err := Run(ctx, r.dir, "git", "tag", "-l")
+ 	if err != nil {
+ 		return
+ 	}
+@@ -180,7 +183,7 @@ func (r *gitRepo) loadLocalTags() {
+ 	}
+ }
+ 
+-func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
++func (r *gitRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) error {
+ 	if old == nil {
+ 		return fmt.Errorf("missing origin")
+ 	}
+@@ -200,7 +203,7 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+ 		return fmt.Errorf("non-specific origin")
+ 	}
+ 
+-	r.loadRefs()
++	r.loadRefs(ctx)
+ 	if r.refsErr != nil {
+ 		return r.refsErr
+ 	}
+@@ -215,7 +218,7 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+ 		}
+ 	}
+ 	if old.TagSum != "" {
+-		tags, err := r.Tags(old.TagPrefix)
++		tags, err := r.Tags(ctx, old.TagPrefix)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -233,12 +236,12 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+ 
+ // loadRefs loads heads and tags references from the remote into the map r.refs.
+ // The result is cached in memory.
+-func (r *gitRepo) loadRefs() (map[string]string, error) {
++func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
+ 	r.refsOnce.Do(func() {
+ 		// The git protocol sends all known refs and ls-remote filters them on the client side,
+ 		// so we might as well record both heads and tags in one shot.
+ 		// Most of the time we only care about tags but sometimes we care about heads too.
+-		out, gitErr := Run(r.dir, "git", "ls-remote", "-q", r.remote)
++		out, gitErr := Run(ctx, r.dir, "git", "ls-remote", "-q", r.remote)
+ 		if gitErr != nil {
+ 			if rerr, ok := gitErr.(*RunError); ok {
+ 				if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
+@@ -281,8 +284,8 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
+ 	return r.refs, r.refsErr
+ }
+ 
+-func (r *gitRepo) Tags(prefix string) (*Tags, error) {
+-	refs, err := r.loadRefs()
++func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
++	refs, err := r.loadRefs(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -349,15 +352,15 @@ func (r *gitRepo) unknownRevisionInfo(refs map[string]string) *RevInfo {
+ 	}
+ }
+ 
+-func (r *gitRepo) Latest() (*RevInfo, error) {
+-	refs, err := r.loadRefs()
++func (r *gitRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	refs, err := r.loadRefs(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if refs["HEAD"] == "" {
+ 		return nil, ErrNoCommits
+ 	}
+-	statInfo, err := r.Stat(refs["HEAD"])
++	statInfo, err := r.Stat(ctx, refs["HEAD"])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -379,8 +382,8 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
+ // for use when the server requires giving a ref instead of a hash.
+ // There may be multiple ref names for a given hash,
+ // in which case this returns some name - it doesn't matter which.
+-func (r *gitRepo) findRef(hash string) (ref string, ok bool) {
+-	refs, err := r.loadRefs()
++func (r *gitRepo) findRef(ctx context.Context, hash string) (ref string, ok bool) {
++	refs, err := r.loadRefs(ctx)
+ 	if err != nil {
+ 		return "", false
+ 	}
+@@ -402,15 +405,15 @@ const minHashDigits = 7
+ 
+ // stat stats the given rev in the local repository,
+ // or else it fetches more info from the remote repository and tries again.
+-func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
++func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err error) {
+ 	if r.local {
+-		return r.statLocal(rev, rev)
++		return r.statLocal(ctx, rev, rev)
+ 	}
+ 
+ 	// Fast path: maybe rev is a hash we already have locally.
+ 	didStatLocal := false
+ 	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+-		if info, err := r.statLocal(rev, rev); err == nil {
++		if info, err := r.statLocal(ctx, rev, rev); err == nil {
+ 			return info, nil
+ 		}
+ 		didStatLocal = true
+@@ -418,15 +421,15 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 
+ 	// Maybe rev is a tag we already have locally.
+ 	// (Note that we're excluding branches, which can be stale.)
+-	r.localTagsOnce.Do(r.loadLocalTags)
++	r.localTagsOnce.Do(func() { r.loadLocalTags(ctx) })
+ 	if r.localTags[rev] {
+-		return r.statLocal(rev, "refs/tags/"+rev)
++		return r.statLocal(ctx, rev, "refs/tags/"+rev)
+ 	}
+ 
+ 	// Maybe rev is the name of a tag or branch on the remote server.
+ 	// Or maybe it's the prefix of a hash of a named ref.
+ 	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
+-	refs, err := r.loadRefs()
++	refs, err := r.loadRefs(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -494,10 +497,10 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 	// (or already have the hash we need, just without its tag).
+ 	// Either way, try a local stat before falling back to network I/O.
+ 	if !didStatLocal {
+-		if info, err := r.statLocal(rev, hash); err == nil {
++		if info, err := r.statLocal(ctx, rev, hash); err == nil {
+ 			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
+ 				// Make sure tag exists, so it will be in localTags next time the go command is run.
+-				Run(r.dir, "git", "tag", after, hash)
++				Run(ctx, r.dir, "git", "tag", after, hash)
+ 			}
+ 			return info, nil
+ 		}
+@@ -528,9 +531,9 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 			ref = hash
+ 			refspec = hash + ":refs/dummy"
+ 		}
+-		_, err := Run(r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
++		_, err := Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+ 		if err == nil {
+-			return r.statLocal(rev, ref)
++			return r.statLocal(ctx, rev, ref)
+ 		}
+ 		// Don't try to be smart about parsing the error.
+ 		// It's too complex and varies too much by git version.
+@@ -539,11 +542,11 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 
+ 	// Last resort.
+ 	// Fetch all heads and tags and hope the hash we want is in the history.
+-	if err := r.fetchRefsLocked(); err != nil {
++	if err := r.fetchRefsLocked(ctx); err != nil {
+ 		return nil, err
+ 	}
+ 
+-	return r.statLocal(rev, rev)
++	return r.statLocal(ctx, rev, rev)
+ }
+ 
+ // fetchRefsLocked fetches all heads and tags from the origin, along with the
+@@ -555,7 +558,7 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ // for more detail.)
+ //
+ // fetchRefsLocked requires that r.mu remain locked for the duration of the call.
+-func (r *gitRepo) fetchRefsLocked() error {
++func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
+ 	if r.fetchLevel < fetchAll {
+ 		// NOTE: To work around a bug affecting Git clients up to at least 2.23.0
+ 		// (2019-08-16), we must first expand the set of local refs, and only then
+@@ -563,12 +566,12 @@ func (r *gitRepo) fetchRefsLocked() error {
+ 		// golang.org/issue/34266 and
+ 		// https://github.com/git/git/blob/4c86140027f4a0d2caaa3ab4bd8bfc5ce3c11c8a/transport.c#L1303-L1309.)
+ 
+-		if _, err := Run(r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
++		if _, err := Run(ctx, r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+ 			return err
+ 		}
+ 
+ 		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
+-			if _, err := Run(r.dir, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
++			if _, err := Run(ctx, r.dir, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -580,12 +583,12 @@ func (r *gitRepo) fetchRefsLocked() error {
+ 
+ // statLocal returns a new RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+-func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+-	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
++func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo, error) {
++	out, err := Run(ctx, r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+ 		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
+ 		var info *RevInfo
+-		if refs, err := r.loadRefs(); err == nil {
++		if refs, err := r.loadRefs(ctx); err == nil {
+ 			info = r.unknownRevisionInfo(refs)
+ 		}
+ 		return info, &UnknownRevisionError{Rev: rev}
+@@ -642,30 +645,30 @@ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func (r *gitRepo) Stat(rev string) (*RevInfo, error) {
++func (r *gitRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	if rev == "latest" {
+-		return r.Latest()
++		return r.Latest(ctx)
+ 	}
+ 	return r.statCache.Do(rev, func() (*RevInfo, error) {
+-		return r.stat(rev)
++		return r.stat(ctx, rev)
+ 	})
+ }
+ 
+-func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
++func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {
+ 	// TODO: Could use git cat-file --batch.
+-	info, err := r.Stat(rev) // download rev into local git repo
++	info, err := r.Stat(ctx, rev) // download rev into local git repo
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	out, err := Run(r.dir, "git", "cat-file", "blob", info.Name+":"+file)
++	out, err := Run(ctx, r.dir, "git", "cat-file", "blob", info.Name+":"+file)
+ 	if err != nil {
+ 		return nil, fs.ErrNotExist
+ 	}
+ 	return out, nil
+ }
+ 
+-func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error) {
+-	info, err := r.Stat(rev)
++func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(tag string) bool) (tag string, err error) {
++	info, err := r.Stat(ctx, rev)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -675,7 +678,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
+ 	// result is definitive.
+ 	describe := func() (definitive bool) {
+ 		var out []byte
+-		out, err = Run(r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
++		out, err = Run(ctx, r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
+ 		if err != nil {
+ 			return true
+ 		}
+@@ -717,7 +720,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
+ 
+ 	// Git didn't find a version tag preceding the requested rev.
+ 	// See whether any plausible tag exists.
+-	tags, err := r.Tags(prefix + "v")
++	tags, err := r.Tags(ctx, prefix+"v")
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -734,7 +737,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
+ 	}
+ 	defer unlock()
+ 
+-	if err := r.fetchRefsLocked(); err != nil {
++	if err := r.fetchRefsLocked(ctx); err != nil {
+ 		return "", err
+ 	}
+ 
+@@ -752,14 +755,14 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
+ 	return tag, err
+ }
+ 
+-func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
++func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, error) {
+ 	// The "--is-ancestor" flag was added to "git merge-base" in version 1.8.0, so
+ 	// this won't work with Git 1.7.1. According to golang.org/issue/28550, cmd/go
+ 	// already doesn't work with Git 1.7.1, so at least it's not a regression.
+ 	//
+ 	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
+ 	// 1 if not.
+-	_, err := Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++	_, err := Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+ 
+ 	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
+ 	// exit code 1.
+@@ -771,7 +774,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	}
+ 
+ 	// See whether the tag and rev even exist.
+-	tags, err := r.Tags(tag)
++	tags, err := r.Tags(ctx, tag)
+ 	if err != nil {
+ 		return false, err
+ 	}
+@@ -782,7 +785,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	// NOTE: r.stat is very careful not to fetch commits that we shouldn't know
+ 	// about, like rejected GitHub pull requests, so don't try to short-circuit
+ 	// that here.
+-	if _, err = r.stat(rev); err != nil {
++	if _, err = r.stat(ctx, rev); err != nil {
+ 		return false, err
+ 	}
+ 
+@@ -798,12 +801,12 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 		// efficient to only fetch the history from rev to tag, but that's much more
+ 		// complicated, and any kind of shallow fetch is fairly likely to trigger
+ 		// bugs in JGit servers and/or the go command anyway.
+-		if err := r.fetchRefsLocked(); err != nil {
++		if err := r.fetchRefsLocked(ctx); err != nil {
+ 			return false, err
+ 		}
+ 	}
+ 
+-	_, err = Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++	_, err = Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+ 	if err == nil {
+ 		return true, nil
+ 	}
+@@ -813,13 +816,13 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	return false, err
+ }
+ 
+-func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
++func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+ 	// TODO: Use maxSize or drop it.
+ 	args := []string{}
+ 	if subdir != "" {
+ 		args = append(args, "--", subdir)
+ 	}
+-	info, err := r.Stat(rev) // download rev into local git repo
++	info, err := r.Stat(ctx, rev) // download rev into local git repo
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -839,7 +842,7 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	// text file line endings. Setting -c core.autocrlf=input means only
+ 	// translate files on the way into the repo, not on the way out (archive).
+ 	// The -c core.eol=lf should be unnecessary but set it anyway.
+-	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
++	archive, err := Run(ctx, r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+ 	if err != nil {
+ 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
+ 			return nil, fs.ErrNotExist
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index cb0f501b9a..328ab5bf58 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/vcweb/vcstest"
++	"context"
+ 	"flag"
+ 	"internal/testenv"
+ 	"io"
+@@ -62,11 +63,11 @@ func localGitURL(t testing.TB) string {
+ 		// If we use a file:// URL to access the local directory,
+ 		// then git starts up all the usual protocol machinery,
+ 		// which will let us test remote git archive invocations.
+-		_, localGitURLErr = Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo)
++		_, localGitURLErr = Run(context.Background(), "", "git", "clone", "--mirror", gitrepo1, localGitRepo)
+ 		if localGitURLErr != nil {
+ 			return
+ 		}
+-		_, localGitURLErr = Run(localGitRepo, "git", "config", "daemon.uploadarch", "true")
++		_, localGitURLErr = Run(context.Background(), localGitRepo, "git", "config", "daemon.uploadarch", "true")
+ 	})
+ 
+ 	if localGitURLErr != nil {
+@@ -88,7 +89,7 @@ var (
+ )
+ 
+ func testMain(m *testing.M) (err error) {
+-	cfg.BuildX = true
++	cfg.BuildX = testing.Verbose()
+ 
+ 	srv, err := vcstest.NewServer()
+ 	if err != nil {
+@@ -125,9 +126,52 @@ func testMain(m *testing.M) (err error) {
+ 	return nil
+ }
+ 
+-func testRepo(t *testing.T, remote string) (Repo, error) {
++func testContext(t testing.TB) context.Context {
++	w := newTestWriter(t)
++	return cfg.WithBuildXWriter(context.Background(), w)
++}
++
++// A testWriter is an io.Writer that writes to a test's log.
++//
++// The writer batches written data until the last byte of a write is a newline
++// character, then flushes the batched data as a single call to Logf.
++// Any remaining unflushed data is logged during Cleanup.
++type testWriter struct {
++	t testing.TB
++
++	mu  sync.Mutex
++	buf bytes.Buffer
++}
++
++func newTestWriter(t testing.TB) *testWriter {
++	w := &testWriter{t: t}
++
++	t.Cleanup(func() {
++		w.mu.Lock()
++		defer w.mu.Unlock()
++		if b := w.buf.Bytes(); len(b) > 0 {
++			w.t.Logf("%s", b)
++			w.buf.Reset()
++		}
++	})
++
++	return w
++}
++
++func (w *testWriter) Write(p []byte) (int, error) {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	n, err := w.buf.Write(p)
++	if b := w.buf.Bytes(); len(b) > 0 && b[len(b)-1] == '\n' {
++		w.t.Logf("%s", b)
++		w.buf.Reset()
++	}
++	return n, err
++}
++
++func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
+ 	if remote == "localGitRepo" {
+-		return LocalGitRepo(localGitURL(t))
++		return LocalGitRepo(ctx, localGitURL(t))
+ 	}
+ 	vcsName := "git"
+ 	for _, k := range []string{"hg"} {
+@@ -142,7 +186,7 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
+ 	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
+ 		testenv.SkipFlaky(t, 59940)
+ 	}
+-	return NewRepo(vcsName, remote)
++	return NewRepo(ctx, vcsName, remote)
+ }
+ 
+ func TestTags(t *testing.T) {
+@@ -157,12 +201,13 @@ func TestTags(t *testing.T) {
+ 	runTest := func(tt tagsTest) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			t.Parallel()
++			ctx := testContext(t)
+ 
+-			r, err := testRepo(t, tt.repo)
++			r, err := testRepo(ctx, t, tt.repo)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			tags, err := r.Tags(tt.prefix)
++			tags, err := r.Tags(ctx, tt.prefix)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -224,12 +269,13 @@ func TestLatest(t *testing.T) {
+ 	runTest := func(tt latestTest) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			t.Parallel()
++			ctx := testContext(t)
+ 
+-			r, err := testRepo(t, tt.repo)
++			r, err := testRepo(ctx, t, tt.repo)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			info, err := r.Latest()
++			info, err := r.Latest(ctx)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -300,12 +346,13 @@ func TestReadFile(t *testing.T) {
+ 	runTest := func(tt readFileTest) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			t.Parallel()
++			ctx := testContext(t)
+ 
+-			r, err := testRepo(t, tt.repo)
++			r, err := testRepo(ctx, t, tt.repo)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			data, err := r.ReadFile(tt.rev, tt.file, 100)
++			data, err := r.ReadFile(ctx, tt.rev, tt.file, 100)
+ 			if err != nil {
+ 				if tt.err == "" {
+ 					t.Fatalf("ReadFile: unexpected error %v", err)
+@@ -374,12 +421,13 @@ func TestReadZip(t *testing.T) {
+ 	runTest := func(tt readZipTest) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			t.Parallel()
++			ctx := testContext(t)
+ 
+-			r, err := testRepo(t, tt.repo)
++			r, err := testRepo(ctx, t, tt.repo)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			rc, err := r.ReadZip(tt.rev, tt.subdir, 100000)
++			rc, err := r.ReadZip(ctx, tt.rev, tt.subdir, 100000)
+ 			if err != nil {
+ 				if tt.err == "" {
+ 					t.Fatalf("ReadZip: unexpected error %v", err)
+@@ -592,12 +640,13 @@ func TestStat(t *testing.T) {
+ 	runTest := func(tt statTest) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			t.Parallel()
++			ctx := testContext(t)
+ 
+-			r, err := testRepo(t, tt.repo)
++			r, err := testRepo(ctx, t, tt.repo)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			info, err := r.Stat(tt.rev)
++			info, err := r.Stat(ctx, tt.rev)
+ 			if err != nil {
+ 				if tt.err == "" {
+ 					t.Fatalf("Stat: unexpected error %v", err)
+diff --git a/src/cmd/go/internal/modfetch/codehost/svn.go b/src/cmd/go/internal/modfetch/codehost/svn.go
+index bcb4126304..fe5b74f71b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/svn.go
++++ b/src/cmd/go/internal/modfetch/codehost/svn.go
+@@ -6,6 +6,7 @@ package codehost
+ 
+ import (
+ 	"archive/zip"
++	"context"
+ 	"encoding/xml"
+ 	"fmt"
+ 	"io"
+@@ -41,7 +42,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) {
++func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) (err error) {
+ 	// The subversion CLI doesn't provide a command to write the repository
+ 	// directly to an archive, so we need to export it to the local filesystem
+ 	// instead. Unfortunately, the local filesystem might apply arbitrary
+@@ -65,7 +66,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error)
+ 		remotePath += "/" + subdir
+ 	}
+ 
+-	out, err := Run(workDir, []string{
++	out, err := Run(ctx, workDir, []string{
+ 		"svn", "list",
+ 		"--non-interactive",
+ 		"--xml",
+@@ -97,7 +98,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error)
+ 	}
+ 	defer os.RemoveAll(exportDir) // best-effort
+ 
+-	_, err = Run(workDir, []string{
++	_, err = Run(ctx, workDir, []string{
+ 		"svn", "export",
+ 		"--non-interactive",
+ 		"--quiet",
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 0a1124b1a9..3c0c24a891 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -5,6 +5,7 @@
+ package codehost
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"internal/lazyregexp"
+@@ -49,9 +50,9 @@ type vcsCacheKey struct {
+ 	remote string
+ }
+ 
+-func NewRepo(vcs, remote string) (Repo, error) {
++func NewRepo(ctx context.Context, vcs, remote string) (Repo, error) {
+ 	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+-		repo, err := newVCSRepo(vcs, remote)
++		repo, err := newVCSRepo(ctx, vcs, remote)
+ 		if err != nil {
+ 			return nil, &VCSError{err}
+ 		}
+@@ -78,9 +79,9 @@ type vcsRepo struct {
+ 	fetchErr  error
+ }
+ 
+-func newVCSRepo(vcs, remote string) (Repo, error) {
++func newVCSRepo(ctx context.Context, vcs, remote string) (Repo, error) {
+ 	if vcs == "git" {
+-		return newGitRepo(remote, false)
++		return newGitRepo(ctx, remote, false)
+ 	}
+ 	cmd := vcsCmds[vcs]
+ 	if cmd == nil {
+@@ -92,7 +93,7 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
+ 
+ 	r := &vcsRepo{remote: remote, cmd: cmd}
+ 	var err error
+-	r.dir, r.mu.Path, err = WorkDir(vcsWorkDirType+vcs, r.remote)
++	r.dir, r.mu.Path, err = WorkDir(ctx, vcsWorkDirType+vcs, r.remote)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -108,7 +109,7 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
+ 	defer unlock()
+ 
+ 	if _, err := os.Stat(filepath.Join(r.dir, "."+vcs)); err != nil {
+-		if _, err := Run(r.dir, cmd.init(r.remote)); err != nil {
++		if _, err := Run(ctx, r.dir, cmd.init(r.remote)); err != nil {
+ 			os.RemoveAll(r.dir)
+ 			return nil, err
+ 		}
+@@ -119,20 +120,20 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
+ const vcsWorkDirType = "vcs1."
+ 
+ type vcsCmd struct {
+-	vcs           string                                                         // vcs name "hg"
+-	init          func(remote string) []string                                   // cmd to init repo to track remote
+-	tags          func(remote string) []string                                   // cmd to list local tags
+-	tagRE         *lazyregexp.Regexp                                             // regexp to extract tag names from output of tags cmd
+-	branches      func(remote string) []string                                   // cmd to list local branches
+-	branchRE      *lazyregexp.Regexp                                             // regexp to extract branch names from output of tags cmd
+-	badLocalRevRE *lazyregexp.Regexp                                             // regexp of names that must not be served out of local cache without doing fetch first
+-	statLocal     func(rev, remote string) []string                              // cmd to stat local rev
+-	parseStat     func(rev, out string) (*RevInfo, error)                        // cmd to parse output of statLocal
+-	fetch         []string                                                       // cmd to fetch everything from remote
+-	latest        string                                                         // name of latest commit on remote (tip, HEAD, etc)
+-	readFile      func(rev, file, remote string) []string                        // cmd to read rev's file
+-	readZip       func(rev, subdir, remote, target string) []string              // cmd to read rev's subdir as zip file
+-	doReadZip     func(dst io.Writer, workDir, rev, subdir, remote string) error // arbitrary function to read rev's subdir as zip file
++	vcs           string                                                                              // vcs name "hg"
++	init          func(remote string) []string                                                        // cmd to init repo to track remote
++	tags          func(remote string) []string                                                        // cmd to list local tags
++	tagRE         *lazyregexp.Regexp                                                                  // regexp to extract tag names from output of tags cmd
++	branches      func(remote string) []string                                                        // cmd to list local branches
++	branchRE      *lazyregexp.Regexp                                                                  // regexp to extract branch names from output of tags cmd
++	badLocalRevRE *lazyregexp.Regexp                                                                  // regexp of names that must not be served out of local cache without doing fetch first
++	statLocal     func(rev, remote string) []string                                                   // cmd to stat local rev
++	parseStat     func(rev, out string) (*RevInfo, error)                                             // cmd to parse output of statLocal
++	fetch         []string                                                                            // cmd to fetch everything from remote
++	latest        string                                                                              // name of latest commit on remote (tip, HEAD, etc)
++	readFile      func(rev, file, remote string) []string                                             // cmd to read rev's file
++	readZip       func(rev, subdir, remote, target string) []string                                   // cmd to read rev's subdir as zip file
++	doReadZip     func(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) error // arbitrary function to read rev's subdir as zip file
+ }
+ 
+ var re = lazyregexp.New
+@@ -252,8 +253,8 @@ var vcsCmds = map[string]*vcsCmd{
+ 	},
+ }
+ 
+-func (r *vcsRepo) loadTags() {
+-	out, err := Run(r.dir, r.cmd.tags(r.remote))
++func (r *vcsRepo) loadTags(ctx context.Context) {
++	out, err := Run(ctx, r.dir, r.cmd.tags(r.remote))
+ 	if err != nil {
+ 		return
+ 	}
+@@ -268,12 +269,12 @@ func (r *vcsRepo) loadTags() {
+ 	}
+ }
+ 
+-func (r *vcsRepo) loadBranches() {
++func (r *vcsRepo) loadBranches(ctx context.Context) {
+ 	if r.cmd.branches == nil {
+ 		return
+ 	}
+ 
+-	out, err := Run(r.dir, r.cmd.branches(r.remote))
++	out, err := Run(ctx, r.dir, r.cmd.branches(r.remote))
+ 	if err != nil {
+ 		return
+ 	}
+@@ -287,18 +288,18 @@ func (r *vcsRepo) loadBranches() {
+ 	}
+ }
+ 
+-func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
++func (r *vcsRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) error {
+ 	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, errors.ErrUnsupported)
+ }
+ 
+-func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
++func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer unlock()
+ 
+-	r.tagsOnce.Do(r.loadTags)
++	r.tagsOnce.Do(func() { r.loadTags(ctx) })
+ 	tags := &Tags{
+ 		// None of the other VCS provide a reasonable way to compute TagSum
+ 		// without downloading the whole repo, so we only include VCS and URL
+@@ -320,7 +321,7 @@ func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
+ 	return tags, nil
+ }
+ 
+-func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
++func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+ 		return nil, err
+@@ -330,19 +331,19 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
+ 	if rev == "latest" {
+ 		rev = r.cmd.latest
+ 	}
+-	r.branchesOnce.Do(r.loadBranches)
++	r.branchesOnce.Do(func() { r.loadBranches(ctx) })
+ 	revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
+ 	if revOK {
+-		if info, err := r.statLocal(rev); err == nil {
++		if info, err := r.statLocal(ctx, rev); err == nil {
+ 			return info, nil
+ 		}
+ 	}
+ 
+-	r.fetchOnce.Do(r.fetch)
++	r.fetchOnce.Do(func() { r.fetch(ctx) })
+ 	if r.fetchErr != nil {
+ 		return nil, r.fetchErr
+ 	}
+-	info, err := r.statLocal(rev)
++	info, err := r.statLocal(ctx, rev)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -352,14 +353,14 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func (r *vcsRepo) fetch() {
++func (r *vcsRepo) fetch(ctx context.Context) {
+ 	if len(r.cmd.fetch) > 0 {
+-		_, r.fetchErr = Run(r.dir, r.cmd.fetch)
++		_, r.fetchErr = Run(ctx, r.dir, r.cmd.fetch)
+ 	}
+ }
+ 
+-func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
+-	out, err := Run(r.dir, r.cmd.statLocal(rev, r.remote))
++func (r *vcsRepo) statLocal(ctx context.Context, rev string) (*RevInfo, error) {
++	out, err := Run(ctx, r.dir, r.cmd.statLocal(rev, r.remote))
+ 	if err != nil {
+ 		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+@@ -375,15 +376,15 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func (r *vcsRepo) Latest() (*RevInfo, error) {
+-	return r.Stat("latest")
++func (r *vcsRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	return r.Stat(ctx, "latest")
+ }
+ 
+-func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
++func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {
+ 	if rev == "latest" {
+ 		rev = r.cmd.latest
+ 	}
+-	_, err := r.Stat(rev) // download rev into local repo
++	_, err := r.Stat(ctx, rev) // download rev into local repo
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -395,14 +396,14 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 	}
+ 	defer unlock()
+ 
+-	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
++	out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
+ 	if err != nil {
+ 		return nil, fs.ErrNotExist
+ 	}
+ 	return out, nil
+ }
+ 
+-func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
++func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
+ 	// We don't technically need to lock here since we're returning an error
+ 	// uncondititonally, but doing so anyway will help to avoid baking in
+ 	// lock-inversion bugs.
+@@ -415,7 +416,7 @@ func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag
+ 	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
+ }
+ 
+-func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
++func (r *vcsRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, error) {
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+ 		return false, err
+@@ -425,7 +426,7 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
+ }
+ 
+-func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
++func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+ 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
+ 		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, errors.ErrUnsupported)
+ 	}
+@@ -449,7 +450,7 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 			N:               maxSize,
+ 			ErrLimitReached: errors.New("ReadZip: encoded file exceeds allowed size"),
+ 		}
+-		err = r.cmd.doReadZip(lw, r.dir, rev, subdir, r.remote)
++		err = r.cmd.doReadZip(ctx, lw, r.dir, rev, subdir, r.remote)
+ 		if err == nil {
+ 			_, err = f.Seek(0, io.SeekStart)
+ 		}
+@@ -465,9 +466,9 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 				args[i] = filepath.Join(r.dir, ".fossil")
+ 			}
+ 		}
+-		_, err = Run(filepath.Dir(f.Name()), args)
++		_, err = Run(ctx, filepath.Dir(f.Name()), args)
+ 	} else {
+-		_, err = Run(r.dir, r.cmd.readZip(rev, subdir, r.remote, f.Name()))
++		_, err = Run(ctx, r.dir, r.cmd.readZip(rev, subdir, r.remote, f.Name()))
+ 	}
+ 	if err != nil {
+ 		f.Close()
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 002efcc517..85e791a435 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -7,6 +7,7 @@ package modfetch
+ import (
+ 	"archive/zip"
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -130,11 +131,11 @@ func (r *codeRepo) ModulePath() string {
+ 	return r.modPath
+ }
+ 
+-func (r *codeRepo) CheckReuse(old *codehost.Origin) error {
+-	return r.code.CheckReuse(old, r.codeDir)
++func (r *codeRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
++	return r.code.CheckReuse(ctx, old, r.codeDir)
+ }
+ 
+-func (r *codeRepo) Versions(prefix string) (*Versions, error) {
++func (r *codeRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
+ 	// Special case: gopkg.in/macaroon-bakery.v2-unstable
+ 	// does not use the v2 tags (those are for macaroon-bakery.v2).
+ 	// It has no possible tags at all.
+@@ -146,7 +147,7 @@ func (r *codeRepo) Versions(prefix string) (*Versions, error) {
+ 	if r.codeDir != "" {
+ 		p = r.codeDir + "/" + p
+ 	}
+-	tags, err := r.code.Tags(p)
++	tags, err := r.code.Tags(ctx, p)
+ 	if err != nil {
+ 		return nil, &module.ModuleError{
+ 			Path: r.modPath,
+@@ -195,7 +196,7 @@ func (r *codeRepo) Versions(prefix string) (*Versions, error) {
+ 	semver.Sort(list)
+ 	semver.Sort(incompatible)
+ 
+-	return r.appendIncompatibleVersions(tags.Origin, list, incompatible)
++	return r.appendIncompatibleVersions(ctx, tags.Origin, list, incompatible)
+ }
+ 
+ // appendIncompatibleVersions appends "+incompatible" versions to list if
+@@ -205,7 +206,7 @@ func (r *codeRepo) Versions(prefix string) (*Versions, error) {
+ // prefix.
+ //
+ // Both list and incompatible must be sorted in semantic order.
+-func (r *codeRepo) appendIncompatibleVersions(origin *codehost.Origin, list, incompatible []string) (*Versions, error) {
++func (r *codeRepo) appendIncompatibleVersions(ctx context.Context, origin *codehost.Origin, list, incompatible []string) (*Versions, error) {
+ 	versions := &Versions{
+ 		Origin: origin,
+ 		List:   list,
+@@ -216,7 +217,7 @@ func (r *codeRepo) appendIncompatibleVersions(origin *codehost.Origin, list, inc
+ 	}
+ 
+ 	versionHasGoMod := func(v string) (bool, error) {
+-		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
++		_, err := r.code.ReadFile(ctx, v, "go.mod", codehost.MaxGoMod)
+ 		if err == nil {
+ 			return true, nil
+ 		}
+@@ -290,12 +291,12 @@ func (r *codeRepo) appendIncompatibleVersions(origin *codehost.Origin, list, inc
+ 	return versions, nil
+ }
+ 
+-func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
++func (r *codeRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	if rev == "latest" {
+-		return r.Latest()
++		return r.Latest(ctx)
+ 	}
+ 	codeRev := r.revToRev(rev)
+-	info, err := r.code.Stat(codeRev)
++	info, err := r.code.Stat(ctx, codeRev)
+ 	if err != nil {
+ 		// Note: info may be non-nil to supply Origin for caching error.
+ 		var revInfo *RevInfo
+@@ -313,15 +314,15 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
+ 			},
+ 		}
+ 	}
+-	return r.convert(info, rev)
++	return r.convert(ctx, info, rev)
+ }
+ 
+-func (r *codeRepo) Latest() (*RevInfo, error) {
+-	info, err := r.code.Latest()
++func (r *codeRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	info, err := r.code.Latest(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return r.convert(info, "")
++	return r.convert(ctx, info, "")
+ }
+ 
+ // convert converts a version as reported by the code host to a version as
+@@ -329,7 +330,7 @@ func (r *codeRepo) Latest() (*RevInfo, error) {
+ //
+ // If statVers is a valid module version, it is used for the Version field.
+ // Otherwise, the Version is derived from the passed-in info and recent tags.
+-func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, error) {
++func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers string) (*RevInfo, error) {
+ 	// If this is a plain tag (no dir/ prefix)
+ 	// and the module path is unversioned,
+ 	// and if the underlying file tree has no go.mod,
+@@ -349,7 +350,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 
+ 		ok, seen := incompatibleOk[""]
+ 		if !seen {
+-			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
++			_, errGoMod := r.code.ReadFile(ctx, info.Name, "go.mod", codehost.MaxGoMod)
+ 			ok = (errGoMod != nil)
+ 			incompatibleOk[""] = ok
+ 		}
+@@ -367,7 +368,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 			major := semver.Major(v)
+ 			ok, seen = incompatibleOk[major]
+ 			if !seen {
+-				_, errGoModSub := r.code.ReadFile(info.Name, path.Join(major, "go.mod"), codehost.MaxGoMod)
++				_, errGoModSub := r.code.ReadFile(ctx, info.Name, path.Join(major, "go.mod"), codehost.MaxGoMod)
+ 				ok = (errGoModSub != nil)
+ 				incompatibleOk[major] = ok
+ 			}
+@@ -395,7 +396,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		// r.findDir verifies both of these conditions. Execute it now so that
+ 		// r.Stat will correctly return a notExistError if the go.mod location or
+ 		// declared module path doesn't match.
+-		_, _, _, err := r.findDir(v)
++		_, _, _, err := r.findDir(ctx, v)
+ 		if err != nil {
+ 			// TODO: It would be nice to return an error like "not a module".
+ 			// Right now we return "missing go.mod", which is a little confusing.
+@@ -474,7 +475,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 				if r.pathMajor != "" { // "/v2" or "/.v2"
+ 					prefix += r.pathMajor[1:] + "." // += "v2."
+ 				}
+-				tags, err := r.code.Tags(prefix)
++				tags, err := r.code.Tags(ctx, prefix)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -495,7 +496,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	// Determine version.
+ 
+ 	if module.IsPseudoVersion(statVers) {
+-		if err := r.validatePseudoVersion(info, statVers); err != nil {
++		if err := r.validatePseudoVersion(ctx, info, statVers); err != nil {
+ 			return nil, err
+ 		}
+ 		return checkCanonical(statVers)
+@@ -512,7 +513,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		tagPrefix = r.codeDir + "/"
+ 	}
+ 
+-	isRetracted, err := r.retractedVersions()
++	isRetracted, err := r.retractedVersions(ctx)
+ 	if err != nil {
+ 		isRetracted = func(string) bool { return false }
+ 	}
+@@ -607,7 +608,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		return !isRetracted(v)
+ 	}
+ 	if pseudoBase == "" {
+-		tag, err := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
++		tag, err := r.code.RecentTag(ctx, info.Name, tagPrefix, tagAllowed)
+ 		if err != nil && !errors.Is(err, errors.ErrUnsupported) {
+ 			return nil, err
+ 		}
+@@ -628,7 +629,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ // enough of the commit history to find a path between version and its base.
+ // Fortunately, many pseudo-versions — such as those for untagged repositories —
+ // have trivial bases!
+-func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string) (err error) {
++func (r *codeRepo) validatePseudoVersion(ctx context.Context, info *codehost.RevInfo, version string) (err error) {
+ 	defer func() {
+ 		if err != nil {
+ 			if _, ok := err.(*module.ModuleError); !ok {
+@@ -715,7 +716,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		}
+ 	}
+ 
+-	tags, err := r.code.Tags(tagPrefix + base)
++	tags, err := r.code.Tags(ctx, tagPrefix+base)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -726,7 +727,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		versionOnly := strings.TrimPrefix(tag.Name, tagPrefix)
+ 		if semver.Compare(versionOnly, base) == 0 {
+ 			lastTag = tag.Name
+-			ancestorFound, err = r.code.DescendsFrom(info.Name, tag.Name)
++			ancestorFound, err = r.code.DescendsFrom(ctx, info.Name, tag.Name)
+ 			if ancestorFound {
+ 				break
+ 			}
+@@ -784,7 +785,7 @@ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
+ //
+ // If r.pathMajor is non-empty, this can be either r.codeDir or — if a go.mod
+ // file exists — r.codeDir/r.pathMajor[1:].
+-func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err error) {
++func (r *codeRepo) findDir(ctx context.Context, version string) (rev, dir string, gomod []byte, err error) {
+ 	rev, err = r.versionToRev(version)
+ 	if err != nil {
+ 		return "", "", nil, err
+@@ -793,7 +794,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 	// Load info about go.mod but delay consideration
+ 	// (except I/O error) until we rule out v2/go.mod.
+ 	file1 := path.Join(r.codeDir, "go.mod")
+-	gomod1, err1 := r.code.ReadFile(rev, file1, codehost.MaxGoMod)
++	gomod1, err1 := r.code.ReadFile(ctx, rev, file1, codehost.MaxGoMod)
+ 	if err1 != nil && !os.IsNotExist(err1) {
+ 		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file1, rev, err1)
+ 	}
+@@ -811,7 +812,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 		// a replace directive.
+ 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
+ 		file2 = path.Join(dir2, "go.mod")
+-		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
++		gomod2, err2 := r.code.ReadFile(ctx, rev, file2, codehost.MaxGoMod)
+ 		if err2 != nil && !os.IsNotExist(err2) {
+ 			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file2, rev, err2)
+ 		}
+@@ -918,7 +919,7 @@ func (r *codeRepo) canReplaceMismatchedVersionDueToBug(mpath string) bool {
+ 	return unversioned && replacingGopkgIn
+ }
+ 
+-func (r *codeRepo) GoMod(version string) (data []byte, err error) {
++func (r *codeRepo) GoMod(ctx context.Context, version string) (data []byte, err error) {
+ 	if version != module.CanonicalVersion(version) {
+ 		return nil, fmt.Errorf("version %s is not canonical", version)
+ 	}
+@@ -928,20 +929,20 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+ 		// only using the revision at the end.
+ 		// Invoke Stat to verify the metadata explicitly so we don't return
+ 		// a bogus file for an invalid version.
+-		_, err := r.Stat(version)
++		_, err := r.Stat(ctx, version)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 	}
+ 
+-	rev, dir, gomod, err := r.findDir(version)
++	rev, dir, gomod, err := r.findDir(ctx, version)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if gomod != nil {
+ 		return gomod, nil
+ 	}
+-	data, err = r.code.ReadFile(rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
++	data, err = r.code.ReadFile(ctx, rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			return LegacyGoMod(r.modPath), nil
+@@ -969,8 +970,8 @@ func (r *codeRepo) modPrefix(rev string) string {
+ 	return r.modPath + "@" + rev
+ }
+ 
+-func (r *codeRepo) retractedVersions() (func(string) bool, error) {
+-	vs, err := r.Versions("")
++func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, error) {
++	vs, err := r.Versions(ctx, "")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -1002,7 +1003,7 @@ func (r *codeRepo) retractedVersions() (func(string) bool, error) {
+ 		highest = versions[len(versions)-1]
+ 	}
+ 
+-	data, err := r.GoMod(highest)
++	data, err := r.GoMod(ctx, highest)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -1025,7 +1026,7 @@ func (r *codeRepo) retractedVersions() (func(string) bool, error) {
+ 	}, nil
+ }
+ 
+-func (r *codeRepo) Zip(dst io.Writer, version string) error {
++func (r *codeRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
+ 	if version != module.CanonicalVersion(version) {
+ 		return fmt.Errorf("version %s is not canonical", version)
+ 	}
+@@ -1035,17 +1036,17 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 		// only using the revision at the end.
+ 		// Invoke Stat to verify the metadata explicitly so we don't return
+ 		// a bogus file for an invalid version.
+-		_, err := r.Stat(version)
++		_, err := r.Stat(ctx, version)
+ 		if err != nil {
+ 			return err
+ 		}
+ 	}
+ 
+-	rev, subdir, _, err := r.findDir(version)
++	rev, subdir, _, err := r.findDir(ctx, version)
+ 	if err != nil {
+ 		return err
+ 	}
+-	dl, err := r.code.ReadZip(rev, subdir, codehost.MaxZipFile)
++	dl, err := r.code.ReadZip(ctx, rev, subdir, codehost.MaxZipFile)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -1115,7 +1116,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 	}
+ 
+ 	if !haveLICENSE && subdir != "" {
+-		data, err := r.code.ReadFile(rev, "LICENSE", codehost.MaxLICENSE)
++		data, err := r.code.ReadFile(ctx, rev, "LICENSE", codehost.MaxLICENSE)
+ 		if err == nil {
+ 			files = append(files, dataFile{name: "LICENSE", data: data})
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 8ccd9b2dca..cf9c93d1fd 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -6,6 +6,7 @@ package modfetch
+ 
+ import (
+ 	"archive/zip"
++	"context"
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"flag"
+@@ -600,8 +601,9 @@ func TestCodeRepo(t *testing.T) {
+ 				if tt.vcs != "mod" {
+ 					testenv.MustHaveExecPath(t, tt.vcs)
+ 				}
++				ctx := context.Background()
+ 
+-				repo := Lookup("direct", tt.path)
++				repo := Lookup(ctx, "direct", tt.path)
+ 
+ 				if tt.mpath == "" {
+ 					tt.mpath = tt.path
+@@ -610,7 +612,7 @@ func TestCodeRepo(t *testing.T) {
+ 					t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
+ 				}
+ 
+-				info, err := repo.Stat(tt.rev)
++				info, err := repo.Stat(ctx, tt.rev)
+ 				if err != nil {
+ 					if tt.err != "" {
+ 						if !strings.Contains(err.Error(), tt.err) {
+@@ -637,7 +639,7 @@ func TestCodeRepo(t *testing.T) {
+ 				}
+ 
+ 				if tt.gomod != "" || tt.gomodErr != "" {
+-					data, err := repo.GoMod(tt.version)
++					data, err := repo.GoMod(ctx, tt.version)
+ 					if err != nil && tt.gomodErr == "" {
+ 						t.Errorf("repo.GoMod(%q): %v", tt.version, err)
+ 					} else if err != nil && tt.gomodErr != "" {
+@@ -671,7 +673,7 @@ func TestCodeRepo(t *testing.T) {
+ 					} else {
+ 						w = f
+ 					}
+-					err = repo.Zip(w, tt.version)
++					err = repo.Zip(ctx, w, tt.version)
+ 					f.Close()
+ 					if err != nil {
+ 						if tt.zipErr != "" {
+@@ -834,9 +836,10 @@ func TestCodeRepoVersions(t *testing.T) {
+ 				if tt.vcs != "mod" {
+ 					testenv.MustHaveExecPath(t, tt.vcs)
+ 				}
++				ctx := context.Background()
+ 
+-				repo := Lookup("direct", tt.path)
+-				list, err := repo.Versions(tt.prefix)
++				repo := Lookup(ctx, "direct", tt.path)
++				list, err := repo.Versions(ctx, tt.prefix)
+ 				if err != nil {
+ 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
+ 				}
+@@ -909,9 +912,10 @@ func TestLatest(t *testing.T) {
+ 				if tt.vcs != "mod" {
+ 					testenv.MustHaveExecPath(t, tt.vcs)
+ 				}
++				ctx := context.Background()
+ 
+-				repo := Lookup("direct", tt.path)
+-				info, err := repo.Latest()
++				repo := Lookup(ctx, "direct", tt.path)
++				info, err := repo.Latest(ctx)
+ 				if err != nil {
+ 					if tt.err != "" {
+ 						if err.Error() == tt.err {
+@@ -938,7 +942,7 @@ type fixedTagsRepo struct {
+ 	codehost.Repo
+ }
+ 
+-func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
++func (ch *fixedTagsRepo) Tags(ctx context.Context, prefix string) (*codehost.Tags, error) {
+ 	tags := &codehost.Tags{}
+ 	for _, t := range ch.tags {
+ 		tags.List = append(tags.List, codehost.Tag{Name: t})
+@@ -947,6 +951,9 @@ func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
+ }
+ 
+ func TestNonCanonicalSemver(t *testing.T) {
++	t.Parallel()
++	ctx := context.Background()
++
+ 	root := "golang.org/x/issue24476"
+ 	ch := &fixedTagsRepo{
+ 		tags: []string{
+@@ -964,7 +971,7 @@ func TestNonCanonicalSemver(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	v, err := cr.Versions("")
++	v, err := cr.Versions(ctx, "")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 35b8ab9eba..e6b5eec9b3 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -40,7 +40,7 @@ var downloadCache par.ErrCache[module.Version, string] // version → directory
+ // local download cache and returns the name of the directory
+ // corresponding to the root of the module's file tree.
+ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+-	if err := checkCacheDir(); err != nil {
++	if err := checkCacheDir(ctx); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+@@ -50,7 +50,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		checkMod(mod)
++		checkMod(ctx, mod)
+ 		return dir, nil
+ 	})
+ }
+@@ -59,7 +59,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
+ 	defer span.Done()
+ 
+-	dir, err = DownloadDir(mod)
++	dir, err = DownloadDir(ctx, mod)
+ 	if err == nil {
+ 		// The directory has already been completely extracted (no .partial file exists).
+ 		return dir, nil
+@@ -75,7 +75,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 		return "", err
+ 	}
+ 
+-	unlock, err := lockVersion(mod)
++	unlock, err := lockVersion(ctx, mod)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -85,7 +85,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	defer span.Done()
+ 
+ 	// Check whether the directory was populated while we were waiting on the lock.
+-	_, dirErr := DownloadDir(mod)
++	_, dirErr := DownloadDir(ctx, mod)
+ 	if dirErr == nil {
+ 		return dir, nil
+ 	}
+@@ -109,7 +109,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 		}
+ 	}
+ 
+-	partialPath, err := CachePath(mod, "partial")
++	partialPath, err := CachePath(ctx, mod, "partial")
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -158,7 +158,7 @@ var downloadZipCache par.ErrCache[module.Version, string]
+ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
+ 	// The par.Cache here avoids duplicate work.
+ 	return downloadZipCache.Do(mod, func() (string, error) {
+-		zipfile, err := CachePath(mod, "zip")
++		zipfile, err := CachePath(ctx, mod, "zip")
+ 		if err != nil {
+ 			return "", err
+ 		}
+@@ -186,7 +186,7 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
+ 				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
+ 			}
+ 		}
+-		unlock, err := lockVersion(mod)
++		unlock, err := lockVersion(ctx, mod)
+ 		if err != nil {
+ 			return "", err
+ 		}
+@@ -243,7 +243,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 	// contents of the file (by hashing it) before we commit it. Because the file
+ 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
+ 	// validate it: we can't just tee the stream as we write it.
+-	f, err := tempFile(filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
++	f, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -259,8 +259,8 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 		if unrecoverableErr != nil {
+ 			return unrecoverableErr
+ 		}
+-		repo := Lookup(proxy, mod.Path)
+-		err := repo.Zip(f, mod.Version)
++		repo := Lookup(ctx, proxy, mod.Path)
++		err := repo.Zip(ctx, f, mod.Version)
+ 		if err != nil {
+ 			// Zip may have partially written to f before failing.
+ 			// (Perhaps the server crashed while sending the file?)
+@@ -549,9 +549,9 @@ func HaveSum(mod module.Version) bool {
+ }
+ 
+ // checkMod checks the given module's checksum.
+-func checkMod(mod module.Version) {
++func checkMod(ctx context.Context, mod module.Version) {
+ 	// Do the file I/O before acquiring the go.sum lock.
+-	ziphash, err := CachePath(mod, "ziphash")
++	ziphash, err := CachePath(ctx, mod, "ziphash")
+ 	if err != nil {
+ 		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+@@ -562,7 +562,7 @@ func checkMod(mod module.Version) {
+ 	data = bytes.TrimSpace(data)
+ 	if !isValidSum(data) {
+ 		// Recreate ziphash file from zip file and use that to check the mod sum.
+-		zip, err := CachePath(mod, "zip")
++		zip, err := CachePath(ctx, mod, "zip")
+ 		if err != nil {
+ 			base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 		}
+@@ -724,13 +724,13 @@ func checkSumDB(mod module.Version, h string) error {
+ 
+ // Sum returns the checksum for the downloaded copy of the given module,
+ // if present in the download cache.
+-func Sum(mod module.Version) string {
++func Sum(ctx context.Context, mod module.Version) string {
+ 	if cfg.GOMODCACHE == "" {
+ 		// Do not use current directory.
+ 		return ""
+ 	}
+ 
+-	ziphash, err := CachePath(mod, "ziphash")
++	ziphash, err := CachePath(ctx, mod, "ziphash")
+ 	if err != nil {
+ 		return ""
+ 	}
+@@ -770,7 +770,7 @@ var ErrGoSumDirty = errors.New("updates to go.sum needed, disabled by -mod=reado
+ // It should have entries for both module content sums and go.mod sums
+ // (version ends with "/go.mod"). Existing sums will be preserved unless they
+ // have been marked for deletion with TrimGoSum.
+-func WriteGoSum(keep map[module.Version]bool, readonly bool) error {
++func WriteGoSum(ctx context.Context, keep map[module.Version]bool, readonly bool) error {
+ 	goSum.mu.Lock()
+ 	defer goSum.mu.Unlock()
+ 
+@@ -805,7 +805,7 @@ Outer:
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+ 	// previous versions of the 'go' command from making simultaneous edits.
+-	if unlock, err := SideLock(); err == nil {
++	if unlock, err := SideLock(ctx); err == nil {
+ 		defer unlock()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index facf738cb0..dd37ba98f2 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -5,6 +5,7 @@
+ package modfetch
+ 
+ import (
++	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -227,7 +228,7 @@ func (p *proxyRepo) ModulePath() string {
+ 
+ var errProxyReuse = fmt.Errorf("proxy does not support CheckReuse")
+ 
+-func (p *proxyRepo) CheckReuse(old *codehost.Origin) error {
++func (p *proxyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
+ 	return errProxyReuse
+ }
+ 
+@@ -251,8 +252,8 @@ func (p *proxyRepo) versionError(version string, err error) error {
+ 	}
+ }
+ 
+-func (p *proxyRepo) getBytes(path string) ([]byte, error) {
+-	body, err := p.getBody(path)
++func (p *proxyRepo) getBytes(ctx context.Context, path string) ([]byte, error) {
++	body, err := p.getBody(ctx, path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -267,7 +268,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
+ 	return b, nil
+ }
+ 
+-func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
++func (p *proxyRepo) getBody(ctx context.Context, path string) (r io.ReadCloser, err error) {
+ 	fullPath := pathpkg.Join(p.url.Path, path)
+ 
+ 	target := *p.url
+@@ -285,8 +286,8 @@ func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
+ 	return resp.Body, nil
+ }
+ 
+-func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
+-	data, err := p.getBytes("@v/list")
++func (p *proxyRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
++	data, err := p.getBytes(ctx, "@v/list")
+ 	if err != nil {
+ 		p.listLatestOnce.Do(func() {
+ 			p.listLatest, p.listLatestErr = nil, p.versionError("", err)
+@@ -302,26 +303,26 @@ func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
+ 		}
+ 	}
+ 	p.listLatestOnce.Do(func() {
+-		p.listLatest, p.listLatestErr = p.latestFromList(allLine)
++		p.listLatest, p.listLatestErr = p.latestFromList(ctx, allLine)
+ 	})
+ 	semver.Sort(list)
+ 	return &Versions{List: list}, nil
+ }
+ 
+-func (p *proxyRepo) latest() (*RevInfo, error) {
++func (p *proxyRepo) latest(ctx context.Context) (*RevInfo, error) {
+ 	p.listLatestOnce.Do(func() {
+-		data, err := p.getBytes("@v/list")
++		data, err := p.getBytes(ctx, "@v/list")
+ 		if err != nil {
+ 			p.listLatestErr = p.versionError("", err)
+ 			return
+ 		}
+ 		list := strings.Split(string(data), "\n")
+-		p.listLatest, p.listLatestErr = p.latestFromList(list)
++		p.listLatest, p.listLatestErr = p.latestFromList(ctx, list)
+ 	})
+ 	return p.listLatest, p.listLatestErr
+ }
+ 
+-func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
++func (p *proxyRepo) latestFromList(ctx context.Context, allLine []string) (*RevInfo, error) {
+ 	var (
+ 		bestTime    time.Time
+ 		bestVersion string
+@@ -355,15 +356,15 @@ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+ 	}
+ 
+ 	// Call Stat to get all the other fields, including Origin information.
+-	return p.Stat(bestVersion)
++	return p.Stat(ctx, bestVersion)
+ }
+ 
+-func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
++func (p *proxyRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	encRev, err := module.EscapeVersion(rev)
+ 	if err != nil {
+ 		return nil, p.versionError(rev, err)
+ 	}
+-	data, err := p.getBytes("@v/" + encRev + ".info")
++	data, err := p.getBytes(ctx, "@v/"+encRev+".info")
+ 	if err != nil {
+ 		return nil, p.versionError(rev, err)
+ 	}
+@@ -380,13 +381,13 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func (p *proxyRepo) Latest() (*RevInfo, error) {
+-	data, err := p.getBytes("@latest")
++func (p *proxyRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	data, err := p.getBytes(ctx, "@latest")
+ 	if err != nil {
+ 		if !errors.Is(err, fs.ErrNotExist) {
+ 			return nil, p.versionError("", err)
+ 		}
+-		return p.latest()
++		return p.latest(ctx)
+ 	}
+ 	info := new(RevInfo)
+ 	if err := json.Unmarshal(data, info); err != nil {
+@@ -395,7 +396,7 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func (p *proxyRepo) GoMod(version string) ([]byte, error) {
++func (p *proxyRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
+ 	if version != module.CanonicalVersion(version) {
+ 		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
+ 	}
+@@ -404,14 +405,14 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, p.versionError(version, err)
+ 	}
+-	data, err := p.getBytes("@v/" + encVer + ".mod")
++	data, err := p.getBytes(ctx, "@v/"+encVer+".mod")
+ 	if err != nil {
+ 		return nil, p.versionError(version, err)
+ 	}
+ 	return data, nil
+ }
+ 
+-func (p *proxyRepo) Zip(dst io.Writer, version string) error {
++func (p *proxyRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
+ 	if version != module.CanonicalVersion(version) {
+ 		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
+ 	}
+@@ -421,7 +422,7 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+ 		return p.versionError(version, err)
+ 	}
+ 	path := "@v/" + encVer + ".zip"
+-	body, err := p.getBody(path)
++	body, err := p.getBody(ctx, path)
+ 	if err != nil {
+ 		return p.versionError(version, err)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 68993c4ce4..4868b4a22b 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -5,6 +5,7 @@
+ package modfetch
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+@@ -33,7 +34,7 @@ type Repo interface {
+ 	// are still satisfied on the server corresponding to this module.
+ 	// If so, the caller can reuse any cached Versions or RevInfo containing
+ 	// this origin rather than redownloading those from the server.
+-	CheckReuse(old *codehost.Origin) error
++	CheckReuse(ctx context.Context, old *codehost.Origin) error
+ 
+ 	// Versions lists all known versions with the given prefix.
+ 	// Pseudo-versions are not included.
+@@ -48,23 +49,23 @@ type Repo interface {
+ 	//
+ 	// If the underlying repository does not exist,
+ 	// Versions returns an error matching errors.Is(_, os.NotExist).
+-	Versions(prefix string) (*Versions, error)
++	Versions(ctx context.Context, prefix string) (*Versions, error)
+ 
+ 	// Stat returns information about the revision rev.
+ 	// A revision can be any identifier known to the underlying service:
+ 	// commit hash, branch, tag, and so on.
+-	Stat(rev string) (*RevInfo, error)
++	Stat(ctx context.Context, rev string) (*RevInfo, error)
+ 
+ 	// Latest returns the latest revision on the default branch,
+ 	// whatever that means in the underlying source code repository.
+ 	// It is only used when there are no tagged versions.
+-	Latest() (*RevInfo, error)
++	Latest(ctx context.Context) (*RevInfo, error)
+ 
+ 	// GoMod returns the go.mod file for the given version.
+-	GoMod(version string) (data []byte, err error)
++	GoMod(ctx context.Context, version string) (data []byte, err error)
+ 
+ 	// Zip writes a zip file for the given version to dst.
+-	Zip(dst io.Writer, version string) error
++	Zip(ctx context.Context, dst io.Writer, version string) error
+ }
+ 
+ // A Versions describes the available versions in a module repository.
+@@ -203,14 +204,14 @@ type lookupCacheKey struct {
+ //
+ // A successful return does not guarantee that the module
+ // has any defined versions.
+-func Lookup(proxy, path string) Repo {
++func Lookup(ctx context.Context, proxy, path string) Repo {
+ 	if traceRepo {
+ 		defer logCall("Lookup(%q, %q)", proxy, path)()
+ 	}
+ 
+ 	return lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+-		return newCachingRepo(path, func() (Repo, error) {
+-			r, err := lookup(proxy, path)
++		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
++			r, err := lookup(ctx, proxy, path)
+ 			if err == nil && traceRepo {
+ 				r = newLoggingRepo(r)
+ 			}
+@@ -220,7 +221,7 @@ func Lookup(proxy, path string) Repo {
+ }
+ 
+ // lookup returns the module with the given module path.
+-func lookup(proxy, path string) (r Repo, err error) {
++func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
+ 	if cfg.BuildMod == "vendor" {
+ 		return nil, errLookupDisabled
+ 	}
+@@ -228,7 +229,7 @@ func lookup(proxy, path string) (r Repo, err error) {
+ 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
+ 		switch proxy {
+ 		case "noproxy", "direct":
+-			return lookupDirect(path)
++			return lookupDirect(ctx, path)
+ 		default:
+ 			return nil, errNoproxy
+ 		}
+@@ -238,7 +239,7 @@ func lookup(proxy, path string) (r Repo, err error) {
+ 	case "off":
+ 		return errRepo{path, errProxyOff}, nil
+ 	case "direct":
+-		return lookupDirect(path)
++		return lookupDirect(ctx, path)
+ 	case "noproxy":
+ 		return nil, errUseProxy
+ 	default:
+@@ -263,7 +264,7 @@ var (
+ 	errUseProxy error = notExistErrorf("path does not match GOPRIVATE/GONOPROXY")
+ )
+ 
+-func lookupDirect(path string) (Repo, error) {
++func lookupDirect(ctx context.Context, path string) (Repo, error) {
+ 	security := web.SecureOnly
+ 
+ 	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
+@@ -280,15 +281,15 @@ func lookupDirect(path string) (Repo, error) {
+ 		return newProxyRepo(rr.Repo, path)
+ 	}
+ 
+-	code, err := lookupCodeRepo(rr)
++	code, err := lookupCodeRepo(ctx, rr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return newCodeRepo(code, rr.Root, path)
+ }
+ 
+-func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
+-	code, err := codehost.NewRepo(rr.VCS.Cmd, rr.Repo)
++func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot) (codehost.Repo, error) {
++	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo)
+ 	if err != nil {
+ 		if _, ok := err.(*codehost.VCSError); ok {
+ 			return nil, err
+@@ -329,40 +330,40 @@ func (l *loggingRepo) ModulePath() string {
+ 	return l.r.ModulePath()
+ }
+ 
+-func (l *loggingRepo) CheckReuse(old *codehost.Origin) (err error) {
++func (l *loggingRepo) CheckReuse(ctx context.Context, old *codehost.Origin) (err error) {
+ 	defer func() {
+ 		logCall("CheckReuse[%s]: %v", l.r.ModulePath(), err)
+ 	}()
+-	return l.r.CheckReuse(old)
++	return l.r.CheckReuse(ctx, old)
+ }
+ 
+-func (l *loggingRepo) Versions(prefix string) (*Versions, error) {
++func (l *loggingRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
+ 	defer logCall("Repo[%s]: Versions(%q)", l.r.ModulePath(), prefix)()
+-	return l.r.Versions(prefix)
++	return l.r.Versions(ctx, prefix)
+ }
+ 
+-func (l *loggingRepo) Stat(rev string) (*RevInfo, error) {
++func (l *loggingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 	defer logCall("Repo[%s]: Stat(%q)", l.r.ModulePath(), rev)()
+-	return l.r.Stat(rev)
++	return l.r.Stat(ctx, rev)
+ }
+ 
+-func (l *loggingRepo) Latest() (*RevInfo, error) {
++func (l *loggingRepo) Latest(ctx context.Context) (*RevInfo, error) {
+ 	defer logCall("Repo[%s]: Latest()", l.r.ModulePath())()
+-	return l.r.Latest()
++	return l.r.Latest(ctx)
+ }
+ 
+-func (l *loggingRepo) GoMod(version string) ([]byte, error) {
++func (l *loggingRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
+ 	defer logCall("Repo[%s]: GoMod(%q)", l.r.ModulePath(), version)()
+-	return l.r.GoMod(version)
++	return l.r.GoMod(ctx, version)
+ }
+ 
+-func (l *loggingRepo) Zip(dst io.Writer, version string) error {
++func (l *loggingRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
+ 	dstName := "_"
+ 	if dst, ok := dst.(interface{ Name() string }); ok {
+ 		dstName = strconv.Quote(dst.Name())
+ 	}
+ 	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
+-	return l.r.Zip(dst, version)
++	return l.r.Zip(ctx, dst, version)
+ }
+ 
+ // errRepo is a Repo that returns the same error for all operations.
+@@ -376,12 +377,12 @@ type errRepo struct {
+ 
+ func (r errRepo) ModulePath() string { return r.modulePath }
+ 
+-func (r errRepo) CheckReuse(old *codehost.Origin) error     { return r.err }
+-func (r errRepo) Versions(prefix string) (*Versions, error) { return nil, r.err }
+-func (r errRepo) Stat(rev string) (*RevInfo, error)         { return nil, r.err }
+-func (r errRepo) Latest() (*RevInfo, error)                 { return nil, r.err }
+-func (r errRepo) GoMod(version string) ([]byte, error)      { return nil, r.err }
+-func (r errRepo) Zip(dst io.Writer, version string) error   { return r.err }
++func (r errRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error     { return r.err }
++func (r errRepo) Versions(ctx context.Context, prefix string) (*Versions, error) { return nil, r.err }
++func (r errRepo) Stat(ctx context.Context, rev string) (*RevInfo, error)         { return nil, r.err }
++func (r errRepo) Latest(ctx context.Context) (*RevInfo, error)                   { return nil, r.err }
++func (r errRepo) GoMod(ctx context.Context, version string) ([]byte, error)      { return nil, r.err }
++func (r errRepo) Zip(ctx context.Context, dst io.Writer, version string) error   { return r.err }
+ 
+ // A notExistError is like fs.ErrNotExist, but with a custom message
+ type notExistError struct {
+diff --git a/src/cmd/go/internal/modfetch/zip_sum_test/zip_sum_test.go b/src/cmd/go/internal/modfetch/zip_sum_test/zip_sum_test.go
+index d9ba8ef2da..16cc145705 100644
+--- a/src/cmd/go/internal/modfetch/zip_sum_test/zip_sum_test.go
++++ b/src/cmd/go/internal/modfetch/zip_sum_test/zip_sum_test.go
+@@ -119,7 +119,9 @@ func TestZipSums(t *testing.T) {
+ 		name := fmt.Sprintf("%s@%s", strings.ReplaceAll(test.m.Path, "/", "_"), test.m.Version)
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+-			zipPath, err := modfetch.DownloadZip(context.Background(), test.m)
++			ctx := context.Background()
++
++			zipPath, err := modfetch.DownloadZip(ctx, test.m)
+ 			if err != nil {
+ 				if *updateTestData {
+ 					t.Logf("%s: could not download module: %s (will remove from testdata)", test.m, err)
+@@ -131,7 +133,7 @@ func TestZipSums(t *testing.T) {
+ 				return
+ 			}
+ 
+-			sum := modfetch.Sum(test.m)
++			sum := modfetch.Sum(ctx, test.m)
+ 			if sum != test.wantSum {
+ 				if *updateTestData {
+ 					t.Logf("%s: updating content sum to %s", test.m, sum)
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index d1149a5483..0543ebc45b 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -343,7 +343,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 
+ 		if m.Version != "" {
+ 			if checksumOk("/go.mod") {
+-				gomod, err := modfetch.CachePath(mod, "mod")
++				gomod, err := modfetch.CachePath(ctx, mod, "mod")
+ 				if err == nil {
+ 					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
+ 						m.GoMod = gomod
+@@ -351,7 +351,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 				}
+ 			}
+ 			if checksumOk("") {
+-				dir, err := modfetch.DownloadDir(mod)
++				dir, err := modfetch.DownloadDir(ctx, mod)
+ 				if err == nil {
+ 					m.Dir = dir
+ 				}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 6f50d667e9..31c66a6fde 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1482,7 +1482,7 @@ func commitRequirements(ctx context.Context) (err error) {
+ 	if inWorkspaceMode() {
+ 		// go.mod files aren't updated in workspace mode, but we still want to
+ 		// update the go.work.sum file.
+-		return modfetch.WriteGoSum(keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
++		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+ 	}
+ 	if MainModules.Len() != 1 || MainModules.ModRoot(MainModules.Versions()[0]) == "" {
+ 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
+@@ -1527,7 +1527,7 @@ func commitRequirements(ctx context.Context) (err error) {
+ 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
+ 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+ 		if cfg.CmdName != "mod init" {
+-			if err := modfetch.WriteGoSum(keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
++			if err := modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -1552,14 +1552,14 @@ func commitRequirements(ctx context.Context) (err error) {
+ 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+ 		if cfg.CmdName != "mod init" {
+ 			if err == nil {
+-				err = modfetch.WriteGoSum(keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
++				err = modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+ 			}
+ 		}
+ 	}()
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+ 	// previous versions of the 'go' command from making simultaneous edits.
+-	if unlock, err := modfetch.SideLock(); err == nil {
++	if unlock, err := modfetch.SideLock(ctx); err == nil {
+ 		defer unlock()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 1251b56c86..550f837da0 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -415,7 +415,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			// loaded.requirements, but here we may have also loaded (and want to
+ 			// preserve checksums for) additional entities from compatRS, which are
+ 			// only needed for compatibility with ld.TidyCompatibleVersion.
+-			if err := modfetch.WriteGoSum(keep, mustHaveCompleteRequirements()); err != nil {
++			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+ 		}
+@@ -636,9 +636,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 				root = filepath.Join(replaceRelativeTo(), root)
+ 			}
+ 		} else if repl.Path != "" {
+-			root, err = modfetch.DownloadDir(repl)
++			root, err = modfetch.DownloadDir(ctx, repl)
+ 		} else {
+-			root, err = modfetch.DownloadDir(m)
++			root, err = modfetch.DownloadDir(ctx, m)
+ 		}
+ 		if err != nil {
+ 			return "", false
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 8e8622982d..59915792ad 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -758,7 +758,7 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
+ 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
+ 		}
+ 		name = "go.mod"
+-		data, err = modfetch.GoMod(m.Path, m.Version)
++		data, err = modfetch.GoMod(context.TODO(), m.Path, m.Version)
+ 	}
+ 	return name, data, err
+ }
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index b4d0cf23a6..d0ffbf221a 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -83,11 +83,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) (versions [
+ 	// Note: modfetch.Lookup and repo.Versions are cached,
+ 	// so there's no need for us to add extra caching here.
+ 	err = modfetch.TryProxies(func(proxy string) error {
+-		repo, err := lookupRepo(proxy, path)
++		repo, err := lookupRepo(ctx, proxy, path)
+ 		if err != nil {
+ 			return err
+ 		}
+-		allVersions, err := repo.Versions("")
++		allVersions, err := repo.Versions(ctx, "")
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 7747ac7400..c4ae84d37f 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -101,11 +101,11 @@ func queryReuse(ctx context.Context, path, query, current string, allowed Allowe
+ // for a given module may be reused, according to the information in origin.
+ func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
+ 	return modfetch.TryProxies(func(proxy string) error {
+-		repo, err := lookupRepo(proxy, path)
++		repo, err := lookupRepo(ctx, proxy, path)
+ 		if err != nil {
+ 			return err
+ 		}
+-		return repo.CheckReuse(old)
++		return repo.CheckReuse(ctx, old)
+ 	})
+ }
+ 
+@@ -157,13 +157,13 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		return nil, fmt.Errorf("can't query specific version (%q) of standard-library module %q", query, path)
+ 	}
+ 
+-	repo, err := lookupRepo(proxy, path)
++	repo, err := lookupRepo(ctx, proxy, path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
+-		if err := repo.CheckReuse(old.Origin); err == nil {
++		if err := repo.CheckReuse(ctx, old.Origin); err == nil {
+ 			info := &modfetch.RevInfo{
+ 				Version: old.Version,
+ 				Origin:  old.Origin,
+@@ -185,7 +185,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		// If the identifier is not a canonical semver tag — including if it's a
+ 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
+ 		// info.Version with a suitable pseudo-version.
+-		info, err := repo.Stat(query)
++		info, err := repo.Stat(ctx, query)
+ 		if err != nil {
+ 			queryErr := err
+ 			// The full query doesn't correspond to a tag. If it is a semantic version
+@@ -193,7 +193,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			// semantic versioning defines them to be equivalent.
+ 			canonicalQuery := module.CanonicalVersion(query)
+ 			if canonicalQuery != "" && query != canonicalQuery {
+-				info, err = repo.Stat(canonicalQuery)
++				info, err = repo.Stat(ctx, canonicalQuery)
+ 				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+ 					return info, err
+ 				}
+@@ -211,7 +211,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	}
+ 
+ 	// Load versions and execute query.
+-	versions, err := repo.Versions(qm.prefix)
++	versions, err := repo.Versions(ctx, qm.prefix)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -234,7 +234,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	}
+ 
+ 	lookup := func(v string) (*modfetch.RevInfo, error) {
+-		rev, err := repo.Stat(v)
++		rev, err := repo.Stat(ctx, v)
+ 		// Stat can return a non-nil rev and a non-nil err,
+ 		// in order to provide origin information to make the error cacheable.
+ 		if rev == nil && err != nil {
+@@ -269,7 +269,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
+ 					return revErr, err
+ 				}
+-				rev, err = repo.Stat(current)
++				rev, err = repo.Stat(ctx, current)
+ 				if rev == nil && err != nil {
+ 					return revErr, err
+ 				}
+@@ -298,7 +298,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	}
+ 
+ 	if qm.mayUseLatest {
+-		latest, err := repo.Latest()
++		latest, err := repo.Latest(ctx)
+ 		if err == nil {
+ 			if qm.allowsVersion(ctx, latest.Version) {
+ 				return lookup(latest.Version)
+@@ -1041,18 +1041,18 @@ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
+ // available versions, but cannot fetch specific source files.
+ type versionRepo interface {
+ 	ModulePath() string
+-	CheckReuse(*codehost.Origin) error
+-	Versions(prefix string) (*modfetch.Versions, error)
+-	Stat(rev string) (*modfetch.RevInfo, error)
+-	Latest() (*modfetch.RevInfo, error)
++	CheckReuse(context.Context, *codehost.Origin) error
++	Versions(ctx context.Context, prefix string) (*modfetch.Versions, error)
++	Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error)
++	Latest(context.Context) (*modfetch.RevInfo, error)
+ }
+ 
+ var _ versionRepo = modfetch.Repo(nil)
+ 
+-func lookupRepo(proxy, path string) (repo versionRepo, err error) {
++func lookupRepo(ctx context.Context, proxy, path string) (repo versionRepo, err error) {
+ 	err = module.CheckPath(path)
+ 	if err == nil {
+-		repo = modfetch.Lookup(proxy, path)
++		repo = modfetch.Lookup(ctx, proxy, path)
+ 	} else {
+ 		repo = emptyRepo{path: path, err: err}
+ 	}
+@@ -1075,14 +1075,16 @@ type emptyRepo struct {
+ var _ versionRepo = emptyRepo{}
+ 
+ func (er emptyRepo) ModulePath() string { return er.path }
+-func (er emptyRepo) CheckReuse(old *codehost.Origin) error {
++func (er emptyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
+ 	return fmt.Errorf("empty repo")
+ }
+-func (er emptyRepo) Versions(prefix string) (*modfetch.Versions, error) {
++func (er emptyRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
+ 	return &modfetch.Versions{}, nil
+ }
+-func (er emptyRepo) Stat(rev string) (*modfetch.RevInfo, error) { return nil, er.err }
+-func (er emptyRepo) Latest() (*modfetch.RevInfo, error)         { return nil, er.err }
++func (er emptyRepo) Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error) {
++	return nil, er.err
++}
++func (er emptyRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) { return nil, er.err }
+ 
+ // A replacementRepo augments a versionRepo to include the replacement versions
+ // (if any) found in the main module's go.mod file.
+@@ -1098,14 +1100,14 @@ var _ versionRepo = (*replacementRepo)(nil)
+ 
+ func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
+ 
+-func (rr *replacementRepo) CheckReuse(old *codehost.Origin) error {
++func (rr *replacementRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
+ 	return fmt.Errorf("replacement repo")
+ }
+ 
+ // Versions returns the versions from rr.repo augmented with any matching
+ // replacement versions.
+-func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
+-	repoVersions, err := rr.repo.Versions(prefix)
++func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
++	repoVersions, err := rr.repo.Versions(ctx, prefix)
+ 	if err != nil {
+ 		if !errors.Is(err, os.ErrNotExist) {
+ 			return nil, err
+@@ -1136,8 +1138,8 @@ func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
+ 	return &modfetch.Versions{List: versions}, nil
+ }
+ 
+-func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+-	info, err := rr.repo.Stat(rev)
++func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error) {
++	info, err := rr.repo.Stat(ctx, rev)
+ 	if err == nil {
+ 		return info, err
+ 	}
+@@ -1172,8 +1174,8 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+ 	return rr.replacementStat(v)
+ }
+ 
+-func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
+-	info, err := rr.repo.Latest()
++func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) {
++	info, err := rr.repo.Latest(ctx)
+ 	path := rr.ModulePath()
+ 
+ 	if v, ok := MainModules.HighestReplaced()[path]; ok {

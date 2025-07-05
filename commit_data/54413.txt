@@ -19,6 +19,28 @@ Date:   Thu Sep 22 06:59:42 2022 -0500
     Reviewed-by: Mikaël Urankar <mikael.urankar@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d971234d87..89bd966f59 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -473,7 +473,15 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ // extld returns the current external linker.
+ func (ctxt *Link) extld() []string {
+ 	if len(flagExtld) == 0 {
+-		flagExtld = []string{"gcc"}
++		// Return the default external linker for the platform.
++		// This only matters when link tool is called directly without explicit -extld,
++		// go tool already passes the correct linker in other cases.
++		switch buildcfg.GOOS {
++		case "darwin", "freebsd", "openbsd":
++			flagExtld = []string{"clang"}
++		default:
++			flagExtld = []string{"gcc"}
++		}
+ 	}
+ 	return flagExtld
+ }

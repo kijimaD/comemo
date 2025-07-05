@@ -13,9 +13,103 @@ Date:   Fri May 24 21:04:49 2019 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go             | 23 ++++++++++++++++++++++
  .../internal/ld/testdata/issue32233/lib/ObjC.m     | 14 +++++++++++++
  .../internal/ld/testdata/issue32233/lib/lib.go     | 19 ++++++++++++++++++
  .../internal/ld/testdata/issue32233/main/main.go   | 11 +++++++++++
  4 files changed, 67 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 190a54c4c3..df193e5d3d 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1195,3 +1195,26 @@ func TestPackageNameAttr(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMachoIssue32233(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
++	if runtime.GOOS != "darwin" {
++		t.Skip("skipping; test only interesting on darwin")
++	}
++
++	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	wd, err2 := os.Getwd()
++	if err2 != nil {
++		t.Fatalf("where am I? %v", err)
++	}
++	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
++	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
++	f.Close()
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m b/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m
+new file mode 100644
+index 0000000000..78e6e9e252
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#import <Foundation/Foundation.h>
++#import <UserNotifications/UserNotifications.h>
++
++BOOL function(void) {
++  if (@available(macOS 10.14, *)) {
++    UNUserNotificationCenter *center =
++        [UNUserNotificationCenter currentNotificationCenter];
++  }
++  return NO;
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go b/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go
+new file mode 100644
+index 0000000000..efd56fb340
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package lib
++
++/*
++#cgo darwin CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101450 -Wunguarded-availability-new
++#cgo darwin LDFLAGS: -framework Foundation -framework UserNotifications
++#include "stdlib.h"
++int function(void);
++*/
++import "C"
++import "fmt"
++
++func DoC() {
++	C.function()
++	fmt.Println("called c function")
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue32233/main/main.go b/src/cmd/link/internal/ld/testdata/issue32233/main/main.go
+new file mode 100644
+index 0000000000..ed0838afab
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue32233/main/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "cmd/link/internal/ld/testdata/issue32233/lib"
++
++func main() {
++	lib.DoC()
++}

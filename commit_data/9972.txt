@@ -7,6 +7,21 @@ Date:   Fri Oct 14 17:53:01 2011 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5267044
-
+---
  src/pkg/crypto/tls/root_windows.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/root_windows.go b/src/pkg/crypto/tls/root_windows.go
+index 4b53f49832..9d64de437a 100644
+--- a/src/pkg/crypto/tls/root_windows.go
++++ b/src/pkg/crypto/tls/root_windows.go
+@@ -43,6 +43,9 @@ func loadStore(roots *x509.CertPool, name string) {
+ }
+ 
+ func initDefaultRoots() {
++	// TODO(brainman): To be fixed
++	return
++
+ 	roots := x509.NewCertPool()
+ 
+ 	// Roots

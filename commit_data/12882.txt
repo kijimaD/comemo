@@ -13,7 +13,7 @@ Date:   Thu Apr 12 09:35:43 2012 +1000
     R=rsc, mikesamuel, dsymonds
     CC=golang-dev
     https://golang.org/cl/5992071
-
+---
  src/pkg/exp/html/escape.go      |  8 +++++---
  src/pkg/exp/html/render_test.go |  2 +-
  src/pkg/exp/html/token_test.go  | 11 ++++++-----
@@ -21,3 +21,154 @@ Date:   Thu Apr 12 09:35:43 2012 +1000
  src/pkg/net/http/server.go      |  6 ++++--
  src/pkg/text/template/funcs.go  |  2 +-
  6 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/exp/html/escape.go b/src/pkg/exp/html/escape.go
+index 8f62a8c288..c177a66068 100644
+--- a/src/pkg/exp/html/escape.go
++++ b/src/pkg/exp/html/escape.go
+@@ -205,13 +205,15 @@ func escape(w writer, s string) error {
+ 		case '&':
+ 			esc = "&amp;"
+ 		case '\'':
+-			esc = "&apos;"
++			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
++			esc = "&#39;"
+ 		case '<':
+ 			esc = "&lt;"
+ 		case '>':
+ 			esc = "&gt;"
+ 		case '"':
+-			esc = "&quot;"
++			// "&#34;" is shorter than "&quot;".
++			esc = "&#34;"
+ 		default:
+ 			panic("unrecognized escape character")
+ 		}
+@@ -226,7 +228,7 @@ func escape(w writer, s string) error {
+ }
+ 
+ // EscapeString escapes special characters like "<" to become "&lt;". It
+-// escapes only five such characters: amp, apos, lt, gt and quot.
++// escapes only five such characters: <, >, &, ' and ".
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func EscapeString(s string) string {
+diff --git a/src/pkg/exp/html/render_test.go b/src/pkg/exp/html/render_test.go
+index 0584f35abd..a2e205275d 100644
+--- a/src/pkg/exp/html/render_test.go
++++ b/src/pkg/exp/html/render_test.go
+@@ -98,7 +98,7 @@ func TestRenderer(t *testing.T) {
+ 			},
+ 		},
+ 	}
+-	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&quot;def">` +
++	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&#34;def">` +
+ 		`2<b empty="">3</b><i backslash="\">&amp;4</i></p>` +
+ 		`5<blockquote></blockquote><br/>6</body></html>`
+ 	b := new(bytes.Buffer)
+diff --git a/src/pkg/exp/html/token_test.go b/src/pkg/exp/html/token_test.go
+index 61d74006ea..4e6eca93c5 100644
+--- a/src/pkg/exp/html/token_test.go
++++ b/src/pkg/exp/html/token_test.go
+@@ -359,7 +359,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"tricky",
+ 		"<p \t\n iD=\"a&quot;B\"  foo=\"bar\"><EM>te&lt;&amp;;xt</em></p>",
+-		`<p id="a&quot;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
++		`<p id="a&#34;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
+ 	},
+ 	// A nonexistent entity. Tokenizing and converting back to a string should
+ 	// escape the "&" to become "&amp;".
+@@ -421,7 +421,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"Double-quoted attribute value",
+ 		`<input value="I'm an attribute" FOO="BAR">`,
+-		`<input value="I&apos;m an attribute" foo="BAR">`,
++		`<input value="I&#39;m an attribute" foo="BAR">`,
+ 	},
+ 	{
+ 		"Attribute name characters",
+@@ -436,7 +436,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"Attributes with a solitary single quote",
+ 		`<p id=can't><p id=won't>`,
+-		`<p id="can&apos;t">$<p id="won&apos;t">`,
++		`<p id="can&#39;t">$<p id="won&#39;t">`,
+ 	},
+ }
+ 
+@@ -545,10 +545,11 @@ func TestUnescapeEscape(t *testing.T) {
+ 		`"<&>"`,
+ 		`&quot;&lt;&amp;&gt;&quot;`,
+ 		`3&5==1 && 0<1, "0&lt;1", a+acute=&aacute;`,
++		`The special characters are: <, >, &, ' and "`,
+ 	}
+ 	for _, s := range ss {
+-		if s != UnescapeString(EscapeString(s)) {
+-			t.Errorf("s != UnescapeString(EscapeString(s)), s=%q", s)
++		if got := UnescapeString(EscapeString(s)); got != s {
++			t.Errorf("got %q want %q", got, s)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index fee771a578..24cb7af852 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -210,13 +210,15 @@ func escape(w writer, s string) error {
+ 		case '&':
+ 			esc = "&amp;"
+ 		case '\'':
+-			esc = "&apos;"
++			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
++			esc = "&#39;"
+ 		case '<':
+ 			esc = "&lt;"
+ 		case '>':
+ 			esc = "&gt;"
+ 		case '"':
+-			esc = "&quot;"
++			// "&#34;" is shorter than "&quot;".
++			esc = "&#34;"
+ 		default:
+ 			panic("unrecognized escape character")
+ 		}
+@@ -231,7 +233,7 @@ func escape(w writer, s string) error {
+ }
+ 
+ // EscapeString escapes special characters like "<" to become "&lt;". It
+-// escapes only five such characters: amp, apos, lt, gt and quot.
++// escapes only five such characters: <, >, &, ' and ".
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func EscapeString(s string) string {
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 228ac40196..924ffd3481 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -785,8 +785,10 @@ var htmlReplacer = strings.NewReplacer(
+ 	"&", "&amp;",
+ 	"<", "&lt;",
+ 	">", "&gt;",
+-	`"`, "&quot;",
+-	"'", "&apos;",
++	// "&#34;" is shorter than "&quot;".
++	`"`, "&#34;",
++	// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
++	"'", "&#39;",
+ )
+ 
+ func htmlEscape(s string) string {
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 525179cb49..8fbf0ef50a 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -246,7 +246,7 @@ func not(arg interface{}) (truth bool) {
+ 
+ var (
+ 	htmlQuot = []byte("&#34;") // shorter than "&quot;"
+-	htmlApos = []byte("&#39;") // shorter than "&apos;"
++	htmlApos = []byte("&#39;") // shorter than "&apos;" and apos was not in HTML until HTML5
+ 	htmlAmp  = []byte("&amp;")
+ 	htmlLt   = []byte("&lt;")
+ 	htmlGt   = []byte("&gt;")

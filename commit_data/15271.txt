@@ -7,6 +7,19 @@ Date:   Fri Feb 15 11:32:31 2013 -0500
     TBR=nigeltao
     CC=golang-dev
     https://golang.org/cl/7322084
-
+---
  src/pkg/exp/cookiejar/jar_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index 8a87f0baed..ff087f6dbf 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -883,6 +883,7 @@ var chromiumDomainTests = [...]jarTest{
+ }
+ 
+ func TestChromiumDomain(t *testing.T) {
++	t.Skip("test is broken on windows") // issue 4823
+ 	jar := newTestJar()
+ 	for _, test := range chromiumDomainTests {
+ 		test.run(t, jar)

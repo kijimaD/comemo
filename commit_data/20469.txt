@@ -18,6 +18,20 @@ Date:   Tue Sep 9 17:16:31 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/142840043
-
+---
  src/runtime/sys_plan9_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index d0586a5ae9..36d2d97e20 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -194,7 +194,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	BP, SP
+ 
+ 	// make room for args and g
+-	SUBQ	$40, SP
++	SUBQ	$128, SP
+ 
+ 	// save g
+ 	MOVQ	g(AX), BP

@@ -14,7 +14,88 @@ Date:   Thu Oct 15 14:39:12 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/proc.go        | 21 +++++++++++++++++++++
  src/runtime/signal_unix.go | 11 +++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4872480314..e1de70a997 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1311,6 +1311,14 @@ found:
+ 	checkdead()
+ 	unlock(&sched.lock)
+ 
++	if GOOS == "darwin" {
++		// Make sure pendingPreemptSignals is correct when an M exits.
++		// For #41702.
++		if atomic.Load(&m.signalPending) != 0 {
++			atomic.Xadd(&pendingPreemptSignals, -1)
++		}
++	}
++
+ 	if osStack {
+ 		// Return from mstart and let the system thread
+ 		// library free the g0 stack and terminate the thread.
+@@ -3510,11 +3518,24 @@ func syscall_runtime_AfterForkInChild() {
+ 	inForkedChild = false
+ }
+ 
++// pendingPreemptSignals is the number of preemption signals
++// that have been sent but not received. This is only used on Darwin.
++// For #41702.
++var pendingPreemptSignals uint32
++
+ // Called from syscall package before Exec.
+ //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
+ func syscall_runtime_BeforeExec() {
+ 	// Prevent thread creation during exec.
+ 	execLock.lock()
++
++	// On Darwin, wait for all pending preemption signals to
++	// be received. See issue #41702.
++	if GOOS == "darwin" {
++		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
++			osyield()
++		}
++	}
+ }
+ 
+ // Called from syscall package after Exec.
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c228de47b4..e8b6f95d8f 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -335,6 +335,10 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	// Acknowledge the preemption.
+ 	atomic.Xadd(&gp.m.preemptGen, 1)
+ 	atomic.Store(&gp.m.signalPending, 0)
++
++	if GOOS == "darwin" {
++		atomic.Xadd(&pendingPreemptSignals, -1)
++	}
+ }
+ 
+ const preemptMSupported = true
+@@ -364,6 +368,10 @@ func preemptM(mp *m) {
+ 	}
+ 
+ 	if atomic.Cas(&mp.signalPending, 0, 1) {
++		if GOOS == "darwin" {
++			atomic.Xadd(&pendingPreemptSignals, 1)
++		}
++
+ 		// If multiple threads are preempting the same M, it may send many
+ 		// signals to the same M such that it hardly make progress, causing
+ 		// live-lock problem. Apparently this could happen on darwin. See
+@@ -435,6 +443,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			// no non-Go signal handler for sigPreempt.
+ 			// The default behavior for sigPreempt is to ignore
+ 			// the signal, so badsignal will be a no-op anyway.
++			if GOOS == "darwin" {
++				atomic.Xadd(&pendingPreemptSignals, -1)
++			}
+ 			return
+ 		}
+ 		c.fixsigcode(sig)

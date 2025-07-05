@@ -12,8 +12,73 @@ Date:   Tue Aug 30 14:21:06 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   | 7 ++++++-
  src/cmd/compile/internal/gc/dcl.go       | 8 +-------
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  3 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6232f81d7f..3b95979320 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -467,6 +467,11 @@ func (p *importer) typ() *Type {
+ 			p.pos()
+ 			sym := p.fieldSym()
+ 
++			// during import unexported method names should be in the type's package
++			if !exportname(sym.Name) && sym.Pkg != tsym.Pkg {
++				Fatalf("imported method name %v in wrong package %s\n", sconv(sym, FmtSign), tsym.Pkg.Name)
++			}
++
+ 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
+ 			params := p.paramList()
+ 			result := p.paramList()
+@@ -475,7 +480,7 @@ func (p *importer) typ() *Type {
+ 			n := methodname(newname(sym), recv[0].Right)
+ 			n.Type = functype(recv[0], params, result)
+ 			checkwidth(n.Type)
+-			addmethod(sym, n.Type, tsym.Pkg, false, nointerface)
++			addmethod(sym, n.Type, false, nointerface)
+ 			p.funcList = append(p.funcList, n)
+ 			importlist = append(importlist, n)
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ae5bb557aa..3d20521d4a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1153,8 +1153,7 @@ func methodname(n *Node, t *Node) *Node {
+ // Add a method, declared as a function.
+ // - msym is the method symbol
+ // - t is function type (with receiver)
+-// - tpkg is the package of the type declaring the method during import, or nil (ignored) --- for verification only
+-func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
++func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ 	// get field sym
+ 	if msym == nil {
+ 		Fatalf("no method symbol")
+@@ -1232,11 +1231,6 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 	f := structfield(n)
+ 	f.Nointerface = nointerface
+ 
+-	// during import unexported method names should be in the type's package
+-	if tpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != tpkg {
+-		Fatalf("imported method name %v in wrong package %s\n", sconv(f.Sym, FmtSign), tpkg.Name)
+-	}
+-
+ 	mt.Methods().Append(f)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f34f4751bc..d08f52e5c5 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3388,7 +3388,7 @@ func typecheckfunc(n *Node) {
+ 	t.SetNname(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+-		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Pragma&Nointerface != 0)
++		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Pragma&Nointerface != 0)
+ 	}
+ 
+ 	for _, ln := range n.Func.Dcl {

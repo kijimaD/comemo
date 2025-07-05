@@ -17,7 +17,7 @@ Date:   Wed Jan 8 18:30:50 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  12 +-
  src/cmd/go/internal/load/pkg.go                    |   3 +-
  src/cmd/go/internal/modcmd/edit.go                 |  40 +++++-
@@ -32,3 +32,1136 @@ Date:   Wed Jan 8 18:30:50 2025 +0000
  src/cmd/go/testdata/script/mod_edit.txt            |  32 ++++-
  src/cmd/go/testdata/script/mod_tidy_ignore.txt     |  78 +++++++++++
  13 files changed, 796 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fe53486b40..e8034bf5d1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1259,9 +1259,13 @@
+ // The -tool=path and -droptool=path flags add and drop a tool declaration
+ // for the given path.
+ //
++// The -ignore=path and -dropignore=path flags add and drop a ignore declaration
++// for the given path.
++//
+ // The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
+-// -replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
+-// flags may be repeated, and the changes are applied in the order given.
++// -replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
++// and -dropignore editing flags may be repeated, and the changes are applied
++// in the order given.
+ //
+ // The -print flag prints the final go.mod in its text format instead of
+ // writing it back to go.mod.
+@@ -1316,6 +1320,10 @@
+ //		Path string
+ //	}
+ //
++//	type Ignore struct {
++//		Path string
++//	}
++//
+ // Retract entries representing a single version (not an interval) will have
+ // the "Low" and "High" fields set to the same value.
+ //
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 934a97aba1..e913f98852 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2927,8 +2927,7 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ 		}
+ 		matches, _ = modload.LoadPackages(ctx, modOpts, patterns...)
+ 	} else {
+-		noModRoots := []string{}
+-		matches = search.ImportPaths(patterns, noModRoots)
++		matches = search.ImportPaths(patterns)
+ 	}
+ 
+ 	var (
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index ba3d6ed299..f73269378a 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -90,9 +90,13 @@ like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
+ The -tool=path and -droptool=path flags add and drop a tool declaration
+ for the given path.
+ 
++The -ignore=path and -dropignore=path flags add and drop a ignore declaration
++for the given path.
++
+ The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
+--replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
+-flags may be repeated, and the changes are applied in the order given.
++-replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
++and -dropignore editing flags may be repeated, and the changes are applied
++in the order given.
+ 
+ The -print flag prints the final go.mod in its text format instead of
+ writing it back to go.mod.
+@@ -147,6 +151,10 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Path string
+ 	}
+ 
++	type Ignore struct {
++		Path string
++	}
++
+ Retract entries representing a single version (not an interval) will have
+ the "Low" and "High" fields set to the same value.
+ 
+@@ -190,6 +198,8 @@ func init() {
+ 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagTool), "tool", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropTool), "droptool", "")
++	cmdEdit.Flag.Var(flagFunc(flagIgnore), "ignore", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropIgnore), "dropignore", "")
+ 
+ 	base.AddBuildFlagsNX(&cmdEdit.Flag)
+ 	base.AddChdirFlag(&cmdEdit.Flag)
+@@ -546,6 +556,24 @@ func flagDropTool(arg string) {
+ 	})
+ }
+ 
++// flagIgnore implements the -ignore flag.
++func flagIgnore(arg string) {
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.AddIgnore(arg); err != nil {
++			base.Fatalf("go: -ignore=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagDropIgnore implements the -dropignore flag.
++func flagDropIgnore(arg string) {
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.DropIgnore(arg); err != nil {
++			base.Fatalf("go: -dropignore=%s: %v", arg, err)
++		}
++	})
++}
++
+ // fileJSON is the -json output data structure.
+ type fileJSON struct {
+ 	Module    editModuleJSON
+@@ -556,6 +584,7 @@ type fileJSON struct {
+ 	Replace   []replaceJSON
+ 	Retract   []retractJSON
+ 	Tool      []toolJSON
++	Ignore    []ignoreJSON
+ }
+ 
+ type editModuleJSON struct {
+@@ -584,6 +613,10 @@ type toolJSON struct {
+ 	Path string
+ }
+ 
++type ignoreJSON struct {
++	Path string
++}
++
+ // editPrintJSON prints the -json output.
+ func editPrintJSON(modFile *modfile.File) {
+ 	var f fileJSON
+@@ -614,6 +647,9 @@ func editPrintJSON(modFile *modfile.File) {
+ 	for _, t := range modFile.Tool {
+ 		f.Tool = append(f.Tool, toolJSON{t.Path})
+ 	}
++	for _, i := range modFile.Ignore {
++		f.Ignore = append(f.Ignore, ignoreJSON{i.Path})
++	}
+ 	data, err := json.MarshalIndent(&f, "", "\t")
+ 	if err != nil {
+ 		base.Fatalf("go: internal error: %v", err)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 4687deae68..3b82b857c4 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -94,6 +94,7 @@ type modFileIndex struct {
+ 	require      map[module.Version]requireMeta
+ 	replace      map[module.Version]module.Version
+ 	exclude      map[module.Version]bool
++	ignore       []string
+ }
+ 
+ type requireMeta struct {
+@@ -455,7 +456,11 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
+ 	for _, x := range modFile.Exclude {
+ 		i.exclude[x.Mod] = true
+ 	}
+-
++	if modFile.Ignore != nil {
++		for _, x := range modFile.Ignore {
++			i.ignore = append(i.ignore, x.Path)
++		}
++	}
+ 	return i
+ }
+ 
+@@ -539,6 +544,7 @@ type modFileSummary struct {
+ 	module     module.Version
+ 	goVersion  string
+ 	toolchain  string
++	ignore     []string
+ 	pruning    modPruning
+ 	require    []module.Version
+ 	retract    []retraction
+@@ -714,6 +720,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 		if f.Toolchain != nil {
+ 			summary.toolchain = f.Toolchain.Name
+ 		}
++		if f.Ignore != nil {
++			for _, i := range f.Ignore {
++				summary.ignore = append(summary.ignore, i.Path)
++			}
++		}
+ 		if len(f.Require) > 0 {
+ 			summary.require = make([]module.Version, 0, len(f.Require)+1)
+ 			for _, req := range f.Require {
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 6c60101c8b..c3e54d62b6 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -74,7 +74,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	)
+ 
+ 	q := par.NewQueue(runtime.GOMAXPROCS(0))
+-
++	ignorePatternsMap := parseIgnorePatterns(ctx, treeCanMatch, modules)
+ 	walkPkgs := func(root, importPathRoot string, prune pruning) {
+ 		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
+ 		defer span.Done()
+@@ -82,7 +82,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 		// If the root itself is a symlink to a directory,
+ 		// we want to follow it (see https://go.dev/issue/50807).
+ 		// Add a trailing separator to force that to happen.
+-		root = str.WithFilePathSeparator(filepath.Clean(root))
++		cleanRoot := filepath.Clean(root)
++		root = str.WithFilePathSeparator(cleanRoot)
+ 		err := fsys.WalkDir(root, func(pkgDir string, d fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				m.AddError(err)
+@@ -91,6 +92,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 
+ 			want := true
+ 			elem := ""
++			relPkgDir := filepath.ToSlash(pkgDir[len(root):])
+ 
+ 			// Don't use GOROOT/src but do walk down into it.
+ 			if pkgDir == root {
+@@ -102,10 +104,15 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 				_, elem = filepath.Split(pkgDir)
+ 				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+ 					want = false
++				} else if ignorePatternsMap[cleanRoot] != nil && ignorePatternsMap[cleanRoot].ShouldIgnore(relPkgDir) {
++					if cfg.BuildX {
++						fmt.Fprintf(os.Stderr, "# ignoring directory %s\n", pkgDir)
++					}
++					want = false
+ 				}
+ 			}
+ 
+-			name := path.Join(importPathRoot, filepath.ToSlash(pkgDir[len(root):]))
++			name := path.Join(importPathRoot, relPkgDir)
+ 			if !treeCanMatch(name) {
+ 				want = false
+ 			}
+@@ -303,3 +310,43 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
+ 	}
+ 	return match
+ }
++
++// parseIgnorePatterns collects all ignore patterns associated with the
++// provided list of modules.
++// It returns a map of module root -> *search.IgnorePatterns.
++func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, modules []module.Version) map[string]*search.IgnorePatterns {
++	ignorePatternsMap := make(map[string]*search.IgnorePatterns)
++	for _, mod := range modules {
++		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
++			continue
++		}
++		var modRoot string
++		var ignorePatterns []string
++		if MainModules.Contains(mod.Path) {
++			modRoot = MainModules.ModRoot(mod)
++			if modRoot == "" {
++				continue
++			}
++			modIndex := MainModules.Index(mod)
++			if modIndex == nil {
++				continue
++			}
++			ignorePatterns = modIndex.ignore
++		} else if cfg.BuildMod != "vendor" {
++			// Skip getting ignore patterns for vendored modules because they
++			// do not have go.mod files.
++			var err error
++			modRoot, _, err = fetch(ctx, mod)
++			if err != nil {
++				continue
++			}
++			summary, err := goModSummary(mod)
++			if err != nil {
++				continue
++			}
++			ignorePatterns = summary.ignore
++		}
++		ignorePatternsMap[modRoot] = search.NewIgnorePatterns(ignorePatterns)
++	}
++	return ignorePatternsMap
++}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0954b82a02..a54486e540 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -17,6 +17,8 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"strings"
++
++	"golang.org/x/mod/modfile"
+ )
+ 
+ // A Match represents the result of matching a single package pattern.
+@@ -208,6 +210,69 @@ func (m *Match) MatchPackages() {
+ 	}
+ }
+ 
++// IgnorePatterns is normalized with normalizePath.
++type IgnorePatterns struct {
++	relativePatterns []string
++	anyPatterns      []string
++}
++
++// ShouldIgnore returns true if the given directory should be ignored
++// based on the ignore patterns.
++//
++// An ignore pattern "x" will cause any file or directory named "x"
++// (and its entire subtree) to be ignored, regardless of its location
++// within the module.
++//
++// An ignore pattern "./x" will only cause the specific file or directory
++// named "x" at the root of the module to be ignored.
++// Wildcards in ignore patterns are not supported.
++func (ignorePatterns *IgnorePatterns) ShouldIgnore(dir string) bool {
++	if dir == "" {
++		return false
++	}
++	dir = normalizePath(dir)
++	for _, pattern := range ignorePatterns.relativePatterns {
++		if strings.HasPrefix(dir, pattern) {
++			return true
++		}
++	}
++	for _, pattern := range ignorePatterns.anyPatterns {
++		if strings.Contains(dir, pattern) {
++			return true
++		}
++	}
++	return false
++}
++
++func NewIgnorePatterns(patterns []string) *IgnorePatterns {
++	var relativePatterns, anyPatterns []string
++	for _, pattern := range patterns {
++		ignorePatternPath, isRelative := strings.CutPrefix(pattern, "./")
++		ignorePatternPath = normalizePath(ignorePatternPath)
++		if isRelative {
++			relativePatterns = append(relativePatterns, ignorePatternPath)
++		} else {
++			anyPatterns = append(anyPatterns, ignorePatternPath)
++		}
++	}
++	return &IgnorePatterns{
++		relativePatterns: relativePatterns,
++		anyPatterns:      anyPatterns,
++	}
++}
++
++// normalizePath adds slashes to the front and end of the given path.
++func normalizePath(path string) string {
++	path = filepath.ToSlash(path)
++	if !strings.HasPrefix(path, "/") {
++		path = "/" + path
++	}
++	if !strings.HasSuffix(path, "/") {
++		path += "/"
++	}
++	return path
++}
++
+ // MatchDirs sets m.Dirs to a non-nil slice containing all directories that
+ // potentially match a local pattern. The pattern must begin with an absolute
+ // path, or "./", or "../". On Windows, the pattern may use slash or backslash
+@@ -253,16 +318,18 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 	// We need to preserve the ./ for pattern matching
+ 	// and in the returned import paths.
+ 
+-	if len(modRoots) > 1 {
++	var modRoot string
++	if len(modRoots) > 0 {
+ 		abs, err := filepath.Abs(dir)
+ 		if err != nil {
+ 			m.AddError(err)
+ 			return
+ 		}
+ 		var found bool
+-		for _, modRoot := range modRoots {
+-			if modRoot != "" && str.HasFilePathPrefix(abs, modRoot) {
++		for _, mr := range modRoots {
++			if mr != "" && str.HasFilePathPrefix(abs, mr) {
+ 				found = true
++				modRoot = mr
+ 			}
+ 		}
+ 		if !found {
+@@ -274,6 +341,7 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 		}
+ 	}
+ 
++	ignorePatterns := parseIgnorePatterns(modRoot)
+ 	// If dir is actually a symlink to a directory,
+ 	// we want to follow it (see https://go.dev/issue/50807).
+ 	// Add a trailing separator to force that to happen.
+@@ -305,6 +373,17 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 		if dot || strings.HasPrefix(elem, "_") || elem == "testdata" {
+ 			return filepath.SkipDir
+ 		}
++		absPath, err := filepath.Abs(path)
++		if err != nil {
++			return err
++		}
++
++		if ignorePatterns != nil && ignorePatterns.ShouldIgnore(InDir(absPath, modRoot)) {
++			if cfg.BuildX {
++				fmt.Fprintf(os.Stderr, "# ignoring directory %s\n", absPath)
++			}
++			return filepath.SkipDir
++		}
+ 
+ 		if !top && cfg.ModulesEnabled {
+ 			// Ignore other modules found in subdirectories.
+@@ -353,20 +432,20 @@ func WarnUnmatched(matches []*Match) {
+ 
+ // ImportPaths returns the matching paths to use for the given command line.
+ // It calls ImportPathsQuiet and then WarnUnmatched.
+-func ImportPaths(patterns, modRoots []string) []*Match {
+-	matches := ImportPathsQuiet(patterns, modRoots)
++func ImportPaths(patterns []string) []*Match {
++	matches := ImportPathsQuiet(patterns)
+ 	WarnUnmatched(matches)
+ 	return matches
+ }
+ 
+ // ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+-func ImportPathsQuiet(patterns, modRoots []string) []*Match {
++func ImportPathsQuiet(patterns []string) []*Match {
+ 	patterns = CleanPatterns(patterns)
+ 	out := make([]*Match, 0, len(patterns))
+ 	for _, a := range patterns {
+ 		m := NewMatch(a)
+ 		if m.IsLocal() {
+-			m.MatchDirs(modRoots)
++			m.MatchDirs(nil)
+ 
+ 			// Change the file import path to a regular import path if the package
+ 			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
+@@ -509,3 +588,25 @@ func InDir(path, dir string) string {
+ 	}
+ 	return ""
+ }
++
++// parseIgnorePatterns reads the go.mod file at the given module root
++// and extracts the ignore patterns defined within it.
++// If modRoot is empty, it returns nil.
++func parseIgnorePatterns(modRoot string) *IgnorePatterns {
++	if modRoot == "" {
++		return nil
++	}
++	data, err := os.ReadFile(filepath.Join(modRoot, "go.mod"))
++	if err != nil {
++		return nil
++	}
++	modFile, err := modfile.Parse("go.mod", data, nil)
++	if err != nil {
++		return nil
++	}
++	var patterns []string
++	for _, i := range modFile.Ignore {
++		patterns = append(patterns, i.Path)
++	}
++	return NewIgnorePatterns(patterns)
++}
+diff --git a/src/cmd/go/testdata/script/build_dash_x.txt b/src/cmd/go/testdata/script/build_dash_x.txt
+index e5580a2cc6..c7a2c6fe67 100644
+--- a/src/cmd/go/testdata/script/build_dash_x.txt
++++ b/src/cmd/go/testdata/script/build_dash_x.txt
+@@ -19,7 +19,7 @@ env GOCACHE=$WORK/tmp/cache
+ # loading to properly affect the import graph.)
+ go build runtime/cgo
+ 
+-go build -x -o main main.go
++go build -x -o main ./...
+ cp stderr commands.txt
+ cat header.txt commands.txt
+ cp stdout test.sh
+@@ -42,6 +42,13 @@ import "C"
+ func main() {
+ 	print("hello\n")
+ }
++-- go.mod --
++module example
++
++go 1.24
++
++ignore foo
++-- foo/foo.txt --
+ -- header.txt --
+ set -e
+ -- hello.txt --
+diff --git a/src/cmd/go/testdata/script/build_ignoredirective.txt b/src/cmd/go/testdata/script/build_ignoredirective.txt
+new file mode 100644
+index 0000000000..d3da9d6a08
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_ignoredirective.txt
+@@ -0,0 +1,147 @@
++# go build ./... should skip 'ignore' directives
++# See golang.org/issue/42965
++
++env ROOT=$WORK${/}gopath${/}src
++
++# no ignore directive; should not skip any directories.
++cp go.mod.orig go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/foo'
++stderr 'packagefile example/pkg/fo'
++! stderr 'ignoring directory'
++
++# ignored ./foo should be skipped.
++cp go.mod.relative go.mod
++go build -x ./...
++stderr 'packagefile example/pkg/foo'
++stderr 'packagefile example/pkg/fo'
++! stderr 'packagefile example/foo/secret'
++stderr 'ignoring directory '$ROOT''${/}'foo'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored foo; any foo should be skipped.
++cp go.mod.any go.mod
++go build -x ./...
++stderr 'packagefile example/pkg/fo'
++! stderr 'packagefile example/pkg/foo'
++! stderr 'packagefile example/foo/secret'
++stderr 'ignoring directory '$ROOT''${/}'foo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# non-existent ignore; should not skip any directories.
++cp go.mod.dne go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/foo'
++stderr 'packagefile example/pkg/fo'
++! stderr 'ignoring directory'
++
++# ignored fo; should not skip foo/ and should skip fo/
++cp go.mod.partial go.mod
++go build -x ./...
++! stderr 'ignoring directory '$ROOT''${/}'foo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored pkg/foo; should skip pkg/foo/
++cp go.mod.tree go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/fo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored /pkg/foo/; should skip pkg/foo/
++cp go.mod.sep1 go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/fo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored pkg/foo/; should skip pkg/foo/
++cp go.mod.sep2 go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/fo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored /pkg/foo; should skip pkg/foo/
++cp go.mod.sep3 go.mod
++go build -x ./...
++stderr 'packagefile example/foo/secret'
++stderr 'packagefile example/pkg/fo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++-- foo/secret/secret.go --
++package main
++func main() {}
++-- pkg/foo/foo.go --
++package main
++func main() {}
++-- pkg/fo/fo.go --
++package main
++func main() {}
++-- go.mod.orig --
++module example
++
++go 1.24
++
++-- go.mod.relative --
++module example
++
++go 1.24
++
++ignore ./foo
++
++-- go.mod.any --
++module example
++
++go 1.24
++
++ignore foo
++
++-- go.mod.dne --
++module example
++
++go 1.24
++
++ignore bar
++
++-- go.mod.partial --
++module example
++
++go 1.24
++
++ignore fo
++
++-- go.mod.tree --
++module example
++
++go 1.24
++
++ignore pkg/foo
++
++-- go.mod.sep1 --
++module example
++
++go 1.24
++
++ignore /pkg/foo/
++
++-- go.mod.sep2 --
++module example
++
++go 1.24
++
++ignore pkg/foo/
++
++-- go.mod.sep3 --
++module example
++
++go 1.24
++
++ignore /pkg/foo
++
++-- main.go --
++package main
++func main() {}
+diff --git a/src/cmd/go/testdata/script/list_ignore.txt b/src/cmd/go/testdata/script/list_ignore.txt
+new file mode 100644
+index 0000000000..2ba25ca293
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_ignore.txt
+@@ -0,0 +1,151 @@
++# go list should skip 'ignore' directives
++# See golang.org/issue/42965
++
++env ROOT=$WORK${/}gopath${/}src
++
++# no ignore directive; should not skip any directories.
++cp go.mod.orig go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/foo'
++stdout 'example/pkg/fo$'
++! stderr 'ignoring directory'
++
++# ignored ./foo should be skipped.
++cp go.mod.relative go.mod
++go list -x ./...
++stdout 'example/pkg/foo'
++stdout 'example/pkg/fo$'
++! stdout 'example/foo/secret'
++stderr 'ignoring directory '$ROOT''${/}'foo'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored foo; any foo should be skipped.
++cp go.mod.any go.mod
++go list -x ./...
++stdout 'example/pkg/fo$'
++! stdout 'example/pkg/foo'
++! stdout 'example/foo/secret'
++stderr 'ignoring directory '$ROOT''${/}'foo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# non-existent ignore; should not skip any directories.
++cp go.mod.dne go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/foo'
++stdout 'example/pkg/fo$'
++! stderr 'ignoring directory'
++
++# ignored fo; should not skip foo/ and should skip fo/
++cp go.mod.partial go.mod
++go list -x ./...
++! stderr 'ignoring directory '$ROOT''${/}'foo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored pkg/foo; should skip pkg/foo/
++cp go.mod.tree go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/fo$'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored /pkg/foo/; should skip pkg/foo/
++cp go.mod.sep1 go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/fo$'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored pkg/foo/; should skip pkg/foo/
++cp go.mod.sep2 go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/fo$'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++# ignored /pkg/foo; should skip pkg/foo/
++cp go.mod.sep3 go.mod
++go list -x ./...
++stdout 'example/foo/secret'
++stdout 'example/pkg/fo$'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++
++-- foo/secret/secret.go --
++package secret
++
++const Secret = "this should be ignored"
++-- pkg/foo/foo.go --
++package foo
++
++const Bar = "Hello from foo!"
++-- pkg/fo/fo.go --
++package fo
++
++const Gar = "Hello from fo!"
++-- go.mod.orig --
++module example
++
++go 1.24
++
++-- go.mod.relative --
++module example
++
++go 1.24
++
++ignore ./foo
++
++-- go.mod.any --
++module example
++
++go 1.24
++
++ignore foo
++
++-- go.mod.dne --
++module example
++
++go 1.24
++
++ignore bar
++
++-- go.mod.partial --
++module example
++
++go 1.24
++
++ignore fo
++
++-- go.mod.tree --
++module example
++
++go 1.24
++
++ignore pkg/foo
++
++-- go.mod.sep1 --
++module example
++
++go 1.24
++
++ignore /pkg/foo/
++
++-- go.mod.sep2 --
++module example
++
++go 1.24
++
++ignore pkg/foo/
++
++-- go.mod.sep3 --
++module example
++
++go 1.24
++
++ignore /pkg/foo
++
++-- main.go --
++package main
++
++func main() {}
+diff --git a/src/cmd/go/testdata/script/list_ignore_dependency.txt b/src/cmd/go/testdata/script/list_ignore_dependency.txt
+new file mode 100644
+index 0000000000..cafa2845b3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_ignore_dependency.txt
+@@ -0,0 +1,76 @@
++# go list should skip 'ignore' directives with respect to module boundaries.
++# See golang.org/issue/42965
++
++env ROOT=$WORK${/}gopath${/}src
++
++# Lists all packages known to the Go toolchain.
++# Since go list already does not traverse into other modules found in
++# subdirectories, it should only ignore the root node_modules.
++go list -x all
++stdout 'example$'
++stdout 'example/depA'
++stderr 'ignoring directory '$ROOT''${/}'node_modules'
++! stderr 'ignoring directory '$ROOT''${/}'depA'${/}'node_modules'
++
++# Lists all packages within the current Go module.
++# Since go list already does not traverse into other modules found in
++# subdirectories, it should only ignore the root node_modules.
++go list -x ./...
++stdout 'example$'
++stderr 'ignoring directory '$ROOT''${/}'node_modules'
++! stderr 'ignoring directory '$ROOT''${/}'depA'${/}'node_modules'
++
++# Lists all packages belonging to the module whose import path starts with
++# example.
++# In this case, go list will traverse into each module that starts with example.
++# So it should ignore the root node_modules and the subdirectories' node_modules.
++go list -x example/...
++stdout 'example$'
++stdout 'example/depA'
++stderr 'ignoring directory '$ROOT''${/}'node_modules'
++stderr 'ignoring directory '$ROOT''${/}'depA'${/}'node_modules'
++
++# Entering the submodule should now cause go list to ignore depA/node_modules.
++cd depA
++go list -x all
++stdout 'example/depA'
++stderr 'ignoring directory '$ROOT''${/}'depA'${/}'node_modules'
++! stderr 'ignoring directory '$ROOT''${/}'node_modules'
++
++go list -x ./...
++stdout 'example/depA'
++stderr 'ignoring directory '$ROOT''${/}'depA'${/}'node_modules'
++! stderr 'ignoring directory '$ROOT''${/}'node_modules'
++
++-- depA/go.mod --
++module example/depA
++
++go 1.24
++ignore ./node_modules
++-- depA/depA.go --
++package depA
++
++const Foo = "This is Foo!"
++-- depA/node_modules/some_pkg/index.js --
++console.log("This should be ignored!");
++-- node_modules/some_pkg/index.js --
++console.log("This should be ignored!");
++-- go.mod --
++module example
++
++go 1.24
++
++ignore ./node_modules
++require example/depA v1.0.0
++replace example/depA => ./depA
++
++-- main.go --
++package main
++import (
++        "fmt"
++        "example/depA"
++)
++func main() {
++        fmt.Println("test")
++        fmt.Println(depA.Foo)
++}
+diff --git a/src/cmd/go/testdata/script/list_ignore_workspace.txt b/src/cmd/go/testdata/script/list_ignore_workspace.txt
+new file mode 100644
+index 0000000000..609e976200
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_ignore_workspace.txt
+@@ -0,0 +1,89 @@
++# go list should skip 'ignore' directives in workspaces
++# See golang.org/issue/42965
++
++env ROOT=$WORK${/}gopath${/}src
++
++# go list ./... should only consider the current module's ignore directive
++cd moduleA
++go list -x ./...
++stdout 'moduleA$'
++stdout 'moduleA/pkg$'
++stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'node_modules'
++
++# go list ./... should only consider the current module's ignore directive
++cd ../moduleB
++go list -x ./...
++stdout 'moduleB$'
++! stdout 'moduleB/pkg/helper'
++stderr 'ignoring directory '$ROOT''${/}'moduleB'${/}'pkg'
++
++# go list should respect module boundaries for ignore directives.
++# moduleA ignores './node_modules', moduleB ignores 'pkg'
++cd ..
++go list -x all
++stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'node_modules'
++stderr 'ignoring directory '$ROOT''${/}'moduleB'${/}'pkg'
++! stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'pkg'
++stdout 'moduleA$'
++stdout 'moduleA/pkg$'
++stdout 'moduleB$'
++stdout 'moduleB/pkg/helper'
++
++-- go.work --
++go 1.24
++
++use (
++    ./moduleA
++    ./moduleB
++)
++
++-- moduleA/go.mod --
++module moduleA
++
++go 1.24
++
++ignore ./node_modules
++
++-- moduleA/main.go --
++package main
++
++import (
++        "fmt"
++        "moduleB/pkg/helper"
++)
++
++func main() {
++        fmt.Println("Running moduleA")
++        fmt.Println(helper.Message())
++        fmt.Println(hello.Hello())
++}
++-- moduleA/node_modules/some_pkg/index.js --
++console.log("This should be ignored!");
++-- moduleA/pkg/hello.go --
++package hello
++
++func Hello() string {
++        return "Hello from moduleA"
++}
++-- moduleB/go.mod --
++module moduleB
++
++go 1.24
++
++ignore pkg
++
++-- moduleB/main.go --
++package main
++
++import "fmt"
++
++func main() {
++        fmt.Println("Running moduleB")
++}
++
++-- moduleB/pkg/helper/helper.go --
++package helper
++
++func Message() string {
++        return "Helper from moduleB"
++}
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index e525756833..6b7dd2c2c5 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -107,6 +107,16 @@ cmpenv go.mod go.mod.edit
+ go mod edit -droptool example.com/tool
+ cmpenv go.mod go.mod.start
+ 
++# go mod edit -ignore
++cd $WORK/i
++cp go.mod.start go.mod
++go mod edit -ignore example.com/ignore
++cmpenv go.mod go.mod.edit
++go mod edit -dropignore example.com/ignore2
++cmpenv go.mod go.mod.edit
++go mod edit -dropignore example.com/ignore
++cmpenv go.mod go.mod.start
++
+ -- x.go --
+ package x
+ 
+@@ -195,7 +205,8 @@ require x.3 v1.99.0
+ 			"High": "v1.4.0"
+ 		}
+ 	],
+-	"Tool": null
++	"Tool": null,
++	"Ignore": null
+ }
+ -- $WORK/go.mod.edit3 --
+ module x.x/y/z
+@@ -333,7 +344,8 @@ retract (
+ 			"Rationale": "c"
+ 		}
+ 	],
+-	"Tool": null
++	"Tool": null,
++	"Ignore": null
+ }
+ -- $WORK/go.mod.deprecation --
+ // Deprecated: and the new one is not ready yet
+@@ -348,7 +360,8 @@ module m
+ 	"Exclude": null,
+ 	"Replace": null,
+ 	"Retract": null,
+-	"Tool": null
++	"Tool": null,
++	"Ignore": null
+ }
+ -- $WORK/go.mod.empty --
+ -- $WORK/go.mod.empty.json --
+@@ -360,7 +373,8 @@ module m
+ 	"Exclude": null,
+ 	"Replace": null,
+ 	"Retract": null,
+-	"Tool": null
++	"Tool": null,
++	"Ignore": null
+ }
+ -- $WORK/g/go.mod.start --
+ module g
+@@ -382,3 +396,13 @@ module g
+ go 1.24
+ 
+ tool example.com/tool
++-- $WORK/i/go.mod.start --
++module g
++
++go 1.24
++-- $WORK/i/go.mod.edit --
++module g
++
++go 1.24
++
++ignore example.com/ignore
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/mod_tidy_ignore.txt b/src/cmd/go/testdata/script/mod_tidy_ignore.txt
+new file mode 100644
+index 0000000000..d3019bb467
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_ignore.txt
+@@ -0,0 +1,78 @@
++# go mod tidy should skip 'ignore' directives
++# See golang.org/issue/42965
++env ROOT=$WORK${/}gopath${/}src
++
++# no ignore directive; should not skip any directories.
++cp go.mod.orig go.mod
++go mod tidy -x
++! stderr 'ignoring directory'
++
++# ignored ./foo should be skipped.
++cp go.mod.relative go.mod
++go mod tidy -x
++stderr 'ignoring directory '$ROOT''${/}'foo'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
++
++# ignored foo; any foo should be skipped.
++cp go.mod.any go.mod
++go mod tidy -x
++stderr 'ignoring directory '$ROOT''${/}'foo'
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
++
++# non-existent ignore; should not skip any directories.
++cp go.mod.dne go.mod
++go mod tidy -x
++! stderr 'ignoring directory'
++
++# ignored fo; should not skip foo/ but should skip fo/
++cp go.mod.partial go.mod
++go mod tidy -x
++stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
++! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
++-- foo/secret/secret.go --
++package secret
++
++const Secret = "this should be ignored"
++-- pkg/foo/foo.go --
++package example/pkg/foo
++
++const Bar = "Hello from foo!"
++-- pkg/fo/fo.go --
++package fo
++
++const Gar = "Hello from fo!"
++-- go.mod.orig --
++module example
++
++go 1.24
++-- go.mod.relative --
++module example
++
++go 1.24
++
++ignore ./foo
++-- go.mod.any --
++module example
++
++go 1.24
++
++ignore foo
++-- go.mod.dne --
++module example
++
++go 1.24
++
++ignore bar
++-- go.mod.partial --
++module example
++
++go 1.24
++
++ignore fo
++
++-- main.go --
++package main
++
++func main() {}

@@ -9,9 +9,312 @@ Date:   Fri Jun 3 11:43:54 2011 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4517130
-
+---
  src/pkg/exp/draw/clip_test.go | 193 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/exp/draw/draw.go      |  40 +++++----
  src/pkg/exp/draw/draw_test.go |   6 +-
  src/pkg/image/geom.go         |  15 +++-
  4 files changed, 231 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/exp/draw/clip_test.go b/src/pkg/exp/draw/clip_test.go
+new file mode 100644
+index 0000000000..c4bdc21ceb
+--- /dev/null
++++ b/src/pkg/exp/draw/clip_test.go
+@@ -0,0 +1,193 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package draw
++
++import (
++	"image"
++	"testing"
++)
++
++type clipTest struct {
++	desc          string
++	r, dr, sr, mr image.Rectangle
++	sp, mp        image.Point
++	nilMask       bool
++	r0            image.Rectangle
++	sp0, mp0      image.Point
++}
++
++var clipTests = []clipTest{
++	// The following tests all have a nil mask.
++	{
++		"basic",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 100, 100),
++		image.ZR,
++		image.ZP,
++		image.ZP,
++		true,
++		image.Rect(0, 0, 100, 100),
++		image.ZP,
++		image.ZP,
++	},
++	{
++		"clip dr",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(40, 40, 60, 60),
++		image.Rect(0, 0, 100, 100),
++		image.ZR,
++		image.ZP,
++		image.ZP,
++		true,
++		image.Rect(40, 40, 60, 60),
++		image.Pt(40, 40),
++		image.ZP,
++	},
++	{
++		"clip sr",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 100, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.ZP,
++		image.ZP,
++		true,
++		image.Rect(20, 20, 80, 80),
++		image.Pt(20, 20),
++		image.ZP,
++	},
++	{
++		"clip dr and sr",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.ZP,
++		image.ZP,
++		true,
++		image.Rect(20, 20, 50, 80),
++		image.Pt(20, 20),
++		image.ZP,
++	},
++	{
++		"clip dr and sr, sp outside sr (top-left)",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.Pt(15, 8),
++		image.ZP,
++		true,
++		image.Rect(5, 12, 50, 72),
++		image.Pt(20, 20),
++		image.ZP,
++	},
++	{
++		"clip dr and sr, sp outside sr (middle-left)",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.Pt(15, 66),
++		image.ZP,
++		true,
++		image.Rect(5, 0, 50, 14),
++		image.Pt(20, 66),
++		image.ZP,
++	},
++	{
++		"clip dr and sr, sp outside sr (bottom-left)",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.Pt(15, 91),
++		image.ZP,
++		true,
++		image.ZR,
++		image.Pt(15, 91),
++		image.ZP,
++	},
++	{
++		"clip dr and sr, sp inside sr",
++		image.Rect(0, 0, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(20, 20, 80, 80),
++		image.ZR,
++		image.Pt(44, 33),
++		image.ZP,
++		true,
++		image.Rect(0, 0, 36, 47),
++		image.Pt(44, 33),
++		image.ZP,
++	},
++
++	// The following tests all have a non-nil mask.
++	{
++		"basic mask",
++		image.Rect(0, 0, 80, 80),
++		image.Rect(20, 0, 100, 80),
++		image.Rect(0, 0, 50, 49),
++		image.Rect(0, 0, 46, 47),
++		image.ZP,
++		image.ZP,
++		false,
++		image.Rect(20, 0, 46, 47),
++		image.Pt(20, 0),
++		image.Pt(20, 0),
++	},
++	// TODO(nigeltao): write more tests.
++}
++
++func TestClip(t *testing.T) {
++	dst0 := image.NewRGBA(100, 100)
++	src0 := image.NewRGBA(100, 100)
++	mask0 := image.NewRGBA(100, 100)
++	for _, c := range clipTests {
++		dst := dst0.SubImage(c.dr).(*image.RGBA)
++		src := src0.SubImage(c.sr).(*image.RGBA)
++		var mask image.Image
++		if !c.nilMask {
++			mask = mask0.SubImage(c.mr)
++		}
++		r, sp, mp := c.r, c.sp, c.mp
++		clip(dst, &r, src, &sp, mask, &mp)
++
++		// Check that the actual results equal the expected results.
++		if !c.r0.Eq(r) {
++			t.Errorf("%s: clip rectangle want %v got %v", c.desc, c.r0, r)
++			continue
++		}
++		if !c.sp0.Eq(sp) {
++			t.Errorf("%s: sp want %v got %v", c.desc, c.sp0, sp)
++			continue
++		}
++		if !c.nilMask {
++			if !c.mp0.Eq(mp) {
++				t.Errorf("%s: mp want %v got %v", c.desc, c.mp0, mp)
++				continue
++			}
++		}
++
++		// Check that the clipped rectangle is contained by the dst / src / mask
++		// rectangles, in their respective co-ordinate spaces.
++		if !c.dr.ContainsRectangle(r) {
++			t.Errorf("%s: c.dr %v does not contain r %v", c.desc, c.dr, r)
++		}
++		// sr is r translated into src's co-ordinate space.
++		sr := r.Add(c.sp.Sub(c.dr.Min))
++		if !c.sr.ContainsRectangle(sr) {
++			t.Errorf("%s: c.sr %v does not contain sr %v", c.desc, c.sr, sr)
++		}
++		if !c.nilMask {
++			// mr is r translated into mask's co-ordinate space.
++			mr := r.Add(c.mp.Sub(c.dr.Min))
++			if !c.mr.ContainsRectangle(mr) {
++				t.Errorf("%s: c.mr %v does not contain mr %v", c.desc, c.mr, mr)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index f98e246189..dd573022f7 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -39,27 +39,31 @@ func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
+ 	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
+ }
+ 
+-// DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
+-// in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
+-func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
+-	sb := src.Bounds()
+-	dx, dy := sb.Max.X-sp.X, sb.Max.Y-sp.Y
++// clip clips r against each image's bounds (after translating into the
++// destination image's co-ordinate space) and shifts the points sp and mp by
++// the same amount as the change in r.Min.
++func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask image.Image, mp *image.Point) {
++	orig := r.Min
++	*r = r.Intersect(dst.Bounds())
++	*r = r.Intersect(src.Bounds().Add(orig.Sub(*sp)))
+ 	if mask != nil {
+-		mb := mask.Bounds()
+-		if dx > mb.Max.X-mp.X {
+-			dx = mb.Max.X - mp.X
+-		}
+-		if dy > mb.Max.Y-mp.Y {
+-			dy = mb.Max.Y - mp.Y
+-		}
+-	}
+-	if r.Dx() > dx {
+-		r.Max.X = r.Min.X + dx
++		*r = r.Intersect(mask.Bounds().Add(orig.Sub(*mp)))
+ 	}
+-	if r.Dy() > dy {
+-		r.Max.Y = r.Min.Y + dy
++	dx := r.Min.X - orig.X
++	dy := r.Min.Y - orig.Y
++	if dx == 0 && dy == 0 {
++		return
+ 	}
+-	r = r.Intersect(dst.Bounds())
++	(*sp).X += dx
++	(*sp).Y += dy
++	(*mp).X += dx
++	(*mp).Y += dy
++}
++
++// DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
++// in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
++func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
++	clip(dst, &r, src, &sp, mask, &mp)
+ 	if r.Empty() {
+ 		return
+ 	}
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/exp/draw/draw_test.go
+index 873a2f24a4..37d6303533 100644
+--- a/src/pkg/exp/draw/draw_test.go
++++ b/src/pkg/exp/draw/draw_test.go
+@@ -263,8 +263,8 @@ func TestDrawOverlap(t *testing.T) {
+ 	}
+ }
+ 
+-// TestIssue836 verifies http://code.google.com/p/go/issues/detail?id=836.
+-func TestIssue836(t *testing.T) {
++// TestNonZeroSrcPt checks drawing with a non-zero src point parameter.
++func TestNonZeroSrcPt(t *testing.T) {
+ 	a := image.NewRGBA(1, 1)
+ 	b := image.NewRGBA(2, 2)
+ 	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
+@@ -273,6 +273,6 @@ func TestIssue836(t *testing.T) {
+ 	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
+ 	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1))
+ 	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
+-		t.Errorf("Issue 836: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
++		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
+ 	}
+ }
+diff --git a/src/pkg/image/geom.go b/src/pkg/image/geom.go
+index ccfe9cdb08..913e228f52 100644
+--- a/src/pkg/image/geom.go
++++ b/src/pkg/image/geom.go
+@@ -192,8 +192,19 @@ func (r Rectangle) Overlaps(s Rectangle) bool {
+ 
+ // Contains returns whether r contains p.
+ func (r Rectangle) Contains(p Point) bool {
+-	return p.X >= r.Min.X && p.X < r.Max.X &&
+-		p.Y >= r.Min.Y && p.Y < r.Max.Y
++	return r.Min.X <= p.X && p.X < r.Max.X &&
++		r.Min.Y <= p.Y && p.Y < r.Max.Y
++}
++
++// ContainsRectangle returns whether r contains every point in s.
++func (r Rectangle) ContainsRectangle(s Rectangle) bool {
++	if s.Empty() {
++		return true
++	}
++	// Note that s.Max is an exclusive bound for s, so that r.ContainsRectangle(s)
++	// does not require that r.Contains(s.Max).
++	return r.Min.X <= s.Min.X && s.Max.X <= r.Max.X &&
++		r.Min.Y <= s.Min.Y && s.Max.Y <= r.Max.Y
+ }
+ 
+ // Canon returns the canonical version of r. The returned rectangle has minimum

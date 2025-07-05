@@ -17,6 +17,21 @@ Date:   Wed Apr 28 17:21:43 2021 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/repo.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 20469c5432..0bffa55af6 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -183,7 +183,8 @@ type lookupCacheKey struct {
+ // from its origin, and "noproxy" indicates that the patch should be fetched
+ // directly only if GONOPROXY matches the given path.
+ //
+-// For the distinguished proxy "off", Lookup always returns a non-nil error.
++// For the distinguished proxy "off", Lookup always returns a Repo that returns
++// a non-nil error for every method call.
+ //
+ // A successful return does not guarantee that the module
+ // has any defined versions.

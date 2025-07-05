@@ -16,6 +16,19 @@ Date:   Fri Jul 25 08:54:09 2014 -0700
     R=dave, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/112530043
-
+---
  include/u.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/include/u.h b/include/u.h
+index 6b2d50cc1f..489b2a3886 100644
+--- a/include/u.h
++++ b/include/u.h
+@@ -40,6 +40,7 @@ extern "C" {
+ #endif
+ #define _BSD_SOURCE 1
+ #define _NETBSD_SOURCE 1	/* NetBSD */
++#define _DEFAULT_SOURCE 1	/* glibc > 2.19 */
+ #define _SVID_SOURCE 1
+ #if !defined(__APPLE__) && !defined(__OpenBSD__)
+ #	define _XOPEN_SOURCE 1000

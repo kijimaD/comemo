@@ -18,6 +18,49 @@ Date:   Tue Jun 16 13:08:47 2020 -0400
     Change-Id: I4b0b8eb6804ebfe2c768505ddb94f0b1017fcf8b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/238217
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/scan_test.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index ceb813ae8d..e99b09f66f 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -558,8 +558,8 @@ func (r *negativeEOFReader) Read(p []byte) (int, error) {
+ 	return -1, io.EOF
+ }
+ 
+-// Test that the scanner doesn't panic on a reader that returns a
+-// negative count of bytes read (issue 38053).
++// Test that the scanner doesn't panic and returns ErrBadReadCount
++// on a reader that returns a negative count of bytes read (issue 38053).
+ func TestNegativeEOFReader(t *testing.T) {
+ 	r := negativeEOFReader(10)
+ 	scanner := NewScanner(&r)
+@@ -571,8 +571,8 @@ func TestNegativeEOFReader(t *testing.T) {
+ 			break
+ 		}
+ 	}
+-	if scanner.Err() == nil {
+-		t.Error("scanner.Err returned nil, expected an error")
++	if got, want := scanner.Err(), ErrBadReadCount; got != want {
++		t.Errorf("scanner.Err: got %v, want %v", got, want)
+ 	}
+ }
+ 
+@@ -584,11 +584,13 @@ func (largeReader) Read(p []byte) (int, error) {
+ 	return len(p) + 1, nil
+ }
+ 
++// Test that the scanner doesn't panic and returns ErrBadReadCount
++// on a reader that returns an impossibly large count of bytes read (issue 38053).
+ func TestLargeReader(t *testing.T) {
+ 	scanner := NewScanner(largeReader{})
+ 	for scanner.Scan() {
+ 	}
+-	if scanner.Err() == nil {
+-		t.Error("scanner.Err returned nil, expected an error")
++	if got, want := scanner.Err(), ErrBadReadCount; got != want {
++		t.Errorf("scanner.Err: got %v, want %v", got, want)
+ 	}
+ }

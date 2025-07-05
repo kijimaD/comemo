@@ -9,8 +9,100 @@ Date:   Mon Aug 8 14:32:37 2011 -0700
     R=gri, rsc
     CC=golang-dev
     https://golang.org/cl/4810085
-
+---
  src/pkg/crypto/x509/x509.go                   |  6 +++---
  src/pkg/go/scanner/errors.go                  | 14 ++++----------
  src/pkg/index/suffixarray/suffixarray_test.go |  5 ++---
  3 files changed, 9 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 0add9e3c9d..8fda471592 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -793,7 +793,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
+ // ParseCertificates parses one or more certificates from the given ASN.1 DER
+ // data. The certificates must be concatenated with no intermediate padding.
+ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+-	var v []interface{}
++	var v []*certificate
+ 
+ 	for len(asn1Data) > 0 {
+ 		cert := new(certificate)
+@@ -806,8 +806,8 @@ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+ 	}
+ 
+ 	ret := make([]*Certificate, len(v))
+-	for i := 0; i < len(v); i++ {
+-		cert, err := parseCertificate(v[i].(*certificate))
++	for i, ci := range v {
++		cert, err := parseCertificate(ci)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index 78dbc39192..a0927e4167 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -31,18 +31,14 @@ type ErrorHandler interface {
+ // error handling is obtained.
+ //
+ type ErrorVector struct {
+-	errors []interface{}
++	errors []*Error
+ }
+ 
+ // Reset resets an ErrorVector to no errors.
+-func (h *ErrorVector) Reset() {
+-	h.errors = h.errors[:0]
+-}
++func (h *ErrorVector) Reset() { h.errors = h.errors[:0] }
+ 
+ // ErrorCount returns the number of errors collected.
+-func (h *ErrorVector) ErrorCount() int {
+-	return len(h.errors)
+-}
++func (h *ErrorVector) ErrorCount() int { return len(h.errors) }
+ 
+ // Within ErrorVector, an error is represented by an Error node. The
+ // position Pos, if valid, points to the beginning of the offending
+@@ -118,9 +114,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+ 	}
+ 
+ 	list := make(ErrorList, len(h.errors))
+-	for i := 0; i < len(h.errors); i++ {
+-		list[i] = h.errors[i].(*Error)
+-	}
++	copy(list, h.errors)
+ 
+ 	if mode >= Sorted {
+ 		sort.Sort(list)
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index bd37ba4007..0237485005 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -6,7 +6,6 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
+-	"container/vector"
+ 	"regexp"
+ 	"sort"
+ 	"strings"
+@@ -107,7 +106,7 @@ var testCases = []testCase{
+ 
+ // find all occurrences of s in source; report at most n occurrences
+ func find(src, s string, n int) []int {
+-	var res vector.IntVector
++	var res []int
+ 	if s != "" && n != 0 {
+ 		// find at most n occurrences of s in src
+ 		for i := -1; n < 0 || len(res) < n; {
+@@ -116,7 +115,7 @@ func find(src, s string, n int) []int {
+ 				break
+ 			}
+ 			i += j + 1
+-			res.Push(i)
++			res = append(res, i)
+ 		}
+ 	}
+ 	return res

@@ -11,8 +11,190 @@ Date:   Mon Sep 14 20:53:44 2015 +0200
     Change-Id: I3f2323df2ad8c03bad77e0a91d6e2e714803705b
     Reviewed-on: https://go-review.googlesource.com/14556
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/export.go | 34 ++++++--------------------
  src/cmd/compile/internal/gc/popt.go   | 15 ++++--------
  src/cmd/compile/internal/gc/subr.go   | 46 +++++++++++++----------------------
  3 files changed, 30 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index de3edfeb64..878554be26 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -253,21 +253,12 @@ func dumpexportvar(s *Sym) {
+ 	}
+ }
+ 
++// methodbyname sorts types by symbol name.
+ type methodbyname []*Type
+ 
+-func (x methodbyname) Len() int {
+-	return len(x)
+-}
+-
+-func (x methodbyname) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x methodbyname) Less(i, j int) bool {
+-	a := x[i]
+-	b := x[j]
+-	return stringsCompare(a.Sym.Name, b.Sym.Name) < 0
+-}
++func (x methodbyname) Len() int           { return len(x) }
++func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
+ 
+ func dumpexporttype(t *Type) {
+ 	if t == nil {
+@@ -289,24 +280,15 @@ func dumpexporttype(t *Type) {
+ 		return
+ 	}
+ 
+-	n := 0
++	var m []*Type
+ 	for f := t.Method; f != nil; f = f.Down {
+ 		dumpexporttype(f)
+-		n++
+-	}
+-
+-	m := make([]*Type, n)
+-	i := 0
+-	for f := t.Method; f != nil; f = f.Down {
+-		m[i] = f
+-		i++
++		m = append(m, f)
+ 	}
+-	sort.Sort(methodbyname(m[:n]))
++	sort.Sort(methodbyname(m))
+ 
+ 	fmt.Fprintf(bout, "\ttype %v %v\n", Sconv(t.Sym, obj.FmtSharp), Tconv(t, obj.FmtSharp|obj.FmtLong))
+-	var f *Type
+-	for i := 0; i < n; i++ {
+-		f = m[i]
++	for _, f := range m {
+ 		if f.Nointerface {
+ 			fmt.Fprintf(bout, "\t//go:nointerface\n")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index cf75afa6cf..94595d834e 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -527,16 +527,11 @@ type TempVar struct {
+ 	removed bool     // removed from program
+ }
+ 
++// startcmp sorts TempVars by start, then id, then symbol name.
+ type startcmp []*TempVar
+ 
+-func (x startcmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x startcmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
++func (x startcmp) Len() int      { return len(x) }
++func (x startcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+ func (x startcmp) Less(i, j int) bool {
+ 	a := x[i]
+ 	b := x[j]
+@@ -556,7 +551,7 @@ func (x startcmp) Less(i, j int) bool {
+ 		return int(a.def.Id-b.def.Id) < 0
+ 	}
+ 	if a.node != b.node {
+-		return stringsCompare(a.node.Sym.Name, b.node.Sym.Name) < 0
++		return a.node.Sym.Name < b.node.Sym.Name
+ 	}
+ 	return false
+ }
+@@ -709,7 +704,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	for i := 0; i < len(var_); i++ {
+ 		bystart[i] = &var_[i]
+ 	}
+-	sort.Sort(startcmp(bystart[:len(var_)]))
++	sort.Sort(startcmp(bystart))
+ 
+ 	// List of in-use variables, sorted by end, so that the ones that
+ 	// will last the longest are the earliest ones in the array.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index be93d2783c..312c95f825 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -607,16 +607,11 @@ func typ(et int) *Type {
+ 	return t
+ }
+ 
++// methcmp sorts by symbol, then by package path for unexported symbols.
+ type methcmp []*Type
+ 
+-func (x methcmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x methcmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
++func (x methcmp) Len() int      { return len(x) }
++func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+ func (x methcmp) Less(i, j int) bool {
+ 	a := x[i]
+ 	b := x[j]
+@@ -627,16 +622,14 @@ func (x methcmp) Less(i, j int) bool {
+ 		return true
+ 	}
+ 	if b.Sym == nil {
+-		return 1 < 0
++		return false
+ 	}
+-	k := stringsCompare(a.Sym.Name, b.Sym.Name)
+-	if k != 0 {
+-		return k < 0
++	if a.Sym.Name != b.Sym.Name {
++		return a.Sym.Name < b.Sym.Name
+ 	}
+ 	if !exportname(a.Sym.Name) {
+-		k := stringsCompare(a.Sym.Pkg.Path, b.Sym.Pkg.Path)
+-		if k != 0 {
+-			return k < 0
++		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
++			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
+ 		}
+ 	}
+ 
+@@ -648,24 +641,19 @@ func sortinter(t *Type) *Type {
+ 		return t
+ 	}
+ 
+-	i := 0
++	var a []*Type
+ 	for f := t.Type; f != nil; f = f.Down {
+-		i++
+-	}
+-	a := make([]*Type, i)
+-	i = 0
+-	var f *Type
+-	for f = t.Type; f != nil; f = f.Down {
+-		a[i] = f
+-		i++
++		a = append(a, f)
+ 	}
+-	sort.Sort(methcmp(a[:i]))
+-	for i--; i >= 0; i-- {
+-		a[i].Down = f
+-		f = a[i]
++	sort.Sort(methcmp(a))
++
++	n := len(a) // n > 0 due to initial conditions.
++	for i := 0; i < n-1; i++ {
++		a[i].Down = a[i+1]
+ 	}
++	a[n-1].Down = nil
+ 
+-	t.Type = f
++	t.Type = a[0]
+ 	return t
+ }
+ 

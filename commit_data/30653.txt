@@ -40,8 +40,118 @@ Date:   Sun Oct 30 20:43:53 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mgc.go     |  8 ++++++++
  src/runtime/mgcwork.go | 22 ++++++++++++++++------
  src/runtime/proc.go    | 20 ++++++++++++++++++++
  3 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 58b52e8bed..f97b589839 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -624,6 +624,14 @@ func (c *gcControllerState) endCycle() {
+ //
+ //go:nowritebarrier
+ func (c *gcControllerState) enlistWorker() {
++	// If there are idle Ps, wake one so it will run an idle worker.
++	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
++		wakep()
++		return
++	}
++
++	// There are no idle Ps. If we need more dedicated workers,
++	// try to preempt a running P so it will switch to a worker.
+ 	if c.dedicatedMarkWorkersNeeded <= 0 {
+ 		return
+ 	}
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 699982e01d..5eb05a767c 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -99,6 +99,7 @@ func (w *gcWork) init() {
+ // obj must point to the beginning of a heap object or an oblet.
+ //go:nowritebarrier
+ func (w *gcWork) put(obj uintptr) {
++	flushed := false
+ 	wbuf := w.wbuf1.ptr()
+ 	if wbuf == nil {
+ 		w.init()
+@@ -111,11 +112,20 @@ func (w *gcWork) put(obj uintptr) {
+ 			putfull(wbuf)
+ 			wbuf = getempty()
+ 			w.wbuf1 = wbufptrOf(wbuf)
++			flushed = true
+ 		}
+ 	}
+ 
+ 	wbuf.obj[wbuf.nobj] = obj
+ 	wbuf.nobj++
++
++	// If we put a buffer on full, let the GC controller know so
++	// it can encourage more workers to run. We delay this until
++	// the end of put so that w is in a consistent state, since
++	// enlistWorker may itself manipulate w.
++	if flushed && gcphase == _GCmark {
++		gcController.enlistWorker()
++	}
+ }
+ 
+ // putFast does a put and returns true if it can be done quickly
+@@ -263,6 +273,12 @@ func (w *gcWork) balance() {
+ 		w.wbuf2 = wbufptrOf(getempty())
+ 	} else if wbuf := w.wbuf1.ptr(); wbuf.nobj > 4 {
+ 		w.wbuf1 = wbufptrOf(handoff(wbuf))
++	} else {
++		return
++	}
++	// We flushed a buffer to the full list, so wake a worker.
++	if gcphase == _GCmark {
++		gcController.enlistWorker()
+ 	}
+ }
+ 
+@@ -337,12 +353,6 @@ func putempty(b *workbuf) {
+ func putfull(b *workbuf) {
+ 	b.checknonempty()
+ 	lfstackpush(&work.full, &b.node)
+-
+-	// We just made more work available. Let the GC controller
+-	// know so it can encourage more workers to run.
+-	if gcphase == _GCmark {
+-		gcController.enlistWorker()
+-	}
+ }
+ 
+ // trygetfull tries to get a full or partially empty workbuffer.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1b21b37de8..cad1b1c0f4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2023,6 +2023,26 @@ stop:
+ 		}
+ 	}
+ 
++	// Check for idle-priority GC work again.
++	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(nil) {
++		lock(&sched.lock)
++		_p_ = pidleget()
++		if _p_ != nil && _p_.gcBgMarkWorker == 0 {
++			pidleput(_p_)
++			_p_ = nil
++		}
++		unlock(&sched.lock)
++		if _p_ != nil {
++			acquirep(_p_)
++			if wasSpinning {
++				_g_.m.spinning = true
++				atomic.Xadd(&sched.nmspinning, 1)
++			}
++			// Go back to idle GC check.
++			goto stop
++		}
++	}
++
+ 	// poll network
+ 	if netpollinited() && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
+ 		if _g_.m.p != 0 {

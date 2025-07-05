@@ -18,7 +18,7 @@ Date:   Tue Nov 25 16:48:10 2008 -0800
     DELTA=355  (217 added, 36 deleted, 102 changed)
     OCL=20017
     CL=20019
-
+---
  src/lib/net/fd.go                  |   2 +
  src/lib/syscall/asm_amd64_darwin.s |  12 ++-
  src/lib/syscall/asm_amd64_linux.s  |  17 ++-
@@ -30,3 +30,807 @@ Date:   Tue Nov 25 16:48:10 2008 -0800
  test/dialgoogle.go                 |   2 +-
  test/tcpserver.go                  |   4 +-
  10 files changed, 312 insertions(+), 131 deletions(-)
+
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 977df37a49..f9fba2bc0f 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -248,9 +248,11 @@ func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return -1, os.EINVAL
+ 	}
++	// TODO(rsc): Lock fd while writing to avoid interlacing writes.
+ 	err = nil;
+ 	nn := 0;
+ 	for nn < len(p) && err == nil {
++		// TODO(rsc): If os.FD.Write loops, have to use syscall instead.
+ 		n, err = fd.osfd.Write(p[nn:len(p)]);
+ 		for err == os.EAGAIN {
+ 			pollserver.WaitWrite(fd);
+diff --git a/src/lib/syscall/asm_amd64_darwin.s b/src/lib/syscall/asm_amd64_darwin.s
+index 64b74db43e..3cf6aad831 100644
+--- a/src/lib/syscall/asm_amd64_darwin.s
++++ b/src/lib/syscall/asm_amd64_darwin.s
+@@ -11,23 +11,28 @@
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+ TEXT	syscall·Syscall(SB),7,$0
++	CALL	sys·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+-	JCC	5(PC)
++	JCC	ok
+ 	MOVQ	$-1, 40(SP)	// r1
+ 	MOVQ	$0, 48(SP)	// r2
+ 	MOVQ	AX, 56(SP)  // errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
++ok:
+ 	MOVQ	AX, 40(SP)	// r1
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	syscall·Syscall6(SB),7,$0
++	CALL	sys·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -37,12 +42,15 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	ADDQ	$0x2000000, AX
+ 	SYSCALL
+-	JCC	5(PC)
++	JCC	ok6
+ 	MOVQ	$-1, 64(SP)	// r1
+ 	MOVQ	$0, 72(SP)	// r2
+ 	MOVQ	AX, 80(SP)  // errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
++ok6:
+ 	MOVQ	AX, 64(SP)	// r1
+ 	MOVQ	DX, 72(SP)	// r2
+ 	MOVQ	$0, 80(SP)	// errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
+diff --git a/src/lib/syscall/asm_amd64_linux.s b/src/lib/syscall/asm_amd64_linux.s
+index 48630337ab..e0c1153878 100644
+--- a/src/lib/syscall/asm_amd64_linux.s
++++ b/src/lib/syscall/asm_amd64_linux.s
+@@ -11,25 +11,30 @@
+ // Note that this differs from "standard" ABI convention, which
+ // would pass 4th arg in CX, not R10.
+ 
+-TEXT	syscall·Syscall(SB),7,$-8
++TEXT	syscall·Syscall(SB),7,$0
++	CALL	sys·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+-	JLS	6(PC)
++	JLS	ok
+ 	MOVQ	$-1, 40(SP)	// r1
+ 	MOVQ	$0, 48(SP)	// r2
+ 	NEGQ	AX
+ 	MOVQ	AX, 56(SP)  // errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
++ok:
+ 	MOVQ	AX, 40(SP)	// r1
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
+ 
+-TEXT syscall·Syscall6(SB),7,$-8
++TEXT syscall·Syscall6(SB),7,$0
++	CALL	sys·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -38,13 +43,17 @@ TEXT syscall·Syscall6(SB),7,$-8
+ 	MOVQ	56(SP), R9
+ 	MOVQ	8(SP), AX	// syscall entry
+ 	SYSCALL
+-	JLS	6(PC)
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	ok6
+ 	MOVQ	$-1, 64(SP)	// r1
+ 	MOVQ	$0, 72(SP)	// r2
+ 	NEGQ	AX
+ 	MOVQ	AX, 80(SP)  // errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
++ok6:
+ 	MOVQ	AX, 64(SP)	// r1
+ 	MOVQ	DX, 72(SP)	// r2
+ 	MOVQ	$0, 80(SP)	// errno
++	CALL	sys·exitsyscall(SB)
+ 	RET
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 6266d1658f..6b0000e21f 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -28,11 +28,74 @@ prints(int8 *s)
+ 	sys·write(1, s, findnull((byte*)s));
+ }
+ 
++// Very simple printf.  Only for debugging prints.
++// Do not add to this without checking with Rob.
++void
++printf(int8 *s, ...)
++{
++	int8 *p, *lp;
++	byte *arg;
++
++	lp = p = s;
++	arg = (byte*)(&s+1);
++	for(; *p; p++) {
++		if(*p != '%')
++			continue;
++		if(p > lp)
++			sys·write(1, lp, p-lp);
++		p++;
++		switch(*p) {
++		case 'd':
++			sys·printint(*(int32*)arg);
++			arg += 4;
++			break;
++		case 'D':
++			if(((uint32)(uint64)arg)&4)
++				arg += 4;
++			sys·printint(*(int64*)arg);
++			arg += 8;
++			break;
++		case 'x':
++			sys·printhex(*(int32*)arg);
++			arg += 4;
++			break;
++		case 'X':
++			if(((uint32)(uint64)arg)&4)
++				arg += 4;
++			sys·printhex(*(int64*)arg);
++			arg += 8;
++			break;
++		case 'p':
++			if(((uint32)(uint64)arg)&4)
++				arg += 4;
++			sys·printpointer(*(void**)arg);
++			arg += 8;
++			break;
++		case 's':
++			if(((uint32)(uint64)arg)&4)
++				arg += 4;
++			prints(*(int8**)arg);
++			arg += 8;
++			break;
++		case 'S':
++			if(((uint32)(uint64)arg)&4)
++				arg += 4;
++			sys·printstring(*(string*)arg);
++			arg += 8;
++			break;
++		}
++		lp = p+1;
++	}
++	if(p > lp)
++		sys·write(1, lp, p-lp);
++}
++
++
+ void
+ sys·printpc(void *p)
+ {
+-	prints("PC=0x");
+-	sys·printpointer((byte*)sys·getcallerpc(p) - 1);	// -1 to get to CALL instr.
++	prints("PC=");
++	sys·printhex((uint64)sys·getcallerpc(p));
+ }
+ 
+ void
+@@ -149,24 +212,28 @@ sys·printint(int64 v)
+ }
+ 
+ void
+-sys·printpointer(void *p)
++sys·printhex(uint64 v)
+ {
+-	uint64 v;
++	static int8 *dig = "0123456789abcdef";
+ 	byte buf[100];
+ 	int32 i;
+ 
+-	v = (int64)p;
+-	for(i=nelem(buf)-1; i>0; i--) {
+-		buf[i] = v%16 + '0';
+-		if(buf[i] > '9')
+-			buf[i] += 'a'-'0'-10;
+-		if(v < 16)
+-			break;
+-		v = v/16;
+-	}
++	i=nelem(buf);
++	for(; v>0; v/=16)
++		buf[--i] = dig[v%16];
++	if(i == nelem(buf))
++		buf[--i] = '0';
++	buf[--i] = 'x';
++	buf[--i] = '0';
+ 	sys·write(1, buf+i, nelem(buf)-i);
+ }
+ 
++void
++sys·printpointer(void *p)
++{
++	sys·printhex((uint64)p);
++}
++
+ void
+ sys·printstring(string v)
+ {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 58c791b6e4..4a61358dc4 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -10,6 +10,7 @@ M	m0;
+ G	g0;	// idle goroutine for m0
+ 
+ static	int32	debug	= 0;
++static	Lock	debuglock;
+ 
+ // Go scheduler
+ //
+@@ -49,8 +50,10 @@ struct Sched {
+ 
+ 	M *mhead;	// ms waiting for work
+ 	int32 mwait;	// number of ms waiting for work
+-	int32 mcount;	// number of ms that are alive
+-	int32 mmax;	// max number of ms allowed
++	int32 mcount;	// number of ms that have been created
++	int32 mcpu;	// number of ms executing on cpu
++	int32 mcpumax;	// max number of ms allowed on cpu
++	int32 msyscall;	// number of ms in system calls
+ 
+ 	int32 predawn;	// running initialization, don't run new gs.
+ };
+@@ -64,7 +67,7 @@ static void mput(M*);	// put/get on mhead
+ static M* mget(void);
+ static void gfput(G*);	// put/get on gfree
+ static G* gfget(void);
+-static void mnew(void);	// kick off new m
++static void matchmg(void);	// match ms to gs
+ static void readylocked(G*);	// ready, but sched is locked
+ 
+ // Scheduler loop.
+@@ -88,10 +91,10 @@ schedinit(void)
+ 	int32 n;
+ 	byte *p;
+ 
+-	sched.mmax = 1;
++	sched.mcpumax = 1;
+ 	p = getenv("GOMAXPROCS");
+ 	if(p != nil && (n = atoi(p)) != 0)
+-		sched.mmax = n;
++		sched.mcpumax = n;
+ 	sched.mcount = 1;
+ 	sched.predawn = 1;
+ }
+@@ -100,26 +103,24 @@ schedinit(void)
+ void
+ initdone(void)
+ {
+-	int32 i;
+-
+ 	// Let's go.
+ 	sched.predawn = 0;
+ 
+-	// There's already one m (us).
+ 	// If main·init_function started other goroutines,
+ 	// kick off new ms to handle them, like ready
+ 	// would have, had it not been pre-dawn.
+-	for(i=1; i<sched.gcount && i<sched.mmax; i++)
+-		mnew();
++	lock(&sched);
++	matchmg();
++	unlock(&sched);
+ }
+ 
+ void
+ sys·goexit(void)
+ {
+-	if(debug){
+-		prints("goexit goid=");
+-		sys·printint(g->goid);
+-		prints("\n");
++	if(debug > 1){
++		lock(&debuglock);
++		printf("goexit goid=%d\n", g->goid);
++		unlock(&debuglock);
+ 	}
+ 	g->status = Gmoribund;
+ 	sys·gosched();
+@@ -146,10 +147,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	byte *stk, *sp;
+ 	G *newg;
+ 
+-//prints("newproc siz=");
+-//sys·printint(siz);
+-//prints(" fn=");
+-//sys·printpointer(fn);
++//printf("newproc siz=%d fn=%p", siz, fn);
+ 
+ 	siz = (siz+7) & ~7;
+ 	if(siz > 1024)
+@@ -189,9 +187,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	readylocked(newg);
+ 	unlock(&sched);
+ 
+-//prints(" goid=");
+-//sys·printint(newg->goid);
+-//prints("\n");
++//printf(" goid=%d\n", newg->goid);
+ }
+ 
+ void
+@@ -202,9 +198,7 @@ tracebackothers(G *me)
+ 	for(g = allg; g != nil; g = g->alllink) {
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+-		prints("\ngoroutine ");
+-		sys·printint(g->goid);
+-		prints(":\n");
++		printf("\ngoroutine %d:\n", g->goid);
+ 		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
+ 	}
+ }
+@@ -296,8 +290,6 @@ ready(G *g)
+ static void
+ readylocked(G *g)
+ {
+-	M *m;
+-
+ 	if(g->m){
+ 		// Running on another machine.
+ 		// Ready it when it stops.
+@@ -310,42 +302,49 @@ readylocked(G *g)
+ 		throw("bad g->status in ready");
+ 	g->status = Grunnable;
+ 
+-	// Before we've gotten to main·main,
+-	// only queue new gs, don't run them
+-	// or try to allocate new ms for them.
+-	// That includes main·main itself.
+-	if(sched.predawn){
+-		gput(g);
+-	}
+-
+-	// Else if there's an m waiting, give it g.
+-	else if((m = mget()) != nil){
+-		m->nextg = g;
+-		notewakeup(&m->havenextg);
+-	}
+-
+-	// Else put g on queue, kicking off new m if needed.
+-	else{
+-		gput(g);
+-		if(sched.mcount < sched.mmax)
+-			mnew();
+-	}
++	gput(g);
++	if(!sched.predawn)
++		matchmg();
+ }
+ 
+ // Get the next goroutine that m should run.
+ // Sched must be locked on entry, is unlocked on exit.
++// Makes sure that at most $GOMAXPROCS gs are
++// running on cpus (not in system calls) at any given time.
+ static G*
+ nextgandunlock(void)
+ {
+ 	G *gp;
+ 
+-	if((gp = gget()) != nil){
++	// On startup, each m is assigned a nextg and
++	// has already been accounted for in mcpu.
++	if(m->nextg != nil) {
++		gp = m->nextg;
++		m->nextg = nil;
+ 		unlock(&sched);
++		if(debug > 1) {
++			lock(&debuglock);
++			printf("m%d nextg found g%d\n", m->id, gp->goid);
++			unlock(&debuglock);
++		}
+ 		return gp;
+ 	}
+ 
++	// Otherwise, look for work.
++	if(sched.mcpu < sched.mcpumax && (gp=gget()) != nil) {
++		sched.mcpu++;
++		unlock(&sched);
++		if(debug > 1) {
++			lock(&debuglock);
++			printf("m%d nextg got g%d\n", m->id, gp->goid);
++			unlock(&debuglock);
++		}
++		return gp;
++	}
++
++	// Otherwise, sleep.
+ 	mput(m);
+-	if(sched.mcount == sched.mwait)
++	if(sched.mcpu == 0 && sched.msyscall == 0)
+ 		throw("all goroutines are asleep - deadlock!");
+ 	m->nextg = nil;
+ 	noteclear(&m->havenextg);
+@@ -355,6 +354,11 @@ nextgandunlock(void)
+ 	if((gp = m->nextg) == nil)
+ 		throw("bad m->nextg in nextgoroutine");
+ 	m->nextg = nil;
++	if(debug > 1) {
++		lock(&debuglock);
++		printf("m%d nextg woke g%d\n", m->id, gp->goid);
++		unlock(&debuglock);
++	}
+ 	return gp;
+ }
+ 
+@@ -366,6 +370,47 @@ mstart(void)
+ 	scheduler();
+ }
+ 
++// Kick of new ms as needed (up to mcpumax).
++// There are already `other' other cpus that will
++// start looking for goroutines shortly.
++// Sched is locked.
++static void
++matchmg(void)
++{
++	M *m;
++	G *g;
++
++	if(debug > 1 && sched.ghead != nil) {
++		lock(&debuglock);
++		printf("matchmg mcpu=%d mcpumax=%d gwait=%d\n", sched.mcpu, sched.mcpumax, sched.gwait);
++		unlock(&debuglock);
++	}
++
++	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
++		sched.mcpu++;
++		if((m = mget()) != nil){
++			if(debug > 1) {
++				lock(&debuglock);
++				printf("wakeup m%d g%d\n", m->id, g->goid);
++				unlock(&debuglock);
++			}
++			m->nextg = g;
++			notewakeup(&m->havenextg);
++		}else{
++			m = mal(sizeof(M));
++			m->g0 = malg(1024);
++			m->nextg = g;
++			m->id = sched.mcount++;
++			if(debug) {
++				lock(&debuglock);
++				printf("alloc m%d g%d\n", m->id, g->goid);
++				unlock(&debuglock);
++			}
++			newosproc(m, m->g0, m->g0->stackbase, mstart);
++		}
++	}
++}
++
+ // Scheduler loop: find g to run, run it, repeat.
+ static void
+ scheduler(void)
+@@ -384,6 +429,12 @@ scheduler(void)
+ 		// Just finished running m->curg.
+ 		gp = m->curg;
+ 		gp->m = nil;
++		sched.mcpu--;
++		if(debug > 1) {
++			lock(&debuglock);
++			printf("m%d sched g%d status %d\n", m->id, gp->goid, gp->status);
++			unlock(&debuglock);
++		}
+ 		switch(gp->status){
+ 		case Grunnable:
+ 		case Gdead:
+@@ -409,6 +460,11 @@ scheduler(void)
+ 	gp = nextgandunlock();
+ 	gp->readyonstop = 0;
+ 	gp->status = Grunning;
++	if(debug > 1) {
++		lock(&debuglock);
++		printf("m%d run g%d\n", m->id, gp->goid);
++		unlock(&debuglock);
++	}
+ 	m->curg = gp;
+ 	gp->m = m;
+ 	g = gp;
+@@ -428,23 +484,60 @@ sys·gosched(void)
+ 	}
+ }
+ 
+-// Fork off a new m.  Sched must be locked.
+-static void
+-mnew(void)
++// The goroutine g is about to enter a system call.
++// Record that it's not using the cpu anymore.
++// This is called only from the go syscall library, not
++// from the low-level system calls used by the runtime.
++// The "arguments" are syscall.Syscall's stack frame
++void
++sys·entersyscall(uint64 callerpc, int64 trap)
+ {
+-	M *m;
++	USED(callerpc);
++
++	if(debug > 1) {
++		lock(&debuglock);
++		printf("m%d g%d enter syscall %D\n", m->id, g->goid, trap);
++		unlock(&debuglock);
++	}
++	lock(&sched);
++	sched.mcpu--;
++	sched.msyscall++;
++	if(sched.gwait != 0)
++		matchmg();
++	unlock(&sched);
++}
++
++// The goroutine g exited its system call.
++// Arrange for it to run on a cpu again.
++// This is called only from the go syscall library, not
++// from the low-level system calls used by the runtime.
++void
++sys·exitsyscall(void)
++{
++	if(debug > 1) {
++		lock(&debuglock);
++		printf("m%d g%d exit syscall mcpu=%d mcpumax=%d\n", m->id, g->goid, sched.mcpu, sched.mcpumax);
++		unlock(&debuglock);
++	}
+ 
+-	sched.mcount++;
+-	if(debug){
+-		sys·printint(sched.mcount);
+-		prints(" threads\n");
++	lock(&sched);
++	sched.msyscall--;
++	sched.mcpu++;
++	// Fast path - if there's room for this m, we're done.
++	if(sched.mcpu <= sched.mcpumax) {
++		unlock(&sched);
++		return;
+ 	}
++	unlock(&sched);
+ 
+-	m = mal(sizeof(M));
+-	m->g0 = malg(1024);
+-	newosproc(m, m->g0, m->g0->stackbase, mstart);
++	// Slow path - all the cpus are taken.
++	// The scheduler will ready g and put this m to sleep.
++	// When the scheduler takes g awa from m,
++	// it will undo the sched.mcpu++ above.
++	sys·gosched();
+ }
+ 
++
+ //
+ // the calling sequence for a routine tha
+ // needs N bytes stack, A args.
+@@ -475,9 +568,7 @@ oldstack(void)
+ 	uint32 siz2;
+ 	byte *sp;
+ 
+-// prints("oldstack m->cret = ");
+-// sys·printpointer((void*)m->cret);
+-// prints("\n");
++// printf("oldstack m->cret=%p\n", m->cret);
+ 
+ 	top = (Stktop*)m->curg->stackbase;
+ 
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index a908fa4623..82999b89f9 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -39,27 +39,27 @@ _STRUCT_X86_THREAD_STATE64
+ void
+ print_thread_state(_STRUCT_X86_THREAD_STATE64* ss)
+ {
+-	prints("\nrax     0x");  sys·printpointer((void*)ss->__rax);
+-	prints("\nrbx     0x");  sys·printpointer((void*)ss->__rbx);
+-	prints("\nrcx     0x");  sys·printpointer((void*)ss->__rcx);
+-	prints("\nrdx     0x");  sys·printpointer((void*)ss->__rdx);
+-	prints("\nrdi     0x");  sys·printpointer((void*)ss->__rdi);
+-	prints("\nrsi     0x");  sys·printpointer((void*)ss->__rsi);
+-	prints("\nrbp     0x");  sys·printpointer((void*)ss->__rbp);
+-	prints("\nrsp     0x");  sys·printpointer((void*)ss->__rsp);
+-	prints("\nr8      0x");  sys·printpointer((void*)ss->__r8 );
+-	prints("\nr9      0x");  sys·printpointer((void*)ss->__r9 );
+-	prints("\nr10     0x");  sys·printpointer((void*)ss->__r10);
+-	prints("\nr11     0x");  sys·printpointer((void*)ss->__r11);
+-	prints("\nr12     0x");  sys·printpointer((void*)ss->__r12);
+-	prints("\nr13     0x");  sys·printpointer((void*)ss->__r13);
+-	prints("\nr14     0x");  sys·printpointer((void*)ss->__r14);
+-	prints("\nr15     0x");  sys·printpointer((void*)ss->__r15);
+-	prints("\nrip     0x");  sys·printpointer((void*)ss->__rip);
+-	prints("\nrflags  0x");  sys·printpointer((void*)ss->__rflags);
+-	prints("\ncs      0x");  sys·printpointer((void*)ss->__cs);
+-	prints("\nfs      0x");  sys·printpointer((void*)ss->__fs);
+-	prints("\ngs      0x");  sys·printpointer((void*)ss->__gs);
++	prints("\nrax     ");  sys·printhex(ss->__rax);
++	prints("\nrbx     ");  sys·printhex(ss->__rbx);
++	prints("\nrcx     ");  sys·printhex(ss->__rcx);
++	prints("\nrdx     ");  sys·printhex(ss->__rdx);
++	prints("\nrdi     ");  sys·printhex(ss->__rdi);
++	prints("\nrsi     ");  sys·printhex(ss->__rsi);
++	prints("\nrbp     ");  sys·printhex(ss->__rbp);
++	prints("\nrsp     ");  sys·printhex(ss->__rsp);
++	prints("\nr8      ");  sys·printhex(ss->__r8 );
++	prints("\nr9      ");  sys·printhex(ss->__r9 );
++	prints("\nr10     ");  sys·printhex(ss->__r10);
++	prints("\nr11     ");  sys·printhex(ss->__r11);
++	prints("\nr12     ");  sys·printhex(ss->__r12);
++	prints("\nr13     ");  sys·printhex(ss->__r13);
++	prints("\nr14     ");  sys·printhex(ss->__r14);
++	prints("\nr15     ");  sys·printhex(ss->__r15);
++	prints("\nrip     ");  sys·printhex(ss->__rip);
++	prints("\nrflags  ");  sys·printhex(ss->__rflags);
++	prints("\ncs      ");  sys·printhex(ss->__cs);
++	prints("\nfs      ");  sys·printhex(ss->__fs);
++	prints("\ngs      ");  sys·printhex(ss->__gs);
+ 	prints("\n");
+ }
+ 
+@@ -146,8 +146,8 @@ sighandler(int32 sig, siginfo *info, void *context)
+ 		prints(sigtab[sig].name);
+ 	}
+ 
+-	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+-	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
++	prints("\nFaulting address: ");  sys·printpointer(info->si_addr);
++	prints("\npc: ");  sys·printhex(ss->__rip);
+ 	prints("\n\n");
+ 
+ 	if(gotraceback()){
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index 97f022666a..ff9245a202 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -76,27 +76,27 @@ struct ucontext {
+ void
+ print_sigcontext(struct sigcontext *sc)
+ {
+-	prints("\nrax     0x");  sys·printpointer((void*)sc->rax);
+-	prints("\nrbx     0x");  sys·printpointer((void*)sc->rbx);
+-	prints("\nrcx     0x");  sys·printpointer((void*)sc->rcx);
+-	prints("\nrdx     0x");  sys·printpointer((void*)sc->rdx);
+-	prints("\nrdi     0x");  sys·printpointer((void*)sc->rdi);
+-	prints("\nrsi     0x");  sys·printpointer((void*)sc->rsi);
+-	prints("\nrbp     0x");  sys·printpointer((void*)sc->rbp);
+-	prints("\nrsp     0x");  sys·printpointer((void*)sc->rsp);
+-	prints("\nr8      0x");  sys·printpointer((void*)sc->r8 );
+-	prints("\nr9      0x");  sys·printpointer((void*)sc->r9 );
+-	prints("\nr10     0x");  sys·printpointer((void*)sc->r10);
+-	prints("\nr11     0x");  sys·printpointer((void*)sc->r11);
+-	prints("\nr12     0x");  sys·printpointer((void*)sc->r12);
+-	prints("\nr13     0x");  sys·printpointer((void*)sc->r13);
+-	prints("\nr14     0x");  sys·printpointer((void*)sc->r14);
+-	prints("\nr15     0x");  sys·printpointer((void*)sc->r15);
+-	prints("\nrip     0x");  sys·printpointer((void*)sc->rip);
+-	prints("\nrflags  0x");  sys·printpointer((void*)sc->eflags);
+-	prints("\ncs      0x");  sys·printpointer((void*)sc->cs);
+-	prints("\nfs      0x");  sys·printpointer((void*)sc->fs);
+-	prints("\ngs      0x");  sys·printpointer((void*)sc->gs);
++	prints("\nrax     ");  sys·printhex(sc->rax);
++	prints("\nrbx     ");  sys·printhex(sc->rbx);
++	prints("\nrcx     ");  sys·printhex(sc->rcx);
++	prints("\nrdx     ");  sys·printhex(sc->rdx);
++	prints("\nrdi     ");  sys·printhex(sc->rdi);
++	prints("\nrsi     ");  sys·printhex(sc->rsi);
++	prints("\nrbp     ");  sys·printhex(sc->rbp);
++	prints("\nrsp     ");  sys·printhex(sc->rsp);
++	prints("\nr8      ");  sys·printhex(sc->r8 );
++	prints("\nr9      ");  sys·printhex(sc->r9 );
++	prints("\nr10     ");  sys·printhex(sc->r10);
++	prints("\nr11     ");  sys·printhex(sc->r11);
++	prints("\nr12     ");  sys·printhex(sc->r12);
++	prints("\nr13     ");  sys·printhex(sc->r13);
++	prints("\nr14     ");  sys·printhex(sc->r14);
++	prints("\nr15     ");  sys·printhex(sc->r15);
++	prints("\nrip     ");  sys·printhex(sc->rip);
++	prints("\nrflags  ");  sys·printhex(sc->eflags);
++	prints("\ncs      ");  sys·printhex(sc->cs);
++	prints("\nfs      ");  sys·printhex(sc->fs);
++	prints("\ngs      ");  sys·printhex(sc->gs);
+ 	prints("\n");
+ }
+ 
+@@ -149,8 +149,8 @@ sighandler(int32 sig, siginfo* info, void** context)
+ 		prints(sigtab[sig].name);
+ 	}
+ 
+-	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+-	prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
++	prints("\nFaulting address: ");  sys·printpointer(info->si_addr);
++	prints("\npc: ");  sys·printhex(sc->rip);
+ 	prints("\n\n");
+ 
+ 	if(gotraceback()){
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 409228d73f..4b282c1265 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -155,6 +155,7 @@ struct	M
+ 	byte*	moresp;
+ 	int32	siz1;
+ 	int32	siz2;
++	int32	id;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	schedlink;
+@@ -196,6 +197,8 @@ struct	Func
+ 	Array	pcln;	// pc/ln tab for this func
+ 	int64	pc0;	// starting pc, ln for table
+ 	int32	ln0;
++	int32	args;	// number of 32-bit in/out args
++	int32	locals;	// number of 32-bit locals
+ };
+ 
+ /*
+@@ -239,6 +242,7 @@ void*	getu(void);
+ void	throw(int8*);
+ uint32	rnd(uint32, uint32);
+ void	prints(int8*);
++void	printf(int8*, ...);
+ byte*	mchr(byte*, byte, byte*);
+ void	mcpy(byte*, byte*, uint32);
+ void	mmov(byte*, byte*, uint32);
+@@ -313,6 +317,8 @@ void	sys·printint(int64);
+ void	sys·printstring(string);
+ void	sys·printpc(void*);
+ void	sys·printpointer(void*);
++void	sys·printuint(uint64);
++void	sys·printhex(uint64);
+ void	sys·catstring(string, string, string);
+ void	sys·cmpstring(string, string, int32);
+ void	sys·slicestring(string, int32, int32, string);
+diff --git a/test/dialgoogle.go b/test/dialgoogle.go
+index ca2c35cce4..126ec824ff 100644
+--- a/test/dialgoogle.go
++++ b/test/dialgoogle.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && GOMAXPROCS=2 ./$A.out
++// $G $F.go && $L $F.$A && ./$A.out
+ 
+ package main
+ 
+diff --git a/test/tcpserver.go b/test/tcpserver.go
+index 2ad2d8d887..d8f9e5a7dc 100644
+--- a/test/tcpserver.go
++++ b/test/tcpserver.go
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && GOMAXPROCS=3 ./$A.out
+-// # TODO(rsc): GOMAXPROCS will go away eventually.
+-// # 3 is one for Echo, one for Serve, one for Connect.
++// $G $F.go && $L $F.$A && ./$A.out
+ 
+ package main
+ import (

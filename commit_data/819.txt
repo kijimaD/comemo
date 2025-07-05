@@ -8,6 +8,35 @@ Date:   Tue Oct 7 12:36:39 2008 -0700
     DELTA=18  (18 added, 0 deleted, 0 changed)
     OCL=16639
     CL=16647
-
+---
  test/interface.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/test/interface.go b/test/interface.go
+new file mode 100644
+index 0000000000..ee03f67f03
+--- /dev/null
++++ b/test/interface.go
+@@ -0,0 +1,22 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG: should compile
++
++package main
++
++type I2 interface
++
++type I1 interface {
++	foo() I2
++}
++
++type I2 interface {
++	bar() I1
++}
++
++type T int
++func (t T) bar() I1;
++func (t T) foo() I2 { return t }
++func (t T) bar() I1 { return t }

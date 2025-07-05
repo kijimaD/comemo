@@ -9,6 +9,22 @@ Date:   Fri Jun 22 16:50:31 2018 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/struct.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index c90151d9d4..bd637d185b 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -303,8 +303,8 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
+ }
+ 
+ // isZip64 reports whether the file size exceeds the 32 bit limit
+-func (fh *FileHeader) isZip64() bool {
+-	return fh.CompressedSize64 >= uint32max || fh.UncompressedSize64 >= uint32max
++func (h *FileHeader) isZip64() bool {
++	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
+ }
+ 
+ func msdosModeToFileMode(m uint32) (mode os.FileMode) {

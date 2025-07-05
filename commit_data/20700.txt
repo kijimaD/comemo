@@ -8,6 +8,24 @@ Date:   Wed Oct 1 09:16:55 2014 +0900
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/151870043
-
+---
  misc/nacl/README | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/nacl/README b/misc/nacl/README
+index 2044b356b6..72d0e08ad0 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -59,9 +59,9 @@ Support scripts
+ Symlink the two scripts in this directory into your $PATH, just as you did with
+ NaCl sdk above.
+ 
+-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
+-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
+-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_arm_exec $GOPATH/bin/go_nacl_arm_exec
++	% ln -nfs $GOROOT/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
++	% ln -nfs $GOROOT/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
++	% ln -nfs $GOROOT/misc/nacl/go_nacl_arm_exec $GOPATH/bin/go_nacl_arm_exec
+ 
+ Building and testing
+ --------------------

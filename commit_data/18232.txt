@@ -7,8 +7,65 @@ Date:   Mon Jan 13 13:57:38 2014 -0800
     R=golang-codereviews, bradfitz, mg
     CC=golang-codereviews
     https://golang.org/cl/51580044
-
+---
  src/pkg/syscall/types_freebsd.go        |  5 +++++
  src/pkg/syscall/ztypes_freebsd_386.go   | 10 ++++++++++
  src/pkg/syscall/ztypes_freebsd_amd64.go | 10 ++++++++++
  3 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/syscall/types_freebsd.go b/src/pkg/syscall/types_freebsd.go
+index ccf53d0adf..ff3adc3f6e 100644
+--- a/src/pkg/syscall/types_freebsd.go
++++ b/src/pkg/syscall/types_freebsd.go
+@@ -18,6 +18,7 @@ package syscall
+ #include <dirent.h>
+ #include <fcntl.h>
+ #include <signal.h>
++#include <termios.h>
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <sys/event.h>
+@@ -248,3 +249,7 @@ type BpfInsn C.struct_bpf_insn
+ type BpfHdr C.struct_bpf_hdr
+ 
+ type BpfZbufHeader C.struct_bpf_zbuf_header
++
++// Terminal handling
++
++type Termios C.struct_termios
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index e77bd4b413..3df7c51731 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -443,3 +443,13 @@ type BpfZbufHeader struct {
+ 	User_gen   uint32
+ 	X_bzh_pad  [5]uint32
+ }
++
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed uint32
++	Ospeed uint32
++}
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index 922de2ce50..49ad8af81f 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -446,3 +446,13 @@ type BpfZbufHeader struct {
+ 	User_gen   uint32
+ 	X_bzh_pad  [5]uint32
+ }
++
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed uint32
++	Ospeed uint32
++}

@@ -22,7 +22,34 @@ Date:   Sun May 8 23:04:28 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Jason Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/os_test.go                   | 2 +-
  src/syscall/syscall_windows_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index df00f165da..8e2b4f3aaa 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1736,7 +1736,7 @@ func runBinHostname(t *testing.T) string {
+ 
+ func testWindowsHostname(t *testing.T, hostname string) {
+ 	cmd := osexec.Command("hostname")
+-	out, err := cmd.CombinedOutput()
++	out, err := cmd.Output()
+ 	if err != nil {
+ 		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
+ 	}
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 194c87805c..87f6580bdc 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
+ 	if err != nil {
+ 		t.Fatalf("failed to build c executable: %s\n%s", err, out)
+ 	}
+-	out, err = exec.Command(exe).CombinedOutput()
++	out, err = exec.Command(exe).Output()
+ 	if err != nil {
+ 		t.Fatalf("c program execution failed: %v: %v", err, string(out))
+ 	}

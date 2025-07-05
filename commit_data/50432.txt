@@ -13,7 +13,7 @@ Date:   Mon Oct 25 23:00:56 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/fix/cftype.go                     |  2 +-
  src/cmd/fix/typecheck.go                  |  2 +-
  src/cmd/gofmt/rewrite.go                  |  2 +-
@@ -56,3 +56,1435 @@ Date:   Mon Oct 25 23:00:56 2021 +0700
  test/fixedbugs/issue32901.dir/main.go     |  9 ++++---
  test/reflectmethod7.go                    |  2 +-
  41 files changed, 150 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+index b47b06682a..3d292bdeba 100644
+--- a/src/cmd/fix/cftype.go
++++ b/src/cmd/fix/cftype.go
+@@ -63,7 +63,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
+ 				return
+ 			}
+ 			v := reflect.ValueOf(n)
+-			if v.Type().Kind() != reflect.Ptr {
++			if v.Type().Kind() != reflect.Pointer {
+ 				return
+ 			}
+ 			if v.IsNil() {
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 8c4beb4b65..b7ec72e116 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -383,7 +383,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 		if n == nil {
+ 			return
+ 		}
+-		if false && reflect.TypeOf(n).Kind() == reflect.Ptr { // debugging trace
++		if false && reflect.TypeOf(n).Kind() == reflect.Pointer { // debugging trace
+ 			defer func() {
+ 				if t := typeof[n]; t != "" {
+ 					pos := fset.Position(n.(ast.Node).Pos())
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 0e736e6132..a98c6a0cd9 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -292,7 +292,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 		}
+ 		return v
+ 
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		v := reflect.New(p.Type()).Elem()
+ 		if elem := p.Elem(); elem.IsValid() {
+ 			v.Set(subst(m, elem, pos).Addr())
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index b966ef970c..c0997b7fc5 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -386,7 +386,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
+ 	}
+ 
+ 	dpv := reflect.ValueOf(dest)
+-	if dpv.Kind() != reflect.Ptr {
++	if dpv.Kind() != reflect.Pointer {
+ 		return errors.New("destination not a pointer")
+ 	}
+ 	if dpv.IsNil() {
+@@ -419,7 +419,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
+ 	// This also allows scanning into user defined types such as "type Int int64".
+ 	// For symmetry, also check for string destination types.
+ 	switch dv.Kind() {
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		if src == nil {
+ 			dv.Set(reflect.Zero(dv.Type()))
+ 			return nil
+@@ -551,7 +551,7 @@ var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+ //
+ // This function is mirrored in the database/sql/driver package.
+ func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
+-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
++	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
+ 		rv.IsNil() &&
+ 		rv.Type().Elem().Implements(valuerReflectType) {
+ 		return nil, nil
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index 24c3a45483..3337c2e0bc 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -225,7 +225,7 @@ var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
+ //
+ // This function is mirrored in the database/sql package.
+ func callValuerValue(vr Valuer) (v Value, err error) {
+-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
++	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
+ 		rv.IsNil() &&
+ 		rv.Type().Elem().Implements(valuerReflectType) {
+ 		return nil, nil
+@@ -256,7 +256,7 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 
+ 	rv := reflect.ValueOf(v)
+ 	switch rv.Kind() {
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		// indirect pointers
+ 		if rv.IsNil() {
+ 			return nil, nil
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index cffc06dc9c..d0e1c6b176 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -1101,7 +1101,7 @@ func (e *invalidUnmarshalError) Error() string {
+ 		return "asn1: Unmarshal recipient value is nil"
+ 	}
+ 
+-	if e.Type.Kind() != reflect.Ptr {
++	if e.Type.Kind() != reflect.Pointer {
+ 		return "asn1: Unmarshal recipient value is non-pointer " + e.Type.String()
+ 	}
+ 	return "asn1: Unmarshal recipient value is nil " + e.Type.String()
+@@ -1111,7 +1111,7 @@ func (e *invalidUnmarshalError) Error() string {
+ // top-level element. The form of the params is the same as the field tags.
+ func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
+ 	v := reflect.ValueOf(val)
+-	if v.Kind() != reflect.Ptr || v.IsNil() {
++	if v.Kind() != reflect.Pointer || v.IsNil() {
+ 		return nil, &invalidUnmarshalError{reflect.TypeOf(val)}
+ 	}
+ 	offset, err := parseField(v.Elem(), b, 0, parseFieldParameters(params))
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index a31149979d..52417a7933 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -243,7 +243,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	v := reflect.ValueOf(data)
+ 	size := -1
+ 	switch v.Kind() {
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		v = v.Elem()
+ 		size = dataSize(v)
+ 	case reflect.Slice:
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index f92556f8ab..34f302a5cf 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -228,7 +228,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
+ // The callers to the individual decoders are expected to have used decAlloc.
+ // The individual decoders don't need to it.
+ func decAlloc(v reflect.Value) reflect.Value {
+-	for v.Kind() == reflect.Ptr {
++	for v.Kind() == reflect.Pointer {
+ 		if v.IsNil() {
+ 			v.Set(reflect.New(v.Type().Elem()))
+ 		}
+@@ -464,7 +464,7 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
+ 		if instr.index != nil {
+ 			// Otherwise the field is unknown to us and instr.op is an ignore op.
+ 			field = value.FieldByIndex(instr.index)
+-			if field.Kind() == reflect.Ptr {
++			if field.Kind() == reflect.Pointer {
+ 				field = decAlloc(field)
+ 			}
+ 		}
+@@ -518,7 +518,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value,
+ 		return
+ 	}
+ 	instr := &decInstr{elemOp, 0, nil, ovfl}
+-	isPtr := value.Type().Elem().Kind() == reflect.Ptr
++	isPtr := value.Type().Elem().Kind() == reflect.Pointer
+ 	for i := 0; i < length; i++ {
+ 		if state.b.Len() == 0 {
+ 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+@@ -561,8 +561,8 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
+ 	if value.IsNil() {
+ 		value.Set(reflect.MakeMapWithSize(mtyp, n))
+ 	}
+-	keyIsPtr := mtyp.Key().Kind() == reflect.Ptr
+-	elemIsPtr := mtyp.Elem().Kind() == reflect.Ptr
++	keyIsPtr := mtyp.Key().Kind() == reflect.Pointer
++	elemIsPtr := mtyp.Elem().Kind() == reflect.Pointer
+ 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
+ 	elemInstr := &decInstr{elemOp, 0, nil, ovfl}
+ 	keyP := reflect.New(mtyp.Key())
+@@ -945,7 +945,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp)
+ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
+ 	rcvrType := ut.user
+ 	if ut.decIndir == -1 {
+-		rcvrType = reflect.PtrTo(rcvrType)
++		rcvrType = reflect.PointerTo(rcvrType)
+ 	} else if ut.decIndir > 0 {
+ 		for i := int8(0); i < ut.decIndir; i++ {
+ 			rcvrType = rcvrType.Elem()
+@@ -954,7 +954,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
+ 	var op decOp
+ 	op = func(i *decInstr, state *decoderState, value reflect.Value) {
+ 		// We now have the base type. We need its address if the receiver is a pointer.
+-		if value.Kind() != reflect.Ptr && rcvrType.Kind() == reflect.Ptr {
++		if value.Kind() != reflect.Pointer && rcvrType.Kind() == reflect.Pointer {
+ 			value = value.Addr()
+ 		}
+ 		state.dec.decodeGobDecoder(ut, state, value)
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 5e4ed5a7d7..96e215eb8c 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -193,7 +193,7 @@ func (dec *Decoder) Decode(e interface{}) error {
+ 	value := reflect.ValueOf(e)
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller. Make sure it's a pointer.
+-	if value.Type().Kind() != reflect.Ptr {
++	if value.Type().Kind() != reflect.Pointer {
+ 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
+ 		return dec.err
+ 	}
+@@ -208,7 +208,7 @@ func (dec *Decoder) Decode(e interface{}) error {
+ // does not modify v.
+ func (dec *Decoder) DecodeValue(v reflect.Value) error {
+ 	if v.IsValid() {
+-		if v.Kind() == reflect.Ptr && !v.IsNil() {
++		if v.Kind() == reflect.Pointer && !v.IsNil() {
+ 			// That's okay, we'll store through the pointer.
+ 		} else if !v.CanSet() {
+ 			return errors.New("gob: DecodeValue of unassignable value")
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index f1f5f3862d..e49b452f6c 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -279,7 +279,7 @@ func valid(v reflect.Value) bool {
+ 	switch v.Kind() {
+ 	case reflect.Invalid:
+ 		return false
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		return !v.IsNil()
+ 	}
+ 	return true
+@@ -386,7 +386,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
+ 	// Gobs can encode nil interface values but not typed interface
+ 	// values holding nil pointers, since nil pointers point to no value.
+ 	elem := iv.Elem()
+-	if elem.Kind() == reflect.Ptr && elem.IsNil() {
++	if elem.Kind() == reflect.Pointer && elem.IsNil() {
+ 		errorf("gob: cannot encode nil pointer of type %s inside interface", iv.Elem().Type())
+ 	}
+ 	state := enc.newEncoderState(b)
+@@ -446,7 +446,7 @@ func isZero(val reflect.Value) bool {
+ 		return !val.Bool()
+ 	case reflect.Complex64, reflect.Complex128:
+ 		return val.Complex() == 0
+-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Ptr:
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Pointer:
+ 		return val.IsNil()
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return val.Int() == 0
+@@ -600,7 +600,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
+ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 	rt := ut.user
+ 	if ut.encIndir == -1 {
+-		rt = reflect.PtrTo(rt)
++		rt = reflect.PointerTo(rt)
+ 	} else if ut.encIndir > 0 {
+ 		for i := int8(0); i < ut.encIndir; i++ {
+ 			rt = rt.Elem()
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 53e2cace16..32865a7ede 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -219,7 +219,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) error {
+ 	if value.Kind() == reflect.Invalid {
+ 		return errors.New("gob: cannot encode nil value")
+ 	}
+-	if value.Kind() == reflect.Ptr && value.IsNil() {
++	if value.Kind() == reflect.Pointer && value.IsNil() {
+ 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
+ 	}
+ 
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 31c0ef7af1..412a348137 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -61,7 +61,7 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
+ 	slowpoke := ut.base // walks half as fast as ut.base
+ 	for {
+ 		pt := ut.base
+-		if pt.Kind() != reflect.Ptr {
++		if pt.Kind() != reflect.Pointer {
+ 			break
+ 		}
+ 		ut.base = pt.Elem()
+@@ -126,7 +126,7 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
+ 		if rt.Implements(gobEncDecType) {
+ 			return true, indir
+ 		}
+-		if p := rt; p.Kind() == reflect.Ptr {
++		if p := rt; p.Kind() == reflect.Pointer {
+ 			indir++
+ 			if indir > 100 { // insane number of indirections
+ 				return false, 0
+@@ -137,9 +137,9 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
+ 		break
+ 	}
+ 	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
+-	if typ.Kind() != reflect.Ptr {
++	if typ.Kind() != reflect.Pointer {
+ 		// Not a pointer, but does the pointer work?
+-		if reflect.PtrTo(typ).Implements(gobEncDecType) {
++		if reflect.PointerTo(typ).Implements(gobEncDecType) {
+ 			return true, -1
+ 		}
+ 	}
+@@ -569,7 +569,7 @@ func isSent(field *reflect.StructField) bool {
+ 	// If the field is a chan or func or pointer thereto, don't send it.
+ 	// That is, treat it like an unexported field.
+ 	typ := field.Type
+-	for typ.Kind() == reflect.Ptr {
++	for typ.Kind() == reflect.Pointer {
+ 		typ = typ.Elem()
+ 	}
+ 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
+@@ -842,7 +842,7 @@ func Register(value interface{}) {
+ 	// Dereference one pointer looking for a named type.
+ 	star := ""
+ 	if rt.Name() == "" {
+-		if pt := rt; pt.Kind() == reflect.Ptr {
++		if pt := rt; pt.Kind() == reflect.Pointer {
+ 			star = "*"
+ 			// NOTE: The following line should be rt = pt.Elem() to implement
+ 			// what the comment above claims, but fixing it would break compatibility
+diff --git a/src/encoding/gob/type_test.go b/src/encoding/gob/type_test.go
+index 934270eedd..fa3e802d4e 100644
+--- a/src/encoding/gob/type_test.go
++++ b/src/encoding/gob/type_test.go
+@@ -184,7 +184,7 @@ func TestRegistrationNaming(t *testing.T) {
+ 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
+ 		}
+ 		// concreteTypeToName is keyed off the base type.
+-		if tct.Kind() == reflect.Ptr {
++		if tct.Kind() == reflect.Pointer {
+ 			tct = tct.Elem()
+ 		}
+ 		if n, _ := concreteTypeToName.Load(tct); n != tc.name {
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index a9917e72c7..df4c5e1a16 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -161,7 +161,7 @@ func (e *InvalidUnmarshalError) Error() string {
+ 		return "json: Unmarshal(nil)"
+ 	}
+ 
+-	if e.Type.Kind() != reflect.Ptr {
++	if e.Type.Kind() != reflect.Pointer {
+ 		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
+ 	}
+ 	return "json: Unmarshal(nil " + e.Type.String() + ")"
+@@ -169,7 +169,7 @@ func (e *InvalidUnmarshalError) Error() string {
+ 
+ func (d *decodeState) unmarshal(v interface{}) error {
+ 	rv := reflect.ValueOf(v)
+-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
++	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+ 		return &InvalidUnmarshalError{reflect.TypeOf(v)}
+ 	}
+ 
+@@ -440,7 +440,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 	// If v is a named type and is addressable,
+ 	// start with its address, so that if the type has pointer methods,
+ 	// we find them.
+-	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
++	if v.Kind() != reflect.Pointer && v.Type().Name() != "" && v.CanAddr() {
+ 		haveAddr = true
+ 		v = v.Addr()
+ 	}
+@@ -449,14 +449,14 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 		// usefully addressable.
+ 		if v.Kind() == reflect.Interface && !v.IsNil() {
+ 			e := v.Elem()
+-			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
++			if e.Kind() == reflect.Pointer && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Pointer) {
+ 				haveAddr = false
+ 				v = e
+ 				continue
+ 			}
+ 		}
+ 
+-		if v.Kind() != reflect.Ptr {
++		if v.Kind() != reflect.Pointer {
+ 			break
+ 		}
+ 
+@@ -641,7 +641,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+ 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		default:
+-			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
++			if !reflect.PointerTo(t.Key()).Implements(textUnmarshalerType) {
+ 				d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
+ 				d.skip()
+ 				return nil
+@@ -717,7 +717,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 				subv = v
+ 				destring = f.quoted
+ 				for _, i := range f.index {
+-					if subv.Kind() == reflect.Ptr {
++					if subv.Kind() == reflect.Pointer {
+ 						if subv.IsNil() {
+ 							// If a struct embeds a pointer to an unexported type,
+ 							// it is not possible to set a newly allocated value
+@@ -782,7 +782,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			kt := t.Key()
+ 			var kv reflect.Value
+ 			switch {
+-			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
++			case reflect.PointerTo(kt).Implements(textUnmarshalerType):
+ 				kv = reflect.New(kt)
+ 				if err := d.literalStore(item, kv, true); err != nil {
+ 					return err
+@@ -907,7 +907,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			break
+ 		}
+ 		switch v.Kind() {
+-		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
++		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
+ 			v.Set(reflect.Zero(v.Type()))
+ 			// otherwise, ignore null for primitives/string
+ 		}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 219e845c7b..96bf9fb5ff 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1103,7 +1103,7 @@ func TestUnmarshal(t *testing.T) {
+ 		}
+ 
+ 		typ := reflect.TypeOf(tt.ptr)
+-		if typ.Kind() != reflect.Ptr {
++		if typ.Kind() != reflect.Pointer {
+ 			t.Errorf("#%d: unmarshalTest.ptr %T is not a pointer type", i, tt.ptr)
+ 			continue
+ 		}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index e473e615a9..4f40197797 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -350,7 +350,7 @@ func isEmptyValue(v reflect.Value) bool {
+ 		return v.Uint() == 0
+ 	case reflect.Float32, reflect.Float64:
+ 		return v.Float() == 0
+-	case reflect.Interface, reflect.Ptr:
++	case reflect.Interface, reflect.Pointer:
+ 		return v.IsNil()
+ 	}
+ 	return false
+@@ -419,13 +419,13 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
+ 	// Marshaler with a value receiver, then we're better off taking
+ 	// the address of the value - otherwise we end up with an
+ 	// allocation as we cast the value to an interface.
+-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(marshalerType) {
++	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(marshalerType) {
+ 		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+ 	}
+ 	if t.Implements(marshalerType) {
+ 		return marshalerEncoder
+ 	}
+-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(textMarshalerType) {
++	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(textMarshalerType) {
+ 		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+ 	}
+ 	if t.Implements(textMarshalerType) {
+@@ -455,7 +455,7 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
+ 		return newSliceEncoder(t)
+ 	case reflect.Array:
+ 		return newArrayEncoder(t)
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		return newPtrEncoder(t)
+ 	default:
+ 		return unsupportedTypeEncoder
+@@ -467,7 +467,7 @@ func invalidValueEncoder(e *encodeState, v reflect.Value, _ encOpts) {
+ }
+ 
+ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+-	if v.Kind() == reflect.Ptr && v.IsNil() {
++	if v.Kind() == reflect.Pointer && v.IsNil() {
+ 		e.WriteString("null")
+ 		return
+ 	}
+@@ -504,7 +504,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ }
+ 
+ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+-	if v.Kind() == reflect.Ptr && v.IsNil() {
++	if v.Kind() == reflect.Pointer && v.IsNil() {
+ 		e.WriteString("null")
+ 		return
+ 	}
+@@ -738,7 +738,7 @@ FieldLoop:
+ 		// Find the nested struct field by following f.index.
+ 		fv := v
+ 		for _, i := range f.index {
+-			if fv.Kind() == reflect.Ptr {
++			if fv.Kind() == reflect.Pointer {
+ 				if fv.IsNil() {
+ 					continue FieldLoop
+ 				}
+@@ -893,7 +893,7 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ func newSliceEncoder(t reflect.Type) encoderFunc {
+ 	// Byte slices get special treatment; arrays don't.
+ 	if t.Elem().Kind() == reflect.Uint8 {
+-		p := reflect.PtrTo(t.Elem())
++		p := reflect.PointerTo(t.Elem())
+ 		if !p.Implements(marshalerType) && !p.Implements(textMarshalerType) {
+ 			return encodeByteSlice
+ 		}
+@@ -989,7 +989,7 @@ func isValidTag(s string) bool {
+ 
+ func typeByIndex(t reflect.Type, index []int) reflect.Type {
+ 	for _, i := range index {
+-		if t.Kind() == reflect.Ptr {
++		if t.Kind() == reflect.Pointer {
+ 			t = t.Elem()
+ 		}
+ 		t = t.Field(i).Type
+@@ -1009,7 +1009,7 @@ func (w *reflectWithString) resolve() error {
+ 		return nil
+ 	}
+ 	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
+-		if w.k.Kind() == reflect.Ptr && w.k.IsNil() {
++		if w.k.Kind() == reflect.Pointer && w.k.IsNil() {
+ 			return nil
+ 		}
+ 		buf, err := tm.MarshalText()
+@@ -1243,7 +1243,7 @@ func typeFields(t reflect.Type) structFields {
+ 				sf := f.typ.Field(i)
+ 				if sf.Anonymous {
+ 					t := sf.Type
+-					if t.Kind() == reflect.Ptr {
++					if t.Kind() == reflect.Pointer {
+ 						t = t.Elem()
+ 					}
+ 					if !sf.IsExported() && t.Kind() != reflect.Struct {
+@@ -1269,7 +1269,7 @@ func typeFields(t reflect.Type) structFields {
+ 				index[len(f.index)] = i
+ 
+ 				ft := sf.Type
+-				if ft.Name() == "" && ft.Kind() == reflect.Ptr {
++				if ft.Name() == "" && ft.Kind() == reflect.Pointer {
+ 					// Follow pointer.
+ 					ft = ft.Elem()
+ 				}
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index a8c8f659ca..1f0eb76341 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -420,7 +420,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
+ 	// Drill into interfaces and pointers.
+ 	// This can turn into an infinite loop given a cyclic chain,
+ 	// but it matches the Go 1 behavior.
+-	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
++	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
+ 		if val.IsNil() {
+ 			return nil
+ 		}
+@@ -603,7 +603,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
+ 
+ 	// Dereference or skip nil pointer, interface values.
+ 	switch val.Kind() {
+-	case reflect.Ptr, reflect.Interface:
++	case reflect.Pointer, reflect.Interface:
+ 		if val.IsNil() {
+ 			return nil
+ 		}
+@@ -797,7 +797,7 @@ var ddBytes = []byte("--")
+ // This can turn into an infinite loop given a cyclic chain,
+ // but it matches the Go 1 behavior.
+ func indirect(vf reflect.Value) reflect.Value {
+-	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
++	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
+ 		if vf.IsNil() {
+ 			return vf
+ 		}
+@@ -946,7 +946,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 				return err
+ 			}
+ 			if len(finfo.parents) > len(s.stack) {
+-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
++				if vf.Kind() != reflect.Pointer && vf.Kind() != reflect.Interface || !vf.IsNil() {
+ 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
+ 						return err
+ 					}
+@@ -1055,7 +1055,7 @@ func isEmptyValue(v reflect.Value) bool {
+ 		return v.Uint() == 0
+ 	case reflect.Float32, reflect.Float64:
+ 		return v.Float() == 0
+-	case reflect.Interface, reflect.Ptr:
++	case reflect.Interface, reflect.Pointer:
+ 		return v.IsNil()
+ 	}
+ 	return false
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index ef5df3f7f6..48b0ec055c 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -145,7 +145,7 @@ func (d *Decoder) Decode(v interface{}) error {
+ // but also wants to defer to Unmarshal for some elements.
+ func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
+ 	val := reflect.ValueOf(v)
+-	if val.Kind() != reflect.Ptr {
++	if val.Kind() != reflect.Pointer {
+ 		return errors.New("non-pointer passed to Unmarshal")
+ 	}
+ 	return d.unmarshal(val.Elem(), start)
+@@ -244,7 +244,7 @@ func (d *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
+ 
+ // unmarshalAttr unmarshals a single XML attribute into val.
+ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+-	if val.Kind() == reflect.Ptr {
++	if val.Kind() == reflect.Pointer {
+ 		if val.IsNil() {
+ 			val.Set(reflect.New(val.Type().Elem()))
+ 		}
+@@ -324,12 +324,12 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 	// usefully addressable.
+ 	if val.Kind() == reflect.Interface && !val.IsNil() {
+ 		e := val.Elem()
+-		if e.Kind() == reflect.Ptr && !e.IsNil() {
++		if e.Kind() == reflect.Pointer && !e.IsNil() {
+ 			val = e
+ 		}
+ 	}
+ 
+-	if val.Kind() == reflect.Ptr {
++	if val.Kind() == reflect.Pointer {
+ 		if val.IsNil() {
+ 			val.Set(reflect.New(val.Type().Elem()))
+ 		}
+@@ -602,7 +602,7 @@ Loop:
+ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 	dst0 := dst
+ 
+-	if dst.Kind() == reflect.Ptr {
++	if dst.Kind() == reflect.Pointer {
+ 		if dst.IsNil() {
+ 			dst.Set(reflect.New(dst.Type().Elem()))
+ 		}
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 51e976cf01..6b399b9a0e 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -67,7 +67,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 			// For embedded structs, embed its fields.
+ 			if f.Anonymous {
+ 				t := f.Type
+-				if t.Kind() == reflect.Ptr {
++				if t.Kind() == reflect.Pointer {
+ 					t = t.Elem()
+ 				}
+ 				if t.Kind() == reflect.Struct {
+@@ -229,7 +229,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ // in case it exists and has a valid xml field tag, otherwise
+ // it returns nil.
+ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
+-	for typ.Kind() == reflect.Ptr {
++	for typ.Kind() == reflect.Pointer {
+ 		typ = typ.Elem()
+ 	}
+ 	if typ.Kind() != reflect.Struct {
+@@ -358,7 +358,7 @@ func (finfo *fieldInfo) value(v reflect.Value, shouldInitNilPointers bool) refle
+ 	for i, x := range finfo.idx {
+ 		if i > 0 {
+ 			t := v.Type()
+-			if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct {
++			if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+ 				if v.IsNil() {
+ 					if !shouldInitNilPointers {
+ 						return reflect.Value{}
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 885a4c8369..86e16e5a61 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -456,7 +456,7 @@ func isZeroValue(flag *Flag, value string) bool {
+ 	// This works unless the Value type is itself an interface type.
+ 	typ := reflect.TypeOf(flag.Value)
+ 	var z reflect.Value
+-	if typ.Kind() == reflect.Ptr {
++	if typ.Kind() == reflect.Pointer {
+ 		z = reflect.New(typ.Elem())
+ 	} else {
+ 		z = reflect.Zero(typ)
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 8bc225f548..698ab557a4 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -498,7 +498,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
+ 	var u uintptr
+ 	switch value.Kind() {
+-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
++	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+ 		u = value.Pointer()
+ 	default:
+ 		p.badVerb(verb)
+@@ -538,7 +538,7 @@ func (p *pp) catchPanic(arg interface{}, verb rune, method string) {
+ 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
+ 		// Stringer that fails to guard against nil or a nil pointer for a
+ 		// value receiver, and in either case, "<nil>" is a nice result.
+-		if v := reflect.ValueOf(arg); v.Kind() == reflect.Ptr && v.IsNil() {
++		if v := reflect.ValueOf(arg); v.Kind() == reflect.Pointer && v.IsNil() {
+ 			p.buf.writeString(nilAngleString)
+ 			return
+ 		}
+@@ -866,7 +866,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 			}
+ 			p.buf.writeByte(']')
+ 		}
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		// pointer to array or slice or struct? ok at top level
+ 		// but not embedded (avoid loops)
+ 		if depth == 0 && f.Pointer() != 0 {
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 381577049c..18cb608f43 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -1017,7 +1017,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
+ 	default:
+ 		val := reflect.ValueOf(v)
+ 		ptr := val
+-		if ptr.Kind() != reflect.Ptr {
++		if ptr.Kind() != reflect.Pointer {
+ 			s.errorString("type not a pointer: " + val.Type().String())
+ 			return
+ 		}
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 1cc469ce36..6b71b792ed 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -516,7 +516,7 @@ func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a .
+ 		}
+ 		// The incoming value may be a pointer
+ 		v := reflect.ValueOf(test.in)
+-		if p := v; p.Kind() == reflect.Ptr {
++		if p := v; p.Kind() == reflect.Pointer {
+ 			v = p.Elem()
+ 		}
+ 		val := v.Interface()
+@@ -561,7 +561,7 @@ func TestScanf(t *testing.T) {
+ 		}
+ 		// The incoming value may be a pointer
+ 		v := reflect.ValueOf(test.in)
+-		if p := v; p.Kind() == reflect.Ptr {
++		if p := v; p.Kind() == reflect.Pointer {
+ 			v = p.Elem()
+ 		}
+ 		val := v.Interface()
+diff --git a/src/go/ast/print.go b/src/go/ast/print.go
+index d86d9ba64b..b58683075c 100644
+--- a/src/go/ast/print.go
++++ b/src/go/ast/print.go
+@@ -21,7 +21,7 @@ type FieldFilter func(name string, value reflect.Value) bool
+ // it returns false otherwise.
+ func NotNilFilter(_ string, v reflect.Value) bool {
+ 	switch v.Kind() {
+-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+ 		return !v.IsNil()
+ 	}
+ 	return true
+@@ -165,7 +165,7 @@ func (p *printer) print(x reflect.Value) {
+ 		}
+ 		p.printf("}")
+ 
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		p.printf("*")
+ 		// type-checked ASTs may contain cycles - use ptrmap
+ 		// to keep track of objects that have been printed
+diff --git a/src/html/template/content.go b/src/html/template/content.go
+index 6ba87a9550..232ba199f3 100644
+--- a/src/html/template/content.go
++++ b/src/html/template/content.go
+@@ -116,12 +116,12 @@ func indirect(a interface{}) interface{} {
+ 	if a == nil {
+ 		return nil
+ 	}
+-	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
++	if t := reflect.TypeOf(a); t.Kind() != reflect.Pointer {
+ 		// Avoid creating a reflect.Value if it's not a pointer.
+ 		return a
+ 	}
+ 	v := reflect.ValueOf(a)
+-	for v.Kind() == reflect.Ptr && !v.IsNil() {
++	for v.Kind() == reflect.Pointer && !v.IsNil() {
+ 		v = v.Elem()
+ 	}
+ 	return v.Interface()
+@@ -140,7 +140,7 @@ func indirectToStringerOrError(a interface{}) interface{} {
+ 		return nil
+ 	}
+ 	v := reflect.ValueOf(a)
+-	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
++	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Pointer && !v.IsNil() {
+ 		v = v.Elem()
+ 	}
+ 	return v.Interface()
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 32a4fbd30a..7e919c48e6 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -132,7 +132,7 @@ func indirectToJSONMarshaler(a interface{}) interface{} {
+ 	}
+ 
+ 	v := reflect.ValueOf(a)
+-	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
++	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Pointer && !v.IsNil() {
+ 		v = v.Elem()
+ 	}
+ 	return v.Interface()
+diff --git a/src/internal/fmtsort/sort.go b/src/internal/fmtsort/sort.go
+index 7127ba6ac3..34c1f477f0 100644
+--- a/src/internal/fmtsort/sort.go
++++ b/src/internal/fmtsort/sort.go
+@@ -130,7 +130,7 @@ func compare(aVal, bVal reflect.Value) int {
+ 		default:
+ 			return -1
+ 		}
+-	case reflect.Ptr, reflect.UnsafePointer:
++	case reflect.Pointer, reflect.UnsafePointer:
+ 		a, b := aVal.Pointer(), bVal.Pointer()
+ 		switch {
+ 		case a < b:
+diff --git a/src/internal/reflectlite/tostring_test.go b/src/internal/reflectlite/tostring_test.go
+index a1e5dae09d..966b0bd849 100644
+--- a/src/internal/reflectlite/tostring_test.go
++++ b/src/internal/reflectlite/tostring_test.go
+@@ -44,7 +44,7 @@ func valueToStringImpl(val reflect.Value) string {
+ 		} else {
+ 			return "false"
+ 		}
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		v := val
+ 		str = typ.String() + "("
+ 		if v.IsNil() {
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index bfc19ac97c..223a53cfa7 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -203,7 +203,7 @@ var DefaultServer = NewServer()
+ 
+ // Is this type exported or a builtin?
+ func isExportedOrBuiltinType(t reflect.Type) bool {
+-	for t.Kind() == reflect.Ptr {
++	for t.Kind() == reflect.Pointer {
+ 		t = t.Elem()
+ 	}
+ 	// PkgPath will be non-empty even for an exported type,
+@@ -262,7 +262,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
+ 		str := ""
+ 
+ 		// To help the user, see if a pointer receiver would work.
+-		method := suitableMethods(reflect.PtrTo(s.typ), false)
++		method := suitableMethods(reflect.PointerTo(s.typ), false)
+ 		if len(method) != 0 {
+ 			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+ 		} else {
+@@ -307,7 +307,7 @@ func suitableMethods(typ reflect.Type, logErr bool) map[string]*methodType {
+ 		}
+ 		// Second arg must be a pointer.
+ 		replyType := mtype.In(2)
+-		if replyType.Kind() != reflect.Ptr {
++		if replyType.Kind() != reflect.Pointer {
+ 			if logErr {
+ 				log.Printf("rpc.Register: reply type of method %q is not a pointer: %q\n", mname, replyType)
+ 			}
+@@ -556,7 +556,7 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
+ 
+ 	// Decode the argument value.
+ 	argIsValue := false // if true, need to indirect before calling.
+-	if mtype.ArgType.Kind() == reflect.Ptr {
++	if mtype.ArgType.Kind() == reflect.Pointer {
+ 		argv = reflect.New(mtype.ArgType.Elem())
+ 	} else {
+ 		argv = reflect.New(mtype.ArgType)
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 2ce7ca2615..28204b8193 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -198,7 +198,7 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
+ // complete register-assignment algorithm for the Go ABI.
+ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 	switch t.Kind() {
+-	case UnsafePointer, Ptr, Chan, Map, Func:
++	case UnsafePointer, Pointer, Chan, Map, Func:
+ 		return a.assignIntN(offset, t.size, 1, 0b1)
+ 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
+ 		return a.assignIntN(offset, t.size, 1, 0b0)
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 922998125b..725be28bf0 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -546,7 +546,7 @@ func TestCanSetField(t *testing.T) {
+ 			for _, tc := range tt.cases {
+ 				f := tt.val
+ 				for _, i := range tc.index {
+-					if f.Kind() == Ptr {
++					if f.Kind() == Pointer {
+ 						f = f.Elem()
+ 					}
+ 					if i == -1 {
+@@ -1373,7 +1373,7 @@ func TestIsZero(t *testing.T) {
+ 		{(map[string]string)(nil), true},
+ 		{map[string]string{}, false},
+ 		{make(map[string]string), false},
+-		// Ptr
++		// Pointer
+ 		{(*func())(nil), true},
+ 		{(*int)(nil), true},
+ 		{new(int), false},
+@@ -3313,20 +3313,20 @@ func TestPtrTo(t *testing.T) {
+ 
+ 	typ := TypeOf(z)
+ 	for i = 0; i < 100; i++ {
+-		typ = PtrTo(typ)
++		typ = PointerTo(typ)
+ 	}
+ 	for i = 0; i < 100; i++ {
+ 		typ = typ.Elem()
+ 	}
+ 	if typ != TypeOf(z) {
+-		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(z))
++		t.Errorf("after 100 PointerTo and Elem, have %s, want %s", typ, TypeOf(z))
+ 	}
+ }
+ 
+ func TestPtrToGC(t *testing.T) {
+ 	type T *uintptr
+ 	tt := TypeOf(T(nil))
+-	pt := PtrTo(tt)
++	pt := PointerTo(tt)
+ 	const n = 100
+ 	var x []interface{}
+ 	for i := 0; i < n; i++ {
+@@ -3360,11 +3360,11 @@ func BenchmarkPtrTo(b *testing.B) {
+ 	}
+ 	b.ResetTimer()
+ 
+-	// Now benchmark calling PtrTo on it: we'll have to hit the ptrMap cache on
++	// Now benchmark calling PointerTo on it: we'll have to hit the ptrMap cache on
+ 	// every call.
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			PtrTo(t)
++			PointerTo(t)
+ 		}
+ 	})
+ }
+@@ -4896,7 +4896,7 @@ func TestArrayOfDirectIface(t *testing.T) {
+ 		v1 := ValueOf(&i1).Elem()
+ 		p1 := v1.InterfaceData()[1]
+ 
+-		i2 := Zero(ArrayOf(1, PtrTo(TypeOf(int8(0))))).Interface()
++		i2 := Zero(ArrayOf(1, PointerTo(TypeOf(int8(0))))).Interface()
+ 		v2 := ValueOf(&i2).Elem()
+ 		p2 := v2.InterfaceData()[1]
+ 
+@@ -4914,7 +4914,7 @@ func TestArrayOfDirectIface(t *testing.T) {
+ 		v1 := ValueOf(&i1).Elem()
+ 		p1 := v1.InterfaceData()[1]
+ 
+-		i2 := Zero(ArrayOf(0, PtrTo(TypeOf(int8(0))))).Interface()
++		i2 := Zero(ArrayOf(0, PointerTo(TypeOf(int8(0))))).Interface()
+ 		v2 := ValueOf(&i2).Elem()
+ 		p2 := v2.InterfaceData()[1]
+ 
+@@ -5615,7 +5615,7 @@ func TestStructOfWithInterface(t *testing.T) {
+ 		},
+ 		{
+ 			name: "StructI",
+-			typ:  PtrTo(TypeOf(StructI(want))),
++			typ:  PointerTo(TypeOf(StructI(want))),
+ 			val: ValueOf(func() interface{} {
+ 				v := StructI(want)
+ 				return &v
+@@ -5624,7 +5624,7 @@ func TestStructOfWithInterface(t *testing.T) {
+ 		},
+ 		{
+ 			name: "StructIPtr",
+-			typ:  PtrTo(TypeOf(StructIPtr(want))),
++			typ:  PointerTo(TypeOf(StructIPtr(want))),
+ 			val: ValueOf(func() interface{} {
+ 				v := StructIPtr(want)
+ 				return &v
+@@ -5713,7 +5713,7 @@ func TestStructOfWithInterface(t *testing.T) {
+ 	fields := []StructField{{
+ 		Name:      "StructIPtr",
+ 		Anonymous: true,
+-		Type:      PtrTo(TypeOf(StructIPtr(want))),
++		Type:      PointerTo(TypeOf(StructIPtr(want))),
+ 	}}
+ 	rt := StructOf(fields)
+ 	rv := New(rt).Elem()
+@@ -5727,7 +5727,7 @@ func TestStructOfWithInterface(t *testing.T) {
+ 	fields = []StructField{{
+ 		Name:      "SettableStruct",
+ 		Anonymous: true,
+-		Type:      PtrTo(TypeOf(SettableStruct{})),
++		Type:      PointerTo(TypeOf(SettableStruct{})),
+ 	}}
+ 	rt = StructOf(fields)
+ 	rv = New(rt).Elem()
+@@ -5743,7 +5743,7 @@ func TestStructOfWithInterface(t *testing.T) {
+ 		{
+ 			Name:      "SettableStruct",
+ 			Anonymous: true,
+-			Type:      PtrTo(TypeOf(SettableStruct{})),
++			Type:      PointerTo(TypeOf(SettableStruct{})),
+ 		},
+ 		{
+ 			Name:      "EmptyStruct",
+@@ -6959,7 +6959,7 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, MapOf(ArrayOf(10000, Tscalarptr), Tscalar), lit(1))
+ 
+ 	verifyGCBits(t, TypeOf((*[10000]Xscalar)(nil)), lit(1))
+-	verifyGCBits(t, PtrTo(ArrayOf(10000, Tscalar)), lit(1))
++	verifyGCBits(t, PointerTo(ArrayOf(10000, Tscalar)), lit(1))
+ 
+ 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
+ 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
+@@ -7028,7 +7028,7 @@ func TestTypeOfTypeOf(t *testing.T) {
+ 	check("ChanOf", ChanOf(BothDir, TypeOf(T{})))
+ 	check("FuncOf", FuncOf([]Type{TypeOf(T{})}, nil, false))
+ 	check("MapOf", MapOf(TypeOf(T{}), TypeOf(T{})))
+-	check("PtrTo", PtrTo(TypeOf(T{})))
++	check("PtrTo", PointerTo(TypeOf(T{})))
+ 	check("SliceOf", SliceOf(TypeOf(T{})))
+ }
+ 
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 7f1ecb2809..b71504fa21 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -38,7 +38,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	// and it's safe and valid to get Value's internal pointer.
+ 	hard := func(v1, v2 Value) bool {
+ 		switch v1.Kind() {
+-		case Ptr:
++		case Pointer:
+ 			if v1.typ.ptrdata == 0 {
+ 				// go:notinheap pointers can't be cyclic.
+ 				// At least, all of our current uses of go:notinheap have
+@@ -56,13 +56,13 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	}
+ 
+ 	if hard(v1, v2) {
+-		// For a Ptr or Map value, we need to check flagIndir,
++		// For a Pointer or Map value, we need to check flagIndir,
+ 		// which we do by calling the pointer method.
+ 		// For Slice or Interface, flagIndir is always set,
+ 		// and using v.ptr suffices.
+ 		ptrval := func(v Value) unsafe.Pointer {
+ 			switch v.Kind() {
+-			case Ptr, Map:
++			case Pointer, Map:
+ 				return v.pointer()
+ 			default:
+ 				return v.ptr
+@@ -120,7 +120,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 			return v1.IsNil() == v2.IsNil()
+ 		}
+ 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
+-	case Ptr:
++	case Pointer:
+ 		if v1.UnsafePointer() == v2.UnsafePointer() {
+ 			return true
+ 		}
+diff --git a/src/reflect/tostring_test.go b/src/reflect/tostring_test.go
+index e416fd84da..193484a01b 100644
+--- a/src/reflect/tostring_test.go
++++ b/src/reflect/tostring_test.go
+@@ -39,7 +39,7 @@ func valueToString(val Value) string {
+ 		} else {
+ 			return "false"
+ 		}
+-	case Ptr:
++	case Pointer:
+ 		v := val
+ 		str = typ.String() + "("
+ 		if v.IsNil() {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 96f589ca9c..2bb2438381 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1425,7 +1425,7 @@ func TypeOf(i interface{}) Type {
+ var ptrMap sync.Map // map[*rtype]*ptrType
+ 
+ // PtrTo returns the pointer type with element t.
+-// For example, if t represents type Foo, PtrTo(t) represents *Foo.
++// For example, if t represents type Foo, PointerTo(t) represents *Foo.
+ //
+ // Deprecated: use PointerTo. PtrTo is the old spelling.
+ // The two functions behave identically.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 3e723e82a4..5d9964eb9d 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -90,8 +90,8 @@ func (f flag) ro() flag {
+ }
+ 
+ // pointer returns the underlying pointer represented by v.
+-// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+-// if v.Kind() == Ptr, the base type must not be go:notinheap.
++// v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
++// if v.Kind() == Pointer, the base type must not be go:notinheap.
+ func (v Value) pointer() unsafe.Pointer {
+ 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+@@ -274,7 +274,7 @@ func (v Value) Addr() Value {
+ 	// Preserve flagRO instead of using v.flag.ro() so that
+ 	// v.Addr().Elem() is equivalent to v (#32772)
+ 	fl := v.flag & flagRO
+-	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Ptr)}
++	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Pointer)}
+ }
+ 
+ // Bool returns v's underlying value.
+@@ -1147,7 +1147,7 @@ func (v Value) Complex() complex128 {
+ 
+ // Elem returns the value that the interface v contains
+ // or that the pointer v points to.
+-// It panics if v's Kind is not Interface or Ptr.
++// It panics if v's Kind is not Interface or Pointer.
+ // It returns the zero Value if v is nil.
+ func (v Value) Elem() Value {
+ 	k := v.kind()
+@@ -1166,7 +1166,7 @@ func (v Value) Elem() Value {
+ 			x.flag |= v.flag.ro()
+ 		}
+ 		return x
+-	case Ptr:
++	case Pointer:
+ 		ptr := v.ptr
+ 		if v.flag&flagIndir != 0 {
+ 			if ifaceIndir(v.typ) {
+@@ -1240,7 +1240,7 @@ func (v Value) FieldByIndex(index []int) Value {
+ 	v.mustBe(Struct)
+ 	for i, x := range index {
+ 		if i > 0 {
+-			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
++			if v.Kind() == Pointer && v.typ.Elem().Kind() == Struct {
+ 				if v.IsNil() {
+ 					panic("reflect: indirection through nil pointer to embedded struct")
+ 				}
+@@ -1321,7 +1321,7 @@ func (v Value) Index(i int) Value {
+ 		return Value{typ, val, fl}
+ 
+ 	case Slice:
+-		// Element flag same as Elem of Ptr.
++		// Element flag same as Elem of Pointer.
+ 		// Addressable, indirect, possibly read-only.
+ 		s := (*unsafeheader.Slice)(v.ptr)
+ 		if uint(i) >= uint(s.Len) {
+@@ -1451,7 +1451,7 @@ func (v Value) InterfaceData() [2]uintptr {
+ func (v Value) IsNil() bool {
+ 	k := v.kind()
+ 	switch k {
+-	case Chan, Func, Map, Ptr, UnsafePointer:
++	case Chan, Func, Map, Pointer, UnsafePointer:
+ 		if v.flag&flagMethod != 0 {
+ 			return false
+ 		}
+@@ -1499,7 +1499,7 @@ func (v Value) IsZero() bool {
+ 			}
+ 		}
+ 		return true
+-	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
++	case Chan, Func, Interface, Map, Pointer, Slice, UnsafePointer:
+ 		return v.IsNil()
+ 	case String:
+ 		return v.Len() == 0
+@@ -1923,7 +1923,7 @@ func (v Value) OverflowUint(x uint64) bool {
+ // It returns uintptr instead of unsafe.Pointer so that
+ // code using reflect cannot obtain unsafe.Pointers
+ // without importing the unsafe package explicitly.
+-// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
++// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+ //
+ // If v's Kind is Func, the returned pointer is an underlying
+ // code pointer, but not necessarily enough to identify a
+@@ -1938,7 +1938,7 @@ func (v Value) OverflowUint(x uint64) bool {
+ func (v Value) Pointer() uintptr {
+ 	k := v.kind()
+ 	switch k {
+-	case Ptr:
++	case Pointer:
+ 		if v.typ.ptrdata == 0 {
+ 			val := *(*uintptr)(v.ptr)
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+@@ -2491,7 +2491,7 @@ func (v Value) UnsafeAddr() uintptr {
+ }
+ 
+ // UnsafePointer returns v's value as a unsafe.Pointer.
+-// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
++// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+ //
+ // If v's Kind is Func, the returned pointer is an underlying
+ // code pointer, but not necessarily enough to identify a
+@@ -2504,7 +2504,7 @@ func (v Value) UnsafeAddr() uintptr {
+ func (v Value) UnsafePointer() unsafe.Pointer {
+ 	k := v.kind()
+ 	switch k {
+-	case Ptr:
++	case Pointer:
+ 		if v.typ.ptrdata == 0 {
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+ 			// forbidden! See comment in Value.Elem and issue #48399.
+@@ -2908,7 +2908,7 @@ func MakeMapWithSize(typ Type, n int) Value {
+ // If v is a nil pointer, Indirect returns a zero Value.
+ // If v is not a pointer, Indirect returns v.
+ func Indirect(v Value) Value {
+-	if v.Kind() != Ptr {
++	if v.Kind() != Pointer {
+ 		return v
+ 	}
+ 	return v.Elem()
+@@ -2960,7 +2960,7 @@ const maxZero = 1024
+ var zeroVal [maxZero]byte
+ 
+ // New returns a Value representing a pointer to a new zero value
+-// for the specified type. That is, the returned Value's Type is PtrTo(typ).
++// for the specified type. That is, the returned Value's Type is PointerTo(typ).
+ func New(typ Type) Value {
+ 	if typ == nil {
+ 		panic("reflect: New(nil)")
+@@ -2972,14 +2972,14 @@ func New(typ Type) Value {
+ 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
+ 	}
+ 	ptr := unsafe_New(t)
+-	fl := flag(Ptr)
++	fl := flag(Pointer)
+ 	return Value{pt, ptr, fl}
+ }
+ 
+ // NewAt returns a Value representing a pointer to a value of the
+ // specified type, using p as that pointer.
+ func NewAt(typ Type, p unsafe.Pointer) Value {
+-	fl := flag(Ptr)
++	fl := flag(Pointer)
+ 	t := typ.(*rtype)
+ 	return Value{t.ptrTo(), p, fl}
+ }
+@@ -3048,7 +3048,7 @@ func (v Value) CanConvert(t Type) bool {
+ 	// Currently the only conversion that is OK in terms of type
+ 	// but that can panic depending on the value is converting
+ 	// from slice to pointer-to-array.
+-	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
++	if vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array {
+ 		n := t.Elem().Len()
+ 		if n > v.Len() {
+ 			return false
+@@ -3118,7 +3118,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ 		}
+ 		// "x is a slice, T is a pointer-to-array type,
+ 		// and the slice and array types have identical element types."
+-		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
++		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+ 			return cvtSliceArrayPtr
+ 		}
+ 
+@@ -3134,8 +3134,8 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ 	}
+ 
+ 	// dst and src are non-defined pointer types with same underlying base type.
+-	if dst.Kind() == Ptr && dst.Name() == "" &&
+-		src.Kind() == Ptr && src.Name() == "" &&
++	if dst.Kind() == Pointer && dst.Name() == "" &&
++		src.Kind() == Pointer && src.Name() == "" &&
+ 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {
+ 		return cvtDirect
+ 	}
+@@ -3321,7 +3321,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
+ 		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
+ 	}
+ 	h := (*unsafeheader.Slice)(v.ptr)
+-	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
++	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
+ }
+ 
+ // convertOp: direct copy
+diff --git a/src/reflect/visiblefields.go b/src/reflect/visiblefields.go
+index 1a2b53570b..9375faa110 100644
+--- a/src/reflect/visiblefields.go
++++ b/src/reflect/visiblefields.go
+@@ -92,7 +92,7 @@ func (w *visibleFieldsWalker) walk(t Type) {
+ 			w.fields = append(w.fields, f)
+ 		}
+ 		if f.Anonymous {
+-			if f.Type.Kind() == Ptr {
++			if f.Type.Kind() == Pointer {
+ 				f.Type = f.Type.Elem()
+ 			}
+ 			if f.Type.Kind() == Struct {
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 0ec5331534..7b979afd55 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -458,7 +458,7 @@ func benchSetType(b *testing.B, x interface{}) {
+ 	v := reflect.ValueOf(x)
+ 	t := v.Type()
+ 	switch t.Kind() {
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		b.SetBytes(int64(t.Elem().Size()))
+ 	case reflect.Slice:
+ 		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index c01647ecf0..777338bb37 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -113,7 +113,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
+ 			}
+ 			v.SetMapIndex(key, value)
+ 		}
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		if rand.Intn(size) == 0 {
+ 			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
+ 		} else {
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 9ae6fdc3cc..7e44497530 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -327,7 +327,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
+ 		truth = val.Bool()
+ 	case reflect.Complex64, reflect.Complex128:
+ 		truth = val.Complex() != 0
+-	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Interface:
++	case reflect.Chan, reflect.Func, reflect.Pointer, reflect.Interface:
+ 		truth = !val.IsNil()
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		truth = val.Int() != 0
+@@ -623,7 +623,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	// Unless it's an interface, need to get to a value of type *T to guarantee
+ 	// we see all methods of T and *T.
+ 	ptr := receiver
+-	if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Ptr && ptr.CanAddr() {
++	if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Pointer && ptr.CanAddr() {
+ 		ptr = ptr.Addr()
+ 	}
+ 	if method := ptr.MethodByName(fieldName); method.IsValid() {
+@@ -665,7 +665,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 			}
+ 			return result
+ 		}
+-	case reflect.Ptr:
++	case reflect.Pointer:
+ 		etyp := receiver.Type().Elem()
+ 		if etyp.Kind() == reflect.Struct {
+ 			if _, ok := etyp.FieldByName(fieldName); !ok {
+@@ -788,7 +788,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ // canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+ func canBeNil(typ reflect.Type) bool {
+ 	switch typ.Kind() {
+-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+ 		return true
+ 	case reflect.Struct:
+ 		return typ == reflectValueType
+@@ -825,12 +825,12 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
+ 		// are much more constrained, so it makes more sense there than here.
+ 		// Besides, one is almost always all you need.
+ 		switch {
+-		case value.Kind() == reflect.Ptr && value.Type().Elem().AssignableTo(typ):
++		case value.Kind() == reflect.Pointer && value.Type().Elem().AssignableTo(typ):
+ 			value = value.Elem()
+ 			if !value.IsValid() {
+ 				s.errorf("dereference of nil pointer of type %s", typ)
+ 			}
+-		case reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr():
++		case reflect.PointerTo(value.Type()).AssignableTo(typ) && value.CanAddr():
+ 			value = value.Addr()
+ 		default:
+ 			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
+@@ -982,7 +982,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
+ // if it's nil. If the returned bool is true, the returned value's kind will be
+ // either a pointer or interface.
+ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+-	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
++	for ; v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface; v = v.Elem() {
+ 		if v.IsNil() {
+ 			return v, true
+ 		}
+@@ -1021,7 +1021,7 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
+ // printableValue returns the, possibly indirected, interface value inside v that
+ // is best for a call to formatted printer.
+ func printableValue(v reflect.Value) (interface{}, bool) {
+-	if v.Kind() == reflect.Ptr {
++	if v.Kind() == reflect.Pointer {
+ 		v, _ = indirect(v) // fmt.Fprint handles nil.
+ 	}
+ 	if !v.IsValid() {
+@@ -1029,7 +1029,7 @@ func printableValue(v reflect.Value) (interface{}, bool) {
+ 	}
+ 
+ 	if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
+-		if v.CanAddr() && (reflect.PtrTo(v.Type()).Implements(errorType) || reflect.PtrTo(v.Type()).Implements(fmtStringerType)) {
++		if v.CanAddr() && (reflect.PointerTo(v.Type()).Implements(errorType) || reflect.PointerTo(v.Type()).Implements(fmtStringerType)) {
+ 			v = v.Addr()
+ 		} else {
+ 			switch v.Kind() {
+diff --git a/test/fixedbugs/issue32901.dir/main.go b/test/fixedbugs/issue32901.dir/main.go
+index 28bb8cde28..673c6ab3e0 100644
+--- a/test/fixedbugs/issue32901.dir/main.go
++++ b/test/fixedbugs/issue32901.dir/main.go
+@@ -4,13 +4,16 @@
+ 
+ package main
+ 
+-import "./c"
+-import "reflect"
++import (
++	"reflect"
++
++	"./c"
++)
+ 
+ func main() {
+ 	x := c.F()
+ 	p := c.P()
+-	t := reflect.PtrTo(reflect.TypeOf(x))
++	t := reflect.PointerTo(reflect.TypeOf(x))
+ 	tp := reflect.TypeOf(p)
+ 	if t != tp {
+ 		panic("FAIL")
+diff --git a/test/reflectmethod7.go b/test/reflectmethod7.go
+index 42429978b4..688238c511 100644
+--- a/test/reflectmethod7.go
++++ b/test/reflectmethod7.go
+@@ -16,7 +16,7 @@ func (s S) M() {}
+ 
+ func main() {
+ 	t := reflect.TypeOf(S(0))
+-	fn, ok := reflect.PtrTo(t).MethodByName("M")
++	fn, ok := reflect.PointerTo(t).MethodByName("M")
+ 	if !ok {
+ 		panic("FAIL")
+ 	}

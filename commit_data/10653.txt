@@ -9,7 +9,37 @@ Date:   Wed Dec 7 15:48:55 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5449114
-
+---
  src/cmd/gc/typecheck.c   |  1 +
  test/fixedbugs/bug380.go | 11 +++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 072b577a56..90db76960d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2198,6 +2198,7 @@ typecheckcomplit(Node **np)
+ 		n->typecheck = 1;
+ 		n->type = n->left->type;
+ 		n->left->type = t;
++		n->left->typecheck = 1;
+ 	}
+ 
+ 	*np = n;
+diff --git a/test/fixedbugs/bug380.go b/test/fixedbugs/bug380.go
+new file mode 100644
+index 0000000000..75b58064f5
+--- /dev/null
++++ b/test/fixedbugs/bug380.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to cause a typechecking loop error.
++
++package pkg
++type T map[int]string
++var q = &T{}

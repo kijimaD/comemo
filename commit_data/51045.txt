@@ -20,6 +20,42 @@ Date:   Mon Nov 29 15:17:36 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 24 ++++++++----------------
  1 file changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 1156b187ae..82c1a6716f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3075,22 +3075,14 @@ func TestClientWriteShutdown(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("CloseWrite: %v", err)
+ 	}
+-	donec := make(chan bool)
+-	go func() {
+-		defer close(donec)
+-		bs, err := io.ReadAll(conn)
+-		if err != nil {
+-			t.Errorf("ReadAll: %v", err)
+-		}
+-		got := string(bs)
+-		if got != "" {
+-			t.Errorf("read %q from server; want nothing", got)
+-		}
+-	}()
+-	select {
+-	case <-donec:
+-	case <-time.After(10 * time.Second):
+-		t.Fatalf("timeout")
++
++	bs, err := io.ReadAll(conn)
++	if err != nil {
++		t.Errorf("ReadAll: %v", err)
++	}
++	got := string(bs)
++	if got != "" {
++		t.Errorf("read %q from server; want nothing", got)
+ 	}
+ }
+ 

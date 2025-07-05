@@ -14,7 +14,7 @@ Date:   Wed Sep 6 10:31:32 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/os3_solaris.go  | 1 +
  src/runtime/os_aix.go       | 1 +
  src/runtime/os_darwin.go    | 1 +
@@ -25,3 +25,113 @@ Date:   Wed Sep 6 10:31:32 2023 -0400
  src/runtime/os_openbsd.go   | 1 +
  src/runtime/os_windows.go   | 2 ++
  9 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 83acc648bb..81629f02a2 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -231,6 +231,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index ce2d719d0b..b26922c908 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -183,6 +183,7 @@ func minit() {
+ 
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index be29095329..ff33db084b 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -344,6 +344,7 @@ func unminit() {
+ 	if !(GOOS == "ios" && GOARCH == "arm64") {
+ 		unminitSignals()
+ 	}
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 8268c7f0fc..80c1267765 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -211,6 +211,7 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 3af234e279..ba609c0acc 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -328,6 +328,7 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 0b0561039f..51fedba2b8 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -420,6 +420,7 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index b50ed4b69e..c5d7b4b978 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -316,6 +316,7 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 500286ab98..dd7436885d 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -187,6 +187,7 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
++	getg().m.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 081a4a23d0..a4d902d083 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1010,6 +1010,8 @@ func unminit() {
+ 		mp.thread = 0
+ 	}
+ 	unlock(&mp.threadLock)
++
++	mp.procid = 0
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned

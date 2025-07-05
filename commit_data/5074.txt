@@ -8,7 +8,46 @@ Date:   Fri Mar 19 09:46:39 2010 +1100
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/624041
-
+---
  src/pkg/template/format.go        | 10 +++++++---
  src/pkg/template/template_test.go | 11 +++++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index 717dcbdbb6..8a31de970a 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -61,7 +61,11 @@ func HTMLEscape(w io.Writer, s []byte) {
+ 
+ // HTMLFormatter formats arbitrary values for HTML
+ func HTMLFormatter(w io.Writer, value interface{}, format string) {
+-	var b bytes.Buffer
+-	fmt.Fprint(&b, value)
+-	HTMLEscape(w, b.Bytes())
++	b, ok := value.([]byte)
++	if !ok {
++		var buf bytes.Buffer
++		fmt.Fprint(&buf, value)
++		b = buf.Bytes()
++	}
++	HTMLEscape(w, b)
+ }
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index aaf7f2ec32..2dd6468077 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -565,3 +565,14 @@ func TestVarIndirection(t *testing.T) {
+ 		t.Errorf("for %q: expected %q got %q", input, expect, buf.String())
+ 	}
+ }
++
++func TestHTMLFormatterWithByte(t *testing.T) {
++	s := "Test string."
++	b := []byte(s)
++	var buf bytes.Buffer
++	HTMLFormatter(&buf, b, "")
++	bs := buf.String()
++	if bs != s {
++		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
++	}
++}

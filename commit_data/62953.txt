@@ -15,7 +15,7 @@ Date:   Thu May 8 14:25:25 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 126 ++++++++++++++++-----
@@ -25,3 +25,449 @@ Date:   Thu May 8 14:25:25 2025 +0000
  .../vendor/golang.org/x/mod/sumdb/dirhash/hash.go  |   6 +-
  src/cmd/vendor/modules.txt                         |   2 +-
  8 files changed, 134 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 799d342434..df479393c0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20250208200701-d0013a598941
+ 	golang.org/x/arch v0.14.0
+ 	golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63
+-	golang.org/x/mod v0.24.0
++	golang.org/x/mod v0.24.1-0.20250508140430-9d3333156f46
+ 	golang.org/x/sync v0.13.0
+ 	golang.org/x/sys v0.32.0
+ 	golang.org/x/telemetry v0.0.0-20250212145848-75305293b65a
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index b3cf2633b9..d95c0e3a86 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,8 +10,8 @@ golang.org/x/arch v0.14.0 h1:z9JUEZWr8x4rR0OU6c4/4t6E6jOZ8/QBS2bBYBm4tx4=
+ golang.org/x/arch v0.14.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63 h1:QZ8/V1B4oK7N5t6w0zX5dAxFIHt0WaTX+r1z29cWXjY=
+ golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63/go.mod h1:JhINjMoWj8G2oLkaBLNDBIr/GLqJNOkCr4XzFWWYCf4=
+-golang.org/x/mod v0.24.0 h1:ZfthKaKaT4NrhGVZHO1/WDTwGES4De8KtWO0SIbNJMU=
+-golang.org/x/mod v0.24.0/go.mod h1:IXM97Txy2VM4PJ3gI61r1YEk/gAj6zAHN3AdZt6S9Ww=
++golang.org/x/mod v0.24.1-0.20250508140430-9d3333156f46 h1:0wufKs7434dECGChJ8f683kuQsBh+1MXieCdOlBOBw8=
++golang.org/x/mod v0.24.1-0.20250508140430-9d3333156f46/go.mod h1:IXM97Txy2VM4PJ3gI61r1YEk/gAj6zAHN3AdZt6S9Ww=
+ golang.org/x/sync v0.13.0 h1:AauUjRAJ9OSnvULf/ARrrVywoJDy0YS2AwQ98I37610=
+ golang.org/x/sync v0.13.0/go.mod h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA=
+ golang.org/x/sys v0.32.0 h1:s77OFDvIQeibCmezSnk/q6iAfkdiQaJi4VzroCFrN20=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 3e4a1d0ab4..a86ee4fd82 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -20,10 +20,11 @@
+ package modfile
+ 
+ import (
++	"cmp"
+ 	"errors"
+ 	"fmt"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -44,6 +45,7 @@ type File struct {
+ 	Replace   []*Replace
+ 	Retract   []*Retract
+ 	Tool      []*Tool
++	Ignore    []*Ignore
+ 
+ 	Syntax *FileSyntax
+ }
+@@ -100,6 +102,12 @@ type Tool struct {
+ 	Syntax *Line
+ }
+ 
++// An Ignore is a single ignore statement.
++type Ignore struct {
++	Path   string
++	Syntax *Line
++}
++
+ // A VersionInterval represents a range of versions with upper and lower bounds.
+ // Intervals are closed: both bounds are included. When Low is equal to High,
+ // the interval may refer to a single version ('v1.2.3') or an interval
+@@ -304,7 +312,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
+ 					})
+ 				}
+ 				continue
+-			case "module", "godebug", "require", "exclude", "replace", "retract", "tool":
++			case "module", "godebug", "require", "exclude", "replace", "retract", "tool", "ignore":
+ 				for _, l := range x.Line {
+ 					f.add(&errs, x, l, x.Token[0], l.Token, fix, strict)
+ 				}
+@@ -337,7 +345,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 	// and simply ignore those statements.
+ 	if !strict {
+ 		switch verb {
+-		case "go", "module", "retract", "require":
++		case "go", "module", "retract", "require", "ignore":
+ 			// want these even for dependency go.mods
+ 		default:
+ 			return
+@@ -531,6 +539,21 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 			Path:   s,
+ 			Syntax: line,
+ 		})
++
++	case "ignore":
++		if len(args) != 1 {
++			errorf("ignore directive expects exactly one argument")
++			return
++		}
++		s, err := parseString(&args[0])
++		if err != nil {
++			errorf("invalid quoted string: %v", err)
++			return
++		}
++		f.Ignore = append(f.Ignore, &Ignore{
++			Path:   s,
++			Syntax: line,
++		})
+ 	}
+ }
+ 
+@@ -1619,6 +1642,36 @@ func (f *File) DropTool(path string) error {
+ 	return nil
+ }
+ 
++// AddIgnore adds a new ignore directive with the given path.
++// It does nothing if the ignore line already exists.
++func (f *File) AddIgnore(path string) error {
++	for _, t := range f.Ignore {
++		if t.Path == path {
++			return nil
++		}
++	}
++
++	f.Ignore = append(f.Ignore, &Ignore{
++		Path:   path,
++		Syntax: f.Syntax.addLine(nil, "ignore", path),
++	})
++
++	f.SortBlocks()
++	return nil
++}
++
++// DropIgnore removes a ignore directive with the given path.
++// It does nothing if no such ignore directive exists.
++func (f *File) DropIgnore(path string) error {
++	for _, t := range f.Ignore {
++		if t.Path == path {
++			t.Syntax.markRemoved()
++			*t = Ignore{}
++		}
++	}
++	return nil
++}
++
+ func (f *File) SortBlocks() {
+ 	f.removeDups() // otherwise sorting is unsafe
+ 
+@@ -1633,15 +1686,13 @@ func (f *File) SortBlocks() {
+ 		if !ok {
+ 			continue
+ 		}
+-		less := lineLess
++		less := compareLine
+ 		if block.Token[0] == "exclude" && useSemanticSortForExclude {
+-			less = lineExcludeLess
++			less = compareLineExclude
+ 		} else if block.Token[0] == "retract" {
+-			less = lineRetractLess
++			less = compareLineRetract
+ 		}
+-		sort.SliceStable(block.Line, func(i, j int) bool {
+-			return less(block.Line[i], block.Line[j])
+-		})
++		slices.SortStableFunc(block.Line, less)
+ 	}
+ }
+ 
+@@ -1657,10 +1708,10 @@ func (f *File) SortBlocks() {
+ // retract directives are not de-duplicated since comments are
+ // meaningful, and versions may be retracted multiple times.
+ func (f *File) removeDups() {
+-	removeDups(f.Syntax, &f.Exclude, &f.Replace, &f.Tool)
++	removeDups(f.Syntax, &f.Exclude, &f.Replace, &f.Tool, &f.Ignore)
+ }
+ 
+-func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, tool *[]*Tool) {
++func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, tool *[]*Tool, ignore *[]*Ignore) {
+ 	kill := make(map[*Line]bool)
+ 
+ 	// Remove duplicate excludes.
+@@ -1719,6 +1770,24 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, to
+ 		*tool = newTool
+ 	}
+ 
++	if ignore != nil {
++		haveIgnore := make(map[string]bool)
++		for _, i := range *ignore {
++			if haveIgnore[i.Path] {
++				kill[i.Syntax] = true
++				continue
++			}
++			haveIgnore[i.Path] = true
++		}
++		var newIgnore []*Ignore
++		for _, i := range *ignore {
++			if !kill[i.Syntax] {
++				newIgnore = append(newIgnore, i)
++			}
++		}
++		*ignore = newIgnore
++	}
++
+ 	// Duplicate require and retract directives are not removed.
+ 
+ 	// Drop killed statements from the syntax tree.
+@@ -1746,39 +1815,38 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, to
+ 	syntax.Stmt = stmts
+ }
+ 
+-// lineLess returns whether li should be sorted before lj. It sorts
+-// lexicographically without assigning any special meaning to tokens.
+-func lineLess(li, lj *Line) bool {
++// compareLine compares li and lj. It sorts lexicographically without assigning
++// any special meaning to tokens.
++func compareLine(li, lj *Line) int {
+ 	for k := 0; k < len(li.Token) && k < len(lj.Token); k++ {
+ 		if li.Token[k] != lj.Token[k] {
+-			return li.Token[k] < lj.Token[k]
++			return cmp.Compare(li.Token[k], lj.Token[k])
+ 		}
+ 	}
+-	return len(li.Token) < len(lj.Token)
++	return cmp.Compare(len(li.Token), len(lj.Token))
+ }
+ 
+-// lineExcludeLess reports whether li should be sorted before lj for lines in
+-// an "exclude" block.
+-func lineExcludeLess(li, lj *Line) bool {
++// compareLineExclude compares li and lj for lines in an "exclude" block.
++func compareLineExclude(li, lj *Line) int {
+ 	if len(li.Token) != 2 || len(lj.Token) != 2 {
+ 		// Not a known exclude specification.
+ 		// Fall back to sorting lexicographically.
+-		return lineLess(li, lj)
++		return compareLine(li, lj)
+ 	}
+ 	// An exclude specification has two tokens: ModulePath and Version.
+ 	// Compare module path by string order and version by semver rules.
+ 	if pi, pj := li.Token[0], lj.Token[0]; pi != pj {
+-		return pi < pj
++		return cmp.Compare(pi, pj)
+ 	}
+-	return semver.Compare(li.Token[1], lj.Token[1]) < 0
++	return semver.Compare(li.Token[1], lj.Token[1])
+ }
+ 
+-// lineRetractLess returns whether li should be sorted before lj for lines in
+-// a "retract" block. It treats each line as a version interval. Single versions
+-// are compared as if they were intervals with the same low and high version.
++// compareLineRetract compares li and lj for lines in a "retract" block.
++// It treats each line as a version interval. Single versions are compared as
++// if they were intervals with the same low and high version.
+ // Intervals are sorted in descending order, first by low version, then by
+-// high version, using semver.Compare.
+-func lineRetractLess(li, lj *Line) bool {
++// high version, using [semver.Compare].
++func compareLineRetract(li, lj *Line) int {
+ 	interval := func(l *Line) VersionInterval {
+ 		if len(l.Token) == 1 {
+ 			return VersionInterval{Low: l.Token[0], High: l.Token[0]}
+@@ -1792,9 +1860,9 @@ func lineRetractLess(li, lj *Line) bool {
+ 	vii := interval(li)
+ 	vij := interval(lj)
+ 	if cmp := semver.Compare(vii.Low, vij.Low); cmp != 0 {
+-		return cmp > 0
++		return -cmp
+ 	}
+-	return semver.Compare(vii.High, vij.High) > 0
++	return -semver.Compare(vii.High, vij.High)
+ }
+ 
+ // checkCanonicalVersion returns a non-nil error if vers is not a canonical
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/work.go b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+index 5387d0c265..09df5ea3c7 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/work.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+@@ -6,7 +6,7 @@ package modfile
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -315,9 +315,7 @@ func (f *WorkFile) SortBlocks() {
+ 		if !ok {
+ 			continue
+ 		}
+-		sort.SliceStable(block.Line, func(i, j int) bool {
+-			return lineLess(block.Line[i], block.Line[j])
+-		})
++		slices.SortStableFunc(block.Line, compareLine)
+ 	}
+ }
+ 
+@@ -331,5 +329,5 @@ func (f *WorkFile) SortBlocks() {
+ // retract directives are not de-duplicated since comments are
+ // meaningful, and versions may be retracted multiple times.
+ func (f *WorkFile) removeDups() {
+-	removeDups(f.Syntax, nil, &f.Replace, nil)
++	removeDups(f.Syntax, nil, &f.Replace, nil, nil)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 2a364b229b..16e1aa7ab4 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -96,10 +96,11 @@ package module
+ // Changes to the semantics in this file require approval from rsc.
+ 
+ import (
++	"cmp"
+ 	"errors"
+ 	"fmt"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -657,17 +658,15 @@ func CanonicalVersion(v string) string {
+ // optionally followed by a tie-breaking suffix introduced by a slash character,
+ // like in "v0.0.1/go.mod".
+ func Sort(list []Version) {
+-	sort.Slice(list, func(i, j int) bool {
+-		mi := list[i]
+-		mj := list[j]
+-		if mi.Path != mj.Path {
+-			return mi.Path < mj.Path
++	slices.SortFunc(list, func(i, j Version) int {
++		if i.Path != j.Path {
++			return strings.Compare(i.Path, j.Path)
+ 		}
+ 		// To help go.sum formatting, allow version/file.
+ 		// Compare semver prefix by semver rules,
+ 		// file by string order.
+-		vi := mi.Version
+-		vj := mj.Version
++		vi := i.Version
++		vj := j.Version
+ 		var fi, fj string
+ 		if k := strings.Index(vi, "/"); k >= 0 {
+ 			vi, fi = vi[:k], vi[k:]
+@@ -676,9 +675,9 @@ func Sort(list []Version) {
+ 			vj, fj = vj[:k], vj[k:]
+ 		}
+ 		if vi != vj {
+-			return semver.Compare(vi, vj) < 0
++			return semver.Compare(vi, vj)
+ 		}
+-		return fi < fj
++		return cmp.Compare(fi, fj)
+ 	})
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/semver/semver.go b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+index 9a2dfd33a7..628f8fd687 100644
+--- a/src/cmd/vendor/golang.org/x/mod/semver/semver.go
++++ b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+@@ -22,7 +22,10 @@
+ // as shorthands for vMAJOR.0.0 and vMAJOR.MINOR.0.
+ package semver
+ 
+-import "sort"
++import (
++	"slices"
++	"strings"
++)
+ 
+ // parsed returns the parsed form of a semantic version string.
+ type parsed struct {
+@@ -154,19 +157,22 @@ func Max(v, w string) string {
+ // ByVersion implements [sort.Interface] for sorting semantic version strings.
+ type ByVersion []string
+ 
+-func (vs ByVersion) Len() int      { return len(vs) }
+-func (vs ByVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
+-func (vs ByVersion) Less(i, j int) bool {
+-	cmp := Compare(vs[i], vs[j])
+-	if cmp != 0 {
+-		return cmp < 0
+-	}
+-	return vs[i] < vs[j]
+-}
++func (vs ByVersion) Len() int           { return len(vs) }
++func (vs ByVersion) Swap(i, j int)      { vs[i], vs[j] = vs[j], vs[i] }
++func (vs ByVersion) Less(i, j int) bool { return compareVersion(vs[i], vs[j]) < 0 }
+ 
+-// Sort sorts a list of semantic version strings using [ByVersion].
++// Sort sorts a list of semantic version strings using [Compare] and falls back
++// to use [strings.Compare] if both versions are considered equal.
+ func Sort(list []string) {
+-	sort.Sort(ByVersion(list))
++	slices.SortFunc(list, compareVersion)
++}
++
++func compareVersion(a, b string) int {
++	cmp := Compare(a, b)
++	if cmp != 0 {
++		return cmp
++	}
++	return strings.Compare(a, b)
+ }
+ 
+ func parse(v string) (p parsed, ok bool) {
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go b/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
+index 51ec4db873..117985ac30 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
+@@ -16,7 +16,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -36,7 +36,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
+ //	sha256sum $(find . -type f | sort) | sha256sum
+ //
+ // More precisely, the hashed summary contains a single line for each file in the list,
+-// ordered by sort.Strings applied to the file names, where each line consists of
++// ordered by [slices.Sort] applied to the file names, where each line consists of
+ // the hexadecimal SHA-256 hash of the file content,
+ // two spaces (U+0020), the file name, and a newline (U+000A).
+ //
+@@ -44,7 +44,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
+ func Hash1(files []string, open func(string) (io.ReadCloser, error)) (string, error) {
+ 	h := sha256.New()
+ 	files = append([]string(nil), files...)
+-	sort.Strings(files)
++	slices.Sort(files)
+ 	for _, file := range files {
+ 		if strings.Contains(file, "\n") {
+ 			return "", errors.New("dirhash: filenames with newlines are not supported")
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index dbf37f04b8..84f62bf19f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63
+ ## explicit; go 1.22.0
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.24.0
++# golang.org/x/mod v0.24.1-0.20250508140430-9d3333156f46
+ ## explicit; go 1.23.0
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

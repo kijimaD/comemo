@@ -8,6 +8,35 @@ Date:   Thu Apr 16 16:05:52 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9011
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 50f9dd7f52..88b2004c83 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -72,10 +72,6 @@ func main() {
+ 
+ 	gcenable()
+ 
+-	if islibrary {
+-		// Allocate new M as main_main() is expected to block forever.
+-		systemstack(newextram)
+-	}
+ 	main_init_done = make(chan bool)
+ 	if iscgo {
+ 		if _cgo_thread_start == nil {
+@@ -107,9 +103,9 @@ func main() {
+ 	needUnlock = false
+ 	unlockOSThread()
+ 
+-	if isarchive {
+-		// A program compiled with -buildmode=c-archive has a main,
+-		// but it is not executed.
++	if isarchive || islibrary {
++		// A program compiled with -buildmode=c-archive or c-shared
++		// has a main, but it is not executed.
+ 		return
+ 	}
+ 	main_main()

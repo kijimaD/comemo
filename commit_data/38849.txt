@@ -22,7 +22,7 @@ Date:   Thu Nov 22 11:46:44 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/150918
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/buffer.go                             |  2 +-
  src/cmd/cgo/gcc.go                              | 12 ++++++------
  src/cmd/cgo/out.go                              |  2 +-
@@ -75,3 +75,773 @@ Date:   Thu Nov 22 11:46:44 2018 +0100
  src/testing/benchmark.go                        |  2 +-
  src/time/zoneinfo.go                            |  2 +-
  51 files changed, 64 insertions(+), 64 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 087cc0e427..aff2db5084 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -68,7 +68,7 @@ func (b *Buffer) String() string {
+ 	return string(b.buf[b.off:])
+ }
+ 
+-// empty returns whether the unread portion of the buffer is empty.
++// empty reports whether the unread portion of the buffer is empty.
+ func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
+ 
+ // Len returns the number of bytes of the unread portion of the buffer;
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b5bc87dde6..3c96af2be6 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -718,7 +718,7 @@ func (p *Package) mangleName(n *Name) {
+ 
+ // rewriteCalls rewrites all calls that pass pointers to check that
+ // they follow the rules for passing pointers between Go and C.
+-// This returns whether the package needs to import unsafe as _cgo_unsafe.
++// This reports whether the package needs to import unsafe as _cgo_unsafe.
+ func (p *Package) rewriteCalls(f *File) bool {
+ 	needsUnsafe := false
+ 	// Walk backward so that in C.f1(C.f2()) we rewrite C.f2 first.
+@@ -941,7 +941,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 	return sb.String(), needsUnsafe
+ }
+ 
+-// needsPointerCheck returns whether the type t needs a pointer check.
++// needsPointerCheck reports whether the type t needs a pointer check.
+ // This is true if t is a pointer and if the value to which it points
+ // might contain a pointer.
+ func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
+@@ -958,7 +958,7 @@ func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
+ 
+ // hasPointer is used by needsPointerCheck. If top is true it returns
+ // whether t is or contains a pointer that might point to a pointer.
+-// If top is false it returns whether t is or contains a pointer.
++// If top is false it reports whether t is or contains a pointer.
+ // f may be nil.
+ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
+ 	switch t := t.(type) {
+@@ -1172,7 +1172,7 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
+ 	return true
+ }
+ 
+-// isType returns whether the expression is definitely a type.
++// isType reports whether the expression is definitely a type.
+ // This is conservative--it returns false for an unknown identifier.
+ func (p *Package) isType(t ast.Expr) bool {
+ 	switch t := t.(type) {
+@@ -1214,7 +1214,7 @@ func (p *Package) isType(t ast.Expr) bool {
+ 	return false
+ }
+ 
+-// isConst returns whether x is an untyped constant expression.
++// isConst reports whether x is an untyped constant expression.
+ func (p *Package) isConst(f *File, x ast.Expr) bool {
+ 	switch x := x.(type) {
+ 	case *ast.BasicLit:
+@@ -2827,7 +2827,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	return
+ }
+ 
+-// dwarfHasPointer returns whether the DWARF type dt contains a pointer.
++// dwarfHasPointer reports whether the DWARF type dt contains a pointer.
+ func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
+ 	switch dt := dt.(type) {
+ 	default:
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c49b51c611..401a87feca 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1203,7 +1203,7 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
+ 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+ }
+ 
+-// gccgoUsesNewMangling returns whether gccgo uses the new collision-free
++// gccgoUsesNewMangling reports whether gccgo uses the new collision-free
+ // packagepath mangling scheme (see determineGccgoManglingScheme for more
+ // info).
+ func gccgoUsesNewMangling() bool {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8310b8d2fc..2863d4b5d0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -915,7 +915,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	return ot
+ }
+ 
+-// typeHasNoAlg returns whether t does not have any associated hash/eq
++// typeHasNoAlg reports whether t does not have any associated hash/eq
+ // algorithms because t, or some component of t, is marked Noalg.
+ func typeHasNoAlg(t *types.Type) bool {
+ 	a, bad := algtype1(t)
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 2bf17dc415..97a9b20537 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -14,12 +14,12 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-// isFPreg returns whether r is an FP register
++// isFPreg reports whether r is an FP register
+ func isFPreg(r int16) bool {
+ 	return mips.REG_F0 <= r && r <= mips.REG_F31
+ }
+ 
+-// isHILO returns whether r is HI or LO register
++// isHILO reports whether r is HI or LO register
+ func isHILO(r int16) bool {
+ 	return r == mips.REG_HI || r == mips.REG_LO
+ }
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index bf2076f5fb..8a2d2b0f7a 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -14,12 +14,12 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-// isFPreg returns whether r is an FP register
++// isFPreg reports whether r is an FP register
+ func isFPreg(r int16) bool {
+ 	return mips.REG_F0 <= r && r <= mips.REG_F31
+ }
+ 
+-// isHILO returns whether r is HI or LO register
++// isHILO reports whether r is HI or LO register
+ func isHILO(r int16) bool {
+ 	return r == mips.REG_HI || r == mips.REG_LO
+ }
+diff --git a/src/cmd/compile/internal/ssa/biasedsparsemap.go b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+index e1901f2135..f9d3afa745 100644
+--- a/src/cmd/compile/internal/ssa/biasedsparsemap.go
++++ b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+@@ -43,7 +43,7 @@ func (s *biasedSparseMap) size() int {
+ 	return s.s.size()
+ }
+ 
+-// contains returns whether x is a key in s
++// contains reports whether x is a key in s
+ func (s *biasedSparseMap) contains(x uint) bool {
+ 	if s.s == nil {
+ 		return false
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 558c4b7db8..5d7504392c 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -164,7 +164,7 @@ type Frontend interface {
+ 	// given name.
+ 	Syslook(string) *obj.LSym
+ 
+-	// UseWriteBarrier returns whether write barrier is enabled
++	// UseWriteBarrier reports whether write barrier is enabled
+ 	UseWriteBarrier() bool
+ 
+ 	// SetWBPos indicates that a write barrier has been inserted
+diff --git a/src/cmd/compile/internal/ssa/magic.go b/src/cmd/compile/internal/ssa/magic.go
+index 0457e90b53..12044111ea 100644
+--- a/src/cmd/compile/internal/ssa/magic.go
++++ b/src/cmd/compile/internal/ssa/magic.go
+@@ -83,7 +83,7 @@ import "math/big"
+ //                   a+b has n+1 bits in it.  Nevertheless, can be done
+ //                   in 2 instructions on x86.)
+ 
+-// umagicOK returns whether we should strength reduce a n-bit divide by c.
++// umagicOK reports whether we should strength reduce a n-bit divide by c.
+ func umagicOK(n uint, c int64) bool {
+ 	// Convert from ConstX auxint values to the real uint64 constant they represent.
+ 	d := uint64(c) << (64 - n) >> (64 - n)
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 662f58e4b5..3e14b9e3df 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -20,7 +20,7 @@ func isPoorStatementOp(op Op) bool {
+ 	return false
+ }
+ 
+-// LosesStmtMark returns whether a prog with op as loses its statement mark on the way to DWARF.
++// LosesStmtMark reports whether a prog with op as loses its statement mark on the way to DWARF.
+ // The attributes from some opcodes are lost in translation.
+ // TODO: this is an artifact of how funcpctab combines information for instructions at a single PC.
+ // Should try to fix it there.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 7ddf215478..6ea46e7327 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -320,7 +320,7 @@ func canMergeLoad(target, load *Value) bool {
+ 	return true
+ }
+ 
+-// isSameSym returns whether sym is the same as the given named symbol
++// isSameSym reports whether sym is the same as the given named symbol
+ func isSameSym(sym interface{}, name string) bool {
+ 	s, ok := sym.(fmt.Stringer)
+ 	return ok && s.String() == name
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 7e869f29c9..6e35a3c777 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -300,7 +300,7 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
+ 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
+ }
+ 
+-// isGenericIntConst returns whether v is a generic integer constant.
++// isGenericIntConst reports whether v is a generic integer constant.
+ func (v *Value) isGenericIntConst() bool {
+ 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
+ }
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 95816d2bda..1024ab25ab 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -11,7 +11,7 @@ import (
+ 	"strings"
+ )
+ 
+-// needwb returns whether we need write barrier for store op v.
++// needwb reports whether we need write barrier for store op v.
+ // v must be Store/Move/Zero.
+ func needwb(v *Value) bool {
+ 	t, ok := v.Aux.(*types.Type)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 46a9b81680..3e5f5cbf49 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1457,7 +1457,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 	return true
+ }
+ 
+-// HasHeapPointer returns whether t contains a heap pointer.
++// HasHeapPointer reports whether t contains a heap pointer.
+ // This is used for write barrier insertion, so it ignores
+ // pointers to go:notinheap types.
+ func (t *Type) HasHeapPointer() bool {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 9746426d90..093b222898 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1183,7 +1183,7 @@ func isaddcon(v int64) bool {
+ 	return v <= 0xFFF
+ }
+ 
+-// isbitcon returns whether a constant can be encoded into a logical instruction.
++// isbitcon reports whether a constant can be encoded into a logical instruction.
+ // bitcon has a binary form of repetition of a bit sequence of length 2, 4, 8, 16, 32, or 64,
+ // which itself is a rotate (w.r.t. the length of the unit) of a sequence of ones.
+ // special cases: 0 and -1 are not bitcon.
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index a3e2868a1b..355882c638 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -198,7 +198,7 @@ const (
+ 	R_WASMIMPORT
+ )
+ 
+-// IsDirectJump returns whether r is a relocation for a direct jump.
++// IsDirectJump reports whether r is a relocation for a direct jump.
+ // A direct jump is a CALL or JMP instruction that takes the target address
+ // as immediate. The address is embedded into the instruction, possibly
+ // with limited width.
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ffa20bb637..848087d743 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -48,7 +48,7 @@ import (
+ 	"sync"
+ )
+ 
+-// isRuntimeDepPkg returns whether pkg is the runtime package or its dependency
++// isRuntimeDepPkg reports whether pkg is the runtime package or its dependency
+ func isRuntimeDepPkg(pkg string) bool {
+ 	switch pkg {
+ 	case "runtime",
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9b04e3ce11..6c5bc542a7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -158,7 +158,7 @@ const (
+ 	MINFUNC = 16 // minimum size for a function
+ )
+ 
+-// DynlinkingGo returns whether we are producing Go code that can live
++// DynlinkingGo reports whether we are producing Go code that can live
+ // in separate shared libraries linked together at runtime.
+ func (ctxt *Link) DynlinkingGo() bool {
+ 	if !ctxt.Loaded {
+@@ -167,12 +167,12 @@ func (ctxt *Link) DynlinkingGo() bool {
+ 	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
+ }
+ 
+-// CanUsePlugins returns whether a plugins can be used
++// CanUsePlugins reports whether a plugins can be used
+ func (ctxt *Link) CanUsePlugins() bool {
+ 	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
+ }
+ 
+-// UseRelro returns whether to make use of "read only relocations" aka
++// UseRelro reports whether to make use of "read only relocations" aka
+ // relro.
+ func (ctxt *Link) UseRelro() bool {
+ 	switch ctxt.BuildMode {
+diff --git a/src/cmd/pprof/readlineui.go b/src/cmd/pprof/readlineui.go
+index bf2f321184..5b9701a0e2 100644
+--- a/src/cmd/pprof/readlineui.go
++++ b/src/cmd/pprof/readlineui.go
+@@ -101,7 +101,7 @@ func colorize(msg string) string {
+ 	return colorEscape + msg + colorResetEscape
+ }
+ 
+-// IsTerminal returns whether the UI is known to be tied to an
++// IsTerminal reports whether the UI is known to be tied to an
+ // interactive terminal (as opposed to being redirected to a file).
+ func (r *readlineUI) IsTerminal() bool {
+ 	const stdout = 1
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 2fb1198cf6..2498415681 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -538,7 +538,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+ 	return false
+ }
+ 
+-// overlappingDuration returns whether the durational event, ev, overlaps with
++// overlappingDuration reports whether the durational event, ev, overlaps with
+ // any of the task's region if ev is a goroutine-local event, or overlaps with
+ // the task's lifetime if ev is a global event. It returns the overlapping time
+ // as well.
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index b5e4ab734c..0bc40ccf0b 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -240,7 +240,7 @@ const (
+ 	RequireAndVerifyClientCert
+ )
+ 
+-// requiresClientCert returns whether the ClientAuthType requires a client
++// requiresClientCert reports whether the ClientAuthType requires a client
+ // certificate to be provided.
+ func requiresClientCert(c ClientAuthType) bool {
+ 	switch c {
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index fa76f7ca06..5f634b36aa 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -464,7 +464,7 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID)
+ 	return nil
+ }
+ 
+-// illegalClientHelloChange returns whether the two ClientHello messages are
++// illegalClientHelloChange reports whether the two ClientHello messages are
+ // different, with the exception of the changes allowed before and after a
+ // HelloRetryRequest. See RFC 8446, Section 4.1.2.
+ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 59c3b15c83..0f59578087 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -227,7 +227,7 @@ func (n Name) String() string {
+ 	return n.ToRDNSequence().String()
+ }
+ 
+-// oidInAttributeTypeAndValue returns whether a type with the given OID exists
++// oidInAttributeTypeAndValue reports whether a type with the given OID exists
+ // in atv.
+ func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
+ 	for _, a := range atv {
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 23ee2d2512..ea78ab123f 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -858,7 +858,7 @@ nextIntermediate:
+ 	return
+ }
+ 
+-// validHostname returns whether host is a valid hostname that can be matched or
++// validHostname reports whether host is a valid hostname that can be matched or
+ // matched against according to RFC 6125 2.2, with some leniency to accommodate
+ // legacy values.
+ func validHostname(host string) bool {
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index d8587aba92..08681a6ee2 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1641,7 +1641,7 @@ var (
+ 	oidAuthorityInfoAccessIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
+ )
+ 
+-// oidNotInExtensions returns whether an extension with the given oid exists in
++// oidNotInExtensions reports whether an extension with the given oid exists in
+ // extensions.
+ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) bool {
+ 	for _, e := range extensions {
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 71800aae83..b0353ab4dc 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2821,7 +2821,7 @@ func (ci *ColumnType) ScanType() reflect.Type {
+ 	return ci.scanType
+ }
+ 
+-// Nullable returns whether the column may be null.
++// Nullable reports whether the column may be null.
+ // If a driver does not support this property ok will be false.
+ func (ci *ColumnType) Nullable() (nullable, ok bool) {
+ 	return ci.nullable, ci.hasNullable
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index 4e6e1429d9..b862b49d62 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -590,7 +590,7 @@ func (r *LineReader) SeekPC(pc uint64, entry *LineEntry) error {
+ 	}
+ }
+ 
+-// pathIsAbs returns whether path is an absolute path (or "full path
++// pathIsAbs reports whether path is an absolute path (or "full path
+ // name" in DWARF parlance). This is in "whatever form makes sense for
+ // the host system", so this accepts both UNIX-style and DOS-style
+ // absolute paths. We avoid the filepath package because we want this
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index d22f865652..0f2029cada 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -976,7 +976,7 @@ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
+ 	return false
+ }
+ 
+-// selectorExpr handles an *ast.SelectorExpr node and returns whether x spans
++// selectorExpr handles an *ast.SelectorExpr node and reports whether x spans
+ // multiple lines.
+ func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
+ 	p.expr1(x.X, token.HighestPrec, depth)
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index b9da9a5301..9d846d8c49 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -14,7 +14,7 @@ import (
+ 	"sync"
+ )
+ 
+-// IsStandardPackage returns whether path is a standard package,
++// IsStandardPackage reports whether path is a standard package,
+ // given goroot and compiler.
+ func IsStandardPackage(goroot, compiler, path string) bool {
+ 	switch compiler {
+@@ -95,7 +95,7 @@ func (gd *gccgoDirs) init() {
+ 	gd.dirs = append(gd.dirs, lastDirs...)
+ }
+ 
+-// isStandard returns whether path is a standard library for gccgo.
++// isStandard reports whether path is a standard library for gccgo.
+ func (gd *gccgoDirs) isStandard(path string) bool {
+ 	// Quick check: if the first path component has a '.', it's not
+ 	// in the standard library. This skips most GOPATH directories.
+diff --git a/src/internal/goroot/gccgo.go b/src/internal/goroot/gccgo.go
+index 098e77d893..3530e59a15 100644
+--- a/src/internal/goroot/gccgo.go
++++ b/src/internal/goroot/gccgo.go
+@@ -11,7 +11,7 @@ import (
+ 	"path/filepath"
+ )
+ 
+-// IsStandardPackage returns whether path is a standard package,
++// IsStandardPackage reports whether path is a standard package,
+ // given goroot and compiler.
+ func IsStandardPackage(goroot, compiler, path string) bool {
+ 	switch compiler {
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index ad7903f074..63f62214db 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -263,7 +263,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 	return cookies
+ }
+ 
+-// validCookieDomain returns whether v is a valid cookie domain-value.
++// validCookieDomain reports whether v is a valid cookie domain-value.
+ func validCookieDomain(v string) bool {
+ 	if isCookieDomainName(v) {
+ 		return true
+@@ -274,13 +274,13 @@ func validCookieDomain(v string) bool {
+ 	return false
+ }
+ 
+-// validCookieExpires returns whether v is a valid cookie expires-value.
++// validCookieExpires reports whether v is a valid cookie expires-value.
+ func validCookieExpires(t time.Time) bool {
+ 	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
+ 	return t.Year() >= 1601
+ }
+ 
+-// isCookieDomainName returns whether s is a valid domain name or a valid
++// isCookieDomainName reports whether s is a valid domain name or a valid
+ // domain name with a leading dot '.'.  It is almost a direct copy of
+ // package net's isDomainName.
+ func isCookieDomainName(s string) bool {
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 77ab0343f4..676eebdfdf 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -4852,7 +4852,7 @@ func (sc *http2serverConn) resetStream(se http2StreamError) {
+ 
+ // processFrameFromReader processes the serve loop's read from readFrameCh from the
+ // frame-reading goroutine.
+-// processFrameFromReader returns whether the connection should be kept open.
++// processFrameFromReader reports whether the connection should be kept open.
+ func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool {
+ 	sc.serveG.check()
+ 	err := res.err
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 97ed59e9fd..aa9c3f5d2e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3082,7 +3082,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ }
+ 
+ // setupHTTP2_ServeTLS conditionally configures HTTP/2 on
+-// srv and returns whether there was an error setting it up. If it is
++// srv and reports whether there was an error setting it up. If it is
+ // not configured for policy reasons, nil is returned.
+ func (srv *Server) setupHTTP2_ServeTLS() error {
+ 	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
+diff --git a/src/net/interface.go b/src/net/interface.go
+index f68df98aa2..8d29a44db8 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -188,7 +188,7 @@ var zoneCache = ipv6ZoneCache{
+ }
+ 
+ // update refreshes the network interface information if the cache was last
+-// updated more than 1 minute ago, or if force is set. It returns whether the
++// updated more than 1 minute ago, or if force is set. It reports whether the
+ // cache was updated.
+ func (zc *ipv6ZoneCache) update(ift []Interface, force bool) (updated bool) {
+ 	zc.Lock()
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index d070604600..469abf7640 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -7,7 +7,7 @@
+ package os
+ 
+ // blockUntilWaitable attempts to block until a call to p.Wait will
+-// succeed immediately, and returns whether it has done so.
++// succeed immediately, and reports whether it has done so.
+ // It does not actually call p.Wait.
+ // This version is used on systems that do not implement waitid,
+ // or where we have not implemented it yet.
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 891f242dac..45bf649015 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -14,7 +14,7 @@ import (
+ const _P_PID = 0
+ 
+ // blockUntilWaitable attempts to block until a call to p.Wait will
+-// succeed immediately, and returns whether it has done so.
++// succeed immediately, and reports whether it has done so.
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	var errno syscall.Errno
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 5a62b27f19..946c085a50 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -18,7 +18,7 @@ import (
+ const _P_PID = 1
+ 
+ // blockUntilWaitable attempts to block until a call to p.Wait will
+-// succeed immediately, and returns whether it has done so.
++// succeed immediately, and reports whether it has done so.
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// The waitid system call expects a pointer to a siginfo_t,
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index 78cde4aa09..7095a6b4bd 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -43,7 +43,7 @@ func normBase(path string) (string, error) {
+ 	return syscall.UTF16ToString(data.FileName[:]), nil
+ }
+ 
+-// baseIsDotDot returns whether the last element of path is "..".
++// baseIsDotDot reports whether the last element of path is "..".
+ // The given path should be 'Clean'-ed in advance.
+ func baseIsDotDot(path string) bool {
+ 	i := strings.LastIndexByte(path, Separator)
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index ca31408b50..85b6c8289a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -606,7 +606,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 	return
+ }
+ 
+-// cgoIsGoPointer returns whether the pointer is a Go pointer--a
++// cgoIsGoPointer reports whether the pointer is a Go pointer--a
+ // pointer to Go memory. We only care about Go memory that might
+ // contain pointers.
+ //go:nosplit
+@@ -629,7 +629,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
+ 	return false
+ }
+ 
+-// cgoInRange returns whether p is between start and end.
++// cgoInRange reports whether p is between start and end.
+ //go:nosplit
+ //go:nowritebarrierrec
+ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 67d99900a2..2f00add83e 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -242,7 +242,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 	return result
+ }
+ 
+-// isFree returns whether the index'th object in s is unallocated.
++// isFree reports whether the index'th object in s is unallocated.
+ func (s *mspan) isFree(index uintptr) bool {
+ 	if index < s.freeindex {
+ 		return false
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 03c64c4b11..86416caab5 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -558,7 +558,7 @@ func gcWakeAllAssists() {
+ 
+ // gcParkAssist puts the current goroutine on the assist queue and parks.
+ //
+-// gcParkAssist returns whether the assist is now satisfied. If it
++// gcParkAssist reports whether the assist is now satisfied. If it
+ // returns false, the caller must retry the assist.
+ //
+ //go:nowritebarrier
+diff --git a/src/runtime/pprof/internal/profile/filter.go b/src/runtime/pprof/internal/profile/filter.go
+index 1baa096a49..9cad866df8 100644
+--- a/src/runtime/pprof/internal/profile/filter.go
++++ b/src/runtime/pprof/internal/profile/filter.go
+@@ -55,7 +55,7 @@ func (p *Profile) FilterSamplesByName(focus, ignore, hide *regexp.Regexp) (fm, i
+ 	return
+ }
+ 
+-// matchesName returns whether the function name or file in the
++// matchesName reports whether the function name or file in the
+ // location matches the regular expression.
+ func (loc *Location) matchesName(re *regexp.Regexp) bool {
+ 	for _, ln := range loc.Line {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b78eff8ff6..409869fd10 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4592,7 +4592,7 @@ func schedEnableUser(enable bool) {
+ 	}
+ }
+ 
+-// schedEnabled returns whether gp should be scheduled. It returns
++// schedEnabled reports whether gp should be scheduled. It returns
+ // false is scheduling of gp is disabled.
+ func schedEnabled(gp *g) bool {
+ 	if sched.disable.user {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 2729c2ecf9..85be1bc64d 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -110,7 +110,7 @@ func block() {
+ //
+ // selectgo returns the index of the chosen scase, which matches the
+ // ordinal position of its respective select{recv,send,default} call.
+-// Also, if the chosen scase was a receive operation, it returns whether
++// Also, if the chosen scase was a receive operation, it reports whether
+ // a value was received.
+ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 	if debugSelect {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 12a938c8c9..15f1799801 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -773,7 +773,7 @@ func unminitSignals() {
+ 	}
+ }
+ 
+-// blockableSig returns whether sig may be blocked by the signal mask.
++// blockableSig reports whether sig may be blocked by the signal mask.
+ // We never want to block the signals marked _SigUnblock;
+ // these are the synchronous signals that turn into a Go panic.
+ // In a Go program--not a c-archive/c-shared--we never want to block
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 0d5503a6f5..d4698e805c 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -298,7 +298,7 @@ func round(n, a uintptr) uintptr {
+ 	return (n + a - 1) &^ (a - 1)
+ }
+ 
+-// checkASM returns whether assembly runtime checks have passed.
++// checkASM reports whether assembly runtime checks have passed.
+ func checkASM() bool
+ 
+ func memequal_varlen(a, b unsafe.Pointer) bool
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index d5a7d003fe..82cb232dba 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -171,7 +171,7 @@ func (r *Region) End() {
+ 	userRegion(r.id, regionEndCode, r.regionType)
+ }
+ 
+-// IsEnabled returns whether tracing is enabled.
++// IsEnabled reports whether tracing is enabled.
+ // The information is advisory only. The tracing status
+ // may have changed by the time this function returns.
+ func IsEnabled() bool {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9d2f7f037c..0328fee4e6 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -876,7 +876,7 @@ func isExportedRuntime(name string) bool {
+ 	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
+ }
+ 
+-// elideWrapperCalling returns whether a wrapper function that called
++// elideWrapperCalling reports whether a wrapper function that called
+ // function "name" should be elided from stack traces.
+ func elideWrapperCalling(name string) bool {
+ 	// If the wrapper called a panic function instead of the
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 9827874bea..71ba4ce416 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -280,7 +280,7 @@ func vdsoauxv(tag, val uintptr) {
+ 	}
+ }
+ 
+-// vdsoMarker returns whether PC is on the VDSO page.
++// vdsoMarker reports whether PC is on the VDSO page.
+ func inVDSOPage(pc uintptr) bool {
+ 	for _, k := range vdsoSymbolKeys {
+ 		if *k.ptr != 0 {
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 90f86dc373..8dd8cbc17e 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -230,7 +230,7 @@ func roundUp(n int) int {
+ 	}
+ }
+ 
+-// run1 runs the first iteration of benchFunc. It returns whether more
++// run1 runs the first iteration of benchFunc. It reports whether more
+ // iterations of this benchmarks should be run.
+ func (b *B) run1() bool {
+ 	if ctx := b.context; ctx != nil {
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 54c76f09e1..7dffbfad5e 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -205,7 +205,7 @@ func (l *Location) lookupFirstZone() int {
+ 	return 0
+ }
+ 
+-// firstZoneUsed returns whether the first zone is used by some
++// firstZoneUsed reports whether the first zone is used by some
+ // transition.
+ func (l *Location) firstZoneUsed() bool {
+ 	for _, tx := range l.tx {

@@ -11,6 +11,19 @@ Date:   Mon May 19 15:51:03 2025 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Mark Freeman <mark@golang.org>
     Auto-Submit: Mark Freeman <mark@golang.org>
-
+---
  src/cmd/compile/internal/noder/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index d2405928a4..a35efa886d 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -170,6 +170,7 @@ there for definitions of the below productions.
+     * Int64
+     * Uint64
+     * String
++    * Ref[T]
+     * Sync
+ */
+ 

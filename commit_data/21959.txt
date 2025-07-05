@@ -9,7 +9,91 @@ Date:   Thu Feb 12 14:52:46 2015 -0800
     Change-Id: I4fd694101c2cf1c0c39bf73d16cab18502742dd9
     Reviewed-on: https://go-review.googlesource.com/4881
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/natconv.go      | 20 +++++++++++++-------
  src/math/big/natconv_test.go |  6 +-----
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index e094d22193..b5c37731fa 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -8,6 +8,7 @@ package big
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"math"
+ 	"sync"
+@@ -50,7 +51,7 @@ func pow(x Word, n int) (p Word) {
+ // scan scans the number corresponding to the longest possible prefix
+ // from r representing an unsigned number in a given conversion base.
+ // It returns the corresponding natural number res, the actual base b,
+-// a digit count, and an error err, if any.
++// a digit count, and a read or syntax error err, if any.
+ //
+ //	number   = [ prefix ] mantissa .
+ //	prefix   = "0" [ "x" | "X" | "b" | "B" ] .
+@@ -58,12 +59,15 @@ func pow(x Word, n int) (p Word) {
+ //	digits   = digit { digit } .
+ //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+ //
+-// The base argument must be 0 or a value between 0 through MaxBase.
++// Unless fracOk is set, the base argument must be 0 or a value between
++// 2 through MaxBase. If fracOk is set, the base argument must be one of
++// 0, 2, 10, or 16. Providing an invalid base argument leads to a run-
++// time panic.
+ //
+ // For base 0, the number prefix determines the actual base: A prefix of
+ // ``0x'' or ``0X'' selects base 16; if fracOk is not set, the ``0'' prefix
+ // selects base 8, and a ``0b'' or ``0B'' prefix selects base 2. Otherwise
+-// the selected base is 10 and no prefix is permitted.
++// the selected base is 10 and no prefix is accepted.
+ //
+ // If fracOk is set, an octal prefix is ignored (a leading ``0'' simply
+ // stands for a zero digit), and a period followed by a fractional part
+@@ -73,13 +77,15 @@ func pow(x Word, n int) (p Word) {
+ // A result digit count > 0 corresponds to the number of (non-prefix) digits
+ // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
+ // is set, only), and -count is the number of fractional digits found.
+-// In this case, the value of the scanned number is res * 10**count.
++// In this case, the actual value of the scanned number is res * b**count.
+ //
+ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
+ 	// reject illegal bases
+-	if base != 0 && base < 2 || base > MaxBase {
+-		err = errors.New("illegal number base")
+-		return
++	baseOk := base == 0 ||
++		!fracOk && 2 <= base && base <= MaxBase ||
++		fracOk && (base == 2 || base == 10 || base == 16)
++	if !baseOk {
++		panic(fmt.Sprintf("illegal number base %d", base))
+ 	}
+ 
+ 	// one char look-ahead
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index d4c3fb4b34..f321fbc2df 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -98,10 +98,6 @@ var natScanTests = []struct {
+ 	ok    bool   // expected success
+ 	next  rune   // next character (or 0, if at EOF)
+ }{
+-	// error: illegal base
+-	{base: -1},
+-	{base: 37},
+-
+ 	// error: no mantissa
+ 	{},
+ 	{s: "?"},
+@@ -114,7 +110,7 @@ var natScanTests = []struct {
+ 	// error: incorrect use of decimal point
+ 	{s: ".0"},
+ 	{s: ".0", base: 10},
+-	{s: ".", base: 1},
++	{s: ".", base: 0},
+ 	{s: "0x.0"},
+ 
+ 	// no errors

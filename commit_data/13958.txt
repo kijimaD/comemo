@@ -13,6 +13,39 @@ Date:   Thu Sep 27 00:00:50 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6533053
-
+---
  src/cmd/go/pkg.go | 21 +++++++++++++--------
  1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 94f01aab05..e9f344ff91 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -521,14 +521,19 @@ func isStale(p *Package, topRoot map[string]bool) bool {
+ 	// As a courtesy to developers installing new versions of the compiler
+ 	// frequently, define that packages are stale if they are
+ 	// older than the compiler, and commands if they are older than
+-	// the linker.  This heuristic will not work if the binaries are back-dated,
+-	// as some binary distributions may do, but it does handle a very
+-	// common case.  See issue 3036.
+-	if olderThan(buildToolchain.compiler()) {
+-		return true
+-	}
+-	if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
+-		return true
++	// the linker.  This heuristic will not work if the binaries are
++	// back-dated, as some binary distributions may do, but it does handle
++	// a very common case.
++	// See issue 3036.
++	// Assume code in $GOROOT is up to date, since it may not be writeable.
++	// See issue 4106.
++	if p.Root != goroot {
++		if olderThan(buildToolchain.compiler()) {
++			return true
++		}
++		if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
++			return true
++		}
+ 	}
+ 
+ 	// Have installed copy, probably built using current compilers,

@@ -11,10 +11,128 @@ Date:   Tue Jan 26 12:53:02 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186180
-
+---
  src/pkg/math/Makefile      |  1 +
  src/pkg/math/all_test.go   |  6 ++---
  src/pkg/math/hypot_386.s   | 57 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/math/hypot_decl.go |  7 ++++++
  src/pkg/math/sqrt.go       |  1 -
  5 files changed, 68 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index be9b6ff639..b10df65300 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -15,6 +15,7 @@ OFILES_386=\
+ 	exp_386.$O\
+ 	fabs_386.$O\
+ 	floor_386.$O\
++	hypot_386.$O\
+ 	log_386.$O\
+ 	sin_386.$O\
+ 	sqrt_386.$O\
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 15d289be1b..97c52d3ebe 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -585,9 +585,9 @@ func TestFmod(t *testing.T) {
+ 
+ func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(tanh[i] * Sqrt(2))
+-		if f := Hypot(tanh[i], tanh[i]); a != f {
+-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
++		a := Fabs(1e200 * tanh[i] * Sqrt(2))
++		if f := Hypot(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
++			t.Errorf("Hypot(%g, %g) = %g, want %g\n", 1e200*tanh[i], 1e200*tanh[i], f, a)
+ 		}
+ 	}
+ 	for i := 0; i < len(vfhypotSC); i++ {
+diff --git a/src/pkg/math/hypot_386.s b/src/pkg/math/hypot_386.s
+new file mode 100644
+index 0000000000..73e4f577c3
+--- /dev/null
++++ b/src/pkg/math/hypot_386.s
+@@ -0,0 +1,57 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Hypot(x, y float64) float64
++TEXT ·Hypot(SB),7,$0
++// test bits for not-finite
++	MOVL    xh+4(FP), AX   // high word x
++	ANDL    $0x7ff00000, AX
++	CMPL    AX, $0x7ff00000
++	JEQ     not_finite
++	MOVL    yh+12(FP), AX   // high word y
++	ANDL    $0x7ff00000, AX
++	CMPL    AX, $0x7ff00000
++	JEQ     not_finite
++	FMOVD   x+0(FP), F0  // F0=x
++	FABS                 // F0=|x|
++	FMOVD   y+8(FP), F0  // F0=y, F1=|x|
++	FABS                 // F0=|y|, F1=|x|
++	FUCOMI  F0, F1       // compare F0 to F1
++	JCC     2(PC)        // jump if F0 < F1
++	FXCHD   F0, F1       // F0=|x| (larger), F1=|y| (smaller)
++	FTST                 // compare F0 to 0
++	FSTSW	AX
++	ANDW    $0x4000, AX
++	JNE		10(PC)       // jump if F0 = 0
++	FXCHD   F0, F1       // F0=y (smaller), F1=x (larger)
++	FDIVD   F1, F0       // F0=y(=y/x), F1=x
++	FMULD   F0, F0       // F0=y*y, F1=x
++	FLD1                 // F0=1, F1=y*y, F2=x
++	FADDDP  F0, F1       // F0=1+y*y, F1=x
++	FSQRT                // F0=sqrt(1+y*y), F1=x
++	FMULDP  F0, F1       // F0=x*sqrt(1+y*y)
++	FMOVDP  F0, r+16(FP)
++	RET
++	FMOVDP  F0, F1       // F0=0
++	FMOVDP  F0, r+16(FP)
++	RET
++not_finite:
++// test bits for -Inf or +Inf
++	MOVL    xh+4(FP), AX  // high word x
++	ORL     xl+0(FP), AX  // low word x
++	ANDL    $0x7fffffff, AX
++	CMPL    AX, $0x7ff00000
++	JEQ     is_inf
++	MOVL    yh+12(FP), AX  // high word y
++	ORL     yl+8(FP), AX   // low word y
++	ANDL    $0x7fffffff, AX
++	CMPL    AX, $0x7ff00000
++	JEQ     is_inf
++	MOVL    $0x7ff00000, rh+20(FP)  // return NaN = 0x7FF0000000000001
++	MOVL    $0x00000001, rl+16(FP)
++	RET
++is_inf:
++	MOVL    AX, rh+20(FP)  // return +Inf = 0x7FF0000000000000
++	MOVL    $0x00000000, rl+16(FP)
++	RET
+diff --git a/src/pkg/math/hypot_decl.go b/src/pkg/math/hypot_decl.go
+new file mode 100644
+index 0000000000..72603c5d56
+--- /dev/null
++++ b/src/pkg/math/hypot_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Hypot(x, y float64) float64
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index f12e48734f..e6bc4680b8 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -8,7 +8,6 @@ package math
+ //
+ // Special cases are:
+ //	Sqrt(+Inf) = +Inf
+-//	Sqrt(0) = 0
+ //	Sqrt(x < 0) = NaN
+ //	Sqrt(NaN) = NaN
+ func Sqrt(x float64) float64 { return sqrtGo(x) }

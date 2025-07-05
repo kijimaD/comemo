@@ -8,8 +8,71 @@ Date:   Thu Dec 10 18:27:48 2009 -0800
     
     R=rsc
     https://golang.org/cl/174053
-
+---
  src/pkg/exp/parser/interface.go   |  2 +-
  src/pkg/exp/parser/parser.go      | 15 ++++++++++-----
  src/pkg/exp/parser/parser_test.go |  4 ++--
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/parser/interface.go b/src/pkg/exp/parser/interface.go
+index 7e8f5d25ef..ca01de2001 100644
+--- a/src/pkg/exp/parser/interface.go
++++ b/src/pkg/exp/parser/interface.go
+@@ -4,7 +4,7 @@
+ 
+ // This file contains the exported entry points for invoking the parser.
+ 
+-package parser
++package oldParser
+ 
+ import (
+ 	"bytes";
+diff --git a/src/pkg/exp/parser/parser.go b/src/pkg/exp/parser/parser.go
+index 98f57d3702..32360b5d6a 100644
+--- a/src/pkg/exp/parser/parser.go
++++ b/src/pkg/exp/parser/parser.go
+@@ -2,12 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A parser for Go source files. Input may be provided in a variety of
+-// forms (see the various Parse* functions); the output is an abstract
+-// syntax tree (AST) representing the Go source. The parser is invoked
+-// through one of the Parse* functions.
++// A parser for "old" Go source files using the old semicolon syntax.
++// Input may be provided in a variety of forms (see the various Parse*
++// functions); the output is an abstract syntax tree (AST) representing
++// the Go source. The oldParser is invoked through one of the Parse*
++// functions.
+ //
+-package parser
++// NOTE: This package is deprecated and will be removed once all Go code
++//       has been converted to using the new syntax and after a reasonable
++//       grace period.
++//
++package oldParser
+ 
+ import (
+ 	"container/vector";
+diff --git a/src/pkg/exp/parser/parser_test.go b/src/pkg/exp/parser/parser_test.go
+index 2aa1d43666..e012818157 100644
+--- a/src/pkg/exp/parser/parser_test.go
++++ b/src/pkg/exp/parser/parser_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package parser
++package oldParser
+ 
+ import (
+ 	"os";
+@@ -82,7 +82,7 @@ func TestParse4(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("ParsePackage(%s): %v", path, err)
+ 	}
+-	if pkg.Name != "parser" {
++	if pkg.Name != "oldParser" {
+ 		t.Errorf("incorrect package name: %s", pkg.Name)
+ 	}
+ 	for filename, _ := range pkg.Files {

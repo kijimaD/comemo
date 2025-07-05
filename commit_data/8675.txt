@@ -7,6 +7,24 @@ Date:   Fri Jun 10 00:08:57 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4604041
-
+---
  src/cmd/gc/pgen.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index d04587e74c..c24648737b 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#undef	EXTERN
+-#define	EXTERN
+-#include "gg.h"
+-#include "opt.h"
++#include	"gg.h"
++#include	"opt.h"
+ 
+ static void compactframe(Prog* p);
+ 

@@ -18,7 +18,7 @@ Date:   Fri Jun 3 18:03:29 2016 -0400
     Change-Id: I3caca256b92ff7cf96469da2feaf4868a592efc5
     Reviewed-on: https://go-review.googlesource.com/23793
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go          |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules   | 12 ++++----
  src/cmd/compile/internal/ssa/gen/dec64.rules | 21 ++++++-------
@@ -26,3 +26,355 @@ Date:   Fri Jun 3 18:03:29 2016 -0400
  src/cmd/compile/internal/ssa/rewriteARM.go   | 42 +++++++++++--------------
  src/cmd/compile/internal/ssa/rewritedec64.go | 46 ++++++++++++----------------
  6 files changed, 63 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index afee8beeae..d44ed6cfdf 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -717,7 +717,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		gc.Prog(obj.ARET)
+ 
+ 	case ssa.BlockRetJmp:
+-		p := gc.Prog(obj.AJMP)
++		p := gc.Prog(obj.ARET)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 79d18687ad..99c3d84e20 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -129,11 +129,11 @@
+ (Rsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SRAconst x [c])
+ (Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SRLconst x [c])
+ (Lsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SLLconst x [c])
+-(Rsh16x64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <t> x [16]) [c+16])
+-(Rsh16Ux64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <t> x [16]) [c+16])
++(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
++(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
+ (Lsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SLLconst x [c])
+-(Rsh8x64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <t> x [24]) [c+24])
+-(Rsh8Ux64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <t> x [24]) [c+24])
++(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
++(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
+ 
+ // large constant shifts
+ (Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
+@@ -145,8 +145,8 @@
+ 
+ // large constant signed right shift, we leave the sign bit
+ (Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SRAconst x [31])
+-(Rsh16x64 <t> x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <t> x [16]) [31])
+-(Rsh8x64 <t> x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <t> x [24]) [31])
++(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [31])
++(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [31])
+ 
+ (Lrot32 x [c]) -> (SRRconst x [32-c&31])
+ (Lrot16 <t> x [c]) -> (OR (SLLconst <t> x [c&15]) (SRLconst <t> x [16-c&15]))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index 26a2acf442..47e2933872 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -230,7 +230,7 @@
+ 
+ // 64x signed right shift
+ // result.hi = hi>>s
+-// result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&^signmask(s-32) // hi>>(s-32) is signed, large shifts result 0/-1
++// result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&zeromask(s>>5) // hi>>(s-32) is signed, large shifts result 0/-1
+ (Rsh64x32 (Int64Make hi lo) s) ->
+ 	(Int64Make
+ 		(Rsh32x32 <config.fe.TypeUInt32()> hi s)
+@@ -244,9 +244,8 @@
+ 				(Rsh32x32 <config.fe.TypeUInt32()>
+ 					hi
+ 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))
+-				(Com32 <config.fe.TypeUInt32()>
+-					(Signmask
+-						(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))))))
++				(Zeromask
++					(Rsh32Ux32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [5]))))))
+ (Rsh64x16 (Int64Make hi lo) s) ->
+ 	(Int64Make
+ 		(Rsh32x16 <config.fe.TypeUInt32()> hi s)
+@@ -260,10 +259,9 @@
+ 				(Rsh32x16 <config.fe.TypeUInt32()>
+ 					hi
+ 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32])))
+-				(Com32 <config.fe.TypeUInt32()>
+-					(Signmask
+-						(SignExt16to32
+-							(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))))))))
++				(Zeromask
++					(ZeroExt16to32
++						(Rsh16Ux32 <config.fe.TypeUInt16()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
+ (Rsh64x8 (Int64Make hi lo) s) ->
+ 	(Int64Make
+ 		(Rsh32x8 <config.fe.TypeUInt32()> hi s)
+@@ -277,10 +275,9 @@
+ 				(Rsh32x8 <config.fe.TypeUInt32()>
+ 					hi
+ 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32])))
+-				(Com32 <config.fe.TypeUInt32()>
+-					(Signmask
+-						(SignExt8to32
+-							(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))))))))
++				(Zeromask
++					(ZeroExt8to32
++						(Rsh8Ux32 <config.fe.TypeUInt8()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
+ 
+ // 64xConst32 shifts
+ // we probably do not need them -- lateopt may take care of them just fine
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 8f5c1c42d5..93f90614a8 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -458,8 +458,15 @@ func (s *regAllocState) init(f *Func) {
+ 	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+ 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
+-	if s.f.Config.ctxt.Flag_dynlink && s.f.Config.arch == "amd64" {
+-		s.allocatable &^= 1 << 15 // R15
++	if s.f.Config.ctxt.Flag_dynlink {
++		switch s.f.Config.arch {
++		case "amd64":
++			s.allocatable &^= 1 << 15 // R15
++		case "arm":
++			s.allocatable &^= 1 << 9 // R9
++		default:
++			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
++		}
+ 	}
+ 
+ 	s.regs = make([]regState, s.numRegs)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 90fb528f7d..1ea89364ed 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3601,11 +3601,10 @@ func rewriteValueARM_OpRsh16Ux32(v *Value, config *Config) bool {
+ func rewriteValueARM_OpRsh16Ux64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Rsh16Ux64 <t> x (Const64 [c]))
++	// match: (Rsh16Ux64 x (Const64 [c]))
+ 	// cond: uint64(c) < 16
+-	// result: (SRLconst (SLLconst <t> x [16]) [c+16])
++	// result: (SRLconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -3616,7 +3615,7 @@ func rewriteValueARM_OpRsh16Ux64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRLconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 16
+ 		v.AddArg(v0)
+@@ -3699,11 +3698,10 @@ func rewriteValueARM_OpRsh16x32(v *Value, config *Config) bool {
+ func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Rsh16x64 <t> x (Const64 [c]))
++	// match: (Rsh16x64 x (Const64 [c]))
+ 	// cond: uint64(c) < 16
+-	// result: (SRAconst (SLLconst <t> x [16]) [c+16])
++	// result: (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -3714,18 +3712,17 @@ func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRAconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 16
+ 		v.AddArg(v0)
+ 		v.AuxInt = c + 16
+ 		return true
+ 	}
+-	// match: (Rsh16x64 <t> x (Const64 [c]))
++	// match: (Rsh16x64 x (Const64 [c]))
+ 	// cond: uint64(c) >= 16
+-	// result: (SRAconst (SLLconst <t> x [16]) [31])
++	// result: (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [31])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -3736,7 +3733,7 @@ func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRAconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 16
+ 		v.AddArg(v0)
+@@ -3981,11 +3978,10 @@ func rewriteValueARM_OpRsh8Ux32(v *Value, config *Config) bool {
+ func rewriteValueARM_OpRsh8Ux64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Rsh8Ux64 <t> x (Const64 [c]))
++	// match: (Rsh8Ux64 x (Const64 [c]))
+ 	// cond: uint64(c) < 8
+-	// result: (SRLconst (SLLconst <t> x [24]) [c+24])
++	// result: (SRLconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -3996,7 +3992,7 @@ func rewriteValueARM_OpRsh8Ux64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRLconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 24
+ 		v.AddArg(v0)
+@@ -4079,11 +4075,10 @@ func rewriteValueARM_OpRsh8x32(v *Value, config *Config) bool {
+ func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Rsh8x64 <t> x (Const64 [c]))
++	// match: (Rsh8x64 x (Const64 [c]))
+ 	// cond: uint64(c) < 8
+-	// result: (SRAconst (SLLconst <t> x [24]) [c+24])
++	// result: (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -4094,18 +4089,17 @@ func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRAconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 24
+ 		v.AddArg(v0)
+ 		v.AuxInt = c + 24
+ 		return true
+ 	}
+-	// match: (Rsh8x64 <t> x (Const64 [c]))
++	// match: (Rsh8x64 x (Const64 [c]))
+ 	// cond: uint64(c) >= 8
+-	// result: (SRAconst (SLLconst <t> x [24]) [31])
++	// result: (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [31])
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+@@ -4116,7 +4110,7 @@ func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMSRAconst)
+-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v0.AuxInt = 24
+ 		v.AddArg(v0)
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 8a694d8430..ecd39b1f5e 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -1873,7 +1873,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Rsh64x16 (Int64Make hi lo) s)
+ 	// cond:
+-	// result: (Int64Make 		(Rsh32x16 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux16 <config.fe.TypeUInt32()> lo s) 				(Lsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> (Const16 <config.fe.TypeUInt16()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(SignExt16to32 							(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))))))))
++	// result: (Int64Make 		(Rsh32x16 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux16 <config.fe.TypeUInt32()> lo s) 				(Lsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> (Const16 <config.fe.TypeUInt16()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))) 				(Zeromask 					(ZeroExt16to32 						(Rsh16Ux32 <config.fe.TypeUInt16()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpInt64Make {
+@@ -1913,14 +1913,12 @@ func rewriteValuedec64_OpRsh64x16(v *Value, config *Config) bool {
+ 		v9.AddArg(v10)
+ 		v8.AddArg(v9)
+ 		v7.AddArg(v8)
+-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
+-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
+-		v13 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+-		v14 := b.NewValue0(v.Line, OpSub16, config.fe.TypeUInt16())
+-		v14.AddArg(s)
+-		v15 := b.NewValue0(v.Line, OpConst16, config.fe.TypeUInt16())
+-		v15.AuxInt = 32
+-		v14.AddArg(v15)
++		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
++		v12 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v13 := b.NewValue0(v.Line, OpRsh16Ux32, config.fe.TypeUInt16())
++		v13.AddArg(s)
++		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v14.AuxInt = 5
+ 		v13.AddArg(v14)
+ 		v12.AddArg(v13)
+ 		v11.AddArg(v12)
+@@ -1936,7 +1934,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Rsh64x32 (Int64Make hi lo) s)
+ 	// cond:
+-	// result: (Int64Make 		(Rsh32x32 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux32 <config.fe.TypeUInt32()> lo s) 				(Lsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> (Const32 <config.fe.TypeUInt32()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))))))
++	// result: (Int64Make 		(Rsh32x32 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux32 <config.fe.TypeUInt32()> lo s) 				(Lsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> (Const32 <config.fe.TypeUInt32()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32]))) 				(Zeromask 					(Rsh32Ux32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [5]))))))
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpInt64Make {
+@@ -1976,13 +1974,11 @@ func rewriteValuedec64_OpRsh64x32(v *Value, config *Config) bool {
+ 		v9.AddArg(v10)
+ 		v8.AddArg(v9)
+ 		v7.AddArg(v8)
+-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
+-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
+-		v13 := b.NewValue0(v.Line, OpSub32, config.fe.TypeUInt32())
+-		v13.AddArg(s)
+-		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+-		v14.AuxInt = 32
+-		v13.AddArg(v14)
++		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
++		v12 := b.NewValue0(v.Line, OpRsh32Ux32, config.fe.TypeUInt32())
++		v12.AddArg(s)
++		v13 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v13.AuxInt = 5
+ 		v12.AddArg(v13)
+ 		v11.AddArg(v12)
+ 		v7.AddArg(v11)
+@@ -2078,7 +2074,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Rsh64x8 (Int64Make hi lo) s)
+ 	// cond:
+-	// result: (Int64Make 		(Rsh32x8 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux8 <config.fe.TypeUInt32()> lo s) 				(Lsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> (Const8 <config.fe.TypeUInt8()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(SignExt8to32 							(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))))))))
++	// result: (Int64Make 		(Rsh32x8 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux8 <config.fe.TypeUInt32()> lo s) 				(Lsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> (Const8 <config.fe.TypeUInt8()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))) 				(Zeromask 					(ZeroExt8to32 						(Rsh8Ux32 <config.fe.TypeUInt8()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpInt64Make {
+@@ -2118,14 +2114,12 @@ func rewriteValuedec64_OpRsh64x8(v *Value, config *Config) bool {
+ 		v9.AddArg(v10)
+ 		v8.AddArg(v9)
+ 		v7.AddArg(v8)
+-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
+-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
+-		v13 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+-		v14 := b.NewValue0(v.Line, OpSub8, config.fe.TypeUInt8())
+-		v14.AddArg(s)
+-		v15 := b.NewValue0(v.Line, OpConst8, config.fe.TypeUInt8())
+-		v15.AuxInt = 32
+-		v14.AddArg(v15)
++		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
++		v12 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v13 := b.NewValue0(v.Line, OpRsh8Ux32, config.fe.TypeUInt8())
++		v13.AddArg(s)
++		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v14.AuxInt = 5
+ 		v13.AddArg(v14)
+ 		v12.AddArg(v13)
+ 		v11.AddArg(v12)

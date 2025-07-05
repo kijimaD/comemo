@@ -18,7 +18,126 @@ Date:   Wed Apr 5 17:32:09 2017 +0900
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/writer.go      | 19 +++++++++++++
  src/archive/zip/writer_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 82 insertions(+)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 8940e25560..f46a03c37e 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -11,6 +11,7 @@ import (
+ 	"hash"
+ 	"hash/crc32"
+ 	"io"
++	"unicode/utf8"
+ )
+ 
+ // TODO(adg): support zip file comments
+@@ -201,6 +202,20 @@ func (w *Writer) Create(name string) (io.Writer, error) {
+ 	return w.CreateHeader(header)
+ }
+ 
++func hasValidUTF8(s string) bool {
++	n := 0
++	for _, r := range s {
++		// By default, ZIP uses CP437, which is only identical to ASCII for the printable characters.
++		if r < 0x20 || r >= 0x7f {
++			if !utf8.ValidRune(r) {
++				return false
++			}
++			n++
++		}
++	}
++	return n > 0
++}
++
+ // CreateHeader adds a file to the zip file using the provided FileHeader
+ // for the file metadata.
+ // It returns a Writer to which the file contents should be written.
+@@ -221,6 +236,10 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 
+ 	fh.Flags |= 0x8 // we will write a data descriptor
+ 
++	if hasValidUTF8(fh.Name) || hasValidUTF8(fh.Comment) {
++		fh.Flags |= 0x800 // filename or comment have valid utf-8 string
++	}
++
+ 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
+ 	fh.ReaderVersion = zipVersion20
+ 
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 84b1d9e062..92fb6ecf0e 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -87,6 +87,69 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriterUTF8(t *testing.T) {
++	var utf8Tests = []struct {
++		name    string
++		comment string
++		expect  uint16
++	}{
++		{
++			name:    "hi, hello",
++			comment: "in the world",
++			expect:  0x8,
++		},
++		{
++			name:    "hi, こんにちわ",
++			comment: "in the world",
++			expect:  0x808,
++		},
++		{
++			name:    "hi, hello",
++			comment: "in the 世界",
++			expect:  0x808,
++		},
++		{
++			name:    "hi, こんにちわ",
++			comment: "in the 世界",
++			expect:  0x808,
++		},
++	}
++
++	// write a zip file
++	buf := new(bytes.Buffer)
++	w := NewWriter(buf)
++
++	for _, test := range utf8Tests {
++		h := &FileHeader{
++			Name:    test.name,
++			Comment: test.comment,
++			Method:  Deflate,
++		}
++		w, err := w.CreateHeader(h)
++		if err != nil {
++			t.Fatal(err)
++		}
++		w.Write([]byte{})
++	}
++
++	if err := w.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	// read it back
++	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
++	if err != nil {
++		t.Fatal(err)
++	}
++	for i, test := range utf8Tests {
++		got := r.File[i].Flags
++		t.Logf("name %v, comment %v", test.name, test.comment)
++		if got != test.expect {
++			t.Fatalf("Flags: got %v, want %v", got, test.expect)
++		}
++	}
++}
++
+ func TestWriterOffset(t *testing.T) {
+ 	largeData := make([]byte, 1<<17)
+ 	for i := range largeData {

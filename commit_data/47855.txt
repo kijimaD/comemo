@@ -16,7 +16,77 @@ Date:   Tue Apr 13 20:08:46 2021 +0000
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/sys_windows_amd64.s     |  2 +-
  src/runtime/syscall_windows_test.go | 45 +++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index f7250c65a8..6896331329 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -8,7 +8,7 @@
+ 
+ // maxargs should be divisible by 2, as Windows stack
+ // must be kept 16-byte aligned on syscall entry.
+-#define maxargs 16
++#define maxargs 18
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 98e426a3d5..5e9694d444 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -744,6 +744,51 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+ 	}
+ }
+ 
++func TestSyscall18(t *testing.T) {
++	if _, err := exec.LookPath("gcc"); err != nil {
++		t.Skip("skipping test: gcc is missing")
++	}
++	if runtime.GOARCH != "amd64" {
++		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
++	}
++
++	const src = `
++#include <stdint.h>
++#include <windows.h>
++
++int cfunc(	int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9,
++			int a10, int a11, int a12, int a13, int a14, int a15, int a16, int a17, int a18) {
++	return 1;
++}
++`
++	tmpdir := t.TempDir()
++
++	srcname := "mydll.c"
++	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	outname := "mydll.dll"
++	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
++	cmd.Dir = tmpdir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build dll: %v - %v", err, string(out))
++	}
++	dllpath := filepath.Join(tmpdir, outname)
++
++	dll := syscall.MustLoadDLL(dllpath)
++	defer dll.Release()
++
++	proc := dll.MustFindProc("cfunc")
++
++	// proc.Call() will call Syscall18() internally.
++	r, _, err := proc.Call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
++	if r != 1 {
++		t.Errorf("got %d want 1 (err=%v)", r, err)
++	}
++}
++
+ func TestFloatArgs(t *testing.T) {
+ 	if _, err := exec.LookPath("gcc"); err != nil {
+ 		t.Skip("skipping test: gcc is missing")

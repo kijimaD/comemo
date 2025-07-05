@@ -624,3 +624,1352 @@ Date:   Mon Dec 14 11:53:55 2020 -0800
  test/used.go                                       |  144 ++
  test/winbatch.go                                   |    6 +-
  596 files changed, 15793 insertions(+), 9624 deletions(-)
+
+diff --cc src/cmd/compile/fmtmap_test.go
+index 3b94b05bfb,9bc059c2e4..9105bac191
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@@ -20,229 -20,56 +20,83 @@@ package main_tes
+  // An absent entry means that the format is not recognized as valid.
+  // An empty new format means that the format should remain unchanged.
+  var knownFormats = map[string]string{
+- 	"*bytes.Buffer %s":                                "",
+- 	"*cmd/compile/internal/gc.EscLocation %v":         "",
+- 	"*cmd/compile/internal/ir.node %v":                "",
+- 	"*cmd/compile/internal/ssa.Block %s":              "",
+- 	"*cmd/compile/internal/ssa.Block %v":              "",
+- 	"*cmd/compile/internal/ssa.Func %s":               "",
+- 	"*cmd/compile/internal/ssa.Func %v":               "",
+- 	"*cmd/compile/internal/ssa.Register %s":           "",
+- 	"*cmd/compile/internal/ssa.Register %v":           "",
+- 	"*cmd/compile/internal/ssa.SparseTreeNode %v":     "",
+- 	"*cmd/compile/internal/ssa.Value %s":              "",
+- 	"*cmd/compile/internal/ssa.Value %v":              "",
+- 	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
+- 	"*cmd/compile/internal/syntax.CallExpr %s":        "",
+- 	"*cmd/compile/internal/syntax.CallExpr %v":        "",
+- 	"*cmd/compile/internal/syntax.FuncLit %s":         "",
+- 	"*cmd/compile/internal/syntax.IndexExpr %s":       "",
+- 	"*cmd/compile/internal/types.Field %p":            "",
+- 	"*cmd/compile/internal/types.Field %v":            "",
+- 	"*cmd/compile/internal/types.Sym %0S":             "",
+- 	"*cmd/compile/internal/types.Sym %S":              "",
+- 	"*cmd/compile/internal/types.Sym %p":              "",
+- 	"*cmd/compile/internal/types.Sym %v":              "",
+- 	"*cmd/compile/internal/types.Type %#L":            "",
+- 	"*cmd/compile/internal/types.Type %#v":            "",
+- 	"*cmd/compile/internal/types.Type %-S":            "",
+- 	"*cmd/compile/internal/types.Type %0S":            "",
+- 	"*cmd/compile/internal/types.Type %L":             "",
+- 	"*cmd/compile/internal/types.Type %S":             "",
+- 	"*cmd/compile/internal/types.Type %p":             "",
+- 	"*cmd/compile/internal/types.Type %s":             "",
+- 	"*cmd/compile/internal/types.Type %v":             "",
+- 	"*cmd/compile/internal/types2.Basic %s":           "",
+- 	"*cmd/compile/internal/types2.Chan %s":            "",
+- 	"*cmd/compile/internal/types2.Func %s":            "",
+- 	"*cmd/compile/internal/types2.Initializer %s":     "",
+- 	"*cmd/compile/internal/types2.Interface %s":       "",
+- 	"*cmd/compile/internal/types2.MethodSet %s":       "",
+- 	"*cmd/compile/internal/types2.Named %s":           "",
+- 	"*cmd/compile/internal/types2.Named %v":           "",
+- 	"*cmd/compile/internal/types2.Package %s":         "",
+- 	"*cmd/compile/internal/types2.Package %v":         "",
+- 	"*cmd/compile/internal/types2.Scope %p":           "",
+- 	"*cmd/compile/internal/types2.Selection %s":       "",
+- 	"*cmd/compile/internal/types2.Signature %s":       "",
+- 	"*cmd/compile/internal/types2.TypeName %s":        "",
+- 	"*cmd/compile/internal/types2.TypeName %v":        "",
+- 	"*cmd/compile/internal/types2.TypeParam %s":       "",
+- 	"*cmd/compile/internal/types2.Var %s":             "",
+- 	"*cmd/compile/internal/types2.operand %s":         "",
+- 	"*cmd/compile/internal/types2.substMap %s":        "",
+- 	"*cmd/internal/obj.Addr %v":                       "",
+- 	"*cmd/internal/obj.LSym %v":                       "",
+- 	"*math/big.Float %f":                              "",
+- 	"*math/big.Int %s":                                "",
+- 	"[16]byte %x":                                     "",
+- 	"[]*cmd/compile/internal/ssa.Block %v":            "",
+- 	"[]*cmd/compile/internal/ssa.Value %v":            "",
+- 	"[]*cmd/compile/internal/types2.Func %v":          "",
+- 	"[]*cmd/compile/internal/types2.TypeName %s":      "",
+- 	"[][]string %q":                                   "",
+- 	"[]byte %s":                                       "",
+- 	"[]byte %x":                                       "",
+- 	"[]cmd/compile/internal/ssa.Edge %v":              "",
+- 	"[]cmd/compile/internal/ssa.ID %v":                "",
+- 	"[]cmd/compile/internal/ssa.posetNode %v":         "",
+- 	"[]cmd/compile/internal/ssa.posetUndo %v":         "",
+- 	"[]cmd/compile/internal/syntax.token %s":          "",
+- 	"[]cmd/compile/internal/types2.Type %s":           "",
+- 	"[]int %v":                                        "",
+- 	"[]string %v":                                     "",
+- 	"[]uint32 %v":                                     "",
+- 	"bool %v":                                         "",
+- 	"byte %08b":                                       "",
+- 	"byte %c":                                         "",
+- 	"byte %q":                                         "",
+- 	"byte %v":                                         "",
+- 	"cmd/compile/internal/arm.shift %d":               "",
+- 	"cmd/compile/internal/gc.initKind %d":             "",
+- 	"cmd/compile/internal/gc.itag %v":                 "",
+- 	"cmd/compile/internal/importer.itag %v":           "",
+- 	"cmd/compile/internal/ir.Class %d":                "",
+- 	"cmd/compile/internal/ir.Class %v":                "",
+- 	"cmd/compile/internal/ir.FmtMode %d":              "",
+- 	"cmd/compile/internal/ir.Node %#v":                "",
+- 	"cmd/compile/internal/ir.Node %+S":                "",
+- 	"cmd/compile/internal/ir.Node %+v":                "",
+- 	"cmd/compile/internal/ir.Node %L":                 "",
+- 	"cmd/compile/internal/ir.Node %S":                 "",
+- 	"cmd/compile/internal/ir.Node %j":                 "",
+- 	"cmd/compile/internal/ir.Node %p":                 "",
+- 	"cmd/compile/internal/ir.Node %v":                 "",
+- 	"cmd/compile/internal/ir.Nodes %#v":               "",
+- 	"cmd/compile/internal/ir.Nodes %+v":               "",
+- 	"cmd/compile/internal/ir.Nodes %.v":               "",
+- 	"cmd/compile/internal/ir.Nodes %v":                "",
+- 	"cmd/compile/internal/ir.Op %#v":                  "",
+- 	"cmd/compile/internal/ir.Op %v":                   "",
+- 	"cmd/compile/internal/ssa.BranchPrediction %d":    "",
+- 	"cmd/compile/internal/ssa.Edge %v":                "",
+- 	"cmd/compile/internal/ssa.ID %d":                  "",
+- 	"cmd/compile/internal/ssa.ID %v":                  "",
+- 	"cmd/compile/internal/ssa.LocalSlot %s":           "",
+- 	"cmd/compile/internal/ssa.LocalSlot %v":           "",
+- 	"cmd/compile/internal/ssa.Location %s":            "",
+- 	"cmd/compile/internal/ssa.Op %s":                  "",
+- 	"cmd/compile/internal/ssa.Op %v":                  "",
+- 	"cmd/compile/internal/ssa.Sym %v":                 "",
+- 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
+- 	"cmd/compile/internal/ssa.domain %v":              "",
+- 	"cmd/compile/internal/ssa.flagConstant %s":        "",
+- 	"cmd/compile/internal/ssa.posetNode %v":           "",
+- 	"cmd/compile/internal/ssa.posetTestOp %v":         "",
+- 	"cmd/compile/internal/ssa.rbrank %d":              "",
+- 	"cmd/compile/internal/ssa.regMask %d":             "",
+- 	"cmd/compile/internal/ssa.register %d":            "",
+- 	"cmd/compile/internal/ssa.relation %s":            "",
+- 	"cmd/compile/internal/syntax.ChanDir %d":          "",
+- 	"cmd/compile/internal/syntax.Decl %T":             "",
+- 	"cmd/compile/internal/syntax.Error %q":            "",
+- 	"cmd/compile/internal/syntax.Error %v":            "",
+- 	"cmd/compile/internal/syntax.Expr %#v":            "",
+- 	"cmd/compile/internal/syntax.Expr %T":             "",
+- 	"cmd/compile/internal/syntax.Expr %s":             "",
+- 	"cmd/compile/internal/syntax.LitKind %d":          "",
+- 	"cmd/compile/internal/syntax.Node %T":             "",
+- 	"cmd/compile/internal/syntax.Operator %s":         "",
+- 	"cmd/compile/internal/syntax.Pos %s":              "",
+- 	"cmd/compile/internal/syntax.Pos %v":              "",
+- 	"cmd/compile/internal/syntax.position %s":         "",
+- 	"cmd/compile/internal/syntax.token %q":            "",
+- 	"cmd/compile/internal/syntax.token %s":            "",
+- 	"cmd/compile/internal/types.EType %d":             "",
+- 	"cmd/compile/internal/types.EType %s":             "",
+- 	"cmd/compile/internal/types.EType %v":             "",
+- 	"cmd/compile/internal/types2.Object %T":           "",
+- 	"cmd/compile/internal/types2.Object %p":           "",
+- 	"cmd/compile/internal/types2.Object %s":           "",
+- 	"cmd/compile/internal/types2.Object %v":           "",
+- 	"cmd/compile/internal/types2.Type %T":             "",
+- 	"cmd/compile/internal/types2.Type %s":             "",
+- 	"cmd/compile/internal/types2.Type %v":             "",
+- 	"cmd/compile/internal/types2.color %s":            "",
+- 	"cmd/internal/obj.ABI %v":                         "",
+- 	"error %s":                                        "",
+- 	"error %v":                                        "",
+- 	"float64 %.2f":                                    "",
+- 	"float64 %.3f":                                    "",
+- 	"float64 %g":                                      "",
+- 	"go/constant.Kind %v":                             "",
+- 	"go/constant.Value %#v":                           "",
+- 	"go/constant.Value %s":                            "",
+- 	"go/constant.Value %v":                            "",
+- 	"int %#x":                                         "",
+- 	"int %-12d":                                       "",
+- 	"int %-6d":                                        "",
+- 	"int %-8o":                                        "",
+- 	"int %02d":                                        "",
+- 	"int %6d":                                         "",
+- 	"int %c":                                          "",
+- 	"int %d":                                          "",
+- 	"int %v":                                          "",
+- 	"int %x":                                          "",
+- 	"int16 %d":                                        "",
+- 	"int16 %x":                                        "",
+- 	"int32 %#x":                                       "",
+- 	"int32 %d":                                        "",
+- 	"int32 %v":                                        "",
+- 	"int32 %x":                                        "",
+- 	"int64 %#x":                                       "",
+- 	"int64 %-10d":                                     "",
+- 	"int64 %.5d":                                      "",
+- 	"int64 %d":                                        "",
+- 	"int64 %v":                                        "",
+- 	"int64 %x":                                        "",
+- 	"int8 %d":                                         "",
+- 	"int8 %v":                                         "",
+- 	"int8 %x":                                         "",
+- 	"interface{} %#v":                                 "",
+- 	"interface{} %T":                                  "",
+- 	"interface{} %p":                                  "",
+- 	"interface{} %q":                                  "",
+- 	"interface{} %s":                                  "",
+- 	"interface{} %v":                                  "",
+ -	"*bytes.Buffer %s":                             "",
+ -	"*cmd/compile/internal/ssa.Block %s":           "",
+ -	"*cmd/compile/internal/ssa.Func %s":            "",
+ -	"*cmd/compile/internal/ssa.Register %s":        "",
+ -	"*cmd/compile/internal/ssa.Value %s":           "",
+ -	"*cmd/compile/internal/types.Sym %+v":          "",
+ -	"*cmd/compile/internal/types.Sym %S":           "",
+ -	"*cmd/compile/internal/types.Type %+v":         "",
+ -	"*cmd/compile/internal/types.Type %-S":         "",
+ -	"*cmd/compile/internal/types.Type %L":          "",
+ -	"*cmd/compile/internal/types.Type %S":          "",
+ -	"*cmd/compile/internal/types.Type %s":          "",
+ -	"*math/big.Float %f":                           "",
+ -	"*math/big.Int %s":                             "",
+ -	"[]cmd/compile/internal/syntax.token %s":       "",
+ -	"cmd/compile/internal/arm.shift %d":            "",
+ -	"cmd/compile/internal/gc.RegIndex %d":          "",
+ -	"cmd/compile/internal/gc.initKind %d":          "",
+ -	"cmd/compile/internal/ir.Class %d":             "",
+ -	"cmd/compile/internal/ir.Node %+v":             "",
+ -	"cmd/compile/internal/ir.Node %L":              "",
+ -	"cmd/compile/internal/ir.Nodes %+v":            "",
+ -	"cmd/compile/internal/ir.Nodes %.v":            "",
+ -	"cmd/compile/internal/ir.Op %+v":               "",
+ -	"cmd/compile/internal/ssa.Aux %#v":             "",
+ -	"cmd/compile/internal/ssa.Aux %q":              "",
+ -	"cmd/compile/internal/ssa.Aux %s":              "",
+ -	"cmd/compile/internal/ssa.BranchPrediction %d": "",
+ -	"cmd/compile/internal/ssa.ID %d":               "",
+ -	"cmd/compile/internal/ssa.LocalSlot %s":        "",
+ -	"cmd/compile/internal/ssa.Location %s":         "",
+ -	"cmd/compile/internal/ssa.Op %s":               "",
+ -	"cmd/compile/internal/ssa.ValAndOff %s":        "",
+ -	"cmd/compile/internal/ssa.flagConstant %s":     "",
+ -	"cmd/compile/internal/ssa.rbrank %d":           "",
+ -	"cmd/compile/internal/ssa.regMask %d":          "",
+ -	"cmd/compile/internal/ssa.register %d":         "",
+ -	"cmd/compile/internal/ssa.relation %s":         "",
+ -	"cmd/compile/internal/syntax.Error %q":         "",
+ -	"cmd/compile/internal/syntax.Expr %#v":         "",
+ -	"cmd/compile/internal/syntax.LitKind %d":       "",
+ -	"cmd/compile/internal/syntax.Operator %s":      "",
+ -	"cmd/compile/internal/syntax.Pos %s":           "",
+ -	"cmd/compile/internal/syntax.position %s":      "",
+ -	"cmd/compile/internal/syntax.token %q":         "",
+ -	"cmd/compile/internal/syntax.token %s":         "",
+ -	"cmd/compile/internal/types.Kind %d":           "",
+ -	"cmd/compile/internal/types.Kind %s":           "",
+ -	"go/constant.Value %#v":                        "",
+ -	"math/big.Accuracy %s":                         "",
+ -	"reflect.Type %s":                              "",
+ -	"time.Duration %d":                             "",
+++	"*bytes.Buffer %s":                                                               "",
+++	"*cmd/compile/internal/ssa.Block %s":                                             "",
+++	"*cmd/compile/internal/ssa.Func %s":                                              "",
+++	"*cmd/compile/internal/ssa.Register %s":                                          "",
+++	"*cmd/compile/internal/ssa.Value %s":                                             "",
+++	"*cmd/compile/internal/syntax.CallExpr %s":                                       "",
+++	"*cmd/compile/internal/syntax.FuncLit %s":                                        "",
+++	"*cmd/compile/internal/syntax.IndexExpr %s":                                      "",
+++	"*cmd/compile/internal/types.Sym %+v":                                            "",
+++	"*cmd/compile/internal/types.Sym %S":                                             "",
+++	"*cmd/compile/internal/types.Type %+v":                                           "",
+++	"*cmd/compile/internal/types.Type %-S":                                           "",
+++	"*cmd/compile/internal/types.Type %L":                                            "",
+++	"*cmd/compile/internal/types.Type %S":                                            "",
+++	"*cmd/compile/internal/types.Type %s":                                            "",
+++	"*cmd/compile/internal/types2.Basic %s":                                          "",
+++	"*cmd/compile/internal/types2.Chan %s":                                           "",
+++	"*cmd/compile/internal/types2.Func %s":                                           "",
+++	"*cmd/compile/internal/types2.Initializer %s":                                    "",
+++	"*cmd/compile/internal/types2.Interface %s":                                      "",
+++	"*cmd/compile/internal/types2.MethodSet %s":                                      "",
+++	"*cmd/compile/internal/types2.Named %s":                                          "",
+++	"*cmd/compile/internal/types2.Package %s":                                        "",
+++	"*cmd/compile/internal/types2.Selection %s":                                      "",
+++	"*cmd/compile/internal/types2.Signature %s":                                      "",
+++	"*cmd/compile/internal/types2.TypeName %s":                                       "",
+++	"*cmd/compile/internal/types2.TypeParam %s":                                      "",
+++	"*cmd/compile/internal/types2.Var %s":                                            "",
+++	"*cmd/compile/internal/types2.operand %s":                                        "",
+++	"*cmd/compile/internal/types2.substMap %s":                                       "",
+++	"*math/big.Float %f":                                                             "",
+++	"*math/big.Int %s":                                                               "",
+++	"[]*cmd/compile/internal/types2.TypeName %s":                                     "",
+++	"[]cmd/compile/internal/syntax.token %s":                                         "",
+++	"[]cmd/compile/internal/types2.Type %s":                                          "",
+++	"cmd/compile/internal/arm.shift %d":                                              "",
+++	"cmd/compile/internal/gc.RegIndex %d":                                            "",
+++	"cmd/compile/internal/gc.initKind %d":                                            "",
+++	"cmd/compile/internal/ir.Class %d":                                               "",
+++	"cmd/compile/internal/ir.Node %+v":                                               "",
+++	"cmd/compile/internal/ir.Node %L":                                                "",
+++	"cmd/compile/internal/ir.Nodes %+v":                                              "",
+++	"cmd/compile/internal/ir.Nodes %.v":                                              "",
+++	"cmd/compile/internal/ir.Op %+v":                                                 "",
+++	"cmd/compile/internal/ssa.Aux %#v":                                               "",
+++	"cmd/compile/internal/ssa.Aux %q":                                                "",
+++	"cmd/compile/internal/ssa.Aux %s":                                                "",
+++	"cmd/compile/internal/ssa.BranchPrediction %d":                                   "",
+++	"cmd/compile/internal/ssa.ID %d":                                                 "",
+++	"cmd/compile/internal/ssa.LocalSlot %s":                                          "",
+++	"cmd/compile/internal/ssa.Location %s":                                           "",
+++	"cmd/compile/internal/ssa.Op %s":                                                 "",
+++	"cmd/compile/internal/ssa.ValAndOff %s":                                          "",
+++	"cmd/compile/internal/ssa.flagConstant %s":                                       "",
+++	"cmd/compile/internal/ssa.rbrank %d":                                             "",
+++	"cmd/compile/internal/ssa.regMask %d":                                            "",
+++	"cmd/compile/internal/ssa.register %d":                                           "",
+++	"cmd/compile/internal/ssa.relation %s":                                           "",
+++	"cmd/compile/internal/syntax.ChanDir %d":                                         "",
+++	"cmd/compile/internal/syntax.Error %q":                                           "",
+++	"cmd/compile/internal/syntax.Expr %#v":                                           "",
+++	"cmd/compile/internal/syntax.Expr %s":                                            "",
+++	"cmd/compile/internal/syntax.LitKind %d":                                         "",
+++	"cmd/compile/internal/syntax.Operator %s":                                        "",
+++	"cmd/compile/internal/syntax.Pos %s":                                             "",
+++	"cmd/compile/internal/syntax.position %s":                                        "",
+++	"cmd/compile/internal/syntax.token %q":                                           "",
+++	"cmd/compile/internal/syntax.token %s":                                           "",
+++	"cmd/compile/internal/types.Kind %d":                                             "",
+++	"cmd/compile/internal/types.Kind %s":                                             "",
+++	"cmd/compile/internal/types2.Object %s":                                          "",
+++	"cmd/compile/internal/types2.Type %s":                                            "",
+++	"cmd/compile/internal/types2.color %s":                                           "",
+++	"go/constant.Value %#v":                                                          "",
+++	"go/constant.Value %s":                                                           "",
+ +	"map[*cmd/compile/internal/types2.TypeParam]cmd/compile/internal/types2.Type %s": "",
+- 	"map[cmd/compile/internal/ir.Node]*cmd/compile/internal/ssa.Value %v":            "",
+- 	"map[cmd/compile/internal/ir.Node][]cmd/compile/internal/ir.Node %v":             "",
+- 	"map[cmd/compile/internal/ssa.ID]uint32 %v":                                      "",
+- 	"map[int64]uint32 %v":  "",
+- 	"math/big.Accuracy %s": "",
+- 	"reflect.Type %s":      "",
+- 	"reflect.Type %v":      "",
+- 	"rune %#U":             "",
+- 	"rune %c":              "",
+- 	"rune %q":              "",
+- 	"string %-*s":          "",
+- 	"string %-16s":         "",
+- 	"string %-6s":          "",
+- 	"string %T":            "",
+- 	"string %q":            "",
+- 	"string %s":            "",
+- 	"string %v":            "",
+- 	"time.Duration %d":     "",
+- 	"time.Duration %v":     "",
+- 	"uint %04x":            "",
+- 	"uint %5d":             "",
+- 	"uint %d":              "",
+- 	"uint %x":              "",
+- 	"uint16 %d":            "",
+- 	"uint16 %x":            "",
+- 	"uint32 %#U":           "",
+- 	"uint32 %#x":           "",
+- 	"uint32 %d":            "",
+- 	"uint32 %v":            "",
+- 	"uint32 %x":            "",
+- 	"uint64 %08x":          "",
+- 	"uint64 %b":            "",
+- 	"uint64 %d":            "",
+- 	"uint64 %v":            "",
+- 	"uint64 %x":            "",
+- 	"uint8 %#x":            "",
+- 	"uint8 %d":             "",
+- 	"uint8 %v":             "",
+- 	"uint8 %x":             "",
+- 	"uintptr %d":           "",
+++	"math/big.Accuracy %s":                                                           "",
+++	"reflect.Type %s":                                                                "",
+++	"time.Duration %d":                                                               "",
+  }
+diff --cc src/cmd/compile/internal/gc/noder.go
+index 4eaeedb63b,8c765f9dfc..7ec81e34b0
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@@ -65,85 -58,7 +65,85 @@@ func parseFiles(filenames []string) (li
+  		}(filename)
+  	}
+  
+ -	var lines uint
+ +	// generic noding phase (using new typechecker)
+ +	if base.Flag.G != 0 {
+ +		// setup and syntax error reporting
+ +		nodersmap := make(map[string]*noder)
+ +		var files []*syntax.File
+ +		for _, p := range noders {
+ +			for e := range p.err {
+ +				p.errorAt(e.Pos, "%s", e.Msg)
+ +			}
+ +
+ +			nodersmap[p.file.Pos().RelFilename()] = p
+ +			files = append(files, p.file)
+ +			lines += p.file.EOF.Line()
+ +
+ +		}
+ +		if base.SyntaxErrors() != 0 {
+ +			base.ErrorExit()
+ +		}
+ +
+ +		// typechecking
+ +		conf := types2.Config{
+ +			InferFromConstraints:  true,
+ +			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
+ +			CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ +			Error: func(err error) {
+ +				terr := err.(types2.Error)
+ +				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+ +					// types2 reports error clarifications via separate
+ +					// error messages which are indented with a tab.
+ +					// Ignore them to satisfy tools and tests that expect
+ +					// only one error in such cases.
+ +					// TODO(gri) Need to adjust error reporting in types2.
+ +					return
+ +				}
+ +				p := nodersmap[terr.Pos.RelFilename()]
+ +				base.ErrorfAt(p.makeXPos(terr.Pos), "%s", terr.Msg)
+ +			},
+ +			Importer: &gcimports{
+ +				packages: make(map[string]*types2.Package),
+ +				lookup: func(path string) (io.ReadCloser, error) {
+ +					file, ok := findpkg(path)
+ +					if !ok {
+ +						return nil, fmt.Errorf("can't find import: %q", path)
+ +					}
+ +					return os.Open(file)
+ +				},
+ +			},
+ +		}
+ +		info := types2.Info{
+ +			Types: make(map[syntax.Expr]types2.TypeAndValue),
+ +			Defs:  make(map[*syntax.Name]types2.Object),
+ +			Uses:  make(map[*syntax.Name]types2.Object),
+ +			// expand as needed
+ +		}
+ +		conf.Check(base.Ctxt.Pkgpath, files, &info)
+ +		base.ExitIfErrors()
+ +		if base.Flag.G < 2 {
+ +			return
+ +		}
+ +
+ +		// noding
+ +		for _, p := range noders {
+ +			// errors have already been reported
+ +
+ +			p.typeInfo = &info
+ +			p.node()
+ +			lines += p.file.EOF.Line()
+ +			p.file = nil // release memory
+ +			base.ExitIfErrors()
+ +
+ +			// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+ +			testdclstack()
+ +		}
+ +
+- 		ir.LocalPkg.Height = myheight
+++		types.LocalPkg.Height = myheight
+ +		return
+ +	}
+ +
+ +	// traditional (non-generic) noding phase
+  	for _, p := range noders {
+  		for e := range p.err {
+  			p.errorAt(e.Pos, "%s", e.Msg)
+@@@ -160,25 -75,13 +160,29 @@@
+  		testdclstack()
+  	}
+  
+- 	ir.LocalPkg.Height = myheight
++ 	for _, p := range noders {
++ 		p.processPragmas()
++ 	}
++ 
++ 	types.LocalPkg.Height = myheight
+ +	return
+ +}
+  
+ -	return lines
+ +// Temporary import helper to get type2-based type-checking going.
+ +type gcimports struct {
+ +	packages map[string]*types2.Package
+ +	lookup   func(path string) (io.ReadCloser, error)
+ +}
+ +
+ +func (m *gcimports) Import(path string) (*types2.Package, error) {
+ +	return m.ImportFrom(path, "" /* no vendoring */, 0)
+ +}
+ +
+ +func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+ +	if mode != 0 {
+ +		panic("mode must be 0")
+ +	}
+ +	return importer.Import(m.packages, path, srcDir, m.lookup)
+  }
+  
+  // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
+@@@ -259,27 -156,7 +263,27 @@@ type noder struct 
+  	lastCloseScopePos syntax.Pos
+  }
+  
+ +// For now we provide these basic accessors to get to type and object
+ +// information of expression nodes during noding. Eventually we will
+ +// attach this information directly to the syntax tree which should
+ +// simplify access and make it more efficient as well.
+ +
+ +// typ returns the type and value information for the given expression.
+ +func (p *noder) typ(x syntax.Expr) types2.TypeAndValue {
+ +	return p.typeInfo.Types[x]
+ +}
+ +
+ +// def returns the object for the given name in its declaration.
+ +func (p *noder) def(x *syntax.Name) types2.Object {
+ +	return p.typeInfo.Defs[x]
+ +}
+ +
+ +// use returns the object for the given name outside its declaration.
+ +func (p *noder) use(x *syntax.Name) types2.Object {
+ +	return p.typeInfo.Uses[x]
+ +}
+ +
+- func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
++ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
+  	oldScope := p.scope
+  	p.scope = 0
+  	funchdr(fn)
+diff --cc src/cmd/compile/internal/types2/stdlib_test.go
+index 89e49d84d6,0000000000..ae573a4ec8
+mode 100644,000000..100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@@ -1,322 -1,0 +1,323 @@@
+ +// UNREVIEWED
+ +// Copyright 2013 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +// This file tests types.Check by using it to
+ +// typecheck the standard library and tests.
+ +
+ +package types2_test
+ +
+ +import (
+ +	"bytes"
+ +	"cmd/compile/internal/syntax"
+ +	"fmt"
+ +	"go/build"
+ +	"internal/testenv"
+ +	"io/ioutil"
+ +	"os"
+ +	"path/filepath"
+ +	"runtime"
+ +	"strings"
+ +	"testing"
+ +	"time"
+ +
+ +	. "cmd/compile/internal/types2"
+ +)
+ +
+ +var stdLibImporter = defaultImporter()
+ +
+ +func TestStdlib(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	pkgCount := 0
+ +	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
+ +		typecheck(t, dir, filenames)
+ +		pkgCount++
+ +	}, t.Error)
+ +
+ +	if testing.Verbose() {
+ +		fmt.Println(pkgCount, "packages typechecked in", duration)
+ +	}
+ +}
+ +
+ +// firstComment returns the contents of the first non-empty comment in
+ +// the given file, "skip", or the empty string. No matter the present
+ +// comments, if any of them contains a build tag, the result is always
+ +// "skip". Only comments within the first 4K of the file are considered.
+ +// TODO(gri) should only read until we see "package" token.
+ +func firstComment(filename string) (first string) {
+ +	f, err := os.Open(filename)
+ +	if err != nil {
+ +		return ""
+ +	}
+ +	defer f.Close()
+ +
+ +	// read at most 4KB
+ +	var buf [4 << 10]byte
+ +	n, _ := f.Read(buf[:])
+ +	src := bytes.NewBuffer(buf[:n])
+ +
+ +	// TODO(gri) we need a better way to terminate CommentsDo
+ +	defer func() {
+ +		if p := recover(); p != nil {
+ +			if s, ok := p.(string); ok {
+ +				first = s
+ +			}
+ +		}
+ +	}()
+ +
+ +	syntax.CommentsDo(src, func(_, _ uint, text string) {
+ +		if text[0] != '/' {
+ +			return // not a comment
+ +		}
+ +
+ +		// extract comment text
+ +		if text[1] == '*' {
+ +			text = text[:len(text)-2]
+ +		}
+ +		text = strings.TrimSpace(text[2:])
+ +
+ +		if strings.HasPrefix(text, "+build ") {
+ +			panic("skip")
+ +		}
+ +		if first == "" {
+ +			first = text // text may be "" but that's ok
+ +		}
+ +		// continue as we may still see build tags
+ +	})
+ +
+ +	return
+ +}
+ +
+ +func testTestDir(t *testing.T, path string, ignore ...string) {
+ +	files, err := ioutil.ReadDir(path)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +
+ +	excluded := make(map[string]bool)
+ +	for _, filename := range ignore {
+ +		excluded[filename] = true
+ +	}
+ +
+ +	for _, f := range files {
+ +		// filter directory contents
+ +		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") || excluded[f.Name()] {
+ +			continue
+ +		}
+ +
+ +		// get per-file instructions
+ +		expectErrors := false
+ +		filename := filepath.Join(path, f.Name())
+ +		if comment := firstComment(filename); comment != "" {
+ +			fields := strings.Fields(comment)
+ +			switch fields[0] {
+ +			case "skip", "compiledir":
+ +				continue // ignore this file
+ +			case "errorcheck":
+ +				expectErrors = true
+ +				for _, arg := range fields[1:] {
+ +					if arg == "-0" || arg == "-+" || arg == "-std" {
+ +						// Marked explicitly as not expected errors (-0),
+ +						// or marked as compiling runtime/stdlib, which is only done
+ +						// to trigger runtime/stdlib-only error output.
+ +						// In both cases, the code should typecheck.
+ +						expectErrors = false
+ +						break
+ +					}
+ +				}
+ +			}
+ +		}
+ +
+ +		// parse and type-check file
+ +		if testing.Verbose() {
+ +			fmt.Println("\t", filename)
+ +		}
+ +		file, err := syntax.ParseFile(filename, nil, nil, 0)
+ +		if err == nil {
+ +			conf := Config{Importer: stdLibImporter}
+ +			_, err = conf.Check(filename, []*syntax.File{file}, nil)
+ +		}
+ +
+ +		if expectErrors {
+ +			if err == nil {
+ +				t.Errorf("expected errors but found none in %s", filename)
+ +			}
+ +		} else {
+ +			if err != nil {
+ +				t.Error(err)
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +func TestStdTest(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	if testing.Short() && testenv.Builder() == "" {
+ +		t.Skip("skipping in short mode")
+ +	}
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ +		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ +		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+++		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
+ +	)
+ +}
+ +
+ +func TestStdFixed(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	if testing.Short() && testenv.Builder() == "" {
+ +		t.Skip("skipping in short mode")
+ +	}
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ +		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+ +		"issue6889.go",   // gc-specific test
+ +		"issue7746.go",   // large constants - consumes too much memory
+ +		"issue11362.go",  // canonical import path check
+ +		"issue16369.go",  // go/types handles this correctly - not an issue
+ +		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
+ +		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+ +		"issue20232.go",  // go/types handles larger constants than gc
+ +		"issue20529.go",  // go/types does not have constraints on stack size
+ +		"issue22200.go",  // go/types does not have constraints on stack size
+ +		"issue22200b.go", // go/types does not have constraints on stack size
+ +		"issue25507.go",  // go/types does not have constraints on stack size
+ +		"issue20780.go",  // go/types does not have constraints on stack size
+ +		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+ +		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+ +		"issue42058a.go", // go/types does not have constraints on channel element size
+ +		"issue42058b.go", // go/types does not have constraints on channel element size
+ +		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+ +	)
+ +}
+ +
+ +func TestStdKen(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+ +}
+ +
+ +// Package paths of excluded packages.
+ +var excluded = map[string]bool{
+ +	"builtin": true,
+ +}
+ +
+ +// typecheck typechecks the given package files.
+ +func typecheck(t *testing.T, path string, filenames []string) {
+ +	// parse package files
+ +	var files []*syntax.File
+ +	for _, filename := range filenames {
+ +		errh := func(err error) { t.Error(err) }
+ +		file, err := syntax.ParseFile(filename, errh, nil, 0)
+ +		if err != nil {
+ +			return
+ +		}
+ +
+ +		if testing.Verbose() {
+ +			if len(files) == 0 {
+ +				fmt.Println("package", file.PkgName.Value)
+ +			}
+ +			fmt.Println("\t", filename)
+ +		}
+ +
+ +		files = append(files, file)
+ +	}
+ +
+ +	// typecheck package files
+ +	conf := Config{
+ +		Error:    func(err error) { t.Error(err) },
+ +		Importer: stdLibImporter,
+ +	}
+ +	info := Info{Uses: make(map[*syntax.Name]Object)}
+ +	conf.Check(path, files, &info)
+ +
+ +	// Perform checks of API invariants.
+ +
+ +	// All Objects have a package, except predeclared ones.
+ +	errorError := Universe.Lookup("error").Type().Interface().ExplicitMethod(0) // (error).Error
+ +	for id, obj := range info.Uses {
+ +		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
+ +		if predeclared == (obj.Pkg() != nil) {
+ +			posn := id.Pos()
+ +			if predeclared {
+ +				t.Errorf("%s: predeclared object with package: %s", posn, obj)
+ +			} else {
+ +				t.Errorf("%s: user-defined object without package: %s", posn, obj)
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +// pkgFilenames returns the list of package filenames for the given directory.
+ +func pkgFilenames(dir string) ([]string, error) {
+ +	ctxt := build.Default
+ +	ctxt.CgoEnabled = false
+ +	pkg, err := ctxt.ImportDir(dir, 0)
+ +	if err != nil {
+ +		if _, nogo := err.(*build.NoGoError); nogo {
+ +			return nil, nil // no *.go files, not an error
+ +		}
+ +		return nil, err
+ +	}
+ +	if excluded[pkg.ImportPath] {
+ +		return nil, nil
+ +	}
+ +	var filenames []string
+ +	for _, name := range pkg.GoFiles {
+ +		filenames = append(filenames, filepath.Join(pkg.Dir, name))
+ +	}
+ +	for _, name := range pkg.TestGoFiles {
+ +		filenames = append(filenames, filepath.Join(pkg.Dir, name))
+ +	}
+ +	return filenames, nil
+ +}
+ +
+ +func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...interface{})) time.Duration {
+ +	w := walker{time.Now(), 10 * time.Millisecond, pkgh, errh}
+ +	w.walk(dir)
+ +	return time.Since(w.start)
+ +}
+ +
+ +type walker struct {
+ +	start time.Time
+ +	dmax  time.Duration
+ +	pkgh  func(dir string, filenames []string)
+ +	errh  func(args ...interface{})
+ +}
+ +
+ +func (w *walker) walk(dir string) {
+ +	// limit run time for short tests
+ +	if testing.Short() && time.Since(w.start) >= w.dmax {
+ +		return
+ +	}
+ +
+ +	fis, err := ioutil.ReadDir(dir)
+ +	if err != nil {
+ +		w.errh(err)
+ +		return
+ +	}
+ +
+ +	// apply pkgh to the files in directory dir
+ +	// but ignore files directly under $GOROOT/src (might be temporary test files).
+ +	if dir != filepath.Join(runtime.GOROOT(), "src") {
+ +		files, err := pkgFilenames(dir)
+ +		if err != nil {
+ +			w.errh(err)
+ +			return
+ +		}
+ +		if files != nil {
+ +			w.pkgh(dir, files)
+ +		}
+ +	}
+ +
+ +	// traverse subdirectories, but don't walk into testdata
+ +	for _, fi := range fis {
+ +		if fi.IsDir() && fi.Name() != "testdata" {
+ +			w.walk(filepath.Join(dir, fi.Name()))
+ +		}
+ +	}
+ +}
+diff --cc src/go/parser/error_test.go
+index 83bfdd40ad,358a844f65..8e20b7b468
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@@ -183,14 -178,10 +183,14 @@@ func TestErrors(t *testing.T) 
+  	if err != nil {
+  		t.Fatal(err)
+  	}
+- 	for _, fi := range list {
+- 		name := fi.Name()
+- 		if !fi.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
++ 	for _, d := range list {
++ 		name := d.Name()
+ -		if !d.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
+ -			checkErrors(t, filepath.Join(testdata, name), nil)
+++		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+ +			mode := DeclarationErrors | AllErrors
+ +			if strings.HasSuffix(name, ".go2") {
+ +				mode |= ParseTypeParams
+ +			}
+ +			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+  		}
+  	}
+  }
+diff --cc test/assign.go
+index 549f42eb80,62fd3b5be3..bdec58b710
+--- a/test/assign.go
++++ b/test/assign.go
+@@@ -56,13 -56,13 +56,13 @@@ func main() 
+  	{
+  		var x = 1
+  		{
+- 			x, x := 2, 3 // ERROR "x repeated on left side of :=|x redeclared in this block"
+ -			x, x := 2, 3 // ERROR ".*x.* repeated on left side of :="
+++			x, x := 2, 3 // ERROR ".*x.* repeated on left side of :=|x redeclared in this block"
+  			_ = x
+  		}
+  		_ = x
+  	}
+  	{
+- 		a, a := 1, 2 // ERROR "a repeated on left side of :=|a redeclared in this block"
+ -		a, a := 1, 2 // ERROR ".*a.* repeated on left side of :="
+++		a, a := 1, 2 // ERROR ".*a.* repeated on left side of :=|a redeclared in this block"
+  		_ = a
+  	}
+  }
+diff --cc test/chan/perm.go
+index 607a356a02,0c96d921d1..4c94ab7ffa
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@@ -66,5 -66,5 +66,5 @@@ func main() 
+  	close(c)
+  	close(cs)
+  	close(cr) // ERROR "receive"
+- 	close(n)  // ERROR "invalid operation.*non-chan type|not a channel"
+ -	close(n)  // ERROR "invalid operation.*non-chan type|must be channel"
+++	close(n)  // ERROR "invalid operation.*non-chan type|must be channel|not a channel"
+  }
+diff --cc test/fixedbugs/issue22822.go
+index 554b534503,0e838cb597..27c873ab10
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@@ -11,7 -11,8 +11,9 @@@ package mai
+  
+  func F() {
+  	slice := []int{1, 2, 3}
+- 	len := int(2)
+- 	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at|cannot call non-function len"
+ +	_ = slice
++ 	len := int(2)
+ -	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1"
+++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|cannot call non-function len"
++ 	const iota = 1
+ -	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1"
+++	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|cannot call non-function iota"
+  }
+diff --cc test/fixedbugs/issue4458.go
+index 3ae9910d9e,59cfa9fcee..6ac6d86db3
+--- a/test/fixedbugs/issue4458.go
++++ b/test/fixedbugs/issue4458.go
+@@@ -16,5 -16,5 +16,5 @@@ func (T) foo() {
+  func main() {
+  	av := T{}
+  	pav := &av
+- 	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named|undefined"
+ -	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named"
+++	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named|undefined"
+  }
+diff --cc test/init.go
+index c2c25c7860,5e182281da..43bb3c6503
+--- a/test/init.go
++++ b/test/init.go
+@@@ -14,6 -14,6 +14,6 @@@ func init() 
+  
+  func main() {
+  	init()         // ERROR "undefined.*init"
+- 	runtime.init() // ERROR "undefined.*runtime\.init|undefined: runtime"
+ -	runtime.init() // ERROR "undefined.*runtime\.init|reference to undefined name"
+++	runtime.init() // ERROR "undefined.*runtime\.init|reference to undefined name|undefined: runtime"
+  	var _ = init   // ERROR "undefined.*init"
+  }
+diff --cc test/interface/explicit.go
+index 7aaaad4e48,b705b97676..1b7af6712b
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@@ -47,17 -47,17 +47,17 @@@ func main() 
+  	t = i // ERROR "incompatible|assignment$"
+  
+  	i = i2 // ok
+- 	i2 = i // ERROR "incompatible|missing N method|cannot convert"
++ 	i2 = i // ERROR "incompatible|missing N method"
+  
+  	i = I(i2)  // ok
+ -	i2 = I2(i) // ERROR "invalid|missing N method"
+ +	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
+  
+  	e = E(t) // ok
+ -	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+ +	t = T(e) // ERROR "need explicit|need type assertion|incompatible|cannot convert"
+  
+  	// cannot type-assert non-interfaces
+  	f := 2.0
+- 	_ = f.(int) // ERROR "non-interface type|not an interface type"
+ -	_ = f.(int) // ERROR "non-interface type|only valid for interface types"
+++	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface type"
+  
+  }
+  
+diff --cc test/map1.go
+index bd4d87b871,b4aa70755f..a6b27e6ebd
+--- a/test/map1.go
++++ b/test/map1.go
+@@@ -64,5 -64,5 +64,5 @@@ func main() 
+  	delete()        // ERROR "missing arguments|not enough arguments"
+  	delete(m)       // ERROR "missing second \(key\) argument|not enough arguments"
+  	delete(m, 2, 3) // ERROR "too many arguments"
+- 	delete(1, m)    // ERROR "first argument to delete must be map|is not a map"
+- }
+ -	delete(1, m)    // ERROR "first argument to delete must be map|argument 1 must be a map"
+++	delete(1, m)    // ERROR "first argument to delete must be map|argument 1 must be a map|is not a map"
++ }
+diff --cc test/method2.go
+index 790062c2af,ac1d771c05..2a92136d6c
+--- a/test/method2.go
++++ b/test/method2.go
+@@@ -38,4 -38,4 +38,4 @@@ var _ = pv.val   // ERROR "undefined|po
+  
+  func (t *T) g() int { return t.a }
+  
+- var _ = (T).g() // ERROR "needs pointer receiver|undefined|cannot call pointer method"
+ -var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires pointer"
+++var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires pointer|cannot call pointer method"
+diff --cc test/run.go
+index 3e0e7ab368,4abf32d25c..91bdd629bf
+--- a/test/run.go
++++ b/test/run.go
+@@@ -1919,113 -1846,3 +1922,114 @@@ func overlayDir(dstRoot, srcRoot string
+  		return err
+  	})
+  }
+ +
+ +// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ +// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ +var excluded = map[string]bool{
+ +	"complit1.go":     true,
+ +	"const2.go":       true,
+ +	"convlit.go":      true,
+ +	"ddd1.go":         true, // issue #42987
+ +	"directive.go":    true, // misplaced compiler directive checks
+ +	"float_lit3.go":   true,
+ +	"import1.go":      true,
+ +	"import5.go":      true, // issue #42988
+ +	"import6.go":      true,
+ +	"initializerr.go": true,
+++	"linkname2.go":    true,
+ +	"makechan.go":     true,
+ +	"makemap.go":      true,
+ +	"shift1.go":       true, // issue #42989
+ +	"slice3err.go":    true,
+ +	"switch3.go":      true,
+ +	"switch4.go":      true,
+ +	"switch5.go":      true,
+ +	"switch6.go":      true,
+ +	"switch7.go":      true,
+ +	"typecheck.go":    true, // invalid function is not causing errors when called
+ +
+ +	"fixedbugs/bug163.go":    true,
+ +	"fixedbugs/bug176.go":    true,
+ +	"fixedbugs/bug192.go":    true,
+ +	"fixedbugs/bug193.go":    true,
+ +	"fixedbugs/bug195.go":    true,
+ +	"fixedbugs/bug213.go":    true,
+ +	"fixedbugs/bug228.go":    true,
+ +	"fixedbugs/bug229.go":    true,
+ +	"fixedbugs/bug231.go":    true,
+ +	"fixedbugs/bug251.go":    true,
+ +	"fixedbugs/bug255.go":    true,
+ +	"fixedbugs/bug256.go":    true,
+ +	"fixedbugs/bug325.go":    true,
+ +	"fixedbugs/bug326.go":    true,
+ +	"fixedbugs/bug340.go":    true,
+ +	"fixedbugs/bug342.go":    true,
+ +	"fixedbugs/bug350.go":    true,
+ +	"fixedbugs/bug351.go":    true,
+ +	"fixedbugs/bug353.go":    true,
+ +	"fixedbugs/bug357.go":    true,
+ +	"fixedbugs/bug362.go":    true,
+ +	"fixedbugs/bug371.go":    true,
+ +	"fixedbugs/bug374.go":    true,
+ +	"fixedbugs/bug379.go":    true,
+ +	"fixedbugs/bug383.go":    true,
+ +	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
+ +	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/bug386.go":    true,
+ +	"fixedbugs/bug388.go":    true,
+ +	"fixedbugs/bug389.go":    true,
+ +	"fixedbugs/bug390.go":    true,
+ +	"fixedbugs/bug397.go":    true,
+ +	"fixedbugs/bug412.go":    true,
+ +	"fixedbugs/bug413.go":    true,
+ +	"fixedbugs/bug416.go":    true,
+ +	"fixedbugs/bug418.go":    true,
+ +	"fixedbugs/bug459.go":    true,
+ +	"fixedbugs/bug462.go":    true,
+ +	"fixedbugs/bug463.go":    true,
+ +	"fixedbugs/bug487.go":    true,
+ +
+ +	"fixedbugs/issue11362.go":  true, // types2 import path handling
+ +	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+ +	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+ +	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+ +	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
+ +	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+ +	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+ +	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+ +	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+ +	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue32133.go":  true, // types2 line numbers off?
+ +	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ +	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
+ +	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ +	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
+ +	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
+ +}
+diff --cc test/used.go
+index 0000000000,5c7aad24a6..a3f0e1270b
+mode 000000,100644..100644
+--- a/test/used.go
++++ b/test/used.go
+@@@ -1,0 -1,143 +1,144 @@@
++ // errorcheck
++ 
++ // Copyright 2020 The Go Authors. All rights reserved.
++ // Use of this source code is governed by a BSD-style
++ // license that can be found in the LICENSE file.
++ 
++ package p
++ 
++ import "unsafe"
++ 
++ const C = 1
++ 
++ var x, x1, x2 int
++ var b bool
++ var s string
++ var c chan int
++ var cp complex128
++ var slice []int
++ var array [2]int
++ var bytes []byte
++ var runes []rune
++ var r rune
++ 
++ func f0()            {}
++ func f1() int        { return 1 }
++ func f2() (int, int) { return 1, 1 }
++ 
++ type T struct{ X int }
++ 
++ func (T) M1() int { return 1 }
++ func (T) M0()     {}
++ func (T) M()      {}
++ 
++ var t T
++ var tp *T
++ 
++ type I interface{ M() }
++ 
++ var i I
++ 
++ var m map[int]int
++ 
++ func _() {
++ 	// Note: if the next line changes to x, the error silences the x+x etc below!
+ -	x1 // ERROR "x1 evaluated but not used"
+++	x1 // ERROR "x1 .* not used"
++ 
+ -	nil                    // ERROR "nil evaluated but not used"
+ -	C                      // ERROR  "C evaluated but not used"
+ -	1                      // ERROR "1 evaluated but not used"
+ -	x + x                  // ERROR "x \+ x evaluated but not used"
+ -	x - x                  // ERROR "x - x evaluated but not used"
+ -	x | x                  // ERROR "x \| x evaluated but not used"
+ -	"a" + s                // ERROR ".a. \+ s evaluated but not used"
+ -	&x                     // ERROR "&x evaluated but not used"
+ -	b && b                 // ERROR "b && b evaluated but not used"
+ -	append(slice, 1)       // ERROR "append\(slice, 1\) evaluated but not used"
+ -	string(bytes)          // ERROR "string\(bytes\) evaluated but not used"
+ -	string(runes)          // ERROR "string\(runes\) evaluated but not used"
+++	nil                    // ERROR "nil .* not used"
+++	C                      // ERROR  "C .* not used"
+++	1                      // ERROR "1 .* not used"
+++	x + x                  // ERROR "x \+ x .* not used"
+++	x - x                  // ERROR "x - x .* not used"
+++	x | x                  // ERROR "x \| x .* not used"
+++	"a" + s                // ERROR ".a. \+ s .* not used"
+++	&x                     // ERROR "&x .* not used"
+++	b && b                 // ERROR "b && b .* not used"
+++	append(slice, 1)       // ERROR "append\(slice, 1\) .* not used"
+++	string(bytes)          // ERROR "string\(bytes\) .* not used"
+++	string(runes)          // ERROR "string\(runes\) .* not used"
++ 	f0()                   // ok
++ 	f1()                   // ok
++ 	f2()                   // ok
+ -	_ = f0()               // ERROR "f0\(\) used as value"
+++	_ = f0()               // ERROR "f0\(\) .*used as value"
++ 	_ = f1()               // ok
++ 	_, _ = f2()            // ok
+ -	_ = f2()               // ERROR "assignment mismatch: 1 variable but f2 returns 2 values"
+ -	T.M0                   // ERROR "T.M0 evaluated but not used"
+ -	t.M0                   // ERROR "t.M0 evaluated but not used"
+ -	cap                    // ERROR "use of builtin cap not in function call"
+ -	cap(slice)             // ERROR "cap\(slice\) evaluated but not used"
+++	_ = f2()               // ERROR "assignment mismatch: 1 variable but f2 returns 2 values|cannot assign"
+++	T.M0                   // ERROR "T.M0 .* not used"
+++	t.M0                   // ERROR "t.M0 .* not used"
+++	cap                    // ERROR "use of builtin cap not in function call|must be called"
+++	cap(slice)             // ERROR "cap\(slice\) .* not used"
++ 	close(c)               // ok
+ -	_ = close(c)           // ERROR "close\(c\) used as value"
+ -	func() {}              // ERROR "func literal evaluated but not used"
+++	_ = close(c)           // ERROR "close\(c\) .*used as value"
+++	func() {}              // ERROR "func literal .* not used|is not used"
++ 	X{}                    // ERROR "undefined: X"
+ -	map[string]int{}       // ERROR "map\[string\]int{} evaluated but not used"
+ -	struct{}{}             // ERROR "struct ?{}{} evaluated but not used"
+ -	[1]int{}               // ERROR "\[1\]int{} evaluated but not used"
+ -	[]int{}                // ERROR "\[\]int{} evaluated but not used"
+ -	&struct{}{}            // ERROR "&struct ?{}{} evaluated but not used"
+ -	float32(x)             // ERROR "float32\(x\) evaluated but not used"
+ -	I(t)                   // ERROR "I\(t\) evaluated but not used"
+ -	int(x)                 // ERROR "int\(x\) evaluated but not used"
+++	map[string]int{}       // ERROR "map\[string\]int{} .* not used"
+++	struct{}{}             // ERROR "struct ?{}{} .* not used"
+++	[1]int{}               // ERROR "\[1\]int{} .* not used"
+++	[]int{}                // ERROR "\[\]int{} .* not used"
+++	&struct{}{}            // ERROR "&struct ?{}{} .* not used"
+++	float32(x)             // ERROR "float32\(x\) .* not used"
+++	I(t)                   // ERROR "I\(t\) .* not used"
+++	int(x)                 // ERROR "int\(x\) .* not used"
++ 	copy(slice, slice)     // ok
++ 	_ = copy(slice, slice) // ok
++ 	delete(m, 1)           // ok
+ -	_ = delete(m, 1)       // ERROR "delete\(m, 1\) used as value"
+ -	t.X                    // ERROR "t.X evaluated but not used"
+ -	tp.X                   // ERROR "tp.X evaluated but not used"
+ -	t.M                    // ERROR "t.M evaluated but not used"
+ -	I.M                    // ERROR "I.M evaluated but not used"
+ -	i.(T)                  // ERROR "i.\(T\) evaluated but not used"
+ -	x == x                 // ERROR "x == x evaluated but not used"
+ -	x != x                 // ERROR "x != x evaluated but not used"
+ -	x != x                 // ERROR "x != x evaluated but not used"
+ -	x < x                  // ERROR "x < x evaluated but not used"
+ -	x >= x                 // ERROR "x >= x evaluated but not used"
+ -	x > x                  // ERROR "x > x evaluated but not used"
+ -	*tp                    // ERROR "\*tp evaluated but not used"
+ -	slice[0]               // ERROR "slice\[0\] evaluated but not used"
+ -	m[1]                   // ERROR "m\[1\] evaluated but not used"
+ -	len(slice)             // ERROR "len\(slice\) evaluated but not used"
+ -	make(chan int)         // ERROR "make\(chan int\) evaluated but not used"
+ -	make(map[int]int)      // ERROR "make\(map\[int\]int\) evaluated but not used"
+ -	make([]int, 1)         // ERROR "make\(\[\]int, 1\) evaluated but not used"
+ -	x * x                  // ERROR "x \* x evaluated but not used"
+ -	x / x                  // ERROR "x / x evaluated but not used"
+ -	x % x                  // ERROR "x % x evaluated but not used"
+ -	x << x                 // ERROR "x << x evaluated but not used"
+ -	x >> x                 // ERROR "x >> x evaluated but not used"
+ -	x & x                  // ERROR "x & x evaluated but not used"
+ -	x &^ x                 // ERROR "x &\^ x evaluated but not used"
+ -	new(int)               // ERROR "new\(int\) evaluated but not used"
+ -	!b                     // ERROR "!b evaluated but not used"
+ -	^x                     // ERROR "\^x evaluated but not used"
+ -	+x                     // ERROR "\+x evaluated but not used"
+ -	-x                     // ERROR "-x evaluated but not used"
+ -	b || b                 // ERROR "b \|\| b evaluated but not used"
+++	_ = delete(m, 1)       // ERROR "delete\(m, 1\) .*used as value"
+++	t.X                    // ERROR "t.X .* not used"
+++	tp.X                   // ERROR "tp.X .* not used"
+++	t.M                    // ERROR "t.M .* not used"
+++	I.M                    // ERROR "I.M .* not used"
+++	i.(T)                  // ERROR "i.\(T\) .* not used"
+++	x == x                 // ERROR "x == x .* not used"
+++	x != x                 // ERROR "x != x .* not used"
+++	x != x                 // ERROR "x != x .* not used"
+++	x < x                  // ERROR "x < x .* not used"
+++	x >= x                 // ERROR "x >= x .* not used"
+++	x > x                  // ERROR "x > x .* not used"
+++	*tp                    // ERROR "\*tp .* not used"
+++	slice[0]               // ERROR "slice\[0\] .* not used"
+++	m[1]                   // ERROR "m\[1\] .* not used"
+++	len(slice)             // ERROR "len\(slice\) .* not used"
+++	make(chan int)         // ERROR "make\(chan int\) .* not used"
+++	make(map[int]int)      // ERROR "make\(map\[int\]int\) .* not used"
+++	make([]int, 1)         // ERROR "make\(\[\]int, 1\) .* not used"
+++	x * x                  // ERROR "x \* x .* not used"
+++	x / x                  // ERROR "x / x .* not used"
+++	x % x                  // ERROR "x % x .* not used"
+++	x << x                 // ERROR "x << x .* not used"
+++	x >> x                 // ERROR "x >> x .* not used"
+++	x & x                  // ERROR "x & x .* not used"
+++	x &^ x                 // ERROR "x &\^ x .* not used"
+++	new(int)               // ERROR "new\(int\) .* not used"
+++	!b                     // ERROR "!b .* not used"
+++	^x                     // ERROR "\^x .* not used"
+++	+x                     // ERROR "\+x .* not used"
+++	-x                     // ERROR "-x .* not used"
+++	b || b                 // ERROR "b \|\| b .* not used"
++ 	panic(1)               // ok
+ -	_ = panic(1)           // ERROR "panic\(1\) used as value"
+++	_ = panic(1)           // ERROR "panic\(1\) .*used as value"
++ 	print(1)               // ok
+ -	_ = print(1)           // ERROR "print\(1\) used as value"
+++	_ = print(1)           // ERROR "print\(1\) .*used as value"
++ 	println(1)             // ok
+ -	_ = println(1)         // ERROR "println\(1\) used as value"
+++	_ = println(1)         // ERROR "println\(1\) .*used as value"
++ 	c <- 1                 // ok
+ -	slice[1:1]             // ERROR "slice\[1:1\] evaluated but not used"
+ -	array[1:1]             // ERROR "array\[1:1\] evaluated but not used"
+ -	s[1:1]                 // ERROR "s\[1:1\] evaluated but not used"
+ -	slice[1:1:1]           // ERROR "slice\[1:1:1\] evaluated but not used"
+ -	array[1:1:1]           // ERROR "array\[1:1:1\] evaluated but not used"
+++	slice[1:1]             // ERROR "slice\[1:1\] .* not used"
+++	array[1:1]             // ERROR "array\[1:1\] .* not used"
+++	s[1:1]                 // ERROR "s\[1:1\] .* not used"
+++	slice[1:1:1]           // ERROR "slice\[1:1:1\] .* not used"
+++	array[1:1:1]           // ERROR "array\[1:1:1\] .* not used"
++ 	recover()              // ok
++ 	<-c                    // ok
+ -	string(r)              // ERROR "string\(r\) evaluated but not used"
+ -	iota                   // ERROR "undefined: iota"
+ -	real(cp)               // ERROR "real\(cp\) evaluated but not used"
+ -	imag(cp)               // ERROR "imag\(cp\) evaluated but not used"
+ -	complex(1, 2)          // ERROR "complex\(1, 2\) evaluated but not used"
+ -	unsafe.Alignof(t.X)    // ERROR "unsafe.Alignof\(t.X\) evaluated but not used"
+ -	unsafe.Offsetof(t.X)   // ERROR "unsafe.Offsetof\(t.X\) evaluated but not used"
+ -	unsafe.Sizeof(t)       // ERROR "unsafe.Sizeof\(t\) evaluated but not used"
+ -	_ = int                // ERROR "type int is not an expression"
+ -	(x)                    // ERROR "x evaluated but not used"
+ -	_ = new(x2)            // ERROR "x2 is not a type"
+ -	_ = new(1 + 1)         // ERROR "1 \+ 1 is not a type"
+++	string(r)              // ERROR "string\(r\) .* not used"
+++	iota                   // ERROR "undefined: iota|cannot use iota"
+++	real(cp)               // ERROR "real\(cp\) .* not used"
+++	imag(cp)               // ERROR "imag\(cp\) .* not used"
+++	complex(1, 2)          // ERROR "complex\(1, 2\) .* not used"
+++	unsafe.Alignof(t.X)    // ERROR "unsafe.Alignof\(t.X\) .* not used"
+++	unsafe.Offsetof(t.X)   // ERROR "unsafe.Offsetof\(t.X\) .* not used"
+++	unsafe.Sizeof(t)       // ERROR "unsafe.Sizeof\(t\) .* not used"
+++	_ = int                // ERROR "type int is not an expression|not an expression"
+++	(x)                    // ERROR "x .* not used|not used"
+++	_ = new(x2)            // ERROR "x2 is not a type|not a type"
+++	// Disabled due to issue #43125.
+++	// _ = new(1 + 1)         // DISABLED "1 \+ 1 is not a type"
++ }

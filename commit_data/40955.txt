@@ -21,6 +21,25 @@ Date:   Mon Jul 22 19:09:33 2019 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/sendfile_windows.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/net/sendfile_windows.go b/src/net/sendfile_windows.go
+index bccd8b149f..a223e2562e 100644
+--- a/src/net/sendfile_windows.go
++++ b/src/net/sendfile_windows.go
+@@ -29,6 +29,13 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if n <= 0 {
+ 			return 0, nil, true
+ 		}
++		// TransmitFile can be invoked in one call with at most
++		// 2,147,483,646 bytes: the maximum value for a 32-bit integer minus 1.
++		// See https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
++		const maxSendBytes = 0x7fffffff - 1
++		if n > maxSendBytes {
++			return 0, nil, false
++		}
+ 	}
+ 	f, ok := r.(*os.File)
+ 	if !ok {

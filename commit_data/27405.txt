@@ -9,6 +9,21 @@ Date:   Fri Mar 25 11:14:29 2016 +0100
     Change-Id: I5097ca19048381ffb5a4c5ea038b7c4aa18ee4b7
     Reviewed-on: https://go-review.googlesource.com/21132
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/issue14937_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/compress/gzip/issue14937_test.go b/src/compress/gzip/issue14937_test.go
+index cbce0aaca2..74690c2f47 100644
+--- a/src/compress/gzip/issue14937_test.go
++++ b/src/compress/gzip/issue14937_test.go
+@@ -23,6 +23,9 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
+ 		return nil
+ 	})
+ 	if err != nil {
++		if os.IsNotExist(err) {
++			t.Skipf("skipping: GOROOT directory not found: %s", runtime.GOROOT())
++		}
+ 		t.Fatal("error collecting list of .gz files in GOROOT: ", err)
+ 	}
+ 	if len(files) == 0 {

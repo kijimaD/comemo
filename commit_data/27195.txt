@@ -9,7 +9,36 @@ Date:   Mon Mar 14 21:59:20 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/critical.go | 3 +++
  src/cmd/compile/internal/ssa/phielim.go  | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index 9fea0ec1cd..9230306785 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -22,6 +22,9 @@ func critical(f *Func) {
+ 			// allocate a new block to place on the edge
+ 			d := f.NewBlock(BlockPlain)
+ 			d.Line = c.Line
++			if f.pass.debug > 0 {
++				f.Config.Warnl(c.Line, "split critical edge")
++			}
+ 
+ 			// splice it in
+ 			d.Preds = append(d.Preds, c)
+diff --git a/src/cmd/compile/internal/ssa/phielim.go b/src/cmd/compile/internal/ssa/phielim.go
+index 0461e6e079..ce3b5a199a 100644
+--- a/src/cmd/compile/internal/ssa/phielim.go
++++ b/src/cmd/compile/internal/ssa/phielim.go
+@@ -64,5 +64,9 @@ func phielimValue(v *Value) bool {
+ 	}
+ 	v.Op = OpCopy
+ 	v.SetArgs1(w)
++	f := v.Block.Func
++	if f.pass.debug > 0 {
++		f.Config.Warnl(v.Line, "eliminated phi")
++	}
+ 	return true
+ }

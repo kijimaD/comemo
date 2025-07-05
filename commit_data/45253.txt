@@ -14,6 +14,22 @@ Date:   Tue Oct 13 20:44:04 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 69a66abd2d..398ed6bce1 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1462,8 +1462,8 @@ func wrapperPathFor(goos, goarch string) string {
+ 		if gohostos != "android" {
+ 			return pathf("%s/misc/android/go_android_exec.go", goroot)
+ 		}
+-	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
+-		if gohostos != "darwin" || gohostarch != "arm64" {
++	case goos == "ios":
++		if gohostos != "ios" {
+ 			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
+ 		}
+ 	}

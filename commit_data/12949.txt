@@ -9,6 +9,31 @@ Date:   Tue Apr 24 10:17:26 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6121044
-
+---
  test/reorder.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/test/reorder.go b/test/reorder.go
+index 007039e8a9..0cdeebd0f3 100644
+--- a/test/reorder.go
++++ b/test/reorder.go
+@@ -19,6 +19,7 @@ func main() {
+ 	p6()
+ 	p7()
+ 	p8()
++	p9()
+ }
+ 
+ var gx []int
+@@ -119,3 +120,11 @@ func p8() {
+ 	i := 0
+ 	i, x[i], x[5] = 1, 100, 500
+ }
++
++func p9() {
++	m := make(map[int]int)
++	m[0] = len(m)
++	if m[0] != 0 {
++		panic(m[0])
++	}
++}

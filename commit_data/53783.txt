@@ -23,8 +23,164 @@ Date:   Mon Aug 8 04:17:19 2022 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
  test/codegen/shift.go                        |  9 +++++++
  3 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 0e1a36015a..a91f17a2d3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1235,9 +1235,12 @@
+ (EON x (MOVDconst [c])) => (XORconst [^c] x)
+ (ORN x (MOVDconst [c])) => (ORconst  [^c] x)
+ 
+-(SLL x (MOVDconst [c])) => (SLLconst x [c&63]) // Note: I don't think we ever generate bad constant shifts (i.e. c>=64)
++(SLL x (MOVDconst [c])) => (SLLconst x [c&63])
+ (SRL x (MOVDconst [c])) => (SRLconst x [c&63])
+ (SRA x (MOVDconst [c])) => (SRAconst x [c&63])
++(SLL x (ANDconst [63] y)) => (SLL x y)
++(SRL x (ANDconst [63] y)) => (SRL x y)
++(SRA x (ANDconst [63] y)) => (SRA x y)
+ 
+ (CMP x (MOVDconst [c])) => (CMPconst [c] x)
+ (CMP (MOVDconst [c]) x) => (InvertFlags (CMPconst [c] x))
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 002659f92a..ecb8a6b779 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -20484,6 +20484,18 @@ func rewriteValueARM64_OpARM64SLL(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SLL x (ANDconst [63] y))
++	// result: (SLL x y)
++	for {
++		x := v_0
++		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64SLL)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64SLLconst(v *Value) bool {
+@@ -20649,6 +20661,18 @@ func rewriteValueARM64_OpARM64SRA(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRA x (ANDconst [63] y))
++	// result: (SRA x y)
++	for {
++		x := v_0
++		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64SRA)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64SRAconst(v *Value) bool {
+@@ -20806,6 +20830,18 @@ func rewriteValueARM64_OpARM64SRL(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRL x (ANDconst [63] y))
++	// result: (SRL x y)
++	for {
++		x := v_0
++		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64SRL)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64SRLconst(v *Value) bool {
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 293924a3db..f4cfea3f82 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -82,6 +82,7 @@ func lshMask64x64(v int64, s uint64) int64 {
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// riscv64:"SLL",-"AND\t",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSL",-"AND"
+ 	return v << (s & 63)
+ }
+ 
+@@ -90,6 +91,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// riscv64:"SRL",-"AND\t",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 
+@@ -98,6 +100,7 @@ func rshMask64x64(v int64, s uint64) int64 {
+ 	// ppc64le:"ANDCC",-ORN",-"ISEL"
+ 	// riscv64:"SRA",-"OR",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"ASR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 
+@@ -106,6 +109,7 @@ func lshMask32x64(v int32, s uint64) int32 {
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// riscv64:"SLL","AND","SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSL",-"AND"
+ 	return v << (s & 63)
+ }
+ 
+@@ -114,6 +118,7 @@ func rshMask32Ux64(v uint32, s uint64) uint32 {
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// riscv64:"SRL","AND","SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 
+@@ -122,6 +127,7 @@ func rshMask32x64(v int32, s uint64) int32 {
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// riscv64:"SRA","OR","SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"ASR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 
+@@ -130,6 +136,7 @@ func lshMask64x32(v int64, s uint32) int64 {
+ 	// ppc64le:"ANDCC",-"ORN"
+ 	// riscv64:"SLL",-"AND\t",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSL",-"AND"
+ 	return v << (s & 63)
+ }
+ 
+@@ -138,6 +145,7 @@ func rshMask64Ux32(v uint64, s uint32) uint64 {
+ 	// ppc64le:"ANDCC",-"ORN"
+ 	// riscv64:"SRL",-"AND\t",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"LSR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 
+@@ -146,6 +154,7 @@ func rshMask64x32(v int64, s uint32) int64 {
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// riscv64:"SRA",-"OR",-"SLTIU"
+ 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
++	// arm64:"ASR",-"AND"
+ 	return v >> (s & 63)
+ }
+ 

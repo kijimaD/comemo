@@ -7,6 +7,23 @@ Date:   Sun Oct 7 15:35:01 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6609052
-
+---
  src/cmd/gc/fmt.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 5a1f679301..61709c2862 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1086,9 +1086,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OLITERAL:  // this is a bit of a mess
+ 		if(fmtmode == FErr && n->sym != S)
+ 			return fmtprint(f, "%S", n->sym);
+-		if(n->val.ctype == CTNIL)
++		if(n->val.ctype == CTNIL && n->orig != N)
+ 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
+-		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
++		if(n->type != T && n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+ 			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))

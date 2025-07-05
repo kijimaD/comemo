@@ -16,9 +16,87 @@ Date:   Fri Dec 1 10:29:10 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                | 2 +-
  src/cmd/go/internal/test/cover.go    | 4 ++++
  src/cmd/go/internal/test/test.go     | 1 +
  src/cmd/go/internal/test/testflag.go | 5 ++---
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3507b12a03..9e012ddb16 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2476,7 +2476,7 @@ func TestCoverageFunc(t *testing.T) {
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 
+-	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "coverasm")
++	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
+ 	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
+ 	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
+ 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
+diff --git a/src/cmd/go/internal/test/cover.go b/src/cmd/go/internal/test/cover.go
+index 2a2c563a76..12538b4656 100644
+--- a/src/cmd/go/internal/test/cover.go
++++ b/src/cmd/go/internal/test/cover.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"path/filepath"
+ 	"sync"
+ )
+ 
+@@ -25,6 +26,9 @@ func initCoverProfile() {
+ 	if testCoverProfile == "" {
+ 		return
+ 	}
++	if !filepath.IsAbs(testCoverProfile) && testOutputDir != "" {
++		testCoverProfile = filepath.Join(testOutputDir, testCoverProfile)
++	}
+ 
+ 	// No mutex - caller's responsibility to call with no racing goroutines.
+ 	f, err := os.Create(testCoverProfile)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index a7c4c60ae3..419e7270d6 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -466,6 +466,7 @@ var (
+ 	testCoverPaths   []string        // -coverpkg flag
+ 	testCoverPkgs    []*load.Package // -coverpkg flag
+ 	testCoverProfile string          // -coverprofile flag
++	testOutputDir    string          // -outputdir flag
+ 	testO            string          // -o flag
+ 	testProfile      string          // profiling flag that limits test to one package
+ 	testNeedBinary   bool            // profile needs to keep binary around
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index d9352ec27b..8a908f7e21 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -88,7 +88,6 @@ func init() {
+ //	go test -x math
+ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	inPkg := false
+-	outputDir := ""
+ 	var explicitArgs []string
+ 	for i := 0; i < len(args); i++ {
+ 		if !strings.HasPrefix(args[i], "-") {
+@@ -180,7 +179,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				}
+ 				testCover = true
+ 			case "outputdir":
+-				outputDir = value
++				testOutputDir = value
+ 			case "vet":
+ 				testVetList = value
+ 			}
+@@ -220,7 +219,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	}
+ 
+ 	// Tell the test what directory we're running in, so it can write the profiles there.
+-	if testProfile != "" && outputDir == "" {
++	if testProfile != "" && testOutputDir == "" {
+ 		dir, err := os.Getwd()
+ 		if err != nil {
+ 			base.Fatalf("error from os.Getwd: %s", err)

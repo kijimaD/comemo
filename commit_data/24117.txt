@@ -10,6 +10,27 @@ Date:   Sat Jul 11 11:39:12 2015 -0700
     Change-Id: I94c9e22e2a76955736f4a8e574d92711419c5e5c
     Reviewed-on: https://go-review.googlesource.com/12072
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96ae49a179..ab16a33510 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -393,7 +393,6 @@ func (s *state) stmt(n *Node) {
+ 		s.startBlock(bCond)
+ 		var cond *ssa.Value
+ 		if n.Left != nil {
+-			s.stmtList(n.Left.Ninit)
+ 			cond = s.expr(n.Left)
+ 		} else {
+ 			cond = s.entryNewValue0A(ssa.OpConst, Types[TBOOL], true)
+@@ -453,6 +452,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	s.pushLine(n.Lineno)
+ 	defer s.popLine()
+ 
++	s.stmtList(n.Ninit)
+ 	switch n.Op {
+ 	case ONAME:
+ 		if n.Class == PFUNC {

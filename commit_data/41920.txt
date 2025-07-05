@@ -26,7 +26,145 @@ Date:   Fri Nov 1 10:39:35 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/binary/binary.go      | 19 ++++++++++--
  src/encoding/binary/binary_test.go | 62 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 8c2d1d9da4..43fa821b83 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -26,6 +26,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"reflect"
++	"sync"
+ )
+ 
+ // A ByteOrder specifies how to convert byte sequences into
+@@ -363,18 +364,32 @@ func Size(v interface{}) int {
+ 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
+ }
+ 
++var structSize sync.Map // map[reflect.Type]int
++
+ // dataSize returns the number of bytes the actual data represented by v occupies in memory.
+ // For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
+ // it returns the length of the slice times the element size and does not count the memory
+ // occupied by the header. If the type of v is not acceptable, dataSize returns -1.
+ func dataSize(v reflect.Value) int {
+-	if v.Kind() == reflect.Slice {
++	switch v.Kind() {
++	case reflect.Slice:
+ 		if s := sizeof(v.Type().Elem()); s >= 0 {
+ 			return s * v.Len()
+ 		}
+ 		return -1
++
++	case reflect.Struct:
++		t := v.Type()
++		if size, ok := structSize.Load(t); ok {
++			return size.(int)
++		}
++		size := sizeof(t)
++		structSize.Store(t, size)
++		return size
++
++	default:
++		return sizeof(v.Type())
+ 	}
+-	return sizeof(v.Type())
+ }
+ 
+ // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index af402575e4..d7ae23a60e 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -7,9 +7,11 @@ package binary
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
+ 	"math"
+ 	"reflect"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -296,6 +298,58 @@ func TestBlankFields(t *testing.T) {
+ 	}
+ }
+ 
++func TestSizeStructCache(t *testing.T) {
++	// Reset the cache, otherwise multiple test runs fail.
++	structSize = sync.Map{}
++
++	count := func() int {
++		var i int
++		structSize.Range(func(_, _ interface{}) bool {
++			i++
++			return true
++		})
++		return i
++	}
++
++	var total int
++	added := func() int {
++		delta := count() - total
++		total += delta
++		return delta
++	}
++
++	type foo struct {
++		A uint32
++	}
++
++	type bar struct {
++		A Struct
++		B foo
++		C Struct
++	}
++
++	testcases := []struct {
++		val  interface{}
++		want int
++	}{
++		{new(foo), 1},
++		{new(bar), 1},
++		{new(bar), 0},
++		{new(struct{ A Struct }), 1},
++		{new(struct{ A Struct }), 0},
++	}
++
++	for _, tc := range testcases {
++		if Size(tc.val) == -1 {
++			t.Fatalf("Can't get the size of %T", tc.val)
++		}
++
++		if n := added(); n != tc.want {
++			t.Errorf("Sizing %T added %d entries to the cache, want %d", tc.val, n, tc.want)
++		}
++	}
++}
++
+ // An attempt to read into a struct with an unexported field will
+ // panic. This is probably not the best choice, but at this point
+ // anything else would be an API change.
+@@ -436,6 +490,14 @@ func BenchmarkReadStruct(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkWriteStruct(b *testing.B) {
++	b.SetBytes(int64(Size(&s)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		Write(ioutil.Discard, BigEndian, &s)
++	}
++}
++
+ func BenchmarkReadInts(b *testing.B) {
+ 	var ls Struct
+ 	bsr := &byteSliceReader{}

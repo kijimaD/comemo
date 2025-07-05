@@ -12,6 +12,20 @@ Date:   Mon Mar 25 17:00:55 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/574216
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/internal/trace/v2/reader_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/v2/reader_test.go b/src/internal/trace/v2/reader_test.go
+index 393e1c80b0..121f0174ed 100644
+--- a/src/internal/trace/v2/reader_test.go
++++ b/src/internal/trace/v2/reader_test.go
+@@ -133,7 +133,7 @@ func dumpTraceToText(t *testing.T, b []byte) string {
+ 		t.Fatalf("dumping trace: %v", err)
+ 	}
+ 	var sb strings.Builder
+-	tw, err := raw.NewTextWriter(&sb, version.Go122)
++	tw, err := raw.NewTextWriter(&sb, version.Current)
+ 	if err != nil {
+ 		t.Fatalf("dumping trace: %v", err)
+ 	}

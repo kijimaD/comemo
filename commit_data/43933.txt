@@ -30,7 +30,7 @@ Date:   Mon Apr 27 15:58:16 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go     | 12 ++++----
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  6 ++--
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  6 ++--
@@ -43,3 +43,500 @@ Date:   Mon Apr 27 15:58:16 2020 -0400
  src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
  src/cmd/compile/internal/ssa/opGen.go          | 38 ++++++++++++++++++++++++++
  11 files changed, 76 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 0663a34764..1061e5579d 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -531,13 +531,13 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
+-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, dx, bx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, cx, dx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, ax, cx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, dx, bx}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, cx, dx}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, ax, cx}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 144e76fea7..a5c1e5c84d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -743,9 +743,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 4e18fb0f76..c74d5590e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -675,9 +675,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index d10706d634..4abe5c9a8b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -542,13 +542,13 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
+-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 404b05b635..5f00c080af 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -450,9 +450,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 3b89557b14..a5f6c8df54 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -403,13 +403,13 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
+-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r3, r4}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r2, r3}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r1, r2}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r3, r4}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r2, r3}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
++		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 63e0b93667..a665734b24 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -652,9 +652,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r6}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r5}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r6}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r5}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+ 		// So if we want (LessThan (CMP a b)) but we can't do that because a is a constant,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 2f29230746..8bdb35f95a 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -336,9 +336,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X7"], regNamed["X28"]}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X6"], regNamed["X7"]}}, typ: "Mem"},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}}, typ: "Mem"},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X7"], regNamed["X28"]}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X6"], regNamed["X7"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 
+ 		// F extension.
+ 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, typ: "Float32"},                                           // arg0 + arg1
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 26893993e2..c583dada33 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -509,9 +509,9 @@ func init() {
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 
+ 		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
+ 		{name: "FlagEQ"}, // CC=0 (equal)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index b9d7d20ba3..5df0a164bf 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -379,8 +379,8 @@ var genericOps = []opData{
+ 	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+ 	// PanicBounds' index is int sized.
+ 	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
+-	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory.
+-	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
++	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory.
++	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
+ 
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 981be13200..614147ff2d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -5859,6 +5859,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // DX
+@@ -5870,6 +5871,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // CX
+@@ -5881,6 +5883,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1}, // AX
+@@ -5892,6 +5895,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendA",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 64}, // SI
+@@ -5904,6 +5908,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendB",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 64}, // SI
+@@ -5916,6 +5921,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendC",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 64}, // SI
+@@ -11696,6 +11702,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // DX
+@@ -11707,6 +11714,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // CX
+@@ -11718,6 +11726,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1}, // AX
+@@ -15540,6 +15549,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -15551,6 +15561,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -15562,6 +15573,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1}, // R0
+@@ -15573,6 +15585,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendA",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 16}, // R4
+@@ -15585,6 +15598,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendB",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 16}, // R4
+@@ -15597,6 +15611,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendC",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 16}, // R4
+@@ -19518,6 +19533,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -19529,6 +19545,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -19540,6 +19557,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1}, // R0
+@@ -20972,6 +20990,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8},  // R3
+@@ -20983,6 +21002,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -20994,6 +21014,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -21005,6 +21026,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendA",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // R5
+@@ -21017,6 +21039,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendB",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // R5
+@@ -21029,6 +21052,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicExtendC",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // R5
+@@ -22618,6 +22642,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8},  // R3
+@@ -22629,6 +22654,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -22640,6 +22666,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -25301,6 +25328,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // R5
+@@ -25312,6 +25340,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 16}, // R4
+@@ -25323,6 +25352,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8},  // R3
+@@ -26491,6 +26521,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 64},        // X7
+@@ -26502,6 +26533,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // X6
+@@ -26513,6 +26545,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 16}, // X5
+@@ -29912,6 +29945,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -29923,6 +29957,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsB",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -29934,6 +29969,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "LoweredPanicBoundsC",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1}, // R0
+@@ -33146,12 +33182,14 @@ var opcodeTable = [...]opInfo{
+ 		name:    "PanicBounds",
+ 		auxType: auxInt64,
+ 		argLen:  3,
++		call:    true,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "PanicExtend",
+ 		auxType: auxInt64,
+ 		argLen:  4,
++		call:    true,
+ 		generic: true,
+ 	},
+ 	{

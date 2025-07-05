@@ -7,7 +7,64 @@ Date:   Tue Apr 5 11:49:44 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4339054
-
+---
  src/cmd/gotest/doc.go    | 16 +++++++++-------
  src/cmd/gotest/gotest.go |  4 ++--
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 0757ac49be..9dba390c13 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -7,12 +7,13 @@
+ Gotest is an automated testing tool for Go packages.
+ 
+ Normally a Go package is compiled without its test files.  Gotest is a
+-tool that recompiles the package whose source in the current
+-directory, along with any files named *_test.go.  Functions in the
+-test source named TestXXX (where XXX is any alphanumeric string not
+-starting with a lower case letter) will be run when the binary is
+-executed.  Gotest requires that the package have a standard package
+-Makefile, one that includes go/src/Make.pkg.
++tool that recompiles the package whose source is in the current
++directory, along with any files whose names match the pattern
++"[^.]*_test.go".  Functions in the test source named TestXXX (where
++XXX is any alphanumeric string not starting with a lower case letter)
++will be run when the binary is executed.  Gotest requires that the
++package have a standard package Makefile, one that includes
++go/src/Make.pkg.
+ 
+ The test functions are run in the order they appear in the source.
+ They should have the signature,
+@@ -41,7 +42,8 @@ Usage:
+ 
+ The flags specific to gotest are:
+ 	-c         Compile the test binary but do not run it.
+-	-file a.go Use the tests in the source file a.go instead of *_test.go.
++	-file a.go Use only the tests in the source file a.go.
++	           Multiple -file flags may be provided.
+ 	-x         Print each subcommand gotest executes.
+ 
+ Everything else on the command line is passed to the test binary.
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index d62bf79017..695712667f 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -145,7 +145,7 @@ func setEnvironment() {
+ }
+ 
+ // getTestFileNames gets the set of files we're looking at.
+-// If gotest has no arguments, it scans the current directory for *_test.go files.
++// If gotest has no arguments, it scans for file names matching "[^.]*_test.go".
+ func getTestFileNames() {
+ 	names := fileNames
+ 	if len(names) == 0 {
+@@ -155,7 +155,7 @@ func getTestFileNames() {
+ 			Fatalf("Glob pattern error: %s", err)
+ 		}
+ 		if len(names) == 0 {
+-			Fatalf(`no test files found: no match for "*_test.go"`)
++			Fatalf(`no test files found: no match for "[^.]*_test.go"`)
+ 		}
+ 	}
+ 	for _, n := range names {

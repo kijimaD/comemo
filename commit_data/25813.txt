@@ -16,6 +16,23 @@ Date:   Tue Nov 24 14:29:06 2015 +1100
     Change-Id: I052068ec627fdcb466c94ae997ad112016f734b7
     Reviewed-on: https://go-review.googlesource.com/17169
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mem_windows.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index 50fca95b4f..71be0e66f0 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -58,9 +58,8 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+-	if r != uintptr(v) {
+-		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", getlasterror(), "\n")
+-		throw("runtime: failed to commit pages")
++	if r == uintptr(v) {
++		return
+ 	}
+ 
+ 	// Commit failed. See SysUnused.

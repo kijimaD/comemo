@@ -7,6 +7,20 @@ Date:   Fri Feb 24 22:42:16 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5697051
-
+---
  src/pkg/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 1c3d0172d3..4acf35d675 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -25,7 +25,7 @@
+ //	open file.go: no such file or directory
+ //
+ // The file's data can then be read into a slice of bytes. Read and
+-// Write take their byte counts from the length of the artument slice.
++// Write take their byte counts from the length of the argument slice.
+ //
+ //	data := make([]byte, 100)
+ //	count, err := file.Read(data)

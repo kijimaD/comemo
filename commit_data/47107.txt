@@ -11,6 +11,28 @@ Date:   Wed Feb 24 09:12:34 2021 -0800
     Trust: Kevin Burke <kev@inburke.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/context/benchmark_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/context/benchmark_test.go b/src/context/benchmark_test.go
+index c4c72f00f8..69d75fff18 100644
+--- a/src/context/benchmark_test.go
++++ b/src/context/benchmark_test.go
+@@ -5,7 +5,6 @@
+ package context_test
+ 
+ import (
+-	"context"
+ 	. "context"
+ 	"fmt"
+ 	"runtime"
+@@ -141,7 +140,7 @@ func BenchmarkCheckCanceled(b *testing.B) {
+ }
+ 
+ func BenchmarkContextCancelDone(b *testing.B) {
+-	ctx, cancel := context.WithCancel(context.Background())
++	ctx, cancel := WithCancel(Background())
+ 	defer cancel()
+ 
+ 	b.RunParallel(func(pb *testing.PB) {

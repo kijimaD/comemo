@@ -26,9 +26,753 @@ Date:   Mon May 22 15:19:49 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testcarchive/carchive_test.go | 36 ++++++++++++++-----
  src/cmd/cgo/internal/testcshared/cshared_test.go   | 24 +++++++++----
  src/cmd/cgo/internal/testplugin/plugin_test.go     | 41 ++++++++++++++++------
  src/cmd/cgo/internal/testshared/shared_test.go     | 41 ++++++++++++++++++----
  4 files changed, 111 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index ef59101b1c..cc810f9d3e 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -33,6 +33,8 @@ import (
+ 	"unicode"
+ )
+ 
++var globalSkip = func(t *testing.T) {}
++
+ // Program to run.
+ var bin []string
+ 
+@@ -50,22 +52,23 @@ var testWork bool // If true, preserve temporary directories.
+ func TestMain(m *testing.M) {
+ 	flag.BoolVar(&testWork, "testwork", false, "if true, log and preserve the test's temporary working directory")
+ 	flag.Parse()
++
++	log.SetFlags(log.Lshortfile)
++	os.Exit(testMain(m))
++}
++
++func testMain(m *testing.M) int {
+ 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+-		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+-		os.Exit(0)
++		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
++		return m.Run()
+ 	}
+ 	if runtime.GOOS == "linux" {
+ 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+-			os.Exit(0)
++			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
++			return m.Run()
+ 		}
+ 	}
+ 
+-	log.SetFlags(log.Lshortfile)
+-	os.Exit(testMain(m))
+-}
+-
+-func testMain(m *testing.M) int {
+ 	// We need a writable GOPATH in which to run the tests.
+ 	// Construct one in a temporary directory.
+ 	var err error
+@@ -461,6 +464,7 @@ func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.Reader
+ }
+ 
+ func TestInstall(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -506,6 +510,7 @@ func TestEarlySignalHandler(t *testing.T) {
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -549,6 +554,7 @@ func TestEarlySignalHandler(t *testing.T) {
+ }
+ 
+ func TestSignalForwarding(t *testing.T) {
++	globalSkip(t)
+ 	checkSignalForwardingTest(t)
+ 	buildSignalForwardingTest(t)
+ 
+@@ -577,6 +583,7 @@ func TestSignalForwardingExternal(t *testing.T) {
+ 	} else if GOOS == "darwin" && GOARCH == "amd64" {
+ 		t.Skipf("skipping on %s/%s: runtime does not permit SI_USER SIGSEGV", GOOS, GOARCH)
+ 	}
++	globalSkip(t)
+ 	checkSignalForwardingTest(t)
+ 	buildSignalForwardingTest(t)
+ 
+@@ -626,6 +633,7 @@ func TestSignalForwardingGo(t *testing.T) {
+ 	if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" {
+ 		t.Skip("not supported on darwin-amd64")
+ 	}
++	globalSkip(t)
+ 
+ 	checkSignalForwardingTest(t)
+ 	buildSignalForwardingTest(t)
+@@ -779,6 +787,7 @@ func TestOsSignal(t *testing.T) {
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -820,6 +829,7 @@ func TestSigaltstack(t *testing.T) {
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -872,6 +882,7 @@ func TestExtar(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		t.Skip("skipping -extar test when using gccgo")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -918,6 +929,7 @@ func TestPIE(t *testing.T) {
+ 	case "windows", "darwin", "ios", "plan9":
+ 		t.Skipf("skipping PIE test on %s", GOOS)
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -1015,6 +1027,7 @@ func TestSIGPROF(t *testing.T) {
+ 	case "darwin", "ios":
+ 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -1064,6 +1077,7 @@ func TestSIGPROF(t *testing.T) {
+ // will likely do it in the future. And it ought to work. This test
+ // was added because at one time it did not work on PPC Linux.
+ func TestCompileWithoutShared(t *testing.T) {
++	globalSkip(t)
+ 	// For simplicity, reuse the signal forwarding test.
+ 	checkSignalForwardingTest(t)
+ 	testenv.MustHaveGoBuild(t)
+@@ -1131,6 +1145,7 @@ func TestCompileWithoutShared(t *testing.T) {
+ 
+ // Test that installing a second time recreates the header file.
+ func TestCachedInstall(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -1174,6 +1189,7 @@ func TestCachedInstall(t *testing.T) {
+ 
+ // Issue 35294.
+ func TestManyCalls(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -1236,6 +1252,7 @@ func TestPreemption(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		t.Skip("skipping asynchronous preemption test with gccgo")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+@@ -1293,6 +1310,7 @@ func TestPreemption(t *testing.T) {
+ // Issue 59294. Test calling Go function from C after using some
+ // stack space.
+ func TestDeepStack(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-archive")
+diff --git a/src/cmd/cgo/internal/testcshared/cshared_test.go b/src/cmd/cgo/internal/testcshared/cshared_test.go
+index 0f98f2c1dc..7fe6782b9e 100644
+--- a/src/cmd/cgo/internal/testcshared/cshared_test.go
++++ b/src/cmd/cgo/internal/testcshared/cshared_test.go
+@@ -25,6 +25,8 @@ import (
+ 	"unicode"
+ )
+ 
++var globalSkip = func(t *testing.T) {}
++
+ // C compiler with args (from $(go env CC) $(go env GOGCCFLAGS)).
+ var cc []string
+ 
+@@ -43,19 +45,19 @@ func testMain(m *testing.M) int {
+ 	log.SetFlags(log.Lshortfile)
+ 	flag.Parse()
+ 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+-		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+-		os.Exit(0)
++		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
++		return m.Run()
+ 	}
+ 	if runtime.GOOS == "linux" {
+ 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+-			os.Exit(0)
++			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
++			return m.Run()
+ 		}
+ 	}
+ 	if !testenv.HasGoBuild() {
+ 		// Checking for "go build" is a proxy for whether or not we can run "go env".
+-		fmt.Printf("SKIP - no go build")
+-		os.Exit(0)
++		globalSkip = func(t *testing.T) { t.Skip("no go build") }
++		return m.Run()
+ 	}
+ 
+ 	GOOS = goEnv("GOOS")
+@@ -348,6 +350,7 @@ func createHeadersOnce(t *testing.T) {
+ 
+ // test0: exported symbols in shared lib are accessible.
+ func TestExportedSymbols(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExec(t)
+ 
+@@ -453,6 +456,7 @@ func TestNumberOfExportedFunctions(t *testing.T) {
+ 	if GOOS != "windows" {
+ 		t.Skip("skipping windows only test")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-shared")
+@@ -472,6 +476,7 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
+ 	if GOOS == "windows" {
+ 		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExec(t)
+ 
+@@ -501,6 +506,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 	if GOOS == "windows" {
+ 		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-shared")
+@@ -538,6 +544,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 
+ // test3: tests main.main is exported on android.
+ func TestMainExportedOnAndroid(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExec(t)
+ 
+@@ -570,6 +577,7 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+ 	if GOOS == "windows" {
+ 		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-shared")
+@@ -619,6 +627,7 @@ func TestPIE(t *testing.T) {
+ 	default:
+ 		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	globalSkip(t)
+ 
+ 	t.Parallel()
+ 
+@@ -656,6 +665,7 @@ func TestPIE(t *testing.T) {
+ 
+ // Test that installing a second time recreates the header file.
+ func TestCachedInstall(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-shared")
+@@ -760,6 +770,7 @@ func TestGo2C2Go(t *testing.T) {
+ 	case "android":
+ 		t.Skip("test fails on android; issue 29087")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "c-shared")
+@@ -812,6 +823,7 @@ func TestGo2C2Go(t *testing.T) {
+ }
+ 
+ func TestIssue36233(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveCGO(t)
+ 
+ 	t.Parallel()
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 4c8e3d7833..542ee2d460 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -22,15 +22,13 @@ import (
+ 	"time"
+ )
+ 
++var globalSkip = func(t *testing.T) {}
++
+ var gcflags string = os.Getenv("GO_GCFLAGS")
+ var goroot string
+ 
+ func TestMain(m *testing.M) {
+ 	flag.Parse()
+-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+-		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+-		os.Exit(0)
+-	}
+ 	log.SetFlags(log.Lshortfile)
+ 	os.Exit(testMain(m))
+ }
+@@ -48,15 +46,17 @@ func prettyPrintf(format string, args ...interface{}) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	// TODO: Move all of this initialization stuff into a sync.Once that each
+-	// test can use, where we can properly t.Skip.
++	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
++		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
++		return m.Run()
++	}
+ 	if !platform.BuildModeSupported(runtime.Compiler, "plugin", runtime.GOOS, runtime.GOARCH) {
+-		fmt.Printf("SKIP - plugin build mode not supported\n")
+-		os.Exit(0)
++		globalSkip = func(t *testing.T) { t.Skip("plugin build mode not supported") }
++		return m.Run()
+ 	}
+ 	if !testenv.HasCGO() {
+-		fmt.Printf("SKIP - cgo not supported\n")
+-		os.Exit(0)
++		globalSkip = func(t *testing.T) { t.Skip("cgo not supported") }
++		return m.Run()
+ 	}
+ 
+ 	cwd, err := os.Getwd()
+@@ -205,12 +205,14 @@ func run(t *testing.T, bin string, args ...string) string {
+ 
+ func TestDWARFSections(t *testing.T) {
+ 	// test that DWARF sections are emitted for plugins and programs importing "plugin"
++	globalSkip(t)
+ 	goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
+ 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
+ }
+ 
+ func TestBuildID(t *testing.T) {
+ 	// check that plugin has build ID.
++	globalSkip(t)
+ 	b := goCmd(t, "tool", "buildid", "plugin1.so")
+ 	if len(b) == 0 {
+ 		t.Errorf("build id not found")
+@@ -218,10 +220,12 @@ func TestBuildID(t *testing.T) {
+ }
+ 
+ func TestRunHost(t *testing.T) {
++	globalSkip(t)
+ 	run(t, "./host.exe")
+ }
+ 
+ func TestUniqueTypesAndItabs(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "./iface_a")
+ 	goCmd(t, "build", "-buildmode=plugin", "./iface_b")
+ 	goCmd(t, "build", "-o", "iface.exe", "./iface")
+@@ -231,6 +235,7 @@ func TestUniqueTypesAndItabs(t *testing.T) {
+ func TestIssue18676(t *testing.T) {
+ 	// make sure we don't add the same itab twice.
+ 	// The buggy code hangs forever, so use a timeout to check for that.
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18676/plugin.go")
+ 	goCmd(t, "build", "-o", "issue18676.exe", "./issue18676/main.go")
+ 
+@@ -245,28 +250,33 @@ func TestIssue18676(t *testing.T) {
+ 
+ func TestIssue19534(t *testing.T) {
+ 	// Test that we can load a plugin built in a path with non-alpha characters.
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-gcflags=-p=issue.19534", "-ldflags=-pluginpath=issue.19534", "-o", "plugin.so", "./issue19534/plugin.go")
+ 	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
+ 	run(t, "./issue19534.exe")
+ }
+ 
+ func TestIssue18584(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18584/plugin.go")
+ 	goCmd(t, "build", "-o", "issue18584.exe", "./issue18584/main.go")
+ 	run(t, "./issue18584.exe")
+ }
+ 
+ func TestIssue19418(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-ldflags=-X main.Val=linkstr", "-o", "plugin.so", "./issue19418/plugin.go")
+ 	goCmd(t, "build", "-o", "issue19418.exe", "./issue19418/main.go")
+ 	run(t, "./issue19418.exe")
+ }
+ 
+ func TestIssue19529(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue19529/plugin.go")
+ }
+ 
+ func TestIssue22175(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin1.so", "./issue22175/plugin1.go")
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin2.so", "./issue22175/plugin2.go")
+ 	goCmd(t, "build", "-o", "issue22175.exe", "./issue22175/main.go")
+@@ -274,18 +284,21 @@ func TestIssue22175(t *testing.T) {
+ }
+ 
+ func TestIssue22295(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue.22295.so", "./issue22295.pkg")
+ 	goCmd(t, "build", "-o", "issue22295.exe", "./issue22295.pkg/main.go")
+ 	run(t, "./issue22295.exe")
+ }
+ 
+ func TestIssue24351(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue24351.so", "./issue24351/plugin.go")
+ 	goCmd(t, "build", "-o", "issue24351.exe", "./issue24351/main.go")
+ 	run(t, "./issue24351.exe")
+ }
+ 
+ func TestIssue25756(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
+ 	goCmd(t, "build", "-o", "issue25756.exe", "./issue25756/main.go")
+ 	// Fails intermittently, but 20 runs should cause the failure
+@@ -299,6 +312,7 @@ func TestIssue25756(t *testing.T) {
+ 
+ // Test with main using -buildmode=pie with plugin for issue #43228
+ func TestIssue25756pie(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
+ 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
+ 	run(t, "./issue25756pie.exe")
+@@ -306,24 +320,28 @@ func TestIssue25756pie(t *testing.T) {
+ 
+ func TestMethod(t *testing.T) {
+ 	// Exported symbol's method must be live.
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
+ 	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
+ 	run(t, "./method.exe")
+ }
+ 
+ func TestMethod2(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "method2.so", "./method2/plugin.go")
+ 	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
+ 	run(t, "./method2.exe")
+ }
+ 
+ func TestMethod3(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "method3.so", "./method3/plugin.go")
+ 	goCmd(t, "build", "-o", "method3.exe", "./method3/main.go")
+ 	run(t, "./method3.exe")
+ }
+ 
+ func TestIssue44956(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
+ 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
+@@ -331,10 +349,12 @@ func TestIssue44956(t *testing.T) {
+ }
+ 
+ func TestIssue52937(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue52937.so", "./issue52937/main.go")
+ }
+ 
+ func TestIssue53989(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue53989.so", "./issue53989/plugin.go")
+ 	goCmd(t, "build", "-o", "issue53989.exe", "./issue53989/main.go")
+ 	run(t, "./issue53989.exe")
+@@ -342,6 +362,7 @@ func TestIssue53989(t *testing.T) {
+ 
+ func TestForkExec(t *testing.T) {
+ 	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
++	globalSkip(t)
+ 
+ 	t.Parallel()
+ 	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 6596d88952..dc880dd2c7 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -29,6 +29,8 @@ import (
+ 	"time"
+ )
+ 
++var globalSkip = func(t testing.TB) {}
++
+ var gopathInstallDir, gorootInstallDir string
+ var oldGOROOT string
+ 
+@@ -94,15 +96,13 @@ func goCmd(t *testing.T, args ...string) string {
+ 
+ // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
+ func testMain(m *testing.M) (int, error) {
+-	// TODO: Move all of this initialization stuff into a sync.Once that each
+-	// test can use, where we can properly t.Skip.
+ 	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
+-		fmt.Printf("SKIP - shared build mode not supported\n")
+-		os.Exit(0)
++		globalSkip = func(t testing.TB) { t.Skip("shared build mode not supported") }
++		return m.Run(), nil
+ 	}
+ 	if !testenv.HasCGO() {
+-		fmt.Printf("SKIP - cgo not supported\n")
+-		os.Exit(0)
++		globalSkip = testenv.MustHaveCGO
++		return m.Run(), nil
+ 	}
+ 
+ 	cwd, err := os.Getwd()
+@@ -266,6 +266,7 @@ func cloneGOROOTDeps(goroot string) error {
+ 
+ // The shared library was built at the expected location.
+ func TestSOBuilt(t *testing.T) {
++	globalSkip(t)
+ 	_, err := os.Stat(filepath.Join(gorootInstallDir, soname))
+ 	if err != nil {
+ 		t.Error(err)
+@@ -300,6 +301,7 @@ func hasDynTag(f *elf.File, tag elf.DynTag) bool {
+ 
+ // The shared library does not have relocations against the text segment.
+ func TestNoTextrel(t *testing.T) {
++	globalSkip(t)
+ 	sopath := filepath.Join(gorootInstallDir, soname)
+ 	f, err := elf.Open(sopath)
+ 	if err != nil {
+@@ -314,6 +316,7 @@ func TestNoTextrel(t *testing.T) {
+ // The shared library does not contain symbols called ".dup"
+ // (See golang.org/issue/14841.)
+ func TestNoDupSymbols(t *testing.T) {
++	globalSkip(t)
+ 	sopath := filepath.Join(gorootInstallDir, soname)
+ 	f, err := elf.Open(sopath)
+ 	if err != nil {
+@@ -336,6 +339,7 @@ func TestNoDupSymbols(t *testing.T) {
+ // listed packages (and runtime/cgo, and math on arm) indicating the
+ // name of the shared library containing it.
+ func TestShlibnameFiles(t *testing.T) {
++	globalSkip(t)
+ 	pkgs := append([]string{}, minpkgs...)
+ 	pkgs = append(pkgs, "runtime/cgo")
+ 	if runtime.GOARCH == "arm" {
+@@ -483,6 +487,7 @@ func AssertHasRPath(t *testing.T, path, dir string) {
+ 
+ // Build a trivial program that links against the shared runtime and check it runs.
+ func TestTrivialExecutable(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-linkshared", "./trivial")
+ 	run(t, "trivial executable", "../../bin/trivial")
+ 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
+@@ -494,6 +499,7 @@ func TestTrivialExecutable(t *testing.T) {
+ 
+ // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+ func TestTrivialExecutablePIE(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "./trivial")
+ 	run(t, "trivial executable", "./trivial.pie")
+ 	AssertIsLinkedTo(t, "./trivial.pie", soname)
+@@ -516,6 +522,7 @@ func checkSize(t *testing.T, f string, limit int64) {
+ 
+ // Build a division test program and check it runs.
+ func TestDivisionExecutable(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-linkshared", "./division")
+ 	run(t, "division executable", "../../bin/division")
+ }
+@@ -523,6 +530,7 @@ func TestDivisionExecutable(t *testing.T) {
+ // Build an executable that uses cgo linked against the shared runtime and check it
+ // runs.
+ func TestCgoExecutable(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-linkshared", "./execgo")
+ 	run(t, "cgo executable", "../../bin/execgo")
+ }
+@@ -545,6 +553,7 @@ func TestTrivialPIE(t *testing.T) {
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
+ 		t.Skip("skipping on alpine until issue #54354 resolved")
+ 	}
++	globalSkip(t)
+ 	testenv.MustHaveBuildMode(t, "pie")
+ 	name := "trivial_pie"
+ 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
+@@ -554,6 +563,7 @@ func TestTrivialPIE(t *testing.T) {
+ }
+ 
+ func TestCgoPIE(t *testing.T) {
++	globalSkip(t)
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveBuildMode(t, "pie")
+ 	name := "cgo_pie"
+@@ -566,6 +576,7 @@ func TestCgoPIE(t *testing.T) {
+ // Build a GOPATH package into a shared library that links against the goroot runtime
+ // and an executable that links against both.
+ func TestGopathShlib(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+ 	AssertIsLinkedTo(t, shlib, soname)
+@@ -645,6 +656,7 @@ func testDepsNote(t *testing.T, f *elf.File, note *note) {
+ 
+ // The shared library contains notes with defined contents; see above.
+ func TestNotes(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+ 	f, err := elf.Open(shlib)
+@@ -699,6 +711,7 @@ func TestNotes(t *testing.T) {
+ // runtime, another package (dep2) that links against the first, and an
+ // executable that links against dep2.
+ func TestTwoGopathShlibs(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+ 	goCmd(t, "install", "-linkshared", "./exe2")
+@@ -706,6 +719,7 @@ func TestTwoGopathShlibs(t *testing.T) {
+ }
+ 
+ func TestThreeGopathShlibs(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep3")
+@@ -754,6 +768,7 @@ func requireGccgo(t *testing.T) {
+ // Build a GOPATH package into a shared library with gccgo and an executable that
+ // links against it.
+ func TestGoPathShlibGccgo(t *testing.T) {
++	globalSkip(t)
+ 	requireGccgo(t)
+ 
+ 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+@@ -777,6 +792,7 @@ func TestGoPathShlibGccgo(t *testing.T) {
+ // library with gccgo, another GOPATH package that depends on the first and an
+ // executable that links the second library.
+ func TestTwoGopathShlibsGccgo(t *testing.T) {
++	globalSkip(t)
+ 	requireGccgo(t)
+ 
+ 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+@@ -921,6 +937,7 @@ func AssertNotRebuilt(t *testing.T, msg, path string) {
+ }
+ 
+ func TestRebuilding(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	goCmd(t, "install", "-linkshared", "./exe")
+ 	info := strings.Fields(goCmd(t, "list", "-buildmode=shared", "-linkshared", "-f", "{{.Target}} {{.Shlib}}", "./depBase"))
+@@ -994,6 +1011,7 @@ func createFile(t *testing.T, path, content string) {
+ }
+ 
+ func TestABIChecking(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+ 	goCmd(t, "install", "-linkshared", "./exe")
+ 
+@@ -1049,6 +1067,7 @@ func TestABIChecking(t *testing.T) {
+ // executable rather than fetching it from the shared library. The
+ // link still succeeds and the executable still runs though.
+ func TestImplicitInclusion(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./explicit")
+ 	goCmd(t, "install", "-linkshared", "./implicitcmd")
+ 	run(t, "running executable linked against library that contains same package as it", "../../bin/implicitcmd")
+@@ -1058,6 +1077,7 @@ func TestImplicitInclusion(t *testing.T) {
+ // fields of nonempty interfaces are unique even across modules,
+ // so that interface equality works correctly.
+ func TestInterface(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_a")
+ 	// Note: iface_i gets installed implicitly as a dependency of iface_a.
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_b")
+@@ -1067,6 +1087,7 @@ func TestInterface(t *testing.T) {
+ 
+ // Access a global variable from a library.
+ func TestGlobal(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./globallib")
+ 	goCmd(t, "install", "-linkshared", "./global")
+ 	run(t, "global executable", "../../bin/global")
+@@ -1077,18 +1098,21 @@ func TestGlobal(t *testing.T) {
+ // Run a test using -linkshared of an installed shared package.
+ // Issue 26400.
+ func TestTestInstalledShared(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
+ }
+ 
+ // Test generated pointer method with -linkshared.
+ // Issue 25065.
+ func TestGeneratedMethod(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue25065")
+ }
+ 
+ // Test use of shared library struct with generated hash function.
+ // Issue 30768.
+ func TestGeneratedHash(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+ 	goCmd(t, "test", "-linkshared", "./issue30768")
+ }
+@@ -1096,12 +1120,14 @@ func TestGeneratedHash(t *testing.T) {
+ // Test that packages can be added not in dependency order (here a depends on b, and a adds
+ // before b). This could happen with e.g. go build -buildmode=shared std. See issue 39777.
+ func TestPackageOrder(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+ }
+ 
+ // Test that GC data are generated correctly by the linker when it needs a type defined in
+ // a shared library. See issue 39927.
+ func TestGCData(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
+ 	goCmd(t, "build", "-linkshared", "./gcdata/main")
+ 	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+@@ -1110,6 +1136,7 @@ func TestGCData(t *testing.T) {
+ // Test that we don't decode type symbols from shared libraries (which has no data,
+ // causing panic). See issue 44031.
+ func TestIssue44031(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+ 	goCmd(t, "run", "-linkshared", "./issue44031/main")
+@@ -1119,6 +1146,7 @@ func TestIssue44031(t *testing.T) {
+ // interface in shared libraries.). A weak reference is used in the itab
+ // in main process. It can cause unreachable panic. See issue 47873.
+ func TestIssue47873(t *testing.T) {
++	globalSkip(t)
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+ 	goCmd(t, "run", "-linkshared", "./issue47837/main")
+ }
+@@ -1128,6 +1156,7 @@ func TestStd(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skip in short mode")
+ 	}
++	globalSkip(t)
+ 	t.Parallel()
+ 	tmpDir := t.TempDir()
+ 	// Use a temporary pkgdir to not interfere with other tests, and not write to GOROOT.

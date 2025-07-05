@@ -10,8 +10,248 @@ Date:   Tue Jan 11 13:14:48 2011 -0500
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/3891042
-
+---
  src/cmd/goinstall/main.go  | 15 ++++------
  src/cmd/goinstall/make.go  | 55 ++++++++++++++++++++++++++++++++----
  src/cmd/goinstall/parse.go | 69 +++++++++++++++++++++++++++++++++-------------
  3 files changed, 106 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 1736ffc030..b0f08efdf2 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -174,28 +174,25 @@ func install(pkg, parent string) {
+ 	}
+ 
+ 	// Install prerequisites.
+-	files, m, pkgname, err := goFiles(dir, parent == "")
++	dirInfo, err := scanDir(dir, parent == "")
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
+ 		errors = true
+ 		visit[pkg] = done
+ 		return
+ 	}
+-	if len(files) == 0 {
++	if len(dirInfo.goFiles) == 0 {
+ 		fmt.Fprintf(os.Stderr, "%s: %s: package has no files\n", argv0, pkg)
+ 		errors = true
+ 		visit[pkg] = done
+ 		return
+ 	}
+-	for p := range m {
+-		if p == "C" {
+-			fmt.Fprintf(os.Stderr, "%s: %s: cgo packages are not supported yet. Try installing manually.\n", argv0, pkg)
+-			errors = true
+-			return
++	for _, p := range dirInfo.imports {
++		if p != "C" {
++			install(p, pkg)
+ 		}
+-		install(p, pkg)
+ 	}
+-	if pkgname == "main" {
++	if dirInfo.pkgName == "main" {
+ 		if !errors {
+ 			fmt.Fprintf(os.Stderr, "%s: %s's dependencies are installed.\n", argv0, pkg)
+ 		}
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 58ba5be0a6..c95156c039 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -44,12 +44,38 @@ func domake(dir, pkg string, local bool) (err os.Error) {
+ // installing as package pkg.  It includes all *.go files in the directory
+ // except those in package main and those ending in _test.go.
+ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+-	files, _, _, err := goFiles(dir, false)
++	dirInfo, err := scanDir(dir, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	if len(dirInfo.cgoFiles) == 0 && len(dirInfo.cFiles) > 0 {
++		// When using cgo, .c files are compiled with gcc.  Without cgo,
++		// they may be intended for 6c.  Just error out for now.
++		return nil, os.ErrorString("C files found in non-cgo package")
++	}
++
++	cgoFiles := dirInfo.cgoFiles
++	isCgo := make(map[string]bool, len(cgoFiles))
++	for _, file := range cgoFiles {
++		isCgo[file] = true
++	}
++
++	oFiles := make([]string, 0, len(dirInfo.cFiles))
++	for _, file := range dirInfo.cFiles {
++		oFiles = append(oFiles, file[:len(file)-2]+".o")
++	}
++
++	goFiles := make([]string, 0, len(dirInfo.goFiles))
++	for _, file := range dirInfo.goFiles {
++		if !isCgo[file] {
++			goFiles = append(goFiles, file)
++		}
++	}
++
+ 	var buf bytes.Buffer
+-	if err := makefileTemplate.Execute(&makedata{pkg, files}, &buf); err != nil {
++	md := makedata{pkg, goFiles, cgoFiles, oFiles}
++	if err := makefileTemplate.Execute(&md, &buf); err != nil {
+ 		return nil, err
+ 	}
+ 	return buf.Bytes(), nil
+@@ -57,19 +83,38 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+ 
+ // makedata is the data type for the makefileTemplate.
+ type makedata struct {
+-	pkg   string   // package import path
+-	files []string // list of .go files
++	pkg      string   // package import path
++	goFiles  []string // list of non-cgo .go files
++	cgoFiles []string // list of cgo .go files
++	oFiles   []string // list of ofiles for cgo
+ }
+ 
+ var makefileTemplate = template.MustParse(`
+ include $(GOROOT)/src/Make.inc
+ 
+ TARG={pkg}
++
++{.section goFiles}
+ GOFILES=\
+-{.repeated section files}
++{.repeated section goFiles}
++	{@}\
++{.end}
++
++{.end}
++{.section cgoFiles}
++CGOFILES=\
++{.repeated section cgoFiles}
+ 	{@}\
+ {.end}
+ 
++{.end}
++{.section oFiles}
++CGO_OFILES=\
++{.repeated section oFiles}
++	{@}\
++{.end}
++
++{.end}
+ include $(GOROOT)/src/Make.pkg
+ `,
+ 	nil)
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index deae436e44..679edfabca 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -16,34 +16,58 @@ import (
+ 	"go/parser"
+ )
+ 
+-// goFiles returns a list of the *.go source files in dir, excluding
+-// those in package main (unless allowMain is true) or ending in
+-// _test.go.  It also returns a map giving the packages imported by
+-// those files, and the package name.
+-// The map keys are the imported paths.  The key's value
+-// is one file that imports that path.
+-func goFiles(dir string, allowMain bool) (files []string, imports map[string]string, pkgName string, err os.Error) {
++
++type dirInfo struct {
++	goFiles  []string // .go files within dir (including cgoFiles)
++	cgoFiles []string // .go files that import "C"
++	cFiles   []string // .c files within dir
++	imports  []string // All packages imported by goFiles
++	pkgName  string   // Name of package within dir
++}
++
++// scanDir returns a structure with details about the Go content found
++// in the given directory. The list of files will NOT contain the
++// following entries:
++//
++// - Files in package main (unless allowMain is true)
++// - Files ending in _test.go
++// - Files starting with _ (temporary)
++// - Files containing .cgo in their names
++//
++// The imports map keys are package paths imported by listed Go files,
++// and the values are the Go files importing the respective package paths.
++func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
+ 	f, err := os.Open(dir, os.O_RDONLY, 0)
+ 	if err != nil {
+-		return nil, nil, "", err
++		return nil, err
+ 	}
+ 	dirs, err := f.Readdir(-1)
+ 	f.Close()
+ 	if err != nil {
+-		return nil, nil, "", err
++		return nil, err
+ 	}
+ 
+-	files = make([]string, 0, len(dirs))
+-	imports = make(map[string]string)
++	goFiles := make([]string, 0, len(dirs))
++	cgoFiles := make([]string, 0, len(dirs))
++	cFiles := make([]string, 0, len(dirs))
++	importsm := make(map[string]bool)
++	pkgName := ""
+ 	for i := range dirs {
+ 		d := &dirs[i]
++		if strings.HasPrefix(d.Name, "_") || strings.Index(d.Name, ".cgo") != -1 {
++			continue
++		}
++		if strings.HasSuffix(d.Name, ".c") {
++			cFiles = append(cFiles, d.Name)
++			continue
++		}
+ 		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
+ 			continue
+ 		}
+ 		filename := path.Join(dir, d.Name)
+ 		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+ 		if err != nil {
+-			return nil, nil, "", err
++			return nil, err
+ 		}
+ 		s := string(pf.Name.Name)
+ 		if s == "main" && !allowMain {
+@@ -57,13 +81,11 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
+ 			// A mix of main and another package reverts
+ 			// to the original (allowMain=false) behaviour.
+ 			if s == "main" || pkgName == "main" {
+-				return goFiles(dir, false)
++				return scanDir(dir, false)
+ 			}
+-			return nil, nil, "", os.ErrorString("multiple package names in " + dir)
++			return nil, os.ErrorString("multiple package names in " + dir)
+ 		}
+-		n := len(files)
+-		files = files[0 : n+1]
+-		files[n] = filename
++		goFiles = append(goFiles, d.Name)
+ 		for _, decl := range pf.Decls {
+ 			for _, spec := range decl.(*ast.GenDecl).Specs {
+ 				quoted := string(spec.(*ast.ImportSpec).Path.Value)
+@@ -71,9 +93,18 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
+ 				if err != nil {
+ 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+ 				}
+-				imports[unquoted] = filename
++				importsm[unquoted] = true
++				if unquoted == "C" {
++					cgoFiles = append(cgoFiles, d.Name)
++				}
+ 			}
+ 		}
+ 	}
+-	return files, imports, pkgName, nil
++	imports := make([]string, len(importsm))
++	i := 0
++	for p := range importsm {
++		imports[i] = p
++		i++
++	}
++	return &dirInfo{goFiles, cgoFiles, cFiles, imports, pkgName}, nil
+ }

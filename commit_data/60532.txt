@@ -25,8 +25,56 @@ Date:   Tue Jul 23 17:28:09 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/600697
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/debuglog.go             | 6 ++++--
  src/runtime/debuglog_test.go        | 4 ++--
  src/runtime/export_debuglog_test.go | 2 +-
  3 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index a278dfabe7..ad33ef8b06 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -740,10 +740,12 @@ func (r *debugLogReader) printVal() bool {
+ 
+ // printDebugLog prints the debug log.
+ func printDebugLog() {
+-	if !dlogEnabled {
+-		return
++	if dlogEnabled {
++		printDebugLogImpl()
+ 	}
++}
+ 
++func printDebugLogImpl() {
+ 	// This function should not panic or throw since it is used in
+ 	// the fatal panic path and this may deadlock.
+ 
+diff --git a/src/runtime/debuglog_test.go b/src/runtime/debuglog_test.go
+index 18c54a81b9..6d484c462b 100644
+--- a/src/runtime/debuglog_test.go
++++ b/src/runtime/debuglog_test.go
+@@ -34,8 +34,8 @@ import (
+ )
+ 
+ func skipDebugLog(t *testing.T) {
+-	if !runtime.DlogEnabled {
+-		t.Skip("debug log disabled (rebuild with -tags debuglog)")
++	if runtime.DlogEnabled {
++		t.Skip("debug log tests disabled to avoid collisions with real debug logs")
+ 	}
+ }
+ 
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index a361c02299..fc55f73c1f 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -31,7 +31,7 @@ func (l *dloggerImpl) PC(x uintptr) *dloggerImpl { return l.pc(x) }
+ func DumpDebugLog() string {
+ 	gp := getg()
+ 	gp.writebuf = make([]byte, 0, 1<<20)
+-	printDebugLog()
++	printDebugLogImpl()
+ 	buf := gp.writebuf
+ 	gp.writebuf = nil
+ 

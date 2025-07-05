@@ -7,6 +7,19 @@ Date:   Wed Mar 20 17:20:32 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/7635046
-
+---
  src/cmd/gc/racewalk.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index bae98ec1b7..269c0b2652 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -385,6 +385,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OHMUL:
+ 	case OLROT:
+ 	case ORROTC:
++	case OCHECKNOTNIL:
+ 		goto ret;
+ 	}
+ 

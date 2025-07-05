@@ -9,7 +9,67 @@ Date:   Mon Jan 18 17:00:38 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/186214
-
+---
  src/cmd/gc/sinit.c       |  6 ++++++
  test/fixedbugs/bug244.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index b1160d3d48..1b618fddb2 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -90,12 +90,18 @@ init1(Node *n, NodeList **out)
+ 			break;
+ 		
+ 		case OAS2FUNC:
++			if(n->defn->initorder)
++				break;
++			n->defn->initorder = 1;
+ 			for(l=n->defn->rlist; l; l=l->next)
+ 				init1(l->n, out);
+ 			*out = list(*out, n->defn);
+ 			break;
+ 		
+ 		case OAS2MAPR:
++			if(n->defn->initorder)
++				break;
++			n->defn->initorder = 1;
+ 			for(l=n->defn->rlist; l; l=l->next)
+ 				init1(l->n, out);
+ 			*out = list(*out, n->defn);
+diff --git a/test/fixedbugs/bug244.go b/test/fixedbugs/bug244.go
+new file mode 100644
+index 0000000000..26db78777f
+--- /dev/null
++++ b/test/fixedbugs/bug244.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var nf int
++var ng int
++
++func f() (int, int, int) {
++	nf++
++	return 1, 2, 3
++}
++
++func g() int {
++	ng++
++	return 4
++}
++
++var x, y, z = f()
++var m = make(map[int]int)
++var v, ok = m[g()]
++
++func main() {
++	if x != 1 || y != 2 || z != 3 || nf != 1 || v != 0 || ok != false || ng != 1 {
++		panic("x=", x, " y=", y, " z=", z, " nf=", nf, " v=", v, " ok=", ok, " ng=", ng)
++	}
++}

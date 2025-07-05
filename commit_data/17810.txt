@@ -12,6 +12,20 @@ Date:   Thu Oct 17 09:02:32 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/14780043
-
+---
  src/pkg/database/sql/fakedb_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index 2ed1364759..a8adfdd942 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -151,6 +151,8 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
+ 	if d.waitCh != nil {
+ 		d.waitingCh <- struct{}{}
+ 		<-d.waitCh
++		d.waitCh = nil
++		d.waitingCh = nil
+ 	}
+ 	return conn, nil
+ }

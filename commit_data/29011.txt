@@ -12,7 +12,7 @@ Date:   Sun Aug 21 18:34:24 2016 -0400
     Change-Id: Ibbff44a273bbc5cb7228e43f147900ee8848517f
     Reviewed-on: https://go-review.googlesource.com/27473
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  12 +-
  src/cmd/link/internal/amd64/obj.go   |  68 ++++----
  src/cmd/link/internal/arm/asm.go     |   8 +-
@@ -40,3 +40,2665 @@ Date:   Sun Aug 21 18:34:24 2016 -0400
  src/cmd/link/internal/x86/asm.go     |   6 +-
  src/cmd/link/internal/x86/obj.go     |  66 ++++----
  26 files changed, 577 insertions(+), 591 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index d8f0978c5f..3392b4ab00 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -657,7 +657,7 @@ func asmb(ctxt *ld.Link) {
+ 		break
+ 
+ 	case obj.Hdarwin:
+-		ld.Debug['8'] = true /* 64-bit addresses */
++		ld.Flag8 = true /* 64-bit addresses */
+ 
+ 	case obj.Hlinux,
+ 		obj.Hfreebsd,
+@@ -665,7 +665,7 @@ func asmb(ctxt *ld.Link) {
+ 		obj.Hopenbsd,
+ 		obj.Hdragonfly,
+ 		obj.Hsolaris:
+-		ld.Debug['8'] = true /* 64-bit addresses */
++		ld.Flag8 = true /* 64-bit addresses */
+ 
+ 	case obj.Hnacl,
+ 		obj.Hwindows:
+@@ -676,7 +676,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+ 	symo := int64(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+ 		}
+@@ -684,11 +684,11 @@ func asmb(ctxt *ld.Link) {
+ 		switch ld.HEADTYPE {
+ 		default:
+ 		case obj.Hplan9:
+-			ld.Debug['s'] = true
++			*ld.FlagS = true
+ 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 
+ 		case obj.Hlinux,
+ 			obj.Hfreebsd,
+@@ -698,7 +698,7 @@ func asmb(ctxt *ld.Link) {
+ 			obj.Hsolaris,
+ 			obj.Hnacl:
+ 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-			symo = ld.Rnd(symo, int64(ld.INITRND))
++			symo = ld.Rnd(symo, int64(*ld.FlagRound))
+ 
+ 		case obj.Hwindows:
+ 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 6a04b3bcfc..9e6cdd72ea 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -121,28 +121,28 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32 + 8
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x200000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x200000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x200000
+ 		}
+ 
+ 	case obj.Hdarwin: /* apple MACH */
+ 		ld.Machoinit()
+ 
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4096 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+ 
+ 	case obj.Hlinux, /* elf64 executable */
+@@ -154,47 +154,47 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Elfinit(ctxt)
+ 
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = (1 << 22) + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+-		ld.Debug['w'] = true // disable dwarf, which gets confused and is useless anyway
++		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 32
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hwindows: /* PE executable */
+ 		ld.Peinit(ctxt)
+ 
+ 		ld.HEADR = ld.PEFILEHEADR
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = ld.PEBASE + int64(ld.PESECTHEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = ld.PESECTALIGN
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = ld.PESECTALIGN
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 62ebf3d0e6..84060c4361 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -630,7 +630,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+@@ -640,14 +640,14 @@ func asmb(ctxt *ld.Link) {
+ 		default:
+ 			if ld.Iself {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+ 		case obj.Hplan9:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 		}
+ 
+ 		ld.Cseek(int64(symo))
+@@ -717,7 +717,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ld.Cflush()
+-	if ld.Debug['c'] {
++	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+ 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 6ad7b75b5e..9ae5d2084d 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -112,64 +112,64 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4128
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4128
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hlinux, /* arm elf */
+ 		obj.Hfreebsd,
+ 		obj.Hnetbsd,
+ 		obj.Hopenbsd:
+-		ld.Debug['d'] = false
++		*ld.FlagD = false
+ 		// with dynamic linking
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 16
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hdarwin: /* apple MACH */
+-		ld.Debug['w'] = true // disable DWARF generation
++		*ld.FlagW = true // disable DWARF generation
+ 		ld.Machoinit()
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4096 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 99a5992df1..a25a01dd49 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -439,7 +439,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+@@ -449,14 +449,14 @@ func asmb(ctxt *ld.Link) {
+ 		default:
+ 			if ld.Iself {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+ 		case obj.Hplan9:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 		}
+ 
+ 		ld.Cseek(int64(symo))
+@@ -526,7 +526,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ld.Cflush()
+-	if ld.Debug['c'] {
++	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+ 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 792f35d204..488f6a9cbc 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -114,59 +114,59 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4128
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4128
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hlinux: /* arm64 elf */
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hdarwin: /* apple MACH */
+-		ld.Debug['w'] = true // disable DWARF generation
++		*ld.FlagW = true // disable DWARF generation
+ 		ld.Machoinit()
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4096 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 16
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4fa34a2442..35ff37caa4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -720,7 +720,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
+ 	// -d suppresses dynamic loader format, so we may as well not
+ 	// compute these sections or mark their symbols as reachable.
+-	if Debug['d'] && HEADTYPE != obj.Hwindows {
++	if *FlagD && HEADTYPE != obj.Hwindows {
+ 		return
+ 	}
+ 	if ctxt.Debugvlog != 0 {
+@@ -745,14 +745,14 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
+ 	CodeblkPad(ctxt, addr, size, zeros[:])
+ }
+ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+-	if Debug['a'] {
++	if *flagA {
+ 		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+ 	}
+ 
+ 	blk(ctxt, ctxt.Textp, addr, size, pad)
+ 
+ 	/* again for printing */
+-	if !Debug['a'] {
++	if !*flagA {
+ 		return
+ 	}
+ 
+@@ -857,14 +857,14 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+ }
+ 
+ func Datblk(ctxt *Link, addr int64, size int64) {
+-	if Debug['a'] {
++	if *flagA {
+ 		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+ 	}
+ 
+ 	blk(ctxt, datap, addr, size, zeros[:])
+ 
+ 	/* again for printing */
+-	if !Debug['a'] {
++	if !*flagA {
+ 		return
+ 	}
+ 
+@@ -928,7 +928,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
+ }
+ 
+ func Dwarfblk(ctxt *Link, addr int64, size int64) {
+-	if Debug['a'] {
++	if *flagA {
+ 		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+ 	}
+ 
+@@ -1060,7 +1060,7 @@ func dosymtype(ctxt *Link) {
+ 		// library initializer function.
+ 		switch Buildmode {
+ 		case BuildmodeCArchive, BuildmodeCShared:
+-			if s.Name == INITENTRY {
++			if s.Name == *flagEntrySymbol {
+ 				addinitarrdata(ctxt, s)
+ 			}
+ 		}
+@@ -1351,7 +1351,7 @@ func (ctxt *Link) dodata() {
+ 	checkdatsize(ctxt, datsize, obj.SNOPTRDATA)
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+-	hasinitarr := Linkshared
++	hasinitarr := *FlagLinkshared
+ 
+ 	/* shared library initializer */
+ 	switch Buildmode {
+@@ -1434,7 +1434,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	if len(data[obj.STLSBSS]) > 0 {
+ 		var sect *Section
+-		if Iself && (Linkmode == LinkExternal || !Debug['d']) && HEADTYPE != obj.Hopenbsd {
++		if Iself && (Linkmode == LinkExternal || !*FlagD) && HEADTYPE != obj.Hopenbsd {
+ 			sect = addsection(&Segdata, ".tbss", 06)
+ 			sect.Align = int32(SysArch.PtrSize)
+ 			sect.Vaddr = 0
+@@ -1843,7 +1843,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
+ // at the very beginning of the text segment.
+ // This ``header'' is read by cmd/go.
+ func (ctxt *Link) textbuildid() {
+-	if Iself || buildid == "" {
++	if Iself || *flagBuildid == "" {
+ 		return
+ 	}
+ 
+@@ -1851,7 +1851,7 @@ func (ctxt *Link) textbuildid() {
+ 	sym.Attr |= AttrReachable
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+-	data := "\xff Go build ID: " + strconv.Quote(buildid) + "\n \xff"
++	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
+ 	sym.Type = obj.STEXT
+ 	sym.P = []byte(data)
+ 	sym.Size = int64(len(sym.P))
+@@ -1876,7 +1876,7 @@ func (ctxt *Link) textaddress() {
+ 	if HEADTYPE == obj.Hwindows {
+ 		Linklookup(ctxt, ".text", 0).Sect = sect
+ 	}
+-	va := uint64(INITTEXT)
++	va := uint64(*FlagTextAddr)
+ 	sect.Vaddr = va
+ 	for _, sym := range ctxt.Textp {
+ 		sym.Sect = sect
+@@ -1907,7 +1907,7 @@ func (ctxt *Link) textaddress() {
+ 
+ // assign addresses
+ func (ctxt *Link) address() {
+-	va := uint64(INITTEXT)
++	va := uint64(*FlagTextAddr)
+ 	Segtext.Rwx = 05
+ 	Segtext.Vaddr = va
+ 	Segtext.Fileoff = uint64(HEADR)
+@@ -1917,7 +1917,7 @@ func (ctxt *Link) address() {
+ 		va += s.Length
+ 	}
+ 
+-	Segtext.Length = va - uint64(INITTEXT)
++	Segtext.Length = va - uint64(*FlagTextAddr)
+ 	Segtext.Filelen = Segtext.Length
+ 	if HEADTYPE == obj.Hnacl {
+ 		va += 32 // room for the "halt sled"
+@@ -1926,7 +1926,7 @@ func (ctxt *Link) address() {
+ 	if Segrodata.Sect != nil {
+ 		// align to page boundary so as not to mix
+ 		// rodata and executable text.
+-		va = uint64(Rnd(int64(va), int64(INITRND)))
++		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+ 
+ 		Segrodata.Rwx = 04
+ 		Segrodata.Vaddr = va
+@@ -1942,7 +1942,7 @@ func (ctxt *Link) address() {
+ 		Segrodata.Filelen = Segrodata.Length
+ 	}
+ 
+-	va = uint64(Rnd(int64(va), int64(INITRND)))
++	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+ 	Segdata.Rwx = 06
+ 	Segdata.Vaddr = va
+ 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
+@@ -1985,10 +1985,10 @@ func (ctxt *Link) address() {
+ 
+ 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
+ 
+-	va = uint64(Rnd(int64(va), int64(INITRND)))
++	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+ 	Segdwarf.Rwx = 06
+ 	Segdwarf.Vaddr = va
+-	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(INITRND)))
++	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
+ 	Segdwarf.Filelen = 0
+ 	if HEADTYPE == obj.Hwindows {
+ 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 36ed60344c..4fd35e1513 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -15,7 +15,7 @@ import (
+ // deadcode marks all reachable symbols.
+ //
+ // The basis of the dead code elimination is a flood fill of symbols,
+-// following their relocations, beginning at INITENTRY.
++// following their relocations, beginning at *flagEntrySymbol.
+ //
+ // This flood fill is wrapped in logic for pruning unused methods.
+ // All methods are mentioned by relocations on their receiver's *rtype.
+@@ -55,7 +55,7 @@ func deadcode(ctxt *Link) {
+ 	}
+ 
+ 	// First, flood fill any symbols directly reachable in the call
+-	// graph from INITENTRY. Ignore all methods not directly called.
++	// graph from *flagEntrySymbol. Ignore all methods not directly called.
+ 	d.init()
+ 	d.flood()
+ 
+@@ -196,7 +196,7 @@ func (d *deadcodepass) mark(s, parent *Symbol) {
+ 	if s.Attr.ReflectMethod() {
+ 		d.reflectMethod = true
+ 	}
+-	if flag_dumpdep {
++	if *flagDumpDep {
+ 		p := "_"
+ 		if parent != nil {
+ 			p = parent.Name
+@@ -217,7 +217,7 @@ func (d *deadcodepass) markMethod(m methodref) {
+ }
+ 
+ // init marks all initial symbols as reachable.
+-// In a typical binary, this is INITENTRY.
++// In a typical binary, this is *flagEntrySymbol.
+ func (d *deadcodepass) init() {
+ 	var names []string
+ 
+@@ -240,8 +240,8 @@ func (d *deadcodepass) init() {
+ 	} else {
+ 		// In a normal binary, start at main.main and the init
+ 		// functions and mark what is reachable from there.
+-		names = append(names, INITENTRY)
+-		if Linkshared && Buildmode == BuildmodeExe {
++		names = append(names, *flagEntrySymbol)
++		if *FlagLinkshared && Buildmode == BuildmodeExe {
+ 			names = append(names, "main.main", "main.init")
+ 		}
+ 		for _, name := range markextra {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3996155347..2bc7d999b7 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1398,10 +1398,10 @@ var prototypedies map[string]*dwarf.DWDie
+  *
+  */
+ func dwarfgeneratedebugsyms(ctxt *Link) {
+-	if Debug['w'] { // disable dwarf
++	if *FlagW { // disable dwarf
+ 		return
+ 	}
+-	if Debug['s'] && HEADTYPE != obj.Hdarwin {
++	if *FlagS && HEADTYPE != obj.Hdarwin {
+ 		return
+ 	}
+ 	if HEADTYPE == obj.Hplan9 {
+@@ -1483,7 +1483,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+  *  Elf.
+  */
+ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
+-	if Debug['w'] { // disable dwarf
++	if *FlagW { // disable dwarf
+ 		return
+ 	}
+ 
+@@ -1508,7 +1508,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
+ // Add section symbols for DWARF debug info.  This is called before
+ // dwarfaddelfheaders.
+ func dwarfaddelfsectionsyms(ctxt *Link) {
+-	if Debug['w'] { // disable dwarf
++	if *FlagW { // disable dwarf
+ 		return
+ 	}
+ 	if Linkmode != LinkExternal {
+@@ -1528,7 +1528,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+  * Windows PE
+  */
+ func dwarfaddpeheaders(ctxt *Link) {
+-	if Debug['w'] { // disable dwarf
++	if *FlagW { // disable dwarf
+ 		return
+ 	}
+ 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 8bf9f5cc44..9ba2374e75 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1355,7 +1355,7 @@ func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
+ }
+ 
+ func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
+-	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(buildid)), 4))
++	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(*flagBuildid)), 4))
+ 	return elfnote(sh, startva, resoff, n, true)
+ }
+ 
+@@ -1374,15 +1374,15 @@ func elfwritebuildinfo(ctxt *Link) int {
+ }
+ 
+ func elfwritegobuildid(ctxt *Link) int {
+-	sh := elfwritenotehdr(ctxt, ".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(buildid)), ELF_NOTE_GOBUILDID_TAG)
++	sh := elfwritenotehdr(ctxt, ".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
+ 	if sh == nil {
+ 		return 0
+ 	}
+ 
+ 	Cwrite(ELF_NOTE_GO_NAME)
+-	Cwrite([]byte(buildid))
++	Cwrite([]byte(*flagBuildid))
+ 	var zero = make([]byte, 4)
+-	Cwrite(zero[:int(Rnd(int64(len(buildid)), 4)-int64(len(buildid)))])
++	Cwrite(zero[:int(Rnd(int64(len(*flagBuildid)), 4)-int64(len(*flagBuildid)))])
+ 
+ 	return int(sh.size)
+ }
+@@ -1594,7 +1594,7 @@ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
+ 	ph.memsz = seg.Length
+ 	ph.off = seg.Fileoff
+ 	ph.filesz = seg.Filelen
+-	ph.align = uint64(INITRND)
++	ph.align = uint64(*FlagRound)
+ 
+ 	return ph
+ }
+@@ -1837,7 +1837,7 @@ func (ctxt *Link) doelf() {
+ 	// binutils could correctly calculate PT_TLS size.
+ 	// see https://golang.org/issue/5200.
+ 	if HEADTYPE != obj.Hopenbsd {
+-		if !Debug['d'] || Linkmode == LinkExternal {
++		if !*FlagD || Linkmode == LinkExternal {
+ 			Addstring(ctxt, shstrtab, ".tbss")
+ 		}
+ 	}
+@@ -1850,7 +1850,7 @@ func (ctxt *Link) doelf() {
+ 	if len(buildinfo) > 0 {
+ 		Addstring(ctxt, shstrtab, ".note.gnu.build-id")
+ 	}
+-	if buildid != "" {
++	if *flagBuildid != "" {
+ 		Addstring(ctxt, shstrtab, ".note.go.buildid")
+ 	}
+ 	Addstring(ctxt, shstrtab, ".elfdata")
+@@ -1867,7 +1867,7 @@ func (ctxt *Link) doelf() {
+ 	Addstring(ctxt, shstrtab, relro_prefix+".gopclntab")
+ 
+ 	if Linkmode == LinkExternal {
+-		Debug['d'] = true
++		*FlagD = true
+ 
+ 		Addstring(ctxt, shstrtab, elfRelType+".text")
+ 		Addstring(ctxt, shstrtab, elfRelType+".rodata")
+@@ -1891,7 +1891,7 @@ func (ctxt *Link) doelf() {
+ 		}
+ 	}
+ 
+-	hasinitarr := Linkshared
++	hasinitarr := *FlagLinkshared
+ 
+ 	/* shared library initializer */
+ 	switch Buildmode {
+@@ -1904,7 +1904,7 @@ func (ctxt *Link) doelf() {
+ 		Addstring(ctxt, shstrtab, elfRelType+".init_array")
+ 	}
+ 
+-	if !Debug['s'] {
++	if !*FlagS {
+ 		Addstring(ctxt, shstrtab, ".symtab")
+ 		Addstring(ctxt, shstrtab, ".strtab")
+ 		dwarfaddshstrings(ctxt, shstrtab)
+@@ -1912,7 +1912,7 @@ func (ctxt *Link) doelf() {
+ 
+ 	Addstring(ctxt, shstrtab, ".shstrtab")
+ 
+-	if !Debug['d'] { /* -d suppresses dynamic loader format */
++	if !*FlagD { /* -d suppresses dynamic loader format */
+ 		Addstring(ctxt, shstrtab, ".interp")
+ 		Addstring(ctxt, shstrtab, ".hash")
+ 		Addstring(ctxt, shstrtab, ".got")
+@@ -2080,8 +2080,8 @@ func (ctxt *Link) doelf() {
+ 		addgonote(ctxt, ".note.go.deps", ELF_NOTE_GODEPS_TAG, []byte(strings.Join(deplist, "\n")))
+ 	}
+ 
+-	if Linkmode == LinkExternal && buildid != "" {
+-		addgonote(ctxt, ".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(buildid))
++	if Linkmode == LinkExternal && *flagBuildid != "" {
++		addgonote(ctxt, ".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(*flagBuildid))
+ 	}
+ }
+ 
+@@ -2144,7 +2144,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	}
+ 
+ 	elfreserve := int64(ELFRESERVE)
+-	startva := INITTEXT - int64(HEADR)
++	startva := *FlagTextAddr - int64(HEADR)
+ 	resoff := elfreserve
+ 
+ 	var pph *ElfPhdr
+@@ -2165,7 +2165,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.type_ = SHT_NOTE
+ 		}
+ 
+-		if buildid != "" {
++		if *flagBuildid != "" {
+ 			sh := elfshname(ctxt, ".note.go.buildid")
+ 			sh.type_ = SHT_NOTE
+ 			sh.flags = SHF_ALLOC
+@@ -2180,9 +2180,9 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	pph.type_ = PT_PHDR
+ 	pph.flags = PF_R
+ 	pph.off = uint64(eh.ehsize)
+-	pph.vaddr = uint64(INITTEXT) - uint64(HEADR) + pph.off
+-	pph.paddr = uint64(INITTEXT) - uint64(HEADR) + pph.off
+-	pph.align = uint64(INITRND)
++	pph.vaddr = uint64(*FlagTextAddr) - uint64(HEADR) + pph.off
++	pph.paddr = uint64(*FlagTextAddr) - uint64(HEADR) + pph.off
++	pph.align = uint64(*FlagRound)
+ 
+ 	/*
+ 	 * PHDR must be in a loaded segment. Adjust the text
+@@ -2198,36 +2198,36 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		Segtext.Filelen += uint64(o)
+ 	}
+ 
+-	if !Debug['d'] { /* -d suppresses dynamic loader format */
++	if !*FlagD { /* -d suppresses dynamic loader format */
+ 		/* interpreter */
+ 		sh := elfshname(ctxt, ".interp")
+ 
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+-		if interpreter == "" {
++		if *flagInterpreter == "" {
+ 			switch HEADTYPE {
+ 			case obj.Hlinux:
+-				interpreter = Thearch.Linuxdynld
++				*flagInterpreter = Thearch.Linuxdynld
+ 
+ 			case obj.Hfreebsd:
+-				interpreter = Thearch.Freebsddynld
++				*flagInterpreter = Thearch.Freebsddynld
+ 
+ 			case obj.Hnetbsd:
+-				interpreter = Thearch.Netbsddynld
++				*flagInterpreter = Thearch.Netbsddynld
+ 
+ 			case obj.Hopenbsd:
+-				interpreter = Thearch.Openbsddynld
++				*flagInterpreter = Thearch.Openbsddynld
+ 
+ 			case obj.Hdragonfly:
+-				interpreter = Thearch.Dragonflydynld
++				*flagInterpreter = Thearch.Dragonflydynld
+ 
+ 			case obj.Hsolaris:
+-				interpreter = Thearch.Solarisdynld
++				*flagInterpreter = Thearch.Solarisdynld
+ 			}
+ 		}
+ 
+-		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
++		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), *flagInterpreter))
+ 
+ 		ph := newElfPhdr(ctxt)
+ 		ph.type_ = PT_INTERP
+@@ -2267,7 +2267,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		phsh(pnote, sh)
+ 	}
+ 
+-	if buildid != "" {
++	if *flagBuildid != "" {
+ 		sh := elfshname(ctxt, ".note.go.buildid")
+ 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
+ 
+@@ -2286,7 +2286,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	elfphload(ctxt, &Segdata)
+ 
+ 	/* Dynamic linking sections */
+-	if !Debug['d'] {
++	if !*FlagD {
+ 		sh := elfshname(ctxt, ".dynsym")
+ 		sh.type_ = SHT_DYNSYM
+ 		sh.flags = SHF_ALLOC
+@@ -2471,7 +2471,7 @@ elfobj:
+ 	eh.shstrndx = uint16(sh.shnum)
+ 
+ 	// put these sections early in the list
+-	if !Debug['s'] {
++	if !*FlagS {
+ 		elfshname(ctxt, ".symtab")
+ 		elfshname(ctxt, ".strtab")
+ 	}
+@@ -2515,7 +2515,7 @@ elfobj:
+ 		sh.flags = 0
+ 	}
+ 
+-	if !Debug['s'] {
++	if !*FlagS {
+ 		sh := elfshname(ctxt, ".symtab")
+ 		sh.type_ = SHT_SYMTAB
+ 		sh.off = uint64(symo)
+@@ -2581,7 +2581,7 @@ elfobj:
+ 	a += int64(elfwritehdr())
+ 	a += int64(elfwritephdrs())
+ 	a += int64(elfwriteshdrs())
+-	if !Debug['d'] {
++	if !*FlagD {
+ 		a += int64(elfwriteinterp(ctxt))
+ 	}
+ 	if Linkmode != LinkExternal {
+@@ -2594,7 +2594,7 @@ elfobj:
+ 		if len(buildinfo) > 0 {
+ 			a += int64(elfwritebuildinfo(ctxt))
+ 		}
+-		if buildid != "" {
++		if *flagBuildid != "" {
+ 			a += int64(elfwritegobuildid(ctxt))
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 279d4e7103..4f7db2696c 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -31,13 +31,13 @@ func expandpkg(t0 string, pkg string) string {
+ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
+ 	var p0, p1 int
+ 
+-	if Debug['g'] {
++	if *flagG {
+ 		return
+ 	}
+ 
+ 	if int64(int(length)) != length {
+ 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
+-		if Debug['u'] {
++		if *flagU {
+ 			errorexit()
+ 		}
+ 		return
+@@ -52,7 +52,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 	bdata := make([]byte, length)
+ 	if _, err := io.ReadFull(f, bdata); err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
+-		if Debug['u'] {
++		if *flagU {
+ 			errorexit()
+ 		}
+ 		return
+@@ -84,7 +84,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 		if pkg == "main" && !isMain {
+ 			Exitf("%s: not package main", filename)
+ 		}
+-		if Debug['u'] && whence != ArchiveObj && !isSafe {
++		if *flagU && whence != ArchiveObj && !isSafe {
+ 			Exitf("load of unsafe package %s", filename)
+ 		}
+ 	}
+@@ -101,7 +101,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 		i := strings.IndexByte(data[p0+1:], '\n')
+ 		if i < 0 {
+ 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
+-			if Debug['u'] {
++			if *flagU {
+ 				errorexit()
+ 			}
+ 			return
+@@ -114,7 +114,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 		}
+ 		if p1 < 0 {
+ 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
+-			if Debug['u'] {
++			if *flagU {
+ 				errorexit()
+ 			}
+ 			return
+@@ -163,7 +163,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				lib = f[3]
+ 			}
+ 
+-			if Debug['d'] {
++			if *FlagD {
+ 				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
+ 				nerrors++
+ 				return
+@@ -267,14 +267,14 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				goto err
+ 			}
+ 
+-			if !Debug['I'] {
+-				if interpreter != "" && interpreter != f[1] {
+-					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
++			if *flagInterpreter != "" {
++				if *flagInterpreter != f[1] {
++					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], *flagInterpreter, f[1])
+ 					nerrors++
+ 					return
+ 				}
+ 
+-				interpreter = f[1]
++				*flagInterpreter = f[1]
+ 			}
+ 
+ 			continue
+@@ -352,14 +352,14 @@ func fieldtrack(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	if tracksym == "" {
++	if *flagFieldTrack == "" {
+ 		return
+ 	}
+-	s := Linklookup(ctxt, tracksym, 0)
++	s := Linklookup(ctxt, *flagFieldTrack, 0)
+ 	if !s.Attr.Reachable() {
+ 		return
+ 	}
+-	addstrdata(ctxt, tracksym, buf.String())
++	addstrdata(ctxt, *flagFieldTrack, buf.String())
+ }
+ 
+ func (ctxt *Link) addexport() {
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index cf33a9f42d..fdd7293950 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -64,7 +64,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
+ 	} else {
+ 		// try dot, -L "libdir", and then goroot.
+ 		for _, dir := range ctxt.Libdir {
+-			if Linkshared {
++			if *FlagLinkshared {
+ 				pname = dir + "/" + pkg + ".shlibname"
+ 				if _, err := os.Stat(pname); err == nil {
+ 					isshlib = true
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7918b9463e..4acb34006e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -113,24 +113,8 @@ type Arch struct {
+ 	Append64         func(b []byte, v uint64) []byte
+ }
+ 
+-type Rpath struct {
+-	set bool
+-	val string
+-}
+-
+-func (r *Rpath) Set(val string) error {
+-	r.set = true
+-	r.val = val
+-	return nil
+-}
+-
+-func (r *Rpath) String() string {
+-	return r.val
+-}
+-
+ var (
+ 	Thearch Arch
+-	Debug   [128]bool
+ 	Lcsize  int32
+ 	rpath   Rpath
+ 	Spsize  int32
+@@ -172,7 +156,7 @@ type Section struct {
+ // DynlinkingGo returns whether we are producing Go code that can live
+ // in separate shared libraries linked together at runtime.
+ func DynlinkingGo() bool {
+-	return Buildmode == BuildmodeShared || Linkshared
++	return Buildmode == BuildmodeShared || *FlagLinkshared
+ }
+ 
+ // UseRelro returns whether to make use of "read only relocations" aka
+@@ -182,43 +166,27 @@ func UseRelro() bool {
+ 	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+ 		return Iself
+ 	default:
+-		return Linkshared
++		return *FlagLinkshared
+ 	}
+ }
+ 
+ var (
+-	SysArch            *sys.Arch
+-	outfile            string
+-	dynexp             []*Symbol
+-	dynlib             []string
+-	ldflag             []string
+-	havedynamic        int
+-	Funcalign          int
+-	iscgo              bool
+-	elfglobalsymndx    int
+-	flag_dumpdep       bool
+-	flag_installsuffix string
+-	flag_race          bool
+-	flag_msan          bool
+-	Buildmode          BuildMode
+-	Linkshared         bool
+-	tracksym           string
+-	interpreter        string
+-	tmpdir             string
+-	extld              string
+-	extldflags         string
+-	extar              string
+-	libgccfile         string
+-	debug_s            bool // backup old value of debug['s']
+-	HEADR              int32
+-	HEADTYPE           int32
+-	INITRND            int
+-	INITTEXT           int64
+-	INITDAT            int64
+-	INITENTRY          string /* entry point */
+-	nerrors            int
+-	Linkmode           int
+-	liveness           int64
++	SysArch         *sys.Arch
++	dynexp          []*Symbol
++	dynlib          []string
++	ldflag          []string
++	havedynamic     int
++	Funcalign       int
++	iscgo           bool
++	elfglobalsymndx int
++
++	debug_s  bool // backup old value of debug['s']
++	HEADR    int32
++	HEADTYPE int32
++
++	nerrors  int
++	Linkmode int
++	liveness int64
+ )
+ 
+ var (
+@@ -278,97 +246,6 @@ func Lflag(ctxt *Link, arg string) {
+ 	ctxt.Libdir = append(ctxt.Libdir, arg)
+ }
+ 
+-// A BuildMode indicates the sort of object we are building:
+-//   "exe": build a main package and everything it imports into an executable.
+-//   "c-shared": build a main package, plus all packages that it imports, into a
+-//     single C shared library. The only callable symbols will be those functions
+-//     marked as exported.
+-//   "shared": combine all packages passed on the command line, and their
+-//     dependencies, into a single shared library that will be used when
+-//     building with the -linkshared option.
+-type BuildMode uint8
+-
+-const (
+-	BuildmodeUnset BuildMode = iota
+-	BuildmodeExe
+-	BuildmodePIE
+-	BuildmodeCArchive
+-	BuildmodeCShared
+-	BuildmodeShared
+-)
+-
+-func (mode *BuildMode) Set(s string) error {
+-	goos := obj.Getgoos()
+-	goarch := obj.Getgoarch()
+-	badmode := func() error {
+-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
+-	}
+-	switch s {
+-	default:
+-		return fmt.Errorf("invalid buildmode: %q", s)
+-	case "exe":
+-		*mode = BuildmodeExe
+-	case "pie":
+-		switch goos {
+-		case "android", "linux":
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodePIE
+-	case "c-archive":
+-		switch goos {
+-		case "darwin", "linux":
+-		case "windows":
+-			switch goarch {
+-			case "amd64", "386":
+-			default:
+-				return badmode()
+-			}
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeCArchive
+-	case "c-shared":
+-		switch goarch {
+-		case "386", "amd64", "arm", "arm64":
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeCShared
+-	case "shared":
+-		switch goos {
+-		case "linux":
+-			switch goarch {
+-			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+-			default:
+-				return badmode()
+-			}
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeShared
+-	}
+-	return nil
+-}
+-
+-func (mode *BuildMode) String() string {
+-	switch *mode {
+-	case BuildmodeUnset:
+-		return "" // avoid showing a default in usage message
+-	case BuildmodeExe:
+-		return "exe"
+-	case BuildmodePIE:
+-		return "pie"
+-	case BuildmodeCArchive:
+-		return "c-archive"
+-	case BuildmodeCShared:
+-		return "c-shared"
+-	case BuildmodeShared:
+-		return "shared"
+-	}
+-	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
+-}
+-
+ /*
+  * Unix doesn't like it when we write to a running (or, sometimes,
+  * recently run) binary, so remove the output file before writing it.
+@@ -376,10 +253,10 @@ func (mode *BuildMode) String() string {
+  * S_ISREG() does not exist on Plan 9.
+  */
+ func mayberemoveoutfile() {
+-	if fi, err := os.Lstat(outfile); err == nil && !fi.Mode().IsRegular() {
++	if fi, err := os.Lstat(*flagOutfile); err == nil && !fi.Mode().IsRegular() {
+ 		return
+ 	}
+-	os.Remove(outfile)
++	os.Remove(*flagOutfile)
+ }
+ 
+ func libinit(ctxt *Link) {
+@@ -390,13 +267,13 @@ func libinit(ctxt *Link) {
+ 	suffix := ""
+ 
+ 	suffixsep := ""
+-	if flag_installsuffix != "" {
++	if *flagInstallSuffix != "" {
+ 		suffixsep = "_"
+-		suffix = flag_installsuffix
+-	} else if flag_race {
++		suffix = *flagInstallSuffix
++	} else if *flagRace {
+ 		suffixsep = "_"
+ 		suffix = "race"
+-	} else if flag_msan {
++	} else if *flagMsan {
+ 		suffixsep = "_"
+ 		suffix = "msan"
+ 	}
+@@ -404,29 +281,29 @@ func libinit(ctxt *Link) {
+ 	Lflag(ctxt, filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s%s%s", goos, goarch, suffixsep, suffix)))
+ 
+ 	mayberemoveoutfile()
+-	f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
++	f, err := os.OpenFile(*flagOutfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+-		Exitf("cannot create %s: %v", outfile, err)
++		Exitf("cannot create %s: %v", *flagOutfile, err)
+ 	}
+ 
+ 	coutbuf.w = bufio.NewWriter(f)
+ 	coutbuf.f = f
+ 
+-	if INITENTRY == "" {
++	if *flagEntrySymbol == "" {
+ 		switch Buildmode {
+ 		case BuildmodeCShared, BuildmodeCArchive:
+-			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
+ 		case BuildmodeExe, BuildmodePIE:
+-			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
+ 		case BuildmodeShared:
+-			// No INITENTRY for -buildmode=shared
++			// No *flagEntrySymbol for -buildmode=shared
+ 		default:
+-			ctxt.Diag("unknown INITENTRY for buildmode %v", Buildmode)
++			ctxt.Diag("unknown *flagEntrySymbol for buildmode %v", Buildmode)
+ 		}
+ 	}
+ 
+ 	if !DynlinkingGo() {
+-		Linklookup(ctxt, INITENTRY, 0).Type = obj.SXREF
++		Linklookup(ctxt, *flagEntrySymbol, 0).Type = obj.SXREF
+ 	}
+ }
+ 
+@@ -463,7 +340,7 @@ func errorexit() {
+ func loadinternal(ctxt *Link, name string) {
+ 	found := 0
+ 	for i := 0; i < len(ctxt.Libdir); i++ {
+-		if Linkshared {
++		if *FlagLinkshared {
+ 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
+ 			if ctxt.Debugvlog != 0 {
+ 				fmt.Fprintf(ctxt.Bso, "searching for %s.a in %s\n", name, shlibname)
+@@ -506,10 +383,10 @@ func (ctxt *Link) loadlib() {
+ 	if SysArch.Family == sys.ARM {
+ 		loadinternal(ctxt, "math")
+ 	}
+-	if flag_race {
++	if *flagRace {
+ 		loadinternal(ctxt, "runtime/race")
+ 	}
+-	if flag_msan {
++	if *flagMsan {
+ 		loadinternal(ctxt, "runtime/msan")
+ 	}
+ 
+@@ -561,7 +438,7 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 
+ 		// Force external linking for msan.
+-		if flag_msan {
++		if *flagMsan {
+ 			Linkmode = LinkExternal
+ 		}
+ 	}
+@@ -690,29 +567,29 @@ func (ctxt *Link) loadlib() {
+ 			}
+ 		}
+ 		if any {
+-			if libgccfile == "" {
+-				if extld == "" {
+-					extld = "gcc"
++			if *flagLibGCC == "" {
++				if *flagExtld == "" {
++					*flagExtld = "gcc"
+ 				}
+ 				args := hostlinkArchArgs()
+ 				args = append(args, "--print-libgcc-file-name")
+ 				if ctxt.Debugvlog != 0 {
+-					fmt.Fprintf(ctxt.Bso, "%s %v\n", extld, args)
++					fmt.Fprintf(ctxt.Bso, "%s %v\n", *flagExtld, args)
+ 				}
+-				out, err := exec.Command(extld, args...).Output()
++				out, err := exec.Command(*flagExtld, args...).Output()
+ 				if err != nil {
+ 					if ctxt.Debugvlog != 0 {
+ 						fmt.Fprintln(ctxt.Bso, "not using a libgcc file because compiler failed")
+ 						fmt.Fprintf(ctxt.Bso, "%v\n%s\n", err, out)
+ 					}
+-					libgccfile = "none"
++					*flagLibGCC = "none"
+ 				} else {
+-					libgccfile = strings.TrimSpace(string(out))
++					*flagLibGCC = strings.TrimSpace(string(out))
+ 				}
+ 			}
+ 
+-			if libgccfile != "none" {
+-				hostArchive(ctxt, libgccfile)
++			if *flagLibGCC != "none" {
++				hostArchive(ctxt, *flagLibGCC)
+ 			}
+ 		}
+ 	} else {
+@@ -733,7 +610,7 @@ func (ctxt *Link) loadlib() {
+ 	switch Buildmode {
+ 	case BuildmodeExe, BuildmodePIE:
+ 		if havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
+-			Debug['d'] = true
++			*FlagD = true
+ 		}
+ 	}
+ 
+@@ -939,7 +816,7 @@ func hostobjs(ctxt *Link) {
+ // provided by lib9
+ 
+ func rmtemp() {
+-	os.RemoveAll(tmpdir)
++	os.RemoveAll(*flagTmpdir)
+ }
+ 
+ func hostlinksetup() {
+@@ -950,16 +827,16 @@ func hostlinksetup() {
+ 	// For external link, record that we need to tell the external linker -s,
+ 	// and turn off -s internally: the external linker needs the symbol
+ 	// information for its final link.
+-	debug_s = Debug['s']
+-	Debug['s'] = false
++	debug_s = *FlagS
++	*FlagS = false
+ 
+ 	// create temporary directory and arrange cleanup
+-	if tmpdir == "" {
++	if *flagTmpdir == "" {
+ 		dir, err := ioutil.TempDir("", "go-link-")
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+-		tmpdir = dir
++		*flagTmpdir = dir
+ 		AtExit(rmtemp)
+ 	}
+ 
+@@ -967,7 +844,7 @@ func hostlinksetup() {
+ 	coutbuf.f.Close()
+ 	mayberemoveoutfile()
+ 
+-	p := filepath.Join(tmpdir, "go.o")
++	p := filepath.Join(*flagTmpdir, "go.o")
+ 	var err error
+ 	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+@@ -985,7 +862,7 @@ func hostobjCopy() (paths []string) {
+ 	sema := make(chan struct{}, runtime.NumCPU()) // limit open file descriptors
+ 	for i, h := range hostobj {
+ 		h := h
+-		dst := filepath.Join(tmpdir, fmt.Sprintf("%06d.o", i))
++		dst := filepath.Join(*flagTmpdir, fmt.Sprintf("%06d.o", i))
+ 		paths = append(paths, dst)
+ 
+ 		wg.Add(1)
+@@ -1025,8 +902,8 @@ func (ctxt *Link) archive() {
+ 		return
+ 	}
+ 
+-	if extar == "" {
+-		extar = "ar"
++	if *flagExtar == "" {
++		*flagExtar = "ar"
+ 	}
+ 
+ 	mayberemoveoutfile()
+@@ -1039,8 +916,8 @@ func (ctxt *Link) archive() {
+ 	}
+ 	coutbuf.f = nil
+ 
+-	argv := []string{extar, "-q", "-c", "-s", outfile}
+-	argv = append(argv, filepath.Join(tmpdir, "go.o"))
++	argv := []string{*flagExtar, "-q", "-c", "-s", *flagOutfile}
++	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
+ 	argv = append(argv, hostobjCopy()...)
+ 
+ 	if ctxt.Debugvlog != 0 {
+@@ -1061,15 +938,15 @@ func (l *Link) hostlink() {
+ 		return
+ 	}
+ 
+-	if extld == "" {
+-		extld = "gcc"
++	if *flagExtld == "" {
++		*flagExtld = "gcc"
+ 	}
+ 
+ 	var argv []string
+-	argv = append(argv, extld)
++	argv = append(argv, *flagExtld)
+ 	argv = append(argv, hostlinkArchArgs()...)
+ 
+-	if !Debug['s'] && !debug_s {
++	if !*FlagS && !debug_s {
+ 		argv = append(argv, "-gdwarf-2")
+ 	} else {
+ 		argv = append(argv, "-s")
+@@ -1144,7 +1021,7 @@ func (l *Link) hostlink() {
+ 			// If gold is not installed, gcc will silently switch
+ 			// back to ld.bfd. So we parse the version information
+ 			// and provide a useful error if gold is missing.
+-			cmd := exec.Command(extld, "-fuse-ld=gold", "-Wl,--version")
++			cmd := exec.Command(*flagExtld, "-fuse-ld=gold", "-Wl,--version")
+ 			if out, err := cmd.CombinedOutput(); err == nil {
+ 				if !bytes.Contains(out, []byte("GNU gold")) {
+ 					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
+@@ -1163,7 +1040,7 @@ func (l *Link) hostlink() {
+ 	// will decide that the file already has an extension. We
+ 	// only want to do this when producing a Windows output file
+ 	// on a Windows host.
+-	outopt := outfile
++	outopt := *flagOutfile
+ 	if goos == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+ 		outopt += "."
+ 	}
+@@ -1183,10 +1060,10 @@ func (l *Link) hostlink() {
+ 		argv = append(argv, "-Qunused-arguments")
+ 	}
+ 
+-	argv = append(argv, filepath.Join(tmpdir, "go.o"))
++	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
+ 	argv = append(argv, hostobjCopy()...)
+ 
+-	if Linkshared {
++	if *FlagLinkshared {
+ 		seenDirs := make(map[string]bool)
+ 		seenLibs := make(map[string]bool)
+ 		addshlib := func(path string) {
+@@ -1219,7 +1096,7 @@ func (l *Link) hostlink() {
+ 		}
+ 	}
+ 
+-	sanitizers := flag_race
++	sanitizers := *flagRace
+ 
+ 	for _, flag := range ldflag {
+ 		if strings.HasPrefix(flag, "-fsanitize=") {
+@@ -1234,12 +1111,12 @@ func (l *Link) hostlink() {
+ 		// executables by default, tsan/msan/asan/etc initialization can
+ 		// fail. So we pass -no-pie here, but support for that flag is quite
+ 		// new and we test for its support first.
+-		src := filepath.Join(tmpdir, "trivial.c")
++		src := filepath.Join(*flagTmpdir, "trivial.c")
+ 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+ 			l.Diag("WriteFile trivial.c failed: %v", err)
+ 		}
+ 		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
+-		cmd.Dir = tmpdir
++		cmd.Dir = *flagTmpdir
+ 		cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+ 		out, err := cmd.CombinedOutput()
+ 		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
+@@ -1248,14 +1125,14 @@ func (l *Link) hostlink() {
+ 		}
+ 	}
+ 
+-	for _, p := range strings.Fields(extldflags) {
++	for _, p := range strings.Fields(*flagExtldflags) {
+ 		argv = append(argv, p)
+ 
+ 		// clang, unlike GCC, passes -rdynamic to the linker
+ 		// even when linking with -static, causing a linker
+ 		// error when using GNU ld. So take out -rdynamic if
+ 		// we added it. We do it in this order, rather than
+-		// only adding -rdynamic later, so that -extldflags
++		// only adding -rdynamic later, so that -*extldflags
+ 		// can override -rdynamic without using -static.
+ 		if Iself && p == "-static" {
+ 			for i := range argv {
+@@ -1285,11 +1162,11 @@ func (l *Link) hostlink() {
+ 		l.Bso.Flush()
+ 	}
+ 
+-	if !Debug['s'] && !debug_s && HEADTYPE == obj.Hdarwin {
++	if !*FlagS && !debug_s && HEADTYPE == obj.Hdarwin {
+ 		// Skip combining dwarf on arm.
+ 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
+-			dsym := filepath.Join(tmpdir, "go.dwarf")
+-			if out, err := exec.Command("dsymutil", "-f", outfile, "-o", dsym).CombinedOutput(); err != nil {
++			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
++			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+ 				l.Cursym = nil
+ 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+ 			}
+@@ -1298,13 +1175,13 @@ func (l *Link) hostlink() {
+ 				return
+ 			}
+ 			// For os.Rename to work reliably, must be in same directory as outfile.
+-			combinedOutput := outfile + "~"
+-			if err := machoCombineDwarf(outfile, dsym, combinedOutput); err != nil {
++			combinedOutput := *flagOutfile + "~"
++			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput); err != nil {
+ 				l.Cursym = nil
+ 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+ 			}
+-			os.Remove(outfile)
+-			if err := os.Rename(combinedOutput, outfile); err != nil {
++			os.Remove(*flagOutfile)
++			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+ 				l.Cursym = nil
+ 				Exitf("%s: %v", os.Args[0], err)
+ 			}
+@@ -1383,7 +1260,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 	t := fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
+ 
+ 	line = strings.TrimRight(line, "\n")
+-	if !strings.HasPrefix(line[10:]+" ", t) && !Debug['f'] {
++	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
+ 		ctxt.Diag("%s: object is [%s] expected [%s]", pn, line[10:], t)
+ 		return nil
+ 	}
+@@ -1937,11 +1814,6 @@ func setheadtype(s string) {
+ 	HEADTYPE = int32(headtype(s))
+ }
+ 
+-func setinterp(s string) {
+-	Debug['I'] = true // denote cmdline interpreter override
+-	interpreter = s
+-}
+-
+ func doversion() {
+ 	Exitf("version %s", obj.Getgoversion())
+ }
+@@ -2070,7 +1942,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
+ 
+ 	// Otherwise, off is addressing the saved program counter.
+ 	// Something underhanded is going on. Say nothing.
+-	if ctxt.Debugvlog != 0 || Debug['n'] {
++	if ctxt.Debugvlog != 0 || *flagN {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
+ 	}
+ 	ctxt.Bso.Flush()
+@@ -2104,13 +1976,13 @@ func datoff(ctxt *Link, addr int64) int64 {
+ }
+ 
+ func Entryvalue(ctxt *Link) int64 {
+-	a := INITENTRY
++	a := *flagEntrySymbol
+ 	if a[0] >= '0' && a[0] <= '9' {
+ 		return atolwhex(a)
+ 	}
+ 	s := Linklookup(ctxt, a, 0)
+ 	if s.Type == 0 {
+-		return INITTEXT
++		return *FlagTextAddr
+ 	}
+ 	if s.Type != obj.STEXT {
+ 		ctxt.Diag("entry not text: %s", s.Name)
+@@ -2149,7 +2021,7 @@ func (ctxt *Link) undef() {
+ }
+ 
+ func (ctxt *Link) callgraph() {
+-	if !Debug['c'] {
++	if !*FlagC {
+ 		return
+ 	}
+ 
+@@ -2177,7 +2049,7 @@ func (ctxt *Link) Diag(format string, args ...interface{}) {
+ 	}
+ 	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
+ 	nerrors++
+-	if Debug['h'] {
++	if *flagH {
+ 		panic("error")
+ 	}
+ 	if nerrors > 20 {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 4350eb37a5..056fde3777 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -295,7 +295,7 @@ func machowrite() int {
+ }
+ 
+ func (ctxt *Link) domacho() {
+-	if Debug['d'] {
++	if *FlagD {
+ 		return
+ 	}
+ 
+@@ -340,7 +340,7 @@ func Machoadddynlib(lib string) {
+ 
+ 	if load_budget < 0 {
+ 		HEADR += 4096
+-		INITTEXT += 4096
++		*FlagTextAddr += 4096
+ 		load_budget += 4096
+ 	}
+ 
+@@ -415,7 +415,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 
+ func Asmbmacho(ctxt *Link) {
+ 	/* apple MACH */
+-	va := INITTEXT - int64(HEADR)
++	va := *FlagTextAddr - int64(HEADR)
+ 
+ 	mh := getMachoHdr()
+ 	switch SysArch.Family {
+@@ -460,7 +460,7 @@ func Asmbmacho(ctxt *Link) {
+ 	}
+ 
+ 	/* text */
+-	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(INITRND))
++	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
+ 
+ 	if Linkmode != LinkExternal {
+ 		ms = newMachoSeg("__TEXT", 20)
+@@ -493,7 +493,7 @@ func Asmbmacho(ctxt *Link) {
+ 	}
+ 
+ 	/* dwarf */
+-	if !Debug['w'] {
++	if !*FlagW {
+ 		if Linkmode != LinkExternal {
+ 			ms = newMachoSeg("__DWARF", 20)
+ 			ms.vaddr = Segdwarf.Vaddr
+@@ -539,7 +539,7 @@ func Asmbmacho(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	if !Debug['d'] {
++	if !*FlagD {
+ 		// must match domacholink below
+ 		s1 := Linklookup(ctxt, ".machosymtab", 0)
+ 		s2 := Linklookup(ctxt, ".linkedit.plt", 0)
+@@ -548,7 +548,7 @@ func Asmbmacho(ctxt *Link) {
+ 
+ 		if Linkmode != LinkExternal {
+ 			ms := newMachoSeg("__LINKEDIT", 0)
+-			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(INITRND)))
++			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
+ 			ms.vsize = uint64(s1.Size) + uint64(s2.Size) + uint64(s3.Size) + uint64(s4.Size)
+ 			ms.fileoffset = uint64(linkoff)
+ 			ms.filesize = ms.vsize
+@@ -797,7 +797,7 @@ func Domacholink(ctxt *Link) int64 {
+ 	size := int(s1.Size + s2.Size + s3.Size + s4.Size)
+ 
+ 	if size > 0 {
+-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(INITRND)) + Rnd(int64(Segdata.Filelen), int64(INITRND)) + Rnd(int64(Segdwarf.Filelen), int64(INITRND))
++		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+ 		Cseek(linkoff)
+ 
+ 		Cwrite(s1.P[:s1.Size])
+@@ -806,7 +806,7 @@ func Domacholink(ctxt *Link) int64 {
+ 		Cwrite(s4.P[:s4.Size])
+ 	}
+ 
+-	return Rnd(int64(size), int64(INITRND))
++	return Rnd(int64(size), int64(*FlagRound))
+ }
+ 
+ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 0c9683bb76..6a70b3eec9 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -36,20 +36,71 @@ import (
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
++	"log"
+ 	"os"
++	"runtime"
++	"runtime/pprof"
+ 	"strings"
+ )
+ 
+ var (
+ 	pkglistfornote []byte
+-	buildid        string
+ )
+ 
+-func Ldmain() {
++func init() {
++	flag.Var(&Buildmode, "buildmode", "set build `mode`")
++	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
++}
++
++// Flags used by the linker. The exported flags are used by the architecture-specific packages.
++var (
++	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
++
++	flagOutfile    = flag.String("o", "", "write output to `file`")
++	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
++	Buildmode      BuildMode
++
++	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
++	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
++	flagRace          = flag.Bool("race", false, "enable race detector")
++	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
++
++	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")
++	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
++	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
++
++	flagExtld      = flag.String("extld", "", "use `linker` when linking in external mode")
++	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
++	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
++
++	flagA           = flag.Bool("a", false, "disassemble output")
++	FlagC           = flag.Bool("c", false, "dump call graph")
++	FlagD           = flag.Bool("d", false, "disable dynamic executable")
++	flagF           = flag.Bool("f", false, "ignore version mismatch")
++	flagG           = flag.Bool("g", false, "disable go package data checks")
++	flagH           = flag.Bool("h", false, "halt on error")
++	flagN           = flag.Bool("n", false, "dump symbol table")
++	FlagS           = flag.Bool("s", false, "disable symbol table")
++	flagU           = flag.Bool("u", false, "reject unsafe packages")
++	FlagW           = flag.Bool("w", false, "disable DWARF generation")
++	Flag8           bool // use 64-bit addresses in symbol table
++	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
++
++	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
++	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
++	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
++	flagEntrySymbol = flag.String("E", "", "set `entry` symbol name")
++
++	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
++	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
++	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
++)
++
++// Main is the main entry point for the linker code.
++func Main() {
+ 	ctxt := linknew(SysArch)
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+-	Debug = [128]bool{}
+ 	nerrors = 0
+ 	HEADTYPE = -1
+ 	Linkmode = LinkAuto
+@@ -63,55 +114,21 @@ func Ldmain() {
+ 		}
+ 	}
+ 
++	// TODO(matloob): define these above and then check flag values here
+ 	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
+-		flag.BoolVar(&Debug['8'], "8", false, "use 64-bit addresses in symbol table")
++		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
+ 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+-	flag.BoolVar(&Debug['C'], "C", false, "check Go calls to C code")
+-	flag.Int64Var(&INITDAT, "D", -1, "set data segment `address`")
+-	flag.StringVar(&INITENTRY, "E", "", "set `entry` symbol name")
+-	obj.Flagfn1("I", "use `linker` as ELF dynamic linker", setinterp)
+ 	obj.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
+ 	obj.Flagfn1("H", "set header `type`", setheadtype)
+-	flag.IntVar(&INITRND, "R", -1, "set address rounding `quantum`")
+-	flag.Int64Var(&INITTEXT, "T", -1, "set text segment `address`")
+ 	obj.Flagfn0("V", "print version and exit", doversion)
+ 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+-	flag.BoolVar(&Debug['a'], "a", false, "disassemble output")
+-	flag.StringVar(&buildid, "buildid", "", "record `id` as Go toolchain build id")
+-	flag.Var(&Buildmode, "buildmode", "set build `mode`")
+-	flag.BoolVar(&Debug['c'], "c", false, "dump call graph")
+-	flag.BoolVar(&Debug['d'], "d", false, "disable dynamic executable")
+-	flag.BoolVar(&flag_dumpdep, "dumpdep", false, "dump symbol dependency graph")
+-	flag.StringVar(&extar, "extar", "", "archive program for buildmode=c-archive")
+-	flag.StringVar(&extld, "extld", "", "use `linker` when linking in external mode")
+-	flag.StringVar(&extldflags, "extldflags", "", "pass `flags` to external linker")
+-	flag.BoolVar(&Debug['f'], "f", false, "ignore version mismatch")
+-	flag.BoolVar(&Debug['g'], "g", false, "disable go package data checks")
+-	flag.BoolVar(&Debug['h'], "h", false, "halt on error")
+-	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set package directory `suffix`")
+-	flag.StringVar(&tracksym, "k", "", "set field tracking `symbol`")
+-	flag.StringVar(&libgccfile, "libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
++	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+ 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
+-	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
+-	flag.BoolVar(&flag_msan, "msan", false, "enable MSan interface")
+-	flag.BoolVar(&Debug['n'], "n", false, "dump symbol table")
+-	flag.StringVar(&outfile, "o", "", "write output to `file`")
+-	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+-	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+-	flag.BoolVar(&Debug['s'], "s", false, "disable symbol table")
+ 	var flagShared bool
+ 	if SysArch.InFamily(sys.ARM, sys.AMD64) {
+ 		flag.BoolVar(&flagShared, "shared", false, "generate shared object (implies -linkmode external)")
+ 	}
+-	flag.StringVar(&tmpdir, "tmpdir", "", "use `directory` for temporary files")
+-	flag.BoolVar(&Debug['u'], "u", false, "reject unsafe packages")
+-	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+-	flag.BoolVar(&Debug['w'], "w", false, "disable DWARF generation")
+-
+-	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+-	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+-	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 
+ 	obj.Flagparse(usage)
+ 
+@@ -132,10 +149,10 @@ func Ldmain() {
+ 		usage()
+ 	}
+ 
+-	if outfile == "" {
+-		outfile = "a.out"
++	if *flagOutfile == "" {
++		*flagOutfile = "a.out"
+ 		if HEADTYPE == obj.Hwindows {
+-			outfile += ".exe"
++			*flagOutfile += ".exe"
+ 		}
+ 	}
+ 
+@@ -151,12 +168,12 @@ func Ldmain() {
+ 
+ 	Thearch.Archinit(ctxt)
+ 
+-	if Linkshared && !Iself {
++	if *FlagLinkshared && !Iself {
+ 		Exitf("-linkshared can only be used on elf systems")
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 {
+-		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
++		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+ 	}
+ 	ctxt.Bso.Flush()
+ 
+@@ -216,3 +233,137 @@ func Ldmain() {
+ 
+ 	errorexit()
+ }
++
++// A BuildMode indicates the sort of object we are building:
++//   "exe": build a main package and everything it imports into an executable.
++//   "c-shared": build a main package, plus all packages that it imports, into a
++//     single C shared library. The only callable symbols will be those functions
++//     marked as exported.
++//   "shared": combine all packages passed on the command line, and their
++//     dependencies, into a single shared library that will be used when
++//     building with the -linkshared option.
++type BuildMode uint8
++
++const (
++	BuildmodeUnset BuildMode = iota
++	BuildmodeExe
++	BuildmodePIE
++	BuildmodeCArchive
++	BuildmodeCShared
++	BuildmodeShared
++)
++
++func (mode *BuildMode) Set(s string) error {
++	goos := obj.Getgoos()
++	goarch := obj.Getgoarch()
++	badmode := func() error {
++		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
++	}
++	switch s {
++	default:
++		return fmt.Errorf("invalid buildmode: %q", s)
++	case "exe":
++		*mode = BuildmodeExe
++	case "pie":
++		switch goos {
++		case "android", "linux":
++		default:
++			return badmode()
++		}
++		*mode = BuildmodePIE
++	case "c-archive":
++		switch goos {
++		case "darwin", "linux":
++		case "windows":
++			switch goarch {
++			case "amd64", "386":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeCArchive
++	case "c-shared":
++		switch goarch {
++		case "386", "amd64", "arm", "arm64":
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeCShared
++	case "shared":
++		switch goos {
++		case "linux":
++			switch goarch {
++			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeShared
++	}
++	return nil
++}
++
++func (mode *BuildMode) String() string {
++	switch *mode {
++	case BuildmodeUnset:
++		return "" // avoid showing a default in usage message
++	case BuildmodeExe:
++		return "exe"
++	case BuildmodePIE:
++		return "pie"
++	case BuildmodeCArchive:
++		return "c-archive"
++	case BuildmodeCShared:
++		return "c-shared"
++	case BuildmodeShared:
++		return "shared"
++	}
++	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
++}
++
++type Rpath struct {
++	set bool
++	val string
++}
++
++func (r *Rpath) Set(val string) error {
++	r.set = true
++	r.val = val
++	return nil
++}
++
++func (r *Rpath) String() string {
++	return r.val
++}
++
++func startProfile() {
++	if *cpuprofile != "" {
++		f, err := os.Create(*cpuprofile)
++		if err != nil {
++			log.Fatalf("%v", err)
++		}
++		if err := pprof.StartCPUProfile(f); err != nil {
++			log.Fatalf("%v", err)
++		}
++		AtExit(pprof.StopCPUProfile)
++	}
++	if *memprofile != "" {
++		if *memprofilerate != 0 {
++			runtime.MemProfileRate = int(*memprofilerate)
++		}
++		f, err := os.Create(*memprofile)
++		if err != nil {
++			log.Fatalf("%v", err)
++		}
++		AtExit(func() {
++			runtime.GC() // profile all outstanding allocations
++			if err := pprof.WriteHeapProfile(f); err != nil {
++				log.Fatalf("%v", err)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3361d5f6fa..8351555d30 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -701,7 +701,7 @@ func initdynexport(ctxt *Link) {
+ func addexports(ctxt *Link) {
+ 	var e IMAGE_EXPORT_DIRECTORY
+ 
+-	size := binary.Size(&e) + 10*nexport + len(outfile) + 1
++	size := binary.Size(&e) + 10*nexport + len(*flagOutfile) + 1
+ 	for i := 0; i < nexport; i++ {
+ 		size += len(dexport[i].Extname) + 1
+ 	}
+@@ -741,7 +741,7 @@ func addexports(ctxt *Link) {
+ 	}
+ 
+ 	// put EXPORT Name Pointer Table
+-	v := int(e.Name + uint32(len(outfile)) + 1)
++	v := int(e.Name + uint32(len(*flagOutfile)) + 1)
+ 
+ 	for i := 0; i < nexport; i++ {
+ 		Lputl(uint32(v))
+@@ -754,7 +754,7 @@ func addexports(ctxt *Link) {
+ 	}
+ 
+ 	// put Names
+-	strnput(outfile, len(outfile)+1)
++	strnput(*flagOutfile, len(*flagOutfile)+1)
+ 
+ 	for i := 0; i < nexport; i++ {
+ 		strnput(dexport[i].Extname, len(dexport[i].Extname)+1)
+@@ -1021,7 +1021,7 @@ func addpesymtable(ctxt *Link) {
+ 
+ 	// write COFF symbol table
+ 	var symcnt int
+-	if !Debug['s'] || Linkmode == LinkExternal {
++	if !*FlagS || Linkmode == LinkExternal {
+ 		symcnt = writePESymTableRecords(ctxt)
+ 	}
+ 
+@@ -1114,7 +1114,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+ 
+ 	Cseek(int64(c.PointerToRawData))
+ 	chksectoff(ctxt, c, Cpos())
+-	init_entry := Linklookup(ctxt, INITENTRY, 0)
++	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
+ 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
+ 
+ 	switch obj.Getgoarch() {
+@@ -1168,7 +1168,7 @@ func Asmbpe(ctxt *Link) {
+ 		c = addinitarray(ctxt)
+ 	}
+ 
+-	if !Debug['s'] {
++	if !*FlagS {
+ 		dwarfaddpeheaders(ctxt)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 1b30498d1d..6a2a6d2908 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -226,7 +226,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64,
+ 		'Z',
+ 		'm':
+ 		l := 4
+-		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Debug['8'] {
++		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
+ 			Lputb(uint32(addr >> 32))
+ 			l = 8
+ 		}
+@@ -483,7 +483,7 @@ func (ctxt *Link) symtab() {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
++		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(*flagOutfile), 0)
+ 		abihashgostr.Attr |= AttrReachable
+ 		abihashgostr.Type = obj.SRODATA
+ 		hashsym := Linklookup(ctxt, "go.link.abihashbytes", 0)
+@@ -538,7 +538,7 @@ func (ctxt *Link) symtab() {
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	if len(ctxt.Shlibs) > 0 {
+-		thismodulename := filepath.Base(outfile)
++		thismodulename := filepath.Base(*flagOutfile)
+ 		switch Buildmode {
+ 		case BuildmodeExe, BuildmodePIE:
+ 			// When linking an executable, outfile is just "a.out". Make
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 19b3688aff..047c060b37 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -7,10 +7,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"encoding/binary"
+-	"log"
+ 	"os"
+-	"runtime"
+-	"runtime/pprof"
+ 	"strings"
+ 	"time"
+ )
+@@ -82,40 +79,6 @@ func Exit(code int) {
+ 	os.Exit(code)
+ }
+ 
+-var (
+-	cpuprofile     string
+-	memprofile     string
+-	memprofilerate int64
+-)
+-
+-func startProfile() {
+-	if cpuprofile != "" {
+-		f, err := os.Create(cpuprofile)
+-		if err != nil {
+-			log.Fatalf("%v", err)
+-		}
+-		if err := pprof.StartCPUProfile(f); err != nil {
+-			log.Fatalf("%v", err)
+-		}
+-		AtExit(pprof.StopCPUProfile)
+-	}
+-	if memprofile != "" {
+-		if memprofilerate != 0 {
+-			runtime.MemProfileRate = int(memprofilerate)
+-		}
+-		f, err := os.Create(memprofile)
+-		if err != nil {
+-			log.Fatalf("%v", err)
+-		}
+-		AtExit(func() {
+-			runtime.GC() // profile all outstanding allocations
+-			if err := pprof.WriteHeapProfile(f); err != nil {
+-				log.Fatalf("%v", err)
+-			}
+-		})
+-	}
+-}
+-
+ func artrim(x []byte) string {
+ 	i := 0
+ 	j := len(x)
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 2d50e8d859..404dfa21b7 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -226,7 +226,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if ld.Debug['s'] {
++	if *ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+@@ -236,7 +236,7 @@ func asmb(ctxt *ld.Link) {
+ 		default:
+ 			if ld.Iself {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+ 		case obj.Hplan9:
+@@ -306,7 +306,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ld.Cflush()
+-	if ld.Debug['c'] {
++	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+ 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 3d8f8f1c12..d2b200dbe0 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -119,45 +119,45 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 16*1024 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 16*1024 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 16 * 1024
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 16 * 1024
+ 		}
+ 
+ 	case obj.Hlinux: /* mips64 elf */
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 16
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 581e91f6c2..3bfa63a27f 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -847,7 +847,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+@@ -857,7 +857,7 @@ func asmb(ctxt *ld.Link) {
+ 		default:
+ 			if ld.Iself {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+ 		case obj.Hplan9:
+@@ -923,7 +923,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ld.Cflush()
+-	if ld.Debug['c'] {
++	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+ 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index f42b1f8471..e3bb1505f7 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -105,7 +105,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+-	if ld.Linkshared {
++	if *ld.FlagLinkshared {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+@@ -134,48 +134,48 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4128
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4128
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hlinux: /* ppc64 elf */
+ 		if ld.SysArch == sys.ArchPPC64 {
+-			ld.Debug['d'] = true // TODO(austin): ELF ABI v1 not supported yet
++			*ld.FlagD = true // TODO(austin): ELF ABI v1 not supported yet
+ 		}
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 16
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index d3d46dc89d..2e0dfbb640 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -542,7 +542,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		if !ld.Iself {
+ 			ctxt.Diag("unsupported executable format")
+ 		}
+@@ -551,7 +551,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 		ctxt.Bso.Flush()
+ 		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-		symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 
+ 		ld.Cseek(int64(symo))
+ 		if ctxt.Debugvlog != 0 {
+@@ -584,7 +584,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ld.Cflush()
+-	if ld.Debug['c'] {
++	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+ 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 119e32beb4..044cfbba0f 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -41,7 +41,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -97,18 +97,18 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hlinux: // s390x ELF
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index f3452f0123..e7eace0781 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -662,7 +662,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if !ld.Debug['s'] {
++	if !*ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+@@ -672,14 +672,14 @@ func asmb(ctxt *ld.Link) {
+ 		default:
+ 			if ld.Iself {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+ 		case obj.Hplan9:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 
+ 		case obj.Hwindows:
+ 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index f1b0fb7e8c..d356f720e0 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func Main() {
+ 	linkarchinit()
+-	ld.Ldmain()
++	ld.Main()
+ }
+ 
+ func linkarchinit() {
+@@ -117,28 +117,28 @@ func archinit(ctxt *ld.Link) {
+ 	case obj.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+ 
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4096 + 32
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4096 + 32
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hdarwin: /* apple MACH */
+ 		ld.Machoinit()
+ 
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 4096 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hlinux, /* elf32 executable */
+@@ -148,46 +148,46 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Elfinit(ctxt)
+ 
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x08048000 + int64(ld.HEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x08048000 + int64(ld.HEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case obj.Hnacl:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = 0x10000
+ 		ld.Funcalign = 32
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x20000
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 0x10000
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case obj.Hwindows: /* PE executable */
+ 		ld.Peinit(ctxt)
+ 
+ 		ld.HEADR = ld.PEFILEHEADR
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = ld.PEBASE + int64(ld.PESECTHEADR)
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
+ 		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
++		if *ld.FlagDataAddr == -1 {
++			*ld.FlagDataAddr = 0
+ 		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = ld.PESECTALIGN
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = ld.PESECTALIGN
+ 		}
+ 	}
+ 
+-	if ld.INITDAT != 0 && ld.INITRND != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }

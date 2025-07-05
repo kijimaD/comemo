@@ -21,8 +21,186 @@ Date:   Thu Jan 11 18:22:23 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go |  5 +-
  src/cmd/go/internal/work/action.go |  8 ++--
  src/cmd/go/internal/work/gccgo.go  | 94 +++++++++++++++++++-------------------
  3 files changed, 50 insertions(+), 57 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index f1e8f0605b..cf049ec35b 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -351,10 +351,10 @@ func readNotes(f *elf.File) ([]*note, error) {
+ 
+ func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
+ 	f, err := elf.Open(path)
+-	defer f.Close()
+ 	if err != nil {
+ 		t.Fatalf("elf.Open(%q) failed: %v", path, err)
+ 	}
++	defer f.Close()
+ 	dynstrings, err := f.DynString(flag)
+ 	if err != nil {
+ 		t.Fatalf("DynString(%s) failed on %s: %v", flag, path, err)
+@@ -598,7 +598,6 @@ func TestThreeGopathShlibs(t *testing.T) {
+ // If gccgo is not available or not new enough call t.Skip. Otherwise,
+ // return a build.Context that is set up for gccgo.
+ func prepGccgo(t *testing.T) build.Context {
+-	t.Skip("golang.org/issue/22472")
+ 	gccgoName := os.Getenv("GCCGO")
+ 	if gccgoName == "" {
+ 		gccgoName = "gccgo"
+@@ -648,8 +647,6 @@ func TestGoPathShlibGccgo(t *testing.T) {
+ // library with gccgo, another GOPATH package that depends on the first and an
+ // executable that links the second library.
+ func TestTwoGopathShlibsGccgo(t *testing.T) {
+-	t.Skip("golang.org/issue/22224")
+-
+ 	gccgoContext := prepGccgo(t)
+ 
+ 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index f752301323..9f1f8f8a50 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -647,11 +647,9 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 		// it is not present in another shared library, add it here.
+ 		// TODO(rsc): Maybe this should only happen if "runtime" is in the original package set.
+ 		// TODO(rsc): This should probably be changed to use load.LinkerDeps(p).
+-		// TODO(rsc): Find out and explain here why gccgo is excluded.
+-		// If the answer is that gccgo is different in implicit linker deps, maybe
+-		// load.LinkerDeps should be used and updated.
+-		// Link packages into a shared library.
+-
++		// TODO(rsc): We don't add standard library imports for gccgo
++		// because they are all always linked in anyhow.
++		// Maybe load.LinkerDeps should be used and updated.
+ 		a := &Action{
+ 			Mode:    "go build -buildmode=shared",
+ 			Package: p,
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index b576182b41..2512ffeda4 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -192,7 +192,6 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
+ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
+ 	// gccgo needs explicit linking with all package dependencies,
+ 	// and all LDFLAGS from cgo dependencies.
+-	apackagePathsSeen := make(map[string]bool)
+ 	afiles := []string{}
+ 	shlibs := []string{}
+ 	ldflags := b.gccArchArgs()
+@@ -261,56 +260,57 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 		return newArchive, nil
+ 	}
+ 
+-	actionsSeen := make(map[*Action]bool)
+-	// Make a pre-order depth-first traversal of the action graph, taking note of
+-	// whether a shared library action has been seen on the way to an action (the
+-	// construction of the graph means that if any path to a node passes through
+-	// a shared library action, they all do).
+-	var walk func(a *Action, seenShlib bool)
+-	var err error
+-	walk = func(a *Action, seenShlib bool) {
+-		if actionsSeen[a] {
+-			return
+-		}
+-		actionsSeen[a] = true
+-		if a.Package != nil && !seenShlib {
+-			if a.Package.Standard {
+-				return
++	// If using -linkshared, find the shared library deps.
++	haveShlib := make(map[string]bool)
++	targetBase := filepath.Base(root.Target)
++	if cfg.BuildLinkshared {
++		for _, a := range root.Deps {
++			p := a.Package
++			if p == nil || p.Shlib == "" {
++				continue
+ 			}
+-			// We record the target of the first time we see a .a file
+-			// for a package to make sure that we prefer the 'install'
+-			// rather than the 'build' location (which may not exist any
+-			// more). We still need to traverse the dependencies of the
+-			// build action though so saying
+-			// if apackagePathsSeen[a.Package.ImportPath] { return }
+-			// doesn't work.
+-			if !apackagePathsSeen[a.Package.ImportPath] {
+-				apackagePathsSeen[a.Package.ImportPath] = true
+-				target := a.built
+-				if len(a.Package.CgoFiles) > 0 || a.Package.UsesSwig() {
+-					target, err = readAndRemoveCgoFlags(target)
+-					if err != nil {
+-						return
+-					}
+-				}
+-				afiles = append(afiles, target)
++
++			// The .a we are linking into this .so
++			// will have its Shlib set to this .so.
++			// Don't start thinking we want to link
++			// this .so into itself.
++			base := filepath.Base(p.Shlib)
++			if base != targetBase {
++				haveShlib[base] = true
+ 			}
+ 		}
+-		if strings.HasSuffix(a.Target, ".so") {
+-			shlibs = append(shlibs, a.Target)
+-			seenShlib = true
++	}
++
++	// Arrange the deps into afiles and shlibs.
++	addedShlib := make(map[string]bool)
++	for _, a := range root.Deps {
++		p := a.Package
++		if p != nil && p.Shlib != "" && haveShlib[filepath.Base(p.Shlib)] {
++			// This is a package linked into a shared
++			// library that we will put into shlibs.
++			continue
+ 		}
+-		for _, a1 := range a.Deps {
+-			walk(a1, seenShlib)
+-			if err != nil {
+-				return
++
++		if haveShlib[filepath.Base(a.Target)] {
++			// This is a shared library we want to link againt.
++			if !addedShlib[a.Target] {
++				shlibs = append(shlibs, a.Target)
++				addedShlib[a.Target] = true
+ 			}
++			continue
+ 		}
+-	}
+-	for _, a1 := range root.Deps {
+-		walk(a1, false)
+-		if err != nil {
+-			return err
++
++		if p != nil {
++			target := a.built
++			if p.UsesCgo() || p.UsesSwig() {
++				var err error
++				target, err = readAndRemoveCgoFlags(target)
++				if err != nil {
++					continue
++				}
++			}
++
++			afiles = append(afiles, target)
+ 		}
+ 	}
+ 
+@@ -457,9 +457,7 @@ func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg
+ }
+ 
+ func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+-	fakeRoot := *root
+-	fakeRoot.Deps = toplevelactions
+-	return tools.link(b, &fakeRoot, out, importcfg, allactions, "shared", out)
++	return tools.link(b, root, out, importcfg, allactions, "shared", out)
+ }
+ 
+ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

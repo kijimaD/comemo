@@ -21,7 +21,7 @@ Date:   Tue Jul 23 15:16:02 2024 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   20 +-
  src/cmd/go.sum                                     |   36 +-
  src/cmd/vendor/golang.org/x/arch/LICENSE           |    4 +-
@@ -76,3 +76,7401 @@ Date:   Tue Jul 23 15:16:02 2024 -0400
  src/vendor/golang.org/x/text/LICENSE               |    4 +-
  src/vendor/modules.txt                             |   10 +-
  53 files changed, 5908 insertions(+), 547 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 49f02012d3..d30c2604d4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -1,21 +1,21 @@
+ module cmd
+ 
+-go 1.23
++go 1.24
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+-	golang.org/x/arch v0.8.0
+-	golang.org/x/build v0.0.0-20240603162849-5dfbda438323
+-	golang.org/x/mod v0.19.0
+-	golang.org/x/sync v0.7.0
+-	golang.org/x/sys v0.22.0
+-	golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701
+-	golang.org/x/term v0.20.0
+-	golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
++	golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
++	golang.org/x/build v0.0.0-20240722200705-b9910f320300
++	golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
++	golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
++	golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb
++	golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
++	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
++	golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 // indirect
+-	golang.org/x/text v0.16.0 // indirect
++	golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 // indirect
+ 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ee671f9512..293d2459ab 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -6,23 +6,23 @@ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVW
+ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+-golang.org/x/arch v0.8.0 h1:3wRIsP3pM4yUptoR96otTUOXI367OS0+c9eeRi9doIc=
+-golang.org/x/arch v0.8.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20240603162849-5dfbda438323 h1:XHj9DzsjpryRW9MnyZq85mQ1dRpSxVC+2TLcMzVZNMo=
+-golang.org/x/build v0.0.0-20240603162849-5dfbda438323/go.mod h1:yz9anu0Z63yrVrqnoOxoJuyBRDwtGUoOFJwtfvs+D+U=
+-golang.org/x/mod v0.19.0 h1:fEdghXQSo20giMthA7cd28ZC+jts4amQ3YMXiP5oMQ8=
+-golang.org/x/mod v0.19.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+-golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
+-golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701 h1:+bltxAtk8YFEQ61B/lcYQM8e+7XjLwSDbpspVaVYkz8=
+-golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
+-golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+-golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+-golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+-golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+-golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72 h1:YEy0SBExcUlHkZSzP6yv3BTwAUH6FK1XWDyC27AE+0I=
+-golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72/go.mod h1:aCwcsjqvq7Yqt6TNyX7QMU2enbQ/Gt0bo6krSeEri+c=
++golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea h1:+dKVGZM+cuxx3fooVKLDxZIPzKR1HYO1Xkd12Je4Z9k=
++golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
++golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
++golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83 h1:54Tg3p/GyzLNJA1jtQxZSn7GRaB5Exi/C9aOk+XpfhM=
++golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213 h1:8CBy3wSM3/YRXx26NPKZjPBNsnvI9dRRrSlB4Ps0HWY=
++golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb h1:IoPT3Y4jg6/QClnwgUYykkW0yKhqjC7VSJkQLzBukfY=
++golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4 h1:ka7TMW0Mo8QYTXm2hXSQ9fFUXS7Zln3S4pe9aq4JC7w=
++golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
++golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFONf27MxXigcYa9x+iW5JuCXw=
++golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
++golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
++golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
++golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c h1:jGHQpjWnvPa5qmjhxUYeut+TlRYWRGaMcOnAZ4S5IOo=
++golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c/go.mod h1:pnu6ufv6vQkll6szChhK3C3L/ruaIv5eBeztNG8wtsI=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/arch/LICENSE b/src/cmd/vendor/golang.org/x/arch/LICENSE
+index d29b37261f..686d8a9191 100644
+--- a/src/cmd/vendor/golang.org/x/arch/LICENSE
++++ b/src/cmd/vendor/golang.org/x/arch/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2015 The Go Authors. All rights reserved.
++Copyright 2015 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/build/LICENSE b/src/cmd/vendor/golang.org/x/build/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/build/LICENSE
++++ b/src/cmd/vendor/golang.org/x/build/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/LICENSE b/src/cmd/vendor/golang.org/x/mod/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/mod/LICENSE
++++ b/src/cmd/vendor/golang.org/x/mod/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 66dcaf9803..3e4a1d0ab4 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -43,6 +43,7 @@ type File struct {
+ 	Exclude   []*Exclude
+ 	Replace   []*Replace
+ 	Retract   []*Retract
++	Tool      []*Tool
+ 
+ 	Syntax *FileSyntax
+ }
+@@ -93,6 +94,12 @@ type Retract struct {
+ 	Syntax    *Line
+ }
+ 
++// A Tool is a single tool statement.
++type Tool struct {
++	Path   string
++	Syntax *Line
++}
++
+ // A VersionInterval represents a range of versions with upper and lower bounds.
+ // Intervals are closed: both bounds are included. When Low is equal to High,
+ // the interval may refer to a single version ('v1.2.3') or an interval
+@@ -297,7 +304,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
+ 					})
+ 				}
+ 				continue
+-			case "module", "godebug", "require", "exclude", "replace", "retract":
++			case "module", "godebug", "require", "exclude", "replace", "retract", "tool":
+ 				for _, l := range x.Line {
+ 					f.add(&errs, x, l, x.Token[0], l.Token, fix, strict)
+ 				}
+@@ -509,6 +516,21 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 			Syntax:          line,
+ 		}
+ 		f.Retract = append(f.Retract, retract)
++
++	case "tool":
++		if len(args) != 1 {
++			errorf("tool directive expects exactly one argument")
++			return
++		}
++		s, err := parseString(&args[0])
++		if err != nil {
++			errorf("invalid quoted string: %v", err)
++			return
++		}
++		f.Tool = append(f.Tool, &Tool{
++			Path:   s,
++			Syntax: line,
++		})
+ 	}
+ }
+ 
+@@ -1567,6 +1589,36 @@ func (f *File) DropRetract(vi VersionInterval) error {
+ 	return nil
+ }
+ 
++// AddTool adds a new tool directive with the given path.
++// It does nothing if the tool line already exists.
++func (f *File) AddTool(path string) error {
++	for _, t := range f.Tool {
++		if t.Path == path {
++			return nil
++		}
++	}
++
++	f.Tool = append(f.Tool, &Tool{
++		Path:   path,
++		Syntax: f.Syntax.addLine(nil, "tool", path),
++	})
++
++	f.SortBlocks()
++	return nil
++}
++
++// RemoveTool removes a tool directive with the given path.
++// It does nothing if no such tool directive exists.
++func (f *File) DropTool(path string) error {
++	for _, t := range f.Tool {
++		if t.Path == path {
++			t.Syntax.markRemoved()
++			*t = Tool{}
++		}
++	}
++	return nil
++}
++
+ func (f *File) SortBlocks() {
+ 	f.removeDups() // otherwise sorting is unsafe
+ 
+@@ -1593,9 +1645,9 @@ func (f *File) SortBlocks() {
+ 	}
+ }
+ 
+-// removeDups removes duplicate exclude and replace directives.
++// removeDups removes duplicate exclude, replace and tool directives.
+ //
+-// Earlier exclude directives take priority.
++// Earlier exclude and tool directives take priority.
+ //
+ // Later replace directives take priority.
+ //
+@@ -1605,10 +1657,10 @@ func (f *File) SortBlocks() {
+ // retract directives are not de-duplicated since comments are
+ // meaningful, and versions may be retracted multiple times.
+ func (f *File) removeDups() {
+-	removeDups(f.Syntax, &f.Exclude, &f.Replace)
++	removeDups(f.Syntax, &f.Exclude, &f.Replace, &f.Tool)
+ }
+ 
+-func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
++func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, tool *[]*Tool) {
+ 	kill := make(map[*Line]bool)
+ 
+ 	// Remove duplicate excludes.
+@@ -1649,6 +1701,24 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
+ 	}
+ 	*replace = repl
+ 
++	if tool != nil {
++		haveTool := make(map[string]bool)
++		for _, t := range *tool {
++			if haveTool[t.Path] {
++				kill[t.Syntax] = true
++				continue
++			}
++			haveTool[t.Path] = true
++		}
++		var newTool []*Tool
++		for _, t := range *tool {
++			if !kill[t.Syntax] {
++				newTool = append(newTool, t)
++			}
++		}
++		*tool = newTool
++	}
++
+ 	// Duplicate require and retract directives are not removed.
+ 
+ 	// Drop killed statements from the syntax tree.
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/work.go b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+index 8f54897cf7..5387d0c265 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/work.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+@@ -331,5 +331,5 @@ func (f *WorkFile) SortBlocks() {
+ // retract directives are not de-duplicated since comments are
+ // meaningful, and versions may be retracted multiple times.
+ func (f *WorkFile) removeDups() {
+-	removeDups(f.Syntax, nil, &f.Replace)
++	removeDups(f.Syntax, nil, &f.Replace, nil)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sync/LICENSE b/src/cmd/vendor/golang.org/x/sync/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/sync/LICENSE
++++ b/src/cmd/vendor/golang.org/x/sync/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/LICENSE b/src/cmd/vendor/golang.org/x/sys/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/LICENSE
++++ b/src/cmd/vendor/golang.org/x/sys/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 4ed2e488b6..d07dd09eb5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -58,6 +58,7 @@ includes_Darwin='
+ #define _DARWIN_USE_64_BIT_INODE
+ #define __APPLE_USE_RFC_3542
+ #include <stdint.h>
++#include <sys/stdio.h>
+ #include <sys/attr.h>
+ #include <sys/clonefile.h>
+ #include <sys/kern_control.h>
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 4cc7b00596..2d15200adb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -402,6 +402,18 @@ func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
+ 	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
+ }
+ 
++//sys	renamexNp(from string, to string, flag uint32) (err error)
++
++func RenamexNp(from string, to string, flag uint32) (err error) {
++	return renamexNp(from, to, flag)
++}
++
++//sys	renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error)
++
++func RenameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
++	return renameatxNp(fromfd, from, tofd, to, flag)
++}
++
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
+ 
+ func Uname(uname *Utsname) error {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+index e40fa85245..4308ac1772 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+@@ -1169,6 +1169,11 @@ const (
+ 	PT_WRITE_D                              = 0x5
+ 	PT_WRITE_I                              = 0x4
+ 	PT_WRITE_U                              = 0x6
++	RENAME_EXCL                             = 0x4
++	RENAME_NOFOLLOW_ANY                     = 0x10
++	RENAME_RESERVED1                        = 0x8
++	RENAME_SECLUDE                          = 0x1
++	RENAME_SWAP                             = 0x2
+ 	RLIMIT_AS                               = 0x5
+ 	RLIMIT_CORE                             = 0x4
+ 	RLIMIT_CPU                              = 0x0
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+index bb02aa6c05..c8068a7a16 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+@@ -1169,6 +1169,11 @@ const (
+ 	PT_WRITE_D                              = 0x5
+ 	PT_WRITE_I                              = 0x4
+ 	PT_WRITE_U                              = 0x6
++	RENAME_EXCL                             = 0x4
++	RENAME_NOFOLLOW_ANY                     = 0x10
++	RENAME_RESERVED1                        = 0x8
++	RENAME_SECLUDE                          = 0x1
++	RENAME_SWAP                             = 0x2
+ 	RLIMIT_AS                               = 0x5
+ 	RLIMIT_CORE                             = 0x4
+ 	RLIMIT_CPU                              = 0x0
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+index 07642c308d..b622533ef2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+@@ -740,6 +740,54 @@ func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func renamexNp(from string, to string, flag uint32) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(from)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(to)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall(libc_renamex_np_trampoline_addr, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(flag))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_renamex_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_renamex_np renamex_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(from)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(to)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall6(libc_renameatx_np_trampoline_addr, uintptr(fromfd), uintptr(unsafe.Pointer(_p0)), uintptr(tofd), uintptr(unsafe.Pointer(_p1)), uintptr(flag), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_renameatx_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_renameatx_np renameatx_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+index 923e08cb79..cfe6646baf 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+@@ -223,6 +223,16 @@ TEXT libc_ioctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_ioctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_ioctl_trampoline_addr(SB)/8, $libc_ioctl_trampoline<>(SB)
+ 
++TEXT libc_renamex_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_renamex_np(SB)
++GLOBL	·libc_renamex_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_renamex_np_trampoline_addr(SB)/8, $libc_renamex_np_trampoline<>(SB)
++
++TEXT libc_renameatx_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_renameatx_np(SB)
++GLOBL	·libc_renameatx_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_renameatx_np_trampoline_addr(SB)/8, $libc_renameatx_np_trampoline<>(SB)
++
+ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+index 7d73dda647..13f624f69f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+@@ -740,6 +740,54 @@ func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func renamexNp(from string, to string, flag uint32) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(from)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(to)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall(libc_renamex_np_trampoline_addr, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(flag))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_renamex_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_renamex_np renamex_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(from)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(to)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall6(libc_renameatx_np_trampoline_addr, uintptr(fromfd), uintptr(unsafe.Pointer(_p0)), uintptr(tofd), uintptr(unsafe.Pointer(_p1)), uintptr(flag), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_renameatx_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_renameatx_np renameatx_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+index 057700111e..fe222b75df 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+@@ -223,6 +223,16 @@ TEXT libc_ioctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_ioctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_ioctl_trampoline_addr(SB)/8, $libc_ioctl_trampoline<>(SB)
+ 
++TEXT libc_renamex_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_renamex_np(SB)
++GLOBL	·libc_renamex_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_renamex_np_trampoline_addr(SB)/8, $libc_renamex_np_trampoline<>(SB)
++
++TEXT libc_renameatx_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_renameatx_np(SB)
++GLOBL	·libc_renameatx_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_renameatx_np_trampoline_addr(SB)/8, $libc_renameatx_np_trampoline<>(SB)
++
+ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+index 97651b5bd0..b6e1ab76f8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+@@ -1179,7 +1179,7 @@ type OBJECTS_AND_NAME struct {
+ //sys	makeSelfRelativeSD(absoluteSD *SECURITY_DESCRIPTOR, selfRelativeSD *SECURITY_DESCRIPTOR, selfRelativeSDSize *uint32) (err error) = advapi32.MakeSelfRelativeSD
+ 
+ //sys	setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) = advapi32.SetEntriesInAclW
+-//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) = advapi32.GetAce
++//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (err error) = advapi32.GetAce
+ 
+ // Control returns the security descriptor control bits.
+ func (sd *SECURITY_DESCRIPTOR) Control() (control SECURITY_DESCRIPTOR_CONTROL, revision uint32, err error) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 6525c62f3c..1fa34fd17c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -17,8 +17,10 @@ import (
+ 	"unsafe"
+ )
+ 
+-type Handle uintptr
+-type HWND uintptr
++type (
++	Handle uintptr
++	HWND   uintptr
++)
+ 
+ const (
+ 	InvalidHandle = ^Handle(0)
+@@ -211,6 +213,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	OpenProcess(desiredAccess uint32, inheritHandle bool, processId uint32) (handle Handle, err error)
+ //sys	ShellExecute(hwnd Handle, verb *uint16, file *uint16, args *uint16, cwd *uint16, showCmd int32) (err error) [failretval<=32] = shell32.ShellExecuteW
+ //sys	GetWindowThreadProcessId(hwnd HWND, pid *uint32) (tid uint32, err error) = user32.GetWindowThreadProcessId
++//sys	LoadKeyboardLayout(name *uint16, flags uint32) (hkl Handle, err error) [failretval==0] = user32.LoadKeyboardLayoutW
++//sys	UnloadKeyboardLayout(hkl Handle) (err error) = user32.UnloadKeyboardLayout
++//sys	GetKeyboardLayout(tid uint32) (hkl Handle) = user32.GetKeyboardLayout
++//sys	ToUnicodeEx(vkey uint32, scancode uint32, keystate *byte, pwszBuff *uint16, cchBuff int32, flags uint32, hkl Handle) (ret int32) = user32.ToUnicodeEx
+ //sys	GetShellWindow() (shellWindow HWND) = user32.GetShellWindow
+ //sys	MessageBox(hwnd HWND, text *uint16, caption *uint16, boxtype uint32) (ret int32, err error) [failretval==0] = user32.MessageBoxW
+ //sys	ExitWindowsEx(flags uint32, reason uint32) (err error) = user32.ExitWindowsEx
+@@ -1368,9 +1374,11 @@ func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
+ func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
+ 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
+ }
++
+ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
+ 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
+ }
++
+ func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
+ 	return syscall.EWINDOWS
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index d8cb71db0a..4d0c15745f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -2003,7 +2003,21 @@ const (
+ 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
+ )
+ 
+-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
++// Flags for GetAdaptersAddresses, see
++// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
++const (
++	GAA_FLAG_SKIP_UNICAST                = 0x1
++	GAA_FLAG_SKIP_ANYCAST                = 0x2
++	GAA_FLAG_SKIP_MULTICAST              = 0x4
++	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
++	GAA_FLAG_INCLUDE_PREFIX              = 0x10
++	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
++	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
++	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
++	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
++	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
++	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
++)
+ 
+ const (
+ 	IF_TYPE_OTHER              = 1
+@@ -3404,3 +3418,14 @@ type DCB struct {
+ 	EvtChar    byte
+ 	wReserved1 uint16
+ }
++
++// Keyboard Layout Flags.
++// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
++const (
++	KLF_ACTIVATE      = 0x00000001
++	KLF_SUBSTITUTE_OK = 0x00000002
++	KLF_REORDER       = 0x00000008
++	KLF_REPLACELANG   = 0x00000010
++	KLF_NOTELLSHELL   = 0x00000080
++	KLF_SETFORPROCESS = 0x00000100
++)
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index eba761018a..9bb979a3e4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -478,12 +478,16 @@ var (
+ 	procGetDesktopWindow                                     = moduser32.NewProc("GetDesktopWindow")
+ 	procGetForegroundWindow                                  = moduser32.NewProc("GetForegroundWindow")
+ 	procGetGUIThreadInfo                                     = moduser32.NewProc("GetGUIThreadInfo")
++	procGetKeyboardLayout                                    = moduser32.NewProc("GetKeyboardLayout")
+ 	procGetShellWindow                                       = moduser32.NewProc("GetShellWindow")
+ 	procGetWindowThreadProcessId                             = moduser32.NewProc("GetWindowThreadProcessId")
+ 	procIsWindow                                             = moduser32.NewProc("IsWindow")
+ 	procIsWindowUnicode                                      = moduser32.NewProc("IsWindowUnicode")
+ 	procIsWindowVisible                                      = moduser32.NewProc("IsWindowVisible")
++	procLoadKeyboardLayoutW                                  = moduser32.NewProc("LoadKeyboardLayoutW")
+ 	procMessageBoxW                                          = moduser32.NewProc("MessageBoxW")
++	procToUnicodeEx                                          = moduser32.NewProc("ToUnicodeEx")
++	procUnloadKeyboardLayout                                 = moduser32.NewProc("UnloadKeyboardLayout")
+ 	procCreateEnvironmentBlock                               = moduserenv.NewProc("CreateEnvironmentBlock")
+ 	procDestroyEnvironmentBlock                              = moduserenv.NewProc("DestroyEnvironmentBlock")
+ 	procGetUserProfileDirectoryW                             = moduserenv.NewProc("GetUserProfileDirectoryW")
+@@ -789,6 +793,14 @@ func FreeSid(sid *SID) (err error) {
+ 	return
+ }
+ 
++func GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetAce.Addr(), 3, uintptr(unsafe.Pointer(acl)), uintptr(aceIndex), uintptr(unsafe.Pointer(pAce)))
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetLengthSid(sid *SID) (len uint32) {
+ 	r0, _, _ := syscall.Syscall(procGetLengthSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+ 	len = uint32(r0)
+@@ -1225,14 +1237,6 @@ func setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCE
+ 	return
+ }
+ 
+-func GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) {
+-	r0, _, _ := syscall.Syscall(procGetAce.Addr(), 3, uintptr(unsafe.Pointer(acl)), uintptr(aceIndex), uintptr(unsafe.Pointer(pAce)))
+-	if r0 == 0 {
+-		ret = GetLastError()
+-	}
+-	return
+-}
+-
+ func SetKernelObjectSecurity(handle Handle, securityInformation SECURITY_INFORMATION, securityDescriptor *SECURITY_DESCRIPTOR) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procSetKernelObjectSecurity.Addr(), 3, uintptr(handle), uintptr(securityInformation), uintptr(unsafe.Pointer(securityDescriptor)))
+ 	if r1 == 0 {
+@@ -4082,6 +4086,12 @@ func GetGUIThreadInfo(thread uint32, info *GUIThreadInfo) (err error) {
+ 	return
+ }
+ 
++func GetKeyboardLayout(tid uint32) (hkl Handle) {
++	r0, _, _ := syscall.Syscall(procGetKeyboardLayout.Addr(), 1, uintptr(tid), 0, 0)
++	hkl = Handle(r0)
++	return
++}
++
+ func GetShellWindow() (shellWindow HWND) {
+ 	r0, _, _ := syscall.Syscall(procGetShellWindow.Addr(), 0, 0, 0, 0)
+ 	shellWindow = HWND(r0)
+@@ -4115,6 +4125,15 @@ func IsWindowVisible(hwnd HWND) (isVisible bool) {
+ 	return
+ }
+ 
++func LoadKeyboardLayout(name *uint16, flags uint32) (hkl Handle, err error) {
++	r0, _, e1 := syscall.Syscall(procLoadKeyboardLayoutW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(flags), 0)
++	hkl = Handle(r0)
++	if hkl == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func MessageBox(hwnd HWND, text *uint16, caption *uint16, boxtype uint32) (ret int32, err error) {
+ 	r0, _, e1 := syscall.Syscall6(procMessageBoxW.Addr(), 4, uintptr(hwnd), uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(caption)), uintptr(boxtype), 0, 0)
+ 	ret = int32(r0)
+@@ -4124,6 +4143,20 @@ func MessageBox(hwnd HWND, text *uint16, caption *uint16, boxtype uint32) (ret i
+ 	return
+ }
+ 
++func ToUnicodeEx(vkey uint32, scancode uint32, keystate *byte, pwszBuff *uint16, cchBuff int32, flags uint32, hkl Handle) (ret int32) {
++	r0, _, _ := syscall.Syscall9(procToUnicodeEx.Addr(), 7, uintptr(vkey), uintptr(scancode), uintptr(unsafe.Pointer(keystate)), uintptr(unsafe.Pointer(pwszBuff)), uintptr(cchBuff), uintptr(flags), uintptr(hkl), 0, 0)
++	ret = int32(r0)
++	return
++}
++
++func UnloadKeyboardLayout(hkl Handle) (err error) {
++	r1, _, e1 := syscall.Syscall(procUnloadKeyboardLayout.Addr(), 1, uintptr(hkl), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func CreateEnvironmentBlock(block **uint16, token Token, inheritExisting bool) (err error) {
+ 	var _p0 uint32
+ 	if inheritExisting {
+diff --git a/src/cmd/vendor/golang.org/x/term/LICENSE b/src/cmd/vendor/golang.org/x/term/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/term/LICENSE
++++ b/src/cmd/vendor/golang.org/x/term/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/text/LICENSE b/src/cmd/vendor/golang.org/x/text/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/text/LICENSE
++++ b/src/cmd/vendor/golang.org/x/text/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/LICENSE b/src/cmd/vendor/golang.org/x/tools/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/LICENSE
++++ b/src/cmd/vendor/golang.org/x/tools/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 3417232ce3..c9ba1a375d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -96,7 +96,7 @@ var (
+ 	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}}
+ 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
+ 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+-	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true}
++	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true, retRegs: []string{"R4", "F0"}}
+ 
+ 	arches = []*asmArch{
+ 		&asmArch386,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index c91f6bc474..a3afbf696e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -199,32 +199,30 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		// the type has methods, as some {String,GoString,Format}
+ 		// may change the behavior of fmt.Sprint.
+ 		if len(ttypes) == 1 && len(vtypes) == 1 && types.NewMethodSet(V0).Len() == 0 {
+-			fmtName, importEdit := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
++			fmtName, importEdits := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
+ 			if types.Identical(T0, types.Typ[types.String]) {
+ 				// string(x) -> fmt.Sprint(x)
+-				addFix("Format the number as a decimal", []analysis.TextEdit{
+-					importEdit,
+-					{
++				addFix("Format the number as a decimal", append(importEdits,
++					analysis.TextEdit{
+ 						Pos:     call.Fun.Pos(),
+ 						End:     call.Fun.End(),
+ 						NewText: []byte(fmtName + ".Sprint"),
+-					},
+-				})
++					}),
++				)
+ 			} else {
+ 				// mystring(x) -> mystring(fmt.Sprint(x))
+-				addFix("Format the number as a decimal", []analysis.TextEdit{
+-					importEdit,
+-					{
++				addFix("Format the number as a decimal", append(importEdits,
++					analysis.TextEdit{
+ 						Pos:     call.Lparen + 1,
+ 						End:     call.Lparen + 1,
+ 						NewText: []byte(fmtName + ".Sprint("),
+ 					},
+-					{
++					analysis.TextEdit{
+ 						Pos:     call.Rparen,
+ 						End:     call.Rparen,
+ 						NewText: []byte(")"),
+-					},
+-				})
++					}),
++				)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+index 2c4c4e2328..6e34df4613 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+@@ -106,8 +106,21 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
+ 
+ 			// Does augmented child strictly contain [start, end)?
+ 			if augPos <= start && end <= augEnd {
+-				_, isToken := child.(tokenNode)
+-				return isToken || visit(child)
++				if is[tokenNode](child) {
++					return true
++				}
++
++				// childrenOf elides the FuncType node beneath FuncDecl.
++				// Add it back here for TypeParams, Params, Results,
++				// all FieldLists). But we don't add it back for the "func" token
++				// even though it is is the tree at FuncDecl.Type.Func.
++				if decl, ok := node.(*ast.FuncDecl); ok {
++					if fields, ok := child.(*ast.FieldList); ok && fields != decl.Recv {
++						path = append(path, decl.Type)
++					}
++				}
++
++				return visit(child)
+ 			}
+ 
+ 			// Does [start, end) overlap multiple children?
+@@ -313,6 +326,8 @@ func childrenOf(n ast.Node) []ast.Node {
+ 		//
+ 		// As a workaround, we inline the case for FuncType
+ 		// here and order things correctly.
++		// We also need to insert the elided FuncType just
++		// before the 'visit' recursion.
+ 		//
+ 		children = nil // discard ast.Walk(FuncDecl) info subtrees
+ 		children = append(children, tok(n.Type.Func, len("func")))
+@@ -632,3 +647,8 @@ func NodeDescription(n ast.Node) string {
+ 	}
+ 	panic(fmt.Sprintf("unexpected node type: %T", n))
+ }
++
++func is[T any](x any) bool {
++	_, ok := x.(T)
++	return ok
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
+index 919d5305ab..6bdcf70ac2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
+@@ -7,6 +7,7 @@ package astutil
+ import "go/ast"
+ 
+ // Unparen returns e with any enclosing parentheses stripped.
++// TODO(adonovan): use go1.22's ast.Unparen.
+ func Unparen(e ast.Expr) ast.Expr {
+ 	for {
+ 		p, ok := e.(*ast.ParenExpr)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index a2386c347a..d648c3d071 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -51,7 +51,7 @@ type Path string
+ //
+ //	PO package->object	Package.Scope.Lookup
+ //	OT  object->type 	Object.Type
+-//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
++//	TT    type->type 	Type.{Elem,Key,{,{,Recv}Type}Params,Results,Underlying} [EKPRUTrC]
+ //	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
+ //
+ // All valid paths start with a package and end at an object
+@@ -63,8 +63,8 @@ type Path string
+ //   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
+ //   - The only OT operator is Object.Type,
+ //     which we encode as '.' because dot cannot appear in an identifier.
+-//   - The TT operators are encoded as [EKPRUTC];
+-//     one of these (TypeParam) requires an integer operand,
++//   - The TT operators are encoded as [EKPRUTrC];
++//     two of these ({,Recv}TypeParams) require an integer operand,
+ //     which is encoded as a string of decimal digits.
+ //   - The TO operators are encoded as [AFMO];
+ //     three of these (At,Field,Method) require an integer operand,
+@@ -98,19 +98,20 @@ const (
+ 	opType = '.' // .Type()		  (Object)
+ 
+ 	// type->type operators
+-	opElem       = 'E' // .Elem()		        (Pointer, Slice, Array, Chan, Map)
+-	opKey        = 'K' // .Key()		        (Map)
+-	opParams     = 'P' // .Params()		      (Signature)
+-	opResults    = 'R' // .Results()	      (Signature)
+-	opUnderlying = 'U' // .Underlying()	    (Named)
+-	opTypeParam  = 'T' // .TypeParams.At(i) (Named, Signature)
+-	opConstraint = 'C' // .Constraint()     (TypeParam)
++	opElem          = 'E' // .Elem()		(Pointer, Slice, Array, Chan, Map)
++	opKey           = 'K' // .Key()			(Map)
++	opParams        = 'P' // .Params()		(Signature)
++	opResults       = 'R' // .Results()		(Signature)
++	opUnderlying    = 'U' // .Underlying()		(Named)
++	opTypeParam     = 'T' // .TypeParams.At(i)	(Named, Signature)
++	opRecvTypeParam = 'r' // .RecvTypeParams.At(i)	(Signature)
++	opConstraint    = 'C' // .Constraint()		(TypeParam)
+ 
+ 	// type->object operators
+-	opAt     = 'A' // .At(i)		 (Tuple)
+-	opField  = 'F' // .Field(i)	 (Struct)
+-	opMethod = 'M' // .Method(i) (Named or Interface; not Struct: "promoted" names are ignored)
+-	opObj    = 'O' // .Obj()		 (Named, TypeParam)
++	opAt     = 'A' // .At(i)	(Tuple)
++	opField  = 'F' // .Field(i)	(Struct)
++	opMethod = 'M' // .Method(i)	(Named or Interface; not Struct: "promoted" names are ignored)
++	opObj    = 'O' // .Obj()	(Named, TypeParam)
+ )
+ 
+ // For is equivalent to new(Encoder).For(obj).
+@@ -286,7 +287,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 			}
+ 		} else {
+ 			if named, _ := T.(*types.Named); named != nil {
+-				if r := findTypeParam(obj, named.TypeParams(), path, nil); r != nil {
++				if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam, nil); r != nil {
+ 					// generic named type
+ 					return Path(r), nil
+ 				}
+@@ -462,7 +463,10 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
+ 		}
+ 		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Signature:
+-		if r := findTypeParam(obj, T.TypeParams(), path, seen); r != nil {
++		if r := findTypeParam(obj, T.RecvTypeParams(), path, opRecvTypeParam, nil); r != nil {
++			return r
++		}
++		if r := findTypeParam(obj, T.TypeParams(), path, opTypeParam, seen); r != nil {
+ 			return r
+ 		}
+ 		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
+@@ -525,10 +529,10 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
+ 	panic(T)
+ }
+ 
+-func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
++func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, op byte, seen map[*types.TypeName]bool) []byte {
+ 	for i := 0; i < list.Len(); i++ {
+ 		tparam := list.At(i)
+-		path2 := appendOpArg(path, opTypeParam, i)
++		path2 := appendOpArg(path, op, i)
+ 		if r := find(obj, tparam, path2, seen); r != nil {
+ 			return r
+ 		}
+@@ -580,10 +584,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 		code := suffix[0]
+ 		suffix = suffix[1:]
+ 
+-		// Codes [AFM] have an integer operand.
++		// Codes [AFMTr] have an integer operand.
+ 		var index int
+ 		switch code {
+-		case opAt, opField, opMethod, opTypeParam:
++		case opAt, opField, opMethod, opTypeParam, opRecvTypeParam:
+ 			rest := strings.TrimLeft(suffix, "0123456789")
+ 			numerals := suffix[:len(suffix)-len(rest)]
+ 			suffix = rest
+@@ -664,6 +668,17 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 			}
+ 			t = tparams.At(index)
+ 
++		case opRecvTypeParam:
++			sig, ok := t.(*types.Signature) // Signature
++			if !ok {
++				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want signature)", code, t, t)
++			}
++			rtparams := sig.RecvTypeParams()
++			if n := rtparams.Len(); index >= n {
++				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
++			}
++			t = rtparams.At(index)
++
+ 		case opConstraint:
+ 			tparam, ok := t.(*types.TypeParam)
+ 			if !ok {
+@@ -725,6 +740,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 		}
+ 	}
+ 
++	if obj == nil {
++		panic(p) // path does not end in an object-valued operator
++	}
++
+ 	if obj.Pkg() != pkg {
+ 		return nil, fmt.Errorf("path denotes %s, which belongs to a different package", obj)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 4000d27d8e..e0b13e70a0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -441,7 +441,7 @@ func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
+ // and returns the chosen name along with the edit for the new import.
+ //
+ // It does not mutate its arguments.
+-func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport analysis.TextEdit) {
++func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport []analysis.TextEdit) {
+ 	// Find innermost enclosing lexical block.
+ 	scope := info.Scopes[file].Innermost(pos)
+ 	if scope == nil {
+@@ -454,7 +454,7 @@ func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferr
+ 		pkgname, ok := importedPkgName(info, spec)
+ 		if ok && pkgname.Imported().Path() == pkgpath {
+ 			if _, obj := scope.LookupParent(pkgname.Name(), pos); obj == pkgname {
+-				return pkgname.Name(), analysis.TextEdit{}
++				return pkgname.Name(), nil
+ 			}
+ 		}
+ 	}
+@@ -492,11 +492,11 @@ func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferr
+ 			before = decl0.Doc
+ 		}
+ 	}
+-	return newName, analysis.TextEdit{
++	return newName, []analysis.TextEdit{{
+ 		Pos:     before.Pos(),
+ 		End:     before.Pos(),
+ 		NewText: []byte(newText),
+-	}
++	}}
+ }
+ 
+ // importedPkgName returns the PkgName object declared by an ImportSpec.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+index 50cf53b4b4..5a7da4871a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+@@ -119,7 +119,7 @@
+ //
+ // Finally, a leading “v” in the pattern indicates that the reports will be shown
+ // to the user of bisect to describe the changes involved in a failure.
+-// At the API level, the leading “v” causes [Matcher.Visible] to return true.
++// At the API level, the leading “v” causes [Matcher.Verbose] to return true.
+ // See the next section for details.
+ //
+ // # Match Reports
+@@ -136,12 +136,12 @@
+ // 0x1234 is the change ID in hexadecimal.
+ // An alternate form is “[bisect-match 010101]”, giving the change ID in binary.
+ //
+-// When [Matcher.Visible] returns false, the match reports are only
++// When [Matcher.Verbose] returns false, the match reports are only
+ // being processed by bisect to learn the set of enabled changes,
+ // not shown to the user, meaning that each report can be a match
+ // marker on a line by itself, eliding the usual textual description.
+ // When the textual description is expensive to compute,
+-// checking [Matcher.Visible] can help the avoid that expense
++// checking [Matcher.Verbose] can help the avoid that expense
+ // in most runs.
+ package bisect
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
+index de3496d10b..a1d138226c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
+@@ -21,7 +21,6 @@ type Free struct {
+ 
+ // Has reports whether the specified type has a free type parameter.
+ func (w *Free) Has(typ types.Type) (res bool) {
+-
+ 	// detect cycles
+ 	if x, ok := w.seen[typ]; ok {
+ 		return x
+@@ -83,7 +82,7 @@ func (w *Free) Has(typ types.Type) (res bool) {
+ 		}
+ 		terms, err := InterfaceTermSet(t)
+ 		if err != nil {
+-			panic(err)
++			return false // ill typed
+ 		}
+ 		for _, term := range terms {
+ 			if w.Has(term.Type()) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+index 7c77c2fbc0..8392328612 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+@@ -48,3 +48,18 @@ func ReadGo116ErrorData(err types.Error) (code ErrorCode, start, end token.Pos,
+ 	}
+ 	return ErrorCode(data[0]), token.Pos(data[1]), token.Pos(data[2]), true
+ }
++
++// NameRelativeTo returns a types.Qualifier that qualifies members of
++// all packages other than pkg, using only the package name.
++// (By contrast, [types.RelativeTo] uses the complete package path,
++// which is often excessive.)
++//
++// If pkg is nil, it is equivalent to [*types.Package.Name].
++func NameRelativeTo(pkg *types.Package) types.Qualifier {
++	return func(other *types.Package) string {
++		if pkg != nil && pkg == other {
++			return "" // same package; unqualified
++		}
++		return other.Name()
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index bf9c1341b9..aaed6b9114 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,16 +16,16 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.8.0
++# golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20240603162849-5dfbda438323
++# golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.19.0
++# golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -36,16 +36,16 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.7.0
++# golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.22.0
++# golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701
++# golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+@@ -57,10 +57,10 @@ golang.org/x/telemetry/internal/crashmonitor
+ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+ golang.org/x/telemetry/internal/upload
+-# golang.org/x/term v0.20.0
++# golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/text v0.16.0
++# golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9
+ ## explicit; go 1.18
+ golang.org/x/text/cases
+ golang.org/x/text/internal
+@@ -70,7 +70,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
++# golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
+ ## explicit; go 1.19
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index 789f5aaa1d..d7a4ef1504 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -1,13 +1,13 @@
+ module std
+ 
+-go 1.23
++go 1.24
+ 
+ require (
+-	golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a
+-	golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
++	golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0
++	golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd
+ )
+ 
+ require (
+-	golang.org/x/sys v0.22.0 // indirect
+-	golang.org/x/text v0.16.0 // indirect
++	golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb // indirect
++	golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index a75ea98c73..8ff5ecd640 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a h1:37MIv+iGfwMYzWJECGyrPCtd5nuqcciRUeJfkNCkCf0=
+-golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
+-golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c h1:CR/7/SLUhIJw6g675eeoDiwggElO2MV9rGkNYjqi8GM=
+-golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
+-golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
+-golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+-golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
++golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0 h1:wxHbFWyu21uEPJJnYaSDaHSWbvnZ9gLSSOPwnEc3lLM=
++golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
++golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd h1:pHzwejE8Zkb94bG4nA+fUeskKPFp1HPldrhv62dabro=
++golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd/go.mod h1:dDi0PyhWNoiUOrAS8uXv/vnScO4wnHQO4mj9fn/RytE=
++golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb h1:IoPT3Y4jg6/QClnwgUYykkW0yKhqjC7VSJkQLzBukfY=
++golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
++golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 0b305844ae..af86c1430d 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7964,10 +7964,6 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 	cc.henc.SetMaxDynamicTableSizeLimit(t.maxEncoderHeaderTableSize())
+ 	cc.peerMaxHeaderTableSize = http2initialHeaderTableSize
+ 
+-	if t.AllowHTTP {
+-		cc.nextStreamID = 3
+-	}
+-
+ 	if cs, ok := c.(http2connectionStater); ok {
+ 		state := cs.ConnectionState()
+ 		cc.tlsState = &state
+diff --git a/src/vendor/golang.org/x/crypto/LICENSE b/src/vendor/golang.org/x/crypto/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/vendor/golang.org/x/crypto/LICENSE
++++ b/src/vendor/golang.org/x/crypto/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
+index 93da7322bc..8cf5d8112e 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
+@@ -5,7 +5,7 @@
+ // Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD and its
+ // extended nonce variant XChaCha20-Poly1305, as specified in RFC 8439 and
+ // draft-irtf-cfrg-xchacha-01.
+-package chacha20poly1305 // import "golang.org/x/crypto/chacha20poly1305"
++package chacha20poly1305
+ 
+ import (
+ 	"crypto/cipher"
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1/asn1.go
+index cda8e3edfd..90ef6a241d 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1/asn1.go
+@@ -4,7 +4,7 @@
+ 
+ // Package asn1 contains supporting types for parsing and building ASN.1
+ // messages with the cryptobyte package.
+-package asn1 // import "golang.org/x/crypto/cryptobyte/asn1"
++package asn1
+ 
+ // Tag represents an ASN.1 identifier octet, consisting of a tag number
+ // (indicating a type) and class (such as context-specific or constructed).
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/string.go b/src/vendor/golang.org/x/crypto/cryptobyte/string.go
+index 10692a8a31..4b0f8097f9 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/string.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/string.go
+@@ -15,7 +15,7 @@
+ //
+ // See the documentation and examples for the Builder and String types to get
+ // started.
+-package cryptobyte // import "golang.org/x/crypto/cryptobyte"
++package cryptobyte
+ 
+ // String represents a string of bytes. It provides methods for parsing
+ // fixed-length and length-prefixed values from it.
+diff --git a/src/vendor/golang.org/x/crypto/hkdf/hkdf.go b/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
+index f4ded5fee2..3bee66294e 100644
+--- a/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
++++ b/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
+@@ -8,7 +8,7 @@
+ // HKDF is a cryptographic key derivation function (KDF) with the goal of
+ // expanding limited input keying material into one or more cryptographically
+ // strong secret keys.
+-package hkdf // import "golang.org/x/crypto/hkdf"
++package hkdf
+ 
+ import (
+ 	"crypto/hmac"
+diff --git a/src/vendor/golang.org/x/crypto/sha3/doc.go b/src/vendor/golang.org/x/crypto/sha3/doc.go
+index decd8cf9bf..7e02309070 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/doc.go
++++ b/src/vendor/golang.org/x/crypto/sha3/doc.go
+@@ -59,4 +59,4 @@
+ // They produce output of the same length, with the same security strengths
+ // against all attacks. This means, in particular, that SHA3-256 only has
+ // 128-bit collision resistance, because its output length is 32 bytes.
+-package sha3 // import "golang.org/x/crypto/sha3"
++package sha3
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes.go b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+index 5eae6cb922..c544b29e5f 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/hashes.go
++++ b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+@@ -9,6 +9,7 @@ package sha3
+ // bytes.
+ 
+ import (
++	"crypto"
+ 	"hash"
+ )
+ 
+@@ -40,6 +41,13 @@ func New512() hash.Hash {
+ 	return new512()
+ }
+ 
++func init() {
++	crypto.RegisterHash(crypto.SHA3_224, New224)
++	crypto.RegisterHash(crypto.SHA3_256, New256)
++	crypto.RegisterHash(crypto.SHA3_384, New384)
++	crypto.RegisterHash(crypto.SHA3_512, New512)
++}
++
+ func new224Generic() *state {
+ 	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
+ }
+diff --git a/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s
+index 1f53938861..99e2f16e97 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s
++++ b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s
+@@ -1,390 +1,5419 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++// Code generated by command: go run keccakf_amd64_asm.go -out ../keccakf_amd64.s -pkg sha3. DO NOT EDIT.
+ 
+ //go:build amd64 && !purego && gc
+ 
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources at https://github.com/gvanas/KeccakCodePackage
+-
+-// Offsets in state
+-#define _ba  (0*8)
+-#define _be  (1*8)
+-#define _bi  (2*8)
+-#define _bo  (3*8)
+-#define _bu  (4*8)
+-#define _ga  (5*8)
+-#define _ge  (6*8)
+-#define _gi  (7*8)
+-#define _go  (8*8)
+-#define _gu  (9*8)
+-#define _ka (10*8)
+-#define _ke (11*8)
+-#define _ki (12*8)
+-#define _ko (13*8)
+-#define _ku (14*8)
+-#define _ma (15*8)
+-#define _me (16*8)
+-#define _mi (17*8)
+-#define _mo (18*8)
+-#define _mu (19*8)
+-#define _sa (20*8)
+-#define _se (21*8)
+-#define _si (22*8)
+-#define _so (23*8)
+-#define _su (24*8)
+-
+-// Temporary registers
+-#define rT1  AX
+-
+-// Round vars
+-#define rpState DI
+-#define rpStack SP
+-
+-#define rDa BX
+-#define rDe CX
+-#define rDi DX
+-#define rDo R8
+-#define rDu R9
+-
+-#define rBa R10
+-#define rBe R11
+-#define rBi R12
+-#define rBo R13
+-#define rBu R14
+-
+-#define rCa SI
+-#define rCe BP
+-#define rCi rBi
+-#define rCo rBo
+-#define rCu R15
+-
+-#define MOVQ_RBI_RCE MOVQ rBi, rCe
+-#define XORQ_RT1_RCA XORQ rT1, rCa
+-#define XORQ_RT1_RCE XORQ rT1, rCe
+-#define XORQ_RBA_RCU XORQ rBa, rCu
+-#define XORQ_RBE_RCU XORQ rBe, rCu
+-#define XORQ_RDU_RCU XORQ rDu, rCu
+-#define XORQ_RDA_RCA XORQ rDa, rCa
+-#define XORQ_RDE_RCE XORQ rDe, rCe
+-
+-#define mKeccakRound(iState, oState, rc, B_RBI_RCE, G_RT1_RCA, G_RT1_RCE, G_RBA_RCU, K_RT1_RCA, K_RT1_RCE, K_RBA_RCU, M_RT1_RCA, M_RT1_RCE, M_RBE_RCU, S_RDU_RCU, S_RDA_RCA, S_RDE_RCE) \
+-	/* Prepare round */    \
+-	MOVQ rCe, rDa;         \
+-	ROLQ $1, rDa;          \
+-	                       \
+-	MOVQ _bi(iState), rCi; \
+-	XORQ _gi(iState), rDi; \
+-	XORQ rCu, rDa;         \
+-	XORQ _ki(iState), rCi; \
+-	XORQ _mi(iState), rDi; \
+-	XORQ rDi, rCi;         \
+-	                       \
+-	MOVQ rCi, rDe;         \
+-	ROLQ $1, rDe;          \
+-	                       \
+-	MOVQ _bo(iState), rCo; \
+-	XORQ _go(iState), rDo; \
+-	XORQ rCa, rDe;         \
+-	XORQ _ko(iState), rCo; \
+-	XORQ _mo(iState), rDo; \
+-	XORQ rDo, rCo;         \
+-	                       \
+-	MOVQ rCo, rDi;         \
+-	ROLQ $1, rDi;          \
+-	                       \
+-	MOVQ rCu, rDo;         \
+-	XORQ rCe, rDi;         \
+-	ROLQ $1, rDo;          \
+-	                       \
+-	MOVQ rCa, rDu;         \
+-	XORQ rCi, rDo;         \
+-	ROLQ $1, rDu;          \
+-	                       \
+-	/* Result b */         \
+-	MOVQ _ba(iState), rBa; \
+-	MOVQ _ge(iState), rBe; \
+-	XORQ rCo, rDu;         \
+-	MOVQ _ki(iState), rBi; \
+-	MOVQ _mo(iState), rBo; \
+-	MOVQ _su(iState), rBu; \
+-	XORQ rDe, rBe;         \
+-	ROLQ $44, rBe;         \
+-	XORQ rDi, rBi;         \
+-	XORQ rDa, rBa;         \
+-	ROLQ $43, rBi;         \
+-	                       \
+-	MOVQ rBe, rCa;         \
+-	MOVQ rc, rT1;          \
+-	ORQ  rBi, rCa;         \
+-	XORQ rBa, rT1;         \
+-	XORQ rT1, rCa;         \
+-	MOVQ rCa, _ba(oState); \
+-	                       \
+-	XORQ rDu, rBu;         \
+-	ROLQ $14, rBu;         \
+-	MOVQ rBa, rCu;         \
+-	ANDQ rBe, rCu;         \
+-	XORQ rBu, rCu;         \
+-	MOVQ rCu, _bu(oState); \
+-	                       \
+-	XORQ rDo, rBo;         \
+-	ROLQ $21, rBo;         \
+-	MOVQ rBo, rT1;         \
+-	ANDQ rBu, rT1;         \
+-	XORQ rBi, rT1;         \
+-	MOVQ rT1, _bi(oState); \
+-	                       \
+-	NOTQ rBi;              \
+-	ORQ  rBa, rBu;         \
+-	ORQ  rBo, rBi;         \
+-	XORQ rBo, rBu;         \
+-	XORQ rBe, rBi;         \
+-	MOVQ rBu, _bo(oState); \
+-	MOVQ rBi, _be(oState); \
+-	B_RBI_RCE;             \
+-	                       \
+-	/* Result g */         \
+-	MOVQ _gu(iState), rBe; \
+-	XORQ rDu, rBe;         \
+-	MOVQ _ka(iState), rBi; \
+-	ROLQ $20, rBe;         \
+-	XORQ rDa, rBi;         \
+-	ROLQ $3, rBi;          \
+-	MOVQ _bo(iState), rBa; \
+-	MOVQ rBe, rT1;         \
+-	ORQ  rBi, rT1;         \
+-	XORQ rDo, rBa;         \
+-	MOVQ _me(iState), rBo; \
+-	MOVQ _si(iState), rBu; \
+-	ROLQ $28, rBa;         \
+-	XORQ rBa, rT1;         \
+-	MOVQ rT1, _ga(oState); \
+-	G_RT1_RCA;             \
+-	                       \
+-	XORQ rDe, rBo;         \
+-	ROLQ $45, rBo;         \
+-	MOVQ rBi, rT1;         \
+-	ANDQ rBo, rT1;         \
+-	XORQ rBe, rT1;         \
+-	MOVQ rT1, _ge(oState); \
+-	G_RT1_RCE;             \
+-	                       \
+-	XORQ rDi, rBu;         \
+-	ROLQ $61, rBu;         \
+-	MOVQ rBu, rT1;         \
+-	ORQ  rBa, rT1;         \
+-	XORQ rBo, rT1;         \
+-	MOVQ rT1, _go(oState); \
+-	                       \
+-	ANDQ rBe, rBa;         \
+-	XORQ rBu, rBa;         \
+-	MOVQ rBa, _gu(oState); \
+-	NOTQ rBu;              \
+-	G_RBA_RCU;             \
+-	                       \
+-	ORQ  rBu, rBo;         \
+-	XORQ rBi, rBo;         \
+-	MOVQ rBo, _gi(oState); \
+-	                       \
+-	/* Result k */         \
+-	MOVQ _be(iState), rBa; \
+-	MOVQ _gi(iState), rBe; \
+-	MOVQ _ko(iState), rBi; \
+-	MOVQ _mu(iState), rBo; \
+-	MOVQ _sa(iState), rBu; \
+-	XORQ rDi, rBe;         \
+-	ROLQ $6, rBe;          \
+-	XORQ rDo, rBi;         \
+-	ROLQ $25, rBi;         \
+-	MOVQ rBe, rT1;         \
+-	ORQ  rBi, rT1;         \
+-	XORQ rDe, rBa;         \
+-	ROLQ $1, rBa;          \
+-	XORQ rBa, rT1;         \
+-	MOVQ rT1, _ka(oState); \
+-	K_RT1_RCA;             \
+-	                       \
+-	XORQ rDu, rBo;         \
+-	ROLQ $8, rBo;          \
+-	MOVQ rBi, rT1;         \
+-	ANDQ rBo, rT1;         \
+-	XORQ rBe, rT1;         \
+-	MOVQ rT1, _ke(oState); \
+-	K_RT1_RCE;             \
+-	                       \
+-	XORQ rDa, rBu;         \
+-	ROLQ $18, rBu;         \
+-	NOTQ rBo;              \
+-	MOVQ rBo, rT1;         \
+-	ANDQ rBu, rT1;         \
+-	XORQ rBi, rT1;         \
+-	MOVQ rT1, _ki(oState); \
+-	                       \
+-	MOVQ rBu, rT1;         \
+-	ORQ  rBa, rT1;         \
+-	XORQ rBo, rT1;         \
+-	MOVQ rT1, _ko(oState); \
+-	                       \
+-	ANDQ rBe, rBa;         \
+-	XORQ rBu, rBa;         \
+-	MOVQ rBa, _ku(oState); \
+-	K_RBA_RCU;             \
+-	                       \
+-	/* Result m */         \
+-	MOVQ _ga(iState), rBe; \
+-	XORQ rDa, rBe;         \
+-	MOVQ _ke(iState), rBi; \
+-	ROLQ $36, rBe;         \
+-	XORQ rDe, rBi;         \
+-	MOVQ _bu(iState), rBa; \
+-	ROLQ $10, rBi;         \
+-	MOVQ rBe, rT1;         \
+-	MOVQ _mi(iState), rBo; \
+-	ANDQ rBi, rT1;         \
+-	XORQ rDu, rBa;         \
+-	MOVQ _so(iState), rBu; \
+-	ROLQ $27, rBa;         \
+-	XORQ rBa, rT1;         \
+-	MOVQ rT1, _ma(oState); \
+-	M_RT1_RCA;             \
+-	                       \
+-	XORQ rDi, rBo;         \
+-	ROLQ $15, rBo;         \
+-	MOVQ rBi, rT1;         \
+-	ORQ  rBo, rT1;         \
+-	XORQ rBe, rT1;         \
+-	MOVQ rT1, _me(oState); \
+-	M_RT1_RCE;             \
+-	                       \
+-	XORQ rDo, rBu;         \
+-	ROLQ $56, rBu;         \
+-	NOTQ rBo;              \
+-	MOVQ rBo, rT1;         \
+-	ORQ  rBu, rT1;         \
+-	XORQ rBi, rT1;         \
+-	MOVQ rT1, _mi(oState); \
+-	                       \
+-	ORQ  rBa, rBe;         \
+-	XORQ rBu, rBe;         \
+-	MOVQ rBe, _mu(oState); \
+-	                       \
+-	ANDQ rBa, rBu;         \
+-	XORQ rBo, rBu;         \
+-	MOVQ rBu, _mo(oState); \
+-	M_RBE_RCU;             \
+-	                       \
+-	/* Result s */         \
+-	MOVQ _bi(iState), rBa; \
+-	MOVQ _go(iState), rBe; \
+-	MOVQ _ku(iState), rBi; \
+-	XORQ rDi, rBa;         \
+-	MOVQ _ma(iState), rBo; \
+-	ROLQ $62, rBa;         \
+-	XORQ rDo, rBe;         \
+-	MOVQ _se(iState), rBu; \
+-	ROLQ $55, rBe;         \
+-	                       \
+-	XORQ rDu, rBi;         \
+-	MOVQ rBa, rDu;         \
+-	XORQ rDe, rBu;         \
+-	ROLQ $2, rBu;          \
+-	ANDQ rBe, rDu;         \
+-	XORQ rBu, rDu;         \
+-	MOVQ rDu, _su(oState); \
+-	                       \
+-	ROLQ $39, rBi;         \
+-	S_RDU_RCU;             \
+-	NOTQ rBe;              \
+-	XORQ rDa, rBo;         \
+-	MOVQ rBe, rDa;         \
+-	ANDQ rBi, rDa;         \
+-	XORQ rBa, rDa;         \
+-	MOVQ rDa, _sa(oState); \
+-	S_RDA_RCA;             \
+-	                       \
+-	ROLQ $41, rBo;         \
+-	MOVQ rBi, rDe;         \
+-	ORQ  rBo, rDe;         \
+-	XORQ rBe, rDe;         \
+-	MOVQ rDe, _se(oState); \
+-	S_RDE_RCE;             \
+-	                       \
+-	MOVQ rBo, rDi;         \
+-	MOVQ rBu, rDo;         \
+-	ANDQ rBu, rDi;         \
+-	ORQ  rBa, rDo;         \
+-	XORQ rBi, rDi;         \
+-	XORQ rBo, rDo;         \
+-	MOVQ rDi, _si(oState); \
+-	MOVQ rDo, _so(oState)  \
+-
+ // func keccakF1600(a *[25]uint64)
+-TEXT ·keccakF1600(SB), 0, $200-8
+-	MOVQ a+0(FP), rpState
++TEXT ·keccakF1600(SB), $200-8
++	MOVQ a+0(FP), DI
+ 
+ 	// Convert the user state into an internal state
+-	NOTQ _be(rpState)
+-	NOTQ _bi(rpState)
+-	NOTQ _go(rpState)
+-	NOTQ _ki(rpState)
+-	NOTQ _mi(rpState)
+-	NOTQ _sa(rpState)
++	NOTQ 8(DI)
++	NOTQ 16(DI)
++	NOTQ 64(DI)
++	NOTQ 96(DI)
++	NOTQ 136(DI)
++	NOTQ 160(DI)
+ 
+ 	// Execute the KeccakF permutation
+-	MOVQ _ba(rpState), rCa
+-	MOVQ _be(rpState), rCe
+-	MOVQ _bu(rpState), rCu
+-
+-	XORQ _ga(rpState), rCa
+-	XORQ _ge(rpState), rCe
+-	XORQ _gu(rpState), rCu
+-
+-	XORQ _ka(rpState), rCa
+-	XORQ _ke(rpState), rCe
+-	XORQ _ku(rpState), rCu
+-
+-	XORQ _ma(rpState), rCa
+-	XORQ _me(rpState), rCe
+-	XORQ _mu(rpState), rCu
+-
+-	XORQ _sa(rpState), rCa
+-	XORQ _se(rpState), rCe
+-	MOVQ _si(rpState), rDi
+-	MOVQ _so(rpState), rDo
+-	XORQ _su(rpState), rCu
+-
+-	mKeccakRound(rpState, rpStack, $0x0000000000000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x0000000000008082, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x800000000000808a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000080008000, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x000000000000808b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x0000000080000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x8000000080008081, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000000008009, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x000000000000008a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x0000000000000088, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x0000000080008009, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x000000008000000a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x000000008000808b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x800000000000008b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x8000000000008089, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000000008003, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x8000000000008002, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000000000080, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x000000000000800a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x800000008000000a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x8000000080008081, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000000008080, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpState, rpStack, $0x0000000080000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
+-	mKeccakRound(rpStack, rpState, $0x8000000080008008, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP)
++	MOVQ (DI), SI
++	MOVQ 8(DI), BP
++	MOVQ 32(DI), R15
++	XORQ 40(DI), SI
++	XORQ 48(DI), BP
++	XORQ 72(DI), R15
++	XORQ 80(DI), SI
++	XORQ 88(DI), BP
++	XORQ 112(DI), R15
++	XORQ 120(DI), SI
++	XORQ 128(DI), BP
++	XORQ 152(DI), R15
++	XORQ 160(DI), SI
++	XORQ 168(DI), BP
++	MOVQ 176(DI), DX
++	MOVQ 184(DI), R8
++	XORQ 192(DI), R15
+ 
+-	// Revert the internal state to the user state
+-	NOTQ _be(rpState)
+-	NOTQ _bi(rpState)
+-	NOTQ _go(rpState)
+-	NOTQ _ki(rpState)
+-	NOTQ _mi(rpState)
+-	NOTQ _sa(rpState)
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000008082, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000000000808a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008000, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000808b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008081, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008009, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000008a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000000088, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080008009, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000008000000a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
+ 
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000008000808b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000000000008b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008089, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008003, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008002, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000000080, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000800a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000008000000a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008081, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008080, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008008, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	NOP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	NOP
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	NOP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	NOP
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	NOP
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	NOP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	NOP
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	NOP
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	NOP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	NOP
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	NOP
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	NOP
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	NOP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Revert the internal state to the user state
++	NOTQ 8(DI)
++	NOTQ 16(DI)
++	NOTQ 64(DI)
++	NOTQ 96(DI)
++	NOTQ 136(DI)
++	NOTQ 160(DI)
+ 	RET
+diff --git a/src/vendor/golang.org/x/crypto/sha3/register.go b/src/vendor/golang.org/x/crypto/sha3/register.go
+deleted file mode 100644
+index addfd5049b..0000000000
+--- a/src/vendor/golang.org/x/crypto/sha3/register.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.4
+-
+-package sha3
+-
+-import (
+-	"crypto"
+-)
+-
+-func init() {
+-	crypto.RegisterHash(crypto.SHA3_224, New224)
+-	crypto.RegisterHash(crypto.SHA3_256, New256)
+-	crypto.RegisterHash(crypto.SHA3_384, New384)
+-	crypto.RegisterHash(crypto.SHA3_512, New512)
+-}
+diff --git a/src/vendor/golang.org/x/net/LICENSE b/src/vendor/golang.org/x/net/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/vendor/golang.org/x/net/LICENSE
++++ b/src/vendor/golang.org/x/net/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/vendor/golang.org/x/sys/LICENSE b/src/vendor/golang.org/x/sys/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/vendor/golang.org/x/sys/LICENSE
++++ b/src/vendor/golang.org/x/sys/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu.go b/src/vendor/golang.org/x/sys/cpu/cpu.go
+index 8fa707aa4b..ec07aab057 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -105,6 +105,8 @@ var ARM64 struct {
+ 	HasSVE      bool // Scalable Vector Extensions
+ 	HasSVE2     bool // Scalable Vector Extensions 2
+ 	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
++	HasDIT      bool // Data Independent Timing support
++	HasI8MM     bool // Advanced SIMD Int8 matrix multiplication instructions
+ 	_           CacheLinePad
+ }
+ 
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go b/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+index 0e27a21e1f..af2aa99f9f 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+@@ -38,6 +38,8 @@ func initOptions() {
+ 		{Name: "dcpop", Feature: &ARM64.HasDCPOP},
+ 		{Name: "asimddp", Feature: &ARM64.HasASIMDDP},
+ 		{Name: "asimdfhm", Feature: &ARM64.HasASIMDFHM},
++		{Name: "dit", Feature: &ARM64.HasDIT},
++		{Name: "i8mm", Feature: &ARM64.HasI8MM},
+ 	}
+ }
+ 
+@@ -145,6 +147,11 @@ func parseARM64SystemRegisters(isar0, isar1, pfr0 uint64) {
+ 		ARM64.HasLRCPC = true
+ 	}
+ 
++	switch extractBits(isar1, 52, 55) {
++	case 1:
++		ARM64.HasI8MM = true
++	}
++
+ 	// ID_AA64PFR0_EL1
+ 	switch extractBits(pfr0, 16, 19) {
+ 	case 0:
+@@ -168,6 +175,11 @@ func parseARM64SystemRegisters(isar0, isar1, pfr0 uint64) {
+ 
+ 		parseARM64SVERegister(getzfr0())
+ 	}
++
++	switch extractBits(pfr0, 48, 51) {
++	case 1:
++		ARM64.HasDIT = true
++	}
+ }
+ 
+ func parseARM64SVERegister(zfr0 uint64) {
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
+index 3d386d0fc2..08f35ea177 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
+@@ -35,8 +35,10 @@ const (
+ 	hwcap_SHA512   = 1 << 21
+ 	hwcap_SVE      = 1 << 22
+ 	hwcap_ASIMDFHM = 1 << 23
++	hwcap_DIT      = 1 << 24
+ 
+ 	hwcap2_SVE2 = 1 << 1
++	hwcap2_I8MM = 1 << 13
+ )
+ 
+ // linuxKernelCanEmulateCPUID reports whether we're running
+@@ -106,9 +108,12 @@ func doinit() {
+ 	ARM64.HasSHA512 = isSet(hwCap, hwcap_SHA512)
+ 	ARM64.HasSVE = isSet(hwCap, hwcap_SVE)
+ 	ARM64.HasASIMDFHM = isSet(hwCap, hwcap_ASIMDFHM)
++	ARM64.HasDIT = isSet(hwCap, hwcap_DIT)
++
+ 
+ 	// HWCAP2 feature bits
+ 	ARM64.HasSVE2 = isSet(hwCap2, hwcap2_SVE2)
++	ARM64.HasI8MM = isSet(hwCap2, hwcap2_I8MM)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/vendor/golang.org/x/text/LICENSE b/src/vendor/golang.org/x/text/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/vendor/golang.org/x/text/LICENSE
++++ b/src/vendor/golang.org/x/text/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index b8a0b84a28..7562f74b39 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,5 +1,5 @@
+-# golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a
+-## explicit; go 1.18
++# golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0
++## explicit; go 1.20
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+@@ -8,7 +8,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/sha3
+-# golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
++# golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -18,10 +18,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.22.0
++# golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.16.0
++# golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9
+ ## explicit; go 1.18
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

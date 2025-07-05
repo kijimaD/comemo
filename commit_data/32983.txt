@@ -18,7 +18,50 @@ Date:   Wed Jun 21 17:19:24 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/range.go | 11 ++++++++---
  test/loopbce.go                      |  2 +-
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 963c26824d..032601ca3d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/objabi"
+ 	"unicode/utf8"
+ )
+ 
+@@ -211,9 +212,13 @@ func walkrange(n *Node) *Node {
+ 		} else if v2 == nil {
+ 			body = []*Node{nod(OAS, v1, hv1)}
+ 		} else { // for i,a := range thing { body }
+-			ifGuard = nod(OIF, nil, nil)
+-			ifGuard.Left = nod(OLT, hv1, hn)
+-			translatedLoopOp = OFORUNTIL
++			if objabi.Preemptibleloops_enabled != 0 {
++				// Doing this transformation makes a bounds check removal less trivial; see #20711
++				// TODO enhance the preemption check insertion so that this transformation is not necessary.
++				ifGuard = nod(OIF, nil, nil)
++				ifGuard.Left = nod(OLT, hv1, hn)
++				translatedLoopOp = OFORUNTIL
++			}
+ 
+ 			a := nod(OAS2, nil, nil)
+ 			a.List.Set2(v1, v2)
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 63bb4bae58..857cf2442b 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -31,7 +31,7 @@ func f0c(a []int) int {
+ 
+ func f1(a []int) int {
+ 	x := 0
+-	for _, i := range a { // Change to "for i,e := range array/slice" hides IV report.
++	for _, i := range a { // ERROR "Induction variable with minimum 0 and increment 1"
+ 		x += i
+ 	}
+ 	return x

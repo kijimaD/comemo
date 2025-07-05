@@ -14,10 +14,230 @@ Date:   Wed Mar 4 12:29:16 2015 -0500
     Change-Id: I9e3a724c8de72eb1b0fbe0751a7b488894911b76
     Reviewed-on: https://go-review.googlesource.com/6790
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/archive/tar/common.go             |   4 +--
  src/archive/tar/stat_unix.go          |  46 +++++++++++++++++++------
  src/archive/tar/tar_test.go           |  63 ++++++++++++++++++++++++++++------
  src/archive/tar/testdata/hardlink.tar | Bin 0 -> 2560 bytes
  src/archive/tar/writer_test.go        |  38 ++++++++++++++++++++
  5 files changed, 127 insertions(+), 24 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index e363aa793e..855e5fc4e6 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -139,8 +139,8 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
+ 	}
+ 
+ 	switch fi.h.Typeflag {
+-	case TypeLink, TypeSymlink:
+-		// hard link, symbolic link
++	case TypeSymlink:
++		// symbolic link
+ 		mode |= os.ModeSymlink
+ 	case TypeChar:
+ 		// character device node
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index cb843db4cf..24b93111dc 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -16,17 +16,41 @@ func init() {
+ }
+ 
+ func statUnix(fi os.FileInfo, h *Header) error {
+-	sys, ok := fi.Sys().(*syscall.Stat_t)
+-	if !ok {
+-		return nil
++	switch sys := fi.Sys().(type) {
++	case *syscall.Stat_t:
++		h.Uid = int(sys.Uid)
++		h.Gid = int(sys.Gid)
++		// TODO(bradfitz): populate username & group.  os/user
++		// doesn't cache LookupId lookups, and lacks group
++		// lookup functions.
++		h.AccessTime = statAtime(sys)
++		h.ChangeTime = statCtime(sys)
++		// TODO(bradfitz): major/minor device numbers?
++		if fi.Mode().IsRegular() && sys.Nlink > 1 {
++			h.Typeflag = TypeLink
++			h.Size = 0
++			// TODO(vbatts): Linkname?
++		}
++	case *Header:
++		// for the roundtrip logic
++		h.Uid = sys.Uid
++		h.Gid = sys.Gid
++		h.Uname = sys.Uname
++		h.Gname = sys.Gname
++		h.AccessTime = sys.AccessTime
++		h.ChangeTime = sys.ChangeTime
++		if sys.Xattrs != nil {
++			h.Xattrs = make(map[string]string)
++			for k, v := range sys.Xattrs {
++				h.Xattrs[k] = v
++			}
++		}
++		if sys.Typeflag == TypeLink {
++			// hard link
++			h.Typeflag = TypeLink
++			h.Size = 0
++			h.Linkname = sys.Linkname
++		}
+ 	}
+-	h.Uid = int(sys.Uid)
+-	h.Gid = int(sys.Gid)
+-	// TODO(bradfitz): populate username & group.  os/user
+-	// doesn't cache LookupId lookups, and lacks group
+-	// lookup functions.
+-	h.AccessTime = statAtime(sys)
+-	h.ChangeTime = statCtime(sys)
+-	// TODO(bradfitz): major/minor device numbers?
+ 	return nil
+ }
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index ed333f3ea4..d63c072eb9 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -147,17 +147,6 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			},
+ 			fm: 0644,
+ 		},
+-		// hard link.
+-		{
+-			h: &Header{
+-				Name:     "hard.txt",
+-				Mode:     0644 | c_ISLNK,
+-				Size:     0,
+-				ModTime:  time.Unix(1360600916, 0),
+-				Typeflag: TypeLink,
+-			},
+-			fm: 0644 | os.ModeSymlink,
+-		},
+ 		// symbolic link.
+ 		{
+ 			h: &Header{
+@@ -246,6 +235,33 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			},
+ 			fm: 0600 | os.ModeSticky,
+ 		},
++		// hard link.
++		{
++			h: &Header{
++				Name:     "hard.txt",
++				Mode:     0644 | c_ISREG,
++				Size:     0,
++				Linkname: "file.txt",
++				ModTime:  time.Unix(1360600916, 0),
++				Typeflag: TypeLink,
++			},
++			fm: 0644,
++		},
++		// More information.
++		{
++			h: &Header{
++				Name:     "info.txt",
++				Mode:     0600 | c_ISREG,
++				Size:     0,
++				Uid:      1000,
++				Gid:      1000,
++				ModTime:  time.Unix(1360602540, 0),
++				Uname:    "slartibartfast",
++				Gname:    "users",
++				Typeflag: TypeReg,
++			},
++			fm: 0600,
++		},
+ 	}
+ 
+ 	for i, g := range golden {
+@@ -268,12 +284,37 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		if got, want := h2.Size, g.h.Size; got != want {
+ 			t.Errorf("i=%d: Size: got %v, want %v", i, got, want)
+ 		}
++		if got, want := h2.Uid, g.h.Uid; got != want {
++			t.Errorf("i=%d: Uid: got %d, want %d", i, got, want)
++		}
++		if got, want := h2.Gid, g.h.Gid; got != want {
++			t.Errorf("i=%d: Gid: got %d, want %d", i, got, want)
++		}
++		if got, want := h2.Uname, g.h.Uname; got != want {
++			t.Errorf("i=%d: Uname: got %q, want %q", i, got, want)
++		}
++		if got, want := h2.Gname, g.h.Gname; got != want {
++			t.Errorf("i=%d: Gname: got %q, want %q", i, got, want)
++		}
++		if got, want := h2.Linkname, g.h.Linkname; got != want {
++			t.Errorf("i=%d: Linkname: got %v, want %v", i, got, want)
++		}
++		if got, want := h2.Typeflag, g.h.Typeflag; got != want {
++			t.Logf("%#v %#v", g.h, fi.Sys())
++			t.Errorf("i=%d: Typeflag: got %q, want %q", i, got, want)
++		}
+ 		if got, want := h2.Mode, g.h.Mode; got != want {
+ 			t.Errorf("i=%d: Mode: got %o, want %o", i, got, want)
+ 		}
+ 		if got, want := fi.Mode(), g.fm; got != want {
+ 			t.Errorf("i=%d: fi.Mode: got %o, want %o", i, got, want)
+ 		}
++		if got, want := h2.AccessTime, g.h.AccessTime; got != want {
++			t.Errorf("i=%d: AccessTime: got %v, want %v", i, got, want)
++		}
++		if got, want := h2.ChangeTime, g.h.ChangeTime; got != want {
++			t.Errorf("i=%d: ChangeTime: got %v, want %v", i, got, want)
++		}
+ 		if got, want := h2.ModTime, g.h.ModTime; got != want {
+ 			t.Errorf("i=%d: ModTime: got %v, want %v", i, got, want)
+ 		}
+diff --git a/src/archive/tar/testdata/hardlink.tar b/src/archive/tar/testdata/hardlink.tar
+new file mode 100644
+index 0000000000..9cd1a26572
+Binary files /dev/null and b/src/archive/tar/testdata/hardlink.tar differ
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 650899a10e..fe46a67ce3 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -147,6 +147,44 @@ var writerTests = []*writerTest{
+ 			},
+ 		},
+ 	},
++	// This file was produced using gnu tar 1.26
++	// echo "Slartibartfast" > file.txt
++	// ln file.txt hard.txt
++	// tar -b 1 --format=ustar -c -f hardlink.tar file.txt hard.txt
++	{
++		file: "testdata/hardlink.tar",
++		entries: []*writerTestEntry{
++			{
++				header: &Header{
++					Name:     "file.txt",
++					Mode:     0644,
++					Uid:      1000,
++					Gid:      100,
++					Size:     15,
++					ModTime:  time.Unix(1425484303, 0),
++					Typeflag: '0',
++					Uname:    "vbatts",
++					Gname:    "users",
++				},
++				contents: "Slartibartfast\n",
++			},
++			{
++				header: &Header{
++					Name:     "hard.txt",
++					Mode:     0644,
++					Uid:      1000,
++					Gid:      100,
++					Size:     0,
++					ModTime:  time.Unix(1425484303, 0),
++					Typeflag: '1',
++					Linkname: "file.txt",
++					Uname:    "vbatts",
++					Gname:    "users",
++				},
++				// no contents
++			},
++		},
++	},
+ }
+ 
+ // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.

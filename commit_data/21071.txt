@@ -10,6 +10,33 @@ Date:   Tue Nov 11 18:50:02 2014 -0500
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/174020043
-
+---
  src/runtime/mgc0.h | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/runtime/mgc0.h b/src/runtime/mgc0.h
+new file mode 100644
+index 0000000000..62726b4f0f
+--- /dev/null
++++ b/src/runtime/mgc0.h
+@@ -0,0 +1,20 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used by cmd/gc.
++
++enum {
++	gcBits = 4,
++	BitsPerPointer = 2,
++	BitsDead = 0,
++	BitsScalar = 1,
++	BitsPointer = 2,
++	BitsMask = 3,
++	PointersPerByte = 8/BitsPerPointer,
++	MaxGCMask = 64,
++	insData = 1,
++	insArray,
++	insArrayEnd,
++	insEnd,
++};

@@ -40,8 +40,115 @@ Date:   Wed Jan 11 23:03:15 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/deflate.go      |  7 +++++--
  src/compress/flate/deflate_test.go | 31 +++++++++++++++++++++++++++++++
  src/compress/flate/deflatefast.go  | 19 +++++++++++++++++--
  3 files changed, 53 insertions(+), 4 deletions(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 97265b3ca2..4d6a5357d8 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -136,14 +136,17 @@ func (d *compressor) fillDeflate(b []byte) int {
+ 			delta := d.hashOffset - 1
+ 			d.hashOffset -= delta
+ 			d.chainHead -= delta
+-			for i, v := range d.hashPrev {
++
++			// Iterate over slices instead of arrays to avoid copying
++			// the entire table onto the stack (Issue #18625).
++			for i, v := range d.hashPrev[:] {
+ 				if int(v) > delta {
+ 					d.hashPrev[i] = uint32(int(v) - delta)
+ 				} else {
+ 					d.hashPrev[i] = 0
+ 				}
+ 			}
+-			for i, v := range d.hashHead {
++			for i, v := range d.hashHead[:] {
+ 				if int(v) > delta {
+ 					d.hashHead[i] = uint32(int(v) - delta)
+ 				} else {
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 521a260365..fbea761721 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"reflect"
++	"runtime/debug"
+ 	"sync"
+ 	"testing"
+ )
+@@ -864,3 +865,33 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMaxStackSize(t *testing.T) {
++	// This test must not run in parallel with other tests as debug.SetMaxStack
++	// affects all goroutines.
++	n := debug.SetMaxStack(1 << 16)
++	defer debug.SetMaxStack(n)
++
++	var wg sync.WaitGroup
++	defer wg.Wait()
++
++	b := make([]byte, 1<<20)
++	for level := HuffmanOnly; level <= BestCompression; level++ {
++		// Run in separate goroutine to increase probability of stack regrowth.
++		wg.Add(1)
++		go func(level int) {
++			defer wg.Done()
++			zw, err := NewWriter(ioutil.Discard, level)
++			if err != nil {
++				t.Errorf("level %d, NewWriter() = %v, want nil", level, err)
++			}
++			if n, err := zw.Write(b); n != len(b) || err != nil {
++				t.Errorf("level %d, Write() = (%d, %v), want (%d, nil)", level, n, err, len(b))
++			}
++			if err := zw.Close(); err != nil {
++				t.Errorf("level %d, Close() = %v, want nil", level, err)
++			}
++			zw.Reset(ioutil.Discard)
++		}(level)
++	}
++}
+diff --git a/src/compress/flate/deflatefast.go b/src/compress/flate/deflatefast.go
+index a1636a37d6..08298b76bb 100644
+--- a/src/compress/flate/deflatefast.go
++++ b/src/compress/flate/deflatefast.go
+@@ -60,7 +60,7 @@ func newDeflateFast() *deflateFast {
+ func (e *deflateFast) encode(dst []token, src []byte) []token {
+ 	// Ensure that e.cur doesn't wrap.
+ 	if e.cur > 1<<30 {
+-		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
++		e.resetAll()
+ 	}
+ 
+ 	// This check isn't in the Snappy implementation, but there, the caller
+@@ -265,6 +265,21 @@ func (e *deflateFast) reset() {
+ 
+ 	// Protect against e.cur wraparound.
+ 	if e.cur > 1<<30 {
+-		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
++		e.resetAll()
++	}
++}
++
++// resetAll resets the deflateFast struct and is only called in rare
++// situations to prevent integer overflow. It manually resets each field
++// to avoid causing large stack growth.
++//
++// See https://golang.org/issue/18636.
++func (e *deflateFast) resetAll() {
++	// This is equivalent to:
++	//	*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
++	e.cur = maxStoreBlockSize
++	e.prev = e.prev[:0]
++	for i := range e.table {
++		e.table[i] = tableEntry{}
+ 	}
+ }

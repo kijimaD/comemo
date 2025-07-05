@@ -14,8 +14,73 @@ Date:   Fri Apr 2 14:31:15 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 6 +++---
  src/cmd/compile/internal/noder/types.go   | 2 +-
  src/cmd/compile/internal/types/type.go    | 8 ++++++--
  3 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 350f8f8c2a..4db688571e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -716,7 +716,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ 		// In order to deal with recursive generic types, create a TFORW
+ 		// type initially and set the Def field of its sym, so it can be
+ 		// found if this type appears recursively within the type.
+-		forw = newNamedTypeWithSym(t.Pos(), newsym)
++		forw = newIncompleteNamedType(t.Pos(), newsym)
+ 		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
+ 		forw.SetRParams(neededTargs)
+ 	}
+@@ -896,9 +896,9 @@ func deref(t *types.Type) *types.Type {
+ 	return t
+ }
+ 
+-// newNamedTypeWithSym returns a TFORW type t with name specified by sym, such
++// newIncompleteNamedType returns a TFORW type t with name specified by sym, such
+ // that t.nod and sym.Def are set correctly.
+-func newNamedTypeWithSym(pos src.XPos, sym *types.Sym) *types.Type {
++func newIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
+ 	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+ 	forw := types.NewNamed(name)
+ 	name.SetType(forw)
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 06c584714e..8680559a41 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -120,7 +120,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			// which may set HasTParam) before translating the
+ 			// underlying type itself, so we handle recursion
+ 			// correctly, including via method signatures.
+-			ntyp := newNamedTypeWithSym(g.pos(typ.Obj().Pos()), s)
++			ntyp := newIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
+ 			g.typs[typ] = ntyp
+ 
+ 			// If ntyp still has type params, then we must be
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 31a99781d1..762cdd3258 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1643,7 +1643,10 @@ var (
+ 	TypeResultMem = newResults([]*Type{TypeMem})
+ )
+ 
+-// NewNamed returns a new named type for the given type name. obj should be an ir.Name.
++// NewNamed returns a new named type for the given type name. obj should be an
++// ir.Name. The new type is incomplete, and the underlying type should be set
++// later via SetUnderlying(). References to the type are maintained until the type
++// is filled in, so those references can be updated when the type is complete.
+ func NewNamed(obj Object) *Type {
+ 	t := New(TFORW)
+ 	t.sym = obj.Sym()
+@@ -1659,7 +1662,8 @@ func (t *Type) Obj() Object {
+ 	return nil
+ }
+ 
+-// SetUnderlying sets the underlying type.
++// SetUnderlying sets the underlying type. SetUnderlying automatically updates any
++// types that were waiting for this type to be completed.
+ func (t *Type) SetUnderlying(underlying *Type) {
+ 	if underlying.kind == TFORW {
+ 		// This type isn't computed yet; when it is, update n.

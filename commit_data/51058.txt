@@ -22,7 +22,7 @@ Date:   Tue Nov 30 17:48:51 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  .../compile/internal/importer/gcimporter_test.go   | 41 ++++++++++++----------
  src/cmd/compile/internal/importer/iimport.go       | 22 ++++++++++--
  .../compile/internal/importer/testdata/exports.go  | 19 +++++-----
@@ -32,3 +32,336 @@ Date:   Tue Nov 30 17:48:51 2021 -0500
  src/go/internal/gcimporter/testdata/exports.go     | 19 +++++-----
  src/go/internal/gcimporter/testdata/generics.go    | 29 +++++++++++++++
  8 files changed, 165 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 44c5e06cd6..e097507f69 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
++	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -107,25 +108,29 @@ func TestImportTestdata(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
++	testfiles := map[string][]string{
++		"exports.go": {"go/ast", "go/token"},
++	}
++	if !goexperiment.Unified {
++		testfiles["generics.go"] = nil
++	}
+ 
+-	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+-
+-	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
+-		// The package's Imports list must include all packages
+-		// explicitly imported by exports.go, plus all packages
+-		// referenced indirectly via exported objects in exports.go.
+-		// With the textual export format, the list may also include
+-		// additional packages that are not strictly required for
+-		// import processing alone (they are exported to err "on
+-		// the safe side").
+-		// TODO(gri) update the want list to be precise, now that
+-		// the textual export data is gone.
+-		got := fmt.Sprint(pkg.Imports())
+-		for _, want := range []string{"go/ast", "go/token"} {
+-			if !strings.Contains(got, want) {
+-				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
++	for testfile, wantImports := range testfiles {
++		tmpdir := mktmpdir(t)
++		defer os.RemoveAll(tmpdir)
++
++		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
++		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
++
++		if pkg := testPath(t, path, tmpdir); pkg != nil {
++			// The package's Imports list must include all packages
++			// explicitly imported by testfile, plus all packages
++			// referenced indirectly via exported objects in testfile.
++			got := fmt.Sprint(pkg.Imports())
++			for _, want := range wantImports {
++				if !strings.Contains(got, want) {
++					t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 23d6ca350e..7c51d3b16f 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -259,7 +259,7 @@ func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
+ }
+ 
+ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
+-	if t, ok := p.typCache[off]; ok && (base == nil || !isInterface(t)) {
++	if t, ok := p.typCache[off]; ok && canReuse(base, t) {
+ 		return t
+ 	}
+ 
+@@ -274,12 +274,30 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
+ 	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
+ 	t := r.doType(base)
+ 
+-	if base == nil || !isInterface(t) {
++	if canReuse(base, t) {
+ 		p.typCache[off] = t
+ 	}
+ 	return t
+ }
+ 
++// canReuse reports whether the type rhs on the RHS of the declaration for def
++// may be re-used.
++//
++// Specifically, if def is non-nil and rhs is an interface type with methods, it
++// may not be re-used because we have a convention of setting the receiver type
++// for interface methods to def.
++func canReuse(def *types2.Named, rhs types2.Type) bool {
++	if def == nil {
++		return true
++	}
++	iface, _ := rhs.(*types2.Interface)
++	if iface == nil {
++		return true
++	}
++	// Don't use iface.Empty() here as iface may not be complete.
++	return iface.NumEmbeddeds() == 0 && iface.NumExplicitMethods() == 0
++}
++
+ type importReader struct {
+ 	p           *iimporter
+ 	declReader  strings.Reader
+diff --git a/src/cmd/compile/internal/importer/testdata/exports.go b/src/cmd/compile/internal/importer/testdata/exports.go
+index 8ba3242102..91598c03e3 100644
+--- a/src/cmd/compile/internal/importer/testdata/exports.go
++++ b/src/cmd/compile/internal/importer/testdata/exports.go
+@@ -15,14 +15,17 @@ const init1 = 0
+ func init() {}
+ 
+ const (
+-	C0 int = 0
+-	C1     = 3.14159265
+-	C2     = 2.718281828i
+-	C3     = -123.456e-789
+-	C4     = +123.456e+789
+-	C5     = 1234i
+-	C6     = "foo\n"
+-	C7     = `bar\n`
++	C0  int     = 0
++	C1          = 3.14159265
++	C2          = 2.718281828i
++	C3          = -123.456e-789
++	C4          = +123.456e+789
++	C5          = 1234i
++	C6          = "foo\n"
++	C7          = `bar\n`
++	C8          = 42
++	C9  int     = 42
++	C10 float64 = 42
+ )
+ 
+ type (
+diff --git a/src/cmd/compile/internal/importer/testdata/generics.go b/src/cmd/compile/internal/importer/testdata/generics.go
+new file mode 100644
+index 0000000000..00bf04000f
+--- /dev/null
++++ b/src/cmd/compile/internal/importer/testdata/generics.go
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is used to generate an object file which
++// serves as test file for gcimporter_test.go.
++
++package generics
++
++type Any any
++
++var x any
++
++type T[A, B any] struct {
++	Left  A
++	Right B
++}
++
++var X T[int, string] = T[int, string]{1, "hi"}
++
++func ToInt[P interface{ ~int }](p P) int { return int(p) }
++
++var IntID = ToInt[int]
++
++type G[C comparable] int
++
++func ImplicitFunc[T ~int]() {}
++
++type ImplicitType[T ~int] int
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 3a9ed79df6..c0f4e3934b 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -118,25 +118,29 @@ func TestImportTestdata(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
++	testfiles := map[string][]string{
++		"exports.go": {"go/ast", "go/token"},
++	}
++	if !goexperiment.Unified {
++		testfiles["generics.go"] = nil
++	}
+ 
+-	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+-
+-	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
+-		// The package's Imports list must include all packages
+-		// explicitly imported by exports.go, plus all packages
+-		// referenced indirectly via exported objects in exports.go.
+-		// With the textual export format, the list may also include
+-		// additional packages that are not strictly required for
+-		// import processing alone (they are exported to err "on
+-		// the safe side").
+-		// TODO(gri) update the want list to be precise, now that
+-		// the textual export data is gone.
+-		got := fmt.Sprint(pkg.Imports())
+-		for _, want := range []string{"go/ast", "go/token"} {
+-			if !strings.Contains(got, want) {
+-				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
++	for testfile, wantImports := range testfiles {
++		tmpdir := mktmpdir(t)
++		defer os.RemoveAll(tmpdir)
++
++		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
++		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
++
++		if pkg := testPath(t, path, tmpdir); pkg != nil {
++			// The package's Imports list must include all packages
++			// explicitly imported by testfile, plus all packages
++			// referenced indirectly via exported objects in testfile.
++			got := fmt.Sprint(pkg.Imports())
++			for _, want := range wantImports {
++				if !strings.Contains(got, want) {
++					t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index d7fc3ee7a9..c5b89aa042 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -255,7 +255,7 @@ func (p *iimporter) pkgAt(off uint64) *types.Package {
+ }
+ 
+ func (p *iimporter) typAt(off uint64, base *types.Named) types.Type {
+-	if t, ok := p.typCache[off]; ok && (base == nil || !isInterface(t)) {
++	if t, ok := p.typCache[off]; ok && canReuse(base, t) {
+ 		return t
+ 	}
+ 
+@@ -267,12 +267,30 @@ func (p *iimporter) typAt(off uint64, base *types.Named) types.Type {
+ 	r.declReader.Reset(p.declData[off-predeclReserved:])
+ 	t := r.doType(base)
+ 
+-	if base == nil || !isInterface(t) {
++	if canReuse(base, t) {
+ 		p.typCache[off] = t
+ 	}
+ 	return t
+ }
+ 
++// canReuse reports whether the type rhs on the RHS of the declaration for def
++// may be re-used.
++//
++// Specifically, if def is non-nil and rhs is an interface type with methods, it
++// may not be re-used because we have a convention of setting the receiver type
++// for interface methods to def.
++func canReuse(def *types.Named, rhs types.Type) bool {
++	if def == nil {
++		return true
++	}
++	iface, _ := rhs.(*types.Interface)
++	if iface == nil {
++		return true
++	}
++	// Don't use iface.Empty() here as iface may not be complete.
++	return iface.NumEmbeddeds() == 0 && iface.NumExplicitMethods() == 0
++}
++
+ type importReader struct {
+ 	p          *iimporter
+ 	declReader bytes.Reader
+diff --git a/src/go/internal/gcimporter/testdata/exports.go b/src/go/internal/gcimporter/testdata/exports.go
+index 8ba3242102..91598c03e3 100644
+--- a/src/go/internal/gcimporter/testdata/exports.go
++++ b/src/go/internal/gcimporter/testdata/exports.go
+@@ -15,14 +15,17 @@ const init1 = 0
+ func init() {}
+ 
+ const (
+-	C0 int = 0
+-	C1     = 3.14159265
+-	C2     = 2.718281828i
+-	C3     = -123.456e-789
+-	C4     = +123.456e+789
+-	C5     = 1234i
+-	C6     = "foo\n"
+-	C7     = `bar\n`
++	C0  int     = 0
++	C1          = 3.14159265
++	C2          = 2.718281828i
++	C3          = -123.456e-789
++	C4          = +123.456e+789
++	C5          = 1234i
++	C6          = "foo\n"
++	C7          = `bar\n`
++	C8          = 42
++	C9  int     = 42
++	C10 float64 = 42
+ )
+ 
+ type (
+diff --git a/src/go/internal/gcimporter/testdata/generics.go b/src/go/internal/gcimporter/testdata/generics.go
+new file mode 100644
+index 0000000000..00bf04000f
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/generics.go
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is used to generate an object file which
++// serves as test file for gcimporter_test.go.
++
++package generics
++
++type Any any
++
++var x any
++
++type T[A, B any] struct {
++	Left  A
++	Right B
++}
++
++var X T[int, string] = T[int, string]{1, "hi"}
++
++func ToInt[P interface{ ~int }](p P) int { return int(p) }
++
++var IntID = ToInt[int]
++
++type G[C comparable] int
++
++func ImplicitFunc[T ~int]() {}
++
++type ImplicitType[T ~int] int

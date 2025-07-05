@@ -11,7 +11,41 @@ Date:   Wed May 16 14:13:11 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/macho.go | 2 ++
  src/debug/macho/macho.go          | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index 7a8999e5ba..fdb7e76dfc 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -113,6 +113,8 @@ func (f *machoFile) goarch() string {
+ 		return "amd64"
+ 	case macho.CpuArm:
+ 		return "arm"
++	case macho.CpuArm64:
++		return "arm64"
+ 	case macho.CpuPpc64:
+ 		return "ppc64"
+ 	}
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index fed8eb25a4..7bc1950bfd 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -60,6 +60,7 @@ const (
+ 	Cpu386   Cpu = 7
+ 	CpuAmd64 Cpu = Cpu386 | cpuArch64
+ 	CpuArm   Cpu = 12
++	CpuArm64 Cpu = CpuArm | cpuArch64
+ 	CpuPpc   Cpu = 18
+ 	CpuPpc64 Cpu = CpuPpc | cpuArch64
+ )
+@@ -68,6 +69,7 @@ var cpuStrings = []intName{
+ 	{uint32(Cpu386), "Cpu386"},
+ 	{uint32(CpuAmd64), "CpuAmd64"},
+ 	{uint32(CpuArm), "CpuArm"},
++	{uint32(CpuArm64), "CpuArm64"},
+ 	{uint32(CpuPpc), "CpuPpc"},
+ 	{uint32(CpuPpc64), "CpuPpc64"},
+ }

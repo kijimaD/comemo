@@ -22,6 +22,24 @@ Date:   Fri Feb 24 17:51:59 2023 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/poll/sockopt.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/internal/poll/sockopt.go b/src/internal/poll/sockopt.go
+index a7c9d115b4..a87a9e6413 100644
+--- a/src/internal/poll/sockopt.go
++++ b/src/internal/poll/sockopt.go
+@@ -34,3 +34,12 @@ func (fd *FD) SetsockoptLinger(level, name int, l *syscall.Linger) error {
+ 	defer fd.decref()
+ 	return syscall.SetsockoptLinger(fd.Sysfd, level, name, l)
+ }
++
++// GetsockoptInt wraps the getsockopt network call with an int argument.
++func (fd *FD) GetsockoptInt(level, name int) (int, error) {
++	if err := fd.incref(); err != nil {
++		return -1, err
++	}
++	defer fd.decref()
++	return syscall.GetsockoptInt(fd.Sysfd, level, name)
++}

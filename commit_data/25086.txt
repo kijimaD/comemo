@@ -12,7 +12,65 @@ Date:   Tue Sep 22 01:28:09 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/flate_test.go | 17 +++++++++++++++++
  src/compress/flate/inflate.go    |  6 ++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/compress/flate/flate_test.go b/src/compress/flate/flate_test.go
+index 3f67025cd7..f2362dd84f 100644
+--- a/src/compress/flate/flate_test.go
++++ b/src/compress/flate/flate_test.go
+@@ -11,7 +11,9 @@ package flate
+ import (
+ 	"bytes"
+ 	"encoding/hex"
++	"io"
+ 	"io/ioutil"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -258,3 +260,18 @@ func TestStreams(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTruncatedStreams(t *testing.T) {
++	const data = "\x00\f\x00\xf3\xffhello, world\x01\x00\x00\xff\xff"
++
++	for i := 0; i < len(data)-1; i++ {
++		r := NewReader(strings.NewReader(data[:i]))
++		_, err := io.Copy(ioutil.Discard, r)
++		if ferr, ok := err.(*ReadError); ok {
++			err = ferr.Err
++		}
++		if err != io.ErrUnexpectedEOF {
++			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
++		}
++	}
++}
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 09f6115804..cbc0181240 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -637,6 +637,9 @@ func (f *decompressor) dataBlock() {
+ 	nr, err := io.ReadFull(f.r, f.buf[0:4])
+ 	f.roffset += int64(nr)
+ 	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		f.err = &ReadError{f.roffset, err}
+ 		return
+ 	}
+@@ -669,6 +672,9 @@ func (f *decompressor) copyData() {
+ 		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m])
+ 		f.roffset += int64(m)
+ 		if err != nil {
++			if err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			f.err = &ReadError{f.roffset, err}
+ 			return
+ 		}

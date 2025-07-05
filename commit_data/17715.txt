@@ -11,7 +11,35 @@ Date:   Sun Sep 29 10:34:41 2013 +1000
     R=remyoudompheng, rsc, dvyukov, minux.ma
     CC=golang-dev
     https://golang.org/cl/14071044
-
+---
  src/race.bash | 2 ++
  src/race.bat  | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/race.bash b/src/race.bash
+index 3cdc5e10c1..18201f992c 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -35,6 +35,8 @@ if [ ! -f make.bash ]; then
+ 	exit 1
+ fi
+ . ./make.bash --no-banner
++# golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
++go install -race cmd/cgo
+ go install -race std
+ go test -race -short std
+ go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
+diff --git a/src/race.bat b/src/race.bat
+index 989a2e7d81..0a6aee9e2b 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -29,6 +29,9 @@ goto fail
+ :continue
+ call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
++:: golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
++echo # go install -race cmd/cgo
++go install -race cmd/cgo
+ echo # go install -race std
+ go install -race std
+ if errorlevel 1 goto fail

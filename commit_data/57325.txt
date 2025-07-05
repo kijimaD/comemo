@@ -16,8 +16,70 @@ Date:   Thu Jul 27 01:21:48 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/60088.txt       |  1 +
  src/reflect/type.go      |  5 +++++
  src/reflect/type_test.go | 35 +++++++++++++++++++++++++++++++++++
  3 files changed, 41 insertions(+)
+
+diff --git a/api/next/60088.txt b/api/next/60088.txt
+new file mode 100644
+index 0000000000..6eacb139a7
+--- /dev/null
++++ b/api/next/60088.txt
+@@ -0,0 +1 @@
++pkg reflect, func TypeFor[$0 interface{}]() Type #60088
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index cefb9a43ab..c23b9973df 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2911,3 +2911,8 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
+ 		}
+ 	}
+ }
++
++// TypeFor returns the [Type] that represents the type argument T.
++func TypeFor[T any]() Type {
++	return TypeOf((*T)(nil)).Elem()
++}
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+new file mode 100644
+index 0000000000..75784f9666
+--- /dev/null
++++ b/src/reflect/type_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflect_test
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestTypeFor(t *testing.T) {
++	type (
++		mystring string
++		myiface  interface{}
++	)
++
++	testcases := []struct {
++		wantFrom any
++		got      reflect.Type
++	}{
++		{new(int), reflect.TypeFor[int]()},
++		{new(int64), reflect.TypeFor[int64]()},
++		{new(string), reflect.TypeFor[string]()},
++		{new(mystring), reflect.TypeFor[mystring]()},
++		{new(any), reflect.TypeFor[any]()},
++		{new(myiface), reflect.TypeFor[myiface]()},
++	}
++	for _, tc := range testcases {
++		want := reflect.ValueOf(tc.wantFrom).Elem().Type()
++		if want != tc.got {
++			t.Errorf("unexpected reflect.Type: got %v; want %v", tc.got, want)
++		}
++	}
++}

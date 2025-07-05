@@ -18,6 +18,30 @@ Date:   Fri Jan 4 19:27:08 2019 -0500
     Change-Id: I341e50c0f3426de2763468672f9ba1d13ad6cfba
     Reviewed-on: https://go-review.googlesource.com/c/156330
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 5ad19d72cd..1165a97e20 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -64,13 +64,15 @@ func TestSystemRoots(t *testing.T) {
+ 		if _, ok := sysPool[string(c.Raw)]; ok {
+ 			delete(sysPool, string(c.Raw))
+ 		} else {
+-			// verify-cert lets in certificates that are not trusted roots, but are
+-			// signed by trusted roots. This should not be a problem, so confirm that's
+-			// the case and skip them.
++			// verify-cert lets in certificates that are not trusted roots, but
++			// are signed by trusted roots. This is not great, but unavoidable
++			// until we parse real policies without cgo, so confirm that's the
++			// case and skip them.
+ 			if _, err := c.Verify(VerifyOptions{
+ 				Roots:         sysRoots,
+ 				Intermediates: allCerts,
+ 				KeyUsages:     []ExtKeyUsage{ExtKeyUsageAny},
++				CurrentTime:   c.NotBefore, // verify-cert does not check expiration
+ 			}); err != nil {
+ 				t.Errorf("certificate only present in non-cgo pool: %v (verify error: %v)", c.Subject, err)
+ 			} else {

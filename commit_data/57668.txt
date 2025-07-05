@@ -18,6 +18,28 @@ Date:   Thu Jul 6 11:15:27 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/base.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 458481fa4e..841241efb1 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -245,6 +245,16 @@ var NoInstrumentPkgs = []string{
+ 	"runtime/asan",
+ 	"internal/cpu",
+ 	"internal/abi",
++	// We omit bytealg even though it's imported by runtime because it also
++	// backs a lot of package bytes. Currently we don't have a way to omit race
++	// instrumentation when used from the runtime while keeping race
++	// instrumentation when used from user code. Somehow this doesn't seem to
++	// cause problems, though we may be skating on thin ice. See #61204.
++	//"internal/bytealg",
++	"internal/coverage/rtcov",
++	"internal/godebugs",
++	"internal/goexperiment",
++	"internal/goos",
+ }
+ 
+ // Don't insert racefuncenter/racefuncexit into the following packages.

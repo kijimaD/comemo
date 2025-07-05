@@ -22,6 +22,19 @@ Date:   Mon Feb 14 13:23:30 2022 -0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 48a74458bd..ac80f503cd 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2013,6 +2013,7 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
+ 	if reldir := base.ShortPath(dir); reldir != dir {
+ 		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
+ 		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
++		suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
+ 	}
+ 	suffix = strings.ReplaceAll(suffix, " "+b.WorkDir, " $WORK")
+ 

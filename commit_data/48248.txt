@@ -14,6 +14,35 @@ Date:   Mon May 3 18:17:38 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/getentropy_darwin.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getentropy_darwin.go b/src/internal/syscall/unix/getentropy_darwin.go
+index 6da6f84d95..e1a410a454 100644
+--- a/src/internal/syscall/unix/getentropy_darwin.go
++++ b/src/internal/syscall/unix/getentropy_darwin.go
+@@ -5,6 +5,7 @@
+ package unix
+ 
+ import (
++	"internal/abi"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -15,7 +16,7 @@ func libc_getentropy_trampoline()
+ 
+ // GetEntropy calls the macOS getentropy system call.
+ func GetEntropy(p []byte) error {
+-	_, _, errno := syscall_syscall(funcPC(libc_getentropy_trampoline),
++	_, _, errno := syscall_syscall(abi.FuncPCABI0(libc_getentropy_trampoline),
+ 		uintptr(unsafe.Pointer(&p[0])),
+ 		uintptr(len(p)),
+ 		0)
+@@ -27,6 +28,3 @@ func GetEntropy(p []byte) error {
+ 
+ //go:linkname syscall_syscall syscall.syscall
+ func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
+-
+-//go:linkname funcPC runtime.funcPC
+-func funcPC(f interface{}) uintptr

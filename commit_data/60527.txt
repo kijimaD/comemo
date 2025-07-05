@@ -17,6 +17,20 @@ Date:   Sat Jan 6 17:26:37 2024 +0800
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-
+---
  src/cmd/internal/obj/loong64/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 6d21767645..749db66421 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1373,7 +1373,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			width = 21
+ 			// FCC0 is the implicit source operand, now that we
+ 			// don't register-allocate from the FCC bank.
+-			rd = REG_FCC0
++			rj = REG_FCC0
+ 		case ABEQ, ABNE:
+ 			if rd == 0 || rd == REGZERO || rj == REGZERO {
+ 				// BEQZ/BNEZ can be encoded with 21-bit offsets.

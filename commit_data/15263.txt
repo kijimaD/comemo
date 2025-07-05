@@ -9,7 +9,57 @@ Date:   Thu Feb 14 20:35:08 2013 -0800
     R=gri, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/7334044
-
+---
  lib/godoc/package.html | 13 +++++++++++++
  lib/godoc/package.txt  |  7 ++++++-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index e67cf93bed..cff91fa226 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -73,6 +73,11 @@
+ 			{{if .Bugs}}
+ 				<dd><a href="#pkg-bugs">Bugs</a></dd>
+ 			{{end}}
++			{{if .Notes}}
++                                {{range $marker, $item := .Notes}}
++				<dd><a href="#pkg-{{$marker}}">{{$marker}}</a></dd>
++                                {{end}}
++			{{end}}
+ 			</dl>
+ 			</div><!-- #manual-nav -->
+ 
+@@ -168,6 +173,14 @@
+ 		{{comment_html .}}
+ 		{{end}}
+ 	{{end}}
++	{{with .Notes}}
++                {{range $marker, $content := .}}
++		    <h2 id="pkg-{{$marker}}">{{$marker}}</h2>
++		    {{range .}}
++		    {{comment_html .}}
++                    {{end}}
++		{{end}}
++	{{end}}
+ {{end}}
+ 
+ {{with .PAst}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 8b9ec456bf..12964b0010 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -61,7 +61,12 @@ TYPES
+ BUGS
+ 
+ {{range .}}{{comment_text . "    " "\t"}}
+-{{end}}{{end}}{{end}}{{/*
++{{end}}{{end}}{{with .Notes}}
++{{range $marker, $content := .}}
++{{$marker}}
++
++{{range $content}}{{comment_text . "    " "\t"}}
++{{end}}{{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+ 

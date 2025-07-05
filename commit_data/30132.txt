@@ -23,7 +23,262 @@ Date:   Tue Oct 18 14:56:19 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      | 93 +++++++++++++++++++++++++++++++++++--------
  src/net/http/client_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 173 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 9b60f35708..3125fdddcf 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -18,6 +18,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"net/url"
++	"sort"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -444,10 +445,10 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 	}
+ 
+ 	var (
+-		deadline = c.deadline()
+-		reqs     []*Request
+-		resp     *Response
+-		ireqhdr  = req.Header.clone()
++		deadline    = c.deadline()
++		reqs        []*Request
++		resp        *Response
++		copyHeaders = c.makeHeadersCopier(req)
+ 	)
+ 	uerr := func(err error) error {
+ 		req.closeBody()
+@@ -495,17 +496,13 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 				req.Method = "GET"
+ 				req.Body = nil // TODO: fix this when 307/308 support happens
+ 			}
+-			// Copy the initial request's Header values
+-			// (at least the safe ones).  Do this before
+-			// setting the Referer, in case the user set
+-			// Referer on their first request. If they
+-			// really want to override, they can do it in
++
++			// Copy original headers before setting the Referer,
++			// in case the user set Referer on their first request.
++			// If they really want to override, they can do it in
+ 			// their CheckRedirect func.
+-			for k, vv := range ireqhdr {
+-				if shouldCopyHeaderOnRedirect(k, ireq.URL, u) {
+-					req.Header[k] = vv
+-				}
+-			}
++			copyHeaders(req)
++
+ 			// Add the Referer header from the most recent
+ 			// request URL to the new one, if it's not https->http:
+ 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
+@@ -561,6 +558,70 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 	}
+ }
+ 
++// makeHeadersCopier makes a function that copies headers from the
++// initial Request, ireq. For every redirect, this function must be called
++// so that it can copy headers into the upcoming Request.
++func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
++	// The headers to copy are from the very initial request.
++	// We use a closured callback to keep a reference to these original headers.
++	var (
++		ireqhdr  = ireq.Header.clone()
++		icookies map[string][]*Cookie
++	)
++	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
++		icookies = make(map[string][]*Cookie)
++		for _, c := range ireq.Cookies() {
++			icookies[c.Name] = append(icookies[c.Name], c)
++		}
++	}
++
++	preq := ireq // The previous request
++	return func(req *Request) {
++		// If Jar is present and there was some initial cookies provided
++		// via the request header, then we may need to alter the initial
++		// cookies as we follow redirects since each redirect may end up
++		// modifying a pre-existing cookie.
++		//
++		// Since cookies already set in the request header do not contain
++		// information about the original domain and path, the logic below
++		// assumes any new set cookies override the original cookie
++		// regardless of domain or path.
++		//
++		// See https://golang.org/issue/17494
++		if c.Jar != nil && icookies != nil {
++			var changed bool
++			resp := req.Response // The response that caused the upcoming redirect
++			for _, c := range resp.Cookies() {
++				if _, ok := icookies[c.Name]; ok {
++					delete(icookies, c.Name)
++					changed = true
++				}
++			}
++			if changed {
++				ireqhdr.Del("Cookie")
++				var ss []string
++				for _, cs := range icookies {
++					for _, c := range cs {
++						ss = append(ss, c.Name+"="+c.Value)
++					}
++				}
++				sort.Strings(ss) // Ensure deterministic headers
++				ireqhdr.Set("Cookie", strings.Join(ss, "; "))
++			}
++		}
++
++		// Copy the initial request's Header values
++		// (at least the safe ones).
++		for k, vv := range ireqhdr {
++			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
++				req.Header[k] = vv
++			}
++		}
++
++		preq = req // Update previous Request with the current request
++	}
++}
++
+ func defaultCheckRedirect(req *Request, via []*Request) error {
+ 	if len(via) >= 10 {
+ 		return errors.New("stopped after 10 redirects")
+@@ -625,7 +686,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
+ 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+ }
+ 
+-// Head issues a HEAD to the specified URL.  If the response is one of
++// Head issues a HEAD to the specified URL. If the response is one of
+ // the following redirect codes, Head follows the redirect, up to a
+ // maximum of 10 redirects:
+ //
+@@ -639,7 +700,7 @@ func Head(url string) (resp *Response, err error) {
+ 	return DefaultClient.Head(url)
+ }
+ 
+-// Head issues a HEAD to the specified URL.  If the response is one of the
++// Head issues a HEAD to the specified URL. If the response is one of the
+ // following redirect codes, Head follows the redirect after calling the
+ // Client's CheckRedirect function:
+ //
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 77498b3913..c86ae19c86 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"log"
+ 	"net"
+ 	. "net/http"
++	"net/http/cookiejar"
+ 	"net/http/httptest"
+ 	"net/url"
+ 	"reflect"
+@@ -1296,6 +1297,101 @@ func TestClientCopyHeadersOnRedirect(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 17494: cookies should be altered when Client follows redirects.
++func TestClientAltersCookiesOnRedirect(t *testing.T) {
++	cookieMap := func(cs []*Cookie) map[string][]string {
++		m := make(map[string][]string)
++		for _, c := range cs {
++			m[c.Name] = append(m[c.Name], c.Value)
++		}
++		return m
++	}
++
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		var want map[string][]string
++		got := cookieMap(r.Cookies())
++
++		c, _ := r.Cookie("Cycle")
++		switch c.Value {
++		case "0":
++			want = map[string][]string{
++				"Cookie1": []string{"OldValue1a", "OldValue1b"},
++				"Cookie2": []string{"OldValue2"},
++				"Cookie3": []string{"OldValue3a", "OldValue3b"},
++				"Cookie4": []string{"OldValue4"},
++				"Cycle":   []string{"0"},
++			}
++			SetCookie(w, &Cookie{Name: "Cycle", Value: "1", Path: "/"})
++			SetCookie(w, &Cookie{Name: "Cookie2", Path: "/", MaxAge: -1}) // Delete cookie from Header
++			Redirect(w, r, "/", StatusFound)
++		case "1":
++			want = map[string][]string{
++				"Cookie1": []string{"OldValue1a", "OldValue1b"},
++				"Cookie3": []string{"OldValue3a", "OldValue3b"},
++				"Cookie4": []string{"OldValue4"},
++				"Cycle":   []string{"1"},
++			}
++			SetCookie(w, &Cookie{Name: "Cycle", Value: "2", Path: "/"})
++			SetCookie(w, &Cookie{Name: "Cookie3", Value: "NewValue3", Path: "/"}) // Modify cookie in Header
++			SetCookie(w, &Cookie{Name: "Cookie4", Value: "NewValue4", Path: "/"}) // Modify cookie in Jar
++			Redirect(w, r, "/", StatusFound)
++		case "2":
++			want = map[string][]string{
++				"Cookie1": []string{"OldValue1a", "OldValue1b"},
++				"Cookie3": []string{"NewValue3"},
++				"Cookie4": []string{"NewValue4"},
++				"Cycle":   []string{"2"},
++			}
++			SetCookie(w, &Cookie{Name: "Cycle", Value: "3", Path: "/"})
++			SetCookie(w, &Cookie{Name: "Cookie5", Value: "NewValue5", Path: "/"}) // Insert cookie into Jar
++			Redirect(w, r, "/", StatusFound)
++		case "3":
++			want = map[string][]string{
++				"Cookie1": []string{"OldValue1a", "OldValue1b"},
++				"Cookie3": []string{"NewValue3"},
++				"Cookie4": []string{"NewValue4"},
++				"Cookie5": []string{"NewValue5"},
++				"Cycle":   []string{"3"},
++			}
++			// Don't redirect to ensure the loop ends.
++		default:
++			t.Errorf("unexpected redirect cycle")
++			return
++		}
++
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("redirect %s, Cookie = %v, want %v", c.Value, got, want)
++		}
++	}))
++	defer ts.Close()
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	jar, _ := cookiejar.New(nil)
++	c := &Client{
++		Transport: tr,
++		Jar:       jar,
++	}
++
++	u, _ := url.Parse(ts.URL)
++	req, _ := NewRequest("GET", ts.URL, nil)
++	req.AddCookie(&Cookie{Name: "Cookie1", Value: "OldValue1a"})
++	req.AddCookie(&Cookie{Name: "Cookie1", Value: "OldValue1b"})
++	req.AddCookie(&Cookie{Name: "Cookie2", Value: "OldValue2"})
++	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3a"})
++	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3b"})
++	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cookie4", Value: "OldValue4", Path: "/"}})
++	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cycle", Value: "0", Path: "/"}})
++	res, err := c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != 200 {
++		t.Fatal(res.Status)
++	}
++}
++
+ // Part of Issue 4800
+ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
+ 	tests := []struct {

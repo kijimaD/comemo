@@ -8,9 +8,113 @@ Date:   Thu Jul 17 09:40:27 2014 -0700
     R=rsc, adonovan
     CC=golang-codereviews
     https://golang.org/cl/117800043
-
+---
  src/cmd/gofmt/gofmt_test.go          |  1 +
  src/cmd/gofmt/simplify.go            | 14 ++++++++++++--
  src/cmd/gofmt/testdata/ranges.golden | 28 ++++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/ranges.input  | 18 ++++++++++++++++++
  4 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index b767a6bf55..ca44f3dcf7 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -75,6 +75,7 @@ var tests = []struct {
+ 	{"testdata/composites.input", "-s"},
+ 	{"testdata/slices1.input", "-s"},
+ 	{"testdata/slices2.input", "-s"},
++	{"testdata/ranges.input", "-s"},
+ 	{"testdata/old.input", ""},
+ 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+ 	{"testdata/rewrite2.input", "-r=int->bool"},
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+index b05aa2480d..69f7bf23c0 100644
+--- a/src/cmd/gofmt/simplify.go
++++ b/src/cmd/gofmt/simplify.go
+@@ -97,16 +97,26 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
+ 		//       x, y := b[:n], b[n:]
+ 
+ 	case *ast.RangeStmt:
+-		// a range of the form: for x, _ = range v {...}
++		// - a range of the form: for x, _ = range v {...}
+ 		// can be simplified to: for x = range v {...}
+-		if ident, _ := n.Value.(*ast.Ident); ident != nil && ident.Name == "_" {
++		// - a range of the form: for _ = range v {...}
++		// can be simplified to: for range v {...}
++		if isBlank(n.Value) {
+ 			n.Value = nil
+ 		}
++		if isBlank(n.Key) && n.Value == nil {
++			n.Key = nil
++		}
+ 	}
+ 
+ 	return s
+ }
+ 
++func isBlank(x ast.Expr) bool {
++	ident, ok := x.(*ast.Ident)
++	return ok && ident.Name == "_"
++}
++
+ func simplify(f *ast.File) {
+ 	var s simplifier
+ 
+diff --git a/src/cmd/gofmt/testdata/ranges.golden b/src/cmd/gofmt/testdata/ranges.golden
+new file mode 100644
+index 0000000000..42168526d1
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/ranges.golden
+@@ -0,0 +1,28 @@
++// Test cases for range simplification.
++package p
++
++func _() {
++	for a, b = range x {
++	}
++	for a = range x {
++	}
++	for _, b = range x {
++	}
++	for range x {
++	}
++
++	for a = range x {
++	}
++	for range x {
++	}
++
++	for a, b := range x {
++	}
++	for a := range x {
++	}
++	for _, b := range x {
++	}
++
++	for a := range x {
++	}
++}
+diff --git a/src/cmd/gofmt/testdata/ranges.input b/src/cmd/gofmt/testdata/ranges.input
+new file mode 100644
+index 0000000000..4b02d51752
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/ranges.input
+@@ -0,0 +1,18 @@
++// Test cases for range simplification.
++package p
++
++func _() {
++	for a, b = range x {}
++	for a, _ = range x {}
++	for _, b = range x {}
++	for _, _ = range x {}
++
++	for a = range x {}
++	for _ = range x {}
++
++	for a, b := range x {}
++	for a, _ := range x {}
++	for _, b := range x {}
++
++	for a := range x {}
++}

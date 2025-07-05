@@ -17,8 +17,81 @@ Date:   Fri Sep 17 19:38:33 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go       |  5 ++++-
  src/cmd/go/testdata/script/work.txt     |  4 ++++
  src/cmd/go/testdata/script/work_env.txt | 24 ++++++++++++++++++++++++
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 1eb773407e..181d2a2ca1 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -152,8 +152,11 @@ func ExtraEnvVars() []cfg.EnvVar {
+ 	} else if modload.Enabled() {
+ 		gomod = os.DevNull
+ 	}
++	modload.InitWorkfile()
++	gowork := modload.WorkFilePath()
+ 	return []cfg.EnvVar{
+ 		{Name: "GOMOD", Value: gomod},
++		{Name: "GOWORK", Value: gowork},
+ 	}
+ }
+ 
+@@ -431,7 +434,7 @@ func getOrigEnv(key string) string {
+ 
+ func checkEnvWrite(key, val string) error {
+ 	switch key {
+-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
++	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
+ 		return fmt.Errorf("%s cannot be modified", key)
+ 	case "GOENV":
+ 		return fmt.Errorf("%s can only be set using the OS environment", key)
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 657cd060cc..613f037615 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -1,8 +1,12 @@
+ ! go mod initwork doesnotexist
+ stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
++go env GOWORK
++! stdout .
+ 
+ go mod initwork ./a ./b
+ cmp go.work go.work.want
++go env GOWORK
++stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
+ 
+ ! go run  example.com/b
+ stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
+diff --git a/src/cmd/go/testdata/script/work_env.txt b/src/cmd/go/testdata/script/work_env.txt
+new file mode 100644
+index 0000000000..de67255696
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_env.txt
+@@ -0,0 +1,24 @@
++go env GOWORK
++stdout '^'$GOPATH'[\\/]src[\\/]go.work$'
++go env
++stdout '^(set )?GOWORK="?'$GOPATH'[\\/]src[\\/]go.work"?$'
++
++cd ..
++go env GOWORK
++! stdout .
++go env
++stdout 'GOWORK=("")?'
++
++cd src
++go env GOWORK
++stdout 'go.work'
++
++! go env -w GOWORK=off
++stderr '^go: GOWORK cannot be modified$'
++
++-- go.work --
++go 1.18
++
++directory a
++-- a/go.mod --
++module example.com/a

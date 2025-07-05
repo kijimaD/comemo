@@ -8,7 +8,7 @@ Date:   Sun Aug 9 14:31:05 2009 -0700
     DELTA=293  (224 added, 0 deleted, 69 changed)
     OCL=32917
     CL=32944
-
+---
  src/run.bash                        |   4 +
  test/bench/binary-tree-freelist.go  |   8 +-
  test/bench/binary-tree-freelist.txt |   8 ++
@@ -21,3 +21,599 @@ Date:   Sun Aug 9 14:31:05 2009 -0700
  test/bench/threadring.txt           |   2 +-
  test/bench/timing.sh                |  80 ++++++++++++-----
  11 files changed, 293 insertions(+), 69 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 3801e4a61f..0210d9fb91 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -53,6 +53,10 @@ time make test
+ time ./run
+ ) || exit $?
+ 
++(xcd ../test/bench
++./timing.sh -test
++) || exit $?
++
+ (xcd ../test
+ ./run
+ ) || exit $?
+diff --git a/test/bench/binary-tree-freelist.go b/test/bench/binary-tree-freelist.go
+index b1d3a32411..7babb15fc2 100644
+--- a/test/bench/binary-tree-freelist.go
++++ b/test/bench/binary-tree-freelist.go
+@@ -42,7 +42,7 @@ import (
+ 	"os";
+ )
+ 
+-var n = flag.Int("n", 20, "depth")
++var n = flag.Int("n", 15, "depth")
+ 
+ type Node struct {
+ 	  item	int;
+@@ -108,7 +108,7 @@ func main() {
+ 	stretchDepth := maxDepth + 1;
+ 
+ 	check := bottomUpTree(0, stretchDepth).itemCheck();
+-	fmt.Println("stretch tree of depth ", stretchDepth, "\t check:", check);
++	fmt.Printf("stretch tree of depth %d\t check: %d\n", stretchDepth, check);
+ 
+ 	longLivedTree := bottomUpTree(0, maxDepth);
+ 
+@@ -124,7 +124,7 @@ func main() {
+ 			check += t.itemCheck();
+ 			t.free();
+ 		}
+-		fmt.Println(iterations*2, "\t trees of depth ", depth, "\t check: ", check);
++		fmt.Printf("%d\t trees of depth %d\t check: %d\n", iterations*2, depth, check);
+ 	}
+-	fmt.Println("long lived tree of depth", maxDepth, "\t check:", longLivedTree.itemCheck());
++	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck());
+ }
+diff --git a/test/bench/binary-tree-freelist.txt b/test/bench/binary-tree-freelist.txt
+new file mode 100644
+index 0000000000..f8286dd88b
+--- /dev/null
++++ b/test/bench/binary-tree-freelist.txt
+@@ -0,0 +1,8 @@
++stretch tree of depth 16	 check: -1
++65536	 trees of depth 4	 check: -65536
++16384	 trees of depth 6	 check: -16384
++4096	 trees of depth 8	 check: -4096
++1024	 trees of depth 10	 check: -1024
++256	 trees of depth 12	 check: -256
++64	 trees of depth 14	 check: -64
++long lived tree of depth 15	 check: -1
+diff --git a/test/bench/binary-tree.go b/test/bench/binary-tree.go
+index 030e6acb0b..4e25a357be 100644
+--- a/test/bench/binary-tree.go
++++ b/test/bench/binary-tree.go
+@@ -42,7 +42,7 @@ import (
+ 	"os";
+ )
+ 
+-var n = flag.Int("n", 20, "depth")
++var n = flag.Int("n", 15, "depth")
+ 
+ type Node struct {
+ 	  item	int;
+@@ -75,7 +75,7 @@ func main() {
+ 	stretchDepth := maxDepth + 1;
+ 
+ 	check := bottomUpTree(0, stretchDepth).itemCheck();
+-	fmt.Println("stretch tree of depth ", stretchDepth, "\t check:", check);
++	fmt.Printf("stretch tree of depth %d\t check: %d\n", stretchDepth, check);
+ 
+ 	longLivedTree := bottomUpTree(0, maxDepth);
+ 
+@@ -87,7 +87,7 @@ func main() {
+ 			check += bottomUpTree(i,depth).itemCheck();
+ 			check += bottomUpTree(-i,depth).itemCheck();
+ 		}
+-		fmt.Println(iterations*2, "\t trees of depth ", depth, "\t check: ", check);
++		fmt.Printf("%d\t trees of depth %d\t check: %d\n", iterations*2, depth, check);
+ 	}
+-	fmt.Println("long lived tree of depth", maxDepth, "\t check:", longLivedTree.itemCheck());
++	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck());
+ }
+diff --git a/test/bench/chameneosredux.go b/test/bench/chameneosredux.go
+index 6ca085ac7d..a8cd85454f 100644
+--- a/test/bench/chameneosredux.go
++++ b/test/bench/chameneosredux.go
+@@ -169,7 +169,7 @@ func (c *Chameneos) Serve() {
+ func play(ref *Referee, color []Color) {
+ 	cham := make([]Chameneos, len(color));
+ 	for i, c := range color {
+-		fmt.Printf("%s ", c);
++		fmt.Printf(" %s", c);
+ 		ref.Add(cham[i].Init(i, ref, c));
+ 	}
+ 	fmt.Printf("\n");
+@@ -179,7 +179,7 @@ func play(ref *Referee, color []Color) {
+ 		total += c.count;
+ 		fmt.Printf("%d %s\n", c.count, say(c.same));
+ 	}
+-	fmt.Printf("%s\n\n", say(total));
++	fmt.Printf("%s\n", say(total));
+ }
+ 
+ var words = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
+@@ -198,5 +198,6 @@ func main() {
+ 	printColorTable();
+ 	fmt.Print("\n");
+ 	play(NewReferee(), []Color{blue, red, yellow});
++	fmt.Print("\n");
+ 	play(NewReferee(), []Color{blue, red, yellow, red, yellow, blue, red, yellow, red, blue});
+ }
+diff --git a/test/bench/fasta-1000.out b/test/bench/fasta-1000.out
+new file mode 100644
+index 0000000000..f1caba0d62
+--- /dev/null
++++ b/test/bench/fasta-1000.out
+@@ -0,0 +1,171 @@
++>ONE Homo sapiens alu
++GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA
++TCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT
++AAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG
++GCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG
++CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGT
++GGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCA
++GGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAA
++TTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAG
++AATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCA
++GCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGT
++AATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACC
++AGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTG
++GTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACC
++CGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAG
++AGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTT
++TGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACA
++TGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCT
++GTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGG
++TTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGT
++CTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG
++CGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCG
++TCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTA
++CTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCG
++AGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCG
++GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACC
++TGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAA
++TACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGA
++GGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACT
++GCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTC
++ACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGT
++TCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGC
++CGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCG
++CTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTG
++GGCGACAGAGCGAGACTCCG
++>TWO IUB ambiguity codes
++cttBtatcatatgctaKggNcataaaSatgtaaaDcDRtBggDtctttataattcBgtcg
++tactDtDagcctatttSVHtHttKtgtHMaSattgWaHKHttttagacatWatgtRgaaa
++NtactMcSMtYtcMgRtacttctWBacgaaatatagScDtttgaagacacatagtVgYgt
++cattHWtMMWcStgttaggKtSgaYaaccWStcgBttgcgaMttBYatcWtgacaYcaga
++gtaBDtRacttttcWatMttDBcatWtatcttactaBgaYtcttgttttttttYaaScYa
++HgtgttNtSatcMtcVaaaStccRcctDaataataStcYtRDSaMtDttgttSagtRRca
++tttHatSttMtWgtcgtatSSagactYaaattcaMtWatttaSgYttaRgKaRtccactt
++tattRggaMcDaWaWagttttgacatgttctacaaaRaatataataaMttcgDacgaSSt
++acaStYRctVaNMtMgtaggcKatcttttattaaaaagVWaHKYagtttttatttaacct
++tacgtVtcVaattVMBcttaMtttaStgacttagattWWacVtgWYagWVRctDattBYt
++gtttaagaagattattgacVatMaacattVctgtBSgaVtgWWggaKHaatKWcBScSWa
++accRVacacaaactaccScattRatatKVtactatatttHttaagtttSKtRtacaaagt
++RDttcaaaaWgcacatWaDgtDKacgaacaattacaRNWaatHtttStgttattaaMtgt
++tgDcgtMgcatBtgcttcgcgaDWgagctgcgaggggVtaaScNatttacttaatgacag
++cccccacatYScaMgtaggtYaNgttctgaMaacNaMRaacaaacaKctacatagYWctg
++ttWaaataaaataRattagHacacaagcgKatacBttRttaagtatttccgatctHSaat
++actcNttMaagtattMtgRtgaMgcataatHcMtaBSaRattagttgatHtMttaaKagg
++YtaaBataSaVatactWtataVWgKgttaaaacagtgcgRatatacatVtHRtVYataSa
++KtWaStVcNKHKttactatccctcatgWHatWaRcttactaggatctataDtDHBttata
++aaaHgtacVtagaYttYaKcctattcttcttaataNDaaggaaaDYgcggctaaWSctBa
++aNtgctggMBaKctaMVKagBaactaWaDaMaccYVtNtaHtVWtKgRtcaaNtYaNacg
++gtttNattgVtttctgtBaWgtaattcaagtcaVWtactNggattctttaYtaaagccgc
++tcttagHVggaYtgtNcDaVagctctctKgacgtatagYcctRYHDtgBattDaaDgccK
++tcHaaStttMcctagtattgcRgWBaVatHaaaataYtgtttagMDMRtaataaggatMt
++ttctWgtNtgtgaaaaMaatatRtttMtDgHHtgtcattttcWattRSHcVagaagtacg
++ggtaKVattKYagactNaatgtttgKMMgYNtcccgSKttctaStatatNVataYHgtNa
++BKRgNacaactgatttcctttaNcgatttctctataScaHtataRagtcRVttacDSDtt
++aRtSatacHgtSKacYagttMHtWataggatgactNtatSaNctataVtttRNKtgRacc
++tttYtatgttactttttcctttaaacatacaHactMacacggtWataMtBVacRaSaatc
++cgtaBVttccagccBcttaRKtgtgcctttttRtgtcagcRttKtaaacKtaaatctcac
++aattgcaNtSBaaccgggttattaaBcKatDagttactcttcattVtttHaaggctKKga
++tacatcBggScagtVcacattttgaHaDSgHatRMaHWggtatatRgccDttcgtatcga
++aacaHtaagttaRatgaVacttagattVKtaaYttaaatcaNatccRttRRaMScNaaaD
++gttVHWgtcHaaHgacVaWtgttScactaagSgttatcttagggDtaccagWattWtRtg
++ttHWHacgattBtgVcaYatcggttgagKcWtKKcaVtgaYgWctgYggVctgtHgaNcV
++taBtWaaYatcDRaaRtSctgaHaYRttagatMatgcatttNattaDttaattgttctaa
++ccctcccctagaWBtttHtBccttagaVaatMcBHagaVcWcagBVttcBtaYMccagat
++gaaaaHctctaacgttagNWRtcggattNatcRaNHttcagtKttttgWatWttcSaNgg
++gaWtactKKMaacatKatacNattgctWtatctaVgagctatgtRaHtYcWcttagccaa
++tYttWttaWSSttaHcaaaaagVacVgtaVaRMgattaVcDactttcHHggHRtgNcctt
++tYatcatKgctcctctatVcaaaaKaaaagtatatctgMtWtaaaacaStttMtcgactt
++taSatcgDataaactaaacaagtaaVctaggaSccaatMVtaaSKNVattttgHccatca
++cBVctgcaVatVttRtactgtVcaattHgtaaattaaattttYtatattaaRSgYtgBag
++aHSBDgtagcacRHtYcBgtcacttacactaYcgctWtattgSHtSatcataaatataHt
++cgtYaaMNgBaatttaRgaMaatatttBtttaaaHHKaatctgatWatYaacttMctctt
++ttVctagctDaaagtaVaKaKRtaacBgtatccaaccactHHaagaagaaggaNaaatBW
++attccgStaMSaMatBttgcatgRSacgttVVtaaDMtcSgVatWcaSatcttttVatag
++ttactttacgatcaccNtaDVgSRcgVcgtgaacgaNtaNatatagtHtMgtHcMtagaa
++attBgtataRaaaacaYKgtRccYtatgaagtaataKgtaaMttgaaRVatgcagaKStc
++tHNaaatctBBtcttaYaBWHgtVtgacagcaRcataWctcaBcYacYgatDgtDHccta
++>THREE Homo sapiens frequency
++aacacttcaccaggtatcgtgaaggctcaagattacccagagaacctttgcaatataaga
++atatgtatgcagcattaccctaagtaattatattctttttctgactcaaagtgacaagcc
++ctagtgtatattaaatcggtatatttgggaaattcctcaaactatcctaatcaggtagcc
++atgaaagtgatcaaaaaagttcgtacttataccatacatgaattctggccaagtaaaaaa
++tagattgcgcaaaattcgtaccttaagtctctcgccaagatattaggatcctattactca
++tatcgtgtttttctttattgccgccatccccggagtatctcacccatccttctcttaaag
++gcctaatattacctatgcaaataaacatatattgttgaaaattgagaacctgatcgtgat
++tcttatgtgtaccatatgtatagtaatcacgcgactatatagtgctttagtatcgcccgt
++gggtgagtgaatattctgggctagcgtgagatagtttcttgtcctaatatttttcagatc
++gaatagcttctatttttgtgtttattgacatatgtcgaaactccttactcagtgaaagtc
++atgaccagatccacgaacaatcttcggaatcagtctcgttttacggcggaatcttgagtc
++taacttatatcccgtcgcttactttctaacaccccttatgtatttttaaaattacgttta
++ttcgaacgtacttggcggaagcgttattttttgaagtaagttacattgggcagactcttg
++acattttcgatacgactttctttcatccatcacaggactcgttcgtattgatatcagaag
++ctcgtgatgattagttgtcttctttaccaatactttgaggcctattctgcgaaatttttg
++ttgccctgcgaacttcacataccaaggaacacctcgcaacatgccttcatatccatcgtt
++cattgtaattcttacacaatgaatcctaagtaattacatccctgcgtaaaagatggtagg
++ggcactgaggatatattaccaagcatttagttatgagtaatcagcaatgtttcttgtatt
++aagttctctaaaatagttacatcgtaatgttatctcgggttccgcgaataaacgagatag
++attcattatatatggccctaagcaaaaacctcctcgtattctgttggtaattagaatcac
++acaatacgggttgagatattaattatttgtagtacgaagagatataaaaagatgaacaat
++tactcaagtcaagatgtatacgggatttataataaaaatcgggtagagatctgctttgca
++attcagacgtgccactaaatcgtaatatgtcgcgttacatcagaaagggtaactattatt
++aattaataaagggcttaatcactacatattagatcttatccgatagtcttatctattcgt
++tgtatttttaagcggttctaattcagtcattatatcagtgctccgagttctttattattg
++ttttaaggatgacaaaatgcctcttgttataacgctgggagaagcagactaagagtcgga
++gcagttggtagaatgaggctgcaaaagacggtctcgacgaatggacagactttactaaac
++caatgaaagacagaagtagagcaaagtctgaagtggtatcagcttaattatgacaaccct
++taatacttccctttcgccgaatactggcgtggaaaggttttaaaagtcgaagtagttaga
++ggcatctctcgctcataaataggtagactactcgcaatccaatgtgactatgtaatactg
++ggaacatcagtccgcgatgcagcgtgtttatcaaccgtccccactcgcctggggagacat
++gagaccacccccgtggggattattagtccgcagtaatcgactcttgacaatccttttcga
++ttatgtcatagcaatttacgacagttcagcgaagtgactactcggcgaaatggtattact
++aaagcattcgaacccacatgaatgtgattcttggcaatttctaatccactaaagcttttc
++cgttgaatctggttgtagatatttatataagttcactaattaagatcacggtagtatatt
++gatagtgatgtctttgcaagaggttggccgaggaatttacggattctctattgatacaat
++ttgtctggcttataactcttaaggctgaaccaggcgtttttagacgacttgatcagctgt
++tagaatggtttggactccctctttcatgtcagtaacatttcagccgttattgttacgata
++tgcttgaacaatattgatctaccacacacccatagtatattttataggtcatgctgttac
++ctacgagcatggtattccacttcccattcaatgagtattcaacatcactagcctcagaga
++tgatgacccacctctaataacgtcacgttgcggccatgtgaaacctgaacttgagtagac
++gatatcaagcgctttaaattgcatataacatttgagggtaaagctaagcggatgctttat
++ataatcaatactcaataataagatttgattgcattttagagttatgacacgacatagttc
++actaacgagttactattcccagatctagactgaagtactgatcgagacgatccttacgtc
++gatgatcgttagttatcgacttaggtcgggtctctagcggtattggtacttaaccggaca
++ctatactaataacccatgatcaaagcataacagaatacagacgataatttcgccaacata
++tatgtacagaccccaagcatgagaagctcattgaaagctatcattgaagtcccgctcaca
++atgtgtcttttccagacggtttaactggttcccgggagtcctggagtttcgacttacata
++aatggaaacaatgtattttgctaatttatctatagcgtcatttggaccaatacagaatat
++tatgttgcctagtaatccactataacccgcaagtgctgatagaaaatttttagacgattt
++ataaatgccccaagtatccctcccgtgaatcctccgttatactaattagtattcgttcat
++acgtataccgcgcatatatgaacatttggcgataaggcgcgtgaattgttacgtgacaga
++gatagcagtttcttgtgatatggttaacagacgtacatgaagggaaactttatatctata
++gtgatgcttccgtagaaataccgccactggtctgccaatgatgaagtatgtagctttagg
++tttgtactatgaggctttcgtttgtttgcagagtataacagttgcgagtgaaaaaccgac
++gaatttatactaatacgctttcactattggctacaaaatagggaagagtttcaatcatga
++gagggagtatatggatgctttgtagctaaaggtagaacgtatgtatatgctgccgttcat
++tcttgaaagatacataagcgataagttacgacaattataagcaacatccctaccttcgta
++acgatttcactgttactgcgcttgaaatacactatggggctattggcggagagaagcaga
++tcgcgccgagcatatacgagacctataatgttgatgatagagaaggcgtctgaattgata
++catcgaagtacactttctttcgtagtatctctcgtcctctttctatctccggacacaaga
++attaagttatatatatagagtcttaccaatcatgttgaatcctgattctcagagttcttt
++ggcgggccttgtgatgactgagaaacaatgcaatattgctccaaatttcctaagcaaatt
++ctcggttatgttatgttatcagcaaagcgttacgttatgttatttaaatctggaatgacg
++gagcgaagttcttatgtcggtgtgggaataattcttttgaagacagcactccttaaataa
++tatcgctccgtgtttgtatttatcgaatgggtctgtaaccttgcacaagcaaatcggtgg
++tgtatatatcggataacaattaatacgatgttcatagtgacagtatactgatcgagtcct
++ctaaagtcaattacctcacttaacaatctcattgatgttgtgtcattcccggtatcgccc
++gtagtatgtgctctgattgaccgagtgtgaaccaaggaacatctactaatgcctttgtta
++ggtaagatctctctgaattccttcgtgccaacttaaaacattatcaaaatttcttctact
++tggattaactacttttacgagcatggcaaattcccctgtggaagacggttcattattatc
++ggaaaccttatagaaattgcgtgttgactgaaattagatttttattgtaagagttgcatc
++tttgcgattcctctggtctagcttccaatgaacagtcctcccttctattcgacatcgggt
++ccttcgtacatgtctttgcgatgtaataattaggttcggagtgtggccttaatgggtgca
++actaggaatacaacgcaaatttgctgacatgatagcaaatcggtatgccggcaccaaaac
++gtgctccttgcttagcttgtgaatgagactcagtagttaaataaatccatatctgcaatc
++gattccacaggtattgtccactatctttgaactactctaagagatacaagcttagctgag
++accgaggtgtatatgactacgctgatatctgtaaggtaccaatgcaggcaaagtatgcga
++gaagctaataccggctgtttccagctttataagattaaaatttggctgtcctggcggcct
++cagaattgttctatcgtaatcagttggttcattaattagctaagtacgaggtacaactta
++tctgtcccagaacagctccacaagtttttttacagccgaaacccctgtgtgaatcttaat
++atccaagcgcgttatctgattagagtttacaactcagtattttatcagtacgttttgttt
++ccaacattacccggtatgacaaaatgacgccacgtgtcgaataatggtctgaccaatgta
++ggaagtgaaaagataaatat
+diff --git a/test/bench/k-nucleotide.txt b/test/bench/k-nucleotide.txt
+index d13ae7dc6d..84169b8ec3 100644
+--- a/test/bench/k-nucleotide.txt
++++ b/test/bench/k-nucleotide.txt
+@@ -1,27 +1,27 @@
+-A 30.284
+-T 29.796
+-C 20.312
+-G 19.608
++T 31.520
++A 29.600
++C 19.480
++G 19.400
+ 
+-AA 9.212
+-AT 8.950
+-TT 8.948
+-TA 8.936
+-CA 6.166
+-CT 6.100
+-AC 6.086
+-TC 6.042
+-AG 6.036
+-GA 5.968
+-TG 5.868
+-GT 5.798
+-CC 4.140
+-GC 4.044
+-CG 3.906
+-GG 3.798
++AT 9.922
++TT 9.602
++TA 9.402
++AA 8.402
++GA 6.321
++TC 6.301
++TG 6.201
++GT 6.041
++CT 5.961
++AG 5.841
++CA 5.461
++AC 5.441
++CC 4.041
++CG 4.021
++GC 3.701
++GG 3.341
+ 
+-562	GGT
+-152	GGTA
+-15	GGTATT
+-0	GGTATTTTAATT
+-0	GGTATTTTAATTTATAGT
++54 GGT
++24 GGTA
++4 GGTATT
++0 GGTATTTTAATT
++0 GGTATTTTAATTTATAGT
+diff --git a/test/bench/nbody.txt b/test/bench/nbody.txt
+index a6a8ff5145..1731557ce1 100644
+--- a/test/bench/nbody.txt
++++ b/test/bench/nbody.txt
+@@ -1,2 +1,2 @@
+ -0.169075164
+--0.169059907
++-0.169087605
+diff --git a/test/bench/regex-dna.txt b/test/bench/regex-dna.txt
+index d36baa5be8..e23e71fd6e 100644
+--- a/test/bench/regex-dna.txt
++++ b/test/bench/regex-dna.txt
+@@ -1,13 +1,13 @@
+-agggtaaa|tttaccct 0
+-[cgt]gggtaaa|tttaccc[acg] 3
+-a[act]ggtaaa|tttacc[agt]t 9
+-ag[act]gtaaa|tttac[agt]ct 8
+-agg[act]taaa|ttta[agt]cct 10
+-aggg[acg]aaa|ttt[cgt]ccct 3
+-agggt[cgt]aa|tt[acg]accct 4
+-agggta[cgt]a|t[acg]taccct 3
+-agggtaa[cgt]|[acg]ttaccct 5
++agggtaaa|tttaccct 1
++[cgt]gggtaaa|tttaccc[acg] 0
++a[act]ggtaaa|tttacc[agt]t 0
++ag[act]gtaaa|tttac[agt]ct 0
++agg[act]taaa|ttta[agt]cct 1
++aggg[acg]aaa|ttt[cgt]ccct 0
++agggt[cgt]aa|tt[acg]accct 0
++agggta[cgt]a|t[acg]taccct 0
++agggtaa[cgt]|[acg]ttaccct 2
+ 
+-101745
+-100000
+-133640
++10245
++10000
++13348
+diff --git a/test/bench/threadring.txt b/test/bench/threadring.txt
+index f20bd4efea..f9aaa4d565 100644
+--- a/test/bench/threadring.txt
++++ b/test/bench/threadring.txt
+@@ -1 +1 @@
+-292
++498
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index e88ca7e157..a65e7f60a3 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -6,6 +6,13 @@
+ set -e
+ . $GOROOT/src/Make.$GOARCH
+ 
++mode=run
++case X"$1" in
++X-test)
++	mode=test
++	shift
++esac
++
+ gc() {
+ 	$GC $1.go; $LD $1.$O
+ }
+@@ -14,7 +21,40 @@ gc_B() {
+ 	$GC -B $1.go; $LD $1.$O
+ }
+ 
++runonly() {
++	if [ $mode = run ]
++	then
++		"$@"
++	fi
++}
++
++
++
+ run() {
++	if [ $mode = test ]
++	then
++		if echo $1 | grep -q '^gc '
++		then
++			$1	# compile the program
++			program=$(echo $1 | sed 's/gc //')
++			shift
++			echo $program
++			$1 <fasta-1000.out > /tmp/$$
++			case $program in
++			chameneosredux)
++				# exact numbers may vary but non-numbers should match
++				grep -v '[0-9]' /tmp/$$ > /tmp/$$x
++				grep -v '[0-9]' chameneosredux.txt > /tmp/$$y
++				cmp /tmp/$$x /tmp/$$y
++				rm -f /tmp/$$ /tmp/$$x /tmp/$$y
++				;;
++			*)
++				cmp /tmp/$$ $program.txt
++				rm -f /tmp/$$
++			esac
++		fi
++		return
++	fi
+ 	echo -n '	'$1'	'
+ 	$1
+ 	shift
+@@ -22,7 +62,7 @@ run() {
+ }
+ 
+ fasta() {
+-	echo 'fasta -n 25000000'
++	runonly echo 'fasta -n 25000000'
+ 	run 'gcc -O2 fasta.c' a.out 25000000
+ 	#run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
+ 	run 'gc fasta' $O.out -n 25000000
+@@ -30,9 +70,9 @@ fasta() {
+ }
+ 
+ revcomp() {
+-	gcc -O2 fasta.c
+-	a.out 25000000 > x
+-	echo 'reverse-complement < output-of-fasta-25000000'
++	runonly gcc -O2 fasta.c
++	runonly a.out 25000000 > x
++	runonly echo 'reverse-complement < output-of-fasta-25000000'
+ 	run 'gcc -O2 reverse-complement.c' a.out < x
+ 	run 'gccgo -O2 reverse-complement.go' a.out < x
+ 	run 'gc reverse-complement' $O.out < x
+@@ -41,7 +81,7 @@ revcomp() {
+ }
+ 
+ nbody() {
+-	echo 'nbody -n 50000000'
++	runonly echo 'nbody -n 50000000'
+ 	run 'gcc -O2 nbody.c' a.out 50000000
+ 	run 'gccgo -O2 nbody.go' a.out -n 50000000
+ 	run 'gc nbody' $O.out -n 50000000
+@@ -49,7 +89,7 @@ nbody() {
+ }
+ 
+ binarytree() {
+-	echo 'binary-tree 15 # too slow to use 20'
++	runonly echo 'binary-tree 15 # too slow to use 20'
+ 	run 'gcc -O2 binary-tree.c -lm' a.out 15
+ 	run 'gccgo -O2 binary-tree.go' a.out -n 15
+ 	run 'gccgo -O2 binary-tree-freelist.go' $O.out -n 15
+@@ -58,7 +98,7 @@ binarytree() {
+ }
+ 
+ fannkuch() {
+-	echo 'fannkuch 12'
++	runonly echo 'fannkuch 12'
+ 	run 'gcc -O2 fannkuch.c' a.out 12
+ 	run 'gccgo -O2 fannkuch.go' a.out -n 12
+ 	run 'gc fannkuch' $O.out -n 12
+@@ -66,9 +106,9 @@ fannkuch() {
+ }
+ 
+ regexdna() {
+-	gcc -O2 fasta.c
+-	a.out 100000 > x
+-	echo 'regex-dna 100000'
++	runonly gcc -O2 fasta.c
++	runonly a.out 100000 > x
++	runonly echo 'regex-dna 100000'
+ 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
+ #	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
+ 	run 'gc regex-dna' $O.out <x
+@@ -77,7 +117,7 @@ regexdna() {
+ }
+ 
+ spectralnorm() {
+-	echo 'spectral-norm 5500'
++	runonly echo 'spectral-norm 5500'
+ 	run 'gcc -O2 spectral-norm.c -lm' a.out 5500
+ 	run 'gccgo -O2 spectral-norm.go' a.out -n 5500
+ 	run 'gc spectral-norm' $O.out -n 5500
+@@ -85,9 +125,9 @@ spectralnorm() {
+ }
+ 
+ knucleotide() {
+-	gcc -O2 fasta.c
+-	a.out 1000000 > x  # should be using 25000000
+-	echo 'k-nucleotide 1000000'
++	runonly gcc -O2 fasta.c
++	runonly a.out 1000000 > x  # should be using 25000000
++	runonly echo 'k-nucleotide 1000000'
+ 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
+ 	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
+ 	run 'gc k-nucleotide' $O.out <x
+@@ -96,7 +136,7 @@ knucleotide() {
+ }
+ 
+ mandelbrot() {
+-	echo 'mandelbrot 16000'
++	runonly echo 'mandelbrot 16000'
+ 	run 'gcc -O2 mandelbrot.c' a.out 16000
+ 	run 'gccgo -O2 mandelbrot.go' a.out -n 16000
+ 	run 'gc mandelbrot' $O.out -n 16000
+@@ -104,7 +144,7 @@ mandelbrot() {
+ }
+ 
+ meteor() {
+-	echo 'meteor 16000'
++	runonly echo 'meteor 16000'
+ 	run 'gcc -O2 meteor-contest.c' a.out
+ 	run 'gccgo -O2 meteor-contest.go' a.out
+ 	run 'gc meteor-contest' $O.out
+@@ -112,7 +152,7 @@ meteor() {
+ }
+ 
+ pidigits() {
+-	echo 'pidigits 10000'
++	runonly echo 'pidigits 10000'
+ 	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+ #	run 'gccgo -O2 pidigits.go' a.out -n 10000  # uncomment when gccgo library updated
+ 	run 'gc pidigits' $O.out -n 10000
+@@ -120,14 +160,14 @@ pidigits() {
+ }
+ 
+ threadring() {
+-	echo 'threadring 50000000'
++	runonly echo 'threadring 50000000'
+ 	run 'gcc -O2 threadring.c -lpthread' a.out 50000000
+ 	run 'gccgo -O2 threadring.go' a.out -n 50000000
+ 	run 'gc threadring' $O.out -n 50000000
+ }
+ 
+ chameneos() {
+-	echo 'chameneos 6000000'
++	runonly echo 'chameneos 6000000'
+ 	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
+ #	run 'gccgo -O2 chameneosredux.go' a.out -n 6000000	# doesn't support the non-forward-decl variant
+ 	run 'gc chameneosredux' $O.out -n 6000000
+@@ -144,5 +184,5 @@ esac
+ for i in $run
+ do
+ 	$i
+-	echo
++	runonly echo
+ done

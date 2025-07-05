@@ -7,7 +7,7 @@ Date:   Sat Aug 3 16:01:04 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12396043
-
+---
  src/pkg/encoding/json/decode_test.go |  3 ---
  src/pkg/html/escape.go               | 10 ----------
  src/pkg/mime/grammar.go              | 13 -------------
@@ -16,3 +16,158 @@ Date:   Sat Aug 3 16:01:04 2013 +1000
  src/pkg/time/zoneinfo.go             | 13 -------------
  src/pkg/time/zoneinfo_read.go        |  4 ----
  7 files changed, 66 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index e868f4f1b7..3e16c4aec0 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -50,8 +50,6 @@ type tx struct {
+ 	x int
+ }
+ 
+-var txType = reflect.TypeOf((*tx)(nil)).Elem()
+-
+ // A type that can unmarshal itself.
+ 
+ type unmarshaler struct {
+@@ -1070,7 +1068,6 @@ func TestUnmarshalNulls(t *testing.T) {
+ 
+ func TestStringKind(t *testing.T) {
+ 	type stringKind string
+-	type aMap map[stringKind]int
+ 
+ 	var m1, m2 map[stringKind]int
+ 	m1 = map[stringKind]int{
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index eff0384e08..dd5dfa7cd7 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -187,16 +187,6 @@ func unescape(b []byte) []byte {
+ 	return b
+ }
+ 
+-// lower lower-cases the A-Z bytes in b in-place, so that "aBc" becomes "abc".
+-func lower(b []byte) []byte {
+-	for i, c := range b {
+-		if 'A' <= c && c <= 'Z' {
+-			b[i] = c + 'a' - 'A'
+-		}
+-	}
+-	return b
+-}
+-
+ const escapedChars = `&'<>"`
+ 
+ func escape(w writer, s string) error {
+diff --git a/src/pkg/mime/grammar.go b/src/pkg/mime/grammar.go
+index 09e941e3ec..2347324aa5 100644
+--- a/src/pkg/mime/grammar.go
++++ b/src/pkg/mime/grammar.go
+@@ -30,16 +30,3 @@ func isToken(s string) bool {
+ 	}
+ 	return strings.IndexFunc(s, isNotTokenChar) < 0
+ }
+-
+-// isQText returns true if rune is in 'qtext' as defined by RFC 822.
+-func isQText(r int) bool {
+-	// CHAR        =  <any ASCII character>        ; (  0-177,  0.-127.)
+-	// qtext       =  <any CHAR excepting <">,     ; => may be folded
+-	//                "\" & CR, and including
+-	//                linear-white-space>
+-	switch r {
+-	case '"', '\\', '\r':
+-		return false
+-	}
+-	return r < 0x80
+-}
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 802e298c23..2919124d3b 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -14,7 +14,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"unicode"
+ )
+ 
+ // Tree is the representation of a single parsed template.
+@@ -200,27 +199,6 @@ func (t *Tree) stopParse() {
+ 	t.funcs = nil
+ }
+ 
+-// atEOF returns true if, possibly after spaces, we're at EOF.
+-func (t *Tree) atEOF() bool {
+-	for {
+-		token := t.peek()
+-		switch token.typ {
+-		case itemEOF:
+-			return true
+-		case itemText:
+-			for _, r := range token.val {
+-				if !unicode.IsSpace(r) {
+-					return false
+-				}
+-			}
+-			t.next() // skip spaces.
+-			continue
+-		}
+-		break
+-	}
+-	return false
+-}
+-
+ // Parse parses the template definition string to construct a representation of
+ // the template for execution. If either action delimiter string is empty, the
+ // default ("{{" or "}}") is used. Embedded template definitions are added to
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 66971f53a6..4a8ee8fd33 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -669,7 +669,6 @@ const (
+ 	daysPer400Years  = 365*400 + 97
+ 	daysPer100Years  = 365*100 + 24
+ 	daysPer4Years    = 365*4 + 1
+-	days1970To2001   = 31*365 + 8
+ )
+ 
+ // date computes the year, day of year, and when full=true,
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index c44477f474..1c6186258f 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -178,19 +178,6 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool,
+ 	return
+ }
+ 
+-// lookupOffset returns information about the time zone with
+-// the given offset (such as -5*60*60).
+-func (l *Location) lookupOffset(offset int) (name string, isDST bool, ok bool) {
+-	l = l.get()
+-	for i := range l.zone {
+-		zone := &l.zone[i]
+-		if zone.offset == offset {
+-			return zone.name, zone.isDST, true
+-		}
+-	}
+-	return
+-}
+-
+ // NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
+ // syntax too, but I don't feel like implementing it today.
+ 
+diff --git a/src/pkg/time/zoneinfo_read.go b/src/pkg/time/zoneinfo_read.go
+index 4519c99623..7714aa9f58 100644
+--- a/src/pkg/time/zoneinfo_read.go
++++ b/src/pkg/time/zoneinfo_read.go
+@@ -11,10 +11,6 @@ package time
+ 
+ import "errors"
+ 
+-const (
+-	headerSize = 4 + 16 + 4*7
+-)
+-
+ // Simple I/O interface to binary blob of data.
+ type data struct {
+ 	p     []byte

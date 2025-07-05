@@ -9,9 +9,219 @@ Date:   Tue Dec 1 15:31:28 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/164062
-
+---
  src/pkg/gob/decode.go       | 25 ++++++++++++++++++-------
  src/pkg/gob/encoder.go      | 23 +++++++++++++++--------
  src/pkg/gob/encoder_test.go | 12 ++++++++++++
  src/pkg/gob/type.go         | 34 ++++++++++++++++++++++++----------
  4 files changed, 69 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index b8400480cf..d12e97b3cd 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -527,7 +527,12 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
+ 				op = decUint8Array;
+ 				break;
+ 			}
+-			elemId := wireId.gobType().(*sliceType).Elem;
++			var elemId typeId;
++			if tt, ok := builtinIdToType[wireId]; ok {
++				elemId = tt.(*sliceType).Elem
++			} else {
++				elemId = dec.wireType[wireId].slice.Elem
++			}
+ 			elemOp, elemIndir, err := dec.decOpFor(elemId, t.Elem(), name);
+ 			if err != nil {
+ 				return nil, 0, err
+@@ -614,7 +619,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
+ // Are these two gob Types compatible?
+ // Answers the question for basic types, arrays, and slices.
+ // Structs are considered ok; fields will be checked later.
+-func compatibleType(fr reflect.Type, fw typeId) bool {
++func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 	for {
+ 		if pt, ok := fr.(*reflect.PtrType); ok {
+ 			fr = pt.Elem();
+@@ -660,16 +665,22 @@ func compatibleType(fr reflect.Type, fw typeId) bool {
+ 		return fw == tString
+ 	case *reflect.ArrayType:
+ 		aw, ok := fw.gobType().(*arrayType);
+-		return ok && t.Len() == aw.Len && compatibleType(t.Elem(), aw.Elem);
++		return ok && t.Len() == aw.Len && dec.compatibleType(t.Elem(), aw.Elem);
+ 	case *reflect.SliceType:
+ 		// Is it an array of bytes?
+ 		et := t.Elem();
+ 		if _, ok := et.(*reflect.Uint8Type); ok {
+ 			return fw == tBytes
+ 		}
+-		sw, ok := fw.gobType().(*sliceType);
++		// Extract and compare element types.
++		var sw *sliceType;
++		if tt, ok := builtinIdToType[fw]; ok {
++			sw = tt.(*sliceType)
++		} else {
++			sw = dec.wireType[fw].slice
++		}
+ 		elem, _ := indirect(t.Elem());
+-		return ok && compatibleType(elem, sw.Elem);
++		return sw != nil && dec.compatibleType(elem, sw.Elem);
+ 	case *reflect.StructType:
+ 		return true
+ 	}
+@@ -687,7 +698,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
+ 		if !ok1 || !ok2 {
+ 			return nil, errNotStruct
+ 		}
+-		wireStruct = w.s;
++		wireStruct = w.strct;
+ 	}
+ 	engine = new(decEngine);
+ 	engine.instr = make([]decInstr, len(wireStruct.field));
+@@ -706,7 +717,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
+ 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl};
+ 			continue;
+ 		}
+-		if !compatibleType(localField.Type, wireField.id) {
++		if !dec.compatibleType(localField.Type, wireField.id) {
+ 			details := " (" + wireField.id.String() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
+ 			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + details);
+ 		}
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 28ecaec93f..548326c704 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -244,17 +244,20 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 	default:
+ 		// Basic types do not need to be described.
+ 		return
++	case reflect.ArrayOrSliceType:
++		// If it's []uint8, don't send; it's considered basic.
++		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
++			return
++		}
++		// Otherwise we do send.
++		break;
++	// Struct types are not sent, only their element types.
+ 	case *reflect.StructType:
+-		// Structs do need to be described.
+ 		break
+ 	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
+ 		// Probably a bad field in a struct.
+ 		enc.badType(rt);
+ 		return;
+-	// Array and slice types are not sent, only their element types.
+-	case reflect.ArrayOrSliceType:
+-		enc.sendType(rt.Elem());
+-		return;
+ 	}
+ 
+ 	// Have we already sent this type?  This time we ask about the base type.
+@@ -282,9 +285,13 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 	// Remember we've sent the top-level, possibly indirect type too.
+ 	enc.sent[origt] = info.id;
+ 	// Now send the inner types
+-	st := rt.(*reflect.StructType);
+-	for i := 0; i < st.NumField(); i++ {
+-		enc.sendType(st.Field(i).Type)
++	switch st := rt.(type) {
++	case *reflect.StructType:
++		for i := 0; i < st.NumField(); i++ {
++			enc.sendType(st.Field(i).Type)
++		}
++	case reflect.ArrayOrSliceType:
++		enc.sendType(st.Elem())
+ 	}
+ 	return;
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 43d3e72ed9..77487884d6 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -213,3 +213,15 @@ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
+ 		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a)
+ 	}
+ }
++
++func TestSlice(t *testing.T) {
++	// Encode a *T, decode a T
++	type Type3 struct {
++		a []string;
++	}
++	t3p := &Type3{[]string{"hello", "world"}};
++	var t3 Type3;
++	if err := encAndDec(t3, t3p); err != nil {
++		t.Error(err)
++	}
++}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index ffff0541df..53e0169e96 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -98,13 +98,13 @@ var tBytes = bootstrapType("bytes", make([]byte, 0), 5)
+ var tString = bootstrapType("string", "", 6)
+ 
+ // Predefined because it's needed by the Decoder
+-var tWireType = getTypeInfoNoError(reflect.Typeof(wireType{})).id
++var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
+ 
+ func init() {
+ 	checkId(7, tWireType);
+-	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
+-	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
+-	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
++	checkId(9, mustGetTypeInfo(reflect.Typeof(commonType{})).id);
++	checkId(11, mustGetTypeInfo(reflect.Typeof(structType{})).id);
++	checkId(12, mustGetTypeInfo(reflect.Typeof(fieldType{})).id);
+ 	builtinIdToType = make(map[typeId]gobType);
+ 	for k, v := range idToType {
+ 		builtinIdToType[k] = v
+@@ -346,12 +346,16 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ // are built in encode.go's init() function.
+ 
+ type wireType struct {
+-	s *structType;
++	array	*arrayType;
++	slice	*sliceType;
++	strct	*structType;
+ }
+ 
+ func (w *wireType) name() string {
+-	// generalize once we can have non-struct types on the wire.
+-	return w.s.name
++	if w.strct != nil {
++		return w.strct.name
++	}
++	return "unknown";
+ }
+ 
+ type typeInfo struct {
+@@ -377,15 +381,25 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 			return nil, err
+ 		}
+ 		info.id = gt.id();
+-		// assume it's a struct type
+-		info.wire = &wireType{info.id.gobType().(*structType)};
++		t := info.id.gobType();
++		switch typ := rt.(type) {
++		case *reflect.ArrayType:
++			info.wire = &wireType{array: t.(*arrayType)}
++		case *reflect.SliceType:
++			// []byte == []uint8 is a special case handled separately
++			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
++				info.wire = &wireType{slice: t.(*sliceType)}
++			}
++		case *reflect.StructType:
++			info.wire = &wireType{strct: t.(*structType)}
++		}
+ 		typeInfoMap[rt] = info;
+ 	}
+ 	return info, nil;
+ }
+ 
+ // Called only when a panic is acceptable and unexpected.
+-func getTypeInfoNoError(rt reflect.Type) *typeInfo {
++func mustGetTypeInfo(rt reflect.Type) *typeInfo {
+ 	t, err := getTypeInfo(rt);
+ 	if err != nil {
+ 		panicln("getTypeInfo:", err.String())

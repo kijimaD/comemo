@@ -7,7 +7,7 @@ Date:   Sat Feb 18 21:07:08 2012 -0500
     R=golang-dev, ken2
     CC=golang-dev
     https://golang.org/cl/5674098
-
+---
  src/cmd/gc/const.c       | 7 +++----
  src/cmd/gc/export.c      | 2 +-
  src/cmd/gc/fmt.c         | 4 ++--
@@ -18,3 +18,199 @@ Date:   Sat Feb 18 21:07:08 2012 -0500
  test/named.go            | 4 +---
  test/named1.go           | 4 ++--
  9 files changed, 13 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 550e7e4943..1136277dcc 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -586,7 +586,7 @@ evconst(Node *n)
+ 			n->diag = 1;
+ 		}
+ 		return;
+-
++	
+ 	case TUP(OADD, CTINT):
+ 	case TUP(OADD, CTRUNE):
+ 		mpaddfixfix(v.u.xval, rv.u.xval, 0);
+@@ -660,7 +660,6 @@ evconst(Node *n)
+ 		}
+ 		mpdivfltflt(v.u.fval, rv.u.fval);
+ 		break;
+-
+ 	case TUP(OADD, CTCPLX):
+ 		mpaddfltflt(&v.u.cval->real, &rv.u.cval->real);
+ 		mpaddfltflt(&v.u.cval->imag, &rv.u.cval->imag);
+@@ -936,7 +935,7 @@ nodlit(Val v)
+ 		n->type = idealstring;
+ 		break;
+ 	case CTBOOL:
+-		n->type = idealbool;
++		n->type = types[TBOOL];
+ 		break;
+ 	case CTINT:
+ 	case CTRUNE:
+@@ -1025,7 +1024,7 @@ defaultlit(Node **np, Type *t)
+ 			defaultlit(&n->left, t);
+ 			defaultlit(&n->right, t);
+ 		}
+-		if(n->type == idealbool || n->type == idealstring)
++		if(n->type == types[TBOOL] || n->type == idealstring)
+ 			n->type = types[n->type->etype];
+ 		else
+ 			n->type = n->left->type;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index bbed8ae36e..1eb4c2280c 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -122,7 +122,7 @@ reexportdep(Node *n)
+ 
+ 	case OLITERAL:
+ 		t = n->type;
+-		if(t != types[n->type->etype] && t != idealbool && t != idealstring) {
++		if(t != types[n->type->etype] && t != idealstring) {
+ 			if(isptr[t->etype])
+ 				t = t->type;
+ 			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 093b276f07..b942ed6082 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -602,7 +602,7 @@ typefmt(Fmt *fp, Type *t)
+ 	}
+ 
+ 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
+-		if(fmtmode == FErr && (t == idealbool || t == idealstring))
++		if(fmtmode == FErr && t == idealstring)
+ 			fmtstrcpy(fp, "ideal ");
+ 		return fmtstrcpy(fp, basicnames[t->etype]);
+ 	}
+@@ -1086,7 +1086,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "%S", n->sym);
+ 		if(n->val.ctype == CTNIL)
+ 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
+-		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
++		if(n->type != types[n->type->etype] && n->type != idealstring) {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+ 			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fcbea2cd90..8141b96869 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -775,7 +775,6 @@ EXTERN	Idir*	idirs;
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	Type*	idealstring;
+-EXTERN	Type*	idealbool;
+ EXTERN	Type*	bytetype;
+ EXTERN	Type*	runetype;
+ EXTERN	Type*	errortype;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e880b2f34c..56f34fde7f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1824,17 +1824,16 @@ lexinit(void)
+ 	// this is the ideal form
+ 	// (the type of x in const x = "hello").
+ 	idealstring = typ(TSTRING);
+-	idealbool = typ(TBOOL);
+ 
+ 	s = pkglookup("true", builtinpkg);
+ 	s->def = nodbool(1);
+ 	s->def->sym = lookup("true");
+-	s->def->type = idealbool;
++	s->def->type = types[TBOOL];
+ 
+ 	s = pkglookup("false", builtinpkg);
+ 	s->def = nodbool(0);
+ 	s->def->sym = lookup("false");
+-	s->def->type = idealbool;
++	s->def->type = types[TBOOL];
+ 
+ 	s = lookup("_");
+ 	s->block = -100;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5621ed9d34..74041fdced 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -768,7 +768,7 @@ nodbool(int b)
+ 	c = nodintconst(0);
+ 	c->val.ctype = CTBOOL;
+ 	c->val.u.bval = b;
+-	c->type = idealbool;
++	c->type = types[TBOOL];
+ 	return c;
+ }
+ 
+@@ -929,7 +929,7 @@ isideal(Type *t)
+ {
+ 	if(t == T)
+ 		return 0;
+-	if(t == idealstring || t == idealbool)
++	if(t == idealstring)
+ 		return 1;
+ 	switch(t->etype) {
+ 	case TNIL:
+diff --git a/test/fixedbugs/bug285.go b/test/fixedbugs/bug285.go
+index 0a8a0f09e6..6b0099b8db 100644
+--- a/test/fixedbugs/bug285.go
++++ b/test/fixedbugs/bug285.go
+@@ -20,7 +20,6 @@ func main() {
+ 	type B bool
+ 	b := B(false)
+ 	mb := make(map[B]int)
+-	mb[false] = 42 // this should work: false is assignment compatible with B
+ 	mb[b] = 42
+ 
+ 	type Z int
+diff --git a/test/named.go b/test/named.go
+index d0330ab238..9b8e10ba22 100644
+--- a/test/named.go
++++ b/test/named.go
+@@ -31,7 +31,6 @@ func asString(String) {}
+ 
+ func (Map) M() {}
+ 
+-
+ // These functions check at run time that the default type
+ // (in the absence of any implicit conversion hints)
+ // is the given type.
+@@ -47,7 +46,7 @@ func isString(x interface{}) { _ = x.(String) }
+ func main() {
+ 	var (
+ 		a     Array
+-		b     Bool   = true
++		b     Bool   = Bool(true)
+ 		c     Chan   = make(Chan)
+ 		f     Float  = 1
+ 		i     Int    = 1
+@@ -67,7 +66,6 @@ func main() {
+ 	isBool(b)
+ 	asBool(!b)
+ 	isBool(!b)
+-	asBool(true)
+ 	asBool(*&b)
+ 	isBool(*&b)
+ 	asBool(Bool(true))
+diff --git a/test/named1.go b/test/named1.go
+index ca9da0fa31..8be7292ca9 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -26,7 +26,7 @@ type String string
+ 
+ func main() {
+ 	var (
+-		b    Bool = true
++		b    Bool = Bool(true)
+ 		i, j int
+ 		c    = make(chan int)
+ 		m    = make(Map)
+@@ -34,7 +34,7 @@ func main() {
+ 
+ 	asBool(b)
+ 	asBool(!b)
+-	asBool(true)
++	asBool(true) // ERROR "cannot use.*type bool.*as type Bool"
+ 	asBool(*&b)
+ 	asBool(Bool(true))
+ 	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"

@@ -19,7 +19,35 @@ Date:   Thu Mar 30 16:00:15 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/errors/join.go | 2 ++
  src/errors/wrap.go | 3 ++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/errors/join.go b/src/errors/join.go
+index 329082a5e3..1c486d591e 100644
+--- a/src/errors/join.go
++++ b/src/errors/join.go
+@@ -10,6 +10,8 @@ package errors
+ // The error formats as the concatenation of the strings obtained
+ // by calling the Error method of each element of errs, with a newline
+ // between each string.
++//
++// A non-nil error returned by Join implements the Unwrap() []error method.
+ func Join(errs ...error) error {
+ 	n := 0
+ 	for _, err := range errs {
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index a719655b10..1f54b66e5c 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -12,7 +12,8 @@ import (
+ // type contains an Unwrap method returning error.
+ // Otherwise, Unwrap returns nil.
+ //
+-// Unwrap returns nil if the Unwrap method returns []error.
++// Unwrap only calls a method of the form "Unwrap() error".
++// In particular Unwrap does not unwrap errors returned by [Join].
+ func Unwrap(err error) error {
+ 	u, ok := err.(interface {
+ 		Unwrap() error

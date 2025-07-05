@@ -7,6 +7,20 @@ Date:   Wed Sep 24 10:35:59 2008 -0700
     R=rsc
     OCL=15751
     CL=15751
-
+---
  src/cmd/prof/main.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index cd708e96f7..0712c7b673 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -252,7 +252,7 @@ dumphistogram()
+ 			x = pcs[i];
+ 			func(b2, sizeof(b2), x->pc);
+ 			if(j > 0 && strcmp(b1, b2) == 0) {
+-				pcs[i-1]->count += x->count;
++				pcs[j-1]->count += x->count;
+ 			} else {
+ 				strcpy(b1, b2);
+ 				pcs[j++] = x;

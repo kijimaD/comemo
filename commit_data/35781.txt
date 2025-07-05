@@ -14,8 +14,78 @@ Date:   Wed Mar 7 15:10:27 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go     | 22 ++++++++++++----------
  src/cmd/compile/internal/types/type.go |  5 +++++
  test/escape5.go                        | 12 ++++++++++++
  3 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 9c486e7898..eed863aa13 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2259,16 +2259,18 @@ func (e *EscState) esctag(fn *Node) {
+ 	// Unnamed parameters are unused and therefore do not escape.
+ 	// (Unnamed parameters are not in the Dcl list in the loop above
+ 	// so we need to mark them separately.)
+-	for _, f := range fn.Type.Params().Fields().Slice() {
+-		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+-			continue
+-		}
+-		if f.Note == uintptrEscapesTag {
+-			// Note is already set in the loop above.
+-			continue
+-		}
+-		if f.Sym == nil || f.Sym.IsBlank() {
+-			f.Note = mktag(EscNone)
++	for _, fs := range types.RecvsParams {
++		for _, f := range fs(fn.Type).Fields().Slice() {
++			if !types.Haspointers(f.Type) { // don't bother tagging for scalars
++				continue
++			}
++			if f.Note == uintptrEscapesTag {
++				// Note is already set in the loop above.
++				continue
++			}
++			if f.Sym == nil || f.Sym.IsBlank() {
++				f.Note = mktag(EscNone)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e62d324cde..87623a2cc3 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -726,6 +726,11 @@ var RecvsParamsResults = [3]func(*Type) *Type{
+ 	(*Type).Recvs, (*Type).Params, (*Type).Results,
+ }
+ 
++// RecvsParams is like RecvsParamsResults, but omits result parameters.
++var RecvsParams = [2]func(*Type) *Type{
++	(*Type).Recvs, (*Type).Params,
++}
++
+ // ParamsResults is like RecvsParamsResults, but omits receiver parameters.
+ var ParamsResults = [2]func(*Type) *Type{
+ 	(*Type).Params, (*Type).Results,
+diff --git a/test/escape5.go b/test/escape5.go
+index 7d6ef554a5..0bae1e8401 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -163,3 +163,15 @@ func f13() {
+ 	f12(&x)               // ERROR "&x does not escape"
+ 	runtime.KeepAlive(&x) // ERROR "&x does not escape"
+ }
++
++// Test for issue 24305 (passing to unnamed receivers does not escape).
++type U int
++
++func (*U) M()   {}
++func (_ *U) N() {}
++
++func _() {
++	var u U
++	u.M() // ERROR "u does not escape"
++	u.N() // ERROR "u does not escape"
++}

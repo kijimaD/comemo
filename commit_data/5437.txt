@@ -9,8 +9,79 @@ Date:   Mon May 3 17:51:48 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1092041
-
+---
  src/cmd/gc/sinit.c                 |  4 +++-
  test/{bugs => fixedbugs}/bug264.go |  5 -----
  test/golden.out                    | 11 -----------
  3 files changed, 3 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 6f0772b63e..20822542ab 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -31,8 +31,10 @@ init1(Node *n, NodeList **out)
+ 	case PFUNC:
+ 		break;
+ 	default:
+-		if(isblank(n))
++		if(isblank(n) && n->defn != N && !n->defn->initorder) {
++			n->defn->initorder = 1;
+ 			*out = list(*out, n->defn);
++		}
+ 		return;
+ 	}
+ 
+diff --git a/test/bugs/bug264.go b/test/fixedbugs/bug264.go
+similarity index 91%
+rename from test/bugs/bug264.go
+rename to test/fixedbugs/bug264.go
+index e0b288d94a..6d86c6fe5b 100644
+--- a/test/bugs/bug264.go
++++ b/test/fixedbugs/bug264.go
+@@ -8,27 +8,22 @@
+ 
+ package main
+ 
+-import "fmt"
+-
+ var fooCount = 0
+ var barCount = 0
+ var balCount = 0
+ 
+ func foo() (int, int) {
+ 	fooCount++
+-	fmt.Println("foo")
+ 	return 0, 0
+ }
+ 
+ func bar() (int, int) {
+ 	barCount++
+-	fmt.Println("bar")
+ 	return 0, 0
+ }
+ 
+ func bal() (int, int) {
+ 	balCount++
+-	fmt.Println("bal")
+ 	return 0, 0
+ }
+ 
+diff --git a/test/golden.out b/test/golden.out
+index 59aec777bc..49bca4b874 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,14 +177,3 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
+-
+-=========== bugs/bug264.go
+-foo
+-bar
+-bar
+-bal
+-bal
+-panic: barCount != 1
+-
+-panic PC=xxx
+-BUG

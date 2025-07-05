@@ -20,7 +20,7 @@ Date:   Tue May 22 14:45:27 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../internal/ssa/testdata/hist.dlv-dbg.nexts       |   2 +-
  .../internal/ssa/testdata/hist.dlv-opt.nexts       |   2 +-
  .../internal/ssa/testdata/hist.gdb-dbg.nexts       |   2 +-
@@ -37,3 +37,623 @@ Date:   Tue May 22 14:45:27 2018 -0400
  .../internal/ssa/testdata/scopes.gdb-opt.nexts     |  86 +++++++-------
  src/cmd/compile/internal/ssa/testdata/scopes.go    |   8 ++
  15 files changed, 252 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
+index ec79b77de2..a0404e4786 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
+@@ -96,4 +96,4 @@
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 88:				continue
+ 86:		for i, a := range hist {
+-98:	}
++99:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+index 3f10e15aa0..089d176c60 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+@@ -148,4 +148,4 @@
+ 86:		for i, a := range hist {
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 86:		for i, a := range hist {
+-98:	}
++99:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+index fe000147bd..4fde3bcc66 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+@@ -120,4 +120,4 @@ t = 22
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 88:				continue
+ 86:		for i, a := range hist {
+-98:	}
++99:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+index e04158982e..ad2719185e 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+@@ -158,4 +158,4 @@ a = 0
+ n = 9
+ t = 22
+ 86:		for i, a := range hist {
+-98:	}
++99:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.go b/src/cmd/compile/internal/ssa/testdata/hist.go
+index 8a0cc27280..f8fa6e670e 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.go
++++ b/src/cmd/compile/internal/ssa/testdata/hist.go
+@@ -94,5 +94,13 @@ func test() {
+ }
+ 
+ func main() {
++	growstack() // Use stack early to prevent growth during test, which confuses gdb
+ 	test()
+ }
++
++var snk string
++
++//go:noinline
++func growstack() {
++	snk = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
++}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts
+index 3c33fe0bfd..a00934be18 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts
+@@ -8,4 +8,4 @@
+ 27:		for _, p := range t.stuff {
+ 28:			if isFoo(t, p) {
+ 29:				return
+-43:	}
++44:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22558.go b/src/cmd/compile/internal/ssa/testdata/i22558.go
+index a62e11e5eb..8aea76c3c0 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22558.go
++++ b/src/cmd/compile/internal/ssa/testdata/i22558.go
+@@ -37,7 +37,15 @@ func isFoo(t *thing, b big) bool {
+ }
+ 
+ func main() {
++	growstack() // Use stack early to prevent growth during test, which confuses gdb
+ 	t := &thing{name: "t", self: nil, next: nil, stuff: make([]big, 1)}
+ 	u := thing{name: "u", self: t, next: t, stuff: make([]big, 1)}
+ 	test(t, &u)
+ }
++
++var snk string
++
++//go:noinline
++func growstack() {
++	snk = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
++}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22600.dlv-dbg-race.nexts b/src/cmd/compile/internal/ssa/testdata/i22600.dlv-dbg-race.nexts
+index 46aad7c913..18a5ff9247 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22600.dlv-dbg-race.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/i22600.dlv-dbg-race.nexts
+@@ -4,4 +4,4 @@
+ 10:		if err != nil {
+ 14:		fmt.Println(pwd)
+ 15:	}
+-19:	}
++20:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22600.gdb-dbg-race.nexts b/src/cmd/compile/internal/ssa/testdata/i22600.gdb-dbg-race.nexts
+index bfffec4a5d..46285e2078 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22600.gdb-dbg-race.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/i22600.gdb-dbg-race.nexts
+@@ -4,4 +4,4 @@
+ 10:		if err != nil {
+ 14:		fmt.Println(pwd)
+ 15:	}
+-19:	}
++20:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22600.go b/src/cmd/compile/internal/ssa/testdata/i22600.go
+index f7a7ade374..27f0d3d565 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22600.go
++++ b/src/cmd/compile/internal/ssa/testdata/i22600.go
+@@ -15,5 +15,13 @@ func test() {
+ }
+ 
+ func main() {
++	growstack() // Use stack early to prevent growth during test, which confuses gdb
+ 	test()
+ }
++
++var snk string
++
++//go:noinline
++func growstack() {
++	snk = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
++}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts
+index 8151b59475..f182ff45d4 100644
+--- a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts
+@@ -1,56 +1,56 @@
+   ./testdata/scopes.go
+-21:	func test() {
+-22:		x := id(0)
+-23:		y := id(0)
+-24:		fmt.Println(x)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-30:		fmt.Println(x, y)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-33:			a := y
+-34:			f1(a)
+-36:				b := 0
+-37:				f2(b)
+-38:				if gretbool() {
+-39:					c := 0
+-40:					f3(c)
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-33:			a := y
+-34:			f1(a)
+-36:				b := 0
+-37:				f2(b)
+-38:				if gretbool() {
+-42:					c := 1.1
+-43:					f4(int(c))
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-52:				j = id(1)
+-53:				f = id(2)
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-58:					fmt.Println("foo")
+-59:					break
+-63:			helloworld()
+-65:	}
+-14:	}
++22:	func test() {
++23:		x := id(0)
++24:		y := id(0)
++25:		fmt.Println(x)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++31:		fmt.Println(x, y)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++34:			a := y
++35:			f1(a)
++37:				b := 0
++38:				f2(b)
++39:				if gretbool() {
++40:					c := 0
++41:					f3(c)
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++34:			a := y
++35:			f1(a)
++37:				b := 0
++38:				f2(b)
++39:				if gretbool() {
++43:					c := 1.1
++44:					f4(int(c))
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++53:				j = id(1)
++54:				f = id(2)
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++59:					fmt.Println("foo")
++60:					break
++64:			helloworld()
++66:	}
++15:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts
+index 2036f398a4..1af55df4a0 100644
+--- a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts
+@@ -1,63 +1,63 @@
+   ./testdata/scopes.go
+-21:	func test() {
+-22:		x := id(0)
+-23:		y := id(0)
+-24:		fmt.Println(x)
+-25:		for i := x; i < 3; i++ {
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-25:		for i := x; i < 3; i++ {
+-30:		fmt.Println(x, y)
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+-30:		fmt.Println(x, y)
+-21:	func test() {
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-34:			f1(a)
+-37:				f2(b)
+-38:				if gretbool() {
+-40:					f3(c)
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-34:			f1(a)
+-37:				f2(b)
+-38:				if gretbool() {
+-43:					f4(int(c))
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-52:				j = id(1)
+-53:				f = id(2)
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-55:			for i := 0; i <= 5; i++ {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-55:			for i := 0; i <= 5; i++ {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-58:					fmt.Println("foo")
+-63:			helloworld()
+-65:	}
+-14:	}
++22:	func test() {
++23:		x := id(0)
++24:		y := id(0)
++25:		fmt.Println(x)
++26:		for i := x; i < 3; i++ {
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++31:		fmt.Println(x, y)
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++31:		fmt.Println(x, y)
++22:	func test() {
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++35:			f1(a)
++38:				f2(b)
++39:				if gretbool() {
++41:					f3(c)
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++35:			f1(a)
++38:				f2(b)
++39:				if gretbool() {
++44:					f4(int(c))
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++53:				j = id(1)
++54:				f = id(2)
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++56:			for i := 0; i <= 5; i++ {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++56:			for i := 0; i <= 5; i++ {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++59:					fmt.Println("foo")
++64:			helloworld()
++66:	}
++15:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts
+index 813a71de7e..6eb4903911 100644
+--- a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts
+@@ -1,64 +1,64 @@
+   src/cmd/compile/internal/ssa/testdata/scopes.go
+-21:	func test() {
+-22:		x := id(0)
+-23:		y := id(0)
+-24:		fmt.Println(x)
++22:	func test() {
++23:		x := id(0)
++24:		y := id(0)
++25:		fmt.Println(x)
+ 0:
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 0
+ y = 0
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 1
+ y = 0
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 4
+ y = 1
+-25:		for i := x; i < 3; i++ {
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 0
+ y = 5
+-30:		fmt.Println(x, y)
++31:		fmt.Println(x, y)
+ 0: 5
+-33:			a := y
+-34:			f1(a)
+-36:				b := 0
+-37:				f2(b)
+-38:				if gretbool() {
+-39:					c := 0
+-40:					f3(c)
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-33:			a := y
+-34:			f1(a)
+-36:				b := 0
+-37:				f2(b)
+-38:				if gretbool() {
+-42:					c := 1.1
+-43:					f4(int(c))
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-52:				j = id(1)
+-53:				f = id(2)
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-56:				j += j * (j ^ 3) / 100
+-57:				if i == f {
+-58:					fmt.Println("foo")
+-59:					break
+-63:			helloworld()
+-65:	}
+-14:	}
++34:			a := y
++35:			f1(a)
++37:				b := 0
++38:				f2(b)
++39:				if gretbool() {
++40:					c := 0
++41:					f3(c)
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++34:			a := y
++35:			f1(a)
++37:				b := 0
++38:				f2(b)
++39:				if gretbool() {
++43:					c := 1.1
++44:					f4(int(c))
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++53:				j = id(1)
++54:				f = id(2)
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++57:				j += j * (j ^ 3) / 100
++58:				if i == f {
++59:					fmt.Println("foo")
++60:					break
++64:			helloworld()
++66:	}
++15:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts
+index b6382375d4..a66eab83cd 100644
+--- a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts
+@@ -1,54 +1,54 @@
+   src/cmd/compile/internal/ssa/testdata/scopes.go
+-21:	func test() {
+-22:		x := id(0)
+-23:		y := id(0)
+-24:		fmt.Println(x)
++22:	func test() {
++23:		x := id(0)
++24:		y := id(0)
++25:		fmt.Println(x)
+ 0:
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 0
+ y = 0
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 1
+ y = 0
+-25:		for i := x; i < 3; i++ {
+-26:			x := i * i
+-27:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++27:			x := i * i
++28:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 4
+ y = 1
+-25:		for i := x; i < 3; i++ {
+-30:		fmt.Println(x, y)
+-29:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++26:		for i := x; i < 3; i++ {
++31:		fmt.Println(x, y)
++30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+ x = 0
+ y = 5
+ 0: 5
+-34:			f1(a)
+-37:				f2(b)
+-38:				if gretbool() {
+-40:					f3(c)
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-34:			f1(a)
+-37:				f2(b)
+-38:				if gretbool() {
+-43:					f4(int(c))
+-45:				f5(b)
+-47:			f6(a)
+-32:		for x := 0; x <= 1; x++ { // From delve scopetest.go
+-52:				j = id(1)
+-53:				f = id(2)
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-61:				sleepytime()
+-55:			for i := 0; i <= 5; i++ {
+-57:				if i == f {
+-58:					fmt.Println("foo")
+-63:			helloworld()
+-65:	}
+-14:	}
++35:			f1(a)
++38:				f2(b)
++39:				if gretbool() {
++41:					f3(c)
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++35:			f1(a)
++38:				f2(b)
++39:				if gretbool() {
++44:					f4(int(c))
++46:				f5(b)
++48:			f6(a)
++33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
++53:				j = id(1)
++54:				f = id(2)
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++62:				sleepytime()
++56:			for i := 0; i <= 5; i++ {
++58:				if i == f {
++59:					fmt.Println("foo")
++64:			helloworld()
++66:	}
++15:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.go b/src/cmd/compile/internal/ssa/testdata/scopes.go
+index 3dab51908a..e93d69936f 100644
+--- a/src/cmd/compile/internal/ssa/testdata/scopes.go
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.go
+@@ -10,6 +10,7 @@ import (
+ )
+ 
+ func main() {
++	growstack() // Use stack early to prevent growth during test, which confuses gdb
+ 	test()
+ }
+ 
+@@ -97,3 +98,10 @@ func gretbool() bool {
+ 	boolvar = !boolvar
+ 	return x
+ }
++
++var sink string
++
++//go:noinline
++func growstack() {
++	sink = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
++}

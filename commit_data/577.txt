@@ -9,8 +9,79 @@ Date:   Thu Sep 4 13:35:19 2008 -0700
     R=gri
     OCL=14816
     CL=14816
-
+---
  test/complit.go                    | 18 +++++++++++++++++-
  test/{bugs => fixedbugs}/bug081.go |  0
  test/golden.out                    |  8 +++-----
  3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/test/complit.go b/test/complit.go
+index bba690cfe4..21bf8e4a71 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -8,6 +8,20 @@ package main
+ 
+ type T struct { i int; f float; s string; next *T }
+ 
++type R struct { num int }
++
++func itor(a int) *R {
++	r := new(R);
++	r.num = a;
++	return r;
++}
++
++func eq(a *[]*R) {
++	for i := 0; i < len(a); i++ {
++		if a[i].num != i { panic("bad") }
++	}
++}
++
+ func main() {
+ 	var t T;
+ 	t = T(0, 7.2, "hi", &t);
+@@ -18,7 +32,7 @@ func main() {
+ 	a1 := []int(1,2,3);
+ 	if len(a1) != 3 { panic("a1") }
+ 	a2 := [10]int(1,2,3);
+-	if len(a2) != 10 || a2[3] != 0 { panic("a2") }
++	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
+ 	//a3 := [10]int(1,2,3,);  // BUG: trailing commas not allowed
+ 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
+ 
+@@ -41,4 +55,6 @@ func main() {
+ 
+ 	m := map[string]float("one":1.0, "two":2.0, "pi":22./7.);
+ 	if len(m) != 3 { panic("m") }
++
++	eq(&[]*R(itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)));
+ }
+diff --git a/test/bugs/bug081.go b/test/fixedbugs/bug081.go
+similarity index 100%
+rename from test/bugs/bug081.go
+rename to test/fixedbugs/bug081.go
+diff --git a/test/golden.out b/test/golden.out
+index fd062fa9a7..003ef0aafe 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -112,11 +112,6 @@ bugs/bug080.go:12: illegal types for operand: CALL
+ 	({<x><int32>INT32;<y><float32>FLOAT32;})
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug081.go
+-bugs/bug081.go:5: first constant must evaluate an expression
+-BUG: compiler should not crash
+-Bus error               $G $D/$F.go
+-
+ =========== bugs/bug083.go
+ BUG: succeeds incorrectly
+ 
+@@ -212,5 +207,8 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	(<int32>INT32)
+ 	(<int32>INT32)
+ 
++=========== fixedbugs/bug081.go
++fixedbugs/bug081.go:5: syntax error
++
+ =========== fixedbugs/bug091.go
+ fixedbugs/bug091.go:14: label exit not defined

@@ -7,6 +7,20 @@ Date:   Sun Sep 22 07:28:52 2013 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/13735044
-
+---
  doc/go1.2.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 38179b126d..fc2ede99b7 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -131,7 +131,7 @@ This is a backwards-compatible change that affects no existing programs.
+ In prior releases, a goroutine that was looping forever could starve out other
+ goroutines on the same thread, a serious problem when GOMAXPROCS
+ provided only one user thread.
+-In Go1.2, this is partially addressed: The scheduler is invoked occasionally
++In Go 1.2, this is partially addressed: The scheduler is invoked occasionally
+ upon entry to a function.
+ This means that any loop that includes a (non-inlined) function call can
+ be pre-empted, allowing other goroutines to run on the same thread.

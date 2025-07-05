@@ -11,6 +11,35 @@ Date:   Mon Apr 25 18:31:36 2016 -0400
     Change-Id: If93980b054f9b13582dd314f9d082c26eaac4f41
     Reviewed-on: https://go-review.googlesource.com/22444
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index b44eb5e05a..5618012c77 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -113,12 +113,8 @@ import (
+ const debugFormat = false // default: false
+ 
+ // If posInfoFormat is set, position information (file, lineno) is written
+-// for each exported object, including methods and struct fields. Currently
+-// disabled because it may lead to different object files depending on which
+-// directory they are built under, which causes tests checking for hermetic
+-// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
+-// TODO(gri) determine what to do here.
+-const posInfoFormat = false
++// for each exported object, including methods and struct fields.
++const posInfoFormat = true // default: true
+ 
+ // TODO(gri) remove eventually
+ const forceNewExport = false // force new export format - do NOT submit with this flag set
+@@ -517,7 +513,7 @@ func (p *exporter) pos(n *Node) {
+ 	var file string
+ 	var line int
+ 	if n != nil {
+-		file, line = Ctxt.LineHist.FileLine(int(n.Lineno))
++		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
+ 	}
+ 
+ 	if file == p.prevFile && line != p.prevLine {

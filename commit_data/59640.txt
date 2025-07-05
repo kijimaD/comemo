@@ -28,7 +28,7 @@ Date:   Tue Mar 26 12:45:36 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/574495
     Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 48 +++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/check.go    | 51 ++++++++++++++++++-----------
  src/cmd/compile/internal/types2/resolver.go |  3 ++
@@ -38,3 +38,423 @@ Date:   Tue Mar 26 12:45:36 2024 -0400
  src/internal/types/errors/code_string.go    |  7 ++--
  src/internal/types/errors/codes.go          | 10 +++++-
  8 files changed, 177 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index bab120ff93..008a5302ab 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2937,3 +2937,51 @@ func TestFileVersions(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestTooNew ensures that "too new" errors are emitted when the file
++// or module is tagged with a newer version of Go than this go/types.
++func TestTooNew(t *testing.T) {
++	for _, test := range []struct {
++		goVersion   string // package's Go version (as if derived from go.mod file)
++		fileVersion string // file's Go version (becomes a build tag)
++		wantErr     string // expected substring of concatenation of all errors
++	}{
++		{"go1.98", "", "package requires newer Go version go1.98"},
++		{"", "go1.99", "p:2:9: file requires newer Go version go1.99"},
++		{"go1.98", "go1.99", "package requires newer Go version go1.98"}, // (two
++		{"go1.98", "go1.99", "file requires newer Go version go1.99"},    // errors)
++	} {
++		var src string
++		if test.fileVersion != "" {
++			src = "//go:build " + test.fileVersion + "\n"
++		}
++		src += "package p; func f()"
++
++		var errs []error
++		conf := Config{
++			GoVersion: test.goVersion,
++			Error:     func(err error) { errs = append(errs, err) },
++		}
++		info := &Info{Defs: make(map[*syntax.Name]Object)}
++		typecheck(src, &conf, info)
++		got := fmt.Sprint(errs)
++		if !strings.Contains(got, test.wantErr) {
++			t.Errorf("%q: unexpected error: got %q, want substring %q",
++				src, got, test.wantErr)
++		}
++
++		// Assert that declarations were type checked nonetheless.
++		var gotObjs []string
++		for id, obj := range info.Defs {
++			if obj != nil {
++				objStr := strings.ReplaceAll(fmt.Sprintf("%s:%T", id.Value, obj), "types2", "types")
++				gotObjs = append(gotObjs, objStr)
++			}
++		}
++		wantObjs := "f:*types.Func"
++		if !strings.Contains(fmt.Sprint(gotObjs), wantObjs) {
++			t.Errorf("%q: got %s, want substring %q",
++				src, gotObjs, wantObjs)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 2c6d77d6fd..b59e471e15 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -8,7 +8,6 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
+-	"errors"
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/godebug"
+@@ -311,6 +310,10 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	check.versions = versions
+ 
+ 	pkgVersionOk := check.version.isValid()
++	if pkgVersionOk && len(files) > 0 && check.version.cmp(go_current) > 0 {
++		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
++			check.version, go_current)
++	}
+ 	downgradeOk := check.version.cmp(go1_21) >= 0
+ 
+ 	// determine Go version for each file
+@@ -319,11 +322,12 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 		// (This version string may contain dot-release numbers as in go1.20.1,
+ 		// unlike file versions which are Go language versions only, if valid.)
+ 		v := check.conf.GoVersion
+-		// use the file version, if applicable
+-		// (file versions are either the empty string or of the form go1.dd)
+-		if pkgVersionOk {
+-			fileVersion := asGoVersion(file.GoVersion)
+-			if fileVersion.isValid() {
++
++		fileVersion := asGoVersion(file.GoVersion)
++		if fileVersion.isValid() {
++			// use the file version, if applicable
++			// (file versions are either the empty string or of the form go1.dd)
++			if pkgVersionOk {
+ 				cmp := fileVersion.cmp(check.version)
+ 				// Go 1.21 introduced the feature of setting the go.mod
+ 				// go line to an early version of Go and allowing //go:build lines
+@@ -346,6 +350,15 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 					v = file.GoVersion
+ 				}
+ 			}
++
++			// Report a specific error for each tagged file that's too new.
++			// (Normally the build system will have filtered files by version,
++			// but clients can present arbitrary files to the type checker.)
++			if fileVersion.cmp(go_current) > 0 {
++				// Use position of 'package [p]' for types/types2 consistency.
++				// (Ideally we would use the //build tag itself.)
++				check.errorf(file.PkgName, TooNew, "file requires newer Go version %v", fileVersion)
++			}
+ 		}
+ 		versions[base(file.Pos())] = v // base(file.Pos()) may be nil for tests
+ 	}
+@@ -366,11 +379,7 @@ func (check *Checker) handleBailout(err *error) {
+ }
+ 
+ // Files checks the provided files as part of the checker's package.
+-func (check *Checker) Files(files []*syntax.File) error { return check.checkFiles(files) }
+-
+-var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+-
+-func (check *Checker) checkFiles(files []*syntax.File) (err error) {
++func (check *Checker) Files(files []*syntax.File) (err error) {
+ 	if check.pkg == Unsafe {
+ 		// Defensive handling for Unsafe, which cannot be type checked, and must
+ 		// not be mutated. See https://go.dev/issue/61212 for an example of where
+@@ -378,16 +387,20 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 		return nil
+ 	}
+ 
+-	// Note: NewChecker doesn't return an error, so we need to check the version here.
+-	if check.version.cmp(go_current) > 0 {
+-		return fmt.Errorf("package requires newer Go version %v", check.version)
+-	}
+-	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+-		return errBadCgo
+-	}
++	// Avoid early returns here! Nearly all errors can be
++	// localized to a piece of syntax and needn't prevent
++	// type-checking of the rest of the package.
+ 
+ 	defer check.handleBailout(&err)
++	check.checkFiles(files)
++	return
++}
+ 
++// checkFiles type-checks the specified files. Errors are reported as
++// a side effect, not by returning early, to ensure that well-formed
++// syntax is properly type annotated even in a package containing
++// errors.
++func (check *Checker) checkFiles(files []*syntax.File) {
+ 	print := func(msg string) {
+ 		if check.conf.Trace {
+ 			fmt.Println()
+@@ -440,8 +453,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 	check.ctxt = nil
+ 
+ 	// TODO(gri) There's more memory we should release at this point.
+-
+-	return
+ }
+ 
+ // processDelayed processes all delayed actions pushed after top.
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index f57234806e..af932a80fe 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -134,6 +134,9 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
+ 
+ 	// no package yet => import it
+ 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
++		if check.conf.FakeImportC && check.conf.go115UsesCgo {
++			check.error(pos, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")
++		}
+ 		imp = NewPackage("C", "C")
+ 		imp.fake = true // package scope is not populated
+ 		imp.cgo = check.conf.go115UsesCgo
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 52f0009804..ed13ebb952 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2946,3 +2946,51 @@ func TestFileVersions(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestTooNew ensures that "too new" errors are emitted when the file
++// or module is tagged with a newer version of Go than this go/types.
++func TestTooNew(t *testing.T) {
++	for _, test := range []struct {
++		goVersion   string // package's Go version (as if derived from go.mod file)
++		fileVersion string // file's Go version (becomes a build tag)
++		wantErr     string // expected substring of concatenation of all errors
++	}{
++		{"go1.98", "", "package requires newer Go version go1.98"},
++		{"", "go1.99", "p:2:9: file requires newer Go version go1.99"},
++		{"go1.98", "go1.99", "package requires newer Go version go1.98"}, // (two
++		{"go1.98", "go1.99", "file requires newer Go version go1.99"},    // errors)
++	} {
++		var src string
++		if test.fileVersion != "" {
++			src = "//go:build " + test.fileVersion + "\n"
++		}
++		src += "package p; func f()"
++
++		var errs []error
++		conf := Config{
++			GoVersion: test.goVersion,
++			Error:     func(err error) { errs = append(errs, err) },
++		}
++		info := &Info{Defs: make(map[*ast.Ident]Object)}
++		typecheck(src, &conf, info)
++		got := fmt.Sprint(errs)
++		if !strings.Contains(got, test.wantErr) {
++			t.Errorf("%q: unexpected error: got %q, want substring %q",
++				src, got, test.wantErr)
++		}
++
++		// Assert that declarations were type checked nonetheless.
++		var gotObjs []string
++		for id, obj := range info.Defs {
++			if obj != nil {
++				objStr := strings.ReplaceAll(fmt.Sprintf("%s:%T", id.Name, obj), "types2", "types")
++				gotObjs = append(gotObjs, objStr)
++			}
++		}
++		wantObjs := "f:*types.Func"
++		if !strings.Contains(fmt.Sprint(gotObjs), wantObjs) {
++			t.Errorf("%q: got %s, want substring %q",
++				src, gotObjs, wantObjs)
++		}
++	}
++}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 763be7714f..d201b3ef9f 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -7,7 +7,6 @@
+ package types
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+@@ -316,6 +315,10 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	check.versions = versions
+ 
+ 	pkgVersionOk := check.version.isValid()
++	if pkgVersionOk && len(files) > 0 && check.version.cmp(go_current) > 0 {
++		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
++			check.version, go_current)
++	}
+ 	downgradeOk := check.version.cmp(go1_21) >= 0
+ 
+ 	// determine Go version for each file
+@@ -324,11 +327,12 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 		// (This version string may contain dot-release numbers as in go1.20.1,
+ 		// unlike file versions which are Go language versions only, if valid.)
+ 		v := check.conf.GoVersion
+-		// use the file version, if applicable
+-		// (file versions are either the empty string or of the form go1.dd)
+-		if pkgVersionOk {
+-			fileVersion := asGoVersion(file.GoVersion)
+-			if fileVersion.isValid() {
++
++		fileVersion := asGoVersion(file.GoVersion)
++		if fileVersion.isValid() {
++			// use the file version, if applicable
++			// (file versions are either the empty string or of the form go1.dd)
++			if pkgVersionOk {
+ 				cmp := fileVersion.cmp(check.version)
+ 				// Go 1.21 introduced the feature of setting the go.mod
+ 				// go line to an early version of Go and allowing //go:build lines
+@@ -351,6 +355,15 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 					v = file.GoVersion
+ 				}
+ 			}
++
++			// Report a specific error for each tagged file that's too new.
++			// (Normally the build system will have filtered files by version,
++			// but clients can present arbitrary files to the type checker.)
++			if fileVersion.cmp(go_current) > 0 {
++				// Use position of 'package [p]' for types/types2 consistency.
++				// (Ideally we would use the //build tag itself.)
++				check.errorf(file.Name, TooNew, "file requires newer Go version %v (application built with %v)", fileVersion, go_current)
++			}
+ 		}
+ 		versions[file] = v
+ 	}
+@@ -371,11 +384,7 @@ func (check *Checker) handleBailout(err *error) {
+ }
+ 
+ // Files checks the provided files as part of the checker's package.
+-func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
+-
+-var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+-
+-func (check *Checker) checkFiles(files []*ast.File) (err error) {
++func (check *Checker) Files(files []*ast.File) (err error) {
+ 	if check.pkg == Unsafe {
+ 		// Defensive handling for Unsafe, which cannot be type checked, and must
+ 		// not be mutated. See https://go.dev/issue/61212 for an example of where
+@@ -383,16 +392,20 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 		return nil
+ 	}
+ 
+-	// Note: NewChecker doesn't return an error, so we need to check the version here.
+-	if check.version.cmp(go_current) > 0 {
+-		return fmt.Errorf("package requires newer Go version %v", check.version)
+-	}
+-	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+-		return errBadCgo
+-	}
++	// Avoid early returns here! Nearly all errors can be
++	// localized to a piece of syntax and needn't prevent
++	// type-checking of the rest of the package.
+ 
+ 	defer check.handleBailout(&err)
++	check.checkFiles(files)
++	return
++}
+ 
++// checkFiles type-checks the specified files. Errors are reported as
++// a side effect, not by returning early, to ensure that well-formed
++// syntax is properly type annotated even in a package containing
++// errors.
++func (check *Checker) checkFiles(files []*ast.File) {
+ 	print := func(msg string) {
+ 		if check.conf._Trace {
+ 			fmt.Println()
+@@ -445,8 +458,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.ctxt = nil
+ 
+ 	// TODO(rFindley) There's more memory we should release at this point.
+-
+-	return
+ }
+ 
+ // processDelayed processes all delayed actions pushed after top.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 1f6847d103..69cc6ba154 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -146,6 +146,9 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
+ 
+ 	// no package yet => import it
+ 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
++		if check.conf.FakeImportC && check.conf.go115UsesCgo {
++			check.error(at, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")
++		}
+ 		imp = NewPackage("C", "C")
+ 		imp.fake = true // package scope is not populated
+ 		imp.cgo = check.conf.go115UsesCgo
+diff --git a/src/internal/types/errors/code_string.go b/src/internal/types/errors/code_string.go
+index 719fc73a5a..9ae675ef84 100644
+--- a/src/internal/types/errors/code_string.go
++++ b/src/internal/types/errors/code_string.go
+@@ -155,6 +155,7 @@ func _() {
+ 	_ = x[InvalidClear-148]
+ 	_ = x[TypeTooLarge-149]
+ 	_ = x[InvalidMinMaxOperand-150]
++	_ = x[TooNew-151]
+ }
+ 
+ const (
+@@ -163,7 +164,7 @@ const (
+ 	_Code_name_2 = "InvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDot"
+ 	_Code_name_3 = "InvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDecl"
+ 	_Code_name_4 = "InvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParamInvalidUnsafeSliceDataInvalidUnsafeString"
+-	_Code_name_5 = "InvalidClearTypeTooLargeInvalidMinMaxOperand"
++	_Code_name_5 = "InvalidClearTypeTooLargeInvalidMinMaxOperandTooNew"
+ )
+ 
+ var (
+@@ -171,7 +172,7 @@ var (
+ 	_Code_index_2 = [...]uint16{0, 15, 22, 33, 56, 71, 83, 94, 109, 123, 138, 153, 166, 175, 189, 204, 215, 230, 239, 255, 275, 293, 312, 324, 343, 362, 378, 395, 414, 428, 439, 454, 467, 482, 498, 512, 528, 543, 560, 578, 593, 603, 613, 630, 652, 666, 680, 700, 718, 738, 756}
+ 	_Code_index_3 = [...]uint16{0, 16, 31, 44, 54, 66, 77, 91, 104, 115, 125, 140, 151, 162, 175, 191, 208, 232, 249, 264, 274, 283, 296, 312, 328, 339, 354}
+ 	_Code_index_4 = [...]uint16{0, 14, 30, 44, 61, 81, 94, 110, 124, 141, 158, 175, 190, 204, 218, 229, 241, 254, 271, 284, 295, 308, 320, 329, 336, 348, 364, 382, 400, 415, 432, 451, 465, 485, 497, 521, 544, 562, 584, 603}
+-	_Code_index_5 = [...]uint8{0, 12, 24, 44}
++	_Code_index_5 = [...]uint8{0, 12, 24, 44, 50}
+ )
+ 
+ func (i Code) String() string {
+@@ -190,7 +191,7 @@ func (i Code) String() string {
+ 	case 108 <= i && i <= 146:
+ 		i -= 108
+ 		return _Code_name_4[_Code_index_4[i]:_Code_index_4[i+1]]
+-	case 148 <= i && i <= 150:
++	case 148 <= i && i <= 151:
+ 		i -= 148
+ 		return _Code_name_5[_Code_index_5[i]:_Code_index_5[i+1]]
+ 	default:
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index cae688ff87..c0e6aa6c2d 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -4,7 +4,7 @@
+ 
+ package errors
+ 
+-//go:generate stringer -type Code codes.go
++//go:generate go run golang.org/x/tools/cmd/stringer@latest -type Code codes.go
+ 
+ type Code int
+ 
+@@ -1474,4 +1474,12 @@ const (
+ 	//  var s, t []byte
+ 	//  var _ = max(s, t)
+ 	InvalidMinMaxOperand
++
++	// TooNew indicates that, through build tags or a go.mod file,
++	// a source file requires a version of Go that is newer than
++	// the logic of the type checker. As a consequence, the type
++	// checker may produce spurious errors or fail to report real
++	// errors. The solution is to rebuild the application with a
++	// newer Go release.
++	TooNew
+ )

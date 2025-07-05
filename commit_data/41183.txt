@@ -11,7 +11,195 @@ Date:   Mon Sep 9 03:17:43 2019 +1000
     Change-Id: I232962ab4054bf0b4745887506f51e74ea73f73d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/194238
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/riscv/anames.go | 60 ++++++++++++++++----------------
  src/cmd/internal/obj/riscv/cpu.go    | 67 +++++++++++++++++++-----------------
  2 files changed, 66 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 81b429eb62..8b6c460897 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -5,21 +5,7 @@ package riscv
+ import "cmd/internal/obj"
+ 
+ var Anames = []string{
+-	obj.A_ARCHSPECIFIC: "SLLIRV32",
+-	"SRLIRV32",
+-	"SRAIRV32",
+-	"JAL",
+-	"JALR",
+-	"BEQ",
+-	"BNE",
+-	"BLT",
+-	"BLTU",
+-	"BGE",
+-	"BGEU",
+-	"FENCE",
+-	"FENCEI",
+-	"FENCETSO",
+-	"ADDI",
++	obj.A_ARCHSPECIFIC: "ADDI",
+ 	"SLTI",
+ 	"SLTIU",
+ 	"ANDI",
+@@ -40,6 +26,29 @@ var Anames = []string{
+ 	"SRL",
+ 	"SUB",
+ 	"SRA",
++	"SLLIRV32",
++	"SRLIRV32",
++	"SRAIRV32",
++	"JAL",
++	"JALR",
++	"BEQ",
++	"BNE",
++	"BLT",
++	"BLTU",
++	"BGE",
++	"BGEU",
++	"LW",
++	"LWU",
++	"LH",
++	"LHU",
++	"LB",
++	"LBU",
++	"SW",
++	"SH",
++	"SB",
++	"FENCE",
++	"FENCEI",
++	"FENCETSO",
+ 	"ADDIW",
+ 	"SLLIW",
+ 	"SRLIW",
+@@ -50,22 +59,7 @@ var Anames = []string{
+ 	"SUBW",
+ 	"SRAW",
+ 	"LD",
+-	"LW",
+-	"LWU",
+-	"LH",
+-	"LHU",
+-	"LB",
+-	"LBU",
+ 	"SD",
+-	"SW",
+-	"SH",
+-	"SB",
+-	"RDCYCLE",
+-	"RDCYCLEH",
+-	"RDTIME",
+-	"RDTIMEH",
+-	"RDINSTRET",
+-	"RDINSTRETH",
+ 	"MUL",
+ 	"MULH",
+ 	"MULHU",
+@@ -101,6 +95,12 @@ var Anames = []string{
+ 	"AMOMAXUW",
+ 	"AMOMINW",
+ 	"AMOMINUW",
++	"RDCYCLE",
++	"RDCYCLEH",
++	"RDTIME",
++	"RDTIMEH",
++	"RDINSTRET",
++	"RDINSTRETH",
+ 	"FRCSR",
+ 	"FSCSR",
+ 	"FRRM",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 30c7eb15ee..2df02d9d4f 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -211,27 +211,7 @@ const (
+ 	// Unprivileged ISA (Document Version 20190608-Base-Ratified)
+ 
+ 	// 2.4: Integer Computational Instructions
+-	ASLLIRV32 = obj.ABaseRISCV + obj.A_ARCHSPECIFIC + iota
+-	ASRLIRV32
+-	ASRAIRV32
+-
+-	// 2.5: Control Transfer Instructions
+-	AJAL
+-	AJALR
+-	ABEQ
+-	ABNE
+-	ABLT
+-	ABLTU
+-	ABGE
+-	ABGEU
+-
+-	// 2.7: Memory Ordering Instructions
+-	AFENCE
+-	AFENCEI
+-	AFENCETSO
+-
+-	// 5.2: Integer Computational Instructions
+-	AADDI
++	AADDI = obj.ABaseRISCV + obj.A_ARCHSPECIFIC + iota
+ 	ASLTI
+ 	ASLTIU
+ 	AANDI
+@@ -252,6 +232,40 @@ const (
+ 	ASRL
+ 	ASUB
+ 	ASRA
++
++	// The SLL/SRL/SRA instructions differ slightly between RV32 and RV64,
++	// hence there are pseudo-opcodes for the RV32 specific versions.
++	ASLLIRV32
++	ASRLIRV32
++	ASRAIRV32
++
++	// 2.5: Control Transfer Instructions
++	AJAL
++	AJALR
++	ABEQ
++	ABNE
++	ABLT
++	ABLTU
++	ABGE
++	ABGEU
++
++	// 2.6: Load and Store Instructions
++	ALW
++	ALWU
++	ALH
++	ALHU
++	ALB
++	ALBU
++	ASW
++	ASH
++	ASB
++
++	// 2.7: Memory Ordering Instructions
++	AFENCE
++	AFENCEI
++	AFENCETSO
++
++	// 5.2: Integer Computational Instructions (RV64I)
+ 	AADDIW
+ 	ASLLIW
+ 	ASRLIW
+@@ -262,18 +276,9 @@ const (
+ 	ASUBW
+ 	ASRAW
+ 
+-	// 5.3: Load and Store Instructions
++	// 5.3: Load and Store Instructions (RV64I)
+ 	ALD
+-	ALW
+-	ALWU
+-	ALH
+-	ALHU
+-	ALB
+-	ALBU
+ 	ASD
+-	ASW
+-	ASH
+-	ASB
+ 
+ 	// 7.1: Multiplication Operations
+ 	AMUL

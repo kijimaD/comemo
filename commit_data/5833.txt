@@ -7,6 +7,20 @@ Date:   Fri Jul 16 15:08:31 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1862044
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 592ac22f04..68aa915a91 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1111,7 +1111,7 @@ caseout:
+ /*
+  * read and interpret syntax that looks like
+  * //line parse.y:15
+- * as a discontenuity in sequential line numbers.
++ * as a discontinuity in sequential line numbers.
+  * the next line of input comes from parse.y:15
+  */
+ static int

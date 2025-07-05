@@ -41,7 +41,7 @@ Date:   Thu Jan 28 22:19:46 2016 -0600
     Reviewed-on: https://go-review.googlesource.com/19100
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go    |   3 +-
  src/cmd/compile/internal/ssa/deadstore.go   |   9 ++-
  src/cmd/compile/internal/ssa/func.go        |  25 +++++++
@@ -51,3 +51,261 @@ Date:   Thu Jan 28 22:19:46 2016 -0600
  src/cmd/compile/internal/ssa/sparseset.go   |   4 ++
  src/cmd/compile/internal/ssa/stackalloc.go  |   9 ++-
  8 files changed, 150 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 80e1490014..87244a6248 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -134,7 +134,8 @@ func deadcode(f *Func) {
+ 	live := liveValues(f, reachable)
+ 
+ 	// Remove dead & duplicate entries from namedValues map.
+-	s := newSparseSet(f.NumValues())
++	s := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(s)
+ 	i := 0
+ 	for _, name := range f.Names {
+ 		j := 0
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 89f7504341..bad0e0096f 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -10,9 +10,12 @@ package ssa
+ // This implementation only works within a basic block.  TODO: use something more global.
+ func dse(f *Func) {
+ 	var stores []*Value
+-	loadUse := newSparseSet(f.NumValues())
+-	storeUse := newSparseSet(f.NumValues())
+-	shadowed := newSparseSet(f.NumValues())
++	loadUse := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(loadUse)
++	storeUse := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(storeUse)
++	shadowed := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(shadowed)
+ 	for _, b := range f.Blocks {
+ 		// Find all the stores in this block.  Categorize their uses:
+ 		//  loadUse contains stores which are used by a subsequent load.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a28484010d..9da390904d 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -31,6 +31,8 @@ type Func struct {
+ 
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
++
++	scrSparse []*sparseSet // sparse sets to be re-used.
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+@@ -43,6 +45,29 @@ func (f *Func) NumValues() int {
+ 	return f.vid.num()
+ }
+ 
++// newSparseSet returns a sparse set that can store at least up to n integers.
++func (f *Func) newSparseSet(n int) *sparseSet {
++	for i, scr := range f.scrSparse {
++		if scr != nil && scr.cap() >= n {
++			f.scrSparse[i] = nil
++			scr.clear()
++			return scr
++		}
++	}
++	return newSparseSet(n)
++}
++
++// retSparseSet returns a sparse set to the function's cache to be reused by f.newSparseSet.
++func (f *Func) retSparseSet(ss *sparseSet) {
++	for i, scr := range f.scrSparse {
++		if scr == nil {
++			f.scrSparse[i] = ss
++			return
++		}
++	}
++	f.scrSparse = append(f.scrSparse, ss)
++}
++
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+ func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
+ 	var v *Value
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index 7e865f948e..8dd4b65979 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -12,8 +12,10 @@ func layout(f *Func) {
+ 	scheduled := make([]bool, f.NumBlocks())
+ 	idToBlock := make([]*Block, f.NumBlocks())
+ 	indegree := make([]int, f.NumBlocks())
+-	posdegree := newSparseSet(f.NumBlocks())  // blocks with positive remaining degree
+-	zerodegree := newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
++	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
++	defer f.retSparseSet(posdegree)
++	zerodegree := f.newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
++	defer f.retSparseSet(zerodegree)
+ 
+ 	// Initialize indegree of each block
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+new file mode 100644
+index 0000000000..9b11ff1256
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -0,0 +1,101 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package ssa
++
++import (
++	"fmt"
++	"testing"
++)
++
++const (
++	blockCount = 1000
++	passCount  = 15000
++)
++
++type passFunc func(*Func)
++
++func BenchmarkDSEPass(b *testing.B)           { benchFnPass(b, dse, blockCount, genFunction) }
++func BenchmarkDSEPassBlock(b *testing.B)      { benchFnBlock(b, dse, genFunction) }
++func BenchmarkCSEPass(b *testing.B)           { benchFnPass(b, cse, blockCount, genFunction) }
++func BenchmarkCSEPassBlock(b *testing.B)      { benchFnBlock(b, cse, genFunction) }
++func BenchmarkDeadcodePass(b *testing.B)      { benchFnPass(b, deadcode, blockCount, genFunction) }
++func BenchmarkDeadcodePassBlock(b *testing.B) { benchFnBlock(b, deadcode, genFunction) }
++
++func multi(f *Func) {
++	cse(f)
++	dse(f)
++	deadcode(f)
++}
++func BenchmarkMultiPass(b *testing.B)      { benchFnPass(b, multi, blockCount, genFunction) }
++func BenchmarkMultiPassBlock(b *testing.B) { benchFnBlock(b, multi, genFunction) }
++
++// benchFnPass runs passFunc b.N times across a single function.
++func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
++	b.ReportAllocs()
++	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
++	fun := Fun(c, "entry", bg(size)...)
++
++	CheckFunc(fun.f)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		fn(fun.f)
++		b.StopTimer()
++		CheckFunc(fun.f)
++		b.StartTimer()
++	}
++}
++
++// benchFnPass runs passFunc across a function with b.N blocks.
++func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
++	b.ReportAllocs()
++	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
++	fun := Fun(c, "entry", bg(b.N)...)
++
++	CheckFunc(fun.f)
++	b.ResetTimer()
++	for i := 0; i < passCount; i++ {
++		fn(fun.f)
++	}
++	b.StopTimer()
++}
++
++func genFunction(size int) []bloc {
++	var blocs []bloc
++	elemType := &TypeImpl{Size_: 8, Name: "testtype"}
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
++
++	valn := func(s string, m, n int) string { return fmt.Sprintf("%s%d-%d", s, m, n) }
++	blocs = append(blocs,
++		Bloc("entry",
++			Valu(valn("store", 0, 4), OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto(blockn(1)),
++		),
++	)
++	for i := 1; i < size+1; i++ {
++		blocs = append(blocs, Bloc(blockn(i),
++			Valu(valn("v", i, 0), OpConstBool, TypeBool, 1, nil),
++			Valu(valn("addr", i, 1), OpAddr, ptrType, 0, nil, "sb"),
++			Valu(valn("addr", i, 2), OpAddr, ptrType, 0, nil, "sb"),
++			Valu(valn("addr", i, 3), OpAddr, ptrType, 0, nil, "sb"),
++			Valu(valn("zero", i, 1), OpZero, TypeMem, 8, nil, valn("addr", i, 3),
++				valn("store", i-1, 4)),
++			Valu(valn("store", i, 1), OpStore, TypeMem, 0, nil, valn("addr", i, 1),
++				valn("v", i, 0), valn("zero", i, 1)),
++			Valu(valn("store", i, 2), OpStore, TypeMem, 0, nil, valn("addr", i, 2),
++				valn("v", i, 0), valn("store", i, 1)),
++			Valu(valn("store", i, 3), OpStore, TypeMem, 0, nil, valn("addr", i, 1),
++				valn("v", i, 0), valn("store", i, 2)),
++			Valu(valn("store", i, 4), OpStore, TypeMem, 0, nil, valn("addr", i, 3),
++				valn("v", i, 0), valn("store", i, 3)),
++			Goto(blockn(i+1))))
++	}
++
++	blocs = append(blocs,
++		Bloc(blockn(size+1), Goto("exit")),
++		Bloc("exit", Exit("store0-4")),
++	)
++
++	return blocs
++}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 61f694355e..2d88850999 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -559,7 +559,8 @@ func (s *regAllocState) compatRegs(t Type) regMask {
+ }
+ 
+ func (s *regAllocState) regalloc(f *Func) {
+-	liveSet := newSparseSet(f.NumValues())
++	liveSet := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(liveSet)
+ 	var oldSched []*Value
+ 	var phis []*Value
+ 	var phiRegs []register
+diff --git a/src/cmd/compile/internal/ssa/sparseset.go b/src/cmd/compile/internal/ssa/sparseset.go
+index b79aee8497..66bebf139e 100644
+--- a/src/cmd/compile/internal/ssa/sparseset.go
++++ b/src/cmd/compile/internal/ssa/sparseset.go
+@@ -18,6 +18,10 @@ func newSparseSet(n int) *sparseSet {
+ 	return &sparseSet{nil, make([]int, n)}
+ }
+ 
++func (s *sparseSet) cap() int {
++	return len(s.sparse)
++}
++
+ func (s *sparseSet) size() int {
+ 	return len(s.dense)
+ }
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 797a6b05e6..0e6cae0924 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -182,8 +182,10 @@ func (s *stackAllocState) stackalloc() {
+ func (s *stackAllocState) computeLive(spillLive [][]ID) {
+ 	s.live = make([][]ID, s.f.NumBlocks())
+ 	var phis []*Value
+-	live := newSparseSet(s.f.NumValues())
+-	t := newSparseSet(s.f.NumValues())
++	live := s.f.newSparseSet(s.f.NumValues())
++	defer s.f.retSparseSet(live)
++	t := s.f.newSparseSet(s.f.NumValues())
++	defer s.f.retSparseSet(t)
+ 
+ 	// Instead of iterating over f.Blocks, iterate over their postordering.
+ 	// Liveness information flows backward, so starting at the end
+@@ -271,7 +273,8 @@ func (f *Func) setHome(v *Value, loc Location) {
+ func (s *stackAllocState) buildInterferenceGraph() {
+ 	f := s.f
+ 	s.interfere = make([][]ID, f.NumValues())
+-	live := newSparseSet(f.NumValues())
++	live := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(live)
+ 	for _, b := range f.Blocks {
+ 		// Propagate liveness backwards to the start of the block.
+ 		// Two values interfere if one is defined while the other is live.

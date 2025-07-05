@@ -7,7 +7,33 @@ Date:   Thu Aug 8 11:13:00 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12519046
-
+---
  src/pkg/os/file.go      | 3 +++
  src/pkg/os/file_unix.go | 3 ---
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 32cac6d89a..00a8755f42 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -238,3 +238,6 @@ func Open(name string) (file *File, err error) {
+ func Create(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
++
++// lstat is overridden in tests.
++var lstat = Lstat
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 06ff5bbfae..855eb50ff5 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -149,9 +149,6 @@ func Lstat(name string) (fi FileInfo, err error) {
+ 	return fileInfoFromStat(&stat, name), nil
+ }
+ 
+-// lstat is overridden in tests.
+-var lstat = Lstat
+-
+ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	dirname := f.name
+ 	if dirname == "" {

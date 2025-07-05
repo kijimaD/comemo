@@ -15,7 +15,7 @@ Date:   Wed Apr 24 15:50:43 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/arena.go    |  4 ----
  src/runtime/extern.go   |  3 ---
  src/runtime/malloc.go   |  4 ----
@@ -24,3 +24,188 @@ Date:   Wed Apr 24 15:50:43 2024 +0000
  src/runtime/mprof.go    | 58 -------------------------------------------------
  src/runtime/runtime1.go | 10 ++++-----
  7 files changed, 6 insertions(+), 85 deletions(-)
+
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index bb88ed053d..47b131466c 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -828,10 +828,6 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
+ 	}
+ 
+ 	if debug.malloc {
+-		if debug.allocfreetrace != 0 {
+-			tracealloc(unsafe.Pointer(span.base()), userArenaChunkBytes, nil)
+-		}
+-
+ 		if inittrace.active && inittrace.id == getg().goid {
+ 			// Init functions are executed sequentially in a single goroutine.
+ 			inittrace.bytes += uint64(userArenaChunkBytes)
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 63950c3b5f..833019a7b4 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -35,9 +35,6 @@ time.
+ The GODEBUG variable controls debugging variables within the runtime.
+ It is a comma-separated list of name=val pairs setting these named variables:
+ 
+-	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
+-	profiled and a stack trace printed on each object's allocation and free.
+-
+ 	clobberfree: setting clobberfree=1 causes the garbage collector to
+ 	clobber the memory content of an object with bad content when it frees
+ 	the object.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 48cace9171..a572900eb7 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1261,10 +1261,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	}
+ 
+ 	if debug.malloc {
+-		if debug.allocfreetrace != 0 {
+-			tracealloc(x, size, typ)
+-		}
+-
+ 		if inittrace.active && inittrace.id == getg().goid {
+ 			// Init functions are executed sequentially in a single goroutine.
+ 			inittrace.bytes += uint64(fullSize)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 83afd55c47..1316af72ba 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1510,10 +1510,6 @@ func gcMarkWorkAvailable(p *p) bool {
+ // All gcWork caches must be empty.
+ // STW is in effect at this point.
+ func gcMark(startTime int64) {
+-	if debug.allocfreetrace > 0 {
+-		tracegc()
+-	}
+-
+ 	if gcphase != _GCmarktermination {
+ 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
+ 	}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 5670b1b8d5..da66bfa596 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -608,17 +608,13 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		spanHasNoSpecials(s)
+ 	}
+ 
+-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+-		// Find all newly freed objects. This doesn't have to
+-		// efficient; allocfreetrace has massive overhead.
++	if debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
++		// Find all newly freed objects.
+ 		mbits := s.markBitsForBase()
+ 		abits := s.allocBitsForIndex(0)
+ 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
+ 			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
+ 				x := s.base() + i*s.elemsize
+-				if debug.allocfreetrace != 0 {
+-					tracefree(unsafe.Pointer(x), size)
+-				}
+ 				if debug.clobberfree != 0 {
+ 					clobberfree(unsafe.Pointer(x), size)
+ 				}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 87eed8d1dd..26b7d78283 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -1459,61 +1459,3 @@ func Stack(buf []byte, all bool) int {
+ 	}
+ 	return n
+ }
+-
+-// Tracing of alloc/free/gc.
+-
+-var tracelock mutex
+-
+-func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
+-	lock(&tracelock)
+-	gp := getg()
+-	gp.m.traceback = 2
+-	if typ == nil {
+-		print("tracealloc(", p, ", ", hex(size), ")\n")
+-	} else {
+-		print("tracealloc(", p, ", ", hex(size), ", ", toRType(typ).string(), ")\n")
+-	}
+-	if gp.m.curg == nil || gp == gp.m.curg {
+-		goroutineheader(gp)
+-		pc := getcallerpc()
+-		sp := getcallersp()
+-		systemstack(func() {
+-			traceback(pc, sp, 0, gp)
+-		})
+-	} else {
+-		goroutineheader(gp.m.curg)
+-		traceback(^uintptr(0), ^uintptr(0), 0, gp.m.curg)
+-	}
+-	print("\n")
+-	gp.m.traceback = 0
+-	unlock(&tracelock)
+-}
+-
+-func tracefree(p unsafe.Pointer, size uintptr) {
+-	lock(&tracelock)
+-	gp := getg()
+-	gp.m.traceback = 2
+-	print("tracefree(", p, ", ", hex(size), ")\n")
+-	goroutineheader(gp)
+-	pc := getcallerpc()
+-	sp := getcallersp()
+-	systemstack(func() {
+-		traceback(pc, sp, 0, gp)
+-	})
+-	print("\n")
+-	gp.m.traceback = 0
+-	unlock(&tracelock)
+-}
+-
+-func tracegc() {
+-	lock(&tracelock)
+-	gp := getg()
+-	gp.m.traceback = 2
+-	print("tracegc()\n")
+-	// running on m->g0 stack; show all non-g0 goroutines
+-	tracebackothers(gp)
+-	print("end tracegc\n")
+-	print("\n")
+-	gp.m.traceback = 0
+-	unlock(&tracelock)
+-}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5b37d23e90..dd19242cb4 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -334,10 +334,9 @@ var debug struct {
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+ 	// if any of the below debug options is != 0.
+-	malloc         bool
+-	allocfreetrace int32
+-	inittrace      int32
+-	sbrk           int32
++	malloc    bool
++	inittrace int32
++	sbrk      int32
+ 
+ 	panicnil atomic.Int32
+ 
+@@ -354,7 +353,6 @@ var debug struct {
+ 
+ var dbgvars = []*dbgVar{
+ 	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+-	{name: "allocfreetrace", value: &debug.allocfreetrace},
+ 	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+ 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
+ 	{name: "cgocheck", value: &debug.cgocheck},
+@@ -425,7 +423,7 @@ func parsedebugvars() {
+ 	// apply environment settings
+ 	parsegodebug(godebug, nil)
+ 
+-	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
++	debug.malloc = (debug.inittrace | debug.sbrk) != 0
+ 
+ 	setTraceback(gogetenv("GOTRACEBACK"))
+ 	traceback_env = traceback_cache

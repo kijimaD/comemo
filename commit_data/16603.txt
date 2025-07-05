@@ -7,7 +7,7 @@ Date:   Thu Jun 20 08:21:14 2013 +0200
     R=iant, golang-dev
     CC=golang-dev
     https://golang.org/cl/10365052
-
+---
  test/fixedbugs/bug205.go    | 6 +++---
  test/fixedbugs/bug459.go    | 2 +-
  test/fixedbugs/issue3783.go | 2 +-
@@ -16,3 +16,99 @@ Date:   Thu Jun 20 08:21:14 2013 +0200
  test/fixedbugs/issue4458.go | 2 +-
  test/fixedbugs/issue4545.go | 4 ++--
  7 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index 769837d04e..1e0d9d1f34 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -11,8 +11,8 @@ var s string;
+ var m map[string]int;
+ 
+ func main() {
+-	println(t["hi"]);	// ERROR "non-integer slice index"
+-	println(s["hi"]);	// ERROR "non-integer string index"
+-	println(m[0]);	// ERROR "as type string in map index"
++	println(t["hi"]); // ERROR "non-integer slice index|must be integer"
++	println(s["hi"]); // ERROR "non-integer string index|must be integer"
++	println(m[0]);    // ERROR "cannot use.*as type string"
+ }
+ 
+diff --git a/test/fixedbugs/bug459.go b/test/fixedbugs/bug459.go
+index 80abe5d518..014f2ef01f 100644
+--- a/test/fixedbugs/bug459.go
++++ b/test/fixedbugs/bug459.go
+@@ -9,7 +9,7 @@
+ 
+ package flag
+ 
+-var commandLine = NewFlagSet() // ERROR "loop"
++var commandLine = NewFlagSet() // ERROR "loop|depends upon itself"
+ 
+ type FlagSet struct {
+ }
+diff --git a/test/fixedbugs/issue3783.go b/test/fixedbugs/issue3783.go
+index 35df5d8f65..d7a4a2e8f3 100644
+--- a/test/fixedbugs/issue3783.go
++++ b/test/fixedbugs/issue3783.go
+@@ -8,5 +8,5 @@ package foo
+ 
+ var i int
+ 
+-func (*i) bar() // ERROR "not a type"
++func (*i) bar() // ERROR "not a type|expected type"
+ 
+diff --git a/test/fixedbugs/issue3925.go b/test/fixedbugs/issue3925.go
+index 2f8786fc78..a62d4392e6 100644
+--- a/test/fixedbugs/issue3925.go
++++ b/test/fixedbugs/issue3925.go
+@@ -12,12 +12,12 @@ package foo
+ 
+ var _ = map[string]string{
+ 	"1": "2",
+-	"3", "4", // ERROR "missing key"
++	"3", "4", // ERROR "missing key|must have keys"
+ }
+ 
+ var _ = []string{
+ 	"foo",
+ 	"bar",
+-	20, // ERROR "cannot use"
++	20, // ERROR "cannot use|incompatible type"
+ }
+ 
+diff --git a/test/fixedbugs/issue4097.go b/test/fixedbugs/issue4097.go
+index fa942c9db7..c2b7d9b4fb 100644
+--- a/test/fixedbugs/issue4097.go
++++ b/test/fixedbugs/issue4097.go
+@@ -7,5 +7,5 @@
+ package foo
+ 
+ var s [][10]int
+-const m = len(s[len(s)-1]) // ERROR "is not a constant" 
++const m = len(s[len(s)-1]) // ERROR "is not a constant|is not constant" 
+ 
+diff --git a/test/fixedbugs/issue4458.go b/test/fixedbugs/issue4458.go
+index 8ee3e879ea..820f18cb8d 100644
+--- a/test/fixedbugs/issue4458.go
++++ b/test/fixedbugs/issue4458.go
+@@ -16,5 +16,5 @@ func (T) foo() {}
+ func main() {
+ 	av := T{}
+ 	pav := &av
+-	(**T).foo(&pav) // ERROR "no method foo"
++	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named"
+ }
+diff --git a/test/fixedbugs/issue4545.go b/test/fixedbugs/issue4545.go
+index 3f2de16d20..501caadb0f 100644
+--- a/test/fixedbugs/issue4545.go
++++ b/test/fixedbugs/issue4545.go
+@@ -13,7 +13,7 @@ import "fmt"
+ 
+ func main() {
+ 	var s uint
+-	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation"
+-	x := 1.0 + 1<<s         // ERROR "invalid operation"
++	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation|non-integer type"
++	x := 1.0 + 1<<s         // ERROR "invalid operation|non-integer type"
+ 	_ = x
+ }

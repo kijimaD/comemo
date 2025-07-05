@@ -12,9 +12,111 @@ Date:   Thu Mar 31 15:27:51 2011 -0700
     R=r, rsc, iant2
     CC=golang-dev
     https://golang.org/cl/4326048
-
+---
  src/Make.pkg               |  2 +-
  src/cmd/gotest/doc.go      |  6 +++++-
  src/cmd/gotest/flag.go     |  2 ++
  src/pkg/testing/testing.go | 24 ++++++++++++++++++++++++
  4 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 8eadb111ca..99bea67b27 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -61,7 +61,7 @@ test:
+ 	gotest
+ 
+ testshort:
+-	gotest -test.short
++	gotest -test.short -test.timeout=60
+ 
+ bench:
+ 	gotest -test.bench=. -test.run="Do not run tests"
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index ad4a8a48c0..0757ac49be 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -82,11 +82,15 @@ collection.
+ Use -test.run or -test.bench to limit profiling to a particular test
+ or benchmark.
+ 
+-The -test.short package tells long-running tests to shorten their run
++The -test.short flag tells long-running tests to shorten their run
+ time.  It is off by default but set by all.bash so installations of
+ the Go tree can do a sanity check but not spend time running
+ exhaustive tests.
+ 
++The -test.timeout flag sets a timeout for the test in seconds.  If the
++test runs for longer than that, it will panic, dumping a stack trace
++of all existing goroutines.
++
+ For convenience, each of these -test.X flags of the test binary is
+ also available as the flag -X in gotest itself.  Flags not listed here
+ are unaffected.  For instance, the command
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+index 8e3f680f46..780c78b9c8 100644
+--- a/src/cmd/gotest/flag.go
++++ b/src/cmd/gotest/flag.go
+@@ -28,6 +28,7 @@ var usageMessage = `Usage of %s:
+   -memprofilerate=0: passes -test.memprofilerate to test
+   -run="": passes -test.run to test
+   -short=false: passes -test.short to test
++  -timeout=0: passes -test.timeout to test
+   -v=false: passes -test.v to test
+ `
+ 
+@@ -60,6 +61,7 @@ var flagDefn = []*flagSpec{
+ 	&flagSpec{name: "memprofilerate", passToTest: true},
+ 	&flagSpec{name: "run", passToTest: true},
+ 	&flagSpec{name: "short", isBool: true, passToTest: true},
++	&flagSpec{name: "timeout", passToTest: true},
+ 	&flagSpec{name: "v", isBool: true, passToTest: true},
+ }
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index d1893907a5..6d303cc6f2 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -61,6 +61,7 @@ var (
+ 	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+ 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+ 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
++	timeout        = flag.Int64("test.timeout", 0, "if > 0, sets time limit for tests in seconds")
+ )
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -158,7 +159,9 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
+ 	flag.Parse()
+ 
+ 	before()
++	startAlarm()
+ 	RunTests(matchString, tests)
++	stopAlarm()
+ 	RunBenchmarks(matchString, benchmarks)
+ 	after()
+ }
+@@ -241,3 +244,24 @@ func after() {
+ 		f.Close()
+ 	}
+ }
++
++var timer *time.Timer
++
++// startAlarm starts an alarm if requested.
++func startAlarm() {
++	if *timeout > 0 {
++		timer = time.AfterFunc(*timeout*1e9, alarm)
++	}
++}
++
++// stopAlarm turns off the alarm.
++func stopAlarm() {
++	if *timeout > 0 {
++		timer.Stop()
++	}
++}
++
++// alarm is called if the timeout expires.
++func alarm() {
++	panic("test timed out")
++}

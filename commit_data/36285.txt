@@ -15,8 +15,65 @@ Date:   Thu Mar 15 22:37:01 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                    | 3 +++
  src/cmd/go/testdata/src/failfast_test.go | 8 ++++++++
  src/testing/testing.go                   | 8 +++++---
  3 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ffedcff3d9..add30867db 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5700,6 +5700,9 @@ func TestFailFast(t *testing.T) {
+ 		// non-parallel subtests:
+ 		{"TestFailingSubtestsA", true, 1},
+ 		{"TestFailingSubtestsA", false, 2},
++		// fatal test
++		{"TestFatal[CD]", true, 1},
++		{"TestFatal[CD]", false, 2},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/go/testdata/src/failfast_test.go b/src/cmd/go/testdata/src/failfast_test.go
+index fef4d2a35e..6e64d73fdf 100644
+--- a/src/cmd/go/testdata/src/failfast_test.go
++++ b/src/cmd/go/testdata/src/failfast_test.go
+@@ -52,3 +52,11 @@ func TestFailingSubtestsA(t *testing.T) {
+ func TestFailingB(t *testing.T) {
+ 	t.Errorf("FAIL - %s", t.Name())
+ }
++
++func TestFatalC(t *testing.T) {
++	t.Fatalf("FAIL - %s", t.Name())
++}
++
++func TestFatalD(t *testing.T) {
++	t.Fatalf("FAIL - %s", t.Name())
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 686e77029a..12e2a8e692 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -731,6 +731,10 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
++		if t.failed {
++			atomic.AddUint32(&numFailed, 1)
++		}
++
+ 		if t.raceErrors+race.Errors() > 0 {
+ 			t.Errorf("race detected during execution of test")
+ 		}
+@@ -790,9 +794,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	t.raceErrors = -race.Errors()
+ 	fn(t)
+ 
+-	if t.failed {
+-		atomic.AddUint32(&numFailed, 1)
+-	}
++	// code beyond here will not be executed when FailNow is invoked
+ 	t.finished = true
+ }
+ 

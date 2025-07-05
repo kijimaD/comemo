@@ -11,6 +11,19 @@ Date:   Sun May 17 16:05:05 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/out.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4064f0ae41..50d2811f1b 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -243,6 +243,7 @@ func (p *Package) writeDefs() {
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
++		defer fgcch.Close()
+ 		_, err = io.Copy(fexp, fgcch)
+ 		if err != nil {
+ 			fatalf("%s", err)

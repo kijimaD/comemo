@@ -14,8 +14,88 @@ Date:   Sat Jan 17 21:09:15 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/3020
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install.html                |  9 +++++----
  src/runtime/sys_freebsd_amd64.s | 25 -------------------------
  src/syscall/asm_freebsd_amd64.s |  5 -----
  3 files changed, 5 insertions(+), 34 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 9561fdde21..8c9322fd53 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -14,9 +14,10 @@
+ 
+ <p>
+ <a href="https://golang.org/dl/" target="_blank">Official binary
+-distributions</a> are available for the FreeBSD (release 8 and above), Linux, Mac OS X (Snow Leopard
+-and above), and Windows operating systems and the 32-bit (<code>386</code>) and
+-64-bit (<code>amd64</code>) x86 processor architectures.
++distributions</a> are available for the FreeBSD (release 8-STABLE and above),
++Linux, Mac OS X (Snow Leopard and above), and Windows operating systems and
++the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
++architectures.
+ </p>
+ 
+ <p>
+@@ -44,7 +45,7 @@ proceeding. If your OS or architecture is not on the list, it's possible that
+ <th align="center">Notes</th>
+ </tr>
+ <tr><td colspan="3"><hr></td></tr>
+-<tr><td>FreeBSD 8 or later</td> <td>amd64, 386, arm</td> <td>Debian GNU/kFreeBSD not supported; FreeBSD/ARM needs FreeBSD 10 or later</td></tr>
++<tr><td>FreeBSD 8-STABLE or later</td> <td>amd64, 386, arm</td> <td>Debian GNU/kFreeBSD not supported; FreeBSD/ARM needs FreeBSD 10 or later</td></tr>
+ <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
+ <tr><td>Mac OS X 10.6 or later</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+ <tr><td>Windows XP or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 84cee51d8c..400c1845be 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -10,31 +10,6 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
+-// FreeBSD 8, FreeBSD 9, and older versions that I have checked
+-// do not restore R10 on exit from a "restarted" system call
+-// if you use the SYSCALL instruction. This means that, for example,
+-// if a signal arrives while the wait4 system call is executing,
+-// the wait4 internally returns ERESTART, which makes the kernel
+-// back up the PC to execute the SYSCALL instruction a second time.
+-// However, since the kernel does not restore R10, the fourth
+-// argument to the system call has been lost. (FreeBSD 9 also fails
+-// to restore the fifth and sixth arguments, R8 and R9, although
+-// some earlier versions did restore those correctly.)
+-// The broken code is in fast_syscall in FreeBSD's amd64/amd64/exception.S.
+-// It restores only DI, SI, DX, AX, and RFLAGS on system call return.
+-// http://fxr.watson.org/fxr/source/amd64/amd64/exception.S?v=FREEBSD91#L399
+-//
+-// The INT $0x80 system call path (int0x80_syscall in FreeBSD's 
+-// amd64/ia32/ia32_exception.S) does not have this problem,
+-// but it expects the third argument in R10. Instead of rewriting
+-// all the assembly in this file, #define SYSCALL to a safe simulation
+-// using INT $0x80.
+-//
+-// INT $0x80 is a little slower than SYSCALL, but correctness wins.
+-//
+-// See golang.org/issue/6372.
+-#define SYSCALL MOVQ R10, CX; INT $0x80
+-	
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVQ addr+0(FP), DI
+ 	MOVL mode+8(FP), SI
+diff --git a/src/syscall/asm_freebsd_amd64.s b/src/syscall/asm_freebsd_amd64.s
+index c52519098e..c6988c94b3 100644
+--- a/src/syscall/asm_freebsd_amd64.s
++++ b/src/syscall/asm_freebsd_amd64.s
+@@ -12,11 +12,6 @@
+ // System call support for AMD64, FreeBSD
+ //
+ 
+-// The SYSCALL variant for invoking system calls is broken in FreeBSD.
+-// See comment at top of ../runtime/sys_freebsd_amd64.c and
+-// golang.org/issue/6372.
+-#define SYSCALL MOVQ R10, CX; INT $0x80
+-
+ // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+ // func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64)

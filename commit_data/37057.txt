@@ -12,6 +12,20 @@ Date:   Wed Jun 20 13:15:44 2018 -0400
     Change-Id: I8551508599e019f6617dc007397b562c9926418d
     Reviewed-on: https://go-review.googlesource.com/120057
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 4eb4c42abe..5e0a0673bd 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -55,7 +55,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="wasm">WebAssembly</h3>
+ <p>
+-  Go 1.11 adds an experimental port to WebAssembly (<code>wasm/js</code>).
++  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+ </p>
+ 
+ <h2 id="library">Core library</h2>

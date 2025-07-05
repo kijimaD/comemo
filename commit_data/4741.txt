@@ -7,6 +7,31 @@ Date:   Mon Feb 1 16:59:42 2010 +1100
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/196087
-
+---
  doc/devel/roadmap.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index 8a49823747..bb0c8c7b89 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -73,9 +73,6 @@ Gc compiler roadmap</h4>
+ <li>
+ Method expressions.
+ <li>
+-Support multiple packages with the same name (but different import
+-paths) in the same program.
+-<li>
+ Implement goto restrictions.
+ <li>
+ Safe compilation mode: generate code which is guaranteed not to obtain
+@@ -95,9 +92,6 @@ Gccgo compiler roadmap</h4>
+ <li>
+ Method expressions.
+ <li>
+-Support multiple packages with the same name (but different import
+-paths) in the same program.
+-<li>
+ Implement goto restrictions.
+ <li>
+ Implement garbage collection.

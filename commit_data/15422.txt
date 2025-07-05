@@ -11,8 +11,139 @@ Date:   Mon Feb 25 16:36:29 2013 -0500
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7324058
-
+---
  src/pkg/runtime/cgo/gcc_darwin_386.c   |  4 +-
  src/pkg/runtime/cgo/gcc_darwin_amd64.c |  4 +-
  src/pkg/runtime/crash_test.go          | 73 ++++++++++++++++++++++++++++++++++
  3 files changed, 77 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_386.c b/src/pkg/runtime/cgo/gcc_darwin_386.c
+index 2c30c666fc..20a0395975 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_386.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_386.c
+@@ -127,14 +127,14 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_amd64.c b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+index 89dc7a4e8e..1c3fe0968c 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+@@ -97,14 +97,14 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index b2db1d7b95..90a5e099a3 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -99,6 +99,14 @@ func TestLockedDeadlock2(t *testing.T) {
+ 	testDeadlock(t, lockedDeadlockSource2)
+ }
+ 
++func TestCgoSignalDeadlock(t *testing.T) {
++	got := executeTest(t, cgoSignalDeadlockSource, nil)
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -183,3 +191,68 @@ func main() {
+ 	select {}
+ }
+ `
++
++const cgoSignalDeadlockSource = `
++package main
++
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++	"time"
++)
++
++func main() {
++	runtime.GOMAXPROCS(100)
++	ping := make(chan bool)
++	go func() {
++		for i := 0; ; i++ {
++			runtime.Gosched()
++			select {
++			case done := <-ping:
++				if done {
++					ping <- true
++					return
++				}
++				ping <- true
++			default:
++			}
++			func() {
++				defer func() {
++					recover()
++				}()
++				var s *string
++				*s = ""
++			}()
++		}
++	}()
++	time.Sleep(time.Millisecond)
++	for i := 0; i < 64; i++ {
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		time.Sleep(time.Millisecond)
++		ping <- false
++		select {
++		case <-ping:
++		case <-time.After(time.Second):
++			fmt.Printf("HANG\n")
++			return
++		}
++	}
++	ping <- true
++	select {
++	case <-ping:
++	case <-time.After(time.Second):
++		fmt.Printf("HANG\n")
++		return
++	}
++	fmt.Printf("OK\n")
++}
++`

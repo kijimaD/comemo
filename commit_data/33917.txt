@@ -7,6 +7,19 @@ Date:   Fri Sep 1 14:58:32 2017 -0700
     Change-Id: Ide7fe6b09247b7a6befbdfc2d6ce5988aa1df323
     Reviewed-on: https://go-review.googlesource.com/61131
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/syntax.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index ee0666a946..db8597e223 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -563,7 +563,6 @@ const (
+ 	OCONTINUE // continue
+ 	ODEFER    // defer Left (Left must be call)
+ 	OEMPTY    // no-op (empty statement)
+-	_         // placeholder to appease toolstash
+ 	OFALL     // fallthrough
+ 	OFOR      // for Ninit; Left; Right { Nbody }
+ 	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before

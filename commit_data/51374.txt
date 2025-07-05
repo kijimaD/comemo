@@ -16,9 +16,104 @@ Date:   Tue Jan 18 19:58:14 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 12 ++++++++++++
  src/cmd/compile/internal/types2/lookup.go   |  6 +++++-
  src/go/types/api_test.go                    | 12 ++++++++++++
  src/go/types/lookup.go                      |  6 +++++-
  4 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 2493bfb200..3b75818d56 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1443,6 +1443,18 @@ var _ = a.C2
+ 	makePkg("main", mainSrc) // don't crash when type-checking this package
+ }
+ 
++func TestLookupFieldOrMethodOnNil(t *testing.T) {
++	// LookupFieldOrMethod on a nil type is expected to produce a run-time panic.
++	defer func() {
++		const want = "LookupFieldOrMethod on nil type"
++		p := recover()
++		if s, ok := p.(string); !ok || s != want {
++			t.Fatalf("got %v, want %s", p, want)
++		}
++	}()
++	LookupFieldOrMethod(nil, false, nil, "")
++}
++
+ func TestLookupFieldOrMethod(t *testing.T) {
+ 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
+ 	// addressable value, and x for a non-addressable value (even though a variable
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 2b710040a4..61e8aa5054 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -19,7 +19,7 @@ import (
+ // in T and returns the corresponding *Var or *Func, an index sequence, and a
+ // bool indicating if there were any pointer indirections on the path to the
+ // field or method. If addressable is set, T is the type of an addressable
+-// variable (only matters for method lookups).
++// variable (only matters for method lookups). T must not be nil.
+ //
+ // The last index entry is the field or method index in the (possibly embedded)
+ // type where the entry was found, either:
+@@ -42,6 +42,10 @@ import (
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
++	if T == nil {
++		panic("LookupFieldOrMethod on nil type")
++	}
++
+ 	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8c80494de7..7986534e78 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1426,6 +1426,18 @@ var _ = a.C2
+ 	makePkg("main", mainSrc) // don't crash when type-checking this package
+ }
+ 
++func TestLookupFieldOrMethodOnNil(t *testing.T) {
++	// LookupFieldOrMethod on a nil type is expected to produce a run-time panic.
++	defer func() {
++		const want = "LookupFieldOrMethod on nil type"
++		p := recover()
++		if s, ok := p.(string); !ok || s != want {
++			t.Fatalf("got %v, want %s", p, want)
++		}
++	}()
++	LookupFieldOrMethod(nil, false, nil, "")
++}
++
+ func TestLookupFieldOrMethod(t *testing.T) {
+ 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
+ 	// addressable value, and x for a non-addressable value (even though a variable
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index b9c5048b5d..d35e53aa10 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -19,7 +19,7 @@ import (
+ // in T and returns the corresponding *Var or *Func, an index sequence, and a
+ // bool indicating if there were any pointer indirections on the path to the
+ // field or method. If addressable is set, T is the type of an addressable
+-// variable (only matters for method lookups).
++// variable (only matters for method lookups). T must not be nil.
+ //
+ // The last index entry is the field or method index in the (possibly embedded)
+ // type where the entry was found, either:
+@@ -42,6 +42,10 @@ import (
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
++	if T == nil {
++		panic("LookupFieldOrMethod on nil type")
++	}
++
+ 	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared

@@ -11,6 +11,21 @@ Date:   Wed Jul 25 18:08:16 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/net/http/serve_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 13057452b4..b53c2f856b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2324,6 +2324,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
+ 	if !strings.Contains(string(body), "<title>Timeout</title>") {
+ 		t.Errorf("expected timeout body; got %q", string(body))
+ 	}
++	if g, w := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != w {
++		t.Errorf("response content-type = %q; want %q", g, w)
++	}
+ 
+ 	// Now make the previously-timed out handler speak again,
+ 	// which verifies the panic is handled:

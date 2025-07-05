@@ -7,7 +7,7 @@ Date:   Mon Nov 26 22:32:59 2012 +1100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6854079
-
+---
  src/pkg/runtime/defs_openbsd.go      |  2 ++
  src/pkg/runtime/defs_openbsd_386.h   |  2 ++
  src/pkg/runtime/defs_openbsd_amd64.h |  2 ++
@@ -15,3 +15,97 @@ Date:   Mon Nov 26 22:32:59 2012 +1100
  src/pkg/runtime/sys_openbsd_386.s    |  7 +++++++
  src/pkg/runtime/sys_openbsd_amd64.s  | 10 ++++++++++
  6 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index d0be044806..ff94b94056 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -34,6 +34,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
++	MADV_FREE = C.MADV_FREE
++
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index 965e05e217..323bb084af 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -12,6 +12,8 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_FREE	= 0x6,
++
+ 	SA_SIGINFO	= 0x40,
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 159bbd8fdc..429cc99f0e 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -12,6 +12,8 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_FREE	= 0x6,
++
+ 	SA_SIGINFO	= 0x40,
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 34ff31d908..43fef40ba4 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -28,9 +28,7 @@ runtime·SysAlloc(uintptr n)
+ void
+ runtime·SysUnused(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call madvise MADV_DONTNEED
++	runtime·madvise(v, n, MADV_FREE);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 43a8dac62c..f002f8eafb 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -84,6 +84,13 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·madvise(SB),7,$-4
++	MOVL	$75, AX			// sys_madvise
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·setitimer(SB),7,$-4
+ 	MOVL	$83, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 9717725d99..6b674a51ac 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -236,6 +236,16 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·madvise(SB),7,$0
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	len+8(FP), SI		// arg 2 - len
++	MOVQ	behav+16(FP), DX	// arg 3 - behav
++	MOVQ	$75, AX			// sys_madvise
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	new+8(SP), DI		// arg 1 - nss
+ 	MOVQ	old+16(SP), SI		// arg 2 - oss

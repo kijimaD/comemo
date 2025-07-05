@@ -11,6 +11,19 @@ Date:   Sun Aug 16 21:49:53 2020 +0000
     GitHub-Pull-Request: golang/go#36674
     Reviewed-on: https://go-review.googlesource.com/c/go/+/215618
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/articles/wiki/index.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index 4e3a5deab5..a74a58e317 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -257,6 +257,7 @@ To use the <code>net/http</code> package, it must be imported:
+ import (
+ 	"fmt"
+ 	"io/ioutil"
++	"log"
+ 	<b>"net/http"</b>
+ )
+ </pre>

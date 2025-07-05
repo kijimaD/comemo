@@ -17,6 +17,28 @@ Date:   Fri Apr 21 11:42:20 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/log/log_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index b3b63d4e22..c7fa78f5ad 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -109,12 +109,16 @@ func TestNonNewLogger(t *testing.T) {
+ func TestOutputRace(t *testing.T) {
+ 	var b bytes.Buffer
+ 	l := New(&b, "", 0)
++	var wg sync.WaitGroup
++	wg.Add(100)
+ 	for i := 0; i < 100; i++ {
+ 		go func() {
++			defer wg.Done()
+ 			l.SetFlags(0)
+ 			l.Output(0, "")
+ 		}()
+ 	}
++	wg.Wait()
+ }
+ 
+ func TestFlagAndPrefixSetting(t *testing.T) {

@@ -29,7 +29,7 @@ Date:   Tue Apr 1 12:51:02 2014 -0700
     R=golang-codereviews, rsc
     CC=golang-codereviews, r
     https://golang.org/cl/81370046
-
+---
  src/cmd/6g/cgen.c               |   9 +-
  src/cmd/6g/ggen.c               |   8 +-
  src/cmd/6g/prog.c               |   2 +
@@ -44,3 +44,1943 @@ Date:   Tue Apr 1 12:51:02 2014 -0700
  src/pkg/runtime/asm_amd64.s     | 795 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/memmove_test.go |  80 ++++
  13 files changed, 1726 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 102daa166d..9509232dc9 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1345,6 +1345,7 @@ sgen(Node *n, Node *ns, int64 w)
+ 	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
+ 	vlong c, q, odst, osrc;
+ 	NodeList *l;
++	Prog *p;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+@@ -1447,10 +1448,16 @@ sgen(Node *n, Node *ns, int64 w)
+ 		gins(ACLD, N, N);
+ 	} else {
+ 		// normal direction
+-		if(q >= 4) {
++		if(q > 128) {
+ 			gconreg(movptr, q, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
++		} else if (q >= 4) {
++			p = gins(ADUFFCOPY, N, N);
++			p->to.type = D_ADDR;
++			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
++			// 14 and 128 = magic constants: see ../../pkg/runtime/asm_amd64.s
++			p->to.offset = 14*(128-q);
+ 		} else
+ 		while(q > 0) {
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index f6047ca00d..9465f4d0ea 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1088,10 +1088,16 @@ clearfat(Node *nl)
+ 	savex(D_AX, &ax, &oldax, N, types[tptr]);
+ 	gconreg(AMOVL, 0, D_AX);
+ 
+-	if(q >= 4) {
++	if(q > 128) {
+ 		gconreg(movptr, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
++	} else if(q >= 4) {
++		p = gins(ADUFFZERO, N, N);
++		p->to.type = D_ADDR;
++		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
++		// 2 and 128 = magic constants: see ../../pkg/runtime/asm_amd64.s
++		p->to.offset = 2*(128-q);
+ 	} else
+ 	while(q > 0) {
+ 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index bda0918565..ee68399d5a 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -170,6 +170,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AMOVSL]=	{OK, DI|SI, DI|SI},
+ 	[AMOVSQ]=	{OK, DI|SI, DI|SI},
+ 	[AMOVSW]=	{OK, DI|SI, DI|SI},
++	[ADUFFCOPY]=	{OK, DI|SI, DI|SI|CX},
+ 
+ 	[AMOVSD]=	{SizeD | LeftRead | RightWrite | Move},
+ 	[AMOVSS]=	{SizeF | LeftRead | RightWrite | Move},
+@@ -257,6 +258,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[ASTOSL]=	{OK, AX|DI, DI},
+ 	[ASTOSQ]=	{OK, AX|DI, DI},
+ 	[ASTOSW]=	{OK, AX|DI, DI},
++	[ADUFFZERO]=	{OK, AX|DI, DI},
+ 
+ 	[ASUBB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
+ 	[ASUBL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 66bc802a96..5fca297b0f 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -764,6 +764,8 @@ enum	as
+ 	ACHECKNIL,
+ 	AVARDEF,
+ 	AVARKILL,
++	ADUFFCOPY,
++	ADUFFZERO,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index a357724a98..85daeb97e6 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1212,6 +1212,7 @@ sgen(Node *n, Node *res, int64 w)
+ 	Node dst, src, tdst, tsrc;
+ 	int32 c, q, odst, osrc;
+ 	NodeList *l;
++	Prog *p;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+@@ -1314,10 +1315,16 @@ sgen(Node *n, Node *res, int64 w)
+ 	} else {
+ 		gins(ACLD, N, N);	// paranoia.  TODO(rsc): remove?
+ 		// normal direction
+-		if(q >= 4) {
++		if(q > 128) {
+ 			gconreg(AMOVL, q, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
++		} else if(q >= 4) {
++			p = gins(ADUFFCOPY, N, N);
++			p->to.type = D_ADDR;
++			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
++			// 10 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
++			p->to.offset = 10*(128-q);
+ 		} else
+ 		while(q > 0) {
+ 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index a4cc12f3ef..afe80316b4 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -130,6 +130,7 @@ clearfat(Node *nl)
+ {
+ 	uint32 w, c, q;
+ 	Node n1;
++	Prog *p;
+ 
+ 	/* clear a fat object */
+ 	if(debug['g'])
+@@ -147,10 +148,16 @@ clearfat(Node *nl)
+ 	agen(nl, &n1);
+ 	gconreg(AMOVL, 0, D_AX);
+ 
+-	if(q >= 4) {
++	if(q > 128) {
+ 		gconreg(AMOVL, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
++	} else if(q >= 4) {
++		p = gins(ADUFFZERO, N, N);
++		p->to.type = D_ADDR;
++		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
++		// 1 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
++		p->to.offset = 1*(128-q);
+ 	} else
+ 	while(q > 0) {
+ 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index d7a40d29f3..627658b452 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -195,6 +195,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AMOVSB]=	{OK, DI|SI, DI|SI},
+ 	[AMOVSL]=	{OK, DI|SI, DI|SI},
+ 	[AMOVSW]=	{OK, DI|SI, DI|SI},
++	[ADUFFCOPY]=	{OK, DI|SI, DI|SI|CX},
+ 
+ 	[AMOVSD]=	{SizeD | LeftRead | RightWrite | Move},
+ 	[AMOVSS]=	{SizeF | LeftRead | RightWrite | Move},
+@@ -287,6 +288,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[ASTOSB]=	{OK, AX|DI, DI},
+ 	[ASTOSL]=	{OK, AX|DI, DI},
+ 	[ASTOSW]=	{OK, AX|DI, DI},
++	[ADUFFZERO]=	{OK, AX|DI, DI},
+ 
+ 	[ASUBB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
+ 	[ASUBL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index d3708d5d85..3d3c40c755 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -581,6 +581,8 @@ enum	as
+ 	ACHECKNIL,
+ 	AVARDEF,
+ 	AVARKILL,
++	ADUFFCOPY,
++	ADUFFZERO,
+ 	
+ 	ALAST
+ };
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index b2690bf0e4..0403665211 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -507,6 +507,11 @@ static uchar	ycall[] =
+ 	Ynone,	Ybr,	Zcall,	1,
+ 	0
+ };
++static uchar	yduff[] =
++{
++	Ynone,	Yi32,	Zcall,	1,
++	0
++};
+ static uchar	yjmp[] =
+ {
+ 	Ynone,	Yml,	Zo_m64,	2,
+@@ -1519,6 +1524,9 @@ Optab optab[] =
+ 	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 	{ ACHECKNIL },
+ 	{ AVARDEF },
++	{ AVARKILL },
++	{ ADUFFCOPY,	yduff,	Px, 0xe8 },
++	{ ADUFFZERO,	yduff,	Px, 0xe8 },
+ 
+ 	{ AEND },
+ 	0
+@@ -3030,6 +3038,7 @@ found:
+ 		r = addrel(ctxt->cursym);
+ 		r->off = p->pc + ctxt->andptr - ctxt->and;
+ 		r->sym = p->to.sym;
++		r->add = p->to.offset;
+ 		r->type = D_PCREL;
+ 		r->siz = 4;
+ 		put4(ctxt, 0);
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 15d9c038c5..2e4bc709e8 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -420,6 +420,11 @@ static uchar	ycall[] =
+ 	Ynone,	Yi32,	Zcallcon,	1,
+ 	0
+ };
++static uchar	yduff[] =
++{
++	Ynone,	Yi32,	Zcall,	1,
++	0
++};
+ static uchar	yjmp[] =
+ {
+ 	Ynone,	Yml,	Zo_m,	2,
+@@ -1147,6 +1152,9 @@ static Optab optab[] =
+ 	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 	{ ACHECKNIL },
+ 	{ AVARDEF },
++	{ AVARKILL },
++	{ ADUFFCOPY,	yduff,	Px, 0xe8 },
++	{ ADUFFZERO,	yduff,	Px, 0xe8 },
+ 
+ 	0
+ };
+@@ -2377,6 +2385,7 @@ found:
+ 		r->type = D_PCREL;
+ 		r->siz = 4;
+ 		r->sym = p->to.sym;
++		r->add = p->to.offset;
+ 		put4(ctxt, 0);
+ 		break;
+ 
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index bb3bcaf348..ee9697c537 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1348,3 +1348,797 @@ cmp_allsame:
+ 	SETEQ	CX	// 1 if alen == blen
+ 	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
++
++// A Duff's device for zeroing memory.
++// The compiler jumps to computed addresses within
++// this routine to zero chunks of memory.  Do not
++// change this code without also changing the code
++// in ../../cmd/8g/ggen.c:clearfat.
++// AX: zero
++// DI: ptr to memory to be zeroed
++// DI is updated as a side effect.
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	RET
++
++// A Duff's device for copying memory.
++// The compiler jumps to computed addresses within
++// this routine to copy chunks of memory.  Source
++// and destination must not overlap.  Do not
++// change this code without also changing the code
++// in ../../cmd/6g/cgen.c:sgen.
++// SI: ptr to source memory
++// DI: ptr to destination memory
++// SI and DI are updated as a side effect.
++
++// NOTE: this is equivalent to a sequence of MOVSL but
++// for some reason MOVSL is really slow.
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	MOVL	(SI),CX
++	ADDL	$4,SI
++	MOVL	CX,(DI)
++	ADDL	$4,DI
++	
++	RET
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 3153de47e4..fa6d8693ff 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1380,3 +1380,798 @@ TEXT bytes·Equal(SB),NOSPLIT,$0-49
+ eqret:
+ 	MOVB	AX, ret+48(FP)
+ 	RET
++
++// A Duff's device for zeroing memory.
++// The compiler jumps to computed addresses within
++// this routine to zero chunks of memory.  Do not
++// change this code without also changing the code
++// in ../../cmd/6g/ggen.c:clearfat.
++// AX: zero
++// DI: ptr to memory to be zeroed
++// DI is updated as a side effect.
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	RET
++
++// A Duff's device for copying memory.
++// The compiler jumps to computed addresses within
++// this routine to copy chunks of memory.  Source
++// and destination must not overlap.  Do not
++// change this code without also changing the code
++// in ../../cmd/6g/cgen.c:sgen.
++// SI: ptr to source memory
++// DI: ptr to destination memory
++// SI and DI are updated as a side effect.
++
++// NOTE: this is equivalent to a sequence of MOVSQ but
++// for some reason that is 3.5x slower than this code.
++// The STOSQ above seem fine, though.
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	MOVQ	(SI),CX
++	ADDQ	$8,SI
++	MOVQ	CX,(DI)
++	ADDQ	$8,DI
++
++	RET
+diff --git a/src/pkg/runtime/memmove_test.go b/src/pkg/runtime/memmove_test.go
+index 5c01aac97a..cc43fd5f20 100644
+--- a/src/pkg/runtime/memmove_test.go
++++ b/src/pkg/runtime/memmove_test.go
+@@ -161,3 +161,83 @@ func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
+ func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
+ func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
+ func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
++
++func BenchmarkClearFat32(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [32]byte
++		_ = x
++	}
++}
++func BenchmarkClearFat64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [64]byte
++		_ = x
++	}
++}
++func BenchmarkClearFat128(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [128]byte
++		_ = x
++	}
++}
++func BenchmarkClearFat256(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [256]byte
++		_ = x
++	}
++}
++func BenchmarkClearFat512(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [512]byte
++		_ = x
++	}
++}
++func BenchmarkClearFat1024(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [1024]byte
++		_ = x
++	}
++}
++
++func BenchmarkCopyFat32(b *testing.B) {
++	var x [32]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat64(b *testing.B) {
++	var x [64]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat128(b *testing.B) {
++	var x [128]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat256(b *testing.B) {
++	var x [256]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat512(b *testing.B) {
++	var x [512]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat1024(b *testing.B) {
++	var x [1024]byte
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}

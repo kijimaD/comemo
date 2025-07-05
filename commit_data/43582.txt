@@ -16,6 +16,47 @@ Date:   Sun Apr 12 23:38:36 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 22 ----------------------
  1 file changed, 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9eab170ddb..56062f8c57 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -81,18 +81,6 @@ func walkstmtlist(s []*Node) {
+ 	}
+ }
+ 
+-func samelist(a, b []*Node) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i, n := range a {
+-		if n != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func paramoutheap(fn *Node) bool {
+ 	for _, ln := range fn.Func.Dcl {
+ 		switch ln.Class() {
+@@ -295,16 +283,6 @@ func walkstmt(n *Node) *Node {
+ 				Fatalf("expected %v return arguments, have %v", want, got)
+ 			}
+ 
+-			if samelist(rl, n.List.Slice()) {
+-				// special return in disguise
+-				// TODO(josharian, 1.12): is "special return" still relevant?
+-				// Tests still pass w/o this. See comments on https://go-review.googlesource.com/c/go/+/118318
+-				walkexprlist(n.List.Slice(), &n.Ninit)
+-				n.List.Set(nil)
+-
+-				break
+-			}
+-
+ 			// move function calls out, to make reorder3's job easier.
+ 			walkexprlistsafe(n.List.Slice(), &n.Ninit)
+ 

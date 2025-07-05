@@ -13,7 +13,44 @@ Date:   Tue Jun 27 23:04:44 2017 +0900
     Change-Id: I30a0ee956e6c4655c975ecdaa905887bd474952c
     Reviewed-on: https://go-review.googlesource.com/46810
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 6 +++---
  src/cmd/go/internal/help/helpdoc.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index beda85860d..aaeaab60cf 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -849,10 +849,10 @@
+ // 		exactly one main package to be listed.
+ //
+ // 	-buildmode=c-shared
+-// 		Build the listed main packages, plus all packages that they
+-// 		import, into C shared libraries. The only callable symbols will
++// 		Build the listed main package, plus all packages it imports,
++// 		into a C shared library. The only callable symbols will
+ // 		be those functions exported using a cgo //export comment.
+-// 		Non-main packages are ignored.
++// 		Requires exactly one main package to be listed.
+ //
+ // 	-buildmode=default
+ // 		Listed main packages are built into executables and listed
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 04731c232b..b9349ee889 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -589,10 +589,10 @@ are:
+ 		exactly one main package to be listed.
+ 
+ 	-buildmode=c-shared
+-		Build the listed main packages, plus all packages that they
+-		import, into C shared libraries. The only callable symbols will
++		Build the listed main package, plus all packages it imports,
++		into a C shared library. The only callable symbols will
+ 		be those functions exported using a cgo //export comment.
+-		Non-main packages are ignored.
++		Requires exactly one main package to be listed.
+ 
+ 	-buildmode=default
+ 		Listed main packages are built into executables and listed

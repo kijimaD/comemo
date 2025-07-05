@@ -13,8 +13,55 @@ Date:   Mon Jan 22 09:43:27 2018 -0800
     Change-Id: I2898ec002228b2e34fe80ce420c6939201c0a5aa
     Reviewed-on: https://go-review.googlesource.com/88955
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go |  2 +-
  src/cmd/compile/internal/ssa/fuse.go  |  1 +
  test/fixedbugs/issue23504.go          | 15 +++++++++++++++
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index de77aff480..721e451f05 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -102,7 +102,7 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("plain/dead block %s has a control value", b)
+ 			}
+ 		}
+-		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
++		if len(b.Succs) != 2 && b.Likely != BranchUnknown {
+ 			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index f00356a7b2..45b13a050d 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -92,6 +92,7 @@ func fuseBlockIf(b *Block) bool {
+ 		b.removeEdge(1)
+ 	}
+ 	b.Kind = BlockPlain
++	b.Likely = BranchUnknown
+ 	b.SetControl(nil)
+ 
+ 	// Trash the empty blocks s0 & s1.
+diff --git a/test/fixedbugs/issue23504.go b/test/fixedbugs/issue23504.go
+new file mode 100644
+index 0000000000..77f3184149
+--- /dev/null
++++ b/test/fixedbugs/issue23504.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var B bool
++	B2 := (B || B && !B) && !B
++	B3 := B2 || B
++	for (B3 || B2) && !B2 && B {
++	}
++}

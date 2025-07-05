@@ -7,9 +7,137 @@ Date:   Fri Aug 7 16:47:54 2009 -0700
     R=ken
     OCL=32902
     CL=32914
-
+---
  src/cmd/gc/walk.c                  | 15 ++++++++++++++-
  test/{bugs => fixedbugs}/bug159.go |  0
  test/golden.out                    |  4 ----
  test/simassign.go                  | 27 +++++++++++++--------------
  4 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0d9f7f520e..d1e7f3a1be 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1868,6 +1868,7 @@ reorder1(NodeList *all)
+  * simultaneous assignment. there cannot
+  * be later use of an earlier lvalue.
+  */
++
+ int
+ vmatch2(Node *l, Node *r)
+ {
+@@ -1908,7 +1909,18 @@ vmatch1(Node *l, Node *r)
+ 		return 0;
+ 	switch(l->op) {
+ 	case ONAME:
+-		// match each left with all rights
++		switch(l->class) {
++		case PPARAM:
++		case PPARAMREF:
++		case PAUTO:
++			break;
++		default:
++			// assignment to non-stack variable
++			// must be delayed if right has function calls.
++			if(r->ullman >= UINF)
++				return 1;
++			break;
++		}
+ 		return vmatch2(l, r);
+ 	case OLITERAL:
+ 		return 0;
+@@ -1937,6 +1949,7 @@ reorder3(NodeList *all)
+ 			n2 = l2->n;
+ 			if(c2 > c1) {
+ 				if(vmatch1(n1->left, n2->right)) {
++					// delay assignment to n1->left
+ 					q = nod(OXXX, N, N);
+ 					tempname(q, n1->right->type);
+ 					q = nod(OAS, n1->left, q);
+diff --git a/test/bugs/bug159.go b/test/fixedbugs/bug159.go
+similarity index 100%
+rename from test/bugs/bug159.go
+rename to test/fixedbugs/bug159.go
+diff --git a/test/golden.out b/test/golden.out
+index d4c05db18c..9875907dc6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -147,10 +147,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug136.go
+ BUG: errchk: command succeeded unexpectedly
+ 
+-=========== bugs/bug159.go
+-abc: expected 4 5 6 got 4 4 -4
+-BUG: bug159
+-
+ =========== bugs/bug162.go
+ 123
+ BUG: should fail
+diff --git a/test/simassign.go b/test/simassign.go
+index 1e7d307aaf..ce86d48dbc 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -11,18 +11,19 @@ var	a,b,c,d,e,f,g,h,i int;
+ func
+ printit()
+ {
+-	print(a,b,c,d,e,f,g,h,i,"\n");
++	println(a,b,c,d,e,f,g,h,i);
+ }
+ 
+ func
+-testit() bool
++testit(permuteok bool) bool
+ {
+ 	if a+b+c+d+e+f+g+h+i != 45 {
+ 		print("sum does not add to 45\n");
+ 		printit();
+-		panic();
++		return false;
+ 	}
+-	return	a == 1 &&
++	return	permuteok ||
++		a == 1 &&
+ 		b == 2 &&
+ 		c == 3 &&
+ 		d == 4 &&
+@@ -51,22 +52,19 @@ main()
+ 	h = 8;
+ 	i = 9;
+ 
+-	if !testit() { panic("init val\n"); }
++	if !testit(false) { panic("init val\n"); }
+ 
+ 	for z:=0; z<100; z++ {
+ 		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
+ 
+-		if testit() {
+-			if z == 19 {
+-				break;
+-			}
++		if !testit(z%20 != 19) {
+ 			print("on ", z, "th iteration\n");
+ 			printit();
+ 			panic();
+ 		}
+ 	}
+ 
+-	if !testit() {
++	if !testit(false) {
+ 		print("final val\n");
+ 		printit();
+ 		panic();
+@@ -76,8 +74,9 @@ main()
+ 	if a != 2 || b != 1 {
+ 		panic("bad swap");
+ 	}
+-//BUG	a, b = swap(swap(a, b));
+-//	if a != 2 || b != 1 {
+-//		panic("bad swap");
+-//	}
++
++	a, b = swap(swap(a, b));
++	if a != 2 || b != 1 {
++		panic("bad swap");
++	}
+ }

@@ -26,6 +26,20 @@ Date:   Wed Mar 23 13:29:43 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/395115
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 0056f83059..49e004cf18 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -58,7 +58,7 @@ type CmdFlags struct {
+ 	E CountFlag    "help:\"debug symbol export\""
+ 	I func(string) "help:\"add `directory` to import search path\""
+ 	K CountFlag    "help:\"debug missing line numbers\""
+-	L CountFlag    "help:\"show full file names in error messages\""
++	L CountFlag    "help:\"also show actual source file names in error messages for positions affected by //line directives\""
+ 	N CountFlag    "help:\"disable optimizations\""
+ 	S CountFlag    "help:\"print assembly listing\""
+ 	// V is added by objabi.AddVersionFlag

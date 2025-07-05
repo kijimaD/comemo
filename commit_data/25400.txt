@@ -7,7 +7,7 @@ Date:   Mon Oct 26 14:57:36 2015 -0700
     Change-Id: I956e27fa07f16060b8f41b986d991c36557f7c12
     Reviewed-on: https://go-review.googlesource.com/16332
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    |  6 +++---
  src/cmd/compile/internal/gc/export.go |  2 +-
  src/cmd/compile/internal/gc/go.go     | 24 ++++++++++++++----------
@@ -15,3 +15,130 @@ Date:   Mon Oct 26 14:57:36 2015 -0700
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  src/cmd/compile/internal/gc/walk.go   |  2 +-
  6 files changed, 21 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0d508daeb1..a3179c9d18 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -151,7 +151,7 @@ var vargen int
+ 
+ var declare_typegen int
+ 
+-func declare(n *Node, ctxt uint8) {
++func declare(n *Node, ctxt Class) {
+ 	if ctxt == PDISCARD {
+ 		return
+ 	}
+@@ -217,12 +217,12 @@ func declare(n *Node, ctxt uint8) {
+ 	s.Def = n
+ 	n.Name.Vargen = int32(gen)
+ 	n.Name.Funcdepth = Funcdepth
+-	n.Class = uint8(ctxt)
++	n.Class = ctxt
+ 
+ 	autoexport(n, ctxt)
+ }
+ 
+-func addvar(n *Node, t *Type, ctxt uint8) {
++func addvar(n *Node, t *Type, ctxt Class) {
+ 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
+ 		Fatalf("addvar: n=%v t=%v nil", n, t)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index f69fa90699..a7a8522ecd 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -72,7 +72,7 @@ func exportedsym(sym *Sym) bool {
+ 	return sym.Pkg == localpkg && exportname(sym.Name)
+ }
+ 
+-func autoexport(n *Node, ctxt uint8) {
++func autoexport(n *Node, ctxt Class) {
+ 	if n == nil || n.Sym == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9b91b57c34..550f332d07 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -333,19 +333,23 @@ const (
+ 	Cboth = Crecv | Csend
+ )
+ 
+-// declaration context
++// The Class of a variable/function describes the "storage class"
++// of a variable or function. During parsing, storage classes are
++// called declaration contexts.
++type Class uint8
++
+ const (
+-	Pxxx      = uint8(iota)
+-	PEXTERN   // global variable
+-	PAUTO     // local variables
+-	PPARAM    // input arguments
+-	PPARAMOUT // output results
+-	PPARAMREF // closure variable reference
+-	PFUNC     // global function
++	Pxxx      Class = iota
++	PEXTERN         // global variable
++	PAUTO           // local variables
++	PPARAM          // input arguments
++	PPARAMOUT       // output results
++	PPARAMREF       // closure variable reference
++	PFUNC           // global function
+ 
+ 	PDISCARD // discard during parse of duplicate import
+ 
+-	PHEAP = uint8(1 << 7) // an extra bit to identify an escaped variable
++	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
+ )
+ 
+ const (
+@@ -587,7 +591,7 @@ var importlist []*Node // imported functions and methods with inlinable bodies
+ 
+ var funcsyms []*Node
+ 
+-var dclcontext uint8 // PEXTERN/PAUTO
++var dclcontext Class // PEXTERN/PAUTO
+ 
+ var incannedimport int
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 4d7f0f72a9..c671c3bf3e 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -818,7 +818,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
+ 		return
+ 	}
+ 	var a *Node
+-	var class uint8
++	var class Class
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+ 		a = l.N
+ 		class = a.Class &^ PHEAP
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index dd185f18f5..c94d727488 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -48,7 +48,7 @@ type Node struct {
+ 	Addable     bool  // addressable
+ 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+ 	Bounded     bool  // bounds check unnecessary
+-	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
++	Class       Class // PPARAM, PAUTO, PEXTERN, etc
+ 	Embedded    uint8 // ODCLFIELD embedded type
+ 	Colas       bool  // OAS resulting from :=
+ 	Diag        uint8 // already printed error about this
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 43398a3d31..875b7aba13 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -288,7 +288,7 @@ func walkstmt(np **Node) {
+ 			// so that reorder3 can fix up conflicts
+ 			var rl *NodeList
+ 
+-			var cl uint8
++			var cl Class
+ 			for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
+ 				cl = ll.N.Class &^ PHEAP
+ 				if cl == PAUTO {

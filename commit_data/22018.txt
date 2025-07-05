@@ -12,6 +12,22 @@ Date:   Thu Feb 19 09:35:28 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/5221
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index e59a0b3bbf..4db9f35e69 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -113,8 +113,8 @@ import (
+ // a JSON tag of "-".
+ //
+ // Map values encode as JSON objects.
+-// The map's key type must be string; the object keys are used directly
+-// as map keys.
++// The map's key type must be string; the map keys are used as JSON object
++// keys, subject to the UTF-8 coercion described for string values above.
+ //
+ // Pointer values encode as the value pointed to.
+ // A nil pointer encodes as the null JSON object.

@@ -17,7 +17,7 @@ Date:   Wed Nov 22 17:20:35 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Heschi Kreinick <heschi@google.com>
-
+---
  .github/ISSUE_TEMPLATE/00-bug.yml                  |  98 ++++++++++++
  .github/ISSUE_TEMPLATE/01-pkgsite.yml              |  47 ++++++
  .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml      |  29 ++++
@@ -34,3 +34,542 @@ Date:   Wed Nov 22 17:20:35 2023 +0000
  .../{ => archived}/11-language-change.md           |   0
  .github/ISSUE_TEMPLATE/config.yml                  |   2 +-
  15 files changed, 459 insertions(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/00-bug.yml b/.github/ISSUE_TEMPLATE/00-bug.yml
+new file mode 100644
+index 0000000000..7a87618190
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/00-bug.yml
+@@ -0,0 +1,98 @@
++# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#creating-issue-forms
++# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
++name: Bugs
++description: The go command, standard library, or anything else
++labels: [ 'kind/bug', 'bug' ]
++title: "affected/package: "
++
++body:
++  - type: markdown
++    attributes:
++      value: |
++        Thanks for helping us improve! 🙏 Please answer these questions and provide as much information as possible about your problem.
++
++  - type: input
++    id: go-version
++    attributes:
++      label: Go version
++      description: What version of Go are you using (`go version`)?
++      placeholder: ex. go version go1.20.7 darwin/arm64
++    validations:
++      required: true
++
++  - type: checkboxes
++    id: reproduce-latest-release
++    attributes:
++      label: Reproducibility
++      options:
++        - label: Does this issue reproduce with the latest release?
++
++  - type: textarea
++    id: os-and-processor
++    attributes:
++      label: "What operating system and processor architecture are you using (`go env`)?"
++      placeholder: |
++        GO111MODULE=""
++        GOARCH="arm64"
++        GOBIN="/Users/gopher/go/bin"
++        GOCACHE="/Users/gopher/go/cache"
++        GOENV="/Users/gopher/Library/Application Support/go/env"
++        GOEXE=""
++        GOEXPERIMENT=""
++        GOFLAGS=""
++        GOHOSTARCH="arm64"
++        GOHOSTOS="darwin"
++        GOINSECURE=""
++        GOMODCACHE="/Users/gopher/go/pkg/mod"
++        GONOPROXY=""
++        GONOSUMDB=""
++        GOOS="darwin"
++        GOPATH="/Users/gopher/go"
++        GOPRIVATE=""
++        GOPROXY="https://proxy.golang.org,direct"
++        GOROOT="/usr/local/go"
++        GOSUMDB="sum.golang.org"
++        GOTMPDIR=""
++        GOTOOLDIR="/usr/local/go/pkg/tool/darwin_arm64"
++        GOVCS=""
++        GOVERSION="go1.20.7"
++        GCCGO="gccgo"
++        AR="ar"
++        CC="clang"
++        CXX="clang++"
++        CGO_ENABLED="1"
++        GOMOD="/dev/null"
++        GOWORK=""
++        CGO_CFLAGS="-O2 -g"
++        CGO_CPPFLAGS=""
++        CGO_CXXFLAGS="-O2 -g"
++        CGO_FFLAGS="-O2 -g"
++        CGO_LDFLAGS="-O2 -g"
++        PKG_CONFIG="pkg-config"
++        GOGCCFLAGS="-fPIC -arch arm64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -fdebug-prefix-map=/var/folders/44/nbbyll_10jd0z8rj_qxm43740000gn/T/go-build2331607515=/tmp/go-build -gno-record-gcc-switches -fno-common"
++      render: shell
++    validations:
++      required: true
++
++  - type: textarea
++    id: what-did-you-do
++    attributes:
++      label: "What did you do?"
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
++    validations:
++      required: true
++
++  - type: textarea
++    id: expected-behavior
++    attributes:
++      label: "What did you expect to see?"
++    validations:
++      required: true
++
++  - type: textarea
++    id: actual-behavior
++    attributes:
++      label: "What did you see instead?"
++    validations:
++      required: true
++
+diff --git a/.github/ISSUE_TEMPLATE/01-pkgsite.yml b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+new file mode 100644
+index 0000000000..714bc4198c
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+@@ -0,0 +1,47 @@
++name: Pkg.go.dev bugs or feature requests
++description: Issues or feature requests for the documentation site
++title: "x/pkgsite: "
++labels: ["pkgsite"]
++body:
++  - type: markdown
++    attributes:
++      value: "Please answer these questions before submitting your issue. Thanks!"
++  - type: input
++    id: url
++    attributes:
++      label: "What is the URL of the page with the issue?"
++    validations:
++      required: true
++  - type: input
++    id: user-agent
++    attributes:
++      label: "What is your user agent?"
++      description: "You can find your user agent here: https://www.google.com/search?q=what+is+my+user+agent"
++    validations:
++      required: true
++  - type: textarea
++    id: screenshot
++    attributes:
++      label: "Screenshot"
++      description: "Please paste a screenshot of the page."
++    validations:
++      required: false
++  - type: textarea
++    id: what-did-you-do
++    attributes:
++      label: "What did you do?"
++      description: "If possible, provide a recipe for reproducing the error. Starting with a Private/Incognito tab/window may help rule out problematic browser extensions."
++    validations:
++      required: true
++  - type: textarea
++    id: expected-behavior
++    attributes:
++      label: "What did you expect to see?"
++    validations:
++      required: true
++  - type: textarea
++    id: actual-behavior
++    attributes:
++      label: "What did you see instead?"
++    validations:
++      required: true
+diff --git a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml
+new file mode 100644
+index 0000000000..71d0a19d71
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml
+@@ -0,0 +1,29 @@
++name: Pkg.go.dev package removal request
++description: Request a package be removed from the documentation site (pkg.go.dev)
++title: "x/pkgsite: package removal request for [type path here]"
++labels: ["pkgsite/package-removal"]
++body:
++  - type: markdown
++    attributes:
++      value: "Please answer these questions before submitting your issue. Thanks!"
++  - type: input
++    id: package-path
++    attributes:
++      label: "What is the path of the package that you would like to have removed?"
++      description: "We can remove packages with a shared path prefix. For example, a request for 'github.com/author' would remove all pkg.go.dev pages with that package path prefix."
++    validations:
++      required: true
++  - type: textarea
++    id: package-owner
++    attributes:
++      label: "Are you the owner of this package?"
++      description: "Only the package owners can request to have their packages removed from pkg.go.dev."
++    validations:
++      required: true
++  - type: textarea
++    id: retraction-reason
++    attributes:
++      label: "What is the reason that you could not retract this package instead?"
++      description: "If you would like to have your module removed from pkg.go.dev, we recommend that you retract them, so that they can be removed from the go command and proxy.golang.org as well. Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version. For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8. See https://pkg.go.dev/about#removing-a-package for additional tips on retractions."
++    validations:
++      required: true
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.yml b/.github/ISSUE_TEMPLATE/03-gopls.yml
+new file mode 100644
+index 0000000000..d81c90c65d
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/03-gopls.yml
+@@ -0,0 +1,56 @@
++name: Gopls bugs or feature requests
++description: Issues or feature requests for the Go language server (gopls)
++title: "x/tools/gopls: "
++labels: ["gopls", "Tools"]
++body:
++  - type: markdown
++    attributes:
++      value: "Please answer these questions before submitting your issue. Thanks!"
++  - type: input
++    id: gopls-version
++    attributes:
++      label: "gopls version"
++      description: "Output of `gopls -v version` on the command line"
++    validations:
++      required: true
++  - type: textarea
++    id: go-env
++    attributes:
++      label: "go env"
++      description: "Output of `go env` on the command line in your workspace directory"
++      render: shell
++    validations:
++      required: true
++  - type: textarea
++    id: what-did-you-do
++    attributes:
++      label: "What did you do?"
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is better. A failing unit test is the best."
++    validations:
++      required: true
++  - type: textarea
++    id: expected-behavior
++    attributes:
++      label: "What did you expect to see?"
++    validations:
++      required: true
++  - type: textarea
++    id: actual-behavior
++    attributes:
++      label: "What did you see instead?"
++    validations:
++      required: true
++  - type: textarea
++    id: editor-and-settings
++    attributes:
++      label: "Editor and settings"
++      description: "Your editor and any settings you have configured (for example, your VSCode settings.json file)"
++    validations:
++      required: false
++  - type: textarea
++    id: logs
++    attributes:
++      label: "Logs"
++      description: "If possible please include gopls logs. Instructions for capturing them can be found here: https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs"
++    validations:
++      required: false
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.yml b/.github/ISSUE_TEMPLATE/04-vuln.yml
+new file mode 100644
+index 0000000000..dd14aeeb97
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/04-vuln.yml
+@@ -0,0 +1,48 @@
++name: Go vulnerability management - bugs and feature requests
++description: Issues or feature requests about Go vulnerability management
++title: "x/vuln: "
++labels: ["vulncheck", "vulndb"]
++body:
++  - type: markdown
++    attributes:
++      value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
++  - type: input
++    id: go-version
++    attributes:
++      label: go version
++      description: What version of Go are you using (`go version`)?
++      placeholder: ex. go version go1.20.7 darwin/arm64
++    validations:
++      required: true
++  - type: textarea
++    id: reproduce-latest-version
++    attributes:
++      label: "Does this issue reproduce at the latest version of golang.org/x/vuln?"
++    validations:
++      required: true
++  - type: textarea
++    id: os-and-processor
++    attributes:
++      label: "What operating system and processor architecture are you using (`go env`)?"
++      render: shell
++    validations:
++      required: true
++  - type: textarea
++    id: what-did-you-do
++    attributes:
++      label: "What did you do?"
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
++    validations:
++      required: true
++  - type: textarea
++    id: expected-behavior
++    attributes:
++      label: "What did you expect to see?"
++    validations:
++      required: true
++  - type: textarea
++    id: actual-behavior
++    attributes:
++      label: "What did you see instead?"
++    validations:
++      required: true
+diff --git a/.github/ISSUE_TEMPLATE/10-proposal.yml b/.github/ISSUE_TEMPLATE/10-proposal.yml
+new file mode 100644
+index 0000000000..8eb6ceb26a
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/10-proposal.yml
+@@ -0,0 +1,15 @@
++name: Proposals
++description: New external API or other notable changes
++title: "proposal: affected/package: "
++labels: ["Proposal"]
++body:
++  - type: markdown
++    attributes:
++      value: "Our proposal process is documented here: https://go.dev/s/proposal-process"
++  - type: textarea
++    id: proposal-details
++    attributes:
++      label: "Proposal Details"
++      description: "Please provide the details of your proposal here."
++    validations:
++      required: true
+diff --git a/.github/ISSUE_TEMPLATE/11-language-change.yml b/.github/ISSUE_TEMPLATE/11-language-change.yml
+new file mode 100644
+index 0000000000..4965ab80ed
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/11-language-change.yml
+@@ -0,0 +1,165 @@
++name: Language Change Proposals
++description: Changes to the language
++labels: ["Proposal", "v2", "LanguageChange"]
++title: "proposal: Go 2: "
++
++
++body:
++  - type: markdown
++    attributes:
++      value: |
++       ## Our process for evaluating language changes can be found [here](https://go.googlesource.com/proposal/+/refs/heads/master#language-changes)
++
++  - type: dropdown
++    id: author-go-experience
++    attributes:
++      label: "Go Programming Experience"
++      description: "Would you consider yourself a novice, intermediate, or experienced Go programmer?"
++      options:
++        - "Novice"
++        - "Intermediate"
++        - "Experienced"
++      default: 1
++
++  - type: input
++    id: author-other-languages-experience
++    attributes:
++      label: "Other Languages Experience"
++      description: "What other languages do you have experience with?"
++      placeholder: "Go, Python, JS, Rust"
++    validations:
++      required: false
++
++  - type: checkboxes
++    id: related-idea
++    attributes:
++      label: "Related Idea"
++      options:
++        - label: "Has this idea, or one like it, been proposed before?"
++        - label: "Does this affect error handling?"
++        - label: "Is this about generics?"
++        - label: "Is this change backward compatible? Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit"
++
++  - type: textarea
++    id: related-proposals
++    attributes:
++      label: Has this idea, or one like it, been proposed before?
++      description: If so, how does this proposal differ?
++      placeholder: |
++       Yes or No
++
++       If yes, 
++        1. Mention the related proposals 
++        2. then describe how this proposal differs       
++    validations:
++      required: true
++
++  - type: textarea
++    id: error-handling-proposal
++    attributes:
++      label: Does this affect error handling?
++      description: If so, how does this differ from previous error handling proposals?
++      placeholder: |
++       Yes or No
++
++       If yes, 
++        1.how does this differ from previous error handling proposals?
++
++    validations:
++      required: true
++
++  - type: textarea
++    id: generics-proposal
++    attributes:
++      label: Is this about generics?
++      description: If so, how does this relate to the accepted design and other generics proposals?
++      placeholder: |
++       Yes or No
++
++       If yes, 
++        1. how does this relate to the accepted design and other generics proposals?
++
++    validations:
++      required: true
++
++  - type: textarea
++    id: proposal
++    attributes:
++      label: "Proposal"
++      description: "What is the proposed change? Who does this proposal help, and why? Please describe as precisely as possible the change to the language."
++    validations:
++      required: true
++
++  - type: textarea
++    id: language-spec-changes
++    attributes:
++      label: "Language Spec Changes"
++      description: "What would change in the language spec?"
++    validations:
++      required: false
++
++  - type: textarea
++    id: informal-change
++    attributes:
++      label: "Informal Change"
++      description: "Please also describe the change informally, as in a class teaching Go."
++    validations:
++      required: false
++
++  - type: textarea
++    id: go-backwards-compatiblity
++    attributes:
++      label: Is this change backward compatible?
++      description: Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
++      placeholder: |
++       Yes or No
++
++       If yes, 
++        1. Show example code before and after the change.
++
++    validations:
++      required: true
++
++  - type: textarea
++    id: orthogonality
++    attributes:
++      label: "Orthogonality: How does this change interact or overlap with existing features?"
++      description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
++    validations:
++      required: false
++
++  - type: textarea
++    id: learning-curve
++    attributes:
++      label: "Would this change make Go easier or harder to learn, and why?"
++
++  - type: textarea
++    id: cost-description
++    attributes:
++      label: "Cost Description"
++      description: "What is the cost of this proposal? (Every language change has a cost)"
++
++  - type: input
++    id: go-toolchain
++    attributes:
++      label: Changes to Go ToolChain
++      description: "How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? "
++    validations:
++      required: false
++
++  - type: input
++    id: perf-costs
++    attributes:
++      label: Performance Costs
++      description: "What is the compile time cost? What is the run time cost? "
++    validations:
++      required: false
++
++  - type: textarea
++    id: prototype
++    attributes:
++      label: "Prototype"
++      description: "Can you describe a possible implementation?"
++    validations:
++      required: false
++
+diff --git a/.github/ISSUE_TEMPLATE/00-bug.md b/.github/ISSUE_TEMPLATE/archived/00-bug.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/00-bug.md
+rename to .github/ISSUE_TEMPLATE/archived/00-bug.md
+diff --git a/.github/ISSUE_TEMPLATE/01-pkgsite.md b/.github/ISSUE_TEMPLATE/archived/01-pkgsite.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/01-pkgsite.md
+rename to .github/ISSUE_TEMPLATE/archived/01-pkgsite.md
+diff --git a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.md b/.github/ISSUE_TEMPLATE/archived/02-pkgsite-removal.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/02-pkgsite-removal.md
+rename to .github/ISSUE_TEMPLATE/archived/02-pkgsite-removal.md
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.md b/.github/ISSUE_TEMPLATE/archived/03-gopls.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/03-gopls.md
+rename to .github/ISSUE_TEMPLATE/archived/03-gopls.md
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.md b/.github/ISSUE_TEMPLATE/archived/04-vuln.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/04-vuln.md
+rename to .github/ISSUE_TEMPLATE/archived/04-vuln.md
+diff --git a/.github/ISSUE_TEMPLATE/10-proposal.md b/.github/ISSUE_TEMPLATE/archived/10-proposal.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/10-proposal.md
+rename to .github/ISSUE_TEMPLATE/archived/10-proposal.md
+diff --git a/.github/ISSUE_TEMPLATE/11-language-change.md b/.github/ISSUE_TEMPLATE/archived/11-language-change.md
+similarity index 100%
+rename from .github/ISSUE_TEMPLATE/11-language-change.md
+rename to .github/ISSUE_TEMPLATE/archived/11-language-change.md
+diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
+index c07f1e4d1c..d6257daf2f 100644
+--- a/.github/ISSUE_TEMPLATE/config.yml
++++ b/.github/ISSUE_TEMPLATE/config.yml
+@@ -1,4 +1,4 @@
+-blank_issues_enabled: false
++blank_issues_enabled: true
+ contact_links:
+   - name: Questions
+     about: Please use one of the forums for questions or general discussions

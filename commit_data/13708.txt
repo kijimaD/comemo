@@ -7,6 +7,32 @@ Date:   Thu Aug 30 20:32:32 2012 +0400
     R=r, r
     CC=golang-dev
     https://golang.org/cl/6494044
-
+---
  src/pkg/net/rpc/server.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index 9e0aa0ce20..e5282202c3 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -182,7 +182,7 @@ type Response struct {
+ 
+ // Server represents an RPC Server.
+ type Server struct {
+-	mu         sync.Mutex // protects the serviceMap
++	mu         sync.RWMutex // protects the serviceMap
+ 	serviceMap map[string]*service
+ 	reqLock    sync.Mutex // protects freeReq
+ 	freeReq    *Request
+@@ -539,9 +539,9 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
+ 		return
+ 	}
+ 	// Look up the request.
+-	server.mu.Lock()
++	server.mu.RLock()
+ 	service = server.serviceMap[serviceMethod[0]]
+-	server.mu.Unlock()
++	server.mu.RUnlock()
+ 	if service == nil {
+ 		err = errors.New("rpc: can't find service " + req.ServiceMethod)
+ 		return

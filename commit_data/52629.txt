@@ -14,6 +14,22 @@ Date:   Fri May 6 15:43:48 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/time/time.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 95963b6bf3..4cf3a5cd68 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -64,6 +64,10 @@
+ // t.UnmarshalJSON, and t.UnmarshalText always create times with
+ // no monotonic clock reading.
+ //
++// The monotonic clock reading exists only in Time values. It is not
++// a part of Duration values or the Unix times returned by t.Unix and
++// friends.
++//
+ // Note that the Go == operator compares not just the time instant but
+ // also the Location and the monotonic clock reading. See the
+ // documentation for the Time type for a discussion of equality

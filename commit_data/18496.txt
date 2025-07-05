@@ -10,6 +10,27 @@ Date:   Thu Feb 13 20:15:19 2014 +0400
     R=0intro
     CC=golang-codereviews
     https://golang.org/cl/63270043
-
+---
  src/cmd/gc/lex.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a607fabde0..ad2499701f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -164,6 +164,7 @@ fault(int s)
+ 	fatal("fault");
+ }
+ 
++#ifdef	PLAN9
+ void
+ catcher(void *v, char *s)
+ {
+@@ -180,6 +181,7 @@ catcher(void *v, char *s)
+ 	}
+ 	noted(NDFLT);
+ }
++#endif
+ 
+ void
+ doversion(void)

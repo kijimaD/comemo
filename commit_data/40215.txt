@@ -11,6 +11,30 @@ Date:   Sat Apr 27 02:36:13 2019 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/arm64/obj.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 102d152ad6..7c6662302f 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -60,7 +60,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
+ 
+ 		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
++		Openbsddynld:   "/usr/libexec/ld.so",
+ 		Netbsddynld:    "/libexec/ld.elf_so",
+ 		Dragonflydynld: "XXX",
+ 		Solarisdynld:   "XXX",
+@@ -85,7 +85,8 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hlinux, /* arm64 elf */
+-		objabi.Hnetbsd:
++		objabi.Hnetbsd,
++		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagTextAddr == -1 {

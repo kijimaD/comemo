@@ -18,6 +18,20 @@ Date:   Tue May 14 15:27:33 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  doc/godebug.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 704ebe3a2f..7dbdfa9a78 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -175,7 +175,7 @@ Whether the type checker produces `Alias` types or not is controlled by the
+ [`gotypesalias` setting](/pkg/go/types#Alias).
+ For Go 1.22 it defaults to `gotypesalias=0`.
+ For Go 1.23, `gotypesalias=1` will become the default.
+-This setting will be removed in a future release, Go 1.24 at the earliest.
++This setting will be removed in a future release, Go 1.27 at the earliest.
+ 
+ Go 1.22 changed the default minimum TLS version supported by both servers
+ and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the

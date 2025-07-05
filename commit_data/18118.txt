@@ -7,6 +7,28 @@ Date:   Fri Dec 27 08:39:54 2013 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/38990045
-
+---
  src/pkg/crypto/cipher/cipher.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/cipher.go b/src/pkg/crypto/cipher/cipher.go
+index 1ffaa8c2c3..67afdb1e05 100644
+--- a/src/pkg/crypto/cipher/cipher.go
++++ b/src/pkg/crypto/cipher/cipher.go
+@@ -46,16 +46,6 @@ type BlockMode interface {
+ 
+ // Utility routines
+ 
+-func shift1(dst, src []byte) byte {
+-	var b byte
+-	for i := len(src) - 1; i >= 0; i-- {
+-		bb := src[i] >> 7
+-		dst[i] = src[i]<<1 | b
+-		b = bb
+-	}
+-	return b
+-}
+-
+ func dup(p []byte) []byte {
+ 	q := make([]byte, len(p))
+ 	copy(q, p)

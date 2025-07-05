@@ -25,7 +25,86 @@ Date:   Fri Apr 1 14:00:09 2022 +0300
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/textproto/reader.go      |  4 +---
  src/net/textproto/reader_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index ac47f00700..65974f9cc2 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -28,7 +28,6 @@ type Reader struct {
+ // should be reading from an io.LimitReader or similar Reader to bound
+ // the size of responses.
+ func NewReader(r *bufio.Reader) *Reader {
+-	commonHeaderOnce.Do(initCommonHeader)
+ 	return &Reader{R: r}
+ }
+ 
+@@ -579,8 +578,6 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
+ // If s contains a space or invalid header field bytes, it is
+ // returned without modifications.
+ func CanonicalMIMEHeaderKey(s string) string {
+-	commonHeaderOnce.Do(initCommonHeader)
+-
+ 	// Quick check for canonical encoding.
+ 	upper := true
+ 	for i := 0; i < len(s); i++ {
+@@ -642,6 +639,7 @@ func canonicalMIMEHeaderKey(a []byte) string {
+ 		a[i] = c
+ 		upper = c == '-' // for next time
+ 	}
++	commonHeaderOnce.Do(initCommonHeader)
+ 	// The compiler recognizes m[string(byteSlice)] as a special
+ 	// case, so a copy of a's bytes into a new string does not
+ 	// happen in this map lookup:
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index 3124d438fa..d11d40f1cf 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -8,8 +8,10 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"io"
++	"net"
+ 	"reflect"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -324,6 +326,33 @@ func TestCommonHeaders(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue46363(t *testing.T) {
++	// Regression test for data race reported in issue 46363:
++	// ReadMIMEHeader reads commonHeader before commonHeader has been initialized.
++	// Run this test with the race detector enabled to catch the reported data race.
++
++	// Reset commonHeaderOnce, so that commonHeader will have to be initialized
++	commonHeaderOnce = sync.Once{}
++	commonHeader = nil
++
++	// Test for data race by calling ReadMIMEHeader and CanonicalMIMEHeaderKey concurrently
++
++	// Send MIME header over net.Conn
++	r, w := net.Pipe()
++	go func() {
++		// ReadMIMEHeader calls canonicalMIMEHeaderKey, which reads from commonHeader
++		NewConn(r).ReadMIMEHeader()
++	}()
++	w.Write([]byte("A: 1\r\nB: 2\r\nC: 3\r\n\r\n"))
++
++	// CanonicalMIMEHeaderKey calls commonHeaderOnce.Do(initCommonHeader) which initializes commonHeader
++	CanonicalMIMEHeaderKey("a")
++
++	if commonHeader == nil {
++		t.Fatal("CanonicalMIMEHeaderKey should initialize commonHeader")
++	}
++}
++
+ var clientHeaders = strings.Replace(`Host: golang.org
+ Connection: keep-alive
+ Cache-Control: max-age=0

@@ -12,6 +12,20 @@ Date:   Fri Aug 4 12:59:55 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/53355
     Reviewed-by: Florin Patan <florinpatan@gmail.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 05986d9ad2..264f5af920 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -65,7 +65,7 @@ The following feature matrix lists and compares the most significant features.
+     <td class="yes">Yes</td>
+   </tr>
+   <tr>
+-    <td>Autocompletion based on type</td>
++    <td>Type-aware autocompletion</td>
+     <td class="no">No</td>
+     <td class="no">No</td>
+     <td class="yes">Yes</td>

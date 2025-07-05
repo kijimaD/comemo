@@ -18,7 +18,7 @@ Date:   Thu Dec 1 18:00:42 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go      |  1 -
  src/cmd/compile/internal/reflectdata/alg.go |  8 ---
  src/cmd/compile/internal/ssagen/abi.go      |  3 -
@@ -26,3 +26,217 @@ Date:   Thu Dec 1 18:00:42 2022 -0800
  src/cmd/compile/internal/types/scope.go     | 92 +----------------------------
  src/cmd/compile/internal/types/sym.go       |  2 -
  6 files changed, 3 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index f9debd5506..d1b095ad35 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -19,7 +19,6 @@ type DebugFlags struct {
+ 	Append                int    `help:"print information about append compilation"`
+ 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
+ 	Closure               int    `help:"print information about closure compilation"`
+-	DclStack              int    `help:"run internal dclstack check"`
+ 	Defer                 int    `help:"print information about defer compilation"`
+ 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
+ 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 2f2f986df0..c04de83f67 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -224,10 +224,6 @@ func genhash(t *types.Type) *obj.LSym {
+ 	typecheck.Stmts(fn.Body)
+ 	ir.CurFunc = nil
+ 
+-	if base.Debug.DclStack != 0 {
+-		types.CheckDclstack()
+-	}
+-
+ 	fn.SetNilCheckDisabled(true)
+ 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+ 
+@@ -552,10 +548,6 @@ func geneq(t *types.Type) *obj.LSym {
+ 	typecheck.Stmts(fn.Body)
+ 	ir.CurFunc = nil
+ 
+-	if base.Debug.DclStack != 0 {
+-		types.CheckDclstack()
+-	}
+-
+ 	// Disable checknils while compiling this code.
+ 	// We are comparing a struct or an array,
+ 	// neither of which can be nil, and our comparisons
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 84d5b5951c..fa26ae1f06 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -324,9 +324,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	fn.Body.Append(tail)
+ 
+ 	typecheck.FinishFuncBody()
+-	if base.Debug.DclStack != 0 {
+-		types.CheckDclstack()
+-	}
+ 
+ 	typecheck.Func(fn)
+ 	ir.CurFunc = fn
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 5ea15937a2..fcac52a17c 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -59,6 +59,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
+ 		}
+ 		Target.Externs = append(Target.Externs, n)
++		s.Def = n
+ 	} else {
+ 		if ir.CurFunc == nil && ctxt == ir.PAUTO {
+ 			base.Pos = n.Pos()
+@@ -67,7 +68,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
+ 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+ 		}
+-		types.Pushdcl(s)
+ 		n.Curfn = ir.CurFunc
+ 	}
+ 
+@@ -75,7 +75,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		n.SetFrameOffset(0)
+ 	}
+ 
+-	s.Def = n
+ 	n.Class = ctxt
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+@@ -107,8 +106,6 @@ func StartFuncBody(fn *ir.Func) {
+ 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
+ 	ir.CurFunc = fn
+ 	DeclContext = ir.PAUTO
+-
+-	types.Markdcl()
+ }
+ 
+ // finish the body.
+@@ -116,7 +113,6 @@ func StartFuncBody(fn *ir.Func) {
+ // returns in extern-declaration context.
+ func FinishFuncBody() {
+ 	// change the declaration context from auto to previous context
+-	types.Popdcl()
+ 	var e funcStackEnt
+ 	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
+ 	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index e577b7aa53..438a3f9a47 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -4,96 +4,8 @@
+ 
+ package types
+ 
+-import (
+-	"cmd/compile/internal/base"
+-)
+-
+-// Declaration stack & operations
+-
+-// A dsym stores a symbol's shadowed declaration so that it can be
+-// restored once the block scope ends.
+-type dsym struct {
+-	sym *Sym // sym == nil indicates stack mark
+-	def Object
+-}
+-
+-// dclstack maintains a stack of shadowed symbol declarations so that
+-// Popdcl can restore their declarations when a block scope ends.
+-var dclstack []dsym
+-
+-// Pushdcl pushes the current declaration for symbol s (if any) so that
+-// it can be shadowed by a new declaration within a nested block scope.
+-func Pushdcl(s *Sym) {
+-	dclstack = append(dclstack, dsym{
+-		sym: s,
+-		def: s.Def,
+-	})
+-}
+-
+-// Popdcl pops the innermost block scope and restores all symbol declarations
+-// to their previous state.
+-func Popdcl() {
+-	for i := len(dclstack); i > 0; i-- {
+-		d := &dclstack[i-1]
+-		s := d.sym
+-		if s == nil {
+-			// pop stack mark
+-			dclstack = dclstack[:i-1]
+-			return
+-		}
+-
+-		s.Def = d.def
+-
+-		// Clear dead pointer fields.
+-		d.sym = nil
+-		d.def = nil
+-	}
+-	base.Fatalf("popdcl: no stack mark")
+-}
+-
+-// Markdcl records the start of a new block scope for declarations.
+-func Markdcl() {
+-	dclstack = append(dclstack, dsym{
+-		sym: nil, // stack mark
+-	})
+-}
+-
+-func isDclstackValid() bool {
+-	for _, d := range dclstack {
+-		if d.sym == nil {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // PkgDef returns the definition associated with s at package scope.
+-func (s *Sym) PkgDef() Object {
+-	return *s.pkgDefPtr()
+-}
++func (s *Sym) PkgDef() Object { return s.Def }
+ 
+ // SetPkgDef sets the definition associated with s at package scope.
+-func (s *Sym) SetPkgDef(n Object) {
+-	*s.pkgDefPtr() = n
+-}
+-
+-func (s *Sym) pkgDefPtr() *Object {
+-	// Look for outermost saved declaration, which must be the
+-	// package scope definition, if present.
+-	for i := range dclstack {
+-		d := &dclstack[i]
+-		if s == d.sym {
+-			return &d.def
+-		}
+-	}
+-
+-	// Otherwise, the declaration hasn't been shadowed within a
+-	// function scope.
+-	return &s.Def
+-}
+-
+-func CheckDclstack() {
+-	if !isDclstackValid() {
+-		base.Fatalf("mark left on the dclstack")
+-	}
+-}
++func (s *Sym) SetPkgDef(n Object) { s.Def = n }
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 9d8707befa..67fa6bb1d0 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -35,8 +35,6 @@ type Sym struct {
+ 	// bound to within the current scope. (Most parts of the compiler should
+ 	// prefer passing the Node directly, rather than relying on this field.)
+ 	//
+-	// Def is saved and restored by Pushdcl/Popdcl.
+-	//
+ 	// Deprecated: New code should avoid depending on Sym.Def. Add
+ 	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
+ 	Def Object

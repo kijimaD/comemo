@@ -15,7 +15,7 @@ Date:   Thu Aug 17 15:30:23 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/521819
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |   8 +-
  .../inline/inlheur/analyze_func_callsites.go       |  14 +-
  .../internal/inline/inlheur/funcprops_test.go      |   2 +-
@@ -24,3 +24,804 @@ Date:   Thu Aug 17 15:30:23 2023 -0400
  src/cmd/compile/internal/inline/inlheur/scoring.go |   4 +-
  .../inline/inlheur/testdata/props/returns2.go      | 228 +++++++++++
  7 files changed, 674 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 04d0af68d7..3348e08975 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -222,11 +222,6 @@ func emitDumpToFile(dumpfile string) {
+ // "-d=dumpinlfuncprops=..." command line flag, intended for use
+ // primarily in unit testing.
+ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+-	if debugTrace&debugTraceFuncs != 0 {
+-		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n",
+-			fn.Sym().Name)
+-	}
+-
+ 	// avoid capturing compiler-generated equality funcs.
+ 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
+ 		return
+@@ -249,6 +244,9 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+ 		// so don't add them more than once.
+ 		return
+ 	}
++	if debugTrace&debugTraceFuncs != 0 {
++		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n", fn)
++	}
+ 	dumpBuffer[fn] = fih
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index b3422216af..c785dd0a40 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -182,6 +182,8 @@ func ScoreCalls(fn *ir.Func) {
+ 		return
+ 	}
+ 
++	resultNameTab := make(map[*ir.Name]resultPropAndCS)
++
+ 	// Sort callsites to avoid any surprises with non deterministic
+ 	// map iteration order (this is probably not needed, but here just
+ 	// in case).
+@@ -214,10 +216,14 @@ func ScoreCalls(fn *ir.Func) {
+ 		}
+ 		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
+ 
++		examineCallResults(cs, resultNameTab)
++
+ 		if debugTrace&debugTraceScoring != 0 {
+ 			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+ 		}
+ 	}
++
++	rescoreBasedOnCallResultUses(fn, resultNameTab, fih.cstab)
+ }
+ 
+ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+@@ -290,12 +296,12 @@ func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
+ //
+ // Here the top-level assignment statement for the foo() call is the
+ // statement assigning to "x"; the top-level assignment for "bar()"
+-// call is the assignment to x,y.   For the baz() and blah() calls,
++// call is the assignment to x,y. For the baz() and blah() calls,
+ // there is no top level assignment statement.
+ //
+-// The unstated goal here is that we want to use the containing assignment
+-// to establish a connection between a given call and the variables
+-// to which its results/returns are being assigned.
++// The unstated goal here is that we want to use the containing
++// assignment to establish a connection between a given call and the
++// variables to which its results/returns are being assigned.
+ //
+ // Note that for the "bar" command above, the front end sometimes
+ // decomposes this into two assignments, the first one assigning the
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 2abf4faabe..ea2a3fc1ba 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -37,7 +37,7 @@ func TestFuncProperties(t *testing.T) {
+ 	// scheme.
+ 
+ 	testcases := []string{"funcflags", "returns", "params",
+-		"acrosscall", "calls"}
++		"acrosscall", "calls", "returns2"}
+ 	for _, tc := range testcases {
+ 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
+ 		if err != nil {
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+new file mode 100644
+index 0000000000..b83bc4fd20
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -0,0 +1,423 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/ir"
++	"fmt"
++	"os"
++)
++
++// This file contains code to re-score callsites based on how the
++// results of the call were used.  Example:
++//
++//    func foo() {
++//       x, fptr := bar()
++//       switch x {
++//         case 10: fptr = baz()
++//         default: blix()
++//       }
++//       fptr(100)
++//     }
++//
++// The initial scoring pass will assign a score to "bar()" based on
++// various criteria, however once the first pass of scoring is done,
++// we look at the flags on the result from bar, and check to see
++// how those results are used. If bar() always returns the same constant
++// for its first result, and if the variable receiving that result
++// isn't redefined, and if that variable feeds into an if/switch
++// condition, then we will try to adjust the score for "bar" (on the
++// theory that if we inlined, we can constant fold / deadcode).
++
++type resultPropAndCS struct {
++	defcs *CallSite
++	props ResultPropBits
++}
++
++type resultUseAnalyzer struct {
++	resultNameTab map[*ir.Name]resultPropAndCS
++	fn            *ir.Func
++	cstab         CallSiteTab
++	*condLevelTracker
++}
++
++// rescoreBasedOnCallResultUses examines how call results are used,
++// and tries to update the scores of calls based on how their results
++// are used in the function.
++func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
++	if os.Getenv("THANM_DEBUG") != "" {
++		return
++	}
++	enableDebugTraceIfEnv()
++	rua := &resultUseAnalyzer{
++		resultNameTab:    resultNameTab,
++		fn:               fn,
++		cstab:            cstab,
++		condLevelTracker: new(condLevelTracker),
++	}
++	var doNode func(ir.Node) bool
++	doNode = func(n ir.Node) bool {
++		rua.nodeVisitPre(n)
++		ir.DoChildren(n, doNode)
++		rua.nodeVisitPost(n)
++		return false
++	}
++	doNode(fn)
++	disableDebugTrace()
++}
++
++func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) {
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= examining call results for %q\n",
++			EncodeCallSiteKey(cs))
++	}
++
++	// Invoke a helper to pick out the specific ir.Name's the results
++	// from this call are assigned into, e.g. "x, y := fooBar()". If
++	// the call is not part of an assignment statement, or if the
++	// variables in question are not newly defined, then we'll receive
++	// an empty list here.
++	//
++	names, autoTemps, props := namesDefined(cs)
++	if len(names) == 0 {
++		return
++	}
++
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= %d names defined\n", len(names))
++	}
++
++	// For each returned value, if the value has interesting
++	// properties (ex: always returns the same constant), and the name
++	// in question is never redefined, then make an entry in the
++	// result table for it.
++	const interesting = (ResultIsConcreteTypeConvertedToInterface |
++		ResultAlwaysSameConstant | ResultAlwaysSameInlinableFunc | ResultAlwaysSameFunc)
++	for idx, n := range names {
++		rprop := props.ResultFlags[idx]
++
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= props for ret %d %q: %s\n",
++				idx, n.Sym().Name, rprop.String())
++		}
++
++		if rprop&interesting == 0 {
++			continue
++		}
++		if ir.Reassigned(n) {
++			continue
++		}
++		if _, ok := resultNameTab[n]; ok {
++			panic("should never happen")
++		}
++		entry := resultPropAndCS{
++			defcs: cs,
++			props: rprop,
++		}
++		resultNameTab[n] = entry
++		if autoTemps[idx] != nil {
++			resultNameTab[autoTemps[idx]] = entry
++		}
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= add resultNameTab table entry n=%v autotemp=%v props=%s\n", n, autoTemps[idx], rprop.String())
++		}
++	}
++}
++
++// namesDefined returns a list of ir.Name's corresponding to locals
++// that receive the results from the call at site 'cs', plus the
++// properties object for the called function. If a given result
++// isn't cleanly assigned to a newly defined local, the
++// slot for that result in the returned list will be nil. Example:
++//
++//	call                             returned name list
++//
++//	x := foo()                       [ x ]
++//	z, y := bar()                    [ nil, nil ]
++//	_, q := baz()                    [ nil, q ]
++//
++// In the case of a multi-return call, such as "x, y := foo()",
++// the pattern we see from the front end will be a call op
++// assigning to auto-temps, and then an assignment of the auto-temps
++// to the user-level variables. In such cases we return
++// first the user-level variable (in the first func result)
++// and then the auto-temp name in the second result.
++func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
++	// If this call doesn't feed into an assignment (and of course not
++	// all calls do), then we don't have anything to work with here.
++	if cs.Assign == nil {
++		return nil, nil, nil
++	}
++	fih, ok := fpmap[cs.Callee]
++	if !ok {
++		// TODO: add an assert/panic here.
++		return nil, nil, nil
++	}
++	if len(fih.props.ResultFlags) == 0 {
++		return nil, nil, nil
++	}
++
++	// Single return case.
++	if len(fih.props.ResultFlags) == 1 {
++		asgn, ok := cs.Assign.(*ir.AssignStmt)
++		if !ok {
++			return nil, nil, nil
++		}
++		// locate name being assigned
++		aname, ok := asgn.X.(*ir.Name)
++		if !ok {
++			return nil, nil, nil
++		}
++		return []*ir.Name{aname}, []*ir.Name{nil}, fih.props
++	}
++
++	// Multi-return case
++	asgn, ok := cs.Assign.(*ir.AssignListStmt)
++	if !ok || !asgn.Def {
++		return nil, nil, nil
++	}
++	userVars := make([]*ir.Name, len(fih.props.ResultFlags))
++	autoTemps := make([]*ir.Name, len(fih.props.ResultFlags))
++	for idx, x := range asgn.Lhs {
++		if n, ok := x.(*ir.Name); ok {
++			userVars[idx] = n
++			r := asgn.Rhs[idx]
++			if r.Op() == ir.OCONVNOP {
++				r = r.(*ir.ConvExpr).X
++			}
++			if ir.IsAutoTmp(r) {
++				autoTemps[idx] = r.(*ir.Name)
++			}
++			if debugTrace&debugTraceScoring != 0 {
++				fmt.Fprintf(os.Stderr, "=-= multi-ret namedef uv=%v at=%v\n",
++					x, autoTemps[idx])
++			}
++		} else {
++			return nil, nil, nil
++		}
++	}
++	return userVars, autoTemps, fih.props
++}
++
++func (rua *resultUseAnalyzer) nodeVisitPost(n ir.Node) {
++	rua.condLevelTracker.post(n)
++}
++
++func (rua *resultUseAnalyzer) nodeVisitPre(n ir.Node) {
++	rua.condLevelTracker.pre(n)
++	switch n.Op() {
++	case ir.OCALLINTER:
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= rescore examine iface call %v:\n", n)
++		}
++		rua.callTargetCheckResults(n)
++	case ir.OCALLFUNC:
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= rescore examine call %v:\n", n)
++		}
++		rua.callTargetCheckResults(n)
++	case ir.OIF:
++		ifst := n.(*ir.IfStmt)
++		rua.foldCheckResults(ifst.Cond)
++	case ir.OSWITCH:
++		swst := n.(*ir.SwitchStmt)
++		if swst.Tag != nil {
++			rua.foldCheckResults(swst.Tag)
++		}
++
++	}
++}
++
++// callTargetCheckResults examines a given call to see whether the
++// callee expression is potentially an inlinable function returned
++// from a potentially inlinable call. Examples:
++//
++//	Scenario 1: named intermediate
++//
++//	   fn1 := foo()         conc := bar()
++//	   fn1("blah")          conc.MyMethod()
++//
++//	Scenario 2: returned func or concrete object feeds directly to call
++//
++//	   foo()("blah")        bar().MyMethod()
++//
++// In the second case although at the source level the result of the
++// direct call feeds right into the method call or indirect call,
++// we're relying on the front end having inserted an auto-temp to
++// capture the value.
++func (rua *resultUseAnalyzer) callTargetCheckResults(call ir.Node) {
++	ce := call.(*ir.CallExpr)
++	rname := rua.getCallResultName(ce)
++	if rname == nil {
++		return
++	}
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= staticvalue returns %v:\n",
++			rname)
++	}
++	if rname.Class != ir.PAUTO {
++		return
++	}
++	switch call.Op() {
++	case ir.OCALLINTER:
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= in %s checking %v for cci prop:\n",
++				rua.fn.Sym().Name, rname)
++		}
++		if cs := rua.returnHasProp(rname, ResultIsConcreteTypeConvertedToInterface); cs != nil {
++			// FIXME: add cond level support here
++			adj := passConcreteToItfCallAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++			adj = callResultRescoreAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++		}
++	case ir.OCALLFUNC:
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= in %s checking %v for samefunc props:\n",
++				rua.fn.Sym().Name, rname)
++			v, ok := rua.resultNameTab[rname]
++			if !ok {
++				fmt.Fprintf(os.Stderr, "=-= no entry for %v in rt\n", rname)
++			} else {
++				fmt.Fprintf(os.Stderr, "=-= props for %v: %q\n", rname, v.props.String())
++			}
++		}
++		if cs := rua.returnHasProp(rname, ResultAlwaysSameInlinableFunc); cs != nil {
++			// FIXME: add cond level support here
++			adj := passInlinableFuncToIndCallAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++			adj = callResultRescoreAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++		} else if cs := rua.returnHasProp(rname, ResultAlwaysSameFunc); cs != nil {
++			// FIXME: add cond level support here
++			adj := passFuncToIndCallAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++			adj = callResultRescoreAdj
++			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++		}
++	}
++}
++
++// foldCheckResults examines the specified if/switch condition 'cond'
++// to see if it refers to locals defined by a (potentially inlinable)
++// function call at call site C, and if so, whether 'cond' contains
++// only combinations of simple references to all of the names in
++// 'names' with selected constants + operators. If these criteria are
++// met, then we adjust the score for call site C to reflect the
++// fact that inlining will enable deadcode and/or constant propagation.
++// Note: for this heuristic to kick in, the names in question have to
++// be all from the same callsite. Examples:
++//
++//	  q, r := baz()	    x, y := foo()
++//	  switch q+r {		a, b, c := bar()
++//		...			    if x && y && a && b && c {
++//	  }					   ...
++//					    }
++//
++// For the call to "baz" above we apply a score adjustment, but not
++// for the calls to "foo" or "bar".
++func (rua *resultUseAnalyzer) foldCheckResults(cond ir.Node) {
++	namesUsed := collectNamesUsed(cond)
++	if len(namesUsed) == 0 {
++		return
++	}
++	var cs *CallSite
++	for _, n := range namesUsed {
++		rpcs, found := rua.resultNameTab[n]
++		if !found {
++			return
++		}
++		if cs != nil && rpcs.defcs != cs {
++			return
++		}
++		cs = rpcs.defcs
++		if rpcs.props&ResultAlwaysSameConstant == 0 {
++			return
++		}
++	}
++	if debugTrace&debugTraceScoring != 0 {
++		nls := func(nl []*ir.Name) string {
++			r := ""
++			for _, n := range nl {
++				r += " " + n.Sym().Name
++			}
++			return r
++		}
++		fmt.Fprintf(os.Stderr, "=-= calling ShouldFoldIfNameConstant on names={%s} cond=%v\n", nls(namesUsed), cond)
++	}
++
++	if !ShouldFoldIfNameConstant(cond, namesUsed) {
++		return
++	}
++	// FIXME: add cond level support here
++	adj := passConstToIfAdj
++	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++	adj = callResultRescoreAdj
++	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
++}
++
++func collectNamesUsed(expr ir.Node) []*ir.Name {
++	res := []*ir.Name{}
++	ir.Visit(expr, func(n ir.Node) {
++		if n.Op() != ir.ONAME {
++			return
++		}
++		nn := n.(*ir.Name)
++		if nn.Class != ir.PAUTO {
++			return
++		}
++		res = append(res, nn)
++	})
++	return res
++}
++
++func (rua *resultUseAnalyzer) returnHasProp(name *ir.Name, prop ResultPropBits) *CallSite {
++	v, ok := rua.resultNameTab[name]
++	if !ok {
++		return nil
++	}
++	if v.props&prop == 0 {
++		return nil
++	}
++	return v.defcs
++}
++
++func (rua *resultUseAnalyzer) getCallResultName(ce *ir.CallExpr) *ir.Name {
++	var callTarg ir.Node
++	if sel, ok := ce.X.(*ir.SelectorExpr); ok {
++		// method call
++		callTarg = sel.X
++	} else if ctarg, ok := ce.X.(*ir.Name); ok {
++		// regular call
++		callTarg = ctarg
++	} else {
++		return nil
++	}
++	r := ir.StaticValue(callTarg)
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= staticname on %v returns %v:\n",
++			callTarg, r)
++	}
++	if r.Op() == ir.OCALLFUNC {
++		// This corresponds to the "x := foo()" case; here
++		// ir.StaticValue has brought us all the way back to
++		// the call expression itself. We need to back off to
++		// the name defined by the call; do this by looking up
++		// the callsite.
++		ce := r.(*ir.CallExpr)
++		cs, ok := rua.cstab[ce]
++		if !ok {
++			return nil
++		}
++		names, _, _ := namesDefined(cs)
++		if len(names) == 0 {
++			return nil
++		}
++		return names[0]
++	} else if r.Op() == ir.ONAME {
++		return r.(*ir.Name)
++	}
++	return nil
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go b/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go
+index d75e6e2a91..994a600f79 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go
+@@ -20,7 +20,8 @@ func _() {
+ 	_ = x[passFuncToNestedIndCallAdj-256]
+ 	_ = x[passInlinableFuncToIndCallAdj-512]
+ 	_ = x[passInlinableFuncToNestedIndCallAdj-1024]
+-	_ = x[lastAdj-1024]
++	_ = x[callResultRescoreAdj-2048]
++	_ = x[lastAdj-2048]
+ }
+ 
+ var _scoreAdjustTyp_value = [...]uint64{
+@@ -35,12 +36,13 @@ var _scoreAdjustTyp_value = [...]uint64{
+ 	0x100, /* passFuncToNestedIndCallAdj */
+ 	0x200, /* passInlinableFuncToIndCallAdj */
+ 	0x400, /* passInlinableFuncToNestedIndCallAdj */
+-	0x400, /* lastAdj */
++	0x800, /* callResultRescoreAdj */
++	0x800, /* lastAdj */
+ }
+ 
+-const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjlastAdj"
++const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjcallResultRescoreAdjlastAdj"
+ 
+-var _scoreAdjustTyp_index = [...]uint8{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 241}
++var _scoreAdjustTyp_index = [...]uint16{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 254, 261}
+ 
+ func (i scoreAdjustTyp) String() string {
+ 	var b bytes.Buffer
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 933e7e0701..5d026cb74c 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -31,7 +31,8 @@ const (
+ 	passFuncToNestedIndCallAdj
+ 	passInlinableFuncToIndCallAdj
+ 	passInlinableFuncToNestedIndCallAdj
+-	lastAdj scoreAdjustTyp = passInlinableFuncToNestedIndCallAdj
++	callResultRescoreAdj
++	lastAdj scoreAdjustTyp = callResultRescoreAdj
+ )
+ 
+ // This table records the specific values we use to adjust call
+@@ -52,6 +53,7 @@ var adjValues = map[scoreAdjustTyp]int{
+ 	passFuncToNestedIndCallAdj:          -20,
+ 	passInlinableFuncToIndCallAdj:       -45,
+ 	passInlinableFuncToNestedIndCallAdj: -40,
++	callResultRescoreAdj:                0,
+ }
+ 
+ func adjValue(x scoreAdjustTyp) int {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns2.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns2.go
+new file mode 100644
+index 0000000000..64f4628078
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns2.go
+@@ -0,0 +1,228 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++
++package returns2
++
++// returns2.go T_return_feeds_iface_call 18 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
++// callsite: returns2.go:19:13|0 flagstr "" flagval 0 score -4 mask 2080 maskstr "passConcreteToItfCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_return_feeds_iface_call() {
++	b := newBar(10)
++	b.Plark()
++}
++
++// returns2.go T_multi_return_feeds_iface_call 29 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
++// callsite: returns2.go:30:20|0 flagstr "" flagval 0 score -2 mask 2080 maskstr "passConcreteToItfCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_multi_return_feeds_iface_call() {
++	_, b, _ := newBar2(10)
++	b.Plark()
++}
++
++// returns2.go T_returned_inlinable_func_feeds_indirect_call 41 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: returns2.go:42:18|0 flagstr "" flagval 0 score -43 mask 2560 maskstr "passInlinableFuncToIndCallAdj|callResultRescoreAdj"
++// callsite: returns2.go:44:20|1 flagstr "" flagval 0 score -28 mask 2560 maskstr "passInlinableFuncToIndCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_returned_inlinable_func_feeds_indirect_call(q int) {
++	f := returnsFunc()
++	f(q)
++	f2 := returnsFunc2()
++	f2(q)
++}
++
++// returns2.go T_returned_noninlineable_func_feeds_indirect_call 54 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: returns2.go:55:30|0 flagstr "" flagval 0 score -23 mask 2176 maskstr "passFuncToIndCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_returned_noninlineable_func_feeds_indirect_call(q int) {
++	f := returnsNonInlinableFunc()
++	f(q)
++}
++
++// returns2.go T_multi_return_feeds_indirect_call 65 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: returns2.go:66:29|0 flagstr "" flagval 0 score -26 mask 2560 maskstr "passInlinableFuncToIndCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_multi_return_feeds_indirect_call(q int) {
++	_, f, _ := multiReturnsFunc()
++	f(q)
++}
++
++// returns2.go T_return_feeds_ifswitch 76 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: returns2.go:77:14|0 flagstr "" flagval 0 score 5 mask 2056 maskstr "passConstToIfAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_return_feeds_ifswitch(q int) int {
++	x := meaning(q)
++	if x < 42 {
++		switch x {
++		case 42:
++			return 1
++		}
++	}
++	return 0
++}
++
++// returns2.go T_multi_return_feeds_ifswitch 93 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: returns2.go:94:21|0 flagstr "" flagval 0 score 4 mask 2056 maskstr "passConstToIfAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_multi_return_feeds_ifswitch(q int) int {
++	x, y, z := meanings(q)
++	if x < y {
++		switch x {
++		case 42:
++			return z
++		}
++	}
++	return 0
++}
++
++// returns2.go T_two_calls_feed_ifswitch 111 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: returns2.go:115:14|0 flagstr "" flagval 0 score 25 mask 0 maskstr ""
++// callsite: returns2.go:116:14|1 flagstr "" flagval 0 score 25 mask 0 maskstr ""
++// <endcallsites>
++// <endfuncpreamble>
++func T_two_calls_feed_ifswitch(q int) int {
++	// This case we don't handle; for the heuristic to kick in,
++	// all names in a given if/switch cond have to come from the
++	// same callsite
++	x := meaning(q)
++	y := meaning(-q)
++	if x < y {
++		switch x + y {
++		case 42:
++			return 1
++		}
++	}
++	return 0
++}
++
++// returns2.go T_chained_indirect_call 132 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// callsite: returns2.go:135:18|0 flagstr "" flagval 0 score -43 mask 2560 maskstr "passInlinableFuncToIndCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_chained_indirect_call(x, y int) {
++	// Here 'returnsFunc' returns an inlinable func that feeds
++	// directly into a call (no named intermediate).
++	G += returnsFunc()(x + y)
++}
++
++// returns2.go T_chained_conc_iface_call 144 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// callsite: returns2.go:148:8|0 flagstr "" flagval 0 score -4 mask 2080 maskstr "passConcreteToItfCallAdj|callResultRescoreAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_chained_conc_iface_call(x, y int) {
++	// Similar to the case above, return from call returning concrete type
++	// feeds directly into interface call. Note that only the first
++	// iface call is interesting here.
++	newBar(10).Plark().Plark()
++}
++
++func returnsFunc() func(int) int {
++	return adder
++}
++
++func returnsFunc2() func(int) int {
++	return func(x int) int {
++		return adder(x)
++	}
++}
++
++func returnsNonInlinableFunc() func(int) int {
++	return adderNoInline
++}
++
++func multiReturnsFunc() (int, func(int) int, int) {
++	return 42, func(x int) int { G++; return 1 }, -42
++}
++
++func adder(x int) int {
++	G += 1
++	return G
++}
++
++func adderNoInline(x int) int {
++	defer func() { G += x }()
++	G += 1
++	return G
++}
++
++func meaning(q int) int {
++	r := 0
++	for i := 0; i < 42; i++ {
++		r += q
++	}
++	G += r
++	return 42
++}
++
++func meanings(q int) (int, int, int) {
++	r := 0
++	for i := 0; i < 42; i++ {
++		r += q
++	}
++	return 42, 43, r
++}
++
++type Bar struct {
++	x int
++	y string
++}
++
++func (b *Bar) Plark() Itf {
++	return b
++}
++
++type Itf interface {
++	Plark() Itf
++}
++
++func newBar(x int) Itf {
++	s := 0
++	for i := 0; i < x; i++ {
++		s += i
++	}
++	return &Bar{
++		x: s,
++	}
++}
++
++func newBar2(x int) (int, Itf, bool) {
++	s := 0
++	for i := 0; i < x; i++ {
++		s += i
++	}
++	return 0, &Bar{x: s}, false
++}
++
++var G int

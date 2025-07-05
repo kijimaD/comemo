@@ -7,7 +7,43 @@ Date:   Thu Jan 12 07:55:23 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5529080
-
+---
  doc/progs/defer.go  | 4 ++--
  doc/progs/defer2.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/progs/defer.go b/doc/progs/defer.go
+index 098cdf26b1..2e11020abf 100644
+--- a/doc/progs/defer.go
++++ b/doc/progs/defer.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains the code snippets included in "Defer, Panic, an Recover."
++// This file contains the code snippets included in "Defer, Panic, and Recover."
+ 
+ package main
+ 
+@@ -36,7 +36,7 @@ func c() (i int) {
+ 
+ // STOP OMIT
+ 
+-// Intial version.
++// Initial version.
+ func CopyFile(dstName, srcName string) (written int64, err error) {
+ 	src, err := os.Open(srcName)
+ 	if err != nil {
+diff --git a/doc/progs/defer2.go b/doc/progs/defer2.go
+index 341a1410f3..cad66b0702 100644
+--- a/doc/progs/defer2.go
++++ b/doc/progs/defer2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains the code snippets included in "Defer, Panic, an Recover."
++// This file contains the code snippets included in "Defer, Panic, and Recover."
+ 
+ package main
+ 

@@ -7,8 +7,62 @@ Date:   Mon Sep 13 13:12:46 2010 +1000
     R=r, rsc, nigeltao
     CC=golang-dev
     https://golang.org/cl/2110046
-
+---
  src/libcgo/Makefile    |  5 +++--
  src/libcgo/nacl_386.c  | 18 +++++++++++++++++-
  src/pkg/os/dir_nacl.go |  2 +-
  3 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 380bc596e9..259799c92f 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -16,9 +16,10 @@ OFILES=\
+ HOST_CFLAGS_386=-m32
+ HOST_CFLAGS_amd64=-m64
+ 
+-LDFLAGS_linux=-shared -lpthread -lm
+ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+-LDFLAGS_freebsd=-pthread -shared -lm
++LDFLAGS_freebsd=-shared -lm -pthread
++LDFLAGS_linux=-shared -lm -lpthread
++LDFLAGS_nacl=-shared -lm -lpthread
+ LDFLAGS_windows=-shared -lm -mthreads
+ 
+ %.o: %.c
+diff --git a/src/libcgo/nacl_386.c b/src/libcgo/nacl_386.c
+index 32d8629849..d674aca1df 100644
+--- a/src/libcgo/nacl_386.c
++++ b/src/libcgo/nacl_386.c
+@@ -1 +1,17 @@
+-/* unimplemented */
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libcgo.h"
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	// unimplemented
++	*(int*)0 = 0;
++}
+diff --git a/src/pkg/os/dir_nacl.go b/src/pkg/os/dir_nacl.go
+index e76b2bea09..42cc88a8a7 100644
+--- a/src/pkg/os/dir_nacl.go
++++ b/src/pkg/os/dir_nacl.go
+@@ -57,7 +57,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 				continue
+ 			}
+ 			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-			var name = string(bytes[0:clen(bytes)])
++			var name = string(bytes[0:clen(bytes[0:])])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+ 			}

@@ -9,7 +9,7 @@ Date:   Mon Mar 4 16:42:03 2013 +0100
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7437043
-
+---
  src/cmd/gc/fmt.c                       | 31 ++++++++++++++++++++++---------
  src/cmd/gc/go.h                        |  1 +
  src/cmd/gc/subr.c                      | 14 +++++++++++++-
@@ -19,3 +19,273 @@ Date:   Mon Mar 4 16:42:03 2013 +0100
  test/fixedbugs/issue4932.dir/state2.go |  9 +++++++++
  test/fixedbugs/issue4932.go            |  9 +++++++++
  8 files changed, 99 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 64eb196928..ab81e6c887 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1091,6 +1091,7 @@ static int
+ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
++	int ptrlit;
+ 	NodeList *l;
+ 
+ 	while(n && n->implicit && (n->op == OIND || n->op == OADDR))
+@@ -1201,12 +1202,23 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		return fmtprint(f, "%T { %H }", n->type, n->closure->nbody);
+ 
+ 	case OCOMPLIT:
+-		if(fmtmode == FErr)
++		ptrlit = n->right != N && n->right->implicit && n->right->type && isptr[n->right->type->etype];
++		if(fmtmode == FErr) {
++			if(n->right != N && n->right->type != T && !n->implicit) {
++				if(ptrlit)
++					return fmtprint(f, "&%T literal", n->right->type->type);
++				else
++					return fmtprint(f, "%T literal", n->right->type);
++			}
+ 			return fmtstrcpy(f, "composite literal");
++		}
++		if(fmtmode == FExp && ptrlit)
++			// typecheck has overwritten OIND by OTYPE with pointer type.
++			return fmtprint(f, "&%T{ %,H }", n->right->type->type, n->list);
+ 		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
+ 
+ 	case OPTRLIT:
+-		if(fmtmode == FExp)  // handle printing of '&' below.
++		if(fmtmode == FExp && n->left->implicit)
+ 			return fmtprint(f, "%N", n->left);
+ 		return fmtprint(f, "&%N", n->left);
+ 
+@@ -1214,8 +1226,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		if(fmtmode == FExp) {   // requires special handling of field names
+ 			if(n->implicit)
+ 				fmtstrcpy(f, "{");
+-			else if(n->right->implicit)
+-				fmtprint(f, "&%T{", n->type);
+ 			else
+ 				fmtprint(f, "(%T{", n->type);
+ 			for(l=n->list; l; l=l->next) {
+@@ -1226,7 +1236,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 				else
+ 					fmtstrcpy(f, " ");
+ 			}
+-			if(!n->implicit && !n->right->implicit)
++			if(!n->implicit)
+ 				return fmtstrcpy(f, "})");
+ 			return fmtstrcpy(f, "}");
+ 		}
+@@ -1238,13 +1248,16 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "%T literal", n->type);
+ 		if(fmtmode == FExp && n->implicit)
+ 			return fmtprint(f, "{ %,H }", n->list);
+-		if(fmtmode == FExp && n->right->implicit)
+-			return fmtprint(f, "&%T{ %,H }", n->type, n->list);
+ 		return fmtprint(f, "(%T{ %,H })", n->type, n->list);
+ 
+ 	case OKEY:
+-		if(n->left && n->right)
+-			return fmtprint(f, "%N:%N", n->left, n->right);
++		if(n->left && n->right) {
++			if(fmtmode == FExp && n->left->type && n->left->type->etype == TFIELD) {
++				// requires special handling of field names
++				return fmtprint(f, "%hhS:%N", n->left->sym, n->right);
++			} else
++				return fmtprint(f, "%N:%N", n->left, n->right);
++		}
+ 		if(!n->left && n->right)
+ 			return fmtprint(f, ":%N", n->right);
+ 		if(n->left && !n->right)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4da7a03ac2..f86c152f2c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1325,6 +1325,7 @@ Node*	safeexpr(Node *n, NodeList **init);
+ void	saveerrors(void);
+ Node*	cheapexpr(Node *n, NodeList **init);
+ Node*	localexpr(Node *n, Type *t, NodeList **init);
++void	saveorignode(Node *n);
+ int32	setlineno(Node *n);
+ void	setmaxarg(Type *t);
+ Type*	shallow(Type *t);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index db8b170145..c53eaf2857 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -513,6 +513,18 @@ nod(int op, Node *nleft, Node *nright)
+ 	return n;
+ }
+ 
++void
++saveorignode(Node *n)
++{
++	Node *norig;
++
++	if(n->orig != N)
++		return;
++	norig = nod(n->op, N, N);
++	*norig = *n;
++	n->orig = norig;
++}
++
+ // ispaddedfield returns whether the given field
+ // is followed by padding. For the case where t is
+ // the last field, total gives the size of the enclosing struct.
+@@ -1416,7 +1428,7 @@ assignconv(Node *n, Type *t, char *context)
+ 	r->type = t;
+ 	r->typecheck = 1;
+ 	r->implicit = 1;
+-	r->orig = n;
++	r->orig = n->orig;
+ 	return r;
+ }
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 63ad4a92eb..0889b92f81 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1340,9 +1340,7 @@ reswitch:
+ 	case OCONV:
+ 	doconv:
+ 		ok |= Erv;
+-		l = nod(OXXX, N, N);
+-		n->orig = l;
+-		*l = *n;
++		saveorignode(n);
+ 		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
+ 		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+@@ -2322,7 +2320,7 @@ static void
+ typecheckcomplit(Node **np)
+ {
+ 	int bad, i, len, nerr;
+-	Node *l, *n, *r, **hash;
++	Node *l, *n, *norig, *r, **hash;
+ 	NodeList *ll;
+ 	Type *t, *f;
+ 	Sym *s, *s1;
+@@ -2339,14 +2337,18 @@ typecheckcomplit(Node **np)
+ 		yyerror("missing type in composite literal");
+ 		goto error;
+ 	}
+-	
++
++	// Save original node (including n->right)
++	norig = nod(n->op, N, N);
++	*norig = *n;
++
+ 	setlineno(n->right);
+ 	l = typecheck(&n->right /* sic */, Etype|Ecomplit);
+ 	if((t = l->type) == T)
+ 		goto error;
+ 	nerr = nerrors;
+ 	n->type = t;
+-	
++
+ 	if(isptr[t->etype]) {
+ 		// For better or worse, we don't allow pointers as the composite literal type,
+ 		// except when using the &T syntax, which sets implicit on the OIND.
+@@ -2413,9 +2415,6 @@ typecheckcomplit(Node **np)
+ 		if(t->bound < 0)
+ 			n->right = nodintconst(len);
+ 		n->op = OARRAYLIT;
+-		// restore implicitness.
+-		if(isptr[n->type->etype])
+-			n->right->implicit = 1;
+ 		break;
+ 
+ 	case TMAP:
+@@ -2520,6 +2519,7 @@ typecheckcomplit(Node **np)
+ 	if(nerr != nerrors)
+ 		goto error;
+ 	
++	n->orig = norig;
+ 	if(isptr[n->type->etype]) {
+ 		n = nod(OPTRLIT, n, N);
+ 		n->typecheck = 1;
+@@ -2528,6 +2528,7 @@ typecheckcomplit(Node **np)
+ 		n->left->typecheck = 1;
+ 	}
+ 
++	n->orig = norig;
+ 	*np = n;
+ 	lineno = lno;
+ 	return;
+diff --git a/test/fixedbugs/issue4932.dir/foo.go b/test/fixedbugs/issue4932.dir/foo.go
+new file mode 100644
+index 0000000000..19b73a0e03
+--- /dev/null
++++ b/test/fixedbugs/issue4932.dir/foo.go
+@@ -0,0 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++type Op struct{}
+diff --git a/test/fixedbugs/issue4932.dir/state.go b/test/fixedbugs/issue4932.dir/state.go
+new file mode 100644
+index 0000000000..c017b9649d
+--- /dev/null
++++ b/test/fixedbugs/issue4932.dir/state.go
+@@ -0,0 +1,28 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package state
++
++import "./foo"
++
++func Public() {
++	var s Settings
++	s.op()
++}
++
++type State struct{}
++
++func (s *State) x(*Settings) {}
++
++type Settings struct{}
++
++func (c *Settings) x() {
++	run([]foo.Op{{}})
++}
++
++func run([]foo.Op) {}
++
++func (s *Settings) op() foo.Op {
++	return foo.Op{}
++}
+diff --git a/test/fixedbugs/issue4932.dir/state2.go b/test/fixedbugs/issue4932.dir/state2.go
+new file mode 100644
+index 0000000000..50f75db2ce
+--- /dev/null
++++ b/test/fixedbugs/issue4932.dir/state2.go
+@@ -0,0 +1,9 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package state2
++
++import "./state"
++
++type Foo *state.State
+diff --git a/test/fixedbugs/issue4932.go b/test/fixedbugs/issue4932.go
+new file mode 100644
+index 0000000000..2a6bc699f0
+--- /dev/null
++++ b/test/fixedbugs/issue4932.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4932: regression in export of composite literals.
++
++package ignored

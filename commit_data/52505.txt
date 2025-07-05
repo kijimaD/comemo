@@ -27,9 +27,90 @@ Date:   Thu May 5 13:46:15 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go                   | 8 ++------
  src/cmd/link/internal/amd64/asm.go     | 4 +---
  src/cmd/link/internal/arm64/asm.go     | 6 ++----
  src/cmd/link/internal/loadelf/ldelf.go | 4 +---
  4 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index be4c552fd7..817ea4a7c5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1188,11 +1188,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+ 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
+ 
+-	// Skip internal linking cases on arm64 to support GCC-9.4 and above.
+-	// See issue #39466.
+-	skipInternalLink := goarch == "arm64" && goos != "darwin"
+-
+-	if t.internalLink() && !skipInternalLink {
++	if t.internalLink() {
+ 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
+ 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
+ 	}
+@@ -1268,7 +1264,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 
+ 			if t.supportedBuildmode("pie") {
+ 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+-				if t.internalLink() && t.internalLinkPIE() && !skipInternalLink {
++				if t.internalLink() && t.internalLinkPIE() {
+ 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
+ 				}
+ 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index fb960491de..f4832efcf7 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -88,9 +88,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		if targType == sym.SDYNIMPORT {
+ 			ldr.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
++		if targType == 0 || targType == sym.SXREF {
+ 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
+ 		}
+ 		su := ldr.MakeSymbolUpdater(s)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 229a4d300b..9937683a13 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -91,9 +91,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		if targType == sym.SDYNIMPORT {
+ 			ldr.Errorf(s, "unexpected R_AARCH64_PREL32 relocation for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
++		if targType == 0 || targType == sym.SXREF {
+ 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
+ 		}
+ 		su := ldr.MakeSymbolUpdater(s)
+@@ -121,7 +119,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			su.SetRelocSym(rIdx, syms.PLT)
+ 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+ 		}
+-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
++		if targType == 0 || targType == sym.SXREF {
+ 			ldr.Errorf(s, "unknown symbol %s in callarm64", ldr.SymName(targ))
+ 		}
+ 		su := ldr.MakeSymbolUpdater(s)
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index d05d8e3b4b..03813909de 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -934,9 +934,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
+ 		}
+ 	}
+ 
+-	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-	// sense and should be removed when someone has thought about it properly.
+-	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != elf.STT_SECTION {
++	if s != 0 && l.SymType(s) == 0 && elfsym.type_ != elf.STT_SECTION {
+ 		sb := l.MakeSymbolUpdater(s)
+ 		sb.SetType(sym.SXREF)
+ 	}

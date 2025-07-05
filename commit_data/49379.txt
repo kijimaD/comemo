@@ -1536,3 +1536,44 @@ Date:   Mon Aug 16 09:14:21 2021 -0700
  test/uintptrescapes2.go                            |    2 +-
  test/unsafebuiltins.go                             |    7 +-
  1528 files changed, 57251 insertions(+), 33472 deletions(-)
+
+diff --cc src/crypto/sha256/sha256.go
+index 8b54a427d7,659531dc71..465d00e0e6
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@@ -276,14 -259,7 +276,14 @@@ func Sum256(data []byte) [Size]byte 
+  }
+  
+  // Sum224 returns the SHA224 checksum of the data.
+- func Sum224(data []byte) (sum224 [Size224]byte) {
++ func Sum224(data []byte) [Size224]byte {
+ +	if boring.Enabled {
+ +		h := New224()
+ +		h.Write(data)
+ +		var ret [Size224]byte
+ +		h.Sum(ret[:0])
+ +		return ret
+ +	}
+  	var d digest
+  	d.is224 = true
+  	d.Reset()
+diff --cc src/crypto/sha512/sha512.go
+index 1a2cef317c,d5715558c0..1285cca7ee
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@@ -358,14 -337,7 +358,14 @@@ func Sum512(data []byte) [Size]byte 
+  }
+  
+  // Sum384 returns the SHA384 checksum of the data.
+- func Sum384(data []byte) (sum384 [Size384]byte) {
++ func Sum384(data []byte) [Size384]byte {
+ +	if boring.Enabled {
+ +		h := New384()
+ +		h.Write(data)
+ +		var ret [Size384]byte
+ +		h.Sum(ret[:0])
+ +		return ret
+ +	}
+  	d := digest{function: crypto.SHA384}
+  	d.Reset()
+  	d.Write(data)

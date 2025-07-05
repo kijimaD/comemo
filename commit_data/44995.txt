@@ -19,10 +19,167 @@ Date:   Fri Sep 18 16:14:08 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go              | 12 +++---
  src/cmd/go/internal/modload/load.go                |  8 ++++
  src/cmd/go/internal/modload/query.go               | 14 -------
  .../go/testdata/script/mod_import_issue41113.txt   |  2 +-
  src/cmd/go/testdata/script/mod_import_meta.txt     | 45 ++++++++++++++++++++++
  5 files changed, 60 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index e93eebcb81..c36c8bd29b 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -261,7 +261,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		}
+ 
+ 		// Every module path in mods is a prefix of the import path.
+-		// As in QueryPackage, prefer the longest prefix that satisfies the import.
++		// As in QueryPattern, prefer the longest prefix that satisfies the import.
+ 		sort.Slice(mods, func(i, j int) bool {
+ 			return len(mods[i].Path) > len(mods[j].Path)
+ 		})
+@@ -300,9 +300,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		// in the build list, and isn't in any other module that the user has
+ 		// shimmed in via a "replace" directive.
+ 		// Moreover, the import path is reserved for the standard library, so
+-		// QueryPackage cannot possibly find a module containing this package.
++		// QueryPattern cannot possibly find a module containing this package.
+ 		//
+-		// Instead of trying QueryPackage, report an ImportMissingError immediately.
++		// Instead of trying QueryPattern, report an ImportMissingError immediately.
+ 		return module.Version{}, &ImportMissingError{Path: path}
+ 	}
+ 
+@@ -321,11 +321,11 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 	// and return m, dir, ImpportMissingError.
+ 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
+ 
+-	candidates, err := QueryPackage(ctx, path, "latest", CheckAllowed)
++	candidates, err := QueryPattern(ctx, path, "latest", CheckAllowed)
+ 	if err != nil {
+ 		if errors.Is(err, os.ErrNotExist) {
+ 			// Return "cannot find module providing package […]" instead of whatever
+-			// low-level error QueryPackage produced.
++			// low-level error QueryPattern produced.
+ 			return module.Version{}, &ImportMissingError{Path: path, QueryErr: err}
+ 		} else {
+ 			return module.Version{}, err
+@@ -338,7 +338,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		canAdd := true
+ 		for _, bm := range buildList {
+ 			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
+-				// QueryPackage proposed that we add module cm to provide the package,
++				// QueryPattern proposed that we add module cm to provide the package,
+ 				// but we already depend on a newer version of that module (and we don't
+ 				// have the package).
+ 				//
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index ee5596d16c..9194f9cc7c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1018,6 +1018,14 @@ func (ld *loader) load(pkg *loadPkg) {
+ 		return
+ 	}
+ 
++	if search.IsMetaPackage(pkg.path) {
++		pkg.err = &invalidImportError{
++			importPath: pkg.path,
++			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
++		}
++		return
++	}
++
+ 	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path)
+ 	if pkg.dir == "" {
+ 		return
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 5ddb4e6565..e75d901ec6 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -431,20 +431,6 @@ type QueryResult struct {
+ 	Packages []string
+ }
+ 
+-// QueryPackage looks up the module(s) containing path at a revision matching
+-// query. The results are sorted by module path length in descending order.
+-//
+-// If the package is in the main module, QueryPackage considers only the main
+-// module and only the version "latest", without checking for other possible
+-// modules.
+-func QueryPackage(ctx context.Context, path, query string, allowed AllowedFunc) ([]QueryResult, error) {
+-	m := search.NewMatch(path)
+-	if m.IsLocal() || !m.IsLiteral() {
+-		return nil, fmt.Errorf("pattern %s is not an importable package", path)
+-	}
+-	return QueryPattern(ctx, path, query, allowed)
+-}
+-
+ // QueryPattern looks up the module(s) containing at least one package matching
+ // the given pattern at the given version. The results are sorted by module path
+ // length in descending order.
+diff --git a/src/cmd/go/testdata/script/mod_import_issue41113.txt b/src/cmd/go/testdata/script/mod_import_issue41113.txt
+index e98ac63d48..fed2510f57 100644
+--- a/src/cmd/go/testdata/script/mod_import_issue41113.txt
++++ b/src/cmd/go/testdata/script/mod_import_issue41113.txt
+@@ -5,7 +5,7 @@
+ 
+ # Initially, our module depends on split-incompatible v2.1.0-pre+incompatible,
+ # from which an imported package has been removed (and relocated to the nested
+-# split-incompatible/subpkg module). modload.QueryPackage will suggest
++# split-incompatible/subpkg module). modload.QueryPattern will suggest
+ # split-incompatible v2.0.0+incompatible, which we cannot use (because it would
+ # be an implicit downgrade), and split-incompatible/subpkg v0.1.0, which we
+ # *should* use.
+diff --git a/src/cmd/go/testdata/script/mod_import_meta.txt b/src/cmd/go/testdata/script/mod_import_meta.txt
+new file mode 100644
+index 0000000000..0e469d09d2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_meta.txt
+@@ -0,0 +1,45 @@
++# The loader should not attempt to resolve imports of the "all", "std", and "cmd" meta-packages.
++
++! go list -deps ./importall
++! stderr 'internal error'
++stderr '^importall[/\\]x.go:3:8: "all" is not an importable package; see ''go help packages''$'
++
++! go list -deps ./importcmd
++! stderr 'internal error'
++stderr '^importcmd[/\\]x.go:3:8: "cmd" is not an importable package; see ''go help packages''$'
++
++! go list -deps ./importstd
++! stderr 'internal error'
++stderr '^importstd[/\\]x.go:3:8: "std" is not an importable package; see ''go help packages''$'
++
++
++# Not even if such a path is theoretically provided by a (necessarily replaced) module.
++
++go mod edit -replace std@v0.1.0=./modstd
++go mod edit -require std@v0.1.0
++
++! go list -deps ./importstd
++stderr '^importstd[/\\]x.go:3:8: "std" is not an importable package; see ''go help packages''$'
++
++
++-- go.mod --
++module example.com
++go 1.16
++-- importall/x.go --
++package importall
++
++import _ "all"
++-- importcmd/x.go --
++package importcmd
++
++import _ "cmd"
++-- importstd/x.go --
++package importstd
++
++import _ "std"
++-- modstd/go.mod --
++module std
++go 1.16
++-- modstd/std.go --
++// Package std is an incredibly confusingly-named package.
++package std

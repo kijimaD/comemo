@@ -9,6 +9,30 @@ Date:   Tue Jun 12 19:33:23 2018 +0000
     Change-Id: I09ee928b462ab538a9d38c4e317eaeb8856919f2
     Reviewed-on: https://go-review.googlesource.com/118335
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/archive/zip/struct.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index c545c5b830..c90151d9d4 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -81,9 +81,17 @@ const (
+ // See the zip spec for details.
+ type FileHeader struct {
+ 	// Name is the name of the file.
+-	// It must be a relative path, not start with a drive letter (e.g. C:),
++	//
++	// It must be a relative path, not start with a drive letter (such as "C:"),
+ 	// and must use forward slashes instead of back slashes. A trailing slash
+ 	// indicates that this file is a directory and should have no data.
++	//
++	// When reading zip files, the Name field is populated from
++	// the zip file directly and is not validated for correctness.
++	// It is the caller's responsibility to sanitize it as
++	// appropriate, including canonicalizing slash directions,
++	// validating that paths are relative, and preventing path
++	// traversal through filenames ("../../../").
+ 	Name string
+ 
+ 	// Comment is any arbitrary user-defined string shorter than 64KiB.

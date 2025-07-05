@@ -7,6 +7,18 @@ Date:   Wed Dec 3 13:05:56 2008 -0800
     TBR=r
     OCL=20352
     CL=20355
-
+---
  test/golden.out | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 619cb1492d..24f56b63a2 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,6 +1,5 @@
+ 
+ =========== ./convlit.go
+-BUG: convlit.go fails
+ BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
+ errchk: ./convlit.go: missing expected error message on line 17: 'conver|incompatible'
+ errchk: ./convlit.go: missing expected error message on line 18: 'conver|incompatible'

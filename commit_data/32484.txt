@@ -18,7 +18,40 @@ Date:   Wed Apr 26 16:53:02 2017 +0100
     Change-Id: Id37cbd0c581c9988c2de355efa908956278e2189
     Reviewed-on: https://go-review.googlesource.com/41857
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 8 ++++----
  src/cmd/internal/obj/x86/asm6.go             | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 3d6061f839..72f29c8fbd 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -80,10 +80,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADCQ (R11), DX                          // 491313
+ 	ADCQ (BX), R11                          // 4c131b
+ 	ADCQ (R11), R11                         // 4d131b
+-	//TODO: ADCB (BX), DL                   // 1213
+-	//TODO: ADCB (R11), DL                  // 411213
+-	//TODO: ADCB (BX), R11                  // 44121b
+-	//TODO: ADCB (R11), R11                 // 45121b
++	ADCB (BX), DL                           // 1213
++	ADCB (R11), DL                          // 411213
++	ADCB (BX), R11                          // 44121b
++	ADCB (R11), R11                         // 45121b
+ 	//TODO: ADCXL (BX), DX                  // 660f38f613
+ 	//TODO: ADCXL (R11), DX                 // 66410f38f613
+ 	//TODO: ADCXL DX, DX                    // 660f38f6d2
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 630ef526df..e2270747ce 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -945,7 +945,7 @@ var optab =
+ 	{AAAD, ynone, P32, [23]uint8{0xd5, 0x0a}},
+ 	{AAAM, ynone, P32, [23]uint8{0xd4, 0x0a}},
+ 	{AAAS, ynone, P32, [23]uint8{0x3f}},
+-	{AADCB, yxorb, Pb, [23]uint8{0x14, 0x80, 02, 0x10, 0x10}},
++	{AADCB, yxorb, Pb, [23]uint8{0x14, 0x80, 02, 0x10, 0x12}},
+ 	{AADCL, yaddl, Px, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+ 	{AADCQ, yaddl, Pw, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+ 	{AADCW, yaddl, Pe, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},

@@ -13,8 +13,79 @@ Date:   Sun Mar 3 06:50:17 2013 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/7286044
-
+---
  src/cmd/dist/arm.c   | 12 ++++++++++++
  src/cmd/dist/build.c |  6 ++++++
  src/cmd/dist/unix.c  |  7 +++++++
  3 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/dist/arm.c b/src/cmd/dist/arm.c
+index eabf97b9ea..dafc5c1c25 100644
+--- a/src/cmd/dist/arm.c
++++ b/src/cmd/dist/arm.c
+@@ -17,6 +17,18 @@ static void useVFPv1(void);
+ char *
+ xgetgoarm(void)
+ {
++#if defined(__NetBSD__) || defined(__FreeBSD__)
++	// NetBSD has buggy support for VFPv2 (incorrect inexact, 
++	// denormial, and NaN handling). When GOARM=6, some of our
++	// math tests fails on Raspberry Pi.
++	// Thus we return "5" here for safety, the user is free
++	// to override.
++	// Note: using GOARM=6 with cgo can trigger a kernel assertion
++	// failure and crash NetBSD/evbarm kernel.
++	// FreeBSD also have broken VFP support, so disable VFP also
++	// on FreeBSD.
++	return "5";
++#endif
+ 	if(xtryexecfunc(useVFPv3))
+ 		return "7";
+ 	else if(xtryexecfunc(useVFPv1))
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index cf754a4103..dda45ca625 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -411,7 +411,13 @@ static char *proto_gccargs[] = {
+ 	"-fno-common",
+ 	"-ggdb",
+ 	"-pipe",
++#if defined(__NetBSD__) && defined(__arm__)
++	// GCC 4.5.4 (NetBSD nb1 20120916) on ARM is known to mis-optimize gc/mparith3.c
++	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
++	"-O1",
++#else
+ 	"-O2",
++#endif
+ };
+ 
+ static Vec gccargs;
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index d8b88893c9..e4e2dcc9fc 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -745,17 +745,24 @@ static void sigillhand(int);
+ // xtryexecfunc tries to execute function f, if any illegal instruction
+ // signal received in the course of executing that function, it will
+ // return 0, otherwise it will return 1.
++// Some systems (notably NetBSD) will spin and spin when executing VFPv3
++// instructions on VFPv2 system (e.g. Raspberry Pi) without ever triggering
++// SIGILL, so we set a 1-second alarm to catch that case.
+ int
+ xtryexecfunc(void (*f)(void))
+ {
+ 	int r;
+ 	r = 0;
+ 	signal(SIGILL, sigillhand);
++	signal(SIGALRM, sigillhand);
++	alarm(1);
+ 	if(sigsetjmp(sigill_jmpbuf, 1) == 0) {
+ 		f();
+ 		r = 1;
+ 	}
+ 	signal(SIGILL, SIG_DFL);
++	alarm(0);
++	signal(SIGALRM, SIG_DFL);
+ 	return r;
+ }
+ 

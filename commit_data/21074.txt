@@ -11,7 +11,7 @@ Date:   Tue Nov 11 23:00:29 2014 -0500
     R=r
     CC=golang-codereviews
     https://golang.org/cl/168590043
-
+---
  src/runtime/{os_linux_amd64.go => cputicks.go}     |   2 +
  src/runtime/defs_freebsd_386.go                    |  88 +++---
  src/runtime/defs_freebsd_amd64.go                  |  92 +++---
@@ -38,3 +38,1941 @@ Date:   Tue Nov 11 23:00:29 2014 -0500
  src/runtime/signal_freebsd_arm.h                   |  28 --
  src/runtime/signals_freebsd.h                      |  54 ----
  25 files changed, 639 insertions(+), 1008 deletions(-)
+
+diff --git a/src/runtime/os_linux_amd64.go b/src/runtime/cputicks.go
+similarity index 95%
+rename from src/runtime/os_linux_amd64.go
+rename to src/runtime/cputicks.go
+index bd6a78ed1c..e0593d56e6 100644
+--- a/src/runtime/os_linux_amd64.go
++++ b/src/runtime/cputicks.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !arm
++
+ package runtime
+ 
+ // careful: cputicks is not guaranteed to be monotonic!  In particular, we have
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 96fd563149..2cb3a8fdb3 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -96,13 +96,13 @@ type rtprio struct {
+ }
+ 
+ type thrparam struct {
+-	start_func unsafe.Pointer
+-	arg        *byte
+-	stack_base *int8
+-	stack_size uint32
+-	tls_base   *int8
+-	tls_size   uint32
+-	child_tid  *int32
++	start_func uintptr
++	arg        unsafe.Pointer
++	stack_base uintptr
++	stack_size uintptr
++	tls_base   unsafe.Pointer
++	tls_size   uintptr
++	child_tid  unsafe.Pointer // *int32
+ 	parent_tid *int32
+ 	flags      int32
+ 	rtp        *rtprio
+@@ -120,8 +120,8 @@ type sigset struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp    *int8
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -132,42 +132,42 @@ type siginfo struct {
+ 	si_pid    int32
+ 	si_uid    uint32
+ 	si_status int32
+-	si_addr   *byte
++	si_addr   uintptr
+ 	si_value  [4]byte
+ 	_reason   [32]byte
+ }
+ 
+ type mcontext struct {
+-	mc_onstack       int32
+-	mc_gs            int32
+-	mc_fs            int32
+-	mc_es            int32
+-	mc_ds            int32
+-	mc_edi           int32
+-	mc_esi           int32
+-	mc_ebp           int32
+-	mc_isp           int32
+-	mc_ebx           int32
+-	mc_edx           int32
+-	mc_ecx           int32
+-	mc_eax           int32
+-	mc_trapno        int32
+-	mc_err           int32
+-	mc_eip           int32
+-	mc_cs            int32
+-	mc_eflags        int32
+-	mc_esp           int32
+-	mc_ss            int32
+-	mc_len           int32
+-	mc_fpformat      int32
+-	mc_ownedfp       int32
+-	mc_flags         int32
+-	mc_fpstate       [128]int32
+-	mc_fsbase        int32
+-	mc_gsbase        int32
+-	mc_xfpustate     int32
+-	mc_xfpustate_len int32
+-	mc_spare2        [4]int32
++	mc_onstack       uint32
++	mc_gs            uint32
++	mc_fs            uint32
++	mc_es            uint32
++	mc_ds            uint32
++	mc_edi           uint32
++	mc_esi           uint32
++	mc_ebp           uint32
++	mc_isp           uint32
++	mc_ebx           uint32
++	mc_edx           uint32
++	mc_ecx           uint32
++	mc_eax           uint32
++	mc_trapno        uint32
++	mc_err           uint32
++	mc_eip           uint32
++	mc_cs            uint32
++	mc_eflags        uint32
++	mc_esp           uint32
++	mc_ss            uint32
++	mc_len           uint32
++	mc_fpformat      uint32
++	mc_ownedfp       uint32
++	mc_flags         uint32
++	mc_fpstate       [128]uint32
++	mc_fsbase        uint32
++	mc_gsbase        uint32
++	mc_xfpustate     uint32
++	mc_xfpustate_len uint32
++	mc_spare2        [4]uint32
+ }
+ 
+ type ucontext struct {
+@@ -185,11 +185,19 @@ type timespec struct {
+ 	tv_nsec int32
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = x
++}
++
+ type timeval struct {
+ 	tv_sec  int32
+ 	tv_usec int32
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index b308f9ef62..a2646fb24d 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -96,13 +96,13 @@ type rtprio struct {
+ }
+ 
+ type thrparam struct {
+-	start_func unsafe.Pointer
+-	arg        *byte
+-	stack_base *int8
+-	stack_size uint64
+-	tls_base   *int8
+-	tls_size   uint64
+-	child_tid  *int64
++	start_func uintptr
++	arg        unsafe.Pointer
++	stack_base uintptr
++	stack_size uintptr
++	tls_base   unsafe.Pointer
++	tls_size   uintptr
++	child_tid  unsafe.Pointer // *int64
+ 	parent_tid *int64
+ 	flags      int32
+ 	pad_cgo_0  [4]byte
+@@ -122,8 +122,8 @@ type sigset struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp     *int8
+-	ss_size   uint64
++	ss_sp     uintptr
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+@@ -135,50 +135,50 @@ type siginfo struct {
+ 	si_pid    int32
+ 	si_uid    uint32
+ 	si_status int32
+-	si_addr   *byte
++	si_addr   uint64
+ 	si_value  [8]byte
+ 	_reason   [40]byte
+ }
+ 
+ type mcontext struct {
+-	mc_onstack       int64
+-	mc_rdi           int64
+-	mc_rsi           int64
+-	mc_rdx           int64
+-	mc_rcx           int64
+-	mc_r8            int64
+-	mc_r9            int64
+-	mc_rax           int64
+-	mc_rbx           int64
+-	mc_rbp           int64
+-	mc_r10           int64
+-	mc_r11           int64
+-	mc_r12           int64
+-	mc_r13           int64
+-	mc_r14           int64
+-	mc_r15           int64
++	mc_onstack       uint64
++	mc_rdi           uint64
++	mc_rsi           uint64
++	mc_rdx           uint64
++	mc_rcx           uint64
++	mc_r8            uint64
++	mc_r9            uint64
++	mc_rax           uint64
++	mc_rbx           uint64
++	mc_rbp           uint64
++	mc_r10           uint64
++	mc_r11           uint64
++	mc_r12           uint64
++	mc_r13           uint64
++	mc_r14           uint64
++	mc_r15           uint64
+ 	mc_trapno        uint32
+ 	mc_fs            uint16
+ 	mc_gs            uint16
+-	mc_addr          int64
++	mc_addr          uint64
+ 	mc_flags         uint32
+ 	mc_es            uint16
+ 	mc_ds            uint16
+-	mc_err           int64
+-	mc_rip           int64
+-	mc_cs            int64
+-	mc_rflags        int64
+-	mc_rsp           int64
+-	mc_ss            int64
+-	mc_len           int64
+-	mc_fpformat      int64
+-	mc_ownedfp       int64
+-	mc_fpstate       [64]int64
+-	mc_fsbase        int64
+-	mc_gsbase        int64
+-	mc_xfpustate     int64
+-	mc_xfpustate_len int64
+-	mc_spare         [4]int64
++	mc_err           uint64
++	mc_rip           uint64
++	mc_cs            uint64
++	mc_rflags        uint64
++	mc_rsp           uint64
++	mc_ss            uint64
++	mc_len           uint64
++	mc_fpformat      uint64
++	mc_ownedfp       uint64
++	mc_fpstate       [64]uint64
++	mc_fsbase        uint64
++	mc_gsbase        uint64
++	mc_xfpustate     uint64
++	mc_xfpustate_len uint64
++	mc_spare         [4]uint64
+ }
+ 
+ type ucontext struct {
+@@ -196,11 +196,19 @@ type timespec struct {
+ 	tv_nsec int64
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
+ type timeval struct {
+ 	tv_sec  int64
+ 	tv_usec int64
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 3162411c8a..e86ce45b4c 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -96,13 +96,13 @@ type rtprio struct {
+ }
+ 
+ type thrparam struct {
+-	start_func unsafe.Pointer
+-	arg        *byte
+-	stack_base *uint8
+-	stack_size uint32
+-	tls_base   *uint8
+-	tls_size   uint32
+-	child_tid  *int32
++	start_func uintptr
++	arg        unsafe.Pointer
++	stack_base uintptr
++	stack_size uintptr
++	tls_base   unsafe.Pointer
++	tls_size   uintptr
++	child_tid  unsafe.Pointer // *int32
+ 	parent_tid *int32
+ 	flags      int32
+ 	rtp        *rtprio
+@@ -120,8 +120,8 @@ type sigset struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp    *uint8
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -132,7 +132,7 @@ type siginfo struct {
+ 	si_pid    int32
+ 	si_uid    uint32
+ 	si_status int32
+-	si_addr   *byte
++	si_addr   uintptr
+ 	si_value  [4]byte
+ 	_reason   [32]byte
+ }
+@@ -157,12 +157,20 @@ type timespec struct {
+ 	pad_cgo_0 [4]byte
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
+ type timeval struct {
+ 	tv_sec    int64
+ 	tv_usec   int32
+ 	pad_cgo_0 [4]byte
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+new file mode 100644
+index 0000000000..fffb350ed1
+--- /dev/null
++++ b/src/runtime/mem_bsd.go
+@@ -0,0 +1,88 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd netbsd openbsd
++
++package runtime
++
++import "unsafe"
++
++//go:nosplit
++func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++	v := unsafe.Pointer(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
++	if uintptr(v) < 4096 {
++		return nil
++	}
++	xadd64(stat, int64(n))
++	return v
++}
++
++func sysUnused(v unsafe.Pointer, n uintptr) {
++	madvise(v, n, _MADV_FREE)
++}
++
++func sysUsed(v unsafe.Pointer, n uintptr) {
++}
++
++func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
++	xadd64(stat, -int64(n))
++	munmap(v, n)
++}
++
++func sysFault(v unsafe.Pointer, n uintptr) {
++	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
++}
++
++func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
++	// On 64-bit, people with ulimit -v set complain if we reserve too
++	// much address space.  Instead, assume that the reservation is okay
++	// and check the assumption in SysMap.
++	if ptrSize == 8 && uint64(n) > 1<<32 {
++		*reserved = false
++		return v
++	}
++
++	p := unsafe.Pointer(mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
++	if uintptr(p) < 4096 {
++		return nil
++	}
++	*reserved = true
++	return p
++}
++
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
++	const _ENOMEM = 12
++
++	xadd64(stat, int64(n))
++
++	// On 64-bit, we don't actually have v reserved, so tread carefully.
++	if !reserved {
++		flags := int32(_MAP_ANON | _MAP_PRIVATE)
++		if GOOS == "dragonfly" {
++			// TODO(jsing): For some reason DragonFly seems to return
++			// memory at a different address than we requested, even when
++			// there should be no reason for it to do so. This can be
++			// avoided by using MAP_FIXED, but I'm not sure we should need
++			// to do this - we do not on other platforms.
++			flags |= _MAP_FIXED
++		}
++		p := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
++		if uintptr(p) == _ENOMEM {
++			gothrow("runtime: out of memory")
++		}
++		if p != v {
++			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
++			gothrow("runtime: address space conflict")
++		}
++		return
++	}
++
++	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	if uintptr(p) == _ENOMEM {
++		gothrow("runtime: out of memory")
++	}
++	if p != v {
++		gothrow("runtime: cannot map pages in arena address space")
++	}
++}
+diff --git a/src/runtime/mem_dragonfly.c b/src/runtime/mem_dragonfly.c
+deleted file mode 100644
+index 11457b2c03..0000000000
+--- a/src/runtime/mem_dragonfly.c
++++ /dev/null
+@@ -1,105 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "malloc.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	ENOMEM = 12,
+-};
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr n, uint64 *stat)
+-{
+-	void *v;
+-
+-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(v < (void*)4096)
+-		return nil;
+-	runtime·xadd64(stat, n);
+-	return v;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	runtime·madvise(v, n, MADV_FREE);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n, uint64 *stat)
+-{
+-	runtime·xadd64(stat, -(uint64)n);
+-	runtime·munmap(v, n);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr n)
+-{
+-	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr n, bool *reserved)
+-{
+-	void *p;
+-
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8 && n > 1LL<<32) {
+-		*reserved = false;
+-		return v;
+-	}
+-
+-	*reserved = true;
+-	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096)
+-		return nil;
+-	return p;
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+-{
+-	void *p;
+-	
+-	runtime·xadd64(stat, n);
+-
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(!reserved) {
+-		// TODO(jsing): For some reason DragonFly seems to return
+-		// memory at a different address than we requested, even when
+-		// there should be no reason for it to do so. This can be
+-		// avoided by using MAP_FIXED, but I'm not sure we should need
+-		// to do this - we do not on other platforms.
+-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)ENOMEM)
+-			runtime·throw("runtime: out of memory");
+-		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+-			runtime·throw("runtime: address space conflict");
+-		}
+-		return;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
+-		runtime·throw("runtime: out of memory");
+-	if(p != v)
+-		runtime·throw("runtime: cannot map pages in arena address space");
+-}
+diff --git a/src/runtime/mem_freebsd.c b/src/runtime/mem_freebsd.c
+deleted file mode 100644
+index 18a9a2f5b3..0000000000
+--- a/src/runtime/mem_freebsd.c
++++ /dev/null
+@@ -1,100 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "malloc.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	ENOMEM = 12,
+-};
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr n, uint64 *stat)
+-{
+-	void *v;
+-
+-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(v < (void*)4096)
+-		return nil;
+-	runtime·xadd64(stat, n);
+-	return v;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	runtime·madvise(v, n, MADV_FREE);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n, uint64 *stat)
+-{
+-	runtime·xadd64(stat, -(uint64)n);
+-	runtime·munmap(v, n);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr n)
+-{
+-	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr n, bool *reserved)
+-{
+-	void *p;
+-
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8 && n > 1LL<<32) {
+-		*reserved = false;
+-		return v;
+-	}
+-
+-	*reserved = true;
+-	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096)
+-		return nil;
+-	return p;
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+-{
+-	void *p;
+-	
+-	runtime·xadd64(stat, n);
+-
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(!reserved) {
+-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)ENOMEM)
+-			runtime·throw("runtime: out of memory");
+-		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+-			runtime·throw("runtime: address space conflict");
+-		}
+-		return;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
+-		runtime·throw("runtime: out of memory");
+-	if(p != v)
+-		runtime·throw("runtime: cannot map pages in arena address space");
+-}
+diff --git a/src/runtime/mem_netbsd.c b/src/runtime/mem_netbsd.c
+deleted file mode 100644
+index 31820e5170..0000000000
+--- a/src/runtime/mem_netbsd.c
++++ /dev/null
+@@ -1,100 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "malloc.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	ENOMEM = 12,
+-};
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr n, uint64 *stat)
+-{
+-	void *v;
+-
+-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(v < (void*)4096)
+-		return nil;
+-	runtime·xadd64(stat, n);
+-	return v;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	runtime·madvise(v, n, MADV_FREE);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n, uint64 *stat)
+-{
+-	runtime·xadd64(stat, -(uint64)n);
+-	runtime·munmap(v, n);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr n)
+-{
+-	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr n, bool *reserved)
+-{
+-	void *p;
+-
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8 && n > 1LL<<32) {
+-		*reserved = false;
+-		return v;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096)
+-		return nil;
+-	*reserved = true;
+-	return p;
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+-{
+-	void *p;
+-	
+-	runtime·xadd64(stat, n);
+-
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(!reserved) {
+-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)ENOMEM)
+-			runtime·throw("runtime: out of memory");
+-		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+-			runtime·throw("runtime: address space conflict");
+-		}
+-		return;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
+-		runtime·throw("runtime: out of memory");
+-	if(p != v)
+-		runtime·throw("runtime: cannot map pages in arena address space");
+-}
+diff --git a/src/runtime/mem_openbsd.c b/src/runtime/mem_openbsd.c
+deleted file mode 100644
+index 31820e5170..0000000000
+--- a/src/runtime/mem_openbsd.c
++++ /dev/null
+@@ -1,100 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "malloc.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	ENOMEM = 12,
+-};
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr n, uint64 *stat)
+-{
+-	void *v;
+-
+-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(v < (void*)4096)
+-		return nil;
+-	runtime·xadd64(stat, n);
+-	return v;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	runtime·madvise(v, n, MADV_FREE);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n, uint64 *stat)
+-{
+-	runtime·xadd64(stat, -(uint64)n);
+-	runtime·munmap(v, n);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr n)
+-{
+-	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr n, bool *reserved)
+-{
+-	void *p;
+-
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8 && n > 1LL<<32) {
+-		*reserved = false;
+-		return v;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096)
+-		return nil;
+-	*reserved = true;
+-	return p;
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+-{
+-	void *p;
+-	
+-	runtime·xadd64(stat, n);
+-
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(!reserved) {
+-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)ENOMEM)
+-			runtime·throw("runtime: out of memory");
+-		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+-			runtime·throw("runtime: address space conflict");
+-		}
+-		return;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
+-		runtime·throw("runtime: out of memory");
+-	if(p != v)
+-		runtime·throw("runtime: cannot map pages in arena address space");
+-}
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+new file mode 100644
+index 0000000000..0b2fedad97
+--- /dev/null
++++ b/src/runtime/os1_freebsd.go
+@@ -0,0 +1,221 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// From FreeBSD's <sys/sysctl.h>
++const (
++	_CTL_HW  = 6
++	_HW_NCPU = 3
++)
++
++var sigset_none = sigset{}
++var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
++
++func getncpu() int32 {
++	mib := [2]uint32{_CTL_HW, _HW_NCPU}
++	out := uint32(0)
++	nout := unsafe.Sizeof(out)
++	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
++	if ret >= 0 {
++		return int32(out)
++	}
++	return 1
++}
++
++// FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
++// thus the code is largely similar. See Linux implementation
++// and lock_futex.c for comments.
++
++//go:nosplit
++func futexsleep(addr *uint32, val uint32, ns int64) {
++	onM(func() {
++		futexsleep1(addr, val, ns)
++	})
++}
++
++func futexsleep1(addr *uint32, val uint32, ns int64) {
++	var tsp *timespec
++	if ns >= 0 {
++		var ts timespec
++		ts.tv_nsec = 0
++		ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
++		tsp = &ts
++	}
++	ret := sys_umtx_op(addr, _UMTX_OP_WAIT_UINT_PRIVATE, val, nil, tsp)
++	if ret >= 0 || ret == -_EINTR {
++		return
++	}
++	print("umtx_wait addr=", addr, " val=", val, " ret=", ret, "\n")
++	*(*int32)(unsafe.Pointer(uintptr(0x1005))) = 0x1005
++}
++
++//go:nosplit
++func futexwakeup(addr *uint32, cnt uint32) {
++	ret := sys_umtx_op(addr, _UMTX_OP_WAKE_PRIVATE, cnt, nil, nil)
++	if ret >= 0 {
++		return
++	}
++
++	onM(func() {
++		print("umtx_wake_addr=", addr, " ret=", ret, "\n")
++	})
++}
++
++func thr_start()
++
++func newosproc(mp *m, stk unsafe.Pointer) {
++	if false {
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
++	}
++
++	// NOTE(rsc): This code is confused. stackbase is the top of the stack
++	// and is equal to stk. However, it's working, so I'm not changing it.
++	param := thrparam{
++		start_func: funcPC(thr_start),
++		arg:        unsafe.Pointer(mp),
++		stack_base: mp.g0.stack.hi,
++		stack_size: uintptr(stk) - mp.g0.stack.hi,
++		child_tid:  unsafe.Pointer(&mp.procid),
++		parent_tid: nil,
++		tls_base:   unsafe.Pointer(&mp.tls[0]),
++		tls_size:   unsafe.Sizeof(mp.tls),
++	}
++	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
++
++	var oset sigset
++	sigprocmask(&sigset_all, &oset)
++	thr_new(&param, int32(unsafe.Sizeof(param)))
++	sigprocmask(&oset, nil)
++}
++
++func osinit() {
++	ncpu = getncpu()
++}
++
++var urandom_data [_HashRandomBytes]byte
++var urandom_dev = []byte("/dev/random\x00")
++
++//go:nosplit
++func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
++	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
++		*rnd = unsafe.Pointer(&urandom_data[0])
++		*rnd_len = _HashRandomBytes
++	} else {
++		*rnd = nil
++		*rnd_len = 0
++	}
++	close(fd)
++}
++
++func goenvs() {
++	goenvs_unix()
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++func mpreinit(mp *m) {
++	mp.gsignal = malg(32 * 1024)
++	mp.gsignal.m = mp
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++func minit() {
++	_g_ := getg()
++
++	// m.procid is a uint64, but thr_new writes a uint32 on 32-bit systems.
++	// Fix it up. (Only matters on big-endian, but be clean anyway.)
++	if ptrSize == 4 {
++		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
++	}
++
++	// Initialize signal handling.
++	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
++	sigprocmask(&sigset_none, nil)
++}
++
++// Called from dropm to undo the effect of an minit.
++func unminit() {
++	signalstack(nil, 0)
++}
++
++func memlimit() uintptr {
++	/*
++		TODO: Convert to Go when something actually uses the result.
++		Rlimit rl;
++		extern byte runtime·text[], runtime·end[];
++		uintptr used;
++
++		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
++			return 0;
++		if(rl.rlim_cur >= 0x7fffffff)
++			return 0;
++
++		// Estimate our VM footprint excluding the heap.
++		// Not an exact science: use size of binary plus
++		// some room for thread stacks.
++		used = runtime·end - runtime·text + (64<<20);
++		if(used >= rl.rlim_cur)
++			return 0;
++
++		// If there's not at least 16 MB left, we're probably
++		// not going to be able to do much.  Treat as no limit.
++		rl.rlim_cur -= used;
++		if(rl.rlim_cur < (16<<20))
++			return 0;
++
++		return rl.rlim_cur - used;
++	*/
++
++	return 0
++}
++
++func sigtramp()
++
++type sigactiont struct {
++	sa_handler uintptr
++	sa_flags   int32
++	sa_mask    sigset
++}
++
++func setsig(i int32, fn uintptr, restart bool) {
++	var sa sigactiont
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
++	if restart {
++		sa.sa_flags |= _SA_RESTART
++	}
++	sa.sa_mask = sigset_all
++	if fn == funcPC(sighandler) {
++		fn = funcPC(sigtramp)
++	}
++	sa.sa_handler = fn
++	sigaction(i, &sa, nil)
++}
++func getsig(i int32) uintptr {
++	var sa sigactiont
++	sigaction(i, nil, &sa)
++	if sa.sa_handler == funcPC(sigtramp) {
++		return funcPC(sighandler)
++	}
++	return sa.sa_handler
++}
++
++func signalstack(p *byte, n int32) {
++	var st stackt
++	st.ss_sp = uintptr(unsafe.Pointer(p))
++	st.ss_size = uintptr(n)
++	st.ss_flags = 0
++	if p == nil {
++		st.ss_flags = _SS_DISABLE
++	}
++	sigaltstack(&st, nil)
++}
++
++func unblocksignals() {
++	sigprocmask(&sigset_none, nil)
++}
+diff --git a/src/runtime/os2_freebsd.go b/src/runtime/os2_freebsd.go
+new file mode 100644
+index 0000000000..f67211fdf2
+--- /dev/null
++++ b/src/runtime/os2_freebsd.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_SS_DISABLE = 4
++	_NSIG       = 33
++	_SI_USER    = 0x10001
++	_RLIMIT_AS  = 10
++)
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index fce01efef6..d8296e0563 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -34,7 +34,3 @@ func sigtramp()
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ func raise(int32)
+-
+-// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
+-// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
+-func cputicks() int64
+diff --git a/src/runtime/os_freebsd.c b/src/runtime/os_freebsd.c
+deleted file mode 100644
+index 23f6e93a3d..0000000000
+--- a/src/runtime/os_freebsd.c
++++ /dev/null
+@@ -1,320 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_unix.h"
+-#include "stack.h"
+-#include "textflag.h"
+-
+-extern SigTabT runtime·sigtab[];
+-extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+-
+-// From FreeBSD's <sys/sysctl.h>
+-#define	CTL_HW	6
+-#define	HW_NCPU	3
+-
+-static Sigset sigset_none;
+-static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
+-
+-static int32
+-getncpu(void)
+-{
+-	uint32 mib[2];
+-	uint32 out;
+-	int32 ret;
+-	uintptr nout;
+-
+-	// Fetch hw.ncpu via sysctl.
+-	mib[0] = CTL_HW;
+-	mib[1] = HW_NCPU;
+-	nout = sizeof out;
+-	out = 0;
+-	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
+-	if(ret >= 0)
+-		return out;
+-	else
+-		return 1;
+-}
+-
+-// FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+-// thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
+-
+-static void futexsleep(void);
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+-{
+-	void (*fn)(void);
+-
+-	g->m->ptrarg[0] = addr;
+-	g->m->scalararg[0] = val;
+-	g->m->ptrarg[1] = &ns;
+-
+-	fn = futexsleep;
+-	runtime·onM(&fn);
+-}
+-
+-static void
+-futexsleep(void)
+-{
+-	uint32 *addr;
+-	uint32 val;
+-	int64 ns;
+-	int32 ret;
+-	Timespec ts;
+-	
+-	addr = g->m->ptrarg[0];
+-	val = g->m->scalararg[0];
+-	ns = *(int64*)g->m->ptrarg[1];
+-	g->m->ptrarg[0] = nil;
+-	g->m->scalararg[0] = 0;
+-	g->m->ptrarg[1] = nil;
+-
+-	if(ns < 0) {
+-		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, nil);
+-		if(ret >= 0 || ret == -EINTR)
+-			return;
+-		goto fail;
+-	}
+-	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+-	ts.tv_nsec = 0;
+-	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, &ts);
+-	if(ret >= 0 || ret == -EINTR)
+-		return;
+-
+-fail:
+-	runtime·prints("umtx_wait addr=");
+-	runtime·printpointer(addr);
+-	runtime·prints(" val=");
+-	runtime·printint(val);
+-	runtime·prints(" ret=");
+-	runtime·printint(ret);
+-	runtime·prints("\n");
+-	*(int32*)0x1005 = 0x1005;
+-}
+-
+-static void badfutexwakeup(void);
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·futexwakeup(uint32 *addr, uint32 cnt)
+-{
+-	int32 ret;
+-	void (*fn)(void);
+-
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE_PRIVATE, cnt, nil, nil);
+-	if(ret >= 0)
+-		return;
+-
+-	g->m->ptrarg[0] = addr;
+-	g->m->scalararg[0] = ret;
+-	fn = badfutexwakeup;
+-	if(g == g->m->gsignal)
+-		fn();
+-	else
+-		runtime·onM(&fn);
+-	*(int32*)0x1006 = 0x1006;
+-}
+-
+-static void
+-badfutexwakeup(void)
+-{
+-	void *addr;
+-	int32 ret;
+-	
+-	addr = g->m->ptrarg[0];
+-	ret = g->m->scalararg[0];
+-	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
+-}
+-
+-void runtime·thr_start(void*);
+-
+-void
+-runtime·newosproc(M *mp, void *stk)
+-{
+-	ThrParam param;
+-	Sigset oset;
+-
+-	if(0){
+-		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+-			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
+-	}
+-
+-	runtime·sigprocmask(&sigset_all, &oset);
+-	runtime·memclr((byte*)&param, sizeof param);
+-
+-	param.start_func = runtime·thr_start;
+-	param.arg = (byte*)mp;
+-	
+-	// NOTE(rsc): This code is confused. stackbase is the top of the stack
+-	// and is equal to stk. However, it's working, so I'm not changing it.
+-	param.stack_base = (void*)mp->g0->stack.hi;
+-	param.stack_size = (byte*)stk - (byte*)mp->g0->stack.hi;
+-
+-	param.child_tid = (void*)&mp->procid;
+-	param.parent_tid = nil;
+-	param.tls_base = (void*)&mp->tls[0];
+-	param.tls_size = sizeof mp->tls;
+-
+-	mp->tls[0] = mp->id;	// so 386 asm can find it
+-
+-	runtime·thr_new(&param, sizeof param);
+-	runtime·sigprocmask(&oset, nil);
+-}
+-
+-void
+-runtime·osinit(void)
+-{
+-	runtime·ncpu = getncpu();
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·get_random_data(byte **rnd, int32 *rnd_len)
+-{
+-	#pragma dataflag NOPTR
+-	static byte urandom_data[HashRandomBytes];
+-	int32 fd;
+-	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+-	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
+-		*rnd = urandom_data;
+-		*rnd_len = HashRandomBytes;
+-	} else {
+-		*rnd = nil;
+-		*rnd_len = 0;
+-	}
+-	runtime·close(fd);
+-}
+-
+-void
+-runtime·goenvs(void)
+-{
+-	runtime·goenvs_unix();
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+-void
+-runtime·mpreinit(M *mp)
+-{
+-	mp->gsignal = runtime·malg(32*1024);
+-	mp->gsignal->m = mp;
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
+-void
+-runtime·minit(void)
+-{
+-	// Initialize signal handling
+-	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
+-	runtime·sigprocmask(&sigset_none, nil);
+-}
+-
+-// Called from dropm to undo the effect of an minit.
+-void
+-runtime·unminit(void)
+-{
+-	runtime·signalstack(nil, 0);
+-}
+-
+-uintptr
+-runtime·memlimit(void)
+-{
+-	Rlimit rl;
+-	extern byte runtime·text[], runtime·end[];
+-	uintptr used;
+-	
+-	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+-		return 0;
+-	if(rl.rlim_cur >= 0x7fffffff)
+-		return 0;
+-
+-	// Estimate our VM footprint excluding the heap.
+-	// Not an exact science: use size of binary plus
+-	// some room for thread stacks.
+-	used = runtime·end - runtime·text + (64<<20);
+-	if(used >= rl.rlim_cur)
+-		return 0;
+-
+-	// If there's not at least 16 MB left, we're probably
+-	// not going to be able to do much.  Treat as no limit.
+-	rl.rlim_cur -= used;
+-	if(rl.rlim_cur < (16<<20))
+-		return 0;
+-
+-	return rl.rlim_cur - used;
+-}
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	int32	sa_flags;		/* see signal options below */
+-	Sigset	sa_mask;		/* signal mask to apply */
+-} SigactionT;
+-
+-void
+-runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+-{
+-	SigactionT sa;
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask.__bits[0] = ~(uint32)0;
+-	sa.sa_mask.__bits[1] = ~(uint32)0;
+-	sa.sa_mask.__bits[2] = ~(uint32)0;
+-	sa.sa_mask.__bits[3] = ~(uint32)0;
+-	if(fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-GoSighandler*
+-runtime·getsig(int32 i)
+-{
+-	SigactionT sa;
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	runtime·sigaction(i, nil, &sa);
+-	if((void*)sa.__sigaction_u.__sa_sigaction == runtime·sigtramp)
+-		return runtime·sighandler;
+-	return (void*)sa.__sigaction_u.__sa_sigaction;
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	StackT st;
+-
+-	st.ss_sp = (void*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·unblocksignals(void)
+-{
+-	runtime·sigprocmask(&sigset_none, nil);
+-}
+-
+-#pragma textflag NOSPLIT
+-int8*
+-runtime·signame(int32 sig)
+-{
+-	return runtime·sigtab[sig].name;
+-}
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 59708049c8..998fbca0f5 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -6,12 +6,29 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func thr_new(param unsafe.Pointer, size int32)
+-func sigaltstack(new, old unsafe.Pointer)
+-func sigaction(sig int32, new, old unsafe.Pointer)
+-func sigprocmask(new, old unsafe.Pointer)
+-func setitimer(mode int32, new, old unsafe.Pointer)
++//go:noescape
++func thr_new(param *thrparam, size int32)
++
++//go:noescape
++func sigaltstack(new, old *stackt)
++
++//go:noescape
++func sigaction(sig int32, new, old *sigactiont)
++
++//go:noescape
++func sigprocmask(new, old *sigset)
++
++//go:noescape
++func setitimer(mode int32, new, old *itimerval)
++
++//go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++
++//go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+ func raise(sig int32)
+-func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
++
++//go:noescape
++func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
++
++func osyield()
+diff --git a/src/runtime/os_freebsd.h b/src/runtime/os_freebsd.h
+deleted file mode 100644
+index b86bb393c2..0000000000
+--- a/src/runtime/os_freebsd.h
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-typedef byte* kevent_udata;
+-
+-int32	runtime·thr_new(ThrParam*, int32);
+-void	runtime·sigpanic(void);
+-void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+-struct	sigaction;
+-void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+-void	runtime·sigprocmask(Sigset *, Sigset *);
+-void	runtime·unblocksignals(void);
+-void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+-int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+-
+-enum {
+-	SS_DISABLE = 4,
+-	NSIG = 33,
+-	SI_USER = 0x10001,
+-	RLIMIT_AS = 10,
+-};
+-
+-typedef struct Rlimit Rlimit;
+-struct Rlimit {
+-	int64	rlim_cur;
+-	int64	rlim_max;
+-};
+-int32	runtime·getrlimit(int32, Rlimit*);
+diff --git a/src/runtime/os_freebsd_arm.c b/src/runtime/os_freebsd_arm.go
+similarity index 66%
+rename from src/runtime/os_freebsd_arm.c
+rename to src/runtime/os_freebsd_arm.go
+index 2f2d7767f2..e049cbf9a1 100644
+--- a/src/runtime/os_freebsd_arm.c
++++ b/src/runtime/os_freebsd_arm.go
+@@ -2,23 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "textflag.h"
++package runtime
+ 
+-void
+-runtime·checkgoarm(void)
+-{
++func checkgoarm() {
+ 	// TODO(minux)
+ }
+ 
+-#pragma textflag NOSPLIT
+-int64
+-runtime·cputicks(void)
+-{
++//go:nosplit
++func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	// TODO: need more entropy to better seed fastrand1.
+-	return runtime·nanotime();
++	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+index de833ab46d..c4f95804ac 100644
+--- a/src/runtime/os_linux_386.go
++++ b/src/runtime/os_linux_386.go
+@@ -35,7 +35,3 @@ func linux_setup_vdso(argc int32, argv **byte) {
+ 		}
+ 	}
+ }
+-
+-// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
+-// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
+-func cputicks() int64
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+new file mode 100644
+index 0000000000..d37e11a3ec
+--- /dev/null
++++ b/src/runtime/signal_freebsd.go
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
++var sigtable = [...]sigTabT{
++	/* 0 */ {0, "SIGNONE: no trap"},
++	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
++	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
++	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
++	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
++	/* 7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
++	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 9 */ {0, "SIGKILL: kill"},
++	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
++	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
++	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
++	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
++	/* 16 */ {_SigNotify, "SIGURG: urgent condition on socket"},
++	/* 17 */ {0, "SIGSTOP: stop"},
++	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
++	/* 19 */ {0, "SIGCONT: continue after stop"},
++	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
++	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
++	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
++	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
++	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
++	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
++	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
++	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
++	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
++	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
++	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
++}
+diff --git a/src/runtime/signal_freebsd_386.go b/src/runtime/signal_freebsd_386.go
+new file mode 100644
+index 0000000000..a0fec1309c
+--- /dev/null
++++ b/src/runtime/signal_freebsd_386.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) eax() uint32     { return c.regs().mc_eax }
++func (c *sigctxt) ebx() uint32     { return c.regs().mc_ebx }
++func (c *sigctxt) ecx() uint32     { return c.regs().mc_ecx }
++func (c *sigctxt) edx() uint32     { return c.regs().mc_edx }
++func (c *sigctxt) edi() uint32     { return c.regs().mc_edi }
++func (c *sigctxt) esi() uint32     { return c.regs().mc_esi }
++func (c *sigctxt) ebp() uint32     { return c.regs().mc_ebp }
++func (c *sigctxt) esp() uint32     { return c.regs().mc_esp }
++func (c *sigctxt) eip() uint32     { return c.regs().mc_eip }
++func (c *sigctxt) eflags() uint32  { return c.regs().mc_eflags }
++func (c *sigctxt) cs() uint32      { return uint32(c.regs().mc_cs) }
++func (c *sigctxt) fs() uint32      { return uint32(c.regs().mc_fs) }
++func (c *sigctxt) gs() uint32      { return uint32(c.regs().mc_gs) }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return uint32(c.info.si_addr) }
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().mc_eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().mc_esp = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = uintptr(x) }
+diff --git a/src/runtime/signal_freebsd_386.h b/src/runtime/signal_freebsd_386.h
+deleted file mode 100644
+index a24f1ee96c..0000000000
+--- a/src/runtime/signal_freebsd_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).mc_ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).mc_edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).mc_edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).mc_esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).mc_ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).mc_esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).mc_eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_eflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/runtime/signal_freebsd_amd64.go b/src/runtime/signal_freebsd_amd64.go
+new file mode 100644
+index 0000000000..d10c883d4e
+--- /dev/null
++++ b/src/runtime/signal_freebsd_amd64.go
+@@ -0,0 +1,44 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontext {
++	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
++}
++func (c *sigctxt) rax() uint64     { return c.regs().mc_rax }
++func (c *sigctxt) rbx() uint64     { return c.regs().mc_rbx }
++func (c *sigctxt) rcx() uint64     { return c.regs().mc_rcx }
++func (c *sigctxt) rdx() uint64     { return c.regs().mc_rdx }
++func (c *sigctxt) rdi() uint64     { return c.regs().mc_rdi }
++func (c *sigctxt) rsi() uint64     { return c.regs().mc_rsi }
++func (c *sigctxt) rbp() uint64     { return c.regs().mc_rbp }
++func (c *sigctxt) rsp() uint64     { return c.regs().mc_rsp }
++func (c *sigctxt) r8() uint64      { return c.regs().mc_r8 }
++func (c *sigctxt) r9() uint64      { return c.regs().mc_r9 }
++func (c *sigctxt) r10() uint64     { return c.regs().mc_r10 }
++func (c *sigctxt) r11() uint64     { return c.regs().mc_r11 }
++func (c *sigctxt) r12() uint64     { return c.regs().mc_r12 }
++func (c *sigctxt) r13() uint64     { return c.regs().mc_r13 }
++func (c *sigctxt) r14() uint64     { return c.regs().mc_r14 }
++func (c *sigctxt) r15() uint64     { return c.regs().mc_r15 }
++func (c *sigctxt) rip() uint64     { return c.regs().mc_rip }
++func (c *sigctxt) rflags() uint64  { return c.regs().mc_rflags }
++func (c *sigctxt) cs() uint64      { return uint64(c.regs().mc_cs) }
++func (c *sigctxt) fs() uint64      { return uint64(c.regs().mc_fs) }
++func (c *sigctxt) gs() uint64      { return uint64(c.regs().mc_gs) }
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return uint64(c.info.si_addr) }
++
++func (c *sigctxt) set_rip(x uint64)     { c.regs().mc_rip = x }
++func (c *sigctxt) set_rsp(x uint64)     { c.regs().mc_rsp = x }
++func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = x }
+diff --git a/src/runtime/signal_freebsd_amd64.h b/src/runtime/signal_freebsd_amd64.h
+deleted file mode 100644
+index 7d35b7f856..0000000000
+--- a/src/runtime/signal_freebsd_amd64.h
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+-
+-#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).mc_rax)
+-#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).mc_rbx)
+-#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).mc_rcx)
+-#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).mc_rdx)
+-#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).mc_rdi)
+-#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).mc_rsi)
+-#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).mc_rbp)
+-#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).mc_rsp)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).mc_r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).mc_r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).mc_r10)
+-#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).mc_r11)
+-#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).mc_r12)
+-#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).mc_r13)
+-#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).mc_r14)
+-#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).mc_r15)
+-#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).mc_rip)
+-#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_rflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/runtime/signal_freebsd_arm.go b/src/runtime/signal_freebsd_arm.go
+new file mode 100644
+index 0000000000..12de23d586
+--- /dev/null
++++ b/src/runtime/signal_freebsd_arm.go
+@@ -0,0 +1,48 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) r0() uint32      { return c.regs().__gregs[0] }
++func (c *sigctxt) r1() uint32      { return c.regs().__gregs[1] }
++func (c *sigctxt) r2() uint32      { return c.regs().__gregs[2] }
++func (c *sigctxt) r3() uint32      { return c.regs().__gregs[3] }
++func (c *sigctxt) r4() uint32      { return c.regs().__gregs[4] }
++func (c *sigctxt) r5() uint32      { return c.regs().__gregs[5] }
++func (c *sigctxt) r6() uint32      { return c.regs().__gregs[6] }
++func (c *sigctxt) r7() uint32      { return c.regs().__gregs[7] }
++func (c *sigctxt) r8() uint32      { return c.regs().__gregs[8] }
++func (c *sigctxt) r9() uint32      { return c.regs().__gregs[9] }
++func (c *sigctxt) r10() uint32     { return c.regs().__gregs[10] }
++func (c *sigctxt) fp() uint32      { return c.regs().__gregs[11] }
++func (c *sigctxt) ip() uint32      { return c.regs().__gregs[12] }
++func (c *sigctxt) sp() uint32      { return c.regs().__gregs[13] }
++func (c *sigctxt) lr() uint32      { return c.regs().__gregs[14] }
++func (c *sigctxt) pc() uint32      { return c.regs().__gregs[15] }
++func (c *sigctxt) cpsr() uint32    { return c.regs().__gregs[16] }
++func (c *sigctxt) fault() uint32   { return uint32(c.info.si_addr) }
++func (c *sigctxt) trap() uint32    { return 0 }
++func (c *sigctxt) error() uint32   { return 0 }
++func (c *sigctxt) oldmask() uint32 { return 0 }
++
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return uint32(c.info.si_addr) }
++
++func (c *sigctxt) set_pc(x uint32)  { c.regs().__gregs[15] = x }
++func (c *sigctxt) set_sp(x uint32)  { c.regs().__gregs[13] = x }
++func (c *sigctxt) set_lr(x uint32)  { c.regs().__gregs[14] = x }
++func (c *sigctxt) set_r10(x uint32) { c.regs().__gregs[10] = x }
++
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) {
++	c.info.si_addr = uintptr(x)
++}
+diff --git a/src/runtime/signal_freebsd_arm.h b/src/runtime/signal_freebsd_arm.h
+deleted file mode 100644
+index 87a45aa27e..0000000000
+--- a/src/runtime/signal_freebsd_arm.h
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+-
+-#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
+-#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])
+-#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).__gregs[2])
+-#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).__gregs[3])
+-#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).__gregs[4])
+-#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).__gregs[5])
+-#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).__gregs[6])
+-#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).__gregs[7])
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[8])
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[9])
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[10])
+-#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).__gregs[11])
+-#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).__gregs[12])
+-#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).__gregs[13])
+-#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).__gregs[14])
+-#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).__gregs[15])
+-#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).__gregs[16])
+-#define SIG_FAULT(info, ctxt) ((uintptr)(info)->si_addr)
+-#define SIG_TRAP(info, ctxt) (0)
+-#define SIG_ERROR(info, ctxt) (0)
+-#define SIG_OLDMASK(info, ctxt) (0)
+-#define SIG_CODE0(info, ctxt) ((uintptr)(info)->si_code)
+diff --git a/src/runtime/signals_freebsd.h b/src/runtime/signals_freebsd.h
+deleted file mode 100644
+index 39e0a947e0..0000000000
+--- a/src/runtime/signals_freebsd.h
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define D SigDefault
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
+-	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+-	/* 2 */	N+K, "SIGINT: interrupt",
+-	/* 3 */	N+T, "SIGQUIT: quit",
+-	/* 4 */	T, "SIGILL: illegal instruction",
+-	/* 5 */	T, "SIGTRAP: trace trap",
+-	/* 6 */	N+T, "SIGABRT: abort",
+-	/* 7 */	T, "SIGEMT: emulate instruction executed",
+-	/* 8 */	P, "SIGFPE: floating-point exception",
+-	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	P, "SIGBUS: bus error",
+-	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	N, "SIGSYS: bad system call",
+-	/* 13 */	N, "SIGPIPE: write to broken pipe",
+-	/* 14 */	N, "SIGALRM: alarm clock",
+-	/* 15 */	N+K, "SIGTERM: termination",
+-	/* 16 */	N, "SIGURG: urgent condition on socket",
+-	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+-	/* 19 */	0, "SIGCONT: continue after stop",
+-	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N+D, "SIGTTIN: background read from tty",
+-	/* 22 */	N+D, "SIGTTOU: background write to tty",
+-	/* 23 */	N, "SIGIO: i/o now possible",
+-	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	N, "SIGPROF: profiling alarm clock",
+-	/* 28 */	N, "SIGWINCH: window size change",
+-	/* 29 */	N, "SIGINFO: status request from keyboard",
+-	/* 30 */	N, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	N, "SIGUSR2: user-defined signal 2",
+-	/* 32 */	N, "SIGTHR: reserved",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef D

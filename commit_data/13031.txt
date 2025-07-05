@@ -19,7 +19,62 @@ Date:   Fri May 4 19:05:26 2012 +0200
     R=golang-dev, mtj, gri, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6176043
-
+---
  src/pkg/math/big/nat.go      | 10 +++++-----
  src/pkg/math/big/nat_test.go | 18 ++++++++++++++++++
  2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 0bc6572b96..eaa6ff0666 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -271,10 +271,10 @@ func karatsuba(z, x, y nat) {
+ 	//   xd = x1 - x0
+ 	//   yd = y0 - y1
+ 	//
+-	//   z1 =      xd*yd                    + z1 + z0
+-	//      = (x1-x0)*(y0 - y1)             + z1 + z0
+-	//      = x1*y0 - x1*y1 - x0*y0 + x0*y1 + z1 + z0
+-	//      = x1*y0 -    z1 -    z0 + x0*y1 + z1 + z0
++	//   z1 =      xd*yd                    + z2 + z0
++	//      = (x1-x0)*(y0 - y1)             + z2 + z0
++	//      = x1*y0 - x1*y1 - x0*y0 + x0*y1 + z2 + z0
++	//      = x1*y0 -    z2 -    z0 + x0*y1 + z2 + z0
+ 	//      = x1*y0                 + x0*y1
+ 
+ 	// split x, y into "digits"
+@@ -318,7 +318,7 @@ func karatsuba(z, x, y nat) {
+ 	// save original z2:z0
+ 	// (ok to use upper half of z since we're done recursing)
+ 	r := z[n*4:]
+-	copy(r, z)
++	copy(r, z[:n*2])
+ 
+ 	// add up all partial products
+ 	//
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index 7f3f76dc36..becde5d171 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -661,3 +661,21 @@ func TestExpNN(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ExpHelper(b *testing.B, x, y Word) {
++	var z nat
++	for i := 0; i < b.N; i++ {
++		z.expWW(x, y)
++	}
++}
++
++func BenchmarkExp3Power0x10(b *testing.B)     { ExpHelper(b, 3, 0x10) }
++func BenchmarkExp3Power0x40(b *testing.B)     { ExpHelper(b, 3, 0x40) }
++func BenchmarkExp3Power0x100(b *testing.B)    { ExpHelper(b, 3, 0x100) }
++func BenchmarkExp3Power0x400(b *testing.B)    { ExpHelper(b, 3, 0x400) }
++func BenchmarkExp3Power0x1000(b *testing.B)   { ExpHelper(b, 3, 0x1000) }
++func BenchmarkExp3Power0x4000(b *testing.B)   { ExpHelper(b, 3, 0x4000) }
++func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
++func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
++func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
++func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }

@@ -16,7 +16,109 @@ Date:   Mon Dec 4 17:53:29 2023 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/proto.go         |  7 +++--
  src/runtime/pprof/protomem_test.go | 62 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index cdc4bd7c80..db9384eb21 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -611,13 +611,14 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
+ 	for _, frame := range b.deck.frames {
+ 		// Write out each line in frame expansion.
+-		funcID := uint64(b.funcs[frame.Function])
++		funcName := runtime_FrameSymbolName(&frame)
++		funcID := uint64(b.funcs[funcName])
+ 		if funcID == 0 {
+ 			funcID = uint64(len(b.funcs)) + 1
+-			b.funcs[frame.Function] = int(funcID)
++			b.funcs[funcName] = int(funcID)
+ 			newFuncs = append(newFuncs, newFunc{
+ 				id:        funcID,
+-				name:      runtime_FrameSymbolName(&frame),
++				name:      funcName,
+ 				file:      frame.File,
+ 				startLine: int64(runtime_FrameStartLine(&frame)),
+ 			})
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 156f6286a9..505c323d68 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -6,8 +6,11 @@ package pprof
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"internal/profile"
+ 	"runtime"
++	"slices"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -82,3 +85,62 @@ func TestConvertMemProfile(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func genericAllocFunc[T interface{ uint32 | uint64 }](n int) []T {
++	return make([]T, n)
++}
++
++func profileToString(p *profile.Profile) []string {
++	var res []string
++	for _, s := range p.Sample {
++		var funcs []string
++		for i := len(s.Location) - 1; i >= 0; i-- {
++			loc := s.Location[i]
++			for j := len(loc.Line) - 1; j >= 0; j-- {
++				line := loc.Line[j]
++				funcs = append(funcs, line.Function.Name)
++			}
++		}
++		res = append(res, fmt.Sprintf("%s %v", strings.Join(funcs, ";"), s.Value))
++	}
++	return res
++}
++
++// This is a regression test for https://go.dev/issue/64528 .
++func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
++	previousRate := runtime.MemProfileRate
++	runtime.MemProfileRate = 1
++	defer func() {
++		runtime.MemProfileRate = previousRate
++	}()
++	for _, sz := range []int{128, 256} {
++		genericAllocFunc[uint32](sz / 4)
++	}
++	for _, sz := range []int{32, 64} {
++		genericAllocFunc[uint64](sz / 8)
++	}
++
++	runtime.GC()
++	buf := bytes.NewBuffer(nil)
++	if err := WriteHeapProfile(buf); err != nil {
++		t.Fatalf("writing profile: %v", err)
++	}
++	p, err := profile.Parse(buf)
++	if err != nil {
++		t.Fatalf("profile.Parse: %v", err)
++	}
++
++	actual := profileToString(p)
++	expected := []string{
++		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 128 0 0]",
++		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 256 0 0]",
++		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 32 0 0]",
++		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 64 0 0]",
++	}
++
++	for _, l := range expected {
++		if !slices.Contains(actual, l) {
++			t.Errorf("profile = %v\nwant = %v", strings.Join(actual, "\n"), l)
++		}
++	}
++}

@@ -83,10 +83,87 @@ Date:   Tue Mar 28 19:58:17 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/bytealg/compare_loong64.s   | 1 +
  src/internal/bytealg/equal_loong64.s     | 1 +
  src/internal/bytealg/indexbyte_loong64.s | 2 ++
  src/runtime/memclr_loong64.s             | 1 +
  src/runtime/memmove_loong64.s            | 2 ++
  5 files changed, 7 insertions(+)
+
+diff --git a/src/internal/bytealg/compare_loong64.s b/src/internal/bytealg/compare_loong64.s
+index 54c2daba69..c89c5a9256 100644
+--- a/src/internal/bytealg/compare_loong64.s
++++ b/src/internal/bytealg/compare_loong64.s
+@@ -48,6 +48,7 @@ entry:
+ 	AND	$7, R15
+ 	BNE	R0, R15, byte_loop
+ 
++	PCALIGN	$16
+ chunk16_loop:
+ 	BEQ	R0, R14, byte_loop
+ 	MOVV	(R6), R8
+diff --git a/src/internal/bytealg/equal_loong64.s b/src/internal/bytealg/equal_loong64.s
+index dcdde89b25..ba2a5578c3 100644
+--- a/src/internal/bytealg/equal_loong64.s
++++ b/src/internal/bytealg/equal_loong64.s
+@@ -14,6 +14,7 @@ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	BEQ	R4, R5, eq
+ 	MOVV	size+16(FP), R6
+ 	ADDV	R4, R6, R7
++	PCALIGN	$16
+ loop:
+ 	BNE	R4, R7, test
+ 	MOVV	$1, R4
+diff --git a/src/internal/bytealg/indexbyte_loong64.s b/src/internal/bytealg/indexbyte_loong64.s
+index baa9c86be2..604970549f 100644
+--- a/src/internal/bytealg/indexbyte_loong64.s
++++ b/src/internal/bytealg/indexbyte_loong64.s
+@@ -13,6 +13,7 @@ TEXT ·IndexByte(SB),NOSPLIT,$0-40
+ 	ADDV	R4, R5		// end
+ 	ADDV	$-1, R4
+ 
++	PCALIGN	$16
+ loop:
+ 	ADDV	$1, R4
+ 	BEQ	R4, R5, notfound
+@@ -36,6 +37,7 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-32
+ 	ADDV	R4, R5		// end
+ 	ADDV	$-1, R4
+ 
++	PCALIGN	$16
+ loop:
+ 	ADDV	$1, R4
+ 	BEQ	R4, R5, notfound
+diff --git a/src/runtime/memclr_loong64.s b/src/runtime/memclr_loong64.s
+index e4f20587b7..7bb6f3dfc9 100644
+--- a/src/runtime/memclr_loong64.s
++++ b/src/runtime/memclr_loong64.s
+@@ -26,6 +26,7 @@ words:
+ 	// do 8 bytes at a time if there is room
+ 	ADDV	$-7, R4, R7
+ 
++	PCALIGN	$16
+ 	SGTU	R7, R6, R8
+ 	BEQ	R8, out
+ 	MOVV	R0, (R6)
+diff --git a/src/runtime/memmove_loong64.s b/src/runtime/memmove_loong64.s
+index b7b9c56627..0f139bcc13 100644
+--- a/src/runtime/memmove_loong64.s
++++ b/src/runtime/memmove_loong64.s
+@@ -42,6 +42,7 @@ words:
+ 	// do 8 bytes at a time if there is room
+ 	ADDV	$-7, R9, R6 // R6 is end pointer-7
+ 
++	PCALIGN	$16
+ 	SGTU	R6, R4, R8
+ 	BEQ	R8, out
+ 	MOVV	(R5), R7
+@@ -86,6 +87,7 @@ words1:
+ 	// do 8 bytes at a time if there is room
+ 	ADDV	$7, R4, R6 // R6 is start pointer+7
+ 
++	PCALIGN	$16
+ 	SGTU	R9, R6, R8
+ 	BEQ	R8, out1
+ 	ADDV	$-8, R5

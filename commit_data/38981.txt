@@ -10,6 +10,22 @@ Date:   Thu Dec 13 09:19:11 2018 -0700
     Change-Id: Ife971ff6936ce2d5b81ce663ce48044749d592a0
     Reviewed-on: https://go-review.googlesource.com/c/154017
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/trig_reduce.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/trig_reduce.go b/src/math/trig_reduce.go
+index 7bc72e986d..6f8eaba9b9 100644
+--- a/src/math/trig_reduce.go
++++ b/src/math/trig_reduce.go
+@@ -68,8 +68,8 @@ func trigReduce(x float64) (j uint64, z float64) {
+ 
+ // mPi4 is the binary digits of 4/pi as a uint64 array,
+ // that is, 4/pi = Sum mPi4[i]*2^(-64*i)
+-// 19 64-bit digits gives 1153 bits of precision to handle
+-// the largest possible float64 exponent.
++// 19 64-bit digits and the leading one bit give 1217 bits
++// of precision to handle the largest possible float64 exponent.
+ var mPi4 = [...]uint64{
+ 	0x0000000000000001,
+ 	0x45f306dc9c882a53,

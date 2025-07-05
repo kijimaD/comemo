@@ -24,6 +24,30 @@ Date:   Fri Sep 9 12:29:48 2022 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 2a1e15cddb..2f13a24e04 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -171,7 +171,18 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
+ 		var funcID objabi.FuncID
+ 		if inlFunc.Valid() {
+ 			funcID = inlFunc.FuncID()
++		} else if !ctxt.linkShared {
++			// Inlined functions are always Go functions, and thus
++			// must have FuncInfo.
++			//
++			// Unfortunately, with -linkshared, the inlined
++			// function may be external symbols (from another
++			// shared library), and we don't load FuncInfo from the
++			// shared library. We will report potentially incorrect
++			// FuncID in this case. See https://go.dev/issue/55954.
++			panic(fmt.Sprintf("inlined function %s missing func info", ldr.SymName(call.Func)))
+ 		}
++
+ 		// Construct runtime.inlinedCall value.
+ 		const size = 12
+ 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))

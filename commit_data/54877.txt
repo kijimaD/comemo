@@ -11,9 +11,62 @@ Date:   Mon Nov 14 10:00:57 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
  src/cmd/compile/internal/base/mapfile_read.go | 2 +-
  src/cmd/internal/bio/buf_mmap.go              | 2 +-
  src/cmd/internal/bio/buf_nommap.go            | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index 62620443f5..bbcfda244f 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/mapfile_read.go b/src/cmd/compile/internal/base/mapfile_read.go
+index 5ac6272dc1..c1b84db96f 100644
+--- a/src/cmd/compile/internal/base/mapfile_read.go
++++ b/src/cmd/compile/internal/base/mapfile_read.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
+ 
+ package base
+ 
+diff --git a/src/cmd/internal/bio/buf_mmap.go b/src/cmd/internal/bio/buf_mmap.go
+index e428952bc9..d089efa45e 100644
+--- a/src/cmd/internal/bio/buf_mmap.go
++++ b/src/cmd/internal/bio/buf_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
+ 
+ package bio
+ 
+diff --git a/src/cmd/internal/bio/buf_nommap.go b/src/cmd/internal/bio/buf_nommap.go
+index e904860983..5ebe906beb 100644
+--- a/src/cmd/internal/bio/buf_nommap.go
++++ b/src/cmd/internal/bio/buf_nommap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
+ 
+ package bio
+ 

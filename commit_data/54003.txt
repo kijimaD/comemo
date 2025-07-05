@@ -18,9 +18,80 @@ Date:   Tue Sep 13 12:15:02 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Jenny Rakoczy <jenny@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_bsd.go               | 4 ++++
  src/syscall/syscall_dragonfly.go      | 5 ++++-
  src/syscall/syscall_netbsd.go         | 5 ++++-
  src/syscall/syscall_openbsd_mips64.go | 5 ++++-
  4 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 4762ae751a..3e4c6f9d62 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -184,6 +184,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	if pipe < nextfd {
+ 		if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+ 			_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
++		} else if runtime.GOOS == "dragonfly" {
++			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+ 		} else {
+ 			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+ 			if err1 != 0 {
+@@ -204,6 +206,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			}
+ 			if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+ 				_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
++			} else if runtime.GOOS == "dragonfly" {
++				_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+ 			} else {
+ 				_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+ 				if err1 != 0 {
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 1a3cfe51fa..1a1f1f6942 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -22,7 +22,10 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+-const _SYS_DUP3 = 0
++const (
++	_SYS_DUP3         = 0
++	_F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
++)
+ 
+ // See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
+ var (
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index d8efb41d20..7f7c5b1c6b 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -20,7 +20,10 @@ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+-const _SYS_DUP3 = SYS_DUP3
++const (
++	_SYS_DUP3         = SYS_DUP3
++	_F_DUP2FD_CLOEXEC = 0
++)
+ 
+ type SockaddrDatalink struct {
+ 	Len    uint8
+diff --git a/src/syscall/syscall_openbsd_mips64.go b/src/syscall/syscall_openbsd_mips64.go
+index 4508ad99b4..838c684750 100644
+--- a/src/syscall/syscall_openbsd_mips64.go
++++ b/src/syscall/syscall_openbsd_mips64.go
+@@ -4,7 +4,10 @@
+ 
+ package syscall
+ 
+-const _SYS_DUP3 = SYS_DUP3
++const (
++	_SYS_DUP3         = SYS_DUP3
++	_F_DUP2FD_CLOEXEC = 0
++)
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}

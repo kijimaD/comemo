@@ -10,6 +10,21 @@ Date:   Tue Jun 20 20:38:14 2017 -0500
     Change-Id: I4155ac76f8909499783e876e92ee4f13a35b47dd
     Reviewed-on: https://go-review.googlesource.com/46211
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/os/executable.go b/src/os/executable.go
+index 8c21246f5a..17eed10bc9 100644
+--- a/src/os/executable.go
++++ b/src/os/executable.go
+@@ -16,8 +16,7 @@ package os
+ // The main use case is finding resources located relative to an
+ // executable.
+ //
+-// Executable is not supported on nacl or OpenBSD (unless procfs is
+-// mounted.)
++// Executable is not supported on nacl.
+ func Executable() (string, error) {
+ 	return executable()
+ }

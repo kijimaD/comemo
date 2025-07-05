@@ -15,6 +15,22 @@ Date:   Tue Mar 4 11:55:35 2014 -0800
     R=golang-codereviews, josharian
     CC=alex.brainman, golang-codereviews, iant
     https://golang.org/cl/70010050
-
+---
  src/pkg/net/http/client_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index db825d21dc..9bc5d57c92 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -671,8 +671,8 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
+ 	}
+ 	select {
+ 	case v := <-errc:
+-		if !strings.Contains(v, "bad certificate") {
+-			t.Errorf("expected an error log message containing 'bad certificate'; got %q", v)
++		if !strings.Contains(v, "TLS handshake error") {
++			t.Errorf("expected an error log message containing 'TLS handshake error'; got %q", v)
+ 		}
+ 	case <-time.After(5 * time.Second):
+ 		t.Errorf("timeout waiting for logged error")

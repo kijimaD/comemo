@@ -18,6 +18,38 @@ Date:   Mon Dec 16 12:35:25 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/39150044
-
+---
  src/pkg/unicode/utf16/utf16_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/pkg/unicode/utf16/utf16_test.go b/src/pkg/unicode/utf16/utf16_test.go
+index 05d6427b05..3dca472bbe 100644
+--- a/src/pkg/unicode/utf16/utf16_test.go
++++ b/src/pkg/unicode/utf16/utf16_test.go
+@@ -100,6 +100,26 @@ func TestDecode(t *testing.T) {
+ 	}
+ }
+ 
++var decodeRuneTests = []struct {
++	r1, r2 rune
++	want   rune
++}{
++	{0xd800, 0xdc00, 0x10000},
++	{0xd800, 0xdc01, 0x10001},
++	{0xd808, 0xdf45, 0x12345},
++	{0xdbff, 0xdfff, 0x10ffff},
++	{0xd800, 'a', 0xfffd}, // illegal, replacement rune substituted
++}
++
++func TestDecodeRune(t *testing.T) {
++	for i, tt := range decodeRuneTests {
++		got := DecodeRune(tt.r1, tt.r2)
++		if got != tt.want {
++			t.Errorf("%d: DecodeRune(%q, %q) = %v; want %v", i, tt.r1, tt.r2, got, tt.want)
++		}
++	}
++}
++
+ var surrogateTests = []struct {
+ 	r    rune
+ 	want bool

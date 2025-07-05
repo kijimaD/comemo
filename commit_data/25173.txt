@@ -9,6 +9,22 @@ Date:   Mon Sep 14 01:28:57 2015 -0400
     Change-Id: I0be69ffe9ba19934aaef1651845c725708db77de
     Reviewed-on: https://go-review.googlesource.com/14546
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/yacc/yacc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 4f83f50e46..32d2e5e819 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -1284,8 +1284,9 @@ func dumpprod(curprod []int, max int) {
+ func cpyact(curprod []int, max int) {
+ 
+ 	if !lflag {
+-		fmt.Fprintf(fcode, "\n\t\t//line %v:%v\n\t\t", infile, lineno)
++		fmt.Fprintf(fcode, "\n\t\t//line %v:%v", infile, lineno)
+ 	}
++	fmt.Fprint(fcode, "\n\t\t")
+ 
+ 	lno := lineno
+ 	brac := 0

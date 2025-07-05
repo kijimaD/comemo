@@ -10,7 +10,78 @@ Date:   Fri Jul 2 11:27:37 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332570
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/load.go  | 37 ------------------------------------
  src/cmd/go/internal/modload/query.go |  4 ++--
  2 files changed, 2 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a3a8021c04..771b142b73 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -675,20 +675,6 @@ func DirImportPath(ctx context.Context, dir string) string {
+ 	return "."
+ }
+ 
+-// TargetPackages returns the list of packages in the target (top-level) module
+-// matching pattern, which may be relative to the working directory, under all
+-// build tag settings.
+-func TargetPackages(ctx context.Context, pattern string) *search.Match {
+-	// TargetPackages is relative to the main module, so ensure that the main
+-	// module is a thing that can contain packages.
+-	LoadModFile(ctx) // Sets Target.
+-	ModRoot()        // Emits an error if Target cannot contain packages.
+-
+-	m := search.NewMatch(pattern)
+-	matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{Target})
+-	return m
+-}
+-
+ // ImportMap returns the actual package import path
+ // for an import path found in source code.
+ // If the given import path does not appear in the source code
+@@ -720,29 +706,6 @@ func PackageModule(path string) module.Version {
+ 	return pkg.mod
+ }
+ 
+-// PackageImports returns the imports for the package named by the import path.
+-// Test imports will be returned as well if tests were loaded for the package
+-// (i.e., if "all" was loaded or if LoadTests was set and the path was matched
+-// by a command line argument). PackageImports will return nil for
+-// unknown package paths.
+-func PackageImports(path string) (imports, testImports []string) {
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+-	if !ok {
+-		return nil, nil
+-	}
+-	imports = make([]string, len(pkg.imports))
+-	for i, p := range pkg.imports {
+-		imports[i] = p.path
+-	}
+-	if pkg.test != nil {
+-		testImports = make([]string, len(pkg.test.imports))
+-		for i, p := range pkg.test.imports {
+-			testImports[i] = p.path
+-		}
+-	}
+-	return imports, testImports
+-}
+-
+ // Lookup returns the source directory, import path, and any loading error for
+ // the package at path as imported from the package in parentDir.
+ // Lookup requires that one of the Load functions in this package has already
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 6f6c6e8c98..dda9004a9f 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -920,8 +920,8 @@ func (e *PackageNotInModuleError) ImportPath() string {
+ 	return ""
+ }
+ 
+-// ModuleHasRootPackage returns whether module m contains a package m.Path.
+-func ModuleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
++// moduleHasRootPackage returns whether module m contains a package m.Path.
++func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+ 	needSum := false
+ 	root, isLocal, err := fetch(ctx, m, needSum)
+ 	if err != nil {

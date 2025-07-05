@@ -18,7 +18,7 @@ Date:   Fri Jun 12 13:48:26 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go              |  6 +--
  src/cmd/compile/internal/gc/ssa.go                | 40 ++++++++++-------
  src/cmd/compile/internal/ssa/check.go             | 12 +++++
@@ -47,3 +47,1036 @@ Date:   Fri Jun 12 13:48:26 2020 -0400
  src/cmd/compile/internal/ssa/writebarrier.go      |  4 +-
  src/cmd/compile/internal/wasm/ssa.go              |  5 ++-
  27 files changed, 164 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 8976ed657a..a9ea37701e 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -861,7 +861,7 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+ 		// typedmemclr and typedmemmove are write barriers and
+ 		// deeply non-preemptible. They are unsafe points and
+ 		// hence should not have liveness maps.
+-		if sym, _ := v.Aux.(*obj.LSym); sym == typedmemclr || sym == typedmemmove {
++		if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
+ 			return false
+ 		}
+ 		return true
+@@ -1231,8 +1231,8 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+ 	s := "live at "
+ 	if v == nil {
+ 		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
+-	} else if sym, ok := v.Aux.(*obj.LSym); ok {
+-		fn := sym.Name
++	} else if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
++		fn := sym.Fn.Name
+ 		if pos := strings.Index(fn, "."); pos >= 0 {
+ 			fn = fn[pos+1:]
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3bdb5b0b9f..0ee31bd9a3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -805,6 +805,11 @@ func (s *state) newValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.
+ 	return s.curBlock.NewValue2(s.peekPos(), op, t, arg0, arg1)
+ }
+ 
++// newValue2A adds a new value with two arguments and an aux value to the current block.
++func (s *state) newValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
++	return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
++}
++
+ // newValue2Apos adds a new value with two arguments and an aux value to the current block.
+ // isStmt determines whether the created values may be a statement or not
+ // (i.e., false means never, yes means maybe).
+@@ -4297,10 +4302,10 @@ func (s *state) openDeferExit() {
+ 			v := s.load(r.closure.Type.Elem(), r.closure)
+ 			s.maybeNilCheckClosure(v, callDefer)
+ 			codeptr := s.rawLoad(types.Types[TUINTPTR], v)
+-			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, v, s.mem())
++			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, v, s.mem())
+ 		} else {
+ 			// Do a static call if the original call was a static function or method
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn.Sym.Linksym(), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn.Sym.Linksym()}, s.mem())
+ 		}
+ 		call.AuxInt = stksize
+ 		s.vars[&memVar] = call
+@@ -4432,7 +4437,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
+ 		s.store(types.Types[TUINTPTR], arg0, addr)
+-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferprocStack, s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferprocStack}, s.mem())
+ 		if stksize < int64(Widthptr) {
+ 			// We need room for both the call to deferprocStack and the call to
+ 			// the deferred function.
+@@ -4477,9 +4482,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// call target
+ 		switch {
+ 		case k == callDefer:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferproc}, s.mem())
+ 		case k == callGo:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: newproc}, s.mem())
+ 		case closure != nil:
+ 			// rawLoad because loading the code pointer from a
+ 			// closure is always safe, but IsSanitizerSafeAddr
+@@ -4487,11 +4492,11 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
+-			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
++			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, closure, s.mem())
+ 		case codeptr != nil:
+-			call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
++			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, nil, codeptr, s.mem())
+ 		case sym != nil:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: sym.Linksym()}, s.mem())
+ 		default:
+ 			s.Fatalf("bad call type %v %v", n.Op, n)
+ 		}
+@@ -4924,7 +4929,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	off = Rnd(off, int64(Widthreg))
+ 
+ 	// Issue call
+-	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn, s.mem())
++	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn}, s.mem())
+ 	s.vars[&memVar] = call
+ 
+ 	if !returns {
+@@ -6355,6 +6360,9 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	}
+ 	// Add symbol's offset from its base register.
+ 	switch n := v.Aux.(type) {
++	case *ssa.AuxCall:
++		a.Name = obj.NAME_EXTERN
++		a.Sym = n.Fn
+ 	case *obj.LSym:
+ 		a.Name = obj.NAME_EXTERN
+ 		a.Sym = n
+@@ -6541,10 +6549,10 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 	} else {
+ 		p.Pos = v.Pos.WithNotStmt()
+ 	}
+-	if sym, ok := v.Aux.(*obj.LSym); ok {
++	if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = sym
++		p.To.Sym = sym.Fn
+ 	} else {
+ 		// TODO(mdempsky): Can these differences be eliminated?
+ 		switch thearch.LinkArch.Family {
+@@ -6567,12 +6575,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 	idx := s.livenessMap.Get(v)
+ 	if !idx.StackMapValid() {
+ 		// See Liveness.hasStackMap.
+-		if sym, _ := v.Aux.(*obj.LSym); !(sym == typedmemclr || sym == typedmemmove) {
++		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
+ 			Fatalf("missing stack map index for %v", v.LongString())
+ 		}
+ 	}
+ 
+-	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
++	call, ok := v.Aux.(*ssa.AuxCall)
++
++	if ok && call.Fn == Deferreturn {
+ 		// Deferred calls will appear to be returning to
+ 		// the CALL deferreturn(SB) that we are about to emit.
+ 		// However, the stack trace code will show the line
+@@ -6584,11 +6594,11 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 		thearch.Ginsnopdefer(s.pp)
+ 	}
+ 
+-	if sym, ok := v.Aux.(*obj.LSym); ok {
++	if ok {
+ 		// Record call graph information for nowritebarrierrec
+ 		// analysis.
+ 		if nowritebarrierrecCheck != nil {
+-			nowritebarrierrecCheck.recordCall(s.pp.curfn, sym, v.Pos)
++			nowritebarrierrecCheck.recordCall(s.pp.curfn, call.Fn, v.Pos)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 828f645b39..9ce87e0aea 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -165,6 +165,18 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
+ 				}
+ 				canHaveAux = true
++			case auxCallOff:
++				canHaveAuxInt = true
++				fallthrough
++			case auxCall:
++				if ac, ok := v.Aux.(*AuxCall); ok {
++					if v.Op == OpStaticCall && ac.Fn == nil {
++						f.Fatalf("value %v has *AuxCall with nil Fn", v)
++					}
++				} else {
++					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
++				}
++				canHaveAux = true
+ 			case auxSym, auxTyp:
+ 				canHaveAux = true
+ 			case auxSymOff, auxSymValAndOff, auxTypSize:
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 5f6f80f72a..568c6436f5 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -38,6 +38,7 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"reflect"
+@@ -140,6 +141,12 @@ var emptyPass pass = pass{
+ 	name: "empty pass",
+ }
+ 
++// AuxCallLSym returns an AuxCall initialized with an LSym that should pass "check"
++// as the Aux of a static call.
++func AuxCallLSym(name string) *AuxCall {
++	return &AuxCall{Fn: &obj.LSym{}}
++}
++
+ // Fun takes the name of an entry bloc and a series of Bloc calls, and
+ // returns a fun containing the composed Func. entry must be a name
+ // supplied to one of the Bloc functions. Each of the bloc names and
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index 5fe3da93ca..15190997f2 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -142,10 +142,10 @@ func TestFuseSideEffects(t *testing.T) {
+ 			Valu("b", OpArg, c.config.Types.Bool, 0, nil),
+ 			If("b", "then", "else")),
+ 		Bloc("then",
+-			Valu("call1", OpStaticCall, types.TypeMem, 0, nil, "mem"),
++			Valu("call1", OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+ 			Goto("empty")),
+ 		Bloc("else",
+-			Valu("call2", OpStaticCall, types.TypeMem, 0, nil, "mem"),
++			Valu("call2", OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+ 			Goto("empty")),
+ 		Bloc("empty",
+ 			Goto("loop")),
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 1061e5579d..64a17cb7a3 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -463,7 +463,7 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index e6d66957dd..d267fe8753 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -767,7 +767,7 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index e9af261a6a..f52d68dc33 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -471,7 +471,7 @@ func init() {
+ 		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"}, // auxint(flags) ? arg0 : 0
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                             // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 068fecf74c..1e6b4546da 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -428,7 +428,7 @@ func init() {
+ 		{name: "SRAcond", argLength: 3, reg: gp2flags1, asm: "SRA"},                                         // arg0 >> 31 if flags indicates HS, arg0 >> arg1 otherwise, signed shift, arg2=flags
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 5f00c080af..dc2e9d3ec9 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -273,7 +273,7 @@ func init() {
+ 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                             // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index a5f6c8df54..c66adcf93a 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -255,7 +255,7 @@ func init() {
+ 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                             // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 44f6a74c63..0c04e561ad 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -414,7 +414,7 @@ func init() {
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                     // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 8ab4abe04a..17970918e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -224,9 +224,9 @@ func init() {
+ 		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
+ 
+ 		// Calls
+-		{name: "CALLstatic", argLength: 1, reg: call, aux: "SymOff", call: true, symEffect: "None"}, // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "Int64", call: true},             // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: callInter, aux: "Int64", call: true},                 // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},       // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "Int64", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: 2, reg: callInter, aux: "Int64", call: true},     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// Generic moves and zeros
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 710beaddbb..eede8a654b 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -475,7 +475,7 @@ func init() {
+ 
+ 		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index e43eae17e9..3286a68fb0 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -122,7 +122,7 @@ func init() {
+ 	)
+ 
+ 	var WasmOps = []opData{
+-		{name: "LoweredStaticCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", call: true, symEffect: "None"},            // call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
++		{name: "LoweredStaticCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", call: true},                              // call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
+ 		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, 0}, clobbers: callerSave}, aux: "Int64", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f7e6bbebac..df70838aa9 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1933,30 +1933,30 @@
+ // recognize runtime.newobject and don't Zero/Nilcheck it
+ (Zero (Load (OffPtr [c] (SP)) mem) mem)
+ 	&& mem.Op == OpStaticCall
+-	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& isSameCall(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	=> mem
+ (Store (Load (OffPtr [c] (SP)) mem) x mem)
+ 	&& isConstZero(x)
+ 	&& mem.Op == OpStaticCall
+-	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& isSameCall(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	=> mem
+ (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
+ 	&& isConstZero(x)
+ 	&& mem.Op == OpStaticCall
+-	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& isSameCall(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	=> mem
+ // nil checks just need to rewrite to something useless.
+ // they will be deadcode eliminated soon afterwards.
+ (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
+-	&& symNamed(sym, "runtime.newobject")
++	&& isSameCall(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	=> (Invalid)
+ (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
+-	&& symNamed(sym, "runtime.newobject")
++	&& isSameCall(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	=> (Invalid)
+@@ -2010,7 +2010,7 @@
+ // See the comment in op Move in genericOps.go for discussion of the type.
+ (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+ 	&& sz >= 0
+-	&& symNamed(sym, "runtime.memmove")
++	&& isSameCall(sym, "runtime.memmove")
+ 	&& t.IsPtr() // avoids TUINTPTR, see issue 30061
+ 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 5df0a164bf..acfe222089 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -387,9 +387,9 @@ var genericOps = []opData{
+ 	// as a phantom first argument.
+ 	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
+ 	// to match StaticCall's 32 bit arg size limit.
+-	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+-	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
+-	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
++	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},  // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
++	{name: "StaticCall", argLength: 1, aux: "CallOff", call: true}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
++	{name: "InterCall", argLength: 2, aux: "Int64", call: true},    // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+ 
+ 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
+ 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 9e2e112cd7..be51a7c5f8 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1424,7 +1424,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
+ func opHasAuxInt(op opData) bool {
+ 	switch op.aux {
+ 	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64",
+-		"SymOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop":
++		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop":
+ 		return true
+ 	}
+ 	return false
+@@ -1432,7 +1432,7 @@ func opHasAuxInt(op opData) bool {
+ 
+ func opHasAux(op opData) bool {
+ 	switch op.aux {
+-	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize",
++	case "String", "Sym", "SymOff", "Call", "CallOff", "SymValAndOff", "Typ", "TypSize",
+ 		"S390XCCMask", "S390XRotateParams":
+ 		return true
+ 	}
+@@ -1775,6 +1775,10 @@ func (op opData) auxType() string {
+ 		return "Sym"
+ 	case "SymOff":
+ 		return "Sym"
++	case "Call":
++		return "Call"
++	case "CallOff":
++		return "Call"
+ 	case "SymValAndOff":
+ 		return "Sym"
+ 	case "Typ":
+@@ -1809,6 +1813,8 @@ func (op opData) auxIntType() string {
+ 		return "float32"
+ 	case "Float64":
+ 		return "float64"
++	case "CallOff":
++		return "int32"
+ 	case "SymOff":
+ 		return "int32"
+ 	case "SymValAndOff":
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 1932f9d23a..4a720fdede 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -246,7 +246,7 @@ func insertLoopReschedChecks(f *Func) {
+ 		//    mem1 := call resched (mem0)
+ 		//    goto header
+ 		resched := f.fe.Syslook("goschedguarded")
+-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, resched, mem0)
++		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, &AuxCall{resched}, mem0)
+ 		sched.AddEdgeTo(h)
+ 		headerMemPhi.AddArg(mem1)
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 063998c6a1..3aa506e3ab 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -67,6 +67,17 @@ type regInfo struct {
+ 
+ type auxType int8
+ 
++type AuxCall struct {
++	Fn *obj.LSym
++}
++
++func (a *AuxCall) String() string {
++	if a.Fn == nil {
++		return "AuxCall(nil)"
++	}
++	return fmt.Sprintf("AuxCall(%v)", a.Fn)
++}
++
+ const (
+ 	auxNone         auxType = iota
+ 	auxBool                 // auxInt is 0/1 for false/true
+@@ -85,6 +96,8 @@ const (
+ 	auxTyp                  // aux is a type
+ 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+ 	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
++	auxCall                 // aux is a *ssa.AuxCall
++	auxCallOff              // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
+ 
+ 	// architecture specific aux types
+ 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 45401898c8..797d82f2d1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -5816,11 +5816,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
+ 		},
+@@ -13152,11 +13151,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 		},
+@@ -16922,11 +16920,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+@@ -20556,11 +20553,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 		},
+@@ -22257,11 +22253,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+ 		},
+@@ -23804,11 +23799,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+ 		},
+@@ -26504,11 +26498,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+@@ -27787,11 +27780,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:      "CALLstatic",
+-		auxType:   auxSymOff,
+-		argLen:    1,
+-		call:      true,
+-		symEffect: SymNone,
++		name:    "CALLstatic",
++		auxType: auxCallOff,
++		argLen:  1,
++		call:    true,
+ 		reg: regInfo{
+ 			clobbers: 9223372035781033980, // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 		},
+@@ -31386,11 +31378,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLstatic",
+-		auxType:      auxSymOff,
++		auxType:      auxCallOff,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		call:         true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+ 			clobbers: 4294933503, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 g R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+@@ -32031,11 +32022,10 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 
+ 	{
+-		name:      "LoweredStaticCall",
+-		auxType:   auxSymOff,
+-		argLen:    1,
+-		call:      true,
+-		symEffect: SymNone,
++		name:    "LoweredStaticCall",
++		auxType: auxCallOff,
++		argLen:  1,
++		call:    true,
+ 		reg: regInfo{
+ 			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
+ 		},
+@@ -34779,12 +34769,11 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:      "StaticCall",
+-		auxType:   auxSymOff,
+-		argLen:    1,
+-		call:      true,
+-		symEffect: SymNone,
+-		generic:   true,
++		name:    "StaticCall",
++		auxType: auxCallOff,
++		argLen:  1,
++		call:    true,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "InterCall",
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index bb8be5e7ac..d990cac47b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -68,7 +68,7 @@ func TestNoGetgLoadReg(t *testing.T) {
+ 			Exit("v16"),
+ 		),
+ 		Bloc("b2",
+-			Valu("v12", OpARM64CALLstatic, types.TypeMem, 0, nil, "v1"),
++			Valu("v12", OpARM64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "v1"),
+ 			Goto("b3"),
+ 		),
+ 	)
+@@ -99,7 +99,7 @@ func TestSpillWithLoop(t *testing.T) {
+ 		),
+ 		Bloc("loop",
+ 			Valu("memphi", OpPhi, types.TypeMem, 0, nil, "mem", "call"),
+-			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, nil, "memphi"),
++			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "memphi"),
+ 			Valu("test", OpAMD64CMPBconst, types.TypeFlags, 0, nil, "cond"),
+ 			Eq("test", "next", "exit"),
+ 		),
+@@ -140,12 +140,12 @@ func TestSpillMove1(t *testing.T) {
+ 		Bloc("exit1",
+ 			// store before call, y is available in a register
+ 			Valu("mem2", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem"),
+-			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem2"),
++			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem2"),
+ 			Exit("mem3"),
+ 		),
+ 		Bloc("exit2",
+ 			// store after call, y must be loaded from a spill location
+-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
++			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+ 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
+ 			Exit("mem5"),
+ 		),
+@@ -188,13 +188,13 @@ func TestSpillMove2(t *testing.T) {
+ 		),
+ 		Bloc("exit1",
+ 			// store after call, y must be loaded from a spill location
+-			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
++			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+ 			Valu("mem3", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem2"),
+ 			Exit("mem3"),
+ 		),
+ 		Bloc("exit2",
+ 			// store after call, y must be loaded from a spill location
+-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
++			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+ 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
+ 			Exit("mem5"),
+ 		),
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 09f94ef53e..8195d407e0 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -393,15 +393,9 @@ func canMergeLoad(target, load *Value) bool {
+ 	return true
+ }
+ 
+-// symNamed reports whether sym's name is name.
+-func symNamed(sym Sym, name string) bool {
+-	return sym.String() == name
+-}
+-
+-// isSameSym reports whether sym is the same as the given named symbol
+-func isSameSym(sym interface{}, name string) bool {
+-	s, ok := sym.(fmt.Stringer)
+-	return ok && s.String() == name
++// isSameCall reports whether sym is the same as the given named symbol
++func isSameCall(sym interface{}, name string) bool {
++	return sym.(*AuxCall).Fn.String() == name
+ }
+ 
+ // nlz returns the number of leading zeros.
+@@ -713,6 +707,9 @@ func auxToSym(i interface{}) Sym {
+ func auxToType(i interface{}) *types.Type {
+ 	return i.(*types.Type)
+ }
++func auxToCall(i interface{}) *AuxCall {
++	return i.(*AuxCall)
++}
+ func auxToS390xCCMask(i interface{}) s390x.CCMask {
+ 	return i.(s390x.CCMask)
+ }
+@@ -726,6 +723,9 @@ func stringToAux(s string) interface{} {
+ func symToAux(s Sym) interface{} {
+ 	return s
+ }
++func callToAux(s *AuxCall) interface{} {
++	return s
++}
+ func typeToAux(t *types.Type) interface{} {
+ 	return t
+ }
+@@ -743,7 +743,7 @@ func uaddOvf(a, b int64) bool {
+ 
+ // de-virtualize an InterCall
+ // 'sym' is the symbol for the itab
+-func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
++func devirt(v *Value, sym Sym, offset int64) *AuxCall {
+ 	f := v.Block.Func
+ 	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+@@ -757,7 +757,10 @@ func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
+ 			f.Warnl(v.Pos, "couldn't de-virtualize call")
+ 		}
+ 	}
+-	return lsym
++	if lsym == nil {
++		return nil
++	}
++	return &AuxCall{Fn: lsym}
+ }
+ 
+ // isSamePtr reports whether p1 and p2 point to the same address.
+@@ -1377,12 +1380,12 @@ func registerizable(b *Block, typ *types.Type) bool {
+ }
+ 
+ // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
+-func needRaceCleanup(sym Sym, v *Value) bool {
++func needRaceCleanup(sym *AuxCall, v *Value) bool {
+ 	f := v.Block.Func
+ 	if !f.Config.Race {
+ 		return false
+ 	}
+-	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
++	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncexit") {
+ 		return false
+ 	}
+ 	for _, b := range f.Blocks {
+@@ -1391,7 +1394,7 @@ func needRaceCleanup(sym Sym, v *Value) bool {
+ 			case OpStaticCall:
+ 				// Check for racefuncenter will encounter racefuncexit and vice versa.
+ 				// Allow calls to panic*
+-				s := v.Aux.(fmt.Stringer).String()
++				s := v.Aux.(*AuxCall).Fn.String()
+ 				switch s {
+ 				case "runtime.racefuncenter", "runtime.racefuncexit",
+ 					"runtime.panicdivide", "runtime.panicwrap",
+@@ -1409,7 +1412,7 @@ func needRaceCleanup(sym Sym, v *Value) bool {
+ 			}
+ 		}
+ 	}
+-	if symNamed(sym, "runtime.racefuncenter") {
++	if isSameCall(sym, "runtime.racefuncenter") {
+ 		// If we're removing racefuncenter, remove its argument as well.
+ 		if v.Args[0].Op != OpStore {
+ 			return false
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 180e48b34c..4b388a68cd 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -8515,7 +8515,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 		}
+ 		v.reset(OpStaticCall)
+ 		v.AuxInt = int32ToAuxInt(int32(argsize))
+-		v.Aux = symToAux(devirt(v, itab, off))
++		v.Aux = callToAux(devirt(v, itab, off))
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+@@ -16022,7 +16022,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
+-	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
++	// cond: isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		if v_0.Op != OpLoad {
+@@ -16042,15 +16042,15 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		sym := auxToSym(v_0_1.Aux)
+-		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
++		sym := auxToCall(v_0_1.Aux)
++		if !(isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+ 		return true
+ 	}
+ 	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
+-	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
++	// cond: isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		if v_0.Op != OpOffPtr {
+@@ -16074,8 +16074,8 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		sym := auxToSym(v_0_0_1.Aux)
+-		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
++		sym := auxToCall(v_0_0_1.Aux)
++		if !(isSameCall(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+@@ -21067,10 +21067,10 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+ 	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+-	// cond: sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
+ 	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+ 	for {
+-		sym := auxToSym(v.Aux)
++		sym := auxToCall(v.Aux)
+ 		s1 := v_0
+ 		if s1.Op != OpStore {
+ 			break
+@@ -21094,7 +21094,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		t := auxToType(s3.Aux)
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -21104,10 +21104,10 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+-	// cond: sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
+ 	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+ 	for {
+-		sym := auxToSym(v.Aux)
++		sym := auxToCall(v.Aux)
+ 		s1 := v_0
+ 		if s1.Op != OpStore {
+ 			break
+@@ -21131,7 +21131,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		t := auxToType(s3.Aux)
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -21144,7 +21144,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 	// cond: needRaceCleanup(sym, v)
+ 	// result: x
+ 	for {
+-		sym := auxToSym(v.Aux)
++		sym := auxToCall(v.Aux)
+ 		x := v_0
+ 		if !(needRaceCleanup(sym, v)) {
+ 			break
+@@ -21608,7 +21608,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store (Load (OffPtr [c] (SP)) mem) x mem)
+-	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
++	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
+ 	// result: mem
+ 	for {
+ 		if v_0.Op != OpLoad {
+@@ -21625,14 +21625,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_1
+-		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
++		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+ 			break
+ 		}
+ 		v.copyOf(mem)
+ 		return true
+ 	}
+ 	// match: (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
+-	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
++	// cond: isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
+ 	// result: mem
+ 	for {
+ 		if v_0.Op != OpOffPtr {
+@@ -21653,7 +21653,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_1
+-		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
++		if mem != v_2 || !(isConstZero(x) && mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+ 			break
+ 		}
+ 		v.copyOf(mem)
+@@ -24337,7 +24337,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+ 	// match: (Zero (Load (OffPtr [c] (SP)) mem) mem)
+-	// cond: mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
++	// cond: mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize
+ 	// result: mem
+ 	for {
+ 		if v_0.Op != OpLoad {
+@@ -24350,7 +24350,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpSP || mem != v_1 || !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
++		if v_0_0_0.Op != OpSP || mem != v_1 || !(mem.Op == OpStaticCall && isSameCall(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+ 			break
+ 		}
+ 		v.copyOf(mem)
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6692df7921..94b8763d5d 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -193,11 +193,11 @@ func (v *Value) auxString() string {
+ 		return fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:
+ 		return fmt.Sprintf(" {%q}", v.Aux)
+-	case auxSym, auxTyp:
++	case auxSym, auxCall, auxTyp:
+ 		if v.Aux != nil {
+ 			return fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+-	case auxSymOff, auxTypSize:
++	case auxSymOff, auxCallOff, auxTypSize:
+ 		s := ""
+ 		if v.Aux != nil {
+ 			s = fmt.Sprintf(" {%v}", v.Aux)
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 214798a1ab..c358406862 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -523,7 +523,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	off = round(off, config.PtrSize)
+ 
+ 	// issue call
+-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
++	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, &AuxCall{fn}, mem)
+ 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
+ 	return mem
+ }
+@@ -582,7 +582,7 @@ func IsNewObject(v *Value, mem *Value) bool {
+ 	if mem.Op != OpStaticCall {
+ 		return false
+ 	}
+-	if !isSameSym(mem.Aux, "runtime.newobject") {
++	if !isSameCall(mem.Aux, "runtime.newobject") {
+ 		return false
+ 	}
+ 	if v.Args[0].Op != OpOffPtr {
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 7861667b88..a36fbca4e0 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -122,7 +122,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+ 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
+ 		s.PrepareCall(v)
+-		if v.Aux == gc.Deferreturn {
++		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == gc.Deferreturn {
+ 			// add a resume point before call to deferreturn so it can be called again via jmpdefer
+ 			s.Prog(wasm.ARESUMEPOINT)
+ 		}
+@@ -130,7 +130,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			getValue64(s, v.Args[1])
+ 			setReg(s, wasm.REG_CTXT)
+ 		}
+-		if sym, ok := v.Aux.(*obj.LSym); ok {
++		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn != nil {
++			sym := call.Fn
+ 			p := s.Prog(obj.ACALL)
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
+ 			p.Pos = v.Pos

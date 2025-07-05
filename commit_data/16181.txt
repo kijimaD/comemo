@@ -7,6 +7,21 @@ Date:   Tue Apr 16 04:29:55 2013 +0800
     R=golang-dev, r, gary.burd, dr.volker.dobler
     CC=golang-dev
     https://golang.org/cl/8660046
-
+---
  src/pkg/net/http/cookiejar/jar.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/http/cookiejar/jar.go b/src/pkg/net/http/cookiejar/jar.go
+index 5d1aeb87fd..5977d48b63 100644
+--- a/src/pkg/net/http/cookiejar/jar.go
++++ b/src/pkg/net/http/cookiejar/jar.go
+@@ -28,6 +28,9 @@ import (
+ // An implementation that always returns "" is valid and may be useful for
+ // testing but it is not secure: it means that the HTTP server for foo.com can
+ // set a cookie for bar.com.
++//
++// A public suffix list implementation is in the package
++// code.google.com/p/go.net/publicsuffix.
+ type PublicSuffixList interface {
+ 	// PublicSuffix returns the public suffix of domain.
+ 	//

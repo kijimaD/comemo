@@ -9,7 +9,32 @@ Date:   Wed Oct 8 07:10:04 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/153240043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a924ea965f..03e686e751 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -378,6 +378,7 @@ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
++Ron Hashimoto <mail@h2so5.net>
+ Ron Minnich <rminnich@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Rowan Worth <sqweek@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9dce23b2d5..a44e4be2e8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -520,6 +520,7 @@ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
++Ron Hashimoto <mail@h2so5.net>
+ Ron Minnich <rminnich@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Rowan Worth <sqweek@gmail.com>

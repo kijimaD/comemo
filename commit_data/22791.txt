@@ -17,7 +17,7 @@ Date:   Fri Mar 27 02:48:27 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/8304
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/5l/asm.go           |  2 +-
  src/cmd/6l/asm.go           |  2 +-
  src/cmd/6l/obj.go           |  2 +-
@@ -27,3 +27,239 @@ Date:   Fri Mar 27 02:48:27 2015 +0000
  src/cmd/internal/ld/lib.go  | 56 +++++++++++++++++++++++++++++++++++++++------
  src/cmd/internal/ld/pobj.go | 12 +++++++++-
  8 files changed, 67 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 525764edf4..abe91fd484 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -245,7 +245,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ 	case ld.R_TLS:
+ 		if r.Siz == 4 {
+-			if ld.Flag_shared != 0 {
++			if ld.Buildmode == ld.BuildmodeCShared {
+ 				ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
+ 			} else {
+ 				ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 1df166f100..c55dae462d 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -330,7 +330,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ 	case ld.R_TLS:
+ 		if r.Siz == 4 {
+-			if ld.Flag_shared != 0 {
++			if ld.Buildmode == ld.BuildmodeCShared {
+ 				ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
+ 			} else {
+ 				ld.Thearch.Vput(ld.R_X86_64_TPOFF32 | uint64(elfsym)<<32)
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index f7165ab05e..ad1cf92bd5 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -91,7 +91,7 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Flag_shared != 0 {
++	if ld.Buildmode == ld.BuildmodeCShared {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index e67451419f..76446b1187 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -960,7 +960,7 @@ func dosymtype() {
+ 		}
+ 		// Create a new entry in the .init_array section that points to the
+ 		// library initializer function.
+-		if Flag_shared != 0 && s.Name == INITENTRY {
++		if Buildmode == BuildmodeCShared && s.Name == INITENTRY {
+ 			addinitarrdata(s)
+ 		}
+ 	}
+@@ -1322,7 +1322,7 @@ func dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* shared library initializer */
+-	if Flag_shared != 0 {
++	if Buildmode == BuildmodeCShared {
+ 		sect := addsection(&Segdata, ".init_array", 06)
+ 		sect.Align = maxalign(s, SINITARR)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index c588d93933..3448fe6ce4 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1658,7 +1658,7 @@ func doelf() {
+ 		Addstring(shstrtab, ".note.GNU-stack")
+ 	}
+ 
+-	if Flag_shared != 0 {
++	if Buildmode == BuildmodeCShared {
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+ 		case '6', '7', '9':
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index 1aab4f9680..fac72f7d05 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -474,7 +474,7 @@ func loadcgo(file string, pkg string, p string) {
+ 			local = expandpkg(local, pkg)
+ 			s = Linklookup(Ctxt, local, 0)
+ 
+-			if Flag_shared != 0 && s == Linklookup(Ctxt, "main", 0) {
++			if Buildmode == BuildmodeCShared && s == Linklookup(Ctxt, "main", 0) {
+ 				continue
+ 			}
+ 
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 94c0562b0f..339e872d02 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -33,6 +33,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"cmd/internal/obj"
++	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"log"
+@@ -160,7 +161,7 @@ var (
+ 	elfglobalsymndx    int
+ 	flag_installsuffix string
+ 	flag_race          int
+-	Flag_shared        int
++	Buildmode          BuildMode
+ 	tracksym           string
+ 	interpreter        string
+ 	tmpdir             string
+@@ -234,6 +235,44 @@ func Lflag(arg string) {
+ 	Ctxt.Libdir = append(Ctxt.Libdir, arg)
+ }
+ 
++// A BuildMode indicates the sort of object we are building:
++//   "exe": build a main package and everything it imports into an executable.
++//   "c-shared": build a main package, plus all packages that it imports, into a
++//     single C shared library. The only callable symbols will be those functions
++//     marked as exported.
++type BuildMode uint8
++
++const (
++	BuildmodeExe BuildMode = iota
++	BuildmodeCShared
++)
++
++func (mode *BuildMode) Set(s string) error {
++	switch s {
++	default:
++		return errors.New("invalid mode")
++	case "exe":
++		*mode = BuildmodeExe
++	case "c-shared":
++		goarch := obj.Getgoarch()
++		if goarch != "amd64" && goarch != "arm" {
++			return fmt.Errorf("not supported on %s", goarch)
++		}
++		*mode = BuildmodeCShared
++	}
++	return nil
++}
++
++func (mode *BuildMode) String() string {
++	switch *mode {
++	case BuildmodeExe:
++		return "exe"
++	case BuildmodeCShared:
++		return "c-shared"
++	}
++	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
++}
++
+ /*
+  * Unix doesn't like it when we write to a running (or, sometimes,
+  * recently run) binary, so remove the output file before writing it.
+@@ -276,10 +315,13 @@ func libinit() {
+ 	coutbuf = *Binitw(f)
+ 
+ 	if INITENTRY == "" {
+-		if Flag_shared == 0 {
+-			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
+-		} else {
++		switch Buildmode {
++		case BuildmodeCShared:
+ 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
++		case BuildmodeExe:
++			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
++		default:
++			Diag("unknown INITENTRY for buildmode %v", Buildmode)
+ 		}
+ 	}
+ 
+@@ -324,7 +366,7 @@ func loadinternal(name string) {
+ }
+ 
+ func loadlib() {
+-	if Flag_shared != 0 {
++	if Buildmode == BuildmodeCShared {
+ 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
+ 		s.Dupok = 1
+ 		Adduint8(Ctxt, s, 1)
+@@ -454,7 +496,7 @@ func loadlib() {
+ 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+ 	// Also leave it enabled on Solaris which doesn't support
+ 	// statically linked binaries.
+-	if Flag_shared == 0 && havedynamic == 0 && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris {
++	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris {
+ 		Debug['d'] = 1
+ 	}
+ 
+@@ -746,7 +788,7 @@ func hostlink() {
+ 		argv = append(argv, "-Wl,--rosegment")
+ 	}
+ 
+-	if Flag_shared != 0 {
++	if Buildmode == BuildmodeCShared {
+ 		argv = append(argv, "-Wl,-Bsymbolic")
+ 		argv = append(argv, "-shared")
+ 	}
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index 221f2b06a9..32a8908440 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -102,6 +102,7 @@ func Ldmain() {
+ 	obj.Flagfn1("X", "name value: define string data", addstrdata1)
+ 	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
+ 	obj.Flagcount("a", "disassemble output", &Debug['a'])
++	flag.Var(&Buildmode, "buildmode", "build mode to use")
+ 	obj.Flagcount("c", "dump call graph", &Debug['c'])
+ 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
+ 	obj.Flagstr("extld", "ld: linker to run in external mode", &extld)
+@@ -116,8 +117,9 @@ func Ldmain() {
+ 	obj.Flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath)
+ 	obj.Flagcount("race", "enable race detector", &flag_race)
+ 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
++	var flagShared int
+ 	if Thearch.Thechar == '5' || Thearch.Thechar == '6' {
+-		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &Flag_shared)
++		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
+ 	}
+ 	obj.Flagstr("tmpdir", "dir: leave temporary files in this directory", &tmpdir)
+ 	obj.Flagcount("u", "reject unsafe packages", &Debug['u'])
+@@ -141,6 +143,14 @@ func Ldmain() {
+ 	startProfile()
+ 	Ctxt.Bso = &Bso
+ 	Ctxt.Debugvlog = int32(Debug['v'])
++	if flagShared != 0 {
++		if Buildmode == BuildmodeExe {
++			Buildmode = BuildmodeCShared
++		} else if Buildmode != BuildmodeCShared {
++			Diag("-shared and -buildmode=%s are incompatible\n", Buildmode.String())
++			Errorexit()
++		}
++	}
+ 
+ 	if flag.NArg() != 1 {
+ 		usage()

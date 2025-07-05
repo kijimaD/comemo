@@ -7,6 +7,21 @@ Date:   Fri Mar 18 16:41:21 2016 +0100
     Change-Id: I58c4a75168fd1f797a25735c4151f501f0475332
     Reviewed-on: https://go-review.googlesource.com/20854
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/rpc/server_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index cf171ac4fb..d04271d99c 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -657,6 +657,9 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ }
+ 
+ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
++	if b.N == 0 {
++		return
++	}
+ 	const MaxConcurrentCalls = 100
+ 	once.Do(startServer)
+ 	client, err := dial()

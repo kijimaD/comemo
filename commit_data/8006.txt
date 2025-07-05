@@ -7,6 +7,20 @@ Date:   Wed Apr 6 23:07:08 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4385042
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 3a70a1091a..efb1a61773 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1463,7 +1463,7 @@ def submit(ui, repo, *pats, **opts):
+ 	# we're committed. upload final patch, close review, add commit message
+ 	changeURL = short(node)
+ 	url = other.url()
+-	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/", url)
++	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/?", url)
+ 	if m:
+ 		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
+ 	else:

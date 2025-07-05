@@ -13,7 +13,45 @@ Date:   Sat Nov 16 07:12:53 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/maphash/maphash.go |  1 +
  test/escape_hash_maphash.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 9b6c0cfb99..3f406e9db6 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -193,6 +193,7 @@ func rthash(b []byte, seed uint64) uint64 {
+ }
+ 
+ //go:linkname runtime_memhash runtime.memhash
++//go:noescape
+ func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
+ 
+ // Sum appends the hash's current 64-bit value to b.
+diff --git a/test/escape_hash_maphash.go b/test/escape_hash_maphash.go
+new file mode 100644
+index 0000000000..f8dcc5450d
+--- /dev/null
++++ b/test/escape_hash_maphash.go
+@@ -0,0 +1,19 @@
++// errorcheck -0 -m -l
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for hash/maphash.
++
++package escape
++
++import (
++	"hash/maphash"
++)
++
++func f() {
++	var x maphash.Hash // should be stack allocatable
++	x.WriteString("foo")
++	x.Sum64()
++}

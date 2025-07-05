@@ -11,6 +11,24 @@ Date:   Thu Aug 21 12:34:26 2014 +0400
     R=dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/125570043
-
+---
  src/cmd/gc/racewalk.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 285bd78a25..27581702cc 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -419,8 +419,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ ret:
+ 	if(n->op != OBLOCK)  // OBLOCK is handled above in a special way.
+ 		racewalklist(n->list, init);
+-	racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
+-	racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
++	if(n->ntest != N)
++		racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
++	if(n->nincr != N)
++		racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
+ 	racewalklist(n->nbody, nil);
+ 	racewalklist(n->nelse, nil);
+ 	racewalklist(n->rlist, nil);

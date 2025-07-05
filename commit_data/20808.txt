@@ -10,7 +10,7 @@ Date:   Tue Oct 14 19:12:10 2014 -0700
     R=rsc
     CC=golang-codereviews, gri
     https://golang.org/cl/159800045
-
+---
  src/cmd/gc/sinit.c           |  2 +-
  test/fixedbugs/issue6703a.go | 16 ++++++++++++++++
  test/fixedbugs/issue6703b.go | 16 ++++++++++++++++
@@ -39,3 +39,711 @@ Date:   Tue Oct 14 19:12:10 2014 -0700
  test/fixedbugs/issue6703y.go | 23 +++++++++++++++++++++++
  test/fixedbugs/issue6703z.go | 23 +++++++++++++++++++++++
  27 files changed, 539 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 508747e5a0..f050026d9d 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -207,7 +207,7 @@ init2(Node *n, NodeList **out)
+ 	
+ 	if(n->op == OCLOSURE)
+ 		init2list(n->closure->nbody, out);
+-	if(n->op == ODOTMETH)
++	if(n->op == ODOTMETH || n->op == OCALLPART)
+ 		init2(n->type->nname, out);
+ }
+ 
+diff --git a/test/fixedbugs/issue6703a.go b/test/fixedbugs/issue6703a.go
+new file mode 100644
+index 0000000000..d4c008f836
+--- /dev/null
++++ b/test/fixedbugs/issue6703a.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a function value.
++
++package funcvalue
++
++func fx() int {
++	_ = x
++	return 0
++}
++
++var x = fx // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703b.go b/test/fixedbugs/issue6703b.go
+new file mode 100644
+index 0000000000..326b5839a7
+--- /dev/null
++++ b/test/fixedbugs/issue6703b.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a function call.
++
++package funccall
++
++func fx() int {
++	_ = x
++	return 0
++}
++
++var x = fx() // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703c.go b/test/fixedbugs/issue6703c.go
+new file mode 100644
+index 0000000000..4735764758
+--- /dev/null
++++ b/test/fixedbugs/issue6703c.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a method expression.
++
++package methexpr
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var x = T.m // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703d.go b/test/fixedbugs/issue6703d.go
+new file mode 100644
+index 0000000000..0a1952f78b
+--- /dev/null
++++ b/test/fixedbugs/issue6703d.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a method expression call.
++
++package methexprcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var x = T.m(0) // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703e.go b/test/fixedbugs/issue6703e.go
+new file mode 100644
+index 0000000000..416066e858
+--- /dev/null
++++ b/test/fixedbugs/issue6703e.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method value of a value literal.
++
++package litmethvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var x = T(0).m // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703f.go b/test/fixedbugs/issue6703f.go
+new file mode 100644
+index 0000000000..30238297b5
+--- /dev/null
++++ b/test/fixedbugs/issue6703f.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method call of a value literal.
++
++package litmethcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var x = T(0).m() // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703g.go b/test/fixedbugs/issue6703g.go
+new file mode 100644
+index 0000000000..002b5a6368
+--- /dev/null
++++ b/test/fixedbugs/issue6703g.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in an embedded method expression.
++
++package embedmethexpr
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var x = E.m // ERROR "initialization loop|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703h.go b/test/fixedbugs/issue6703h.go
+new file mode 100644
+index 0000000000..234ccb365c
+--- /dev/null
++++ b/test/fixedbugs/issue6703h.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles when calling an embedded method expression.
++
++package embedmethexprcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var x = E.m(E{0}) // ERROR "initialization loop|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703i.go b/test/fixedbugs/issue6703i.go
+new file mode 100644
+index 0000000000..78b4d49804
+--- /dev/null
++++ b/test/fixedbugs/issue6703i.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in an embedded struct literal's method value.
++
++package embedlitmethvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var x = E{}.m // ERROR "initialization loop|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703j.go b/test/fixedbugs/issue6703j.go
+new file mode 100644
+index 0000000000..a7f63f7483
+--- /dev/null
++++ b/test/fixedbugs/issue6703j.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in an embedded struct literal's method call.
++
++package embedlitmethcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var x = E{}.m() // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703k.go b/test/fixedbugs/issue6703k.go
+new file mode 100644
+index 0000000000..19c61078ca
+--- /dev/null
++++ b/test/fixedbugs/issue6703k.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a method value.
++
++package methvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var (
++	t T
++	x = t.m // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703l.go b/test/fixedbugs/issue6703l.go
+new file mode 100644
+index 0000000000..3f4ca31478
+--- /dev/null
++++ b/test/fixedbugs/issue6703l.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a method call.
++
++package methcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++var (
++	t T
++	x = t.m() // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703m.go b/test/fixedbugs/issue6703m.go
+new file mode 100644
+index 0000000000..d80959cdc6
+--- /dev/null
++++ b/test/fixedbugs/issue6703m.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method value of a value returned from a function call.
++
++package funcmethvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++func f() T {
++	return T(0)
++}
++
++var (
++	t T
++	x = f().m // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703n.go b/test/fixedbugs/issue6703n.go
+new file mode 100644
+index 0000000000..2c623f2197
+--- /dev/null
++++ b/test/fixedbugs/issue6703n.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method call of a value returned from a function call.
++
++package funcmethcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++func f() T {
++	return T(0)
++}
++
++var (
++	t T
++	x = f().m() // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703o.go b/test/fixedbugs/issue6703o.go
+new file mode 100644
+index 0000000000..efc8947373
+--- /dev/null
++++ b/test/fixedbugs/issue6703o.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in an embedded struct's method value.
++
++package embedmethvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var (
++	e E
++	x = e.m // ERROR "initialization loop|depends upon itself" 
++)
+diff --git a/test/fixedbugs/issue6703p.go b/test/fixedbugs/issue6703p.go
+new file mode 100644
+index 0000000000..dad88f6345
+--- /dev/null
++++ b/test/fixedbugs/issue6703p.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in an embedded struct's method call.
++
++package embedmethcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++type E struct{ T }
++
++var (
++	e E
++	x = e.m() // ERROR "initialization loop|depends upon itself" 
++)
+diff --git a/test/fixedbugs/issue6703q.go b/test/fixedbugs/issue6703q.go
+new file mode 100644
+index 0000000000..7bd748aaa2
+--- /dev/null
++++ b/test/fixedbugs/issue6703q.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method value of an embedded struct returned
++// from a function call.
++
++package funcembedmethvalue
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++func g() E {
++	return E{0}
++}
++
++type E struct{ T }
++
++var (
++	e E
++	x = g().m // ERROR "initialization loop|depends upon itself" 
++)
+diff --git a/test/fixedbugs/issue6703r.go b/test/fixedbugs/issue6703r.go
+new file mode 100644
+index 0000000000..6698462417
+--- /dev/null
++++ b/test/fixedbugs/issue6703r.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method call of an embedded struct returned
++// from a function call.
++
++package funcembedmethcall
++
++type T int
++
++func (T) m() int {
++	_ = x
++	return 0
++}
++
++func g() E {
++	return E{0}
++}
++
++type E struct{ T }
++
++var (
++	e E
++	x = g().m() // ERROR "initialization loop|depends upon itself" 
++)
+diff --git a/test/fixedbugs/issue6703s.go b/test/fixedbugs/issue6703s.go
+new file mode 100644
+index 0000000000..6aa28483ac
+--- /dev/null
++++ b/test/fixedbugs/issue6703s.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a pointer method expression.
++
++package ptrmethexpr
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var x = (*T).pm // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703t.go b/test/fixedbugs/issue6703t.go
+new file mode 100644
+index 0000000000..bad65ad161
+--- /dev/null
++++ b/test/fixedbugs/issue6703t.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the call of a pointer method expression.
++
++package ptrmethexprcall
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var x = (*T).pm(nil) // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703u.go b/test/fixedbugs/issue6703u.go
+new file mode 100644
+index 0000000000..b6813b7712
+--- /dev/null
++++ b/test/fixedbugs/issue6703u.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a pointer literal's method value.
++
++package ptrlitmethvalue
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var x = (*T)(nil).pm // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703v.go b/test/fixedbugs/issue6703v.go
+new file mode 100644
+index 0000000000..a1b3711bb2
+--- /dev/null
++++ b/test/fixedbugs/issue6703v.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a pointer literal's method call.
++
++package ptrlitmethcall
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var x = (*T)(nil).pm() // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/issue6703w.go b/test/fixedbugs/issue6703w.go
+new file mode 100644
+index 0000000000..d4733debac
+--- /dev/null
++++ b/test/fixedbugs/issue6703w.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a pointer value's method value.
++
++package ptrmethvalue
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var (
++	p *T
++	x = p.pm // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703x.go b/test/fixedbugs/issue6703x.go
+new file mode 100644
+index 0000000000..8008b8c379
+--- /dev/null
++++ b/test/fixedbugs/issue6703x.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in a pointer value's method call.
++
++package ptrmethcall
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++var (
++	p *T
++	x = p.pm() // ERROR "initialization loop|depends upon itself"
++)
+diff --git a/test/fixedbugs/issue6703y.go b/test/fixedbugs/issue6703y.go
+new file mode 100644
+index 0000000000..ac4526dda8
+--- /dev/null
++++ b/test/fixedbugs/issue6703y.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method value of a pointer value returned
++// from a function call.
++
++package funcptrmethvalue
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++func pf() *T {
++	return nil
++}
++
++var x = pf().pm // ERROR "initialization loop|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703z.go b/test/fixedbugs/issue6703z.go
+new file mode 100644
+index 0000000000..d4c17e13ae
+--- /dev/null
++++ b/test/fixedbugs/issue6703z.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for cycles in the method call of a pointer value returned
++// from a function call.
++
++package funcptrmethcall
++
++type T int
++
++func (*T) pm() int {
++	_ = x
++	return 0
++}
++
++func pf() *T {
++	return nil
++}
++
++var x = pf().pm() // ERROR "initialization loop|depends upon itself" 

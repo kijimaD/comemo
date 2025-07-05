@@ -9,10 +9,277 @@ Date:   Wed Dec 1 13:33:49 2010 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3378041
-
+---
  src/cmd/godoc/godoc.go            | 50 +++++++++++++++++++--------------------
  src/cmd/godoc/main.go             |  2 +-
  src/pkg/template/format.go        | 22 ++++++++++-------
  src/pkg/template/template.go      | 13 +++++-----
  src/pkg/template/template_test.go | 11 +++++----
  5 files changed, 54 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 919b41626e..293a7fb19e 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -563,7 +563,7 @@ func writeText(w io.Writer, text []byte, html bool) {
+ 
+ 
+ // Write anything to w; optionally html-escaped.
+-func writeAny(w io.Writer, x interface{}, html bool) {
++func writeAny(w io.Writer, html bool, x interface{}) {
+ 	switch v := x.(type) {
+ 	case []byte:
+ 		writeText(w, v, html)
+@@ -584,23 +584,23 @@ func writeAny(w io.Writer, x interface{}, html bool) {
+ 
+ 
+ // Template formatter for "html" format.
+-func htmlFmt(w io.Writer, x interface{}, format string) {
+-	writeAny(w, x, true)
++func htmlFmt(w io.Writer, format string, x ...interface{}) {
++	writeAny(w, true, x[0])
+ }
+ 
+ 
+ // Template formatter for "html-esc" format.
+-func htmlEscFmt(w io.Writer, x interface{}, format string) {
++func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
+ 	var buf bytes.Buffer
+-	writeAny(&buf, x, false)
++	writeAny(&buf, false, x[0])
+ 	template.HTMLEscape(w, buf.Bytes())
+ }
+ 
+ 
+ // Template formatter for "html-comment" format.
+-func htmlCommentFmt(w io.Writer, x interface{}, format string) {
++func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
+ 	var buf bytes.Buffer
+-	writeAny(&buf, x, false)
++	writeAny(&buf, false, x[0])
+ 	// TODO(gri) Provide list of words (e.g. function parameters)
+ 	//           to be emphasized by ToHTML.
+ 	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
+@@ -608,13 +608,13 @@ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 
+ 
+ // Template formatter for "" (default) format.
+-func textFmt(w io.Writer, x interface{}, format string) {
+-	writeAny(w, x, false)
++func textFmt(w io.Writer, format string, x ...interface{}) {
++	writeAny(w, false, x[0])
+ }
+ 
+ 
+ // Template formatter for the various "url-xxx" formats.
+-func urlFmt(w io.Writer, x interface{}, format string) {
++func urlFmt(w io.Writer, format string, x ...interface{}) {
+ 	var path string
+ 	var line int
+ 
+@@ -622,7 +622,7 @@ func urlFmt(w io.Writer, x interface{}, format string) {
+ 	type positioner interface {
+ 		Pos() token.Position
+ 	}
+-	switch t := x.(type) {
++	switch t := x[0].(type) {
+ 	case string:
+ 		path = t
+ 	case positioner:
+@@ -676,14 +676,14 @@ var infoKinds = [nKinds]string{
+ 
+ 
+ // Template formatter for "infoKind" format.
+-func infoKindFmt(w io.Writer, x interface{}, format string) {
+-	fmt.Fprintf(w, infoKinds[x.(SpotKind)]) // infoKind entries are html-escaped
++func infoKindFmt(w io.Writer, format string, x ...interface{}) {
++	fmt.Fprintf(w, infoKinds[x[0].(SpotKind)]) // infoKind entries are html-escaped
+ }
+ 
+ 
+ // Template formatter for "infoLine" format.
+-func infoLineFmt(w io.Writer, x interface{}, format string) {
+-	info := x.(SpotInfo)
++func infoLineFmt(w io.Writer, format string, x ...interface{}) {
++	info := x[0].(SpotInfo)
+ 	line := info.Lori()
+ 	if info.IsIndex() {
+ 		index, _ := searchIndex.get()
+@@ -702,8 +702,8 @@ func infoLineFmt(w io.Writer, x interface{}, format string) {
+ 
+ 
+ // Template formatter for "infoSnippet" format.
+-func infoSnippetFmt(w io.Writer, x interface{}, format string) {
+-	info := x.(SpotInfo)
++func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
++	info := x[0].(SpotInfo)
+ 	text := `<span class="alert">no snippet text available</span>`
+ 	if info.IsIndex() {
+ 		index, _ := searchIndex.get()
+@@ -716,30 +716,30 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
+ 
+ 
+ // Template formatter for "padding" format.
+-func paddingFmt(w io.Writer, x interface{}, format string) {
+-	for i := x.(int); i > 0; i-- {
++func paddingFmt(w io.Writer, format string, x ...interface{}) {
++	for i := x[0].(int); i > 0; i-- {
+ 		fmt.Fprint(w, `<td width="25"></td>`)
+ 	}
+ }
+ 
+ 
+ // Template formatter for "time" format.
+-func timeFmt(w io.Writer, x interface{}, format string) {
+-	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x.(int64)/1e9).String()))
++func timeFmt(w io.Writer, format string, x ...interface{}) {
++	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x[0].(int64)/1e9).String()))
+ }
+ 
+ 
+ // Template formatter for "dir/" format.
+-func dirslashFmt(w io.Writer, x interface{}, format string) {
+-	if x.(*os.FileInfo).IsDirectory() {
++func dirslashFmt(w io.Writer, format string, x ...interface{}) {
++	if x[0].(*os.FileInfo).IsDirectory() {
+ 		w.Write([]byte{'/'})
+ 	}
+ }
+ 
+ 
+ // Template formatter for "localname" format.
+-func localnameFmt(w io.Writer, x interface{}, format string) {
+-	_, localname := pathutil.Split(x.(string))
++func localnameFmt(w io.Writer, format string, x ...interface{}) {
++	_, localname := pathutil.Split(x[0].(string))
+ 	template.HTMLEscape(w, []byte(localname))
+ }
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 6b94ff5612..0e8c0ed97f 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -367,7 +367,7 @@ func main() {
+ 				if i > 0 {
+ 					fmt.Println()
+ 				}
+-				writeAny(os.Stdout, d, *html)
++				writeAny(os.Stdout, *html, d)
+ 				fmt.Println()
+ 			}
+ 			return
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index 8a31de970a..9156b08081 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -16,12 +16,14 @@ import (
+ // It is stored under the name "str" and is the default formatter.
+ // You can override the default formatter by storing your default
+ // under the name "" in your custom formatter map.
+-func StringFormatter(w io.Writer, value interface{}, format string) {
+-	if b, ok := value.([]byte); ok {
+-		w.Write(b)
+-		return
++func StringFormatter(w io.Writer, format string, value ...interface{}) {
++	if len(value) == 1 {
++		if b, ok := value[0].([]byte); ok {
++			w.Write(b)
++			return
++		}
+ 	}
+-	fmt.Fprint(w, value)
++	fmt.Fprint(w, value...)
+ }
+ 
+ var (
+@@ -60,11 +62,15 @@ func HTMLEscape(w io.Writer, s []byte) {
+ }
+ 
+ // HTMLFormatter formats arbitrary values for HTML
+-func HTMLFormatter(w io.Writer, value interface{}, format string) {
+-	b, ok := value.([]byte)
++func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
++	ok := false
++	var b []byte
++	if len(value) == 1 {
++		b, ok = value[0].([]byte)
++	}
+ 	if !ok {
+ 		var buf bytes.Buffer
+-		fmt.Fprint(&buf, value)
++		fmt.Fprint(&buf, value...)
+ 		b = buf.Bytes()
+ 	}
+ 	HTMLEscape(w, b)
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 082c06261b..b750fc60e8 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -55,9 +55,10 @@
+ 	map passed to the template set up routines or in the default
+ 	set ("html","str","") and is used to process the data for
+ 	output.  The formatter function has signature
+-		func(wr io.Writer, data interface{}, formatter string)
+-	where wr is the destination for output, data is the field
+-	value, and formatter is its name at the invocation site.
++		func(wr io.Writer, formatter string, data ...interface{})
++	where wr is the destination for output, data holds the field
++	values at the instantiation, and formatter is its name at
++	the invocation site.
+ */
+ package template
+ 
+@@ -101,7 +102,7 @@ const (
+ 
+ // FormatterMap is the type describing the mapping from formatter
+ // names to the functions that implement them.
+-type FormatterMap map[string]func(io.Writer, interface{}, string)
++type FormatterMap map[string]func(io.Writer, string, ...interface{})
+ 
+ // Built-in formatters.
+ var builtins = FormatterMap{
+@@ -690,13 +691,13 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
+ 	// is it in user-supplied map?
+ 	if t.fmap != nil {
+ 		if fn, ok := t.fmap[formatter]; ok {
+-			fn(st.wr, val, formatter)
++			fn(st.wr, formatter, val)
+ 			return
+ 		}
+ 	}
+ 	// is it in builtin map?
+ 	if fn, ok := builtins[formatter]; ok {
+-		fn(st.wr, val, formatter)
++		fn(st.wr, formatter, val)
+ 		return
+ 	}
+ 	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 00fd69a029..d66394bf78 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -76,9 +76,12 @@ func plus1(v interface{}) string {
+ 	return fmt.Sprint(i + 1)
+ }
+ 
+-func writer(f func(interface{}) string) func(io.Writer, interface{}, string) {
+-	return func(w io.Writer, v interface{}, format string) {
+-		io.WriteString(w, f(v))
++func writer(f func(interface{}) string) func(io.Writer, string, ...interface{}) {
++	return func(w io.Writer, format string, v ...interface{}) {
++		if len(v) != 1 {
++			panic("test writer expected one arg")
++		}
++		io.WriteString(w, f(v[0]))
+ 	}
+ }
+ 
+@@ -601,7 +604,7 @@ func TestHTMLFormatterWithByte(t *testing.T) {
+ 	s := "Test string."
+ 	b := []byte(s)
+ 	var buf bytes.Buffer
+-	HTMLFormatter(&buf, b, "")
++	HTMLFormatter(&buf, "", b)
+ 	bs := buf.String()
+ 	if bs != s {
+ 		t.Errorf("munged []byte, expected: %s got: %s", s, bs)

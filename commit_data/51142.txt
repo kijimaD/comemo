@@ -16,6 +16,20 @@ Date:   Tue Dec 7 17:32:55 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/smtp/smtp_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 55219372d2..0f758f4a33 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -948,7 +948,7 @@ QUIT
+ `
+ 
+ func TestTLSClient(t *testing.T) {
+-	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
++	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
+ 		testenv.SkipFlaky(t, 19229)
+ 	}
+ 	ln := newLocalListener(t)

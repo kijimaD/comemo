@@ -22,6 +22,35 @@ Date:   Tue Jul 25 13:58:37 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/dial_test.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index ca9f0da3d3..784fb1d899 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -1052,13 +1052,20 @@ func TestDialerControlContext(t *testing.T) {
+ }
+ 
+ // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
+-// except that it won't skip testing on non-mobile builders.
++// except on non-Linux, non-mobile builders it permits the test to
++// run in -short mode.
+ func mustHaveExternalNetwork(t *testing.T) {
+ 	t.Helper()
++	definitelyHasLongtestBuilder := runtime.GOOS == "linux"
+ 	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
+-	if testenv.Builder() == "" || mobile {
+-		testenv.MustHaveExternalNetwork(t)
++	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile {
++		// On a non-Linux, non-mobile builder (e.g., freebsd-amd64-13_0).
++		//
++		// Don't skip testing because otherwise the test may never run on
++		// any builder if this port doesn't also have a -longtest builder.
++		return
+ 	}
++	testenv.MustHaveExternalNetwork(t)
+ }
+ 
+ type contextWithNonZeroDeadline struct {

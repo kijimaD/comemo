@@ -11,6 +11,19 @@ Date:   Tue Oct 2 10:27:55 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index e28e428a17..65f88dfff9 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -700,6 +700,7 @@ var knownFormats = map[string]string{
+ 	"int8 %x":                                         "",
+ 	"interface{} %#v":                                 "",
+ 	"interface{} %T":                                  "",
++	"interface{} %p":                                  "",
+ 	"interface{} %q":                                  "",
+ 	"interface{} %s":                                  "",
+ 	"interface{} %v":                                  "",

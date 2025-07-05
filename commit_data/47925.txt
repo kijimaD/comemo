@@ -24,7 +24,159 @@ Date:   Sun Dec 6 21:33:59 2020 +0000
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/fcgi/child.go     | 20 ++++------------
  src/net/http/fcgi/fcgi_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index 756722ba14..dc82bf7c3a 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -16,7 +16,6 @@ import (
+ 	"net/http/cgi"
+ 	"os"
+ 	"strings"
+-	"sync"
+ 	"time"
+ )
+ 
+@@ -154,7 +153,6 @@ type child struct {
+ 	conn    *conn
+ 	handler http.Handler
+ 
+-	mu       sync.Mutex          // protects requests:
+ 	requests map[uint16]*request // keyed by request ID
+ }
+ 
+@@ -193,9 +191,7 @@ var ErrRequestAborted = errors.New("fcgi: request aborted by web server")
+ var ErrConnClosed = errors.New("fcgi: connection to web server closed")
+ 
+ func (c *child) handleRecord(rec *record) error {
+-	c.mu.Lock()
+ 	req, ok := c.requests[rec.h.Id]
+-	c.mu.Unlock()
+ 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
+ 		// The spec says to ignore unknown request IDs.
+ 		return nil
+@@ -218,9 +214,7 @@ func (c *child) handleRecord(rec *record) error {
+ 			return nil
+ 		}
+ 		req = newRequest(rec.h.Id, br.flags)
+-		c.mu.Lock()
+ 		c.requests[rec.h.Id] = req
+-		c.mu.Unlock()
+ 		return nil
+ 	case typeParams:
+ 		// NOTE(eds): Technically a key-value pair can straddle the boundary
+@@ -248,8 +242,11 @@ func (c *child) handleRecord(rec *record) error {
+ 			// TODO(eds): This blocks until the handler reads from the pipe.
+ 			// If the handler takes a long time, it might be a problem.
+ 			req.pw.Write(content)
+-		} else if req.pw != nil {
+-			req.pw.Close()
++		} else {
++			delete(c.requests, req.reqId)
++			if req.pw != nil {
++				req.pw.Close()
++			}
+ 		}
+ 		return nil
+ 	case typeGetValues:
+@@ -260,9 +257,7 @@ func (c *child) handleRecord(rec *record) error {
+ 		// If the filter role is implemented, read the data stream here.
+ 		return nil
+ 	case typeAbortRequest:
+-		c.mu.Lock()
+ 		delete(c.requests, rec.h.Id)
+-		c.mu.Unlock()
+ 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
+ 		if req.pw != nil {
+ 			req.pw.CloseWithError(ErrRequestAborted)
+@@ -309,9 +304,6 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ 	// Make sure we serve something even if nothing was written to r
+ 	r.Write(nil)
+ 	r.Close()
+-	c.mu.Lock()
+-	delete(c.requests, req.reqId)
+-	c.mu.Unlock()
+ 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
+ 
+ 	// Consume the entire body, so the host isn't still writing to
+@@ -330,8 +322,6 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ }
+ 
+ func (c *child) cleanUp() {
+-	c.mu.Lock()
+-	defer c.mu.Unlock()
+ 	for _, req := range c.requests {
+ 		if req.pw != nil {
+ 			// race with call to Close in c.serveRequest doesn't matter because
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index b58111de20..5888783620 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"net/http"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ var sizeTests = []struct {
+@@ -399,3 +400,55 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 		})
+ 	}
+ }
++
++type signallingNopCloser struct {
++	io.Reader
++	closed chan bool
++}
++
++func (*signallingNopCloser) Write(buf []byte) (int, error) {
++	return len(buf), nil
++}
++
++func (rc *signallingNopCloser) Close() error {
++	close(rc.closed)
++	return nil
++}
++
++// Test whether server properly closes connection when processing slow
++// requests
++func TestSlowRequest(t *testing.T) {
++	pr, pw := io.Pipe()
++	go func(w io.Writer) {
++		for _, buf := range [][]byte{
++			streamBeginTypeStdin,
++			makeRecord(typeStdin, 1, nil),
++		} {
++			pw.Write(buf)
++			time.Sleep(100 * time.Millisecond)
++		}
++	}(pw)
++
++	rc := &signallingNopCloser{pr, make(chan bool)}
++	handlerDone := make(chan bool)
++
++	c := newChild(rc, http.HandlerFunc(func(
++		w http.ResponseWriter,
++		r *http.Request,
++	) {
++		w.WriteHeader(200)
++		close(handlerDone)
++	}))
++	go c.serve()
++	defer c.cleanUp()
++
++	timeout := time.After(2 * time.Second)
++
++	<-handlerDone
++	select {
++	case <-rc.closed:
++		t.Log("FastCGI child closed connection")
++	case <-timeout:
++		t.Error("FastCGI child did not close socket after handling request")
++	}
++}

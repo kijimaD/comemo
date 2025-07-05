@@ -27,7 +27,59 @@ Date:   Tue Nov 13 15:34:22 2018 +0900
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/sync/once.go    | 16 ++++++++++++----
  test/inline_sync.go |  7 +++++++
  2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/sync/once.go b/src/sync/once.go
+index d8ef952ea5..84761970dd 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -10,8 +10,13 @@ import (
+ 
+ // Once is an object that will perform exactly one action.
+ type Once struct {
+-	m    Mutex
++	// done indicates whether the action has been performed.
++	// It is first in the struct because it is used in the hot path.
++	// The hot path is inlined at every call site.
++	// Placing done first allows more compact instructions on some architectures (amd64/x86),
++	// and fewer instructions (to calculate offset) on other architectures.
+ 	done uint32
++	m    Mutex
+ }
+ 
+ // Do calls the function f if and only if Do is being called for the
+@@ -33,10 +38,13 @@ type Once struct {
+ // without calling f.
+ //
+ func (o *Once) Do(f func()) {
+-	if atomic.LoadUint32(&o.done) == 1 {
+-		return
++	if atomic.LoadUint32(&o.done) == 0 {
++		// Outlined slow-path to allow inlining of the fast-path.
++		o.doSlow(f)
+ 	}
+-	// Slow-path.
++}
++
++func (o *Once) doSlow(f func()) {
+ 	o.m.Lock()
+ 	defer o.m.Unlock()
+ 	if o.done == 0 {
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index a14f58c432..3473b92b4a 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -31,3 +31,10 @@ func small6() { // ERROR "can inline small6"
+ 	// the Lock fast path should be inlined
+ 	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock" "&sync\.m\.state escapes to heap"
+ }
++
++var once *sync.Once
++
++func small7() { // ERROR "can inline small7"
++        // the Do fast path should be inlined
++        once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "&sync\.o\.done escapes to heap"
++}

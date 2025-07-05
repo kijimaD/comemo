@@ -8,6 +8,14 @@ Date:   Fri Sep 22 11:59:40 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/65394
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/boring/VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+index 00750edc07..b8626c4cff 100644
+--- a/misc/boring/VERSION
++++ b/misc/boring/VERSION
+@@ -1 +1 @@
+-3
++4

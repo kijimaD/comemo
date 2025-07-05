@@ -20,9 +20,158 @@ Date:   Mon May 3 16:32:52 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/html/template/exec_test.go |  2 --
  src/text/template/exec.go      |  9 ++++-----
  src/text/template/exec_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/text/template/template.go  |  9 +++++++++
  4 files changed, 51 insertions(+), 7 deletions(-)
+
+diff --git a/src/html/template/exec_test.go b/src/html/template/exec_test.go
+index 7d1bef1782..888587335d 100644
+--- a/src/html/template/exec_test.go
++++ b/src/html/template/exec_test.go
+@@ -1720,8 +1720,6 @@ var v = "v";
+ `
+ 
+ func TestEscapeRace(t *testing.T) {
+-	t.Skip("this test currently fails with -race; see issue #39807")
+-
+ 	tmpl := New("")
+ 	_, err := tmpl.New("templ.html").Parse(raceText)
+ 	if err != nil {
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index f1305a29a0..5ad3b4ec58 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -179,10 +179,7 @@ func errRecover(errp *error) {
+ // A template may be executed safely in parallel, although if parallel
+ // executions share a Writer the output may be interleaved.
+ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+-	var tmpl *Template
+-	if t.common != nil {
+-		tmpl = t.tmpl[name]
+-	}
++	tmpl := t.Lookup(name)
+ 	if tmpl == nil {
+ 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
+ 	}
+@@ -230,6 +227,8 @@ func (t *Template) DefinedTemplates() string {
+ 		return ""
+ 	}
+ 	var b strings.Builder
++	t.muTmpl.RLock()
++	defer t.muTmpl.RUnlock()
+ 	for name, tmpl := range t.tmpl {
+ 		if tmpl.Tree == nil || tmpl.Root == nil {
+ 			continue
+@@ -401,7 +400,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 
+ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
+ 	s.at(t)
+-	tmpl := s.tmpl.tmpl[t.Name]
++	tmpl := s.tmpl.Lookup(t.Name)
+ 	if tmpl == nil {
+ 		s.errorf("template %q not defined", t.Name)
+ 	}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 255b111b34..e73fce4fa8 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"reflect"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -1732,3 +1733,40 @@ func TestIssue43065(t *testing.T) {
+ 		t.Errorf("%s", err)
+ 	}
+ }
++
++// Issue 39807: data race in html/template & text/template
++func TestIssue39807(t *testing.T) {
++	var wg sync.WaitGroup
++
++	tplFoo, err := New("foo").Parse(`{{ template "bar" . }}`)
++	if err != nil {
++		t.Error(err)
++	}
++
++	tplBar, err := New("bar").Parse("bar")
++	if err != nil {
++		t.Error(err)
++	}
++
++	gofuncs := 10
++	numTemplates := 10
++
++	for i := 1; i <= gofuncs; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for j := 0; j < numTemplates; j++ {
++				_, err := tplFoo.AddParseTree(tplBar.Name(), tplBar.Tree)
++				if err != nil {
++					t.Error(err)
++				}
++				err = tplFoo.Execute(io.Discard, nil)
++				if err != nil {
++					t.Error(err)
++				}
++			}
++		}()
++	}
++
++	wg.Wait()
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index ec26eb4c50..fd74d45e9b 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -13,6 +13,7 @@ import (
+ // common holds the information shared by related templates.
+ type common struct {
+ 	tmpl   map[string]*Template // Map from name to defined templates.
++	muTmpl sync.RWMutex         // protects tmpl
+ 	option option
+ 	// We use two maps, one for parsing and one for execution.
+ 	// This separation makes the API cleaner since it doesn't
+@@ -88,6 +89,8 @@ func (t *Template) Clone() (*Template, error) {
+ 	if t.common == nil {
+ 		return nt, nil
+ 	}
++	t.muTmpl.RLock()
++	defer t.muTmpl.RUnlock()
+ 	for k, v := range t.tmpl {
+ 		if k == t.name {
+ 			nt.tmpl[t.name] = nt
+@@ -124,6 +127,8 @@ func (t *Template) copy(c *common) *Template {
+ // its definition. If it has been defined and already has that name, the existing
+ // definition is replaced; otherwise a new template is created, defined, and returned.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
++	t.muTmpl.Lock()
++	defer t.muTmpl.Unlock()
+ 	t.init()
+ 	nt := t
+ 	if name != t.name {
+@@ -142,6 +147,8 @@ func (t *Template) Templates() []*Template {
+ 		return nil
+ 	}
+ 	// Return a slice so we don't expose the map.
++	t.muTmpl.RLock()
++	defer t.muTmpl.RUnlock()
+ 	m := make([]*Template, 0, len(t.tmpl))
+ 	for _, v := range t.tmpl {
+ 		m = append(m, v)
+@@ -182,6 +189,8 @@ func (t *Template) Lookup(name string) *Template {
+ 	if t.common == nil {
+ 		return nil
+ 	}
++	t.muTmpl.RLock()
++	defer t.muTmpl.RUnlock()
+ 	return t.tmpl[name]
+ }
+ 

@@ -11,6 +11,21 @@ Date:   Wed Sep 20 12:37:28 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/530577
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+index 6a306d4522..61dc7520ab 100644
+--- a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -47,9 +47,6 @@ type resultUseAnalyzer struct {
+ // and tries to update the scores of calls based on how their results
+ // are used in the function.
+ func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
+-	if os.Getenv("THANM_DEBUG") != "" {
+-		return
+-	}
+ 	enableDebugTraceIfEnv()
+ 	rua := &resultUseAnalyzer{
+ 		resultNameTab:    resultNameTab,

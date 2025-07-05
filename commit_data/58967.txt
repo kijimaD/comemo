@@ -13,6 +13,55 @@ Date:   Mon Nov 6 09:17:02 2023 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  .../go/testdata/script/test_race_issue26995.txt    | 42 ++++++++++++++++++++++
  1 file changed, 42 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_race_issue26995.txt b/src/cmd/go/testdata/script/test_race_issue26995.txt
+new file mode 100644
+index 0000000000..f40fb46f32
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_race_issue26995.txt
+@@ -0,0 +1,42 @@
++[short] skip
++[!race] skip
++
++go test -v -race
++stdout 'testing_test.go:26: directCall'
++stdout 'testing_test.go:27: interfaceTBCall'
++stdout 'testing_test.go:28: interfaceCall'
++
++-- go.mod --
++module 26995-TBHelper-line-number
++
++go 1.21
++-- testing_test.go --
++package testing_test
++
++import "testing"
++
++type TestingT interface {
++	Helper()
++	Log(args ...interface{})
++}
++
++func directCall(t *testing.T) {
++	t.Helper()
++	t.Log("directCall")
++}
++
++func interfaceTBCall(t testing.TB) {
++	t.Helper()
++	t.Log("interfaceTBCall")
++}
++
++func interfaceCall(t TestingT) {
++	t.Helper()
++	t.Log("interfaceCall")
++}
++
++func TestTesting(t *testing.T) {
++	directCall(t)
++	interfaceTBCall(t)
++	interfaceCall(t)
++}

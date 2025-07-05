@@ -12,7 +12,41 @@ Date:   Fri May 13 12:54:51 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4526056
-
+---
  doc/go_spec.html     | 4 ++--
  src/pkg/ebnf/ebnf.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8e2f0cddf5..11a31cb0c7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of May 12, 2011 -->
++<!-- subtitle Version of May 13, 2011 -->
+ 
+ <!--
+ TODO
+@@ -46,7 +46,7 @@ The syntax is specified using Extended Backus-Naur Form (EBNF):
+ </p>
+ 
+ <pre class="grammar">
+-Production  = production_name "=" Expression "." .
++Production  = production_name "=" [ Expression ] "." .
+ Expression  = Alternative { "|" Alternative } .
+ Alternative = Term { Term } .
+ Term        = production_name | token [ "..." token ] | Group | Option | Repetition .
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 7918c4593b..964e1c1b0e 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -5,7 +5,7 @@
+ // Package ebnf is a library for EBNF grammars. The input is text ([]byte)
+ // satisfying the following grammar (represented itself in EBNF):
+ //
+-//	Production  = name "=" Expression "." .
++//	Production  = name "=" [ Expression ] "." .
+ //	Expression  = Alternative { "|" Alternative } .
+ //	Alternative = Term { Term } .
+ //	Term        = name | token [ "..." token ] | Group | Option | Repetition .

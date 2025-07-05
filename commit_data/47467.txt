@@ -13,7 +13,105 @@ Date:   Fri Mar 19 11:48:22 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../script/test_finished_subtest_goroutines.txt    | 52 ++++++++++++++++++++++
  src/testing/testing.go                             | 13 +++---
  2 files changed, 59 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_finished_subtest_goroutines.txt b/src/cmd/go/testdata/script/test_finished_subtest_goroutines.txt
+new file mode 100644
+index 0000000000..8db821eb77
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_finished_subtest_goroutines.txt
+@@ -0,0 +1,52 @@
++# Regression test for https://golang.org/issue/45127:
++# Goroutines for completed parallel subtests should exit immediately,
++# not block until earlier subtests have finished.
++
++[short] skip
++
++! go test .
++stdout 'panic: slow failure'
++! stdout '\[chan send'
++
++-- go.mod --
++module golang.org/issue45127
++
++go 1.16
++-- issue45127_test.go --
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"runtime/debug"
++	"sync"
++	"testing"
++)
++
++func TestTestingGoroutineLeak(t *testing.T) {
++	debug.SetTraceback("all")
++
++	var wg sync.WaitGroup
++	const nFast = 10
++
++	t.Run("slow", func(t *testing.T) {
++		t.Parallel()
++		wg.Wait()
++		for i := 0; i < nFast; i++ {
++			// If the subtest goroutines are going to park on the channel
++			// send, allow them to park now. If they're not going to park,
++			// make sure they have had a chance to run to completion so
++			// that they aren't spuriously parked when we panic.
++			runtime.Gosched()
++		}
++		panic("slow failure")
++	})
++
++	wg.Add(nFast)
++	for i := 0; i < nFast; i++ {
++		t.Run(fmt.Sprintf("leaky%d", i), func(t *testing.T) {
++			t.Parallel()
++			wg.Done()
++		})
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 383e56a20e..0df6e45ec4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1258,7 +1258,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	t = &T{
+ 		common: common{
+ 			barrier: make(chan bool),
+-			signal:  make(chan bool),
++			signal:  make(chan bool, 1),
+ 			name:    testName,
+ 			parent:  &t.common,
+ 			level:   t.level + 1,
+@@ -1539,7 +1539,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			ctx.deadline = deadline
+ 			t := &T{
+ 				common: common{
+-					signal:  make(chan bool),
++					signal:  make(chan bool, 1),
+ 					barrier: make(chan bool),
+ 					w:       os.Stdout,
+ 				},
+@@ -1552,11 +1552,12 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				for _, test := range tests {
+ 					t.Run(test.Name, test.F)
+ 				}
+-				// Run catching the signal rather than the tRunner as a separate
+-				// goroutine to avoid adding a goroutine during the sequential
+-				// phase as this pollutes the stacktrace output when aborting.
+-				go func() { <-t.signal }()
+ 			})
++			select {
++			case <-t.signal:
++			default:
++				panic("internal error: tRunner exited without sending on t.signal")
++			}
+ 			ok = ok && !t.Failed()
+ 			ran = ran || t.ran
+ 		}

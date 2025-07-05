@@ -18,8 +18,67 @@ Date:   Mon May 10 14:52:22 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/net/dial_test.go      | 10 +---------
  src/net/server_test.go    |  7 -------
  src/runtime/crash_test.go |  8 --------
  3 files changed, 1 insertion(+), 24 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 394bdb047e..f899da10cf 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -656,15 +656,7 @@ func TestDialerLocalAddr(t *testing.T) {
+ 		}
+ 		c, err := d.Dial(tt.network, addr)
+ 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
+-			// A suspected kernel bug in macOS 10.12 occasionally results in
+-			// timeout errors when dialing address ::1. The errors have not
+-			// been observed on newer versions of the OS, so we don't plan to work
+-			// around them. See https://golang.org/issue/22019.
+-			if tt.raddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
+-				t.Logf("ignoring timeout error on Darwin; see https://golang.org/issue/22019")
+-			} else {
+-				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+-			}
++			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+ 		}
+ 		if err != nil {
+ 			if perr := parseDialError(err); perr != nil {
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 8d4db7233d..7cbf152298 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -105,13 +105,6 @@ func TestTCPServer(t *testing.T) {
+ 					if perr := parseDialError(err); perr != nil {
+ 						t.Error(perr)
+ 					}
+-					if tt.taddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
+-						// A suspected kernel bug in macOS 10.12 occasionally results in
+-						// "i/o timeout" errors when dialing address ::1. The errors have not
+-						// been observed on newer versions of the OS, so we don't plan to work
+-						// around them. See https://golang.org/issue/32919.
+-						t.Skipf("skipping due to error on known-flaky macOS 10.12 builder: %v", err)
+-					}
+ 					t.Fatal(err)
+ 				}
+ 				defer c.Close()
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index e5bd7973b7..e0c0bac892 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -470,14 +470,6 @@ func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
+ }
+ 
+ func TestNetpollDeadlock(t *testing.T) {
+-	if os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" {
+-		// A suspected kernel bug in macOS 10.12 occasionally results in
+-		// an apparent deadlock when dialing localhost. The errors have not
+-		// been observed on newer versions of the OS, so we don't plan to work
+-		// around them. See https://golang.org/issue/22019.
+-		testenv.SkipFlaky(t, 22019)
+-	}
+-
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprognet", "NetpollDeadlock")
+ 	want := "done\n"

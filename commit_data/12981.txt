@@ -7,6 +7,20 @@ Date:   Fri Apr 27 10:25:19 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6117063
-
+---
  src/pkg/path/filepath/path_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index cf028a75c5..59a5812dd0 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -12,7 +12,7 @@ func IsAbs(path string) bool {
+ }
+ 
+ // VolumeName returns the leading volume name on Windows.
+-// It returns "" elsewhere
++// It returns "" elsewhere.
+ func VolumeName(path string) string {
+ 	return ""
+ }

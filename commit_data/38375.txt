@@ -16,6 +16,24 @@ Date:   Wed Oct 24 15:27:35 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/ios/detect.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index 2594185c11..1d47e47c86 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -33,9 +33,9 @@ func main() {
+ 		fail("did not find mobile provision matching device udids %q", udids)
+ 	}
+ 
+-	fmt.Println("Available provisioning profiles below.")
+-	fmt.Println("NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
+-	fmt.Println("will be overwritten when running Go programs.")
++	fmt.Println("# Available provisioning profiles below.")
++	fmt.Println("# NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
++	fmt.Println("# will be overwritten when running Go programs.")
+ 	for _, mp := range mps {
+ 		fmt.Println()
+ 		f, err := ioutil.TempFile("", "go_ios_detect_")

@@ -9,7 +9,7 @@ Date:   Mon May 20 19:25:32 2013 +0900
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/8825043
-
+---
  src/pkg/runtime/defs_freebsd.go      | 16 ++++++++++++++--
  src/pkg/runtime/defs_freebsd_386.h   | 29 +++++++++++++++++++++++++----
  src/pkg/runtime/defs_freebsd_amd64.h | 27 ++++++++++++++++++++++++---
@@ -21,3 +21,535 @@ Date:   Mon May 20 19:25:32 2013 +0900
  src/pkg/runtime/sys_openbsd_386.s    | 29 +++++++++++++++++++++++++++++
  src/pkg/runtime/sys_openbsd_amd64.s  | 33 +++++++++++++++++++++++++++++++++
  10 files changed, 241 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_freebsd.go b/src/pkg/runtime/defs_freebsd.go
+index 93f0703e3a..dad20f16dd 100644
+--- a/src/pkg/runtime/defs_freebsd.go
++++ b/src/pkg/runtime/defs_freebsd.go
+@@ -19,6 +19,7 @@ package runtime
+ #include <sys/time.h>
+ #include <signal.h>
+ #include <errno.h>
++#include <sys/event.h>
+ #include <sys/mman.h>
+ #include <sys/ucontext.h>
+ #include <sys/umtx.h>
+@@ -30,6 +31,9 @@ package runtime
+ import "C"
+ 
+ const (
++	EINTR  = C.EINTR
++	EFAULT = C.EFAULT
++
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+ 	PROT_WRITE = C.PROT_WRITE
+@@ -48,8 +52,6 @@ const (
+ 	UMTX_OP_WAIT_UINT = C.UMTX_OP_WAIT_UINT
+ 	UMTX_OP_WAKE      = C.UMTX_OP_WAKE
+ 
+-	EINTR = C.EINTR
+-
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+@@ -101,6 +103,14 @@ const (
+ 	ITIMER_REAL    = C.ITIMER_REAL
+ 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
+ 	ITIMER_PROF    = C.ITIMER_PROF
++
++	EV_ADD       = C.EV_ADD
++	EV_DELETE    = C.EV_DELETE
++	EV_CLEAR     = C.EV_CLEAR
++	EV_RECEIPT   = C.EV_RECEIPT
++	EV_ERROR     = C.EV_ERROR
++	EVFILT_READ  = C.EVFILT_READ
++	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+ type Rtprio C.struct_rtprio
+@@ -117,3 +127,5 @@ type Ucontext C.ucontext_t
+ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
++
++type Kevent C.struct_kevent
+diff --git a/src/pkg/runtime/defs_freebsd_386.h b/src/pkg/runtime/defs_freebsd_386.h
+index 8fa37c5d67..cf9c76eb1a 100644
+--- a/src/pkg/runtime/defs_freebsd_386.h
++++ b/src/pkg/runtime/defs_freebsd_386.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -21,8 +24,6 @@ enum {
+ 	UMTX_OP_WAIT_UINT	= 0xb,
+ 	UMTX_OP_WAKE		= 0x3,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -74,6 +75,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_RECEIPT	= 0x40,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
+ };
+ 
+ typedef struct Rtprio Rtprio;
+@@ -87,6 +96,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -157,11 +167,13 @@ struct Mcontext {
+ 	int32	mc_len;
+ 	int32	mc_fpformat;
+ 	int32	mc_ownedfp;
+-	int32	mc_spare1[1];
++	int32	mc_flags;
+ 	int32	mc_fpstate[128];
+ 	int32	mc_fsbase;
+ 	int32	mc_gsbase;
+-	int32	mc_spare2[6];
++	int32	mc_xfpustate;
++	int32	mc_xfpustate_len;
++	int32	mc_spare2[4];
+ };
+ struct Ucontext {
+ 	Sigset	uc_sigmask;
+@@ -186,5 +198,14 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
++struct Kevent {
++	uint32	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int32	data;
++	byte	*udata;
++};
++
+ 
+ #pragma pack off
+diff --git a/src/pkg/runtime/defs_freebsd_amd64.h b/src/pkg/runtime/defs_freebsd_amd64.h
+index 56d849bce3..3fb33f38a3 100644
+--- a/src/pkg/runtime/defs_freebsd_amd64.h
++++ b/src/pkg/runtime/defs_freebsd_amd64.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -21,8 +24,6 @@ enum {
+ 	UMTX_OP_WAIT_UINT	= 0xb,
+ 	UMTX_OP_WAKE		= 0x3,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -74,6 +75,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_RECEIPT	= 0x40,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
+ };
+ 
+ typedef struct Rtprio Rtprio;
+@@ -87,6 +96,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -172,7 +182,9 @@ struct Mcontext {
+ 	int64	mc_fpstate[64];
+ 	int64	mc_fsbase;
+ 	int64	mc_gsbase;
+-	int64	mc_spare[6];
++	int64	mc_xfpustate;
++	int64	mc_xfpustate_len;
++	int64	mc_spare[4];
+ };
+ struct Ucontext {
+ 	Sigset	uc_sigmask;
+@@ -197,5 +209,14 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
++struct Kevent {
++	uint64	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int64	data;
++	byte	*udata;
++};
++
+ 
+ #pragma pack off
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index ff94b94056..4a705796f0 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -15,6 +15,7 @@ package runtime
+ 
+ /*
+ #include <sys/types.h>
++#include <sys/event.h>
+ #include <sys/mman.h>
+ #include <sys/time.h>
+ #include <sys/unistd.h>
+@@ -25,6 +26,9 @@ package runtime
+ import "C"
+ 
+ const (
++	EINTR  = C.EINTR
++	EFAULT = C.EFAULT
++
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+ 	PROT_WRITE = C.PROT_WRITE
+@@ -40,8 +44,6 @@ const (
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
+-	EINTR = C.EINTR
+-
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+@@ -93,6 +95,13 @@ const (
+ 	ITIMER_REAL    = C.ITIMER_REAL
+ 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
+ 	ITIMER_PROF    = C.ITIMER_PROF
++
++	EV_ADD       = C.EV_ADD
++	EV_DELETE    = C.EV_DELETE
++	EV_CLEAR     = C.EV_CLEAR
++	EV_ERROR     = C.EV_ERROR
++	EVFILT_READ  = C.EVFILT_READ
++	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+ type Tfork C.struct___tfork
+@@ -108,3 +117,5 @@ type StackT C.stack_t
+ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
++
++type Kevent C.struct_kevent
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index 323bb084af..a5b7f04b5b 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -18,8 +21,6 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -71,6 +72,13 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
+ };
+ 
+ typedef struct Tfork Tfork;
+@@ -81,6 +89,7 @@ typedef struct StackT StackT;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -146,5 +155,14 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
++struct Kevent {
++	uint32	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int32	data;
++	byte	*udata;
++};
++
+ 
+ #pragma pack off
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 429cc99f0e..eb47ec8927 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -18,8 +21,6 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -71,6 +72,13 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
+ };
+ 
+ typedef struct Tfork Tfork;
+@@ -81,6 +89,7 @@ typedef struct StackT StackT;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -158,5 +167,14 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
++struct Kevent {
++	uint32	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int32	data;
++	byte	*udata;
++};
++
+ 
+ #pragma pack off
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index d960663cb4..bbfb3e37a2 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -345,4 +345,33 @@ TEXT runtime·sigprocmask(SB),7,$16
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),7,$0
++	MOVL	$269, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),7,$0
++	MOVL	$270, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),7,$32
++	MOVL	$92, AX		// fcntl
++	// 0(SP) is where the caller PC would be; kernel skips it
++	MOVL	fd+0(FP), BX
++	MOVL	BX, 4(SP)	// fd
++	MOVL	$2, 8(SP)	// F_SETFD
++	MOVL	$1, 12(SP)	// FD_CLOEXEC
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index cfa33d4fbd..9638acb695 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -280,3 +280,37 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
++
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),7,$0
++	MOVQ	$0, DI
++	MOVQ	$0, SI
++	MOVQ	$0, DX
++	MOVL	$362, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),7,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVL	40(SP), R8
++	MOVQ	48(SP), R9
++	MOVL	$363, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// void runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),7,$0
++	MOVL	8(SP), DI	// fd
++	MOVQ	$2, SI		// F_SETFD
++	MOVQ	$1, DX		// FD_CLOEXEC
++	MOVL	$92, AX		// fcntl
++	SYSCALL
++	RET
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 37b6ff215a..f154464dc6 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -349,4 +349,33 @@ TEXT runtime·sysctl(SB),7,$28
+ 	MOVL	$0, AX
+ 	RET
+ 
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),7,$0
++	MOVL	$362, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),7,$0
++	MOVL	$363, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),7,$32
++	MOVL	$92, AX		// fcntl
++	// 0(SP) is where the caller PC would be; kernel skips it
++	MOVL	fd+0(FP), BX
++	MOVL	BX, 4(SP)	// fd
++	MOVL	$2, 8(SP)	// F_SETFD
++	MOVL	$1, 12(SP)	// FD_CLOEXEC
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index cbd2c2f765..04c5719aaa 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -297,3 +297,36 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVL	$0, AX
+ 	RET
+ 
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),7,$0
++	MOVQ	$0, DI
++	MOVQ	$0, SI
++	MOVQ	$0, DX
++	MOVL	$269, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),7,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVL	40(SP), R8
++	MOVQ	48(SP), R9
++	MOVL	$270, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// void runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),7,$0
++	MOVL	8(SP), DI	// fd
++	MOVQ	$2, SI		// F_SETFD
++	MOVQ	$1, DX		// FD_CLOEXEC
++	MOVL	$92, AX		// fcntl
++	SYSCALL
++	RET

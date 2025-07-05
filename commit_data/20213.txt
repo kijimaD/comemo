@@ -13,7 +13,61 @@ Date:   Mon Aug 25 10:32:46 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/132960043
-
+---
  src/pkg/encoding/json/encode.go      |  4 ++--
  src/pkg/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 5341a3a01b..b63538c922 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -696,12 +696,12 @@ type ptrEncoder struct {
+ 	elemEnc encoderFunc
+ }
+ 
+-func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
++func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
+ 	if v.IsNil() {
+ 		e.WriteString("null")
+ 		return
+ 	}
+-	pe.elemEnc(e, v.Elem(), false)
++	pe.elemEnc(e, v.Elem(), quoted)
+ }
+ 
+ func newPtrEncoder(t reflect.Type) encoderFunc {
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index 2e89a78eb9..eb84cbae14 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -452,3 +452,29 @@ func TestHTMLEscape(t *testing.T) {
+ 		t.Errorf("HTMLEscape(&b, []byte(m)) = %s; want %s", b.Bytes(), want.Bytes())
+ 	}
+ }
++
++// golang.org/issue/8582
++func TestEncodePointerString(t *testing.T) {
++	type stringPointer struct {
++		N *int64 `json:"n,string"`
++	}
++	var n int64 = 42
++	b, err := Marshal(stringPointer{N: &n})
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	if got, want := string(b), `{"n":"42"}`; got != want {
++		t.Errorf("Marshal = %s, want %s", got, want)
++	}
++	var back stringPointer
++	err = Unmarshal(b, &back)
++	if err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++	if back.N == nil {
++		t.Fatalf("Unmarshalled nil N field")
++	}
++	if *back.N != 42 {
++		t.Fatalf("*N = %d; want 42", *back.N)
++	}
++}

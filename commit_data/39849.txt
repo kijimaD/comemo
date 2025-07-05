@@ -11,7 +11,7 @@ Date:   Mon Mar 25 22:57:27 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169239
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |  6 +-
  src/cmd/go.sum                                     | 12 ++--
  .../golang.org/x/crypto/ssh/terminal/terminal.go   | 67 +++++++++++++---------
@@ -21,3 +21,296 @@ Date:   Mon Mar 25 22:57:27 2019 +0000
  .../x/tools/go/analysis/passes/tests/tests.go      | 44 ++++++++------
  src/cmd/vendor/modules.txt                         |  6 +-
  8 files changed, 111 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index e0ac8cf6eb..54b527af69 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+-	golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a
+-	golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca // indirect
+-	golang.org/x/tools v0.0.0-20190320160634-b6b7807791df
++	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
++	golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc // indirect
++	golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 57bb4fa012..dcbcd91338 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -5,12 +5,12 @@ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:
+ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045 h1:Pn8fQdvx+z1avAi7fdM2kRYWQNxGlavNDSyzrQg2SsU=
+ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045/go.mod h1:cYlCBUl1MsqxdiKgmc4uh7TxZfWSFLOGSRR090WDxt8=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a h1:YX8ljsm6wXlHZO+aRz9Exqr0evNhKRNe5K/gi+zKh4U=
+-golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
++golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+-golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca h1:o2TLx1bGN3W+Ei0EMU5fShLupLmTOU95KvJJmfYhAzM=
+-golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc h1:4gbWbmmPFp4ySWICouJl6emP0MyS31yy9SrTlAGFT+g=
++golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190320160634-b6b7807791df h1:taFQs++Xc5kswn4bzUZyWI+ShGK1r9pFxQAiVZaRfto=
+-golang.org/x/tools v0.0.0-20190320160634-b6b7807791df/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04 h1:SRYGE+BqJRgY8JH4p2NmwTPeuREKqKYw5IuEmthTHKQ=
++golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
+diff --git a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
+index 9d666ffcf0..2f04ee5b5c 100644
+--- a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
++++ b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
+@@ -7,6 +7,7 @@ package terminal
+ import (
+ 	"bytes"
+ 	"io"
++	"strconv"
+ 	"sync"
+ 	"unicode/utf8"
+ )
+@@ -271,34 +272,44 @@ func (t *Terminal) moveCursorToPos(pos int) {
+ }
+ 
+ func (t *Terminal) move(up, down, left, right int) {
+-	movement := make([]rune, 3*(up+down+left+right))
+-	m := movement
+-	for i := 0; i < up; i++ {
+-		m[0] = keyEscape
+-		m[1] = '['
+-		m[2] = 'A'
+-		m = m[3:]
+-	}
+-	for i := 0; i < down; i++ {
+-		m[0] = keyEscape
+-		m[1] = '['
+-		m[2] = 'B'
+-		m = m[3:]
+-	}
+-	for i := 0; i < left; i++ {
+-		m[0] = keyEscape
+-		m[1] = '['
+-		m[2] = 'D'
+-		m = m[3:]
+-	}
+-	for i := 0; i < right; i++ {
+-		m[0] = keyEscape
+-		m[1] = '['
+-		m[2] = 'C'
+-		m = m[3:]
+-	}
+-
+-	t.queue(movement)
++	m := []rune{}
++
++	// 1 unit up can be expressed as ^[[A or ^[A
++	// 5 units up can be expressed as ^[[5A
++
++	if up == 1 {
++		m = append(m, keyEscape, '[', 'A')
++	} else if up > 1 {
++		m = append(m, keyEscape, '[')
++		m = append(m, []rune(strconv.Itoa(up))...)
++		m = append(m, 'A')
++	}
++
++	if down == 1 {
++		m = append(m, keyEscape, '[', 'B')
++	} else if down > 1 {
++		m = append(m, keyEscape, '[')
++		m = append(m, []rune(strconv.Itoa(down))...)
++		m = append(m, 'B')
++	}
++
++	if right == 1 {
++		m = append(m, keyEscape, '[', 'C')
++	} else if right > 1 {
++		m = append(m, keyEscape, '[')
++		m = append(m, []rune(strconv.Itoa(right))...)
++		m = append(m, 'C')
++	}
++
++	if left == 1 {
++		m = append(m, keyEscape, '[', 'D')
++	} else if left > 1 {
++		m = append(m, keyEscape, '[')
++		m = append(m, []rune(strconv.Itoa(left))...)
++		m = append(m, 'D')
++	}
++
++	t.queue(m)
+ }
+ 
+ func (t *Terminal) clearLineToRight() {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index f72fa55f3e..7aff0d0225 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -137,6 +137,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+ //sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+ //sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
++//sys	GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error)
+ //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
+ //sys	CloseHandle(handle Handle) (err error)
+ //sys	GetStdHandle(stdhandle uint32) (handle Handle, err error) [failretval==InvalidHandle]
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 141ca81bd7..bbf19f0dcd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -126,9 +126,19 @@ const (
+ 	OPEN_ALWAYS       = 4
+ 	TRUNCATE_EXISTING = 5
+ 
+-	FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+-	FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
+-	FILE_FLAG_OVERLAPPED         = 0x40000000
++	FILE_FLAG_OPEN_REQUIRING_OPLOCK = 0x00040000
++	FILE_FLAG_FIRST_PIPE_INSTANCE   = 0x00080000
++	FILE_FLAG_OPEN_NO_RECALL        = 0x00100000
++	FILE_FLAG_OPEN_REPARSE_POINT    = 0x00200000
++	FILE_FLAG_SESSION_AWARE         = 0x00800000
++	FILE_FLAG_POSIX_SEMANTICS       = 0x01000000
++	FILE_FLAG_BACKUP_SEMANTICS      = 0x02000000
++	FILE_FLAG_DELETE_ON_CLOSE       = 0x04000000
++	FILE_FLAG_SEQUENTIAL_SCAN       = 0x08000000
++	FILE_FLAG_RANDOM_ACCESS         = 0x10000000
++	FILE_FLAG_NO_BUFFERING          = 0x20000000
++	FILE_FLAG_OVERLAPPED            = 0x40000000
++	FILE_FLAG_WRITE_THROUGH         = 0x80000000
+ 
+ 	HANDLE_FLAG_INHERIT    = 0x00000001
+ 	STARTF_USESTDHANDLES   = 0x00000100
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 75dcd275ca..eb9f06296e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -77,6 +77,7 @@ var (
+ 	procCreateFileW                        = modkernel32.NewProc("CreateFileW")
+ 	procReadFile                           = modkernel32.NewProc("ReadFile")
+ 	procWriteFile                          = modkernel32.NewProc("WriteFile")
++	procGetOverlappedResult                = modkernel32.NewProc("GetOverlappedResult")
+ 	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
+ 	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
+ 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
+@@ -654,6 +655,24 @@ func WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped)
+ 	return
+ }
+ 
++func GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error) {
++	var _p0 uint32
++	if wait {
++		_p0 = 1
++	} else {
++		_p0 = 0
++	}
++	r1, _, e1 := syscall.Syscall6(procGetOverlappedResult.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(done)), uintptr(_p0), 0, 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
++
+ func SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) {
+ 	r0, _, e1 := syscall.Syscall6(procSetFilePointer.Addr(), 4, uintptr(handle), uintptr(lowoffset), uintptr(unsafe.Pointer(highoffsetptr)), uintptr(whence), 0, 0)
+ 	newlowoffset = uint32(r0)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 35b0a3e7cc..5dd060800c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -84,23 +84,25 @@ func isTestParam(typ ast.Expr, wantType string) bool {
+ 	return false
+ }
+ 
+-func lookup(pkg *types.Package, name string) types.Object {
++func lookup(pkg *types.Package, name string) []types.Object {
+ 	if o := pkg.Scope().Lookup(name); o != nil {
+-		return o
+-	}
+-
+-	// If this package is ".../foo_test" and it imports a package
+-	// ".../foo", try looking in the latter package.
+-	// This heuristic should work even on build systems that do not
+-	// record any special link between the packages.
+-	if basePath := strings.TrimSuffix(pkg.Path(), "_test"); basePath != pkg.Path() {
+-		for _, imp := range pkg.Imports() {
+-			if imp.Path() == basePath {
+-				return imp.Scope().Lookup(name)
+-			}
++		return []types.Object{o}
++	}
++
++	var ret []types.Object
++	// Search through the imports to see if any of them define name.
++	// It's hard to tell in general which package is being tested, so
++	// for the purposes of the analysis, allow the object to appear
++	// in any of the imports. This guarantees there are no false positives
++	// because the example needs to use the object so it must be defined
++	// in the package or one if its imports. On the other hand, false
++	// negatives are possible, but should be rare.
++	for _, imp := range pkg.Imports() {
++		if obj := imp.Scope().Lookup(name); obj != nil {
++			ret = append(ret, obj)
+ 		}
+ 	}
+-	return nil
++	return ret
+ }
+ 
+ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
+@@ -121,9 +123,9 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 		exName = strings.TrimPrefix(fnName, "Example")
+ 		elems  = strings.SplitN(exName, "_", 3)
+ 		ident  = elems[0]
+-		obj    = lookup(pass.Pkg, ident)
++		objs   = lookup(pass.Pkg, ident)
+ 	)
+-	if ident != "" && obj == nil {
++	if ident != "" && len(objs) == 0 {
+ 		// Check ExampleFoo and ExampleBadFoo.
+ 		pass.Reportf(fn.Pos(), "%s refers to unknown identifier: %s", fnName, ident)
+ 		// Abort since obj is absent and no subsequent checks can be performed.
+@@ -145,7 +147,15 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	mmbr := elems[1]
+ 	if !isExampleSuffix(mmbr) {
+ 		// Check ExampleFoo_Method and ExampleFoo_BadMethod.
+-		if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj == nil {
++		found := false
++		// Check if Foo.Method exists in this package or its imports.
++		for _, obj := range objs {
++			if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj != nil {
++				found = true
++				break
++			}
++		}
++		if !found {
+ 			pass.Reportf(fn.Pos(), "%s refers to unknown field or method: %s.%s", fnName, ident, mmbr)
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 2b3dc6fe2f..44b1288d5d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -21,12 +21,12 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a
++# golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca
++# golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190320160634-b6b7807791df
++# golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
+ golang.org/x/tools/go/analysis/passes/asmdecl
+ golang.org/x/tools/go/analysis/passes/assign
+ golang.org/x/tools/go/analysis/passes/atomic

@@ -8,6 +8,29 @@ Date:   Fri Aug 8 10:43:44 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/124020044
-
+---
  test/fixedbugs/bug490.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/bug490.go b/test/fixedbugs/bug490.go
+new file mode 100644
+index 0000000000..7d05f3945c
+--- /dev/null
++++ b/test/fixedbugs/bug490.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler used to crash building a comparison between an
++// interface and an empty struct literal.
++
++package p
++ 
++type S struct{}
++
++func F(v interface{}) bool {
++	return v == S{}
++}

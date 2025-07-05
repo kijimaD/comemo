@@ -13,7 +13,39 @@ Date:   Wed Aug 1 02:47:01 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/reader.go      | 3 +++
  src/archive/zip/reader_test.go | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 2444106ba6..2260b398c3 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -69,6 +69,9 @@ func OpenReader(name string) (*ReadCloser, error) {
+ // NewReader returns a new Reader reading from r, which is assumed to
+ // have the given size in bytes.
+ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
++	if size < 0 {
++		return nil, errors.New("zip: size cannot be negative")
++	}
+ 	zr := new(Reader)
+ 	if err := zr.init(r, size); err != nil {
+ 		return nil, err
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 1e58b26b6e..6b3f2f33bb 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -658,6 +658,12 @@ func TestInvalidFiles(t *testing.T) {
+ 	if err != ErrFormat {
+ 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
+ 	}
++
++	// negative size
++	_, err = NewReader(bytes.NewReader([]byte("foobar")), -1)
++	if err == nil {
++		t.Errorf("archive/zip.NewReader: expected error when negative size is passed")
++	}
+ }
+ 
+ func messWith(fileName string, corrupter func(b []byte)) (r io.ReaderAt, size int64) {

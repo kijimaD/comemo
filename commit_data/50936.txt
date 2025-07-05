@@ -13,9 +13,127 @@ Date:   Wed Nov 17 19:26:37 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                   | 23 ++++---------------
  src/go/types/index.go                      |  4 ++--
  src/go/types/testdata/check/typeparams.go2 |  4 ++++
  src/go/types/type.go                       | 37 ++++++++++++++++++++++++++++++
  4 files changed, 47 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index b547cddeb1..daeed81ed8 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -342,26 +342,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		// src, _ := structuralType(y.typ).(*Slice); but also accepts strings
+-		var src *Slice
+-		var elem Type // == src.elem if valid
+-		if underIs(y.typ, func(u Type) bool {
+-			switch u := u.(type) {
+-			case *Basic:
+-				if isString(u) && (elem == nil || Identical(elem, universeByte)) {
+-					elem = universeByte
+-					return true
+-				}
+-			case *Slice:
+-				if elem == nil || Identical(elem, u.elem) {
+-					elem = u.elem
+-					return true
+-				}
+-			}
+-			return false
+-		}) {
+-			src = NewSlice(elem)
++		src0 := structuralString(y.typ)
++		if src0 != nil && isString(src0) {
++			src0 = NewSlice(universeByte)
+ 		}
++		src, _ := src0.(*Slice)
+ 
+ 		if dst == nil || src == nil {
+ 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 54398ad19b..ace9ee06ab 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -214,7 +214,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := structuralType(x.typ).(type) {
++	switch u := structuralString(x.typ).(type) {
+ 	case nil:
+ 		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no structural type", x, x.typ)
+ 		x.mode = invalid
+@@ -233,7 +233,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 			}
+ 			// spec: "For untyped string operands the result
+ 			// is a non-constant value of type string."
+-			if u.kind == UntypedString {
++			if isUntyped(x.typ) {
+ 				x.typ = Typ[String]
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index fdbb7a2740..0d3b6ea527 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -136,6 +136,10 @@ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+ func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j:k] }
+ 
++func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
++func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j] }
++
+ // len/cap built-ins
+ 
+ func _[T any](x T) { _ = len(x /* ERROR invalid argument */ ) }
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index e283c65289..099449c8b9 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -87,3 +87,40 @@ func structuralType(t Type) Type {
+ 	}
+ 	return nil
+ }
++
++// structuralString is like structuralType but also considers []byte
++// and strings as identical. In this case, if successful and we saw
++// a string, the result is of type (possibly untyped) string.
++func structuralString(t Type) Type {
++	tpar, _ := t.(*TypeParam)
++	if tpar == nil {
++		return under(t) // string or untyped string
++	}
++
++	var su Type
++	hasString := false
++	if tpar.underIs(func(u Type) bool {
++		if u == nil {
++			return false
++		}
++		if isString(u) {
++			u = NewSlice(universeByte)
++			hasString = true
++		}
++		if su != nil {
++			u = match(su, u)
++			if u == nil {
++				return false
++			}
++		}
++		// su == nil || match(su, u) != nil
++		su = u
++		return true
++	}) {
++		if hasString {
++			return Typ[String]
++		}
++		return su
++	}
++	return nil
++}

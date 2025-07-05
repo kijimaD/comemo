@@ -30,8 +30,108 @@ Date:   Thu Sep 17 09:55:23 2020 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  6 ------
  test/notinheap.go                        | 20 --------------------
  test/notinheap2.go                       | 26 ++++++++++++++++++++++++++
  3 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 55773641ed..834c1a8ee6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2068,12 +2068,6 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ok |= ctxStmt
+ 		n.Left = typecheck(n.Left, ctxType)
+ 		checkwidth(n.Left.Type)
+-		if n.Left.Type != nil && n.Left.Type.NotInHeap() && !n.Left.Name.Param.Alias && n.Left.Name.Param.Pragma&NotInHeap == 0 {
+-			// The type contains go:notinheap types, so it
+-			// must be marked as such (alternatively, we
+-			// could silently propagate go:notinheap).
+-			yyerror("type %v must be go:notinheap", n.Left.Type)
+-		}
+ 	}
+ 
+ 	t := n.Type
+diff --git a/test/notinheap.go b/test/notinheap.go
+index 5dd4997a65..2188a38a14 100644
+--- a/test/notinheap.go
++++ b/test/notinheap.go
+@@ -11,18 +11,6 @@ package p
+ //go:notinheap
+ type nih struct{}
+ 
+-// Types embedding notinheap types must be notinheap.
+-
+-type embed1 struct { // ERROR "must be go:notinheap"
+-	x nih
+-}
+-
+-type embed2 [1]nih // ERROR "must be go:notinheap"
+-
+-type embed3 struct { // ERROR "must be go:notinheap"
+-	x [1]nih
+-}
+-
+ type embed4 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
+ 
+ type embed5 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
+@@ -52,14 +40,6 @@ type t3 byte
+ //go:notinheap
+ type t4 rune
+ 
+-// Type aliases inherit the go:notinheap-ness of the type they alias.
+-type nihAlias = nih
+-
+-type embedAlias1 struct { // ERROR "must be go:notinheap"
+-	x nihAlias
+-}
+-type embedAlias2 [1]nihAlias // ERROR "must be go:notinheap"
+-
+ var sink interface{}
+ 
+ func i() {
+diff --git a/test/notinheap2.go b/test/notinheap2.go
+index 23d4b0ae77..100ed37b72 100644
+--- a/test/notinheap2.go
++++ b/test/notinheap2.go
+@@ -32,6 +32,25 @@ var y3 *[1]nih
+ var z []nih
+ var w []nih
+ var n int
++var sink interface{}
++
++type embed1 struct { // implicitly notinheap
++	x nih
++}
++
++type embed2 [1]nih // implicitly notinheap
++
++type embed3 struct { // implicitly notinheap
++	x [1]nih
++}
++
++// Type aliases inherit the go:notinheap-ness of the type they alias.
++type nihAlias = nih
++
++type embedAlias1 struct { // implicitly notinheap
++	x nihAlias
++}
++type embedAlias2 [1]nihAlias // implicitly notinheap
+ 
+ func g() {
+ 	y = new(nih)              // ERROR "can't be allocated in Go"
+@@ -39,6 +58,13 @@ func g() {
+ 	y3 = new([1]nih)          // ERROR "can't be allocated in Go"
+ 	z = make([]nih, 1)        // ERROR "can't be allocated in Go"
+ 	z = append(z, x)          // ERROR "can't be allocated in Go"
++
++	sink = new(embed1)      // ERROR "can't be allocated in Go"
++	sink = new(embed2)      // ERROR "can't be allocated in Go"
++	sink = new(embed3)      // ERROR "can't be allocated in Go"
++	sink = new(embedAlias1) // ERROR "can't be allocated in Go"
++	sink = new(embedAlias2) // ERROR "can't be allocated in Go"
++
+ 	// Test for special case of OMAKESLICECOPY
+ 	x := make([]nih, n) // ERROR "can't be allocated in Go"
+ 	copy(x, z)

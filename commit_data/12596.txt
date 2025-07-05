@@ -7,6 +7,20 @@ Date:   Mon Mar 12 22:42:55 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev, hectorchu
     https://golang.org/cl/5797077
-
+---
  src/pkg/runtime/sys_windows_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index c8402d70e6..041383ee89 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -137,7 +137,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	get_tls(CX)
+ 
+ 	// check that m exists
+-	MOVQ	m(BX), AX
++	MOVQ	m(CX), AX
+ 	CMPQ	AX, $0
+ 	JNE	2(PC)
+ 	CALL	runtime·badsignal(SB)

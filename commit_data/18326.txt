@@ -9,6 +9,24 @@ Date:   Wed Jan 22 13:30:12 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/55380044
-
+---
  src/pkg/runtime/msize.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 630cda2d43..85088fdf46 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -92,9 +92,9 @@ runtime·InitSizes(void)
+ 		// objects into the page, we might as well
+ 		// use just this size instead of having two
+ 		// different sizes.
+-		if(sizeclass > 1
+-		&& npages == runtime·class_to_allocnpages[sizeclass-1]
+-		&& allocsize/size == allocsize/runtime·class_to_size[sizeclass-1]) {
++		if(sizeclass > 1 &&
++			npages == runtime·class_to_allocnpages[sizeclass-1] &&
++			allocsize/size == allocsize/runtime·class_to_size[sizeclass-1]) {
+ 			runtime·class_to_size[sizeclass-1] = size;
+ 			continue;
+ 		}

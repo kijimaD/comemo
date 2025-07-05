@@ -8,8 +8,249 @@ Date:   Tue Sep 9 15:47:31 2008 -0700
     R=r
     OCL=15036
     CL=15036
-
+---
  src/cmd/6g/gen.c  |  9 +++++++++
  src/cmd/gc/go.y   | 19 ++++++-------------
  src/cmd/gc/walk.c | 54 +++++++++++++++++++++++++++++++++++++++++++-----------
  3 files changed, 58 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index d2caaca39c..dbdafd6127 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -244,6 +244,9 @@ loop:
+ 		continpc = pc;
+ 		gen(n->nincr, L);				// contin:	incr
+ 		patch(p1, pc);				// test:
++		if(n->ntest != N)
++			if(n->ntest->ninit != N)
++				gen(n->ntest->ninit, L);
+ 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
+ 		if(labloop != L) {
+ 			labloop->op = OFOR;
+@@ -261,6 +264,9 @@ loop:
+ 		p1 = gbranch(AJMP, T);			//		goto test
+ 		p2 = gbranch(AJMP, T);			// p2:		goto else
+ 		patch(p1, pc);				// test:
++		if(n->ntest != N)
++			if(n->ntest->ninit != N)
++				gen(n->ntest->ninit, L);
+ 		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
+ 		gen(n->nbody, L);			//		then
+ 		p3 = gbranch(AJMP, T);			//		goto done
+@@ -522,6 +528,9 @@ swgen(Node *n)
+ 
+ 	patch(p1, pc);
+ 
++	if(n->ntest != N)
++		if(n->ntest->ninit != N)
++			gen(n->ntest->ninit, L);
+ 	tempname(&tmp, n->ntest->type);
+ 	cgen(n->ntest, &tmp);
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index be5d0867fc..ac806cc6ff 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -250,7 +250,7 @@ Bvardcl:
+ 	}
+ |	new_name '=' expr
+ 	{
+-		walktype($3, Erv);	// this is a little harry
++		gettype($3);
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+ 		$$ = nod(OAS, $1, $3);
+@@ -260,7 +260,7 @@ constdcl:
+ 	new_name type '=' expr
+ 	{
+ 		Node *c = treecopy($4);
+-		walktype(c, Erv);
++		gettype(c);
+ 		convlit(c, $2);
+ 		dodclconst($1, c);
+ 
+@@ -270,7 +270,7 @@ constdcl:
+ |	new_name '=' expr
+ 	{
+ 		Node *c = treecopy($3);
+-		walktype(c, Erv);
++		gettype(c);
+ 		dodclconst($1, c);
+ 
+ 		lastconst = $3;
+@@ -282,7 +282,7 @@ constdcl1:
+ |	new_name type
+ 	{
+ 		Node *c = treecopy(lastconst);
+-		walktype(c, Erv);
++		gettype(c);
+ 		convlit(c, $2);
+ 		dodclconst($1, c);
+ 
+@@ -291,7 +291,7 @@ constdcl1:
+ |	new_name
+ 	{
+ 		Node *c = treecopy(lastconst);
+-		walktype(c, Erv);
++		gettype(c);
+ 		dodclconst($1, c);
+ 
+ 		iota += 1;
+@@ -346,6 +346,7 @@ noninc_stmt:
+ |	expr_list LCOLAS expr_list
+ 	{
+ 		$$ = nod(OAS, colas($1, $3), $3);
++		addtotop($$);
+ 	}
+ |	LPRINT '(' oexpr_list ')'
+ 	{
+@@ -379,23 +380,17 @@ complex_stmt:
+ 		popdcl();
+ 		$$ = $2;
+ 		$$->op = OSWITCH;
+-		//if($$->ninit != N && $$->ntest == N)
+-		//	yyerror("switch expression should not be missing");
+ 	}
+ |	LIF if_stmt
+ 	{
+ 		popdcl();
+ 		$$ = $2;
+-		//if($$->ninit != N && $$->ntest == N)
+-		//	yyerror("if conditional should not be missing");
+ 	}
+ |	LIF if_stmt LELSE else_stmt1
+ 	{
+ 		popdcl();
+ 		$$ = $2;
+ 		$$->nelse = $4;
+-		//if($$->ninit != N && $$->ntest == N)
+-		//	yyerror("if conditional should not be missing");
+ 	}
+ |	LSELECT select_stmt
+ 	{
+@@ -453,8 +448,6 @@ semi_stmt:
+ 		popdcl();
+ 		$$ = $2;
+ 		$$->nelse = $4;
+-		//if($$->ninit != N && $$->ntest == N)
+-		//	yyerror("if conditional should not be missing");
+ 	}
+ 
+ compound_stmt:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 37c3ccd742..8c26ac932f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -13,18 +13,48 @@ static	Node*	addtop;
+ void
+ walk(Node *fn)
+ {
+-	if(debug['W'])
+-		dump("fn-before", fn->nbody);
++	char s[50];
++
+ 	curfn = fn;
++	if(debug['W']) {
++		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
++		dump(s, fn->nbody);
++	}
+ 	walkstate(fn->nbody);
++	if(debug['W']) {
++		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
++		dump(s, fn->nbody);
++	}
++}
++
++void
++addtotop(Node *n)
++{
++	Node *l;
++
++	while(addtop != N) {
++		l = addtop;
++		addtop = N;
++		walktype(l, Etop);
++		n->ninit = list(n->ninit, l);
++	}
++}
++
++void
++gettype(Node *n)
++{
+ 	if(debug['W'])
+-		dump("fn", fn->nbody);
++		dump("\nbefore gettype", n);
++	walktype(n, Erv);
++	addtotop(n);
++	if(debug['W'])
++		dump("after gettype", n);
+ }
+ 
+ void
+ walkstate(Node *n)
+ {
+-	Node *l, *more;
++	Node *more;
+ 
+ loop:
+ 	if(n == N)
+@@ -69,12 +99,7 @@ loop:
+ 		break;
+ 	}
+ 
+-	while(addtop != N) {
+-		l = addtop;
+-		addtop = N;
+-		walktype(l, Etop);
+-		n->ninit = list(n->ninit, l);
+-	}
++	addtotop(n);
+ 
+ 	if(more != N) {
+ 		n = more;
+@@ -227,8 +252,8 @@ loop:
+ 			goto nottop;
+ 		walkstate(n->ninit);
+ 		walkbool(n->ntest);
+-		walkstate(n->nelse);
+ 		walkstate(n->nbody);
++		walkstate(n->nelse);
+ 		goto ret;
+ 
+ 	case OPROC:
+@@ -307,6 +332,9 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 
++		addtop = list(addtop, n->ninit);
++		n->ninit = N;
++
+ 		l = n->left;
+ 		r = n->right;
+ 		walktype(l, Elv);
+@@ -948,6 +976,7 @@ void
+ walkbool(Node *n)
+ {
+ 	walktype(n, Erv);
++	addtotop(n);
+ 	if(n != N && n->type != T)
+ 		if(!eqtype(n->type, types[TBOOL], 0))
+ 			yyerror("IF and FOR require a boolean type");
+@@ -1545,6 +1574,8 @@ loop:
+ 	w = whatis(l);
+ 	switch(w) {
+ 	default:
++		if(l->type == T)
++			goto out;
+ 		if(!isptr[l->type->etype]) {
+ 			badtype(n->op, l->type, T);
+ 			l = listnext(&save);
+@@ -1588,6 +1619,7 @@ loop:
+ 	else
+ 		r = list(r, nod(OCALL, on, l));
+ 
++out:
+ 	l = listnext(&save);
+ 	goto loop;
+ }

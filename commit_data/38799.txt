@@ -18,8 +18,89 @@ Date:   Mon Dec 5 15:41:04 2016 -0800
     Change-Id: Idae792a23264bd9a3507db6ba49b6d591a608e83
     Reviewed-on: https://go-review.googlesource.com/c/33909
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go  | 18 ++++++++++++++++++
  src/cmd/compile/internal/ssa/nilcheck.go |  2 +-
  test/run.go                              | 13 +++++++++++++
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 96bc5f03c1..29618e29c3 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -8,7 +8,9 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"hash/crc32"
+ 	"log"
++	"math/rand"
+ 	"os"
+ 	"regexp"
+ 	"runtime"
+@@ -29,6 +31,11 @@ func Compile(f *Func) {
+ 		f.Logf("compiling %s\n", f.Name)
+ 	}
+ 
++	var rnd *rand.Rand
++	if checkEnabled {
++		rnd = rand.New(rand.NewSource(int64(crc32.ChecksumIEEE(([]byte)(f.Name)))))
++	}
++
+ 	// hook to print function & phase if panic happens
+ 	phaseName := "init"
+ 	defer func() {
+@@ -68,6 +75,17 @@ func Compile(f *Func) {
+ 			runtime.ReadMemStats(&mStart)
+ 		}
+ 
++		if checkEnabled && !f.scheduled {
++			// Test that we don't depend on the value order, by randomizing
++			// the order of values in each block. See issue 18169.
++			for _, b := range f.Blocks {
++				for i := 0; i < len(b.Values)-1; i++ {
++					j := i + rnd.Intn(len(b.Values)-i)
++					b.Values[i], b.Values[j] = b.Values[j], b.Values[i]
++				}
++			}
++		}
++
+ 		tStart := time.Now()
+ 		p.fn(f)
+ 		tEnd := time.Now()
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index e0669cf80c..5f58e2d7ec 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -290,6 +290,6 @@ func nilcheckelim2(f *Func) {
+ 		b.Values = b.Values[:i]
+ 
+ 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
+-		// more unnecessary nil checks.  Would fix test/nilptr3_ssa.go:157.
++		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.
+ 	}
+ }
+diff --git a/test/run.go b/test/run.go
+index 39647d7252..e7976657de 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -559,6 +559,19 @@ func (t *test) run() {
+ 		}
+ 		args = args[1:]
+ 	}
++	if action == "errorcheck" {
++		found := false
++		for i, f := range flags {
++			if strings.HasPrefix(f, "-d=") {
++				flags[i] = f + ",ssa/check/on"
++				found = true
++				break
++			}
++		}
++		if !found {
++			flags = append(flags, "-d=ssa/check/on")
++		}
++	}
+ 
+ 	t.makeTempDir()
+ 	if !*keep {

@@ -7,6 +7,19 @@ Date:   Tue Jul 26 11:30:11 2011 -0700
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4815062
-
+---
  src/pkg/http/fs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 4a514beb0b..bd5ff8bc68 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -78,6 +78,7 @@ func isText(b []byte) bool {
+ }
+ 
+ func dirList(w ResponseWriter, f File) {
++	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+ 	fmt.Fprintf(w, "<pre>\n")
+ 	for {
+ 		dirs, err := f.Readdir(100)

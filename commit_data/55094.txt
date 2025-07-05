@@ -20,6 +20,23 @@ Date:   Wed Dec 21 22:24:05 2022 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/testing/testing.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index acd28667c2..fc34cbf28b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -13,8 +13,9 @@
+ //
+ // Within these functions, use the Error, Fail or related methods to signal failure.
+ //
+-// To write a new test suite, create a file whose name ends _test.go that
+-// contains the TestXxx functions as described here.
++// To write a new test suite, create a file that
++// contains the TestXxx functions as described here,
++// and give that file a name ending in "_test.go".
+ // The file will be excluded from regular
+ // package builds but will be included when the "go test" command is run.
+ //

@@ -19,7 +19,7 @@ Date:   Fri Feb 19 05:22:35 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/294069
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s     | 2 +-
  src/runtime/asm_amd64.s   | 2 +-
  src/runtime/asm_arm.s     | 2 +-
@@ -30,3 +30,121 @@ Date:   Fri Feb 19 05:22:35 2021 -0500
  src/runtime/asm_riscv64.s | 2 +-
  src/runtime/asm_s390x.s   | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5b0852f780..5cf6827c21 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -618,7 +618,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+ 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
+ 	TESTL	AX, AX
+ 	JZ	2(PC)
+-	CALL	runtime·badctxt(SB)
++	CALL	runtime·abort(SB)
+ 	POPL	BX
+ 	POPL	AX
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a68dc72ae5..517c5a9d3e 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -677,7 +677,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+ 	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
+ 	TESTQ	R9, R9
+ 	JZ	2(PC)
+-	CALL	runtime·badctxt(SB)
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index f9535bb1bc..9896ab4383 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -536,7 +536,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	(g_sched+gobuf_ctxt)(g), R11
+ 	TST	R11, R11
+ 	B.EQ	2(PC)
+-	BL	runtime·badctxt(SB)
++	BL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 699fc99d58..3709f1d95e 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -875,7 +875,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R0
+ 	CBZ	R0, 2(PC)
+-	CALL	runtime·badctxt(SB)
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index c123e96a71..cee4b528bb 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -415,7 +415,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Assert ctxt is zero. See func save.
+ 	MOVV	(g_sched+gobuf_ctxt)(g), R1
+ 	BEQ	R1, 2(PC)
+-	JAL	runtime·badctxt(SB)
++	JAL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 0c7d28dcf7..17fbc902c2 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -413,7 +413,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Assert ctxt is zero. See func save.
+ 	MOVW	(g_sched+gobuf_ctxt)(g), R1
+ 	BEQ	R1, 2(PC)
+-	JAL	runtime·badctxt(SB)
++	JAL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 56e73742ea..6544048497 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -547,7 +547,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R31
+ 	CMP	R0, R31
+ 	BEQ	2(PC)
+-	BL	runtime·badctxt(SB)
++	BL	runtime·abort(SB)
+ 	RET
+ 
+ #ifdef GOOS_aix
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 30f2bd2e4a..d8d5252ed5 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -310,7 +310,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Assert ctxt is zero. See func save.
+ 	MOV	(g_sched+gobuf_ctxt)(g), X31
+ 	BEQ	ZERO, X31, 2(PC)
+-	CALL	runtime·badctxt(SB)
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index f9fb1a4c55..4748e00aa8 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -511,7 +511,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R1
+ 	CMPBEQ	R1, $0, 2(PC)
+-	BL	runtime·badctxt(SB)
++	BL	runtime·abort(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32

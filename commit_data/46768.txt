@@ -12,7 +12,7 @@ Date:   Fri Jan 22 22:53:47 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go        |   1 -
  src/cmd/compile/internal/ssa/config.go         |   8 -
  src/cmd/compile/internal/ssa/decompose.go      |   4 -
@@ -24,3 +24,882 @@ Date:   Fri Jan 22 22:53:47 2021 -0500
  src/cmd/compile/internal/ssa/rewritedecArgs.go | 247 -------------------------
  src/cmd/compile/internal/ssagen/ssa.go         | 211 +++++----------------
  10 files changed, 63 insertions(+), 513 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 63994d1778..c267274366 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -431,7 +431,6 @@ var passes = [...]pass{
+ 	{name: "early copyelim", fn: copyelim},
+ 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
+ 	{name: "short circuit", fn: shortcircuit},
+-	{name: "decompose args", fn: decomposeArgs, required: !go116lateCallExpansion, disabled: go116lateCallExpansion}, // handled by late call lowering
+ 	{name: "decompose user", fn: decomposeUser, required: true},
+ 	{name: "pre-opt deadcode", fn: deadcode},
+ 	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 8dc2ee8213..e952c73d9b 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -179,14 +179,6 @@ type Frontend interface {
+ 	MyImportPath() string
+ }
+ 
+-const go116lateCallExpansion = true
+-
+-// LateCallExpansionEnabledWithin returns true if late call expansion should be tested
+-// within compilation of a function/method.
+-func LateCallExpansionEnabledWithin(f *Func) bool {
+-	return go116lateCallExpansion
+-}
+-
+ // NewConfig returns a new configuration object for the given architecture.
+ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+ 	c := &Config{arch: arch, Types: types}
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index bf7f1e826b..ea988e44f6 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -219,10 +219,6 @@ func decomposeInterfacePhi(v *Value) {
+ 	v.AddArg(data)
+ }
+ 
+-func decomposeArgs(f *Func) {
+-	applyRewrite(f, rewriteBlockdecArgs, rewriteValuedecArgs, removeDeadValues)
+-}
+-
+ func decomposeUser(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index af994d4b5b..d89d743703 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -42,9 +42,6 @@ func expandCalls(f *Func) {
+ 
+ 	// With the current ABI, the outputs need to be converted to loads, which will all use the call's
+ 	// memory output as their input.
+-	if !LateCallExpansionEnabledWithin(f) {
+-		return
+-	}
+ 	debug := f.pass.debug > 0
+ 
+ 	if debug {
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index 9297ed8d2e..b0f10d0a0f 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -42,20 +42,20 @@
+ 		(Store {hi.Type} dst hi mem))
+ 
+ // These are not enabled during decomposeBuiltin if late call expansion, but they are always enabled for softFloat
+-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
++(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+   (Int64Make
+     (Arg <typ.Int32> {n} [off+4])
+     (Arg <typ.UInt32> {n} [off]))
+-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")  =>
++(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")  =>
+   (Int64Make
+     (Arg <typ.UInt32> {n} [off+4])
+     (Arg <typ.UInt32> {n} [off]))
+ 
+-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
++(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+   (Int64Make
+     (Arg <typ.Int32> {n} [off])
+     (Arg <typ.UInt32> {n} [off+4]))
+-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin") =>
++(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+   (Int64Make
+     (Arg <typ.UInt32> {n} [off])
+     (Arg <typ.UInt32> {n} [off+4]))
+diff --git a/src/cmd/compile/internal/ssa/gen/decArgs.rules b/src/cmd/compile/internal/ssa/gen/decArgs.rules
+deleted file mode 100644
+index 1c9a0bb23d..0000000000
+--- a/src/cmd/compile/internal/ssa/gen/decArgs.rules
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Decompose compound argument values
+-// Do this early to simplify tracking names for debugging.
+-
+-(Arg {n} [off]) && v.Type.IsString() =>
+-  (StringMake
+-    (Arg <typ.BytePtr> {n} [off])
+-    (Arg <typ.Int> {n} [off+int32(config.PtrSize)]))
+-
+-(Arg {n} [off]) && v.Type.IsSlice() =>
+-  (SliceMake
+-    (Arg <v.Type.Elem().PtrTo()> {n} [off])
+-    (Arg <typ.Int> {n} [off+int32(config.PtrSize)])
+-    (Arg <typ.Int> {n} [off+2*int32(config.PtrSize)]))
+-
+-(Arg {n} [off]) && v.Type.IsInterface() =>
+-  (IMake
+-    (Arg <typ.Uintptr> {n} [off])
+-    (Arg <typ.BytePtr> {n} [off+int32(config.PtrSize)]))
+-
+-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 =>
+-  (ComplexMake
+-    (Arg <typ.Float64> {n} [off])
+-    (Arg <typ.Float64> {n} [off+8]))
+-
+-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 =>
+-  (ComplexMake
+-    (Arg <typ.Float32> {n} [off])
+-    (Arg <typ.Float32> {n} [off+4]))
+-
+-(Arg <t>) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
+-  (StructMake0)
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
+-  (StructMake1
+-    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
+-  (StructMake2
+-    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+-    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
+-  (StructMake3
+-    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+-    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))])
+-    (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
+-  (StructMake4
+-    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+-    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))])
+-    (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))])
+-    (Arg <t.FieldType(3)> {n} [off+int32(t.FieldOff(3))]))
+-
+-(Arg <t>) && t.IsArray() && t.NumElem() == 0 =>
+-  (ArrayMake0)
+-(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
+-  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
+diff --git a/src/cmd/compile/internal/ssa/gen/decArgsOps.go b/src/cmd/compile/internal/ssa/gen/decArgsOps.go
+deleted file mode 100644
+index b73d9d3976..0000000000
+--- a/src/cmd/compile/internal/ssa/gen/decArgsOps.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package main
+-
+-var decArgsOps = []opData{}
+-
+-var decArgsBlocks = []blockData{}
+-
+-func init() {
+-	archs = append(archs, arch{
+-		name:    "decArgs",
+-		ops:     decArgsOps,
+-		blocks:  decArgsBlocks,
+-		generic: true,
+-	})
+-}
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index c49bc8043e..60b727f45f 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -184,12 +184,12 @@ func rewriteValuedec64_OpArg(v *Value) bool {
+ 	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Arg {n} [off])
+-	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")
++	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+ 	// result: (Int64Make (Arg <typ.Int32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
+ 	for {
+ 		off := auxIntToInt32(v.AuxInt)
+ 		n := auxToSym(v.Aux)
+-		if !(is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")) {
++		if !(is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+ 			break
+ 		}
+ 		v.reset(OpInt64Make)
+@@ -203,12 +203,12 @@ func rewriteValuedec64_OpArg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Arg {n} [off])
+-	// cond: is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")
++	// cond: is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+ 	// result: (Int64Make (Arg <typ.UInt32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
+ 	for {
+ 		off := auxIntToInt32(v.AuxInt)
+ 		n := auxToSym(v.Aux)
+-		if !(is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")) {
++		if !(is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+ 			break
+ 		}
+ 		v.reset(OpInt64Make)
+@@ -222,12 +222,12 @@ func rewriteValuedec64_OpArg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Arg {n} [off])
+-	// cond: is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")
++	// cond: is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+ 	// result: (Int64Make (Arg <typ.Int32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
+ 	for {
+ 		off := auxIntToInt32(v.AuxInt)
+ 		n := auxToSym(v.Aux)
+-		if !(is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")) {
++		if !(is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+ 			break
+ 		}
+ 		v.reset(OpInt64Make)
+@@ -241,12 +241,12 @@ func rewriteValuedec64_OpArg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Arg {n} [off])
+-	// cond: is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")
++	// cond: is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+ 	// result: (Int64Make (Arg <typ.UInt32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
+ 	for {
+ 		off := auxIntToInt32(v.AuxInt)
+ 		n := auxToSym(v.Aux)
+-		if !(is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(go116lateCallExpansion && b.Func.pass.name == "decompose builtin")) {
++		if !(is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+ 			break
+ 		}
+ 		v.reset(OpInt64Make)
+diff --git a/src/cmd/compile/internal/ssa/rewritedecArgs.go b/src/cmd/compile/internal/ssa/rewritedecArgs.go
+deleted file mode 100644
+index 23ff417eee..0000000000
+--- a/src/cmd/compile/internal/ssa/rewritedecArgs.go
++++ /dev/null
+@@ -1,247 +0,0 @@
+-// Code generated from gen/decArgs.rules; DO NOT EDIT.
+-// generated with: cd gen; go run *.go
+-
+-package ssa
+-
+-func rewriteValuedecArgs(v *Value) bool {
+-	switch v.Op {
+-	case OpArg:
+-		return rewriteValuedecArgs_OpArg(v)
+-	}
+-	return false
+-}
+-func rewriteValuedecArgs_OpArg(v *Value) bool {
+-	b := v.Block
+-	config := b.Func.Config
+-	fe := b.Func.fe
+-	typ := &b.Func.Config.Types
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsString()
+-	// result: (StringMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.Int> {n} [off+int32(config.PtrSize)]))
+-	for {
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(v.Type.IsString()) {
+-			break
+-		}
+-		v.reset(OpStringMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v1.AuxInt = int32ToAuxInt(off + int32(config.PtrSize))
+-		v1.Aux = symToAux(n)
+-		v.AddArg2(v0, v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsSlice()
+-	// result: (SliceMake (Arg <v.Type.Elem().PtrTo()> {n} [off]) (Arg <typ.Int> {n} [off+int32(config.PtrSize)]) (Arg <typ.Int> {n} [off+2*int32(config.PtrSize)]))
+-	for {
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(v.Type.IsSlice()) {
+-			break
+-		}
+-		v.reset(OpSliceMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, v.Type.Elem().PtrTo())
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v1.AuxInt = int32ToAuxInt(off + int32(config.PtrSize))
+-		v1.Aux = symToAux(n)
+-		v2 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v2.AuxInt = int32ToAuxInt(off + 2*int32(config.PtrSize))
+-		v2.Aux = symToAux(n)
+-		v.AddArg3(v0, v1, v2)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsInterface()
+-	// result: (IMake (Arg <typ.Uintptr> {n} [off]) (Arg <typ.BytePtr> {n} [off+int32(config.PtrSize)]))
+-	for {
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(v.Type.IsInterface()) {
+-			break
+-		}
+-		v.reset(OpIMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
+-		v1.AuxInt = int32ToAuxInt(off + int32(config.PtrSize))
+-		v1.Aux = symToAux(n)
+-		v.AddArg2(v0, v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsComplex() && v.Type.Size() == 16
+-	// result: (ComplexMake (Arg <typ.Float64> {n} [off]) (Arg <typ.Float64> {n} [off+8]))
+-	for {
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
+-			break
+-		}
+-		v.reset(OpComplexMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Float64)
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Float64)
+-		v1.AuxInt = int32ToAuxInt(off + 8)
+-		v1.Aux = symToAux(n)
+-		v.AddArg2(v0, v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsComplex() && v.Type.Size() == 8
+-	// result: (ComplexMake (Arg <typ.Float32> {n} [off]) (Arg <typ.Float32> {n} [off+4]))
+-	for {
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpComplexMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Float32)
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Float32)
+-		v1.AuxInt = int32ToAuxInt(off + 4)
+-		v1.Aux = symToAux(n)
+-		v.AddArg2(v0, v1)
+-		return true
+-	}
+-	// match: (Arg <t>)
+-	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
+-	// result: (StructMake0)
+-	for {
+-		t := v.Type
+-		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
+-	// result: (StructMake1 (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]))
+-	for {
+-		t := v.Type
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake1)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(0)))
+-		v0.Aux = symToAux(n)
+-		v.AddArg(v0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
+-	// result: (StructMake2 (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]) (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))]))
+-	for {
+-		t := v.Type
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake2)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(0)))
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(1)))
+-		v1.Aux = symToAux(n)
+-		v.AddArg2(v0, v1)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
+-	// result: (StructMake3 (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]) (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))]) (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))]))
+-	for {
+-		t := v.Type
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake3)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(0)))
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(1)))
+-		v1.Aux = symToAux(n)
+-		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
+-		v2.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(2)))
+-		v2.Aux = symToAux(n)
+-		v.AddArg3(v0, v1, v2)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
+-	// result: (StructMake4 (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]) (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))]) (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))]) (Arg <t.FieldType(3)> {n} [off+int32(t.FieldOff(3))]))
+-	for {
+-		t := v.Type
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake4)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(0)))
+-		v0.Aux = symToAux(n)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(1)))
+-		v1.Aux = symToAux(n)
+-		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
+-		v2.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(2)))
+-		v2.Aux = symToAux(n)
+-		v3 := b.NewValue0(v.Pos, OpArg, t.FieldType(3))
+-		v3.AuxInt = int32ToAuxInt(off + int32(t.FieldOff(3)))
+-		v3.Aux = symToAux(n)
+-		v.AddArg4(v0, v1, v2, v3)
+-		return true
+-	}
+-	// match: (Arg <t>)
+-	// cond: t.IsArray() && t.NumElem() == 0
+-	// result: (ArrayMake0)
+-	for {
+-		t := v.Type
+-		if !(t.IsArray() && t.NumElem() == 0) {
+-			break
+-		}
+-		v.reset(OpArrayMake0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
+-	// result: (ArrayMake1 (Arg <t.Elem()> {n} [off]))
+-	for {
+-		t := v.Type
+-		off := auxIntToInt32(v.AuxInt)
+-		n := auxToSym(v.Aux)
+-		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpArrayMake1)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.Elem())
+-		v0.AuxInt = int32ToAuxInt(off)
+-		v0.Aux = symToAux(n)
+-		v.AddArg(v0)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteBlockdecArgs(b *Block) bool {
+-	switch b.Kind {
+-	}
+-	return false
+-}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e49a9716fe..99e0812645 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1803,7 +1803,7 @@ const shareDeferExits = false
+ // It returns a BlockRet block that ends the control flow. Its control value
+ // will be set to the final memory state.
+ func (s *state) exit() *ssa.Block {
+-	lateResultLowering := s.f.DebugTest && ssa.LateCallExpansionEnabledWithin(s.f)
++	lateResultLowering := s.f.DebugTest
+ 	if s.hasdefer {
+ 		if s.hasOpenDefers {
+ 			if shareDeferExits && s.lastDeferExit != nil && len(s.openDefers) == s.lastDeferCount {
+@@ -4628,7 +4628,6 @@ func (s *state) openDeferExit() {
+ 	s.lastDeferExit = deferExit
+ 	s.lastDeferCount = len(s.openDefers)
+ 	zeroval := s.constInt8(types.Types[types.TUINT8], 0)
+-	testLateExpansion := ssa.LateCallExpansionEnabledWithin(s.f)
+ 	// Test for and run defers in reverse order
+ 	for i := len(s.openDefers) - 1; i >= 0; i-- {
+ 		r := s.openDefers[i]
+@@ -4670,35 +4669,19 @@ func (s *state) openDeferExit() {
+ 		if r.rcvr != nil {
+ 			// rcvr in case of OCALLINTER
+ 			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
+-			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+ 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
+-			if testLateExpansion {
+-				callArgs = append(callArgs, v)
+-			} else {
+-				s.store(types.Types[types.TUINTPTR], addr, v)
+-			}
++			callArgs = append(callArgs, v)
+ 		}
+ 		for j, argAddrVal := range r.argVals {
+ 			f := getParam(r.n, j)
+-			pt := types.NewPtr(f.Type)
+ 			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
+-			if testLateExpansion {
+-				var a *ssa.Value
+-				if !TypeOK(f.Type) {
+-					a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
+-				} else {
+-					a = s.load(f.Type, argAddrVal)
+-				}
+-				callArgs = append(callArgs, a)
++			var a *ssa.Value
++			if !TypeOK(f.Type) {
++				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
+ 			} else {
+-				addr := s.constOffPtrSP(pt, argStart+f.Offset)
+-				if !TypeOK(f.Type) {
+-					s.move(f.Type, addr, argAddrVal)
+-				} else {
+-					argVal := s.load(f.Type, argAddrVal)
+-					s.storeType(f.Type, addr, argVal, 0, false)
+-				}
++				a = s.load(f.Type, argAddrVal)
+ 			}
++			callArgs = append(callArgs, a)
+ 		}
+ 		var call *ssa.Value
+ 		if r.closure != nil {
+@@ -4706,30 +4689,17 @@ func (s *state) openDeferExit() {
+ 			s.maybeNilCheckClosure(v, callDefer)
+ 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
+ 			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+-			if testLateExpansion {
+-				callArgs = append(callArgs, s.mem())
+-				call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, aux, codeptr, v, s.mem())
+-			}
++			callArgs = append(callArgs, s.mem())
++			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
++			call.AddArgs(callArgs...)
+ 		} else {
+ 			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults)
+-			if testLateExpansion {
+-				callArgs = append(callArgs, s.mem())
+-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				// Do a static call if the original call was a static function or method
+-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+-			}
++			callArgs = append(callArgs, s.mem())
++			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
++			call.AddArgs(callArgs...)
+ 		}
+ 		call.AuxInt = stksize
+-		if testLateExpansion {
+-			s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+-		} else {
+-			s.vars[memVar] = call
+-		}
++		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+ 		// Make sure that the stack slots with pointers are kept live
+ 		// through the call (which is a pre-emption point). Also, we will
+ 		// use the first call of the last defer exit to compute liveness
+@@ -4782,12 +4752,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 	}
+ 
+-	testLateExpansion := false
+ 	inRegisters := false
+ 
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
+-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+ 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+ 			fn := fn.(*ir.Name)
+ 			callee = fn
+@@ -4813,7 +4781,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
+ 		}
+ 		fn := fn.(*ir.SelectorExpr)
+-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+ 		var iclosure *ssa.Value
+ 		iclosure, rcvr = s.getClosureAndRcvr(fn)
+ 		if k == callNormal {
+@@ -4827,7 +4794,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 	var call *ssa.Value
+ 	if k == callDeferStack {
+-		testLateExpansion = ssa.LateCallExpansionEnabledWithin(s.f)
+ 		// Make a defer struct d on the stack.
+ 		t := deferstruct(stksize)
+ 		d := typecheck.TempAt(n.Pos(), s.curfn, t)
+@@ -4878,15 +4844,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
+ 		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults)
+-		if testLateExpansion {
+-			callArgs = append(callArgs, addr, s.mem())
+-			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+-			call.AddArgs(callArgs...)
+-		} else {
+-			arg0 := s.constOffPtrSP(types.Types[types.TUINTPTR], base.Ctxt.FixedFrameSize())
+-			s.store(types.Types[types.TUINTPTR], arg0, addr)
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+-		}
++		callArgs = append(callArgs, addr, s.mem())
++		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
++		call.AddArgs(callArgs...)
+ 		if stksize < int64(types.PtrSize) {
+ 			// We need room for both the call to deferprocStack and the call to
+ 			// the deferred function.
+@@ -4903,32 +4863,17 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// Write argsize and closure (args to newproc/deferproc).
+ 			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
+ 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)})
+-			if testLateExpansion {
+-				callArgs = append(callArgs, argsize)
+-			} else {
+-				addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+-				s.store(types.Types[types.TUINT32], addr, argsize)
+-			}
++			callArgs = append(callArgs, argsize)
+ 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
+-			if testLateExpansion {
+-				callArgs = append(callArgs, closure)
+-			} else {
+-				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(types.PtrSize))
+-				s.store(types.Types[types.TUINTPTR], addr, closure)
+-			}
++			callArgs = append(callArgs, closure)
+ 			stksize += 2 * int64(types.PtrSize)
+ 			argStart += 2 * int64(types.PtrSize)
+ 		}
+ 
+ 		// Set receiver (for interface calls).
+ 		if rcvr != nil {
+-			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+ 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
+-			if testLateExpansion {
+-				callArgs = append(callArgs, rcvr)
+-			} else {
+-				s.store(types.Types[types.TUINTPTR], addr, rcvr)
+-			}
++			callArgs = append(callArgs, rcvr)
+ 		}
+ 
+ 		// Write args.
+@@ -4939,7 +4884,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 		for i, n := range args {
+ 			f := t.Params().Field(i)
+-			ACArg, arg := s.putArg(n, f.Type, argStart+f.Offset, testLateExpansion)
++			ACArg, arg := s.putArg(n, f.Type, argStart+f.Offset)
+ 			ACArgs = append(ACArgs, ACArg)
+ 			callArgs = append(callArgs, arg)
+ 		}
+@@ -4950,20 +4895,12 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		switch {
+ 		case k == callDefer:
+ 			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
+-			if testLateExpansion {
+-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+-			}
++			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
++			call.AddArgs(callArgs...)
+ 		case k == callGo:
+ 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
+-			if testLateExpansion {
+-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+-			}
++			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
++			call.AddArgs(callArgs...)
+ 		case closure != nil:
+ 			// rawLoad because loading the code pointer from a
+ 			// closure is always safe, but IsSanitizerSafeAddr
+@@ -4971,40 +4908,24 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
+-			if testLateExpansion {
+-				aux := ssa.ClosureAuxCall(ACArgs, ACResults)
+-				call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
+-			}
++			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
++			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
++			call.AddArgs(callArgs...)
+ 		case codeptr != nil:
+-			if testLateExpansion {
+-				aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
+-				call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
+-			}
++			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
++			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
++			call.AddArgs(callArgs...)
+ 		case callee != nil:
+-			if testLateExpansion {
+-				aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
+-				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+-				call.AddArgs(callArgs...)
+-			} else {
+-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults), s.mem())
+-			}
++			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults)
++			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
++			call.AddArgs(callArgs...)
+ 		default:
+ 			s.Fatalf("bad call type %v %v", n.Op(), n)
+ 		}
+ 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
+ 	}
+-	if testLateExpansion {
+-		s.prevCall = call
+-		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+-	} else {
+-		s.vars[memVar] = call
+-	}
++	s.prevCall = call
++	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+ 	// Insert OVARLIVE nodes
+ 	for _, name := range n.KeepAlive {
+ 		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
+@@ -5033,16 +4954,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	fp := res.Field(0)
+ 	if returnResultAddr {
+ 		pt := types.NewPtr(fp.Type)
+-		if testLateExpansion {
+-			return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
+-		}
+-		return s.constOffPtrSP(pt, fp.Offset+base.Ctxt.FixedFrameSize())
++		return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
+ 	}
+ 
+-	if testLateExpansion {
+-		return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+-	}
+-	return s.load(n.Type(), s.constOffPtrSP(types.NewPtr(fp.Type), fp.Offset+base.Ctxt.FixedFrameSize()))
++	return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+ }
+ 
+ // maybeNilCheckClosure checks if a nil check of a closure is needed in some
+@@ -5458,7 +5373,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	s.prevCall = nil
+ 	// Write args to the stack
+ 	off := base.Ctxt.FixedFrameSize()
+-	testLateExpansion := ssa.LateCallExpansionEnabledWithin(s.f)
+ 	var ACArgs []ssa.Param
+ 	var ACResults []ssa.Param
+ 	var callArgs []*ssa.Value
+@@ -5468,12 +5382,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		off = types.Rnd(off, t.Alignment())
+ 		size := t.Size()
+ 		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
+-		if testLateExpansion {
+-			callArgs = append(callArgs, arg)
+-		} else {
+-			ptr := s.constOffPtrSP(t.PtrTo(), off)
+-			s.store(t, ptr, arg)
+-		}
++		callArgs = append(callArgs, arg)
+ 		off += size
+ 	}
+ 	off = types.Rnd(off, int64(types.RegSize))
+@@ -5489,15 +5398,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	// Issue call
+ 	var call *ssa.Value
+ 	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults)
+-	if testLateExpansion {
+ 		callArgs = append(callArgs, s.mem())
+ 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		call.AddArgs(callArgs...)
+ 		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+-	} else {
+-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+-		s.vars[memVar] = call
+-	}
+ 
+ 	if !returns {
+ 		// Finish block
+@@ -5513,24 +5417,15 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 
+ 	// Load results
+ 	res := make([]*ssa.Value, len(results))
+-	if testLateExpansion {
+-		for i, t := range results {
+-			off = types.Rnd(off, t.Alignment())
+-			if TypeOK(t) {
+-				res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
+-			} else {
+-				addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
+-				res[i] = s.rawLoad(t, addr)
+-			}
+-			off += t.Size()
+-		}
+-	} else {
+-		for i, t := range results {
+-			off = types.Rnd(off, t.Alignment())
+-			ptr := s.constOffPtrSP(types.NewPtr(t), off)
+-			res[i] = s.load(t, ptr)
+-			off += t.Size()
++	for i, t := range results {
++		off = types.Rnd(off, t.Alignment())
++		if TypeOK(t) {
++			res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
++		} else {
++			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
++			res[i] = s.rawLoad(t, addr)
+ 		}
++		off += t.Size()
+ 	}
+ 	off = types.Rnd(off, int64(types.PtrSize))
+ 
+@@ -5653,16 +5548,12 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ // putArg evaluates n for the purpose of passing it as an argument to a function and returns the corresponding Param for the call.
+ // If forLateExpandedCall is true, it returns the argument value to pass to the call operation.
+ // If forLateExpandedCall is false, then the value is stored at the specified stack offset, and the returned value is nil.
+-func (s *state) putArg(n ir.Node, t *types.Type, off int64, forLateExpandedCall bool) (ssa.Param, *ssa.Value) {
++func (s *state) putArg(n ir.Node, t *types.Type, off int64) (ssa.Param, *ssa.Value) {
+ 	var a *ssa.Value
+-	if forLateExpandedCall {
+-		if !TypeOK(t) {
+-			a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
+-		} else {
+-			a = s.expr(n)
+-		}
++	if !TypeOK(t) {
++		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
+ 	} else {
+-		s.storeArgWithBase(n, t, s.sp, off)
++		a = s.expr(n)
+ 	}
+ 	return ssa.Param{Type: t, Offset: int32(off)}, a
+ }

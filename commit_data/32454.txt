@@ -15,8 +15,89 @@ Date:   Tue Apr 25 08:46:00 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go   | 4 ++--
  src/cmd/compile/internal/gc/ssa.go    | 8 ++++++--
  src/cmd/compile/internal/gc/syntax.go | 4 +++-
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 7dee46a17c..bbdf19d110 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -91,7 +91,7 @@ func fninit(n []*Node) {
+ 	// (3)
+ 	a := nod(OIF, nil, nil)
+ 	a.Left = nod(OGT, gatevar, nodintconst(1))
+-	a.Likely = 1
++	a.SetLikely(true)
+ 	r = append(r, a)
+ 	// (3a)
+ 	a.Nbody.Set1(nod(ORETURN, nil, nil))
+@@ -101,7 +101,7 @@ func fninit(n []*Node) {
+ 	b.Left = nod(OEQ, gatevar, nodintconst(1))
+ 	// this actually isn't likely, but code layout is better
+ 	// like this: no JMP needed after the call.
+-	b.Likely = 1
++	b.SetLikely(true)
+ 	r = append(r, b)
+ 	// (4a)
+ 	b.Nbody.Set1(nod(OCALL, syslook("throwinit"), nil))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fe2756d25b..0d16ba715c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -733,11 +733,15 @@ func (s *state) stmt(n *Node) {
+ 		bThen := s.f.NewBlock(ssa.BlockPlain)
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 		var bElse *ssa.Block
++		var likely int8
++		if n.Likely() {
++			likely = 1
++		}
+ 		if n.Rlist.Len() != 0 {
+ 			bElse = s.f.NewBlock(ssa.BlockPlain)
+-			s.condBranch(n.Left, bThen, bElse, n.Likely)
++			s.condBranch(n.Left, bThen, bElse, likely)
+ 		} else {
+-			s.condBranch(n.Left, bThen, bEnd, n.Likely)
++			s.condBranch(n.Left, bThen, bEnd, likely)
+ 		}
+ 
+ 		s.startBlock(bThen)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5c3432cad1..bcc8df0af6 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -62,7 +62,6 @@ type Node struct {
+ 	Walkdef   uint8       // tracks state during typecheckdef; 2 == loop detected
+ 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
+ 	Initorder uint8
+-	Likely    int8 // likeliness of if statement
+ 	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
+ }
+ 
+@@ -93,6 +92,7 @@ const (
+ 	nodeAddable  // addressable
+ 	nodeUsed     // for variable/label declared and not used error
+ 	nodeHasCall  // expression contains a function call
++	nodeLikely   // if statement condition likely
+ )
+ 
+ func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
+@@ -112,6 +112,7 @@ func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
+ func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
+ func (n *Node) Used() bool                  { return n.flags&nodeUsed != 0 }
+ func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
++func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
+ 
+ func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
+ func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
+@@ -130,6 +131,7 @@ func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
+ func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
+ func (n *Node) SetUsed(b bool)                  { n.flags.set(nodeUsed, b) }
+ func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
++func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {

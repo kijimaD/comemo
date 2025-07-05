@@ -9,8 +9,86 @@ Date:   Thu Apr 5 20:35:54 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5992044
-
+---
  test/bench/garbage/parser.go |  2 --
  test/bench/garbage/stats.go  | 15 ++++++++++-----
  test/bench/garbage/tree2.go  |  8 +++++++-
  3 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/test/bench/garbage/parser.go b/test/bench/garbage/parser.go
+index d66281b6bf..b91e0248f5 100644
+--- a/test/bench/garbage/parser.go
++++ b/test/bench/garbage/parser.go
+@@ -195,7 +195,6 @@ var packages = []string{
+ 	"mime",
+ 	"net",
+ 	"os",
+-	"exp/signal",
+ 	"path",
+ 	"math/rand",
+ 	"reflect",
+@@ -215,7 +214,6 @@ var packages = []string{
+ 	"testing",
+ 	"testing/iotest",
+ 	"testing/quick",
+-	"testing/script",
+ 	"time",
+ 	"unicode",
+ 	"unicode/utf8",
+diff --git a/test/bench/garbage/stats.go b/test/bench/garbage/stats.go
+index cdcb32f9b6..6dc0aeb233 100644
+--- a/test/bench/garbage/stats.go
++++ b/test/bench/garbage/stats.go
+@@ -14,16 +14,21 @@ import (
+ func gcstats(name string, n int, t time.Duration) {
+ 	st := new(runtime.MemStats)
+ 	runtime.ReadMemStats(st)
+-	fmt.Printf("garbage.%sMem Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
+-	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t.Nanoseconds()/int64(n))
+-	fmt.Printf("garbage.%sLastPause 1 %d ns/op\n", name, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
+-	fmt.Printf("garbage.%sPause %d %d ns/op\n", name, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
++	nprocs := runtime.GOMAXPROCS(-1)
++	cpus := ""
++	if nprocs != 1 {
++		cpus = fmt.Sprintf("-%d", nprocs)
++	}
++	fmt.Printf("garbage.%sMem%s Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, cpus, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
++	fmt.Printf("garbage.%s%s %d %d ns/op\n", name, cpus, n, t.Nanoseconds()/int64(n))
++	fmt.Printf("garbage.%sLastPause%s 1 %d ns/op\n", name, cpus, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
++	fmt.Printf("garbage.%sPause%s %d %d ns/op\n", name, cpus, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
+ 	nn := int(st.NumGC)
+ 	if nn >= len(st.PauseNs) {
+ 		nn = len(st.PauseNs)
+ 	}
+ 	t1, t2, t3, t4, t5 := tukey5(st.PauseNs[0:nn])
+-	fmt.Printf("garbage.%sPause5: %d %d %d %d %d\n", name, t1, t2, t3, t4, t5)
++	fmt.Printf("garbage.%sPause5%s: %d %d %d %d %d\n", name, cpus, t1, t2, t3, t4, t5)
+ 
+ 	//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
+ }
+diff --git a/test/bench/garbage/tree2.go b/test/bench/garbage/tree2.go
+index 3db0a0ba3c..a171c696bb 100644
+--- a/test/bench/garbage/tree2.go
++++ b/test/bench/garbage/tree2.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -83,7 +84,12 @@ func main() {
+ 		pprof.StartCPUProfile(f)
+ 		defer pprof.StopCPUProfile()
+ 	}
+-	for i := 0; i < 10; i++ {
++	const N = 10
++	var t0 time.Time
++	for i := 0; i < N; i++ {
++		t0 = time.Now()
+ 		gc()
+ 	}
++	// Standard gotest benchmark output, collected by build dashboard.
++	gcstats("BenchmarkTree2", N, time.Now().Sub(t0))
+ }

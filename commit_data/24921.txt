@@ -7,6 +7,16 @@ Date:   Wed Sep 9 10:54:33 2015 -0700
     Change-Id: I33c0425361c98b175d8d87e0f7e44946bfb3e3fa
     Reviewed-on: https://go-review.googlesource.com/14440
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 9f138bfef7..7308b6fc91 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -10,3 +10,4 @@ API additions and behavior changes:
+ 
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
++text/template: trimming spaces (https://golang.org/cl/14391/)

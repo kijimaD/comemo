@@ -18,6 +18,25 @@ Date:   Fri Jan 27 22:49:46 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  misc/wasm/wasm_exec_node.js | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec_node.js b/misc/wasm/wasm_exec_node.js
+index 90905db115..986069087b 100644
+--- a/misc/wasm/wasm_exec_node.js
++++ b/misc/wasm/wasm_exec_node.js
+@@ -16,12 +16,7 @@ globalThis.TextDecoder = require("util").TextDecoder;
+ 
+ globalThis.performance ??= require("performance");
+ 
+-const crypto = require("crypto");
+-globalThis.crypto = {
+-	getRandomValues(b) {
+-		crypto.randomFillSync(b);
+-	},
+-};
++globalThis.crypto ??= require("crypto");
+ 
+ require("./wasm_exec");
+ 

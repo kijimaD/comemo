@@ -19,7 +19,7 @@ Date:   Sun Nov 8 15:18:35 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/objw/objw.go                      | 7 +++++++
  src/cmd/compile/internal/reflectdata/reflect.go            | 2 +-
  src/cmd/internal/obj/data.go                               | 7 +++++++
@@ -31,3 +31,171 @@ Date:   Sun Nov 8 15:18:35 2020 -0500
  src/runtime/iface.go                                       | 7 +++++++
  src/runtime/type.go                                        | 2 +-
  10 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/objw/objw.go b/src/cmd/compile/internal/objw/objw.go
+index 50ce7b747d..ed5ad754d9 100644
+--- a/src/cmd/compile/internal/objw/objw.go
++++ b/src/cmd/compile/internal/objw/objw.go
+@@ -46,6 +46,13 @@ func SymPtr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 	return off
+ }
+ 
++func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
++	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
++	s.WriteWeakAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
++	off += types.PtrSize
++	return off
++}
++
+ func SymPtrOff(s *obj.LSym, off int, x *obj.LSym) int {
+ 	s.WriteOff(base.Ctxt, int64(off), x, 0)
+ 	off += 4
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 0e1de35887..4c974ea324 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1338,7 +1338,7 @@ func WriteTabs() {
+ 		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
+ 		o += 4                                          // skip unused field
+ 		for _, fn := range genfun(i.t, i.itype) {
+-			o = objw.SymPtr(i.lsym, o, fn, 0) // method pointer for each method
++			o = objw.SymPtrWeak(i.lsym, o, fn, 0) // method pointer for each method
+ 		}
+ 		// Nothing writes static itabs, so they are read only.
+ 		objw.Global(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index f32e07acfe..bcba53c3a4 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -135,6 +135,13 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
+ 	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_ADDR)
+ }
+ 
++// WriteWeakAddr writes an address of size siz into s at offset off.
++// rsym and roff specify the relocation for the address.
++// This is a weak reference.
++func (s *LSym) WriteWeakAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_WEAKADDR)
++}
++
+ // WriteCURelativeAddr writes a pointer-sized address into s at offset off.
+ // rsym and roff specify the relocation for the address which will be
+ // resolved by the linker to an offset from the DW_AT_low_pc attribute of
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 217d8565f2..b241127b4e 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -258,6 +258,7 @@ const (
+ 	// reachable.
+ 	R_WEAK = -1 << 15
+ 
++	R_WEAKADDR    = R_WEAK | R_ADDR
+ 	R_WEAKADDROFF = R_WEAK | R_ADDROFF
+ )
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6de2d893ae..b909526de8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -306,6 +306,10 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+ 			}
+ 		case objabi.R_ADDR:
++			if weak && !ldr.AttrReachable(rs) {
++				// Redirect it to runtime.unreachableMethod, which will throw if called.
++				rs = syms.unreachableMethod
++			}
+ 			if target.IsExternal() {
+ 				nExtReloc++
+ 
+@@ -586,6 +590,9 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
+ 	case objabi.R_ADDR:
+ 		// set up addend for eventual relocation via outer symbol.
+ 		rs := ldr.ResolveABIAlias(r.Sym())
++		if r.Weak() && !ldr.AttrReachable(rs) {
++			rs = ctxt.ArchSyms.unreachableMethod
++		}
+ 		rs, off := FoldSubSymbolOffset(ldr, rs)
+ 		rr.Xadd = r.Add() + off
+ 		rr.Xsym = rs
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 33468b429c..9b04e2cddc 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -64,6 +64,9 @@ func (d *deadcodePass) init() {
+ 			}
+ 		}
+ 		names = append(names, *flagEntrySymbol)
++		// runtime.unreachableMethod is a function that will throw if called.
++		// We redirect unreachable methods to it.
++		names = append(names, "runtime.unreachableMethod")
+ 		if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
+ 			// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
+ 			// (see function buildinfo in data.go). They should normally be reachable from the
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d136cbad80..c80c29a6a8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -118,6 +118,8 @@ type ArchSyms struct {
+ 	Dynamic loader.Sym
+ 	DynSym  loader.Sym
+ 	DynStr  loader.Sym
++
++	unreachableMethod loader.Sym
+ }
+ 
+ // mkArchSym is a helper for setArchSyms, to set up a special symbol.
+@@ -142,6 +144,7 @@ func (ctxt *Link) setArchSyms() {
+ 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
+ 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
+ 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
++	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
+ 
+ 	if ctxt.IsPPC64() {
+ 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod4.go b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod4.go
+index 52ee2e3d86..4af47ad1fa 100644
+--- a/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod4.go
++++ b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod4.go
+@@ -10,6 +10,7 @@ package main
+ 
+ type T int
+ 
++//go:noinline
+ func (T) M() {}
+ 
+ type I interface{ M() }
+@@ -20,4 +21,5 @@ var pp *I
+ func main() {
+ 	p = new(T)  // use type T
+ 	pp = new(I) // use type I
++	*pp = *p    // convert T to I, build itab
+ }
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 02b18dabff..cd5fead999 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -553,3 +553,10 @@ var staticuint64s = [...]uint64{
+ 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+ 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+ }
++
++// The linker redirects a reference of a method that it determined
++// unreachable to a reference to this function, so it will throw if
++// ever called.
++func unreachableMethod() {
++	throw("unreachable method called. linker bug?")
++}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 18fc4bbfad..c0911b1dcb 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -262,7 +262,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 	if off == -1 {
+ 		// -1 is the sentinel value for unreachable code.
+ 		// See cmd/link/internal/ld/data.go:relocsym.
+-		return unsafe.Pointer(^uintptr(0))
++		return unsafe.Pointer(funcPC(unreachableMethod))
+ 	}
+ 	base := uintptr(unsafe.Pointer(t))
+ 	var md *moduledata

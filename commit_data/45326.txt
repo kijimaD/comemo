@@ -14,6 +14,20 @@ Date:   Tue Oct 20 13:36:57 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/cgi/host.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index cd42f4d921..eff67caf4e 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -45,7 +45,7 @@ var osDefaultInheritEnv = func() []string {
+ 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
+ 	case "irix":
+ 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
+-	case "solaris":
++	case "illumos", "solaris":
+ 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
+ 	case "windows":
+ 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}

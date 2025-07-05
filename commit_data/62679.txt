@@ -23,8 +23,139 @@ Date:   Tue Mar 25 10:29:22 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/poll/fd_windows.go      | 41 +++++++++++-------------------------
  src/internal/poll/fd_windows_test.go |  3 +--
  src/net/fd_windows.go                | 19 +++++++++++++----
  3 files changed, 28 insertions(+), 35 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 958edfbc0c..3c11ce5bb4 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -281,9 +281,9 @@ var logInitFD func(net string, fd *FD, err error)
+ // The net argument is a network name from the net package (e.g., "tcp"),
+ // or "file" or "console" or "dir".
+ // Set pollable to true if fd should be managed by runtime netpoll.
+-func (fd *FD) Init(net string, pollable bool) (string, error) {
++func (fd *FD) Init(net string, pollable bool) error {
+ 	if initErr != nil {
+-		return "", initErr
++		return initErr
+ 	}
+ 
+ 	switch net {
+@@ -299,32 +299,27 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 		"unix", "unixgram", "unixpacket":
+ 		fd.kind = kindNet
+ 	default:
+-		return "", errors.New("internal error: unknown network type " + net)
++		return errors.New("internal error: unknown network type " + net)
+ 	}
+ 	fd.isFile = fd.kind != kindNet
+ 
+ 	var err error
+ 	if pollable {
+-		// Only call init for a network socket.
+-		// This means that we don't add files to the runtime poller.
+-		// Adding files to the runtime poller can confuse matters
+-		// if the user is doing their own overlapped I/O.
+-		// See issue #21172.
++		// Note that the runtime poller will ignore I/O completion
++		// notifications not initiated by this package,
++		// so it is safe to add handles owned by the caller.
+ 		//
+-		// In general the code below avoids calling the execIO
+-		// function for non-network sockets. If some method does
+-		// somehow call execIO, then execIO, and therefore the
+-		// calling method, will return an error, because
+-		// fd.pd.runtimeCtx will be 0.
++		// If we could not add the handle to the runtime poller,
++		// assume the handle hasn't been opened for overlapped I/O.
+ 		err = fd.pd.init(fd)
+ 	}
+ 	if logInitFD != nil {
+ 		logInitFD(net, fd, err)
+ 	}
+-	if err != nil {
+-		return "", err
++	if !pollable || err != nil {
++		return err
+ 	}
+-	if pollable && (fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes) {
++	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
+ 		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+ 		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
+ 			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
+@@ -333,25 +328,13 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 			fd.skipSyncNotif = true
+ 		}
+ 	}
+-	// Disable SIO_UDP_CONNRESET behavior.
+-	// http://support.microsoft.com/kb/263823
+-	switch net {
+-	case "udp", "udp4", "udp6":
+-		ret := uint32(0)
+-		flag := uint32(0)
+-		size := uint32(unsafe.Sizeof(flag))
+-		err := syscall.WSAIoctl(fd.Sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+-		if err != nil {
+-			return "wsaioctl", err
+-		}
+-	}
+ 	fd.rop.mode = 'r'
+ 	fd.wop.mode = 'w'
+ 	fd.rop.fd = fd
+ 	fd.wop.fd = fd
+ 	fd.rop.runtimeCtx = fd.pd.runtimeCtx
+ 	fd.wop.runtimeCtx = fd.pd.runtimeCtx
+-	return "", nil
++	return nil
+ }
+ 
+ func (fd *FD) destroy() error {
+diff --git a/src/internal/poll/fd_windows_test.go b/src/internal/poll/fd_windows_test.go
+index 8bf92be7c3..87273c08ac 100644
+--- a/src/internal/poll/fd_windows_test.go
++++ b/src/internal/poll/fd_windows_test.go
+@@ -121,8 +121,7 @@ func TestWSASocketConflict(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
+-	_, err = fd.Init("tcp", true)
+-	if err != nil {
++	if err = fd.Init("tcp", true); err != nil {
+ 		syscall.CloseHandle(s)
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 5d7a1d54c3..f7609a7cfe 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -53,11 +53,22 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
+ }
+ 
+ func (fd *netFD) init() error {
+-	errcall, err := fd.pfd.Init(fd.net, true)
+-	if errcall != "" {
+-		err = wrapSyscallError(errcall, err)
++	if err := fd.pfd.Init(fd.net, true); err != nil {
++		return err
+ 	}
+-	return err
++	switch fd.net {
++	case "udp", "udp4", "udp6":
++		// Disable reporting of PORT_UNREACHABLE errors.
++		// See https://go.dev/issue/5834.
++		ret := uint32(0)
++		flag := uint32(0)
++		size := uint32(unsafe.Sizeof(flag))
++		err := syscall.WSAIoctl(fd.pfd.Sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
++		if err != nil {
++			return wrapSyscallError("wsaioctl", err)
++		}
++	}
++	return nil
+ }
+ 
+ // Always returns nil for connected peer address result.

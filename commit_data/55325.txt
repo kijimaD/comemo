@@ -12,6 +12,31 @@ Date:   Thu Jan 26 14:49:03 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-
+---
  src/runtime/mprof.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 24f88897d7..cf9e032981 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -844,18 +844,13 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
+ 	return goroutineProfileWithLabels(p, labels)
+ }
+ 
+-const go119ConcurrentGoroutineProfile = true
+-
+ // labels may be nil. If labels is non-nil, it must have the same length as p.
+ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+ 	if labels != nil && len(labels) != len(p) {
+ 		labels = nil
+ 	}
+ 
+-	if go119ConcurrentGoroutineProfile {
+-		return goroutineProfileWithLabelsConcurrent(p, labels)
+-	}
+-	return goroutineProfileWithLabelsSync(p, labels)
++	return goroutineProfileWithLabelsConcurrent(p, labels)
+ }
+ 
+ var goroutineProfile = struct {

@@ -7,8 +7,84 @@ Date:   Thu Jul 14 17:15:52 2011 -0400
     R=gri, ken, r
     CC=golang-dev
     https://golang.org/cl/4721044
-
+---
  doc/go_spec.html |  2 +-
  src/cmd/gc/go.y  |  3 +++
  test/if.go       | 14 +++++++++-----
  3 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 489ad4db36..9865238718 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3762,7 +3762,7 @@ present, the "else" branch is executed.
+ </p>
+ 
+ <pre class="ebnf">
+-IfStmt    = "if" [ SimpleStmt ";" ] Expression Block [ "else" Statement ] .
++IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
+ </pre>
+ 
+ <pre>
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 01a4e822fb..d3e363d370 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1462,6 +1462,9 @@ non_dcl_stmt:
+ 	}
+ |	if_stmt LELSE stmt
+ 	{
++		if($3->op != OIF && $3->op != OBLOCK)
++			yyerror("missing { } after else");
++
+ 		popdcl();
+ 		$$ = $1;
+ 		$$->nelse = list1($3);
+diff --git a/test/if.go b/test/if.go
+index c1bb69d277..18a6715d7e 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -53,25 +53,28 @@ func main() {
+ 	count = 0
+ 	if true {
+ 		count = count + 1
+-	} else
++	} else {
+ 		count = count - 1
++	}
+ 	assertequal(count, 1, "if else true")
+ 
+ 	count = 0
+ 	if false {
+ 		count = count + 1
+-	} else
++	} else {
+ 		count = count - 1
++	}
+ 	assertequal(count, -1, "if else false")
+ 
+ 	count = 0
+-	if t:=1; false {
++	if t := 1; false {
+ 		count = count + 1
+ 		_ = t
+ 		t := 7
+ 		_ = t
+-	} else
++	} else {
+ 		count = count - t
++	}
+ 	assertequal(count, -1, "if else false var")
+ 
+ 	count = 0
+@@ -80,8 +83,9 @@ func main() {
+ 		count = count + 1
+ 		t := 7
+ 		_ = t
+-	} else
++	} else {
+ 		count = count - t
++	}
+ 	_ = t
+ 	assertequal(count, -1, "if else false var outside")
+ }

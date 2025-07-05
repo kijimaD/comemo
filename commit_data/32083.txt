@@ -17,6 +17,22 @@ Date:   Mon Apr 3 10:00:02 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c21422ac65..ad81858186 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1965,7 +1965,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 					return s.newValue0(ssa.OpUnknown, n.Type)
+ 				}
+ 				i = s.extendIndex(i, panicindex)
+-				s.boundsCheck(i, s.constInt(Types[TINT], bound))
++				if !n.Bounded() {
++					s.boundsCheck(i, s.constInt(Types[TINT], bound))
++				}
+ 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
+ 			}
+ 			p := s.addr(n, false)

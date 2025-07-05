@@ -7,6 +7,20 @@ Date:   Wed Apr 22 17:42:41 2020 +0200
     Change-Id: Ie88ff3f0493f4119be25476a20038877e879c485
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229397
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/panic_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/panic_test.go b/src/runtime/panic_test.go
+index 45ffa9858b..b8a300f6b1 100644
+--- a/src/runtime/panic_test.go
++++ b/src/runtime/panic_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // Test that panics print out the underlying value
+ // when the underlying kind is directly printable.
+-// Issue: https://golang/go/issues/37531
++// Issue: https://golang.org/issues/37531
+ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
+ 	tests := []struct {
+ 		name            string

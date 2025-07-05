@@ -25,7 +25,41 @@ Date:   Fri Jul 10 05:20:20 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go           |  1 -
  src/runtime/runtime-gdb_test.go | 10 ++++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 28bee16a00..12010fff42 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -84,7 +84,6 @@ func TestMain(m *testing.M) {
+ 	// Don't let these environment variables confuse the test.
+ 	os.Unsetenv("GOBIN")
+ 	os.Unsetenv("GOPATH")
+-	os.Unsetenv("GOROOT")
+ 
+ 	r := m.Run()
+ 
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index f4014b2e05..a1c96bf134 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -98,6 +98,16 @@ func TestGdbPython(t *testing.T) {
+ 
+ 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
+ 	if string(firstLine) != "Loading Go Runtime support." {
++		// This can happen when using all.bash with
++		// GOROOT_FINAL set, because the tests are run before
++		// the final installation of the files.
++		cmd := exec.Command("go", "env", "GOROOT")
++		cmd.Env = []string{}
++		out, err := cmd.CombinedOutput()
++		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
++			t.Skipf("skipping because GOROOT=%s does not exist", runtime.GOROOT())
++		}
++
+ 		t.Fatalf("failed to load Go runtime support: %s", firstLine)
+ 	}
+ 

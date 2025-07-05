@@ -7,6 +7,31 @@ Date:   Mon Jul 22 20:08:58 2013 +0900
     R=dave
     CC=golang-dev
     https://golang.org/cl/11537044
-
+---
  src/pkg/net/ipraw_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 12c199d1cf..4f7d85aac7 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -266,7 +266,7 @@ func (m *icmpMessage) Marshal() ([]byte, error) {
+ 	s = s + s>>16
+ 	// Place checksum back in header; using ^= avoids the
+ 	// assumption the checksum bytes are zero.
+-	b[2] ^= byte(^s & 0xff)
++	b[2] ^= byte(^s)
+ 	b[3] ^= byte(^s >> 8)
+ 	return b, nil
+ }
+@@ -309,8 +309,8 @@ func (p *icmpEcho) Len() int {
+ // reply message body p.
+ func (p *icmpEcho) Marshal() ([]byte, error) {
+ 	b := make([]byte, 4+len(p.Data))
+-	b[0], b[1] = byte(p.ID>>8), byte(p.ID&0xff)
+-	b[2], b[3] = byte(p.Seq>>8), byte(p.Seq&0xff)
++	b[0], b[1] = byte(p.ID>>8), byte(p.ID)
++	b[2], b[3] = byte(p.Seq>>8), byte(p.Seq)
+ 	copy(b[4:], p.Data)
+ 	return b, nil
+ }

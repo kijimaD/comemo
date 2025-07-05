@@ -31,6 +31,29 @@ Date:   Tue Dec 4 15:15:27 2018 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb.py | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 510c08c286..4c32c633cf 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -528,11 +528,17 @@ class GoroutineCmd(gdb.Command):
+ 		save_frame = gdb.selected_frame()
+ 		gdb.parse_and_eval('$save_sp = $sp')
+ 		gdb.parse_and_eval('$save_pc = $pc')
++		# In GDB, assignments to sp must be done from the
++		# top-most frame, so select frame 0 first.
++		gdb.execute('select-frame 0')
+ 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
+ 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
+ 		try:
+ 			gdb.execute(cmd)
+ 		finally:
++			# In GDB, assignments to sp must be done from the
++			# top-most frame, so select frame 0 first.
++			gdb.execute('select-frame 0')
+ 			gdb.parse_and_eval('$sp = $save_sp')
+ 			gdb.parse_and_eval('$pc = $save_pc')
+ 			save_frame.select()

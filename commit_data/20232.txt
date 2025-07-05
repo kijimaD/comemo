@@ -8,7 +8,7 @@ Date:   Tue Aug 26 08:34:46 2014 +0200
     R=khr, josharian
     CC=golang-codereviews
     https://golang.org/cl/129510043
-
+---
  src/pkg/runtime/asm_386.s      |  6 ++++++
  src/pkg/runtime/asm_amd64.s    |  6 ++++++
  src/pkg/runtime/asm_amd64p32.s |  6 ++++++
@@ -18,3 +18,204 @@ Date:   Tue Aug 26 08:34:46 2014 +0200
  src/pkg/runtime/mprof.goc      | 33 ---------------------------------
  src/pkg/runtime/stubs.go       |  6 ++++++
  8 files changed, 72 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 741832b4da..198a468efe 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -860,6 +860,12 @@ TEXT runtime·getcallersp(SB), NOSPLIT, $0-4
+ 	MOVL	sp+0(FP), AX
+ 	RET
+ 
++// func gogetcallersp(p unsafe.Pointer) uintptr
++TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
++	MOVL	p+0(FP),AX		// addr of first arg
++	MOVL	AX, ret+4(FP)
++	RET
++
+ // int64 runtime·cputicks(void), so really
+ // void runtime·cputicks(int64 *ticks)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-4
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 3b63c56a35..c53e2d350e 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -946,6 +946,12 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
+ 	MOVQ	sp+0(FP), AX
+ 	RET
+ 
++// func gogetcallersp(p unsafe.Pointer) uintptr
++TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
++	MOVQ	p+0(FP),AX		// addr of first arg
++	MOVQ	AX, ret+8(FP)
++	RET
++
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 5c6a73ab99..4c039d7767 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -747,6 +747,12 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
+ 	MOVL	sp+0(FP), AX
+ 	RET
+ 
++// func gogetcallersp(p unsafe.Pointer) uintptr
++TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-12
++	MOVL	p+0(FP),AX		// addr of first arg
++	MOVL	AX, ret+8(FP)
++	RET
++
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 07b99262bb..551ba0c88c 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -644,6 +644,13 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
+ 	MOVW	$-4(R0), R0
+ 	RET
+ 
++// func gogetcallersp(p unsafe.Pointer) uintptr
++TEXT runtime·gogetcallersp(SB),NOSPLIT,$-4-8
++	MOVW	0(FP), R0
++	MOVW	$-4(R0), R0
++	MOVW	R0, ret+4(FP)
++	RET
++
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 393598c28a..af44a64741 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -133,9 +133,3 @@ type BlockProfileRecord struct {
+ 	Cycles int64
+ 	StackRecord
+ }
+-
+-// Stack formats a stack trace of the calling goroutine into buf
+-// and returns the number of bytes written to buf.
+-// If all is true, Stack formats stack traces of all other goroutines
+-// into buf after the trace for the current goroutine.
+-func Stack(buf []byte, all bool) int
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index 7c90c21c98..95ea1297ed 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -141,6 +141,47 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 	return
+ }
+ 
++// Stack formats a stack trace of the calling goroutine into buf
++// and returns the number of bytes written to buf.
++// If all is true, Stack formats stack traces of all other goroutines
++// into buf after the trace for the current goroutine.
++func Stack(buf []byte, all bool) int {
++	sp := gogetcallersp(unsafe.Pointer(&buf))
++	pc := gogetcallerpc(unsafe.Pointer(&buf))
++	mp := acquirem()
++	gp := mp.curg
++	if all {
++		semacquire(&worldsema, false)
++		mp.gcing = 1
++		releasem(mp)
++		stoptheworld()
++		if mp != acquirem() {
++			gothrow("Stack: rescheduled")
++		}
++	}
++
++	n := 0
++	if len(buf) > 0 {
++		gp.writebuf = &buf[0]
++		gp.writenbuf = int32(len(buf))
++		traceback(pc, sp, 0, gp)
++		if all {
++			tracebackothers(gp)
++		}
++		n = len(buf) - int(gp.writenbuf)
++		gp.writebuf = nil
++		gp.writenbuf = 0
++	}
++
++	if all {
++		mp.gcing = 0
++		semrelease(&worldsema)
++		starttheworld()
++	}
++	releasem(mp)
++	return n
++}
++
+ // ThreadCreateProfile returns n, the number of records in the thread creation profile.
+ // If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
+ // If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 57596b2231..a79081c72f 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -256,39 +256,6 @@ struct TRecord {
+ 	uintptr stk[32];
+ };
+ 
+-func Stack(b Slice, all bool) (n int) {
+-	uintptr pc, sp;
+-	
+-	sp = runtime·getcallersp(&b);
+-	pc = (uintptr)runtime·getcallerpc(&b);
+-
+-	if(all) {
+-		runtime·semacquire(&runtime·worldsema, false);
+-		g->m->gcing = 1;
+-		runtime·stoptheworld();
+-	}
+-
+-	if(b.len == 0)
+-		n = 0;
+-	else{
+-		g->writebuf = (byte*)b.array;
+-		g->writenbuf = b.len;
+-		runtime·goroutineheader(g);
+-		runtime·traceback(pc, sp, 0, g);
+-		if(all)
+-			runtime·tracebackothers(g);
+-		n = b.len - g->writenbuf;
+-		g->writebuf = nil;
+-		g->writenbuf = 0;
+-	}
+-	
+-	if(all) {
+-		g->m->gcing = 0;
+-		runtime·semrelease(&runtime·worldsema);
+-		runtime·starttheworld();
+-	}
+-}
+-
+ static void
+ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
+ {
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 6cabed063e..e3e14caab8 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -18,6 +18,9 @@ const (
+ //go:noescape
+ func gogetcallerpc(p unsafe.Pointer) uintptr
+ 
++//go:noescape
++func gogetcallersp(p unsafe.Pointer) uintptr
++
+ //go:noescape
+ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+ 
+@@ -212,3 +215,6 @@ func gonotetsleepg(n *note, t int64) {
+ }
+ 
+ func exitsyscall()
++
++func traceback(pc, sp, lr uintptr, gp *g)
++func tracebackothers(gp *g)

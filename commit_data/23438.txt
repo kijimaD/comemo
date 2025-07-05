@@ -7,7 +7,32 @@ Date:   Thu May 14 11:36:19 2015 -0700
     Change-Id: I392b0a0083d6bea80a65f9eef46dd06b02a70e1b
     Reviewed-on: https://go-review.googlesource.com/10082
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/eval_test.go | 1 -
  src/go/types/self_test.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index bc27a8bb23..36e1cb954e 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index e52c5afdc8..4ff4e4d4a8 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 

@@ -32,7 +32,34 @@ Date:   Fri Nov 11 21:44:01 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5369069
-
+---
  src/pkg/html/parse.go      | 2 ++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 6aef7e12ed..e609cce129 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -667,6 +667,8 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 		case "image":
+ 			p.tok.Data = "img"
+ 			return inBodyIM, false
++		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
++			// Ignore the token.
+ 		default:
+ 			// TODO.
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index c69bfa42ad..d783ee32c9 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+-		{"tests1.dat", 109},
++		{"tests1.dat", 111},
+ 		{"tests2.dat", 0},
+ 		{"tests3.dat", 0},
+ 	}

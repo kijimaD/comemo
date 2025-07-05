@@ -24,10 +24,230 @@ Date:   Mon Jun 7 17:51:51 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 38 ++++++++++++++++++++++++---
  src/internal/fuzz/fuzz.go                | 45 +++++++++++++++++++++++++++++---
  src/testing/fuzz.go                      | 14 +++++++++-
  src/testing/internal/testdeps/deps.go    |  4 +++
  src/testing/testing.go                   |  6 +++--
  5 files changed, 97 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 0b1b85f397..d3c7b4d55f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -131,6 +131,23 @@ stdout FAIL
+ ! stdout ^ok
+ stdout FAIL
+ 
++# Test that converting compatible value from f.Add successful runs cleanly.
++go test -run FuzzConvertType fuzz_add_test.go
++stdout ^ok
++! stdout FAIL
++
++# Test that converting incompatible value from f.Add fails.
++! go test -run FuzzConvertIncompatibleType fuzz_add_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test that converts value which would lose precision from f.Add.
++# Consider making a test like this fail, as it may have unexpected
++# consequences for the developer.
++go test -v -run FuzzConvertLosePrecision fuzz_add_test.go
++stdout ok
++! stdout FAIL
++
+ # Test fatal with testdata seed corpus
+ ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+@@ -344,19 +361,34 @@ func FuzzNilPanic(f *testing.F) {
+ func FuzzUnsupported(f *testing.F) {
+     m := make(map[string]bool)
+     f.Add(m)
+-    f.Fuzz(func(t *testing.T, b []byte) {})
++    f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+ func FuzzAddDifferentNumber(f *testing.F) {
+     f.Add([]byte("a"))
+     f.Add([]byte("a"), []byte("b"))
+-    f.Fuzz(func(t *testing.T, b []byte) {})
++    f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+ func FuzzAddDifferentType(f *testing.F) {
+     f.Add(false)
+     f.Add(1234)
+-    f.Fuzz(func(t *testing.T, b []byte) {})
++    f.Fuzz(func(*testing.T, []byte) {})
++}
++
++func FuzzConvertIncompatibleType(f *testing.F) {
++    f.Add("abcde")
++    f.Fuzz(func(*testing.T, int64) {})
++}
++
++func FuzzConvertLosePrecision(f *testing.F) {
++    f.Add(-1)
++    f.Fuzz(func(*testing.T, uint) {})
++}
++
++func FuzzConvertType(f *testing.F) {
++    f.Add(1, "hello")
++    f.Fuzz(func(*testing.T, uint, []byte) {})
+ }
+ 
+ -- corpustesting/fuzz_testdata_corpus_test.go --
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 929f78bb17..9ffa8beb16 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -727,15 +727,52 @@ func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unmarshal: %v", err)
+ 	}
++	if err = CheckCorpus(vals, types); err != nil {
++		return nil, err
++	}
++	return vals, nil
++}
++
++// CheckCorpus verifies that the types in vals match the expected types
++// provided. If not, attempt to convert them. If that's not possible, return an
++// error.
++func CheckCorpus(vals []interface{}, types []reflect.Type) error {
+ 	if len(vals) != len(types) {
+-		return nil, fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
++		return fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
+ 	}
+ 	for i := range types {
+-		if reflect.TypeOf(vals[i]) != types[i] {
+-			return nil, fmt.Errorf("mismatched types in corpus file: %v, want %v", vals, types)
++		orig := reflect.ValueOf(vals[i])
++		origType := orig.Type()
++		wantType := types[i]
++		if origType == wantType {
++			continue // already the same type
++		}
++		// Attempt to convert the corpus value to the expected type
++		if !origType.ConvertibleTo(wantType) {
++			return fmt.Errorf("cannot convert %v to %v", origType, wantType)
+ 		}
++		convertedVal, ok := convertToType(orig, wantType)
++		if !ok {
++			return fmt.Errorf("error converting %v to %v", origType, wantType)
++		}
++		// TODO: Check that the value didn't change.
++		// e.g. val went from int64(-1) -> uint(0) -> int64(0) which should fail
++
++		// Updates vals to use the newly converted value of the expected type.
++		vals[i] = convertedVal.Interface()
+ 	}
+-	return vals, nil
++	return nil
++}
++
++func convertToType(orig reflect.Value, t reflect.Type) (converted reflect.Value, ok bool) {
++	// Convert might panic even if ConvertibleTo returns true, so catch
++	// that panic and return false.
++	defer func() {
++		if r := recover(); r != nil {
++			ok = false
++		}
++	}()
++	return orig.Convert(t), true
+ }
+ 
+ // writeToCorpus atomically writes the given bytes to a new file in testdata.
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 9f0bb1ec50..b4c1ffcdd5 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -222,7 +222,7 @@ func (f *F) TempDir() string {
+ 
+ // Add will add the arguments to the seed corpus for the fuzz target. This will
+ // be a no-op if called after or within the Fuzz function. The args must match
+-// those in the Fuzz function.
++// or be convertible to those in the Fuzz function.
+ func (f *F) Add(args ...interface{}) {
+ 	var values []interface{}
+ 	for i := range args {
+@@ -291,6 +291,15 @@ func (f *F) Fuzz(ff interface{}) {
+ 		types = append(types, t)
+ 	}
+ 
++	// Check the corpus provided by f.Add
++	for _, c := range f.corpus {
++		if err := f.fuzzContext.checkCorpus(c.Values, types); err != nil {
++			// TODO: Is there a way to save which line number is associated
++			// with the f.Add call that failed?
++			f.Fatal(err)
++		}
++	}
++
+ 	// Load seed corpus
+ 	c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name), types)
+ 	if err != nil {
+@@ -470,6 +479,7 @@ type fuzzContext struct {
+ 	coordinateFuzzing func(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+ 	runFuzzWorker     func(func(corpusEntry) error) error
+ 	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
++	checkCorpus       func(vals []interface{}, types []reflect.Type) error
+ 	resetCoverage     func()
+ 	snapshotCoverage  func()
+ }
+@@ -487,6 +497,7 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
+ 	fctx := &fuzzContext{
+ 		importPath:       deps.ImportPath,
+ 		readCorpus:       deps.ReadCorpus,
++		checkCorpus:      deps.CheckCorpus,
+ 		resetCoverage:    deps.ResetCoverage,
+ 		snapshotCoverage: deps.SnapshotCoverage,
+ 	}
+@@ -543,6 +554,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 	fctx := &fuzzContext{
+ 		importPath:       deps.ImportPath,
+ 		readCorpus:       deps.ReadCorpus,
++		checkCorpus:      deps.CheckCorpus,
+ 		resetCoverage:    deps.ResetCoverage,
+ 		snapshotCoverage: deps.SnapshotCoverage,
+ 	}
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 01390f51d3..c612355a00 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -186,6 +186,10 @@ func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry
+ 	return fuzz.ReadCorpus(dir, types)
+ }
+ 
++func (TestDeps) CheckCorpus(vals []interface{}, types []reflect.Type) error {
++	return fuzz.CheckCorpus(vals, types)
++}
++
+ func (TestDeps) ResetCoverage() {
+ 	fuzz.ResetCoverage()
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 82b422a414..fa92dbb005 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1463,8 +1463,9 @@ func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return e
+ func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
+ 	return nil, errMain
+ }
+-func (f matchStringOnly) ResetCoverage()    {}
+-func (f matchStringOnly) SnapshotCoverage() {}
++func (f matchStringOnly) CheckCorpus([]interface{}, []reflect.Type) error { return nil }
++func (f matchStringOnly) ResetCoverage()                                  {}
++func (f matchStringOnly) SnapshotCoverage()                               {}
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1510,6 +1511,7 @@ type testDeps interface {
+ 	CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+ 	RunFuzzWorker(func(corpusEntry) error) error
+ 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
++	CheckCorpus([]interface{}, []reflect.Type) error
+ 	ResetCoverage()
+ 	SnapshotCoverage()
+ }

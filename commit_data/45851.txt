@@ -16,7 +16,7 @@ Date:   Fri Nov 13 18:33:19 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272652
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 86 ++++++++++++--------------------
  src/cmd/compile/internal/gc/fmt.go       | 55 ++++++++++----------
  src/cmd/compile/internal/gc/iimport.go   |  1 -
@@ -25,3 +25,383 @@ Date:   Fri Nov 13 18:33:19 2020 -0800
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  src/cmd/compile/internal/gc/walk.go      |  5 +-
  7 files changed, 71 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 4e7318cfc6..326f44a2fe 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -19,7 +19,6 @@ const (
+ 	CTxxx Ctype = iota
+ 
+ 	CTINT
+-	CTRUNE
+ 	CTFLT
+ 	CTCPLX
+ 	CTSTR
+@@ -29,7 +28,7 @@ const (
+ type Val struct {
+ 	// U contains one of:
+ 	// bool     bool when Ctype() == CTBOOL
+-	// *Mpint   int when Ctype() == CTINT, rune when Ctype() == CTRUNE
++	// *Mpint   int when Ctype() == CTINT
+ 	// *Mpflt   float when Ctype() == CTFLT
+ 	// *Mpcplx  pair of floats when Ctype() == CTCPLX
+ 	// string   string when Ctype() == CTSTR
+@@ -37,7 +36,7 @@ type Val struct {
+ }
+ 
+ func (v Val) Ctype() Ctype {
+-	switch x := v.U.(type) {
++	switch v.U.(type) {
+ 	default:
+ 		Fatalf("unexpected Ctype for %T", v.U)
+ 		panic("unreachable")
+@@ -46,9 +45,6 @@ func (v Val) Ctype() Ctype {
+ 	case bool:
+ 		return CTBOOL
+ 	case *Mpint:
+-		if x.Rune {
+-			return CTRUNE
+-		}
+ 		return CTINT
+ 	case *Mpflt:
+ 		return CTFLT
+@@ -384,7 +380,7 @@ func convertVal(v Val, t *types.Type, explicit bool) Val {
+ 			return v
+ 		}
+ 
+-	case CTINT, CTRUNE:
++	case CTINT:
+ 		if explicit && t.IsString() {
+ 			return tostr(v)
+ 		}
+@@ -449,11 +445,6 @@ func toflt(v Val) Val {
+ func toint(v Val) Val {
+ 	switch u := v.U.(type) {
+ 	case *Mpint:
+-		if u.Rune {
+-			i := new(Mpint)
+-			i.Set(u)
+-			v.U = i
+-		}
+ 
+ 	case *Mpflt:
+ 		i := new(Mpint)
+@@ -560,11 +551,7 @@ func consttype(n *Node) Ctype {
+ }
+ 
+ func Isconst(n *Node, ct Ctype) bool {
+-	t := consttype(n)
+-
+-	// If the caller is asking for CTINT, allow CTRUNE too.
+-	// Makes life easier for back ends.
+-	return t == ct || (ct == CTINT && t == CTRUNE)
++	return consttype(n) == ct
+ }
+ 
+ // evconst rewrites constant expressions into OLITERAL nodes.
+@@ -710,7 +697,7 @@ func compareOp(x Val, op Op, y Val) bool {
+ 			return x != y
+ 		}
+ 
+-	case CTINT, CTRUNE:
++	case CTINT:
+ 		x, y := x.U.(*Mpint), y.U.(*Mpint)
+ 		return cmpZero(x.Cmp(y), op)
+ 
+@@ -784,11 +771,10 @@ Outer:
+ 			return Val{U: x || y}
+ 		}
+ 
+-	case CTINT, CTRUNE:
++	case CTINT:
+ 		x, y := x.U.(*Mpint), y.U.(*Mpint)
+ 
+ 		u := new(Mpint)
+-		u.Rune = x.Rune || y.Rune
+ 		u.Set(x)
+ 		switch op {
+ 		case OADD:
+@@ -879,16 +865,15 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 	switch op {
+ 	case OPLUS:
+ 		switch x.Ctype() {
+-		case CTINT, CTRUNE, CTFLT, CTCPLX:
++		case CTINT, CTFLT, CTCPLX:
+ 			return x
+ 		}
+ 
+ 	case ONEG:
+ 		switch x.Ctype() {
+-		case CTINT, CTRUNE:
++		case CTINT:
+ 			x := x.U.(*Mpint)
+ 			u := new(Mpint)
+-			u.Rune = x.Rune
+ 			u.Set(x)
+ 			u.Neg()
+ 			return Val{U: u}
+@@ -912,11 +897,10 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 
+ 	case OBITNOT:
+ 		switch x.Ctype() {
+-		case CTINT, CTRUNE:
++		case CTINT:
+ 			x := x.U.(*Mpint)
+ 
+ 			u := new(Mpint)
+-			u.Rune = x.Rune
+ 			if t.IsSigned() || t.IsUntyped() {
+ 				// Signed values change sign.
+ 				u.SetInt64(-1)
+@@ -937,14 +921,11 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ }
+ 
+ func shiftOp(x Val, op Op, y Val) Val {
+-	if x.Ctype() != CTRUNE {
+-		x = toint(x)
+-	}
++	x = toint(x)
+ 	y = toint(y)
+ 
+ 	u := new(Mpint)
+ 	u.Set(x.U.(*Mpint))
+-	u.Rune = x.U.(*Mpint).Rune
+ 	switch op {
+ 	case OLSH:
+ 		u.Lsh(y.U.(*Mpint))
+@@ -1010,7 +991,7 @@ func represents(t *types.Type, v Val) bool {
+ 	}
+ 
+ 	vt := idealType(v.Ctype())
+-	return t == vt
++	return t == vt || (t == types.UntypedRune && vt == types.UntypedInt)
+ }
+ 
+ func setboolconst(n *Node, v bool) {
+@@ -1039,8 +1020,6 @@ func idealType(ct Ctype) *types.Type {
+ 		return types.UntypedBool
+ 	case CTINT:
+ 		return types.UntypedInt
+-	case CTRUNE:
+-		return types.UntypedRune
+ 	case CTFLT:
+ 		return types.UntypedFloat
+ 	case CTCPLX:
+@@ -1091,31 +1070,30 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 	return l, r
+ }
+ 
+-func ctype(t *types.Type) Ctype {
+-	switch t {
+-	case types.UntypedBool:
+-		return CTBOOL
+-	case types.UntypedString:
+-		return CTSTR
+-	case types.UntypedInt:
+-		return CTINT
+-	case types.UntypedRune:
+-		return CTRUNE
+-	case types.UntypedFloat:
+-		return CTFLT
+-	case types.UntypedComplex:
+-		return CTCPLX
++func mixUntyped(t1, t2 *types.Type) *types.Type {
++	if t1 == t2 {
++		return t1
++	}
++
++	rank := func(t *types.Type) int {
++		switch t {
++		case types.UntypedInt:
++			return 0
++		case types.UntypedRune:
++			return 1
++		case types.UntypedFloat:
++			return 2
++		case types.UntypedComplex:
++			return 3
++		}
++		Fatalf("bad type %v", t)
++		panic("unreachable")
+ 	}
+-	Fatalf("bad type %v", t)
+-	panic("unreachable")
+-}
+ 
+-func mixUntyped(t1, t2 *types.Type) *types.Type {
+-	t := t1
+-	if ctype(t2) > ctype(t1) {
+-		t = t2
++	if rank(t2) > rank(t1) {
++		return t2
+ 	}
+-	return t
++	return t1
+ }
+ 
+ func defaultType(t *types.Type) *types.Type {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 9b57d131b1..740fdab977 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -526,28 +526,12 @@ func (v Val) Format(s fmt.State, verb rune) {
+ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 	switch u := v.U.(type) {
+ 	case *Mpint:
+-		if !u.Rune {
+-			if flag&FmtSharp != 0 {
+-				fmt.Fprint(s, u.String())
+-				return
+-			}
+-			fmt.Fprint(s, u.GoString())
++		if flag&FmtSharp != 0 {
++			fmt.Fprint(s, u.String())
+ 			return
+ 		}
+-
+-		switch x := u.Int64(); {
+-		case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
+-			fmt.Fprintf(s, "'%c'", int(x))
+-
+-		case 0 <= x && x < 1<<16:
+-			fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
+-
+-		case 0 <= x && x <= utf8.MaxRune:
+-			fmt.Fprintf(s, "'\\U%08x'", uint64(x))
+-
+-		default:
+-			fmt.Fprintf(s, "('\\x00' + %v)", u)
+-		}
++		fmt.Fprint(s, u.GoString())
++		return
+ 
+ 	case *Mpflt:
+ 		if flag&FmtSharp != 0 {
+@@ -1336,19 +1320,40 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			}
+ 		}
+ 
++		needUnparen := false
+ 		if n.Type != nil && !n.Type.IsUntyped() {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+ 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
+-				mode.Fprintf(s, "(%v)(%v)", n.Type, n.Val())
+-				return
++				mode.Fprintf(s, "(%v)(", n.Type)
+ 			} else {
+-				mode.Fprintf(s, "%v(%v)", n.Type, n.Val())
+-				return
++				mode.Fprintf(s, "%v(", n.Type)
+ 			}
++			needUnparen = true
+ 		}
+ 
+-		mode.Fprintf(s, "%v", n.Val())
++		if n.Type == types.UntypedRune {
++			u := n.Val().U.(*Mpint)
++			switch x := u.Int64(); {
++			case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
++				fmt.Fprintf(s, "'%c'", int(x))
++
++			case 0 <= x && x < 1<<16:
++				fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
++
++			case 0 <= x && x <= utf8.MaxRune:
++				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
++
++			default:
++				fmt.Fprintf(s, "('\\x00' + %v)", u)
++			}
++		} else {
++			mode.Fprintf(s, "%v", n.Val())
++		}
++
++		if needUnparen {
++			mode.Fprintf(s, ")")
++		}
+ 
+ 	// Special case: name used as local variable in export.
+ 	// _ becomes ~b%d internally; print as _ for export
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index ac565a6632..fc6b7ecb9f 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -363,7 +363,6 @@ func (p *importReader) value(typ *types.Type) (v Val) {
+ 		v.U = p.string()
+ 	case CTINT:
+ 		x := new(Mpint)
+-		x.Rune = typ == types.UntypedRune
+ 		p.mpint(&x.Val, typ)
+ 		v.U = x
+ 	case CTFLT:
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index 79eb60e65d..199b2659d1 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -13,9 +13,8 @@ import (
+ 
+ // Mpint represents an integer constant.
+ type Mpint struct {
+-	Val  big.Int
+-	Ovf  bool // set if Val overflowed compiler limit (sticky)
+-	Rune bool // set if syntax indicates default type rune
++	Val big.Int
++	Ovf bool // set if Val overflowed compiler limit (sticky)
+ }
+ 
+ func (a *Mpint) SetOverflow() {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 27bc9b5629..303b04cd46 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -656,6 +656,9 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		return p.mkname(expr)
+ 	case *syntax.BasicLit:
+ 		n := nodlit(p.basicLit(expr))
++		if expr.Kind == syntax.RuneLit {
++			n.Type = types.UntypedRune
++		}
+ 		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
+ 		return n
+ 	case *syntax.CompositeLit:
+@@ -1428,7 +1431,6 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
+ 
+ 	case syntax.RuneLit:
+ 		x := new(Mpint)
+-		x.Rune = true
+ 		if !lit.Bad {
+ 			u, _ := strconv.Unquote(s)
+ 			var r rune
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 443a3f7827..3fb59c8deb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3724,7 +3724,7 @@ func checkmake(t *types.Type, arg string, np **Node) bool {
+ 	// Do range checks for constants before defaultlit
+ 	// to avoid redundant "constant NNN overflows int" errors.
+ 	switch consttype(n) {
+-	case CTINT, CTRUNE, CTFLT, CTCPLX:
++	case CTINT, CTFLT, CTCPLX:
+ 		v := toint(n.Val()).U.(*Mpint)
+ 		if v.CmpInt64(0) < 0 {
+ 			yyerror("negative %s argument in make(%v)", arg, t)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ac43a8e1be..e7351d1792 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1931,10 +1931,11 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	calls := []*Node{mkcall("printlock", nil, init)}
+ 	for i, n := range nn.List.Slice() {
+ 		if n.Op == OLITERAL {
+-			switch n.Val().Ctype() {
+-			case CTRUNE:
++			if n.Type == types.UntypedRune {
+ 				n = defaultlit(n, types.Runetype)
++			}
+ 
++			switch n.Val().Ctype() {
+ 			case CTINT:
+ 				n = defaultlit(n, types.Types[TINT64])
+ 

@@ -17,7 +17,7 @@ Date:   Wed Jun 24 17:01:00 2020 -0400
     Trust: Filippo Valsorda <filippo@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  doc/go1.16.html                          |  8 ++++++++
  src/crypto/tls/common.go                 |  3 ---
  src/crypto/tls/conn.go                   |  6 +++---
@@ -26,3 +26,172 @@ Date:   Wed Jun 24 17:01:00 2020 -0400
  src/crypto/tls/handshake_server.go       |  2 +-
  src/crypto/tls/handshake_server_tls13.go |  2 +-
  7 files changed, 38 insertions(+), 30 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index bb920a0cb8..43ffb9dd7c 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -286,6 +286,14 @@ Do not send CLs removing the interior tags from such phrases.
+   has no effect.
+ </p>
+ 
++<p><!-- CL 239748 -->
++  Clients now ensure that the server selects
++  <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
++  an ALPN protocol</a> from
++  <a href="/pkg/crypto/tls/#Config.NextProtos">
++  the list advertised by the client</a>.
++</p>
++
+ <h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
+ 
+ <p><!-- CL 235078 -->
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 1370d26fe2..98b31b09fa 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -229,9 +229,6 @@ type ConnectionState struct {
+ 	CipherSuite uint16
+ 
+ 	// NegotiatedProtocol is the application protocol negotiated with ALPN.
+-	//
+-	// Note that on the client side, this is currently not guaranteed to be from
+-	// Config.NextProtos.
+ 	NegotiatedProtocol string
+ 
+ 	// NegotiatedProtocolIsMutual used to indicate a mutual NPN negotiation.
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 2788c3c393..969f357834 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -88,8 +88,8 @@ type Conn struct {
+ 	clientFinished [12]byte
+ 	serverFinished [12]byte
+ 
+-	clientProtocol         string
+-	clientProtocolFallback bool
++	// clientProtocol is the negotiated ALPN protocol.
++	clientProtocol string
+ 
+ 	// input/output
+ 	in, out   halfConn
+@@ -1471,7 +1471,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	state.Version = c.vers
+ 	state.NegotiatedProtocol = c.clientProtocol
+ 	state.DidResume = c.didResume
+-	state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
++	state.NegotiatedProtocolIsMutual = true
+ 	state.ServerName = c.serverName
+ 	state.CipherSuite = c.cipherSuite
+ 	state.PeerCertificates = c.peerCertificates
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 123df7b07a..92e33e7169 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -705,18 +705,18 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 		}
+ 	}
+ 
+-	clientDidALPN := len(hs.hello.alpnProtocols) > 0
+-	serverHasALPN := len(hs.serverHello.alpnProtocol) > 0
+-
+-	if !clientDidALPN && serverHasALPN {
+-		c.sendAlert(alertHandshakeFailure)
+-		return false, errors.New("tls: server advertised unrequested ALPN extension")
+-	}
+-
+-	if serverHasALPN {
++	if hs.serverHello.alpnProtocol != "" {
++		if len(hs.hello.alpnProtocols) == 0 {
++			c.sendAlert(alertUnsupportedExtension)
++			return false, errors.New("tls: server advertised unrequested ALPN extension")
++		}
++		if mutualProtocol([]string{hs.serverHello.alpnProtocol}, hs.hello.alpnProtocols) == "" {
++			c.sendAlert(alertUnsupportedExtension)
++			return false, errors.New("tls: server selected unadvertised ALPN protocol")
++		}
+ 		c.clientProtocol = hs.serverHello.alpnProtocol
+-		c.clientProtocolFallback = false
+ 	}
++
+ 	c.scts = hs.serverHello.scts
+ 
+ 	if !hs.serverResumedSession() {
+@@ -973,20 +973,17 @@ func clientSessionCacheKey(serverAddr net.Addr, config *Config) string {
+ 	return serverAddr.String()
+ }
+ 
+-// mutualProtocol finds the mutual Next Protocol Negotiation or ALPN protocol
+-// given list of possible protocols and a list of the preference order. The
+-// first list must not be empty. It returns the resulting protocol and flag
+-// indicating if the fallback case was reached.
+-func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
++// mutualProtocol finds the mutual ALPN protocol given list of possible
++// protocols and a list of the preference order.
++func mutualProtocol(protos, preferenceProtos []string) string {
+ 	for _, s := range preferenceProtos {
+ 		for _, c := range protos {
+ 			if s == c {
+-				return s, false
++				return s
+ 			}
+ 		}
+ 	}
+-
+-	return protos[0], true
++	return ""
+ }
+ 
+ // hostnameInSNI converts name into an appropriate hostname for SNI.
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 0e4b380035..be37c681c6 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -396,11 +396,17 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
+ 	}
+ 	hs.transcript.Write(encryptedExtensions.marshal())
+ 
+-	if len(encryptedExtensions.alpnProtocol) != 0 && len(hs.hello.alpnProtocols) == 0 {
+-		c.sendAlert(alertUnsupportedExtension)
+-		return errors.New("tls: server advertised unrequested ALPN extension")
++	if encryptedExtensions.alpnProtocol != "" {
++		if len(hs.hello.alpnProtocols) == 0 {
++			c.sendAlert(alertUnsupportedExtension)
++			return errors.New("tls: server advertised unrequested ALPN extension")
++		}
++		if mutualProtocol([]string{encryptedExtensions.alpnProtocol}, hs.hello.alpnProtocols) == "" {
++			c.sendAlert(alertUnsupportedExtension)
++			return errors.New("tls: server selected unadvertised ALPN protocol")
++		}
++		c.clientProtocol = encryptedExtensions.alpnProtocol
+ 	}
+-	c.clientProtocol = encryptedExtensions.alpnProtocol
+ 
+ 	return nil
+ }
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 73df19d10f..a7d44144cb 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -218,7 +218,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 	}
+ 
+ 	if len(hs.clientHello.alpnProtocols) > 0 {
+-		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
++		if selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); selectedProto != "" {
+ 			hs.hello.alpnProtocol = selectedProto
+ 			c.clientProtocol = selectedProto
+ 		}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 25c37b92c5..41f7ac2324 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -555,7 +555,7 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
+ 	encryptedExtensions := new(encryptedExtensionsMsg)
+ 
+ 	if len(hs.clientHello.alpnProtocols) > 0 {
+-		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
++		if selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); selectedProto != "" {
+ 			encryptedExtensions.alpnProtocol = selectedProto
+ 			c.clientProtocol = selectedProto
+ 		}

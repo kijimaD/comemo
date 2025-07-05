@@ -9,7 +9,41 @@ Date:   Fri Sep 16 15:24:56 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/ld.go   | 3 ++-
  src/cmd/link/internal/ld/link.go | 1 -
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index aa08cbdbcb..eefc0e9b80 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -36,6 +36,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
++	"path/filepath"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -58,7 +59,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
+ 
+ 	var pname string
+ 	isshlib := false
+-	if (ctxt.Windows == 0 && strings.HasPrefix(name, "/")) || (ctxt.Windows != 0 && len(name) >= 2 && name[1] == ':') {
++	if filepath.IsAbs(name) {
+ 		pname = name
+ 	} else {
+ 		// try dot, -L "libdir", and then goroot.
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 77d3b38a67..480c6e36c5 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -176,7 +176,6 @@ type Link struct {
+ 	Arch      *sys.Arch
+ 	Debugvlog int
+ 	Bso       *bufio.Writer
+-	Windows   int32
+ 
+ 	Loaded bool // set after all inputs have been loaded as symbols
+ 

@@ -12,6 +12,22 @@ Date:   Tue May 17 11:15:14 2011 -0400
     R=rsc
     CC=golang-dev, rsc
     https://golang.org/cl/4533041
-
+---
  src/pkg/reflect/all_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 991d5ca8b7..c83a9b75f6 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1451,7 +1451,9 @@ func noAlloc(t *testing.T, n int, f func(int)) {
+ 	for j := 0; j < n; j++ {
+ 		f(j)
+ 	}
+-	if runtime.MemStats.Mallocs != 0 {
++	// A few allocs may happen in the testing package when GOMAXPROCS > 1, so don't
++	// require zero mallocs.
++	if runtime.MemStats.Mallocs > 5 {
+ 		t.Fatalf("%d mallocs after %d iterations", runtime.MemStats.Mallocs, n)
+ 	}
+ }

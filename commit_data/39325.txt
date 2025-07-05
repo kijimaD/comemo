@@ -12,10 +12,49 @@ Date:   Thu Feb 21 15:11:16 2019 -0500
     Change-Id: I3673f3cb64b0c128a2bca5fee7679b672fe90770
     Reviewed-on: https://go-review.googlesource.com/c/163212
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testgodefs/test.bash                      | 4 +++-
  misc/cgo/testgodefs/{ => testdata}/anonunion.go    | 0
  misc/cgo/testgodefs/{ => testdata}/fieldtypedef.go | 0
  misc/cgo/testgodefs/{ => testdata}/issue8478.go    | 0
  misc/cgo/testgodefs/{ => testdata}/main.go         | 0
  5 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+index 012d007fc3..e4ce2ee7a8 100755
+--- a/misc/cgo/testgodefs/test.bash
++++ b/misc/cgo/testgodefs/test.bash
+@@ -9,6 +9,8 @@
+ # import "C" block.  Add more tests here.
+ FILE_PREFIXES="anonunion issue8478 fieldtypedef"
+ 
++cd testdata
++
+ RM=
+ for FP in $FILE_PREFIXES
+ do
+@@ -16,7 +18,7 @@ do
+   RM="${RM} ${FP}_defs.go"
+ done
+ 
+-go build . && ./testgodefs
++go build -o testgodefs . && ./testgodefs
+ EXIT=$?
+ rm -rf _obj testgodefs ${RM}
+ exit $EXIT
+diff --git a/misc/cgo/testgodefs/anonunion.go b/misc/cgo/testgodefs/testdata/anonunion.go
+similarity index 100%
+rename from misc/cgo/testgodefs/anonunion.go
+rename to misc/cgo/testgodefs/testdata/anonunion.go
+diff --git a/misc/cgo/testgodefs/fieldtypedef.go b/misc/cgo/testgodefs/testdata/fieldtypedef.go
+similarity index 100%
+rename from misc/cgo/testgodefs/fieldtypedef.go
+rename to misc/cgo/testgodefs/testdata/fieldtypedef.go
+diff --git a/misc/cgo/testgodefs/issue8478.go b/misc/cgo/testgodefs/testdata/issue8478.go
+similarity index 100%
+rename from misc/cgo/testgodefs/issue8478.go
+rename to misc/cgo/testgodefs/testdata/issue8478.go
+diff --git a/misc/cgo/testgodefs/main.go b/misc/cgo/testgodefs/testdata/main.go
+similarity index 100%
+rename from misc/cgo/testgodefs/main.go
+rename to misc/cgo/testgodefs/testdata/main.go

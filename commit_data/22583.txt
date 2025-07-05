@@ -15,7 +15,7 @@ Date:   Thu Feb 26 17:52:26 2015 +0900
     Change-Id: Idbe32bcc3319b41b0cecac3d058014a93e13288b
     Reviewed-on: https://go-review.googlesource.com/6090
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/internal/socktest/main_test.go         |  40 +++++++
  src/net/internal/socktest/main_unix_test.go    |  24 ++++
  src/net/internal/socktest/main_windows_test.go |  22 ++++
@@ -27,3 +27,687 @@ Date:   Thu Feb 26 17:52:26 2015 +0900
  src/net/internal/socktest/sys_unix.go          | 157 +++++++++++++++++++++++++
  src/net/internal/socktest/sys_windows.go       | 121 +++++++++++++++++++
  10 files changed, 623 insertions(+)
+
+diff --git a/src/net/internal/socktest/main_test.go b/src/net/internal/socktest/main_test.go
+new file mode 100644
+index 0000000000..3ae1c6be3c
+--- /dev/null
++++ b/src/net/internal/socktest/main_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package socktest_test
++
++import (
++	"net/internal/socktest"
++	"os"
++	"syscall"
++	"testing"
++)
++
++var sw socktest.Switch
++
++func TestMain(m *testing.M) {
++	installTestHooks()
++
++	st := m.Run()
++
++	for s := range sw.Sockets() {
++		closeFunc(s)
++	}
++	uninstallTestHooks()
++	os.Exit(st)
++}
++
++func TestSocket(t *testing.T) {
++	for _, f := range []socktest.Filter{
++		func(st *socktest.Status) (socktest.AfterFilter, error) { return nil, nil },
++		nil,
++	} {
++		sw.Set(socktest.FilterSocket, f)
++		for _, family := range []int{syscall.AF_INET, syscall.AF_INET6} {
++			socketFunc(family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++		}
++	}
++}
+diff --git a/src/net/internal/socktest/main_unix_test.go b/src/net/internal/socktest/main_unix_test.go
+new file mode 100644
+index 0000000000..b8eebc2aa4
+--- /dev/null
++++ b/src/net/internal/socktest/main_unix_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package socktest_test
++
++import "syscall"
++
++var (
++	socketFunc func(int, int, int) (int, error)
++	closeFunc  func(int) error
++)
++
++func installTestHooks() {
++	socketFunc = sw.Socket
++	closeFunc = sw.Close
++}
++
++func uninstallTestHooks() {
++	socketFunc = syscall.Socket
++	closeFunc = syscall.Close
++}
+diff --git a/src/net/internal/socktest/main_windows_test.go b/src/net/internal/socktest/main_windows_test.go
+new file mode 100644
+index 0000000000..df1cb97784
+--- /dev/null
++++ b/src/net/internal/socktest/main_windows_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package socktest_test
++
++import "syscall"
++
++var (
++	socketFunc func(int, int, int) (syscall.Handle, error)
++	closeFunc  func(syscall.Handle) error
++)
++
++func installTestHooks() {
++	socketFunc = sw.Socket
++	closeFunc = sw.Closesocket
++}
++
++func uninstallTestHooks() {
++	socketFunc = syscall.Socket
++	closeFunc = syscall.Closesocket
++}
+diff --git a/src/net/internal/socktest/switch.go b/src/net/internal/socktest/switch.go
+new file mode 100644
+index 0000000000..539819160e
+--- /dev/null
++++ b/src/net/internal/socktest/switch.go
+@@ -0,0 +1,150 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package socktest provides utilities for socket testing.
++package socktest
++
++import "sync"
++
++func switchInit(sw *Switch) {
++	sw.fltab = make(map[FilterType]Filter)
++	sw.sotab = make(Sockets)
++	sw.stats = make(stats)
++}
++
++// A Switch represents a callpath point switch for socket system
++// calls.
++type Switch struct {
++	once sync.Once
++
++	fmu   sync.RWMutex
++	fltab map[FilterType]Filter
++
++	smu   sync.RWMutex
++	sotab Sockets
++	stats stats
++}
++
++// Stats returns a list of per-cookie socket statistics.
++func (sw *Switch) Stats() []Stat {
++	var st []Stat
++	sw.smu.RLock()
++	for _, s := range sw.stats {
++		ns := *s
++		st = append(st, ns)
++	}
++	sw.smu.RUnlock()
++	return st
++}
++
++// Sockets returns mappings of socket descriptor to socket status.
++func (sw *Switch) Sockets() Sockets {
++	sw.smu.RLock()
++	tab := make(Sockets, len(sw.sotab))
++	for i, s := range sw.sotab {
++		tab[i] = s
++	}
++	sw.smu.RUnlock()
++	return tab
++}
++
++// A Cookie represents a 3-tuple of a socket; address family, socket
++// type and protocol number.
++type Cookie uint64
++
++// Family returns an address family.
++func (c Cookie) Family() int { return int(c >> 48) }
++
++// Type returns a socket type.
++func (c Cookie) Type() int { return int(c << 16 >> 32) }
++
++// Protocol returns a protocol number.
++func (c Cookie) Protocol() int { return int(c & 0xff) }
++
++func cookie(family, sotype, proto int) Cookie {
++	return Cookie(family)<<48 | Cookie(sotype)&0xffffffff<<16 | Cookie(proto)&0xff
++}
++
++// A Status represents the status of a socket.
++type Status struct {
++	Cookie    Cookie
++	Err       error // error status of socket system call
++	SocketErr int   // error status of socket by SO_ERROR
++}
++
++// A Stat represents a per-cookie socket statistics.
++type Stat struct {
++	Family   int // address family
++	Type     int // socket type
++	Protocol int // protocol number
++
++	Opened    uint64 // number of sockets opened
++	Accepted  uint64 // number of sockets accepted
++	Connected uint64 // number of sockets connected
++	Closed    uint64 // number of sockets closed
++}
++
++type stats map[Cookie]*Stat
++
++func (st stats) getLocked(c Cookie) *Stat {
++	s, ok := st[c]
++	if !ok {
++		s = &Stat{Family: c.Family(), Type: c.Type(), Protocol: c.Protocol()}
++		st[c] = s
++	}
++	return s
++}
++
++// A FilterType represents a filter type.
++type FilterType int
++
++const (
++	FilterSocket        FilterType = iota // for Socket
++	FilterAccept                          // for Accept or Accept4
++	FilterConnect                         // for Connect or ConnectEx
++	FilterGetsockoptInt                   // for GetsockoptInt
++	FilterClose                           // for Close or Closesocket
++)
++
++// A Filter represents a socket system call filter.
++//
++// It will only be executed before a system call for a socket that has
++// an entry in internal table.
++// If the filter returns a non-nil error, the execution of system call
++// will be canceled and the system call function returns the non-nil
++// error.
++// It can return a non-nil AfterFilter for filtering after the
++// execution of the system call.
++type Filter func(*Status) (AfterFilter, error)
++
++func (f Filter) apply(st *Status) (AfterFilter, error) {
++	if f == nil {
++		return nil, nil
++	}
++	return f(st)
++}
++
++// An AfterFilter represents a socket system call filter after an
++// execution of a system call.
++//
++// It will only be executed after a system call for a socket that has
++// an entry in internal table.
++// If the filter returns a non-nil error, the system call function
++// returns the non-nil error.
++type AfterFilter func(*Status) error
++
++func (f AfterFilter) apply(st *Status) error {
++	if f == nil {
++		return nil
++	}
++	return f(st)
++}
++
++// Set deploys the socket system call filter f for the filter type t.
++func (sw *Switch) Set(t FilterType, f Filter) {
++	sw.once.Do(func() { switchInit(sw) })
++	sw.fmu.Lock()
++	sw.fltab[t] = f
++	sw.fmu.Unlock()
++}
+diff --git a/src/net/internal/socktest/switch_stub.go b/src/net/internal/socktest/switch_stub.go
+new file mode 100644
+index 0000000000..be97628a00
+--- /dev/null
++++ b/src/net/internal/socktest/switch_stub.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package socktest
++
++// Sockets maps a socket descriptor to the status of socket.
++type Sockets map[int]Status
+diff --git a/src/net/internal/socktest/switch_unix.go b/src/net/internal/socktest/switch_unix.go
+new file mode 100644
+index 0000000000..2b89276fa1
+--- /dev/null
++++ b/src/net/internal/socktest/switch_unix.go
+@@ -0,0 +1,29 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package socktest
++
++// Sockets maps a socket descriptor to the status of socket.
++type Sockets map[int]Status
++
++func (sw *Switch) sockso(s int) *Status {
++	sw.smu.RLock()
++	defer sw.smu.RUnlock()
++	so, ok := sw.sotab[s]
++	if !ok {
++		return nil
++	}
++	return &so
++}
++
++// addLocked returns a new Status without locking.
++// sw.smu must be held before call.
++func (sw *Switch) addLocked(s, family, sotype, proto int) *Status {
++	sw.once.Do(func() { switchInit(sw) })
++	so := Status{Cookie: cookie(family, sotype, proto)}
++	sw.sotab[s] = so
++	return &so
++}
+diff --git a/src/net/internal/socktest/switch_windows.go b/src/net/internal/socktest/switch_windows.go
+new file mode 100644
+index 0000000000..3cee49ba0b
+--- /dev/null
++++ b/src/net/internal/socktest/switch_windows.go
+@@ -0,0 +1,29 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package socktest
++
++import "syscall"
++
++// Sockets maps a socket descriptor to the status of socket.
++type Sockets map[syscall.Handle]Status
++
++func (sw *Switch) sockso(s syscall.Handle) *Status {
++	sw.smu.RLock()
++	defer sw.smu.RUnlock()
++	so, ok := sw.sotab[s]
++	if !ok {
++		return nil
++	}
++	return &so
++}
++
++// addLocked returns a new Status without locking.
++// sw.smu must be held before call.
++func (sw *Switch) addLocked(s syscall.Handle, family, sotype, proto int) *Status {
++	sw.once.Do(func() { switchInit(sw) })
++	so := Status{Cookie: cookie(family, sotype, proto)}
++	sw.sotab[s] = so
++	return &so
++}
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+new file mode 100644
+index 0000000000..61cb6aec08
+--- /dev/null
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -0,0 +1,41 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux
++
++package socktest
++
++import "syscall"
++
++// Accept4 wraps syscall.Accept4.
++func (sw *Switch) Accept4(s, flags int) (ns int, sa syscall.Sockaddr, err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Accept4(s, flags)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterAccept]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return -1, nil, err
++	}
++	ns, sa, so.Err = syscall.Accept4(s, flags)
++	if err = af.apply(so); err != nil {
++		if so.Err == nil {
++			syscall.Close(ns)
++		}
++		return -1, nil, err
++	}
++
++	if so.Err != nil {
++		return -1, nil, so.Err
++	}
++	sw.smu.Lock()
++	nso := sw.addLocked(ns, so.Cookie.Family(), so.Cookie.Type(), so.Cookie.Protocol())
++	sw.stats.getLocked(nso.Cookie).Accepted++
++	sw.smu.Unlock()
++	return ns, sa, nil
++}
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+new file mode 100644
+index 0000000000..b128c019ae
+--- /dev/null
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -0,0 +1,157 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package socktest
++
++import "syscall"
++
++// Socket wraps syscall.Socket.
++func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
++	so := &Status{Cookie: cookie(family, sotype, proto)}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterSocket]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return -1, err
++	}
++	s, so.Err = syscall.Socket(family, sotype, proto)
++	if err = af.apply(so); err != nil {
++		if so.Err == nil {
++			syscall.Close(s)
++		}
++		return -1, err
++	}
++
++	if so.Err != nil {
++		return -1, so.Err
++	}
++	sw.smu.Lock()
++	nso := sw.addLocked(s, family, sotype, proto)
++	sw.stats.getLocked(nso.Cookie).Opened++
++	sw.smu.Unlock()
++	return s, nil
++}
++
++// Close wraps syscall.Close.
++func (sw *Switch) Close(s int) (err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Close(s)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterClose]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return err
++	}
++	so.Err = syscall.Close(s)
++	if err = af.apply(so); err != nil {
++		return err
++	}
++
++	if so.Err != nil {
++		return so.Err
++	}
++	sw.smu.Lock()
++	delete(sw.sotab, s)
++	sw.stats.getLocked(so.Cookie).Closed++
++	sw.smu.Unlock()
++	return nil
++}
++
++// Connect wraps syscall.Connect.
++func (sw *Switch) Connect(s int, sa syscall.Sockaddr) (err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Connect(s, sa)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterConnect]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return err
++	}
++	so.Err = syscall.Connect(s, sa)
++	if err = af.apply(so); err != nil {
++		return err
++	}
++
++	if so.Err != nil {
++		return so.Err
++	}
++	sw.smu.Lock()
++	sw.stats.getLocked(so.Cookie).Connected++
++	sw.smu.Unlock()
++	return nil
++}
++
++// Accept wraps syscall.Accept.
++func (sw *Switch) Accept(s int) (ns int, sa syscall.Sockaddr, err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Accept(s)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterAccept]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return -1, nil, err
++	}
++	ns, sa, so.Err = syscall.Accept(s)
++	if err = af.apply(so); err != nil {
++		if so.Err == nil {
++			syscall.Close(ns)
++		}
++		return -1, nil, err
++	}
++
++	if so.Err != nil {
++		return -1, nil, so.Err
++	}
++	sw.smu.Lock()
++	nso := sw.addLocked(ns, so.Cookie.Family(), so.Cookie.Type(), so.Cookie.Protocol())
++	sw.stats.getLocked(nso.Cookie).Accepted++
++	sw.smu.Unlock()
++	return ns, sa, nil
++}
++
++// GetsockoptInt wraps syscall.GetsockoptInt.
++func (sw *Switch) GetsockoptInt(s, level, opt int) (soerr int, err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.GetsockoptInt(s, level, opt)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterGetsockoptInt]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return -1, err
++	}
++	so.SocketErr, so.Err = syscall.GetsockoptInt(s, level, opt)
++	if err = af.apply(so); err != nil {
++		return -1, err
++	}
++
++	if so.Err != nil {
++		return -1, so.Err
++	}
++	if opt == syscall.SO_ERROR && (so.SocketErr == 0 || syscall.Errno(so.SocketErr) == syscall.EISCONN) {
++		sw.smu.Lock()
++		sw.stats.getLocked(so.Cookie).Connected++
++		sw.smu.Unlock()
++	}
++	return so.SocketErr, nil
++}
+diff --git a/src/net/internal/socktest/sys_windows.go b/src/net/internal/socktest/sys_windows.go
+new file mode 100644
+index 0000000000..30bac45512
+--- /dev/null
++++ b/src/net/internal/socktest/sys_windows.go
+@@ -0,0 +1,121 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package socktest
++
++import "syscall"
++
++// Socket wraps syscall.Socket.
++func (sw *Switch) Socket(family, sotype, proto int) (s syscall.Handle, err error) {
++	so := &Status{Cookie: cookie(family, sotype, proto)}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterSocket]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return syscall.InvalidHandle, err
++	}
++	s, so.Err = syscall.Socket(family, sotype, proto)
++	if err = af.apply(so); err != nil {
++		if so.Err == nil {
++			syscall.Closesocket(s)
++		}
++		return syscall.InvalidHandle, err
++	}
++
++	if so.Err != nil {
++		return syscall.InvalidHandle, so.Err
++	}
++	sw.smu.Lock()
++	nso := sw.addLocked(s, family, sotype, proto)
++	sw.stats.getLocked(nso.Cookie).Opened++
++	sw.smu.Unlock()
++	return s, nil
++}
++
++// Closesocket wraps syscall.Closesocket.
++func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Closesocket(s)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterClose]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return err
++	}
++	so.Err = syscall.Closesocket(s)
++	if err = af.apply(so); err != nil {
++		return err
++	}
++
++	if so.Err != nil {
++		return so.Err
++	}
++	sw.smu.Lock()
++	delete(sw.sotab, s)
++	sw.stats.getLocked(so.Cookie).Closed++
++	sw.smu.Unlock()
++	return nil
++}
++
++// Conenct wraps syscall.Connect.
++func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.Connect(s, sa)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterConnect]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return err
++	}
++	so.Err = syscall.Connect(s, sa)
++	if err = af.apply(so); err != nil {
++		return err
++	}
++
++	if so.Err != nil {
++		return so.Err
++	}
++	sw.smu.Lock()
++	sw.stats.getLocked(so.Cookie).Connected++
++	sw.smu.Unlock()
++	return nil
++}
++
++// ConenctEx wraps syscall.ConnectEx.
++func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n uint32, nwr *uint32, o *syscall.Overlapped) (err error) {
++	so := sw.sockso(s)
++	if so == nil {
++		return syscall.ConnectEx(s, sa, b, n, nwr, o)
++	}
++	sw.fmu.RLock()
++	f, _ := sw.fltab[FilterConnect]
++	sw.fmu.RUnlock()
++
++	af, err := f.apply(so)
++	if err != nil {
++		return err
++	}
++	so.Err = syscall.ConnectEx(s, sa, b, n, nwr, o)
++	if err = af.apply(so); err != nil {
++		return err
++	}
++
++	if so.Err != nil {
++		return so.Err
++	}
++	sw.smu.Lock()
++	sw.stats.getLocked(so.Cookie).Connected++
++	sw.smu.Unlock()
++	return nil
++}

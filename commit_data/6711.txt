@@ -7,6 +7,20 @@ Date:   Thu Nov 4 13:45:18 2010 -0700
     R=golang-dev, r, r2
     CC=golang-dev
     https://golang.org/cl/2880041
-
+---
  src/pkg/runtime/runtime.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 0b19e108ed..f2b6c587e9 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -320,6 +320,8 @@ memequal(uint32 s, void *a, void *b)
+ {
+ 	byte *ba, *bb, *aend;
+ 
++	if(a == b)
++	  return 1;
+ 	ba = a;
+ 	bb = b;
+ 	aend = ba+s;

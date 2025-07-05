@@ -16,6 +16,20 @@ Date:   Wed Apr 11 01:24:09 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 134be27b47..20318ba169 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -261,7 +261,7 @@ func run(bin string, args []string) (err error) {
+ 	started = true
+ 	startTestsLen := s.out.Len()
+ 
+-	s.do("run")
++	fmt.Fprintln(s.in, "run")
+ 
+ 	passed := func(out *buf) bool {
+ 		// Just to make things fun, lldb sometimes translates \n into \r\n.

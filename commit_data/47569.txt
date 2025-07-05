@@ -12,6 +12,19 @@ Date:   Wed Mar 24 15:50:54 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304471
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 1745409b4d..47e67a32f3 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -196,7 +196,6 @@ var optab = []Optab{
+ 
+ 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
+ 	{as: AMOVBU, a1: C_SOREG, a6: C_REG, type_: 9, size: 8},
+-	{as: AMOVBU, a1: C_ZOREG, a2: C_REG, a6: C_REG, type_: 9, size: 8},
+ 
+ 	{as: AMOVBZU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
+ 	{as: AMOVBZU, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},

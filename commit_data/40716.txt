@@ -7,9 +7,157 @@ Date:   Wed Jun 19 21:13:20 2019 -0400
     Change-Id: I8f0e109053bbbd8bde4fa64059fd070d8f4acef2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183117
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/pkcs1.go | 16 +++++++++++++---
  src/crypto/x509/pkcs8.go | 19 ++++++++++++-------
  src/crypto/x509/sec1.go  | 10 ++++++++--
  src/crypto/x509/x509.go  | 17 ++++++++++-------
  4 files changed, 43 insertions(+), 19 deletions(-)
+
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index 5857c17a45..a48c6f9d64 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -41,7 +41,9 @@ type pkcs1PublicKey struct {
+ 	E int
+ }
+ 
+-// ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
++// ParsePKCS1PrivateKey parses an RSA private key in PKCS#1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
+ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	var priv pkcs1PrivateKey
+ 	rest, err := asn1.Unmarshal(der, &priv)
+@@ -94,7 +96,11 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	return key, nil
+ }
+ 
+-// MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
++// MarshalPKCS1PrivateKey converts an RSA private key to PKCS#1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
++// For a more flexible key format which is not RSA specific, use
++// MarshalPKCS8PrivateKey.
+ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	key.Precompute()
+ 
+@@ -126,7 +132,9 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	return b
+ }
+ 
+-// ParsePKCS1PublicKey parses a PKCS#1 public key in ASN.1 DER form.
++// ParsePKCS1PublicKey parses an RSA public key in PKCS#1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+ 	var pub pkcs1PublicKey
+ 	rest, err := asn1.Unmarshal(der, &pub)
+@@ -154,6 +162,8 @@ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+ }
+ 
+ // MarshalPKCS1PublicKey converts an RSA public key to PKCS#1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func MarshalPKCS1PublicKey(key *rsa.PublicKey) []byte {
+ 	derBytes, _ := asn1.Marshal(pkcs1PublicKey{
+ 		N: key.N,
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index fa1847e5e7..d37fc9e1b3 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -24,9 +24,12 @@ type pkcs8 struct {
+ 	// optional attributes omitted.
+ }
+ 
+-// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key. It returns a
+-// *rsa.PrivateKey, a *ecdsa.PrivateKey, or a ed25519.PrivateKey. More types
+-// might be supported in future versions. See RFC 5208 and RFC 8410.
++// ParsePKCS8PrivateKey parses an unencrypted private key in PKCS#8, ASN.1 DER form.
++//
++// It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, or a ed25519.PrivateKey.
++// More types might be supported in the future.
++//
++// This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	var privKey pkcs8
+ 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
+@@ -76,10 +79,12 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	}
+ }
+ 
+-// MarshalPKCS8PrivateKey converts a private key to PKCS#8 encoded form.
+-// The following key types are currently supported: *rsa.PrivateKey,
+-// *ecdsa.PrivateKey and ed25519.PrivateKey. Unsupported key types result in an
+-// error. See RFC 5208 and RFC 8410.
++// MarshalPKCS8PrivateKey converts an RSA private key to PKCS#8, ASN.1 DER form.
++//
++// The following key types are currently supported: *rsa.PrivateKey, *ecdsa.PrivateKey
++// and ed25519.PrivateKey. Unsupported key types result in an error.
++//
++// This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
+ 	var privKey pkcs8
+ 
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index faba9dbe5d..6cffa59d0e 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -28,12 +28,18 @@ type ecPrivateKey struct {
+ 	PublicKey     asn1.BitString        `asn1:"optional,explicit,tag:1"`
+ }
+ 
+-// ParseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
++// ParseECPrivateKey parses an EC public key in SEC 1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "EC PUBLIC KEY".
+ func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
+ 	return parseECPrivateKey(nil, der)
+ }
+ 
+-// MarshalECPrivateKey marshals an EC private key into ASN.1, DER format.
++// MarshalECPrivateKey converts an EC private key to SEC 1, ASN.1 DER form.
++//
++// This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
++// For a more flexible key format which is not EC specific, use
++// MarshalPKCS8PrivateKey.
+ func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+ 	oid, ok := oidFromNamedCurve(key.Curve)
+ 	if !ok {
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 16c0526196..1cd8fdeb33 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -44,14 +44,12 @@ type pkixPublicKey struct {
+ 	BitString asn1.BitString
+ }
+ 
+-// ParsePKIXPublicKey parses a DER encoded public key. These values are
+-// typically found in PEM blocks with "BEGIN PUBLIC KEY".
++// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
+ //
+-// Supported key types include RSA, DSA, and ECDSA. Unknown key
+-// types result in an error.
++// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
++// ed25519.PublicKey. More types might be supported in the future.
+ //
+-// On success, pub will be of type *rsa.PublicKey, *dsa.PublicKey,
+-// *ecdsa.PublicKey, or ed25519.PublicKey.
++// This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+ func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
+ 	var pki publicKeyInfo
+ 	if rest, err := asn1.Unmarshal(derBytes, &pki); err != nil {
+@@ -106,7 +104,12 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
+ 	return publicKeyBytes, publicKeyAlgorithm, nil
+ }
+ 
+-// MarshalPKIXPublicKey serialises a public key to DER-encoded PKIX format.
++// MarshalPKIXPublicKey converts a public key to PKIX, ASN.1 DER form.
++//
++// The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
++// and ed25519.PublicKey. Unsupported key types result in an error.
++//
++// This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+ func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
+ 	var publicKeyBytes []byte
+ 	var publicKeyAlgorithm pkix.AlgorithmIdentifier

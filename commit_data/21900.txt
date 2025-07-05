@@ -11,7 +11,54 @@ Date:   Tue Feb 10 22:22:50 2015 -0500
     Change-Id: Ie783ba55a55af06941307e150b0c406e0a8128b0
     Reviewed-on: https://go-review.googlesource.com/4590
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/gc/popt.c |  8 ++++++++
  src/cmd/gc/reg.c  | 13 +++++++------
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index afe2b078b8..11ade8fd91 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -532,6 +532,14 @@ startcmp(const void *va, const void *vb)
+ 		return -1;
+ 	if(a->start > b->start)
+ 		return +1;
++	// Order what's left by id or symbol name,
++	// just so that sort is forced into a specific ordering,
++	// so that the result of the sort does not depend on
++	// the sort implementation.
++	if(a->def != b->def)
++		return a->def->id - b->def->id;
++	if(a->node != b->node)
++		return strcmp(a->node->sym->name, b->node->sym->name);
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/gc/reg.c b/src/cmd/gc/reg.c
+index 939cf34cb5..a60e71cfb7 100644
+--- a/src/cmd/gc/reg.c
++++ b/src/cmd/gc/reg.c
+@@ -50,15 +50,16 @@ static int
+ rcmp(const void *a1, const void *a2)
+ {
+ 	Rgn *p1, *p2;
+-	int c1, c2;
+ 
+ 	p1 = (Rgn*)a1;
+ 	p2 = (Rgn*)a2;
+-	c1 = p2->cost;
+-	c2 = p1->cost;
+-	if(c1 -= c2)
+-		return c1;
+-	return p2->varno - p1->varno;
++	if(p1->cost != p2->cost)
++		return p2->cost - p1->cost;
++	if(p1->varno != p2->varno)
++		return p2->varno - p1->varno;
++	if(p1->enter != p2->enter)
++		return p2->enter->id - p1->enter->id;
++	return 0;
+ }
+ 
+ static void

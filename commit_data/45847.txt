@@ -18,7 +18,56 @@ Date:   Mon Nov 16 08:44:40 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
  test/fixedbugs/bug340.go           |  3 ++-
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 9205f4142a..9ab5f0c248 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -89,22 +89,22 @@ func typecheckTypeSwitch(n *Node) {
+ 			if len(ls) == 1 {
+ 				if ls[0].Op == OTYPE {
+ 					vt = ls[0].Type
+-				} else if ls[0].Op != OLITERAL { // TODO(mdempsky): Should be !ls[0].isNil()
++				} else if !ls[0].isNil() {
+ 					// Invalid single-type case;
+ 					// mark variable as broken.
+ 					vt = nil
+ 				}
+ 			}
+ 
+-			// TODO(mdempsky): It should be possible to
+-			// still typecheck the case body.
+-			if vt == nil {
+-				continue
+-			}
+-
+ 			nvar := ncase.Rlist.First()
+ 			nvar.Type = vt
+-			nvar = typecheck(nvar, ctxExpr|ctxAssign)
++			if vt != nil {
++				nvar = typecheck(nvar, ctxExpr|ctxAssign)
++			} else {
++				// Clause variable is broken; prevent typechecking.
++				nvar.SetTypecheck(1)
++				nvar.SetWalkdef(1)
++			}
+ 			ncase.Rlist.SetFirst(nvar)
+ 		}
+ 
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+index 118bbacc22..a067940408 100644
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@ -12,6 +12,7 @@ func main() {
+ 	var x interface{}
+ 	switch t := x.(type) {
+ 	case 0:		// ERROR "type"
+-		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
++		t.x = 1
++		x.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
+ 	}
+ }

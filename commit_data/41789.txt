@@ -43,6 +43,42 @@ Date:   Sat Oct 12 18:35:49 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index b80f86799a..b196952218 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -663,8 +663,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		markedPrologue = true
+ 	}
+ 
+-	deltasp := autoffset
+-
+ 	if bpsize > 0 {
+ 		// Save caller's BP
+ 		p = obj.Appendp(p, newprog)
+@@ -809,7 +807,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p = end
+ 	}
+ 
+-	for ; p != nil; p = p.Link {
++	var deltasp int32
++	for p = cursym.Func.Text; p != nil; p = p.Link {
+ 		pcsize := ctxt.Arch.RegSize
+ 		switch p.From.Name {
+ 		case obj.NAME_AUTO:
+@@ -866,6 +865,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.Spadj = -2
+ 			continue
+ 
++		case AADJSP:
++			p.Spadj = int32(p.From.Offset)
++			deltasp += int32(p.From.Offset)
++			continue
++
+ 		case obj.ARET:
+ 			// do nothing
+ 		}

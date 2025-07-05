@@ -21,9 +21,196 @@ Date:   Thu Dec 1 14:29:11 2022 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go           | 30 ++++++-----
  src/go/types/infer.go                              | 30 ++++++-----
  .../types/testdata/fixedbugs/issue45985.go         |  2 +-
  .../types/testdata/fixedbugs/issue53650.go         | 59 ++++++++++++++++++++++
  4 files changed, 96 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 5750ece32f..74731a8e00 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -498,6 +498,9 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 			// If there is a core term (i.e., a core type with tilde information)
+ 			// unify the type parameter with the core type.
+ 			if core, single := coreTerm(tpar); core != nil {
++				if traceInference {
++					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
++				}
+ 				// A type parameter can be unified with its core type in two cases.
+ 				tx := u.x.at(i)
+ 				switch {
+@@ -516,18 +519,17 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 					if core.tilde && !isTypeParam(tx) {
+ 						tx = under(tx)
+ 					}
+-					if !u.unify(tx, core.typ) {
+-						// TODO(gri) improve error message by providing the type arguments
+-						//           which we know already
+-						// Don't use term.String() as it always qualifies types, even if they
+-						// are in the current package.
+-						tilde := ""
+-						if core.tilde {
+-							tilde = "~"
+-						}
+-						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
+-						return nil, 0
+-					}
++					// Unification may fail because it operates with limited information (core type),
++					// even if a given type argument satisfies the corresponding type constraint.
++					// For instance, given [P T1|T2, ...] where the type argument for P is (named
++					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
++					// type, the core type will be the named type T0, which doesn't match T1.
++					// Yet the instantiation of P with T1 is clearly valid (see #53650).
++					// Reporting an error if unification fails would be incorrect in this case.
++					// On the other hand, it is safe to ignore failing unification during constraint
++					// type inference because if the failure is true, an error will be reported when
++					// checking instantiation.
++					u.unify(tx, core.typ)
+ 
+ 				case single && !core.tilde:
+ 					// The corresponding type argument tx is unknown and there's a single
+@@ -545,6 +547,10 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 				if nn == 0 {
+ 					break // all type arguments are known
+ 				}
++			} else {
++				if traceInference {
++					u.tracef("core(%s) = nil", tpar)
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index dc87902c4c..4ce58fcbbc 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -495,6 +495,9 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 			// If there is a core term (i.e., a core type with tilde information)
+ 			// unify the type parameter with the core type.
+ 			if core, single := coreTerm(tpar); core != nil {
++				if traceInference {
++					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
++				}
+ 				// A type parameter can be unified with its core type in two cases.
+ 				tx := u.x.at(i)
+ 				switch {
+@@ -513,18 +516,17 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 					if core.tilde && !isTypeParam(tx) {
+ 						tx = under(tx)
+ 					}
+-					if !u.unify(tx, core.typ) {
+-						// TODO(gri) improve error message by providing the type arguments
+-						//           which we know already
+-						// Don't use term.String() as it always qualifies types, even if they
+-						// are in the current package.
+-						tilde := ""
+-						if core.tilde {
+-							tilde = "~"
+-						}
+-						check.errorf(posn, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
+-						return nil, 0
+-					}
++					// Unification may fail because it operates with limited information (core type),
++					// even if a given type argument satisfies the corresponding type constraint.
++					// For instance, given [P T1|T2, ...] where the type argument for P is (named
++					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
++					// type, the core type will be the named type T0, which doesn't match T1.
++					// Yet the instantiation of P with T1 is clearly valid (see #53650).
++					// Reporting an error if unification fails would be incorrect in this case.
++					// On the other hand, it is safe to ignore failing unification during constraint
++					// type inference because if the failure is true, an error will be reported when
++					// checking instantiation.
++					u.unify(tx, core.typ)
+ 
+ 				case single && !core.tilde:
+ 					// The corresponding type argument tx is unknown and there's a single
+@@ -542,6 +544,10 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 				if nn == 0 {
+ 					break // all type arguments are known
+ 				}
++			} else {
++				if traceInference {
++					u.tracef("core(%s) = nil", tpar)
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue45985.go b/src/internal/types/testdata/fixedbugs/issue45985.go
+index ae04ce2715..292a6a3a77 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45985.go
++++ b/src/internal/types/testdata/fixedbugs/issue45985.go
+@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
+ }
+ 
+ func _() {
+-	_ = app /* ERROR "int does not match" */ [int]
++	_ = app /* ERROR "cannot infer T" */ [int]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue53650.go b/src/internal/types/testdata/fixedbugs/issue53650.go
+new file mode 100644
+index 0000000000..4bba59efbf
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue53650.go
+@@ -0,0 +1,59 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"reflect"
++	"testing"
++)
++
++type T1 int
++type T2 int
++
++func f[P T1 | T2, _ []P]() {}
++
++var _ = f[T1]
++
++// test case from issue
++
++type BaseT interface {
++	Type1 | Type2
++}
++type BaseType int
++type Type1 BaseType
++type Type2 BaseType // float64
++
++type ValueT[T BaseT] struct {
++	A1 T
++}
++
++func NewType1() *ValueT[Type1] {
++	r := NewT[Type1]()
++	return r
++}
++func NewType2() *ValueT[Type2] {
++	r := NewT[Type2]()
++	return r
++}
++
++func NewT[TBase BaseT, TVal ValueT[TBase]]() *TVal {
++	ret := TVal{}
++	return &ret
++}
++func TestGoType(t *testing.T) {
++	r1 := NewType1()
++	r2 := NewType2()
++	t.Log(r1, r2)
++	t.Log(reflect.TypeOf(r1), reflect.TypeOf(r2))
++	fooT1(r1.A1)
++	fooT2(r2.A1)
++}
++
++func fooT1(t1 Type1) {
++
++}
++func fooT2(t2 Type2) {
++
++}

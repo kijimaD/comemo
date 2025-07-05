@@ -16,7 +16,7 @@ Date:   Tue May 14 10:05:00 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go |  8 ++--
  src/cmd/internal/obj/ppc64/obj9.go    | 20 ++++-----
  src/crypto/subtle/xor_ppc64x.s        |  4 +-
@@ -25,3 +25,499 @@ Date:   Tue May 14 10:05:00 2024 -0500
  src/runtime/rt0_linux_ppc64le.s       |  4 +-
  src/runtime/sys_linux_ppc64x.s        |  4 +-
  7 files changed, 62 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index d4974ba77e..ac5149fb0a 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1916,17 +1916,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		if buildcfg.GOOS == "aix" {
+-			// CMP Rarg0, R0
++			// CMP Rarg0, $0
+ 			// BNE 2(PC)
+ 			// STW R0, 0(R0)
+ 			// NOP (so the BNE has somewhere to land)
+ 
+-			// CMP Rarg0, R0
++			// CMP Rarg0, $0
+ 			p := s.Prog(ppc64.ACMP)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = v.Args[0].Reg()
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = ppc64.REG_R0
++			p.To.Type = obj.TYPE_CONST
++			p.To.Offset = 0
+ 
+ 			// BNE 2(PC)
+ 			p2 := s.Prog(ppc64.ABNE)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 23196875a5..bf52e72009 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -969,15 +969,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if c.cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+-				//	MOVD g_panic(g), R3
+-				//	CMP R0, R3
++				//	MOVD g_panic(g), R22
++				//	CMP R22, $0
+ 				//	BEQ end
+-				//	MOVD panic_argp(R3), R4
+-				//	ADD $(autosize+8), R1, R5
+-				//	CMP R4, R5
++				//	MOVD panic_argp(R22), R23
++				//	ADD $(autosize+8), R1, R24
++				//	CMP R23, R24
+ 				//	BNE end
+-				//	ADD $8, R1, R6
+-				//	MOVD R6, panic_argp(R3)
++				//	ADD $8, R1, R25
++				//	MOVD R25, panic_argp(R22)
+ 				// end:
+ 				//	NOP
+ 				//
+@@ -996,9 +996,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = ACMP
+ 				q.From.Type = obj.TYPE_REG
+-				q.From.Reg = REG_R0
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R22
++				q.From.Reg = REG_R22
++				q.To.Type = obj.TYPE_CONST
++				q.To.Offset = 0
+ 
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = ABEQ
+diff --git a/src/crypto/subtle/xor_ppc64x.s b/src/crypto/subtle/xor_ppc64x.s
+index 0de4350cb2..c1f72c5ced 100644
+--- a/src/crypto/subtle/xor_ppc64x.s
++++ b/src/crypto/subtle/xor_ppc64x.s
+@@ -89,7 +89,7 @@ xor16:
+ 	ADD	$16, R8
+ 	ADD	$-16, R6
+ small:
+-	CMP	R6, R0
++	CMP	R6, $0
+ 	BC	12,2,LR		// BEQLR
+ xor8:
+ #ifdef GOPPC64_power10
+@@ -131,7 +131,7 @@ xor2:
+ 	ADD	$2,R8
+ 	ADD	$-2,R6
+ xor1:
+-	CMP	R6, R0
++	CMP	R6, $0
+ 	BC	12,2,LR		// BEQLR
+ 	MOVBZ	(R4)(R8), R14	// R14 = a[i]
+ 	MOVBZ	(R5)(R8), R15	// R15 = b[i]
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 5e7a2da3a3..82aa7fb51e 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -18,7 +18,7 @@ TEXT ·addVV(SB), NOSPLIT, $0
+ 	MOVD  z+0(FP), R10      // R10 = z[]
+ 
+ 	// If z_len = 0, we are done
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVD  R0, R4
+ 	BEQ   done
+ 
+@@ -28,12 +28,12 @@ TEXT ·addVV(SB), NOSPLIT, $0
+ 	MOVD  0(R9), R12      // R12 = y[i]
+ 	ADD   $-1, R7         // R7 = z_len - 1
+ 	ADDC  R12, R11, R15   // R15 = x[i] + y[i], set CA
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVD  R15, 0(R10)     // z[i]
+ 	BEQ   final          // If z_len was 1, we are done
+ 
+ 	SRD   $2, R7, R5      // R5 = z_len/4
+-	CMP   R0, R5
++	CMP   R5, $0
+ 	MOVD  R5, CTR         // Set up loop counter
+ 	BEQ   tail            // If R5 = 0, we can't use the loop
+ 
+@@ -65,7 +65,7 @@ loop:
+ 	BDNZ  loop
+ 
+ 	// We may have more elements to read
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	BEQ   final
+ 
+ 	// Process the remaining elements, one at a time
+@@ -74,7 +74,7 @@ tail:
+ 	MOVDU 8(R9), R16      // R16 = y[i]
+ 	ADD   $-1, R7         // R7 = z_len - 1
+ 	ADDE  R11, R16, R20   // R20 = x[i] + y[i] + CA
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVDU R20, 8(R10)     // z[i]
+ 	BEQ   final           // If R7 = 0, we are done
+ 
+@@ -82,7 +82,7 @@ tail:
+ 	MOVDU 8(R9), R16
+ 	ADD   $-1, R7
+ 	ADDE  R11, R16, R20
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVDU R20, 8(R10)
+ 	BEQ   final
+ 
+@@ -107,7 +107,7 @@ TEXT ·subVV(SB), NOSPLIT, $0
+ 	MOVD  z+0(FP), R10    // R10 = z[]
+ 
+ 	// If z_len = 0, we are done
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVD  R0, R4
+ 	BEQ   done
+ 
+@@ -117,12 +117,12 @@ TEXT ·subVV(SB), NOSPLIT, $0
+ 	MOVD  0(R9), R12      // R12 = y[i]
+ 	ADD   $-1, R7         // R7 = z_len - 1
+ 	SUBC  R12, R11, R15   // R15 = x[i] - y[i], set CA
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVD  R15, 0(R10)     // z[i]
+ 	BEQ   final           // If z_len was 1, we are done
+ 
+ 	SRD   $2, R7, R5      // R5 = z_len/4
+-	CMP   R0, R5
++	CMP   R5, $0
+ 	MOVD  R5, CTR         // Set up loop counter
+ 	BEQ   tail            // If R5 = 0, we can't use the loop
+ 
+@@ -154,7 +154,7 @@ loop:
+ 	BDNZ  loop
+ 
+ 	// We may have more elements to read
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	BEQ   final
+ 
+ 	// Process the remaining elements, one at a time
+@@ -163,7 +163,7 @@ tail:
+ 	MOVDU 8(R9), R16      // R16 = y[i]
+ 	ADD   $-1, R7         // R7 = z_len - 1
+ 	SUBE  R16, R11, R20   // R20 = x[i] - y[i] + CA
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVDU R20, 8(R10)     // z[i]
+ 	BEQ   final           // If R7 = 0, we are done
+ 
+@@ -171,7 +171,7 @@ tail:
+ 	MOVDU 8(R9), R16
+ 	ADD   $-1, R7
+ 	SUBE  R16, R11, R20
+-	CMP   R0, R7
++	CMP   R7, $0
+ 	MOVDU R20, 8(R10)
+ 	BEQ   final
+ 
+@@ -195,7 +195,7 @@ TEXT ·addVW(SB), NOSPLIT, $0
+ 	MOVD y+48(FP), R4	// R4 = y = c
+ 	MOVD z_len+8(FP), R11	// R11 = z_len
+ 
+-	CMP   R0, R11		// If z_len is zero, return
++	CMP   R11, $0		// If z_len is zero, return
+ 	BEQ   done
+ 
+ 	// We will process the first iteration out of the loop so we capture
+@@ -204,14 +204,13 @@ TEXT ·addVW(SB), NOSPLIT, $0
+ 	MOVD  0(R8), R20	// R20 = x[i]
+ 	ADD   $-1, R11		// R11 = z_len - 1
+ 	ADDC  R20, R4, R6	// R6 = x[i] + c
+-	CMP   R0, R11		// If z_len was 1, we are done
++	CMP   R11, $0		// If z_len was 1, we are done
+ 	MOVD  R6, 0(R10)	// z[i]
+ 	BEQ   final
+ 
+ 	// We will read 4 elements per iteration
+-	SRD   $2, R11, R9	// R9 = z_len/4
++	SRDCC $2, R11, R9	// R9 = z_len/4
+ 	DCBT  (R8)
+-	CMP   R0, R9
+ 	MOVD  R9, CTR		// Set up the loop counter
+ 	BEQ   tail		// If R9 = 0, we can't use the loop
+ 	PCALIGN $16
+@@ -233,7 +232,7 @@ loop:
+ 	BDNZ  loop
+ 
+ 	// We may have some elements to read
+-	CMP R0, R11
++	CMP R11, $0
+ 	BEQ final
+ 
+ tail:
+@@ -241,14 +240,14 @@ tail:
+ 	ADDZE R20, R24
+ 	ADD $-1, R11
+ 	MOVDU R24, 8(R10)
+-	CMP R0, R11
++	CMP R11, $0
+ 	BEQ final
+ 
+ 	MOVDU 8(R8), R20
+ 	ADDZE R20, R24
+ 	ADD $-1, R11
+ 	MOVDU R24, 8(R10)
+-	CMP R0, R11
++	CMP R11, $0
+ 	BEQ final
+ 
+ 	MOVD 8(R8), R20
+@@ -268,7 +267,7 @@ TEXT ·subVW(SB), NOSPLIT, $0
+ 	MOVD  y+48(FP), R4	// R4 = y = c
+ 	MOVD  z_len+8(FP), R11	// R11 = z_len
+ 
+-	CMP   R0, R11		// If z_len is zero, return
++	CMP   R11, $0		// If z_len is zero, return
+ 	BEQ   done
+ 
+ 	// We will process the first iteration out of the loop so we capture
+@@ -277,14 +276,13 @@ TEXT ·subVW(SB), NOSPLIT, $0
+ 	MOVD  0(R8), R20	// R20 = x[i]
+ 	ADD   $-1, R11		// R11 = z_len - 1
+ 	SUBC  R4, R20, R6	// R6 = x[i] - c
+-	CMP   R0, R11		// If z_len was 1, we are done
++	CMP   R11, $0		// If z_len was 1, we are done
+ 	MOVD  R6, 0(R10)	// z[i]
+ 	BEQ   final
+ 
+ 	// We will read 4 elements per iteration
+-	SRD   $2, R11, R9	// R9 = z_len/4
++	SRDCC $2, R11, R9	// R9 = z_len/4
+ 	DCBT  (R8)
+-	CMP   R0, R9
+ 	MOVD  R9, CTR		// Set up the loop counter
+ 	BEQ   tail		// If R9 = 0, we can't use the loop
+ 
+@@ -310,7 +308,7 @@ loop:
+ 	BDNZ  loop
+ 
+ 	// We may have some elements to read
+-	CMP   R0, R11
++	CMP   R11, $0
+ 	BEQ   final
+ 
+ tail:
+@@ -318,14 +316,14 @@ tail:
+ 	SUBE  R0, R20
+ 	ADD   $-1, R11
+ 	MOVDU R20, 8(R10)
+-	CMP   R0, R11
++	CMP   R11, $0
+ 	BEQ   final
+ 
+ 	MOVDU 8(R8), R20
+ 	SUBE  R0, R20
+ 	ADD   $-1, R11
+ 	MOVDU R20, 8(R10)
+-	CMP   R0, R11
++	CMP   R11, $0
+ 	BEQ   final
+ 
+ 	MOVD  8(R8), R20
+@@ -348,9 +346,9 @@ TEXT ·shlVU(SB), NOSPLIT, $0
+ 	MOVD    s+48(FP), R9
+ 	MOVD    z_len+8(FP), R4
+ 	MOVD    x_len+32(FP), R7
+-	CMP     R9, R0          // s==0 copy(z,x)
++	CMP     R9, $0          // s==0 copy(z,x)
+ 	BEQ     zeroshift
+-	CMP     R4, R0          // len(z)==0 return
++	CMP     R4, $0          // len(z)==0 return
+ 	BEQ     done
+ 
+ 	ADD     $-1, R4, R5     // len(z)-1
+@@ -360,7 +358,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
+ 	ADD     R3, R7, R16     // save starting address &z[len(z)-1]
+ 	MOVD    (R6)(R7), R14
+ 	SRD     R4, R14, R7     // compute x[len(z)-1]>>ŝ into R7
+-	CMP     R5, R0          // iterate from i=len(z)-1 to 0
++	CMP     R5, $0          // iterate from i=len(z)-1 to 0
+ 	BEQ     loopexit        // Already at end?
+ 	MOVD	0(R15),R10	// x[i]
+ 	PCALIGN $16
+@@ -382,7 +380,7 @@ loopexit:
+ 	RET
+ 
+ zeroshift:
+-	CMP     R6, R0          // x is null, nothing to copy
++	CMP     R6, $0          // x is null, nothing to copy
+ 	BEQ     done
+ 	CMP     R6, R3          // if x is same as z, nothing to copy
+ 	BEQ     done
+@@ -423,9 +421,9 @@ TEXT ·shrVU(SB), NOSPLIT, $0
+ 	MOVD    z_len+8(FP), R4
+ 	MOVD    x_len+32(FP), R7
+ 
+-	CMP     R9, R0          // s==0, copy(z,x)
++	CMP     R9, $0          // s==0, copy(z,x)
+ 	BEQ     zeroshift
+-	CMP     R4, R0          // len(z)==0 return
++	CMP     R4, $0          // len(z)==0 return
+ 	BEQ     done
+ 	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+ 
+@@ -480,7 +478,7 @@ loopexit:
+ 	RET
+ 
+ zeroshift:
+-	CMP     R6, R0          // x is null, nothing to copy
++	CMP     R6, $0          // x is null, nothing to copy
+ 	BEQ     done
+ 	CMP     R6, R3          // if x is same as z, nothing to copy
+ 	BEQ     done
+@@ -506,7 +504,7 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MOVD    r+56(FP), R4      // R4 = r = c
+ 	MOVD    z_len+8(FP), R11  // R11 = z_len
+ 
+-	CMP     R0, R11
++	CMP     R11, $0
+ 	BEQ     done
+ 
+ 	MOVD    0(R8), R20
+@@ -515,14 +513,13 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MULHDU  R9, R20, R7       // R7 = z1 = High-order(x[i]*y)
+ 	ADDC    R4, R6            // R6 = z0 + r
+ 	ADDZE   R7, R4            // R4 = z1 + CA
+-	CMP     R0, R11
++	CMP     R11, $0
+ 	MOVD    R6, 0(R10)        // z[i]
+ 	BEQ     done
+ 
+ 	// We will read 4 elements per iteration
+-	SRD     $2, R11, R14      // R14 = z_len/4
++	SRDCC   $2, R11, R14      // R14 = z_len/4
+ 	DCBT    (R8)
+-	CMP     R0, R14
+ 	MOVD    R14, CTR          // Set up the loop counter
+ 	BEQ     tail              // If R9 = 0, we can't use the loop
+ 	PCALIGN $16
+@@ -553,7 +550,7 @@ loop:
+ 	BDNZ    loop
+ 
+ 	// We may have some elements to read
+-	CMP   R0, R11
++	CMP   R11, $0
+ 	BEQ   done
+ 
+ 	// Process the remaining elements, one at a time
+@@ -565,7 +562,7 @@ tail:
+ 	ADDC    R4, R24
+ 	ADDZE   R25, R4
+ 	MOVDU   R24, 8(R10)       // z[i]
+-	CMP     R0, R11
++	CMP     R11, $0
+ 	BEQ     done              // If R11 = 0, we are done
+ 
+ 	MOVDU   8(R8), R20
+@@ -575,7 +572,7 @@ tail:
+ 	ADDC    R4, R24
+ 	ADDZE   R25, R4
+ 	MOVDU   R24, 8(R10)
+-	CMP     R0, R11
++	CMP     R11, $0
+ 	BEQ     done
+ 
+ 	MOVD    8(R8), R20
+@@ -647,7 +644,7 @@ loop:
+ 
+ 	ANDCC	$3, R6
+ tail:
+-	CMP	R0, R6
++	CMP	R6, $0
+ 	BEQ	done
+ 	MOVD	R6, CTR
+ 	PCALIGN $16
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 98002bccf6..2b8c4d42a3 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -40,7 +40,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 
+ 	// If there is a _cgo_init, call it using the gcc ABI.
+ 	MOVD	_cgo_init(SB), R12
+-	CMP	R0, R12
++	CMP	R12, $0
+ 	BEQ	nocgo
+ 
+ #ifdef GO_PPC64X_HAS_FUNCDESC
+@@ -466,7 +466,7 @@ callfn: \
+ #ifdef GOOS_aix				\
+ 	/* AIX won't trigger a SIGSEGV if R11 = nil */	\
+ 	/* So it manually triggers it */	\
+-	CMP	R0, R11				\
++	CMP	R11, $0				\
+ 	BNE	2(PC)				\
+ 	MOVD	R0, 0(R0)			\
+ #endif						\
+@@ -564,7 +564,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R31
+-	CMP	R0, R31
++	CMP	R31, $0
+ 	BEQ	2(PC)
+ 	BL	runtime·abort(SB)
+ 	RET
+@@ -1235,7 +1235,7 @@ TEXT runtime·debugCallV2<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
+ 	CALL	runtime·debugCallCheck(SB)
+ 	MOVD	40(R1), R22
+ 	XOR	R0, R0
+-	CMP	R22, R0
++	CMP	R22, $0
+ 	BEQ	good
+ 	MOVD	48(R1), R22
+ 	MOVD	$8, R20
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 417ada21bf..4b7d8e1b94 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -78,7 +78,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// passes argc/argv similar to the linux kernel, R13 (TLS) is
+ 	// initialized, and R3/R4 are undefined.
+ 	MOVD	(R1), R12
+-	CMP	R0, R12
++	CMP	R12, $0
+ 	BEQ	tls_and_argcv_in_reg
+ 
+ 	// Arguments are passed via the stack (musl loader or a static binary)
+@@ -86,7 +86,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	ADD	$8, R1, R4 // argv
+ 
+ 	// Did the TLS pointer get set? If so, don't change it (e.g musl).
+-	CMP	R0, R13
++	CMP	R13, $0
+ 	BNE	tls_and_argcv_in_reg
+ 
+ 	MOVD	$runtime·m0+m_tls(SB), R13 // TLS
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index d105585b7e..ba4988b723 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -211,7 +211,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	MOVD	$0, R3		// CLOCK_REALTIME
+ 
+ 	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+-	CMP	R12, R0
++	CMP	R12, $0
+ 	BEQ	fallback
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+@@ -305,7 +305,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVD	g_m(g), R21	// R21 = m
+ 
+ 	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+-	CMP	R12, R0
++	CMP	R12, $0
+ 	BEQ	fallback
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.

@@ -12,7 +12,7 @@ Date:   Tue Dec 28 10:54:55 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/stat_darwin.go    | 8 ++------
  src/os/stat_dragonfly.go | 8 ++------
  src/os/stat_freebsd.go   | 8 ++------
@@ -22,3 +22,213 @@ Date:   Tue Dec 28 10:54:55 2021 -0800
  src/os/stat_openbsd.go   | 8 ++------
  src/os/stat_solaris.go   | 8 ++------
  8 files changed, 16 insertions(+), 48 deletions(-)
+
+diff --git a/src/os/stat_darwin.go b/src/os/stat_darwin.go
+index 74214cefa4..b92ffd4a0a 100644
+--- a/src/os/stat_darwin.go
++++ b/src/os/stat_darwin.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK, syscall.S_IFWHT:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atimespec.Unix())
+ }
+diff --git a/src/os/stat_dragonfly.go b/src/os/stat_dragonfly.go
+index 217bc6726d..316c26c7ca 100644
+--- a/src/os/stat_dragonfly.go
++++ b/src/os/stat_dragonfly.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(ts.Sec, ts.Nsec)
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
+ }
+diff --git a/src/os/stat_freebsd.go b/src/os/stat_freebsd.go
+index bab4ffa798..919ee44dd6 100644
+--- a/src/os/stat_freebsd.go
++++ b/src/os/stat_freebsd.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atimespec.Unix())
+ }
+diff --git a/src/os/stat_js.go b/src/os/stat_js.go
+index c3e9b5b5e5..a137172e66 100644
+--- a/src/os/stat_js.go
++++ b/src/os/stat_js.go
+@@ -14,7 +14,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtime, fs.sys.MtimeNsec)
++	fs.modTime = time.Unix(fs.sys.Mtime, fs.sys.MtimeNsec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -43,12 +43,8 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(sec, nsec int64) time.Time {
+-	return time.Unix(sec, nsec)
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+ 	st := fi.Sys().(*syscall.Stat_t)
+-	return timespecToTime(st.Atime, st.AtimeNsec)
++	return time.Unix(st.Atime, st.AtimeNsec)
+ }
+diff --git a/src/os/stat_linux.go b/src/os/stat_linux.go
+index d36afa9ffd..316c26c7ca 100644
+--- a/src/os/stat_linux.go
++++ b/src/os/stat_linux.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
+ }
+diff --git a/src/os/stat_netbsd.go b/src/os/stat_netbsd.go
+index 11ebcacab8..919ee44dd6 100644
+--- a/src/os/stat_netbsd.go
++++ b/src/os/stat_netbsd.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(ts.Sec, int64(ts.Nsec))
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atimespec.Unix())
+ }
+diff --git a/src/os/stat_openbsd.go b/src/os/stat_openbsd.go
+index 9df2d7f773..316c26c7ca 100644
+--- a/src/os/stat_openbsd.go
++++ b/src/os/stat_openbsd.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(ts.Sec, int64(ts.Nsec))
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
+ }
+diff --git a/src/os/stat_solaris.go b/src/os/stat_solaris.go
+index 217bc6726d..316c26c7ca 100644
+--- a/src/os/stat_solaris.go
++++ b/src/os/stat_solaris.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -41,11 +41,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	}
+ }
+ 
+-func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(ts.Sec, ts.Nsec)
+-}
+-
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
+ }

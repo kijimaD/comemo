@@ -11,7 +11,43 @@ Date:   Thu Nov 9 16:07:29 2017 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/reader.go | 2 +-
  src/archive/zip/struct.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 7417b8f36a..1563e74dfc 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -391,7 +391,7 @@ parseExtras:
+ 	msdosModified := msDosTimeToTime(f.ModifiedDate, f.ModifiedTime)
+ 	f.Modified = msdosModified
+ 	if !modified.IsZero() {
+-		f.Modified = modified.In(time.UTC)
++		f.Modified = modified.UTC()
+ 
+ 		// If legacy MS-DOS timestamps are set, we can use the delta between
+ 		// the legacy and extended versions to estimate timezone offset.
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index f2bc7be6a5..00c15e4931 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -231,7 +231,7 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ // Deprecated: Use Modified instead.
+ func (h *FileHeader) ModTime() time.Time {
+ 	if !h.Modified.IsZero() {
+-		return h.Modified.In(time.UTC) // Convert to UTC for compatibility
++		return h.Modified.UTC() // Convert to UTC for compatibility
+ 	}
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+@@ -241,7 +241,7 @@ func (h *FileHeader) ModTime() time.Time {
+ //
+ // Deprecated: Use Modified instead.
+ func (h *FileHeader) SetModTime(t time.Time) {
+-	t = t.In(time.UTC) // Convert to UTC for compatibility
++	t = t.UTC() // Convert to UTC for compatibility
+ 	h.Modified = t
+ 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
+ }

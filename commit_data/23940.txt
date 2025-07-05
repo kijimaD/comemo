@@ -9,7 +9,7 @@ Date:   Wed Jun 24 14:03:39 2015 -0700
     Change-Id: Icf0d23fb8d383c76272401e363cc9b2169d11403
     Reviewed-on: https://go-review.googlesource.com/11450
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          | 44 ++++++++++++++---------------
  src/cmd/compile/internal/ssa/block.go       |  6 ++--
  src/cmd/compile/internal/ssa/check.go       | 42 +++++++++++++--------------
@@ -29,3 +29,646 @@ Date:   Wed Jun 24 14:03:39 2015 -0700
  src/cmd/compile/internal/ssa/stackalloc.go  |  6 ++--
  src/cmd/compile/internal/ssa/value.go       |  6 ++--
  18 files changed, 85 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 569b985052..0dd2e44ec5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -135,13 +135,13 @@ type state struct {
+ 	line []int32
+ }
+ 
+-func (s *state) Fatal(msg string, args ...interface{})         { s.config.Fatal(msg, args...) }
+-func (s *state) Unimplemented(msg string, args ...interface{}) { s.config.Unimplemented(msg, args...) }
++func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
++func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
+ 
+ // startBlock sets the current block we're generating code in to b.
+ func (s *state) startBlock(b *ssa.Block) {
+ 	if s.curBlock != nil {
+-		s.Fatal("starting block %v when block %v has not ended", b, s.curBlock)
++		s.Fatalf("starting block %v when block %v has not ended", b, s.curBlock)
+ 	}
+ 	s.curBlock = b
+ 	s.vars = map[string]*ssa.Value{}
+@@ -294,7 +294,7 @@ func (s *state) stmt(n *Node) {
+ 			s.startBlock(t)
+ 		}
+ 		if n.Op == OGOTO && s.curBlock == nil {
+-			s.Unimplemented("goto at start of function; see test/goto.go")
++			s.Unimplementedf("goto at start of function; see test/goto.go")
+ 		}
+ 
+ 	case OAS, OASWB:
+@@ -354,7 +354,7 @@ func (s *state) stmt(n *Node) {
+ 		// generate code to test condition
+ 		// TODO(khr): Left == nil exception
+ 		if n.Left == nil {
+-			s.Unimplemented("cond n.Left == nil: %v", n)
++			s.Unimplementedf("cond n.Left == nil: %v", n)
+ 		}
+ 		s.startBlock(bCond)
+ 		cond := s.expr(n.Left)
+@@ -381,7 +381,7 @@ func (s *state) stmt(n *Node) {
+ 		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
+ 		// Maybe just link it in the store chain?
+ 	default:
+-		s.Unimplemented("unhandled stmt %s", opnames[n.Op])
++		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
+ 	}
+ }
+ 
+@@ -409,7 +409,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case CTSTR:
+ 			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
+ 		default:
+-			s.Unimplemented("unhandled OLITERAL %v", n.Val().Ctype())
++			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+ 			return nil
+ 		}
+ 	case OCONVNOP:
+@@ -513,7 +513,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+ 		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
+ 	default:
+-		s.Unimplemented("unhandled expr %s", opnames[n.Op])
++		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
+ 		return nil
+ 	}
+ }
+@@ -533,7 +533,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 		case t.IsBoolean():
+ 			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
+ 		default:
+-			s.Unimplemented("zero for type %v not implemented", t)
++			s.Unimplementedf("zero for type %v not implemented", t)
+ 		}
+ 	} else {
+ 		val = s.expr(right)
+@@ -563,7 +563,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+ 			// TODO: address of locals
+-			s.Unimplemented("variable address of %v not implemented", n)
++			s.Unimplementedf("variable address of %v not implemented", n)
+ 			return nil
+ 		}
+ 	case OINDREG:
+@@ -586,7 +586,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+ 		}
+ 	default:
+-		s.Unimplemented("addr: bad op %v", Oconv(int(n.Op), 0))
++		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
+ 		return nil
+ 	}
+ }
+@@ -652,7 +652,7 @@ func (s *state) variable(name string, t ssa.Type) *ssa.Value {
+ 		// Unimplemented instead of Fatal because fixedbugs/bug303.go
+ 		// demonstrates a case in which this appears to happen legitimately.
+ 		// TODO: decide on the correct behavior here.
+-		s.Unimplemented("nil curblock adding variable %v (%v)", name, t)
++		s.Unimplementedf("nil curblock adding variable %v (%v)", name, t)
+ 	}
+ 	v := s.vars[name]
+ 	if v == nil {
+@@ -705,7 +705,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
+ 		vals = append(vals, s.lookupVarOutgoing(p, t, name))
+ 	}
+ 	if len(vals) == 0 {
+-		s.Unimplemented("TODO: Handle fixedbugs/bug076.go")
++		s.Unimplementedf("TODO: Handle fixedbugs/bug076.go")
+ 		return nil
+ 	}
+ 	v0 := vals[0]
+@@ -868,7 +868,7 @@ func genValue(v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpAMD64MULQconst:
+-		v.Unimplemented("IMULQ doasm")
++		v.Unimplementedf("IMULQ doasm")
+ 		return
+ 		// TODO: this isn't right.  doasm fails on it.  I don't think obj
+ 		// has ever been taught to compile imul $c, r1, r2.
+@@ -903,7 +903,7 @@ func genValue(v *ssa.Value) {
+ 		r := regnum(v)
+ 		if x != r {
+ 			if r == x86.REG_CX {
+-				v.Fatal("can't implement %s, target and shift both in CX", v.LongString())
++				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
+ 			}
+ 			p := Prog(x86.AMOVQ)
+ 			p.From.Type = obj.TYPE_REG
+@@ -1052,12 +1052,12 @@ func genValue(v *ssa.Value) {
+ 		loc := f.RegAlloc[v.ID]
+ 		for _, a := range v.Args {
+ 			if f.RegAlloc[a.ID] != loc { // TODO: .Equal() instead?
+-				v.Fatal("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
++				v.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
+ 			}
+ 		}
+ 	case ssa.OpConst:
+ 		if v.Block.Func.RegAlloc[v.ID] != nil {
+-			v.Fatal("const value %v shouldn't have a location", v)
++			v.Fatalf("const value %v shouldn't have a location", v)
+ 		}
+ 	case ssa.OpArg:
+ 		// memory arg needs no code
+@@ -1082,7 +1082,7 @@ func genValue(v *ssa.Value) {
+ 	case ssa.OpFP, ssa.OpSP:
+ 		// nothing to do
+ 	default:
+-		v.Unimplemented("value %s not implemented", v.LongString())
++		v.Unimplementedf("value %s not implemented", v.LongString())
+ 	}
+ }
+ 
+@@ -1190,7 +1190,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 		}
+ 
+ 	default:
+-		b.Unimplemented("branch %s not implemented", b.LongString())
++		b.Unimplementedf("branch %s not implemented", b.LongString())
+ 	}
+ 	return branches
+ }
+@@ -1244,7 +1244,7 @@ func (*ssaExport) StringSym(s string) interface{} {
+ }
+ 
+ // Log logs a message from the compiler.
+-func (e *ssaExport) Log(msg string, args ...interface{}) {
++func (e *ssaExport) Logf(msg string, args ...interface{}) {
+ 	// If e was marked as unimplemented, anything could happen. Ignore.
+ 	if e.log && !e.unimplemented {
+ 		fmt.Printf(msg, args...)
+@@ -1252,7 +1252,7 @@ func (e *ssaExport) Log(msg string, args ...interface{}) {
+ }
+ 
+ // Fatal reports a compiler error and exits.
+-func (e *ssaExport) Fatal(msg string, args ...interface{}) {
++func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
+ 	// If e was marked as unimplemented, anything could happen. Ignore.
+ 	if !e.unimplemented {
+ 		Fatal(msg, args...)
+@@ -1261,7 +1261,7 @@ func (e *ssaExport) Fatal(msg string, args ...interface{}) {
+ 
+ // Unimplemented reports that the function cannot be compiled.
+ // It will be removed once SSA work is complete.
+-func (e *ssaExport) Unimplemented(msg string, args ...interface{}) {
++func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
+ 	const alwaysLog = false // enable to calculate top unimplemented features
+ 	if !e.unimplemented && (e.log || alwaysLog) {
+ 		// first implementation failure, print explanation
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index e0d5c1a55e..b788031fce 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -70,6 +70,6 @@ func (b *Block) LongString() string {
+ 	return s
+ }
+ 
+-func (b *Block) Log(msg string, args ...interface{})           { b.Func.Log(msg, args...) }
+-func (b *Block) Fatal(msg string, args ...interface{})         { b.Func.Fatal(msg, args...) }
+-func (b *Block) Unimplemented(msg string, args ...interface{}) { b.Func.Unimplemented(msg, args...) }
++func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
++func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
++func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 230d0ec111..672aeda96a 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -11,17 +11,17 @@ func checkFunc(f *Func) {
+ 
+ 	for _, b := range f.Blocks {
+ 		if blockMark[b.ID] {
+-			f.Fatal("block %s appears twice in %s!", b, f.Name)
++			f.Fatalf("block %s appears twice in %s!", b, f.Name)
+ 		}
+ 		blockMark[b.ID] = true
+ 		if b.Func != f {
+-			f.Fatal("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
++			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
+ 		}
+ 
+ 		for i, c := range b.Succs {
+ 			for j, d := range b.Succs {
+ 				if i != j && c == d {
+-					f.Fatal("%s.Succs has duplicate block %s", b, c)
++					f.Fatalf("%s.Succs has duplicate block %s", b, c)
+ 				}
+ 			}
+ 		}
+@@ -44,64 +44,64 @@ func checkFunc(f *Func) {
+ 				}
+ 			}
+ 			if !found {
+-				f.Fatal("block %s is not a succ of its pred block %s", b, p)
++				f.Fatalf("block %s is not a succ of its pred block %s", b, p)
+ 			}
+ 		}
+ 
+ 		switch b.Kind {
+ 		case BlockExit:
+ 			if len(b.Succs) != 0 {
+-				f.Fatal("exit block %s has successors", b)
++				f.Fatalf("exit block %s has successors", b)
+ 			}
+ 			if b.Control == nil {
+-				f.Fatal("exit block %s has no control value", b)
++				f.Fatalf("exit block %s has no control value", b)
+ 			}
+ 			if !b.Control.Type.IsMemory() {
+-				f.Fatal("exit block %s has non-memory control value %s", b, b.Control.LongString())
++				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+ 		case BlockPlain:
+ 			if len(b.Succs) != 1 {
+-				f.Fatal("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
++				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
+ 			}
+ 			if b.Control != nil {
+-				f.Fatal("plain block %s has non-nil control %s", b, b.Control.LongString())
++				f.Fatalf("plain block %s has non-nil control %s", b, b.Control.LongString())
+ 			}
+ 		case BlockIf:
+ 			if len(b.Succs) != 2 {
+-				f.Fatal("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
++				f.Fatalf("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
+ 			}
+ 			if b.Control == nil {
+-				f.Fatal("if block %s has no control value", b)
++				f.Fatalf("if block %s has no control value", b)
+ 			}
+ 			if !b.Control.Type.IsBoolean() {
+-				f.Fatal("if block %s has non-bool control value %s", b, b.Control.LongString())
++				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
+ 			}
+ 		case BlockCall:
+ 			if len(b.Succs) != 2 {
+-				f.Fatal("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
++				f.Fatalf("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
+ 			}
+ 			if b.Control == nil {
+-				f.Fatal("call block %s has no control value", b)
++				f.Fatalf("call block %s has no control value", b)
+ 			}
+ 			if !b.Control.Type.IsMemory() {
+-				f.Fatal("call block %s has non-memory control value %s", b, b.Control.LongString())
++				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+ 			if b.Succs[1].Kind != BlockExit {
+-				f.Fatal("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
++				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
+ 			}
+ 		}
+ 
+ 		for _, v := range b.Values {
+ 			if valueMark[v.ID] {
+-				f.Fatal("value %s appears twice!", v.LongString())
++				f.Fatalf("value %s appears twice!", v.LongString())
+ 			}
+ 			valueMark[v.ID] = true
+ 
+ 			if v.Block != b {
+-				f.Fatal("%s.block != %s", v, b)
++				f.Fatalf("%s.block != %s", v, b)
+ 			}
+ 			if v.Op == OpPhi && len(v.Args) != len(b.Preds) {
+-				f.Fatal("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
++				f.Fatalf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
+ 			}
+ 
+ 			// TODO: check for cycles in values
+@@ -111,12 +111,12 @@ func checkFunc(f *Func) {
+ 
+ 	for _, id := range f.bid.free {
+ 		if blockMark[id] {
+-			f.Fatal("used block b%d in free list", id)
++			f.Fatalf("used block b%d in free list", id)
+ 		}
+ 	}
+ 	for _, id := range f.vid.free {
+ 		if valueMark[id] {
+-			f.Fatal("used value v%d in free list", id)
++			f.Fatalf("used value v%d in free list", id)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 27cc0d0609..b02c10a745 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -15,13 +15,13 @@ import "log"
+ func Compile(f *Func) {
+ 	// TODO: debugging - set flags to control verbosity of compiler,
+ 	// which phases to dump IR before/after, etc.
+-	f.Log("compiling %s\n", f.Name)
++	f.Logf("compiling %s\n", f.Name)
+ 
+ 	// hook to print function & phase if panic happens
+ 	phaseName := "init"
+ 	defer func() {
+ 		if phaseName != "" {
+-			f.Fatal("panic during %s while compiling %s\n", phaseName, f.Name)
++			f.Fatalf("panic during %s while compiling %s\n", phaseName, f.Name)
+ 		}
+ 	}()
+ 
+@@ -30,9 +30,9 @@ func Compile(f *Func) {
+ 	checkFunc(f)
+ 	for _, p := range passes {
+ 		phaseName = p.name
+-		f.Log("  pass %s begin\n", p.name)
++		f.Logf("  pass %s begin\n", p.name)
+ 		p.fn(f)
+-		f.Log("  pass %s end\n", p.name)
++		f.Logf("  pass %s end\n", p.name)
+ 		printFunc(f)
+ 		checkFunc(f)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 60c1a5a50b..53eb5e8eb5 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -22,14 +22,14 @@ type Frontend interface {
+ 	StringSym(string) interface{} // returns *gc.Sym
+ 
+ 	// Log logs a message from the compiler.
+-	Log(string, ...interface{})
++	Logf(string, ...interface{})
+ 
+ 	// Fatal reports a compiler error and exits.
+-	Fatal(string, ...interface{})
++	Fatalf(string, ...interface{})
+ 
+ 	// Unimplemented reports that the function cannot be compiled.
+ 	// It will be removed once SSA work is complete.
+-	Unimplemented(msg string, args ...interface{})
++	Unimplementedf(msg string, args ...interface{})
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+@@ -45,7 +45,7 @@ func NewConfig(arch string, fe Frontend) *Config {
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+ 	default:
+-		fe.Unimplemented("arch %s not implemented", arch)
++		fe.Unimplementedf("arch %s not implemented", arch)
+ 	}
+ 
+ 	// cache the intptr type in the config
+@@ -63,9 +63,9 @@ func (c *Config) NewFunc() *Func {
+ 	return &Func{Config: c}
+ }
+ 
+-func (c *Config) Log(msg string, args ...interface{})           { c.fe.Log(msg, args...) }
+-func (c *Config) Fatal(msg string, args ...interface{})         { c.fe.Fatal(msg, args...) }
+-func (c *Config) Unimplemented(msg string, args ...interface{}) { c.fe.Unimplemented(msg, args...) }
++func (c *Config) Logf(msg string, args ...interface{})           { c.fe.Logf(msg, args...) }
++func (c *Config) Fatalf(msg string, args ...interface{})         { c.fe.Fatalf(msg, args...) }
++func (c *Config) Unimplementedf(msg string, args ...interface{}) { c.fe.Unimplementedf(msg, args...) }
+ 
+ // TODO(khr): do we really need a separate Config, or can we just
+ // store all its fields inside a Func?
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index f4884520de..48d6fd6938 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -80,7 +80,7 @@ func deadcode(f *Func) {
+ 			i++
+ 		} else {
+ 			if len(b.Values) > 0 {
+-				b.Fatal("live values in unreachable block %v: %v", b, b.Values)
++				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
+ 			}
+ 			f.bid.put(b.ID)
+ 		}
+@@ -103,7 +103,7 @@ func removePredecessor(b, c *Block) {
+ 	if n == 0 {
+ 		// c is now dead - don't bother working on it
+ 		if c.Preds[0] != b {
+-			b.Fatal("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
++			b.Fatalf("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index e4d73e7226..9d138e3ac1 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -56,12 +56,12 @@ func dse(f *Func) {
+ 				continue
+ 			}
+ 			if last != nil {
+-				b.Fatal("two final stores - simultaneous live stores", last, v)
++				b.Fatalf("two final stores - simultaneous live stores", last, v)
+ 			}
+ 			last = v
+ 		}
+ 		if last == nil {
+-			b.Fatal("no last store found - cycle?")
++			b.Fatalf("no last store found - cycle?")
+ 		}
+ 
+ 		// Walk backwards looking for dead stores.  Keep track of shadowed addresses.
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index fac2798a60..343df76b22 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -45,7 +45,7 @@ func postorder(f *Func) []*Block {
+ 				}
+ 			}
+ 		default:
+-			b.Fatal("bad stack state %v %d", b, mark[b.ID])
++			b.Fatalf("bad stack state %v %d", b, mark[b.ID])
+ 		}
+ 	}
+ 	return order
+@@ -71,7 +71,7 @@ func dominators(f *Func) []*Block {
+ 	// Make the entry block a self-loop
+ 	idom[f.Entry.ID] = f.Entry
+ 	if postnum[f.Entry.ID] != len(post)-1 {
+-		f.Fatal("entry block %v not last in postorder", f.Entry)
++		f.Fatalf("entry block %v not last in postorder", f.Entry)
+ 	}
+ 
+ 	// Compute relaxation of idom entries
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 6b006e9238..f254e066ac 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -19,6 +19,6 @@ func (DummyFrontend) StringSym(s string) interface{} {
+ 	return nil
+ }
+ 
+-func (d DummyFrontend) Log(msg string, args ...interface{})           { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Fatal(msg string, args ...interface{})         { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Unimplemented(msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Logf(msg string, args ...interface{})           { d.t.Logf(msg, args...) }
++func (d DummyFrontend) Fatalf(msg string, args ...interface{})         { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Unimplementedf(msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 56bee1aa3f..046c068eb9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -77,7 +77,7 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
+ 		// Disallow int64 aux values.  They should be in the auxint field instead.
+ 		// Maybe we want to allow this at some point, but for now we disallow it
+ 		// to prevent errors like using NewValue1A instead of NewValue1I.
+-		b.Fatal("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
++		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
+ 	}
+ 	v := &Value{
+ 		ID:    b.Func.vid.get(),
+@@ -208,6 +208,6 @@ func (f *Func) ConstInt(line int32, t Type, c int64) *Value {
+ 	return f.Entry.NewValue0I(line, OpConst, t, c)
+ }
+ 
+-func (f *Func) Log(msg string, args ...interface{})           { f.Config.Log(msg, args...) }
+-func (f *Func) Fatal(msg string, args ...interface{})         { f.Config.Fatal(msg, args...) }
+-func (f *Func) Unimplemented(msg string, args ...interface{}) { f.Config.Unimplemented(msg, args...) }
++func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }
++func (f *Func) Fatalf(msg string, args ...interface{})         { f.Config.Fatalf(msg, args...) }
++func (f *Func) Unimplementedf(msg string, args ...interface{}) { f.Config.Unimplementedf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index b52d470e24..a620e8f602 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -161,7 +161,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
+ 		if c.control != "" {
+ 			cval, ok := values[c.control]
+ 			if !ok {
+-				f.Fatal("control value for block %s missing", bloc.name)
++				f.Fatalf("control value for block %s missing", bloc.name)
+ 			}
+ 			b.Control = cval
+ 		}
+@@ -171,7 +171,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
+ 			for _, arg := range valu.args {
+ 				a, ok := values[arg]
+ 				if !ok {
+-					b.Fatal("arg %s missing for value %s in block %s",
++					b.Fatalf("arg %s missing for value %s in block %s",
+ 						arg, valu.name, bloc.name)
+ 				}
+ 				v.AddArg(a)
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index 0a271b39ad..c2d72267b1 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -80,7 +80,7 @@ blockloop:
+ 				continue blockloop
+ 			}
+ 		}
+-		b.Fatal("no block available for layout")
++		b.Fatalf("no block available for layout")
+ 	}
+ 	f.Blocks = order
+ }
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 768ac124be..a72006ab2f 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -13,7 +13,7 @@ func lower(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if opcodeTable[v.Op].generic && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
+-				f.Unimplemented("%s not lowered", v.LongString())
++				f.Unimplementedf("%s not lowered", v.LongString())
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index c1b97d2b8f..23fdbca7c4 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func printFunc(f *Func) {
+-	f.Log("%s", f.String())
++	f.Logf("%s", f.String())
+ }
+ 
+ func (f *Func) String() string {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index d1489b20f2..fde1cf457b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -349,7 +349,7 @@ func regalloc(f *Func) {
+ 		if b.Kind == BlockCall {
+ 			call = b.Control
+ 			if call != b.Values[len(b.Values)-1] {
+-				b.Fatal("call not at end of block %b %v", b, call)
++				b.Fatalf("call not at end of block %b %v", b, call)
+ 			}
+ 			b.Values = b.Values[:len(b.Values)-1]
+ 			// TODO: do this for all control types?
+@@ -419,7 +419,7 @@ func live(f *Func) [][]ID {
+ 	t := newSparseSet(f.NumValues())
+ 	for {
+ 		for _, b := range f.Blocks {
+-			f.Log("live %s %v\n", b, live[b.ID])
++			f.Logf("live %s %v\n", b, live[b.ID])
+ 		}
+ 		changed := false
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 2bfd3813ed..0de8830fb2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -12,10 +12,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 	var curv *Value
+ 	defer func() {
+ 		if curb != nil {
+-			curb.Fatal("panic during rewrite of block %s\n", curb.LongString())
++			curb.Fatalf("panic during rewrite of block %s\n", curb.LongString())
+ 		}
+ 		if curv != nil {
+-			curv.Fatal("panic during rewrite of value %s\n", curv.LongString())
++			curv.Fatalf("panic during rewrite of value %s\n", curv.LongString())
+ 			// TODO(khr): print source location also
+ 		}
+ 	}()
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 452d0c75a1..e39a3e7a59 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -77,7 +77,7 @@ func stackalloc(f *Func) {
+ 		for _, v := range b.Values {
+ 			if v.Op == OpFP {
+ 				if fp != nil {
+-					b.Fatal("multiple FP ops: %s %s", fp, v)
++					b.Fatalf("multiple FP ops: %s %s", fp, v)
+ 				}
+ 				fp = v
+ 			}
+@@ -97,12 +97,12 @@ func stackalloc(f *Func) {
+ 				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
+ 					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
+ 						// Note: we could do it, but it is probably an error
+-						f.Fatal("can't do FP->SP adjust on index slot of load %s", v.Op)
++						f.Fatalf("can't do FP->SP adjust on index slot of load %s", v.Op)
+ 					}
+ 					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
+ 					v.AuxInt = addOff(v.AuxInt, n)
+ 				default:
+-					f.Unimplemented("can't do FP->SP adjust on %s", v.Op)
++					f.Unimplementedf("can't do FP->SP adjust on %s", v.Op)
+ 					// TODO: OpCopy -> ADDQ
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index ef10fb20cd..9c7f148a79 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -111,6 +111,6 @@ func (v *Value) resetArgs() {
+ 	v.Args = v.argstorage[:0]
+ }
+ 
+-func (v *Value) Log(msg string, args ...interface{})           { v.Block.Log(msg, args...) }
+-func (v *Value) Fatal(msg string, args ...interface{})         { v.Block.Fatal(msg, args...) }
+-func (v *Value) Unimplemented(msg string, args ...interface{}) { v.Block.Unimplemented(msg, args...) }
++func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
++func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
++func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }

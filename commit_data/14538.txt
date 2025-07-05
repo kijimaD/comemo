@@ -21,7 +21,42 @@ Date:   Sat Dec 1 09:26:07 2012 +0100
     R=golang-dev, dave, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6845119
-
+---
  src/pkg/net/fd_unix.go    | 3 ++-
  src/pkg/net/sock_posix.go | 1 -
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 9326b6278a..a9a2ae6e85 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -375,8 +375,8 @@ func (fd *netFD) decref() {
+ 
+ func (fd *netFD) Close() error {
+ 	fd.pollServer.Lock() // needed for both fd.incref(true) and pollserver.Evict
+-	defer fd.pollServer.Unlock()
+ 	if err := fd.incref(true); err != nil {
++		fd.pollServer.Unlock()
+ 		return err
+ 	}
+ 	// Unblock any I/O.  Once it all unblocks and returns,
+@@ -385,6 +385,7 @@ func (fd *netFD) Close() error {
+ 	// fairly quickly, since all the I/O is non-blocking, and any
+ 	// attempts to block in the pollserver will return errClosing.
+ 	fd.pollServer.Evict(fd)
++	fd.pollServer.Unlock()
+ 	fd.decref()
+ 	return nil
+ }
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index ecaf71705e..dce5ec1132 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -61,7 +61,6 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		}
+ 		if err = fd.connect(ursa); err != nil {
+ 			closesocket(s)
+-			fd.Close()
+ 			return nil, err
+ 		}
+ 		fd.isConnected = true

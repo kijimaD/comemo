@@ -11,6 +11,20 @@ Date:   Tue Jul 16 19:34:21 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10871046
-
+---
  src/pkg/crypto/rsa/rsa.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index f56fb37ee5..c7353ea311 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -5,8 +5,6 @@
+ // Package rsa implements RSA encryption as specified in PKCS#1.
+ package rsa
+ 
+-// TODO(agl): Add support for PSS padding.
+-
+ import (
+ 	"crypto/rand"
+ 	"crypto/subtle"

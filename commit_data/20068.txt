@@ -8,6 +8,19 @@ Date:   Wed Aug 13 15:49:07 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/125260043
-
+---
  src/cmd/9g/gsubr.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index d8842796a8..dfdff05879 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -772,6 +772,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT64, TINT16):
+ 	case CASE(TUINT64, TINT16):
+ 		a = AMOVH;
++		break;
+ 
+ 	case CASE(TINT16, TUINT16):	// same size
+ 	case CASE(TUINT16, TUINT16):

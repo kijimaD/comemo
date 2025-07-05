@@ -10,7 +10,106 @@ Date:   Mon Nov 28 15:42:47 2011 -0500
     R=gustav.paul, agl, rsc
     CC=golang-dev
     https://golang.org/cl/5435071
-
+---
  src/pkg/exp/ssh/client.go  | 34 +++-------------------------------
  src/pkg/exp/ssh/session.go | 28 +++++++++++++++++++++++-----
  2 files changed, 26 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index f22782244c..7f0515806f 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -177,35 +177,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
+ 	return H, K, nil
+ }
+ 
+-// openChan opens a new client channel. The most common session type is "session". 
+-// The full set of valid session types are listed in RFC 4250 4.9.1.
+-func (c *ClientConn) openChan(typ string) (*clientChan, error) {
+-	ch := c.newChan(c.transport)
+-	if err := c.writePacket(marshal(msgChannelOpen, channelOpenMsg{
+-		ChanType:      typ,
+-		PeersId:       ch.id,
+-		PeersWindow:   1 << 14,
+-		MaxPacketSize: 1 << 15, // RFC 4253 6.1
+-	})); err != nil {
+-		c.chanlist.remove(ch.id)
+-		return nil, err
+-	}
+-	// wait for response
+-	switch msg := (<-ch.msg).(type) {
+-	case *channelOpenConfirmMsg:
+-		ch.peersId = msg.MyId
+-		ch.win <- int(msg.MyWindow)
+-	case *channelOpenFailureMsg:
+-		c.chanlist.remove(ch.id)
+-		return nil, errors.New(msg.Message)
+-	default:
+-		c.chanlist.remove(ch.id)
+-		return nil, errors.New("Unexpected packet")
+-	}
+-	return ch, nil
+-}
+-
+-// mainloop reads incoming messages and routes channel messages
++// mainLoop reads incoming messages and routes channel messages
+ // to their respective ClientChans.
+ func (c *ClientConn) mainLoop() {
+ 	// TODO(dfc) signal the underlying close to all channels
+@@ -271,7 +243,7 @@ func (c *ClientConn) mainLoop() {
+ 			case *windowAdjustMsg:
+ 				c.getChan(msg.PeersId).win <- int(msg.AdditionalBytes)
+ 			default:
+-				fmt.Printf("mainLoop: unhandled %#v\n", msg)
++				fmt.Printf("mainLoop: unhandled message %T: %v\n", msg, msg)
+ 			}
+ 		}
+ 	}
+@@ -347,7 +319,7 @@ type chanlist struct {
+ 	// protects concurrent access to chans
+ 	sync.Mutex
+ 	// chans are indexed by the local id of the channel, clientChan.id.
+-	// The PeersId value of messages received by ClientConn.mainloop is
++	// The PeersId value of messages received by ClientConn.mainLoop is
+ 	// used to locate the right local clientChan in this slice.
+ 	chans []*clientChan
+ }
+diff --git a/src/pkg/exp/ssh/session.go b/src/pkg/exp/ssh/session.go
+index ade61757b8..cafa38cf50 100644
+--- a/src/pkg/exp/ssh/session.go
++++ b/src/pkg/exp/ssh/session.go
+@@ -277,11 +277,29 @@ func (s *Session) stderr() error {
+ 
+ // NewSession returns a new interactive session on the remote host.
+ func (c *ClientConn) NewSession() (*Session, error) {
+-	ch, err := c.openChan("session")
+-	if err != nil {
++	ch := c.newChan(c.transport)
++	if err := c.writePacket(marshal(msgChannelOpen, channelOpenMsg{
++		ChanType:      "session",
++		PeersId:       ch.id,
++		PeersWindow:   1 << 14,
++		MaxPacketSize: 1 << 15, // RFC 4253 6.1
++	})); err != nil {
++		c.chanlist.remove(ch.id)
+ 		return nil, err
+ 	}
+-	return &Session{
+-		clientChan: ch,
+-	}, nil
++	// wait for response
++	msg := <-ch.msg
++	switch msg := msg.(type) {
++	case *channelOpenConfirmMsg:
++		ch.peersId = msg.MyId
++		ch.win <- int(msg.MyWindow)
++		return &Session{
++			clientChan: ch,
++		}, nil
++	case *channelOpenFailureMsg:
++		c.chanlist.remove(ch.id)
++		return nil, fmt.Errorf("ssh: channel open failed: %s", msg.Message)
++	}
++	c.chanlist.remove(ch.id)
++	return nil, fmt.Errorf("ssh: unexpected message %T: %v", msg, msg)
+ }

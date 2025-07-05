@@ -9,6 +9,20 @@ Date:   Wed Oct 28 12:16:41 2015 +1300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0f30ea7b20..727f3e2f45 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -623,7 +623,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "shared":
+ 		switch pair {
+-		case "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
+ 			return true
+ 		}
+ 		return false

@@ -24,7 +24,7 @@ Date:   Tue Oct 8 13:23:51 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201760
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/os/signal/signal_test.go |  20 +++++-
  src/runtime/mgcmark.go       |   6 +-
  src/runtime/os_js.go         |   6 ++
@@ -36,3 +36,491 @@ Date:   Tue Oct 8 13:23:51 2019 -0400
  src/runtime/stack.go         |   6 +-
  src/runtime/symtab.go        |  19 ++++++
  10 files changed, 294 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index ee884bc632..184068c377 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -39,11 +39,25 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
++	waitSig1(t, c, sig, false)
++}
++func waitSigAll(t *testing.T, c <-chan os.Signal, sig os.Signal) {
++	waitSig1(t, c, sig, true)
++}
++
++func waitSig1(t *testing.T, c <-chan os.Signal, sig os.Signal, all bool) {
+ 	// Sleep multiple times to give the kernel more tries to
+ 	// deliver the signal.
+ 	for i := 0; i < 10; i++ {
+ 		select {
+ 		case s := <-c:
++			// If the caller notified for all signals on
++			// c, filter out SIGURG, which is used for
++			// runtime preemption and can come at
++			// unpredictable times.
++			if all && s == syscall.SIGURG {
++				continue
++			}
+ 			if s != sig {
+ 				t.Fatalf("signal was %v, want %v", s, sig)
+ 			}
+@@ -74,17 +88,17 @@ func TestSignal(t *testing.T) {
+ 	// Send this process a SIGWINCH
+ 	t.Logf("sigwinch...")
+ 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+-	waitSig(t, c1, syscall.SIGWINCH)
++	waitSigAll(t, c1, syscall.SIGWINCH)
+ 
+ 	// Send two more SIGHUPs, to make sure that
+ 	// they get delivered on c1 and that not reading
+ 	// from c does not block everything.
+ 	t.Logf("sighup...")
+ 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+-	waitSig(t, c1, syscall.SIGHUP)
++	waitSigAll(t, c1, syscall.SIGHUP)
+ 	t.Logf("sighup...")
+ 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+-	waitSig(t, c1, syscall.SIGHUP)
++	waitSigAll(t, c1, syscall.SIGHUP)
+ 
+ 	// The first SIGHUP should be waiting for us on c.
+ 	waitSig(t, c, syscall.SIGHUP)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 0087408a72..10b525b2bc 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -196,7 +196,7 @@ func markroot(gcw *gcWork, i uint32) {
+ 			gp.waitsince = work.tstart
+ 		}
+ 
+-		// scang must be done on the system stack in case
++		// scanstack must be done on the system stack in case
+ 		// we're trying to scan our own stack.
+ 		systemstack(func() {
+ 			// If this is a self-scan, put the user G in
+@@ -716,6 +716,10 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		println("stack trace goroutine", gp.goid)
+ 	}
+ 
++	if debugScanConservative && gp.asyncSafePoint {
++		print("scanning async preempted goroutine ", gp.goid, " stack [", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
++	}
++
+ 	// Scan the saved context register. This is effectively a live
+ 	// register that gets moved back and forth between the
+ 	// register and sched.ctxt without a write barrier.
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 9c84f1a83e..3738c9b237 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -143,3 +143,9 @@ func syscall_now() (sec int64, nsec int32) {
+ 
+ // gsignalStack is unused on js.
+ type gsignalStack struct{}
++
++const preemptMSupported = false
++
++func preemptM(mp *m) {
++	// No threads, so nothing to do.
++}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2f8d0a0c8e..b534cdba5d 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -483,3 +483,11 @@ func signame(sig uint32) string {
+ 	}
+ 	return sigtable[sig].name
+ }
++
++const preemptMSupported = false
++
++func preemptM(mp *m) {
++	// Not currently supported.
++	//
++	// TODO: Use a note like we use signals on POSIX OSes
++}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 764db6edb0..58e13acb1f 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1062,3 +1062,11 @@ func setThreadCPUProfiler(hz int32) {
+ 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
+ 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
+ }
++
++const preemptMSupported = false
++
++func preemptM(mp *m) {
++	// Not currently supported.
++	//
++	// TODO: Use SuspendThread/GetThreadContext/ResumeThread
++}
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 57ec493b8d..e1091cfd68 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -13,6 +13,11 @@
+ // 2. Synchronous safe-points occur when a running goroutine checks
+ //    for a preemption request.
+ //
++// 3. Asynchronous safe-points occur at any instruction in user code
++//    where the goroutine can be safely paused and a conservative
++//    stack and register scan can find stack roots. The runtime can
++//    stop a goroutine at an async safe-point using a signal.
++//
+ // At both blocked and synchronous safe-points, a goroutine's CPU
+ // state is minimal and the garbage collector has complete information
+ // about its entire stack. This makes it possible to deschedule a
+@@ -26,9 +31,32 @@
+ // to fail and enter the stack growth implementation, which will
+ // detect that it was actually a preemption and redirect to preemption
+ // handling.
++//
++// Preemption at asynchronous safe-points is implemented by suspending
++// the thread using an OS mechanism (e.g., signals) and inspecting its
++// state to determine if the goroutine was at an asynchronous
++// safe-point. Since the thread suspension itself is generally
++// asynchronous, it also checks if the running goroutine wants to be
++// preempted, since this could have changed. If all conditions are
++// satisfied, it adjusts the signal context to make it look like the
++// signaled thread just called asyncPreempt and resumes the thread.
++// asyncPreempt spills all registers and enters the scheduler.
++//
++// (An alternative would be to preempt in the signal handler itself.
++// This would let the OS save and restore the register state and the
++// runtime would only need to know how to extract potentially
++// pointer-containing registers from the signal context. However, this
++// would consume an M for every preempted G, and the scheduler itself
++// is not designed to run from a signal handler, as it tends to
++// allocate memory and start threads in the preemption path.)
+ 
+ package runtime
+ 
++import (
++	"runtime/internal/atomic"
++	"runtime/internal/sys"
++)
++
+ type suspendGState struct {
+ 	g *g
+ 
+@@ -87,6 +115,8 @@ func suspendG(gp *g) suspendGState {
+ 
+ 	// Drive the goroutine to a preemption point.
+ 	stopped := false
++	var asyncM *m
++	var asyncGen uint32
+ 	for i := 0; ; i++ {
+ 		switch s := readgstatus(gp); s {
+ 		default:
+@@ -160,7 +190,7 @@ func suspendG(gp *g) suspendGState {
+ 		case _Grunning:
+ 			// Optimization: if there is already a pending preemption request
+ 			// (from the previous loop iteration), don't bother with the atomics.
+-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt {
++			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && atomic.Load(&asyncM.preemptGen) == asyncGen {
+ 				break
+ 			}
+ 
+@@ -174,7 +204,12 @@ func suspendG(gp *g) suspendGState {
+ 			gp.preempt = true
+ 			gp.stackguard0 = stackPreempt
+ 
+-			// TODO: Inject asynchronous preemption.
++			// Send asynchronous preemption.
++			asyncM = gp.m
++			asyncGen = atomic.Load(&asyncM.preemptGen)
++			if preemptMSupported && debug.asyncpreemptoff == 0 {
++				preemptM(asyncM)
++			}
+ 
+ 			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+ 		}
+@@ -245,5 +280,113 @@ func asyncPreempt()
+ 
+ //go:nosplit
+ func asyncPreempt2() {
+-	// TODO: Enter scheduler
++	gp := getg()
++	gp.asyncSafePoint = true
++	mcall(preemptPark)
++	gp.asyncSafePoint = false
++}
++
++// asyncPreemptStack is the bytes of stack space required to inject an
++// asyncPreempt call.
++var asyncPreemptStack = ^uintptr(0)
++
++func init() {
++	f := findfunc(funcPC(asyncPreempt))
++	total := funcMaxSPDelta(f)
++	f = findfunc(funcPC(asyncPreempt2))
++	total += funcMaxSPDelta(f)
++	// Add some overhead for return PCs, etc.
++	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize
++	if asyncPreemptStack > _StackLimit {
++		// We need more than the nosplit limit. This isn't
++		// unsafe, but it may limit asynchronous preemption.
++		//
++		// This may be a problem if we start using more
++		// registers. In that case, we should store registers
++		// in a context object. If we pre-allocate one per P,
++		// asyncPreempt can spill just a few registers to the
++		// stack, then grab its context object and spill into
++		// it. When it enters the runtime, it would allocate a
++		// new context for the P.
++		print("runtime: asyncPreemptStack=", asyncPreemptStack, "\n")
++		throw("async stack too large")
++	}
++}
++
++// wantAsyncPreempt returns whether an asynchronous preemption is
++// queued for gp.
++func wantAsyncPreempt(gp *g) bool {
++	return gp.preemptStop && readgstatus(gp)&^_Gscan == _Grunning
++}
++
++// isAsyncSafePoint reports whether gp at instruction PC is an
++// asynchronous safe point. This indicates that:
++//
++// 1. It's safe to suspend gp and conservatively scan its stack and
++// registers. There are no potentially hidden pointer values and it's
++// not in the middle of an atomic sequence like a write barrier.
++//
++// 2. gp has enough stack space to inject the asyncPreempt call.
++//
++// 3. It's generally safe to interact with the runtime, even if we're
++// in a signal handler stopped here. For example, there are no runtime
++// locks held, so acquiring a runtime lock won't self-deadlock.
++func isAsyncSafePoint(gp *g, pc, sp uintptr) bool {
++	mp := gp.m
++
++	// Only user Gs can have safe-points. We check this first
++	// because it's extremely common that we'll catch mp in the
++	// scheduler processing this G preemption.
++	if mp.curg != gp {
++		return false
++	}
++
++	// Check M state.
++	if mp.p == 0 || !canPreemptM(mp) {
++		return false
++	}
++
++	// Check stack space.
++	if sp < gp.stack.lo || sp-gp.stack.lo < asyncPreemptStack {
++		return false
++	}
++
++	// Check if PC is an unsafe-point.
++	f := findfunc(pc)
++	if !f.valid() {
++		// Not Go code.
++		return false
++	}
++	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
++	if smi == -2 {
++		// Unsafe-point marked by compiler. This includes
++		// atomic sequences (e.g., write barrier) and nosplit
++		// functions (except at calls).
++		return false
++	}
++	if funcdata(f, _FUNCDATA_LocalsPointerMaps) == nil {
++		// This is assembly code. Don't assume it's
++		// well-formed.
++		//
++		// TODO: Are there cases that are safe but don't have a
++		// locals pointer map, like empty frame functions?
++		return false
++	}
++	if hasPrefix(funcname(f), "runtime.") ||
++		hasPrefix(funcname(f), "runtime/internal/") ||
++		hasPrefix(funcname(f), "reflect.") {
++		// For now we never async preempt the runtime or
++		// anything closely tied to the runtime. Known issues
++		// include: various points in the scheduler ("don't
++		// preempt between here and here"), much of the defer
++		// implementation (untyped info on stack), bulk write
++		// barriers (write barrier check),
++		// reflect.{makeFuncStub,methodValueCall}.
++		//
++		// TODO(austin): We should improve this, or opt things
++		// in incrementally.
++		return false
++	}
++
++	return true
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c319196557..aba62930d4 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -423,6 +423,11 @@ type g struct {
+ 	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule
+ 	preemptShrink bool // shrink stack at synchronous safe point
+ 
++	// asyncSafePoint is set if g is stopped at an asynchronous
++	// safe point. This means there are frames on the stack
++	// without precise pointer information.
++	asyncSafePoint bool
++
+ 	paniconfault bool // panic (instead of crash) on unexpected fault address
+ 	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
+ 	throwsplit   bool // must not split stack
+@@ -531,6 +536,11 @@ type m struct {
+ 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
+ 	vdsoPC uintptr // PC for traceback while in VDSO call
+ 
++	// preemptGen counts the number of completed preemption
++	// signals. This is used to detect when a preemption is
++	// requested, but fails. Accessed atomically.
++	preemptGen uint32
++
+ 	dlogPerM
+ 
+ 	mOS
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e0757acbed..5e4361e7a1 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -38,6 +38,38 @@ const (
+ 	_SIG_IGN uintptr = 1
+ )
+ 
++// sigPreempt is the signal used for non-cooperative preemption.
++//
++// There's no good way to choose this signal, but there are some
++// heuristics:
++//
++// 1. It should be a signal that's passed-through by debuggers by
++// default. On Linux, this is SIGALRM, SIGURG, SIGCHLD, SIGIO,
++// SIGVTALRM, SIGPROF, and SIGWINCH, plus some glibc-internal signals.
++//
++// 2. It shouldn't be used internally by libc in mixed Go/C binaries
++// because libc may assume it's the only thing that can handle these
++// signals. For example SIGCANCEL or SIGSETXID.
++//
++// 3. It should be a signal that can happen spuriously without
++// consequences. For example, SIGALRM is a bad choice because the
++// signal handler can't tell if it was caused by the real process
++// alarm or not (arguably this means the signal is broken, but I
++// digress). SIGUSR1 and SIGUSR2 are also bad because those are often
++// used in meaningful ways by applications.
++//
++// 4. We need to deal with platforms without real-time signals (like
++// macOS), so those are out.
++//
++// We use SIGURG because it meets all of these criteria, is extremely
++// unlikely to be used by an application for its "real" meaning (both
++// because out-of-band data is basically unused and because SIGURG
++// doesn't report which socket has the condition, making it pretty
++// useless), and even if it is, the application has to be ready for
++// spurious SIGURG. SIGIO wouldn't be a bad choice either, but is more
++// likely to be used for real.
++const sigPreempt = _SIGURG
++
+ // Stores the signal handlers registered before Go installed its own.
+ // These signal handlers will be invoked in cases where Go doesn't want to
+ // handle a particular signal (e.g., signal occurred on a non-Go thread).
+@@ -290,6 +322,36 @@ func sigpipe() {
+ 	dieFromSignal(_SIGPIPE)
+ }
+ 
++// doSigPreempt handles a preemption signal on gp.
++func doSigPreempt(gp *g, ctxt *sigctxt) {
++	// Check if this G wants to be preempted and is safe to
++	// preempt.
++	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp()) {
++		// Inject a call to asyncPreempt.
++		ctxt.pushCall(funcPC(asyncPreempt))
++	}
++
++	// Acknowledge the preemption.
++	atomic.Xadd(&gp.m.preemptGen, 1)
++}
++
++const preemptMSupported = pushCallSupported
++
++// preemptM sends a preemption request to mp. This request may be
++// handled asynchronously and may be coalesced with other requests to
++// the M. When the request is received, if the running G or P are
++// marked for preemption and the goroutine is at an asynchronous
++// safe-point, it will preempt the goroutine. It always atomically
++// increments mp.preemptGen after handling a preemption request.
++func preemptM(mp *m) {
++	if !pushCallSupported {
++		// This architecture doesn't support ctxt.pushCall
++		// yet, so doSigPreempt won't work.
++		return
++	}
++	signalM(mp, sigPreempt)
++}
++
+ // sigFetchG fetches the value of G safely when running in a signal handler.
+ // On some architectures, the g value may be clobbered when running in a VDSO.
+ // See issue #32912.
+@@ -446,6 +508,14 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		return
+ 	}
+ 
++	if sig == sigPreempt {
++		// Might be a preemption signal.
++		doSigPreempt(gp, c)
++		// Even if this was definitely a preemption signal, it
++		// may have been coalesced with another signal, so we
++		// still let it through to the application.
++	}
++
+ 	flags := int32(_SigThrow)
+ 	if sig < uint32(len(sigtable)) {
+ 		flags = sigtable[sig].flags
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b87aa0d61b..463f3bf3fd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1072,7 +1072,11 @@ func isShrinkStackSafe(gp *g) bool {
+ 	// The syscall might have pointers into the stack and
+ 	// often we don't have precise pointer maps for the innermost
+ 	// frames.
+-	return gp.syscallsp == 0
++	//
++	// We also can't copy the stack if we're at an asynchronous
++	// safe-point because we don't have precise pointer maps for
++	// all frames.
++	return gp.syscallsp == 0 && !gp.asyncSafePoint
+ }
+ 
+ // Maybe shrink the stack being used by gp.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 35960e89c5..ddcf231929 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -784,6 +784,25 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+ 	return x
+ }
+ 
++// funcMaxSPDelta returns the maximum spdelta at any point in f.
++func funcMaxSPDelta(f funcInfo) int32 {
++	datap := f.datap
++	p := datap.pclntable[f.pcsp:]
++	pc := f.entry
++	val := int32(-1)
++	max := int32(0)
++	for {
++		var ok bool
++		p, ok = step(p, &pc, &val, pc == f.entry)
++		if !ok {
++			return max
++		}
++		if val > max {
++			max = val
++		}
++	}
++}
++
+ func pcdatastart(f funcInfo, table int32) int32 {
+ 	return *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
+ }

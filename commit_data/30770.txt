@@ -11,6 +11,11 @@ Date:   Thu Dec 1 14:59:21 2016 -0800
     Change-Id: Id01f3339dc550c9759569d5610d808b17bca44d0
     Reviewed-on: https://go-review.googlesource.com/33803
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/{obj.go => line.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/line.go
+similarity index 100%
+rename from src/cmd/internal/obj/obj.go
+rename to src/cmd/internal/obj/line.go

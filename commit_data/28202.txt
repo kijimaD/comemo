@@ -9,6 +9,20 @@ Date:   Wed May 4 21:38:45 2016 -0700
     Change-Id: Ife9d6bcc6a772715d137af903c64bafac0cdb216
     Reviewed-on: https://go-review.googlesource.com/22797
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a4f203cf74..4fff35c38e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1302,7 +1302,7 @@ func hostlinkArchArgs() []string {
+ 		return []string{"-marm"}
+ 	case sys.ARM64:
+ 		// nothing needed
+-	case '0':
++	case sys.MIPS64:
+ 		return []string{"-mabi=64"}
+ 	}
+ 	return nil

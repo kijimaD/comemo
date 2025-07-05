@@ -23,7 +23,7 @@ Date:   Wed Dec 8 18:06:41 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alex Rakoczy <alex@golang.org>
-
+---
  src/syscall/syscall_aix.go       |  6 ++++--
  src/syscall/syscall_darwin.go    |  6 ++++--
  src/syscall/syscall_dragonfly.go | 12 +++++++++---
@@ -34,3 +34,168 @@ Date:   Wed Dec 8 18:06:41 2021 -0500
  src/syscall/syscall_plan9.go     |  6 ++++--
  src/syscall/syscall_solaris.go   |  4 +++-
  9 files changed, 40 insertions(+), 18 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 0f5101999f..739c55f179 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -66,8 +66,10 @@ func Pipe(p []int) (err error) {
+ 	}
+ 	var pp [2]_C_int
+ 	err = pipe(&pp)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 5bb34e300c..902d6e77e1 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -80,8 +80,10 @@ func Pipe(p []int) (err error) {
+ 	}
+ 	var q [2]int32
+ 	err = pipe(&q)
+-	p[0] = int(q[0])
+-	p[1] = int(q[1])
++	if err == nil {
++		p[0] = int(q[0])
++		p[1] = int(q[1])
++	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index cc92c4a93e..f3c0f54521 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -98,8 +98,11 @@ func Pipe(p []int) (err error) {
+ 	if len(p) != 2 {
+ 		return EINVAL
+ 	}
+-	p[0], p[1], err = pipe()
+-	return
++	r, w, err := pipe()
++	if err == nil {
++		p[0], p[1] = r, w
++	}
++	return err
+ }
+ 
+ //sysnb	pipe2(p *[2]_C_int, flags int) (r int, w int, err error)
+@@ -111,7 +114,10 @@ func Pipe2(p []int, flags int) (err error) {
+ 	var pp [2]_C_int
+ 	// pipe2 on dragonfly takes an fds array as an argument, but still
+ 	// returns the file descriptors.
+-	p[0], p[1], err = pipe2(&pp, flags)
++	r, w, err := pipe2(&pp, flags)
++	if err == nil {
++		p[0], p[1] = r, w
++	}
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 6f44b25cb9..ecb9ec825a 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -105,8 +105,10 @@ func Pipe2(p []int, flags int) error {
+ 	}
+ 	var pp [2]_C_int
+ 	err := pipe2(&pp, flags)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index c002299641..abcf1d5dfe 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -173,8 +173,10 @@ func Pipe2(p []int, flags int) error {
+ 	}
+ 	var pp [2]_C_int
+ 	err := pipe2(&pp, flags)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index cebef10be8..0d562cc78e 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -114,8 +114,10 @@ func Pipe2(p []int, flags int) error {
+ 	}
+ 	var pp [2]_C_int
+ 	err := pipe2(&pp, flags)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 195cf8617c..fa939ec5c8 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -72,8 +72,10 @@ func Pipe2(p []int, flags int) error {
+ 	}
+ 	var pp [2]_C_int
+ 	err := pipe2(&pp, flags)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index d16cad45d8..6a8ab97dc6 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -198,8 +198,10 @@ func Pipe(p []int) (err error) {
+ 	}
+ 	var pp [2]int32
+ 	err = pipe(&pp)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
++	if err == nil {
++		p[0] = int(pp[0])
++		p[1] = int(pp[1])
++	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 5f12f229c4..f44a9e25ac 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -57,7 +57,9 @@ func Pipe(p []int) (err error) {
+ 	if e1 != 0 {
+ 		err = Errno(e1)
+ 	}
+-	p[0], p[1] = int(r0), int(w0)
++	if err == nil {
++		p[0], p[1] = int(r0), int(w0)
++	}
+ 	return
+ }
+ 

@@ -30,7 +30,7 @@ Date:   Wed Oct 2 17:51:54 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  |   4 +
  src/cmd/go/internal/modload/import.go              |   6 ++
  src/cmd/go/internal/modload/import_test.go         |   4 +
@@ -39,3 +39,358 @@ Date:   Wed Oct 2 17:51:54 2019 -0400
  .../testdata/script/mod_missingpkg_prerelease.txt  |   5 +
  src/cmd/go/testdata/script/mod_outside.txt         | 118 +++++++++++++++------
  7 files changed, 130 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ced5abcc71..6e67eac983 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -284,6 +284,10 @@ func runGet(cmd *base.Command, args []string) {
+ 	// what was requested.
+ 	modload.DisallowWriteGoMod()
+ 
++	// Allow looking up modules for import paths outside of a module.
++	// 'go get' is expected to do this, unlike other commands.
++	modload.AllowMissingModuleImports()
++
+ 	// Parse command-line arguments and report errors. The command-line
+ 	// arguments are of the form path@version or simply path, with implicit
+ 	// @upgrade. path@none is "downgrade away".
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 5b1f0ce027..cda56fa7c8 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -185,6 +185,12 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	if cfg.BuildMod == "readonly" {
+ 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
++	if modRoot == "" && !allowMissingModuleImports {
++		return module.Version{}, "", &ImportMissingError{
++			Path:     path,
++			QueryErr: errors.New("working directory is not part of a module"),
++		}
++	}
+ 
+ 	// Not on build list.
+ 	// To avoid spurious remote fetches, next try the latest replacement for each module.
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index c58892e2ab..accc60eecd 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -44,6 +44,10 @@ var importTests = []struct {
+ func TestImport(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
++	defer func(old bool) {
++		allowMissingModuleImports = old
++	}(allowMissingModuleImports)
++	AllowMissingModuleImports()
+ 
+ 	for _, tt := range importTests {
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8bc41d258d..4872bc3390 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -57,6 +57,8 @@ var (
+ 
+ 	CmdModInit   bool   // running 'go mod init'
+ 	CmdModModule string // module argument for 'go mod init'
++
++	allowMissingModuleImports bool
+ )
+ 
+ // ModFile returns the parsed go.mod file.
+@@ -199,28 +201,21 @@ func Init() {
+ 	if modRoot == "" {
+ 		// We're in module mode, but not inside a module.
+ 		//
+-		// If the command is 'go get' or 'go list' and all of the args are in the
+-		// same existing module, we could use that module's download directory in
+-		// the module cache as the module root, applying any replacements and/or
+-		// exclusions specified by that module. However, that would leave us in a
+-		// strange state: we want 'go get' to be consistent with 'go list', and 'go
+-		// list' should be able to operate on multiple modules. Moreover, the 'get'
+-		// target might specify relative file paths (e.g. in the same repository) as
+-		// replacements, and we would not be able to apply those anyway: we would
+-		// need to either error out or ignore just those replacements, when a build
+-		// from an empty module could proceed without error.
++		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
++		// read or write. They would need to find and download the latest versions
++		// of a potentially large number of modules with no way to save version
++		// information. We can succeed slowly (but not reproducibly), but that's
++		// not usually a good experience.
+ 		//
+-		// Instead, we'll operate as though we're in some ephemeral external module,
+-		// ignoring all replacements and exclusions uniformly.
+-
+-		// Normally we check sums using the go.sum file from the main module, but
+-		// without a main module we do not have an authoritative go.sum file.
++		// Instead, we forbid resolving import paths to modules other than std and
++		// cmd. Users may still build packages specified with .go files on the
++		// command line, but they'll see an error if those files import anything
++		// outside std.
+ 		//
+-		// TODO(bcmills): In Go 1.13, check sums when outside the main module.
++		// This can be overridden by calling AllowMissingModuleImports.
++		// For example, 'go get' does this, since it is expected to resolve paths.
+ 		//
+-		// One possible approach is to merge the go.sum files from all of the
+-		// modules we download: that doesn't protect us against bad top-level
+-		// modules, but it at least ensures consistency for transitive dependencies.
++		// See golang.org/issue/32027.
+ 	} else {
+ 		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
+ 		search.SetModRoot(modRoot)
+@@ -360,6 +355,14 @@ func InitMod() {
+ 	}
+ }
+ 
++// AllowMissingModuleImports allows import paths to be resolved to modules
++// when there is no module root. Normally, this is forbidden because it's slow
++// and there's no way to make the result reproducible, but some commands
++// like 'go get' are expected to do this.
++func AllowMissingModuleImports() {
++	allowMissingModuleImports = true
++}
++
+ // modFileToBuildList initializes buildList from the modFile.
+ func modFileToBuildList() {
+ 	Target = modFile.Module.Mod
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index ec817a5ecd..2c39e4cec4 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -21,9 +21,9 @@ go build -trimpath -o hello.exe hello.go
+ # the current workspace or GOROOT.
+ cd $WORK
+ env GO111MODULE=on
+-go build -trimpath -o fortune.exe rsc.io/fortune
+-! grep -q $GOROOT_REGEXP fortune.exe
+-! grep -q $WORK_REGEXP fortune.exe
++go get -trimpath rsc.io/fortune
++! grep -q $GOROOT_REGEXP $GOPATH/bin/fortune$GOEXE
++! grep -q $WORK_REGEXP $GOPATH/bin/fortune$GOEXE
+ 
+ # Two binaries built from identical packages in different directories
+ # should be identical.
+diff --git a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+index 6203606c22..319ff85587 100644
+--- a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
++++ b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+@@ -3,6 +3,11 @@ env GO111MODULE=on
+ ! go list use.go
+ stderr 'example.com/missingpkg/deprecated: package provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta'
+ 
++-- go.mod --
++module m
++
++go 1.14
++
+ -- use.go --
+ package use
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 4182e71dde..dd4e2d5800 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -17,7 +17,7 @@ go list -m
+ stdout '^command-line-arguments$'
+ # 'go list' in the working directory should fail even if there is a a 'package
+ # main' present: without a main module, we do not know its package path.
+-! go list ./foo
++! go list ./needmod
+ stderr 'cannot find main module'
+ 
+ # 'go list all' lists the transitive import graph of the main module,
+@@ -38,7 +38,7 @@ go list $GOROOT/src/fmt
+ stdout '^fmt$'
+ 
+ # 'go list' should work with file arguments.
+-go list ./foo/foo.go
++go list ./needmod/needmod.go
+ stdout 'command-line-arguments'
+ 
+ # 'go list -m' with an explicit version should resolve that version.
+@@ -104,7 +104,7 @@ stdout 'all modules verified'
+ stderr 'cannot find main module'
+ ! go get -u
+ stderr 'cannot find main module'
+-! go get -u ./foo
++! go get -u ./needmod
+ stderr 'cannot find main module'
+ 
+ # 'go get -u all' upgrades the transitive import graph of the main module,
+@@ -126,35 +126,75 @@ exists $GOPATH/pkg/mod/example.com/version@v1.0.0
+ 
+ 
+ # 'go build' without arguments implicitly operates on the current directory, and should fail.
+-cd foo
++cd needmod
+ ! go build
+ stderr 'cannot find main module'
+ cd ..
+ 
+ # 'go build' of a non-module directory should fail too.
+-! go build ./foo
++! go build ./needmod
+ stderr 'cannot find main module'
+ 
+-# However, 'go build' should succeed for standard-library packages.
++# 'go build' of source files should fail if they import anything outside std.
++! go build -n ./needmod/needmod.go
++stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++
++# 'go build' of source files should succeed if they do not import anything outside std.
++go build -n -o ignore ./stdonly/stdonly.go
++
++# 'go build' should succeed for standard-library packages.
+ go build -n fmt
+ 
+ 
+-# TODO(golang.org/issue/28992): 'go doc' should document the latest version.
+-# For now it does not.
++# 'go doc' without arguments implicitly operates on the current directory, and should fail.
++# TODO(golang.org/issue/32027): currently, it succeeds.
++cd needmod
++go doc
++cd ..
++
++# 'go doc' of a non-module directory should also succeed.
++go doc ./needmod
++
++# 'go doc' should succeed for standard-library packages.
++go doc fmt
++
++# 'go doc' should fail for a package path outside a module.
+ ! go doc example.com/version
+-stderr 'no such package'
++stderr 'doc: cannot find module providing package example.com/version: working directory is not part of a module'
+ 
+ # 'go install' with a version should fail due to syntax.
+ ! go install example.com/printversion@v1.0.0
+ stderr 'can only use path@version syntax with'
+ 
++# 'go install' should fail if a package argument must be resolved to a module.
++! go install example.com/printversion
++stderr 'cannot find module providing package example.com/printversion: working directory is not part of a module'
++
++# 'go install' should fail if a source file imports a package that must be
++# resolved to a module.
++! go install ./needmod/needmod.go
++stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++
++
++# 'go run' with a verison should fail due to syntax.
++! go run example.com/printversion@v1.0.0
++stderr 'can only use path@version syntax with'
++
++# 'go run' should fail if a package argument must be resolved to a module.
++! go run example.com/printversion
++stderr 'cannot find module providing package example.com/printversion: working directory is not part of a module'
++
++# 'go run' should fail if a source file imports a package that must be
++# resolved to a module.
++! go run ./needmod/needmod.go
++stderr 'needmod[/\\]needmod.go:10:2: cannot find module providing package example.com/version: working directory is not part of a module'
++
+ 
+ # 'go fmt' should be able to format files outside of a module.
+-go fmt foo/foo.go
++go fmt needmod/needmod.go
+ 
+ 
+ # The remainder of the test checks dependencies by linking and running binaries.
+-[short] stop
+ 
+ # 'go get' of a binary without a go.mod should install the requested version,
+ # resolving outside dependencies to the latest available versions.
+@@ -180,39 +220,31 @@ stdout 'path is example.com/printversion'
+ stdout 'main is example.com/printversion v1.0.0'
+ stdout 'using example.com/version v1.0.1'
+ 
+-# 'go install' without a version should install the latest version
+-# using its minimal module requirements.
+-go install example.com/printversion
+-exec ../bin/printversion
+-stdout 'path is example.com/printversion'
+-stdout 'main is example.com/printversion v1.0.0'
+-stdout 'using example.com/version v1.0.0'
+-
+-# 'go run' should use 'main' as the effective module and import path.
+-go run ./foo/foo.go
++# 'go run' should work with file arguments if they don't import anything
++# outside std.
++go run ./stdonly/stdonly.go
+ stdout 'path is command-line-arguments$'
+ stdout 'main is command-line-arguments \(devel\)'
+-stdout 'using example.com/version v1.1.0'
+ 
+ # 'go generate' should work with file arguments.
+-[exec:touch] go generate ./foo/foo.go
+-[exec:touch] exists ./foo/gen.txt
++[exec:touch] go generate ./needmod/needmod.go
++[exec:touch] exists ./needmod/gen.txt
+ 
+ # 'go install' should work with file arguments.
+-go install ./foo/foo.go
++go install ./stdonly/stdonly.go
+ 
+ # 'go test' should work with file arguments.
+-go test -v ./foo/foo_test.go
+-stdout 'foo was tested'
++go test -v ./stdonly/stdonly_test.go
++stdout 'stdonly was tested'
+ 
+ # 'go vet' should work with file arguments.
+-go vet ./foo/foo.go
++go vet ./stdonly/stdonly.go
+ 
+ 
+ -- README.txt --
+ There is no go.mod file in the working directory.
+ 
+--- foo/foo.go --
++-- needmod/needmod.go --
+ //go:generate touch gen.txt
+ 
+ package main
+@@ -237,7 +269,28 @@ func main() {
+ 	}
+ }
+ 
+--- foo/foo_test.go --
++-- stdonly/stdonly.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime/debug"
++)
++
++func main() {
++	info, ok := debug.ReadBuildInfo()
++	if !ok {
++		panic("missing build info")
++	}
++	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
++	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
++	for _, m := range info.Deps {
++		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
++	}
++}
++
++-- stdonly/stdonly_test.go --
+ package main
+ 
+ import (
+@@ -245,6 +298,7 @@ import (
+ 	"testing"
+ )
+ 
+-func TestFoo(t *testing.T) {
+-	fmt.Println("foo was tested")
++func Test(t *testing.T) {
++	fmt.Println("stdonly was tested")
+ }
++

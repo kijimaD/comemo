@@ -15,6 +15,33 @@ Date:   Tue Mar 31 14:36:19 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b1c03b97ef..f7d8d13863 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -826,7 +826,6 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 
+ 			// We're gonna write this symbol.
+ 			idx = i
+-			length = s.Value + s.Size - addr
+ 
+ 			// If we cross over the max size, we've got enough symbols.
+ 			if s.Value+s.Size > addr+max {
+@@ -839,6 +838,13 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 			break
+ 		}
+ 
++		// Compute the length to write, including padding.
++		if idx+1 < len(syms) {
++			length = syms[idx+1].Value - addr
++		} else {
++			length = lastAddr - addr
++		}
++
+ 		// Start the block output operator.
+ 		if o, err := out.View(uint64(out.Offset() + written)); err == nil {
+ 			sem <- 1

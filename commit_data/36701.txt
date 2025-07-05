@@ -24,6 +24,33 @@ Date:   Fri Mar 23 17:21:33 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 8e24834088..b0abe7ce7d 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -279,6 +279,21 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 		old, ok := ft.limits[v.ID]
+ 		if !ok {
+ 			old = noLimit
++			if v.isGenericIntConst() {
++				switch d {
++				case signed:
++					old.min, old.max = v.AuxInt, v.AuxInt
++					if v.AuxInt >= 0 {
++						old.umin, old.umax = uint64(v.AuxInt), uint64(v.AuxInt)
++					}
++				case unsigned:
++					old.umin = v.AuxUnsigned()
++					old.umax = old.umin
++					if int64(old.umin) >= 0 {
++						old.min, old.max = int64(old.umin), int64(old.umin)
++					}
++				}
++			}
+ 		}
+ 		lim := noLimit
+ 		switch d {

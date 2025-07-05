@@ -20,7 +20,447 @@ Date:   Fri Jan 1 12:14:34 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/reflect/visiblefields.go      | 101 ++++++++++++
  src/reflect/visiblefields_test.go | 326 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 427 insertions(+)
+
+diff --git a/src/reflect/visiblefields.go b/src/reflect/visiblefields.go
+new file mode 100644
+index 0000000000..c068979dcc
+--- /dev/null
++++ b/src/reflect/visiblefields.go
+@@ -0,0 +1,101 @@
++package reflect
++
++// VisibleFields returns all the visible fields in t, which must be a
++// struct type. A field is defined as visible if it's accessible
++// directly with a FieldByName call. The returned fields include fields
++// inside anonymous struct members and unexported fields. They follow
++// the same order found in the struct, with anonymous fields followed
++// immediately by their promoted fields.
++//
++// For each element e of the returned slice, the corresponding field
++// can be retrieved from a value v of type t by calling v.FieldByIndex(e.Index).
++func VisibleFields(t Type) []StructField {
++	if t == nil {
++		panic("reflect: VisibleFields(nil)")
++	}
++	if t.Kind() != Struct {
++		panic("reflect.VisibleFields of non-struct type")
++	}
++	w := &visibleFieldsWalker{
++		byName:   make(map[string]int),
++		visiting: make(map[Type]bool),
++		fields:   make([]StructField, 0, t.NumField()),
++		index:    make([]int, 0, 2),
++	}
++	w.walk(t)
++	// Remove all the fields that have been hidden.
++	// Use an in-place removal that avoids copying in
++	// the common case that there are no hidden fields.
++	j := 0
++	for i := range w.fields {
++		f := &w.fields[i]
++		if f.Name == "" {
++			continue
++		}
++		if i != j {
++			// A field has been removed. We need to shuffle
++			// all the subsequent elements up.
++			w.fields[j] = *f
++		}
++		j++
++	}
++	return w.fields[:j]
++}
++
++type visibleFieldsWalker struct {
++	byName   map[string]int
++	visiting map[Type]bool
++	fields   []StructField
++	index    []int
++}
++
++// walk walks all the fields in the struct type t, visiting
++// fields in index preorder and appending them to w.fields
++// (this maintains the required ordering).
++// Fields that have been overridden have their
++// Name field cleared.
++func (w *visibleFieldsWalker) walk(t Type) {
++	if w.visiting[t] {
++		return
++	}
++	w.visiting[t] = true
++	for i := 0; i < t.NumField(); i++ {
++		f := t.Field(i)
++		w.index = append(w.index, i)
++		add := true
++		if oldIndex, ok := w.byName[f.Name]; ok {
++			old := &w.fields[oldIndex]
++			if len(w.index) == len(old.Index) {
++				// Fields with the same name at the same depth
++				// cancel one another out. Set the field name
++				// to empty to signify that has happened, and
++				// there's no need to add this field.
++				old.Name = ""
++				add = false
++			} else if len(w.index) < len(old.Index) {
++				// The old field loses because it's deeper than the new one.
++				old.Name = ""
++			} else {
++				// The old field wins because it's shallower than the new one.
++				add = false
++			}
++		}
++		if add {
++			// Copy the index so that it's not overwritten
++			// by the other appends.
++			f.Index = append([]int(nil), w.index...)
++			w.byName[f.Name] = len(w.fields)
++			w.fields = append(w.fields, f)
++		}
++		if f.Anonymous {
++			if f.Type.Kind() == Ptr {
++				f.Type = f.Type.Elem()
++			}
++			if f.Type.Kind() == Struct {
++				w.walk(f.Type)
++			}
++		}
++		w.index = w.index[:len(w.index)-1]
++	}
++	delete(w.visiting, t)
++}
+diff --git a/src/reflect/visiblefields_test.go b/src/reflect/visiblefields_test.go
+new file mode 100644
+index 0000000000..2688b63091
+--- /dev/null
++++ b/src/reflect/visiblefields_test.go
+@@ -0,0 +1,326 @@
++package reflect_test
++
++import (
++	. "reflect"
++	"testing"
++)
++
++type structField struct {
++	name  string
++	index []int
++}
++
++var fieldsTests = []struct {
++	testName string
++	val      interface{}
++	expect   []structField
++}{{
++	testName: "SimpleStruct",
++	val: struct {
++		A int
++		B string
++		C bool
++	}{},
++	expect: []structField{{
++		name:  "A",
++		index: []int{0},
++	}, {
++		name:  "B",
++		index: []int{1},
++	}, {
++		name:  "C",
++		index: []int{2},
++	}},
++}, {
++	testName: "NonEmbeddedStructMember",
++	val: struct {
++		A struct {
++			X int
++		}
++	}{},
++	expect: []structField{{
++		name:  "A",
++		index: []int{0},
++	}},
++}, {
++	testName: "EmbeddedExportedStruct",
++	val: struct {
++		SFG
++	}{},
++	expect: []structField{{
++		name:  "SFG",
++		index: []int{0},
++	}, {
++		name:  "F",
++		index: []int{0, 0},
++	}, {
++		name:  "G",
++		index: []int{0, 1},
++	}},
++}, {
++	testName: "EmbeddedUnexportedStruct",
++	val: struct {
++		sFG
++	}{},
++	expect: []structField{{
++		name:  "sFG",
++		index: []int{0},
++	}, {
++		name:  "F",
++		index: []int{0, 0},
++	}, {
++		name:  "G",
++		index: []int{0, 1},
++	}},
++}, {
++	testName: "TwoEmbeddedStructsWithCancellingMembers",
++	val: struct {
++		SFG
++		SF
++	}{},
++	expect: []structField{{
++		name:  "SFG",
++		index: []int{0},
++	}, {
++		name:  "G",
++		index: []int{0, 1},
++	}, {
++		name:  "SF",
++		index: []int{1},
++	}},
++}, {
++	testName: "EmbeddedStructsWithSameFieldsAtDifferentDepths",
++	val: struct {
++		SFGH3
++		SG1
++		SFG2
++		SF2
++		L int
++	}{},
++	expect: []structField{{
++		name:  "SFGH3",
++		index: []int{0},
++	}, {
++		name:  "SFGH2",
++		index: []int{0, 0},
++	}, {
++		name:  "SFGH1",
++		index: []int{0, 0, 0},
++	}, {
++		name:  "SFGH",
++		index: []int{0, 0, 0, 0},
++	}, {
++		name:  "H",
++		index: []int{0, 0, 0, 0, 2},
++	}, {
++		name:  "SG1",
++		index: []int{1},
++	}, {
++		name:  "SG",
++		index: []int{1, 0},
++	}, {
++		name:  "G",
++		index: []int{1, 0, 0},
++	}, {
++		name:  "SFG2",
++		index: []int{2},
++	}, {
++		name:  "SFG1",
++		index: []int{2, 0},
++	}, {
++		name:  "SFG",
++		index: []int{2, 0, 0},
++	}, {
++		name:  "SF2",
++		index: []int{3},
++	}, {
++		name:  "SF1",
++		index: []int{3, 0},
++	}, {
++		name:  "SF",
++		index: []int{3, 0, 0},
++	}, {
++		name:  "L",
++		index: []int{4},
++	}},
++}, {
++	testName: "EmbeddedPointerStruct",
++	val: struct {
++		*SF
++	}{},
++	expect: []structField{{
++		name:  "SF",
++		index: []int{0},
++	}, {
++		name:  "F",
++		index: []int{0, 0},
++	}},
++}, {
++	testName: "EmbeddedNotAPointer",
++	val: struct {
++		M
++	}{},
++	expect: []structField{{
++		name:  "M",
++		index: []int{0},
++	}},
++}, {
++	testName: "RecursiveEmbedding",
++	val:      Rec1{},
++	expect: []structField{{
++		name:  "Rec2",
++		index: []int{0},
++	}, {
++		name:  "F",
++		index: []int{0, 0},
++	}, {
++		name:  "Rec1",
++		index: []int{0, 1},
++	}},
++}, {
++	testName: "RecursiveEmbedding2",
++	val:      Rec2{},
++	expect: []structField{{
++		name:  "F",
++		index: []int{0},
++	}, {
++		name:  "Rec1",
++		index: []int{1},
++	}, {
++		name:  "Rec2",
++		index: []int{1, 0},
++	}},
++}, {
++	testName: "RecursiveEmbedding3",
++	val:      RS3{},
++	expect: []structField{{
++		name:  "RS2",
++		index: []int{0},
++	}, {
++		name:  "RS1",
++		index: []int{1},
++	}, {
++		name:  "i",
++		index: []int{1, 0},
++	}},
++}}
++
++type SFG struct {
++	F int
++	G int
++}
++
++type SFG1 struct {
++	SFG
++}
++
++type SFG2 struct {
++	SFG1
++}
++
++type SFGH struct {
++	F int
++	G int
++	H int
++}
++
++type SFGH1 struct {
++	SFGH
++}
++
++type SFGH2 struct {
++	SFGH1
++}
++
++type SFGH3 struct {
++	SFGH2
++}
++
++type SF struct {
++	F int
++}
++
++type SF1 struct {
++	SF
++}
++
++type SF2 struct {
++	SF1
++}
++
++type SG struct {
++	G int
++}
++
++type SG1 struct {
++	SG
++}
++
++type sFG struct {
++	F int
++	G int
++}
++
++type RS1 struct {
++	i int
++}
++
++type RS2 struct {
++	RS1
++}
++
++type RS3 struct {
++	RS2
++	RS1
++}
++
++type M map[string]interface{}
++
++type Rec1 struct {
++	*Rec2
++}
++
++type Rec2 struct {
++	F string
++	*Rec1
++}
++
++func TestFields(t *testing.T) {
++	for _, test := range fieldsTests {
++		test := test
++		t.Run(test.testName, func(t *testing.T) {
++			typ := TypeOf(test.val)
++			fields := VisibleFields(typ)
++			if got, want := len(fields), len(test.expect); got != want {
++				t.Fatalf("unexpected field count; got %d want %d", got, want)
++			}
++
++			for j, field := range fields {
++				expect := test.expect[j]
++				t.Logf("field %d: %s", j, expect.name)
++				gotField := typ.FieldByIndex(field.Index)
++				// Unfortunately, FieldByIndex does not return
++				// a field with the same index that we passed in,
++				// so we set it to the expected value so that
++				// it can be compared later with the result of FieldByName.
++				gotField.Index = field.Index
++				expectField := typ.FieldByIndex(expect.index)
++				// ditto.
++				expectField.Index = expect.index
++				if !DeepEqual(gotField, expectField) {
++					t.Fatalf("unexpected field result\ngot %#v\nwant %#v", gotField, expectField)
++				}
++
++				// Sanity check that we can actually access the field by the
++				// expected name.
++				gotField1, ok := typ.FieldByName(expect.name)
++				if !ok {
++					t.Fatalf("field %q not accessible by name", expect.name)
++				}
++				if !DeepEqual(gotField1, expectField) {
++					t.Fatalf("unexpected FieldByName result; got %#v want %#v", gotField1, expectField)
++				}
++			}
++		})
++	}
++}

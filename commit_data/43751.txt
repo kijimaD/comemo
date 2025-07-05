@@ -13,9 +13,97 @@ Date:   Wed Apr 22 21:35:31 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/block.go    | 11 +++++++++++
  src/cmd/compile/internal/ssa/deadcode.go |  7 +------
  src/cmd/compile/internal/ssa/nilcheck.go | 10 ++--------
  src/cmd/compile/internal/ssa/rewrite.go  |  8 +-------
  4 files changed, 15 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 56babf418f..519ac214ca 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -256,6 +256,17 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+ 	w.Uses++
+ }
+ 
++// truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
++// The values in b.Values after i must already have had their args reset,
++// to maintain correct value uses counts.
++func (b *Block) truncateValues(i int) {
++	tail := b.Values[i:]
++	for j := range tail {
++		tail[j] = nil
++	}
++	b.Values = b.Values[:i]
++}
++
+ // AddEdgeTo adds an edge from block b to block c. Used during building of the
+ // SSA graph; do not use on an already-completed SSA graph.
+ func (b *Block) AddEdgeTo(c *Block) {
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 395c1617e5..96b552ecf3 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -296,12 +296,7 @@ func deadcode(f *Func) {
+ 				f.freeValue(v)
+ 			}
+ 		}
+-		// aid GC
+-		tail := b.Values[i:]
+-		for j := range tail {
+-			tail[j] = nil
+-		}
+-		b.Values = b.Values[:i]
++		b.truncateValues(i)
+ 	}
+ 
+ 	// Remove dead blocks from WBLoads list.
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 9e1473b3b8..6b24371ac7 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -171,10 +171,7 @@ func nilcheckelim(f *Func) {
+ 				b.Pos = b.Pos.WithIsStmt()
+ 				pendingLines.remove(b.Pos)
+ 			}
+-			for j := i; j < len(b.Values); j++ {
+-				b.Values[j] = nil
+-			}
+-			b.Values = b.Values[:i]
++			b.truncateValues(i)
+ 
+ 			// Add all dominated blocks to the work list.
+ 			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {
+@@ -331,10 +328,7 @@ func nilcheckelim2(f *Func) {
+ 			b.Pos = b.Pos.WithIsStmt()
+ 		}
+ 
+-		for j := i; j < len(b.Values); j++ {
+-			b.Values[j] = nil
+-		}
+-		b.Values = b.Values[:i]
++		b.truncateValues(i)
+ 
+ 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
+ 		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index adda7fae93..ed9b7bd4a1 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -152,13 +152,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+ 			b.Pos = b.Pos.WithIsStmt()
+ 			pendingLines.remove(b.Pos)
+ 		}
+-		if j != len(b.Values) {
+-			tail := b.Values[j:]
+-			for j := range tail {
+-				tail[j] = nil
+-			}
+-			b.Values = b.Values[:j]
+-		}
++		b.truncateValues(j)
+ 	}
+ }
+ 

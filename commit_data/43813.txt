@@ -15,7 +15,74 @@ Date:   Thu Apr 23 15:20:56 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 40 ++++++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 5d64e26358..69b37a90ce 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2418,6 +2418,10 @@
+ 	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+ 	=> (Move {t1} [s] dst src midmem)
+ 
++// Don't zero the same bits twice.
++(Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _)) && isSamePtr(dst1, dst2) => zero
++(Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _))) && isSamePtr(dst1, dst2) => vardef
++
+ // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
+ // However, this rule is needed to prevent the previous rule from looping forever in such cases.
+ (Move dst src mem) && isSamePtr(dst, src) => mem
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index fc2c78eb03..d73a2e675f 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -24204,6 +24204,46 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
+ 		v.AddArg2(dst1, v0)
+ 		return true
+ 	}
++	// match: (Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _))
++	// cond: isSamePtr(dst1, dst2)
++	// result: zero
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		t := auxToType(v.Aux)
++		dst1 := v_0
++		zero := v_1
++		if zero.Op != OpZero || auxIntToInt64(zero.AuxInt) != s || auxToType(zero.Aux) != t {
++			break
++		}
++		dst2 := zero.Args[0]
++		if !(isSamePtr(dst1, dst2)) {
++			break
++		}
++		v.copyOf(zero)
++		return true
++	}
++	// match: (Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _)))
++	// cond: isSamePtr(dst1, dst2)
++	// result: vardef
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		t := auxToType(v.Aux)
++		dst1 := v_0
++		vardef := v_1
++		if vardef.Op != OpVarDef {
++			break
++		}
++		vardef_0 := vardef.Args[0]
++		if vardef_0.Op != OpZero || auxIntToInt64(vardef_0.AuxInt) != s || auxToType(vardef_0.Aux) != t {
++			break
++		}
++		dst2 := vardef_0.Args[0]
++		if !(isSamePtr(dst1, dst2)) {
++			break
++		}
++		v.copyOf(vardef)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpZeroExt16to32(v *Value) bool {

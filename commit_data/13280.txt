@@ -9,6 +9,23 @@ Date:   Tue Jun 5 01:31:23 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6285046
-
+---
  src/lib9/getwd.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/lib9/getwd.c b/src/lib9/getwd.c
+index 3c8cafb3a0..566d3f647a 100644
+--- a/src/lib9/getwd.c
++++ b/src/lib9/getwd.c
+@@ -26,10 +26,9 @@ THE SOFTWARE.
+ #include <u.h>
+ #include <errno.h>
+ #include <sys/stat.h>
++#define NOPLAN9DEFINES
+ #include <libc.h>
+ 
+-#undef getwd
+-
+ char*
+ p9getwd(char *s, int ns)
+ {

@@ -7,6 +7,19 @@ Date:   Fri Jun 21 14:19:08 2013 -0700
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/10392049
-
+---
  src/pkg/testing/cover.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/testing/cover.go b/src/pkg/testing/cover.go
+index 24198706ac..4136becbfc 100644
+--- a/src/pkg/testing/cover.go
++++ b/src/pkg/testing/cover.go
+@@ -50,6 +50,7 @@ func coverReport() {
+ 	if *coverProfile != "" {
+ 		f, err = os.Create(toOutputDir(*coverProfile))
+ 		mustBeNil(err)
++		fmt.Fprintf(f, "mode: %s\n", *coverMode)
+ 		defer func() { mustBeNil(f.Close()) }()
+ 	}
+ 

@@ -37,7 +37,7 @@ Date:   Mon Jul 16 00:47:24 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/124380
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/unzip.go              |  31 +++-
  src/cmd/go/internal/module/module.go               |  78 ++++++--
  src/cmd/go/internal/module/module_test.go          | 198 +++++++++++----------
@@ -48,3 +48,582 @@ Date:   Mon Jul 16 00:47:24 2018 -0400
  src/cmd/go/testdata/mod/rsc.io_badfile4_v1.0.0.txt |  15 ++
  src/cmd/go/testdata/mod/rsc.io_badfile5_v1.0.0.txt |  13 ++
  9 files changed, 287 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/unzip.go b/src/cmd/go/internal/modfetch/unzip.go
+index c2cb17ebfc..7249761761 100644
+--- a/src/cmd/go/internal/modfetch/unzip.go
++++ b/src/cmd/go/internal/modfetch/unzip.go
+@@ -16,6 +16,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/modfetch/codehost"
++	"cmd/go/internal/module"
+ 	"cmd/go/internal/str"
+ )
+ 
+@@ -49,7 +50,28 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+ 		return fmt.Errorf("unzip %v: %s", zipfile, err)
+ 	}
+ 
+-	// Check total size.
++	foldPath := make(map[string]string)
++	var checkFold func(string) error
++	checkFold = func(name string) error {
++		fold := str.ToFold(name)
++		if foldPath[fold] == name {
++			return nil
++		}
++		dir := path.Dir(name)
++		if dir != "." {
++			if err := checkFold(dir); err != nil {
++				return err
++			}
++		}
++		if foldPath[fold] == "" {
++			foldPath[fold] = name
++			return nil
++		}
++		other := foldPath[fold]
++		return fmt.Errorf("unzip %v: case-insensitive file name collision: %q and %q", zipfile, other, name)
++	}
++
++	// Check total size, valid file names.
+ 	var size int64
+ 	for _, zf := range z.File {
+ 		if !str.HasPathPrefix(zf.Name, prefix) {
+@@ -58,6 +80,13 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+ 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
+ 			continue
+ 		}
++		name := zf.Name[len(prefix)+1:]
++		if err := module.CheckFilePath(name); err != nil {
++			return fmt.Errorf("unzip %v: %v", zipfile, err)
++		}
++		if err := checkFold(name); err != nil {
++			return err
++		}
+ 		if path.Clean(zf.Name) != zf.Name || strings.HasPrefix(zf.Name[len(prefix)+1:], "/") {
+ 			return fmt.Errorf("unzip %v: invalid file name %s", zipfile, zf.Name)
+ 		}
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 000699a0ad..629aca1a10 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -18,6 +18,7 @@ import (
+ 	"fmt"
+ 	"sort"
+ 	"strings"
++	"unicode"
+ 	"unicode/utf8"
+ 
+ 	"cmd/go/internal/semver"
+@@ -85,14 +86,14 @@ func firstPathOK(r rune) bool {
+ 		'a' <= r && r <= 'z'
+ }
+ 
+-// pathOK reports whether r can appear in a module path.
+-// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . / _ and ~.
++// pathOK reports whether r can appear in an import path element.
++// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
+ // This matches what "go get" has historically recognized in import paths.
+ // TODO(rsc): We would like to allow Unicode letters, but that requires additional
+ // care in the safe encoding (see note below).
+ func pathOK(r rune) bool {
+ 	if r < utf8.RuneSelf {
+-		return r == '+' || r == '-' || r == '.' || r == '/' || r == '_' || r == '~' ||
++		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
+ 			'0' <= r && r <= '9' ||
+ 			'A' <= r && r <= 'Z' ||
+ 			'a' <= r && r <= 'z'
+@@ -100,9 +101,38 @@ func pathOK(r rune) bool {
+ 	return false
+ }
+ 
++// fileNameOK reports whether r can appear in a file name.
++// For now we allow all Unicode letters but otherwise limit to pathOK plus a few more punctuation characters.
++// If we expand the set of allowed characters here, we have to
++// work harder at detecting potential case-folding and normalization collisions.
++// See note about "safe encoding" below.
++func fileNameOK(r rune) bool {
++	if r < utf8.RuneSelf {
++		// Entire set of ASCII punctuation, from which we remove characters:
++		//     ! " # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~
++		// We disallow some shell special characters: " ' * < > ? ` |
++		// (Note that some of those are disallowed by the Windows file system as well.)
++		// We also disallow path separators / : and \ (fileNameOK is only called on path element characters).
++		// We allow spaces (U+0020) in file names.
++		const allowed = "!#$%&()+,-.=@[]^_{}~ "
++		if '0' <= r && r <= '9' || 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' {
++			return true
++		}
++		for i := 0; i < len(allowed); i++ {
++			if rune(allowed[i]) == r {
++				return true
++			}
++		}
++		return false
++	}
++	// It may be OK to add more ASCII punctuation here, but only carefully.
++	// For example Windows disallows < > \, and macOS disallows :, so we must not allow those.
++	return unicode.IsLetter(r)
++}
++
+ // CheckPath checks that a module path is valid.
+ func CheckPath(path string) error {
+-	if err := checkImportPath(path); err != nil {
++	if err := checkPath(path, false); err != nil {
+ 		return fmt.Errorf("malformed module path %q: %v", path, err)
+ 	}
+ 	i := strings.Index(path, "/")
+@@ -131,17 +161,19 @@ func CheckPath(path string) error {
+ 
+ // CheckImportPath checks that an import path is valid.
+ func CheckImportPath(path string) error {
+-	if err := checkImportPath(path); err != nil {
++	if err := checkPath(path, false); err != nil {
+ 		return fmt.Errorf("malformed import path %q: %v", path, err)
+ 	}
+ 	return nil
+ }
+ 
+-// checkImportPath checks that an import path is valid.
++// checkPath checks that a general path is valid.
+ // It returns an error describing why but not mentioning path.
+ // Because these checks apply to both module paths and import paths,
+ // the caller is expected to add the "malformed ___ path %q: " prefix.
+-func checkImportPath(path string) error {
++// fileName indicates whether the final element of the path is a file name
++// (as opposed to a directory name).
++func checkPath(path string, fileName bool) error {
+ 	if !utf8.ValidString(path) {
+ 		return fmt.Errorf("invalid UTF-8")
+ 	}
+@@ -159,33 +191,43 @@ func checkImportPath(path string) error {
+ 	}
+ 	elemStart := 0
+ 	for i, r := range path {
+-		if !pathOK(r) {
+-			return fmt.Errorf("invalid char %q", r)
+-		}
+ 		if r == '/' {
+-			if err := checkElem(path[elemStart:i]); err != nil {
++			if err := checkElem(path[elemStart:i], fileName); err != nil {
+ 				return err
+ 			}
+ 			elemStart = i + 1
+ 		}
+ 	}
+-	if err := checkElem(path[elemStart:]); err != nil {
++	if err := checkElem(path[elemStart:], fileName); err != nil {
+ 		return err
+ 	}
+ 	return nil
+ }
+ 
+ // checkElem checks whether an individual path element is valid.
+-func checkElem(elem string) error {
++// fileName indicates whether the element is a file name (not a directory name).
++func checkElem(elem string, fileName bool) error {
+ 	if elem == "" {
+ 		return fmt.Errorf("empty path element")
+ 	}
+-	if elem[0] == '.' {
++	if strings.Count(elem, ".") == len(elem) {
++		return fmt.Errorf("invalid path element %q", elem)
++	}
++	if elem[0] == '.' && !fileName {
+ 		return fmt.Errorf("leading dot in path element")
+ 	}
+ 	if elem[len(elem)-1] == '.' {
+ 		return fmt.Errorf("trailing dot in path element")
+ 	}
++	charOK := pathOK
++	if fileName {
++		charOK = fileNameOK
++	}
++	for _, r := range elem {
++		if !charOK(r) {
++			return fmt.Errorf("invalid char %q", r)
++		}
++	}
+ 
+ 	// Windows disallows a bunch of path elements, sadly.
+ 	// See https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+@@ -201,6 +243,14 @@ func checkElem(elem string) error {
+ 	return nil
+ }
+ 
++// CheckFilePath checks whether a slash-separated file path is valid.
++func CheckFilePath(path string) error {
++	if err := checkPath(path, true); err != nil {
++		return fmt.Errorf("malformed file path %q: %v", path, err)
++	}
++	return nil
++}
++
+ // badWindowsNames are the reserved file path elements on Windows.
+ // See https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+ var badWindowsNames = []string{
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index 972835f1bc..83e8d1af1b 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -58,100 +58,101 @@ var checkPathTests = []struct {
+ 	path     string
+ 	ok       bool
+ 	importOK bool
++	fileOK   bool
+ }{
+-	{"x.y/z", true, true},
+-	{"x.y", true, true},
++	{"x.y/z", true, true, true},
++	{"x.y", true, true, true},
+ 
+-	{"", false, false},
+-	{"x.y/\xFFz", false, false},
+-	{"/x.y/z", false, false},
+-	{"x./z", false, false},
+-	{".x/z", false, false},
+-	{"-x/z", false, true},
+-	{"x..y/z", false, false},
+-	{"x.y/z/../../w", false, false},
+-	{"x.y//z", false, false},
+-	{"x.y/z//w", false, false},
+-	{"x.y/z/", false, false},
++	{"", false, false, false},
++	{"x.y/\xFFz", false, false, false},
++	{"/x.y/z", false, false, false},
++	{"x./z", false, false, false},
++	{".x/z", false, false, true},
++	{"-x/z", false, true, true},
++	{"x..y/z", false, false, false},
++	{"x.y/z/../../w", false, false, false},
++	{"x.y//z", false, false, false},
++	{"x.y/z//w", false, false, false},
++	{"x.y/z/", false, false, false},
+ 
+-	{"x.y/z/v0", false, true},
+-	{"x.y/z/v1", false, true},
+-	{"x.y/z/v2", true, true},
+-	{"x.y/z/v2.0", false, true},
+-	{"X.y/z", false, true},
++	{"x.y/z/v0", false, true, true},
++	{"x.y/z/v1", false, true, true},
++	{"x.y/z/v2", true, true, true},
++	{"x.y/z/v2.0", false, true, true},
++	{"X.y/z", false, true, true},
+ 
+-	{"!x.y/z", false, false},
+-	{"_x.y/z", false, true},
+-	{"x.y!/z", false, false},
+-	{"x.y\"/z", false, false},
+-	{"x.y#/z", false, false},
+-	{"x.y$/z", false, false},
+-	{"x.y%/z", false, false},
+-	{"x.y&/z", false, false},
+-	{"x.y'/z", false, false},
+-	{"x.y(/z", false, false},
+-	{"x.y)/z", false, false},
+-	{"x.y*/z", false, false},
+-	{"x.y+/z", false, true},
+-	{"x.y,/z", false, false},
+-	{"x.y-/z", true, true},
+-	{"x.y./zt", false, false},
+-	{"x.y:/z", false, false},
+-	{"x.y;/z", false, false},
+-	{"x.y</z", false, false},
+-	{"x.y=/z", false, false},
+-	{"x.y>/z", false, false},
+-	{"x.y?/z", false, false},
+-	{"x.y@/z", false, false},
+-	{"x.y[/z", false, false},
+-	{"x.y\\/z", false, false},
+-	{"x.y]/z", false, false},
+-	{"x.y^/z", false, false},
+-	{"x.y_/z", false, true},
+-	{"x.y`/z", false, false},
+-	{"x.y{/z", false, false},
+-	{"x.y}/z", false, false},
+-	{"x.y~/z", false, true},
+-	{"x.y/z!", false, false},
+-	{"x.y/z\"", false, false},
+-	{"x.y/z#", false, false},
+-	{"x.y/z$", false, false},
+-	{"x.y/z%", false, false},
+-	{"x.y/z&", false, false},
+-	{"x.y/z'", false, false},
+-	{"x.y/z(", false, false},
+-	{"x.y/z)", false, false},
+-	{"x.y/z*", false, false},
+-	{"x.y/z+", true, true},
+-	{"x.y/z,", false, false},
+-	{"x.y/z-", true, true},
+-	{"x.y/z.t", true, true},
+-	{"x.y/z/t", true, true},
+-	{"x.y/z:", false, false},
+-	{"x.y/z;", false, false},
+-	{"x.y/z<", false, false},
+-	{"x.y/z=", false, false},
+-	{"x.y/z>", false, false},
+-	{"x.y/z?", false, false},
+-	{"x.y/z@", false, false},
+-	{"x.y/z[", false, false},
+-	{"x.y/z\\", false, false},
+-	{"x.y/z]", false, false},
+-	{"x.y/z^", false, false},
+-	{"x.y/z_", true, true},
+-	{"x.y/z`", false, false},
+-	{"x.y/z{", false, false},
+-	{"x.y/z}", false, false},
+-	{"x.y/z~", true, true},
+-	{"x.y/x.foo", true, true},
+-	{"x.y/aux.foo", false, false},
+-	{"x.y/prn", false, false},
+-	{"x.y/prn2", true, true},
+-	{"x.y/com", true, true},
+-	{"x.y/com1", false, false},
+-	{"x.y/com1.txt", false, false},
+-	{"x.y/calm1", true, true},
+-	{"github.com/!123/logrus", false, false},
++	{"!x.y/z", false, false, true},
++	{"_x.y/z", false, true, true},
++	{"x.y!/z", false, false, true},
++	{"x.y\"/z", false, false, false},
++	{"x.y#/z", false, false, true},
++	{"x.y$/z", false, false, true},
++	{"x.y%/z", false, false, true},
++	{"x.y&/z", false, false, true},
++	{"x.y'/z", false, false, false},
++	{"x.y(/z", false, false, true},
++	{"x.y)/z", false, false, true},
++	{"x.y*/z", false, false, false},
++	{"x.y+/z", false, true, true},
++	{"x.y,/z", false, false, true},
++	{"x.y-/z", true, true, true},
++	{"x.y./zt", false, false, false},
++	{"x.y:/z", false, false, false},
++	{"x.y;/z", false, false, false},
++	{"x.y</z", false, false, false},
++	{"x.y=/z", false, false, true},
++	{"x.y>/z", false, false, false},
++	{"x.y?/z", false, false, false},
++	{"x.y@/z", false, false, true},
++	{"x.y[/z", false, false, true},
++	{"x.y\\/z", false, false, false},
++	{"x.y]/z", false, false, true},
++	{"x.y^/z", false, false, true},
++	{"x.y_/z", false, true, true},
++	{"x.y`/z", false, false, false},
++	{"x.y{/z", false, false, true},
++	{"x.y}/z", false, false, true},
++	{"x.y~/z", false, true, true},
++	{"x.y/z!", false, false, true},
++	{"x.y/z\"", false, false, false},
++	{"x.y/z#", false, false, true},
++	{"x.y/z$", false, false, true},
++	{"x.y/z%", false, false, true},
++	{"x.y/z&", false, false, true},
++	{"x.y/z'", false, false, false},
++	{"x.y/z(", false, false, true},
++	{"x.y/z)", false, false, true},
++	{"x.y/z*", false, false, false},
++	{"x.y/z+", true, true, true},
++	{"x.y/z,", false, false, true},
++	{"x.y/z-", true, true, true},
++	{"x.y/z.t", true, true, true},
++	{"x.y/z/t", true, true, true},
++	{"x.y/z:", false, false, false},
++	{"x.y/z;", false, false, false},
++	{"x.y/z<", false, false, false},
++	{"x.y/z=", false, false, true},
++	{"x.y/z>", false, false, false},
++	{"x.y/z?", false, false, false},
++	{"x.y/z@", false, false, true},
++	{"x.y/z[", false, false, true},
++	{"x.y/z\\", false, false, false},
++	{"x.y/z]", false, false, true},
++	{"x.y/z^", false, false, true},
++	{"x.y/z_", true, true, true},
++	{"x.y/z`", false, false, false},
++	{"x.y/z{", false, false, true},
++	{"x.y/z}", false, false, true},
++	{"x.y/z~", true, true, true},
++	{"x.y/x.foo", true, true, true},
++	{"x.y/aux.foo", false, false, false},
++	{"x.y/prn", false, false, false},
++	{"x.y/prn2", true, true, true},
++	{"x.y/com", true, true, true},
++	{"x.y/com1", false, false, false},
++	{"x.y/com1.txt", false, false, false},
++	{"x.y/calm1", true, true, true},
++	{"github.com/!123/logrus", false, false, true},
+ 
+ 	// TODO: CL 41822 allowed Unicode letters in old "go get"
+ 	// without due consideration of the implications, and only on github.com (!).
+@@ -159,7 +160,15 @@ var checkPathTests = []struct {
+ 	// in both module paths and general import paths,
+ 	// until we can get the implications right.
+ 	// When we do, we'll enable them everywhere, not just for GitHub.
+-	{"github.com/user/unicode/испытание", false, false},
++	{"github.com/user/unicode/испытание", false, false, true},
++
++	{"../x", false, false, false},
++	{"./y", false, false, false},
++	{"x:y", false, false, false},
++	{`\temp\foo`, false, false, false},
++	{".gitignore", false, false, true},
++	{".github/ISSUE_TEMPLATE", false, false, true},
++	{"x☺y", false, false, false},
+ }
+ 
+ func TestCheckPath(t *testing.T) {
+@@ -177,6 +186,13 @@ func TestCheckPath(t *testing.T) {
+ 		} else if !tt.importOK && err == nil {
+ 			t.Errorf("CheckImportPath(%q) succeeded, wanted error", tt.path)
+ 		}
++
++		err = CheckFilePath(tt.path)
++		if tt.fileOK && err != nil {
++			t.Errorf("CheckFilePath(%q) = %v, wanted nil error", tt.path, err)
++		} else if !tt.fileOK && err == nil {
++			t.Errorf("CheckFilePath(%q) succeeded, wanted error", tt.path)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index c57470b4d3..946a7fb190 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -819,15 +819,31 @@ func TestModPathCase(t *testing.T) {
+ 
+ 	// Note: the package is rsc.io/QUOTE/QUOTE to avoid
+ 	// a case-sensitive import collision error in load/pkg.go.
+-	// Once the module code is checking imports within a module,
+-	// that error should probably e relaxed, so that it's allowed to have
+-	// both x.com/FOO/bar and x.com/foo/bar in the same program
+-	// provided the module paths are x.com/FOO and x.com/foo.
+ 	tg.run("list", "-f=DEPS {{.Deps}}\nDIR {{.Dir}}", "rsc.io/QUOTE/QUOTE")
+ 	tg.grepStdout(`DEPS.*rsc.io/quote`, "want quote as dep")
+ 	tg.grepStdout(`DIR.*!q!u!o!t!e`, "want !q!u!o!t!e in directory name")
+ }
+ 
++func TestModFileNames(t *testing.T) {
++	tg := testGoModules(t)
++	defer tg.cleanup()
++
++	tg.runFail("get",
++		"rsc.io/badfile1",
++		"rsc.io/badfile2",
++		"rsc.io/badfile3",
++		"rsc.io/badfile4",
++		"rsc.io/badfile5",
++		"rsc.io/badfile6",
++	)
++	tg.grepStderrNot(`unzip .*badfile1.*:`, "badfile1 should be OK")
++	tg.grepStderr(`rsc.io/badfile2.*malformed file path "☺.go": invalid char '☺'`, "want diagnosed invalid character")
++	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x@y.go": invalid char '@'`, "want diagnosed invalid character")
++	tg.grepStderr(`rsc.io/badfile4.*case-insensitive file name collision: "x/Y.go" and "x/y.go"`, "want case collision")
++	tg.grepStderr(`rsc.io/badfile5.*case-insensitive file name collision: "x/y" and "x/Y"`, "want case collision")
++	tg.grepStderr(`rsc.io/badfile6.*malformed file path "x/.gitignore/y": leading dot in path element`, "want leading dot in path element")
++}
++
+ func TestModBadDomain(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile1_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile1_v1.0.0.txt
+new file mode 100644
+index 0000000000..9d23e7db98
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile1_v1.0.0.txt
+@@ -0,0 +1,14 @@
++rsc.io/badfile1 v1.0.0
++written by hand
++this is part of the badfile test but is a valid zip file.
++
++-- .mod --
++module rsc.io/badfile1
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module rsc.io/badfile1
++-- α.go --
++package α
++-- .gitignore --
++-- x/y/z/.gitignore --
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile2_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile2_v1.0.0.txt
+new file mode 100644
+index 0000000000..58e1e1c103
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile2_v1.0.0.txt
+@@ -0,0 +1,12 @@
++rsc.io/badfile1 v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/badfile2
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module rsc.io/badfile2
++-- ☺.go --
++package smiley
++
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt
+new file mode 100644
+index 0000000000..91bd65f903
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt
+@@ -0,0 +1,12 @@
++rsc.io/badfile3 v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/badfile3
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module rsc.io/badfile3
++-- x@y.go --
++package x
++
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile4_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile4_v1.0.0.txt
+new file mode 100644
+index 0000000000..e28844dc63
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile4_v1.0.0.txt
+@@ -0,0 +1,15 @@
++rsc.io/badfile4 v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/badfile4
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module rsc.io/badfile4
++-- x/Y.go --
++package x
++-- x/y.go --
++package x
++
++
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile5_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile5_v1.0.0.txt
+new file mode 100644
+index 0000000000..3c7903a3bc
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile5_v1.0.0.txt
+@@ -0,0 +1,13 @@
++rsc.io/badfile5 v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/badfile5
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module rsc.io/badfile5
++-- x/y/z/w.go --
++package z
++-- x/Y/zz/ww.go --
++package zz

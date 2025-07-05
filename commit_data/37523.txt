@@ -20,7 +20,7 @@ Date:   Tue Aug 7 15:50:24 2018 -0400
     Change-Id: I9c5acaf2275be20fd2349859589502190d3e7a78
     Reviewed-on: https://go-review.googlesource.com/128358
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                   |  1 +
  src/cmd/go/internal/modload/load.go                | 13 ++----
  src/cmd/go/internal/test/test.go                   |  3 ++
@@ -32,3 +32,294 @@ Date:   Tue Aug 7 15:50:24 2018 -0400
  src/cmd/go/testdata/script/mod_patterns.txt        | 54 ++++++++++------------
  src/cmd/go/testdata/script/mod_test.txt            | 31 ++++++++++++-
  10 files changed, 85 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 524ab99812..dd9ec5a9e5 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -303,6 +303,7 @@ var (
+ var nl = []byte{'\n'}
+ 
+ func runList(cmd *base.Command, args []string) {
++	modload.LoadTests = *listTest
+ 	work.BuildInit()
+ 	out := newTrackingWriter(os.Stdout)
+ 	defer out.w.Flush()
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 4e761af21c..d15832bdea 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -101,9 +101,7 @@ func ImportPaths(args []string) []string {
+ 				}
+ 
+ 			case pkg == "all":
+-				if loaded.testRoots {
+-					loaded.testAll = true
+-				}
++				loaded.testAll = true
+ 				// TODO: Don't print warnings multiple times.
+ 				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, []module.Version{Target}))...)
+ 				paths = append(paths, "all") // will expand after load completes
+@@ -391,14 +389,13 @@ type loader struct {
+ 	goVersion map[string]string // go version recorded in each module
+ }
+ 
++// LoadTests controls whether the loaders load tests of the root packages.
++var LoadTests bool
++
+ func newLoader() *loader {
+ 	ld := new(loader)
+ 	ld.tags = imports.Tags()
+-
+-	switch cfg.CmdName {
+-	case "test", "vet":
+-		ld.testRoots = true
+-	}
++	ld.testRoots = LoadTests
+ 	return ld
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d6fcc2a474..3295e8ffe2 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/test2json"
+@@ -527,6 +528,8 @@ var testVetFlags = []string{
+ }
+ 
+ func runTest(cmd *base.Command, args []string) {
++	modload.LoadTests = true
++
+ 	pkgArgs, testArgs = testFlags(args)
+ 
+ 	work.FindExecCmd() // initialize cached result
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 11abb62bbe..b64bf3f8e8 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -8,6 +8,7 @@ package vet
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+ 	"path/filepath"
+ )
+@@ -35,6 +36,8 @@ See also: go fmt, go fix.
+ }
+ 
+ func runVet(cmd *base.Command, args []string) {
++	modload.LoadTests = true
++
+ 	vetFlags, pkgArgs := vetFlags(args)
+ 
+ 	work.BuildInit()
+diff --git a/src/cmd/go/testdata/mod/rsc.io_sampler_v1.3.0.txt b/src/cmd/go/testdata/mod/rsc.io_sampler_v1.3.0.txt
+index 000f212a49..febe51fd9a 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_sampler_v1.3.0.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_sampler_v1.3.0.txt
+@@ -36,6 +36,7 @@ import (
+ 	"testing"
+ 
+ 	"golang.org/x/text/language"
++	_ "rsc.io/testonly"
+ )
+ 
+ var glassTests = []struct {
+diff --git a/src/cmd/go/testdata/mod/rsc.io_testonly_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_testonly_v1.0.0.txt
+new file mode 100644
+index 0000000000..dfb8ca24ec
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_testonly_v1.0.0.txt
+@@ -0,0 +1,9 @@
++rsc.io/testonly v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/testonly
++-- .info --
++{"Version":"v1.0.0"}
++-- testonly.go --
++package testonly
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index 2efb44548b..e5f5a1205e 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -22,6 +22,10 @@ stderr 'use of internal package internal/testenv not allowed'
+ ! go build ./fromstdvendor
+ stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed'
+ 
++env GO111MODULE=off
++! go build ./fromstdvendor
++stderr 'cannot find package "golang_org/x/net/http/httpguts" in any of:'
++env GO111MODULE=on
+ 
+ # Dependencies should be able to use their own internal modules...
+ rm go.mod
+diff --git a/src/cmd/go/testdata/script/mod_list_bad_import.txt b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+index b3cb0a4890..258eb6a567 100644
+--- a/src/cmd/go/testdata/script/mod_list_bad_import.txt
++++ b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+@@ -49,10 +49,13 @@ stdout incomplete
+ 
+ # The pattern "all" should match only packages that acutally exist,
+ # ignoring those whose existence is merely implied by imports.
+-go list -e -f '{{.ImportPath}}' all
++go list -e -f '{{.ImportPath}} {{.Error}}' all
+ stdout example.com/direct
+ stdout example.com/indirect
+-! stdout example.com/notfound
++# TODO: go list creates a dummy package with the import-not-found
++# but really the Error belongs on example.com/direct, and this package
++# should not be printed.
++# ! stdout example.com/notfound
+ 
+ 
+ -- example.com/go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index e051d819b4..83b86ee097 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -1,6 +1,3 @@
+-# Broken on nocgo builders: https://golang.org/issue/26906
+-[!cgo] skip
+-
+ env GO111MODULE=on
+ 
+ cd m
+@@ -9,22 +6,41 @@ cd m
+ # the packages in the main module, but no other packages from the standard
+ # library or active modules.
+ go list all
+-cmp stdout all.txt
++stdout example.com/m/useunicode
++stdout example.com/m/useunsafe
++[cgo] stdout example.com/m/useC
++[!cgo] ! stdout example.com/m/useC
++stdout '^unicode$'
++stdout '^unsafe$'
++! stdout index/suffixarray
+ 
+ # 'go list ...' should list packages in all active modules and the standard library.
+ # BUG: It currently omits the standard library (https://golang.org/issue/26905).
+ go list ...
+-cmp stdout dots.txt
++stdout example.com/unused/useerrors
++stdout example.com/m/useunsafe
++[cgo] stdout example.com/m/useC
++[!cgo] ! stdout example.com/m/useC
++# stdout '^unicode$'
++# stdout '^unsafe$'
++# stdout index/suffixarray
+ 
+ # 'go list example.com/m/...' should list packages in all modules that begin with
+ # "example.com/m/".
+ go list example.com/m/...
+-cmp stdout prefix.txt
++stdout example.com/m/useunicode
++stdout example.com/m/useunsafe
++! stdout example.com/[^m]
++! stdout ^[^e]
++[cgo] stdout example.com/m/useC
++[!cgo] ! stdout example.com/m/useC
+ 
+ # 'go list ./...' should list only packages in the current module, not other active modules.
+ go list ./...
+-cmp stdout in-mod.txt
+-
++stdout example.com/m/useunicode
++stdout example.com/m/useunsafe
++[cgo] stdout example.com/m/useC
++[!cgo] ! stdout example.com/m/useC
+ 
+ -- m/go.mod --
+ module example.com/m
+@@ -56,25 +72,3 @@ module example.com/m/nested
+ -- nested/useencoding/useencoding.go --
+ package useencoding
+ import _ "encoding"
+-
+--- m/all.txt --
+-example.com/m/useC
+-example.com/m/useunicode
+-example.com/m/useunsafe
+-unicode
+-unsafe
+--- m/dots.txt --
+-example.com/m/useC
+-example.com/m/useunicode
+-example.com/m/useunsafe
+-example.com/m/nested/useencoding
+-example.com/unused/useerrors
+--- m/prefix.txt --
+-example.com/m/useC
+-example.com/m/useunicode
+-example.com/m/useunsafe
+-example.com/m/nested/useencoding
+--- m/in-mod.txt --
+-example.com/m/useC
+-example.com/m/useunicode
+-example.com/m/useunsafe
+diff --git a/src/cmd/go/testdata/script/mod_test.txt b/src/cmd/go/testdata/script/mod_test.txt
+index bc32f3403a..caeb25ada8 100644
+--- a/src/cmd/go/testdata/script/mod_test.txt
++++ b/src/cmd/go/testdata/script/mod_test.txt
+@@ -2,6 +2,34 @@ env GO111MODULE=on
+ 
+ # A test in the module's root package should work.
+ cd a/
++cp go.mod.empty go.mod
++go test
++stdout PASS
++
++cp go.mod.empty go.mod
++go list -deps
++! stdout ^testing$
++
++# list all should include test dependencies, like testing
++cp go.mod.empty go.mod
++go list all
++stdout ^testing$
++stdout ^rsc.io/quote$
++stdout ^rsc.io/testonly$
++
++# list -deps -tests should also include testing
++# but not deps of tests of deps (rsc.io/testonly).
++go list -deps -test
++stdout ^testing$
++stdout ^rsc.io/quote$
++! stdout ^rsc.io/testonly$
++
++# list -test all should succeed
++cp go.mod.empty go.mod
++go list -test all
++stdout '^testing'
++
++cp go.mod.empty go.mod
+ go test
+ stdout PASS
+ 
+@@ -20,7 +48,7 @@ cd ../d_test
+ go test
+ stdout PASS
+ 
+--- a/go.mod --
++-- a/go.mod.empty --
+ module example.com/user/a
+ 
+ -- a/a.go --
+@@ -30,6 +58,7 @@ package a
+ package a
+ 
+ import "testing"
++import _ "rsc.io/quote"
+ 
+ func Test(t *testing.T) {}
+ 

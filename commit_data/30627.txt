@@ -18,6 +18,21 @@ Date:   Sat Nov 12 17:57:35 2016 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/pe/symbol.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index b7d5d09bcf..7fa5948641 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -23,6 +23,9 @@ type COFFSymbol struct {
+ }
+ 
+ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
++	if fh.PointerToSymbolTable == 0 {
++		return nil, nil
++	}
+ 	if fh.NumberOfSymbols <= 0 {
+ 		return nil, nil
+ 	}

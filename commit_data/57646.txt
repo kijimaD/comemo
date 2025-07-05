@@ -21,7 +21,97 @@ Date:   Fri Jul 21 09:51:42 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/dnsclient_unix.go      | 16 ++++++++--------
  src/net/dnsclient_unix_test.go | 16 +++++++++++++++-
  2 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index f9d5d18318..4c3da9a6c8 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -498,10 +498,6 @@ func avoidDNS(name string) bool {
+ 
+ // nameList returns a list of names for sequential DNS queries.
+ func (conf *dnsConfig) nameList(name string) []string {
+-	if avoidDNS(name) {
+-		return nil
+-	}
+-
+ 	// Check name length (see isDomainName).
+ 	l := len(name)
+ 	rooted := l > 0 && name[l-1] == '.'
+@@ -511,6 +507,9 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 
+ 	// If name is rooted (trailing dot), try only that name.
+ 	if rooted {
++		if avoidDNS(name) {
++			return nil
++		}
+ 		return []string{name}
+ 	}
+ 
+@@ -521,17 +520,18 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 	// Build list of search choices.
+ 	names := make([]string, 0, 1+len(conf.search))
+ 	// If name has enough dots, try unsuffixed first.
+-	if hasNdots {
++	if hasNdots && !avoidDNS(name) {
+ 		names = append(names, name)
+ 	}
+ 	// Try suffixes that are not too long (see isDomainName).
+ 	for _, suffix := range conf.search {
+-		if l+len(suffix) <= 254 {
+-			names = append(names, name+suffix)
++		fqdn := name + suffix
++		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
++			names = append(names, fqdn)
+ 		}
+ 	}
+ 	// Try unsuffixed, if not tried first above.
+-	if !hasNdots {
++	if !hasNdots && !avoidDNS(name) {
+ 		names = append(names, name)
+ 	}
+ 	return names
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index dd0d32d349..8d50d8dee0 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -190,6 +191,19 @@ func TestAvoidDNSName(t *testing.T) {
+ 	}
+ }
+ 
++func TestNameListAvoidDNS(t *testing.T) {
++	c := &dnsConfig{search: []string{"go.dev.", "onion."}}
++	got := c.nameList("www")
++	if !slices.Equal(got, []string{"www.", "www.go.dev."}) {
++		t.Fatalf(`nameList("www") = %v, want "www.", "www.go.dev."`, got)
++	}
++
++	got = c.nameList("www.onion")
++	if !slices.Equal(got, []string{"www.onion.go.dev."}) {
++		t.Fatalf(`nameList("www.onion") = %v, want "www.onion.go.dev."`, got)
++	}
++}
++
+ var fakeDNSServerSuccessful = fakeDNSServer{rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+ 	r := dnsmessage.Message{
+ 		Header: dnsmessage.Header{
+@@ -220,7 +234,7 @@ var fakeDNSServerSuccessful = fakeDNSServer{rh: func(_, _ string, q dnsmessage.M
+ func TestLookupTorOnion(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	r := Resolver{PreferGo: true, Dial: fakeDNSServerSuccessful.DialContext}
+-	addrs, err := r.LookupIPAddr(context.Background(), "foo.onion")
++	addrs, err := r.LookupIPAddr(context.Background(), "foo.onion.")
+ 	if err != nil {
+ 		t.Fatalf("lookup = %v; want nil", err)
+ 	}

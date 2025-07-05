@@ -14,7 +14,7 @@ Date:   Wed Feb 18 20:30:55 2015 -0800
     Change-Id: I3ffd7ffa62d511b95b92c3c75b9f1d621f5393b6
     Reviewed-on: https://go-review.googlesource.com/5282
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go        | 135 +++++++++++++++++++++++++------
  src/cmd/asm/internal/arch/arm.go         |  13 +++
  src/cmd/asm/internal/arch/ppc64.go       |  63 +++++++++++++++
@@ -22,3 +22,838 @@ Date:   Wed Feb 18 20:30:55 2015 -0800
  src/cmd/asm/internal/asm/operand_test.go | 109 +++++++++++++++++++++++--
  src/cmd/asm/internal/asm/parse.go        | 104 +++++++++++++++---------
  6 files changed, 418 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 740bb1e2e7..a7bffee4fa 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -8,7 +8,8 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"cmd/internal/obj/i386" // == 386
+-	"cmd/internal/obj/x86"  // == amd64
++	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/x86" // == amd64
+ 	"fmt"
+ )
+ 
+@@ -26,7 +27,11 @@ type Arch struct {
+ 	// Map of instruction names to enumeration.
+ 	Instructions map[string]int
+ 	// Map of register names to enumeration.
+-	Registers map[string]int16
++	Register map[string]int16
++	// Table of register prefix names. These are things like R for R(0) and SPR for SPR(268).
++	RegisterPrefix map[string]bool
++	// RegisterNumber converts R(10) into arm.REG_R10.
++	RegisterNumber func(string, int16) (int16, bool)
+ 	// Instructions that take one operand whose result is a destination.
+ 	UnaryDestination map[int]bool
+ 	// Instruction is a jump.
+@@ -37,6 +42,12 @@ type Arch struct {
+ 	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
+ }
+ 
++// nilRegisterNumber is the register number function for architectures
++// that do not accept the R(N) notation. It always returns failure.
++func nilRegisterNumber(name string, n int16) (int16, bool) {
++	return 0, false
++}
++
+ var Pseudos = map[string]int{
+ 	"DATA":     obj.ADATA,
+ 	"FUNCDATA": obj.AFUNCDATA,
+@@ -60,6 +71,10 @@ func Set(GOARCH string) *Arch {
+ 		return a
+ 	case "arm":
+ 		return archArm()
++	case "ppc64":
++		a := archPPC64()
++		a.LinkArch = &ppc64.Linkppc64
++		return a
+ 	}
+ 	return nil
+ }
+@@ -69,16 +84,17 @@ func jump386(word string) bool {
+ }
+ 
+ func arch386() *Arch {
+-	registers := make(map[string]int16)
++	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+ 	// TODO: Should this be done in obj for us?
+ 	for i, s := range i386.Register {
+-		registers[s] = int16(i + i386.REG_AL)
++		register[s] = int16(i + i386.REG_AL)
+ 	}
+ 	// Pseudo-registers.
+-	registers["SB"] = RSB
+-	registers["FP"] = RFP
+-	registers["PC"] = RPC
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	// Prefixes not used on this architecture.
+ 
+ 	instructions := make(map[string]int)
+ 	for i, s := range i386.Anames {
+@@ -162,7 +178,9 @@ func arch386() *Arch {
+ 	return &Arch{
+ 		LinkArch:         &i386.Link386,
+ 		Instructions:     instructions,
+-		Registers:        registers,
++		Register:         register,
++		RegisterPrefix:   nil,
++		RegisterNumber:   nilRegisterNumber,
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jump386,
+ 		Aconv:            i386.Aconv,
+@@ -171,16 +189,17 @@ func arch386() *Arch {
+ }
+ 
+ func archAmd64() *Arch {
+-	registers := make(map[string]int16)
++	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+ 	// TODO: Should this be done in obj for us?
+ 	for i, s := range x86.Register {
+-		registers[s] = int16(i + x86.REG_AL)
++		register[s] = int16(i + x86.REG_AL)
+ 	}
+ 	// Pseudo-registers.
+-	registers["SB"] = RSB
+-	registers["FP"] = RFP
+-	registers["PC"] = RPC
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	// Register prefix not used on this architecture.
+ 
+ 	instructions := make(map[string]int)
+ 	for i, s := range x86.Anames {
+@@ -271,7 +290,9 @@ func archAmd64() *Arch {
+ 	return &Arch{
+ 		LinkArch:         &x86.Linkamd64,
+ 		Instructions:     instructions,
+-		Registers:        registers,
++		Register:         register,
++		RegisterPrefix:   nil,
++		RegisterNumber:   nilRegisterNumber,
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jump386,
+ 		Aconv:            x86.Aconv,
+@@ -280,26 +301,30 @@ func archAmd64() *Arch {
+ }
+ 
+ func archArm() *Arch {
+-	registers := make(map[string]int16)
++	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+ 	// TODO: Should this be done in obj for us?
+ 	// Note that there is no list of names as there is for 386 and amd64.
+ 	// TODO: Are there aliases we need to add?
+ 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
+-		registers[arm.Rconv(i)] = int16(i)
++		register[arm.Rconv(i)] = int16(i)
+ 	}
+ 	// Avoid unintentionally clobbering g using R10.
+-	delete(registers, "R10")
+-	registers["g"] = arm.REG_R10
++	delete(register, "R10")
++	register["g"] = arm.REG_R10
+ 	for i := 0; i < 16; i++ {
+-		registers[fmt.Sprintf("C%d", i)] = int16(i)
++		register[fmt.Sprintf("C%d", i)] = int16(i)
+ 	}
+ 
+ 	// Pseudo-registers.
+-	registers["SB"] = RSB
+-	registers["FP"] = RFP
+-	registers["PC"] = RPC
+-	registers["SP"] = RSP
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	register["SP"] = RSP
++	registerPrefix := map[string]bool{
++		"F": true,
++		"R": true,
++	}
+ 
+ 	instructions := make(map[string]int)
+ 	for i, s := range arm.Anames {
+@@ -318,10 +343,72 @@ func archArm() *Arch {
+ 	return &Arch{
+ 		LinkArch:         &arm.Linkarm,
+ 		Instructions:     instructions,
+-		Registers:        registers,
++		Register:         register,
++		RegisterPrefix:   registerPrefix,
++		RegisterNumber:   armRegisterNumber,
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jumpArm,
+ 		Aconv:            arm.Aconv,
+ 		Dconv:            arm.Dconv,
+ 	}
+ }
++
++func archPPC64() *Arch {
++	register := make(map[string]int16)
++	// Create maps for easy lookup of instruction names etc.
++	// TODO: Should this be done in obj for us?
++	// Note that there is no list of names as there is for 386 and amd64.
++	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
++		register[ppc64.Rconv(i)] = int16(i)
++	}
++	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
++		register[ppc64.Rconv(i)] = int16(i)
++	}
++	for i := ppc64.REG_C0; i <= ppc64.REG_C7; i++ {
++		// TODO: Rconv prints these as C7 but the input syntax requires CR7.
++		register[fmt.Sprintf("CR%d", i-ppc64.REG_C0)] = int16(i)
++	}
++	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
++		register[ppc64.Rconv(i)] = int16(i)
++	}
++	register["CR"] = ppc64.REG_CR
++	register["XER"] = ppc64.REG_XER
++	register["LR"] = ppc64.REG_LR
++	register["CTR"] = ppc64.REG_CTR
++	register["FPSCR"] = ppc64.REG_FPSCR
++	register["MSR"] = ppc64.REG_MSR
++	// Pseudo-registers.
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	// Avoid unintentionally clobbering g using R30.
++	delete(register, "R30")
++	register["g"] = ppc64.REG_R30
++	registerPrefix := map[string]bool{
++		"CR":  true,
++		"F":   true,
++		"R":   true,
++		"SPR": true,
++	}
++
++	instructions := make(map[string]int)
++	for i, s := range ppc64.Anames {
++		instructions[s] = i
++	}
++	// Annoying aliases.
++	instructions["BR"] = ppc64.ABR
++	instructions["BL"] = ppc64.ABL
++	instructions["RETURN"] = ppc64.ARETURN
++
++	return &Arch{
++		LinkArch:         &ppc64.Linkppc64,
++		Instructions:     instructions,
++		Register:         register,
++		RegisterPrefix:   registerPrefix,
++		RegisterNumber:   ppc64RegisterNumber,
++		UnaryDestination: nil,
++		IsJump:           jumpPPC64,
++		Aconv:            ppc64.Aconv,
++		Dconv:            ppc64.Dconv,
++	}
++}
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 4ac13f0289..75bb0be168 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -188,3 +188,16 @@ func parseARMCondition(cond string) (uint8, bool) {
+ 	}
+ 	return bits, true
+ }
++
++func armRegisterNumber(name string, n int16) (int16, bool) {
++	if n < 0 || 15 < n {
++		return 0, false
++	}
++	switch name {
++	case "R":
++		return arm.REG_R0 + n, true
++	case "F":
++		return arm.REG_F0 + n, true
++	}
++	return 0, false
++}
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+new file mode 100644
+index 0000000000..7fb9f7dd2e
+--- /dev/null
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -0,0 +1,63 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file encapsulates some of the odd characteristics of the ARM
++// instruction set, to minimize its interaction with the core of the
++// assembler.
++
++package arch
++
++import "cmd/internal/obj/ppc64"
++
++func jumpPPC64(word string) bool {
++	switch word {
++	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL":
++		return true
++	}
++	return false
++}
++
++// IsPPC64RLD reports whether the op (as defined by an ppc64.A* constant) is
++// one of the RLD-like instructions that require special handling.
++func IsPPC64RLD(op int) bool {
++	switch op {
++	case ppc64.ARLDC, ppc64.ARLDCCC, ppc64.ARLDCL, ppc64.ARLDCLCC,
++		ppc64.ARLDCR, ppc64.ARLDCRCC, ppc64.ARLDMI, ppc64.ARLDMICC,
++		ppc64.ARLWMI, ppc64.ARLWMICC, ppc64.ARLWNM, ppc64.ARLWNMCC:
++		return true
++	}
++	return false
++}
++
++// IsPPC64CMP reports whether the op (as defined by an ppc64.A* constant) is
++// one of the CMP instructions that require special handling.
++func IsPPC64CMP(op int) bool {
++	switch op {
++	case ppc64.ACMP, ppc64.ACMPU, ppc64.ACMPW, ppc64.ACMPWU:
++		return true
++	}
++	return false
++}
++
++func ppc64RegisterNumber(name string, n int16) (int16, bool) {
++	switch name {
++	case "CR":
++		if 0 <= n && n <= 7 {
++			return ppc64.REG_C0 + n, true
++		}
++	case "F":
++		if 0 <= n && n <= 31 {
++			return ppc64.REG_F0 + n, true
++		}
++	case "R":
++		if 0 <= n && n <= 31 {
++			return ppc64.REG_R0 + n, true
++		}
++	case "SPR":
++		if 0 <= n && n <= 1024 {
++			return ppc64.REG_SPR0 + n, true
++		}
++	}
++	return 0, false
++}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index bd402ed001..2cb8f9737f 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
++	"cmd/internal/obj/ppc64"
+ )
+ 
+ // TODO: configure the architecture
+@@ -292,23 +293,37 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ // JMP	3(PC)
+ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
++	prog := &obj.Prog{
++		Ctxt:   p.linkCtxt,
++		Lineno: p.histLineNum,
++		As:     int16(op),
++	}
+ 	switch len(a) {
+ 	case 1:
+ 		target = &a[0]
++	case 3:
++		if p.arch.Thechar == '9' {
++			target = &a[2]
++			// Special 3-operand jumps.
++			// First two must be constants.
++			prog.From = obj.Addr{
++				Type:   obj.TYPE_CONST,
++				Offset: p.getConstant(prog, op, &a[0]),
++			}
++			prog.Reg = int16(ppc64.REG_R0 + p.getConstant(prog, op, &a[1]))
++			break
++		}
++		fallthrough
+ 	default:
+ 		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
+-	}
+-	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
+-		Lineno: p.histLineNum,
+-		As:     int16(op),
++		return
+ 	}
+ 	switch {
+ 	case target.Type == obj.TYPE_BRANCH:
+ 		// JMP 4(PC)
+ 		prog.To = obj.Addr{
+ 			Type:   obj.TYPE_BRANCH,
+-			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
++			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in append, below.
+ 		}
+ 	case target.Type == obj.TYPE_REG:
+ 		// JMP R1
+@@ -322,6 +337,10 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 		prog.To.Type = obj.TYPE_INDIR
+ 	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
+ 		// JMP exit
++		if target.Sym == nil {
++			// Parse error left name unset.
++			return
++		}
+ 		targetProg := p.labels[target.Sym.Name]
+ 		if targetProg == nil {
+ 			p.toPatch = append(p.toPatch, Patch{prog, target.Sym.Name})
+@@ -329,8 +348,12 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 			p.branch(prog, targetProg)
+ 		}
+ 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
+-		// JMP 4(PC)
++		// JMP 4(R0)
+ 		prog.To = *target
++		// On the ppc64, 9a encodes BR (CTR) as BR CTR. We do the same.
++		if p.arch.Thechar == '9' && target.Offset == 0 {
++			prog.To.Type = obj.TYPE_REG
++		}
+ 	default:
+ 		p.errorf("cannot assemble jump %+v", target)
+ 	}
+@@ -452,6 +475,31 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			default:
+ 				p.errorf("expected offset or register for 3rd operand")
+ 			}
++		case '9':
++			if arch.IsPPC64CMP(op) {
++				// CMPW etc.; third argument is a CR register that goes into prog.Reg.
++				prog.From = a[0]
++				prog.Reg = p.getRegister(prog, op, &a[2])
++				prog.To = a[1]
++				break
++			}
++			// Arithmetic. Choices are:
++			// reg reg reg
++			// imm reg reg
++			// reg imm reg
++			// If the immediate is the middle argument, use From3.
++			switch a[1].Type {
++			case obj.TYPE_REG:
++				prog.From = a[0]
++				prog.Reg = p.getRegister(prog, op, &a[1])
++				prog.To = a[2]
++			case obj.TYPE_CONST:
++				prog.From = a[0]
++				prog.From3 = a[1]
++				prog.To = a[2]
++			default:
++				p.errorf("invalid addressing modes for %s instruction", p.arch.Aconv(op))
++			}
+ 		default:
+ 			p.errorf("TODO: implement three-operand instructions for this architecture")
+ 		}
+@@ -469,6 +517,14 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			prog.Reg = r1
+ 			break
+ 		}
++		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
++			// 2nd operand is always a register.
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.From3 = a[2]
++			prog.To = a[3]
++			break
++		}
+ 		p.errorf("can't handle %s instruction with 4 operands", p.arch.Aconv(op))
+ 	case 6:
+ 		// MCR and MRC on ARM
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 13676f3213..58b9274426 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -5,6 +5,7 @@
+ package asm
+ 
+ import (
++	"os"
+ 	"testing"
+ 
+ 	"cmd/asm/internal/arch"
+@@ -15,10 +16,10 @@ import (
+ // A simple in-out test: Do we print what we parse?
+ 
+ func newParser(goarch string) *Parser {
++	os.Setenv("GOOS", "linux") // obj can handle this OS for all architectures.
+ 	architecture := arch.Set(goarch)
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+-	parser := NewParser(ctxt, architecture, nil)
+-	return parser
++	return NewParser(ctxt, architecture, nil)
+ }
+ 
+ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+@@ -34,15 +35,15 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+ }
+ 
+ func testX86RegisterPair(t *testing.T, parser *Parser) {
+-	// Special case for AX:DX, which is really two operands so isn't print correcctly
++	// Special case for AX:DX, which is really two operands so isn't printed correcctly
+ 	// by Aconv, but is OK by the -S output.
+ 	parser.start(lex.Tokenize("AX:BX)"))
+ 	addr := obj.Addr{}
+ 	parser.operand(&addr)
+ 	want := obj.Addr{
+ 		Type:  obj.TYPE_REG,
+-		Reg:   parser.arch.Registers["AX"],
+-		Class: int8(parser.arch.Registers["BX"]), // TODO: clean up how this is encoded in parse.go
++		Reg:   parser.arch.Register["AX"],
++		Class: int8(parser.arch.Register["BX"]), // TODO: clean up how this is encoded in parse.go
+ 	}
+ 	if want != addr {
+ 		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
+@@ -66,6 +67,11 @@ func TestARMOperandParser(t *testing.T) {
+ 	testOperandParser(t, parser, armOperandTests)
+ }
+ 
++func TestPPC64OperandParser(t *testing.T) {
++	parser := newParser("ppc64")
++	testOperandParser(t, parser, ppc64OperandTests)
++}
++
+ type operandTest struct {
+ 	input, output string
+ }
+@@ -251,12 +257,12 @@ var armOperandTests = []operandTest{
+ 	{"-12(R4)", "-12(R4)"},
+ 	{"0(PC)", "0(PC)"},
+ 	{"1024", "1024"},
+-	{"12(R1)", "12(R1)"},
++	{"12(R(1))", "12(R1)"},
+ 	{"12(R13)", "12(R13)"},
+ 	{"R0", "R0"},
+ 	{"R0->(32-1)", "R0->31"},
+ 	{"R0<<R1", "R0<<R1"},
+-	{"R0>>R1", "R0>>R1"},
++	{"R0>>R(1)", "R0>>R1"},
+ 	{"R0@>(32-1)", "R0@>31"},
+ 	{"R1", "R1"},
+ 	{"R11", "R11"},
+@@ -268,6 +274,7 @@ var armOperandTests = []operandTest{
+ 	{"R2", "R2"},
+ 	{"R3", "R3"},
+ 	{"R4", "R4"},
++	{"R(4)", "R4"},
+ 	{"R5", "R5"},
+ 	{"R6", "R6"},
+ 	{"R7", "R7"},
+@@ -275,6 +282,7 @@ var armOperandTests = []operandTest{
+ 	// TODO: Fix Dconv to handle these. MOVM print shows the registers.
+ 	{"[R0,R1,g,R15]", "$33795"},
+ 	{"[R0-R7]", "$255"},
++	{"[R(0)-R(7)]", "$255"},
+ 	{"[R0]", "$1"},
+ 	{"[R1-R12]", "$8190"},
+ 	{"armCAS64(SB)", "armCAS64+0(SB)"},
+@@ -286,3 +294,90 @@ var armOperandTests = []operandTest{
+ 	{"runtime·_sfloat2(SB)", "runtime._sfloat2+0(SB)"},
+ 	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
+ }
++
++var ppc64OperandTests = []operandTest{
++	{"$((1<<63)-1)", "$0x7fffffffffffffff"},
++	{"$(-64*1024)", "$-65536"},
++	{"$(1024 * 8)", "$8192"},
++	{"$-1", "$-1"},
++	{"$-24(R4)", "$-24(R4)"},
++	{"$0", "$0"},
++	{"$0(R1)", "$0(R1)"},
++	{"$0.5", "$0.5"},
++	{"$0x7000", "$28672"},
++	{"$0x88888eef", "$0x88888eef"},
++	{"$1", "$1"},
++	{"$_main<>(SB)", "$_main<>+0(SB)"},
++	{"$argframe+0(FP)", "$argframe+0(FP)"},
++	{"$runtime·tlsg(SB)", "$runtime.tlsg(SB)"},
++	{"$~3", "$-4"},
++	{"(-288-3*8)(R1)", "-312(R1)"},
++	{"(16)(R7)", "16(R7)"},
++	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
++	{"(CTR)", "0(CTR)"},
++	{"(R0)", "0(R0)"},
++	{"(R3)", "0(R3)"},
++	{"(R4)", "0(R4)"},
++	{"(R5)", "0(R5)"},
++	{"-1(R4)", "-1(R4)"},
++	{"-1(R5)", "-1(R5)"},
++	{"6(PC)", "6(APC)"}, // TODO: Should print 6(PC).
++	{"CR7", "C7"},       // TODO: Should print CR7.
++	{"CTR", "CTR"},
++	{"F14", "F14"},
++	{"F15", "F15"},
++	{"F16", "F16"},
++	{"F17", "F17"},
++	{"F18", "F18"},
++	{"F19", "F19"},
++	{"F20", "F20"},
++	{"F21", "F21"},
++	{"F22", "F22"},
++	{"F23", "F23"},
++	{"F24", "F24"},
++	{"F25", "F25"},
++	{"F26", "F26"},
++	{"F27", "F27"},
++	{"F28", "F28"},
++	{"F29", "F29"},
++	{"F30", "F30"},
++	{"F31", "F31"},
++	{"LR", "LR"},
++	{"R0", "R0"},
++	{"R1", "R1"},
++	{"R11", "R11"},
++	{"R12", "R12"},
++	{"R13", "R13"},
++	{"R14", "R14"},
++	{"R15", "R15"},
++	{"R16", "R16"},
++	{"R17", "R17"},
++	{"R18", "R18"},
++	{"R19", "R19"},
++	{"R2", "R2"},
++	{"R20", "R20"},
++	{"R21", "R21"},
++	{"R22", "R22"},
++	{"R23", "R23"},
++	{"R24", "R24"},
++	{"R25", "R25"},
++	{"R26", "R26"},
++	{"R27", "R27"},
++	{"R28", "R28"},
++	{"R29", "R29"},
++	{"R3", "R3"},
++	{"R31", "R31"},
++	{"R4", "R4"},
++	{"R5", "R5"},
++	{"R6", "R6"},
++	{"R7", "R7"},
++	{"R8", "R8"},
++	{"R9", "R9"},
++	{"SPR(269)", "SPR(269)"},
++	{"a+0(FP)", "a+0(FP)"},
++	{"g", "R30"}, // TODO: Should print g.
++	{"ret+8(FP)", "ret+8(FP)"},
++	{"runtime·abort(SB)", "runtime.abort(SB)"},
++	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
++	{"·trunc(SB)", "\"\".trunc(SB)"},
++}
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 73c0af2e30..3ed7b28191 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -226,6 +226,7 @@ func (p *Parser) parseScale(s string) int8 {
+ 
+ // operand parses a general operand and stores the result in *a.
+ func (p *Parser) operand(a *obj.Addr) bool {
++	// fmt.Printf("Operand: %v\n", p.input)
+ 	if len(p.input) == 0 {
+ 		p.errorf("empty operand: cannot happen")
+ 		return false
+@@ -250,9 +251,10 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 
+ 	// Symbol: sym±offset(SB)
+ 	tok := p.next()
+-	if tok.ScanToken == scanner.Ident && !p.isRegister(tok.String()) {
++	name := tok.String()
++	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
+ 		// We have a symbol. Parse $sym±offset(symkind)
+-		p.symbolReference(a, tok.String(), prefix)
++		p.symbolReference(a, name, prefix)
+ 		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
+ 		if p.peek() == scanner.EOF {
+ 			return true
+@@ -270,7 +272,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 	}
+ 
+ 	// Register: R1
+-	if tok.ScanToken == scanner.Ident && p.isRegister(tok.String()) {
++	if tok.ScanToken == scanner.Ident && p.atStartOfRegister(name) {
+ 		if lex.IsRegisterShift(p.peek()) {
+ 			// ARM shifted register such as R1<<R2 or R1>>2.
+ 			a.Type = obj.TYPE_SHIFT
+@@ -280,10 +282,10 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 				p.next()
+ 				tok := p.next()
+ 				name := tok.String()
+-				if !p.isRegister(name) {
++				if !p.atStartOfRegister(name) {
+ 					p.errorf("expected register; found %s", name)
+ 				}
+-				a.Reg = p.arch.Registers[name]
++				a.Reg, _ = p.registerReference(name)
+ 				p.get(')')
+ 			}
+ 		} else if r1, r2, scale, ok := p.register(tok.String(), prefix); ok {
+@@ -312,7 +314,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 		// Could be parenthesized expression or (R).
+ 		rname := p.next().String()
+ 		p.back()
+-		haveConstant = !p.isRegister(rname)
++		haveConstant = !p.atStartOfRegister(rname)
+ 		if !haveConstant {
+ 			p.back() // Put back the '('.
+ 		}
+@@ -368,18 +370,49 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 	return true
+ }
+ 
+-// isRegister reports whether the token is a register.
+-func (p *Parser) isRegister(name string) bool {
+-	_, present := p.arch.Registers[name]
+-	return present
++// atStartOfRegister reports whether the parser is at the start of a register definition.
++func (p *Parser) atStartOfRegister(name string) bool {
++	// Simple register: R10.
++	_, present := p.arch.Register[name]
++	if present {
++		return true
++	}
++	// Parenthesized register: R(10).
++	return p.arch.RegisterPrefix[name] && p.peek() == '('
++}
++
++// registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
++func (p *Parser) registerReference(name string) (int16, bool) {
++	r, present := p.arch.Register[name]
++	if present {
++		return r, true
++	}
++	if !p.arch.RegisterPrefix[name] {
++		p.errorf("expected register; found %s", name)
++		return 0, false
++	}
++	p.get('(')
++	tok := p.get(scanner.Int)
++	num, err := strconv.ParseInt(tok.String(), 10, 16)
++	p.get(')')
++	if err != nil {
++		p.errorf("parsing register list: %s", err)
++		return 0, false
++	}
++	r, ok := p.arch.RegisterNumber(name, int16(num))
++	if !ok {
++		p.errorf("illegal register %s(%d)", name, r)
++		return 0, false
++	}
++	return r, true
+ }
+ 
+-// register parses a register reference where there is no symbol present (as in 4(R0) not sym(SB)).
++// register parses a full register reference where there is no symbol present (as in 4(R0) or R(10) but not sym(SB))
++// including forms involving multiple registers such as R1:R2.
+ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, ok bool) {
+-	// R1 or R1:R2 R1,R2 or R1*scale.
+-	var present bool
+-	r1, present = p.arch.Registers[name]
+-	if !present {
++	// R1 or R(1) R1:R2 R1,R2 or R1*scale.
++	r1, ok = p.registerReference(name)
++	if !ok {
+ 		return
+ 	}
+ 	if prefix != 0 {
+@@ -392,16 +425,18 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 		case ':':
+ 			if char != '6' && char != '8' {
+ 				p.errorf("illegal register pair syntax")
++				return
+ 			}
+ 		case ',':
+ 			if char != '5' {
+ 				p.errorf("illegal register pair syntax")
++				return
+ 			}
+ 		}
+ 		name := p.next().String()
+-		r2, present = p.arch.Registers[name]
+-		if !present {
+-			p.errorf("%s not a register", name)
++		r2, ok = p.registerReference(name)
++		if !ok {
++			return
+ 		}
+ 	}
+ 	if p.peek() == '*' {
+@@ -415,18 +450,18 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ // registerShift parses an ARM shifted register reference and returns the encoded representation.
+ // There is known to be a register (current token) and a shift operator (peeked token).
+ func (p *Parser) registerShift(name string, prefix rune) int64 {
++	if prefix != 0 {
++		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
++	}
+ 	// R1 op R2 or r1 op constant.
+ 	// op is:
+ 	//	"<<" == 0
+ 	//	">>" == 1
+ 	//	"->" == 2
+ 	//	"@>" == 3
+-	r1, present := p.arch.Registers[name]
+-	if !present {
+-		p.errorf("shift of non-register %s", name)
+-	}
+-	if prefix != 0 {
+-		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
++	r1, ok := p.registerReference(name)
++	if !ok {
++		return 0
+ 	}
+ 	var op int16
+ 	switch p.next().ScanToken {
+@@ -444,8 +479,8 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 	var count int16
+ 	switch tok.ScanToken {
+ 	case scanner.Ident:
+-		r2, present := p.arch.Registers[str]
+-		if !present {
++		r2, ok := p.registerReference(str)
++		if !ok {
+ 			p.errorf("rhs of shift must be register or integer: %s", str)
+ 		}
+ 		count = (r2&15)<<8 | 1<<4
+@@ -632,26 +667,19 @@ func (p *Parser) registerList(a *obj.Addr) {
+ 	a.Offset = int64(bits)
+ }
+ 
++// register number is ARM-specific. It returns the number of the specified register.
+ func (p *Parser) registerNumber(name string) uint16 {
+-	if !p.isRegister(name) {
+-		p.errorf("expected register; found %s", name)
+-	}
+-	// Register must be of the form R0 through R15.
+-	// On ARM, g is register 10.
+ 	if p.arch.Thechar == '5' && name == "g" {
+ 		return 10
+ 	}
+ 	if name[0] != 'R' {
+ 		p.errorf("expected g or R0 through R15; found %s", name)
+ 	}
+-	num, err := strconv.ParseUint(name[1:], 10, 8)
+-	if err != nil {
+-		p.errorf("parsing register list: %s", err)
+-	}
+-	if num > 15 {
+-		p.errorf("illegal register %s in register list", name)
++	r, ok := p.registerReference(name)
++	if !ok {
++		return 0
+ 	}
+-	return uint16(num)
++	return uint16(r - p.arch.Register["R0"])
+ }
+ 
+ // Note: There are two changes in the expression handling here

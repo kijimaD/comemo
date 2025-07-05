@@ -11,7 +11,98 @@ Date:   Wed May 31 15:38:34 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/set_test.go | 18 ++++++++++++++++++
  src/reflect/type.go     | 34 ++++++++++++++++++++++++++++++++--
  2 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/set_test.go b/src/reflect/set_test.go
+index bc35c78e1b..7c39623a9d 100644
+--- a/src/reflect/set_test.go
++++ b/src/reflect/set_test.go
+@@ -7,6 +7,7 @@ package reflect_test
+ import (
+ 	"bytes"
+ 	"go/ast"
++	"go/token"
+ 	"io"
+ 	. "reflect"
+ 	"testing"
+@@ -172,6 +173,23 @@ var implementsTests = []struct {
+ 	{new(bytes.Buffer), new(io.Reader), false},
+ 	{new(*bytes.Buffer), new(io.ReaderAt), false},
+ 	{new(*ast.Ident), new(ast.Expr), true},
++	{new(*notAnExpr), new(ast.Expr), false},
++	{new(*ast.Ident), new(notASTExpr), false},
++	{new(notASTExpr), new(ast.Expr), false},
++	{new(ast.Expr), new(notASTExpr), false},
++	{new(*notAnExpr), new(notASTExpr), true},
++}
++
++type notAnExpr struct{}
++
++func (notAnExpr) Pos() token.Pos { return token.NoPos }
++func (notAnExpr) End() token.Pos { return token.NoPos }
++func (notAnExpr) exprNode()      {}
++
++type notASTExpr interface {
++	Pos() token.Pos
++	End() token.Pos
++	exprNode()
+ }
+ 
+ func TestImplements(t *testing.T) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1849c4b8d4..58f39a19b2 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1515,8 +1515,23 @@ func implements(T, V *rtype) bool {
+ 		i := 0
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
++			tmName := t.nameOff(tm.name)
+ 			vm := &v.methods[j]
+-			if V.nameOff(vm.name).name() == t.nameOff(tm.name).name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
++			vmName := V.nameOff(vm.name)
++			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
++				if !tmName.isExported() {
++					tmPkgPath := tmName.pkgPath()
++					if tmPkgPath == "" {
++						tmPkgPath = t.pkgPath.name()
++					}
++					vmPkgPath := vmName.pkgPath()
++					if vmPkgPath == "" {
++						vmPkgPath = v.pkgPath.name()
++					}
++					if tmPkgPath != vmPkgPath {
++						continue
++					}
++				}
+ 				if i++; i >= len(t.methods) {
+ 					return true
+ 				}
+@@ -1533,8 +1548,23 @@ func implements(T, V *rtype) bool {
+ 	vmethods := v.methods()
+ 	for j := 0; j < int(v.mcount); j++ {
+ 		tm := &t.methods[i]
++		tmName := t.nameOff(tm.name)
+ 		vm := vmethods[j]
+-		if V.nameOff(vm.name).name() == t.nameOff(tm.name).name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
++		vmName := V.nameOff(vm.name)
++		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
++			if !tmName.isExported() {
++				tmPkgPath := tmName.pkgPath()
++				if tmPkgPath == "" {
++					tmPkgPath = t.pkgPath.name()
++				}
++				vmPkgPath := vmName.pkgPath()
++				if vmPkgPath == "" {
++					vmPkgPath = V.nameOff(v.pkgPath).name()
++				}
++				if tmPkgPath != vmPkgPath {
++					continue
++				}
++			}
+ 			if i++; i >= len(t.methods) {
+ 				return true
+ 			}

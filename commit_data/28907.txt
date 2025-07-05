@@ -11,7 +11,42 @@ Date:   Fri Jul 8 15:59:00 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  2 +-
  test/fixedbugs/issue16306.go         | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 72c06dde2d..b564ee0673 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1435,7 +1435,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 
+ 	case TBOOL, TINT8, TUINT8, TINT16, TUINT16,
+ 		TINT32, TUINT32, TINT64, TUINT64,
+-		TINT, TUINT, TUINTPTR,
++		TINT, TUINT, TUINTPTR, TUNSAFEPTR,
+ 		TPTR32, TPTR64,
+ 		TFLOAT32, TFLOAT64:
+ 		if !reportOnly {
+diff --git a/test/fixedbugs/issue16306.go b/test/fixedbugs/issue16306.go
+new file mode 100644
+index 0000000000..d29a75a604
+--- /dev/null
++++ b/test/fixedbugs/issue16306.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var x = unsafe.Pointer(uintptr(0))
++
++func main() {
++	_ = map[unsafe.Pointer]int{unsafe.Pointer(uintptr(0)): 0}
++}

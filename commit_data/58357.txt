@@ -18,6 +18,20 @@ Date:   Wed Nov 1 13:12:43 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 2f12c3bdae..82be00a834 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -627,7 +627,7 @@ type dirFS string
+ func (dir dirFS) Open(name string) (fs.File, error) {
+ 	fullname, err := dir.join(name)
+ 	if err != nil {
+-		return nil, &PathError{Op: "stat", Path: name, Err: err}
++		return nil, &PathError{Op: "open", Path: name, Err: err}
+ 	}
+ 	f, err := Open(fullname)
+ 	if err != nil {

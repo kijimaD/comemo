@@ -13,6 +13,20 @@ Date:   Wed Mar 30 09:53:58 2022 -0400
     Run-TryBot: Filippo Valsorda <valsorda@google.com>
     Auto-Submit: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 085408a0f8..ceb04ae20e 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -733,7 +733,7 @@ var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
+ //
+ // To temporarily restore support for SHA-1 signatures, include the value
+ // "x509sha1=1" in the GODEBUG environment variable. Note that this option will
+-// be removed in Go 1.19.
++// be removed in a future release.
+ type InsecureAlgorithmError SignatureAlgorithm
+ 
+ func (e InsecureAlgorithmError) Error() string {

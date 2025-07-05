@@ -16,8 +16,108 @@ Date:   Sat Aug 6 16:08:41 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  1 +
  src/cmd/compile/internal/noder/reader.go | 13 +++++++++++
  src/cmd/compile/internal/noder/writer.go | 38 ++++++++++++++++++++++++++++++--
  3 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index d8de1f483c..fb4fb4a886 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -57,6 +57,7 @@ const (
+ 	exprMake
+ 	exprNil
+ 	exprFuncInst
++	exprRecv
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 8c80c78c0b..3ab11399a5 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1914,6 +1914,19 @@ func (r *reader) expr() (res ir.Node) {
+ 		}
+ 		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+ 
++	case exprRecv:
++		x := r.expr()
++		pos := r.pos()
++		for i, n := 0, r.Len(); i < n; i++ {
++			x = Implicit(DotField(pos, x, r.Len()))
++		}
++		if r.Bool() { // needs deref
++			x = Implicit(Deref(pos, x.Type().Elem(), x))
++		} else if r.Bool() { // needs addr
++			x = Implicit(Addr(pos, x))
++		}
++		return x
++
+ 	case exprCall:
+ 		fun := r.expr()
+ 		if r.Bool() { // method call
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 9cf914743d..ef84a53cf3 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1540,7 +1540,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 		case types2.MethodVal:
+ 			w.Code(exprMethodVal)
+-			w.expr(expr.X)
++			w.recvExpr(expr, sel)
+ 			w.pos(expr)
+ 			w.selector(sel.Obj())
+ 
+@@ -1697,7 +1697,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		writeFunExpr := func() {
+ 			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
+ 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
+-					w.expr(selector.X)
++					w.recvExpr(selector, sel)
+ 					w.Bool(true) // method call
+ 					w.pos(selector)
+ 					w.selector(sel.Obj())
+@@ -1741,6 +1741,40 @@ func (w *writer) optExpr(expr syntax.Expr) {
+ 	}
+ }
+ 
++// recvExpr writes out expr.X, but handles any implicit addressing,
++// dereferencing, and field selections.
++func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) types2.Type {
++	index := sel.Index()
++	implicits := index[:len(index)-1]
++
++	w.Code(exprRecv)
++	w.expr(expr.X)
++	w.pos(expr)
++	w.Len(len(implicits))
++
++	typ := w.p.typeOf(expr.X)
++	for _, ix := range implicits {
++		typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
++		w.Len(ix)
++	}
++
++	isPtrTo := func(from, to types2.Type) bool {
++		if from, ok := from.(*types2.Pointer); ok {
++			return types2.Identical(from.Elem(), to)
++		}
++		return false
++	}
++
++	recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
++	if w.Bool(isPtrTo(typ, recv)) { // needs deref
++		typ = recv
++	} else if w.Bool(isPtrTo(recv, typ)) { // needs addr
++		typ = recv
++	}
++
++	return typ
++}
++
+ // multiExpr writes a sequence of expressions, where the i'th value is
+ // implicitly converted to dstType(i). It also handles when exprs is a
+ // single, multi-valued expression (e.g., the multi-valued argument in

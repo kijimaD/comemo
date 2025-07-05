@@ -8,7 +8,55 @@ Date:   Tue Jun 10 20:20:49 2014 -0400
     R=dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/105030043
-
+---
  misc/nacl/README  | 10 ++++------
  src/nacltest.bash |  8 +++++++-
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/misc/nacl/README b/misc/nacl/README
+index 4979fc1d90..9cc2bda604 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -54,12 +54,10 @@ The script's name has a special format, go_$GOOS_$GOARCH_exec, so cmd/go can fin
+ 
+ In short, if the support scripts are in place, the cmd/go tool can be used as per normal.
+ 
+-# Build the Go toolchain.
++# Build and test Go for NaCl
+ 
+-	% cd go/src
+-	% env GOOS=nacl GOARCH=amd64p32 ./make.bash
+-
+-# Test the Go toolchain.
++NaCl does not permit direct file system access. Instead, package syscall provides a simulated file system served by in-memory data. The script nacltest.bash is the NaCl equivalent of all.bash. It builds NaCl with an in-memory file system containing files needed for tests, and then it runs the tests.
+ 
+ 	% cd go/src
+-	% env GOOS=nacl GOARCH=amd64p32 ./run.bash
++	% env GOARCH=amd64p32 ./nacltest.bash
++
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index e53f0114bf..33fc8c1c4e 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -7,7 +7,8 @@
+ # Builds a test file system and embeds it into package syscall
+ # in every generated binary.
+ #
+-# Assumes that sel_ldr binaries are in $PATH; see ../misc/nacl/README.
++# Assumes that sel_ldr binaries and go_nacl_$GOARCH_exec scripts are in $PATH;
++# see ../misc/nacl/README.
+ 
+ set -e
+ ulimit -c 0
+@@ -32,6 +33,11 @@ amd64p32)
+ 	exit 1
+ esac
+ 
++if ! which go_nacl_${naclGOARCH}_exec >/dev/null; then
++	echo "cannot find go_nacl_${naclGOARCH}_exec, see ../misc/nacl/README." 1>&2
++	exit 1
++fi
++
+ # Run host build to get toolchain for running zip generator.
+ unset GOOS GOARCH
+ if [ ! -f make.bash ]; then

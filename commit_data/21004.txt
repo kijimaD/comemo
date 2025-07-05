@@ -14,6 +14,21 @@ Date:   Wed Nov 5 15:36:47 2014 -0500
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/164610043
-
+---
  src/cmd/6g/reg.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 8d600d6433..afd3f1056e 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -621,6 +621,9 @@ mkvar(Reg *r, Adr *a)
+ 	if(r != R)
+ 		r->use1.b[0] |= doregbits(a->index);
+ 
++	if(t >= D_INDIR && t < 2*D_INDIR)
++		goto none;
++
+ 	switch(t) {
+ 	default:
+ 		regu = doregbits(t);

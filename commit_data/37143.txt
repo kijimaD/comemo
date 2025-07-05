@@ -16,7 +16,148 @@ Date:   Mon Jul 2 16:45:49 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/main.go  | 26 ++++++++++++++++++++++----
  src/cmd/vet/print.go | 37 +++++++++++++++++++++++++++++++++----
  2 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 28da9e2d74..c50d4885a0 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -24,6 +24,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -163,6 +164,12 @@ var (
+ 	exporters   = make(map[string]func() interface{})
+ )
+ 
++// The exporters data as written to the vetx output file.
++type vetxExport struct {
++	Name string
++	Data interface{}
++}
++
+ // Vet can provide its own "export information"
+ // about package A to future invocations of vet
+ // on packages importing A. If B imports A,
+@@ -399,10 +406,17 @@ func doPackageCfg(cfgFile string) {
+ 	mustTypecheck = true
+ 	doPackage(vcfg.GoFiles, nil)
+ 	if vcfg.VetxOutput != "" {
+-		out := make(map[string]interface{})
++		out := make([]vetxExport, 0, len(exporters))
+ 		for name, fn := range exporters {
+-			out[name] = fn()
++			out = append(out, vetxExport{
++				Name: name,
++				Data: fn(),
++			})
+ 		}
++		// Sort the data so that it is consistent across builds.
++		sort.Slice(out, func(i, j int) bool {
++			return out[i].Name < out[j].Name
++		})
+ 		var buf bytes.Buffer
+ 		if err := gob.NewEncoder(&buf).Encode(out); err != nil {
+ 			errorf("encoding vet output: %v", err)
+@@ -721,11 +735,15 @@ func readVetx(path, key string) interface{} {
+ 		if err != nil {
+ 			return nil
+ 		}
+-		m = make(map[string]interface{})
+-		err = gob.NewDecoder(bytes.NewReader(data)).Decode(&m)
++		var out []vetxExport
++		err = gob.NewDecoder(bytes.NewReader(data)).Decode(&out)
+ 		if err != nil {
+ 			return nil
+ 		}
++		m = make(map[string]interface{})
++		for _, x := range out {
++			m[x.Name] = x.Data
++		}
+ 		imported[path] = m
+ 	}
+ 	return m[key]
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 1edd3dd228..ac1eb7997b 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -16,6 +16,7 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"regexp"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -30,7 +31,7 @@ func init() {
+ 		funcDecl, callExpr)
+ 	registerPkgCheck("printf", findPrintfLike)
+ 	registerExport("printf", exportPrintfLike)
+-	gob.Register(map[string]int(nil))
++	gob.Register([]printfExport(nil))
+ }
+ 
+ func initPrintFlags() {
+@@ -57,6 +58,15 @@ func initPrintFlags() {
+ 
+ var localPrintfLike = make(map[string]int)
+ 
++type printfExport struct {
++	Name string
++	Kind int
++}
++
++// printfImported maps from package name to the printf vet data
++// exported by that package.
++var printfImported = make(map[string]map[string]int)
++
+ type printfWrapper struct {
+ 	name       string
+ 	fn         *ast.FuncDecl
+@@ -241,7 +251,17 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
+ }
+ 
+ func exportPrintfLike() interface{} {
+-	return localPrintfLike
++	out := make([]printfExport, 0, len(localPrintfLike))
++	for name, kind := range localPrintfLike {
++		out = append(out, printfExport{
++			Name: name,
++			Kind: kind,
++		})
++	}
++	sort.Slice(out, func(i, j int) bool {
++		return out[i].Name < out[j].Name
++	})
++	return out
+ }
+ 
+ // isPrint records the print functions.
+@@ -438,9 +458,18 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
+ 
+ 	if pkgpath == "" {
+ 		kind = localPrintfLike[name]
++	} else if m, ok := printfImported[pkgpath]; ok {
++		kind = m[name]
+ 	} else {
+-		printfLike, _ := readVetx(pkgpath, "printf").(map[string]int)
+-		kind = printfLike[name]
++		var m map[string]int
++		if out, ok := readVetx(pkgpath, "printf").([]printfExport); ok {
++			m = make(map[string]int)
++			for _, x := range out {
++				m[x.Name] = x.Kind
++			}
++		}
++		printfImported[pkgpath] = m
++		kind = m[name]
+ 	}
+ 
+ 	if kind == 0 {

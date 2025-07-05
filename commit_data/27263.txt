@@ -9,7 +9,7 @@ Date:   Wed Mar 16 21:22:41 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../compile/internal/gc/testdata/addressed_ssa.go  |  27 +--
  src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   4 +-
  .../compile/internal/gc/testdata/compound_ssa.go   |   6 +-
@@ -20,3 +20,1302 @@ Date:   Wed Mar 16 21:22:41 2016 -0500
  src/cmd/compile/internal/gc/testdata/string_ssa.go |   3 +-
  src/cmd/compile/internal/gc/testdata/zero_ssa.go   |  75 +++-----
  9 files changed, 154 insertions(+), 264 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/addressed_ssa.go b/src/cmd/compile/internal/gc/testdata/addressed_ssa.go
+index 98003fe48f..59cf238c74 100644
+--- a/src/cmd/compile/internal/gc/testdata/addressed_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/addressed_ssa.go
+@@ -48,28 +48,24 @@ func main() {
+ 	test_autos()
+ }
+ 
++//go:noinline
+ func f1_ssa(x, y int) *int {
+-	switch {
+-	} //go:noinline
+ 	x = x*y + y
+ 	return &x
+ }
+ 
++//go:noinline
+ func f3a_ssa(x int) *int {
+-	switch {
+-	} //go:noinline
+ 	return &x
+ }
+ 
++//go:noinline
+ func f3b_ssa(x int) interface{} { // ./foo.go:15: internal error: f3b_ssa ~r1 (type interface {}) recorded as live on entry
+-	switch {
+-	} //go:noinline
+ 	return &x
+ }
+ 
++//go:noinline
+ func f3c_ssa(y int) interface{} {
+-	switch {
+-	} //go:noinline
+ 	x := y
+ 	return &x
+ }
+@@ -88,9 +84,8 @@ func args() {
+ 	assertEqual(int(i), 2)
+ }
+ 
++//go:noinline
+ func (v V) args_ssa(a, b V) int64 {
+-	switch {
+-	} //go:noinline
+ 	if v.w == 0 {
+ 		return v.x
+ 	}
+@@ -147,9 +142,8 @@ func (v V) val() int64 {
+ // and y.val() should be equal to which and y.p.val() should
+ // be equal to z.val().  Also, x(.p)**8 == x; that is, the
+ // autos are all linked into a ring.
++//go:noinline
+ func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
+-	switch {
+-	} //go:noinline
+ 	fill_ssa(v.w, v.x, &v, v.p) // gratuitous no-op to force addressing
+ 	var a, b, c, d, e, f, g, h V
+ 	fill_ssa(w1, x1, &a, &b)
+@@ -194,23 +188,20 @@ func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
+ 
+ // gets is an address-mentioning way of implementing
+ // structure assignment.
++//go:noinline
+ func (to *V) gets(from *V) {
+-	switch {
+-	} //go:noinline
+ 	*to = *from
+ }
+ 
+ // gets is an address-and-interface-mentioning way of
+ // implementing structure assignment.
++//go:noinline
+ func (to *V) getsI(from interface{}) {
+-	switch {
+-	} //go:noinline
+ 	*to = *from.(*V)
+ }
+ 
+ // fill_ssa initializes r with V{w:w, x:x, p:p}
++//go:noinline
+ func fill_ssa(w, x int64, r, p *V) {
+-	switch {
+-	} //go:noinline
+ 	*r = V{w: w, x: x, p: p}
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 622f8aed7c..7c82bbd6ce 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -509,9 +509,9 @@ func sub1_ssa() uint64 {
+ 	v1 := uint64(3) // uint64
+ 	return v1*v1 - (v1&v1)&v1
+ }
++
++//go:noinline
+ func sub2_ssa() uint8 {
+-	switch {
+-	}
+ 	v1 := uint8(0)
+ 	v3 := v1 + v1 + v1 ^ v1 | 3 + v1 ^ v1 | v1 ^ v1
+ 	v1-- // dev.ssa doesn't see this one
+diff --git a/src/cmd/compile/internal/gc/testdata/compound_ssa.go b/src/cmd/compile/internal/gc/testdata/compound_ssa.go
+index b0e4962f5e..de10cdc779 100644
+--- a/src/cmd/compile/internal/gc/testdata/compound_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/compound_ssa.go
+@@ -33,9 +33,8 @@ func testString() {
+ 	}
+ }
+ 
++//go:noinline
+ func complex64_ssa(a, b complex64, x bool) complex64 {
+-	switch {
+-	}
+ 	var c complex64
+ 	if x {
+ 		c = a
+@@ -45,9 +44,8 @@ func complex64_ssa(a, b complex64, x bool) complex64 {
+ 	return c
+ }
+ 
++//go:noinline
+ func complex128_ssa(a, b complex128, x bool) complex128 {
+-	switch {
+-	}
+ 	var c complex128
+ 	if x {
+ 		c = a
+diff --git a/src/cmd/compile/internal/gc/testdata/copy_ssa.go b/src/cmd/compile/internal/gc/testdata/copy_ssa.go
+index 44f0223a43..0b6f878cbe 100644
+--- a/src/cmd/compile/internal/gc/testdata/copy_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/copy_ssa.go
+@@ -10,9 +10,8 @@ type T1 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1copy_ssa(y, x *[1]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1() {
+@@ -32,9 +31,8 @@ type T2 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t2copy_ssa(y, x *[2]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy2() {
+@@ -54,9 +52,8 @@ type T3 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t3copy_ssa(y, x *[3]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy3() {
+@@ -76,9 +73,8 @@ type T4 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t4copy_ssa(y, x *[4]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy4() {
+@@ -98,9 +94,8 @@ type T5 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t5copy_ssa(y, x *[5]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy5() {
+@@ -120,9 +115,8 @@ type T6 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t6copy_ssa(y, x *[6]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy6() {
+@@ -142,9 +136,8 @@ type T7 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t7copy_ssa(y, x *[7]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy7() {
+@@ -164,9 +157,8 @@ type T8 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t8copy_ssa(y, x *[8]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy8() {
+@@ -186,9 +178,8 @@ type T9 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t9copy_ssa(y, x *[9]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy9() {
+@@ -208,9 +199,8 @@ type T10 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t10copy_ssa(y, x *[10]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy10() {
+@@ -230,9 +220,8 @@ type T15 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t15copy_ssa(y, x *[15]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy15() {
+@@ -252,9 +241,8 @@ type T16 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t16copy_ssa(y, x *[16]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy16() {
+@@ -274,9 +262,8 @@ type T17 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t17copy_ssa(y, x *[17]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy17() {
+@@ -296,9 +283,8 @@ type T23 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t23copy_ssa(y, x *[23]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy23() {
+@@ -318,9 +304,8 @@ type T24 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t24copy_ssa(y, x *[24]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy24() {
+@@ -340,9 +325,8 @@ type T25 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t25copy_ssa(y, x *[25]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy25() {
+@@ -362,9 +346,8 @@ type T31 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t31copy_ssa(y, x *[31]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy31() {
+@@ -384,9 +367,8 @@ type T32 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t32copy_ssa(y, x *[32]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy32() {
+@@ -406,9 +388,8 @@ type T33 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t33copy_ssa(y, x *[33]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy33() {
+@@ -428,9 +409,8 @@ type T63 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t63copy_ssa(y, x *[63]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy63() {
+@@ -450,9 +430,8 @@ type T64 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t64copy_ssa(y, x *[64]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy64() {
+@@ -472,9 +451,8 @@ type T65 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t65copy_ssa(y, x *[65]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy65() {
+@@ -494,9 +472,8 @@ type T1023 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1023copy_ssa(y, x *[1023]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1023() {
+@@ -516,9 +493,8 @@ type T1024 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1024copy_ssa(y, x *[1024]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1024() {
+@@ -538,9 +514,8 @@ type T1025 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1025copy_ssa(y, x *[1025]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1025() {
+@@ -560,9 +535,8 @@ type T1031 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1031copy_ssa(y, x *[1031]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1031() {
+@@ -582,9 +556,8 @@ type T1032 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1032copy_ssa(y, x *[1032]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1032() {
+@@ -604,9 +577,8 @@ type T1033 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1033copy_ssa(y, x *[1033]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1033() {
+@@ -626,9 +598,8 @@ type T1039 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1039copy_ssa(y, x *[1039]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1039() {
+@@ -648,9 +619,8 @@ type T1040 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1040copy_ssa(y, x *[1040]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1040() {
+@@ -670,9 +640,8 @@ type T1041 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func t1041copy_ssa(y, x *[1041]byte) {
+-	switch {
+-	}
+ 	*y = *x
+ }
+ func testCopy1041() {
+diff --git a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+index 09880ef94f..0656cb4ddb 100644
+--- a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+@@ -121,9 +121,8 @@ type junk struct {
+ 
+ // flagOverwrite_ssa is intended to reproduce an issue seen where a XOR
+ // was scheduled between a compare and branch, clearing flags.
++//go:noinline
+ func flagOverwrite_ssa(s *junk, c int) int {
+-	switch {
+-	}
+ 	if '0' <= c && c <= '9' {
+ 		s.step = 0
+ 		return 1
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index cfbdcda251..91656bef30 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -13,9 +13,8 @@ import "fmt"
+ // manysub_ssa is designed to tickle bugs that depend on register
+ // pressure or unfriendly operand ordering in registers (and at
+ // least once it succeeded in this).
++//go:noinline
+ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc, cd, da, db, dc, dd float64) {
+-	switch {
+-	}
+ 	aa = a + 11.0 - a
+ 	ab = a - b
+ 	ac = a - c
+@@ -37,9 +36,8 @@ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc
+ 
+ // fpspill_ssa attempts to trigger a bug where phis with floating point values
+ // were stored in non-fp registers causing an error in doasm.
++//go:noinline
+ func fpspill_ssa(a int) float64 {
+-	switch {
+-	}
+ 
+ 	ret := -1.0
+ 	switch a {
+@@ -81,69 +79,59 @@ func fpspill_ssa(a int) float64 {
+ 	return ret
+ }
+ 
++//go:noinline
+ func add64_ssa(a, b float64) float64 {
+-	switch {
+-	}
+ 	return a + b
+ }
+ 
++//go:noinline
+ func mul64_ssa(a, b float64) float64 {
+-	switch {
+-	}
+ 	return a * b
+ }
+ 
++//go:noinline
+ func sub64_ssa(a, b float64) float64 {
+-	switch {
+-	}
+ 	return a - b
+ }
+ 
++//go:noinline
+ func div64_ssa(a, b float64) float64 {
+-	switch {
+-	}
+ 	return a / b
+ }
+ 
++//go:noinline
+ func neg64_ssa(a, b float64) float64 {
+-	switch {
+-	}
+ 	return -a + -1*b
+ }
+ 
++//go:noinline
+ func add32_ssa(a, b float32) float32 {
+-	switch {
+-	}
+ 	return a + b
+ }
+ 
++//go:noinline
+ func mul32_ssa(a, b float32) float32 {
+-	switch {
+-	}
+ 	return a * b
+ }
+ 
++//go:noinline
+ func sub32_ssa(a, b float32) float32 {
+-	switch {
+-	}
+ 	return a - b
+ }
++
++//go:noinline
+ func div32_ssa(a, b float32) float32 {
+-	switch {
+-	}
+ 	return a / b
+ }
+ 
++//go:noinline
+ func neg32_ssa(a, b float32) float32 {
+-	switch {
+-	}
+ 	return -a + -1*b
+ }
+ 
++//go:noinline
+ func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
+ 	e int32, f uint32, g int64, h uint64, i float32) (aa, bb, cc, dd, ee, ff, gg, hh, ii float64) {
+-	switch {
+-	}
+ 	aa = float64(a)
+ 	bb = float64(b)
+ 	cc = float64(c)
+@@ -156,10 +144,9 @@ func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
+ 	return
+ }
+ 
++//go:noinline
+ func conv2Float32_ssa(a int8, b uint8, c int16, d uint16,
+ 	e int32, f uint32, g int64, h uint64, i float64) (aa, bb, cc, dd, ee, ff, gg, hh, ii float32) {
+-	switch {
+-	}
+ 	aa = float32(a)
+ 	bb = float32(b)
+ 	cc = float32(c)
+@@ -264,11 +251,8 @@ const (
+ 	dd = 0x1
+ )
+ 
++//go:noinline
+ func compares64_ssa(a, b, c, d float64) (lt, le, eq, ne, ge, gt uint64) {
+-
+-	switch {
+-	}
+-
+ 	if a < a {
+ 		lt += aa
+ 	}
+@@ -584,11 +568,8 @@ func compares64_ssa(a, b, c, d float64) (lt, le, eq, ne, ge, gt uint64) {
+ 	return
+ }
+ 
++//go:noinline
+ func compares32_ssa(a, b, c, d float32) (lt, le, eq, ne, ge, gt uint64) {
+-
+-	switch {
+-	}
+-
+ 	if a < a {
+ 		lt += aa
+ 	}
+@@ -904,259 +885,239 @@ func compares32_ssa(a, b, c, d float32) (lt, le, eq, ne, ge, gt uint64) {
+ 	return
+ }
+ 
++//go:noinline
+ func le64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x <= y
+ }
++
++//go:noinline
+ func ge64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x >= y
+ }
++
++//go:noinline
+ func lt64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x < y
+ }
++
++//go:noinline
+ func gt64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x > y
+ }
++
++//go:noinline
+ func eq64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x == y
+ }
++
++//go:noinline
+ func ne64_ssa(x, y float64) bool {
+-	switch {
+-	}
+ 	return x != y
+ }
+ 
++//go:noinline
+ func eqbr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x == y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func nebr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x != y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func gebr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x >= y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func lebr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x <= y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func ltbr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x < y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func gtbr64_ssa(x, y float64) float64 {
+-	switch {
+-	}
+ 	if x > y {
+ 		return 17
+ 	}
+ 	return 42
+ }
+ 
++//go:noinline
+ func le32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x <= y
+ }
++
++//go:noinline
+ func ge32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x >= y
+ }
++
++//go:noinline
+ func lt32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x < y
+ }
++
++//go:noinline
+ func gt32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x > y
+ }
++
++//go:noinline
+ func eq32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x == y
+ }
++
++//go:noinline
+ func ne32_ssa(x, y float32) bool {
+-	switch {
+-	}
+ 	return x != y
+ }
+ 
++//go:noinline
+ func eqbr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x == y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func nebr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x != y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func gebr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x >= y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func lebr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x <= y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func ltbr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x < y {
+ 		return 17
+ 	}
+ 	return 42
+ }
++
++//go:noinline
+ func gtbr32_ssa(x, y float32) float32 {
+-	switch {
+-	}
+ 	if x > y {
+ 		return 17
+ 	}
+ 	return 42
+ }
+ 
++//go:noinline
+ func F32toU8_ssa(x float32) uint8 {
+-	switch {
+-	}
+ 	return uint8(x)
+ }
+ 
++//go:noinline
+ func F32toI8_ssa(x float32) int8 {
+-	switch {
+-	}
+ 	return int8(x)
+ }
+ 
++//go:noinline
+ func F32toU16_ssa(x float32) uint16 {
+-	switch {
+-	}
+ 	return uint16(x)
+ }
+ 
++//go:noinline
+ func F32toI16_ssa(x float32) int16 {
+-	switch {
+-	}
+ 	return int16(x)
+ }
+ 
++//go:noinline
+ func F32toU32_ssa(x float32) uint32 {
+-	switch {
+-	}
+ 	return uint32(x)
+ }
+ 
++//go:noinline
+ func F32toI32_ssa(x float32) int32 {
+-	switch {
+-	}
+ 	return int32(x)
+ }
+ 
++//go:noinline
+ func F32toU64_ssa(x float32) uint64 {
+-	switch {
+-	}
+ 	return uint64(x)
+ }
+ 
++//go:noinline
+ func F32toI64_ssa(x float32) int64 {
+-	switch {
+-	}
+ 	return int64(x)
+ }
+ 
++//go:noinline
+ func F64toU8_ssa(x float64) uint8 {
+-	switch {
+-	}
+ 	return uint8(x)
+ }
+ 
++//go:noinline
+ func F64toI8_ssa(x float64) int8 {
+-	switch {
+-	}
+ 	return int8(x)
+ }
+ 
++//go:noinline
+ func F64toU16_ssa(x float64) uint16 {
+-	switch {
+-	}
+ 	return uint16(x)
+ }
+ 
++//go:noinline
+ func F64toI16_ssa(x float64) int16 {
+-	switch {
+-	}
+ 	return int16(x)
+ }
+ 
++//go:noinline
+ func F64toU32_ssa(x float64) uint32 {
+-	switch {
+-	}
+ 	return uint32(x)
+ }
+ 
++//go:noinline
+ func F64toI32_ssa(x float64) int32 {
+-	switch {
+-	}
+ 	return int32(x)
+ }
+ 
++//go:noinline
+ func F64toU64_ssa(x float64) uint64 {
+-	switch {
+-	}
+ 	return uint64(x)
+ }
+ 
++//go:noinline
+ func F64toI64_ssa(x float64) int64 {
+-	switch {
+-	}
+ 	return int64(x)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+index df51921e0c..4d67864a6d 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+@@ -18,9 +18,9 @@ func testLoadStoreOrder() {
+ 		failed = true
+ 	}
+ }
++
++//go:noinline
+ func testLoadStoreOrder_ssa(z *uint32, prec uint) int {
+-	switch {
+-	}
+ 	old := *z         // load
+ 	*z = uint32(prec) // store
+ 	if *z < old {     // load
+@@ -38,9 +38,9 @@ func testStoreSize() {
+ 		failed = true
+ 	}
+ }
++
++//go:noinline
+ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
+-	switch {
+-	}
+ 	// Test to make sure that (Store ptr (Trunc32to16 val) mem)
+ 	// does not end up as a 32-bit store. It must stay a 16 bit store
+ 	// even when Trunc32to16 is rewritten to be a nop.
+@@ -57,9 +57,8 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
+ 
+ var failed = false
+ 
++//go:noinline
+ func testExtStore_ssa(p *byte, b bool) int {
+-	switch {
+-	}
+ 	x := *p
+ 	*p = 7
+ 	if b {
+@@ -81,9 +80,8 @@ var b int
+ 
+ // testDeadStorePanic_ssa ensures that we don't optimize away stores
+ // that could be read by after recover().  Modeled after fixedbugs/issue1304.
++//go:noinline
+ func testDeadStorePanic_ssa(a int) (r int) {
+-	switch {
+-	}
+ 	defer func() {
+ 		recover()
+ 		r = a
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index a949fbcefb..b47c2f1d07 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -60,9 +60,8 @@ func (p *prefix) slice_ssa() {
+ 	p.prefix = p.prefix[:3]
+ }
+ 
++//go:noinline
+ func testStructSlice() {
+-	switch {
+-	}
+ 	p := &prefix{"prefix"}
+ 	p.slice_ssa()
+ 	if "pre" != p.prefix {
+diff --git a/src/cmd/compile/internal/gc/testdata/zero_ssa.go b/src/cmd/compile/internal/gc/testdata/zero_ssa.go
+index 0ec883b7f4..68334db108 100644
+--- a/src/cmd/compile/internal/gc/testdata/zero_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/zero_ssa.go
+@@ -10,9 +10,8 @@ type T1 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero1_ssa(x *[1]byte) {
+-	switch {
+-	}
+ 	*x = [1]byte{}
+ }
+ func testZero1() {
+@@ -31,9 +30,8 @@ type T2 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero2_ssa(x *[2]byte) {
+-	switch {
+-	}
+ 	*x = [2]byte{}
+ }
+ func testZero2() {
+@@ -52,9 +50,8 @@ type T3 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero3_ssa(x *[3]byte) {
+-	switch {
+-	}
+ 	*x = [3]byte{}
+ }
+ func testZero3() {
+@@ -73,9 +70,8 @@ type T4 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero4_ssa(x *[4]byte) {
+-	switch {
+-	}
+ 	*x = [4]byte{}
+ }
+ func testZero4() {
+@@ -94,9 +90,8 @@ type T5 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero5_ssa(x *[5]byte) {
+-	switch {
+-	}
+ 	*x = [5]byte{}
+ }
+ func testZero5() {
+@@ -115,9 +110,8 @@ type T6 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero6_ssa(x *[6]byte) {
+-	switch {
+-	}
+ 	*x = [6]byte{}
+ }
+ func testZero6() {
+@@ -136,9 +130,8 @@ type T7 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero7_ssa(x *[7]byte) {
+-	switch {
+-	}
+ 	*x = [7]byte{}
+ }
+ func testZero7() {
+@@ -157,9 +150,8 @@ type T8 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero8_ssa(x *[8]byte) {
+-	switch {
+-	}
+ 	*x = [8]byte{}
+ }
+ func testZero8() {
+@@ -178,9 +170,8 @@ type T9 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero9_ssa(x *[9]byte) {
+-	switch {
+-	}
+ 	*x = [9]byte{}
+ }
+ func testZero9() {
+@@ -199,9 +190,8 @@ type T10 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero10_ssa(x *[10]byte) {
+-	switch {
+-	}
+ 	*x = [10]byte{}
+ }
+ func testZero10() {
+@@ -220,9 +210,8 @@ type T15 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero15_ssa(x *[15]byte) {
+-	switch {
+-	}
+ 	*x = [15]byte{}
+ }
+ func testZero15() {
+@@ -241,9 +230,8 @@ type T16 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero16_ssa(x *[16]byte) {
+-	switch {
+-	}
+ 	*x = [16]byte{}
+ }
+ func testZero16() {
+@@ -262,9 +250,8 @@ type T17 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero17_ssa(x *[17]byte) {
+-	switch {
+-	}
+ 	*x = [17]byte{}
+ }
+ func testZero17() {
+@@ -283,9 +270,8 @@ type T23 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero23_ssa(x *[23]byte) {
+-	switch {
+-	}
+ 	*x = [23]byte{}
+ }
+ func testZero23() {
+@@ -304,9 +290,8 @@ type T24 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero24_ssa(x *[24]byte) {
+-	switch {
+-	}
+ 	*x = [24]byte{}
+ }
+ func testZero24() {
+@@ -325,9 +310,8 @@ type T25 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero25_ssa(x *[25]byte) {
+-	switch {
+-	}
+ 	*x = [25]byte{}
+ }
+ func testZero25() {
+@@ -346,9 +330,8 @@ type T31 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero31_ssa(x *[31]byte) {
+-	switch {
+-	}
+ 	*x = [31]byte{}
+ }
+ func testZero31() {
+@@ -367,9 +350,8 @@ type T32 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero32_ssa(x *[32]byte) {
+-	switch {
+-	}
+ 	*x = [32]byte{}
+ }
+ func testZero32() {
+@@ -388,9 +370,8 @@ type T33 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero33_ssa(x *[33]byte) {
+-	switch {
+-	}
+ 	*x = [33]byte{}
+ }
+ func testZero33() {
+@@ -409,9 +390,8 @@ type T63 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero63_ssa(x *[63]byte) {
+-	switch {
+-	}
+ 	*x = [63]byte{}
+ }
+ func testZero63() {
+@@ -430,9 +410,8 @@ type T64 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero64_ssa(x *[64]byte) {
+-	switch {
+-	}
+ 	*x = [64]byte{}
+ }
+ func testZero64() {
+@@ -451,9 +430,8 @@ type T65 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero65_ssa(x *[65]byte) {
+-	switch {
+-	}
+ 	*x = [65]byte{}
+ }
+ func testZero65() {
+@@ -472,9 +450,8 @@ type T1023 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero1023_ssa(x *[1023]byte) {
+-	switch {
+-	}
+ 	*x = [1023]byte{}
+ }
+ func testZero1023() {
+@@ -493,9 +470,8 @@ type T1024 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero1024_ssa(x *[1024]byte) {
+-	switch {
+-	}
+ 	*x = [1024]byte{}
+ }
+ func testZero1024() {
+@@ -514,9 +490,8 @@ type T1025 struct {
+ 	post [8]byte
+ }
+ 
++//go:noinline
+ func zero1025_ssa(x *[1025]byte) {
+-	switch {
+-	}
+ 	*x = [1025]byte{}
+ }
+ func testZero1025() {

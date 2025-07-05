@@ -7,6 +7,20 @@ Date:   Thu Mar 15 14:06:15 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5833047
-
+---
  doc/reference.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/reference.html b/doc/reference.html
+index 6d78d3bc0e..8708049f6c 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -69,7 +69,7 @@ Using GDB to debug Go programs.
+ </ul>
+ 
+ <p>
+-See the <a href=/doc/#articles">documentation page</a> for more articles.
++See the <a href="/doc/#articles">documentation page</a> for more articles.
+ </p>
+ 
+ </div>

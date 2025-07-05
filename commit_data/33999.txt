@@ -16,7 +16,144 @@ Date:   Mon Aug 7 08:22:21 2017 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/mail/message.go      | 49 ++++++++++++++++++++++++++++++++++++++++++--
  src/net/mail/message_test.go | 44 ++++++++++++++++++++++++++++++---------
  2 files changed, 81 insertions(+), 12 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index debc77d733..e080e017da 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -254,7 +254,9 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
+ 		}
+ 		list = append(list, addr)
+ 
+-		p.skipSpace()
++		if !p.skipCfws() {
++			return nil, errors.New("mail: misformatted parenthetical comment")
++		}
+ 		if p.empty() {
+ 			break
+ 		}
+@@ -270,7 +272,9 @@ func (p *addrParser) parseSingleAddress() (*Address, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	p.skipSpace()
++	if !p.skipCfws() {
++		return nil, errors.New("mail: misformatted parenthetical comment")
++	}
+ 	if !p.empty() {
+ 		return nil, fmt.Errorf("mail: expected single address, got %q", p.s)
+ 	}
+@@ -548,6 +552,47 @@ func (p *addrParser) len() int {
+ 	return len(p.s)
+ }
+ 
++// skipCfws skips CFWS as defined in RFC5322.
++func (p *addrParser) skipCfws() bool {
++	p.skipSpace()
++
++	for {
++		if !p.consume('(') {
++			break
++		}
++
++		if !p.skipComment() {
++			return false
++		}
++
++		p.skipSpace()
++	}
++
++	return true
++}
++
++func (p *addrParser) skipComment() bool {
++	// '(' already consumed.
++	depth := 1
++
++	for {
++		if p.empty() || depth == 0 {
++			break
++		}
++
++		if p.peek() == '\\' && p.len() > 1 {
++			p.s = p.s[1:]
++		} else if p.peek() == '(' {
++			depth++
++		} else if p.peek() == ')' {
++			depth--
++		}
++		p.s = p.s[1:]
++	}
++
++	return depth == 0
++}
++
+ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
+ 	if p.dec != nil {
+ 		word, err = p.dec.Decode(s)
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 9026937112..17655f98b4 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -129,16 +129,17 @@ func TestAddressParsingError(t *testing.T) {
+ 		text        string
+ 		wantErrText string
+ 	}{
+-		0: {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
+-		1: {"a@gmail.com b@gmail.com", "expected single address"},
+-		2: {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
+-		3: {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
+-		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
+-		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
+-		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
+-		7: {"John Doe", "no angle-addr"},
+-		8: {`<jdoe#machine.example>`, "missing @ in addr-spec"},
+-		9: {`John <middle> Doe <jdoe@machine.example>`, "missing @ in addr-spec"},
++		0:  {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
++		1:  {"a@gmail.com b@gmail.com", "expected single address"},
++		2:  {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
++		3:  {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
++		4:  {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
++		5:  {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
++		6:  {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
++		7:  {"John Doe", "no angle-addr"},
++		8:  {`<jdoe#machine.example>`, "missing @ in addr-spec"},
++		9:  {`John <middle> Doe <jdoe@machine.example>`, "missing @ in addr-spec"},
++		10: {"cfws@example.com (", "misformatted parenthetical comment"},
+ 	}
+ 
+ 	for i, tc := range mustErrTestCases {
+@@ -374,6 +375,29 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// CFWS
++		{
++			`cfws@example.com (CFWS (cfws))  (another comment)`,
++			[]*Address{
++				{
++					Name:    "",
++					Address: "cfws@example.com",
++				},
++			},
++		},
++		{
++			`cfws@example.com ()  (another comment), cfws2@example.com (another)`,
++			[]*Address{
++				{
++					Name:    "",
++					Address: "cfws@example.com",
++				},
++				{
++					Name:    "",
++					Address: "cfws2@example.com",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {

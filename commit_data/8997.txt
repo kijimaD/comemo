@@ -7,7 +7,65 @@ Date:   Mon Jul 11 09:19:18 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4687041
-
+---
  src/pkg/exp/template/exec_test.go |  6 ++++--
  src/pkg/exp/template/funcs.go     | 26 ++++++++++++++++++--------
  2 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 831113c408..7343998205 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -207,8 +207,10 @@ var execTests = []execTest{
+ 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+ 
+-	// Printf.
+-	{"printf", `{{printf "hello, printf"}}`, "hello, printf", tVal, true},
++	// Print etc.
++	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
++	{"print", `{{print 1 2 3}}`, "1 2 3", tVal, true},
++	{"println", `{{println 1 2 3}}`, "1 2 3\n", tVal, true},
+ 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
+ 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
+ 	{"printf complex", `{{printf "%g" 1+7i}}`, "(1+7i)", tVal, true},
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 66be40fd4d..32c4969f59 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -17,17 +17,27 @@ import (
+ 
+ // FuncMap is the type of the map defining the mapping from names to functions.
+ // Each function must have either a single return value, or two return values of
+-// which the second has type os.Error.
++// which the second has type os.Error. If the second argument evaluates to non-nil
++// during execution, execution terminates and the error is returned by Execute.
+ type FuncMap map[string]interface{}
+ 
+ var funcs = map[string]reflect.Value{
+-	"and":    reflect.ValueOf(and),
+-	"html":   reflect.ValueOf(HTMLEscaper),
+-	"index":  reflect.ValueOf(index),
+-	"js":     reflect.ValueOf(JSEscaper),
+-	"not":    reflect.ValueOf(not),
+-	"or":     reflect.ValueOf(or),
+-	"printf": reflect.ValueOf(fmt.Sprintf),
++	"and":     reflect.ValueOf(and),
++	"html":    reflect.ValueOf(HTMLEscaper),
++	"index":   reflect.ValueOf(index),
++	"js":      reflect.ValueOf(JSEscaper),
++	"not":     reflect.ValueOf(not),
++	"or":      reflect.ValueOf(or),
++	"print":   reflect.ValueOf(fmt.Sprint),
++	"printf":  reflect.ValueOf(fmt.Sprintf),
++	"println": reflect.ValueOf(fmt.Sprintln),
++}
++
++// Funcs adds to the global function map the elements of the
++// argument map.   It panics if a value in the map is not a function
++// with appropriate return type.
++func Funcs(funcMap FuncMap) {
++	addFuncs(funcs, funcMap)
+ }
+ 
+ // addFuncs adds to values the functions in funcs, converting them to reflect.Values.

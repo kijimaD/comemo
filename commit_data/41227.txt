@@ -11,7 +11,52 @@ Date:   Mon Sep 16 13:45:20 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/test.go               |  2 +-
  src/cmd/go/testdata/script/list_split_main.txt | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 2864fb5ebb..aac7d7d481 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -405,7 +405,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+ 		// covered packages are imported by pmain. Linking multiple packages
+ 		// compiled with '-p main' causes duplicate symbol errors.
+ 		// See golang.org/issue/30907, golang.org/issue/34114.
+-		if p.Name == "main" && p != pmain {
++		if p.Name == "main" && p != pmain && p != ptest {
+ 			split()
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/list_split_main.txt b/src/cmd/go/testdata/script/list_split_main.txt
+new file mode 100644
+index 0000000000..74e7d5d74c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_split_main.txt
+@@ -0,0 +1,25 @@
++# This test checks that a "main" package with an external test package
++# is recompiled only once.
++# Verifies golang.org/issue/34321.
++
++env GO111MODULE=off
++
++go list -e -test -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' pkg
++cmp stdout want
++
++-- $GOPATH/src/pkg/pkg.go --
++package main
++
++func main() {}
++
++-- $GOPATH/src/pkg/pkg_test.go --
++package main
++
++import "testing"
++
++func Test(t *testing.T) {}
++
++-- want --
++pkg
++pkg [pkg.test]
++pkg.test

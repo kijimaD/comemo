@@ -17,10 +17,191 @@ Date:   Sat May 28 17:46:38 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/buildtool.go       |  1 +
  src/debug/pe/string.go          | 24 ++-----------------
  src/go/build/deps_test.go       |  5 +++-
  src/internal/saferio/io.go      | 52 +++++++++++++++++++++++++++++++++++++++++
  src/internal/saferio/io_test.go | 39 +++++++++++++++++++++++++++++++
  5 files changed, 98 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 400c2e85b6..0725039cda 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
+ 	"internal/goversion",
+ 	"internal/pkgbits",
+ 	"internal/race",
++	"internal/saferio",
+ 	"internal/unsafeheader",
+ 	"internal/xcoff",
+ 	"math/big",
+diff --git a/src/debug/pe/string.go b/src/debug/pe/string.go
+index 6d9023d8d6..a156bbef05 100644
+--- a/src/debug/pe/string.go
++++ b/src/debug/pe/string.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/saferio"
+ 	"io"
+ )
+ 
+@@ -45,28 +46,7 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
+ 	}
+ 	l -= 4
+ 
+-	// If the string table is large, the file may be corrupt.
+-	// Read in chunks to avoid crashing due to out of memory.
+-	const chunk = 10 << 20 // 10M
+-	var buf []byte
+-	if l < chunk {
+-		buf = make([]byte, l)
+-		_, err = io.ReadFull(r, buf)
+-	} else {
+-		for l > 0 {
+-			n := l
+-			if n > chunk {
+-				n = chunk
+-			}
+-			buf1 := make([]byte, n)
+-			_, err = io.ReadFull(r, buf1)
+-			if err != nil {
+-				break
+-			}
+-			buf = append(buf, buf1...)
+-			l -= n
+-		}
+-	}
++	buf, err := saferio.ReadData(r, uint64(l))
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to read string table: %v", err)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e5f343a185..496771b517 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -123,6 +123,9 @@ var depsRules = `
+ 
+ 	unicode !< strconv;
+ 
++	io
++	< internal/saferio;
++
+ 	# STR is basic string and buffer manipulation.
+ 	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
+ 	< bytes, strings
+@@ -240,7 +243,7 @@ var depsRules = `
+ 	< index/suffixarray;
+ 
+ 	# executable parsing
+-	FMT, encoding/binary, compress/zlib
++	FMT, encoding/binary, compress/zlib, internal/saferio
+ 	< runtime/debug
+ 	< debug/dwarf
+ 	< debug/elf, debug/gosym, debug/macho, debug/pe, debug/plan9obj, internal/xcoff
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+new file mode 100644
+index 0000000000..6d132c0034
+--- /dev/null
++++ b/src/internal/saferio/io.go
+@@ -0,0 +1,52 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package saferio provides I/O functions that avoid allocating large
++// amounts of memory unnecessarily. This is intended for packages that
++// read data from an [io.Reader] where the size is part of the input
++// data but the input may be corrupt, or may be provided by an
++// untrustworthy attacker.
++package saferio
++
++import "io"
++
++// chunk is an arbitrary limit on how much memory we are willing
++// to allocate without concern.
++const chunk = 10 << 20 // 10M
++
++// ReadData reads n bytes from the input stream, but avoids allocating
++// all n bytes if n is large. This avoids crashing the program by
++// allocating all n bytes in cases where n is incorrect.
++func ReadData(r io.Reader, n uint64) ([]byte, error) {
++	if int64(n) < 0 || n != uint64(int(n)) {
++		// n is too large to fit in int, so we can't allocate
++		// a buffer large enough. Treat this as a read failure.
++		return nil, io.ErrUnexpectedEOF
++	}
++
++	if n < chunk {
++		buf := make([]byte, n)
++		_, err := io.ReadFull(r, buf)
++		if err != nil {
++			return nil, err
++		}
++		return buf, nil
++	}
++
++	var buf []byte
++	buf1 := make([]byte, chunk)
++	for n > 0 {
++		next := n
++		if next > chunk {
++			next = chunk
++		}
++		_, err := io.ReadFull(r, buf1[:next])
++		if err != nil {
++			return nil, err
++		}
++		buf = append(buf, buf1[:next]...)
++		n -= next
++	}
++	return buf, nil
++}
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+new file mode 100644
+index 0000000000..f7a635d8bf
+--- /dev/null
++++ b/src/internal/saferio/io_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package saferio
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestReadData(t *testing.T) {
++	const count = 100
++	input := bytes.Repeat([]byte{'a'}, count)
++
++	t.Run("small", func(t *testing.T) {
++		got, err := ReadData(bytes.NewReader(input), count)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !bytes.Equal(got, input) {
++			t.Errorf("got %v, want %v", got, input)
++		}
++	})
++
++	t.Run("large", func(t *testing.T) {
++		_, err := ReadData(bytes.NewReader(input), 10<<30)
++		if err == nil {
++			t.Error("large read succeeded unexpectedly")
++		}
++	})
++
++	t.Run("maxint", func(t *testing.T) {
++		_, err := ReadData(bytes.NewReader(input), 1<<62)
++		if err == nil {
++			t.Error("large read succeeded unexpectedly")
++		}
++	})
++}

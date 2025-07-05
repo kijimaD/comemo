@@ -10,7 +10,7 @@ Date:   Tue May 26 13:40:12 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go    | 32 ++----------
  src/cmd/link/internal/arm/asm.go      | 23 +--------
  src/cmd/link/internal/arm64/asm.go    | 24 +--------
@@ -19,3 +19,383 @@ Date:   Tue May 26 13:40:12 2020 -0400
  src/cmd/link/internal/s390x/asm.go    | 22 +--------
  src/cmd/link/internal/x86/asm.go      | 23 +--------
  7 files changed, 132 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e111c164a1..07354eb70a 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -142,7 +142,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 
+ 		// fall back to using GOT and hope for the best (CMOV*)
+ 		// TODO: just needs relocation, no need to put in .dynsym
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
+ 
+ 		su.SetRelocType(rIdx, objabi.R_PCREL)
+ 		su.SetRelocSym(rIdx, syms.GOT)
+@@ -223,7 +223,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		if targType != sym.SDYNIMPORT {
+ 			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_PCREL)
+ 		su.SetRelocSym(rIdx, syms.GOT)
+@@ -266,7 +266,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// The code is asking for the address of an external
+ 			// function. We provide it with the address of the
+ 			// correspondent GOT symbol.
+-			addgotsym(target, ldr, syms, targ)
++			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
+ 
+ 			su.SetRelocSym(rIdx, syms.GOT)
+ 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+@@ -638,7 +638,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+ 		// has details about what we're avoiding.
+ 
+-		addgotsym(target, ldr, syms, s)
++		ld.AddGotSym(target, ldr, syms, s, uint32(elf.R_X86_64_GLOB_DAT))
+ 		plt := ldr.MakeSymbolUpdater(syms.PLT)
+ 
+ 		sDynid := ldr.SymDynid(s)
+@@ -655,30 +655,6 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+-
+-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+-	if ldr.SymGot(s) >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(ldr, target, syms, s)
+-	got := ldr.MakeSymbolUpdater(syms.GOT)
+-	ldr.SetGot(s, int32(got.Size()))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := ldr.MakeSymbolUpdater(syms.Rela)
+-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_X86_64_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else if target.IsDarwin() {
+-		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
+-		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
+-	} else {
+-		ldr.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+-
+ func tlsIEtoLE(P []byte, off, size int) {
+ 	// Transform the PC-relative instruction into a constant load.
+ 	// That is,
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 3212268fab..4c2dd80475 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -138,7 +138,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		if targType != sym.SDYNIMPORT {
+ 			addgotsyminternal(target, ldr, syms, targ)
+ 		} else {
+-			addgotsym(target, ldr, syms, targ)
++			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_ARM_GLOB_DAT))
+ 		}
+ 
+ 		su := ldr.MakeSymbolUpdater(s)
+@@ -151,7 +151,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		if targType != sym.SDYNIMPORT {
+ 			addgotsyminternal(target, ldr, syms, targ)
+ 		} else {
+-			addgotsym(target, ldr, syms, targ)
++			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_ARM_GLOB_DAT))
+ 		}
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_PCREL)
+@@ -651,22 +651,3 @@ func addgotsyminternal(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms,
+ 		ldr.Errorf(s, "addgotsyminternal: unsupported binary format")
+ 	}
+ }
+-
+-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+-	if ldr.SymGot(s) >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(ldr, target, syms, s)
+-	got := ldr.MakeSymbolUpdater(syms.GOT)
+-	ldr.SetGot(s, int32(got.Size()))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rel := ldr.MakeSymbolUpdater(syms.Rel)
+-		rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_ARM_GLOB_DAT)))
+-	} else {
+-		ldr.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 9482a0a193..a225314965 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -142,7 +142,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 
+ 		// fall back to using GOT
+ 		// TODO: just needs relocation, no need to put in .dynsym
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_AARCH64_GLOB_DAT))
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_ARM64_GOT)
+ 		su.SetRelocSym(rIdx, syms.GOT)
+@@ -231,7 +231,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// The code is asking for the address of an external
+ 			// function. We provide it with the address of the
+ 			// correspondent GOT symbol.
+-			addgotsym(target, ldr, syms, targ)
++			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_AARCH64_GLOB_DAT))
+ 			su := ldr.MakeSymbolUpdater(s)
+ 			su.SetRelocSym(rIdx, syms.GOT)
+ 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+@@ -774,23 +774,3 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+-
+-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+-	if ldr.SymGot(s) >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(ldr, target, syms, s)
+-	got := ldr.MakeSymbolUpdater(syms.GOT)
+-	ldr.SetGot(s, int32(got.Size()))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := ldr.MakeSymbolUpdater(syms.Rela)
+-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_AARCH64_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else {
+-		ldr.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/ld/data_test.go b/src/cmd/link/internal/ld/data_test.go
+new file mode 100644
+index 0000000000..7c46307bd8
+--- /dev/null
++++ b/src/cmd/link/internal/ld/data_test.go
+@@ -0,0 +1,92 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/loader"
++	"testing"
++)
++
++func setUpContext(arch *sys.Arch, iself bool, ht objabi.HeadType, bm, lm string) *Link {
++	ctxt := linknew(arch)
++	edummy := func(str string, off int) {}
++	ctxt.HeadType = ht
++	er := loader.ErrorReporter{}
++	ctxt.loader = loader.NewLoader(0, edummy, &er)
++	ctxt.BuildMode.Set(bm)
++	ctxt.LinkMode.Set(lm)
++	ctxt.IsELF = iself
++	ctxt.mustSetHeadType()
++	ctxt.setArchSyms()
++	return ctxt
++}
++
++// Make sure the addgotsym properly increases the symbols.
++func TestAddGotSym(t *testing.T) {
++	tests := []struct {
++		arch    *sys.Arch
++		ht      objabi.HeadType
++		bm, lm  string
++		rel     string
++		relsize int
++		gotsize int
++	}{
++		{
++			arch:    sys.Arch386,
++			ht:      objabi.Hlinux,
++			bm:      "pie",
++			lm:      "internal",
++			rel:     ".rel",
++			relsize: 2 * sys.Arch386.PtrSize,
++			gotsize: sys.Arch386.PtrSize,
++		},
++		{
++			arch:    sys.ArchAMD64,
++			ht:      objabi.Hlinux,
++			bm:      "pie",
++			lm:      "internal",
++			rel:     ".rela",
++			relsize: 3 * sys.ArchAMD64.PtrSize,
++			gotsize: sys.ArchAMD64.PtrSize,
++		},
++		{
++			arch:    sys.ArchAMD64,
++			ht:      objabi.Hdarwin,
++			bm:      "pie",
++			lm:      "external",
++			gotsize: sys.ArchAMD64.PtrSize,
++		},
++	}
++
++	// Save the architecture as we're going to set it on each test run.
++	origArch := objabi.GOARCH
++	defer func() {
++		objabi.GOARCH = origArch
++	}()
++
++	for i, test := range tests {
++		iself := len(test.rel) != 0
++		objabi.GOARCH = test.arch.Name
++		ctxt := setUpContext(test.arch, iself, test.ht, test.bm, test.lm)
++		foo := ctxt.loader.CreateSymForUpdate("foo", 0)
++		ctxt.loader.CreateExtSym("bar", 0)
++		AddGotSym(&ctxt.Target, ctxt.loader, &ctxt.ArchSyms, foo.Sym(), 0)
++
++		if iself {
++			rel := ctxt.loader.Lookup(test.rel, 0)
++			if rel == 0 {
++				t.Fatalf("[%d] could not find symbol: %q", i, test.rel)
++			}
++			if s := ctxt.loader.SymSize(rel); s != int64(test.relsize) {
++				t.Fatalf("[%d] expected ldr.Size(%q) == %v, got %v", i, test.rel, test.relsize, s)
++			}
++		}
++		if s := ctxt.loader.SymSize(ctxt.loader.Lookup(".got", 0)); s != int64(test.gotsize) {
++			t.Fatalf(`[%d] expected ldr.Size(".got") == %v, got %v`, i, test.gotsize, s)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 429ea98347..c4f3e0aedb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2587,3 +2587,32 @@ func ElfSymForReloc(ctxt *Link, s loader.Sym) int32 {
+ 		return ctxt.loader.SymElfSym(s)
+ 	}
+ }
++
++func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, elfRelocTyp uint32) {
++	if ldr.SymGot(s) >= 0 {
++		return
++	}
++
++	Adddynsym(ldr, target, syms, s)
++	got := ldr.MakeSymbolUpdater(syms.GOT)
++	ldr.SetGot(s, int32(got.Size()))
++	got.AddUint(target.Arch, 0)
++
++	if target.IsElf() {
++		if target.Arch.PtrSize == 8 {
++			rela := ldr.MakeSymbolUpdater(syms.Rela)
++			rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
++			rela.AddUint64(target.Arch, ELF64_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
++			rela.AddUint64(target.Arch, 0)
++		} else {
++			rel := ldr.MakeSymbolUpdater(syms.Rel)
++			rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
++			rel.AddUint32(target.Arch, ELF32_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
++		}
++	} else if target.IsDarwin() {
++		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
++		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
++	} else {
++		ldr.Errorf(s, "addgotsym: unsupported binary format")
++	}
++}
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 2185197460..6617575162 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -203,7 +203,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		return true
+ 
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_390_GLOB_DAT))
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_PCREL)
+ 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
+@@ -454,23 +454,3 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+-
+-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+-	if ldr.SymGot(s) >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(ldr, target, syms, s)
+-	got := ldr.MakeSymbolUpdater(syms.GOT)
+-	ldr.SetGot(s, int32(got.Size()))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := ldr.MakeSymbolUpdater(syms.Rela)
+-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_390_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else {
+-		ldr.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index d5ac40c583..3fb67a9238 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -201,7 +201,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			return false
+ 		}
+ 
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
+ 		su.SetRelocType(rIdx, objabi.R_CONST) // write r->add during relocsym
+ 		su.SetRelocSym(rIdx, 0)
+ 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+@@ -266,7 +266,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			return true
+ 		}
+ 
+-		addgotsym(target, ldr, syms, targ)
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
+ 		su.SetRelocSym(rIdx, syms.GOT)
+ 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+ 		su.SetRelocType(rIdx, objabi.R_PCREL)
+@@ -490,22 +490,3 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+-
+-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+-	if ldr.SymGot(s) >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(ldr, target, syms, s)
+-	got := ldr.MakeSymbolUpdater(syms.GOT)
+-	ldr.SetGot(s, int32(got.Size()))
+-	got.AddUint32(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rel := ldr.MakeSymbolUpdater(syms.Rel)
+-		rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_386_GLOB_DAT)))
+-	} else {
+-		ldr.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}

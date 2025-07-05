@@ -10,7 +10,7 @@ Date:   Sun Mar 1 22:02:13 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6450
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/9l/asm.go                  | 15 ++++++++-------
  src/cmd/internal/ld/arch.go        |  6 ------
  src/cmd/internal/ld/elf.go         |  5 +++--
@@ -22,3 +22,286 @@ Date:   Sun Mar 1 22:02:13 2015 -0500
  src/cmd/internal/obj/ppc64/obj9.go |  2 --
  src/cmd/internal/obj/x86/obj6.go   |  2 --
  10 files changed, 13 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index 1b633ac449..176de6f845 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -32,6 +32,7 @@ package main
+ 
+ import (
+ 	"cmd/internal/obj"
++	"encoding/binary"
+ 	"fmt"
+ 	"log"
+ )
+@@ -185,7 +186,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
+ 	r.Sym = plt
+ 	r.Add = int64(targ.Plt)
+ 	r.Siz = 2
+-	if ld.Ctxt.Arch.Endian == ld.BigEndian {
++	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		r.Off += int32(r.Siz)
+ 	}
+ 	r.Type = ld.R_POWER_TOC
+@@ -196,7 +197,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
+ 	r.Sym = plt
+ 	r.Add = int64(targ.Plt)
+ 	r.Siz = 2
+-	if ld.Ctxt.Arch.Endian == ld.BigEndian {
++	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		r.Off += int32(r.Siz)
+ 	}
+ 	r.Type = ld.R_POWER_TOC
+@@ -400,7 +401,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		o2 = o2&0xffff0000 | uint32(t)&0xffff
+ 
+ 		// when laid out, the instruction order must always be o1, o2.
+-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
++		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			*val = int64(o1)<<32 | int64(o2)
+ 		} else {
+ 			*val = int64(o2)<<32 | int64(o1)
+@@ -409,7 +410,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 
+ 	case ld.R_CALLPOWER:
+ 		// Bits 6 through 29 = (S + A - P) >> 2
+-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
++		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			o1 = ld.Be32(s.P[r.Off:])
+ 		} else {
+ 			o1 = ld.Le32(s.P[r.Off:])
+@@ -451,7 +452,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+ 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
+ 			// Whether to check for signed or unsigned
+ 			// overflow depends on the instruction
+-			if ld.Ctxt.Arch.Endian == ld.BigEndian {
++			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 				o1 = ld.Be32(s.P[r.Off-2:])
+ 			} else {
+ 				o1 = ld.Le32(s.P[r.Off:])
+@@ -484,7 +485,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+ 		if r.Variant&ld.RV_CHECK_OVERFLOW != 0 {
+ 			// Whether to check for signed or unsigned
+ 			// overflow depends on the instruction
+-			if ld.Ctxt.Arch.Endian == ld.BigEndian {
++			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 				o1 = ld.Be32(s.P[r.Off-2:])
+ 			} else {
+ 				o1 = ld.Le32(s.P[r.Off:])
+@@ -507,7 +508,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+ 		return int64(int16(t))
+ 
+ 	case ld.RV_POWER_DS:
+-		if ld.Ctxt.Arch.Endian == ld.BigEndian {
++		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			o1 = uint32(ld.Be16(s.P[r.Off:]))
+ 		} else {
+ 			o1 = uint32(ld.Le16(s.P[r.Off:]))
+diff --git a/src/cmd/internal/ld/arch.go b/src/cmd/internal/ld/arch.go
+index 3dd6a5f206..aa84a95780 100644
+--- a/src/cmd/internal/ld/arch.go
++++ b/src/cmd/internal/ld/arch.go
+@@ -10,7 +10,6 @@ var Linkarm = LinkArch{
+ 	ByteOrder: binary.LittleEndian,
+ 	Name:      "arm",
+ 	Thechar:   '5',
+-	Endian:    LittleEndian,
+ 	Minlc:     4,
+ 	Ptrsize:   4,
+ 	Regsize:   4,
+@@ -20,7 +19,6 @@ var Linkamd64 = LinkArch{
+ 	ByteOrder: binary.LittleEndian,
+ 	Name:      "amd64",
+ 	Thechar:   '6',
+-	Endian:    LittleEndian,
+ 	Minlc:     1,
+ 	Ptrsize:   8,
+ 	Regsize:   8,
+@@ -30,7 +28,6 @@ var Linkamd64p32 = LinkArch{
+ 	ByteOrder: binary.LittleEndian,
+ 	Name:      "amd64p32",
+ 	Thechar:   '6',
+-	Endian:    LittleEndian,
+ 	Minlc:     1,
+ 	Ptrsize:   4,
+ 	Regsize:   8,
+@@ -40,7 +37,6 @@ var Link386 = LinkArch{
+ 	ByteOrder: binary.LittleEndian,
+ 	Name:      "386",
+ 	Thechar:   '8',
+-	Endian:    LittleEndian,
+ 	Minlc:     1,
+ 	Ptrsize:   4,
+ 	Regsize:   4,
+@@ -50,7 +46,6 @@ var Linkppc64 = LinkArch{
+ 	ByteOrder: binary.BigEndian,
+ 	Name:      "ppc64",
+ 	Thechar:   '9',
+-	Endian:    BigEndian,
+ 	Minlc:     4,
+ 	Ptrsize:   8,
+ 	Regsize:   8,
+@@ -60,7 +55,6 @@ var Linkppc64le = LinkArch{
+ 	ByteOrder: binary.LittleEndian,
+ 	Name:      "ppc64le",
+ 	Thechar:   '9',
+-	Endian:    LittleEndian,
+ 	Minlc:     4,
+ 	Ptrsize:   8,
+ 	Regsize:   8,
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index ca95fe0cc2..f6d1043c10 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"encoding/binary"
+ 	"fmt"
+ 	"os"
+ )
+@@ -755,7 +756,7 @@ func Elfinit() {
+ 	switch Thearch.Thechar {
+ 	// 64-bit architectures
+ 	case '9':
+-		if Ctxt.Arch.Endian == BigEndian {
++		if Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			ehdr.flags = 1 /* Version 1 ABI */
+ 		} else {
+ 			ehdr.flags = 2 /* Version 2 ABI */
+@@ -2342,7 +2343,7 @@ elfobj:
+ 	} else {
+ 		eh.ident[EI_CLASS] = ELFCLASS32
+ 	}
+-	if Ctxt.Arch.Endian == BigEndian {
++	if Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		eh.ident[EI_DATA] = ELFDATA2MSB
+ 	} else {
+ 		eh.ident[EI_DATA] = ELFDATA2LSB
+diff --git a/src/cmd/internal/ld/link.go b/src/cmd/internal/ld/link.go
+index 69702fb458..9047e7098c 100644
+--- a/src/cmd/internal/ld/link.go
++++ b/src/cmd/internal/ld/link.go
+@@ -269,11 +269,6 @@ const (
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ 
+-const (
+-	LittleEndian = 0x04030201
+-	BigEndian    = 0x01020304
+-)
+-
+ // LinkArch is the definition of a single architecture.
+ 
+ /* executable header types */
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 67042c029a..9c1baca038 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1066,7 +1066,6 @@ var Linkarm = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "arm",
+ 	Thechar:    '5',
+-	Endian:     obj.LittleEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span5,
+ 	Follow:     follow,
+diff --git a/src/cmd/internal/obj/i386/obj8.go b/src/cmd/internal/obj/i386/obj8.go
+index 44d27c29f2..88adba045e 100644
+--- a/src/cmd/internal/obj/i386/obj8.go
++++ b/src/cmd/internal/obj/i386/obj8.go
+@@ -914,7 +914,6 @@ var Link386 = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "386",
+ 	Thechar:    '8',
+-	Endian:     obj.LittleEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span8,
+ 	Follow:     follow,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 990072937f..397c9c9c0e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -246,7 +246,6 @@ type LinkArch struct {
+ 	ByteOrder  binary.ByteOrder
+ 	Name       string
+ 	Thechar    int
+-	Endian     int32
+ 	Preprocess func(*Link, *LSym)
+ 	Assemble   func(*Link, *LSym)
+ 	Follow     func(*Link, *LSym)
+@@ -547,11 +546,6 @@ const (
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ 
+-const (
+-	LittleEndian = 0x04030201
+-	BigEndian    = 0x01020304
+-)
+-
+ // LinkArch is the definition of a single architecture.
+ 
+ /* executable header types */
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 42969d0481..e66522999c 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -31,6 +31,7 @@ package ppc64
+ 
+ import (
+ 	"cmd/internal/obj"
++	"encoding/binary"
+ 	"fmt"
+ 	"log"
+ 	"sort"
+@@ -2038,7 +2039,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 31: /* dword */
+ 		d = vregoff(ctxt, &p.From)
+ 
+-		if ctxt.Arch.Endian == obj.BigEndian {
++		if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			o1 = uint32(d >> 32)
+ 			o2 = uint32(d)
+ 		} else {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 0c3298afc2..a507449eae 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -970,7 +970,6 @@ var Linkppc64 = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "ppc64",
+ 	Thechar:    '9',
+-	Endian:     obj.BigEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+ 	Follow:     follow,
+@@ -986,7 +985,6 @@ var Linkppc64le = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "ppc64le",
+ 	Thechar:    '9',
+-	Endian:     obj.LittleEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+ 	Follow:     follow,
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 63a82b0f92..4cb2f45a58 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1116,7 +1116,6 @@ var Linkamd64 = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "amd64",
+ 	Thechar:    '6',
+-	Endian:     obj.LittleEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+ 	Follow:     follow,
+@@ -1132,7 +1131,6 @@ var Linkamd64p32 = obj.LinkArch{
+ 	Pconv:      Pconv,
+ 	Name:       "amd64p32",
+ 	Thechar:    '6',
+-	Endian:     obj.LittleEndian,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+ 	Follow:     follow,

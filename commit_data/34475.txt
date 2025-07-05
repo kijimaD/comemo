@@ -18,6 +18,19 @@ Date:   Fri Oct 27 01:47:08 2017 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/header.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 832169247f..622ad28963 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -156,6 +156,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ 			v = textproto.TrimString(v)
+ 			for _, s := range []string{kv.key, ": ", v, "\r\n"} {
+ 				if _, err := ws.WriteString(s); err != nil {
++					headerSorterPool.Put(sorter)
+ 					return err
+ 				}
+ 			}

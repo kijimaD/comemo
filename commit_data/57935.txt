@@ -14,6 +14,20 @@ Date:   Tue Sep 12 13:35:15 2023 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/stackswitch.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/testdata/testprogcgo/stackswitch.c b/src/runtime/testdata/testprogcgo/stackswitch.c
+index 36258c1e18..2395cda568 100644
+--- a/src/runtime/testdata/testprogcgo/stackswitch.c
++++ b/src/runtime/testdata/testprogcgo/stackswitch.c
+@@ -6,6 +6,8 @@
+ 
+ // Required for darwin ucontext.
+ #define _XOPEN_SOURCE
++// Required for netbsd stack_t if _XOPEN_SOURCE is set.
++#define _XOPEN_SOURCE_EXTENDED
+ #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+ 
+ #include <assert.h>

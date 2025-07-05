@@ -21,9 +21,161 @@ Date:   Mon Sep 25 15:03:49 2017 -0700
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go      |  8 +++++---
  src/archive/tar/reader_test.go | 17 ++++++++++++++---
  src/archive/tar/writer.go      |  8 +++++---
  src/archive/tar/writer_test.go | 17 +++++++++++++++--
  4 files changed, 39 insertions(+), 11 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index c2e3041d92..94fa417308 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -649,12 +649,14 @@ type regFileReader struct {
+ 	nb int64     // Number of remaining bytes to read
+ }
+ 
+-func (fr *regFileReader) Read(b []byte) (int, error) {
++func (fr *regFileReader) Read(b []byte) (n int, err error) {
+ 	if int64(len(b)) > fr.nb {
+ 		b = b[:fr.nb]
+ 	}
+-	n, err := fr.r.Read(b)
+-	fr.nb -= int64(n)
++	if len(b) > 0 {
++		n, err = fr.r.Read(b)
++		fr.nb -= int64(n)
++	}
+ 	switch {
+ 	case err == io.EOF && fr.nb > 0:
+ 		return n, io.ErrUnexpectedEOF
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 256f0eaca1..bbabd96246 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -7,6 +7,7 @@ package tar
+ import (
+ 	"bytes"
+ 	"crypto/md5"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -1395,6 +1396,17 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
+ 	}
+ }
+ 
++// testNonEmptyReader wraps an io.Reader and ensures that
++// Read is never called with an empty buffer.
++type testNonEmptyReader struct{ io.Reader }
++
++func (r testNonEmptyReader) Read(b []byte) (int, error) {
++	if len(b) == 0 {
++		return 0, errors.New("unexpected empty Read call")
++	}
++	return r.Reader.Read(b)
++}
++
+ func TestFileReader(t *testing.T) {
+ 	type (
+ 		testRead struct { // Read(cnt) == (wantStr, wantErr)
+@@ -1443,7 +1455,6 @@ func TestFileReader(t *testing.T) {
+ 		maker: makeReg{"", 1},
+ 		tests: []testFnc{
+ 			testRemaining{1, 1},
+-			testRead{0, "", io.ErrUnexpectedEOF},
+ 			testRead{5, "", io.ErrUnexpectedEOF},
+ 			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
+ 			testRemaining{1, 1},
+@@ -1611,14 +1622,14 @@ func TestFileReader(t *testing.T) {
+ 		var fr fileReader
+ 		switch maker := v.maker.(type) {
+ 		case makeReg:
+-			r := strings.NewReader(maker.str)
++			r := testNonEmptyReader{strings.NewReader(maker.str)}
+ 			fr = &regFileReader{r, maker.size}
+ 		case makeSparse:
+ 			if !validateSparseEntries(maker.spd, maker.size) {
+ 				t.Fatalf("invalid sparse map: %v", maker.spd)
+ 			}
+ 			sph := invertSparseEntries(maker.spd, maker.size)
+-			r := strings.NewReader(maker.makeReg.str)
++			r := testNonEmptyReader{strings.NewReader(maker.makeReg.str)}
+ 			fr = &regFileReader{r, maker.makeReg.size}
+ 			fr = &sparseFileReader{fr, sph, 0}
+ 		default:
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 0772d8b206..0ae48b8b23 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -452,13 +452,15 @@ type regFileWriter struct {
+ 	nb int64     // Number of remaining bytes to write
+ }
+ 
+-func (fw *regFileWriter) Write(b []byte) (int, error) {
++func (fw *regFileWriter) Write(b []byte) (n int, err error) {
+ 	overwrite := int64(len(b)) > fw.nb
+ 	if overwrite {
+ 		b = b[:fw.nb]
+ 	}
+-	n, err := fw.w.Write(b)
+-	fw.nb -= int64(n)
++	if len(b) > 0 {
++		n, err = fw.w.Write(b)
++		fw.nb -= int64(n)
++	}
+ 	switch {
+ 	case err != nil:
+ 		return n, err
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 122ec7d3d9..ecac29a39e 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -7,6 +7,7 @@ package tar
+ import (
+ 	"bytes"
+ 	"encoding/hex"
++	"errors"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -987,6 +988,17 @@ func TestIssue12594(t *testing.T) {
+ 	}
+ }
+ 
++// testNonEmptyWriter wraps an io.Writer and ensures that
++// Write is never called with an empty buffer.
++type testNonEmptyWriter struct{ io.Writer }
++
++func (w testNonEmptyWriter) Write(b []byte) (int, error) {
++	if len(b) == 0 {
++		return 0, errors.New("unexpected empty Write call")
++	}
++	return w.Writer.Write(b)
++}
++
+ func TestFileWriter(t *testing.T) {
+ 	type (
+ 		testWrite struct { // Write(str) == (wantCnt, wantErr)
+@@ -1225,17 +1237,18 @@ func TestFileWriter(t *testing.T) {
+ 	for i, v := range vectors {
+ 		var wantStr string
+ 		bb := new(bytes.Buffer)
++		w := testNonEmptyWriter{bb}
+ 		var fw fileWriter
+ 		switch maker := v.maker.(type) {
+ 		case makeReg:
+-			fw = &regFileWriter{bb, maker.size}
++			fw = &regFileWriter{w, maker.size}
+ 			wantStr = maker.wantStr
+ 		case makeSparse:
+ 			if !validateSparseEntries(maker.sph, maker.size) {
+ 				t.Fatalf("invalid sparse map: %v", maker.sph)
+ 			}
+ 			spd := invertSparseEntries(maker.sph, maker.size)
+-			fw = &regFileWriter{bb, maker.makeReg.size}
++			fw = &regFileWriter{w, maker.makeReg.size}
+ 			fw = &sparseFileWriter{fw, spd, 0}
+ 			wantStr = maker.makeReg.wantStr
+ 		default:

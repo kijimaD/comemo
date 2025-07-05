@@ -9,6 +9,54 @@ Date:   Mon May 2 17:23:18 2011 -0700
     R=rsc, r, iant, ken2
     CC=golang-dev
     https://golang.org/cl/4431082
-
+---
  doc/go_spec.html | 23 ++++++++++++++++++++---
  1 file changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e8f7894dbc..0a8a598b73 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2808,15 +2808,18 @@ s += " and good bye"
+ String addition creates a new string by concatenating the operands.
+ </p>
+ <p>
+-For integer values, <code>/</code> and <code>%</code> satisfy the following relationship:
++For two integer values <code>x</code> and <code>y</code>, the integer quotient
++<code>q = x / y</code> and remainder <code>r = x % y</code> satisfy the following
++relationships:
+ </p>
+ 
+ <pre>
+-(a / b) * b + a % b == a
++x = q*y + r  and  |r| &lt; |y|
+ </pre>
+ 
+ <p>
+-with <code>(a / b)</code> truncated towards zero.
++with <code>x / y</code> truncated towards zero
++(<a href="http://en.wikipedia.org/wiki/Modulo_operation">"truncated division"</a>).
+ </p>
+ 
+ <pre>
+@@ -2827,6 +2830,20 @@ with <code>(a / b)</code> truncated towards zero.
+ -5    -3       1        -2
+ </pre>
+ 
++<p>
++As an exception to this rule, if the dividend <code>x</code> is the most
++negative value for the int type of <code>x</code>, the quotient
++<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>).
++</p>
++
++<pre>
++			 x, q
++int8                     -128
++int16                  -32768
++int32             -2147483648
++int64    -9223372036854775808
++</pre>
++
+ <p>
+ If the divisor is zero, a <a href="#Run_time_panics">run-time panic</a> occurs.
+ If the dividend is positive and the divisor is a constant power of 2,

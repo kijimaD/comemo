@@ -7,6 +7,20 @@ Date:   Thu Jan 5 17:49:08 2017 -0800
     Change-Id: I1c2e17b25ca91be37a18c47e70678c3753070fb8
     Reviewed-on: https://go-review.googlesource.com/34827
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/iprawsock.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 8d84135336..d994fc67c6 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -14,7 +14,7 @@ import (
+ // IPv4 packet, including its header, even if there is space
+ // available. This can occur even in cases where Read or ReadMsgIP
+ // could return a complete packet. For this reason, it is recommended
+-// that you do not uses these methods if it is important to receive a
++// that you do not use these methods if it is important to receive a
+ // full packet.
+ //
+ // The Go 1 compatibility guidelines make it impossible for us to

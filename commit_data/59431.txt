@@ -50,7 +50,68 @@ Date:   Mon Mar 11 22:53:08 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/binary/binary.go      | 13 +++++++++++--
  src/encoding/binary/binary_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 59a6c654d2..634995a5bd 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -480,8 +480,17 @@ var structSize sync.Map // map[reflect.Type]int
+ func dataSize(v reflect.Value) int {
+ 	switch v.Kind() {
+ 	case reflect.Slice:
+-		if s := sizeof(v.Type().Elem()); s >= 0 {
+-			return s * v.Len()
++		t := v.Type().Elem()
++		if size, ok := structSize.Load(t); ok {
++			return size.(int) * v.Len()
++		}
++
++		size := sizeof(t)
++		if size >= 0 {
++			if t.Kind() == reflect.Struct {
++				structSize.Store(t, size)
++			}
++			return size * v.Len()
+ 		}
+ 
+ 	case reflect.Struct:
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 4b22b28843..6cd0b92fa3 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -631,6 +631,31 @@ func BenchmarkWriteStruct(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkWriteSlice1000Structs(b *testing.B) {
++	slice := make([]Struct, 1000)
++	buf := new(bytes.Buffer)
++	var w io.Writer = buf
++	b.SetBytes(int64(Size(slice)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Write(w, BigEndian, slice)
++	}
++	b.StopTimer()
++}
++
++func BenchmarkReadSlice1000Structs(b *testing.B) {
++	bsr := &byteSliceReader{}
++	slice := make([]Struct, 1000)
++	buf := make([]byte, Size(slice))
++	b.SetBytes(int64(len(buf)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		bsr.remain = buf
++		Read(bsr, BigEndian, slice)
++	}
++}
++
+ func BenchmarkReadInts(b *testing.B) {
+ 	var ls Struct
+ 	bsr := &byteSliceReader{}

@@ -8,7 +8,51 @@ Date:   Fri May 15 17:22:30 2009 -0700
     DELTA=7  (0 added, 0 deleted, 7 changed)
     OCL=28947
     CL=28950
-
+---
  src/lib/log/log.go      | 12 ++++++------
  src/lib/log/log_test.go |  2 +-
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/log/log.go b/src/lib/log/log.go
+index f5e4dd4a9a..8fcd731900 100644
+--- a/src/lib/log/log.go
++++ b/src/lib/log/log.go
+@@ -45,19 +45,19 @@ type Logger struct {
+ 	flag int;	// properties
+ }
+ 
+-// NewLogger creates a new Logger.   The out0 and out1 variables set the
++// New creates a new Logger.   The out0 and out1 variables set the
+ // destinations to which log data will be written; out1 may be nil.
+ // The prefix appears at the beginning of each generated log line.
+ // The flag argument defines the logging properties.
+-func NewLogger(out0, out1 io.Writer, prefix string, flag int) *Logger {
++func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
+ 	return &Logger{out0, out1, prefix, flag}
+ }
+ 
+ var (
+-	stdout = NewLogger(os.Stdout, nil, "", Lok|Ldate|Ltime);
+-	stderr = NewLogger(os.Stderr, nil, "", Lok|Ldate|Ltime);
+-	exit = NewLogger(os.Stderr, nil, "", Lexit|Ldate|Ltime);
+-	crash = NewLogger(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
++	stdout = New(os.Stdout, nil, "", Lok|Ldate|Ltime);
++	stderr = New(os.Stderr, nil, "", Lok|Ldate|Ltime);
++	exit = New(os.Stderr, nil, "", Lexit|Ldate|Ltime);
++	crash = New(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
+ )
+ 
+ var shortnames = make(map[string] string)	// cache of short names to avoid allocation.
+diff --git a/src/lib/log/log_test.go b/src/lib/log/log_test.go
+index 73ef77fa6b..0cfb2e36f8 100644
+--- a/src/lib/log/log_test.go
++++ b/src/lib/log/log_test.go
+@@ -54,7 +54,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	defer r.Close();
+ 	defer w.Close();
+ 	buf := bufio.NewReader(r);
+-	l := NewLogger(w, nil, prefix, flag);
++	l := New(w, nil, prefix, flag);
+ 	if useLogf {
+ 		l.Logf("hello %d world", 23);
+ 	} else {

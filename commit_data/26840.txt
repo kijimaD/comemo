@@ -10,6 +10,52 @@ Date:   Tue Feb 9 06:18:43 2016 -0800
     Change-Id: Ifc2cb055925a76be9c90eac56d84ebd9e14f2bbc
     Reviewed-on: https://go-review.googlesource.com/19392
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/go/build.go | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 89ab1c0dd4..56101694d6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3422,6 +3422,13 @@ func (b *builder) swigVersionCheck() error {
+ 	return swigCheck
+ }
+ 
++// Find the value to pass for the -intgosize option to swig.
++var (
++	swigIntSizeOnce  sync.Once
++	swigIntSize      string
++	swigIntSizeError error
++)
++
+ // This code fails to build if sizeof(int) <= 32
+ const swigIntSizeCode = `
+ package main
+@@ -3429,8 +3436,8 @@ const i int = 1 << 32
+ `
+ 
+ // Determine the size of int on the target system for the -intgosize option
+-// of swig >= 2.0.9
+-func (b *builder) swigIntSize(obj string) (intsize string, err error) {
++// of swig >= 2.0.9.  Run only once.
++func (b *builder) swigDoIntSize(obj string) (intsize string, err error) {
+ 	if buildN {
+ 		return "$INTBITS", nil
+ 	}
+@@ -3448,6 +3455,15 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+ 	return "64", nil
+ }
+ 
++// Determine the size of int on the target system for the -intgosize option
++// of swig >= 2.0.9.
++func (b *builder) swigIntSize(obj string) (intsize string, err error) {
++	swigIntSizeOnce.Do(func() {
++		swigIntSize, swigIntSizeError = b.swigDoIntSize(obj)
++	})
++	return swigIntSize, swigIntSizeError
++}
++
+ // Run SWIG on one SWIG input file.
+ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx bool, intgosize string) (outGo, outC string, err error) {
+ 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _ := b.cflags(p, true)

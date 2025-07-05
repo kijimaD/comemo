@@ -14,7 +14,39 @@ Date:   Fri Oct 23 14:49:56 2015 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sqrt.go      | 2 +-
  src/runtime/sqrt_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sqrt.go b/src/runtime/sqrt.go
+index 7452a61f3c..1b130e3b01 100644
+--- a/src/runtime/sqrt.go
++++ b/src/runtime/sqrt.go
+@@ -117,7 +117,7 @@ func sqrt(ix uint64) uint64 {
+ 	// normalize x
+ 	exp := int((ix >> float64Shift) & float64Mask)
+ 	if exp == 0 { // subnormal x
+-		for ix&1<<float64Shift == 0 {
++		for ix&(1<<float64Shift) == 0 {
+ 			ix <<= 1
+ 			exp--
+ 		}
+diff --git a/src/runtime/sqrt_test.go b/src/runtime/sqrt_test.go
+index d5ccc7fb1d..54539e1e2e 100644
+--- a/src/runtime/sqrt_test.go
++++ b/src/runtime/sqrt_test.go
+@@ -74,6 +74,7 @@ var vfsqrtSC = []float64{
+ 	0,
+ 	math.Inf(1),
+ 	math.NaN(),
++	math.Float64frombits(2),
+ }
+ var sqrtSC = []float64{
+ 	math.NaN(),
+@@ -82,4 +83,5 @@ var sqrtSC = []float64{
+ 	0,
+ 	math.Inf(1),
+ 	math.NaN(),
++	3.1434555694052576e-162,
+ }

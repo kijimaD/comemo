@@ -21,9 +21,200 @@ Date:   Sun Dec 8 22:48:11 2013 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/35740044
-
+---
  .hgignore              |  2 +-
  src/cmd/dist/a.h       |  2 +-
  src/cmd/dist/build.c   | 33 +++++++++++++++++++++++----------
  src/cmd/dist/buildgc.c | 10 +++++-----
  4 files changed, 30 insertions(+), 17 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index afe76cf220..2f11d9c233 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -33,7 +33,7 @@ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+ src/cmd/?a/y.output
+-src/cmd/?l/enam.c
++src/liblink/anames?.c
+ src/cmd/cc/y.output
+ src/cmd/cgo/zdefaultcc.go
+ src/cmd/dist/dist.dSYM
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 9de93180f1..3052e515b3 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -93,7 +93,7 @@ void	cmdversion(int, char**);
+ 
+ // buildgc.c
+ void	gcopnames(char*, char*);
+-void	mkenam(char*, char*);
++void	mkanames(char*, char*);
+ 
+ // buildruntime.c
+ void	mkzasm(char*, char*);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 51503e2800..69e2aafad9 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -493,6 +493,18 @@ static struct {
+ 		"$GOROOT/include/ureg_arm.h",
+ 		"$GOROOT/include/ureg_x86.h",
+ 	}},
++	{"liblink", {
++		"$GOROOT/include/u.h",
++		"$GOROOT/include/utf.h",
++		"$GOROOT/include/fmt.h",
++		"$GOROOT/include/libc.h",
++		"$GOROOT/include/bio.h",
++		"$GOROOT/include/ar.h",
++		"$GOROOT/include/link.h",
++		"anames5.c",
++		"anames6.c",
++		"anames8.c",
++	}},
+ 	{"cmd/cc", {
+ 		"-pgen.c",
+ 		"-pswt.c",
+@@ -508,19 +520,16 @@ static struct {
+ 	{"cmd/5c", {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+-		"../5l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/6c", {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+-		"../6l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/8c", {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+-		"../8l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/5g", {
+@@ -529,7 +538,6 @@ static struct {
+ 		"../gc/plive.c",
+ 		"../gc/popt.c",
+ 		"../gc/popt.h",
+-		"../5l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/6g", {
+@@ -538,7 +546,6 @@ static struct {
+ 		"../gc/plive.c",
+ 		"../gc/popt.c",
+ 		"../gc/popt.h",
+-		"../6l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/8g", {
+@@ -547,25 +554,22 @@ static struct {
+ 		"../gc/plive.c",
+ 		"../gc/popt.c",
+ 		"../gc/popt.h",
+-		"../8l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/5l", {
+ 		"../ld/*",
+-		"enam.c",
+ 	}},
+ 	{"cmd/6l", {
+ 		"../ld/*",
+-		"enam.c",
+ 	}},
+ 	{"cmd/8l", {
+ 		"../ld/*",
+-		"enam.c",
+ 	}},
+ 	{"cmd/go", {
+ 		"zdefaultcc.go",
+ 	}},
+ 	{"cmd/", {
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/liblink.a",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
+@@ -596,7 +600,9 @@ static struct {
+ 	void (*gen)(char*, char*);
+ } gentab[] = {
+ 	{"opnames.h", gcopnames},
+-	{"enam.c", mkenam},
++	{"anames5.c", mkanames},
++	{"anames6.c", mkanames},
++	{"anames8.c", mkanames},
+ 	{"zasm_", mkzasm},
+ 	{"zdefaultcc.go", mkzdefaultcc},
+ 	{"zsys_", mkzsys},
+@@ -605,6 +611,9 @@ static struct {
+ 	{"zruntime_defs_", mkzruntimedefs},
+ 	{"zversion.go", mkzversion},
+ 	{"zaexperiment.h", mkzexperiment},
++
++	// not generated anymore, but delete the file if we see it
++	{"enam.c", nil},
+ };
+ 
+ // install installs the library, package, or binary associated with dir,
+@@ -869,6 +878,8 @@ install(char *dir)
+ 		p = files.p[i];
+ 		elem = lastelem(p);
+ 		for(j=0; j<nelem(gentab); j++) {
++			if(gentab[j].gen == nil)
++				continue;
+ 			if(hasprefix(elem, gentab[j].nameprefix)) {
+ 				if(vflag > 1)
+ 					errprintf("generate %s\n", p);
+@@ -1247,6 +1258,7 @@ static char *buildorder[] = {
+ 	"lib9",
+ 	"libbio",
+ 	"libmach",
++	"liblink",
+ 
+ 	"misc/pprof",
+ 
+@@ -1338,6 +1350,7 @@ static char *cleantab[] = {
+ 	"lib9",
+ 	"libbio",
+ 	"libmach",
++	"liblink",
+ 	"pkg/bufio",
+ 	"pkg/bytes",
+ 	"pkg/container/heap",
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index 03a797f2cf..1f0625daa0 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -63,10 +63,10 @@ gcopnames(char *dir, char *file)
+ 	vfree(&fields);
+ }
+ 
+-// mkenam reads [568].out.h and writes enam.c
++// mkanames reads [568].out.h and writes anames[568].c
+ // The format is much the same as the Go opcodes above.
+ void
+-mkenam(char *dir, char *file)
++mkanames(char *dir, char *file)
+ {
+ 	int i, ch;
+ 	Buf in, b, out;
+@@ -78,11 +78,11 @@ mkenam(char *dir, char *file)
+ 	binit(&out);
+ 	vinit(&lines);
+ 
+-	ch = dir[xstrlen(dir)-2];
+-	bprintf(&b, "%s/../%cl/%c.out.h", dir, ch, ch);
++	ch = file[xstrlen(file)-3];
++	bprintf(&b, "%s/../cmd/%cl/%c.out.h", dir, ch, ch);
+ 	readfile(&in, bstr(&b));
+ 	splitlines(&lines, bstr(&in));
+-	bwritestr(&out, "char*	anames[] = {\n");
++	bprintf(&out, "char*	anames%c[] = {\n", ch);
+ 	for(i=0; i<lines.len; i++) {
+ 		if(hasprefix(lines.p[i], "\tA")) {
+ 			p = xstrstr(lines.p[i], ",");

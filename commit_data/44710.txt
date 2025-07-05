@@ -22,7 +22,48 @@ Date:   Sun Aug 23 11:52:53 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/internal/atomic/asm_wasm.s     | 10 ++++++++++
  src/runtime/internal/atomic/atomic_wasm.go | 13 +++++--------
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/asm_wasm.s b/src/runtime/internal/atomic/asm_wasm.s
+new file mode 100644
+index 0000000000..7c33cb1ee9
+--- /dev/null
++++ b/src/runtime/internal/atomic/asm_wasm.s
+@@ -0,0 +1,10 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
++	MOVD ptr+0(FP), R0
++	MOVD val+8(FP), 0(R0)
++	RET
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 9037c2f7c8..2c0c3a8174 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -153,14 +153,11 @@ func Store64(ptr *uint64, val uint64) {
+ 	*ptr = val
+ }
+ 
+-//go:notinheap
+-type noWB struct{}
+-
+-//go:noinline
+-//go:nosplit
+-func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
+-	*(**noWB)(ptr) = (*noWB)(val)
+-}
++// StorepNoWB performs *ptr = val atomically and without a write
++// barrier.
++//
++// NO go:noescape annotation; see atomic_pointer.go.
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
+ //go:nosplit
+ //go:noinline

@@ -9,6 +9,20 @@ Date:   Tue Feb 7 08:05:01 2017 +1100
     Change-Id: I702d11bedfab1f47a33679a48c2309f49021229e
     Reviewed-on: https://go-review.googlesource.com/36450
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  doc/conduct.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/doc/conduct.html b/doc/conduct.html
+index 5b81681c10..87ba2da046 100644
+--- a/doc/conduct.html
++++ b/doc/conduct.html
+@@ -185,8 +185,6 @@ satisfaction of all parties. They are:
+ <ul>
+ 	<li>Aditya Mukerjee &lt;dev@chimeracoder.net&gt;
+ 	<li>Andrew Gerrand &lt;adg@golang.org&gt;
+-	<li>Dave Cheney &lt;dave@cheney.net&gt;
+-	<li>Jason Buberel &lt;jbuberel@google.com&gt;
+ 	<li>Peggy Li &lt;peggyli.224@gmail.com&gt;
+ 	<li>Sarah Adams &lt;sadams.codes@gmail.com&gt;
+ 	<li>Steve Francia &lt;steve.francia@gmail.com&gt;

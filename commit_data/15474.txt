@@ -7,7 +7,36 @@ Date:   Wed Feb 27 14:24:41 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7369059
-
+---
  src/pkg/go/types/stmt.go            | 4 ++++
  src/pkg/go/types/testdata/stmt0.src | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 730b0608ee..65b12a01ef 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -62,6 +62,10 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota
+ 			}
+ 		}
+ 
++		if x.mode == invalid || z.mode == invalid {
++			return
++		}
++
+ 		check.assignOperand(&z, x)
+ 		if x.mode != invalid && z.mode == constant {
+ 			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+diff --git a/src/pkg/go/types/testdata/stmt0.src b/src/pkg/go/types/testdata/stmt0.src
+index 37610d3ddd..d4e08f6c0d 100644
+--- a/src/pkg/go/types/testdata/stmt0.src
++++ b/src/pkg/go/types/testdata/stmt0.src
+@@ -32,6 +32,8 @@ func _() {
+ 
+ 	var u64 uint64
+ 	u64 += 1<<u64
++
++	undeclared /* ERROR "undeclared" */ = 991
+ }
+ 
+ func _incdecs() {

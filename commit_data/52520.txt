@@ -23,6 +23,20 @@ Date:   Sun Jan 9 20:29:40 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/math/big/int.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 01ff0bf8c6..ec168f8ffe 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -840,7 +840,7 @@ func (z *Int) ModInverse(g, n *Int) *Int {
+ // The y argument must be an odd integer.
+ func Jacobi(x, y *Int) int {
+ 	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
+-		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
++		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y.String()))
+ 	}
+ 
+ 	// We use the formulation described in chapter 2, section 2.4,

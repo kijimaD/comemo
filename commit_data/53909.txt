@@ -10,6 +10,29 @@ Date:   Tue Sep 6 18:02:13 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/debug/gosym/pclntab.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 5832ded6ea..a87e6cfc1b 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -314,7 +314,7 @@ func (t *LineTable) go12Funcs() []Func {
+ 		syms[i] = Sym{
+ 			Value:     f.Entry,
+ 			Type:      'T',
+-			Name:      t.funcName(info.nameoff()),
++			Name:      t.funcName(info.nameOff()),
+ 			GoType:    0,
+ 			Func:      f,
+ 			goVersion: t.version,
+@@ -456,7 +456,7 @@ func (f *funcData) entryPC() uint64 {
+ 	return f.t.uintptr(f.data)
+ }
+ 
+-func (f funcData) nameoff() uint32     { return f.field(1) }
++func (f funcData) nameOff() uint32     { return f.field(1) }
+ func (f funcData) deferreturn() uint32 { return f.field(3) }
+ func (f funcData) pcfile() uint32      { return f.field(5) }
+ func (f funcData) pcln() uint32        { return f.field(6) }

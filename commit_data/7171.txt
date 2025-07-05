@@ -7,7 +7,32 @@ Date:   Wed Jan 19 15:30:18 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4018043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2ee738e348..8d0394c322 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -63,6 +63,7 @@ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e2e9270cc3..694e6fe1b7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -104,6 +104,7 @@ James Whitehead <jnwhiteh@gmail.com>
+ Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>

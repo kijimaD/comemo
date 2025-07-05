@@ -15,6 +15,21 @@ Date:   Thu Jan 20 13:36:00 2011 -0500
     R=adg, iant
     CC=golang-dev
     https://golang.org/cl/3971044
-
+---
  src/pkg/runtime/linux/thread.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 979260ba1d..d5f9a8fb0e 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -238,8 +238,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	/*
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+ 	 */
+-	flags = CLONE_PARENT	/* getppid doesn't change in child */
+-		| CLONE_VM	/* share memory */
++	flags = CLONE_VM	/* share memory */
+ 		| CLONE_FS	/* share cwd, etc */
+ 		| CLONE_FILES	/* share fd table */
+ 		| CLONE_SIGHAND	/* share sig handler table */

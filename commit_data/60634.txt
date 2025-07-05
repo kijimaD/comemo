@@ -14,9 +14,55 @@ Date:   Wed Aug 7 23:35:23 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next/62384.txt                          | 1 +
  doc/next/6-stdlib/99-minor/net/url/62384.md | 1 +
  src/net/url/url.go                          | 6 +++++-
  src/net/url/url_test.go                     | 1 +
  4 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/62384.txt b/api/next/62384.txt
+index c8dc0c8350..37e0080a13 100644
+--- a/api/next/62384.txt
++++ b/api/next/62384.txt
+@@ -2,3 +2,4 @@ pkg encoding, type BinaryAppender interface { AppendBinary } #62384
+ pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
+ pkg encoding, type TextAppender interface { AppendText } #62384
+ pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) #62384
++pkg net/url, method (*URL) AppendBinary([]uint8) ([]uint8, error) #62384
+diff --git a/doc/next/6-stdlib/99-minor/net/url/62384.md b/doc/next/6-stdlib/99-minor/net/url/62384.md
+new file mode 100644
+index 0000000000..1d759434e1
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/url/62384.md
+@@ -0,0 +1 @@
++[URL] now also implements the [encoding.BinaryAppender] interface.
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 7beaef1ba6..9af192fa1f 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1219,7 +1219,11 @@ func splitHostPort(hostPort string) (host, port string) {
+ // Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
+ 
+ func (u *URL) MarshalBinary() (text []byte, err error) {
+-	return []byte(u.String()), nil
++	return u.AppendBinary(nil)
++}
++
++func (u *URL) AppendBinary(b []byte) ([]byte, error) {
++	return append(b, u.String()...), nil
+ }
+ 
+ func (u *URL) UnmarshalBinary(text []byte) error {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 68219c3df1..16e08b63c6 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1866,6 +1866,7 @@ func TestURLHostnameAndPort(t *testing.T) {
+ 
+ var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
+ var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
++var _ encodingPkg.BinaryAppender = (*URL)(nil)
+ 
+ func TestJSON(t *testing.T) {
+ 	u, err := Parse("https://www.google.com/x?y=z")

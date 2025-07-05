@@ -12,9 +12,96 @@ Date:   Wed Sep 15 16:11:37 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  misc/cgo/testgodefs/testdata/issue48396.go | 18 ++++++++++++++++++
  misc/cgo/testgodefs/testdata/main.go       |  3 +++
  misc/cgo/testgodefs/testgodefs_test.go     |  1 +
  src/cmd/cgo/gcc.go                         | 25 +++++++++++++++++++++++++
  4 files changed, 47 insertions(+)
+
+diff --git a/misc/cgo/testgodefs/testdata/issue48396.go b/misc/cgo/testgodefs/testdata/issue48396.go
+new file mode 100644
+index 0000000000..d4c192403f
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/issue48396.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++/*
++// from <linux/kcm.h>
++struct issue48396 {
++	int fd;
++	int bpf_fd;
++};
++*/
++import "C"
++
++type Issue48396 C.struct_issue48396
+diff --git a/misc/cgo/testgodefs/testdata/main.go b/misc/cgo/testgodefs/testdata/main.go
+index 4a3f6a701c..5c670f3d32 100644
+--- a/misc/cgo/testgodefs/testdata/main.go
++++ b/misc/cgo/testgodefs/testdata/main.go
+@@ -28,6 +28,9 @@ var v7 = S{}
+ // Test that #define'd type is fully defined
+ var _ = issue38649{X: 0}
+ 
++// Test that prefixes do not cause duplicate field names.
++var _ = Issue48396{Fd: 1, Bpf_fd: 2}
++
+ func main() {
+ 	pass := true
+ 
+diff --git a/misc/cgo/testgodefs/testgodefs_test.go b/misc/cgo/testgodefs/testgodefs_test.go
+index aae3404360..7628ffc595 100644
+--- a/misc/cgo/testgodefs/testgodefs_test.go
++++ b/misc/cgo/testgodefs/testgodefs_test.go
+@@ -25,6 +25,7 @@ var filePrefixes = []string{
+ 	"issue37621",
+ 	"issue38649",
+ 	"issue39534",
++	"issue48396",
+ }
+ 
+ func TestGoDefs(t *testing.T) {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 92adb1ed9c..6b3112b41e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -3030,6 +3030,31 @@ func upper(s string) string {
+ // so that all fields are exported.
+ func godefsFields(fld []*ast.Field) {
+ 	prefix := fieldPrefix(fld)
++
++	// Issue 48396: check for duplicate field names.
++	if prefix != "" {
++		names := make(map[string]bool)
++	fldLoop:
++		for _, f := range fld {
++			for _, n := range f.Names {
++				name := n.Name
++				if name == "_" {
++					continue
++				}
++				if name != prefix {
++					name = strings.TrimPrefix(n.Name, prefix)
++				}
++				name = upper(name)
++				if names[name] {
++					// Field name conflict: don't remove prefix.
++					prefix = ""
++					break fldLoop
++				}
++				names[name] = true
++			}
++		}
++	}
++
+ 	npad := 0
+ 	for _, f := range fld {
+ 		for _, n := range f.Names {

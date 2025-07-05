@@ -9,6 +9,20 @@ Date:   Fri Sep 8 12:59:59 2017 +0200
     Change-Id: Ided31a8b22c220acdeb3938cac41ce8db9a110c3
     Reviewed-on: https://go-review.googlesource.com/62290
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index c609fe4cc4..8d506385ff 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1493,7 +1493,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
+ 
+ type releaseConn func(error)
+ 
+-// Conn represents a single database session rather a pool of database
++// Conn represents a single database session rather than a pool of database
+ // sessions. Prefer running queries from DB unless there is a specific
+ // need for a continuous single database session.
+ //

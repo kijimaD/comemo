@@ -17,9 +17,375 @@ Date:   Thu Jun 29 15:22:32 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/importer/gcimporter.go    | 64 ++++++++++++---------
  .../compile/internal/importer/gcimporter_test.go   | 10 ++--
  src/go/internal/gcimporter/gcimporter.go           | 66 +++++++++++++---------
  src/go/internal/gcimporter/gcimporter_test.go      |  2 +-
  4 files changed, 81 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 490cdf94df..1f7b49c8c3 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -8,6 +8,7 @@ package importer
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"go/build"
+ 	"internal/pkgbits"
+@@ -21,7 +22,7 @@ import (
+ 	"cmd/compile/internal/types2"
+ )
+ 
+-var exportMap sync.Map // package dir → func() (string, bool)
++var exportMap sync.Map // package dir → func() (string, error)
+ 
+ // lookupGorootExport returns the location of the export data
+ // (normally found in the build cache, but located in GOROOT/pkg
+@@ -30,37 +31,42 @@ var exportMap sync.Map // package dir → func() (string, bool)
+ // (We use the package's directory instead of its import path
+ // mainly to simplify handling of the packages in src/vendor
+ // and cmd/vendor.)
+-func lookupGorootExport(pkgDir string) (string, bool) {
++func lookupGorootExport(pkgDir string) (string, error) {
+ 	f, ok := exportMap.Load(pkgDir)
+ 	if !ok {
+ 		var (
+ 			listOnce   sync.Once
+ 			exportPath string
++			err        error
+ 		)
+-		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
++		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, error) {
+ 			listOnce.Do(func() {
+ 				cmd := exec.Command(filepath.Join(build.Default.GOROOT, "bin", "go"), "list", "-export", "-f", "{{.Export}}", pkgDir)
+ 				cmd.Dir = build.Default.GOROOT
+ 				cmd.Env = append(os.Environ(), "PWD="+cmd.Dir, "GOROOT="+build.Default.GOROOT)
+ 				var output []byte
+-				output, err := cmd.Output()
++				output, err = cmd.Output()
+ 				if err != nil {
++					if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++						err = errors.New(string(ee.Stderr))
++					}
+ 					return
+ 				}
+ 
+ 				exports := strings.Split(string(bytes.TrimSpace(output)), "\n")
+ 				if len(exports) != 1 {
++					err = fmt.Errorf("go list reported %d exports; expected 1", len(exports))
+ 					return
+ 				}
+ 
+ 				exportPath = exports[0]
+ 			})
+ 
+-			return exportPath, exportPath != ""
++			return exportPath, err
+ 		})
+ 	}
+ 
+-	return f.(func() (string, bool))()
++	return f.(func() (string, error))()
+ }
+ 
+ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
+@@ -69,10 +75,9 @@ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have n
+ // path based on package information provided by build.Import (using
+ // the build.Default build.Context). A relative srcDir is interpreted
+ // relative to the current working directory.
+-// If no file was found, an empty filename is returned.
+-func FindPkg(path, srcDir string) (filename, id string) {
++func FindPkg(path, srcDir string) (filename, id string, err error) {
+ 	if path == "" {
+-		return
++		return "", "", errors.New("path is empty")
+ 	}
+ 
+ 	var noext string
+@@ -83,16 +88,19 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		if abs, err := filepath.Abs(srcDir); err == nil { // see issue 14282
+ 			srcDir = abs
+ 		}
+-		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
++		var bp *build.Package
++		bp, err = build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+-			var ok bool
+ 			if bp.Goroot && bp.Dir != "" {
+-				filename, ok = lookupGorootExport(bp.Dir)
+-			}
+-			if !ok {
+-				id = path // make sure we have an id to print in error message
+-				return
++				filename, err = lookupGorootExport(bp.Dir)
++				if err == nil {
++					_, err = os.Stat(filename)
++				}
++				if err == nil {
++					return filename, bp.ImportPath, nil
++				}
+ 			}
++			goto notfound
+ 		} else {
+ 			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+ 		}
+@@ -117,21 +125,23 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		}
+ 	}
+ 
+-	if filename != "" {
+-		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+-			return
+-		}
+-	}
+ 	// try extensions
+ 	for _, ext := range pkgExts {
+ 		filename = noext + ext
+-		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+-			return
++		f, statErr := os.Stat(filename)
++		if statErr == nil && !f.IsDir() {
++			return filename, id, nil
++		}
++		if err == nil {
++			err = statErr
+ 		}
+ 	}
+ 
+-	filename = "" // not found
+-	return
++notfound:
++	if err == nil {
++		return "", path, fmt.Errorf("can't find import: %q", path)
++	}
++	return "", path, fmt.Errorf("can't find import: %q: %w", path, err)
+ }
+ 
+ // Import imports a gc-generated package given its import path and srcDir, adds
+@@ -159,12 +169,12 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 		rc = f
+ 	} else {
+ 		var filename string
+-		filename, id = FindPkg(path, srcDir)
++		filename, id, err = FindPkg(path, srcDir)
+ 		if filename == "" {
+ 			if path == "unsafe" {
+ 				return types2.Unsafe, nil
+ 			}
+-			return nil, fmt.Errorf("can't find import: %q", id)
++			return nil, err
+ 		}
+ 
+ 		// no need to re-import if the package was imported completely before
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 96c5f69e64..7fe4445dad 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -105,9 +105,9 @@ func TestImportTestdata(t *testing.T) {
+ 
+ 		importMap := map[string]string{}
+ 		for _, pkg := range wantImports {
+-			export, _ := FindPkg(pkg, "testdata")
++			export, _, err := FindPkg(pkg, "testdata")
+ 			if export == "" {
+-				t.Fatalf("no export data found for %s", pkg)
++				t.Fatalf("no export data found for %s: %v", pkg, err)
+ 			}
+ 			importMap[pkg] = export
+ 		}
+@@ -268,7 +268,7 @@ var importedObjectTests = []struct {
+ 	{"math.Pi", "const Pi untyped float"},
+ 	{"math.Sin", "func Sin(x float64) float64"},
+ 	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
+-	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
++	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string, err error)"},
+ 
+ 	// interfaces
+ 	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
+@@ -437,9 +437,9 @@ func TestIssue13566(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	jsonExport, _ := FindPkg("encoding/json", "testdata")
++	jsonExport, _, err := FindPkg("encoding/json", "testdata")
+ 	if jsonExport == "" {
+-		t.Fatalf("no export data found for encoding/json")
++		t.Fatalf("no export data found for encoding/json: %v", err)
+ 	}
+ 
+ 	compile(t, "testdata", "a.go", testoutdir, map[string]string{"encoding/json": jsonExport})
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 93b33d1510..15ff93f1d9 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -8,6 +8,7 @@ package gcimporter // import "go/internal/gcimporter"
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"go/build"
+ 	"go/token"
+@@ -25,7 +26,7 @@ import (
+ // debugging/development support
+ const debug = false
+ 
+-var exportMap sync.Map // package dir → func() (string, bool)
++var exportMap sync.Map // package dir → func() (string, error)
+ 
+ // lookupGorootExport returns the location of the export data
+ // (normally found in the build cache, but located in GOROOT/pkg
+@@ -34,37 +35,42 @@ var exportMap sync.Map // package dir → func() (string, bool)
+ // (We use the package's directory instead of its import path
+ // mainly to simplify handling of the packages in src/vendor
+ // and cmd/vendor.)
+-func lookupGorootExport(pkgDir string) (string, bool) {
++func lookupGorootExport(pkgDir string) (string, error) {
+ 	f, ok := exportMap.Load(pkgDir)
+ 	if !ok {
+ 		var (
+ 			listOnce   sync.Once
+ 			exportPath string
++			err        error
+ 		)
+-		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
++		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, error) {
+ 			listOnce.Do(func() {
+ 				cmd := exec.Command(filepath.Join(build.Default.GOROOT, "bin", "go"), "list", "-export", "-f", "{{.Export}}", pkgDir)
+ 				cmd.Dir = build.Default.GOROOT
+-				cmd.Env = append(cmd.Environ(), "GOROOT="+build.Default.GOROOT)
++				cmd.Env = append(os.Environ(), "PWD="+cmd.Dir, "GOROOT="+build.Default.GOROOT)
+ 				var output []byte
+-				output, err := cmd.Output()
++				output, err = cmd.Output()
+ 				if err != nil {
++					if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++						err = errors.New(string(ee.Stderr))
++					}
+ 					return
+ 				}
+ 
+ 				exports := strings.Split(string(bytes.TrimSpace(output)), "\n")
+ 				if len(exports) != 1 {
++					err = fmt.Errorf("go list reported %d exports; expected 1", len(exports))
+ 					return
+ 				}
+ 
+ 				exportPath = exports[0]
+ 			})
+ 
+-			return exportPath, exportPath != ""
++			return exportPath, err
+ 		})
+ 	}
+ 
+-	return f.(func() (string, bool))()
++	return f.(func() (string, error))()
+ }
+ 
+ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
+@@ -73,10 +79,9 @@ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have n
+ // path based on package information provided by build.Import (using
+ // the build.Default build.Context). A relative srcDir is interpreted
+ // relative to the current working directory.
+-// If no file was found, an empty filename is returned.
+-func FindPkg(path, srcDir string) (filename, id string) {
++func FindPkg(path, srcDir string) (filename, id string, err error) {
+ 	if path == "" {
+-		return
++		return "", "", errors.New("path is empty")
+ 	}
+ 
+ 	var noext string
+@@ -87,16 +92,19 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		if abs, err := filepath.Abs(srcDir); err == nil { // see issue 14282
+ 			srcDir = abs
+ 		}
+-		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
++		var bp *build.Package
++		bp, err = build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+-			var ok bool
+ 			if bp.Goroot && bp.Dir != "" {
+-				filename, ok = lookupGorootExport(bp.Dir)
+-			}
+-			if !ok {
+-				id = path // make sure we have an id to print in error message
+-				return
++				filename, err = lookupGorootExport(bp.Dir)
++				if err == nil {
++					_, err = os.Stat(filename)
++				}
++				if err == nil {
++					return filename, bp.ImportPath, nil
++				}
+ 			}
++			goto notfound
+ 		} else {
+ 			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+ 		}
+@@ -121,21 +129,23 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		}
+ 	}
+ 
+-	if filename != "" {
+-		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+-			return
+-		}
+-	}
+ 	// try extensions
+ 	for _, ext := range pkgExts {
+ 		filename = noext + ext
+-		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+-			return
++		f, statErr := os.Stat(filename)
++		if statErr == nil && !f.IsDir() {
++			return filename, id, nil
++		}
++		if err == nil {
++			err = statErr
+ 		}
+ 	}
+ 
+-	filename = "" // not found
+-	return
++notfound:
++	if err == nil {
++		return "", path, fmt.Errorf("can't find import: %q", path)
++	}
++	return "", path, fmt.Errorf("can't find import: %q: %w", path, err)
+ }
+ 
+ // Import imports a gc-generated package given its import path and srcDir, adds
+@@ -163,12 +173,12 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
+ 		rc = f
+ 	} else {
+ 		var filename string
+-		filename, id = FindPkg(path, srcDir)
++		filename, id, err = FindPkg(path, srcDir)
+ 		if filename == "" {
+ 			if path == "unsafe" {
+ 				return types.Unsafe, nil
+ 			}
+-			return nil, fmt.Errorf("can't find import: %q", id)
++			return nil, err
+ 		}
+ 
+ 		// no need to re-import if the package was imported completely before
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 25ff402277..07ab135186 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -391,7 +391,7 @@ var importedObjectTests = []struct {
+ 	{"math.Pi", "const Pi untyped float"},
+ 	{"math.Sin", "func Sin(x float64) float64"},
+ 	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
+-	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
++	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string, err error)"},
+ 
+ 	// interfaces
+ 	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},

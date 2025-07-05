@@ -11,10 +11,135 @@ Date:   Sat Nov 12 06:50:24 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/host/host.go | 31 +++++++++++++++++++++++++++++++
  misc/cgo/testplugin/test.bash        |  5 ++++-
  misc/cgo/testplugin/unnamed1.go      | 12 ++++++++++++
  misc/cgo/testplugin/unnamed2.go      | 12 ++++++++++++
  src/cmd/go/build.go                  |  6 +++++-
  5 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index b3b4df3d58..898f44efa1 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -18,6 +18,35 @@ func init() {
+ 	common.X *= 5
+ }
+ 
++// testUnnamed tests that two plugins built with .go files passed on
++// the command line do not have overlapping symbols. That is,
++// unnamed1.so/FuncInt and unnamed2.so/FuncInt should be distinct functions.
++func testUnnamed() {
++	p, err := plugin.Open("unnamed1.so")
++	if err != nil {
++		log.Fatalf(`plugin.Open("unnamed1.so"): %v`, err)
++	}
++	fn, err := p.Lookup("FuncInt")
++	if err != nil {
++		log.Fatalf(`unnamed1.so: Lookup("FuncInt") failed: %v`, err)
++	}
++	if got, want := fn.(func() int)(), 1; got != want {
++		log.Fatalf("unnamed1.so: FuncInt()=%d, want %d", got, want)
++	}
++
++	p, err = plugin.Open("unnamed2.so")
++	if err != nil {
++		log.Fatalf(`plugin.Open("unnamed2.so"): %v`, err)
++	}
++	fn, err = p.Lookup("FuncInt")
++	if err != nil {
++		log.Fatalf(`unnamed2.so: Lookup("FuncInt") failed: %v`, err)
++	}
++	if got, want := fn.(func() int)(), 2; got != want {
++		log.Fatalf("unnamed2.so: FuncInt()=%d, want %d", got, want)
++	}
++}
++
+ func main() {
+ 	if got, want := common.X, 3*5; got != want {
+ 		log.Fatalf("before plugin load common.X=%d, want %d", got, want)
+@@ -113,5 +142,7 @@ func main() {
+ 		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
+ 	}
+ 
++	testUnnamed()
++
+ 	fmt.Println("PASS")
+ }
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index bba46b51c6..fee99a758c 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -15,7 +15,8 @@ goos=$(go env GOOS)
+ goarch=$(go env GOARCH)
+ 
+ function cleanup() {
+-	rm -rf plugin1.so host pkg sub
++	rm -f plugin*.so unnamed*.so
++	rm -rf host pkg sub
+ }
+ trap cleanup EXIT
+ 
+@@ -26,6 +27,8 @@ GOPATH=$(pwd) go build -buildmode=plugin plugin1
+ GOPATH=$(pwd) go build -buildmode=plugin plugin2
+ GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
+ GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
++GOPATH=$(pwd) go build -buildmode=plugin unnamed1.go
++GOPATH=$(pwd) go build -buildmode=plugin unnamed2.go
+ GOPATH=$(pwd) go build host
+ 
+ LD_LIBRARY_PATH=$(pwd) ./host
+diff --git a/misc/cgo/testplugin/unnamed1.go b/misc/cgo/testplugin/unnamed1.go
+new file mode 100644
+index 0000000000..102edaf3e2
+--- /dev/null
++++ b/misc/cgo/testplugin/unnamed1.go
+@@ -0,0 +1,12 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// // No C code required.
++import "C"
++
++func FuncInt() int { return 1 }
++
++func main() {}
+diff --git a/misc/cgo/testplugin/unnamed2.go b/misc/cgo/testplugin/unnamed2.go
+new file mode 100644
+index 0000000000..55070d5e9f
+--- /dev/null
++++ b/misc/cgo/testplugin/unnamed2.go
+@@ -0,0 +1,12 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// // No C code required.
++import "C"
++
++func FuncInt() int { return 2 }
++
++func main() {}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2863d20d9c..684d033d3a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2580,7 +2580,11 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
+ 		ldflags = append(ldflags, "-w")
+ 	}
+ 	if buildBuildmode == "plugin" {
+-		ldflags = append(ldflags, "-pluginpath", root.p.ImportPath)
++		pluginpath := root.p.ImportPath
++		if pluginpath == "command-line-arguments" {
++			pluginpath = "plugin/unnamed-" + root.p.buildID
++		}
++		ldflags = append(ldflags, "-pluginpath", pluginpath)
+ 	}
+ 
+ 	// If the user has not specified the -extld option, then specify the

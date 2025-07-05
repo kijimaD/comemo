@@ -7,6 +7,23 @@ Date:   Wed Jan 30 15:06:35 2013 -0800
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7235064
-
+---
  src/cmd/gc/bisonerrors | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/bisonerrors b/src/cmd/gc/bisonerrors
+index 0f865d086c..8886a8e529 100755
+--- a/src/cmd/gc/bisonerrors
++++ b/src/cmd/gc/bisonerrors
+@@ -41,9 +41,9 @@ grammar && NF>0 {
+ }
+ 
+ # In state dumps, record shift/reduce actions.
+-bison && /^state 0/ { grammar = 0; states = 1 }
++bison && /^[Ss]tate 0/ { grammar = 0; states = 1 }
+ 
+-states && /^state / { state = $2 }
++states && /^[Ss]tate / { state = $2 }
+ states { statetext[state] = statetext[state] $0 "\n" }
+ 
+ states && / shift/ {

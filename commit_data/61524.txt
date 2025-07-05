@@ -14,7 +14,7 @@ Date:   Thu Nov 14 16:58:07 2024 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/reflectdata/map_swiss.go |  1 +
  src/cmd/link/internal/ld/deadcode.go              |  2 +-
  src/internal/abi/map_swiss.go                     | 13 +++++++------
@@ -22,3 +22,119 @@ Date:   Thu Nov 14 16:58:07 2024 -0800
  src/internal/runtime/maps/map.go                  |  2 +-
  src/internal/runtime/maps/map_test.go             |  6 +++---
  6 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 98abd69c34..629136821b 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -276,6 +276,7 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
+ 	c.Field("Elem").WritePtr(s2)
+ 	c.Field("Group").WritePtr(s3)
+ 	c.Field("Hasher").WritePtr(hasher)
++	c.Field("GroupSize").WriteUintptr(uint64(gtyp.Size()))
+ 	c.Field("SlotSize").WriteUintptr(uint64(slotTyp.Size()))
+ 	c.Field("ElemOff").WriteUintptr(uint64(elemOff))
+ 	var flags uint32
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index b9a15767e7..cdf7deb31b 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -561,7 +561,7 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
+ 		off += 2 * arch.PtrSize
+ 	case abi.Map:
+ 		if buildcfg.Experiment.SwissMap {
+-			off += 6*arch.PtrSize + 4 // internal/abi.SwissMapType
++			off += 7*arch.PtrSize + 4 // internal/abi.SwissMapType
+ 			if arch.PtrSize == 8 {
+ 				off += 4 // padding for final uint32 field (Flags).
+ 			}
+diff --git a/src/internal/abi/map_swiss.go b/src/internal/abi/map_swiss.go
+index 92e66b7d36..6c855667e3 100644
+--- a/src/internal/abi/map_swiss.go
++++ b/src/internal/abi/map_swiss.go
+@@ -22,8 +22,8 @@ const (
+ 	SwissMapMaxKeyBytes  = 128
+ 	SwissMapMaxElemBytes = 128
+ 
+-	ctrlEmpty   = 0b10000000
+-	bitsetLSB   = 0x0101010101010101
++	ctrlEmpty = 0b10000000
++	bitsetLSB = 0x0101010101010101
+ 
+ 	// Value of control word with all empty slots.
+ 	SwissMapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
+@@ -35,10 +35,11 @@ type SwissMapType struct {
+ 	Elem  *Type
+ 	Group *Type // internal type representing a slot group
+ 	// function for hashing keys (ptr to key, seed) -> hash
+-	Hasher   func(unsafe.Pointer, uintptr) uintptr
+-	SlotSize uintptr // size of key/elem slot
+-	ElemOff  uintptr // offset of elem in key/elem slot
+-	Flags    uint32
++	Hasher    func(unsafe.Pointer, uintptr) uintptr
++	GroupSize uintptr // == Group.Size_
++	SlotSize  uintptr // size of key/elem slot
++	ElemOff   uintptr // offset of elem in key/elem slot
++	Flags     uint32
+ }
+ 
+ // Flag values
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 35b39bbc37..aae667c8d8 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -53,7 +53,7 @@ func (b bitset) removeFirst() bitset {
+ // removeBelow removes all set bits below slot i (non-inclusive).
+ func (b bitset) removeBelow(i uintptr) bitset {
+ 	// Clear all bits below slot i's byte.
+-	mask := (uint64(1) << (8*uint64(i))) - 1
++	mask := (uint64(1) << (8 * uint64(i))) - 1
+ 	return b &^ bitset(mask)
+ }
+ 
+@@ -239,7 +239,7 @@ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
+ func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference {
+ 	// TODO(prattmic): Do something here about truncation on cast to
+ 	// uintptr on 32-bit systems?
+-	offset := uintptr(i) * typ.Group.Size_
++	offset := uintptr(i) * typ.GroupSize
+ 
+ 	return groupReference{
+ 		data: unsafe.Pointer(uintptr(g.data) + offset),
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 86977bbc2d..969da13432 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -296,7 +296,7 @@ func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
+ 	if overflow {
+ 		return m // return an empty map.
+ 	} else {
+-		mem, overflow := math.MulUintptr(groups, mt.Group.Size_)
++		mem, overflow := math.MulUintptr(groups, mt.GroupSize)
+ 		if overflow || mem > maxAlloc {
+ 			return m // return an empty map.
+ 		}
+diff --git a/src/internal/runtime/maps/map_test.go b/src/internal/runtime/maps/map_test.go
+index 42db55c6a4..160450ebb2 100644
+--- a/src/internal/runtime/maps/map_test.go
++++ b/src/internal/runtime/maps/map_test.go
+@@ -517,8 +517,8 @@ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
+ 
+ 		key := *(*uint32)(keyPtr)
+ 		elem := *(*uint64)(elemPtr)
+-		if elem != 256 + uint64(key) {
+-			t.Errorf("iteration got key %d elem %d want elem %d", key, elem, 256 + uint64(key))
++		if elem != 256+uint64(key) {
++			t.Errorf("iteration got key %d elem %d want elem %d", key, elem, 256+uint64(key))
+ 		}
+ 		if _, ok := got[key]; ok {
+ 			t.Errorf("iteration got key %d more than once", key)
+@@ -623,7 +623,7 @@ func TestMapZeroSizeSlot(t *testing.T) {
+ 	tab := m.TableFor(typ, unsafe.Pointer(&key))
+ 	start := tab.GroupsStart()
+ 	length := tab.GroupsLength()
+-	end := unsafe.Pointer(uintptr(start) + length*typ.Group.Size() - 1) // inclusive to ensure we have a valid pointer
++	end := unsafe.Pointer(uintptr(start) + length*typ.GroupSize - 1) // inclusive to ensure we have a valid pointer
+ 	if uintptr(got) < uintptr(start) || uintptr(got) > uintptr(end) {
+ 		t.Errorf("elem address outside groups allocation; got %p want [%p, %p]", got, start, end)
+ 	}

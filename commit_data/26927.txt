@@ -46,8 +46,201 @@ Date:   Wed Mar 2 15:18:40 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go       |  4 +-
  src/cmd/compile/internal/ssa/regalloc.go | 82 ++++++++++++++++++++++++++++----
  src/cmd/compile/internal/ssa/type.go     |  5 +-
  3 files changed, 78 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e5d72ced4f..f83b88d79e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5081,8 +5081,10 @@ func moveByType(t ssa.Type) int {
+ 			return x86.AMOVL
+ 		case 8:
+ 			return x86.AMOVQ
++		case 16:
++			return x86.AMOVUPS // int128s are in SSE registers
+ 		default:
+-			panic("bad int register width")
++			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
+ 		}
+ 	}
+ 	panic("bad register type")
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index f9680e4202..39c69cfeed 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -102,6 +102,14 @@ import (
+ const regDebug = false // TODO: compiler flag
+ const logSpills = false
+ 
++// distance is a measure of how far into the future values are used.
++// distance is measured in units of instructions.
++const (
++	likelyDistance   = 1
++	normalDistance   = 10
++	unlikelyDistance = 100
++)
++
+ // regalloc performs register allocation on f. It sets f.RegAlloc
+ // to the resulting allocation.
+ func regalloc(f *Func) {
+@@ -550,7 +558,7 @@ func (s *regAllocState) setState(regs []endReg) {
+ // compatRegs returns the set of registers which can store a type t.
+ func (s *regAllocState) compatRegs(t Type) regMask {
+ 	var m regMask
+-	if t.IsFloat() {
++	if t.IsFloat() || t == TypeInt128 {
+ 		m = 0xffff << 16 // X0-X15
+ 	} else {
+ 		m = 0xffef << 0 // AX-R15, except SP
+@@ -576,8 +584,12 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		// Initialize liveSet and uses fields for this block.
+ 		// Walk backwards through the block doing liveness analysis.
+ 		liveSet.clear()
++		d := int32(len(b.Values))
++		if b.Kind == BlockCall {
++			d += unlikelyDistance
++		}
+ 		for _, e := range s.live[b.ID] {
+-			s.addUse(e.ID, int32(len(b.Values))+e.dist) // pseudo-uses from beyond end of block
++			s.addUse(e.ID, d+e.dist) // pseudo-uses from beyond end of block
+ 			liveSet.add(e.ID)
+ 		}
+ 		if v := b.Control; v != nil && s.values[v.ID].needReg {
+@@ -944,11 +956,11 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 		}
+ 
++		// Load control value into reg.
+ 		if v := b.Control; v != nil && s.values[v.ID].needReg {
+ 			if regDebug {
+ 				fmt.Printf("  processing control %s\n", v.LongString())
+ 			}
+-			// Load control value into reg.
+ 			// TODO: regspec for block control values, instead of using
+ 			// register set from the control op's output.
+ 			s.allocValToReg(v, opcodeTable[v.Op].reg.outputs[0], false, b.Line)
+@@ -963,6 +975,53 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			s.freeUseRecords = u
+ 		}
+ 
++		// If we are approaching a merge point and we are the primary
++		// predecessor of it, find live values that we use soon after
++		// the merge point and promote them to registers now.
++		if len(b.Succs) == 1 && len(b.Succs[0].Preds) > 1 && b.Succs[0].Preds[s.primary[b.Succs[0].ID]] == b {
++			// For this to be worthwhile, the loop must have no calls in it.
++			// Use a very simple loop detector. TODO: incorporate David's loop stuff
++			// once it is in.
++			top := b.Succs[0]
++			for _, p := range top.Preds {
++				if p == b {
++					continue
++				}
++				for {
++					if p.Kind == BlockCall {
++						goto badloop
++					}
++					if p == top {
++						break
++					}
++					if len(p.Preds) != 1 {
++						goto badloop
++					}
++					p = p.Preds[0]
++				}
++			}
++
++			// TODO: sort by distance, pick the closest ones?
++			for _, live := range s.live[b.ID] {
++				if live.dist >= unlikelyDistance {
++					// Don't preload anything live after the loop.
++					continue
++				}
++				vid := live.ID
++				vi := &s.values[vid]
++				if vi.regs != 0 {
++					continue
++				}
++				v := s.orig[vid]
++				m := s.compatRegs(v.Type) &^ s.used
++				if m != 0 {
++					s.allocValToReg(v, m, false, b.Line)
++				}
++			}
++		}
++	badloop:
++		;
++
+ 		// Save end-of-block register state.
+ 		// First count how many, this cuts allocations in half.
+ 		k := 0
+@@ -1539,8 +1598,14 @@ func (s *regAllocState) computeLive() {
+ 			// Add len(b.Values) to adjust from end-of-block distance
+ 			// to beginning-of-block distance.
+ 			live.clear()
++			d := int32(len(b.Values))
++			if b.Kind == BlockCall {
++				// Because we keep no values in registers across a call,
++				// make every use past a call very far away.
++				d += unlikelyDistance
++			}
+ 			for _, e := range s.live[b.ID] {
+-				live.set(e.ID, e.dist+int32(len(b.Values)))
++				live.set(e.ID, e.dist+d)
+ 			}
+ 
+ 			// Mark control value as live
+@@ -1570,20 +1635,17 @@ func (s *regAllocState) computeLive() {
+ 			// invariant: live contains the values live at the start of b (excluding phi inputs)
+ 			for i, p := range b.Preds {
+ 				// Compute additional distance for the edge.
+-				const normalEdge = 10
+-				const likelyEdge = 1
+-				const unlikelyEdge = 100
+ 				// Note: delta must be at least 1 to distinguish the control
+ 				// value use from the first user in a successor block.
+-				delta := int32(normalEdge)
++				delta := int32(normalDistance)
+ 				if len(p.Succs) == 2 {
+ 					if p.Succs[0] == b && p.Likely == BranchLikely ||
+ 						p.Succs[1] == b && p.Likely == BranchUnlikely {
+-						delta = likelyEdge
++						delta = likelyDistance
+ 					}
+ 					if p.Succs[0] == b && p.Likely == BranchUnlikely ||
+ 						p.Succs[1] == b && p.Likely == BranchLikely {
+-						delta = unlikelyEdge
++						delta = unlikelyDistance
+ 					}
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index a23989c82e..c0174cce4f 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -46,13 +46,14 @@ type Type interface {
+ // Special compiler-only types.
+ type CompilerType struct {
+ 	Name   string
++	size   int64
+ 	Memory bool
+ 	Flags  bool
+ 	Void   bool
+ 	Int128 bool
+ }
+ 
+-func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
++func (t *CompilerType) Size() int64            { return t.size } // Size in bytes
+ func (t *CompilerType) Alignment() int64       { return 0 }
+ func (t *CompilerType) IsBoolean() bool        { return false }
+ func (t *CompilerType) IsInteger() bool        { return false }
+@@ -127,5 +128,5 @@ var (
+ 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
+ 	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
+ 	TypeVoid    = &CompilerType{Name: "void", Void: true}
+-	TypeInt128  = &CompilerType{Name: "int128", Int128: true}
++	TypeInt128  = &CompilerType{Name: "int128", size: 16, Int128: true}
+ )

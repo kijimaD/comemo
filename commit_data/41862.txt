@@ -14,7 +14,132 @@ Date:   Fri Oct 18 22:19:59 2019 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go      | 15 +++++++----
  src/net/http/transport_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index c2880a04cf..8989f65f25 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -545,8 +545,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 
+ 		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
+ 		if http2isNoCachedConnError(err) || isH2DialError {
+-			t.removeIdleConn(pconn)
+-			t.decConnsPerHost(pconn.cacheKey)
++			if t.removeIdleConn(pconn) {
++				t.decConnsPerHost(pconn.cacheKey)
++			}
+ 		}
+ 		if !pconn.shouldRetryRequest(req, err) {
+ 			// Issue 16465: return underlying net.Conn.Read error from peek,
+@@ -958,26 +959,28 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
+ }
+ 
+ // removeIdleConn marks pconn as dead.
+-func (t *Transport) removeIdleConn(pconn *persistConn) {
++func (t *Transport) removeIdleConn(pconn *persistConn) bool {
+ 	t.idleMu.Lock()
+ 	defer t.idleMu.Unlock()
+-	t.removeIdleConnLocked(pconn)
++	return t.removeIdleConnLocked(pconn)
+ }
+ 
+ // t.idleMu must be held.
+-func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
++func (t *Transport) removeIdleConnLocked(pconn *persistConn) bool {
+ 	if pconn.idleTimer != nil {
+ 		pconn.idleTimer.Stop()
+ 	}
+ 	t.idleLRU.remove(pconn)
+ 	key := pconn.cacheKey
+ 	pconns := t.idleConn[key]
++	var removed bool
+ 	switch len(pconns) {
+ 	case 0:
+ 		// Nothing
+ 	case 1:
+ 		if pconns[0] == pconn {
+ 			delete(t.idleConn, key)
++			removed = true
+ 		}
+ 	default:
+ 		for i, v := range pconns {
+@@ -988,9 +991,11 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+ 			// conns at the end.
+ 			copy(pconns[i:], pconns[i+1:])
+ 			t.idleConn[key] = pconns[:len(pconns)-1]
++			removed = true
+ 			break
+ 		}
+ 	}
++	return removed
+ }
+ 
+ func (t *Transport) setReqCanceler(r *Request, fn func(error)) {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3673ed29f0..0d63e46d4f 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -5893,3 +5893,59 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
+ 		t.Errorf("GotConn calls = %v; want %v", got, want)
+ 	}
+ }
++
++// Issue 34941
++// When the client has too many concurrent requests on a single connection,
++// http.http2noCachedConnError is reported on multiple requests. There should
++// only be one decrement regardless of the number of failures.
++func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
++	defer afterTest(t)
++
++	h := HandlerFunc(func(w ResponseWriter, r *Request) {
++		_, err := w.Write([]byte("foo"))
++		if err != nil {
++			t.Fatalf("Write: %v", err)
++		}
++	})
++
++	ts := httptest.NewUnstartedServer(h)
++	ts.EnableHTTP2 = true
++	ts.StartTLS()
++	defer ts.Close()
++
++	c := ts.Client()
++	tr := c.Transport.(*Transport)
++	tr.MaxConnsPerHost = 1
++	if err := ExportHttp2ConfigureTransport(tr); err != nil {
++		t.Fatalf("ExportHttp2ConfigureTransport: %v", err)
++	}
++
++	errCh := make(chan error, 300)
++	doReq := func() {
++		resp, err := c.Get(ts.URL)
++		if err != nil {
++			errCh <- fmt.Errorf("request failed: %v", err)
++			return
++		}
++		defer resp.Body.Close()
++		_, err = ioutil.ReadAll(resp.Body)
++		if err != nil {
++			errCh <- fmt.Errorf("read body failed: %v", err)
++		}
++	}
++
++	var wg sync.WaitGroup
++	for i := 0; i < 300; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			doReq()
++		}()
++	}
++	wg.Wait()
++	close(errCh)
++
++	for err := range errCh {
++		t.Errorf("error occurred: %v", err)
++	}
++}

@@ -23,8 +23,149 @@ Date:   Sat Mar 30 22:59:08 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/8208043
-
+---
  src/pkg/net/http/serve_test.go     |  7 ++++-
  src/pkg/net/http/transport.go      |  5 +++-
  src/pkg/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++--------
  3 files changed, 53 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 7ad1395a62..a040f2738b 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -77,10 +77,15 @@ type rwTestConn struct {
+ 	io.Reader
+ 	io.Writer
+ 	noopConn
+-	closec chan bool // if non-nil, send value to it on close
++
++	closeFunc func() error // called if non-nil
++	closec    chan bool    // else, if non-nil, send value to it on close
+ }
+ 
+ func (c *rwTestConn) Close() error {
++	if c.closeFunc != nil {
++		return c.closeFunc()
++	}
+ 	select {
+ 	case c.closec <- true:
+ 	default:
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index ea02ffb53a..c14ee3aa68 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -715,7 +715,10 @@ func (pc *persistConn) readLoop() {
+ 			resp.Body = &bodyEOFSignal{body: resp.Body}
+ 		}
+ 
+-		if err != nil || resp.Close || rc.req.Close {
++		if err != nil || resp.Close || rc.req.Close || resp.StatusCode <= 199 {
++			// Don't do keep-alive on error if either party requested a close
++			// or we get an unexpected informational (1xx) response.
++			// StatusCode 100 is already handled above.
+ 			alive = false
+ 		}
+ 
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 75ab5dd7d8..9f64a6e4b5 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1416,18 +1416,28 @@ func TestTransportReading100Continue(t *testing.T) {
+ 		for {
+ 			n++
+ 			req, err := ReadRequest(br)
++			if err == io.EOF {
++				return
++			}
+ 			if err != nil {
+ 				t.Error(err)
+ 				return
+ 			}
+ 			slurp, err := ioutil.ReadAll(req.Body)
+-			if err != nil || string(slurp) != reqBody(n) {
+-				t.Errorf("Server got %q, %v; want 'body'", slurp, err)
++			if err != nil {
++				t.Errorf("Server request body slurp: %v", err)
+ 				return
+ 			}
+ 			id := req.Header.Get("Request-Id")
++			resCode := req.Header.Get("X-Want-Response-Code")
++			if resCode == "" {
++				resCode = "100 Continue"
++				if string(slurp) != reqBody(n) {
++					t.Errorf("Server got %q, %v; want %q", slurp, err, reqBody(n))
++				}
++			}
+ 			body := fmt.Sprintf("Response number %d", n)
+-			v := []byte(strings.Replace(fmt.Sprintf(`HTTP/1.1 100 Continue
++			v := []byte(strings.Replace(fmt.Sprintf(`HTTP/1.1 %s
+ Date: Thu, 28 Feb 2013 17:55:41 GMT
+ 
+ HTTP/1.1 200 OK
+@@ -1435,7 +1445,7 @@ Content-Type: text/html
+ Echo-Request-Id: %s
+ Content-Length: %d
+ 
+-%s`, id, len(body), body), "\n", "\r\n", -1))
++%s`, resCode, id, len(body), body), "\n", "\r\n", -1))
+ 			w.Write(v)
+ 			if id == reqID(numReqs) {
+ 				return
+@@ -1451,6 +1461,11 @@ Content-Length: %d
+ 			conn := &rwTestConn{
+ 				Reader: cr,
+ 				Writer: sw,
++				closeFunc: func() error {
++					sw.Close()
++					cw.Close()
++					return nil
++				},
+ 			}
+ 			go send100Response(cw, sr)
+ 			return conn, nil
+@@ -1459,21 +1474,38 @@ Content-Length: %d
+ 	}
+ 	defer tr.CloseIdleConnections()
+ 	c := &Client{Transport: tr}
+-	for i := 1; i <= numReqs; i++ {
+-		req, _ := NewRequest("POST", "http://dummy.tld/", strings.NewReader(reqBody(i)))
+-		req.Header.Set("Request-Id", reqID(i))
++
++	testResponse := func(req *Request, name string, wantCode int) {
+ 		res, err := c.Do(req)
+ 		if err != nil {
+-			t.Fatalf("Do (i=%d): %v", i, err)
++			t.Fatalf("%s: Do: %v", name, err)
+ 		}
+-		if res.StatusCode != 200 {
+-			t.Fatalf("Response Statuscode=%d; want 200 (i=%d): %v", res.StatusCode, i, err)
++		if res.StatusCode != wantCode {
++			t.Fatalf("%s: Response Statuscode=%d; want %d", name, res.StatusCode, wantCode)
++		}
++		if id, idBack := req.Header.Get("Request-Id"), res.Header.Get("Echo-Request-Id"); id != "" && id != idBack {
++			t.Errorf("%s: response id %q != request id %q", name, idBack, id)
+ 		}
+ 		_, err = ioutil.ReadAll(res.Body)
+ 		if err != nil {
+-			t.Fatalf("Slurp error (i=%d): %v", i, err)
++			t.Fatalf("%s: Slurp error: %v", name, err)
+ 		}
+ 	}
++
++	// Few 100 responses, making sure we're not off-by-one.
++	for i := 1; i <= numReqs; i++ {
++		req, _ := NewRequest("POST", "http://dummy.tld/", strings.NewReader(reqBody(i)))
++		req.Header.Set("Request-Id", reqID(i))
++		testResponse(req, fmt.Sprintf("100, %d/%d", i, numReqs), 200)
++	}
++
++	// And some other informational 1xx but non-100 responses, to test
++	// we return them but don't re-use the connection.
++	for i := 1; i <= numReqs; i++ {
++		req, _ := NewRequest("POST", "http://other.tld/", strings.NewReader(reqBody(i)))
++		req.Header.Set("X-Want-Response-Code", "123 Sesame Street")
++		testResponse(req, fmt.Sprintf("123, %d/%d", i, numReqs), 123)
++	}
+ }
+ 
+ type proxyFromEnvTest struct {

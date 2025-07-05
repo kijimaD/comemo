@@ -17,7 +17,7 @@ Date:   Tue Sep 13 09:51:55 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/42537.txt   |  2 +-
  api/next/43620.txt   |  2 +-
  api/next/45899.txt   |  2 +-
@@ -27,3 +27,160 @@ Date:   Tue Sep 13 09:51:55 2022 -0400
  api/next/53482.txt   |  4 ++--
  src/cmd/api/goapi.go | 43 +++++++++++++++++++++++++++++++++----------
  8 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/api/next/42537.txt b/api/next/42537.txt
+index 4f2446aaf3..bc83639a1d 100644
+--- a/api/next/42537.txt
++++ b/api/next/42537.txt
+@@ -1,4 +1,4 @@
+ pkg bytes, func CutPrefix([]uint8, []uint8) ([]uint8, bool) #42537
+ pkg bytes, func CutSuffix([]uint8, []uint8) ([]uint8, bool) #42537
+ pkg strings, func CutPrefix(string, string) (string, bool) #42537
+-pkg strings, func CutSuffix(string, string) (string, bool) #42537
+\ No newline at end of file
++pkg strings, func CutSuffix(string, string) (string, bool) #42537
+diff --git a/api/next/43620.txt b/api/next/43620.txt
+index 9d272fd0c7..6753f1527f 100644
+--- a/api/next/43620.txt
++++ b/api/next/43620.txt
+@@ -1 +1 @@
+-pkg testing, method (*B) Elapsed() time.Duration #43620
+\ No newline at end of file
++pkg testing, method (*B) Elapsed() time.Duration #43620
+diff --git a/api/next/45899.txt b/api/next/45899.txt
+index a823142b15..9b06edbb3c 100644
+--- a/api/next/45899.txt
++++ b/api/next/45899.txt
+@@ -2,4 +2,4 @@ pkg io, type OffsetWriter struct #45899
+ pkg io, func NewOffsetWriter(WriterAt, int64) *OffsetWriter #45899
+ pkg io, method (*OffsetWriter) Write([]uint8) (int, error) #45899
+ pkg io, method (*OffsetWriter) WriteAt([]uint8, int64) (int, error) #45899
+-pkg io, method (*OffsetWriter) Seek(int64, int) (int64, error) #45899
+\ No newline at end of file
++pkg io, method (*OffsetWriter) Seek(int64, int) (int64, error) #45899
+diff --git a/api/next/46746.txt b/api/next/46746.txt
+index ae07682b34..f48771d522 100644
+--- a/api/next/46746.txt
++++ b/api/next/46746.txt
+@@ -1,2 +1,2 @@
+ pkg reflect, method (Value) Comparable() bool #46746
+-pkg reflect, method (Value) Equal(Value) bool #46746
+\ No newline at end of file
++pkg reflect, method (Value) Equal(Value) bool #46746
+diff --git a/api/next/50429.txt b/api/next/50429.txt
+index 558937de1c..2c51384c68 100644
+--- a/api/next/50429.txt
++++ b/api/next/50429.txt
+@@ -1 +1 @@
+-pkg go/ast, type RangeStmt struct, Range token.Pos #50429
+\ No newline at end of file
++pkg go/ast, type RangeStmt struct, Range token.Pos #50429
+diff --git a/api/next/51896.txt b/api/next/51896.txt
+index d4ef14cfa2..ca7ecd069b 100644
+--- a/api/next/51896.txt
++++ b/api/next/51896.txt
+@@ -1 +1 @@
+-pkg unicode/utf16, func AppendRune([]uint16, int32) []uint16 #51896
+\ No newline at end of file
++pkg unicode/utf16, func AppendRune([]uint16, int32) []uint16 #51896
+diff --git a/api/next/53482.txt b/api/next/53482.txt
+index a54894498f..d437c8abb2 100644
+--- a/api/next/53482.txt
++++ b/api/next/53482.txt
+@@ -1,2 +1,2 @@
+-pkg net, const FlagRunning = 32 #53482
+-pkg net, const FlagRunning Flags #53482
++pkg net, const FlagRunning = 32 #53482
++pkg net, const FlagRunning Flags #53482
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index e6bf62df1f..894657c117 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -126,7 +126,11 @@ func setContexts() {
+ 
+ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
+ 
++var exitCode = 0
++
+ func main() {
++	log.SetPrefix("api: ")
++	log.SetFlags(0)
+ 	flag.Parse()
+ 
+ 	if build.Default.GOROOT == "" {
+@@ -199,16 +203,14 @@ func main() {
+ 		}
+ 	}
+ 
+-	fail := false
++	bw := bufio.NewWriter(os.Stdout)
+ 	defer func() {
+-		if fail {
+-			os.Exit(1)
++		bw.Flush()
++		if exitCode != 0 {
++			os.Exit(exitCode)
+ 		}
+ 	}()
+ 
+-	bw := bufio.NewWriter(os.Stdout)
+-	defer bw.Flush()
+-
+ 	if *checkFiles == "" {
+ 		sort.Strings(features)
+ 		for _, f := range features {
+@@ -228,7 +230,9 @@ func main() {
+ 		}
+ 	}
+ 	exception := fileFeatures(*exceptFile)
+-	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
++	if !compareAPI(bw, features, required, optional, exception, *allowNew) {
++		exitCode = 1
++	}
+ }
+ 
+ // export emits the exported package features.
+@@ -362,9 +366,26 @@ func fileFeatures(filename string) []string {
+ 	}
+ 	bs, err := os.ReadFile(filename)
+ 	if err != nil {
+-		log.Fatalf("Error reading file %s: %v", filename, err)
++		log.Fatal(err)
+ 	}
+ 	s := string(bs)
++
++	// Diagnose common mistakes people make,
++	// since there is no apifmt to format these files.
++	// The missing final newline is important for the
++	// final release step of cat next/*.txt >go1.X.txt.
++	// If the files don't end in full lines, the concatenation goes awry.
++	if strings.Contains(s, "\r") {
++		log.Printf("%s: contains CRLFs", filename)
++		exitCode = 1
++	}
++	if s == "" {
++		log.Printf("%s: empty file", filename)
++		exitCode = 1
++	} else if s[len(s)-1] != '\n' {
++		log.Printf("%s: missing final newline", filename)
++		exitCode = 1
++	}
+ 	s = aliasReplacer.Replace(s)
+ 	lines := strings.Split(s, "\n")
+ 	var nonblank []string
+@@ -376,11 +397,13 @@ func fileFeatures(filename string) []string {
+ 		if needApproval {
+ 			feature, approval, ok := strings.Cut(line, "#")
+ 			if !ok {
+-				log.Fatalf("%s:%d: missing proposal approval\n", filename, i+1)
++				log.Printf("%s:%d: missing proposal approval\n", filename, i+1)
++				exitCode = 1
+ 			}
+ 			_, err := strconv.Atoi(approval)
+ 			if err != nil {
+-				log.Fatalf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
++				log.Printf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
++				exitCode = 1
+ 			}
+ 			line = strings.TrimSpace(feature)
+ 		}

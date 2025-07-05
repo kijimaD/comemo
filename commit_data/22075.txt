@@ -26,7 +26,7 @@ Date:   Sun Feb 22 12:41:32 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5550
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/help.go   |  3 +++
  src/cmd/go/main.go   | 54 +++++++++++++---------------------------------------
  src/cmd/go/test.bash | 15 +++++++++++++--
@@ -39,3 +39,301 @@ Date:   Sun Feb 22 12:41:32 2015 -0500
  src/run.bat          |  4 ++--
  src/run.rc           |  4 ++--
  11 files changed, 41 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index c590fdb37f..2ab0353589 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -59,6 +59,9 @@ system.
+ - "std" is like all but expands to just the packages in the standard
+ Go library.
+ 
++- "cmd" expands to the Go repository's commands and their
++internal libraries.
++
+ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index d5e86395a2..d7e522bd5a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -311,7 +311,7 @@ func importPathsNoDotExpansion(args []string) []string {
+ 		} else {
+ 			a = path.Clean(a)
+ 		}
+-		if a == "all" || a == "std" {
++		if a == "all" || a == "std" || a == "cmd" {
+ 			out = append(out, allPackages(a)...)
+ 			continue
+ 		}
+@@ -478,8 +478,8 @@ func treeCanMatchPattern(pattern string) func(name string) bool {
+ 
+ // allPackages returns all the packages that can be found
+ // under the $GOPATH directories and $GOROOT matching pattern.
+-// The pattern is either "all" (all packages), "std" (standard packages)
+-// or a path including "...".
++// The pattern is either "all" (all packages), "std" (standard packages),
++// "cmd" (standard commands), or a path including "...".
+ func allPackages(pattern string) []string {
+ 	pkgs := matchPackages(pattern)
+ 	if len(pkgs) == 0 {
+@@ -491,7 +491,7 @@ func allPackages(pattern string) []string {
+ func matchPackages(pattern string) []string {
+ 	match := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+-	if pattern != "all" && pattern != "std" {
++	if pattern != "all" && pattern != "std" && pattern != "cmd" {
+ 		match = matchPattern(pattern)
+ 		treeCanMatch = treeCanMatchPattern(pattern)
+ 	}
+@@ -504,47 +504,16 @@ func matchPackages(pattern string) []string {
+ 	}
+ 	var pkgs []string
+ 
+-	// Commands
+-	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
+-	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
+-		if err != nil || !fi.IsDir() || path == cmd {
+-			return nil
+-		}
+-		name := path[len(cmd):]
+-		if !treeCanMatch(name) {
+-			return filepath.SkipDir
+-		}
+-		// Commands are all in cmd/, not in subdirectories.
+-		if strings.Contains(name, string(filepath.Separator)) {
+-			return filepath.SkipDir
+-		}
+-
+-		// We use, e.g., cmd/gofmt as the pseudo import path for gofmt.
+-		name = "cmd/" + name
+-		if have[name] {
+-			return nil
+-		}
+-		have[name] = true
+-		if !match(name) {
+-			return nil
+-		}
+-		_, err = buildContext.ImportDir(path, 0)
+-		if err != nil {
+-			if _, noGo := err.(*build.NoGoError); !noGo {
+-				log.Print(err)
+-			}
+-			return nil
+-		}
+-		pkgs = append(pkgs, name)
+-		return nil
+-	})
+-
+ 	for _, src := range buildContext.SrcDirs() {
+ 		if pattern == "std" && src != gorootSrc {
+ 			continue
+ 		}
+ 		src = filepath.Clean(src) + string(filepath.Separator)
+-		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
++		root := src
++		if pattern == "cmd" {
++			root += "cmd" + string(filepath.Separator)
++		}
++		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+ 			if err != nil || !fi.IsDir() || path == src {
+ 				return nil
+ 			}
+@@ -556,7 +525,10 @@ func matchPackages(pattern string) []string {
+ 			}
+ 
+ 			name := filepath.ToSlash(path[len(src):])
+-			if pattern == "std" && strings.Contains(name, ".") {
++			if pattern == "std" && (strings.Contains(name, ".") || name == "cmd") {
++				// The name "std" is only the standard library.
++				// If the name has a dot, assume it's a domain name for go get,
++				// and if the name is cmd, it's the root of the command tree.
+ 				return filepath.SkipDir
+ 			}
+ 			if !treeCanMatch(name) {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index e0f066f186..25d3c66665 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -510,8 +510,7 @@ if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
+     ok=false
+ fi
+ 
+-# ensure that output of 'go list' is consistent between runs
+-TEST go list is consistent
++TEST go list has a consistent order
+ ./testgo list std > test_std.list || ok=false
+ if ! ./testgo list std | cmp -s test_std.list - ; then
+ 	echo "go list std ordering is inconsistent"
+@@ -519,6 +518,18 @@ if ! ./testgo list std | cmp -s test_std.list - ; then
+ fi
+ rm -f test_std.list
+ 
++TEST go list std does not include commands
++if ./testgo list std | grep cmd/; then
++	echo "go list std shows commands"
++	ok=false
++fi
++
++TEST go list cmd only shows commands
++if ./testgo list cmd | grep -v 'cmd/'; then
++	echo "go list cmd shows non-commands"
++	ok=false
++fi
++
+ # issue 4096. Validate the output of unsuccessful go install foo/quxx 
+ TEST unsuccessful go install should mention missing package
+ if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
+diff --git a/src/make.bash b/src/make.bash
+index 215fedd6ee..365664303e 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -153,12 +153,12 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
+ 	# use the host compiler, CC, from `cmd/dist/dist env` instead.
+ 	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
+ 	echo
+ fi
+ 
+ echo "##### Building packages and commands for $GOOS/$GOARCH."
+-CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
+ echo
+ 
+ rm -f "$GOTOOLDIR"/go_bootstrap
+diff --git a/src/make.bat b/src/make.bat
+index ba3469e69e..70569551e5 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -88,14 +88,14 @@ echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+ setlocal
+ set GOOS=%GOHOSTOS%
+ set GOARCH=%GOHOSTARCH%
+-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std
++"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std cmd
+ endlocal
+ if errorlevel 1 goto fail
+ echo.
+ 
+ :mainbuild
+ echo ##### Building packages and commands.
+-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
++"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
+ if errorlevel 1 goto fail
+ del "%GOTOOLDIR%\go_bootstrap.exe"
+ echo.
+diff --git a/src/make.rc b/src/make.rc
+index f4302739f7..46ab35bcbc 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -84,12 +84,12 @@ if(~ $sysname vx32)
+ if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+ 	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
++		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+ 	echo
+ }
+ 
+ echo '# Building packages and commands for' $GOOS/$GOARCH^.
+-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
++$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+ echo
+ 
+ rm -f $GOTOOLDIR/go_bootstrap
+diff --git a/src/race.bash b/src/race.bash
+index 6225840168..b305c8f970 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -40,8 +40,6 @@ if [ ! -f make.bash ]; then
+ 	exit 1
+ fi
+ . ./make.bash --no-banner
+-# golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
+-go install -race cmd/cgo
+ go install -race std
+ 
+ # we must unset GOROOT_FINAL before tests, because runtime/debug requires
+diff --git a/src/race.bat b/src/race.bat
+index 027c475640..1ab019c25a 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -30,9 +30,6 @@ goto fail
+ :continue
+ call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+-:: golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
+-echo # go install -race cmd/cgo
+-go install -race cmd/cgo
+ echo # go install -race std
+ go install -race std
+ if errorlevel 1 goto fail
+diff --git a/src/run.bash b/src/run.bash
+index bb1424c504..4177124e1b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -38,7 +38,7 @@ if [ "$1" == "--no-rebuild" ]; then
+ 	shift
+ else
+ 	echo '##### Building packages and commands.'
+-	time go install -a -v std
++	time go install -a -v std cmd
+ 	echo
+ fi
+ 
+@@ -56,7 +56,7 @@ timeout_scale=1
+ [ "$GOARCH" == "arm" ] && timeout_scale=3
+ 
+ echo '##### Testing packages.'
+-time go test std -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
++time go test std cmd -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
+ echo
+ 
+ # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+diff --git a/src/run.bat b/src/run.bat
+index 7586ab5f18..4b7637563b 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -20,7 +20,7 @@ rem TODO avoid rebuild if possible
+ 
+ if x%1==x--no-rebuild goto norebuild
+ echo ##### Building packages and commands.
+-go install -a -v std
++go install -a -v std cmd
+ if errorlevel 1 goto fail
+ echo.
+ :norebuild
+@@ -38,7 +38,7 @@ del env.bat
+ echo.
+ 
+ echo ##### Testing packages.
+-go test std -short -timeout=120s
++go test std cmd -short -timeout=120s
+ if errorlevel 1 goto fail
+ echo.
+ 
+diff --git a/src/run.rc b/src/run.rc
+index 8d2ce38a0e..1c92f0389c 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -19,7 +19,7 @@ if not {
+ 	if(~ $sysname vx32)
+ 		pflag = (-p 1)
+ 	echo '# Building packages and commands.'
+-	time go install -a -v $pflag std
++	time go install -a -v $pflag std cmd
+ 	echo
+ }
+ 
+@@ -29,7 +29,7 @@ if not {
+ GOROOT_FINAL = ()
+ 
+ echo '# Testing packages.'
+-time go test std -short -timeout 240s
++time go test std cmd -short -timeout 240s
+ echo
+ 
+ # Temporary GCE builder hack until Plan 9 on GCE is fast enough.

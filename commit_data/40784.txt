@@ -14,8 +14,67 @@ Date:   Tue Jun 25 20:24:15 2019 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue32778.dir/a.go | 18 ++++++++++++++++++
  test/fixedbugs/issue32778.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue32778.go       | 11 +++++++++++
  3 files changed, 40 insertions(+)
+
+diff --git a/test/fixedbugs/issue32778.dir/a.go b/test/fixedbugs/issue32778.dir/a.go
+new file mode 100644
+index 0000000000..1e6ac01233
+--- /dev/null
++++ b/test/fixedbugs/issue32778.dir/a.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved. Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package a
++
++import "strings"
++
++type Name string
++
++type FullName string
++
++func (n FullName) Name() Name {
++	if i := strings.LastIndexByte(string(n), '.'); i >= 0 {
++		return Name(n[i+1:])
++	}
++	return Name(n)
++}
+diff --git a/test/fixedbugs/issue32778.dir/b.go b/test/fixedbugs/issue32778.dir/b.go
+new file mode 100644
+index 0000000000..a0ee398d26
+--- /dev/null
++++ b/test/fixedbugs/issue32778.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved. Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package b
++
++import "./a"
++
++func Expo(fn a.FullName) a.Name {
++	return fn.Name()
++}
+diff --git a/test/fixedbugs/issue32778.go b/test/fixedbugs/issue32778.go
+new file mode 100644
+index 0000000000..83456d4a99
+--- /dev/null
++++ b/test/fixedbugs/issue32778.go
+@@ -0,0 +1,11 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved. Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++// This directory contains a pair of packages that triggers a compiler
++// crash in gccgo (problem with tracking indirectly referenced
++// packages during exporting). See issue 32778 for details.
++
++package ignored

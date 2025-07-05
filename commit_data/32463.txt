@@ -9,7 +9,7 @@ Date:   Tue Apr 25 18:02:43 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  4 ++--
  src/cmd/compile/internal/gc/gsubr.go     |  2 +-
  src/cmd/compile/internal/gc/inl.go       |  6 +++---
@@ -24,3 +24,578 @@ Date:   Tue Apr 25 18:02:43 2017 -0700
  src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
  src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
  13 files changed, 67 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7305a8fdff..622a5756fb 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -489,8 +489,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " ld(%d)", e.Loopdepth)
+ 	}
+ 
+-	if c == 0 && n.Typecheck != 0 {
+-		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
++	if c == 0 && n.Typecheck() != 0 {
++		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
+ 	}
+ 
+ 	if n.Isddd() {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 87eded305a..69a34d3d98 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -359,7 +359,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 		}
+ 	}
+ 
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	n.SetAddrtaken(true) // keep optimizers at bay
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 324bb4c8cc..57d37b10c2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -124,7 +124,7 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
+-	if fn.Typecheck == 0 {
++	if fn.Typecheck() == 0 {
+ 		Fatalf("caninl on non-typechecked function %v", fn)
+ 	}
+ 
+@@ -478,7 +478,7 @@ func inlnode(n *Node) *Node {
+ 	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
+ 		n.Rlist.Set(inlconv2list(n.Rlist.First()))
+ 		n.Op = OAS2
+-		n.Typecheck = 0
++		n.SetTypecheck(0)
+ 		n = typecheck(n, Etop)
+ 	} else {
+ 		s := n.Rlist.Slice()
+@@ -757,7 +757,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	call.Nbody.Set(body)
+ 	call.Rlist.Set(retvars)
+ 	call.Type = n.Type
+-	call.Typecheck = 1
++	call.SetTypecheck(1)
+ 
+ 	// Hide the args from setPos -- the parameters to the inlined
+ 	// call already have good line numbers that should be preserved.
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 8ba830e551..6db33c3b39 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -623,7 +623,7 @@ func appendinit(np **Node, init Nodes) {
+ 		n = nod(OCONVNOP, n, nil)
+ 
+ 		n.Type = n.Left.Type
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 		*np = n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 3570c2a582..963c26824d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -123,10 +123,10 @@ func typecheckrange(n *Node) {
+ 
+ 	// second half of dance
+ out:
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	ls = n.List.Slice()
+ 	for i1, n1 := range ls {
+-		if n1.Typecheck == 0 {
++		if n1.Typecheck() == 0 {
+ 			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+@@ -231,9 +231,9 @@ func walkrange(n *Node) *Node {
+ 			tmp := nod(OADD, hp, nodintconst(t.Elem().Width))
+ 
+ 			tmp.Type = hp.Type
+-			tmp.Typecheck = 1
++			tmp.SetTypecheck(1)
+ 			tmp.Right.Type = types.Types[types.Tptr]
+-			tmp.Right.Typecheck = 1
++			tmp.Right.SetTypecheck(1)
+ 			a = nod(OAS, hp, tmp)
+ 			a = typecheck(a, Etop)
+ 			n.Right.Ninit.Set1(a)
+@@ -283,7 +283,7 @@ func walkrange(n *Node) *Node {
+ 		n.Left = nil
+ 
+ 		hv1 := temp(t.Elem())
+-		hv1.Typecheck = 1
++		hv1.SetTypecheck(1)
+ 		if types.Haspointers(t.Elem()) {
+ 			init = append(init, nod(OAS, hv1, nil))
+ 		}
+@@ -291,7 +291,7 @@ func walkrange(n *Node) *Node {
+ 
+ 		n.Left = nod(ONE, hb, nodbool(false))
+ 		a := nod(OAS2RECV, nil, nil)
+-		a.Typecheck = 1
++		a.SetTypecheck(1)
+ 		a.List.Set2(hv1, hb)
+ 		a.Rlist.Set1(nod(ORECV, ha, nil))
+ 		n.Left.Ninit.Set1(a)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 757a6376aa..b5082c8321 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -945,14 +945,14 @@ func typename(t *types.Type) *Node {
+ 		n := newnamel(src.NoXPos, s)
+ 		n.Type = types.Types[TUINT8]
+ 		n.Class = PEXTERN
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 		s.Def = asTypesNode(n)
+ 	}
+ 
+ 	n := nod(OADDR, asNode(s.Def), nil)
+ 	n.Type = types.NewPtr(asNode(s.Def).Type)
+ 	n.SetAddable(true)
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+@@ -965,7 +965,7 @@ func itabname(t, itype *types.Type) *Node {
+ 		n := newname(s)
+ 		n.Type = types.Types[TUINT8]
+ 		n.Class = PEXTERN
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 		s.Def = asTypesNode(n)
+ 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+ 	}
+@@ -973,7 +973,7 @@ func itabname(t, itype *types.Type) *Node {
+ 	n := nod(OADDR, asNode(s.Def), nil)
+ 	n.Type = types.NewPtr(asNode(s.Def).Type)
+ 	n.SetAddable(true)
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+@@ -1822,12 +1822,12 @@ func zeroaddr(size int64) *Node {
+ 		x := newname(s)
+ 		x.Type = types.Types[TUINT8]
+ 		x.Class = PEXTERN
+-		x.Typecheck = 1
++		x.SetTypecheck(1)
+ 		s.Def = asTypesNode(x)
+ 	}
+ 	z := nod(OADDR, asNode(s.Def), nil)
+ 	z.Type = types.NewPtr(types.Types[TUINT8])
+ 	z.SetAddable(true)
+-	z.Typecheck = 1
++	z.SetTypecheck(1)
+ 	return z
+ }
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 5a65a759e5..320cd9a47e 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -74,7 +74,7 @@ func typecheckselect(sel *Node) {
+ 			case ORECV:
+ 				n = nod(OSELRECV, nil, n)
+ 
+-				n.Typecheck = 1
++				n.SetTypecheck(1)
+ 				ncase.Left = n
+ 
+ 			case OSEND:
+@@ -150,7 +150,7 @@ func walkselect(sel *Node) {
+ 				n.Rlist.Set1(n.Right)
+ 				n.Right = nil
+ 				n.Left = nil
+-				n.Typecheck = 0
++				n.SetTypecheck(0)
+ 				n = typecheck(n, Etop)
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 1052fba016..00a0bc484c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1083,7 +1083,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
+ 			r = typecheck(r, Erv)
+ 		} else {
+ 			r = nod(ONEW, nil, nil)
+-			r.Typecheck = 1
++			r.SetTypecheck(1)
+ 			r.Type = t
+ 			r.Esc = n.Esc
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index fad935e92b..a3bcb6481b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -965,7 +965,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
+ 		if n.Op == ONAME || n.Op == OLITERAL {
+ 			r := nod(OCONVNOP, n, nil)
+ 			r.Type = types.Types[TBOOL]
+-			r.Typecheck = 1
++			r.SetTypecheck(1)
+ 			r.SetImplicit(true)
+ 			n = r
+ 		}
+@@ -986,7 +986,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
+ 
+ 	r := nod(op, n, nil)
+ 	r.Type = t
+-	r.Typecheck = 1
++	r.SetTypecheck(1)
+ 	r.SetImplicit(true)
+ 	r.Orig = n.Orig
+ 	return r
+@@ -1965,7 +1965,7 @@ func addinit(n *Node, init []*Node) *Node {
+ 		// Introduce OCONVNOP to hold init list.
+ 		n = nod(OCONVNOP, n, nil)
+ 		n.Type = n.Left.Type
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 	}
+ 
+ 	n.Ninit.Prepend(init...)
+@@ -2029,7 +2029,7 @@ func checknil(x *Node, init *Nodes) {
+ 	}
+ 
+ 	n := nod(OCHECKNIL, x, nil)
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	init.Append(n)
+ }
+ 
+@@ -2061,7 +2061,7 @@ func isdirectiface(t *types.Type) bool {
+ func itabType(itab *Node) *Node {
+ 	typ := nodSym(ODOTPTR, itab, nil)
+ 	typ.Type = types.NewPtr(types.Types[TUINT8])
+-	typ.Typecheck = 1
++	typ.SetTypecheck(1)
+ 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+ 	typ.SetBounded(true)          // guaranteed not to fault
+ 	return typ
+@@ -2074,14 +2074,14 @@ func ifaceData(n *Node, t *types.Type) *Node {
+ 	ptr := nodSym(OIDATA, n, nil)
+ 	if isdirectiface(t) {
+ 		ptr.Type = t
+-		ptr.Typecheck = 1
++		ptr.SetTypecheck(1)
+ 		return ptr
+ 	}
+ 	ptr.Type = types.NewPtr(t)
+ 	ptr.SetBounded(true)
+-	ptr.Typecheck = 1
++	ptr.SetTypecheck(1)
+ 	ind := nod(OIND, ptr, nil)
+ 	ind.Type = t
+-	ind.Typecheck = 1
++	ind.SetTypecheck(1)
+ 	return ind
+ }
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index d18d209098..7fd0fe0dbc 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -752,7 +752,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	// Load hash from type or itab.
+ 	h := nodSym(ODOTPTR, itab, nil)
+ 	h.Type = types.Types[TUINT32]
+-	h.Typecheck = 1
++	h.SetTypecheck(1)
+ 	if cond.Right.Type.IsEmptyInterface() {
+ 		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5eefb937ea..399e835983 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -55,10 +55,9 @@ type Node struct {
+ 
+ 	Esc uint16 // EscXXX
+ 
+-	Op        Op
+-	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+-	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
+-	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
++	Op    Op
++	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
++	Class Class       // PPARAM, PAUTO, PEXTERN, etc
+ }
+ 
+ // IsAutoTmp indicates if n was created by the compiler as a temporary,
+@@ -73,6 +72,8 @@ func (n *Node) IsAutoTmp() bool {
+ const (
+ 	nodeWalkdef, _   = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
+ 	_, _                               // second nodeWalkdef bit
++	nodeTypecheck, _                   // tracks state during typechecking; 2 == loop detected; two bits
++	_, _                               // second nodeTypecheck bit
+ 	nodeInitorder, _                   // tracks state during init1; two bits
+ 	_, _                               // second nodeInitorder bit
+ 	_, nodeHasBreak
+@@ -99,6 +100,7 @@ const (
+ )
+ 
+ func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
++func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
+ func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
+ 
+ func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
+@@ -124,6 +126,7 @@ func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+ func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+ 
+ func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
++func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
+ func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
+ 
+ func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d274a79e30..f8d972117e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -144,7 +144,7 @@ func typecheck(n *Node, top int) *Node {
+ 
+ 	// Skip typecheck if already done.
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+-	if n.Typecheck == 1 {
++	if n.Typecheck() == 1 {
+ 		switch n.Op {
+ 		case ONAME, OTYPE, OLITERAL, OPACK:
+ 			break
+@@ -155,7 +155,7 @@ func typecheck(n *Node, top int) *Node {
+ 		}
+ 	}
+ 
+-	if n.Typecheck == 2 {
++	if n.Typecheck() == 2 {
+ 		// Typechecking loop. Trying printing a meaningful message,
+ 		// otherwise a stack trace of typechecking.
+ 		switch n.Op {
+@@ -195,12 +195,12 @@ func typecheck(n *Node, top int) *Node {
+ 		return n
+ 	}
+ 
+-	n.Typecheck = 2
++	n.SetTypecheck(2)
+ 
+ 	typecheck_tcstack = append(typecheck_tcstack, n)
+ 	n = typecheck1(n, top)
+ 
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 
+ 	last := len(typecheck_tcstack) - 1
+ 	typecheck_tcstack[last] = nil
+@@ -633,7 +633,7 @@ OpSwitch:
+ 					if r.Type.IsInterface() == l.Type.IsInterface() || l.Type.Width >= 1<<16 {
+ 						l = nod(aop, l, nil)
+ 						l.Type = r.Type
+-						l.Typecheck = 1
++						l.SetTypecheck(1)
+ 						n.Left = l
+ 					}
+ 
+@@ -655,7 +655,7 @@ OpSwitch:
+ 					if r.Type.IsInterface() == l.Type.IsInterface() || r.Type.Width >= 1<<16 {
+ 						r = nod(aop, r, nil)
+ 						r.Type = l.Type
+-						r.Typecheck = 1
++						r.SetTypecheck(1)
+ 						n.Right = r
+ 					}
+ 
+@@ -3149,10 +3149,10 @@ func typecheckcomplit(n *Node) *Node {
+ 	n.Orig = norig
+ 	if n.Type.IsPtr() {
+ 		n = nod(OPTRLIT, n, nil)
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 		n.Type = n.Left.Type
+ 		n.Left.Type = t
+-		n.Left.Typecheck = 1
++		n.Left.SetTypecheck(1)
+ 	}
+ 
+ 	n.Orig = norig
+@@ -3302,9 +3302,9 @@ func typecheckas(n *Node) {
+ 	// second half of dance.
+ 	// now that right is done, typecheck the left
+ 	// just to get it over with.  see dance above.
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 
+-	if n.Left.Typecheck == 0 {
++	if n.Left.Typecheck() == 0 {
+ 		n.Left = typecheck(n.Left, Erv|Easgn)
+ 	}
+ }
+@@ -3431,10 +3431,10 @@ mismatch:
+ 
+ 	// second half of dance
+ out:
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	ls = n.List.Slice()
+ 	for i1, n1 := range ls {
+-		if n1.Typecheck == 0 {
++		if n1.Typecheck() == 0 {
+ 			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+@@ -3571,7 +3571,7 @@ func typecheckdeftype(n *Node) {
+ 	lno := lineno
+ 	setlineno(n)
+ 	n.Type.Sym = n.Sym
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 	t := n.Name.Param.Ntype.Type
+ 	if t == nil {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4f1a431f1d..4753704f55 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -180,7 +180,7 @@ func walkstmt(n *Node) *Node {
+ 		OEMPTY,
+ 		ORECOVER,
+ 		OGETG:
+-		if n.Typecheck == 0 {
++		if n.Typecheck() == 0 {
+ 			Fatalf("missing typecheck: %+v", n)
+ 		}
+ 		wascopy := n.Op == OCOPY
+@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
+ 	// special case for a receive where we throw away
+ 	// the value received.
+ 	case ORECV:
+-		if n.Typecheck == 0 {
++		if n.Typecheck() == 0 {
+ 			Fatalf("missing typecheck: %+v", n)
+ 		}
+ 		init := n.Ninit
+@@ -479,7 +479,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		Dump("walk-before", n)
+ 	}
+ 
+-	if n.Typecheck != 1 {
++	if n.Typecheck() != 1 {
+ 		Fatalf("missed typecheck: %+v", n)
+ 	}
+ 
+@@ -552,7 +552,7 @@ opswitch:
+ 		if t.IsArray() {
+ 			safeexpr(n.Left, init)
+ 			nodconst(n, n.Type, t.NumElem())
+-			n.Typecheck = 1
++			n.SetTypecheck(1)
+ 		}
+ 
+ 	case OLSH, ORSH:
+@@ -826,7 +826,7 @@ opswitch:
+ 		// don't generate a = *var if a is _
+ 		if !isblank(a) {
+ 			var_ := temp(types.NewPtr(t.Val()))
+-			var_.Typecheck = 1
++			var_.SetTypecheck(1)
+ 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
+ 			n.List.SetFirst(var_)
+ 			n = walkexpr(n, init)
+@@ -869,7 +869,7 @@ opswitch:
+ 			}
+ 			l := nod(OEFACE, t, n.Left)
+ 			l.Type = n.Type
+-			l.Typecheck = n.Typecheck
++			l.SetTypecheck(n.Typecheck())
+ 			n = l
+ 			break
+ 		}
+@@ -917,7 +917,7 @@ opswitch:
+ 			}
+ 			l := nod(OEFACE, t, typecheck(nod(OADDR, value, nil), Erv))
+ 			l.Type = n.Type
+-			l.Typecheck = n.Typecheck
++			l.SetTypecheck(n.Typecheck())
+ 			n = l
+ 			break
+ 		}
+@@ -945,7 +945,7 @@ opswitch:
+ 			// Build the result.
+ 			e := nod(OEFACE, tmp, ifaceData(c, types.NewPtr(types.Types[TUINT8])))
+ 			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
+-			e.Typecheck = 1
++			e.SetTypecheck(1)
+ 			n = e
+ 			break
+ 		}
+@@ -1191,7 +1191,7 @@ opswitch:
+ 		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
+ 		n = nod(OIND, n, nil)
+ 		n.Type = t.Val()
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 
+ 	case ORECV:
+ 		Fatalf("walkexpr ORECV") // should see inside OAS only
+@@ -1596,8 +1596,8 @@ opswitch:
+ 		rd := nod(OIDATA, n.Right, nil)
+ 		ld.Type = types.Types[TUNSAFEPTR]
+ 		rd.Type = types.Types[TUNSAFEPTR]
+-		ld.Typecheck = 1
+-		rd.Typecheck = 1
++		ld.SetTypecheck(1)
++		rd.SetTypecheck(1)
+ 		call := mkcall1(fn, n.Type, init, lt, ld, rd)
+ 
+ 		// Check itable/type before full compare.
+@@ -1876,7 +1876,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
+ 
+ ret:
+ 	for _, n := range nn {
+-		n.Typecheck = 1
++		n.SetTypecheck(1)
+ 	}
+ 	return nn
+ }
+@@ -2111,7 +2111,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 		Fatalf("convas: not OAS %v", n.Op)
+ 	}
+ 
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 
+ 	var lt *types.Type
+ 	var rt *types.Type
+@@ -2622,7 +2622,7 @@ func byteindex(n *Node) *Node {
+ 	}
+ 	n = nod(OCONV, n, nil)
+ 	n.Type = types.Types[TUINT8]
+-	n.Typecheck = 1
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+@@ -3100,7 +3100,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		rtyp := typename(r.Type)
+ 		if l.Type.IsEmptyInterface() {
+ 			tab.Type = types.NewPtr(types.Types[TUINT8])
+-			tab.Typecheck = 1
++			tab.SetTypecheck(1)
+ 			eqtype = nod(eq, tab, rtyp)
+ 		} else {
+ 			nonnil := nod(brcom(eq), nodnil(), tab)
+@@ -3236,7 +3236,7 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
+ 	if r.Type != n.Type {
+ 		r = nod(OCONVNOP, r, nil)
+ 		r.Type = n.Type
+-		r.Typecheck = 1
++		r.SetTypecheck(1)
+ 		nn = r
+ 	}
+ 	return nn

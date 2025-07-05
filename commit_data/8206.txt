@@ -9,7 +9,46 @@ Date:   Sat Apr 23 10:55:32 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4438068
-
+---
  src/cmd/gc/walk.c        |  2 +-
  test/fixedbugs/bug333.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6b94002c5d..ae556ae3fb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1356,7 +1356,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OSTRARRAYBYTE:
+ 		// stringtoslicebyte(string) []byte;
+-		n = mkcall("stringtoslicebyte", n->type, init, n->left);
++		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
+ 		goto ret;
+ 
+ 	case OSTRARRAYRUNE:
+diff --git a/test/fixedbugs/bug333.go b/test/fixedbugs/bug333.go
+new file mode 100644
+index 0000000000..515c1f3fab
+--- /dev/null
++++ b/test/fixedbugs/bug333.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1709
++
++package main
++
++func main() {
++       type Ts string
++       var ts Ts
++       _ = []byte(ts)
++}
++
++/*
++bug333.go:14: cannot use ts (type Ts) as type string in function argument
++*/

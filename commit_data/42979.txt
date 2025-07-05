@@ -21,7 +21,53 @@ Date:   Thu Feb 27 16:19:06 2020 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/version/version.go |  6 ++++++
  src/cmd/go/testdata/script/version.txt | 12 ++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 857548c7ed..ac2ae50155 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -53,6 +53,11 @@ var (
+ 
+ func runVersion(cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
++		if *versionM || *versionV {
++			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
++			base.SetExitStatus(2)
++			return
++		}
+ 		fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+ 		return
+ 	}
+@@ -61,6 +66,7 @@ func runVersion(cmd *base.Command, args []string) {
+ 		info, err := os.Stat(arg)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "%v\n", err)
++			base.SetExitStatus(1)
+ 			continue
+ 		}
+ 		if info.IsDir() {
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 4eafe1f184..0ed1194840 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -1,4 +1,16 @@
++# Without arguments, we just print Go's own version.
++go version
++stdout '^go version'
++
++# Flags without files, or paths to misisng files, should error.
++! go version missing.exe
++! go version -m
++stderr 'with arguments'
++! go version -v
++stderr 'with arguments'
++
+ env GO111MODULE=on
++# Skip the builds below if we are running in short mode.
+ [short] skip
+ 
+ # Check that 'go version' and 'go version -m' work on a binary built in module mode.

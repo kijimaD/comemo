@@ -11,7 +11,57 @@ Date:   Fri Dec 21 13:14:09 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/test/issue29383.go | 19 +++++++++++++++++++
  src/cmd/cgo/gcc.go          |  6 ++++--
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue29383.go b/misc/cgo/test/issue29383.go
+new file mode 100644
+index 0000000000..462c9a37df
+--- /dev/null
++++ b/misc/cgo/test/issue29383.go
+@@ -0,0 +1,19 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cgo's /*line*/ comments failed when inserted after '/',
++// because the result looked like a "//" comment.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++// #include <stddef.h>
++import "C"
++
++func Issue29383(n, size uint) int {
++	if ^C.size_t(0)/C.size_t(n) < C.size_t(size) {
++		return 0
++	}
++	return 0
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 11c3ff3a9c..65f9f6e4a1 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1389,7 +1389,9 @@ func (p *Package) rewriteRef(f *File) {
+ 
+ 		// Record source-level edit for cgo output.
+ 		if !r.Done {
+-			repl := gofmtPos(expr, old.Pos())
++			// Prepend a space in case the earlier code ends
++			// with '/', which would give us a "//" comment.
++			repl := " " + gofmtPos(expr, old.Pos())
+ 			end := fset.Position(old.End())
+ 			// Subtract 1 from the column if we are going to
+ 			// append a close parenthesis. That will set the
+@@ -1399,7 +1401,7 @@ func (p *Package) rewriteRef(f *File) {
+ 				sub = 1
+ 			}
+ 			if end.Column > sub {
+-				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
++				repl = fmt.Sprintf("%s /*line :%d:%d*/", repl, end.Line, end.Column-sub)
+ 			}
+ 			if r.Name.Kind != "type" {
+ 				repl = "(" + repl + ")"

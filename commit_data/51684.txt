@@ -30,7 +30,7 @@ Date:   Thu Mar 3 10:19:07 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs1_netbsd_386.go     |  1 -
  src/runtime/defs1_netbsd_amd64.go   |  1 -
  src/runtime/defs1_netbsd_arm.go     |  1 -
@@ -96,3 +96,1555 @@ Date:   Thu Mar 3 10:19:07 2022 +0100
  src/runtime/sys_openbsd2.go         | 10 ----------
  src/runtime/sys_openbsd_mips64.s    | 26 -------------------------
  64 files changed, 44 insertions(+), 620 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index a4548e6f06..b6e47a008d 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -7,7 +7,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x400000
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index 4b0e79ebb6..b8292fa3cc 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -7,7 +7,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x400000
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+index 2b5d5990d3..d2cb4865b6 100644
+--- a/src/runtime/defs1_netbsd_arm.go
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -7,7 +7,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x400000
+diff --git a/src/runtime/defs1_netbsd_arm64.go b/src/runtime/defs1_netbsd_arm64.go
+index 740dc77658..7776fe1d99 100644
+--- a/src/runtime/defs1_netbsd_arm64.go
++++ b/src/runtime/defs1_netbsd_arm64.go
+@@ -7,7 +7,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x400000
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index 19e8a2512e..3c13f33331 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -13,7 +13,6 @@ const (
+ 	_ETIMEDOUT   = 0x91
+ 	_EWOULDBLOCK = 0xb
+ 	_EINPROGRESS = 0x96
+-	_ENOSYS      = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index 47a2e4d123..952163b555 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -31,7 +31,6 @@ const (
+ 	EFAULT = C.EFAULT
+ 	EBUSY  = C.EBUSY
+ 	EAGAIN = C.EAGAIN
+-	ENOSYS = C.ENOSYS
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CLOEXEC  = C.O_CLOEXEC
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index f3c6ecd04b..4358c1e0c2 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -10,7 +10,6 @@ const (
+ 	_EFAULT = 0xe
+ 	_EBUSY  = 0x10
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x20000
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 9ba97c8459..3fbd580ac5 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -48,7 +48,6 @@ const (
+ 	EINTR  = C.EINTR
+ 	EFAULT = C.EFAULT
+ 	EAGAIN = C.EAGAIN
+-	ENOSYS = C.ENOSYS
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CLOEXEC  = C.O_CLOEXEC
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index f822934d58..ff4dcfa5fe 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -16,7 +16,6 @@ const (
+ 	_EINTR     = 0x4
+ 	_EFAULT    = 0xe
+ 	_EAGAIN    = 0x23
+-	_ENOSYS    = 0x4e
+ 	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index 0b696cf227..f537c898e4 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -16,7 +16,6 @@ const (
+ 	_EINTR     = 0x4
+ 	_EFAULT    = 0xe
+ 	_EAGAIN    = 0x23
+-	_ENOSYS    = 0x4e
+ 	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index b6f3e790cf..2e20ae7d78 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -16,7 +16,6 @@ const (
+ 	_EINTR     = 0x4
+ 	_EFAULT    = 0xe
+ 	_EAGAIN    = 0x23
+-	_ENOSYS    = 0x4e
+ 	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_freebsd_arm64.go b/src/runtime/defs_freebsd_arm64.go
+index 0759a1238f..1838108fdb 100644
+--- a/src/runtime/defs_freebsd_arm64.go
++++ b/src/runtime/defs_freebsd_arm64.go
+@@ -16,7 +16,6 @@ const (
+ 	_EINTR     = 0x4
+ 	_EFAULT    = 0xe
+ 	_EAGAIN    = 0x23
+-	_ENOSYS    = 0x4e
+ 	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index 95f807b502..e55bb6bbbc 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -37,7 +37,6 @@ const (
+ 	EINTR  = C.EINTR
+ 	EAGAIN = C.EAGAIN
+ 	ENOMEM = C.ENOMEM
+-	ENOSYS = C.ENOSYS
+ 
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+@@ -91,7 +90,7 @@ const (
+ 	SIGPWR    = C.SIGPWR
+ 	SIGSYS    = C.SIGSYS
+ 
+-	SIGRTMIN  = C.SIGRTMIN
++	SIGRTMIN = C.SIGRTMIN
+ 
+ 	FPE_INTDIV = C.FPE_INTDIV
+ 	FPE_INTOVF = C.FPE_INTOVF
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index d24d00febb..5376bded2b 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 47fb468621..da4d357532 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index ed387e6eff..18aa0931e5 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -11,7 +11,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_ENOMEM = 0xc
+ 	_EAGAIN = 0xb
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index 97b3a9600f..c5d7d7e3fd 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index 67f28ddc2b..e645248131 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -12,7 +12,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index b5c0d7f568..5afb6f423f 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -12,7 +12,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index c077868cf8..f3e305e34e 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index c077868cf8..f3e305e34e 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_riscv64.go b/src/runtime/defs_linux_riscv64.go
+index 30bf1770d7..29496acdcb 100644
+--- a/src/runtime/defs_linux_riscv64.go
++++ b/src/runtime/defs_linux_riscv64.go
+@@ -10,7 +10,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index 224136a463..817a29ed30 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -10,7 +10,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/defs_netbsd.go b/src/runtime/defs_netbsd.go
+index df8bc579f2..6b084c06b5 100644
+--- a/src/runtime/defs_netbsd.go
++++ b/src/runtime/defs_netbsd.go
+@@ -33,7 +33,6 @@ const (
+ 	EINTR  = C.EINTR
+ 	EFAULT = C.EFAULT
+ 	EAGAIN = C.EAGAIN
+-	ENOSYS = C.ENOSYS
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CLOEXEC  = C.O_CLOEXEC
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index ec7d82a33c..cbf53eb9ef 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -34,7 +34,6 @@ const (
+ 	EINTR  = C.EINTR
+ 	EFAULT = C.EFAULT
+ 	EAGAIN = C.EAGAIN
+-	ENOSYS = C.ENOSYS
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CLOEXEC  = C.O_CLOEXEC
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index a866ec880a..35c559bb45 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x10000
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index 46f1245201..d7432daedd 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x10000
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index 6f128c4284..471b3063fb 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -9,7 +9,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x10000
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index d2b947feb2..5300ab087c 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -10,7 +10,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x10000
+diff --git a/src/runtime/defs_openbsd_mips64.go b/src/runtime/defs_openbsd_mips64.go
+index 28d70b7a01..a8789ef451 100644
+--- a/src/runtime/defs_openbsd_mips64.go
++++ b/src/runtime/defs_openbsd_mips64.go
+@@ -16,7 +16,6 @@ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+ 	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x10000
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index ec16c9dcce..f626498525 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -43,7 +43,6 @@ const (
+ 	ETIMEDOUT   = C.ETIMEDOUT
+ 	EWOULDBLOCK = C.EWOULDBLOCK
+ 	EINPROGRESS = C.EINPROGRESS
+-	ENOSYS      = C.ENOSYS
+ 
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+diff --git a/src/runtime/export_aix_test.go b/src/runtime/export_aix_test.go
+index 162552d04c..51df951738 100644
+--- a/src/runtime/export_aix_test.go
++++ b/src/runtime/export_aix_test.go
+@@ -5,3 +5,4 @@
+ package runtime
+ 
+ var Fcntl = syscall_fcntl1
++var SetNonblock = setNonblock
+diff --git a/src/runtime/export_darwin_test.go b/src/runtime/export_darwin_test.go
+index e9b6eb36da..66e2c02c4f 100644
+--- a/src/runtime/export_darwin_test.go
++++ b/src/runtime/export_darwin_test.go
+@@ -11,3 +11,5 @@ func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
+ 	}
+ 	return uintptr(r), 0
+ }
++
++var SetNonblock = setNonblock
+diff --git a/src/runtime/export_pipe2_test.go b/src/runtime/export_pipe2_test.go
+index bdf39c60df..8d49009b43 100644
+--- a/src/runtime/export_pipe2_test.go
++++ b/src/runtime/export_pipe2_test.go
+@@ -7,9 +7,5 @@
+ package runtime
+ 
+ func Pipe() (r, w int32, errno int32) {
+-	r, w, errno = pipe2(0)
+-	if errno == _ENOSYS {
+-		return pipe()
+-	}
+-	return r, w, errno
++	return pipe2(0)
+ }
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 9f046b95e0..4a587cb780 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -9,7 +9,6 @@ package runtime
+ import "unsafe"
+ 
+ var NonblockingPipe = nonblockingPipe
+-var SetNonblock = setNonblock
+ var Closeonexec = closeonexec
+ 
+ func sigismember(mask *sigset, i int) bool {
+diff --git a/src/runtime/nbpipe_pipe2.go b/src/runtime/nbpipe_pipe2.go
+index 6a555bcd99..22d60b4a63 100644
+--- a/src/runtime/nbpipe_pipe2.go
++++ b/src/runtime/nbpipe_pipe2.go
+@@ -7,16 +7,5 @@
+ package runtime
+ 
+ func nonblockingPipe() (r, w int32, errno int32) {
+-	r, w, errno = pipe2(_O_NONBLOCK | _O_CLOEXEC)
+-	if errno == -_ENOSYS {
+-		r, w, errno = pipe()
+-		if errno != 0 {
+-			return -1, -1, errno
+-		}
+-		closeonexec(r)
+-		setNonblock(r)
+-		closeonexec(w)
+-		setNonblock(w)
+-	}
+-	return r, w, errno
++	return pipe2(_O_NONBLOCK | _O_CLOEXEC)
+ }
+diff --git a/src/runtime/nbpipe_pipe_test.go b/src/runtime/nbpipe_pipe_test.go
+new file mode 100644
+index 0000000000..c8cb3cf691
+--- /dev/null
++++ b/src/runtime/nbpipe_pipe_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin
++
++package runtime_test
++
++import (
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestSetNonblock(t *testing.T) {
++	t.Parallel()
++
++	r, w, errno := runtime.Pipe()
++	if errno != 0 {
++		t.Fatal(syscall.Errno(errno))
++	}
++	defer func() {
++		runtime.Close(r)
++		runtime.Close(w)
++	}()
++
++	checkIsPipe(t, r, w)
++
++	runtime.SetNonblock(r)
++	runtime.SetNonblock(w)
++	checkNonblocking(t, r, "reader")
++	checkNonblocking(t, w, "writer")
++
++	runtime.Closeonexec(r)
++	runtime.Closeonexec(w)
++	checkCloseonexec(t, r, "reader")
++	checkCloseonexec(t, w, "writer")
++}
+diff --git a/src/runtime/nbpipe_test.go b/src/runtime/nbpipe_test.go
+index 36342cfde8..b6869e7974 100644
+--- a/src/runtime/nbpipe_test.go
++++ b/src/runtime/nbpipe_test.go
+@@ -66,28 +66,3 @@ func checkCloseonexec(t *testing.T, fd int32, name string) {
+ 		t.Errorf("FD_CLOEXEC not set in %s flags %#x", name, flags)
+ 	}
+ }
+-
+-func TestSetNonblock(t *testing.T) {
+-	t.Parallel()
+-
+-	r, w, errno := runtime.Pipe()
+-	if errno != 0 {
+-		t.Fatal(syscall.Errno(errno))
+-	}
+-	defer func() {
+-		runtime.Close(r)
+-		runtime.Close(w)
+-	}()
+-
+-	checkIsPipe(t, r, w)
+-
+-	runtime.SetNonblock(r)
+-	runtime.SetNonblock(w)
+-	checkNonblocking(t, r, "reader")
+-	checkNonblocking(t, w, "writer")
+-
+-	runtime.Closeonexec(r)
+-	runtime.Closeonexec(w)
+-	checkCloseonexec(t, r, "reader")
+-	checkCloseonexec(t, w, "writer")
+-}
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 4aba0ff64b..5aee04d5a8 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -561,13 +561,6 @@ func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
+ 	return -int32(err)
+ }
+ 
+-//go:nosplit
+-func pipe() (r, w int32, errno int32) {
+-	var p [2]int32
+-	_, e := sysvicall1Err(&libc_pipe, uintptr(noescape(unsafe.Pointer(&p))))
+-	return p[0], p[1], int32(e)
+-}
+-
+ //go:nosplit
+ func pipe2(flags int32) (r, w int32, errno int32) {
+ 	var p [2]int32
+@@ -580,12 +573,6 @@ func closeonexec(fd int32) {
+ 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+ }
+ 
+-//go:nosplit
+-func setNonblock(fd int32) {
+-	flags := fcntl(fd, _F_GETFL, 0)
+-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+-}
+-
+ func osyield1()
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 152d94cf43..a56706b415 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -62,10 +62,8 @@ func kqueue() int32
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+-func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+-func setNonblock(fd int32)
+ 
+ // From DragonFly's <sys/sysctl.h>
+ const (
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index d908a80cd1..e4d15474d8 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -47,10 +47,8 @@ func kqueue() int32
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+-func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+-func setNonblock(fd int32)
+ 
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index eb8aa076e9..efb54ff20e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -446,9 +446,7 @@ func osyield_no_g() {
+ 	osyield()
+ }
+ 
+-func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+-func setNonblock(fd int32)
+ 
+ const (
+ 	_si_max_size    = 128
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index c4e69fb189..88a4a8b90e 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -78,10 +78,8 @@ func kqueue() int32
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+ 
+-func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+-func setNonblock(fd int32)
+ 
+ const (
+ 	_ESRCH     = 3
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index 99542fb2de..a48f5fa88a 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -70,7 +70,6 @@ func sigprocmask(how int32, new, old *sigset) {
+ 	}
+ }
+ 
+-func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ 
+ //go:noescape
+@@ -95,6 +94,5 @@ func nanotime1() int64
+ func sigaltstack(new, old *stackt)
+ 
+ func closeonexec(fd int32)
+-func setNonblock(fd int32)
+ 
+ func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index d57bc2a7a4..684c9ab7f0 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -109,21 +109,6 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVL	$42, AX
+-	SYSCALL
+-	JCC	pipeok
+-	MOVL	$-1,r+0(FP)
+-	MOVL	$-1,w+4(FP)
+-	MOVL	AX, errno+8(FP)
+-	RET
+-pipeok:
+-	MOVL	AX, r+0(FP)
+-	MOVL	DX, w+4(FP)
+-	MOVL	$0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+ 	MOVL	$0, DI
+@@ -402,18 +387,3 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$92, AX		// fcntl
+ 	SYSCALL
+ 	RET
+-
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $3, SI  // F_GETFL
+-	MOVQ    $0, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	MOVL	fd+0(FP), DI // fd
+-	MOVQ	$4, SI // F_SETFL
+-	MOVQ	$4, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	RET
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 97e6d9ab36..aceb6fe1bf 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -101,21 +101,6 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$8-12
+-	MOVL	$42, AX
+-	INT	$0x80
+-	JAE	ok
+-	MOVL	$0, r+0(FP)
+-	MOVL	$0, w+4(FP)
+-	MOVL	AX, errno+8(FP)
+-	RET
+-ok:
+-	MOVL	AX, r+0(FP)
+-	MOVL	DX, w+4(FP)
+-	MOVL	$0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$12-16
+ 	MOVL	$542, AX
+@@ -443,23 +428,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	NEGL	AX
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
+-	MOVL	$92, AX // fcntl
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	BX, 4(SP)
+-	MOVL	$3, 8(SP) // F_GETFL
+-	MOVL	$0, 12(SP)
+-	INT	$0x80
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	BX, 4(SP)
+-	MOVL	$4, 8(SP) // F_SETFL
+-	ORL	$4, AX // O_NONBLOCK
+-	MOVL	AX, 12(SP)
+-	MOVL	$92, AX // fcntl
+-	INT	$0x80
+-	RET
+-
+ // func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+ 	MOVL	$487, AX
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 165e97c60d..cc95da7e64 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -102,21 +102,6 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVL	$42, AX
+-	SYSCALL
+-	JCC	ok
+-	MOVL	$0, r+0(FP)
+-	MOVL	$0, w+4(FP)
+-	MOVL	AX, errno+8(FP)
+-	RET
+-ok:
+-	MOVL	AX, r+0(FP)
+-	MOVL	DX, w+4(FP)
+-	MOVL	$0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+ 	LEAQ	r+8(FP), DI
+@@ -491,21 +476,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $3, SI  // F_GETFL
+-	MOVQ    $0, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	MOVL	fd+0(FP), DI // fd
+-	MOVQ	$4, SI // F_SETFL
+-	MOVQ	$4, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	RET
+-
+ // func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-44
+ 	MOVQ	level+0(FP), DI
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index b12e47c576..88ab0fc795 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -20,7 +20,6 @@
+ #define SYS_close (SYS_BASE + 6)
+ #define SYS_getpid (SYS_BASE + 20)
+ #define SYS_kill (SYS_BASE + 37)
+-#define SYS_pipe (SYS_BASE + 42)
+ #define SYS_sigaltstack (SYS_BASE + 53)
+ #define SYS_munmap (SYS_BASE + 73)
+ #define SYS_madvise (SYS_BASE + 75)
+@@ -123,23 +122,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVW	$SYS_pipe, R7
+-	SWI	$0
+-	BCC	ok
+-	MOVW	$0, R1
+-	MOVW	R1, r+0(FP)
+-	MOVW	R1, w+4(FP)
+-	MOVW	R0, errno+8(FP)
+-	RET
+-ok:
+-	MOVW	R0, r+0(FP)
+-	MOVW	R1, w+4(FP)
+-	MOVW	$0, R1
+-	MOVW	R1, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW	$r+4(FP), R0
+@@ -414,20 +396,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SWI $0
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVW	fd+0(FP), R0	// fd
+-	MOVW	$3, R1	// F_GETFL
+-	MOVW	$0, R2
+-	MOVW	$SYS_fcntl, R7
+-	SWI	$0
+-	ORR	$0x4, R0, R2	// O_NONBLOCK
+-	MOVW	fd+0(FP), R0	// fd
+-	MOVW	$4, R1	// F_SETFL
+-	MOVW	$SYS_fcntl, R7
+-	SWI	$0
+-	RET
+-
+ // TODO: this is only valid for ARMv7+
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 1aa09e87ca..59adf4e5f3 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -133,18 +133,6 @@ ok:
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVD	$r+0(FP), R0
+-	MOVW	$0, R1
+-	MOVD	$SYS_pipe2, R8
+-	SVC
+-	BCC	ok
+-	NEG	R0, R0
+-ok:
+-	MOVW	R0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVD	$r+8(FP), R0
+@@ -492,20 +480,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	SVC
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVW	fd+0(FP), R0
+-	MOVD	$F_GETFL, R1
+-	MOVD	$0, R2
+-	MOVD	$SYS_fcntl, R8
+-	SVC
+-	ORR	$O_NONBLOCK, R0, R2
+-	MOVW	fd+0(FP), R0
+-	MOVW	$F_SETFL, R1
+-	MOVW	$SYS_fcntl, R7
+-	SVC
+-	RET
+-
+ // func getCntxct(physical bool) uint32
+ TEXT runtime·getCntxct(SB),NOSPLIT,$0
+ 	MOVB	physical+0(FP), R0
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 6df812234c..fef68d51dc 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -32,7 +32,6 @@
+ #define SYS_getpid		20
+ #define SYS_access		33
+ #define SYS_kill		37
+-#define SYS_pipe		42
+ #define SYS_brk 		45
+ #define SYS_fcntl		55
+ #define SYS_munmap		91
+@@ -130,14 +129,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVL	$SYS_pipe, AX
+-	LEAL	r+0(FP), BX
+-	INVOKE_SYSCALL
+-	MOVL	AX, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVL	$SYS_pipe2, AX
+@@ -782,21 +773,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	INVOKE_SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL	$SYS_fcntl, AX
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	$3, CX // F_GETFL
+-	MOVL	$0, DX
+-	INVOKE_SYSCALL
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	$4, CX // F_SETFL
+-	MOVL	$0x800, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$SYS_fcntl, AX
+-	INVOKE_SYSCALL
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0
+ 	MOVL	$SYS_access, AX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index f0e58e11db..4be0801114 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -22,7 +22,6 @@
+ #define SYS_rt_sigaction	13
+ #define SYS_rt_sigprocmask	14
+ #define SYS_rt_sigreturn	15
+-#define SYS_pipe		22
+ #define SYS_sched_yield 	24
+ #define SYS_mincore		27
+ #define SYS_madvise		28
+@@ -114,14 +113,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	LEAQ	r+0(FP), DI
+-	MOVL	$SYS_pipe, AX
+-	SYSCALL
+-	MOVL	AX, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+ 	LEAQ	r+8(FP), DI
+@@ -708,21 +699,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $3, SI  // F_GETFL
+-	MOVQ    $0, DX
+-	MOVL	$SYS_fcntl, AX
+-	SYSCALL
+-	MOVL	fd+0(FP), DI // fd
+-	MOVQ	$4, SI // F_SETFL
+-	MOVQ	$0x800, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$SYS_fcntl, AX
+-	SYSCALL
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0
+ 	// This uses faccessat instead of access, because Android O blocks access.
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index ca443b699f..201940b4e6 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -23,7 +23,6 @@
+ #define SYS_close (SYS_BASE + 6)
+ #define SYS_getpid (SYS_BASE + 20)
+ #define SYS_kill (SYS_BASE + 37)
+-#define SYS_pipe (SYS_BASE + 42)
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_rt_sigreturn (SYS_BASE + 173)
+ #define SYS_rt_sigaction (SYS_BASE + 174)
+@@ -98,14 +97,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVW	$r+0(FP), R0
+-	MOVW	$SYS_pipe, R7
+-	SWI	$0
+-	MOVW	R0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW	$r+4(FP), R0
+@@ -717,20 +708,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SWI	$0
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVW	fd+0(FP), R0	// fd
+-	MOVW	$3, R1	// F_GETFL
+-	MOVW	$0, R2
+-	MOVW	$SYS_fcntl, R7
+-	SWI	$0
+-	ORR	$0x800, R0, R2	// O_NONBLOCK
+-	MOVW	fd+0(FP), R0	// fd
+-	MOVW	$4, R1	// F_SETFL
+-	MOVW	$SYS_fcntl, R7
+-	SWI	$0
+-	RET
+-
+ // b __kuser_get_tls @ 0xffff0fe0
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0xffff0fe0, R0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 1276c077d7..5f05afb743 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -113,15 +113,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVD	$r+0(FP), R0
+-	MOVW	$0, R1
+-	MOVW	$SYS_pipe2, R8
+-	SVC
+-	MOVW	R0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVD	$r+8(FP), R0
+@@ -740,21 +731,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	SVC
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R0 // fd
+-	MOVD	$3, R1	// F_GETFL
+-	MOVD	$0, R2
+-	MOVD	$SYS_fcntl, R8
+-	SVC
+-	MOVD	$0x800, R2 // O_NONBLOCK
+-	ORR	R0, R2
+-	MOVW	fd+0(FP), R0 // fd
+-	MOVD	$4, R1	// F_SETFL
+-	MOVD	$SYS_fcntl, R8
+-	SVC
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0-20
+ 	MOVD	$AT_FDCWD, R0
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 0df2597993..3c7f0e7307 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -113,17 +113,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVV	$r+0(FP), R4
+-	MOVV	R0, R5
+-	MOVV	$SYS_pipe2, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVV	$r+8(FP), R4
+@@ -635,21 +624,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R4 // fd
+-	MOVV	$3, R5	// F_GETFL
+-	MOVV	$0, R6
+-	MOVV	$SYS_fcntl, R2
+-	SYSCALL
+-	MOVW	$0x80, R6 // O_NONBLOCK
+-	OR	R2, R6
+-	MOVW	fd+0(FP), R4 // fd
+-	MOVV	$4, R5	// F_SETFL
+-	MOVV	$SYS_fcntl, R2
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 2207e9ab98..ab4e976ee4 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -19,7 +19,6 @@
+ #define SYS_close		4006
+ #define SYS_getpid		4020
+ #define SYS_kill		4037
+-#define SYS_pipe		4042
+ #define SYS_brk			4045
+ #define SYS_fcntl		4055
+ #define SYS_mmap		4090
+@@ -112,23 +111,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVW	$SYS_pipe, R2
+-	SYSCALL
+-	BEQ	R7, pipeok
+-	MOVW	$-1, R1
+-	MOVW	R1, r+0(FP)
+-	MOVW	R1, w+4(FP)
+-	SUBU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, errno+8(FP)
+-	RET
+-pipeok:
+-	MOVW	R2, r+0(FP)
+-	MOVW	R3, w+4(FP)
+-	MOVW	R0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW	$r+4(FP), R4
+@@ -559,21 +541,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0-4
+ 	SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVW	fd+0(FP), R4 // fd
+-	MOVW	$3, R5	// F_GETFL
+-	MOVW	$0, R6
+-	MOVW	$SYS_fcntl, R2
+-	SYSCALL
+-	MOVW	$0x80, R6 // O_NONBLOCK
+-	OR	R2, R6
+-	MOVW	fd+0(FP), R4 // fd
+-	MOVW	$4, R5	// F_SETFL
+-	MOVW	$SYS_fcntl, R2
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index dc3d89fae7..48f9334795 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -20,7 +20,6 @@
+ #define SYS_close		  6
+ #define SYS_getpid		 20
+ #define SYS_kill		 37
+-#define SYS_pipe		 42
+ #define SYS_brk			 45
+ #define SYS_fcntl		 55
+ #define SYS_mmap		 90
+@@ -104,13 +103,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	ADD	$FIXED_FRAME, R1, R3
+-	SYSCALL	$SYS_pipe
+-	MOVW	R3, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	ADD	$FIXED_FRAME+8, R1, R3
+@@ -933,18 +925,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL	$SYS_fcntl
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R3 // fd
+-	MOVD	$3, R4	// F_GETFL
+-	MOVD	$0, R5
+-	SYSCALL	$SYS_fcntl
+-	OR	$0x800, R3, R5 // O_NONBLOCK
+-	MOVW	fd+0(FP), R3 // fd
+-	MOVD	$4, R4	// F_SETFL
+-	SYSCALL	$SYS_fcntl
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index a3da46d136..8dde29eb92 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -118,15 +118,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	A0, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOV	$r+0(FP), A0
+-	MOV	ZERO, A1
+-	MOV	$SYS_pipe2, A7
+-	ECALL
+-	MOVW	A0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOV	$r+8(FP), A0
+@@ -635,21 +626,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	ECALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), A0 // fd
+-	MOV	$3, A1	// F_GETFL
+-	MOV	$0, A2
+-	MOV	$SYS_fcntl, A7
+-	ECALL
+-	MOV	$0x800, A2 // O_NONBLOCK
+-	OR	A0, A2
+-	MOVW	fd+0(FP), A0 // fd
+-	MOV	$4, A1	// F_SETFL
+-	MOV	$SYS_fcntl, A7
+-	ECALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 886add8b54..03ec7f03fd 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -16,7 +16,6 @@
+ #define SYS_close                 6
+ #define SYS_getpid               20
+ #define SYS_kill                 37
+-#define SYS_pipe		 42
+ #define SYS_brk			 45
+ #define SYS_fcntl                55
+ #define SYS_mmap                 90
+@@ -103,14 +102,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVD	$r+0(FP), R2
+-	MOVW	$SYS_pipe, R1
+-	SYSCALL
+-	MOVW	R2, errno+8(FP)
+-	RET
+-
+ // func pipe2() (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVD	$r+8(FP), R2
+@@ -497,21 +488,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL
+ 	RET
+ 
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R2 // fd
+-	MOVD	$3, R3	// F_GETFL
+-	XOR	R4, R4
+-	MOVW	$SYS_fcntl, R1
+-	SYSCALL
+-	MOVD	$0x800, R4 // O_NONBLOCK
+-	OR	R2, R4
+-	MOVW	fd+0(FP), R2 // fd
+-	MOVD	$4, R3	// F_SETFL
+-	MOVW	$SYS_fcntl, R1
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 8a33894892..b7d4645af1 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -87,21 +87,6 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVL	$42, AX
+-	INT	$0x80
+-	JCC	pipeok
+-	MOVL	$-1, r+0(FP)
+-	MOVL	$-1, w+4(FP)
+-	MOVL	AX, errno+8(FP)
+-	RET
+-pipeok:
+-	MOVL	AX, r+0(FP)
+-	MOVL	DX, w+4(FP)
+-	MOVL	$0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$12-16
+ 	MOVL	$453, AX
+@@ -484,20 +469,3 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	JAE	2(PC)
+ 	NEGL	AX
+ 	RET
+-
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
+-	MOVL	$92, AX // fcntl
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	BX, 4(SP)
+-	MOVL	$3, 8(SP) // F_GETFL
+-	MOVL	$0, 12(SP)
+-	INT	$0x80
+-	MOVL	fd+0(FP), BX // fd
+-	MOVL	BX, 4(SP)
+-	MOVL	$4, 8(SP) // F_SETFL
+-	ORL	$4, AX // O_NONBLOCK
+-	MOVL	AX, 12(SP)
+-	MOVL	$92, AX // fcntl
+-	INT	$0x80
+-	RET
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 02f5b4ba3b..41eddf3735 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -163,21 +163,6 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVL	$42, AX
+-	SYSCALL
+-	JCC	pipeok
+-	MOVL	$-1, r+0(FP)
+-	MOVL	$-1, w+4(FP)
+-	MOVL	AX, errno+8(FP)
+-	RET
+-pipeok:
+-	MOVL	AX, r+0(FP)
+-	MOVL	DX, w+4(FP)
+-	MOVL	$0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+ 	LEAQ	r+8(FP), DI
+@@ -449,18 +434,3 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$SYS_fcntl, AX
+ 	SYSCALL
+ 	RET
+-
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $3, SI  // F_GETFL
+-	MOVQ    $0, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	MOVL	fd+0(FP), DI // fd
+-	MOVQ	$4, SI // F_SETFL
+-	MOVQ	$4, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	RET
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 3a763b2a6a..bbca040994 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -96,22 +96,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	SWI $0xa0002a
+-	BCC pipeok
+-	MOVW $-1,R2
+-	MOVW R2, r+0(FP)
+-	MOVW R2, w+4(FP)
+-	MOVW R0, errno+8(FP)
+-	RET
+-pipeok:
+-	MOVW $0, R2
+-	MOVW R0, r+0(FP)
+-	MOVW R1, w+4(FP)
+-	MOVW R2, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW $r+4(FP), R0
+@@ -422,18 +406,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SWI $SYS_fcntl
+ 	RET
+ 
+-// func runtime·setNonblock(fd int32)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVW fd+0(FP), R0	// fd
+-	MOVW $3, R1	// F_GETFL
+-	MOVW $0, R2
+-	SWI $0xa0005c	// sys_fcntl
+-	ORR $0x4, R0, R2	// O_NONBLOCK
+-	MOVW fd+0(FP), R0	// fd
+-	MOVW $4, R1	// F_SETFL
+-	SWI $0xa0005c	// sys_fcntl
+-	RET
+-
+ // TODO: this is only valid for ARMv7+
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 8a0496e807..f7cce57c2d 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -154,17 +154,6 @@ ok:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	ADD	$8, RSP, R0
+-	MOVW	$0, R1
+-	SVC	$SYS_pipe2
+-	BCC	pipeok
+-	NEG	R0, R0
+-pipeok:
+-	MOVW	R0, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	ADD	$16, RSP, R0
+@@ -466,16 +455,3 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW	$FD_CLOEXEC, R2
+ 	SVC	$SYS_fcntl
+ 	RET
+-
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVD	$F_GETFL, R1		// arg 2 - cmd
+-	MOVD	$0, R2			// arg 3
+-	SVC	$SYS_fcntl
+-	MOVD	$O_NONBLOCK, R2
+-	EOR	R0, R2			// arg 3 - flags
+-	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVD	$F_SETFL, R1		// arg 2 - cmd
+-	SVC	$SYS_fcntl
+-	RET
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 4d50b4f6b1..d174d87a49 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -111,10 +111,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ }
+ func write_trampoline()
+ 
+-func pipe() (r, w int32, errno int32) {
+-	return pipe2(0)
+-}
+-
+ func pipe2(flags int32) (r, w int32, errno int32) {
+ 	var p [2]int32
+ 	args := struct {
+@@ -258,12 +254,6 @@ func closeonexec(fd int32) {
+ 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+ }
+ 
+-//go:nosplit
+-func setNonblock(fd int32) {
+-	flags := fcntl(fd, _F_GETFL, 0)
+-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+-}
+-
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index f8ae8e7c30..3b18bdda7a 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -64,17 +64,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVV	$r+0(FP), R4
+-	MOVW	$0, R5
+-	MOVV	$101, R2		// sys_pipe2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, errno+8(FP)
+-	RET
+-
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVV	$r+8(FP), R4
+@@ -383,18 +372,3 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVV	$92, R2			// sys_fcntl
+ 	SYSCALL
+ 	RET
+-
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	fd+0(FP), R4		// arg 1 - fd
+-	MOVV	$3, R5			// arg 2 - cmd (F_GETFL)
+-	MOVV	$0, R6			// arg 3
+-	MOVV	$92, R2			// sys_fcntl
+-	SYSCALL
+-	MOVV	$4, R6			// O_NONBLOCK
+-	OR	R2, R6			// arg 3 - flags
+-	MOVW	fd+0(FP), R4		// arg 1 - fd
+-	MOVV	$4, R5			// arg 2 - cmd (F_SETFL)
+-	MOVV	$92, R2			// sys_fcntl
+-	SYSCALL
+-	RET

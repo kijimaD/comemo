@@ -15,7 +15,7 @@ Date:   Mon Feb 22 21:51:35 2021 -0500
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go     | 64 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/expand_calls.go | 58 ++++++++++++++++---------
  src/cmd/compile/internal/ssa/lower.go        |  3 +-
@@ -24,3 +24,332 @@ Date:   Mon Feb 22 21:51:35 2021 -0500
  test/abi/fibish.go                           | 33 ++++++++++++++
  test/abi/fibish.out                          |  1 +
  7 files changed, 164 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index f84f8f8e01..ffa709965c 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -101,6 +101,70 @@ func (a *ABIParamAssignment) Offset() int32 {
+ 	return a.offset
+ }
+ 
++// RegisterTypes returns a slice of the types of the registers
++// corresponding to a slice of parameters.  The returned slice
++// has capacity for one more, likely a memory type.
++func RegisterTypes(apa []ABIParamAssignment) []*types.Type {
++	rcount := 0
++	for _, pa := range apa {
++		rcount += len(pa.Registers)
++	}
++	if rcount == 0 {
++		// Note that this catches top-level struct{} and [0]Foo, which are stack allocated.
++		return make([]*types.Type, 0, 1)
++	}
++	rts := make([]*types.Type, 0, rcount+1)
++	for _, pa := range apa {
++		if len(pa.Registers) == 0 {
++			continue
++		}
++		rts = appendParamRegs(rts, pa.Type)
++	}
++	return rts
++}
++
++func appendParamRegs(rts []*types.Type, t *types.Type) []*types.Type {
++	if t.IsScalar() || t.IsPtrShaped() {
++		if t.IsComplex() {
++			c := types.FloatForComplex(t)
++			return append(rts, c, c)
++		} else {
++			if int(t.Size()) <= types.RegSize {
++				return append(rts, t)
++			}
++			// assume 64bit int on 32-bit machine
++			// TODO endianness? Should high-order (sign bits) word come first?
++			if t.IsSigned() {
++				rts = append(rts, types.Types[types.TINT32])
++			} else {
++				rts = append(rts, types.Types[types.TUINT32])
++			}
++			return append(rts, types.Types[types.TUINT32])
++		}
++	} else {
++		typ := t.Kind()
++		switch typ {
++		case types.TARRAY:
++			for i := int64(0); i < t.Size(); i++ { // 0 gets no registers, plus future-proofing.
++				rts = appendParamRegs(rts, t.Elem())
++			}
++		case types.TSTRUCT:
++			for _, f := range t.FieldSlice() {
++				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
++					rts = appendParamRegs(rts, f.Type)
++				}
++			}
++		case types.TSLICE:
++			return appendParamRegs(rts, synthSlice)
++		case types.TSTRING:
++			return appendParamRegs(rts, synthString)
++		case types.TINTER:
++			return appendParamRegs(rts, synthIface)
++		}
++	}
++	return rts
++}
++
+ // SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
+ // Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
+ // then that will be the address.
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index ff16eac90f..6e14a90e79 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -14,10 +14,10 @@ import (
+ )
+ 
+ type selKey struct {
+-	from   *Value
+-	offset int64
+-	size   int64
+-	typ    *types.Type
++	from          *Value // what is selected from
++	offsetOrIndex int64  // whatever is appropriate for the selector
++	size          int64
++	typ           *types.Type
+ }
+ 
+ type offsetKey struct {
+@@ -372,6 +372,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		// if applied to Op-mumble-call, the Aux tells us which result, regOffset specifies offset within result.  If a register, should rewrite to OpSelectN for new call.
+ 		// TODO these may be duplicated. Should memoize. Intermediate selectors will go dead, no worries there.
+ 		call := selector.Args[0]
++		call0 := call
+ 		aux := call.Aux.(*AuxCall)
+ 		which := selector.AuxInt
+ 		if which == aux.NResults() { // mem is after the results.
+@@ -398,7 +399,6 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 			leafType := removeTrivialWrapperTypes(leaf.Type)
+ 			if x.canSSAType(leafType) {
+ 				pt := types.NewPtr(leafType)
+-				off := x.offsetFrom(x.sp, offset+aux.OffsetOfResult(which), pt)
+ 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
+ 				if call.Op == OpStaticLECall { // TODO this is temporary until all calls are register-able
+ 					// Create a "mem" for any loads that need to occur.
+@@ -413,15 +413,30 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 						call = mem
+ 					}
+ 				}
+-				if leaf.Block == call.Block {
+-					leaf.reset(OpLoad)
+-					leaf.SetArgs2(off, call)
+-					leaf.Type = leafType
++				outParam := aux.abiInfo.OutParam(int(which))
++				if len(outParam.Registers) > 0 {
++					reg := int64(outParam.Registers[regOffset])
++					if leaf.Block == call.Block {
++						leaf.reset(OpSelectN)
++						leaf.SetArgs1(call0)
++						leaf.Type = leafType
++						leaf.AuxInt = reg
++					} else {
++						w := call.Block.NewValue1I(leaf.Pos, OpSelectN, leafType, reg, call0)
++						leaf.copyOf(w)
++					}
+ 				} else {
+-					w := call.Block.NewValue2(leaf.Pos, OpLoad, leafType, off, call)
+-					leaf.copyOf(w)
+-					if x.debug {
+-						fmt.Printf("\tnew %s\n", w.LongString())
++					off := x.offsetFrom(x.sp, offset+aux.OffsetOfResult(which), pt)
++					if leaf.Block == call.Block {
++						leaf.reset(OpLoad)
++						leaf.SetArgs2(off, call)
++						leaf.Type = leafType
++					} else {
++						w := call.Block.NewValue2(leaf.Pos, OpLoad, leafType, off, call)
++						leaf.copyOf(w)
++						if x.debug {
++							fmt.Printf("\tnew %s\n", w.LongString())
++						}
+ 					}
+ 				}
+ 				for _, s := range x.namedSelects[selector] {
+@@ -812,7 +827,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		s = b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, source, mem)
+ 	}
+ 	if x.debug {
+-		fmt.Printf("\t\tstoreArg returns %s\n", s.LongString())
++		fmt.Printf("\t\tstoreArg returns %s, storeRc=%s\n", s.LongString(), storeRc.String())
+ 	}
+ 	return s
+ }
+@@ -983,9 +998,11 @@ func expandCalls(f *Func) {
+ 					mem = x.storeArgOrLoad(v.Pos, b, a, mem, aux.TypeOfResult(i), auxOffset, 0, rc)
+ 				}
+ 			}
+-			// TODO REGISTER -- keep the Result for block control, splice in contents of AllResults
+-			b.SetControl(mem)
+-			v.reset(OpInvalid) // otherwise it can have a mem operand which will fail check(), even though it is dead.
++			v.resetArgs()
++			v.AddArgs(allResults...)
++			v.AddArg(mem)
++			v.Type = types.NewResults(append(abi.RegisterTypes(aux.abiInfo.OutParams()), types.TypeMem))
++			b.SetControl(v)
+ 		}
+ 	}
+ 
+@@ -1170,7 +1187,7 @@ func expandCalls(f *Func) {
+ 		case OpArraySelect:
+ 			offset = size * v.AuxInt
+ 		case OpSelectN:
+-			offset = w.Aux.(*AuxCall).OffsetOfResult(v.AuxInt)
++			offset = v.AuxInt // offset is just a key, really.
+ 		case OpInt64Hi:
+ 			offset = x.hiOffset
+ 		case OpInt64Lo:
+@@ -1182,7 +1199,7 @@ func expandCalls(f *Func) {
+ 		case OpComplexImag:
+ 			offset = size
+ 		}
+-		sk := selKey{from: w, size: size, offset: offset, typ: typ}
++		sk := selKey{from: w, size: size, offsetOrIndex: offset, typ: typ}
+ 		dupe := x.commonSelectors[sk]
+ 		if dupe == nil {
+ 			x.commonSelectors[sk] = v
+@@ -1240,8 +1257,9 @@ func expandCalls(f *Func) {
+ 				x.rewriteArgToMemOrRegs(v)
+ 			case OpStaticLECall:
+ 				v.Op = OpStaticCall
++				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
+ 				// TODO need to insert all the register types.
+-				v.Type = types.NewResults([]*types.Type{types.TypeMem})
++				v.Type = types.NewResults(append(rts, types.TypeMem))
+ 			case OpClosureLECall:
+ 				v.Op = OpClosureCall
+ 				v.Type = types.TypeMem
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index bbb80a7a30..5760c35601 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -24,7 +24,7 @@ func checkLower(f *Func) {
+ 			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
+ 				continue // ok not to lower
+ 			case OpMakeResult:
+-				if len(b.Controls) == 1 && b.Controls[0] == v {
++				if b.Controls[0] == v {
+ 					continue
+ 				}
+ 			case OpGetG:
+@@ -34,6 +34,7 @@ func checkLower(f *Func) {
+ 				}
+ 			}
+ 			s := "not lowered: " + v.String() + ", " + v.Op.String() + " " + v.Type.SimpleString()
++
+ 			for _, a := range v.Args {
+ 				s += " " + a.Type.SimpleString()
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 4082e84c6a..0577ec7bed 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -134,6 +134,24 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
+ 	return a.reg
+ }
+ 
++func (a *AuxCall) ResultReg(c *Config) *regInfo {
++	if a.abiInfo.OutRegistersUsed() == 0 {
++		return a.reg
++	}
++	if len(a.reg.inputs) > 0 {
++		return a.reg
++	}
++	k := 0
++	for _, p := range a.abiInfo.OutParams() {
++		for _, r := range p.Registers {
++			m := archRegForAbiReg(r, c)
++			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
++			k++
++		}
++	}
++	return a.reg
++}
++
+ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
+ 	var m int8
+ 	if int(r) < len(c.intParamRegs) {
+@@ -285,10 +303,13 @@ func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParam
+ func (*AuxCall) CanBeAnSSAAux() {}
+ 
+ // OwnAuxCall returns a function's own AuxCall
+-
+ func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
+-	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo}
++	var reg *regInfo
++	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
++		reg = &regInfo{}
++	}
++	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c2d0478e82..15f6412a85 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -830,6 +830,9 @@ func (s *regAllocState) regspec(v *Value) regInfo {
+ 			return *ac.Reg(&opcodeTable[op].reg, s.f.Config)
+ 		}
+ 	}
++	if op == OpMakeResult && s.f.OwnAux.reg != nil {
++		return *s.f.OwnAux.ResultReg(s.f.Config)
++	}
+ 	return opcodeTable[op].reg
+ }
+ 
+diff --git a/test/abi/fibish.go b/test/abi/fibish.go
+new file mode 100644
+index 0000000000..b72f1322de
+--- /dev/null
++++ b/test/abi/fibish.go
+@@ -0,0 +1,33 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++// Test that register results are correctly returned (and passed)
++
++//go:registerparams
++//go:noinline
++func f(x int) (int, int) {
++
++	if x < 3 {
++		return 0, x
++	}
++
++	a, b := f(x - 2)
++	c, d := f(x - 1)
++	return a + d, b + c
++}
++
++func main() {
++	x := 40
++	a, b := f(x)
++	fmt.Printf("f(%d)=%d,%d\n", x, a, b)
++}
+diff --git a/test/abi/fibish.out b/test/abi/fibish.out
+new file mode 100644
+index 0000000000..9bd80c32c9
+--- /dev/null
++++ b/test/abi/fibish.out
+@@ -0,0 +1 @@
++f(40)=39088169,126491972

@@ -10,7 +10,49 @@ Date:   Sat Jul 11 06:42:48 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12070
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/get.go     | 10 ++++++++++
  src/cmd/go/go_test.go | 12 ++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 48b94d7265..f4780e18aa 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -205,6 +205,16 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 			return
+ 		}
+ 
++		// Warn that code.google.com is shutting down.  We
++		// issue the warning here because this is where we
++		// have the import stack.
++		if strings.HasPrefix(p.ImportPath, "code.google.com") {
++			fmt.Fprintf(os.Stderr, "warning: code.google.com is shutting down; import path %v will stop working\n", p.ImportPath)
++			if len(*stk) > 1 {
++				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
++			}
++		}
++
+ 		args := []string{arg}
+ 		// If the argument has a wildcard in it, re-evaluate the wildcard.
+ 		// We delay this until after reloadPackage so that the old entry
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3b0b112cb0..008d40f7e1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2019,3 +2019,15 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
+ 	tg.runFail("get", "-d", repo)
+ 	tg.run("get", "-d", "-insecure", repo)
+ }
++
++func TestIssue10193(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempDir("src")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.runFail("get", "code.google.com/p/rsc-svn")
++	tg.grepStderr("is shutting down", "missed warning about code.google.com")
++}

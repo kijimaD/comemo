@@ -17,7 +17,38 @@ Date:   Fri Apr 7 01:19:21 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  api/next/44855.txt     | 1 +
  src/net/http/client.go | 5 ++++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/44855.txt b/api/next/44855.txt
+new file mode 100644
+index 0000000000..89a3ff5f33
+--- /dev/null
++++ b/api/next/44855.txt
+@@ -0,0 +1 @@
++pkg net/http, var ErrSchemeMismatch error #44855
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 1e300acf89..2cab53a585 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -204,6 +204,9 @@ func (c *Client) transport() RoundTripper {
+ 	return DefaultTransport
+ }
+ 
++// ErrSchemeMismatch is returned when a server returns an HTTP response to an HTTPS client.
++var ErrSchemeMismatch = errors.New("http: server gave HTTP response to HTTPS client")
++
+ // send issues an HTTP request.
+ // Caller should close resp.Body when done reading from it.
+ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
+@@ -265,7 +268,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 			// response looks like HTTP and give a more helpful error.
+ 			// See golang.org/issue/11111.
+ 			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
+-				err = errors.New("http: server gave HTTP response to HTTPS client")
++				err = ErrSchemeMismatch
+ 			}
+ 		}
+ 		return nil, didTimeout, err

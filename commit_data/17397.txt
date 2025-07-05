@@ -7,6 +7,20 @@ Date:   Tue Aug 27 06:32:24 2013 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/13274043
-
+---
  src/pkg/encoding/binary/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/binary/example_test.go b/src/pkg/encoding/binary/example_test.go
+index dec12ebf5d..067cf553be 100644
+--- a/src/pkg/encoding/binary/example_test.go
++++ b/src/pkg/encoding/binary/example_test.go
+@@ -42,7 +42,7 @@ func ExampleWrite_multi() {
+ func ExampleRead() {
+ 	var pi float64
+ 	b := []byte{0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40}
+-	buf := bytes.NewBuffer(b)
++	buf := bytes.NewReader(b)
+ 	err := binary.Read(buf, binary.LittleEndian, &pi)
+ 	if err != nil {
+ 		fmt.Println("binary.Read failed:", err)

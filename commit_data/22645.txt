@@ -13,6 +13,20 @@ Date:   Mon Mar 30 15:06:33 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8270
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/obj/arm64/obj7.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index dfba86ccb9..a9f8d47339 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -361,7 +361,7 @@ loop:
+ 	if p.Mark&FOLL != 0 {
+ 		i = 0
+ 		q = p
+-		for ; i < 4; (func() { i++; q = q.Link })() {
++		for ; i < 4; i, q = i+1, q.Link {
+ 			if q == *last || q == nil {
+ 				break
+ 			}

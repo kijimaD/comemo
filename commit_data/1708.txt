@@ -7,6 +7,19 @@ Date:   Mon Feb 23 17:16:55 2009 -0800
     R=r
     OCL=25343
     CL=25343
-
+---
  usr/gri/pretty/scanner.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 18e5d57921..05275a0f65 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -399,7 +399,6 @@ func (S *Scanner) scanComment() string {
+ 
+ 	if S.ch == '/' {
+ 		//-style comment
+-		S.next();
+ 		for S.ch >= 0 {
+ 			S.next();
+ 			if S.ch == '\n' {

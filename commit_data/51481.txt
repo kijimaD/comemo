@@ -11,6 +11,17 @@ Date:   Thu Feb 3 15:17:00 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  test/typeparam/issue50993.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/typeparam/issue50993.go b/test/typeparam/issue50993.go
+index 4d459fd04c..39bdba0772 100644
+--- a/test/typeparam/issue50993.go
++++ b/test/typeparam/issue50993.go
+@@ -1,4 +1,4 @@
+-// compile -d=checkptr
++// compile -G=3 -d=checkptr
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

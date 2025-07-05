@@ -7,6 +7,35 @@ Date:   Thu Jul 16 13:25:36 2015 -0600
     Change-Id: I8625eff33f5a49dbaaec060c3fa067d7531193c4
     Reviewed-on: https://go-review.googlesource.com/12313
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index aa44dc0798..1b01894ee3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -299,8 +299,13 @@ func (s *state) stmt(n *Node) {
+ 	case OBLOCK:
+ 		s.stmtList(n.List)
+ 
++	// No-ops
+ 	case OEMPTY, ODCLCONST, ODCLTYPE:
+ 
++	// Expression statements
++	case OCALLFUNC, OCALLMETH, OCALLINTER:
++		s.expr(n)
++
+ 	case ODCL:
+ 		if n.Left.Class&PHEAP == 0 {
+ 			return
+@@ -434,9 +439,6 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		s.startBlock(bEnd)
+ 
+-	case OCALLFUNC:
+-		s.expr(n)
+-
+ 	case OVARKILL:
+ 		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
+ 		// Maybe just link it in the store chain?

@@ -18,7 +18,59 @@ Date:   Sun Mar 14 19:04:31 2021 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/parse/parse.go      |  6 ++++--
  src/text/template/parse/parse_test.go | 16 ++++++++++++++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 5e6e512eb4..ff1358b001 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -38,7 +38,8 @@ type Tree struct {
+ type Mode uint
+ 
+ const (
+-	ParseComments Mode = 1 << iota // parse comments and add them to AST
++	ParseComments  Mode = 1 << iota // parse comments and add them to AST
++	DeferFuncCheck                  // defer type checking functions until template is executed
+ )
+ 
+ // Copy returns a copy of the Tree. Any parsing state is discarded.
+@@ -689,7 +690,8 @@ func (t *Tree) operand() Node {
+ func (t *Tree) term() Node {
+ 	switch token := t.nextNonSpace(); token.typ {
+ 	case itemIdentifier:
+-		if !t.hasFunction(token.val) {
++		checkFunc := t.Mode&DeferFuncCheck == 0
++		if checkFunc && !t.hasFunction(token.val) {
+ 			t.errorf("function %q not defined", token.val)
+ 		}
+ 		return NewIdentifier(token.val).SetTree(t).SetPos(token.pos)
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 220f984777..c4585f6912 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -379,6 +379,22 @@ func TestParseWithComments(t *testing.T) {
+ 	}
+ }
+ 
++func TestDeferFuncCheck(t *testing.T) {
++	oldTextFormat := textFormat
++	textFormat = "%q"
++	defer func() { textFormat = oldTextFormat }()
++	tr := New("defer func check")
++	tr.Mode = DeferFuncCheck
++	tmpl, err := tr.Parse("{{fn 1 2}}", "", "", make(map[string]*Tree))
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	expected := "{{fn 1 2}}"
++	if result := tmpl.Root.String(); result != expected {
++		t.Errorf("got\n\t%v\nexpected\n\t%v", result, expected)
++	}
++}
++
+ type isEmptyTest struct {
+ 	name  string
+ 	input string

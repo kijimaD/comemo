@@ -12,8 +12,58 @@ Date:   Thu Mar 4 23:12:22 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/list.go                 | 9 +++++++--
  src/cmd/go/testdata/script/mod_outside.txt          | 5 +++++
  src/cmd/go/testdata/script/mod_retract_versions.txt | 5 +++++
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index c7ef8c9fb7..44803e960b 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -72,8 +72,13 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
+ 		if search.IsRelativePath(arg) {
+ 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
+ 		}
+-		if !HasModRoot() && (arg == "all" || strings.Contains(arg, "...")) {
+-			base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
++		if !HasModRoot() {
++			if arg == "all" || strings.Contains(arg, "...") {
++				base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
++			}
++			if !listVersions && !strings.Contains(arg, "@") {
++				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
++			}
+ 		}
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+ 			path := arg[:i]
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 9d4c22c77b..7c57db9f7c 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -61,6 +61,11 @@ stderr 'go: cannot match "all": go.mod file not found in current directory or an
+ stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! stdout 'example.com/version'
+ 
++# 'go list -m <mods>' should fail if any of the mods lacks an explicit version.
++! go list -m example.com/printversion
++stderr 'go: cannot match "example.com/printversion" without -versions or an explicit version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
++! stdout 'example.com/version'
++
+ # 'go list -m' with wildcards should fail. Wildcards match modules in the
+ # build list, so they aren't meaningful outside a module.
+ ! go list -m ...
+diff --git a/src/cmd/go/testdata/script/mod_retract_versions.txt b/src/cmd/go/testdata/script/mod_retract_versions.txt
+index 961a0a1fa3..012fa15f42 100644
+--- a/src/cmd/go/testdata/script/mod_retract_versions.txt
++++ b/src/cmd/go/testdata/script/mod_retract_versions.txt
+@@ -15,3 +15,8 @@ stdout '^example.com/retract/self/pseudo ""$'
+ 
+ go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
+ stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
++
++-- go.mod --
++module test
++
++go 1.17

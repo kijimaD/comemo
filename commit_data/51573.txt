@@ -17,7 +17,65 @@ Date:   Mon Feb 14 14:57:55 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/385795
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/src/pos.go      |  5 ++++-
  src/cmd/internal/src/pos_test.go | 14 +++++++-------
  2 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index b6816a56e0..373a22a7f2 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -389,9 +389,12 @@ func makeBogusLico() lico {
+ }
+ 
+ func makeLico(line, col uint) lico {
+-	if line > lineMax {
++	if line >= lineMax {
+ 		// cannot represent line, use max. line so we have some information
+ 		line = lineMax
++		// Drop column information if line number saturates.
++		// Ensures line+col is monotonic. See issue 51193.
++		col = 0
+ 	}
+ 	if col > colMax {
+ 		// cannot represent column, use max. column so we have some information
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index d4cd0e7ff1..cdf4ab4081 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -140,8 +140,8 @@ func TestLico(t *testing.T) {
+ 		{makeLico(1, 0), ":1", 1, 0},
+ 		{makeLico(1, 1), ":1:1", 1, 1},
+ 		{makeLico(2, 3), ":2:3", 2, 3},
+-		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1},
+-		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1}, // line too large, stick with max. line
++		{makeLico(lineMax, 1), fmt.Sprintf(":%d", lineMax), lineMax, 1},
++		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d", lineMax), lineMax, 1}, // line too large, stick with max. line
+ 		{makeLico(1, colMax), ":1", 1, colMax},
+ 		{makeLico(1, colMax+1), ":1", 1, 0}, // column too large
+ 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
+@@ -170,8 +170,8 @@ func TestIsStmt(t *testing.T) {
+ 		{makeLico(1, 1), ":1:1" + def, 1, 1},
+ 		{makeLico(1, 1).withIsStmt(), ":1:1" + is, 1, 1},
+ 		{makeLico(1, 1).withNotStmt(), ":1:1" + not, 1, 1},
+-		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax) + def, lineMax, 1},
+-		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d:1", lineMax) + def, lineMax, 1}, // line too large, stick with max. line
++		{makeLico(lineMax, 1), fmt.Sprintf(":%d", lineMax) + def, lineMax, 1},
++		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d", lineMax) + def, lineMax, 1}, // line too large, stick with max. line
+ 		{makeLico(1, colMax), ":1" + def, 1, colMax},
+ 		{makeLico(1, colMax+1), ":1" + def, 1, 0}, // column too large
+ 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax) + def, lineMax, 0},
+@@ -214,9 +214,9 @@ func TestLogue(t *testing.T) {
+ 		{makeLico(1, 1).withXlogue(PosPrologueEnd), ":1:1" + defs + pro, 1, 1},
+ 		{makeLico(1, 1).withXlogue(PosEpilogueBegin), ":1:1" + defs + epi, 1, 1},
+ 
+-		{makeLico(lineMax, 1).withXlogue(PosDefaultLogue), fmt.Sprintf(":%d:1", lineMax) + defs + defp, lineMax, 1},
+-		{makeLico(lineMax, 1).withXlogue(PosPrologueEnd), fmt.Sprintf(":%d:1", lineMax) + defs + pro, lineMax, 1},
+-		{makeLico(lineMax, 1).withXlogue(PosEpilogueBegin), fmt.Sprintf(":%d:1", lineMax) + defs + epi, lineMax, 1},
++		{makeLico(lineMax, 1).withXlogue(PosDefaultLogue), fmt.Sprintf(":%d", lineMax) + defs + defp, lineMax, 1},
++		{makeLico(lineMax, 1).withXlogue(PosPrologueEnd), fmt.Sprintf(":%d", lineMax) + defs + pro, lineMax, 1},
++		{makeLico(lineMax, 1).withXlogue(PosEpilogueBegin), fmt.Sprintf(":%d", lineMax) + defs + epi, lineMax, 1},
+ 	} {
+ 		x := test.x
+ 		if got := formatstr("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d:%d", x.IsStmt(), x.Xlogue()); got != test.string {

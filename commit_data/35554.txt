@@ -17,6 +17,20 @@ Date:   Sun Jan 28 19:46:57 2018 +0100
     Change-Id: I572e4be830ed8e5c0da555dc3a8864c8363112be
     Reviewed-on: https://go-review.googlesource.com/95015
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 299add4b35..ecbae721dd 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -918,7 +918,7 @@ func newobject(typ *_type) unsafe.Pointer {
+ 
+ //go:linkname reflect_unsafe_New reflect.unsafe_New
+ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+-	return newobject(typ)
++	return mallocgc(typ.size, typ, true)
+ }
+ 
+ // newarray allocates an array of n elements of type typ.

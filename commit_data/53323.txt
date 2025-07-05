@@ -18,7 +18,70 @@ Date:   Tue Aug 9 12:52:18 2022 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgcmark.go | 18 ++++++------------
  src/runtime/mheap.go   |  6 ++++--
  2 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 68600be4e7..5362ff0132 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -387,7 +387,9 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 				// Mark everything that can be reached from
+ 				// the object (but *not* the object itself or
+ 				// we'll never collect it).
+-				scanobject(p, gcw)
++				if !s.spanclass.noscan() {
++					scanobject(p, gcw)
++				}
+ 
+ 				// The special itself is a root.
+ 				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+@@ -1271,22 +1273,14 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 	if n == 0 {
+ 		throw("scanobject n == 0")
+ 	}
++	if s.spanclass.noscan() {
++		throw("scanobject of a noscan object")
++	}
+ 
+ 	if n > maxObletBytes {
+ 		// Large object. Break into oblets for better
+ 		// parallelism and lower latency.
+ 		if b == s.base() {
+-			// It's possible this is a noscan object (not
+-			// from greyobject, but from other code
+-			// paths), in which case we must *not* enqueue
+-			// oblets since their bitmaps will be
+-			// uninitialized.
+-			if s.spanclass.noscan() {
+-				// Bypass the whole scan.
+-				gcw.bytesMarked += uint64(n)
+-				return
+-			}
+-
+ 			// Enqueue the other oblets to scan later.
+ 			// Some oblets may be in b's scalar tail, but
+ 			// these will be marked as "no more pointers",
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b19a2ff408..5d4297617d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1862,12 +1862,14 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 		// situation where it's possible that markrootSpans
+ 		// has already run but mark termination hasn't yet.
+ 		if gcphase != _GCoff {
+-			base, _, _ := findObject(uintptr(p), 0, 0)
++			base, span, _ := findObject(uintptr(p), 0, 0)
+ 			mp := acquirem()
+ 			gcw := &mp.p.ptr().gcw
+ 			// Mark everything reachable from the object
+ 			// so it's retained for the finalizer.
+-			scanobject(base, gcw)
++			if !span.spanclass.noscan() {
++				scanobject(base, gcw)
++			}
+ 			// Mark the finalizer itself, since the
+ 			// special isn't part of the GC'd heap.
+ 			scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)

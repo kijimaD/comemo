@@ -10,6 +10,22 @@ Date:   Mon May 2 18:07:11 2011 -0700
     R=adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/4460041
-
+---
  doc/godocs.js | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 2b3ab065ff..20ee36350d 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -28,6 +28,10 @@ function godocs_onload() {
+ 
+ function godocs_bindSearchEvents() {
+   var search = document.getElementById('search');
++  if (!search) {
++    // no search box (index disabled)
++    return;
++  }
+   function clearInactive() {
+     if (search.className == "inactive") {
+       search.value = "";

@@ -11,7 +11,33 @@ Date:   Wed Mar 8 07:47:31 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/mail/message.go      | 2 +-
  src/net/mail/message_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 6db8a397e9..765abe2521 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -393,7 +393,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 		var word string
+ 		p.skipSpace()
+ 		if p.empty() {
+-			return "", errors.New("mail: missing phrase")
++			break
+ 		}
+ 		isEncoded := false
+ 		if p.peek() == '"' {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 0ed36b02f8..2106a0b97d 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -136,6 +136,7 @@ func TestAddressParsingError(t *testing.T) {
+ 		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
+ 		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
+ 		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
++		7: {"John Doe", "no angle-addr"},
+ 	}
+ 
+ 	for i, tc := range mustErrTestCases {

@@ -15,7 +15,74 @@ Date:   Wed Nov 29 15:55:40 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 11 +++++++++++
  test/fixedbugs/issue21709.go       | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 7ef07961de..03c0adafd5 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -680,7 +680,18 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 	}
+ 
+ 	e.esc(n.Left, n)
++
++	if n.Op == ORANGE {
++		// ORANGE node's Right is evaluated before the loop
++		e.loopdepth--
++	}
++
+ 	e.esc(n.Right, n)
++
++	if n.Op == ORANGE {
++		e.loopdepth++
++	}
++
+ 	e.esclist(n.Nbody, n)
+ 	e.esclist(n.List, n)
+ 	e.esclist(n.Rlist, n)
+diff --git a/test/fixedbugs/issue21709.go b/test/fixedbugs/issue21709.go
+new file mode 100644
+index 0000000000..bf5d9d23f1
+--- /dev/null
++++ b/test/fixedbugs/issue21709.go
+@@ -0,0 +1,37 @@
++// errorcheck -0 -l -m
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 21709: range expression overly escapes.
++
++package p
++
++type S struct{}
++
++func (s *S) Inc() {} // ERROR "\(\*S\).Inc s does not escape"
++var N int
++
++func F1() {
++	var s S // ERROR "moved to heap: s"
++	for i := 0; i < N; i++ {
++		fs := []func(){ // ERROR "F1 \[\]func\(\) literal does not escape"
++			s.Inc, // ERROR "F1 s.Inc does not escape" "s escapes to heap"
++		}
++		for _, f := range fs {
++			f()
++		}
++	}
++}
++
++func F2() {
++	var s S // ERROR "moved to heap: s"
++	for i := 0; i < N; i++ {
++		for _, f := range []func(){ // ERROR "F2 \[\]func\(\) literal does not escape"
++			s.Inc, // ERROR "F2 s.Inc does not escape" "s escapes to heap"
++		} {
++			f()
++		}
++	}
++}

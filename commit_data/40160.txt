@@ -10,6 +10,21 @@ Date:   Tue Apr 23 14:19:04 2019 +0200
     Change-Id: I3f5d194f31ad09a99416a45db392aa4b5c7d98ff
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 68b2387d35..6f2287b410 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -46,7 +46,8 @@ CLA (Contributor License Agreement).
+ <li>
+ <b>Step 2</b>: Configure authentication credentials for the Go Git repository.
+ Visit <a href="https://go.googlesource.com/">go.googlesource.com</a>, click
+-on "Generate Password" (top right), and follow the instructions.
++on the gear icon (top right), then on "Obtain password", and follow the
++instructions.
+ </li>
+ <li>
+ <b>Step 3</b>: Register for Gerrit, the code review tool used by the Go team,

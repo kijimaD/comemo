@@ -9,10 +9,251 @@ Date:   Thu Apr 8 13:24:04 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/822045
-
+---
  src/pkg/math/Makefile    |  1 +
  src/pkg/math/all_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/math/atan2.go    | 40 +++++++++++------------------
  src/pkg/math/copysign.go |  7 ++----
  src/pkg/math/signbit.go  | 10 ++++++++
  5 files changed, 91 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index a29245fc33..e8edd35050 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -69,6 +69,7 @@ ALLGOFILES=\
+ 	pow.go\
+ 	pow10.go\
+ 	remainder.go\
++	signbit.go\
+ 	sin.go\
+ 	sincos.go\
+ 	sinh.go\
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 2f133f143f..fed60ed741 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -466,6 +466,18 @@ var remainder = []float64{
+ 	8.734595415957246977711748e-01,
+ 	1.314075231424398637614104e+00,
+ }
++var signbit = []bool{
++	false,
++	false,
++	true,
++	true,
++	false,
++	false,
++	false,
++	false,
++	false,
++	true,
++}
+ var sin = []float64{
+ 	-9.6466616586009283766724726e-01,
+ 	9.9338225271646545763467022e-01,
+@@ -653,8 +665,16 @@ var vfatan2SC = [][2]float64{
+ 	[2]float64{-Pi, 0},
+ 	[2]float64{-Pi, Inf(1)},
+ 	[2]float64{-Pi, NaN()},
++	[2]float64{-1 / Inf(1), Inf(-1)},     // -0, -Inf
++	[2]float64{-1 / Inf(1), -Pi},         // -0, -Pi
++	[2]float64{-1 / Inf(1), -1 / Inf(1)}, // -0, -0
++	[2]float64{-1 / Inf(1), 0},           // -0, +0
++	[2]float64{-1 / Inf(1), +Pi},         // -0, +Pi
++	[2]float64{-1 / Inf(1), Inf(1)},      // -0, +Inf
++	[2]float64{-1 / Inf(1), NaN()},       // -0, NaN
+ 	[2]float64{0, Inf(-1)},
+ 	[2]float64{0, -Pi},
++	[2]float64{0, -1 / Inf(1)}, // +0, -0
+ 	[2]float64{0, 0},
+ 	[2]float64{0, +Pi},
+ 	[2]float64{0, Inf(1)},
+@@ -680,10 +700,18 @@ var atan2SC = []float64{
+ 	NaN(),
+ 	-Pi,
+ 	-Pi / 2,
+-	-0,
++	-1 / Inf(1), // -0
++	NaN(),
++	-Pi,
++	-Pi,
++	-Pi, // -0, -0
++	-1 / Inf(1),
++	-1 / Inf(1),
++	-1 / Inf(1),
+ 	NaN(),
+ 	Pi,
+ 	Pi,
++	Pi, // +0, -0
+ 	0,
+ 	0,
+ 	0,
+@@ -1107,6 +1135,21 @@ var powSC = []float64{
+ 	1,
+ }
+ 
++var vfsignbitSC = []float64{
++	Inf(-1),
++	-1 / Inf(1), // -0
++	1 / Inf(1),  // +0
++	Inf(1),
++	NaN(),
++}
++var signbitSC = []bool{
++	true,
++	true,
++	false,
++	false,
++	false,
++}
++
+ var vfsqrtSC = []float64{
+ 	Inf(-1),
+ 	-Pi,
+@@ -1174,7 +1217,7 @@ func alike(a, b float64) bool {
+ 	case IsNaN(a) && IsNaN(b):
+ 		return true
+ 	case a == b:
+-		return true
++		return Signbit(a) == Signbit(b)
+ 	}
+ 	return false
+ }
+@@ -1705,6 +1748,18 @@ func TestRemainder(t *testing.T) {
+ 	}
+ }
+ 
++func TestSignbit(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Signbit(vf[i]); signbit[i] != f {
++			t.Errorf("Signbit(%g) = %t, want %t\n", vf[i], f, signbit[i])
++		}
++	}
++	for i := 0; i < len(vfsignbitSC); i++ {
++		if f := Signbit(vfsignbitSC[i]); signbitSC[i] != f {
++			t.Errorf("Signbit(%g) = %t, want %t\n", vfsignbitSC[i], vfsignbitSC[i], f, signbitSC[i])
++		}
++	}
++}
+ func TestSin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Sin(vf[i]); !close(sin[i], f) {
+@@ -2150,6 +2205,12 @@ func BenchmarkRemainder(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSignbit(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Signbit(2.5)
++	}
++}
++
+ func BenchmarkSin(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Sin(.5)
+diff --git a/src/pkg/math/atan2.go b/src/pkg/math/atan2.go
+index a738fbcc67..49d4bdd719 100644
+--- a/src/pkg/math/atan2.go
++++ b/src/pkg/math/atan2.go
+@@ -11,8 +11,10 @@ package math
+ // Special cases are (in order):
+ //	Atan2(y, NaN) = NaN
+ //	Atan2(NaN, x) = NaN
+-//	Atan2(0, x>=0) = 0
+-//	Atan2(0, x<0) = Pi
++//	Atan2(+0, x>=0) = +0
++//	Atan2(-0, x>=0) = -0
++//	Atan2(+0, x<=-0) = +Pi
++//	Atan2(-0, x<=-0) = -Pi
+ //	Atan2(y>0, 0) = +Pi/2
+ //	Atan2(y<0, 0) = -Pi/2
+ //	Atan2(+Inf, +Inf) = +Pi/4
+@@ -32,41 +34,29 @@ func Atan2(y, x float64) float64 {
+ 	case y != y || x != x: // IsNaN(y) || IsNaN(x):
+ 		return NaN()
+ 	case y == 0:
+-		if x >= 0 {
+-			return 0
++		if x >= 0 && !Signbit(x) {
++			return Copysign(0, y)
+ 		}
+-		return Pi
++		return Copysign(Pi, y)
+ 	case x == 0:
+-		if y > 0 {
+-			return Pi / 2
+-		}
+-		return -Pi / 2
++		return Copysign(Pi/2, y)
+ 	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+ 		if x > MaxFloat64 { // IsInf(x, 1) {
+ 			switch {
+-			case y > MaxFloat64: // IsInf(y, 1):
+-				return Pi / 4
+-			case y < -MaxFloat64: // IsInf(y, -1):
+-				return -Pi / 4
++			case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
++				return Copysign(Pi/4, y)
+ 			default:
+-				return 0
++				return Copysign(0, y)
+ 			}
+ 		}
+ 		switch {
+-		case y > MaxFloat64: //IsInf(y, 1):
+-			return 3 * Pi / 4
+-		case y < -MaxFloat64: //IsInf(y, -1):
+-			return -3 * Pi / 4
+-		case y > 0:
+-			return Pi
++		case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
++			return Copysign(3*Pi/4, y)
+ 		default:
+-			return -Pi
++			return Copysign(Pi, y)
+ 		}
+ 	case y < -MaxFloat64 || y > MaxFloat64: //IsInf(y, 0):
+-		if y > MaxFloat64 { // IsInf(y, 1) {
+-			return Pi / 2
+-		}
+-		return -Pi / 2
++		return Copysign(Pi/2, y)
+ 	}
+ 
+ 	// Call atan and determine the quadrant.
+diff --git a/src/pkg/math/copysign.go b/src/pkg/math/copysign.go
+index 6b4cc2a4cf..ee65456a1c 100644
+--- a/src/pkg/math/copysign.go
++++ b/src/pkg/math/copysign.go
+@@ -4,12 +4,9 @@
+ 
+ package math
+ 
+-
+ // Copysign(x, y) returns a value with the magnitude
+ // of x and the sign of y.
+ func Copysign(x, y float64) float64 {
+-	if x < 0 && y > 0 || x > 0 && y < 0 {
+-		return -x
+-	}
+-	return x
++	const sign = 1 << 63
++	return Float64frombits(Float64bits(x)&^sign | Float64bits(y)&sign)
+ }
+diff --git a/src/pkg/math/signbit.go b/src/pkg/math/signbit.go
+new file mode 100644
+index 0000000000..670cc1a667
+--- /dev/null
++++ b/src/pkg/math/signbit.go
+@@ -0,0 +1,10 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Signbit returns true if x is negative or negative zero.
++func Signbit(x float64) bool {
++	return Float64bits(x)&(1<<63) != 0
++}

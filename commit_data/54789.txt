@@ -13,8 +13,205 @@ Date:   Tue Nov 15 09:48:07 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/covdata/tool_test.go | 15 +++++++--------
  src/cmd/cover/cfg_test.go    |  5 ++---
  src/cmd/cover/cover_test.go  | 22 +++++++++++-----------
  3 files changed, 20 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index 3134f14446..9396266776 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"internal/testenv"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strconv"
+@@ -91,7 +90,7 @@ func gobuild(t *testing.T, indir string, bargs []string) {
+ 		}
+ 		t.Logf("cmd: %s %+v\n", testenv.GoToolPath(t), bargs)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), bargs...)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), bargs...)
+ 	cmd.Dir = indir
+ 	b, err := cmd.CombinedOutput()
+ 	if len(b) != 0 {
+@@ -213,7 +212,7 @@ func TestCovTool(t *testing.T) {
+ 				if m != 0 {
+ 					exepath = s.exepath3
+ 				}
+-				cmd := exec.Command(exepath, args...)
++				cmd := testenv.Command(t, exepath, args...)
+ 				cmd.Env = append(cmd.Env, "GOCOVERDIR="+s.outdirs[m*2+k])
+ 				b, err := cmd.CombinedOutput()
+ 				if len(b) != 0 {
+@@ -290,7 +289,7 @@ func runToolOp(t *testing.T, s state, op string, args []string) []string {
+ 	if showToolInvocations {
+ 		t.Logf("%s cmd is: %s %+v", op, s.tool, args)
+ 	}
+-	cmd := exec.Command(s.tool, args...)
++	cmd := testenv.Command(t, s.tool, args...)
+ 	b, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, string(b))
+@@ -642,7 +641,7 @@ func testMergeCombinePrograms(t *testing.T, s state) {
+ 		if k != 0 {
+ 			args = append(args, "foo", "bar")
+ 		}
+-		cmd := exec.Command(s.exepath2, args...)
++		cmd := testenv.Command(t, s.exepath2, args...)
+ 		cmd.Env = append(cmd.Env, "GOCOVERDIR="+runout[k])
+ 		b, err := cmd.CombinedOutput()
+ 		if len(b) != 0 {
+@@ -813,7 +812,7 @@ func testCounterClash(t *testing.T, s state) {
+ 	if debugtrace {
+ 		t.Logf("cc merge command is %s %v\n", s.tool, args)
+ 	}
+-	cmd := exec.Command(s.tool, args...)
++	cmd := testenv.Command(t, s.tool, args...)
+ 	b, err := cmd.CombinedOutput()
+ 	t.Logf("%% output: %s\n", string(b))
+ 	if err == nil {
+@@ -882,7 +881,7 @@ func testEmpty(t *testing.T, s state) {
+ 		if false {
+ 			t.Logf("cmd is %s %v\n", s.tool, args)
+ 		}
+-		cmd := exec.Command(s.tool, args...)
++		cmd := testenv.Command(t, s.tool, args...)
+ 		b, err := cmd.CombinedOutput()
+ 		t.Logf("%% output: %s\n", string(b))
+ 		if err != nil {
+@@ -926,7 +925,7 @@ func testCommandLineErrors(t *testing.T, s state, outdir string) {
+ 		if false {
+ 			t.Logf("cmd is %s %v\n", s.tool, args)
+ 		}
+-		cmd := exec.Command(s.tool, args...)
++		cmd := testenv.Command(t, s.tool, args...)
+ 		b, err := cmd.CombinedOutput()
+ 		if err == nil {
+ 			t.Logf("%% output: %s\n", string(b))
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 9497800d0c..0a2956784b 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"internal/coverage"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -63,7 +62,7 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
+ 	outfiles, outfilelist := writeOutFileList(t, infiles, outdir, tag)
+ 	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-outfilelist", outfilelist}
+ 	args = append(args, infiles...)
+-	cmd := exec.Command(testcover(t), args...)
++	cmd := testenv.Command(t, testcover(t), args...)
+ 	if errExpected {
+ 		errmsg := runExpectingError(cmd, t)
+ 		return nil, "", errmsg
+@@ -147,7 +146,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 		// buildable.
+ 		bargs := []string{"tool", "compile", "-p", "a", "-coveragecfg", outcfg}
+ 		bargs = append(bargs, ofs...)
+-		cmd := exec.Command(testenv.GoToolPath(t), bargs...)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), bargs...)
+ 		cmd.Dir = instdira
+ 		run(cmd, t)
+ 	}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 0bbfa1007a..af266b5e83 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -166,10 +166,10 @@ func TestCover(t *testing.T) {
+ 
+ 	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
+ 	coverOutput := filepath.Join(dir, "test_cover.go")
+-	cmd := exec.Command(testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
++	cmd := testenv.Command(t, testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+ 	run(cmd, t)
+ 
+-	cmd = exec.Command(testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
++	cmd = testenv.Command(t, testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+ 	err = cmd.Run()
+ 	if err == nil {
+ 		t.Error("Expected cover to fail with an error")
+@@ -188,7 +188,7 @@ func TestCover(t *testing.T) {
+ 	}
+ 
+ 	// go run ./testdata/main.go ./testdata/test.go
+-	cmd = exec.Command(testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
++	cmd = testenv.Command(t, testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
+ 	run(cmd, t)
+ 
+ 	file, err = os.ReadFile(coverOutput)
+@@ -229,7 +229,7 @@ func TestDirectives(t *testing.T) {
+ 	sourceDirectives := findDirectives(source)
+ 
+ 	// testcover -mode=atomic ./testdata/directives.go
+-	cmd := exec.Command(testcover(t), "-mode=atomic", testDirectives)
++	cmd := testenv.Command(t, testcover(t), "-mode=atomic", testDirectives)
+ 	cmd.Stderr = os.Stderr
+ 	output, err := cmd.Output()
+ 	if err != nil {
+@@ -339,7 +339,7 @@ func TestCoverFunc(t *testing.T) {
+ 
+ 	// testcover -func ./testdata/profile.cov
+ 	coverProfile := filepath.Join(testdata, "profile.cov")
+-	cmd := exec.Command(testcover(t), "-func", coverProfile)
++	cmd := testenv.Command(t, testcover(t), "-func", coverProfile)
+ 	out, err := cmd.Output()
+ 	if err != nil {
+ 		if ee, ok := err.(*exec.ExitError); ok {
+@@ -364,12 +364,12 @@ func testCoverHTML(t *testing.T, toolexecArg string) {
+ 
+ 	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
+ 	htmlProfile := filepath.Join(dir, "html.cov")
+-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+ 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+ 	run(cmd, t)
+ 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
+ 	htmlHTML := filepath.Join(dir, "html.html")
+-	cmd = exec.Command(testcover(t), "-html", htmlProfile, "-o", htmlHTML)
++	cmd = testenv.Command(t, testcover(t), "-html", htmlProfile, "-o", htmlHTML)
+ 	run(cmd, t)
+ 
+ 	// Extract the parts of the HTML with comment markers,
+@@ -466,13 +466,13 @@ lab:
+ 	}
+ 
+ 	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
+-	cmd := exec.Command(testenv.GoToolPath(t), "test", "-test.v", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-test.v", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+ 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+ 	cmd.Dir = htmlUDir
+ 	run(cmd, t)
+ 
+ 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
+-	cmd = exec.Command(testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
++	cmd = testenv.Command(t, testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
+ 	cmd.Dir = htmlUDir
+ 	run(cmd, t)
+ }
+@@ -542,13 +542,13 @@ func testFuncWithDuplicateLines(t *testing.T, toolexecArg string) {
+ 	}
+ 
+ 	// go test -cover -covermode count -coverprofile TMPDIR/linedup.out
+-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
+ 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+ 	cmd.Dir = lineDupDir
+ 	run(cmd, t)
+ 
+ 	// testcover -func=TMPDIR/linedup.out
+-	cmd = exec.Command(testcover(t), "-func", lineDupProfile)
++	cmd = testenv.Command(t, testcover(t), "-func", lineDupProfile)
+ 	cmd.Dir = lineDupDir
+ 	run(cmd, t)
+ }

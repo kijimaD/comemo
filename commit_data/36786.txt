@@ -7,7 +7,34 @@ Date:   Mon May 28 13:49:40 2018 -0700
     Change-Id: I04880d87e317a1140ec12da6ec5e788991719760
     Reviewed-on: https://go-review.googlesource.com/114936
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
  src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 1967fb93fe..d9dcaf8444 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -4,7 +4,7 @@
+ 
+ package ssa
+ 
+-// branchelim tries to elminiate branches by
++// branchelim tries to eliminate branches by
+ // generating CondSelect instructions.
+ //
+ // Search for basic blocks that look like
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 76212c0866..7931aa7f06 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -212,7 +212,7 @@
+ // (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
+ (IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
+ (IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
+-// Right shifting a unsigned number limits its value.
++// Right shifting an unsigned number limits its value.
+ (IsInBounds (ZeroExt8to64  (Rsh8Ux64  _ (Const64 [c]))) (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+ (IsInBounds (ZeroExt8to32  (Rsh8Ux64  _ (Const64 [c]))) (Const32 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+ (IsInBounds (ZeroExt8to16  (Rsh8Ux64  _ (Const64 [c]))) (Const16 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])

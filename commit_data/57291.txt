@@ -16,8 +16,116 @@ Date:   Thu Jun 15 09:14:12 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  5 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 47 +++++++++++++++++++++++++
  test/codegen/strings.go                         | 10 ++++++
  3 files changed, 62 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index cdb346321e..7047f6588f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2121,6 +2121,11 @@
+   && isSameCall(callAux, "runtime.memequal")
+   => (MakeResult (ConstBool <typ.Bool> [true]) mem)
+ 
++(Static(Call|LECall) {callAux} p q _ mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && isSamePtr(p, q)
++  => (MakeResult (ConstBool <typ.Bool> [true]) mem)
++
+ // Turn known-size calls to memclrNoHeapPointers into a Zero.
+ // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
+ (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e5bd8bc36f..781965f7b0 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -397,6 +397,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpSlicemask(v)
+ 	case OpSqrt:
+ 		return rewriteValuegeneric_OpSqrt(v)
++	case OpStaticCall:
++		return rewriteValuegeneric_OpStaticCall(v)
+ 	case OpStaticLECall:
+ 		return rewriteValuegeneric_OpStaticLECall(v)
+ 	case OpStore:
+@@ -28219,6 +28221,31 @@ func rewriteValuegeneric_OpSqrt(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpStaticCall(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (StaticCall {callAux} p q _ mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)
++	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		p := v.Args[0]
++		q := v.Args[1]
++		if !(isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
++		v0.AuxInt = boolToAuxInt(true)
++		v.AddArg2(v0, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+@@ -28506,6 +28533,26 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} p q _ mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)
++	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		p := v.Args[0]
++		q := v.Args[1]
++		if !(isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
++		v0.AuxInt = boolToAuxInt(true)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	// match: (StaticLECall {callAux} _ (Const64 [0]) (Const64 [0]) mem)
+ 	// cond: isSameCall(callAux, "runtime.makeslice")
+ 	// result: (MakeResult (Addr <v.Type.FieldType(0)> {ir.Syms.Zerobase} (SB)) mem)
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index 94512f5cd3..f98c062d1b 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -67,4 +67,14 @@ func ConstantLoad() {
+ 	bsink = []byte("0123456789ab")
+ }
+ 
++// self-equality is always true. See issue 60777.
++func EqualSelf(s string) bool {
++	// amd64:`MOVL\t\$1, AX`,-`.*memequal.*`
++	return s == s
++}
++func NotEqualSelf(s string) bool {
++	// amd64:`XORL\tAX, AX`,-`.*memequal.*`
++	return s != s
++}
++
+ var bsink []byte

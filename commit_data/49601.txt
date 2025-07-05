@@ -32,7 +32,7 @@ Date:   Thu Aug 12 18:39:24 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/name.go         |  2 ++
  src/cmd/compile/internal/noder/stencil.go   | 45 +++++++++++++++++++++++++----
  src/cmd/compile/internal/noder/stmt.go      |  2 ++
@@ -41,3 +41,236 @@ Date:   Thu Aug 12 18:39:24 2021 -0700
  test/typeparam/issue48016.go                | 35 ++++++++++++++++++++++
  test/typeparam/typeswitch2.go               |  4 +--
  7 files changed, 112 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index a2eec05013..9fb22378cd 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -51,6 +51,8 @@ type Name struct {
+ 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
+ 	// For a closure var, the ONAME node of the outer captured variable.
+ 	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
++	// For a range variable, the range statement (ORANGE)
++	// For a recv variable in a case of a select statement, the receive assignment (OSELRECV2)
+ 	// For the name of a function, points to corresponding Func node.
+ 	Defn Node
+ 
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 00c4676530..cf3894e096 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -627,6 +627,9 @@ type subster struct {
+ 	newf     *ir.Func // Func node for the new stenciled function
+ 	ts       typecheck.Tsubster
+ 	info     *instInfo // Place to put extra info in the instantiation
++
++	// Map from non-nil, non-ONAME node n to slice of all m, where m.Defn = n
++	defnMap map[ir.Node][]**ir.Name
+ }
+ 
+ // genericSubst returns a new function with name newsym. The function is an
+@@ -675,6 +678,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 			Targs:   shapes,
+ 			Vars:    make(map[*ir.Name]*ir.Name),
+ 		},
++		defnMap: make(map[ir.Node][]**ir.Name),
+ 	}
+ 
+ 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
+@@ -726,6 +730,10 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 	// to many->1 shape to concrete mapping.
+ 	// newf.Body.Prepend(subst.checkDictionary(dictionaryName, shapes)...)
+ 
++	if len(subst.defnMap) > 0 {
++		base.Fatalf("defnMap is not empty")
++	}
++
+ 	ir.CurFunc = savef
+ 	// Add any new, fully instantiated types seen during the substitution to
+ 	// g.instTypeList.
+@@ -764,6 +772,25 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
+ 	m.Func = name.Func
+ 	subst.ts.Vars[name] = m
+ 	m.SetTypecheck(1)
++	if name.Defn != nil {
++		if name.Defn.Op() == ir.ONAME {
++			// This is a closure variable, so its Defn is the outer
++			// captured variable, which has already been substituted.
++			m.Defn = subst.node(name.Defn)
++		} else {
++			// The other values of Defn are nodes in the body of the
++			// function, so just remember the mapping so we can set Defn
++			// properly in node() when we create the new body node. We
++			// always call localvar() on all the local variables before
++			// we substitute the body.
++			slice := subst.defnMap[name.Defn]
++			subst.defnMap[name.Defn] = append(slice, &m)
++		}
++	}
++	if name.Outer != nil {
++		m.Outer = subst.node(name.Outer).(*ir.Name)
++	}
++
+ 	return m
+ }
+ 
+@@ -871,6 +898,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			}
+ 		}
+ 		m := ir.Copy(x)
++
++		slice, ok := subst.defnMap[x]
++		if ok {
++			// We just copied a non-ONAME node which was the Defn value
++			// of a local variable. Set the Defn value of the copied
++			// local variable to this new Defn node.
++			for _, ptr := range slice {
++				(*ptr).Defn = m
++			}
++			delete(subst.defnMap, x)
++		}
++
+ 		if _, isExpr := m.(ir.Expr); isExpr {
+ 			t := x.Type()
+ 			if t == nil {
+@@ -1312,12 +1351,6 @@ func (subst *subster) namelist(l []*ir.Name) []*ir.Name {
+ 	s := make([]*ir.Name, len(l))
+ 	for i, n := range l {
+ 		s[i] = subst.localvar(n)
+-		if n.Defn != nil {
+-			s[i].Defn = subst.node(n.Defn)
+-		}
+-		if n.Outer != nil {
+-			s[i].Outer = subst.node(n.Outer).(*ir.Name)
+-		}
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index fc1f5836ff..eeb994d343 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -327,6 +327,8 @@ func (g *irgen) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
+ 		if obj, ok := g.info.Implicits[clause]; ok {
+ 			cv = g.obj(obj)
+ 			cv.SetPos(g.makeXPos(clause.Colon))
++			assert(expr.Op() == ir.OTYPESW)
++			cv.Defn = expr
+ 		}
+ 		body[i] = ir.NewCaseStmt(g.pos(clause), g.exprList(clause.Cases), g.stmts(clause.Body))
+ 		body[i].Var = cv
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index a27f511769..180891b5b5 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -493,10 +493,15 @@ func transformSelect(sel *ir.SelectStmt) {
+ 		if ncase.Comm != nil {
+ 			n := ncase.Comm
+ 			oselrecv2 := func(dst, recv ir.Node, def bool) {
+-				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
+-				n.Def = def
+-				n.SetTypecheck(1)
+-				ncase.Comm = n
++				selrecv := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
++				if dst.Op() == ir.ONAME && dst.(*ir.Name).Defn == n {
++					// Must fix Defn for dst, since we are
++					// completely changing the node.
++					dst.(*ir.Name).Defn = selrecv
++				}
++				selrecv.Def = def
++				selrecv.SetTypecheck(1)
++				ncase.Comm = selrecv
+ 			}
+ 			switch n.Op() {
+ 			case ir.OAS:
+diff --git a/test/typeparam/issue47676.go b/test/typeparam/issue47676.go
+new file mode 100644
+index 0000000000..1b01624ce0
+--- /dev/null
++++ b/test/typeparam/issue47676.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	d := diff([]int{}, func(int) string {
++		return "foo"
++	})
++	d()
++}
++
++func diff[T any](previous []T, uniqueKey func(T) string) func() {
++	return func() {
++		newJSON := map[string]T{}
++		for _, prev := range previous {
++			delete(newJSON, uniqueKey(prev))
++		}
++	}
++}
+diff --git a/test/typeparam/issue48016.go b/test/typeparam/issue48016.go
+new file mode 100644
+index 0000000000..582751e884
+--- /dev/null
++++ b/test/typeparam/issue48016.go
+@@ -0,0 +1,35 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"strconv"
++)
++
++func test1[T any](fn func(T) int, v T) int {
++	fn1 := func() int {
++		var i interface{} = v
++		val := fn(i.(T))
++		return val
++	}
++	return fn1()
++}
++
++func main() {
++	want := 123
++	got := test1(func(s string) int {
++		r, err := strconv.Atoi(s)
++		if err != nil {
++			return 0
++		}
++		return r
++	}, "123")
++	if got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
++}
+diff --git a/test/typeparam/typeswitch2.go b/test/typeparam/typeswitch2.go
+index 913c56321c..0e434e1383 100644
+--- a/test/typeparam/typeswitch2.go
++++ b/test/typeparam/typeswitch2.go
+@@ -16,7 +16,7 @@ func f[T any](i interface{}) {
+ 		println("int", x)
+ 	case int32, int16:
+ 		println("int32/int16", reflect.ValueOf(x).Int())
+-	case struct { a, b T }:
++	case struct{ a, b T }:
+ 		println("struct{T,T}", x.a, x.b)
+ 	default:
+ 		println("other", reflect.ValueOf(x).Int())
+@@ -26,6 +26,6 @@ func main() {
+ 	f[float64](float64(6))
+ 	f[float64](int(7))
+ 	f[float64](int32(8))
+-	f[float64](struct{a, b float64}{a:1, b:2})
++	f[float64](struct{ a, b float64 }{a: 1, b: 2})
+ 	f[float64](int8(9))
+ }

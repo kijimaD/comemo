@@ -9,6 +9,24 @@ Date:   Thu Feb 18 09:42:28 2016 -0800
     Change-Id: I91acff0b0cc7be2bcbad68925a19a437dbd4c83d
     Reviewed-on: https://go-review.googlesource.com/19620
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/constant/value.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 310814df71..1b0938dda4 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -276,10 +276,10 @@ func smallRat(x *big.Float) bool {
+ // MakeUnknown returns the Unknown value.
+ func MakeUnknown() Value { return unknownVal{} }
+ 
+-// MakeBool returns the Bool value for x.
++// MakeBool returns the Bool value for b.
+ func MakeBool(b bool) Value { return boolVal(b) }
+ 
+-// MakeString returns the String value for x.
++// MakeString returns the String value for s.
+ func MakeString(s string) Value { return stringVal(s) }
+ 
+ // MakeInt64 returns the Int value for x.

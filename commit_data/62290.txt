@@ -10,7 +10,7 @@ Date:   Sat Feb 15 11:22:16 2025 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/dumpscores_test.go | 2 +-
  src/cmd/go/internal/modload/buildlist.go                   | 4 ++--
  src/compress/flate/deflate.go                              | 2 +-
@@ -24,3 +24,161 @@ Date:   Sat Feb 15 11:22:16 2025 +0800
  src/os/stat_windows.go                                     | 2 +-
  src/os/user/cgo_lookup_unix.go                             | 2 +-
  12 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go b/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
+index 438b70096f..2e1bcf98f9 100644
+--- a/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
+@@ -105,5 +105,5 @@ func gatherInlCallSitesScoresForFile(t *testing.T, testcase string, td string) (
+ 	if err := os.WriteFile(dumpfile, out, 0666); err != nil {
+ 		return "", err
+ 	}
+-	return dumpfile, err
++	return dumpfile, nil
+ }
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 9db348c098..eefc0083c9 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -590,7 +590,7 @@ func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
+ 		return nil, err
+ 	}
+ 	requirements = rs
+-	return mg, err
++	return mg, nil
+ }
+ 
+ // expandGraph loads the complete module graph from rs.
+@@ -655,7 +655,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
+ 		return false, err
+ 	}
+ 	requirements = rs
+-	return changed, err
++	return changed, nil
+ }
+ 
+ // OverrideRoots edits the global requirement roots by replacing the specific module versions.
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 3d8728ead9..aa8e088615 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -681,7 +681,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	}
+ 	zw.d.fillWindow(dict)
+ 	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
+-	return zw, err
++	return zw, nil
+ }
+ 
+ type dictWriter struct {
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 88d9114625..6bea5cc77b 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -1078,7 +1078,7 @@ func ParseCertificate(der []byte) (*Certificate, error) {
+ 	if len(der) != len(cert.Raw) {
+ 		return nil, errors.New("x509: trailing data")
+ 	}
+-	return cert, err
++	return cert, nil
+ }
+ 
+ // ParseCertificates parses one or more certificates from the given ASN.1 DER
+diff --git a/src/internal/syscall/unix/faccessat_bsd.go b/src/internal/syscall/unix/faccessat_bsd.go
+index 78fca18e27..1db54c35b2 100644
+--- a/src/internal/syscall/unix/faccessat_bsd.go
++++ b/src/internal/syscall/unix/faccessat_bsd.go
+@@ -20,5 +20,5 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
+ 	if errno != 0 {
+ 		return errno
+ 	}
+-	return err
++	return nil
+ }
+diff --git a/src/internal/syscall/unix/faccessat_openbsd.go b/src/internal/syscall/unix/faccessat_openbsd.go
+index 9d4ed97291..3519532154 100644
+--- a/src/internal/syscall/unix/faccessat_openbsd.go
++++ b/src/internal/syscall/unix/faccessat_openbsd.go
+@@ -28,5 +28,5 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
+ 	if errno != 0 {
+ 		return errno
+ 	}
+-	return err
++	return nil
+ }
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 362dd950ba..a7fa674db9 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -140,7 +140,7 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return w, err
++	return w, nil
+ }
+ 
+ // connect makes a connection to the syslog server.
+diff --git a/src/net/http/example_filesystem_test.go b/src/net/http/example_filesystem_test.go
+index ebcb994f43..da1f0df890 100644
+--- a/src/net/http/example_filesystem_test.go
++++ b/src/net/http/example_filesystem_test.go
+@@ -65,7 +65,7 @@ func (fsys dotFileHidingFileSystem) Open(name string) (http.File, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return dotFileHidingFile{file}, err
++	return dotFileHidingFile{file}, nil
+ }
+ 
+ func ExampleFileServer_dotFileHiding() {
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 434c1640f3..cd254292e2 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1062,7 +1062,7 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
+ 	}
+ 
+ 	delete(req.Header, "Host")
+-	return req, err
++	return req, nil
+ }
+ 
+ // readRequest should be an internal detail,
+diff --git a/src/net/rpc/jsonrpc/client.go b/src/net/rpc/jsonrpc/client.go
+index 1beba0f364..c0f383445d 100644
+--- a/src/net/rpc/jsonrpc/client.go
++++ b/src/net/rpc/jsonrpc/client.go
+@@ -120,5 +120,5 @@ func Dial(network, address string) (*rpc.Client, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return NewClient(conn), err
++	return NewClient(conn), nil
+ }
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 160a3893ce..d2c2017a65 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -115,7 +115,7 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
+ 		return nil, err
+ 	}
+ 	fs.filetype = ft
+-	return fs, err
++	return fs, nil
+ }
+ 
+ // statNolog implements Stat for Windows.
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 458d8cd453..1c9a289672 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -37,7 +37,7 @@ func lookupUser(username string) (*User, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
+ 	}
+-	return buildUser(&pwd), err
++	return buildUser(&pwd), nil
+ }
+ 
+ func lookupUserId(uid string) (*User, error) {

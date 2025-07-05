@@ -24,7 +24,7 @@ Date:   Fri Apr 1 17:02:28 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/examples/constraints.go        |  3 +-
  .../types2/testdata/fixedbugs/issue51607.go        | 65 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/union.go           | 14 +++--
@@ -32,3 +32,254 @@ Date:   Fri Apr 1 17:02:28 2022 -0700
  src/go/types/testdata/fixedbugs/issue51607.go      | 65 ++++++++++++++++++++++
  src/go/types/union.go                              | 14 +++--
  6 files changed, 152 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/constraints.go b/src/cmd/compile/internal/types2/testdata/examples/constraints.go
+index fb01be56a2..5b144893ce 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/constraints.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/constraints.go
+@@ -24,7 +24,8 @@ type (
+ 	_ interface{int|any}
+ 	_ interface{int|~string|union}
+ 	_ interface{int|~string|interface{int}}
+-	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
++	_ interface{union|int}   // interfaces (here: union) are ignored when checking for overlap
++	_ interface{union|union} // ditto
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+ 	_ interface{~ /* ERROR invalid use of ~ */ any}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go
+new file mode 100644
+index 0000000000..d8df143627
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go
+@@ -0,0 +1,65 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Interface types must be ignored during overlap test.
++
++type (
++	T1 interface{int}
++	T2 interface{~int}
++	T3 interface{T1 | bool | string}
++	T4 interface{T2 | ~bool | ~string}
++)
++
++type (
++	// overlap errors for non-interface terms
++	// (like the interface terms, but explicitly inlined)
++	_ interface{int | int /* ERROR overlapping terms int and int */ }
++	_ interface{int | ~ /* ERROR overlapping terms ~int and int */ int}
++	_ interface{~int | int /* ERROR overlapping terms int and ~int */ }
++	_ interface{~int | ~ /* ERROR overlapping terms ~int and ~int */ int}
++
++	_ interface{T1 | bool | string | T1 | bool /* ERROR overlapping terms bool and bool */ | string /* ERROR overlapping terms string and string */ }
++	_ interface{T1 | bool | string | T2 | ~ /* ERROR overlapping terms ~bool and bool */ bool | ~ /* ERROR overlapping terms ~string and string */ string}
++
++	// no errors for interface terms
++	_ interface{T1 | T1}
++	_ interface{T1 | T2}
++	_ interface{T2 | T1}
++	_ interface{T2 | T2}
++
++	_ interface{T3 | T3 | int}
++	_ interface{T3 | T4 | bool }
++	_ interface{T4 | T3 | string }
++	_ interface{T4 | T4 | float64 }
++)
++
++func _[_ T1 | bool | string | T1 | bool /* ERROR overlapping terms */ ]() {}
++func _[_ T1 | bool | string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
++func _[_ T2 | ~bool | ~string | T1 | bool /* ERROR overlapping terms */ ]() {}
++func _[_ T2 | ~bool | ~string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
++
++func _[_ T3 | T3 | int]() {}
++func _[_ T3 | T4 | bool]() {}
++func _[_ T4 | T3 | string]() {}
++func _[_ T4 | T4 | float64]() {}
++
++// test cases from issue
++
++type _ interface {
++	interface {bool | int} | interface {bool | string}
++}
++
++type _ interface {
++	interface {bool | int} ; interface {bool | string}
++}
++
++type _ interface {
++	interface {bool; int} ; interface {bool; string}
++}
++
++type _ interface {
++	interface {bool; int} | interface {bool; string}
++}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 57f1a4fe2a..0ed125fb29 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -113,14 +113,12 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 				switch {
+ 				case tset.NumMethods() != 0:
+ 					check.errorf(tlist[i], "cannot use %s in union (%s contains methods)", t, t)
+-					continue
+ 				case t.typ == universeComparable.Type():
+ 					check.error(tlist[i], "cannot use comparable in union")
+-					continue
+ 				case tset.comparable:
+ 					check.errorf(tlist[i], "cannot use %s in union (%s embeds comparable)", t, t)
+-					continue
+ 				}
++				continue // terms with interface types are not subject to the no-overlap rule
+ 			}
+ 
+ 			// Report overlapping (non-disjoint) terms such as
+@@ -164,10 +162,16 @@ func parseTilde(check *Checker, tx syntax.Expr) *Term {
+ 
+ // overlappingTerm reports the index of the term x in terms which is
+ // overlapping (not disjoint) from y. The result is < 0 if there is no
+-// such term.
++// such term. The type of term y must not be an interface, and terms
++// with an interface type are ignored in the terms list.
+ func overlappingTerm(terms []*Term, y *Term) int {
++	assert(!IsInterface(y.typ))
+ 	for i, x := range terms {
+-		// disjoint requires non-nil, non-top arguments
++		if IsInterface(x.typ) {
++			continue
++		}
++		// disjoint requires non-nil, non-top arguments,
++		// and non-interface types as term types.
+ 		if debug {
+ 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
+ 				panic("empty or top union term")
+diff --git a/src/go/types/testdata/examples/constraints.go b/src/go/types/testdata/examples/constraints.go
+index fb01be56a2..5b144893ce 100644
+--- a/src/go/types/testdata/examples/constraints.go
++++ b/src/go/types/testdata/examples/constraints.go
+@@ -24,7 +24,8 @@ type (
+ 	_ interface{int|any}
+ 	_ interface{int|~string|union}
+ 	_ interface{int|~string|interface{int}}
+-	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
++	_ interface{union|int}   // interfaces (here: union) are ignored when checking for overlap
++	_ interface{union|union} // ditto
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+ 	_ interface{~ /* ERROR invalid use of ~ */ any}
+diff --git a/src/go/types/testdata/fixedbugs/issue51607.go b/src/go/types/testdata/fixedbugs/issue51607.go
+new file mode 100644
+index 0000000000..d8df143627
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51607.go
+@@ -0,0 +1,65 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Interface types must be ignored during overlap test.
++
++type (
++	T1 interface{int}
++	T2 interface{~int}
++	T3 interface{T1 | bool | string}
++	T4 interface{T2 | ~bool | ~string}
++)
++
++type (
++	// overlap errors for non-interface terms
++	// (like the interface terms, but explicitly inlined)
++	_ interface{int | int /* ERROR overlapping terms int and int */ }
++	_ interface{int | ~ /* ERROR overlapping terms ~int and int */ int}
++	_ interface{~int | int /* ERROR overlapping terms int and ~int */ }
++	_ interface{~int | ~ /* ERROR overlapping terms ~int and ~int */ int}
++
++	_ interface{T1 | bool | string | T1 | bool /* ERROR overlapping terms bool and bool */ | string /* ERROR overlapping terms string and string */ }
++	_ interface{T1 | bool | string | T2 | ~ /* ERROR overlapping terms ~bool and bool */ bool | ~ /* ERROR overlapping terms ~string and string */ string}
++
++	// no errors for interface terms
++	_ interface{T1 | T1}
++	_ interface{T1 | T2}
++	_ interface{T2 | T1}
++	_ interface{T2 | T2}
++
++	_ interface{T3 | T3 | int}
++	_ interface{T3 | T4 | bool }
++	_ interface{T4 | T3 | string }
++	_ interface{T4 | T4 | float64 }
++)
++
++func _[_ T1 | bool | string | T1 | bool /* ERROR overlapping terms */ ]() {}
++func _[_ T1 | bool | string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
++func _[_ T2 | ~bool | ~string | T1 | bool /* ERROR overlapping terms */ ]() {}
++func _[_ T2 | ~bool | ~string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
++
++func _[_ T3 | T3 | int]() {}
++func _[_ T3 | T4 | bool]() {}
++func _[_ T4 | T3 | string]() {}
++func _[_ T4 | T4 | float64]() {}
++
++// test cases from issue
++
++type _ interface {
++	interface {bool | int} | interface {bool | string}
++}
++
++type _ interface {
++	interface {bool | int} ; interface {bool | string}
++}
++
++type _ interface {
++	interface {bool; int} ; interface {bool; string}
++}
++
++type _ interface {
++	interface {bool; int} | interface {bool; string}
++}
+\ No newline at end of file
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index b288dfab5c..37a3489558 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -116,14 +116,12 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 				switch {
+ 				case tset.NumMethods() != 0:
+ 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
+-					continue
+ 				case t.typ == universeComparable.Type():
+ 					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
+-					continue
+ 				case tset.comparable:
+ 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
+-					continue
+ 				}
++				continue // terms with interface types are not subject to the no-overlap rule
+ 			}
+ 
+ 			// Report overlapping (non-disjoint) terms such as
+@@ -167,10 +165,16 @@ func parseTilde(check *Checker, tx ast.Expr) *Term {
+ 
+ // overlappingTerm reports the index of the term x in terms which is
+ // overlapping (not disjoint) from y. The result is < 0 if there is no
+-// such term.
++// such term. The type of term y must not be an interface, and terms
++// with an interface type are ignored in the terms list.
+ func overlappingTerm(terms []*Term, y *Term) int {
++	assert(!IsInterface(y.typ))
+ 	for i, x := range terms {
+-		// disjoint requires non-nil, non-top arguments
++		if IsInterface(x.typ) {
++			continue
++		}
++		// disjoint requires non-nil, non-top arguments,
++		// and non-interface types as term types.
+ 		if debug {
+ 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
+ 				panic("empty or top union term")

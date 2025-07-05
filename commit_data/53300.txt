@@ -15,7 +15,47 @@ Date:   Tue Aug 9 02:55:42 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go         | 7 +++++++
  src/cmd/compile/internal/test/issue53888_test.go | 3 +--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 668aa201a9..4bdce25cca 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1989,6 +1989,13 @@ func (r *reader) expr() (res ir.Node) {
+ 		case ir.OAPPEND:
+ 			n := n.(*ir.CallExpr)
+ 			n.RType = r.rtype(pos)
++			// For append(a, b...), we don't need the implicit conversion. The typechecker already
++			// ensured that a and b are both slices with the same base type, or []byte and string.
++			if n.IsDDD {
++				if conv, ok := n.Args[1].(*ir.ConvExpr); ok && conv.Op() == ir.OCONVNOP && conv.Implicit() {
++					n.Args[1] = conv.X
++				}
++			}
+ 		case ir.OCOPY:
+ 			n := n.(*ir.BinaryExpr)
+ 			n.RType = r.rtype(pos)
+diff --git a/src/cmd/compile/internal/test/issue53888_test.go b/src/cmd/compile/internal/test/issue53888_test.go
+index 89c40eca2b..0d5b13b5c8 100644
+--- a/src/cmd/compile/internal/test/issue53888_test.go
++++ b/src/cmd/compile/internal/test/issue53888_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !race && !goexperiment.unified
++//go:build !race
+ 
+ package test
+ 
+@@ -11,7 +11,6 @@ import (
+ 	"testing"
+ )
+ 
+-// TODO(cuonglm,mdempsky): figure out why Unifed IR failed?
+ func TestAppendOfMake(t *testing.T) {
+ 	testenv.SkipIfOptimizationOff(t)
+ 	for n := 32; n < 33; n++ { // avoid stack allocation of make()

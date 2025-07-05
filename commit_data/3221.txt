@@ -9,7 +9,7 @@ Date:   Fri Sep 4 11:58:00 2009 -0700
     DELTA=314  (132 added, 2 deleted, 180 changed)
     OCL=34376
     CL=34396
-
+---
  usr/austin/ogle/abort.go     |  35 ++++++
  usr/austin/ogle/frame.go     |  53 ++++++----
  usr/austin/ogle/goroutine.go |  17 +--
@@ -17,3 +17,848 @@ Date:   Fri Sep 4 11:58:00 2009 -0700
  usr/austin/ogle/rtype.go     |  38 +++----
  usr/austin/ogle/rvalue.go    | 246 ++++++++++++++++++++++++++++---------------
  6 files changed, 272 insertions(+), 138 deletions(-)
+
+diff --git a/usr/austin/ogle/abort.go b/usr/austin/ogle/abort.go
+new file mode 100644
+index 0000000000..087c57b5f4
+--- /dev/null
++++ b/usr/austin/ogle/abort.go
+@@ -0,0 +1,35 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ogle
++
++import (
++	"os";
++	"runtime";
++)
++
++// An aborter aborts the thread's current compututation, usually
++// passing the error to a waiting thread.
++type aborter interface {
++	Abort(err os.Error);
++}
++
++type ogleAborter chan os.Error;
++
++func (a ogleAborter) Abort(err os.Error) {
++	a <- err;
++	runtime.Goexit();
++}
++
++// try executes a computation; if the computation Aborts, try returns
++// the error passed to abort.
++func try(f func(a aborter)) os.Error {
++	a := make(ogleAborter);
++	go func() {
++		f(a);
++		a <- nil;
++	}();
++	err := <-a;
++	return err;
++}
+diff --git a/usr/austin/ogle/frame.go b/usr/austin/ogle/frame.go
+index 522c263b1c..d36f9aa1c8 100644
+--- a/usr/austin/ogle/frame.go
++++ b/usr/austin/ogle/frame.go
+@@ -6,6 +6,7 @@ package ogle
+ 
+ import (
+ 	"fmt";
++	"os";
+ 	"ptrace";
+ 	"sym";
+ )
+@@ -29,14 +30,19 @@ type Frame struct {
+ 	inner, outer *Frame;
+ }
+ 
+-// NewFrame returns the top-most Frame of the given g's thread.
+-// This function can abort.
+-func NewFrame(g remoteStruct) *Frame {
++// newFrame returns the top-most Frame of the given g's thread.
++func newFrame(g remoteStruct) (*Frame, os.Error) {
++	var f *Frame;
++	err := try(func(a aborter) { f = aNewFrame(a, g) });
++	return f, err;
++}
++
++func aNewFrame(a aborter, g remoteStruct) *Frame {
+ 	p := g.r.p;
+ 	var pc, sp ptrace.Word;
+ 
+ 	// Is this G alive?
+-	switch g.Field(p.f.G.Status).(remoteInt).Get() {
++	switch g.field(p.f.G.Status).(remoteInt).aGet(a) {
+ 	case p.runtime.Gidle, p.runtime.Gmoribund, p.runtime.Gdead:
+ 		return nil;
+ 	}
+@@ -61,7 +67,7 @@ func NewFrame(g remoteStruct) *Frame {
+ 
+ 			// If this thread crashed, try to recover it
+ 			if pc == 0 {
+-				pc = p.peekUintptr(pc);
++				pc = p.peekUintptr(a, pc);
+ 				sp += 8;
+ 			}
+ 
+@@ -72,22 +78,21 @@ func NewFrame(g remoteStruct) *Frame {
+ 	if pc == 0 && sp == 0 {
+ 		// G is not mapped to an OS thread.  Use the
+ 		// scheduler's stored PC and SP.
+-		sched := g.Field(p.f.G.Sched).(remoteStruct);
+-		pc = ptrace.Word(sched.Field(p.f.Gobuf.Pc).(remoteUint).Get());
+-		sp = ptrace.Word(sched.Field(p.f.Gobuf.Sp).(remoteUint).Get());
++		sched := g.field(p.f.G.Sched).(remoteStruct);
++		pc = ptrace.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
++		sp = ptrace.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+ 	}
+ 
+ 	// Get Stktop
+-	stk := g.Field(p.f.G.Stackbase).(remotePtr).Get().(remoteStruct);
++	stk := g.field(p.f.G.Stackbase).(remotePtr).aGet(a).(remoteStruct);
+ 
+-	return prepareFrame(pc, sp, stk, nil);
++	return prepareFrame(a, pc, sp, stk, nil);
+ }
+ 
+ // prepareFrame creates a Frame from the PC and SP within that frame,
+ // as well as the active stack segment.  This function takes care of
+-// traversing stack breaks and unwinding closures.  This function can
+-// abort.
+-func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
++// traversing stack breaks and unwinding closures.
++func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+ 	// Based on src/pkg/runtime/amd64/traceback.c:traceback
+ 	p := stk.r.p;
+ 	top := inner == nil;
+@@ -101,11 +106,11 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+ 		// Traverse segmented stack breaks
+ 		if p.sys.lessstack != nil && pc == ptrace.Word(p.sys.lessstack.Value) {
+ 			// Get stk->gobuf.pc
+-			pc = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Pc).(remoteUint).Get());
++			pc = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
+ 			// Get stk->gobuf.sp
+-			sp = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Sp).(remoteUint).Get());
++			sp = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+ 			// Get stk->stackbase
+-			stk = stk.Field(p.f.Stktop.Stackbase).(remotePtr).Get().(remoteStruct);
++			stk = stk.field(p.f.Stktop.Stackbase).(remotePtr).aGet(a).(remoteStruct);
+ 			continue;
+ 		}
+ 
+@@ -129,7 +134,7 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+ 		spdelta, ok := p.ParseClosure(buf);
+ 		if ok {
+ 			sp += ptrace.Word(spdelta);
+-			pc = p.peekUintptr(sp - ptrace.Word(p.PtrSize()));
++			pc = p.peekUintptr(a, sp - ptrace.Word(p.PtrSize()));
+ 		}
+ 	}
+ 	if fn == nil {
+@@ -159,8 +164,14 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+ }
+ 
+ // Outer returns the Frame that called this Frame, or nil if this is
+-// the outermost frame.  This function can abort.
+-func (f *Frame) Outer() *Frame {
++// the outermost frame.
++func (f *Frame) Outer() (*Frame, os.Error) {
++	var fr *Frame;
++	err := try(func(a aborter) { fr = f.aOuter(a) });
++	return fr, err;
++}
++
++func (f *Frame) aOuter(a aborter) *Frame {
+ 	// Is there a cached outer frame
+ 	if f.outer != nil {
+ 		return f.outer;
+@@ -177,14 +188,14 @@ func (f *Frame) Outer() *Frame {
+ 		sp += ptrace.Word(2 * p.PtrSize());
+ 	}
+ 
+-	pc := p.peekUintptr(f.fp - ptrace.Word(p.PtrSize()));
++	pc := p.peekUintptr(a, f.fp - ptrace.Word(p.PtrSize()));
+ 	if pc < 0x1000 {
+ 		return nil;
+ 	}
+ 
+ 	// TODO(austin) Register this frame for shoot-down.
+ 
+-	f.outer = prepareFrame(pc, sp, f.stk, f);
++	f.outer = prepareFrame(a, pc, sp, f.stk, f);
+ 	return f.outer;
+ }
+ 
+diff --git a/usr/austin/ogle/goroutine.go b/usr/austin/ogle/goroutine.go
+index 88d59d18dc..b3cc827b73 100644
+--- a/usr/austin/ogle/goroutine.go
++++ b/usr/austin/ogle/goroutine.go
+@@ -5,6 +5,7 @@
+ package ogle
+ 
+ import (
++	"eval";
+ 	"fmt";
+ 	"os";
+ 	"ptrace";
+@@ -31,21 +32,21 @@ func (t *Goroutine) isG0() bool {
+ 	return t.g.addr().base == t.g.r.p.sys.g0.addr().base;
+ }
+ 
+-func (t *Goroutine) resetFrame() {
+-	// TODO(austin) NewFrame can abort
++func (t *Goroutine) resetFrame() (err os.Error) {
+ 	// TODO(austin) Reuse any live part of the current frame stack
+ 	// so existing references to Frame's keep working.
+-	t.frame = NewFrame(t.g);
++	t.frame, err = newFrame(t.g);
++	return;
+ }
+ 
+ // Out selects the caller frame of the current frame.
+ func (t *Goroutine) Out() os.Error {
+ 	// TODO(austin) Outer can abort
+-	f := t.frame.Outer();
++	f, err := t.frame.Outer();
+ 	if f != nil {
+ 		t.frame = f;
+ 	}
+-	return nil;
++	return err;
+ }
+ 
+ // In selects the frame called by the current frame.
+@@ -70,7 +71,11 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
+ 	sp := regs.SP();
+ 	addr := sp + ptrace.Word(p.PtrSize());
+ 	arg := remotePtr{remote{addr, p}, p.runtime.G};
+-	gp := arg.Get();
++	var gp eval.Value;
++	err = try(func(a aborter) { gp = arg.aGet(a) });
++	if err != nil {
++		return EAStop, err;
++	}
+ 	if gp == nil {
+ 		return EAStop, UnknownGoroutine{b.osThread, 0};
+ 	}
+diff --git a/usr/austin/ogle/process.go b/usr/austin/ogle/process.go
+index ceb16dd8e5..7e4f3ac3d6 100644
+--- a/usr/austin/ogle/process.go
++++ b/usr/austin/ogle/process.go
+@@ -137,12 +137,17 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
+ 
+ 	// Get current goroutines
+ 	p.goroutines[p.sys.g0.addr().base] = &Goroutine{p.sys.g0, nil, false};
+-	g := p.sys.allg.Get();
+-	for g != nil {
+-		gs := g.(remoteStruct);
+-		fmt.Printf("*** Found goroutine at %#x\n", gs.addr().base);
+-		p.goroutines[gs.addr().base] = &Goroutine{gs, nil, false};
+-		g = gs.Field(p.f.G.Alllink).(remotePtr).Get();
++	err := try(func(a aborter) {
++		g := p.sys.allg.aGet(a);
++		for g != nil {
++			gs := g.(remoteStruct);
++			fmt.Printf("*** Found goroutine at %#x\n", gs.addr().base);
++			p.goroutines[gs.addr().base] = &Goroutine{gs, nil, false};
++			g = gs.field(p.f.G.Alllink).(remotePtr).aGet(a);
++		}
++	});
++	if err != nil {
++		return nil, err;
+ 	}
+ 	p.selectSomeGoroutine();
+ 
+@@ -282,8 +287,8 @@ func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
+ 	return thr.Poke(addr, b);
+ }
+ 
+-func (p *Process) peekUintptr(addr ptrace.Word) ptrace.Word {
+-	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).Get());
++func (p *Process) peekUintptr(a aborter, addr ptrace.Word) ptrace.Word {
++	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a));
+ }
+ 
+ /*
+diff --git a/usr/austin/ogle/rtype.go b/usr/austin/ogle/rtype.go
+index 5bca923ce8..05dfa17aba 100644
+--- a/usr/austin/ogle/rtype.go
++++ b/usr/austin/ogle/rtype.go
+@@ -122,7 +122,7 @@ var prtIndent = "";
+ 
+ // parseRemoteType parses a Type structure in a remote process to
+ // construct the corresponding interpreter type and remote type.
+-func parseRemoteType(rs remoteStruct) *remoteType {
++func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 	addr := rs.addr().base;
+ 	p := rs.addr().p;
+ 
+@@ -156,17 +156,17 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	}
+ 
+ 	// Get Type header
+-	itype := ptrace.Word(rs.Field(p.f.Type.Typ).(remoteUint).Get());
+-	typ := rs.Field(p.f.Type.Ptr).(remotePtr).Get().(remoteStruct);
++	itype := ptrace.Word(rs.field(p.f.Type.Typ).(remoteUint).aGet(a));
++	typ := rs.field(p.f.Type.Ptr).(remotePtr).aGet(a).(remoteStruct);
+ 
+ 	// Is this a named type?
+ 	var nt *eval.NamedType;
+-	uncommon := typ.Field(p.f.CommonType.UncommonType).(remotePtr).Get();
++	uncommon := typ.field(p.f.CommonType.UncommonType).(remotePtr).aGet(a);
+ 	if uncommon != nil {
+-		name := uncommon.(remoteStruct).Field(p.f.UncommonType.Name).(remotePtr).Get();
++		name := uncommon.(remoteStruct).field(p.f.UncommonType.Name).(remotePtr).aGet(a);
+ 		if name != nil {
+ 			// TODO(austin) Declare type in appropriate remote package
+-			nt = eval.NewNamedType(name.(remoteString).Get());
++			nt = eval.NewNamedType(name.(remoteString).aGet(a));
+ 			rt.Type = nt;
+ 		}
+ 	}
+@@ -227,8 +227,8 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	case p.runtime.PArrayType:
+ 		// Cast to an ArrayType
+ 		typ := p.runtime.ArrayType.mk(typ.addr()).(remoteStruct);
+-		len := int64(typ.Field(p.f.ArrayType.Len).(remoteUint).Get());
+-		elem := parseRemoteType(typ.Field(p.f.ArrayType.Elem).(remotePtr).Get().(remoteStruct));
++		len := int64(typ.field(p.f.ArrayType.Len).(remoteUint).aGet(a));
++		elem := parseRemoteType(a, typ.field(p.f.ArrayType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewArrayType(len, elem.Type);
+ 		mk = func(r remote) eval.Value {
+ 			return remoteArray{r, len, elem};
+@@ -237,22 +237,22 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	case p.runtime.PStructType:
+ 		// Cast to a StructType
+ 		typ := p.runtime.StructType.mk(typ.addr()).(remoteStruct);
+-		fs := typ.Field(p.f.StructType.Fields).(remoteSlice).Get();
++		fs := typ.field(p.f.StructType.Fields).(remoteSlice).aGet(a);
+ 
+ 		fields := make([]eval.StructField, fs.Len);
+ 		layout := make([]remoteStructField, fs.Len);
+ 		for i := range fields {
+-			f := fs.Base.Elem(int64(i)).(remoteStruct);
+-			elemrs := f.Field(p.f.StructField.Typ).(remotePtr).Get().(remoteStruct);
+-			elem := parseRemoteType(elemrs);
++			f := fs.Base.(remoteArray).elem(int64(i)).(remoteStruct);
++			elemrs := f.field(p.f.StructField.Typ).(remotePtr).aGet(a).(remoteStruct);
++			elem := parseRemoteType(a, elemrs);
+ 			fields[i].Type = elem.Type;
+-			name := f.Field(p.f.StructField.Name).(remotePtr).Get();
++			name := f.field(p.f.StructField.Name).(remotePtr).aGet(a);
+ 			if name == nil {
+ 				fields[i].Anonymous = true;
+ 			} else {
+-				fields[i].Name = name.(remoteString).Get();
++				fields[i].Name = name.(remoteString).aGet(a);
+ 			}
+-			layout[i].offset = int(f.Field(p.f.StructField.Offset).(remoteUint).Get());
++			layout[i].offset = int(f.field(p.f.StructField.Offset).(remoteUint).aGet(a));
+ 			layout[i].fieldType = elem;
+ 		}
+ 
+@@ -264,7 +264,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	case p.runtime.PPtrType:
+ 		// Cast to a PtrType
+ 		typ := p.runtime.PtrType.mk(typ.addr()).(remoteStruct);
+-		elem := parseRemoteType(typ.Field(p.f.PtrType.Elem).(remotePtr).Get().(remoteStruct));
++		elem := parseRemoteType(a, typ.field(p.f.PtrType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewPtrType(elem.Type);
+ 		mk = func(r remote) eval.Value {
+ 			return remotePtr{r, elem};
+@@ -273,7 +273,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	case p.runtime.PSliceType:
+ 		// Cast to a SliceType
+ 		typ := p.runtime.SliceType.mk(typ.addr()).(remoteStruct);
+-		elem := parseRemoteType(typ.Field(p.f.SliceType.Elem).(remotePtr).Get().(remoteStruct));
++		elem := parseRemoteType(a, typ.field(p.f.SliceType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewSliceType(elem.Type);
+ 		mk = func(r remote) eval.Value {
+ 			return remoteSlice{r, elem};
+@@ -291,7 +291,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 			name = sym.Common().Name;
+ 		}
+ 		err := fmt.Sprintf("runtime type at %#x has unexpected type %#x (%s)", addr, itype, name);
+-		eval.Abort(FormatError(err));
++		a.Abort(FormatError(err));
+ 	}
+ 
+ 	// Fill in the remote type
+@@ -300,7 +300,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
+ 	} else {
+ 		rt.Type = t;
+ 	}
+-	rt.size = int(typ.Field(p.f.CommonType.Size).(remoteUint).Get());
++	rt.size = int(typ.field(p.f.CommonType.Size).(remoteUint).aGet(a));
+ 	rt.mk = mk;
+ 
+ 	return rt;
+diff --git a/usr/austin/ogle/rvalue.go b/usr/austin/ogle/rvalue.go
+index 9e5a6ab552..1449ed6602 100644
+--- a/usr/austin/ogle/rvalue.go
++++ b/usr/austin/ogle/rvalue.go
+@@ -7,6 +7,7 @@ package ogle
+ import (
+ 	"eval";
+ 	"fmt";
++	"os";
+ 	"ptrace";
+ )
+ 
+@@ -34,7 +35,7 @@ type remote struct {
+ 	p *Process;
+ }
+ 
+-func (v remote) Get(size int) uint64 {
++func (v remote) Get(a aborter, size int) uint64 {
+ 	// TODO(austin) This variable might temporarily be in a
+ 	// register.  We could trace the assembly back from the
+ 	// current PC, looking for the beginning of the function or a
+@@ -55,18 +56,18 @@ func (v remote) Get(size int) uint64 {
+ 	buf := arr[0:size];
+ 	_, err := v.p.Peek(v.base, buf);
+ 	if err != nil {
+-		eval.Abort(err);
++		a.Abort(err);
+ 	}
+ 	return uint64(v.p.ToWord(buf));
+ }
+ 
+-func (v remote) Set(size int, x uint64) {
++func (v remote) Set(a aborter, size int, x uint64) {
+ 	var arr [8]byte;
+ 	buf := arr[0:size];
+ 	v.p.FromWord(ptrace.Word(x), buf);
+ 	_, err := v.p.Poke(v.base, buf);
+ 	if err != nil {
+-		eval.Abort(err);
++		a.Abort(err);
+ 	}
+ }
+ 
+@@ -74,6 +75,15 @@ func (v remote) plus(x ptrace.Word) remote {
+ 	return remote{v.base + x, v.p};
+ }
+ 
++func tryRVString(f func(a aborter) string) string {
++	var s string;
++	err := try(func(a aborter) { s = f(a) });
++	if err != nil {
++		return fmt.Sprintf("<error: %v>", err);
++	}
++	return s;
++}
++
+ /*
+  * Bool
+  */
+@@ -83,22 +93,30 @@ type remoteBool struct {
+ }
+ 
+ func (v remoteBool) String() string {
+-	return fmt.Sprintf("%v", v.Get());
++	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
++}
++
++func (v remoteBool) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.BoolValue).Get(t));
++}
++
++func (v remoteBool) Get(t *eval.Thread) bool {
++	return v.aGet(t);
+ }
+ 
+-func (v remoteBool) Assign(o eval.Value) {
+-	v.Set(o.(eval.BoolValue).Get());
++func (v remoteBool) aGet(a aborter) bool {
++	return v.r.Get(a, 1) != 0;
+ }
+ 
+-func (v remoteBool) Get() bool {
+-	return v.r.Get(1) != 0;
++func (v remoteBool) Set(t *eval.Thread, x bool) {
++	v.aSet(t, x);
+ }
+ 
+-func (v remoteBool) Set(x bool) {
++func (v remoteBool) aSet(a aborter, x bool) {
+ 	if x {
+-		v.r.Set(1, 1);
++		v.r.Set(a, 1, 1);
+ 	} else {
+-		v.r.Set(1, 0);
++		v.r.Set(a, 1, 0);
+ 	}
+ }
+ 
+@@ -120,19 +138,27 @@ type remoteUint struct {
+ }
+ 
+ func (v remoteUint) String() string {
+-	return fmt.Sprintf("%v", v.Get());
++	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
++}
++
++func (v remoteUint) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.UintValue).Get(t));
+ }
+ 
+-func (v remoteUint) Assign(o eval.Value) {
+-	v.Set(o.(eval.UintValue).Get());
++func (v remoteUint) Get(t *eval.Thread) uint64 {
++	return v.aGet(t);
+ }
+ 
+-func (v remoteUint) Get() uint64 {
+-	return v.r.Get(v.size);
++func (v remoteUint) aGet(a aborter) uint64 {
++	return v.r.Get(a, v.size);
+ }
+ 
+-func (v remoteUint) Set(x uint64) {
+-	v.r.Set(v.size, x);
++func (v remoteUint) Set(t *eval.Thread, x uint64) {
++	v.aSet(t, x);
++}
++
++func (v remoteUint) aSet(a aborter, x uint64) {
++	v.r.Set(a, v.size, x);
+ }
+ 
+ func (v remoteUint) addr() remote {
+@@ -173,19 +199,27 @@ type remoteInt struct {
+ }
+ 
+ func (v remoteInt) String() string {
+-	return fmt.Sprintf("%v", v.Get());
++	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
++}
++
++func (v remoteInt) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.IntValue).Get(t));
++}
++
++func (v remoteInt) Get(t *eval.Thread) int64 {
++	return v.aGet(t);
+ }
+ 
+-func (v remoteInt) Assign(o eval.Value) {
+-	v.Set(o.(eval.IntValue).Get());
++func (v remoteInt) aGet(a aborter) int64 {
++	return int64(v.r.Get(a, v.size));
+ }
+ 
+-func (v remoteInt) Get() int64 {
+-	return int64(v.r.Get(v.size));
++func (v remoteInt) Set(t *eval.Thread, x int64) {
++	v.aSet(t, x);
+ }
+ 
+-func (v remoteInt) Set(x int64) {
+-	v.r.Set(v.size, uint64(x));
++func (v remoteInt) aSet(a aborter, x int64) {
++	v.r.Set(a, v.size, uint64(x));
+ }
+ 
+ func (v remoteInt) addr() remote {
+@@ -222,15 +256,19 @@ type remoteFloat struct {
+ }
+ 
+ func (v remoteFloat) String() string {
+-	return fmt.Sprintf("%v", v.Get());
++	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
++}
++
++func (v remoteFloat) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.FloatValue).Get(t));
+ }
+ 
+-func (v remoteFloat) Assign(o eval.Value) {
+-	v.Set(o.(eval.FloatValue).Get());
++func (v remoteFloat) Get(t *eval.Thread) float64 {
++	return v.aGet(t);
+ }
+ 
+-func (v remoteFloat) Get() float64 {
+-	bits := v.r.Get(v.size);
++func (v remoteFloat) aGet(a aborter) float64 {
++	bits := v.r.Get(a, v.size);
+ 	switch v.size {
+ 	case 4:
+ 		return float64(v.r.p.ToFloat32(uint32(bits)));
+@@ -240,7 +278,11 @@ func (v remoteFloat) Get() float64 {
+ 	panic("Unexpected float size ", v.size);
+ }
+ 
+-func (v remoteFloat) Set(x float64) {
++func (v remoteFloat) Set(t *eval.Thread, x float64) {
++	v.aSet(t, x);
++}
++
++func (v remoteFloat) aSet(a aborter, x float64) {
+ 	var bits uint64;
+ 	switch v.size{
+ 	case 4:
+@@ -250,7 +292,7 @@ func (v remoteFloat) Set(x float64) {
+ 	default:
+ 		panic("Unexpected float size ", v.size);
+ 	}
+-	v.r.Set(v.size, bits);
++	v.r.Set(a, v.size, bits);
+ }
+ 
+ func (v remoteFloat) addr() remote {
+@@ -278,30 +320,38 @@ type remoteString struct {
+ }
+ 
+ func (v remoteString) String() string {
+-	return v.Get();
++	return tryRVString(func(a aborter) string { return v.aGet(a) });
+ }
+ 
+-func (v remoteString) Assign(o eval.Value) {
+-	v.Set(o.(eval.StringValue).Get());
++func (v remoteString) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.StringValue).Get(t));
+ }
+ 
+-func (v remoteString) Get() string {
++func (v remoteString) Get(t *eval.Thread) string {
++	return v.aGet(t);
++}
++
++func (v remoteString) aGet(a aborter) string {
+ 	rs := v.r.p.runtime.String.mk(v.r).(remoteStruct);
+-	str := ptrace.Word(rs.Field(v.r.p.f.String.Str).(remoteUint).Get());
+-	len := rs.Field(v.r.p.f.String.Len).(remoteInt).Get();
++	str := ptrace.Word(rs.field(v.r.p.f.String.Str).(remoteUint).aGet(a));
++	len := rs.field(v.r.p.f.String.Len).(remoteInt).aGet(a);
+ 	
+ 	bytes := make([]uint8, len);
+ 	_, err := v.r.p.Peek(str, bytes);
+ 	if err != nil {
+-		eval.Abort(err);
++		a.Abort(err);
+ 	}
+ 	return string(bytes);
+ }
+ 
+-func (v remoteString) Set(x string) {
++func (v remoteString) Set(t *eval.Thread, x string) {
++	v.aSet(t, x);
++}
++
++func (v remoteString) aSet(a aborter, x string) {
+ 	// TODO(austin) This isn't generally possible without the
+ 	// ability to allocate remote memory.
+-	eval.Abort(RemoteMismatchError("remote strings cannot be assigned to"));
++	a.Abort(RemoteMismatchError("remote strings cannot be assigned to"));
+ }
+ 
+ func mkString(r remote) eval.Value {
+@@ -324,30 +374,34 @@ func (v remoteArray) String() string {
+ 		if i > 0 {
+ 			res += ", ";
+ 		}
+-		res += v.Elem(i).String();
++		res += v.elem(i).String();
+ 	}
+ 	return res + "}";
+ }
+ 
+-func (v remoteArray) Assign(o eval.Value) {
++func (v remoteArray) Assign(t *eval.Thread, o eval.Value) {
+  	// TODO(austin) Could do a bigger memcpy if o is a
+ 	// remoteArray in the same Process.
+ 	oa := o.(eval.ArrayValue);
+ 	for i := int64(0); i < v.len; i++ {
+-		v.Elem(i).Assign(oa.Elem(i));
++		v.Elem(t, i).Assign(t, oa.Elem(t, i));
+ 	}
+ }
+ 
+-func (v remoteArray) Get() eval.ArrayValue {
++func (v remoteArray) Get(t *eval.Thread) eval.ArrayValue {
+ 	return v;
+ }
+ 
+-func (v remoteArray) Elem(i int64) eval.Value {
++func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
++	return v.elem(i);
++}
++
++func (v remoteArray) elem(i int64) eval.Value {
+ 	return v.elemType.mk(v.r.plus(ptrace.Word(int64(v.elemType.size) * i)));
+ }
+ 
+-func (v remoteArray) From(i int64) eval.ArrayValue {
+-	return remoteArray{v.r.plus(ptrace.Word(int64(v.elemType.size) * i)), v.len - i, v.elemType};
++func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
++	return remoteArray{v.r.plus(ptrace.Word(int64(v.elemType.size) * i)), len, v.elemType};
+ }
+ 
+ /*
+@@ -370,25 +424,29 @@ func (v remoteStruct) String() string {
+ 		if i > 0 {
+ 			res += ", ";
+ 		}
+-		res += v.Field(i).String();
++		res += v.field(i).String();
+ 	}
+ 	return res + "}";
+ }
+ 
+-func (v remoteStruct) Assign(o eval.Value) {
++func (v remoteStruct) Assign(t *eval.Thread, o eval.Value) {
+ 	// TODO(austin) Could do a bigger memcpy.
+ 	oa := o.(eval.StructValue);
+ 	l := len(v.layout);
+ 	for i := 0; i < l; i++ {
+-		v.Field(i).Assign(oa.Field(i));
++		v.Field(t, i).Assign(t, oa.Field(t, i));
+ 	}
+ }
+ 
+-func (v remoteStruct) Get() eval.StructValue {
++func (v remoteStruct) Get(t *eval.Thread) eval.StructValue {
+ 	return v;
+ }
+ 
+-func (v remoteStruct) Field(i int) eval.Value {
++func (v remoteStruct) Field(t *eval.Thread, i int) eval.Value {
++	return v.field(i);
++}
++
++func (v remoteStruct) field(i int) eval.Value {
+ 	f := &v.layout[i];
+ 	return f.fieldType.mk(v.r.plus(ptrace.Word(f.offset)));
+ }
+@@ -411,35 +469,45 @@ type remotePtr struct {
+ }
+ 
+ func (v remotePtr) String() string {
+-	e := v.Get();
+-	if e == nil {
+-		return "<nil>";
+-	}
+-	return "&" + e.String();
++	return tryRVString(func(a aborter) string {
++		e := v.aGet(a);
++		if e == nil {
++			return "<nil>";
++		}
++		return "&" + e.String();
++	});
+ }
+ 
+-func (v remotePtr) Assign(o eval.Value) {
+-	v.Set(o.(eval.PtrValue).Get());
++func (v remotePtr) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.PtrValue).Get(t));
+ }
+ 
+-func (v remotePtr) Get() eval.Value {
+-	addr := ptrace.Word(v.r.Get(v.r.p.PtrSize()));
++func (v remotePtr) Get(t *eval.Thread) eval.Value {
++	return v.aGet(t);
++}
++
++func (v remotePtr) aGet(a aborter) eval.Value {
++	addr := ptrace.Word(v.r.Get(a, v.r.p.PtrSize()));
+ 	if addr == 0 {
+ 		return nil;
+ 	}
+ 	return v.elemType.mk(remote{addr, v.r.p});
+ }
+ 
+-func (v remotePtr) Set(x eval.Value) {
++func (v remotePtr) Set(t *eval.Thread, x eval.Value) {
++	v.aSet(t, x);
++}
++
++func (v remotePtr) aSet(a aborter, x eval.Value) {
+ 	if x == nil {
+-		v.r.Set(v.r.p.PtrSize(), 0);
++		v.r.Set(a, v.r.p.PtrSize(), 0);
+ 		return;
+ 	}
+ 	xr, ok := x.(remoteValue);
+ 	if !ok || v.r.p != xr.addr().p {
+-		eval.Abort(RemoteMismatchError("remote pointer must point within the same process"));
++		a.Abort(RemoteMismatchError("remote pointer must point within the same process"));
+ 	}
+-	v.r.Set(v.r.p.PtrSize(), uint64(xr.addr().base));
++	v.r.Set(a, v.r.p.PtrSize(), uint64(xr.addr().base));
+ }
+ 
+ func (v remotePtr) addr() remote {
+@@ -456,39 +524,49 @@ type remoteSlice struct {
+ }
+ 
+ func (v remoteSlice) String() string {
+-	b := v.Get().Base;
+-	if b == nil {
+-		return "<nil>";
+-	}
+-	return b.String();
++	return tryRVString(func(a aborter) string {
++		b := v.aGet(a).Base;
++		if b == nil {
++			return "<nil>";
++		}
++		return b.String();
++	});
++}
++
++func (v remoteSlice) Assign(t *eval.Thread, o eval.Value) {
++	v.Set(t, o.(eval.SliceValue).Get(t));
+ }
+ 
+-func (v remoteSlice) Assign(o eval.Value) {
+-	v.Set(o.(eval.SliceValue).Get());
++func (v remoteSlice) Get(t *eval.Thread) eval.Slice {
++	return v.aGet(t);
+ }
+ 
+-func (v remoteSlice) Get() eval.Slice {
++func (v remoteSlice) aGet(a aborter) eval.Slice {
+ 	rs := v.r.p.runtime.Slice.mk(v.r).(remoteStruct);
+-	base := ptrace.Word(rs.Field(v.r.p.f.Slice.Array).(remoteUint).Get());
+-	nel := rs.Field(v.r.p.f.Slice.Len).(remoteInt).Get();
+-	cap := rs.Field(v.r.p.f.Slice.Cap).(remoteInt).Get();
++	base := ptrace.Word(rs.field(v.r.p.f.Slice.Array).(remoteUint).aGet(a));
++	nel := rs.field(v.r.p.f.Slice.Len).(remoteInt).aGet(a);
++	cap := rs.field(v.r.p.f.Slice.Cap).(remoteInt).aGet(a);
+ 	if base == 0 {
+ 		return eval.Slice{nil, nel, cap};
+ 	}
+ 	return eval.Slice{remoteArray{remote{base, v.r.p}, nel, v.elemType}, nel, cap};
+ }
+ 
+-func (v remoteSlice) Set(x eval.Slice) {
++func (v remoteSlice) Set(t *eval.Thread, x eval.Slice) {
++	v.aSet(t, x);
++}
++
++func (v remoteSlice) aSet(a aborter, x eval.Slice) {
+ 	rs := v.r.p.runtime.Slice.mk(v.r).(remoteStruct);
+ 	if x.Base == nil {
+-		rs.Field(v.r.p.f.Slice.Array).(remoteUint).Set(0);
++		rs.field(v.r.p.f.Slice.Array).(remoteUint).aSet(a, 0);
+ 	} else {
+ 		ar, ok := x.Base.(remoteArray);
+ 		if !ok || v.r.p != ar.r.p {
+-			eval.Abort(RemoteMismatchError("remote slice must point within the same process"));
++			a.Abort(RemoteMismatchError("remote slice must point within the same process"));
+ 		}
+-		rs.Field(v.r.p.f.Slice.Array).(remoteUint).Set(uint64(ar.r.base));
++		rs.field(v.r.p.f.Slice.Array).(remoteUint).aSet(a, uint64(ar.r.base));
+ 	}
+-	rs.Field(v.r.p.f.Slice.Len).(remoteInt).Set(x.Len);
+-	rs.Field(v.r.p.f.Slice.Cap).(remoteInt).Set(x.Cap);
++	rs.field(v.r.p.f.Slice.Len).(remoteInt).aSet(a, x.Len);
++	rs.field(v.r.p.f.Slice.Cap).(remoteInt).aSet(a, x.Cap);
+ }

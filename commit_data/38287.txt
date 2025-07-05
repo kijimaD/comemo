@@ -10,6 +10,24 @@ Date:   Wed Oct 17 10:40:44 2018 +0300
     Change-Id: I08643b0868bce3439567084c7d701654655f23d7
     Reviewed-on: https://go-review.googlesource.com/c/142857
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index b7d5f912db..499fda5af5 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -109,6 +109,12 @@ code, pre, .lines, .ast {
+     font-size: 12px;
+ }
+ 
++pre {
++    -moz-tab-size: 4;
++    -o-tab-size:   4;
++    tab-size:      4;
++}
++
+ .allow-x-scroll {
+     overflow-x: scroll;
+ }

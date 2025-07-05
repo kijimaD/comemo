@@ -7,6 +7,17 @@ Date:   Tue Nov 17 23:22:41 2009 -0800
     
     R=rsc
     https://golang.org/cl/154174
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b488146c45..7f9de1a936 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -59,4 +59,5 @@ Scott Schwartz <scotts@golang.org>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Stephen Ma <stephenm@golang.org>
+ Tom Szymanski <tgs@google.com>
++Trevor Strohman <trevor.strohman@gmail.com>
+ Vish Subramanian <vish@google.com>

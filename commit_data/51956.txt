@@ -16,6 +16,81 @@ Date:   Mon Mar 28 21:41:19 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/val.go | 42 --------------------------------------
  1 file changed, 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index bfe7d2bb43..925222b113 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -6,7 +6,6 @@ package ir
+ 
+ import (
+ 	"go/constant"
+-	"math"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+@@ -19,27 +18,6 @@ func ConstType(n Node) constant.Kind {
+ 	return n.Val().Kind()
+ }
+ 
+-// ConstValue returns the constant value stored in n as an interface{}.
+-// It returns int64s for ints and runes, float64s for floats,
+-// and complex128s for complex values.
+-func ConstValue(n Node) interface{} {
+-	switch v := n.Val(); v.Kind() {
+-	default:
+-		base.Fatalf("unexpected constant: %v", v)
+-		panic("unreachable")
+-	case constant.Bool:
+-		return constant.BoolVal(v)
+-	case constant.String:
+-		return constant.StringVal(v)
+-	case constant.Int:
+-		return IntVal(n.Type(), v)
+-	case constant.Float:
+-		return Float64Val(v)
+-	case constant.Complex:
+-		return complex(Float64Val(constant.Real(v)), Float64Val(constant.Imag(v)))
+-	}
+-}
+-
+ // IntVal returns v converted to int64.
+ // Note: if t is uint64, very large values will be converted to negative int64.
+ func IntVal(t *types.Type, v constant.Value) int64 {
+@@ -56,14 +34,6 @@ func IntVal(t *types.Type, v constant.Value) int64 {
+ 	panic("unreachable")
+ }
+ 
+-func Float64Val(v constant.Value) float64 {
+-	if x, _ := constant.Float64Val(v); !math.IsInf(x, 0) {
+-		return x + 0 // avoid -0 (should not be needed, but be conservative)
+-	}
+-	base.Fatalf("bad float64 value: %v", v)
+-	panic("unreachable")
+-}
+-
+ func AssertValidTypeForConst(t *types.Type, v constant.Value) {
+ 	if !ValidTypeForConst(t, v) {
+ 		base.Fatalf("%v (%v) does not represent %v (%v)", t, t.Kind(), v, v.Kind())
+@@ -114,18 +84,6 @@ func idealType(ct constant.Kind) *types.Type {
+ 
+ var OKForConst [types.NTYPE]bool
+ 
+-// CanInt64 reports whether it is safe to call Int64Val() on n.
+-func CanInt64(n Node) bool {
+-	if !IsConst(n, constant.Int) {
+-		return false
+-	}
+-
+-	// if the value inside n cannot be represented as an int64, the
+-	// return value of Int64 is undefined
+-	_, ok := constant.Int64Val(n.Val())
+-	return ok
+-}
+-
+ // Int64Val returns n as an int64.
+ // n must be an integer or rune constant.
+ func Int64Val(n Node) int64 {

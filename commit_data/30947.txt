@@ -7,6 +7,20 @@ Date:   Thu Dec 22 17:21:31 2016 -0800
     Change-Id: I24c6d312f7d0ce52e1958e8031fc8249af0dfca9
     Reviewed-on: https://go-review.googlesource.com/34669
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/dial.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index b73426fa44..50bba5a49e 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -163,7 +163,7 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
+ 	return "", 0, UnknownNetworkError(net)
+ }
+ 
+-// resolverAddrList resolves addr using hint and returns a list of
++// resolveAddrList resolves addr using hint and returns a list of
+ // addresses. The result contains at least one address when error is
+ // nil.
+ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {

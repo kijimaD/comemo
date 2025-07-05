@@ -12,8 +12,164 @@ Date:   Tue Nov 9 14:10:37 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/object.go          | 21 +++++++----
  src/go/types/object_test.go     | 78 +++++++++++++++++++++++++++++++++++++++++
  src/go/types/typestring_test.go |  7 +++-
  3 files changed, 98 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index a8bd62a04e..e7a4425643 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -412,6 +412,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	case *TypeName:
+ 		tname = obj
+ 		buf.WriteString("type")
++		if isTypeParam(typ) {
++			buf.WriteString(" parameter")
++		}
+ 
+ 	case *Var:
+ 		if obj.isField {
+@@ -457,18 +460,22 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	}
+ 
+ 	if tname != nil {
+-		// We have a type object: Don't print anything more for
+-		// basic types since there's no more information (names
+-		// are the same; see also comment in TypeName.IsAlias).
+-		if _, ok := typ.(*Basic); ok {
++		switch t := typ.(type) {
++		case *Basic:
++			// Don't print anything more for basic types since there's
++			// no more information.
+ 			return
+-		}
+-		if named, _ := typ.(*Named); named != nil && named.TypeParams().Len() > 0 {
+-			newTypeWriter(buf, qf).tParamList(named.TypeParams().list())
++		case *Named:
++			if t.TypeParams().Len() > 0 {
++				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
++			}
+ 		}
+ 		if tname.IsAlias() {
+ 			buf.WriteString(" =")
++		} else if t, _ := typ.(*TypeParam); t != nil {
++			typ = t.bound
+ 		} else {
++			// TODO(gri) should this be fromRHS for *Named?
+ 			typ = under(typ)
+ 		}
+ 	}
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index e9a4bd6dbf..46b92a4006 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
++	"strings"
+ 	"testing"
+ 
+ 	. "go/types"
+@@ -89,3 +91,79 @@ func TestEmbeddedMethod(t *testing.T) {
+ 		t.Fatalf("%s (%p) != %s (%p)", orig, orig, embed, embed)
+ 	}
+ }
++
++var testObjects = []struct {
++	src  string
++	obj  string
++	want string
++}{
++	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader"},
++
++	{"const c = 1.2", "c", "const p.c untyped float"},
++	{"const c float64 = 3.14", "c", "const p.c float64"},
++
++	{"type t struct{f int}", "t", "type p.t struct{f int}"},
++	{"type t func(int)", "t", "type p.t func(int)"},
++	{"type t[P any] struct{f P}", "t", "type p.t[P interface{}] struct{f P}"},
++	{"type t[P any] struct{f P}", "t.P", "type parameter P interface{}"},
++	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
++
++	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
++	{"type t = func(int)", "t", "type p.t = func(int)"},
++
++	{"var v int", "v", "var p.v int"},
++
++	{"func f(int) string", "f", "func p.f(int) string"},
++	{"func g[P any](x P){}", "g", "func p.g[P interface{}](x P)"},
++	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
++}
++
++func TestObjectString(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	for _, test := range testObjects {
++		src := "package p; " + test.src
++		pkg, err := makePkg(src)
++		if err != nil {
++			t.Errorf("%s: %s", src, err)
++			continue
++		}
++
++		names := strings.Split(test.obj, ".")
++		if len(names) != 1 && len(names) != 2 {
++			t.Errorf("%s: invalid object path %s", test.src, test.obj)
++			continue
++		}
++		obj := pkg.Scope().Lookup(names[0])
++		if obj == nil {
++			t.Errorf("%s: %s not found", test.src, names[0])
++			continue
++		}
++		if len(names) == 2 {
++			if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
++				obj = lookupTypeParamObj(typ.TypeParams(), names[1])
++				if obj == nil {
++					t.Errorf("%s: %s not found", test.src, test.obj)
++					continue
++				}
++			} else {
++				t.Errorf("%s: %s has no type parameters", test.src, names[0])
++				continue
++			}
++		}
++
++		if got := obj.String(); got != test.want {
++			t.Errorf("%s: got %s, want %s", test.src, got, test.want)
++		}
++	}
++}
++
++func lookupTypeParamObj(list *TypeParamList, name string) Object {
++	for i := 0; i < list.Len(); i++ {
++		tpar := list.At(i)
++		if tpar.Obj().Name() == name {
++			return tpar.Obj()
++		}
++	}
++	return nil
++}
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 5718ffcc6c..14ab9b6002 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -133,7 +133,12 @@ func TestTypeString(t *testing.T) {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+ 		}
+-		typ := pkg.Scope().Lookup("T").Type().Underlying()
++		obj := pkg.Scope().Lookup("T")
++		if obj == nil {
++			t.Errorf("%s: T not found", test.src)
++			continue
++		}
++		typ := obj.Type().Underlying()
+ 		if got := typ.String(); got != test.str {
+ 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
+ 		}

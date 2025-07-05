@@ -17,7 +17,40 @@ Date:   Wed Dec 7 14:45:45 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5435089
-
+---
  src/pkg/strconv/atoi.go | 8 ++++----
  src/pkg/strconv/ftoa.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 438d496948..b0e584e193 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -119,10 +119,10 @@ Error:
+ 	return n, &NumError{s0, err}
+ }
+ 
+-// ParseInt interprets a string s in an arbitrary base b (2 to 36)
+-// and returns the corresponding value n.  If b == 0, the base
+-// is taken from the string prefix: base 16 for "0x", base 8 for "0",
+-// and base 10 otherwise.
++// ParseInt interprets a string s in the given base (2 to 36) and
++// returns the corresponding value i.  If base == 0, the base is
++// implied by the string's prefix: base 16 for "0x", base 8 for
++// "0", and base 10 otherwise.
+ //
+ // The bitSize argument specifies the integer type
+ // that the result must fit into.  Bit sizes 0, 8, 16, 32, and 64
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index b2413eee6b..692e3e4087 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -46,7 +46,7 @@ var float64info = floatInfo{52, 11, -1023}
+ // because correct rounding and the number of digits
+ // needed to identify f depend on the precision of the representation.
+ func FormatFloat(f float64, fmt byte, prec, bitSize int) string {
+-	return string(genericFtoa(make([]byte, 0, 16), f, fmt, prec, bitSize))
++	return string(genericFtoa(make([]byte, 0, max(prec+4, 24)), f, fmt, prec, bitSize))
+ }
+ 
+ // AppendFloat appends the string form of the floating-point number f,

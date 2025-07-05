@@ -22,8 +22,128 @@ Date:   Mon Feb 29 12:06:57 2016 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go |  6 +++---
  src/net/http/serve_test.go  | 26 ++++++++++++++++++++++++++
  src/net/http/server.go      | 28 ++++++++++++++--------------
  3 files changed, 43 insertions(+), 17 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index e14181a21b..94d55ab2f6 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -59,9 +59,9 @@ func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServ
+ 
+ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+ 	return &timeoutHandler{
+-		handler: handler,
+-		timeout: func() <-chan time.Time { return ch },
+-		// (no body and nil cancelTimer)
++		handler:     handler,
++		testTimeout: ch,
++		// (no body)
+ 	}
+ }
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 250e18644c..c49262201a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1888,6 +1888,32 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 14568.
++func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping sleeping test in -short mode")
++	}
++	defer afterTest(t)
++	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
++		w.WriteHeader(StatusNoContent)
++	}
++	timeout := 300 * time.Millisecond
++	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
++	defer ts.Close()
++	// Issue was caused by the timeout handler starting the timer when
++	// was created, not when the request. So wait for more than the timeout
++	// to ensure that's not the case.
++	time.Sleep(2 * timeout)
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != StatusNoContent {
++		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusNoContent)
++	}
++}
++
+ // Verifies we don't path.Clean() on the wrong parts in redirects.
+ func TestRedirectMunging(t *testing.T) {
+ 	req, _ := NewRequest("GET", "http://example.com/", nil)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7a27a4157c..3834630a59 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2309,15 +2309,10 @@ func (srv *Server) onceSetNextProtoDefaults() {
+ // TimeoutHandler buffers all Handler writes to memory and does not
+ // support the Hijacker or Flusher interfaces.
+ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
+-	t := time.NewTimer(dt)
+ 	return &timeoutHandler{
+ 		handler: h,
+ 		body:    msg,
+-
+-		// Effectively storing a *time.Timer, but decomposed
+-		// for testing:
+-		timeout:     func() <-chan time.Time { return t.C },
+-		cancelTimer: t.Stop,
++		dt:      dt,
+ 	}
+ }
+ 
+@@ -2328,12 +2323,11 @@ var ErrHandlerTimeout = errors.New("http: Handler timeout")
+ type timeoutHandler struct {
+ 	handler Handler
+ 	body    string
++	dt      time.Duration
+ 
+-	// timeout returns the channel of a *time.Timer and
+-	// cancelTimer cancels it. They're stored separately for
+-	// testing purposes.
+-	timeout     func() <-chan time.Time // returns channel producing a timeout
+-	cancelTimer func() bool             // optional
++	// When set, no timer will be created and this channel will
++	// be used instead.
++	testTimeout <-chan time.Time
+ }
+ 
+ func (h *timeoutHandler) errorBody() string {
+@@ -2344,6 +2338,12 @@ func (h *timeoutHandler) errorBody() string {
+ }
+ 
+ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
++	var t *time.Timer
++	timeout := h.testTimeout
++	if timeout == nil {
++		t = time.NewTimer(h.dt)
++		timeout = t.C
++	}
+ 	done := make(chan struct{})
+ 	tw := &timeoutWriter{
+ 		w: w,
+@@ -2363,10 +2363,10 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		}
+ 		w.WriteHeader(tw.code)
+ 		w.Write(tw.wbuf.Bytes())
+-		if h.cancelTimer != nil {
+-			h.cancelTimer()
++		if t != nil {
++			t.Stop()
+ 		}
+-	case <-h.timeout():
++	case <-timeout:
+ 		tw.mu.Lock()
+ 		defer tw.mu.Unlock()
+ 		w.WriteHeader(StatusServiceUnavailable)

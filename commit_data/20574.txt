@@ -11,6 +11,20 @@ Date:   Thu Sep 18 21:16:01 2014 -0400
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/147820044
-
+---
  src/os/error_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index 62d4e420e4..45cd747923 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -25,7 +25,7 @@ func isNotExist(err error) bool {
+ 	case *LinkError:
+ 		err = pe.Err
+ 	}
+-	return contains(err.Error(), "does not exist") || contains(err.Error(), "not found")
++	return contains(err.Error(), "does not exist") || contains(err.Error(), "not found") || contains(err.Error(), "has been removed")
+ }
+ 
+ func isPermission(err error) bool {

@@ -11,7 +11,338 @@ Date:   Fri Feb 4 09:00:17 2011 -0500
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/3973054
-
+---
  src/pkg/crypto/openpgp/packet/public_key.go      | 260 +++++++++++++++++++++++
  src/pkg/crypto/openpgp/packet/public_key_test.go |  58 +++++
  2 files changed, 318 insertions(+)
+
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+new file mode 100644
+index 0000000000..4a2ed0aca1
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -0,0 +1,260 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"big"
++	"crypto/dsa"
++	"crypto/openpgp/error"
++	"crypto/rsa"
++	"crypto/sha1"
++	"encoding/binary"
++	"hash"
++	"io"
++	"os"
++)
++
++// PublicKey represents an OpenPGP public key. See RFC 4880, section 5.5.2.
++type PublicKey struct {
++	CreationTime uint32 // seconds since the epoch
++	PubKeyAlgo   PublicKeyAlgorithm
++	PublicKey    interface{} // Either a *rsa.PublicKey or *dsa.PublicKey
++	Fingerprint  [20]byte
++	KeyId        uint64
++	IsSubKey     bool
++
++	n, e, p, q, g, y parsedMPI
++}
++
++func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
++	// RFC 4880, section 5.5.2
++	var buf [6]byte
++	_, err = readFull(r, buf[:])
++	if err != nil {
++		return
++	}
++	if buf[0] != 4 {
++		return error.UnsupportedError("public key version")
++	}
++	pk.CreationTime = uint32(buf[1])<<24 | uint32(buf[2])<<16 | uint32(buf[3])<<8 | uint32(buf[4])
++	pk.PubKeyAlgo = PublicKeyAlgorithm(buf[5])
++	switch pk.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
++		err = pk.parseRSA(r)
++	case PubKeyAlgoDSA:
++		err = pk.parseDSA(r)
++	default:
++		err = error.UnsupportedError("public key type")
++	}
++	if err != nil {
++		return
++	}
++
++	// RFC 4880, section 12.2
++	fingerPrint := sha1.New()
++	pk.SerializeSignaturePrefix(fingerPrint)
++	pk.Serialize(fingerPrint)
++	copy(pk.Fingerprint[:], fingerPrint.Sum())
++	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
++
++	return
++}
++
++// parseRSA parses RSA public key material from the given Reader. See RFC 4880,
++// section 5.5.2.
++func (pk *PublicKey) parseRSA(r io.Reader) (err os.Error) {
++	pk.n.bytes, pk.n.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++	pk.e.bytes, pk.e.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++
++	if len(pk.e.bytes) > 3 {
++		err = error.UnsupportedError("large public exponent")
++		return
++	}
++	rsa := &rsa.PublicKey{
++		N: new(big.Int).SetBytes(pk.n.bytes),
++		E: 0,
++	}
++	for i := 0; i < len(pk.e.bytes); i++ {
++		rsa.E <<= 8
++		rsa.E |= int(pk.e.bytes[i])
++	}
++	pk.PublicKey = rsa
++	return
++}
++
++// parseRSA parses DSA public key material from the given Reader. See RFC 4880,
++// section 5.5.2.
++func (pk *PublicKey) parseDSA(r io.Reader) (err os.Error) {
++	pk.p.bytes, pk.p.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++	pk.q.bytes, pk.q.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++	pk.g.bytes, pk.g.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++	pk.y.bytes, pk.y.bitLength, err = readMPI(r)
++	if err != nil {
++		return
++	}
++
++	dsa := new(dsa.PublicKey)
++	dsa.P = new(big.Int).SetBytes(pk.p.bytes)
++	dsa.Q = new(big.Int).SetBytes(pk.q.bytes)
++	dsa.G = new(big.Int).SetBytes(pk.g.bytes)
++	dsa.Y = new(big.Int).SetBytes(pk.y.bytes)
++	pk.PublicKey = dsa
++	return
++}
++
++// SerializeSignaturePrefix writes the prefix for this public key to the given Writer.
++// The prefix is used when calculating a signature over this public key. See
++// RFC 4880, section 5.2.4.
++func (pk *PublicKey) SerializeSignaturePrefix(h hash.Hash) {
++	var pLength uint16
++	switch pk.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
++		pLength += 2 + uint16(len(pk.n.bytes))
++		pLength += 2 + uint16(len(pk.e.bytes))
++	case PubKeyAlgoDSA:
++		pLength += 2 + uint16(len(pk.p.bytes))
++		pLength += 2 + uint16(len(pk.q.bytes))
++		pLength += 2 + uint16(len(pk.g.bytes))
++		pLength += 2 + uint16(len(pk.y.bytes))
++	default:
++		panic("unknown public key algorithm")
++	}
++	pLength += 6
++	h.Write([]byte{0x99, byte(pLength >> 8), byte(pLength)})
++	return
++}
++
++// Serialize marshals the PublicKey to w in the form of an OpenPGP public key
++// packet, not including the packet header.
++func (pk *PublicKey) Serialize(w io.Writer) (err os.Error) {
++	var buf [6]byte
++	buf[0] = 4
++	buf[1] = byte(pk.CreationTime >> 24)
++	buf[2] = byte(pk.CreationTime >> 16)
++	buf[3] = byte(pk.CreationTime >> 8)
++	buf[4] = byte(pk.CreationTime)
++	buf[5] = byte(pk.PubKeyAlgo)
++
++	_, err = w.Write(buf[:])
++	if err != nil {
++		return
++	}
++
++	switch pk.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
++		return writeMPIs(w, pk.n, pk.e)
++	case PubKeyAlgoDSA:
++		return writeMPIs(w, pk.p, pk.q, pk.g, pk.y)
++	}
++	return error.InvalidArgumentError("bad public-key algorithm")
++}
++
++// CanSign returns true iff this public key can generate signatures
++func (pk *PublicKey) CanSign() bool {
++	return pk.PubKeyAlgo != PubKeyAlgoRSAEncryptOnly && pk.PubKeyAlgo != PubKeyAlgoElgamal
++}
++
++// VerifySignature returns nil iff sig is a valid signature, made by this
++// public key, of the data hashed into signed. signed is mutated by this call.
++func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err os.Error) {
++	if !pk.CanSign() {
++		return error.InvalidArgumentError("public key cannot generate signatures")
++	}
++
++	rsaPublicKey, ok := pk.PublicKey.(*rsa.PublicKey)
++	if !ok {
++		// TODO(agl): support DSA and ECDSA keys.
++		return error.UnsupportedError("non-RSA public key")
++	}
++
++	signed.Write(sig.HashSuffix)
++	hashBytes := signed.Sum()
++
++	if hashBytes[0] != sig.HashTag[0] || hashBytes[1] != sig.HashTag[1] {
++		return error.SignatureError("hash tag doesn't match")
++	}
++
++	err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.Signature)
++	if err != nil {
++		return error.SignatureError("RSA verification failure")
++	}
++	return nil
++}
++
++// VerifyKeySignature returns nil iff sig is a valid signature, make by this
++// public key, of the public key in signed.
++func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err os.Error) {
++	h := sig.Hash.New()
++	if h == nil {
++		return error.UnsupportedError("hash function")
++	}
++
++	// RFC 4880, section 5.2.4
++	pk.SerializeSignaturePrefix(h)
++	pk.Serialize(h)
++	signed.SerializeSignaturePrefix(h)
++	signed.Serialize(h)
++
++	return pk.VerifySignature(h, sig)
++}
++
++// VerifyUserIdSignature returns nil iff sig is a valid signature, make by this
++// public key, of the given user id.
++func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Error) {
++	h := sig.Hash.New()
++	if h == nil {
++		return error.UnsupportedError("hash function")
++	}
++
++	// RFC 4880, section 5.2.4
++	pk.SerializeSignaturePrefix(h)
++	pk.Serialize(h)
++
++	var buf [5]byte
++	buf[0] = 0xb4
++	buf[1] = byte(len(id) >> 24)
++	buf[2] = byte(len(id) >> 16)
++	buf[3] = byte(len(id) >> 8)
++	buf[4] = byte(len(id))
++	h.Write(buf[:])
++	h.Write([]byte(id))
++
++	return pk.VerifySignature(h, sig)
++}
++
++// A parsedMPI is used to store the contents of a big integer, along with the
++// bit length that was specified in the original input. This allows the MPI to
++// be reserialised exactly.
++type parsedMPI struct {
++	bytes     []byte
++	bitLength uint16
++}
++
++// writeMPIs is a utility function for serialising several big integers to the
++// given Writer.
++func writeMPIs(w io.Writer, mpis ...parsedMPI) (err os.Error) {
++	for _, mpi := range mpis {
++		err = writeMPI(w, mpi.bitLength, mpi.bytes)
++		if err != nil {
++			return
++		}
++	}
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/public_key_test.go b/src/pkg/crypto/openpgp/packet/public_key_test.go
+new file mode 100644
+index 0000000000..c015f64aec
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/public_key_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"bytes"
++	"encoding/hex"
++	"testing"
++)
++
++var pubKeyTests = []struct {
++	hexData        string
++	hexFingerprint string
++	creationTime   uint32
++	pubKeyAlgo     PublicKeyAlgorithm
++	keyId          uint64
++}{
++	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb},
++	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed},
++}
++
++func TestPublicKeyRead(t *testing.T) {
++	for i, test := range pubKeyTests {
++		packet, err := Read(readerFromHex(test.hexData))
++		if err != nil {
++			t.Errorf("#%d: Read error: %s", i, err)
++			return
++		}
++		pk, ok := packet.(*PublicKey)
++		if !ok {
++			t.Errorf("#%d: failed to parse, got: %#v", i, packet)
++			return
++		}
++		if pk.PubKeyAlgo != test.pubKeyAlgo {
++			t.Errorf("#%d: bad public key algorithm got:%x want:%x", i, pk.PubKeyAlgo, test.pubKeyAlgo)
++		}
++		if pk.CreationTime != test.creationTime {
++			t.Errorf("#%d: bad creation time got:%x want:%x", i, pk.CreationTime, test.creationTime)
++		}
++		expectedFingerprint, _ := hex.DecodeString(test.hexFingerprint)
++		if !bytes.Equal(expectedFingerprint, pk.Fingerprint[:]) {
++			t.Errorf("#%d: bad fingerprint got:%x want:%x", i, pk.Fingerprint[:], expectedFingerprint)
++		}
++		if pk.KeyId != test.keyId {
++			t.Errorf("#%d: bad keyid got:%x want:%x", i, pk.KeyId, test.keyId)
++		}
++	}
++}
++
++const rsaFingerprintHex = "5fb74b1d03b1e3cb31bc2f8aa34d7e18c20c31bb"
++
++const rsaPkDataHex = "988d044d3c5c10010400b1d13382944bd5aba23a4312968b5095d14f947f600eb478e14a6fcb16b0e0cac764884909c020bc495cfcc39a935387c661507bdb236a0612fb582cac3af9b29cc2c8c70090616c41b662f4da4c1201e195472eb7f4ae1ccbcbf9940fe21d985e379a5563dde5b9a23d35f1cfaa5790da3b79db26f23695107bfaca8e7b5bcd0011010001"
++
++const dsaFingerprintHex = "eece4c094db002103714c63c8e8fbe54062f19ed"
++
++const dsaPkDataHex = "9901a2044d432f89110400cd581334f0d7a1e1bdc8b9d6d8c0baf68793632735d2bb0903224cbaa1dfbf35a60ee7a13b92643421e1eb41aa8d79bea19a115a677f6b8ba3c7818ce53a6c2a24a1608bd8b8d6e55c5090cbde09dd26e356267465ae25e69ec8bdd57c7bbb2623e4d73336f73a0a9098f7f16da2e25252130fd694c0e8070c55a812a423ae7f00a0ebf50e70c2f19c3520a551bd4b08d30f23530d3d03ff7d0bf4a53a64a09dc5e6e6e35854b7d70c882b0c60293401958b1bd9e40abec3ea05ba87cf64899299d4bd6aa7f459c201d3fbbd6c82004bdc5e8a9eb8082d12054cc90fa9d4ec251a843236a588bf49552441817436c4f43326966fe85447d4e6d0acf8fa1ef0f014730770603ad7634c3088dc52501c237328417c31c89ed70400b2f1a98b0bf42f11fefc430704bebbaa41d9f355600c3facee1e490f64208e0e094ea55e3a598a219a58500bf78ac677b670a14f4e47e9cf8eab4f368cc1ddcaa18cc59309d4cc62dd4f680e73e6cc3e1ce87a84d0925efbcb26c575c093fc42eecf45135fabf6403a25c2016e1774c0484e440a18319072c617cc97ac0a3bb0"

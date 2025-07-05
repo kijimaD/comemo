@@ -20,7 +20,7 @@ Date:   Tue Nov 16 19:17:31 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/assignments.go           | 14 +++++++--
  src/go/types/check.go                 |  4 +++
  src/go/types/conversions.go           | 15 +++++++--
@@ -28,3 +28,221 @@ Date:   Tue Nov 16 19:17:31 2021 -0500
  src/go/types/operand.go               | 40 +++++++++++++++++++-----
  src/go/types/testdata/check/expr3.src |  2 +-
  6 files changed, 118 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index d77cf8f7fa..8645834a6e 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -84,10 +84,18 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 
+ 	reason := ""
+ 	if ok, code := x.assignableTo(check, T, &reason); !ok {
+-		if reason != "" {
+-			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
++		if compilerErrorMessages {
++			if reason != "" {
++				check.errorf(x, code, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
++			} else {
++				check.errorf(x, code, "cannot use %s as type %s in %s", x, T, context)
++			}
+ 		} else {
+-			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
++			if reason != "" {
++				check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
++			} else {
++				check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
++			}
+ 		}
+ 		x.mode = invalid
+ 	}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index aef53b20de..38508c77a9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -18,6 +18,10 @@ import (
+ const (
+ 	debug = false // leave on during development
+ 	trace = false // turn on for detailed type resolution traces
++
++	// TODO(rfindley): add compiler error message handling from types2, guarded
++	// behind this flag, so that we can keep the code in sync.
++	compilerErrorMessages = false // match compiler error messages
+ )
+ 
+ // If forceStrict is set, the type-checker enforces additional
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index eadc923f5e..530a29c5dd 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -68,10 +68,19 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 
+ 	if !ok {
+ 		// TODO(rfindley): use types2-style error reporting here.
+-		if cause != "" {
+-			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
++		if compilerErrorMessages {
++			if cause != "" {
++				// Add colon at end of line if we have a following cause.
++				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s:\n\t%s", x, T, cause)
++			} else {
++				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
++			}
+ 		} else {
+-			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
++			if cause != "" {
++				check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
++			} else {
++				check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
++			}
+ 		}
+ 		x.mode = invalid
+ 		return
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 98af6bfcd7..be91d39f50 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -6,6 +6,11 @@
+ 
+ package types
+ 
++import (
++	"fmt"
++	"strings"
++)
++
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+ // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+@@ -382,6 +387,59 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	return
+ }
+ 
++// missingMethodReason returns a string giving the detailed reason for a missing method m,
++// where m is missing from V, but required by T. It puts the reason in parentheses,
++// and may include more have/want info after that. If non-nil, wrongType is a relevant
++// method that matches in some way. It may have the correct name, but wrong type, or
++// it may have a pointer receiver.
++func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string {
++	var r string
++	var mname string
++	if compilerErrorMessages {
++		mname = m.Name() + " method"
++	} else {
++		mname = "method " + m.Name()
++	}
++	if wrongType != nil {
++		if Identical(m.typ, wrongType.typ) {
++			if m.Name() == wrongType.Name() {
++				r = fmt.Sprintf("(%s has pointer receiver)", mname)
++			} else {
++				r = fmt.Sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++			}
++		} else {
++			if compilerErrorMessages {
++				r = fmt.Sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++			} else {
++				r = fmt.Sprintf("(wrong type for %s: have %s, want %s)",
++					mname, wrongType.typ, m.typ)
++			}
++		}
++		// This is a hack to print the function type without the leading
++		// 'func' keyword in the have/want printouts. We could change to have
++		// an extra formatting option for types2.Type that doesn't print out
++		// 'func'.
++		r = strings.Replace(r, "^^func", "", -1)
++	} else if IsInterface(T) {
++		if isInterfacePtr(V) {
++			r = fmt.Sprintf("(%s is pointer to interface, not interface)", V)
++		}
++	} else if isInterfacePtr(T) {
++		r = fmt.Sprintf("(%s is pointer to interface, not interface)", T)
++	}
++	if r == "" {
++		r = fmt.Sprintf("(missing %s)", mname)
++	}
++	return r
++}
++
++func isInterfacePtr(T Type) bool {
++	p, _ := under(T).(*Pointer)
++	return p != nil && IsInterface(p.base)
++}
++
+ // assertableTo reports whether a value of type V can be asserted to have type T.
+ // It returns (nil, false) as affirmative answer. Otherwise it returns a missing
+ // method required by V and whether it is missing or just has the wrong type.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 6f902e9749..e8b5d00de4 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -276,16 +276,20 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	if Ti, ok := Tu.(*Interface); ok {
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+ 			if reason != nil {
+-				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
+-				if wrongType != nil {
+-					if Identical(m.typ, wrongType.typ) {
+-						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++				if compilerErrorMessages {
++					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
++						check.missingMethodReason(x.typ, T, m, wrongType))
++				} else {
++					if wrongType != nil {
++						if Identical(m.typ, wrongType.typ) {
++							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++						} else {
++							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++						}
++
+ 					} else {
+-						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++						*reason = "missing method " + m.Name()
+ 					}
+-
+-				} else {
+-					*reason = "missing method " + m.Name()
+ 				}
+ 			}
+ 			return false, _InvalidIfaceAssign
+@@ -293,6 +297,26 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		return true, 0
+ 	}
+ 
++	// Provide extra detail in compiler error messages in some cases when T is
++	// not an interface.
++	if check != nil && compilerErrorMessages {
++		if isInterfacePtr(Tu) {
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
++			}
++			return false, _InvalidIfaceAssign
++		}
++		if Vi, _ := Vu.(*Interface); Vi != nil {
++			if m, _ := check.missingMethod(T, Vi, true); m == nil {
++				// T implements Vi, so give hint about type assertion.
++				if reason != nil {
++					*reason = check.sprintf("need type assertion")
++				}
++				return false, _IncompatibleAssign
++			}
++		}
++	}
++
+ 	// x is a bidirectional channel value, T is a channel
+ 	// type, x's type V and T have identical element types,
+ 	// and at least one of V or T is not a named type.
+diff --git a/src/go/types/testdata/check/expr3.src b/src/go/types/testdata/check/expr3.src
+index 3ab367810f..0f15c15a55 100644
+--- a/src/go/types/testdata/check/expr3.src
++++ b/src/go/types/testdata/check/expr3.src
+@@ -458,7 +458,7 @@ func type_asserts() {
+ 
+ 	var t I
+ 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
+-	_ = t /* ERROR "missing method m" */ .(T)
++	_ = t /* ERROR "m has pointer receiver" */ .(T)
+ 	_ = t.(*T)
+ 	_ = t /* ERROR "missing method m" */ .(T1)
+ 	_ = t /* ERROR "wrong type for method m" */ .(T2)

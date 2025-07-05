@@ -12,7 +12,47 @@ Date:   Tue Dec 16 14:01:08 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2002
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  include/link.h     | 1 +
  src/cmd/ld/ldelf.c | 9 ++++++++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/include/link.h b/include/link.h
+index 9e75350a80..190df7f373 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -141,6 +141,7 @@ struct	LSym
+ 	uchar	hide;
+ 	uchar	leaf;	// arm only
+ 	uchar	fnptr;	// arm only
++	uchar	localentry;	// ppc64: instrs between global & local entry
+ 	uchar	seenglobl;
+ 	uchar	onlist;	// on the textp or datap lists
+ 	int16	symid;	// for writing .5/.6/.8 files
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 894b9ee2f4..90da4aeb8f 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -327,7 +327,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	int32 base;
+ 	uint64 add, info;
+ 	char *name;
+-	int i, j, rela, is64, n;
++	int i, j, rela, is64, n, flag;
+ 	uchar hdrbuf[64];
+ 	uchar *p;
+ 	ElfHdrBytes *hdr;
+@@ -616,6 +616,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					diag("%s: duplicate definition of %s", pn, s->name);
+ 			s->external = 1;
+ 		}
++		if(obj->machine == ElfMachPower64) {
++			flag = sym.other >> 5;
++			if(2 <= flag && flag <= 6)
++				s->localentry = 1 << (flag - 2);
++			else if(flag == 7)
++				diag("%s: invalid sym.other 0x%x for %s", pn, sym.other, s->name);
++		}
+ 	}
+ 	
+ 	// Sort outer lists by address, adding to textp.

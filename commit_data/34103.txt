@@ -13,6 +13,20 @@ Date:   Tue Oct 3 13:07:07 2017 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 0324fb7a1c..542c29ecd6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -413,7 +413,7 @@ var pinnedTypemaps []map[typeOff]*_type
+ 
+ var firstmoduledata moduledata  // linker symbol
+ var lastmoduledatap *moduledata // linker symbol
+-var modulesSlice unsafe.Pointer // see activeModules
++var modulesSlice *[]*moduledata // see activeModules
+ 
+ // activeModules returns a slice of active modules.
+ //

@@ -10,6 +10,20 @@ Date:   Sun Apr 20 11:02:01 2014 +0200
     R=rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/89290043
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7e28205656..a50101c429 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -214,7 +214,7 @@ main(int argc, char *argv[])
+ 	// but not other values.	
+ 	p = getgoarch();
+ 	if(strncmp(p, thestring, strlen(thestring)) != 0)
+-		fatal("cannot use %cg with GOARCH=%s", thechar, p);
++		sysfatal("cannot use %cg with GOARCH=%s", thechar, p);
+ 	goarch = p;
+ 
+ 	linkarchinit();

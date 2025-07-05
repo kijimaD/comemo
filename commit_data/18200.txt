@@ -7,7 +7,7 @@ Date:   Fri Jan 10 02:49:37 2014 +1100
     R=golang-codereviews, dave, minux.ma, gobot, jsing
     CC=golang-codereviews
     https://golang.org/cl/36020043
-
+---
  src/pkg/os/dir_unix.go           |  2 +-
  src/pkg/os/env_unix_test.go      |  2 +-
  src/pkg/os/error_unix.go         |  2 +-
@@ -27,3 +27,298 @@ Date:   Fri Jan 10 02:49:37 2014 +1100
  src/pkg/os/sys_solaris.go        | 11 ++++++++
  src/pkg/os/user/lookup_unix.go   |  2 +-
  18 files changed, 91 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index 9fa7ad664f..67c390283c 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/env_unix_test.go b/src/pkg/os/env_unix_test.go
+index e16d71a649..5ec07ee1b1 100644
+--- a/src/pkg/os/env_unix_test.go
++++ b/src/pkg/os/env_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os_test
+ 
+diff --git a/src/pkg/os/error_unix.go b/src/pkg/os/error_unix.go
+index 6250349e5b..f281495e6b 100644
+--- a/src/pkg/os/error_unix.go
++++ b/src/pkg/os/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 5cf8437fbb..144fd46bcd 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -570,6 +570,10 @@ func TestHelperProcess(*testing.T) {
+ 			// the cloned file descriptors that result from opening
+ 			// /dev/urandom.
+ 			// http://golang.org/issue/3955
++		case "solaris":
++			// TODO(aram): This fails on Solaris because libc opens
++			// its own files, as it sees fit. Darwin does the same,
++			// see: http://golang.org/issue/2603
+ 		default:
+ 			// Now verify that there are no other open fds.
+ 			var files []*os.File
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index 7ff2d201bc..7b9dec7e8b 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package exec
+ 
+diff --git a/src/pkg/os/exec/lp_unix_test.go b/src/pkg/os/exec/lp_unix_test.go
+index f1ab6deffd..051db664a8 100644
+--- a/src/pkg/os/exec/lp_unix_test.go
++++ b/src/pkg/os/exec/lp_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package exec
+ 
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index fb123aefbc..8a4d019d2f 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 5572e628e6..3c05b8f080 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 4a17877547..441ad5384d 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 37677e2174..cfe0c1c2f8 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 1e8a661225..21d40ccaf8 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os_test
+ 
+diff --git a/src/pkg/os/path_unix.go b/src/pkg/os/path_unix.go
+index 3bf63bf804..bdf9fe6421 100644
+--- a/src/pkg/os/path_unix.go
++++ b/src/pkg/os/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/pipe_bsd.go b/src/pkg/os/pipe_bsd.go
+index 73d35b4d5e..0ea8e4b1f8 100644
+--- a/src/pkg/os/pipe_bsd.go
++++ b/src/pkg/os/pipe_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 741f2a0edf..076fe3f93b 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package signal
+ 
+diff --git a/src/pkg/os/signal/signal_unix.go b/src/pkg/os/signal/signal_unix.go
+index 318488dc04..80dc4304aa 100644
+--- a/src/pkg/os/signal/signal_unix.go
++++ b/src/pkg/os/signal/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package signal
+ 
+diff --git a/src/pkg/os/stat_solaris.go b/src/pkg/os/stat_solaris.go
+new file mode 100644
+index 0000000000..605c1d9b64
+--- /dev/null
++++ b/src/pkg/os/stat_solaris.go
+@@ -0,0 +1,61 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"time"
++)
++
++func sameFile(fs1, fs2 *fileStat) bool {
++	stat1 := fs1.sys.(*syscall.Stat_t)
++	stat2 := fs2.sys.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
++}
++
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &fileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtim),
++		sys:     st,
++	}
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK:
++		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
++	return fs
++}
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++}
+diff --git a/src/pkg/os/sys_solaris.go b/src/pkg/os/sys_solaris.go
+new file mode 100644
+index 0000000000..917e8f2b0d
+--- /dev/null
++++ b/src/pkg/os/sys_solaris.go
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++func hostname() (name string, err error) {
++	return syscall.Gethostname()
++}
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 5459268fa0..f2baf05bbf 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ // +build cgo
+ 
+ package user

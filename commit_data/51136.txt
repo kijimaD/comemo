@@ -16,9 +16,84 @@ Date:   Tue Dec 7 22:51:46 2021 +0000
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 13 +------------
  src/make.bash             |  9 +--------
  src/make.bat              |  2 --
  src/make.rc               |  3 ---
  4 files changed, 2 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 17538ad5a4..75f04a975c 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -93,21 +93,10 @@ var ignoreSuffixes = []string{
+ 	"_test.go",
+ }
+ 
+-var tryDirs = []string{
+-	"sdk/go1.17",
+-	"go1.17",
+-}
+-
+ func bootstrapBuildTools() {
+ 	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
+ 	if goroot_bootstrap == "" {
+-		home := os.Getenv("HOME")
+-		goroot_bootstrap = pathf("%s/go1.4", home)
+-		for _, d := range tryDirs {
+-			if p := pathf("%s/%s", home, d); isdir(p) {
+-				goroot_bootstrap = p
+-			}
+-		}
++		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
+ 	}
+ 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
+ 
+diff --git a/src/make.bash b/src/make.bash
+index 2d6c47272e..3310692a18 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -153,14 +153,7 @@ if [ "$1" = "-v" ]; then
+ fi
+ 
+ goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
+-if [ -z "$GOROOT_BOOTSTRAP" ]; then
+-	GOROOT_BOOTSTRAP="$HOME/go1.4"
+-	for d in sdk/go1.17 go1.17; do
+-		if [ -d "$HOME/$d" ]; then
+-			GOROOT_BOOTSTRAP="$HOME/$d"
+-		fi
+-	done
+-fi
++export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+ export GOROOT="$(cd .. && pwd)"
+ IFS=$'\n'; for go_exe in $(type -ap go); do
+ 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+diff --git a/src/make.bat b/src/make.bat
+index 6bffee050e..8f2825b09a 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -83,8 +83,6 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+ 		)
+ 	)
+ )
+-if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go1.17
+-if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go1.17
+ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+ 
+ :bootstrapset
+diff --git a/src/make.rc b/src/make.rc
+index 37087d6357..ba8c5db2d9 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -55,9 +55,6 @@ goroot_bootstrap_set = 'true'
+ if(! ~ $#GOROOT_BOOTSTRAP 1){
+ 	goroot_bootstrap_set = 'false'
+ 	GOROOT_BOOTSTRAP = $home/go1.4
+-	for(d in sdk/go1.17 go1.17)
+-		if(test -d $home/$d)
+-			GOROOT_BOOTSTRAP = $home/$d
+ }
+ for(p in $path){
+ 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){

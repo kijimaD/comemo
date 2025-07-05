@@ -8,7 +8,41 @@ Date:   Thu Mar 26 22:20:27 2009 -0700
     DELTA=4  (4 added, 0 deleted, 0 changed)
     OCL=26797
     CL=26814
-
+---
  src/lib/Makefile | 2 ++
  src/run.bash     | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 0bdaf709ef..75fcff87ea 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -43,6 +43,8 @@ TEST=\
+ 	bignum\
+ 	bufio\
+ 	exec\
++	flag\
++	log\
+ 	once\
+ 	sort\
+ 	strings\
+diff --git a/src/run.bash b/src/run.bash
+index 73b2ef83f0..221a21f148 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -24,6 +24,7 @@ maketest() {
+ }
+ 
+ maketest \
++	lib/container\
+ 	lib/fmt\
+ 	lib/go\
+ 	lib/hash\
+@@ -37,6 +38,7 @@ maketest \
+ 	lib/strconv\
+ 	lib/tabwriter\
+ 	lib/time\
++	lib/unicode\
+ 
+ # all of these are subtly different
+ # from what maketest does.

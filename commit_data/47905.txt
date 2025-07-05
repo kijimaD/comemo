@@ -14,7 +14,65 @@ Date:   Wed Apr 14 12:35:00 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/objabi/exp.go     | 9 +++++++--
  src/internal/goexperiment/flags.go | 8 +++-----
  2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/exp.go b/src/cmd/internal/objabi/exp.go
+index 5ebbdac772..9eb3e431b3 100644
+--- a/src/cmd/internal/objabi/exp.go
++++ b/src/cmd/internal/objabi/exp.go
+@@ -20,6 +20,11 @@ import (
+ // was built with.)
+ var Experiment goexperiment.Flags = parseExperiments()
+ 
++// experimentBaseline specifies the experiment flags that are enabled by
++// default in the current toolchain. This is, in effect, the "control"
++// configuration and any variation from this is an experiment.
++var experimentBaseline goexperiment.Flags
++
+ // FramePointerEnabled enables the use of platform conventions for
+ // saving frame pointers.
+ //
+@@ -31,7 +36,7 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ 
+ func parseExperiments() goexperiment.Flags {
+ 	// Start with the statically enabled set of experiments.
+-	flags := goexperiment.BaselineFlags
++	flags := experimentBaseline
+ 
+ 	// Pick up any changes to the baseline configuration from the
+ 	// GOEXPERIMENT environment. This can be set at make.bash time
+@@ -135,7 +140,7 @@ func expList(exp, base *goexperiment.Flags) []string {
+ // GOEXPERIMENT is exactly what a user would set on the command line
+ // to get the set of enabled experiments.
+ func GOEXPERIMENT() string {
+-	return strings.Join(expList(&Experiment, &goexperiment.BaselineFlags), ",")
++	return strings.Join(expList(&Experiment, &experimentBaseline), ",")
+ }
+ 
+ // EnabledExperiments returns a list of enabled experiments, as
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 4803fabe28..932df10ded 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -41,6 +41,9 @@ package goexperiment
+ // When specified in the GOEXPERIMENT environment variable or as build
+ // tags, experiments use the strings.ToLower of their field name.
+ //
++// For the baseline experimental configuration, see
++// objabi.experimentBaseline.
++//
+ // If you change this struct definition, run "go generate".
+ type Flags struct {
+ 	FieldTrack        bool
+@@ -78,8 +81,3 @@ type Flags struct {
+ 	// register arguments to defer/go).
+ 	RegabiArgs bool
+ }
+-
+-// BaselineFlags specifies the experiment flags that are enabled by
+-// default in the current toolchain. This is, in effect, the "control"
+-// configuration and any variation from this is an experiment.
+-var BaselineFlags = Flags{}

@@ -21,7 +21,61 @@ Date:   Sun Apr 1 11:15:17 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/flag/flag.go      | 14 +++-----------
  src/flag/flag_test.go |  3 +++
  2 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 358402345c..f613144a7e 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -395,8 +395,8 @@ func Set(name, value string) error {
+ 	return CommandLine.Set(name, value)
+ }
+ 
+-// isZeroValue guesses whether the string represents the zero
+-// value for a flag. It is not accurate but in practice works OK.
++// isZeroValue determines whether the string represents the zero
++// value for a flag.
+ func isZeroValue(flag *Flag, value string) bool {
+ 	// Build a zero value of the flag's Value type, and see if the
+ 	// result of calling its String method equals the value passed in.
+@@ -408,15 +408,7 @@ func isZeroValue(flag *Flag, value string) bool {
+ 	} else {
+ 		z = reflect.Zero(typ)
+ 	}
+-	if value == z.Interface().(Value).String() {
+-		return true
+-	}
+-
+-	switch value {
+-	case "false", "", "0":
+-		return true
+-	}
+-	return false
++	return value == z.Interface().(Value).String()
+ }
+ 
+ // UnquoteUsage extracts a back-quoted name from the usage
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 67c409f29b..c7f0c07d44 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -386,6 +386,8 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
+   -C	a boolean defaulting to true (default true)
+   -D path
+     	set relative path for local imports
++  -E string
++    	issue 23543 (default "0")
+   -F number
+     	a non-zero number (default 2.7)
+   -G float
+@@ -412,6 +414,7 @@ func TestPrintDefaults(t *testing.T) {
+ 	fs.Bool("Alongflagname", false, "disable bounds checking")
+ 	fs.Bool("C", true, "a boolean defaulting to true")
+ 	fs.String("D", "", "set relative `path` for local imports")
++	fs.String("E", "0", "issue 23543")
+ 	fs.Float64("F", 2.7, "a non-zero `number`")
+ 	fs.Float64("G", 0, "a float that defaults to zero")
+ 	fs.String("M", "", "a multiline\nhelp\nstring")

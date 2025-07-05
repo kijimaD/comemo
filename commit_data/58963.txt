@@ -27,7 +27,7 @@ Date:   Wed Jan 24 12:42:11 2024 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go   |  2 +-
  src/cmd/compile/internal/types2/call.go       | 27 +++++-----
  src/cmd/compile/internal/types2/expr.go       |  2 +-
@@ -48,3 +48,802 @@ Date:   Wed Jan 24 12:42:11 2024 -0800
  src/internal/types/testdata/check/lookup.go   | 73 +++++++++++++++++++++++++++
  test/fixedbugs/issue22794.go                  |  6 +--
  19 files changed, 223 insertions(+), 129 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 60f6d7f415..bb89246b7d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -720,7 +720,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		base := derefStructPtr(x.typ)
+ 		sel := selx.Sel.Value
+-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
++		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, sel, false)
+ 		switch obj.(type) {
+ 		case nil:
+ 			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 32cd80f74f..0ad58e0772 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -10,7 +10,6 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	. "internal/types/errors"
+ 	"strings"
+-	"unicode"
+ )
+ 
+ // funcInst type-checks a function instantiation.
+@@ -799,7 +798,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 		goto Error
+ 	}
+ 
+-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
++	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+ 		if !isValid(under(x.typ)) {
+@@ -826,18 +825,19 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 			why = check.interfacePtrError(x.typ)
+ 		} else {
+ 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+-			// Check if capitalization of sel matters and provide better error message in that case.
+-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
+-			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
+-			if len(sel) > 0 {
+-				var changeCase string
+-				if r := rune(sel[0]); unicode.IsUpper(r) {
+-					changeCase = string(unicode.ToLower(r)) + sel[1:]
+-				} else {
+-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
++			// check if there's a field or method with different capitalization
++			if obj, _, _ = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true); obj != nil {
++				var what string // empty or description with trailing space " " (default case, should never be reached)
++				switch obj.(type) {
++				case *Var:
++					what = "field "
++				case *Func:
++					what = "method "
+ 				}
+-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+-					why += ", but does have " + changeCase
++				if samePkg(obj.Pkg(), check.pkg) || obj.Exported() {
++					why = check.sprintf("%s, but does have %s%s", why, what, obj.Name())
++				} else if obj.Name() == sel {
++					why = check.sprintf("%s%s is not exported", what, obj.Name())
+ 				}
+ 			}
+ 		}
+@@ -854,7 +854,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 		// method expression
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+ 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+ 			goto Error
+ 		}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 124d9701d6..9504207f24 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1184,7 +1184,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
+ 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
+ 						continue
+ 					}
+-					i := fieldIndex(utyp.fields, check.pkg, key.Value)
++					i := fieldIndex(utyp.fields, check.pkg, key.Value, false)
+ 					if i < 0 {
+ 						check.errorf(kv.Key, MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
+ 						continue
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index bc47c15060..15e80a0b1b 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -9,7 +9,6 @@ package types2
+ import (
+ 	"bytes"
+ 	"cmd/compile/internal/syntax"
+-	"strings"
+ )
+ 
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+@@ -46,7 +45,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")
+ 	}
++	return lookupFieldOrMethod(T, addressable, pkg, name, false)
++}
+ 
++// lookupFieldOrMethod is like LookupFieldOrMethod but with the additional foldCase parameter
++// (see Object.sameId for the meaning of foldCase).
++func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+ 	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+@@ -56,7 +60,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// not have found it for T (see also go.dev/issue/8590).
+ 	if t := asNamed(T); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+-			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
++			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase)
+ 			if _, ok := obj.(*Func); ok {
+ 				return nil, nil, false
+ 			}
+@@ -64,7 +68,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		}
+ 	}
+ 
+-	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, false)
++	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+ 	// If we didn't find anything and if we have a type parameter with a core type,
+ 	// see if there is a matching field (but not a method, those need to be declared
+@@ -73,7 +77,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+ 		if t := coreType(T); t != nil {
+-			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, false)
++			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+ 			}
+@@ -82,8 +86,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	return
+ }
+ 
+-// lookupFieldOrMethodImpl is the implementation of LookupFieldOrMethod.
+-// Notably, in contrast to LookupFieldOrMethod, it won't find struct fields
++// lookupFieldOrMethodImpl is the implementation of lookupFieldOrMethod.
++// Notably, in contrast to lookupFieldOrMethod, it won't find struct fields
+ // in base types of defined (*Named) pointer types T. For instance, given
+ // the declaration:
+ //
+@@ -92,12 +96,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ // lookupFieldOrMethodImpl won't find the field f in the defined (*Named) type T
+ // (methods on T are not permitted in the first place).
+ //
+-// Thus, lookupFieldOrMethodImpl should only be called by LookupFieldOrMethod
++// Thus, lookupFieldOrMethodImpl should only be called by lookupFieldOrMethod
+ // and missingMethod (the latter doesn't care about struct fields).
+ //
+-// If foldCase is true, method names are considered equal if they are equal
+-// with case folding, irrespective of which package they are in.
+-//
+ // The resulting object may not be fully type-checked.
+ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+@@ -167,7 +168,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+ 				for i, f := range t.fields {
+-					if f.sameId(pkg, name) {
++					if f.sameId(pkg, name, foldCase) {
+ 						assert(f.typ != nil)
+ 						index = concat(e.index, i)
+ 						if obj != nil || e.multiples {
+@@ -577,10 +578,11 @@ func concat(list []int, i int) []int {
+ }
+ 
+ // fieldIndex returns the index for the field with matching package and name, or a value < 0.
+-func fieldIndex(fields []*Var, pkg *Package, name string) int {
++// See Object.sameId for the meaning of foldCase.
++func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
+ 	if name != "_" {
+ 		for i, f := range fields {
+-			if f.sameId(pkg, name) {
++			if f.sameId(pkg, name, foldCase) {
+ 				return i
+ 			}
+ 		}
+@@ -589,12 +591,11 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
+ }
+ 
+ // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+-// If foldCase is true, method names are considered equal if they are equal with case folding
+-// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
++// See Object.sameId for the meaning of foldCase.
+ func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+-			if m.sameId(pkg, name) || foldCase && strings.EqualFold(m.name, name) {
++			if m.sameId(pkg, name, foldCase) {
+ 				return i, m
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 251587224b..e48a4895a7 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -50,7 +51,9 @@ type Object interface {
+ 	setParent(*Scope)
+ 
+ 	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
+-	sameId(pkg *Package, name string) bool
++	// If foldCase is true, names are considered equal if they are equal with case folding
++	// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
++	sameId(pkg *Package, name string, foldCase bool) bool
+ 
+ 	// scopePos returns the start position of the scope of this Object
+ 	scopePos() syntax.Pos
+@@ -163,26 +166,24 @@ func (obj *object) setOrder(order uint32)      { assert(order > 0); obj.order_ =
+ func (obj *object) setColor(color color)       { assert(color != white); obj.color_ = color }
+ func (obj *object) setScopePos(pos syntax.Pos) { obj.scopePos_ = pos }
+ 
+-func (obj *object) sameId(pkg *Package, name string) bool {
++func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
++	// If we don't care about capitalization, we also ignore packages.
++	if foldCase && strings.EqualFold(obj.name, name) {
++		return true
++	}
+ 	// spec:
+ 	// "Two identifiers are different if they are spelled differently,
+ 	// or if they appear in different packages and are not exported.
+ 	// Otherwise, they are the same."
+-	if name != obj.name {
++	if obj.name != name {
+ 		return false
+ 	}
+ 	// obj.Name == name
+ 	if obj.Exported() {
+ 		return true
+ 	}
+-	// not exported, so packages must be the same (pkg == nil for
+-	// fields in Universe scope; this can only happen for types
+-	// introduced via Eval)
+-	if pkg == nil || obj.pkg == nil {
+-		return pkg == obj.pkg
+-	}
+-	// pkg != nil && obj.pkg != nil
+-	return pkg.path == obj.pkg.path
++	// not exported, so packages must be the same
++	return samePkg(obj.pkg, pkg)
+ }
+ 
+ // less reports whether object a is ordered before object b.
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 7a096e3d97..bb2b53a942 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -205,6 +205,16 @@ func hasNil(t Type) bool {
+ 	return false
+ }
+ 
++// samePkg reports whether packages a and b are the same.
++func samePkg(a, b *Package) bool {
++	// package is nil for objects in universe scope
++	if a == nil || b == nil {
++		return a == b
++	}
++	// a != nil && b != nil
++	return a.path == b.path
++}
++
+ // An ifacePair is a node in a stack of interface type pairs compared for identity.
+ type ifacePair struct {
+ 	x, y *Interface
+@@ -269,7 +279,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 					g := y.fields[i]
+ 					if f.embedded != g.embedded ||
+ 						!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
+-						!f.sameId(g.pkg, g.name) ||
++						!f.sameId(g.pkg, g.name, false) ||
+ 						!c.identical(f.typ, g.typ, p) {
+ 						return false
+ 					}
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index 25bde6a794..b75e5cbaf7 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -273,20 +273,20 @@ func resolve(name string, obj Object) Object {
+ 
+ // stub implementations so *lazyObject implements Object and we can
+ // store them directly into Scope.elems.
+-func (*lazyObject) Parent() *Scope                        { panic("unreachable") }
+-func (*lazyObject) Pos() syntax.Pos                       { panic("unreachable") }
+-func (*lazyObject) Pkg() *Package                         { panic("unreachable") }
+-func (*lazyObject) Name() string                          { panic("unreachable") }
+-func (*lazyObject) Type() Type                            { panic("unreachable") }
+-func (*lazyObject) Exported() bool                        { panic("unreachable") }
+-func (*lazyObject) Id() string                            { panic("unreachable") }
+-func (*lazyObject) String() string                        { panic("unreachable") }
+-func (*lazyObject) order() uint32                         { panic("unreachable") }
+-func (*lazyObject) color() color                          { panic("unreachable") }
+-func (*lazyObject) setType(Type)                          { panic("unreachable") }
+-func (*lazyObject) setOrder(uint32)                       { panic("unreachable") }
+-func (*lazyObject) setColor(color color)                  { panic("unreachable") }
+-func (*lazyObject) setParent(*Scope)                      { panic("unreachable") }
+-func (*lazyObject) sameId(pkg *Package, name string) bool { panic("unreachable") }
+-func (*lazyObject) scopePos() syntax.Pos                  { panic("unreachable") }
+-func (*lazyObject) setScopePos(pos syntax.Pos)            { panic("unreachable") }
++func (*lazyObject) Parent() *Scope                     { panic("unreachable") }
++func (*lazyObject) Pos() syntax.Pos                    { panic("unreachable") }
++func (*lazyObject) Pkg() *Package                      { panic("unreachable") }
++func (*lazyObject) Name() string                       { panic("unreachable") }
++func (*lazyObject) Type() Type                         { panic("unreachable") }
++func (*lazyObject) Exported() bool                     { panic("unreachable") }
++func (*lazyObject) Id() string                         { panic("unreachable") }
++func (*lazyObject) String() string                     { panic("unreachable") }
++func (*lazyObject) order() uint32                      { panic("unreachable") }
++func (*lazyObject) color() color                       { panic("unreachable") }
++func (*lazyObject) setType(Type)                       { panic("unreachable") }
++func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
++func (*lazyObject) setColor(color color)               { panic("unreachable") }
++func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
++func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
++func (*lazyObject) scopePos() syntax.Pos               { panic("unreachable") }
++func (*lazyObject) setScopePos(syntax.Pos)             { panic("unreachable") }
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 8218939b68..6838f270c1 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -608,7 +608,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 					g := y.fields[i]
+ 					if f.embedded != g.embedded ||
+ 						x.Tag(i) != y.Tag(i) ||
+-						!f.sameId(g.pkg, g.name) ||
++						!f.sameId(g.pkg, g.name, false) ||
+ 						!u.nify(f.typ, g.typ, emode, p) {
+ 						return false
+ 					}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 901573661b..ae2bca25f0 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -719,7 +719,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		base := derefStructPtr(x.typ)
+ 		sel := selx.Sel.Name
+-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
++		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, sel, false)
+ 		switch obj.(type) {
+ 		case nil:
+ 			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 79852d4523..5435e45f25 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/token"
+ 	. "internal/types/errors"
+ 	"strings"
+-	"unicode"
+ )
+ 
+ // funcInst type-checks a function instantiation.
+@@ -801,7 +800,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 		goto Error
+ 	}
+ 
+-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
++	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+ 		if !isValid(under(x.typ)) {
+@@ -828,19 +827,19 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 			why = check.interfacePtrError(x.typ)
+ 		} else {
+ 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+-			// Check if capitalization of sel matters and provide better error message in that case.
+-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod should
+-			//           have an (internal) mechanism for case-insensitive lookup that we should use
+-			//           instead (see types2).
+-			if len(sel) > 0 {
+-				var changeCase string
+-				if r := rune(sel[0]); unicode.IsUpper(r) {
+-					changeCase = string(unicode.ToLower(r)) + sel[1:]
+-				} else {
+-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
++			// check if there's a field or method with different capitalization
++			if obj, _, _ = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true); obj != nil {
++				var what string // empty or description with trailing space " " (default case, should never be reached)
++				switch obj.(type) {
++				case *Var:
++					what = "field "
++				case *Func:
++					what = "method "
+ 				}
+-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+-					why += ", but does have " + changeCase
++				if samePkg(obj.Pkg(), check.pkg) || obj.Exported() {
++					why = check.sprintf("%s, but does have %s%s", why, what, obj.Name())
++				} else if obj.Name() == sel {
++					why = check.sprintf("%s%s is not exported", what, obj.Name())
+ 				}
+ 			}
+ 		}
+@@ -857,7 +856,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 		// method expression
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+ 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+ 			goto Error
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 8651ddad93..5b5efd279f 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1164,7 +1164,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
+ 						continue
+ 					}
+-					i := fieldIndex(utyp.fields, check.pkg, key.Name)
++					i := fieldIndex(utyp.fields, check.pkg, key.Name, false)
+ 					if i < 0 {
+ 						check.errorf(kv, MissingLitField, "unknown field %s in struct literal of type %s", key.Name, base)
+ 						continue
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 7723c43565..82425f64a8 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -11,7 +11,6 @@ package types
+ import (
+ 	"bytes"
+ 	"go/token"
+-	"strings"
+ )
+ 
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+@@ -48,7 +47,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")
+ 	}
++	return lookupFieldOrMethod(T, addressable, pkg, name, false)
++}
+ 
++// lookupFieldOrMethod is like LookupFieldOrMethod but with the additional foldCase parameter
++// (see Object.sameId for the meaning of foldCase).
++func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+ 	// Methods cannot be associated to a named pointer type.
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+@@ -58,7 +62,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// not have found it for T (see also go.dev/issue/8590).
+ 	if t := asNamed(T); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+-			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
++			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase)
+ 			if _, ok := obj.(*Func); ok {
+ 				return nil, nil, false
+ 			}
+@@ -66,7 +70,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		}
+ 	}
+ 
+-	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, false)
++	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+ 	// If we didn't find anything and if we have a type parameter with a core type,
+ 	// see if there is a matching field (but not a method, those need to be declared
+@@ -75,7 +79,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+ 		if t := coreType(T); t != nil {
+-			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, false)
++			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+ 			}
+@@ -84,8 +88,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	return
+ }
+ 
+-// lookupFieldOrMethodImpl is the implementation of LookupFieldOrMethod.
+-// Notably, in contrast to LookupFieldOrMethod, it won't find struct fields
++// lookupFieldOrMethodImpl is the implementation of lookupFieldOrMethod.
++// Notably, in contrast to lookupFieldOrMethod, it won't find struct fields
+ // in base types of defined (*Named) pointer types T. For instance, given
+ // the declaration:
+ //
+@@ -94,12 +98,9 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ // lookupFieldOrMethodImpl won't find the field f in the defined (*Named) type T
+ // (methods on T are not permitted in the first place).
+ //
+-// Thus, lookupFieldOrMethodImpl should only be called by LookupFieldOrMethod
++// Thus, lookupFieldOrMethodImpl should only be called by lookupFieldOrMethod
+ // and missingMethod (the latter doesn't care about struct fields).
+ //
+-// If foldCase is true, method names are considered equal if they are equal
+-// with case folding, irrespective of which package they are in.
+-//
+ // The resulting object may not be fully type-checked.
+ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+@@ -169,7 +170,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+ 				for i, f := range t.fields {
+-					if f.sameId(pkg, name) {
++					if f.sameId(pkg, name, foldCase) {
+ 						assert(f.typ != nil)
+ 						index = concat(e.index, i)
+ 						if obj != nil || e.multiples {
+@@ -579,10 +580,11 @@ func concat(list []int, i int) []int {
+ }
+ 
+ // fieldIndex returns the index for the field with matching package and name, or a value < 0.
+-func fieldIndex(fields []*Var, pkg *Package, name string) int {
++// See Object.sameId for the meaning of foldCase.
++func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
+ 	if name != "_" {
+ 		for i, f := range fields {
+-			if f.sameId(pkg, name) {
++			if f.sameId(pkg, name, foldCase) {
+ 				return i
+ 			}
+ 		}
+@@ -591,12 +593,11 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
+ }
+ 
+ // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+-// If foldCase is true, method names are considered equal if they are equal with case folding
+-// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
++// See Object.sameId for the meaning of foldCase.
+ func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+-			if m.sameId(pkg, name) || foldCase && strings.EqualFold(m.name, name) {
++			if m.sameId(pkg, name, foldCase) {
+ 				return i, m
+ 			}
+ 		}
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 51b3886716..3558c187f2 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -52,7 +53,9 @@ type Object interface {
+ 	setParent(*Scope)
+ 
+ 	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
+-	sameId(pkg *Package, name string) bool
++	// If foldCase is true, names are considered equal if they are equal with case folding
++	// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
++	sameId(pkg *Package, name string, foldCase bool) bool
+ 
+ 	// scopePos returns the start position of the scope of this Object
+ 	scopePos() token.Pos
+@@ -165,26 +168,24 @@ func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ =
+ func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
+ func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
+ 
+-func (obj *object) sameId(pkg *Package, name string) bool {
++func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
++	// If we don't care about capitalization, we also ignore packages.
++	if foldCase && strings.EqualFold(obj.name, name) {
++		return true
++	}
+ 	// spec:
+ 	// "Two identifiers are different if they are spelled differently,
+ 	// or if they appear in different packages and are not exported.
+ 	// Otherwise, they are the same."
+-	if name != obj.name {
++	if obj.name != name {
+ 		return false
+ 	}
+ 	// obj.Name == name
+ 	if obj.Exported() {
+ 		return true
+ 	}
+-	// not exported, so packages must be the same (pkg == nil for
+-	// fields in Universe scope; this can only happen for types
+-	// introduced via Eval)
+-	if pkg == nil || obj.pkg == nil {
+-		return pkg == obj.pkg
+-	}
+-	// pkg != nil && obj.pkg != nil
+-	return pkg.path == obj.pkg.path
++	// not exported, so packages must be the same
++	return samePkg(obj.pkg, pkg)
+ }
+ 
+ // less reports whether object a is ordered before object b.
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index cac2b3c75f..677dff01a0 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -207,6 +207,16 @@ func hasNil(t Type) bool {
+ 	return false
+ }
+ 
++// samePkg reports whether packages a and b are the same.
++func samePkg(a, b *Package) bool {
++	// package is nil for objects in universe scope
++	if a == nil || b == nil {
++		return a == b
++	}
++	// a != nil && b != nil
++	return a.path == b.path
++}
++
+ // An ifacePair is a node in a stack of interface type pairs compared for identity.
+ type ifacePair struct {
+ 	x, y *Interface
+@@ -271,7 +281,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 					g := y.fields[i]
+ 					if f.embedded != g.embedded ||
+ 						!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
+-						!f.sameId(g.pkg, g.name) ||
++						!f.sameId(g.pkg, g.name, false) ||
+ 						!c.identical(f.typ, g.typ, p) {
+ 						return false
+ 					}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index bf646f6882..08d94e55a8 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -275,20 +275,20 @@ func resolve(name string, obj Object) Object {
+ 
+ // stub implementations so *lazyObject implements Object and we can
+ // store them directly into Scope.elems.
+-func (*lazyObject) Parent() *Scope                        { panic("unreachable") }
+-func (*lazyObject) Pos() token.Pos                        { panic("unreachable") }
+-func (*lazyObject) Pkg() *Package                         { panic("unreachable") }
+-func (*lazyObject) Name() string                          { panic("unreachable") }
+-func (*lazyObject) Type() Type                            { panic("unreachable") }
+-func (*lazyObject) Exported() bool                        { panic("unreachable") }
+-func (*lazyObject) Id() string                            { panic("unreachable") }
+-func (*lazyObject) String() string                        { panic("unreachable") }
+-func (*lazyObject) order() uint32                         { panic("unreachable") }
+-func (*lazyObject) color() color                          { panic("unreachable") }
+-func (*lazyObject) setType(Type)                          { panic("unreachable") }
+-func (*lazyObject) setOrder(uint32)                       { panic("unreachable") }
+-func (*lazyObject) setColor(color color)                  { panic("unreachable") }
+-func (*lazyObject) setParent(*Scope)                      { panic("unreachable") }
+-func (*lazyObject) sameId(pkg *Package, name string) bool { panic("unreachable") }
+-func (*lazyObject) scopePos() token.Pos                   { panic("unreachable") }
+-func (*lazyObject) setScopePos(pos token.Pos)             { panic("unreachable") }
++func (*lazyObject) Parent() *Scope                     { panic("unreachable") }
++func (*lazyObject) Pos() token.Pos                     { panic("unreachable") }
++func (*lazyObject) Pkg() *Package                      { panic("unreachable") }
++func (*lazyObject) Name() string                       { panic("unreachable") }
++func (*lazyObject) Type() Type                         { panic("unreachable") }
++func (*lazyObject) Exported() bool                     { panic("unreachable") }
++func (*lazyObject) Id() string                         { panic("unreachable") }
++func (*lazyObject) String() string                     { panic("unreachable") }
++func (*lazyObject) order() uint32                      { panic("unreachable") }
++func (*lazyObject) color() color                       { panic("unreachable") }
++func (*lazyObject) setType(Type)                       { panic("unreachable") }
++func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
++func (*lazyObject) setColor(color color)               { panic("unreachable") }
++func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
++func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
++func (*lazyObject) scopePos() token.Pos                { panic("unreachable") }
++func (*lazyObject) setScopePos(token.Pos)              { panic("unreachable") }
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d4889b93d9..ffb5b4a74a 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -610,7 +610,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 					g := y.fields[i]
+ 					if f.embedded != g.embedded ||
+ 						x.Tag(i) != y.Tag(i) ||
+-						!f.sameId(g.pkg, g.name) ||
++						!f.sameId(g.pkg, g.name, false) ||
+ 						!u.nify(f.typ, g.typ, emode, p) {
+ 						return false
+ 					}
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 2f4d266b8a..dc6e0b0b22 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -137,7 +137,7 @@ func issue10260() {
+ 	_ = x /* ERROR "impossible type assertion: x.(T1)\n\tT1 does not implement I1 (method foo has pointer receiver)" */ .(T1)
+ 
+ 	T1{}.foo /* ERROR "cannot call pointer method foo on T1" */ ()
+-	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have foo)" */ ()
++	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have method foo)" */ ()
+ 
+ 	_ = i2 /* ERROR "impossible type assertion: i2.(*T1)\n\t*T1 does not implement I2 (wrong type for method foo)\n\t\thave foo()\n\t\twant foo(int)" */ .(*T1)
+ 
+diff --git a/src/internal/types/testdata/check/lookup.go b/src/internal/types/testdata/check/lookup.go
+new file mode 100644
+index 0000000000..0b15d45157
+--- /dev/null
++++ b/src/internal/types/testdata/check/lookup.go
+@@ -0,0 +1,73 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package lookup
++
++import "math/big" // provides big.Float struct with unexported fields and methods
++
++func _() {
++	var s struct {
++		x, aBc int
++	}
++	_ = s.x
++	_ = s /* ERROR "invalid operation: cannot call non-function s.x (variable of type int)" */ .x()
++	_ = s.X // ERROR "s.X undefined (type struct{x int; aBc int} has no field or method X, but does have field x)"
++	_ = s.X /* ERROR "s.X undefined (type struct{x int; aBc int} has no field or method X, but does have field x)" */ ()
++
++	_ = s.aBc
++	_ = s.abc // ERROR "s.abc undefined (type struct{x int; aBc int} has no field or method abc, but does have field aBc)"
++	_ = s.ABC // ERROR "s.ABC undefined (type struct{x int; aBc int} has no field or method ABC, but does have field aBc)"
++}
++
++func _() {
++	type S struct {
++		x int
++	}
++	var s S
++	_ = s.x
++	_ = s /* ERROR "invalid operation: cannot call non-function s.x (variable of type int)" */ .x()
++	_ = s.X // ERROR "s.X undefined (type S has no field or method X, but does have field x)"
++	_ = s.X /* ERROR "s.X undefined (type S has no field or method X, but does have field x)" */ ()
++}
++
++type S struct {
++	x int
++}
++
++func (S) m()   {}
++func (S) aBc() {}
++
++func _() {
++	var s S
++	_ = s.m
++	s.m()
++	_ = s.M // ERROR "s.M undefined (type S has no field or method M, but does have method m)"
++	s.M /* ERROR "s.M undefined (type S has no field or method M, but does have method m)" */ ()
++
++	_ = s.aBc
++	_ = s.abc // ERROR "s.abc undefined (type S has no field or method abc, but does have method aBc)"
++	_ = s.ABC // ERROR "s.ABC undefined (type S has no field or method ABC, but does have method aBc)"
++}
++
++func _() {
++	type P *S
++	var s P
++	_ = s.m // ERROR "s.m undefined (type P has no field or method m)"
++	_ = s.M // ERROR "s.M undefined (type P has no field or method M)"
++	_ = s.x
++	_ = s.X // ERROR "s.X undefined (type P has no field or method X, but does have field x)"
++}
++
++func _() {
++	var x big.Float
++	_ = x.neg // ERROR "x.neg undefined (type big.Float has no field or method neg, but does have method Neg)"
++	_ = x.nEg // ERROR "x.nEg undefined (type big.Float has no field or method nEg, but does have method Neg)"
++	_ = x.Neg
++	_ = x.NEg // ERROR "x.NEg undefined (type big.Float has no field or method NEg, but does have method Neg)"
++
++	_ = x.form // ERROR "x.form undefined (field form is not exported)"
++	_ = x.fOrm // ERROR "x.fOrm undefined (type big.Float has no field or method fOrm)"
++	_ = x.Form // ERROR "x.Form undefined (type big.Float has no field or method Form)"
++	_ = x.FOrm // ERROR "x.FOrm undefined (type big.Float has no field or method FOrm)"
++}
+diff --git a/test/fixedbugs/issue22794.go b/test/fixedbugs/issue22794.go
+index 636af26e84..933c83dc5b 100644
+--- a/test/fixedbugs/issue22794.go
++++ b/test/fixedbugs/issue22794.go
+@@ -13,9 +13,9 @@ type it struct {
+ 
+ func main() {
+ 	i1 := it{Floats: true}
+-	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)|undefined field or method"
++	if i1.floats { // ERROR "(type it .* field or method floats, but does have field Floats)|undefined field or method"
+ 	}
+-	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field|declared and not used"
+-	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
++	i2 := &it{floats: false} // ERROR "(but does have field Floats)|unknown field|declared and not used"
++	_ = &it{InneR: "foo"}    // ERROR "(but does have field inner)|unknown field"
+ 	_ = i2
+ }

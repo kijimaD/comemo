@@ -26,7 +26,7 @@ Date:   Thu Oct 13 06:57:00 2016 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 135 ++++---------
  src/cmd/compile/internal/ssa/check.go          |   2 +-
  src/cmd/compile/internal/ssa/compile.go        |   1 +
@@ -39,3 +39,694 @@ Date:   Thu Oct 13 06:57:00 2016 -0400
  src/cmd/compile/internal/ssa/writebarrier.go   | 263 +++++++++++++++++++++++++
  test/writebarrier.go                           |   8 +
  11 files changed, 372 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4186decbd3..8aa4d22210 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2188,7 +2188,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 		}
+ 		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
+-		if isStackAddr(addr) {
++		if ssa.IsStackAddr(addr) {
+ 			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
+ 		} else {
+ 			s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+@@ -2390,7 +2390,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
+ 			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
+ 			return
+ 		}
+-		if wb && !isStackAddr(addr) {
++		if wb && !ssa.IsStackAddr(addr) {
+ 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
+ 			return
+ 		}
+@@ -2398,7 +2398,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
+ 		return
+ 	}
+ 	// Treat as a store.
+-	if wb && !isStackAddr(addr) {
++	if wb && !ssa.IsStackAddr(addr) {
+ 		if skip&skipPtr != 0 {
+ 			// Special case: if we don't write back the pointers, don't bother
+ 			// doing the write barrier check.
+@@ -3289,20 +3289,6 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 	return res
+ }
+ 
+-// isStackAddr returns whether v is known to be an address of a stack slot
+-func isStackAddr(v *ssa.Value) bool {
+-	for v.Op == ssa.OpOffPtr || v.Op == ssa.OpAddPtr || v.Op == ssa.OpPtrIndex || v.Op == ssa.OpCopy {
+-		v = v.Args[0]
+-	}
+-	switch v.Op {
+-	case ssa.OpSP:
+-		return true
+-	case ssa.OpAddr:
+-		return v.Args[0].Op == ssa.OpSP
+-	}
+-	return false
+-}
+-
+ // insertWBmove inserts the assignment *left = *right including a write barrier.
+ // t is the type being assigned.
+ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
+@@ -3318,53 +3304,24 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 	if s.WBLineno == 0 {
+ 		s.WBLineno = left.Line
+ 	}
+-	bThen := s.f.NewBlock(ssa.BlockPlain)
+-	bElse := s.f.NewBlock(ssa.BlockPlain)
+-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 
+-	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
+-	flagaddr := s.newValue1A(ssa.OpAddr, ptrto(Types[TUINT32]), aux, s.sb)
+-	// Load word, test word, avoiding partial register write from load byte.
+-	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
+-	flag = s.newValue2(ssa.OpNeq32, Types[TBOOL], flag, s.constInt32(Types[TUINT32], 0))
+-	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
+-	b.Likely = ssa.BranchUnlikely
+-	b.SetControl(flag)
+-	b.AddEdgeTo(bThen)
+-	b.AddEdgeTo(bElse)
+-
+-	s.startBlock(bThen)
+-
+-	if !rightIsVolatile {
+-		// Issue typedmemmove call.
+-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
+-		s.rtcall(typedmemmove, true, nil, taddr, left, right)
++	var op ssa.Op
++	if rightIsVolatile {
++		op = ssa.OpMoveWBVolatile
+ 	} else {
+-		// Copy to temp location if the source is volatile (will be clobbered by
+-		// a function call).  Marshaling the args to typedmemmove might clobber the
+-		// value we're trying to move.
+-		tmp := temp(t)
+-		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
+-		tmpaddr, _ := s.addr(tmp, true)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), tmpaddr, right, s.mem())
+-		// Issue typedmemmove call.
+-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
+-		s.rtcall(typedmemmove, true, nil, taddr, left, tmpaddr)
+-		// Mark temp as dead.
+-		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, tmp, s.mem())
+-	}
+-	s.endBlock().AddEdgeTo(bEnd)
+-
+-	s.startBlock(bElse)
+-	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+-	s.endBlock().AddEdgeTo(bEnd)
+-
+-	s.startBlock(bEnd)
+-
+-	if Debug_wb > 0 {
+-		Warnl(line, "write barrier")
++		op = ssa.OpMoveWB
+ 	}
++	move := s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
++	move.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
++	s.vars[&memVar] = move
++
++	// WB ops will be expanded to branches at writebarrier phase.
++	// To make it easy, we put WB ops at the end of a block, so
++	// that it does not need to split a block into two parts when
++	// expanding WB ops.
++	b := s.f.NewBlock(ssa.BlockPlain)
++	s.endBlock().AddEdgeTo(b)
++	s.startBlock(b)
+ }
+ 
+ // insertWBstore inserts the assignment *left = right including a write barrier.
+@@ -3384,38 +3341,15 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip
+ 		s.WBLineno = left.Line
+ 	}
+ 	s.storeTypeScalars(t, left, right, skip)
+-
+-	bThen := s.f.NewBlock(ssa.BlockPlain)
+-	bElse := s.f.NewBlock(ssa.BlockPlain)
+-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+-
+-	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
+-	flagaddr := s.newValue1A(ssa.OpAddr, ptrto(Types[TUINT32]), aux, s.sb)
+-	// Load word, test word, avoiding partial register write from load byte.
+-	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
+-	flag = s.newValue2(ssa.OpNeq32, Types[TBOOL], flag, s.constInt32(Types[TUINT32], 0))
+-	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
+-	b.Likely = ssa.BranchUnlikely
+-	b.SetControl(flag)
+-	b.AddEdgeTo(bThen)
+-	b.AddEdgeTo(bElse)
+-
+-	// Issue write barriers for pointer writes.
+-	s.startBlock(bThen)
+ 	s.storeTypePtrsWB(t, left, right)
+-	s.endBlock().AddEdgeTo(bEnd)
+-
+-	// Issue regular stores for pointer writes.
+-	s.startBlock(bElse)
+-	s.storeTypePtrs(t, left, right)
+-	s.endBlock().AddEdgeTo(bEnd)
+ 
+-	s.startBlock(bEnd)
+-
+-	if Debug_wb > 0 {
+-		Warnl(line, "write barrier")
+-	}
++	// WB ops will be expanded to branches at writebarrier phase.
++	// To make it easy, we put WB ops at the end of a block, so
++	// that it does not need to split a block into two parts when
++	// expanding WB ops.
++	b := s.f.NewBlock(ssa.BlockPlain)
++	s.endBlock().AddEdgeTo(b)
++	s.startBlock(b)
+ }
+ 
+ // do *left = right for all scalar (non-pointer) parts of t.
+@@ -3492,21 +3426,22 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 	}
+ }
+ 
+-// do *left = right with a write barrier for all pointer parts of t.
++// do *left = right for all pointer parts of t, with write barriers if necessary.
+ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtrShaped():
+-		s.rtcall(writebarrierptr, true, nil, left, right)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
+-		s.rtcall(writebarrierptr, true, nil, left, ptr)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
+-		s.rtcall(writebarrierptr, true, nil, left, ptr)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 	case t.IsInterface():
++		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TUINT8]), s.config.PtrSize, left)
+-		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+ 		for i := 0; i < n; i++ {
+@@ -4690,6 +4625,14 @@ func (e *ssaExport) Debug_checknil() bool {
+ 	return Debug_checknil != 0
+ }
+ 
++func (e *ssaExport) Debug_wb() bool {
++	return Debug_wb != 0
++}
++
++func (e *ssaExport) Syslook(name string) interface{} {
++	return syslook(name).Sym
++}
++
+ func (n *Node) Typ() ssa.Type {
+ 	return n.Type
+ }
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 74b8dd5561..d78e915091 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -149,7 +149,7 @@ func checkFunc(f *Func) {
+ 				canHaveAuxInt = true
+ 			case auxString, auxSym:
+ 				canHaveAux = true
+-			case auxSymOff, auxSymValAndOff:
++			case auxSymOff, auxSymValAndOff, auxSymSizeAndAlign:
+ 				canHaveAuxInt = true
+ 				canHaveAux = true
+ 			case auxSymInt32:
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 401299a06b..b9ec7eb6b7 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -346,6 +346,7 @@ var passes = [...]pass{
+ 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+ 	{name: "generic deadcode", fn: deadcode},
+ 	{name: "check bce", fn: checkbce},
++	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+ 	{name: "fuse", fn: fuse},
+ 	{name: "dse", fn: dse},
+ 	{name: "tighten", fn: tighten}, // move values closer to their uses
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index e72c72dcc7..1d388afe39 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -92,8 +92,9 @@ type Logger interface {
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+ 	Warnl(line int32, fmt_ string, args ...interface{})
+ 
+-	// Fowards the Debug_checknil flag from gc
++	// Fowards the Debug flags from gc
+ 	Debug_checknil() bool
++	Debug_wb() bool
+ }
+ 
+ type Frontend interface {
+@@ -121,6 +122,10 @@ type Frontend interface {
+ 
+ 	// AllocFrame assigns frame offsets to all live auto variables.
+ 	AllocFrame(f *Func)
++
++	// Syslook returns a symbol of the runtime function/variable with the
++	// given name.
++	Syslook(string) interface{} // returns *gc.Sym
+ }
+ 
+ // interface used to hold *gc.Node. We'd use *gc.Node directly but
+@@ -314,6 +319,7 @@ func (c *Config) Log() bool                                          { return c.
+ func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
+ func (c *Config) Warnl(line int32, msg string, args ...interface{})  { c.fe.Warnl(line, msg, args...) }
+ func (c *Config) Debug_checknil() bool                               { return c.fe.Debug_checknil() }
++func (c *Config) Debug_wb() bool                                     { return c.fe.Debug_wb() }
+ 
+ func (c *Config) logDebugHashMatch(evname, name string) {
+ 	file := c.logfiles[evname]
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 069641cd33..1eef2da15a 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -63,6 +63,9 @@ func (DummyFrontend) Line(line int32) string {
+ }
+ func (DummyFrontend) AllocFrame(f *Func) {
+ }
++func (DummyFrontend) Syslook(s string) interface{} {
++	return nil
++}
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+@@ -70,6 +73,7 @@ func (d DummyFrontend) Log() bool                            { return true }
+ func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Warnl(line int32, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
++func (d DummyFrontend) Debug_wb() bool                                     { return false }
+ 
+ func (d DummyFrontend) TypeBool() Type    { return TypeBool }
+ func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 22ddc8fb82..838be6a967 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -315,6 +315,13 @@ var genericOps = []opData{
+ 	{name: "Move", argLength: 3, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment.  Returns memory.
+ 	{name: "Zero", argLength: 2, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=mem, auxint=size+alignment. Returns memory.
+ 
++	// Memory operations with write barriers.
++	// Expand to runtime calls. Write barrier will be removed if write on stack.
++	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                  // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
++	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
++	{name: "MoveWBVolatile", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory. Src is volatile, i.e. needs to move to a temp space before calling typedmemmove.
++	// maybe we'll need a ZeroWB for the new barrier
++
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+ 	// as a phantom first argument.
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 25327e6901..315d7203d4 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -55,20 +55,21 @@ type regInfo struct {
+ type auxType int8
+ 
+ const (
+-	auxNone         auxType = iota
+-	auxBool                 // auxInt is 0/1 for false/true
+-	auxInt8                 // auxInt is an 8-bit integer
+-	auxInt16                // auxInt is a 16-bit integer
+-	auxInt32                // auxInt is a 32-bit integer
+-	auxInt64                // auxInt is a 64-bit integer
+-	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+-	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+-	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+-	auxSizeAndAlign         // auxInt is a SizeAndAlign
+-	auxString               // aux is a string
+-	auxSym                  // aux is a symbol
+-	auxSymOff               // aux is a symbol, auxInt is an offset
+-	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
++	auxNone            auxType = iota
++	auxBool                    // auxInt is 0/1 for false/true
++	auxInt8                    // auxInt is an 8-bit integer
++	auxInt16                   // auxInt is a 16-bit integer
++	auxInt32                   // auxInt is a 32-bit integer
++	auxInt64                   // auxInt is a 64-bit integer
++	auxInt128                  // auxInt represents a 128-bit integer.  Always 0.
++	auxFloat32                 // auxInt is a float32 (encoded with math.Float64bits)
++	auxFloat64                 // auxInt is a float64 (encoded with math.Float64bits)
++	auxSizeAndAlign            // auxInt is a SizeAndAlign
++	auxString                  // aux is a string
++	auxSym                     // aux is a symbol
++	auxSymOff                  // aux is a symbol, auxInt is an offset
++	auxSymValAndOff            // aux is a symbol, auxInt is a ValAndOff
++	auxSymSizeAndAlign         // aux is a symbol, auxInt is a SizeAndAlign
+ 
+ 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+ )
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b740f2a68a..e31f3e4c33 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1655,6 +1655,9 @@ const (
+ 	OpStore
+ 	OpMove
+ 	OpZero
++	OpStoreWB
++	OpMoveWB
++	OpMoveWBVolatile
+ 	OpClosureCall
+ 	OpStaticCall
+ 	OpDeferCall
+@@ -19382,6 +19385,24 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "StoreWB",
++		auxType: auxInt64,
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "MoveWB",
++		auxType: auxSymSizeAndAlign,
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "MoveWBVolatile",
++		auxType: auxSymSizeAndAlign,
++		argLen:  3,
++		generic: true,
++	},
+ 	{
+ 		name:    "ClosureCall",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index b53e41cf28..489ed3545f 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -151,6 +151,12 @@ func (v *Value) auxString() string {
+ 			s = fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+ 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
++	case auxSymSizeAndAlign:
++		s := ""
++		if v.Aux != nil {
++			s = fmt.Sprintf(" {%v}", v.Aux)
++		}
++		return s + fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+new file mode 100644
+index 0000000000..2eb549ce59
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -0,0 +1,263 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "fmt"
++
++// writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
++// branches and runtime calls, like
++//
++// if writeBarrier.enabled {
++//   writebarrierptr(ptr, val)
++// } else {
++//   *ptr = val
++// }
++//
++// If ptr is an address of a stack slot, write barrier will be removed
++// and a normal store will be used.
++// A sequence of WB stores for many pointer fields of a single type will
++// be emitted together, with a single branch.
++//
++// Expanding WB ops introduces new control flows, and we would need to
++// split a block into two if there were values after WB ops, which would
++// require scheduling the values. To avoid this complexity, when building
++// SSA, we make sure that WB ops are always at the end of a block. We do
++// this before fuse as it may merge blocks. It also helps to reduce
++// number of blocks as fuse merges blocks introduced in this phase.
++func writebarrier(f *Func) {
++	var sb, sp, wbaddr *Value
++	var writebarrierptr, typedmemmove interface{} // *gc.Sym
++	var storeWBs, others []*Value
++	var wbs *sparseSet
++	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no WB stores
++	valueLoop:
++		for i, v := range b.Values {
++			switch v.Op {
++			case OpStoreWB, OpMoveWB, OpMoveWBVolatile:
++				if IsStackAddr(v.Args[0]) {
++					switch v.Op {
++					case OpStoreWB:
++						v.Op = OpStore
++					case OpMoveWB, OpMoveWBVolatile:
++						v.Op = OpMove
++						v.Aux = nil
++					}
++					continue
++				}
++
++				if wbaddr == nil {
++					// initalize global values for write barrier test and calls
++					// find SB and SP values in entry block
++					initln := f.Entry.Line
++					for _, v := range f.Entry.Values {
++						if v.Op == OpSB {
++							sb = v
++						}
++						if v.Op == OpSP {
++							sp = v
++						}
++					}
++					if sb == nil {
++						sb = f.Entry.NewValue0(initln, OpSB, f.Config.fe.TypeUintptr())
++					}
++					if sp == nil {
++						sp = f.Entry.NewValue0(initln, OpSP, f.Config.fe.TypeUintptr())
++					}
++					wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier").(fmt.Stringer)}
++					wbaddr = f.Entry.NewValue1A(initln, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
++					writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
++					typedmemmove = f.Config.fe.Syslook("typedmemmove")
++
++					wbs = f.newSparseSet(f.NumValues())
++					defer f.retSparseSet(wbs)
++				}
++
++				mem := v.Args[2]
++				line := v.Line
++
++				// there may be a sequence of WB stores in the current block. find them.
++				storeWBs = storeWBs[:0]
++				others = others[:0]
++				wbs.clear()
++				for _, w := range b.Values[i:] {
++					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
++						storeWBs = append(storeWBs, w)
++						wbs.add(w.ID)
++					} else {
++						others = append(others, w)
++					}
++				}
++
++				// make sure that no value in this block depends on WB stores
++				for _, w := range b.Values {
++					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
++						continue
++					}
++					for _, a := range w.Args {
++						if wbs.contains(a.ID) {
++							f.Fatalf("value %v depends on WB store %v in the same block %v", w, a, b)
++						}
++					}
++				}
++
++				b.Values = append(b.Values[:i], others...) // move WB ops out of this block
++
++				bThen := f.NewBlock(BlockPlain)
++				bElse := f.NewBlock(BlockPlain)
++				bEnd := f.NewBlock(b.Kind)
++				bThen.Line = line
++				bElse.Line = line
++				bEnd.Line = line
++
++				// set up control flow for end block
++				bEnd.SetControl(b.Control)
++				bEnd.Likely = b.Likely
++				for _, e := range b.Succs {
++					bEnd.Succs = append(bEnd.Succs, e)
++					e.b.Preds[e.i].b = bEnd
++				}
++
++				// set up control flow for write barrier test
++				// load word, test word, avoiding partial register write from load byte.
++				flag := b.NewValue2(line, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
++				const0 := f.ConstInt32(line, f.Config.fe.TypeUInt32(), 0)
++				flag = b.NewValue2(line, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
++				b.Kind = BlockIf
++				b.SetControl(flag)
++				b.Likely = BranchUnlikely
++				b.Succs = b.Succs[:0]
++				b.AddEdgeTo(bThen)
++				b.AddEdgeTo(bElse)
++				bThen.AddEdgeTo(bEnd)
++				bElse.AddEdgeTo(bEnd)
++
++				memThen := mem
++				memElse := mem
++				for _, w := range storeWBs {
++					ptr := w.Args[0]
++					val := w.Args[1]
++					siz := w.AuxInt
++					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile
++
++					var op Op
++					var fn interface{} // *gc.Sym
++					switch w.Op {
++					case OpStoreWB:
++						op = OpStore
++						fn = writebarrierptr
++					case OpMoveWB, OpMoveWBVolatile:
++						op = OpMove
++						fn = typedmemmove
++					}
++
++					// then block: emit write barrier call
++					memThen = wbcall(line, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
++
++					// else block: normal store
++					memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
++				}
++
++				// merge memory
++				// Splice memory Phi into the last memory of the original sequence,
++				// which may be used in subsequent blocks. Other memories in the
++				// sequence must be dead after this block since there can be only
++				// one memory live.
++				v = storeWBs[len(storeWBs)-1]
++				bEnd.Values = append(bEnd.Values, v)
++				v.Block = bEnd
++				v.reset(OpPhi)
++				v.Type = TypeMem
++				v.AddArg(memThen)
++				v.AddArg(memElse)
++				for _, w := range storeWBs[:len(storeWBs)-1] {
++					for _, a := range w.Args {
++						a.Uses--
++					}
++				}
++				for _, w := range storeWBs[:len(storeWBs)-1] {
++					f.freeValue(w)
++				}
++
++				if f.Config.fe.Debug_wb() {
++					f.Config.Warnl(line, "write barrier")
++				}
++
++				break valueLoop
++			}
++		}
++	}
++}
++
++// wbcall emits write barrier runtime call in b, returns memory.
++// if valIsVolatile, it moves val into temp space before making the call.
++func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++	config := b.Func.Config
++
++	var tmp GCNode
++	if valIsVolatile {
++		// Copy to temp location if the source is volatile (will be clobbered by
++		// a function call). Marshaling the args to typedmemmove might clobber the
++		// value we're trying to move.
++		t := val.Type.ElemType()
++		tmp = config.fe.Auto(t)
++		aux := &AutoSymbol{Typ: t, Node: tmp}
++		mem = b.NewValue1A(line, OpVarDef, TypeMem, tmp, mem)
++		tmpaddr := b.NewValue1A(line, OpAddr, t.PtrTo(), aux, sp)
++		siz := MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
++		mem = b.NewValue3I(line, OpMove, TypeMem, siz, tmpaddr, val, mem)
++		val = tmpaddr
++	}
++
++	// put arguments on stack
++	off := config.ctxt.FixedFrameSize()
++
++	if typ != nil { // for typedmemmove
++		taddr := b.NewValue1A(line, OpAddr, config.fe.TypeUintptr(), typ, sb)
++		off = round(off, taddr.Type.Alignment())
++		arg := b.NewValue1I(line, OpOffPtr, taddr.Type.PtrTo(), off, sp)
++		mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, taddr, mem)
++		off += taddr.Type.Size()
++	}
++
++	off = round(off, ptr.Type.Alignment())
++	arg := b.NewValue1I(line, OpOffPtr, ptr.Type.PtrTo(), off, sp)
++	mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
++	off += ptr.Type.Size()
++
++	off = round(off, val.Type.Alignment())
++	arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
++	mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
++	off += val.Type.Size()
++	off = round(off, config.PtrSize)
++
++	// issue call
++	mem = b.NewValue1A(line, OpStaticCall, TypeMem, fn, mem)
++	mem.AuxInt = off - config.ctxt.FixedFrameSize()
++
++	if valIsVolatile {
++		mem = b.NewValue1A(line, OpVarKill, TypeMem, tmp, mem) // mark temp dead
++	}
++
++	return mem
++}
++
++// round to a multiple of r, r is a power of 2
++func round(o int64, r int64) int64 {
++	return (o + r - 1) &^ (r - 1)
++}
++
++// IsStackAddr returns whether v is known to be an address of a stack slot
++func IsStackAddr(v *Value) bool {
++	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
++		v = v.Args[0]
++	}
++	switch v.Op {
++	case OpSP:
++		return true
++	case OpAddr:
++		return v.Args[0].Op == OpSP
++	}
++	return false
++}
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 88b4b296df..6fb9cd7cfe 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -211,3 +211,11 @@ func f21(x *int) {
+ 	y21.x = &z21              // no barrier
+ 	y21 = struct{ x *int }{x} // ERROR "write barrier"
+ }
++
++func f22(x *int) (y *int) {
++	// pointer write on stack should have no write barrier.
++	// this is a case that the frontend failed to eliminate.
++	p := &y
++	*p = x // no barrier
++	return
++}

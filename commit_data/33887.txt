@@ -31,7 +31,46 @@ Date:   Thu Sep 14 19:12:26 2017 -0600
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/time.go   | 9 +++++++++
  src/time/tick_test.go | 7 +++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index b9454d6e2b..0e1763e0cd 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -163,6 +163,15 @@ func (tb *timersBucket) addtimerLocked(t *timer) {
+ // Delete timer t from the heap.
+ // Do not need to update the timerproc: if it wakes up early, no big deal.
+ func deltimer(t *timer) bool {
++	if t.tb == nil {
++		// t.tb can be nil if the user created a timer
++		// directly, without invoking startTimer e.g
++		//    time.Ticker{C: c}
++		// In this case, return early without any deletion.
++		// See Issue 21874.
++		return false
++	}
++
+ 	tb := t.tb
+ 
+ 	lock(&tb.lock)
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 9e40eb4374..dd17aab1b1 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -35,6 +35,13 @@ func TestTicker(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 21874
++func TestTickerStopWithDirectInitialization(t *testing.T) {
++	c := make(chan Time)
++	tk := &Ticker{C: c}
++	tk.Stop()
++}
++
+ // Test that a bug tearing down a ticker has been fixed. This routine should not deadlock.
+ func TestTeardown(t *testing.T) {
+ 	Delta := 100 * Millisecond

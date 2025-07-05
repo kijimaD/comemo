@@ -10,6 +10,21 @@ Date:   Mon Jun 24 23:51:00 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/10523043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 6d5764f4a2..94d19f741c 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// See issue 5659.
++// +build !race
++
+ package pprof_test
+ 
+ import (

@@ -40,7 +40,7 @@ Date:   Wed Sep 7 13:23:19 2022 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go                  |   2 +-
  src/cmd/compile/internal/ir/abi.go               |   2 +-
  src/cmd/internal/goobj/funcinfo.go               |  18 +--
@@ -59,3 +59,654 @@ Date:   Wed Sep 7 13:23:19 2022 -0400
  src/runtime/symtab.go                            |  61 +++++++---
  src/runtime/traceback.go                         |   1 +
  17 files changed, 301 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 6925d73834..117670b8b8 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -178,7 +178,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
+ 		}
+ 		argSize = p.positiveAtoi(op[1].String())
+ 	}
+-	p.ctxt.InitTextSym(nameAddr.Sym, int(flag))
++	p.ctxt.InitTextSym(nameAddr.Sym, int(flag), p.pos())
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.ATEXT,
+diff --git a/src/cmd/compile/internal/ir/abi.go b/src/cmd/compile/internal/ir/abi.go
+index cf223ff395..8cd1606e66 100644
+--- a/src/cmd/compile/internal/ir/abi.go
++++ b/src/cmd/compile/internal/ir/abi.go
+@@ -74,5 +74,5 @@ func setupTextLSym(f *Func, flag int) {
+ 		}
+ 	}
+ 
+-	base.Ctxt.InitTextSym(f.LSym, flag)
++	base.Ctxt.InitTextSym(f.LSym, flag, f.Pos())
+ }
+diff --git a/src/cmd/internal/goobj/funcinfo.go b/src/cmd/internal/goobj/funcinfo.go
+index 59cb957fa7..fbcf9d9bb5 100644
+--- a/src/cmd/internal/goobj/funcinfo.go
++++ b/src/cmd/internal/goobj/funcinfo.go
+@@ -17,12 +17,13 @@ type CUFileIndex uint32
+ // FuncInfo is serialized as a symbol (aux symbol). The symbol data is
+ // the binary encoding of the struct below.
+ type FuncInfo struct {
+-	Args     uint32
+-	Locals   uint32
+-	FuncID   objabi.FuncID
+-	FuncFlag objabi.FuncFlag
+-	File     []CUFileIndex
+-	InlTree  []InlTreeNode
++	Args      uint32
++	Locals    uint32
++	FuncID    objabi.FuncID
++	FuncFlag  objabi.FuncFlag
++	StartLine int32
++	File      []CUFileIndex
++	InlTree   []InlTreeNode
+ }
+ 
+ func (a *FuncInfo) Write(w *bytes.Buffer) {
+@@ -41,6 +42,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 	writeUint8(uint8(a.FuncFlag))
+ 	writeUint8(0) // pad to uint32 boundary
+ 	writeUint8(0)
++	writeUint32(uint32(a.StartLine))
+ 
+ 	writeUint32(uint32(len(a.File)))
+ 	for _, f := range a.File {
+@@ -70,7 +72,7 @@ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
+ 
+ 	// Offset to the number of the file table. This value is determined by counting
+ 	// the number of bytes until we write funcdataoff to the file.
+-	const numfileOff = 12
++	const numfileOff = 16
+ 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
+ 	result.FileOff = numfileOff + 4
+ 
+@@ -91,6 +93,8 @@ func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8])
+ 
+ func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
+ 
++func (*FuncInfo) ReadStartLine(b []byte) int32 { return int32(binary.LittleEndian.Uint32(b[12:])) }
++
+ func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
+ 	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))
+ }
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 39b86b0f8f..4276df3d19 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -30,7 +30,7 @@ import (
+ // New object file format.
+ //
+ //    Header struct {
+-//       Magic       [...]byte   // "\x00go118ld"
++//       Magic       [...]byte   // "\x00go120ld"
+ //       Fingerprint [8]byte
+ //       Flags       uint32
+ //       Offsets     [...]uint32 // byte offset of each block below
+@@ -215,7 +215,7 @@ type Header struct {
+ 	Offsets     [NBlk]uint32
+ }
+ 
+-const Magic = "\x00go118ld"
++const Magic = "\x00go120ld"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 1c2bfa9391..ead37085b3 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -472,16 +472,17 @@ type LSym struct {
+ 
+ // A FuncInfo contains extra fields for STEXT symbols.
+ type FuncInfo struct {
+-	Args     int32
+-	Locals   int32
+-	Align    int32
+-	FuncID   objabi.FuncID
+-	FuncFlag objabi.FuncFlag
+-	Text     *Prog
+-	Autot    map[*LSym]struct{}
+-	Pcln     Pcln
+-	InlMarks []InlMark
+-	spills   []RegSpill
++	Args      int32
++	Locals    int32
++	Align     int32
++	FuncID    objabi.FuncID
++	FuncFlag  objabi.FuncFlag
++	StartLine int32
++	Text      *Prog
++	Autot     map[*LSym]struct{}
++	Pcln      Pcln
++	InlMarks  []InlMark
++	spills    []RegSpill
+ 
+ 	dwarfInfoSym       *LSym
+ 	dwarfLocSym        *LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 5764009c30..4c7a0c0379 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -705,10 +705,11 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			continue
+ 		}
+ 		o := goobj.FuncInfo{
+-			Args:     uint32(fn.Args),
+-			Locals:   uint32(fn.Locals),
+-			FuncID:   fn.FuncID,
+-			FuncFlag: fn.FuncFlag,
++			Args:      uint32(fn.Args),
++			Locals:    uint32(fn.Locals),
++			FuncID:    fn.FuncID,
++			FuncFlag:  fn.FuncFlag,
++			StartLine: fn.StartLine,
+ 		}
+ 		pc := &fn.Pcln
+ 		i := 0
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index ed33b21bbf..30a6d929d5 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -6,6 +6,7 @@ package obj
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -159,7 +160,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 	}
+ }
+ 
+-func (ctxt *Link) InitTextSym(s *LSym, flag int) {
++func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 	if s == nil {
+ 		// func _() { }
+ 		return
+@@ -171,10 +172,14 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
++
++	_, startLine := linkgetlineFromPos(ctxt, start)
++
+ 	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+ 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+ 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
++	s.Func().StartLine = startLine
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+ 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 2f13a24e04..34ab86cf12 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -17,7 +17,7 @@ import (
+ 	"strings"
+ )
+ 
+-const funcSize = 10 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
++const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+ 
+ // pclntab holds the state needed for pclntab generation.
+ type pclntab struct {
+@@ -169,8 +169,10 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
+ 
+ 		inlFunc := ldr.FuncInfo(call.Func)
+ 		var funcID objabi.FuncID
++		startLine := int32(0)
+ 		if inlFunc.Valid() {
+ 			funcID = inlFunc.FuncID()
++			startLine = inlFunc.StartLine()
+ 		} else if !ctxt.linkShared {
+ 			// Inlined functions are always Go functions, and thus
+ 			// must have FuncInfo.
+@@ -184,11 +186,12 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
+ 		}
+ 
+ 		// Construct runtime.inlinedCall value.
+-		const size = 12
++		const size = 16
+ 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
+ 		// Bytes 1-3 are unused.
+ 		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
+ 		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
++		inlTreeSym.SetUint32(arch, int64(i*size+12), uint32(startLine))
+ 	}
+ 	return its
+ }
+@@ -643,10 +646,12 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 
+ 	// Write the individual func objects.
+ 	for i, s := range funcs {
++		startLine := int32(0)
+ 		fi := ldr.FuncInfo(s)
+ 		if fi.Valid() {
+ 			fi.Preload()
+ 			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
++			startLine = fi.StartLine()
+ 		}
+ 
+ 		off := int64(startLocations[i])
+@@ -693,6 +698,9 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 		}
+ 		off = sb.SetUint32(ctxt.Arch, off, cuIdx)
+ 
++		// startLine int32
++		off = sb.SetUint32(ctxt.Arch, off, uint32(startLine))
++
+ 		// funcID uint8
+ 		var funcID objabi.FuncID
+ 		if fi.Valid() {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 40ad950fe5..23837379b5 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1958,6 +1958,10 @@ func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
+ 	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
+ }
+ 
++func (fi *FuncInfo) StartLine() int32 {
++	return (*goobj.FuncInfo)(nil).ReadStartLine(fi.data)
++}
++
+ // Preload has to be called prior to invoking the various methods
+ // below related to pcdata, funcdataoff, files, and inltree nodes.
+ func (fi *FuncInfo) Preload() {
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e4b9e362fc..8e0a57987f 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1696,3 +1696,7 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+ 	}
+ 	return false
+ }
++
++func FrameStartLine(f *Frame) int {
++	return f.startLine
++}
+diff --git a/src/runtime/internal/startlinetest/func_amd64.go b/src/runtime/internal/startlinetest/func_amd64.go
+new file mode 100644
+index 0000000000..6cd9a3f417
+--- /dev/null
++++ b/src/runtime/internal/startlinetest/func_amd64.go
+@@ -0,0 +1,10 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package startlinetest contains helpers for runtime_test.TestStartLineAsm.
++package startlinetest
++
++// Defined in func_amd64.s, this is a trivial assembly function that calls
++// runtime_test.callerStartLine.
++func AsmFunc() int
+diff --git a/src/runtime/internal/startlinetest/func_amd64.s b/src/runtime/internal/startlinetest/func_amd64.s
+new file mode 100644
+index 0000000000..6baeba28d4
+--- /dev/null
++++ b/src/runtime/internal/startlinetest/func_amd64.s
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Assembly function for runtime_test.TestStartLineAsm.
++//
++// Note that this file can't be built directly as part of runtime_test, as assembly
++// files can't declare an alternative package. Building it into runtime is
++// possible, but linkshared complicates things:
++//
++//  1. linkshared mode leaves the function around in the final output of
++//     non-test builds.
++//  2. Due of (1), the linker can't resolve the callerStartLine relocation
++//     (as runtime_test isn't built for non-test builds).
++//
++// Thus it is simpler to just put this in its own package, imported only by
++// runtime_test. We use ABIInternal as no ABI wrapper is generated for
++// callerStartLine since it is in a different package.
++
++TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
++	MOVQ	$0, AX // wantInlined
++	CALL    runtime_test·callerStartLine<ABIInternal>(SB)
++	RET
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index cf44156c53..5b55b55ce1 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -879,6 +879,7 @@ type _func struct {
+ 	pcln      uint32
+ 	npcdata   uint32
+ 	cuOffset  uint32 // runtime.cutab offset of this function's CU
++	startLine int32  // line number of start of function (func keyword/TEXT directive)
+ 	funcID    funcID // set for certain special runtime functions
+ 	flag      funcFlag
+ 	_         [1]byte // pad
+@@ -911,11 +912,12 @@ type _func struct {
+ // A *Func can be either a *_func or a *funcinl, and they are distinguished
+ // by the first uintptr.
+ type funcinl struct {
+-	ones  uint32  // set to ^0 to distinguish from _func
+-	entry uintptr // entry of the real (the "outermost") frame
+-	name  string
+-	file  string
+-	line  int
++	ones      uint32  // set to ^0 to distinguish from _func
++	entry     uintptr // entry of the real (the "outermost") frame
++	name      string
++	file      string
++	line      int32
++	startLine int32
+ }
+ 
+ // layout of Itab known to compilers
+diff --git a/src/runtime/start_line_amd64_test.go b/src/runtime/start_line_amd64_test.go
+new file mode 100644
+index 0000000000..c528adf3e2
+--- /dev/null
++++ b/src/runtime/start_line_amd64_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime/internal/startlinetest"
++	"testing"
++)
++
++// TestStartLineAsm tests the start line metadata of an assembly function. This
++// is only tested on amd64 to avoid the need for a proliferation of per-arch
++// copies of this function.
++func TestStartLineAsm(t *testing.T) {
++	const wantLine = 22
++	got := startlinetest.AsmFunc()
++	if got != wantLine {
++		t.Errorf("start line got %d want %d", got, wantLine)
++	}
++}
+diff --git a/src/runtime/start_line_test.go b/src/runtime/start_line_test.go
+new file mode 100644
+index 0000000000..6c4faa87a8
+--- /dev/null
++++ b/src/runtime/start_line_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"fmt"
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++// The tests in this file test the function start line metadata included in
++// _func and inlinedCall. TestStartLine hard-codes the start lines of functions
++// in this file. If code moves, the test will need to be updated.
++//
++// The "start line" of a function should be the line containing the func
++// keyword.
++
++func normalFunc() int {
++	return callerStartLine(false)
++}
++
++func multilineDeclarationFunc() int {
++	return multilineDeclarationFunc1(0, 0, 0)
++}
++
++//go:noinline
++func multilineDeclarationFunc1(
++	a, b, c int) int {
++	return callerStartLine(false)
++}
++
++func blankLinesFunc() int {
++
++	// Some
++	// lines
++	// without
++	// code
++
++	return callerStartLine(false)
++}
++
++func inlineFunc() int {
++	return inlineFunc1()
++}
++
++func inlineFunc1() int {
++	return callerStartLine(true)
++}
++
++var closureFn func() int
++
++func normalClosure() int {
++	// Assign to global to ensure this isn't inlined.
++	closureFn = func() int {
++		return callerStartLine(false)
++	}
++	return closureFn()
++}
++
++func inlineClosure() int {
++	return func() int {
++		return callerStartLine(true)
++	}()
++}
++
++func TestStartLine(t *testing.T) {
++	// We test inlined vs non-inlined variants. We can't do that if
++	// optimizations are disabled.
++	testenv.SkipIfOptimizationOff(t)
++
++	testCases := []struct{
++		name string
++		fn   func() int
++		want int
++	}{
++		{
++			name: "normal",
++			fn:   normalFunc,
++			want: 21,
++		},
++		{
++			name: "multiline-declaration",
++			fn:   multilineDeclarationFunc,
++			want: 30,
++		},
++		{
++			name: "blank-lines",
++			fn:   blankLinesFunc,
++			want: 35,
++		},
++		{
++			name: "inline",
++			fn:   inlineFunc,
++			want: 49,
++		},
++		{
++			name: "normal-closure",
++			fn:   normalClosure,
++			want: 57,
++		},
++		{
++			name: "inline-closure",
++			fn:   inlineClosure,
++			want: 64,
++		},
++	}
++
++	for _, tc := range testCases {
++		t.Run(tc.name, func(t *testing.T) {
++			got := tc.fn()
++			if got != tc.want {
++				t.Errorf("start line got %d want %d", got, tc.want)
++			}
++		})
++	}
++}
++
++//go:noinline
++func callerStartLine(wantInlined bool) int {
++	var pcs [1]uintptr
++	n := runtime.Callers(2, pcs[:])
++	if n != 1 {
++		panic(fmt.Sprintf("no caller of callerStartLine? n = %d", n))
++	}
++
++	frames := runtime.CallersFrames(pcs[:])
++	frame, _ := frames.Next()
++
++	inlined := frame.Func == nil // Func always set to nil for inlined frames
++	if wantInlined != inlined {
++		panic(fmt.Sprintf("caller %s inlined got %v want %v", frame.Function, inlined, wantInlined))
++	}
++
++	return runtime.FrameStartLine(&frame)
++}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 2da9a59b7e..920ec12d54 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -49,6 +49,15 @@ type Frame struct {
+ 	File string
+ 	Line int
+ 
++	// startLine is the line number of the beginning of the function in
++	// this frame. Specifically, it is the line number of the func keyword
++	// for Go functions. Note that //line directives can change the
++	// filename and/or line number arbitrarily within a function, meaning
++	// that the Line - startLine offset is not always meaningful.
++	//
++	// This may be zero if not known.
++	startLine int
++
+ 	// Entry point program counter for the function; may be zero
+ 	// if not known. If Func is not nil then Entry ==
+ 	// Func.Entry().
+@@ -108,6 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 			pc--
+ 		}
+ 		name := funcname(funcInfo)
++		startLine := f.startLine()
+ 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
+ 			inltree := (*[1 << 20]inlinedCall)(inldata)
+ 			// Non-strict as cgoTraceback may have added bogus PCs
+@@ -116,16 +126,19 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 			if ix >= 0 {
+ 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
+ 				f = nil
+-				name = funcnameFromNameOff(funcInfo, inltree[ix].nameOff)
++				ic := inltree[ix]
++				name = funcnameFromNameOff(funcInfo, ic.nameOff)
++				startLine = ic.startLine
+ 				// File/line from funcline1 below are already correct.
+ 			}
+ 		}
+ 		ci.frames = append(ci.frames, Frame{
+-			PC:       pc,
+-			Func:     f,
+-			Function: name,
+-			Entry:    entry,
+-			funcInfo: funcInfo,
++			PC:        pc,
++			Func:      f,
++			Function:  name,
++			Entry:     entry,
++			startLine: int(startLine),
++			funcInfo:  funcInfo,
+ 			// Note: File,Line set below
+ 		})
+ 	}
+@@ -727,14 +740,16 @@ func FuncForPC(pc uintptr) *Func {
+ 		// The runtime currently doesn't have function end info, alas.
+ 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
+ 			inltree := (*[1 << 20]inlinedCall)(inldata)
+-			name := funcnameFromNameOff(f, inltree[ix].nameOff)
++			ic := inltree[ix]
++			name := funcnameFromNameOff(f, ic.nameOff)
+ 			file, line := funcline(f, pc)
+ 			fi := &funcinl{
+-				ones:  ^uint32(0),
+-				entry: f.entry(), // entry of the real (the outermost) function.
+-				name:  name,
+-				file:  file,
+-				line:  int(line),
++				ones:      ^uint32(0),
++				entry:     f.entry(), // entry of the real (the outermost) function.
++				name:      name,
++				file:      file,
++				line:      line,
++				startLine: ic.startLine,
+ 			}
+ 			return (*Func)(unsafe.Pointer(fi))
+ 		}
+@@ -773,7 +788,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	fn := f.raw()
+ 	if fn.isInlined() { // inlined version
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+-		return fi.file, fi.line
++		return fi.file, int(fi.line)
+ 	}
+ 	// Pass strict=false here, because anyone can call this function,
+ 	// and they might just be wrong about targetpc belonging to f.
+@@ -781,6 +796,17 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	return file, int(line32)
+ }
+ 
++// startLine returns the starting line number of the function. i.e., the line
++// number of the func keyword.
++func (f *Func) startLine() int32 {
++	fn := f.raw()
++	if fn.isInlined() { // inlined version
++		fi := (*funcinl)(unsafe.Pointer(fn))
++		return fi.startLine
++	}
++	return fn.funcInfo().startLine
++}
++
+ // findmoduledatap looks up the moduledata for a PC.
+ //
+ // It is nosplit because it's part of the isgoexception
+@@ -1173,8 +1199,9 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 
+ // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+ type inlinedCall struct {
+-	funcID   funcID // type of the called function
+-	_        [3]byte
+-	nameOff  int32 // offset into pclntab for name of called function
+-	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
++	funcID    funcID // type of the called function
++	_         [3]byte
++	nameOff   int32 // offset into pclntab for name of called function
++	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
++	startLine int32 // line number of start of function (func keyword/TEXT directive)
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 895d56ed57..794ea10407 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -418,6 +418,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					// inlined function.
+ 					inlFunc.nameOff = inltree[ix].nameOff
+ 					inlFunc.funcID = inltree[ix].funcID
++					inlFunc.startLine = inltree[ix].startLine
+ 
+ 					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
+ 						name := funcname(inlFuncInfo)

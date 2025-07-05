@@ -9,6 +9,25 @@ Date:   Sat Jul 15 14:42:31 2017 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/example_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index b70b990325..62866fa710 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -57,6 +57,13 @@ func ExampleCmd_Output() {
+ 	fmt.Printf("The date is %s\n", out)
+ }
+ 
++func ExampleCmd_Run() {
++	cmd := exec.Command("sleep", "1")
++	log.Printf("Running command and waiting for it to finish...")
++	err := cmd.Run()
++	log.Printf("Command finished with error: %v", err)
++}
++
+ func ExampleCmd_Start() {
+ 	cmd := exec.Command("sleep", "5")
+ 	err := cmd.Start()

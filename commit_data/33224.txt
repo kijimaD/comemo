@@ -8,6 +8,55 @@ Date:   Fri Aug 4 15:41:57 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/53357
     Run-TryBot: Chris Broadfoot <cbro@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/math/bits/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  1 file changed, 40 insertions(+)
+
+diff --git a/src/math/bits/example_test.go b/src/math/bits/example_test.go
+index 5d30f4b259..9836245cfb 100644
+--- a/src/math/bits/example_test.go
++++ b/src/math/bits/example_test.go
+@@ -36,3 +36,43 @@ func ExampleLeadingZeros64() {
+ 	// 64
+ 	// 63
+ }
++
++func ExampleOnesCount() {
++	fmt.Printf("%b\n", 14)
++	fmt.Println(bits.OnesCount(14))
++	// Output:
++	// 1110
++	// 3
++}
++
++func ExampleOnesCount8() {
++	fmt.Printf("%b\n", 14)
++	fmt.Println(bits.OnesCount8(14))
++	// Output:
++	// 1110
++	// 3
++}
++
++func ExampleOnesCount16() {
++	fmt.Printf("%b\n", 14)
++	fmt.Println(bits.OnesCount16(14))
++	// Output:
++	// 1110
++	// 3
++}
++
++func ExampleOnesCount32() {
++	fmt.Printf("%b\n", 14)
++	fmt.Println(bits.OnesCount32(14))
++	// Output:
++	// 1110
++	// 3
++}
++
++func ExampleOnesCount64() {
++	fmt.Printf("%b\n", 14)
++	fmt.Println(bits.OnesCount(14))
++	// Output:
++	// 1110
++	// 3
++}

@@ -7,6 +7,20 @@ Date:   Tue Jan 22 14:43:37 2013 -0500
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/7133048
-
+---
  src/cmd/go/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 1c121672f9..437e6400bb 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -81,7 +81,7 @@ var vcsHg = &vcsCmd{
+ 	tagSyncCmd:     "update -r {tag}",
+ 	tagSyncDefault: "update default",
+ 
+-	scheme:  []string{"https", "http"},
++	scheme:  []string{"https", "http", "ssh"},
+ 	pingCmd: "identify {scheme}://{repo}",
+ }
+ 

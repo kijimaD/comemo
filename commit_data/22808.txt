@@ -8,7 +8,7 @@ Date:   Tue Dec 30 06:14:55 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/2167
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/const_plan9.go                         |  59 +++++++++++
  .../{zerrors_plan9_386.go => errors_plan9.go}      |   0
  src/syscall/syscall_plan9.go                       |   4 +-
@@ -21,3 +21,514 @@ Date:   Tue Dec 30 06:14:55 2014 -0800
  src/syscall/ztypes_plan9_386.go                    |  75 --------------
  src/syscall/ztypes_plan9_amd64.go                  |  75 --------------
  11 files changed, 63 insertions(+), 366 deletions(-)
+
+diff --git a/src/syscall/const_plan9.go b/src/syscall/const_plan9.go
+new file mode 100644
+index 0000000000..ba26f123de
+--- /dev/null
++++ b/src/syscall/const_plan9.go
+@@ -0,0 +1,59 @@
++package syscall
++
++// Plan 9 Constants
++
++// Open modes
++const (
++	O_RDONLY  = 0
++	O_WRONLY  = 1
++	O_RDWR    = 2
++	O_TRUNC   = 16
++	O_CLOEXEC = 32
++	O_EXCL    = 0x1000
++)
++
++// Rfork flags
++const (
++	RFNAMEG  = 1 << 0
++	RFENVG   = 1 << 1
++	RFFDG    = 1 << 2
++	RFNOTEG  = 1 << 3
++	RFPROC   = 1 << 4
++	RFMEM    = 1 << 5
++	RFNOWAIT = 1 << 6
++	RFCNAMEG = 1 << 10
++	RFCENVG  = 1 << 11
++	RFCFDG   = 1 << 12
++	RFREND   = 1 << 13
++	RFNOMNT  = 1 << 14
++)
++
++// Qid.Type bits
++const (
++	QTDIR    = 0x80
++	QTAPPEND = 0x40
++	QTEXCL   = 0x20
++	QTMOUNT  = 0x10
++	QTAUTH   = 0x08
++	QTTMP    = 0x04
++	QTFILE   = 0x00
++)
++
++// Dir.Mode bits
++const (
++	DMDIR    = 0x80000000
++	DMAPPEND = 0x40000000
++	DMEXCL   = 0x20000000
++	DMMOUNT  = 0x10000000
++	DMAUTH   = 0x08000000
++	DMTMP    = 0x04000000
++	DMREAD   = 0x4
++	DMWRITE  = 0x2
++	DMEXEC   = 0x1
++)
++
++const (
++	STATMAX    = 65535
++	ERRMAX     = 128
++	STATFIXLEN = 49
++)
+diff --git a/src/syscall/zerrors_plan9_386.go b/src/syscall/errors_plan9.go
+similarity index 100%
+rename from src/syscall/zerrors_plan9_386.go
+rename to src/syscall/errors_plan9.go
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index f6a502b9ab..796870825c 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -140,12 +140,12 @@ func Fd2path(fd int) (path string, err error) {
+ 	return cstring(buf[:]), nil
+ }
+ 
+-//sys	pipe(p *[2]_C_int) (err error)
++//sys	pipe(p *[2]int32) (err error)
+ func Pipe(p []int) (err error) {
+ 	if len(p) != 2 {
+ 		return NewError("bad arg in system call")
+ 	}
+-	var pp [2]_C_int
++	var pp [2]int32
+ 	err = pipe(&pp)
+ 	p[0] = int(pp[0])
+ 	p[1] = int(pp[1])
+diff --git a/src/syscall/types_plan9.c b/src/syscall/types_plan9.c
+deleted file mode 100644
+index cd9e15fa8c..0000000000
+--- a/src/syscall/types_plan9.c
++++ /dev/null
+@@ -1,115 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to godefs.  See also mkerrors.sh and mkall.sh
+-*/
+-
+-typedef unsigned short ushort;
+-typedef unsigned char uchar;
+-typedef unsigned long ulong;
+-typedef unsigned int uint;
+-typedef long long vlong;
+-typedef unsigned long long uvlong;
+-
+-typedef int $_C_int;
+-
+-enum {
+-	OREAD	= 0,	// open for read
+-	OWRITE	= 1,	// write
+-	ORDWR	= 2,	// read and write
+-	OEXEC	= 3,	// execute, == read but check execute permission
+-	OTRUNC	= 16,	// or'ed in (except for exec), truncate file first
+-	OCEXEC	= 32,	// or'ed in, close on exec
+-	ORCLOSE	= 64,		// or'ed in, remove on close
+-	OEXCL	= 0x1000,	// or'ed in, exclusive use (create only)
+-
+-	$O_RDONLY	= OREAD,
+-	$O_WRONLY	= OWRITE,
+-	$O_RDWR		= ORDWR,
+-	$O_TRUNC	= OTRUNC,
+-	$O_CLOEXEC	= OCEXEC,
+-	$O_EXCL		= OEXCL,
+-
+-	$STATMAX	= 65535U,
+-	$ERRMAX		= 128,
+-
+-	$MORDER		= 0x0003,	// mask for bits defining order of mounting
+-	$MREPL		= 0x0000,	// mount replaces object
+-	$MBEFORE	= 0x0001,	// mount goes before others in union directory
+-	$MAFTER		= 0x0002,	// mount goes after others in union directory
+-	$MCREATE	= 0x0004,	// permit creation in mounted directory
+-	$MCACHE		= 0x0010,	// cache some data
+-	$MMASK		= 0x0017,	// all bits on
+-
+-	$RFNAMEG	= (1<<0),
+-	$RFENVG		= (1<<1),
+-	$RFFDG		= (1<<2),
+-	$RFNOTEG	= (1<<3),
+-	$RFPROC		= (1<<4),
+-	$RFMEM		= (1<<5),
+-	$RFNOWAIT	= (1<<6),
+-	$RFCNAMEG	= (1<<10),
+-	$RFCENVG	= (1<<11),
+-	$RFCFDG		= (1<<12),
+-	$RFREND		= (1<<13),
+-	$RFNOMNT	= (1<<14),
+-
+-	// bits in Qid.type
+-	$QTDIR		= 0x80,		// type bit for directories
+-	$QTAPPEND	= 0x40,		// type bit for append only files
+-	$QTEXCL		= 0x20,		// type bit for exclusive use files
+-	$QTMOUNT	= 0x10,		// type bit for mounted channel
+-	$QTAUTH		= 0x08,		// type bit for authentication file
+-	$QTTMP		= 0x04,		// type bit for not-backed-up file
+-	$QTFILE		= 0x00,		// plain file
+-
+-
+-	// bits in Dir.mode
+-	$DMDIR		= 0x80000000,	// mode bit for directories
+-	$DMAPPEND	= 0x40000000,	// mode bit for append only files
+-	$DMEXCL		= 0x20000000,	// mode bit for exclusive use files
+-	$DMMOUNT	= 0x10000000,	// mode bit for mounted channel
+-	$DMAUTH		= 0x08000000,	// mode bit for authentication file
+-	$DMTMP		= 0x04000000,	// mode bit for non-backed-up files
+-	$DMREAD		= 0x4,		// mode bit for read permission
+-	$DMWRITE	= 0x2,		// mode bit for write permission
+-	$DMEXEC		= 0x1,		// mode bit for execute permission
+-
+-	BIT8SZ	= 1,
+-	BIT16SZ	= 2,
+-	BIT32SZ	= 4,
+-	BIT64SZ	= 8,
+-	QIDSZ = BIT8SZ+BIT32SZ+BIT64SZ,
+-
+-	// STATFIXLEN includes leading 16-bit count
+-	// The count, however, excludes itself; total size is BIT16SZ+count
+-	$STATFIXLEN = BIT16SZ+QIDSZ+5*BIT16SZ+4*BIT32SZ+1*BIT64SZ,	// amount of fixed length data in a stat buffer
+-};
+-
+-
+-struct Prof			// Per process profiling
+-{
+-	struct Plink	*pp;	// known to be 0(ptr)
+-	struct Plink	*next;	// known to be 4(ptr)
+-	struct Plink	*last;
+-	struct Plink	*first;
+-	ulong		pid;
+-	ulong		what;
+-};
+-
+-struct Tos {
+-	struct Prof	prof;
+-	uvlong		cyclefreq;	// cycle clock frequency if there is one, 0 otherwise
+-	vlong		kcycles;	// cycles spent in kernel
+-	vlong		pcycles;	// cycles spent in process (kernel + user)
+-	ulong		pid;		// might as well put the pid here
+-	ulong		clock;
+-	// top of stack is here
+-};
+-
+-typedef struct Prof $Prof;
+-typedef struct Tos $Tos;
+diff --git a/src/syscall/zerrors_plan9_amd64.go b/src/syscall/zerrors_plan9_amd64.go
+deleted file mode 100644
+index ede3d6a329..0000000000
+--- a/src/syscall/zerrors_plan9_amd64.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-// Constants
+-const (
+-	// Invented values to support what package os expects.
+-	O_CREAT    = 0x02000
+-	O_APPEND   = 0x00400
+-	O_NOCTTY   = 0x00000
+-	O_NONBLOCK = 0x00000
+-	O_SYNC     = 0x00000
+-	O_ASYNC    = 0x00000
+-
+-	S_IFMT   = 0x1f000
+-	S_IFIFO  = 0x1000
+-	S_IFCHR  = 0x2000
+-	S_IFDIR  = 0x4000
+-	S_IFBLK  = 0x6000
+-	S_IFREG  = 0x8000
+-	S_IFLNK  = 0xa000
+-	S_IFSOCK = 0xc000
+-)
+-
+-// Errors
+-var (
+-	EINVAL       = NewError("bad arg in system call")
+-	ENOTDIR      = NewError("not a directory")
+-	EISDIR       = NewError("file is a directory")
+-	ENOENT       = NewError("file does not exist")
+-	EEXIST       = NewError("file already exists")
+-	EMFILE       = NewError("no free file descriptors")
+-	EIO          = NewError("i/o error")
+-	ENAMETOOLONG = NewError("file name too long")
+-	EINTR        = NewError("interrupted")
+-	EPERM        = NewError("permission denied")
+-	EBUSY        = NewError("no free devices")
+-	ETIMEDOUT    = NewError("connection timed out")
+-	EPLAN9       = NewError("not supported by plan 9")
+-
+-	// The following errors do not correspond to any
+-	// Plan 9 system messages. Invented to support
+-	// what package os and others expect.
+-	EACCES       = NewError("access permission denied")
+-	EAFNOSUPPORT = NewError("address family not supported by protocol")
+-)
+diff --git a/src/syscall/zsyscall_plan9_386.go b/src/syscall/zsyscall_plan9_386.go
+index ae0187fd09..06f1f04114 100644
+--- a/src/syscall/zsyscall_plan9_386.go
++++ b/src/syscall/zsyscall_plan9_386.go
+@@ -23,7 +23,7 @@ func fd2path(fd int, buf []byte) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
++func pipe(p *[2]int32) (err error) {
+ 	r0, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	if int32(r0) == -1 {
+ 		err = e1
+diff --git a/src/syscall/zsyscall_plan9_amd64.go b/src/syscall/zsyscall_plan9_amd64.go
+index ae0187fd09..06f1f04114 100644
+--- a/src/syscall/zsyscall_plan9_amd64.go
++++ b/src/syscall/zsyscall_plan9_amd64.go
+@@ -23,7 +23,7 @@ func fd2path(fd int, buf []byte) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
++func pipe(p *[2]int32) (err error) {
+ 	r0, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	if int32(r0) == -1 {
+ 		err = e1
+diff --git a/src/syscall/zsysnum_plan9_386.go b/src/syscall/zsysnum_plan9.go
+similarity index 100%
+rename from src/syscall/zsysnum_plan9_386.go
+rename to src/syscall/zsysnum_plan9.go
+diff --git a/src/syscall/zsysnum_plan9_amd64.go b/src/syscall/zsysnum_plan9_amd64.go
+deleted file mode 100644
+index 07498c4892..0000000000
+--- a/src/syscall/zsysnum_plan9_amd64.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// mksysnum_plan9.sh /media/sys/src/libc/9syscall/sys.h
+-// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+-
+-package syscall
+-
+-const (
+-	SYS_SYSR1       = 0
+-	SYS_BIND        = 2
+-	SYS_CHDIR       = 3
+-	SYS_CLOSE       = 4
+-	SYS_DUP         = 5
+-	SYS_ALARM       = 6
+-	SYS_EXEC        = 7
+-	SYS_EXITS       = 8
+-	SYS_FAUTH       = 10
+-	SYS_SEGBRK      = 12
+-	SYS_OPEN        = 14
+-	SYS_OSEEK       = 16
+-	SYS_SLEEP       = 17
+-	SYS_RFORK       = 19
+-	SYS_PIPE        = 21
+-	SYS_CREATE      = 22
+-	SYS_FD2PATH     = 23
+-	SYS_BRK_        = 24
+-	SYS_REMOVE      = 25
+-	SYS_NOTIFY      = 28
+-	SYS_NOTED       = 29
+-	SYS_SEGATTACH   = 30
+-	SYS_SEGDETACH   = 31
+-	SYS_SEGFREE     = 32
+-	SYS_SEGFLUSH    = 33
+-	SYS_RENDEZVOUS  = 34
+-	SYS_UNMOUNT     = 35
+-	SYS_SEMACQUIRE  = 37
+-	SYS_SEMRELEASE  = 38
+-	SYS_SEEK        = 39
+-	SYS_FVERSION    = 40
+-	SYS_ERRSTR      = 41
+-	SYS_STAT        = 42
+-	SYS_FSTAT       = 43
+-	SYS_WSTAT       = 44
+-	SYS_FWSTAT      = 45
+-	SYS_MOUNT       = 46
+-	SYS_AWAIT       = 47
+-	SYS_PREAD       = 50
+-	SYS_PWRITE      = 51
+-	SYS_TSEMACQUIRE = 52
+-	SYS_NSEC        = 53
+-)
+diff --git a/src/syscall/ztypes_plan9_386.go b/src/syscall/ztypes_plan9_386.go
+deleted file mode 100644
+index 3e3a8d1f3d..0000000000
+--- a/src/syscall/ztypes_plan9_386.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// godefs -gsyscall -f -m32 types_plan9.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+-package syscall
+-
+-// Constants
+-const (
+-	O_RDONLY   = 0
+-	O_WRONLY   = 0x1
+-	O_RDWR     = 0x2
+-	O_TRUNC    = 0x10
+-	O_CLOEXEC  = 0x20
+-	O_EXCL     = 0x1000
+-	STATMAX    = 0xffff
+-	ERRMAX     = 0x80
+-	MORDER     = 0x3
+-	MREPL      = 0
+-	MBEFORE    = 0x1
+-	MAFTER     = 0x2
+-	MCREATE    = 0x4
+-	MCACHE     = 0x10
+-	MMASK      = 0x17
+-	RFNAMEG    = 0x1
+-	RFENVG     = 0x2
+-	RFFDG      = 0x4
+-	RFNOTEG    = 0x8
+-	RFPROC     = 0x10
+-	RFMEM      = 0x20
+-	RFNOWAIT   = 0x40
+-	RFCNAMEG   = 0x400
+-	RFCENVG    = 0x800
+-	RFCFDG     = 0x1000
+-	RFREND     = 0x2000
+-	RFNOMNT    = 0x4000
+-	QTDIR      = 0x80
+-	QTAPPEND   = 0x40
+-	QTEXCL     = 0x20
+-	QTMOUNT    = 0x10
+-	QTAUTH     = 0x8
+-	QTTMP      = 0x4
+-	QTFILE     = 0
+-	DMDIR      = 0x80000000
+-	DMAPPEND   = 0x40000000
+-	DMEXCL     = 0x20000000
+-	DMMOUNT    = 0x10000000
+-	DMAUTH     = 0x8000000
+-	DMTMP      = 0x4000000
+-	DMREAD     = 0x4
+-	DMWRITE    = 0x2
+-	DMEXEC     = 0x1
+-	STATFIXLEN = 0x31
+-)
+-
+-// Types
+-
+-type _C_int int32
+-
+-type Prof struct {
+-	Pp    *[0]byte /* sPlink */
+-	Next  *[0]byte /* sPlink */
+-	Last  *[0]byte /* sPlink */
+-	First *[0]byte /* sPlink */
+-	Pid   uint32
+-	What  uint32
+-}
+-
+-type Tos struct {
+-	Prof      Prof
+-	Cyclefreq uint64
+-	Kcycles   int64
+-	Pcycles   int64
+-	Pid       uint32
+-	Clock     uint32
+-}
+diff --git a/src/syscall/ztypes_plan9_amd64.go b/src/syscall/ztypes_plan9_amd64.go
+deleted file mode 100644
+index 3e3a8d1f3d..0000000000
+--- a/src/syscall/ztypes_plan9_amd64.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// godefs -gsyscall -f -m32 types_plan9.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+-package syscall
+-
+-// Constants
+-const (
+-	O_RDONLY   = 0
+-	O_WRONLY   = 0x1
+-	O_RDWR     = 0x2
+-	O_TRUNC    = 0x10
+-	O_CLOEXEC  = 0x20
+-	O_EXCL     = 0x1000
+-	STATMAX    = 0xffff
+-	ERRMAX     = 0x80
+-	MORDER     = 0x3
+-	MREPL      = 0
+-	MBEFORE    = 0x1
+-	MAFTER     = 0x2
+-	MCREATE    = 0x4
+-	MCACHE     = 0x10
+-	MMASK      = 0x17
+-	RFNAMEG    = 0x1
+-	RFENVG     = 0x2
+-	RFFDG      = 0x4
+-	RFNOTEG    = 0x8
+-	RFPROC     = 0x10
+-	RFMEM      = 0x20
+-	RFNOWAIT   = 0x40
+-	RFCNAMEG   = 0x400
+-	RFCENVG    = 0x800
+-	RFCFDG     = 0x1000
+-	RFREND     = 0x2000
+-	RFNOMNT    = 0x4000
+-	QTDIR      = 0x80
+-	QTAPPEND   = 0x40
+-	QTEXCL     = 0x20
+-	QTMOUNT    = 0x10
+-	QTAUTH     = 0x8
+-	QTTMP      = 0x4
+-	QTFILE     = 0
+-	DMDIR      = 0x80000000
+-	DMAPPEND   = 0x40000000
+-	DMEXCL     = 0x20000000
+-	DMMOUNT    = 0x10000000
+-	DMAUTH     = 0x8000000
+-	DMTMP      = 0x4000000
+-	DMREAD     = 0x4
+-	DMWRITE    = 0x2
+-	DMEXEC     = 0x1
+-	STATFIXLEN = 0x31
+-)
+-
+-// Types
+-
+-type _C_int int32
+-
+-type Prof struct {
+-	Pp    *[0]byte /* sPlink */
+-	Next  *[0]byte /* sPlink */
+-	Last  *[0]byte /* sPlink */
+-	First *[0]byte /* sPlink */
+-	Pid   uint32
+-	What  uint32
+-}
+-
+-type Tos struct {
+-	Prof      Prof
+-	Cyclefreq uint64
+-	Kcycles   int64
+-	Pcycles   int64
+-	Pid       uint32
+-	Clock     uint32
+-}

@@ -9,8 +9,147 @@ Date:   Sat Aug 22 20:31:55 2015 -0700
     Change-Id: I4c6647fc2f103015b67e30dc2cdb6f771526c139
     Reviewed-on: https://go-review.googlesource.com/13840
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go | 59 ----------------------------------------
  src/cmd/internal/obj/link.go     |  1 -
  src/cmd/internal/obj/x86/obj6.go | 45 ------------------------------
  3 files changed, 105 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 3ecf6bc9d5..ae1438f103 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -186,65 +186,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	cursym.Locals = autoffset
+ 	cursym.Args = p.To.Val.(int32)
+ 
+-	if ctxt.Debugzerostack != 0 {
+-		if autoffset != 0 && p.From3.Offset&obj.NOSPLIT == 0 {
+-			// MOVW $4(R13), R1
+-			p = obj.Appendp(ctxt, p)
+-
+-			p.As = AMOVW
+-			p.From.Type = obj.TYPE_ADDR
+-			p.From.Reg = REG_R13
+-			p.From.Offset = 4
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_R1
+-
+-			// MOVW $n(R13), R2
+-			p = obj.Appendp(ctxt, p)
+-
+-			p.As = AMOVW
+-			p.From.Type = obj.TYPE_ADDR
+-			p.From.Reg = REG_R13
+-			p.From.Offset = 4 + int64(autoffset)
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_R2
+-
+-			// MOVW $0, R3
+-			p = obj.Appendp(ctxt, p)
+-
+-			p.As = AMOVW
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 0
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_R3
+-
+-			// L:
+-			//	MOVW.nil R3, 0(R1) +4
+-			//	CMP R1, R2
+-			//	BNE L
+-			pl := obj.Appendp(ctxt, p)
+-			p := pl
+-
+-			p.As = AMOVW
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = REG_R3
+-			p.To.Type = obj.TYPE_MEM
+-			p.To.Reg = REG_R1
+-			p.To.Offset = 4
+-			p.Scond |= C_PBIT
+-
+-			p = obj.Appendp(ctxt, p)
+-			p.As = ACMP
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = REG_R1
+-			p.Reg = REG_R2
+-
+-			p = obj.Appendp(ctxt, p)
+-			p.As = ABNE
+-			p.To.Type = obj.TYPE_BRANCH
+-			p.Pcond = pl
+-		}
+-	}
+-
+ 	/*
+ 	 * find leaf subroutines
+ 	 * strip NOPs
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 3798e23333..9404251c69 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -466,7 +466,6 @@ type Link struct {
+ 	Arch               *LinkArch
+ 	Debugasm           int32
+ 	Debugvlog          int32
+-	Debugzerostack     int32
+ 	Debugdivmod        int32
+ 	Debugpcln          int32
+ 	Flag_shared        int32
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index fa9c474adb..e221bdab82 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -657,51 +657,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p2.Pcond = p
+ 	}
+ 
+-	if ctxt.Debugzerostack != 0 && autoffset != 0 && cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
+-		// 6l -Z means zero the stack frame on entry.
+-		// This slows down function calls but can help avoid
+-		// false positives in garbage collection.
+-		p = obj.Appendp(ctxt, p)
+-
+-		p.As = AMOVQ
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_SP
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_DI
+-		if p.Mode == 32 {
+-			p.As = AMOVL
+-		}
+-
+-		p = obj.Appendp(ctxt, p)
+-		p.As = AMOVQ
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(autoffset) / int64(ctxt.Arch.Regsize)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_CX
+-		if p.Mode == 32 {
+-			p.As = AMOVL
+-		}
+-
+-		p = obj.Appendp(ctxt, p)
+-		p.As = AMOVQ
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_AX
+-		if p.Mode == 32 {
+-			p.As = AMOVL
+-		}
+-
+-		p = obj.Appendp(ctxt, p)
+-		p.As = AREP
+-
+-		p = obj.Appendp(ctxt, p)
+-		p.As = ASTOSQ
+-		if p.Mode == 32 {
+-			p.As = ASTOSL
+-		}
+-	}
+-
+ 	var a int
+ 	var pcsize int
+ 	for ; p != nil; p = p.Link {

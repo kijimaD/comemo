@@ -11,10 +11,483 @@ Date:   Fri Oct 21 14:11:36 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5301056
-
+---
  src/pkg/big/int.go      |   2 +-
  src/pkg/big/nat.go      |  13 +++--
  src/pkg/big/nat_test.go |  20 ++++----
  src/pkg/big/rat.go      | 129 ++++++++++++++++++++++++++++++++----------------
  src/pkg/big/rat_test.go |  46 +++++++++++++++--
  5 files changed, 147 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 153849307a..b0dde1e6e3 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -176,7 +176,7 @@ func (z *Int) Quo(x, y *Int) *Int {
+ // If y == 0, a division-by-zero run-time panic occurs.
+ // Rem implements truncated modulus (like Go); see QuoRem for more details.
+ func (z *Int) Rem(x, y *Int) *Int {
+-	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
++	_, z.abs = nat{}.div(z.abs, x.abs, y.abs)
+ 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
+ 	return z
+ }
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 33d6bb16ff..c0769d88a9 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -35,7 +35,7 @@ import (
+ // During arithmetic operations, denormalized values may occur but are
+ // always normalized before returning the final result. The normalized
+ // representation of 0 is the empty or nil slice (length = 0).
+-
++//
+ type nat []Word
+ 
+ var (
+@@ -447,10 +447,10 @@ func (z nat) mulRange(a, b uint64) nat {
+ 	case a == b:
+ 		return z.setUint64(a)
+ 	case a+1 == b:
+-		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
++		return z.mul(nat{}.setUint64(a), nat{}.setUint64(b))
+ 	}
+ 	m := (a + b) / 2
+-	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
++	return z.mul(nat{}.mulRange(a, m), nat{}.mulRange(m+1, b))
+ }
+ 
+ // q = (x-r)/y, with 0 <= r < y
+@@ -589,7 +589,6 @@ func (x nat) bitLen() int {
+ // MaxBase is the largest number base accepted for string conversions.
+ const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
+ 
+-
+ func hexValue(ch int) Word {
+ 	d := MaxBase + 1 // illegal base
+ 	switch {
+@@ -786,7 +785,7 @@ func (x nat) string(charset string) string {
+ 	}
+ 
+ 	// preserve x, create local copy for use in repeated divisions
+-	q := nat(nil).set(x)
++	q := nat{}.set(x)
+ 	var r Word
+ 
+ 	// convert
+@@ -1192,11 +1191,11 @@ func (n nat) probablyPrime(reps int) bool {
+ 		return false
+ 	}
+ 
+-	nm1 := nat(nil).sub(n, natOne)
++	nm1 := nat{}.sub(n, natOne)
+ 	// 1<<k * q = nm1;
+ 	q, k := nm1.powersOfTwoDecompose()
+ 
+-	nm3 := nat(nil).sub(nm1, natTwo)
++	nm3 := nat{}.sub(nm1, natTwo)
+ 	rand := rand.New(rand.NewSource(int64(n[0])))
+ 
+ 	var x, y, quotient nat
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 71d0860878..4f5732824c 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -67,7 +67,7 @@ var prodNN = []argNN{
+ 
+ func TestSet(t *testing.T) {
+ 	for _, a := range sumNN {
+-		z := nat(nil).set(a.z)
++		z := nat{}.set(a.z)
+ 		if z.cmp(a.z) != 0 {
+ 			t.Errorf("got z = %v; want %v", z, a.z)
+ 		}
+@@ -129,7 +129,7 @@ var mulRangesN = []struct {
+ 
+ func TestMulRangeN(t *testing.T) {
+ 	for i, r := range mulRangesN {
+-		prod := nat(nil).mulRange(r.a, r.b).decimalString()
++		prod := nat{}.mulRange(r.a, r.b).decimalString()
+ 		if prod != r.prod {
+ 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+@@ -175,7 +175,7 @@ func toString(x nat, charset string) string {
+ 	s := make([]byte, i)
+ 
+ 	// don't destroy x
+-	q := nat(nil).set(x)
++	q := nat{}.set(x)
+ 
+ 	// convert
+ 	for len(q) > 0 {
+@@ -212,7 +212,7 @@ func TestString(t *testing.T) {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
++		x, b, err := nat{}.scan(strings.NewReader(a.s), len(a.c))
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+@@ -271,7 +271,7 @@ var natScanTests = []struct {
+ func TestScanBase(t *testing.T) {
+ 	for _, a := range natScanTests {
+ 		r := strings.NewReader(a.s)
+-		x, b, err := nat(nil).scan(r, a.base)
++		x, b, err := nat{}.scan(r, a.base)
+ 		if err == nil && !a.ok {
+ 			t.Errorf("scan%+v\n\texpected error", a)
+ 		}
+@@ -651,17 +651,17 @@ var expNNTests = []struct {
+ 
+ func TestExpNN(t *testing.T) {
+ 	for i, test := range expNNTests {
+-		x, _, _ := nat(nil).scan(strings.NewReader(test.x), 0)
+-		y, _, _ := nat(nil).scan(strings.NewReader(test.y), 0)
+-		out, _, _ := nat(nil).scan(strings.NewReader(test.out), 0)
++		x, _, _ := nat{}.scan(strings.NewReader(test.x), 0)
++		y, _, _ := nat{}.scan(strings.NewReader(test.y), 0)
++		out, _, _ := nat{}.scan(strings.NewReader(test.out), 0)
+ 
+ 		var m nat
+ 
+ 		if len(test.m) > 0 {
+-			m, _, _ = nat(nil).scan(strings.NewReader(test.m), 0)
++			m, _, _ = nat{}.scan(strings.NewReader(test.m), 0)
+ 		}
+ 
+-		z := nat(nil).expNN(x, y, m)
++		z := nat{}.expNN(x, y, m)
+ 		if z.cmp(out) != 0 {
+ 			t.Errorf("#%d got %v want %v", i, z, out)
+ 		}
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index cec2bb8641..6b86062720 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -14,10 +14,10 @@ import (
+ )
+ 
+ // A Rat represents a quotient a/b of arbitrary precision.
+-// The zero value for a Rat, 0/0, is not a legal Rat.
++// The zero value for a Rat represents the value 0.
+ type Rat struct {
+ 	a Int
+-	b nat
++	b nat // len(b) == 0 acts like b == 1
+ }
+ 
+ // NewRat creates a new Rat with numerator a and denominator b.
+@@ -29,8 +29,11 @@ func NewRat(a, b int64) *Rat {
+ func (z *Rat) SetFrac(a, b *Int) *Rat {
+ 	z.a.neg = a.neg != b.neg
+ 	babs := b.abs
++	if len(babs) == 0 {
++		panic("division by zero")
++	}
+ 	if &z.a == b || alias(z.a.abs, babs) {
+-		babs = nat(nil).set(babs) // make a copy
++		babs = nat{}.set(babs) // make a copy
+ 	}
+ 	z.a.abs = z.a.abs.set(a.abs)
+ 	z.b = z.b.set(babs)
+@@ -40,6 +43,9 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
+ // SetFrac64 sets z to a/b and returns z.
+ func (z *Rat) SetFrac64(a, b int64) *Rat {
+ 	z.a.SetInt64(a)
++	if b == 0 {
++		panic("division by zero")
++	}
+ 	if b < 0 {
+ 		b = -b
+ 		z.a.neg = !z.a.neg
+@@ -51,14 +57,14 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
+ // SetInt sets z to x (by making a copy of x) and returns z.
+ func (z *Rat) SetInt(x *Int) *Rat {
+ 	z.a.Set(x)
+-	z.b = z.b.setWord(1)
++	z.b = z.b.make(0)
+ 	return z
+ }
+ 
+ // SetInt64 sets z to x and returns z.
+ func (z *Rat) SetInt64(x int64) *Rat {
+ 	z.a.SetInt64(x)
+-	z.b = z.b.setWord(1)
++	z.b = z.b.make(0)
+ 	return z
+ }
+ 
+@@ -91,7 +97,15 @@ func (z *Rat) Inv(x *Rat) *Rat {
+ 		panic("division by zero")
+ 	}
+ 	z.Set(x)
+-	z.a.abs, z.b = z.b, z.a.abs // sign doesn't change
++	a := z.b
++	if len(a) == 0 {
++		a = a.setWord(1) // materialize numerator
++	}
++	b := z.a.abs
++	if b.cmp(natOne) == 0 {
++		b = b.make(0) // normalize denominator
++	}
++	z.a.abs, z.b = a, b // sign doesn't change
+ 	return z
+ }
+ 
+@@ -107,21 +121,24 @@ func (x *Rat) Sign() int {
+ 
+ // IsInt returns true if the denominator of x is 1.
+ func (x *Rat) IsInt() bool {
+-	return len(x.b) == 1 && x.b[0] == 1
++	return len(x.b) == 0 || x.b.cmp(natOne) == 0
+ }
+ 
+-// Num returns the numerator of z; it may be <= 0.
+-// The result is a reference to z's numerator; it
+-// may change if a new value is assigned to z.
+-func (z *Rat) Num() *Int {
+-	return &z.a
++// Num returns the numerator of x; it may be <= 0.
++// The result is a reference to x's numerator; it
++// may change if a new value is assigned to x.
++func (x *Rat) Num() *Int {
++	return &x.a
+ }
+ 
+-// Denom returns the denominator of z; it is always > 0.
+-// The result is a reference to z's denominator; it
+-// may change if a new value is assigned to z.
+-func (z *Rat) Denom() *Int {
+-	return &Int{false, z.b}
++// Denom returns the denominator of x; it is always > 0.
++// The result is a reference to x's denominator; it
++// may change if a new value is assigned to x.
++func (x *Rat) Denom() *Int {
++	if len(x.b) == 0 {
++		return &Int{abs: nat{1}}
++	}
++	return &Int{abs: x.b}
+ }
+ 
+ func gcd(x, y nat) nat {
+@@ -139,24 +156,47 @@ func gcd(x, y nat) nat {
+ }
+ 
+ func (z *Rat) norm() *Rat {
+-	f := gcd(z.a.abs, z.b)
+-	if len(z.a.abs) == 0 {
+-		// z == 0
+-		z.a.neg = false // normalize sign
+-		z.b = z.b.setWord(1)
+-		return z
+-	}
+-	if f.cmp(natOne) != 0 {
+-		z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f)
+-		z.b, _ = z.b.div(nil, z.b, f)
++	switch {
++	case len(z.a.abs) == 0:
++		// z == 0 - normalize sign and denominator
++		z.a.neg = false
++		z.b = z.b.make(0)
++	case len(z.b) == 0:
++		// z is normalized int - nothing to do
++	case z.b.cmp(natOne) == 0:
++		// z is int - normalize denominator
++		z.b = z.b.make(0)
++	default:
++		if f := gcd(z.a.abs, z.b); f.cmp(natOne) != 0 {
++			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f)
++			z.b, _ = z.b.div(nil, z.b, f)
++		}
+ 	}
+ 	return z
+ }
+ 
+-func mulNat(x *Int, y nat) *Int {
++// mulDenom sets z to the denominator product x*y (by taking into
++// account that 0 values for x or y must be interpreted as 1) and
++// returns z.
++func mulDenom(z, x, y nat) nat {
++	switch {
++	case len(x) == 0:
++		return z.set(y)
++	case len(y) == 0:
++		return z.set(x)
++	}
++	return z.mul(x, y)
++}
++
++// scaleDenom computes x*f.
++// If f == 0 (zero value of denominator), the result is (a copy of) x.
++func scaleDenom(x *Int, f nat) *Int {
+ 	var z Int
+-	z.abs = z.abs.mul(x.abs, y)
+-	z.neg = len(z.abs) > 0 && x.neg
++	if len(f) == 0 {
++		return z.Set(x)
++	}
++	z.abs = z.abs.mul(x.abs, f)
++	z.neg = x.neg
+ 	return &z
+ }
+ 
+@@ -167,31 +207,31 @@ func mulNat(x *Int, y nat) *Int {
+ //   +1 if x >  y
+ //
+ func (x *Rat) Cmp(y *Rat) int {
+-	return mulNat(&x.a, y.b).Cmp(mulNat(&y.a, x.b))
++	return scaleDenom(&x.a, y.b).Cmp(scaleDenom(&y.a, x.b))
+ }
+ 
+ // Add sets z to the sum x+y and returns z.
+ func (z *Rat) Add(x, y *Rat) *Rat {
+-	a1 := mulNat(&x.a, y.b)
+-	a2 := mulNat(&y.a, x.b)
++	a1 := scaleDenom(&x.a, y.b)
++	a2 := scaleDenom(&y.a, x.b)
+ 	z.a.Add(a1, a2)
+-	z.b = z.b.mul(x.b, y.b)
++	z.b = mulDenom(z.b, x.b, y.b)
+ 	return z.norm()
+ }
+ 
+ // Sub sets z to the difference x-y and returns z.
+ func (z *Rat) Sub(x, y *Rat) *Rat {
+-	a1 := mulNat(&x.a, y.b)
+-	a2 := mulNat(&y.a, x.b)
++	a1 := scaleDenom(&x.a, y.b)
++	a2 := scaleDenom(&y.a, x.b)
+ 	z.a.Sub(a1, a2)
+-	z.b = z.b.mul(x.b, y.b)
++	z.b = mulDenom(z.b, x.b, y.b)
+ 	return z.norm()
+ }
+ 
+ // Mul sets z to the product x*y and returns z.
+ func (z *Rat) Mul(x, y *Rat) *Rat {
+ 	z.a.Mul(&x.a, &y.a)
+-	z.b = z.b.mul(x.b, y.b)
++	z.b = mulDenom(z.b, x.b, y.b)
+ 	return z.norm()
+ }
+ 
+@@ -201,8 +241,8 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
+ 	if len(y.a.abs) == 0 {
+ 		panic("division by zero")
+ 	}
+-	a := mulNat(&x.a, y.b)
+-	b := mulNat(&y.a, x.b)
++	a := scaleDenom(&x.a, y.b)
++	b := scaleDenom(&y.a, x.b)
+ 	z.a.abs = a.abs
+ 	z.b = b.abs
+ 	z.a.neg = a.neg != b.neg
+@@ -281,7 +321,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		z.norm()
+ 	} else {
+ 		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
+-		z.b = z.b.setWord(1)
++		z.b = z.b.make(0)
+ 	}
+ 
+ 	return z, true
+@@ -289,7 +329,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 
+ // String returns a string representation of z in the form "a/b" (even if b == 1).
+ func (z *Rat) String() string {
+-	return z.a.String() + "/" + z.b.decimalString()
++	s := "/1"
++	if len(z.b) != 0 {
++		s = "/" + z.b.decimalString()
++	}
++	return z.a.String() + s
+ }
+ 
+ // RatString returns a string representation of z in the form "a/b" if b != 1,
+@@ -311,6 +355,7 @@ func (z *Rat) FloatString(prec int) string {
+ 		}
+ 		return s
+ 	}
++	// z.b != 0
+ 
+ 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
+ 
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index ed78e70fd6..a95e5fea3a 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -11,6 +11,46 @@ import (
+ 	"testing"
+ )
+ 
++func TestZeroRat(t *testing.T) {
++	var x, y, z Rat
++	y.SetFrac64(0, 42)
++
++	if x.Cmp(&y) != 0 {
++		t.Errorf("x and y should be both equal and zero")
++	}
++
++	if s := x.String(); s != "0/1" {
++		t.Errorf("got x = %s, want 0/1", s)
++	}
++
++	if s := x.RatString(); s != "0" {
++		t.Errorf("got x = %s, want 0", s)
++	}
++
++	z.Add(&x, &y)
++	if s := z.RatString(); s != "0" {
++		t.Errorf("got x+y = %s, want 0", s)
++	}
++
++	z.Sub(&x, &y)
++	if s := z.RatString(); s != "0" {
++		t.Errorf("got x-y = %s, want 0", s)
++	}
++
++	z.Mul(&x, &y)
++	if s := z.RatString(); s != "0" {
++		t.Errorf("got x*y = %s, want 0", s)
++	}
++
++	// check for division by zero
++	defer func() {
++		if s := recover(); s == nil || s.(string) != "division by zero" {
++			panic(s)
++		}
++	}()
++	z.Quo(&x, &y)
++}
++
+ var setStringTests = []struct {
+ 	in, out string
+ 	ok      bool
+@@ -174,7 +214,7 @@ func TestIsInt(t *testing.T) {
+ }
+ 
+ func TestRatAbs(t *testing.T) {
+-	zero := NewRat(0, 1)
++	zero := new(Rat)
+ 	for _, a := range setStringTests {
+ 		x, ok := new(Rat).SetString(a.in)
+ 		if !ok {
+@@ -192,7 +232,7 @@ func TestRatAbs(t *testing.T) {
+ }
+ 
+ func TestRatNeg(t *testing.T) {
+-	zero := NewRat(0, 1)
++	zero := new(Rat)
+ 	for _, a := range setStringTests {
+ 		x, ok := new(Rat).SetString(a.in)
+ 		if !ok {
+@@ -207,7 +247,7 @@ func TestRatNeg(t *testing.T) {
+ }
+ 
+ func TestRatInv(t *testing.T) {
+-	zero := NewRat(0, 1)
++	zero := new(Rat)
+ 	for _, a := range setStringTests {
+ 		x, ok := new(Rat).SetString(a.in)
+ 		if !ok {

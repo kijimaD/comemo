@@ -22,6 +22,27 @@ Date:   Sun Jun 7 20:13:21 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10801
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/mbarrier.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 674160cb3a..95ee2ab672 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -72,14 +72,7 @@ import "unsafe"
+ // so it depends on write barriers to track changes to pointers in
+ // stack frames that have not been active. go:nowritebarrier
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+-	switch gcphase {
+-	default:
+-		throw("gcphasework in bad gcphase")
+-
+-	case _GCoff, _GCstw, _GCsweep, _GCscan:
+-		// ok
+-
+-	case _GCmark, _GCmarktermination:
++	if writeBarrierEnabled {
+ 		if ptr != 0 && inheap(ptr) {
+ 			shade(ptr)
+ 		}

@@ -11,6 +11,35 @@ Date:   Fri Apr 15 13:39:47 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index b924eeb568..e2a2a5440e 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -336,17 +336,17 @@ func parsePAXTime(t string) (time.Time, error) {
+ 		if err != nil {
+ 			return time.Time{}, err
+ 		}
+-		nano_buf := string(buf[pos+1:])
++		nanoBuf := string(buf[pos+1:])
+ 		// Pad as needed before converting to a decimal.
+ 		// For example .030 -> .030000000 -> 30000000 nanoseconds
+-		if len(nano_buf) < maxNanoSecondIntSize {
++		if len(nanoBuf) < maxNanoSecondIntSize {
+ 			// Right pad
+-			nano_buf += strings.Repeat("0", maxNanoSecondIntSize-len(nano_buf))
+-		} else if len(nano_buf) > maxNanoSecondIntSize {
++			nanoBuf += strings.Repeat("0", maxNanoSecondIntSize-len(nanoBuf))
++		} else if len(nanoBuf) > maxNanoSecondIntSize {
+ 			// Right truncate
+-			nano_buf = nano_buf[:maxNanoSecondIntSize]
++			nanoBuf = nanoBuf[:maxNanoSecondIntSize]
+ 		}
+-		nanoseconds, err = strconv.ParseInt(nano_buf, 10, 0)
++		nanoseconds, err = strconv.ParseInt(nanoBuf, 10, 0)
+ 		if err != nil {
+ 			return time.Time{}, err
+ 		}

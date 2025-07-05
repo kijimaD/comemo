@@ -13,7 +13,80 @@ Date:   Fri Mar 5 15:55:26 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/252041
-
+---
  src/pkg/big/int_test.go | 7 +++++--
  src/pkg/big/nat.go      | 9 +++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 7267adb287..70dbe5900c 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -480,6 +480,9 @@ var primes = []string{
+ 	"10953742525620032441",
+ 	"17908251027575790097",
+ 
++	// http://code.google.com/p/go/issues/detail?id=638
++	"18699199384836356663",
++
+ 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+ 	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
+ 
+@@ -503,14 +506,14 @@ func TestProbablyPrime(t *testing.T) {
+ 	for i, s := range primes {
+ 		p, _ := new(Int).SetString(s, 10)
+ 		if !ProbablyPrime(p, 20) {
+-			t.Errorf("#%d prime found to be non-prime", i)
++			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
+ 		}
+ 	}
+ 
+ 	for i, s := range composites {
+ 		c, _ := new(Int).SetString(s, 10)
+ 		if ProbablyPrime(c, 20) {
+-			t.Errorf("#%d composite found to be prime", i)
++			t.Errorf("#%d composite found to be prime (%s)", i, s)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index da9f1d735c..0f4d4c37e8 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -586,6 +586,7 @@ func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
+ 
+ 	q = makeN(nil, len(n)-zeroWords, false)
+ 	shiftRight(q, n[zeroWords:], x)
++	q = normN(q)
+ 
+ 	k = Word(_W*zeroWords + x)
+ 	return
+@@ -705,7 +706,7 @@ const (
+ var bigOne = []Word{1}
+ var bigTwo = []Word{2}
+ 
+-// ProbablyPrime performs reps Miller-Rabin tests to check whether n is prime.
++// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
+ // If it returns true, n is prime with probability 1 - 1/4^reps.
+ // If it returns false, n is not prime.
+ func probablyPrime(n []Word, reps int) bool {
+@@ -714,6 +715,10 @@ func probablyPrime(n []Word, reps int) bool {
+ 	}
+ 
+ 	if len(n) == 1 {
++		if n[0] < 2 {
++			return false
++		}
++
+ 		if n[0]%2 == 0 {
+ 			return n[0] == 2
+ 		}
+@@ -761,7 +766,7 @@ func probablyPrime(n []Word, reps int) bool {
+ NextRandom:
+ 	for i := 0; i < reps; i++ {
+ 		x = randomN(x, rand, nm3, nm3Len)
+-		addNN(x, x, bigTwo)
++		x = addNN(x, x, bigTwo)
+ 		y = expNNN(y, x, q, n)
+ 		if cmpNN(y, bigOne) == 0 || cmpNN(y, nm1) == 0 {
+ 			continue

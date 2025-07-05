@@ -10,8 +10,41 @@ Date:   Wed Mar 4 21:58:20 2015 -0800
     Change-Id: I7cd1c56355724f08cbe9afc6ab7a66904031adc9
     Reviewed-on: https://go-review.googlesource.com/6903
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go             | 1 +
  src/cmd/asm/internal/asm/testdata/386.out   | 2 +-
  src/cmd/asm/internal/asm/testdata/amd64.out | 2 +-
  3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 5cbf2232d1..e8dee10d78 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -141,6 +141,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+ 		From3: obj.Addr{
++			Type:   obj.TYPE_CONST,
+ 			Offset: flag,
+ 		},
+ 		To: obj.Addr{
+diff --git a/src/cmd/asm/internal/asm/testdata/386.out b/src/cmd/asm/internal/asm/testdata/386.out
+index d88277d1ae..be43ccbfbb 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.out
++++ b/src/cmd/asm/internal/asm/testdata/386.out
+@@ -1,4 +1,4 @@
+-5 00001 (testdata/386.s:5)	TEXT	foo(SB), $0
++5 00001 (testdata/386.s:5)	TEXT	foo(SB), 0, $0
+ 8 00002 (testdata/386.s:8)	SETCC	AX
+ 9 00003 (testdata/386.s:9)	SETCC	foo+4(SB)
+ 12 00004 (testdata/386.s:12)	DIVB	AX
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.out b/src/cmd/asm/internal/asm/testdata/amd64.out
+index 020a422976..51932faff0 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.out
++++ b/src/cmd/asm/internal/asm/testdata/amd64.out
+@@ -1,4 +1,4 @@
+-5 00001 (testdata/amd64.s:5)	TEXT	foo(SB), $0
++5 00001 (testdata/amd64.s:5)	TEXT	foo(SB), 0, $0
+ 8 00002 (testdata/amd64.s:8)	NEGQ	R11
+ 9 00003 (testdata/amd64.s:9)	NEGQ	4(R11)
+ 10 00004 (testdata/amd64.s:10)	NEGQ	foo+4(SB)

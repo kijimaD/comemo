@@ -14,6 +14,20 @@ Date:   Tue Apr 28 09:07:51 2015 -0400
     Change-Id: Ia3210655b4b3d433f77064a21ecb54e4d9d435f7
     Reviewed-on: https://go-review.googlesource.com/9403
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 91d69b5a9b..22ad6b581f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -684,7 +684,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		}
+ 	}
+ 
+-	if shouldtriggergc() {
++	if shouldhelpgc && shouldtriggergc() {
+ 		startGC(gcBackgroundMode)
+ 	} else if gcBlackenEnabled != 0 {
+ 		// Assist garbage collector. We delay this until the

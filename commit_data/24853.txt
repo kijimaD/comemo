@@ -11,7 +11,56 @@ Date:   Fri Sep 4 10:05:31 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httptest/recorder.go      | 11 +++++++++++
  src/net/http/httptest/recorder_test.go |  8 ++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 5451f54234..30c5140dae 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -55,6 +55,17 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
++// WriteString always succeeds and writes to rw.Body, if not nil.
++func (rw *ResponseRecorder) WriteString(str string) (int, error) {
++	if !rw.wroteHeader {
++		rw.WriteHeader(200)
++	}
++	if rw.Body != nil {
++		rw.Body.WriteString(str)
++	}
++	return len(str), nil
++}
++
+ // WriteHeader sets rw.Code.
+ func (rw *ResponseRecorder) WriteHeader(code int) {
+ 	if !rw.wroteHeader {
+diff --git a/src/net/http/httptest/recorder_test.go b/src/net/http/httptest/recorder_test.go
+index 2b563260c7..bc486e6b63 100644
+--- a/src/net/http/httptest/recorder_test.go
++++ b/src/net/http/httptest/recorder_test.go
+@@ -6,6 +6,7 @@ package httptest
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"net/http"
+ 	"testing"
+ )
+@@ -67,6 +68,13 @@ func TestRecorder(t *testing.T) {
+ 			},
+ 			check(hasStatus(200), hasContents("hi first"), hasFlush(false)),
+ 		},
++		{
++			"write string",
++			func(w http.ResponseWriter, r *http.Request) {
++				io.WriteString(w, "hi first")
++			},
++			check(hasStatus(200), hasContents("hi first"), hasFlush(false)),
++		},
+ 		{
+ 			"flush",
+ 			func(w http.ResponseWriter, r *http.Request) {

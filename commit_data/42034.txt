@@ -10,6 +10,42 @@ Date:   Wed Nov 6 13:47:19 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205698
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 4569703d12..2eddac8284 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -759,10 +760,6 @@ func TestDialerKeepAlive(t *testing.T) {
+ }
+ 
+ func TestDialCancel(t *testing.T) {
+-	switch testenv.Builder() {
+-	case "linux-arm64-buildlet":
+-		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
+-	}
+ 	mustHaveExternalNetwork(t)
+ 
+ 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+@@ -807,6 +804,11 @@ func TestDialCancel(t *testing.T) {
+ 				t.Error(perr)
+ 			}
+ 			if ticks < cancelTick {
++				// Using strings.Contains is ugly but
++				// may work on plan9 and windows.
++				if strings.Contains(err.Error(), "connection refused") {
++					t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
++				}
+ 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
+ 					ticks, cancelTick-ticks, err)
+ 			}

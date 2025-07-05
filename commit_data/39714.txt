@@ -10,6 +10,33 @@ Date:   Thu Mar 14 17:22:00 2019 +0000
     Change-Id: I9a3b9a48f794f74567f82ef58637cb1820befd11
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167677
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/rewritePPC64.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9245f403b8..7daed08dab 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -26137,9 +26137,8 @@ func rewriteValuePPC64_OpRotateLeft32_0(v *Value) bool {
+ 	// cond:
+ 	// result: (ROTLW x y)
+ 	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+ 		y := v.Args[1]
++		x := v.Args[0]
+ 		v.reset(OpPPC64ROTLW)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+@@ -26151,9 +26150,8 @@ func rewriteValuePPC64_OpRotateLeft64_0(v *Value) bool {
+ 	// cond:
+ 	// result: (ROTL x y)
+ 	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+ 		y := v.Args[1]
++		x := v.Args[0]
+ 		v.reset(OpPPC64ROTL)
+ 		v.AddArg(x)
+ 		v.AddArg(y)

@@ -22,7 +22,7 @@ Date:   Mon Dec 6 13:38:04 2021 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/modload/build.go   | 35 ++++++++--------------
  src/cmd/go/internal/work/exec.go       | 10 +++++--
  src/cmd/go/testdata/script/version.txt | 13 +++++++-
@@ -31,3 +31,284 @@ Date:   Mon Dec 6 13:38:04 2021 -0500
  src/cmd/link/internal/ld/ld.go         |  6 ++++
  src/debug/buildinfo/buildinfo.go       | 54 ++++++++++++++++++++++++----------
  7 files changed, 93 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 0e0292ec15..bfc73cc2f9 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -346,33 +346,22 @@ func findModule(ld *loader, path string) (module.Version, bool) {
+ }
+ 
+ func ModInfoProg(info string, isgccgo bool) []byte {
+-	// Inject a variable with the debug information as runtime.modinfo,
+-	// but compile it in package main so that it is specific to the binary.
+-	// The variable must be a literal so that it will have the correct value
+-	// before the initializer for package main runs.
+-	//
+-	// The runtime startup code refers to the variable, which keeps it live
+-	// in all binaries.
+-	//
+-	// Note: we use an alternate recipe below for gccgo (based on an
+-	// init function) due to the fact that gccgo does not support
+-	// applying a "//go:linkname" directive to a variable. This has
+-	// drawbacks in that other packages may want to look at the module
+-	// info in their init functions (see issue 29628), which won't
+-	// work for gccgo. See also issue 30344.
+-
+-	if !isgccgo {
+-		return []byte(fmt.Sprintf(`package main
+-import _ "unsafe"
+-//go:linkname __debug_modinfo__ runtime.modinfo
+-var __debug_modinfo__ = %q
+-`, string(infoStart)+info+string(infoEnd)))
+-	} else {
++	// Inject an init function to set runtime.modinfo.
++	// This is only used for gccgo - with gc we hand the info directly to the linker.
++	// The init function has the drawback that packages may want to
++	// look at the module info in their init functions (see issue 29628),
++	// which won't work. See also issue 30344.
++	if isgccgo {
+ 		return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+ //go:linkname __set_debug_modinfo__ runtime.setmodinfo
+ func __set_debug_modinfo__(string)
+ func init() { __set_debug_modinfo__(%q) }
+-`, string(infoStart)+info+string(infoEnd)))
++`, ModInfoData(info)))
+ 	}
++	return nil
++}
++
++func ModInfoData(info string) []byte {
++	return []byte(string(infoStart) + info + string(infoEnd))
+ }
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 03f8866cf2..2c040b8ff4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -794,10 +794,13 @@ OverlayLoop:
+ 	}
+ 
+ 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
+-		if err := b.writeFile(objdir+"_gomod_.go", modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
+-			return err
++		prog := modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")
++		if len(prog) > 0 {
++			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
++				return err
++			}
++			gofiles = append(gofiles, objdir+"_gomod_.go")
+ 		}
+-		gofiles = append(gofiles, objdir+"_gomod_.go")
+ 	}
+ 
+ 	// Compile Go.
+@@ -1394,6 +1397,7 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
+ 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
+ 		}
+ 	}
++	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(a.Package.Internal.BuildInfo))
+ 	return b.writeFile(file, icfg.Bytes())
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 8c08bae725..adca7af7a9 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -16,7 +16,14 @@ stdout '^go version'
+ env GOFLAGS=
+ 
+ env GO111MODULE=on
+-# Skip the builds below if we are running in short mode.
++
++# Check that very basic version lookup succeeds.
++go build empty.go
++go version empty$GOEXE
++[cgo] go build -ldflags=-linkmode=external empty.go
++[cgo] go version empty$GOEXE
++
++# Skip the remaining builds if we are running in short mode.
+ [short] skip
+ 
+ # Check that 'go version' and 'go version -m' work on a binary built in module mode.
+@@ -57,3 +64,7 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
+ -- go.mod --
+ module m
++
++-- empty.go --
++package main
++func main(){}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4d85977d43..95a8e0facb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2169,11 +2169,10 @@ func (ctxt *Link) buildinfo() {
+ 		return
+ 	}
+ 
++	// Write the buildinfo symbol, which go version looks for.
++	// The code reading this data is in package debug/buildinfo.
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
+-	// On AIX, .go.buildinfo must be in the symbol table as
+-	// it has relocations.
+-	s.SetNotInSymbolTable(!ctxt.IsAIX())
+ 	s.SetType(sym.SBUILDINFO)
+ 	s.SetAlign(16)
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+@@ -2186,16 +2185,24 @@ func (ctxt *Link) buildinfo() {
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		data[len(prefix)+1] = 1
+ 	}
++	data[len(prefix)+1] |= 2 // signals new pointer-free format
++	data = appendString(data, strdata["runtime.buildVersion"])
++	data = appendString(data, strdata["runtime.modinfo"])
++	// MacOS linker gets very upset if the size os not a multiple of alignment.
++	for len(data)%16 != 0 {
++		data = append(data, 0)
++	}
+ 	s.SetData(data)
+ 	s.SetSize(int64(len(data)))
+-	r, _ := s.AddRel(objabi.R_ADDR)
+-	r.SetOff(16)
+-	r.SetSiz(uint8(ctxt.Arch.PtrSize))
+-	r.SetSym(ldr.LookupOrCreateSym("runtime.buildVersion", 0))
+-	r, _ = s.AddRel(objabi.R_ADDR)
+-	r.SetOff(16 + int32(ctxt.Arch.PtrSize))
+-	r.SetSiz(uint8(ctxt.Arch.PtrSize))
+-	r.SetSym(ldr.LookupOrCreateSym("runtime.modinfo", 0))
++}
++
++// appendString appends s to data, prefixed by its varint-encoded length.
++func appendString(data []byte, s string) []byte {
++	var v [binary.MaxVarintLen64]byte
++	n := binary.PutUvarint(v[:], uint64(len(s)))
++	data = append(data, v[:n]...)
++	data = append(data, s...)
++	return data
+ }
+ 
+ // assign addresses to text
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 7b57a85cde..dba22323b0 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -71,12 +71,6 @@ func (d *deadcodePass) init() {
+ 	// runtime.unreachableMethod is a function that will throw if called.
+ 	// We redirect unreachable methods to it.
+ 	names = append(names, "runtime.unreachableMethod")
+-	if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
+-		// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
+-		// (see function buildinfo in data.go). They should normally be reachable from the
+-		// runtime. Just make it explicit, in case.
+-		names = append(names, "runtime.buildVersion", "runtime.modinfo")
+-	}
+ 	if d.ctxt.BuildMode == BuildModePlugin {
+ 		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+ 
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 7ff9c41f96..954921844c 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -85,6 +85,12 @@ func (ctxt *Link) readImportCfg(file string) {
+ 				log.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
+ 			}
+ 			ctxt.PackageShlib[before] = after
++		case "modinfo":
++			s, err := strconv.Unquote(args)
++			if err != nil {
++				log.Fatalf("%s:%d: invalid modinfo: %v", file, lineNum, err)
++			}
++			addstrdata1(ctxt, "runtime.modinfo="+s)
+ 		}
+ 	}
+ }
+diff --git a/src/debug/buildinfo/buildinfo.go b/src/debug/buildinfo/buildinfo.go
+index f84429a342..2c0200e8dc 100644
+--- a/src/debug/buildinfo/buildinfo.go
++++ b/src/debug/buildinfo/buildinfo.go
+@@ -146,12 +146,18 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
+ 	}
+ 	const (
+ 		buildInfoAlign = 16
+-		buildinfoSize  = 32
++		buildInfoSize  = 32
+ 	)
+-	for ; !bytes.HasPrefix(data, buildInfoMagic); data = data[buildInfoAlign:] {
+-		if len(data) < 32 {
++	for {
++		i := bytes.Index(data, buildInfoMagic)
++		if i < 0 || len(data)-i < buildInfoSize {
+ 			return "", "", errNotGoExe
+ 		}
++		if i%buildInfoAlign == 0 && len(data)-i >= buildInfoSize {
++			data = data[i:]
++			break
++		}
++		data = data[(i+buildInfoAlign-1)&^buildInfoAlign:]
+ 	}
+ 
+ 	// Decode the blob.
+@@ -161,25 +167,33 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
+ 	// Two virtual addresses to Go strings follow that: runtime.buildVersion,
+ 	// and runtime.modinfo.
+ 	// On 32-bit platforms, the last 8 bytes are unused.
++	// If the endianness has the 2 bit set, then the pointers are zero
++	// and the 32-byte header is followed by varint-prefixed string data
++	// for the two string values we care about.
+ 	ptrSize := int(data[14])
+-	bigEndian := data[15] != 0
+-	var bo binary.ByteOrder
+-	if bigEndian {
+-		bo = binary.BigEndian
+-	} else {
+-		bo = binary.LittleEndian
+-	}
+-	var readPtr func([]byte) uint64
+-	if ptrSize == 4 {
+-		readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
++	if data[15]&2 != 0 {
++		vers, data = decodeString(data[32:])
++		mod, data = decodeString(data)
+ 	} else {
+-		readPtr = bo.Uint64
++		bigEndian := data[15] != 0
++		var bo binary.ByteOrder
++		if bigEndian {
++			bo = binary.BigEndian
++		} else {
++			bo = binary.LittleEndian
++		}
++		var readPtr func([]byte) uint64
++		if ptrSize == 4 {
++			readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
++		} else {
++			readPtr = bo.Uint64
++		}
++		vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
++		mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
+ 	}
+-	vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
+ 	if vers == "" {
+ 		return "", "", errNotGoExe
+ 	}
+-	mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
+ 	if len(mod) >= 33 && mod[len(mod)-17] == '\n' {
+ 		// Strip module framing: sentinel strings delimiting the module info.
+ 		// These are cmd/go/internal/modload.infoStart and infoEnd.
+@@ -191,6 +205,14 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
+ 	return vers, mod, nil
+ }
+ 
++func decodeString(data []byte) (s string, rest []byte) {
++	u, n := binary.Uvarint(data)
++	if n <= 0 || u >= uint64(len(data)-n) {
++		return "", nil
++	}
++	return string(data[n : uint64(n)+u]), data[uint64(n)+u:]
++}
++
+ // readString returns the string at address addr in the executable x.
+ func readString(x exe, ptrSize int, readPtr func([]byte) uint64, addr uint64) string {
+ 	hdr, err := x.ReadData(addr, uint64(2*ptrSize))

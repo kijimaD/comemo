@@ -23,7 +23,51 @@ Date:   Thu Aug 27 13:08:29 2020 -0700
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/request.go | 4 ++++
  src/net/http/server.go  | 6 +++---
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 54ec1c5593..183606d0ff 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -175,6 +175,10 @@ type Request struct {
+ 	// but will return EOF immediately when no body is present.
+ 	// The Server will close the request body. The ServeHTTP
+ 	// Handler does not need to.
++	//
++	// Body must allow Read to be called concurrently with Close.
++	// In particular, calling Close should unblock a Read waiting
++	// for input.
+ 	Body io.ReadCloser
+ 
+ 	// GetBody defines an optional func to return a new copy of
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index db3a09b993..fab229c92a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -890,12 +890,12 @@ func (srv *Server) initialReadLimitSize() int64 {
+ type expectContinueReader struct {
+ 	resp       *response
+ 	readCloser io.ReadCloser
+-	closed     bool
++	closed     atomicBool
+ 	sawEOF     atomicBool
+ }
+ 
+ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
+-	if ecr.closed {
++	if ecr.closed.isSet() {
+ 		return 0, ErrBodyReadAfterClose
+ 	}
+ 	w := ecr.resp
+@@ -917,7 +917,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
+ }
+ 
+ func (ecr *expectContinueReader) Close() error {
+-	ecr.closed = true
++	ecr.closed.setTrue()
+ 	return ecr.readCloser.Close()
+ }
+ 

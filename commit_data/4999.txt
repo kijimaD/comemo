@@ -8,8 +8,110 @@ Date:   Fri Mar 5 14:03:17 2010 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/240042
-
+---
  src/pkg/bufio/bufio.go       | 29 +++++++++++++++++++++++++++++
  src/pkg/bufio/bufio_test.go  | 30 ++++++++++++++++++++++++++++++
  src/pkg/bytes/buffer_test.go |  2 +-
  3 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 7b7f25831e..9b52a363a3 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -437,6 +437,35 @@ func (b *Writer) WriteByte(c byte) os.Error {
+ 	return nil
+ }
+ 
++// WriteRune writes a single Unicode code point, returning
++// the number of bytes written and any error.
++func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
++	if rune < utf8.RuneSelf {
++		err = b.WriteByte(byte(rune))
++		if err != nil {
++			return 0, err
++		}
++		return 1, nil
++	}
++	if b.err != nil {
++		return 0, b.err
++	}
++	n := b.Available()
++	if n < utf8.UTFMax {
++		if b.Flush(); b.err != nil {
++			return 0, b.err
++		}
++		n = b.Available()
++		if n < utf8.UTFMax {
++			// Can only happen if buffer is silly small.
++			return b.WriteString(string(rune))
++		}
++	}
++	size = utf8.EncodeRune(rune, b.buf[b.n:])
++	b.n += size
++	return size, nil
++}
++
+ // WriteString writes a string.
+ // It returns the number of bytes written.
+ // If the count is less than len(s), it also returns an error explaining
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 0ee8ce6b39..a19c46ec9c 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
++	"utf8"
+ )
+ 
+ // Reads from a reader and rot13s the result.
+@@ -225,6 +226,35 @@ func TestReadRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadWriteRune(t *testing.T) {
++	const NRune = 1000
++	byteBuf := new(bytes.Buffer)
++	w := NewWriter(byteBuf)
++	// Write the runes out using WriteRune
++	buf := make([]byte, utf8.UTFMax)
++	for rune := 0; rune < NRune; rune++ {
++		size := utf8.EncodeRune(rune, buf)
++		nbytes, err := w.WriteRune(rune)
++		if err != nil {
++			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
++		}
++		if nbytes != size {
++			t.Fatalf("WriteRune(0x%x) expected %d, got %d", rune, size, nbytes)
++		}
++	}
++	w.Flush()
++
++	r := NewReader(byteBuf)
++	// Read them back with ReadRune
++	for rune := 0; rune < NRune; rune++ {
++		size := utf8.EncodeRune(rune, buf)
++		nr, nbytes, err := r.ReadRune()
++		if nr != rune || nbytes != size || err != nil {
++			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
++		}
++	}
++}
++
+ func TestWriter(t *testing.T) {
+ 	var data [8192]byte
+ 
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 17acd72184..d24bbbe4b8 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -277,7 +277,7 @@ func TestRuneIO(t *testing.T) {
+ 			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
+ 		}
+ 		if nbytes != size {
+-			t.Fatalf("WriteRune(0x%x) expected %d, got %d", size, nbytes)
++			t.Fatalf("WriteRune(0x%x) expected %d, got %d", r, size, nbytes)
+ 		}
+ 		n += size
+ 	}

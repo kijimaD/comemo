@@ -9,7 +9,73 @@ Date:   Fri Oct 17 07:41:18 2008 -0700
     DELTA=20  (12 added, 0 deleted, 8 changed)
     OCL=17329
     CL=17342
-
+---
  test/errchk     | 18 +++++++++++++++---
  test/golden.out | 10 +++++-----
  2 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index 61b77e39d2..a8476a6258 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -43,6 +43,15 @@ fi
+ 
+ cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
+ 
++didbug=false
++bug() {
++  if ! $didbug
++  then
++    echo 1>&2 -n BUG: ''
++    didbug=true
++  fi
++}
++
+ header=0
+ echo 0 > $TMPSTAT
+ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+@@ -52,17 +61,20 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+   grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
+   mv -f $TMPTMP $TMPALL
+   if test -z "$errmsg"; then
+-    echo 1>&2 "BUG: errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
++    bug
++    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+     echo 1 > $TMPSTAT
+   elif ! echo "$errmsg" | egrep -q "$regexp"; then
+-    echo 1>&2 "BUG: errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
++    bug
++    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+     echo 1>&2 $errmsg
+     echo 1 > $TMPSTAT
+   fi
+ done
+ 
+ if test -s $TMPALL; then
+-  echo 1>&2 "BUG: errchk: $SOURCEFILE: unmatched error messages:"
++  bug
++  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
+   echo 1>&2 "=================================================="
+   cat 1>&2 $TMPALL
+   echo 1>&2 "=================================================="
+diff --git a/test/golden.out b/test/golden.out
+index 230a451fd5..c96ae5bffe 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -2,11 +2,11 @@
+ =========== ./convlit.go
+ BUG: convlit.go fails
+ BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver'
+-BUG: errchk: ./convlit.go: missing expected error message on line 17: 'conver'
+-BUG: errchk: ./convlit.go: missing expected error message on line 18: 'conver'
+-BUG: errchk: ./convlit.go: missing expected error message on line 22: 'convert'
+-BUG: errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
+-BUG: errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
++errchk: ./convlit.go: missing expected error message on line 17: 'conver'
++errchk: ./convlit.go: missing expected error message on line 18: 'conver'
++errchk: ./convlit.go: missing expected error message on line 22: 'convert'
++errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
++errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
+ BUG: errchk: ./convlit.go: unmatched error messages:
+ ==================================================
+ ./convlit.go:8: cannot convert non-integer constant to int32

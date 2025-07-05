@@ -7,8 +7,58 @@ Date:   Tue May 22 00:29:07 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6208093
-
+---
  src/cmd/8a/lex.c   | 1 +
  src/cmd/8l/8.out.h | 2 ++
  src/cmd/8l/optab.c | 7 +++++++
  3 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 5d361f53c5..d3a635cdcb 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -271,6 +271,7 @@ struct
+ 	"BSFW",		LTYPE3,	ABSFW,
+ 	"BSRL",		LTYPE3,	ABSRL,
+ 	"BSRW",		LTYPE3,	ABSRW,
++	"BSWAPL",	LTYPE1,	ABSWAPL,
+ 	"BTCL",		LTYPE3,	ABTCL,
+ 	"BTCW",		LTYPE3,	ABTCW,
+ 	"BTL",		LTYPE3,	ABTL,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index e13f1d3454..8329f4a6da 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -456,6 +456,8 @@ enum	as
+ 	APREFETCHT1,
+ 	APREFETCHT2,
+ 	APREFETCHNTA,
++	
++	ABSWAPL,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index bb2e4705a5..4d5751aeaf 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -242,6 +242,11 @@ uchar	ypopl[] =
+ 	Ynone,	Ym,	Zo_m,	2,
+ 	0
+ };
++uchar	ybswap[] =
++{
++	Ynone,	Yrl,	Z_rp,	1,
++	0,
++};
+ uchar	yscond[] =
+ {
+ 	Ynone,	Ymb,	Zo_m,	2,
+@@ -771,5 +776,7 @@ Optab optab[] =
+ 	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+ 	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+ 
++	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
++
+ 	0
+ };

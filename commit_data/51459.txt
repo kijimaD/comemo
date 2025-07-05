@@ -14,7 +14,34 @@ Date:   Fri Jan 28 15:48:32 2022 -0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 ++
  src/cmd/go/internal/help/helpdoc.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8e13a0f653..13a3f00d6f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2036,6 +2036,8 @@
+ // 	GOENV
+ // 		The location of the Go environment configuration file.
+ // 		Cannot be set using 'go env -w'.
++// 		Setting GOENV=off in the environment disables the use of the
++// 		default configuration file.
+ // 	GOFLAGS
+ // 		A space-separated list of -flag=value settings to apply
+ // 		to go commands by default, when the given flag is known by
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 7dc066cfba..d1eaad1c12 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -506,6 +506,8 @@ General-purpose environment variables:
+ 	GOENV
+ 		The location of the Go environment configuration file.
+ 		Cannot be set using 'go env -w'.
++		Setting GOENV=off in the environment disables the use of the
++		default configuration file.
+ 	GOFLAGS
+ 		A space-separated list of -flag=value settings to apply
+ 		to go commands by default, when the given flag is known by

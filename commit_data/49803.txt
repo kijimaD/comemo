@@ -149,7 +149,161 @@ Date:   Fri May 7 18:39:36 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-
+---
  src/reflect/all_test.go  | 82 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/deepequal.go | 21 ++++++++++++-
  2 files changed, 102 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e92f71135c..5b147082bb 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -905,6 +905,9 @@ var deepEqualTests = []DeepEqualTest{
+ 	{error(nil), error(nil), true},
+ 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
+ 	{fn1, fn2, true},
++	{[]byte{1, 2, 3}, []byte{1, 2, 3}, true},
++	{[]MyByte{1, 2, 3}, []MyByte{1, 2, 3}, true},
++	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
+ 
+ 	// Inequalities
+ 	{1, 2, false},
+@@ -950,6 +953,9 @@ var deepEqualTests = []DeepEqualTest{
+ 	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
+ 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
+ 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
++	{[]byte{1, 2, 3}, []MyByte{1, 2, 3}, false},
++	{[]MyByte{1, 2, 3}, MyBytes{1, 2, 3}, false},
++	{[]byte{1, 2, 3}, MyBytes{1, 2, 3}, false},
+ 
+ 	// Possible loops.
+ 	{&loop1, &loop1, true},
+@@ -1049,6 +1055,82 @@ func TestDeepEqualUnexportedMap(t *testing.T) {
+ 	}
+ }
+ 
++var deepEqualPerfTests = []struct {
++	x, y interface{}
++}{
++	{x: int8(99), y: int8(99)},
++	{x: []int8{99}, y: []int8{99}},
++	{x: int16(99), y: int16(99)},
++	{x: []int16{99}, y: []int16{99}},
++	{x: int32(99), y: int32(99)},
++	{x: []int32{99}, y: []int32{99}},
++	{x: int64(99), y: int64(99)},
++	{x: []int64{99}, y: []int64{99}},
++	{x: int(999999), y: int(999999)},
++	{x: []int{999999}, y: []int{999999}},
++
++	{x: uint8(99), y: uint8(99)},
++	{x: []uint8{99}, y: []uint8{99}},
++	{x: uint16(99), y: uint16(99)},
++	{x: []uint16{99}, y: []uint16{99}},
++	{x: uint32(99), y: uint32(99)},
++	{x: []uint32{99}, y: []uint32{99}},
++	{x: uint64(99), y: uint64(99)},
++	{x: []uint64{99}, y: []uint64{99}},
++	{x: uint(999999), y: uint(999999)},
++	{x: []uint{999999}, y: []uint{999999}},
++	{x: uintptr(999999), y: uintptr(999999)},
++	{x: []uintptr{999999}, y: []uintptr{999999}},
++
++	{x: float32(1.414), y: float32(1.414)},
++	{x: []float32{1.414}, y: []float32{1.414}},
++	{x: float64(1.414), y: float64(1.414)},
++	{x: []float64{1.414}, y: []float64{1.414}},
++
++	{x: complex64(1.414), y: complex64(1.414)},
++	{x: []complex64{1.414}, y: []complex64{1.414}},
++	{x: complex128(1.414), y: complex128(1.414)},
++	{x: []complex128{1.414}, y: []complex128{1.414}},
++
++	{x: true, y: true},
++	{x: []bool{true}, y: []bool{true}},
++
++	{x: "abcdef", y: "abcdef"},
++	{x: []string{"abcdef"}, y: []string{"abcdef"}},
++
++	{x: []byte("abcdef"), y: []byte("abcdef")},
++	{x: [][]byte{[]byte("abcdef")}, y: [][]byte{[]byte("abcdef")}},
++
++	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
++	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
++}
++
++func TestDeepEqualAllocs(t *testing.T) {
++	for _, tt := range deepEqualPerfTests {
++		t.Run(ValueOf(tt.x).Type().String(), func(t *testing.T) {
++			got := testing.AllocsPerRun(100, func() {
++				if !DeepEqual(tt.x, tt.y) {
++					t.Errorf("DeepEqual(%v, %v)=false", tt.x, tt.y)
++				}
++			})
++			if int(got) != 0 {
++				t.Errorf("DeepEqual(%v, %v) allocated %d times", tt.x, tt.y, int(got))
++			}
++		})
++	}
++}
++
++func BenchmarkDeepEqual(b *testing.B) {
++	for _, bb := range deepEqualPerfTests {
++		b.Run(ValueOf(bb.x).Type().String(), func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				sink = DeepEqual(bb.x, bb.y)
++			}
++		})
++	}
++}
++
+ func check2ndField(x interface{}, offs uintptr, t *testing.T) {
+ 	s := ValueOf(x)
+ 	f := s.Type().Field(1)
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index d951d8d999..94174dec04 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -6,7 +6,10 @@
+ 
+ package reflect
+ 
+-import "unsafe"
++import (
++	"internal/bytealg"
++	"unsafe"
++)
+ 
+ // During deepValueEqual, must keep track of checks that are
+ // in progress. The comparison algorithm assumes that all
+@@ -102,6 +105,10 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 		if v1.Pointer() == v2.Pointer() {
+ 			return true
+ 		}
++		// Special case for []byte, which is common.
++		if v1.Type().Elem().Kind() == Uint8 {
++			return bytealg.Equal(v1.Bytes(), v2.Bytes())
++		}
+ 		for i := 0; i < v1.Len(); i++ {
+ 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited) {
+ 				return false
+@@ -149,6 +156,18 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 		}
+ 		// Can't do better than this:
+ 		return false
++	case Int, Int8, Int16, Int32, Int64:
++		return v1.Int() == v2.Int()
++	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
++		return v1.Uint() == v2.Uint()
++	case String:
++		return v1.String() == v2.String()
++	case Bool:
++		return v1.Bool() == v2.Bool()
++	case Float32, Float64:
++		return v1.Float() == v2.Float()
++	case Complex64, Complex128:
++		return v1.Complex() == v2.Complex()
+ 	default:
+ 		// Normal equality suffices
+ 		return valueInterface(v1, false) == valueInterface(v2, false)

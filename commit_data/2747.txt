@@ -8,8 +8,307 @@ Date:   Fri Jul 17 15:09:17 2009 -0700
     DELTA=130  (68 added, 6 deleted, 56 changed)
     OCL=31798
     CL=31798
-
+---
  src/cmd/6l/asm.c   | 85 ++++++++++++++++++++++++++++--------------------------
  src/cmd/ld/elf64.c | 32 ++++++++++++--------
  src/cmd/ld/elf64.h | 65 ++++++++++++++++++++++++++++++++++++-----
  3 files changed, 122 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fcfbc6ad2d..e6c499fbf3 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -127,6 +127,7 @@ asmb(void)
+ 	vlong vl, va, fo, w, symo;
+ 	int strtabsize;
+ 	vlong symdatva = 0x99LL<<32;
++	Elf64PHdr *ph;
+ 	Elf64SHdr *sh;
+ 
+ 	strtabsize = 0;
+@@ -450,47 +451,49 @@ asmb(void)
+ 		va = INITTEXT & ~((vlong)INITRND - 1);
+ 		w = HEADR+textsize;
+ 
+-		elf64phdr(1,			/* text - type = PT_LOAD */
+-			1L+4L,			/* text - flags = PF_X+PF_R */
+-			0,			/* file offset */
+-			va,			/* vaddr */
+-			va,			/* paddr */
+-			w,			/* file size */
+-			w,			/* memory size */
+-			INITRND);		/* alignment */
++		ph = newElf64PHdr();
++		ph->type = PT_LOAD; 	
++		ph->flags = PF_X+PF_R;
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->filesz = w;
++		ph->memsz = w;
++		ph->align = INITRND;
++		elf64phdr(ph);
+ 
+ 		fo = rnd(fo+w, INITRND);
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+-		elf64phdr(1,			/* data - type = PT_LOAD */
+-			2L+4L,			/* data - flags = PF_W+PF_R */
+-			fo,			/* file offset */
+-			va,			/* vaddr */
+-			va,			/* paddr */
+-			w,			/* file size */
+-			w+bsssize,		/* memory size */
+-			INITRND);		/* alignment */
++		ph = newElf64PHdr();
++		ph->type = PT_LOAD;
++		ph->flags = PF_W+PF_R;
++		ph->off = fo;
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->filesz = w;
++		ph->memsz = w+bsssize;
++		ph->align = INITRND;
++		elf64phdr(ph);
+ 
+ 		if(!debug['s']) {
+-			elf64phdr(1,			/* data - type = PT_LOAD */
+-				2L+4L,			/* data - flags = PF_W+PF_R */
+-				symo,		/* file offset */
+-				symdatva,			/* vaddr */
+-				symdatva,			/* paddr */
+-				8+symsize+lcsize,			/* file size */
+-				8+symsize+lcsize,		/* memory size */
+-				INITRND);		/* alignment */
++			ph = newElf64PHdr();
++			ph->type = PT_LOAD;
++			ph->flags = PF_W+PF_R;
++			ph->off = symo;
++			ph->vaddr = symdatva;
++			ph->paddr = symdatva;
++			ph->filesz = 8+symsize+lcsize;
++			ph->memsz = 8+symsize+lcsize;
++			ph->align = INITRND;
++			elf64phdr(ph);
+ 		}
+ 
+-		elf64phdr(0x6474e551,		/* gok - type = gok */
+-			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
+-			0,			/* file offset */
+-			0,			/* vaddr */
+-			0,			/* paddr */
+-			0,			/* file size */
+-			0,			/* memory size */
+-			8);			/* alignment */
++		ph = newElf64PHdr();
++		ph->type = 0x6474e551; 	/* gok */
++		ph->flags = PF_X+PF_W+PF_R;
++		ph->align = 8;
++		elf64phdr(ph);
+ 
+ 		sh = newElf64SHdr();
+ 		elf64shdr(nil, sh);
+@@ -501,8 +504,8 @@ asmb(void)
+ 		w = textsize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 1;
+-		sh->flags = 6;
++		sh->type = SHT_PROGBITS;
++		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+ 		sh->addr = va;
+ 		sh->off = fo;
+ 		sh->size = w;
+@@ -514,8 +517,8 @@ asmb(void)
+ 		w = datsize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 1;
+-		sh->flags = 3;
++		sh->type = SHT_PROGBITS;
++		sh->flags = SHF_WRITE+SHF_ALLOC;
+ 		sh->addr = va;
+ 		sh->off = fo;
+ 		sh->size = w;
+@@ -527,8 +530,8 @@ asmb(void)
+ 		w = bsssize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 8;
+-		sh->flags = 3;
++		sh->type = SHT_NOBITS;
++		sh->flags = SHF_WRITE+SHF_ALLOC;
+ 		sh->addr = va;
+ 		sh->off = fo;
+ 		sh->size = w;
+@@ -538,7 +541,7 @@ asmb(void)
+ 		w = strtabsize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 3;
++		sh->type = SHT_STRTAB;
+ 		sh->off = fo;
+ 		sh->size = w;
+ 		sh->addralign = 1;
+@@ -551,7 +554,7 @@ asmb(void)
+ 		w = symsize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 1;	/* type 1 = SHT_PROGBITS */
++		sh->type = SHT_PROGBITS;
+ 		sh->off = fo;
+ 		sh->size = w;
+ 		sh->addralign = 1;
+@@ -562,7 +565,7 @@ asmb(void)
+ 		w = lcsize;
+ 
+ 		sh = newElf64SHdr();
+-		sh->type = 1;	/* type 1 = SHT_PROGBITS */
++		sh->type = SHT_PROGBITS;
+ 		sh->off = fo;
+ 		sh->size = w;
+ 		sh->addralign = 1;
+diff --git a/src/cmd/ld/elf64.c b/src/cmd/ld/elf64.c
+index 483b51ca33..ba30f65522 100644
+--- a/src/cmd/ld/elf64.c
++++ b/src/cmd/ld/elf64.c
+@@ -7,19 +7,16 @@
+ #include "../ld/elf64.h"
+ 
+ void
+-elf64phdr(int type, int flags, vlong foff,
+-	vlong vaddr, vlong paddr,
+-	vlong filesize, vlong memsize, vlong align)
++elf64phdr(Elf64PHdr *e)
+ {
+-
+-	lputl(type);			/*  type */
+-	lputl(flags);			/* flags */
+-	vputl(foff);			/* file offset */
+-	vputl(vaddr);			/* vaddr */
+-	vputl(paddr);			/* paddr */
+-	vputl(filesize);		/* file size */
+-	vputl(memsize);		/* memory size */
+-	vputl(align);			/* alignment */
++	lputl(e->type);
++	lputl(e->flags);
++	vputl(e->off);
++	vputl(e->vaddr);
++	vputl(e->paddr);
++	vputl(e->filesz);
++	vputl(e->memsz);
++	vputl(e->align);
+ }
+ 
+ void
+@@ -106,3 +103,14 @@ newElf64SHdr()
+ 	return e;
+ }
+ 
++
++Elf64PHdr*
++newElf64PHdr()
++{
++	Elf64PHdr *e;
++
++	e = malloc(sizeof *e);
++	memset(e, 0, sizeof *e);
++	return e;
++}
++
+diff --git a/src/cmd/ld/elf64.h b/src/cmd/ld/elf64.h
+index cd4964ba3e..07d3cd68a6 100644
+--- a/src/cmd/ld/elf64.h
++++ b/src/cmd/ld/elf64.h
+@@ -45,8 +45,9 @@ typedef int32	Elf64_Sword;	/* Signed integer */
+ typedef uint64	Elf64_Xword;	/* Unsigned long integer */
+ typedef int64	Elf64_Sxword; 	/* Signed long integer */
+ 
+-typedef struct Elf64Hdr Elf64Hdr;
+-typedef struct Elf64SHdr Elf64SHdr;
++typedef struct Elf64Hdr		Elf64Hdr;
++typedef struct Elf64SHdr	Elf64SHdr;
++typedef struct Elf64PHdr	Elf64PHdr;
+ 
+ struct Elf64Hdr
+ {
+@@ -66,13 +67,39 @@ struct Elf64Hdr
+ 	Elf64_Half	shstrndx;	/* Section name string table index */
+ };
+ 
++struct Elf64PHdr
++{
++	Elf64_Word	type;	/* Type of segment */ 
++	Elf64_Word	flags;	/* Segment attributes */ 
++	Elf64_Off	off;	/* Offset in file */ 
++	Elf64_Addr	vaddr;	/* Virtual address in memory */ 
++	Elf64_Addr	paddr;	/* Reserved */ 
++	Elf64_Xword	filesz;	/* Size of segment in file */ 
++	Elf64_Xword	memsz;	/* Size of segment in memory */ 
++	Elf64_Xword	align;	/* Alignment of segment */ 
++};
++
++/* P types */
++#define	PT_NULL		0	/* Unused entry */
++#define	PT_LOAD		1	/* Loadable segment */
++#define	PT_DYNAMIC	2	/* Dynamic linking tables */
++#define	PT_INTERP	3	/* Program interpreter path name */
++#define	PT_NOTE		4	/* Note sections */
++
++/* P flags */
++#define	PF_X	0x1	/* Execute permission */
++#define	PF_W	0x2	/* Write permission */
++#define	PF_R	0x4	/* Read permission */
++#define	PF_MASKOS	0x00FF0000 /* reserved for environment-specific use */
++#define	PF_MASKPROC	0xFF000000 /*reserved for processor-specific use */
++
+ struct Elf64SHdr
+ {
+ 	Elf64_Word	name;	/* Section name */
+ 	Elf64_Word	type;	/* Section type */
+ 	Elf64_Xword	flags;	/* Section attributes */
+ 	Elf64_Addr	addr;	/* Virtual address in memory */
+-	Elf64_Off	off; /* Offset in file */
++	Elf64_Off	off;	/* Offset in file */
+ 	Elf64_Xword	size;	/* Size of section */
+ 	Elf64_Word	link;	/* Link to other section */
+ 	Elf64_Word	info;	/* Miscellaneous information */
+@@ -80,10 +107,34 @@ struct Elf64SHdr
+ 	Elf64_Xword	entsize;	/* Size of entries, if section has table */
+ };
+ 
+-Elf64SHdr *newElf64SHdr();
++/* S types */
++#define SHT_NULL	0	/* Unused section header */
++#define SHT_PROGBITS	1	/* Information defined by the program */
++#define SHT_SYMTAB	2	/* Linker symbol table */
++#define SHT_STRTAB	3	/* String table */
++#define SHT_RELA	4 	/* "Rela" type relocation entries */
++#define SHT_HASH	5	/* Symbol hash table */
++#define SHT_DYNAMIC	6	/* Dynamic linking tables */
++#define SHT_NOTE	7	/* Note information */
++#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */ 
++#define SHT_REL		9	/* "Rel" type relocation entries */
++#define SHT_SHLIB	10	/* Reserved */
++#define SHT_DYNSYM	11	/* A dynamic loader symbol table */ 
++#define SHT_LOOS	0x60000000	/* Environment-specific use */
++#define SHT_HIOS	0x6FFFFFFF 
++#define SHT_LOPROC	0x70000000	/* Processor-specific use */
++#define SHT_HIPROC 0x7FFFFFFF
++
++/* S flags */
++#define	SHF_WRITE	0x1 /* Writable data */
++#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */ 
++#define	SHF_EXECINSTR	0x4 /* Executable instructions */
++#define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
++#define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
++
++Elf64SHdr	*newElf64SHdr();
++Elf64PHdr	*newElf64PHdr();
+ uint32	elf64headr(void);
+-void	elf64phdr(int type, int flags, vlong foff,
+-	vlong vaddr, vlong paddr,
+-	vlong filesize, vlong memsize, vlong align);
++void	elf64phdr(Elf64PHdr*);
+ void	elf64shdr(char*, Elf64SHdr*);
+ int	elf64strtable(void);

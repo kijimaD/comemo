@@ -22,7 +22,7 @@ Date:   Tue Dec 17 21:43:33 2013 -0500
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/42880043
-
+---
  src/cmd/gc/export.c |  5 ++---
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/lex.c    | 12 +++++++-----
@@ -30,3 +30,227 @@ Date:   Tue Dec 17 21:43:33 2013 -0500
  src/cmd/ld/go.c     | 21 ++-------------------
  src/cmd/ld/lib.c    | 21 +++++++++------------
  6 files changed, 71 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 31bcdf8e77..da5984cebf 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -354,7 +354,7 @@ dumpexport(void)
+ 
+ 	lno = lineno;
+ 
+-	Bprint(bout, "\n$$  // exports\n    package %s", localpkg->name);
++	Bprint(bout, "\n$$\npackage %s", localpkg->name);
+ 	if(safemode)
+ 		Bprint(bout, " safe");
+ 	Bprint(bout, "\n");
+@@ -369,8 +369,7 @@ dumpexport(void)
+ 		dumpsym(l->n->sym);
+ 	}
+ 
+-	Bprint(bout, "\n$$  // local types\n\n$$\n");   // 6l expects this. (see ld/go.c)
+-
++	Bprint(bout, "\n$$\n");
+ 	lineno = lno;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 081220db5a..3840c9adf9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -977,6 +977,7 @@ EXTERN	Link*	ctxt;
+ EXTERN	int	nointerface;
+ EXTERN	int	fieldtrack_enabled;
+ EXTERN	int	precisestack_enabled;
++EXTERN	int	writearchive;
+ 
+ EXTERN	Biobuf	bstdout;
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 0d1fccb10d..c2116b4c6f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -267,6 +267,7 @@ main(int argc, char *argv[])
+ 	flagcount("m", "print optimization decisions", &debug['m']);
+ 	flagstr("o", "obj: set output file", &outfile);
+ 	flagstr("p", "path: set expected package import path", &myimportpath);
++	flagcount("pack", "write package file instead of object file", &writearchive);
+ 	flagcount("r", "debug generated wrappers", &debug['r']);
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
+@@ -518,12 +519,13 @@ skiptopkgdef(Biobuf *b)
+ 		return 0;
+ 	if(memcmp(p, "!<arch>\n", 8) != 0)
+ 		return 0;
+-	/* symbol table is first; skip it */
++	/* symbol table may be first; skip it */
+ 	sz = arsize(b, "__.GOSYMDEF");
+-	if(sz < 0)
+-		return 0;
+-	Bseek(b, sz, 1);
+-	/* package export block is second */
++	if(sz >= 0)
++		Bseek(b, sz, 1);
++	else
++		Bseek(b, 8, 0);
++	/* package export block is next */
+ 	sz = arsize(b, "__.PKGDEF");
+ 	if(sz <= 0)
+ 		return 0;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 37d3a03260..3b9a97320f 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -12,10 +12,25 @@
+ 
+ static	void	dumpglobls(void);
+ 
++enum
++{
++	ArhdrSize = 60
++};
++
++static void
++formathdr(char *arhdr, char *name, vlong size)
++{
++	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10d`",
++		name, 0, 0, 0, 0644, size);
++	arhdr[ArhdrSize-1] = '\n'; // overwrite \0 written by snprint
++}
++
+ void
+ dumpobj(void)
+ {
+ 	NodeList *externs, *tmp;
++	char arhdr[ArhdrSize];
++	vlong startobj, size;
+ 	Sym *zero;
+ 
+ 	bout = Bopen(outfile, OWRITE);
+@@ -25,10 +40,33 @@ dumpobj(void)
+ 		errorexit();
+ 	}
+ 
++	startobj = 0;
++	if(writearchive) {
++		Bwrite(bout, "!<arch>\n", 8);
++		memset(arhdr, 0, sizeof arhdr);
++		Bwrite(bout, arhdr, sizeof arhdr);
++		startobj = Boffset(bout);
++	}
+ 	Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
+-	Bprint(bout, "  exports automatically generated from\n");
+-	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
+ 	dumpexport();
++	
++	if(writearchive) {
++		Bflush(bout);
++		size = Boffset(bout) - startobj;
++		if(size&1)
++			Bputc(bout, 0);
++		Bseek(bout, startobj - ArhdrSize, 0);
++		formathdr(arhdr, "__.PKGDEF", size);
++		Bwrite(bout, arhdr, ArhdrSize);
++		Bflush(bout);
++
++		Bseek(bout, startobj + size + (size&1), 0);
++		memset(arhdr, 0, ArhdrSize);
++		Bwrite(bout, arhdr, ArhdrSize);
++		startobj = Boffset(bout);
++		Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
++	}
++
+ 	Bprint(bout, "\n!\n");
+ 
+ 	externs = nil;
+@@ -51,6 +89,16 @@ dumpobj(void)
+ 	dumpdata();
+ 	linkwriteobj(ctxt, bout);
+ 
++	if(writearchive) {
++		Bflush(bout);
++		size = Boffset(bout) - startobj;
++		if(size&1)
++			Bputc(bout, 0);
++		Bseek(bout, startobj - ArhdrSize, 0);
++		snprint(namebuf, sizeof namebuf, "_go_.%c", thechar);
++		formathdr(arhdr, namebuf, size);
++		Bwrite(bout, arhdr, ArhdrSize);
++	}
+ 	Bterm(bout);
+ }
+ 
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 900ecb0ae9..a5a0fa5433 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -151,28 +151,11 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 		}
+ 		loadpkgdata(filename, pkg, p0, p1 - p0);
+ 	}
+-
+-	// The __.PKGDEF archive summary has no local types.
++	
++	// __.PKGDEF has no cgo section - those are in the C compiler-generated object files.
+ 	if(whence == Pkgdef)
+ 		return;
+ 
+-	// local types begin where exports end.
+-	// skip rest of line after $$ we found above
+-	p0 = p1 + 3;
+-	while(*p0 != '\n' && *p0 != '\0')
+-		p0++;
+-
+-	// local types end at next \n$$.
+-	p1 = strstr(p0, "\n$$");
+-	if(p1 == nil) {
+-		fprint(2, "%s: cannot find end of local types in %s\n", argv0, filename);
+-		if(debug['u'])
+-			errorexit();
+-		return;
+-	}
+-
+-	loadpkgdata(filename, pkg, p0, p1 - p0);
+-
+ 	// look for cgo section
+ 	p0 = strstr(p1, "\n$$  // cgo");
+ 	if(p0 != nil) {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 76a3a1393a..f4ac30a571 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -327,25 +327,22 @@ objfile(char *file, char *pkg)
+ 		return;
+ 	}
+ 	
+-	/* skip over __.GOSYMDEF */
++	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
+ 	off = Boffset(f);
+ 	if((l = nextar(f, off, &arhdr)) <= 0) {
+ 		diag("%s: short read on archive file symbol header", file);
+ 		goto out;
+ 	}
+-	if(strncmp(arhdr.name, symname, strlen(symname))) {
+-		diag("%s: first entry not symbol header", file);
+-		goto out;
+-	}
+-	off += l;
+-	
+-	/* skip over (or process) __.PKGDEF */
+-	if((l = nextar(f, off, &arhdr)) <= 0) {
+-		diag("%s: short read on archive file symbol header", file);
+-		goto out;
++	if(strncmp(arhdr.name, symname, strlen(symname)) == 0) {
++		off += l;
++		if((l = nextar(f, off, &arhdr)) <= 0) {
++			diag("%s: short read on archive file symbol header", file);
++			goto out;
++		}
+ 	}
++
+ 	if(strncmp(arhdr.name, pkgname, strlen(pkgname))) {
+-		diag("%s: second entry not package header", file);
++		diag("%s: cannot find package header", file);
+ 		goto out;
+ 	}
+ 	off += l;

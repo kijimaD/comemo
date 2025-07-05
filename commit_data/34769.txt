@@ -7,6 +7,20 @@ Date:   Wed Aug 30 12:24:37 2017 -0400
     Change-Id: I63f3d2edb09801c99957a1f744639523fb6d0b62
     Reviewed-on: https://go-review.googlesource.com/60331
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/trace/trace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index f1d5ea1ef1..439f998c03 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -7,7 +7,7 @@
+ //
+ // The execution trace captures a wide range of execution events such as
+ // goroutine creation/blocking/unblocking, syscall enter/exit/block,
+-// GC-related events, changes of heap size, processor stop/stop, etc.
++// GC-related events, changes of heap size, processor start/stop, etc.
+ // A precise nanosecond-precision timestamp and a stack trace is
+ // captured for most events. The generated trace can be interpreted
+ // using `go tool trace`.

@@ -23,8 +23,85 @@ Date:   Mon Nov 1 13:23:39 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/udpsock.go       | 13 ++++++++-----
  src/net/udpsock_plan9.go |  4 ++++
  src/net/udpsock_posix.go | 26 ++++++++++++++++++++++++++
  3 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 0d563fd4f5..a829789a1b 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -207,11 +207,14 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 
+ // WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
+ func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+-	// TODO(bradfitz): make this efficient, making the internal net package
+-	// type throughout be netip.Addr and only converting to the net.IP slice
+-	// version at the edge. But for now (2021-10-20), this is a wrapper around
+-	// the old way.
+-	return c.WriteToUDP(b, UDPAddrFromAddrPort(addr))
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	n, err := c.writeToAddrPort(b, addr)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
++	}
++	return n, err
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index ac5afa2281..dfb81a8d0c 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -53,6 +53,10 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
+ 	return len(b), nil
+ }
+ 
++func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
++	return c.writeTo(b, UDPAddrFromAddrPort(addr)) // TODO: optimize instead of allocating
++}
++
+ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+ 	return 0, 0, syscall.EPLAN9
+ }
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 646687d148..718d11e60f 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -109,6 +109,32 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
+ 	}
+ }
+ 
++func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
++	if c.fd.isConnected {
++		return 0, ErrWriteToConnected
++	}
++	if !addr.IsValid() {
++		return 0, errMissingAddress
++	}
++
++	switch c.fd.family {
++	case syscall.AF_INET:
++		sa, err := addrPortToSockaddrInet4(addr)
++		if err != nil {
++			return 0, err
++		}
++		return c.fd.writeToInet4(b, sa)
++	case syscall.AF_INET6:
++		sa, err := addrPortToSockaddrInet6(addr)
++		if err != nil {
++			return 0, err
++		}
++		return c.fd.writeToInet6(b, sa)
++	default:
++		return 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
++	}
++}
++
+ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+ 	if c.fd.isConnected && addr != nil {
+ 		return 0, 0, ErrWriteToConnected

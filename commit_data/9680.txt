@@ -12,9 +12,75 @@ Date:   Wed Sep 14 10:31:51 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5012043
-
+---
  test/bugs/bug367.dir/main.go | 12 ++++++++++++
  test/bugs/bug367.dir/p.go    | 16 ++++++++++++++++
  test/bugs/bug367.go          |  7 +++++++
  test/golden.out              |  4 ++++
  4 files changed, 39 insertions(+)
+
+diff --git a/test/bugs/bug367.dir/main.go b/test/bugs/bug367.dir/main.go
+new file mode 100644
+index 0000000000..ab5d1702b1
+--- /dev/null
++++ b/test/bugs/bug367.dir/main.go
+@@ -0,0 +1,12 @@
++package main
++
++import (
++	"./p"
++)
++
++type T struct{ *p.S }
++
++func main() {
++	var t T
++	p.F(t)
++}
+diff --git a/test/bugs/bug367.dir/p.go b/test/bugs/bug367.dir/p.go
+new file mode 100644
+index 0000000000..4e27d4e00a
+--- /dev/null
++++ b/test/bugs/bug367.dir/p.go
+@@ -0,0 +1,16 @@
++package p
++
++type T struct{ x int }
++type S struct{}
++
++func (p *S) get() T {
++	return T{0}
++}
++
++type I interface {
++	get() T
++}
++
++func F(i I) {
++	_ = i.get()
++}
+diff --git a/test/bugs/bug367.go b/test/bugs/bug367.go
+new file mode 100644
+index 0000000000..073e3b180e
+--- /dev/null
++++ b/test/bugs/bug367.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: should not fail
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored
+diff --git a/test/golden.out b/test/golden.out
+index 1942f45fbe..fc4b81d3bd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -155,3 +155,7 @@ panic: interface conversion: interface is main.T, not main.T
+ 0x0
+ 
+ == bugs/
++
++=========== bugs/bug367.go
++panic: interface conversion: main.T is not p.I: missing method get
++BUG: should not fail

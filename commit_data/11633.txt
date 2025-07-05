@@ -7,6 +7,20 @@ Date:   Sun Feb 5 16:59:32 2012 -0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5631051
-
+---
  src/pkg/net/ipsock_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 15657b96f0..597b127754 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -23,7 +23,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	addr := IPv4zero // address contains port only
+-	i = byteIndex(s, '!')
++	i := byteIndex(s, '!')
+ 	if i >= 0 {
+ 		addr = ParseIP(s[:i])
+ 		if addr == nil {

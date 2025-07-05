@@ -13,6 +13,20 @@ Date:   Fri Mar 15 08:12:33 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 8d2de22473..dd300bbd51 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1018,7 +1018,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
+ 		// Decls).
+ 		//
+ 		// However, non-trivial closures in Decls are ignored, and are
+-		// insteaded enqueued when walk of the calling function
++		// instead enqueued when walk of the calling function
+ 		// discovers them.
+ 		//
+ 		// This presents a problem for direct calls to closures.

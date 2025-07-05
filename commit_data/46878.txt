@@ -25,9 +25,151 @@ Date:   Tue Feb 9 13:46:53 2021 -0500
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/io/fs/fs.go      | 23 ++++++++++++++---------
  src/io/fs/fs_test.go |  7 ++++---
  src/os/file.go       | 13 ++++++++++++-
  src/os/os_test.go    | 34 ++++++++++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 13 deletions(-)
+
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index c330f123ad..3d2e2ee2ac 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -10,6 +10,7 @@ package fs
+ import (
+ 	"internal/oserror"
+ 	"time"
++	"unicode/utf8"
+ )
+ 
+ // An FS provides access to a hierarchical file system.
+@@ -32,15 +33,22 @@ type FS interface {
+ 
+ // ValidPath reports whether the given path name
+ // is valid for use in a call to Open.
+-// Path names passed to open are unrooted, slash-separated
+-// sequences of path elements, like “x/y/z”.
+-// Path names must not contain a “.” or “..” or empty element,
++//
++// Path names passed to open are UTF-8-encoded,
++// unrooted, slash-separated sequences of path elements, like “x/y/z”.
++// Path names must not contain an element that is “.” or “..” or the empty string,
+ // except for the special case that the root directory is named “.”.
+-// Leading and trailing slashes (like “/x” or “x/”) are not allowed.
++// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+ //
+-// Paths are slash-separated on all systems, even Windows.
+-// Backslashes must not appear in path names.
++// Note that paths are slash-separated on all systems, even Windows.
++// Paths containing other characters such as backslash and colon
++// are accepted as valid, but those characters must never be
++// interpreted by an FS implementation as path element separators.
+ func ValidPath(name string) bool {
++	if !utf8.ValidString(name) {
++		return false
++	}
++
+ 	if name == "." {
+ 		// special case
+ 		return true
+@@ -50,9 +58,6 @@ func ValidPath(name string) bool {
+ 	for {
+ 		i := 0
+ 		for i < len(name) && name[i] != '/' {
+-			if name[i] == '\\' {
+-				return false
+-			}
+ 			i++
+ 		}
+ 		elem := name[:i]
+diff --git a/src/io/fs/fs_test.go b/src/io/fs/fs_test.go
+index 8d395fc0db..aae1a7606f 100644
+--- a/src/io/fs/fs_test.go
++++ b/src/io/fs/fs_test.go
+@@ -33,9 +33,10 @@ var isValidPathTests = []struct {
+ 	{"x/..", false},
+ 	{"x/../y", false},
+ 	{"x//y", false},
+-	{`x\`, false},
+-	{`x\y`, false},
+-	{`\x`, false},
++	{`x\`, true},
++	{`x\y`, true},
++	{`x:y`, true},
++	{`\x`, true},
+ }
+ 
+ func TestValidPath(t *testing.T) {
+diff --git a/src/os/file.go b/src/os/file.go
+index 416bc0efa6..52dd94339b 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -620,10 +620,21 @@ func DirFS(dir string) fs.FS {
+ 	return dirFS(dir)
+ }
+ 
++func containsAny(s, chars string) bool {
++	for i := 0; i < len(s); i++ {
++		for j := 0; j < len(chars); j++ {
++			if s[i] == chars[j] {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ type dirFS string
+ 
+ func (dir dirFS) Open(name string) (fs.File, error) {
+-	if !fs.ValidPath(name) {
++	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
+ 		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+ 	}
+ 	f, err := Open(string(dir) + "/" + name)
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index ee54b4aba1..a32e5fc11e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2719,6 +2719,40 @@ func TestDirFS(t *testing.T) {
+ 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
+ 		t.Fatal(err)
+ 	}
++
++	// Test that Open does not accept backslash as separator.
++	d := DirFS(".")
++	_, err := d.Open(`testdata\dirfs`)
++	if err == nil {
++		t.Fatalf(`Open testdata\dirfs succeeded`)
++	}
++}
++
++func TestDirFSPathsValid(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping on Windows")
++	}
++
++	d := t.TempDir()
++	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
++		t.Fatal(err)
++	}
++
++	fsys := os.DirFS(d)
++	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
++		if fs.ValidPath(e.Name()) {
++			t.Logf("%q ok", e.Name())
++		} else {
++			t.Errorf("%q INVALID", e.Name())
++		}
++		return nil
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
+ }
+ 
+ func TestReadFileProc(t *testing.T) {

@@ -5,7 +5,40 @@ Date:   Tue Jun 17 16:22:02 2008 -0700
     - added another bug test ('len' shouldn't be a keyword)
     
     SVN=123225
-
+---
  test/bugs/bug053.go | 11 +++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 15 insertions(+)
+
+diff --git a/test/bugs/bug053.go b/test/bugs/bug053.go
+new file mode 100644
+index 0000000000..fe6ca49999
+--- /dev/null
++++ b/test/bugs/bug053.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  var len int;  // len should not be a keyword - this doesn't compile
++}
+diff --git a/test/golden.out b/test/golden.out
+index 631a74762b..13fb1d4ed5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -267,6 +267,10 @@ BUG: infinite loop in error reporting
+ =========== bugs/bug052.go
+ BUG: incorrect code for division
+ 
++=========== bugs/bug053.go
++bugs/bug053.go:6: syntax error
++BUG: len should not be a keyword
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

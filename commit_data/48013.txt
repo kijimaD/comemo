@@ -13,6 +13,21 @@ Date:   Tue Apr 20 23:25:12 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/fixedbugs/issue39634.go2 | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/types/fixedbugs/issue39634.go2 b/src/go/types/fixedbugs/issue39634.go2
+index af1f1e44c5..a13ed13ce5 100644
+--- a/src/go/types/fixedbugs/issue39634.go2
++++ b/src/go/types/fixedbugs/issue39634.go2
+@@ -40,8 +40,7 @@ type foo9[A any] interface { type foo9 /* ERROR interface contains type constrai
+ func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
+ 
+ // crash 12
+-// TODO(rFindley) temporarily disabled due to an error check issue
+-// var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len)]c /* ERROR undeclared */ /* ERROR undeclared */
++var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+ 
+ // crash 15
+ func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15[string]{} }

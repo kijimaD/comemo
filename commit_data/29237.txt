@@ -21,8 +21,64 @@ Date:   Fri Sep 2 14:37:35 2016 -0700
     Change-Id: I83b1c3f05a9ca2d3be38647425ad21a9fe450ee2
     Reviewed-on: https://go-review.googlesource.com/28418
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go                      |  11 +++++++----
  src/archive/tar/reader_test.go                 |  17 +++++++++++++++++
  src/archive/tar/testdata/pax-pos-size-file.tar | Bin 0 -> 2560 bytes
  3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index b8b1652b2b..fa1c48adeb 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -175,11 +175,14 @@ loop:
+ 				return nil, err
+ 			}
+ 
+-			// TODO(dsnet): The extended headers may have updated the size.
+-			// Thus, we must setup the regFileReader again here.
+-			//
+-			// See golang.org/issue/15573
++			// The extended headers may have updated the size.
++			// Thus, setup the regFileReader again after merging PAX headers.
++			if err := tr.handleRegularFile(hdr); err != nil {
++				return nil, err
++			}
+ 
++			// Sparse formats rely on being able to read from the logical data
++			// section; there must be a preceding call to handleRegularFile.
+ 			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 3de5299bac..9ffc8d6459 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -237,6 +237,23 @@ var untarTests = []*untarTest{
+ 		file: "testdata/pax-bad-mtime-file.tar",
+ 		err:  ErrHeader,
+ 	},
++	{
++		file: "testdata/pax-pos-size-file.tar",
++		headers: []*Header{{
++			Name:     "foo",
++			Mode:     0640,
++			Uid:      319973,
++			Gid:      5000,
++			Size:     999,
++			ModTime:  time.Unix(1442282516, 0),
++			Typeflag: '0',
++			Uname:    "joetsai",
++			Gname:    "eng",
++		}},
++		chksums: []string{
++			"0afb597b283fe61b5d4879669a350556",
++		},
++	},
+ 	{
+ 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
+ 		headers: []*Header{
+diff --git a/src/archive/tar/testdata/pax-pos-size-file.tar b/src/archive/tar/testdata/pax-pos-size-file.tar
+new file mode 100644
+index 0000000000..aed9a8aa48
+Binary files /dev/null and b/src/archive/tar/testdata/pax-pos-size-file.tar differ

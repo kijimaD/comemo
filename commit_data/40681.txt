@@ -7,6 +7,20 @@ Date:   Wed Jun 12 12:33:19 2019 -0400
     Change-Id: I4c52d9bcf941810dbdfdd39e7f339c8283d6bcc7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181937
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/go1.13.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index f6df9e07e5..5731cbbd81 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -139,7 +139,7 @@ TODO
+ <dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+   <dd>
+     <p><!-- CL 169080 -->
+-      TODO: <a href="https://golang.org/cl/169080">https://golang.org/cl/169080</a>: don&#39;t depend on fmt
++    The formatting of contexts returned by <a href="/pkg/context/#WithValue"><code>WithValue</code></a> no longer depends on <code>fmt</code> and will not stringify in the same way. Code that depends on the exact previous stringification might be affected.
+     </p>
+ 
+ </dl><!-- context -->

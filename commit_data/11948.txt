@@ -7,7 +7,39 @@ Date:   Thu Feb 16 10:44:55 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5672061
-
+---
  src/all.bat | 2 +-
  src/run.bat | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 980f937efc..e3b61c0127 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -13,7 +13,7 @@ goto end
+ 
+ call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+-call run.bat --no-rebuild
++call run.bat --no-rebuild --no-local
+ if %GOBUILDFAIL%==1 goto end
+ go tool dist banner
+ 
+diff --git a/src/run.bat b/src/run.bat
+index 3fb1183414..f258ae10f8 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -3,6 +3,13 @@
+ :: license that can be found in the LICENSE file.
+ @echo off
+ 
++:: Keep environment variables within this script
++:: unless invoked with --no-local.
++if x%1==x--no-local goto nolocal
++if x%2==x--no-local goto nolocal
++setlocal
++:nolocal
++
+ set GOBUILDFAIL=0
+ 
+ rem TODO avoid rebuild if possible

@@ -7,6 +7,20 @@ Date:   Sat Jan 30 21:50:07 2016 +0100
     Change-Id: I3071f0e876506c6dc283e97bc15f157bf2ff011e
     Reviewed-on: https://go-review.googlesource.com/19641
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index d70ec083c3..052277f4fe 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -385,7 +385,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
+ 		if pname := pkg.Name(); pname == "" {
+ 			pkg.SetName(name)
+ 		} else if pname != name {
+-			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
++			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", id, pname, name)
+ 		}
+ 	}
+ 	return pkg

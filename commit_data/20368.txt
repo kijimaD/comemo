@@ -14,7 +14,7 @@ Date:   Thu Sep 4 10:00:30 2014 +0900
     R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/140040043
-
+---
  src/pkg/net/dnsclient_unix_test.go      |  4 +-
  src/pkg/net/dnsconfig_unix.go           | 35 ++++---------
  src/pkg/net/dnsconfig_unix_test.go      | 91 +++++++++++++++++++++------------
@@ -23,3 +23,240 @@ Date:   Thu Sep 4 10:00:30 2014 +0900
  src/pkg/net/testdata/resolv.conf        |  5 +-
  src/pkg/net/testdata/search-resolv.conf |  5 ++
  7 files changed, 83 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index bd7129bd13..1167c26b39 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -204,7 +204,7 @@ func TestReloadResolvConfChange(t *testing.T) {
+ 	if _, err := goLookupIP("golang.org"); err != nil {
+ 		t.Fatalf("goLookupIP(good) failed: %v", err)
+ 	}
+-	r.WantServers([]string{"[8.8.8.8]"})
++	r.WantServers([]string{"8.8.8.8"})
+ 
+ 	// Using a bad resolv.conf when we had a good one
+ 	// before should not update the config
+@@ -215,7 +215,7 @@ func TestReloadResolvConfChange(t *testing.T) {
+ 
+ 	// A new good config should get picked up
+ 	r.SetConf("nameserver 8.8.4.4")
+-	r.WantServers([]string{"[8.8.4.4]"})
++	r.WantServers([]string{"8.8.4.4"})
+ }
+ 
+ func BenchmarkGoLookupIP(b *testing.B) {
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index db45716f12..d046b1107a 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -25,13 +25,12 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 	if err != nil {
+ 		return nil, &DNSConfigError{err}
+ 	}
+-	conf := new(dnsConfig)
+-	conf.servers = make([]string, 0, 3) // small, but the standard limit
+-	conf.search = make([]string, 0)
+-	conf.ndots = 1
+-	conf.timeout = 5
+-	conf.attempts = 2
+-	conf.rotate = false
++	defer file.close()
++	conf := &dnsConfig{
++		ndots:    1,
++		timeout:  5,
++		attempts: 2,
++	}
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		f := getFields(line)
+ 		if len(f) < 1 {
+@@ -39,30 +38,18 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 		}
+ 		switch f[0] {
+ 		case "nameserver": // add one name server
+-			a := conf.servers
+-			n := len(a)
+-			if len(f) > 1 && n < cap(a) {
++			if len(f) > 1 && len(conf.servers) < 3 { // small, but the standard limit
+ 				// One more check: make sure server name is
+ 				// just an IP address.  Otherwise we need DNS
+ 				// to look it up.
+-				name := f[1]
+-				switch len(ParseIP(name)) {
+-				case 16:
+-					name = "[" + name + "]"
+-					fallthrough
+-				case 4:
+-					a = a[0 : n+1]
+-					a[n] = name
+-					conf.servers = a
++				if ParseIP(f[1]) != nil {
++					conf.servers = append(conf.servers, f[1])
+ 				}
+ 			}
+ 
+ 		case "domain": // set search path to just this domain
+ 			if len(f) > 1 {
+-				conf.search = make([]string, 1)
+-				conf.search[0] = f[1]
+-			} else {
+-				conf.search = make([]string, 0)
++				conf.search = []string{f[1]}
+ 			}
+ 
+ 		case "search": // set search path to given servers
+@@ -99,8 +86,6 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 			}
+ 		}
+ 	}
+-	file.close()
+-
+ 	return conf, nil
+ }
+ 
+diff --git a/src/pkg/net/dnsconfig_unix_test.go b/src/pkg/net/dnsconfig_unix_test.go
+index 37ed4931db..972f8cebe5 100644
+--- a/src/pkg/net/dnsconfig_unix_test.go
++++ b/src/pkg/net/dnsconfig_unix_test.go
+@@ -6,41 +6,64 @@
+ 
+ package net
+ 
+-import "testing"
++import (
++	"reflect"
++	"testing"
++)
+ 
+-func TestDNSReadConfig(t *testing.T) {
+-	dnsConfig, err := dnsReadConfig("testdata/resolv.conf")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	if len(dnsConfig.servers) != 1 {
+-		t.Errorf("len(dnsConfig.servers) = %d; want %d", len(dnsConfig.servers), 1)
+-	}
+-	if dnsConfig.servers[0] != "[192.168.1.1]" {
+-		t.Errorf("dnsConfig.servers[0] = %s; want %s", dnsConfig.servers[0], "[192.168.1.1]")
+-	}
+-
+-	if len(dnsConfig.search) != 1 {
+-		t.Errorf("len(dnsConfig.search) = %d; want %d", len(dnsConfig.search), 1)
+-	}
+-	if dnsConfig.search[0] != "Home" {
+-		t.Errorf("dnsConfig.search[0] = %s; want %s", dnsConfig.search[0], "Home")
+-	}
+-
+-	if dnsConfig.ndots != 5 {
+-		t.Errorf("dnsConfig.ndots = %d; want %d", dnsConfig.ndots, 5)
+-	}
+-
+-	if dnsConfig.timeout != 10 {
+-		t.Errorf("dnsConfig.timeout = %d; want %d", dnsConfig.timeout, 10)
+-	}
+-
+-	if dnsConfig.attempts != 3 {
+-		t.Errorf("dnsConfig.attempts = %d; want %d", dnsConfig.attempts, 3)
+-	}
++var dnsReadConfigTests = []struct {
++	name string
++	conf dnsConfig
++}{
++	{
++		name: "testdata/resolv.conf",
++		conf: dnsConfig{
++			servers:  []string{"8.8.8.8", "2001:4860:4860::8888"},
++			search:   []string{"localdomain"},
++			ndots:    5,
++			timeout:  10,
++			attempts: 3,
++			rotate:   true,
++		},
++	},
++	{
++		name: "testdata/domain-resolv.conf",
++		conf: dnsConfig{
++			servers:  []string{"8.8.8.8"},
++			search:   []string{"localdomain"},
++			ndots:    1,
++			timeout:  5,
++			attempts: 2,
++		},
++	},
++	{
++		name: "testdata/search-resolv.conf",
++		conf: dnsConfig{
++			servers:  []string{"8.8.8.8"},
++			search:   []string{"test", "invalid"},
++			ndots:    1,
++			timeout:  5,
++			attempts: 2,
++		},
++	},
++	{
++		name: "testdata/empty-resolv.conf",
++		conf: dnsConfig{
++			ndots:    1,
++			timeout:  5,
++			attempts: 2,
++		},
++	},
++}
+ 
+-	if dnsConfig.rotate != true {
+-		t.Errorf("dnsConfig.rotate = %t; want %t", dnsConfig.rotate, true)
++func TestDNSReadConfig(t *testing.T) {
++	for _, tt := range dnsReadConfigTests {
++		conf, err := dnsReadConfig(tt.name)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !reflect.DeepEqual(conf, &tt.conf) {
++			t.Errorf("got %v; want %v", conf, &tt.conf)
++		}
+ 	}
+ }
+diff --git a/src/pkg/net/testdata/domain-resolv.conf b/src/pkg/net/testdata/domain-resolv.conf
+new file mode 100644
+index 0000000000..ff269180f4
+--- /dev/null
++++ b/src/pkg/net/testdata/domain-resolv.conf
+@@ -0,0 +1,5 @@
++# /etc/resolv.conf
++
++search test invalid
++domain localdomain
++nameserver 8.8.8.8
+diff --git a/src/pkg/net/testdata/empty-resolv.conf b/src/pkg/net/testdata/empty-resolv.conf
+new file mode 100644
+index 0000000000..c4b2b57654
+--- /dev/null
++++ b/src/pkg/net/testdata/empty-resolv.conf
+@@ -0,0 +1 @@
++# /etc/resolv.conf
+diff --git a/src/pkg/net/testdata/resolv.conf b/src/pkg/net/testdata/resolv.conf
+index 3841bbf904..3413bed154 100644
+--- a/src/pkg/net/testdata/resolv.conf
++++ b/src/pkg/net/testdata/resolv.conf
+@@ -1,6 +1,7 @@
+ # /etc/resolv.conf
+ 
+-domain Home
+-nameserver 192.168.1.1
++domain localdomain
++nameserver 8.8.8.8
++nameserver 2001:4860:4860::8888
+ options ndots:5 timeout:10 attempts:3 rotate
+ options attempts 3
+diff --git a/src/pkg/net/testdata/search-resolv.conf b/src/pkg/net/testdata/search-resolv.conf
+new file mode 100644
+index 0000000000..1c846bfaff
+--- /dev/null
++++ b/src/pkg/net/testdata/search-resolv.conf
+@@ -0,0 +1,5 @@
++# /etc/resolv.conf
++
++domain localdomain
++search test invalid
++nameserver 8.8.8.8

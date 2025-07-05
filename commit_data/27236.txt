@@ -13,9 +13,139 @@ Date:   Wed Mar 16 13:53:53 2016 -0400
     Change-Id: Ic7bc29637eb6f1f5ee409b3898c702a59833a85a
     Reviewed-on: https://go-review.googlesource.com/20762
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue14838.go | 37 +++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/doc.go          |  7 +++++++
  src/cmd/cgo/out.go          | 18 ++++++++++++++++++
  4 files changed, 63 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 48fb6f18b7..9f493e6cca 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -69,5 +69,6 @@ func Test11925(t *testing.T)                 { test11925(t) }
+ func Test12030(t *testing.T)                 { test12030(t) }
+ func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+ func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
++func Test14838(t *testing.T)                 { test14838(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue14838.go b/misc/cgo/test/issue14838.go
+new file mode 100644
+index 0000000000..e6e1a42457
+--- /dev/null
++++ b/misc/cgo/test/issue14838.go
+@@ -0,0 +1,37 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 14838. add CBytes function
++
++package cgotest
++
++/*
++#include <stdlib.h>
++
++int check_cbytes(char *b, size_t l) {
++	int i;
++	for (i = 0; i < l; i++) {
++		if (b[i] != i) {
++			return 0;
++		}
++	}
++	return 1;
++}
++*/
++import "C"
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func test14838(t *testing.T) {
++	data := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
++	cData := C.CBytes(data)
++	defer C.free(cData)
++
++	if C.check_cbytes((*C.char)(cData), C.size_t(len(data))) == 0 {
++		t.Fatalf("mismatched data: expected %v, got %v", data, (*(*[10]byte)(unsafe.Pointer(cData)))[:])
++	}
++}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 61e480c585..6e0bfa58c6 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -198,6 +198,13 @@ by making copies of the data.  In pseudo-Go definitions:
+ 	// if C.free is needed).
+ 	func C.CString(string) *C.char
+ 
++	// Go []byte slice to C array
++	// The C array is allocated in the C heap using malloc.
++	// It is the caller's responsibility to arrange for it to be
++	// freed, such as by calling C.free (be sure to include stdlib.h
++	// if C.free is needed).
++	func C.CBytes([]byte) unsafe.Pointer
++
+ 	// C string to Go string
+ 	func C.GoString(*C.char) string
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 40c76b52e4..621c41c6b2 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -533,6 +533,7 @@ func fixGo(name string) string {
+ 
+ var isBuiltin = map[string]bool{
+ 	"_Cfunc_CString":   true,
++	"_Cfunc_CBytes":    true,
+ 	"_Cfunc_GoString":  true,
+ 	"_Cfunc_GoStringN": true,
+ 	"_Cfunc_GoBytes":   true,
+@@ -1324,6 +1325,7 @@ _GoString_ GoString(char *p);
+ _GoString_ GoStringN(char *p, int l);
+ _GoBytes_ GoBytes(void *p, int n);
+ char *CString(_GoString_);
++void *CBytes(_GoBytes_);
+ void *_CMalloc(size_t);
+ `
+ 
+@@ -1389,6 +1391,15 @@ func _Cfunc_CString(s string) *_Ctype_char {
+ }
+ `
+ 
++const cBytesDef = `
++func _Cfunc_CBytes(b []byte) unsafe.Pointer {
++	p := _cgo_runtime_cmalloc(uintptr(len(b)))
++	pp := (*[1<<30]byte)(p)
++	copy(pp[:], b)
++	return p
++}
++`
++
+ const cMallocDef = `
+ func _Cfunc__CMalloc(n _Ctype_size_t) unsafe.Pointer {
+ 	return _cgo_runtime_cmalloc(uintptr(n))
+@@ -1400,6 +1411,7 @@ var builtinDefs = map[string]string{
+ 	"GoStringN": goStringNDef,
+ 	"GoBytes":   goBytesDef,
+ 	"CString":   cStringDef,
++	"CBytes":    cBytesDef,
+ 	"_CMalloc":  cMallocDef,
+ }
+ 
+@@ -1437,6 +1449,12 @@ const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
+ 	return p;
+ }
+ 
++void *_cgoPREFIX_Cfunc_CBytes(struct __go_open_array b) {
++	char *p = malloc(b.__count);
++	memmove(p, b.__data, b.__count);
++	return p;
++}
++
+ struct __go_string _cgoPREFIX_Cfunc_GoString(char *p) {
+ 	intgo len = (p != NULL) ? strlen(p) : 0;
+ 	return __go_byte_array_to_string(p, len);

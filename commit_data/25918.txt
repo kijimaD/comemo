@@ -24,10 +24,163 @@ Date:   Tue Dec 1 22:55:28 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/deps.go                               |   7 +++--
  src/debug/elf/file.go                              |  29 ++++++++++++++++++---
  src/debug/elf/file_test.go                         |  28 ++++++++++++++++++++
  .../elf/testdata/zdebug-test-gcc484-x86-64.obj     | Bin 0 -> 3216 bytes
  src/go/build/deps_test.go                          |   2 +-
  5 files changed, 60 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index c15ed8d465..9fd98173f3 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -5,11 +5,13 @@ package main
+ var builddeps = map[string][]string{
+ 	"bufio":                             {"bytes", "errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"bytes":                             {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"compress/zlib":                     {"bufio", "bytes", "compress/flate", "errors", "fmt", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"container/heap":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort"},
+ 	"crypto":                            {"errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"debug/elf":                         {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"debug/elf":                         {"bufio", "bytes", "compress/flate", "compress/zlib", "debug/dwarf", "encoding/binary", "errors", "fmt", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"debug/macho":                       {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"encoding":                          {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"encoding/base64":                   {"errors", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+@@ -25,6 +27,7 @@ var builddeps = map[string][]string{
+ 	"go/scanner":                        {"bytes", "errors", "fmt", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"go/token":                          {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"hash":                              {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
++	"hash/adler32":                      {"errors", "hash", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"internal/race":                     {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"internal/singleflight":             {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"internal/syscall/windows":          {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+@@ -57,5 +60,5 @@ var builddeps = map[string][]string{
+ 	"unicode":                 {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf16":           {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf8":            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"cmd/go":                  {"bufio", "bytes", "container/heap", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go":                  {"bufio", "bytes", "compress/flate", "compress/zlib", "container/heap", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ }
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 3e766afe15..a42bde94f8 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -7,6 +7,7 @@ package elf
+ 
+ import (
+ 	"bytes"
++	"compress/zlib"
+ 	"debug/dwarf"
+ 	"encoding/binary"
+ 	"errors"
+@@ -863,6 +864,22 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			return nil, err
+ 		}
+ 
++		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
++			dlen := binary.BigEndian.Uint64(b[4:12])
++			dbuf := make([]byte, dlen)
++			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
++			if err != nil {
++				return nil, err
++			}
++			if _, err := io.ReadFull(r, dbuf); err != nil {
++				return nil, err
++			}
++			if err := r.Close(); err != nil {
++				return nil, err
++			}
++			b = dbuf
++		}
++
+ 		for _, r := range f.Sections {
+ 			if r.Type != SHT_RELA && r.Type != SHT_REL {
+ 				continue
+@@ -887,17 +904,23 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// Don't bother loading others.
+ 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil}
+ 	for i, s := range f.Sections {
+-		if !strings.HasPrefix(s.Name, ".debug_") {
++		suffix := ""
++		switch {
++		case strings.HasPrefix(s.Name, ".debug_"):
++			suffix = s.Name[7:]
++		case strings.HasPrefix(s.Name, ".zdebug_"):
++			suffix = s.Name[8:]
++		default:
+ 			continue
+ 		}
+-		if _, ok := dat[s.Name[7:]]; !ok {
++		if _, ok := dat[suffix]; !ok {
+ 			continue
+ 		}
+ 		b, err := sectionData(i, s)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		dat[s.Name[7:]] = b
++		dat[suffix] = b
+ 	}
+ 
+ 	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, nil, dat["str"])
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index cd1a4577af..6864b6df79 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -514,6 +514,34 @@ func TestDWARFRelocations(t *testing.T) {
+ 	}
+ }
+ 
++func TestCompressedDWARF(t *testing.T) {
++	// Test file built with GCC 4.8.4 and as 2.24 using:
++	// gcc -Wa,--compress-debug-sections -g -c -o zdebug-test-gcc484-x86-64.obj hello.c
++	f, err := Open("testdata/zdebug-test-gcc484-x86-64.obj")
++	if err != nil {
++		t.Fatal(err)
++	}
++	dwarf, err := f.DWARF()
++	if err != nil {
++		t.Fatal(err)
++	}
++	reader := dwarf.Reader()
++	n := 0
++	for {
++		entry, err := reader.Next()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if entry == nil {
++			break
++		}
++		n++
++	}
++	if n != 18 {
++		t.Fatalf("want %d DWARF entries, got %d", 18, n)
++	}
++}
++
+ func TestNoSectionOverlaps(t *testing.T) {
+ 	// Ensure 6l outputs sections without overlaps.
+ 	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
+diff --git a/src/debug/elf/testdata/zdebug-test-gcc484-x86-64.obj b/src/debug/elf/testdata/zdebug-test-gcc484-x86-64.obj
+new file mode 100644
+index 0000000000..a595a01df4
+Binary files /dev/null and b/src/debug/elf/testdata/zdebug-test-gcc484-x86-64.obj differ
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 45144a23bb..b16893861e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -218,7 +218,7 @@ var pkgDeps = map[string][]string{
+ 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
+ 	"database/sql/driver":      {"L4", "time"},
+ 	"debug/dwarf":              {"L4"},
+-	"debug/elf":                {"L4", "OS", "debug/dwarf"},
++	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+ 	"debug/gosym":              {"L4"},
+ 	"debug/macho":              {"L4", "OS", "debug/dwarf"},
+ 	"debug/pe":                 {"L4", "OS", "debug/dwarf"},

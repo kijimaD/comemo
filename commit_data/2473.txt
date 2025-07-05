@@ -8,6 +8,19 @@ Date:   Wed Jun 17 16:34:13 2009 -0700
     TBR=r
     OCL=30453
     CL=30453
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 78e3cbffd9..af70490c35 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -130,6 +130,6 @@ chan.acid: runtime.h chan.c
+ 	$(CC) -a chan.c >chan.acid
+ 
+ $(GOARCH)/asm.h: runtime.acid mkasmh
+-	mkasmh >$@.x
++	./mkasmh >$@.x
+ 	mv -f $@.x $@
+ 

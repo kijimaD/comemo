@@ -12,9 +12,225 @@ Date:   Wed Nov 1 17:25:20 2023 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-
+---
  src/cmd/link/internal/ld/data.go     |   8 ++-
  src/cmd/link/internal/loong64/asm.go | 125 +++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/loong64/obj.go |   2 +
  src/cmd/link/link_test.go            |   4 +-
  4 files changed, 136 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 92a8656c35..cf4b88f895 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -92,6 +92,8 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
+ 		return n * 20 // Trampolines in ARM range from 3 to 5 instructions.
+ 	case ctxt.IsARM64():
+ 		return n * 12 // Trampolines in ARM64 are 3 instructions.
++	case ctxt.IsLOONG64():
++		return n * 12 // Trampolines in LOONG64 are 3 instructions.
+ 	case ctxt.IsPPC64():
+ 		return n * 16 // Trampolines in PPC64 are 4 instructions.
+ 	case ctxt.IsRISCV64():
+@@ -101,7 +103,7 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
+ }
+ 
+ // Detect too-far jumps in function s, and add trampolines if necessary.
+-// ARM, PPC64, PPC64LE and RISCV64 support trampoline insertion for internal
++// ARM, LOONG64, PPC64, PPC64LE and RISCV64 support trampoline insertion for internal
+ // and external linking. On PPC64 and PPC64LE the text sections might be split
+ // but will still insert trampolines where necessary.
+ func trampoline(ctxt *Link, s loader.Sym) {
+@@ -160,6 +162,10 @@ func isPLTCall(arch *sys.Arch, rt objabi.RelocType) bool {
+ 		uint32(sys.ARM) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_ARM_PC24))<<8,
+ 		uint32(sys.ARM) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_ARM_JUMP24))<<8:
+ 		return true
++
++	// Loong64
++	case uint32(sys.Loong64) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_LARCH_B26))<<8:
++		return true
+ 	}
+ 	// TODO: other architectures.
+ 	return false
+diff --git a/src/cmd/link/internal/loong64/asm.go b/src/cmd/link/internal/loong64/asm.go
+index cb1805ccd7..7d1c8df6ed 100644
+--- a/src/cmd/link/internal/loong64/asm.go
++++ b/src/cmd/link/internal/loong64/asm.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
++	"fmt"
+ 	"log"
+ )
+ 
+@@ -255,3 +256,127 @@ func calculatePCAlignedReloc(t objabi.RelocType, tgt int64, pc int64) int64 {
+ 	// corresponding immediate field is 20 bits wide
+ 	return pageDelta & 0xfffff
+ }
++
++// Convert the direct jump relocation r to refer to a trampoline if the target is too far.
++func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
++	relocs := ldr.Relocs(s)
++	r := relocs.At(ri)
++	switch r.Type() {
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26):
++		// Host object relocations that will be turned into a PLT call.
++		// The PLT may be too far. Insert a trampoline for them.
++		fallthrough
++	case objabi.R_CALLLOONG64:
++		var t int64
++		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
++		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
++		// in dependency order.
++		if ldr.SymValue(rs) != 0 {
++			t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
++		}
++		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && (ldr.SymPkg(s) == "" || ldr.SymPkg(s) != ldr.SymPkg(rs))) {
++			// direct call too far need to insert trampoline.
++			// look up existing trampolines first. if we found one within the range
++			// of direct call, we can reuse it. otherwise create a new one.
++			var tramp loader.Sym
++			for i := 0; ; i++ {
++				oName := ldr.SymName(rs)
++				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
++				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
++				ldr.SetAttrReachable(tramp, true)
++				if ldr.SymType(tramp) == sym.SDYNIMPORT {
++					// don't reuse trampoline defined in other module
++					continue
++				}
++				if oName == "runtime.deferreturn" {
++					ldr.SetIsDeferReturnTramp(tramp, true)
++				}
++				if ldr.SymValue(tramp) == 0 {
++					// either the trampoline does not exist -- we need to create one,
++					// or found one the address which is not assigned -- this will be
++					// laid down immediately after the current function. use this one.
++					break
++				}
++
++				t = ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
++				if t >= -1<<27 && t < 1<<27 {
++					// found an existing trampoline that is not too far
++					// we can just use it.
++					break
++				}
++			}
++			if ldr.SymType(tramp) == 0 {
++				// trampoline does not exist, create one
++				trampb := ldr.MakeSymbolUpdater(tramp)
++				ctxt.AddTramp(trampb)
++				if ldr.SymType(rs) == sym.SDYNIMPORT {
++					if r.Add() != 0 {
++						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())
++					}
++					gentrampgot(ctxt, ldr, trampb, rs)
++				} else {
++					gentramp(ctxt, ldr, trampb, rs, r.Add())
++				}
++			}
++			// modify reloc to point to tramp, which will be resolved later
++			sb := ldr.MakeSymbolUpdater(s)
++			relocs := sb.Relocs()
++			r := relocs.At(ri)
++			r.SetSym(tramp)
++			r.SetAdd(0) // clear the offset embedded in the instruction
++		}
++	default:
++		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
++	}
++}
++
++// generate a trampoline to target+offset.
++func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
++	tramp.SetSize(12) // 3 instructions
++	P := make([]byte, tramp.Size())
++
++	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P, o1)
++	r1, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_HI)
++	r1.SetOff(0)
++	r1.SetSiz(4)
++	r1.SetSym(target)
++	r1.SetAdd(offset)
++
++	o2 := uint32(0x02c003de) // addi.d $r30, $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
++	r2, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_LO)
++	r2.SetOff(4)
++	r2.SetSiz(4)
++	r2.SetSym(target)
++	r2.SetAdd(offset)
++
++	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
++
++	tramp.SetData(P)
++}
++
++func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym) {
++	tramp.SetSize(12) // 3 instructions
++	P := make([]byte, tramp.Size())
++
++	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P, o1)
++	r1, _ := tramp.AddRel(objabi.R_LOONG64_GOT_HI)
++	r1.SetOff(0)
++	r1.SetSiz(4)
++	r1.SetSym(target)
++
++	o2 := uint32(0x28c003de) // ld.d $r30, $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
++	r2, _ := tramp.AddRel(objabi.R_LOONG64_GOT_LO)
++	r2.SetOff(4)
++	r2.SetSiz(4)
++	r2.SetSym(target)
++
++	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
++	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
++
++	tramp.SetData(P)
++}
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index 79c4c74fd3..5489b4c6da 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -19,6 +19,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Minalign:         minAlign,
+ 		Dwarfregsp:       dwarfRegSP,
+ 		Dwarfreglr:       dwarfRegLR,
++		TrampLimit:       0x7c00000,                      // 26-bit signed offset * 4, leave room for PLT etc.
+ 		CodePad:          []byte{0x00, 0x00, 0x2a, 0x00}, // BREAK 0
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+@@ -27,6 +28,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Extreloc:         extreloc,
+ 		Machoreloc1:      machoreloc1,
+ 		Gentext:          gentext,
++		Trampoline:       trampoline,
+ 
+ 		ELF: ld.ELFArch{
+ 			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 5fed6619c7..21986b96e1 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -671,7 +671,7 @@ func TestTrampoline(t *testing.T) {
+ 	// calls will use trampolines.
+ 	buildmodes := []string{"default"}
+ 	switch runtime.GOARCH {
+-	case "arm", "arm64", "ppc64":
++	case "arm", "arm64", "ppc64", "loong64":
+ 	case "ppc64le":
+ 		// Trampolines are generated differently when internal linking PIE, test them too.
+ 		buildmodes = append(buildmodes, "pie")
+@@ -728,7 +728,7 @@ func TestTrampolineCgo(t *testing.T) {
+ 	// calls will use trampolines.
+ 	buildmodes := []string{"default"}
+ 	switch runtime.GOARCH {
+-	case "arm", "arm64", "ppc64":
++	case "arm", "arm64", "ppc64", "loong64":
+ 	case "ppc64le":
+ 		// Trampolines are generated differently when internal linking PIE, test them too.
+ 		buildmodes = append(buildmodes, "pie")

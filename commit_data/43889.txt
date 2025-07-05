@@ -14,7 +14,7 @@ Date:   Tue Apr 28 09:53:29 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  2 +-
  src/cmd/link/internal/arm/asm.go     |  2 +-
  src/cmd/link/internal/arm64/asm.go   |  2 +-
@@ -29,3 +29,242 @@ Date:   Tue Apr 28 09:53:29 2020 -0400
  src/cmd/link/internal/wasm/asm.go    | 43 +++++++++++++++++++++++-------------
  src/cmd/link/internal/x86/asm.go     |  2 +-
  13 files changed, 39 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e2a66daf4f..95831d6dd0 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -684,7 +684,7 @@ func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index e1edc9e45d..7665cc59f0 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -682,7 +682,7 @@ func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index a0f06b6aa6..fbcbc9c8c3 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -830,7 +830,7 @@ func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+index 79badd5fdd..2aba40c231 100644
+--- a/src/cmd/link/internal/ld/data2.go
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -58,15 +58,6 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
+ 	if len(s.R) == 0 {
+ 		return
+ 	}
+-	if target.IsWasm() && s.Attr.ReadOnly() {
+-		// The symbol's content is backed by read-only memory.
+-		// Copy it to writable memory to apply relocations.
+-		// Only need to do this on Wasm. On other platforms we
+-		// apply relocations to the output buffer, which is
+-		// always writeable.
+-		s.P = append([]byte(nil), s.P...)
+-		// No need to unset AttrReadOnly because it will not be used.
+-	}
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+ 		r := &s.R[ri]
+ 		if r.Done {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7264f9383e..57b9e8cb24 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -265,7 +265,7 @@ type Arch struct {
+ 	// file. Typically, Asmb writes most of the content (sections and
+ 	// segments), for which we have computed the size and offset. Asmb2
+ 	// writes the rest.
+-	Asmb  func(*Link)
++	Asmb  func(*Link, *loader.Loader)
+ 	Asmb2 func(*Link)
+ 
+ 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 6c5a18c359..48fea57cc9 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -325,7 +325,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	// Asmb will redirect symbols to the output file mmap, and relocations
+ 	// will be applied directly there.
+ 	bench.Start("Asmb")
+-	thearch.Asmb(ctxt)
++	thearch.Asmb(ctxt, ctxt.loader)
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+ 	bench.Start("Asmb2")
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 21a57ccbb0..9281678704 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -164,7 +164,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 0a2a3c11f3..615851b564 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -170,7 +170,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index be124acaf8..6b6e1294d3 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1082,7 +1082,7 @@ func ensureglinkresolver2(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuild
+ 	return glink
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 51cc5980c8..5183de8d6b 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -98,7 +98,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 59c49b4537..ac634f99e3 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -485,7 +485,7 @@ func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 7f8742d008..1eb3291db6 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -92,7 +92,30 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
+ 	return sect, n, va
+ }
+ 
+-func asmb(ctxt *ld.Link) {} // dummy
++type wasmDataSect struct {
++	sect *sym.Section
++	data []byte
++}
++
++var dataSects []wasmDataSect
++
++func asmb(ctxt *ld.Link, ldr *loader.Loader) {
++	sections := []*sym.Section{
++		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
++		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
++	}
++
++	dataSects = make([]wasmDataSect, len(sections))
++	for i, sect := range sections {
++		data := ld.DatblkBytes(ctxt, int64(sect.Vaddr), int64(sect.Length))
++		dataSects[i] = wasmDataSect{sect, data}
++	}
++}
+ 
+ // asmb writes the final WebAssembly module binary.
+ // Spec: https://webassembly.github.io/spec/core/binary/modules.html
+@@ -396,16 +419,6 @@ func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
+ func writeDataSec(ctxt *ld.Link) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionData)
+ 
+-	sections := []*sym.Section{
+-		ctxt.Syms.Lookup("runtime.rodata", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.typelink", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.itablink", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.symtab", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.pclntab", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect,
+-		ctxt.Syms.Lookup("runtime.data", 0).Sect,
+-	}
+-
+ 	type dataSegment struct {
+ 		offset int32
+ 		data   []byte
+@@ -420,9 +433,9 @@ func writeDataSec(ctxt *ld.Link) {
+ 	const maxNumSegments = 100000
+ 
+ 	var segments []*dataSegment
+-	for secIndex, sec := range sections {
+-		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
+-		offset := int32(sec.Vaddr)
++	for secIndex, ds := range dataSects {
++		data := ds.data
++		offset := int32(ds.sect.Vaddr)
+ 
+ 		// skip leading zeroes
+ 		for len(data) > 0 && data[0] == 0 {
+@@ -433,7 +446,7 @@ func writeDataSec(ctxt *ld.Link) {
+ 		for len(data) > 0 {
+ 			dataLen := int32(len(data))
+ 			var segmentEnd, zeroEnd int32
+-			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
++			if len(segments)+(len(dataSects)-secIndex) == maxNumSegments {
+ 				segmentEnd = dataLen
+ 				zeroEnd = dataLen
+ 			} else {
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 03c73671b8..069d2bc31c 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -564,7 +564,7 @@ func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link) {
++func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsELF {
+ 		ld.Asmbelfsetup()
+ 	}

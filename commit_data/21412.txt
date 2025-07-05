@@ -10,6 +10,24 @@ Date:   Fri Jan 2 14:35:55 2015 -0800
     Change-Id: I833fc22bc942758a58791ed038634cdd812f5411
     Reviewed-on: https://go-review.googlesource.com/2261
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.txt | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index fff33ddfa7..b2dce7f06a 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -1,5 +1,12 @@
++API additions and behavior changes:
++
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
++
++
++Performance:
++
++strconv: optimize decimal to string conversion (https://golang.org/cl/2105)

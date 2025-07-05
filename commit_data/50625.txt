@@ -14,6 +14,20 @@ Date:   Wed Nov 3 16:44:44 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/trace/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index f94586abf3..3aeba223ee 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -66,7 +66,7 @@ var (
+ 
+ func main() {
+ 	flag.Usage = func() {
+-		fmt.Fprintln(os.Stderr, usageMessage)
++		fmt.Fprint(os.Stderr, usageMessage)
+ 		os.Exit(2)
+ 	}
+ 	flag.Parse()

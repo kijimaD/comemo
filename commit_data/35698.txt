@@ -14,7 +14,44 @@ Date:   Thu Mar 1 09:20:26 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux_arm64.go   | 7 +++++--
  src/syscall/syscall_linux_mips64x.go | 7 +++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 27c351d7bd..10270cfd00 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -74,8 +74,11 @@ type sigset_t struct {
+ //sys	pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_t) (n int, err error) = SYS_PSELECT6
+ 
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+-	ts := Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+-	return pselect(nfd, r, w, e, &ts, nil)
++	var ts *Timespec
++	if timeout != nil {
++		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
++	}
++	return pselect(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index d9eba62b06..e9bc01f8a0 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -65,8 +65,11 @@ type sigset_t struct {
+ //sys	pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_t) (n int, err error) = SYS_PSELECT6
+ 
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+-	ts := Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+-	return pselect(nfd, r, w, e, &ts, nil)
++	var ts *Timespec
++	if timeout != nil {
++		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
++	}
++	return pselect(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sysnb	Gettimeofday(tv *Timeval) (err error)

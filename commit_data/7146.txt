@@ -7,6 +7,49 @@ Date:   Tue Jan 18 20:45:17 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4008044
-
+---
  src/cmd/5g/cgen.c | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index bd44cab46d..7cfde993eb 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -567,7 +567,8 @@ agen(Node *n, Node *res)
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 			}
+-		} else if(nl->addable) {
++		} else
++		if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+ 				tempname(&tmp, types[TINT32]);
+ 				p2 = cgenindex(nr, &tmp);
+@@ -1092,11 +1093,17 @@ bgen(Node *n, int true, Prog *to)
+ 			break;
+ 		}
+ 
++		tempname(&n3, nl->type);
++		cgen(nl, &n3);
++
++		tempname(&tmp, nr->type);
++		cgen(nr, &tmp);
++
+ 		regalloc(&n1, nl->type, N);
+-		cgen(nl, &n1);
++		gmove(&n3, &n1);
+ 
+ 		regalloc(&n2, nr->type, N);
+-		cgen(nr, &n2);
++		gmove(&tmp, &n2);
+ 
+ 		gcmp(optoas(OCMP, nr->type), &n1, &n2);
+ 		if(isfloat[nl->type->etype]) {
+@@ -1109,7 +1116,6 @@ bgen(Node *n, int true, Prog *to)
+ 		} else {
+ 			patch(gbranch(a, nr->type), to);
+ 		}
+-
+ 		regfree(&n1);
+ 		regfree(&n2);
+ 		break;

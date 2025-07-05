@@ -20,8 +20,50 @@ Date:   Fri Sep 24 09:13:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/352069
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go     | 6 ++++++
  src/cmd/compile/internal/typecheck/iimport.go | 1 +
  src/cmd/compile/internal/typecheck/subr.go    | 1 +
  3 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index c8ce230121..cf8641d60e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1220,6 +1220,12 @@ func (g *irgen) dictPass(info *instInfo) {
+ 			op := m.(*ir.CallExpr).X.Op()
+ 			if op != ir.OFUNCINST {
+ 				assert(op == ir.OMETHVALUE || op == ir.OCLOSURE || op == ir.ODYNAMICDOTTYPE || op == ir.ODYNAMICDOTTYPE2)
++				if op == ir.OMETHVALUE {
++					// Redo the transformation of OXDOT, now that we
++					// know the method value is being called.
++					m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
++					transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
++				}
+ 				transformCall(m.(*ir.CallExpr))
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 57f0dd8566..9bd8e35a13 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1902,6 +1902,7 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 		} else {
+ 			nname = ir.NewNameAt(f.Pos, newsym)
+ 			nname.SetType(t2)
++			ir.MarkFunc(nname)
+ 			newsym.Def = nname
+ 		}
+ 		newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 9233bbe6f2..fbfe1b3720 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1269,6 +1269,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 			} else {
+ 				nname = ir.NewNameAt(f.Pos, newsym)
+ 				nname.SetType(t2)
++				ir.MarkFunc(nname)
+ 				newsym.Def = nname
+ 			}
+ 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)

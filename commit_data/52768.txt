@@ -11,6 +11,22 @@ Date:   Thu May 26 05:46:58 2022 -0700
     Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  doc/go1.19.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 155dcc44aa..5b31b3b520 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -350,7 +350,9 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="sort"><dt><a href="/pkg/sort/">sort</a></dt>
+   <dd>
+     <p><!-- CL 371574 -->
+-      TODO: <a href="https://go.dev/cl/371574">https://go.dev/cl/371574</a>: use pdqsort
++      The sorting algorithm has been rewritten to use
++      <a href="https://arxiv.org/pdf/2106.05123.pdf">pattern-defeating quicksort</a>, which
++      is faster for several common scenarios.
+     </p>
+   </dd>
+ </dl><!-- sort -->

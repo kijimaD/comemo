@@ -12,6 +12,22 @@ Date:   Fri Jun 16 12:20:41 2023 -0500
     Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testshared/shared_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 84c92fca80..796c46b9bf 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -731,6 +731,10 @@ func TestThreeGopathShlibs(t *testing.T) {
+ func requireGccgo(t *testing.T) {
+ 	t.Helper()
+ 
++	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
++		t.Skip("gccgo test skipped on PPC64 until issue #60798 is resolved")
++	}
++
+ 	gccgoName := os.Getenv("GCCGO")
+ 	if gccgoName == "" {
+ 		gccgoName = "gccgo"

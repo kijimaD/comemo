@@ -15,8 +15,181 @@ Date:   Sat Feb 1 04:52:57 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/tracev2/events.go      | 13 +++-
  src/internal/trace/tracev2/events_test.go | 98 +++++++++++++++++++++++++++++++
  src/internal/trace/tracev2/spec.go        |  7 ++-
  3 files changed, 114 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/trace/tracev2/events.go b/src/internal/trace/tracev2/events.go
+index 778ef8d005..c6dd162a63 100644
+--- a/src/internal/trace/tracev2/events.go
++++ b/src/internal/trace/tracev2/events.go
+@@ -82,8 +82,14 @@ const (
+ 
+ 	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
+ 	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
++
++	NumEvents
+ )
+ 
++func (ev EventType) Experimental() bool {
++	return ev > MaxEvent && ev < MaxExperimentalEvent
++}
++
+ // Experiments.
+ const (
+ 	// AllocFree is the alloc-free events experiment.
+@@ -103,7 +109,7 @@ var experiments = [...]string{
+ 
+ // Experimental events.
+ const (
+-	_ EventType = 127 + iota
++	MaxEvent EventType = 127 + iota
+ 
+ 	// Experimental events for AllocFree.
+ 
+@@ -121,8 +127,12 @@ const (
+ 	EvGoroutineStack      // stack exists [timestamp, id, order]
+ 	EvGoroutineStackAlloc // stack alloc [timestamp, id, order]
+ 	EvGoroutineStackFree  // stack free [timestamp, id]
++
++	MaxExperimentalEvent
+ )
+ 
++const NumExperimentalEvents = MaxExperimentalEvent - MaxEvent
++
+ func Specs() []EventSpec {
+ 	return specs[:]
+ }
+@@ -158,6 +168,7 @@ var specs = [...]EventSpec{
+ 		// N.B. There's clearly a timestamp here, but these Events
+ 		// are special in that they don't appear in the regular
+ 		// M streams.
++		StackIDs: []int{4},
+ 	},
+ 	EvFrequency: {
+ 		Name: "Frequency",
+diff --git a/src/internal/trace/tracev2/events_test.go b/src/internal/trace/tracev2/events_test.go
+new file mode 100644
+index 0000000000..1f2fbf7610
+--- /dev/null
++++ b/src/internal/trace/tracev2/events_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tracev2_test
++
++import (
++	"internal/trace/tracev2"
++	"iter"
++	"regexp"
++	"slices"
++	"strings"
++	"testing"
++)
++
++var argNameRegexp = regexp.MustCompile(`((?P<name>[A-Za-z]+)_)?(?P<type>[A-Za-z]+)`)
++
++func TestSpecs(t *testing.T) {
++	if tracev2.NumEvents <= 0 {
++		t.Fatalf("no trace events?")
++	}
++	if tracev2.MaxExperimentalEvent < tracev2.MaxEvent {
++		t.Fatalf("max experimental event (%d) is < max event (%d)", tracev2.MaxExperimentalEvent, tracev2.MaxEvent)
++	}
++	specs := tracev2.Specs()
++	for ev := range allEvents() {
++		spec := &specs[ev]
++		if spec.Name == "" {
++			t.Errorf("expected event %d to be defined in specs", ev)
++			continue
++		}
++		if spec.IsTimedEvent && spec.Args[0] != "dt" {
++			t.Errorf("%s is a timed event, but its first argument is not 'dt'", spec.Name)
++		}
++		if spec.HasData && spec.Name != "String" && spec.Name != "ExperimentalBatch" {
++			t.Errorf("%s has data, but is not a special kind of event (unsupported, but could be)", spec.Name)
++		}
++		if spec.IsStack && spec.Name != "Stack" {
++			t.Errorf("%s listed as being a stack, but is not the Stack event (unsupported)", spec.Name)
++		}
++		if ev.Experimental() && spec.Experiment == tracev2.NoExperiment {
++			t.Errorf("experimental event %s must have an experiment", spec.Name)
++		}
++
++		// Check arg types.
++		for _, arg := range spec.Args {
++			matches := argNameRegexp.FindStringSubmatch(arg)
++			if len(matches) == 0 {
++				t.Errorf("malformed argument %s for event %s", arg, spec.Name)
++			}
++		}
++
++		// Check stacks.
++		for _, i := range spec.StackIDs {
++			if !strings.HasSuffix(spec.Args[i], "stack") {
++				t.Errorf("stack argument listed at %d in %s, but argument name %s does not imply stack type", i, spec.Name, spec.Args[i])
++			}
++		}
++		for i, arg := range spec.Args {
++			if !strings.HasSuffix(spec.Args[i], "stack") {
++				continue
++			}
++			if !slices.Contains(spec.StackIDs, i) {
++				t.Errorf("found stack argument %s in %s at index %d not listed in StackIDs", arg, spec.Name, i)
++			}
++		}
++
++		// Check strings.
++		for _, i := range spec.StringIDs {
++			if !strings.HasSuffix(spec.Args[i], "string") {
++				t.Errorf("string argument listed at %d in %s, but argument name %s does not imply string type", i, spec.Name, spec.Args[i])
++			}
++		}
++		for i, arg := range spec.Args {
++			if !strings.HasSuffix(spec.Args[i], "string") {
++				continue
++			}
++			if !slices.Contains(spec.StringIDs, i) {
++				t.Errorf("found string argument %s in %s at index %d not listed in StringIDs", arg, spec.Name, i)
++			}
++		}
++	}
++}
++
++func allEvents() iter.Seq[tracev2.EventType] {
++	return func(yield func(tracev2.EventType) bool) {
++		for ev := tracev2.EvNone + 1; ev < tracev2.NumEvents; ev++ {
++			if !yield(ev) {
++				return
++			}
++		}
++		for ev := tracev2.MaxEvent + 1; ev < tracev2.NumExperimentalEvents; ev++ {
++			if !yield(ev) {
++				return
++			}
++		}
++	}
++}
+diff --git a/src/internal/trace/tracev2/spec.go b/src/internal/trace/tracev2/spec.go
+index 3ea3c59889..af92865781 100644
+--- a/src/internal/trace/tracev2/spec.go
++++ b/src/internal/trace/tracev2/spec.go
+@@ -22,10 +22,11 @@ type EventSpec struct {
+ 	// is relied on by the testing framework to type-check arguments.
+ 	// The structure is:
+ 	//
+-	//     (?P<name>[A-Za-z]+_)?(?P<type>[A-Za-z]+)
++	//     (?P<name>[A-Za-z]+)(_(?P<type>[A-Za-z]+))?
+ 	//
+-	// In sum, it's an optional name followed by a type. If the name
+-	// is present, it is separated from the type with an underscore.
++	// In sum, it's a name followed by an optional type.
++	// If the type is present, it is preceded with an underscore.
++	// Arguments without types will be interpreted as just raw uint64s.
+ 	// The valid argument types and the Go types they map to are listed
+ 	// in the ArgTypes variable.
+ 	Args []string

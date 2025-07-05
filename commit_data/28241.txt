@@ -11,7 +11,52 @@ Date:   Fri May 6 18:11:38 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      |  2 +-
  src/net/http/client_test.go | 23 +++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index f8ab675a3d..1127634bec 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -442,7 +442,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 		req.closeBody()
+ 		method := valueOrDefault(reqs[0].Method, "GET")
+ 		var urlStr string
+-		if resp != nil {
++		if resp != nil && resp.Request != nil {
+ 			urlStr = resp.Request.URL.String()
+ 		} else {
+ 			urlStr = req.URL.String()
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index a9b30b1bf5..6f7ab965cb 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1168,3 +1168,26 @@ func TestReferer(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// issue15577Tripper returns a Response with a redirect response
++// header and doesn't populate its Response.Request field.
++type issue15577Tripper struct{}
++
++func (issue15577Tripper) RoundTrip(*Request) (*Response, error) {
++	resp := &Response{
++		StatusCode: 303,
++		Header:     map[string][]string{"Location": {"http://www.example.com/"}},
++		Body:       ioutil.NopCloser(strings.NewReader("")),
++	}
++	return resp, nil
++}
++
++// Issue 15577: don't assume the roundtripper's response populates its Request field.
++func TestClientRedirectResponseWithoutRequest(t *testing.T) {
++	c := &Client{
++		CheckRedirect: func(*Request, []*Request) error { return fmt.Errorf("no redirects!") },
++		Transport:     issue15577Tripper{},
++	}
++	// Check that this doesn't crash:
++	c.Get("http://dummy.tld")
++}

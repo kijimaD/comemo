@@ -12,6 +12,21 @@ Date:   Wed Apr 8 11:24:48 2015 -0700
     Change-Id: I456018f3a01ca05b4501c7f8a4961d48ab8c5e16
     Reviewed-on: https://go-review.googlesource.com/8651
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/asm/main.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index e8b10ce1ea..690ec2ef89 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -57,7 +57,8 @@ func main() {
+ 	var ok bool
+ 	pList.Firstpc, ok = parser.Parse()
+ 	if !ok {
+-		log.Fatalf("asm: assembly of %s failed", flag.Arg(0))
++		log.Printf("asm: assembly of %s failed", flag.Arg(0))
++		os.Remove(*flags.OutputFile)
+ 		os.Exit(1)
+ 	}
+ 	obj.Writeobjdirect(ctxt, output)

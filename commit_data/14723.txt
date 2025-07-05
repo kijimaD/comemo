@@ -12,7 +12,62 @@ Date:   Sat Dec 22 19:13:45 2012 +0100
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6998051
-
+---
  src/cmd/gc/typecheck.c      | 10 ++++------
  test/fixedbugs/issue4458.go | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 425ee50d17..d77dd878cb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1781,7 +1781,7 @@ lookdot1(Node *errnode, Sym *s, Type *t, Type *f, int dostrcmp)
+ static int
+ looktypedot(Node *n, Type *t, int dostrcmp)
+ {
+-	Type *f1, *f2, *tt;
++	Type *f1, *f2;
+ 	Sym *s;
+ 	
+ 	s = n->right->sym;
+@@ -1798,11 +1798,9 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 		return 1;
+ 	}
+ 
+-	tt = t;
+-	if(t->sym == S && isptr[t->etype])
+-		tt = t->type;
+-
+-	f2 = methtype(tt, 0);
++	// Find the base type: methtype will fail if t
++	// is not of the form T or *T.
++	f2 = methtype(t, 0);
+ 	if(f2 == T)
+ 		return 0;
+ 
+diff --git a/test/fixedbugs/issue4458.go b/test/fixedbugs/issue4458.go
+new file mode 100644
+index 0000000000..8ee3e879ea
+--- /dev/null
++++ b/test/fixedbugs/issue4458.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4458: gc accepts invalid method expressions
++// like (**T).Method.
++
++package main
++
++type T struct{}
++
++func (T) foo() {}
++
++func main() {
++	av := T{}
++	pav := &av
++	(**T).foo(&pav) // ERROR "no method foo"
++}

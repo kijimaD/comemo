@@ -12,6 +12,29 @@ Date:   Thu Sep 20 12:30:56 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6552044
-
+---
  src/pkg/crypto/x509/x509.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index b9e4dc0f6a..edfc7f30e7 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -613,8 +613,6 @@ type nameConstraints struct {
+ 
+ type generalSubtree struct {
+ 	Name string `asn1:"tag:2,optional,ia5"`
+-	Min  int    `asn1:"optional,tag:0"`
+-	Max  int    `asn1:"optional,tag:1"`
+ }
+ 
+ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
+@@ -831,7 +829,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 				}
+ 
+ 				for _, subtree := range constraints.Permitted {
+-					if subtree.Min > 0 || subtree.Max > 0 || len(subtree.Name) == 0 {
++					if len(subtree.Name) == 0 {
+ 						if e.Critical {
+ 							return out, UnhandledCriticalExtension{}
+ 						}

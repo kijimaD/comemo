@@ -7,6 +7,20 @@ Date:   Sun Jun 9 22:01:03 2013 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10099045
-
+---
  misc/pprof | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/pprof b/misc/pprof
+index 5a43b66d2c..83c7942d1a 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -1381,7 +1381,7 @@ sub PrintListing {
+ 
+ sub HtmlListingHeader {
+   return <<'EOF';
+-<DOCTYPE html>
++<!DOCTYPE html>
+ <html>
+ <head>
+ <title>Pprof listing</title>

@@ -285,3 +285,92 @@ Date:   Fri Aug 21 14:18:06 2020 -0400
  test/fixedbugs/issue40746.go                       |  19 +
  test/fixedbugs/issue40917.go                       |  23 +
  277 files changed, 4922 insertions(+), 3438 deletions(-)
+
+diff --cc src/cmd/internal/obj/pcln.go
+index 7750637796,bffeda041d..ce0d3714c0
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@@ -282,12 -274,27 +282,27 @@@ func linkpcln(ctxt *Link, cursym *LSym
+  	pcln.Funcdataoff = make([]int64, nfuncdata)
+  	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
+  
+ -	funcpctab(ctxt, &pcln.Pcsp, cursym, "pctospadj", pctospadj, nil)
+ -	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
+ -	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+ +	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
+ +	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
+ +	pcln.Pcline = funcpctab(ctxt, cursym, "pctoline", pctofileline, nil)
+  
++ 	// Check that all the Progs used as inline markers are still reachable.
++ 	// See issue #40473.
++ 	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
++ 	for _, inlMark := range cursym.Func.InlMarks {
++ 		inlMarkProgs[inlMark.p] = struct{}{}
++ 	}
++ 	for p := cursym.Func.Text; p != nil; p = p.Link {
++ 		if _, ok := inlMarkProgs[p]; ok {
++ 			delete(inlMarkProgs, p)
++ 		}
++ 	}
++ 	if len(inlMarkProgs) > 0 {
++ 		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
++ 	}
++ 
+  	pcinlineState := new(pcinlineState)
+ -	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+ +	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+  	for _, inlMark := range cursym.Func.InlMarks {
+  		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
+  	}
+diff --cc src/cmd/internal/objfile/goobj.go
+index 8eecebb1df,af9ada3324..7f74a8256c
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@@ -223,28 -230,11 +230,19 @@@ func (f *goobjFile) pcln() (textStart u
+  // Returns "",0,nil if unknown.
+  // This function implements the Liner interface in preference to pcln() above.
+  func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+- 	// TODO: this is really inefficient. Binary search? Memoize last result?
+  	r := f.r
+- 	var arch *sys.Arch
+- 	archname := f.goarch()
+- 	for _, a := range sys.Archs {
+- 		if a.Name == archname {
+- 			arch = a
+- 			break
+- 		}
+- 	}
+- 	if arch == nil {
++ 	if f.arch == nil {
+  		return "", 0, nil
+  	}
+ -	pcdataBase := r.PcdataBase()
+ +	getSymData := func(s goobj.SymRef) []byte {
+ +		if s.PkgIdx != goobj.PkgIdxHashed {
+ +			// We don't need the data for non-hashed symbols, yet.
+ +			panic("not supported")
+ +		}
+ +		i := uint32(s.SymIdx + uint32(r.NSym()+r.NHashed64def()))
+ +		return r.BytesAt(r.DataOff(i), r.DataSize(i))
+ +	}
+ +
+  	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
+  	for i := uint32(0); i < ndef; i++ {
+  		osym := r.Sym(i)
+@@@ -270,10 -260,12 +268,10 @@@
+  		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
+  		var info *goobj.FuncInfo
+  		lengths := info.ReadFuncInfoLengths(b)
+ -		off, end := info.ReadPcline(b)
+ -		pcline := r.BytesAt(pcdataBase+off, int(end-off))
+ +		pcline := getSymData(info.ReadPcline(b))
+- 		line := int(pcValue(pcline, pc-addr, arch))
++ 		line := int(pcValue(pcline, pc-addr, f.arch))
+ -		off, end = info.ReadPcfile(b)
+ -		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
+ +		pcfile := getSymData(info.ReadPcfile(b))
+- 		fileID := pcValue(pcfile, pc-addr, arch)
++ 		fileID := pcValue(pcfile, pc-addr, f.arch)
+  		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
+  		fileName := r.File(int(globalFileID))
+  		// Note: we provide only the name in the Func structure.

@@ -12,6 +12,20 @@ Date:   Fri Feb 15 13:00:03 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index baa5872687..bbcbdd7568 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -655,7 +655,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	if len(out) > 0 {
+ 		output := b.processOutput(out)
+ 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+-			output += "note: module requires Go " + p.Module.GoVersion
++			output += "note: module requires Go " + p.Module.GoVersion + "\n"
+ 		}
+ 		b.showOutput(a, a.Package.Dir, a.Package.Desc(), output)
+ 		if err != nil {

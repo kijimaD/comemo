@@ -17,8 +17,74 @@ Date:   Fri Jan 15 19:41:26 2021 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go            | 8 ++++++--
  src/cmd/go/internal/list/list.go | 8 ++++++--
  src/cmd/go/internal/load/pkg.go  | 6 +++---
  3 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0645780966..49d390297c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -787,8 +787,12 @@
+ //         XTestGoFiles    []string   // _test.go files outside package
+ //
+ //         // Embedded files
+-//         EmbedPatterns []string // //go:embed patterns
+-//         EmbedFiles    []string // files and directories matched by EmbedPatterns
++//         EmbedPatterns      []string // //go:embed patterns
++//         EmbedFiles         []string // files matched by EmbedPatterns
++//         TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
++//         TestEmbedFiles     []string // files matched by TestEmbedPatterns
++//         XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
++//         XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
+ //
+ //         // Cgo directives
+ //         CgoCFLAGS    []string // cgo: flags for C compiler
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 975b02252e..b4d82d9f8c 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -90,8 +90,12 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         XTestGoFiles    []string   // _test.go files outside package
+ 
+         // Embedded files
+-        EmbedPatterns []string // //go:embed patterns
+-        EmbedFiles    []string // files and directories matched by EmbedPatterns
++        EmbedPatterns      []string // //go:embed patterns
++        EmbedFiles         []string // files matched by EmbedPatterns
++        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
++        TestEmbedFiles     []string // files matched by TestEmbedPatterns
++        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
++        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
+ 
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3f67927111..3a274a3ad1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -96,7 +96,7 @@ type PackagePublic struct {
+ 
+ 	// Embedded files
+ 	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+-	EmbedFiles    []string `json:",omitempty"` // files and directories matched by EmbedPatterns
++	EmbedFiles    []string `json:",omitempty"` // files matched by EmbedPatterns
+ 
+ 	// Cgo directives
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+@@ -122,11 +122,11 @@ type PackagePublic struct {
+ 	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
+ 	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
+ 	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
+-	TestEmbedFiles     []string `json:",omitempty"` // //files matched by EmbedPatterns
++	TestEmbedFiles     []string `json:",omitempty"` // files matched by TestEmbedPatterns
+ 	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
+ 	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
+ 	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+-	XTestEmbedFiles    []string `json:",omitempty"` // //files matched by EmbedPatterns
++	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
+ }
+ 
+ // AllFiles returns the names of all the files considered for the package.

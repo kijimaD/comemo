@@ -12,6 +12,26 @@ Date:   Sat Jan 10 17:53:13 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/2661
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/gc/racewalk.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index c9e27fe560..de9e32b2a8 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -210,11 +210,12 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCALLFUNC:
+ 		// Instrument dst argument of runtime.writebarrier* calls
+ 		// as we do not instrument runtime code.
+-		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && strncmp(n->left->sym->name, "writebarrier", 12) == 0) {
++		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && 
++		(strncmp(n->left->sym->name, "writebarrier", 12) == 0 || strcmp(n->left->sym->name, "typedmemmove") == 0)) {
+ 			// Find the dst argument.
+ 			// The list can be reordered, so it's not necessary just the first or the second element.
+ 			for(l = n->list; l; l = l->next) {
+-				if(strcmp(n->left->sym->name, "writebarrierfat") == 0) {
++				if(strcmp(n->left->sym->name, "typedmemmove") == 0) {
+ 					if(l->n->left->xoffset == widthptr)
+ 						break;
+ 				} else {

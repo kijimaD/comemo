@@ -20,9 +20,120 @@ Date:   Wed Jul 27 00:33:56 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/importer/ureader.go |  2 +-
  src/cmd/compile/internal/noder/unified.go    | 23 +++++++++++++----------
  src/go/internal/gcimporter/ureader.go        |  2 +-
  src/internal/pkgbits/encoder.go              |  4 ++++
  4 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index ccd4c7c502..d00b765859 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -39,7 +39,7 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+-	r.Bool() // has init
++	r.Bool() // TODO(mdempsky): Remove; was "has init"
+ 
+ 	for i, n := 0, r.Len(); i < n; i++ {
+ 		// As if r.obj(), but avoiding the Scope.Lookup call,
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index d9b15ab385..eebbb03742 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -161,7 +161,7 @@ func writePkgStub(noders []*noder) string {
+ 	{
+ 		w := publicRootWriter
+ 		w.pkg(pkg)
+-		w.Bool(false) // has init; XXX
++		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
+ 
+ 		scope := pkg.Scope()
+ 		names := scope.Names()
+@@ -237,12 +237,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 		pkg := r.pkg()
+ 		base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
+ 
+-		if r.Bool() {
+-			sym := pkg.Lookup(".inittask")
+-			task := ir.NewNameAt(src.NoXPos, sym)
+-			task.Class = ir.PEXTERN
+-			sym.Def = task
+-		}
++		r.Bool() // TODO(mdempsky): Remove; was "has init"
+ 
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			r.Sync(pkgbits.SyncObject)
+@@ -262,6 +257,13 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 	if !localStub {
+ 		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 
++		if r.Bool() {
++			sym := importpkg.Lookup(".inittask")
++			task := ir.NewNameAt(src.NoXPos, sym)
++			task.Class = ir.PEXTERN
++			sym.Def = task
++		}
++
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			path := r.String()
+ 			name := r.String()
+@@ -302,7 +304,7 @@ func writeUnifiedExport(out io.Writer) {
+ 		r.Sync(pkgbits.SyncPkg)
+ 		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
+ 
+-		r.Bool() // has init
++		r.Bool() // TODO(mdempsky): Remove; was "has init"
+ 
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			r.Sync(pkgbits.SyncObject)
+@@ -333,8 +335,7 @@ func writeUnifiedExport(out io.Writer) {
+ 
+ 		w.Sync(pkgbits.SyncPkg)
+ 		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
+-
+-		w.Bool(typecheck.Lookup(".inittask").Def != nil)
++		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
+ 
+ 		w.Len(len(idxs))
+ 		for _, idx := range idxs {
+@@ -361,6 +362,8 @@ func writeUnifiedExport(out io.Writer) {
+ 
+ 		w := privateRootWriter
+ 
++		w.Bool(typecheck.Lookup(".inittask").Def != nil)
++
+ 		w.Len(len(bodies))
+ 		for _, body := range bodies {
+ 			w.String(body.sym.Pkg.Path)
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 63718a59e1..2047ad8ae9 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -60,7 +60,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
+ 
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+-	r.Bool() // has init
++	r.Bool() // TODO(mdempsky): Remove; was "has init"
+ 
+ 	for i, n := 0, r.Len(); i < n; i++ {
+ 		// As if r.obj(), but avoiding the Scope.Lookup call,
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index c0f2252909..f1bc8367ef 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -19,6 +19,10 @@ import (
+ //   - v0: initial prototype
+ //
+ //   - v1: adds the flags uint32 word
++//
++// TODO(mdempsky): For the next version bump:
++//   - remove the unused dict.derived.needed bool
++//   - remove the legacy "has init" bool from the public root
+ const currentVersion uint32 = 1
+ 
+ // A PkgEncoder provides methods for encoding a package's Unified IR

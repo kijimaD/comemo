@@ -15,8 +15,53 @@ Date:   Wed Dec 13 23:35:30 2023 -0500
     Reviewed-by: David Anderson <dave@natulte.net>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/go1.22.txt               | 1 -
  src/net/netip/export_test.go | 2 ++
  src/net/netip/netip.go       | 7 +++++--
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/api/go1.22.txt b/api/go1.22.txt
+index d2a1ae7a88..86eb80deaf 100644
+--- a/api/go1.22.txt
++++ b/api/go1.22.txt
+@@ -131,7 +131,6 @@ pkg net/http, func ServeFileFS(ResponseWriter, *Request, fs.FS, string) #51971
+ pkg net/http, method (*Request) PathValue(string) string #61410
+ pkg net/http, method (*Request) SetPathValue(string, string) #61410
+ pkg net/netip, method (AddrPort) Compare(AddrPort) int #61642
+-pkg net/netip, method (Prefix) Compare(Prefix) int #61642
+ pkg os, method (*File) WriteTo(io.Writer) (int64, error) #58808
+ pkg reflect, func PtrTo //deprecated #59599
+ pkg reflect, func TypeFor[$0 interface{}]() Type #60088
+diff --git a/src/net/netip/export_test.go b/src/net/netip/export_test.go
+index 59971fa2e4..72347ee01b 100644
+--- a/src/net/netip/export_test.go
++++ b/src/net/netip/export_test.go
+@@ -28,3 +28,5 @@ var TestAppendToMarshal = testAppendToMarshal
+ 
+ func (a Addr) IsZero() bool   { return a.isZero() }
+ func (p Prefix) IsZero() bool { return p.isZero() }
++
++func (p Prefix) Compare(p2 Prefix) int { return p.compare(p2) }
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 1d20a4aa7f..9acc48a6e0 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1261,12 +1261,15 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
+ // IsSingleIP reports whether p contains exactly one IP.
+ func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
+ 
+-// Compare returns an integer comparing two prefixes.
++// compare returns an integer comparing two prefixes.
+ // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
+ // Prefixes sort first by validity (invalid before valid), then
+ // address family (IPv4 before IPv6), then prefix length, then
+ // address.
+-func (p Prefix) Compare(p2 Prefix) int {
++//
++// Unexported for Go 1.22 because we may want to compare by p.Addr first.
++// See post-acceptance discussion on go.dev/issue/61642.
++func (p Prefix) compare(p2 Prefix) int {
+ 	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+ 		return c
+ 	}

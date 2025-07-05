@@ -24,6 +24,90 @@ Date:   Thu Feb 1 05:32:03 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/560235
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/proc.go | 21 +++++++++++++++------
  1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c1b3ce20d5..a7a3fb62cb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4404,8 +4404,8 @@ func entersyscall_gcwait() {
+ 	pp := gp.m.oldp.ptr()
+ 
+ 	lock(&sched.lock)
++	trace := traceAcquire()
+ 	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
+-		trace := traceAcquire()
+ 		if trace.ok() {
+ 			if goexperiment.ExecTracer2 {
+ 				// This is a steal in the new tracer. While it's very likely
+@@ -4428,6 +4428,8 @@ func entersyscall_gcwait() {
+ 		if sched.stopwait--; sched.stopwait == 0 {
+ 			notewakeup(&sched.stopnote)
+ 		}
++	} else if trace.ok() {
++		traceRelease(trace)
+ 	}
+ 	unlock(&sched.lock)
+ }
+@@ -4605,12 +4607,19 @@ func exitsyscallfast(oldp *p) bool {
+ 	}
+ 
+ 	// Try to re-acquire the last P.
++	trace := traceAcquire()
+ 	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
+ 		// There's a cpu for us, so we can run.
+ 		wirep(oldp)
+-		exitsyscallfast_reacquired()
++		exitsyscallfast_reacquired(trace)
++		if trace.ok() {
++			traceRelease(trace)
++		}
+ 		return true
+ 	}
++	if trace.ok() {
++		traceRelease(trace)
++	}
+ 
+ 	// Try to get any other idle P.
+ 	if sched.pidle != 0 {
+@@ -4646,10 +4655,9 @@ func exitsyscallfast(oldp *p) bool {
+ // syscall.
+ //
+ //go:nosplit
+-func exitsyscallfast_reacquired() {
++func exitsyscallfast_reacquired(trace traceLocker) {
+ 	gp := getg()
+ 	if gp.m.syscalltick != gp.m.p.ptr().syscalltick {
+-		trace := traceAcquire()
+ 		if trace.ok() {
+ 			// The p was retaken and then enter into syscall again (since gp.m.syscalltick has changed).
+ 			// traceGoSysBlock for this syscall was already emitted,
+@@ -4666,7 +4674,6 @@ func exitsyscallfast_reacquired() {
+ 					// Denote completion of the current syscall.
+ 					trace.GoSysExit(true)
+ 				}
+-				traceRelease(trace)
+ 			})
+ 		}
+ 		gp.m.p.ptr().syscalltick++
+@@ -6146,8 +6153,8 @@ func retake(now int64) uint32 {
+ 			// Otherwise the M from which we retake can exit the syscall,
+ 			// increment nmidle and report deadlock.
+ 			incidlelocked(-1)
++			trace := traceAcquire()
+ 			if atomic.Cas(&pp.status, s, _Pidle) {
+-				trace := traceAcquire()
+ 				if trace.ok() {
+ 					trace.GoSysBlock(pp)
+ 					trace.ProcSteal(pp, false)
+@@ -6156,6 +6163,8 @@ func retake(now int64) uint32 {
+ 				n++
+ 				pp.syscalltick++
+ 				handoffp(pp)
++			} else if trace.ok() {
++				traceRelease(trace)
+ 			}
+ 			incidlelocked(1)
+ 			lock(&allpLock)

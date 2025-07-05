@@ -11,6 +11,31 @@ Date:   Fri May 31 11:21:37 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/9899043
-
+---
  doc/go_spec.html | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b3134eed83..09bbb85f68 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 20, 2013",
++	"Subtitle": "Version of May 31, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3301,9 +3301,8 @@ from the channel <code>ch</code>. The channel direction must permit receive oper
+ and the type of the receive operation is the element type of the channel.
+ The expression blocks until a value is available.
+ Receiving from a <code>nil</code> channel blocks forever.
+-Receiving from a <a href="#Close">closed</a> channel always succeeds,
+-immediately returning the element type's <a href="#The_zero_value">zero
+-value</a>.
++A receive operation on a <a href="#Close">closed</a> channel can always proceed
++immediately, yielding the element type's <a href="#The_zero_value">zero value</a>.
+ </p>
+ 
+ <pre>

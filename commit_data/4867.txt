@@ -7,8 +7,208 @@ Date:   Tue Feb 16 16:47:39 2010 -0800
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/209041
-
+---
  src/cmd/gc/lex.c  | 52 +++++++++++++++++++++----------------------------
  src/cmd/gc/subr.c | 10 +++++++++-
  test/nul.go       | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 89 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 60c08ebb75..6862774253 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -520,18 +520,19 @@ l0:
+ 		ncp = 8;
+ 
+ 		for(;;) {
+-			if(clen == ncp) {
+-				cp = remal(cp, clen, ncp);
++			if(clen+UTFmax > ncp) {
++				cp = remal(cp, ncp, ncp);
+ 				ncp += ncp;
+ 			}
+-			c = getc();
++			c = getr();
+ 			if(c == EOF) {
+ 				yyerror("eof in string");
+ 				break;
+ 			}
+ 			if(c == '`')
+ 				break;
+-			cp[clen++] = c;
++			rune = c;
++			clen += runetochar(cp+clen, &rune);
+ 		}
+ 
+ 	strlit:
+@@ -821,28 +822,16 @@ talph:
+ 	 */
+ 	for(;;) {
+ 		if(c >= Runeself) {
+-			for(c1=0;;) {
+-				cp[c1++] = c;
+-				if(fullrune(cp, c1)) {
+-					chartorune(&rune, cp);
+-					if(isfrog(rune)) {
+-						yyerror("illegal character 0x%ux", rune);
+-						goto l0;
+-					}
+-					// 0xb7 · is used for internal names
+-					if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
+-						yyerror("invalid identifier character 0x%ux", rune);
+-					break;
+-				}
+-				c = getc();
+-			}
+-			cp += c1;
+-			c = getc();
+-			continue;
+-		}
+-		if(!isalnum(c) && c != '_')
++			ungetc(c);
++			rune = getr();
++			// 0xb7 · is used for internal names
++			if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
++				yyerror("invalid identifier character 0x%ux", rune);
++			cp += runetochar(cp, &rune);
++		} else if(!isalnum(c) && c != '_')
+ 			break;
+-		*cp++ = c;
++		else
++			*cp++ = c;
+ 		c = getc();
+ 	}
+ 	*cp = 0;
+@@ -1054,8 +1043,10 @@ getc(void)
+ 
+ 	switch(c) {
+ 	case 0:
+-		if(curio.bin != nil)
++		if(curio.bin != nil) {
++			yyerror("illegal NUL byte");
+ 			break;
++		}
+ 	case EOF:
+ 		return EOF;
+ 
+@@ -1097,10 +1088,11 @@ loop:
+ 	c = chartorune(&rune, str);
+ 	if(rune == Runeerror && c == 1) {
+ 		lineno = lexlineno;
+-		yyerror("illegal UTF-8 sequence in comment or string");
++		yyerror("illegal UTF-8 sequence");
+ 		flusherrors();
++		print("\t");
+ 		for(c=0; c<i; c++)
+-			print(" %.2x", *(uchar*)(str+c));
++			print("%s%.2x", c > 0 ? " " : "", *(uchar*)(str+c));
+ 		print("\n");
+ 	}
+ 	return rune;
+@@ -1209,11 +1201,11 @@ oct:
+ 			l = l*8 + c-'0';
+ 			continue;
+ 		}
+-		yyerror("non-oct character in escape sequence: %c", c);
++		yyerror("non-octal character in escape sequence: %c", c);
+ 		ungetc(c);
+ 	}
+ 	if(l > 255)
+-		yyerror("oct escape value > 255: %d", l);
++		yyerror("octal escape value > 255: %d", l);
+ 
+ 	*val = l;
+ 	return 0;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ee47cc8e1a..7072d95e42 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1525,6 +1525,7 @@ Zconv(Fmt *fp)
+ 	Rune r;
+ 	Strlit *sp;
+ 	char *s, *se;
++	int n;
+ 
+ 	sp = va_arg(fp->args, Strlit*);
+ 	if(sp == nil)
+@@ -1533,8 +1534,15 @@ Zconv(Fmt *fp)
+ 	s = sp->s;
+ 	se = s + sp->len;
+ 	while(s < se) {
+-		s += chartorune(&r, s);
++		n = chartorune(&r, s);
++		s += n;
+ 		switch(r) {
++		case Runeerror:
++			if(n == 1) {
++				fmtprint(fp, "\\x%02x", *(s-1));
++				break;
++			}
++			// fall through
+ 		default:
+ 			if(r < ' ') {
+ 				fmtprint(fp, "\\x%02x", r);
+diff --git a/test/nul.go b/test/nul.go
+new file mode 100644
+index 0000000000..026d397544
+--- /dev/null
++++ b/test/nul.go
+@@ -0,0 +1,58 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
++// errchk $G -e tmp.go
++// rm -f tmp.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test source files and strings containing NUL and invalid UTF-8.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	var s = "\xc2\xff"
++	var t = "\xd0\xfe"
++	var u = "\xab\x00\xfc"
++
++	if len(s) != 2 || s[0] != 0xc2 || s[1] != 0xff ||
++		len(t) != 2 || t[0] != 0xd0 || t[1] != 0xfe ||
++		len(u) != 3 || u[0] != 0xab || u[1] != 0x00 || u[2] != 0xfc {
++		println("BUG: non-UTF-8 string mangled");
++		os.Exit(2)
++	}
++
++	fmt.Print(`
++package main
++
++var x = "in string ` + "\x00" + `"	// ERROR "NUL"
++
++var y = ` + "`in raw string \x00 foo`" + `  // ERROR "NUL"
++
++// in comment ` + "\x00" + `  // ERROR "NUL"
++
++/* in other comment ` + "\x00" + ` */ // ERROR "NUL"
++
++/* in source code */ ` + "\x00" + `// ERROR "NUL"
++
++var xx = "in string ` + "\xc2\xff" + `" // ERROR "UTF-8"
++
++var yy = ` + "`in raw string \xff foo`" + `  // ERROR "UTF-8"
++
++// in comment ` + "\xe2\x80\x01" + `  // ERROR "UTF-8"
++
++/* in other comment ` + "\xe0\x00\x00" + ` */ // ERROR "UTF-8"
++
++/* in variable name */
++var z` + "\xc1\x81" + ` int // ERROR "UTF-8"
++
++/* in source code */ ` + "\xc2A" + `// ERROR "UTF-8"
++
++`)
++}
++

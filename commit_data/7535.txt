@@ -12,8 +12,182 @@ Date:   Tue Feb 22 18:17:03 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4188068
-
+---
  src/pkg/exp/eval/stmt_test.go                 | 12 ++++++------
  src/pkg/go/printer/testdata/statements.golden | 20 ++++----------------
  src/pkg/go/printer/testdata/statements.input  | 22 ++++++++--------------
  3 files changed, 18 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/exp/eval/stmt_test.go b/src/pkg/exp/eval/stmt_test.go
+index a14a288d93..4a883ef5ee 100644
+--- a/src/pkg/exp/eval/stmt_test.go
++++ b/src/pkg/exp/eval/stmt_test.go
+@@ -217,7 +217,7 @@ var stmtTests = []test{
+ 	Val2("if false { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
+ 	Val2("if i == i2 { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
+ 	// Omit optional parts
+-	Val2("if { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("if true { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
+ 	Val2("if true { i = 2 }; i2 = 4", "i", 2, "i2", 4),
+ 	Val2("if false { i = 2 }; i2 = 4", "i", 1, "i2", 4),
+ 	// Init
+@@ -243,11 +243,11 @@ var stmtTests = []test{
+ 	CErr("fn1 := func() int { if true { return 1 } }", "return"),
+ 	CErr("fn1 := func() int { if true { } }", "return"),
+ 	Run("fn1 := func() int { if true { }; return 1 }"),
+-	CErr("fn1 := func() int { if { } }", "return"),
+-	CErr("fn1 := func() int { if { } else { return 2 } }", "return"),
+-	Run("fn1 := func() int { if { return 1 } }"),
+-	Run("fn1 := func() int { if { return 1 } else { } }"),
+-	Run("fn1 := func() int { if { return 1 } else { } }"),
++	CErr("fn1 := func() int { if true { } }", "return"),
++	CErr("fn1 := func() int { if true { } else { return 2 } }", "return"),
++	Run("fn1 := func() int { if true { return 1 }; return 0 }"),
++	Run("fn1 := func() int { if true { return 1 } else { }; return 0 }"),
++	Run("fn1 := func() int { if true { return 1 } else { }; return 0 }"),
+ 
+ 	// Switch
+ 	Val1("switch { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+4),
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 5eceb7dd55..98bc0319ff 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -10,19 +10,13 @@ func use(x interface{})	{}
+ 
+ // Formatting of if-statement headers.
+ func _() {
+-	if {
++	if true {
+ 	}
+-	if {
+-	}	// no semicolon printed
+ 	if expr {
+ 	}
+ 	if expr {
+-	}	// no semicolon printed
+-	if expr {
+ 	}	// no parens printed
+-	if expr {
+-	}	// no semicolon and parens printed
+-	if x := expr; {
++	if x := expr; true {
+ 		use(x)
+ 	}
+ 	if x := expr; expr {
+@@ -35,16 +29,10 @@ func _() {
+ func _() {
+ 	switch {
+ 	}
+-	switch {
+-	}	// no semicolon printed
+ 	switch expr {
+ 	}
+ 	switch expr {
+-	}	// no semicolon printed
+-	switch expr {
+ 	}	// no parens printed
+-	switch expr {
+-	}	// no semicolon and parens printed
+ 	switch x := expr; {
+ 	default:
+ 		use(
+@@ -354,14 +342,14 @@ func _() {
+ 
+ 
+ func _() {
+-	if {
++	if true {
+ 		_ = 0
+ 	}
+ 	_ = 0	// the indentation here should not be affected by the long label name
+ AnOverlongLabel:
+ 	_ = 0
+ 
+-	if {
++	if true {
+ 		_ = 0
+ 	}
+ 	_ = 0
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 7819820ede..c8df052a3a 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -10,13 +10,10 @@ func use(x interface{}) {}
+ 
+ // Formatting of if-statement headers.
+ func _() {
+-	if {}
+-	if;{}  // no semicolon printed
++	if true {}
+ 	if expr{}
+-	if;expr{}  // no semicolon printed
+ 	if (expr){}  // no parens printed
+-	if;((expr)){}  // no semicolon and parens printed
+-	if x:=expr;{
++	if x:=expr; true {
+ 	use(x)}
+ 	if x:=expr; expr {use(x)}
+ }
+@@ -25,11 +22,8 @@ func _() {
+ // Formatting of switch-statement headers.
+ func _() {
+ 	switch {}
+-	switch;{}  // no semicolon printed
+ 	switch expr {}
+-	switch;expr{}  // no semicolon printed
+ 	switch (expr) {}  // no parens printed
+-	switch;((expr)){}  // no semicolon and parens printed
+ 	switch x := expr; { default:use(
+ x)
+ 	}
+@@ -118,7 +112,7 @@ func _() {
+ 	if (((x))) {}
+ 	if ([]T{}) {}
+ 	if (([]T{})) {}
+-	if ; (((([]T{})))) {}
++	if (((([]T{})))) {}
+ 
+ 	for (x) {}
+ 	for (((x))) {}
+@@ -129,21 +123,21 @@ func _() {
+ 	switch (x) {}
+ 	switch (((x))) {}
+ 	switch ([]T{}) {}
+-	switch ; (((([]T{})))) {}
++	switch (((([]T{})))) {}
+ 
+ 	for _ = range ((([]T{T{42}}))) {}
+ 
+ 	// leave parentheses - composite literals start with a type name
+ 	if (T{}) {}
+ 	if ((T{})) {}
+-	if ; ((((T{})))) {}
++	if ((((T{})))) {}
+ 
+ 	for (T{}) {}
+ 	for ((T{})) {}
+ 	for ; ((((T{})))) ; {}
+ 
+ 	switch (T{}) {}
+-	switch ; ((((T{})))) {}
++	switch ((((T{})))) {}
+ 
+ 	for _ = range (((T1{T{42}}))) {}
+ 
+@@ -271,14 +265,14 @@ func _() {
+ 
+ 
+ func _() {
+-	if {
++	if true {
+ 		_ = 0
+ 	}
+ 	_ = 0  // the indentation here should not be affected by the long label name
+ AnOverlongLabel:
+ 	_ = 0
+ 	
+-	if {
++	if true {
+ 		_ = 0
+ 	}
+ 	_ = 0

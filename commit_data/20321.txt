@@ -13,8 +13,56 @@ Date:   Sat Aug 30 18:15:55 2014 -0700
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/137890043
-
+---
  src/pkg/runtime/defs_linux_386.h | 2 +-
  src/pkg/runtime/defs_linux_arm.h | 2 +-
  src/pkg/runtime/netpoll_epoll.c  | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_linux_386.h b/src/pkg/runtime/defs_linux_386.h
+index d19bb7a00f..24a05d862a 100644
+--- a/src/pkg/runtime/defs_linux_386.h
++++ b/src/pkg/runtime/defs_linux_386.h
+@@ -204,7 +204,7 @@ struct Itimerval {
+ };
+ struct EpollEvent {
+ 	uint32	events;
+-	uint64	data;
++	byte	data[8]; // to match amd64
+ };
+ 
+ 
+diff --git a/src/pkg/runtime/defs_linux_arm.h b/src/pkg/runtime/defs_linux_arm.h
+index 61bd30d59c..50b3c919ed 100644
+--- a/src/pkg/runtime/defs_linux_arm.h
++++ b/src/pkg/runtime/defs_linux_arm.h
+@@ -163,6 +163,6 @@ typedef struct EpollEvent EpollEvent;
+ struct EpollEvent {
+ 	uint32	events;
+ 	uint32	_pad;
+-	uint64	data;
++	byte	data[8]; // to match amd64
+ };
+ #pragma pack off
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index 2cf9b3760d..9d6c205155 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -37,7 +37,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
+ 	int32 res;
+ 
+ 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
+-	*(uintptr*)ev.data = (uintptr)pd;
++	*(uint64*)ev.data = (uint64)(uintptr)pd;
+ 	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, (int32)fd, &ev);
+ 	return -res;
+ }
+@@ -95,7 +95,7 @@ retry:
+ 		if(ev->events & (EPOLLOUT|EPOLLHUP|EPOLLERR))
+ 			mode += 'w';
+ 		if(mode)
+-			runtime·netpollready(&gp, (void*)ev->data, mode);
++			runtime·netpollready(&gp, (void*)(uintptr)*(uint64*)ev->data, mode);
+ 	}
+ 	if(block && gp == nil)
+ 		goto retry;

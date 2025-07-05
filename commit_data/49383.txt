@@ -15,9 +15,89 @@ Date:   Mon Aug 16 09:36:49 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/termlist_test.go | 4 ++--
  src/go/types/builtins.go                         | 1 -
  src/go/types/termlist_test.go                    | 6 +++---
  src/go/types/typestring.go                       | 2 +-
  4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/termlist_test.go b/src/cmd/compile/internal/types2/termlist_test.go
+index 2f3772ddeb..ed1330d26f 100644
+--- a/src/cmd/compile/internal/types2/termlist_test.go
++++ b/src/cmd/compile/internal/types2/termlist_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // maketl makes a term list from a string of the term list.
+ func maketl(s string) termlist {
+-	s = strings.Replace(s, " ", "", -1)
++	s = strings.ReplaceAll(s, " ", "")
+ 	names := strings.Split(s, "∪")
+ 	r := make(termlist, len(names))
+ 	for i, n := range names {
+@@ -20,7 +20,7 @@ func maketl(s string) termlist {
+ 	return r
+ }
+ 
+-func TestTermlistTop(t *testing.T) {
++func TestTermlistAll(t *testing.T) {
+ 	if !allTermlist.isAll() {
+ 		t.Errorf("allTermlist is not the set of all types")
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 2099a92acb..a11f395947 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -848,7 +848,6 @@ func makeSig(res Type, args ...Type) *Signature {
+ 
+ // arrayPtrDeref returns A if typ is of the form *A and A is an array;
+ // otherwise it returns typ.
+-//
+ func arrayPtrDeref(typ Type) Type {
+ 	if p, ok := typ.(*Pointer); ok {
+ 		if a := asArray(p.base); a != nil {
+diff --git a/src/go/types/termlist_test.go b/src/go/types/termlist_test.go
+index ba0faff359..d1fe28f728 100644
+--- a/src/go/types/termlist_test.go
++++ b/src/go/types/termlist_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // maketl makes a term list from a string of the term list.
+ func maketl(s string) termlist {
+-	s = strings.Replace(s, " ", "", -1)
++	s = strings.ReplaceAll(s, " ", "")
+ 	names := strings.Split(s, "∪")
+ 	r := make(termlist, len(names))
+ 	for i, n := range names {
+@@ -20,9 +20,9 @@ func maketl(s string) termlist {
+ 	return r
+ }
+ 
+-func TestTermlistTop(t *testing.T) {
++func TestTermlistAll(t *testing.T) {
+ 	if !allTermlist.isAll() {
+-		t.Errorf("topTermlist is not top")
++		t.Errorf("allTermlist is not the set of all types")
+ 	}
+ }
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index c38cfd4290..452c92f74d 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -86,7 +86,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				break
+ 			}
+ 		}
+-
+ 		buf.WriteString(t.name)
+ 
+ 	case *Array:
+@@ -147,6 +146,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	case *Interface:
+ 		buf.WriteString("interface{")
+ 		first := true
++		// print explicit interface methods and embedded types
+ 		for _, m := range t.methods {
+ 			if !first {
+ 				buf.WriteString("; ")

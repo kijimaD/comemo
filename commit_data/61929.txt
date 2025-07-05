@@ -18,7 +18,61 @@ Date:   Tue Dec 17 17:55:01 2024 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go | 6 +++---
  src/crypto/internal/fips140/aes/gcm/gcm_s390x.go  | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go b/src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go
+index 5084835e88..8d44c75745 100644
+--- a/src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go
++++ b/src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go
+@@ -51,7 +51,7 @@ func initGCM(g *GCM) {
+ 	}
+ 
+ 	hle := make([]byte, gcmBlockSize)
+-	g.cipher.Encrypt(hle, hle)
++	aes.EncryptBlockInternal(&g.cipher, hle, hle)
+ 
+ 	// Reverse the bytes in each 8 byte chunk
+ 	// Load little endian, store big endian
+@@ -133,7 +133,7 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
+ 	var counter, tagMask [gcmBlockSize]byte
+ 	deriveCounter(&counter, nonce, &g.productTable)
+ 
+-	g.cipher.Encrypt(tagMask[:], counter[:])
++	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
+ 	gcmInc32(&counter)
+ 
+ 	counterCrypt(&g.cipher, out, plaintext, &counter)
+@@ -151,7 +151,7 @@ func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
+ 	var counter, tagMask [gcmBlockSize]byte
+ 	deriveCounter(&counter, nonce, &g.productTable)
+ 
+-	g.cipher.Encrypt(tagMask[:], counter[:])
++	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
+ 	gcmInc32(&counter)
+ 
+ 	var expectedTag [gcmTagSize]byte
+diff --git a/src/crypto/internal/fips140/aes/gcm/gcm_s390x.go b/src/crypto/internal/fips140/aes/gcm/gcm_s390x.go
+index 6d88e18240..526f3f9d4a 100644
+--- a/src/crypto/internal/fips140/aes/gcm/gcm_s390x.go
++++ b/src/crypto/internal/fips140/aes/gcm/gcm_s390x.go
+@@ -55,7 +55,7 @@ func initGCM(g *GCM) {
+ 		return
+ 	}
+ 	// Note that hashKey is also used in the KMA codepath to hash large nonces.
+-	g.cipher.Encrypt(g.hashKey[:], g.hashKey[:])
++	aes.EncryptBlockInternal(&g.cipher, g.hashKey[:], g.hashKey[:])
+ }
+ 
+ // ghashAsm uses the GHASH algorithm to hash data with the given key. The initial
+@@ -115,7 +115,7 @@ func counterCrypt(g *GCM, dst, src []byte, cnt *[gcmBlockSize]byte) {
+ 	}
+ 	if len(src) > 0 {
+ 		var x [16]byte
+-		g.cipher.Encrypt(x[:], cnt[:])
++		aes.EncryptBlockInternal(&g.cipher, x[:], cnt[:])
+ 		for i := range src {
+ 			dst[i] = src[i] ^ x[i]
+ 		}

@@ -27,7 +27,61 @@ Date:   Sat Aug 29 11:30:10 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/14015
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  9 +++++++--
  test/fixedbugs/issue11614.go       | 26 ++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 2525921c8b..5f108724e0 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -579,9 +579,14 @@ func typefmt(t *Type, flag int) string {
+ 		buf.WriteString("interface {")
+ 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+ 			buf.WriteString(" ")
+-			if exportname(t1.Sym.Name) {
++			switch {
++			case t1.Sym == nil:
++				// Check first that a symbol is defined for this type.
++				// Wrong interface definitions may have types lacking a symbol.
++				break
++			case exportname(t1.Sym.Name):
+ 				buf.WriteString(Sconv(t1.Sym, obj.FmtShort))
+-			} else {
++			default:
+ 				buf.WriteString(Sconv(t1.Sym, obj.FmtUnsigned))
+ 			}
+ 			buf.WriteString(Tconv(t1.Type, obj.FmtShort))
+diff --git a/test/fixedbugs/issue11614.go b/test/fixedbugs/issue11614.go
+new file mode 100644
+index 0000000000..959643a514
+--- /dev/null
++++ b/test/fixedbugs/issue11614.go
+@@ -0,0 +1,26 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that incorrect expressions involving wrong anonymous interface
++// do not generate panics in Type Stringer.
++// Does not compile.
++
++package main
++
++type I interface {
++	int // ERROR "interface contains embedded non-interface int"
++}
++
++func n() {
++	(I) // ERROR "type I is not an expression"
++}
++
++func m() {
++	(interface{int}) // ERROR "interface contains embedded non-interface int" "type interface { int } is not an expression"
++}
++
++func main() {
++}

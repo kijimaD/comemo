@@ -18,8 +18,102 @@ Date:   Thu Jun 25 16:32:33 2009 -0700
     R=ken
     OCL=30766
     CL=30766
-
+---
  src/cmd/gc/const.c |  5 ++---
  src/cmd/gc/subr.c  |  9 ++++++++-
  src/cmd/gc/walk.c  | 25 ++++++++++++++-----------
  3 files changed, 24 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 98245fbc4e..5ce4ebee74 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -84,7 +84,7 @@ convlit1(Node *n, Type *t, int explicit)
+ 		return;
+ 	}
+ 	// avoided repeated calculations, errors
+-	if(cvttype(n->type, t)) {
++	if(cvttype(n->type, t) == 1) {
+ 		n->type = t;
+ 		return;
+ 	}
+@@ -603,8 +603,7 @@ ret:
+ 	n->val = v;
+ 
+ 	// check range.
+-	lno = lineno;
+-	lineno = n->lineno;
++	lno = setlineno(n);
+ 	overflow(v, n->type);
+ 	lineno = lno;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b2b8e77d6e..4f646fbc1e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -106,7 +106,14 @@ setlineno(Node *n)
+ 	int32 lno;
+ 
+ 	lno = lineno;
+-	if(n != N && n->op != ONAME) {
++	if(n != N)
++	switch(n->op) {
++	case ONAME:
++	case OTYPE:
++	case OPACK:
++	case OLITERAL:
++		break;
++	default:
+ 		lineno = n->lineno;
+ 		if(lineno == 0) {
+ 			if(debug['K'])
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 18fc7f3359..50e333797f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -123,15 +123,7 @@ loop:
+ 		return;
+ 
+ 	more = N;
+-	switch(n->op) {
+-	case ONAME:	// one only; lineno isn't right for right now
+-	case OPACK:
+-	case OTYPE:
+-	case OLITERAL:
+-		break;
+-	default:
+-		lineno = n->lineno;
+-	}
++	setlineno(n);
+ 
+ 	switch(n->op) {
+ 
+@@ -253,6 +245,13 @@ loop:
+ 		fatal("walktype: switch 1 unknown op %N", n);
+ 		goto ret;
+ 
++	case OTYPE:
++		if(!n->diag) {
++			n->diag = 1;
++			yyerror("type %T used as expression", n->type);
++		}
++		goto ret;
++
+ 	case ODCL:
+ 		goto ret;
+ 
+@@ -1799,8 +1798,12 @@ walkdot(Node *n)
+ 		n->op = ODOTPTR;
+ 	}
+ 
+-	if(!lookdot(n, t))
+-		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
++	if(!lookdot(n, t)) {
++		if(!n->diag) {
++			n->diag = 1;
++			yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
++		}
++	}
+ }
+ 
+ Node*

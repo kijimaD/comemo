@@ -18,9 +18,163 @@ Date:   Fri May 29 10:37:11 2015 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 12 +++++-----
  src/cmd/internal/obj/arm/obj5.go |  2 +-
  src/cmd/internal/obj/link.go     | 47 ++++++++++++++++++++--------------------
  src/cmd/internal/obj/x86/asm6.go |  8 +++----
  4 files changed, 34 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 6207c7367e..bda1a79f0e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -900,7 +900,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 		t.To.Name = a.Name
+ 
+ 		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
+-			t.Pcrel = p
++			t.Rel = p
+ 		}
+ 
+ 	case C_SROREG,
+@@ -917,9 +917,9 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 		t.To.Offset = ctxt.Instoffset
+ 	}
+ 
+-	if t.Pcrel == nil {
++	if t.Rel == nil {
+ 		for q := ctxt.Blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
+-			if q.Pcrel == nil && q.To == t.To {
++			if q.Rel == nil && q.To == t.To {
+ 				p.Pcond = q
+ 				return
+ 			}
+@@ -1671,11 +1671,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
+ 				rel.Type = obj.R_TLS
+ 				if ctxt.Flag_shared != 0 {
+-					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
++					rel.Add += ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
+ 				}
+ 			} else if ctxt.Flag_shared != 0 {
+ 				rel.Type = obj.R_PCREL
+-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
++				rel.Add += ctxt.Pc - p.Rel.Pc - 8
+ 			} else {
+ 				rel.Type = obj.R_ADDR
+ 			}
+@@ -2062,7 +2062,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 			if o.flag&LPCREL != 0 {
+ 				rel.Type = obj.R_PCREL
+-				rel.Add += ctxt.Pc - p.Pcrel.Pc - 16 + int64(rel.Siz)
++				rel.Add += ctxt.Pc - p.Rel.Pc - 16 + int64(rel.Siz)
+ 			} else {
+ 				rel.Type = obj.R_ADDR
+ 			}
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index c73c146404..752f577dc3 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -160,7 +160,7 @@ func linkcase(casep *obj.Prog) {
+ 	for p := casep; p != nil; p = p.Link {
+ 		if p.As == ABCASE {
+ 			for ; p != nil && p.As == ABCASE; p = p.Link {
+-				p.Pcrel = casep
++				p.Rel = casep
+ 			}
+ 			break
+ 		}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d984516ed7..a6ade0f20d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -200,30 +200,29 @@ const (
+ // TODO(rsc): Describe prog.
+ // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+ type Prog struct {
+-	Ctxt     *Link
+-	Link     *Prog
+-	From     Addr
+-	From3    *Addr // optional
+-	To       Addr
+-	Opt      interface{}
+-	Forwd    *Prog
+-	Pcond    *Prog
+-	Comefrom *Prog
+-	Pcrel    *Prog
+-	Pc       int64
+-	Lineno   int32
+-	Spadj    int32
+-	As       int16
+-	Reg      int16
+-	RegTo2   int16 // 2nd register output operand
+-	Mark     uint16
+-	Optab    uint16
+-	Scond    uint8
+-	Back     uint8
+-	Ft       uint8
+-	Tt       uint8
+-	Isize    uint8
+-	Mode     int8
++	Ctxt   *Link
++	Link   *Prog
++	From   Addr
++	From3  *Addr // optional
++	To     Addr
++	Opt    interface{}
++	Forwd  *Prog
++	Pcond  *Prog
++	Rel    *Prog // Source of forward jumps on x86; pcrel on arm
++	Pc     int64
++	Lineno int32
++	Spadj  int32
++	As     int16
++	Reg    int16
++	RegTo2 int16 // 2nd register output operand
++	Mark   uint16
++	Optab  uint16
++	Scond  uint8
++	Back   uint8
++	Ft     uint8
++	Tt     uint8
++	Isize  uint8
++	Mode   int8
+ 
+ 	Info ProgInfo
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index bf1bfa98aa..2afc4596e9 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1690,7 +1690,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 			p.Pc = int64(c)
+ 
+ 			// process forward jumps to p
+-			for q = p.Comefrom; q != nil; q = q.Forwd {
++			for q = p.Rel; q != nil; q = q.Forwd {
+ 				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
+ 				if q.Back&2 != 0 { // short
+ 					if v > 127 {
+@@ -1715,7 +1715,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 				}
+ 			}
+ 
+-			p.Comefrom = nil
++			p.Rel = nil
+ 
+ 			p.Pc = int64(c)
+ 			asmins(ctxt, p)
+@@ -3547,9 +3547,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				}
+ 
+ 				// Annotate target; will fill in later.
+-				p.Forwd = q.Comefrom
++				p.Forwd = q.Rel
+ 
+-				q.Comefrom = p
++				q.Rel = p
+ 				if p.Back&2 != 0 { // short
+ 					if p.As == AJCXZL {
+ 						ctxt.Andptr[0] = 0x67

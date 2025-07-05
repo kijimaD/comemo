@@ -8,7 +8,7 @@ Date:   Fri May 4 18:20:09 2012 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/5989057
-
+---
  src/pkg/runtime/asm_arm.s           | 133 +++++++++++++++++++++++++++++++++---
  src/pkg/runtime/cgo/gcc_arm.S       |  58 +++++++++++++++-
  src/pkg/runtime/cgo/gcc_linux_arm.c |  95 +++++++++++++++++++++++++-
@@ -16,3 +16,420 @@ Date:   Fri May 4 18:20:09 2012 +0800
  src/pkg/runtime/signal_linux_arm.c  |   3 +
  src/pkg/runtime/sys_linux_arm.s     |  10 ++-
  6 files changed, 291 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 74be9cead9..c940f5f073 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -31,6 +31,12 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	R13, g_stackbase(g)
+ 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
++	// if there is an initcgo, call it.
++	MOVW	initcgo(SB), R2
++	CMP	$0, R2
++	MOVW.NE	g, R0 // first argument of initcgo is g
++	BL.NE	(R2) // will clobber R0-R3
++
+ 	BL	runtime·check(SB)
+ 
+ 	// saved argc, argv
+@@ -86,9 +92,12 @@ TEXT runtime·gosave(SB), 7, $-4
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	0(FP), R1		// gobuf
+-	MOVW	4(FP), R0		// return 2nd arg
+ 	MOVW	gobuf_g(R1), g
+ 	MOVW	0(g), R2		// make sure g != nil
++	MOVW	cgo_save_gm(SB), R2
++	CMP 	$0, R2 // if in Cgo, we have to save g and m
++	BL.NE	(R2) // this call will clobber R0
++	MOVW	4(FP), R0		// return 2nd arg
+ 	MOVW	gobuf_sp(R1), SP	// restore SP
+ 	MOVW	gobuf_pc(R1), PC
+ 
+@@ -97,13 +106,16 @@ TEXT runtime·gogo(SB), 7, $-4
+ // (call fn, returning to state in Gobuf)
+ // using frame size $-4 means do not save LR on stack.
+ TEXT runtime·gogocall(SB), 7, $-4
+-	MOVW	0(FP), R0		// gobuf
++	MOVW	0(FP), R3		// gobuf
+ 	MOVW	4(FP), R1		// fn
+ 	MOVW	8(FP), R2		// fp offset
+-	MOVW	gobuf_g(R0), g
+-	MOVW	0(g), R3		// make sure g != nil
+-	MOVW	gobuf_sp(R0), SP	// restore SP
+-	MOVW	gobuf_pc(R0), LR
++	MOVW	gobuf_g(R3), g
++	MOVW	0(g), R0		// make sure g != nil
++	MOVW	cgo_save_gm(SB), R0
++	CMP 	$0, R0 // if in Cgo, we have to save g and m
++	BL.NE	(R0) // this call will clobber R0
++	MOVW	gobuf_sp(R3), SP	// restore SP
++	MOVW	gobuf_pc(R3), LR
+ 	MOVW	R1, PC
+ 
+ // void mcall(void (*fn)(G*))
+@@ -224,11 +236,114 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+ 	B		(R0)
+ 
++// Dummy function to use in saved gobuf.PC,
++// to match SP pointing at a return address.
++// The gobuf.PC is unused by the contortions here
++// but setting it to return will make the traceback code work.
++TEXT return<>(SB),7,$0
++	RET
++
++// asmcgocall(void(*fn)(void*), void *arg)
++// Call fn(arg) on the scheduler stack,
++// aligned appropriately for the gcc ABI.
++// See cgocall.c for more details.
+ TEXT	runtime·asmcgocall(SB),7,$0
+-	B	runtime·cgounimpl(SB)
++	MOVW	fn+0(FP), R1
++	MOVW	arg+4(FP), R0
++	MOVW	R13, R2
++	MOVW	g, R5
++
++	// Figure out if we need to switch to m->g0 stack.
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	MOVW	m_g0(m), R3
++	CMP	R3, g
++	BEQ	7(PC)
++	MOVW	R13, (g_sched + gobuf_sp)(g)
++	MOVW	$return<>(SB), R4
++	MOVW	R4, (g_sched+gobuf_pc)(g)
++	MOVW	g, (g_sched+gobuf_g)(g)
++	MOVW	R3, g
++	MOVW	(g_sched+gobuf_sp)(g), R13
++
++	// Now on a scheduling stack (a pthread-created stack).
++	SUB	$24, R13
++	BIC	$0x7, R13	// alignment for gcc ABI
++	MOVW	R5, 20(R13) // save old g
++	MOVW	R2, 16(R13)	// save old SP
++	// R0 already contains the first argument
++	BL	(R1)
++
++	// Restore registers, g, stack pointer.
++	MOVW	20(R13), g
++	MOVW	16(R13), R13
++	RET
++
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// See cgocall.c for more details.
++TEXT	runtime·cgocallback(SB),7,$16
++	MOVW	fn+0(FP), R0
++	MOVW	frame+4(FP), R1
++	MOVW	framesize+8(FP), R2
++
++	// Save current m->g0->sched.sp on stack and then set it to SP.
++	MOVW	m_g0(m), R3
++	MOVW	(g_sched+gobuf_sp)(R3), R4
++	MOVW.W	R4, -4(SP)
++	MOVW	R13, (g_sched+gobuf_sp)(R3)
++
++	// Switch to m->curg stack and call runtime.cgocallbackg
++	// with the three arguments.  Because we are taking over
++	// the execution of m->curg but *not* resuming what had
++	// been running, we need to save that information (m->curg->gobuf)
++	// so that we can restore it when we're done. 
++	// We can restore m->curg->gobuf.sp easily, because calling
++	// runtime.cgocallbackg leaves SP unchanged upon return.
++	// To save m->curg->gobuf.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallbackg is going to return to that
++	// PC (because we defined cgocallbackg to have
++	// a frame size of 16, the same amount that we use below),
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	MOVW	m_curg(m), g
++	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
++
++	// Push gobuf.pc
++	MOVW	(g_sched+gobuf_pc)(g), R5
++	SUB	$4, R4
++	MOVW	R5, 0(R4)
++
++	// Push arguments to cgocallbackg.
++	// Frame size here must match the frame size above
++	// to trick traceback routines into doing the right thing.
++	SUB	$16, R4
++	MOVW	R0, 4(R4)
++	MOVW	R1, 8(R4)
++	MOVW	R2, 12(R4)
++	
++	// Switch stack and make the call.
++	MOVW	R4, R13
++	BL	runtime·cgocallbackg(SB)
++
++	// Restore g->gobuf (== m->curg->gobuf) from saved values.
++	MOVW	16(R13), R5
++	MOVW	R5, (g_sched+gobuf_pc)(g)
++	ADD	$(16+4), R13 // SP clobbered! It is ok!
++	MOVW	R13, (g_sched+gobuf_sp)(g)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVW	m_g0(m), g
++	MOVW	(g_sched+gobuf_sp)(g), R13
++	// POP R6
++	MOVW	0(R13), R6
++	ADD	$4, R13
++	MOVW	R6, (g_sched+gobuf_sp)(g)
+ 
+-TEXT	runtime·cgocallback(SB),7,$0
+-	B	runtime·cgounimpl(SB)
++	// Done!
++	RET
+ 
+ TEXT runtime·memclr(SB),7,$20
+ 	MOVW	0(FP), R0
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index 32d8629849..fc6d34cae9 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -1 +1,57 @@
+-/* unimplemented */
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Apple still insists on underscore prefixes for C function names.
++ */
++#if defined(__APPLE__)
++#define EXT(s) _##s
++#else
++#define EXT(s) s
++#endif
++
++/*
++ * void crosscall_arm2(void (*fn)(void), void *g, void *m)
++ *
++ * Calling into the 5c tool chain, where all registers are caller save.
++ * Called from standard ARM EABI, where r4-r11 are callee-save, so they
++ * must be saved explicitly.
++ */
++.globl EXT(crosscall_arm2)
++EXT(crosscall_arm2):
++	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
++	mov r10, r1 // g
++	mov r9, r2 // m
++	mov r3, r0 // save r0, cgo_tls_set_gm will clobber it
++	bl EXT(cgo_tls_set_gm) // save current g and m into TLS variable
++	mov lr, pc
++	mov pc, r3
++	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ *
++ * Save registers and call fn with two arguments.
++ */
++.globl EXT(crosscall2)
++EXT(crosscall2):
++	/* 
++	 * We still need to save all callee save register as before, and then
++	 *  push 2 args for fn (R1 and R2).
++	 * Also note that at procedure entry in 5c/5g world, 4(R13) will be the
++	 *  first arg, so we must push another dummy reg (R0) for 0(R13).
++	 *  Additionally, cgo_tls_set_gm will clobber R0, so we need to save R0
++	 *  nevertheless.
++	 */
++	push {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
++	bl EXT(cgo_tls_get_gm) // set up g and m from TLS
++	mov lr, pc
++	ldr pc, [sp, #0]
++	pop {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
++
++.globl EXT(__stack_chk_fail_local)
++EXT(__stack_chk_fail_local):
++1:
++	b 1b
++
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 8397c75bb8..8af96cec69 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -2,12 +2,64 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <pthread.h>
++#include <string.h>
+ #include "libcgo.h"
+ 
++static void *threadentry(void*);
++
++// We have to resort to TLS variable to save g(R10) and
++// m(R9). One reason is that external code might trigger
++// SIGSEGV, and our runtime.sigtramp don't even know we
++// are in external code, and will continue to use R10/R9,
++// this might as well result in another SIGSEGV.
++// Note: all three functions will clobber R0, and the last
++// two can be called from 5c ABI code.
++void __aeabi_read_tp(void) __attribute__((naked));
++void cgo_tls_set_gm(void) __attribute__((naked));
++void cgo_tls_get_gm(void) __attribute__((naked));
++void __aeabi_read_tp(void) {
++	// b __kuser_get_tls @ 0xffff0fe0
++	__asm__ __volatile__ (
++		"mvn r0, #0xf000\n\t"
++		"sub pc, r0, #31\n\t"
++		"nop\n\tnop\n\t"
++	);
++}
++// g (R10) at 8(TP), m (R9) at 12(TP)
++void cgo_tls_get_gm(void) {
++	__asm__ __volatile__ (
++		"push {lr}\n\t"
++		"bl __aeabi_read_tp\n\t"
++		"ldr r10, [r0, #8]\n\t"
++		"ldr r9, [r0, #12]\n\t"
++		"pop {pc}\n\t"
++	);
++}
++void cgo_tls_set_gm(void) {
++	__asm__ __volatile__ (
++		"push {lr}\n\t"
++		"bl __aeabi_read_tp\n\t"
++		"str r10, [r0, #8]\n\t"
++		"str r9, [r0, #12]\n\t"
++		"pop {pc}\n\t"
++	);
++}
++// both cgo_tls_{get,set}_gm can be called from runtime
++void (*cgo_load_gm)(void) = cgo_tls_get_gm;
++void (*cgo_save_gm)(void) = cgo_tls_set_gm;
++
+ static void
+ xinitcgo(G *g)
+ {
+-	// unimplemented
++	pthread_attr_t attr;
++	size_t size;
++	cgo_tls_set_gm(); // save g and m for the initial thread
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
+ }
+ 
+ void (*initcgo)(G*) = xinitcgo;
+@@ -15,6 +67,43 @@ void (*initcgo)(G*) = xinitcgo;
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+-	// unimplemented
+-	*(int*)0 = 0;
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	// Not sure why the memset is necessary here,
++	// but without it, we get a bogus stack size
++	// out of pthread_attr_getstacksize.  C'est la Linux.
++	memset(&attr, 0, sizeof attr);
++	pthread_attr_init(&attr);
++	size = 0;
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
++}
++
++extern void crosscall_arm2(void (*fn)(void), void *g, void *m);
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
++
++	crosscall_arm2(ts.fn, (void *)ts.g, (void *)ts.m);
++	return nil;
+ }
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 7a26538ec8..537a845886 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -84,6 +84,11 @@
+ 
+ void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+ 
++// These two are only used by the architecture where TLS based storage isn't
++// the default for g and m (e.g., ARM)
++void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
++void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
++
+ static void unlockm(void);
+ static void unwindm(void);
+ 
+@@ -229,6 +234,7 @@ unwindm(void)
+ 		runtime·throw("runtime: unwindm not implemented");
+ 	case '8':
+ 	case '6':
++	case '5':
+ 		m->g0->sched.sp = *(void**)m->g0->sched.sp;
+ 		break;
+ 	}
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 176a4ce567..d1da4b0ea2 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -75,6 +75,9 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		// old link register is more useful in the stack trace.
+ 		if(r->arm_pc != 0)
+ 			r->arm_lr = r->arm_pc;
++		// In case we are panicking from external C code
++		r->arm_r10 = (uintptr)gp;
++		r->arm_r9 = (uintptr)m;
+ 		r->arm_pc = (uintptr)runtime·sigpanic;
+ 		return;
+ 	}
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 03e173d266..220f9adac7 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -293,6 +293,14 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$24
++	// this might be called in external code context,
++	// where g and m are not set.
++	// first save R0, becuase cgo_load_gm will clobber it
++	MOVW	R0, 4(R13)
++	MOVW	cgo_load_gm(SB), R0
++	CMP 	$0, R0
++	BL.NE	(R0)
++
+ 	// save g
+ 	MOVW	g, R3
+ 	MOVW	g, 20(R13)
+@@ -301,7 +309,7 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	MOVW	m_gsignal(m), g
+ 
+ 	// copy arguments for call to sighandler
+-	MOVW	R0, 4(R13)
++	// R0 is already saved above
+ 	MOVW	R1, 8(R13)
+ 	MOVW	R2, 12(R13)
+ 	MOVW	R3, 16(R13)

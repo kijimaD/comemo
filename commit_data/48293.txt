@@ -11,6 +11,47 @@ Date:   Wed May 5 15:01:37 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/sanitize.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 3429867321..b905972d36 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -67,13 +67,17 @@ func sanitizeInfo(info *Info) {
+ type sanitizer map[Type]Type
+ 
+ func (s sanitizer) typ(typ Type) Type {
++	if typ == nil {
++		return nil
++	}
++
+ 	if t, found := s[typ]; found {
+ 		return t
+ 	}
+ 	s[typ] = typ
+ 
+ 	switch t := typ.(type) {
+-	case nil, *Basic, *bottom, *top:
++	case *Basic, *bottom, *top:
+ 		// nothing to do
+ 
+ 	case *Array:
+@@ -107,10 +111,14 @@ func (s sanitizer) typ(typ Type) Type {
+ 
+ 	case *Interface:
+ 		s.funcList(t.methods)
+-		s.typ(t.types)
++		if types := s.typ(t.types); types != t.types {
++			t.types = types
++		}
+ 		s.typeList(t.embeddeds)
+ 		s.funcList(t.allMethods)
+-		s.typ(t.allTypes)
++		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
++			t.allTypes = allTypes
++		}
+ 
+ 	case *Map:
+ 		if key := s.typ(t.key); key != t.key {

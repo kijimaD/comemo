@@ -26,10 +26,250 @@ Date:   Tue Apr 19 18:45:06 2022 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/go_test.go                |  1 +
  src/go/build/deps_test.go            |  4 +-
  src/internal/coverage/pkid.go        | 80 +++++++++++++++++++++++++++++++++++
  src/internal/coverage/rtcov/rtcov.go | 25 +++++++++++
  src/runtime/covermeta.go             | 82 ++++++++++++++++++++++++++++++++++++
  5 files changed, 190 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 00b29560ca..556ba9cde5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -886,6 +886,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/internal/goarch",
+ 		"src/internal/goexperiment",
+ 		"src/internal/goos",
++		"src/internal/coverage/rtcov",
+ 		"src/math/bits",
+ 		"src/unsafe",
+ 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 35fa77054f..a8cb52c0d7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -41,7 +41,7 @@ var depsRules = `
+ 	NONE
+ 	< constraints, container/list, container/ring,
+ 	  internal/cfg, internal/cpu, internal/coverage,
+-	  internal/coverage/uleb128, internal/goarch,
++	  internal/coverage/uleb128, internal/coverage/rtcov, internal/goarch,
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace,
+ 	  unicode/utf8, unicode/utf16, unicode,
+@@ -53,7 +53,7 @@ var depsRules = `
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, internal/goarch,
+-	internal/goexperiment, internal/goos, unsafe
++    internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
+ 	< internal/bytealg
+ 	< internal/itoa
+ 	< internal/unsafeheader
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+new file mode 100644
+index 0000000000..2b4ac2ee56
+--- /dev/null
++++ b/src/internal/coverage/pkid.go
+@@ -0,0 +1,80 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++// Building the runtime package with coverage instrumentation enabled
++// is tricky.  For all other packages, you can be guaranteed that
++// the package init function is run before any functions are executed,
++// but this invariant is not maintained for packages such as "runtime",
++// "internal/cpu", etc. To handle this, hard-code the package ID for
++// the set of packages whose functions may be running before the
++// init function of the package is complete.
++//
++// Hardcoding is unfortunate because it means that the tool that does
++// coverage instrumentation has to keep a list of runtime packages,
++// meaning that if someone makes changes to the pkg "runtime"
++// dependencies, unexpected behavior will result for coverage builds.
++// The coverage runtime will detect and report the unexpected
++// behavior; look for an error of this form:
++//
++//    internal error in coverage meta-data tracking:
++//    list of hard-coded runtime package IDs needs revising.
++//    registered list:
++//    slot: 0 path='internal/cpu'  hard-coded id: 1
++//    slot: 1 path='internal/goarch'  hard-coded id: 2
++//    slot: 2 path='runtime/internal/atomic'  hard-coded id: 3
++//    slot: 3 path='internal/goos'
++//    slot: 4 path='runtime/internal/sys'  hard-coded id: 5
++//    slot: 5 path='internal/abi'  hard-coded id: 4
++//    slot: 6 path='runtime/internal/math'  hard-coded id: 6
++//    slot: 7 path='internal/bytealg'  hard-coded id: 7
++//    slot: 8 path='internal/goexperiment'
++//    slot: 9 path='runtime/internal/syscall'  hard-coded id: 8
++//    slot: 10 path='runtime'  hard-coded id: 9
++//    fatal error: runtime.addCovMeta
++//
++// For the error above, the hard-coded list is missing "internal/goos"
++// and "internal/goexperiment" ; the developer in question will need
++// to copy the list above into "rtPkgs" below.
++//
++// Note: this strategy assumes that the list of dependencies of
++// package runtime is fixed, and doesn't vary depending on OS/arch. If
++// this were to be the case, we would need a table of some sort below
++// as opposed to a fixed list.
++
++var rtPkgs = [...]string{
++	"internal/cpu",
++	"internal/goarch",
++	"runtime/internal/atomic",
++	"internal/goos",
++	"runtime/internal/sys",
++	"internal/abi",
++	"runtime/internal/math",
++	"internal/bytealg",
++	"internal/goexperiment",
++	"runtime/internal/syscall",
++	"runtime",
++}
++
++// Scoping note: the constants and apis in this file are internal
++// only, not expected to ever be exposed outside of the runtime (unlike
++// other coverage file formats and APIs, which will likely be shared
++// at some point).
++
++// NotHardCoded is a package pseudo-ID indicating that a given package
++// is not part of the runtime and doesn't require a hard-coded ID.
++const NotHardCoded = -1
++
++// HardCodedPkgId returns the hard-coded ID for the specified package
++// path, or -1 if we don't use a hard-coded ID. Hard-coded IDs start
++// at -2 and decrease as we go down the list.
++func HardCodedPkgID(pkgpath string) int {
++	for k, p := range rtPkgs {
++		if p == pkgpath {
++			return (0 - k) - 2
++		}
++	}
++	return NotHardCoded
++}
+diff --git a/src/internal/coverage/rtcov/rtcov.go b/src/internal/coverage/rtcov/rtcov.go
+new file mode 100644
+index 0000000000..38dbae6c82
+--- /dev/null
++++ b/src/internal/coverage/rtcov/rtcov.go
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rtcov
++
++// This package contains types whose structure is shared between
++// the runtime package and the "runtime/coverage" package.
++
++// CovMetaBlob is a container for holding the meta-data symbol (an
++// RODATA variable) for an instrumented Go package. Here "p" points to
++// the symbol itself, "len" is the length of the sym in bytes, and
++// "hash" is an md5sum for the sym computed by the compiler. When
++// the init function for a coverage-instrumented package executes, it
++// will make a call into the runtime which will create a covMetaBlob
++// object for the package and chain it onto a global list.
++type CovMetaBlob struct {
++	P                  *byte
++	Len                uint32
++	Hash               [16]byte
++	PkgPath            string
++	PkgID              int
++	CounterMode        uint8 // coverage.CounterMode
++	CounterGranularity uint8 // coverage.CounterGranularity
++}
+diff --git a/src/runtime/covermeta.go b/src/runtime/covermeta.go
+new file mode 100644
+index 0000000000..90bc20f45b
+--- /dev/null
++++ b/src/runtime/covermeta.go
+@@ -0,0 +1,82 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"internal/coverage/rtcov"
++	"unsafe"
++)
++
++// covMeta is the top-level container for bits of state related to
++// code coverage meta-data in the runtime.
++var covMeta struct {
++	// metaList contains the list of currently registered meta-data
++	// blobs for the running program.
++	metaList []rtcov.CovMetaBlob
++
++	// pkgMap records mappings from hard-coded package IDs to
++	// slots in the covMetaList above.
++	pkgMap map[int]int
++
++	// Set to true if we discover a package mapping glitch.
++	hardCodedListNeedsUpdating bool
++}
++
++func reportErrorInHardcodedList(slot int32, pkgId int32) {
++	println("internal error in coverage meta-data tracking:")
++	println("encountered bad pkg ID ", pkgId, " at slot ", slot)
++	println("list of hard-coded runtime package IDs needs revising.")
++	println("[see the comment on the 'rtPkgs' var in ")
++	println(" <goroot>/src/internal/coverage/pkid.go]")
++	println("registered list:")
++	for k, b := range covMeta.metaList {
++		print("slot: ", k, " path='", b.PkgPath, "' ")
++		if b.PkgID != -1 {
++			print(" hard-coded id: ", b.PkgID)
++		}
++		println("")
++	}
++	println("remap table:")
++	for from, to := range covMeta.pkgMap {
++		println("from ", from, " to ", to)
++	}
++}
++
++// addCovMeta is invoked during package "init" functions by the
++// compiler when compiling for coverage instrumentation; here 'p' is a
++// meta-data blob of length 'dlen' for the package in question, 'hash'
++// is a compiler-computed md5.sum for the blob, 'pkpath' is the
++// package path, 'pkid' is the hard-coded ID that the compiler is
++// using for the package (or -1 if the compiler doesn't think a
++// hard-coded ID is needed), and 'cmode'/'cgran' are the coverage
++// counter mode and granularity requested by the user. Return value is
++// the ID for the package for use by the package code itself.
++func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pkid int, cmode uint8, cgran uint8) uint32 {
++	slot := len(covMeta.metaList)
++	covMeta.metaList = append(covMeta.metaList,
++		rtcov.CovMetaBlob{
++			P:                  (*byte)(p),
++			Len:                dlen,
++			Hash:               hash,
++			PkgPath:            pkpath,
++			PkgID:              pkid,
++			CounterMode:        cmode,
++			CounterGranularity: cgran,
++		})
++	if pkid != -1 {
++		if covMeta.pkgMap == nil {
++			covMeta.pkgMap = make(map[int]int)
++		}
++		if _, ok := covMeta.pkgMap[pkid]; ok {
++			throw("runtime.addCovMeta: coverage package map collision")
++		}
++		// Record the real slot (position on meta-list) for this
++		// package; we'll use the map to fix things up later on.
++		covMeta.pkgMap[pkid] = slot
++	}
++
++	// ID zero is reserved as invalid.
++	return uint32(slot + 1)
++}

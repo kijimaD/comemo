@@ -20,7 +20,7 @@ Date:   Mon Jun 10 12:31:13 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go                           |  7 ++-----
  src/cmd/go/testdata/script/README                   |  3 +--
  src/cmd/go/testdata/script/build_cache_link.txt     |  4 ++--
@@ -29,3 +29,155 @@ Date:   Mon Jun 10 12:31:13 2019 -0400
  src/cmd/go/testdata/script/mod_build_versioned.txt  | 12 ++++++------
  src/cmd/go/testdata/script/test_devnull.txt         |  2 +-
  7 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 499a1ccd3f..c169a4ceec 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/txtar"
+@@ -106,6 +107,7 @@ func (ts *testScript) setup() {
+ 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
+ 		"GOARCH=" + runtime.GOARCH,
+ 		"GOCACHE=" + testGOCACHE,
++		"GOEXE=" + cfg.ExeSuffix,
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,
+@@ -123,11 +125,6 @@ func (ts *testScript) setup() {
+ 		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
+ 	}
+ 
+-	if runtime.GOOS == "windows" {
+-		ts.env = append(ts.env, "exe=.exe")
+-	} else {
+-		ts.env = append(ts.env, "exe=")
+-	}
+ 	for _, key := range extraEnvKeys {
+ 		if val := os.Getenv(key); val != "" {
+ 			ts.env = append(ts.env, key+"="+val)
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 3dceb735aa..66ab8515c3 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -28,6 +28,7 @@ Scripts also have access to these other environment variables:
+ 
+ 	GOARCH=<target GOARCH>
+ 	GOCACHE=<actual GOCACHE being used outside the test>
++	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
+ 	GOOS=<target GOOS>
+ 	GOPATH=$WORK/gopath
+ 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+@@ -38,8 +39,6 @@ Scripts also have access to these other environment variables:
+ 	devnull=<value of os.DevNull>
+ 	goversion=<current Go version; for example, 1.12>
+ 
+-The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
+-
+ The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+ and then the script begins execution in that directory as well. Thus the example above runs
+ in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
+diff --git a/src/cmd/go/testdata/script/build_cache_link.txt b/src/cmd/go/testdata/script/build_cache_link.txt
+index e80d776473..b9c740ac10 100644
+--- a/src/cmd/go/testdata/script/build_cache_link.txt
++++ b/src/cmd/go/testdata/script/build_cache_link.txt
+@@ -16,9 +16,9 @@ go build -o $devnull -x main.go
+ stderr '(link|gccgo)( |\.exe)'
+ 
+ # ... but the output binary can serve as a cache.
+-go build -o main$exe -x main.go
++go build -o main$GOEXE -x main.go
+ stderr '(link|gccgo)( |\.exe)'
+-go build -o main$exe -x main.go
++go build -o main$GOEXE -x main.go
+ ! stderr '(link|gccgo)( |\.exe)'
+ 
+ -- main.go --
+diff --git a/src/cmd/go/testdata/script/build_multi_main.txt b/src/cmd/go/testdata/script/build_multi_main.txt
+index 89fe2bec13..1d4926d979 100644
+--- a/src/cmd/go/testdata/script/build_multi_main.txt
++++ b/src/cmd/go/testdata/script/build_multi_main.txt
+@@ -29,5 +29,5 @@ package pkg1
+ -- pkg2/pkg2.go --
+ package pkg2
+ 
+--- c1$exe/keep.txt --
++-- c1$GOEXE/keep.txt --
+ Create c1 directory.
+diff --git a/src/cmd/go/testdata/script/install_cleans_build.txt b/src/cmd/go/testdata/script/install_cleans_build.txt
+index a169a60bda..dc85eb8cef 100644
+--- a/src/cmd/go/testdata/script/install_cleans_build.txt
++++ b/src/cmd/go/testdata/script/install_cleans_build.txt
+@@ -4,21 +4,21 @@ env GO111MODULE=off
+ # 'go install' with no arguments should clean up after go build
+ cd mycmd
+ go build
+-exists mycmd$exe
++exists mycmd$GOEXE
+ go install
+-! exists mycmd$exe
++! exists mycmd$GOEXE
+ 
+ # 'go install mycmd' does not clean up, even in the mycmd directory
+ go build
+-exists mycmd$exe
++exists mycmd$GOEXE
+ go install mycmd
+-exists mycmd$exe
++exists mycmd$GOEXE
+ 
+ # 'go install mycmd' should not clean up in an unrelated current directory either
+ cd ..
+-cp mycmd/mycmd$exe mycmd$exe
++cp mycmd/mycmd$GOEXE mycmd$GOEXE
+ go install mycmd
+-exists mycmd$exe
++exists mycmd$GOEXE
+ 
+ -- mycmd/main.go --
+ package main
+diff --git a/src/cmd/go/testdata/script/mod_build_versioned.txt b/src/cmd/go/testdata/script/mod_build_versioned.txt
+index 11ad556d44..d1d74de10c 100644
+--- a/src/cmd/go/testdata/script/mod_build_versioned.txt
++++ b/src/cmd/go/testdata/script/mod_build_versioned.txt
+@@ -3,15 +3,15 @@ env GO111MODULE=on
+ 
+ go get -d rsc.io/fortune/v2
+ 
+-# The default executable name shouldn't be v2$exe
++# The default executable name shouldn't be v2$GOEXE
+ go build rsc.io/fortune/v2
+-! exists v2$exe
+-exists fortune$exe
++! exists v2$GOEXE
++exists fortune$GOEXE
+ 
+-# The default test binary name shouldn't be v2.test$exe
++# The default test binary name shouldn't be v2.test$GOEXE
+ go test -c rsc.io/fortune/v2
+-! exists v2.test$exe
+-exists fortune.test$exe
++! exists v2.test$GOEXE
++exists fortune.test$GOEXE
+ 
+ -- go.mod --
+ module scratch
+diff --git a/src/cmd/go/testdata/script/test_devnull.txt b/src/cmd/go/testdata/script/test_devnull.txt
+index e7ebda33ee..33071679a2 100644
+--- a/src/cmd/go/testdata/script/test_devnull.txt
++++ b/src/cmd/go/testdata/script/test_devnull.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=off
+ # should work (see golang.org/issue/28035).
+ cd x
+ go test -o=$devnull -c
+-! exists x.test$exe
++! exists x.test$GOEXE
+ 
+ -- x/x_test.go --
+ package x_test

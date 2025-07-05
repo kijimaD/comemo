@@ -23,7 +23,7 @@ Date:   Thu Feb 18 06:31:57 2016 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 46 ++++++++++++----------------------
  src/cmd/internal/obj/link.go           |  5 ++++
  src/cmd/link/internal/ld/decodesym.go  |  2 +-
@@ -31,3 +31,328 @@ Date:   Thu Feb 18 06:31:57 2016 -0500
  src/runtime/heapdump.go                | 28 ++++-----------------
  src/runtime/type.go                    |  1 -
  6 files changed, 30 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d2f00d0a05..4fdbbd6967 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -701,12 +701,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		algsym = dalgsym(t)
+ 	}
+ 
+-	var sptr *Sym
+ 	tptr := Ptrto(t)
+ 	if !Isptr[t.Etype] && (t.Sym != nil || methods(tptr) != nil) {
+-		sptr = dtypesym(tptr)
+-	} else {
+-		sptr = weaktypesym(tptr)
++		sptr := dtypesym(tptr)
++		r := obj.Addrel(Linksym(s))
++		r.Off = 0
++		r.Siz = 0
++		r.Sym = sptr.Lsym
++		r.Type = obj.R_USETYPE
+ 	}
+ 
+ 	gcsym, useGCProg, ptrdata := dgcsym(t)
+@@ -725,7 +727,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		gcdata        *byte
+ 	//		string        *string
+ 	//		*uncommonType
+-	//		ptrToThis     *rtype
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
+ 	ot = duintptr(s, ot, uint64(ptrdata))
+@@ -779,7 +780,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	// otherwise linker will assume 0.
+ 	ot += Widthptr
+ 
+-	ot = dsymptr(s, ot, sptr, 0) // ptrto type
+ 	return ot
+ }
+ 
+@@ -1009,7 +1009,7 @@ ok:
+ 	switch t.Etype {
+ 	default:
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 
+ 	case TARRAY:
+ 		if t.Bound >= 0 {
+@@ -1021,7 +1021,7 @@ ok:
+ 			t2.Bound = -1 // slice
+ 			s2 := dtypesym(t2)
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 2*Widthptr
++			xt = ot - 1*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 			ot = dsymptr(s, ot, s2, 0)
+ 			ot = duintptr(s, ot, uint64(t.Bound))
+@@ -1030,7 +1030,7 @@ ok:
+ 			s1 := dtypesym(t.Type)
+ 
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 2*Widthptr
++			xt = ot - 1*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 		}
+ 
+@@ -1039,7 +1039,7 @@ ok:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = duintptr(s, ot, uint64(t.Chan))
+ 
+@@ -1058,7 +1058,7 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
+ 
+ 		// two slice headers: in and out.
+@@ -1096,7 +1096,7 @@ ok:
+ 		// ../../../../runtime/type.go:/interfaceType
+ 		ot = dcommontype(s, ot, t)
+ 
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+@@ -1116,7 +1116,7 @@ ok:
+ 		s3 := dtypesym(mapbucket(t))
+ 		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = dsymptr(s, ot, s2, 0)
+ 		ot = dsymptr(s, ot, s3, 0)
+@@ -1153,7 +1153,7 @@ ok:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 
+ 	// ../../../../runtime/type.go:/structType
+@@ -1167,7 +1167,7 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 2*Widthptr
++		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+@@ -1206,21 +1206,7 @@ ok:
+ 	// we want be able to find.
+ 	if t.Sym == nil {
+ 		switch t.Etype {
+-		case TPTR32, TPTR64:
+-			// The ptrto field of the type data cannot be relied on when
+-			// dynamic linking: a type T may be defined in a module that makes
+-			// no use of pointers to that type, but another module can contain
+-			// a package that imports the first one and does use *T pointers.
+-			// The second module will end up defining type data for *T and a
+-			// type.*T symbol pointing at it. It's important that calling
+-			// .PtrTo() on the reflect.Type for T returns this type data and
+-			// not some synthesized object, so we need reflect to be able to
+-			// find it!
+-			if !Ctxt.Flag_dynlink {
+-				break
+-			}
+-			fallthrough
+-		case TARRAY, TCHAN, TFUNC, TMAP:
++		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP:
+ 			slink := typelinksym(t)
+ 			dsymptr(slink, 0, s, 0)
+ 			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index c63c8e3c56..e89c1412e2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -444,6 +444,11 @@ const (
+ 	R_PLT1
+ 	R_PLT2
+ 	R_USEFIELD
++	// R_USETYPE resolves to an *rtype, but no relocation is created. The
++	// linker uses this as a signal that the pointed-to type information
++	// should be linked into the final binary, even if there are no other
++	// direct references. (This is used for types reachable by reflection.)
++	R_USETYPE
+ 	R_POWER_TOC
+ 	R_GOTPCREL
+ 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 8a16b05656..52eb46bb5c 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -47,7 +47,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ // commonsize returns the size of the common prefix for all type
+ // structures (runtime._type).
+ func commonsize() int {
+-	return 8*Thearch.Ptrsize + 8
++	return 7*Thearch.Ptrsize + 8
+ }
+ 
+ // Type.commonType.kind
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3fce24e849..2c7c1fb30b 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -256,7 +256,6 @@ type rtype struct {
+ 	gcdata        *byte    // garbage collection data
+ 	string        string   // string form; unnecessary but undeniably useful
+ 	*uncommonType          // (relatively) uncommon fields
+-	ptrToThis     *rtype   // type for pointer to this type, if used in binary or has methods
+ }
+ 
+ // a copy of runtime.typeAlg
+@@ -1030,15 +1029,7 @@ func PtrTo(t Type) Type {
+ }
+ 
+ func (t *rtype) ptrTo() *rtype {
+-	if p := t.ptrToThis; p != nil {
+-		return p
+-	}
+-
+-	// Otherwise, synthesize one.
+-	// This only happens for pointers with no methods.
+-	// We keep the mapping in a map on the side, because
+-	// this operation is rare and a separate map lets us keep
+-	// the type structures in read-only memory.
++	// Check the cache.
+ 	ptrMap.RLock()
+ 	if m := ptrMap.m; m != nil {
+ 		if p := m[t]; p != nil {
+@@ -1047,6 +1038,7 @@ func (t *rtype) ptrTo() *rtype {
+ 		}
+ 	}
+ 	ptrMap.RUnlock()
++
+ 	ptrMap.Lock()
+ 	if ptrMap.m == nil {
+ 		ptrMap.m = make(map[*rtype]*ptrType)
+@@ -1086,7 +1078,6 @@ func (t *rtype) ptrTo() *rtype {
+ 	p.hash = fnv1(t.hash, '*')
+ 
+ 	p.uncommonType = nil
+-	p.ptrToThis = nil
+ 	p.elem = t
+ 
+ 	ptrMap.m[t] = p
+@@ -1310,7 +1301,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ // Note that strings are not unique identifiers for types:
+ // there can be more than one with a given string.
+ // Only types we might want to look up are included:
+-// channels, maps, slices, and arrays.
++// pointers, channels, maps, slices, and arrays.
+ func typelinks() [][]*rtype
+ 
+ // typesByString returns the subslice of typelinks() whose elements have
+@@ -1465,7 +1456,6 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
+ 	ch.elem = typ
+ 	ch.uncommonType = nil
+-	ch.ptrToThis = nil
+ 
+ 	return cachePut(ckey, &ch.rtype)
+ }
+@@ -1528,7 +1518,6 @@ func MapOf(key, elem Type) Type {
+ 	mt.reflexivekey = isReflexive(ktyp)
+ 	mt.needkeyupdate = needKeyUpdate(ktyp)
+ 	mt.uncommonType = nil
+-	mt.ptrToThis = nil
+ 
+ 	return cachePut(ckey, &mt.rtype)
+ }
+@@ -1607,7 +1596,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	// Populate the remaining fields of ft and store in cache.
+ 	ft.string = str
+ 	ft.uncommonType = nil
+-	ft.ptrToThis = nil
+ 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+ 
+ 	return &ft.rtype
+@@ -1837,7 +1825,6 @@ func SliceOf(t Type) Type {
+ 	slice.hash = fnv1(typ.hash, '[')
+ 	slice.elem = typ
+ 	slice.uncommonType = nil
+-	slice.ptrToThis = nil
+ 
+ 	return cachePut(ckey, &slice.rtype)
+ }
+@@ -1895,7 +1882,6 @@ func ArrayOf(count int, elem Type) Type {
+ 	array.align = typ.align
+ 	array.fieldAlign = typ.fieldAlign
+ 	array.uncommonType = nil
+-	array.ptrToThis = nil
+ 	array.len = uintptr(count)
+ 	array.slice = slice.(*rtype)
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 20ca27bc35..1e1157d054 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -502,28 +502,10 @@ func dumpparams() {
+ 
+ func itab_callback(tab *itab) {
+ 	t := tab._type
+-	// Dump a map from itab* to the type of its data field.
+-	// We want this map so we can deduce types of interface referents.
+-	if t.kind&kindDirectIface == 0 {
+-		// indirect - data slot is a pointer to t.
+-		dumptype(t.ptrto)
+-		dumpint(tagItab)
+-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+-		dumpint(uint64(uintptr(unsafe.Pointer(t.ptrto))))
+-	} else if t.kind&kindNoPointers == 0 {
+-		// t is pointer-like - data slot is a t.
+-		dumptype(t)
+-		dumpint(tagItab)
+-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
+-	} else {
+-		// Data slot is a scalar.  Dump type just for fun.
+-		// With pointer-only interfaces, this shouldn't happen.
+-		dumptype(t)
+-		dumpint(tagItab)
+-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
+-	}
++	dumptype(t)
++	dumpint(tagItab)
++	dumpint(uint64(uintptr(unsafe.Pointer(tab))))
++	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+ }
+ 
+ func dumpitabs() {
+@@ -639,7 +621,7 @@ func dumpmemprof() {
+ 	}
+ }
+ 
+-var dumphdr = []byte("go1.6 heap dump\n")
++var dumphdr = []byte("go1.7 heap dump\n")
+ 
+ func mdump() {
+ 	// make sure we're done sweeping
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 1323adaf64..8304ad7b77 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -26,7 +26,6 @@ type _type struct {
+ 	gcdata  *byte
+ 	_string string
+ 	x       *uncommontype
+-	ptrto   *_type
+ }
+ 
+ type method struct {

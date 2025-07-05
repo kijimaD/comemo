@@ -9,7 +9,32 @@ Date:   Thu Apr 10 13:33:32 2014 +1000
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/85550044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6ec8e117e9..9781081040 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -328,6 +328,7 @@ Peter Waller <peter.waller@gmail.com>
+ Peter Williams <pwil3058@gmail.com>
+ Philip K. Warren <pkwarren@gmail.com>
+ Pieter Droogendijk <pieter@binky.org.uk>
++Preetam Jinka <pj@preet.am>
+ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
+ Rémy Oudompheng <oudomphe@phare.normalesup.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 686b517c9e..74d35529e1 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -457,6 +457,7 @@ Peter Williams <pwil3058@gmail.com>
+ Phil Pennock <pdp@golang.org>
+ Philip K. Warren <pkwarren@gmail.com>
+ Pieter Droogendijk <pieter@binky.org.uk>
++Preetam Jinka <pj@preet.am>
+ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
+ Raph Levien <raph@google.com>

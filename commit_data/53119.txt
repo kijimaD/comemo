@@ -27,6 +27,27 @@ Date:   Tue Jul 12 14:41:33 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  misc/cgo/testshared/shared_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 024f084da5..756c4baa6b 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -108,6 +108,15 @@ func testMain(m *testing.M) (int, error) {
+ 		defer os.RemoveAll(workDir)
+ 	}
+ 
++	// -buildmode=shared fundamentally does not work in module mode.
++	// (It tries to share package dependencies across builds, but in module mode
++	// each module has its own distinct set of dependency versions.)
++	// We would like to eliminate it (see https://go.dev/issue/47788),
++	// but first need to figure out a replacement that covers the small subset
++	// of use-cases where -buildmode=shared still works today.
++	// For now, run the tests in GOPATH mode only.
++	os.Setenv("GO111MODULE", "off")
++
+ 	// Some tests need to edit the source in GOPATH, so copy this directory to a
+ 	// temporary directory and chdir to that.
+ 	gopath := filepath.Join(workDir, "gopath")

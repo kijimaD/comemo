@@ -21,7 +21,38 @@ Date:   Tue Jan 16 16:55:06 2018 +0000
     Change-Id: I58a83ffa3e2549625d8e546ef916652525504bd1
     Reviewed-on: https://go-review.googlesource.com/87857
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/path/filepath/match.go | 2 +-
  src/path/match.go          | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 5168e037b5..057f7f3677 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -13,7 +13,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// ErrBadPattern indicates a globbing pattern was malformed.
++// ErrBadPattern indicates a pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+ // Match reports whether name matches the shell file name pattern.
+diff --git a/src/path/match.go b/src/path/match.go
+index 8d9aa513b1..d39d24450a 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -10,10 +10,10 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// ErrBadPattern indicates a globbing pattern was malformed.
++// ErrBadPattern indicates a pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+-// Match reports whether name matches the shell file name pattern.
++// Match reports whether name matches the shell pattern.
+ // The pattern syntax is:
+ //
+ //	pattern:

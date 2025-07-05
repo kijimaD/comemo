@@ -29,7 +29,51 @@ Date:   Mon Jun 8 16:21:50 2015 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go |  2 ++
  test/fixedbugs/issue10654.go        | 17 +++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index f40ca9e374..4160ae9d40 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2007,6 +2007,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		var n1 Node
+ 		Regalloc(&n1, nl.Type, nil)
+ 		Cgen(nl, &n1)
++		nl = &n1
+ 
+ 		var tmp Node
+ 		Tempname(&tmp, nl.Type)
+@@ -2016,6 +2017,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		var n2 Node
+ 		Regalloc(&n2, nr.Type, nil)
+ 		Cgen(nr, &n2)
++		nr = &n2
+ 		Regfree(&n2)
+ 
+ 		Regalloc(&n1, nl.Type, nil)
+diff --git a/test/fixedbugs/issue10654.go b/test/fixedbugs/issue10654.go
+new file mode 100644
+index 0000000000..0600a801bb
+--- /dev/null
++++ b/test/fixedbugs/issue10654.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10654: Failure to use generated temps
++// for function calls etc. in boolean codegen.
++
++package main
++
++var s string
++
++func main() {
++	if (s == "this") != (s == "that") {
++	}
++}

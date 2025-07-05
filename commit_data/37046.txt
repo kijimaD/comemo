@@ -11,6 +11,27 @@ Date:   Thu Jun 21 12:01:54 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8d486b7a77..cb4a1a04b9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -799,7 +799,6 @@ func TestBuildComplex(t *testing.T) {
+ 	tg.run("build", "-x", "-o", os.DevNull, "complex")
+ 
+ 	if _, err := exec.LookPath("gccgo"); err == nil {
+-		t.Skip("golang.org/issue/22472")
+ 		tg.run("build", "-x", "-o", os.DevNull, "-compiler=gccgo", "complex")
+ 	}
+ }
+@@ -3084,7 +3083,6 @@ func TestIssue7573(t *testing.T) {
+ 	if _, err := exec.LookPath("gccgo"); err != nil {
+ 		t.Skip("skipping because no gccgo compiler found")
+ 	}
+-	t.Skip("golang.org/issue/22472")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

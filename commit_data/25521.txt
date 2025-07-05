@@ -13,7 +13,39 @@ Date:   Wed Nov 4 18:20:57 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/ldelf.go | 7 +++++++
  src/cmd/link/internal/ld/lib.go   | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index a321016999..c088b07e91 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -765,6 +765,13 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
+ 				continue
+ 			}
++
++			if sym.name == "" && sym.type_ == 0 && sect.name == ".debug_str" {
++				// This reportedly happens with clang 3.7 on ARM.
++				// See issue 13139.
++				continue
++			}
++
+ 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f3ca4b8f27..f0e051173b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1807,7 +1807,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	}
+ 
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if s.Hide != 0 || (s.Name[0] == '.' && s.Version == 0 && s.Name != ".rathole") {
++		if s.Hide != 0 || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole") {
+ 			continue
+ 		}
+ 		switch s.Type & obj.SMASK {

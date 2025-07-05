@@ -20,7 +20,7 @@ Date:   Fri Aug 25 16:06:36 2023 +0300
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 14 +++-----------
  src/cmd/compile/internal/staticdata/data.go     | 10 ++++++++++
  src/cmd/compile/internal/walk/expr.go           |  9 ++-------
@@ -28,3 +28,143 @@ Date:   Fri Aug 25 16:06:36 2023 +0300
  src/cmd/internal/objabi/reloctype_string.go     |  6 +++---
  src/cmd/link/internal/ld/deadcode.go            |  2 +-
  6 files changed, 23 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 0a96e8831c..a0eb93861b 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -18,6 +18,7 @@ import (
+ 	"cmd/compile/internal/compare"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typebits"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -1848,17 +1849,8 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
+ 		// some sort of fuzzy shape matching. For now, only use the name
+ 		// of the method for matching.
+ 		r := obj.Addrel(ir.CurFunc.LSym)
+-		// We use a separate symbol just to tell the linker the method name.
+-		// (The symbol itself is not needed in the final binary. Do not use
+-		// staticdata.StringSym, which creates a content addessable symbol,
+-		// which may have trailing zero bytes. This symbol doesn't need to
+-		// be deduplicated anyway.)
+-		name := dot.Sel.Name
+-		var nameSym obj.LSym
+-		nameSym.WriteString(base.Ctxt, 0, len(name), name)
+-		objw.Global(&nameSym, int32(len(name)), obj.RODATA)
+-		r.Sym = &nameSym
+-		r.Type = objabi.R_USEGENERICIFACEMETHOD
++		r.Sym = staticdata.StringSymNoCommon(dot.Sel.Name)
++		r.Type = objabi.R_USENAMEDMETHOD
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 14107057d4..78c332eeb8 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -96,6 +96,16 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
+ 	return symdata
+ }
+ 
++// StringSymNoCommon is like StringSym, but produces a symbol that is not content-
++// addressable. This symbol is not supposed to appear in the final binary, it is
++// only used to pass string arguments to the linker like R_USENAMEDMETHOD does.
++func StringSymNoCommon(s string) (data *obj.LSym) {
++	var nameSym obj.LSym
++	nameSym.WriteString(base.Ctxt, 0, len(s), s)
++	objw.Global(&nameSym, int32(len(s)), obj.RODATA)
++	return &nameSym
++}
++
+ // maxFileSize is the maximum file size permitted by the linker
+ // (see issue #9862).
+ const maxFileSize = int64(2e9)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 49b9576d36..f3fd9e6c7a 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -12,7 +12,6 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+@@ -1034,13 +1033,9 @@ func usemethod(n *ir.CallExpr) {
+ 	if ir.IsConst(targetName, constant.String) {
+ 		name := constant.StringVal(targetName.Val())
+ 
+-		var nameSym obj.LSym
+-		nameSym.WriteString(base.Ctxt, 0, len(name), name)
+-		objw.Global(&nameSym, int32(len(name)), obj.RODATA)
+-
+ 		r := obj.Addrel(ir.CurFunc.LSym)
+-		r.Type = objabi.R_USEGENERICIFACEMETHOD
+-		r.Sym = &nameSym
++		r.Type = objabi.R_USENAMEDMETHOD
++		r.Sym = staticdata.StringSymNoCommon(name)
+ 	} else {
+ 		ir.CurFunc.SetReflectMethod(true)
+ 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 43106e0a25..3312a4de7e 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -94,11 +94,10 @@ const (
+ 	// This is a marker relocation (0-sized), for the linker's reachabililty
+ 	// analysis.
+ 	R_USEIFACEMETHOD
+-	// Similar to R_USEIFACEMETHOD, except instead of indicating a type +
+-	// method offset with Sym+Add, Sym points to a symbol containing the name
+-	// of the method being called. See the description in
+-	// cmd/compile/internal/reflectdata/reflect.go:MarkUsedIfaceMethod for details.
+-	R_USEGENERICIFACEMETHOD
++	// R_USENAMEDMETHOD marks that methods with a specific name must not be eliminated.
++	// The target is a symbol containing the name of a method called via a generic
++	// interface or looked up via MethodByName("F").
++	R_USENAMEDMETHOD
+ 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
+ 	// holding the data being relocated to the referenced symbol.
+ 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index b5315d1dfd..ea4be10e4b 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -32,7 +32,7 @@ func _() {
+ 	_ = x[R_USETYPE-22]
+ 	_ = x[R_USEIFACE-23]
+ 	_ = x[R_USEIFACEMETHOD-24]
+-	_ = x[R_USEGENERICIFACEMETHOD-25]
++	_ = x[R_USENAMEDMETHOD-25]
+ 	_ = x[R_METHODOFF-26]
+ 	_ = x[R_KEEP-27]
+ 	_ = x[R_POWER_TOC-28]
+@@ -98,9 +98,9 @@ func _() {
+ 	_ = x[R_INITORDER-88]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_RISCV_GOT_HI20R_RISCV_PCREL_HI20R_RISCV_PCREL_LO12_IR_RISCV_PCREL_LO12_SR_RISCV_BRANCHR_RISCV_RVC_BRANCHR_RISCV_RVC_JUMPR_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USENAMEDMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_RISCV_GOT_HI20R_RISCV_PCREL_HI20R_RISCV_PCREL_LO12_IR_RISCV_PCREL_LO12_SR_RISCV_BRANCHR_RISCV_RVC_BRANCHR_RISCV_RVC_JUMPR_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 831, 845, 861, 879, 899, 919, 933, 951, 967, 977, 990, 1004, 1020, 1037, 1050, 1075, 1094, 1106, 1117, 1130, 1141, 1153, 1163, 1175, 1186}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 226, 237, 243, 254, 264, 273, 286, 300, 314, 328, 344, 355, 368, 387, 407, 427, 447, 460, 474, 488, 502, 517, 531, 545, 556, 578, 600, 614, 629, 652, 669, 687, 708, 723, 742, 754, 772, 791, 810, 824, 838, 854, 872, 892, 912, 926, 944, 960, 970, 983, 997, 1013, 1030, 1043, 1068, 1087, 1099, 1110, 1123, 1134, 1146, 1156, 1168, 1179}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 2ef9de4d0e..b365a3b39e 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -214,7 +214,7 @@ func (d *deadcodePass) flood() {
+ 				}
+ 				d.ifaceMethod[m] = true
+ 				continue
+-			case objabi.R_USEGENERICIFACEMETHOD:
++			case objabi.R_USENAMEDMETHOD:
+ 				name := d.decodeGenericIfaceMethod(d.ldr, r.Sym())
+ 				if d.ctxt.Debugvlog > 1 {
+ 					d.ctxt.Logf("reached generic iface method: %s\n", name)

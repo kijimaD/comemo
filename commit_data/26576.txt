@@ -21,7 +21,7 @@ Date:   Tue Feb 9 19:46:26 2016 +0100
     Change-Id: Iff6bd411b854f3d1d6d3ce21934bf566757094f2
     Reviewed-on: https://go-review.googlesource.com/19412
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 20 +++++
  src/cmd/compile/internal/ssa/gen/generic.rules    |  6 ++
  src/cmd/compile/internal/ssa/gen/genericOps.go    |  4 +-
@@ -29,3 +29,219 @@ Date:   Tue Feb 9 19:46:26 2016 +0100
  src/cmd/compile/internal/ssa/gen/rulegen.go       | 17 ++++
  src/cmd/compile/internal/ssa/rewritegeneric.go    | 94 +++++++++++++++++++++++
  6 files changed, 140 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 22a78105e0..821c0dd12d 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -358,6 +358,26 @@ func testSubConst() {
+ 	}
+ }
+ 
++//go:noinline
++func orPhi_ssa(a bool, x int) int {
++	v := 0
++	if a {
++		v = -1
++	} else {
++		v = -1
++	}
++	return x | v
++}
++
++func testOrPhi() {
++	if want, got := -1, orPhi_ssa(true, 4); got != want {
++		println("orPhi_ssa(true, 4)=", got, " want ", want)
++	}
++	if want, got := -1, orPhi_ssa(false, 0); got != want {
++		println("orPhi_ssa(false, 0)=", got, " want ", want)
++	}
++}
++
+ var failed = false
+ 
+ func main() {
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index a3cc5654ea..29b1d42c9e 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -263,6 +263,12 @@
+ (Sub8 (Add8 x y) x) -> y
+ (Sub8 (Add8 x y) y) -> x
+ 
++// basic phi simplifications
++(Phi (Const8 [c]) (Const8 [d])) && int8(c) == int8(d) -> (Const8 [c])
++(Phi (Const16 [c]) (Const16 [d])) && int16(c) == int16(d) -> (Const16 [c])
++(Phi (Const32 [c]) (Const32 [d])) && int32(c) == int32(d) -> (Const32 [c])
++(Phi (Const64 [c]) (Const64 [c])) -> (Const64 [c])
++
+ // user nil checks
+ (NeqPtr p (ConstNil)) -> (IsNonNil p)
+ (NeqPtr (ConstNil) p) -> (IsNonNil p)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ec74859cbc..fe5169d233 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -240,8 +240,8 @@ var genericOps = []opData{
+ 	{name: "Sqrt"}, // sqrt(arg0), float64 only
+ 
+ 	// Data movement
+-	{name: "Phi"},  // select an argument based on which predecessor block we came from
+-	{name: "Copy"}, // output = arg0
++	{name: "Phi", variableLength: true}, // select an argument based on which predecessor block we came from
++	{name: "Copy"},                      // output = arg0
+ 	// Convert converts between pointers and integers.
+ 	// We have a special op for this so as to not confuse GC
+ 	// (particularly stack maps).  It takes a memory arg so it
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index f8f6c8b5f6..d739b29079 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -32,6 +32,7 @@ type opData struct {
+ 	typ               string // default result type
+ 	aux               string
+ 	rematerializeable bool
++	variableLength    bool // if true the operation has a variable number of arguments
+ }
+ 
+ type blockData struct {
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 1a0f5d4b1e..b9aa51d165 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -395,6 +395,23 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
+ 			argnum++
+ 		}
+ 	}
++
++	variableLength := false
++	for _, op := range genericOps {
++		if op.name == s[0] {
++			variableLength = op.variableLength
++			break
++		}
++	}
++	for _, op := range arch.ops {
++		if op.name == s[0] {
++			variableLength = op.variableLength
++			break
++		}
++	}
++	if variableLength {
++		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
++	}
+ }
+ 
+ func genResult(w io.Writer, arch arch, result string) {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index a724a2d369..e0f03d2e45 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -213,6 +213,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpOr64(v, config)
+ 	case OpOr8:
+ 		return rewriteValuegeneric_OpOr8(v, config)
++	case OpPhi:
++		return rewriteValuegeneric_OpPhi(v, config)
+ 	case OpPtrIndex:
+ 		return rewriteValuegeneric_OpPtrIndex(v, config)
+ 	case OpRsh16Ux16:
+@@ -3965,6 +3967,98 @@ func rewriteValuegeneric_OpOr8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Phi (Const8 [c]) (Const8 [d]))
++	// cond: int8(c) == int8(d)
++	// result: (Const8 [c])
++	for {
++		if v.Args[0].Op != OpConst8 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst8 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if len(v.Args) != 2 {
++			break
++		}
++		if !(int8(c) == int8(d)) {
++			break
++		}
++		v.reset(OpConst8)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Phi (Const16 [c]) (Const16 [d]))
++	// cond: int16(c) == int16(d)
++	// result: (Const16 [c])
++	for {
++		if v.Args[0].Op != OpConst16 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst16 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if len(v.Args) != 2 {
++			break
++		}
++		if !(int16(c) == int16(d)) {
++			break
++		}
++		v.reset(OpConst16)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Phi (Const32 [c]) (Const32 [d]))
++	// cond: int32(c) == int32(d)
++	// result: (Const32 [c])
++	for {
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst32 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if len(v.Args) != 2 {
++			break
++		}
++		if !(int32(c) == int32(d)) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Phi (Const64 [c]) (Const64 [c]))
++	// cond:
++	// result: (Const64 [c])
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		if v.Args[1].AuxInt != v.Args[0].AuxInt {
++			break
++		}
++		if len(v.Args) != 2 {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = c
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

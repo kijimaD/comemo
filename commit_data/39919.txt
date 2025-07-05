@@ -11,6 +11,29 @@ Date:   Mon Apr 1 14:12:51 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/bytealg/index_arm64.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/index_arm64.go b/src/internal/bytealg/index_arm64.go
+index 251e63567e..e87c109519 100644
+--- a/src/internal/bytealg/index_arm64.go
++++ b/src/internal/bytealg/index_arm64.go
+@@ -4,7 +4,7 @@
+ 
+ package bytealg
+ 
+-// Empirical data shows that using IndexShortStr can get better
++// Empirical data shows that using Index can get better
+ // performance when len(s) <= 16.
+ const MaxBruteForce = 16
+ 
+@@ -14,7 +14,7 @@ func init() {
+ }
+ 
+ // Cutover reports the number of failures of IndexByte we should tolerate
+-// before switching over to IndexShortStr.
++// before switching over to Index.
+ // n is the number of bytes processed so far.
+ // See the bytes.Index implementation for details.
+ func Cutover(n int) int {

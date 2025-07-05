@@ -10,6 +10,20 @@ Date:   Mon Dec 29 10:54:42 2014 -0800
     Change-Id: I12b00e8ccac700bb36b200196e2867fcc863fdf1
     Reviewed-on: https://go-review.googlesource.com/2139
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/testing/iotest/logger.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/iotest/logger.go b/src/testing/iotest/logger.go
+index 1475d9b0c6..0aec15c575 100644
+--- a/src/testing/iotest/logger.go
++++ b/src/testing/iotest/logger.go
+@@ -48,7 +48,7 @@ func (l *readLogger) Read(p []byte) (n int, err error) {
+ 
+ // NewReadLogger returns a reader that behaves like r except
+ // that it logs (using log.Print) each read to standard error,
+-// printing the prefix and the hexadecimal data written.
++// printing the prefix and the hexadecimal data read.
+ func NewReadLogger(prefix string, r io.Reader) io.Reader {
+ 	return &readLogger{prefix, r}
+ }

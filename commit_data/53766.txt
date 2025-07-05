@@ -11,7 +11,95 @@ Date:   Wed Aug 31 12:14:58 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 25 +++++++++++++---------
  .../types2/testdata/fixedbugs/issue43190.go        | 12 +++++++++--
  2 files changed, 25 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e2298852b8..b956028404 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -401,15 +401,20 @@ func (p *parser) fileOrNil() *File {
+ 		return nil
+ 	}
+ 
+-	// { ImportDecl ";" }
+-	for p.got(_Import) {
+-		f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
+-		p.want(_Semi)
+-	}
+-
+-	// { TopLevelDecl ";" }
++	// Accept import declarations anywhere for error tolerance, but complain.
++	// { ( ImportDecl | TopLevelDecl ) ";" }
++	prev := _Import
+ 	for p.tok != _EOF {
++		if p.tok == _Import && prev != _Import {
++			p.syntaxError("imports must appear before other declarations")
++		}
++		prev = p.tok
++
+ 		switch p.tok {
++		case _Import:
++			p.next()
++			f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
++
+ 		case _Const:
+ 			p.next()
+ 			f.DeclList = p.appendGroup(f.DeclList, p.constDecl)
+@@ -435,7 +440,7 @@ func (p *parser) fileOrNil() *File {
+ 			} else {
+ 				p.syntaxError("non-declaration statement outside function body")
+ 			}
+-			p.advance(_Const, _Type, _Var, _Func)
++			p.advance(_Import, _Const, _Type, _Var, _Func)
+ 			continue
+ 		}
+ 
+@@ -445,7 +450,7 @@ func (p *parser) fileOrNil() *File {
+ 
+ 		if p.tok != _EOF && !p.got(_Semi) {
+ 			p.syntaxError("after top level declaration")
+-			p.advance(_Const, _Type, _Var, _Func)
++			p.advance(_Import, _Const, _Type, _Var, _Func)
+ 		}
+ 	}
+ 	// p.tok == _EOF
+@@ -543,7 +548,7 @@ func (p *parser) importDecl(group *Group) Decl {
+ 		return d
+ 	}
+ 	if !d.Path.Bad && d.Path.Kind != StringLit {
+-		p.syntaxError("import path must be a string")
++		p.syntaxErrorAt(d.Path.Pos(), "import path must be a string")
+ 		d.Path.Bad = true
+ 	}
+ 	// d.Path.Bad || d.Path.Kind == StringLit
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go
+index ae42719ad7..37b781ce9c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go
+@@ -7,8 +7,12 @@ package p
+ import ; // ERROR missing import path
+ import
+ var /* ERROR missing import path */ _ int
+-import .; // ERROR missing import path
++import .; //  ERROR missing import path
++import 'x' // ERROR import path must be a string
++var _ int
++import /* ERROR imports must appear before other declarations */ _ "math"
+ 
++// Don't repeat previous error for each immediately following import ...
+ import ()
+ import (.) // ERROR missing import path
+ import (
+@@ -16,4 +20,8 @@ import (
+ 	.
+ ) // ERROR missing import path
+ 
+-var _ = fmt.Println // avoid imported but not used error
++// ... but remind with error again if we start a new import section after
++// other declarations
++var _ = fmt.Println
++import /* ERROR imports must appear before other declarations */ _ "math"
++import _ "math"

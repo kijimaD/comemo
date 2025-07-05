@@ -16,9 +16,65 @@ Date:   Tue May 8 18:01:16 2018 -0700
     Change-Id: Iecb3f0e1afb4585b85553b6c581212f52ac3a1c4
     Reviewed-on: https://go-review.googlesource.com/115456
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/builtins.go         | 2 +-
  src/go/types/expr.go             | 2 +-
  src/go/types/testdata/cycles.src | 2 +-
  src/go/types/typexpr.go          | 5 +++++
  4 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index afe5f5d0fc..05e032423c 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -174,7 +174,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 		}
+ 
+-		if mode == invalid {
++		if mode == invalid && typ != Typ[Invalid] {
+ 			check.invalidArg(x.pos(), "%s for %s", x, bin.name)
+ 			return
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 0a2a811bd8..3f3c4f83c6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					break
+ 				}
+ 			}
+-			typ = check.typ(e.Type)
++			typ = check.typExpr(e.Type, nil, nil)
+ 			base = typ
+ 
+ 		case hint != nil:
+diff --git a/src/go/types/testdata/cycles.src b/src/go/types/testdata/cycles.src
+index 79e75e9316..59f112dba1 100644
+--- a/src/go/types/testdata/cycles.src
++++ b/src/go/types/testdata/cycles.src
+@@ -147,7 +147,7 @@ type (
+ // test cases for issue 18643
+ // (type cycle detection when non-type expressions are involved)
+ type (
+-	T14 [len(T14 /* ERROR cycle */ {})]int
++	T14 /* ERROR cycle */ [len(T14{})]int
+ 	T15 [][len(T15 /* ERROR cycle */ {})]int
+ 	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
+ 	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e3f50000ec..45ada5874b 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -161,6 +161,11 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
+ 	return
+ }
+ 
++// typ is like typExpr (with a nil argument for the def parameter),
++// but typ breaks type cycles. It should be called for components of
++// types that break cycles, such as pointer base types, slice or map
++// element types, etc. See the comment in typExpr for details.
++//
+ func (check *Checker) typ(e ast.Expr) Type {
+ 	// typExpr is called with a nil path indicating an indirection:
+ 	// push indir sentinel on object path

@@ -12,8 +12,52 @@ Date:   Tue Aug 31 14:57:24 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go | 2 +-
  src/go/types/typeset.go   | 6 ++----
  src/go/types/typexpr.go   | 2 +-
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index d27f8cfd4d..e9970ba101 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -105,7 +105,7 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ 
+ // IsConstraint reports whether interface t is not just a method set.
+-func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
++func (t *Interface) IsConstraint() bool { return t.typeSet().IsConstraint() }
+ 
+ // Complete computes the interface's type set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index fd9df4c010..293b6d0d44 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -28,10 +28,8 @@ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
+ // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+ func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
+ 
+-// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
+-
+-// IsMethodSet reports whether the type set s is described by a single set of methods.
+-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
++// IsConstraint reports whether type set s is not just a set of methods.
++func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+ func (s *_TypeSet) IsComparable() bool {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 5a67982030..a126241afa 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -149,7 +149,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+ 			tset := computeInterfaceTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
+-			if !tset.IsMethodSet() {
++			if tset.IsConstraint() {
+ 				if tset.comparable {
+ 					check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
+ 				} else {

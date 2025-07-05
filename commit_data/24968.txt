@@ -43,9 +43,201 @@ Date:   Wed Aug 26 23:17:22 2015 +0200
     Change-Id: If0f525dae1a5d45f9ba40534dbb65715d7e8001b
     Reviewed-on: https://go-review.googlesource.com/13928
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/printer/nodes.go                    | 40 +++++++++++++++++++++++-------
  src/go/printer/testdata/expressions.golden | 22 ++++++++++++++--
  src/go/printer/testdata/expressions.input  | 18 ++++++++++++++
  src/go/printer/testdata/expressions.raw    | 22 ++++++++++++++--
  4 files changed, 89 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index fe047053af..35c017db0e 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -747,13 +747,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		}
+ 
+ 	case *ast.SelectorExpr:
+-		p.expr1(x.X, token.HighestPrec, depth)
+-		p.print(token.PERIOD)
+-		if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
+-			p.print(indent, newline, x.Sel.Pos(), x.Sel, unindent)
+-		} else {
+-			p.print(x.Sel.Pos(), x.Sel)
+-		}
++		p.selectorExpr(x, depth, false)
+ 
+ 	case *ast.TypeAssertExpr:
+ 		p.expr1(x.X, token.HighestPrec, depth)
+@@ -802,13 +796,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		if len(x.Args) > 1 {
+ 			depth++
+ 		}
++		var wasIndented bool
+ 		if _, ok := x.Fun.(*ast.FuncType); ok {
+ 			// conversions to literal function types require parentheses around the type
+ 			p.print(token.LPAREN)
+-			p.expr1(x.Fun, token.HighestPrec, depth)
++			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+ 			p.print(token.RPAREN)
+ 		} else {
+-			p.expr1(x.Fun, token.HighestPrec, depth)
++			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+ 		}
+ 		p.print(x.Lparen, token.LPAREN)
+ 		if x.Ellipsis.IsValid() {
+@@ -821,6 +816,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen)
+ 		}
+ 		p.print(x.Rparen, token.RPAREN)
++		if wasIndented {
++			p.print(unindent)
++		}
+ 
+ 	case *ast.CompositeLit:
+ 		// composite literal elements that are composite literals themselves may have the type omitted
+@@ -891,6 +889,30 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 	return
+ }
+ 
++func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
++	if x, ok := expr.(*ast.SelectorExpr); ok {
++		return p.selectorExpr(x, depth, true)
++	}
++	p.expr1(expr, prec1, depth)
++	return false
++}
++
++// selectorExpr handles an *ast.SelectorExpr node and returns whether x spans
++// multiple lines.
++func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
++	p.expr1(x.X, token.HighestPrec, depth)
++	p.print(token.PERIOD)
++	if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
++		p.print(indent, newline, x.Sel.Pos(), x.Sel)
++		if !isMethod {
++			p.print(unindent)
++		}
++		return true
++	}
++	p.print(x.Sel.Pos(), x.Sel)
++	return false
++}
++
+ func (p *printer) expr0(x ast.Expr, depth int) {
+ 	p.expr1(x, token.LowestPrec, depth)
+ }
+diff --git a/src/go/printer/testdata/expressions.golden b/src/go/printer/testdata/expressions.golden
+index e3d17a4653..cab991fd88 100644
+--- a/src/go/printer/testdata/expressions.golden
++++ b/src/go/printer/testdata/expressions.golden
+@@ -567,7 +567,7 @@ func _() {
+ 	// handle multiline argument list correctly
+ 	_ = new(T).
+ 		foo(
+-		1).
++			1).
+ 		foo(2)
+ 
+ 	_ = new(T).foo(
+@@ -614,7 +614,7 @@ func _() {
+ 		Blob.(*Type).
+ 		Slices[1:4].
+ 		Method(1, 2,
+-		3).
++			3).
+ 		Thingy
+ 
+ 	_ = a.b.c
+@@ -684,3 +684,21 @@ func _() {
+ 	_ = (func(x int) float)(nil)
+ 	_ = (func() func() func())(nil)
+ }
++
++func _() {
++	_ = f().
++		f(func() {
++			f()
++		}).
++		f(map[int]int{
++			1:	2,
++			3:	4,
++		})
++
++	_ = f().
++		f(
++			func() {
++				f()
++			},
++		)
++}
+diff --git a/src/go/printer/testdata/expressions.input b/src/go/printer/testdata/expressions.input
+index d20a59350e..7c88042dc1 100644
+--- a/src/go/printer/testdata/expressions.input
++++ b/src/go/printer/testdata/expressions.input
+@@ -713,3 +713,21 @@ func _() {
+ 	_ = (func(x int)(float))(nil)
+ 	_ = (func() func() func()())(nil)
+ }
++
++func _() {
++	_ = f().
++	f(func() {
++		f()
++	}).
++	f(map[int]int{
++	1: 2,
++	3: 4,
++})
++
++	_ = f().
++	f(
++	func() {
++		f()
++	},
++	)
++}
+diff --git a/src/go/printer/testdata/expressions.raw b/src/go/printer/testdata/expressions.raw
+index 2357336957..d9060621ce 100644
+--- a/src/go/printer/testdata/expressions.raw
++++ b/src/go/printer/testdata/expressions.raw
+@@ -567,7 +567,7 @@ func _() {
+ 	// handle multiline argument list correctly
+ 	_ = new(T).
+ 		foo(
+-		1).
++			1).
+ 		foo(2)
+ 
+ 	_ = new(T).foo(
+@@ -614,7 +614,7 @@ func _() {
+ 		Blob.(*Type).
+ 		Slices[1:4].
+ 		Method(1, 2,
+-		3).
++			3).
+ 		Thingy
+ 
+ 	_ = a.b.c
+@@ -684,3 +684,21 @@ func _() {
+ 	_ = (func(x int) float)(nil)
+ 	_ = (func() func() func())(nil)
+ }
++
++func _() {
++	_ = f().
++		f(func() {
++			f()
++		}).
++		f(map[int]int{
++			1:	2,
++			3:	4,
++		})
++
++	_ = f().
++		f(
++			func() {
++				f()
++			},
++		)
++}

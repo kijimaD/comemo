@@ -27,7 +27,36 @@ Date:   Thu Jul 6 00:14:15 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/47571
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 3 +--
  src/cmd/go/internal/test/test.go | 3 +--
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index aaeaab60cf..7dd7ba90f0 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1499,8 +1499,7 @@
+ // 	    exhaustive tests.
+ //
+ // 	-timeout d
+-// 	    If the cumulative test time for a package runs longer than
+-// 	    duration d, panic. Timeout is disabled if set to 0.
++// 	    If a test binary runs longer than duration d, panic.
+ // 	    The default is 10 minutes (10m).
+ //
+ // 	-v
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 38b7e3fda3..ebebffd777 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -224,8 +224,7 @@ const testFlag2 = `
+ 	    exhaustive tests.
+ 
+ 	-timeout d
+-	    If the cumulative test time for a package runs longer than
+-	    duration d, panic. Timeout is disabled if set to 0.
++	    If a test binary runs longer than duration d, panic.
+ 	    The default is 10 minutes (10m).
+ 
+ 	-v

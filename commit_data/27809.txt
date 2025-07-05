@@ -21,8 +21,59 @@ Date:   Wed Apr 6 11:07:12 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/21582
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/types_linux.go          | 3 +++
  src/syscall/ztypes_linux_ppc64.go   | 7 ++++---
  src/syscall/ztypes_linux_ppc64le.go | 7 ++++---
  3 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index 9bccfcabd8..28d0225cbf 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -116,6 +116,9 @@ struct my_epoll_event {
+ 	// padding is not specified in linux/eventpoll.h but added to conform to the
+ 	// alignment requirements of EABI
+ 	int32_t padFd;
++#endif
++#ifdef  __powerpc64__
++	int32_t _padFd;
+ #endif
+ 	int32_t fd;
+ 	int32_t pad;
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index 33d1b7f3e5..915ca95190 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -574,9 +574,10 @@ type Ustat_t struct {
+ }
+ 
+ type EpollEvent struct {
+-	Events uint32
+-	Fd     int32
+-	Pad    int32
++	Events  uint32
++	X_padFd int32
++	Fd      int32
++	Pad     int32
+ }
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index 27ca004834..a1180553ec 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -574,9 +574,10 @@ type Ustat_t struct {
+ }
+ 
+ type EpollEvent struct {
+-	Events uint32
+-	Fd     int32
+-	Pad    int32
++	Events  uint32
++	X_padFd int32
++	Fd      int32
++	Pad     int32
+ }
+ 
+ const (

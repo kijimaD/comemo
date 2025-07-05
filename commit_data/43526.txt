@@ -11,7 +11,7 @@ Date:   Thu Apr 9 20:28:55 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  1 -
  src/cmd/compile/internal/gc/ssa.go             | 14 ------
  src/cmd/compile/internal/gc/syntax.go          |  4 ++
@@ -22,3 +22,380 @@ Date:   Thu Apr 9 20:28:55 2020 -0700
  src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
  src/cmd/internal/obj/link.go                   |  6 ++-
  9 files changed, 81 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 2314db520c..71b42b09a7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1101,7 +1101,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = x86.REG_AX
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+-		gc.AddAux(&p.To, v)
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 345aad3961..8c6440c3b6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6346,20 +6346,6 @@ func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump)
+ 	}
+ }
+ 
+-func AuxOffset(v *ssa.Value) (offset int64) {
+-	if v.Aux == nil {
+-		return 0
+-	}
+-	n, ok := v.Aux.(*Node)
+-	if !ok {
+-		v.Fatalf("bad aux type in %s\n", v.LongString())
+-	}
+-	if n.Class() == PAUTO {
+-		return n.Xoffset
+-	}
+-	return 0
+-}
+-
+ // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
+ func AddAux(a *obj.Addr, v *ssa.Value) {
+ 	AddAux2(a, v, v.AuxInt)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 1b522ca8c0..b7e20c5535 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -311,6 +311,10 @@ func (n *Node) pkgFuncName() string {
+ 	return p + "." + s.Name
+ }
+ 
++// The compiler needs *Node to be assignable to cmd/compile/internal/ssa.Sym.
++func (n *Node) CanBeAnSSASym() {
++}
++
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node      // real package for import . names
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 50f595fe2f..efb940b7d9 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -654,15 +654,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpPPC64ANDCCconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Args[0].Reg()
+-
+-		if v.Aux != nil {
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = gc.AuxOffset(v)
+-		} else {
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = v.AuxInt
+-		}
+-
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // discard result
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index a2dc110ff7..dd08a28ff0 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -479,11 +479,15 @@ func (u *unusedInspector) node(node ast.Node) {
+ 			u.exprs(node.Lhs)
+ 			break
+ 		}
+-		if len(node.Lhs) != 1 {
++		lhs := node.Lhs
++		if len(lhs) == 2 && lhs[1].(*ast.Ident).Name == "_" {
++			lhs = lhs[:1]
++		}
++		if len(lhs) != 1 {
+ 			panic("no support for := with multiple names")
+ 		}
+ 
+-		name := node.Lhs[0].(*ast.Ident)
++		name := lhs[0].(*ast.Ident)
+ 		obj := &object{
+ 			name: name.Name,
+ 			pos:  name.NamePos,
+@@ -615,6 +619,16 @@ func fprint(w io.Writer, n Node) {
+ 			fprint(w, n)
+ 		}
+ 		fmt.Fprintf(w, "}\n")
++	case *If:
++		fmt.Fprintf(w, "if ")
++		fprint(w, n.expr)
++		fmt.Fprintf(w, " {\n")
++		fprint(w, n.stmt)
++		if n.alt != nil {
++			fmt.Fprintf(w, "} else {\n")
++			fprint(w, n.alt)
++		}
++		fmt.Fprintf(w, "}\n")
+ 	case *Case:
+ 		fmt.Fprintf(w, "case ")
+ 		fprint(w, n.expr)
+@@ -657,6 +671,10 @@ func fprint(w io.Writer, n Node) {
+ 		fmt.Fprintf(w, "%s := ", n.name)
+ 		fprint(w, n.value)
+ 		fmt.Fprintln(w)
++	case *Declare2:
++		fmt.Fprintf(w, "%s, %s := ", n.name1, n.name2)
++		fprint(w, n.value)
++		fmt.Fprintln(w)
+ 	case *CondBreak:
+ 		fmt.Fprintf(w, "if ")
+ 		fprint(w, n.expr)
+@@ -721,7 +739,7 @@ func (w *bodyBase) add(node Statement) {
+ 	w.list = append(w.list, node)
+ }
+ 
+-// declared reports if the body contains a Declare with the given name.
++// declared reports if the body contains a Declare or Declare2 with the given name.
+ func (w *bodyBase) declared(name string) bool {
+ 	if name == "nil" {
+ 		// Treat "nil" as having already been declared.
+@@ -732,6 +750,9 @@ func (w *bodyBase) declared(name string) bool {
+ 		if decl, ok := s.(*Declare); ok && decl.name == name {
+ 			return true
+ 		}
++		if decl, ok := s.(*Declare2); ok && (decl.name1 == name || decl.name2 == name) {
++			return true
++		}
+ 	}
+ 	return false
+ }
+@@ -754,6 +775,11 @@ type (
+ 		suffix string
+ 		arglen int32 // if kind == "Value", number of args for this op
+ 	}
++	If struct {
++		expr ast.Expr
++		stmt Statement
++		alt  Statement
++	}
+ 	Switch struct {
+ 		bodyBase // []*Case
+ 		expr     ast.Expr
+@@ -776,6 +802,11 @@ type (
+ 		name  string
+ 		value ast.Expr
+ 	}
++	Declare2 struct {
++		name1, name2 string
++		value        ast.Expr
++	}
++	// TODO: implement CondBreak as If + Break instead?
+ 	CondBreak struct {
+ 		expr              ast.Expr
+ 		insideCommuteLoop bool
+@@ -816,6 +847,12 @@ func declf(name, format string, a ...interface{}) *Declare {
+ 	return &Declare{name, exprf(format, a...)}
+ }
+ 
++// decl2f constructs a simple "name1, name2 := value" declaration, using exprf for its
++// value.
++func decl2f(name1, name2, format string, a ...interface{}) *Declare2 {
++	return &Declare2{name1, name2, exprf(format, a...)}
++}
++
+ // breakf constructs a simple "if cond { break }" statement, using exprf for its
+ // condition.
+ func breakf(format string, a ...interface{}) *CondBreak {
+@@ -1006,12 +1043,11 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+ 			switch e.field {
+ 			case "Aux":
+-				if e.dclType == "interface{}" {
+-					// see TODO above
+-					rr.add(breakf("%s.%s != %s", v, e.field, e.dclType, e.name))
+-				} else {
+-					rr.add(breakf("%s.%s.(%s) != %s", v, e.field, e.dclType, e.name))
+-				}
++				rr.add(&If{
++					expr: exprf("%s.%s == nil", v, e.field),
++					stmt: breakf("%s == nil", e.name),
++					alt:  breakf("%s.%s.(%s) == %s", v, e.field, e.dclType, e.name),
++				})
+ 			case "AuxInt":
+ 				rr.add(breakf("%s(%s.%s) != %s", e.dclType, v, e.field, e.name))
+ 			case "Type":
+@@ -1020,9 +1056,9 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 		} else {
+ 			switch e.field {
+ 			case "Aux":
+-				if e.dclType == "interface{}" {
++				if e.dclType == "Sym" {
+ 					// TODO: kind of a hack - allows nil interface through
+-					rr.add(declf(e.name, "%s.%s", v, e.field))
++					rr.add(decl2f(e.name, "_", "%s.Aux.(Sym)", v))
+ 				} else {
+ 					rr.add(declf(e.name, "%s.%s.(%s)", v, e.field, e.dclType))
+ 				}
+@@ -1719,13 +1755,11 @@ func (op opData) auxType() string {
+ 		return "string"
+ 	case "Sym":
+ 		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
+-		// TODO: provide an interface for this. Use a singleton to
+-		// represent "no offset".
+-		return "interface{}"
++		return "Sym"
+ 	case "SymOff":
+-		return "interface{}"
++		return "Sym"
+ 	case "SymValAndOff":
+-		return "interface{}"
++		return "Sym"
+ 	case "Typ":
+ 		return "*types.Type"
+ 	case "TypSize":
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index c0042f871c..5ed69fcf7b 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -78,7 +78,7 @@ const (
+ 	auxFloat32               // auxInt is a float32 (encoded with math.Float64bits)
+ 	auxFloat64               // auxInt is a float64 (encoded with math.Float64bits)
+ 	auxString                // aux is a string
+-	auxSym                   // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
++	auxSym                   // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
+ 	auxSymOff                // aux is a symbol, auxInt is an offset
+ 	auxSymValAndOff          // aux is a symbol, auxInt is a ValAndOff
+ 	auxTyp                   // aux is a type
+@@ -102,6 +102,16 @@ const (
+ 	SymNone SymEffect = 0
+ )
+ 
++// A Sym represents a symbolic offset from a base register.
++// Currently a Sym can be one of 3 things:
++//  - a *gc.Node, for an offset from SP (the stack pointer)
++//  - a *obj.LSym, for an offset from SB (the global pointer)
++//  - nil, for no offset
++type Sym interface {
++	String() string
++	CanBeAnSSASym()
++}
++
+ // A ValAndOff is used by the several opcodes. It holds
+ // both a value and a pointer offset.
+ // A ValAndOff is intended to be encoded into an AuxInt field.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 746ddacc3a..0b566511e4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6946,7 +6946,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
+ 			break
+ 		}
+ 		off := int32(l.AuxInt)
+-		sym := l.Aux
++		sym, _ := l.Aux.(Sym)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+ 		if !(l.Uses == 1 && clobber(l)) {
+@@ -6957,7 +6957,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
+ 		v.copyOf(v0)
+ 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
+ 		v0.AuxInt = int64(_auxint)
+-		var _aux interface{} = sym
++		var _aux Sym = sym
+ 		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+@@ -7333,7 +7333,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
+ 			break
+ 		}
+ 		off := int32(l.AuxInt)
+-		sym := l.Aux
++		sym, _ := l.Aux.(Sym)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+ 		if !(l.Uses == 1 && clobber(l)) {
+@@ -7344,7 +7344,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
+ 		v.copyOf(v0)
+ 		var _auxint ValAndOff = makeValAndOff32(c, off)
+ 		v0.AuxInt = int64(_auxint)
+-		var _aux interface{} = sym
++		var _aux Sym = sym
+ 		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+@@ -7900,7 +7900,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
+ 			break
+ 		}
+ 		off := int32(l.AuxInt)
+-		sym := l.Aux
++		sym, _ := l.Aux.(Sym)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+ 		if !(l.Uses == 1 && clobber(l)) {
+@@ -7911,7 +7911,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
+ 		v.copyOf(v0)
+ 		var _auxint ValAndOff = makeValAndOff32(c, off)
+ 		v0.AuxInt = int64(_auxint)
+-		var _aux interface{} = sym
++		var _aux Sym = sym
+ 		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+@@ -8272,7 +8272,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
+ 			break
+ 		}
+ 		off := int32(l.AuxInt)
+-		sym := l.Aux
++		sym, _ := l.Aux.(Sym)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+ 		if !(l.Uses == 1 && clobber(l)) {
+@@ -8283,7 +8283,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
+ 		v.copyOf(v0)
+ 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
+ 		v0.AuxInt = int64(_auxint)
+-		var _aux interface{} = sym
++		var _aux Sym = sym
+ 		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 72056b87fa..d0c6865777 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3953,7 +3953,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
+-		var _aux interface{} = fe.StringData(str)
++		var _aux Sym = fe.StringData(str)
+ 		v0.Aux = _aux
+ 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+ 		v0.AddArg(v1)
+@@ -3973,7 +3973,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
+-		var _aux interface{} = fe.StringData(str)
++		var _aux Sym = fe.StringData(str)
+ 		v0.Aux = _aux
+ 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+ 		v0.AddArg(v1)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ac3621bf74..046ad53ac7 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -601,12 +601,14 @@ func (a Attribute) TextAttrString() string {
+ 	return s
+ }
+ 
+-// The compiler needs LSym to satisfy fmt.Stringer, because it stores
+-// an LSym in ssa.ExternSymbol.
+ func (s *LSym) String() string {
+ 	return s.Name
+ }
+ 
++// The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
++func (s *LSym) CanBeAnSSASym() {
++}
++
+ type Pcln struct {
+ 	Pcsp        Pcdata
+ 	Pcfile      Pcdata

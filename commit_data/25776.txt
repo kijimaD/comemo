@@ -9,6 +9,42 @@ Date:   Thu Nov 19 22:07:53 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/bug496.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/fixedbugs/bug496.go b/test/fixedbugs/bug496.go
+new file mode 100644
+index 0000000000..4307c75e83
+--- /dev/null
++++ b/test/fixedbugs/bug496.go
+@@ -0,0 +1,29 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo used to give an error:
++// <built-in>: error: redefinition of ‘s$F$hash’
++// <built-in>: note: previous definition of ‘s$F$hash’ was here
++// <built-in>: error: redefinition of ‘s$F$equal’
++// <built-in>: note: previous definition of ‘s$F$equal’ was here
++
++package p
++
++type T1 int
++
++func (t T1) F() {
++	type s struct {
++		f string
++	}
++}
++
++type T2 int
++
++func (t T2) F() {
++	type s struct {
++		f string
++	}
++}

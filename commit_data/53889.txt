@@ -14,7 +14,80 @@ Date:   Tue Aug 30 06:32:09 2022 +1000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 45 ++++++++++++++++++++++++++
  2 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 0207fb45d6..385f004b22 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -686,6 +686,11 @@
+ (MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
+ (MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
+ 
++// Avoid zero extension after properly typed atomic operation.
++(MOVBUreg x:(Select0 (LoweredAtomicLoad8 _ _))) => (MOVDreg x)
++(MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _))) => (MOVDreg x)
++(MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _))) => (MOVDreg x)
++
+ // Fold double extensions.
+ (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
+ (MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 908456b0aa..ac0770639e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3609,6 +3609,51 @@ func rewriteValueRISCV64_OpRISCV64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg x:(Select0 (LoweredAtomicLoad8 _ _)))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpSelect0 {
++			break
++		}
++		x_0 := x.Args[0]
++		if x_0.Op != OpRISCV64LoweredAtomicLoad8 {
++			break
++		}
++		v.reset(OpRISCV64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _)))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpSelect0 {
++			break
++		}
++		x_0 := x.Args[0]
++		if x_0.Op != OpRISCV64LoweredAtomicCas32 {
++			break
++		}
++		v.reset(OpRISCV64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _)))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpSelect0 {
++			break
++		}
++		x_0 := x.Args[0]
++		if x_0.Op != OpRISCV64LoweredAtomicCas64 {
++			break
++		}
++		v.reset(OpRISCV64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBUreg x:(MOVBUreg _))
+ 	// result: (MOVDreg x)
+ 	for {

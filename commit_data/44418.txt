@@ -15,6 +15,20 @@ Date:   Sat Jun 27 23:22:29 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240258
     Reviewed-by: Alexander Nohe <alex.nohe427@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/help.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/help.html b/doc/help.html
+index b305a57763..3d32ae5dc0 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -8,7 +8,7 @@
+ 
+ <h2 id="help">Get help</h2>
+ 
+-<img class="gopher" src="/doc/gopher/help.png"/>
++<img class="gopher" src="/doc/gopher/help.png" alt=""/>
+ 
+ {{if not $.GoogleCN}}
+ <h3 id="mailinglist"><a href="https://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>

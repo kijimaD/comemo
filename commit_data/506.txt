@@ -8,9 +8,212 @@ Date:   Sat Aug 9 17:29:26 2008 -0700
     DELTA=149  (80 added, 62 deleted, 7 changed)
     OCL=14029
     CL=14029
-
+---
  src/cmd/gc/Makefile |  4 +++-
  src/cmd/gc/const.c  | 36 ++++++++++++++++++++------------
  src/cmd/gc/go.h     | 60 +++++++++++++++++++++++++++++------------------------
  src/cmd/gc/lex.c    |  4 ++--
  4 files changed, 61 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index e3adaef769..9c3f2e977e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -22,7 +22,9 @@ OFILES=\
+ 	export.$O\
+ 	walk.$O\
+ 	const.$O\
+-	mparith.$O\
++	mparith1.$O\
++	mparith2.$O\
++	mparith3.$O\
+ 	sysimport.$O\
+ 	compat.$O\
+ 
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index fff0e0c4a3..2188178a69 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -323,16 +323,7 @@ evconst(Node *n)
+ 			goto settrue;
+ 		goto setfalse;
+ 	}
+-	*n = *nl;
+-
+-	// second half of dance
+-	if(wl == Wlitint) {
+-		n->val.u.xval = xval;
+-	} else
+-	if(wl == Wlitfloat) {
+-		n->val.u.fval = fval;
+-	}
+-	return;
++	goto ret;
+ 
+ settrue:
+ 	*n = *booltrue;
+@@ -343,6 +334,15 @@ setfalse:
+ 	return;
+ 
+ unary:
++	if(wl == Wlitint) {
++		xval = mal(sizeof(*xval));
++		mpmovefixfix(xval, nl->val.u.xval);
++	} else
++	if(wl == Wlitfloat) {
++		fval = mal(sizeof(*fval));
++		mpmovefltflt(fval, nl->val.u.fval);
++	}
++
+ 	switch(TUP(n->op, wl)) {
+ 	default:
+ 		yyerror("illegal combination of literals %O %d", n->op, wl);
+@@ -351,16 +351,16 @@ unary:
+ 	case TUP(OPLUS, Wlitint):
+ 		break;
+ 	case TUP(OMINUS, Wlitint):
+-		mpnegfix(nl->val.u.xval);
++		mpnegfix(xval);
+ 		break;
+ 	case TUP(OCOM, Wlitint):
+-		mpcomfix(nl->val.u.xval);
++		mpcomfix(xval);
+ 		break;
+ 
+ 	case TUP(OPLUS, Wlitfloat):
+ 		break;
+ 	case TUP(OMINUS, Wlitfloat):
+-		mpnegflt(nl->val.u.fval);
++		mpnegflt(fval);
+ 		break;
+ 
+ 	case TUP(ONOT, Wlitbool):
+@@ -368,7 +368,17 @@ unary:
+ 			goto settrue;
+ 		goto setfalse;
+ 	}
++
++ret:
+ 	*n = *nl;
++
++	// second half of dance
++	if(wl == Wlitint) {
++		n->val.u.xval = xval;
++	} else
++	if(wl == Wlitfloat) {
++		n->val.u.fval = fval;
++	}
+ }
+ 
+ void
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 636856e199..af50d48bd3 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -78,8 +78,6 @@ typedef	struct	Mpflt	Mpflt;
+ struct	Mpflt
+ {
+ 	double	val;
+-	long	a[Mpprec];
+-	uchar	neg;
+ 	uchar	ovf;
+ };
+ 
+@@ -471,46 +469,54 @@ void	ungetc(int);
+ void	mkpackage(char*);
+ 
+ /*
+- *	mparith.c
++ *	mparith1.c
+  */
+-void	mpmovefixfix(Mpint *a, Mpint *b);
+-void	mpmovefixflt(Mpflt *a, Mpint *b);
+-void	mpmovefltfix(Mpint *a, Mpflt *b);
+-void	mpmovefltflt(Mpflt *a, Mpflt *b);
+-void	mpmovecfix(Mpint *a, vlong v);
+-void	mpmovecflt(Mpflt *a, double f);
+-
+ int	mpcmpfixfix(Mpint *a, Mpint *b);
+-int	mpcmpfltflt(Mpflt *a, Mpflt *b);
+ int	mpcmpfixc(Mpint *b, vlong c);
+-int	mpcmpfltc(Mpint *b, double c);
+-int	mptestfixfix(Mpint *a);
+-int	mptestfltflt(Mpflt *a);
+-
+-void	mpaddfixfix(Mpint *a, Mpint *b);
+-void	mpaddfltflt(Mpflt *a, Mpflt *b);
++int	mpcmpfltflt(Mpflt *a, Mpflt *b);
++int	mpcmpfltc(Mpflt *b, double c);
+ void	mpsubfixfix(Mpint *a, Mpint *b);
+ void	mpsubfltflt(Mpflt *a, Mpflt *b);
+-void	mpmulfixfix(Mpint *a, Mpint *b);
+-void	mpmulfltflt(Mpflt *a, Mpflt *b);
++void	mpaddcfix(Mpint *a, vlong c);
++void	mpaddcflt(Mpflt *a, double c);
++void	mpmulcfix(Mpint *a, vlong c);
++void	mpmulcflt(Mpflt *a, double c);
+ void	mpdivfixfix(Mpint *a, Mpint *b);
+-void	mpdivfltflt(Mpflt *a, Mpflt *b);
+-void	mpnegfix(Mpint *a);
+-void	mpnegflt(Mpflt *a);
++void	mpmodfixfix(Mpint *a, Mpint *b);
++void	mpatofix(Mpint *a, char *s);
++void	mpatoflt(Mpflt *a, char *s);
++void	mpmovefltfix(Mpint *a, Mpflt *b);
++void	mpmovefixflt(Mpflt *a, Mpint *b);
+ 
++/*
++ *	mparith2.c
++ */
++void	mpmovefixfix(Mpint *a, Mpint *b);
++void	mpmovecfix(Mpint *a, vlong v);
++int	mptestfix(Mpint *a);
++void	mpaddfixfix(Mpint *a, Mpint *b);
++void	mpmulfixfix(Mpint *a, Mpint *b);
++void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
++void	mpnegfix(Mpint *a);
+ void	mpandfixfix(Mpint *a, Mpint *b);
+ void	mplshfixfix(Mpint *a, Mpint *b);
+-void	mpmodfixfix(Mpint *a, Mpint *b);
+ void	mporfixfix(Mpint *a, Mpint *b);
+ void	mprshfixfix(Mpint *a, Mpint *b);
+ void	mpxorfixfix(Mpint *a, Mpint *b);
+ void	mpcomfix(Mpint *a);
+-
+-double	mpgetflt(Mpflt *a);
+ vlong	mpgetfix(Mpint *a);
+ 
+-void	mpatofix(Mpint *a, char *s);
+-void	mpatoflt(Mpflt *a, char *s);
++/*
++ *	mparith3.c
++ */
++void	mpmovefltflt(Mpflt *a, Mpflt *b);
++void	mpmovecflt(Mpflt *a, double f);
++int	mptestflt(Mpflt *a);
++void	mpaddfltflt(Mpflt *a, Mpflt *b);
++void	mpmulfltflt(Mpflt *a, Mpflt *b);
++void	mpdivfltflt(Mpflt *a, Mpflt *b);
++void	mpnegflt(Mpflt *a);
++double	mpgetflt(Mpflt *a);
+ 
+ /*
+  *	subr.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index deb61c36a9..a1859b6e91 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1076,11 +1076,11 @@ lexinit(void)
+ 	mpatofix(minintval[TINT32], "-0x80000000");
+ 	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
+ 	mpatofix(minintval[TINT64], "-0x8000000000000000");
++
+ 	mpatofix(maxintval[TUINT8], "0xff");
+ 	mpatofix(maxintval[TUINT16], "0xffff");
+ 	mpatofix(maxintval[TUINT32], "0xffffffff");
+-	mpatofix(maxintval[TUINT64], "0x7fffffffffffffff");
+-	mpatofix(minintval[TUINT64], "-0x8000000000000000");
++	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
+ 
+ 	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
+ 	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");

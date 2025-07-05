@@ -45,6 +45,21 @@ Date:   Thu Apr 23 02:21:59 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index ac6fe67e4b..7a6b84d2c1 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1146,7 +1146,8 @@ func (e *Escape) walkAll() {
+ 	// transient->!transient and !escapes->escapes, which can each
+ 	// happen at most once. So we take Θ(len(e.allLocs)) walks.
+ 
+-	var todo []*EscLocation // LIFO queue
++	// LIFO queue, has enough room for e.allLocs and e.heapLoc.
++	todo := make([]*EscLocation, 0, len(e.allLocs)+1)
+ 	enqueue := func(loc *EscLocation) {
+ 		if !loc.queued {
+ 			todo = append(todo, loc)

@@ -7,6 +7,19 @@ Date:   Tue Jun 12 18:11:19 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6302069
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e24b38a4a6..5144cd3630 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -88,6 +88,7 @@ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christoph Hack <christoph@tux21b.org>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Redden <christopher.redden@gmail.com>
++Christopher Swenson <cswenson@google.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>
+ Colby Ranger <cranger@google.com>

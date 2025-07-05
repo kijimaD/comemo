@@ -14,6 +14,20 @@ Date:   Wed Aug 3 14:59:58 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+index 098f063909..bb9166b8da 100644
+--- a/src/cmd/asm/doc.go
++++ b/src/cmd/asm/doc.go
+@@ -37,6 +37,8 @@ Flags:
+ 		Write symbol ABI information to output file. Don't assemble.
+ 	-o file
+ 		Write output to file. The default is foo.o for /a/b/c/foo.s.
++	-p pkgpath
++		Set expected package import to pkgpath.
+ 	-shared
+ 		Generate code that can be linked into a shared library.
+ 	-spectre list

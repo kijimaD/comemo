@@ -7,6 +7,20 @@ Date:   Sun Mar 15 17:23:02 2015 -0400
     Change-Id: I7bac7b659b7ff425c6f896c286d0f89f05eff6bd
     Reviewed-on: https://go-review.googlesource.com/7601
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/go1.5.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 995ee8be93..fd3e98decc 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -10,7 +10,7 @@ dragonfly/386 (https://golang.org/cl/7543)
+ 
+ API additions and behavior changes:
+ 
+-archive/zip: add WriterAt function (https://golang.org/cl/7445)
++archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)

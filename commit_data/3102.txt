@@ -8,9 +8,139 @@ Date:   Thu Aug 27 11:17:14 2009 -0700
     DELTA=63  (23 added, 31 deleted, 9 changed)
     OCL=33932
     CL=33959
-
+---
  src/Make.cmd              | 27 +++++++++++++++++++++++++++
  src/cmd/ebnflint/Makefile | 16 +++-------------
  src/cmd/godoc/Makefile    | 17 +++--------------
  src/cmd/gofmt/Makefile    | 16 +++-------------
  4 files changed, 36 insertions(+), 40 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+new file mode 100644
+index 0000000000..656ea5531e
+--- /dev/null
++++ b/src/Make.cmd
+@@ -0,0 +1,27 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# GNU Make syntax:
++ifndef GOBIN
++GOBIN=$(HOME)/bin
++endif
++
++all: $(TARG)
++
++$(TARG): _go_.$O $(OFILES)
++	$(LD) -o $@ _go_.$O $(OFILES)
++
++_go_.$O: $(GOFILES)
++	$(GC) -o $@ $(GOFILES)
++
++install: $(GOBIN)/$(TARG)
++
++$(GOBIN)/$(TARG): $(TARG)
++	cp $(TARG) $@
++
++clean:
++	rm -f *.[$(OS)] $(TARG) $(CLEANFILES)
++
++nuke:
++	rm -f *.[$(OS)] $(TARG) $(CLEANFILES) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+index e473b5c29e..6e42ba8d2f 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/cmd/ebnflint/Makefile
+@@ -2,24 +2,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=ebnflint
+-OFILES=\
+-	ebnflint.$O\
++GOFILES=\
++	ebnflint.go\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) $(OFILES)
++include $(GOROOT)/src/Make.cmd
+ 
+ test: $(TARG)
+ 	$(TARG) -start="SourceFile" $(GOROOT)/doc/go_spec.html
+ 
+-clean:
+-	rm -f $(OFILES) $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) $(GOBIN)/$(TARG)
+-
+-%.$O:	%.go
+-	$(GC) $<
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 53f694e7b9..a534e09596 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -2,21 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=godoc
+-OFILES=\
+-	godoc.$O\
++GOFILES=\
++	godoc.go\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) $(OFILES)
+-
+-clean:
+-	rm -f $(OFILES) $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) $(GOBIN)/$(TARG)
+-
+-%.$O:	%.go
+-	$(GC) $<
++include $(GOROOT)/src/Make.cmd
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+index 01d772ff72..a93b8c3726 100644
+--- a/src/cmd/gofmt/Makefile
++++ b/src/cmd/gofmt/Makefile
+@@ -2,15 +2,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=gofmt
+-OFILES=\
+-	gofmt.$O\
++GOFILES=\
++	gofmt.go\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) $(OFILES)
++include $(GOROOT)/src/Make.cmd
+ 
+ test: $(TARG)
+ 	./test.sh
+@@ -18,11 +16,3 @@ test: $(TARG)
+ smoketest: $(TARG)
+ 	./test.sh $(GOROOT)/src/pkg/go/parser/parser.go
+ 
+-clean:
+-	rm -f $(OFILES) $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) $(GOBIN)/$(TARG)
+-
+-%.$O:	%.go
+-	$(GC) $<

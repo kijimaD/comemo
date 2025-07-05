@@ -8,6 +8,20 @@ Date:   Fri Jun 5 17:08:22 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29961
     CL=29961
-
+---
  usr/gri/pretty/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 3ffc6d4b0b..98d4cd4a27 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -599,7 +599,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 
+ func loggingHandler(h http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
+-		log.Stderrf("%s\t%s", req.Host, req.Url.Path);
++		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
+ 		h.ServeHTTP(c, req);
+ 	})
+ }

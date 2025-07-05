@@ -12,7 +12,7 @@ Date:   Wed Mar 7 08:05:10 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5755053
-
+---
  doc/Makefile              |  5 +++-
  doc/makehtml              | 17 --------------
  doc/progs/helloworld.go   | 11 ---------
@@ -26,3 +26,407 @@ Date:   Wed Mar 7 08:05:10 2012 +1100
  doc/progs/strings.go      | 17 --------------
  doc/progs/sum.go          | 21 -----------------
  12 files changed, 13 insertions(+), 300 deletions(-)
+
+diff --git a/doc/Makefile b/doc/Makefile
+index ff69bc775c..ea39d7ab93 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -16,4 +16,7 @@ tmpltohtml: tmpltohtml.go
+ 	go build tmpltohtml.go
+ 
+ %.html: %.tmpl tmpltohtml
+-	./makehtml $*.tmpl
++	./tmpltohtml $*.tmpl > $@
++
++clean:
++	rm -f $(HTML) tmpltohtml 
+diff --git a/doc/makehtml b/doc/makehtml
+deleted file mode 100755
+index f6f601e3be..0000000000
+--- a/doc/makehtml
++++ /dev/null
+@@ -1,17 +0,0 @@
+-#!/bin/sh
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-TMPL=${1:-effective_go.tmpl}                        # input file
+-HTML=$(dirname $TMPL)/$(basename $TMPL .tmpl).html # output file
+-
+-if ! test -w $HTML
+-then
+-	echo 1>&2 makehtml: cannot open $HTML for write
+-	exit 1
+-fi
+-
+-make tmpltohtml && ./tmpltohtml $TMPL > $HTML
+diff --git a/doc/progs/helloworld.go b/doc/progs/helloworld.go
+deleted file mode 100644
+index 8185038d98..0000000000
+--- a/doc/progs/helloworld.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import fmt "fmt" // Package implementing formatted I/O.
+-
+-func main() {
+-	fmt.Printf("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n")
+-}
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+deleted file mode 100644
+index 05d26df1c0..0000000000
+--- a/doc/progs/helloworld3.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"./file"
+-	"fmt"
+-	"os"
+-)
+-
+-func main() {
+-	hello := []byte("hello, world\n")
+-	file.Stdout.Write(hello)
+-	f, err := file.Open("/does/not/exist")
+-	if f == nil {
+-		fmt.Printf("can't open file; err=%s\n", err.Error())
+-		os.Exit(1)
+-	}
+-}
+diff --git a/doc/progs/print.go b/doc/progs/print.go
+deleted file mode 100644
+index 8f44ba8c61..0000000000
+--- a/doc/progs/print.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-func main() {
+-	var u64 uint64 = 1<<64 - 1
+-	fmt.Printf("%d %d\n", u64, int64(u64))
+-
+-	// harder stuff
+-	type T struct {
+-		a int
+-		b string
+-	}
+-	t := T{77, "Sunset Strip"}
+-	a := []int{1, 2, 3, 4}
+-	fmt.Printf("%v %v %v\n", u64, t, a)
+-	fmt.Print(u64, " ", t, " ", a, "\n")
+-	fmt.Println(u64, t, a)
+-}
+diff --git a/doc/progs/print_string.go b/doc/progs/print_string.go
+deleted file mode 100644
+index 46ab1d91a4..0000000000
+--- a/doc/progs/print_string.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-type testType struct {
+-	a int
+-	b string
+-}
+-
+-func (t *testType) String() string {
+-	return fmt.Sprint(t.a) + " " + t.b
+-}
+-
+-func main() {
+-	t := &testType{77, "Sunset Strip"}
+-	fmt.Println(t)
+-}
+diff --git a/doc/progs/run b/doc/progs/run
+index e3d5c128c8..9d4669b6c2 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -23,14 +23,19 @@ error_handling="
+ 	error4
+ "
+ 
+-all=$(echo $defer_panic_recover  $effective_go $error_handling slices go1)
++law_of_reflection="
++	interface
++	interface2
++"
++
++all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection slices go1)
+ 
+ for i in $all; do
+ 	go build $i.go
+ done
+ 
+ # Write to temporary file to avoid mingw bash bug.
+-TMPFILE="/tmp/gotest3.$USER"
++TMPFILE="${TMPDIR:-/tmp}/gotest3.$USER"
+ 
+ function testit {
+ 	./$1 >"$TMPFILE" 2>&1 || true
+@@ -50,4 +55,6 @@ testit eff_sequence '^\[-1 2 6 16 44\]$'
+ 
+ testit go1 '^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$'
+ 
++testit interface2 "^type: float64$"
++
+ rm -f $all "$TMPFILE"
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+deleted file mode 100644
+index 4d8409b801..0000000000
+--- a/doc/progs/server.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-type request struct {
+-	a, b   int
+-	replyc chan int
+-}
+-
+-type binOp func(a, b int) int
+-
+-func run(op binOp, req *request) {
+-	reply := op(req.a, req.b)
+-	req.replyc <- reply
+-}
+-
+-func server(op binOp, service <-chan *request) {
+-	for {
+-		req := <-service
+-		go run(op, req) // don't wait for it
+-	}
+-}
+-
+-func startServer(op binOp) chan<- *request {
+-	req := make(chan *request)
+-	go server(op, req)
+-	return req
+-}
+-
+-func main() {
+-	adder := startServer(func(a, b int) int { return a + b })
+-	const N = 100
+-	var reqs [N]request
+-	for i := 0; i < N; i++ {
+-		req := &reqs[i]
+-		req.a = i
+-		req.b = i + N
+-		req.replyc = make(chan int)
+-		adder <- req
+-	}
+-	for i := N - 1; i >= 0; i-- { // doesn't matter what order
+-		if <-reqs[i].replyc != N+2*i {
+-			fmt.Println("fail at", i)
+-		}
+-	}
+-	fmt.Println("done")
+-}
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+deleted file mode 100644
+index 39e3dde5da..0000000000
+--- a/doc/progs/server1.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-type request struct {
+-	a, b   int
+-	replyc chan int
+-}
+-
+-type binOp func(a, b int) int
+-
+-func run(op binOp, req *request) {
+-	reply := op(req.a, req.b)
+-	req.replyc <- reply
+-}
+-
+-func server(op binOp, service <-chan *request, quit <-chan bool) {
+-	for {
+-		select {
+-		case req := <-service:
+-			go run(op, req) // don't wait for it
+-		case <-quit:
+-			return
+-		}
+-	}
+-}
+-
+-func startServer(op binOp) (service chan *request, quit chan bool) {
+-	service = make(chan *request)
+-	quit = make(chan bool)
+-	go server(op, service, quit)
+-	return service, quit
+-}
+-
+-func main() {
+-	adder, quit := startServer(func(a, b int) int { return a + b })
+-	const N = 100
+-	var reqs [N]request
+-	for i := 0; i < N; i++ {
+-		req := &reqs[i]
+-		req.a = i
+-		req.b = i + N
+-		req.replyc = make(chan int)
+-		adder <- req
+-	}
+-	for i := N - 1; i >= 0; i-- { // doesn't matter what order
+-		if <-reqs[i].replyc != N+2*i {
+-			fmt.Println("fail at", i)
+-		}
+-	}
+-	quit <- true
+-}
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+deleted file mode 100644
+index 894693f0d5..0000000000
+--- a/doc/progs/sort.go
++++ /dev/null
+@@ -1,59 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sort
+-
+-type Interface interface {
+-	Len() int
+-	Less(i, j int) bool
+-	Swap(i, j int)
+-}
+-
+-func Sort(data Interface) {
+-	for i := 1; i < data.Len(); i++ {
+-		for j := i; j > 0 && data.Less(j, j-1); j-- {
+-			data.Swap(j, j-1)
+-		}
+-	}
+-}
+-
+-func IsSorted(data Interface) bool {
+-	n := data.Len()
+-	for i := n - 1; i > 0; i-- {
+-		if data.Less(i, i-1) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// Convenience types for common cases
+-
+-type IntSlice []int
+-
+-func (p IntSlice) Len() int           { return len(p) }
+-func (p IntSlice) Less(i, j int) bool { return p[i] < p[j] }
+-func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-
+-type Float64Slice []float64
+-
+-func (p Float64Slice) Len() int           { return len(p) }
+-func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] }
+-func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-
+-type StringSlice []string
+-
+-func (p StringSlice) Len() int           { return len(p) }
+-func (p StringSlice) Less(i, j int) bool { return p[i] < p[j] }
+-func (p StringSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-
+-// Convenience wrappers for common cases
+-
+-func SortInts(a []int)         { Sort(IntSlice(a)) }
+-func SortFloat64s(a []float64) { Sort(Float64Slice(a)) }
+-func SortStrings(a []string)   { Sort(StringSlice(a)) }
+-
+-func IntsAreSorted(a []int) bool         { return IsSorted(IntSlice(a)) }
+-func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
+-func StringsAreSorted(a []string) bool   { return IsSorted(StringSlice(a)) }
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+deleted file mode 100644
+index e6739b3851..0000000000
+--- a/doc/progs/strings.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "os"
+-
+-func main() {
+-	s := "hello"
+-	if s[1] != 'e' {
+-		os.Exit(1)
+-	}
+-	s = "good bye"
+-	var p *string = &s
+-	*p = "ciao"
+-}
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+deleted file mode 100644
+index 0f316bc012..0000000000
+--- a/doc/progs/sum.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-func sum(a []int) int { // returns an int
+-	s := 0
+-	for i := 0; i < len(a); i++ {
+-		s += a[i]
+-	}
+-	return s
+-}
+-
+-func main() {
+-	x := [3]int{1, 2, 3}
+-	s := sum(x[:]) // a slice of the array is passed to sum
+-	fmt.Print(s, "\n")
+-}

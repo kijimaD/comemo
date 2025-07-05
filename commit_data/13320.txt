@@ -25,8 +25,48 @@ Date:   Fri Jun 8 13:13:02 2012 +1000
     R=consalus, rsc
     CC=golang-dev
     https://golang.org/cl/6307058
-
+---
  src/cmd/5c/list.c | 2 +-
  src/cmd/5g/list.c | 2 +-
  src/cmd/5l/list.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5c/list.c b/src/cmd/5c/list.c
+index 86a31ae7a9..30b88400fe 100644
+--- a/src/cmd/5c/list.c
++++ b/src/cmd/5c/list.c
+@@ -140,7 +140,7 @@ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+ 	Adr *a;
+-	char *op;
++	const char *op;
+ 	int v;
+ 
+ 	a = va_arg(fp->args, Adr*);
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 13e187145c..2596936956 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -83,7 +83,7 @@ int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	char *op;
++	const char *op;
+ 	Addr *a;
+ 	int i;
+ 	int32 v;
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 2fd69edeb8..d05ec3b95d 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -161,7 +161,7 @@ int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	char *op;
++	const char *op;
+ 	Adr *a;
+ 	int32 v;
+ 

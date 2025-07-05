@@ -17,10 +17,105 @@ Date:   Wed Mar 25 22:17:04 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/225578
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/base/env.go     | 14 +++++++-------
  src/cmd/go/internal/get/vcs.go      |  2 +-
  src/cmd/go/internal/test/test.go    |  2 +-
  src/cmd/go/internal/work/buildid.go |  4 ++--
  src/cmd/go/internal/work/exec.go    |  4 ++--
  5 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/env.go b/src/cmd/go/internal/base/env.go
+index 077295e0ef..5f2665d236 100644
+--- a/src/cmd/go/internal/base/env.go
++++ b/src/cmd/go/internal/base/env.go
+@@ -4,12 +4,12 @@
+ 
+ package base
+ 
+-// EnvForDir returns a modified environment suitable for running in the given
+-// directory.
+-// The environment is the supplied base environment but with an updated $PWD, so
+-// that an os.Getwd in the child will be faster.
+-func EnvForDir(dir string, base []string) []string {
+-	// Internally we only use rooted paths, so dir is rooted.
+-	// Even if dir is not rooted, no harm done.
++// AppendPWD returns the result of appending PWD=dir to the environment base.
++//
++// The resulting environment makes os.Getwd more efficient for a subprocess
++// running in dir.
++func AppendPWD(base []string, dir string) []string {
++	// Internally we only use absolute paths, so dir is absolute.
++	// Even if dir is not absolute, no harm done.
+ 	return append(base, "PWD="+dir)
+ }
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 2e4d6388cf..fd37fcb76f 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -430,7 +430,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 
+ 	cmd := exec.Command(v.cmd, args...)
+ 	cmd.Dir = dir
+-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	if cfg.BuildX {
+ 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
+ 		fmt.Fprintf(os.Stderr, "%s %s\n", v.cmd, strings.Join(args, " "))
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index ec7bde16fe..48a873e46b 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1157,7 +1157,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.Package.Dir
+-	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)])
++	cmd.Env = base.AppendPWD(cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)], cmd.Dir)
+ 	cmd.Stdout = stdout
+ 	cmd.Stderr = stdout
+ 
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 7558a3091a..6613b6fe3f 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -185,7 +185,7 @@ func (b *Builder) toolID(name string) string {
+ 
+ 	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	var stdout, stderr bytes.Buffer
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+@@ -244,7 +244,7 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
+ 	// compile an empty file on standard input.
+ 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	// Force untranslated output so that we see the string "version".
+ 	cmd.Env = append(cmd.Env, "LC_ALL=C")
+ 	out, err := cmd.CombinedOutput()
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8f2ffee36f..d781ad2306 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1925,7 +1925,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
+ 	cleanup := passLongArgsInResponseFiles(cmd)
+ 	defer cleanup()
+ 	cmd.Dir = dir
+-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	cmd.Env = append(cmd.Env, env...)
+ 	start := time.Now()
+ 	err := cmd.Run()
+@@ -2381,7 +2381,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	}
+ 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+ 	cmd.Dir = b.WorkDir
+-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	cmd.Env = append(cmd.Env, "LC_ALL=C")
+ 	out, _ := cmd.CombinedOutput()
+ 	// GCC says "unrecognized command line option".

@@ -12,7 +12,77 @@ Date:   Thu Mar 19 08:17:54 2020 -0400
     Change-Id: Ie1147020b8409b9c57acfd71c942b287b214afca
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224380
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/errors.go | 25 +++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go    |  3 +++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/errors.go b/src/cmd/link/internal/ld/errors.go
+index 0cb0c5b047..a156e67f95 100644
+--- a/src/cmd/link/internal/ld/errors.go
++++ b/src/cmd/link/internal/ld/errors.go
+@@ -5,7 +5,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
++	"fmt"
++	"os"
+ 	"sync"
+ )
+ 
+@@ -15,6 +18,7 @@ type unresolvedSymKey struct {
+ }
+ 
+ type lookupFn func(name string, version int) *sym.Symbol
++type symNameFn func(s loader.Sym) string
+ 
+ // ErrorReporter is used to make error reporting thread safe.
+ type ErrorReporter struct {
+@@ -22,6 +26,7 @@ type ErrorReporter struct {
+ 	unresSyms  map[unresolvedSymKey]bool
+ 	unresMutex sync.Mutex
+ 	lookup     lookupFn
++	SymName    symNameFn
+ }
+ 
+ // errorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
+@@ -60,3 +65,23 @@ func (reporter *ErrorReporter) errorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+ 		}
+ 	}
+ }
++
++// Errorf method logs an error message.
++//
++// If more than 20 errors have been printed, exit with an error.
++//
++// Logging an error means that on exit cmd/link will delete any
++// output file and return a non-zero error code.
++// TODO: consolidate the various different versions of Errorf (
++// function, Link method, and ErrorReporter method).
++func (reporter *ErrorReporter) Errorf(s loader.Sym, format string, args ...interface{}) {
++	if s != 0 && reporter.SymName != nil {
++		sn := reporter.SymName(s)
++		format = sn + ": " + format
++	} else {
++		format = fmt.Sprintf("sym %d: %s", s, format)
++	}
++	format += "\n"
++	fmt.Fprintf(os.Stderr, format, args...)
++	afterErrorAction()
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 2829b0cd5f..468dca9272 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -443,6 +443,9 @@ func (ctxt *Link) loadlib() {
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+ 	ctxt.loader = loader.NewLoader(flags, elfsetstring)
++	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
++		return ctxt.loader.SymName(s)
++	}
+ 
+ 	ctxt.cgo_export_static = make(map[string]bool)
+ 	ctxt.cgo_export_dynamic = make(map[string]bool)

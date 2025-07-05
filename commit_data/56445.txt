@@ -83,7 +83,7 @@ Date:   Mon May 8 20:23:40 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/base/hashdebug.go  | 22 +++++++++++-----------
  src/cmd/compile/internal/ir/fmt.go          | 10 +++++-----
  src/cmd/compile/internal/logopt/log_opts.go | 13 +++++--------
@@ -91,3 +91,187 @@ Date:   Mon May 8 20:23:40 2023 -0400
  src/cmd/internal/obj/inl.go                 | 23 ++++++++++++-----------
  src/cmd/internal/obj/util.go                |  5 -----
  6 files changed, 38 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 0d0b3f3123..5492d9cda2 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -351,24 +351,24 @@ func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+ // bytesForPos renders a position, including inlining, into d.bytesTmp
+ // and returns the byte array.  d.mu must be locked.
+ func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
+-	d.posTmp = ctxt.AllPos(pos, d.posTmp)
+-	// Reverse posTmp to put outermost first.
+ 	b := &d.bytesTmp
+ 	b.Reset()
+-	start := len(d.posTmp) - 1
+-	if d.inlineSuffixOnly {
+-		start = 0
+-	}
+-	for i := start; i >= 0; i-- {
+-		p := &d.posTmp[i]
++	format := func(p src.Pos) {
+ 		f := p.Filename()
+ 		if d.fileSuffixOnly {
+ 			f = filepath.Base(f)
+ 		}
+ 		fmt.Fprintf(b, "%s:%d:%d", f, p.Line(), p.Col())
+-		if i != 0 {
+-			b.WriteByte(';')
+-		}
++	}
++	if d.inlineSuffixOnly {
++		format(ctxt.InnermostPos(pos))
++	} else {
++		ctxt.AllPos(pos, func(p src.Pos) {
++			if b.Len() > 0 {
++				b.WriteByte(';')
++			}
++			format(p)
++		})
+ 	}
+ 	return b.Bytes()
+ }
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index dcb8988b66..a9cf716dff 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1085,15 +1085,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
+ 		case src.PosIsStmt:
+ 			fmt.Fprint(w, "+")
+ 		}
+-		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
+-			if i > 0 {
+-				fmt.Fprint(w, ",")
+-			}
++		sep := ""
++		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
++			fmt.Fprint(w, sep)
++			sep = " "
+ 			// TODO(mdempsky): Print line pragma details too.
+ 			file := filepath.Base(pos.Filename())
+ 			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
+ 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
+-		}
++		})
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index f74be6a63c..b731e55938 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -532,12 +532,9 @@ func appendInlinedPos(posTmp, lastTmp []src.Pos, diagnostic *Diagnostic) {
+ // parsePos expands a src.XPos into a slice of src.Pos, with the outermost first.
+ // It returns the slice, and the outermost.
+ func parsePos(ctxt *obj.Link, pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
+-	posTmp = ctxt.AllPos(pos, posTmp)
+-	// Reverse posTmp to put outermost first.
+-	l := len(posTmp)
+-	for i := 0; i < l/2; i++ {
+-		posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
+-	}
+-	p0 := posTmp[0]
+-	return posTmp, p0
++	posTmp = posTmp[:0]
++	ctxt.AllPos(pos, func(p src.Pos) {
++		posTmp = append(posTmp, p)
++	})
++	return posTmp, posTmp[0]
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 37b5a26d5c..a037b7494d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7331,7 +7331,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		fi := f.DumpFileForPhase("genssa")
+ 		if fi != nil {
+ 
+-			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
++			// inliningDiffers if any filename changes or if any line number except the innermost (last index) changes.
+ 			inliningDiffers := func(a, b []src.Pos) bool {
+ 				if len(a) != len(b) {
+ 					return true
+@@ -7340,7 +7340,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 					if a[i].Filename() != b[i].Filename() {
+ 						return true
+ 					}
+-					if i > 0 && a[i].Line() != b[i].Line() {
++					if i != len(a)-1 && a[i].Line() != b[i].Line() {
+ 						return true
+ 					}
+ 				}
+@@ -7352,10 +7352,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 			for p := pp.Text; p != nil; p = p.Link {
+ 				if p.Pos.IsKnown() {
+-					allPos = p.AllPos(allPos)
++					allPos = allPos[:0]
++					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })
+ 					if inliningDiffers(allPos, allPosOld) {
+-						for i := len(allPos) - 1; i >= 0; i-- {
+-							pos := allPos[i]
++						for _, pos := range allPos {
+ 							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
+ 						}
+ 						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index 934f1c2657..7a22eb1efd 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -108,20 +108,21 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
+ 	return ctxt.PosTable.Pos(xpos)
+ }
+ 
+-// AllPos returns a slice of the positions inlined at xpos, from
+-// innermost (index zero) to outermost.  To avoid allocation
+-// the input slice is truncated, and used for the result, extended
+-// as necessary.
+-func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
++// AllPos invokes do with every position in the inlining call stack for xpos,
++// from outermost to innermost. That is, xpos corresponds to f inlining g inlining h,
++// AllPos invokes do with the position in f, then the position in g, then the position in h.
++func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
+ 	pos := ctxt.InnermostPos(xpos)
+-	result = result[:0]
+-	result = append(result, ctxt.PosTable.Pos(xpos))
+-	for ix := pos.Base().InliningIndex(); ix >= 0; {
++	ctxt.forAllPos(pos.Base().InliningIndex(), do)
++	do(ctxt.PosTable.Pos(xpos))
++}
++
++func (ctxt *Link) forAllPos(ix int, do func(src.Pos)) {
++	if ix >= 0 {
+ 		call := ctxt.InlTree.nodes[ix]
+-		ix = call.Parent
+-		result = append(result, ctxt.PosTable.Pos(call.Pos))
++		ctxt.forAllPos(call.Parent, do)
++		do(ctxt.PosTable.Pos(call.Pos))
+ 	}
+-	return result
+ }
+ 
+ func dumpInlTree(ctxt *Link, tree InlTree) {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 14b09f43d4..3a071c21d4 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -6,7 +6,6 @@ package obj
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+@@ -48,10 +47,6 @@ func (p *Prog) InnermostFilename() string {
+ 	return pos.Filename()
+ }
+ 
+-func (p *Prog) AllPos(result []src.Pos) []src.Pos {
+-	return p.Ctxt.AllPos(p.Pos, result)
+-}
+-
+ var armCondCode = []string{
+ 	".EQ",
+ 	".NE",

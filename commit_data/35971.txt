@@ -11,6 +11,27 @@ Date:   Mon Mar 26 13:21:29 2018 +0000
     GitHub-Pull-Request: golang/go#24536
     Reviewed-on: https://go-review.googlesource.com/102535
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/filepath/example_unix_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index 40bc547fe4..fe49c12d8d 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -80,13 +80,14 @@ func ExampleJoin() {
+ 	// a/b/c
+ 	// a/b/c
+ }
++
+ func ExampleWalk() {
+ 	dir := "dir/to/walk"
+ 	subDirToSkip := "skip" // dir/to/walk/skip
+ 
+ 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+ 		if err != nil {
+-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
++			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+ 			return err
+ 		}
+ 		if info.IsDir() && info.Name() == subDirToSkip {

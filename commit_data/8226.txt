@@ -9,6 +9,19 @@ Date:   Tue Apr 26 00:16:12 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4426061
-
+---
  src/all-qemu.bash | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/all-qemu.bash b/src/all-qemu.bash
+index b2be15ac8c..6d5cd6eddf 100755
+--- a/src/all-qemu.bash
++++ b/src/all-qemu.bash
+@@ -6,7 +6,6 @@
+ # Run all.bash but exclude tests that depend on functionality
+ # missing in QEMU's system call emulation.
+ 
+-export DISABLE_NET_TESTS=1  # no external network
+ export NOTEST=""
+ 
+ NOTEST="$NOTEST big" # xxx

@@ -23,8 +23,161 @@ Date:   Tue Apr 4 18:56:21 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 37 +++++++++++++++++++++
  test/fixedbugs/issue59404.go           | 61 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue59404part2.go      | 24 +++++++++++++
  3 files changed, 122 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 80be841efa..3b42818c57 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -229,6 +229,19 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 		}
+ 	})
+ 
++	// Rewalk post-inlining functions to check for closures that are
++	// still visible but were (over-agressively) marked as dead, and
++	// undo that marking here. See #59404 for more context.
++	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
++		for _, n := range list {
++			ir.Visit(n, func(node ir.Node) {
++				if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() {
++					clo.Func.SetIsDeadcodeClosure(false)
++				}
++			})
++		}
++	})
++
+ 	if p != nil {
+ 		pgoInlineEpilogue(p, decls)
+ 	}
+@@ -883,6 +896,30 @@ func inlnode(n ir.Node, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit fun
+ 		}
+ 		if fn := inlCallee(call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+ 			n = mkinlcall(call, fn, maxCost, inlCalls, edit)
++			if fn.IsHiddenClosure() {
++				// Visit function to pick out any contained hidden
++				// closures to mark them as dead, since they will no
++				// longer be reachable (if we leave them live, they
++				// will get skipped during escape analysis, which
++				// could mean that go/defer statements don't get
++				// desugared, causing later problems in walk). See
++				// #59404 for more context. Note also that the code
++				// below can sometimes be too aggressive (marking a closure
++				// dead even though it was captured by a local var).
++				// In this case we'll undo the dead marking in a cleanup
++				// pass that happens at the end of InlineDecls.
++				var vis func(node ir.Node)
++				vis = func(node ir.Node) {
++					if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() && !clo.Func.IsDeadcodeClosure() {
++						if base.Flag.LowerM > 2 {
++							fmt.Printf("%v: closure %v marked as dead\n", ir.Line(clo.Func), clo.Func)
++						}
++						clo.Func.SetIsDeadcodeClosure(true)
++						ir.Visit(clo.Func, vis)
++					}
++				}
++				ir.Visit(fn, vis)
++			}
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue59404.go b/test/fixedbugs/issue59404.go
+new file mode 100644
+index 0000000000..0f391e6af1
+--- /dev/null
++++ b/test/fixedbugs/issue59404.go
+@@ -0,0 +1,61 @@
++// build -gcflags=-l=4
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Interface interface {
++	MonitoredResource() (resType string, labels map[string]string)
++	Done()
++}
++
++func Autodetect() Interface {
++	return func() Interface {
++		Do(func() {
++			var ad, gd Interface
++
++			go func() {
++				defer gd.Done()
++				ad = aad()
++			}()
++			go func() {
++				defer ad.Done()
++				gd = aad()
++				defer func() { recover() }()
++			}()
++
++			autoDetected = ad
++			if gd != nil {
++				autoDetected = gd
++			}
++		})
++		return autoDetected
++	}()
++}
++
++var autoDetected Interface
++var G int
++
++type If int
++
++func (x If) MonitoredResource() (resType string, labels map[string]string) {
++	return "", nil
++}
++
++//go:noinline
++func (x If) Done() {
++	G++
++}
++
++//go:noinline
++func Do(fn func()) {
++	fn()
++}
++
++//go:noinline
++func aad() Interface {
++	var x If
++	return x
++}
+diff --git a/test/fixedbugs/issue59404part2.go b/test/fixedbugs/issue59404part2.go
+new file mode 100644
+index 0000000000..37fa029a1d
+--- /dev/null
++++ b/test/fixedbugs/issue59404part2.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var G func(int) int
++
++//go:noinline
++func callclo(q, r int) int {
++	p := func(z int) int {
++		G = func(int) int { return 1 }
++		return z + 1
++	}
++	res := p(q) ^ p(r) // These calls to "p" will be inlined
++	G = p
++	return res
++}
++
++func main() {
++	callclo(1, 2)
++}

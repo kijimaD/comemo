@@ -13,10 +13,111 @@ Date:   Fri Apr 26 16:40:01 2019 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/defs_aix.go          | 2 +-
  src/runtime/defs_aix_ppc64.go    | 2 +-
  src/runtime/export_mmap_test.go  | 2 +-
  src/runtime/mem_aix.go           | 8 ++++----
  src/runtime/runtime_mmap_test.go | 7 ++++++-
  5 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/defs_aix.go b/src/runtime/defs_aix.go
+index 812c7fcfa2..bc5101f35d 100644
+--- a/src/runtime/defs_aix.go
++++ b/src/runtime/defs_aix.go
+@@ -65,7 +65,7 @@ const (
+ 	_PROT_WRITE = C.PROT_WRITE
+ 	_PROT_EXEC  = C.PROT_EXEC
+ 
+-	_MAP_ANONYMOUS = C.MAP_ANONYMOUS
++	_MAP_ANON      = C.MAP_ANONYMOUS
+ 	_MAP_PRIVATE   = C.MAP_PRIVATE
+ 	_MAP_FIXED     = C.MAP_FIXED
+ 	_MADV_DONTNEED = C.MADV_DONTNEED
+diff --git a/src/runtime/defs_aix_ppc64.go b/src/runtime/defs_aix_ppc64.go
+index db17b90496..dccc3a5926 100644
+--- a/src/runtime/defs_aix_ppc64.go
++++ b/src/runtime/defs_aix_ppc64.go
+@@ -22,7 +22,7 @@ const (
+ 	_PROT_WRITE = 0x2
+ 	_PROT_EXEC  = 0x4
+ 
+-	_MAP_ANONYMOUS = 0x10
++	_MAP_ANON      = 0x10
+ 	_MAP_PRIVATE   = 0x2
+ 	_MAP_FIXED     = 0x100
+ 	_MADV_DONTNEED = 0x4
+diff --git a/src/runtime/export_mmap_test.go b/src/runtime/export_mmap_test.go
+index f569627bd3..6c4a4466de 100644
+--- a/src/runtime/export_mmap_test.go
++++ b/src/runtime/export_mmap_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ // Export guts for testing.
+ 
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index f11f0aba52..56db7426af 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -12,7 +12,7 @@ import (
+ // prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANONYMOUS|_MAP_PRIVATE, -1, 0)
++	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		if err == _EACCES {
+ 			print("runtime: mmap: access denied\n")
+@@ -46,11 +46,11 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ }
+ 
+ func sysFault(v unsafe.Pointer, n uintptr) {
+-	mmap(v, n, _PROT_NONE, _MAP_ANONYMOUS|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
++	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+-	p, err := mmap(v, n, _PROT_NONE, _MAP_ANONYMOUS|_MAP_PRIVATE, -1, 0)
++	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+@@ -63,7 +63,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	// AIX does not allow mapping a range that is already mapped.
+ 	// So always unmap first even if it is already unmapped.
+ 	munmap(v, n)
+-	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANONYMOUS|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 
+ 	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/runtime_mmap_test.go b/src/runtime/runtime_mmap_test.go
+index 57c38bc5dc..6741e1da8d 100644
+--- a/src/runtime/runtime_mmap_test.go
++++ b/src/runtime/runtime_mmap_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ package runtime_test
+ 
+@@ -34,6 +34,11 @@ func TestPhysPageSize(t *testing.T) {
+ 		t.Fatalf("Mmap: %v", err)
+ 	}
+ 
++	if runtime.GOOS == "aix" {
++		// AIX does not allow mapping a range that is already mapped.
++		runtime.Munmap(unsafe.Pointer(uintptr(b)), 2*ps)
++	}
++
+ 	// Mmap should fail at a half page into the buffer.
+ 	_, err = runtime.Mmap(unsafe.Pointer(uintptr(b)+ps/2), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0)
+ 	if err == 0 {

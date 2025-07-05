@@ -7,6 +7,20 @@ Date:   Wed Oct 19 10:54:04 2011 +1100
     R=mikesamuel
     CC=golang-dev
     https://golang.org/cl/5313044
-
+---
  src/pkg/exp/template/html/escape_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index e5f8370935..a4ea7596cd 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -394,7 +394,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"styleStrSpecialsEncoded",
+ 			`<a style="font-family: '{{"/**/'\";:// \\"}}', &quot;{{"/**/'\";:// \\"}}&quot;">`,
+-			`<a style="font-family: '\2f**\2f\27\22\3b\3a\2f\2f \\', &quot;\2f**\2f\27\22\3b\3a\2f\2f \\&quot;">`,
++			`<a style="font-family: '\2f**\2f\27\22\3b\3a\2f\2f  \\', &quot;\2f**\2f\27\22\3b\3a\2f\2f  \\&quot;">`,
+ 		},
+ 		{
+ 			"styleURLSpecialsEncoded",

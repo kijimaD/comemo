@@ -11,7 +11,86 @@ Date:   Mon Feb 11 12:56:09 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/tidy.go              |  4 ++-
  src/cmd/go/testdata/script/mod_tidy_replace.txt | 39 +++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 839c92a0a0..789e936608 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -75,6 +75,7 @@ func modTidyGoSum() {
+ 	// we only have to tell modfetch what needs keeping.
+ 	reqs := modload.Reqs()
+ 	keep := make(map[module.Version]bool)
++	replaced := make(map[module.Version]bool)
+ 	var walk func(module.Version)
+ 	walk = func(m module.Version) {
+ 		// If we build using a replacement module, keep the sum for the replacement,
+@@ -87,10 +88,11 @@ func modTidyGoSum() {
+ 			keep[m] = true
+ 		} else {
+ 			keep[r] = true
++			replaced[m] = true
+ 		}
+ 		list, _ := reqs.Required(m)
+ 		for _, r := range list {
+-			if !keep[r] {
++			if !keep[r] && !replaced[r] {
+ 				walk(r)
+ 			}
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace.txt b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+index 70c789afaa..86467a6545 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+@@ -1,5 +1,12 @@
+ env GO111MODULE=on
+ 
++# golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
++# involved in a cycle.
++cd cycle
++env GOTRACEBACK=off
++go mod tidy
++cd ..
++
+ # From inside the module, 'go list -m all' should NOT include transitive
+ # requirements of modules that have been replaced.
+ go list -m all
+@@ -69,3 +76,35 @@ import (
+ 	_ "rsc.io/sampler"
+ 	_ "golang.org/x/text/language"
+ )
++
++-- cycle/go.mod --
++module golang.org/issue/30166
++
++require (
++	golang.org/issue/30166/a v0.0.0
++	golang.org/issue/30166/b v0.0.0
++)
++
++replace (
++	golang.org/issue/30166/a => ./a
++	golang.org/issue/30166/b => ./b
++)
++-- cycle/cycle.go --
++package cycle
++
++import (
++	_ "golang.org/issue/30166/a"
++	_ "golang.org/issue/30166/b"
++)
++-- cycle/a/a.go --
++package a
++-- cycle/a/go.mod --
++module golang.org/issue/30166/a
++
++require golang.org/issue/30166/b v0.0.0
++-- cycle/b/b.go --
++package b
++-- cycle/b/go.mod --
++module golang.org/issue/30166/b
++
++require golang.org/issue/30166/a v0.0.0

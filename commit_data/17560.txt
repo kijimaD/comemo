@@ -16,6 +16,19 @@ Date:   Wed Sep 11 14:18:52 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13632051
-
+---
  src/pkg/runtime/runtime.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index df883bda5b..151804f2a6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -433,7 +433,6 @@ struct	Func
+ 	uintptr	entry;	// start pc
+ 	int32	nameoff;// function name
+ 	
+-	// TODO: Perhaps remove these fields.
+ 	int32	args;	// in/out args size
+ 	int32	frame;	// legacy frame size; use pcsp if possible
+ 

@@ -8,7 +8,102 @@ Date:   Tue Oct 26 17:07:39 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2750041
-
+---
  src/pkg/gob/codec_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/gob/type.go       | 23 +++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 2e52a0f1dd..9c1815af9b 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -1195,6 +1195,51 @@ func TestInterface(t *testing.T) {
+ 
+ }
+ 
++// A struct with all basic types, stored in interfaces.
++type BasicInterfaceItem struct {
++	Int, Int8, Int16, Int32, Int64      interface{}
++	Uint, Uint8, Uint16, Uint32, Uint64 interface{}
++	Float, Float32, Float64             interface{}
++	Complex, Complex64, Complex128      interface{}
++	Bool                                interface{}
++	String                              interface{}
++	Bytes                               interface{}
++}
++
++func TestInterfaceBasic(t *testing.T) {
++	b := new(bytes.Buffer)
++	item1 := &BasicInterfaceItem{
++		int(1), int8(1), int16(1), int32(1), int64(1),
++		uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
++		float(1), float32(1), float64(1),
++		complex(0i), complex64(0i), complex128(0i),
++		true,
++		"hello",
++		[]byte("sailor"),
++	}
++	// Register the types.
++	err := NewEncoder(b).Encode(item1)
++	if err != nil {
++		t.Error("expected no encode error; got", err)
++	}
++
++	item2 := &BasicInterfaceItem{}
++	err = NewDecoder(b).Decode(&item2)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if !reflect.DeepEqual(item1, item2) {
++		t.Errorf("encode expected %v got %v", item1, item2)
++	}
++	// Hand check a couple for correct types.
++	if v, ok := item2.Bool.(bool); !ok || !v {
++		t.Error("boolean should be true")
++	}
++	if v, ok := item2.String.(string); !ok || v != item1.String.(string) {
++		t.Errorf("string should be %v is %v", item1.String, v)
++	}
++}
++
+ func TestIgnoreInterface(t *testing.T) {
+ 	iVal := Int(3)
+ 	fVal := Float(5)
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 5b5dea93c1..6b0ee40521 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -132,6 +132,7 @@ func init() {
+ 		panic(fmt.Sprintln("nextId too large:", nextId))
+ 	}
+ 	nextId = firstUserId
++	registerBasics()
+ }
+ 
+ // Array type
+@@ -498,3 +499,25 @@ func Register(value interface{}) {
+ 
+ 	RegisterName(name, value)
+ }
++
++func registerBasics() {
++	Register(int(0))
++	Register(int8(0))
++	Register(int16(0))
++	Register(int32(0))
++	Register(int64(0))
++	Register(uint(0))
++	Register(uint8(0))
++	Register(uint16(0))
++	Register(uint32(0))
++	Register(uint64(0))
++	Register(float(0))
++	Register(float32(0))
++	Register(float64(0))
++	Register(complex(0i))
++	Register(complex64(0i))
++	Register(complex128(0i))
++	Register(false)
++	Register("")
++	Register([]byte(nil))
++}

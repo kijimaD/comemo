@@ -7,10 +7,113 @@ Date:   Sun Feb 8 19:07:48 2015 +0300
     Change-Id: Ib46a42fc873066b1cc00368fe43648f08dce48bd
     Reviewed-on: https://go-review.googlesource.com/4200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gc/dcl.c  | 16 +---------------
  src/cmd/gc/go.h   |  2 +-
  src/cmd/gc/init.c |  2 +-
  src/cmd/gc/lex.c  |  2 +-
  src/cmd/gc/subr.c |  6 +++---
  5 files changed, 7 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f47ca2b50e..9a6c0023f5 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1435,7 +1435,7 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ }
+ 
+ void
+-funccompile(Node *n, int isclosure)
++funccompile(Node *n)
+ {
+ 	stksize = BADWIDTH;
+ 	maxarg = 0;
+@@ -1449,20 +1449,6 @@ funccompile(Node *n, int isclosure)
+ 	// assign parameter offsets
+ 	checkwidth(n->type);
+ 	
+-	// record offset to actual frame pointer.
+-	// for closure, have to skip over leading pointers and PC slot.
+-	// TODO(rsc): this is the old jit closure handling code.
+-	// with the new closures, isclosure is always 0; delete this block.
+-	nodfp->xoffset = 0;
+-	if(isclosure) {
+-		NodeList *l;
+-		for(l=n->nname->ntype->list; l; l=l->next) {
+-			nodfp->xoffset += widthptr;
+-			if(l->n->left == N)	// found slot for PC
+-				break;
+-		}
+-	}
+-
+ 	if(curfn)
+ 		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2aa7838c93..c765e063bd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1128,7 +1128,7 @@ void	dumpdcl(char *st);
+ Node*	embedded(Sym *s, Pkg *pkg);
+ Node*	fakethis(void);
+ void	funcbody(Node *n);
+-void	funccompile(Node *n, int isclosure);
++void	funccompile(Node *n);
+ void	funchdr(Node *n);
+ Type*	functype(Node *this, NodeList *in, NodeList *out);
+ void	ifacedcl(Node *n);
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 918d37180b..c769ec27f0 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -191,5 +191,5 @@ fninit(NodeList *n)
+ 	typecheck(&fn, Etop);
+ 	typechecklist(r, Etop);
+ 	curfn = nil;
+-	funccompile(fn, 0);
++	funccompile(fn);
+ }
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 042099bd5e..01dd1664cb 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -459,7 +459,7 @@ gcmain(int argc, char *argv[])
+ 	// Phase 7: Compile top level functions.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+-			funccompile(l->n, 0);
++			funccompile(l->n);
+ 
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5a522efec2..fc925bbec3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2628,7 +2628,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	inl_nonlocal = 0;
+ 
+ 	curfn = nil;
+-	funccompile(fn, 0);
++	funccompile(fn);
+ }
+ 
+ static Node*
+@@ -2876,7 +2876,7 @@ genhash(Sym *sym, Type *t)
+ 	// an unexported field of type unsafe.Pointer.
+ 	old_safemode = safemode;
+ 	safemode = 0;
+-	funccompile(fn, 0);
++	funccompile(fn);
+ 	safemode = old_safemode;
+ }
+ 
+@@ -3096,7 +3096,7 @@ geneq(Sym *sym, Type *t)
+ 	// an unexported field of type unsafe.Pointer.
+ 	old_safemode = safemode;
+ 	safemode = 0;
+-	funccompile(fn, 0);
++	funccompile(fn);
+ 	safemode = old_safemode;
+ }
+ 

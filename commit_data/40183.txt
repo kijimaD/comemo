@@ -13,7 +13,36 @@ Date:   Wed Apr 24 22:21:53 2019 +1000
     Change-Id: I304eeabf3b462d53b7feda17ae390bbe2fa22069
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173597
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/note_test.go         | 2 --
  src/cmd/objdump/objdump_test.go | 4 ----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index 66c5d39bf7..6d3b9b80f4 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -32,8 +32,6 @@ func TestNoteReading(t *testing.T) {
+ 	switch {
+ 	case !build.Default.CgoEnabled:
+ 		t.Skipf("skipping - no cgo, so assuming external linking not available")
+-	case runtime.GOOS == "openbsd" && runtime.GOARCH == "arm":
+-		t.Skipf("skipping - external linking not supported, golang.org/issue/10619")
+ 	case runtime.GOOS == "plan9":
+ 		t.Skipf("skipping - external linking not supported")
+ 	}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index be9fe5274a..0ac1d16fe3 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -194,10 +194,6 @@ func TestDisasmExtld(t *testing.T) {
+ 	case "s390x":
+ 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+ 	}
+-	// TODO(jsing): Reenable once openbsd/arm has external linking support.
+-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+-		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
+-	}
+ 	if !build.Default.CgoEnabled {
+ 		t.Skip("skipping because cgo is not enabled")
+ 	}

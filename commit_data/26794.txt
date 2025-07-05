@@ -16,7 +16,100 @@ Date:   Thu Feb 25 19:17:55 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/global_test.go | 51 ++++++++++++++++++++++++++++++
  src/cmd/internal/obj/objfile.go            |  8 +++--
  2 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/global_test.go b/src/cmd/compile/internal/gc/global_test.go
+index 6c388aff7c..80781e61a8 100644
+--- a/src/cmd/compile/internal/gc/global_test.go
++++ b/src/cmd/compile/internal/gc/global_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -62,3 +63,53 @@ func main() {
+ 		log.Fatalf("scanf code not removed from helloworld")
+ 	}
+ }
++
++// Make sure -S prints assembly code.  See issue 14515.
++func TestDashS(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// Make a directory to work in.
++	dir, err := ioutil.TempDir("", "issue14515-")
++	if err != nil {
++		log.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Create source.
++	src := path.Join(dir, "test.go")
++	f, err := os.Create(src)
++	if err != nil {
++		log.Fatalf("could not create source file: %v", err)
++	}
++	f.Write([]byte(`
++package main
++import "fmt"
++func main() {
++	fmt.Println("hello world")
++}
++`))
++	f.Close()
++
++	// Compile source.
++	cmd := exec.Command("go", "build", "-gcflags", "-S", src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		log.Fatalf("could not build target: %v", err)
++	}
++
++	patterns := []string{
++		// It is hard to look for actual instructions in an
++		// arch-independent way.  So we'll just look for
++		// pseudo-ops that are arch-independent.
++		"\tTEXT\t",
++		"\tFUNCDATA\t",
++		"\tPCDATA\t",
++	}
++	outstr := string(out)
++	for _, p := range patterns {
++		if !strings.Contains(outstr, p) {
++			println(outstr)
++			panic("can't find pattern " + p)
++		}
++	}
++}
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 6757067dd6..33330b472e 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -116,7 +116,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
+ }
+ 
+ func Flushplist(ctxt *Link) {
+-	flushplist(ctxt, true)
++	flushplist(ctxt, ctxt.Debugasm == 0)
+ }
+ func FlushplistNoFree(ctxt *Link) {
+ 	flushplist(ctxt, false)
+@@ -308,8 +308,10 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		fieldtrack(ctxt, s)
+ 		linkpcln(ctxt, s)
+-		s.Text = nil
+-		s.Etext = nil
++		if freeProgs {
++			s.Text = nil
++			s.Etext = nil
++		}
+ 	}
+ 
+ 	// Add to running list in ctxt.

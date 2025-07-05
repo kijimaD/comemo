@@ -16,7 +16,7 @@ Date:   Wed Nov 23 13:45:56 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  api/go1.16.txt                             | 662 +++++++++++++++++++++++++++++
  api/go1.17.txt                             |   7 +
  api/go1.18.txt                             |  22 +-
@@ -32,3 +32,1353 @@ Date:   Wed Nov 23 13:45:56 2022 -0500
  src/cmd/api/testdata/src/pkg/p4/golden.txt |   1 +
  src/cmd/api/testdata/src/pkg/p4/p4.go      |   1 +
  14 files changed, 894 insertions(+), 25 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index ce015fd6fb..8f9ca55ccd 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -499,3 +499,665 @@ pkg unicode, var Chorasmian *RangeTable
+ pkg unicode, var Dives_Akuru *RangeTable
+ pkg unicode, var Khitan_Small_Script *RangeTable
+ pkg unicode, var Yezidi *RangeTable
++# all deprecations up to and including Go 1.16
++pkg archive/tar, type Header struct, Xattrs //deprecated
++pkg archive/zip, method (*File) ModTime //deprecated
++pkg archive/zip, method (*File) SetModTime //deprecated
++pkg archive/zip, method (*FileHeader) ModTime //deprecated
++pkg archive/zip, method (*FileHeader) SetModTime //deprecated
++pkg compress/flate, type ReadError //deprecated
++pkg compress/flate, type WriteError //deprecated
++pkg crypto/rc4, method (*Cipher) Reset //deprecated
++pkg crypto/tls, const VersionSSL30 //deprecated
++pkg crypto/tls, method (*Config) BuildNameToCertificate //deprecated
++pkg crypto/tls, type Config struct, NameToCertificate //deprecated
++pkg crypto/tls, type Config struct, SessionTicketKey //deprecated
++pkg crypto/tls, type ConnectionState struct, NegotiatedProtocolIsMutual //deprecated
++pkg crypto/tls, type ConnectionState struct, TLSUnique //deprecated
++pkg crypto/x509, func DecryptPEMBlock //deprecated
++pkg crypto/x509, func EncryptPEMBlock //deprecated
++pkg crypto/x509, func IsEncryptedPEMBlock //deprecated
++pkg crypto/x509, type CertificateRequest struct, Attributes //deprecated
++pkg database/sql/driver, type ColumnConverter //deprecated
++pkg database/sql/driver, type Conn interface, Begin //deprecated
++pkg database/sql/driver, type Execer //deprecated
++pkg database/sql/driver, type Queryer //deprecated
++pkg database/sql/driver, type Stmt interface, Exec //deprecated
++pkg database/sql/driver, type Stmt interface, Query //deprecated
++pkg debug/gosym, method (*LineTable) LineToPC //deprecated
++pkg debug/gosym, method (*LineTable) PCToLine //deprecated
++pkg encoding/json, type InvalidUTF8Error //deprecated
++pkg encoding/json, type UnmarshalFieldError //deprecated
++pkg go/build, const AllowBinary //deprecated
++pkg go/doc, type Package struct, Bugs //deprecated
++pkg go/importer, func For //deprecated
++pkg go/importer, func ForCompiler //deprecated
++pkg go/types, func NewInterface //deprecated
++pkg go/types, method (*Interface) Embedded //deprecated
++pkg image, var ZP //deprecated
++pkg image, var ZR //deprecated
++pkg image/jpeg, type Reader //deprecated
++pkg net, type Dialer struct, Cancel //deprecated
++pkg net, type Dialer struct, DualStack //deprecated
++pkg net/http, method (*Transport) CancelRequest //deprecated
++pkg net/http, type CloseNotifier //deprecated
++pkg net/http, type ProtocolError //deprecated
++pkg net/http, type Request struct, Cancel //deprecated
++pkg net/http, type Transport struct, Dial //deprecated
++pkg net/http, type Transport struct, DialTLS //deprecated
++pkg net/http, var ErrHeaderTooLong //deprecated
++pkg net/http, var ErrMissingContentLength //deprecated
++pkg net/http, var ErrShortBody //deprecated
++pkg net/http, var ErrUnexpectedTrailer //deprecated
++pkg net/http, var ErrWriteAfterFlush //deprecated
++pkg net/http/httptest, type ResponseRecorder struct, HeaderMap //deprecated
++pkg net/http/httputil, func NewClientConn //deprecated
++pkg net/http/httputil, func NewProxyClientConn //deprecated
++pkg net/http/httputil, func NewServerConn //deprecated
++pkg net/http/httputil, type ClientConn //deprecated
++pkg net/http/httputil, type ServerConn //deprecated
++pkg net/http/httputil, var ErrClosed //deprecated
++pkg net/http/httputil, var ErrPersistEOF //deprecated
++pkg net/http/httputil, var ErrPipeline //deprecated
++pkg os, const SEEK_CUR //deprecated
++pkg os, const SEEK_END //deprecated
++pkg os, const SEEK_SET //deprecated
++pkg path/filepath, func HasPrefix //deprecated
++pkg regexp, method (*Regexp) Copy //deprecated
++pkg runtime, func CPUProfile //deprecated
++pkg syscall (darwin-amd64), func BpfBuflen //deprecated
++pkg syscall (darwin-amd64), func BpfDatalink //deprecated
++pkg syscall (darwin-amd64), func BpfHeadercmpl //deprecated
++pkg syscall (darwin-amd64), func BpfInterface //deprecated
++pkg syscall (darwin-amd64), func BpfJump //deprecated
++pkg syscall (darwin-amd64), func BpfStats //deprecated
++pkg syscall (darwin-amd64), func BpfStmt //deprecated
++pkg syscall (darwin-amd64), func BpfTimeout //deprecated
++pkg syscall (darwin-amd64), func CheckBpfVersion //deprecated
++pkg syscall (darwin-amd64), func FlushBpf //deprecated
++pkg syscall (darwin-amd64), func ParseRoutingMessage //deprecated
++pkg syscall (darwin-amd64), func ParseRoutingSockaddr //deprecated
++pkg syscall (darwin-amd64), func RouteRIB //deprecated
++pkg syscall (darwin-amd64), func SetBpf //deprecated
++pkg syscall (darwin-amd64), func SetBpfBuflen //deprecated
++pkg syscall (darwin-amd64), func SetBpfDatalink //deprecated
++pkg syscall (darwin-amd64), func SetBpfHeadercmpl //deprecated
++pkg syscall (darwin-amd64), func SetBpfImmediate //deprecated
++pkg syscall (darwin-amd64), func SetBpfInterface //deprecated
++pkg syscall (darwin-amd64), func SetBpfPromisc //deprecated
++pkg syscall (darwin-amd64), func SetBpfTimeout //deprecated
++pkg syscall (darwin-amd64), func StringSlicePtr //deprecated
++pkg syscall (darwin-amd64), type InterfaceAddrMessage //deprecated
++pkg syscall (darwin-amd64), type InterfaceMessage //deprecated
++pkg syscall (darwin-amd64), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (darwin-amd64), type RouteMessage //deprecated
++pkg syscall (darwin-amd64), type RoutingMessage //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfBuflen //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfDatalink //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfInterface //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfJump //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfStats //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfStmt //deprecated
++pkg syscall (darwin-amd64-cgo), func BpfTimeout //deprecated
++pkg syscall (darwin-amd64-cgo), func CheckBpfVersion //deprecated
++pkg syscall (darwin-amd64-cgo), func FlushBpf //deprecated
++pkg syscall (darwin-amd64-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (darwin-amd64-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (darwin-amd64-cgo), func RouteRIB //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpf //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfBuflen //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfDatalink //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfImmediate //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfInterface //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfPromisc //deprecated
++pkg syscall (darwin-amd64-cgo), func SetBpfTimeout //deprecated
++pkg syscall (darwin-amd64-cgo), func StringSlicePtr //deprecated
++pkg syscall (darwin-amd64-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (darwin-amd64-cgo), type InterfaceMessage //deprecated
++pkg syscall (darwin-amd64-cgo), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (darwin-amd64-cgo), type RouteMessage //deprecated
++pkg syscall (darwin-amd64-cgo), type RoutingMessage //deprecated
++pkg syscall (freebsd-386), func BpfBuflen //deprecated
++pkg syscall (freebsd-386), func BpfDatalink //deprecated
++pkg syscall (freebsd-386), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-386), func BpfInterface //deprecated
++pkg syscall (freebsd-386), func BpfJump //deprecated
++pkg syscall (freebsd-386), func BpfStats //deprecated
++pkg syscall (freebsd-386), func BpfStmt //deprecated
++pkg syscall (freebsd-386), func BpfTimeout //deprecated
++pkg syscall (freebsd-386), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-386), func FlushBpf //deprecated
++pkg syscall (freebsd-386), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-386), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-386), func RouteRIB //deprecated
++pkg syscall (freebsd-386), func SetBpf //deprecated
++pkg syscall (freebsd-386), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-386), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-386), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-386), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-386), func SetBpfInterface //deprecated
++pkg syscall (freebsd-386), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-386), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-386), func StringSlicePtr //deprecated
++pkg syscall (freebsd-386), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-386), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-386), type InterfaceMessage //deprecated
++pkg syscall (freebsd-386), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-386), type RouteMessage //deprecated
++pkg syscall (freebsd-386), type RoutingMessage //deprecated
++pkg syscall (freebsd-386-cgo), func BpfBuflen //deprecated
++pkg syscall (freebsd-386-cgo), func BpfDatalink //deprecated
++pkg syscall (freebsd-386-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-386-cgo), func BpfInterface //deprecated
++pkg syscall (freebsd-386-cgo), func BpfJump //deprecated
++pkg syscall (freebsd-386-cgo), func BpfStats //deprecated
++pkg syscall (freebsd-386-cgo), func BpfStmt //deprecated
++pkg syscall (freebsd-386-cgo), func BpfTimeout //deprecated
++pkg syscall (freebsd-386-cgo), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-386-cgo), func FlushBpf //deprecated
++pkg syscall (freebsd-386-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-386-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-386-cgo), func RouteRIB //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpf //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfInterface //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-386-cgo), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-386-cgo), func StringSlicePtr //deprecated
++pkg syscall (freebsd-386-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-386-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-386-cgo), type InterfaceMessage //deprecated
++pkg syscall (freebsd-386-cgo), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-386-cgo), type RouteMessage //deprecated
++pkg syscall (freebsd-386-cgo), type RoutingMessage //deprecated
++pkg syscall (freebsd-amd64), func BpfBuflen //deprecated
++pkg syscall (freebsd-amd64), func BpfDatalink //deprecated
++pkg syscall (freebsd-amd64), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-amd64), func BpfInterface //deprecated
++pkg syscall (freebsd-amd64), func BpfJump //deprecated
++pkg syscall (freebsd-amd64), func BpfStats //deprecated
++pkg syscall (freebsd-amd64), func BpfStmt //deprecated
++pkg syscall (freebsd-amd64), func BpfTimeout //deprecated
++pkg syscall (freebsd-amd64), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-amd64), func FlushBpf //deprecated
++pkg syscall (freebsd-amd64), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-amd64), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-amd64), func RouteRIB //deprecated
++pkg syscall (freebsd-amd64), func SetBpf //deprecated
++pkg syscall (freebsd-amd64), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-amd64), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-amd64), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-amd64), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-amd64), func SetBpfInterface //deprecated
++pkg syscall (freebsd-amd64), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-amd64), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-amd64), func StringSlicePtr //deprecated
++pkg syscall (freebsd-amd64), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-amd64), type InterfaceMessage //deprecated
++pkg syscall (freebsd-amd64), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-amd64), type RouteMessage //deprecated
++pkg syscall (freebsd-amd64), type RoutingMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfBuflen //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfDatalink //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfInterface //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfJump //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfStats //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfStmt //deprecated
++pkg syscall (freebsd-amd64-cgo), func BpfTimeout //deprecated
++pkg syscall (freebsd-amd64-cgo), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-amd64-cgo), func FlushBpf //deprecated
++pkg syscall (freebsd-amd64-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-amd64-cgo), func RouteRIB //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpf //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfInterface //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-amd64-cgo), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-amd64-cgo), func StringSlicePtr //deprecated
++pkg syscall (freebsd-amd64-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), type InterfaceMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), type RouteMessage //deprecated
++pkg syscall (freebsd-amd64-cgo), type RoutingMessage //deprecated
++pkg syscall (freebsd-arm), func BpfBuflen //deprecated
++pkg syscall (freebsd-arm), func BpfDatalink //deprecated
++pkg syscall (freebsd-arm), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-arm), func BpfInterface //deprecated
++pkg syscall (freebsd-arm), func BpfJump //deprecated
++pkg syscall (freebsd-arm), func BpfStats //deprecated
++pkg syscall (freebsd-arm), func BpfStmt //deprecated
++pkg syscall (freebsd-arm), func BpfTimeout //deprecated
++pkg syscall (freebsd-arm), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-arm), func FlushBpf //deprecated
++pkg syscall (freebsd-arm), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-arm), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-arm), func RouteRIB //deprecated
++pkg syscall (freebsd-arm), func SetBpf //deprecated
++pkg syscall (freebsd-arm), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-arm), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-arm), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-arm), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-arm), func SetBpfInterface //deprecated
++pkg syscall (freebsd-arm), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-arm), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-arm), func StringSlicePtr //deprecated
++pkg syscall (freebsd-arm), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-arm), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-arm), type InterfaceMessage //deprecated
++pkg syscall (freebsd-arm), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-arm), type RouteMessage //deprecated
++pkg syscall (freebsd-arm), type RoutingMessage //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfBuflen //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfDatalink //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfInterface //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfJump //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfStats //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfStmt //deprecated
++pkg syscall (freebsd-arm-cgo), func BpfTimeout //deprecated
++pkg syscall (freebsd-arm-cgo), func CheckBpfVersion //deprecated
++pkg syscall (freebsd-arm-cgo), func FlushBpf //deprecated
++pkg syscall (freebsd-arm-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (freebsd-arm-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (freebsd-arm-cgo), func RouteRIB //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpf //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfBuflen //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfDatalink //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfImmediate //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfInterface //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfPromisc //deprecated
++pkg syscall (freebsd-arm-cgo), func SetBpfTimeout //deprecated
++pkg syscall (freebsd-arm-cgo), func StringSlicePtr //deprecated
++pkg syscall (freebsd-arm-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (freebsd-arm-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (freebsd-arm-cgo), type InterfaceMessage //deprecated
++pkg syscall (freebsd-arm-cgo), type InterfaceMulticastAddrMessage //deprecated
++pkg syscall (freebsd-arm-cgo), type RouteMessage //deprecated
++pkg syscall (freebsd-arm-cgo), type RoutingMessage //deprecated
++pkg syscall (linux-386), func AttachLsf //deprecated
++pkg syscall (linux-386), func DetachLsf //deprecated
++pkg syscall (linux-386), func LsfJump //deprecated
++pkg syscall (linux-386), func LsfSocket //deprecated
++pkg syscall (linux-386), func LsfStmt //deprecated
++pkg syscall (linux-386), func SetLsfPromisc //deprecated
++pkg syscall (linux-386), func StringSlicePtr //deprecated
++pkg syscall (linux-386-cgo), func AttachLsf //deprecated
++pkg syscall (linux-386-cgo), func DetachLsf //deprecated
++pkg syscall (linux-386-cgo), func LsfJump //deprecated
++pkg syscall (linux-386-cgo), func LsfSocket //deprecated
++pkg syscall (linux-386-cgo), func LsfStmt //deprecated
++pkg syscall (linux-386-cgo), func SetLsfPromisc //deprecated
++pkg syscall (linux-386-cgo), func StringSlicePtr //deprecated
++pkg syscall (linux-amd64), func AttachLsf //deprecated
++pkg syscall (linux-amd64), func DetachLsf //deprecated
++pkg syscall (linux-amd64), func LsfJump //deprecated
++pkg syscall (linux-amd64), func LsfSocket //deprecated
++pkg syscall (linux-amd64), func LsfStmt //deprecated
++pkg syscall (linux-amd64), func SetLsfPromisc //deprecated
++pkg syscall (linux-amd64), func StringSlicePtr //deprecated
++pkg syscall (linux-amd64-cgo), func AttachLsf //deprecated
++pkg syscall (linux-amd64-cgo), func DetachLsf //deprecated
++pkg syscall (linux-amd64-cgo), func LsfJump //deprecated
++pkg syscall (linux-amd64-cgo), func LsfSocket //deprecated
++pkg syscall (linux-amd64-cgo), func LsfStmt //deprecated
++pkg syscall (linux-amd64-cgo), func SetLsfPromisc //deprecated
++pkg syscall (linux-amd64-cgo), func StringSlicePtr //deprecated
++pkg syscall (linux-arm), func AttachLsf //deprecated
++pkg syscall (linux-arm), func DetachLsf //deprecated
++pkg syscall (linux-arm), func LsfJump //deprecated
++pkg syscall (linux-arm), func LsfSocket //deprecated
++pkg syscall (linux-arm), func LsfStmt //deprecated
++pkg syscall (linux-arm), func SetLsfPromisc //deprecated
++pkg syscall (linux-arm), func StringSlicePtr //deprecated
++pkg syscall (linux-arm-cgo), func AttachLsf //deprecated
++pkg syscall (linux-arm-cgo), func DetachLsf //deprecated
++pkg syscall (linux-arm-cgo), func LsfJump //deprecated
++pkg syscall (linux-arm-cgo), func LsfSocket //deprecated
++pkg syscall (linux-arm-cgo), func LsfStmt //deprecated
++pkg syscall (linux-arm-cgo), func SetLsfPromisc //deprecated
++pkg syscall (linux-arm-cgo), func StringSlicePtr //deprecated
++pkg syscall (netbsd-386), func BpfBuflen //deprecated
++pkg syscall (netbsd-386), func BpfDatalink //deprecated
++pkg syscall (netbsd-386), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-386), func BpfInterface //deprecated
++pkg syscall (netbsd-386), func BpfJump //deprecated
++pkg syscall (netbsd-386), func BpfStats //deprecated
++pkg syscall (netbsd-386), func BpfStmt //deprecated
++pkg syscall (netbsd-386), func BpfTimeout //deprecated
++pkg syscall (netbsd-386), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-386), func FlushBpf //deprecated
++pkg syscall (netbsd-386), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-386), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-386), func RouteRIB //deprecated
++pkg syscall (netbsd-386), func SetBpf //deprecated
++pkg syscall (netbsd-386), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-386), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-386), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-386), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-386), func SetBpfInterface //deprecated
++pkg syscall (netbsd-386), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-386), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-386), func StringSlicePtr //deprecated
++pkg syscall (netbsd-386), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-386), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-386), type InterfaceMessage //deprecated
++pkg syscall (netbsd-386), type RouteMessage //deprecated
++pkg syscall (netbsd-386), type RoutingMessage //deprecated
++pkg syscall (netbsd-386-cgo), func BpfBuflen //deprecated
++pkg syscall (netbsd-386-cgo), func BpfDatalink //deprecated
++pkg syscall (netbsd-386-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-386-cgo), func BpfInterface //deprecated
++pkg syscall (netbsd-386-cgo), func BpfJump //deprecated
++pkg syscall (netbsd-386-cgo), func BpfStats //deprecated
++pkg syscall (netbsd-386-cgo), func BpfStmt //deprecated
++pkg syscall (netbsd-386-cgo), func BpfTimeout //deprecated
++pkg syscall (netbsd-386-cgo), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-386-cgo), func FlushBpf //deprecated
++pkg syscall (netbsd-386-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-386-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-386-cgo), func RouteRIB //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpf //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfInterface //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-386-cgo), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-386-cgo), func StringSlicePtr //deprecated
++pkg syscall (netbsd-386-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-386-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-386-cgo), type InterfaceMessage //deprecated
++pkg syscall (netbsd-386-cgo), type RouteMessage //deprecated
++pkg syscall (netbsd-386-cgo), type RoutingMessage //deprecated
++pkg syscall (netbsd-amd64), func BpfBuflen //deprecated
++pkg syscall (netbsd-amd64), func BpfDatalink //deprecated
++pkg syscall (netbsd-amd64), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-amd64), func BpfInterface //deprecated
++pkg syscall (netbsd-amd64), func BpfJump //deprecated
++pkg syscall (netbsd-amd64), func BpfStats //deprecated
++pkg syscall (netbsd-amd64), func BpfStmt //deprecated
++pkg syscall (netbsd-amd64), func BpfTimeout //deprecated
++pkg syscall (netbsd-amd64), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-amd64), func FlushBpf //deprecated
++pkg syscall (netbsd-amd64), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-amd64), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-amd64), func RouteRIB //deprecated
++pkg syscall (netbsd-amd64), func SetBpf //deprecated
++pkg syscall (netbsd-amd64), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-amd64), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-amd64), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-amd64), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-amd64), func SetBpfInterface //deprecated
++pkg syscall (netbsd-amd64), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-amd64), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-amd64), func StringSlicePtr //deprecated
++pkg syscall (netbsd-amd64), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-amd64), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-amd64), type InterfaceMessage //deprecated
++pkg syscall (netbsd-amd64), type RouteMessage //deprecated
++pkg syscall (netbsd-amd64), type RoutingMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfBuflen //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfDatalink //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfInterface //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfJump //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfStats //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfStmt //deprecated
++pkg syscall (netbsd-amd64-cgo), func BpfTimeout //deprecated
++pkg syscall (netbsd-amd64-cgo), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-amd64-cgo), func FlushBpf //deprecated
++pkg syscall (netbsd-amd64-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-amd64-cgo), func RouteRIB //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpf //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfInterface //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-amd64-cgo), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-amd64-cgo), func StringSlicePtr //deprecated
++pkg syscall (netbsd-amd64-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), type InterfaceMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), type RouteMessage //deprecated
++pkg syscall (netbsd-amd64-cgo), type RoutingMessage //deprecated
++pkg syscall (netbsd-arm), func BpfBuflen //deprecated
++pkg syscall (netbsd-arm), func BpfDatalink //deprecated
++pkg syscall (netbsd-arm), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm), func BpfInterface //deprecated
++pkg syscall (netbsd-arm), func BpfJump //deprecated
++pkg syscall (netbsd-arm), func BpfStats //deprecated
++pkg syscall (netbsd-arm), func BpfStmt //deprecated
++pkg syscall (netbsd-arm), func BpfTimeout //deprecated
++pkg syscall (netbsd-arm), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-arm), func FlushBpf //deprecated
++pkg syscall (netbsd-arm), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-arm), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-arm), func RouteRIB //deprecated
++pkg syscall (netbsd-arm), func SetBpf //deprecated
++pkg syscall (netbsd-arm), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-arm), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-arm), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-arm), func SetBpfInterface //deprecated
++pkg syscall (netbsd-arm), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-arm), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-arm), func StringSlicePtr //deprecated
++pkg syscall (netbsd-arm), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-arm), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-arm), type InterfaceMessage //deprecated
++pkg syscall (netbsd-arm), type RouteMessage //deprecated
++pkg syscall (netbsd-arm), type RoutingMessage //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfBuflen //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfDatalink //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfInterface //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfJump //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfStats //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfStmt //deprecated
++pkg syscall (netbsd-arm-cgo), func BpfTimeout //deprecated
++pkg syscall (netbsd-arm-cgo), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-arm-cgo), func FlushBpf //deprecated
++pkg syscall (netbsd-arm-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-arm-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-arm-cgo), func RouteRIB //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpf //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfInterface //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-arm-cgo), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-arm-cgo), func StringSlicePtr //deprecated
++pkg syscall (netbsd-arm-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-arm-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-arm-cgo), type InterfaceMessage //deprecated
++pkg syscall (netbsd-arm-cgo), type RouteMessage //deprecated
++pkg syscall (netbsd-arm-cgo), type RoutingMessage //deprecated
++pkg syscall (netbsd-arm64), func BpfBuflen //deprecated
++pkg syscall (netbsd-arm64), func BpfDatalink //deprecated
++pkg syscall (netbsd-arm64), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm64), func BpfInterface //deprecated
++pkg syscall (netbsd-arm64), func BpfJump //deprecated
++pkg syscall (netbsd-arm64), func BpfStats //deprecated
++pkg syscall (netbsd-arm64), func BpfStmt //deprecated
++pkg syscall (netbsd-arm64), func BpfTimeout //deprecated
++pkg syscall (netbsd-arm64), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-arm64), func FlushBpf //deprecated
++pkg syscall (netbsd-arm64), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-arm64), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-arm64), func RouteRIB //deprecated
++pkg syscall (netbsd-arm64), func SetBpf //deprecated
++pkg syscall (netbsd-arm64), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-arm64), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-arm64), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm64), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-arm64), func SetBpfInterface //deprecated
++pkg syscall (netbsd-arm64), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-arm64), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-arm64), func StringSlicePtr //deprecated
++pkg syscall (netbsd-arm64), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-arm64), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-arm64), type InterfaceMessage //deprecated
++pkg syscall (netbsd-arm64), type RouteMessage //deprecated
++pkg syscall (netbsd-arm64), type RoutingMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfBuflen //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfDatalink //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfInterface //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfJump //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfStats //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfStmt //deprecated
++pkg syscall (netbsd-arm64-cgo), func BpfTimeout //deprecated
++pkg syscall (netbsd-arm64-cgo), func CheckBpfVersion //deprecated
++pkg syscall (netbsd-arm64-cgo), func FlushBpf //deprecated
++pkg syscall (netbsd-arm64-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (netbsd-arm64-cgo), func RouteRIB //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpf //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfBuflen //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfDatalink //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfImmediate //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfInterface //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfPromisc //deprecated
++pkg syscall (netbsd-arm64-cgo), func SetBpfTimeout //deprecated
++pkg syscall (netbsd-arm64-cgo), func StringSlicePtr //deprecated
++pkg syscall (netbsd-arm64-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), type InterfaceMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), type RouteMessage //deprecated
++pkg syscall (netbsd-arm64-cgo), type RoutingMessage //deprecated
++pkg syscall (openbsd-386), func BpfBuflen //deprecated
++pkg syscall (openbsd-386), func BpfDatalink //deprecated
++pkg syscall (openbsd-386), func BpfHeadercmpl //deprecated
++pkg syscall (openbsd-386), func BpfInterface //deprecated
++pkg syscall (openbsd-386), func BpfJump //deprecated
++pkg syscall (openbsd-386), func BpfStats //deprecated
++pkg syscall (openbsd-386), func BpfStmt //deprecated
++pkg syscall (openbsd-386), func BpfTimeout //deprecated
++pkg syscall (openbsd-386), func CheckBpfVersion //deprecated
++pkg syscall (openbsd-386), func FlushBpf //deprecated
++pkg syscall (openbsd-386), func ParseRoutingMessage //deprecated
++pkg syscall (openbsd-386), func ParseRoutingSockaddr //deprecated
++pkg syscall (openbsd-386), func RouteRIB //deprecated
++pkg syscall (openbsd-386), func SetBpf //deprecated
++pkg syscall (openbsd-386), func SetBpfBuflen //deprecated
++pkg syscall (openbsd-386), func SetBpfDatalink //deprecated
++pkg syscall (openbsd-386), func SetBpfHeadercmpl //deprecated
++pkg syscall (openbsd-386), func SetBpfImmediate //deprecated
++pkg syscall (openbsd-386), func SetBpfInterface //deprecated
++pkg syscall (openbsd-386), func SetBpfPromisc //deprecated
++pkg syscall (openbsd-386), func SetBpfTimeout //deprecated
++pkg syscall (openbsd-386), func StringSlicePtr //deprecated
++pkg syscall (openbsd-386), type InterfaceAddrMessage //deprecated
++pkg syscall (openbsd-386), type InterfaceAnnounceMessage //deprecated
++pkg syscall (openbsd-386), type InterfaceMessage //deprecated
++pkg syscall (openbsd-386), type RouteMessage //deprecated
++pkg syscall (openbsd-386), type RoutingMessage //deprecated
++pkg syscall (openbsd-386-cgo), func BpfBuflen //deprecated
++pkg syscall (openbsd-386-cgo), func BpfDatalink //deprecated
++pkg syscall (openbsd-386-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (openbsd-386-cgo), func BpfInterface //deprecated
++pkg syscall (openbsd-386-cgo), func BpfJump //deprecated
++pkg syscall (openbsd-386-cgo), func BpfStats //deprecated
++pkg syscall (openbsd-386-cgo), func BpfStmt //deprecated
++pkg syscall (openbsd-386-cgo), func BpfTimeout //deprecated
++pkg syscall (openbsd-386-cgo), func CheckBpfVersion //deprecated
++pkg syscall (openbsd-386-cgo), func FlushBpf //deprecated
++pkg syscall (openbsd-386-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (openbsd-386-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (openbsd-386-cgo), func RouteRIB //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpf //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfBuflen //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfDatalink //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfImmediate //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfInterface //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfPromisc //deprecated
++pkg syscall (openbsd-386-cgo), func SetBpfTimeout //deprecated
++pkg syscall (openbsd-386-cgo), func StringSlicePtr //deprecated
++pkg syscall (openbsd-386-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (openbsd-386-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (openbsd-386-cgo), type InterfaceMessage //deprecated
++pkg syscall (openbsd-386-cgo), type RouteMessage //deprecated
++pkg syscall (openbsd-386-cgo), type RoutingMessage //deprecated
++pkg syscall (openbsd-amd64), func BpfBuflen //deprecated
++pkg syscall (openbsd-amd64), func BpfDatalink //deprecated
++pkg syscall (openbsd-amd64), func BpfHeadercmpl //deprecated
++pkg syscall (openbsd-amd64), func BpfInterface //deprecated
++pkg syscall (openbsd-amd64), func BpfJump //deprecated
++pkg syscall (openbsd-amd64), func BpfStats //deprecated
++pkg syscall (openbsd-amd64), func BpfStmt //deprecated
++pkg syscall (openbsd-amd64), func BpfTimeout //deprecated
++pkg syscall (openbsd-amd64), func CheckBpfVersion //deprecated
++pkg syscall (openbsd-amd64), func FlushBpf //deprecated
++pkg syscall (openbsd-amd64), func ParseRoutingMessage //deprecated
++pkg syscall (openbsd-amd64), func ParseRoutingSockaddr //deprecated
++pkg syscall (openbsd-amd64), func RouteRIB //deprecated
++pkg syscall (openbsd-amd64), func SetBpf //deprecated
++pkg syscall (openbsd-amd64), func SetBpfBuflen //deprecated
++pkg syscall (openbsd-amd64), func SetBpfDatalink //deprecated
++pkg syscall (openbsd-amd64), func SetBpfHeadercmpl //deprecated
++pkg syscall (openbsd-amd64), func SetBpfImmediate //deprecated
++pkg syscall (openbsd-amd64), func SetBpfInterface //deprecated
++pkg syscall (openbsd-amd64), func SetBpfPromisc //deprecated
++pkg syscall (openbsd-amd64), func SetBpfTimeout //deprecated
++pkg syscall (openbsd-amd64), func StringSlicePtr //deprecated
++pkg syscall (openbsd-amd64), type InterfaceAddrMessage //deprecated
++pkg syscall (openbsd-amd64), type InterfaceAnnounceMessage //deprecated
++pkg syscall (openbsd-amd64), type InterfaceMessage //deprecated
++pkg syscall (openbsd-amd64), type RouteMessage //deprecated
++pkg syscall (openbsd-amd64), type RoutingMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfBuflen //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfDatalink //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfHeadercmpl //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfInterface //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfJump //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfStats //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfStmt //deprecated
++pkg syscall (openbsd-amd64-cgo), func BpfTimeout //deprecated
++pkg syscall (openbsd-amd64-cgo), func CheckBpfVersion //deprecated
++pkg syscall (openbsd-amd64-cgo), func FlushBpf //deprecated
++pkg syscall (openbsd-amd64-cgo), func ParseRoutingMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), func ParseRoutingSockaddr //deprecated
++pkg syscall (openbsd-amd64-cgo), func RouteRIB //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpf //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfBuflen //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfDatalink //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfHeadercmpl //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfImmediate //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfInterface //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfPromisc //deprecated
++pkg syscall (openbsd-amd64-cgo), func SetBpfTimeout //deprecated
++pkg syscall (openbsd-amd64-cgo), func StringSlicePtr //deprecated
++pkg syscall (openbsd-amd64-cgo), type InterfaceAddrMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), type InterfaceAnnounceMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), type InterfaceMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), type RouteMessage //deprecated
++pkg syscall (openbsd-amd64-cgo), type RoutingMessage //deprecated
++pkg syscall (windows-386), func FormatMessage //deprecated
++pkg syscall (windows-386), func StringToUTF16 //deprecated
++pkg syscall (windows-386), func StringToUTF16Ptr //deprecated
++pkg syscall (windows-amd64), func FormatMessage //deprecated
++pkg syscall (windows-amd64), func StringToUTF16 //deprecated
++pkg syscall (windows-amd64), func StringToUTF16Ptr //deprecated
++pkg syscall, func StringBytePtr //deprecated
++pkg syscall, func StringByteSlice //deprecated
+diff --git a/api/go1.17.txt b/api/go1.17.txt
+index ca2cd162f8..3f8f2c61fb 100644
+--- a/api/go1.17.txt
++++ b/api/go1.17.txt
+@@ -162,6 +162,7 @@ pkg reflect, func VisibleFields(Type) []StructField
+ pkg reflect, method (Method) IsExported() bool
+ pkg reflect, method (StructField) IsExported() bool
+ pkg reflect, method (Value) CanConvert(Type) bool
++pkg reflect, method (Value) InterfaceData //deprecated
+ pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
+ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
+ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
+@@ -257,8 +258,14 @@ pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC = 2048
+ pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC ideal-int
+ pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC = 2048
+ pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC ideal-int
++pkg syscall (windows-386), func CreateIoCompletionPort //deprecated
++pkg syscall (windows-386), func GetQueuedCompletionStatus //deprecated
++pkg syscall (windows-386), func PostQueuedCompletionStatus //deprecated
+ pkg syscall (windows-386), type SysProcAttr struct, AdditionalInheritedHandles []Handle
+ pkg syscall (windows-386), type SysProcAttr struct, ParentProcess Handle
++pkg syscall (windows-amd64), func CreateIoCompletionPort //deprecated
++pkg syscall (windows-amd64), func GetQueuedCompletionStatus //deprecated
++pkg syscall (windows-amd64), func PostQueuedCompletionStatus //deprecated
+ pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles []Handle
+ pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
+ pkg testing, method (*B) Setenv(string, string)
+diff --git a/api/go1.18.txt b/api/go1.18.txt
+index 0f3e26df9d..a9f199338d 100644
+--- a/api/go1.18.txt
++++ b/api/go1.18.txt
+@@ -1,14 +1,17 @@
+ pkg bufio, method (*Writer) AvailableBuffer() []uint8
+ pkg bufio, method (ReadWriter) AvailableBuffer() []uint8
+ pkg bytes, func Cut([]uint8, []uint8) ([]uint8, []uint8, bool)
++pkg bytes, func Title //deprecated
+ pkg crypto/tls, method (*Conn) NetConn() net.Conn
++pkg crypto/tls, type Config struct, PreferServerCipherSuites //deprecated
++pkg crypto/x509, method (*CertPool) Subjects //deprecated
+ pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
+ pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+ pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+-pkg debug/elf, const R_PPC64_RELATIVE = 22
+-pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
+ pkg debug/dwarf, type BasicType struct, DataBitOffset int64
+ pkg debug/dwarf, type StructField struct, DataBitOffset int64
++pkg debug/elf, const R_PPC64_RELATIVE = 22
++pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
+ pkg debug/plan9obj, var ErrNoSymbols error
+ pkg go/ast, method (*IndexListExpr) End() token.Pos
+ pkg go/ast, method (*IndexListExpr) Pos() token.Pos
+@@ -24,6 +27,7 @@ pkg go/token, const TILDE = 88
+ pkg go/token, const TILDE Token
+ pkg go/types, func Instantiate(*Context, Type, []Type, bool) (Type, error)
+ pkg go/types, func NewContext() *Context
++pkg go/types, func NewSignature //deprecated
+ pkg go/types, func NewSignatureType(*Var, []*TypeParam, []*TypeParam, *Tuple, *Tuple, bool) *Signature
+ pkg go/types, func NewTerm(bool, Type) *Term
+ pkg go/types, func NewTypeParam(*TypeName, Type) *TypeParam
+@@ -81,6 +85,7 @@ pkg net, method (*UDPConn) ReadFromUDPAddrPort([]uint8) (int, netip.AddrPort, er
+ pkg net, method (*UDPConn) ReadMsgUDPAddrPort([]uint8, []uint8) (int, int, int, netip.AddrPort, error)
+ pkg net, method (*UDPConn) WriteMsgUDPAddrPort([]uint8, []uint8, netip.AddrPort) (int, int, error)
+ pkg net, method (*UDPConn) WriteToUDPAddrPort([]uint8, netip.AddrPort) (int, error)
++pkg net, type Error interface, Temporary //deprecated
+ pkg net/http, func MaxBytesHandler(Handler, int64) Handler
+ pkg net/http, method (*Cookie) Valid() error
+ pkg net/netip, func AddrFrom16([16]uint8) Addr
+@@ -174,6 +179,7 @@ pkg runtime/debug, type BuildSetting struct, Key string
+ pkg runtime/debug, type BuildSetting struct, Value string
+ pkg strings, func Clone(string) string
+ pkg strings, func Cut(string, string) (string, string, bool)
++pkg strings, func Title //deprecated
+ pkg sync, method (*Mutex) TryLock() bool
+ pkg sync, method (*RWMutex) TryLock() bool
+ pkg sync, method (*RWMutex) TryRLock() bool
+@@ -183,7 +189,19 @@ pkg syscall (freebsd-amd64), type SysProcAttr struct, Pdeathsig Signal
+ pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Pdeathsig Signal
+ pkg syscall (freebsd-arm), type SysProcAttr struct, Pdeathsig Signal
+ pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Pdeathsig Signal
++pkg syscall (windows-386), func Syscall //deprecated
++pkg syscall (windows-386), func Syscall12 //deprecated
++pkg syscall (windows-386), func Syscall15 //deprecated
++pkg syscall (windows-386), func Syscall18 //deprecated
++pkg syscall (windows-386), func Syscall6 //deprecated
++pkg syscall (windows-386), func Syscall9 //deprecated
+ pkg syscall (windows-386), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
++pkg syscall (windows-amd64), func Syscall //deprecated
++pkg syscall (windows-amd64), func Syscall12 //deprecated
++pkg syscall (windows-amd64), func Syscall15 //deprecated
++pkg syscall (windows-amd64), func Syscall18 //deprecated
++pkg syscall (windows-amd64), func Syscall6 //deprecated
++pkg syscall (windows-amd64), func Syscall9 //deprecated
+ pkg syscall (windows-amd64), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
+ pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
+ pkg testing, method (*F) Add(...interface{})
+diff --git a/api/go1.19.txt b/api/go1.19.txt
+index 523f752d70..f31d633af9 100644
+--- a/api/go1.19.txt
++++ b/api/go1.19.txt
+@@ -290,3 +290,20 @@ pkg sync/atomic, type Uint64 struct #50860
+ pkg sync/atomic, type Uintptr struct #50860
+ pkg time, method (Duration) Abs() Duration #51414
+ pkg time, method (Time) ZoneBounds() (Time, Time) #50062
++pkg crypto/x509, func ParseCRL //deprecated #50674
++pkg crypto/x509, func ParseDERCRL //deprecated #50674
++pkg crypto/x509, method (*Certificate) CheckCRLSignature //deprecated #50674
++pkg crypto/x509, method (*Certificate) CreateCRL //deprecated #50674
++pkg crypto/x509/pkix, type CertificateList //deprecated #50674
++pkg crypto/x509/pkix, type TBSCertificateList //deprecated #50674
++pkg go/doc, func Synopsis //deprecated #51082
++pkg go/doc, func ToHTML //deprecated #51082
++pkg go/doc, func ToText //deprecated #51082
++pkg io/ioutil, func NopCloser //deprecated #42026
++pkg io/ioutil, func ReadAll //deprecated #42026
++pkg io/ioutil, func ReadDir //deprecated #42026
++pkg io/ioutil, func ReadFile //deprecated #42026
++pkg io/ioutil, func TempDir //deprecated #42026
++pkg io/ioutil, func TempFile //deprecated #42026
++pkg io/ioutil, func WriteFile //deprecated #42026
++pkg io/ioutil, var Discard //deprecated #42026
+diff --git a/api/next/20661.txt b/api/next/20661.txt
+new file mode 100644
+index 0000000000..c7b37d74e9
+--- /dev/null
++++ b/api/next/20661.txt
+@@ -0,0 +1 @@
++pkg math/rand, func Read //deprecated #20661
+diff --git a/api/next/56319.txt b/api/next/56319.txt
+new file mode 100644
+index 0000000000..19db556029
+--- /dev/null
++++ b/api/next/56319.txt
+@@ -0,0 +1 @@
++pkg math/rand, func Seed //deprecated #56319
+diff --git a/src/cmd/api/api.go b/src/cmd/api/api.go
+index f93e54cda1..b197b9c738 100644
+--- a/src/cmd/api/api.go
++++ b/src/cmd/api/api.go
+@@ -152,7 +152,7 @@ func Check(t *testing.T) {
+ 		}
+ 
+ 		for _, name := range pkgNames {
+-			pkg, err := w.Import(name)
++			pkg, err := w.import_(name)
+ 			if _, nogo := err.(*build.NoGoError); nogo {
+ 				continue
+ 			}
+@@ -206,12 +206,13 @@ func Check(t *testing.T) {
+ }
+ 
+ // export emits the exported package features.
+-func (w *Walker) export(pkg *types.Package) {
++func (w *Walker) export(pkg *apiPackage) {
+ 	if verbose {
+ 		log.Println(pkg)
+ 	}
+ 	pop := w.pushScope("pkg " + pkg.Path())
+ 	w.current = pkg
++	w.collectDeprecated()
+ 	scope := pkg.Scope()
+ 	for _, name := range scope.Names() {
+ 		if token.IsExported(name) {
+@@ -359,11 +360,12 @@ func fileFeatures(filename string, needApproval bool) []string {
+ 			if !ok {
+ 				log.Printf("%s:%d: missing proposal approval\n", filename, i+1)
+ 				exitCode = 1
+-			}
+-			_, err := strconv.Atoi(approval)
+-			if err != nil {
+-				log.Printf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
+-				exitCode = 1
++			} else {
++				_, err := strconv.Atoi(approval)
++				if err != nil {
++					log.Printf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
++					exitCode = 1
++				}
+ 			}
+ 			line = strings.TrimSpace(feature)
+ 		} else {
+@@ -383,9 +385,10 @@ type Walker struct {
+ 	context     *build.Context
+ 	root        string
+ 	scope       []string
+-	current     *types.Package
++	current     *apiPackage
++	deprecated  map[token.Pos]bool
+ 	features    map[string]bool              // set
+-	imported    map[string]*types.Package    // packages already imported
++	imported    map[string]*apiPackage       // packages already imported
+ 	stdPackages []string                     // names, omitting "unsafe", internal, and vendored packages
+ 	importMap   map[string]map[string]string // importer dir -> import path -> canonical path
+ 	importDir   map[string]string            // canonical import path -> dir
+@@ -397,7 +400,7 @@ func NewWalker(context *build.Context, root string) *Walker {
+ 		context:  context,
+ 		root:     root,
+ 		features: map[string]bool{},
+-		imported: map[string]*types.Package{"unsafe": types.Unsafe},
++		imported: map[string]*apiPackage{"unsafe": &apiPackage{Package: types.Unsafe}},
+ 	}
+ 	w.loadImports()
+ 	return w
+@@ -419,7 +422,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 		return f, nil
+ 	}
+ 
+-	f, err := parser.ParseFile(fset, filename, nil, 0)
++	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -432,8 +435,8 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ const usePkgCache = true
+ 
+ var (
+-	pkgCache = map[string]*types.Package{} // map tagKey to package
+-	pkgTags  = map[string][]string{}       // map import dir to list of relevant tags
++	pkgCache = map[string]*apiPackage{} // map tagKey to package
++	pkgTags  = map[string][]string{}    // map import dir to list of relevant tags
+ )
+ 
+ // tagKey returns the tag-based key to use in the pkgCache.
+@@ -596,15 +599,34 @@ func listEnv(c *build.Context) []string {
+ 	return environ
+ }
+ 
++type apiPackage struct {
++	*types.Package
++	Files []*ast.File
++}
++
+ // Importing is a sentinel taking the place in Walker.imported
+ // for a package that is in the process of being imported.
+-var importing types.Package
++var importing apiPackage
+ 
++// Import implements types.Importer.
+ func (w *Walker) Import(name string) (*types.Package, error) {
+ 	return w.ImportFrom(name, "", 0)
+ }
+ 
++// ImportFrom implements types.ImporterFrom.
+ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*types.Package, error) {
++	pkg, err := w.importFrom(fromPath, fromDir, mode)
++	if err != nil {
++		return nil, err
++	}
++	return pkg.Package, nil
++}
++
++func (w *Walker) import_(name string) (*apiPackage, error) {
++	return w.importFrom(name, "", 0)
++}
++
++func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*apiPackage, error) {
+ 	name := fromPath
+ 	if canonical, ok := w.importMap[fromDir][fromPath]; ok {
+ 		name = canonical
+@@ -686,7 +708,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
+ 		Importer:         w,
+ 		Sizes:            sizes,
+ 	}
+-	pkg, err = conf.Check(name, fset, files, nil)
++	tpkg, err := conf.Check(name, fset, files, nil)
+ 	if err != nil {
+ 		ctxt := "<no context>"
+ 		if w.context != nil {
+@@ -694,6 +716,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
+ 		}
+ 		log.Fatalf("error typechecking package %s: %s (%s)", name, err, ctxt)
+ 	}
++	pkg = &apiPackage{tpkg, files}
+ 
+ 	if usePkgCache {
+ 		pkgCache[key] = pkg
+@@ -854,7 +877,7 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 	case *types.Named:
+ 		obj := typ.Obj()
+ 		pkg := obj.Pkg()
+-		if pkg != nil && pkg != w.current {
++		if pkg != nil && pkg != w.current.Package {
+ 			buf.WriteString(pkg.Name())
+ 			buf.WriteByte('.')
+ 		}
+@@ -934,6 +957,9 @@ func (w *Walker) signatureString(sig *types.Signature) string {
+ func (w *Walker) emitObj(obj types.Object) {
+ 	switch obj := obj.(type) {
+ 	case *types.Const:
++		if w.isDeprecated(obj) {
++			w.emitf("const %s //deprecated", obj.Name())
++		}
+ 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
+ 		x := obj.Val()
+ 		short := x.String()
+@@ -944,6 +970,9 @@ func (w *Walker) emitObj(obj types.Object) {
+ 			w.emitf("const %s = %s  // %s", obj.Name(), short, exact)
+ 		}
+ 	case *types.Var:
++		if w.isDeprecated(obj) {
++			w.emitf("var %s //deprecated", obj.Name())
++		}
+ 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
+ 	case *types.TypeName:
+ 		w.emitType(obj)
+@@ -956,6 +985,9 @@ func (w *Walker) emitObj(obj types.Object) {
+ 
+ func (w *Walker) emitType(obj *types.TypeName) {
+ 	name := obj.Name()
++	if w.isDeprecated(obj) {
++		w.emitf("type %s //deprecated", name)
++	}
+ 	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
+ 		var buf bytes.Buffer
+ 		buf.WriteString(name)
+@@ -1015,9 +1047,15 @@ func (w *Walker) emitStructType(name string, typ *types.Struct) {
+ 		}
+ 		typ := f.Type()
+ 		if f.Anonymous() {
++			if w.isDeprecated(f) {
++				w.emitf("embedded %s //deprecated", w.typeString(typ))
++			}
+ 			w.emitf("embedded %s", w.typeString(typ))
+ 			continue
+ 		}
++		if w.isDeprecated(f) {
++			w.emitf("%s //deprecated", f.Name())
++		}
+ 		w.emitf("%s %s", f.Name(), w.typeString(typ))
+ 	}
+ }
+@@ -1035,6 +1073,9 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
+ 			continue
+ 		}
+ 		methodNames = append(methodNames, m.Name())
++		if w.isDeprecated(m) {
++			w.emitf("%s //deprecated", m.Name())
++		}
+ 		w.emitf("%s%s", m.Name(), w.signatureString(m.Type().(*types.Signature)))
+ 	}
+ 
+@@ -1069,6 +1110,9 @@ func (w *Walker) emitFunc(f *types.Func) {
+ 	if sig.Recv() != nil {
+ 		panic("method considered a regular function: " + f.String())
+ 	}
++	if w.isDeprecated(f) {
++		w.emitf("func %s //deprecated", f.Name())
++	}
+ 	w.emitf("func %s%s", f.Name(), w.signatureString(sig))
+ }
+ 
+@@ -1091,6 +1135,9 @@ func (w *Walker) emitMethod(m *types.Selection) {
+ 		w.writeTypeParams(&buf, rtp, false)
+ 		tps = buf.String()
+ 	}
++	if w.isDeprecated(m.Obj()) {
++		w.emitf("method (%s%s) %s //deprecated", w.typeString(recv), tps, m.Obj().Name())
++	}
+ 	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
+ }
+ 
+@@ -1122,3 +1169,94 @@ func needApproval(filename string) bool {
+ 	}
+ 	return n >= 19 // started tracking approvals in Go 1.19
+ }
++
++func (w *Walker) collectDeprecated() {
++	isDeprecated := func(doc *ast.CommentGroup) bool {
++		if doc != nil {
++			for _, c := range doc.List {
++				if strings.HasPrefix(c.Text, "// Deprecated:") {
++					return true
++				}
++			}
++		}
++		return false
++	}
++
++	w.deprecated = make(map[token.Pos]bool)
++	mark := func(id *ast.Ident) {
++		if id != nil {
++			w.deprecated[id.Pos()] = true
++		}
++	}
++	for _, file := range w.current.Files {
++		ast.Inspect(file, func(n ast.Node) bool {
++			switch n := n.(type) {
++			case *ast.File:
++				if isDeprecated(n.Doc) {
++					mark(n.Name)
++				}
++				return true
++			case *ast.GenDecl:
++				if isDeprecated(n.Doc) {
++					for _, spec := range n.Specs {
++						switch spec := spec.(type) {
++						case *ast.ValueSpec:
++							for _, id := range spec.Names {
++								mark(id)
++							}
++						case *ast.TypeSpec:
++							mark(spec.Name)
++						}
++					}
++				}
++				return true // look at specs
++			case *ast.FuncDecl:
++				if isDeprecated(n.Doc) {
++					mark(n.Name)
++				}
++				return false
++			case *ast.TypeSpec:
++				if isDeprecated(n.Doc) {
++					mark(n.Name)
++				}
++				return true // recurse into struct or interface type
++			case *ast.StructType:
++				return true // recurse into fields
++			case *ast.InterfaceType:
++				return true // recurse into methods
++			case *ast.FieldList:
++				return true // recurse into fields
++			case *ast.ValueSpec:
++				if isDeprecated(n.Doc) {
++					for _, id := range n.Names {
++						mark(id)
++					}
++				}
++				return false
++			case *ast.Field:
++				if isDeprecated(n.Doc) {
++					for _, id := range n.Names {
++						mark(id)
++					}
++					if len(n.Names) == 0 {
++						// embedded field T or *T?
++						typ := n.Type
++						if ptr, ok := typ.(*ast.StarExpr); ok {
++							typ = ptr.X
++						}
++						if id, ok := typ.(*ast.Ident); ok {
++							mark(id)
++						}
++					}
++				}
++				return false
++			default:
++				return false
++			}
++		})
++	}
++}
++
++func (w *Walker) isDeprecated(obj types.Object) bool {
++	return w.deprecated[obj.Pos()]
++}
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index b215c48e73..5f9aa6d297 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -75,7 +75,7 @@ func TestGolden(t *testing.T) {
+ 		// TODO(gri) remove extra pkg directory eventually
+ 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
+ 		w := NewWalker(nil, "testdata/src/pkg")
+-		pkg, _ := w.Import(fi.Name())
++		pkg, _ := w.import_(fi.Name())
+ 		w.export(pkg)
+ 
+ 		if *updateGolden {
+@@ -202,7 +202,7 @@ func BenchmarkAll(b *testing.B) {
+ 		for _, context := range contexts {
+ 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
+ 			for _, name := range w.stdPackages {
+-				pkg, _ := w.Import(name)
++				pkg, _ := w.import_(name)
+ 				w.export(pkg)
+ 			}
+ 			w.Features()
+@@ -217,7 +217,7 @@ func TestIssue21181(t *testing.T) {
+ 	}
+ 	for _, context := range contexts {
+ 		w := NewWalker(context, "testdata/src/issue21181")
+-		pkg, err := w.Import("p")
++		pkg, err := w.import_("p")
+ 		if err != nil {
+ 			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
+ 				pkg.Name(), w.imported)
+@@ -233,7 +233,7 @@ func TestIssue29837(t *testing.T) {
+ 	}
+ 	for _, context := range contexts {
+ 		w := NewWalker(context, "testdata/src/issue29837")
+-		_, err := w.Import("p")
++		_, err := w.ImportFrom("p", "", 0)
+ 		if _, nogo := err.(*build.NoGoError); !nogo {
+ 			t.Errorf("expected *build.NoGoError, got %T", err)
+ 		}
+diff --git a/src/cmd/api/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+index 0378a56870..65c4f35d2c 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+@@ -1,5 +1,6 @@
+ pkg p1, const A = 1
+ pkg p1, const A ideal-int
++pkg p1, const A //deprecated
+ pkg p1, const A64 = 1
+ pkg p1, const A64 int64
+ pkg p1, const AIsLowerA = 11
+@@ -25,6 +26,7 @@ pkg p1, method (*B) JustOnB()
+ pkg p1, method (*B) OnBothTandBPtr()
+ pkg p1, method (*Embedded) OnEmbedded()
+ pkg p1, method (*S2) SMethod(int8, int16, int64)
++pkg p1, method (*S2) SMethod //deprecated
+ pkg p1, method (*T) JustOnT()
+ pkg p1, method (*T) OnBothTandBPtr()
+ pkg p1, method (B) OnBothTandBVal()
+@@ -52,6 +54,7 @@ pkg p1, type Error interface, Error() string
+ pkg p1, type Error interface, Temporary() bool
+ pkg p1, type FuncType func(int, int, string) (*B, error)
+ pkg p1, type I interface, Get(string) int64
++pkg p1, type I interface, Get //deprecated
+ pkg p1, type I interface, GetNamed(string) int64
+ pkg p1, type I interface, Name() string
+ pkg p1, type I interface, PackageTwoMeth()
+@@ -62,15 +65,18 @@ pkg p1, type Namer interface { Name }
+ pkg p1, type Namer interface, Name() string
+ pkg p1, type Private interface, X()
+ pkg p1, type Private interface, unexported methods
++pkg p1, type Private //deprecated
+ pkg p1, type Public interface { X, Y }
+ pkg p1, type Public interface, X()
+ pkg p1, type Public interface, Y()
+ pkg p1, type S struct
+ pkg p1, type S struct, Public *int
++pkg p1, type S struct, Public //deprecated
+ pkg p1, type S struct, PublicTime Time
+ pkg p1, type S2 struct
+ pkg p1, type S2 struct, Extra bool
+ pkg p1, type S2 struct, embedded S
++pkg p1, type S2 struct, embedded S //deprecated
+ pkg p1, type SI struct
+ pkg p1, type SI struct, I int
+ pkg p1, type T struct
+@@ -79,6 +85,7 @@ pkg p1, type TPtrExported struct, embedded *Embedded
+ pkg p1, type TPtrUnexported struct
+ pkg p1, type Time struct
+ pkg p1, type URL struct
++pkg p1, type URL //deprecated
+ pkg p1, var Byte uint8
+ pkg p1, var ByteConv []uint8
+ pkg p1, var ByteFunc func(uint8) int32
+@@ -91,6 +98,7 @@ pkg p1, var V string
+ pkg p1, var V1 uint64
+ pkg p1, var V2 p2.Twoer
+ pkg p1, var VError Error
++pkg p1, var VError //deprecated
+ pkg p1, var X I
+ pkg p1, var X0 int64
+ pkg p1, var Y int
+diff --git a/src/cmd/api/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+index de00baf75f..025563dbf3 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/p1.go
++++ b/src/cmd/api/testdata/src/pkg/p1/p1.go
+@@ -12,6 +12,7 @@ const (
+ 	ConstChase2 = constChase // forward declaration to unexported ident
+ 	constChase  = AIsLowerA  // forward declaration to exported ident
+ 
++	// Deprecated: use B.
+ 	A         = 1
+ 	a         = 11
+ 	A64 int64 = 1
+@@ -25,7 +26,8 @@ const (
+ 
+ // Variables from function calls.
+ var (
+-	V      = ptwo.F()
++	V = ptwo.F()
++	// Deprecated: use WError.
+ 	VError = BarE()
+ 	V1     = Bar1(1, 2, 3)
+ 	V2     = ptwo.G()
+@@ -50,11 +52,13 @@ type MyInt int
+ type Time struct{}
+ 
+ type S struct {
++	// Deprecated: use PublicTime.
+ 	Public     *int
+ 	private    *int
+ 	PublicTime Time
+ }
+ 
++// Deprecated: use URI.
+ type URL struct{}
+ 
+ type EmbedURLPtr struct {
+@@ -62,6 +66,7 @@ type EmbedURLPtr struct {
+ }
+ 
+ type S2 struct {
++	// Deprecated: use T.
+ 	S
+ 	Extra bool
+ }
+@@ -81,6 +86,7 @@ type I interface {
+ 	Namer
+ 	ptwo.Twoer
+ 	Set(name string, balance int64)
++	// Deprecated: use GetNamed.
+ 	Get(string) int64
+ 	GetNamed(string) (balance int64)
+ 	private()
+@@ -91,6 +97,7 @@ type Public interface {
+ 	Y()
+ }
+ 
++// Deprecated: Use Unexported.
+ type Private interface {
+ 	X()
+ 	y()
+@@ -104,6 +111,7 @@ type Error interface {
+ func (myInt) privateTypeMethod()           {}
+ func (myInt) CapitalMethodUnexportedType() {}
+ 
++// Deprecated: use TMethod.
+ func (s *S2) SMethod(x int8, y int16, z int64) {}
+ 
+ type s struct{}
+diff --git a/src/cmd/api/testdata/src/pkg/p2/golden.txt b/src/cmd/api/testdata/src/pkg/p2/golden.txt
+index 4271620c74..735d668166 100644
+--- a/src/cmd/api/testdata/src/pkg/p2/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p2/golden.txt
+@@ -1,5 +1,8 @@
+ pkg p2, func F() string
++pkg p2, func F //deprecated
+ pkg p2, func G() Twoer
+ pkg p2, func NewError(string) error
+ pkg p2, type Twoer interface { PackageTwoMeth }
+ pkg p2, type Twoer interface, PackageTwoMeth()
++pkg p2, type Twoer interface, PackageTwoMeth //deprecated
++
+diff --git a/src/cmd/api/testdata/src/pkg/p2/p2.go b/src/cmd/api/testdata/src/pkg/p2/p2.go
+index b179a399ee..2ce4e7587c 100644
+--- a/src/cmd/api/testdata/src/pkg/p2/p2.go
++++ b/src/cmd/api/testdata/src/pkg/p2/p2.go
+@@ -5,9 +5,13 @@
+ package p2
+ 
+ type Twoer interface {
++	// Deprecated: No good.
+ 	PackageTwoMeth()
+ }
+ 
+-func F() string               {}
+-func G() Twoer                {}
++// Deprecated: No good.
++func F() string {}
++
++func G() Twoer {}
++
+ func NewError(s string) error {}
+diff --git a/src/cmd/api/testdata/src/pkg/p4/golden.txt b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+index 7997ab4471..eec0598dcd 100644
+--- a/src/cmd/api/testdata/src/pkg/p4/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+@@ -3,3 +3,4 @@ pkg p4, method (Pair[$0, $1]) Second() $1
+ pkg p4, method (Pair[$0, $1]) First() $0
+ pkg p4, type Pair[$0 interface{ M }, $1 interface{ ~int }] struct
+ pkg p4, func Clone[$0 interface{ ~[]$1 }, $1 interface{}]($0) $0
++pkg p4, func Clone //deprecated
+diff --git a/src/cmd/api/testdata/src/pkg/p4/p4.go b/src/cmd/api/testdata/src/pkg/p4/p4.go
+index 1f90e779dd..6c93e3e6f1 100644
+--- a/src/cmd/api/testdata/src/pkg/p4/p4.go
++++ b/src/cmd/api/testdata/src/pkg/p4/p4.go
+@@ -21,6 +21,7 @@ func (p Pair[_, X2]) Second() X2 {
+ 	return p.f2
+ }
+ 
++// Deprecated: Use something else.
+ func Clone[S ~[]T, T any](s S) S {
+ 	return append(S(nil), s...)
+ }

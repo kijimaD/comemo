@@ -7,9 +7,67 @@ Date:   Fri Aug 1 15:22:41 2008 -0700
     R=r
     OCL=13736
     CL=13738
-
+---
  test/bugs/bug083.dir/bug0.go | 11 +++++++++++
  test/bugs/bug083.dir/bug1.go |  9 +++++++++
  test/bugs/bug083.go          |  6 ++++++
  test/golden.out              |  2 ++
  4 files changed, 28 insertions(+)
+
+diff --git a/test/bugs/bug083.dir/bug0.go b/test/bugs/bug083.dir/bug0.go
+new file mode 100644
+index 0000000000..3636a7aa35
+--- /dev/null
++++ b/test/bugs/bug083.dir/bug0.go
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug0
++
++type T0 struct {
++}
++
++export v0
++var v0 T0
+diff --git a/test/bugs/bug083.dir/bug1.go b/test/bugs/bug083.dir/bug1.go
+new file mode 100644
+index 0000000000..32cda73b4f
+--- /dev/null
++++ b/test/bugs/bug083.dir/bug1.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug1
++
++import "bug0"
++
++var v1 bug0.T0
+diff --git a/test/bugs/bug083.go b/test/bugs/bug083.go
+new file mode 100644
+index 0000000000..9df211a35a
+--- /dev/null
++++ b/test/bugs/bug083.go
+@@ -0,0 +1,6 @@
++// $G $D/$F.dir/bug0.go && errchk $G $D/$F.dir/bug1.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+diff --git a/test/golden.out b/test/golden.out
+index 45a31437bd..0e99a826d3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -253,6 +253,8 @@ BUG: fails incorrectly
+ bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
+ BUG: fails incorrectly
+ 
++=========== bugs/bug083.go
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

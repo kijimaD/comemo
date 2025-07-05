@@ -7,10 +7,137 @@ Date:   Mon Apr 20 13:50:46 2015 -0700
     Change-Id: I1cf94377c613fb51ae77f4fe1e3439268b1606a9
     Reviewed-on: https://go-review.googlesource.com/9161
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/lex.go       | 5 +----
  src/cmd/internal/gc/typecheck.go | 5 +----
  src/cmd/internal/ld/sym.go       | 7 ++-----
  src/cmd/internal/obj/flag.go     | 2 +-
  src/cmd/internal/obj/util.go     | 8 ++++----
  5 files changed, 9 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 3ff550131b..fc2963f8a3 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -2424,16 +2424,13 @@ var lexn = []struct {
+ 	{LVAR, "VAR"},
+ }
+ 
+-var lexname_buf string
+-
+ func lexname(lex int) string {
+ 	for i := 0; i < len(lexn); i++ {
+ 		if lexn[i].lex == lex {
+ 			return lexn[i].name
+ 		}
+ 	}
+-	lexname_buf = fmt.Sprintf("LEX-%d", lex)
+-	return lexname_buf
++	return fmt.Sprintf("LEX-%d", lex)
+ }
+ 
+ var yytfix = []struct {
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index df4f9ea2cf..4823b44e1c 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -75,8 +75,6 @@ var _typekind = []string{
+ 	TIDEAL:      "untyped number",
+ }
+ 
+-var typekind_buf string
+-
+ func typekind(t *Type) string {
+ 	if Isslice(t) {
+ 		return "slice"
+@@ -88,8 +86,7 @@ func typekind(t *Type) string {
+ 			return s
+ 		}
+ 	}
+-	typekind_buf = fmt.Sprintf("etype=%d", et)
+-	return typekind_buf
++	return fmt.Sprintf("etype=%d", et)
+ }
+ 
+ /*
+diff --git a/src/cmd/internal/ld/sym.go b/src/cmd/internal/ld/sym.go
+index d873d367cf..652109d3e3 100644
+--- a/src/cmd/internal/ld/sym.go
++++ b/src/cmd/internal/ld/sym.go
+@@ -33,10 +33,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"fmt"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ )
+ 
+ func yy_isalpha(c int) bool {
+@@ -208,16 +208,13 @@ func Linkrlookup(ctxt *Link, name string, v int) *LSym {
+ 	return _lookup(ctxt, name, v, 0)
+ }
+ 
+-var headstr_buf string
+-
+ func Headstr(v int) string {
+ 	for i := 0; i < len(headers); i++ {
+ 		if v == headers[i].val {
+ 			return headers[i].name
+ 		}
+ 	}
+-	headstr_buf = fmt.Sprintf("%d", v)
+-	return headstr_buf
++	return strconv.Itoa(v)
+ }
+ 
+ func headtype(name string) int {
+diff --git a/src/cmd/internal/obj/flag.go b/src/cmd/internal/obj/flag.go
+index 37594372f8..0664f5cf8e 100644
+--- a/src/cmd/internal/obj/flag.go
++++ b/src/cmd/internal/obj/flag.go
+@@ -93,7 +93,7 @@ func (i *int32Value) Set(s string) error {
+ 
+ func (i *int32Value) Get() interface{} { return int32(*i) }
+ 
+-func (i *int32Value) String() string { return fmt.Sprintf("%v", *i) }
++func (i *int32Value) String() string { return fmt.Sprint(*i) }
+ 
+ type fn0 func()
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index f76c9362bd..189f9611ce 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -379,7 +379,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 			break
+ 		}
+ 
+-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
++		str = Rconv(int(a.Reg))
+ 		if a.Name != TYPE_NONE || a.Sym != nil {
+ 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+ 		}
+@@ -388,9 +388,9 @@ func Dconv(p *Prog, a *Addr) string {
+ 		if a.Sym != nil {
+ 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+ 		} else if p != nil && p.Pcond != nil {
+-			str = fmt.Sprintf("%d", p.Pcond.Pc)
++			str = fmt.Sprint(p.Pcond.Pc)
+ 		} else if a.Val != nil {
+-			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
++			str = fmt.Sprint(a.Val.(*Prog).Pc)
+ 		} else {
+ 			str = fmt.Sprintf("%d(PC)", a.Offset)
+ 		}
+@@ -467,7 +467,7 @@ func Mconv(a *Addr) string {
+ 	case NAME_NONE:
+ 		switch {
+ 		case a.Reg == REG_NONE:
+-			str = fmt.Sprintf("%d", a.Offset)
++			str = fmt.Sprint(a.Offset)
+ 		case a.Offset == 0:
+ 			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+ 		case a.Offset != 0:

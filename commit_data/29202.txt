@@ -23,10 +23,181 @@ Date:   Wed Aug 10 11:06:46 2016 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go            |  1 +
  misc/cgo/test/issue8756.go           | 17 ++++++++++
  misc/cgo/test/issue8756/issue8756.go | 11 ++++++
  src/cmd/go/build.go                  |  7 ----
  src/cmd/link/internal/ld/lib.go      | 65 ++++++++++++++++++++++++++----------
  5 files changed, 76 insertions(+), 25 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 8a95b02ac3..6440747208 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -70,5 +70,6 @@ func Test12030(t *testing.T)                 { test12030(t) }
+ func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+ func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+ func Test14838(t *testing.T)                 { test14838(t) }
++func Test8756(t *testing.T)                  { test8756(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue8756.go b/misc/cgo/test/issue8756.go
+new file mode 100644
+index 0000000000..d8ee3b8213
+--- /dev/null
++++ b/misc/cgo/test/issue8756.go
+@@ -0,0 +1,17 @@
++package cgotest
++
++/*
++#cgo LDFLAGS: -lm
++#include <math.h>
++*/
++import "C"
++import (
++	"testing"
++
++	"./issue8756"
++)
++
++func test8756(t *testing.T) {
++	issue8756.Pow()
++	C.pow(1, 2)
++}
+diff --git a/misc/cgo/test/issue8756/issue8756.go b/misc/cgo/test/issue8756/issue8756.go
+new file mode 100644
+index 0000000000..5f6b7778ff
+--- /dev/null
++++ b/misc/cgo/test/issue8756/issue8756.go
+@@ -0,0 +1,11 @@
++package issue8756
++
++/*
++#cgo LDFLAGS: -lm
++#include <math.h>
++*/
++import "C"
++
++func Pow() {
++	C.pow(1, 2)
++}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6e7f54d996..3d0326b967 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3268,7 +3268,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	outGo = append(outGo, gofiles...)
+ 
+ 	// gcc
+-
+ 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
+ 	for _, cfile := range cfiles {
+ 		ofile := obj + cfile[:len(cfile)-1] + "o"
+@@ -3421,12 +3420,6 @@ func (b *builder) collect(p *Package, obj, ofile string, cgoLDFLAGS, outObj []st
+ 
+ 	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
+ 
+-	if goos == "windows" {
+-		// libmingw32 and libmingwex have some inter-dependencies,
+-		// so must use linker groups.
+-		ldflags = append(ldflags, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+-	}
+-
+ 	if b.gccSupportsNoPie() {
+ 		ldflags = append(ldflags, "-no-pie")
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9f906080e9..0df49a7271 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -372,6 +372,33 @@ func loadinternal(ctxt *Link, name string) {
+ 	}
+ }
+ 
++// findLibPathCmd uses cmd command to find gcc library libname.
++// It returns library full path if found, or "none" if not found.
++func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
++	if *flagExtld == "" {
++		*flagExtld = "gcc"
++	}
++	args := hostlinkArchArgs()
++	args = append(args, cmd)
++	if ctxt.Debugvlog != 0 {
++		ctxt.Logf("%s %v\n", *flagExtld, args)
++	}
++	out, err := exec.Command(*flagExtld, args...).Output()
++	if err != nil {
++		if ctxt.Debugvlog != 0 {
++			ctxt.Logf("not using a %s file because compiler failed\n%v\n%s\n", libname, err, out)
++		}
++		return "none"
++	}
++	return strings.TrimSpace(string(out))
++}
++
++// findLibPath searches for library libname.
++// It returns library full path if found, or "none" if not found.
++func (ctxt *Link) findLibPath(libname string) string {
++	return ctxt.findLibPathCmd("--print-file-name="+libname, libname)
++}
++
+ func (ctxt *Link) loadlib() {
+ 	switch Buildmode {
+ 	case BuildmodeCShared:
+@@ -573,28 +600,27 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 		if any {
+ 			if *flagLibGCC == "" {
+-				if *flagExtld == "" {
+-					*flagExtld = "gcc"
+-				}
+-				args := hostlinkArchArgs()
+-				args = append(args, "--print-libgcc-file-name")
+-				if ctxt.Debugvlog != 0 {
+-					ctxt.Logf("%s %v\n", *flagExtld, args)
+-				}
+-				out, err := exec.Command(*flagExtld, args...).Output()
+-				if err != nil {
+-					if ctxt.Debugvlog != 0 {
+-						ctxt.Logf("not using a libgcc file because compiler failed\n%v\n%s\n", err, out)
+-					}
+-					*flagLibGCC = "none"
+-				} else {
+-					*flagLibGCC = strings.TrimSpace(string(out))
+-				}
++				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
+ 			}
+-
+ 			if *flagLibGCC != "none" {
+ 				hostArchive(ctxt, *flagLibGCC)
+ 			}
++			if HEADTYPE == obj.Hwindows {
++				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
++					hostArchive(ctxt, p)
++				}
++				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
++					hostArchive(ctxt, p)
++				}
++				// TODO: maybe do something similar to peimporteddlls to collect all lib names
++				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
++				/*
++					for:
++					#cgo windows LDFLAGS: -lmsvcrt -lm
++					import:
++					libmsvcrt.a libm.a
++				*/
++			}
+ 		}
+ 	} else {
+ 		hostlinksetup()
+@@ -1145,6 +1171,9 @@ func (l *Link) hostlink() {
+ 		}
+ 	}
+ 	if HEADTYPE == obj.Hwindows {
++		// libmingw32 and libmingwex have some inter-dependencies,
++		// so must use linker groups.
++		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+ 		argv = append(argv, peimporteddlls()...)
+ 	}
+ 

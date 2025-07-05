@@ -17,7 +17,7 @@ Date:   Wed Oct 31 14:28:18 2012 +0100
     R=r
     CC=golang-dev
     https://golang.org/cl/6817054
-
+---
  src/pkg/exp/locale/collate/build/colelem.go      |   4 +-
  src/pkg/exp/locale/collate/build/colelem_test.go |   2 +-
  src/pkg/exp/locale/collate/colelem.go            | 108 +++++++++++++++++------
@@ -26,3 +26,492 @@ Date:   Wed Oct 31 14:28:18 2012 +0100
  src/pkg/exp/locale/collate/export_test.go        |  18 ++--
  src/pkg/exp/locale/collate/table.go              |  34 +++----
  7 files changed, 150 insertions(+), 87 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/colelem.go b/src/pkg/exp/locale/collate/build/colelem.go
+index 3ad2930daa..bd4546f365 100644
+--- a/src/pkg/exp/locale/collate/build/colelem.go
++++ b/src/pkg/exp/locale/collate/build/colelem.go
+@@ -26,7 +26,7 @@ const (
+ // For normal collation elements, we assume that a collation element either has
+ // a primary or non-default secondary value, not both.
+ // Collation elements with a primary value are of the form
+-// 010ppppp pppppppp pppppppp ssssssss
++// 01pppppp pppppppp ppppppp0 ssssssss
+ //   - p* is primary collation value
+ //   - s* is the secondary collation value
+ // or
+@@ -67,7 +67,7 @@ func makeCE(weights []int) (uint32, error) {
+ 			if weights[1] >= 1<<maxSecondaryCompactBits {
+ 				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
+ 			}
+-			ce = uint32(weights[0]<<maxSecondaryCompactBits + weights[1])
++			ce = uint32(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+ 			ce |= isPrimary
+ 		} else {
+ 			d := weights[1] - defaultSecondary + 4
+diff --git a/src/pkg/exp/locale/collate/build/colelem_test.go b/src/pkg/exp/locale/collate/build/colelem_test.go
+index 8a794d3508..75f9c160a2 100644
+--- a/src/pkg/exp/locale/collate/build/colelem_test.go
++++ b/src/pkg/exp/locale/collate/build/colelem_test.go
+@@ -36,7 +36,7 @@ var ceTests = []ceTest{
+ 	{normalCE, []int{0, 0x28, 3}, 0x80002803},
+ 	{normalCE, []int{100, defaultSecondary, 3}, 0x0000C883},
+ 	// non-ignorable primary with non-default secondary
+-	{normalCE, []int{100, 0x28, defaultTertiary}, 0x40006428},
++	{normalCE, []int{100, 0x28, defaultTertiary}, 0x4000C828},
+ 	{normalCE, []int{100, defaultSecondary + 8, 3}, 0x0000C983},
+ 	{normalCE, []int{100, 0, 3}, 0xFFFF}, // non-ignorable primary with non-supported secondary
+ 	{normalCE, []int{100, 1, 3}, 0xFFFF},
+diff --git a/src/pkg/exp/locale/collate/colelem.go b/src/pkg/exp/locale/collate/colelem.go
+index 157b863011..de621b1a1d 100644
+--- a/src/pkg/exp/locale/collate/colelem.go
++++ b/src/pkg/exp/locale/collate/colelem.go
+@@ -8,16 +8,6 @@ import (
+ 	"unicode"
+ )
+ 
+-// weights holds the decoded weights per collation level.
+-type weights struct {
+-	primary   uint32
+-	secondary uint16
+-	tertiary  uint8
+-	// TODO: compute quaternary on the fly or compress this value into 8 bits
+-	// such that weights fit within 64bit.
+-	quaternary uint32
+-}
+-
+ const (
+ 	defaultSecondary = 0x20
+ 	defaultTertiary  = 0x2
+@@ -69,7 +59,7 @@ func (ce colElem) ctype() ceType {
+ // For normal collation elements, we assume that a collation element either has
+ // a primary or non-default secondary value, not both.
+ // Collation elements with a primary value are of the form
+-// 010ppppp pppppppp pppppppp ssssssss
++// 01pppppp pppppppp ppppppp0 ssssssss
+ //   - p* is primary collation value
+ //   - s* is the secondary collation value
+ // or
+@@ -82,25 +72,87 @@ func (ce colElem) ctype() ceType {
+ //   - 16 BMP implicit -> weight
+ //   - 8 bit s
+ //   - default tertiary
+-func splitCE(ce colElem) weights {
+-	const primaryMask = 0x40000000
+-	const secondaryMask = 0x80000000
+-	w := weights{}
+-	if ce&primaryMask != 0 {
+-		w.tertiary = defaultTertiary
+-		w.secondary = uint16(uint8(ce))
+-		w.primary = uint32((ce >> 8) & 0x1FFFFF)
+-	} else if ce&secondaryMask == 0 {
+-		w.tertiary = uint8(ce & 0x1F)
+-		ce >>= 5
+-		w.secondary = defaultSecondary + uint16(ce&0xF) - 4
+-		ce >>= 4
+-		w.primary = uint32(ce)
++// 11qqqqqq qqqqqqqq qqqqqqq0 00000000
++//   - q* quaternary value
++const (
++	ceTypeMask            = 0xC0000000
++	ceType1               = 0x40000000
++	ceType2               = 0x00000000
++	ceType3               = 0x80000000
++	ceTypeQ               = 0xC0000000
++	ceIgnore              = ceType3
++	firstNonPrimary       = 0x80000000
++	secondaryMask         = 0x80000000
++	hasTertiaryMask       = 0x40000000
++	primaryValueMask      = 0x3FFFFE00
++	primaryShift          = 9
++	compactSecondaryShift = 5
++	minCompactSecondary   = defaultSecondary - 4
++)
++
++func makeImplicitCE(primary int) colElem {
++	return ceType1 | colElem(primary<<primaryShift) | defaultSecondary
++}
++
++func makeQuaternary(primary int) colElem {
++	return ceTypeQ | colElem(primary<<primaryShift)
++}
++
++func (ce colElem) primary() int {
++	if ce >= firstNonPrimary {
++		return 0
++	}
++	return int(ce&primaryValueMask) >> primaryShift
++}
++
++func (ce colElem) secondary() int {
++	switch ce & ceTypeMask {
++	case ceType1:
++		return int(uint8(ce))
++	case ceType2:
++		return minCompactSecondary + int((ce>>compactSecondaryShift)&0xF)
++	case ceType3:
++		return int(uint16(ce >> 8))
++	case ceTypeQ:
++		return 0
++	}
++	panic("should not reach here")
++}
++
++func (ce colElem) tertiary() uint8 {
++	if ce&hasTertiaryMask == 0 {
++		if ce&ceType3 == 0 {
++			return uint8(ce & 0x1F)
++		}
++		return uint8(ce)
++	} else if ce&ceTypeMask == ceType1 {
++		return defaultTertiary
++	}
++	// ce is a quaternary value. 
++	return 0
++}
++
++func (ce colElem) updateTertiary(t uint8) colElem {
++	if ce&ceTypeMask == ceType1 {
++		nce := ce & primaryValueMask
++		nce |= colElem(uint8(ce)-minCompactSecondary) << compactSecondaryShift
++		ce = nce
+ 	} else {
+-		w.tertiary = uint8(ce)
+-		w.secondary = uint16(ce >> 8)
++		ce &= ^colElem(maxTertiary)
++	}
++	return ce | colElem(t)
++}
++
++// quaternary returns the quaternary value if explicitly specified,
++// 0 if ce == ceIgnore, or maxQuaternary otherwise.
++// Quaternary values are used only for shifted variants.
++func (ce colElem) quaternary() int {
++	if ce&ceTypeMask == ceTypeQ {
++		return int(ce&primaryValueMask) >> primaryShift
++	} else if ce == ceIgnore {
++		return 0
+ 	}
+-	return w
++	return maxQuaternary
+ }
+ 
+ // For contractions, collation elements are of the form
+diff --git a/src/pkg/exp/locale/collate/colelem_test.go b/src/pkg/exp/locale/collate/colelem_test.go
+index b8701f66b5..62ef90d029 100644
+--- a/src/pkg/exp/locale/collate/colelem_test.go
++++ b/src/pkg/exp/locale/collate/colelem_test.go
+@@ -29,7 +29,7 @@ func makeCE(weights []int) colElem {
+ 	var ce colElem
+ 	if weights[0] != 0 {
+ 		if weights[2] == defaultTertiary {
+-			ce = colElem(weights[0]<<maxSecondaryCompactBits + weights[1])
++			ce = colElem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+ 			ce |= isPrimary
+ 		} else {
+ 			d := weights[1] - defaultSecondary + 4
+@@ -68,10 +68,10 @@ func makeDecompose(t1, t2 int) colElem {
+ }
+ 
+ func normalCE(inout []int) (ce colElem, t ceType) {
+-	w := splitCE(makeCE(inout))
+-	inout[0] = int(w.primary)
+-	inout[1] = int(w.secondary)
+-	inout[2] = int(w.tertiary)
++	w := makeCE(inout)
++	inout[0] = w.primary()
++	inout[1] = w.secondary()
++	inout[2] = int(w.tertiary())
+ 	return ce, ceNormal
+ }
+ 
+@@ -167,3 +167,20 @@ func TestImplicit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUpdateTertiary(t *testing.T) {
++	tests := []struct {
++		in, out colElem
++		t       uint8
++	}{
++		{0x4000FE20, 0x0000FE8A, 0x0A},
++		{0x4000FE21, 0x0000FEAA, 0x0A},
++		{0x0000FE8B, 0x0000FE83, 0x03},
++		{0x8000CC02, 0x8000CC1B, 0x1B},
++	}
++	for i, tt := range tests {
++		if out := tt.in.updateTertiary(tt.t); out != tt.out {
++			t.Errorf("%d: was %X; want %X", i, out, tt.out)
++		}
++	}
++}
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index 0c1d0dcb09..2b2c8eba1f 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -120,9 +120,9 @@ type Buffer struct {
+ 	// TODO: try various parameters and techniques, such as using
+ 	// a chan of buffers for a pool.
+ 	ba  [4096]byte
+-	wa  [512]weights
++	wa  [512]colElem
+ 	key []byte
+-	ce  []weights
++	ce  []colElem
+ }
+ 
+ func (b *Buffer) init() {
+@@ -196,7 +196,7 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
+ 	return c.key(buf, buf.ce)
+ }
+ 
+-func (c *Collator) key(buf *Buffer, w []weights) []byte {
++func (c *Collator) key(buf *Buffer, w []colElem) []byte {
+ 	processWeights(c.Alternate, c.t.variableTop, w)
+ 	kn := len(buf.key)
+ 	c.keyFromElems(buf, w)
+@@ -239,7 +239,7 @@ func (i *iter) done() bool {
+ 	return i._done
+ }
+ 
+-func (i *iter) next(ce []weights) []weights {
++func (i *iter) next(ce []colElem) []colElem {
+ 	if !i.eof && len(i.buf)-i.p < i.minBufSize {
+ 		// replenish buffer
+ 		n := copy(i.buf, i.buf[i.p:])
+@@ -257,7 +257,7 @@ func (i *iter) next(ce []weights) []weights {
+ 	return ce
+ }
+ 
+-func appendPrimary(key []byte, p uint32) []byte {
++func appendPrimary(key []byte, p int) []byte {
+ 	// Convert to variable length encoding; supports up to 23 bits.
+ 	if p <= 0x7FFF {
+ 		key = append(key, uint8(p>>8), uint8(p))
+@@ -269,9 +269,9 @@ func appendPrimary(key []byte, p uint32) []byte {
+ 
+ // keyFromElems converts the weights ws to a compact sequence of bytes.
+ // The result will be appended to the byte buffer in buf.
+-func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
++func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 	for _, v := range ws {
+-		if w := v.primary; w > 0 {
++		if w := v.primary(); w > 0 {
+ 			buf.key = appendPrimary(buf.key, w)
+ 		}
+ 	}
+@@ -280,13 +280,13 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
+ 		// TODO: we can use one 0 if we can guarantee that all non-zero weights are > 0xFF.
+ 		if !c.Backwards {
+ 			for _, v := range ws {
+-				if w := v.secondary; w > 0 {
++				if w := v.secondary(); w > 0 {
+ 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
+ 				}
+ 			}
+ 		} else {
+ 			for i := len(ws) - 1; i >= 0; i-- {
+-				if w := ws[i].secondary; w > 0 {
++				if w := ws[i].secondary(); w > 0 {
+ 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
+ 				}
+ 			}
+@@ -297,20 +297,20 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
+ 	if Tertiary <= c.Strength || c.CaseLevel {
+ 		buf.key = append(buf.key, 0, 0)
+ 		for _, v := range ws {
+-			if w := v.tertiary; w > 0 {
+-				buf.key = append(buf.key, w)
++			if w := v.tertiary(); w > 0 {
++				buf.key = append(buf.key, uint8(w))
+ 			}
+ 		}
+ 		// Derive the quaternary weights from the options and other levels.
+ 		// Note that we represent maxQuaternary as 0xFF. The first byte of the
+ 		// representation of a a primary weight is always smaller than 0xFF,
+ 		// so using this single byte value will compare correctly.
+-		if Quaternary <= c.Strength {
++		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
+ 			if c.Alternate == AltShiftTrimmed {
+ 				lastNonFFFF := len(buf.key)
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.quaternary; w == maxQuaternary {
++					if w := v.quaternary(); w == maxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -321,7 +321,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
+ 			} else {
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.quaternary; w == maxQuaternary {
++					if w := v.quaternary(); w == maxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -332,29 +332,27 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
+ 	}
+ }
+ 
+-func processWeights(vw AlternateHandling, top uint32, wa []weights) {
++func processWeights(vw AlternateHandling, top uint32, wa []colElem) {
+ 	ignore := false
++	vtop := int(top)
+ 	switch vw {
+ 	case AltShifted, AltShiftTrimmed:
+ 		for i := range wa {
+-			if p := wa[i].primary; p <= top && p != 0 {
+-				wa[i] = weights{quaternary: p}
++			if p := wa[i].primary(); p <= vtop && p != 0 {
++				wa[i] = makeQuaternary(p)
+ 				ignore = true
+ 			} else if p == 0 {
+ 				if ignore {
+-					wa[i] = weights{}
+-				} else if wa[i].tertiary != 0 {
+-					wa[i].quaternary = maxQuaternary
++					wa[i] = ceIgnore
+ 				}
+ 			} else {
+-				wa[i].quaternary = maxQuaternary
+ 				ignore = false
+ 			}
+ 		}
+ 	case AltBlanked:
+ 		for i := range wa {
+-			if p := wa[i].primary; p <= top && (ignore || p != 0) {
+-				wa[i] = weights{}
++			if p := wa[i].primary(); p <= vtop && (ignore || p != 0) {
++				wa[i] = ceIgnore
+ 				ignore = true
+ 			} else {
+ 				ignore = false
+diff --git a/src/pkg/exp/locale/collate/export_test.go b/src/pkg/exp/locale/collate/export_test.go
+index de6e9078b5..09caccac5f 100644
+--- a/src/pkg/exp/locale/collate/export_test.go
++++ b/src/pkg/exp/locale/collate/export_test.go
+@@ -24,6 +24,8 @@ func W(ce ...int) Weights {
+ 	}
+ 	if len(ce) > 3 {
+ 		w.Quaternary = ce[3]
++	} else if w.Tertiary != 0 {
++		w.Quaternary = maxQuaternary
+ 	}
+ 	return w
+ }
+@@ -33,25 +35,27 @@ func (w Weights) String() string {
+ 
+ type Table struct {
+ 	t *table
+-	w []weights
+ }
+ 
+ func GetTable(c *Collator) *Table {
+-	return &Table{c.t, nil}
++	return &Table{c.t}
+ }
+ 
+-func convertToWeights(ws []weights) []Weights {
++func convertToWeights(ws []colElem) []Weights {
+ 	out := make([]Weights, len(ws))
+ 	for i, w := range ws {
+-		out[i] = Weights{int(w.primary), int(w.secondary), int(w.tertiary), int(w.quaternary)}
++		out[i] = Weights{int(w.primary()), int(w.secondary()), int(w.tertiary()), int(w.quaternary())}
+ 	}
+ 	return out
+ }
+ 
+-func convertFromWeights(ws []Weights) []weights {
+-	out := make([]weights, len(ws))
++func convertFromWeights(ws []Weights) []colElem {
++	out := make([]colElem, len(ws))
+ 	for i, w := range ws {
+-		out[i] = weights{uint32(w.Primary), uint16(w.Secondary), uint8(w.Tertiary), uint32(w.Quaternary)}
++		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary})
++		if out[i] == ceIgnore && w.Quaternary > 0 {
++			out[i] = makeQuaternary(w.Quaternary)
++		}
+ 	}
+ 	return out
+ }
+diff --git a/src/pkg/exp/locale/collate/table.go b/src/pkg/exp/locale/collate/table.go
+index 430f3cca5b..084308c72f 100644
+--- a/src/pkg/exp/locale/collate/table.go
++++ b/src/pkg/exp/locale/collate/table.go
+@@ -42,12 +42,16 @@ func (t *table) indexedTable(idx tableIndex) *table {
+ // sequence of runes, the weights for the interstitial runes are
+ // appended as well.  It returns a new slice that includes the appended
+ // weights and the number of bytes consumed from s.
+-func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
++func (t *table) appendNext(w []colElem, s []byte) ([]colElem, int) {
+ 	v, sz := t.index.lookup(s)
+ 	ce := colElem(v)
+ 	tp := ce.ctype()
+ 	if tp == ceNormal {
+-		w = append(w, getWeights(ce, s))
++		if ce == 0 {
++			r, _ := utf8.DecodeRune(s)
++			ce = makeImplicitCE(implicitPrimary(r))
++		}
++		w = append(w, ce)
+ 	} else if tp == ceExpansionIndex {
+ 		w = t.appendExpansion(w, ce)
+ 	} else if tp == ceContractionIndex {
+@@ -62,40 +66,28 @@ func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
+ 		for p := 0; len(nfkd) > 0; nfkd = nfkd[p:] {
+ 			w, p = t.appendNext(w, nfkd)
+ 		}
+-		w[i].tertiary = t1
++		w[i] = w[i].updateTertiary(t1)
+ 		if i++; i < len(w) {
+-			w[i].tertiary = t2
++			w[i] = w[i].updateTertiary(t2)
+ 			for i++; i < len(w); i++ {
+-				w[i].tertiary = maxTertiary
++				w[i] = w[i].updateTertiary(maxTertiary)
+ 			}
+ 		}
+ 	}
+ 	return w, sz
+ }
+ 
+-func getWeights(ce colElem, s []byte) weights {
+-	if ce == 0 { // implicit
+-		r, _ := utf8.DecodeRune(s)
+-		return weights{
+-			primary:   uint32(implicitPrimary(r)),
+-			secondary: defaultSecondary,
+-			tertiary:  defaultTertiary,
+-		}
+-	}
+-	return splitCE(ce)
+-}
+-
+-func (t *table) appendExpansion(w []weights, ce colElem) []weights {
++func (t *table) appendExpansion(w []colElem, ce colElem) []colElem {
+ 	i := splitExpandIndex(ce)
+ 	n := int(t.expandElem[i])
+ 	i++
+ 	for _, ce := range t.expandElem[i : i+n] {
+-		w = append(w, splitCE(colElem(ce)))
++		w = append(w, colElem(ce))
+ 	}
+ 	return w
+ }
+ 
+-func (t *table) matchContraction(w []weights, ce colElem, suffix []byte) ([]weights, int) {
++func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colElem, int) {
+ 	index, n, offset := splitContractIndex(ce)
+ 
+ 	scan := t.contractTries.scanner(index, n, suffix)
+@@ -138,7 +130,7 @@ func (t *table) matchContraction(w []weights, ce colElem, suffix []byte) ([]weig
+ 	i, n := scan.result()
+ 	ce = colElem(t.contractElem[i+offset])
+ 	if ce.ctype() == ceNormal {
+-		w = append(w, splitCE(ce))
++		w = append(w, ce)
+ 	} else {
+ 		w = t.appendExpansion(w, ce)
+ 	}

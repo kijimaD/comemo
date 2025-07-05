@@ -15,7 +15,82 @@ Date:   Mon Oct 23 09:39:13 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 14 ++++++++++++++
  src/cmd/internal/obj/arm64/asm7.go        | 24 ++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 6d890275ad..269e363f7e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -382,6 +382,20 @@ again:
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
++// LDP/STP
++	LDP	(R0), (R1, R2)
++	LDP	8(R0), (R1, R2)
++	LDP.W	8(R0), (R1, R2)
++	LDP.P	8(R0), (R1, R2)
++	LDP	x(SB), (R1, R2)
++	LDP	x+8(SB), (R1, R2)
++	STP	(R3, R4), (R5)
++	STP	(R3, R4), 8(R5)
++	STP.W	(R3, R4), 8(R5)
++	STP.P	(R3, R4), 8(R5)
++	STP	(R3, R4), x(SB)
++	STP	(R3, R4), x+8(SB)
++
+ // END
+ //
+ //	LTYPEE comma
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 31cec14f00..fc0faf36f5 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -465,6 +465,7 @@ var optab = []Optab{
+ 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, 0},
+ 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPRE},
+ 	{ALDP, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPOST},
++	{ALDP, C_ADDR, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
+ 
+ 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
+@@ -490,6 +491,7 @@ var optab = []Optab{
+ 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPRE},
+ 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
++	{ASTP, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
+ 
+ 	/* special */
+ 	{AMOVD, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+@@ -3629,6 +3631,28 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = 0xf<<24 | 0xe<<12 | 1<<10
+ 		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
+ 
++	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
++		o1 = ADR(1, 0, REGTMP)
++		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
++		rel := obj.Addrel(c.cursym)
++		rel.Off = int32(c.pc)
++		rel.Siz = 8
++		rel.Sym = p.To.Sym
++		rel.Add = p.To.Offset
++		rel.Type = objabi.R_ADDRARM64
++		o3 |= 2<<30 | 5<<27 | 2<<23 | uint32(p.From.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.From.Reg&31)
++
++	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
++		o1 = ADR(1, 0, REGTMP)
++		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
++		rel := obj.Addrel(c.cursym)
++		rel.Off = int32(c.pc)
++		rel.Siz = 8
++		rel.Sym = p.From.Sym
++		rel.Add = p.From.Offset
++		rel.Type = objabi.R_ADDRARM64
++		o3 |= 2<<30 | 5<<27 | 2<<23 | 1<<22 | uint32(p.To.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.To.Reg&31)
++
+ 	// This is supposed to be something that stops execution.
+ 	// It's not supposed to be reached, ever, but if it is, we'd
+ 	// like to be able to tell how we got there. Assemble as

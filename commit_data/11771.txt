@@ -9,6 +9,56 @@ Date:   Thu Feb 9 23:10:27 2012 -0500
     R=golang-dev, alex.brainman
     CC=golang-dev, rsc
     https://golang.org/cl/5651049
-
+---
  src/cmd/dist/windows.c | 28 +++++++++++++++++++++++-----
  1 file changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 74e7d81230..1655f77704 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -371,6 +371,19 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+ 	bfree(&cmd);
+ }
+ 
++// closes the background job for bgwait1
++static void
++bgwaitclose(int i)
++{
++	if(i < 0 || i >= nbg)
++		return;
++
++	CloseHandle(bg[i].pi.hProcess);
++	CloseHandle(bg[i].pi.hThread);
++	
++	bg[i] = bg[--nbg];
++}
++
+ // bgwait1 waits for a single background job
+ static void
+ bgwait1(void)
+@@ -391,14 +404,19 @@ bgwait1(void)
+ 
+ 	cmd = bg[i].cmd;
+ 	mode = bg[i].mode;
+-	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code))
++	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code)) {
++		bgwaitclose(i);
+ 		fatal("GetExitCodeProcess: %s", errstr());
+-	if(mode==CheckExit && code != 0)
++		return;
++	}
++
++	if(mode==CheckExit && code != 0) {
++		bgwaitclose(i);
+ 		fatal("FAILED: %s", cmd);
+-	CloseHandle(bg[i].pi.hProcess);
+-	CloseHandle(bg[i].pi.hThread);
++		return;
++	}
+ 
+-	bg[i] = bg[--nbg];
++	bgwaitclose(i);
+ }
+ 
+ void

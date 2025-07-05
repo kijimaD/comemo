@@ -17,7 +17,57 @@ Date:   Mon Jul 1 13:25:28 2024 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/time/format.go      |  6 ++++--
  src/time/format_test.go | 17 +++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 6488ec8aba..c9e68b3eb2 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1203,12 +1203,14 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			default:
+ 				err = errBad
+ 			}
+-		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ, stdNumSecondsTz, stdNumColonSecondsTZ:
+-			if (std == stdISO8601TZ || std == stdISO8601ShortTZ || std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
++		case stdISO8601TZ, stdISO8601ShortTZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ColonSecondsTZ:
++			if len(value) >= 1 && value[0] == 'Z' {
+ 				value = value[1:]
+ 				z = UTC
+ 				break
+ 			}
++			fallthrough
++		case stdNumTZ, stdNumShortTZ, stdNumColonTZ, stdNumSecondsTz, stdNumColonSecondsTZ:
+ 			var sign, hour, min, seconds string
+ 			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+ 				if len(value) < 6 {
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 4b598f6bdf..2537c76596 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -336,6 +336,23 @@ var parseTests = []ParseTest{
+ 	{"", "2006-002 15:04:05", "2010-035 21:00:57", false, false, 1, 0},
+ 	{"", "200600201 15:04:05", "201003502 21:00:57", false, false, 1, 0},
+ 	{"", "200600204 15:04:05", "201003504 21:00:57", false, false, 1, 0},
++
++	// Time zone offsets
++	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57Z", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57+08", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57-08", true, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57Z", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57+0800", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57-0800", true, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57Z", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57+08:00", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57-08:00", true, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57Z", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57+080000", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57-080000", true, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57Z", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57+08:00:00", false, false, 1, 0},
++	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57-08:00:00", true, false, 1, 0},
+ }
+ 
+ func TestParse(t *testing.T) {

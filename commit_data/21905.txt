@@ -14,7 +14,45 @@ Date:   Wed Feb 11 21:16:00 2015 -0500
     Change-Id: I344e0b06eedaaf53cd79d370fa13c444a1e69c81
     Reviewed-on: https://go-review.googlesource.com/4647
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/arm/list5.go | 7 ++++++-
  src/liblink/list5.c               | 8 ++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index c37a563621..9986d14931 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -190,7 +190,12 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+ 
+ 	case obj.TYPE_SCONST:
+ 		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
+-		break
++
++	case obj.TYPE_REGREG:
++		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
++
++	case obj.TYPE_REGREG2:
++		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+ 	}
+ 
+ 	fp += str
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index 3d3e8e7d12..bca10f6899 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -213,6 +213,14 @@ Dconv(Fmt *fp)
+ 	case TYPE_SCONST:
+ 		sprint(str, "$\"%$\"", a->u.sval);
+ 		break;
++	
++	case TYPE_REGREG:
++		sprint(str, "(%R, %R)", a->reg, (int)a->offset);
++		break;
++	
++	case TYPE_REGREG2:
++		sprint(str, "%R, %R", a->reg, (int)a->offset);
++		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+ }

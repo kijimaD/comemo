@@ -14,6 +14,26 @@ Date:   Thu Aug 10 21:42:00 2023 +0200
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/str.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/os/str.go b/src/os/str.go
+index 242c945caf..2089b548e6 100644
+--- a/src/os/str.go
++++ b/src/os/str.go
+@@ -6,14 +6,6 @@
+ 
+ package os
+ 
+-// itox converts val (an int) to a hexadecimal string.
+-func itox(val int) string {
+-	if val < 0 {
+-		return "-" + uitox(uint(-val))
+-	}
+-	return uitox(uint(val))
+-}
+-
+ const hex = "0123456789abcdef"
+ 
+ // uitox converts val (a uint) to a hexadecimal string.

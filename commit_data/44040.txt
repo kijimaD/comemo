@@ -11,7 +11,93 @@ Date:   Tue Apr 28 00:41:02 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  3 ++
  test/fixedbugs/issue38690.go         | 65 ++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 0f86179158..f5d588e63b 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -528,6 +528,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 
+ 	for _, r := range n.List.Slice() {
+ 		a, value := splitnode(r)
++		if a == nblank && candiscard(value) {
++			continue
++		}
+ 
+ 		switch value.Op {
+ 		case OSLICELIT:
+diff --git a/test/fixedbugs/issue38690.go b/test/fixedbugs/issue38690.go
+new file mode 100644
+index 0000000000..af8688d12f
+--- /dev/null
++++ b/test/fixedbugs/issue38690.go
+@@ -0,0 +1,65 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that literal value can be passed to struct
++// blank field of array/struct type, see issue #38690.
++
++package main
++
++type A1 = [0]int
++type A2 = [1]int
++
++type S1 struct{}
++
++type S2 struct {
++	x int
++}
++
++type S3 = struct{}
++
++type S4 = struct{ x int }
++
++type S struct {
++	x int
++	_ [0]int
++	_ [1]int
++	_ A1
++	_ A2
++	_ S1
++	_ S2
++	_ S3
++	_ S4
++	_ [1]S4
++}
++
++var s = S{1, [0]int{}, [1]int{1}, A1{}, A2{1}, S1{}, S2{1}, S3{}, S4{1}, [1]S4{}}
++
++func main() {
++	f1()
++	mustPanic(f2)
++	mustPanic(f3)
++}
++
++func f1() {
++	_ = S{1, [0]int{}, [1]int{1}, A1{}, A2{1}, S1{}, S2{1}, S3{}, S4{1}, [1]S4{}}
++}
++
++func f2() {
++	_ = S{1, [0]int{}, [1]int{1}, A1{}, A2{1}, S1{}, S2{1}, S3{}, func() S4 { panic("") }(), [1]S4{}}
++}
++
++func f3() {
++	_ = S{1, [0]int{}, [1]int{1}, A1{}, A2{1}, S1{}, S2{1}, S3{}, S4{1}, func() [1]S4 { panic("") }()}
++}
++
++func mustPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("expected panic, got nil")
++		}
++	}()
++	f()
++}

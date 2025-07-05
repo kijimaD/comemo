@@ -11,7 +11,81 @@ Date:   Fri Aug 28 10:17:05 2015 +0200
     Change-Id: I7233c3a62d4f55d0ac7e8a87df5fc4ee7beb7207
     Reviewed-on: https://go-review.googlesource.com/14011
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode_test.go | 16 ++++++++++++++--
  src/encoding/json/encode.go      |  2 +-
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index e9e00e5fca..0ed3b51628 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -118,6 +118,7 @@ type Top struct {
+ 	Loop
+ 	Embed0p // has Point with X, Y, used
+ 	Embed0q // has Point with Z, used
++	embed   // contains exported field
+ }
+ 
+ type Embed0 struct {
+@@ -148,6 +149,10 @@ type Embed0q struct {
+ 	Point
+ }
+ 
++type embed struct {
++	Q int
++}
++
+ type Loop struct {
+ 	Loop1 int `json:",omitempty"`
+ 	Loop2 int `json:",omitempty"`
+@@ -331,7 +336,8 @@ var unmarshalTests = []unmarshalTest{
+ 			"Loop2": 14,
+ 			"X": 15,
+ 			"Y": 16,
+-			"Z": 17
++			"Z": 17,
++			"Q": 18
+ 		}`,
+ 		ptr: new(Top),
+ 		out: Top{
+@@ -361,6 +367,9 @@ var unmarshalTests = []unmarshalTest{
+ 			Embed0q: Embed0q{
+ 				Point: Point{Z: 17},
+ 			},
++			embed: embed{
++				Q: 18,
++			},
+ 		},
+ 	},
+ 	{
+@@ -507,12 +516,15 @@ func TestMarshalEmbeds(t *testing.T) {
+ 		Embed0q: Embed0q{
+ 			Point: Point{Z: 17},
+ 		},
++		embed: embed{
++			Q: 18,
++		},
+ 	}
+ 	b, err := Marshal(top)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17}"
++	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17,\"Q\":18}"
+ 	if string(b) != want {
+ 		t.Errorf("Wrong marshal result.\n got: %q\nwant: %q", b, want)
+ 	}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 60d1c9011b..6af2fabeb4 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1021,7 +1021,7 @@ func typeFields(t reflect.Type) []field {
+ 			// Scan f.typ for fields to include.
+ 			for i := 0; i < f.typ.NumField(); i++ {
+ 				sf := f.typ.Field(i)
+-				if sf.PkgPath != "" { // unexported
++				if sf.PkgPath != "" && !sf.Anonymous { // unexported
+ 					continue
+ 				}
+ 				tag := sf.Tag.Get("json")

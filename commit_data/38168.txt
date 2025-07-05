@@ -12,6 +12,20 @@ Date:   Sat Jun 30 18:12:24 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index 9e6d482e16..88572245fc 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -289,7 +289,7 @@ func stateEndValue(s *scanner, c byte) int {
+ // such as after reading `{}` or `[1,2,3]`.
+ // Only space characters should be seen now.
+ func stateEndTop(s *scanner, c byte) int {
+-	if c != ' ' && c != '\t' && c != '\r' && c != '\n' {
++	if !isSpace(c) {
+ 		// Complain about non-space byte on next call.
+ 		s.error(c, "after top-level value")
+ 	}

@@ -7,7 +7,95 @@ Date:   Mon Sep 12 11:43:55 2016 -0700
     Change-Id: I7bfb0e5e71fc26448b0d5d3801cd6e50c8b48f5d
     Reviewed-on: https://go-review.googlesource.com/29078
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 25 ++++++++++---------------
  src/cmd/compile/internal/gc/export.go  | 26 --------------------------
  2 files changed, 10 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 88db78d2ff..37ce784e7a 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -388,10 +388,7 @@ func (p *importer) newtyp(etype EType) *Type {
+ 	return t
+ }
+ 
+-// This is like the function importtype but it delays the
+-// type identity check for types that have been seen already.
+-// importer.importtype and importtype and (export.go) need to
+-// remain in sync.
++// importtype declares that pt, an imported named type, has underlying type t.
+ func (p *importer) importtype(pt, t *Type) {
+ 	// override declaration in unsafe.go for Pointer.
+ 	// there is no way in Go code to define unsafe.Pointer
+@@ -409,10 +406,14 @@ func (p *importer) importtype(pt, t *Type) {
+ 		declare(n, PEXTERN)
+ 		checkwidth(pt)
+ 	} else {
+-		// pt.Orig and t must be identical. Since t may not be
+-		// fully set up yet, collect the types and verify identity
+-		// later.
+-		p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
++		// pt.Orig and t must be identical.
++		if p.trackAllTypes {
++			// If we track all types, t may not be fully set up yet.
++			// Collect the types and verify identity later.
++			p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
++		} else if !Eqtype(pt.Orig, t) {
++			Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
++		}
+ 	}
+ 
+ 	if Debug['E'] != 0 {
+@@ -442,13 +443,7 @@ func (p *importer) typ() *Type {
+ 		// read underlying type
+ 		// parser.go:hidden_type
+ 		t0 := p.typ()
+-		if p.trackAllTypes {
+-			// If we track all types, we cannot check equality of previously
+-			// imported types until later. Use customized version of importtype.
+-			p.importtype(t, t0)
+-		} else {
+-			importtype(t, t0)
+-		}
++		p.importtype(t, t0)
+ 
+ 		// interfaces don't have associated methods
+ 		if t0.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 90d093d6fe..b3a804554d 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -344,32 +344,6 @@ func importvar(s *Sym, t *Type) {
+ 	}
+ }
+ 
+-// importtype and importer.importtype (bimport.go) need to remain in sync.
+-func importtype(pt *Type, t *Type) {
+-	// override declaration in unsafe.go for Pointer.
+-	// there is no way in Go code to define unsafe.Pointer
+-	// so we have to supply it.
+-	if incannedimport != 0 && importpkg.Name == "unsafe" && pt.Nod.Sym.Name == "Pointer" {
+-		t = Types[TUNSAFEPTR]
+-	}
+-
+-	if pt.Etype == TFORW {
+-		n := pt.Nod
+-		copytype(pt.Nod, t)
+-		pt.Nod = n // unzero nod
+-		pt.Sym.Importdef = importpkg
+-		pt.Sym.Lastlineno = lineno
+-		declare(n, PEXTERN)
+-		checkwidth(pt)
+-	} else if !Eqtype(pt.Orig, t) {
+-		Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+-	}
+-
+-	if Debug['E'] != 0 {
+-		fmt.Printf("import type %v %L\n", pt, t)
+-	}
+-}
+-
+ func dumpasmhdr() {
+ 	b, err := bio.Create(asmhdr)
+ 	if err != nil {

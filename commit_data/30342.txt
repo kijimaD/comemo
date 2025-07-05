@@ -10,7 +10,97 @@ Date:   Tue Nov 1 17:12:48 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/32481
     Reviewed-by: Martin Möhrmann <martisch@uos.de>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport.go      | 10 ++++++++-
  src/net/http/transport_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e227b3764a..de666fb554 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -175,6 +175,10 @@ type Transport struct {
+ 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
+ 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+ 
++	// ProxyConnectHeader optionally specifies headers to send to
++	// proxies during CONNECT requests.
++	ProxyConnectHeader Header
++
+ 	// MaxResponseHeaderBytes specifies a limit on how many
+ 	// response bytes are allowed in the server's response
+ 	// header.
+@@ -1012,11 +1016,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
+ 		}
+ 	case cm.targetScheme == "https":
+ 		conn := pconn.conn
++		hdr := t.ProxyConnectHeader
++		if hdr == nil {
++			hdr = make(Header)
++		}
+ 		connectReq := &Request{
+ 			Method: "CONNECT",
+ 			URL:    &url.URL{Opaque: cm.targetAddr},
+ 			Host:   cm.targetAddr,
+-			Header: make(Header),
++			Header: hdr,
+ 		}
+ 		if pa := cm.proxyAuth(); pa != "" {
+ 			connectReq.Header.Set("Proxy-Authorization", pa)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a5c86989d1..cf01e29c85 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3777,6 +3777,52 @@ func testTransportIDNA(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
++// Issue 13290: send User-Agent in proxy CONNECT
++func TestTransportProxyConnectHeader(t *testing.T) {
++	defer afterTest(t)
++	reqc := make(chan *Request, 1)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if r.Method != "CONNECT" {
++			t.Errorf("method = %q; want CONNECT", r.Method)
++		}
++		reqc <- r
++		c, _, err := w.(Hijacker).Hijack()
++		if err != nil {
++			t.Errorf("Hijack: %v", err)
++			return
++		}
++		c.Close()
++	}))
++	defer ts.Close()
++	tr := &Transport{
++		ProxyConnectHeader: Header{
++			"User-Agent": {"foo"},
++			"Other":      {"bar"},
++		},
++		Proxy: func(r *Request) (*url.URL, error) {
++			return url.Parse(ts.URL)
++		},
++	}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++	res, err := c.Get("https://dummy.tld/") // https to force a CONNECT
++	if err == nil {
++		res.Body.Close()
++		t.Errorf("unexpected success")
++	}
++	select {
++	case <-time.After(3 * time.Second):
++		t.Fatal("timeout")
++	case r := <-reqc:
++		if got, want := r.Header.Get("User-Agent"), "foo"; got != want {
++			t.Errorf("CONNECT request User-Agent = %q; want %q", got, want)
++		}
++		if got, want := r.Header.Get("Other"), "bar"; got != want {
++			t.Errorf("CONNECT request Other = %q; want %q", got, want)
++		}
++	}
++}
++
+ var errFakeRoundTrip = errors.New("fake roundtrip")
+ 
+ type funcRoundTripper func()

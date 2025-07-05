@@ -14,7 +14,66 @@ Date:   Tue Feb 2 13:04:16 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 26 +++++++++++++++++++++-----
  src/cmd/compile/internal/noder/helpers.go |  2 +-
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 3c18bdcc24..568ec216e3 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -93,11 +93,27 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	case *syntax.AssertExpr:
+ 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
+ 	case *syntax.CallExpr:
+-		def := g.info.Inferred[expr]
+-		if len(def.Targs) > 0 {
+-			panic("Inferred type arguments not handled yet")
++		fun := g.expr(expr.Fun)
++		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
++			targs := make([]ir.Node, len(inferred.Targs))
++			for i, targ := range inferred.Targs {
++				targs[i] = ir.TypeNode(g.typ(targ))
++			}
++			if fun.Op() == ir.OFUNCINST {
++				// Replace explicit type args with the full list that
++				// includes the additional inferred type args
++				fun.(*ir.InstExpr).Targs = targs
++			} else {
++				// Create a function instantiation here, given
++				// there are only inferred type args (e.g.
++				// min(5,6), where min is a generic function)
++				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
++				typed(fun.Type(), inst)
++				fun = inst
++			}
++
+ 		}
+-		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
++		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+ 	case *syntax.IndexExpr:
+ 		var targs []ir.Node
+ 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
+@@ -111,7 +127,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			// This is generic function instantiation with a single type
+ 			targs = []ir.Node{index}
+ 		}
+-		// This is a generic function instantiation
++		// This is a generic function instantiation (e.g. min[int])
+ 		x := g.expr(expr.X)
+ 		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
+ 			panic("Incorrect argument for generic func instantiation")
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index fcbb3a6ce5..bb17a5331a 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -119,7 +119,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 	n.IsDDD = dots
+ 
+-	if n.X.Op() != ir.OFUNCINST {
++	if fun.Op() != ir.OFUNCINST {
+ 		// If no type params, still do normal typechecking, since we're
+ 		// still missing some things done by tcCall below (mainly
+ 		// typecheckargs and typecheckaste).

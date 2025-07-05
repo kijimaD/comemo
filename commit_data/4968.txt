@@ -9,6 +9,19 @@ Date:   Sun Feb 28 21:49:06 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223083
-
+---
  src/cmd/gotest/gotest | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 47662818e1..74da593c41 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -44,6 +44,7 @@ esac
+ # Allow overrides
+ GC="$GOBIN/${_GC:-$GC} -I _test"
+ GL="$GOBIN/${GL:-$LD} -L _test"
++AS="$GOBIN/$AS"
+ CC="$GOBIN/$CC"
+ LD="$GOBIN/$LD"
+ export GC GL O AS CC LD

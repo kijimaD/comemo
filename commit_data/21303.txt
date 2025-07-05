@@ -7,6 +7,20 @@ Date:   Fri Dec 19 08:37:52 2014 +0100
     Change-Id: Ib9699fc9c45f61e9d75e9d9ae69167f039a66dfc
     Reviewed-on: https://go-review.googlesource.com/1890
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/gccgo_contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index db7d1ab0eb..44007ffb5e 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -105,7 +105,7 @@ or <code>gcc/testsuite/go.dg</code> directories in the GCC repository.
+ <p>
+ Changes to the Go frontend should follow the same process as for the
+ main Go repository, only for the <code>gofrontend</code> project and
+-the<code>gofrontend-dev@googlegroups.com</code> mailing list 
++the <code>gofrontend-dev@googlegroups.com</code> mailing list 
+ rather than the <code>go</code> project and the
+ <code>golang-dev@googlegroups.com</code> mailing list.  Those changes
+ will then be merged into the GCC sources.

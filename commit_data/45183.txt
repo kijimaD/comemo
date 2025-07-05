@@ -15,6 +15,41 @@ Date:   Mon Oct 12 11:56:15 2020 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport_test.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a1c9e822b4..b152007282 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1701,7 +1701,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 			res, err := c.Get(ts.URL)
+ 			didReqCh <- true
+ 			if err != nil {
+-				t.Errorf("client fetch error: %v", err)
++				t.Logf("client fetch error: %v", err)
+ 				failed <- true
+ 				return
+ 			}
+@@ -1715,17 +1715,15 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 		case <-gotReqCh:
+ 			// ok
+ 		case <-failed:
+-			close(unblockCh)
+-			return
++			// Not great but not what we are testing:
++			// sometimes an overloaded system will fail to make all the connections.
+ 		}
+ 	}
+ 
+ 	nhigh := runtime.NumGoroutine()
+ 
+ 	// Tell all handlers to unblock and reply.
+-	for i := 0; i < numReq; i++ {
+-		unblockCh <- true
+-	}
++	close(unblockCh)
+ 
+ 	// Wait for all HTTP clients to be done.
+ 	for i := 0; i < numReq; i++ {

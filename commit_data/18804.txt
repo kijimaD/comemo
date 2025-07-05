@@ -11,10 +11,1182 @@ Date:   Fri Mar 7 15:30:02 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/13345046
-
+---
  src/pkg/regexp/all_test.go         |  55 ++++
  src/pkg/regexp/exec.go             | 121 +++++++-
  src/pkg/regexp/regexp.go           |  11 +-
  src/pkg/regexp/syntax/prog.go      | 587 ++++++++++++++++++++++++++++++++++++-
  src/pkg/regexp/syntax/prog_test.go | 198 +++++++++++++
  5 files changed, 952 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index e914a7ccb4..a84c6410ae 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -578,3 +578,58 @@ func BenchmarkAnchoredLongMatch(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
++func BenchmarkOnePassShortA(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcddddddeeeededd")
++	re := MustCompile("^.bc(d|e)*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
++func BenchmarkNotOnePassShortA(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcddddddeeeededd")
++	re := MustCompile(".bc(d|e)*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
++func BenchmarkOnePassShortB(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcddddddeeeededd")
++	re := MustCompile("^.bc(?:d|e)*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
++func BenchmarkNotOnePassShortB(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcddddddeeeededd")
++	re := MustCompile(".bc(?:d|e)*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
++func BenchmarkOnePassLongPrefix(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcdefghijklmnopqrstuvwxyz")
++	re := MustCompile("^abcdefghijklmnopqrstuvwxyz.*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
++func BenchmarkOnePassLongNotPrefix(b *testing.B) {
++	b.StopTimer()
++	x := []byte("abcdefghijklmnopqrstuvwxyz")
++	re := MustCompile("^.bcdefghijklmnopqrstuvwxyz.*$")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.Match(x)
++	}
++}
+diff --git a/src/pkg/regexp/exec.go b/src/pkg/regexp/exec.go
+index 333ca25542..22c33cfa56 100644
+--- a/src/pkg/regexp/exec.go
++++ b/src/pkg/regexp/exec.go
+@@ -37,6 +37,7 @@ type thread struct {
+ type machine struct {
+ 	re       *Regexp      // corresponding Regexp
+ 	p        *syntax.Prog // compiled program
++	op       *syntax.Prog // compiled onepass program, or syntax.NotOnePass
+ 	q0, q1   queue        // two queues for runq, nextq
+ 	pool     []*thread    // pool of available threads
+ 	matched  bool         // whether a match was found
+@@ -66,8 +67,8 @@ func (m *machine) newInputReader(r io.RuneReader) input {
+ }
+ 
+ // progMachine returns a new machine running the prog p.
+-func progMachine(p *syntax.Prog) *machine {
+-	m := &machine{p: p}
++func progMachine(p, op *syntax.Prog) *machine {
++	m := &machine{p: p, op: op}
+ 	n := len(m.p.Inst)
+ 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
+ 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+@@ -312,6 +313,105 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
+ 	return t
+ }
+ 
++// onepass runs the machine over the input starting at pos.
++// It reports whether a match was found.
++// If so, m.matchcap holds the submatch information.
++func (m *machine) onepass(i input, pos int) bool {
++	startCond := m.re.cond
++	if startCond == ^syntax.EmptyOp(0) { // impossible
++		return false
++	}
++	m.matched = false
++	for i := range m.matchcap {
++		m.matchcap[i] = -1
++	}
++	r, r1 := endOfText, endOfText
++	width, width1 := 0, 0
++	r, width = i.step(pos)
++	if r != endOfText {
++		r1, width1 = i.step(pos + width)
++	}
++	var flag syntax.EmptyOp
++	if pos == 0 {
++		flag = syntax.EmptyOpContext(-1, r)
++	} else {
++		flag = i.context(pos)
++	}
++	pc := m.op.Start
++	inst := m.op.Inst[pc]
++	// If there is a simple literal prefix, skip over it.
++	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
++		len(m.re.prefix) > 0 && i.canCheckPrefix() {
++		// Match requires literal prefix; fast search for it.
++		if i.hasPrefix(m.re) {
++			pos += len(m.re.prefix)
++			r, width = i.step(pos)
++			r1, width1 = i.step(pos + width)
++			flag = i.context(pos)
++			pc = int(m.re.prefixEnd)
++		} else {
++			return m.matched
++		}
++	}
++	for {
++		inst = m.op.Inst[pc]
++		pc = int(inst.Out)
++		switch inst.Op {
++		default:
++			panic("bad inst")
++		case syntax.InstMatch:
++			m.matched = true
++			if len(m.matchcap) > 0 {
++				m.matchcap[0] = 0
++				m.matchcap[1] = pos
++			}
++			return m.matched
++		case syntax.InstRune:
++			if !inst.MatchRune(r) {
++				return m.matched
++			}
++		case syntax.InstRune1:
++			if r != inst.Rune[0] {
++				return m.matched
++			}
++		case syntax.InstRuneAny:
++			// Nothing
++		case syntax.InstRuneAnyNotNL:
++			if r == '\n' {
++				return m.matched
++			}
++		// peek at the input rune to see which branch of the Alt to take
++		case syntax.InstAlt, syntax.InstAltMatch:
++			pc = int(inst.OnePassNext(r))
++			continue
++		case syntax.InstFail:
++			return m.matched
++		case syntax.InstNop:
++			continue
++		case syntax.InstEmptyWidth:
++			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
++				return m.matched
++			}
++			continue
++		case syntax.InstCapture:
++			if int(inst.Arg) < len(m.matchcap) {
++				m.matchcap[inst.Arg] = pos
++			}
++			continue
++		}
++		if width == 0 {
++			break
++		}
++		flag = syntax.EmptyOpContext(r, r1)
++		pos += width
++		r, width = r1, width1
++		if r != endOfText {
++			r1, width1 = i.step(pos + width)
++		}
++	}
++	return m.matched
++}
++
+ // empty is a non-nil 0-element slice,
+ // so doExecute can avoid an allocation
+ // when 0 captures are requested from a successful match.
+@@ -329,16 +429,23 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
+ 	} else {
+ 		i = m.newInputString(s)
+ 	}
+-	m.init(ncap)
+-	if !m.match(i, pos) {
+-		re.put(m)
+-		return nil
++	if m.op != syntax.NotOnePass {
++		if !m.onepass(i, pos) {
++			re.put(m)
++			return nil
++		}
++	} else {
++		m.init(ncap)
++		if !m.match(i, pos) {
++			re.put(m)
++			return nil
++		}
+ 	}
+ 	if ncap == 0 {
+ 		re.put(m)
+ 		return empty // empty but not nil
+ 	}
+-	cap := make([]int, ncap)
++	cap := make([]int, len(m.matchcap))
+ 	copy(cap, m.matchcap)
+ 	re.put(m)
+ 	return cap
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 6ce5902a5a..04818794cf 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -75,10 +75,12 @@ type Regexp struct {
+ 	// read-only after Compile
+ 	expr           string         // as passed to Compile
+ 	prog           *syntax.Prog   // compiled program
++	onepass        *syntax.Prog   // onpass program or nil
+ 	prefix         string         // required prefix in unanchored matches
+ 	prefixBytes    []byte         // prefix, as a []byte
+ 	prefixComplete bool           // prefix is the entire regexp
+ 	prefixRune     rune           // first rune in prefix
++	prefixEnd      uint32         // pc for last rune in prefix
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+ 	numSubexp      int
+ 	subexpNames    []string
+@@ -155,12 +157,17 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 	regexp := &Regexp{
+ 		expr:        expr,
+ 		prog:        prog,
++		onepass:     prog.CompileOnePass(),
+ 		numSubexp:   maxCap,
+ 		subexpNames: capNames,
+ 		cond:        prog.StartCond(),
+ 		longest:     longest,
+ 	}
+-	regexp.prefix, regexp.prefixComplete = prog.Prefix()
++	if regexp.onepass == syntax.NotOnePass {
++		regexp.prefix, regexp.prefixComplete = prog.Prefix()
++	} else {
++		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = prog.OnePassPrefix()
++	}
+ 	if regexp.prefix != "" {
+ 		// TODO(rsc): Remove this allocation by adding
+ 		// IndexString to package bytes.
+@@ -182,7 +189,7 @@ func (re *Regexp) get() *machine {
+ 		return z
+ 	}
+ 	re.mu.Unlock()
+-	z := progMachine(re.prog)
++	z := progMachine(re.prog, re.onepass)
+ 	z.re = re
+ 	return z
+ }
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index a482a82f21..5a0bc7f9b4 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -6,6 +6,7 @@ package syntax
+ 
+ import (
+ 	"bytes"
++	"sort"
+ 	"strconv"
+ 	"unicode"
+ )
+@@ -35,8 +36,30 @@ const (
+ 	InstRune1
+ 	InstRuneAny
+ 	InstRuneAnyNotNL
++	InstLast
+ )
+ 
++var instOpNames = []string{
++	"InstAlt",
++	"InstAltMatch",
++	"InstCapture",
++	"InstEmptyWidth",
++	"InstMatch",
++	"InstFail",
++	"InstNop",
++	"InstRune",
++	"InstRune1",
++	"InstRuneAny",
++	"InstRuneAnyNotNL",
++}
++
++func (i InstOp) String() string {
++	if i >= InstLast {
++		return ""
++	}
++	return instOpNames[i]
++}
++
+ // An EmptyOp specifies a kind or mixture of zero-width assertions.
+ type EmptyOp uint8
+ 
+@@ -93,6 +116,7 @@ type Inst struct {
+ 	Out  uint32 // all but InstMatch, InstFail
+ 	Arg  uint32 // InstAlt, InstAltMatch, InstCapture, InstEmptyWidth
+ 	Rune []rune
++	Next []uint32 // If input rune matches
+ }
+ 
+ func (p *Prog) String() string {
+@@ -103,13 +127,13 @@ func (p *Prog) String() string {
+ 
+ // skipNop follows any no-op or capturing instructions
+ // and returns the resulting pc.
+-func (p *Prog) skipNop(pc uint32) *Inst {
++func (p *Prog) skipNop(pc uint32) (*Inst, uint32) {
+ 	i := &p.Inst[pc]
+ 	for i.Op == InstNop || i.Op == InstCapture {
+ 		pc = i.Out
+ 		i = &p.Inst[pc]
+ 	}
+-	return i
++	return i, pc
+ }
+ 
+ // op returns i.Op but merges all the Rune special cases into InstRune
+@@ -126,7 +150,7 @@ func (i *Inst) op() InstOp {
+ // regexp must start with.  Complete is true if the prefix
+ // is the entire match.
+ func (p *Prog) Prefix() (prefix string, complete bool) {
+-	i := p.skipNop(uint32(p.Start))
++	i, _ := p.skipNop(uint32(p.Start))
+ 
+ 	// Avoid allocation of buffer if prefix is empty.
+ 	if i.op() != InstRune || len(i.Rune) != 1 {
+@@ -137,11 +161,41 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
+ 	var buf bytes.Buffer
+ 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+ 		buf.WriteRune(i.Rune[0])
+-		i = p.skipNop(i.Out)
++		i, _ = p.skipNop(i.Out)
+ 	}
+ 	return buf.String(), i.Op == InstMatch
+ }
+ 
++// OnePassPrefix returns a literal string that all matches for the
++// regexp must start with.  Complete is true if the prefix
++// is the entire match. Pc is the index of the last rune instruction
++// in the string. The OnePassPrefix skips over the mandatory
++// EmptyBeginText
++func (p *Prog) OnePassPrefix() (prefix string, complete bool, pc uint32) {
++	i := &p.Inst[p.Start]
++	if i.Op != InstEmptyWidth || (EmptyOp(i.Arg))&EmptyBeginText == 0 {
++		return "", i.Op == InstMatch, uint32(p.Start)
++	}
++	pc = i.Out
++	i = &p.Inst[pc]
++	for i.Op == InstNop {
++		pc = i.Out
++		i = &p.Inst[pc]
++	}
++	// Avoid allocation of buffer if prefix is empty.
++	if i.op() != InstRune || len(i.Rune) != 1 {
++		return "", i.Op == InstMatch, uint32(p.Start)
++	}
++
++	// Have prefix; gather characters.
++	var buf bytes.Buffer
++	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
++		buf.WriteRune(i.Rune[0])
++		pc, i = i.Out, &p.Inst[i.Out]
++	}
++	return buf.String(), i.Op == InstEmptyWidth && (EmptyOp(i.Arg))&EmptyBeginText != 0, pc
++}
++
+ // StartCond returns the leading empty-width conditions that must
+ // be true in any match.  It returns ^EmptyOp(0) if no matches are possible.
+ func (p *Prog) StartCond() EmptyOp {
+@@ -166,35 +220,58 @@ Loop:
+ 	return flag
+ }
+ 
++const noMatch = -1
++
++// OnePassNext selects the next actionable state of the prog, based on the input character.
++// It should only be called when i.Op == InstAlt or InstAltMatch, and from the one-pass machine.
++// One of the alternates may ultimately lead without input to end of line. If the instruction
++// is InstAltMatch the path to the InstMatch is in i.Out, the normal node in i.Next.
++func (i *Inst) OnePassNext(r rune) uint32 {
++	next := i.MatchRunePos(r)
++	if next != noMatch {
++		return i.Next[next]
++	}
++	if i.Op == InstAltMatch {
++		return i.Out
++	}
++	return 0
++}
++
+ // MatchRune returns true if the instruction matches (and consumes) r.
+ // It should only be called when i.Op == InstRune.
+ func (i *Inst) MatchRune(r rune) bool {
++	return i.MatchRunePos(r) != noMatch
++}
++
++// MatchRunePos returns the index of the rune pair if the instruction matches.
++// It should only be called when i.Op == InstRune.
++func (i *Inst) MatchRunePos(r rune) int {
+ 	rune := i.Rune
+ 
+ 	// Special case: single-rune slice is from literal string, not char class.
+ 	if len(rune) == 1 {
+ 		r0 := rune[0]
+ 		if r == r0 {
+-			return true
++			return 0
+ 		}
+ 		if Flags(i.Arg)&FoldCase != 0 {
+ 			for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
+ 				if r == r1 {
+-					return true
++					return 0
+ 				}
+ 			}
+ 		}
+-		return false
++		return noMatch
+ 	}
+ 
+ 	// Peek at the first few pairs.
+ 	// Should handle ASCII well.
+ 	for j := 0; j < len(rune) && j <= 8; j += 2 {
+ 		if r < rune[j] {
+-			return false
++			return noMatch
+ 		}
+ 		if r <= rune[j+1] {
+-			return true
++			return j / 2
+ 		}
+ 	}
+ 
+@@ -205,14 +282,14 @@ func (i *Inst) MatchRune(r rune) bool {
+ 		m := lo + (hi-lo)/2
+ 		if c := rune[2*m]; c <= r {
+ 			if r <= rune[2*m+1] {
+-				return true
++				return m
+ 			}
+ 			lo = m + 1
+ 		} else {
+ 			hi = m
+ 		}
+ 	}
+-	return false
++	return noMatch
+ }
+ 
+ // As per re2's Prog::IsWordChar. Determines whether rune is an ASCII word char.
+@@ -311,3 +388,491 @@ func dumpInst(b *bytes.Buffer, i *Inst) {
+ 		bw(b, "anynotnl -> ", u32(i.Out))
+ 	}
+ }
++
++// Sparse Array implementation is used as a queue.
++type queue struct {
++	sparse          []uint32
++	dense           []uint32
++	size, nextIndex uint32
++}
++
++func (q *queue) empty() bool {
++	return q.nextIndex >= q.size
++}
++
++func (q *queue) next() (n uint32) {
++	n = q.dense[q.nextIndex]
++	q.nextIndex++
++	return
++}
++
++func (q *queue) clear() {
++	q.size = 0
++	q.nextIndex = 0
++}
++
++func (q *queue) reset() {
++	q.nextIndex = 0
++}
++
++func (q *queue) contains(u uint32) bool {
++	if u >= uint32(len(q.sparse)) {
++		return false
++	}
++	return q.sparse[u] < q.size && q.dense[q.sparse[u]] == u
++}
++
++func (q *queue) insert(u uint32) {
++	if !q.contains(u) {
++		q.insertNew(u)
++	}
++}
++
++func (q *queue) insertNew(u uint32) {
++	if u >= uint32(len(q.sparse)) {
++		return
++	}
++	q.sparse[u] = q.size
++	q.dense[q.size] = u
++	q.size++
++}
++
++func newQueue(size int) (q *queue) {
++	return &queue{
++		sparse: make([]uint32, size),
++		dense:  make([]uint32, size),
++	}
++}
++
++// mergeRuneSets merges two non-intersecting runesets, and returns the merged result,
++// and a NextIp array. The idea is that if a rune matches the OnePassRunes at index
++// i, NextIp[i/2] is the target. If the input sets intersect, an empty runeset and a
++// NextIp array with the single element mergeFailed is returned.
++// The code assumes that both inputs contain ordered and non-intersecting rune pairs.
++const mergeFailed = uint32(0xffffffff)
++
++var (
++	noRune = []rune{}
++	noNext = []uint32{mergeFailed}
++)
++
++func mergeRuneSets(leftRunes, rightRunes *[]rune, leftPC, rightPC uint32) ([]rune, []uint32) {
++	leftLen := len(*leftRunes)
++	rightLen := len(*rightRunes)
++	if leftLen&0x1 != 0 || rightLen&0x1 != 0 {
++		panic("mergeRuneSets odd length []rune")
++	}
++	var (
++		lx, rx int
++	)
++	merged := make([]rune, 0)
++	next := make([]uint32, 0)
++	ok := true
++	defer func() {
++		if !ok {
++			merged = nil
++			next = nil
++		}
++	}()
++
++	ix := -1
++	extend := func(newLow *int, newArray *[]rune, pc uint32) bool {
++		if ix > 0 && (*newArray)[*newLow] <= merged[ix] {
++			return false
++		}
++		merged = append(merged, (*newArray)[*newLow], (*newArray)[*newLow+1])
++		*newLow += 2
++		ix += 2
++		next = append(next, pc)
++		return true
++	}
++
++	for lx < leftLen || rx < rightLen {
++		switch {
++		case rx >= rightLen:
++			ok = extend(&lx, leftRunes, leftPC)
++		case lx >= leftLen:
++			ok = extend(&rx, rightRunes, rightPC)
++		case (*rightRunes)[rx] < (*leftRunes)[lx]:
++			ok = extend(&rx, rightRunes, rightPC)
++		default:
++			ok = extend(&lx, leftRunes, leftPC)
++		}
++		if !ok {
++			return noRune, noNext
++		}
++	}
++	return merged, next
++}
++
++// cleanupOnePass drops working memory, and restores certain shortcut instructions.
++func (prog *Prog) cleanupOnePass(pOriginal *Prog) {
++	for ix, instOriginal := range pOriginal.Inst {
++		switch instOriginal.Op {
++		case InstAlt, InstAltMatch, InstRune:
++		case InstCapture, InstEmptyWidth, InstNop, InstMatch, InstFail:
++			prog.Inst[ix].Next = nil
++		case InstRune1, InstRuneAny, InstRuneAnyNotNL:
++			prog.Inst[ix].Next = nil
++			prog.Inst[ix] = instOriginal
++		}
++	}
++}
++
++// onePassCopy creates a copy of the original Prog, as we'll be modifying it
++func (prog *Prog) onePassCopy() *Prog {
++	p := &Prog{
++		Inst:   append([]Inst{}[:], prog.Inst...),
++		Start:  prog.Start,
++		NumCap: prog.NumCap,
++	}
++	for _, inst := range p.Inst {
++		inst.Next = make([]uint32, 0)
++	}
++
++	// rewrites one or more common Prog constructs that enable some otherwise
++	// non-onepass Progs to be onepass. A:BD (for example) means an InstAlt at
++	// ip A, that points to ips B & C.
++	// A:BC + B:DA => A:BC + B:CD
++	// A:BC + B:DC => A:DC + B:DC
++	for pc := range p.Inst {
++		switch p.Inst[pc].Op {
++		default:
++			continue
++		case InstAlt, InstAltMatch:
++			// A:Bx + B:Ay
++			p_A_Other := &p.Inst[pc].Out
++			p_A_Alt := &p.Inst[pc].Arg
++			// make sure a target is another Alt
++			instAlt := p.Inst[*p_A_Alt]
++			if !(instAlt.Op == InstAlt || instAlt.Op == InstAltMatch) {
++				p_A_Alt, p_A_Other = p_A_Other, p_A_Alt
++				instAlt = p.Inst[*p_A_Alt]
++				if !(instAlt.Op == InstAlt || instAlt.Op == InstAltMatch) {
++					continue
++				}
++			}
++			instOther := p.Inst[*p_A_Other]
++			// Analyzing both legs pointing to Alts is for another day
++			if instOther.Op == InstAlt || instOther.Op == InstAltMatch {
++				// too complicated
++				continue
++			}
++			// simple empty transition loop
++			// A:BC + B:DA => A:BC + B:DC
++			p_B_Alt := &p.Inst[*p_A_Alt].Out
++			p_B_Other := &p.Inst[*p_A_Alt].Arg
++			patch := false
++			if instAlt.Out == uint32(pc) {
++				patch = true
++			} else if instAlt.Arg == uint32(pc) {
++				patch = true
++				p_B_Alt, p_B_Other = p_B_Other, p_B_Alt
++			}
++			if patch {
++				*p_B_Alt = *p_A_Other
++			}
++
++			// empty transition to common target
++			// A:BC + B:DC => A:DC + B:DC
++			if *p_A_Other == *p_B_Alt {
++				*p_A_Alt = *p_B_Other
++			}
++		}
++	}
++	return p
++}
++
++// runeSlice exists to permit sorting the case-folded rune sets.
++type runeSlice []rune
++
++func (p runeSlice) Len() int           { return len(p) }
++func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++
++// Sort is a convenience method.
++func (p runeSlice) Sort() {
++	sort.Sort(p)
++}
++
++// makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
++// the match engine can always tell which branch to take. The routine may modify
++// p if it is turned into a onepass Prog. If it isn't possible for this to be a
++// onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is resursive
++// to the size of the Prog
++func (p *Prog) makeOnePass() *Prog {
++	var (
++		instQueue    = newQueue(len(p.Inst))
++		visitQueue   = newQueue(len(p.Inst))
++		build        func(uint32, *queue)
++		check        func(uint32, map[uint32]bool) bool
++		onePassRunes = make([][]rune, len(p.Inst))
++	)
++	build = func(pc uint32, q *queue) {
++		if q.contains(pc) {
++			return
++		}
++		inst := p.Inst[pc]
++		switch inst.Op {
++		case InstAlt, InstAltMatch:
++			q.insert(inst.Out)
++			build(inst.Out, q)
++			q.insert(inst.Arg)
++		case InstMatch, InstFail:
++		default:
++			q.insert(inst.Out)
++		}
++	}
++
++	// check that paths from Alt instructions are unambiguous, and rebuild the new
++	// program as a onepass program
++	check = func(pc uint32, m map[uint32]bool) (ok bool) {
++		ok = true
++		inst := &p.Inst[pc]
++		if visitQueue.contains(pc) {
++			return
++		}
++		visitQueue.insert(pc)
++		switch inst.Op {
++		case InstAlt, InstAltMatch:
++			ok = check(inst.Out, m) && check(inst.Arg, m)
++			// check no-input paths to InstMatch
++			matchOut := m[inst.Out]
++			matchArg := m[inst.Arg]
++			if matchOut && matchArg {
++				ok = false
++				break
++			}
++			// Match on empty goes in inst.Out
++			if matchArg {
++				inst.Out, inst.Arg = inst.Arg, inst.Out
++				matchOut, matchArg = matchArg, matchOut
++			}
++			if matchOut {
++				m[pc] = true
++				inst.Op = InstAltMatch
++			}
++
++			// build a dispatch operator from the two legs of the alt.
++			onePassRunes[pc], inst.Next = mergeRuneSets(
++				&onePassRunes[inst.Out], &onePassRunes[inst.Arg], inst.Out, inst.Arg)
++			if len(inst.Next) > 0 && inst.Next[0] == mergeFailed {
++				ok = false
++				break
++			}
++		case InstCapture, InstNop:
++			ok = check(inst.Out, m)
++			m[pc] = m[inst.Out]
++			// pass matching runes back through these no-ops.
++			onePassRunes[pc] = append([]rune{}[:], onePassRunes[inst.Out][:]...)
++			inst.Next = []uint32{}
++			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
++				inst.Next = append(inst.Next, inst.Out)
++			}
++		case InstEmptyWidth:
++			ok = check(inst.Out, m)
++			m[pc] = m[inst.Out]
++			onePassRunes[pc] = append([]rune{}[:], onePassRunes[inst.Out][:]...)
++			inst.Next = []uint32{}
++			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
++				inst.Next = append(inst.Next, inst.Out)
++			}
++		case InstMatch, InstFail:
++			m[pc] = inst.Op == InstMatch
++			break
++		case InstRune:
++			ok = check(inst.Out, m)
++			m[pc] = false
++			if len(inst.Next) > 0 {
++				break
++			}
++			if len(inst.Rune) == 0 {
++				onePassRunes[pc] = []rune{}[:]
++				inst.Next = []uint32{inst.Out}
++				break
++			}
++			runes := make([]rune, 0)
++			if len(inst.Rune) == 1 && Flags(inst.Arg)&FoldCase != 0 {
++				r0 := inst.Rune[0]
++				runes = append(runes, r0, r0)
++				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
++					runes = append(runes, r1, r1)
++				}
++				sort.Sort(runeSlice(runes))
++			} else {
++				runes = append(runes, inst.Rune...)
++			}
++			onePassRunes[pc] = runes
++			inst.Next = []uint32{}
++			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
++				inst.Next = append(inst.Next, inst.Out)
++			}
++			inst.Op = InstRune
++		case InstRune1:
++			ok = check(inst.Out, m)
++			m[pc] = false
++			if len(inst.Next) > 0 {
++				break
++			}
++			runes := []rune{}[:]
++			// expand case-folded runes
++			if Flags(inst.Arg)&FoldCase != 0 {
++				r0 := inst.Rune[0]
++				runes = append(runes, r0, r0)
++				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
++					runes = append(runes, r1, r1)
++				}
++				sort.Sort(runeSlice(runes))
++			} else {
++				runes = append(runes, inst.Rune[0], inst.Rune[0])
++			}
++			onePassRunes[pc] = runes
++			inst.Next = []uint32{}
++			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
++				inst.Next = append(inst.Next, inst.Out)
++			}
++			inst.Op = InstRune
++		case InstRuneAny:
++			ok = check(inst.Out, m)
++			m[pc] = false
++			if len(inst.Next) > 0 {
++				break
++			}
++			onePassRunes[pc] = append([]rune{}[:], anyRune[:]...)
++			inst.Next = []uint32{inst.Out}
++		case InstRuneAnyNotNL:
++			ok = check(inst.Out, m)
++			m[pc] = false
++			if len(inst.Next) > 0 {
++				break
++			}
++			onePassRunes[pc] = append([]rune{}[:], anyRuneNotNL[:]...)
++			inst.Next = []uint32{}
++			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
++				inst.Next = append(inst.Next, inst.Out)
++			}
++		}
++		return
++	}
++
++	instQueue.clear()
++	instQueue.insert(uint32(p.Start))
++	m := make(map[uint32]bool, len(p.Inst))
++	for !instQueue.empty() {
++		pc := instQueue.next()
++		inst := p.Inst[pc]
++		visitQueue.clear()
++		if !check(uint32(pc), m) {
++			p = NotOnePass
++			break
++		}
++		switch inst.Op {
++		case InstAlt, InstAltMatch:
++			instQueue.insert(inst.Out)
++			instQueue.insert(inst.Arg)
++		case InstCapture, InstEmptyWidth, InstNop:
++			instQueue.insert(inst.Out)
++		case InstMatch:
++		case InstFail:
++		case InstRune, InstRune1, InstRuneAny, InstRuneAnyNotNL:
++		default:
++		}
++	}
++	if p != NotOnePass {
++		for i, _ := range p.Inst {
++			p.Inst[i].Rune = onePassRunes[i][:]
++		}
++	}
++	return p
++}
++
++// walk visits each Inst in the prog once, and applies the argument
++// function(ip, next), in pre-order.
++func (prog *Prog) walk(funcs ...func(ip, next uint32)) {
++	var walk1 func(uint32)
++	progQueue := newQueue(len(prog.Inst))
++	walk1 = func(ip uint32) {
++		if progQueue.contains(ip) {
++			return
++		}
++		progQueue.insert(ip)
++		inst := prog.Inst[ip]
++		switch inst.Op {
++		case InstAlt, InstAltMatch:
++			for _, f := range funcs {
++				f(ip, inst.Out)
++				f(ip, inst.Arg)
++			}
++			walk1(inst.Out)
++			walk1(inst.Arg)
++		default:
++			for _, f := range funcs {
++				f(ip, inst.Out)
++			}
++			walk1(inst.Out)
++		}
++	}
++	walk1(uint32(prog.Start))
++}
++
++// find returns the Insts that match the argument predicate function
++func (prog *Prog) find(f func(*Prog, int) bool) (matches []uint32) {
++	matches = []uint32{}
++
++	for ip := range prog.Inst {
++		if f(prog, ip) {
++			matches = append(matches, uint32(ip))
++		}
++	}
++	return
++}
++
++var NotOnePass *Prog = nil
++var debug = false
++
++// CompileOnePass returns a new *Prog suitable for onePass execution if the original Prog
++// can be recharacterized as a one-pass regexp program, or syntax.NotOnePass if the
++// Prog cannot be converted. For a one pass prog, the fundamental condition that must
++// be true is: at any InstAlt, there must be no ambiguity about what branch to  take.
++func (prog *Prog) CompileOnePass() (p *Prog) {
++	if prog.Start == 0 {
++		return NotOnePass
++	}
++	// onepass regexp is anchored
++	if prog.Inst[prog.Start].Op != InstEmptyWidth ||
++		EmptyOp(prog.Inst[prog.Start].Arg)&EmptyBeginText != EmptyBeginText {
++		return NotOnePass
++	}
++	// every instruction leading to InstMatch must be EmptyEndText
++	for _, inst := range prog.Inst {
++		opOut := prog.Inst[inst.Out].Op
++		switch inst.Op {
++		default:
++			if opOut == InstMatch {
++				return NotOnePass
++			}
++		case InstAlt, InstAltMatch:
++			if opOut == InstMatch || prog.Inst[inst.Arg].Op == InstMatch {
++				return NotOnePass
++			}
++		case InstEmptyWidth:
++			if opOut == InstMatch {
++				if EmptyOp(inst.Arg)&EmptyEndText == EmptyEndText {
++					continue
++				}
++				return NotOnePass
++			}
++		}
++	}
++	// Creates a slightly optimized copy of the original Prog
++	// that cleans up some Prog idioms that block valid onepass programs
++	p = prog.onePassCopy()
++
++	// checkAmbiguity on InstAlts, build onepass Prog if possible
++	p = p.makeOnePass()
++
++	if p != NotOnePass {
++		p.cleanupOnePass(prog)
++	}
++	return p
++}
+diff --git a/src/pkg/regexp/syntax/prog_test.go b/src/pkg/regexp/syntax/prog_test.go
+index cd71abc2a4..66beb7435b 100644
+--- a/src/pkg/regexp/syntax/prog_test.go
++++ b/src/pkg/regexp/syntax/prog_test.go
+@@ -5,6 +5,7 @@
+ package syntax
+ 
+ import (
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -114,3 +115,200 @@ func BenchmarkEmptyOpContext(b *testing.B) {
+ 		EmptyOpContext(r1, -1)
+ 	}
+ }
++
++var runeMergeTests = []struct {
++	left, right, merged []rune
++	next                []uint32
++	leftPC, rightPC     uint32
++}{
++	{
++		// empty rhs
++		[]rune{69, 69},
++		[]rune{},
++		[]rune{69, 69},
++		[]uint32{1},
++		1, 2,
++	},
++	{
++		// identical runes, identical targets
++		[]rune{69, 69},
++		[]rune{69, 69},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 1,
++	},
++	{
++		// identical runes, different targets
++		[]rune{69, 69},
++		[]rune{69, 69},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// append right-first
++		[]rune{69, 69},
++		[]rune{71, 71},
++		[]rune{69, 69, 71, 71},
++		[]uint32{1, 2},
++		1, 2,
++	},
++	{
++		// append, left-first
++		[]rune{71, 71},
++		[]rune{69, 69},
++		[]rune{69, 69, 71, 71},
++		[]uint32{2, 1},
++		1, 2,
++	},
++	{
++		// successful interleave
++		[]rune{60, 60, 71, 71, 101, 101},
++		[]rune{69, 69, 88, 88},
++		[]rune{60, 60, 69, 69, 71, 71, 88, 88, 101, 101},
++		[]uint32{1, 2, 1, 2, 1},
++		1, 2,
++	},
++	{
++		// left surrounds right
++		[]rune{69, 74},
++		[]rune{71, 71},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// right surrounds left
++		[]rune{69, 74},
++		[]rune{68, 75},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// overlap at interval begin
++		[]rune{69, 74},
++		[]rune{74, 75},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// overlap ar interval end
++		[]rune{69, 74},
++		[]rune{65, 69},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// overlap from above
++		[]rune{69, 74},
++		[]rune{71, 74},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// overlap from below
++		[]rune{69, 74},
++		[]rune{65, 71},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++	{
++		// out of order []rune
++		[]rune{69, 74, 60, 65},
++		[]rune{66, 67},
++		[]rune{},
++		[]uint32{mergeFailed},
++		1, 2,
++	},
++}
++
++func TestMergeRuneSet(t *testing.T) {
++	for ix, test := range runeMergeTests {
++		merged, next := mergeRuneSets(&test.left, &test.right, test.leftPC, test.rightPC)
++		if !reflect.DeepEqual(merged, test.merged) {
++			t.Errorf("mergeRuneSet :%d (%v, %v) merged\n have\n%v\nwant\n%v", ix, test.left, test.right, merged, test.merged)
++		}
++		if !reflect.DeepEqual(next, test.next) {
++			t.Errorf("mergeRuneSet :%d(%v, %v) next\n have\n%v\nwant\n%v", ix, test.left, test.right, next, test.next)
++		}
++	}
++}
++
++const noStr = `!`
++
++var onePass = &Prog{}
++
++var onePassTests = []struct {
++	re      string
++	onePass *Prog
++	prog    string
++}{
++	{`^(?:a|(?:a*))$`, NotOnePass, noStr},
++	{`^(?:(a)|(?:a*))$`, NotOnePass, noStr},
++	{`^(?:(?:(?:.(?:$))?))$`, onePass, `a`},
++	{`^abcd$`, onePass, `abcd`},
++	{`^abcd$`, onePass, `abcde`},
++	{`^(?:(?:a{0,})*?)$`, onePass, `a`},
++	{`^(?:(?:a+)*)$`, onePass, ``},
++	{`^(?:(?:a|(?:aa)))$`, onePass, ``},
++	{`^(?:[^\s\S])$`, onePass, ``},
++	{`^(?:(?:a{3,4}){0,})$`, NotOnePass, `aaaaaa`},
++	{`^(?:(?:a+)*)$`, onePass, `a`},
++	{`^(?:(?:(?:a*)+))$`, onePass, noStr},
++	{`^(?:(?:a+)*)$`, onePass, ``},
++	{`^[a-c]+$`, onePass, `abc`},
++	{`^[a-c]*$`, onePass, `abcdabc`},
++	{`^(?:a*)$`, onePass, `aaaaaaa`},
++	{`^(?:(?:aa)|a)$`, onePass, `a`},
++	{`^[a-c]*`, NotOnePass, `abcdabc`},
++	{`^[a-c]*$`, onePass, `abc`},
++	{`^...$`, onePass, ``},
++	{`^(?:a|(?:aa))$`, onePass, `a`},
++	{`^[a-c]*`, NotOnePass, `abcabc`},
++	{`^a((b))c$`, onePass, noStr},
++	{`^a.[l-nA-Cg-j]?e$`, onePass, noStr},
++	{`^a((b))$`, onePass, noStr},
++	{`^a(?:(b)|(c))c$`, onePass, noStr},
++	{`^a(?:(b*)|(c))c$`, NotOnePass, noStr},
++	{`^a(?:b|c)$`, onePass, noStr},
++	{`^a(?:b?|c)$`, onePass, noStr},
++	{`^a(?:b?|c?)$`, NotOnePass, noStr},
++	{`^a(?:b?|c+)$`, onePass, noStr},
++	{`^a(?:b+|(bc))d$`, NotOnePass, noStr},
++	{`^a(?:bc)+$`, onePass, noStr},
++	{`^a(?:[bcd])+$`, onePass, noStr},
++	{`^a((?:[bcd])+)$`, onePass, noStr},
++	{`^a(:?b|c)*d$`, onePass, `abbbccbbcbbd"`},
++	{`^.bc(d|e)*$`, onePass, `abcddddddeeeededd`},
++	{`^(?:(?:aa)|.)$`, NotOnePass, `a`},
++	{`^(?:(?:a{1,2}){1,2})$`, NotOnePass, `aaaa`},
++}
++
++func TestCompileOnePass(t *testing.T) {
++	var (
++		p   *Prog
++		re  *Regexp
++		err error
++	)
++	for _, test := range onePassTests {
++		if re, err = Parse(test.re, Perl); err != nil {
++			t.Errorf("Parse(%q) got err:%s, want success", test.re, err)
++			continue
++		}
++		// needs to be done before compile...
++		re = re.Simplify()
++		if p, err = Compile(re); err != nil {
++			t.Errorf("Compile(%q) got err:%s, want success", test.re, err)
++			continue
++		}
++		onePass = p.CompileOnePass()
++		if (onePass == NotOnePass) != (test.onePass == NotOnePass) {
++			t.Errorf("CompileOnePass(%q) got %v, expected %v", test.re, onePass, test.onePass)
++		}
++	}
++}

@@ -19,8 +19,96 @@ Date:   Tue Nov 23 13:29:13 2021 -0500
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/debug_lines_test.go     | 19 +++++++++++++++++++
  src/cmd/compile/internal/ssa/testdata/convertline.go | 16 ++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go               | 17 +++++++++++++++++
  3 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index 0df56f5d4b..c0ccdb1c93 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -82,6 +82,25 @@ func TestDebugLinesPushback(t *testing.T) {
+ 	}
+ }
+ 
++func TestDebugLinesConvert(t *testing.T) {
++	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
++		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
++	}
++
++	switch testGoArch() {
++	default:
++		t.Skip("skipped for many architectures")
++
++	case "arm64", "amd64": // register ABI
++		fn := "G[go.shape.int_0]"
++		if buildcfg.Experiment.Unified {
++			// Unified mangles differently
++			fn = "G[int]"
++		}
++		testDebugLines(t, "-N -l -G=3", "convertline.go", fn, []int{9, 10, 11}, true)
++	}
++}
++
+ func TestInlineLines(t *testing.T) {
+ 	if runtime.GOARCH != "amd64" && *testGoArchFlag == "" {
+ 		// As of september 2021, works for everything except mips64, but still potentially fragile
+diff --git a/src/cmd/compile/internal/ssa/testdata/convertline.go b/src/cmd/compile/internal/ssa/testdata/convertline.go
+new file mode 100644
+index 0000000000..08f3ae8a35
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/convertline.go
+@@ -0,0 +1,16 @@
++package main
++
++import "fmt"
++
++func F[T any](n T) {
++	fmt.Printf("called\n")
++}
++
++func G[T any](n T) {
++	F(n)
++	fmt.Printf("after\n")
++}
++
++func main() {
++	G(3)
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d6407af334..265ef1aab3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6577,6 +6577,22 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
+ 			// explicit statement boundaries should appear
+ 			// in the generated code.
+ 			if p.IsStmt() != src.PosIsStmt {
++				if s.pp.Pos.IsStmt() == src.PosIsStmt && s.pp.Pos.SameFileAndLine(p) {
++					// If s.pp.Pos already has a statement mark, then it was set here (below) for
++					// the previous value.  If an actual instruction had been emitted for that
++					// value, then the statement mark would have been reset.  Since the statement
++					// mark of s.pp.Pos was not reset, this position (file/line) still needs a
++					// statement mark on an instruction.  If file and line for this value are
++					// the same as the previous value, then the first instruction for this
++					// value will work to take the statement mark.  Return early to avoid
++					// resetting the statement mark.
++					//
++					// The reset of s.pp.Pos occurs in (*Progs).Prog() -- if it emits
++					// an instruction, and the instruction's statement mark was set,
++					// and it is not one of the LosesStmtMark instructions,
++					// then Prog() resets the statement mark on the (*Progs).Pos.
++					return
++				}
+ 				p = p.WithNotStmt()
+ 				// Calls use the pos attached to v, but copy the statement mark from State
+ 			}
+@@ -6818,6 +6834,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.Next
+ 		s.lineRunStart = nil
++		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
+ 
+ 		// Attach a "default" liveness info. Normally this will be
+ 		// overwritten in the Values loop below for each Value. But

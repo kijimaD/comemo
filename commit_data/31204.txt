@@ -13,7 +13,7 @@ Date:   Mon Feb 6 14:41:12 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  .../golang_org/x/crypto/curve25519/const_amd64.h     |  8 ++++++++
  .../golang_org/x/crypto/curve25519/const_amd64.s     |  4 ++--
  .../golang_org/x/crypto/curve25519/freeze_amd64.s    |  4 +++-
@@ -21,3 +21,193 @@ Date:   Mon Feb 6 14:41:12 2017 -0500
  .../golang_org/x/crypto/curve25519/mul_amd64.s       |  4 +++-
  .../golang_org/x/crypto/curve25519/square_amd64.s    |  4 +++-
  6 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/const_amd64.h b/src/vendor/golang_org/x/crypto/curve25519/const_amd64.h
+new file mode 100644
+index 0000000000..80ad2220fd
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/curve25519/const_amd64.h
+@@ -0,0 +1,8 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code was translated into a form compatible with 6a from the public
++// domain sources in SUPERCOP: http://bench.cr.yp.to/supercop.html
++
++#define REDMASK51     0x0007FFFFFFFFFFFF
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/const_amd64.s b/src/vendor/golang_org/x/crypto/curve25519/const_amd64.s
+index 797f9b051d..0ad539885b 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/const_amd64.s
++++ b/src/vendor/golang_org/x/crypto/curve25519/const_amd64.s
+@@ -7,8 +7,8 @@
+ 
+ // +build amd64,!gccgo,!appengine
+ 
+-DATA ·REDMASK51(SB)/8, $0x0007FFFFFFFFFFFF
+-GLOBL ·REDMASK51(SB), 8, $8
++// These constants cannot be encoded in non-MOVQ immediates.
++// We access them directly from memory instead.
+ 
+ DATA ·_121666_213(SB)/8, $996687872
+ GLOBL ·_121666_213(SB), 8, $8
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s b/src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s
+index 932800b8d1..536479bf62 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s
++++ b/src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s
+@@ -7,6 +7,8 @@
+ 
+ // +build amd64,!gccgo,!appengine
+ 
++#include "const_amd64.h"
++
+ // func freeze(inout *[5]uint64)
+ TEXT ·freeze(SB),7,$0-8
+ 	MOVQ inout+0(FP), DI
+@@ -16,7 +18,7 @@ TEXT ·freeze(SB),7,$0-8
+ 	MOVQ 16(DI),CX
+ 	MOVQ 24(DI),R8
+ 	MOVQ 32(DI),R9
+-	MOVQ ·REDMASK51(SB),AX
++	MOVQ $REDMASK51,AX
+ 	MOVQ AX,R10
+ 	SUBQ $18,R10
+ 	MOVQ $3,R11
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s b/src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s
+index ee7b36c368..7074e5cd9d 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s
++++ b/src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s
+@@ -7,6 +7,8 @@
+ 
+ // +build amd64,!gccgo,!appengine
+ 
++#include "const_amd64.h"
++
+ // func ladderstep(inout *[5][5]uint64)
+ TEXT ·ladderstep(SB),0,$296-8
+ 	MOVQ inout+0(FP),DI
+@@ -118,7 +120,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 72(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -233,7 +235,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 32(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -438,7 +440,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 72(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -588,7 +590,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 32(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -728,7 +730,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 152(DI)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -843,7 +845,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 192(DI)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -993,7 +995,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 32(DI)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -1143,7 +1145,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 112(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+@@ -1329,7 +1331,7 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MULQ 192(SP)
+ 	ADDQ AX,R12
+ 	ADCQ DX,R13
+-	MOVQ ·REDMASK51(SB),DX
++	MOVQ $REDMASK51,DX
+ 	SHLQ $13,CX:SI
+ 	ANDQ DX,SI
+ 	SHLQ $13,R9:R8
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s b/src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s
+index 33ce57dcde..b162e65159 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s
++++ b/src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s
+@@ -7,6 +7,8 @@
+ 
+ // +build amd64,!gccgo,!appengine
+ 
++#include "const_amd64.h"
++
+ // func mul(dest, a, b *[5]uint64)
+ TEXT ·mul(SB),0,$16-24
+ 	MOVQ dest+0(FP), DI
+@@ -121,7 +123,7 @@ TEXT ·mul(SB),0,$16-24
+ 	MULQ 32(CX)
+ 	ADDQ AX,R14
+ 	ADCQ DX,R15
+-	MOVQ ·REDMASK51(SB),SI
++	MOVQ $REDMASK51,SI
+ 	SHLQ $13,R9:R8
+ 	ANDQ SI,R8
+ 	SHLQ $13,R11:R10
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/square_amd64.s b/src/vendor/golang_org/x/crypto/curve25519/square_amd64.s
+index 3a92804ddf..4e864a83ef 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/square_amd64.s
++++ b/src/vendor/golang_org/x/crypto/curve25519/square_amd64.s
+@@ -7,6 +7,8 @@
+ 
+ // +build amd64,!gccgo,!appengine
+ 
++#include "const_amd64.h"
++
+ // func square(out, in *[5]uint64)
+ TEXT ·square(SB),7,$0-16
+ 	MOVQ out+0(FP), DI
+@@ -84,7 +86,7 @@ TEXT ·square(SB),7,$0-16
+ 	MULQ 32(SI)
+ 	ADDQ AX,R13
+ 	ADCQ DX,R14
+-	MOVQ ·REDMASK51(SB),SI
++	MOVQ $REDMASK51,SI
+ 	SHLQ $13,R8:CX
+ 	ANDQ SI,CX
+ 	SHLQ $13,R10:R9

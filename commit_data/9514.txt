@@ -9,7 +9,75 @@ Date:   Fri Aug 26 17:08:59 2011 -0400
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4953041
-
+---
  src/pkg/io/io.go      | 24 ++++++++++++++++++++++++
  src/pkg/io/io_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index b879fe5b72..1fdf347063 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -437,3 +437,27 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+ 
+ // Size returns the size of the section in bytes.
+ func (s *SectionReader) Size() int64 { return s.limit - s.base }
++
++// TeeReader returns a Reader that writes to w what it reads from r.
++// All reads from r performed through it are matched with
++// corresponding writes to w.  There is no internal buffering -
++// the write must complete before the read completes.
++// Any error encountered while writing is reported as a read error.
++func TeeReader(r Reader, w Writer) Reader {
++	return &teeReader{r, w}
++}
++
++type teeReader struct {
++	r Reader
++	w Writer
++}
++
++func (t *teeReader) Read(p []byte) (n int, err os.Error) {
++	n, err = t.r.Read(p)
++	if n > 0 {
++		if n, err := t.w.Write(p[:n]); err != nil {
++			return n, err
++		}
++	}
++	return
++}
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index bc4f354af4..7449dcf896 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -177,3 +177,30 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
+ 		t.Errorf("expected to have read 1 bytes, got %v", n)
+ 	}
+ }
++
++func TestTeeReader(t *testing.T) {
++	src := []byte("hello, world")
++	dst := make([]byte, len(src))
++	rb := bytes.NewBuffer(src)
++	wb := new(bytes.Buffer)
++	r := TeeReader(rb, wb)
++	if n, err := ReadFull(r, dst); err != nil || n != len(src) {
++		t.Fatalf("ReadFull(r, dst) = %d, %v; want %d, nil", n, err, len(src))
++	}
++	if !bytes.Equal(dst, src) {
++		t.Errorf("bytes read = %q want %q", dst, src)
++	}
++	if !bytes.Equal(wb.Bytes(), src) {
++		t.Errorf("bytes written = %q want %q", wb.Bytes(), src)
++	}
++	if n, err := r.Read(dst); n != 0 || err != os.EOF {
++		t.Errorf("r.Read at EOF = %d, %v want 0, EOF", n, err)
++	}
++	rb = bytes.NewBuffer(src)
++	pr, pw := Pipe()
++	pr.Close()
++	r = TeeReader(rb, pw)
++	if n, err := ReadFull(r, dst); n != 0 || err != os.EPIPE {
++		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
++	}
++}

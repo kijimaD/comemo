@@ -14,7 +14,88 @@ Date:   Mon Feb 1 00:45:41 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288452
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mkpreempt.go    | 19 +++++++++++++------
  src/runtime/preempt_amd64.s | 10 +++++-----
  2 files changed, 18 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 3069d6ed04..3a9e6cc478 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -230,12 +230,16 @@ func genAMD64() {
+ 		if reg == "SP" || reg == "BP" {
+ 			continue
+ 		}
+-		if strings.HasPrefix(reg, "X") {
+-			l.add("MOVUPS", reg, 16)
+-		} else {
++		if !strings.HasPrefix(reg, "X") {
+ 			l.add("MOVQ", reg, 8)
+ 		}
+ 	}
++	lSSE := layout{stack: l.stack, sp: "SP"}
++	for _, reg := range regNamesAMD64 {
++		if strings.HasPrefix(reg, "X") {
++			lSSE.add("MOVUPS", reg, 16)
++		}
++	}
+ 
+ 	// TODO: MXCSR register?
+ 
+@@ -244,10 +248,12 @@ func genAMD64() {
+ 	p("// Save flags before clobbering them")
+ 	p("PUSHFQ")
+ 	p("// obj doesn't understand ADD/SUB on SP, but does understand ADJSP")
+-	p("ADJSP $%d", l.stack)
++	p("ADJSP $%d", lSSE.stack)
+ 	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
+ 	p("NOP SP")
+ 
++	l.save()
++
+ 	// Apparently, the signal handling code path in darwin kernel leaves
+ 	// the upper bits of Y registers in a dirty state, which causes
+ 	// many SSE operations (128-bit and narrower) become much slower.
+@@ -259,10 +265,11 @@ func genAMD64() {
+ 	p("VZEROUPPER")
+ 	p("#endif")
+ 
+-	l.save()
++	lSSE.save()
+ 	p("CALL ·asyncPreempt2(SB)")
++	lSSE.restore()
+ 	l.restore()
+-	p("ADJSP $%d", -l.stack)
++	p("ADJSP $%d", -lSSE.stack)
+ 	p("POPFQ")
+ 	p("POPQ BP")
+ 	p("RET")
+diff --git a/src/runtime/preempt_amd64.s b/src/runtime/preempt_amd64.s
+index 92c664d79a..dc7af806d3 100644
+--- a/src/runtime/preempt_amd64.s
++++ b/src/runtime/preempt_amd64.s
+@@ -13,11 +13,6 @@ TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	ADJSP $368
+ 	// But vet doesn't know ADJSP, so suppress vet stack checking
+ 	NOP SP
+-	#ifdef GOOS_darwin
+-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0
+-	JE 2(PC)
+-	VZEROUPPER
+-	#endif
+ 	MOVQ AX, 0(SP)
+ 	MOVQ CX, 8(SP)
+ 	MOVQ DX, 16(SP)
+@@ -32,6 +27,11 @@ TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ R13, 88(SP)
+ 	MOVQ R14, 96(SP)
+ 	MOVQ R15, 104(SP)
++	#ifdef GOOS_darwin
++	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0
++	JE 2(PC)
++	VZEROUPPER
++	#endif
+ 	MOVUPS X0, 112(SP)
+ 	MOVUPS X1, 128(SP)
+ 	MOVUPS X2, 144(SP)

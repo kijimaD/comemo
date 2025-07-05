@@ -37,7 +37,7 @@ Date:   Wed Mar 20 14:29:28 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |  6 +++++
  src/cmd/compile/internal/ssa/debug_test.go         | 29 +++++++++++++++-------
  .../internal/ssa/testdata/infloop.dlv-opt.nexts    | 12 +++++++++
@@ -46,3 +46,228 @@ Date:   Wed Mar 20 14:29:28 2019 -0400
  src/cmd/internal/src/pos.go                        | 15 +++++++++--
  src/cmd/internal/src/xpos.go                       | 10 ++++++++
  7 files changed, 81 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a7c1917ff1..17a9a2664c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5315,6 +5315,12 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			}
+ 		}
++		// If this is an empty infinite loop, stick a hardware NOP in there so that debuggers are less confused.
++		if s.bstart[b.ID] == s.pp.next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
++			p := thearch.Ginsnop(s.pp)
++			p.Pos = p.Pos.WithIsStmt()
++			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
++		}
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+ 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 7246a13ff6..8db2f8ef41 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -156,33 +156,34 @@ func TestNexting(t *testing.T) {
+ 
+ 	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, append(moreargs, "-race")...)
+ 
+-	optSubTest(t, debugger+"-opt", "hist", optFlags, moreargs...)
+-	optSubTest(t, debugger+"-opt", "scopes", optFlags, moreargs...)
++	optSubTest(t, debugger+"-opt", "hist", optFlags, 1000, moreargs...)
++	optSubTest(t, debugger+"-opt", "scopes", optFlags, 1000, moreargs...)
++	optSubTest(t, debugger+"-opt", "infloop", optFlags, 10, moreargs...)
+ }
+ 
+ // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
+ // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
+ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+ 	t.Run(tag+"-"+basename, func(t *testing.T) {
+-		testNexting(t, basename, tag, gcflags, moreargs...)
++		testNexting(t, basename, tag, gcflags, 1000, moreargs...)
+ 	})
+ }
+ 
+ // optSubTest is the same as subTest except that it skips the test if the runtime and libraries
+ // were not compiled with optimization turned on.  (The skip may not be necessary with Go 1.10 and later)
+-func optSubTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
++func optSubTest(t *testing.T, tag string, basename string, gcflags string, count int, moreargs ...string) {
+ 	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
+ 	// This occurs in the noopt builders (for example).
+ 	t.Run(tag+"-"+basename, func(t *testing.T) {
+ 		if *force || optimizedLibs {
+-			testNexting(t, basename, tag, gcflags, moreargs...)
++			testNexting(t, basename, tag, gcflags, count, moreargs...)
+ 		} else {
+ 			t.Skip("skipping for unoptimized stdlib/runtime")
+ 		}
+ 	})
+ }
+ 
+-func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
++func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ...string) {
+ 	// (1) In testdata, build sample.go into test-sample.<tag>
+ 	// (2) Run debugger gathering a history
+ 	// (3) Read expected history from testdata/sample.<tag>.nexts
+@@ -219,7 +220,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
+ 	} else {
+ 		dbg = newGdb(tag, exe)
+ 	}
+-	h1 := runDbgr(dbg, 1000)
++	h1 := runDbgr(dbg, count)
+ 	if *dryrun {
+ 		fmt.Printf("# Tag for above is %s\n", dbg.tag())
+ 		return
+@@ -261,6 +262,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
+ 			break
+ 		}
+ 	}
++	dbg.quit()
+ 	h := dbg.hist()
+ 	return h
+ }
+@@ -298,7 +300,7 @@ func (t tstring) String() string {
+ }
+ 
+ type pos struct {
+-	line uint16
++	line uint32
+ 	file uint8 // Artifact of plans to implement differencing instead of calling out to diff.
+ }
+ 
+@@ -386,7 +388,7 @@ func (h *nextHist) add(file, line, text string) bool {
+ 		}
+ 	}
+ 	l := len(h.ps)
+-	p := pos{line: uint16(li), file: fi}
++	p := pos{line: uint32(li), file: fi}
+ 
+ 	if l == 0 || *repeats || h.ps[l-1] != p {
+ 		h.ps = append(h.ps, p)
+@@ -721,6 +723,15 @@ func varsToPrint(line, lookfor string) []string {
+ func (s *gdbState) quit() {
+ 	response := s.ioState.writeRead("q\n")
+ 	if strings.Contains(response.o, "Quit anyway? (y or n)") {
++		defer func() {
++			if r := recover(); r != nil {
++				if s, ok := r.(string); !(ok && strings.Contains(s, "'Y\n'")) {
++					// Not the panic that was expected.
++					fmt.Printf("Expected a broken pipe panic, but saw the following panic instead")
++					panic(r)
++				}
++			}
++		}()
+ 		s.ioState.writeRead("Y\n")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts
+new file mode 100644
+index 0000000000..19496de660
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts
+@@ -0,0 +1,12 @@
++  ./testdata/infloop.go
++6:	func test() {
++8:		go func() {}()
++10:		for {
++1048575:
++10:		for {
++1048575:
++10:		for {
++1048575:
++10:		for {
++1048575:
++10:		for {
+diff --git a/src/cmd/compile/internal/ssa/testdata/infloop.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/infloop.gdb-opt.nexts
+new file mode 100644
+index 0000000000..d465ad1396
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/infloop.gdb-opt.nexts
+@@ -0,0 +1,4 @@
++  src/cmd/compile/internal/ssa/testdata/infloop.go
++6:	func test() {
++8:		go func() {}()
++10:		for {
+diff --git a/src/cmd/compile/internal/ssa/testdata/infloop.go b/src/cmd/compile/internal/ssa/testdata/infloop.go
+new file mode 100644
+index 0000000000..cdb374fb57
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/infloop.go
+@@ -0,0 +1,16 @@
++package main
++
++var sink int
++
++//go:noinline
++func test() {
++	// This is for #30167, incorrect line numbers in an infinite loop
++	go func() {}()
++
++	for {
++	}
++}
++
++func main() {
++	test()
++}
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index a30b4b6e4a..8344a5a612 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -304,7 +304,8 @@ type lico uint32
+ // TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
+ // because they have almost no interaction with other uses of the position.
+ const (
+-	lineBits, lineMax     = 20, 1<<lineBits - 1
++	lineBits, lineMax     = 20, 1<<lineBits - 2
++	bogusLine             = 1<<lineBits - 1 // Not a line number; used to disruopt infinite loops
+ 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
+ 	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
+ 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
+@@ -355,6 +356,16 @@ const (
+ 	PosEpilogueBegin
+ )
+ 
++func makeLicoRaw(line, col uint) lico {
++	return lico(line<<lineShift | col<<colShift)
++}
++
++// This is a not-position that will not be elided.
++// Depending on the debugger (gdb or delve) it may or may not be displayed.
++func makeBogusLico() lico {
++	return makeLicoRaw(bogusLine, 0).withIsStmt()
++}
++
+ func makeLico(line, col uint) lico {
+ 	if line > lineMax {
+ 		// cannot represent line, use max. line so we have some information
+@@ -365,7 +376,7 @@ func makeLico(line, col uint) lico {
+ 		col = colMax
+ 	}
+ 	// default is not-sure-if-statement
+-	return lico(line<<lineShift | col<<colShift)
++	return makeLicoRaw(line, col)
+ }
+ 
+ func (x lico) Line() uint { return uint(x) >> lineShift }
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index c94f9e997b..593251539c 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -60,6 +60,16 @@ func (p XPos) WithIsStmt() XPos {
+ 	return p
+ }
+ 
++// WithBogusLine returns a bogus line that won't match any recorded for the source code.
++// Its use is to disrupt the statements within an infinite loop so that the debugger
++// will not itself loop infinitely waiting for the line number to change.
++// gdb chooses not to display the bogus line; delve shows it with a complaint, but the
++// alternative behavior is to hang.
++func (p XPos) WithBogusLine() XPos {
++	p.lico = makeBogusLico()
++	return p
++}
++
+ // WithXlogue returns the same location but marked with DWARF function prologue/epilogue
+ func (p XPos) WithXlogue(x PosXlogue) XPos {
+ 	p.lico = p.lico.withXlogue(x)

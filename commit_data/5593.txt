@@ -12,7 +12,66 @@ Date:   Wed Jun 2 16:17:18 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1480041
-
+---
  src/pkg/bufio/bufio.go      | 20 +++++---------------
  src/pkg/bufio/bufio_test.go | 12 ++++++++++++
  2 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 1af9545dc5..6a73c41ef5 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -229,7 +229,8 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 
+ 		// Buffer is full?
+ 		if b.Buffered() >= len(b.buf) {
+-			return nil, ErrBufferFull
++			b.r = b.w
++			return b.buf, ErrBufferFull
+ 		}
+ 	}
+ 	panic("not reached")
+@@ -259,20 +260,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+ 			break
+ 		}
+ 
+-		// Read bytes out of buffer.
+-		buf := make([]byte, b.Buffered())
+-		var n int
+-		n, e = b.Read(buf)
+-		if e != nil {
+-			frag = buf[0:n]
+-			err = e
+-			break
+-		}
+-		if n != len(buf) {
+-			frag = buf[0:n]
+-			err = errInternal
+-			break
+-		}
++		// Make a copy of the buffer.
++		buf := make([]byte, len(frag))
++		copy(buf, frag)
+ 
+ 		// Grow list if needed.
+ 		if full == nil {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index a19c46ec9c..2279fe3b12 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -407,3 +407,15 @@ func TestWriteString(t *testing.T) {
+ 		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
+ 	}
+ }
++
++func TestBufferFull(t *testing.T) {
++	buf, _ := NewReaderSize(strings.NewReader("hello, world"), 5)
++	line, err := buf.ReadSlice(',')
++	if string(line) != "hello" || err != ErrBufferFull {
++		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
++	}
++	line, err = buf.ReadSlice(',')
++	if string(line) != "," || err != nil {
++		t.Errorf("second ReadSlice(,) = %q, %v", line, err)
++	}
++}

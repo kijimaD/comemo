@@ -8,7 +8,104 @@ Date:   Wed Jul 14 13:29:12 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1824042
-
+---
  doc/go_tutorial.html | 26 ++++++++++++++------------
  doc/go_tutorial.txt  | 20 +++++++++++++-------
  2 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index b16f320178..4c91a54242 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -650,20 +650,22 @@ We can now use our new package:
+ 21    }
+ </pre>
+ <p>
+-The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the
+-compiler to use the ''<code>file</code>'' package in the current directory
+-rather than something from the directory of installed packages.
+-</p>
++The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler
++to use our own package rather than
++something from the directory of installed packages.
++(Also, ''<code>file.go</code>'' must be compiled before we can import the
++package.)
+ <p>
+-You must compile ''<code>file.go</code>'' before any package that imports it.
+-<p>
+-Finally we can run the program:
++Now we can compile and run the program:
+ <p>
+ <pre>
+-    % helloworld3
++    $ 6g file.go                       # compile file package
++    $ 6g helloworld3.go                # compile main package
++    $ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
++    $ helloworld3
+     hello, world
+     can't open file; err=No such file or directory
+-    %
++    $
+ </pre>
+ <p>
+ <h2>Rotting cats</h2>
+@@ -827,11 +829,11 @@ even though under the covers it holds a pointer to a <code>struct</code>.
+ Here it is in action:
+ <p>
+ <pre>
+-    % echo abcdefghijklmnopqrstuvwxyz | ./cat
++    $ echo abcdefghijklmnopqrstuvwxyz | ./cat
+     abcdefghijklmnopqrstuvwxyz
+-    % echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
++    $ echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+     nopqrstuvwxyzabcdefghijklm
+-    %
++    $
+ </pre>
+ <p>
+ Fans of dependency injection may take cheer from how easily interfaces
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 6ab6094c02..bcea0db2b5 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -471,15 +471,21 @@ We can now use our new package:
+ 
+ --PROG progs/helloworld3.go /package/ END
+ 
+-The ''"./"'' in the import of ''"./file"'' tells the compiler to use our own package rather than
++The ''"./"'' in the import of ''"./file"'' tells the compiler
++to use our own package rather than
+ something from the directory of installed packages.
++(Also, ''"file.go"'' must be compiled before we can import the
++package.)
+ 
+-Finally we can run the program:
++Now we can compile and run the program:
+ 
+-	% helloworld3
++	$ 6g file.go                       # compile file package
++	$ 6g helloworld3.go                # compile main package
++	$ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
++	$ helloworld3
+ 	hello, world
+ 	can't open file; err=No such file or directory
+-	%
++	$
+ 
+ Rotting cats
+ ----
+@@ -549,11 +555,11 @@ even though under the covers it holds a pointer to a "struct".
+ Here it is in action:
+ 
+ <pre>
+-	% echo abcdefghijklmnopqrstuvwxyz | ./cat
++	$ echo abcdefghijklmnopqrstuvwxyz | ./cat
+ 	abcdefghijklmnopqrstuvwxyz
+-	% echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
++	$ echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+ 	nopqrstuvwxyzabcdefghijklm
+-	%
++	$
+ </pre>
+ 
+ Fans of dependency injection may take cheer from how easily interfaces

@@ -29,10 +29,105 @@ Date:   Wed Nov 9 10:55:54 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/arena.go    |  2 ++
  src/runtime/malloc.go   | 10 ++++++++++
  src/runtime/mbitmap.go  |  2 +-
  src/runtime/mgcsweep.go |  1 +
  src/runtime/mheap.go    | 10 ++++++++++
  5 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 43b133444f..c338d302b0 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -995,6 +995,8 @@ func (h *mheap) allocUserArenaChunk() *mspan {
+ 	memclrNoHeapPointers(unsafe.Pointer(s.base()), s.elemsize)
+ 	s.needzero = 0
+ 
++	s.freeIndexForScan = 1
++
+ 	// Set up the range for allocation.
+ 	s.userArenaChunkFree = makeAddrRange(base, s.limit)
+ 	return s
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 70a13d0576..3b9828fe54 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1092,6 +1092,16 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// the garbage collector could follow a pointer to x,
+ 	// but see uninitialized memory or stale heap bits.
+ 	publicationBarrier()
++	// As x and the heap bits are initialized, update
++	// freeIndexForScan now so x is seen by the GC
++	// (including convervative scan) as an allocated object.
++	// While this pointer can't escape into user code as a
++	// _live_ pointer until we return, conservative scanning
++	// may find a dead pointer that happens to point into this
++	// object. Delaying this update until now ensures that
++	// conservative scanning considers this pointer dead until
++	// this point.
++	span.freeIndexForScan = span.freeindex
+ 
+ 	// Allocate black during GC.
+ 	// All slots hold nil so no scanning is needed.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index dc99ba768b..088b566729 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -191,7 +191,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ // been no preemption points since ensuring this (which could allow a
+ // GC transition, which would allow the state to change).
+ func (s *mspan) isFree(index uintptr) bool {
+-	if index < s.freeindex {
++	if index < s.freeIndexForScan {
+ 		return false
+ 	}
+ 	bytep, mask := s.allocBits.bitp(index)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 4b92ef938c..c21ecc60d8 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -648,6 +648,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 
+ 	s.allocCount = nalloc
+ 	s.freeindex = 0 // reset allocation index to start of span.
++	s.freeIndexForScan = 0
+ 	if trace.enabled {
+ 		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index db59fcba98..d6d90d4da3 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -487,6 +487,14 @@ type mspan struct {
+ 	speciallock           mutex         // guards specials list
+ 	specials              *special      // linked list of special records sorted by offset.
+ 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
++
++	// freeIndexForScan is like freeindex, except that freeindex is
++	// used by the allocator whereas freeIndexForScan is used by the
++	// GC scanner. They are two fields so that the GC sees the object
++	// is allocated only when the object and the heap bits are
++	// initialized (see also the assignment of freeIndexForScan in
++	// mallocgc, and issue 54596).
++	freeIndexForScan uintptr
+ }
+ 
+ func (s *mspan) base() uintptr {
+@@ -1386,6 +1394,7 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 
+ 		// Initialize mark and allocation structures.
+ 		s.freeindex = 0
++		s.freeIndexForScan = 0
+ 		s.allocCache = ^uint64(0) // all 1s indicating all free.
+ 		s.gcmarkBits = newMarkBits(s.nelems)
+ 		s.allocBits = newAllocBits(s.nelems)
+@@ -1657,6 +1666,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.specials = nil
+ 	span.needzero = 0
+ 	span.freeindex = 0
++	span.freeIndexForScan = 0
+ 	span.allocBits = nil
+ 	span.gcmarkBits = nil
+ 	span.state.set(mSpanDead)

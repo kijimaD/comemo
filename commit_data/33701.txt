@@ -18,7 +18,92 @@ Date:   Mon Aug 28 16:25:56 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/stat_unix.go | 45 ++++++++++++++++++++++++++++++++++++++++----
  src/go/build/deps_test.go    |  2 +-
  2 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index cb843db4cf..aa6d82b1c6 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -8,6 +8,10 @@ package tar
+ 
+ import (
+ 	"os"
++	"os/user"
++	"runtime"
++	"strconv"
++	"sync"
+ 	"syscall"
+ )
+ 
+@@ -15,6 +19,10 @@ func init() {
+ 	sysStat = statUnix
+ }
+ 
++// userMap and groupMap caches UID and GID lookups for performance reasons.
++// The downside is that renaming uname or gname by the OS never takes effect.
++var userMap, groupMap sync.Map // map[int]string
++
+ func statUnix(fi os.FileInfo, h *Header) error {
+ 	sys, ok := fi.Sys().(*syscall.Stat_t)
+ 	if !ok {
+@@ -22,11 +30,40 @@ func statUnix(fi os.FileInfo, h *Header) error {
+ 	}
+ 	h.Uid = int(sys.Uid)
+ 	h.Gid = int(sys.Gid)
+-	// TODO(bradfitz): populate username & group.  os/user
+-	// doesn't cache LookupId lookups, and lacks group
+-	// lookup functions.
++
++	// Best effort at populating Uname and Gname.
++	// The os/user functions may fail for any number of reasons
++	// (not implemented on that platform, cgo not enabled, etc).
++	if u, ok := userMap.Load(h.Uid); ok {
++		h.Uname = u.(string)
++	} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
++		h.Uname = u.Username
++		userMap.Store(h.Uid, h.Uname)
++	}
++	if g, ok := groupMap.Load(h.Gid); ok {
++		h.Gname = g.(string)
++	} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
++		h.Gname = g.Name
++		groupMap.Store(h.Gid, h.Gname)
++	}
++
+ 	h.AccessTime = statAtime(sys)
+ 	h.ChangeTime = statCtime(sys)
+-	// TODO(bradfitz): major/minor device numbers?
++
++	// Best effort at populating Devmajor and Devminor.
++	if h.Typeflag == TypeChar || h.Typeflag == TypeBlock {
++		dev := uint64(sys.Rdev) // May be int32 or uint32
++		switch runtime.GOOS {
++		case "linux":
++			// Copied from golang.org/x/sys/unix/dev_linux.go.
++			major := uint32((dev & 0x00000000000fff00) >> 8)
++			major |= uint32((dev & 0xfffff00000000000) >> 32)
++			minor := uint32((dev & 0x00000000000000ff) >> 0)
++			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
++			h.Devmajor, h.Devminor = int64(major), int64(minor)
++		default:
++			// TODO: Implement others (see https://golang.org/issue/8106)
++		}
++	}
+ 	return nil
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 87abfba921..041c52310a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -226,7 +226,7 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+-	"archive/tar":              {"L4", "OS", "syscall"},
++	"archive/tar":              {"L4", "OS", "syscall", "os/user"},
+ 	"archive/zip":              {"L4", "OS", "compress/flate"},
+ 	"container/heap":           {"sort"},
+ 	"compress/bzip2":           {"L4"},

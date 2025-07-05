@@ -18,6 +18,20 @@ Date:   Mon Jan 6 10:43:56 2014 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/48150043
-
+---
  src/pkg/archive/zip/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 116737337f..80ee03006f 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -253,7 +253,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 			}
+ 			if tag == zip64ExtraId {
+ 				// update directory values from the zip64 extra block
+-				eb := readBuf(b)
++				eb := readBuf(b[:size])
+ 				if len(eb) >= 8 {
+ 					f.UncompressedSize64 = eb.uint64()
+ 				}

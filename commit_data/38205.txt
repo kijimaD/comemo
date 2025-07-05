@@ -14,7 +14,7 @@ Date:   Fri Sep 28 15:50:01 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/addrselect.go                    |   2 +-
  src/net/conf.go                          |   2 +-
  src/net/dial_unix_test.go                |   2 +-
@@ -54,3 +54,696 @@ Date:   Fri Sep 28 15:50:01 2018 +0200
  src/net/udpsock_posix.go                 |   2 +-
  src/net/unixsock_posix.go                |   2 +-
  38 files changed, 240 insertions(+), 37 deletions(-)
+
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+index 1ab9fc5326..7c0dfe261c 100644
+--- a/src/net/addrselect.go
++++ b/src/net/addrselect.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Minimal RFC 6724 address selection.
+ 
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 127aba30cb..971b1a399a 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/dial_unix_test.go b/src/net/dial_unix_test.go
+index 0adc10d0bd..3cfc9d81b8 100644
+--- a/src/net/dial_unix_test.go
++++ b/src/net/dial_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 9a0b1d69a8..3b0293025d 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 9482fc466f..7dccb6b8ec 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 64c66f96b8..842d408e56 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 37bdeb04c8..0797559d1a 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/error_posix.go b/src/net/error_posix.go
+index 0000700809..70efa4c66f 100644
+--- a/src/net/error_posix.go
++++ b/src/net/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/error_unix.go b/src/net/error_unix.go
+index b5a5829eaa..e615330388 100644
+--- a/src/net/error_unix.go
++++ b/src/net/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 055ecf0336..e7ab9a45fd 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 676798d693..452a079bfc 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index d672bd01b0..a1568319f3 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/interface_aix.go b/src/net/interface_aix.go
+new file mode 100644
+index 0000000000..8b70206206
+--- /dev/null
++++ b/src/net/interface_aix.go
+@@ -0,0 +1,165 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	//"os"
++	"syscall"
++	"unsafe"
++)
++
++type RawSockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [120]byte
++}
++
++const _KINFO_RT_IFLIST = (0x1 << 8) | 3 | (1 << 30)
++
++const _RTAX_NETMASK = 2
++const _RTAX_IFA = 5
++const _RTAX_MAX = 8
++
++func getIfList() ([]byte, error) {
++	needed, err := syscall.Getkerninfo(_KINFO_RT_IFLIST, 0, 0, 0)
++	if err != nil {
++		return nil, nil // XXX
++	}
++	tab := make([]byte, needed)
++	_, err = syscall.Getkerninfo(_KINFO_RT_IFLIST, uintptr(unsafe.Pointer(&tab[0])), uintptr(unsafe.Pointer(&needed)), 0)
++	if err != nil {
++		return nil, nil // XXX
++	}
++	return tab[:needed], nil
++}
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces. Otherwise it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, error) {
++	tab, err := getIfList()
++	if err != nil {
++		return nil, err
++	}
++
++	var ift []Interface
++	for len(tab) > 0 {
++		ifm := (*syscall.IfMsgHdr)(unsafe.Pointer(&tab[0]))
++		if ifm.Msglen == 0 {
++			break
++		}
++		if ifm.Type == syscall.RTM_IFINFO {
++			if ifindex == 0 || ifindex == int(ifm.Index) {
++				sdl := (*RawSockaddrDatalink)(unsafe.Pointer(&tab[syscall.SizeofIfMsghdr]))
++
++				ifi := &Interface{Index: int(ifm.Index), Flags: linkFlags(ifm.Flags)}
++				ifi.Name = string(sdl.Data[:sdl.Nlen])
++				ifi.HardwareAddr = sdl.Data[sdl.Nlen : sdl.Nlen+sdl.Alen]
++				/* XXX MTU? */
++				ift = append(ift, *ifi)
++				if ifindex == int(ifm.Index) {
++					break
++				}
++			}
++		}
++		tab = tab[ifm.Msglen:]
++	}
++
++	return ift, nil
++}
++
++func linkFlags(rawFlags int32) Flags {
++	var f Flags
++	if rawFlags&syscall.IFF_UP != 0 {
++		f |= FlagUp
++	}
++	if rawFlags&syscall.IFF_BROADCAST != 0 {
++		f |= FlagBroadcast
++	}
++	if rawFlags&syscall.IFF_LOOPBACK != 0 {
++		f |= FlagLoopback
++	}
++	if rawFlags&syscall.IFF_POINTOPOINT != 0 {
++		f |= FlagPointToPoint
++	}
++	if rawFlags&syscall.IFF_MULTICAST != 0 {
++		f |= FlagMulticast
++	}
++	return f
++}
++
++// If the ifi is nil, interfaceAddrTable returns addresses for all
++// network interfaces. Otherwise it returns addresses for a specific
++// interface.
++func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
++	tab, err := getIfList()
++	if err != nil {
++		return nil, err
++	}
++
++	var ifat []Addr
++	for len(tab) > 0 {
++		ifm := (*syscall.IfMsgHdr)(unsafe.Pointer(&tab[0]))
++		if ifm.Msglen == 0 {
++			break
++		}
++		if ifm.Type == syscall.RTM_NEWADDR {
++			if ifi == nil || ifi.Index == int(ifm.Index) {
++				mask := ifm.Addrs
++				off := uint(syscall.SizeofIfMsghdr)
++
++				var iprsa, nmrsa *syscall.RawSockaddr
++				for i := uint(0); i < _RTAX_MAX; i++ {
++					if mask&(1<<i) == 0 {
++						continue
++					}
++					rsa := (*syscall.RawSockaddr)(unsafe.Pointer(&tab[off]))
++					if i == _RTAX_NETMASK {
++						nmrsa = rsa
++					}
++					if i == _RTAX_IFA {
++						iprsa = rsa
++					}
++					off += (uint(rsa.Len) + 3) &^ 3
++				}
++				if iprsa != nil && nmrsa != nil {
++					var mask IPMask
++					var ip IP
++
++					switch iprsa.Family {
++					case syscall.AF_INET:
++						ipsa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(iprsa))
++						nmsa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(nmrsa))
++						ip = IPv4(ipsa.Addr[0], ipsa.Addr[1], ipsa.Addr[2], ipsa.Addr[3])
++						mask = IPv4Mask(nmsa.Addr[0], nmsa.Addr[1], nmsa.Addr[2], nmsa.Addr[3])
++					case syscall.AF_INET6:
++						ipsa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(iprsa))
++						nmsa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(nmrsa))
++						ip = make(IP, IPv6len)
++						copy(ip, ipsa.Addr[:])
++						mask = make(IPMask, IPv6len)
++						copy(mask, nmsa.Addr[:])
++					}
++					ifa := &IPNet{IP: ip, Mask: mask}
++					ifat = append(ifat, ifa)
++				}
++			}
++		}
++		tab = tab[ifm.Msglen:]
++	}
++
++	return ifat, nil
++}
++
++// interfaceMulticastAddrTable returns addresses for a specific
++// interface.
++func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
++	return nil, nil
++}
+diff --git a/src/net/internal/socktest/switch_unix.go b/src/net/internal/socktest/switch_unix.go
+index d518f7b06f..0626aa06c0 100644
+--- a/src/net/internal/socktest/switch_unix.go
++++ b/src/net/internal/socktest/switch_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package socktest
+ 
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+index 139fc3ece4..b96075bfe4 100644
+--- a/src/net/internal/socktest/sys_unix.go
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package socktest
+ 
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index b829368726..2a5d49f490 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index cb7483cd1f..947f4ef614 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+@@ -134,7 +134,7 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
+ }
+ 
+ func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
+-	if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
++	if (runtime.GOOS == "aix" || runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
+ 		raddr = raddr.toLocal(net)
+ 	}
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index ffce8e22ec..6c3f70cc7b 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -674,7 +674,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
+ 
+ func multicastRIBContains(ip IP) (bool, error) {
+ 	switch runtime.GOOS {
+-	case "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
++	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
+ 		return true, nil // not implemented yet
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 1266680706..e8e7a9bf5a 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/main_unix_test.go b/src/net/main_unix_test.go
+index 9cfbc8efc4..34a8a104e8 100644
+--- a/src/net/main_unix_test.go
++++ b/src/net/main_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/nss.go b/src/net/nss.go
+index f10bb52e0e..96b9cdd121 100644
+--- a/src/net/nss.go
++++ b/src/net/nss.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 8e7d9151de..01c579bd8e 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -42,7 +42,7 @@ func testableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "nacl", "plan9", "windows":
++		case "aix", "android", "darwin", "nacl", "plan9", "windows":
+ 			return false
+ 		case "netbsd":
+ 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index d0882a2b78..a6153c0c20 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris nacl
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris nacl
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/net/rawconn_unix_test.go b/src/net/rawconn_unix_test.go
+index a720a8a4a3..a71b6f3041 100644
+--- a/src/net/rawconn_unix_test.go
++++ b/src/net/rawconn_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index d5b8755af3..6d338da454 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin js,wasm nacl netbsd openbsd
++// +build aix darwin js,wasm nacl netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 1cfd8a58c6..00ee61883c 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sock_stub.go b/src/net/sock_stub.go
+index 38fc819199..bbce61b687 100644
+--- a/src/net/sock_stub.go
++++ b/src/net/sock_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl js,wasm solaris
++// +build aix nacl js,wasm solaris
+ 
+ package net
+ 
+diff --git a/src/net/sockaddr_posix.go b/src/net/sockaddr_posix.go
+index 4b8699d1f5..ae83b5ab19 100644
+--- a/src/net/sockaddr_posix.go
++++ b/src/net/sockaddr_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sockopt_aix.go b/src/net/sockopt_aix.go
+new file mode 100644
+index 0000000000..6fb207fc92
+--- /dev/null
++++ b/src/net/sockopt_aix.go
+@@ -0,0 +1,38 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// This was copied from sockopt_linux.go
++
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise. Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
++	}
++	// Allow broadcast.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++}
++
++func setDefaultListenerSockopts(s int) error {
++	// Allow reuse of recently-used addresses.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
++}
++
++func setDefaultMulticastSockopts(s int) error {
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	if err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	// Allow reuse of recently-used ports.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1))
++}
+diff --git a/src/net/sockopt_posix.go b/src/net/sockopt_posix.go
+index 83ab012595..de7255667f 100644
+--- a/src/net/sockopt_posix.go
++++ b/src/net/sockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_bsdvar.go b/src/net/sockoptip_bsdvar.go
+index 9560101398..20a6dc9549 100644
+--- a/src/net/sockoptip_bsdvar.go
++++ b/src/net/sockoptip_bsdvar.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_posix.go b/src/net/sockoptip_posix.go
+index 5d3077e552..b14963ff32 100644
+--- a/src/net/sockoptip_posix.go
++++ b/src/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 7ab1407de9..e97fb21a1f 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl solaris
++// +build aix darwin nacl solaris
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 936a255b88..64e71bf97c 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_posix.go b/src/net/tcpsockopt_posix.go
+index 9cef434b6f..5e00ba1564 100644
+--- a/src/net/tcpsockopt_posix.go
++++ b/src/net/tcpsockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_unix.go b/src/net/tcpsockopt_unix.go
+index c1df6605be..d5892588fe 100644
+--- a/src/net/tcpsockopt_unix.go
++++ b/src/net/tcpsockopt_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux netbsd
++// +build aix freebsd linux netbsd
+ 
+ package net
+ 
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index b0adf9585b..611fe51df9 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index b31ad49f25..74f5cc231c 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 

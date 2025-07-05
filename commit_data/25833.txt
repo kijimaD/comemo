@@ -11,9 +11,336 @@ Date:   Wed Jul 15 16:12:05 2015 +0200
     Change-Id: Ie3e726e4d6bf6a6aba535d36f6107013ceac913a
     Reviewed-on: https://go-review.googlesource.com/12250
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode.go      | 121 +++++++++++++++++++++++++++++++++++
  src/encoding/json/encode.go      |   5 ++
  src/encoding/json/encode_test.go |  12 ++++
  src/encoding/json/number_test.go | 133 +++++++++++++++++++++++++++++++++++++++
  4 files changed, 271 insertions(+)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index bd939b4258..ef08b0c274 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -174,6 +174,124 @@ func (n Number) Int64() (int64, error) {
+ 	return strconv.ParseInt(string(n), 10, 64)
+ }
+ 
++// IsValid returns if the number is a valid JSON number literal.
++func (n Number) IsValid() bool {
++	// This function implements the JSON numbers grammar.
++	// See https://tools.ietf.org/html/rfc7159#section-6
++	// and http://json.org/number.gif
++
++	l := len(n)
++	if l == 0 {
++		return false
++	}
++
++	i := 0
++	c := n[i]
++	i++
++
++	// Optional -
++	if c == '-' {
++		if i == l {
++			return false
++		}
++
++		c = n[i]
++		i++
++	}
++
++	// 1-9
++	if c >= '1' && c <= '9' {
++		// Eat digits.
++		for ; i < l; i++ {
++			c = n[i]
++			if c < '0' || c > '9' {
++				break
++			}
++		}
++		i++
++	} else if c != '0' {
++		// If it's not 0 or 1-9 it's invalid.
++		return false
++	} else {
++		if i == l {
++			// Just 0
++			return true
++		}
++
++		// Skip the 0
++		c = n[i]
++		i++
++	}
++
++	// . followed by 1 or more digits.
++	if c == '.' {
++		if i == l {
++			// Just 1. is invalid.
++			return false
++		}
++
++		// . needs to be followed by at least one digit.
++		c = n[i]
++		i++
++		if c < '0' || c > '9' {
++			return false
++		}
++
++		// Eat digits.
++		for ; i < l; i++ {
++			c = n[i]
++			if c < '0' || c > '9' {
++				break
++			}
++		}
++		i++
++	}
++
++	// e or E followed by an optional - or + and
++	// 1 or more digits.
++	if c == 'e' || c == 'E' {
++		if i == l {
++			// Just 1e is invalid.
++			return false
++		}
++
++		c = n[i]
++		i++
++
++		// Optional - or +
++		if c == '-' || c == '+' {
++			if i == l {
++				// Just 1e+ is invalid.
++				return false
++			}
++
++			c = n[i]
++			i++
++		}
++
++		// Need to have a digit.
++		if c < '0' || c > '9' {
++			return false
++		}
++
++		// Eat digits.
++		for ; i < l; i++ {
++			c = n[i]
++			if c < '0' || c > '9' {
++				break
++			}
++		}
++		i++
++	}
++
++	// Make sure we are at the end.
++	if i <= l {
++		return false
++	}
++
++	return true
++}
++
+ // decodeState represents the state while decoding a JSON value.
+ type decodeState struct {
+ 	data       []byte
+@@ -781,6 +899,9 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		default:
+ 			if v.Kind() == reflect.String && v.Type() == numberType {
+ 				v.SetString(s)
++				if !Number(s).IsValid() {
++					d.error(fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item))
++				}
+ 				break
+ 			}
+ 			if fromQuoted {
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 6af2fabeb4..364e2724b7 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -14,6 +14,7 @@ import (
+ 	"bytes"
+ 	"encoding"
+ 	"encoding/base64"
++	"fmt"
+ 	"math"
+ 	"reflect"
+ 	"runtime"
+@@ -529,8 +530,12 @@ var (
+ func stringEncoder(e *encodeState, v reflect.Value, quoted bool) {
+ 	if v.Type() == numberType {
+ 		numStr := v.String()
++		// In Go1.5 the empty string encodes to "0", while this is not a valid number literal
++		// we keep compatibility so check validity after this.
+ 		if numStr == "" {
+ 			numStr = "0" // Number's zero-val
++		} else if !Number(numStr).IsValid() {
++			e.error(fmt.Errorf("json: invalid number literal, trying to marshal %s", v.String()))
+ 		}
+ 		e.WriteString(numStr)
+ 		return
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 2206b2ee2e..c00491e00c 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -437,6 +437,18 @@ func TestIssue6458(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue10281(t *testing.T) {
++	type Foo struct {
++		N Number
++	}
++	x := Foo{Number(`invalid`)}
++
++	b, err := Marshal(&x)
++	if err == nil {
++		t.Errorf("Marshal(&x) = %#q; want error", b)
++	}
++}
++
+ func TestHTMLEscape(t *testing.T) {
+ 	var b, want bytes.Buffer
+ 	m := `{"M":"<html>foo &` + "\xe2\x80\xa8 \xe2\x80\xa9" + `</html>"}`
+diff --git a/src/encoding/json/number_test.go b/src/encoding/json/number_test.go
+new file mode 100644
+index 0000000000..702d4ea58d
+--- /dev/null
++++ b/src/encoding/json/number_test.go
+@@ -0,0 +1,133 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json
++
++import (
++	"regexp"
++	"testing"
++)
++
++func TestNumberIsValid(t *testing.T) {
++	// From: http://stackoverflow.com/a/13340826
++	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
++
++	validTests := []string{
++		"0",
++		"-0",
++		"1",
++		"-1",
++		"0.1",
++		"-0.1",
++		"1234",
++		"-1234",
++		"12.34",
++		"-12.34",
++		"12E0",
++		"12E1",
++		"12e34",
++		"12E-0",
++		"12e+1",
++		"12e-34",
++		"-12E0",
++		"-12E1",
++		"-12e34",
++		"-12E-0",
++		"-12e+1",
++		"-12e-34",
++		"1.2E0",
++		"1.2E1",
++		"1.2e34",
++		"1.2E-0",
++		"1.2e+1",
++		"1.2e-34",
++		"-1.2E0",
++		"-1.2E1",
++		"-1.2e34",
++		"-1.2E-0",
++		"-1.2e+1",
++		"-1.2e-34",
++		"0E0",
++		"0E1",
++		"0e34",
++		"0E-0",
++		"0e+1",
++		"0e-34",
++		"-0E0",
++		"-0E1",
++		"-0e34",
++		"-0E-0",
++		"-0e+1",
++		"-0e-34",
++	}
++
++	for _, test := range validTests {
++		if !Number(test).IsValid() {
++			t.Errorf("%s should be valid", test)
++		}
++
++		var f float64
++		if err := Unmarshal([]byte(test), &f); err != nil {
++			t.Errorf("%s should be invalid: %v", test, err)
++		}
++
++		if !jsonNumberRegexp.MatchString(test) {
++			t.Errorf("%s should be invalid", test)
++		}
++	}
++
++	invalidTests := []string{
++		"",
++		"invalid",
++		"1.0.1",
++		"1..1",
++		"-1-2",
++		"012a42",
++		"01.2",
++		"012",
++		"12E12.12",
++		"1e2e3",
++		"1e+-2",
++		"1e--23",
++		"1e",
++		"e1",
++		"1e+",
++		"1ea",
++		"1a",
++		"1.a",
++		"1.",
++		"01",
++		"1.e1",
++	}
++
++	for _, test := range invalidTests {
++		if Number(test).IsValid() {
++			t.Errorf("%s should be invalid", test)
++		}
++
++		var f float64
++		if err := Unmarshal([]byte(test), &f); err == nil {
++			t.Errorf("%s should be valid: %v", test, f)
++		}
++
++		if jsonNumberRegexp.MatchString(test) {
++			t.Errorf("%s should be valid", test)
++		}
++	}
++}
++
++func BenchmarkNumberIsValid(b *testing.B) {
++	n := Number("-61657.61667E+61673")
++	for i := 0; i < b.N; i++ {
++		n.IsValid()
++	}
++}
++
++func BenchmarkNumberIsValidRegexp(b *testing.B) {
++	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
++	n := "-61657.61667E+61673"
++	for i := 0; i < b.N; i++ {
++		jsonNumberRegexp.MatchString(n)
++	}
++}

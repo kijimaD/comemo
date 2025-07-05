@@ -21,7 +21,36 @@ Date:   Fri Aug 5 18:36:02 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/mime/type_test.go      | 5 ++++-
  src/mime/type_unix_test.go | 1 +
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/type_test.go b/src/mime/type_test.go
+index f10e6343f9..d8368e8846 100644
+--- a/src/mime/type_test.go
++++ b/src/mime/type_test.go
+@@ -14,7 +14,10 @@ import (
+ func setMimeInit(fn func()) (cleanup func()) {
+ 	once = sync.Once{}
+ 	testInitMime = fn
+-	return func() { testInitMime = nil }
++	return func() {
++		testInitMime = nil
++		once = sync.Once{}
++	}
+ }
+ 
+ func clearMimeTypes() {
+diff --git a/src/mime/type_unix_test.go b/src/mime/type_unix_test.go
+index 2e8f273fad..7b8db79d27 100644
+--- a/src/mime/type_unix_test.go
++++ b/src/mime/type_unix_test.go
+@@ -11,6 +11,7 @@ import (
+ )
+ 
+ func initMimeUnixTest(t *testing.T) {
++	once.Do(initMime)
+ 	err := loadMimeGlobsFile("testdata/test.types.globs2")
+ 	if err != nil {
+ 		t.Fatal(err)

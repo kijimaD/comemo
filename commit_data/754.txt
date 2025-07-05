@@ -8,7 +8,166 @@ Date:   Fri Sep 26 21:27:26 2008 -0700
     R=r
     OCL=16028
     CL=16028
-
+---
  src/cmd/gc/export.c | 50 +++++++++++++++++++++++++++++++++-----------------
  src/cmd/gc/go.y     | 11 +++++++++++
  2 files changed, 44 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 119fc43136..50d1e3bdfd 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -6,16 +6,10 @@
+ #include	"y.tab.h"
+ 
+ void
+-exportsym(Sym *s)
++addexportsym(Sym *s)
+ {
+ 	Dcl *d, *r;
+ 
+-	if(s == S)
+-		return;
+-	if(s->export != 0)
+-		return;
+-	s->export = 1;
+-
+ 	d = mal(sizeof(*d));
+ 	d->dsym = s;
+ 	d->dnode = N;
+@@ -27,6 +21,18 @@ exportsym(Sym *s)
+ 	r->back = d;
+ }
+ 
++void
++exportsym(Sym *s)
++{
++	if(s == S)
++		return;
++	if(s->export != 0)
++		return;
++	s->export = 1;
++
++	addexportsym(s);
++}
++
+ void
+ makeexportsym(Type *t)
+ {
+@@ -45,14 +51,10 @@ makeexportsym(Type *t)
+ void
+ reexport(Type *t)
+ {
+-	Sym *s;
+-
+ 	if(t == T)
+ 		fatal("reexport: type nil");
+-
+ 	makeexportsym(t);
+-	s = t->sym;
+-	dumpexporttype(s);
++	dumpexporttype(t->sym);
+ }
+ 
+ void
+@@ -130,7 +132,7 @@ dumpexporttype(Sym *s)
+ {
+ 	Type *t, *f;
+ 	Sym *ts;
+-	int et;
++	int et, forw;
+ 
+ 	if(s->exported != 0)
+ 		return;
+@@ -174,15 +176,17 @@ dumpexporttype(Sym *s)
+ 	case TPTR64:
+ 		if(t->type == T)
+ 			fatal("dumpexporttype: ptr %S", s);
+-		makeexportsym(t->type); /* forw declare */
++		makeexportsym(t->type);
++		ts = t->type->sym;
++		if(ts->exported == 0)
++			addexportsym(ts);
+ 
+ 		/* type 6 */
+ 		Bprint(bout, "\ttype ");
+ 		if(s->export != 0)
+ 			Bprint(bout, "!");
+-		Bprint(bout, "%lS *%lS\n", s, t->type->sym);
++		Bprint(bout, "%lS *%lS\n", s, ts);
+ 
+-		reexport(t->type);
+ 		break;
+ 
+ 	case TFUNC:
+@@ -262,12 +266,15 @@ dumpe(Sym *s)
+ 		break;
+ 	case LATYPE:
+ 	case LBASETYPE:
++//print("TYPE %S\n", s);
+ 		dumpexporttype(s);
+ 		break;
+ 	case LNAME:
++//print("VAR %S\n", s);
+ 		dumpexportvar(s);
+ 		break;
+ 	case LACONST:
++//print("CONST %S\n", s);
+ 		dumpexportconst(s);
+ 		break;
+ 	}
+@@ -326,6 +333,12 @@ dumpexport(void)
+ 		dumpm(d->dsym);
+ 	}
+ 
++	// third pass pick up redefs from previous passes
++	for(d=exportlist->forw; d!=D; d=d->forw) {
++		lineno = d->lineno;
++		dumpe(d->dsym);
++	}
++
+ 	Bprint(bout, "   ))\n");
+ 
+ 	lineno = lno;
+@@ -343,6 +356,8 @@ checkimports(void)
+ 	uint32 h;
+ 	int et;
+ 
++return;
++
+ 	for(h=0; h<NHASH; h++)
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		t = s->otype;
+@@ -511,8 +526,9 @@ importaddtyp(Node *ss, Type *t)
+ 		// the new type is the same as the old type
+ 		if(eqtype(t, s->otype, 0))
+ 			return;
+-		if(isptrto(t, TFORW))
++		if(isptrto(t, TFORW)) {
+ 			return;	// hard part
++		}
+ 		warn("redeclare import %S from %lT to %lT",
+ 			s, s->otype, t);
+ 		return;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f84a57afe9..4f46a1e1dc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1256,6 +1256,17 @@ structdcl:
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$->type = $2;
+ 	}
++|	new_name
++	{
++		// must be a latype
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $1;
++	}
++|	LIMPORT structdcl
++	{
++		$$ = $2;
++		$$->etype = OIMPORT;
++	}
+ 
+ interfacedcl:
+ 	new_name ',' interfacedcl

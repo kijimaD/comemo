@@ -8,6 +8,30 @@ Date:   Sun Feb 23 12:53:02 2014 -0800
     R=golang-codereviews, minux.ma, r
     CC=golang-codereviews
     https://golang.org/cl/67280043
-
+---
  src/pkg/os/exec/exec.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index 4680036fdd..d2cee03fcd 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -238,6 +238,9 @@ func (c *Cmd) Run() error {
+ }
+ 
+ // Start starts the specified command but does not wait for it to complete.
++//
++// The Wait method will return the exit code and release associated resources
++// once the command exits.
+ func (c *Cmd) Start() error {
+ 	if c.lookPathErr != nil {
+ 		c.closeDescriptors(c.closeAfterStart)
+@@ -304,6 +307,8 @@ func (e *ExitError) Error() string {
+ // If the command fails to run or doesn't complete successfully, the
+ // error is of type *ExitError. Other error types may be
+ // returned for I/O problems.
++//
++// Wait releases any resources associated with the Cmd.
+ func (c *Cmd) Wait() error {
+ 	if c.Process == nil {
+ 		return errors.New("exec: not started")

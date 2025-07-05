@@ -12,7 +12,38 @@ Date:   Wed Oct 13 17:12:43 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2498041
-
+---
  src/pkg/bufio/bufio.go      | 2 +-
  src/pkg/bufio/bufio_test.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 8c951903a1..70caf5dae8 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -226,7 +226,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ // regard it is stricter than UnreadByte, which will unread the last byte
+ // from any read operation.)
+ func (b *Reader) UnreadRune() os.Error {
+-	if b.lastRuneSize < 0 {
++	if b.lastRuneSize < 0 || b.r == 0 {
+ 		return ErrInvalidUnreadRune
+ 	}
+ 	b.r -= b.lastRuneSize
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index fb0ed045ae..fe04b91691 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -564,3 +564,12 @@ func TestPeek(t *testing.T) {
+ 		t.Fatalf("want EOF got %v", err)
+ 	}
+ }
++
++func TestPeekThenUnreadRune(t *testing.T) {
++	// This sequence used to cause a crash.
++	r := NewReader(strings.NewReader("x"))
++	r.ReadRune()
++	r.Peek(1)
++	r.UnreadRune()
++	r.ReadRune() // Used to panic here
++}

@@ -12,7 +12,7 @@ Date:   Wed Aug 27 23:32:49 2014 -0400
     R=golang-codereviews, iant
     CC=dvyukov, golang-codereviews, r
     https://golang.org/cl/133140043
-
+---
  src/pkg/runtime/atomic_arm.c       |  4 ++--
  src/pkg/runtime/cgocall.c          |  2 +-
  src/pkg/runtime/chan.go            | 18 +++++++++---------
@@ -45,3 +45,943 @@ Date:   Wed Aug 27 23:32:49 2014 -0400
  src/pkg/runtime/syscall_windows.go |  4 ++--
  src/pkg/runtime/time.go            | 22 +++++++++++-----------
  31 files changed, 96 insertions(+), 106 deletions(-)
+
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 0cb823bb48..c15108e9a0 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -7,8 +7,8 @@
+ #include "../../cmd/ld/textflag.h"
+ 
+ static struct {
+-	Lock l;
+-	byte pad[CacheLineSize-sizeof(Lock)];
++	Mutex l;
++	byte pad[CacheLineSize-sizeof(Mutex)];
+ } locktab[57];
+ 
+ #define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index aa4cf5ee52..145ac7dc19 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -115,7 +115,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	g->m->ncgocall++;
+ 
+ 	/*
+-	 * Lock g to m to ensure we stay on the same stack if we do a
++	 * Mutex g to m to ensure we stay on the same stack if we do a
+ 	 * cgo callback. Add entry to defer stack in case of panic.
+ 	 */
+ 	runtime·lockOSThread();
+diff --git a/src/pkg/runtime/chan.go b/src/pkg/runtime/chan.go
+index e2d5bc180e..fe7e72edc2 100644
+--- a/src/pkg/runtime/chan.go
++++ b/src/pkg/runtime/chan.go
+@@ -130,9 +130,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		t0 = cputicks()
+ 	}
+ 
+-	golock(&c.lock)
++	lock(&c.lock)
+ 	if c.closed != 0 {
+-		gounlock(&c.lock)
++		unlock(&c.lock)
+ 		panic("send on closed channel")
+ 	}
+ 
+@@ -142,7 +142,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 			if raceenabled {
+ 				racesync(c, sg)
+ 			}
+-			gounlock(&c.lock)
++			unlock(&c.lock)
+ 
+ 			recvg := sg.g
+ 			recvg.param = unsafe.Pointer(sg)
+@@ -162,7 +162,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		}
+ 
+ 		if !block {
+-			gounlock(&c.lock)
++			unlock(&c.lock)
+ 			return false
+ 		}
+ 
+@@ -204,7 +204,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	var t1 int64
+ 	for c.qcount >= c.dataqsiz {
+ 		if !block {
+-			gounlock(&c.lock)
++			unlock(&c.lock)
+ 			return false
+ 		}
+ 		gp := getg()
+@@ -223,9 +223,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 			t1 = int64(mysg.releasetime)
+ 		}
+ 		releaseSudog(mysg)
+-		golock(&c.lock)
++		lock(&c.lock)
+ 		if c.closed != 0 {
+-			gounlock(&c.lock)
++			unlock(&c.lock)
+ 			panic("send on closed channel")
+ 		}
+ 	}
+@@ -246,13 +246,13 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	sg := c.recvq.dequeue()
+ 	if sg != nil {
+ 		recvg := sg.g
+-		gounlock(&c.lock)
++		unlock(&c.lock)
+ 		if sg.releasetime != 0 {
+ 			*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
+ 		}
+ 		goready(recvg)
+ 	} else {
+-		gounlock(&c.lock)
++		unlock(&c.lock)
+ 	}
+ 	if t1 > 0 {
+ 		blockevent(t1-t0, 2)
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+index 52eb20099d..a439fa7c9a 100644
+--- a/src/pkg/runtime/chan.h
++++ b/src/pkg/runtime/chan.h
+@@ -26,7 +26,7 @@ struct	Hchan
+ 	uintgo	recvx;			// receive index
+ 	WaitQ	recvq;			// list of recv waiters
+ 	WaitQ	sendq;			// list of send waiters
+-	Lock	lock;
++	Mutex	lock;
+ };
+ 
+ // Buffer follows Hchan immediately in memory.
+diff --git a/src/pkg/runtime/cpuprof.goc b/src/pkg/runtime/cpuprof.goc
+index cd4b210e23..8ae06edcb1 100644
+--- a/src/pkg/runtime/cpuprof.goc
++++ b/src/pkg/runtime/cpuprof.goc
+@@ -102,7 +102,7 @@ struct Profile {
+ 	bool eod_sent;  // special end-of-data record sent; => flushing
+ };
+ 
+-static Lock lk;
++static Mutex lk;
+ static Profile *prof;
+ 
+ static void tick(uintptr*, int32);
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index df6f11d671..3068fa34ba 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -19,12 +19,12 @@ var Fintto64 = fintto64
+ var F64toint = f64toint
+ 
+ func entersyscall()
+-func golockedOSThread() bool
++func lockedOSThread() bool
+ func stackguard() (sp, limit uintptr)
+ 
+ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+-var LockedOSThread = golockedOSThread
++var LockedOSThread = lockedOSThread
+ var Stackguard = stackguard
+ 
+ type LFNode struct {
+diff --git a/src/pkg/runtime/iface.go b/src/pkg/runtime/iface.go
+index 1421efe3ce..a317628403 100644
+--- a/src/pkg/runtime/iface.go
++++ b/src/pkg/runtime/iface.go
+@@ -13,7 +13,7 @@ const (
+ )
+ 
+ var (
+-	ifaceLock lock // lock for accessing hash
++	ifaceLock mutex // lock for accessing hash
+ 	hash      [hashSize]*itab
+ )
+ 
+@@ -51,7 +51,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	var locked int
+ 	for locked = 0; locked < 2; locked++ {
+ 		if locked != 0 {
+-			golock(&ifaceLock)
++			lock(&ifaceLock)
+ 		}
+ 		for m = (*itab)(atomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
+ 			if m.inter == inter && m._type == typ {
+@@ -69,7 +69,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 					}
+ 				}
+ 				if locked != 0 {
+-					gounlock(&ifaceLock)
++					unlock(&ifaceLock)
+ 				}
+ 				return m
+ 			}
+@@ -106,7 +106,7 @@ search:
+ 		// didn't find method
+ 		if !canfail {
+ 			if locked != 0 {
+-				gounlock(&ifaceLock)
++				unlock(&ifaceLock)
+ 			}
+ 			panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *iname})
+ 		}
+@@ -119,7 +119,7 @@ search:
+ 	}
+ 	m.link = hash[h]
+ 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+-	gounlock(&ifaceLock)
++	unlock(&ifaceLock)
+ 	if m.bad != 0 {
+ 		return nil
+ 	}
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index 2ac7405905..440d272382 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -11,7 +11,7 @@ package runtime
+ #include "../../cmd/ld/textflag.h"
+ 
+ extern	Itab*	runtime·hash[1009];
+-extern	Lock	runtime·ifaceLock;
++extern	Mutex	runtime·ifaceLock;
+ 
+ // TODO: delete this when no longer used (ifaceE2I2 is all that's left)
+ static Itab*
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 27a866a731..a0fe102cc2 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -35,7 +35,7 @@ enum
+ // Note that there can be spinning threads during all states - they do not
+ // affect mutex's state.
+ void
+-runtime·lock(Lock *l)
++runtime·lock(Mutex *l)
+ {
+ 	uint32 i, v, wait, spin;
+ 
+@@ -89,7 +89,7 @@ runtime·lock(Lock *l)
+ }
+ 
+ void
+-runtime·unlock(Lock *l)
++runtime·unlock(Mutex *l)
+ {
+ 	uint32 v;
+ 
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 98eea91d5f..71283493ed 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -34,7 +34,7 @@ enum
+ };
+ 
+ void
+-runtime·lock(Lock *l)
++runtime·lock(Mutex *l)
+ {
+ 	uintptr v;
+ 	uint32 i, spin;
+@@ -90,7 +90,7 @@ unlocked:
+ }
+ 
+ void
+-runtime·unlock(Lock *l)
++runtime·unlock(Mutex *l)
+ {
+ 	uintptr v;
+ 	M *mp;
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 913d8ac26b..8eeebe4692 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -350,7 +350,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 
+ static struct
+ {
+-	Lock	lock;
++	Mutex	lock;
+ 	byte*	pos;
+ 	byte*	end;
+ } persistent;
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index fb2c037ace..ebc45fa2f7 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -422,11 +422,11 @@ func gogc(force int32) {
+ 		return
+ 	}
+ 	if gcpercent == gcpercentUnknown {
+-		golock(&mheap_.lock)
++		lock(&mheap_.lock)
+ 		if gcpercent == gcpercentUnknown {
+ 			gcpercent = readgogc()
+ 		}
+-		gounlock(&mheap_.lock)
++		unlock(&mheap_.lock)
+ 	}
+ 	if gcpercent < 0 {
+ 		return
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 7a6d0c71d9..0d7cd475d8 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -242,7 +242,7 @@ struct MStats
+ 	uint64	nfree;  // number of frees
+ 
+ 	// Statistics about malloc heap.
+-	// protected by mheap.Lock
++	// protected by mheap.lock
+ 	uint64	heap_alloc;	// bytes allocated and still in use
+ 	uint64	heap_sys;	// bytes obtained from system
+ 	uint64	heap_idle;	// bytes in idle spans
+@@ -421,7 +421,7 @@ struct MSpan
+ 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
+ 	uintptr npreleased;	// number of pages released to the OS
+ 	byte	*limit;		// end of data in span
+-	Lock	specialLock;	// guards specials list
++	Mutex	specialLock;	// guards specials list
+ 	Special	*specials;	// linked list of special records sorted by offset.
+ };
+ 
+@@ -442,7 +442,7 @@ void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
+ // Central list of free objects of a given size.
+ struct MCentral
+ {
+-	Lock  lock;
++	Mutex  lock;
+ 	int32 sizeclass;
+ 	MSpan nonempty;	// list of spans with a free object
+ 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
+@@ -458,7 +458,7 @@ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, ML
+ // but all the other global data is here too.
+ struct MHeap
+ {
+-	Lock  lock;
++	Mutex  lock;
+ 	MSpan free[MaxMHeapList];	// free lists of given length
+ 	MSpan freelarge;		// free lists length >= MaxMHeapList
+ 	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
+@@ -484,7 +484,7 @@ struct MHeap
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+-	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
++	// spaced CacheLineSize bytes apart, so that each MCentral.lock
+ 	// gets its own cache line.
+ 	struct {
+ 		MCentral mcentral;
+@@ -495,7 +495,7 @@ struct MHeap
+ 	FixAlloc cachealloc;	// allocator for MCache*
+ 	FixAlloc specialfinalizeralloc;	// allocator for SpecialFinalizer*
+ 	FixAlloc specialprofilealloc;	// allocator for SpecialProfile*
+-	Lock speciallock; // lock for sepcial record allocators.
++	Mutex speciallock; // lock for sepcial record allocators.
+ 
+ 	// Malloc stats.
+ 	uint64 largefree;	// bytes freed for large objects (>MaxSmallSize)
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index 249c6f2255..8d31bcfe2d 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -10,7 +10,7 @@
+ 
+ extern byte runtime·end[];
+ static byte *bloc = { runtime·end };
+-static Lock memlock;
++static Mutex memlock;
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d70a6373e3..12d45d4baf 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -166,7 +166,7 @@ extern byte runtime·ebss[];
+ extern byte runtime·gcdata[];
+ extern byte runtime·gcbss[];
+ 
+-static Lock	finlock;	// protects the following variables
++static Mutex	finlock;	// protects the following variables
+ static FinBlock	*finq;		// list of finalizers that are to be executed
+ static FinBlock	*finc;		// cache of free blocks
+ static FinBlock	*allfin;	// list of all blocks
+@@ -175,7 +175,7 @@ bool	runtime·fingwake;
+ BitVector	runtime·gcdatamask;
+ BitVector	runtime·gcbssmask;
+ 
+-static Lock	gclock;
++static Mutex	gclock;
+ 
+ static void	runfinq(void);
+ static void	bgsweep(void);
+@@ -1892,7 +1892,7 @@ runtime·unrollgcproginplace_m(void)
+ void
+ runtime·unrollgcprog_m(void)
+ {
+-	static Lock lock;
++	static Mutex lock;
+ 	Type *typ;
+ 	byte *mask, *prog;
+ 	uintptr pos;
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index d20bf2371c..9ee37d0bee 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -12,7 +12,7 @@ import (
+ // Patterned after tcmalloc's algorithms; shorter code.
+ 
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+-var proflock lock
++var proflock mutex
+ 
+ // All memory allocations are local and do not escape outside of the profiler.
+ // The profiler is forbidden from referring to garbage-collected memory.
+@@ -35,7 +35,7 @@ var (
+ // the testing package's -test.memprofile flag instead
+ // of calling MemProfile directly.
+ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
+-	golock(&proflock)
++	lock(&proflock)
+ 	clear := true
+ 	for b := mbuckets; b != nil; b = b.allnext {
+ 		if inuseZero || b.data.mp.alloc_bytes != b.data.mp.free_bytes {
+@@ -69,7 +69,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
+ 			}
+ 		}
+ 	}
+-	gounlock(&proflock)
++	unlock(&proflock)
+ 	return
+ }
+ 
+@@ -114,7 +114,7 @@ func record(r *MemProfileRecord, b *bucket) {
+ // the testing package's -test.blockprofile flag instead
+ // of calling BlockProfile directly.
+ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+-	golock(&proflock)
++	lock(&proflock)
+ 	for b := bbuckets; b != nil; b = b.allnext {
+ 		n++
+ 	}
+@@ -137,7 +137,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 			idx++
+ 		}
+ 	}
+-	gounlock(&proflock)
++	unlock(&proflock)
+ 	return
+ }
+ 
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index f76aae48c8..a340ebdafb 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -14,7 +14,7 @@ package runtime
+ #include "type.h"
+ 
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+-extern Lock runtime·proflock;
++extern Mutex runtime·proflock;
+ 
+ // All memory allocations are local and do not escape outside of the profiler.
+ // The profiler is forbidden from referring to garbage-collected memory.
+@@ -296,7 +296,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 
+ // Tracing of alloc/free/gc.
+ 
+-static Lock tracelock;
++static Mutex tracelock;
+ 
+ void
+ runtime·tracealloc(void *p, uintptr size, Type *type)
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 46e0dfb330..446e78eb01 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -56,14 +56,14 @@ void	runtime·deltimer(Timer*);
+ 
+ struct PollDesc
+ {
+-	PollDesc* link;	// in pollcache, protected by pollcache.Lock
++	PollDesc* link;	// in pollcache, protected by pollcache.lock
+ 
+ 	// The lock protects pollOpen, pollSetDeadline, pollUnblock and deadlineimpl operations.
+ 	// This fully covers seq, rt and wt variables. fd is constant throughout the PollDesc lifetime.
+ 	// pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO rediness notification)
+ 	// proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
+ 	// in a lock-free way by all operations.
+-	Lock	lock;		// protectes the following fields
++	Mutex	lock;		// protects the following fields
+ 	uintptr	fd;
+ 	bool	closing;
+ 	uintptr	seq;	// protects from stale timers and ready notifications
+@@ -78,7 +78,7 @@ struct PollDesc
+ 
+ static struct
+ {
+-	Lock		lock;
++	Mutex		lock;
+ 	PollDesc*	first;
+ 	// PollDesc objects must be type-stable,
+ 	// because we can get ready notification from epoll/kqueue
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 79dc2960f9..aadc30a076 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -485,7 +485,7 @@ runtime·profileloop1(void)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	static Lock lock;
++	static Mutex lock;
+ 	void *timer, *thread;
+ 	int32 ms;
+ 	int64 due;
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index dc3d2e93bf..00c780bf55 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -11,7 +11,7 @@
+ // Code related to defer, panic and recover.
+ 
+ uint32 runtime·panicking;
+-static Lock paniclk;
++static Mutex paniclk;
+ 
+ // Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
+ // Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
+@@ -448,7 +448,7 @@ runtime·dopanic(int32 unused)
+ 		// Let it print what it needs to print.
+ 		// Wait forever without chewing up cpu.
+ 		// It will exit when it's done.
+-		static Lock deadlock;
++		static Mutex deadlock;
+ 		runtime·lock(&deadlock);
+ 		runtime·lock(&deadlock);
+ 	}
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index e2905c2db3..57dfdabb6d 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -6,7 +6,7 @@
+ #include "type.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-//static Lock debuglock;
++//static Mutex debuglock;
+ 
+ static void vprintf(int8*, byte*);
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a692dfd2cf..8263202e93 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -26,7 +26,7 @@
+ 
+ typedef struct Sched Sched;
+ struct Sched {
+-	Lock	lock;
++	Mutex	lock;
+ 
+ 	uint64	goidgen;
+ 
+@@ -46,7 +46,7 @@ struct Sched {
+ 	int32	runqsize;
+ 
+ 	// Global cache of dead G's.
+-	Lock	gflock;
++	Mutex	gflock;
+ 	G*	gfree;
+ 	int32	ngfree;
+ 
+@@ -84,7 +84,7 @@ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ static int32	newprocs;
+ 
+-static	Lock allglock;	// the following vars are protected by this lock or by stoptheworld
++static	Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
+ G**	runtime·allg;
+ uintptr runtime·allglen;
+ static	uintptr allgcap;
+@@ -133,7 +133,7 @@ static void allgadd(G*);
+ static void forcegchelper(void);
+ static struct
+ {
+-	Lock	lock;
++	Mutex	lock;
+ 	G*	g;
+ 	FuncVal	fv;
+ 	uint32	idle;
+@@ -1570,7 +1570,7 @@ runtime·parkunlock_c(G *gp, void *lock)
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+ // The goroutine can be made runnable again by calling runtime·ready(gp).
+ void
+-runtime·parkunlock(Lock *lock, String reason)
++runtime·parkunlock(Mutex *lock, String reason)
+ {
+ 	runtime·park(runtime·parkunlock_c, lock, reason);
+ }
+@@ -2399,7 +2399,7 @@ runtime·badreflectcall(void) // called from assembly
+ }
+ 
+ static struct {
+-	Lock lock;
++	Mutex lock;
+ 	void (*fn)(uintptr*, int32);
+ 	int32 hz;
+ } prof;
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index a201dc6c51..68bad029de 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -59,7 +59,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
+ 
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+ // The goroutine can be made runnable again by calling goready(gp).
+-func goparkunlock(lock *lock, reason string) {
++func goparkunlock(lock *mutex, reason string) {
+ 	gopark(unsafe.Pointer(&parkunlock_c), unsafe.Pointer(lock), reason)
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index b1960088da..4f6381297d 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -272,7 +272,7 @@ runtime·fastrand1(void)
+ 	return x;
+ }
+ 
+-static Lock ticksLock;
++static Mutex ticksLock;
+ static int64 ticks;
+ 
+ int64
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index bb9d108551..72f446f379 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -57,7 +57,7 @@ typedef	struct	Func		Func;
+ typedef	struct	G		G;
+ typedef	struct	Gobuf		Gobuf;
+ typedef	struct	SudoG		SudoG;
+-typedef	struct	Lock		Lock;
++typedef	struct	Mutex		Mutex;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
+ typedef	struct	Note		Note;
+@@ -160,7 +160,7 @@ enum
+ /*
+  * structures
+  */
+-struct	Lock
++struct	Mutex
+ {
+ 	// Futex-based impl treats it as uint32 key,
+ 	// while sema-based impl as M* waitm.
+@@ -394,7 +394,7 @@ struct	M
+ 
+ struct P
+ {
+-	Lock	lock;
++	Mutex	lock;
+ 
+ 	int32	id;
+ 	uint32	status;		// one of Pidle/Prunning/...
+@@ -915,7 +915,7 @@ void	runtime·gosched(void);
+ void	runtime·gosched_m(G*);
+ void	runtime·schedtrace(bool);
+ void	runtime·park(bool(*)(G*, void*), void*, String);
+-void	runtime·parkunlock(Lock*, String);
++void	runtime·parkunlock(Mutex*, String);
+ void	runtime·tsleep(int64, String);
+ M*	runtime·newm(void);
+ void	runtime·goexit(void);
+@@ -986,10 +986,10 @@ extern uint32 runtime·worldsema;
+  * mutual exclusion locks.  in the uncontended case,
+  * as fast as spin locks (just a few user-level instructions),
+  * but on the contention path they sleep in the kernel.
+- * a zeroed Lock is unlocked (no need to initialize each lock).
++ * a zeroed Mutex is unlocked (no need to initialize each lock).
+  */
+-void	runtime·lock(Lock*);
+-void	runtime·unlock(Lock*);
++void	runtime·lock(Mutex*);
++void	runtime·unlock(Mutex*);
+ 
+ /*
+  * sleep and wakeup on one-time events.
+@@ -1030,7 +1030,7 @@ void	runtime·futexsleep(uint32*, uint32, int64);
+ void	runtime·futexwakeup(uint32*, uint32);
+ 
+ /*
+- * Lock-free stack.
++ * Mutex-free stack.
+  * Initialize uint64 head to 0, compare with 0 to test for emptiness.
+  * The stack does not keep pointers to nodes,
+  * so they can be garbage collected if there are no other pointers to nodes.
+diff --git a/src/pkg/runtime/sema.go b/src/pkg/runtime/sema.go
+index 4674a843ee..87ba5463b6 100644
+--- a/src/pkg/runtime/sema.go
++++ b/src/pkg/runtime/sema.go
+@@ -24,7 +24,7 @@ import "unsafe"
+ // Asynchronous semaphore for sync.Mutex.
+ 
+ type semaRoot struct {
+-	lock
++	lock  mutex
+ 	head  *sudog
+ 	tail  *sudog
+ 	nwait uint32 // Number of waiters. Read w/o the lock.
+@@ -69,13 +69,13 @@ func semacquire(addr *uint32, profile bool) {
+ 		s.releasetime = -1
+ 	}
+ 	for {
+-		golock(&root.lock)
++		lock(&root.lock)
+ 		// Add ourselves to nwait to disable "easy case" in semrelease.
+ 		xadd(&root.nwait, 1)
+ 		// Check cansemacquire to avoid missed wakeup.
+ 		if cansemacquire(addr) {
+ 			xadd(&root.nwait, -1)
+-			gounlock(&root.lock)
++			unlock(&root.lock)
+ 			break
+ 		}
+ 		// Any semrelease after the cansemacquire knows we're waiting
+@@ -104,11 +104,11 @@ func semrelease(addr *uint32) {
+ 	}
+ 
+ 	// Harder case: search for a waiter and wake it.
+-	golock(&root.lock)
++	lock(&root.lock)
+ 	if atomicload(&root.nwait) == 0 {
+ 		// The count is already consumed by another goroutine,
+ 		// so no need to wake up another goroutine.
+-		gounlock(&root.lock)
++		unlock(&root.lock)
+ 		return
+ 	}
+ 	s := root.head
+@@ -119,7 +119,7 @@ func semrelease(addr *uint32) {
+ 			break
+ 		}
+ 	}
+-	gounlock(&root.lock)
++	unlock(&root.lock)
+ 	if s != nil {
+ 		if s.releasetime != 0 {
+ 			s.releasetime = cputicks()
+@@ -174,14 +174,14 @@ func (root *semaRoot) dequeue(s *sudog) {
+ 
+ // Synchronous semaphore for sync.Cond.
+ type syncSema struct {
+-	lock lock
++	lock mutex
+ 	head *sudog
+ 	tail *sudog
+ }
+ 
+ // Syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
+ func syncsemacquire(s *syncSema) {
+-	golock(&s.lock)
++	lock(&s.lock)
+ 	if s.head != nil && s.head.nrelease > 0 {
+ 		// Have pending release, consume it.
+ 		var wake *sudog
+@@ -193,7 +193,7 @@ func syncsemacquire(s *syncSema) {
+ 				s.tail = nil
+ 			}
+ 		}
+-		gounlock(&s.lock)
++		unlock(&s.lock)
+ 		if wake != nil {
+ 			goready(wake.g)
+ 		}
+@@ -225,7 +225,7 @@ func syncsemacquire(s *syncSema) {
+ 
+ // Syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
+ func syncsemrelease(s *syncSema, n uint32) {
+-	golock(&s.lock)
++	lock(&s.lock)
+ 	for n > 0 && s.head != nil && s.head.nrelease < 0 {
+ 		// Have pending acquire, satisfy it.
+ 		wake := s.head
+@@ -254,7 +254,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 		s.tail = w
+ 		goparkunlock(&s.lock, "semarelease")
+ 	} else {
+-		gounlock(&s.lock)
++		unlock(&s.lock)
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 0ce869f442..96f1946db2 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -32,7 +32,7 @@ enum
+ //     order = log_2(size/FixedStack)
+ // There is a free list for each order.
+ static MSpan stackpool[NumStackOrders];
+-static Lock stackpoolmu;
++static Mutex stackpoolmu;
+ // TODO: one lock per order?
+ 
+ void
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 1f3cc16e62..793cc3acb7 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -132,9 +132,6 @@ var noequalcode uintptr
+ // in panic.c
+ func gothrow(s string)
+ 
+-func golock(x *lock)
+-func gounlock(x *lock)
+-
+ // Return the Go equivalent of the C Alg structure.
+ // TODO: at some point Go will hold the truth for the layout
+ // of runtime structures and C will be derived from it (if
+@@ -201,6 +198,8 @@ func notetsleep(n *note, ns int64)
+ func notewakeup(n *note)
+ func notesleep(n *note)
+ func noteclear(n *note)
++func lock(lk *mutex)
++func unlock(lk *mutex)
+ 
+ //go:noescape
+ func cas(ptr *uint32, old, new uint32) bool
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index ebf9cc1053..af2b155642 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -23,15 +23,6 @@ package runtime
+ // These invariants do not hold yet but will be established once we have
+ // finished converting runtime support code from C to Go.
+ 
+-#pragma textflag NOSPLIT
+-func golock(p *Lock) {
+-	runtime·lock(p);
+-}
+-#pragma textflag NOSPLIT
+-func gounlock(p *Lock) {
+-	runtime·unlock(p);
+-}
+-
+ // entry point for testing
+ // TODO: mcall and run on M stack
+ func gostringW(str Slice) (s String) {
+diff --git a/src/pkg/runtime/syscall_windows.go b/src/pkg/runtime/syscall_windows.go
+index 5ca9735ac6..39d8fed1d4 100644
+--- a/src/pkg/runtime/syscall_windows.go
++++ b/src/pkg/runtime/syscall_windows.go
+@@ -59,8 +59,8 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 		argsize += uintptrSize
+ 	}
+ 
+-	golock(&cbs.lock)
+-	defer gounlock(&cbs.lock)
++	lock(&cbs.lock)
++	defer unlock(&cbs.lock)
+ 
+ 	n := cbs.n
+ 	for i := 0; i < n; i++ {
+diff --git a/src/pkg/runtime/time.go b/src/pkg/runtime/time.go
+index b40952ebc2..102539bf21 100644
+--- a/src/pkg/runtime/time.go
++++ b/src/pkg/runtime/time.go
+@@ -25,7 +25,7 @@ type timer struct {
+ }
+ 
+ var timers struct {
+-	lock         lock
++	lock         mutex
+ 	gp           *g
+ 	created      bool
+ 	sleeping     bool
+@@ -52,7 +52,7 @@ func timeSleep(ns int64) {
+ 	t.when = nanotime() + ns
+ 	t.f = goroutineReady
+ 	t.arg = getg()
+-	golock(&timers.lock)
++	lock(&timers.lock)
+ 	addtimerLocked(t)
+ 	goparkunlock(&timers.lock, "sleep")
+ }
+@@ -79,9 +79,9 @@ func goroutineReady(arg interface{}) {
+ }
+ 
+ func addtimer(t *timer) {
+-	golock(&timers.lock)
++	lock(&timers.lock)
+ 	addtimerLocked(t)
+-	gounlock(&timers.lock)
++	unlock(&timers.lock)
+ }
+ 
+ // Add a timer to the heap and start or kick the timer proc.
+@@ -120,14 +120,14 @@ func deltimer(t *timer) bool {
+ 	// Discard result, because t might be moving in the heap.
+ 	_ = t.i
+ 
+-	golock(&timers.lock)
++	lock(&timers.lock)
+ 	// t may not be registered anymore and may have
+ 	// a bogus i (typically 0, if generated by Go).
+ 	// Verify it before proceeding.
+ 	i := t.i
+ 	last := len(timers.t) - 1
+ 	if i < 0 || i > last || timers.t[i] != t {
+-		gounlock(&timers.lock)
++		unlock(&timers.lock)
+ 		return false
+ 	}
+ 	if i != last {
+@@ -140,7 +140,7 @@ func deltimer(t *timer) bool {
+ 		siftupTimer(i)
+ 		siftdownTimer(i)
+ 	}
+-	gounlock(&timers.lock)
++	unlock(&timers.lock)
+ 	return true
+ }
+ 
+@@ -151,7 +151,7 @@ func timerproc() {
+ 	timers.gp = getg()
+ 	timers.gp.issystem = true
+ 	for {
+-		golock(&timers.lock)
++		lock(&timers.lock)
+ 		timers.sleeping = false
+ 		now := nanotime()
+ 		delta := int64(-1)
+@@ -185,12 +185,12 @@ func timerproc() {
+ 			}
+ 			f := t.f
+ 			arg := t.arg
+-			gounlock(&timers.lock)
++			unlock(&timers.lock)
+ 			if raceenabled {
+ 				raceacquire(unsafe.Pointer(t))
+ 			}
+ 			f(arg)
+-			golock(&timers.lock)
++			lock(&timers.lock)
+ 		}
+ 		if delta < 0 {
+ 			// No timers left - put goroutine to sleep.
+@@ -201,7 +201,7 @@ func timerproc() {
+ 		// At least one timer pending.  Sleep until then.
+ 		timers.sleeping = true
+ 		noteclear(&timers.waitnote)
+-		gounlock(&timers.lock)
++		unlock(&timers.lock)
+ 		notetsleepg(&timers.waitnote, delta)
+ 	}
+ }

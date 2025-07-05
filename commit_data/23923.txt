@@ -12,7 +12,49 @@ Date:   Fri Jun 19 13:29:58 2015 -0400
     Change-Id: I40602da7fa39ec67403bed52ff403f361c6171bb
     Reviewed-on: https://go-review.googlesource.com/11256
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/gif/reader.go      |  1 -
  src/image/gif/reader_test.go | 21 +++++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 80cbccb690..cf5af210a6 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -271,7 +271,6 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
+ 		}
+ 	}
+ 	// d.tmp[12] is the Pixel Aspect Ratio, which is ignored.
+-	d.loopCount = -1
+ 	return nil
+ }
+ 
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index 0d0017e5b8..c294195b6f 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -253,3 +253,24 @@ func TestPixelOutsidePaletteRange(t *testing.T) {
+ 		try(t, b.Bytes(), want)
+ 	}
+ }
++
++func TestLoopCount(t *testing.T) {
++	data := []byte("GIF89a000\x00000,0\x00\x00\x00\n\x00" +
++		"\n\x00\x80000000\x02\b\xf01u\xb9\xfdal\x05\x00;")
++	img, err := DecodeAll(bytes.NewReader(data))
++	if err != nil {
++		t.Fatal("DecodeAll:", err)
++	}
++	w := new(bytes.Buffer)
++	err = EncodeAll(w, img)
++	if err != nil {
++		t.Fatal("EncodeAll:", err)
++	}
++	img1, err := DecodeAll(w)
++	if err != nil {
++		t.Fatal("DecodeAll:", err)
++	}
++	if img.LoopCount != img1.LoopCount {
++		t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, img1.LoopCount)
++	}
++}

@@ -18,8 +18,205 @@ Date:   Wed Apr 6 10:49:12 2016 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/gofmt/simplify.go             | 28 ++++++----------
  src/cmd/gofmt/testdata/slices2.golden | 63 -----------------------------------
  src/cmd/gofmt/testdata/slices2.input  | 63 -----------------------------------
  3 files changed, 10 insertions(+), 144 deletions(-)
+
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+index 69f7bf23c0..2ebf4cde0b 100644
+--- a/src/cmd/gofmt/simplify.go
++++ b/src/cmd/gofmt/simplify.go
+@@ -10,11 +10,9 @@ import (
+ 	"reflect"
+ )
+ 
+-type simplifier struct {
+-	hasDotImport bool // package file contains: import . "some/import/path"
+-}
++type simplifier struct{}
+ 
+-func (s *simplifier) Visit(node ast.Node) ast.Visitor {
++func (s simplifier) Visit(node ast.Node) ast.Visitor {
+ 	switch n := node.(type) {
+ 	case *ast.CompositeLit:
+ 		// array, slice, and map composite literals may be simplified
+@@ -68,10 +66,13 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
+ 		// a slice expression of the form: s[a:len(s)]
+ 		// can be simplified to: s[a:]
+ 		// if s is "simple enough" (for now we only accept identifiers)
+-		if n.Max != nil || s.hasDotImport {
++		//
++		// Note: This may not be correct because len may have been redeclared in another
++		//       file belonging to the same package. However, this is extremely unlikely
++		//       and so far (April 2016, after years of supporting this rewrite feature)
++		//       has never come up, so let's keep it working as is (see also #15153).
++		if n.Max != nil {
+ 			// - 3-index slices always require the 2nd and 3rd index
+-			// - if dot imports are present, we cannot be certain that an
+-			//   unresolved "len" identifier refers to the predefined len()
+ 			break
+ 		}
+ 		if s, _ := n.X.(*ast.Ident); s != nil && s.Obj != nil {
+@@ -118,20 +119,11 @@ func isBlank(x ast.Expr) bool {
+ }
+ 
+ func simplify(f *ast.File) {
+-	var s simplifier
+-
+-	// determine if f contains dot imports
+-	for _, imp := range f.Imports {
+-		if imp.Name != nil && imp.Name.Name == "." {
+-			s.hasDotImport = true
+-			break
+-		}
+-	}
+-
+ 	// remove empty declarations such as "const ()", etc
+ 	removeEmptyDeclGroups(f)
+ 
+-	ast.Walk(&s, f)
++	var s simplifier
++	ast.Walk(s, f)
+ }
+ 
+ func removeEmptyDeclGroups(f *ast.File) {
+diff --git a/src/cmd/gofmt/testdata/slices2.golden b/src/cmd/gofmt/testdata/slices2.golden
+deleted file mode 100644
+index ab657004e6..0000000000
+--- a/src/cmd/gofmt/testdata/slices2.golden
++++ /dev/null
+@@ -1,63 +0,0 @@
+-//gofmt -s
+-
+-// Test cases for slice expression simplification.
+-// Because of a dot import, these slices must remain untouched.
+-package p
+-
+-import . "math"
+-
+-var (
+-	a [10]byte
+-	b [20]float32
+-	s []int
+-	t struct {
+-		s []byte
+-	}
+-
+-	_ = a[0:]
+-	_ = a[1:10]
+-	_ = a[2:len(a)]
+-	_ = a[3:(len(a))]
+-	_ = a[len(a) : len(a)-1]
+-	_ = a[0:len(b)]
+-
+-	_ = a[:]
+-	_ = a[:10]
+-	_ = a[:len(a)]
+-	_ = a[:(len(a))]
+-	_ = a[:len(a)-1]
+-	_ = a[:len(b)]
+-
+-	_ = s[0:]
+-	_ = s[1:10]
+-	_ = s[2:len(s)]
+-	_ = s[3:(len(s))]
+-	_ = s[len(a) : len(s)-1]
+-	_ = s[0:len(b)]
+-
+-	_ = s[:]
+-	_ = s[:10]
+-	_ = s[:len(s)]
+-	_ = s[:(len(s))]
+-	_ = s[:len(s)-1]
+-	_ = s[:len(b)]
+-
+-	_ = t.s[0:]
+-	_ = t.s[1:10]
+-	_ = t.s[2:len(t.s)]
+-	_ = t.s[3:(len(t.s))]
+-	_ = t.s[len(a) : len(t.s)-1]
+-	_ = t.s[0:len(b)]
+-
+-	_ = t.s[:]
+-	_ = t.s[:10]
+-	_ = t.s[:len(t.s)]
+-	_ = t.s[:(len(t.s))]
+-	_ = t.s[:len(t.s)-1]
+-	_ = t.s[:len(b)]
+-)
+-
+-func _() {
+-	s := s[0:len(s)]
+-	_ = s
+-}
+diff --git a/src/cmd/gofmt/testdata/slices2.input b/src/cmd/gofmt/testdata/slices2.input
+deleted file mode 100644
+index ab657004e6..0000000000
+--- a/src/cmd/gofmt/testdata/slices2.input
++++ /dev/null
+@@ -1,63 +0,0 @@
+-//gofmt -s
+-
+-// Test cases for slice expression simplification.
+-// Because of a dot import, these slices must remain untouched.
+-package p
+-
+-import . "math"
+-
+-var (
+-	a [10]byte
+-	b [20]float32
+-	s []int
+-	t struct {
+-		s []byte
+-	}
+-
+-	_ = a[0:]
+-	_ = a[1:10]
+-	_ = a[2:len(a)]
+-	_ = a[3:(len(a))]
+-	_ = a[len(a) : len(a)-1]
+-	_ = a[0:len(b)]
+-
+-	_ = a[:]
+-	_ = a[:10]
+-	_ = a[:len(a)]
+-	_ = a[:(len(a))]
+-	_ = a[:len(a)-1]
+-	_ = a[:len(b)]
+-
+-	_ = s[0:]
+-	_ = s[1:10]
+-	_ = s[2:len(s)]
+-	_ = s[3:(len(s))]
+-	_ = s[len(a) : len(s)-1]
+-	_ = s[0:len(b)]
+-
+-	_ = s[:]
+-	_ = s[:10]
+-	_ = s[:len(s)]
+-	_ = s[:(len(s))]
+-	_ = s[:len(s)-1]
+-	_ = s[:len(b)]
+-
+-	_ = t.s[0:]
+-	_ = t.s[1:10]
+-	_ = t.s[2:len(t.s)]
+-	_ = t.s[3:(len(t.s))]
+-	_ = t.s[len(a) : len(t.s)-1]
+-	_ = t.s[0:len(b)]
+-
+-	_ = t.s[:]
+-	_ = t.s[:10]
+-	_ = t.s[:len(t.s)]
+-	_ = t.s[:(len(t.s))]
+-	_ = t.s[:len(t.s)-1]
+-	_ = t.s[:len(b)]
+-)
+-
+-func _() {
+-	s := s[0:len(s)]
+-	_ = s
+-}

@@ -18,8 +18,116 @@ Date:   Mon May 3 00:17:56 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/modfile.go             |  3 --
  .../go/testdata/script/mod_go_version_vendor.txt   | 38 ----------------------
  .../go/testdata/script/mod_vendor_goversion.txt    | 23 ++++++++++---
  3 files changed, 19 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 7595db7755..bafff3e080 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -501,9 +501,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 		// return the full list of modules from modules.txt.
+ 		readVendorList()
+ 
+-		// TODO(#36876): Load the "go" version from vendor/modules.txt and store it
+-		// in rawGoVersion with the appropriate key.
+-
+ 		// We don't know what versions the vendored module actually relies on,
+ 		// so assume that it requires everything.
+ 		summary.require = vendorList
+diff --git a/src/cmd/go/testdata/script/mod_go_version_vendor.txt b/src/cmd/go/testdata/script/mod_go_version_vendor.txt
+deleted file mode 100644
+index 6364e17daa..0000000000
+--- a/src/cmd/go/testdata/script/mod_go_version_vendor.txt
++++ /dev/null
+@@ -1,38 +0,0 @@
+-# Regression test for https://golang.org/issue/45109:
+-# Dependencies that use post-1.11 Go features should build
+-# when compiled as vendored dependencies of Go 1.16 modules.
+-
+-[short] skip
+-
+-go mod edit -replace=example.com/use113@v0.1.0=./use113
+-
+-go mod vendor
+-! grep 1.13 vendor/modules.txt  # TODO(#36876): record dependency versions.
+-go build .
+-
+-
+-# In Go 1.16 and earlier, 'go mod vendor' did not record dependency versions.
+-# That still should not cause a build failure.
+-
+-go mod edit -go=1.16
+-go mod vendor
+-! grep 1.13 vendor/modules.txt
+-go build .
+-
+--- go.mod --
+-module example.com/foo
+-
+-go 1.16
+--- foo.go --
+-package foo
+-
+-import _ "example.com/use113"
+-
+--- use113/go.mod --
+-module example.com/use113
+-
+-go 1.13
+--- use113/use113.go --
+-package use113
+-
+-const x = 1_000
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index 7bc67ef30f..aa4cb41171 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -11,25 +11,40 @@ go build example.net/need117
+ stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y$'
+ 
+ 
+-# With a vendor/modules.txt lacking language versions, the world is topsy-turvy.
+-# Things that ought to build shouldn't, and things that shouldn't build do.
++# With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
++# because we have to guess a uniform version for everything.
++#
++# We always guess Go 1.16, because that was the last version for which
++# 'go mod vendor' failed to record dependency versions, and it has most of
++# the language features added since modules were introduced in Go 1.11.
++#
++# Even so, modules that declare 'go 1.17' and use 1.17 features spuriously fail
++# to build, and modules that declare an older version and use features from a
++# newer one spuriously build (instead of failing as they ought to).
+ 
+ go mod vendor
+-go build example.net/bad114
++
++! grep 1.17 vendor/modules.txt
+ ! go build example.net/need117
+ stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:18: .*\n\tconversion of slices to array pointers only supported as of -lang=go1\.17'
+ 
++! grep 1.13 vendor/modules.txt
++go build example.net/bad114
++
+ 
+ # Upgrading the main module to 1.17 adds version annotations.
+ # Then everything is once again consistent with the non-vendored world.
+ 
+ go mod edit -go=1.17
+ go mod vendor
++
++grep '^## explicit; go 1.17$' vendor/modules.txt
+ go build example.net/need117
++
++grep '^## explicit; go 1.13$' vendor/modules.txt
+ ! go build example.net/bad114
+ stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y$'
+ 
+-
+ -- go.mod --
+ module example.net/m
+ 

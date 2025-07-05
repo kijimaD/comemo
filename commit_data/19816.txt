@@ -8,6 +8,26 @@ Date:   Fri Jul 25 15:13:59 2014 +1000
     R=chines
     CC=golang-codereviews
     https://golang.org/cl/118160044
-
+---
  src/pkg/syscall/mksyscall_windows.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/mksyscall_windows.go b/src/pkg/syscall/mksyscall_windows.go
+index 3b483ec87a..1cdd6b4d22 100644
+--- a/src/pkg/syscall/mksyscall_windows.go
++++ b/src/pkg/syscall/mksyscall_windows.go
+@@ -283,9 +283,12 @@ func (r *Rets) SetErrorCode() string {
+ 		return fmt.Sprintf(code, r.Name, syscalldot())
+ 	}
+ 	s := ""
+-	if r.Type[0] == '*' {
++	switch {
++	case r.Type[0] == '*':
+ 		s = fmt.Sprintf("%s = (%s)(unsafe.Pointer(r0))", r.Name, r.Type)
+-	} else {
++	case r.Type == "bool":
++		s = fmt.Sprintf("%s = r0 != 0", r.Name)
++	default:
+ 		s = fmt.Sprintf("%s = %s(r0)", r.Name, r.Type)
+ 	}
+ 	if !r.ReturnsError {

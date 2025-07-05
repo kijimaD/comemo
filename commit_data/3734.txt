@@ -6,6 +6,20 @@ Date:   Mon Nov 2 23:06:48 2009 -0800
     
     R=gri
     http://go/go-review/1017014
-
+---
  src/pkg/template/template_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 23e21e0134..5743a608c5 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -221,7 +221,7 @@ var tests = []*Test{
+ 	&Test{
+ 		in: "{.repeated section integer}{.end}",
+ 
+-		err: "line 0: .repeated: cannot repeat integer (type int)",
++		err: "line 1: .repeated: cannot repeat integer (type int)",
+ 	},
+ 
+ 	// Nested names

@@ -7,8 +7,68 @@ Date:   Wed Dec 26 14:04:50 2012 -0800
     R=adonovan, bradfitz
     CC=golang-dev
     https://golang.org/cl/7018046
-
+---
  src/pkg/exp/gotype/gotype_test.go | 4 ++--
  src/pkg/exp/types/expr.go         | 8 ++++++++
  src/pkg/go/parser/parser.go       | 8 ++++++--
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index addce418d3..755336871e 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -52,8 +52,8 @@ var tests = []string{
+ 
+ 	// directories
+ 	// Note: Packages that don't typecheck yet are commented out.
+-	// Unless there is comment next to the commented out packages,
+-	// the package does't typecheck due to errors in the shift
++	// Unless there is a comment next to the commented out packages,
++	// the package doesn't typecheck due to errors in the shift
+ 	// expression checker.
+ 	"archive/tar",
+ 	"archive/zip",
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index 1ac0e91db4..6e31323cb6 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -714,6 +714,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.CompositeLit:
++		// TODO(gri) Known bug: The parser doesn't resolve composite literal keys
++		//           because it cannot know the type of the literal and therefore
++		//           cannot know if a key is a struct field or not. Consequently,
++		//           if a key is an identifier, it is unresolved and thus has no
++		//           ast.Objects associated with it. At the moment, the respective
++		//           error message is not issued because the type-checker doesn't
++		//           resolve the identifier, and because it assumes that the parser
++		//           did the resolution.
+ 		typ := hint
+ 		openArray := false
+ 		if e.Type != nil {
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 00757e0d75..ad65a7bf21 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1189,14 +1189,18 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
+ 		return p.parseLiteralValue(nil)
+ 	}
+ 
+-	x := p.checkExpr(p.parseExpr(keyOk)) // don't resolve if map key
++	// The parser cannot resolve a key expression because it does not know
++	// what the composite literal type is: if we have an array/slice index
++	// or map key, we want to resolve, but if we have a struct field name
++	// we cannot. Leave this to type-checking phase.
++	x := p.checkExpr(p.parseExpr(keyOk))
+ 	if keyOk {
+ 		if p.tok == token.COLON {
+ 			colon := p.pos
+ 			p.next()
+ 			return &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseElement(false)}
+ 		}
+-		p.resolve(x) // not a map key
++		p.resolve(x) // not a key
+ 	}
+ 
+ 	return x

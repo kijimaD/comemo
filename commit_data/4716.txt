@@ -10,6 +10,23 @@ Date:   Thu Jan 28 12:48:09 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/196051
-
+---
  misc/dashboard/godashboard/{key.py => key.py.dummy} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/dashboard/godashboard/key.py b/misc/dashboard/godashboard/key.py.dummy
+similarity index 86%
+rename from misc/dashboard/godashboard/key.py
+rename to misc/dashboard/godashboard/key.py.dummy
+index 3abe410dd7..5b8bab1862 100644
+--- a/misc/dashboard/godashboard/key.py
++++ b/misc/dashboard/godashboard/key.py.dummy
+@@ -2,6 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++# Copy this file to key.py after substituting the real key.
++
+ # accessKey controls private access to the build server (i.e. to record new
+ # builds). It's tranmitted in the clear but, given the low value of the target,
+ # this should be sufficient.

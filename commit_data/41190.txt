@@ -17,8 +17,161 @@ Date:   Tue Sep 10 20:06:51 2019 -0700
     Change-Id: I05ee0c00b99af659ee1eef098d342d0d736cf31e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/194659
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go | 66 ++++++++++++++++++++------------------
  test/typeswitch2.go                | 10 ------
  test/typeswitch2b.go               | 20 ++++++++++++
  3 files changed, 54 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 40c0ea1962..5089efe08b 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"sort"
+ )
+ 
+@@ -80,6 +81,7 @@ func typecheckTypeSwitch(n *Node) {
+ 	}
+ 
+ 	var defCase, nilCase *Node
++	var ts typeSet
+ 	for _, ncase := range n.List.Slice() {
+ 		ls := ncase.List.Slice()
+ 		if len(ls) == 0 { // default:
+@@ -120,6 +122,10 @@ func typecheckTypeSwitch(n *Node) {
+ 						" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
+ 				}
+ 			}
++
++			if n1.Op == OTYPE {
++				ts.add(ncase.Pos, n1.Type)
++			}
+ 		}
+ 
+ 		if ncase.Rlist.Len() != 0 {
+@@ -151,6 +157,34 @@ func typecheckTypeSwitch(n *Node) {
+ 	}
+ }
+ 
++type typeSet struct {
++	m map[string][]typeSetEntry
++}
++
++type typeSetEntry struct {
++	pos src.XPos
++	typ *types.Type
++}
++
++func (s *typeSet) add(pos src.XPos, typ *types.Type) {
++	if s.m == nil {
++		s.m = make(map[string][]typeSetEntry)
++	}
++
++	// LongString does not uniquely identify types, so we need to
++	// disambiguate collisions with types.Identical.
++	// TODO(mdempsky): Add a method that *is* unique.
++	ls := typ.LongString()
++	prevs := s.m[ls]
++	for _, prev := range prevs {
++		if types.Identical(typ, prev.typ) {
++			yyerrorl(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, linestr(prev.pos))
++			return
++		}
++	}
++	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
++}
++
+ func typecheckExprSwitch(n *Node) {
+ 	t := types.Types[TBOOL]
+ 	if n.Left != nil {
+@@ -599,41 +633,9 @@ func (s *typeSwitch) genCaseClauses(clauses []*Node) caseClauses {
+ 		cc.defjmp = nod(OBREAK, nil, nil)
+ 	}
+ 
+-	// diagnose duplicate cases
+-	s.checkDupCases(cc.list)
+ 	return cc
+ }
+ 
+-func (s *typeSwitch) checkDupCases(cc []caseClause) {
+-	if len(cc) < 2 {
+-		return
+-	}
+-	// We store seen types in a map keyed by type hash.
+-	// It is possible, but very unlikely, for multiple distinct types to have the same hash.
+-	seen := make(map[uint32][]*Node)
+-	// To avoid many small allocations of length 1 slices,
+-	// also set up a single large slice to slice into.
+-	nn := make([]*Node, 0, len(cc))
+-Outer:
+-	for _, c := range cc {
+-		prev, ok := seen[c.hash]
+-		if !ok {
+-			// First entry for this hash.
+-			nn = append(nn, c.node)
+-			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
+-			continue
+-		}
+-		for _, n := range prev {
+-			if types.Identical(n.Left.Type, c.node.Left.Type) {
+-				yyerrorl(c.node.Pos, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
+-				// avoid double-reporting errors
+-				continue Outer
+-			}
+-		}
+-		seen[c.hash] = append(seen[c.hash], c.node)
+-	}
+-}
+-
+ // walk generates an AST that implements sw,
+ // where sw is a type switch.
+ // The AST is generally of the form of a linear
+diff --git a/test/typeswitch2.go b/test/typeswitch2.go
+index 5958b7db8e..62c96c8330 100644
+--- a/test/typeswitch2.go
++++ b/test/typeswitch2.go
+@@ -35,13 +35,3 @@ func whatis(x interface{}) string {
+ 	}
+ 	return ""
+ }
+-
+-func notused(x interface{}) {
+-	// The first t is in a different scope than the 2nd t; it cannot
+-	// be accessed (=> declared and not used error); but it is legal
+-	// to declare it.
+-	switch t := 0; t := x.(type) { // ERROR "declared and not used"
+-	case int:
+-		_ = t // this is using the t of "t := x.(type)"
+-	}
+-}
+diff --git a/test/typeswitch2b.go b/test/typeswitch2b.go
+new file mode 100644
+index 0000000000..135ae86cff
+--- /dev/null
++++ b/test/typeswitch2b.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that various erroneous type switches are caught by the compiler.
++// Does not compile.
++
++package main
++
++func notused(x interface{}) {
++	// The first t is in a different scope than the 2nd t; it cannot
++	// be accessed (=> declared and not used error); but it is legal
++	// to declare it.
++	switch t := 0; t := x.(type) { // ERROR "declared and not used"
++	case int:
++		_ = t // this is using the t of "t := x.(type)"
++	}
++}

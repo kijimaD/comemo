@@ -7,6 +7,32 @@ Date:   Tue Oct 26 01:26:33 2010 +0200
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2727041
-
+---
  src/cmd/5g/gsubr.c | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 3b68ac1bc2..7089b71850 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -305,6 +305,11 @@ regalloc(Node *n, Type *t, Node *o)
+ 				goto out;
+ 		yyerror("out of floating point registers");
+ 		goto err;
++
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++		tempname(n, t);
++		return;
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+ 
+@@ -334,6 +339,8 @@ regfree(Node *n)
+ 		print("regalloc fix %d float %d\n", fixfree, floatfree);
+ 	}
+ 
++	if(n->op == ONAME && iscomplex[n->type->etype])
++		return;
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+ 	i = n->val.u.reg;

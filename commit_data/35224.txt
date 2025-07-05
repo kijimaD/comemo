@@ -21,7 +21,39 @@ Date:   Fri Jan 12 16:29:48 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/errors/ptr_test.go | 8 ++++++++
  src/runtime/time.go         | 1 +
  2 files changed, 9 insertions(+)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index d295a5849d..fe8dfff1d8 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -349,6 +349,14 @@ var ptrTests = []ptrTest{
+ 		body:    `var wg sync.WaitGroup; wg.Add(100); for i := 0; i < 100; i++ { go func(i int) { for j := 0; j < 100; j++ { C.f(); runtime.GOMAXPROCS(i) }; wg.Done() }(i) }; wg.Wait()`,
+ 		fail:    false,
+ 	},
++	{
++		// Test poller deadline with cgocheck=2.  Issue #23435.
++		name:    "deadline",
++		c:       `#define US 10`,
++		imports: []string{"os", "time"},
++		body:    `r, _, _ := os.Pipe(); r.SetDeadline(time.Now().Add(C.US * time.Microsecond))`,
++		fail:    false,
++	},
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6c349c8461..3ac60f3aec 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -59,6 +59,7 @@ func (t *timer) assignBucket() *timersBucket {
+ 	return t.tb
+ }
+ 
++//go:notinheap
+ type timersBucket struct {
+ 	lock         mutex
+ 	gp           *g

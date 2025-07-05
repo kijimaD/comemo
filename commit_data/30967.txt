@@ -11,6 +11,39 @@ Date:   Wed Jan 4 10:13:18 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/testing.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8fb6d8373e..c972b2737f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -895,11 +895,11 @@ func (m *M) before() {
+ 	if *cpuProfile != "" {
+ 		f, err := os.Create(toOutputDir(*cpuProfile))
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: %s", err)
++			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+ 			return
+ 		}
+ 		if err := m.deps.StartCPUProfile(f); err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s", err)
++			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s\n", err)
+ 			f.Close()
+ 			return
+ 		}
+@@ -908,11 +908,11 @@ func (m *M) before() {
+ 	if *traceFile != "" {
+ 		f, err := os.Create(toOutputDir(*traceFile))
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: %s", err)
++			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+ 			return
+ 		}
+ 		if err := trace.Start(f); err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s", err)
++			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s\n", err)
+ 			f.Close()
+ 			return
+ 		}

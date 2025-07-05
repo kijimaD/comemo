@@ -10,6 +10,30 @@ Date:   Thu Jan 30 18:50:50 2020 -0800
     Change-Id: I9676f50516dd5b32bd4e44be136fcb9f43776edd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217127
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 93c93743ad..9f60489375 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -532,6 +532,18 @@ TODO
+ 
+ </dl><!-- math/big -->
+ 
++<dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
++  <dd>
++    <p><!-- CL 197838 -->
++      The new functions
++      <a href="/pkg/math/bits/#Rem"><code>Rem</code></a>,
++      <a href="/pkg/math/bits/#Rem32"><code>Rem32</code></a>, and
++      <a href="/pkg/math/bits/#Rem64"><code>Rem64</code></a>
++      support computing a remainder even when the quotient overflows.
++    </p>
++  </dd>
++</dl><!-- math/bits -->
++
+ <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+   <dd>
+     <p>

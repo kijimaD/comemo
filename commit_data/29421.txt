@@ -12,9 +12,203 @@ Date:   Wed Sep 14 11:16:50 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/29160
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/html.go                       | 22 ++--------------
  src/cmd/internal/browser/browser.go         | 41 +++++++++++++++++++++++++++++
  src/cmd/internal/pprof/commands/commands.go | 15 +++--------
  src/cmd/trace/main.go                       | 23 ++--------------
  4 files changed, 48 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index d0ac4476ba..b49f934d1b 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -7,15 +7,14 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/browser"
+ 	"fmt"
+ 	"html/template"
+ 	"io"
+ 	"io/ioutil"
+ 	"math"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ )
+ 
+ // htmlOutput reads the profile data from profile and generates an HTML
+@@ -74,7 +73,7 @@ func htmlOutput(profile, outfile string) error {
+ 	}
+ 
+ 	if outfile == "" {
+-		if !startBrowser("file://" + out.Name()) {
++		if !browser.Open("file://" + out.Name()) {
+ 			fmt.Fprintf(os.Stderr, "HTML output written to %s\n", out.Name())
+ 		}
+ 	}
+@@ -133,23 +132,6 @@ func htmlGen(w io.Writer, src []byte, boundaries []Boundary) error {
+ 	return dst.Flush()
+ }
+ 
+-// startBrowser tries to open the URL in a browser
+-// and reports whether it succeeds.
+-func startBrowser(url string) bool {
+-	// try to start the browser
+-	var args []string
+-	switch runtime.GOOS {
+-	case "darwin":
+-		args = []string{"open"}
+-	case "windows":
+-		args = []string{"cmd", "/c", "start"}
+-	default:
+-		args = []string{"xdg-open"}
+-	}
+-	cmd := exec.Command(args[0], append(args[1:], url)...)
+-	return cmd.Start() == nil
+-}
+-
+ // rgb returns an rgb value for the specified coverage value
+ // between 0 (no coverage) and 10 (max coverage).
+ func rgb(n int) string {
+diff --git a/src/cmd/internal/browser/browser.go b/src/cmd/internal/browser/browser.go
+new file mode 100644
+index 0000000000..11e65c2feb
+--- /dev/null
++++ b/src/cmd/internal/browser/browser.go
+@@ -0,0 +1,41 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package browser provides utilities for interacting with users' browsers.
++package browser
++
++import (
++	"os"
++	"os/exec"
++	"runtime"
++)
++
++// Commands returns a list of possible commands to use to open a url.
++func Commands() [][]string {
++	var cmds [][]string
++	if exe := os.Getenv("BROWSER"); exe != "" {
++		cmds = append(cmds, []string{exe})
++	}
++	switch runtime.GOOS {
++	case "darwin":
++		cmds = append(cmds, []string{"/usr/bin/open"})
++	case "windows":
++		cmds = append(cmds, []string{"cmd", "/c", "start"})
++	default:
++		cmds = append(cmds, []string{"xdg-open"})
++	}
++	cmds = append(cmds, []string{"chrome"}, []string{"google-chrome"}, []string{"firefox"})
++	return cmds
++}
++
++// Open tries to open url in a browser and reports whether it succeeded.
++func Open(url string) bool {
++	for _, args := range Commands() {
++		cmd := exec.Command(args[0], append(args[1:], url)...)
++		if cmd.Start() == nil {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/internal/pprof/commands/commands.go b/src/cmd/internal/pprof/commands/commands.go
+index 5dfbbd4a5d..4a4fb927ef 100644
+--- a/src/cmd/internal/pprof/commands/commands.go
++++ b/src/cmd/internal/pprof/commands/commands.go
+@@ -12,10 +12,10 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ 	"time"
+ 
++	"cmd/internal/browser"
+ 	"cmd/internal/pprof/plugin"
+ 	"cmd/internal/pprof/report"
+ 	"cmd/internal/pprof/svg"
+@@ -85,18 +85,9 @@ func PProf(c Completer, interactive **bool) Commands {
+ // on the current platform
+ func browsers() []string {
+ 	var cmds []string
+-	if exe := os.Getenv("BROWSER"); exe != "" {
+-		cmds = append(cmds, exe)
++	for _, cmd := range browser.Commands() {
++		cmds = append(cmds, strings.Join(cmd, " "))
+ 	}
+-	switch runtime.GOOS {
+-	case "darwin":
+-		cmds = append(cmds, "/usr/bin/open")
+-	case "windows":
+-		cmds = append(cmds, "cmd /c start")
+-	default:
+-		cmds = append(cmds, "xdg-open")
+-	}
+-	cmds = append(cmds, "chrome", "google-chrome", "firefox")
+ 	return cmds
+ }
+ 
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 893719edbf..1b84d838f0 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -20,6 +20,7 @@ package main
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/browser"
+ 	"flag"
+ 	"fmt"
+ 	"html/template"
+@@ -28,8 +29,6 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"os"
+-	"os/exec"
+-	"runtime"
+ 	"sync"
+ )
+ 
+@@ -96,7 +95,7 @@ func main() {
+ 	ranges = splitTrace(data)
+ 
+ 	log.Printf("Opening browser")
+-	if !startBrowser("http://" + ln.Addr().String()) {
++	if !browser.Open("http://" + ln.Addr().String()) {
+ 		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
+ 	}
+ 
+@@ -162,24 +161,6 @@ var templMain = template.Must(template.New("").Parse(`
+ </html>
+ `))
+ 
+-// startBrowser tries to open the URL in a browser
+-// and reports whether it succeeds.
+-// Note: copied from x/tools/cmd/cover/html.go
+-func startBrowser(url string) bool {
+-	// try to start the browser
+-	var args []string
+-	switch runtime.GOOS {
+-	case "darwin":
+-		args = []string{"open"}
+-	case "windows":
+-		args = []string{"cmd", "/c", "start"}
+-	default:
+-		args = []string{"xdg-open"}
+-	}
+-	cmd := exec.Command(args[0], append(args[1:], url)...)
+-	return cmd.Start() == nil
+-}
+-
+ func dief(msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, msg, args...)
+ 	os.Exit(1)

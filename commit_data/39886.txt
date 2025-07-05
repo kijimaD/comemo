@@ -19,7 +19,7 @@ Date:   Sat Mar 23 15:25:42 2019 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/install-source.html                     |  2 +-
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 ++
  src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++
@@ -33,3 +33,347 @@ Date:   Sat Mar 23 15:25:42 2019 +0100
  src/cmd/internal/obj/wasm/wasmobj.go        |  2 +-
  src/cmd/internal/objabi/util.go             |  9 ++--
  12 files changed, 151 insertions(+), 7 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 46dc618a9c..9c73b925b1 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -645,7 +645,7 @@ for which the compiler will target. The default is <code>power8</code>.
+ 	The default is to use no experimental features.
+ 	</p>
+ 	<ul>
+-		<li>(no features yet)</li>
++		<li><code>GOWASM=signext</code>: generate <a href="https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md">sign-extension operators</a></li>
+ 	</ul>
+ </li>
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 83e1be798e..72f4805edf 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -56,6 +56,9 @@
+ (ZeroExt32to64        x:(I64Load32U _ _)) -> x
+ (ZeroExt16to(64|32)   x:(I64Load16U _ _)) -> x
+ (ZeroExt8to(64|32|16) x:(I64Load8U  _ _)) -> x
++(SignExt32to64        x) && objabi.GOWASM.SignExt -> (I64Extend32S x)
++(SignExt8to(64|32|16) x) && objabi.GOWASM.SignExt -> (I64Extend8S x)
++(SignExt16to(64|32)   x) && objabi.GOWASM.SignExt -> (I64Extend16S x)
+ (SignExt32to64        x) -> (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
+ (SignExt16to(64|32)   x) -> (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
+ (SignExt8to(64|32|16) x) -> (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 4a01bf6c28..4e5f076575 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -192,6 +192,10 @@ func init() {
+ 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
+ 		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
+ 
++		{name: "I64Extend8S", asm: "I64Extend8S", argLength: 1, reg: gp11, typ: "Int64"},   // sign-extend arg0 from 8 to 64 bit
++		{name: "I64Extend16S", asm: "I64Extend16S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 16 to 64 bit
++		{name: "I64Extend32S", asm: "I64Extend32S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 32 to 64 bit
++
+ 		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp11, typ: "Float64"},         // sqrt(arg0)
+ 		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp11, typ: "Float64"},       // trunc(arg0)
+ 		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp11, typ: "Float64"},         // ceil(arg0)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d71d6146d1..214d68757c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2136,6 +2136,9 @@ const (
+ 	OpWasmI64TruncF64U
+ 	OpWasmF64ConvertI64S
+ 	OpWasmF64ConvertI64U
++	OpWasmI64Extend8S
++	OpWasmI64Extend16S
++	OpWasmI64Extend32S
+ 	OpWasmF64Sqrt
+ 	OpWasmF64Trunc
+ 	OpWasmF64Ceil
+@@ -28724,6 +28727,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "I64Extend8S",
++		argLen: 1,
++		asm:    wasm.AI64Extend8S,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64Extend16S",
++		argLen: 1,
++		asm:    wasm.AI64Extend16S,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64Extend32S",
++		argLen: 1,
++		asm:    wasm.AI64Extend32S,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:   "F64Sqrt",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 7796548ee4..fe85922e31 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -4426,6 +4426,18 @@ func rewriteValueWasm_OpSignExt16to32_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt16to32 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend16S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend16S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt16to32 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
+ 	for {
+@@ -4461,6 +4473,18 @@ func rewriteValueWasm_OpSignExt16to64_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt16to64 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend16S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend16S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt16to64 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
+ 	for {
+@@ -4496,6 +4520,18 @@ func rewriteValueWasm_OpSignExt32to64_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt32to64 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend32S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend32S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt32to64 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
+ 	for {
+@@ -4531,6 +4567,18 @@ func rewriteValueWasm_OpSignExt8to16_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to16 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend8S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend8S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt8to16 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+ 	for {
+@@ -4566,6 +4614,18 @@ func rewriteValueWasm_OpSignExt8to32_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to32 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend8S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend8S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt8to32 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+ 	for {
+@@ -4601,6 +4661,18 @@ func rewriteValueWasm_OpSignExt8to64_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to64 x)
++	// cond: objabi.GOWASM.SignExt
++	// result: (I64Extend8S x)
++	for {
++		x := v.Args[0]
++		if !(objabi.GOWASM.SignExt) {
++			break
++		}
++		v.reset(OpWasmI64Extend8S)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SignExt8to64 x)
+ 	// cond:
+ 	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+ 	for {
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index d2ac2df613..7575df548a 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -317,7 +317,10 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+ 
+-	case ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U, ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs, ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
++	case
++		ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,
++		ssa.OpWasmI64Extend8S, ssa.OpWasmI64Extend16S, ssa.OpWasmI64Extend32S,
++		ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs, ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
+ 		getValue64(s, v.Args[0])
+ 		s.Prog(v.Op.Asm())
+ 
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8dd3f8eb18..f42635f6a8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1569,6 +1569,9 @@
+ // 	GOMIPS64
+ // 		For GOARCH=mips64{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
++// 	GOWASM
++// 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
++// 		Valid values are: signext.
+ //
+ // Special-purpose environment variables:
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index d931c9225b..777bd511b1 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -563,6 +563,9 @@ Architecture-specific environment variables:
+ 	GOMIPS64
+ 		For GOARCH=mips64{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
++	GOWASM
++		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
++		Valid values are: signext.
+ 
+ Special-purpose environment variables:
+ 
+diff --git a/src/cmd/internal/obj/wasm/a.out.go b/src/cmd/internal/obj/wasm/a.out.go
+index f1830ba036..29ea87f3b0 100644
+--- a/src/cmd/internal/obj/wasm/a.out.go
++++ b/src/cmd/internal/obj/wasm/a.out.go
+@@ -210,8 +210,13 @@ const (
+ 	AI64ReinterpretF64
+ 	AF32ReinterpretI32
+ 	AF64ReinterpretI64
++	AI32Extend8S
++	AI32Extend16S
++	AI64Extend8S
++	AI64Extend16S
++	AI64Extend32S
+ 
+-	// End of low-level WebAssembly instructions.
++	ALast // Sentinel: End of low-level WebAssembly instructions.
+ 
+ 	ARESUMEPOINT
+ 	// ACALLNORESUME is a call which is not followed by a resume point.
+diff --git a/src/cmd/internal/obj/wasm/anames.go b/src/cmd/internal/obj/wasm/anames.go
+index 7ef09d665e..fb4b72c398 100644
+--- a/src/cmd/internal/obj/wasm/anames.go
++++ b/src/cmd/internal/obj/wasm/anames.go
+@@ -177,6 +177,12 @@ var Anames = []string{
+ 	"I64ReinterpretF64",
+ 	"F32ReinterpretI32",
+ 	"F64ReinterpretI64",
++	"I32Extend8S",
++	"I32Extend16S",
++	"I64Extend8S",
++	"I64Extend16S",
++	"I64Extend32S",
++	"Last",
+ 	"RESUMEPOINT",
+ 	"CALLNORESUME",
+ 	"RETUNWIND",
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index ad98cfe90a..dded62a4be 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -886,7 +886,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		switch {
+-		case p.As < AUnreachable || p.As > AF64ReinterpretI64:
++		case p.As < AUnreachable || p.As >= ALast:
+ 			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
+ 		case p.As < AEnd:
+ 			w.WriteByte(byte(p.As - AUnreachable + 0x00))
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index c007f6c475..02f9d9273a 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -78,19 +78,22 @@ func goppc64() int {
+ }
+ 
+ type gowasmFeatures struct {
+-	// no features yet
++	SignExt bool
+ }
+ 
+ func (f *gowasmFeatures) String() string {
+ 	var flags []string
+-	// no features yet
++	if f.SignExt {
++		flags = append(flags, "signext")
++	}
+ 	return strings.Join(flags, ",")
+ }
+ 
+ func gowasm() (f gowasmFeatures) {
+ 	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+ 		switch opt {
+-		// no features yet
++		case "signext":
++			f.SignExt = true
+ 		case "":
+ 			// ignore
+ 		default:

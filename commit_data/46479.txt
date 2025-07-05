@@ -24,7 +24,183 @@ Date:   Sun Jan 3 00:16:46 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/order.go |  37 +----------
  test/fixedbugs/issue23017.go           | 113 +++++++++++++++++++++++++++++++++
  2 files changed, 114 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 767af07414..2164685cd4 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -537,21 +537,7 @@ func (o *orderState) call(nn ir.Node) {
+ 	}
+ }
+ 
+-// mapAssign appends n to o.out, introducing temporaries
+-// to make sure that all map assignments have the form m[k] = x.
+-// (Note: expr has already been called on n, so we know k is addressable.)
+-//
+-// If n is the multiple assignment form ..., m[k], ... = ..., x, ..., the rewrite is
+-//	t1 = m
+-//	t2 = k
+-//	...., t3, ... = ..., x, ...
+-//	t1[t2] = t3
+-//
+-// The temporaries t1, t2 are needed in case the ... being assigned
+-// contain m or k. They are usually unnecessary, but in the unnecessary
+-// cases they are also typically registerizable, so not much harm done.
+-// And this only applies to the multiple-assignment form.
+-// We could do a more precise analysis if needed, like in walk.go.
++// mapAssign appends n to o.out.
+ func (o *orderState) mapAssign(n ir.Node) {
+ 	switch n.Op() {
+ 	default:
+@@ -572,28 +558,7 @@ func (o *orderState) mapAssign(n ir.Node) {
+ 
+ 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
+ 		n := n.(*ir.AssignListStmt)
+-		var post []ir.Node
+-		for i, m := range n.Lhs {
+-			switch {
+-			case m.Op() == ir.OINDEXMAP:
+-				m := m.(*ir.IndexExpr)
+-				if !ir.IsAutoTmp(m.X) {
+-					m.X = o.copyExpr(m.X)
+-				}
+-				if !ir.IsAutoTmp(m.Index) {
+-					m.Index = o.copyExpr(m.Index)
+-				}
+-				fallthrough
+-			case base.Flag.Cfg.Instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
+-				t := o.newTemp(m.Type(), false)
+-				n.Lhs[i] = t
+-				a := ir.NewAssignStmt(base.Pos, m, t)
+-				post = append(post, typecheck.Stmt(a))
+-			}
+-		}
+-
+ 		o.out = append(o.out, n)
+-		o.out = append(o.out, post...)
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue23017.go b/test/fixedbugs/issue23017.go
+new file mode 100644
+index 0000000000..770c48ef26
+--- /dev/null
++++ b/test/fixedbugs/issue23017.go
+@@ -0,0 +1,113 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// assignment order in multiple assignments.
++// See issue #23017
++
++package main
++
++import "fmt"
++
++func main() {}
++
++func init() {
++	var m = map[int]int{}
++	var p *int
++
++	defer func() {
++		recover()
++		check(1, len(m))
++		check(42, m[2])
++	}()
++	m[2], *p = 42, 2
++}
++
++func init() {
++	var m = map[int]int{}
++	p := []int{}
++
++	defer func() {
++		recover()
++		check(1, len(m))
++		check(2, m[2])
++	}()
++	m[2], p[1] = 2, 2
++}
++
++func init() {
++	type P struct{ i int }
++	var m = map[int]int{}
++	var p *P
++
++	defer func() {
++		recover()
++		check(1, len(m))
++		check(3, m[2])
++	}()
++	m[2], p.i = 3, 2
++}
++
++func init() {
++	type T struct{ i int }
++	var x T
++	p := &x
++	p, p.i = new(T), 4
++	check(4, x.i)
++}
++
++func init() {
++	var m map[int]int
++	var a int
++	var p = &a
++
++	defer func() {
++		recover()
++		check(5, *p)
++	}()
++	*p, m[2] = 5, 2
++}
++
++var g int
++
++func init() {
++	var m map[int]int
++	defer func() {
++		recover()
++		check(0, g)
++	}()
++	m[0], g = 1, 2
++}
++
++func init() {
++	type T struct{ x struct{ y int } }
++	var x T
++	p := &x
++	p, p.x.y = new(T), 7
++	check(7, x.x.y)
++	check(0, p.x.y)
++}
++
++func init() {
++	type T *struct{ x struct{ y int } }
++	x := struct{ y int }{0}
++	var q T = &struct{ x struct{ y int } }{x}
++	p := q
++	p, p.x.y = nil, 7
++	check(7, q.x.y)
++}
++
++func init() {
++	x, y := 1, 2
++	x, y = y, x
++	check(2, x)
++	check(1, y)
++}
++
++func check(want, got int) {
++	if want != got {
++		panic(fmt.Sprintf("wanted %d, but got %d", want, got))
++	}
++}

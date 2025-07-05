@@ -11,7 +11,14 @@ Date:   Tue Feb 25 22:07:40 2020 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/memclr_riscv64.s  | 0
  src/runtime/memmove_riscv64.s | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+old mode 100755
+new mode 100644
+diff --git a/src/runtime/memmove_riscv64.s b/src/runtime/memmove_riscv64.s
+old mode 100755
+new mode 100644

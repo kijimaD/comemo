@@ -13,6 +13,28 @@ Date:   Fri Jun 29 16:36:04 2018 +0000
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/cover.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/testing/cover.go b/src/testing/cover.go
+index a4ce37f7c2..be7d9e2cc3 100644
+--- a/src/testing/cover.go
++++ b/src/testing/cover.go
+@@ -16,11 +16,11 @@ import (
+ // NOTE: This struct is internal to the testing infrastructure and may change.
+ // It is not covered (yet) by the Go 1 compatibility guidelines.
+ type CoverBlock struct {
+-	Line0 uint32
+-	Col0  uint16
+-	Line1 uint32
+-	Col1  uint16
+-	Stmts uint16
++	Line0 uint32 // line number for block start
++	Col0  uint16 // column number for block start
++	Line1 uint32 // line number for block end
++	Col1  uint16 // column number for block end
++	Stmts uint16 // number of statements included in this block
+ }
+ 
+ var cover Cover

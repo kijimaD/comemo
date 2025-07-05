@@ -19,6 +19,34 @@ Date:   Fri Feb 21 10:29:09 2025 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/exec_linux.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 7730bc6496..98151d34ac 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -779,7 +779,12 @@ func os_checkClonePidfd() error {
+ 		var err error
+ 		for {
+ 			var status WaitStatus
+-			_, err = Wait4(int(pid), &status, 0, nil)
++			// WCLONE is an untyped constant that sets bit 31, so
++			// it cannot convert directly to int on 32-bit
++			// GOARCHes. We must convert through another type
++			// first.
++			flags := uint(WCLONE)
++			_, err = Wait4(int(pid), &status, int(flags), nil)
+ 			if err != EINTR {
+ 				break
+ 			}
+@@ -797,7 +802,7 @@ func os_checkClonePidfd() error {
+ 
+ 	for {
+ 		const _P_PIDFD = 3
+-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED, 0, 0)
++		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED | WCLONE, 0, 0)
+ 		if errno != EINTR {
+ 			break
+ 		}

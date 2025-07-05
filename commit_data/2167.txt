@@ -8,8 +8,85 @@ Date:   Fri May 8 10:14:55 2009 -0700
     DELTA=14  (1 added, 4 deleted, 9 changed)
     OCL=28447
     CL=28509
-
+---
  src/lib/http/triv.go                   |  3 ++-
  src/lib/net/ip_test.go                 | 18 +++++++-----------
  usr/dsymonds/iterable/iterable_test.go |  2 +-
  3 files changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index c452e2f5c3..d2e074d73d 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt";
+ 	"http";
+ 	"io";
++	"log";
+ 	"net";
+ 	"os";
+ )
+@@ -110,7 +111,7 @@ func main() {
+ 	http.Handle("/chan", ChanCreate());
+ 	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+-		panic("ListenAndServe: ", err.String())
++		log.Crash("ListenAndServe: ", err)
+ 	}
+ }
+ 
+diff --git a/src/lib/net/ip_test.go b/src/lib/net/ip_test.go
+index 1626f31565..fb2ae8216d 100644
+--- a/src/lib/net/ip_test.go
++++ b/src/lib/net/ip_test.go
+@@ -9,11 +9,7 @@ import (
+ 	"testing"
+ )
+ 
+-func ipv4(a, b, c, d byte) []byte {
+-	return []byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
+-}
+-
+-func isEqual(a []byte, b []byte) bool {
++func isEqual(a, b IP) bool {
+ 	if a == nil && b == nil {
+ 		return true
+ 	}
+@@ -30,18 +26,18 @@ func isEqual(a []byte, b []byte) bool {
+ 
+ type parseIPTest struct {
+ 	in string;
+-	out []byte;
++	out IP;
+ }
+ var parseiptests = []parseIPTest{
+-	parseIPTest{"127.0.1.2", ipv4(127, 0, 1, 2)},
+-	parseIPTest{"127.0.0.1", ipv4(127, 0, 0, 1)},
++	parseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
++	parseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	parseIPTest{"127.0.0.256", nil},
+ 	parseIPTest{"abc", nil},
+-	parseIPTest{"::ffff:127.0.0.1", ipv4(127, 0, 0, 1)},
++	parseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	parseIPTest{"2001:4860:0:2001::68",
+-		[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01,
++		IP{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01,
+ 			0,0, 0,0, 0,0, 0x00,0x68}},
+-	parseIPTest{"::ffff:4a7d:1363", ipv4(74, 125, 19, 99)},
++	parseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+ }
+ 
+ func TestParseIP(t *testing.T) {
+diff --git a/usr/dsymonds/iterable/iterable_test.go b/usr/dsymonds/iterable/iterable_test.go
+index 9a772c2c46..8abba646e1 100644
+--- a/usr/dsymonds/iterable/iterable_test.go
++++ b/usr/dsymonds/iterable/iterable_test.go
+@@ -22,7 +22,7 @@ func (arr IntArray) Iter() <-chan interface {} {
+ 	return ch
+ }
+ 
+-var oneToFive IntArray = []int{ 1, 2, 3, 4, 5 };
++var oneToFive = IntArray{ 1, 2, 3, 4, 5 };
+ 
+ func isNegative(n interface {}) bool {
+ 	return n.(int) < 0

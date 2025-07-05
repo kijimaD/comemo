@@ -11,6 +11,30 @@ Date:   Tue Mar 28 12:41:40 2017 -0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/gcc80226.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/gcc80226.go b/test/fixedbugs/gcc80226.go
+new file mode 100644
+index 0000000000..530b397f0f
+--- /dev/null
++++ b/test/fixedbugs/gcc80226.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler crashed while compiling a function that returned
++// multiple zero-sized structs.
++// https://gcc.gnu.org/PR80226.
++
++package p
++
++type S struct{}
++
++func F() (S, S) {
++	return S{}, S{}
++}

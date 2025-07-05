@@ -7,8 +7,54 @@ Date:   Fri Dec 24 09:04:53 2010 +1100
     R=rsc, iant2, iant
     CC=golang-dev
     https://golang.org/cl/3802044
-
+---
  src/cmd/5l/doc.go | 4 ++--
  src/cmd/6l/doc.go | 4 ++--
  src/cmd/8l/doc.go | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index b09995d719..6f7408116b 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -20,8 +20,8 @@ Original options are listed in the link above.
+ 
+ Options new in this version:
+ 
+--L dir1,dir2,..
+-	Search for libraries (package files) in the comma-separated list of directories.
++-L dir1 -L dir2
++	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_arm.
+ -r dir1:dir2:...
+ 	Set the dynamic linker search path when using ELF.
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index a74e9b5c0c..501317f36b 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -32,8 +32,8 @@ Options new in this version:
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7
+ 	Write Linux ELF binaries (default when $GOOS is linux)
+--L dir1,dir2,..
+-	Search for libraries (package files) in the comma-separated list of directories.
++-L dir1 -L dir2
++	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_amd64.
+ -r dir1:dir2:...
+ 	Set the dynamic linker search path when using ELF.
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index c8c0586846..0bf6f151fe 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -29,8 +29,8 @@ Options new in this version:
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7
+ 	Write Linux ELF binaries (default when $GOOS is linux)
+--L dir1,dir2,..
+-	Search for libraries (package files) in the comma-separated list of directories.
++-L dir1 -L dir2
++	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_386.
+ -r dir1:dir2:...
+ 	Set the dynamic linker search path when using ELF.

@@ -12,7 +12,47 @@ Date:   Fri Aug 27 15:08:02 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/edit.go    | 10 ++++------
  src/cmd/go/internal/modload/modfile.go |  7 -------
  2 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index efc590c857..12a23468af 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -253,12 +253,10 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 		// common versions among multiple upgrades.
+ 		upgradeGraph, err := readModGraph(ctx, eager, eagerUpgrades)
+ 		if err != nil {
+-			if go117LazyTODO {
+-				// Compute the requirement path from a module path in tryUpgrade to the
+-				// error, and the requirement path (if any) from rs.rootModules to the
+-				// tryUpgrade module path. Return a *mvs.BuildListError showing the
+-				// concatenation of the paths (with an upgrade in the middle).
+-			}
++			// Compute the requirement path from a module path in tryUpgrade to the
++			// error, and the requirement path (if any) from rs.rootModules to the
++			// tryUpgrade module path. Return a *mvs.BuildListError showing the
++			// concatenation of the paths (with an upgrade in the middle).
+ 			return err
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 2606fe4425..d2b13fb89f 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -44,13 +44,6 @@ const (
+ 	separateIndirectVersionV = "v1.17"
+ )
+ 
+-const (
+-	// go1117LazyTODO is a constant that exists only until lazy loading is
+-	// implemented. Its use indicates a condition that will need to change if the
+-	// main module is lazy.
+-	go117LazyTODO = false
+-)
+-
+ // modFileGoVersion returns the (non-empty) Go version at which the requirements
+ // in modFile are interpreted, or the latest Go version if modFile is nil.
+ func modFileGoVersion(modFile *modfile.File) string {

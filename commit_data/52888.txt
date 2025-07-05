@@ -24,7 +24,7 @@ Date:   Sat Jun 4 17:01:47 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/instantiate.go | 39 +++++++++++++-------------
  src/cmd/compile/internal/types2/named.go       | 35 ++++++++++++++++-------
  src/cmd/compile/internal/types2/subst.go       | 28 +++++++++---------
@@ -32,3 +32,414 @@ Date:   Sat Jun 4 17:01:47 2022 -0400
  src/go/types/named.go                          | 35 ++++++++++++++++-------
  src/go/types/subst.go                          | 28 +++++++++---------
  6 files changed, 120 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 45f7e43ccf..5833f8db7e 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -63,28 +63,29 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ 	return inst, nil
+ }
+ 
+-// instance resolves a type or function instance for the given original type
+-// and type arguments. It looks for an existing identical instance in the given
+-// contexts, creating a new instance if none is found.
++// instance instantiates the given original (generic) function or type with the
++// provided type arguments and returns the resulting instance. If an identical
++// instance exists already in the given contexts, it returns that instance,
++// otherwise it creates a new one.
+ //
+-// If local is non-nil, it is the context associated with a Named instance
+-// type currently being expanded. If global is non-nil, it is the context
+-// associated with the current type-checking pass or call to Instantiate. At
+-// least one of local or global must be non-nil.
++// If expanding is non-nil, it is the Named instance type currently being
++// expanded. If ctxt is non-nil, it is the context associated with the current
++// type-checking pass or call to Instantiate. At least one of expanding or ctxt
++// must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
+-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, global *Context) (res Type) {
+-	// The order of the contexts below matters: we always prefer instances in
+-	// local in order to preserve reference cycles.
++func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
++	// The order of the contexts below matters: we always prefer instances in the
++	// expanding instance context in order to preserve reference cycles.
+ 	//
+-	// Invariant: if local != nil, the returned instance will be the instance
+-	// recorded in local.
++	// Invariant: if expanding != nil, the returned instance will be the instance
++	// recorded in expanding.inst.ctxt.
+ 	var ctxts []*Context
+-	if local != nil {
+-		ctxts = append(ctxts, local)
++	if expanding != nil {
++		ctxts = append(ctxts, expanding.inst.ctxt)
+ 	}
+-	if global != nil {
+-		ctxts = append(ctxts, global)
++	if ctxt != nil {
++		ctxts = append(ctxts, ctxt)
+ 	}
+ 	assert(len(ctxts) > 0)
+ 
+@@ -114,10 +115,10 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, g
+ 
+ 	switch orig := orig.(type) {
+ 	case *Named:
+-		res = check.newNamedInstance(pos, orig, targs, local) // substituted lazily
++		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
+ 
+ 	case *Signature:
+-		assert(local == nil) // function instances cannot be reached from Named types
++		assert(expanding == nil) // function instances cannot be reached from Named types
+ 
+ 		tparams := orig.TypeParams()
+ 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+@@ -126,7 +127,7 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, g
+ 		if tparams.Len() == 0 {
+ 			return orig // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, global).(*Signature)
++		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, ctxt).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 720e500cd5..2cf6d3871f 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -230,21 +230,36 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func)
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+-	// Ensure that typ is always expanded and sanity-checked.
++	// Ensure that typ is always sanity-checked.
+ 	if check != nil {
+ 		check.needsCleanup(typ)
+ 	}
+ 	return typ
+ }
+ 
+-func (check *Checker) newNamedInstance(pos syntax.Pos, orig *Named, targs []Type, local *Context) *Named {
++// newNamedInstance creates a new named instance for the given origin and type
++// arguments, recording pos as the position of its synthetic object (for error
++// reporting).
++//
++// If set, expanding is the named type instance currently being expanded, that
++// led to the creation of this instance.
++func (check *Checker) newNamedInstance(pos syntax.Pos, orig *Named, targs []Type, expanding *Named) *Named {
+ 	assert(len(targs) > 0)
+ 
+ 	obj := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+-	inst := &instance{orig: orig, targs: newTypeList(targs), ctxt: local}
++	inst := &instance{orig: orig, targs: newTypeList(targs)}
++
++	// Only pass the expanding context to the new instance if their packages
++	// match. Since type reference cycles are only possible within a single
++	// package, this is sufficient for the purposes of short-circuiting cycles.
++	// Avoiding passing the context in other cases prevents unnecessary coupling
++	// of types across packages.
++	if expanding != nil && expanding.Obj().pkg == obj.pkg {
++		inst.ctxt = expanding.inst.ctxt
++	}
+ 	typ := &Named{check: check, obj: obj, inst: inst}
+ 	obj.typ = typ
+-	// Ensure that typ is always expanded and sanity-checked.
++	// Ensure that typ is always sanity-checked.
+ 	if check != nil {
+ 		check.needsCleanup(typ)
+ 	}
+@@ -387,11 +402,11 @@ func (t *Named) expandMethod(i int) *Func {
+ 	// code.
+ 	if origSig.RecvTypeParams().Len() == t.inst.targs.Len() {
+ 		smap := makeSubstMap(origSig.RecvTypeParams().list(), t.inst.targs.list())
+-		var global *Context
++		var ctxt *Context
+ 		if check != nil {
+-			global = check.context()
++			ctxt = check.context()
+ 		}
+-		sig = check.subst(origm.pos, origSig, smap, t.inst.ctxt, global).(*Signature)
++		sig = check.subst(origm.pos, origSig, smap, t, ctxt).(*Signature)
+ 	}
+ 
+ 	if sig == origSig {
+@@ -601,11 +616,11 @@ func (n *Named) expandUnderlying() Type {
+ 	assert(n == n2)
+ 
+ 	smap := makeSubstMap(orig.tparams.list(), targs.list())
+-	var global *Context
++	var ctxt *Context
+ 	if check != nil {
+-		global = check.context()
++		ctxt = check.context()
+ 	}
+-	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n.inst.ctxt, global)
++	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n, ctxt)
+ 	// If the underlying type of n is an interface, we need to set the receiver of
+ 	// its methods accurately -- we set the receiver of interface methods on
+ 	// the RHS of a type declaration to the defined type.
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 4a4c8f960a..d5a48c6995 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -48,9 +48,10 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ // incoming type. If a substitution took place, the result type is different
+ // from the incoming type.
+ //
+-// If the given context is non-nil, it is used in lieu of check.Config.Context.
+-func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, local, global *Context) Type {
+-	assert(local != nil || global != nil)
++// If expanding is non-nil, it is the instance type currently being expanded.
++// One of expanding or ctxt must be non-nil.
++func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, expanding *Named, ctxt *Context) Type {
++	assert(expanding != nil || ctxt != nil)
+ 
+ 	if smap.empty() {
+ 		return typ
+@@ -66,20 +67,21 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, local, glob
+ 
+ 	// general case
+ 	subst := subster{
+-		pos:    pos,
+-		smap:   smap,
+-		check:  check,
+-		local:  local,
+-		global: global,
++		pos:       pos,
++		smap:      smap,
++		check:     check,
++		expanding: expanding,
++		ctxt:      ctxt,
+ 	}
+ 	return subst.typ(typ)
+ }
+ 
+ type subster struct {
+-	pos           syntax.Pos
+-	smap          substMap
+-	check         *Checker // nil if called via Instantiate
+-	local, global *Context
++	pos       syntax.Pos
++	smap      substMap
++	check     *Checker // nil if called via Instantiate
++	expanding *Named   // if non-nil, the instance that is being expanded
++	ctxt      *Context
+ }
+ 
+ func (subst *subster) typ(typ Type) Type {
+@@ -254,7 +256,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to
+ 		// help with debugging.
+-		return subst.check.instance(subst.pos, orig, newTArgs, subst.local, subst.global)
++		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
+ 
+ 	case *TypeParam:
+ 		return subst.smap.lookup(t)
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index e6b731f241..f7505854d1 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -63,28 +63,29 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ 	return inst, nil
+ }
+ 
+-// instance resolves a type or function instance for the given original type
+-// and type arguments. It looks for an existing identical instance in the given
+-// contexts, creating a new instance if none is found.
++// instance instantiates the given original (generic) function or type with the
++// provided type arguments and returns the resulting instance. If an identical
++// instance exists already in the given contexts, it returns that instance,
++// otherwise it creates a new one.
+ //
+-// If local is non-nil, it is the context associated with a Named instance
+-// type currently being expanded. If global is non-nil, it is the context
+-// associated with the current type-checking pass or call to Instantiate. At
+-// least one of local or global must be non-nil.
++// If expanding is non-nil, it is the Named instance type currently being
++// expanded. If ctxt is non-nil, it is the context associated with the current
++// type-checking pass or call to Instantiate. At least one of expanding or ctxt
++// must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
+-func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, local, global *Context) (res Type) {
+-	// The order of the contexts below matters: we always prefer instances in
+-	// local in order to preserve reference cycles.
++func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
++	// The order of the contexts below matters: we always prefer instances in the
++	// expanding instance context in order to preserve reference cycles.
+ 	//
+-	// Invariant: if local != nil, the returned instance will be the instance
+-	// recorded in local.
++	// Invariant: if expanding != nil, the returned instance will be the instance
++	// recorded in expanding.inst.ctxt.
+ 	var ctxts []*Context
+-	if local != nil {
+-		ctxts = append(ctxts, local)
++	if expanding != nil {
++		ctxts = append(ctxts, expanding.inst.ctxt)
+ 	}
+-	if global != nil {
+-		ctxts = append(ctxts, global)
++	if ctxt != nil {
++		ctxts = append(ctxts, ctxt)
+ 	}
+ 	assert(len(ctxts) > 0)
+ 
+@@ -114,10 +115,10 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, local, gl
+ 
+ 	switch orig := orig.(type) {
+ 	case *Named:
+-		res = check.newNamedInstance(pos, orig, targs, local) // substituted lazily
++		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
+ 
+ 	case *Signature:
+-		assert(local == nil) // function instances cannot be reached from Named types
++		assert(expanding == nil) // function instances cannot be reached from Named types
+ 
+ 		tparams := orig.TypeParams()
+ 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+@@ -126,7 +127,7 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, local, gl
+ 		if tparams.Len() == 0 {
+ 			return orig // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, global).(*Signature)
++		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, ctxt).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 63f0a22323..c08997aa77 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -230,21 +230,36 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func)
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+-	// Ensure that typ is always expanded and sanity-checked.
++	// Ensure that typ is always sanity-checked.
+ 	if check != nil {
+ 		check.needsCleanup(typ)
+ 	}
+ 	return typ
+ }
+ 
+-func (check *Checker) newNamedInstance(pos token.Pos, orig *Named, targs []Type, local *Context) *Named {
++// newNamedInstance creates a new named instance for the given origin and type
++// arguments, recording pos as the position of its synthetic object (for error
++// reporting).
++//
++// If set, expanding is the named type instance currently being expanded, that
++// led to the creation of this instance.
++func (check *Checker) newNamedInstance(pos token.Pos, orig *Named, targs []Type, expanding *Named) *Named {
+ 	assert(len(targs) > 0)
+ 
+ 	obj := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+-	inst := &instance{orig: orig, targs: newTypeList(targs), ctxt: local}
++	inst := &instance{orig: orig, targs: newTypeList(targs)}
++
++	// Only pass the expanding context to the new instance if their packages
++	// match. Since type reference cycles are only possible within a single
++	// package, this is sufficient for the purposes of short-circuiting cycles.
++	// Avoiding passing the context in other cases prevents unnecessary coupling
++	// of types across packages.
++	if expanding != nil && expanding.Obj().pkg == obj.pkg {
++		inst.ctxt = expanding.inst.ctxt
++	}
+ 	typ := &Named{check: check, obj: obj, inst: inst}
+ 	obj.typ = typ
+-	// Ensure that typ is always expanded and sanity-checked.
++	// Ensure that typ is always sanity-checked.
+ 	if check != nil {
+ 		check.needsCleanup(typ)
+ 	}
+@@ -387,11 +402,11 @@ func (t *Named) expandMethod(i int) *Func {
+ 	// code.
+ 	if origSig.RecvTypeParams().Len() == t.inst.targs.Len() {
+ 		smap := makeSubstMap(origSig.RecvTypeParams().list(), t.inst.targs.list())
+-		var global *Context
++		var ctxt *Context
+ 		if check != nil {
+-			global = check.context()
++			ctxt = check.context()
+ 		}
+-		sig = check.subst(origm.pos, origSig, smap, t.inst.ctxt, global).(*Signature)
++		sig = check.subst(origm.pos, origSig, smap, t, ctxt).(*Signature)
+ 	}
+ 
+ 	if sig == origSig {
+@@ -601,11 +616,11 @@ func (n *Named) expandUnderlying() Type {
+ 	assert(n == n2)
+ 
+ 	smap := makeSubstMap(orig.tparams.list(), targs.list())
+-	var global *Context
++	var ctxt *Context
+ 	if check != nil {
+-		global = check.context()
++		ctxt = check.context()
+ 	}
+-	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n.inst.ctxt, global)
++	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n, ctxt)
+ 	// If the underlying type of n is an interface, we need to set the receiver of
+ 	// its methods accurately -- we set the receiver of interface methods on
+ 	// the RHS of a type declaration to the defined type.
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 36987a4c95..42f3619f88 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -48,9 +48,10 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ // that it doesn't modify the incoming type. If a substitution took place, the
+ // result type is different from the incoming type.
+ //
+-// If the given context is non-nil, it is used in lieu of check.Config.Context
+-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, local, global *Context) Type {
+-	assert(local != nil || global != nil)
++// If expanding is non-nil, it is the instance type currently being expanded.
++// One of expanding or ctxt must be non-nil.
++func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, expanding *Named, ctxt *Context) Type {
++	assert(expanding != nil || ctxt != nil)
+ 
+ 	if smap.empty() {
+ 		return typ
+@@ -66,20 +67,21 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, local, globa
+ 
+ 	// general case
+ 	subst := subster{
+-		pos:    pos,
+-		smap:   smap,
+-		check:  check,
+-		local:  local,
+-		global: global,
++		pos:       pos,
++		smap:      smap,
++		check:     check,
++		expanding: expanding,
++		ctxt:      ctxt,
+ 	}
+ 	return subst.typ(typ)
+ }
+ 
+ type subster struct {
+-	pos           token.Pos
+-	smap          substMap
+-	check         *Checker // nil if called via Instantiate
+-	local, global *Context
++	pos       token.Pos
++	smap      substMap
++	check     *Checker // nil if called via Instantiate
++	expanding *Named   // if non-nil, the instance that is being expanded
++	ctxt      *Context
+ }
+ 
+ func (subst *subster) typ(typ Type) Type {
+@@ -254,7 +256,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to
+ 		// help with debugging.
+-		return subst.check.instance(subst.pos, orig, newTArgs, subst.local, subst.global)
++		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
+ 
+ 	case *TypeParam:
+ 		return subst.smap.lookup(t)

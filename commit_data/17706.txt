@@ -9,10 +9,154 @@ Date:   Fri Sep 27 09:46:36 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14004043
-
+---
  doc/articles/wiki/index.html | 4 ++--
  doc/docs.html                | 4 ++--
  doc/effective_go.html        | 6 +++---
  doc/go1.1.html               | 6 +++---
  doc/go_faq.html              | 8 ++++----
  5 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index 5d290a2acc..ed42e3981e 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -154,7 +154,7 @@ function to return <code>*Page</code> and <code>error</code>.
+ Callers of this function can now check the second parameter; if it is
+ <code>nil</code> then it has successfully loaded a Page. If not, it will be an
+ <code>error</code> that can be handled by the caller (see the
+-<a href="/ref/spec#Errors">language specification</a> for details).
++<a href="/doc/spec#Errors">language specification</a> for details).
+ </p>
+ 
+ <p>
+@@ -616,7 +616,7 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
+ Catching the error condition in each handler introduces a lot of repeated code.
+ What if we could wrap each of the handlers in a function that does this
+ validation and error checking? Go's
+-<a href="/ref/spec#Function_declarations">function
++<a href="/doc/spec#Function_literals">function
+ literals</a> provide a powerful means of abstracting functionality
+ that can help us here.
+ </p>
+diff --git a/doc/docs.html b/doc/docs.html
+index 7aad8dadf4..8c5d17a64a 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -85,12 +85,12 @@ The documentation for the Go standard library.
+ The documentation for the Go tools.
+ </p>
+ 
+-<h3 id="spec"><a href="/ref/spec">Language Specification</a></h3>
++<h3 id="spec"><a href="/doc/spec">Language Specification</a></h3>
+ <p>
+ The official Go Language specification.
+ </p>
+ 
+-<h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
++<h3 id="go_mem"><a href="/doc/mem">The Go Memory Model</a></h3>
+ <p>
+ A document that specifies the conditions under which reads of a variable in
+ one goroutine can be guaranteed to observe values produced by writes to the
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 7d2a904e50..35b15e8df5 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -27,7 +27,7 @@ will be easy for other Go programmers to understand.
+ 
+ <p>
+ This document gives tips for writing clear, idiomatic Go code.
+-It augments the <a href="/ref/spec">language specification</a>,
++It augments the <a href="/doc/spec">language specification</a>,
+ the <a href="http://tour.golang.org/">Tour of Go</a>,
+ and <a href="/doc/code.html">How to Write Go Code</a>,
+ all of which you
+@@ -709,7 +709,7 @@ Erroneous encodings consume one byte and produce the
+ replacement rune U+FFFD.
+ (The name (with associated builtin type) <code>rune</code> is Go terminology for a
+ single Unicode code point.
+-See <a href="http://golang.org/ref/spec#Rune_literals">the language specification</a>
++See <a href="http://golang.org/doc/spec#Rune_literals">the language specification</a>
+ for details.)
+ The loop
+ </p>
+@@ -2969,7 +2969,7 @@ func Serve(queue chan *Request) {
+ <p>
+ Because data synchronization occurs on a receive from a channel
+ (that is, the send "happens before" the receive; see
+-<a href="/ref/mem">The Go Memory Model</a>),
++<a href="/doc/mem">The Go Memory Model</a>),
+ acquisition of the semaphore must be on a channel receive, not a send.
+ </p>
+ 
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index a68664954a..84fb372569 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -81,7 +81,7 @@ See the <a href="#unicode">Unicode</a> section for more information.
+ 
+ <p>
+ Go 1.1 now implements
+-<a href="/ref/spec#Method_values">method values</a>,
++<a href="/doc/spec#Method_values">method values</a>,
+ which are functions that have been bound to a specific receiver value.
+ For instance, given a
+ <a href="/pkg/bufio/#Writer"><code>Writer</code></a>
+@@ -129,7 +129,7 @@ only an infinite "for" loop.
+ <p>
+ In Go 1.1, the rule about final "return" statements is more permissive.
+ It introduces the concept of a
+-<a href="/ref/spec/#Terminating_statements"><em>terminating statement</em></a>,
++<a href="/doc/spec/#Terminating_statements"><em>terminating statement</em></a>,
+ a statement that is guaranteed to be the last one a function executes.
+ Examples include
+ "for" loops with no condition and "if-else"
+@@ -191,7 +191,7 @@ more than 2 billion elements on 64-bit platforms.
+ <em>Updating</em>:
+ Most programs will be unaffected by this change.
+ Because Go does not allow implicit conversions between distinct
+-<a href="/ref/spec/#Numeric_types">numeric types</a>,
++<a href="/doc/spec/#Numeric_types">numeric types</a>,
+ no programs will stop compiling due to this change.
+ However, programs that contain implicit assumptions
+ that <code>int</code> is only 32 bits may change behavior.
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 4f0832aa88..fbce94a4ae 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -68,7 +68,7 @@ Go became a public open source project on November 10, 2009.
+ After a couple of years of very active design and development, stability was called for and
+ Go 1 was <a href="http://blog.golang.org/2012/03/go-version-1-is-released.html">released</a>
+ on March 28, 2012.
+-Go 1, which includes a <a href="/ref/spec">language specification</a>,
++Go 1, which includes a <a href="/doc/spec">language specification</a>,
+ <a href="/pkg/">standard libraries</a>,
+ and <a href="/cmd/go/">custom tools</a>,
+ provides a stable foundation for creating reliable products, projects, and publications.
+@@ -1247,7 +1247,7 @@ What operations are atomic? What about mutexes?</h3>
+ 
+ <p>
+ We haven't fully defined it all yet, but some details about atomicity are
+-available in the <a href="/ref/mem">Go Memory Model specification</a>.
++available in the <a href="/doc/mem">Go Memory Model specification</a>.
+ </p>
+ 
+ <p>
+@@ -1303,7 +1303,7 @@ will experience performance degradation when using
+ multiple OS threads.
+ This is because sending data between threads involves switching
+ contexts, which has significant cost.
+-For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
++For instance, the <a href="/doc/spec#An_example_package">prime sieve example</a>
+ from the Go specification has no significant parallelism although it launches many
+ goroutines; increasing <code>GOMAXPROCS</code> is more likely to slow it down than
+ to speed it up.
+@@ -1326,7 +1326,7 @@ is not Parallelism</a>.
+ Why do T and *T have different method sets?</h3>
+ 
+ <p>
+-From the <a href="/ref/spec#Types">Go Spec</a>:
++From the <a href="/doc/spec#Types">Go Spec</a>:
+ </p>
+ 
+ <blockquote>

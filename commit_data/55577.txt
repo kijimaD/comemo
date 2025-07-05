@@ -39,9 +39,139 @@ Date:   Tue Jan 31 14:27:30 2023 -0600
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  2 +-
  src/cmd/compile/internal/ssa/rewrite.go         | 10 ++++++++--
  src/cmd/compile/internal/ssa/rewritegeneric.go  |  8 ++++----
  test/codegen/slices.go                          | 16 ++++++++++++----
  4 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 10da571988..d72824c4bf 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2070,7 +2070,7 @@
+ // Turn known-size calls to memclrNoHeapPointers into a Zero.
+ // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
+ (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
+-  && isInlinableMemclr(config)
++  && isInlinableMemclr(config, int64(c))
+   && isSameCall(sym, "runtime.memclrNoHeapPointers")
+   && call.Uses == 1
+   && clobber(call)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 0cf7917ec6..c56447d336 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1365,10 +1365,16 @@ func zeroUpper56Bits(x *Value, depth int) bool {
+ 	return false
+ }
+ 
+-func isInlinableMemclr(c *Config) bool {
++func isInlinableMemclr(c *Config, sz int64) bool {
+ 	// TODO: expand this check to allow other architectures
+ 	// see CL 454255 and issue 56997
+-	return c.arch == "amd64" || c.arch == "arm64"
++	switch c.arch {
++	case "amd64", "arm64":
++		return true
++	case "ppc64le", "ppc64":
++		return sz < 512
++	}
++	return false
+ }
+ 
+ // isInlinableMemmove reports whether the given arch performs a Move of the given size
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b81d093119..49a721b5f2 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -26411,7 +26411,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const64 [c]) mem))
+-	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
++	// cond: isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+ 	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+@@ -26429,7 +26429,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		c := auxIntToInt64(call_1.AuxInt)
+-		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
++		if !(isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+@@ -26439,7 +26439,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const32 [c]) mem))
+-	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
++	// cond: isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+ 	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+@@ -26457,7 +26457,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		c := auxIntToInt32(call_1.AuxInt)
+-		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
++		if !(isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index e3be6bd76b..a38fe77e3f 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -47,7 +47,7 @@ func SliceExtensionConst(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
+-	// ppc64x:`.*runtime\.memclrNoHeapPointers`
++	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, 1<<2)...)
+@@ -58,7 +58,7 @@ func SliceExtensionConstInt64(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
+-	// ppc64x:`.*runtime\.memclrNoHeapPointers`
++	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, int64(1<<2))...)
+@@ -69,7 +69,7 @@ func SliceExtensionConstUint64(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
+-	// ppc64x:`.*runtime\.memclrNoHeapPointers`
++	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, uint64(1<<2))...)
+@@ -80,12 +80,20 @@ func SliceExtensionConstUint(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
+-	// ppc64x:`.*runtime\.memclrNoHeapPointers`
++	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, uint(1<<2))...)
+ }
+ 
++// On ppc64x continue to use memclrNoHeapPointers
++// for sizes >= 512.
++func SliceExtensionConst512(s []int) []int {
++	// amd64:-`.*runtime\.memclrNoHeapPointers`
++	// ppc64x:`.*runtime\.memclrNoHeapPointers`
++	return append(s, make([]int, 1<<9)...)
++}
++
+ func SliceExtensionPointer(s []*int, l int) []*int {
+ 	// amd64:`.*runtime\.memclrHasPointers`
+ 	// amd64:-`.*runtime\.makeslice`

@@ -14,7 +14,38 @@ Date:   Wed Apr 16 22:30:10 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/88760043
-
+---
  src/cmd/go/doc.go  | 4 ++--
  src/cmd/go/help.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 664bc83bde..65b68d93bc 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -511,8 +511,8 @@ http://swig.org/.  When running go build, any file with a .swig
+ extension will be passed to SWIG.  Any file with a .swigcxx extension
+ will be passed to SWIG with the -c++ option.
+ 
+-When either cgo or SWIG is used, go build will pass any .c, .s, or .S
+-files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++When either cgo or SWIG is used, go build will pass any .c, .m, .s,
++or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+ compiler.  The CC or CXX environment variables may be set to determine
+ the C or C++ compiler, respectively, to use.
+ 
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index faa4d9af82..0142deee9f 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -19,8 +19,8 @@ http://swig.org/.  When running go build, any file with a .swig
+ extension will be passed to SWIG.  Any file with a .swigcxx extension
+ will be passed to SWIG with the -c++ option.
+ 
+-When either cgo or SWIG is used, go build will pass any .c, .s, or .S
+-files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++When either cgo or SWIG is used, go build will pass any .c, .m, .s,
++or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+ compiler.  The CC or CXX environment variables may be set to determine
+ the C or C++ compiler, respectively, to use.
+ 	`,

@@ -23,7 +23,7 @@ Date:   Wed Sep 28 18:50:01 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                    |  3 ++
  src/cmd/go/internal/cfg/cfg.go           |  2 ++
  src/cmd/go/internal/load/pkg.go          |  7 ++++
@@ -33,3 +33,202 @@ Date:   Wed Sep 28 18:50:01 2022 -0400
  src/cmd/go/internal/work/init.go         | 20 +++++++++++
  src/cmd/go/testdata/script/build_pgo.txt | 62 ++++++++++++++++++++++++++++++++
  8 files changed, 104 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 051cf25996..821ebef3ac 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -200,6 +200,9 @@
+ //		include path must be in the same directory as the Go package they are
+ //		included from, and overlays will not appear when binaries and tests are
+ //		run through go run and go test respectively.
++//	-pgo file
++//		specify the file path of a profile for profile-guided optimization (PGO).
++//		Special name "off" turns off PGO.
+ //	-pkgdir dir
+ //		install and load all packages from dir instead of the usual locations.
+ //		For example, when building with a non-standard configuration,
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index ba0294459e..30acde0a5a 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -79,6 +79,8 @@ var (
+ 	BuildN                 bool                    // -n flag
+ 	BuildO                 string                  // -o flag
+ 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
++	BuildPGO               string                  // -pgo flag
++	BuildPGOFile           string                  // profile selected by -pgo flag, an absolute path (if not empty)
+ 	BuildPkgdir            string                  // -pkgdir flag
+ 	BuildRace              bool                    // -race flag
+ 	BuildToolexec          []string                // -toolexec flag
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0e1a632d7a..da5b305dbb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2387,6 +2387,13 @@ func (p *Package) setBuildInfo(autoVCS bool) {
+ 			appendSetting("-ldflags", ldflags)
+ 		}
+ 	}
++	if cfg.BuildPGOFile != "" {
++		if cfg.BuildTrimpath {
++			appendSetting("-pgo", filepath.Base(cfg.BuildPGOFile))
++		} else {
++			appendSetting("-pgo", cfg.BuildPGOFile)
++		}
++	}
+ 	if cfg.BuildMSan {
+ 		appendSetting("-msan", "true")
+ 	}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 553cd66ef3..f93fb0bb6a 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -158,6 +158,9 @@ and test commands:
+ 		include path must be in the same directory as the Go package they are
+ 		included from, and overlays will not appear when binaries and tests are
+ 		run through go run and go test respectively.
++	-pgo file
++		specify the file path of a profile for profile-guided optimization (PGO).
++		Special name "off" turns off PGO.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -312,6 +315,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
++	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "", "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c060ebd06d..90d96400b8 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -383,6 +383,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	for _, file := range inputFiles {
+ 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+ 	}
++	if cfg.BuildPGOFile != "" {
++		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(cfg.BuildPGOFile))
++	}
+ 	for _, a1 := range a.Deps {
+ 		p1 := a1.Package
+ 		if p1 != nil {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index cff4773315..036a188027 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -145,6 +145,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Internal.CoverageCfg != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
+ 	}
++	if cfg.BuildPGOFile != "" {
++		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+cfg.BuildPGOFile)
++	}
+ 	if symabis != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
+ 	}
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index cfd5a505d3..c8fee098e0 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -84,6 +84,8 @@ func BuildInit() {
+ 	if cfg.BuildRace && cfg.BuildCoverMode != "atomic" {
+ 		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, cfg.BuildCoverMode)
+ 	}
++
++	setPGOProfilePath()
+ }
+ 
+ // fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+@@ -438,3 +440,21 @@ func compilerRequiredAsanVersion() error {
+ 	}
+ 	return nil
+ }
++
++func setPGOProfilePath() {
++	switch cfg.BuildPGO {
++	case "":
++		fallthrough // default to "auto"
++	case "off":
++		// Nothing to do.
++	case "auto":
++		base.Fatalf("-pgo=auto is not implemented")
++	default:
++		// make it absolute path, as the compiler runs on various directories.
++		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
++			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
++		} else {
++			cfg.BuildPGOFile = p
++		}
++	}
++}
+diff --git a/src/cmd/go/testdata/script/build_pgo.txt b/src/cmd/go/testdata/script/build_pgo.txt
+new file mode 100644
+index 0000000000..65ecd57203
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_pgo.txt
+@@ -0,0 +1,62 @@
++# Test go build -pgo flag.
++# Specifically, the build cache handles profile content correctly.
++
++# this test rebuild runtime with different flags, skip in short mode
++[short] skip
++
++# build without PGO
++go build triv.go
++
++# build with PGO, should trigger rebuild
++# starting with an empty profile (the compiler accepts it)
++go build -x -pgo=prof triv.go
++stderr 'compile.*-pgoprofile=.*prof.*triv.go'
++
++# store the build ID
++go list -export -json=BuildID -pgo=prof triv.go
++stdout '"BuildID":' # check that output actually contains a build ID
++cp stdout list.out
++
++# build again with the same profile, should be cached
++go build -x -pgo=prof triv.go
++! stderr 'compile.*triv.go'
++
++# check that the build ID is the same
++go list -export -json=BuildID -pgo=prof triv.go
++cmp stdout list.out
++
++# overwrite the prof
++go run overwrite.go
++
++# build again, profile content changed, should trigger rebuild
++go build -n -pgo=prof triv.go
++stderr 'compile.*-pgoprofile=.*prof.*p.go'
++
++# check that the build ID is different
++go list -export -json=BuildID -pgo=prof triv.go
++! cmp stdout list.out
++
++-- prof --
++-- triv.go --
++package main
++func main() {}
++-- overwrite.go --
++package main
++
++import (
++	"os"
++	"runtime/pprof"
++)
++
++func main() {
++	f, err := os.Create("prof")
++	if err != nil {
++		panic(err)
++	}
++	err = pprof.StartCPUProfile(f)
++	if err != nil {
++		panic(err)
++	}
++	pprof.StopCPUProfile()
++	f.Close()
++}

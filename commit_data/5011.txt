@@ -14,7 +14,7 @@ Date:   Mon Mar 8 14:15:44 2010 -0800
     R=r, cw
     CC=golang-dev
     https://golang.org/cl/257041
-
+---
  src/pkg/runtime/extern.go  |  1 +
  src/pkg/runtime/malloc.cgo |  6 +++---
  src/pkg/runtime/malloc.h   | 12 +++++++-----
@@ -23,3 +23,247 @@ Date:   Mon Mar 8 14:15:44 2010 -0800
  src/pkg/runtime/mgc0.c     | 17 +++++++++++++----
  src/pkg/runtime/mheap.c    | 15 ++++++++++++---
  7 files changed, 57 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 4ee3076c79..f34bb2256c 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -78,6 +78,7 @@ type MemStatsType struct {
+ 	Stacks     uint64
+ 	InusePages uint64
+ 	NextGC     uint64
++	HeapAlloc  uint64
+ 	Lookups    uint64
+ 	Mallocs    uint64
+ 	PauseNs    uint64
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 5b43b3c9e7..cce2cab43b 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -61,7 +61,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ 		npages = size >> PageShift;
+ 		if((size & PageMask) != 0)
+ 			npages++;
+-		s = MHeap_Alloc(&mheap, npages, 0);
++		s = MHeap_Alloc(&mheap, npages, 0, 1);
+ 		if(s == nil)
+ 			throw("out of memory");
+ 		mstats.alloc += npages<<PageShift;
+@@ -74,7 +74,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ 
+ 	m->mallocing = 0;
+ 
+-	if(dogc && mstats.inuse_pages > mstats.next_gc)
++	if(dogc && mstats.heap_alloc >= mstats.next_gc)
+ 		gc(0);
+ 	return v;
+ }
+@@ -113,7 +113,7 @@ free(void *v)
+ 		// Large object.
+ 		mstats.alloc -= s->npages<<PageShift;
+ 		runtime_memclr(v, s->npages<<PageShift);
+-		MHeap_Free(&mheap, s);
++		MHeap_Free(&mheap, s, 1);
+ 	} else {
+ 		// Small object.
+ 		c = m->mcache;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index b9dea2f5e9..ae6b70b141 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -168,12 +168,13 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
+ // Shared with Go: if you edit this structure, also edit extern.go.
+ struct MStats
+ {
+-	uint64	alloc;
+-	uint64	total_alloc;
++	uint64	alloc;	// unprotected (approximate)
++	uint64	total_alloc;	// unprotected (approximate)
+ 	uint64	sys;
+ 	uint64	stacks;
+ 	uint64	inuse_pages;	// protected by mheap.Lock
+ 	uint64	next_gc;	// protected by mheap.Lock
++	uint64	heap_alloc;	// protected by mheap.Lock
+ 	uint64	nlookup;	// unprotected (approximate)
+ 	uint64	nmalloc;	// unprotected (approximate)
+ 	uint64	pause_ns;
+@@ -225,11 +226,12 @@ struct MCache
+ {
+ 	MCacheList list[NumSizeClasses];
+ 	uint64 size;
++	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
+ };
+ 
+ void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
+ void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
+-
++void	MCache_ReleaseAll(MCache *c);
+ 
+ // An MSpan is a run of pages.
+ enum
+@@ -313,8 +315,8 @@ struct MHeap
+ extern MHeap mheap;
+ 
+ void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
+-MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
+-void	MHeap_Free(MHeap *h, MSpan *s);
++MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct);
++void	MHeap_Free(MHeap *h, MSpan *s, int32 acct);
+ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+ void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 429b42541e..202936f6e8 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -46,6 +46,7 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
+ 			v->next = nil;
+ 		}
+ 	}
++	c->local_alloc += size;
+ 	return v;
+ }
+ 
+@@ -86,6 +87,7 @@ MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+ 	l->list = p;
+ 	l->nlist++;
+ 	c->size += size;
++	c->local_alloc -= size;
+ 
+ 	if(l->nlist >= MaxMCacheListLen) {
+ 		// Release a chunk back.
+@@ -113,3 +115,20 @@ MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+ 	}
+ }
+ 
++void
++MCache_ReleaseAll(MCache *c)
++{
++	int32 i;
++	MCacheList *l;
++
++	lock(&mheap);
++	mstats.heap_alloc += c->local_alloc;
++	c->local_alloc = 0;
++	unlock(&mheap);
++
++	for(i=0; i<NumSizeClasses; i++) {
++		l = &c->list[i];
++		ReleaseN(c, l, l->nlist, i);
++		l->nlistmin = 0;
++	}
++}
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index ff366b1c53..1e1784cc65 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -152,7 +152,7 @@ MCentral_Free(MCentral *c, void *v)
+ 		s->freelist = nil;
+ 		c->nfree -= (s->npages << PageShift) / size;
+ 		unlock(c);
+-		MHeap_Free(&mheap, s);
++		MHeap_Free(&mheap, s, 0);
+ 		lock(c);
+ 	}
+ }
+@@ -182,7 +182,7 @@ MCentral_Grow(MCentral *c)
+ 
+ 	unlock(c);
+ 	MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
+-	s = MHeap_Alloc(&mheap, npages, c->sizeclass);
++	s = MHeap_Alloc(&mheap, npages, c->sizeclass, 0);
+ 	if(s == nil) {
+ 		// TODO(rsc): Log out of memory
+ 		lock(c);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 82a8ad7e5b..2dacf28569 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -194,7 +194,7 @@ sweepspan1(MSpan *s)
+ 			mstats.alloc -= s->npages<<PageShift;
+ 			runtime_memclr(p, s->npages<<PageShift);
+ 			s->gcref0 = RefFree;
+-			MHeap_Free(&mheap, s);
++			MHeap_Free(&mheap, s, 1);
+ 			break;
+ 		case RefFinalize:
+ 			if(pfinq < efinq) {
+@@ -283,6 +283,15 @@ static uint32 gcsema = 1;
+ // extra memory used).
+ static int32 gcpercent = -2;
+ 
++static void
++stealcache(void)
++{
++	M *m;
++	
++	for(m=allm; m; m=m->alllink)
++		MCache_ReleaseAll(m->mcache);
++}
++
+ void
+ gc(int32 force)
+ {
+@@ -313,17 +322,17 @@ gc(int32 force)
+ 	if(gcpercent < 0)
+ 		return;
+ 
+-//printf("gc...\n");
+ 	semacquire(&gcsema);
+ 	t0 = nanotime();
+ 	m->gcing = 1;
+ 	stoptheworld();
+ 	if(mheap.Lock.key != 0)
+ 		throw("mheap locked during gc");
+-	if(force || mstats.inuse_pages >= mstats.next_gc) {
++	if(force || mstats.heap_alloc >= mstats.next_gc) {
+ 		mark();
+ 		sweep();
+-		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
++		stealcache();
++		mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+ 	}
+ 	m->gcing = 0;
+ 
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 49ff3622ff..5f9406b697 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -53,14 +53,19 @@ MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+ // Allocate a new span of npage pages from the heap
+ // and record its size class in the HeapMap and HeapMapCache.
+ MSpan*
+-MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass)
++MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+ {
+ 	MSpan *s;
+ 
+ 	lock(h);
++	mstats.heap_alloc += m->mcache->local_alloc;
++	m->mcache->local_alloc = 0;
+ 	s = MHeap_AllocLocked(h, npage, sizeclass);
+-	if(s != nil)
++	if(s != nil) {
+ 		mstats.inuse_pages += npage;
++		if(acct)
++			mstats.heap_alloc += npage<<PageShift;
++	}
+ 	unlock(h);
+ 	return s;
+ }
+@@ -225,10 +230,14 @@ MHeap_LookupMaybe(MHeap *h, PageID p)
+ 
+ // Free the span back into the heap.
+ void
+-MHeap_Free(MHeap *h, MSpan *s)
++MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+ {
+ 	lock(h);
++	mstats.heap_alloc += m->mcache->local_alloc;
++	m->mcache->local_alloc = 0;
+ 	mstats.inuse_pages -= s->npages;
++	if(acct)
++		mstats.heap_alloc -= s->npages<<PageShift;
+ 	MHeap_FreeLocked(h, s);
+ 	unlock(h);
+ }

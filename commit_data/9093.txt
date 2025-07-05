@@ -9,8 +9,125 @@ Date:   Sun Jul 17 12:32:00 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4761044
-
+---
  src/pkg/exp/template/doc.go        | 16 +++++++++++-----
  src/pkg/exp/template/parse.go      | 11 +++++++----
  src/pkg/exp/template/parse_test.go |  3 +--
  3 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index bd3bc8358c..9dcb6b12be 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -18,6 +18,9 @@ The input text for a template is UTF-8-encoded text in any format.
+ "{{" and "}}"; all text outside actions is copied to the output unchanged.
+ Actions may not span newlines.
+ 
++Once constructed, templates and template sets can be executed safely in
++parallel.
++
+ Actions
+ 
+ Here is the list of actions. "Arguments" and "pipelines" are evaluations of
+@@ -150,24 +153,27 @@ Execute.
+ 
+ Variables
+ 
+-A pipeline may initialize a single variable to capture the result. The
+-initialization has syntax
++A pipeline inside an "if" or "with" action may initialize a variable to capture
++the result.  The initialization has syntax
+ 
+ 	$variable := pipeline
+ 
+ where $variable is the name of the variable.
+ 
+-The one exception is a pipeline in a range action; in ranges, the variable is
+-set to the successive elements of the iteration.  Also, a range may declare two
++If a "range" action initializes a variable, the variable is set to the
++successive elements of the iteration.  Also, a "range" may declare two
+ variables, separated by a comma:
+ 
+ 	$index, $element := pipeline
+ 
+-In this case $index and $element are set to the successive values of the
++in which case $index and $element are set to the successive values of the
+ array/slice index or map key and element, respectively.  Note that if there is
+ only one variable, it is assigned the element; this is opposite to the
+ convention in Go range clauses.
+ 
++A variable's scope extends to the "end" action of the control structure
++declaring it.
++
+ When execution begins, $ is set to the data argument passed to Execute, that is,
+ to the starting value of dot.
+ 
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index ed7a587bdf..9609935755 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -696,13 +696,13 @@ func (t *Template) action() (n node) {
+ 	}
+ 	t.backup()
+ 	defer t.popVars(len(t.vars))
+-	return newAction(t.lex.lineNumber(), t.pipeline("command"))
++	return newAction(t.lex.lineNumber(), t.pipeline("command", false))
+ }
+ 
+ // Pipeline:
+ //	field or command
+ //	pipeline "|" pipeline
+-func (t *Template) pipeline(context string) (pipe *pipeNode) {
++func (t *Template) pipeline(context string, allowDecls bool) (pipe *pipeNode) {
+ 	var decl []*variableNode
+ 	// Are there declarations?
+ 	for {
+@@ -714,6 +714,9 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 				if len(variable.ident) != 1 {
+ 					t.errorf("illegal variable in declaration: %s", v.val)
+ 				}
++				if !allowDecls {
++					t.errorf("variable %q declared but cannot be referenced", v.val)
++				}
+ 				decl = append(decl, variable)
+ 				t.vars = append(t.vars, v.val)
+ 				if next.typ == itemChar && next.val == "," {
+@@ -750,7 +753,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ func (t *Template) parseControl(context string) (lineNum int, pipe *pipeNode, list, elseList *listNode) {
+ 	lineNum = t.lex.lineNumber()
+ 	defer t.popVars(len(t.vars))
+-	pipe = t.pipeline(context)
++	pipe = t.pipeline(context, true)
+ 	var next node
+ 	list, next = t.itemList(false)
+ 	switch next.typ() {
+@@ -825,7 +828,7 @@ func (t *Template) templateControl() node {
+ 	if t.next().typ != itemRightDelim {
+ 		t.backup()
+ 		defer t.popVars(len(t.vars))
+-		pipe = t.pipeline("template")
++		pipe = t.pipeline("template", false)
+ 	}
+ 	return newTemplate(t.lex.lineNumber(), name, pipe)
+ }
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 6b4ca1989f..7a1468c383 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -181,8 +181,6 @@ var parseTests = []parseTest{
+ 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
+ 	{"pipeline", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+-	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
+-		`[(action: [V=[$x]] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"declaration", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"simple if", "{{if .X}}hello{{end}}", noError,
+@@ -226,6 +224,7 @@ var parseTests = []parseTest{
+ 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
+ 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
+ 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
++	{"useless declaration", "{{$x := .X|.Y}}", hasError, ""},
+ }
+ 
+ func TestParse(t *testing.T) {

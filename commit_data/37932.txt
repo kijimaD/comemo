@@ -8,6 +8,20 @@ Date:   Thu Sep 13 11:15:30 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/135235
     Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 61ed9c5059..89bb975ac1 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -469,7 +469,7 @@ func MatchString(pattern string, s string) (matched bool, err error) {
+ 	return re.MatchString(s), nil
+ }
+ 
+-// MatchString reports whether the byte slice b
++// Match reports whether the byte slice b
+ // contains any match of the regular expression pattern.
+ // More complicated queries need to use Compile and the full Regexp interface.
+ func Match(pattern string, b []byte) (matched bool, err error) {

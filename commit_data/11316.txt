@@ -8,7 +8,34 @@ Date:   Sun Jan 22 10:35:15 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5532115
-
+---
  src/cmd/6l/asm.c | 2 --
  src/cmd/8l/asm.c | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 1169490b80..7d36b170eb 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -37,8 +37,6 @@
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+ 
+-#define	Dbufslop	100
+-
+ #define PADDR(a)	((uint32)(a) & ~0x80000000)
+ 
+ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 7799e3f1e2..0fe4cf1123 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -37,8 +37,6 @@
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+ 
+-#define	Dbufslop	100
+-
+ char linuxdynld[] = "/lib/ld-linux.so.2";
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "/usr/libexec/ld.so";

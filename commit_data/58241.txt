@@ -22,9 +22,110 @@ Date:   Fri Oct 13 10:32:57 2023 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go         | 24 +++++++-----------------
  src/cmd/compile/internal/types2/stdlib_test.go |  1 +
  src/go/types/stdlib_test.go                    |  1 +
  test/fixedbugs/issue52697.go                   | 25 +++++++++++++++++++++++++
  4 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e8f0f561d0..d3671a9773 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7,6 +7,7 @@ package ssagen
+ import (
+ 	"bufio"
+ 	"bytes"
++	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+ 	"html"
+@@ -258,26 +259,15 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 
+ // dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
+ func dvarint(x *obj.LSym, off int, v int64) int {
+-	if v < 0 || v > 1e9 {
++	if v < 0 {
+ 		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
+ 	}
+-	if v < 1<<7 {
+-		return objw.Uint8(x, off, uint8(v))
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutUvarint(buf[:], uint64(v))
++	for _, b := range buf[:n] {
++		off = objw.Uint8(x, off, b)
+ 	}
+-	off = objw.Uint8(x, off, uint8((v&127)|128))
+-	if v < 1<<14 {
+-		return objw.Uint8(x, off, uint8(v>>7))
+-	}
+-	off = objw.Uint8(x, off, uint8(((v>>7)&127)|128))
+-	if v < 1<<21 {
+-		return objw.Uint8(x, off, uint8(v>>14))
+-	}
+-	off = objw.Uint8(x, off, uint8(((v>>14)&127)|128))
+-	if v < 1<<28 {
+-		return objw.Uint8(x, off, uint8(v>>21))
+-	}
+-	off = objw.Uint8(x, off, uint8(((v>>21)&127)|128))
+-	return objw.Uint8(x, off, uint8(v>>28))
++	return off
+ }
+ 
+ // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index fc93d44497..ae0f800d1e 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -328,6 +328,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
++		"issue52697.go",  // types2 does not have constraints on stack size
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, types2 does not know about build constraints.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 46fa475577..e490dea848 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -330,6 +330,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
++		"issue52697.go",  // go/types does not have constraints on stack size
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, go/types does not know about build constraints.
+diff --git a/test/fixedbugs/issue52697.go b/test/fixedbugs/issue52697.go
+new file mode 100644
+index 0000000000..da08a4f1f4
+--- /dev/null
++++ b/test/fixedbugs/issue52697.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !386 && !amd64p32 && !arm && !mips && !mipsle
++
++package main
++
++func g() { // GC_ERROR "stack frame too large"
++	xs := [3000 * 2000][33]int{}
++	for _, x := range xs {
++		if len(x) > 50 {
++
++		}
++	}
++}
++
++func main() { // GC_ERROR "stack frame too large"
++	defer f()
++	g()
++}
++
++func f() {}

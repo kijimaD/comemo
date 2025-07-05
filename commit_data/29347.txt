@@ -11,6 +11,20 @@ Date:   Sat Sep 10 14:05:51 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/hex/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/hex/example_test.go b/src/encoding/hex/example_test.go
+index 2cf756ce12..3580757a54 100644
+--- a/src/encoding/hex/example_test.go
++++ b/src/encoding/hex/example_test.go
+@@ -38,7 +38,7 @@ func ExampleDecode() {
+ 	// Hello Gopher!
+ }
+ 
+-func ExampleDecodedString() {
++func ExampleDecodeString() {
+ 	const s = "48656c6c6f20476f7068657221"
+ 	decoded, err := hex.DecodeString(s)
+ 	if err != nil {

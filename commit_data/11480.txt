@@ -13,7 +13,60 @@ Date:   Mon Jan 30 14:07:50 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5599048
-
+---
  src/cmd/godoc/doc.go   |  3 ++-
  src/cmd/godoc/godoc.go | 13 +++++++++----
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index acea2b5d06..3fad1b0d66 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -131,7 +131,8 @@ shown, and only an identifier index but no full text search index is created.
+ The presentation mode of web pages served by godoc can be controlled with the
+ "m" URL parameter; it accepts a comma-separated list of flag names as value:
+ 
+-	all	show documentation for all (not just exported) declarations
++	all	show documentation for all declarations, not just the exported ones
++	methods	show all embedded methods, not just those of unexported anonymous fields
+ 	src	show the original source code rather then the extracted documentation
+ 	text	present the page in textual (command-line) form rather than HTML
+ 	flat	present flat (not indented) directory listings using full paths
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 86983fbe17..916ef6808d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -867,6 +867,7 @@ type PageInfoMode uint
+ 
+ const (
+ 	noFiltering PageInfoMode = 1 << iota // do not filter exports
++	allMethods                           // show all embedded methods
+ 	showSource                           // show source code, do not extract documentation
+ 	noHtml                               // show result in textual form, do not generate HTML
+ 	flatDir                              // show directory in a flat (non-indented) manner
+@@ -874,10 +875,11 @@ const (
+ 
+ // modeNames defines names for each PageInfoMode flag.
+ var modeNames = map[string]PageInfoMode{
+-	"all":  noFiltering,
+-	"src":  showSource,
+-	"text": noHtml,
+-	"flat": flatDir,
++	"all":     noFiltering,
++	"methods": allMethods,
++	"src":     showSource,
++	"text":    noHtml,
++	"flat":    flatDir,
+ }
+ 
+ // getPageInfoMode computes the PageInfoMode flags by analyzing the request
+@@ -1088,6 +1090,9 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 			if mode&noFiltering != 0 {
+ 				m = doc.AllDecls
+ 			}
++			if mode&allMethods != 0 {
++				m |= doc.AllMethods
++			}
+ 			pdoc = doc.New(pkg, path.Clean(relpath), m) // no trailing '/' in importpath
+ 		} else {
+ 			// show source code

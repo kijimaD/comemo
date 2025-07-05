@@ -10,6 +10,20 @@ Date:   Fri Jan 15 23:17:48 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/189100
-
+---
  src/pkg/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 113880918a..8f46723200 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -357,7 +357,7 @@ func (p *parser) findIdent() *ast.Ident {
+ 	if obj == nil {
+ 		obj = ast.NewObj(ast.Err, pos, name)
+ 	}
+-	return &ast.Ident{obj.Pos, obj}
++	return &ast.Ident{pos, obj}
+ }
+ 
+ 

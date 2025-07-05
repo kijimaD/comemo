@@ -14,6 +14,30 @@ Date:   Sat Aug 27 10:35:31 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/testing/testing.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 7148537370..0228d2904b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1127,12 +1127,17 @@ func (c *common) TempDir() string {
+ 			})
+ 		}
+ 	}
++
++	if c.tempDirErr == nil {
++		c.tempDirSeq++
++	}
++	seq := c.tempDirSeq
+ 	c.tempDirMu.Unlock()
+ 
+ 	if c.tempDirErr != nil {
+ 		c.Fatalf("TempDir: %v", c.tempDirErr)
+ 	}
+-	seq := atomic.AddInt32(&c.tempDirSeq, 1)
++
+ 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
+ 	if err := os.Mkdir(dir, 0777); err != nil {
+ 		c.Fatalf("TempDir: %v", err)

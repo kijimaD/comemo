@@ -29,6 +29,20 @@ Date:   Fri Dec 23 03:37:43 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 29bc61db60..e160265d49 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -889,7 +889,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
+ 
+ 	tmp := Temp((*np).Type())
+ 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
+-	as.Def = true
++	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+ 	*np = tmp
+ 
+ 	if static {

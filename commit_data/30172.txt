@@ -25,7 +25,56 @@ Date:   Sat Oct 15 14:37:19 2016 +0200
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/compress/flate/deflate.go     | 4 ++--
  src/compress/flate/writer_test.go | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 7a805235d2..97265b3ca2 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -521,10 +521,10 @@ func (d *compressor) fillStore(b []byte) int {
+ }
+ 
+ func (d *compressor) store() {
+-	if d.windowEnd > 0 {
++	if d.windowEnd > 0 && (d.windowEnd == maxStoreBlockSize || d.sync) {
+ 		d.err = d.writeStoredBlock(d.window[:d.windowEnd])
++		d.windowEnd = 0
+ 	}
+-	d.windowEnd = 0
+ }
+ 
+ // storeHuff compresses and stores the currently added data
+diff --git a/src/compress/flate/writer_test.go b/src/compress/flate/writer_test.go
+index 21cd0b22ee..68de48b98f 100644
+--- a/src/compress/flate/writer_test.go
++++ b/src/compress/flate/writer_test.go
+@@ -75,7 +75,7 @@ func TestWriteError(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("NewWriter: level %d: %v", l, err)
+ 			}
+-			n, err := io.CopyBuffer(w, bytes.NewBuffer(in), copyBuffer)
++			n, err := io.CopyBuffer(w, struct{ io.Reader }{bytes.NewBuffer(in)}, copyBuffer)
+ 			if err == nil {
+ 				t.Fatalf("Level %d: Expected an error, writer was %#v", l, ew)
+ 			}
+@@ -142,7 +142,7 @@ func testDeterministic(i int, t *testing.T) {
+ 	}
+ 	// Use a very small prime sized buffer.
+ 	cbuf := make([]byte, 787)
+-	_, err = io.CopyBuffer(w, br, cbuf)
++	_, err = io.CopyBuffer(w, struct{ io.Reader }{br}, cbuf)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -157,7 +157,7 @@ func testDeterministic(i int, t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	_, err = io.CopyBuffer(w2, br2, cbuf)
++	_, err = io.CopyBuffer(w2, struct{ io.Reader }{br2}, cbuf)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

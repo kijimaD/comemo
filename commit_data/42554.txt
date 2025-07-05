@@ -11,7 +11,51 @@ Date:   Sat Jan 11 19:53:20 2020 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_noat.go |  1 +
  src/os/removeall_test.go | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index c1b43e3807..6474d2d54e 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -27,6 +27,7 @@ func removeAll(path string) error {
+ 	}
+ 
+ 	// Simple case: if Remove works, we're done.
++	path = fixLongPath(path)
+ 	err := Remove(path)
+ 	if err == nil || IsNotExist(err) {
+ 		return nil
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 8a71f687ed..6fb31c2d8f 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -206,6 +206,26 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 	}
+ }
+ 
++func TestRemoveAllLongPathWindows(t *testing.T) {
++	startPath, err := ioutil.TempDir("", "TestRemoveAllLongPath-")
++	if err != nil {
++		t.Fatalf("Could not create TempDir: %s", err)
++	}
++	defer RemoveAll(startPath)
++
++	// Make a long path
++	err = MkdirAll(filepath.Join(startPath, "foo", "bar", strings.Repeat("a", 150),
++		strings.Repeat("b", 150)), ModePerm)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	err = RemoveAll("foo")
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func TestRemoveAllDot(t *testing.T) {
+ 	prevDir, err := Getwd()
+ 	if err != nil {

@@ -7,8 +7,122 @@ Date:   Thu Jan 27 14:00:31 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4000046
-
+---
  src/pkg/bufio/bufio.go       |  6 ++++--
  src/pkg/bytes/buffer.go      | 29 +++++++++++++++++++++++++++++
  src/pkg/bytes/buffer_test.go | 27 ++++++++++++++++++++++++++-
  3 files changed, 59 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index c13456a632..67b7cdb53c 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -286,7 +286,8 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ // returning a slice containing the data up to and including the delimiter.
+ // If ReadBytes encounters an error before finding a delimiter,
+ // it returns the data read before the error and the error itself (often os.EOF).
+-// ReadBytes returns err != nil if and only if line does not end in delim.
++// ReadBytes returns err != nil if and only if the returned data does not end in
++// delim.
+ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+ 	// Use ReadSlice to look for array,
+ 	// accumulating full buffers.
+@@ -332,7 +333,8 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+ // returning a string containing the data up to and including the delimiter.
+ // If ReadString encounters an error before finding a delimiter,
+ // it returns the data read before the error and the error itself (often os.EOF).
+-// ReadString returns err != nil if and only if line does not end in delim.
++// ReadString returns err != nil if and only if the returned data does not end in
++// delim.
+ func (b *Reader) ReadString(delim byte) (line string, err os.Error) {
+ 	bytes, e := b.ReadBytes(delim)
+ 	return string(bytes), e
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 62cf82810e..4aa74371f1 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -301,6 +301,35 @@ func (b *Buffer) UnreadByte() os.Error {
+ 	return nil
+ }
+ 
++// ReadBytes reads until the first occurrence of delim in the input,
++// returning a slice containing the data up to and including the delimiter.
++// If ReadBytes encounters an error before finding a delimiter,
++// it returns the data read before the error and the error itself (often os.EOF).
++// ReadBytes returns err != nil if and only if the returned data does not end in
++// delim.
++func (b *Buffer) ReadBytes(delim byte) (line []byte, err os.Error) {
++	i := IndexByte(b.buf[b.off:], delim)
++	size := i + 1 - b.off
++	if i < 0 {
++		size = len(b.buf) - b.off
++		err = os.EOF
++	}
++	line = make([]byte, size)
++	copy(line, b.buf[b.off:])
++	return
++}
++
++// ReadString reads until the first occurrence of delim in the input,
++// returning a string containing the data up to and including the delimiter.
++// If ReadString encounters an error before finding a delimiter,
++// it returns the data read before the error and the error itself (often os.EOF).
++// ReadString returns err != nil if and only if the returned data does not end
++// in delim.
++func (b *Buffer) ReadString(delim byte) (line string, err os.Error) {
++	bytes, err := b.ReadBytes(delim)
++	return string(bytes), err
++}
++
+ // NewBuffer creates and initializes a new Buffer using buf as its initial
+ // contents.  It is intended to prepare a Buffer to read existing data.  It
+ // can also be used to size the internal buffer for writing.  To do that,
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 509793d24a..2af9ffdefa 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -6,6 +6,7 @@ package bytes_test
+ 
+ import (
+ 	. "bytes"
++	"os"
+ 	"rand"
+ 	"testing"
+ 	"utf8"
+@@ -238,7 +239,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ func TestNil(t *testing.T) {
+ 	var b *Buffer
+ 	if b.String() != "<nil>" {
+-		t.Errorf("expcted <nil>; got %q", b.String())
++		t.Errorf("expected <nil>; got %q", b.String())
+ 	}
+ }
+ 
+@@ -347,3 +348,27 @@ func TestNext(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var readBytesTests = []struct {
++	buffer   []byte
++	delim    byte
++	expected []byte
++	err      os.Error
++}{
++	{err: os.EOF},
++	{[]byte{}, 0, []byte{}, os.EOF},
++	{[]byte("a\x00"), 0, []byte("a\x00"), nil},
++	{[]byte("hello\x01world"), 1, []byte("hello\x01"), nil},
++	{[]byte("foo\nbar"), 0, []byte("foo\nbar"), os.EOF},
++	{[]byte("alpha beta gamma"), ' ', []byte("alpha "), nil},
++}
++
++func TestReadBytes(t *testing.T) {
++	for _, test := range readBytesTests {
++		buf := NewBuffer(test.buffer)
++		bytes, err := buf.ReadBytes(test.delim)
++		if !Equal(bytes, test.expected) || err != test.err {
++			t.Errorf("expected %q, %v got %q, %v", test.expected, test.err, bytes, err)
++		}
++	}
++}

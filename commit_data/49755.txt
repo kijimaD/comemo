@@ -12,6 +12,25 @@ Date:   Wed Sep 8 16:21:33 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/internal/poll/splice_linux_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/internal/poll/splice_linux_test.go b/src/internal/poll/splice_linux_test.go
+index 280468c7e7..deac5c3759 100644
+--- a/src/internal/poll/splice_linux_test.go
++++ b/src/internal/poll/splice_linux_test.go
+@@ -67,6 +67,13 @@ func TestSplicePipePool(t *testing.T) {
+ 		}
+ 		select {
+ 		case <-expiredTime.C:
++			t.Logf("descriptors to check: %v", fds)
++			for _, fd := range fds {
++				_, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), syscall.F_GETPIPE_SZ, 0)
++				if errno == 0 {
++					t.Errorf("descriptor %d still open", fd)
++				}
++			}
+ 			t.Fatal("at least one pipe is still open")
+ 		default:
+ 		}

@@ -18,8 +18,58 @@ Date:   Tue Oct 12 11:54:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/api/goapi.go                       | 5 +++--
  src/cmd/api/testdata/src/pkg/p4/golden.txt | 9 +++++----
  src/cmd/api/testdata/src/pkg/p4/p4.go      | 4 ++++
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index eca113a638..0c61b1b489 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -838,7 +838,8 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 		buf.WriteString(typ.Obj().Name())
+ 
+ 	case *types.TypeParam:
+-		buf.WriteString(typ.Obj().Name())
++		// Type parameter names may change, so use a placeholder instead.
++		fmt.Fprintf(buf, "$%d", typ.Index())
+ 
+ 	default:
+ 		panic(fmt.Sprintf("unknown type %T", typ))
+@@ -870,7 +871,7 @@ func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList
+ 			buf.WriteString(", ")
+ 		}
+ 		tp := tparams.At(i)
+-		buf.WriteString(tp.Obj().Name())
++		w.writeType(buf, tp)
+ 		if withConstraints {
+ 			buf.WriteByte(' ')
+ 			w.writeType(buf, tp.Constraint())
+diff --git a/src/cmd/api/testdata/src/pkg/p4/golden.txt b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+index d5f282be8e..7997ab4471 100644
+--- a/src/cmd/api/testdata/src/pkg/p4/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+@@ -1,4 +1,5 @@
+-pkg p4, func NewPair[T1 interface{ M }, T2 interface{ ~int }](T1, T2) Pair
+-pkg p4, method (Pair[_, X2]) Second() X2
+-pkg p4, method (Pair[X1, _]) First() X1
+-pkg p4, type Pair[T1 interface{ M }, T2 interface{ ~int }] struct
++pkg p4, func NewPair[$0 interface{ M }, $1 interface{ ~int }]($0, $1) Pair
++pkg p4, method (Pair[$0, $1]) Second() $1
++pkg p4, method (Pair[$0, $1]) First() $0
++pkg p4, type Pair[$0 interface{ M }, $1 interface{ ~int }] struct
++pkg p4, func Clone[$0 interface{ ~[]$1 }, $1 interface{}]($0) $0
+diff --git a/src/cmd/api/testdata/src/pkg/p4/p4.go b/src/cmd/api/testdata/src/pkg/p4/p4.go
+index 187339b169..462a75be1a 100644
+--- a/src/cmd/api/testdata/src/pkg/p4/p4.go
++++ b/src/cmd/api/testdata/src/pkg/p4/p4.go
+@@ -20,3 +20,7 @@ func (p Pair[X1, _]) First() X1 {
+ func (p Pair[_, X2]) Second() X2 {
+ 	return p.f2
+ }
++
++func Clone[S ~[]T, T any](s S) S {
++	return append(S(nil), s...)
++}

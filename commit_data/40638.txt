@@ -15,7 +15,56 @@ Date:   Sat Jun 1 18:14:04 2019 +0200
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go | 8 ++++++++
  src/cmd/go/testdata/script/mod_off.txt | 4 ++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 9f8c410b82..71b660d6fd 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -5,6 +5,7 @@
+ package modcmd
+ 
+ import (
++	"cmd/go/internal/cfg"
+ 	"encoding/json"
+ 	"os"
+ 
+@@ -67,6 +68,13 @@ type moduleJSON struct {
+ }
+ 
+ func runDownload(cmd *base.Command, args []string) {
++	// Check whether modules are enabled and whether we're in a module.
++	if cfg.Getenv("GO111MODULE") == "off" {
++		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
++	}
++	if !modload.HasModRoot() && len(args) == 0 {
++		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
++	}
+ 	if len(args) == 0 {
+ 		args = []string{"all"}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_off.txt b/src/cmd/go/testdata/script/mod_off.txt
+index bc0a7861f4..cada6deb1d 100644
+--- a/src/cmd/go/testdata/script/mod_off.txt
++++ b/src/cmd/go/testdata/script/mod_off.txt
+@@ -9,6 +9,8 @@ stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'
+ stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+ ! go mod verify
+ stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod download
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+ 
+ # Same result in an empty directory
+ mkdir z
+@@ -19,6 +21,8 @@ stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'
+ stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+ ! go mod verify
+ stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod download
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+ 
+ -- sample.go --
+ package sample

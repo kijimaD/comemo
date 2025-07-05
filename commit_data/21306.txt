@@ -14,6 +14,30 @@ Date:   Fri Dec 19 17:21:14 2014 -0800
     Change-Id: I803990705b6b226ed0adf17dc57b58a9f501b213
     Reviewed-on: https://go-review.googlesource.com/1901
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/cgo/out.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 78ecfd3974..2537c3b280 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -835,8 +835,6 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm io.Writer) {
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+ 
+-	fmt.Fprintf(fm, "#include \"_cgo_export.h\"\n")
+-
+ 	for _, exp := range p.ExpFunc {
+ 		fn := exp.Func
+ 		fntype := fn.Type
+@@ -924,7 +922,8 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm io.Writer) {
+ 		fmt.Fprint(fgcc, "}\n")
+ 
+ 		// Dummy declaration for _cgo_main.c
+-		fmt.Fprintf(fm, "%s %s %s {}\n", cRet, goName, cParams)
++		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, goName)
++		fmt.Fprint(fm, "\n")
+ 
+ 		// For gccgo we use a wrapper function in Go, in order
+ 		// to call CgocallBack and CgocallBackDone.

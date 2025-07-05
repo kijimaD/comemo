@@ -7,6 +7,24 @@ Date:   Thu Apr 4 12:07:53 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8350044
-
+---
  misc/dist/bindist.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 1f5cfc817e..d06a4f6e28 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -197,6 +197,12 @@ func (b *Build) Do() error {
+ 		if err != nil {
+ 			return err
+ 		}
++		// Re-install std without -race, so that we're not left with
++		// a slower, race-enabled cmd/go, cmd/godoc, etc.
++		_, err = b.run(src, goCmd, "install", "-a", "std")
++		if err != nil {
++			return err
++		}
+ 	}
+ 
+ 	if err := b.tour(); err != nil {

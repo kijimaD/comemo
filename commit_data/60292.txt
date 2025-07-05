@@ -10,6 +10,20 @@ Date:   Sat Jun 8 09:47:51 2024 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/tick_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 750aa90f4d..fce9002cfc 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -179,7 +179,7 @@ func TestLongAdjustTimers(t *testing.T) {
+ 	done := make(chan bool)
+ 	AfterFunc(60*Second, func() { close(done) })
+ 
+-	// Set up a queing goroutine to ping pong through the scheduler.
++	// Set up a queuing goroutine to ping pong through the scheduler.
+ 	inQ := make(chan func())
+ 	outQ := make(chan func())
+ 

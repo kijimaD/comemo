@@ -14,6 +14,31 @@ Date:   Sat Jul 6 23:03:27 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/test.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d7cbadf7b1..0ffcabe416 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -711,19 +711,6 @@ func (t *tester) registerTests() {
+ 			})
+ 	}
+ 
+-	// GOEXPERIMENT=rangefunc tests
+-	if !t.compileOnly {
+-		for _, pkg := range []string{"iter", "slices", "maps"} {
+-			t.registerTest("GOEXPERIMENT=rangefunc",
+-				&goTest{
+-					variant: pkg,
+-					short:   t.short,
+-					env:     []string{"GOEXPERIMENT=rangefunc"},
+-					pkg:     pkg,
+-				})
+-		}
+-	}
+-
+ 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
+ 	// mode (with GO_TEST_SHORT=0) because this is just testing a
+ 	// non-critical debug setting.

@@ -13,7 +13,7 @@ Date:   Sat Mar 3 10:28:58 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go                    |   9 +-
  src/bytes/bytes_amd64.go              |   9 --
  src/bytes/bytes_arm64.go              |   9 --
@@ -33,3 +33,737 @@ Date:   Sat Mar 3 10:28:58 2018 -0800
  src/strings/strings_generic.go        |   6 -
  src/strings/strings_s390x.go          |   6 -
  18 files changed, 282 insertions(+), 259 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 9af177fa88..08d8260e9e 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -7,6 +7,7 @@
+ package bytes
+ 
+ import (
++	"internal/bytealg"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -46,12 +47,16 @@ func explode(s []byte, n int) [][]byte {
+ 	return a[0:na]
+ }
+ 
+-// countGeneric actually implements Count
+-func countGeneric(s, sep []byte) int {
++// Count counts the number of non-overlapping instances of sep in s.
++// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
++func Count(s, sep []byte) int {
+ 	// special case
+ 	if len(sep) == 0 {
+ 		return utf8.RuneCount(s) + 1
+ 	}
++	if len(sep) == 1 {
++		return bytealg.Count(s, sep[0])
++	}
+ 	n := 0
+ 	for {
+ 		i := Index(s, sep)
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index 0c9d613ef9..2fc88c68fc 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -77,12 +77,3 @@ func Index(s, sep []byte) int {
+ 	}
+ 	return indexRabinKarp(s, sep)
+ }
+-
+-// Count counts the number of non-overlapping instances of sep in s.
+-// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+-func Count(s, sep []byte) int {
+-	if len(sep) == 1 && cpu.X86.HasPOPCNT {
+-		return countByte(s, sep[0])
+-	}
+-	return countGeneric(s, sep)
+-}
+diff --git a/src/bytes/bytes_arm64.go b/src/bytes/bytes_arm64.go
+index 3d9ed3dd22..39e9562db1 100644
+--- a/src/bytes/bytes_arm64.go
++++ b/src/bytes/bytes_arm64.go
+@@ -70,12 +70,3 @@ func Index(s, sep []byte) int {
+ 	}
+ 	return -1
+ }
+-
+-// Count counts the number of non-overlapping instances of sep in s.
+-// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+-func Count(s, sep []byte) int {
+-	if len(sep) == 1 {
+-		return countByte(s, sep[0])
+-	}
+-	return countGeneric(s, sep)
+-}
+diff --git a/src/bytes/bytes_generic.go b/src/bytes/bytes_generic.go
+index 0e7d33f09a..347d28473f 100644
+--- a/src/bytes/bytes_generic.go
++++ b/src/bytes/bytes_generic.go
+@@ -57,9 +57,3 @@ func Index(s, sep []byte) int {
+ 	}
+ 	return -1
+ }
+-
+-// Count counts the number of non-overlapping instances of sep in s.
+-// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+-func Count(s, sep []byte) int {
+-	return countGeneric(s, sep)
+-}
+diff --git a/src/bytes/bytes_s390x.go b/src/bytes/bytes_s390x.go
+index c59b891292..84f040d43d 100644
+--- a/src/bytes/bytes_s390x.go
++++ b/src/bytes/bytes_s390x.go
+@@ -78,9 +78,3 @@ func Index(s, sep []byte) int {
+ 	}
+ 	return indexRabinKarp(s, sep)
+ }
+-
+-// Count counts the number of non-overlapping instances of sep in s.
+-// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+-func Count(s, sep []byte) int {
+-	return countGeneric(s, sep)
+-}
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 1e56571c73..55a22bae22 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -410,10 +410,6 @@ func TestCountByte(t *testing.T) {
+ 			if p != j+1 {
+ 				t.Errorf("TestCountByte.Count(%q, 100) = %d", b[i:i+window], p)
+ 			}
+-			pGeneric := CountGeneric(b[i:i+window], []byte{100})
+-			if pGeneric != j+1 {
+-				t.Errorf("TestCountByte.CountGeneric(%q, 100) = %d", b[i:i+window], p)
+-			}
+ 		}
+ 	}
+ 
+@@ -461,10 +457,6 @@ func TestCountByteNoMatch(t *testing.T) {
+ 			if p != 0 {
+ 				t.Errorf("TestCountByteNoMatch(%q, 0) = %d", b[i:i+window], p)
+ 			}
+-			pGeneric := CountGeneric(b[i:i+window], []byte{0})
+-			if pGeneric != 0 {
+-				t.Errorf("TestCountByteNoMatch.CountGeneric(%q, 100) = %d", b[i:i+window], p)
+-			}
+ 			for j := 0; j < window; j++ {
+ 				b[i+j] = byte(0)
+ 			}
+diff --git a/src/bytes/export_test.go b/src/bytes/export_test.go
+index 823c8b09ee..f61523e60b 100644
+--- a/src/bytes/export_test.go
++++ b/src/bytes/export_test.go
+@@ -7,4 +7,3 @@ package bytes
+ // Export func for testing
+ var IndexBytePortable = indexBytePortable
+ var EqualPortable = equalPortable
+-var CountGeneric = countGeneric
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 4f0e61ad47..ec1e846410 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -13,8 +13,6 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
+ runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package strings
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package bytes
+ 
+ // Intentionally missing declarations. These are special assembly routines.
+ // Some are jumped into from other routines, with values in specific registers.
+@@ -28,4 +26,3 @@ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+ runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
+-runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration
+diff --git a/src/internal/bytealg/count_amd64.s b/src/internal/bytealg/count_amd64.s
+new file mode 100644
+index 0000000000..19eb1ac642
+--- /dev/null
++++ b/src/internal/bytealg/count_amd64.s
+@@ -0,0 +1,201 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Count(SB),NOSPLIT,$0-40
++	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
++	JEQ	2(PC)
++	JMP	·countGeneric(SB)
++	MOVQ	b_base+0(FP), SI
++	MOVQ	b_len+8(FP), BX
++	MOVB	c+24(FP), AL
++	LEAQ	ret+32(FP), R8
++	JMP	countbody<>(SB)
++
++TEXT ·CountString(SB),NOSPLIT,$0-32
++	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
++	JEQ	2(PC)
++	JMP	·countGenericString(SB)
++	MOVQ	s_base+0(FP), SI
++	MOVQ	s_len+8(FP), BX
++	MOVB	c+16(FP), AL
++	LEAQ	ret+24(FP), R8
++	JMP	countbody<>(SB)
++
++// input:
++//   SI: data
++//   BX: data len
++//   AL: byte sought
++//   R8: address to put result
++// This function requires the POPCNT instruction.
++TEXT countbody<>(SB),NOSPLIT,$0
++	// Shuffle X0 around so that each byte contains
++	// the character we're looking for.
++	MOVD AX, X0
++	PUNPCKLBW X0, X0
++	PUNPCKLBW X0, X0
++	PSHUFL $0, X0, X0
++
++	CMPQ BX, $16
++	JLT small
++
++	MOVQ $0, R12 // Accumulator
++
++	MOVQ SI, DI
++
++	CMPQ BX, $32
++	JA avx2
++sse:
++	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
++	JMP	sseloopentry
++
++sseloop:
++	// Move the next 16-byte chunk of the data into X1.
++	MOVOU	(DI), X1
++	// Compare bytes in X0 to X1.
++	PCMPEQB	X0, X1
++	// Take the top bit of each byte in X1 and put the result in DX.
++	PMOVMSKB X1, DX
++	// Count number of matching bytes
++	POPCNTL DX, DX
++	// Accumulate into R12
++	ADDQ DX, R12
++	// Advance to next block.
++	ADDQ	$16, DI
++sseloopentry:
++	CMPQ	DI, AX
++	JBE	sseloop
++
++	// Get the number of bytes to consider in the last 16 bytes
++	ANDQ $15, BX
++	JZ end
++
++	// Create mask to ignore overlap between previous 16 byte block
++	// and the next.
++	MOVQ $16,CX
++	SUBQ BX, CX
++	MOVQ $0xFFFF, R10
++	SARQ CL, R10
++	SALQ CL, R10
++
++	// Process the last 16-byte chunk. This chunk may overlap with the
++	// chunks we've already searched so we need to mask part of it.
++	MOVOU	(AX), X1
++	PCMPEQB	X0, X1
++	PMOVMSKB X1, DX
++	// Apply mask
++	ANDQ R10, DX
++	POPCNTL DX, DX
++	ADDQ DX, R12
++end:
++	MOVQ R12, (R8)
++	RET
++
++// handle for lengths < 16
++small:
++	TESTQ	BX, BX
++	JEQ	endzero
++
++	// Check if we'll load across a page boundary.
++	LEAQ	16(SI), AX
++	TESTW	$0xff0, AX
++	JEQ	endofpage
++
++	// We must ignore high bytes as they aren't part of our slice.
++	// Create mask.
++	MOVB BX, CX
++	MOVQ $1, R10
++	SALQ CL, R10
++	SUBQ $1, R10
++
++	// Load data
++	MOVOU	(SI), X1
++	// Compare target byte with each byte in data.
++	PCMPEQB	X0, X1
++	// Move result bits to integer register.
++	PMOVMSKB X1, DX
++	// Apply mask
++	ANDQ R10, DX
++	POPCNTL DX, DX
++	// Directly return DX, we don't need to accumulate
++	// since we have <16 bytes.
++	MOVQ	DX, (R8)
++	RET
++endzero:
++	MOVQ $0, (R8)
++	RET
++
++endofpage:
++	// We must ignore low bytes as they aren't part of our slice.
++	MOVQ $16,CX
++	SUBQ BX, CX
++	MOVQ $0xFFFF, R10
++	SARQ CL, R10
++	SALQ CL, R10
++
++	// Load data into the high end of X1.
++	MOVOU	-16(SI)(BX*1), X1
++	// Compare target byte with each byte in data.
++	PCMPEQB	X0, X1
++	// Move result bits to integer register.
++	PMOVMSKB X1, DX
++	// Apply mask
++	ANDQ R10, DX
++	// Directly return DX, we don't need to accumulate
++	// since we have <16 bytes.
++	POPCNTL DX, DX
++	MOVQ	DX, (R8)
++	RET
++
++avx2:
++	CMPB   runtime·support_avx2(SB), $1
++	JNE sse
++	MOVD AX, X0
++	LEAQ -32(SI)(BX*1), R11
++	VPBROADCASTB  X0, Y1
++avx2_loop:
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPMOVMSKB Y3, DX
++	POPCNTL DX, DX
++	ADDQ DX, R12
++	ADDQ $32, DI
++	CMPQ DI, R11
++	JLE avx2_loop
++
++	// If last block is already processed,
++	// skip to the end.
++	CMPQ DI, R11
++	JEQ endavx
++
++	// Load address of the last 32 bytes.
++	// There is an overlap with the previous block.
++	MOVQ R11, DI
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPMOVMSKB Y3, DX
++	// Exit AVX mode.
++	VZEROUPPER
++
++	// Create mask to ignore overlap between previous 32 byte block
++	// and the next.
++	ANDQ $31, BX
++	MOVQ $32,CX
++	SUBQ BX, CX
++	MOVQ $0xFFFFFFFF, R10
++	SARQ CL, R10
++	SALQ CL, R10
++	// Apply mask
++	ANDQ R10, DX
++	POPCNTL DX, DX
++	ADDQ DX, R12
++	MOVQ R12, (R8)
++	RET
++endavx:
++	// Exit AVX mode.
++	VZEROUPPER
++	MOVQ R12, (R8)
++	RET
+diff --git a/src/internal/bytealg/count_generic.go b/src/internal/bytealg/count_generic.go
+new file mode 100644
+index 0000000000..acc5a79827
+--- /dev/null
++++ b/src/internal/bytealg/count_generic.go
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64
++
++package bytealg
++
++func Count(b []byte, c byte) int {
++	n := 0
++	for _, x := range b {
++		if x == c {
++			n++
++		}
++	}
++	return n
++}
++
++func CountString(s string, c byte) int {
++	n := 0
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			n++
++		}
++	}
++	return n
++}
+diff --git a/src/internal/bytealg/count_native.go b/src/internal/bytealg/count_native.go
+new file mode 100644
+index 0000000000..e6d3b066aa
+--- /dev/null
++++ b/src/internal/bytealg/count_native.go
+@@ -0,0 +1,33 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64
++
++package bytealg
++
++//go:noescape
++func Count(b []byte, c byte) int
++
++//go:noescape
++func CountString(s string, c byte) int
++
++// A backup implementation to use by assembly.
++func countGeneric(b []byte, c byte) int {
++	n := 0
++	for _, x := range b {
++		if x == c {
++			n++
++		}
++	}
++	return n
++}
++func countGenericString(s string, c byte) int {
++	n := 0
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			n++
++		}
++	}
++	return n
++}
+diff --git a/src/internal/bytealg/equal_native.go b/src/internal/bytealg/equal_native.go
+index 3d4c057f10..55d184a58b 100644
+--- a/src/internal/bytealg/equal_native.go
++++ b/src/internal/bytealg/equal_native.go
+@@ -15,9 +15,12 @@ import (
+ // TODO: find a better way to do this?
+ 
+ // Offsets into internal/cpu records for use in assembly.
+-const x86_HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
+-const x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+-const s390x_HasVX = unsafe.Offsetof(cpu.S390X.HasVX)
++const (
++	x86_HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
++	x86_HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
++	x86_HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
++	s390x_HasVX   = unsafe.Offsetof(cpu.S390X.HasVX)
++)
+ 
+ //go:noescape
+ func Equal(a, b []byte) bool
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 5835443ff6..386307afa5 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1848,195 +1848,6 @@ success:
+ 	MOVQ DI, (R11)
+ 	RET
+ 
+-TEXT bytes·countByte(SB),NOSPLIT,$0-40
+-	MOVQ s+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+24(FP), AL
+-	LEAQ ret+32(FP), R8
+-	JMP  runtime·countByte(SB)
+-
+-TEXT strings·countByte(SB),NOSPLIT,$0-32
+-	MOVQ s+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+16(FP), AL
+-	LEAQ ret+24(FP), R8
+-	JMP  runtime·countByte(SB)
+-
+-// input:
+-//   SI: data
+-//   BX: data len
+-//   AL: byte sought
+-//   R8: address to put result
+-// This requires the POPCNT instruction
+-TEXT runtime·countByte(SB),NOSPLIT,$0
+-	// Shuffle X0 around so that each byte contains
+-	// the character we're looking for.
+-	MOVD AX, X0
+-	PUNPCKLBW X0, X0
+-	PUNPCKLBW X0, X0
+-	PSHUFL $0, X0, X0
+-
+-	CMPQ BX, $16
+-	JLT small
+-
+-	MOVQ $0, R12 // Accumulator
+-
+-	MOVQ SI, DI
+-
+-	CMPQ BX, $32
+-	JA avx2
+-sse:
+-	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
+-	JMP	sseloopentry
+-
+-sseloop:
+-	// Move the next 16-byte chunk of the data into X1.
+-	MOVOU	(DI), X1
+-	// Compare bytes in X0 to X1.
+-	PCMPEQB	X0, X1
+-	// Take the top bit of each byte in X1 and put the result in DX.
+-	PMOVMSKB X1, DX
+-	// Count number of matching bytes
+-	POPCNTL DX, DX
+-	// Accumulate into R12
+-	ADDQ DX, R12
+-	// Advance to next block.
+-	ADDQ	$16, DI
+-sseloopentry:
+-	CMPQ	DI, AX
+-	JBE	sseloop
+-
+-	// Get the number of bytes to consider in the last 16 bytes
+-	ANDQ $15, BX
+-	JZ end
+-
+-	// Create mask to ignore overlap between previous 16 byte block
+-	// and the next.
+-	MOVQ $16,CX
+-	SUBQ BX, CX
+-	MOVQ $0xFFFF, R10
+-	SARQ CL, R10
+-	SALQ CL, R10
+-
+-	// Process the last 16-byte chunk. This chunk may overlap with the
+-	// chunks we've already searched so we need to mask part of it.
+-	MOVOU	(AX), X1
+-	PCMPEQB	X0, X1
+-	PMOVMSKB X1, DX
+-	// Apply mask
+-	ANDQ R10, DX
+-	POPCNTL DX, DX
+-	ADDQ DX, R12
+-end:
+-	MOVQ R12, (R8)
+-	RET
+-
+-// handle for lengths < 16
+-small:
+-	TESTQ	BX, BX
+-	JEQ	endzero
+-
+-	// Check if we'll load across a page boundary.
+-	LEAQ	16(SI), AX
+-	TESTW	$0xff0, AX
+-	JEQ	endofpage
+-
+-	// We must ignore high bytes as they aren't part of our slice.
+-	// Create mask.
+-	MOVB BX, CX
+-	MOVQ $1, R10
+-	SALQ CL, R10
+-	SUBQ $1, R10
+-
+-	// Load data
+-	MOVOU	(SI), X1
+-	// Compare target byte with each byte in data.
+-	PCMPEQB	X0, X1
+-	// Move result bits to integer register.
+-	PMOVMSKB X1, DX
+-	// Apply mask
+-	ANDQ R10, DX
+-	POPCNTL DX, DX
+-	// Directly return DX, we don't need to accumulate
+-	// since we have <16 bytes.
+-	MOVQ	DX, (R8)
+-	RET
+-endzero:
+-	MOVQ $0, (R8)
+-	RET
+-
+-endofpage:
+-	// We must ignore low bytes as they aren't part of our slice.
+-	MOVQ $16,CX
+-	SUBQ BX, CX
+-	MOVQ $0xFFFF, R10
+-	SARQ CL, R10
+-	SALQ CL, R10
+-
+-	// Load data into the high end of X1.
+-	MOVOU	-16(SI)(BX*1), X1
+-	// Compare target byte with each byte in data.
+-	PCMPEQB	X0, X1
+-	// Move result bits to integer register.
+-	PMOVMSKB X1, DX
+-	// Apply mask
+-	ANDQ R10, DX
+-	// Directly return DX, we don't need to accumulate
+-	// since we have <16 bytes.
+-	POPCNTL DX, DX
+-	MOVQ	DX, (R8)
+-	RET
+-
+-avx2:
+-	CMPB   runtime·support_avx2(SB), $1
+-	JNE sse
+-	MOVD AX, X0
+-	LEAQ -32(SI)(BX*1), R11
+-	VPBROADCASTB  X0, Y1
+-avx2_loop:
+-	VMOVDQU (DI), Y2
+-	VPCMPEQB Y1, Y2, Y3
+-	VPMOVMSKB Y3, DX
+-	POPCNTL DX, DX
+-	ADDQ DX, R12
+-	ADDQ $32, DI
+-	CMPQ DI, R11
+-	JLE avx2_loop
+-
+-	// If last block is already processed,
+-	// skip to the end.
+-	CMPQ DI, R11
+-	JEQ endavx
+-
+-	// Load address of the last 32 bytes.
+-	// There is an overlap with the previous block.
+-	MOVQ R11, DI
+-	VMOVDQU (DI), Y2
+-	VPCMPEQB Y1, Y2, Y3
+-	VPMOVMSKB Y3, DX
+-	// Exit AVX mode.
+-	VZEROUPPER
+-
+-	// Create mask to ignore overlap between previous 32 byte block
+-	// and the next.
+-	ANDQ $31, BX
+-	MOVQ $32,CX
+-	SUBQ BX, CX
+-	MOVQ $0xFFFFFFFF, R10
+-	SARQ CL, R10
+-	SALQ CL, R10
+-	// Apply mask
+-	ANDQ R10, DX
+-	POPCNTL DX, DX
+-	ADDQ DX, R12
+-	MOVQ R12, (R8)
+-	RET
+-endavx:
+-	// Exit AVX mode.
+-	VZEROUPPER
+-	MOVQ R12, (R8)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 556f13d1c1..77982c3e80 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -754,6 +754,7 @@ var (
+ 	// Set on startup in asm_{386,amd64,amd64p32}.s.
+ 	// Packages outside the runtime should not use these
+ 	// as they are not an external api.
++	// TODO: deprecate these; use internal/cpu directly.
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 02c032046b..7d3ed37edd 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -8,6 +8,7 @@
+ package strings
+ 
+ import (
++	"internal/bytealg"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -72,12 +73,16 @@ func hashStrRev(sep string) (uint32, uint32) {
+ 	return hash, pow
+ }
+ 
+-// countGeneric implements Count.
+-func countGeneric(s, substr string) int {
++// Count counts the number of non-overlapping instances of substr in s.
++// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
++func Count(s, substr string) int {
+ 	// special case
+ 	if len(substr) == 0 {
+ 		return utf8.RuneCountInString(s) + 1
+ 	}
++	if len(substr) == 1 {
++		return bytealg.CountString(s, substr[0])
++	}
+ 	n := 0
+ 	for {
+ 		i := Index(s, substr)
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 68a1d0125c..75e7d0c139 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -77,12 +77,3 @@ func Index(s, substr string) int {
+ 	}
+ 	return indexRabinKarp(s, substr)
+ }
+-
+-// Count counts the number of non-overlapping instances of substr in s.
+-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+-func Count(s, substr string) int {
+-	if len(substr) == 1 && cpu.X86.HasPOPCNT {
+-		return countByte(s, byte(substr[0]))
+-	}
+-	return countGeneric(s, substr)
+-}
+diff --git a/src/strings/strings_generic.go b/src/strings/strings_generic.go
+index b2af48bec8..ac3b8dce85 100644
+--- a/src/strings/strings_generic.go
++++ b/src/strings/strings_generic.go
+@@ -53,9 +53,3 @@ func Index(s, substr string) int {
+ 	}
+ 	return -1
+ }
+-
+-// Count counts the number of non-overlapping instances of substr in s.
+-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+-func Count(s, substr string) int {
+-	return countGeneric(s, substr)
+-}
+diff --git a/src/strings/strings_s390x.go b/src/strings/strings_s390x.go
+index 67c8e1700d..b2e459b04e 100644
+--- a/src/strings/strings_s390x.go
++++ b/src/strings/strings_s390x.go
+@@ -78,9 +78,3 @@ func Index(s, substr string) int {
+ 	}
+ 	return indexRabinKarp(s, substr)
+ }
+-
+-// Count counts the number of non-overlapping instances of substr in s.
+-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+-func Count(s, substr string) int {
+-	return countGeneric(s, substr)
+-}

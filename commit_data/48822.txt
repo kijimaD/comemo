@@ -16,7 +16,7 @@ Date:   Wed Jun 16 22:05:36 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/reflect/abi.go         | 23 +++++++-------
  src/reflect/all_test.go    | 75 +++++++++++++++++++++++-----------------------
  src/reflect/export_test.go |  5 ++--
@@ -24,3 +24,514 @@ Date:   Wed Jun 16 22:05:36 2021 +0000
  src/reflect/type.go        | 47 +++++++++++++++--------------
  src/reflect/value.go       |  7 +++--
  6 files changed, 83 insertions(+), 77 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 17b79a8394..9ddde3ae57 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -6,6 +6,7 @@ package reflect
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"unsafe"
+ )
+@@ -167,7 +168,7 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
+ 	a.valueStart = append(a.valueStart, len(a.steps))
+ 	var ok, ptr bool
+ 	if ifaceIndir(rcvr) || rcvr.pointers() {
+-		ok = a.assignIntN(0, ptrSize, 1, 0b1)
++		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b1)
+ 		ptr = true
+ 	} else {
+ 		// TODO(mknyszek): Is this case even possible?
+@@ -176,11 +177,11 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
+ 		// in the reflect package which only conditionally added
+ 		// a pointer bit to the reflect.(Value).Call stack frame's
+ 		// GC bitmap.
+-		ok = a.assignIntN(0, ptrSize, 1, 0b0)
++		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b0)
+ 		ptr = false
+ 	}
+ 	if !ok {
+-		a.stackAssign(ptrSize, ptrSize)
++		a.stackAssign(goarch.PtrSize, goarch.PtrSize)
+ 		return &a.steps[len(a.steps)-1], ptr
+ 	}
+ 	return nil, ptr
+@@ -202,7 +203,7 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
+ 		return a.assignIntN(offset, t.size, 1, 0b0)
+ 	case Int64, Uint64:
+-		switch ptrSize {
++		switch goarch.PtrSize {
+ 		case 4:
+ 			return a.assignIntN(offset, 4, 2, 0b0)
+ 		case 8:
+@@ -215,11 +216,11 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 	case Complex128:
+ 		return a.assignFloatN(offset, 8, 2)
+ 	case String:
+-		return a.assignIntN(offset, ptrSize, 2, 0b01)
++		return a.assignIntN(offset, goarch.PtrSize, 2, 0b01)
+ 	case Interface:
+-		return a.assignIntN(offset, ptrSize, 2, 0b10)
++		return a.assignIntN(offset, goarch.PtrSize, 2, 0b10)
+ 	case Slice:
+-		return a.assignIntN(offset, ptrSize, 3, 0b001)
++		return a.assignIntN(offset, goarch.PtrSize, 3, 0b001)
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+ 		switch tt.len {
+@@ -262,7 +263,7 @@ func (a *abiSeq) assignIntN(offset, size uintptr, n int, ptrMap uint8) bool {
+ 	if n > 8 || n < 0 {
+ 		panic("invalid n")
+ 	}
+-	if ptrMap != 0 && size != ptrSize {
++	if ptrMap != 0 && size != goarch.PtrSize {
+ 		panic("non-empty pointer map passed for non-pointer-size values")
+ 	}
+ 	if a.iregs+n > intArgRegs {
+@@ -413,7 +414,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 				stackPtrs.append(0)
+ 			}
+ 		} else {
+-			spill += ptrSize
++			spill += goarch.PtrSize
+ 		}
+ 	}
+ 	for i, arg := range t.in() {
+@@ -430,12 +431,12 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 			}
+ 		}
+ 	}
+-	spill = align(spill, ptrSize)
++	spill = align(spill, goarch.PtrSize)
+ 
+ 	// From the input parameters alone, we now know
+ 	// the stackCallArgsSize and retOffset.
+ 	stackCallArgsSize := in.stackBytes
+-	retOffset := align(in.stackBytes, ptrSize)
++	retOffset := align(in.stackBytes, goarch.PtrSize)
+ 
+ 	// Compute the stack frame pointer bitmap and register
+ 	// pointer bitmap for return values.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0db5e13217..e3faa31c1f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/token"
++	"internal/goarch"
+ 	"io"
+ 	"math"
+ 	"math/rand"
+@@ -6457,10 +6458,10 @@ func clobber() {
+ 
+ func TestFuncLayout(t *testing.T) {
+ 	align := func(x uintptr) uintptr {
+-		return (x + PtrSize - 1) &^ (PtrSize - 1)
++		return (x + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+ 	}
+ 	var r []byte
+-	if PtrSize == 4 {
++	if goarch.PtrSize == 4 {
+ 		r = []byte{0, 0, 0, 1}
+ 	} else {
+ 		r = []byte{0, 0, 1}
+@@ -6481,56 +6482,56 @@ func TestFuncLayout(t *testing.T) {
+ 	tests := []test{
+ 		{
+ 			typ:       ValueOf(func(a, b string) string { return "" }).Type(),
+-			size:      6 * PtrSize,
+-			argsize:   4 * PtrSize,
+-			retOffset: 4 * PtrSize,
++			size:      6 * goarch.PtrSize,
++			argsize:   4 * goarch.PtrSize,
++			retOffset: 4 * goarch.PtrSize,
+ 			stack:     []byte{1, 0, 1, 0, 1},
+ 			gc:        []byte{1, 0, 1, 0, 1},
+ 		},
+ 		{
+ 			typ:       ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
+-			size:      align(align(3*4) + PtrSize + 2),
+-			argsize:   align(3*4) + PtrSize + 2,
+-			retOffset: align(align(3*4) + PtrSize + 2),
++			size:      align(align(3*4) + goarch.PtrSize + 2),
++			argsize:   align(3*4) + goarch.PtrSize + 2,
++			retOffset: align(align(3*4) + goarch.PtrSize + 2),
+ 			stack:     r,
+ 			gc:        r,
+ 		},
+ 		{
+ 			typ:       ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
+-			size:      4 * PtrSize,
+-			argsize:   4 * PtrSize,
+-			retOffset: 4 * PtrSize,
++			size:      4 * goarch.PtrSize,
++			argsize:   4 * goarch.PtrSize,
++			retOffset: 4 * goarch.PtrSize,
+ 			stack:     []byte{1, 0, 1, 1},
+ 			gc:        []byte{1, 0, 1, 1},
+ 		},
+ 		{
+ 			typ:       ValueOf(func(a S) {}).Type(),
+-			size:      4 * PtrSize,
+-			argsize:   4 * PtrSize,
+-			retOffset: 4 * PtrSize,
++			size:      4 * goarch.PtrSize,
++			argsize:   4 * goarch.PtrSize,
++			retOffset: 4 * goarch.PtrSize,
+ 			stack:     []byte{0, 0, 1, 1},
+ 			gc:        []byte{0, 0, 1, 1},
+ 		},
+ 		{
+ 			rcvr:      ValueOf((*byte)(nil)).Type(),
+ 			typ:       ValueOf(func(a uintptr, b *int) {}).Type(),
+-			size:      3 * PtrSize,
+-			argsize:   3 * PtrSize,
+-			retOffset: 3 * PtrSize,
++			size:      3 * goarch.PtrSize,
++			argsize:   3 * goarch.PtrSize,
++			retOffset: 3 * goarch.PtrSize,
+ 			stack:     []byte{1, 0, 1},
+ 			gc:        []byte{1, 0, 1},
+ 		},
+ 		{
+ 			typ:       ValueOf(func(a uintptr) {}).Type(),
+-			size:      PtrSize,
+-			argsize:   PtrSize,
+-			retOffset: PtrSize,
++			size:      goarch.PtrSize,
++			argsize:   goarch.PtrSize,
++			retOffset: goarch.PtrSize,
+ 			stack:     []byte{},
+ 			gc:        []byte{},
+ 		},
+ 		{
+ 			typ:       ValueOf(func() uintptr { return 0 }).Type(),
+-			size:      PtrSize,
++			size:      goarch.PtrSize,
+ 			argsize:   0,
+ 			retOffset: 0,
+ 			stack:     []byte{},
+@@ -6539,9 +6540,9 @@ func TestFuncLayout(t *testing.T) {
+ 		{
+ 			rcvr:      ValueOf(uintptr(0)).Type(),
+ 			typ:       ValueOf(func(a uintptr) {}).Type(),
+-			size:      2 * PtrSize,
+-			argsize:   2 * PtrSize,
+-			retOffset: 2 * PtrSize,
++			size:      2 * goarch.PtrSize,
++			argsize:   2 * goarch.PtrSize,
++			retOffset: 2 * goarch.PtrSize,
+ 			stack:     []byte{1},
+ 			gc:        []byte{1},
+ 			// Note: this one is tricky, as the receiver is not a pointer. But we
+@@ -6747,7 +6748,7 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
+ 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
+ 
+-	hdr := make([]byte, 8/PtrSize)
++	hdr := make([]byte, 8/goarch.PtrSize)
+ 
+ 	verifyMapBucket := func(t *testing.T, k, e Type, m interface{}, want []byte) {
+ 		verifyGCBits(t, MapBucketOf(k, e), want)
+@@ -6763,7 +6764,7 @@ func TestGCBits(t *testing.T) {
+ 		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
+ 	verifyMapBucket(t, Tint64, Tptr,
+ 		map[int64]Xptr(nil),
+-		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(8, rep(8/goarch.PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
+ 	verifyMapBucket(t,
+ 		Tscalar, Tscalar,
+ 		map[Xscalar]Xscalar(nil),
+@@ -6773,20 +6774,20 @@ func TestGCBits(t *testing.T) {
+ 		map[[2]Xscalarptr][3]Xptrscalar(nil),
+ 		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
+-		map[[64 / PtrSize]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
+-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
++		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
++		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
++		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
+-		map[[64/PtrSize + 1]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
+-		join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
++		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
++		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
++		join(hdr, rep(8, lit(1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
+-		map[[64 / PtrSize]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
+-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
++		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
++		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
++		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+ 	verifyMapBucket(t,
+-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
+-		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
++		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
++		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+ 		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
+ }
+ 
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index b6830a9802..e775eaf135 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -5,6 +5,7 @@
+ package reflect
+ 
+ import (
++	"internal/goarch"
+ 	"sync"
+ 	"unsafe"
+ )
+@@ -22,7 +23,7 @@ func IsRO(v Value) bool {
+ 
+ var CallGC = &callGC
+ 
+-const PtrSize = ptrSize
++const PtrSize = goarch.PtrSize
+ 
+ // FuncLayout calls funcLayout and returns a subset of the results for testing.
+ //
+@@ -65,7 +66,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	// Expand frame type's GC bitmap into byte-map.
+ 	ptrs = ft.ptrdata != 0
+ 	if ptrs {
+-		nptrs := ft.ptrdata / ptrSize
++		nptrs := ft.ptrdata / goarch.PtrSize
+ 		gcdata := ft.gcSlice(0, (nptrs+7)/8)
+ 		for i := uintptr(0); i < nptrs; i++ {
+ 			gc = append(gc, gcdata[i/8]>>(i%8)&1)
+diff --git a/src/reflect/swapper.go b/src/reflect/swapper.go
+index 0cf40666b1..67b7fbe59b 100644
+--- a/src/reflect/swapper.go
++++ b/src/reflect/swapper.go
+@@ -5,6 +5,7 @@
+ package reflect
+ 
+ import (
++	"internal/goarch"
+ 	"internal/unsafeheader"
+ 	"unsafe"
+ )
+@@ -36,7 +37,7 @@ func Swapper(slice interface{}) func(i, j int) {
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+-		if size == ptrSize {
++		if size == goarch.PtrSize {
+ 			ps := *(*[]unsafe.Pointer)(v.ptr)
+ 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
+ 		}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index df863ae106..e119354af4 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -16,6 +16,7 @@
+ package reflect
+ 
+ import (
++	"internal/goarch"
+ 	"internal/unsafeheader"
+ 	"strconv"
+ 	"sync"
+@@ -1924,13 +1925,13 @@ func MapOf(key, elem Type) Type {
+ 	}
+ 	mt.flags = 0
+ 	if ktyp.size > maxKeySize {
+-		mt.keysize = uint8(ptrSize)
++		mt.keysize = uint8(goarch.PtrSize)
+ 		mt.flags |= 1 // indirect key
+ 	} else {
+ 		mt.keysize = uint8(ktyp.size)
+ 	}
+ 	if etyp.size > maxValSize {
+-		mt.valuesize = uint8(ptrSize)
++		mt.valuesize = uint8(goarch.PtrSize)
+ 		mt.flags |= 2 // indirect value
+ 	} else {
+ 		mt.valuesize = uint8(etyp.size)
+@@ -2231,31 +2232,31 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	var ptrdata uintptr
+ 	var overflowPad uintptr
+ 
+-	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
++	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + goarch.PtrSize
+ 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
+ 		panic("reflect: bad size computation in MapOf")
+ 	}
+ 
+ 	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
+-		nptr := (bucketSize*(1+ktyp.size+etyp.size) + ptrSize) / ptrSize
++		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
+ 		mask := make([]byte, (nptr+7)/8)
+-		base := bucketSize / ptrSize
++		base := bucketSize / goarch.PtrSize
+ 
+ 		if ktyp.ptrdata != 0 {
+ 			emitGCMask(mask, base, ktyp, bucketSize)
+ 		}
+-		base += bucketSize * ktyp.size / ptrSize
++		base += bucketSize * ktyp.size / goarch.PtrSize
+ 
+ 		if etyp.ptrdata != 0 {
+ 			emitGCMask(mask, base, etyp, bucketSize)
+ 		}
+-		base += bucketSize * etyp.size / ptrSize
+-		base += overflowPad / ptrSize
++		base += bucketSize * etyp.size / goarch.PtrSize
++		base += overflowPad / goarch.PtrSize
+ 
+ 		word := base
+ 		mask[word/8] |= 1 << (word % 8)
+ 		gcdata = &mask[0]
+-		ptrdata = (word + 1) * ptrSize
++		ptrdata = (word + 1) * goarch.PtrSize
+ 
+ 		// overflow word must be last
+ 		if ptrdata != size {
+@@ -2264,7 +2265,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	}
+ 
+ 	b := &rtype{
+-		align:   ptrSize,
++		align:   goarch.PtrSize,
+ 		size:    size,
+ 		kind:    uint8(Struct),
+ 		ptrdata: ptrdata,
+@@ -2288,8 +2289,8 @@ func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
+ 	if typ.kind&kindGCProg != 0 {
+ 		panic("reflect: unexpected GC program")
+ 	}
+-	ptrs := typ.ptrdata / ptrSize
+-	words := typ.size / ptrSize
++	ptrs := typ.ptrdata / goarch.PtrSize
++	words := typ.size / goarch.PtrSize
+ 	mask := typ.gcSlice(0, (ptrs+7)/8)
+ 	for j := uintptr(0); j < ptrs; j++ {
+ 		if (mask[j/8]>>(j%8))&1 != 0 {
+@@ -2312,7 +2313,7 @@ func appendGCProg(dst []byte, typ *rtype) []byte {
+ 	}
+ 
+ 	// Element is small with pointer mask; use as literal bits.
+-	ptrs := typ.ptrdata / ptrSize
++	ptrs := typ.ptrdata / goarch.PtrSize
+ 	mask := typ.gcSlice(0, (ptrs+7)/8)
+ 
+ 	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+@@ -2759,7 +2760,7 @@ func StructOf(fields []StructField) Type {
+ 			}
+ 			// Pad to start of this field with zeros.
+ 			if ft.offset() > off {
+-				n := (ft.offset() - off) / ptrSize
++				n := (ft.offset() - off) / goarch.PtrSize
+ 				prog = append(prog, 0x01, 0x00) // emit a 0 bit
+ 				if n > 1 {
+ 					prog = append(prog, 0x81)      // repeat previous bit
+@@ -2936,11 +2937,11 @@ func ArrayOf(length int, elem Type) Type {
+ 		array.gcdata = typ.gcdata
+ 		array.ptrdata = typ.ptrdata
+ 
+-	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
++	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*goarch.PtrSize:
+ 		// Element is small with pointer mask; array is still small.
+ 		// Create direct pointer mask by turning each 1 bit in elem
+ 		// into length 1 bits in larger mask.
+-		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
++		mask := make([]byte, (array.ptrdata/goarch.PtrSize+7)/8)
+ 		emitGCMask(mask, 0, typ, array.len)
+ 		array.gcdata = &mask[0]
+ 
+@@ -2950,8 +2951,8 @@ func ArrayOf(length int, elem Type) Type {
+ 		prog := []byte{0, 0, 0, 0} // will be length of prog
+ 		prog = appendGCProg(prog, typ)
+ 		// Pad from ptrdata to size.
+-		elemPtrs := typ.ptrdata / ptrSize
+-		elemWords := typ.size / ptrSize
++		elemPtrs := typ.ptrdata / goarch.PtrSize
++		elemWords := typ.size / goarch.PtrSize
+ 		if elemPtrs < elemWords {
+ 			// Emit literal 0 bit, then repeat as needed.
+ 			prog = append(prog, 0x01, 0x00)
+@@ -3063,13 +3064,13 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
+ 
+ 	// build dummy rtype holding gc program
+ 	x := &rtype{
+-		align: ptrSize,
++		align: goarch.PtrSize,
+ 		// Don't add spill space here; it's only necessary in
+ 		// reflectcall's frame, not in the allocated frame.
+ 		// TODO(mknyszek): Remove this comment when register
+ 		// spill space in the frame is no longer required.
+-		size:    align(abi.retOffset+abi.ret.stackBytes, ptrSize),
+-		ptrdata: uintptr(abi.stackPtrs.n) * ptrSize,
++		size:    align(abi.retOffset+abi.ret.stackBytes, goarch.PtrSize),
++		ptrdata: uintptr(abi.stackPtrs.n) * goarch.PtrSize,
+ 	}
+ 	if abi.stackPtrs.n > 0 {
+ 		x.gcdata = &abi.stackPtrs.data[0]
+@@ -3124,14 +3125,14 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+ 	switch Kind(t.kind & kindMask) {
+ 	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
+ 		// 1 pointer at start of representation
+-		for bv.n < uint32(offset/uintptr(ptrSize)) {
++		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+ 			bv.append(0)
+ 		}
+ 		bv.append(1)
+ 
+ 	case Interface:
+ 		// 2 pointers
+-		for bv.n < uint32(offset/uintptr(ptrSize)) {
++		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+ 			bv.append(0)
+ 		}
+ 		bv.append(1)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 6ba6202a1a..e5ad4d5cd5 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -6,6 +6,7 @@ package reflect
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"internal/itoa"
+ 	"internal/unsafeheader"
+ 	"math"
+@@ -94,7 +95,7 @@ func (f flag) ro() flag {
+ // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+ // if v.Kind() == Ptr, the base type must not be go:notinheap.
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.size != ptrSize || !v.typ.pointers() {
++	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {
+@@ -533,7 +534,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 	}
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+-	frameSize = align(frameSize, ptrSize)
++	frameSize = align(frameSize, goarch.PtrSize)
+ 	frameSize += abi.spill
+ 
+ 	// Mark pointers in registers for the return path.
+@@ -1043,7 +1044,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 	methodFrameSize := methodFrameType.size
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+-	methodFrameSize = align(methodFrameSize, ptrSize)
++	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
+ 	methodFrameSize += methodABI.spill
+ 
+ 	// Mark pointers in registers for the return path.

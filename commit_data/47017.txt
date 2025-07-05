@@ -24,9 +24,98 @@ Date:   Thu Feb 18 18:07:09 2021 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 11 ++++++++++-
  test/fixedbugs/issue44325.dir/a.go         | 13 +++++++++++++
  test/fixedbugs/issue44325.dir/b.go         | 13 +++++++++++++
  test/fixedbugs/issue44325.go               |  7 +++++++
  4 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 7ab5f68ce3..6e2354c281 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -100,6 +100,11 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
+ 	return t
+ }
+ 
++// True if we are typechecking an inline body in ImportedBody below. We use this
++// flag to not create a new closure function in tcClosure when we are just
++// typechecking an inline body, as opposed to the body of a real function.
++var inTypeCheckInl bool
++
+ // Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
+ // because they're a copy of an already checked body.
+ func ImportedBody(fn *ir.Func) {
+@@ -138,7 +143,12 @@ func ImportedBody(fn *ir.Func) {
+ 
+ 	savefn := ir.CurFunc
+ 	ir.CurFunc = fn
++	if inTypeCheckInl {
++		base.Fatalf("inTypeCheckInl should not be set recursively")
++	}
++	inTypeCheckInl = true
+ 	Stmts(fn.Inl.Body)
++	inTypeCheckInl = false
+ 	ir.CurFunc = savefn
+ 
+ 	// During ImportBody (which imports fn.Func.Inl.Body),
+@@ -307,7 +317,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 	// body in ImportedBody(), since we only want to create the named function
+ 	// when the closure is actually inlined (and then we force a typecheck
+ 	// explicitly in (*inlsubst).node()).
+-	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
+ 	if !inTypeCheckInl {
+ 		fn.Nname.SetSym(ClosureName(ir.CurFunc))
+ 		ir.MarkFunc(fn.Nname)
+diff --git a/test/fixedbugs/issue44325.dir/a.go b/test/fixedbugs/issue44325.dir/a.go
+new file mode 100644
+index 0000000000..5a22b455b7
+--- /dev/null
++++ b/test/fixedbugs/issue44325.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package a
++
++func FM() func() {
++	return func() {
++		_ = func() int {
++			return 0
++		}
++	}
++}
+diff --git a/test/fixedbugs/issue44325.dir/b.go b/test/fixedbugs/issue44325.dir/b.go
+new file mode 100644
+index 0000000000..c4d77e311a
+--- /dev/null
++++ b/test/fixedbugs/issue44325.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package b
++
++import (
++	"./a"
++)
++
++func F() {
++	a.FM()
++}
+diff --git a/test/fixedbugs/issue44325.go b/test/fixedbugs/issue44325.go
+new file mode 100644
+index 0000000000..d406838588
+--- /dev/null
++++ b/test/fixedbugs/issue44325.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package ignored

@@ -21,8 +21,59 @@ Date:   Tue Aug 8 16:38:25 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   | 4 ++++
  src/cmd/compile/internal/gc/ssa.go  | 4 ++++
  src/cmd/compile/internal/x86/387.go | 4 ++--
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 65d8946849..b1ead93c34 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -293,4 +293,8 @@ var (
+ 	typedmemmove,
+ 	typedmemclr,
+ 	Udiv *obj.LSym
++
++	// GO386=387
++	ControlWord64trunc,
++	ControlWord32 *obj.LSym
+ )
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1497c5c2f5..9c1b3ca69f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -92,6 +92,10 @@ func initssaconfig() {
+ 	typedmemmove = Sysfunc("typedmemmove")
+ 	typedmemclr = Sysfunc("typedmemclr")
+ 	Udiv = Sysfunc("udiv")
++
++	// GO386=387 runtime functions
++	ControlWord64trunc = Sysfunc("controlWord64trunc")
++	ControlWord32 = Sysfunc("controlWord32")
+ }
+ 
+ // buildssa builds an SSA function for fn.
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 5bf14109b2..cdac000648 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -120,7 +120,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
+ 			p = s.Prog(x86.AFLDCW)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+-			p.From.Sym = gc.Sysfunc("controlWord32")
++			p.From.Sym = gc.ControlWord32
+ 		}
+ 
+ 		var op obj.As
+@@ -210,7 +210,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = s.Prog(x86.AFLDCW)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+-		p.From.Sym = gc.Sysfunc("controlWord64trunc")
++		p.From.Sym = gc.ControlWord64trunc
+ 
+ 		// Now do the conversion.
+ 		p = s.Prog(x86.AFMOVLP)

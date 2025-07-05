@@ -14,8 +14,52 @@ Date:   Fri Apr 1 10:55:21 2016 -0400
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go   | 2 +-
  src/cmd/link/internal/ld/lib.go    | 2 +-
  src/cmd/link/internal/ld/symtab.go | 6 ++++--
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b658cc4f5c..fe74cc9208 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1271,7 +1271,7 @@ func dodata() {
+ 		// when building a shared library. We do this by boosting objects of
+ 		// type SXXX with relocations to type SXXXRELRO.
+ 		for s := datap; s != nil; s = s.Next {
+-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRINGHDR {
++			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.STYPE || s.Type == obj.SGOSTRINGHDR {
+ 				s.Type += (obj.STYPERELRO - obj.STYPE)
+ 				if s.Outer != nil {
+ 					s.Outer.Type = s.Type
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 2a3f4298f5..5616700445 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -186,7 +186,7 @@ func UseRelro() bool {
+ 	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+ 		return Iself
+ 	default:
+-		return false
++		return Linkshared
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3f8784f996..3258bc1ff9 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -451,8 +451,10 @@ func symtab() {
+ 			continue
+ 		}
+ 
+-		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
+-			s.Attr |= AttrHidden
++		if strings.HasPrefix(s.Name, "type.") {
++			if !DynlinkingGo() {
++				s.Attr |= AttrHidden
++			}
+ 			if UseRelro() && len(s.R) > 0 {
+ 				s.Type = obj.STYPERELRO
+ 				s.Outer = symtyperel

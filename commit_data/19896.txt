@@ -9,6 +9,37 @@ Date:   Wed Aug 6 00:24:43 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/119330043
-
+---
  src/liblink/objfile.c | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 610f87954e..22c9199d5e 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -183,12 +183,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				s->size = p->to.offset;
+ 				if(s->type == 0 || s->type == SXREF)
+ 					s->type = SBSS;
+-				
+-				if(ctxt->arch->thechar == '5')
+-					flag = p->reg;
+-				else
+-					flag = p->from.scale;
+-					
++				flag = ctxt->arch->textflag(p);
+ 				if(flag & DUPOK)
+ 					s->dupok = 1;
+ 				if(flag & RODATA)
+@@ -221,10 +216,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				else
+ 					etext->next = s;
+ 				etext = s;
+-				if(ctxt->arch->thechar == '5')
+-					flag = p->reg;
+-				else
+-					flag = p->from.scale;
++				flag = ctxt->arch->textflag(p);
+ 				if(flag & DUPOK)
+ 					s->dupok = 1;
+ 				if(flag & NOSPLIT)

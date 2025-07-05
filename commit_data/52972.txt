@@ -27,10 +27,250 @@ Date:   Tue Jun 21 18:11:32 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go                       | 10 +++++
  src/cmd/go/internal/work/exec.go         | 45 ++++++++++++++++-----
  src/cmd/go/testdata/script/cgo_undef.txt | 68 ++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/config.go       |  9 +++++
  src/cmd/link/internal/ld/lib.go          |  9 +++++
  5 files changed, 131 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 4c62c5d70e..7fb6179e26 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -753,6 +753,16 @@ presented to cmd/link as part of a larger program, contains:
+ 	_go_.o        # gc-compiled object for _cgo_gotypes.go, _cgo_import.go, *.cgo1.go
+ 	_all.o        # gcc-compiled object for _cgo_export.c, *.cgo2.c
+ 
++If there is an error generating the _cgo_import.go file, then, instead
++of adding _cgo_import.go to the package, the go tool adds an empty
++file named dynimportfail. The _cgo_import.go file is only needed when
++using internal linking mode, which is not the default when linking
++programs that use cgo (as described below). If the linker sees a file
++named dynimportfail it reports an error if it has been told to use
++internal linking mode. This approach is taken because generating
++_cgo_import.go requires doing a full C link of the package, which can
++fail for reasons that are irrelevant when using external linking mode.
++
+ The final program will be a dynamic executable, so that cmd/link can avoid
+ needing to process arbitrary .o files. It only needs to process the .o
+ files generated from C files that cgo writes, and those are much more
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2becc6d946..c88b315d2c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2405,6 +2405,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files.
++// Any error output is only displayed for BuildN or BuildX.
+ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flags []string, objs []string) error {
+ 	var cmd []string
+ 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
+@@ -2450,11 +2451,8 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
+ 			save = append(save, line)
+ 		}
+ 		out = bytes.Join(save, nil)
+-		if len(out) > 0 {
++		if len(out) > 0 && (cfg.BuildN || cfg.BuildX) {
+ 			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
+-			if err != nil {
+-				err = errPrintedOutput
+-			}
+ 		}
+ 	}
+ 	return err
+@@ -2913,10 +2911,16 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	switch cfg.BuildToolchainName {
+ 	case "gc":
+ 		importGo := objdir + "_cgo_import.go"
+-		if err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj); err != nil {
++		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj)
++		if err != nil {
+ 			return nil, nil, err
+ 		}
+-		outGo = append(outGo, importGo)
++		if dynOutGo != "" {
++			outGo = append(outGo, dynOutGo)
++		}
++		if dynOutObj != "" {
++			outObj = append(outObj, dynOutObj)
++		}
+ 
+ 	case "gccgo":
+ 		defunC := objdir + "_cgo_defun.c"
+@@ -3011,11 +3015,13 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ // dynimport creates a Go source file named importGo containing
+ // //go:cgo_import_dynamic directives for each symbol or library
+ // dynamically imported by the object files outObj.
+-func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
++// dynOutGo, if not empty, is a new Go file to build as part of the package.
++// dynOutObj, if not empty, is a new file to add to the generated archive.
++func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) (dynOutGo, dynOutObj string, err error) {
+ 	cfile := objdir + "_cgo_main.c"
+ 	ofile := objdir + "_cgo_main.o"
+ 	if err := b.gcc(a, p, objdir, ofile, cflags, cfile); err != nil {
+-		return err
++		return "", "", err
+ 	}
+ 
+ 	// Gather .syso files from this package and all (transitive) dependencies.
+@@ -3060,7 +3066,22 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 		}
+ 	}
+ 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
+-		return err
++		// We only need this information for internal linking.
++		// If this link fails, mark the object as requiring
++		// external linking. This link can fail for things like
++		// syso files that have unexpected dependencies.
++		// cmd/link explicitly looks for the name "dynimportfail".
++		// See issue #52863.
++		fail := objdir + "dynimportfail"
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd("", "echo > %s", fail)
++		}
++		if !cfg.BuildN {
++			if err := os.WriteFile(fail, nil, 0666); err != nil {
++				return "", "", err
++			}
++		}
++		return "", fail, nil
+ 	}
+ 
+ 	// cgo -dynimport
+@@ -3068,7 +3089,11 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
+ 	}
+-	return b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
++	err = b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
++	if err != nil {
++		return "", "", err
++	}
++	return importGo, "", nil
+ }
+ 
+ // Run SWIG on all SWIG input files.
+diff --git a/src/cmd/go/testdata/script/cgo_undef.txt b/src/cmd/go/testdata/script/cgo_undef.txt
+new file mode 100644
+index 0000000000..30034fbac1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_undef.txt
+@@ -0,0 +1,68 @@
++# Issue 52863.
++
++# We manually create a .syso and a .a file in package a,
++# such that the .syso file only works when linked against the .a file.
++# Package a has #cgo LDFLAGS to make this happen.
++#
++# Package c imports package a, and uses cgo itself.
++# The generation of the _cgo_import.go for package c will fail,
++# because it won't know that it has to link against a/libb.a
++# (because we don't gather the #cgo LDFLAGS from all transitively
++# imported packages).
++#
++# The _cgo_import.go file is only needed for internal linking.
++# When generating _cgo_import.go for package c fails, an ordinary
++# external link should still work. But an internal link is expected
++# to fail, because the failure to create _cgo_import.go should cause
++# the linker to report an inability to internally link.
++
++[short] skip
++[!cgo] skip
++[!exec:ar] skip
++
++cc -c -o a/b.syso b/b.c
++cc -c -o b/lib.o b/lib.c
++exec ar rc a/libb.a b/lib.o
++go build
++! go build -ldflags=-linkmode=internal
++stderr 'some packages could not be built to support internal linking.*m/c|requires external linking|does not support internal cgo'
++
++-- go.mod --
++module m
++
++-- a/a.go --
++package a
++
++// #cgo LDFLAGS: -L. -lb
++// extern int CFn(int);
++import "C"
++
++func GoFn(v int) int { return int(C.CFn(C.int(v))) }
++
++-- b/b.c --
++extern int LibFn(int);
++int CFn(int i) { return LibFn(i); }
++
++-- b/lib.c --
++int LibFn(int i) { return i; }
++
++-- c/c.go --
++package c
++
++// static int D(int i) { return i; }
++import "C"
++
++import "m/a"
++
++func Fn(i int) (int, int) {
++     return a.GoFn(i), int(C.D(C.int(i)))
++}
++
++-- main.go --
++package main
++
++import "m/c"
++
++func main() {
++	println(c.Fn(0))
++}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 6d19b8b5bb..4dd43a16ab 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -246,6 +246,15 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		return true, "some input objects have an unrecognized file format"
+ 	}
+ 
++	if len(dynimportfail) > 0 {
++		// This error means that we were unable to generate
++		// the _cgo_import.go file for some packages.
++		// This typically means that there are some dependencies
++		// that the cgo tool could not figure out.
++		// See issue #52863.
++		return true, fmt.Sprintf("some packages could not be built to support internal linking (%v)", dynimportfail)
++	}
++
+ 	return false, ""
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9a5d89a6f7..a3d8202e2c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -344,6 +344,11 @@ var (
+ 	// to support internal linking mode.
+ 	externalobj = false
+ 
++	// dynimportfail is a list of packages for which generating
++	// the dynimport file, _cgo_import.go, failed. If there are
++	// any of these objects, we must link externally. Issue 52863.
++	dynimportfail []string
++
+ 	// unknownObjFormat is set to true if we see an object whose
+ 	// format we don't recognize.
+ 	unknownObjFormat = false
+@@ -1030,6 +1035,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 			continue
+ 		}
+ 
++		if arhdr.name == "dynimportfail" {
++			dynimportfail = append(dynimportfail, lib.Pkg)
++		}
++
+ 		// Skip other special (non-object-file) sections that
+ 		// build tools may have added. Such sections must have
+ 		// short names so that the suffix is not truncated.

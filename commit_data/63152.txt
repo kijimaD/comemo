@@ -13,7 +13,7 @@ Date:   Wed May 21 14:29:26 2025 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/sha1/fallback_test.go   | 34 ----------------------------------
  src/crypto/sha1/issue15617_test.go | 25 ++++++++++++++-----------
  src/crypto/sha1/sha1_test.go       | 32 ++++++++++++--------------------
@@ -23,3 +23,297 @@ Date:   Wed May 21 14:29:26 2025 +0200
  src/crypto/sha1/sha1block_s390x.go | 24 ++++++++++++++++++++++--
  src/crypto/sha1/sha1block_s390x.s  |  9 ++-------
  8 files changed, 73 insertions(+), 80 deletions(-)
+
+diff --git a/src/crypto/sha1/fallback_test.go b/src/crypto/sha1/fallback_test.go
+deleted file mode 100644
+index b869a939f6..0000000000
+--- a/src/crypto/sha1/fallback_test.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build s390x && !purego
+-
+-package sha1
+-
+-import (
+-	"fmt"
+-	"io"
+-	"testing"
+-)
+-
+-// Tests the fallback code path in case the optimized asm
+-// implementation cannot be used.
+-// See also TestBlockGeneric.
+-func TestGenericPath(t *testing.T) {
+-	if !useAsm {
+-		t.Skipf("assembly implementation unavailable")
+-	}
+-	useAsm = false
+-	defer func() { useAsm = true }()
+-	c := New()
+-	in := "ΑΒΓΔΕϜΖΗΘΙΚΛΜΝΞΟΠϺϘΡΣΤΥΦΧΨΩ"
+-	gold := "0f58c2bb130f8182375f325c18342215255387e5"
+-	if _, err := io.WriteString(c, in); err != nil {
+-		t.Fatalf("could not write to c: %v", err)
+-	}
+-	out := fmt.Sprintf("%x", c.Sum(nil))
+-	if out != gold {
+-		t.Fatalf("mismatch: got %s, wanted %s", out, gold)
+-	}
+-}
+diff --git a/src/crypto/sha1/issue15617_test.go b/src/crypto/sha1/issue15617_test.go
+index 116c78ff74..402c57482c 100644
+--- a/src/crypto/sha1/issue15617_test.go
++++ b/src/crypto/sha1/issue15617_test.go
+@@ -7,21 +7,24 @@
+ package sha1_test
+ 
+ import (
++	"crypto/internal/cryptotest"
+ 	"crypto/sha1"
+ 	"syscall"
+ 	"testing"
+ )
+ 
+ func TestOutOfBoundsRead(t *testing.T) {
+-	const pageSize = 4 << 10
+-	data, err := syscall.Mmap(0, 0, 2*pageSize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
+-	if err != nil {
+-		panic(err)
+-	}
+-	if err := syscall.Mprotect(data[pageSize:], syscall.PROT_NONE); err != nil {
+-		panic(err)
+-	}
+-	for i := 0; i < pageSize; i++ {
+-		sha1.Sum(data[pageSize-i : pageSize])
+-	}
++	cryptotest.TestAllImplementations(t, "sha1", func(t *testing.T) {
++		const pageSize = 4 << 10
++		data, err := syscall.Mmap(0, 0, 2*pageSize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++		if err != nil {
++			panic(err)
++		}
++		if err := syscall.Mprotect(data[pageSize:], syscall.PROT_NONE); err != nil {
++			panic(err)
++		}
++		for i := 0; i < pageSize; i++ {
++			sha1.Sum(data[pageSize-i : pageSize])
++		}
++	})
+ }
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index f9243dbf50..0a0596e56c 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+-	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+ 	"hash"
+@@ -60,6 +59,9 @@ var golden = []sha1Test{
+ }
+ 
+ func TestGolden(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha1", testGolden)
++}
++func testGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+ 		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
+@@ -97,6 +99,9 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func TestGoldenMarshal(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha1", testGoldenMarshal)
++}
++func testGoldenMarshal(t *testing.T) {
+ 	h := New()
+ 	h2 := New()
+ 	for _, g := range golden {
+@@ -156,23 +161,6 @@ func TestBlockSize(t *testing.T) {
+ 	}
+ }
+ 
+-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+-func TestBlockGeneric(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't expose digest")
+-	}
+-	for i := 1; i < 30; i++ { // arbitrary factor
+-		gen, asm := New().(*digest), New().(*digest)
+-		buf := make([]byte, BlockSize*i)
+-		rand.Read(buf)
+-		blockGeneric(gen, buf)
+-		block(asm, buf)
+-		if *gen != *asm {
+-			t.Errorf("For %#v block and blockGeneric resulted in different states", buf)
+-		}
+-	}
+-}
+-
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+@@ -210,8 +198,10 @@ func safeSum(h hash.Hash) (sum []byte, err error) {
+ }
+ 
+ func TestLargeHashes(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha1", testLargeHashes)
++}
++func testLargeHashes(t *testing.T) {
+ 	for i, test := range largeUnmarshalTests {
+-
+ 		h := New()
+ 		if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(test.state)); err != nil {
+ 			t.Errorf("test %d could not unmarshal: %v", i, err)
+@@ -246,7 +236,9 @@ func TestAllocations(t *testing.T) {
+ }
+ 
+ func TestSHA1Hash(t *testing.T) {
+-	cryptotest.TestHash(t, New)
++	cryptotest.TestAllImplementations(t, "sha1", func(t *testing.T) {
++		cryptotest.TestHash(t, New)
++	})
+ }
+ 
+ func TestExtraMethods(t *testing.T) {
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index 0f92f4b5f5..1f78e2d78b 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -6,7 +6,10 @@
+ 
+ package sha1
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
+ 
+ //go:noescape
+ func blockAVX2(dig *digest, p []byte)
+@@ -17,6 +20,11 @@ func blockSHANI(dig *digest, p []byte)
+ var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
+ 
++func init() {
++	impl.Register("sha1", "AVX2", &useAVX2)
++	impl.Register("sha1", "SHA-NI", &useSHANI)
++}
++
+ func block(dig *digest, p []byte) {
+ 	if useSHANI {
+ 		blockSHANI(dig, p)
+diff --git a/src/crypto/sha1/sha1block_arm64.go b/src/crypto/sha1/sha1block_arm64.go
+index e6d96a9080..b972a1e62e 100644
+--- a/src/crypto/sha1/sha1block_arm64.go
++++ b/src/crypto/sha1/sha1block_arm64.go
+@@ -6,7 +6,16 @@
+ 
+ package sha1
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useSHA1 = cpu.ARM64.HasSHA1
++
++func init() {
++	impl.Register("sha1", "Armv8.0", &useSHA1)
++}
+ 
+ var k = []uint32{
+ 	0x5A827999,
+@@ -19,10 +28,10 @@ var k = []uint32{
+ func sha1block(h []uint32, p []byte, k []uint32)
+ 
+ func block(dig *digest, p []byte) {
+-	if !cpu.ARM64.HasSHA1 {
+-		blockGeneric(dig, p)
+-	} else {
++	if useSHA1 {
+ 		h := dig.h[:]
+ 		sha1block(h, p, k)
++	} else {
++		blockGeneric(dig, p)
+ 	}
+ }
+diff --git a/src/crypto/sha1/sha1block_decl.go b/src/crypto/sha1/sha1block_decl.go
+index 46f41a1cc2..887d8cad01 100644
+--- a/src/crypto/sha1/sha1block_decl.go
++++ b/src/crypto/sha1/sha1block_decl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (386 || arm || loong64 || s390x) && !purego
++//go:build (386 || arm || loong64) && !purego
+ 
+ package sha1
+ 
+diff --git a/src/crypto/sha1/sha1block_s390x.go b/src/crypto/sha1/sha1block_s390x.go
+index f8b0d8ba31..104220c8bd 100644
+--- a/src/crypto/sha1/sha1block_s390x.go
++++ b/src/crypto/sha1/sha1block_s390x.go
+@@ -6,6 +6,26 @@
+ 
+ package sha1
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
+ 
+-var useAsm = cpu.S390X.HasSHA1
++var useSHA1 = cpu.S390X.HasSHA1
++
++func init() {
++	// CP Assist for Cryptographic Functions (CPACF)
++	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
++	impl.Register("sha1", "CPACF", &useSHA1)
++}
++
++//go:noescape
++func blockS390X(dig *digest, p []byte)
++
++func block(dig *digest, p []byte) {
++	if useSHA1 {
++		blockS390X(dig, p)
++	} else {
++		blockGeneric(dig, p)
++	}
++}
+diff --git a/src/crypto/sha1/sha1block_s390x.s b/src/crypto/sha1/sha1block_s390x.s
+index 7a2f4e39c4..3ddc9b586a 100644
+--- a/src/crypto/sha1/sha1block_s390x.s
++++ b/src/crypto/sha1/sha1block_s390x.s
+@@ -6,17 +6,12 @@
+ 
+ #include "textflag.h"
+ 
+-// func block(dig *digest, p []byte)
+-TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
+-	MOVBZ  ·useAsm(SB), R4
++// func blockS390X(dig *digest, p []byte)
++TEXT ·blockS390X(SB), NOSPLIT|NOFRAME, $0-32
+ 	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
+ 	MOVBZ  $1, R0                       // SHA-1 function code
+-	CMPBEQ R4, $0, generic
+ 
+ loop:
+ 	KIMD R0, R2      // compute intermediate message digest (KIMD)
+ 	BVS  loop        // continue if interrupted
+ 	RET
+-
+-generic:
+-	BR ·blockGeneric(SB)

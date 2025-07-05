@@ -15,7 +15,114 @@ Date:   Mon Aug 19 15:14:23 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/os/user/lookup_windows.go    |  6 +-----
  src/os/user/user_windows_test.go | 42 +++++++++++++++++++++++++++++++---------
  2 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index edecac703a..804fc64cc1 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -151,17 +151,13 @@ func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
+ 	// NetUserGetLocalGroups() would return a list of LocalGroupUserInfo0
+ 	// elements which hold the names of local groups where the user participates.
+ 	// The list does not follow any sorting order.
+-	//
+-	// If no groups can be found for this user, NetUserGetLocalGroups() should
+-	// always return the SID of a single group called "None", which
+-	// also happens to be the primary group for the local user.
+ 	err = windows.NetUserGetLocalGroups(nil, q, 0, windows.LG_INCLUDE_INDIRECT, &p0, windows.MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer syscall.NetApiBufferFree(p0)
+ 	if entriesRead == 0 {
+-		return nil, fmt.Errorf("listGroupsForUsernameAndDomain: NetUserGetLocalGroups() returned an empty list for domain: %s, username: %s", domain, username)
++		return nil, nil
+ 	}
+ 	entries := (*[1024]windows.LocalGroupUserInfo0)(unsafe.Pointer(p0))[:entriesRead:entriesRead]
+ 	var sids []string
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index f025af802c..ff5bc5e8a0 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -23,12 +23,13 @@ import (
+ // windowsTestAcount creates a test user and returns a token for that user.
+ // If the user already exists, it will be deleted and recreated.
+ // The caller is responsible for closing the token.
+-func windowsTestAcount(t *testing.T) syscall.Token {
++func windowsTestAcount(t *testing.T) (syscall.Token, *User) {
++	const testUserName = "GoStdTestUser01"
+ 	var password [33]byte
+ 	rand.Read(password[:])
+ 	// Add special chars to ensure it satisfies password requirements.
+ 	pwd := base64.StdEncoding.EncodeToString(password[:]) + "_-As@!%*(1)4#2"
+-	name, err := syscall.UTF16PtrFromString("GoStdTestUser01")
++	name, err := syscall.UTF16PtrFromString(testUserName)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -57,6 +58,13 @@ func windowsTestAcount(t *testing.T) syscall.Token {
+ 	} else if err != nil {
+ 		t.Fatal(err)
+ 	}
++	t.Cleanup(func() {
++		if err = windows.NetUserDel(nil, name); err != nil {
++			if !errors.Is(err, windows.NERR_UserNotFound) {
++				t.Fatal(err)
++			}
++		}
++	})
+ 	domain, err := syscall.UTF16PtrFromString(".")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -69,13 +77,12 @@ func windowsTestAcount(t *testing.T) syscall.Token {
+ 	}
+ 	t.Cleanup(func() {
+ 		token.Close()
+-		if err = windows.NetUserDel(nil, name); err != nil {
+-			if !errors.Is(err, windows.NERR_UserNotFound) {
+-				t.Fatal(err)
+-			}
+-		}
+ 	})
+-	return token
++	usr, err := Lookup(testUserName)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return token, usr
+ }
+ 
+ func TestImpersonatedSelf(t *testing.T) {
+@@ -127,7 +134,7 @@ func TestImpersonated(t *testing.T) {
+ 	}
+ 
+ 	// Create a test user and log in as that user.
+-	token := windowsTestAcount(t)
++	token, _ := windowsTestAcount(t)
+ 
+ 	// Impersonate the test user.
+ 	if err = windows.ImpersonateLoggedOnUser(token); err != nil {
+@@ -178,3 +185,20 @@ func TestCurrentNetapi32(t *testing.T) {
+ 		t.Fatalf("%v\n%s", err, out)
+ 	}
+ }
++
++func TestGroupIdsTestUser(t *testing.T) {
++	// Create a test user and log in as that user.
++	_, user := windowsTestAcount(t)
++
++	gids, err := user.GroupIds()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if err != nil {
++		t.Fatalf("%+v.GroupIds(): %v", user, err)
++	}
++	if !containsID(gids, user.Gid) {
++		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
++	}
++}

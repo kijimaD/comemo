@@ -15,7 +15,7 @@ Date:   Fri Jan 30 09:14:13 2015 +0300
     Change-Id: I1d075907eab8b0109ad7ad1878104b02b3d5c690
     Reviewed-on: https://go-review.googlesource.com/3590
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/builtin.c  |  6 +++---
  src/cmd/gc/esc.c      | 14 ++++++++-----
  src/cmd/gc/runtime.go |  6 +++---
@@ -24,3 +24,388 @@ Date:   Fri Jan 30 09:14:13 2015 +0300
  test/escape2.go       | 56 +++++++++++++++++++++++++++++++++++++++++++++++----
  test/escape2n.go      | 56 +++++++++++++++++++++++++++++++++++++++++++++++----
  7 files changed, 159 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index f154ae70b1..cdcc8e7cbc 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -36,10 +36,10 @@ char *runtimeimport =
+ 	"func @\"\".intstring (? *[4]byte, ? int64) (? string)\n"
+ 	"func @\"\".slicebytetostring (? *[32]byte, ? []byte) (? string)\n"
+ 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
+-	"func @\"\".slicerunetostring (? []rune) (? string)\n"
+-	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
++	"func @\"\".slicerunetostring (? *[32]byte, ? []rune) (? string)\n"
++	"func @\"\".stringtoslicebyte (? *[32]byte, ? string) (? []byte)\n"
+ 	"func @\"\".stringtoslicebytetmp (? string) (? []byte)\n"
+-	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
++	"func @\"\".stringtoslicerune (? *[32]rune, ? string) (? []rune)\n"
+ 	"func @\"\".stringiter (? string, ? int) (? int)\n"
+ 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n"
+ 	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n"
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 4f77983926..5b09c0b7fb 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -693,12 +693,10 @@ esc(EscState *e, Node *n, Node *up)
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
+ 	case ONEW:
+-		n->escloopdepth = e->loopdepth;
+-		n->esc = EscNone;  // until proven otherwise
+-		e->noesc = list(e->noesc, n);
+-		break;
+-
++	case OARRAYRUNESTR:
+ 	case OARRAYBYTESTR:
++	case OSTRARRAYRUNE:
++	case OSTRARRAYBYTE:
+ 	case ORUNESTR:
+ 		n->escloopdepth = e->loopdepth;
+ 		n->esc = EscNone;  // until proven otherwise
+@@ -824,7 +822,10 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
++	case OARRAYRUNESTR:
+ 	case OARRAYBYTESTR:
++	case OSTRARRAYRUNE:
++	case OSTRARRAYBYTE:
+ 	case OADDSTR:
+ 	case ONEW:
+ 	case OCLOSURE:
+@@ -1249,7 +1250,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
++	case OARRAYRUNESTR:
+ 	case OARRAYBYTESTR:
++	case OSTRARRAYRUNE:
++	case OSTRARRAYBYTE:
+ 	case OADDSTR:
+ 	case OMAPLIT:
+ 	case ONEW:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 80550f856d..8648a973e8 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -50,10 +50,10 @@ func eqstring(string, string) bool
+ func intstring(*[4]byte, int64) string
+ func slicebytetostring(*[32]byte, []byte) string
+ func slicebytetostringtmp([]byte) string
+-func slicerunetostring([]rune) string
+-func stringtoslicebyte(string) []byte
++func slicerunetostring(*[32]byte, []rune) string
++func stringtoslicebyte(*[32]byte, string) []byte
+ func stringtoslicebytetmp(string) []byte
+-func stringtoslicerune(string) []rune
++func stringtoslicerune(*[32]rune, string) []rune
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv rune)
+ func slicecopy(to any, fr any, wid uintptr) int
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 07df5a1adc..91568371d7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1398,13 +1398,25 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OARRAYRUNESTR:
+-		// slicerunetostring([]rune) string;
+-		n = mkcall("slicerunetostring", n->type, init, n->left);
++		// slicerunetostring(*[32]byte, []rune) string;
++		a = nodnil();
++		if(n->esc == EscNone) {
++			// Create temporary buffer for string on stack.
++			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
++			a = nod(OADDR, temp(t), N);
++		}
++		n = mkcall("slicerunetostring", n->type, init, a, n->left);
+ 		goto ret;
+ 
+ 	case OSTRARRAYBYTE:
+-		// stringtoslicebyte(string) []byte;
+-		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
++		// stringtoslicebyte(*32[byte], string) []byte;
++		a = nodnil();
++		if(n->esc == EscNone) {
++			// Create temporary buffer for slice on stack.
++			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
++			a = nod(OADDR, temp(t), N);
++		}
++		n = mkcall("stringtoslicebyte", n->type, init, a, conv(n->left, types[TSTRING]));
+ 		goto ret;
+ 
+ 	case OSTRARRAYBYTETMP:
+@@ -1413,8 +1425,14 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OSTRARRAYRUNE:
+-		// stringtoslicerune(string) []rune
+-		n = mkcall("stringtoslicerune", n->type, init, n->left);
++		// stringtoslicerune(*[32]rune, string) []rune
++		a = nodnil();
++		if(n->esc == EscNone) {
++			// Create temporary buffer for slice on stack.
++			t = aindex(nodintconst(tmpstringbufsize), types[TINT32]);
++			a = nod(OADDR, temp(t), N);
++		}
++		n = mkcall("stringtoslicerune", n->type, init, a, n->left);
+ 		goto ret;
+ 
+ 	case OCMPIFACE:
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 46c3502f77..0ba309cf02 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -129,8 +129,13 @@ func slicebytetostringtmp(b []byte) string {
+ 	return *(*string)(unsafe.Pointer(&b))
+ }
+ 
+-func stringtoslicebyte(s string) []byte {
+-	b := rawbyteslice(len(s))
++func stringtoslicebyte(buf *tmpBuf, s string) []byte {
++	var b []byte
++	if buf != nil && len(s) <= len(buf) {
++		b = buf[:len(s)]
++	} else {
++		b = rawbyteslice(len(s))
++	}
+ 	copy(b, s)
+ 	return b
+ }
+@@ -147,7 +152,7 @@ func stringtoslicebytetmp(s string) []byte {
+ 	return *(*[]byte)(unsafe.Pointer(&ret))
+ }
+ 
+-func stringtoslicerune(s string) []rune {
++func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
+ 	// two passes.
+ 	// unlike slicerunetostring, no race because strings are immutable.
+ 	n := 0
+@@ -157,7 +162,12 @@ func stringtoslicerune(s string) []rune {
+ 		s = s[k:]
+ 		n++
+ 	}
+-	a := rawruneslice(n)
++	var a []rune
++	if buf != nil && n <= len(buf) {
++		a = buf[:n]
++	} else {
++		a = rawruneslice(n)
++	}
+ 	n = 0
+ 	for len(t) > 0 {
+ 		r, k := charntorune(t)
+@@ -168,7 +178,7 @@ func stringtoslicerune(s string) []rune {
+ 	return a
+ }
+ 
+-func slicerunetostring(a []rune) string {
++func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 	if raceenabled && len(a) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+ 			uintptr(len(a))*unsafe.Sizeof(a[0]),
+@@ -180,7 +190,7 @@ func slicerunetostring(a []rune) string {
+ 	for _, r := range a {
+ 		size1 += runetochar(dum[:], r)
+ 	}
+-	s, b := rawstring(size1 + 3)
++	s, b := rawstringtmp(buf, size1+3)
+ 	size2 := 0
+ 	for _, r := range a {
+ 		// check for race
+@@ -309,11 +319,6 @@ func gobytes(p *byte, n int) []byte {
+ 	return x
+ }
+ 
+-func gostringsize(n int) string {
+-	s, _ := rawstring(n)
+-	return s
+-}
+-
+ func gostring(p *byte) string {
+ 	l := findnull(p)
+ 	if l == 0 {
+diff --git a/test/escape2.go b/test/escape2.go
+index 8c50277e9d..947dcc9515 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -212,7 +212,7 @@ func foo21() func() int {
+ func foo21a() func() int {
+ 	x := 42             // ERROR "moved to heap: x"
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		x++  // ERROR "&x escapes to heap"
++		x++ // ERROR "&x escapes to heap"
+ 		return x
+ 	}
+ }
+@@ -1560,14 +1560,14 @@ func ptrlitNoescape() {
+ 
+ func ptrlitNoEscape2() {
+ 	// Literal does not escape, but element does.
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0        // ERROR "moved to heap: i"
+ 	x := &Lit{&i} // ERROR "&Lit literal does not escape" "&i escapes to heap"
+ 	sink = *x
+ }
+ 
+ func ptrlitEscape() {
+ 	// Both literal and element escape.
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0        // ERROR "moved to heap: i"
+ 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
+ 	sink = x
+ }
+@@ -1619,7 +1619,7 @@ type StructWithString struct {
+ // to just x, and thus &i looks escaping.
+ func fieldFlowTracking() {
+ 	var x StructWithString
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0   // ERROR "moved to heap: i"
+ 	x.p = &i // ERROR "&i escapes to heap"
+ 	sink = x.s
+ }
+@@ -1703,3 +1703,51 @@ func intstring2() {
+ 	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
+ 	sink = &s      // ERROR "&s escapes to heap"
+ }
++
++func stringtoslicebyte0() {
++	s := "foo"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape"
++	_ = x
++}
++
++func stringtoslicebyte1() []byte {
++	s := "foo"
++	return []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
++}
++
++func stringtoslicebyte2() {
++	s := "foo"
++	sink = []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
++}
++
++func stringtoslicerune0() {
++	s := "foo"
++	x := []rune(s) // ERROR "\(\[\]rune\)\(s\) does not escape"
++	_ = x
++}
++
++func stringtoslicerune1() []rune {
++	s := "foo"
++	return []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
++}
++
++func stringtoslicerune2() {
++	s := "foo"
++	sink = []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
++}
++
++func slicerunetostring0() {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	s := string(r)       // ERROR "string\(r\) does not escape"
++	_ = s
++}
++
++func slicerunetostring1() string {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	return string(r)     // ERROR "string\(r\) escapes to heap"
++}
++
++func slicerunetostring2() {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	sink = string(r)     // ERROR "string\(r\) escapes to heap"
++}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 31f4ed083c..d9d95e81dc 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -212,7 +212,7 @@ func foo21() func() int {
+ func foo21a() func() int {
+ 	x := 42             // ERROR "moved to heap: x"
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		x++  // ERROR "&x escapes to heap"
++		x++ // ERROR "&x escapes to heap"
+ 		return x
+ 	}
+ }
+@@ -1560,14 +1560,14 @@ func ptrlitNoescape() {
+ 
+ func ptrlitNoEscape2() {
+ 	// Literal does not escape, but element does.
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0        // ERROR "moved to heap: i"
+ 	x := &Lit{&i} // ERROR "&Lit literal does not escape" "&i escapes to heap"
+ 	sink = *x
+ }
+ 
+ func ptrlitEscape() {
+ 	// Both literal and element escape.
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0        // ERROR "moved to heap: i"
+ 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
+ 	sink = x
+ }
+@@ -1619,7 +1619,7 @@ type StructWithString struct {
+ // to just x, and thus &i looks escaping.
+ func fieldFlowTracking() {
+ 	var x StructWithString
+-	i := 0 // ERROR "moved to heap: i"
++	i := 0   // ERROR "moved to heap: i"
+ 	x.p = &i // ERROR "&i escapes to heap"
+ 	sink = x.s
+ }
+@@ -1703,3 +1703,51 @@ func intstring2() {
+ 	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
+ 	sink = &s      // ERROR "&s escapes to heap"
+ }
++
++func stringtoslicebyte0() {
++	s := "foo"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape"
++	_ = x
++}
++
++func stringtoslicebyte1() []byte {
++	s := "foo"
++	return []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
++}
++
++func stringtoslicebyte2() {
++	s := "foo"
++	sink = []byte(s) // ERROR "\(\[\]byte\)\(s\) escapes to heap"
++}
++
++func stringtoslicerune0() {
++	s := "foo"
++	x := []rune(s) // ERROR "\(\[\]rune\)\(s\) does not escape"
++	_ = x
++}
++
++func stringtoslicerune1() []rune {
++	s := "foo"
++	return []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
++}
++
++func stringtoslicerune2() {
++	s := "foo"
++	sink = []rune(s) // ERROR "\(\[\]rune\)\(s\) escapes to heap"
++}
++
++func slicerunetostring0() {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	s := string(r)       // ERROR "string\(r\) does not escape"
++	_ = s
++}
++
++func slicerunetostring1() string {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	return string(r)     // ERROR "string\(r\) escapes to heap"
++}
++
++func slicerunetostring2() {
++	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
++	sink = string(r)     // ERROR "string\(r\) escapes to heap"
++}

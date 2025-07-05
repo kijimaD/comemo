@@ -7,6 +7,35 @@ Date:   Wed Jun 17 13:19:33 2015 -0700
     Change-Id: I376ff39594b532a5490f13e3985b7a6ff4b6761d
     Reviewed-on: https://go-review.googlesource.com/11191
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/math/big/example_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/example_test.go b/src/math/big/example_test.go
+index 384b50e51c..37b1bd090a 100644
+--- a/src/math/big/example_test.go
++++ b/src/math/big/example_test.go
+@@ -63,15 +63,21 @@ func Example_fibonacci() {
+ 
+ 	// loop while fib1 is smaller than 1e100
+ 	for fib1.Cmp(&limit) < 0 {
++		// Compute the next Fibonacci number:
++		//    t1 := fib2
++		//    t2 := fib1.Add(fib1, fib2) // Note that Add "assigns" to fib1!
++		//    fib1 = t1
++		//    fib2 = t2
++		// Using Go's multi-value ("parallel") assignment, we can simply write:
+ 		fib1, fib2 = fib2, fib1.Add(fib1, fib2)
+ 	}
+ 
+-	fmt.Println(fib1) // 100-digits fibonacci number
++	fmt.Println(fib1) // 100-digit Fibonacci number
+ 
+ 	// Test fib1 for primality. The ProbablyPrimes parameter sets the number
+ 	// of Miller-Rabin rounds to be performed. 20 is a good value.
+ 	isPrime := fib1.ProbablyPrime(20)
+-	fmt.Println(isPrime) // false
++	fmt.Println(isPrime)
+ 
+ 	// Output:
+ 	// 1344719667586153181419716641724567886890850696275767987106294472017884974410332069524504824747437757

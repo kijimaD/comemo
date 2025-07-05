@@ -12,6 +12,25 @@ Date:   Wed May 20 13:26:02 2015 -0700
     Change-Id: Iefb6aac5cff8864fe93d08e2600cb07d82c6f6df
     Reviewed-on: https://go-review.googlesource.com/10285
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/main.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index b3be2a975b..18dafc298c 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -132,11 +132,12 @@ func parseArgs() (*build.Package, string, string) {
+ 	// slash+1: if there's no slash, the value is -1 and start is 0; otherwise
+ 	// start is the byte after the slash.
+ 	for start := slash + 1; start < len(arg); start = period + 1 {
+-		period = start + strings.Index(arg[start:], ".")
++		period = strings.Index(arg[start:], ".")
+ 		symbol := ""
+ 		if period < 0 {
+ 			period = len(arg)
+ 		} else {
++			period += start
+ 			symbol = arg[period+1:]
+ 		}
+ 		// Have we identified a package already?

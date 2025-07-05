@@ -12,8 +12,133 @@ Date:   Mon Sep 24 10:23:53 2018 -0700
     Change-Id: Iba8576201f0f7c52bf9795aaa75d15d8f9a76811
     Reviewed-on: https://go-review.googlesource.com/136899
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++--------
  test/fixedbugs/issue27829.go                 | 27 +++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 76a4fc9ab7..f9ac5e4dce 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -709,8 +709,8 @@
+ (ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
+ 
+ (AND(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [c & d] x)
+-(BTR(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [d &^ 1<<uint32(c)] x)
+-(AND(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [c &^ 1<<uint32(d)] x)
++(BTR(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [d &^ (1<<uint32(c))] x)
++(AND(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [c &^ (1<<uint32(d))] x)
+ (BTR(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [^(1<<uint32(c) | 1<<uint32(d))] x)
+ (XOR(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [c ^ d] x)
+ (BTC(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [d ^ 1<<uint32(c)] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index cd82a5642c..89fc6780b9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3620,7 +3620,7 @@ func rewriteValueAMD64_OpAMD64ANDLconst_0(v *Value) bool {
+ 	}
+ 	// match: (ANDLconst [c] (BTRLconst [d] x))
+ 	// cond:
+-	// result: (ANDLconst [c &^ 1<<uint32(d)] x)
++	// result: (ANDLconst [c &^ (1<<uint32(d))] x)
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -3630,7 +3630,7 @@ func rewriteValueAMD64_OpAMD64ANDLconst_0(v *Value) bool {
+ 		d := v_0.AuxInt
+ 		x := v_0.Args[0]
+ 		v.reset(OpAMD64ANDLconst)
+-		v.AuxInt = c &^ 1 << uint32(d)
++		v.AuxInt = c &^ (1 << uint32(d))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -4147,7 +4147,7 @@ func rewriteValueAMD64_OpAMD64ANDQconst_0(v *Value) bool {
+ 	}
+ 	// match: (ANDQconst [c] (BTRQconst [d] x))
+ 	// cond:
+-	// result: (ANDQconst [c &^ 1<<uint32(d)] x)
++	// result: (ANDQconst [c &^ (1<<uint32(d))] x)
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -4157,7 +4157,7 @@ func rewriteValueAMD64_OpAMD64ANDQconst_0(v *Value) bool {
+ 		d := v_0.AuxInt
+ 		x := v_0.Args[0]
+ 		v.reset(OpAMD64ANDQconst)
+-		v.AuxInt = c &^ 1 << uint32(d)
++		v.AuxInt = c &^ (1 << uint32(d))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -5019,7 +5019,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
+ 	}
+ 	// match: (BTRLconst [c] (ANDLconst [d] x))
+ 	// cond:
+-	// result: (ANDLconst [d &^ 1<<uint32(c)] x)
++	// result: (ANDLconst [d &^ (1<<uint32(c))] x)
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -5029,7 +5029,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
+ 		d := v_0.AuxInt
+ 		x := v_0.Args[0]
+ 		v.reset(OpAMD64ANDLconst)
+-		v.AuxInt = d &^ 1 << uint32(c)
++		v.AuxInt = d &^ (1 << uint32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -5212,7 +5212,7 @@ func rewriteValueAMD64_OpAMD64BTRQconst_0(v *Value) bool {
+ 	}
+ 	// match: (BTRQconst [c] (ANDQconst [d] x))
+ 	// cond:
+-	// result: (ANDQconst [d &^ 1<<uint32(c)] x)
++	// result: (ANDQconst [d &^ (1<<uint32(c))] x)
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -5222,7 +5222,7 @@ func rewriteValueAMD64_OpAMD64BTRQconst_0(v *Value) bool {
+ 		d := v_0.AuxInt
+ 		x := v_0.Args[0]
+ 		v.reset(OpAMD64ANDQconst)
+-		v.AuxInt = d &^ 1 << uint32(c)
++		v.AuxInt = d &^ (1 << uint32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue27829.go b/test/fixedbugs/issue27829.go
+new file mode 100644
+index 0000000000..9204043202
+--- /dev/null
++++ b/test/fixedbugs/issue27829.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Bad AND/BTR combination rule.
++
++package main
++
++import "fmt"
++
++//go:noinline
++func f(x uint64) uint64 {
++	return (x >> 48) &^ (uint64(0x4000))
++}
++
++func main() {
++	bad := false
++	if got, want := f(^uint64(0)), uint64(0xbfff); got != want {
++		fmt.Printf("got %x, want %x\n", got, want)
++		bad = true
++	}
++	if bad {
++		panic("bad")
++	}
++}

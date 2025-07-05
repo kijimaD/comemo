@@ -9,7 +9,137 @@ Date:   Tue Aug 17 20:01:50 2010 -0400
     R=dsymonds, dsymonds1
     CC=golang-dev
     https://golang.org/cl/1963044
-
+---
  src/pkg/http/request.go      | 48 ++++++++++++++++++++++++++++----------------
  src/pkg/http/request_test.go | 18 +++++++++++++++++
  2 files changed, 49 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index a6836856d8..b5d6ac1061 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -588,9 +588,22 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	return req, nil
+ }
+ 
++// ParseQuery parses the URL-encoded query string and returns
++// a map listing the values specified for each key.
++// ParseQuery always returns a non-nil map containing all the
++// valid query parameters found; err describes the first decoding error
++// encountered, if any.
+ func ParseQuery(query string) (m map[string][]string, err os.Error) {
+ 	m = make(map[string][]string)
++	err = parseQuery(m, query)
++	return
++}
++
++func parseQuery(m map[string][]string, query string) (err os.Error) {
+ 	for _, kv := range strings.Split(query, "&", -1) {
++		if len(kv) == 0 {
++			continue
++		}
+ 		kvPair := strings.Split(kv, "=", 2)
+ 
+ 		var key, value string
+@@ -601,14 +614,13 @@ func ParseQuery(query string) (m map[string][]string, err os.Error) {
+ 		}
+ 		if e != nil {
+ 			err = e
++			continue
+ 		}
+-
+ 		vec := vector.StringVector(m[key])
+ 		vec.Push(value)
+ 		m[key] = vec
+ 	}
+-
+-	return
++	return err
+ }
+ 
+ // ParseForm parses the request body as a form for POST requests, or the raw query for GET requests.
+@@ -618,32 +630,34 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		return
+ 	}
+ 
+-	var query string
+-	switch r.Method {
+-	case "GET":
+-		query = r.URL.RawQuery
+-	case "POST":
++	r.Form = make(map[string][]string)
++	if r.URL != nil {
++		err = parseQuery(r.Form, r.URL.RawQuery)
++	}
++	if r.Method == "POST" {
+ 		if r.Body == nil {
+-			r.Form = make(map[string][]string)
+ 			return os.ErrorString("missing form body")
+ 		}
+ 		ct := r.Header["Content-Type"]
+ 		switch strings.Split(ct, ";", 2)[0] {
+ 		case "text/plain", "application/x-www-form-urlencoded", "":
+-			var b []byte
+-			if b, err = ioutil.ReadAll(r.Body); err != nil {
+-				r.Form = make(map[string][]string)
+-				return err
++			b, e := ioutil.ReadAll(r.Body)
++			if e != nil {
++				if err == nil {
++					err = e
++				}
++				break
++			}
++			e = parseQuery(r.Form, string(b))
++			if err == nil {
++				err = e
+ 			}
+-			query = string(b)
+ 		// TODO(dsymonds): Handle multipart/form-data
+ 		default:
+-			r.Form = make(map[string][]string)
+ 			return &badStringError{"unknown Content-Type", ct}
+ 		}
+ 	}
+-	r.Form, err = ParseQuery(query)
+-	return
++	return err
+ }
+ 
+ // FormValue returns the first value for the named component of the query.
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 4ba173a986..ea073e13ba 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -6,6 +6,8 @@ package http
+ 
+ import (
+ 	"bytes"
++	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -68,6 +70,22 @@ func TestQuery(t *testing.T) {
+ 	}
+ }
+ 
++func TestPostQuery(t *testing.T) {
++	req := &Request{Method: "POST"}
++	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar&both=x")
++	req.Header = map[string]string{"Content-Type": "application/x-www-form-urlencoded; boo!"}
++	req.Body = nopCloser{strings.NewReader("z=post&both=y")}
++	if q := req.FormValue("q"); q != "foo" {
++		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
++	}
++	if z := req.FormValue("z"); z != "post" {
++		t.Errorf(`req.FormValue("z") = %q, want "post"`, z)
++	}
++	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"x", "y"}) {
++		t.Errorf(`req.FormValue("both") = %q, want ["x", "y"]`, both)
++	}
++}
++
+ type stringMap map[string]string
+ type parseContentTypeTest struct {
+ 	contentType stringMap

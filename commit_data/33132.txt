@@ -11,6 +11,26 @@ Date:   Sat Jul 15 11:53:48 2017 -0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/example_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index d05e87b0db..8661d6d389 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -39,11 +39,11 @@ func ExampleMatchString() {
+ }
+ 
+ func ExampleRegexp_FindString() {
+-	re := regexp.MustCompile("fo.?")
+-	fmt.Printf("%q\n", re.FindString("seafood"))
++	re := regexp.MustCompile("foo.?")
++	fmt.Printf("%q\n", re.FindString("seafood fool"))
+ 	fmt.Printf("%q\n", re.FindString("meat"))
+ 	// Output:
+-	// "foo"
++	// "food"
+ 	// ""
+ }
+ 

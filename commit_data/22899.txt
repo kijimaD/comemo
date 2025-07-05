@@ -14,7 +14,80 @@ Date:   Mon Apr 13 13:25:28 2015 +1000
     Change-Id: I39a3842590c6cef2aa48943288d52f603338b44d
     Reviewed-on: https://go-review.googlesource.com/8841
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/jpeg/reader.go      | 16 +++-------------
  src/image/jpeg/reader_test.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+), 13 deletions(-)
+
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 2c3c2f72f8..435b67a020 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -170,7 +170,7 @@ func (d *decoder) fill() error {
+ // can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
+ func (d *decoder) unreadByteStuffedByte() {
+ 	if d.bytes.nUnreadable == 0 {
+-		panic("jpeg: unreadByteStuffedByte call cannot be fulfilled")
++		return
+ 	}
+ 	d.bytes.i -= d.bytes.nUnreadable
+ 	d.bytes.nUnreadable = 0
+@@ -242,12 +242,7 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
+ // stuffing.
+ func (d *decoder) readFull(p []byte) error {
+ 	// Unread the overshot bytes, if any.
+-	if d.bytes.nUnreadable != 0 {
+-		if d.bits.n >= 8 {
+-			d.unreadByteStuffedByte()
+-		}
+-		d.bytes.nUnreadable = 0
+-	}
++	d.unreadByteStuffedByte()
+ 
+ 	for {
+ 		n := copy(p, d.bytes.buf[d.bytes.i:d.bytes.j])
+@@ -269,12 +264,7 @@ func (d *decoder) readFull(p []byte) error {
+ // ignore ignores the next n bytes.
+ func (d *decoder) ignore(n int) error {
+ 	// Unread the overshot bytes, if any.
+-	if d.bytes.nUnreadable != 0 {
+-		if d.bits.n >= 8 {
+-			d.unreadByteStuffedByte()
+-		}
+-		d.bytes.nUnreadable = 0
+-	}
++	d.unreadByteStuffedByte()
+ 
+ 	for {
+ 		m := d.bytes.j - d.bytes.i
+diff --git a/src/image/jpeg/reader_test.go b/src/image/jpeg/reader_test.go
+index c5a36cba21..5964b92aac 100644
+--- a/src/image/jpeg/reader_test.go
++++ b/src/image/jpeg/reader_test.go
+@@ -186,6 +186,26 @@ func pixString(pix []byte, stride, x, y int) string {
+ 	return s.String()
+ }
+ 
++func TestTruncatedSOSDataDoesntPanic(t *testing.T) {
++	b, err := ioutil.ReadFile("../testdata/video-005.gray.q50.jpeg")
++	if err != nil {
++		t.Fatal(err)
++	}
++	sosMarker := []byte{0xff, 0xda}
++	i := bytes.Index(b, sosMarker)
++	if i < 0 {
++		t.Fatal("SOS marker not found")
++	}
++	i += len(sosMarker)
++	j := i + 10
++	if j > len(b) {
++		j = len(b)
++	}
++	for ; i < j; i++ {
++		Decode(bytes.NewReader(b[:i]))
++	}
++}
++
+ func TestExtraneousData(t *testing.T) {
+ 	// Encode a 1x1 red image.
+ 	src := image.NewRGBA(image.Rect(0, 0, 1, 1))

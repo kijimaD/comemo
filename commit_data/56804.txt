@@ -14,6 +14,24 @@ Date:   Tue Jan 3 18:18:35 2023 +0000
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/transport.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 3ed5068eef..c07352b018 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1180,7 +1180,11 @@ var zeroDialer net.Dialer
+ 
+ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+ 	if t.DialContext != nil {
+-		return t.DialContext(ctx, network, addr)
++		c, err := t.DialContext(ctx, network, addr)
++		if c == nil && err == nil {
++			err = errors.New("net/http: Transport.DialContext hook returned (nil, nil)")
++		}
++		return c, err
+ 	}
+ 	if t.Dial != nil {
+ 		c, err := t.Dial(network, addr)

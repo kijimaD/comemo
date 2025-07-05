@@ -12,7 +12,102 @@ Date:   Wed Apr 3 15:59:17 2013 +1100
     R=golang-dev, kamil.kisiel, r
     CC=golang-dev
     https://golang.org/cl/8281044
-
+---
  doc/install.html | 54 ++++++++++++++++++++----------------------------------
  doc/style.css    |  3 +++
  2 files changed, 23 insertions(+), 34 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 03b13c0187..f2e21b4416 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -3,25 +3,34 @@
+ 	"Path":  "/doc/install"
+ }-->
+ 
+-<h2 id="introduction">Introduction</h2>
++<h2 id="download">Download the Go distribution</h2>
+ 
+ <p>
+-Go is an open source project with a BSD-style license.
+-There are two official Go compiler toolchains: the <code>gc</code> Go compiler
+-and the <code>gccgo</code> compiler that is part of the GNU C Compiler (GCC).
++<a href="http://code.google.com/p/go/downloads" id="start" class="download" target="_blank">
++<span class="big">Download Go</span>
++<span class="desc">Click here to visit the downloads page</span>
++</a>
+ </p>
+ 
+ <p>
+-The <code>gc</code> compiler is the more mature and well-tested of the two.
+-This page is about installing a binary distribution of the <code>gc</code>
+-compiler.
++Click the link above to visit the
++<a href="http://code.google.com/p/go/downloads">Go project's downloads page</a>
++and select the binary distribution that matches your operating system and
++processor architecture.
+ </p>
+ 
+ <p>
+-For information about installing the <code>gc</code> compiler from source, see
+-<a href="/doc/install/source">Installing Go from source</a>.
+-For information about installing <code>gccgo</code>, see
+-<a href="/doc/install/gccgo">Setting up and using gccgo</a>.
++Official binary distributions are available for the FreeBSD, Linux, Mac OS X
++(Snow Leopard, Lion, and Mountain Lion), NetBSD, and Windows operating systems
++and the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
++architectures.
++</p>
++
++<p>
++If a binary distribution is not available for your combination of operating
++system and architecture you may want to try
++<a href="/doc/install/source">installing from source</a> or
++<a href="/doc/install/gccgo">installing gccgo instead of gc</a>.
+ </p>
+ 
+ <h2 id="requirements">System requirements</h2>
+@@ -56,29 +65,6 @@ installed Xcode 4.3+, you can install it from the Components tab of the
+ Downloads preferences panel.
+ </p>
+ 
+-<h2 id="download">Download the Go tools</h2>
+-
+-<p>
+-Visit the
+-<a href="http://code.google.com/p/go/downloads">Go project's downloads page</a>
+-and select the binary distribution that matches
+-your operating system and processor architecture.
+-</p>
+-
+-<p>
+-Official binary distributions are available
+-for the FreeBSD, Linux, Mac OS X (Snow Leopard/Lion), NetBSD, and Windows operating systems
+-and the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>)
+-x86 processor architectures.
+-</p>
+-
+-<p>
+-If a binary distribution is not available for your
+-OS/arch combination you may want to try
+-<a href="/doc/install/source">installing from source</a> or
+-<a href="/doc/install/gccgo">installing gccgo instead of gc</a>.
+-</p>
+-
+ <h2 id="install">Install the Go tools</h2>
+ 
+ <p>
+diff --git a/doc/style.css b/doc/style.css
+index 6ab9afbdea..5c8e17a298 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -198,6 +198,9 @@ div#blog .read a {
+ 	border: 1px solid #375EAB;
+ 	background: #E0EBF5;
+ }
++.download {
++	width: 150px;
++}
+ 
+ div#menu {
+ 	float: right;

@@ -27,10 +27,114 @@ Date:   Mon Jun 27 14:42:18 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4644047
-
+---
  src/cmd/8a/a.h     | 4 ++--
  src/cmd/8a/a.y     | 2 ++
  src/cmd/8a/lex.c   | 3 ++-
  src/cmd/cc/lexbody | 6 +++---
  src/cmd/cc/macbody | 6 +++---
  5 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index 3cb30f4c27..c5c22d7baa 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -28,8 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include <u.h>
+-#include <libc.h>
+ #include <bio.h>
+ #include "../8l/8.out.h"
+ 
+@@ -57,7 +55,9 @@ typedef	struct	Gen2	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
++#ifndef	EOF
+ #define	EOF		(-1)
++#endif
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+ #define	NHASH		503
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index 04662f83d0..a8ac773daa 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -29,7 +29,9 @@
+ // THE SOFTWARE.
+ 
+ %{
++#include <u.h>
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
++#include <libc.h>
+ #include "a.h"
+ %}
+ %union	{
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 0788618777..ab4de417a5 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -29,9 +29,10 @@
+ // THE SOFTWARE.
+ 
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "a.h"
+ #include "y.tab.h"
+-#include <ctype.h>
+ 
+ enum
+ {
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 24f9bdc855..f4cc19c2ea 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -96,7 +96,7 @@ alloc(int32 n)
+ 	p = malloc(n);
+ 	if(p == nil) {
+ 		print("alloc out of mem\n");
+-		exit(1);
++		exits("alloc: out of mem");
+ 	}
+ 	memset(p, 0, n);
+ 	return p;
+@@ -110,7 +110,7 @@ allocn(void *p, int32 n, int32 d)
+ 	p = realloc(p, n+d);
+ 	if(p == nil) {
+ 		print("allocn out of mem\n");
+-		exit(1);
++		exits("allocn: out of mem");
+ 	}
+ 	if(d > 0)
+ 		memset((char*)p+n, 0, d);
+@@ -245,7 +245,7 @@ lookup(void)
+ 		}else
+ 			*w++ = *r;
+ 	}
+-	*w++ = '\0';
++	*w = '\0';
+ 
+ 	h = 0;
+ 	for(p=symb; c = *p; p++)
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index ca8a54c0bc..ed66361f1a 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -830,11 +830,11 @@ linehist(char *f, int offset)
+ 	if(debug['f'])
+ 		if(f) {
+ 			if(offset)
+-				print("%4ld: %s (#line %d)\n", lineno, f, offset);
++				print("%4d: %s (#line %d)\n", lineno, f, offset);
+ 			else
+-				print("%4ld: %s\n", lineno, f);
++				print("%4d: %s\n", lineno, f);
+ 		} else
+-			print("%4ld: <pop>\n", lineno);
++			print("%4d: <pop>\n", lineno);
+ 	newflag = 0;
+ 
+ 	h = alloc(sizeof(Hist));

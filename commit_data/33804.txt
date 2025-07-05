@@ -27,10 +27,125 @@ Date:   Sat Sep 2 10:31:52 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/test.bash                      |  4 +-
  .../testplugin/{unnamed1.go => unnamed1/main.go}   |  0
  .../testplugin/{unnamed2.go => unnamed2/main.go}   |  0
  src/cmd/go/internal/load/pkg.go                    | 45 +++++++++++++++++-----
  src/cmd/go/internal/work/build.go                  | 10 +----
  5 files changed, 40 insertions(+), 19 deletions(-)
+
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 69df5bd2bf..7e982c8961 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -27,8 +27,8 @@ GOPATH=$(pwd) go build -buildmode=plugin plugin1
+ GOPATH=$(pwd) go build -buildmode=plugin plugin2
+ GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
+ GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+-GOPATH=$(pwd) go build -buildmode=plugin unnamed1.go
+-GOPATH=$(pwd) go build -buildmode=plugin unnamed2.go
++GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed1.so unnamed1/main.go
++GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed2.so unnamed2/main.go
+ GOPATH=$(pwd) go build host
+ 
+ LD_LIBRARY_PATH=$(pwd) ./host
+diff --git a/misc/cgo/testplugin/unnamed1.go b/misc/cgo/testplugin/unnamed1/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/unnamed1.go
+rename to misc/cgo/testplugin/unnamed1/main.go
+diff --git a/misc/cgo/testplugin/unnamed2.go b/misc/cgo/testplugin/unnamed2/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/unnamed2.go
+rename to misc/cgo/testplugin/unnamed2/main.go
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index be31ef5615..2f5a7a8018 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1671,15 +1671,8 @@ func isStale(p *Package) (bool, string) {
+ 	return false, ""
+ }
+ 
+-// computeBuildID computes the build ID for p, leaving it in p.Internal.BuildID.
+-// Build ID is a hash of the information we want to detect changes in.
+-// See the long comment in isStale for details.
+-func computeBuildID(p *Package) {
+-	h := sha1.New()
+-
+-	// Include the list of files compiled as part of the package.
+-	// This lets us detect removed files. See issue 3895.
+-	inputFiles := str.StringList(
++func pkgInputFiles(p *Package) []string {
++	return str.StringList(
+ 		p.GoFiles,
+ 		p.CgoFiles,
+ 		p.CFiles,
+@@ -1692,6 +1685,40 @@ func computeBuildID(p *Package) {
+ 		p.SwigFiles,
+ 		p.SwigCXXFiles,
+ 	)
++}
++
++// PluginPath computes the package path for a plugin main package.
++//
++// This is typically the import path of the main package p, unless the
++// plugin is being built directly from source files. In that case we
++// combine the package build ID with the contents of the main package
++// source files. This allows us to identify two different plugins
++// built from two source files with the same name.
++func PluginPath(p *Package) string {
++	if p.ImportPath != "command-line-arguments" {
++		return p.ImportPath
++	}
++	h := sha1.New()
++	fmt.Fprintf(h, "build ID: %s\n", p.Internal.BuildID)
++	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
++		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
++		if err != nil {
++			base.Fatalf("go: %s", err)
++		}
++		h.Write(data)
++	}
++	return fmt.Sprintf("plugin/unnamed-%x", h.Sum(nil))
++}
++
++// computeBuildID computes the build ID for p, leaving it in p.Internal.BuildID.
++// Build ID is a hash of the information we want to detect changes in.
++// See the long comment in isStale for details.
++func computeBuildID(p *Package) {
++	h := sha1.New()
++
++	// Include the list of files compiled as part of the package.
++	// This lets us detect removed files. See issue 3895.
++	inputFiles := pkgInputFiles(p)
+ 	for _, file := range inputFiles {
+ 		fmt.Fprintf(h, "file %s\n", file)
+ 	}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 0395311ef6..6b9c511473 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2200,9 +2200,7 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, asmhd
+ 
+ 	pkgpath := p.ImportPath
+ 	if cfg.BuildBuildmode == "plugin" {
+-		if pkgpath == "command-line-arguments" {
+-			pkgpath = "plugin/unnamed-" + p.Internal.BuildID
+-		}
++		pkgpath = load.PluginPath(p)
+ 	} else if p.Name == "main" {
+ 		pkgpath = "main"
+ 	}
+@@ -2536,11 +2534,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out string, allactions []*Action
+ 		ldflags = append(ldflags, "-s", "-w")
+ 	}
+ 	if cfg.BuildBuildmode == "plugin" {
+-		pluginpath := root.Package.ImportPath
+-		if pluginpath == "command-line-arguments" {
+-			pluginpath = "plugin/unnamed-" + root.Package.Internal.BuildID
+-		}
+-		ldflags = append(ldflags, "-pluginpath", pluginpath)
++		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
+ 	}
+ 
+ 	// If the user has not specified the -extld option, then specify the

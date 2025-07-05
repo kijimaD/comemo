@@ -12,7 +12,48 @@ Date:   Sun Jun 28 23:04:05 2015 -0400
     Change-Id: I28bcaf3348794202ca59fbc3466bd7b9670030e4
     Reviewed-on: https://go-review.googlesource.com/11658
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue8945.go | 16 ++++++++++++++++
  src/cmd/cgo/out.go         |  4 ++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue8945.go b/misc/cgo/test/issue8945.go
+new file mode 100644
+index 0000000000..572b8155d8
+--- /dev/null
++++ b/misc/cgo/test/issue8945.go
+@@ -0,0 +1,16 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gccgo
++
++package cgotest
++
++//typedef void (*PFunc)();
++//PFunc success_cb;
++import "C"
++
++//export Test
++func Test() {
++	_ = C.success_cb
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 0308242c5f..3edb70345d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -118,11 +118,11 @@ func (p *Package) writeDefs() {
+ 		}
+ 
+ 		if !cVars[n.C] {
+-			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+-			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+ 			if *gccgo {
+ 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+ 			} else {
++				fmt.Fprintf(fm, "extern char %s[];\n", n.C)
++				fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+ 				fmt.Fprintf(fgo2, "//go:linkname __cgo_%s %s\n", n.C, n.C)
+ 				fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", n.C)
+ 				fmt.Fprintf(fgo2, "var __cgo_%s byte\n", n.C)

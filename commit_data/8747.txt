@@ -7,6 +7,19 @@ Date:   Thu Jun 16 01:46:14 2011 -0400
     R=adg, r
     CC=golang-dev
     https://golang.org/cl/4627042
-
+---
  doc/devel/release.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 8f28945ef7..84ca622fa2 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -162,6 +162,7 @@ For other uses, see the <a href="/pkg/runtime/pprof/">runtime/pprof</a> document
+ <h3 id="r57.minor">Minor revisions</h3>
+ 
+ <p>r57.1 fixes a <a href="http://code.google.com/p/go/source/detail?r=ff2bc62726e7145eb2ecc1e0f076998e4a8f86f0">nil pointer dereference in http.FormFile</a>.</p>
++<p>r57.2 fixes a <a href="http://code.google.com/p/go/source/detail?r=063b0ff67d8277df03c956208abc068076818dae">use of uninitialized memory in programs that misuse <code>goto</code></a>.</p>
+ 
+ <h2 id="r56">r56 (released 2011/03/16)</h2>
+ 

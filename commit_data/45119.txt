@@ -14,6 +14,20 @@ Date:   Sun Oct 4 00:25:17 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f953a76963..da894e3eef 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -982,7 +982,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "aix-ppc64",
+-			"darwin-amd64", "darwin-arm64",
++			"darwin-amd64", "darwin-arm64", "ios-arm64",
+ 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
+ 			"freebsd-amd64",
+ 			"windows-amd64", "windows-386":

@@ -13,7 +13,7 @@ Date:   Tue Sep 27 19:51:47 2016 +0900
     Change-Id: Id838fcc234e71f735bb2609073f4c2214b48a970
     Reviewed-on: https://go-review.googlesource.com/29891
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/vendor/golang_org/x/net/lif/address.go         | 105 ++++++++++++++++++
  src/vendor/golang_org/x/net/lif/address_test.go    | 121 ++++++++++++++++++++
  src/vendor/golang_org/x/net/lif/binary.go          |  68 ++++++++++++
@@ -25,3 +25,821 @@ Date:   Tue Sep 27 19:51:47 2016 +0900
  src/vendor/golang_org/x/net/lif/syscall.go         |  33 ++++++
  .../golang_org/x/net/lif/zsys_solaris_amd64.go     | 103 +++++++++++++++++
  10 files changed, 757 insertions(+)
+
+diff --git a/src/vendor/golang_org/x/net/lif/address.go b/src/vendor/golang_org/x/net/lif/address.go
+new file mode 100644
+index 0000000000..3b9a133919
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/address.go
+@@ -0,0 +1,105 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import (
++	"errors"
++	"unsafe"
++)
++
++// An Addr represents an address associated with packet routing.
++type Addr interface {
++	// Family returns an address family.
++	Family() int
++}
++
++// An Inet4Addr represents an internet address for IPv4.
++type Inet4Addr struct {
++	IP        [4]byte // IP address
++	PrefixLen int     // address prefix length
++}
++
++// Family implements the Family method of Addr interface.
++func (a *Inet4Addr) Family() int { return sysAF_INET }
++
++// An Inet6Addr represents an internet address for IPv6.
++type Inet6Addr struct {
++	IP        [16]byte // IP address
++	PrefixLen int      // address prefix length
++	ZoneID    int      // zone identifier
++}
++
++// Family implements the Family method of Addr interface.
++func (a *Inet6Addr) Family() int { return sysAF_INET6 }
++
++// Addrs returns a list of interface addresses.
++//
++// The provided af must be an address family and name must be a data
++// link name. The zero value of af or name means a wildcard.
++func Addrs(af int, name string) ([]Addr, error) {
++	eps, err := newEndpoints(af)
++	if len(eps) == 0 {
++		return nil, err
++	}
++	defer func() {
++		for _, ep := range eps {
++			ep.close()
++		}
++	}()
++	lls, err := links(eps, name)
++	if len(lls) == 0 {
++		return nil, err
++	}
++	var as []Addr
++	for _, ll := range lls {
++		var lifr sysLifreq
++		for i := 0; i < len(ll.Name); i++ {
++			lifr.Name[i] = int8(ll.Name[i])
++		}
++		for _, ep := range eps {
++			ioc := int64(sysSIOCGLIFADDR)
++			err := ioctl(ep.s, uintptr(ioc), unsafe.Pointer(&lifr))
++			if err != nil {
++				continue
++			}
++			sa := (*sysSockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
++			l := int(littleEndian.Uint32(lifr.Lifru1[:4]))
++			if l == 0 {
++				continue
++			}
++			switch sa.Family {
++			case sysAF_INET:
++				a := &Inet4Addr{PrefixLen: l}
++				copy(a.IP[:], lifr.Lifru[4:8])
++				as = append(as, a)
++			case sysAF_INET6:
++				a := &Inet6Addr{PrefixLen: l, ZoneID: int(littleEndian.Uint32(lifr.Lifru[24:28]))}
++				copy(a.IP[:], lifr.Lifru[8:24])
++				as = append(as, a)
++			}
++		}
++	}
++	return as, nil
++}
++
++func parseLinkAddr(b []byte) ([]byte, error) {
++	nlen, alen, slen := int(b[1]), int(b[2]), int(b[3])
++	l := 4 + nlen + alen + slen
++	if len(b) < l {
++		return nil, errors.New("invalid address")
++	}
++	b = b[4:]
++	var addr []byte
++	if nlen > 0 {
++		b = b[nlen:]
++	}
++	if alen > 0 {
++		addr = make([]byte, alen)
++		copy(addr, b[:alen])
++	}
++	return addr, nil
++}
+diff --git a/src/vendor/golang_org/x/net/lif/address_test.go b/src/vendor/golang_org/x/net/lif/address_test.go
+new file mode 100644
+index 0000000000..f62ed93471
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/address_test.go
+@@ -0,0 +1,121 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import (
++	"fmt"
++	"testing"
++)
++
++type addrFamily int
++
++func (af addrFamily) String() string {
++	switch af {
++	case sysAF_UNSPEC:
++		return "unspec"
++	case sysAF_INET:
++		return "inet4"
++	case sysAF_INET6:
++		return "inet6"
++	default:
++		return fmt.Sprintf("%d", af)
++	}
++}
++
++const hexDigit = "0123456789abcdef"
++
++type llAddr []byte
++
++func (a llAddr) String() string {
++	if len(a) == 0 {
++		return ""
++	}
++	buf := make([]byte, 0, len(a)*3-1)
++	for i, b := range a {
++		if i > 0 {
++			buf = append(buf, ':')
++		}
++		buf = append(buf, hexDigit[b>>4])
++		buf = append(buf, hexDigit[b&0xF])
++	}
++	return string(buf)
++}
++
++type ipAddr []byte
++
++func (a ipAddr) String() string {
++	if len(a) == 0 {
++		return "<nil>"
++	}
++	if len(a) == 4 {
++		return fmt.Sprintf("%d.%d.%d.%d", a[0], a[1], a[2], a[3])
++	}
++	if len(a) == 16 {
++		return fmt.Sprintf("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x", a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15])
++	}
++	s := make([]byte, len(a)*2)
++	for i, tn := range a {
++		s[i*2], s[i*2+1] = hexDigit[tn>>4], hexDigit[tn&0xf]
++	}
++	return string(s)
++}
++
++func (a *Inet4Addr) String() string {
++	return fmt.Sprintf("(%s %s %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.PrefixLen)
++}
++
++func (a *Inet6Addr) String() string {
++	return fmt.Sprintf("(%s %s %d %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.PrefixLen, a.ZoneID)
++}
++
++type addrPack struct {
++	af int
++	as []Addr
++}
++
++func addrPacks() ([]addrPack, error) {
++	var aps []addrPack
++	for _, af := range [...]int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		as, err := Addrs(af, "")
++		if err != nil {
++			return nil, err
++		}
++		aps = append(aps, addrPack{af: af, as: as})
++	}
++	return aps, nil
++}
++
++func TestAddrs(t *testing.T) {
++	aps, err := addrPacks()
++	if len(aps) == 0 && err != nil {
++		t.Fatal(err)
++	}
++	lps, err := linkPacks()
++	if len(lps) == 0 && err != nil {
++		t.Fatal(err)
++	}
++	for _, lp := range lps {
++		n := 0
++		for _, ll := range lp.lls {
++			as, err := Addrs(lp.af, ll.Name)
++			if err != nil {
++				t.Fatal(lp.af, ll.Name, err)
++			}
++			t.Logf("af=%s name=%s %v", addrFamily(lp.af), ll.Name, as)
++			n += len(as)
++		}
++		for _, ap := range aps {
++			if ap.af != lp.af {
++				continue
++			}
++			if n != len(ap.as) {
++				t.Errorf("af=%s got %d; want %d", addrFamily(lp.af), n, len(ap.as))
++				continue
++			}
++		}
++	}
++}
+diff --git a/src/vendor/golang_org/x/net/lif/binary.go b/src/vendor/golang_org/x/net/lif/binary.go
+new file mode 100644
+index 0000000000..aade9eafa2
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/binary.go
+@@ -0,0 +1,68 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++// This file contains duplicates of encoding/binary package.
++//
++// This package is supposed to be used by the net package of standard
++// library. Therefore the package set used in the package must be the
++// same as net package.
++
++var littleEndian binaryLittleEndian
++
++type binaryByteOrder interface {
++	Uint16([]byte) uint16
++	Uint32([]byte) uint32
++	Uint64([]byte) uint64
++	PutUint16([]byte, uint16)
++	PutUint32([]byte, uint32)
++	PutUint64([]byte, uint64)
++}
++
++type binaryLittleEndian struct{}
++
++func (binaryLittleEndian) Uint16(b []byte) uint16 {
++	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint16(b[0]) | uint16(b[1])<<8
++}
++
++func (binaryLittleEndian) PutUint16(b []byte, v uint16) {
++	_ = b[1] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++}
++
++func (binaryLittleEndian) Uint32(b []byte) uint32 {
++	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
++}
++
++func (binaryLittleEndian) PutUint32(b []byte, v uint32) {
++	_ = b[3] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++}
++
++func (binaryLittleEndian) Uint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++}
++
++func (binaryLittleEndian) PutUint64(b []byte, v uint64) {
++	_ = b[7] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++	b[4] = byte(v >> 32)
++	b[5] = byte(v >> 40)
++	b[6] = byte(v >> 48)
++	b[7] = byte(v >> 56)
++}
+diff --git a/src/vendor/golang_org/x/net/lif/defs_solaris.go b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+new file mode 100644
+index 0000000000..79e3ed0f4f
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+@@ -0,0 +1,90 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// +godefs map struct_in_addr [4]byte /* in_addr */
++// +godefs map struct_in6_addr [16]byte /* in6_addr */
++
++package lif
++
++/*
++#include <sys/socket.h>
++#include <sys/sockio.h>
++
++#include <net/if.h>
++#include <net/if_types.h>
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_INET6  = C.AF_INET6
++
++	sysSOCK_DGRAM = C.SOCK_DGRAM
++)
++
++type sysSockaddrStorage C.struct_sockaddr_storage
++
++const (
++	sysLIFC_NOXMIT          = C.LIFC_NOXMIT
++	sysLIFC_EXTERNAL_SOURCE = C.LIFC_EXTERNAL_SOURCE
++	sysLIFC_TEMPORARY       = C.LIFC_TEMPORARY
++	sysLIFC_ALLZONES        = C.LIFC_ALLZONES
++	sysLIFC_UNDER_IPMP      = C.LIFC_UNDER_IPMP
++	sysLIFC_ENABLED         = C.LIFC_ENABLED
++
++	sysSIOCGLIFADDR    = C.SIOCGLIFADDR
++	sysSIOCGLIFDSTADDR = C.SIOCGLIFDSTADDR
++	sysSIOCGLIFFLAGS   = C.SIOCGLIFFLAGS
++	sysSIOCGLIFMTU     = C.SIOCGLIFMTU
++	sysSIOCGLIFNETMASK = C.SIOCGLIFNETMASK
++	sysSIOCGLIFMETRIC  = C.SIOCGLIFMETRIC
++	sysSIOCGLIFNUM     = C.SIOCGLIFNUM
++	sysSIOCGLIFINDEX   = C.SIOCGLIFINDEX
++	sysSIOCGLIFSUBNET  = C.SIOCGLIFSUBNET
++	sysSIOCGLIFLNKINFO = C.SIOCGLIFLNKINFO
++	sysSIOCGLIFCONF    = C.SIOCGLIFCONF
++	sysSIOCGLIFHWADDR  = C.SIOCGLIFHWADDR
++)
++
++const (
++	sysIFF_UP          = C.IFF_UP
++	sysIFF_BROADCAST   = C.IFF_BROADCAST
++	sysIFF_DEBUG       = C.IFF_DEBUG
++	sysIFF_LOOPBACK    = C.IFF_LOOPBACK
++	sysIFF_POINTOPOINT = C.IFF_POINTOPOINT
++	sysIFF_NOTRAILERS  = C.IFF_NOTRAILERS
++	sysIFF_RUNNING     = C.IFF_RUNNING
++	sysIFF_NOARP       = C.IFF_NOARP
++	sysIFF_PROMISC     = C.IFF_PROMISC
++	sysIFF_ALLMULTI    = C.IFF_ALLMULTI
++	sysIFF_INTELLIGENT = C.IFF_INTELLIGENT
++	sysIFF_MULTICAST   = C.IFF_MULTICAST
++	sysIFF_MULTI_BCAST = C.IFF_MULTI_BCAST
++	sysIFF_UNNUMBERED  = C.IFF_UNNUMBERED
++	sysIFF_PRIVATE     = C.IFF_PRIVATE
++)
++
++const (
++	sizeofLifnum       = C.sizeof_struct_lifnum
++	sizeofLifreq       = C.sizeof_struct_lifreq
++	sizeofLifconf      = C.sizeof_struct_lifconf
++	sizeofLifIfinfoReq = C.sizeof_struct_lif_ifinfo_req
++)
++
++type sysLifnum C.struct_lifnum
++
++type sysLifreq C.struct_lifreq
++
++type sysLifconf C.struct_lifconf
++
++type sysLifIfinfoReq C.struct_lif_ifinfo_req
++
++const (
++	sysIFT_IPV4 = C.IFT_IPV4
++	sysIFT_IPV6 = C.IFT_IPV6
++	sysIFT_6TO4 = C.IFT_6TO4
++)
+diff --git a/src/vendor/golang_org/x/net/lif/lif.go b/src/vendor/golang_org/x/net/lif/lif.go
+new file mode 100644
+index 0000000000..6e81f81f1c
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/lif.go
+@@ -0,0 +1,43 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++// Package lif provides basic functions for the manipulation of
++// logical network interfaces and interface addresses on Solaris.
++//
++// The package supports Solaris 11 or above.
++package lif
++
++import "syscall"
++
++type endpoint struct {
++	af int
++	s  uintptr
++}
++
++func (ep *endpoint) close() error {
++	return syscall.Close(int(ep.s))
++}
++
++func newEndpoints(af int) ([]endpoint, error) {
++	var lastErr error
++	var eps []endpoint
++	afs := []int{sysAF_INET, sysAF_INET6}
++	if af != sysAF_UNSPEC {
++		afs = []int{af}
++	}
++	for _, af := range afs {
++		s, err := syscall.Socket(af, sysSOCK_DGRAM, 0)
++		if err != nil {
++			lastErr = err
++			continue
++		}
++		eps = append(eps, endpoint{af: af, s: uintptr(s)})
++	}
++	if len(eps) == 0 {
++		return nil, lastErr
++	}
++	return eps, nil
++}
+diff --git a/src/vendor/golang_org/x/net/lif/link.go b/src/vendor/golang_org/x/net/lif/link.go
+new file mode 100644
+index 0000000000..09bf682b5e
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/link.go
+@@ -0,0 +1,122 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import "unsafe"
++
++// A Link represents logical data link information.
++//
++// It also represents base information for logical network interface.
++// On Solaris, each logical network interface represents network layer
++// adjacency information and the interface has a only single network
++// address or address pair for tunneling. It's usual that multiple
++// logical network interfaces share the same logical data link.
++type Link struct {
++	Name  string // name, equivalent to IP interface name
++	Index int    // index, equivalent to IP interface index
++	Type  int    // type
++	Flags int    // flags
++	MTU   int    // maximum transmission unit, basically link MTU but may differ between IP address families
++	Addr  []byte // address
++}
++
++func (ll *Link) fetch(s uintptr) {
++	var lifr sysLifreq
++	for i := 0; i < len(ll.Name); i++ {
++		lifr.Name[i] = int8(ll.Name[i])
++	}
++	ioc := int64(sysSIOCGLIFINDEX)
++	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
++		ll.Index = int(littleEndian.Uint32(lifr.Lifru[:4]))
++	}
++	ioc = int64(sysSIOCGLIFFLAGS)
++	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
++		ll.Flags = int(littleEndian.Uint64(lifr.Lifru[:8]))
++	}
++	ioc = int64(sysSIOCGLIFMTU)
++	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
++		ll.MTU = int(littleEndian.Uint32(lifr.Lifru[:4]))
++	}
++	switch ll.Type {
++	case sysIFT_IPV4, sysIFT_IPV6, sysIFT_6TO4:
++	default:
++		ioc = int64(sysSIOCGLIFHWADDR)
++		if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
++			ll.Addr, _ = parseLinkAddr(lifr.Lifru[4:])
++		}
++	}
++}
++
++// Links returns a list of logical data links.
++//
++// The provided af must be an address family and name must be a data
++// link name. The zero value of af or name means a wildcard.
++func Links(af int, name string) ([]Link, error) {
++	eps, err := newEndpoints(af)
++	if len(eps) == 0 {
++		return nil, err
++	}
++	defer func() {
++		for _, ep := range eps {
++			ep.close()
++		}
++	}()
++	return links(eps, name)
++}
++
++func links(eps []endpoint, name string) ([]Link, error) {
++	var lls []Link
++	lifn := sysLifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
++	lifc := sysLifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
++	for _, ep := range eps {
++		lifn.Family = uint16(ep.af)
++		ioc := int64(sysSIOCGLIFNUM)
++		if err := ioctl(ep.s, uintptr(ioc), unsafe.Pointer(&lifn)); err != nil {
++			continue
++		}
++		if lifn.Count == 0 {
++			continue
++		}
++		b := make([]byte, lifn.Count*sizeofLifreq)
++		lifc.Family = uint16(ep.af)
++		lifc.Len = lifn.Count * sizeofLifreq
++		littleEndian.PutUint64(lifc.Lifcu[:], uint64(uintptr(unsafe.Pointer(&b[0]))))
++		ioc = int64(sysSIOCGLIFCONF)
++		if err := ioctl(ep.s, uintptr(ioc), unsafe.Pointer(&lifc)); err != nil {
++			continue
++		}
++		nb := make([]byte, 32) // see LIFNAMSIZ in net/if.h
++		for i := 0; i < int(lifn.Count); i++ {
++			lifr := (*sysLifreq)(unsafe.Pointer(&b[i*sizeofLifreq]))
++			for i := 0; i < 32; i++ {
++				if lifr.Name[i] == 0 {
++					nb = nb[:i]
++					break
++				}
++				nb[i] = byte(lifr.Name[i])
++			}
++			llname := string(nb)
++			nb = nb[:32]
++			if isDupLink(lls, llname) || name != "" && name != llname {
++				continue
++			}
++			ll := Link{Name: llname, Type: int(lifr.Type)}
++			ll.fetch(ep.s)
++			lls = append(lls, ll)
++		}
++	}
++	return lls, nil
++}
++
++func isDupLink(lls []Link, name string) bool {
++	for _, ll := range lls {
++		if ll.Name == name {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/vendor/golang_org/x/net/lif/link_test.go b/src/vendor/golang_org/x/net/lif/link_test.go
+new file mode 100644
+index 0000000000..8fb2bf6f34
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/link_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import (
++	"fmt"
++	"testing"
++)
++
++func (ll *Link) String() string {
++	return fmt.Sprintf("name=%s index=%d type=%d flags=%#x mtu=%d addr=%v", ll.Name, ll.Index, ll.Type, ll.Flags, ll.MTU, llAddr(ll.Addr))
++}
++
++type linkPack struct {
++	af  int
++	lls []Link
++}
++
++func linkPacks() ([]linkPack, error) {
++	var lps []linkPack
++	for _, af := range [...]int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		lls, err := Links(af, "")
++		if err != nil {
++			return nil, err
++		}
++		lps = append(lps, linkPack{af: af, lls: lls})
++	}
++	return lps, nil
++}
++
++func TestLinks(t *testing.T) {
++	lps, err := linkPacks()
++	if len(lps) == 0 && err != nil {
++		t.Fatal(err)
++	}
++	for _, lp := range lps {
++		n := 0
++		for _, sll := range lp.lls {
++			lls, err := Links(lp.af, sll.Name)
++			if err != nil {
++				t.Fatal(lp.af, sll.Name, err)
++			}
++			for _, ll := range lls {
++				if ll.Name != sll.Name || ll.Index != sll.Index {
++					t.Errorf("af=%s got %v; want %v", addrFamily(lp.af), &ll, &sll)
++					continue
++				}
++				t.Logf("af=%s name=%s %v", addrFamily(lp.af), sll.Name, &ll)
++				n++
++			}
++		}
++		if n != len(lp.lls) {
++			t.Errorf("af=%s got %d; want %d", addrFamily(lp.af), n, len(lp.lls))
++			continue
++		}
++	}
++}
+diff --git a/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s b/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
+new file mode 100644
+index 0000000000..1ebca37391
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·sysvicall6(SB),NOSPLIT,$0-88
++	JMP	syscall·sysvicall6(SB)
++
++TEXT ·keepAlive(SB),NOSPLIT,$0
++	RET
+diff --git a/src/vendor/golang_org/x/net/lif/syscall.go b/src/vendor/golang_org/x/net/lif/syscall.go
+new file mode 100644
+index 0000000000..5fe073620a
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/syscall.go
+@@ -0,0 +1,33 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++//go:linkname procIoctl libc_ioctl
++
++var procIoctl uintptr
++
++func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (uintptr, uintptr, syscall.Errno)
++
++// TODO: replace with runtime.KeepAlive when available
++//go:noescape
++func keepAlive(p unsafe.Pointer)
++
++func ioctl(s, ioc uintptr, arg unsafe.Pointer) error {
++	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procIoctl)), 3, s, ioc, uintptr(arg), 0, 0, 0)
++	keepAlive(arg)
++	if errno != 0 {
++		return error(errno)
++	}
++	return nil
++}
+diff --git a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+new file mode 100644
+index 0000000000..d5b044481e
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+@@ -0,0 +1,103 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_solaris.go
++
++package lif
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_INET6  = 0x1a
++
++	sysSOCK_DGRAM = 0x1
++)
++
++type sysSockaddrStorage struct {
++	Family     uint16
++	X_ss_pad1  [6]int8
++	X_ss_align float64
++	X_ss_pad2  [240]int8
++}
++
++const (
++	sysLIFC_NOXMIT          = 0x1
++	sysLIFC_EXTERNAL_SOURCE = 0x2
++	sysLIFC_TEMPORARY       = 0x4
++	sysLIFC_ALLZONES        = 0x8
++	sysLIFC_UNDER_IPMP      = 0x10
++	sysLIFC_ENABLED         = 0x20
++
++	sysSIOCGLIFADDR    = -0x3f87968f
++	sysSIOCGLIFDSTADDR = -0x3f87968d
++	sysSIOCGLIFFLAGS   = -0x3f87968b
++	sysSIOCGLIFMTU     = -0x3f879686
++	sysSIOCGLIFNETMASK = -0x3f879683
++	sysSIOCGLIFMETRIC  = -0x3f879681
++	sysSIOCGLIFNUM     = -0x3ff3967e
++	sysSIOCGLIFINDEX   = -0x3f87967b
++	sysSIOCGLIFSUBNET  = -0x3f879676
++	sysSIOCGLIFLNKINFO = -0x3f879674
++	sysSIOCGLIFCONF    = -0x3fef965b
++	sysSIOCGLIFHWADDR  = -0x3f879640
++)
++
++const (
++	sysIFF_UP          = 0x1
++	sysIFF_BROADCAST   = 0x2
++	sysIFF_DEBUG       = 0x4
++	sysIFF_LOOPBACK    = 0x8
++	sysIFF_POINTOPOINT = 0x10
++	sysIFF_NOTRAILERS  = 0x20
++	sysIFF_RUNNING     = 0x40
++	sysIFF_NOARP       = 0x80
++	sysIFF_PROMISC     = 0x100
++	sysIFF_ALLMULTI    = 0x200
++	sysIFF_INTELLIGENT = 0x400
++	sysIFF_MULTICAST   = 0x800
++	sysIFF_MULTI_BCAST = 0x1000
++	sysIFF_UNNUMBERED  = 0x2000
++	sysIFF_PRIVATE     = 0x8000
++)
++
++const (
++	sizeofLifnum       = 0xc
++	sizeofLifreq       = 0x178
++	sizeofLifconf      = 0x18
++	sizeofLifIfinfoReq = 0x10
++)
++
++type sysLifnum struct {
++	Family    uint16
++	Pad_cgo_0 [2]byte
++	Flags     int32
++	Count     int32
++}
++
++type sysLifreq struct {
++	Name   [32]int8
++	Lifru1 [4]byte
++	Type   uint32
++	Lifru  [336]byte
++}
++
++type sysLifconf struct {
++	Family    uint16
++	Pad_cgo_0 [2]byte
++	Flags     int32
++	Len       int32
++	Pad_cgo_1 [4]byte
++	Lifcu     [8]byte
++}
++
++type sysLifIfinfoReq struct {
++	Maxhops      uint8
++	Pad_cgo_0    [3]byte
++	Reachtime    uint32
++	Reachretrans uint32
++	Maxmtu       uint32
++}
++
++const (
++	sysIFT_IPV4 = 0xc8
++	sysIFT_IPV6 = 0xc9
++	sysIFT_6TO4 = 0xca
++)

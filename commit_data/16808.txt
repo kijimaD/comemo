@@ -9,6 +9,22 @@ Date:   Thu Jul 18 11:01:58 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/11525043
-
+---
  src/pkg/debug/gosym/pclntab_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 5616cdbd56..6ec2b63847 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -30,6 +30,10 @@ func dotest(self bool) bool {
+ 	if self && runtime.GOOS != "linux" {
+ 		return false
+ 	}
++	// Command below expects "sh", so Unix.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		return false
++	}
+ 	if pclinetestBinary != "" {
+ 		return true
+ 	}

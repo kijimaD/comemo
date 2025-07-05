@@ -11,10 +11,127 @@ Date:   Tue Mar 4 09:27:29 2014 +0900
     R=golang-codereviews, dave, rsc, minux.ma, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/64510043
-
+---
  src/pkg/os/file_unix.go   |  7 +------
  src/pkg/os/sys_darwin.go  | 31 +++++++++++++++++++++++++++++++
  src/pkg/os/sys_freebsd.go | 23 +++++++++++++++++++++++
  src/pkg/os/sys_nacl.go    |  9 +++++++++
  src/pkg/os/sys_unix.go    | 11 +++++++++++
  5 files changed, 75 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index f6d76f289d..699e4409ea 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -81,12 +81,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 
+ 	// There's a race here with fork/exec, which we are
+ 	// content to live with.  See ../syscall/exec_unix.go.
+-	// On OS X 10.6, the O_CLOEXEC flag is not respected.
+-	// On OS X 10.7, the O_CLOEXEC flag works.
+-	// Without a cheap & reliable way to detect 10.6 vs 10.7 at
+-	// runtime, we just always call syscall.CloseOnExec on Darwin.
+-	// Once >=10.7 is prevalent, this extra call can removed.
+-	if syscall.O_CLOEXEC == 0 || runtime.GOOS == "darwin" { // O_CLOEXEC not supported
++	if !supportsCloseOnExec {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+diff --git a/src/pkg/os/sys_darwin.go b/src/pkg/os/sys_darwin.go
+new file mode 100644
+index 0000000000..7a8330abb5
+--- /dev/null
++++ b/src/pkg/os/sys_darwin.go
+@@ -0,0 +1,31 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++var supportsCloseOnExec bool
++
++func init() {
++	// Seems like kern.osreldate is veiled on latest OS X. We use
++	// kern.osrelease instead.
++	osver, err := syscall.Sysctl("kern.osrelease")
++	if err != nil {
++		return
++	}
++	var i int
++	for i = range osver {
++		if osver[i] != '.' {
++			continue
++		}
++	}
++	// The O_CLOEXEC flag was introduced in OS X 10.7 (Darwin
++	// 11.0.0). See http://support.apple.com/kb/HT1633.
++	if i > 2 || i == 2 && osver[0] >= '1' && osver[1] >= '1' {
++		supportsCloseOnExec = true
++	}
++}
+diff --git a/src/pkg/os/sys_freebsd.go b/src/pkg/os/sys_freebsd.go
+new file mode 100644
+index 0000000000..273c2df1c1
+--- /dev/null
++++ b/src/pkg/os/sys_freebsd.go
+@@ -0,0 +1,23 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++var supportsCloseOnExec bool
++
++func init() {
++	osrel, err := syscall.SysctlUint32("kern.osreldate")
++	if err != nil {
++		return
++	}
++	// The O_CLOEXEC flag was introduced in FreeBSD 8.3.
++	// See http://www.freebsd.org/doc/en/books/porters-handbook/freebsd-versions.html.
++	if osrel >= 803000 {
++		supportsCloseOnExec = true
++	}
++}
+diff --git a/src/pkg/os/sys_nacl.go b/src/pkg/os/sys_nacl.go
+new file mode 100644
+index 0000000000..07907c8477
+--- /dev/null
++++ b/src/pkg/os/sys_nacl.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++const supportsCloseOnExec = false
+diff --git a/src/pkg/os/sys_unix.go b/src/pkg/os/sys_unix.go
+new file mode 100644
+index 0000000000..39c20dc739
+--- /dev/null
++++ b/src/pkg/os/sys_unix.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly linux netbsd openbsd solaris
++
++package os
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++const supportsCloseOnExec = true

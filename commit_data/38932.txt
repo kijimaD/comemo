@@ -14,6 +14,43 @@ Date:   Mon Dec 10 19:35:01 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover.go | 17 +++++++++++------
  1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 7f473a233c..425bcbdd26 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -118,7 +118,7 @@ func parseFlags() error {
+ 	}
+ 
+ 	if *varVar != "" && !isValidIdentifier(*varVar) {
+-		return fmt.Errorf("argument of -var is not a valid identifier: %v", *varVar)
++		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
+ 	}
+ 
+ 	if *mode != "" {
+@@ -683,12 +683,17 @@ func (f *File) addVariables(w io.Writer) {
+ }
+ 
+ func isValidIdentifier(ident string) bool {
+-	first := true
+-	for _, c := range ident {
+-		if !unicode.IsLetter(c) && c != '_' && (first || !unicode.IsDigit(c)) {
+-			return false // invalid identifier
++	if len(ident) == 0 {
++		return false
++	}
++	for i, c := range ident {
++		if i > 0 && unicode.IsDigit(c) {
++			continue
++		}
++		if c == '_' || unicode.IsLetter(c) {
++			continue
+ 		}
+-		first = false
++		return false
+ 	}
+ 	return true
+ }

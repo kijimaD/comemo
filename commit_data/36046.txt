@@ -9,6 +9,19 @@ Date:   Fri Mar 30 17:00:39 2018 -0400
     Change-Id: I76dee97db7cd77fe03e4a224f679a5efd061a2b5
     Reviewed-on: https://go-review.googlesource.com/103775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/fd_nacl.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/syscall/fd_nacl.go b/src/syscall/fd_nacl.go
+index e559793c8b..b31aa58c49 100644
+--- a/src/syscall/fd_nacl.go
++++ b/src/syscall/fd_nacl.go
+@@ -121,7 +121,6 @@ func Dup(fd int) (int, error) {
+ 
+ func Dup2(fd, newfd int) error {
+ 	files.Lock()
+-	defer files.Unlock()
+ 	if fd < 0 || fd >= len(files.tab) || files.tab[fd] == nil || newfd < 0 || newfd >= len(files.tab)+100 {
+ 		files.Unlock()
+ 		return EBADF

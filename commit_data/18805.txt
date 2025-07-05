@@ -12,7 +12,34 @@ Date:   Sat Mar 8 07:54:41 2014 +1100
     R=rsc, bradfitz, agl, remyoudompheng
     CC=golang-codereviews
     https://golang.org/cl/72460043
-
+---
  src/pkg/crypto/md5/md5block_generic.go   | 2 +-
  src/pkg/crypto/sha1/sha1block_generic.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/md5block_generic.go b/src/pkg/crypto/md5/md5block_generic.go
+index 239bf4d215..263463e51c 100644
+--- a/src/pkg/crypto/md5/md5block_generic.go
++++ b/src/pkg/crypto/md5/md5block_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!386,!arm
++// +build !amd64,!amd64p32,!386,!arm
+ 
+ package md5
+ 
+diff --git a/src/pkg/crypto/sha1/sha1block_generic.go b/src/pkg/crypto/sha1/sha1block_generic.go
+index 2c78683aa4..696e26b625 100644
+--- a/src/pkg/crypto/sha1/sha1block_generic.go
++++ b/src/pkg/crypto/sha1/sha1block_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!386,!arm
++// +build !amd64,!amd64p32,!386,!arm
+ 
+ package sha1
+ 

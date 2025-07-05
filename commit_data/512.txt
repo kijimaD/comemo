@@ -9,9 +9,79 @@ Date:   Mon Aug 11 10:10:48 2008 -0700
     R=ken,gri
     OCL=14073
     CL=14073
-
+---
  test/{bugs => fixedbugs}/bug015.go |  0
  test/{bugs => fixedbugs}/bug046.go |  0
  test/{bugs => fixedbugs}/bug082.go |  1 +
  test/golden.out                    | 14 +++-----------
  4 files changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/test/bugs/bug015.go b/test/fixedbugs/bug015.go
+similarity index 100%
+rename from test/bugs/bug015.go
+rename to test/fixedbugs/bug015.go
+diff --git a/test/bugs/bug046.go b/test/fixedbugs/bug046.go
+similarity index 100%
+rename from test/bugs/bug046.go
+rename to test/fixedbugs/bug046.go
+diff --git a/test/bugs/bug082.go b/test/fixedbugs/bug082.go
+similarity index 92%
+rename from test/bugs/bug082.go
+rename to test/fixedbugs/bug082.go
+index 9b877de07f..26c4f1f648 100644
+--- a/test/bugs/bug082.go
++++ b/test/fixedbugs/bug082.go
+@@ -9,6 +9,7 @@ package main
+ func main() {
+ 	x := 0;
+ 	x = ^x;  // unary ^ not yet implemented
++	if x != ^0 { panic x, " ", ^0 }
+ }
+ 
+ /*
+diff --git a/test/golden.out b/test/golden.out
+index c5b823e879..c3f018fa81 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -46,9 +46,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug015.go
+-BUG: known to succeed incorrectly
+-
+ =========== bugs/bug026.go
+ sys·printstring: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+@@ -71,10 +68,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug046.go
+-bugs/bug046.go:7: illegal <this> pointer
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug047.go
+ bugs/bug047.go:13: illegal types for operand: CONV
+ 	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
+@@ -175,10 +168,6 @@ bugs/bug081.go:5: first constant must evaluate an expression
+ BUG: compiler should not crash
+ Bus error               $G $D/$F.go
+ 
+-=========== bugs/bug082.go
+-bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
+-BUG: fails incorrectly
+-
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+ BUG: fails incorrectly
+@@ -193,6 +182,9 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
++=========== fixedbugs/bug015.go
++fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
++
+ =========== fixedbugs/bug025.go
+ fixedbugs/bug025.go:7: variable exported but not defined: Foo
+ 

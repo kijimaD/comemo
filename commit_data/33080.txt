@@ -14,6 +14,28 @@ Date:   Wed Jun 21 00:35:18 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/46270
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/reflect/value.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 3d73338809..8488e8dec1 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2082,12 +2082,13 @@ func MakeMap(typ Type) Value {
+ 	return MakeMapWithSize(typ, 0)
+ }
+ 
+-// MakeMapWithSize creates a new map with the specified type and initial capacity.
+-func MakeMapWithSize(typ Type, cap int) Value {
++// MakeMapWithSize creates a new map with the specified type
++// and initial space for approximately n elements.
++func MakeMapWithSize(typ Type, n int) Value {
+ 	if typ.Kind() != Map {
+ 		panic("reflect.MakeMapWithSize of non-map type")
+ 	}
+-	m := makemap(typ.(*rtype), cap)
++	m := makemap(typ.(*rtype), n)
+ 	return Value{typ.common(), m, flag(Map)}
+ }
+ 

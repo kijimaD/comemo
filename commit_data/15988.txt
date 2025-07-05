@@ -19,6 +19,32 @@ Date:   Thu Mar 28 13:13:28 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/8114043
-
+---
  src/pkg/net/http/server.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 3a0cca7fdc..baddc72bc8 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -288,7 +288,7 @@ type response struct {
+ 	wroteContinue bool     // 100 Continue response was written
+ 
+ 	w  *bufio.Writer // buffers output in chunks to chunkWriter
+-	cw *chunkWriter
++	cw chunkWriter
+ 	sw *switchWriter // of the bufio.Writer, for return to putBufioWriter
+ 
+ 	// handlerHeader is the Header that Handlers get access to,
+@@ -558,10 +558,9 @@ func (c *conn) readRequest() (w *response, err error) {
+ 		req:           req,
+ 		handlerHeader: make(Header),
+ 		contentLength: -1,
+-		cw:            new(chunkWriter),
+ 	}
+ 	w.cw.res = w
+-	w.w, w.sw = newBufioWriterSize(w.cw, bufferBeforeChunkingSize)
++	w.w, w.sw = newBufioWriterSize(&w.cw, bufferBeforeChunkingSize)
+ 	return w, nil
+ }
+ 

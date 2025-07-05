@@ -10,7 +10,82 @@ Date:   Sat Jan 22 12:24:41 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/named.go | 10 +++++++++-
  src/go/types/named.go                    | 10 +++++++++-
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 51ea27a6db..c4217fa508 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -88,7 +88,11 @@ func (t *Named) Origin() *Named { return t.orig }
+ func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
+ 
+ // SetTypeParams sets the type parameters of the named type t.
+-func (t *Named) SetTypeParams(tparams []*TypeParam) { t.resolve(nil).tparams = bindTParams(tparams) }
++// t must not have type arguments.
++func (t *Named) SetTypeParams(tparams []*TypeParam) {
++	assert(t.targs.Len() == 0)
++	t.resolve(nil).tparams = bindTParams(tparams)
++}
+ 
+ // TypeArgs returns the type arguments used to instantiate the named type t.
+ func (t *Named) TypeArgs() *TypeList { return t.targs }
+@@ -100,7 +104,9 @@ func (t *Named) NumMethods() int { return len(t.resolve(nil).methods) }
+ func (t *Named) Method(i int) *Func { return t.resolve(nil).methods[i] }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
++// t must not have type arguments.
+ func (t *Named) SetUnderlying(underlying Type) {
++	assert(t.targs.Len() == 0)
+ 	if underlying == nil {
+ 		panic("underlying type must not be nil")
+ 	}
+@@ -111,7 +117,9 @@ func (t *Named) SetUnderlying(underlying Type) {
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
++// t must not have type arguments.
+ func (t *Named) AddMethod(m *Func) {
++	assert(t.targs.Len() == 0)
+ 	t.resolve(nil)
+ 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+ 		t.methods = append(t.methods, m)
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 82a053dd0d..a44686bc36 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -90,7 +90,11 @@ func (t *Named) Origin() *Named { return t.orig }
+ func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
+ 
+ // SetTypeParams sets the type parameters of the named type t.
+-func (t *Named) SetTypeParams(tparams []*TypeParam) { t.resolve(nil).tparams = bindTParams(tparams) }
++// t must not have type arguments.
++func (t *Named) SetTypeParams(tparams []*TypeParam) {
++	assert(t.targs.Len() == 0)
++	t.resolve(nil).tparams = bindTParams(tparams)
++}
+ 
+ // TypeArgs returns the type arguments used to instantiate the named type t.
+ func (t *Named) TypeArgs() *TypeList { return t.targs }
+@@ -102,7 +106,9 @@ func (t *Named) NumMethods() int { return len(t.resolve(nil).methods) }
+ func (t *Named) Method(i int) *Func { return t.resolve(nil).methods[i] }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
++// t must not have type arguments.
+ func (t *Named) SetUnderlying(underlying Type) {
++	assert(t.targs.Len() == 0)
+ 	if underlying == nil {
+ 		panic("underlying type must not be nil")
+ 	}
+@@ -113,7 +119,9 @@ func (t *Named) SetUnderlying(underlying Type) {
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
++// t must not have type arguments.
+ func (t *Named) AddMethod(m *Func) {
++	assert(t.targs.Len() == 0)
+ 	t.resolve(nil)
+ 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+ 		t.methods = append(t.methods, m)

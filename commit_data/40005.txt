@@ -7,8 +7,48 @@ Date:   Sun Apr 7 13:50:06 2019 +1000
     Change-Id: I209b75dc8dc4da881b68e5c5d98cbf08c1032dfc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171098
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/x509/x509.go     | 2 +-
  src/go/importer/importer.go | 2 +-
  src/runtime/cpuprof.go      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 0d68d82993..4aca7ca40b 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2278,7 +2278,7 @@ type CertificateRequest struct {
+ 	// Attributes contains the CSR attributes that can parse as
+ 	// pkix.AttributeTypeAndValueSET.
+ 	//
+-	// Deprecated: use Extensions and ExtraExtensions instead for parsing and
++	// Deprecated: Use Extensions and ExtraExtensions instead for parsing and
+ 	// generating the requestedExtensions attribute.
+ 	Attributes []pkix.AttributeTypeAndValueSET
+ 
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+index c809c9ab86..fbbc3c9017 100644
+--- a/src/go/importer/importer.go
++++ b/src/go/importer/importer.go
+@@ -73,7 +73,7 @@ func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Impo
+ 
+ // For calls ForCompiler with a new FileSet.
+ //
+-// Deprecated: use ForCompiler, which populates a FileSet
++// Deprecated: Use ForCompiler, which populates a FileSet
+ // with the positions of objects created by the importer.
+ func For(compiler string, lookup Lookup) types.Importer {
+ 	return ForCompiler(token.NewFileSet(), compiler, lookup)
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index e00dcb1bbd..81038f5c48 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -179,7 +179,7 @@ func (p *cpuProfile) addLostAtomic64(count uint64) {
+ // The details of generating that format have changed,
+ // so this functionality has been removed.
+ //
+-// Deprecated: use the runtime/pprof package,
++// Deprecated: Use the runtime/pprof package,
+ // or the handlers in the net/http/pprof package,
+ // or the testing package's -test.cpuprofile flag instead.
+ func CPUProfile() []byte {

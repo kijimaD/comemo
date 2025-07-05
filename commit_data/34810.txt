@@ -16,7 +16,7 @@ Date:   Sat Nov 11 19:50:19 2017 -0500
     Change-Id: I4f84065d7dfc2499fa3f203e9ab62e68d7f367c5
     Reviewed-on: https://go-review.googlesource.com/78176
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 17 +++++------
  src/cmd/go/go_test.go               |  4 +++
  src/cmd/go/internal/cache/cache.go  | 59 ++++++++++++++++++++++++-------------
@@ -24,3 +24,368 @@ Date:   Sat Nov 11 19:50:19 2017 -0500
  src/cmd/go/internal/test/test.go    | 19 +++++++++++-
  src/cmd/go/internal/work/buildid.go | 11 ++++---
  6 files changed, 98 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index cc2f3cf8d8..70bd3a1811 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -14,7 +14,7 @@
+ // The commands are:
+ //
+ // 	build       compile packages and dependencies
+-// 	clean       remove object files
++// 	clean       remove object files and cached files
+ // 	doc         show documentation for package or symbol
+ // 	env         print Go environment information
+ // 	bug         start a bug report
+@@ -170,11 +170,11 @@
+ // See also: go install, go get, go clean.
+ //
+ //
+-// Remove object files
++// Remove object files and cached files
+ //
+ // Usage:
+ //
+-// 	go clean [-i] [-r] [-n] [-x] [-cache] [build flags] [packages]
++// 	go clean [-i] [-r] [-n] [-x] [-cache] [-testcache] [build flags] [packages]
+ //
+ // Clean removes object files from package source directories.
+ // The go command builds most objects in a temporary directory,
+@@ -212,8 +212,10 @@
+ //
+ // The -x flag causes clean to print remove commands as it executes them.
+ //
+-// The -cache flag causes clean to remove the entire go build cache,
+-// in addition to cleaning specified packages (if any).
++// The -cache flag causes clean to remove the entire go build cache.
++//
++// The -testcache flag causes clean to expire all test results in the
++// go build cache.
+ //
+ // For more about build flags, see 'go help build'.
+ //
+@@ -576,7 +578,7 @@
+ //
+ // Usage:
+ //
+-// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
++// 	go list [-e] [-f format] [-json] [build flags] [packages]
+ //
+ // List lists the packages named by the import paths, one per line.
+ //
+@@ -680,9 +682,6 @@
+ // The -json flag causes the package data to be printed in JSON format
+ // instead of using the template format.
+ //
+-// The -deps flag causes list to add to its output all the dependencies of
+-// the packages named on the command line.
+-//
+ // The -e flag changes the handling of erroneous packages, those that
+ // cannot be found or are malformed. By default, the list command
+ // prints an error to standard error for each erroneous package and
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 075f430778..61117cc22c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4970,6 +4970,10 @@ func TestTestCache(t *testing.T) {
+ 	tg.run("test", "-timeout=1ns", "-x", "errors")
+ 	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+ 
++	tg.run("clean", "-testcache")
++	tg.run("test", "-x", "errors")
++	tg.grepStderr(`errors\.test`, "did not run test")
++
+ 	// The -p=1 in the commands below just makes the -x output easier to read.
+ 
+ 	t.Log("\n\nINITIAL\n\n")
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 4f56c89245..1fc9ff9b6b 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -81,9 +81,9 @@ func (c *Cache) fileName(id [HashSize]byte, key string) string {
+ var errMissing = errors.New("cache entry not found")
+ 
+ const (
+-	// action entry file is "v1 <hex id> <hex out> <decimal size space-padded to 20 bytes>\n"
++	// action entry file is "v1 <hex id> <hex out> <decimal size space-padded to 20 bytes> <unixnano space-padded to 20 bytes>\n"
+ 	hexSize   = HashSize * 2
+-	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1
++	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1 + 20 + 1
+ )
+ 
+ // verify controls whether to run the cache in verify mode.
+@@ -117,18 +117,24 @@ func initEnv() {
+ // returning the corresponding output ID and file size, if any.
+ // Note that finding an output ID does not guarantee that the
+ // saved file for that output ID is still available.
+-func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
++func (c *Cache) Get(id ActionID) (Entry, error) {
+ 	if verify {
+-		return OutputID{}, 0, errMissing
++		return Entry{}, errMissing
+ 	}
+ 	return c.get(id)
+ }
+ 
++type Entry struct {
++	OutputID OutputID
++	Size     int64
++	Time     time.Time
++}
++
+ // get is Get but does not respect verify mode, so that Put can use it.
+-func (c *Cache) get(id ActionID) (OutputID, int64, error) {
+-	missing := func() (OutputID, int64, error) {
++func (c *Cache) get(id ActionID) (Entry, error) {
++	missing := func() (Entry, error) {
+ 		fmt.Fprintf(c.log, "%d miss %x\n", c.now().Unix(), id)
+-		return OutputID{}, 0, errMissing
++		return Entry{}, errMissing
+ 	}
+ 	f, err := os.Open(c.fileName(id, "a"))
+ 	if err != nil {
+@@ -139,10 +145,13 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
+ 	if n, err := io.ReadFull(f, entry); n != entrySize || err != io.ErrUnexpectedEOF {
+ 		return missing()
+ 	}
+-	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+64] != ' ' || entry[entrySize-1] != '\n' {
++	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+hexSize] != ' ' || entry[3+hexSize+1+hexSize+1+20] != ' ' || entry[entrySize-1] != '\n' {
+ 		return missing()
+ 	}
+-	eid, eout, esize := entry[3:3+hexSize], entry[3+hexSize+1:3+hexSize+1+hexSize], entry[3+hexSize+1+hexSize+1:entrySize-1]
++	eid, entry := entry[3:3+hexSize], entry[3+hexSize:]
++	eout, entry := entry[1:1+hexSize], entry[1+hexSize:]
++	esize, entry := entry[1:1+20], entry[1+20:]
++	etime, entry := entry[1:1+20], entry[1+20:]
+ 	var buf [HashSize]byte
+ 	if _, err := hex.Decode(buf[:], eid); err != nil || buf != id {
+ 		return missing()
+@@ -158,6 +167,14 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
+ 	if err != nil || size < 0 {
+ 		return missing()
+ 	}
++	i = 0
++	for i < len(etime) && etime[i] == ' ' {
++		i++
++	}
++	tm, err := strconv.ParseInt(string(etime[i:]), 10, 64)
++	if err != nil || size < 0 {
++		return missing()
++	}
+ 
+ 	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
+ 
+@@ -165,22 +182,22 @@ func (c *Cache) get(id ActionID) (OutputID, int64, error) {
+ 	// so that mtime reflects cache access time.
+ 	os.Chtimes(c.fileName(id, "a"), c.now(), c.now())
+ 
+-	return buf, size, nil
++	return Entry{buf, size, time.Unix(0, tm)}, nil
+ }
+ 
+ // GetBytes looks up the action ID in the cache and returns
+ // the corresponding output bytes.
+ // GetBytes should only be used for data that can be expected to fit in memory.
+-func (c *Cache) GetBytes(id ActionID) ([]byte, error) {
+-	out, _, err := c.Get(id)
++func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
++	entry, err := c.Get(id)
+ 	if err != nil {
+-		return nil, err
++		return nil, entry, err
+ 	}
+-	data, _ := ioutil.ReadFile(c.OutputFile(out))
+-	if sha256.Sum256(data) != out {
+-		return nil, errMissing
++	data, _ := ioutil.ReadFile(c.OutputFile(entry.OutputID))
++	if sha256.Sum256(data) != entry.OutputID {
++		return nil, entry, errMissing
+ 	}
+-	return data, nil
++	return data, entry, nil
+ }
+ 
+ // OutputFile returns the name of the cache file storing output with the given OutputID.
+@@ -208,11 +225,11 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
+ 	// in verify mode we are double-checking that the cache entries
+ 	// are entirely reproducible. As just noted, this may be unrealistic
+ 	// in some cases but the check is also useful for shaking out real bugs.
+-	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
++	entry := []byte(fmt.Sprintf("v1 %x %x %20d %20d\n", id, out, size, time.Now().UnixNano()))
+ 	if verify && allowVerify {
+-		oldOut, oldSize, err := c.get(id)
+-		if err == nil && (oldOut != out || oldSize != size) {
+-			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, oldOut, oldSize)
++		old, err := c.get(id)
++		if err == nil && (old.OutputID != out || old.Size != size) {
++			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, old.OutputID, old.Size)
+ 			// panic to show stack trace, so we can see what code is generating this cache entry.
+ 			panic("cache verify failed")
+ 		}
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index de0aa01cab..fa5af944af 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"time"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+@@ -20,8 +21,8 @@ import (
+ )
+ 
+ var CmdClean = &base.Command{
+-	UsageLine: "clean [-i] [-r] [-n] [-x] [-cache] [build flags] [packages]",
+-	Short:     "remove object files",
++	UsageLine: "clean [-i] [-r] [-n] [-x] [-cache] [-testcache] [build flags] [packages]",
++	Short:     "remove object files and cached files",
+ 	Long: `
+ Clean removes object files from package source directories.
+ The go command builds most objects in a temporary directory,
+@@ -59,8 +60,10 @@ dependencies of the packages named by the import paths.
+ 
+ The -x flag causes clean to print remove commands as it executes them.
+ 
+-The -cache flag causes clean to remove the entire go build cache,
+-in addition to cleaning specified packages (if any).
++The -cache flag causes clean to remove the entire go build cache.
++
++The -testcache flag causes clean to expire all test results in the
++go build cache.
+ 
+ For more about build flags, see 'go help build'.
+ 
+@@ -69,9 +72,10 @@ For more about specifying packages, see 'go help packages'.
+ }
+ 
+ var (
+-	cleanI     bool // clean -i flag
+-	cleanR     bool // clean -r flag
+-	cleanCache bool // clean -cache flag
++	cleanI         bool // clean -i flag
++	cleanR         bool // clean -r flag
++	cleanCache     bool // clean -cache flag
++	cleanTestcache bool // clean -testcache flag
+ )
+ 
+ func init() {
+@@ -81,6 +85,7 @@ func init() {
+ 	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
++	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
+ 
+ 	// -n and -x are important enough to be
+ 	// mentioned explicitly in the docs but they
+@@ -120,6 +125,19 @@ func runClean(cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 	}
++
++	if cleanTestcache && !cleanCache {
++		// Instead of walking through the entire cache looking for test results,
++		// we write a file to the cache indicating that all test results from before
++		// right now are to be ignored.
++		dir := cache.DefaultDir()
++		if dir != "off" {
++			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
++			if err != nil {
++				base.Errorf("go clean -testcache: %v", err)
++			}
++		}
++	}
+ }
+ 
+ var cleaned = map[*load.Package]bool{}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 15c43581e6..998607509d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -14,12 +14,14 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"text/template"
+@@ -476,6 +478,7 @@ var (
+ 	pkgs             []*load.Package
+ 
+ 	testKillTimeout = 10 * time.Minute
++	testCacheExpire time.Time // ignore cached test results before this time
+ )
+ 
+ var testMainDeps = []string{
+@@ -554,6 +557,17 @@ func runTest(cmd *base.Command, args []string) {
+ 		testC = true
+ 	}
+ 
++	// Read testcache expiration time, if present.
++	// (We implement go clean -testcache by writing an expiration date
++	// instead of searching out and deleting test result cache entries.)
++	if dir := cache.DefaultDir(); dir != "off" {
++		if data, _ := ioutil.ReadFile(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
++			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
++				testCacheExpire = time.Unix(0, t)
++			}
++		}
++	}
++
+ 	var b work.Builder
+ 	b.Init()
+ 
+@@ -1443,10 +1457,13 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 
+ 	// Parse cached result in preparation for changing run time to "(cached)".
+ 	// If we can't parse the cached result, don't use it.
+-	data, _ := cache.Default().GetBytes(testID)
++	data, entry, _ := cache.Default().GetBytes(testID)
+ 	if len(data) == 0 || data[len(data)-1] != '\n' {
+ 		return false
+ 	}
++	if entry.Time.Before(testCacheExpire) {
++		return false
++	}
+ 	i := bytes.LastIndexByte(data[:len(data)-1], '\n') + 1
+ 	if !bytes.HasPrefix(data[i:], []byte("ok  \t")) {
+ 		return false
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 593eae3f7a..7c09b0d8e5 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -364,18 +364,17 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// but we're still happy to use results from the build artifact cache.
+ 	if c := cache.Default(); c != nil {
+ 		if !cfg.BuildA {
+-			outputID, size, err := c.Get(actionHash)
++			entry, err := c.Get(actionHash)
+ 			if err == nil {
+-				file := c.OutputFile(outputID)
++				file := c.OutputFile(entry.OutputID)
+ 				info, err1 := os.Stat(file)
+ 				buildID, err2 := buildid.ReadFile(file)
+-				if err1 == nil && err2 == nil && info.Size() == size {
+-					stdout, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
++				if err1 == nil && err2 == nil && info.Size() == entry.Size {
++					stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
+ 					if err == nil {
+ 						if len(stdout) > 0 {
+ 							if cfg.BuildX || cfg.BuildN {
+-								id, _, _ := c.Get(cache.Subkey(a.actionID, "stdout"))
+-								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(id))))
++								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+ 							}
+ 							if !cfg.BuildN {
+ 								b.Print(string(stdout))

@@ -15,7 +15,7 @@ Date:   Fri Nov 4 15:48:39 2016 -0700
     Change-Id: Ib0897cab2c1c3dc8a541f2efb9893271b0b0efe2
     Reviewed-on: https://go-review.googlesource.com/32757
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go           |  97 -----------------------
  src/go/internal/gcimporter/testdata/exports.go |  23 +-----
  test/alias2.go                                 | 103 -------------------------
@@ -24,3 +24,498 @@ Date:   Fri Nov 4 15:48:39 2016 -0700
  test/alias3.dir/c.go                           |  66 ----------------
  test/alias3.go                                 |   7 --
  7 files changed, 1 insertion(+), 410 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 10bd09e72f..0189242d18 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -61,9 +61,6 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 		case *syntax.ImportDecl:
+ 			p.importDecl(decl)
+ 
+-		case *syntax.AliasDecl:
+-			p.aliasDecl(decl)
+-
+ 		case *syntax.VarDecl:
+ 			l = append(l, p.varDecl(decl)...)
+ 
+@@ -150,100 +147,6 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	my.Block = 1 // at top level
+ }
+ 
+-func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
+-	// Because alias declarations must refer to imported entities
+-	// which are already set up, we can do all checks right here.
+-	// We won't know anything about entities that have not been
+-	// declared yet, but since they cannot have been imported, we
+-	// know there's an error and we don't care about the details.
+-
+-	// The original entity must be denoted by a qualified identifier.
+-	// (The parser doesn't make this restriction to be more error-
+-	// tolerant.)
+-	qident, ok := decl.Orig.(*syntax.SelectorExpr)
+-	if !ok {
+-		// TODO(gri) This prints a dot-imported object with qualification
+-		//           (confusing error). Fix this.
+-		yyerror("invalid alias: %v is not a package-qualified identifier", p.expr(decl.Orig))
+-		return
+-	}
+-
+-	pkg := p.expr(qident.X)
+-	if pkg.Op != OPACK {
+-		yyerror("invalid alias: %v is not a package", pkg)
+-		return
+-	}
+-	pkg.Used = true
+-
+-	// Resolve original entity
+-	orig := oldname(restrictlookup(qident.Sel.Value, pkg.Name.Pkg))
+-	if orig.Sym.Flags&SymAlias != 0 {
+-		Fatalf("original %v marked as alias", orig.Sym)
+-	}
+-
+-	// An alias declaration must not refer to package unsafe.
+-	if orig.Sym.Pkg == unsafepkg {
+-		yyerror("invalid alias: %v refers to package unsafe (%v)", decl.Name.Value, orig)
+-		return
+-	}
+-
+-	// The aliased entity must be from a matching constant, type, variable,
+-	// or function declaration, respectively.
+-	var what string
+-	switch decl.Tok {
+-	case syntax.Const:
+-		if orig.Op != OLITERAL {
+-			what = "constant"
+-		}
+-	case syntax.Type:
+-		if orig.Op != OTYPE {
+-			what = "type"
+-		}
+-	case syntax.Var:
+-		if orig.Op != ONAME || orig.Class != PEXTERN {
+-			what = "variable"
+-		}
+-	case syntax.Func:
+-		if orig.Op != ONAME || orig.Class != PFUNC {
+-			what = "function"
+-		}
+-	default:
+-		Fatalf("unexpected token: %s", decl.Tok)
+-	}
+-	if what != "" {
+-		yyerror("invalid alias: %v is not a %s", orig, what)
+-		return
+-	}
+-
+-	// handle special cases
+-	switch decl.Name.Value {
+-	case "_":
+-		return // don't declare blank aliases
+-	case "init":
+-		yyerror("cannot declare init - must be non-alias function declaration")
+-		return
+-	}
+-
+-	// declare alias
+-	// (this is similar to handling dot imports)
+-	asym := p.name(decl.Name)
+-	if asym.Def != nil {
+-		redeclare(asym, "in alias declaration")
+-		return
+-	}
+-	asym.Flags |= SymAlias
+-	asym.Def = orig
+-	asym.Block = block
+-	asym.Lastlineno = lineno
+-
+-	if exportname(asym.Name) {
+-		// TODO(gri) newname(asym) is only needed to satisfy exportsym
+-		// (and indirectly, exportlist). We should be able to just
+-		// collect the Syms, eventually.
+-		exportsym(newname(asym))
+-	}
+-}
+-
+ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	names := p.declNames(decl.NameList)
+ 
+diff --git a/src/go/internal/gcimporter/testdata/exports.go b/src/go/internal/gcimporter/testdata/exports.go
+index 0033f3027b..9a0273ba20 100644
+--- a/src/go/internal/gcimporter/testdata/exports.go
++++ b/src/go/internal/gcimporter/testdata/exports.go
+@@ -7,11 +7,7 @@
+ 
+ package exports
+ 
+-import (
+-	"go/ast"
+-	"go/build"
+-	"math"
+-)
++import "go/ast"
+ 
+ // Issue 3682: Correctly read dotted identifiers from export data.
+ const init1 = 0
+@@ -29,10 +25,6 @@ const (
+ 	C7     = `bar\n`
+ )
+ 
+-const (
+-	C8 => math.Pi
+-)
+-
+ type (
+ 	T1  int
+ 	T2  [10]int
+@@ -81,21 +73,12 @@ type (
+ 	T28 func(T28) T28
+ )
+ 
+-type (
+-	T29 => ast.File
+-	T30 => build.Context
+-)
+-
+ var (
+ 	V0 int
+ 	V1         = -991.0
+ 	V2 float32 = 1.2
+ )
+ 
+-var (
+-	V3 => build.Default
+-)
+-
+ func F1()         {}
+ func F2(x int)    {}
+ func F3() int     { return 0 }
+@@ -103,7 +86,3 @@ func F4() float32 { return 0 }
+ func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
+ 
+ func (p *T1) M1()
+-
+-func F6 => math.Sin
+-func F7 => ast.IsExported
+-func F8 => build.Import
+diff --git a/test/alias2.go b/test/alias2.go
+deleted file mode 100644
+index 6fad914420..0000000000
+--- a/test/alias2.go
++++ /dev/null
+@@ -1,103 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test basic restrictions on alias declarations.
+-
+-package p
+-
+-import (
+-	"flag"
+-	"fmt" // use at most once (to test "imported but not used" error)
+-	"go/build"
+-	. "go/build"
+-	"io"
+-	"math"
+-	"unsafe"
+-)
+-
+-// helper
+-var before struct {
+-	f
+-}
+-
+-// aliases must refer to package-qualified identifiers
+-// TODO(gri) should only see one error for declaration below - fix this
+-const _ => 0 // ERROR "unexpected literal 0|_ is not a package-qualified identifier"
+-
+-type _ => _ // ERROR "_ is not a package-qualified identifier"
+-type t => _ // ERROR "_ is not a package-qualified identifier"
+-
+-const _ => iota // ERROR "iota is not a package-qualified identifier"
+-type _ => int   // ERROR "int is not a package-qualified identifier"
+-
+-const c => iota // ERROR "iota is not a package-qualified identifier"
+-type t => int   // ERROR "int is not a package-qualified identifier"
+-
+-// dot-imported identifiers are not qualified identifiers
+-// TODO(gri) fix error printing - should not print a qualified identifier...
+-var _ => Default // ERROR "build\.Default is not a package-qualified identifier"
+-
+-// qualified identifiers must start with a package
+-var _ => before.f  // ERROR "before is not a package"
+-func _ => before.f // ERROR "before is not a package"
+-var _ => after.m   // ERROR "after is not a package"
+-func _ => after.m  // ERROR "after is not a package"
+-
+-var v => before.f  // ERROR "before is not a package"
+-func f => before.f // ERROR "before is not a package"
+-var v => after.m   // ERROR "after is not a package"
+-func f => after.m  // ERROR "after is not a package"
+-
+-// TODO(gri) fix error printing - should print correct qualified identifier...
+-var _ => Default.ARCH // ERROR "build.Default is not a package"
+-
+-// aliases may not refer to package unsafe
+-type ptr => unsafe.Pointer // ERROR "ptr refers to package unsafe"
+-func size => unsafe.Sizeof // ERROR "size refers to package unsafe"
+-
+-// aliases must refer to entities of the same kind
+-const _ => math.Pi
+-const pi => math.Pi
+-const pi1 => math.Sin // ERROR "math.Sin is not a constant"
+-
+-type _ => io.Writer
+-type writer => io.Writer
+-type writer1 => math.Sin // ERROR "math.Sin is not a type"
+-
+-var _ => build.Default
+-var def => build.Default
+-var def1 => build.Import // ERROR "build.Import is not a variable"
+-
+-func _ => math.Sin
+-func sin => math.Sin
+-func sin1 => math.Pi // ERROR "math.Pi is not a function"
+-
+-// aliases may not be called init
+-func init => flag.Parse // ERROR "cannot declare init"
+-
+-// alias reference to a package marks package as used
+-func _ => fmt.Println
+-
+-// re-exported aliases
+-const Pi => math.Pi
+-
+-type Writer => io.Writer
+-
+-var Def => build.Default
+-
+-func Sin => math.Sin
+-
+-// type aliases denote identical types
+-type myPackage => build.Package
+-
+-var pkg myPackage
+-var _ build.Package = pkg   // valid assignment
+-var _ *build.Package = &pkg // valid assignment
+-
+-// helper
+-type after struct{}
+-
+-func (after) m() {}
+diff --git a/test/alias3.dir/a.go b/test/alias3.dir/a.go
+deleted file mode 100644
+index c14f834630..0000000000
+--- a/test/alias3.dir/a.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package a
+-
+-import (
+-	"bytes"
+-	"go/build"
+-	"io"
+-	"math"
+-)
+-
+-func F(c *build.Context, w io.Writer) {}
+-
+-func Inlined() bool { var w Writer; return w == nil }
+-
+-func Check() {
+-	if Pi != math.Pi {
+-		panic(0)
+-	}
+-
+-	var w Writer
+-	F(new(Context), w)
+-	F(new(build.Context), bytes.NewBuffer(nil))
+-
+-	if &Default != &build.Default {
+-		panic(1)
+-	}
+-
+-	if Sin(1) != math.Sin(1) {
+-		panic(2)
+-	}
+-
+-	var _ *LimitedReader = new(LimitedReader2)
+-}
+-
+-// export aliases
+-const Pi => math.Pi
+-
+-type (
+-	Context => build.Context // not an interface
+-	Writer  => io.Writer     // interface
+-)
+-
+-// different aliases may refer to the same original
+-type LimitedReader => io.LimitedReader
+-type LimitedReader2 => io.LimitedReader
+-
+-var Default => build.Default
+-var Default2 => build.Default
+-
+-func Sin => math.Sin
+-func Sin2 => math.Sin
+diff --git a/test/alias3.dir/b.go b/test/alias3.dir/b.go
+deleted file mode 100644
+index d4550feca5..0000000000
+--- a/test/alias3.dir/b.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package b
+-
+-import (
+-	"./a"
+-	"bytes"
+-	"go/build"
+-	"io"
+-	"math"
+-)
+-
+-func F => a.F
+-func Inlined => a.Inlined
+-
+-var _ func(*Context, io.Writer) = a.F
+-
+-// check aliases
+-func Check() {
+-	if Pi != math.Pi {
+-		panic(0)
+-	}
+-
+-	var w Writer
+-	a.F(new(Context), w)
+-	F(new(build.Context), bytes.NewBuffer(nil))
+-
+-	if !Inlined() {
+-		panic(1)
+-	}
+-
+-	if &Default != &build.Default {
+-		panic(2)
+-	}
+-
+-	if Sin(1) != math.Sin(1) {
+-		panic(3)
+-	}
+-
+-	var _ *LimitedReader = new(LimitedReader2)
+-}
+-
+-// re-export aliases
+-const Pi => a.Pi
+-
+-type (
+-	Context => a.Context // not an interface
+-	Writer  => a.Writer  // interface
+-)
+-
+-// different aliases may refer to the same original
+-type LimitedReader => a.LimitedReader
+-type LimitedReader2 => a.LimitedReader2
+-
+-var Default => a.Default
+-var Default2 => a.Default2
+-
+-func Sin => a.Sin
+-func Sin2 => a.Sin
+diff --git a/test/alias3.dir/c.go b/test/alias3.dir/c.go
+deleted file mode 100644
+index 701483fac2..0000000000
+--- a/test/alias3.dir/c.go
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"./a"
+-	"./b"
+-	"bytes"
+-	"go/build"
+-	"math"
+-)
+-
+-func f => b.F
+-func inlined => b.Inlined
+-
+-var _ func(*context, a.Writer) = f
+-
+-func Check() {
+-	if pi != math.Pi {
+-		panic(0)
+-	}
+-
+-	var w writer
+-	b.F(new(context), w)
+-	f(new(build.Context), bytes.NewBuffer(nil))
+-
+-	if !inlined() {
+-		panic(1)
+-	}
+-
+-	if &default_ != &build.Default {
+-		panic(2)
+-	}
+-
+-	if sin(1) != math.Sin(1) {
+-		panic(3)
+-	}
+-
+-	var _ *limitedReader = new(limitedReader2)
+-}
+-
+-// local aliases
+-const pi => b.Pi
+-
+-type (
+-	context => b.Context // not an interface
+-	writer  => b.Writer  // interface
+-)
+-
+-// different aliases may refer to the same original
+-type limitedReader => b.LimitedReader
+-type limitedReader2 => b.LimitedReader2
+-
+-var default_ => b.Default
+-var default2 => b.Default2
+-
+-func sin => b.Sin
+-func sin2 => b.Sin
+-
+-func main() {
+-	a.Check()
+-	b.Check()
+-	Check()
+-}
+diff --git a/test/alias3.go b/test/alias3.go
+deleted file mode 100644
+index 4830c68c68..0000000000
+--- a/test/alias3.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// rundir
+-
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ignored

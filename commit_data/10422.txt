@@ -11,7 +11,91 @@ Date:   Wed Nov 16 16:58:02 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5375104
-
+---
  src/cmd/gc/bisonerrors | 29 +++++++++++++++++++++--------
  src/cmd/gc/go.h        |  7 ++++++-
  2 files changed, 27 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/bisonerrors b/src/cmd/gc/bisonerrors
+index 5110f5350c..0f865d086c 100755
+--- a/src/cmd/gc/bisonerrors
++++ b/src/cmd/gc/bisonerrors
+@@ -46,24 +46,36 @@ bison && /^state 0/ { grammar = 0; states = 1 }
+ states && /^state / { state = $2 }
+ states { statetext[state] = statetext[state] $0 "\n" }
+ 
+-states && / shift, and go to state/ {
++states && / shift/ {
+ 	n = nshift[state]++
+-	shift[state,n] = $7
++	if($0 ~ /and go to/)
++		shift[state,n] = $7 # GNU Bison
++	else
++		shift[state,n] = $3 # Plan 9 Yacc
+ 	shifttoken[state,n] = $1
+ 	next
+ }
+-states && / go to state/ {
++states && / (go to|goto)/ {
+ 	n = nshift[state]++
+-	shift[state,n] = $5
++	if($0 ~ /go to/)
++		shift[state,n] = $5 # GNU Bison
++	else
++		shift[state,n] = $3 # Plan 9 Yacc
+ 	shifttoken[state,n] = $1
+ 	next
+ }
+-states && / reduce using rule/ {
++states && / reduce/ {
+ 	n = nreduce[state]++
+-	reduce[state,n] = $5
++	if($0 ~ /reduce using rule/)
++		reduce[state,n] = $5 # GNU Bison
++	else
++		reduce[state,n] = $3 # Plan 9 yacc
+ 	reducetoken[state,n] = $1
+ 	next
+-}	
++}
++
++# Skip over the summary information printed by Plan 9 yacc.
++/nonterminals$/,/^maximum spread/ { next }
+ 
+ # First // comment marks the beginning of the pattern file.
+ /^\/\// { bison = 0; grammar = 0; state = 0 }
+@@ -96,7 +108,8 @@ $1 == "%" {
+ 		if(found)
+ 			continue
+ 		for(j=0; j<nreduce[state]; j++) {
+-			if(reducetoken[state,j] == tok || reducetoken[state,j] == "$default") {
++			t = reducetoken[state,j]
++			if(t == tok || t == "$default" || t == ".") {
+ 				stack[nstack++] = state
+ 				rule = reduce[state,j]
+ 				nstack -= rulesize[rule]
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a473c2fb50..217456c9a4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -16,6 +16,12 @@
+ 
+ #undef	BUFSIZ
+ 
++// The parser's maximum stack size.
++// We have to use a #define macro here since yacc
++// or bison will check for its definition and use
++// a potentially smaller value if it is undefined.
++#define YYMAXDEPTH 500
++
+ enum
+ {
+ 	NHUNK		= 50000,
+@@ -23,7 +29,6 @@ enum
+ 	NSYMB		= 500,
+ 	NHASH		= 1024,
+ 	STRINGSZ	= 200,
+-	YYMAXDEPTH	= 500,
+ 	MAXALIGN	= 7,
+ 	UINF		= 100,
+ 	HISTSZ		= 10,

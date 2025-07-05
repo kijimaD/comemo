@@ -15,9 +15,414 @@ Date:   Mon Jul 9 22:52:22 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/export_test.go |  57 ++++++++++++++++++++++++++
  src/time/format.go      | 105 +++++++++++++++++++++++++++++++++++++++++++-----
  src/time/format_test.go |  66 ++++++++++++++++++++++++++++++
  src/time/time_test.go   |  21 ++++++++--
  4 files changed, 237 insertions(+), 12 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index ae24ceb99a..442c8da4a6 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -35,4 +35,61 @@ var (
+ 	ErrLocation            = errLocation
+ 	ReadFile               = readFile
+ 	LoadTzinfo             = loadTzinfo
++	NextStdChunk           = nextStdChunk
+ )
++
++// StdChunkNames maps from nextStdChunk results to the matched strings.
++var StdChunkNames = map[int]string{
++	0:                               "",
++	stdLongMonth:                    "January",
++	stdMonth:                        "Jan",
++	stdNumMonth:                     "1",
++	stdZeroMonth:                    "01",
++	stdLongWeekDay:                  "Monday",
++	stdWeekDay:                      "Mon",
++	stdDay:                          "2",
++	stdUnderDay:                     "_2",
++	stdZeroDay:                      "02",
++	stdUnderYearDay:                 "__2",
++	stdZeroYearDay:                  "002",
++	stdHour:                         "15",
++	stdHour12:                       "3",
++	stdZeroHour12:                   "03",
++	stdMinute:                       "4",
++	stdZeroMinute:                   "04",
++	stdSecond:                       "5",
++	stdZeroSecond:                   "05",
++	stdLongYear:                     "2006",
++	stdYear:                         "06",
++	stdPM:                           "PM",
++	stdpm:                           "pm",
++	stdTZ:                           "MST",
++	stdISO8601TZ:                    "Z0700",
++	stdISO8601SecondsTZ:             "Z070000",
++	stdISO8601ShortTZ:               "Z07",
++	stdISO8601ColonTZ:               "Z07:00",
++	stdISO8601ColonSecondsTZ:        "Z07:00:00",
++	stdNumTZ:                        "-0700",
++	stdNumSecondsTz:                 "-070000",
++	stdNumShortTZ:                   "-07",
++	stdNumColonTZ:                   "-07:00",
++	stdNumColonSecondsTZ:            "-07:00:00",
++	stdFracSecond0 | 1<<stdArgShift: ".0",
++	stdFracSecond0 | 2<<stdArgShift: ".00",
++	stdFracSecond0 | 3<<stdArgShift: ".000",
++	stdFracSecond0 | 4<<stdArgShift: ".0000",
++	stdFracSecond0 | 5<<stdArgShift: ".00000",
++	stdFracSecond0 | 6<<stdArgShift: ".000000",
++	stdFracSecond0 | 7<<stdArgShift: ".0000000",
++	stdFracSecond0 | 8<<stdArgShift: ".00000000",
++	stdFracSecond0 | 9<<stdArgShift: ".000000000",
++	stdFracSecond9 | 1<<stdArgShift: ".9",
++	stdFracSecond9 | 2<<stdArgShift: ".99",
++	stdFracSecond9 | 3<<stdArgShift: ".999",
++	stdFracSecond9 | 4<<stdArgShift: ".9999",
++	stdFracSecond9 | 5<<stdArgShift: ".99999",
++	stdFracSecond9 | 6<<stdArgShift: ".999999",
++	stdFracSecond9 | 7<<stdArgShift: ".9999999",
++	stdFracSecond9 | 8<<stdArgShift: ".99999999",
++	stdFracSecond9 | 9<<stdArgShift: ".999999999",
++}
+diff --git a/src/time/format.go b/src/time/format.go
+index 2adbbe0770..d8e295f696 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -48,6 +48,10 @@ import "errors"
+ // The recognized day of week formats are "Mon" and "Monday".
+ // The recognized month formats are "Jan" and "January".
+ //
++// The formats 2, _2, and 02 are unpadded, space-padded, and zero-padded
++// day of month. The formats __2 and 002 are space-padded and zero-padded
++// three-character day of year; there is no unpadded day of year format.
++//
+ // Text in the format string that is not recognized as part of the reference
+ // time is echoed verbatim during Format and expected to appear verbatim
+ // in the input to Parse.
+@@ -96,6 +100,8 @@ const (
+ 	stdDay                                         // "2"
+ 	stdUnderDay                                    // "_2"
+ 	stdZeroDay                                     // "02"
++	stdUnderYearDay                                // "__2"
++	stdZeroYearDay                                 // "002"
+ 	stdHour                  = iota + stdNeedClock // "15"
+ 	stdHour12                                      // "3"
+ 	stdZeroHour12                                  // "03"
+@@ -170,10 +176,13 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 				}
+ 			}
+ 
+-		case '0': // 01, 02, 03, 04, 05, 06
++		case '0': // 01, 02, 03, 04, 05, 06, 002
+ 			if len(layout) >= i+2 && '1' <= layout[i+1] && layout[i+1] <= '6' {
+ 				return layout[0:i], std0x[layout[i+1]-'1'], layout[i+2:]
+ 			}
++			if len(layout) >= i+3 && layout[i+1] == '0' && layout[i+2] == '2' {
++				return layout[0:i], stdZeroYearDay, layout[i+3:]
++			}
+ 
+ 		case '1': // 15, 1
+ 			if len(layout) >= i+2 && layout[i+1] == '5' {
+@@ -187,7 +196,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 			}
+ 			return layout[0:i], stdDay, layout[i+1:]
+ 
+-		case '_': // _2, _2006
++		case '_': // _2, _2006, __2
+ 			if len(layout) >= i+2 && layout[i+1] == '2' {
+ 				//_2006 is really a literal _, followed by stdLongYear
+ 				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
+@@ -195,6 +204,9 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 				}
+ 				return layout[0:i], stdUnderDay, layout[i+2:]
+ 			}
++			if len(layout) >= i+3 && layout[i+1] == '_' && layout[i+2] == '2' {
++				return layout[0:i], stdUnderYearDay, layout[i+3:]
++			}
+ 
+ 		case '3':
+ 			return layout[0:i], stdHour12, layout[i+1:]
+@@ -503,6 +515,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 		year  int = -1
+ 		month Month
+ 		day   int
++		yday  int
+ 		hour  int = -1
+ 		min   int
+ 		sec   int
+@@ -520,7 +533,8 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 
+ 		// Compute year, month, day if needed.
+ 		if year < 0 && std&stdNeedDate != 0 {
+-			year, month, day, _ = absDate(abs, true)
++			year, month, day, yday = absDate(abs, true)
++			yday++
+ 		}
+ 
+ 		// Compute hour, minute, second if needed.
+@@ -560,6 +574,16 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 			b = appendInt(b, day, 0)
+ 		case stdZeroDay:
+ 			b = appendInt(b, day, 2)
++		case stdUnderYearDay:
++			if yday < 100 {
++				b = append(b, ' ')
++				if yday < 10 {
++					b = append(b, ' ')
++				}
++			}
++			b = appendInt(b, yday, 0)
++		case stdZeroYearDay:
++			b = appendInt(b, yday, 3)
+ 		case stdHour:
+ 			b = appendInt(b, hour, 2)
+ 		case stdHour12:
+@@ -688,7 +712,7 @@ func isDigit(s string, i int) bool {
+ 	return '0' <= c && c <= '9'
+ }
+ 
+-// getnum parses s[0:1] or s[0:2] (fixed forces the latter)
++// getnum parses s[0:1] or s[0:2] (fixed forces s[0:2])
+ // as a decimal integer and returns the integer and the
+ // remainder of the string.
+ func getnum(s string, fixed bool) (int, string, error) {
+@@ -704,6 +728,20 @@ func getnum(s string, fixed bool) (int, string, error) {
+ 	return int(s[0]-'0')*10 + int(s[1]-'0'), s[2:], nil
+ }
+ 
++// getnum3 parses s[0:1], s[0:2], or s[0:3] (fixed forces s[0:3])
++// as a decimal integer and returns the integer and the remainder
++// of the string.
++func getnum3(s string, fixed bool) (int, string, error) {
++	var n, i int
++	for i = 0; i < 3 && isDigit(s, i); i++ {
++		n = n*10 + int(s[i]-'0')
++	}
++	if i == 0 || fixed && i != 3 {
++		return 0, s, errBad
++	}
++	return n, s[i:], nil
++}
++
+ func cutspace(s string) string {
+ 	for len(s) > 0 && s[0] == ' ' {
+ 		s = s[1:]
+@@ -792,8 +830,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 	// Time being constructed.
+ 	var (
+ 		year       int
+-		month      int = 1 // January
+-		day        int = 1
++		month      int = -1
++		day        int = -1
++		yday       int = -1
+ 		hour       int
+ 		min        int
+ 		sec        int
+@@ -861,10 +900,17 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 				value = value[1:]
+ 			}
+ 			day, value, err = getnum(value, std == stdZeroDay)
+-			if day < 0 {
+-				// Note that we allow any one- or two-digit day here.
+-				rangeErrString = "day"
++			// Note that we allow any one- or two-digit day here.
++			// The month, day, year combination is validated after we've completed parsing.
++		case stdUnderYearDay, stdZeroYearDay:
++			for i := 0; i < 2; i++ {
++				if std == stdUnderYearDay && len(value) > 0 && value[0] == ' ' {
++					value = value[1:]
++				}
+ 			}
++			yday, value, err = getnum3(value, std == stdZeroYearDay)
++			// Note that we allow any one-, two-, or three-digit year-day here.
++			// The year-day, year combination is validated after we've completed parsing.
+ 		case stdHour:
+ 			hour, value, err = getnum(value, false)
+ 			if hour < 0 || 24 <= hour {
+@@ -1044,6 +1090,47 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		hour = 0
+ 	}
+ 
++	// Convert yday to day, month.
++	if yday >= 0 {
++		var d int
++		var m int
++		if isLeap(year) {
++			if yday == 31+29 {
++				m = int(February)
++				d = 29
++			} else if yday > 31+29 {
++				yday--
++			}
++		}
++		if yday < 1 || yday > 365 {
++			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
++		}
++		if m == 0 {
++			m = yday/31 + 1
++			if int(daysBefore[m]) < yday {
++				m++
++			}
++			d = yday - int(daysBefore[m-1])
++		}
++		// If month, day already seen, yday's m, d must match.
++		// Otherwise, set them from m, d.
++		if month >= 0 && month != m {
++			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match month"}
++		}
++		month = m
++		if day >= 0 && day != d {
++			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match day"}
++		}
++		day = d
++	} else {
++		if month < 0 {
++			month = int(January)
++		}
++		if day < 0 {
++			day = 1
++		}
++	}
++
+ 	// Validate the day of the month.
+ 	if day < 1 || day > daysIn(Month(month), year) {
+ 		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index db9d4f495a..516099266c 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -13,6 +13,60 @@ import (
+ 	. "time"
+ )
+ 
++var nextStdChunkTests = []string{
++	"(2006)-(01)-(02)T(15):(04):(05)(Z07:00)",
++	"(2006)-(01)-(02) (002) (15):(04):(05)",
++	"(2006)-(01) (002) (15):(04):(05)",
++	"(2006)-(002) (15):(04):(05)",
++	"(2006)(002)(01) (15):(04):(05)",
++	"(2006)(002)(04) (15):(04):(05)",
++}
++
++func TestNextStdChunk(t *testing.T) {
++	// Most bugs in Parse or Format boil down to problems with
++	// the exact detection of format chunk boundaries in the
++	// helper function nextStdChunk (here called as NextStdChunk).
++	// This test checks nextStdChunk's behavior directly,
++	// instead of needing to test it only indirectly through Parse/Format.
++
++	// markChunks returns format with each detected
++	// 'format chunk' parenthesized.
++	// For example showChunks("2006-01-02") == "(2006)-(01)-(02)".
++	markChunks := func(format string) string {
++		// Note that NextStdChunk and StdChunkNames
++		// are not part of time's public API.
++		// They are exported in export_test for this test.
++		out := ""
++		for s := format; s != ""; {
++			prefix, std, suffix := NextStdChunk(s)
++			out += prefix
++			if std > 0 {
++				out += "(" + StdChunkNames[std] + ")"
++			}
++			s = suffix
++		}
++		return out
++	}
++
++	noParens := func(r rune) rune {
++		if r == '(' || r == ')' {
++			return -1
++		}
++		return r
++	}
++
++	for _, marked := range nextStdChunkTests {
++		// marked is an expected output from markChunks.
++		// If we delete the parens and pass it through markChunks,
++		// we should get the original back.
++		format := strings.Map(noParens, marked)
++		out := markChunks(format)
++		if out != marked {
++			t.Errorf("nextStdChunk parses %q as %q, want %q", format, out, marked)
++		}
++	}
++}
++
+ type TimeFormatTest struct {
+ 	time           Time
+ 	formattedValue string
+@@ -61,6 +115,7 @@ var formatTests = []FormatTest{
+ 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
+ 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
+ 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
++	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
+ }
+ 
+ func TestFormat(t *testing.T) {
+@@ -180,6 +235,13 @@ var parseTests = []ParseTest{
+ 	{"", "Jan _2 15:04:05.999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
+ 	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.0123", false, false, -1, 4},
+ 	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
++
++	// Day of year.
++	{"", "2006-01-02 002 15:04:05", "2010-02-04 035 21:00:57", false, false, 1, 0},
++	{"", "2006-01 002 15:04:05", "2010-02 035 21:00:57", false, false, 1, 0},
++	{"", "2006-002 15:04:05", "2010-035 21:00:57", false, false, 1, 0},
++	{"", "200600201 15:04:05", "201003502 21:00:57", false, false, 1, 0},
++	{"", "200600204 15:04:05", "201003504 21:00:57", false, false, 1, 0},
+ }
+ 
+ func TestParse(t *testing.T) {
+@@ -485,6 +547,10 @@ var parseErrorTests = []ParseErrorTest{
+ 	// issue 21113
+ 	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+ 	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
++
++	// invalid or mismatched day-of-year
++	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
++	{"Jan _2 002 2006", "Feb  4 004 2006", "day-of-year does not match month"},
+ }
+ 
+ func TestParseErrors(t *testing.T) {
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 432a67dec3..76924e36f3 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -522,13 +522,28 @@ var yearDayLocations = []*Location{
+ }
+ 
+ func TestYearDay(t *testing.T) {
+-	for _, loc := range yearDayLocations {
++	for i, loc := range yearDayLocations {
+ 		for _, ydt := range yearDayTests {
+ 			dt := Date(ydt.year, Month(ydt.month), ydt.day, 0, 0, 0, 0, loc)
+ 			yday := dt.YearDay()
+ 			if yday != ydt.yday {
+-				t.Errorf("got %d, expected %d for %d-%02d-%02d in %v",
+-					yday, ydt.yday, ydt.year, ydt.month, ydt.day, loc)
++				t.Errorf("Date(%d-%02d-%02d in %v).YearDay() = %d, want %d",
++					ydt.year, ydt.month, ydt.day, loc, yday, ydt.yday)
++				continue
++			}
++
++			if ydt.year < 0 || ydt.year > 9999 {
++				continue
++			}
++			f := fmt.Sprintf("%04d-%02d-%02d %03d %+.2d00",
++				ydt.year, ydt.month, ydt.day, ydt.yday, (i-2)*4)
++			dt1, err := Parse("2006-01-02 002 -0700", f)
++			if err != nil {
++				t.Errorf(`Parse("2006-01-02 002 -0700", %q): %v`, f, err)
++				continue
++			}
++			if !dt1.Equal(dt) {
++				t.Errorf(`Parse("2006-01-02 002 -0700", %q) = %v, want %v`, f, dt1, dt)
+ 			}
+ 		}
+ 	}

@@ -10,7 +10,7 @@ Date:   Sat Apr 17 12:12:28 2021 +0300
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/walk/assign.go |  2 +-
  src/crypto/sha512/sha512_test.go        |  2 +-
  src/encoding/asn1/marshal_test.go       |  2 +-
@@ -20,3 +20,144 @@ Date:   Sat Apr 17 12:12:28 2021 +0300
  src/hash/crc32/crc32_s390x.s            |  2 +-
  src/math/big/arith_s390x.s              | 10 +++++-----
  8 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 8550cfb5c8..4ab219f5ea 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -558,7 +558,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	return s
+ }
+ 
+-// isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
++// isAppendOfMake reports whether n is of the form append(x, make([]T, y)...).
+ // isAppendOfMake assumes n has already been typechecked.
+ func isAppendOfMake(n ir.Node) bool {
+ 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 74a13331af..0e1528fc69 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -788,7 +788,7 @@ func TestMarshalMismatch(t *testing.T) {
+ 			}
+ 
+ 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err == nil {
+-				t.Errorf("i=%d, j=%d: got no error , expected one: %v", i, j, err)
++				t.Errorf("i=%d, j=%d: got no error, expected one: %v", i, j, err)
+ 			}
+ 		}
+ 	}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index e3a7d8ff00..f0217ba8a5 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -306,7 +306,7 @@ func TestIssue11130(t *testing.T) {
+ 		return
+ 	}
+ 	if !reflect.DeepEqual(v, v1) {
+-		t.Errorf("got: %#v data=%q , want : %#v data=%q\n ", v1, data1, v, data)
++		t.Errorf("got: %#v data=%q, want : %#v data=%q\n ", v1, data1, v, data)
+ 	}
+ }
+ 
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 7eb3093391..b476aaac93 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -218,7 +218,7 @@ func (dec *Decoder) DecodeValue(v reflect.Value) error {
+ 	return dec.err
+ }
+ 
+-// If debug.go is compiled into the program , debugFunc prints a human-readable
++// If debug.go is compiled into the program, debugFunc prints a human-readable
+ // representation of the gob data read from r by calling that file's Debug function.
+ // Otherwise it is nil.
+ var debugFunc func(io.Reader)
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index cddaef350e..a4db57170b 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -115,7 +115,7 @@ func (p *parser) next0() {
+ 	// Because of one-token look-ahead, print the previous token
+ 	// when tracing as it provides a more readable output. The
+ 	// very first token (!p.pos.IsValid()) is not initialized
+-	// (it is token.ILLEGAL), so don't print it .
++	// (it is token.ILLEGAL), so don't print it.
+ 	if p.trace && p.pos.IsValid() {
+ 		s := p.tok.String()
+ 		switch {
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index 80b476cf2e..fc2812adee 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -231,7 +231,7 @@ func (p *parser) next0() {
+ 	// Because of one-token look-ahead, print the previous token
+ 	// when tracing as it provides a more readable output. The
+ 	// very first token (!p.pos.IsValid()) is not initialized
+-	// (it is token.ILLEGAL), so don't print it .
++	// (it is token.ILLEGAL), so don't print it.
+ 	if p.trace && p.pos.IsValid() {
+ 		s := p.tok.String()
+ 		switch {
+diff --git a/src/hash/crc32/crc32_s390x.s b/src/hash/crc32/crc32_s390x.s
+index a168fad277..8aabc602a7 100644
+--- a/src/hash/crc32/crc32_s390x.s
++++ b/src/hash/crc32/crc32_s390x.s
+@@ -217,7 +217,7 @@ final_fold:
+ 	// V2 and XOR the intermediate result, T2(x),  with the value in V1.
+ 	// The final result is in the rightmost word of V2.
+ 
+-	VUPLLF  V2 , V2
++	VUPLLF  V2, V2
+ 	VGFMAG  CONST_CRC_POLY, V2, V1, V2
+ 
+ done:
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index caa4db0829..e96480699a 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -18,7 +18,7 @@ TEXT ·mulWW(SB), NOSPLIT, $0
+ 	RET
+ 
+ 
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
++// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func addVV(z, x, y []Word) (c Word)
+ 
+ TEXT ·addVV(SB), NOSPLIT, $0
+@@ -288,7 +288,7 @@ vectorimpl:
+ GLOBL subvectorfacility+0x00(SB), NOPTR, $8
+ DATA subvectorfacility+0x00(SB)/8, $·subVV_check(SB)
+ 
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
++// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
+ TEXT ·subVV_vec(SB), NOSPLIT, $0
+@@ -442,7 +442,7 @@ E1:
+ 	MOVD R4, c+72(FP) // return c
+ 	RET
+ 
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
++// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
+ TEXT ·subVV_novec(SB), NOSPLIT, $0
+@@ -699,7 +699,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
+ TEXT ·shrVU(SB), NOSPLIT, $0
+ 	BR ·shrVU_g(SB)
+ 
+-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, DX = r3, AX = r6 , BX = R1 , (R0 set to 0) + use R11 + use R7 for i
++// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+ // func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MOVD z+0(FP), R2
+@@ -729,7 +729,7 @@ E5:
+ 	RET
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1 , (R0 set to 0) + use R11 + use R7 for i
++// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+ TEXT ·addMulVVW(SB), NOSPLIT, $0
+ 	MOVD z+0(FP), R2
+ 	MOVD x+24(FP), R8

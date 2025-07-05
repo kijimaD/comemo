@@ -13,6 +13,24 @@ Date:   Wed Jan 16 21:42:00 2019 -0500
     Change-Id: I4156d164562e2ec0de7ae8f9a3631a32ec45b317
     Reviewed-on: https://go-review.googlesource.com/c/158237
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index e228d98a8c..41ebd50cb2 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -239,9 +239,9 @@ for {
+   except for calls that simultaneously cross between Go and
+   assembly <em>and</em> cross a package boundary. If linking results
+   in an error like "relocation target not defined for ABIInternal (but
+-  is defined for ABI0)", please refer to help section of the ABI
+-  design document.
+-  <!-- TODO(austin): Link to the design doc. -->
++  is defined for ABI0)", please refer to the
++  <a href="https://github.com/golang/proposal/blob/master/design/27539-internal-abi.md#compatibility">compatibility section</a>
++  of the ABI design document.
+ </p>
+ 
+ <p><!-- CL 145179 -->

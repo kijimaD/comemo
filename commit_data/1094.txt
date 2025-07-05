@@ -8,6 +8,22 @@ Date:   Mon Nov 10 14:47:28 2008 -0800
     DELTA=1075  (1028 added, 31 deleted, 16 changed)
     OCL=18865
     CL=18918
-
+---
  src/lib/reflect/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 8b5e88f97b..279f6f3150 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -561,8 +561,8 @@ type Parser struct {
+ 	index	int;	// next character position in str
+ }
+ 
+-// Return typestring starting at position i.
+-// Trim trailing blanks.
++// Return typestring starting at position i.  It will finish at the
++// end of the previous token (before trailing white space).
+ func (p *Parser) TypeString(i int) string {
+ 	return p.str[i:p.prevend];
+ }

@@ -17,6 +17,25 @@ Date:   Tue Feb 23 11:38:24 2021 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_arm.s | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 4be5ce7da0..9a5d9b1dd4 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -375,12 +375,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ // duration (in -100ns units) is in dt+0(FP).
+ // g may be nil.
+ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	dt+0(FP), R0
++	MOVW	dt+0(FP), R3
+ 	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
+ 	MOVW	R13, R4			// Save SP
+ 	SUB	$8, R13			// R13 = R13 - 8
+ 	BIC	$0x7, R13		// Align SP for ABI
+-	RSB	$0, R0, R3		// R3 = -R0
+ 	MOVW	$0, R1			// R1 = FALSE (alertable)
+ 	MOVW	$-1, R0			// R0 = handle
+ 	MOVW	R13, R2			// R2 = pTime

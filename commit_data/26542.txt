@@ -11,6 +11,22 @@ Date:   Wed Feb 3 21:49:45 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_unix_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 5284a37b0f..1a012eb6ef 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -137,8 +137,8 @@ func loop(i int, c chan bool) {
+ func TestSignalExitStatus(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	switch runtime.GOOS {
+-	case "netbsd":
+-		t.Skip("skipping on NetBSD; see https://golang.org/issue/14063")
++	case "netbsd", "solaris":
++		t.Skipf("skipping on %s; see https://golang.org/issue/14063", runtime.GOOS)
+ 	}
+ 	exe, err := buildTestProg(t, "testprog")
+ 	if err != nil {

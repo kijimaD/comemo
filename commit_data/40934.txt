@@ -11,6 +11,33 @@ Date:   Tue Aug 13 12:56:51 2019 -0700
     Change-Id: I2e17e0014ba87505b01786980b98565f468065bf
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190257
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/check_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 358e7c5cc8..61bcf13c1a 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -42,8 +42,9 @@ import (
+ )
+ 
+ var (
+-	listErrors = flag.Bool("errlist", false, "list errors")
+-	testFiles  = flag.String("files", "", "space-separated list of test files")
++	haltOnError = flag.Bool("halt", false, "halt on error")
++	listErrors  = flag.Bool("errlist", false, "list errors")
++	testFiles   = flag.String("files", "", "space-separated list of test files")
+ )
+ 
+ // The test filenames do not end in .go so that they are invisible
+@@ -262,6 +263,9 @@ func checkFiles(t *testing.T, testfiles []string) {
+ 	}
+ 	conf.Importer = importer.Default()
+ 	conf.Error = func(err error) {
++		if *haltOnError {
++			defer panic(err)
++		}
+ 		if *listErrors {
+ 			t.Error(err)
+ 			return

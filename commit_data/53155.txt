@@ -13,6 +13,20 @@ Date:   Thu Jul 21 15:11:13 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 846d0c0d85..976e8346ba 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1720,7 +1720,7 @@ func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
+ func raceDetectorSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+-		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
++		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x"
+ 	case "darwin":
+ 		return goarch == "amd64" || goarch == "arm64"
+ 	case "freebsd", "netbsd", "openbsd", "windows":

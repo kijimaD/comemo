@@ -7,7 +7,121 @@ Date:   Mon Apr 26 22:35:27 2010 -0700
     R=ken2, r, ken3
     CC=golang-dev
     https://golang.org/cl/1006041
-
+---
  src/cmd/gc/go.y        | 30 ++++++++++++++++++++----------
  test/syntax/topexpr.go | 20 ++++++++++++++++++++
  2 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 98f671988f..2af6057e7c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -53,7 +53,7 @@
+ %type	<node>	compound_stmt dotname embed expr
+ %type	<node>	expr_or_type
+ %type	<node>	fndcl fnliteral
+-%type	<node>	for_body for_header for_stmt if_header if_stmt
++%type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
+ %type	<node>	interfacedcl keyval labelname name
+ %type	<node>	name_or_type non_expr_type
+ %type	<node>	new_name dcl_name oexpr typedclname
+@@ -271,6 +271,11 @@ xdcl:
+ 	{
+ 		$$ = list1($1);
+ 	}
++|	non_dcl_stmt
++	{
++		yyerror("non-declaration statement outside function body");
++		$$ = nil;
++	}
+ |	error
+ 	{
+ 		$$ = nil;
+@@ -1086,10 +1091,12 @@ fndcl:
+ 		$$->nname->ntype = n;
+ 		funchdr($$);
+ 	}
+-|	'(' oarg_type_list_ocomma ')' new_name '(' oarg_type_list_ocomma ')' fnres
++|	'(' oarg_type_list_ocomma ')' sym '(' oarg_type_list_ocomma ')' fnres
+ 	{
+ 		Node *rcvr, *t;
+-
++		Node *name;
++		
++		name = newname($4);
+ 		$2 = checkarglist($2, 0);
+ 		$6 = checkarglist($6, 1);
+ 		$$ = N;
+@@ -1108,12 +1115,12 @@ fndcl:
+ 		}
+ 
+ 		$$ = nod(ODCLFUNC, N, N);
+-		$$->nname = methodname1($4, rcvr->right);
++		$$->nname = methodname1(name, rcvr->right);
+ 		t = nod(OTFUNC, rcvr, N);
+ 		t->list = $6;
+ 		t->rlist = $8;
+ 		$$->nname->ntype = t;
+-		$$->shortname = $4;
++		$$->shortname = name;
+ 		funchdr($$);
+ 	}
+ 
+@@ -1340,12 +1347,19 @@ stmt:
+ 	{
+ 		$$ = N;
+ 	}
+-|	simple_stmt
+ |	compound_stmt
+ |	common_dcl
+ 	{
+ 		$$ = liststmt($1);
+ 	}
++|	non_dcl_stmt
++|	error
++	{
++		$$ = N;
++	}
++
++non_dcl_stmt:
++	simple_stmt
+ |	for_stmt
+ |	switch_stmt
+ |	select_stmt
+@@ -1360,10 +1374,6 @@ stmt:
+ 		$$ = $1;
+ 		$$->nelse = list1($3);
+ 	}
+-|	error
+-	{
+-		$$ = N;
+-	}
+ |	labelname ':' stmt
+ 	{
+ 		NodeList *l;
+diff --git a/test/syntax/topexpr.go b/test/syntax/topexpr.go
+new file mode 100644
+index 0000000000..83de49075d
+--- /dev/null
++++ b/test/syntax/topexpr.go
+@@ -0,0 +1,20 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++fmt.Printf("hello")	// ERROR "non-declaration statement outside function body"
++
++func main() {
++}
++
++x++	// ERROR "non-declaration statement outside function body"
++
++func init() {
++}
++
++x,y := 1, 2	// ERROR "non-declaration statement outside function body"
++

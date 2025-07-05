@@ -9,6 +9,39 @@ Date:   Tue Jan 19 13:09:50 2010 -0800
     R=r
     CC=golang-dev, graycardinalster
     https://golang.org/cl/190062
-
+---
  src/pkg/compress/zlib/reader.go | 21 +++++++++++++++++++--
  1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index c3a9d28ca6..357a8a337b 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -2,8 +2,25 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The zlib package implements reading and writing of zlib
+-// format compressed files, as specified in RFC 1950.
++/*
++The zlib package implements reading and writing of zlib
++format compressed data, as specified in RFC 1950.
++
++The implementation provides filters that uncompress during reading
++and compress during writing.  For example, to write compressed data
++to a buffer:
++
++	var b bytes.Buffer
++	w, err := zlib.NewDeflater(&b)
++	w.Write(strings.Bytes("hello, world\n"))
++	w.Close()
++
++and to read that data back:
++
++	r, err := zlib.NewInflater(&b)
++	io.Copy(os.Stdout, r)
++	r.Close()
++*/
+ package zlib
+ 
+ import (

@@ -11,8 +11,100 @@ Date:   Thu Jul 25 09:56:06 2013 -0400
     R=iant, mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/11803043
-
+---
  src/pkg/syscall/rlimit_linux_test.go | 41 ++++++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_linux_386.go |  4 ++--
  src/pkg/syscall/syscall_linux_arm.go |  4 ++--
  3 files changed, 45 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/rlimit_linux_test.go b/src/pkg/syscall/rlimit_linux_test.go
+new file mode 100644
+index 0000000000..4ec720e936
+--- /dev/null
++++ b/src/pkg/syscall/rlimit_linux_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall_test
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestRlimit(t *testing.T) {
++	var rlimit, zero syscall.Rlimit
++	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit)
++	if err != nil {
++		t.Fatalf("Getrlimit: save failed: %v", err)
++	}
++	if zero == rlimit {
++		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
++	}
++	set := rlimit
++	set.Cur = set.Max - 1
++	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
++	if err != nil {
++		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
++	}
++	var get syscall.Rlimit
++	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &get)
++	if err != nil {
++		t.Fatalf("Getrlimit: get failed: %v", err)
++	}
++	set = rlimit
++	set.Cur = set.Max - 1
++	if set != get {
++		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
++	}
++	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
++	if err != nil {
++		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
++	}
++}
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index a0ded43dcf..a61695676f 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -78,7 +78,7 @@ const rlimInf32 = ^uint32(0)
+ const rlimInf64 = ^uint64(0)
+ 
+ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, rlim, nil)
++	err = prlimit(0, resource, nil, rlim)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+@@ -106,7 +106,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+ //sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+ 
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, nil, rlim)
++	err = prlimit(0, resource, rlim, nil)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 7839d52882..4aadf9e4c1 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -119,7 +119,7 @@ const rlimInf32 = ^uint32(0)
+ const rlimInf64 = ^uint64(0)
+ 
+ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, rlim, nil)
++	err = prlimit(0, resource, nil, rlim)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+@@ -147,7 +147,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+ //sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+ 
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, nil, rlim)
++	err = prlimit(0, resource, rlim, nil)
+ 	if err != ENOSYS {
+ 		return err
+ 	}

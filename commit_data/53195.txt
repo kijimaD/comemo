@@ -9,6 +9,25 @@ Date:   Wed Jul 13 15:00:53 2022 -0700
     Change-Id: I820f3f5ba169635fee37c30e41b370c9399a436d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/417534
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.19.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 8fc28b94bf..321dec642b 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -252,6 +252,13 @@ as well as support for rendering them to HTML, Markdown, and text.
+   that invoke the Go compiler directly will need to make sure they
+   pass this flag as well.
+ </p>
++<p><!-- CL 415235 --><!-- CL 415236 -->
++  The Go compiler no longer accepts the <code>-importmap</code>
++  or <code>-installsuffix</code> flags. Build systems that invoke the
++  Go compiler directly must use the <code>-importcfg</code> flag
++  instead. (The <code>go</code> command's <code>-installsuffix</code>
++  build flag is still supported and unaffected by this change.)
++</p>
+ 
+ <h2 id="assembler">Assembler</h2>
+ <p><!-- CL 404298 -->

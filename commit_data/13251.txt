@@ -7,10 +7,101 @@ Date:   Sat Jun 2 14:02:44 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6255074
-
+---
  src/cmd/gc/reflect.c    | 21 ++++++++++++---------
  src/cmd/ld/dwarf.c      |  2 +-
  src/pkg/reflect/type.go |  1 +
  src/pkg/runtime/type.go |  3 ++-
  src/pkg/runtime/type.h  |  1 +
  5 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ed7f5cf068..041c92c65c 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -546,15 +546,17 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	// ../../pkg/reflect/type.go:/^type.commonType
+ 	// actual type structure
+ 	//	type commonType struct {
+-	//		size uintptr;
+-	//		hash uint32;
+-	//		alg uint8;
+-	//		align uint8;
+-	//		fieldAlign uint8;
+-	//		kind uint8;
+-	//		string *string;
+-	//		*extraType;
+-	//		ptrToThis *Type
++	//		size          uintptr
++	//		hash          uint32
++	//		_             uint8
++	//		align         uint8
++	//		fieldAlign    uint8
++	//		kind          uint8
++	//		alg           unsafe.Pointer
++	//		gc            unsafe.Pointer
++	//		string        *string
++	//		*extraType
++	//		ptrToThis     *Type
+ 	//	}
+ 	ot = duintptr(s, ot, t->width);
+ 	ot = duint32(s, ot, typehash(t));
+@@ -579,6 +581,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
+ 	else
+ 		ot = dsymptr(s, ot, algsym, 0);
++	ot = duintptr(s, ot, 0);  // gc
+ 	p = smprint("%-uT", t);
+ 	//print("dcommontype: %s\n", p);
+ 	ot = dgostringptr(s, ot, p);	// string
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 57e5a4283e..9a78d9610d 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -775,7 +775,7 @@ enum {
+ 	KindNoPointers = 1<<7,
+ 
+ 	// size of Type interface header + CommonType structure.
+-	CommonSize = 2*PtrSize+ 5*PtrSize + 8,
++	CommonSize = 2*PtrSize+ 6*PtrSize + 8,
+ };
+ 
+ static Reloc*
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 060bde3aff..9edae72a02 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -244,6 +244,7 @@ type commonType struct {
+ 	fieldAlign    uint8        // alignment of struct field with this type
+ 	kind          uint8        // enumeration for C
+ 	alg           *uintptr     // algorithm table (../runtime/runtime.h:/Alg)
++	gc            uintptr      // garbage collection data
+ 	string        *string      // string form; unnecessary but undeniably useful
+ 	*uncommonType              // (relatively) uncommon fields
+ 	ptrToThis     *runtimeType // pointer to this type, if used in binary or has methods
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index 6af6b237f1..8ec850f9bf 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -21,7 +21,8 @@ type commonType struct {
+ 	align      uint8
+ 	fieldAlign uint8
+ 	kind       uint8
+-	alg        *uintptr
++	alg        unsafe.Pointer
++	gc         unsafe.Pointer
+ 	string     *string
+ 	*uncommonType
+ 	ptrToThis *interface{}
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index c1d9facd10..ca81e84657 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -28,6 +28,7 @@ struct CommonType
+ 	uint8 fieldAlign;
+ 	uint8 kind;
+ 	Alg *alg;
++	void *gc;
+ 	String *string;
+ 	UncommonType *x;
+ 	Type *ptrto;

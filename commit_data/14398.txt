@@ -21,7 +21,70 @@ Date:   Tue Nov 13 10:45:30 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6821094
-
+---
  src/pkg/reflect/all_test.go | 15 +++++++++++++++
  src/pkg/reflect/type.go     |  7 +++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 1cfab81fe5..12cdbe1ca9 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1694,6 +1694,20 @@ type S13 struct {
+ 	S8
+ }
+ 
++// The X in S15.S11.S1 and S16.S11.S1 annihilate.
++type S14 struct {
++	S15
++	S16
++}
++
++type S15 struct {
++	S11
++}
++
++type S16 struct {
++	S11
++}
++
+ var fieldTests = []FTest{
+ 	{struct{}{}, "", nil, 0},
+ 	{struct{}{}, "Foo", nil, 0},
+@@ -1719,6 +1733,7 @@ var fieldTests = []FTest{
+ 	{S5{}, "Y", []int{2, 0, 1}, 0},
+ 	{S10{}, "X", nil, 0},
+ 	{S10{}, "Y", []int{2, 0, 0, 1}, 0},
++	{S14{}, "X", nil, 0},
+ }
+ 
+ func TestFieldByIndex(t *testing.T) {
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 0b029d78c2..110141955c 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -913,19 +913,22 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
+ 
+ 				// Queue embedded struct fields for processing with next level,
+ 				// but only if we haven't seen a match yet at this level and only
+-				// if the embedded types haven't alredy been queued.
++				// if the embedded types haven't already been queued.
+ 				if ok || ntyp == nil || ntyp.Kind() != Struct {
+ 					continue
+ 				}
+ 				styp := (*structType)(unsafe.Pointer(ntyp))
+ 				if nextCount[styp] > 0 {
+-					nextCount[styp]++
++					nextCount[styp] = 2 // exact multiple doesn't matter
+ 					continue
+ 				}
+ 				if nextCount == nil {
+ 					nextCount = map[*structType]int{}
+ 				}
+ 				nextCount[styp] = 1
++				if count[t] > 1 {
++					nextCount[styp] = 2 // exact multiple doesn't matter
++				}
+ 				var index []int
+ 				index = append(index, scan.index...)
+ 				index = append(index, i)

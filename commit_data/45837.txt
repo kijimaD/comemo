@@ -15,7 +15,7 @@ Date:   Sun Nov 22 20:45:42 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go         |  1 -
  src/cmd/compile/internal/gc/inl.go            |  4 ----
  src/cmd/compile/internal/gc/reflect.go        |  8 +-------
@@ -23,3 +23,116 @@ Date:   Sun Nov 22 20:45:42 2020 -0800
  src/cmd/compile/internal/types/sizeof_test.go |  2 +-
  src/cmd/compile/internal/types/type.go        | 23 +----------------------
  6 files changed, 3 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index c6917e0f81..5179b6c05b 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -164,7 +164,6 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+ 	}
+ 
+ 	n.Func = new(Func)
+-	t.SetNname(asTypesNode(n))
+ 
+ 	if Debug.E != 0 {
+ 		fmt.Printf("import func %v%S\n", s, t)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 4908dc4463..4aa561da6e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -221,10 +221,6 @@ func caninl(fn *Node) {
+ 		Body: inlcopylist(fn.Nbody.Slice()),
+ 	}
+ 
+-	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+-	// this is so export can find the body of a method
+-	fn.Type.FuncType().Nname = asTypesNode(n)
+-
+ 	if Debug.m > 1 {
+ 		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", fn.Line(), n, inlineMaxBudget-visitor.budget, fn.Type, asNodes(n.Func.Inl.Body))
+ 	} else if Debug.m != 0 {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 05e476b76b..1ac7a8490f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -365,13 +365,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
+ 		out = append(out, d)
+ 	}
+ 
+-	t := functype(nil, in, out)
+-	if f.Nname() != nil {
+-		// Link to name of original method function.
+-		t.SetNname(f.Nname())
+-	}
+-
+-	return t
++	return functype(nil, in, out)
+ }
+ 
+ // methods returns the methods of the non-interface type t, sorted by name.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 53a547c3bb..391115637e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3409,7 +3409,6 @@ func typecheckfunc(n *Node) {
+ 		return
+ 	}
+ 	n.Type = t
+-	t.FuncType().Nname = asTypesNode(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+ 		m := addmethod(n, n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index ea947d8f41..0cf343e8f1 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 		{Type{}, 52, 88},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+-		{Func{}, 32, 56},
++		{Func{}, 28, 48},
+ 		{Struct{}, 16, 32},
+ 		{Interface{}, 8, 16},
+ 		{Chan{}, 8, 16},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c6d14e9e09..62c5c34484 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -247,8 +247,7 @@ type Func struct {
+ 	Results  *Type // function results
+ 	Params   *Type // function params
+ 
+-	Nname *Node
+-	pkg   *Pkg
++	pkg *Pkg
+ 
+ 	// Argwid is the total width of the function receiver, params, and results.
+ 	// It gets calculated via a temporary TFUNCARGS type.
+@@ -807,26 +806,6 @@ func (t *Type) FuncArgs() *Type {
+ 	return t.Extra.(FuncArgs).T
+ }
+ 
+-// Nname returns the associated function's nname.
+-func (t *Type) Nname() *Node {
+-	switch t.Etype {
+-	case TFUNC:
+-		return t.Extra.(*Func).Nname
+-	}
+-	Fatalf("Type.Nname %v %v", t.Etype, t)
+-	return nil
+-}
+-
+-// Nname sets the associated function's nname.
+-func (t *Type) SetNname(n *Node) {
+-	switch t.Etype {
+-	case TFUNC:
+-		t.Extra.(*Func).Nname = n
+-	default:
+-		Fatalf("Type.SetNname %v %v", t.Etype, t)
+-	}
+-}
+-
+ // IsFuncArgStruct reports whether t is a struct representing function parameters.
+ func (t *Type) IsFuncArgStruct() bool {
+ 	return t.Etype == TSTRUCT && t.Extra.(*Struct).Funarg != FunargNone

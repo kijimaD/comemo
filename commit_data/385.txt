@@ -5,7 +5,7 @@ Date:   Thu Jul 17 18:02:10 2008 -0700
     - more front-end stuff: hooking up packages, preparing for exports
     
     SVN=127931
-
+---
  usr/gri/gosrc/compilation.go | 55 ++++++++++++++++++++---------------------
  usr/gri/gosrc/export.go      |  4 +--
  usr/gri/gosrc/globals.go     | 58 +++++++++++++++++++++++++-------------------
@@ -13,3 +13,364 @@ Date:   Thu Jul 17 18:02:10 2008 -0700
  usr/gri/gosrc/scanner.go     |  3 ++-
  usr/gri/gosrc/test_parser.go |  2 +-
  6 files changed, 107 insertions(+), 63 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 062c963e06..93d66a8d1c 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -15,7 +15,7 @@ import Export "export"
+ 
+ func BaseName(s string) string {
+ 	// TODO this is not correct for non-ASCII strings!
+-	i := len(s);
++	i := len(s) - 1;
+ 	for i >= 0 && s[i] != '/' {
+ 		if s[i] > 128 {
+ 			panic "non-ASCII string"
+@@ -31,43 +31,40 @@ func FixExt(s string) string {
+ 	if s[i : len(s)] == ".go" {
+ 		s = s[0 : i];
+ 	}
+-	return s + ".7"
+-}
+-
+-
+-func Import(C *Globals.Compilation, pkg_name string) (pno int) {
+-	panic "UNIMPLEMENTED";
+-}
+-
+-
+-func Export(C *Globals.Compilation) {
+-	file_name := FixExt(BaseName(C.src_name));  // strip src dir
+-	Export.Export(file_name/*, C */);
++	return s + ".7";
+ }
+ 
+ 
+ export Compile
+-func Compile(src_name string, verbose int) {
+-	comp := new(Globals.Compilation);
+-	comp.src_name = src_name;
+-	comp.pkg = nil;
+-	comp.nimports = 0;
+-	
+-	src, ok := sys.readfile(src_name);
++func Compile(file_name string, verbose int) {
++	src, ok := sys.readfile(file_name);
+ 	if !ok {
+-		print "cannot open ", src_name, "\n"
++		print "cannot open ", file_name, "\n"
+ 		return;
+ 	}
+ 	
+-	Universe.Init();
++	Universe.Init();  // TODO eventually this should be only needed once
++	
++	comp := Globals.NewCompilation();
++	pkg := Globals.NewPackage(file_name);
++	comp.Insert(pkg);
++	if comp.npkgs != 1 {
++		panic "should have exactly one package now";
++	}
+ 
+-	S := new(Scanner.Scanner);
+-	S.Open(src_name, src);
++	scanner := new(Scanner.Scanner);
++	scanner.Open(file_name, src);
+ 
+-	P := new(Parser.Parser);
+-	P.Open(S, verbose);
++	parser := new(Parser.Parser);
++	parser.Open(comp, scanner, verbose);
++
++	print "parsing ", file_name, "\n";
++	parser.ParseProgram();
++	if parser.S.nerrors > 0 {
++		return;
++	}
+ 	
+-	print "parsing ", src_name, "\n";
+-	P.ParseProgram();
+-	//comp.Export();
++	// export
++	export_file_name := FixExt(BaseName(file_name));  // strip file dir
++	Export.Export(comp, export_file_name);
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 4193921680..e261662bdf 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -252,7 +252,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 	pkg.ref = E.pkg_ref;
+ 	E.pkg_ref++;
+ 
+-	E.WriteString(pkg.ident);
++	E.WriteString(pkg.obj.ident);
+ 	E.WriteString(pkg.file_name);
+ 	E.WriteString(pkg.key);
+ }
+@@ -294,7 +294,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
+ 
+ 
+ export Export
+-func Export(file_name string /*comp *Compilation.Compilation*/) {
++func Export(comp *Globals.Compilation, file_name string) {
+ 	/*
+ 	Exporter exp;
+ 	exp.Export(comp, buf);
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index c86289b7ad..4ddfd6b17e 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -34,7 +34,17 @@ type Type struct {
+ 	obj *Object;  // primary type object or NULL
+ 	key *Object;  // maps
+ 	elt *Object;  // arrays, maps, channels, pointers, references
+-	scope *Scope;  // incomplete types, structs, interfaces, functions, packages
++	scope *Scope;  // structs, interfaces, functions
++}
++
++
++export Package
++type Package struct {
++	ref int;  // for exporting only: >= 0 means already exported
++	file_name string;
++	key string;
++	obj *Object;
++	scope *Scope;
+ }
+ 
+ 
+@@ -46,6 +56,7 @@ type Elem struct {
+ 	str string;
+ 	obj *Object;
+ 	typ *Type;
++	pkg *Package;
+ }
+ 
+ 
+@@ -64,23 +75,11 @@ type Scope struct {
+ }
+ 
+ 
+-export Package
+-type Package struct {
+-	ref int;  // for exporting only: >= 0 means already exported
+-	file_name string;
+-	ident string;
+-	key string;
+-	scope *Scope;
+-	pno int;
+-}
+-
+-
+ export Compilation
+ type Compilation struct {
+-  src_name string;
+-  pkg *Object;
+-  imports [256] *Package;  // TODO need open arrays
+-  nimports int;
++	// TODO use open arrays eventually
++	pkgs [256] *Package;  // pkgs[0] is the current package
++	npkgs int;
+ }
+ 
+ 
+@@ -103,11 +102,21 @@ func NewObject(pos, kind int, ident string) *Object {
+ export NewType
+ func NewType(form int) *Type {
+ 	typ := new(Type);
++	typ.ref = -1;
+ 	typ.form = form;
+ 	return typ;
+ }
+ 
+ 
++export NewPackage;
++func NewPackage(file_name string) *Package {
++	pkg := new(Package);
++	pkg.ref = -1;
++	pkg.file_name = file_name;
++	return pkg;
++}
++
++
+ export NewList
+ func NewList() *List {
+ 	return new(List);
+@@ -123,10 +132,10 @@ func NewScope(parent *Scope) *Scope {
+ }
+ 
+ 
+-export NewPackage;
+-func NewPackage() *Package {
+-	pkg := new(Package);
+-	return pkg;
++export NewCompilation;
++func NewCompilation() *Compilation {
++	comp := new(Compilation);
++	return comp;
+ }
+ 
+ 
+@@ -241,8 +250,8 @@ func (scope *Scope) Print() {
+ // Compilation methods
+ 
+ func (C *Compilation) Lookup(file_name string) *Package {
+-	for i := 0; i < C.nimports; i++ {
+-		pkg := C.imports[i];
++	for i := 0; i < C.npkgs; i++ {
++		pkg := C.pkgs[i];
+ 		if pkg.file_name == file_name {
+ 			return pkg;
+ 		}
+@@ -255,9 +264,8 @@ func (C *Compilation) Insert(pkg *Package) {
+ 	if C.Lookup(pkg.file_name) != nil {
+ 		panic "package already inserted";
+ 	}
+-	pkg.pno = C.nimports;
+-	C.imports[C.nimports] = pkg;
+-	C.nimports++;
++	C.pkgs[C.npkgs] = pkg;
++	C.npkgs++;
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index e99279ba4a..6bf6ecd43c 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -17,12 +17,14 @@ const EnableSemanticTests = false;
+ 
+ export Parser
+ type Parser struct {
++	comp *Globals.Compilation;
+ 	verbose, indent int;
+ 	S *Scanner.Scanner;
+ 	tok int;  // one token look-ahead
+ 	beg, end int;  // token position
+ 	ident string;  // last ident seen
+ 	top_scope *Globals.Scope;
++	exports *Globals.List;
+ }
+ 
+ 
+@@ -66,12 +68,14 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
++func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int) {
++	P.comp = comp;
+ 	P.verbose = verbose;
+ 	P.indent = 0;
+ 	P.S = S;
+ 	P.Next();
+ 	P.top_scope = Universe.scope;
++	P.exports = Globals.NewList();
+ }
+ 
+ 
+@@ -1238,15 +1242,15 @@ func (P *Parser) ParseExportDecl() {
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+ 		for P.tok != Scanner.RPAREN {
+-			P.ParseIdent();
++			P.exports.AddStr(P.ParseIdent());
+ 			P.Optional(Scanner.COMMA);  // TODO this seems wrong
+ 		}
+ 		P.Next();
+ 	} else {
+-		P.ParseIdent();
++		P.exports.AddStr(P.ParseIdent());
+ 		for P.tok == Scanner.COMMA {
+ 			P.Next();
+-			P.ParseIdent();
++			P.exports.AddStr(P.ParseIdent());
+ 		}
+ 	}
+ 	
+@@ -1284,14 +1288,46 @@ func (P *Parser) ParseDeclaration() {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
++func (P *Parser) MarkExports() {
++	if !EnableSemanticTests {
++		return;
++	}
++	
++	scope := P.top_scope;
++	for p := P.exports.first; p != nil; p = p.next {
++		obj := scope.Lookup(p.str);
++		if obj != nil {
++			obj.mark = true;
++			// For now we export deep
++			// TODO this should change eventually - we need selective export
++			if obj.kind == Object.TYPE {
++				typ := obj.typ;
++				if typ.form == Type.STRUCT || typ.form == Type.INTERFACE {
++					scope := typ.scope;
++					for p := scope.entries.first; p != nil; p = p.next {
++						p.obj.mark = true;
++					}
++				}
++			}
++		} else {
++			// TODO need to report proper src position
++			P.Error(0, `"` + p.str + `" is not declared - cannot be exported`);
++		}
++	}
++}
++
++
+ func (P *Parser) ParseProgram() {
+ 	P.Trace("Program");
++	
+ 	P.OpenScope();
+ 	P.Expect(Scanner.PACKAGE);
+-	P.ParseIdent();
++	pkg := P.comp.pkgs[0];
++	pkg.obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+ 	{	P.OpenScope();
++		pkg.scope = P.top_scope;
+ 		for P.tok == Scanner.IMPORT {
+ 			P.ParseImportDecl();
+ 			P.Optional(Scanner.SEMICOLON);
+@@ -1301,6 +1337,8 @@ func (P *Parser) ParseProgram() {
+ 			P.ParseDeclaration();
+ 			P.Optional(Scanner.SEMICOLON);
+ 		}
++		
++		P.MarkExports();
+ 		P.CloseScope();
+ 	}
+ 	
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 5ef8081da6..be88a4ede5 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -415,7 +415,8 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 
+ func (S *Scanner) Error(pos int, msg string) {
+ 	const errdist = 10;
+-	if pos > S.errpos + errdist || S.nerrors == 0 {
++	delta := pos - S.errpos;  // may be negative!
++	if delta < errdist || delta > errdist || S.nerrors == 0 {
+ 		line, col := S.LineCol(pos);
+ 		if VerboseMsgs {
+ 			print S.filename, ":", line, ":", col, ": ", msg, "\n";
+diff --git a/usr/gri/gosrc/test_parser.go b/usr/gri/gosrc/test_parser.go
+index cab01608aa..5b8571f32a 100644
+--- a/usr/gri/gosrc/test_parser.go
++++ b/usr/gri/gosrc/test_parser.go
+@@ -14,7 +14,7 @@ func Parse(filename, src string, verbose int) {
+ 	S.Open(filename, src);
+ 	
+ 	P := new(Parser.Parser);
+-	P.Open(S, verbose);
++	P.Open(nil, S, verbose);
+ 	
+ 	P.ParseProgram();
+ }

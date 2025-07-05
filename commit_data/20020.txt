@@ -11,7 +11,69 @@ Date:   Tue Aug 12 17:41:16 2014 -0400
     R=iant, dvyukov, rminnich
     CC=golang-codereviews
     https://golang.org/cl/126050043
-
+---
  src/cmd/ld/data.c | 12 ++++++------
  src/cmd/ld/lib.h  |  4 ++--
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 96eadd479a..c0dc3d05f2 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -425,10 +425,10 @@ dynreloc(void)
+ }
+ 
+ static void
+-blk(LSym *start, int32 addr, int32 size)
++blk(LSym *start, int64 addr, int64 size)
+ {
+ 	LSym *sym;
+-	int32 eaddr;
++	int64 eaddr;
+ 	uchar *p, *ep;
+ 
+ 	for(sym = start; sym != nil; sym = sym->next)
+@@ -467,10 +467,10 @@ blk(LSym *start, int32 addr, int32 size)
+ }
+ 
+ void
+-codeblk(int32 addr, int32 size)
++codeblk(int64 addr, int64 size)
+ {
+ 	LSym *sym;
+-	int32 eaddr, n;
++	int64 eaddr, n;
+ 	uchar *q;
+ 
+ 	if(debug['a'])
+@@ -527,10 +527,10 @@ codeblk(int32 addr, int32 size)
+ }
+ 
+ void
+-datblk(int32 addr, int32 size)
++datblk(int64 addr, int64 size)
+ {
+ 	LSym *sym;
+-	int32 i, eaddr;
++	int64 i, eaddr;
+ 	uchar *p, *ep;
+ 	char *typ, *rsname;
+ 	Reloc *r;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 4094dfa6b1..dd23990234 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -184,11 +184,11 @@ uint32	be32(uchar *b);
+ uint64	be64(uchar *b);
+ void	callgraph(void);
+ void	cflush(void);
+-void	codeblk(int32 addr, int32 size);
++void	codeblk(int64 addr, int64 size);
+ vlong	cpos(void);
+ void	cseek(vlong p);
+ void	cwrite(void *buf, int n);
+-void	datblk(int32 addr, int32 size);
++void	datblk(int64 addr, int64 size);
+ int	datcmp(LSym *s1, LSym *s2);
+ vlong	datoff(vlong addr);
+ void	deadcode(void);

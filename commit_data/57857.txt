@@ -14,6 +14,20 @@ Date:   Mon Aug 28 12:41:02 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 1b33503bc7..d178b2b2fb 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -222,7 +222,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
+ // decAlloc takes a value and returns a settable value that can
+ // be assigned to. If the value is a pointer, decAlloc guarantees it points to storage.
+ // The callers to the individual decoders are expected to have used decAlloc.
+-// The individual decoders don't need to it.
++// The individual decoders don't need it.
+ func decAlloc(v reflect.Value) reflect.Value {
+ 	for v.Kind() == reflect.Pointer {
+ 		if v.IsNil() {

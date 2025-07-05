@@ -17,6 +17,37 @@ Date:   Fri Jun 24 16:50:59 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index fdde3b289f..8429529115 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -30,15 +30,16 @@ import (
+ const trimPathGoRootFinal string = "$GOROOT"
+ 
+ var runtimePackages = map[string]struct{}{
+-	"internal/abi":            struct{}{},
+-	"internal/bytealg":        struct{}{},
+-	"internal/cpu":            struct{}{},
+-	"internal/goarch":         struct{}{},
+-	"internal/goos":           struct{}{},
+-	"runtime":                 struct{}{},
+-	"runtime/internal/atomic": struct{}{},
+-	"runtime/internal/math":   struct{}{},
+-	"runtime/internal/sys":    struct{}{},
++	"internal/abi":             struct{}{},
++	"internal/bytealg":         struct{}{},
++	"internal/cpu":             struct{}{},
++	"internal/goarch":          struct{}{},
++	"internal/goos":            struct{}{},
++	"runtime":                  struct{}{},
++	"runtime/internal/atomic":  struct{}{},
++	"runtime/internal/math":    struct{}{},
++	"runtime/internal/sys":     struct{}{},
++	"runtime/internal/syscall": struct{}{},
+ }
+ 
+ // The Go toolchain.

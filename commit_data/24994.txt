@@ -19,8 +19,129 @@ Date:   Mon Sep 14 11:27:20 2015 -0700
     Change-Id: Iabf1d0602c49d830f3ed71ca1ccc7eb9a5521ff5
     Reviewed-on: https://go-review.googlesource.com/14562
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/exec_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
  src/text/template/funcs.go     | 22 ++++++++++++++++++-
  src/text/template/template.go  |  5 +++--
  3 files changed, 73 insertions(+), 3 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index b2ed8e7938..139fc5320d 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1183,3 +1183,52 @@ func TestExecuteGivesExecError(t *testing.T) {
+ 		t.Errorf("expected %q; got %q", expect, err)
+ 	}
+ }
++
++func funcNameTestFunc() int {
++	return 0
++}
++
++func TestGoodFuncNames(t *testing.T) {
++	names := []string{
++		"_",
++		"a",
++		"a1",
++		"a1",
++		"Ӵ",
++	}
++	for _, name := range names {
++		tmpl := New("X").Funcs(
++			FuncMap{
++				name: funcNameTestFunc,
++			},
++		)
++		if tmpl == nil {
++			t.Fatalf("nil result for %q", name)
++		}
++	}
++}
++
++func TestBadFuncNames(t *testing.T) {
++	names := []string{
++		"",
++		"2",
++		"a-b",
++	}
++	for _, name := range names {
++		testBadFuncName(name, t)
++	}
++}
++
++func testBadFuncName(name string, t *testing.T) {
++	defer func() {
++		recover()
++	}()
++	New("X").Funcs(
++		FuncMap{
++			name: funcNameTestFunc,
++		},
++	)
++	// If we get here, the name did not cause a panic, which is how Funcs
++	// reports an error.
++	t.Errorf("%q succeeded incorrectly as function name", name)
++}
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index be13ca2a3e..b514551455 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -58,6 +58,9 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
+ // addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
+ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
+ 	for name, fn := range in {
++		if !goodName(name) {
++			panic(fmt.Errorf("function name %s is not a valid identifier", name))
++		}
+ 		v := reflect.ValueOf(fn)
+ 		if v.Kind() != reflect.Func {
+ 			panic("value for " + name + " not a function")
+@@ -77,7 +80,7 @@ func addFuncs(out, in FuncMap) {
+ 	}
+ }
+ 
+-// goodFunc checks that the function or method has the right result signature.
++// goodFunc reports whether the function or method has the right result signature.
+ func goodFunc(typ reflect.Type) bool {
+ 	// We allow functions with 1 result or 2 results where the second is an error.
+ 	switch {
+@@ -89,6 +92,23 @@ func goodFunc(typ reflect.Type) bool {
+ 	return false
+ }
+ 
++// goodName reports whether the function name is a valid identifier.
++func goodName(name string) bool {
++	if name == "" {
++		return false
++	}
++	for i, r := range name {
++		switch {
++		case r == '_':
++		case i == 0 && !unicode.IsLetter(r):
++			return false
++		case !unicode.IsLetter(r) && !unicode.IsDigit(r):
++			return false
++		}
++	}
++	return true
++}
++
+ // findFunction looks for a function in the template, and global map.
+ func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+ 	if tmpl != nil && tmpl.common != nil {
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 3e80982123..69300d8867 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -162,8 +162,9 @@ func (t *Template) Delims(left, right string) *Template {
+ 
+ // Funcs adds the elements of the argument map to the template's function map.
+ // It panics if a value in the map is not a function with appropriate return
+-// type. However, it is legal to overwrite elements of the map. The return
+-// value is the template, so calls can be chained.
++// type or if the name cannot be used syntactically as a function in a template.
++// It is legal to overwrite elements of the map. The return value is the template,
++// so calls can be chained.
+ func (t *Template) Funcs(funcMap FuncMap) *Template {
+ 	t.init()
+ 	t.muFuncs.Lock()

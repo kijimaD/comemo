@@ -26,7 +26,7 @@ Date:   Tue Mar 17 20:34:51 2020 -0400
     Change-Id: Id5379c96384a11c5afde0614955360e7470bb1c4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223754
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go          | 18 +++++++++
  src/crypto/ecdsa/equal_test.go     | 77 ++++++++++++++++++++++++++++++++++++++
  src/crypto/ed25519/ed25519.go      |  9 +++++
@@ -34,3 +34,231 @@ Date:   Tue Mar 17 20:34:51 2020 -0400
  src/crypto/rsa/equal_test.go       | 42 +++++++++++++++++++++
  src/crypto/rsa/rsa.go              |  9 +++++
  6 files changed, 171 insertions(+)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 744182aac2..189399d126 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -62,6 +62,24 @@ type PublicKey struct {
+ 	X, Y *big.Int
+ }
+ 
++// Equal reports whether pub and x have the same value.
++//
++// Two keys are only considered to have the same value if they have the same Curve value.
++// Note that for example elliptic.P256() and elliptic.P256().Params() are different
++// values, as the latter is a generic not constant time implementation.
++func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
++	xx, ok := x.(*PublicKey)
++	if !ok {
++		return false
++	}
++	return pub.X.Cmp(xx.X) == 0 && pub.Y.Cmp(xx.Y) == 0 &&
++		// Standard library Curve implementations are singletons, so this check
++		// will work for those. Other Curves might be equivalent even if not
++		// singletons, but there is no definitive way to check for that, and
++		// better to err on the side of safety.
++		pub.Curve == xx.Curve
++}
++
+ // PrivateKey represents an ECDSA private key.
+ type PrivateKey struct {
+ 	PublicKey
+diff --git a/src/crypto/ecdsa/equal_test.go b/src/crypto/ecdsa/equal_test.go
+new file mode 100644
+index 0000000000..099a273935
+--- /dev/null
++++ b/src/crypto/ecdsa/equal_test.go
+@@ -0,0 +1,77 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ecdsa_test
++
++import (
++	"crypto"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/x509"
++	"testing"
++)
++
++func testEqual(t *testing.T, c elliptic.Curve) {
++	private, _ := ecdsa.GenerateKey(c, rand.Reader)
++	public := &private.PublicKey
++
++	if !public.Equal(public) {
++		t.Errorf("public key is not equal to itself: %v", public)
++	}
++	if !public.Equal(crypto.Signer(private).Public().(*ecdsa.PublicKey)) {
++		t.Errorf("private.Public() is not Equal to public: %q", public)
++	}
++
++	enc, err := x509.MarshalPKIXPublicKey(public)
++	if err != nil {
++		t.Fatal(err)
++	}
++	decoded, err := x509.ParsePKIXPublicKey(enc)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !public.Equal(decoded) {
++		t.Errorf("public key is not equal to itself after decoding: %v", public)
++	}
++
++	other, _ := ecdsa.GenerateKey(c, rand.Reader)
++	if public.Equal(other) {
++		t.Errorf("different public keys are Equal")
++	}
++
++	// Ensure that keys with the same coordinates but on different curves
++	// aren't considered Equal.
++	differentCurve := &ecdsa.PublicKey{}
++	*differentCurve = *public // make a copy of the public key
++	if differentCurve.Curve == elliptic.P256() {
++		differentCurve.Curve = elliptic.P224()
++	} else {
++		differentCurve.Curve = elliptic.P256()
++	}
++	if public.Equal(differentCurve) {
++		t.Errorf("public keys with different curves are Equal")
++	}
++
++	// This is not necessarily desirable, but if the Curve implementations are
++	// different, the PublicKeys are not considered Equal.
++	differentImpl := &ecdsa.PublicKey{}
++	*differentImpl = *public
++	// CurveParams also implements the Curve interface, although with a generic
++	// non-constant time implementation. See golang.org/issue/34648.
++	differentImpl.Curve = differentImpl.Curve.Params()
++	if public.Equal(differentImpl) {
++		t.Errorf("public keys with different curve implementations are Equal")
++	}
++}
++
++func TestEqual(t *testing.T) {
++	t.Run("P224", func(t *testing.T) { testEqual(t, elliptic.P224()) })
++	if testing.Short() {
++		return
++	}
++	t.Run("P256", func(t *testing.T) { testEqual(t, elliptic.P256()) })
++	t.Run("P384", func(t *testing.T) { testEqual(t, elliptic.P384()) })
++	t.Run("P521", func(t *testing.T) { testEqual(t, elliptic.P521()) })
++}
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index dcb4f9544f..b4f6956420 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -40,6 +40,15 @@ const (
+ // PublicKey is the type of Ed25519 public keys.
+ type PublicKey []byte
+ 
++// Equal reports whether pub and x have the same value.
++func (pub PublicKey) Equal(x crypto.PublicKey) bool {
++	xx, ok := x.(PublicKey)
++	if !ok {
++		return false
++	}
++	return bytes.Equal(pub, xx)
++}
++
+ // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
+ type PrivateKey []byte
+ 
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index cacd281f1c..98e22a719e 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -88,6 +88,22 @@ func TestCryptoSigner(t *testing.T) {
+ 	}
+ }
+ 
++func TestEqual(t *testing.T) {
++	public, private, _ := GenerateKey(rand.Reader)
++
++	if !public.Equal(public) {
++		t.Errorf("public key is not equal to itself: %q", public)
++	}
++	if !public.Equal(crypto.Signer(private).Public().(PublicKey)) {
++		t.Errorf("private.Public() is not Equal to public: %q", public)
++	}
++
++	other, _, _ := GenerateKey(rand.Reader)
++	if public.Equal(other) {
++		t.Errorf("different public keys are Equal")
++	}
++}
++
+ func TestGolden(t *testing.T) {
+ 	// sign.input.gz is a selection of test cases from
+ 	// https://ed25519.cr.yp.to/python/sign.input
+diff --git a/src/crypto/rsa/equal_test.go b/src/crypto/rsa/equal_test.go
+new file mode 100644
+index 0000000000..b00d0ea8a9
+--- /dev/null
++++ b/src/crypto/rsa/equal_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa_test
++
++import (
++	"crypto"
++	"crypto/rand"
++	"crypto/rsa"
++	"crypto/x509"
++	"testing"
++)
++
++func TestEqual(t *testing.T) {
++	private, _ := rsa.GenerateKey(rand.Reader, 512)
++	public := &private.PublicKey
++
++	if !public.Equal(public) {
++		t.Errorf("public key is not equal to itself: %v", public)
++	}
++	if !public.Equal(crypto.Signer(private).Public().(*rsa.PublicKey)) {
++		t.Errorf("private.Public() is not Equal to public: %q", public)
++	}
++
++	enc, err := x509.MarshalPKIXPublicKey(public)
++	if err != nil {
++		t.Fatal(err)
++	}
++	decoded, err := x509.ParsePKIXPublicKey(enc)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !public.Equal(decoded) {
++		t.Errorf("public key is not equal to itself after decoding: %v", public)
++	}
++
++	other, _ := rsa.GenerateKey(rand.Reader, 512)
++	if public.Equal(other) {
++		t.Errorf("different public keys are Equal")
++	}
++}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index d058949242..5a42990640 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -50,6 +50,15 @@ func (pub *PublicKey) Size() int {
+ 	return (pub.N.BitLen() + 7) / 8
+ }
+ 
++// Equal reports whether pub and x have the same value.
++func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
++	xx, ok := x.(*PublicKey)
++	if !ok {
++		return false
++	}
++	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
++}
++
+ // OAEPOptions is an interface for passing options to OAEP decryption using the
+ // crypto.Decrypter interface.
+ type OAEPOptions struct {

@@ -16,7 +16,7 @@ Date:   Wed Mar 9 17:19:23 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/api/goapi.go                               |  12 ++-
  src/cmd/api/goapi_test.go                          |   2 +
  .../compile/internal/importer/gcimporter_test.go   |   8 +-
@@ -40,3 +40,893 @@ Date:   Wed Mar 9 17:19:23 2022 -0500
  src/runtime/runtime-gdb_test.go                    |  18 ++--
  src/time/zoneinfo_test.go                          |   3 +-
  22 files changed, 242 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 2a0e109575..b2a023a9b7 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -34,9 +34,11 @@ func goCmd() string {
+ 	if runtime.GOOS == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+-	if _, err := os.Stat(path); err == nil {
+-		return path
++	if goroot := build.Default.GOROOT; goroot != "" {
++		path := filepath.Join(goroot, "bin", "go"+exeSuffix)
++		if _, err := os.Stat(path); err == nil {
++			return path
++		}
+ 	}
+ 	return "go"
+ }
+@@ -127,6 +129,10 @@ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
+ func main() {
+ 	flag.Parse()
+ 
++	if build.Default.GOROOT == "" {
++		log.Fatalf("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
++	}
++
+ 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
+ 		if *nextFiles != "" {
+ 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFiles)
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 16e0058e5e..862ab183b2 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -22,6 +23,7 @@ func TestMain(m *testing.M) {
+ 	for _, c := range contexts {
+ 		c.Compiler = build.Default.Compiler
+ 	}
++	build.Default.GOROOT = testenv.GOROOT(nil)
+ 
+ 	// Warm up the import cache in parallel.
+ 	var wg sync.WaitGroup
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index cc804aabbc..9fecf742fb 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
++	"go/build"
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+@@ -19,6 +20,11 @@ import (
+ 	"time"
+ )
+ 
++func TestMain(m *testing.M) {
++	build.Default.GOROOT = testenv.GOROOT(nil)
++	os.Exit(m.Run())
++}
++
+ // skipSpecialPlatforms causes the test to be skipped for platforms where
+ // builders (build.golang.org) don't have access to compiled packages for
+ // import.
+@@ -62,7 +68,7 @@ func testPath(t *testing.T, path, srcDir string) *types2.Package {
+ const maxTime = 30 * time.Second
+ 
+ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+-	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
++	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+ 	list, err := os.ReadDir(dirname)
+ 	if err != nil {
+ 		t.Fatalf("testDir(%s): %s", dirname, err)
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index ecb21e070b..66690a527a 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"path/filepath"
+ 	"regexp"
+@@ -74,12 +75,14 @@ func TestStdLib(t *testing.T) {
+ 		lines    uint
+ 	}
+ 
++	goroot := testenv.GOROOT(t)
++
+ 	results := make(chan parseResult)
+ 	go func() {
+ 		defer close(results)
+ 		for _, dir := range []string{
+-			filepath.Join(runtime.GOROOT(), "src"),
+-			filepath.Join(runtime.GOROOT(), "misc"),
++			filepath.Join(goroot, "src"),
++			filepath.Join(goroot, "misc"),
+ 		} {
+ 			walkDirs(t, dir, func(filename string) {
+ 				if skipRx != nil && skipRx.MatchString(filename) {
+diff --git a/src/cmd/compile/internal/types2/main_test.go b/src/cmd/compile/internal/types2/main_test.go
+new file mode 100644
+index 0000000000..42d26943c4
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/main_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2_test
++
++import (
++	"go/build"
++	"internal/testenv"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	build.Default.GOROOT = testenv.GOROOT(nil)
++	os.Exit(m.Run())
++}
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 551611da55..fda78e20d1 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -29,7 +28,7 @@ func TestStdlib(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	pkgCount := 0
+-	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
++	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
+ 		typecheck(t, dir, filenames)
+ 		pkgCount++
+ 	}, t.Error)
+@@ -162,7 +161,7 @@ func TestStdTest(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+ 		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
+@@ -180,7 +179,7 @@ func TestStdFixed(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+ 		"issue6889.go",   // gc-specific test
+ 		"issue11362.go",  // canonical import path check
+@@ -204,7 +203,7 @@ func TestStdFixed(t *testing.T) {
+ func TestStdKen(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "ken"))
+ }
+ 
+ // Package paths of excluded packages.
+@@ -311,16 +310,13 @@ func (w *walker) walk(dir string) {
+ 	}
+ 
+ 	// apply pkgh to the files in directory dir
+-	// but ignore files directly under $GOROOT/src (might be temporary test files).
+-	if dir != filepath.Join(runtime.GOROOT(), "src") {
+-		files, err := pkgFilenames(dir)
+-		if err != nil {
+-			w.errh(err)
+-			return
+-		}
+-		if files != nil {
+-			w.pkgh(dir, files)
+-		}
++	pkgFiles, err := pkgFilenames(dir)
++	if err != nil {
++		w.errh(err)
++		return
++	}
++	if pkgFiles != nil {
++		w.pkgh(dir, pkgFiles)
+ 	}
+ 
+ 	// traverse subdirectories, but don't walk into testdata
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 0ff9edcde3..ead4f722f6 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -7,6 +7,8 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	"go/build"
++	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -21,6 +23,12 @@ func TestMain(m *testing.M) {
+ 	buildCtx.GOPATH = ""
+ 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
+ 
++	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
++	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
++	// but we can't be sure that the 'go' in $PATH is the right one either.
++	buildCtx.GOROOT = testenv.GOROOT(nil)
++	build.Default.GOROOT = testenv.GOROOT(nil)
++
+ 	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
+ 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
+ 	// a hack that works around the check.
+diff --git a/src/cmd/go/internal/imports/scan_test.go b/src/cmd/go/internal/imports/scan_test.go
+index 7e69c56513..56efa9023f 100644
+--- a/src/cmd/go/internal/imports/scan_test.go
++++ b/src/cmd/go/internal/imports/scan_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -18,7 +17,7 @@ import (
+ func TestScan(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	imports, testImports, err := ScanDir(filepath.Join(runtime.GOROOT(), "src/encoding/json"), Tags())
++	imports, testImports, err := ScanDir(filepath.Join(testenv.GOROOT(t), "src/encoding/json"), Tags())
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 4a821705f1..a130874048 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
++	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -130,7 +131,11 @@ func genFilenames(t *testing.T, filenames chan<- string) {
+ 	}
+ 
+ 	// otherwise, test all Go files under *root
+-	filepath.WalkDir(*root, handleFile)
++	goroot := *root
++	if goroot == "" {
++		goroot = testenv.GOROOT(t)
++	}
++	filepath.WalkDir(goroot, handleFile)
+ }
+ 
+ func TestAll(t *testing.T) {
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 56c3b2585c..a63ac71a16 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -153,7 +152,7 @@ func TestAllDependencies(t *testing.T) {
+ 	// module version specified in GOROOT/src/cmd/go.mod.
+ 	bundleDir := t.TempDir()
+ 	r := runner{
+-		Dir: filepath.Join(runtime.GOROOT(), "src/cmd"),
++		Dir: filepath.Join(testenv.GOROOT(t), "src/cmd"),
+ 		Env: append(os.Environ(), modcacheEnv...),
+ 	}
+ 	r.run(t, goBin, "build", "-mod=readonly", "-o", bundleDir, "golang.org/x/tools/cmd/bundle")
+@@ -183,9 +182,9 @@ func TestAllDependencies(t *testing.T) {
+ 				}
+ 			}()
+ 
+-			rel, err := filepath.Rel(runtime.GOROOT(), m.Dir)
++			rel, err := filepath.Rel(testenv.GOROOT(t), m.Dir)
+ 			if err != nil {
+-				t.Fatalf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), m.Dir, err)
++				t.Fatalf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), m.Dir, err)
+ 			}
+ 			r := runner{
+ 				Dir: filepath.Join(gorootCopyDir, rel),
+@@ -252,22 +251,22 @@ func packagePattern(modulePath string) string {
+ func makeGOROOTCopy(t *testing.T) string {
+ 	t.Helper()
+ 	gorootCopyDir := t.TempDir()
+-	err := filepath.Walk(runtime.GOROOT(), func(src string, info os.FileInfo, err error) error {
++	err := filepath.Walk(testenv.GOROOT(t), func(src string, info os.FileInfo, err error) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if info.IsDir() && src == filepath.Join(runtime.GOROOT(), ".git") {
++		if info.IsDir() && src == filepath.Join(testenv.GOROOT(t), ".git") {
+ 			return filepath.SkipDir
+ 		}
+ 
+-		rel, err := filepath.Rel(runtime.GOROOT(), src)
++		rel, err := filepath.Rel(testenv.GOROOT(t), src)
+ 		if err != nil {
+-			return fmt.Errorf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), src, err)
++			return fmt.Errorf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), src, err)
+ 		}
+ 		dst := filepath.Join(gorootCopyDir, rel)
+ 
+-		if info.IsDir() && (src == filepath.Join(runtime.GOROOT(), "bin") ||
+-			src == filepath.Join(runtime.GOROOT(), "pkg")) {
++		if info.IsDir() && (src == filepath.Join(testenv.GOROOT(t), "bin") ||
++			src == filepath.Join(testenv.GOROOT(t), "pkg")) {
+ 			// If the OS supports symlinks, use them instead
+ 			// of copying the bin and pkg directories.
+ 			if err := os.Symlink(src, dst); err == nil {
+@@ -435,14 +434,14 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 	goBin := testenv.GoToolPath(t)
+ 
+ 	goroot.once.Do(func() {
+-		goroot.err = filepath.WalkDir(runtime.GOROOT(), func(path string, info fs.DirEntry, err error) error {
++		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				return err
+ 			}
+ 			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
+ 				return filepath.SkipDir
+ 			}
+-			if info.IsDir() && path == filepath.Join(runtime.GOROOT(), "pkg") {
++			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
+ 				// GOROOT/pkg contains generated artifacts, not source code.
+ 				//
+ 				// In https://golang.org/issue/37929 it was observed to somehow contain
+diff --git a/src/cmd/link/internal/ld/nooptcgolink_test.go b/src/cmd/link/internal/ld/nooptcgolink_test.go
+index 73548dabd4..0b76ecaecb 100644
+--- a/src/cmd/link/internal/ld/nooptcgolink_test.go
++++ b/src/cmd/link/internal/ld/nooptcgolink_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"internal/testenv"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -22,7 +21,7 @@ func TestNooptCgoBuild(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	dir := t.TempDir()
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
+-	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
++	cmd.Dir = filepath.Join(testenv.GOROOT(t), "src", "runtime", "testdata", "testprogcgo")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("go build output: %s", out)
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 0d51b07a44..226c2c3bcd 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -66,7 +66,7 @@ func TestNonGoExecs(t *testing.T) {
+ 		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
+ 	}
+ 	for _, f := range testfiles {
+-		exepath := filepath.Join(runtime.GOROOT(), "src", f)
++		exepath := filepath.Join(testenv.GOROOT(t), "src", f)
+ 		if strings.HasSuffix(f, ".base64") {
+ 			tf, err := obscuretestdata.DecodeToTempFile(exepath)
+ 			if err != nil {
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 27c4aa7871..91b656a88c 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -5,16 +5,21 @@
+ package importer
+ 
+ import (
++	"go/build"
+ 	"go/token"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
++func TestMain(m *testing.M) {
++	build.Default.GOROOT = testenv.GOROOT(nil)
++	os.Exit(m.Run())
++}
++
+ func TestForCompiler(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -49,7 +54,7 @@ func TestForCompiler(t *testing.T) {
+ 		// https://github.com/golang/go#28995
+ 		mathBigInt := pkg.Scope().Lookup("Int")
+ 		posn := fset.Position(mathBigInt.Pos()) // "$GOROOT/src/math/big/int.go:25:1"
+-		filename := strings.Replace(posn.Filename, "$GOROOT", runtime.GOROOT(), 1)
++		filename := strings.Replace(posn.Filename, "$GOROOT", testenv.GOROOT(t), 1)
+ 		data, err := os.ReadFile(filename)
+ 		if err != nil {
+ 			t.Fatalf("can't read file containing declaration of math/big.Int: %v", err)
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 51511ea620..89b7fde836 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"time"
+ 
+ 	"go/ast"
++	"go/build"
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+@@ -26,6 +27,11 @@ import (
+ 	. "go/internal/gcimporter"
+ )
+ 
++func TestMain(m *testing.M) {
++	build.Default.GOROOT = testenv.GOROOT(nil)
++	os.Exit(m.Run())
++}
++
+ // skipSpecialPlatforms causes the test to be skipped for platforms where
+ // builders (build.golang.org) don't have access to compiled packages for
+ // import.
+@@ -72,7 +78,7 @@ const maxTime = 30 * time.Second
+ var pkgExts = [...]string{".a", ".o"} // keep in sync with gcimporter.go
+ 
+ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+-	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
++	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+ 	list, err := os.ReadDir(dirname)
+ 	if err != nil {
+ 		t.Fatalf("testDir(%s): %s", dirname, err)
+@@ -162,7 +168,7 @@ func TestImportTypeparamTests(t *testing.T) {
+ 
+ 	// Check go files in test/typeparam, except those that fail for a known
+ 	// reason.
+-	rootDir := filepath.Join(runtime.GOROOT(), "test", "typeparam")
++	rootDir := filepath.Join(testenv.GOROOT(t), "test", "typeparam")
+ 	list, err := os.ReadDir(rootDir)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 05b12f1636..af394665fa 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -21,9 +20,7 @@ import (
+ 
+ func TestMain(m *testing.M) {
+ 	flag.Parse()
+-	if goTool, err := testenv.GoTool(); err == nil {
+-		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+-	}
++	build.Default.GOROOT = testenv.GOROOT(nil)
+ 	os.Exit(m.Run())
+ }
+ 
+@@ -58,7 +55,7 @@ func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
+ 		return 0, false
+ 	}
+ 
+-	list, err := os.ReadDir(filepath.Join(runtime.GOROOT(), "src", path))
++	list, err := os.ReadDir(filepath.Join(testenv.GOROOT(t), "src", path))
+ 	if err != nil {
+ 		t.Fatalf("walkDir %s failed (%v)", path, err)
+ 	}
+@@ -247,7 +244,7 @@ func TestCgo(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 
+ 	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+-	_, err := importer.ImportFrom("./misc/cgo/test", runtime.GOROOT(), 0)
++	_, err := importer.ImportFrom("./misc/cgo/test", testenv.GOROOT(t), 0)
+ 	if err != nil {
+ 		t.Fatalf("Import failed: %v", err)
+ 	}
+diff --git a/src/go/types/main_test.go b/src/go/types/main_test.go
+new file mode 100644
+index 0000000000..73d7d183f7
+--- /dev/null
++++ b/src/go/types/main_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	"go/build"
++	"internal/testenv"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	build.Default.GOROOT = testenv.GOROOT(nil)
++	os.Exit(m.Run())
++}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 5e5e09562a..69bd20b504 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -18,7 +18,6 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -40,7 +39,7 @@ func TestStdlib(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	pkgCount := 0
+-	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
++	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
+ 		typecheck(t, dir, filenames)
+ 		pkgCount++
+ 	}, t.Error)
+@@ -163,7 +162,7 @@ func TestStdTest(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+ 		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
+@@ -181,7 +180,7 @@ func TestStdFixed(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+ 		"issue6889.go",   // gc-specific test
+ 		"issue11362.go",  // canonical import path check
+@@ -206,7 +205,7 @@ func TestStdFixed(t *testing.T) {
+ func TestStdKen(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
++	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "ken"))
+ }
+ 
+ // Package paths of excluded packages.
+@@ -249,7 +248,10 @@ func typecheck(t *testing.T, path string, filenames []string) {
+ 
+ 	// typecheck package files
+ 	conf := Config{
+-		Error:    func(err error) { t.Error(err) },
++		Error: func(err error) {
++			t.Helper()
++			t.Error(err)
++		},
+ 		Importer: stdLibImporter,
+ 	}
+ 	info := Info{Uses: make(map[*ast.Ident]Object)}
+@@ -322,16 +324,13 @@ func (w *walker) walk(dir string) {
+ 	}
+ 
+ 	// apply pkgh to the files in directory dir
+-	// but ignore files directly under $GOROOT/src (might be temporary test files).
+-	if dir != filepath.Join(runtime.GOROOT(), "src") {
+-		files, err := pkgFilenames(dir)
+-		if err != nil {
+-			w.errh(err)
+-			return
+-		}
+-		if files != nil {
+-			w.pkgh(dir, files)
+-		}
++	pkgFiles, err := pkgFilenames(dir)
++	if err != nil {
++		w.errh(err)
++		return
++	}
++	if pkgFiles != nil {
++		w.pkgh(dir, pkgFiles)
+ 	}
+ 
+ 	// traverse subdirectories, but don't walk into testdata
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index d7614b0706..6ef889b02a 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -14,6 +14,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"flag"
++	"fmt"
+ 	"internal/cfg"
+ 	"os"
+ 	"os/exec"
+@@ -96,6 +97,100 @@ func GoToolPath(t testing.TB) string {
+ 	return path
+ }
+ 
++var (
++	gorootOnce sync.Once
++	gorootPath string
++	gorootErr  error
++)
++
++func findGOROOT() (string, error) {
++	gorootOnce.Do(func() {
++		gorootPath = runtime.GOROOT()
++		if gorootPath != "" {
++			// If runtime.GOROOT() is non-empty, assume that it is valid.
++			//
++			// (It might not be: for example, the user may have explicitly set GOROOT
++			// to the wrong directory, or explicitly set GOROOT_FINAL but not GOROOT
++			// and hasn't moved the tree to GOROOT_FINAL yet. But those cases are
++			// rare, and if that happens the user can fix what they broke.)
++			return
++		}
++
++		// runtime.GOROOT doesn't know where GOROOT is (perhaps because the test
++		// binary was built with -trimpath, or perhaps because GOROOT_FINAL was set
++		// without GOROOT and the tree hasn't been moved there yet).
++		//
++		// Since this is internal/testenv, we can cheat and assume that the caller
++		// is a test of some package in a subdirectory of GOROOT/src. ('go test'
++		// runs the test in the directory containing the packaged under test.) That
++		// means that if we start walking up the tree, we should eventually find
++		// GOROOT/src/go.mod, and we can report the parent directory of that.
++
++		cwd, err := os.Getwd()
++		if err != nil {
++			gorootErr = fmt.Errorf("finding GOROOT: %w", err)
++			return
++		}
++
++		dir := cwd
++		for {
++			parent := filepath.Dir(dir)
++			if parent == dir {
++				// dir is either "." or only a volume name.
++				gorootErr = fmt.Errorf("failed to locate GOROOT/src in any parent directory")
++				return
++			}
++
++			if base := filepath.Base(dir); base != "src" {
++				dir = parent
++				continue // dir cannot be GOROOT/src if it doesn't end in "src".
++			}
++
++			b, err := os.ReadFile(filepath.Join(dir, "go.mod"))
++			if err != nil {
++				if os.IsNotExist(err) {
++					dir = parent
++					continue
++				}
++				gorootErr = fmt.Errorf("finding GOROOT: %w", err)
++				return
++			}
++			goMod := string(b)
++
++			for goMod != "" {
++				var line string
++				line, goMod, _ = strings.Cut(goMod, "\n")
++				fields := strings.Fields(line)
++				if len(fields) >= 2 && fields[0] == "module" && fields[1] == "std" {
++					// Found "module std", which is the module declaration in GOROOT/src!
++					gorootPath = parent
++					return
++				}
++			}
++		}
++	})
++
++	return gorootPath, gorootErr
++}
++
++// GOROOT reports the path to the directory containing the root of the Go
++// project source tree. This is normally equivalent to runtime.GOROOT, but
++// works even if the test binary was built with -trimpath.
++//
++// If GOROOT cannot be found, GOROOT skips t if t is non-nil,
++// or panics otherwise.
++func GOROOT(t testing.TB) string {
++	path, err := findGOROOT()
++	if err != nil {
++		if t == nil {
++			panic(err)
++		}
++		t.Helper()
++		t.Skip(err)
++	}
++	return path
++}
++
+ // GoTool reports the path to the Go tool.
+ func GoTool() (string, error) {
+ 	if !HasGoBuild() {
+@@ -105,7 +200,11 @@ func GoTool() (string, error) {
+ 	if runtime.GOOS == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	goroot, err := findGOROOT()
++	if err != nil {
++		return "", fmt.Errorf("cannot find go tool: %w", err)
++	}
++	path := filepath.Join(goroot, "bin", "go"+exeSuffix)
+ 	if _, err := os.Stat(path); err == nil {
+ 		return path, nil
+ 	}
+diff --git a/src/net/netip/inlining_test.go b/src/net/netip/inlining_test.go
+index 107fe1f083..52991bee8c 100644
+--- a/src/net/netip/inlining_test.go
++++ b/src/net/netip/inlining_test.go
+@@ -7,7 +7,6 @@ package netip
+ import (
+ 	"internal/testenv"
+ 	"os/exec"
+-	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -17,12 +16,8 @@ import (
+ func TestInlining(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+-	var exe string
+-	if runtime.GOOS == "windows" {
+-		exe = ".exe"
+-	}
+ 	out, err := exec.Command(
+-		filepath.Join(runtime.GOROOT(), "bin", "go"+exe),
++		testenv.GoToolPath(t),
+ 		"build",
+ 		"--gcflags=-m",
+ 		"net/netip").CombinedOutput()
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 55b27f1af8..cfd0c8244d 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1329,7 +1329,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 	if runtime.GOOS == "ios" {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+-	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
++	root, err := filepath.EvalSymlinks(testenv.GOROOT(t) + "/test")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index ee8c6c210f..bb76116ee9 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -49,7 +49,7 @@ func checkGdbEnvironment(t *testing.T) {
+ 	case "plan9":
+ 		t.Skip("there is no gdb on Plan 9")
+ 	}
+-	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
++	if final := os.Getenv("GOROOT_FINAL"); final != "" && testenv.GOROOT(t) != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
+ 	}
+ }
+@@ -204,7 +204,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	}
+ 
+ 	args := []string{"-nx", "-q", "--batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "set print thread-events off",
+ 	}
+@@ -215,7 +215,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		// Until gold and gdb can work together, temporarily load the
+ 		// python script directly.
+ 		args = append(args,
+-			"-ex", "source "+filepath.Join(runtime.GOROOT(), "src", "runtime", "runtime-gdb.py"),
++			"-ex", "source "+filepath.Join(testenv.GOROOT(t), "src", "runtime", "runtime-gdb.py"),
+ 		)
+ 	} else {
+ 		args = append(args,
+@@ -276,7 +276,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		cmd.Env = []string{}
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
+-			t.Skipf("skipping because GOROOT=%s does not exist", runtime.GOROOT())
++			t.Skipf("skipping because GOROOT=%s does not exist", testenv.GOROOT(t))
+ 		}
+ 
+ 		_, file, _, _ := runtime.Caller(1)
+@@ -416,7 +416,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 
+ 	// Execute gdb commands.
+ 	args := []string{"-nx", "-batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "break main.eee",
+ 		"-ex", "run",
+@@ -498,7 +498,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 
+ 	// Execute gdb commands.
+ 	args := []string{"-nx", "-batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "break main.main",
+ 		"-ex", "run",
+@@ -563,7 +563,7 @@ func TestGdbConst(t *testing.T) {
+ 
+ 	// Execute gdb commands.
+ 	args := []string{"-nx", "-batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "break main.main",
+ 		"-ex", "run",
+@@ -626,7 +626,7 @@ func TestGdbPanic(t *testing.T) {
+ 
+ 	// Execute gdb commands.
+ 	args := []string{"-nx", "-batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "run",
+ 		"-ex", "backtrace",
+@@ -701,7 +701,7 @@ func TestGdbInfCallstack(t *testing.T) {
+ 	// Execute gdb commands.
+ 	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
+ 	args := []string{"-nx", "-batch",
+-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "break setg_gcc",
+ 		"-ex", "run",
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 0a5ce6d732..243ff8ebde 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"reflect"
+ 	"testing"
+@@ -137,7 +138,7 @@ func TestLoadLocationFromTZData(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	gorootSource, ok := time.GorootZoneSource("../..")
++	gorootSource, ok := time.GorootZoneSource(testenv.GOROOT(t))
+ 	if !ok {
+ 		t.Fatal("Failed to locate tzinfo source in GOROOT.")
+ 	}

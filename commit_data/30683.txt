@@ -12,7 +12,86 @@ Date:   Tue Nov 22 15:50:03 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/reflect/all_test.go | 32 ++++++++++++++++++++++++++++++++
  src/reflect/type.go     | 14 ++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e26c20148f..033a18171d 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4059,6 +4059,38 @@ func TestStructOf(t *testing.T) {
+ 		}
+ 	}
+ 
++	// Check size and alignment with a trailing zero-sized field.
++	st = StructOf([]StructField{
++		{
++			Name: "F1",
++			Type: TypeOf(byte(0)),
++		},
++		{
++			Name: "F2",
++			Type: TypeOf([0]*byte{}),
++		},
++	})
++	stt = TypeOf(struct {
++		G1 byte
++		G2 [0]*byte
++	}{})
++	if st.Size() != stt.Size() {
++		t.Errorf("constructed zero-padded struct size = %v, want %v", st.Size(), stt.Size())
++	}
++	if st.Align() != stt.Align() {
++		t.Errorf("constructed zero-padded struct align = %v, want %v", st.Align(), stt.Align())
++	}
++	if st.FieldAlign() != stt.FieldAlign() {
++		t.Errorf("constructed zero-padded struct field align = %v, want %v", st.FieldAlign(), stt.FieldAlign())
++	}
++	for i := 0; i < st.NumField(); i++ {
++		o1 := st.Field(i).Offset
++		o2 := stt.Field(i).Offset
++		if o1 != o2 {
++			t.Errorf("constructed zero-padded struct field %v offset = %v, want %v", i, o1, o2)
++		}
++	}
++
+ 	// check duplicate names
+ 	shouldPanic(func() {
+ 		StructOf([]StructField{
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 4985ba8165..7216fb63c8 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2400,6 +2400,7 @@ func StructOf(fields []StructField) Type {
+ 		hasGCProg = false // records whether a struct-field type has a GCProg
+ 	)
+ 
++	lastzero := uintptr(0)
+ 	repr = append(repr, "struct {"...)
+ 	for i, field := range fields {
+ 		if field.Type == nil {
+@@ -2570,9 +2571,22 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		size = f.offset + ft.size
+ 
++		if ft.size == 0 {
++			lastzero = size
++		}
++
+ 		fs[i] = f
+ 	}
+ 
++	if size > 0 && lastzero == size {
++		// This is a non-zero sized struct that ends in a
++		// zero-sized field. We add an extra byte of padding,
++		// to ensure that taking the address of the final
++		// zero-sized field can't manufacture a poitner to the
++		// next object in the heap. See issue 9401.
++		size++
++	}
++
+ 	var typ *structType
+ 	var ut *uncommonType
+ 	var typPin interface {

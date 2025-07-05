@@ -20,10 +20,162 @@ Date:   Thu Mar 31 09:29:39 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21348
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     |  2 +-
  src/cmd/compile/internal/gc/bimport.go   |  4 ++--
  src/cmd/compile/internal/gc/plive.go     |  5 -----
  src/cmd/compile/internal/gc/type.go      | 21 +++++++++++++++++----
  src/cmd/compile/internal/gc/typecheck.go | 10 ++++++----
  5 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index fd3fe0dce9..85376c6b7e 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -249,7 +249,7 @@ func dowidth(t *Type) {
+ 
+ 			w = t.Bound * t.Elem().Width
+ 			t.Align = t.Elem().Align
+-		} else if t.Bound == -1 {
++		} else if t.IsSlice() {
+ 			w = int64(sizeof_Array)
+ 			checkwidth(t.Elem())
+ 			t.Align = uint8(Widthptr)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 52b9b44a69..082786acd9 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -277,7 +277,7 @@ func (p *importer) typ() *Type {
+ 
+ 	case arrayTag, sliceTag:
+ 		t = p.newtyp(TARRAY)
+-		t.Bound = -1
++		t.Bound = sliceBound
+ 		if i == arrayTag {
+ 			t.Bound = p.int64()
+ 		}
+@@ -285,7 +285,7 @@ func (p *importer) typ() *Type {
+ 
+ 	case dddTag:
+ 		t = p.newtyp(TDDDFIELD)
+-		t.Bound = -1
++		t.Bound = sliceBound
+ 		t.Type = p.typ()
+ 
+ 	case structTag:
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 92200f3fc6..1e66920120 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -918,11 +918,6 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		*xoffset += t.Width
+ 
+ 	case TARRAY:
+-		// The value of t.bound is -1 for slices types and >=0 for
+-		// for fixed array types. All other values are invalid.
+-		if t.Bound < -1 {
+-			Fatalf("onebitwalktype1: invalid bound, %v", t)
+-		}
+ 		if t.IsSlice() {
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			if *xoffset&int64(Widthptr-1) != 0 {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 765b2059a3..e94ec85e60 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -70,7 +70,10 @@ const (
+ 	NTYPE
+ )
+ 
+-const dddBound = -100 // arrays declared as [...]T start life with Bound=dddBound
++const (
++	sliceBound = -1   // slices have Bound=sliceBound
++	dddBound   = -100 // arrays declared as [...]T start life with Bound=dddBound
++)
+ 
+ // Types stores pointers to predeclared named types.
+ //
+@@ -250,7 +253,7 @@ func typArray(elem *Type, bound int64) *Type {
+ func typSlice(elem *Type) *Type {
+ 	t := typ(TARRAY)
+ 	t.Type = elem
+-	t.Bound = -1
++	t.Bound = sliceBound
+ 	return t
+ }
+ 
+@@ -582,6 +585,7 @@ func (t *Type) isDDDArray() bool {
+ 	if t.Etype != TARRAY {
+ 		return false
+ 	}
++	t.checkBound()
+ 	return t.Bound == dddBound
+ }
+ 
+@@ -878,12 +882,20 @@ func (t *Type) IsChan() bool {
+ 	return t.Etype == TCHAN
+ }
+ 
++// checkBound enforces that Bound has an acceptable value.
++func (t *Type) checkBound() {
++	if t.Bound != sliceBound && t.Bound < 0 && t.Bound != dddBound {
++		Fatalf("bad TARRAY bounds %d %s", t.Bound, t)
++	}
++}
++
+ func (t *Type) IsSlice() bool {
+-	// TODO(josharian): Change this to t.Bound == -1.
+-	return t.Etype == TARRAY && t.Bound < 0
++	t.checkBound()
++	return t.Etype == TARRAY && t.Bound == sliceBound
+ }
+ 
+ func (t *Type) IsArray() bool {
++	t.checkBound()
+ 	return t.Etype == TARRAY && t.Bound >= 0
+ }
+ 
+@@ -918,6 +930,7 @@ func (t *Type) NumElem() int64 {
+ 	if t.Etype != TARRAY {
+ 		panic("NumElem on non-TARRAY")
+ 	}
++	t.checkBound()
+ 	return t.Bound
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 260f410275..5bcc8c9616 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -369,17 +369,18 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			t = typArray(r.Type, v.U.(*Mpint).Int64())
+-
+ 			if doesoverflow(v, Types[TINT]) {
+ 				Yyerror("array bound is too large")
+ 				n.Type = nil
+ 				return n
+-			} else if t.IsSlice() {
++			}
++			bound := v.U.(*Mpint).Int64()
++			if bound < 0 {
+ 				Yyerror("array bound must be non-negative")
+ 				n.Type = nil
+ 				return n
+ 			}
++			t = typArray(r.Type, bound)
+ 		}
+ 
+ 		n.Op = OTYPE
+@@ -2974,7 +2975,8 @@ func typecheckcomplit(n *Node) *Node {
+ 				if t.IsArray() && length > t.Bound {
+ 					setlineno(l)
+ 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.Bound)
+-					t.Bound = -1 // no more errors
++					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
++					t.Bound = sliceBound
+ 				}
+ 			}
+ 

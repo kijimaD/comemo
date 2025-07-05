@@ -20,9 +20,251 @@ Date:   Fri Feb 22 12:35:45 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7384054
-
+---
  src/pkg/exp/ssa/builder.go |   2 -
  src/pkg/exp/ssa/func.go    | 109 ++++++++++++++++++++++++++-------------------
  src/pkg/exp/ssa/promote.go |   2 +-
  src/pkg/exp/ssa/sanity.go  |  19 +-------
  4 files changed, 66 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index a00a9e3443..0538b3e6d0 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -33,8 +33,6 @@ package ssa
+ // TODO(adonovan): fix the following:
+ // - support f(g()) where g has multiple result parameters.
+ // - concurrent SSA code generation of multiple packages.
+-// - consider function-local NamedTypes.
+-//   They can have nonempty method-sets due to promotion.  Test.
+ 
+ import (
+ 	"fmt"
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index f31f3edd21..0a6a94b3ed 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -265,6 +265,25 @@ func numberRegisters(f *Function) {
+ 	}
+ }
+ 
++// buildReferrers populates the def/use information in all non-nil
++// Value.Referrers slice.
++// Precondition: all such slices are initially empty.
++func buildReferrers(f *Function) {
++	var rands []*Value
++	for _, b := range f.Blocks {
++		for _, instr := range b.Instrs {
++			rands = instr.Operands(rands[:0]) // recycle storage
++			for _, rand := range rands {
++				if r := *rand; r != nil {
++					if ref := r.Referrers(); ref != nil {
++						*ref = append(*ref, instr)
++					}
++				}
++			}
++		}
++	}
++}
++
+ // finish() finalizes the function after SSA code generation of its body.
+ func (f *Function) finish() {
+ 	f.objects = nil
+@@ -289,20 +308,7 @@ func (f *Function) finish() {
+ 
+ 	optimizeBlocks(f)
+ 
+-	// Build immediate-use (referrers) graph.
+-	var rands []*Value
+-	for _, b := range f.Blocks {
+-		for _, instr := range b.Instrs {
+-			rands = instr.Operands(rands[:0]) // recycle storage
+-			for _, rand := range rands {
+-				if r := *rand; r != nil {
+-					if ref := r.Referrers(); ref != nil {
+-						*ref = append(*ref, instr)
+-					}
+-				}
+-			}
+-		}
+-	}
++	buildReferrers(f)
+ 
+ 	if f.Prog.mode&NaiveForm == 0 {
+ 		// For debugging pre-state of lifting pass:
+@@ -460,39 +466,22 @@ func (f *Function) fullName(from *Package) string {
+ 	return f.Name_
+ }
+ 
+-// DumpTo prints to w a human readable "disassembly" of the SSA code of
+-// all basic blocks of function f.
++// writeSignature writes to w the signature sig in declaration syntax.
++// Derived from types.Signature.String().
+ //
+-func (f *Function) DumpTo(w io.Writer) {
+-	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
+-	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
+-
+-	if f.Enclosing != nil {
+-		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+-	}
+-
+-	if f.FreeVars != nil {
+-		io.WriteString(w, "# Free variables:\n")
+-		for i, fv := range f.FreeVars {
+-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), fv.Type())
+-		}
+-	}
+-
+-	if len(f.Locals) > 0 {
+-		io.WriteString(w, "# Locals:\n")
+-		for i, l := range f.Locals {
+-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), indirectType(l.Type()))
+-		}
+-	}
+-
+-	// Function Signature in declaration syntax; derived from types.Signature.String().
++func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Parameter) {
+ 	io.WriteString(w, "func ")
+-	params := f.Params
+-	if f.Signature.Recv != nil {
+-		fmt.Fprintf(w, "(%s %s) ", params[0].Name(), params[0].Type())
++	if sig.Recv != nil {
++		io.WriteString(w, "(")
++		if n := params[0].Name(); n != "" {
++			io.WriteString(w, n)
++			io.WriteString(w, " ")
++		}
++		io.WriteString(w, params[0].Type().String())
++		io.WriteString(w, ") ")
+ 		params = params[1:]
+ 	}
+-	io.WriteString(w, f.Name())
++	io.WriteString(w, name)
+ 	io.WriteString(w, "(")
+ 	for i, v := range params {
+ 		if i > 0 {
+@@ -500,13 +489,13 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 		io.WriteString(w, v.Name())
+ 		io.WriteString(w, " ")
+-		if f.Signature.IsVariadic && i == len(params)-1 {
++		if sig.IsVariadic && i == len(params)-1 {
+ 			io.WriteString(w, "...")
+ 		}
+ 		io.WriteString(w, v.Type().String())
+ 	}
+ 	io.WriteString(w, ")")
+-	if res := f.Signature.Results; res != nil {
++	if res := sig.Results; res != nil {
+ 		io.WriteString(w, " ")
+ 		var t types.Type
+ 		if len(res) == 1 && res[0].Name == "" {
+@@ -516,6 +505,34 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 		io.WriteString(w, t.String())
+ 	}
++}
++
++// DumpTo prints to w a human readable "disassembly" of the SSA code of
++// all basic blocks of function f.
++//
++func (f *Function) DumpTo(w io.Writer) {
++	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
++	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
++
++	if f.Enclosing != nil {
++		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
++	}
++
++	if f.FreeVars != nil {
++		io.WriteString(w, "# Free variables:\n")
++		for i, fv := range f.FreeVars {
++			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), fv.Type())
++		}
++	}
++
++	if len(f.Locals) > 0 {
++		io.WriteString(w, "# Locals:\n")
++		for i, l := range f.Locals {
++			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), indirectType(l.Type()))
++		}
++	}
++
++	writeSignature(w, f.Name(), f.Signature, f.Params)
+ 	io.WriteString(w, ":\n")
+ 
+ 	if f.Blocks == nil {
+@@ -530,7 +547,7 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b, len(b.Preds), len(b.Succs))
+ 		if false { // CFG debugging
+-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b, blockNames(b.Succs))
++			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
+ 		}
+ 		for _, instr := range b.Instrs {
+ 			io.WriteString(w, "\t")
+diff --git a/src/pkg/exp/ssa/promote.go b/src/pkg/exp/ssa/promote.go
+index 7438f4d3e3..163b0b6825 100644
+--- a/src/pkg/exp/ssa/promote.go
++++ b/src/pkg/exp/ssa/promote.go
+@@ -408,7 +408,7 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
+ 	var list, next []*anonFieldPath
+ 	for i, f := range st.Fields {
+ 		if f.IsAnonymous {
+-			list = append(next, &anonFieldPath{nil, i, f})
++			list = append(list, &anonFieldPath{nil, i, f})
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/exp/ssa/sanity.go b/src/pkg/exp/ssa/sanity.go
+index 9f8ba9f7a7..003f0ba8ff 100644
+--- a/src/pkg/exp/ssa/sanity.go
++++ b/src/pkg/exp/ssa/sanity.go
+@@ -4,7 +4,6 @@ package ssa
+ // Currently it checks CFG invariants but little at the instruction level.
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -41,20 +40,6 @@ func MustSanityCheck(fn *Function, reporter io.Writer) {
+ 	}
+ }
+ 
+-// blockNames returns the names of the specified blocks as a
+-// human-readable string.
+-//
+-func blockNames(blocks []*BasicBlock) string {
+-	var buf bytes.Buffer
+-	for i, b := range blocks {
+-		if i > 0 {
+-			io.WriteString(&buf, ", ")
+-		}
+-		io.WriteString(&buf, b.String())
+-	}
+-	return buf.String()
+-}
+-
+ func (s *sanity) diagnostic(prefix, format string, args ...interface{}) {
+ 	fmt.Fprintf(s.reporter, "%s: function %s", prefix, s.fn.FullName())
+ 	if s.block != nil {
+@@ -236,7 +221,7 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
+ 			}
+ 		}
+ 		if !found {
+-			s.errorf("expected successor edge in predecessor %s; found only: %s", a, blockNames(a.Succs))
++			s.errorf("expected successor edge in predecessor %s; found only: %s", a, a.Succs)
+ 		}
+ 		if a.Func != s.fn {
+ 			s.errorf("predecessor %s belongs to different function %s", a, a.Func.FullName())
+@@ -251,7 +236,7 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
+ 			}
+ 		}
+ 		if !found {
+-			s.errorf("expected predecessor edge in successor %s; found only: %s", c, blockNames(c.Preds))
++			s.errorf("expected predecessor edge in successor %s; found only: %s", c, c.Preds)
+ 		}
+ 		if c.Func != s.fn {
+ 			s.errorf("successor %s belongs to different function %s", c, c.Func.FullName())

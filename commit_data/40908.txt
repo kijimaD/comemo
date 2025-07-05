@@ -10,6 +10,39 @@ Date:   Tue Aug 13 10:27:29 2019 -0400
     (cherry picked from commit 305f6dc30cfd163aa959ec4bd2a912f7c29da5c8)
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190437
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/devel/release.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6bca2e5ff8..1bb3730d8b 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -84,6 +84,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.7">Go
+ 1.12.7 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.12.8 (released 2019/08/13) includes security fixes to the
++<code>net/http</code> and <code>net/url</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.8">Go
++1.12.8 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>
+@@ -181,6 +188,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.12">Go
+ 1.11.12 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.13 (released 2019/08/13) includes security fixes to the
++<code>net/http</code> and <code>net/url</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.13">Go
++1.11.13 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

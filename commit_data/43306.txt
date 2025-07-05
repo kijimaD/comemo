@@ -15,9 +15,196 @@ Date:   Fri Mar 20 08:31:38 2020 -0400
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go        | 42 ++++++++++++++++++--------
  src/cmd/link/internal/ld/link.go       |  3 +-
  src/cmd/link/internal/ld/main.go       |  1 +
  src/cmd/link/internal/loader/loader.go | 54 ++++++++++++++++++++++++++++++++++
  4 files changed, 87 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 468dca9272..49af1c3b74 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -572,31 +572,47 @@ func (ctxt *Link) loadlib() {
+ 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+ }
+ 
+-// Set up dynexp list.
++// genSymsForDynexp constructs a *sym.Symbol version of ctxt.dynexp,
++// writing to the global variable 'dynexp'.
++func genSymsForDynexp(ctxt *Link) {
++	dynexp = make([]*sym.Symbol, len(ctxt.dynexp2))
++	for i, s := range ctxt.dynexp2 {
++		dynexp[i] = ctxt.loader.Syms[s]
++	}
++}
++
++// setupdynexp constructs ctxt.dynexp, a list of loader.Sym.
+ func setupdynexp(ctxt *Link) {
+ 	dynexpMap := ctxt.cgo_export_dynamic
+ 	if ctxt.LinkMode == LinkExternal {
+ 		dynexpMap = ctxt.cgo_export_static
+ 	}
+-	dynexp = make([]*sym.Symbol, 0, len(dynexpMap))
++	d := make([]loader.Sym, 0, len(dynexpMap))
+ 	for exp := range dynexpMap {
+-		s := ctxt.Syms.Lookup(exp, 0)
+-		dynexp = append(dynexp, s)
++		s := ctxt.loader.LookupOrCreateSym(exp, 0)
++		d = append(d, s)
++		// sanity check
++		if !ctxt.loader.AttrReachable(s) {
++			panic("dynexp entry not reachable")
++		}
+ 	}
+-	sort.Sort(byName(dynexp))
++	sort.Slice(dynexp, func(i, j int) bool {
++		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
++	})
+ 
+ 	// Resolve ABI aliases in the list of cgo-exported functions.
+ 	// This is necessary because we load the ABI0 symbol for all
+ 	// cgo exports.
+-	for i, s := range dynexp {
+-		if s.Type != sym.SABIALIAS {
++	for i, s := range d {
++		if ctxt.loader.SymType(s) != sym.SABIALIAS {
+ 			continue
+ 		}
+-		t := resolveABIAlias(s)
+-		t.Attr |= s.Attr
+-		t.SetExtname(s.Extname())
+-		dynexp[i] = t
++		t := ctxt.loader.ResolveABIAlias(s)
++		ctxt.loader.CopyAttributes(s, t)
++		ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
++		d[i] = t
+ 	}
++	ctxt.dynexp2 = d
+ 
+ 	ctxt.cgo_export_static = nil
+ 	ctxt.cgo_export_dynamic = nil
+@@ -2711,6 +2727,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
+ }
+ 
+ func (ctxt *Link) loadlibfull() {
++
+ 	// Load full symbol contents, resolve indexed references.
+ 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
+ 
+@@ -2724,7 +2741,8 @@ func (ctxt *Link) loadlibfull() {
+ 	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
+ 	ctxt.lookup = ctxt.Syms.ROLookup
+ 
+-	setupdynexp(ctxt)
++	// Recreate dynexp using *sym.Symbol instead of loader.Sym
++	genSymsForDynexp(ctxt)
+ 
+ 	// Drop the cgodata reference.
+ 	ctxt.cgodata = nil
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 2777904cca..b32b7c892d 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -92,7 +92,8 @@ type Link struct {
+ 	cgo_export_static  map[string]bool
+ 	cgo_export_dynamic map[string]bool
+ 
+-	datap []*sym.Symbol
++	datap   []*sym.Symbol
++	dynexp2 []loader.Sym
+ }
+ 
+ type cgodata struct {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 2f3091fab2..23873166ae 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -273,6 +273,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		ctxt.dope()
+ 	}
+ 	bench.Start("loadlibfull")
++	setupdynexp(ctxt)
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 	if ctxt.IsAIX() {
+ 		bench.Start("doxcoff")
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 599408370d..03c64839be 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -797,6 +797,19 @@ func (l *Loader) AttrShared(i Sym) bool {
+ 	return l.attrShared.Has(l.extIndex(i))
+ }
+ 
++// SetAttrShared sets the "shared" property for an external
++// symbol (see AttrShared).
++func (l *Loader) SetAttrShared(i Sym, v bool) {
++	if !l.IsExternal(i) {
++		panic(fmt.Sprintf("tried to set shared attr on non-external symbol %d %s", i, l.SymName(i)))
++	}
++	if v {
++		l.attrShared.Set(l.extIndex(i))
++	} else {
++		l.attrShared.Unset(l.extIndex(i))
++	}
++}
++
+ // AttrExternal returns true for function symbols loaded from host
+ // object files.
+ func (l *Loader) AttrExternal(i Sym) bool {
+@@ -1868,6 +1881,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	}
+ }
+ 
++// ResolveABIAlias given a symbol returns the ABI alias target of that
++// symbol. If the sym in question is not an alias, the sym itself is
++// returned.
++func (l *Loader) ResolveABIAlias(s Sym) Sym {
++	if l.SymType(s) != sym.SABIALIAS {
++		return s
++	}
++	relocs := l.Relocs(s)
++	target := relocs.At2(0).Sym()
++	if l.SymType(target) == sym.SABIALIAS {
++		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
++	}
++	return target
++}
++
+ // PropagateSymbolChangesBackToLoader is a temporary shim function
+ // that copies over a given sym.Symbol into the equivalent representation
+ // in the loader world. The intent is to enable converting a given
+@@ -2265,6 +2293,32 @@ func (l *Loader) CopySym(src, dst Sym) {
+ 	// TODO: other attributes?
+ }
+ 
++// CopyAttributes copies over all of the attributes of symbol 'src' to
++// symbol 'dst'.
++func (l *Loader) CopyAttributes(src Sym, dst Sym) {
++	l.SetAttrReachable(dst, l.AttrReachable(src))
++	l.SetAttrOnList(dst, l.AttrOnList(src))
++	l.SetAttrLocal(dst, l.AttrLocal(src))
++	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
++	if l.IsExternal(dst) {
++		l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
++		l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
++		l.SetAttrShared(dst, l.AttrShared(src))
++		l.SetAttrExternal(dst, l.AttrExternal(src))
++	} else {
++		// Some attributes are modifiable only for external symbols.
++		// In such cases, don't try to transfer over the attribute
++		// from the source even if there is a clash. This comes up
++		// when copying attributes from a dupOK ABI wrapper symbol to
++		// the real target symbol (which may not be marked dupOK).
++	}
++	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
++	l.SetAttrSpecial(dst, l.AttrSpecial(src))
++	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
++	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
++	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
++}
++
+ // migrateAttributes copies over all of the attributes of symbol 'src' to
+ // sym.Symbol 'dst'.
+ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {

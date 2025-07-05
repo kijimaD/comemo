@@ -13,7 +13,51 @@ Date:   Wed Feb 28 15:21:18 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/text/tabwriter/tabwriter.go      | 3 ++-
  src/text/tabwriter/tabwriter_test.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index 18ff667ba8..976ad251aa 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -12,6 +12,7 @@
+ package tabwriter
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"unicode/utf8"
+ )
+@@ -476,7 +477,7 @@ func (b *Writer) handlePanic(err *error, op string) {
+ 			*err = nerr.err
+ 			return
+ 		}
+-		panic("tabwriter: panic during " + op)
++		panic(fmt.Sprintf("tabwriter: panic during %s (%v)", op, e))
+ 	}
+ }
+ 
+diff --git a/src/text/tabwriter/tabwriter_test.go b/src/text/tabwriter/tabwriter_test.go
+index a51358dbed..2bb54a25e2 100644
+--- a/src/text/tabwriter/tabwriter_test.go
++++ b/src/text/tabwriter/tabwriter_test.go
+@@ -635,7 +635,7 @@ func wantPanicString(t *testing.T, want string) {
+ }
+ 
+ func TestPanicDuringFlush(t *testing.T) {
+-	defer wantPanicString(t, "tabwriter: panic during Flush")
++	defer wantPanicString(t, "tabwriter: panic during Flush (cannot write)")
+ 	var p panicWriter
+ 	w := new(Writer)
+ 	w.Init(p, 0, 0, 5, ' ', 0)
+@@ -645,7 +645,7 @@ func TestPanicDuringFlush(t *testing.T) {
+ }
+ 
+ func TestPanicDuringWrite(t *testing.T) {
+-	defer wantPanicString(t, "tabwriter: panic during Write")
++	defer wantPanicString(t, "tabwriter: panic during Write (cannot write)")
+ 	var p panicWriter
+ 	w := new(Writer)
+ 	w.Init(p, 0, 0, 5, ' ', 0)

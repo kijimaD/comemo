@@ -7,7 +7,38 @@ Date:   Tue Jan 6 17:39:25 2009 -0800
     R=r
     OCL=22185
     CL=22185
-
+---
  usr/gri/pretty/parser.go    | 5 ++++-
  usr/gri/pretty/selftest2.go | 3 +++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 1e78215058..4bd8e193c2 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -268,7 +268,10 @@ func (P *Parser) ParseArrayType() *AST.Type {
+ 
+ 	t := AST.NewType(P.pos, Scanner.LBRACK);
+ 	P.Expect(Scanner.LBRACK);
+-	if P.tok != Scanner.RBRACK {
++	if P.tok == Scanner.ELLIPSIS {
++		t.expr = P.NewExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
++		P.Next();
++	} else if P.tok != Scanner.RBRACK {
+ 		t.expr = P.ParseExpression(1);
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index af449ed1ac..9b63fd5e9b 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -46,6 +46,9 @@ var (
+ 	A = 5;
+ 	u, v, w int = 0, 0, 0;
+ 	foo = "foo";
++	fixed_array0 = [10]int{};
++	fixed_array1 = [10]int{0, 1, 2};
++	fixed_array2 = [...]string{"foo", "bar"};
+ )
+ 
+ 

@@ -95,7 +95,61 @@ Date:   Sat Dec 7 16:17:33 2024 -0500
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/maps/map.go  | 15 +++++++--------
  src/runtime/map_benchmark_test.go |  3 +++
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index b4db522978..94000a942d 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -439,15 +439,10 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 		data: m.dirPtr,
+ 	}
+ 
+-	h2 := uint8(h2(hash))
+-	ctrls := *g.ctrls()
++	match := g.ctrls().matchH2(h2(hash))
+ 
+-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+-		c := uint8(ctrls)
+-		ctrls >>= 8
+-		if c != h2 {
+-			continue
+-		}
++	for match != 0 {
++		i := match.first()
+ 
+ 		slotKey := g.key(typ, i)
+ 		if typ.IndirectKey() {
+@@ -461,8 +456,12 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 			}
+ 			return slotKey, slotElem, true
+ 		}
++
++		match = match.removeFirst()
+ 	}
+ 
++	// No match here means key is not in the map.
++	// (A single group means no need to probe or check for empty).
+ 	return nil, nil, false
+ }
+ 
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 43c8f0bb61..bf195fa30d 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -1182,9 +1182,12 @@ func BenchmarkMapSmallAccessHit(b *testing.B) {
+ 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
+ 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
+ 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
++	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[smallType, int32]))
+ }
++
+ func BenchmarkMapSmallAccessMiss(b *testing.B) {
+ 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
+ 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
+ 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
++	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[smallType, int32]))
+ }

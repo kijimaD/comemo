@@ -7,7 +7,78 @@ Date:   Wed Oct 12 13:45:25 2011 -0400
     R=bradfitz, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5167043
-
+---
  src/pkg/net/fd.go         | 17 ++++++++++-------
  src/pkg/net/fd_windows.go | 17 ++++++++++-------
  2 files changed, 20 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index a0c56f78ee..e46e1203a5 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -358,20 +358,23 @@ func (fd *netFD) Close() os.Error {
+ 	return nil
+ }
+ 
+-func (fd *netFD) CloseRead() os.Error {
++func (fd *netFD) shutdown(how int) os.Error {
+ 	if fd == nil || fd.sysfile == nil {
+ 		return os.EINVAL
+ 	}
+-	syscall.Shutdown(fd.sysfd, syscall.SHUT_RD)
++	errno := syscall.Shutdown(fd.sysfd, how)
++	if errno != 0 {
++		return &OpError{"shutdown", fd.net, fd.laddr, os.Errno(errno)}
++	}
+ 	return nil
+ }
+ 
++func (fd *netFD) CloseRead() os.Error {
++	return fd.shutdown(syscall.SHUT_RD)
++}
++
+ func (fd *netFD) CloseWrite() os.Error {
+-	if fd == nil || fd.sysfile == nil {
+-		return os.EINVAL
+-	}
+-	syscall.Shutdown(fd.sysfd, syscall.SHUT_WR)
+-	return nil
++	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
+ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 8155d04aae..8e8b3b746d 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -312,20 +312,23 @@ func (fd *netFD) Close() os.Error {
+ 	return nil
+ }
+ 
+-func (fd *netFD) CloseRead() os.Error {
++func (fd *netFD) shutdown(how int) os.Error {
+ 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+ 		return os.EINVAL
+ 	}
+-	syscall.Shutdown(fd.sysfd, syscall.SHUT_RD)
++	errno := syscall.Shutdown(fd.sysfd, how)
++	if errno != 0 {
++		return &OpError{"shutdown", fd.net, fd.laddr, os.Errno(errno)}
++	}
+ 	return nil
+ }
+ 
++func (fd *netFD) CloseRead() os.Error {
++	return fd.shutdown(syscall.SHUT_RD)
++}
++
+ func (fd *netFD) CloseWrite() os.Error {
+-	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+-		return os.EINVAL
+-	}
+-	syscall.Shutdown(fd.sysfd, syscall.SHUT_WR)
+-	return nil
++	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
+ // Read from network.

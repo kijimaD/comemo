@@ -12,7 +12,7 @@ Date:   Sat Mar 13 11:25:15 2021 +0000
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/bytes/buffer.go                                         | 2 +-
  src/cmd/compile/internal/ssa/func.go                        | 2 +-
  src/cmd/compile/internal/ssa/rewrite.go                     | 2 +-
@@ -42,3 +42,368 @@ Date:   Sat Mar 13 11:25:15 2021 +0000
  src/runtime/panic.go                                        | 2 +-
  src/runtime/proc.go                                         | 2 +-
  28 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 549b077708..01764c694e 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -387,7 +387,7 @@ var errUnreadByte = errors.New("bytes.Buffer: UnreadByte: previous operation was
+ 
+ // UnreadByte unreads the last byte returned by the most recent successful
+ // read operation that read at least one byte. If a write has happened since
+-// the last read, if the last read returned an error, or if the read read zero
++// the last read, if the last read returned an error, or if the read reads zero
+ // bytes, UnreadByte returns an error.
+ func (b *Buffer) UnreadByte() error {
+ 	if b.lastRead == opInvalid {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a36529af03..ebbcea598b 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -551,7 +551,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2,
+ 	return v
+ }
+ 
+-// NewValue4I returns a new value in the block with four arguments and and auxint value.
++// NewValue4I returns a new value in the block with four arguments and auxint value.
+ func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 5c56b2b346..3c222f80bf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1414,7 +1414,7 @@ func isPPC64WordRotateMask(v64 int64) bool {
+ 	return (v&vp == 0 || vn&vpn == 0) && v != 0
+ }
+ 
+-// Compress mask and and shift into single value of the form
++// Compress mask and shift into single value of the form
+ // me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
+ // be used to regenerate the input mask.
+ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 7180b3816c..e3f3ac637b 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -279,7 +279,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// things in registers and pushing them onto the stack prior to
+ 	// the ABI0 call, meaning that they will always need to allocate
+ 	// stack space. If the compiler marks them as NOSPLIT this seems
+-	// as though it could lead to situations where the the linker's
++	// as though it could lead to situations where the linker's
+ 	// nosplit-overflow analysis would trigger a link failure. On the
+ 	// other hand if they not tagged NOSPLIT then this could cause
+ 	// problems when building the runtime (since there may be calls to
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 04338629d4..fbe7b71163 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -547,7 +547,7 @@ func TestNumbers(t *testing.T) {
+ 				t.Errorf("%q: got error but bad not set", test.src)
+ 			}
+ 
+-			// compute lit where where s.lit is not defined
++			// compute lit where s.lit is not defined
+ 			var lit string
+ 			switch s.tok {
+ 			case _Name, _Literal:
+diff --git a/src/cmd/compile/internal/types2/examples/methods.go2 b/src/cmd/compile/internal/types2/examples/methods.go2
+index 52f835f80e..7b6b13ddaa 100644
+--- a/src/cmd/compile/internal/types2/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/examples/methods.go2
+@@ -43,7 +43,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+ func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot convert 42 .* to int */ }
+ 
+ // The names of the type parameters used in a parameterized receiver
+-// type don't have to match the type parameter names in the the declaration
++// type don't have to match the type parameter names in the declaration
+ // of the type used for the receiver. In our example, even though T1 is
+ // declared with type parameter named A, methods using that receiver type
+ // are free to use their own name for that type parameter. That is, the
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index ae6642a059..e4d6d0432d 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -522,7 +522,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
+ }
+ 
+ // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
+-// If the the type list is empty (absent), typ trivially satisfies the interface.
++// If the type list is empty (absent), typ trivially satisfies the interface.
+ // TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
+ //           "implements" predicate.
+ func (t *Interface) isSatisfiedBy(typ Type) bool {
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 7b06c3c7f3..ae10946fb1 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -100,7 +100,7 @@ func Init(wd string) error {
+ }
+ 
+ func initFromJSON(overlayJSON OverlayJSON) error {
+-	// Canonicalize the paths in in the overlay map.
++	// Canonicalize the paths in the overlay map.
+ 	// Use reverseCanonicalized to check for collisions:
+ 	// no two 'from' paths should canonicalize to the same path.
+ 	overlay = make(map[string]*node)
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 50a2898f24..d6774e1ce1 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -144,7 +144,7 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
+ 	return lockedfile.MutexAt(path).Lock()
+ }
+ 
+-// SideLock locks a file within the module cache that that previously guarded
++// SideLock locks a file within the module cache that previously guarded
+ // edits to files outside the cache, such as go.sum and go.mod files in the
+ // user's working directory.
+ // If err is nil, the caller MUST eventually call the unlock function.
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 118bb3d2d0..f233cba6df 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -185,7 +185,7 @@ func (c *dbClient) initBase() {
+ 		}
+ 	})
+ 	if errors.Is(err, fs.ErrNotExist) {
+-		// No proxies, or all proxies failed (with 404, 410, or were were allowed
++		// No proxies, or all proxies failed (with 404, 410, or were allowed
+ 		// to fall back), or we reached an explicit "direct" or "off".
+ 		c.base = c.direct
+ 	} else if err != nil {
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 6e39df45a7..a3f2f84505 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -106,7 +106,7 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+ 	{path: queryRepo, query: "ed5ffdaa", vers: "v1.9.10-pre2.0.20191220134614-ed5ffdaa1f5e"},
+ 
+-	// golang.org/issue/29262: The major version for for a module without a suffix
++	// golang.org/issue/29262: The major version for a module without a suffix
+ 	// should be based on the most recent tag (v1 as appropriate, not v0
+ 	// unconditionally).
+ 	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+diff --git a/src/cmd/go/testdata/script/mod_lazy_new_import.txt b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+index 02935bf236..1be61a1561 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_new_import.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+@@ -32,7 +32,7 @@ cmp go.mod go.mod.old
+ cp lazy.go.new lazy.go
+ go list all
+ go list -m all
+-stdout '^example.com/c v0.1.0' # not v0.2.0 as would be be resolved by 'latest'
++stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
+ cmp go.mod go.mod.old
+ 
+ # TODO(#36460):
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+index 3b2791cb89..f8faa93663 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+@@ -22,7 +22,7 @@ import (
+ 	"flag"
+ )
+ 
+-// This test ensures the the order of CONT lines in parallel chatty tests.
++// This test ensures the order of CONT lines in parallel chatty tests.
+ func TestChattyParallel(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+index 58b5ab7267..63034fa3b5 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+@@ -21,7 +21,7 @@ import (
+ 	"flag"
+ )
+ 
+-// This test ensures the the order of CONT lines in parallel chatty tests.
++// This test ensures the order of CONT lines in parallel chatty tests.
+ func TestChattyParallel(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 4515bdd0d3..98c7364e2a 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -57,7 +57,7 @@ func Linknew(arch *LinkArch) *Link {
+ 	return ctxt
+ }
+ 
+-// LookupDerived looks up or creates the symbol with name name derived from symbol s.
++// LookupDerived looks up or creates the symbol with name derived from symbol s.
+ // The resulting symbol will be static iff s is.
+ func (ctxt *Link) LookupDerived(s *LSym, name string) *LSym {
+ 	if s.Static() {
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index 77ee8a4d62..ae873ca6fa 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -394,7 +394,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, compressedSects []*macho.Section,
+ 	// We want the DWARF segment to be considered non-loadable, so
+ 	// force vmaddr and vmsize to zero. In addition, set the initial
+ 	// protection to zero so as to make the dynamic loader happy,
+-	// since otherwise it may complain that that the vm size and file
++	// since otherwise it may complain that the vm size and file
+ 	// size don't match for the segment. See issues 21647 and 32673
+ 	// for more context. Also useful to refer to the Apple dynamic
+ 	// loader source, specifically ImageLoaderMachO::sniffLoadCommands
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 0e6c5a6370..693f9686a7 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -42,7 +42,7 @@ const (
+ 	// opensslSentinel on the connection.
+ 	opensslSendSentinel
+ 
+-	// opensslKeyUpdate causes OpenSSL to send send a key update message to the
++	// opensslKeyUpdate causes OpenSSL to send a key update message to the
+ 	// client and request one back.
+ 	opensslKeyUpdate
+ )
+diff --git a/src/debug/dwarf/const.go b/src/debug/dwarf/const.go
+index c60709199b..c0a74b08bb 100644
+--- a/src/debug/dwarf/const.go
++++ b/src/debug/dwarf/const.go
+@@ -427,7 +427,7 @@ const (
+ 	lneSetDiscriminator = 4
+ )
+ 
+-// Line table directory directory and file name entry formats.
++// Line table directory and file name entry formats.
+ // These are new in DWARF 5.
+ const (
+ 	lnctPath           = 0x01
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 1e39aed07d..4d9db18f9c 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -162,7 +162,7 @@ const (
+ 	_UntypedNil
+ 
+ 	// _WrongAssignCount occurs when the number of values on the right-hand side
+-	// of an assignment or or initialization expression does not match the number
++	// of an assignment or initialization expression does not match the number
+ 	// of variables on the left-hand side.
+ 	//
+ 	// Example:
+diff --git a/src/go/types/examples/methods.go2 b/src/go/types/examples/methods.go2
+index c294627837..76c6539e1b 100644
+--- a/src/go/types/examples/methods.go2
++++ b/src/go/types/examples/methods.go2
+@@ -42,7 +42,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+ func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot use 42 .* as int */ }
+ 
+ // The names of the type parameters used in a parameterized receiver
+-// type don't have to match the type parameter names in the the declaration
++// type don't have to match the type parameter names in the declaration
+ // of the type used for the receiver. In our example, even though T1 is
+ // declared with type parameter named A, methods using that receiver type
+ // are free to use their own name for that type parameter. That is, the
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 201da95a58..21d49de3aa 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -519,7 +519,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
+ }
+ 
+ // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
+-// If the the type list is empty (absent), typ trivially satisfies the interface.
++// If the type list is empty (absent), typ trivially satisfies the interface.
+ // TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
+ //           "implements" predicate.
+ func (t *Interface) isSatisfiedBy(typ Type) bool {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 63e37de4b7..60a42b0426 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -690,7 +690,7 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
+ }
+ 
+ // collectParams declares the parameters of list in scope and returns the corresponding
+-// variable list. If type0 != nil, it is used instead of the the first type in list.
++// variable list. If type0 != nil, it is used instead of the first type in list.
+ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
+ 	if list == nil {
+ 		return
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 0379848e70..feecc8ce9c 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7297,7 +7297,7 @@ func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
+ 	return st.canTakeNewRequest
+ }
+ 
+-// tooIdleLocked reports whether this connection has been been sitting idle
++// tooIdleLocked reports whether this connection has been sitting idle
+ // for too much wall time.
+ func (cc *http2ClientConn) tooIdleLocked() bool {
+ 	// The Round(0) strips the monontonic clock reading so the
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ad99741177..ea3486289a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2638,7 +2638,7 @@ type Server struct {
+ 	// value.
+ 	ConnContext func(ctx context.Context, c net.Conn) context.Context
+ 
+-	inShutdown atomicBool // true when when server is in shutdown
++	inShutdown atomicBool // true when server is in shutdown
+ 
+ 	disableKeepAlives int32     // accessed atomically.
+ 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+index 9a40ea1984..fc96144597 100644
+--- a/src/runtime/defer_test.go
++++ b/src/runtime/defer_test.go
+@@ -370,7 +370,7 @@ func g2() {
+ 	defer ap.method2()
+ 	defer ap.method1()
+ 	ff1(ap, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+-	// Try to get the stack to be be moved by growing it too large, so
++	// Try to get the stack to be moved by growing it too large, so
+ 	// existing stack-allocated defer becomes invalid.
+ 	rec1(2000)
+ }
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index edc6452bba..dbd835506f 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -157,7 +157,7 @@ backwardlargeloop:
+ 
+ backward32setup:
+ 	MOVD	QWORDS, CTR			// set up loop ctr
+-	MOVD	$16, IDX16			// 32 bytes at at time
++	MOVD	$16, IDX16			// 32 bytes at a time
+ 
+ backward32loop:
+ 	SUB	$32, TGT
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e320eaa596..b5133fa5b4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -699,7 +699,7 @@ func printpanics(p *_panic) {
+ // specified by sp. If sp is nil, it uses the sp from the current defer record
+ // (which has just been finished). Hence, it continues the stack scan from the
+ // frame of the defer that just finished. It skips any frame that already has an
+-// open-coded _defer record, which would have been been created from a previous
++// open-coded _defer record, which would have been created from a previous
+ // (unrecovered) panic.
+ //
+ // Note: All entries of the defer chain (including this new open-coded entry) have
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8db3b767d1..9ebfe70883 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1318,7 +1318,7 @@ func mstart1() {
+ 		throw("bad runtime·mstart")
+ 	}
+ 
+-	// Set up m.g0.sched as a label returning returning to just
++	// Set up m.g0.sched as a label returning to just
+ 	// after the mstart1 call in mstart0 above, for use by goexit0 and mcall.
+ 	// We're never coming back to mstart1 after we call schedule,
+ 	// so other calls can reuse the current frame.

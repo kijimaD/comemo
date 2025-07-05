@@ -15,6 +15,29 @@ Date:   Wed Apr 12 20:01:25 2017 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 53a5a0610d..7ce1e0c30b 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -12,11 +12,17 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+ func TestRuntimeTypeDIEs(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
+ 	dir, err := ioutil.TempDir("", "TestRuntimeTypeDIEs")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)

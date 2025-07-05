@@ -11,6 +11,20 @@ Date:   Thu Apr 15 23:39:30 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/310429
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go/internal/modload/init.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 4d240a7b64..3c7db6c8a7 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -554,7 +554,7 @@ func checkModulePathLax(p string) error {
+ 	// with file systems and subcommands. Disallow file path separators : and \
+ 	// because path separators other than / will confuse the module cache.
+ 	// See fileNameOK in golang.org/x/mod/module/module.go.
+-	shellChars := "`" + `\"'*<>?|`
++	shellChars := "`" + `"'*<>?|`
+ 	fsChars := `\:`
+ 	if i := strings.IndexAny(p, shellChars); i >= 0 {
+ 		return errorf("contains disallowed shell character %q", p[i])

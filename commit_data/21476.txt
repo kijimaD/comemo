@@ -7,8 +7,102 @@ Date:   Wed Jan 7 14:24:18 2015 -0800
     Change-Id: I4dc97ff8111bdc5ca6e4e3af06aaf4f768031c68
     Reviewed-on: https://go-review.googlesource.com/2473
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/asm_386.s      | 6 +++---
  src/runtime/asm_amd64.s    | 6 +++---
  src/runtime/asm_amd64p32.s | 6 +++---
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 1134c34390..0a58faf19b 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -451,7 +451,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-13
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	SETEQ	, ret+12(FP)
++	SETEQ	ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+@@ -482,7 +482,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-21
+ 	MOVL	new_hi+16(FP), CX
+ 	LOCK
+ 	CMPXCHG8B	0(BP)
+-	SETEQ	, ret+20(FP)
++	SETEQ	ret+20(FP)
+ 	RET
+ 
+ // bool casp(void **p, void *old, void *new)
+@@ -498,7 +498,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-13
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	SETEQ	, ret+12(FP)
++	SETEQ	ret+12(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 3199848599..8547228ee3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -439,7 +439,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
+ 	MOVL	new+12(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	SETEQ	, ret+16(FP)
++	SETEQ	ret+16(FP)
+ 	RET
+ 
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+@@ -456,7 +456,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	, ret+24(FP)
++	SETEQ	ret+24(FP)
+ 	RET
+ 	
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
+@@ -484,7 +484,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	, ret+24(FP)
++	SETEQ	ret+24(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 57ac70ba24..6d50ba9f4b 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -411,7 +411,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	SETEQ	, ret+16(FP)
++	SETEQ	ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
+@@ -440,7 +440,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	, ret+24(FP)
++	SETEQ	ret+24(FP)
+ 	RET
+ 
+ // bool casp(void **val, void *old, void *new)
+@@ -456,7 +456,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-17
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	SETEQ	, ret+16(FP)
++	SETEQ	ret+16(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)

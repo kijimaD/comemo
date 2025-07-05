@@ -7,7 +7,46 @@ Date:   Fri Feb 17 20:35:18 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5673089
-
+---
  test/fixedbugs/bug036.go | 13 -------------
  test/fixedbugs/bug038.go | 13 -------------
  2 files changed, 26 deletions(-)
+
+diff --git a/test/fixedbugs/bug036.go b/test/fixedbugs/bug036.go
+deleted file mode 100644
+index cc20516ce8..0000000000
+--- a/test/fixedbugs/bug036.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// ! $G $D/$F.go >/dev/null
+-// # ignoring error messages...
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	s := float(0);
+-	s := float(0);  // BUG redeclaration
+-}
+diff --git a/test/fixedbugs/bug038.go b/test/fixedbugs/bug038.go
+deleted file mode 100644
+index 7585376a36..0000000000
+--- a/test/fixedbugs/bug038.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// ! $G $D/$F.go >/dev/null
+-// # ignoring error messages...
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	var z [3]byte;
+-	z := new([3]byte);  // BUG redeclaration
+-}

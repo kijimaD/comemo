@@ -16,6 +16,21 @@ Date:   Mon Oct 21 17:06:02 2019 -0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sync/atomic/atomic_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 135f02a726..286eadc6cd 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1140,6 +1140,9 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
+ 	StoreUintptr(addr, new)
+ }
+ 
++//go:nocheckptr
++// This code is just testing that LoadPointer/StorePointer operate
++// atomically; it's not actually calculating pointers.
+ func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
+ 	addr := (*unsafe.Pointer)(paddr)
+ 	v := uintptr(LoadPointer(addr))

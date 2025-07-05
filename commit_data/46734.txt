@@ -13,6 +13,23 @@ Date:   Mon Jan 25 11:14:57 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285718
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  doc/go1.16.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 78f69f6c7d..9c4910053c 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -895,9 +895,9 @@ func TestFoo(t *testing.T) {
+   <dd>
+     <p><!-- CL 267887 -->
+       The new function
+-      <a href="/pkg/path/filepath/WalkDir"><code>WalkDir</code></a>
++      <a href="/pkg/path/filepath/#WalkDir"><code>WalkDir</code></a>
+       is similar to
+-      <a href="/pkg/path/filepath/Walk"><code>Walk</code></a>,
++      <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a>,
+       but is typically more efficient.
+       The function passed to <code>WalkDir</code> receives a
+       <a href="/pkg/io/fs/#DirEntry"><code>fs.DirEntry</code></a>

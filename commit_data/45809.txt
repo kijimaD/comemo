@@ -13,6 +13,20 @@ Date:   Thu Nov 19 16:38:11 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 5bf9c81460..4e19f30477 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -890,7 +890,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 			// TODO(gri) We should report exactly what went wrong. At the
+ 			//           moment we don't have the (go/constant) API for that.
+ 			//           See also TODO in go/constant/value.go.
+-			check.errorf(atPos(e.OpPos), _InvalidConstVal, "constant result not representable")
++			check.errorf(atPos(e.OpPos), _InvalidConstVal, "constant result is not representable")
+ 			// TODO(gri) Should we mark operands with unknown values as invalid?
+ 		}
+ 		// Typed constants must be representable in

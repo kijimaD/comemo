@@ -30,7 +30,7 @@ Date:   Tue Aug 11 09:47:45 2015 -0700
     Change-Id: Ib2ca6824551671f92e0e1800b036f5ca0905e2a3
     Reviewed-on: https://go-review.googlesource.com/13474
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 36 ++++++++++++++++++++++----
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 +++
@@ -39,3 +39,199 @@ Date:   Tue Aug 11 09:47:45 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 10 +++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 18 +++++++++++++
  7 files changed, 73 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dcc7de8d04..75e12ee8f2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1499,20 +1499,27 @@ func canSSA(n *Node) bool {
+ }
+ 
+ // nilCheck generates nil pointer checking code.
+-// Starts a new block on return.
++// Starts a new block on return, unless nil checks are disabled.
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
++	if Disable_checknil != 0 {
++		return
++	}
+ 	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
+ 	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
++	b.Kind = ssa.BlockIf // TODO: likeliness hint
+ 	b.Control = c
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
++	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	addEdge(b, bNext)
+-	addEdge(b, s.exit)
+-	s.startBlock(bNext)
+-	// TODO(khr): Don't go directly to exit.  Go to a stub that calls panicmem first.
++	addEdge(b, bPanic)
++	addEdge(bPanic, s.exit)
++	s.startBlock(bPanic)
+ 	// TODO: implicit nil checks somehow?
++	s.vars[&memvar] = s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
++	s.endBlock()
++	s.startBlock(bNext)
+ }
+ 
+ // boundsCheck generates bounds checking code.  Checks if 0 <= idx < len, branches to exit if not.
+@@ -2145,6 +2152,25 @@ func genValue(v *ssa.Value) {
+ 	case ssa.OpArg:
+ 		// memory arg needs no code
+ 		// TODO: check that only mem arg goes here.
++	case ssa.OpAMD64LoweredPanicNilCheck:
++		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
++			Warnl(int(v.Line), "generated nil check")
++		}
++		// Write to memory address 0. It doesn't matter what we write; use AX.
++		// XORL AX, AX; MOVL AX, (AX) is shorter than MOVL AX, 0.
++		// TODO: If we had the pointer (v.Args[0]) in a register r,
++		// we could use MOVL AX, (r) instead of having to zero AX.
++		// But it isn't worth loading r just to accomplish that.
++		p := Prog(x86.AXORL)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x86.REG_AX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = x86.REG_AX
++		q := Prog(x86.AMOVL)
++		q.From.Type = obj.TYPE_REG
++		q.From.Reg = x86.REG_AX
++		q.To.Type = obj.TYPE_MEM
++		q.To.Reg = x86.REG_AX
+ 	case ssa.OpAMD64CALLstatic:
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 42b3cf2777..29f60d9a6b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -216,6 +216,8 @@
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+ (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
++(PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
++
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+ 
+ (Not x) -> (XORBconst [1] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 65fc5c60e1..9808745e35 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -287,6 +287,9 @@ func init() {
+ 		// Rewrites will convert this to (SETG (CMPQ b a)).
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 		{name: "InvertFlags"}, // reverse direction of arg0
++
++		// LoweredPanicNilCheck is a pseudo-op.
++		{name: "LoweredPanicNilCheck"},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 4aa6af5c9e..6ff5d1ea1a 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -252,6 +252,8 @@ var genericOps = []opData{
+ 	{name: "IsNonNil"},   // arg0 != nil
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+ 
++	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem
++
+ 	// Indexing operations
+ 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+ 	{name: "PtrIndex"},     // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 6f6b885062..56ee062b92 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -17,9 +17,14 @@ func checkLower(f *Func) {
+ 	// rules may leave dead generic ops behind).
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
+-				f.Unimplementedf("%s not lowered", v.LongString())
++			if !opcodeTable[v.Op].generic {
++				continue // lowered
+ 			}
++			switch v.Op {
++			case OpSP, OpSB, OpArg, OpCopy, OpPhi:
++				continue // ok not to lower
++			}
++			f.Unimplementedf("%s not lowered", v.LongString())
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 427fb33f57..d56a8ba81b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -194,6 +194,7 @@ const (
+ 	OpAMD64CALLclosure
+ 	OpAMD64REPMOVSB
+ 	OpAMD64InvertFlags
++	OpAMD64LoweredPanicNilCheck
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -367,6 +368,7 @@ const (
+ 	OpTrunc64to32
+ 	OpIsNonNil
+ 	OpIsInBounds
++	OpPanicNilCheck
+ 	OpArrayIndex
+ 	OpPtrIndex
+ 	OpOffPtr
+@@ -2113,6 +2115,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "InvertFlags",
+ 		reg:  regInfo{},
+ 	},
++	{
++		name: "LoweredPanicNilCheck",
++		reg:  regInfo{},
++	},
+ 
+ 	{
+ 		name:    "Add8",
+@@ -2802,6 +2808,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "IsInBounds",
+ 		generic: true,
+ 	},
++	{
++		name:    "PanicNilCheck",
++		generic: true,
++	},
+ 	{
+ 		name:    "ArrayIndex",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4a9fa71bdb..2668d570d1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4836,6 +4836,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end6f8a8c559a167d1f0a5901d09a1fb248
+ 	end6f8a8c559a167d1f0a5901d09a1fb248:
+ 		;
++	case OpPanicNilCheck:
++		// match: (PanicNilCheck ptr mem)
++		// cond:
++		// result: (LoweredPanicNilCheck ptr mem)
++		{
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64LoweredPanicNilCheck
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto enda02b1ad5a6f929b782190145f2c8628b
++	enda02b1ad5a6f929b782190145f2c8628b:
++		;
+ 	case OpRsh16Ux16:
+ 		// match: (Rsh16Ux16 <t> x y)
+ 		// cond:

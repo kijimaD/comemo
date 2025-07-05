@@ -9,7 +9,49 @@ Date:   Tue May 21 18:35:47 2013 +0200
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/9614044
-
+---
  src/cmd/gc/typecheck.c      |  5 +++++
  test/fixedbugs/issue5172.go | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 40eecd337c..12839009e3 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1793,6 +1793,11 @@ checkdefergo(Node *n)
+ 		break;
+ 	default:
+ 	conv:
++		// type is broken or missing, most likely a method call on a broken type
++		// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
++		if(n->left->type == T || n->left->type->broke)
++			break;
++
+ 		if(!n->diag) {
+ 			// The syntax made sure it was a call, so this must be
+ 			// a conversion.
+diff --git a/test/fixedbugs/issue5172.go b/test/fixedbugs/issue5172.go
+new file mode 100644
+index 0000000000..2dd542a5db
+--- /dev/null
++++ b/test/fixedbugs/issue5172.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 5172: spurious warn about type conversion on broken type inside go and defer
++
++package main
++
++type foo struct {
++	x bar // ERROR "undefined"
++}
++
++func main() {
++	var f foo
++	go f.bar()
++	defer f.bar()
++}

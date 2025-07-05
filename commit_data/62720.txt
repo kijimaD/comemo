@@ -13,7 +13,33 @@ Date:   Fri Mar 7 21:49:56 2025 +0300
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 +-
  src/cmd/compile/internal/ir/expr.go    | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 07db16b280..e30de3d8c8 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -786,7 +786,7 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
+ 	if call.Op() != ir.OCALLFUNC {
+ 		return false, false
+ 	}
+-	if call.GoDefer || call.NoInline {
++	if call.GoDefer {
+ 		return false, false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 5bd26fc145..cf56515a2c 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -191,7 +191,6 @@ type CallExpr struct {
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+ 	GoDefer   bool // whether this call is part of a go or defer statement
+-	NoInline  bool // whether this call must not be inlined
+ }
+ 
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {

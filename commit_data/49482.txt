@@ -13,8 +13,66 @@ Date:   Fri Aug 20 10:19:12 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go      | 2 +-
  src/go/types/api_test.go | 9 +++++----
  src/go/types/check.go    | 4 ++--
  3 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index b8e772ada0..5beeff530c 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -363,7 +363,7 @@ func (tv TypeAndValue) HasOk() bool {
+ // Inferred reports the Inferred type arguments and signature
+ // for a parameterized function call that uses type inference.
+ type Inferred struct {
+-	TArgs []Type
++	TArgs *TypeList
+ 	Sig   *Signature
+ }
+ 
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 7a0419bfd5..1e7d6f2cfa 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -482,7 +482,7 @@ func TestInferredInfo(t *testing.T) {
+ 		}
+ 
+ 		// look for inferred type arguments and signature
+-		var targs []Type
++		var targs *TypeList
+ 		var sig *Signature
+ 		for call, inf := range info.Inferred {
+ 			var fun ast.Expr
+@@ -506,11 +506,12 @@ func TestInferredInfo(t *testing.T) {
+ 		}
+ 
+ 		// check that type arguments are correct
+-		if len(targs) != len(test.targs) {
+-			t.Errorf("package %s: got %d type arguments; want %d", name, len(targs), len(test.targs))
++		if targs.Len() != len(test.targs) {
++			t.Errorf("package %s: got %d type arguments; want %d", name, targs.Len(), len(test.targs))
+ 			continue
+ 		}
+-		for i, targ := range targs {
++		for i := 0; i < targs.Len(); i++ {
++			targ := targs.At(i)
+ 			if got := targ.String(); got != test.targs[i] {
+ 				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
+ 				continue
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b2d076dc68..909bf8d52d 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -406,8 +406,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+ func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
+ 	assert(call != nil)
+ 	assert(sig != nil)
+-	if m := check.Info.Inferred; m != nil {
+-		m[call] = Inferred{targs, sig}
++	if m := check.Inferred; m != nil {
++		m[call] = Inferred{&TypeList{targs}, sig}
+ 	}
+ }
+ 

@@ -15,7 +15,7 @@ Date:   Wed Aug 19 16:05:02 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go     |  3 +--
  src/cmd/compile/internal/gc/closure.go | 14 +-------------
  src/cmd/compile/internal/gc/dcl.go     | 14 +++++++++-----
@@ -23,3 +23,130 @@ Date:   Wed Aug 19 16:05:02 2020 +0700
  src/cmd/compile/internal/gc/subr.go    |  4 +---
  src/cmd/compile/internal/gc/walk.go    |  3 +--
  6 files changed, 13 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 2b63700569..c9d71ea00b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -429,8 +429,7 @@ func hashfor(t *types.Type) *Node {
+ 	}
+ 
+ 	n := newname(sym)
+-	n.SetClass(PFUNC)
+-	n.Sym.SetFunc(true)
++	setNodeNameFunc(n)
+ 	n.Type = functype(nil, []*Node{
+ 		anonfield(types.NewPtr(t)),
+ 		anonfield(types.Types[TUINTPTR]),
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 23e48939b4..250be38e5b 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -107,18 +107,7 @@ func typecheckclosure(clo *Node, top int) {
+ 	}
+ 
+ 	xfunc.Func.Nname.Sym = closurename(Curfn)
+-	disableExport(xfunc.Func.Nname.Sym)
+-	if xfunc.Func.Nname.Sym.Def != nil {
+-		// The only case we can reach here is when the outer function was redeclared.
+-		// In that case, don't bother to redeclare the closure. Otherwise, we will get
+-		// a spurious error message, see #17758. While we are here, double check that
+-		// we already reported other error.
+-		if nsavederrors+nerrors == 0 {
+-			Fatalf("unexpected symbol collision %v", xfunc.Func.Nname.Sym)
+-		}
+-	} else {
+-		declare(xfunc.Func.Nname, PFUNC)
+-	}
++	setNodeNameFunc(xfunc.Func.Nname)
+ 	xfunc = typecheck(xfunc, ctxStmt)
+ 
+ 	// Type check the body now, but only if we're inside a function.
+@@ -473,7 +462,6 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	tfn.List.Set(structargs(t0.Params(), true))
+ 	tfn.Rlist.Set(structargs(t0.Results(), false))
+ 
+-	disableExport(sym)
+ 	xfunc := dclfunc(sym, tfn)
+ 	xfunc.Func.SetDupok(true)
+ 	xfunc.Func.SetNeedctxt(true)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6dc6f4db70..69eb13f607 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -985,10 +985,14 @@ func makefuncsym(s *types.Sym) {
+ 	}
+ }
+ 
+-// disableExport prevents sym from being included in package export
+-// data. To be effectual, it must be called before declare.
+-func disableExport(sym *types.Sym) {
+-	sym.SetOnExportList(true)
++// setNodeNameFunc marks a node as a function.
++func setNodeNameFunc(n *Node) {
++	if n.Op != ONAME || n.Class() != Pxxx {
++		Fatalf("expected ONAME/Pxxx node, got %v", n)
++	}
++
++	n.SetClass(PFUNC)
++	n.Sym.SetFunc(true)
+ }
+ 
+ func dclfunc(sym *types.Sym, tfn *Node) *Node {
+@@ -1000,7 +1004,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
+ 	fn.Func.Nname = newfuncnamel(lineno, sym)
+ 	fn.Func.Nname.Name.Defn = fn
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+-	declare(fn.Func.Nname, PFUNC)
++	setNodeNameFunc(fn.Func.Nname)
+ 	funchdr(fn)
+ 	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
+ 	return fn
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 03e475e85a..94cbcf9846 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -45,7 +45,6 @@ func fninit(n []*Node) {
+ 	if len(nf) > 0 {
+ 		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
+ 		initializers := lookup("init")
+-		disableExport(initializers)
+ 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
+ 		for _, dcl := range dummyInitFn.Func.Dcl {
+ 			dcl.Name.Curfn = fn
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9c6cd24eb7..8fa3fca50f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1543,7 +1543,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	tfn.List.Set(structargs(method.Type.Params(), true))
+ 	tfn.Rlist.Set(structargs(method.Type.Results(), false))
+ 
+-	disableExport(newnam)
+ 	fn := dclfunc(newnam, tfn)
+ 	fn.Func.SetDupok(true)
+ 
+@@ -1631,8 +1630,7 @@ func hashmem(t *types.Type) *Node {
+ 	sym := Runtimepkg.Lookup("memhash")
+ 
+ 	n := newname(sym)
+-	n.SetClass(PFUNC)
+-	n.Sym.SetFunc(true)
++	setNodeNameFunc(n)
+ 	n.Type = functype(nil, []*Node{
+ 		anonfield(types.NewPtr(t)),
+ 		anonfield(types.Types[TUINTPTR]),
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 90ecb50d6a..0158af8700 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3166,8 +3166,7 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
+ 	case ASPECIAL:
+ 		sym := typesymprefix(".eq", t)
+ 		n := newname(sym)
+-		n.SetClass(PFUNC)
+-		n.Sym.SetFunc(true)
++		setNodeNameFunc(n)
+ 		n.Type = functype(nil, []*Node{
+ 			anonfield(types.NewPtr(t)),
+ 			anonfield(types.NewPtr(t)),

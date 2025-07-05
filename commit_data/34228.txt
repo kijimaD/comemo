@@ -14,6 +14,36 @@ Date:   Wed Oct 11 10:34:35 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/69970
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug_test.go | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 238745466f..975c1291a7 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -98,12 +98,18 @@ func TestNexting(t *testing.T) {
+ 		}
+ 	}
+ 
+-	testNexting(t, "hist", "dbg", "-N -l")
+-	// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
+-	// This occurs in the noopt builders (for example).
+-	if gogcflags := os.Getenv("GO_GCFLAGS"); *force || !strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l") {
+-		testNexting(t, "hist", "opt", "")
+-	}
++	t.Run("dbg", func(t *testing.T) {
++		testNexting(t, "hist", "dbg", "-N -l")
++	})
++	t.Run("opt", func(t *testing.T) {
++		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
++		// This occurs in the noopt builders (for example).
++		if gogcflags := os.Getenv("GO_GCFLAGS"); *force || (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l")) {
++			testNexting(t, "hist", "opt", "")
++		} else {
++			t.Skip("skipping for unoptimized runtime")
++		}
++	})
+ }
+ 
+ func testNexting(t *testing.T, base, tag, gcflags string) {

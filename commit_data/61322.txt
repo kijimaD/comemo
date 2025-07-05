@@ -16,7 +16,7 @@ Date:   Tue Oct 8 10:52:54 2024 +0100
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/export_windows_test.go |  9 +++---
  src/os/file.go                | 19 ++++-------
  src/os/file_nonwindows.go     | 15 +++++++++
@@ -25,3 +25,333 @@ Date:   Tue Oct 8 10:52:54 2024 +0100
  src/os/path_windows.go        | 29 +++++++++++++++++
  src/os/path_windows_test.go   | 53 +++++++++++++++++++++++++++++++
  7 files changed, 203 insertions(+), 17 deletions(-)
+
+diff --git a/src/os/export_windows_test.go b/src/os/export_windows_test.go
+index aefbe4033e..faab5470f7 100644
+--- a/src/os/export_windows_test.go
++++ b/src/os/export_windows_test.go
+@@ -7,8 +7,9 @@ package os
+ // Export for testing.
+ 
+ var (
+-	AddExtendedPrefix  = addExtendedPrefix
+-	NewConsoleFile     = newConsoleFile
+-	CommandLineToArgv  = commandLineToArgv
+-	AllowReadDirFileID = &allowReadDirFileID
++	AddExtendedPrefix     = addExtendedPrefix
++	NewConsoleFile        = newConsoleFile
++	CommandLineToArgv     = commandLineToArgv
++	AllowReadDirFileID    = &allowReadDirFileID
++	ValidatePathForCreate = validatePathForCreate
+ )
+diff --git a/src/os/file.go b/src/os/file.go
+index 0341469e2d..c75606d749 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -305,25 +305,18 @@ func (f *File) WriteString(s string) (n int, err error) {
+ // bits (before umask).
+ // If there is an error, it will be of type *PathError.
+ func Mkdir(name string, perm FileMode) error {
+-	longName := fixLongPath(name)
+-	e := ignoringEINTR(func() error {
+-		return syscall.Mkdir(longName, syscallMode(perm))
+-	})
+-
+-	if e != nil {
+-		return &PathError{Op: "mkdir", Path: name, Err: e}
++	err := mkdir(name, perm)
++	if err != nil {
++		return &PathError{Op: "mkdir", Path: name, Err: err}
+ 	}
+-
+ 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+ 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
+-		e = setStickyBit(name)
+-
+-		if e != nil {
++		err = setStickyBit(name)
++		if err != nil {
+ 			Remove(name)
+-			return e
++			return err
+ 		}
+ 	}
+-
+ 	return nil
+ }
+ 
+diff --git a/src/os/file_nonwindows.go b/src/os/file_nonwindows.go
+new file mode 100644
+index 0000000000..d0e7843ee5
+--- /dev/null
++++ b/src/os/file_nonwindows.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !windows
++
++package os
++
++import "syscall"
++
++func mkdir(name string, perm FileMode) error {
++	return ignoringEINTR(func() error {
++		return syscall.Mkdir(name, syscallMode(perm))
++	})
++}
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 465cf5d186..0fd6c99f94 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -17,6 +17,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var errInvalidPath = errors.New("invalid path: cannot end with a space or period")
++
+ // This matches the value in syscall/syscall_windows.go.
+ const _UTIME_OMIT = -1
+ 
+@@ -102,6 +104,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	if name == "" {
+ 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
+ 	}
++	if flag&O_CREATE != 0 && !validatePathForCreate(name) {
++		return nil, &PathError{Op: "open", Path: name, Err: errInvalidPath}
++	}
+ 	path := fixLongPath(name)
+ 	r, err := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if err != nil {
+@@ -114,6 +119,14 @@ func openDirNolog(name string) (*File, error) {
+ 	return openFileNolog(name, O_RDONLY, 0)
+ }
+ 
++func mkdir(name string, perm FileMode) error {
++	if !validatePathForCreate(name) {
++		return errInvalidPath
++	}
++	longName := fixLongPath(name)
++	return syscall.Mkdir(longName, syscallMode(perm))
++}
++
+ func (file *file) close() error {
+ 	if file == nil {
+ 		return syscall.EINVAL
+@@ -204,6 +217,9 @@ func Remove(name string) error {
+ }
+ 
+ func rename(oldname, newname string) error {
++	if !validatePathForCreate(newname) {
++		return &LinkError{"rename", oldname, newname, errInvalidPath}
++	}
+ 	e := windows.Rename(fixLongPath(oldname), fixLongPath(newname))
+ 	if e != nil {
+ 		return &LinkError{"rename", oldname, newname, e}
+@@ -252,6 +268,9 @@ func tempDir() string {
+ // Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
++	if !validatePathForCreate(newname) {
++		return &LinkError{"link", oldname, newname, errInvalidPath}
++	}
+ 	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
+ 	if err != nil {
+ 		return &LinkError{"link", oldname, newname, err}
+@@ -272,6 +291,9 @@ func Link(oldname, newname string) error {
+ // if oldname is later created as a directory the symlink will not work.
+ // If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
++	if !validatePathForCreate(newname) {
++		return &LinkError{"symlink", oldname, newname, errInvalidPath}
++	}
+ 	// '/' does not work in link's content
+ 	oldname = filepathlite.FromSlash(oldname)
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 591798e9c0..d4cd61067e 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1561,3 +1561,76 @@ func TestReadDirNoFileID(t *testing.T) {
+ 		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
+ 	}
+ }
++
++func TestOpen_InvalidPath(t *testing.T) {
++	dir := t.TempDir()
++
++	file, err := os.Open(dir + ".")
++	if err != nil {
++		t.Errorf("Open(%q) should have succeeded, got %v", dir+".", err)
++	} else {
++		file.Close()
++	}
++
++	file, err = os.Open(dir + " ")
++	if err != nil {
++		t.Errorf("Open(%q) should have succeeded, got %v", dir+" ", err)
++	} else {
++		file.Close()
++	}
++}
++
++func TestMkdirAll_InvalidPath(t *testing.T) {
++	// Parent folder contains traling spaces
++	path := `C:\temp\folder \this one fails`
++	err := os.MkdirAll(path, 0644)
++	if err == nil {
++		t.Errorf("MkdirAll(%q) should have failed", path)
++	} else if !strings.Contains(err.Error(), "invalid path: cannot end with a space or period") {
++		t.Errorf("expected errInvalidPath for path %q, got %v", path, err)
++	}
++}
++
++func TestCreate_InvalidPath(t *testing.T) {
++	testInvalidPath(t, func(_, path string) error {
++		_, err := os.Create(path)
++		return err
++	})
++}
++
++func TestMkdir_InvalidPath(t *testing.T) {
++	testInvalidPath(t, func(_, path string) error {
++		return os.Mkdir(path, 0644)
++	})
++}
++
++func TestRename_InvalidPath(t *testing.T) {
++	testInvalidPath(t, os.Rename)
++}
++
++func TestLink_InvalidPath(t *testing.T) {
++	testInvalidPath(t, os.Link)
++}
++
++func TestSymlink_InvalidPath(t *testing.T) {
++	testInvalidPath(t, os.Symlink)
++}
++
++func testInvalidPath(t *testing.T, fn func(src, dest string) error) {
++	dir := t.TempDir()
++
++	// Test invalid paths (with trailing space and period)
++	invalidPaths := []string{
++		filepath.Join(dir, "invalid_dir "), // path ending in space
++		filepath.Join(dir, "invalid_dir."), // path ending in period
++	}
++
++	for _, path := range invalidPaths {
++		err := fn(dir, path)
++		if err == nil {
++			t.Errorf("(%q, %q) should have failed", dir, path)
++		} else if !strings.Contains(err.Error(), "invalid path: cannot end with a space or period") {
++			t.Errorf("expected errInvalidPath for path %q, got %v", path, err)
++		}
++	}
++}
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index f585aa5ee6..d72649be86 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"internal/filepathlite"
++	"internal/stringslite"
+ 	"internal/syscall/windows"
+ 	"syscall"
+ )
+@@ -150,3 +151,31 @@ func addExtendedPrefix(path string) string {
+ 	copy(buf, prefix)
+ 	return syscall.UTF16ToString(buf)
+ }
++
++// validatePathForCreate checks if a given path is valid for creation on a Windows system.
++// It returns true if the path is considered valid, and false otherwise.
++// The function performs the following checks:
++// 1. If the path is empty, it is considered valid.
++// 2. If the path starts with `\\?\` or \??\, it is considered valid without further checks.
++// 3. Otherwise, a path ending with a space or . is invalid.
++func validatePathForCreate(path string) bool {
++	// Check if the path is empty.
++	if len(path) == 0 {
++		return true
++	}
++	// Paths starting with \\?\ should be considered valid without further checks.
++	if stringslite.HasPrefix(path, `\\?\`) || stringslite.HasPrefix(path, `\??\`) {
++		return true
++	}
++	// Get the base name of the path to check only the last component.
++	base := filepathlite.Base(path)
++	// Check if the last character of the base name is a space or period, which is invalid.
++	switch base[len(base)-1] {
++	case ' ':
++		return false
++	case '.':
++		return base == "." || base == ".."
++	default:
++		return true
++	}
++}
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index 3fa02e2a65..e1f0697979 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -278,3 +278,56 @@ func BenchmarkAddExtendedPrefix(b *testing.B) {
+ 		os.AddExtendedPrefix(veryLong)
+ 	}
+ }
++
++func TestValidatePathForCreate(t *testing.T) {
++	tests := []struct {
++		path string
++		pass bool
++	}{
++		{`C:\foo`, true},
++		{`C:\foo\ `, false},
++		{`C:\foo\.`, true},
++		{`C:\foo.`, false},
++		{`C:\foo\ .`, false},
++		{`C:\foo \`, false},
++		{"C:/foo/", true},
++		{"C:/foo", true},
++		{"C:/foo/.", true},
++		{"C:/foo/ .", false},
++		{".", true},
++		{"..", true},
++		{"...", false},
++		{`\\?\C:\foo`, true},
++		{`\\?\C:\foo\ `, true},
++		{`\\?\C:\foo\.`, true},
++		{`\??\C:\foo`, true},
++		{`\??\C:\foo\ `, true},
++		{`\??\C:\foo\.`, true},
++		{`\\server\share\path`, true},
++		{"", true},
++		{" ", false},
++		{"C:.", true},
++		{"C: ", false},
++		{"C:..", true},
++		{"C:...", false},
++		{"foo:.", false},
++		{"C:bar:..", false},
++		{`\..`, true},
++		{`\...`, false},
++		{"/.", true},
++		{"/..", true},
++		{"a..", false},
++		{"aa..", false},
++		{"a ", false},
++		{`a\ `, false},
++		{`a \`, false},
++		{`.\`, true},
++		{`..\`, true},
++	}
++
++	for _, tt := range tests {
++		if os.ValidatePathForCreate(tt.path) != tt.pass {
++			t.Errorf("validatePathForCreate(%q) = %v, want %v", tt.path, !tt.pass, tt.pass)
++		}
++	}
++}

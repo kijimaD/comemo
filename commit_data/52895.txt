@@ -13,6 +13,20 @@ Date:   Fri May 20 08:07:03 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 4d1a5bd8de..8ce5d4de73 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2242,6 +2242,8 @@ var dwarfToName = map[string]string{
+ 	"long long unsigned int": "ulonglong",
+ 	"signed char":            "schar",
+ 	"unsigned char":          "uchar",
++	"unsigned long":          "ulong",     // Used by Clang 14; issue 53013.
++	"unsigned long long":     "ulonglong", // Used by Clang 14; issue 53013.
+ }
+ 
+ const signedDelta = 64

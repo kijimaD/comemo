@@ -8,6 +8,20 @@ Date:   Sat Aug 2 15:31:21 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=13765
     CL=13765
-
+---
  src/cmd/6g/gen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 7925c5352a..3da034e249 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -553,7 +553,7 @@ argsize(Type *t)
+ 		x = fp->width + fp->type->width;
+ 		if(x > w)
+ 			w = x;
+-		fp = structnext(&save);
++		fp = funcnext(&save);
+ 	}
+ 
+ 	w = (w+7) & ~7;

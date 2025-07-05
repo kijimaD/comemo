@@ -12,6 +12,22 @@ Date:   Tue Mar 6 09:33:35 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5752054
-
+---
  src/cmd/go/run.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 2976d5c8dd..d189d70aac 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -26,9 +26,7 @@ See also: go build.
+ func init() {
+ 	cmdRun.Run = runRun // break init loop
+ 
+-	cmdRun.Flag.BoolVar(&buildA, "a", false, "")
+-	cmdRun.Flag.BoolVar(&buildN, "n", false, "")
+-	cmdRun.Flag.BoolVar(&buildX, "x", false, "")
++	addBuildFlags(cmdRun)
+ }
+ 
+ func printStderr(args ...interface{}) (int, error) {

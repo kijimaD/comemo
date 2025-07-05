@@ -7,7 +7,47 @@ Date:   Sun Aug 9 16:42:21 2009 -0700
     R=rsc
     OCL=32947
     CL=32947
-
+---
  src/cmd/6g/reg.c   | 8 ++++----
  src/cmd/6l/6.out.h | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index f9704f202b..4f7ce069fe 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1439,9 +1439,9 @@ BtoR(int32 b)
+ 
+ /*
+  *	bit	reg
+- *	16	X5
+- *	17	X6
+- *	18	X7
++ *	16	X5 (FREGMIN)
++ *	...
++ *	26	X15 (FREGEXT)
+  */
+ int32
+ FtoB(int f)
+@@ -1455,7 +1455,7 @@ int
+ BtoF(int32 b)
+ {
+ 
+-	b &= 0x70000L;
++	b &= 0xFF0000L;
+ 	if(b == 0)
+ 		return 0;
+ 	return bitno(b) - 16 + FREGMIN;
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index dc1d057fd1..292abd3a73 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -839,7 +839,7 @@ enum
+ 	REGTMP		= D_DI,
+ 	REGEXT		= D_R15,	/* compiler allocates external registers R15 down */
+ 	FREGMIN		= D_X0+5,	/* first register variable */
+-	FREGEXT		= D_X0+7	/* first external register */
++	FREGEXT		= D_X0+15	/* first external register */
+ };
+ 
+ /*

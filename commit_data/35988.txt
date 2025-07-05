@@ -26,8 +26,57 @@ Date:   Sat Jan 6 21:30:42 2018 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                                    | 16 ++++++++++++++++
  src/cmd/go/internal/load/pkg.go                          |  1 +
  .../go/testdata/importcycle/src/selfimport/selfimport.go |  3 +++
  3 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index eef6309a5d..b5200335ad 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1359,6 +1359,22 @@ func TestImportCommentConflict(t *testing.T) {
+ 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
+ }
+ 
++func TestImportCycle(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcycle"))
++	tg.runFail("build", "selfimport")
++
++	count := tg.grepCountBoth("import cycle not allowed")
++	if count == 0 {
++		t.Fatal("go build did not mention cyclical import")
++	}
++	if count > 1 {
++		t.Fatal("go build mentioned import cycle more than once")
++	}
++}
++
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b006d4137c..0b82fc9f41 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1473,6 +1473,7 @@ func PackagesForBuild(args []string) []*Package {
+ 	for _, pkg := range pkgs {
+ 		if pkg.Error != nil {
+ 			base.Errorf("can't load package: %s", pkg.Error)
++			printed[pkg.Error] = true
+ 		}
+ 		for _, err := range pkg.DepsErrors {
+ 			// Since these are errors in dependencies,
+diff --git a/src/cmd/go/testdata/importcycle/src/selfimport/selfimport.go b/src/cmd/go/testdata/importcycle/src/selfimport/selfimport.go
+new file mode 100644
+index 0000000000..dc63c4b9f2
+--- /dev/null
++++ b/src/cmd/go/testdata/importcycle/src/selfimport/selfimport.go
+@@ -0,0 +1,3 @@
++package selfimport
++
++import "selfimport"

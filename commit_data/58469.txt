@@ -16,7 +16,251 @@ Date:   Thu Nov 9 13:36:17 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 60 ++++++++++++++-----------
  src/go/types/check_test.go                    | 65 ++++++++++++++++-----------
  2 files changed, 73 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index fec3e73126..2aac95d842 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -51,7 +51,6 @@ import (
+ var (
+ 	haltOnError  = flag.Bool("halt", false, "halt on error")
+ 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+-	enableAlias  = flag.Bool("alias", false, "set Config._EnableAlias for tests")
+ )
+ 
+ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode syntax.Mode) ([]*syntax.File, []error) {
+@@ -113,6 +112,8 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 
+ // testFiles type-checks the package consisting of the given files, and
+ // compares the resulting errors with the ERROR annotations in the source.
++// Except for manual tests, each package is type-checked twice, once without
++// use of _Alias types, and once with _Alias types.
+ //
+ // The srcs slice contains the file content for the files named in the
+ // filenames slice. The colDelta parameter specifies the tolerance for position
+@@ -121,37 +122,23 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+-	if len(filenames) == 0 {
+-		t.Fatal("no source files")
++	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
++	if !manual {
++		testFilesImpl(t, filenames, srcs, colDelta, manual, append(opts, func(conf *Config) { *boolFieldAddr(conf, "_EnableAlias") = true })...)
+ 	}
++}
+ 
+-	var conf Config
+-	var goexperiment string
+-	flags := flag.NewFlagSet("", flag.PanicOnError)
+-	flags.StringVar(&conf.GoVersion, "lang", "", "")
+-	flags.StringVar(&goexperiment, "goexperiment", "", "")
+-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", *enableAlias, "")
+-	if err := parseFlags(srcs[0], flags); err != nil {
+-		t.Fatal(err)
+-	}
+-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+-	if err != nil {
+-		t.Fatal(err)
++func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
++	if len(filenames) == 0 {
++		t.Fatal("no source files")
+ 	}
+-	old := buildcfg.Experiment
+-	defer func() {
+-		buildcfg.Experiment = old
+-	}()
+-	buildcfg.Experiment = *exp
+ 
++	// parse files
+ 	files, errlist := parseFiles(t, filenames, srcs, 0)
+-
+ 	pkgName := "<no package>"
+ 	if len(files) > 0 {
+ 		pkgName = files[0].PkgName.Value
+ 	}
+-
+ 	listErrors := manual && !*verifyErrors
+ 	if listErrors && len(errlist) > 0 {
+ 		t.Errorf("--- %s:", pkgName)
+@@ -160,7 +147,8 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
+ 		}
+ 	}
+ 
+-	// typecheck and collect typechecker errors
++	// set up typechecker
++	var conf Config
+ 	conf.Trace = manual && testing.Verbose()
+ 	conf.Importer = defaultImporter()
+ 	conf.Error = func(err error) {
+@@ -174,10 +162,31 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
+ 		errlist = append(errlist, err)
+ 	}
+ 
++	// apply custom configuration
+ 	for _, opt := range opts {
+ 		opt(&conf)
+ 	}
+ 
++	// apply flag setting (overrides custom configuration)
++	var goexperiment string
++	flags := flag.NewFlagSet("", flag.PanicOnError)
++	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	flags.StringVar(&goexperiment, "goexperiment", "", "")
++	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", false, "")
++	if err := parseFlags(srcs[0], flags); err != nil {
++		t.Fatal(err)
++	}
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		t.Fatal(err)
++	}
++	old := buildcfg.Experiment
++	defer func() {
++		buildcfg.Experiment = old
++	}()
++	buildcfg.Experiment = *exp
++
+ 	// Provide Config.Info with all maps so that info recording is tested.
+ 	info := Info{
+ 		Types:      make(map[syntax.Expr]TypeAndValue),
+@@ -188,8 +197,9 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
+ 		Selections: make(map[*syntax.SelectorExpr]*Selection),
+ 		Scopes:     make(map[syntax.Node]*Scope),
+ 	}
+-	conf.Check(pkgName, files, &info)
+ 
++	// typecheck
++	conf.Check(pkgName, files, &info)
+ 	if listErrors {
+ 		return
+ 	}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 50233178ec..e99cb2e374 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -56,7 +56,6 @@ import (
+ var (
+ 	haltOnError  = flag.Bool("halt", false, "halt on error")
+ 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+-	enableAlias  = flag.Bool("alias", false, "set Config._EnableAlias for tests")
+ )
+ 
+ var fset = token.NewFileSet()
+@@ -125,44 +124,33 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 
+ // testFiles type-checks the package consisting of the given files, and
+ // compares the resulting errors with the ERROR annotations in the source.
++// Except for manual tests, each package is type-checked twice, once without
++// use of _Alias types, and once with _Alias types.
+ //
+ // The srcs slice contains the file content for the files named in the
+-// filenames slice. The manual parameter specifies whether this is a 'manual'
+-// test.
++// filenames slice. The colDelta parameter specifies the tolerance for position
++// mismatch when comparing errors. The manual parameter specifies whether this
++// is a 'manual' test.
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+-	if len(filenames) == 0 {
+-		t.Fatal("no source files")
++	testFilesImpl(t, filenames, srcs, manual, opts...)
++	if !manual {
++		testFilesImpl(t, filenames, srcs, manual, append(opts, func(conf *Config) { *boolFieldAddr(conf, "_EnableAlias") = true })...)
+ 	}
++}
+ 
+-	var conf Config
+-	var goexperiment string
+-	flags := flag.NewFlagSet("", flag.PanicOnError)
+-	flags.StringVar(&conf.GoVersion, "lang", "", "")
+-	flags.StringVar(&goexperiment, "goexperiment", "", "")
+-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", *enableAlias, "")
+-	if err := parseFlags(srcs[0], flags); err != nil {
+-		t.Fatal(err)
+-	}
+-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+-	if err != nil {
+-		t.Fatal(err)
++func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
++	if len(filenames) == 0 {
++		t.Fatal("no source files")
+ 	}
+-	old := buildcfg.Experiment
+-	defer func() {
+-		buildcfg.Experiment = old
+-	}()
+-	buildcfg.Experiment = *exp
+ 
++	// parse files
+ 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
+-
+ 	pkgName := "<no package>"
+ 	if len(files) > 0 {
+ 		pkgName = files[0].Name.Name
+ 	}
+-
+ 	listErrors := manual && !*verifyErrors
+ 	if listErrors && len(errlist) > 0 {
+ 		t.Errorf("--- %s:", pkgName)
+@@ -171,7 +159,8 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
+ 		}
+ 	}
+ 
+-	// typecheck and collect typechecker errors
++	// set up typechecker
++	var conf Config
+ 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
+ 	conf.Importer = importer.Default()
+ 	conf.Error = func(err error) {
+@@ -189,10 +178,31 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
+ 		}
+ 	}
+ 
++	// apply custom configuration
+ 	for _, opt := range opts {
+ 		opt(&conf)
+ 	}
+ 
++	// apply flag setting (overrides custom configuration)
++	var goexperiment string
++	flags := flag.NewFlagSet("", flag.PanicOnError)
++	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	flags.StringVar(&goexperiment, "goexperiment", "", "")
++	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", false, "")
++	if err := parseFlags(srcs[0], flags); err != nil {
++		t.Fatal(err)
++	}
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		t.Fatal(err)
++	}
++	old := buildcfg.Experiment
++	defer func() {
++		buildcfg.Experiment = old
++	}()
++	buildcfg.Experiment = *exp
++
+ 	// Provide Config.Info with all maps so that info recording is tested.
+ 	info := Info{
+ 		Types:      make(map[ast.Expr]TypeAndValue),
+@@ -203,8 +213,9 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
+ 		Selections: make(map[*ast.SelectorExpr]*Selection),
+ 		Scopes:     make(map[ast.Node]*Scope),
+ 	}
+-	conf.Check(pkgName, fset, files, &info)
+ 
++	// typecheck
++	conf.Check(pkgName, fset, files, &info)
+ 	if listErrors {
+ 		return
+ 	}

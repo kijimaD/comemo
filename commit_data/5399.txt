@@ -9,7 +9,55 @@ Date:   Thu Apr 29 16:07:14 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/963043
-
+---
  src/cmd/gc/subr.c        | 12 ++++--------
  test/fixedbugs/bug269.go | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 34b5498420..b0192adf33 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1227,14 +1227,10 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, " ?unknown-type?");
+ 				break;
+ 			}
+-			if(t1->etype != TFIELD) {
+-				fmtprint(fp, " %T", t1);
+-				break;
+-			}
+-			if(t1->sym == S) {
+-				fmtprint(fp, " %T", t1->type);
+-				break;
+-			}
++			if(t1->etype == TFIELD)
++				t1 = t1->type;
++			fmtprint(fp, " %T", t1);
++			break;
+ 		default:
+ 			t1 = getoutargx(t)->type;
+ 			fmtprint(fp, " (");
+diff --git a/test/fixedbugs/bug269.go b/test/fixedbugs/bug269.go
+new file mode 100644
+index 0000000000..4cc0408c37
+--- /dev/null
++++ b/test/fixedbugs/bug269.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=749
++
++package main
++
++func f() (ok bool) { return false }
++
++func main() {
++	var i interface{}
++	i = f
++	_ = i.(func()bool)
++	_ = i.(func()(bool))
++}

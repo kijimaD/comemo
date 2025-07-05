@@ -14,6 +14,23 @@ Date:   Mon Apr 25 11:22:10 2022 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/pe/symbol.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index 0dfd5d90b8..323fa8c3df 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -136,10 +136,9 @@ const (
+ // auxiliary symbols: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
+ // COMDAT sections: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
+ // auxiliary info for section definitions: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-5-section-definitions
+-//
+ func (f *File) COFFSymbolReadSectionDefAux(idx int) (*COFFSymbolAuxFormat5, error) {
+ 	var rv *COFFSymbolAuxFormat5
+-	if idx < 0 || idx > len(f.COFFSymbols) {
++	if idx < 0 || idx >= len(f.COFFSymbols) {
+ 		return rv, fmt.Errorf("invalid symbol index")
+ 	}
+ 	pesym := &f.COFFSymbols[idx]

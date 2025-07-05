@@ -35,7 +35,7 @@ Date:   Sun Jul 29 09:26:24 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/ast.go                 |  2 +-
  src/cmd/cgo/util.go                |  2 ++
  src/cmd/go/go_test.go              | 18 +++++++++----
@@ -44,3 +44,344 @@ Date:   Sun Jul 29 09:26:24 2018 -0400
  src/cmd/go/internal/work/action.go |  8 +++---
  src/cmd/go/internal/work/exec.go   | 35 ++++++++++++------------
  7 files changed, 79 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 8dceb25ca6..4462136bf4 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -95,7 +95,7 @@ func (f *File) ParseGo(name string, src []byte) {
+ 		}
+ 	}
+ 	if !sawC {
+-		error_(token.NoPos, `cannot find import "C"`)
++		error_(ast1.Package, `cannot find import "C"`)
+ 	}
+ 
+ 	// In ast2, strip the import "C" line.
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index c9c6f3f58b..921306b7aa 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -99,6 +99,8 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
+ 	nerrors++
+ 	if pos.IsValid() {
+ 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
++	} else {
++		fmt.Fprintf(os.Stderr, "cgo: ")
+ 	}
+ 	fmt.Fprintf(os.Stderr, msg, args...)
+ 	fmt.Fprintf(os.Stderr, "\n")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7249c0fb6e..318f4393e3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1776,7 +1776,7 @@ func TestGoListTest(t *testing.T) {
+ 	tg.grepStdoutNot(`^sort`, "unexpected sort")
+ }
+ 
+-func TestGoListCgo(t *testing.T) {
++func TestGoListCompiledCgo(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -1788,18 +1788,26 @@ func TestGoListCgo(t *testing.T) {
+ 		t.Skip("net does not use cgo")
+ 	}
+ 	if strings.Contains(tg.stdout.String(), tg.tempdir) {
+-		t.Fatalf(".CgoFiles without -cgo unexpectedly mentioned cache %s", tg.tempdir)
++		t.Fatalf(".CgoFiles unexpectedly mentioned cache %s", tg.tempdir)
+ 	}
+-	tg.run("list", "-cgo", "-f", `{{join .CgoFiles "\n"}}`, "net")
++	tg.run("list", "-compiled", "-f", `{{.Dir}}{{"\n"}}{{join .CompiledGoFiles "\n"}}`, "net")
+ 	if !strings.Contains(tg.stdout.String(), tg.tempdir) {
+-		t.Fatalf(".CgoFiles with -cgo did not mention cache %s", tg.tempdir)
++		t.Fatalf(".CompiledGoFiles with -compiled did not mention cache %s", tg.tempdir)
+ 	}
++	dir := ""
+ 	for _, file := range strings.Split(tg.stdout.String(), "\n") {
+ 		if file == "" {
+ 			continue
+ 		}
++		if dir == "" {
++			dir = file
++			continue
++		}
++		if !strings.Contains(file, "/") && !strings.Contains(file, `\`) {
++			file = filepath.Join(dir, file)
++		}
+ 		if _, err := os.Stat(file); err != nil {
+-			t.Fatalf("cannot find .CgoFiles result %s: %v", file, err)
++			t.Fatalf("cannot find .CompiledGoFiles result %s: %v", file, err)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 17e67d1799..2f671fbe6f 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -66,20 +66,21 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         Module        *Module // info about package's containing module, if any (can be nil)
+ 
+         // Source files
+-        GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-        CgoFiles       []string // .go sources files that import "C"
+-        IgnoredGoFiles []string // .go sources ignored due to build constraints
+-        CFiles         []string // .c source files
+-        CXXFiles       []string // .cc, .cxx and .cpp source files
+-        MFiles         []string // .m source files
+-        HFiles         []string // .h, .hh, .hpp and .hxx source files
+-        FFiles         []string // .f, .F, .for and .f90 Fortran source files
+-        SFiles         []string // .s source files
+-        SwigFiles      []string // .swig files
+-        SwigCXXFiles   []string // .swigcxx files
+-        SysoFiles      []string // .syso object files to add to archive
+-        TestGoFiles    []string // _test.go files in package
+-        XTestGoFiles   []string // _test.go files outside package
++        GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++        CgoFiles        []string // .go source files that import "C"
++        CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
++        IgnoredGoFiles  []string // .go source files ignored due to build constraints
++        CFiles          []string // .c source files
++        CXXFiles        []string // .cc, .cxx and .cpp source files
++        MFiles          []string // .m source files
++        HFiles          []string // .h, .hh, .hpp and .hxx source files
++        FFiles          []string // .f, .F, .for and .f90 Fortran source files
++        SFiles          []string // .s source files
++        SwigFiles       []string // .swig files
++        SwigCXXFiles    []string // .swigcxx files
++        SysoFiles       []string // .syso object files to add to archive
++        TestGoFiles     []string // _test.go files in package
++        XTestGoFiles    []string // _test.go files outside package
+ 
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+@@ -142,9 +143,10 @@ for the go/build package's Context type.
+ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
+-The -cgo flag causes list to set CgoFiles not to the original *.go files
+-importing "C" but instead to the translated files generated by the cgo
+-command.
++The -compiled flag causes list to set CompiledGoFiles to the Go source
++files presented to the compiler. Typically this means that it repeats
++the files listed in GoFiles and then also adds the Go code generated
++by processing CgoFiles and SwigFiles.
+ 
+ The -deps flag causes list to iterate over not just the named packages
+ but also all their dependencies. It visits them in a depth-first post-order
+@@ -184,8 +186,8 @@ are all absolute paths.
+ 
+ By default, the lists GoFiles, CgoFiles, and so on hold names of files in Dir
+ (that is, paths relative to Dir, not absolute paths).
+-The extra entries added by the -cgo and -test flags are absolute paths
+-referring to cached copies of generated Go source files.
++The generated files added when using the -compiled and -test flags
++are absolute paths referring to cached copies of generated Go source files.
+ Although they are Go source files, the paths may not end in ".go".
+ 
+ The -m flag causes list to list modules instead of packages.
+@@ -282,7 +284,7 @@ func init() {
+ }
+ 
+ var (
+-	listCgo      = CmdList.Flag.Bool("cgo", false, "")
++	listCompiled = CmdList.Flag.Bool("compiled", false, "")
+ 	listDeps     = CmdList.Flag.Bool("deps", false, "")
+ 	listE        = CmdList.Flag.Bool("e", false, "")
+ 	listExport   = CmdList.Flag.Bool("export", false, "")
+@@ -353,8 +355,8 @@ func runList(cmd *base.Command, args []string) {
+ 
+ 	if *listM {
+ 		// Module mode.
+-		if *listCgo {
+-			base.Fatalf("go list -cgo cannot be used with -m")
++		if *listCompiled {
++			base.Fatalf("go list -compiled cannot be used with -m")
+ 		}
+ 		if *listDeps {
+ 			// TODO(rsc): Could make this mean something with -m.
+@@ -405,8 +407,8 @@ func runList(cmd *base.Command, args []string) {
+ 	if cache.Default() == nil {
+ 		// These flags return file names pointing into the build cache,
+ 		// so the build cache must exist.
+-		if *listCgo {
+-			base.Fatalf("go list -cgo requires build cache")
++		if *listCompiled {
++			base.Fatalf("go list -compiled requires build cache")
+ 		}
+ 		if *listExport {
+ 			base.Fatalf("go list -export requires build cache")
+@@ -479,12 +481,12 @@ func runList(cmd *base.Command, args []string) {
+ 
+ 	// Do we need to run a build to gather information?
+ 	needStale := *listJson || strings.Contains(*listFmt, ".Stale")
+-	if needStale || *listExport || *listCgo {
++	if needStale || *listExport || *listCompiled {
+ 		var b work.Builder
+ 		b.Init()
+ 		b.IsCmdList = true
+ 		b.NeedExport = *listExport
+-		b.NeedCgoFiles = *listCgo
++		b.NeedCompiledGoFiles = *listCompiled
+ 		a := &work.Action{}
+ 		// TODO: Use pkgsFilter?
+ 		for _, p := range pkgs {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f209d8eb08..2559e9fb54 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -79,18 +79,19 @@ type PackagePublic struct {
+ 	// Source files
+ 	// If you add to this list you MUST add to p.AllFiles (below) too.
+ 	// Otherwise file name security lists will not apply to any new additions.
+-	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-	CgoFiles       []string `json:",omitempty"` // .go sources files that import "C"
+-	IgnoredGoFiles []string `json:",omitempty"` // .go sources ignored due to build constraints
+-	CFiles         []string `json:",omitempty"` // .c source files
+-	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
+-	MFiles         []string `json:",omitempty"` // .m source files
+-	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
+-	FFiles         []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
+-	SFiles         []string `json:",omitempty"` // .s source files
+-	SwigFiles      []string `json:",omitempty"` // .swig files
+-	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
+-	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
++	GoFiles         []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++	CgoFiles        []string `json:",omitempty"` // .go source files that import "C"
++	CompiledGoFiles []string `json:",omitempty"` // .go output from running cgo on CgoFiles
++	IgnoredGoFiles  []string `json:",omitempty"` // .go source files ignored due to build constraints
++	CFiles          []string `json:",omitempty"` // .c source files
++	CXXFiles        []string `json:",omitempty"` // .cc, .cpp and .cxx source files
++	MFiles          []string `json:",omitempty"` // .m source files
++	HFiles          []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
++	FFiles          []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
++	SFiles          []string `json:",omitempty"` // .s source files
++	SwigFiles       []string `json:",omitempty"` // .swig files
++	SwigCXXFiles    []string `json:",omitempty"` // .swigcxx files
++	SysoFiles       []string `json:",omitempty"` // .syso system object files added to package
+ 
+ 	// Cgo directives
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+@@ -128,6 +129,7 @@ func (p *Package) AllFiles() []string {
+ 	return str.StringList(
+ 		p.GoFiles,
+ 		p.CgoFiles,
++		// no p.CompiledGoFiles, because they are from GoFiles or generated by us
+ 		p.IgnoredGoFiles,
+ 		p.CFiles,
+ 		p.CXXFiles,
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index debf734618..1f91046eb1 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -36,10 +36,10 @@ type Builder struct {
+ 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
+ 	Print       func(args ...interface{}) (int, error)
+ 
+-	IsCmdList    bool // running as part of go list; set p.Stale and additional fields below
+-	NeedError    bool // list needs p.Error
+-	NeedExport   bool // list needs p.Export
+-	NeedCgoFiles bool // list needs p.CgoFiles to cgo-generated files, not originals
++	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
++	NeedError           bool // list needs p.Error
++	NeedExport          bool // list needs p.Export
++	NeedCompiledGoFiles bool // list needs p.CompiledGoFIles
+ 
+ 	objdirSeq int // counter for NewObjdir
+ 	pkgSeq    int
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index bf8840c25c..9eab02554b 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -345,7 +345,7 @@ const (
+ 	needBuild uint32 = 1 << iota
+ 	needCgoHdr
+ 	needVet
+-	needCgoFiles
++	needCompiledGoFiles
+ 	needStale
+ )
+ 
+@@ -365,10 +365,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	need := bit(needBuild, !b.IsCmdList || b.NeedExport) |
+ 		bit(needCgoHdr, b.needCgoHdr(a)) |
+ 		bit(needVet, a.needVet) |
+-		bit(needCgoFiles, b.NeedCgoFiles && (p.UsesCgo() || p.UsesSwig()))
+-
+-	// Save p.CgoFiles now, because we may modify it for go list.
+-	cgofiles := append([]string{}, p.CgoFiles...)
++		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
+ 
+ 	if !p.BinaryOnly {
+ 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
+@@ -378,8 +375,8 @@ func (b *Builder) build(a *Action) (err error) {
+ 			if b.NeedExport {
+ 				p.Export = a.built
+ 			}
+-			if need&needCgoFiles != 0 && b.loadCachedCgoFiles(a) {
+-				need &^= needCgoFiles
++			if need&needCompiledGoFiles != 0 && b.loadCachedGoFiles(a) {
++				need &^= needCompiledGoFiles
+ 			}
+ 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+ 			// Remember that we might have them in cache
+@@ -469,11 +466,12 @@ func (b *Builder) build(a *Action) (err error) {
+ 		}
+ 	}
+ 
+-	var gofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
+-	gofiles = append(gofiles, a.Package.GoFiles...)
+-	cfiles = append(cfiles, a.Package.CFiles...)
+-	sfiles = append(sfiles, a.Package.SFiles...)
+-	cxxfiles = append(cxxfiles, a.Package.CXXFiles...)
++	gofiles := str.StringList(a.Package.GoFiles)
++	cgofiles := str.StringList(a.Package.CgoFiles)
++	cfiles := str.StringList(a.Package.CFiles)
++	sfiles := str.StringList(a.Package.SFiles)
++	cxxfiles := str.StringList(a.Package.CXXFiles)
++	var objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
+ 
+ 	if a.Package.UsesCgo() || a.Package.UsesSwig() {
+ 		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(a.Package); err != nil {
+@@ -594,11 +592,11 @@ func (b *Builder) build(a *Action) (err error) {
+ 		buildVetConfig(a, gofiles)
+ 		need &^= needVet
+ 	}
+-	if need&needCgoFiles != 0 {
+-		if !b.loadCachedCgoFiles(a) {
+-			return fmt.Errorf("failed to cache translated CgoFiles")
++	if need&needCompiledGoFiles != 0 {
++		if !b.loadCachedGoFiles(a) {
++			return fmt.Errorf("failed to cache compiled Go files")
+ 		}
+-		need &^= needCgoFiles
++		need &^= needCompiledGoFiles
+ 	}
+ 	if need == 0 {
+ 		// Nothing left to do.
+@@ -836,7 +834,7 @@ func (b *Builder) loadCachedVet(a *Action) bool {
+ 	return true
+ }
+ 
+-func (b *Builder) loadCachedCgoFiles(a *Action) bool {
++func (b *Builder) loadCachedGoFiles(a *Action) bool {
+ 	c := cache.Default()
+ 	if c == nil {
+ 		return false
+@@ -851,6 +849,7 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
+ 			continue
+ 		}
+ 		if strings.HasPrefix(name, "./") {
++			files = append(files, name[len("./"):])
+ 			continue
+ 		}
+ 		file, err := b.findCachedObjdirFile(a, c, name)
+@@ -859,7 +858,7 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
+ 		}
+ 		files = append(files, file)
+ 	}
+-	a.Package.CgoFiles = files
++	a.Package.CompiledGoFiles = files
+ 	return true
+ }
+ 

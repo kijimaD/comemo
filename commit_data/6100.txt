@@ -9,6 +9,104 @@ Date:   Thu Aug 26 13:32:23 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1892052
-
+---
  src/pkg/net/textproto/reader.go | 72 ++++++++++++++++++++++++++++++++---------
  1 file changed, 57 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index f99fb1c074..aad25539d4 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -155,28 +155,16 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
+ 	return line, err
+ }
+ 
+-// ReadCodeLine reads a response code line of the form
+-//	code message
+-// where code is a 3-digit status code and the message
+-// extends to the rest of the line.  An example of such a line is:
+-//	220 plan9.bell-labs.com ESMTP
+-//
+-// If the prefix of the status does not match the digits in expectCode,
+-// ReadCodeLine returns with err set to &Error{code, message}.
+-// For example, if expectCode is 31, an error will be returned if
+-// the status is not in the range [310,319].
+-//
+-// An expectCode <= 0 disables the check of the status code.
+-//
+-func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.Error) {
++func (r *Reader) readCodeLine(expectCode int) (code int, continued bool, message string, err os.Error) {
+ 	line, err := r.ReadLine()
+ 	if err != nil {
+ 		return
+ 	}
+-	if len(line) < 4 || line[3] != ' ' {
++	if len(line) < 4 || line[3] != ' ' && line[3] != '-' {
+ 		err = ProtocolError("short response: " + line)
+ 		return
+ 	}
++	continued = line[3] == '-'
+ 	code, err = strconv.Atoi(line[0:3])
+ 	if err != nil || code < 100 {
+ 		err = ProtocolError("invalid response code: " + line)
+@@ -191,6 +179,60 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.
+ 	return
+ }
+ 
++// ReadCodeLine reads a response code line of the form
++//	code message
++// where code is a 3-digit status code and the message
++// extends to the rest of the line.  An example of such a line is:
++//	220 plan9.bell-labs.com ESMTP
++//
++// If the prefix of the status does not match the digits in expectCode,
++// ReadCodeLine returns with err set to &Error{code, message}.
++// For example, if expectCode is 31, an error will be returned if
++// the status is not in the range [310,319].
++//
++// If the response is multi-line, ReadCodeLine returns an error.
++//
++// An expectCode <= 0 disables the check of the status code.
++//
++func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.Error) {
++	code, continued, message, err := r.readCodeLine(expectCode)
++	if err == nil && continued {
++		err = ProtocolError("unexpected multi-line response: " + message)
++	}
++	return
++}
++
++// ReadResponse reads a multi-line response of the form
++//	code-message line 1
++//	code-message line 2
++//	...
++//	code message line n
++// where code is a 3-digit status code. Each line should have the same code.
++// The response is terminated by a line that uses a space between the code and
++// the message line rather than a dash. Each line in message is separated by
++// a newline (\n).
++//
++// If the prefix of the status does not match the digits in expectCode,
++// ReadResponse returns with err set to &Error{code, message}.
++// For example, if expectCode is 31, an error will be returned if
++// the status is not in the range [310,319].
++//
++// An expectCode <= 0 disables the check of the status code.
++//
++func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.Error) {
++	code, continued, message, err := r.readCodeLine(expectCode)
++	for err == nil && continued {
++		var code2 int
++		var moreMessage string
++		code2, continued, moreMessage, err = r.readCodeLine(expectCode)
++		if code != code2 {
++			err = ProtocolError("status code mismatch: " + strconv.Itoa(code) + ", " + strconv.Itoa(code2))
++		}
++		message += "\n" + moreMessage
++	}
++	return
++}
++
+ // DotReader returns a new Reader that satisfies Reads using the
+ // decoded text of a dot-encoded block read from r.
+ // The returned Reader is only valid until the next call

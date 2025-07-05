@@ -11,6 +11,20 @@ Date:   Tue Jun 24 20:37:28 2014 -0700
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/107340044
-
+---
  src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index df3e449d32..644f00c757 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -287,7 +287,7 @@ func BenchmarkNewIndexRepeat(b *testing.B) {
+ func BenchmarkSaveRestore(b *testing.B) {
+ 	b.StopTimer()
+ 	r := rand.New(rand.NewSource(0x5a77a1)) // guarantee always same sequence
+-	data := make([]byte, 10<<20)            // 10MB of data to index
++	data := make([]byte, 1<<20)             // 1MB of data to index
+ 	for i := range data {
+ 		data[i] = byte(r.Intn(256))
+ 	}

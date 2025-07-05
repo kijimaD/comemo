@@ -13,6 +13,20 @@ Date:   Tue Feb 20 12:57:51 2018 +0900
     Change-Id: I990dd98e2651a993dac1b105c0bc771f8631cb93
     Reviewed-on: https://go-review.googlesource.com/95336
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 534137a913..13b9485797 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -202,7 +202,7 @@ func validateInterfaceUnicastAddrs(ifat []Addr) (*routeStats, error) {
+ 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
+ 					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
+ 				}
+-				if ifa.IP.IsLoopback() && (prefixLen != 8 && prefixLen != 8*IPv4len) { // see RFC 1122
++				if ifa.IP.IsLoopback() && prefixLen < 8 { // see RFC 1122
+ 					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
+ 				}
+ 				stats.ipv4++

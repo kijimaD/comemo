@@ -15,6 +15,21 @@ Date:   Fri May 7 16:31:00 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/317914
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.17.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 5ab99c29ed..46ee1da6fa 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -423,7 +423,8 @@ Do not send CLs removing the interior tags from such phrases.
+     </p>
+ 
+     <p><!-- CL 308952 -->
+-      TODO: <a href="https://golang.org/cl/308952">https://golang.org/cl/308952</a>: make ReadRequest return an error when requests have multiple Host headers
++      The <a href="/pkg/net/http/#ReadRequest"><code>ReadRequest</code></a> function
++      now returns an error when the request has multiple Host headers.
+     </p>
+   </dd>
+ </dl><!-- net/http -->

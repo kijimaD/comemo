@@ -11,7 +11,7 @@ Date:   Mon Aug 14 19:05:56 2017 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd.go              | 2 +-
  src/syscall/syscall_darwin.go           | 2 +-
  src/syscall/syscall_dragonfly.go        | 2 +-
@@ -43,3 +43,555 @@ Date:   Mon Aug 14 19:05:56 2017 +0300
  src/syscall/zsyscall_openbsd_arm.go     | 4 ++--
  src/syscall/zsyscall_solaris_amd64.go   | 4 ++--
  30 files changed, 53 insertions(+), 53 deletions(-)
+
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 1d0efe37e1..a968562b73 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -510,7 +510,7 @@ func UtimesNano(path string, ts []Timespec) error {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
+-	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])))
++	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 4d17b157bd..236ba3ddc0 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -186,7 +186,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) error {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
+ 	// Darwin doesn't support SYS_UTIMENSAT
+ 	return ENOSYS
+ }
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 27f1f585be..7383ed0bc1 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -211,7 +211,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index ee90e87399..59bf5706fd 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -222,7 +222,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 8099a5fdeb..4d5a5e12d3 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -96,13 +96,13 @@ func Utimes(path string, tv []Timeval) (err error) {
+ 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+ }
+ 
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ func UtimesNano(path string, ts []Timespec) (err error) {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
+-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])))
++	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index da80f2b9d6..cf28fcc210 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -202,7 +202,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index f904f37017..edc1026c59 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -183,7 +183,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 9555bf8bc8..9a5fbdae53 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -510,7 +510,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_recvmsg
+ //sys	getexecname() (path unsafe.Pointer, err error) = libc.getexecname
+-//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ func Getexecname() (path string, err error) {
+ 	ptr, err := getexecname()
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 28bc679c4c..c19b065a69 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -1301,13 +1301,13 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 55fead990a..24240779cc 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -1311,13 +1311,13 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index edc29f32f8..3b01001537 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -1311,13 +1311,13 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 80f520ef48..2a65f54506 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -1311,13 +1311,13 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 3536bb7052..58d7ffc89e 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 92bcd099ce..dd48398d68 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 81318993e2..f96759a748 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 7dffb75146..6fadf5f474 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index f1297bf33b..9b169f0fd2 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 901bafd0d3..809b0e7c94 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 5af854bb4b..c0560b4806 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index b2fcb91941..6fd4618fe5 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 51ef5aedd9..ddab149d71 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 9ef2118c00..569369dfed 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index abc2c4b3a7..e46837631b 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -117,13 +117,13 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index 272a44c7d0..d7ecd57141 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -1227,13 +1227,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 4e22cdf769..75ded311a7 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -1227,13 +1227,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index d9d71aa952..6333790cbc 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -1227,13 +1227,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index a31b81491f..afcaf23f85 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1265,13 +1265,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 88e6cca794..fa4e19b22c 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1265,13 +1265,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 9e910911c7..0b842d9c61 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1265,13 +1265,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	_, _, e1 := Syscall6(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index 9dbec9ce35..c9a5e8a4dd 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -1088,13 +1088,13 @@ func getexecname() (path unsafe.Pointer, err error) {
+ 	return
+ }
+ 
+-func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0, 0, 0)
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flag), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}

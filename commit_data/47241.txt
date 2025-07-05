@@ -15,7 +15,46 @@ Date:   Thu Mar 4 14:27:36 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
  test/fixedbugs/issue17588.go                    | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 240f0409e7..030158b1a1 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -2104,7 +2104,7 @@ func CheckUnused(fn *ir.Func) {
+ 
+ // CheckReturn makes sure that fn terminates appropriately.
+ func CheckReturn(fn *ir.Func) {
+-	if fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
++	if fn.Type() != nil && fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
+ 		markBreak(fn)
+ 		if !isTermNodes(fn.Body) {
+ 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
+diff --git a/test/fixedbugs/issue17588.go b/test/fixedbugs/issue17588.go
+index ed5312fa21..5c0787bf1d 100644
+--- a/test/fixedbugs/issue17588.go
++++ b/test/fixedbugs/issue17588.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -11,10 +11,10 @@
+ 
+ package p
+ 
+-type F func(b T)  // ERROR "T .*is not a type|expected type"
++type F func(b T) // ERROR "T .*is not a type|expected type"
+ 
+ func T(fn F) {
+-    func() {
+-        fn(nil)  // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
+-    }()
++	func() {
++		fn(nil) // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
++	}()
+ }

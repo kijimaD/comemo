@@ -15,7 +15,81 @@ Date:   Fri Mar 24 09:52:39 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 18 ++++++++++++++--
  test/fixedbugs/issue19679.go           | 38 ++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index bed200b578..d60b959e37 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1493,8 +1493,22 @@ func (p *exporter) stmt(n *Node) {
+ 		p.pos(n)
+ 		p.stmtList(n.Ninit)
+ 		p.expr(n.Left)
+-		p.stmtList(n.Nbody)
+-		p.stmtList(n.Rlist)
++		nbody := n.Nbody
++		rlist := n.Rlist
++		if Isconst(n.Left, CTBOOL) {
++			// if false { ... } or if true { ... }
++			// Only export the taken branch.
++			// This is more efficient,
++			// and avoids trying to export
++			// un-exportable nodes.
++			if n.Left.Bool() {
++				rlist = Nodes{}
++			} else {
++				nbody = Nodes{}
++			}
++		}
++		p.stmtList(nbody)
++		p.stmtList(rlist)
+ 
+ 	case OFOR:
+ 		p.op(OFOR)
+diff --git a/test/fixedbugs/issue19679.go b/test/fixedbugs/issue19679.go
+new file mode 100644
+index 0000000000..636b27ffef
+--- /dev/null
++++ b/test/fixedbugs/issue19679.go
+@@ -0,0 +1,38 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash when a type switch was present in dead code
++// in an inlineable function.
++
++package p
++
++func Then() {
++	var i interface{}
++	if false {
++		switch i.(type) {
++		}
++	}
++}
++
++func Else() {
++	var i interface{}
++	if true {
++		_ = i
++	} else {
++		switch i.(type) {
++		}
++	}
++}
++
++func Switch() {
++	var i interface{}
++	switch 5 {
++	case 3:
++		switch i.(type) {
++		}
++	case 5:
++	}
++}

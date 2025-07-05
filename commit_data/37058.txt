@@ -18,8 +18,162 @@ Date:   Thu Jun 21 10:59:19 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules | 10 +++++-----
  src/cmd/compile/internal/ssa/rewriteARM.go | 20 ++++++++++----------
  test/fixedbugs/issue25993.go               | 21 +++++++++++++++++++++
  3 files changed, 36 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 4714becd73..65b11c9980 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -829,14 +829,14 @@
+ (RSBconst [c] (SUBconst [d] x)) -> (RSBconst [int64(int32(c+d))] x)
+ (RSCconst [c] (ADDconst [d] x) flags) -> (RSCconst [int64(int32(c-d))] x flags)
+ (RSCconst [c] (SUBconst [d] x) flags) -> (RSCconst [int64(int32(c+d))] x flags)
+-(SLLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<uint64(c))])
+-(SRLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)>>uint64(c))])
++(SLLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)<<uint64(c)))])
++(SRLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)>>uint64(c)))])
+ (SRAconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)>>uint64(c))])
+ (MUL (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c*d))])
+ (MULA (MOVWconst [c]) (MOVWconst [d]) a) -> (ADDconst [int64(int32(c*d))] a)
+ (MULS (MOVWconst [c]) (MOVWconst [d]) a) -> (SUBconst [int64(int32(c*d))] a)
+-(Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)/uint32(d))])
+-(Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)%uint32(d))])
++(Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(int32(uint32(c)/uint32(d)))])
++(Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(int32(uint32(c)%uint32(d)))])
+ (ANDconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
+ (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
+ (ORconst [c] (MOVWconst [d])) -> (MOVWconst [c|d])
+@@ -853,7 +853,7 @@
+ (MOVWreg (MOVWconst [c])) -> (MOVWconst [c])
+ // BFX: Width = c >> 8, LSB = c & 0xff, result = d << (32 - Width - LSB) >> (32 - Width)
+ (BFX [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
+-(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
++(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8))))])
+ 
+ // absorb shifts into ops
+ (ADD x (SLLconst [c] y)) -> (ADDshiftLL x y [c])
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 2622913eae..1eb32285cd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -4044,7 +4044,7 @@ func rewriteValueARM_OpARMBFX_0(v *Value) bool {
+ func rewriteValueARM_OpARMBFXU_0(v *Value) bool {
+ 	// match: (BFXU [c] (MOVWconst [d]))
+ 	// cond:
+-	// result: (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
++	// result: (MOVWconst [int64(int32(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8))))])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -4053,7 +4053,7 @@ func rewriteValueARM_OpARMBFXU_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(d) << (32 - uint32(c&0xff) - uint32(c>>8)) >> (32 - uint32(c>>8)))
++		v.AuxInt = int64(int32(uint32(d) << (32 - uint32(c&0xff) - uint32(c>>8)) >> (32 - uint32(c>>8))))
+ 		return true
+ 	}
+ 	return false
+@@ -14103,7 +14103,7 @@ func rewriteValueARM_OpARMSLL_0(v *Value) bool {
+ func rewriteValueARM_OpARMSLLconst_0(v *Value) bool {
+ 	// match: (SLLconst [c] (MOVWconst [d]))
+ 	// cond:
+-	// result: (MOVWconst [int64(uint32(d)<<uint64(c))])
++	// result: (MOVWconst [int64(int32(uint32(d)<<uint64(c)))])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -14112,7 +14112,7 @@ func rewriteValueARM_OpARMSLLconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(d) << uint64(c))
++		v.AuxInt = int64(int32(uint32(d) << uint64(c)))
+ 		return true
+ 	}
+ 	return false
+@@ -14274,7 +14274,7 @@ func rewriteValueARM_OpARMSRL_0(v *Value) bool {
+ func rewriteValueARM_OpARMSRLconst_0(v *Value) bool {
+ 	// match: (SRLconst [c] (MOVWconst [d]))
+ 	// cond:
+-	// result: (MOVWconst [int64(uint32(d)>>uint64(c))])
++	// result: (MOVWconst [int64(int32(uint32(d)>>uint64(c)))])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -14283,7 +14283,7 @@ func rewriteValueARM_OpARMSRLconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(d) >> uint64(c))
++		v.AuxInt = int64(int32(uint32(d) >> uint64(c)))
+ 		return true
+ 	}
+ 	// match: (SRLconst (SLLconst x [c]) [d])
+@@ -21295,7 +21295,7 @@ func rewriteValueARM_OpSelect0_0(v *Value) bool {
+ 	}
+ 	// match: (Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d])))
+ 	// cond:
+-	// result: (MOVWconst [int64(uint32(c)/uint32(d))])
++	// result: (MOVWconst [int64(int32(uint32(c)/uint32(d)))])
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpARMCALLudiv {
+@@ -21313,7 +21313,7 @@ func rewriteValueARM_OpSelect0_0(v *Value) bool {
+ 		}
+ 		d := v_0_1.AuxInt
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(c) / uint32(d))
++		v.AuxInt = int64(int32(uint32(c) / uint32(d)))
+ 		return true
+ 	}
+ 	return false
+@@ -21364,7 +21364,7 @@ func rewriteValueARM_OpSelect1_0(v *Value) bool {
+ 	}
+ 	// match: (Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d])))
+ 	// cond:
+-	// result: (MOVWconst [int64(uint32(c)%uint32(d))])
++	// result: (MOVWconst [int64(int32(uint32(c)%uint32(d)))])
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpARMCALLudiv {
+@@ -21382,7 +21382,7 @@ func rewriteValueARM_OpSelect1_0(v *Value) bool {
+ 		}
+ 		d := v_0_1.AuxInt
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(c) % uint32(d))
++		v.AuxInt = int64(int32(uint32(c) % uint32(d)))
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/fixedbugs/issue25993.go b/test/fixedbugs/issue25993.go
+new file mode 100644
+index 0000000000..3253cd82f8
+--- /dev/null
++++ b/test/fixedbugs/issue25993.go
+@@ -0,0 +1,21 @@
++// compile -d=ssa/check/on
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 25993: SSA check fails on ARM.
++
++package p
++
++func f() {
++	var x int
++	var B0 bool
++	B0 = !B0 || B0
++	if B0 && B0 {
++		x = -1
++	}
++	var AI []int
++	var AB []bool
++	_ = AI[x] > 0 && AB[x]
++}

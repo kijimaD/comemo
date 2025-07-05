@@ -9,6 +9,20 @@ Date:   Fri Aug 30 10:49:10 2019 +0200
     Run-TryBot: Clément Chigot <clement.chigot@atos.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/syscall_aix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index ade2a9d367..d8010d35ce 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -494,7 +494,7 @@ func (w WaitStatus) Signal() Signal {
+ 
+ func (w WaitStatus) Continued() bool { return w&0x01000000 != 0 }
+ 
+-func (w WaitStatus) CoreDump() bool { return w&0x200 == 0 }
++func (w WaitStatus) CoreDump() bool { return w&0x80 == 0x80 }
+ 
+ func (w WaitStatus) TrapCause() int { return -1 }
+ 

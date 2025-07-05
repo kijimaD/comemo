@@ -12,6 +12,44 @@ Date:   Thu Jul 1 12:32:05 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/script/mod_vendor_issue46867.txt   | 31 ++++++++++++++++++++++
  1 file changed, 31 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_issue46867.txt b/src/cmd/go/testdata/script/mod_vendor_issue46867.txt
+new file mode 100644
+index 0000000000..38ae87b44a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_issue46867.txt
+@@ -0,0 +1,31 @@
++# Regression test for golang.org/issue/46867:
++# 'go mod vendor' on Windows attempted to open and copy
++# files from directories outside of the module.
++
++cd subdir
++go mod vendor
++! exists vendor/example.net/NOTICE
++exists vendor/example.net/m/NOTICE
++
++-- subdir/go.mod --
++module golang.org/issue46867
++
++go 1.17
++
++replace example.net/m v0.1.0 => ./m
++
++require example.net/m v0.1.0
++-- subdir/issue.go --
++package issue
++
++import _ "example.net/m/n"
++-- subdir/m/go.mod --
++module example.net/m
++
++go 1.17
++-- subdir/m/n/n.go --
++package n
++-- subdir/m/NOTICE --
++This notice is in module m and SHOULD be vendored.
++-- subdir/NOTICE --
++This notice is outside of module m and SHOULD NOT be vendored.

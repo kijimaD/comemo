@@ -16,7 +16,7 @@ Date:   Wed Apr 19 15:34:49 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        | 103 ++++++++++----------
  src/cmd/compile/internal/types2/builtins_test.go   |   2 +-
  src/cmd/compile/internal/types2/example_test.go    |  30 +++---
@@ -43,3 +43,1633 @@ Date:   Wed Apr 19 15:34:49 2023 -0700
  src/go/types/sizes_test.go                         |   4 +-
  src/go/types/typestring_test.go                    |   6 +-
  25 files changed, 226 insertions(+), 226 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index dcd4d72328..0e76a73699 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -21,21 +21,21 @@ import (
+ // nopos indicates an unknown position
+ var nopos syntax.Pos
+ 
+-func parse(path, src string) (*syntax.File, error) {
++func parse(src string) (*syntax.File, error) {
+ 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
++	return syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), errh, nil, 0)
+ }
+ 
+-func mustParse(path, src string) *syntax.File {
+-	f, err := parse(path, src)
++func mustParse(src string) *syntax.File {
++	f, err := parse(src)
+ 	if err != nil {
+ 		panic(err) // so we don't need to pass *testing.T
+ 	}
+ 	return f
+ }
+ 
+-func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
+-	f, err := parse(path, src)
++func typecheck(src string, conf *Config, info *Info) (*Package, error) {
++	f, err := parse(src)
+ 	if f == nil { // ignore errors unless f is nil
+ 		return nil, err
+ 	}
+@@ -48,8 +48,8 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
+ 	return conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+ }
+ 
+-func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
+-	f := mustParse(path, src)
++func mustTypecheck(src string, conf *Config, info *Info) *Package {
++	f := mustParse(src)
+ 	if conf == nil {
+ 		conf = &Config{
+ 			Importer: defaultImporter(),
+@@ -62,6 +62,20 @@ func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
+ 	return pkg
+ }
+ 
++// pkgName extracts the package name from src, which must contain a package header.
++func pkgName(src string) string {
++	const kw = "package "
++	if i := strings.Index(src, kw); i >= 0 {
++		after := src[i+len(kw):]
++		n := len(after)
++		if i := strings.IndexAny(after, "\n\t ;/"); i >= 0 {
++			n = i
++		}
++		return after[:n]
++	}
++	panic("missing package header: " + src)
++}
++
+ func TestValuesInfo(t *testing.T) {
+ 	var tests = []struct {
+ 		src  string
+@@ -145,7 +159,7 @@ func TestValuesInfo(t *testing.T) {
+ 		info := Info{
+ 			Types: make(map[syntax.Expr]TypeAndValue),
+ 		}
+-		name := mustTypecheck("ValuesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// look for expression
+ 		var expr syntax.Expr
+@@ -387,7 +401,7 @@ func TestTypesInfo(t *testing.T) {
+ 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
+ 		var name string
+ 		if strings.HasPrefix(test.src, brokenPkg) {
+-			pkg, err := typecheck("TypesInfo", test.src, nil, &info)
++			pkg, err := typecheck(test.src, nil, &info)
+ 			if err == nil {
+ 				t.Errorf("package %s: expected to fail but passed", pkg.Name())
+ 				continue
+@@ -396,7 +410,7 @@ func TestTypesInfo(t *testing.T) {
+ 				name = pkg.Name()
+ 			}
+ 		} else {
+-			name = mustTypecheck("TypesInfo", test.src, nil, &info).Name()
++			name = mustTypecheck(test.src, nil, &info).Name()
+ 		}
+ 
+ 		// look for expression type
+@@ -561,7 +575,7 @@ type T[P any] []P
+ 		instMap := make(map[*syntax.Name]Instance)
+ 		useMap := make(map[*syntax.Name]Object)
+ 		makePkg := func(src string) *Package {
+-			pkg, _ := typecheck("p.go", src, &conf, &Info{Instances: instMap, Uses: useMap})
++			pkg, _ := typecheck(src, &conf, &Info{Instances: instMap, Uses: useMap})
+ 			imports[pkg.Name()] = pkg
+ 			return pkg
+ 		}
+@@ -657,7 +671,7 @@ func TestDefsInfo(t *testing.T) {
+ 		info := Info{
+ 			Defs: make(map[*syntax.Name]Object),
+ 		}
+-		name := mustTypecheck("DefsInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// find object
+ 		var def Object
+@@ -722,7 +736,7 @@ func TestUsesInfo(t *testing.T) {
+ 		info := Info{
+ 			Uses: make(map[*syntax.Name]Object),
+ 		}
+-		name := mustTypecheck("UsesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// find object
+ 		var use Object
+@@ -754,7 +768,7 @@ func (r N[B]) m() { r.m(); r.n() }
+ 
+ func (r *N[C]) n() {  }
+ `
+-	f := mustParse("p.go", src)
++	f := mustParse(src)
+ 	info := Info{
+ 		Defs:       make(map[*syntax.Name]Object),
+ 		Uses:       make(map[*syntax.Name]Object),
+@@ -862,7 +876,7 @@ func TestImplicitsInfo(t *testing.T) {
+ 		info := Info{
+ 			Implicits: make(map[syntax.Node]Object),
+ 		}
+-		name := mustTypecheck("ImplicitsInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// the test cases expect at most one Implicits entry
+ 		if len(info.Implicits) > 1 {
+@@ -990,7 +1004,7 @@ func TestPredicatesInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
+-		name := mustTypecheck("PredicatesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// look for expression predicates
+ 		got := "<missing>"
+@@ -1082,7 +1096,7 @@ func TestScopesInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{Scopes: make(map[syntax.Node]*Scope)}
+-		name := mustTypecheck("ScopesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// number of scopes must match
+ 		if len(info.Scopes) != len(test.scopes) {
+@@ -1270,7 +1284,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{}
+-		name := mustTypecheck("InitOrderInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// number of initializers must match
+ 		if len(info.InitOrder) != len(test.inits) {
+@@ -1290,8 +1304,8 @@ func TestInitOrderInfo(t *testing.T) {
+ }
+ 
+ func TestMultiFileInitOrder(t *testing.T) {
+-	fileA := mustParse("", `package main; var a = 1`)
+-	fileB := mustParse("", `package main; var b = 2`)
++	fileA := mustParse(`package main; var a = 1`)
++	fileB := mustParse(`package main; var b = 2`)
+ 
+ 	// The initialization order must not depend on the parse
+ 	// order of the files, only on the presentation order to
+@@ -1326,10 +1340,8 @@ func TestFiles(t *testing.T) {
+ 	var info Info
+ 	check := NewChecker(&conf, pkg, &info)
+ 
+-	for i, src := range sources {
+-		filename := fmt.Sprintf("sources%d", i)
+-		f := mustParse(filename, src)
+-		if err := check.Files([]*syntax.File{f}); err != nil {
++	for _, src := range sources {
++		if err := check.Files([]*syntax.File{mustParse(src)}); err != nil {
+ 			t.Error(err)
+ 		}
+ 	}
+@@ -1361,7 +1373,7 @@ func TestSelection(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}
+ 	makePkg := func(path, src string) {
+-		pkg := mustTypecheck(path, src, &conf, &Info{Selections: selections})
++		pkg := mustTypecheck(src, &conf, &Info{Selections: selections})
+ 		imports[path] = pkg
+ 	}
+ 
+@@ -1547,9 +1559,7 @@ func TestIssue8518(t *testing.T) {
+ 		Importer: imports,
+ 	}
+ 	makePkg := func(path, src string) {
+-		f := mustParse(path, src)
+-		pkg, _ := conf.Check(path, []*syntax.File{f}, nil) // errors logged via conf.Error
+-		imports[path] = pkg
++		imports[path], _ = conf.Check(path, []*syntax.File{mustParse(src)}, nil) // errors logged via conf.Error
+ 	}
+ 
+ 	const libSrc = `
+@@ -1577,9 +1587,7 @@ func TestIssue59603(t *testing.T) {
+ 		Importer: imports,
+ 	}
+ 	makePkg := func(path, src string) {
+-		f := mustParse(path, src)
+-		pkg, _ := conf.Check(path, []*syntax.File{f}, nil) // errors logged via conf.Error
+-		imports[path] = pkg
++		imports[path], _ = conf.Check(path, []*syntax.File{mustParse(src)}, nil) // errors logged via conf.Error
+ 	}
+ 
+ 	const libSrc = `
+@@ -1662,7 +1670,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck("test", "package p;"+test.src, nil, nil)
++		pkg := mustTypecheck("package p;"+test.src, nil, nil)
+ 
+ 		obj := pkg.Scope().Lookup("a")
+ 		if obj == nil {
+@@ -1707,7 +1715,7 @@ type Node[T any] struct {
+ type Instance = *Tree[int]
+ `
+ 
+-	f := mustParse("foo.go", src)
++	f := mustParse(src)
+ 	pkg := NewPackage("pkg", f.PkgName.Value)
+ 	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
+ 		panic(err)
+@@ -1736,9 +1744,8 @@ func TestScopeLookupParent(t *testing.T) {
+ 	conf := Config{Importer: imports}
+ 	var info Info
+ 	makePkg := func(path, src string) {
+-		f := mustParse(path, src)
+ 		var err error
+-		imports[path], err = conf.Check(path, []*syntax.File{f}, &info)
++		imports[path], err = conf.Check(path, []*syntax.File{mustParse(src)}, &info)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1942,7 +1949,7 @@ func TestIdentical(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck("test", "package p;"+test.src, nil, nil)
++		pkg := mustTypecheck("package p;"+test.src, nil, nil)
+ 		X := pkg.Scope().Lookup("X")
+ 		Y := pkg.Scope().Lookup("Y")
+ 		if X == nil || Y == nil {
+@@ -2015,7 +2022,7 @@ func TestIdenticalUnions(t *testing.T) {
+ 
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+-	f := mustParse("issue15305.go", src)
++	f := mustParse(src)
+ 	conf := Config{
+ 		Error: func(err error) {}, // allow errors
+ 	}
+@@ -2038,7 +2045,7 @@ func TestIssue15305(t *testing.T) {
+ // types for composite literal expressions and composite literal type
+ // expressions.
+ func TestCompositeLitTypes(t *testing.T) {
+-	for _, test := range []struct {
++	for i, test := range []struct {
+ 		lit, typ string
+ 	}{
+ 		{`[16]byte{}`, `[16]byte`},
+@@ -2050,7 +2057,7 @@ func TestCompositeLitTypes(t *testing.T) {
+ 		{`struct{}{}`, `struct{}`},
+ 		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
+ 	} {
+-		f := mustParse(test.lit, "package p; var _ = "+test.lit)
++		f := mustParse(fmt.Sprintf("package p%d; var _ = %s", i, test.lit))
+ 		types := make(map[syntax.Expr]TypeAndValue)
+ 		if _, err := new(Config).Check("p", []*syntax.File{f}, &Info{Types: types}); err != nil {
+ 			t.Fatalf("%s: %v", test.lit, err)
+@@ -2104,7 +2111,7 @@ func (*T1) m2() {}
+ func f(x int) { y := x; print(y) }
+ `
+ 
+-	f := mustParse("src", src)
++	f := mustParse(src)
+ 
+ 	info := &Info{
+ 		Defs: make(map[*syntax.Name]Object),
+@@ -2162,7 +2169,7 @@ type T = foo.T
+ var v T = c
+ func f(x T) T { return foo.F(x) }
+ `
+-	f := mustParse("src", src)
++	f := mustParse(src)
+ 	files := []*syntax.File{f}
+ 
+ 	// type-check using all possible importers
+@@ -2217,7 +2224,7 @@ func f(x T) T { return foo.F(x) }
+ func TestInstantiate(t *testing.T) {
+ 	// eventually we like more tests but this is a start
+ 	const src = "package p; type T[P any] *T[P]"
+-	pkg := mustTypecheck(".", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	// type T should have one type parameter
+ 	T := pkg.Scope().Lookup("T").Type().(*Named)
+@@ -2252,7 +2259,7 @@ func TestInstantiateErrors(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := "package p; " + test.src
+-		pkg := mustTypecheck(".", src, nil, nil)
++		pkg := mustTypecheck(src, nil, nil)
+ 
+ 		T := pkg.Scope().Lookup("T").Type().(*Named)
+ 
+@@ -2290,7 +2297,7 @@ func TestInstanceIdentity(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}
+ 	makePkg := func(src string) {
+-		f := mustParse("", src)
++		f := mustParse(src)
+ 		name := f.PkgName.Value
+ 		pkg, err := conf.Check(name, []*syntax.File{f}, nil)
+ 		if err != nil {
+@@ -2346,7 +2353,7 @@ func fn() {
+ 	info := &Info{
+ 		Defs: make(map[*syntax.Name]Object),
+ 	}
+-	f := mustParse("p.go", src)
++	f := mustParse(src)
+ 	conf := Config{}
+ 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+ 	if err != nil {
+@@ -2477,7 +2484,7 @@ func (N4) m()
+ type Bad Bad // invalid type
+ `
+ 
+-	f := mustParse("p.go", src)
++	f := mustParse(src)
+ 	conf := Config{Error: func(error) {}}
+ 	pkg, _ := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
+ 
+@@ -2572,7 +2579,7 @@ type V4 struct{}
+ func (V4) M()
+ `
+ 
+-	pkg := mustTypecheck("p.go", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
+ 	lookup := func(name string) (*Func, bool) {
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 863aa95680..1066a91c61 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -174,7 +174,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 
+ 	uses := make(map[*syntax.Name]Object)
+ 	types := make(map[syntax.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
++	mustTypecheck(src, nil, &Info{Uses: uses, Types: types})
+ 
+ 	// find called function
+ 	n := 0
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index 3fcad04b77..7031fdb1ad 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -30,25 +30,23 @@ import (
+ func ExampleScope() {
+ 	// Parse the source files for a package.
+ 	var files []*syntax.File
+-	for _, file := range []struct{ name, input string }{
+-		{"main.go", `
+-package main
++	for _, src := range []string{
++		`package main
+ import "fmt"
+ func main() {
+ 	freezing := FToC(-18)
+ 	fmt.Println(freezing, Boiling) }
+-`},
+-		{"celsius.go", `
+-package main
++`,
++		`package main
+ import "fmt"
+ type Celsius float64
+ func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
+ func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
+ const Boiling Celsius = 100
+ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
+-`},
++`,
+ 	} {
+-		files = append(files, mustParse(file.name, file.input))
++		files = append(files, mustParse(src))
+ 	}
+ 
+ 	// Type-check a package consisting of these files.
+@@ -74,13 +72,13 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 	// .  func temperature.FToC(f float64) temperature.Celsius
+ 	// .  func temperature.Unused()
+ 	// .  func temperature.main()
+-	// .  main.go scope {
++	// .  main scope {
+ 	// .  .  package fmt
+ 	// .  .  function scope {
+ 	// .  .  .  var freezing temperature.Celsius
+ 	// .  .  }
+ 	// .  }
+-	// .  celsius.go scope {
++	// .  main scope {
+ 	// .  .  package fmt
+ 	// .  .  function scope {
+ 	// .  .  .  var c temperature.Celsius
+@@ -127,7 +125,7 @@ func fib(x int) int {
+ 		Defs:  make(map[*syntax.Name]types2.Object),
+ 		Uses:  make(map[*syntax.Name]types2.Object),
+ 	}
+-	pkg := mustTypecheck("fib.go", input, nil, &info)
++	pkg := mustTypecheck(input, nil, &info)
+ 
+ 	// Print package-level variables in initialization order.
+ 	fmt.Printf("InitOrder: %v\n\n", info.InitOrder)
+@@ -181,10 +179,10 @@ func fib(x int) int {
+ 	//   defined at <unknown position>
+ 	//   used at 6:15
+ 	// func fib(x int) int:
+-	//   defined at fib.go:8:6
++	//   defined at fib:8:6
+ 	//   used at 12:20, 12:9
+ 	// type S string:
+-	//   defined at fib.go:4:6
++	//   defined at fib:4:6
+ 	//   used at 6:23
+ 	// type int:
+ 	//   defined at <unknown position>
+@@ -193,13 +191,13 @@ func fib(x int) int {
+ 	//   defined at <unknown position>
+ 	//   used at 4:8
+ 	// var b S:
+-	//   defined at fib.go:6:8
++	//   defined at fib:6:8
+ 	//   used at 6:19
+ 	// var c string:
+-	//   defined at fib.go:6:11
++	//   defined at fib:6:11
+ 	//   used at 6:25
+ 	// var x int:
+-	//   defined at fib.go:8:10
++	//   defined at fib:8:10
+ 	//   used at 10:10, 12:13, 12:24, 9:5
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/hilbert_test.go b/src/cmd/compile/internal/types2/hilbert_test.go
+index 8b7ceb3c97..5b2b087820 100644
+--- a/src/cmd/compile/internal/types2/hilbert_test.go
++++ b/src/cmd/compile/internal/types2/hilbert_test.go
+@@ -25,7 +25,7 @@ func TestHilbert(t *testing.T) {
+ 		return
+ 	}
+ 
+-	mustTypecheck("hilbert.go", string(src), nil, nil)
++	mustTypecheck(string(src), nil, nil)
+ }
+ 
+ func program(n int, out string) []byte {
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index e809d17de1..af772b993c 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -107,7 +107,7 @@ func TestInstantiateEquality(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck(".", test.src, nil, nil)
++		pkg := mustTypecheck(test.src, nil, nil)
+ 
+ 		t.Run(pkg.Name(), func(t *testing.T) {
+ 			ctxt := NewContext()
+@@ -133,8 +133,8 @@ func TestInstantiateEquality(t *testing.T) {
+ 
+ func TestInstantiateNonEquality(t *testing.T) {
+ 	const src = "package p; type T[P any] int"
+-	pkg1 := mustTypecheck(".", src, nil, nil)
+-	pkg2 := mustTypecheck(".", src, nil, nil)
++	pkg1 := mustTypecheck(src, nil, nil)
++	pkg2 := mustTypecheck(src, nil, nil)
+ 	// We consider T1 and T2 to be distinct types, so their instances should not
+ 	// be deduplicated by the context.
+ 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
+@@ -179,7 +179,7 @@ var X T[int]
+ 
+ 	for _, test := range tests {
+ 		src := prefix + test.decl
+-		pkg := mustTypecheck(".", src, nil, nil)
++		pkg := mustTypecheck(src, nil, nil)
+ 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
+ 		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+ 		m, _ := obj.(*Func)
+@@ -201,7 +201,7 @@ func (T[P]) m() {}
+ 
+ var _ T[int]
+ `
+-	pkg := mustTypecheck(".", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 	typ := pkg.Scope().Lookup("T").Type().(*Named)
+ 	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+ 	if obj == nil {
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index c7b63a1e68..e3e295e079 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ func TestIssue5770(t *testing.T) {
+-	_, err := typecheck("p", `package p; type S struct{T}`, nil, nil)
++	_, err := typecheck(`package p; type S struct{T}`, nil, nil)
+ 	const want = "undefined: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+@@ -39,7 +39,7 @@ var (
+ 	_ = (interface{})(nil)
+ )`
+ 	types := make(map[syntax.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Types: types})
++	mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 	for x, tv := range types {
+ 		var want Type
+@@ -78,7 +78,7 @@ func f() int {
+ }
+ `
+ 	types := make(map[syntax.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Types: types})
++	mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 	want := Typ[Int]
+ 	n := 0
+@@ -102,7 +102,7 @@ package p
+ func (T) m() (res bool) { return }
+ type T struct{} // receiver type after method declaration
+ `
+-	f := mustParse("", src)
++	f := mustParse(src)
+ 
+ 	var conf Config
+ 	defs := make(map[*syntax.Name]Object)
+@@ -148,7 +148,7 @@ L7 uses var z int`
+ 	conf := Config{Error: func(err error) { t.Log(err) }}
+ 	defs := make(map[*syntax.Name]Object)
+ 	uses := make(map[*syntax.Name]Object)
+-	_, err := typecheck("p", src, &conf, &Info{Defs: defs, Uses: uses})
++	_, err := typecheck(src, &conf, &Info{Defs: defs, Uses: uses})
+ 	if s := err.Error(); !strings.HasSuffix(s, "cannot assign to w") {
+ 		t.Errorf("Check: unexpected error: %s", s)
+ 	}
+@@ -228,7 +228,7 @@ func main() {
+ `
+ 	f := func(test, src string) {
+ 		info := &Info{Uses: make(map[*syntax.Name]Object)}
+-		mustTypecheck("main", src, nil, info)
++		mustTypecheck(src, nil, info)
+ 
+ 		var pkg *Package
+ 		count := 0
+@@ -256,13 +256,13 @@ func TestIssue22525(t *testing.T) {
+ 
+ 	got := "\n"
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+-	typecheck("", src, &conf, nil) // do not crash
++	typecheck(src, &conf, nil) // do not crash
+ 	want := `
+-:1:27: a declared and not used
+-:1:30: b declared and not used
+-:1:33: c declared and not used
+-:1:36: d declared and not used
+-:1:39: e declared and not used
++p:1:27: a declared and not used
++p:1:30: b declared and not used
++p:1:33: c declared and not used
++p:1:36: d declared and not used
++p:1:39: e declared and not used
+ `
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+@@ -282,7 +282,7 @@ func TestIssue25627(t *testing.T) {
+ 		`struct { *I }`,
+ 		`struct { a int; b Missing; *Missing }`,
+ 	} {
+-		f := mustParse("", prefix+src)
++		f := mustParse(prefix + src)
+ 
+ 		conf := Config{Importer: defaultImporter(), Error: func(err error) {}}
+ 		info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
+@@ -319,7 +319,7 @@ func TestIssue28005(t *testing.T) {
+ 	// compute original file ASTs
+ 	var orig [len(sources)]*syntax.File
+ 	for i, src := range sources {
+-		orig[i] = mustParse("", src)
++		orig[i] = mustParse(src)
+ 	}
+ 
+ 	// run the test for all order permutations of the incoming files
+@@ -394,8 +394,8 @@ func TestIssue28282(t *testing.T) {
+ }
+ 
+ func TestIssue29029(t *testing.T) {
+-	f1 := mustParse("", `package p; type A interface { M() }`)
+-	f2 := mustParse("", `package p; var B interface { A }`)
++	f1 := mustParse(`package p; type A interface { M() }`)
++	f2 := mustParse(`package p; var B interface { A }`)
+ 
+ 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
+ 	printInfo := func(info *Info) string {
+@@ -441,10 +441,10 @@ func TestIssue34151(t *testing.T) {
+ 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
+ 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
+ 
+-	a := mustTypecheck("a", asrc, nil, nil)
++	a := mustTypecheck(asrc, nil, nil)
+ 
+ 	conf := Config{Importer: importHelper{pkg: a}}
+-	mustTypecheck("b", bsrc, &conf, nil)
++	mustTypecheck(bsrc, &conf, nil)
+ }
+ 
+ type importHelper struct {
+@@ -482,13 +482,8 @@ func TestIssue34921(t *testing.T) {
+ 
+ 	var pkg *Package
+ 	for _, src := range sources {
+-		f := mustParse("", src)
+ 		conf := Config{Importer: importHelper{pkg: pkg}}
+-		res, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
+-		if err != nil {
+-			t.Errorf("%q failed to typecheck: %v", src, err)
+-		}
+-		pkg = res // res is imported by the next package in this test
++		pkg = mustTypecheck(src, &conf, nil) // pkg imported by the next package in this test
+ 	}
+ }
+ 
+@@ -551,12 +546,12 @@ func TestIssue43124(t *testing.T) {
+ 		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
+ 	)
+ 
+-	a := mustTypecheck("a", asrc, nil, nil)
++	a := mustTypecheck(asrc, nil, nil)
+ 	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
+ 
+ 	// Packages should be fully qualified when there is ambiguity within the
+ 	// error string itself.
+-	_, err := typecheck("b", bsrc, &conf, nil)
++	_, err := typecheck(bsrc, &conf, nil)
+ 	if err == nil {
+ 		t.Fatal("package b had no errors")
+ 	}
+@@ -565,7 +560,7 @@ func TestIssue43124(t *testing.T) {
+ 	}
+ 
+ 	// ...and also when there is any ambiguity in reachable packages.
+-	_, err = typecheck("c", csrc, &conf, nil)
++	_, err = typecheck(csrc, &conf, nil)
+ 	if err == nil {
+ 		t.Fatal("package c had no errors")
+ 	}
+@@ -663,7 +658,7 @@ func TestIssue51093(t *testing.T) {
+ 	for _, test := range tests {
+ 		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
+ 		types := make(map[syntax.Expr]TypeAndValue)
+-		mustTypecheck("p", src, nil, &Info{Types: types})
++		mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 		var n int
+ 		for x, tv := range types {
+@@ -793,8 +788,8 @@ func (S) M5(struct {S;t}) {}
+ 
+ 	test := func(main, b, want string) {
+ 		re := regexp.MustCompile(want)
+-		bpkg := mustTypecheck("b", b, nil, nil)
+-		mast := mustParse("main.go", main)
++		bpkg := mustTypecheck(b, nil, nil)
++		mast := mustParse(main)
+ 		conf := Config{Importer: importHelper{pkg: bpkg}}
+ 		_, err := conf.Check(mast.PkgName.Value, []*syntax.File{mast}, nil)
+ 		if err == nil {
+diff --git a/src/cmd/compile/internal/types2/mono_test.go b/src/cmd/compile/internal/types2/mono_test.go
+index 17450aa04b..c2955a2828 100644
+--- a/src/cmd/compile/internal/types2/mono_test.go
++++ b/src/cmd/compile/internal/types2/mono_test.go
+@@ -20,7 +20,7 @@ func checkMono(t *testing.T, body string) error {
+ 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
+ 		Importer: defaultImporter(),
+ 	}
+-	typecheck("x", src, &conf, nil)
++	typecheck(src, &conf, nil)
+ 	if buf.Len() == 0 {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/types2/named_test.go b/src/cmd/compile/internal/types2/named_test.go
+index 0b1819bbf9..705dcaee27 100644
+--- a/src/cmd/compile/internal/types2/named_test.go
++++ b/src/cmd/compile/internal/types2/named_test.go
+@@ -31,7 +31,7 @@ func (G[P]) N() (p P) { return }
+ 
+ type Inst = G[int]
+ 	`
+-	pkg := mustTypecheck("p", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	var (
+ 		T        = pkg.Scope().Lookup("T").Type()
+@@ -92,7 +92,7 @@ func (Node[Q]) M(Q) {}
+ type Inst = *Tree[int]
+ `
+ 
+-	f := mustParse("foo.go", src)
++	f := mustParse(src)
+ 	pkg := NewPackage("p", f.PkgName.Value)
+ 	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 85b9e697ee..ef1a864ec9 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -56,7 +56,7 @@ func TestIsAlias(t *testing.T) {
+ // the same Func Object as the original method. See also go.dev/issue/34421.
+ func TestEmbeddedMethod(t *testing.T) {
+ 	const src = `package p; type I interface { error }`
+-	pkg := mustTypecheck("p", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	// get original error.Error method
+ 	eface := Universe.Lookup("error")
+@@ -110,7 +110,7 @@ func TestObjectString(t *testing.T) {
+ 
+ 	for _, test := range testObjects {
+ 		src := "package p; " + test.src
+-		pkg, err := typecheck(filename, src, nil, nil)
++		pkg, err := typecheck(src, nil, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+diff --git a/src/cmd/compile/internal/types2/resolver_test.go b/src/cmd/compile/internal/types2/resolver_test.go
+index cafbfc9af6..923712b268 100644
+--- a/src/cmd/compile/internal/types2/resolver_test.go
++++ b/src/cmd/compile/internal/types2/resolver_test.go
+@@ -116,8 +116,8 @@ func TestResolveIdents(t *testing.T) {
+ 
+ 	// parse package files
+ 	var files []*syntax.File
+-	for i, src := range sources {
+-		files = append(files, mustParse(fmt.Sprintf("sources[%d]", i), src))
++	for _, src := range sources {
++		files = append(files, mustParse(src))
+ 	}
+ 
+ 	// resolve and type-check package AST
+diff --git a/src/cmd/compile/internal/types2/sizes_test.go b/src/cmd/compile/internal/types2/sizes_test.go
+index f2e4a87c71..7af89583f2 100644
+--- a/src/cmd/compile/internal/types2/sizes_test.go
++++ b/src/cmd/compile/internal/types2/sizes_test.go
+@@ -20,7 +20,7 @@ func findStructType(t *testing.T, src string) *types2.Struct {
+ 
+ func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
+ 	types := make(map[syntax.Expr]types2.TypeAndValue)
+-	mustTypecheck("x", src, nil, &types2.Info{Types: types})
++	mustTypecheck(src, nil, &types2.Info{Types: types})
+ 	for _, tv := range types {
+ 		if ts, ok := tv.Type.(*types2.Struct); ok {
+ 			return ts
+@@ -89,7 +89,7 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 		Importer: defaultImporter(),
+ 		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
+ 	}
+-	mustTypecheck("x", src, &conf, &info)
++	mustTypecheck(src, &conf, &info)
+ 	for _, tv := range info.Types {
+ 		_ = conf.Sizes.Sizeof(tv.Type)
+ 		_ = conf.Sizes.Alignof(tv.Type)
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index 193ee251f0..c2be40da29 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -118,7 +118,7 @@ func TestTypeString(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := `package generic_p; import "io"; type _ io.Writer; type T ` + test.src
+-		pkg, err := typecheck(filename, src, nil, nil)
++		pkg, err := typecheck(src, nil, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+@@ -136,8 +136,8 @@ func TestTypeString(t *testing.T) {
+ }
+ 
+ func TestQualifiedTypeString(t *testing.T) {
+-	p := mustTypecheck("p.go", "package p; type T int", nil, nil)
+-	q := mustTypecheck("q.go", "package q", nil, nil)
++	p := mustTypecheck("package p; type T int", nil, nil)
++	q := mustTypecheck("package q", nil, nil)
+ 
+ 	pT := p.Scope().Lookup("T").Type()
+ 	for _, test := range []struct {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 2d0df43263..825f30585b 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -24,21 +24,21 @@ import (
+ // nopos indicates an unknown position
+ var nopos token.Pos
+ 
+-func parse(fset *token.FileSet, filename, src string) (*ast.File, error) {
+-	return parser.ParseFile(fset, filename, src, 0)
++func parse(fset *token.FileSet, src string) (*ast.File, error) {
++	return parser.ParseFile(fset, pkgName(src), src, 0)
+ }
+ 
+-func mustParse(fset *token.FileSet, filename, src string) *ast.File {
+-	f, err := parse(fset, filename, src)
++func mustParse(fset *token.FileSet, src string) *ast.File {
++	f, err := parse(fset, src)
+ 	if err != nil {
+ 		panic(err) // so we don't need to pass *testing.T
+ 	}
+ 	return f
+ }
+ 
+-func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
++func typecheck(src string, conf *Config, info *Info) (*Package, error) {
+ 	fset := token.NewFileSet()
+-	f, err := parse(fset, path, src)
++	f, err := parse(fset, src)
+ 	if f == nil { // ignore errors unless f is nil
+ 		return nil, err
+ 	}
+@@ -51,9 +51,9 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
+ 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ }
+ 
+-func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
++func mustTypecheck(src string, conf *Config, info *Info) *Package {
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, path, src)
++	f := mustParse(fset, src)
+ 	if conf == nil {
+ 		conf = &Config{
+ 			Importer: importer.Default(),
+@@ -66,6 +66,20 @@ func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
+ 	return pkg
+ }
+ 
++// pkgName extracts the package name from src, which must contain a package header.
++func pkgName(src string) string {
++	const kw = "package "
++	if i := strings.Index(src, kw); i >= 0 {
++		after := src[i+len(kw):]
++		n := len(after)
++		if i := strings.IndexAny(after, "\n\t ;/"); i >= 0 {
++			n = i
++		}
++		return after[:n]
++	}
++	panic("missing package header: " + src)
++}
++
+ func TestValuesInfo(t *testing.T) {
+ 	var tests = []struct {
+ 		src  string
+@@ -149,7 +163,7 @@ func TestValuesInfo(t *testing.T) {
+ 		info := Info{
+ 			Types: make(map[ast.Expr]TypeAndValue),
+ 		}
+-		name := mustTypecheck("ValuesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// look for expression
+ 		var expr ast.Expr
+@@ -387,7 +401,7 @@ func TestTypesInfo(t *testing.T) {
+ 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+ 		var name string
+ 		if strings.HasPrefix(test.src, broken) {
+-			pkg, err := typecheck("TypesInfo", test.src, nil, &info)
++			pkg, err := typecheck(test.src, nil, &info)
+ 			if err == nil {
+ 				t.Errorf("package %s: expected to fail but passed", pkg.Name())
+ 				continue
+@@ -396,7 +410,7 @@ func TestTypesInfo(t *testing.T) {
+ 				name = pkg.Name()
+ 			}
+ 		} else {
+-			name = mustTypecheck("TypesInfo", test.src, nil, &info).Name()
++			name = mustTypecheck(test.src, nil, &info).Name()
+ 		}
+ 
+ 		// look for expression type
+@@ -561,7 +575,7 @@ type T[P any] []P
+ 		instMap := make(map[*ast.Ident]Instance)
+ 		useMap := make(map[*ast.Ident]Object)
+ 		makePkg := func(src string) *Package {
+-			pkg, _ := typecheck("p.go", src, &conf, &Info{Instances: instMap, Uses: useMap})
++			pkg, _ := typecheck(src, &conf, &Info{Instances: instMap, Uses: useMap})
+ 			imports[pkg.Name()] = pkg
+ 			return pkg
+ 		}
+@@ -656,7 +670,7 @@ func TestDefsInfo(t *testing.T) {
+ 		info := Info{
+ 			Defs: make(map[*ast.Ident]Object),
+ 		}
+-		name := mustTypecheck("DefsInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// find object
+ 		var def Object
+@@ -723,7 +737,7 @@ func TestUsesInfo(t *testing.T) {
+ 		info := Info{
+ 			Uses: make(map[*ast.Ident]Object),
+ 		}
+-		name := mustTypecheck("UsesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// find object
+ 		var use Object
+@@ -756,7 +770,7 @@ func (r N[B]) m() { r.m(); r.n() }
+ func (r *N[C]) n() {  }
+ `
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "p.go", src)
++	f := mustParse(fset, src)
+ 	info := Info{
+ 		Defs:       make(map[*ast.Ident]Object),
+ 		Uses:       make(map[*ast.Ident]Object),
+@@ -864,7 +878,7 @@ func TestImplicitsInfo(t *testing.T) {
+ 		info := Info{
+ 			Implicits: make(map[ast.Node]Object),
+ 		}
+-		name := mustTypecheck("ImplicitsInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// the test cases expect at most one Implicits entry
+ 		if len(info.Implicits) > 1 {
+@@ -992,7 +1006,7 @@ func TestPredicatesInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+-		name := mustTypecheck("PredicatesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// look for expression predicates
+ 		got := "<missing>"
+@@ -1084,7 +1098,7 @@ func TestScopesInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{Scopes: make(map[ast.Node]*Scope)}
+-		name := mustTypecheck("ScopesInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// number of scopes must match
+ 		if len(info.Scopes) != len(test.scopes) {
+@@ -1272,7 +1286,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{}
+-		name := mustTypecheck("InitOrderInfo", test.src, nil, &info).Name()
++		name := mustTypecheck(test.src, nil, &info).Name()
+ 
+ 		// number of initializers must match
+ 		if len(info.InitOrder) != len(test.inits) {
+@@ -1293,8 +1307,8 @@ func TestInitOrderInfo(t *testing.T) {
+ 
+ func TestMultiFileInitOrder(t *testing.T) {
+ 	fset := token.NewFileSet()
+-	fileA := mustParse(fset, "", `package main; var a = 1`)
+-	fileB := mustParse(fset, "", `package main; var b = 2`)
++	fileA := mustParse(fset, `package main; var a = 1`)
++	fileB := mustParse(fset, `package main; var b = 2`)
+ 
+ 	// The initialization order must not depend on the parse
+ 	// order of the files, only on the presentation order to
+@@ -1330,10 +1344,8 @@ func TestFiles(t *testing.T) {
+ 	var info Info
+ 	check := NewChecker(&conf, fset, pkg, &info)
+ 
+-	for i, src := range sources {
+-		filename := fmt.Sprintf("sources%d", i)
+-		f := mustParse(fset, filename, src)
+-		if err := check.Files([]*ast.File{f}); err != nil {
++	for _, src := range sources {
++		if err := check.Files([]*ast.File{mustParse(fset, src)}); err != nil {
+ 			t.Error(err)
+ 		}
+ 	}
+@@ -1368,8 +1380,7 @@ func TestSelection(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}
+ 	makePkg := func(path, src string) {
+-		f := mustParse(fset, path+".go", src)
+-		pkg, err := conf.Check(path, fset, []*ast.File{f}, &Info{Selections: selections})
++		pkg, err := conf.Check(path, fset, []*ast.File{mustParse(fset, src)}, &Info{Selections: selections})
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1546,9 +1557,7 @@ func TestIssue8518(t *testing.T) {
+ 		Importer: imports,
+ 	}
+ 	makePkg := func(path, src string) {
+-		f := mustParse(fset, path, src)
+-		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
+-		imports[path] = pkg
++		imports[path], _ = conf.Check(path, fset, []*ast.File{mustParse(fset, src)}, nil) // errors logged via conf.Error
+ 	}
+ 
+ 	const libSrc = `
+@@ -1577,9 +1586,7 @@ func TestIssue59603(t *testing.T) {
+ 		Importer: imports,
+ 	}
+ 	makePkg := func(path, src string) {
+-		f := mustParse(fset, path, src)
+-		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
+-		imports[path] = pkg
++		imports[path], _ = conf.Check(path, fset, []*ast.File{mustParse(fset, src)}, nil) // errors logged via conf.Error
+ 	}
+ 
+ 	const libSrc = `
+@@ -1664,7 +1671,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck("test", "package p;"+test.src, nil, nil)
++		pkg := mustTypecheck("package p;"+test.src, nil, nil)
+ 
+ 		obj := pkg.Scope().Lookup("a")
+ 		if obj == nil {
+@@ -1710,7 +1717,7 @@ type Instance = *Tree[int]
+ `
+ 
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "foo.go", src)
++	f := mustParse(fset, src)
+ 	pkg := NewPackage("pkg", f.Name.Name)
+ 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
+ 		panic(err)
+@@ -1747,7 +1754,7 @@ func TestScopeLookupParent(t *testing.T) {
+ 		}
+ 	}
+ 
+-	makePkg("lib", mustParse(fset, "", "package lib; var X int"))
++	makePkg("lib", mustParse(fset, "package lib; var X int"))
+ 	// Each /*name=kind:line*/ comment makes the test look up the
+ 	// name at that point and checks that it resolves to a decl of
+ 	// the specified kind and line number.  "undef" means undefined.
+@@ -1791,7 +1798,7 @@ func F(){
+ `
+ 
+ 	info.Uses = make(map[*ast.Ident]Object)
+-	f := mustParse(fset, "", mainSrc)
++	f := mustParse(fset, mainSrc)
+ 	makePkg("main", f)
+ 	mainScope := imports["main"].Scope()
+ 	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
+@@ -1943,7 +1950,7 @@ func TestIdentical(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck("test", "package p;"+test.src, nil, nil)
++		pkg := mustTypecheck("package p;"+test.src, nil, nil)
+ 		X := pkg.Scope().Lookup("X")
+ 		Y := pkg.Scope().Lookup("Y")
+ 		if X == nil || Y == nil {
+@@ -2017,7 +2024,7 @@ func TestIdenticalUnions(t *testing.T) {
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "issue15305.go", src)
++	f := mustParse(fset, src)
+ 	conf := Config{
+ 		Error: func(err error) {}, // allow errors
+ 	}
+@@ -2040,7 +2047,7 @@ func TestIssue15305(t *testing.T) {
+ // types for composite literal expressions and composite literal type
+ // expressions.
+ func TestCompositeLitTypes(t *testing.T) {
+-	for _, test := range []struct {
++	for i, test := range []struct {
+ 		lit, typ string
+ 	}{
+ 		{`[16]byte{}`, `[16]byte`},
+@@ -2053,7 +2060,7 @@ func TestCompositeLitTypes(t *testing.T) {
+ 		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
+ 	} {
+ 		fset := token.NewFileSet()
+-		f := mustParse(fset, test.lit, "package p; var _ = "+test.lit)
++		f := mustParse(fset, fmt.Sprintf("package p%d; var _ = %s", i, test.lit))
+ 		types := make(map[ast.Expr]TypeAndValue)
+ 		if _, err := new(Config).Check("p", fset, []*ast.File{f}, &Info{Types: types}); err != nil {
+ 			t.Fatalf("%s: %v", test.lit, err)
+@@ -2108,7 +2115,7 @@ func f(x int) { y := x; print(y) }
+ `
+ 
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "src", src)
++	f := mustParse(fset, src)
+ 
+ 	info := &Info{
+ 		Defs: make(map[*ast.Ident]Object),
+@@ -2167,7 +2174,7 @@ var v T = c
+ func f(x T) T { return foo.F(x) }
+ `
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "src", src)
++	f := mustParse(fset, src)
+ 	files := []*ast.File{f}
+ 
+ 	// type-check using all possible importers
+@@ -2222,7 +2229,7 @@ func f(x T) T { return foo.F(x) }
+ func TestInstantiate(t *testing.T) {
+ 	// eventually we like more tests but this is a start
+ 	const src = "package p; type T[P any] *T[P]"
+-	pkg := mustTypecheck(".", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	// type T should have one type parameter
+ 	T := pkg.Scope().Lookup("T").Type().(*Named)
+@@ -2257,7 +2264,7 @@ func TestInstantiateErrors(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := "package p; " + test.src
+-		pkg := mustTypecheck(".", src, nil, nil)
++		pkg := mustTypecheck(src, nil, nil)
+ 
+ 		T := pkg.Scope().Lookup("T").Type().(*Named)
+ 
+@@ -2296,7 +2303,7 @@ func TestInstanceIdentity(t *testing.T) {
+ 	conf := Config{Importer: imports}
+ 	makePkg := func(src string) {
+ 		fset := token.NewFileSet()
+-		f := mustParse(fset, "", src)
++		f := mustParse(fset, src)
+ 		name := f.Name.Name
+ 		pkg, err := conf.Check(name, fset, []*ast.File{f}, nil)
+ 		if err != nil {
+@@ -2353,7 +2360,7 @@ func fn() {
+ 		Defs: make(map[*ast.Ident]Object),
+ 	}
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "p.go", src)
++	f := mustParse(fset, src)
+ 	conf := Config{}
+ 	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ 	if err != nil {
+@@ -2485,7 +2492,7 @@ type Bad Bad // invalid type
+ `
+ 
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "p.go", src)
++	f := mustParse(fset, src)
+ 	conf := Config{Error: func(error) {}}
+ 	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+ 
+@@ -2580,7 +2587,7 @@ type V4 struct{}
+ func (V4) M()
+ `
+ 
+-	pkg := mustTypecheck("p.go", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
+ 	lookup := func(name string) (*Func, bool) {
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index 5591fecf02..6238464f58 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -174,7 +174,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 
+ 	uses := make(map[*ast.Ident]Object)
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
++	mustTypecheck(src, nil, &Info{Uses: uses, Types: types})
+ 
+ 	// find called function
+ 	n := 0
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 37b5ea4511..1ee47bc123 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -35,25 +35,23 @@ func ExampleScope() {
+ 	// Parse the source files for a package.
+ 	fset := token.NewFileSet()
+ 	var files []*ast.File
+-	for _, file := range []struct{ name, input string }{
+-		{"main.go", `
+-package main
++	for _, src := range []string{
++		`package main
+ import "fmt"
+ func main() {
+ 	freezing := FToC(-18)
+ 	fmt.Println(freezing, Boiling) }
+-`},
+-		{"celsius.go", `
+-package main
++`,
++		`package main
+ import "fmt"
+ type Celsius float64
+ func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
+ func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
+ const Boiling Celsius = 100
+ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
+-`},
++`,
+ 	} {
+-		files = append(files, mustParse(fset, file.name, file.input))
++		files = append(files, mustParse(fset, src))
+ 	}
+ 
+ 	// Type-check a package consisting of these files.
+@@ -79,13 +77,13 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 	// .  func temperature.FToC(f float64) temperature.Celsius
+ 	// .  func temperature.Unused()
+ 	// .  func temperature.main()
+-	// .  main.go scope {
++	// .  main scope {
+ 	// .  .  package fmt
+ 	// .  .  function scope {
+ 	// .  .  .  var freezing temperature.Celsius
+ 	// .  .  }
+ 	// .  }
+-	// .  celsius.go scope {
++	// .  main scope {
+ 	// .  .  package fmt
+ 	// .  .  function scope {
+ 	// .  .  .  var c temperature.Celsius
+@@ -183,7 +181,7 @@ func fib(x int) int {
+ 	// We need a specific fileset in this test below for positions.
+ 	// Cannot use typecheck helper.
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "fib.go", input)
++	f := mustParse(fset, input)
+ 
+ 	// Type-check the package.
+ 	// We create an empty map for each kind of input
+@@ -250,10 +248,10 @@ func fib(x int) int {
+ 	//   defined at -
+ 	//   used at 6:15
+ 	// func fib(x int) int:
+-	//   defined at fib.go:8:6
++	//   defined at fib:8:6
+ 	//   used at 12:20, 12:9
+ 	// type S string:
+-	//   defined at fib.go:4:6
++	//   defined at fib:4:6
+ 	//   used at 6:23
+ 	// type int:
+ 	//   defined at -
+@@ -262,13 +260,13 @@ func fib(x int) int {
+ 	//   defined at -
+ 	//   used at 4:8
+ 	// var b S:
+-	//   defined at fib.go:6:8
++	//   defined at fib:6:8
+ 	//   used at 6:19
+ 	// var c string:
+-	//   defined at fib.go:6:11
++	//   defined at fib:6:11
+ 	//   used at 6:25
+ 	// var x int:
+-	//   defined at fib.go:8:10
++	//   defined at fib:8:10
+ 	//   used at 10:10, 12:13, 12:24, 9:5
+ 	//
+ 	// Types and Values of each expression:
+diff --git a/src/go/types/hilbert_test.go b/src/go/types/hilbert_test.go
+index 7da2a7ded1..f530422492 100644
+--- a/src/go/types/hilbert_test.go
++++ b/src/go/types/hilbert_test.go
+@@ -27,7 +27,7 @@ func TestHilbert(t *testing.T) {
+ 		return
+ 	}
+ 
+-	mustTypecheck("hilbert.go", string(src), nil, nil)
++	mustTypecheck(string(src), nil, nil)
+ }
+ 
+ func program(n int, out string) []byte {
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 574f3aeb86..58dfa70131 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -109,7 +109,7 @@ func TestInstantiateEquality(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg := mustTypecheck(".", test.src, nil, nil)
++		pkg := mustTypecheck(test.src, nil, nil)
+ 
+ 		t.Run(pkg.Name(), func(t *testing.T) {
+ 			ctxt := NewContext()
+@@ -135,8 +135,8 @@ func TestInstantiateEquality(t *testing.T) {
+ 
+ func TestInstantiateNonEquality(t *testing.T) {
+ 	const src = "package p; type T[P any] int"
+-	pkg1 := mustTypecheck(".", src, nil, nil)
+-	pkg2 := mustTypecheck(".", src, nil, nil)
++	pkg1 := mustTypecheck(src, nil, nil)
++	pkg2 := mustTypecheck(src, nil, nil)
+ 	// We consider T1 and T2 to be distinct types, so their instances should not
+ 	// be deduplicated by the context.
+ 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
+@@ -181,7 +181,7 @@ var X T[int]
+ 
+ 	for _, test := range tests {
+ 		src := prefix + test.decl
+-		pkg := mustTypecheck(".", src, nil, nil)
++		pkg := mustTypecheck(src, nil, nil)
+ 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
+ 		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+ 		m, _ := obj.(*Func)
+@@ -203,7 +203,7 @@ func (T[P]) m() {}
+ 
+ var _ T[int]
+ `
+-	pkg := mustTypecheck(".", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 	typ := pkg.Scope().Lookup("T").Type().(*Named)
+ 	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+ 	if obj == nil {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 888ca3cc70..a464659aaf 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ func TestIssue5770(t *testing.T) {
+-	_, err := typecheck("p", `package p; type S struct{T}`, nil, nil)
++	_, err := typecheck(`package p; type S struct{T}`, nil, nil)
+ 	const want = "undefined: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+@@ -41,7 +41,7 @@ var (
+ 	_ = (interface{})(nil)
+ )`
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Types: types})
++	mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 	for x, tv := range types {
+ 		var want Type
+@@ -80,7 +80,7 @@ func f() int {
+ }
+ `
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	mustTypecheck("p", src, nil, &Info{Types: types})
++	mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 	want := Typ[Int]
+ 	n := 0
+@@ -104,7 +104,7 @@ package p
+ func (T) m() (res bool) { return }
+ type T struct{} // receiver type after method declaration
+ `
+-	f := mustParse(fset, "", src)
++	f := mustParse(fset, src)
+ 
+ 	var conf Config
+ 	defs := make(map[*ast.Ident]Object)
+@@ -138,7 +138,7 @@ func _() {
+ 	// We need a specific fileset in this test below for positions.
+ 	// Cannot use typecheck helper.
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "", src)
++	f := mustParse(fset, src)
+ 
+ 	const want = `L3 defs func p._()
+ L4 defs const w untyped int
+@@ -235,7 +235,7 @@ func main() {
+ `
+ 	f := func(test, src string) {
+ 		info := &Info{Uses: make(map[*ast.Ident]Object)}
+-		mustTypecheck("main", src, nil, info)
++		mustTypecheck(src, nil, info)
+ 
+ 		var pkg *Package
+ 		count := 0
+@@ -263,13 +263,13 @@ func TestIssue22525(t *testing.T) {
+ 
+ 	got := "\n"
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+-	typecheck("", src, &conf, nil) // do not crash
++	typecheck(src, &conf, nil) // do not crash
+ 	want := `
+-1:27: a declared and not used
+-1:30: b declared and not used
+-1:33: c declared and not used
+-1:36: d declared and not used
+-1:39: e declared and not used
++p:1:27: a declared and not used
++p:1:30: b declared and not used
++p:1:33: c declared and not used
++p:1:36: d declared and not used
++p:1:39: e declared and not used
+ `
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+@@ -289,7 +289,7 @@ func TestIssue25627(t *testing.T) {
+ 		`struct { *I }`,
+ 		`struct { a int; b Missing; *Missing }`,
+ 	} {
+-		f := mustParse(fset, "", prefix+src)
++		f := mustParse(fset, prefix+src)
+ 
+ 		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
+ 		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+@@ -326,7 +326,7 @@ func TestIssue28005(t *testing.T) {
+ 	// compute original file ASTs
+ 	var orig [len(sources)]*ast.File
+ 	for i, src := range sources {
+-		orig[i] = mustParse(fset, "", src)
++		orig[i] = mustParse(fset, src)
+ 	}
+ 
+ 	// run the test for all order permutations of the incoming files
+@@ -400,8 +400,8 @@ func TestIssue28282(t *testing.T) {
+ }
+ 
+ func TestIssue29029(t *testing.T) {
+-	f1 := mustParse(fset, "", `package p; type A interface { M() }`)
+-	f2 := mustParse(fset, "", `package p; var B interface { A }`)
++	f1 := mustParse(fset, `package p; type A interface { M() }`)
++	f2 := mustParse(fset, `package p; var B interface { A }`)
+ 
+ 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
+ 	printInfo := func(info *Info) string {
+@@ -447,10 +447,10 @@ func TestIssue34151(t *testing.T) {
+ 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
+ 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
+ 
+-	a := mustTypecheck("a", asrc, nil, nil)
++	a := mustTypecheck(asrc, nil, nil)
+ 
+ 	conf := Config{Importer: importHelper{pkg: a}}
+-	mustTypecheck("b", bsrc, &conf, nil)
++	mustTypecheck(bsrc, &conf, nil)
+ }
+ 
+ type importHelper struct {
+@@ -488,13 +488,8 @@ func TestIssue34921(t *testing.T) {
+ 
+ 	var pkg *Package
+ 	for _, src := range sources {
+-		f := mustParse(fset, "", src)
+ 		conf := Config{Importer: importHelper{pkg: pkg}}
+-		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+-		if err != nil {
+-			t.Errorf("%q failed to typecheck: %v", src, err)
+-		}
+-		pkg = res // res is imported by the next package in this test
++		pkg = mustTypecheck(src, &conf, nil) // pkg imported by the next package in this test
+ 	}
+ }
+ 
+@@ -599,7 +594,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
+ `
+ 	)
+ 
+-	a := mustTypecheck("a", asrc, nil, nil)
++	a := mustTypecheck(asrc, nil, nil)
+ 	imp := importHelper{pkg: a, fallback: importer.Default()}
+ 
+ 	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+@@ -696,7 +691,7 @@ func TestIssue51093(t *testing.T) {
+ 	for _, test := range tests {
+ 		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
+ 		types := make(map[ast.Expr]TypeAndValue)
+-		mustTypecheck("p", src, nil, &Info{Types: types})
++		mustTypecheck(src, nil, &Info{Types: types})
+ 
+ 		var n int
+ 		for x, tv := range types {
+@@ -828,8 +823,8 @@ func (S) M5(struct {S;t}) {}
+ 	fset := token.NewFileSet()
+ 	test := func(main, b, want string) {
+ 		re := regexp.MustCompile(want)
+-		bpkg := mustTypecheck("b", b, nil, nil)
+-		mast := mustParse(fset, "main.go", main)
++		bpkg := mustTypecheck(b, nil, nil)
++		mast := mustParse(fset, main)
+ 		conf := Config{Importer: importHelper{pkg: bpkg}}
+ 		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)
+ 		if err == nil {
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index 3f8a0b1a10..918b51d93b 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -84,7 +84,7 @@ func TestNewMethodSet(t *testing.T) {
+ 	}
+ 
+ 	check := func(src string, methods []method, generic bool) {
+-		pkg := mustTypecheck("test", "package p;"+src, nil, nil)
++		pkg := mustTypecheck("package p;"+src, nil, nil)
+ 
+ 		scope := pkg.Scope()
+ 		if generic {
+diff --git a/src/go/types/mono_test.go b/src/go/types/mono_test.go
+index a8d2acfd66..ccab846c6d 100644
+--- a/src/go/types/mono_test.go
++++ b/src/go/types/mono_test.go
+@@ -21,7 +21,7 @@ func checkMono(t *testing.T, body string) error {
+ 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
+ 		Importer: importer.Default(),
+ 	}
+-	typecheck("x", src, &conf, nil)
++	typecheck(src, &conf, nil)
+ 	if buf.Len() == 0 {
+ 		return nil
+ 	}
+diff --git a/src/go/types/named_test.go b/src/go/types/named_test.go
+index 55c0021398..8e00f6e0f9 100644
+--- a/src/go/types/named_test.go
++++ b/src/go/types/named_test.go
+@@ -32,7 +32,7 @@ func (G[P]) N() (p P) { return }
+ 
+ type Inst = G[int]
+ 	`
+-	pkg := mustTypecheck("p", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	var (
+ 		T        = pkg.Scope().Lookup("T").Type()
+@@ -107,7 +107,7 @@ type Inst = *Tree[int]
+ `
+ 
+ 	fset := token.NewFileSet()
+-	f := mustParse(fset, "foo.go", src)
++	f := mustParse(fset, src)
+ 	pkg := NewPackage("p", f.Name.Name)
+ 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index bed8de3637..74acdaeeeb 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -58,7 +58,7 @@ func TestIsAlias(t *testing.T) {
+ // the same Func Object as the original method. See also go.dev/issue/34421.
+ func TestEmbeddedMethod(t *testing.T) {
+ 	const src = `package p; type I interface { error }`
+-	pkg := mustTypecheck("p", src, nil, nil)
++	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	// get original error.Error method
+ 	eface := Universe.Lookup("error")
+@@ -112,7 +112,7 @@ func TestObjectString(t *testing.T) {
+ 
+ 	for _, test := range testObjects {
+ 		src := "package p; " + test.src
+-		pkg, err := typecheck(filename, src, nil, nil)
++		pkg, err := typecheck(src, nil, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 284ad8e998..e95af80585 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -119,8 +119,8 @@ func TestResolveIdents(t *testing.T) {
+ 	// parse package files
+ 	fset := token.NewFileSet()
+ 	var files []*ast.File
+-	for i, src := range sources {
+-		files = append(files, mustParse(fset, fmt.Sprintf("sources[%d]", i), src))
++	for _, src := range sources {
++		files = append(files, mustParse(fset, src))
+ 	}
+ 
+ 	// resolve and type-check package AST
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 4964bf2cf9..f2e7e8ab2e 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -21,7 +21,7 @@ func findStructType(t *testing.T, src string) *types.Struct {
+ 
+ func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
+ 	types_ := make(map[ast.Expr]types.TypeAndValue)
+-	mustTypecheck("x", src, nil, &types.Info{Types: types_})
++	mustTypecheck(src, nil, &types.Info{Types: types_})
+ 	for _, tv := range types_ {
+ 		if ts, ok := tv.Type.(*types.Struct); ok {
+ 			return ts
+@@ -90,7 +90,7 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 		Importer: importer.Default(),
+ 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
+ 	}
+-	mustTypecheck("x", src, &conf, &info)
++	mustTypecheck(src, &conf, &info)
+ 	for _, tv := range info.Types {
+ 		_ = conf.Sizes.Sizeof(tv.Type)
+ 		_ = conf.Sizes.Alignof(tv.Type)
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index d3172d6bb9..45670b7e15 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -119,7 +119,7 @@ func TestTypeString(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
+-		pkg, err := typecheck(filename, src, nil, nil)
++		pkg, err := typecheck(src, nil, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+@@ -137,8 +137,8 @@ func TestTypeString(t *testing.T) {
+ }
+ 
+ func TestQualifiedTypeString(t *testing.T) {
+-	p := mustTypecheck("p.go", "package p; type T int", nil, nil)
+-	q := mustTypecheck("q.go", "package q", nil, nil)
++	p := mustTypecheck("package p; type T int", nil, nil)
++	q := mustTypecheck("package q", nil, nil)
+ 
+ 	pT := p.Scope().Lookup("T").Type()
+ 	for _, test := range []struct {

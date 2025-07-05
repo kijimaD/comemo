@@ -9,6 +9,20 @@ Date:   Tue Mar 7 20:04:23 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/proto_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index aa2d03b449..98f217583b 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -70,7 +70,7 @@ func f2() { f2() }
+ // testPCs returns two PCs and two corresponding memory mappings
+ // to use in test profiles.
+ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+-	if runtime.GOOS == "linux" {
++	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
+ 		// Figure out two addresses from /proc/self/maps.
+ 		mmap, err := ioutil.ReadFile("/proc/self/maps")
+ 		if err != nil {

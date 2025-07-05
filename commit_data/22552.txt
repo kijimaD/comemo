@@ -7,6 +7,19 @@ Date:   Mon Feb 23 12:17:20 2015 -0800
     Change-Id: I4d35a96ace71b68a91561c08fd7331859d9dd19d
     Reviewed-on: https://go-review.googlesource.com/5593
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 0c256437ca..551e022d0c 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -46,6 +46,7 @@ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5
+ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
++cmd/trace: new command to view traces (https://golang.org/cl/3601)
+ 
+ Performance:
+ 

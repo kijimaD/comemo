@@ -27,6 +27,22 @@ Date:   Tue Apr 14 23:01:18 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 393211c2dd..4dbf616937 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -765,7 +765,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 		tk := types.NewArray(n.Type.Key(), int64(len(entries)))
+ 		te := types.NewArray(n.Type.Elem(), int64(len(entries)))
+ 
+-		// TODO(josharian): suppress alg generation for these types?
++		tk.SetNoalg(true)
++		te.SetNoalg(true)
++
+ 		dowidth(tk)
+ 		dowidth(te)
+ 

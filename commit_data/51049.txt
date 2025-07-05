@@ -16,6 +16,20 @@ Date:   Fri Nov 19 16:33:42 2021 -0600
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Paul Murphy <murp@ibm.com>
-
+---
  misc/cgo/test/testdata/issue9400_linux.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/test/testdata/issue9400_linux.go b/misc/cgo/test/testdata/issue9400_linux.go
+index f521b1f49a..47f224dc4f 100644
+--- a/misc/cgo/test/testdata/issue9400_linux.go
++++ b/misc/cgo/test/testdata/issue9400_linux.go
+@@ -50,6 +50,8 @@ func test9400(t *testing.T) {
+ 	// Disable GC for the duration of the test.
+ 	// This avoids a potential GC deadlock when spinning in uninterruptable ASM below #49695.
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// And finish any pending GC after we pause, if any.
++	runtime.GC()
+ 
+ 	// Temporarily rewind the stack and trigger SIGSETXID
+ 	issue9400.RewindAndSetgid()

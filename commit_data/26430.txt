@@ -21,7 +21,7 @@ Date:   Tue Jan 5 09:48:45 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm.go             |   1 +
  src/cmd/asm/internal/asm/asm.go              |   2 +-
  src/cmd/asm/internal/asm/endtoend_test.go    | 122 +++++++++++++++++++++------
@@ -42,3 +42,1608 @@ Date:   Tue Jan 5 09:48:45 2016 -0500
  src/cmd/internal/obj/arm64/a.out.go          |   7 --
  src/cmd/internal/obj/arm64/anames.go         |   7 --
  19 files changed, 286 insertions(+), 602 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 8df994e8d1..502a906a4e 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -62,6 +62,7 @@ var armSCOND = map[string]uint8{
+ var armJump = map[string]bool{
+ 	"B":    true,
+ 	"BL":   true,
++	"BX":   true,
+ 	"BEQ":  true,
+ 	"BNE":  true,
+ 	"BCS":  true,
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 9da3664db1..9827d70ae1 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -63,7 +63,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 		fmt.Println(p.histLineNum, prog)
+ 	}
+ 	if testOut != nil {
+-		fmt.Fprintln(testOut, p.histLineNum, prog)
++		fmt.Fprintln(testOut, prog)
+ 	}
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 6e339ad0b5..bba82b5fca 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -8,9 +8,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io/ioutil"
+-	"log"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 
+@@ -25,48 +25,122 @@ import (
+ func testEndToEnd(t *testing.T, goarch string) {
+ 	lex.InitHist()
+ 	input := filepath.Join("testdata", goarch+".s")
+-	output := filepath.Join("testdata", goarch+".out")
+ 	architecture, ctxt := setArch(goarch)
+ 	lexer := lex.NewLexer(input, ctxt)
+ 	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+-	testOut = new(bytes.Buffer) // The assembler writes -S output to this buffer.
++	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+-	ctxt.Diag = log.Fatalf
++	ctxt.Diag = t.Errorf
+ 	obj.Binitw(ioutil.Discard)
+ 	pList.Firstpc, ok = parser.Parse()
+-	if !ok {
++	if !ok || t.Failed() {
+ 		t.Fatalf("asm: %s assembly failed", goarch)
+ 	}
+-	result := string(testOut.Bytes())
+-	expect, err := ioutil.ReadFile(output)
+-	// For Windows.
+-	result = strings.Replace(result, `testdata\`, `testdata/`, -1)
++	output := strings.Split(testOut.String(), "\n")
++
++	// Reconstruct expected output by independently "parsing" the input.
++	data, err := ioutil.ReadFile(input)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if result != string(expect) {
+-		if false { // Enable to capture output.
+-			fmt.Printf("%s", result)
+-			os.Exit(1)
++	lineno := 0
++	seq := 0
++Diff:
++	for _, line := range strings.SplitAfter(string(data), "\n") {
++		lineno++
++
++		// The general form of a test input line is:
++		//	// comment
++		//	INST args [// printed form] [// hex encoding]
++		parts := strings.Split(line, "//")
++		printed := strings.TrimSpace(parts[0])
++		if printed == "" || strings.HasSuffix(printed, ":") { // empty or label
++			continue
+ 		}
+-		t.Errorf("%s failed: output differs", goarch)
+-		r := strings.Split(result, "\n")
+-		e := strings.Split(string(expect), "\n")
+-		if len(r) != len(e) {
+-			t.Errorf("%s: expected %d lines, got %d", goarch, len(e), len(r))
++		seq++
++
++		switch len(parts) {
++		default:
++			t.Errorf("%s:%d: unable to understand comments: %s", input, lineno, line)
++		case 1:
++			// no comment
++		case 2:
++			// one comment, printed form
++			printed = strings.TrimSpace(parts[1])
+ 		}
+-		n := len(e)
+-		if n > len(r) {
+-			n = len(r)
++
++		// Canonicalize spacing in printed form.
++		// First field is opcode, then tab, then arguments separated by spaces.
++		// Canonicalize spaces after commas first.
++		// Comma to separate argument gets a space; comma within does not.
++		var buf []byte
++		nest := 0
++		for i := 0; i < len(printed); i++ {
++			c := printed[i]
++			switch c {
++			case '{', '[':
++				nest++
++			case '}', ']':
++				nest--
++			case ',':
++				buf = append(buf, ',')
++				if nest == 0 {
++					buf = append(buf, ' ')
++				}
++				for i+1 < len(printed) && (printed[i+1] == ' ' || printed[i+1] == '\t') {
++					i++
++				}
++				continue
++			}
++			buf = append(buf, c)
+ 		}
+-		for i := 0; i < n; i++ {
+-			if r[i] != e[i] {
+-				t.Errorf("%s:%d:\nexpected\n\t%s\ngot\n\t%s", output, i, e[i], r[i])
++
++		f := strings.Fields(string(buf))
++
++		// Turn relative (PC) into absolute (PC) automatically,
++		// so that most branch instructions don't need comments
++		// giving the absolute form.
++		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
++			last := f[len(f)-1]
++			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
++			if err == nil {
++				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
+ 			}
+ 		}
++
++		if len(f) == 1 {
++			printed = f[0]
++		} else {
++			printed = f[0] + "\t" + strings.Join(f[1:], " ")
++		}
++
++		want := fmt.Sprintf("%05d (%s:%d)\t%s", seq, input, lineno, printed)
++		for len(output) > 0 && (output[0] < want || output[0] != want && len(output[0]) >= 5 && output[0][:5] == want[:5]) {
++			if len(output[0]) >= 5 && output[0][:5] == want[:5] {
++				t.Errorf("mismatched output:\nhave %s\nwant %s", output[0], want)
++				output = output[1:]
++				continue Diff
++			}
++			t.Errorf("unexpected output: %q", output[0])
++			output = output[1:]
++		}
++		if len(output) > 0 && output[0] == want {
++			output = output[1:]
++		} else {
++			t.Errorf("missing output: %q", want)
++		}
++	}
++	for len(output) > 0 {
++		if output[0] == "" {
++			// spurious blank caused by Split on "\n"
++			output = output[1:]
++			continue
++		}
++		t.Errorf("unexpected output: %q", output[0])
++		output = output[1:]
+ 	}
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/386.out b/src/cmd/asm/internal/asm/testdata/386.out
+deleted file mode 100644
+index be43ccbfbb..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/386.out
++++ /dev/null
+@@ -1,49 +0,0 @@
+-5 00001 (testdata/386.s:5)	TEXT	foo(SB), 0, $0
+-8 00002 (testdata/386.s:8)	SETCC	AX
+-9 00003 (testdata/386.s:9)	SETCC	foo+4(SB)
+-12 00004 (testdata/386.s:12)	DIVB	AX
+-13 00005 (testdata/386.s:13)	DIVB	foo+4(SB)
+-14 00006 (testdata/386.s:14)	PUSHL	$foo+4(SB)
+-15 00007 (testdata/386.s:15)	POPL	AX
+-18 00008 (testdata/386.s:18)	SUBB	$1, AX
+-19 00009 (testdata/386.s:19)	SUBB	$1, foo+4(SB)
+-20 00010 (testdata/386.s:20)	SUBB	BX, AX
+-21 00011 (testdata/386.s:21)	SUBB	BX, foo+4(SB)
+-24 00012 (testdata/386.s:24)	CMPB	AX, $1
+-25 00013 (testdata/386.s:25)	CMPB	foo+4(SB), $4
+-26 00014 (testdata/386.s:26)	CMPB	BX, AX
+-27 00015 (testdata/386.s:27)	CMPB	foo+4(SB), BX
+-31 00016 (testdata/386.s:31)	JCS
+-32 00017 (testdata/386.s:32)	JCS	16(PC)
+-35 00018 (testdata/386.s:35)	CALL	AX
+-36 00019 (testdata/386.s:36)	JMP	AX
+-37 00020 (testdata/386.s:37)	CALL	*foo(SB)
+-38 00021 (testdata/386.s:38)	JMP	$4
+-39 00022 (testdata/386.s:39)	JMP	16
+-40 00023 (testdata/386.s:40)	CALL	foo(SB)
+-42 00024 (testdata/386.s:42)	CALL	foo+4(SB)(AX*4)
+-43 00025 (testdata/386.s:43)	CALL	4(SP)
+-44 00026 (testdata/386.s:44)	CALL	(AX)
+-45 00027 (testdata/386.s:45)	CALL	(SP)
+-47 00028 (testdata/386.s:47)	CALL	(AX)(AX*4)
+-48 00029 (testdata/386.s:48)	CALL	4(SP)
+-49 00030 (testdata/386.s:49)	CALL	(AX)
+-50 00031 (testdata/386.s:50)	CALL	(SP)
+-52 00032 (testdata/386.s:52)	JMP	(AX)(AX*4)
+-55 00033 (testdata/386.s:55)	NOP
+-56 00034 (testdata/386.s:56)	NOP	AX
+-57 00035 (testdata/386.s:57)	NOP	foo+4(SB)
+-60 00036 (testdata/386.s:60)	SHLL	$4, BX
+-61 00037 (testdata/386.s:61)	SHLL	$4, foo+4(SB)
+-62 00038 (testdata/386.s:62)	SHLL	$4, AX, foo+4(SB)
+-65 00039 (testdata/386.s:65)	MOVL	AX, BX
+-66 00040 (testdata/386.s:66)	MOVL	$4, BX
+-69 00041 (testdata/386.s:69)	IMULL	AX
+-70 00042 (testdata/386.s:70)	IMULL	$4, CX
+-71 00043 (testdata/386.s:71)	IMULL	AX, BX
+-74 00044 (testdata/386.s:74)	CMPPD	X0, X1, 4
+-75 00045 (testdata/386.s:75)	CMPPD	X0, foo+4(SB), 4
+-78 00046 (testdata/386.s:78)	PINSRD	$1, (AX), X0
+-79 00047 (testdata/386.s:79)	PINSRD	$2, foo+4(FP), X0
+-83 00048 (testdata/386.s:83)	LOOP
+-86 00049 (testdata/386.s:86)	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/386.s b/src/cmd/asm/internal/asm/testdata/386.s
+index 6bee39f3d4..4d969d1539 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.s
++++ b/src/cmd/asm/internal/asm/testdata/386.s
+@@ -2,7 +2,7 @@
+ // the old assembler's (8a's) grammar and hand-writing complete
+ // instructions for each rule, to guarantee we cover the same space.
+ 
+-TEXT foo(SB), 0, $0
++TEXT foo(SB), 7, $0
+ 
+ // LTYPE1 nonrem	{ outcode(int($1), &$2); }
+ 	SETCC	AX
+@@ -12,7 +12,7 @@ TEXT foo(SB), 0, $0
+ 	DIVB	AX
+ 	DIVB	foo+4(SB)
+ 	PUSHL	$foo+4(SB)
+-	POPL		AX // balance PUSHL
++	POPL		AX
+ 
+ // LTYPE3 rimrem	{ outcode(int($1), &$2); }
+ 	SUBB	$1, AX
+@@ -28,27 +28,31 @@ TEXT foo(SB), 0, $0
+ 
+ // LTYPER nonrel	{ outcode(int($1), &$2); }
+ label:
+-	JC	label
+-	JC	-1(PC)
++	JC	label // JCS
++	JC	-1(PC) // JCS -1(PC)
+ 
+ // LTYPEC spec3	{ outcode(int($1), &$2); }
+ 	CALL	AX
+-	JMP	*AX
++	JCS	2(PC)
++	JMP	*AX // JMP AX
+ 	CALL	*foo(SB)
++	JCS	2(PC)
+ 	JMP	$4
+-	JMP	label
++	JCS	2(PC)
++	JMP	label // JMP 16
+ 	CALL	foo(SB)
+-	CALL	(AX*4)
++//	CALL	(AX*4) // TODO: This line is silently dropped on the floor!
+ 	CALL	foo+4(SB)(AX*4)
+-	CALL	*4(SP)
+-	CALL	*(AX)
+-	CALL	*(SP)
+-	CALL	*(AX*4)
+-	CALL	*(AX)(AX*4)
++	CALL	*4(SP) // CALL 4(SP)
++	CALL	*(AX) // CALL (AX)
++	CALL	*(SP) // CALL (SP)
++//	CALL	*(AX*4) // TODO: This line is silently dropped on the floor!
++	CALL	*(AX)(AX*4) // CALL (AX)(AX*4)
+ 	CALL	4(SP)
+ 	CALL	(AX)
+ 	CALL	(SP)
+-	CALL	(AX*4)
++//	CALL	(AX*4) // TODO: This line is silently dropped on the floor!
++	JCS	2(PC)
+ 	JMP	(AX)(AX*4)
+ 
+ // LTYPEN spec4	{ outcode(int($1), &$2); }
+@@ -59,7 +63,7 @@ label:
+ // LTYPES spec5	{ outcode(int($1), &$2); }
+ 	SHLL	$4, BX
+ 	SHLL	$4, foo+4(SB)
+-	SHLL	$4, foo+4(SB):AX
++	SHLL	$4, foo+4(SB):AX // SHLL $4, AX, foo+4(SB)
+ 
+ // LTYPEM spec6	{ outcode(int($1), &$2); }
+ 	MOVL	AX, BX
+@@ -72,15 +76,16 @@ label:
+ 
+ // LTYPEXC spec9	{ outcode(int($1), &$2); }
+ 	CMPPD	X0, X1, 4
+-	CMPPD	X0, foo+4(SB), 4
++	CMPPD	foo+4(SB), X1, 4
+ 
+ // LTYPEX spec10	{ outcode(int($1), &$2); }
+ 	PINSRD	$1, (AX), X0
+ 	PINSRD	$2, foo+4(FP), X0
+ 
+ // Was bug: LOOP is a branch instruction.
++	JCS	2(PC)
+ loop:
+-	LOOP	loop
++	LOOP	loop // LOOP
+ 
+ // LTYPE0 nonnon	{ outcode(int($1), &$2); }
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.out b/src/cmd/asm/internal/asm/testdata/amd64.out
+deleted file mode 100644
+index 850a78eb43..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/amd64.out
++++ /dev/null
+@@ -1,57 +0,0 @@
+-9 00001 (testdata/amd64.s:9)	TEXT	foo(SB), 0, $0
+-12 00002 (testdata/amd64.s:12)	NEGQ	R11
+-13 00003 (testdata/amd64.s:13)	NEGQ	4(R11)
+-14 00004 (testdata/amd64.s:14)	NEGQ	foo+4(SB)
+-17 00005 (testdata/amd64.s:17)	INT	$4
+-18 00006 (testdata/amd64.s:18)	DIVB	R11
+-19 00007 (testdata/amd64.s:19)	DIVB	4(R11)
+-20 00008 (testdata/amd64.s:20)	DIVB	foo+4(SB)
+-23 00009 (testdata/amd64.s:23)	SUBQ	$4, DI
+-24 00010 (testdata/amd64.s:24)	SUBQ	R11, DI
+-25 00011 (testdata/amd64.s:25)	SUBQ	4(R11), DI
+-26 00012 (testdata/amd64.s:26)	SUBQ	foo+4(SB), DI
+-27 00013 (testdata/amd64.s:27)	SUBQ	$4, 8(R12)
+-28 00014 (testdata/amd64.s:28)	SUBQ	R11, 8(R12)
+-29 00015 (testdata/amd64.s:29)	SUBQ	R11, foo+4(SB)
+-32 00016 (testdata/amd64.s:32)	CMPB	CX, $4
+-36 00017 (testdata/amd64.s:36)	JCS	13(PC)
+-37 00018 (testdata/amd64.s:37)	JCS	17
+-40 00019 (testdata/amd64.s:40)	JMP	15(PC)
+-41 00020 (testdata/amd64.s:41)	JMP	17
+-42 00021 (testdata/amd64.s:42)	JMP	foo+4(SB)
+-43 00022 (testdata/amd64.s:43)	JMP	bar<>+4(SB)
+-44 00023 (testdata/amd64.s:44)	JMP	bar<>+4(SB)(R11*4)
+-45 00024 (testdata/amd64.s:45)	JMP	4(SP)
+-46 00025 (testdata/amd64.s:46)	JMP	(R12)
+-48 00026 (testdata/amd64.s:48)	JMP	(R12)(R13*4)
+-49 00027 (testdata/amd64.s:49)	JMP	(AX)
+-50 00028 (testdata/amd64.s:50)	JMP	(SP)
+-52 00029 (testdata/amd64.s:52)	JMP	(AX)(AX*4)
+-53 00030 (testdata/amd64.s:53)	JMP	4(SP)
+-54 00031 (testdata/amd64.s:54)	JMP	(R12)
+-56 00032 (testdata/amd64.s:56)	JMP	(R12)(R13*4)
+-57 00033 (testdata/amd64.s:57)	JMP	(AX)
+-58 00034 (testdata/amd64.s:58)	JMP	(SP)
+-60 00035 (testdata/amd64.s:60)	JMP	(AX)(AX*4)
+-61 00036 (testdata/amd64.s:61)	JMP	R13
+-64 00037 (testdata/amd64.s:64)	NOP
+-65 00038 (testdata/amd64.s:65)	NOP	AX
+-66 00039 (testdata/amd64.s:66)	NOP	foo+4(SB)
+-69 00040 (testdata/amd64.s:69)	SHLL	R11, R12
+-70 00041 (testdata/amd64.s:70)	SHLL	R11, foo+4(SB)
+-71 00042 (testdata/amd64.s:71)	SHLL	R11, AX, R11
+-74 00043 (testdata/amd64.s:74)	MOVL	AX, R11
+-75 00044 (testdata/amd64.s:75)	MOVL	$4, R11
+-76 00045 (testdata/amd64.s:76)	MOVL	AX, CS, AX
+-79 00046 (testdata/amd64.s:79)	IMULB	$4
+-80 00047 (testdata/amd64.s:80)	IMULB	R11
+-81 00048 (testdata/amd64.s:81)	IMULB	$4, R11
+-82 00049 (testdata/amd64.s:82)	IMULB	R11, R12
+-83 00050 (testdata/amd64.s:83)	IMULB	R11, foo+4(SB)
+-86 00051 (testdata/amd64.s:86)	CMPPD	R11, R12, 4
+-87 00052 (testdata/amd64.s:87)	CMPPD	R11, foo+4(SB), 4
+-90 00053 (testdata/amd64.s:90)	PINSRW	$4, R11, AX
+-91 00054 (testdata/amd64.s:91)	PINSRW	$4, foo+4(SB), AX
+-94 00055 (testdata/amd64.s:94)	RETFL	$4
+-98 00056 (testdata/amd64.s:98)	LOOP
+-101 00057 (testdata/amd64.s:101)	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.s b/src/cmd/asm/internal/asm/testdata/amd64.s
+index 1b32ac4595..35af32a5cd 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64.s
+@@ -6,7 +6,7 @@
+ // the old assembler's (6a's) grammar and hand-writing complete
+ // instructions for each rule, to guarantee we cover the same space.
+ 
+-TEXT	foo(SB), 0, $0
++TEXT	foo(SB), 7, $0
+ 
+ // LTYPE1 nonrem	{ outcode($1, &$2); }
+ 	NEGQ	R11
+@@ -33,31 +33,53 @@ TEXT	foo(SB), 0, $0
+ 
+ // LTYPER nonrel	{ outcode($1, &$2); }
+ label:
+-	JB	-4(PC)
+-	JB	label
++	JB	-4(PC) // JCS -4(PC)
++	JB	label // JCS 17
+ 
+ // LTYPEC spec3	{ outcode($1, &$2); }
++	JCS	2(PC)
+ 	JMP	-4(PC)
+-	JMP	label
++	JCS	2(PC)
++	JMP	label // JMP 17
++	JCS	2(PC)
+ 	JMP	foo+4(SB)
++	JCS	2(PC)
+ 	JMP	bar<>+4(SB)
++	JCS	2(PC)
+ 	JMP	bar<>+4(SB)(R11*4)
+-	JMP	*4(SP)
+-	JMP	*(R12)
+-	JMP	*(R12*4)
+-	JMP	*(R12)(R13*4)
+-	JMP	*(AX)
+-	JMP	*(SP)
+-	JMP	*(AX*4)
+-	JMP	*(AX)(AX*4)
++	JCS	2(PC)
++	JMP	*4(SP) // JMP 4(SP)
++	JCS	2(PC)
++	JMP	*(R12) // JMP (R12)
++	JCS	2(PC)
++//	JMP	*(R12*4) // TODO: This line is silently dropped on the floor!
++	JCS	2(PC)
++	JMP	*(R12)(R13*4) // JMP (R12)(R13*4)
++	JCS	2(PC)
++	JMP	*(AX) // JMP (AX)
++	JCS	2(PC)
++	JMP	*(SP) // JMP (SP)
++	JCS	2(PC)
++//	JMP	*(AX*4) // TODO: This line is silently dropped on the floor!
++	JCS	2(PC)
++	JMP	*(AX)(AX*4) // JMP (AX)(AX*4)
++	JCS	2(PC)
+ 	JMP	4(SP)
++	JCS	2(PC)
+ 	JMP	(R12)
+-	JMP	(R12*4)
++	JCS	2(PC)
++//	JMP	(R12*4) // TODO: This line is silently dropped on the floor!
++	JCS	2(PC)
+ 	JMP	(R12)(R13*4)
++	JCS	2(PC)
+ 	JMP	(AX)
++	JCS	2(PC)
+ 	JMP	(SP)
+-	JMP	(AX*4)
++	JCS	2(PC)
++//	JMP	(AX*4) // TODO: This line is silently dropped on the floor!
++	JCS	2(PC)
+ 	JMP	(AX)(AX*4)
++	JCS	2(PC)
+ 	JMP	R13
+ 
+ // LTYPEN spec4	{ outcode($1, &$2); }
+@@ -66,36 +88,38 @@ label:
+ 	NOP	foo+4(SB)
+ 
+ // LTYPES spec5	{ outcode($1, &$2); }
+-	SHLL	R11, R12
+-	SHLL	R11, foo+4(SB)
+-	SHLL	R11, R11:AX // Old syntax, still accepted.
++	SHLL	CX, R12
++	SHLL	CX, foo+4(SB)
++	// Old syntax, still accepted:
++	SHLL	CX, R11:AX // SHLL CX, AX, R11
+ 
+ // LTYPEM spec6	{ outcode($1, &$2); }
+ 	MOVL	AX, R11
+ 	MOVL	$4, R11
+-	MOVL	AX, AX:CS
++//	MOVL	AX, 0(AX):DS // no longer works - did it ever?
+ 
+ // LTYPEI spec7	{ outcode($1, &$2); }
+-	IMULB	$4
+-	IMULB	R11
+-	IMULB	$4, R11
+-	IMULB	R11, R12
+-	IMULB	R11, foo+4(SB)
++	IMULB	DX
++	IMULW	DX, BX
++	IMULL	R11, R12
++	IMULQ	foo+4(SB), R11
+ 
+ // LTYPEXC spec8	{ outcode($1, &$2); }
+-	CMPPD	R11, R12, 4
+-	CMPPD	R11, foo+4(SB), 4
++	CMPPD	X1, X2, 4
++	CMPPD	foo+4(SB), X2, 4
+ 
+ // LTYPEX spec9	{ outcode($1, &$2); }
+-	PINSRW	$4, R11, AX
+-	PINSRW	$4, foo+4(SB), AX
++	PINSRW	$4, AX, X2
++	PINSRW	$4, foo+4(SB), X2
+ 
+ // LTYPERT spec10	{ outcode($1, &$2); }
++	JCS	2(PC)
+ 	RETFL	$4
+ 
+ // Was bug: LOOP is a branch instruction.
++	JCS	2(PC)
+ loop:
+-	LOOP	loop
++	LOOP	loop // LOOP
+ 
+ // LTYPE0 nonnon	{ outcode($1, &$2); }
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.out b/src/cmd/asm/internal/asm/testdata/arm.out
+deleted file mode 100644
+index 7d79bf3181..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/arm.out
++++ /dev/null
+@@ -1,60 +0,0 @@
+-9 00001 (testdata/arm.s:9)	TEXT	foo(SB), 0, $0
+-18 00002 (testdata/arm.s:18)	ADD	$1, R2, R3
+-19 00003 (testdata/arm.s:19)	ADD	R1<<R2, R3, R4
+-20 00004 (testdata/arm.s:20)	ADD	R1>>R2, R3, R4
+-21 00005 (testdata/arm.s:21)	ADD	R1@>R2, R3, R4
+-22 00006 (testdata/arm.s:22)	ADD	R1->R2, R3, R4
+-23 00007 (testdata/arm.s:23)	ADD	R1, R2, R3
+-24 00008 (testdata/arm.s:24)	ADD	R1<<R2, R3, R4
+-34 00009 (testdata/arm.s:34)	ADD	$1, R2
+-35 00010 (testdata/arm.s:35)	ADD	R1<<R2, R3
+-36 00011 (testdata/arm.s:36)	ADD	R1>>R2, R3
+-37 00012 (testdata/arm.s:37)	ADD	R1@>R2, R3
+-38 00013 (testdata/arm.s:38)	ADD	R1->R2, R3
+-39 00014 (testdata/arm.s:39)	ADD	R1, R2
+-48 00015 (testdata/arm.s:48)	CLZ.S	R1, R2
+-57 00016 (testdata/arm.s:57)	MOVW.S	R1, R2
+-58 00017 (testdata/arm.s:58)	MOVW.S	$1, R2
+-59 00018 (testdata/arm.s:59)	MOVW.S	R1<<R2, R3
+-68 00019 (testdata/arm.s:68)	JMP.S	20(PC)
+-74 00020 (testdata/arm.s:74)	JMP.S	(R2)
+-75 00021 (testdata/arm.s:75)	JMP.S	foo(SB)
+-76 00022 (testdata/arm.s:76)	JMP.S	bar<>(SB)
+-85 00023 (testdata/arm.s:85)	BX	(R2)
+-94 00024 (testdata/arm.s:94)	BEQ	25(PC)
+-103 00025 (testdata/arm.s:103)	SWI.S	R1
+-104 00026 (testdata/arm.s:104)	SWI.S	(R1)
+-105 00027 (testdata/arm.s:105)	SWI.S	foo(SB)
+-114 00028 (testdata/arm.s:114)	CMP.S	$1, R2
+-115 00029 (testdata/arm.s:115)	CMP.S	R1<<R2, R3
+-116 00030 (testdata/arm.s:116)	CMP.S	R1, R2
+-130 00031 (testdata/arm.s:130)	MOVM	(R1), [R2,R5,R8,g]
+-131 00032 (testdata/arm.s:131)	MOVM	(R1), [R2,R3,R4,R5]
+-132 00033 (testdata/arm.s:132)	MOVM.S	(R1), [R2]
+-143 00034 (testdata/arm.s:143)	MOVM	[R2,R5,R8,g], (R1)
+-144 00035 (testdata/arm.s:144)	MOVM	[R2,R3,R4,R5], (R1)
+-145 00036 (testdata/arm.s:145)	MOVM.S	[R2], (R1)
+-154 00037 (testdata/arm.s:154)	STREX.S	(R2), R1, R3
+-160 00038 (testdata/arm.s:160)	STREX.S	(R2), R1, R1
+-166 00039 (testdata/arm.s:166)	STREX.S	(R2), R3, R3
+-175 00040 (testdata/arm.s:175)	WORD	$1234
+-184 00041 (testdata/arm.s:184)	ABSF.S	F1, F2
+-190 00042 (testdata/arm.s:190)	ADDD.S	F1, F2
+-191 00043 (testdata/arm.s:191)	ADDD.S	$(0.5), F2
+-197 00044 (testdata/arm.s:197)	ADDD.S	F1, F2, F3
+-198 00045 (testdata/arm.s:198)	ADDD.S	$(0.5), F2, F3
+-204 00046 (testdata/arm.s:204)	CMPD.S	F1, F2
+-228 00047 (testdata/arm.s:228)	MRC	$8301712627
+-229 00048 (testdata/arm.s:229)	MRC	$8300664051
+-238 00049 (testdata/arm.s:238)	MULL	R1, R2, (R3, R4)
+-250 00050 (testdata/arm.s:250)	MULAWT	R1, R2, R3, R4
+-258 00051 (testdata/arm.s:258)	PLD	(R1)
+-259 00052 (testdata/arm.s:259)	PLD	4(R1)
+-268 00053 (testdata/arm.s:268)	RET
+-272 00054 (testdata/arm.s:272)	JMP	foo(SB)
+-273 00055 (testdata/arm.s:273)	CALL	foo(SB)
+-274 00056 (testdata/arm.s:274)	JMP	foo(SB)
+-275 00057 (testdata/arm.s:275)	CALL	foo(SB)
+-278 00058 (testdata/arm.s:278)	CMPF	F1, F2
+-279 00059 (testdata/arm.s:279)	CMPD	F1, F2
+-288 00060 (testdata/arm.s:288)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index f5ba3a8575..0102cd8414 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -6,7 +6,7 @@
+ // the old assembler's (5a's) grammar and hand-writing complete
+ // instructions for each rule, to guarantee we cover the same space.
+ 
+-TEXT	foo(SB), 0, $0
++TEXT	foo(SB), 7, $0
+ 
+ // ADD
+ //
+@@ -21,7 +21,7 @@ TEXT	foo(SB), 0, $0
+ 	ADD	R1@>R2, R3, R4
+ 	ADD	R1->R2, R3, R4
+ 	ADD	R1, R2, R3
+-	ADD	R(1)<<R(2), R(3), R(4)
++	ADD	R(1)<<R(2), R(3), R(4) // ADD	R1<<R2, R3, R4
+ 
+ //	LTYPE1 cond imsr ',' spreg ',' // asm doesn't support trailing comma.
+ //	{
+@@ -65,15 +65,16 @@ TEXT	foo(SB), 0, $0
+ //	{
+ //		outcode($1, $2, &nullgen, 0, &$4);
+ //	}
+-	B.S	1(PC)
++	B.EQ	1(PC) // BEQ 1(PC)
+ 
+ //	LTYPE4 cond comma nireg
+ //	{
+ //		outcode($1, $2, &nullgen, 0, &$4);
+ //	}
+-	B.S	(R2)
+-	B.S	foo(SB)
+-	B.S	bar<>(SB)
++	BEQ	2(PC)
++	B	foo(SB) // JMP foo(SB)
++	BEQ	2(PC)
++	B	bar<>(SB) // JMP bar<>(SB)
+ 
+ //
+ // BX
+@@ -82,7 +83,7 @@ TEXT	foo(SB), 0, $0
+ //	{
+ //		outcode($1, Always, &nullgen, 0, &$3);
+ //	}
+-	BX	(R2)
++	BX	(R0)
+ 
+ //
+ // BEQ
+@@ -100,9 +101,9 @@ TEXT	foo(SB), 0, $0
+ //	{
+ //		outcode($1, $2, &nullgen, 0, &$4);
+ //	}
+-	SWI.S	R1
++	SWI.S	$2
+ 	SWI.S	(R1)
+-	SWI.S	foo(SB)
++//	SWI.S	foo(SB) - TODO: classifying foo(SB) as C_TLS_LE
+ 
+ //
+ // CMP
+@@ -127,8 +128,8 @@ TEXT	foo(SB), 0, $0
+ //		g.Offset = int64($6);
+ //		outcode($1, $2, &$3, 0, &g);
+ //	}
+-	MOVM	0(R1), [R2,R5,R8,g]
+-	MOVM	0(R1), [R2-R5]
++	MOVM	0(R1), [R2,R5,R8,g] // MOVM	(R1), [R2,R5,R8,g]
++	MOVM	(R1), [R2-R5] // MOVM (R1), [R2,R3,R4,R5]
+ 	MOVM.S	(R1), [R2]
+ 
+ //	LTYPE8 cond '[' reglist ']' ',' ioreg
+@@ -140,8 +141,8 @@ TEXT	foo(SB), 0, $0
+ //		g.Offset = int64($4);
+ //		outcode($1, $2, &g, 0, &$7);
+ //	}
+-	MOVM	[R2,R5,R8,g], 0(R1)
+-	MOVM	[R2-R5], 0(R1)
++	MOVM	[R2,R5,R8,g], 0(R1) // MOVM	[R2,R5,R8,g], (R1)
++	MOVM	[R2-R5], (R1) // MOVM [R2,R3,R4,R5], (R1)
+ 	MOVM.S	[R2], (R1)
+ 
+ //
+@@ -151,19 +152,19 @@ TEXT	foo(SB), 0, $0
+ //	{
+ //		outcode($1, $2, &$5, int32($3.Reg), &$7);
+ //	}
+-	STREX.S	R1, (R2), R3
++	STREX.S	R1, (R2), R3 // STREX.S (R2), R1, R3
+ 
+ //	LTYPE9 cond reg ',' ireg
+ //	{
+ //		outcode($1, $2, &$5, int32($3.Reg), &$3);
+ //	}
+-	STREX.S	R1, (R2)
++	STREX.S	R1, (R2) // STREX.S (R2), R1, R1
+ 
+ //	LTYPE9 cond comma ireg ',' reg
+ //	{
+ //		outcode($1, $2, &$4, int32($6.Reg), &$6);
+ //	}
+-	STREX.S	(R2), R3
++	STREX.S	(R2), R3 // STREX.S (R2), R3, R3
+ 
+ //
+ // word
+@@ -188,14 +189,13 @@ TEXT	foo(SB), 0, $0
+ //		outcode($1, $2, &$3, 0, &$5);
+ //	}
+ 	ADDD.S	F1, F2
+-	ADDD.S	$0.5, F2
++	MOVF.S	$0.5, F2 // MOVF.S $(0.5), F2
+ 
+ //	LTYPEK cond frcon ',' LFREG ',' freg
+ //	{
+ //		outcode($1, $2, &$3, $5, &$7);
+ //	}
+ 	ADDD.S	F1, F2, F3
+-	ADDD.S	$0.5, F2, F3
+ 
+ //	LTYPEL cond freg ',' freg
+ //	{
+@@ -225,8 +225,8 @@ TEXT	foo(SB), 0, $0
+ //			(1<<4));			/* must be set */
+ //		outcode(AMRC, Always, &nullgen, 0, &g);
+ //	}
+-	MRC.S	4, 6, R1, C2, C3, 7
+-	MCR.S	4, 6, R1, C2, C3, 7
++	MRC.S	4, 6, R1, C2, C3, 7 // MRC $8301712627
++	MCR.S	4, 6, R1, C2, C3, 7 // MRC $8300664051
+ 
+ //
+ // MULL r1,r2,(hi,lo)
+@@ -265,12 +265,15 @@ TEXT	foo(SB), 0, $0
+ //	{
+ //		outcode($1, $2, &nullgen, 0, &nullgen);
+ //	}
++	BEQ	2(PC)
+ 	RET
+ 
+ // More B/BL cases, and canonical names JMP, CALL.
+ 
+-	B	foo(SB)
+-	BL	foo(SB)
++	BEQ	2(PC)
++	B	foo(SB) // JMP foo(SB)
++	BL	foo(SB) // CALL foo(SB)
++	BEQ	2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.out b/src/cmd/asm/internal/asm/testdata/arm64.out
+deleted file mode 100644
+index 37944bc75c..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/arm64.out
++++ /dev/null
+@@ -1,55 +0,0 @@
+-9 00001 (testdata/arm64.s:9)	TEXT	foo(SB), 7, $-8
+-20 00002 (testdata/arm64.s:20)	ADDW	$1, R2, R3
+-21 00003 (testdata/arm64.s:21)	ADDW	R1, R2, R3
+-22 00004 (testdata/arm64.s:22)	ADDW	R1, ZR, R3
+-23 00005 (testdata/arm64.s:23)	ADD	$1, R2, R3
+-24 00006 (testdata/arm64.s:24)	ADD	R1, R2, R3
+-25 00007 (testdata/arm64.s:25)	ADD	R1, ZR, R3
+-26 00008 (testdata/arm64.s:26)	ADD	$1, R2, R3
+-36 00009 (testdata/arm64.s:36)	ADDW	$1, R2
+-37 00010 (testdata/arm64.s:37)	ADDW	R1, R2
+-38 00011 (testdata/arm64.s:38)	ADD	$1, R2
+-39 00012 (testdata/arm64.s:39)	ADD	R1, R2
+-48 00013 (testdata/arm64.s:48)	CLSW	R1, R2
+-49 00014 (testdata/arm64.s:49)	CLS	R1, R2
+-58 00015 (testdata/arm64.s:58)	MOVW	R1, R2
+-59 00016 (testdata/arm64.s:59)	MOVW	ZR, R1
+-60 00017 (testdata/arm64.s:60)	MOVW	R1, ZR
+-61 00018 (testdata/arm64.s:61)	MOVW	$1, ZR
+-62 00019 (testdata/arm64.s:62)	MOVW	$1, R1
+-63 00020 (testdata/arm64.s:63)	MOVW	ZR, (R1)
+-64 00021 (testdata/arm64.s:64)	MOVD	R1, R2
+-65 00022 (testdata/arm64.s:65)	MOVD	ZR, R1
+-66 00023 (testdata/arm64.s:66)	MOVD	$1, ZR
+-67 00024 (testdata/arm64.s:67)	MOVD	$1, R1
+-68 00025 (testdata/arm64.s:68)	MOVD	ZR, (R1)
+-77 00026 (testdata/arm64.s:77)	MOVK	$1, R1
+-86 00027 (testdata/arm64.s:86)	CALL	28(PC)
+-92 00028 (testdata/arm64.s:92)	CALL	(R2)
+-93 00029 (testdata/arm64.s:93)	CALL	foo(SB)
+-94 00030 (testdata/arm64.s:94)	CALL	bar<>(SB)
+-102 00031 (testdata/arm64.s:102)	BEQ	32(PC)
+-110 00032 (testdata/arm64.s:110)	SVC
+-119 00033 (testdata/arm64.s:119)	CMP	$3, R2
+-120 00034 (testdata/arm64.s:120)	CMP	R1, R2
+-130 00035 (testdata/arm64.s:130)	CBZ	R1
+-139 00036 (testdata/arm64.s:139)	CSET	GT, R1
+-147 00037 (testdata/arm64.s:147)	CSEL	LT, R1, R2, ZR
+-148 00038 (testdata/arm64.s:148)	CSINC	GT, R1, ZR, R3
+-149 00039 (testdata/arm64.s:149)	CSNEG	MI, R1, R2, R3
+-150 00040 (testdata/arm64.s:150)	CSINV	HS, R1, R2, R3
+-156 00041 (testdata/arm64.s:156)	CSEL	LT, R1, R2
+-164 00042 (testdata/arm64.s:164)	CCMN	MI, ZR, R1, $4
+-173 00043 (testdata/arm64.s:173)	FADDD	$(0.5), F1
+-174 00044 (testdata/arm64.s:174)	FADDD	F1, F2
+-180 00045 (testdata/arm64.s:180)	FADDD	$(0.69999999999999996), F1, F2
+-181 00046 (testdata/arm64.s:181)	FADDD	F1, F2, F3
+-233 00047 (testdata/arm64.s:233)	DMB	$1
+-242 00048 (testdata/arm64.s:242)	LDAXRW	(R0), R2
+-243 00049 (testdata/arm64.s:243)	STLXRW	R1, (R0), R3
+-251 00050 (testdata/arm64.s:251)	RET
+-255 00051 (testdata/arm64.s:255)	JMP	foo(SB)
+-256 00052 (testdata/arm64.s:256)	CALL	foo(SB)
+-257 00053 (testdata/arm64.s:257)	JMP	foo(SB)
+-258 00054 (testdata/arm64.s:258)	CALL	foo(SB)
+-266 00055 (testdata/arm64.s:266)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 2c8720bd3b..22d430631c 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -83,15 +83,15 @@ TEXT	foo(SB), 7, $-8
+ //	{
+ //		outcode($1, &nullgen, NREG, &$3);
+ //	}
+-	BL	1(PC)
++	BL	1(PC) // CALL 1(PC)
+ 
+ //		LTYPE4 comma nireg
+ //	{
+ //		outcode($1, &nullgen, NREG, &$3);
+ //	}
+-	BL	(R2)
+-	BL	foo(SB)
+-	BL	bar<>(SB)
++	BL	(R2) // CALL (R2)
++	BL	foo(SB) // CALL foo(SB)
++	BL	bar<>(SB) // CALL bar<>(SB)
+ //
+ // BEQ
+ //
+@@ -127,7 +127,7 @@ TEXT	foo(SB), 7, $-8
+ //		outcode($1, &$2, NREG, &$4);
+ //	}
+ again:
+-	CBZ	R1, again
++	CBZ	R1, again // CBZ R1
+ 
+ //
+ // CSET
+@@ -147,7 +147,7 @@ again:
+ 	CSEL	LT, R1, R2, ZR
+ 	CSINC	GT, R1, ZR, R3
+ 	CSNEG	MI, R1, R2, R3
+-	CSINV	CS, R1, R2, R3
++	CSINV	CS, R1, R2, R3 // CSINV HS, R1, R2, R3
+ 
+ //		LTYPES cond ',' reg ',' reg
+ //	{
+@@ -170,14 +170,14 @@ again:
+ //	{
+ //		outcode($1, &$2, NREG, &$4);
+ //	}
+-	FADDD	$0.5, F1
++	FADDD	$0.5, F1 // FADDD $(0.5), F1
+ 	FADDD	F1, F2
+ 
+ //		LTYPEK frcon ',' freg ',' freg
+ //	{
+ //		outcode($1, &$2, $4.reg, &$6);
+ //	}
+-	FADDD	$0.7, F1, F2
++	FADDD	$0.7, F1, F2 // FADDD	$(0.69999999999999996), F1, F2
+ 	FADDD	F1, F2, F3
+ 
+ //
+@@ -248,12 +248,15 @@ again:
+ //	{
+ //		outcode($1, &nullgen, NREG, &nullgen);
+ //	}
++	BEQ	2(PC)
+ 	RET
+ 
+ // More B/BL cases, and canonical names JMP, CALL.
+ 
+-	B	foo(SB)
+-	BL	foo(SB)
++	BEQ	2(PC)
++	B	foo(SB) // JMP foo(SB)
++	BL	foo(SB) // CALL foo(SB)
++	BEQ	2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.out b/src/cmd/asm/internal/asm/testdata/mips64.out
+deleted file mode 100644
+index 9263a7ba4b..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/mips64.out
++++ /dev/null
+@@ -1,99 +0,0 @@
+-8 00001 (testdata/mips64.s:8)	TEXT	foo(SB), 0, $0
+-18 00002 (testdata/mips64.s:18)	MOVW	R1, R2
+-19 00003 (testdata/mips64.s:19)	MOVW	LO, R1
+-20 00004 (testdata/mips64.s:20)	MOVW	HI, R1
+-21 00005 (testdata/mips64.s:21)	MOVW	R1, LO
+-22 00006 (testdata/mips64.s:22)	MOVW	R1, HI
+-23 00007 (testdata/mips64.s:23)	MOVV	R1, R2
+-24 00008 (testdata/mips64.s:24)	MOVV	LO, R1
+-25 00009 (testdata/mips64.s:25)	MOVV	HI, R1
+-26 00010 (testdata/mips64.s:26)	MOVV	R1, LO
+-27 00011 (testdata/mips64.s:27)	MOVV	R1, HI
+-33 00012 (testdata/mips64.s:33)	MOVW	foo<>+3(SB), R2
+-34 00013 (testdata/mips64.s:34)	MOVW	16(R1), R2
+-35 00014 (testdata/mips64.s:35)	MOVW	(R1), R2
+-36 00015 (testdata/mips64.s:36)	MOVV	foo<>+3(SB), R2
+-37 00016 (testdata/mips64.s:37)	MOVV	16(R1), R2
+-38 00017 (testdata/mips64.s:38)	MOVV	(R1), R2
+-44 00018 (testdata/mips64.s:44)	MOVB	R1, R2
+-50 00019 (testdata/mips64.s:50)	MOVB	foo<>+3(SB), R2
+-51 00020 (testdata/mips64.s:51)	MOVB	16(R1), R2
+-52 00021 (testdata/mips64.s:52)	MOVB	(R1), R2
+-61 00022 (testdata/mips64.s:61)	MOVD	foo<>+3(SB), F2
+-62 00023 (testdata/mips64.s:62)	MOVD	16(R1), F2
+-63 00024 (testdata/mips64.s:63)	MOVD	(R1), F2
+-69 00025 (testdata/mips64.s:69)	MOVD	$(0.10000000000000001), F2
+-75 00026 (testdata/mips64.s:75)	MOVD	F1, F2
+-81 00027 (testdata/mips64.s:81)	MOVD	F2, foo<>+3(SB)
+-82 00028 (testdata/mips64.s:82)	MOVD	F2, 16(R1)
+-83 00029 (testdata/mips64.s:83)	MOVD	F2, (R1)
+-92 00030 (testdata/mips64.s:92)	MOVW	R1, foo<>+3(SB)
+-93 00031 (testdata/mips64.s:93)	MOVW	R1, 16(R2)
+-94 00032 (testdata/mips64.s:94)	MOVW	R1, (R2)
+-95 00033 (testdata/mips64.s:95)	MOVV	R1, foo<>+3(SB)
+-96 00034 (testdata/mips64.s:96)	MOVV	R1, 16(R2)
+-97 00035 (testdata/mips64.s:97)	MOVV	R1, (R2)
+-103 00036 (testdata/mips64.s:103)	MOVB	R1, foo<>+3(SB)
+-104 00037 (testdata/mips64.s:104)	MOVB	R1, 16(R2)
+-105 00038 (testdata/mips64.s:105)	MOVB	R1, (R2)
+-114 00039 (testdata/mips64.s:114)	MOVD	F1, foo<>+3(SB)
+-115 00040 (testdata/mips64.s:115)	MOVD	F1, 16(R2)
+-116 00041 (testdata/mips64.s:116)	MOVD	F1, (R2)
+-125 00042 (testdata/mips64.s:125)	MOVW	FCR0, R1
+-131 00043 (testdata/mips64.s:131)	MOVW	R1, FCR0
+-137 00044 (testdata/mips64.s:137)	MOVW	R1, M1
+-138 00045 (testdata/mips64.s:138)	MOVV	R1, M1
+-144 00046 (testdata/mips64.s:144)	MOVW	M1, R1
+-145 00047 (testdata/mips64.s:145)	MOVV	M1, R1
+-158 00048 (testdata/mips64.s:158)	ADD	R1, R2, R3
+-164 00049 (testdata/mips64.s:164)	ADD	$1, R2, R3
+-170 00050 (testdata/mips64.s:170)	ADD	R1, R2
+-176 00051 (testdata/mips64.s:176)	ADD	$4, R1
+-182 00052 (testdata/mips64.s:182)	MUL	R1, R2
+-188 00053 (testdata/mips64.s:188)	SLL	R1, R2, R3
+-194 00054 (testdata/mips64.s:194)	SLL	R1, R2
+-200 00055 (testdata/mips64.s:200)	SLL	$4, R1, R2
+-206 00056 (testdata/mips64.s:206)	SLL	$4, R1
+-215 00057 (testdata/mips64.s:215)	MOVW	$1, R1
+-216 00058 (testdata/mips64.s:216)	MOVV	$1, R1
+-222 00059 (testdata/mips64.s:222)	MOVW	$1, R1
+-223 00060 (testdata/mips64.s:223)	MOVW	$foo(SB), R1
+-224 00061 (testdata/mips64.s:224)	MOVV	$1, R1
+-225 00062 (testdata/mips64.s:225)	MOVV	$foo(SB), R1
+-236 00063 (testdata/mips64.s:236)	JMP	64(PC)
+-237 00064 (testdata/mips64.s:237)	JMP	63
+-238 00065 (testdata/mips64.s:238)	CALL	66(PC)
+-239 00066 (testdata/mips64.s:239)	CALL	63
+-245 00067 (testdata/mips64.s:245)	JMP	4(R1)
+-246 00068 (testdata/mips64.s:246)	JMP	foo(SB)
+-247 00069 (testdata/mips64.s:247)	CALL	4(R1)
+-248 00070 (testdata/mips64.s:248)	CALL	foo(SB)
+-258 00071 (testdata/mips64.s:258)	BEQ	R1, 72(PC)
+-259 00072 (testdata/mips64.s:259)	BEQ	R1, 71
+-266 00073 (testdata/mips64.s:266)	BEQ	R1, R2, 74(PC)
+-267 00074 (testdata/mips64.s:267)	BEQ	R1, R2, 73
+-277 00075 (testdata/mips64.s:277)	BLTZ	R1, 76(PC)
+-278 00076 (testdata/mips64.s:278)	BLTZ	R1, 75
+-285 00077 (testdata/mips64.s:285)	BFPT	78(PC)
+-286 00078 (testdata/mips64.s:286)	BFPT	77
+-296 00079 (testdata/mips64.s:296)	ABSD	F1, F2
+-302 00080 (testdata/mips64.s:302)	ADDD	F1, F2
+-308 00081 (testdata/mips64.s:308)	ADDD	F1, F2, F3
+-314 00082 (testdata/mips64.s:314)	CMPEQD	F1, F2
+-320 00083 (testdata/mips64.s:320)	WORD	$1
+-321 00084 (testdata/mips64.s:321)	WORD	$foo(SB)
+-330 00085 (testdata/mips64.s:330)	NOP
+-336 00086 (testdata/mips64.s:336)	NOP	R2
+-342 00087 (testdata/mips64.s:342)	NOP	F2
+-348 00088 (testdata/mips64.s:348)	NOP	R2
+-354 00089 (testdata/mips64.s:354)	NOP	F2
+-360 00090 (testdata/mips64.s:360)	NOP	$4
+-365 00091 (testdata/mips64.s:365)	SYSCALL
+-366 00092 (testdata/mips64.s:366)	BREAK
+-367 00093 (testdata/mips64.s:367)	BREAK	$1, (R1)
+-376 00094 (testdata/mips64.s:376)	SYSCALL
+-377 00095 (testdata/mips64.s:377)	RET
+-382 00096 (testdata/mips64.s:382)	CALL	foo(SB)
+-383 00097 (testdata/mips64.s:383)	JMP	foo(SB)
+-384 00098 (testdata/mips64.s:384)	CALL	foo(SB)
+-392 00099 (testdata/mips64.s:392)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 4112b4b120..12330a2edb 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -5,7 +5,7 @@
+ // This input was created by taking the ppc64 testcase and modified
+ // by hand.
+ 
+-TEXT foo(SB),0,$0
++TEXT foo(SB),7,$0
+ 
+ //inst:
+ //
+@@ -66,7 +66,7 @@ TEXT foo(SB),0,$0
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+-	MOVD	$0.1, F2
++	MOVD	$0.1, F2 // MOVD $(0.10000000000000001), F2
+ 
+ //	LFMOV freg ',' freg
+ //	{
+@@ -232,20 +232,28 @@ TEXT foo(SB),0,$0
+ //	{
+ //		outcode(int($1), &nullgen, 0, &$2);
+ //	}
++	BEQ	R1, 2(PC)
+ label0:
+ 	JMP	1(PC)
+-	JMP	label0+0
+-	JAL	1(PC)
+-	JAL	label0+0
++	BEQ	R1, 2(PC)
++	JMP	label0+0 // JMP 64
++	BEQ	R1, 2(PC)
++	JAL	1(PC) // CALL 1(PC)
++	BEQ	R1, 2(PC)
++	JAL	label0+0 // CALL 64
+ 
+ //	LBRA addr
+ //	{
+ //		outcode(int($1), &nullgen, 0, &$2);
+ //	}
+-	JMP	4(R1)
+-	JMP	foo+0(SB)
+-	JAL	4(R1)
+-	JAL	foo+0(SB)
++	BEQ	R1, 2(PC)
++	JMP	0(R1) // JMP (R1)
++	BEQ	R1, 2(PC)
++	JMP	foo+0(SB) // JMP foo(SB)
++	BEQ	R1, 2(PC)
++	JAL	0(R1) // CALL (R1)
++	BEQ	R1, 2(PC)
++	JAL	foo+0(SB) // CALL foo(SB)
+ 
+ //
+ // BEQ/BNE
+@@ -256,7 +264,7 @@ label0:
+ //	}
+ label1:
+ 	BEQ	R1, 1(PC)
+-	BEQ	R1, label1
++	BEQ	R1, label1 // BEQ R1, 79
+ 
+ //	LBRA rreg ',' sreg ',' rel
+ //	{
+@@ -264,7 +272,7 @@ label1:
+ //	}
+ label2:
+ 	BEQ	R1, R2, 1(PC)
+-	BEQ	R1, R2, label2
++	BEQ	R1, R2, label2 // BEQ R1, R2, 81
+ 
+ //
+ // other integer conditional branch
+@@ -275,7 +283,7 @@ label2:
+ //	}
+ label3:
+ 	BLTZ	R1, 1(PC)
+-	BLTZ	R1, label3
++	BLTZ	R1, label3 // BLTZ R1, 83
+ 
+ //
+ // floating point conditional branch
+@@ -283,7 +291,7 @@ label3:
+ //	LBRA rel
+ label4:
+ 	BFPT	1(PC)
+-	BFPT	label4
++	BFPT	label4 // BFPT 85
+ 
+ 
+ //
+@@ -364,7 +372,8 @@ label4:
+ //
+ 	SYSCALL
+ 	BREAK
+-	BREAK	$1, (R1) // overloaded CACHE opcode
++	// overloaded cache opcode:
++	BREAK	R1, (R1)
+ 
+ //
+ // RET
+@@ -374,12 +383,14 @@ label4:
+ //		outcode(int($1), &nullgen, 0, &nullgen);
+ //	}
+ 	SYSCALL
++	BEQ	R1, 2(PC)
+ 	RET
+ 
+ 
+ // More JMP/JAL cases, and canonical names JMP, CALL.
+ 
+-	JAL	foo(SB)
++	JAL	foo(SB) // CALL foo(SB)
++	BEQ	R1, 2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.out b/src/cmd/asm/internal/asm/testdata/ppc64.out
+deleted file mode 100644
+index 2a5d175333..0000000000
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.out
++++ /dev/null
+@@ -1,114 +0,0 @@
+-9 00001 (testdata/ppc64.s:9)	TEXT	foo(SB), 0, $0
+-19 00002 (testdata/ppc64.s:19)	MOVW	R1, R2
+-25 00003 (testdata/ppc64.s:25)	MOVW	foo<>+3(SB), R2
+-26 00004 (testdata/ppc64.s:26)	MOVW	16(R1), R2
+-32 00005 (testdata/ppc64.s:32)	MOVW	(R1), R2
+-33 00006 (testdata/ppc64.s:33)	MOVW	(R1)(R2*1), R3
+-39 00007 (testdata/ppc64.s:39)	MOVW	R1, R2
+-45 00008 (testdata/ppc64.s:45)	MOVB	foo<>+3(SB), R2
+-46 00009 (testdata/ppc64.s:46)	MOVB	16(R1), R2
+-52 00010 (testdata/ppc64.s:52)	MOVB	(R1), R2
+-53 00011 (testdata/ppc64.s:53)	MOVB	(R1)(R2*1), R3
+-62 00012 (testdata/ppc64.s:62)	FMOVD	foo<>+3(SB), F2
+-63 00013 (testdata/ppc64.s:63)	FMOVD	16(R1), F2
+-69 00014 (testdata/ppc64.s:69)	FMOVD	(R1), F2
+-75 00015 (testdata/ppc64.s:75)	FMOVD	$(0.10000000000000001), F2
+-81 00016 (testdata/ppc64.s:81)	FMOVD	F1, F2
+-87 00017 (testdata/ppc64.s:87)	FMOVD	F2, foo<>+3(SB)
+-88 00018 (testdata/ppc64.s:88)	FMOVD	F2, 16(R1)
+-94 00019 (testdata/ppc64.s:94)	FMOVD	F2, (R1)
+-103 00020 (testdata/ppc64.s:103)	MOVW	R1, foo<>+3(SB)
+-104 00021 (testdata/ppc64.s:104)	MOVW	R1, 16(R2)
+-110 00022 (testdata/ppc64.s:110)	MOVW	R1, (R1)
+-111 00023 (testdata/ppc64.s:111)	MOVW	R1, (R2)(R3*1)
+-117 00024 (testdata/ppc64.s:117)	MOVB	R1, foo<>+3(SB)
+-118 00025 (testdata/ppc64.s:118)	MOVB	R1, 16(R2)
+-124 00026 (testdata/ppc64.s:124)	MOVB	R1, (R1)
+-125 00027 (testdata/ppc64.s:125)	MOVB	R1, (R2)(R3*1)
+-133 00028 (testdata/ppc64.s:133)	FMOVD	F1, foo<>+3(SB)
+-134 00029 (testdata/ppc64.s:134)	FMOVD	F1, 16(R2)
+-140 00030 (testdata/ppc64.s:140)	FMOVD	F1, (R1)
+-149 00031 (testdata/ppc64.s:149)	MOVFL	FPSCR, F1
+-155 00032 (testdata/ppc64.s:155)	MOVFL	F1, FPSCR
+-161 00033 (testdata/ppc64.s:161)	MOVFL	F1, $4, FPSCR
+-167 00034 (testdata/ppc64.s:167)	MOVFL	FPSCR, CR0
+-188 00035 (testdata/ppc64.s:188)	MOVW	R1, CR1
+-194 00036 (testdata/ppc64.s:194)	MOVW	R1, CR
+-206 00037 (testdata/ppc64.s:206)	ADD	R1, R2, R3
+-212 00038 (testdata/ppc64.s:212)	ADD	$1, R2, R3
+-224 00039 (testdata/ppc64.s:224)	ADD	R1, R2
+-230 00040 (testdata/ppc64.s:230)	ADD	$4, R1
+-236 00041 (testdata/ppc64.s:236)	ADDE	R1, R2, R3
+-242 00042 (testdata/ppc64.s:242)	ADDE	R1, R2
+-248 00043 (testdata/ppc64.s:248)	SLW	R1, R2, R3
+-254 00044 (testdata/ppc64.s:254)	SLW	R1, R2
+-260 00045 (testdata/ppc64.s:260)	SLW	$4, R1, R2
+-266 00046 (testdata/ppc64.s:266)	SLW	$4, R1
+-272 00047 (testdata/ppc64.s:272)	SLW	$4, R1
+-278 00048 (testdata/ppc64.s:278)	SUBME	R1, R1
+-296 00049 (testdata/ppc64.s:296)	MOVW	$1, R1
+-302 00050 (testdata/ppc64.s:302)	MOVW	$1, R1
+-303 00051 (testdata/ppc64.s:303)	MOVW	$foo(SB), R1
+-327 00052 (testdata/ppc64.s:327)	MOVFL	CR0, CR1
+-339 00053 (testdata/ppc64.s:339)	MOVW	CR, R1
+-345 00054 (testdata/ppc64.s:345)	MOVW	SPR(0), R1
+-346 00055 (testdata/ppc64.s:346)	MOVW	SPR(7), R1
+-352 00056 (testdata/ppc64.s:352)	MOVW	LR, R1
+-353 00057 (testdata/ppc64.s:353)	MOVW	CTR, R1
+-359 00058 (testdata/ppc64.s:359)	MOVW	R1, LR
+-360 00059 (testdata/ppc64.s:360)	MOVW	R1, CTR
+-372 00060 (testdata/ppc64.s:372)	MOVW	R1, SPR(7)
+-384 00061 (testdata/ppc64.s:384)	JMP	62(PC)
+-385 00062 (testdata/ppc64.s:385)	JMP	61
+-391 00063 (testdata/ppc64.s:391)	JMP	4(R1)
+-392 00064 (testdata/ppc64.s:392)	JMP	foo(SB)
+-398 00065 (testdata/ppc64.s:398)	JMP	CTR
+-417 00066 (testdata/ppc64.s:417)	BEQ	CR1, 67(PC)
+-418 00067 (testdata/ppc64.s:418)	BEQ	CR1, 66
+-444 00068 (testdata/ppc64.s:444)	BC	4, CTR
+-454 00069 (testdata/ppc64.s:454)	BC	$3, R4, 66
+-474 00070 (testdata/ppc64.s:474)	BC	$3, R3, LR
+-504 00071 (testdata/ppc64.s:504)	FABS	F1, F2
+-510 00072 (testdata/ppc64.s:510)	FADD	F1, F2
+-516 00073 (testdata/ppc64.s:516)	FADD	F1, F2, F3
+-522 00074 (testdata/ppc64.s:522)	FMADD	F1, F2, F3, F4
+-528 00075 (testdata/ppc64.s:528)	FCMPU	F1, F2
+-534 00076 (testdata/ppc64.s:534)	FCMPU	F1, F2, CR0
+-543 00077 (testdata/ppc64.s:543)	CMP	R1, R2
+-549 00078 (testdata/ppc64.s:549)	CMP	R1, $4
+-555 00079 (testdata/ppc64.s:555)	CMP	R1, CR0, R2
+-561 00080 (testdata/ppc64.s:561)	CMP	R1, CR0, $4
+-570 00081 (testdata/ppc64.s:570)	RLDC	$4, R1, $5, R2
+-576 00082 (testdata/ppc64.s:576)	RLDC	$26, R1, $201326592, R2
+-582 00083 (testdata/ppc64.s:582)	RLDC	R1, R2, $4, R3
+-588 00084 (testdata/ppc64.s:588)	RLWMI	R1, R2, $201326592, R3
+-597 00085 (testdata/ppc64.s:597)	MOVMW	foo(SB), R2
+-598 00086 (testdata/ppc64.s:598)	MOVMW	4(R1), R2
+-604 00087 (testdata/ppc64.s:604)	MOVMW	R1, foo(SB)
+-605 00088 (testdata/ppc64.s:605)	MOVMW	R1, 4(R2)
+-615 00089 (testdata/ppc64.s:615)	LSW	(R1), R2
+-616 00090 (testdata/ppc64.s:616)	LSW	(R1)(R2*1), R3
+-622 00091 (testdata/ppc64.s:622)	LSW	(R1), $1, R2
+-623 00092 (testdata/ppc64.s:623)	LSW	(R1)(R2*1), $1, R3
+-629 00093 (testdata/ppc64.s:629)	STSW	R1, (R2)
+-630 00094 (testdata/ppc64.s:630)	STSW	R1, (R2)(R3*1)
+-636 00095 (testdata/ppc64.s:636)	STSW	R1, $1, (R2)
+-637 00096 (testdata/ppc64.s:637)	STSW	R1, $1, (R2)(R3*1)
+-643 00097 (testdata/ppc64.s:643)	MOVHBR	(R1), R2
+-644 00098 (testdata/ppc64.s:644)	MOVHBR	(R1)(R2*1), R3
+-650 00099 (testdata/ppc64.s:650)	MOVHBR	R1, (R2)
+-651 00100 (testdata/ppc64.s:651)	MOVHBR	R1, (R2)(R3*1)
+-657 00101 (testdata/ppc64.s:657)	DCBF	(R1)
+-658 00102 (testdata/ppc64.s:658)	DCBF	(R1)(R2*1)
+-667 00103 (testdata/ppc64.s:667)	NOP
+-673 00104 (testdata/ppc64.s:673)	NOP	R2
+-679 00105 (testdata/ppc64.s:679)	NOP	F2
+-685 00106 (testdata/ppc64.s:685)	NOP	R2
+-691 00107 (testdata/ppc64.s:691)	NOP	F2
+-697 00108 (testdata/ppc64.s:697)	NOP	$4
+-705 00109 (testdata/ppc64.s:705)	RET
+-709 00110 (testdata/ppc64.s:709)	JMP	foo(SB)
+-710 00111 (testdata/ppc64.s:710)	CALL	foo(SB)
+-711 00112 (testdata/ppc64.s:711)	JMP	foo(SB)
+-712 00113 (testdata/ppc64.s:712)	CALL	foo(SB)
+-720 00114 (testdata/ppc64.s:720)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 46c1ee6d95..c46c6b2f5a 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -6,7 +6,7 @@
+ // the old assembler's (9a's) grammar and hand-writing complete
+ // instructions for each rule, to guarantee we cover the same space.
+ 
+-TEXT foo(SB),0,$0
++TEXT foo(SB),7,$0
+ 
+ //inst:
+ //
+@@ -30,7 +30,7 @@ TEXT foo(SB),0,$0
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVW	(R1), R2
+-	MOVW	(R1+R2), R3
++	MOVW	(R1+R2), R3 // MOVW (R1)(R2*1), R3
+ 
+ //	LMOVB rreg ',' rreg
+ //	{
+@@ -50,7 +50,7 @@ TEXT foo(SB),0,$0
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVB	(R1), R2
+-	MOVB	(R1+R2), R3
++	MOVB	(R1+R2), R3 // MOVB (R1)(R2*1), R3
+ 
+ //
+ // load floats
+@@ -72,7 +72,7 @@ TEXT foo(SB),0,$0
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+-	FMOVD	$0.1, F2
++	FMOVD	$0.1, F2 // FMOVD $(0.10000000000000001), F2
+ 
+ //	LFMOV freg ',' freg
+ //	{
+@@ -108,7 +108,7 @@ TEXT foo(SB),0,$0
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVW	R1, (R1)
+-	MOVW	R1, (R2+R3)
++	MOVW	R1, (R2+R3) // MOVW R1, (R2)(R3*1)
+ 
+ //	LMOVB rreg ',' addr
+ //	{
+@@ -122,7 +122,7 @@ TEXT foo(SB),0,$0
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVB	R1, (R1)
+-	MOVB	R1, (R2+R3)
++	MOVB	R1, (R2+R3) // MOVB R1, (R2)(R3*1)
+ //
+ // store floats
+ //
+@@ -275,7 +275,7 @@ TEXT foo(SB),0,$0
+ //	{
+ //		outcode(int($1), &$2, 0, &$2);
+ //	}
+-	SUBME	R1
++	SUBME	R1 // SUBME R1, R1
+ 
+ //
+ // multiply-accumulate
+@@ -380,22 +380,29 @@ TEXT foo(SB),0,$0
+ //	{
+ //		outcode(int($1), &nullgen, 0, &$2);
+ //	}
++	BEQ	CR1, 2(PC)
+ label0:
+-	BR	1(PC)
+-	BR	label0+0
++	BR	1(PC) // JMP 1(PC)
++	BEQ	CR1, 2(PC)
++	BR	label0+0 // JMP 62
+ 
+ //	LBRA addr
+ //	{
+ //		outcode(int($1), &nullgen, 0, &$2);
+ //	}
+-	BR	4(R1)
+-	BR	foo+0(SB)
++	BEQ	CR1, 2(PC)
++	BR	LR // JMP LR
++	BEQ	CR1, 2(PC)
++//	BR	0(R1)	// TODO should work
++	BEQ	CR1, 2(PC)
++	BR	foo+0(SB) // JMP foo(SB)
+ 
+ //	LBRA '(' xlreg ')'
+ //	{
+ //		outcode(int($1), &nullgen, 0, &$3);
+ //	}
+-	BR	(CTR)
++	BEQ	CR1, 2(PC)
++	BR	(CTR) // JMP CTR
+ 
+ //	LBRA ',' rel  // asm doesn't support the leading comma
+ //	{
+@@ -415,7 +422,7 @@ label0:
+ //	}
+ label1:
+ 	BEQ	CR1, 1(PC)
+-	BEQ	CR1, label1
++	BEQ	CR1, label1 // BEQ CR1, 72
+ 
+ //	LBRA creg ',' addr // TODO DOES NOT WORK in 9a
+ //	{
+@@ -441,7 +448,7 @@ label1:
+ //	{
+ //		outcode(int($1), &nullgen, int($2), &$5);
+ //	}
+-	BC	4, (CTR)
++//	BC	4, (CTR)	// TODO - should work
+ 
+ //	LBRA con ',' con ',' rel
+ //	{
+@@ -451,7 +458,7 @@ label1:
+ //		g.Offset = $2;
+ //		outcode(int($1), &g, int(REG_R0+$4), &$6);
+ //	}
+-	BC	3, 4, label1
++//	BC	3, 4, label1 // TODO - should work
+ 
+ //	LBRA con ',' con ',' addr // TODO mystery
+ //	{
+@@ -471,7 +478,7 @@ label1:
+ //		g.Offset = $2;
+ //		outcode(int($1), &g, int(REG_R0+$4), &$7);
+ //	}
+-	BC	3, 3, (LR)
++	BC	3, 3, (LR) // BC $3, R3, LR
+ 
+ //
+ // conditional trap // TODO NOT DEFINED
+@@ -531,7 +538,7 @@ label1:
+ //	{
+ //		outcode(int($1), &$2, int($6.Reg), &$4);
+ //	}
+-	FCMPU	F1, F2, CR0
++//	FCMPU	F1, F2, CR0
+ 
+ //
+ // CMP
+@@ -552,13 +559,13 @@ label1:
+ //	{
+ //		outcode(int($1), &$2, int($6.Reg), &$4);
+ //	}
+-	CMP	R1, R2, CR0
++	CMP	R1, R2, CR0 // CMP R1, CR0, R2
+ 
+ //	LCMP rreg ',' imm ',' creg
+ //	{
+ //		outcode(int($1), &$2, int($6.Reg), &$4);
+ //	}
+-	CMP	R1, $4, CR0
++	CMP	R1, $4, CR0 // CMP R1, CR0, $4
+ 
+ //
+ // rotate and mask
+@@ -567,25 +574,25 @@ label1:
+ //	{
+ //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
+ //	}
+-	RLDC $4, R1, $5, R2
++	RLDC $4, R1, $16, R2
+ 
+ //	LRLWM  imm ',' rreg ',' mask ',' rreg
+ //	{
+ //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
+ //	}
+-	RLDC $26, R1, 4, 5, R2
++	RLDC $26, R1, 4, 5, R2 // RLDC $26, R1, $201326592, R2
+ 
+ //	LRLWM  rreg ',' rreg ',' imm ',' rreg
+ //	{
+ //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
+ //	}
+-	RLDC	R1, R2, $4, R3
++	RLDCL	R1, R2, $7, R3
+ 
+ //	LRLWM  rreg ',' rreg ',' mask ',' rreg
+ //	{
+ //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
+ //	}
+-	RLWMI	R1, R2, 4, 5, R3
++	RLWMI	R1, R2, 4, 5, R3 // RLWMI	R1, R2, $201326592, R3
+ 
+ //
+ // load/store multiple
+@@ -594,14 +601,14 @@ label1:
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+-	MOVMW	foo+0(SB), R2
++//	MOVMW	foo+0(SB), R2 // TODO TLS broke this!
+ 	MOVMW	4(R1), R2
+ 
+ //	LMOVMW rreg ',' addr
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+-	MOVMW	R1, foo+0(SB)
++//	MOVMW	R1, foo+0(SB) // TODO TLS broke this!
+ 	MOVMW	R1, 4(R2)
+ 
+ //
+@@ -613,49 +620,49 @@ label1:
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	LSW	(R1), R2
+-	LSW	(R1+R2), R3
++	LSW	(R1+R2), R3 // LSW	(R1)(R2*1), R3
+ 
+ //	LXLD regaddr ',' imm ',' rreg
+ //	{
+ //		outgcode(int($1), &$2, 0, &$4, &$6);
+ //	}
+ 	LSW	(R1), $1, R2
+-	LSW	(R1+R2), $1, R3
++	LSW	(R1+R2), $1, R3 // LSW	(R1)(R2*1), $1, R3
+ 
+ //	LXST rreg ',' regaddr
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	STSW	R1, (R2)
+-	STSW	R1, (R2+R3)
++	STSW	R1, (R2+R3) // STSW	R1, (R2)(R3*1)
+ 
+ //	LXST rreg ',' imm ',' regaddr
+ //	{
+ //		outgcode(int($1), &$2, 0, &$4, &$6);
+ //	}
+ 	STSW	R1, $1, (R2)
+-	STSW	R1, $1, (R2+R3)
++	STSW	R1, $1, (R2+R3) // STSW	R1, $1, (R2)(R3*1)
+ 
+ //	LXMV regaddr ',' rreg
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVHBR	(R1), R2
+-	MOVHBR	(R1+R2), R3
++	MOVHBR	(R1+R2), R3 // MOVHBR	(R1)(R2*1), R3
+ 
+ //	LXMV rreg ',' regaddr
+ //	{
+ //		outcode(int($1), &$2, 0, &$4);
+ //	}
+ 	MOVHBR	R1, (R2)
+-	MOVHBR	R1, (R2+R3)
++	MOVHBR	R1, (R2+R3) // MOVHBR	R1, (R2)(R3*1)
+ 
+ //	LXOP regaddr
+ //	{
+ //		outcode(int($1), &$2, 0, &nullgen);
+ //	}
+ 	DCBF	(R1)
+-	DCBF	(R1+R2)
++	DCBF	(R1+R2) // DCBF	(R1)(R2*1)
+ 
+ //
+ // NOP
+@@ -702,12 +709,15 @@ label1:
+ //	{
+ //		outcode(int($1), &nullgen, 0, &nullgen);
+ //	}
++	BEQ	2(PC)
+ 	RET
+ 
+ // More BR/BL cases, and canonical names JMP, CALL.
+ 
+-	BR	foo(SB)
+-	BL	foo(SB)
++	BEQ	2(PC)
++	BR	foo(SB) // JMP foo(SB)
++	BL	foo(SB) //  CALL foo(SB)
++	BEQ	2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index e3f98ce831..7fdd9623bd 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -9,6 +9,7 @@ var cnames5 = []string{
+ 	"REG",
+ 	"REGREG",
+ 	"REGREG2",
++	"REGLIST",
+ 	"SHIFT",
+ 	"FREG",
+ 	"PSR",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 3ba0c7d95b..f78b08445f 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1561,7 +1561,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(p.To.Reg) & 15) << 12
+ 
+ 	case 5: /* bra s */
+-		o1 = opbra(ctxt, int(p.As), int(p.Scond))
++		o1 = opbra(ctxt, p, int(p.As), int(p.Scond))
+ 
+ 		v := int32(-8)
+ 		if p.To.Sym != nil {
+@@ -2594,9 +2594,9 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
+ 	return 0
+ }
+ 
+-func opbra(ctxt *obj.Link, a int, sc int) uint32 {
++func opbra(ctxt *obj.Link, p *obj.Prog, a int, sc int) uint32 {
+ 	if sc&(C_SBIT|C_PBIT|C_WBIT) != 0 {
+-		ctxt.Diag(".nil/.nil/.W on bra instruction")
++		ctxt.Diag("%v: .nil/.nil/.W on bra instruction", p)
+ 	}
+ 	sc &= C_SCOND
+ 	sc ^= C_SCOND_XOR
+@@ -2604,7 +2604,7 @@ func opbra(ctxt *obj.Link, a int, sc int) uint32 {
+ 		return uint32(sc)<<28 | 0x5<<25 | 0x1<<24
+ 	}
+ 	if sc != 0xe {
+-		ctxt.Diag(".COND on bcond instruction")
++		ctxt.Diag("%v: .COND on bcond instruction", p)
+ 	}
+ 	switch a {
+ 	case ABEQ:
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index d3e1e5ecbb..f459483cce 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -655,15 +655,8 @@ const (
+ 	AUCVTFS
+ 	AUCVTFWD
+ 	AUCVTFWS
+-	AHISTORY
+-	ANAME
+ 	AWORD
+-	ADYNT
+-	AINIT
+ 	ADWORD
+-	ASIGNAME
+-	AGOK
+-	AEND
+ 	AFCSELS
+ 	AFCSELD
+ 	AFMAXS
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 486d4698a1..4ee4043af7 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -312,15 +312,8 @@ var Anames = []string{
+ 	"UCVTFS",
+ 	"UCVTFWD",
+ 	"UCVTFWS",
+-	"HISTORY",
+-	"NAME",
+ 	"WORD",
+-	"DYNT",
+-	"INIT",
+ 	"DWORD",
+-	"SIGNAME",
+-	"GOK",
+-	"END",
+ 	"FCSELS",
+ 	"FCSELD",
+ 	"FMAXS",

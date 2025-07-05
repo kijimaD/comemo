@@ -13,8 +13,73 @@ Date:   Tue Oct 25 21:07:11 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go             | 5 +++--
  src/go/types/expr.go                                | 5 +++--
  src/internal/types/testdata/fixedbugs/issue56425.go | 8 ++++++++
  3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 17e120f948..40d6e5da69 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -943,9 +943,10 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 
+ 	// Check that constants are representable by uint, but do not convert them
+ 	// (see also issue #47243).
++	var yval constant.Value
+ 	if y.mode == constant_ {
+ 		// Provide a good error message for negative shift counts.
+-		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
++		yval = constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+ 			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
+ 			x.mode = invalid
+@@ -998,7 +999,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 			}
+ 			// rhs must be within reasonable bounds in constant shifts
+ 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+-			s, ok := constant.Uint64Val(y.val)
++			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > shiftBound {
+ 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+ 				x.mode = invalid
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index f11632fd6b..da9cd67826 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -920,9 +920,10 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 	// Check that constants are representable by uint, but do not convert them
+ 	// (see also issue #47243).
++	var yval constant.Value
+ 	if y.mode == constant_ {
+ 		// Provide a good error message for negative shift counts.
+-		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
++		yval = constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+ 			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
+ 			x.mode = invalid
+@@ -975,7 +976,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			}
+ 			// rhs must be within reasonable bounds in constant shifts
+ 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+-			s, ok := constant.Uint64Val(y.val)
++			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > shiftBound {
+ 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+ 				x.mode = invalid
+diff --git a/src/internal/types/testdata/fixedbugs/issue56425.go b/src/internal/types/testdata/fixedbugs/issue56425.go
+new file mode 100644
+index 0000000000..d85733faaa
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue56425.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const s float32 = 0
++var _ = 0 << s

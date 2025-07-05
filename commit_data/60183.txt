@@ -11,6 +11,19 @@ Date:   Wed May 22 15:55:04 2024 +0800
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  test/codegen/mathbits.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 82a139acab..a743eaf3d3 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -827,6 +827,7 @@ func Mul(x, y uint) (hi, lo uint) {
+ 	// ppc64x:"MULHDU","MULLD"
+ 	// s390x:"MLGR"
+ 	// mips64: "MULVU"
++	// riscv64:"MULHU","MUL"
+ 	return bits.Mul(x, y)
+ }
+ 

@@ -20,7 +20,104 @@ Date:   Tue May 23 10:12:36 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go | 22 +++++++++-------
  src/cmd/asm/internal/asm/testdata/armv6.s | 44 +++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 7037e3fc4d..239c211fc2 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -19,6 +19,7 @@ import (
+ 
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ )
+ 
+ // An end-to-end test for the assembler: Do we print what we parse?
+@@ -352,22 +353,23 @@ func testErrors(t *testing.T, goarch, file string) {
+ }
+ 
+ func Test386EndToEnd(t *testing.T) {
+-	defer os.Setenv("GO386", os.Getenv("GO386"))
+-
+-	for _, go386 := range []string{"387", "sse"} {
+-		os.Setenv("GO386", go386)
+-		t.Logf("GO386=%v", os.Getenv("GO386"))
++	defer func(old string) { objabi.GO386 = old }(objabi.GO386)
++	for _, go386 := range []string{"387", "sse2"} {
++		t.Logf("GO386=%v", go386)
++		objabi.GO386 = go386
+ 		testEndToEnd(t, "386", "386")
+ 	}
+ }
+ 
+ func TestARMEndToEnd(t *testing.T) {
+-	defer os.Setenv("GOARM", os.Getenv("GOARM"))
+-
+-	for _, goarm := range []string{"5", "6", "7"} {
+-		os.Setenv("GOARM", goarm)
+-		t.Logf("GOARM=%v", os.Getenv("GOARM"))
++	defer func(old int) { objabi.GOARM = old }(objabi.GOARM)
++	for _, goarm := range []int{5, 6, 7} {
++		t.Logf("GOARM=%d", goarm)
++		objabi.GOARM = goarm
+ 		testEndToEnd(t, "arm", "arm")
++		if goarm == 6 {
++			testEndToEnd(t, "arm", "armv6")
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/armv6.s b/src/cmd/asm/internal/asm/testdata/armv6.s
+new file mode 100644
+index 0000000000..23b7b55ff3
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/armv6.s
+@@ -0,0 +1,44 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../../../../runtime/textflag.h"
++
++TEXT	foo(SB), DUPOK|NOSPLIT, $0
++
++	ADDF	F0, F1, F2    // 002a31ee
++	ADDD.EQ	F3, F4, F5    // 035b340e
++	ADDF.NE	F0, F2        // 002a321e
++	ADDD	F3, F5        // 035b35ee
++	SUBF	F0, F1, F2    // 402a31ee
++	SUBD.EQ	F3, F4, F5    // 435b340e
++	SUBF.NE	F0, F2        // 402a321e
++	SUBD	F3, F5        // 435b35ee
++	MULF	F0, F1, F2    // 002a21ee
++	MULD.EQ	F3, F4, F5    // 035b240e
++	MULF.NE	F0, F2        // 002a221e
++	MULD	F3, F5        // 035b25ee
++	DIVF	F0, F1, F2    // 002a81ee
++	DIVD.EQ	F3, F4, F5    // 035b840e
++	DIVF.NE	F0, F2        // 002a821e
++	DIVD	F3, F5        // 035b85ee
++	NEGF	F0, F1        // 401ab1ee
++	NEGD	F4, F5        // 445bb1ee
++	ABSF	F0, F1        // c01ab0ee
++	ABSD	F4, F5        // c45bb0ee
++	SQRTF	F0, F1        // c01ab1ee
++	SQRTD	F4, F5        // c45bb1ee
++	MOVFD	F0, F1        // c01ab7ee
++	MOVDF	F4, F5        // c45bb7ee
++
++	LDREX	(R8), R9      // 9f9f98e1
++	LDREXD	(R11), R12    // 9fcfbbe1
++	STREX	R3, (R4), R5  // STREX  (R4), R3, R5 // 935f84e1
++	STREXD	R8, (R9), g   // STREXD (R9), R8, g  // 98afa9e1
++
++	CMPF    F8, F9        // c89ab4ee10faf1ee
++	CMPD.CS F4, F5        // c45bb42e10faf12e
++	CMPF.VS F7            // c07ab56e10faf16e
++	CMPD    F6            // c06bb5ee10faf1ee
++
++	END

@@ -16,8 +16,52 @@ Date:   Mon May 11 20:49:32 2015 -0700
     Change-Id: I8dddbd8a6bae877efff818f5c5dd06291ade3238
     Reviewed-on: https://go-review.googlesource.com/9962
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/mkerrors.sh              | 2 ++
  src/syscall/zerrors_linux_ppc64le.go | 4 ++--
  src/syscall/ztypes_linux_ppc64le.go  | 2 +-
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/mkerrors.sh b/src/syscall/mkerrors.sh
+index d25527bbf9..438de6e5d8 100755
+--- a/src/syscall/mkerrors.sh
++++ b/src/syscall/mkerrors.sh
+@@ -87,7 +87,9 @@ includes_FreeBSD='
+ includes_Linux='
+ #define _LARGEFILE_SOURCE
+ #define _LARGEFILE64_SOURCE
++#ifndef __LP64__
+ #define _FILE_OFFSET_BITS 64
++#endif
+ #define _GNU_SOURCE
+ 
+ #include <bits/sockaddr.h>
+diff --git a/src/syscall/zerrors_linux_ppc64le.go b/src/syscall/zerrors_linux_ppc64le.go
+index fdecdf24dd..17c4c4cf3a 100644
+--- a/src/syscall/zerrors_linux_ppc64le.go
++++ b/src/syscall/zerrors_linux_ppc64le.go
+@@ -366,9 +366,9 @@ const (
+ 	F_SETFD                          = 0x2
+ 	F_SETFL                          = 0x4
+ 	F_SETLEASE                       = 0x400
+-	F_SETLK                          = 0xd
++	F_SETLK                          = 0x6
+ 	F_SETLK64                        = 0xd
+-	F_SETLKW                         = 0xe
++	F_SETLKW                         = 0x7
+ 	F_SETLKW64                       = 0xe
+ 	F_SETOWN                         = 0x8
+ 	F_SETOWN_EX                      = 0xf
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index c6b6f1615d..0de1770f7f 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -549,7 +549,7 @@ type Sysinfo_t struct {
+ 	Totalhigh uint64
+ 	Freehigh  uint64
+ 	Unit      uint32
+-	X_f       [0]byte
++	X_f       [0]uint8
+ 	Pad_cgo_1 [4]byte
+ }
+ 

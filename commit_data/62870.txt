@@ -20,7 +20,7 @@ Date:   Tue Apr 15 14:55:06 2025 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/export_test.go  |  6 ++++--
  src/runtime/lfstack.go      | 12 ++----------
  src/runtime/lfstack_test.go |  2 +-
@@ -31,3 +31,280 @@ Date:   Tue Apr 15 14:55:06 2025 -0700
  src/runtime/tagptr_32bit.go |  3 +++
  src/runtime/tagptr_64bit.go | 34 ++++++++++++++++++++--------------
  9 files changed, 65 insertions(+), 34 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 572f62c2f9..195a56963d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1777,10 +1777,12 @@ func FrameStartLine(f *Frame) int {
+ 
+ // PersistentAlloc allocates some memory that lives outside the Go heap.
+ // This memory will never be freed; use sparingly.
+-func PersistentAlloc(n uintptr) unsafe.Pointer {
+-	return persistentalloc(n, 0, &memstats.other_sys)
++func PersistentAlloc(n, align uintptr) unsafe.Pointer {
++	return persistentalloc(n, align, &memstats.other_sys)
+ }
+ 
++const TagAlign = tagAlign
++
+ // FPCallers works like Callers and uses frame pointer unwinding to populate
+ // pcBuf with the return addresses of the physical frames on the stack.
+ func FPCallers(pcBuf []uintptr) int {
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index cbec6e8447..8946c80348 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -24,10 +24,6 @@ type lfstack uint64
+ func (head *lfstack) push(node *lfnode) {
+ 	node.pushcnt++
+ 	new := lfstackPack(node, node.pushcnt)
+-	if node1 := lfstackUnpack(new); node1 != node {
+-		print("runtime: lfstack.push invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+-		throw("lfstack.push")
+-	}
+ 	for {
+ 		old := atomic.Load64((*uint64)(head))
+ 		node.next = old
+@@ -61,15 +57,11 @@ func lfnodeValidate(node *lfnode) {
+ 	if base, _, _ := findObject(uintptr(unsafe.Pointer(node)), 0, 0); base != 0 {
+ 		throw("lfstack node allocated from the heap")
+ 	}
+-	if lfstackUnpack(lfstackPack(node, ^uintptr(0))) != node {
+-		printlock()
+-		println("runtime: bad lfnode address", hex(uintptr(unsafe.Pointer(node))))
+-		throw("bad lfnode address")
+-	}
++	lfstackPack(node, ^uintptr(0))
+ }
+ 
+ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+-	return uint64(taggedPointerPack(unsafe.Pointer(node), cnt))
++	return uint64(taggedPointerPack(unsafe.Pointer(node), cnt&(1<<tagBits-1)))
+ }
+ 
+ func lfstackUnpack(val uint64) *lfnode {
+diff --git a/src/runtime/lfstack_test.go b/src/runtime/lfstack_test.go
+index e36297e541..c356c1e747 100644
+--- a/src/runtime/lfstack_test.go
++++ b/src/runtime/lfstack_test.go
+@@ -21,7 +21,7 @@ type MyNode struct {
+ // We require lfstack objects to live outside the heap so that
+ // checkptr passes on the unsafe shenanigans used.
+ func allocMyNode(data int) *MyNode {
+-	n := (*MyNode)(PersistentAlloc(unsafe.Sizeof(MyNode{})))
++	n := (*MyNode)(PersistentAlloc(unsafe.Sizeof(MyNode{}), TagAlign))
+ 	LFNodeValidate(&n.LFNode)
+ 	n.data = data
+ 	return n
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 923cc276b9..bf4633a033 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1392,6 +1392,12 @@ type gcBgMarkWorkerNode struct {
+ 	// gcBgMarkWorker().
+ 	m muintptr
+ }
++type gcBgMarkWorkerNodePadded struct {
++	gcBgMarkWorkerNode
++	pad [tagAlign - unsafe.Sizeof(gcBgMarkWorkerNode{}) - gcBgMarkWorkerNodeRedZoneSize]byte
++}
++
++const gcBgMarkWorkerNodeRedZoneSize = (16 << 2) * asanenabledBit // redZoneSize(512)
+ 
+ func gcBgMarkWorker(ready chan struct{}) {
+ 	gp := getg()
+@@ -1400,7 +1406,7 @@ func gcBgMarkWorker(ready chan struct{}) {
+ 	// the stack (see gopark). Prevent deadlock from recursively
+ 	// starting GC by disabling preemption.
+ 	gp.m.preemptoff = "GC worker init"
+-	node := new(gcBgMarkWorkerNode)
++	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode // TODO: technically not allowed in the heap. See comment in tagptr.go.
+ 	gp.m.preemptoff = ""
+ 
+ 	node.gp.set(gp)
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 3aa2b5b393..21b105194e 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -56,7 +56,7 @@ const (
+ 	spanSetInitSpineCap = 256 // Enough for 1GB heap on 64-bit
+ )
+ 
+-type spanSetBlock struct {
++type spanSetBlockHeader struct {
+ 	// Free spanSetBlocks are managed via a lock-free stack.
+ 	lfnode
+ 
+@@ -64,6 +64,15 @@ type spanSetBlock struct {
+ 	// this block. This number is used to help determine when a block
+ 	// may be safely recycled.
+ 	popped atomic.Uint32
++}
++
++type spanSetBlockHeader2 struct {
++	spanSetBlockHeader
++	pad [tagAlign - unsafe.Sizeof(spanSetBlockHeader{})]byte
++}
++
++type spanSetBlock struct {
++	spanSetBlockHeader2
+ 
+ 	// spans is the set of spans in this block.
+ 	spans [spanSetBlockEntries]atomicMSpanPointer
+@@ -313,7 +322,7 @@ func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
+ 	if s := (*spanSetBlock)(p.stack.pop()); s != nil {
+ 		return s
+ 	}
+-	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gcMiscSys))
++	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), max(cpu.CacheLineSize, tagAlign), &memstats.gcMiscSys))
+ }
+ 
+ // free returns a spanSetBlock back to the pool.
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 8d65a81edc..b2219b92ce 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -688,14 +688,18 @@ func netpollAdjustWaiters(delta int32) {
+ func (c *pollCache) alloc() *pollDesc {
+ 	lock(&c.lock)
+ 	if c.first == nil {
+-		const pdSize = unsafe.Sizeof(pollDesc{})
++		type pollDescPadded struct {
++			pollDesc
++			pad [tagAlign - unsafe.Sizeof(pollDesc{})]byte
++		}
++		const pdSize = unsafe.Sizeof(pollDescPadded{})
+ 		n := pollBlockSize / pdSize
+ 		if n == 0 {
+ 			n = 1
+ 		}
+ 		// Must be in non-GC memory because can be referenced
+ 		// only from epoll/kqueue internals.
+-		mem := persistentalloc(n*pdSize, 0, &memstats.other_sys)
++		mem := persistentalloc(n*pdSize, tagAlign, &memstats.other_sys)
+ 		for i := uintptr(0); i < n; i++ {
+ 			pd := (*pollDesc)(add(mem, i*pdSize))
+ 			lockInit(&pd.lock, lockRankPollDesc)
+diff --git a/src/runtime/tagptr.go b/src/runtime/tagptr.go
+index 0e17a1598f..0e8e6cbce2 100644
+--- a/src/runtime/tagptr.go
++++ b/src/runtime/tagptr.go
+@@ -6,9 +6,18 @@ package runtime
+ 
+ // taggedPointer is a pointer with a numeric tag.
+ // The size of the numeric tag is GOARCH-dependent,
+-// currently at least 10 bits.
++// currently at least 16 bits.
+ // This should only be used with pointers allocated outside the Go heap.
+ type taggedPointer uint64
+ 
+ // minTagBits is the minimum number of tag bits that we expect.
+-const minTagBits = 10
++const minTagBits = 16
++
++// # of bits we can steal from the bottom. We enforce that all pointers
++// that we tag are aligned to at least this many bits.
++// Currently the long pole in this tent is pollDesc at 280 bytes. Setting
++// 9 here rounds those structs up to 512 bytes.
++// gcBgMarkWorkerNode is also small, but we don't make many of those
++// so it is ok to waste space on them.
++const tagAlignBits = 9
++const tagAlign = 1 << tagAlignBits
+diff --git a/src/runtime/tagptr_32bit.go b/src/runtime/tagptr_32bit.go
+index f79e1821a1..d846904130 100644
+--- a/src/runtime/tagptr_32bit.go
++++ b/src/runtime/tagptr_32bit.go
+@@ -11,6 +11,9 @@ import "unsafe"
+ // The number of bits stored in the numeric tag of a taggedPointer
+ const taggedPointerBits = 32
+ 
++// The number of bits allowed in a tag.
++const tagBits = 32
++
+ // On 32-bit systems, taggedPointer has a 32-bit pointer and 32-bit count.
+ 
+ // taggedPointerPack created a taggedPointer from a pointer and a tag.
+diff --git a/src/runtime/tagptr_64bit.go b/src/runtime/tagptr_64bit.go
+index 9ff11ccd16..b0e3d97223 100644
+--- a/src/runtime/tagptr_64bit.go
++++ b/src/runtime/tagptr_64bit.go
+@@ -28,10 +28,10 @@ const (
+ 	// get to really high addresses and panic if it does.
+ 	addrBits = 48
+ 
+-	// In addition to the 16 bits taken from the top, we can take 3 from the
+-	// bottom, because node must be pointer-aligned, giving a total of 19 bits
+-	// of count.
+-	tagBits = 64 - addrBits + 3
++	// In addition to the 16 bits taken from the top, we can take 9 from the
++	// bottom, because we require pointers to be well-aligned (see tagptr.go:tagAlignBits).
++	// That gives us a total of 25 bits for the tag.
++	tagBits = 64 - addrBits + tagAlignBits
+ 
+ 	// On AIX, 64-bit addresses are split into 36-bit segment number and 28-bit
+ 	// offset in segment.  Segment numbers in the range 0x0A0000000-0x0AFFFFFFF(LSA)
+@@ -39,14 +39,14 @@ const (
+ 	// We assume all tagged addresses are from memory allocated with mmap.
+ 	// We use one bit to distinguish between the two ranges.
+ 	aixAddrBits = 57
+-	aixTagBits  = 64 - aixAddrBits + 3
++	aixTagBits  = 64 - aixAddrBits + tagAlignBits
+ 
+ 	// riscv64 SV57 mode gives 56 bits of userspace VA.
+ 	// tagged pointer code supports it,
+ 	// but broader support for SV57 mode is incomplete,
+ 	// and there may be other issues (see #54104).
+ 	riscv64AddrBits = 56
+-	riscv64TagBits  = 64 - riscv64AddrBits + 3
++	riscv64TagBits  = 64 - riscv64AddrBits + tagAlignBits
+ )
+ 
+ // The number of bits stored in the numeric tag of a taggedPointer
+@@ -55,16 +55,22 @@ const taggedPointerBits = (goos.IsAix * aixTagBits) + (goarch.IsRiscv64 * riscv6
+ // taggedPointerPack created a taggedPointer from a pointer and a tag.
+ // Tag bits that don't fit in the result are discarded.
+ func taggedPointerPack(ptr unsafe.Pointer, tag uintptr) taggedPointer {
++	var t taggedPointer
+ 	if GOOS == "aix" {
+ 		if GOARCH != "ppc64" {
+ 			throw("check this code for aix on non-ppc64")
+ 		}
+-		return taggedPointer(uint64(uintptr(ptr))<<(64-aixAddrBits) | uint64(tag&(1<<aixTagBits-1)))
++		t = taggedPointer(uint64(uintptr(ptr))<<(64-aixAddrBits) | uint64(tag&(1<<aixTagBits-1)))
++	} else if GOARCH == "riscv64" {
++		t = taggedPointer(uint64(uintptr(ptr))<<(64-riscv64AddrBits) | uint64(tag&(1<<riscv64TagBits-1)))
++	} else {
++		t = taggedPointer(uint64(uintptr(ptr))<<(64-addrBits) | uint64(tag&(1<<tagBits-1)))
+ 	}
+-	if GOARCH == "riscv64" {
+-		return taggedPointer(uint64(uintptr(ptr))<<(64-riscv64AddrBits) | uint64(tag&(1<<riscv64TagBits-1)))
++	if t.pointer() != ptr || t.tag() != tag {
++		print("runtime: taggedPointerPack invalid packing: ptr=", ptr, " tag=", hex(tag), " packed=", hex(t), " -> ptr=", t.pointer(), " tag=", hex(t.tag()), "\n")
++		throw("taggedPointerPack")
+ 	}
+-	return taggedPointer(uint64(uintptr(ptr))<<(64-addrBits) | uint64(tag&(1<<tagBits-1)))
++	return t
+ }
+ 
+ // Pointer returns the pointer from a taggedPointer.
+@@ -72,15 +78,15 @@ func (tp taggedPointer) pointer() unsafe.Pointer {
+ 	if GOARCH == "amd64" {
+ 		// amd64 systems can place the stack above the VA hole, so we need to sign extend
+ 		// val before unpacking.
+-		return unsafe.Pointer(uintptr(int64(tp) >> tagBits << 3))
++		return unsafe.Pointer(uintptr(int64(tp) >> tagBits << tagAlignBits))
+ 	}
+ 	if GOOS == "aix" {
+-		return unsafe.Pointer(uintptr((tp >> aixTagBits << 3) | 0xa<<56))
++		return unsafe.Pointer(uintptr((tp >> aixTagBits << tagAlignBits) | 0xa<<56))
+ 	}
+ 	if GOARCH == "riscv64" {
+-		return unsafe.Pointer(uintptr(tp >> riscv64TagBits << 3))
++		return unsafe.Pointer(uintptr(tp >> riscv64TagBits << tagAlignBits))
+ 	}
+-	return unsafe.Pointer(uintptr(tp >> tagBits << 3))
++	return unsafe.Pointer(uintptr(tp >> tagBits << tagAlignBits))
+ }
+ 
+ // Tag returns the tag from a taggedPointer.

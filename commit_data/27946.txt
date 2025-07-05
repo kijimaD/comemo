@@ -16,6 +16,20 @@ Date:   Mon Apr 18 10:30:20 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 11e362c116..4a33a3808e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2668,7 +2668,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		return nil
+ 	}
+ 	fp := res.Field(0)
+-	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Offset, s.sp)
++	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Offset+Ctxt.FixedFrameSize(), s.sp)
+ }
+ 
+ // etypesign returns the signed-ness of e, for integer/pointer etypes.

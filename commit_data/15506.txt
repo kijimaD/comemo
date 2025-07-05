@@ -7,9 +7,71 @@ Date:   Thu Feb 28 13:32:36 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7439046
-
+---
  doc/contribute.html         | 2 +-
  doc/debugging_with_gdb.html | 2 +-
  doc/go1.1.html              | 4 ++--
  doc/go_spec.html            | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 9d347fc0d7..72c9364722 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -293,7 +293,7 @@ run <code>hg change 99999</code>.
+ 
+ <p>
+ Alternatively, you can use
+-<p/>
++</p>
+ 
+ <pre>
+ $ hg file 99999 somefile
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 4f1308adb7..b893f931a3 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -179,7 +179,7 @@ $ <b>gdb regexp.test -d $GOROOT</b>
+ If for some reason GDB still can't find that directory or that script, you can load
+ it by hand by telling gdb (assuming you have the go sources in
+ <code>~/go/</code>):
+-<p>
++</p>
+ 
+ <pre>
+ (gdb) <b>source ~/go/src/pkg/runtime/runtime-gdb.py</b>
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 1574ed805d..b7e8ee9f05 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -131,7 +131,7 @@ to convert the code to Go 1.0 first.
+ 
+ <h2 id="library">Changes to the standard library</h2>
+ 
+-<h3 id="debug/elf">debug/elf</h3>
++<h3 id="debug_elf">debug/elf</h3>
+ <p>
+ Previous versions of the debug/elf package intentionally skipped over the first
+ symbol in the ELF symbol table, since it is always an empty symbol. This symbol
+@@ -141,7 +141,7 @@ calls the debug/elf functions Symbols or ImportedSymbols may need to be
+ adjusted to account for the additional symbol and the change in symbol offsets.
+ </p>
+ 
+-<h3 id="html/template">html/template</h3>
++<h3 id="html_template">html/template</h3>
+ 
+ <p>
+ Templates using the undocumented and only partially implemented
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 66294c7a5a..c5611cb1f7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2637,7 +2637,7 @@ a[:]   // same as a[0 : len(a)]
+ 
+ <p>
+ For arrays or strings, the indices <code>low</code> and <code>high</code> are
+-<i>in range</i> if <code>0 &lt;= <code>low</code> &lt;= <code>high</code> &lt;= len(a)</code>,
++<i>in range</i> if <code>0</code> &lt;= <code>low</code> &lt;= <code>high</code> &lt;= <code>len(a)</code>,
+ otherwise they are <i>out of range</i>.
+ For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
+ A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type

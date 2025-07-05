@@ -13,6 +13,21 @@ Date:   Mon Mar 21 14:37:38 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/gofmt/long_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index a130874048..2ee5174b96 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -114,7 +114,8 @@ func genFilenames(t *testing.T, filenames chan<- string) {
+ 			t.Error(err)
+ 			return nil
+ 		}
+-		if isGoFile(d) {
++		// don't descend into testdata directories
++		if isGoFile(d) && !strings.Contains(filepath.ToSlash(filename), "/testdata/") {
+ 			filenames <- filename
+ 			nfiles++
+ 		}

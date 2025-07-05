@@ -17,7 +17,7 @@ Date:   Thu Mar 2 17:09:22 2023 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/notsha256/sha256block_decl.go |  1 -
  src/crypto/md5/md5block_decl.go                |  1 -
  src/crypto/sha1/sha1block_decl.go              |  1 -
@@ -29,3 +29,254 @@ Date:   Thu Mar 2 17:09:22 2023 -0500
  src/runtime/race.go                            | 20 ++++++++++----------
  src/syscall/dll_windows.go                     |  8 ++++----
  10 files changed, 26 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/internal/notsha256/sha256block_decl.go b/src/cmd/internal/notsha256/sha256block_decl.go
+index 631f1a4a1b..da66bdd26a 100644
+--- a/src/cmd/internal/notsha256/sha256block_decl.go
++++ b/src/cmd/internal/notsha256/sha256block_decl.go
+@@ -9,5 +9,4 @@
+ package notsha256
+ 
+ //go:noescape
+-
+ func block(dig *digest, p []byte)
+diff --git a/src/crypto/md5/md5block_decl.go b/src/crypto/md5/md5block_decl.go
+index 6716a0c9db..f1fb34c3d7 100644
+--- a/src/crypto/md5/md5block_decl.go
++++ b/src/crypto/md5/md5block_decl.go
+@@ -9,5 +9,4 @@ package md5
+ const haveAsm = true
+ 
+ //go:noescape
+-
+ func block(dig *digest, p []byte)
+diff --git a/src/crypto/sha1/sha1block_decl.go b/src/crypto/sha1/sha1block_decl.go
+index 518a4b6b67..8e20401c14 100644
+--- a/src/crypto/sha1/sha1block_decl.go
++++ b/src/crypto/sha1/sha1block_decl.go
+@@ -7,5 +7,4 @@
+ package sha1
+ 
+ //go:noescape
+-
+ func block(dig *digest, p []byte)
+diff --git a/src/crypto/sha256/sha256block_decl.go b/src/crypto/sha256/sha256block_decl.go
+index 18ba1c0ec1..7d68cd95fe 100644
+--- a/src/crypto/sha256/sha256block_decl.go
++++ b/src/crypto/sha256/sha256block_decl.go
+@@ -7,5 +7,4 @@
+ package sha256
+ 
+ //go:noescape
+-
+ func block(dig *digest, p []byte)
+diff --git a/src/crypto/sha512/sha512block_decl.go b/src/crypto/sha512/sha512block_decl.go
+index 52278ae690..4ad4418bc0 100644
+--- a/src/crypto/sha512/sha512block_decl.go
++++ b/src/crypto/sha512/sha512block_decl.go
+@@ -7,5 +7,4 @@
+ package sha512
+ 
+ //go:noescape
+-
+ func block(dig *digest, p []byte)
+diff --git a/src/internal/bytealg/index_native.go b/src/internal/bytealg/index_native.go
+index 6e4a2f39e4..59c93f9d12 100644
+--- a/src/internal/bytealg/index_native.go
++++ b/src/internal/bytealg/index_native.go
+@@ -6,14 +6,14 @@
+ 
+ package bytealg
+ 
+-//go:noescape
+-
+ // Index returns the index of the first instance of b in a, or -1 if b is not present in a.
+ // Requires 2 <= len(b) <= MaxLen.
+-func Index(a, b []byte) int
+-
++//
+ //go:noescape
++func Index(a, b []byte) int
+ 
+ // IndexString returns the index of the first instance of b in a, or -1 if b is not present in a.
+ // Requires 2 <= len(b) <= MaxLen.
++//
++//go:noescape
+ func IndexString(a, b string) int
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 8ac1b08f69..f881508b77 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -67,10 +67,10 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+ 	return r1
+ }
+ 
+-//go:nosplit
+-
+ // sysvicall1Err returns both the system call result and the errno value.
+ // This is used by sysvicall1 and pipe.
++//
++//go:nosplit
+ func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index aba2e2b27b..ee13debf54 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -312,10 +312,10 @@ func forcegchelper() {
+ 	}
+ }
+ 
+-//go:nosplit
+-
+ // Gosched yields the processor, allowing other goroutines to run. It does not
+ // suspend the current goroutine, so execution resumes automatically.
++//
++//go:nosplit
+ func Gosched() {
+ 	checkTimeouts()
+ 	mcall(gosched_m)
+@@ -4516,8 +4516,6 @@ func dolockOSThread() {
+ 	gp.lockedm.set(gp.m)
+ }
+ 
+-//go:nosplit
+-
+ // LockOSThread wires the calling goroutine to its current operating system thread.
+ // The calling goroutine will always execute in that thread,
+ // and no other goroutine will execute in it,
+@@ -4532,6 +4530,8 @@ func dolockOSThread() {
+ //
+ // A goroutine should call LockOSThread before calling OS services or
+ // non-Go library functions that depend on per-thread state.
++//
++//go:nosplit
+ func LockOSThread() {
+ 	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 && GOOS != "plan9" {
+ 		// If we need to start a new thread from the locked
+@@ -4571,8 +4571,6 @@ func dounlockOSThread() {
+ 	gp.lockedm = 0
+ }
+ 
+-//go:nosplit
+-
+ // UnlockOSThread undoes an earlier call to LockOSThread.
+ // If this drops the number of active LockOSThread calls on the
+ // calling goroutine to zero, it unwires the calling goroutine from
+@@ -4585,6 +4583,8 @@ func dounlockOSThread() {
+ // other goroutines, it should not call this function and thus leave
+ // the goroutine locked to the OS thread until the goroutine (and
+ // hence the thread) exits.
++//
++//go:nosplit
+ func UnlockOSThread() {
+ 	gp := getg()
+ 	if gp.m.lockedExt == 0 {
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index f83a04db4a..7e9ef40e6c 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -24,8 +24,6 @@ func RaceErrors() int {
+ 	return int(n)
+ }
+ 
+-//go:nosplit
+-
+ // RaceAcquire/RaceRelease/RaceReleaseMerge establish happens-before relations
+ // between goroutines. These inform the race detector about actual synchronization
+ // that it can't see for some reason (e.g. synchronization within RaceDisable/RaceEnable
+@@ -34,38 +32,40 @@ func RaceErrors() int {
+ // RaceReleaseMerge on addr up to and including the last RaceRelease on addr.
+ // In terms of the C memory model (C11 §5.1.2.4, §7.17.3),
+ // RaceAcquire is equivalent to atomic_load(memory_order_acquire).
++//
++//go:nosplit
+ func RaceAcquire(addr unsafe.Pointer) {
+ 	raceacquire(addr)
+ }
+ 
+-//go:nosplit
+-
+ // RaceRelease performs a release operation on addr that
+ // can synchronize with a later RaceAcquire on addr.
+ //
+ // In terms of the C memory model, RaceRelease is equivalent to
+ // atomic_store(memory_order_release).
++//
++//go:nosplit
+ func RaceRelease(addr unsafe.Pointer) {
+ 	racerelease(addr)
+ }
+ 
+-//go:nosplit
+-
+ // RaceReleaseMerge is like RaceRelease, but also establishes a happens-before
+ // relation with the preceding RaceRelease or RaceReleaseMerge on addr.
+ //
+ // In terms of the C memory model, RaceReleaseMerge is equivalent to
+ // atomic_exchange(memory_order_release).
++//
++//go:nosplit
+ func RaceReleaseMerge(addr unsafe.Pointer) {
+ 	racereleasemerge(addr)
+ }
+ 
+-//go:nosplit
+-
+ // RaceDisable disables handling of race synchronization events in the current goroutine.
+ // Handling is re-enabled with RaceEnable. RaceDisable/RaceEnable can be nested.
+ // Non-synchronization events (memory accesses, function entry/exit) still affect
+ // the race detector.
++//
++//go:nosplit
+ func RaceDisable() {
+ 	gp := getg()
+ 	if gp.raceignore == 0 {
+@@ -74,9 +74,9 @@ func RaceDisable() {
+ 	gp.raceignore++
+ }
+ 
+-//go:nosplit
+-
+ // RaceEnable re-enables handling of race events in the current goroutine.
++//
++//go:nosplit
+ func RaceEnable() {
+ 	gp := getg()
+ 	gp.raceignore--
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 78c8b0169a..5f62b5512c 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -146,8 +146,6 @@ func (p *Proc) Addr() uintptr {
+ 	return p.addr
+ }
+ 
+-//go:uintptrescapes
+-
+ // Call executes procedure p with arguments a.
+ //
+ // The returned error is always non-nil, constructed from the result of GetLastError.
+@@ -162,6 +160,8 @@ func (p *Proc) Addr() uintptr {
+ // values are returned in r2. The return value for C type "float" is
+ // math.Float32frombits(uint32(r2)). For C type "double", it is
+ // math.Float64frombits(uint64(r2)).
++//
++//go:uintptrescapes
+ func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
+ 	return SyscallN(p.Addr(), a...)
+ }
+@@ -277,10 +277,10 @@ func (p *LazyProc) Addr() uintptr {
+ 	return p.proc.Addr()
+ }
+ 
+-//go:uintptrescapes
+-
+ // Call executes procedure p with arguments a. See the documentation of
+ // Proc.Call for more information.
++//
++//go:uintptrescapes
+ func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	p.mustFind()
+ 	return p.proc.Call(a...)

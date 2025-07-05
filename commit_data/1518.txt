@@ -7,9 +7,136 @@ Date:   Fri Jan 16 15:31:34 2009 -0800
     R=r
     OCL=22998
     CL=22998
-
+---
  usr/gri/pretty/ast.go         |  6 +++---
  usr/gri/pretty/compilation.go | 22 +++++++++++-----------
  usr/gri/pretty/parser.go      |  2 +-
  usr/gri/pretty/pretty.go      | 16 ++++++++--------
  4 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 29d183391e..84c404eb78 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -99,14 +99,14 @@ export func NewObject(pos, kind int, ident string) *Object {
+ // Scopes
+ 
+ export type Scope struct {
+-	parent *Scope;
++	Parent *Scope;
+ 	entries map[string] *Object;
+ }
+ 
+ 
+ export func NewScope(parent *Scope) *Scope {
+ 	scope := new(Scope);
+-	scope.parent = parent;
++	scope.Parent = parent;
+ 	scope.entries = make(map[string]*Object, 8);
+ 	return scope;
+ }
+@@ -127,7 +127,7 @@ func (scope *Scope) Lookup(ident string) *Object {
+ 		if obj != nil {
+ 			return obj;
+ 		}
+-		scope = scope.parent;
++		scope = scope.Parent;
+ 	}
+ 	return nil;
+ }
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index ad802566f9..1d8f3cf1dd 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -24,13 +24,13 @@ func assert(b bool) {
+ 
+ 
+ export type Flags struct {
+-	verbose bool;
+-	sixg bool;
+-	deps bool;
+-	columns bool;
+-	testmode bool;
+-	tokenchan bool;
+-	naming bool;
++	Verbose bool;
++	Sixg bool;
++	Deps bool;
++	Columns bool;
++	Testmode bool;
++	Tokenchan bool;
++	Naming bool;
+ }
+ 
+ 
+@@ -125,18 +125,18 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	}
+ 
+ 	var err errorHandler;
+-	err.Init(src_file, src, flags.columns);
++	err.Init(src_file, src, flags.Columns);
+ 
+ 	var scanner Scanner.Scanner;
+-	scanner.Init(&err, src, true, flags.testmode);
++	scanner.Init(&err, src, true, flags.Testmode);
+ 
+ 	var tstream <-chan *Scanner.Token;
+-	if flags.tokenchan {
++	if flags.Tokenchan {
+ 		tstream = scanner.TokenStream();
+ 	}
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(flags.verbose, flags.sixg, flags.deps, flags.naming, &scanner, tstream);
++	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, flags.Naming, &scanner, tstream);
+ 
+ 	prog := parser.ParseProgram();
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 1f975682e0..d72eeccd89 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -160,7 +160,7 @@ func (P *Parser) OpenScope() {
+ 
+ 
+ func (P *Parser) CloseScope() {
+-	P.top_scope = P.top_scope.parent;
++	P.top_scope = P.top_scope.Parent;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 1d6ad575f0..94233ee44d 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -18,14 +18,14 @@ var (
+ )
+ 
+ func init() {
+-	Flag.BoolVar(&flags.verbose, "v", false, "verbose mode: trace parsing");
+-	Flag.BoolVar(&flags.sixg, "6g", true, "6g compatibility mode");
++	Flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
++	Flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
+ 	//TODO fix this code again
+-	//Flag.BoolVar(&flags.deps, "d", false, "print dependency information only");
+-	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
+-	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+-	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+-	Flag.BoolVar(&flags.naming, "naming", false, "verify export naming scheme");
++	//Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
++	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
++	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
++	Flag.BoolVar(&flags.Tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
++	Flag.BoolVar(&flags.Naming, "naming", false, "verify export naming scheme");
+ }
+ 
+ 
+@@ -55,7 +55,7 @@ func main() {
+ 			if nerrors > 0 {
+ 				return;
+ 			}
+-			if !flags.naming && !*silent && !flags.testmode {
++			if !flags.Naming && !*silent && !flags.Testmode {
+ 				Printer.Print(prog);
+ 			}
+ 		}

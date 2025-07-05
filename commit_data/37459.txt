@@ -24,10 +24,286 @@ Date:   Wed Aug 1 19:48:58 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/net/http2/hpack/encode.go  |   2 +-
  src/vendor/golang_org/x/net/http2/hpack/hpack.go   |   6 +
  .../golang_org/x/net/http2/hpack/hpack_test.go     |  40 +++++++
  src/vendor/golang_org/x/net/http2/hpack/huffman.go |  20 +++-
  src/vendor/golang_org/x/net/http2/hpack/tables.go  | 122 ++++++++++-----------
  5 files changed, 123 insertions(+), 67 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/encode.go b/src/vendor/golang_org/x/net/http2/hpack/encode.go
+index 54726c2a3c..1565cf2702 100644
+--- a/src/vendor/golang_org/x/net/http2/hpack/encode.go
++++ b/src/vendor/golang_org/x/net/http2/hpack/encode.go
+@@ -206,7 +206,7 @@ func appendVarInt(dst []byte, n byte, i uint64) []byte {
+ }
+ 
+ // appendHpackString appends s, as encoded in "String Literal"
+-// representation, to dst and returns the the extended buffer.
++// representation, to dst and returns the extended buffer.
+ //
+ // s will be encoded in Huffman codes only when it produces strictly
+ // shorter byte string.
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/hpack.go b/src/vendor/golang_org/x/net/http2/hpack/hpack.go
+index 176644acda..166788ceec 100644
+--- a/src/vendor/golang_org/x/net/http2/hpack/hpack.go
++++ b/src/vendor/golang_org/x/net/http2/hpack/hpack.go
+@@ -389,6 +389,12 @@ func (d *Decoder) callEmit(hf HeaderField) error {
+ 
+ // (same invariants and behavior as parseHeaderFieldRepr)
+ func (d *Decoder) parseDynamicTableSizeUpdate() error {
++	// RFC 7541, sec 4.2: This dynamic table size update MUST occur at the
++	// beginning of the first header block following the change to the dynamic table size.
++	if d.dynTab.size > 0 {
++		return DecodingError{errors.New("dynamic table size update MUST occur at the beginning of a header block")}
++	}
++
+ 	buf := d.buf
+ 	size, buf, err := readVarInt(5, buf)
+ 	if err != nil {
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go b/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
+index bc7f476782..3f2227442a 100644
+--- a/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
++++ b/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
+@@ -462,6 +462,27 @@ func TestHuffmanDecode(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkHuffmanDecode(b *testing.B) {
++	b.StopTimer()
++	enc, err := hex.DecodeString(strings.Replace("94e7 821d d7f2 e6c7 b335 dfdf cd5b 3960 d5af 2708 7f36 72c1 ab27 0fb5 291f 9587 3160 65c0 03ed 4ee5 b106 3d50 07",
++		" ", "", -1))
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.ReportAllocs()
++	b.StartTimer()
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		if _, err := HuffmanDecode(&buf, enc); err != nil {
++			b.Fatalf("decode error: %v", err)
++		}
++		if string(buf.Bytes()) != "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1" {
++			b.Fatalf("bogus output %q", buf.Bytes())
++		}
++	}
++}
++
+ func TestAppendHuffmanString(t *testing.T) {
+ 	tests := []struct {
+ 		in, want string
+@@ -720,3 +741,22 @@ func TestSaveBufLimit(t *testing.T) {
+ 		t.Fatalf("Write error = %v; want ErrStringLength", err)
+ 	}
+ }
++
++func TestDynamicSizeUpdate(t *testing.T) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	enc.SetMaxDynamicTableSize(255)
++	enc.WriteField(HeaderField{Name: "foo", Value: "bar"})
++
++	d := NewDecoder(4096, nil)
++	_, err := d.DecodeFull(buf.Bytes())
++	if err != nil {
++		t.Fatalf("unexpected error: got = %v", err)
++	}
++
++	// must fail since the dynamic table update must be at the beginning
++	_, err = d.DecodeFull(buf.Bytes())
++	if err == nil {
++		t.Fatalf("dynamic table size update not at the beginning of a header block")
++	}
++}
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/huffman.go b/src/vendor/golang_org/x/net/http2/hpack/huffman.go
+index 8850e39467..b412a96c50 100644
+--- a/src/vendor/golang_org/x/net/http2/hpack/huffman.go
++++ b/src/vendor/golang_org/x/net/http2/hpack/huffman.go
+@@ -47,6 +47,7 @@ var ErrInvalidHuffman = errors.New("hpack: invalid Huffman-encoded data")
+ // If maxLen is greater than 0, attempts to write more to buf than
+ // maxLen bytes will return ErrStringLength.
+ func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error {
++	rootHuffmanNode := getRootHuffmanNode()
+ 	n := rootHuffmanNode
+ 	// cur is the bit buffer that has not been fed into n.
+ 	// cbits is the number of low order bits in cur that are valid.
+@@ -106,7 +107,7 @@ func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error {
+ 
+ type node struct {
+ 	// children is non-nil for internal nodes
+-	children []*node
++	children *[256]*node
+ 
+ 	// The following are only valid if children is nil:
+ 	codeLen uint8 // number of bits that led to the output of sym
+@@ -114,22 +115,31 @@ type node struct {
+ }
+ 
+ func newInternalNode() *node {
+-	return &node{children: make([]*node, 256)}
++	return &node{children: new([256]*node)}
+ }
+ 
+-var rootHuffmanNode = newInternalNode()
++var (
++	buildRootOnce       sync.Once
++	lazyRootHuffmanNode *node
++)
++
++func getRootHuffmanNode() *node {
++	buildRootOnce.Do(buildRootHuffmanNode)
++	return lazyRootHuffmanNode
++}
+ 
+-func init() {
++func buildRootHuffmanNode() {
+ 	if len(huffmanCodes) != 256 {
+ 		panic("unexpected size")
+ 	}
++	lazyRootHuffmanNode = newInternalNode()
+ 	for i, code := range huffmanCodes {
+ 		addDecoderNode(byte(i), code, huffmanCodeLen[i])
+ 	}
+ }
+ 
+ func addDecoderNode(sym byte, code uint32, codeLen uint8) {
+-	cur := rootHuffmanNode
++	cur := lazyRootHuffmanNode
+ 	for codeLen > 8 {
+ 		codeLen -= 8
+ 		i := uint8(code >> codeLen)
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/tables.go b/src/vendor/golang_org/x/net/http2/hpack/tables.go
+index 8bd975d388..a66cfbea69 100644
+--- a/src/vendor/golang_org/x/net/http2/hpack/tables.go
++++ b/src/vendor/golang_org/x/net/http2/hpack/tables.go
+@@ -128,67 +128,67 @@ func (t *headerFieldTable) idToIndex(id uint64) uint64 {
+ // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07#appendix-B
+ var staticTable = newStaticTable()
+ var staticTableEntries = [...]HeaderField{
+-	HeaderField{Name: ":authority"},
+-	HeaderField{Name: ":method", Value: "GET"},
+-	HeaderField{Name: ":method", Value: "POST"},
+-	HeaderField{Name: ":path", Value: "/"},
+-	HeaderField{Name: ":path", Value: "/index.html"},
+-	HeaderField{Name: ":scheme", Value: "http"},
+-	HeaderField{Name: ":scheme", Value: "https"},
+-	HeaderField{Name: ":status", Value: "200"},
+-	HeaderField{Name: ":status", Value: "204"},
+-	HeaderField{Name: ":status", Value: "206"},
+-	HeaderField{Name: ":status", Value: "304"},
+-	HeaderField{Name: ":status", Value: "400"},
+-	HeaderField{Name: ":status", Value: "404"},
+-	HeaderField{Name: ":status", Value: "500"},
+-	HeaderField{Name: "accept-charset"},
+-	HeaderField{Name: "accept-encoding", Value: "gzip, deflate"},
+-	HeaderField{Name: "accept-language"},
+-	HeaderField{Name: "accept-ranges"},
+-	HeaderField{Name: "accept"},
+-	HeaderField{Name: "access-control-allow-origin"},
+-	HeaderField{Name: "age"},
+-	HeaderField{Name: "allow"},
+-	HeaderField{Name: "authorization"},
+-	HeaderField{Name: "cache-control"},
+-	HeaderField{Name: "content-disposition"},
+-	HeaderField{Name: "content-encoding"},
+-	HeaderField{Name: "content-language"},
+-	HeaderField{Name: "content-length"},
+-	HeaderField{Name: "content-location"},
+-	HeaderField{Name: "content-range"},
+-	HeaderField{Name: "content-type"},
+-	HeaderField{Name: "cookie"},
+-	HeaderField{Name: "date"},
+-	HeaderField{Name: "etag"},
+-	HeaderField{Name: "expect"},
+-	HeaderField{Name: "expires"},
+-	HeaderField{Name: "from"},
+-	HeaderField{Name: "host"},
+-	HeaderField{Name: "if-match"},
+-	HeaderField{Name: "if-modified-since"},
+-	HeaderField{Name: "if-none-match"},
+-	HeaderField{Name: "if-range"},
+-	HeaderField{Name: "if-unmodified-since"},
+-	HeaderField{Name: "last-modified"},
+-	HeaderField{Name: "link"},
+-	HeaderField{Name: "location"},
+-	HeaderField{Name: "max-forwards"},
+-	HeaderField{Name: "proxy-authenticate"},
+-	HeaderField{Name: "proxy-authorization"},
+-	HeaderField{Name: "range"},
+-	HeaderField{Name: "referer"},
+-	HeaderField{Name: "refresh"},
+-	HeaderField{Name: "retry-after"},
+-	HeaderField{Name: "server"},
+-	HeaderField{Name: "set-cookie"},
+-	HeaderField{Name: "strict-transport-security"},
+-	HeaderField{Name: "transfer-encoding"},
+-	HeaderField{Name: "user-agent"},
+-	HeaderField{Name: "vary"},
+-	HeaderField{Name: "via"},
+-	HeaderField{Name: "www-authenticate"},
++	{Name: ":authority"},
++	{Name: ":method", Value: "GET"},
++	{Name: ":method", Value: "POST"},
++	{Name: ":path", Value: "/"},
++	{Name: ":path", Value: "/index.html"},
++	{Name: ":scheme", Value: "http"},
++	{Name: ":scheme", Value: "https"},
++	{Name: ":status", Value: "200"},
++	{Name: ":status", Value: "204"},
++	{Name: ":status", Value: "206"},
++	{Name: ":status", Value: "304"},
++	{Name: ":status", Value: "400"},
++	{Name: ":status", Value: "404"},
++	{Name: ":status", Value: "500"},
++	{Name: "accept-charset"},
++	{Name: "accept-encoding", Value: "gzip, deflate"},
++	{Name: "accept-language"},
++	{Name: "accept-ranges"},
++	{Name: "accept"},
++	{Name: "access-control-allow-origin"},
++	{Name: "age"},
++	{Name: "allow"},
++	{Name: "authorization"},
++	{Name: "cache-control"},
++	{Name: "content-disposition"},
++	{Name: "content-encoding"},
++	{Name: "content-language"},
++	{Name: "content-length"},
++	{Name: "content-location"},
++	{Name: "content-range"},
++	{Name: "content-type"},
++	{Name: "cookie"},
++	{Name: "date"},
++	{Name: "etag"},
++	{Name: "expect"},
++	{Name: "expires"},
++	{Name: "from"},
++	{Name: "host"},
++	{Name: "if-match"},
++	{Name: "if-modified-since"},
++	{Name: "if-none-match"},
++	{Name: "if-range"},
++	{Name: "if-unmodified-since"},
++	{Name: "last-modified"},
++	{Name: "link"},
++	{Name: "location"},
++	{Name: "max-forwards"},
++	{Name: "proxy-authenticate"},
++	{Name: "proxy-authorization"},
++	{Name: "range"},
++	{Name: "referer"},
++	{Name: "refresh"},
++	{Name: "retry-after"},
++	{Name: "server"},
++	{Name: "set-cookie"},
++	{Name: "strict-transport-security"},
++	{Name: "transfer-encoding"},
++	{Name: "user-agent"},
++	{Name: "vary"},
++	{Name: "via"},
++	{Name: "www-authenticate"},
+ }
+ 
+ func newStaticTable() *headerFieldTable {

@@ -14,7 +14,47 @@ Date:   Thu Feb 25 21:48:57 2016 +0200
     Change-Id: Icd581a26e1db34ca634aba595fed62b097094c2f
     Reviewed-on: https://go-review.googlesource.com/19899
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/get.go     |  8 ++++++++
  src/cmd/go/go_test.go | 12 ++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index a298049a9d..9d4b94acf1 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -119,6 +119,14 @@ func runGet(cmd *Command, args []string) {
+ 		delete(packageCache, name)
+ 	}
+ 
++	// In order to rebuild packages information completely,
++	// we need to clear commands cache. Command packages are
++	// referring to evicted packages from the package cache.
++	// This leads to duplicated loads of the standard packages.
++	for name := range cmdCache {
++		delete(cmdCache, name)
++	}
++
+ 	args = importPaths(args)
+ 	packagesForBuild(args)
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1d6184c337..928224cee6 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2789,3 +2789,15 @@ func TestCgoConsistentResults(t *testing.T) {
+ 		t.Error("building cgotest twice did not produce the same output")
+ 	}
+ }
++
++// Issue 14444: go get -u .../ duplicate loads errors
++func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("get", "-u", ".../")
++	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
++}

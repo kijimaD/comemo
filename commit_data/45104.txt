@@ -12,6 +12,19 @@ Date:   Fri Oct 2 09:09:24 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/259037
     Reviewed-by: Rob Pike <r@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/net/rpc/client.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/rpc/client.go b/src/net/rpc/client.go
+index 25f2a004e4..60bb2cc99f 100644
+--- a/src/net/rpc/client.go
++++ b/src/net/rpc/client.go
+@@ -245,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
+ // DialHTTPPath connects to an HTTP RPC server
+ // at the specified network address and path.
+ func DialHTTPPath(network, address, path string) (*Client, error) {
+-	var err error
+ 	conn, err := net.Dial(network, address)
+ 	if err != nil {
+ 		return nil, err

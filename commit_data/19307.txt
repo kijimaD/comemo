@@ -46,8 +46,67 @@ Date:   Fri May 9 16:03:44 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/93200044
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue7665.go | 25 +++++++++++++++++++++++++
  src/cmd/gc/sinit.c         |  4 ++--
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index fd21f6802b..f015ec9fa3 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -50,6 +50,7 @@ func TestFpVar(t *testing.T)               { testFpVar(t) }
+ func Test4339(t *testing.T)                { test4339(t) }
+ func Test6390(t *testing.T)                { test6390(t) }
+ func Test5986(t *testing.T)                { test5986(t) }
++func Test7665(t *testing.T)                { test7665(t) }
+ func TestNaming(t *testing.T)              { testNaming(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue7665.go b/misc/cgo/test/issue7665.go
+new file mode 100644
+index 0000000000..4f36dce756
+--- /dev/null
++++ b/misc/cgo/test/issue7665.go
+@@ -0,0 +1,25 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import (
++	"testing"
++	"unsafe"
++)
++
++// extern void f7665(void);
++import "C"
++
++//export f7665
++func f7665() {}
++
++var bad7665 unsafe.Pointer = C.f7665
++var good7665 uintptr = uintptr(C.f7665)
++
++func test7665(t *testing.T) {
++	if bad7665 == nil || bad7665 != unsafe.Pointer(good7665) {
++		t.Errorf("ptrs = %p, %#x, want same non-nil pointer", bad7665, good7665)
++	}
++}
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 973f8efb03..e285352306 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -286,8 +286,8 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 
+ 	if(r->op != ONAME || r->class != PEXTERN || r->sym->pkg != localpkg)
+ 		return 0;
+-	if(r->defn == N)	// zeroed
+-		return 1;
++	if(r->defn == N)	// probably zeroed but perhaps supplied externally and of unknown value
++		return 0;
+ 	if(r->defn->op != OAS)
+ 		return 0;
+ 	orig = r;

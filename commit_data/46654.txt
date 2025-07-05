@@ -12,8 +12,80 @@ Date:   Fri Jan 15 14:37:35 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      | 14 +++++++++++---
  src/cmd/compile/internal/types2/predicates.go      |  8 ++------
  src/cmd/compile/internal/types2/testdata/expr3.src |  4 ----
  3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 85bf0728c0..b03b074b6d 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -47,12 +47,12 @@ var (
+ 	testFiles   = flag.String("files", "", "space-separated list of test files")
+ )
+ 
+-func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
++func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
+ 	var files []*syntax.File
+ 	var errlist []error
+ 	errh := func(err error) { errlist = append(errlist, err) }
+ 	for _, filename := range filenames {
+-		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
++		file, err := syntax.ParseFile(filename, errh, nil, mode)
+ 		if file == nil {
+ 			t.Fatalf("%s: %s", filename, err)
+ 		}
+@@ -84,8 +84,16 @@ func delta(x, y uint) uint {
+ }
+ 
+ func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
++	if len(sources) == 0 {
++		t.Fatal("no source files")
++	}
++
++	var mode syntax.Mode
++	if strings.HasSuffix(sources[0], ".go2") {
++		mode |= syntax.AllowGenerics
++	}
+ 	// parse files and collect parser errors
+-	files, errlist := parseFiles(t, sources)
++	files, errlist := parseFiles(t, sources, mode)
+ 
+ 	pkgName := "<no package>"
+ 	if len(files) > 0 {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index b910d8d0ee..9cce189140 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -73,12 +73,8 @@ func isUntyped(typ Type) bool {
+ 	return !isTyped(typ)
+ }
+ 
+-func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
+-
+-func isConstType(typ Type) bool {
+-	t := typ.Basic()
+-	return t != nil && t.info&IsConstType != 0
+-}
++func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
++func isConstType(typ Type) bool { return is(typ, IsConstType) }
+ 
+ // IsInterface reports whether typ is an interface type.
+ func IsInterface(typ Type) bool {
+diff --git a/src/cmd/compile/internal/types2/testdata/expr3.src b/src/cmd/compile/internal/types2/testdata/expr3.src
+index 071c9bb367..6d0ac6cd94 100644
+--- a/src/cmd/compile/internal/types2/testdata/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/expr3.src
+@@ -145,10 +145,6 @@ func indexes() {
+ 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
+ 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
+ 	_, _ = ss, ms
+-
+-	// With type parameters, index expressions may have multiple indices.
+-	_ = a[i, j /* ERROR "more than one index" */ ]
+-	_ = a[i, j /* ERROR "more than one index" */ , j]
+ }
+ 
+ type T struct {

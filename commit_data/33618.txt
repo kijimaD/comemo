@@ -9,7 +9,7 @@ Date:   Fri Aug 25 13:18:30 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime2.go             |  1 +
  src/runtime/signal_darwin.go        |  5 -----
  src/runtime/signal_dragonfly.go     |  5 -----
@@ -21,3 +21,165 @@ Date:   Fri Aug 25 13:18:30 2017 -0700
  src/runtime/sigtab_linux_generic.go |  5 -----
  src/runtime/sigtab_linux_mipsx.go   |  5 -----
  10 files changed, 11 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e4b4f91b5e..366dfc9f45 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -594,6 +594,7 @@ const (
+ 	_LockInternal = 2
+ )
+ 
++// Values for the flags field of a sigTabT.
+ const (
+ 	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
+ 	_SigKill                 // if signal.Notify doesn't take it, exit quietly
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 0c5481a2ef..581b4d04fb 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/* 0 */ {0, "SIGNONE: no trap"},
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/signal_dragonfly.go b/src/runtime/signal_dragonfly.go
+index 8e9ce17c86..aae46e75d0 100644
+--- a/src/runtime/signal_dragonfly.go
++++ b/src/runtime/signal_dragonfly.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/* 0 */ {0, "SIGNONE: no trap"},
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index 7ce7217e07..0bbbd2a809 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/* 0 */ {0, "SIGNONE: no trap"},
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/signal_netbsd.go b/src/runtime/signal_netbsd.go
+index 30a3b8e1a9..32a9bb0b83 100644
+--- a/src/runtime/signal_netbsd.go
++++ b/src/runtime/signal_netbsd.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/*  0 */ {0, "SIGNONE: no trap"},
+ 	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index 30a3b8e1a9..32a9bb0b83 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/*  0 */ {0, "SIGNONE: no trap"},
+ 	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/signal_solaris.go b/src/runtime/signal_solaris.go
+index c931c222d6..dc1db76406 100644
+--- a/src/runtime/signal_solaris.go
++++ b/src/runtime/signal_solaris.go
+@@ -4,11 +4,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/* 0 */ {0, "SIGNONE: no trap"},
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: hangup"},
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index a6385a0a5e..973e5f924f 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -11,6 +11,16 @@ import (
+ 	"unsafe"
+ )
+ 
++// sigTabT is the type of an entry in the global sigtable array.
++// sigtable is inherently system dependent, and appears in OS-specific files,
++// but sigTabT is the same for all Unixy systems.
++// The sigtable array is indexed by a system signal number to get the flags
++// and printable name of each signal.
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	systemstack(sigpipe)
+diff --git a/src/runtime/sigtab_linux_generic.go b/src/runtime/sigtab_linux_generic.go
+index 874148e1d2..9a8e58f491 100644
+--- a/src/runtime/sigtab_linux_generic.go
++++ b/src/runtime/sigtab_linux_generic.go
+@@ -10,11 +10,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/* 0 */ {0, "SIGNONE: no trap"},
+ 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
+diff --git a/src/runtime/sigtab_linux_mipsx.go b/src/runtime/sigtab_linux_mipsx.go
+index 8d9fb06704..9f6e259cdb 100644
+--- a/src/runtime/sigtab_linux_mipsx.go
++++ b/src/runtime/sigtab_linux_mipsx.go
+@@ -7,11 +7,6 @@
+ 
+ package runtime
+ 
+-type sigTabT struct {
+-	flags int32
+-	name  string
+-}
+-
+ var sigtable = [...]sigTabT{
+ 	/*  0 */ {0, "SIGNONE: no trap"},
+ 	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},

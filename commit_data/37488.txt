@@ -17,6 +17,20 @@ Date:   Fri Aug 3 14:52:54 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/elf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 7d5162a1e8..a48a9df5d6 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -114,7 +114,7 @@ func (f *elfFile) goarch() string {
+ 
+ func (f *elfFile) loadAddress() (uint64, error) {
+ 	for _, p := range f.elf.Progs {
+-		if p.Type == elf.PT_LOAD {
++		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 {
+ 			return p.Vaddr, nil
+ 		}
+ 	}

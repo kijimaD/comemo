@@ -19,7 +19,38 @@ Date:   Sun Sep 10 19:36:38 2017 +0200
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 1 +
  src/runtime/map_test.go              | 7 +++++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index f38692e310..27863b323b 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -931,6 +931,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ func maplit(n *Node, m *Node, init *Nodes) {
+ 	// make the map var
+ 	a := nod(OMAKE, nil, nil)
++	a.Esc = n.Esc
+ 	a.List.Set2(typenod(n.Type), nodintconst(int64(n.List.Len())))
+ 	litas(m, a, init)
+ 
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 1d1de3f740..a3a21e2f80 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -650,6 +650,13 @@ var testNonEscapingMapVariable int = 8
+ 
+ func TestNonEscapingMap(t *testing.T) {
+ 	n := testing.AllocsPerRun(1000, func() {
++		m := map[int]int{}
++		m[0] = 0
++	})
++	if n != 0 {
++		t.Fatalf("mapliteral: want 0 allocs, got %v", n)
++	}
++	n = testing.AllocsPerRun(1000, func() {
+ 		m := make(map[int]int)
+ 		m[0] = 0
+ 	})

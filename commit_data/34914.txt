@@ -11,6 +11,47 @@ Date:   Tue Nov 28 05:03:09 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/get/vcs.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index ec1f4ffcb1..26693b13a9 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -970,7 +970,7 @@ var vcsPaths = []*vcsPath{
+ 
+ 	// IBM DevOps Services (JazzHub)
+ 	{
+-		prefix: "hub.jazz.net/git",
++		prefix: "hub.jazz.net/git/",
+ 		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+@@ -979,7 +979,7 @@ var vcsPaths = []*vcsPath{
+ 
+ 	// Git at Apache
+ 	{
+-		prefix: "git.apache.org",
++		prefix: "git.apache.org/",
+ 		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+@@ -987,7 +987,7 @@ var vcsPaths = []*vcsPath{
+ 
+ 	// Git at OpenStack
+ 	{
+-		prefix: "git.openstack.org",
++		prefix: "git.openstack.org/",
+ 		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+@@ -995,7 +995,7 @@ var vcsPaths = []*vcsPath{
+ 
+ 	// chiselapp.com for fossil
+ 	{
+-		prefix: "chiselapp.com",
++		prefix: "chiselapp.com/",
+ 		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
+ 		vcs:    "fossil",
+ 		repo:   "https://{root}",

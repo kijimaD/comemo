@@ -13,8 +13,112 @@ Date:   Sat Jan 20 19:56:51 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/android/go_android_exec.go      |  3 +++
  misc/cgo/testcshared/cshared_test.go | 20 +++++++++++++++-----
  src/androidtest.bash                 |  8 ++++----
  3 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 49b7ae902c..5671479d87 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -21,6 +21,9 @@ import (
+ )
+ 
+ func run(args ...string) string {
++	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
++		args = append(strings.Split(flags, " "), args...)
++	}
+ 	buf := new(bytes.Buffer)
+ 	cmd := exec.Command("adb", args...)
+ 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index b9499fcf37..e43422de6e 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -56,7 +56,8 @@ func TestMain(m *testing.M) {
+ 
+ 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
+ 	if GOOS == "android" {
+-		cmd := exec.Command("adb", "shell", "mkdir", "-p", androiddir)
++		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
++		cmd := exec.Command(args[0], args[1:]...)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
+@@ -155,11 +156,19 @@ func cmdToRun(name string) string {
+ 	return "./" + name + exeSuffix
+ }
+ 
++func adbCmd() []string {
++	cmd := []string{"adb"}
++	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
++		cmd = append(cmd, strings.Split(flags, " ")...)
++	}
++	return cmd
++}
++
+ func adbPush(t *testing.T, filename string) {
+ 	if GOOS != "android" {
+ 		return
+ 	}
+-	args := []string{"adb", "push", filename, fmt.Sprintf("%s/%s", androiddir, filename)}
++	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("adb command failed: %v\n%s\n", err, out)
+@@ -170,7 +179,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
+ 	if GOOS != "android" {
+ 		t.Fatalf("trying to run adb command when operating system is not android.")
+ 	}
+-	args := []string{"adb", "shell"}
++	args := append(adbCmd(), "shell")
+ 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
+ 	for _, e := range env {
+ 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
+@@ -238,7 +247,7 @@ func createHeaders() error {
+ 	}
+ 
+ 	if GOOS == "android" {
+-		args = []string{"adb", "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname)}
++		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
+ 		cmd = exec.Command(args[0], args[1:]...)
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+@@ -271,7 +280,8 @@ func cleanupAndroid() {
+ 	if GOOS != "android" {
+ 		return
+ 	}
+-	cmd := exec.Command("adb", "shell", "rm", "-rf", androiddir)
++	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
++	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 3ac56d1745..a790f95920 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -77,8 +77,8 @@ cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
+ cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
+ 
+ echo '# Syncing test files to android device'
+-adb shell mkdir -p /data/local/tmp/goroot
+-time adb sync data &> /dev/null
++adb $GOANDROID_ADB_FLAGS shell mkdir -p /data/local/tmp/goroot
++time adb $GOANDROID_ADB_FLAGS sync data &> /dev/null
+ 
+ export CLEANER=${ANDROID_TEST_DIR}/androidcleaner-$$
+ cp ../misc/android/cleaner.go $CLEANER.go
+@@ -86,8 +86,8 @@ echo 'var files = `' >> $CLEANER.go
+ (cd $ANDROID_PRODUCT_OUT/data/local/tmp/goroot; find . >> $CLEANER.go)
+ echo '`' >> $CLEANER.go
+ go build -o $CLEANER $CLEANER.go
+-adb push $CLEANER /data/local/tmp/cleaner
+-adb shell /data/local/tmp/cleaner
++adb $GOANDROID_ADB_FLAGS push $CLEANER /data/local/tmp/cleaner
++adb $GOANDROID_ADB_FLAGS shell /data/local/tmp/cleaner
+ 
+ echo ''
+ 

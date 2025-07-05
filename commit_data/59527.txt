@@ -26,8 +26,103 @@ Date:   Wed Feb 28 23:25:52 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/testdata/testprog/lockosthread.go   |  6 +++-
  src/runtime/testdata/testprog/syscalls_linux.go | 42 +++++++++++++++++++++----
  src/runtime/testdata/testprog/syscalls_none.go  |  4 +--
  3 files changed, 43 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/lockosthread.go b/src/runtime/testdata/testprog/lockosthread.go
+index 90d98e4972..63470635e7 100644
+--- a/src/runtime/testdata/testprog/lockosthread.go
++++ b/src/runtime/testdata/testprog/lockosthread.go
+@@ -90,7 +90,11 @@ func LockOSThreadAlt() {
+ 			println("locked thread reused")
+ 			os.Exit(1)
+ 		}
+-		exists, supported := tidExists(subTID)
++		exists, supported, err := tidExists(subTID)
++		if err != nil {
++			println("error:", err.Error())
++			return
++		}
+ 		if !supported || !exists {
+ 			goto ok
+ 		}
+diff --git a/src/runtime/testdata/testprog/syscalls_linux.go b/src/runtime/testdata/testprog/syscalls_linux.go
+index 3939b160df..5bb98d01d5 100644
+--- a/src/runtime/testdata/testprog/syscalls_linux.go
++++ b/src/runtime/testdata/testprog/syscalls_linux.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"os"
+ 	"syscall"
+ )
+@@ -16,14 +17,43 @@ func gettid() int {
+ 	return syscall.Gettid()
+ }
+ 
+-func tidExists(tid int) (exists, supported bool) {
+-	stat, err := os.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
+-	if os.IsNotExist(err) {
+-		return false, true
++func tidExists(tid int) (exists, supported bool, err error) {
++	// Open the magic proc status file for reading with the syscall package.
++	// We want to identify certain valid errors very precisely.
++	statusFile := fmt.Sprintf("/proc/self/task/%d/status", tid)
++	fd, err := syscall.Open(statusFile, syscall.O_RDONLY, 0)
++	if errno, ok := err.(syscall.Errno); ok {
++		if errno == syscall.ENOENT || errno == syscall.ESRCH {
++			return false, true, nil
++		}
++	}
++	if err != nil {
++		return false, false, err
++	}
++	status, err := io.ReadAll(os.NewFile(uintptr(fd), statusFile))
++	if err != nil {
++		return false, false, err
++	}
++	lines := bytes.Split(status, []byte{'\n'})
++	// Find the State line.
++	stateLineIdx := -1
++	for i, line := range lines {
++		if bytes.HasPrefix(line, []byte("State:")) {
++			stateLineIdx = i
++			break
++		}
++	}
++	if stateLineIdx < 0 {
++		// Malformed status file?
++		return false, false, fmt.Errorf("unexpected status file format: %s:\n%s", statusFile, status)
++	}
++	stateLine := bytes.SplitN(lines[stateLineIdx], []byte{':'}, 2)
++	if len(stateLine) != 2 {
++		// Malformed status file?
++		return false, false, fmt.Errorf("unexpected status file format: %s:\n%s", statusFile, status)
+ 	}
+ 	// Check if it's a zombie thread.
+-	state := bytes.Fields(stat)[2]
+-	return !(len(state) == 1 && state[0] == 'Z'), true
++	return !bytes.Contains(stateLine[1], []byte{'Z'}), true, nil
+ }
+ 
+ func getcwd() (string, error) {
+diff --git a/src/runtime/testdata/testprog/syscalls_none.go b/src/runtime/testdata/testprog/syscalls_none.go
+index 068bb59af3..c4c3740dc0 100644
+--- a/src/runtime/testdata/testprog/syscalls_none.go
++++ b/src/runtime/testdata/testprog/syscalls_none.go
+@@ -11,8 +11,8 @@ func gettid() int {
+ 	return 0
+ }
+ 
+-func tidExists(tid int) (exists, supported bool) {
+-	return false, false
++func tidExists(tid int) (exists, supported bool, err error) {
++	return false, false, nil
+ }
+ 
+ func getcwd() (string, error) {

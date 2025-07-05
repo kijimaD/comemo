@@ -9,7 +9,82 @@ Date:   Mon Aug 10 17:44:46 2009 -0700
     DELTA=24  (10 added, 2 deleted, 12 changed)
     OCL=32984
     CL=33005
-
+---
  test/bench/pidigits.go | 29 +++++++++++++++--------------
  test/bench/timing.log  |  7 +++++++
  2 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/test/bench/pidigits.go b/test/bench/pidigits.go
+index 6e1e7e0534..b02c6e79ef 100644
+--- a/test/bench/pidigits.go
++++ b/test/bench/pidigits.go
+@@ -44,8 +44,6 @@ import (
+ )
+ 
+ var n = flag.Int("n", 27, "number of digits");
+-
+-// TODO for easier profiling, remove eventually
+ var silent = flag.Bool("s", false, "don't print result");
+ 
+ var (
+@@ -61,13 +59,16 @@ func extract_digit() int64 {
+ 		return -1;
+ 	}
+ 
+-	/* Compute (numer * 3 + accum) / denom */
+-	tmp1, tmp2 = numer.MulNat(bignum.Nat(3)).Add(accum).QuoRem(denom);
++	// Compute (numer * 3 + accum) / denom
++	tmp1 = numer.Shl(1);
++	bignum.Iadd(tmp1, tmp1, numer);
++	bignum.Iadd(tmp1, tmp1, accum);
++	tmp1, tmp2 := tmp1.QuoRem(denom);
+ 
+-	/* Now, if (numer * 4 + accum) % denom... */
+-	tmp2 = tmp2.Add(numer);
++	// Now, if (numer * 4 + accum) % denom...
++	bignum.Iadd(tmp2, tmp2, numer);
+ 
+-	/* ... is normalized, then the two divisions have the same result.  */
++	// ... is normalized, then the two divisions have the same result.
+ 	if tmp2.Cmp(denom) >= 0 {
+ 		return -1;
+ 	}
+@@ -79,16 +80,16 @@ func next_term(k int64) {
+ 	y2 := k*2 + 1;
+ 
+ 	tmp1 = numer.Shl(1);
+-	accum = accum.Add(tmp1);
+-	accum = accum.Mul1(y2);
+-	numer = numer.Mul1(k);
+-	denom = denom.Mul1(y2);
++	bignum.Iadd(accum, accum, tmp1);
++	bignum.Iscale(accum, y2);
++	bignum.Iscale(numer, k);
++	bignum.Iscale(denom, y2);
+ }
+ 
+ func eliminate_digit(d int64) {
+-	accum = accum.Sub(denom.Mul1(d));
+-	accum = accum.Mul1(10);
+-	numer = numer.Mul1(10);
++	bignum.Isub(accum, accum, denom.Mul1(d));
++	bignum.Iscale(accum, 10);
++	bignum.Iscale(numer, 10);
+ }
+ 
+ func printf(s string, arg ...) {
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index e73d061b19..75c92f26ee 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -231,3 +231,10 @@ chameneos 6000000
+ 	gcc -O2 chameneosredux.c -lpthread	17.93u 323.65s 88.47r
+ 	gc chameneosredux	21.72u 0.00s 21.73r
+ 
++August 10 2009
++
++# In-place versions for some bignum operations.
++pidigits 10000
++	gcc -O2 pidigits.c -lgmp	2.56u 0.00s 2.57r
++	gc pidigits	55.22u 0.04s 55.29r	# *** -23%
++	gc_B pidigits	55.49u 0.02s 55.60r	# *** -23%

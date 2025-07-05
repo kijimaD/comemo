@@ -9,7 +9,7 @@ Date:   Sun Apr 23 05:10:21 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  2 +-
  src/cmd/compile/internal/gc/noder.go   |  4 ++--
  src/cmd/compile/internal/gc/pgen.go    |  4 ++--
@@ -18,3 +18,138 @@ Date:   Sun Apr 23 05:10:21 2017 -0700
  src/cmd/compile/internal/gc/syntax.go  |  5 +++++
  src/cmd/compile/internal/gc/walk.go    |  2 +-
  7 files changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index cc42ceff90..e258d58ae5 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -173,7 +173,7 @@ func closurename(n *Node) *types.Sym {
+ 		gen = closurename_closgen
+ 	case n.Func.Outerfunc.Op == ODCLFUNC:
+ 		// The outermost closure inside of a named function.
+-		outer = n.Func.Outerfunc.Func.Nname.Sym.Name
++		outer = n.Func.Outerfunc.funcname()
+ 
+ 		prefix = "func"
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index d4c00c8042..73b02ace38 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -342,8 +342,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
+ 		f.Func.Endlineno = lineno
+ 	} else {
+-		if pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.") {
+-			yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
++		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
++			yyerrorl(f.Pos, "missing function body for %q", f.funcname())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1a521e6e43..af34778dd5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -19,10 +19,10 @@ import (
+ // "Portable" code generation.
+ 
+ func emitptrargsmap() {
+-	if Curfn.Func.Nname.Sym.Name == "_" {
++	if Curfn.funcname() == "_" {
+ 		return
+ 	}
+-	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
++	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.funcname()))
+ 	lsym := sym.Linksym()
+ 
+ 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index ac2f91841a..c461eb4c47 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -819,13 +819,13 @@ func (lv *Liveness) clobber() {
+ 		// Clobber only functions where the hash of the function name matches a pattern.
+ 		// Useful for binary searching for a miscompiled function.
+ 		hstr := ""
+-		for _, b := range sha1.Sum([]byte(lv.fn.Func.Nname.Sym.Name)) {
++		for _, b := range sha1.Sum([]byte(lv.fn.funcname())) {
+ 			hstr += fmt.Sprintf("%08b", b)
+ 		}
+ 		if !strings.HasSuffix(hstr, h) {
+ 			return
+ 		}
+-		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.Func.Nname.Sym.Name)
++		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
+ 	}
+ 	if lv.f.Name == "forkAndExecInChild" {
+ 		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
+@@ -1087,7 +1087,7 @@ Outer:
+ }
+ 
+ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+-	if debuglive == 0 || lv.fn.Func.Nname.Sym.Name == "init" || strings.HasPrefix(lv.fn.Func.Nname.Sym.Name, ".") {
++	if debuglive == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
+ 		return
+ 	}
+ 	if live.IsEmpty() {
+@@ -1101,7 +1101,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+ 
+ 	s := "live at "
+ 	if v == nil {
+-		s += fmt.Sprintf("entry to %s:", lv.fn.Func.Nname.Sym.Name)
++		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
+ 	} else if sym, ok := v.Aux.(*obj.LSym); ok {
+ 		fn := sym.Name
+ 		if pos := strings.Index(fn, "."); pos >= 0 {
+@@ -1163,7 +1163,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
+ // This format synthesizes the information used during the multiple passes
+ // into a single presentation.
+ func livenessprintdebug(lv *Liveness) {
+-	fmt.Printf("liveness: %s\n", lv.fn.Func.Nname.Sym.Name)
++	fmt.Printf("liveness: %s\n", lv.fn.funcname())
+ 
+ 	pcdata := 0
+ 	for i, b := range lv.f.Blocks {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 356a61e711..fe2756d25b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -96,7 +96,7 @@ func initssaconfig() {
+ 
+ // buildssa builds an SSA function.
+ func buildssa(fn *Node) *ssa.Func {
+-	name := fn.Func.Nname.Sym.Name
++	name := fn.funcname()
+ 	printssa := name == os.Getenv("GOSSAFUNC")
+ 	if printssa {
+ 		fmt.Println("generating SSA for", name)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8ccebded2a..5c3432cad1 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -191,6 +191,11 @@ func (n *Node) mayBeShared() bool {
+ 	return false
+ }
+ 
++// funcname returns the name of the function n.
++func (n *Node) funcname() string {
++	return n.Func.Nname.Sym.Name
++}
++
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node      // real package for import . names
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d04c4ada1c..4f1a431f1d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1733,7 +1733,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 		var nln, nrn Nodes
+ 		nln.Set(nl)
+ 		nrn.Set(nr)
+-		Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
++		Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.funcname())
+ 	}
+ 	return nn
+ }

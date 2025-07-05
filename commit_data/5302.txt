@@ -9,7 +9,33 @@ Date:   Thu Apr 15 19:53:35 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/816047
-
+---
  src/pkg/exp/eval/expr.go      | 2 +-
  src/pkg/exp/eval/expr_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 8651b07806..81e9ffa935 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -762,7 +762,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
+ }
+ 
+ func (a *exprInfo) compileFloatLit(lit string) *expr {
+-	f, _, n := bignum.RatFromString(lit, 0)
++	f, _, n := bignum.RatFromString(lit, 10)
+ 	if n != len(lit) {
+ 		log.Crashf("malformed float literal %s at %v passed parser", lit, a.pos)
+ 	}
+diff --git a/src/pkg/exp/eval/expr_test.go b/src/pkg/exp/eval/expr_test.go
+index f7f367d5e9..12914fbd54 100644
+--- a/src/pkg/exp/eval/expr_test.go
++++ b/src/pkg/exp/eval/expr_test.go
+@@ -142,6 +142,7 @@ var exprTests = []test{
+ 
+ 	Val("+1", bignum.Int(+1)),
+ 	Val("+1.0", bignum.Rat(1, 1)),
++	Val("01.5", bignum.Rat(15, 10)),
+ 	CErr("+\"x\"", opTypes),
+ 
+ 	Val("-42", bignum.Int(-42)),

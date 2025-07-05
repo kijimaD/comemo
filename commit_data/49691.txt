@@ -18,8 +18,218 @@ Date:   Mon Sep 6 11:06:16 2021 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |   9 +++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 102 +++++++++++++++++++++++++++
  test/codegen/bitfield.go                     |  16 +++++
  3 files changed, 127 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 530e48bcb2..3b8f8fa457 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1834,6 +1834,10 @@
+ (SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [armBFAuxInt(rc, 32-rc)] x)
+ (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
+ (SRAconst [rc] (MOVBreg x)) && rc < 8 => (SBFX [armBFAuxInt(rc, 8-rc)] x)
++// merge sbfx and sign-extension into sbfx
++(MOVWreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (SBFX [bfc] x)
++(MOVHreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (SBFX [bfc] x)
++(MOVBreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (SBFX [bfc] x)
+ 
+ // sbfiz/sbfx combinations: merge shifts into bitfield ops
+ (SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
+@@ -1880,6 +1884,11 @@
+ // (x << lc) >> rc
+ (SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+ 
++// merge ubfx and zerso-extension into ubfx
++(MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
++(MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
++(MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
++
+ // ubfiz/ubfx combinations: merge shifts into bitfield ops
+ (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
+ 	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth()-sc)] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f7840c5503..0d5265e011 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -7187,6 +7187,23 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg (UBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 8
++	// result: (UBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64UBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 8) {
++			break
++		}
++		v.reset(OpARM64UBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBload(v *Value) bool {
+@@ -7401,6 +7418,23 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBreg (SBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 8
++	// result: (SBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64SBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 8) {
++			break
++		}
++		v.reset(OpARM64SBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBstore(v *Value) bool {
+@@ -10699,6 +10733,23 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHUreg (UBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 16
++	// result: (UBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64UBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 16) {
++			break
++		}
++		v.reset(OpARM64UBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHload(v *Value) bool {
+@@ -11096,6 +11147,23 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHreg (SBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 16
++	// result: (SBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64SBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 16) {
++			break
++		}
++		v.reset(OpARM64SBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHstore(v *Value) bool {
+@@ -12811,6 +12879,23 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWUreg (UBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 32
++	// result: (UBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64UBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 32) {
++			break
++		}
++		v.reset(OpARM64UBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWload(v *Value) bool {
+@@ -13266,6 +13351,23 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWreg (SBFX [bfc] x))
++	// cond: bfc.getARM64BFwidth() <= 32
++	// result: (SBFX [bfc] x)
++	for {
++		if v_0.Op != OpARM64SBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(bfc.getARM64BFwidth() <= 32) {
++			break
++		}
++		v.reset(OpARM64SBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWstore(v *Value) bool {
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 0fe6799ec1..6c66e3ab6d 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -124,6 +124,12 @@ func sbfx6(x int32) int32 {
+ 	return (x << 3) >> 4 // arm64:"SBFX\t[$]1, R[0-9]+, [$]28",-"LSL",-"ASR"
+ }
+ 
++// merge sbfx and sign-extension into sbfx.
++func sbfx7(x int32) int64 {
++	c := x + 5
++	return int64(c >> 20) // arm64"SBFX\t[$]20, R[0-9]+, [$]12",-"MOVW\tR[0-9]+, R[0-9]+"
++}
++
+ // ubfiz
+ func ubfiz1(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]3, R[0-9]+, [$]12",-"LSL",-"AND"
+@@ -237,6 +243,16 @@ func ubfx11(x uint64) uint64 {
+ 	return ((x & 0xfffff) << 3) >> 4
+ }
+ 
++// merge ubfx and zero-extension into ubfx.
++func ubfx12(x uint64) bool {
++	midr := x + 10
++	part_num := uint16((midr >> 4) & 0xfff)
++	if part_num == 0xd0c { // arm64:"UBFX\t[$]4, R[0-9]+, [$]12",-"MOVHU\tR[0-9]+, R[0-9]+"
++		return true
++	}
++	return false
++}
++
+ // Check that we don't emit comparisons for constant shifts.
+ //go:nosplit
+ func shift_no_cmp(x int) int {

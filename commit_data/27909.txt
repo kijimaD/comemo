@@ -9,6 +9,20 @@ Date:   Tue Apr 19 18:31:17 2016 +0000
     Change-Id: Iff8d36e1bd9b5641f6b577a30ac6e967f973c939
     Reviewed-on: https://go-review.googlesource.com/22240
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index c93a7663f1..6004d5cd23 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1133,7 +1133,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 				if rest, err := asn1.Unmarshal(e.Value, &keyid); err != nil {
+ 					return nil, err
+ 				} else if len(rest) != 0 {
+-					return nil, errors.New("x509: trailing data after X.509 authority key-id")
++					return nil, errors.New("x509: trailing data after X.509 key-id")
+ 				}
+ 				out.SubjectKeyId = keyid
+ 

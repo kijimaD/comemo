@@ -16,6 +16,24 @@ Date:   Fri Jan 14 11:15:28 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt b/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
+index 6d429c5a52..dcf97d7c44 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
+@@ -34,9 +34,9 @@ exec git log
+ # Verify commit signature does not interfere with versioning
+ go install
+ go version -m $GOBIN/a
+-stdout '^\tbuild\tgitrevision\t'
+-stdout '^\tbuild\tgitcommittime\t'
+-stdout '^\tbuild\tgituncommitted\tfalse$'
++stdout '^\tbuild\tvcs\.revision='
++stdout '^\tbuild\tvcs\.time='
++stdout '^\tbuild\tvcs\.modified=false$'
+ 
+ -- repo/README --
+ Far out in the uncharted backwaters of the unfashionable end of the western

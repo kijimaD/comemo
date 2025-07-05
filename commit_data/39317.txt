@@ -11,7 +11,7 @@ Date:   Fri Feb 22 12:22:10 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/life/life_test.go            | 60 ++++++++++++++++++++++++++
  misc/cgo/life/overlaydir_test.go      | 81 +++++++++++++++++++++++++++++++++++
  misc/cgo/life/{ => testdata}/c-life.c |  0
@@ -21,3 +21,223 @@ Date:   Fri Feb 22 12:22:10 2019 -0500
  misc/cgo/life/{ => testdata}/main.out |  0
  src/cmd/dist/test.go                  |  2 +-
  8 files changed, 145 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/life/life_test.go b/misc/cgo/life/life_test.go
+new file mode 100644
+index 0000000000..3b17adae74
+--- /dev/null
++++ b/misc/cgo/life/life_test.go
+@@ -0,0 +1,60 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package life_test
++
++import (
++	"bytes"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	log.SetFlags(log.Lshortfile)
++	os.Exit(testMain(m))
++}
++
++func testMain(m *testing.M) int {
++	GOPATH, err := ioutil.TempDir("", "cgolife")
++	if err != nil {
++		log.Panic(err)
++	}
++	defer os.RemoveAll(GOPATH)
++	os.Setenv("GOPATH", GOPATH)
++
++	// Copy testdata into GOPATH/src/cgolife, along with a go.mod file
++	// declaring the same path.
++	modRoot := filepath.Join(GOPATH, "src", "cgolife")
++	if err := overlayDir(modRoot, "testdata"); err != nil {
++		log.Panic(err)
++	}
++	if err := os.Chdir(modRoot); err != nil {
++		log.Panic(err)
++	}
++	if err := ioutil.WriteFile("go.mod", []byte("module cgolife\n"), 0666); err != nil {
++		log.Panic(err)
++	}
++
++	return m.Run()
++}
++
++func TestTestRun(t *testing.T) {
++	out, err := exec.Command("go", "env", "GOROOT").Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++	GOROOT := string(bytes.TrimSpace(out))
++
++	cmd := exec.Command("go", "run", filepath.Join(GOROOT, "test", "run.go"), "-", ".")
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++}
+diff --git a/misc/cgo/life/overlaydir_test.go b/misc/cgo/life/overlaydir_test.go
+new file mode 100644
+index 0000000000..f381ea62f3
+--- /dev/null
++++ b/misc/cgo/life/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package life_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/life/c-life.c b/misc/cgo/life/testdata/c-life.c
+similarity index 100%
+rename from misc/cgo/life/c-life.c
+rename to misc/cgo/life/testdata/c-life.c
+diff --git a/misc/cgo/life/life.go b/misc/cgo/life/testdata/life.go
+similarity index 98%
+rename from misc/cgo/life/life.go
+rename to misc/cgo/life/testdata/life.go
+index 170a620c87..2e0af81d05 100644
+--- a/misc/cgo/life/life.go
++++ b/misc/cgo/life/testdata/life.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package life
++package cgolife
+ 
+ // #include "life.h"
+ import "C"
+diff --git a/misc/cgo/life/life.h b/misc/cgo/life/testdata/life.h
+similarity index 100%
+rename from misc/cgo/life/life.h
+rename to misc/cgo/life/testdata/life.h
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/testdata/main.go
+similarity index 94%
+rename from misc/cgo/life/main.go
+rename to misc/cgo/life/testdata/main.go
+index 145a273bdd..cc2ca7c742 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/testdata/main.go
+@@ -14,7 +14,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 
+-	"."
++	"cgolife"
+ )
+ 
+ const MAXDIM = 100
+@@ -34,7 +34,7 @@ func main() {
+ 		}
+ 	}
+ 
+-	life.Run(*gen, *dim, *dim, a[:])
++	cgolife.Run(*gen, *dim, *dim, a[:])
+ 
+ 	for i := 0; i < *dim; i++ {
+ 		for j := 0; j < *dim; j++ {
+diff --git a/misc/cgo/life/main.out b/misc/cgo/life/testdata/main.out
+similarity index 100%
+rename from misc/cgo/life/main.out
+rename to misc/cgo/life/testdata/main.out
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1eabb85639..c5cc6dcb3c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -619,7 +619,7 @@ func (t *tester) registerTests() {
+ 			name:    "cgo_life",
+ 			heading: "../misc/cgo/life",
+ 			fn: func(dt *distTest) error {
+-				t.addCmd(dt, "misc/cgo/life", "go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".")
++				t.addCmd(dt, "misc/cgo/life", t.goTest(), t.timeout(120))
+ 				return nil
+ 			},
+ 		})

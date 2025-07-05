@@ -23,10 +23,382 @@ Date:   Sat Nov 18 05:50:50 2023 +0000
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/v2/goroutinegen.go   | 164 +++++++++++++++++++++++++++++++++++++
  src/cmd/trace/v2/jsontrace.go      |  63 +++++++++++++-
  src/cmd/trace/v2/main.go           |   2 +-
  src/internal/trace/summary.go      |  18 +---
  src/internal/trace/summary_test.go |  26 +++++-
  5 files changed, 249 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/trace/v2/goroutinegen.go b/src/cmd/trace/v2/goroutinegen.go
+new file mode 100644
+index 0000000000..4f466c0e61
+--- /dev/null
++++ b/src/cmd/trace/v2/goroutinegen.go
+@@ -0,0 +1,164 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++import (
++	tracev2 "internal/trace/v2"
++)
++
++var _ generator = &goroutineGenerator{}
++
++type goroutineGenerator struct {
++	globalRangeGenerator
++	globalMetricGenerator
++	stackSampleGenerator[tracev2.GoID]
++
++	gStates map[tracev2.GoID]*gState[tracev2.GoID]
++	focus   tracev2.GoID
++	filter  map[tracev2.GoID]struct{}
++}
++
++func newGoroutineGenerator(ctx *traceContext, focus tracev2.GoID, filter map[tracev2.GoID]struct{}) *goroutineGenerator {
++	gg := new(goroutineGenerator)
++	gg.stackSampleGenerator.getResource = func(ev *tracev2.Event) tracev2.GoID {
++		return ev.Goroutine()
++	}
++	gg.gStates = make(map[tracev2.GoID]*gState[tracev2.GoID])
++	gg.focus = focus
++	gg.filter = filter
++
++	// Enable a filter on the emitter.
++	if filter != nil {
++		ctx.SetResourceFilter(func(resource uint64) bool {
++			_, ok := filter[tracev2.GoID(resource)]
++			return ok
++		})
++	}
++	return gg
++}
++
++func (g *goroutineGenerator) Sync() {
++	g.globalRangeGenerator.Sync()
++}
++
++func (g *goroutineGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
++	l := ev.Label()
++	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
++}
++
++func (g *goroutineGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
++	r := ev.Range()
++	switch ev.Kind() {
++	case tracev2.EventRangeBegin:
++		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
++	case tracev2.EventRangeActive:
++		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
++	case tracev2.EventRangeEnd:
++		gs := g.gStates[r.Scope.Goroutine()]
++		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
++	}
++}
++
++func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
++	st := ev.StateTransition()
++	goID := st.Resource.Goroutine()
++
++	// If we haven't seen this goroutine before, create a new
++	// gState for it.
++	gs, ok := g.gStates[goID]
++	if !ok {
++		gs = newGState[tracev2.GoID](goID)
++		g.gStates[goID] = gs
++	}
++
++	// Try to augment the name of the goroutine.
++	gs.augmentName(st.Stack)
++
++	// Handle the goroutine state transition.
++	from, to := st.Goroutine()
++	if from == to {
++		// Filter out no-op events.
++		return
++	}
++	if from.Executing() && !to.Executing() {
++		if to == tracev2.GoWaiting {
++			// Goroutine started blocking.
++			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
++		} else {
++			gs.stop(ev.Time(), ev.Stack(), ctx)
++		}
++	}
++	if !from.Executing() && to.Executing() {
++		start := ev.Time()
++		if from == tracev2.GoUndetermined {
++			// Back-date the event to the start of the trace.
++			start = ctx.startTime
++		}
++		gs.start(start, goID, ctx)
++	}
++
++	if from == tracev2.GoWaiting {
++		// Goroutine unblocked.
++		gs.unblock(ev.Time(), ev.Stack(), ev.Goroutine(), ctx)
++	}
++	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
++		// Goroutine was created.
++		gs.created(ev.Time(), ev.Goroutine(), ev.Stack())
++	}
++	if from == tracev2.GoSyscall && to != tracev2.GoRunning {
++		// Exiting blocked syscall.
++		gs.syscallEnd(ev.Time(), true, ctx)
++		gs.blockedSyscallEnd(ev.Time(), ev.Stack(), ctx)
++	} else if from == tracev2.GoSyscall {
++		// Check if we're exiting a syscall in a non-blocking way.
++		gs.syscallEnd(ev.Time(), false, ctx)
++	}
++
++	// Handle syscalls.
++	if to == tracev2.GoSyscall {
++		start := ev.Time()
++		if from == tracev2.GoUndetermined {
++			// Back-date the event to the start of the trace.
++			start = ctx.startTime
++		}
++		// Write down that we've entered a syscall. Note: we might have no G or P here
++		// if we're in a cgo callback or this is a transition from GoUndetermined
++		// (i.e. the G has been blocked in a syscall).
++		gs.syscallBegin(start, goID, ev.Stack())
++	}
++
++	// Note down the goroutine transition.
++	_, inMarkAssist := gs.activeRanges["GC mark assist"]
++	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
++}
++
++func (g *goroutineGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
++	// TODO(mknyszek): Extend procRangeGenerator to support rendering proc ranges
++	// that overlap with a goroutine's execution.
++}
++
++func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
++	// Not needed. All relevant information for goroutines can be derived from goroutine transitions.
++}
++
++func (g *goroutineGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
++	ctx.SetResourceType("G")
++
++	// Finish off global ranges.
++	g.globalRangeGenerator.Finish(ctx, endTime)
++
++	// Finish off all the goroutine slices.
++	for id, gs := range g.gStates {
++		gs.finish(endTime, ctx)
++
++		// Tell the emitter about the goroutines we want to render.
++		ctx.Resource(uint64(id), gs.name())
++	}
++
++	// Set the goroutine to focus on.
++	if g.focus != tracev2.NoGoroutine {
++		ctx.Focus(uint64(g.focus))
++	}
++}
+diff --git a/src/cmd/trace/v2/jsontrace.go b/src/cmd/trace/v2/jsontrace.go
+index 5b98850c20..681a8c1657 100644
+--- a/src/cmd/trace/v2/jsontrace.go
++++ b/src/cmd/trace/v2/jsontrace.go
+@@ -11,12 +11,44 @@ import (
+ 	"strconv"
+ 	"time"
+ 
++	"internal/trace"
+ 	"internal/trace/traceviewer"
+ 	tracev2 "internal/trace/v2"
+ )
+ 
+ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		opts := defaultGenOpts()
++
++		if goids := r.FormValue("goid"); goids != "" {
++			// Render trace focused on a particular goroutine.
++
++			id, err := strconv.ParseUint(goids, 10, 64)
++			if err != nil {
++				log.Printf("failed to parse goid parameter %q: %v", goids, err)
++				return
++			}
++			goid := tracev2.GoID(id)
++			g, ok := parsed.summary.Goroutines[goid]
++			if !ok {
++				log.Printf("failed to find goroutine %d", goid)
++				return
++			}
++			opts.mode = traceviewer.ModeGoroutineOriented
++			if g.StartTime != 0 {
++				opts.startTime = g.StartTime.Sub(parsed.startTime())
++			} else {
++				opts.startTime = 0
++			}
++			if g.EndTime != 0 {
++				opts.endTime = g.EndTime.Sub(parsed.startTime())
++			} else { // The goroutine didn't end.
++				opts.endTime = parsed.endTime().Sub(parsed.startTime())
++			}
++			opts.focusGoroutine = goid
++			opts.goroutines = trace.RelatedGoroutinesV2(parsed.events, goid)
++		}
++
+ 		// Parse start and end options. Both or none must be present.
+ 		start := int64(0)
+ 		end := int64(math.MaxInt64)
+@@ -36,7 +68,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 		}
+ 
+ 		c := traceviewer.ViewerDataTraceConsumer(w, start, end)
+-		if err := generateTrace(parsed, c); err != nil {
++		if err := generateTrace(parsed, opts, c); err != nil {
+ 			log.Printf("failed to generate trace: %v", err)
+ 		}
+ 	})
+@@ -55,13 +87,36 @@ func (ctx *traceContext) elapsed(now tracev2.Time) time.Duration {
+ 	return now.Sub(ctx.startTime)
+ }
+ 
+-func generateTrace(parsed *parsedTrace, c traceviewer.TraceConsumer) error {
++type genOpts struct {
++	mode      traceviewer.Mode
++	startTime time.Duration
++	endTime   time.Duration
++
++	// Used if mode != 0.
++	focusGoroutine tracev2.GoID
++	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
++}
++
++func defaultGenOpts() *genOpts {
++	return &genOpts{
++		startTime: time.Duration(0),
++		endTime:   time.Duration(math.MaxInt64),
++	}
++}
++
++func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsumer) error {
+ 	ctx := &traceContext{
+-		Emitter:   traceviewer.NewEmitter(c, 0, time.Duration(0), time.Duration(math.MaxInt64)),
++		Emitter:   traceviewer.NewEmitter(c, 0, opts.startTime, opts.endTime),
+ 		startTime: parsed.events[0].Time(),
+ 	}
+ 	defer ctx.Flush()
+ 
+-	runGenerator(ctx, newProcGenerator(), parsed)
++	var g generator
++	if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
++		g = newGoroutineGenerator(ctx, opts.focusGoroutine, opts.goroutines)
++	} else {
++		g = newProcGenerator()
++	}
++	runGenerator(ctx, g, parsed)
+ 	return nil
+ }
+diff --git a/src/cmd/trace/v2/main.go b/src/cmd/trace/v2/main.go
+index 5d9270a416..04488afd50 100644
+--- a/src/cmd/trace/v2/main.go
++++ b/src/cmd/trace/v2/main.go
+@@ -145,7 +145,7 @@ func splitTrace(parsed *parsedTrace) ([]traceviewer.Range, error) {
+ 	// TODO(mknyszek): Split traces by generation by doing a quick first pass over the
+ 	// trace to identify all the generation boundaries.
+ 	s, c := traceviewer.SplittingTraceConsumer(100 << 20) // 100 MiB
+-	if err := generateTrace(parsed, c); err != nil {
++	if err := generateTrace(parsed, defaultGenOpts(), c); err != nil {
+ 		return nil, err
+ 	}
+ 	return s.Ranges, nil
+diff --git a/src/internal/trace/summary.go b/src/internal/trace/summary.go
+index 934a980c7c..cf0cf9c109 100644
+--- a/src/internal/trace/summary.go
++++ b/src/internal/trace/summary.go
+@@ -6,7 +6,6 @@ package trace
+ 
+ import (
+ 	tracev2 "internal/trace/v2"
+-	"io"
+ 	"sort"
+ 	"time"
+ )
+@@ -601,11 +600,7 @@ func (s *Summarizer) Finalize() *Summary {
+ // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.
+ // The association is based on whether they have synchronized with each other in the Go
+ // scheduler (one has unblocked another).
+-func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]struct{}, error) {
+-	r, err := tracev2.NewReader(trace)
+-	if err != nil {
+-		return nil, err
+-	}
++func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.GoID]struct{} {
+ 	// Process all the events, looking for transitions of goroutines
+ 	// out of GoWaiting. If there was an active goroutine when this
+ 	// happened, then we know that active goroutine unblocked another.
+@@ -615,14 +610,7 @@ func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]s
+ 		operand  tracev2.GoID
+ 	}
+ 	var unblockEdges []unblockEdge
+-	for {
+-		ev, err := r.ReadEvent()
+-		if err == io.EOF {
+-			break
+-		}
+-		if err != nil {
+-			return nil, err
+-		}
++	for _, ev := range events {
+ 		if ev.Goroutine() == tracev2.NoGoroutine {
+ 			continue
+ 		}
+@@ -660,5 +648,5 @@ func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]s
+ 		}
+ 		gmap = gmap1
+ 	}
+-	return gmap, nil
++	return gmap
+ }
+diff --git a/src/internal/trace/summary_test.go b/src/internal/trace/summary_test.go
+index 8b377ff6b6..862218bf10 100644
+--- a/src/internal/trace/summary_test.go
++++ b/src/internal/trace/summary_test.go
+@@ -375,15 +375,33 @@ func basicGoroutineExecStatsChecks(t *testing.T, stats *GoroutineExecStats) {
+ 
+ func TestRelatedGoroutinesV2Trace(t *testing.T) {
+ 	testPath := "v2/testdata/tests/go122-gc-stress.test"
+-	r, _, err := testtrace.ParseFile(testPath)
++	trace, _, err := testtrace.ParseFile(testPath)
+ 	if err != nil {
+ 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 	}
+-	targetg := tracev2.GoID(86)
+-	got, err := RelatedGoroutinesV2(r, targetg)
++
++	// Create a reader.
++	r, err := tracev2.NewReader(trace)
+ 	if err != nil {
+-		t.Fatalf("failed to find related goroutines for %s: %v", testPath, err)
++		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
++	}
++
++	// Collect all the events.
++	var events []tracev2.Event
++	for {
++		ev, err := r.ReadEvent()
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			t.Fatalf("failed to process trace %s: %v", testPath, err)
++		}
++		events = append(events, ev)
+ 	}
++
++	// Test the function.
++	targetg := tracev2.GoID(86)
++	got := RelatedGoroutinesV2(events, targetg)
+ 	want := map[tracev2.GoID]struct{}{
+ 		tracev2.GoID(86):  struct{}{}, // N.B. Result includes target.
+ 		tracev2.GoID(71):  struct{}{},

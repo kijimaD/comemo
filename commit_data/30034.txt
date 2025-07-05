@@ -29,7 +29,100 @@ Date:   Tue Oct 18 17:22:25 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go      | 37 +++++++++++++++++++------------------
  src/archive/tar/reader_test.go | 13 ++++++++++---
  2 files changed, 29 insertions(+), 21 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 0d60d23b8b..9abe888218 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -344,12 +344,11 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 	sbuf := string(buf)
+ 
+ 	// For GNU PAX sparse format 0.0 support.
+-	// This function transforms the sparse format 0.0 headers into sparse format 0.1 headers.
+-	var sparseMap bytes.Buffer
++	// This function transforms the sparse format 0.0 headers into format 0.1
++	// headers since 0.0 headers were not PAX compliant.
++	var sparseMap []string
+ 
+-	headers := make(map[string]string)
+-	// Each record is constructed as
+-	//     "%d %s=%s\n", length, keyword, value
++	extHdrs := make(map[string]string)
+ 	for len(sbuf) > 0 {
+ 		key, value, residual, err := parsePAXRecord(sbuf)
+ 		if err != nil {
+@@ -357,27 +356,29 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 		}
+ 		sbuf = residual
+ 
+-		keyStr := key
+-		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
+-			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
+-			sparseMap.WriteString(value)
+-			sparseMap.Write([]byte{','})
+-		} else {
++		switch key {
++		case paxGNUSparseOffset, paxGNUSparseNumBytes:
++			// Validate sparse header order and value.
++			if (len(sparseMap)%2 == 0 && key != paxGNUSparseOffset) ||
++				(len(sparseMap)%2 == 1 && key != paxGNUSparseNumBytes) ||
++				strings.Contains(value, ",") {
++				return nil, ErrHeader
++			}
++			sparseMap = append(sparseMap, value)
++		default:
+ 			// According to PAX specification, a value is stored only if it is
+ 			// non-empty. Otherwise, the key is deleted.
+ 			if len(value) > 0 {
+-				headers[key] = value
++				extHdrs[key] = value
+ 			} else {
+-				delete(headers, key)
++				delete(extHdrs, key)
+ 			}
+ 		}
+ 	}
+-	if sparseMap.Len() != 0 {
+-		// Add sparse info to headers, chopping off the extra comma
+-		sparseMap.Truncate(sparseMap.Len() - 1)
+-		headers[paxGNUSparseMap] = sparseMap.String()
++	if len(sparseMap) > 0 {
++		extHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
+ 	}
+-	return headers, nil
++	return extHdrs, nil
+ }
+ 
+ // skipUnread skips any unread bytes in the existing file entry, as well as any
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index b315af5ec3..338686836b 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -1067,13 +1067,20 @@ func TestParsePAX(t *testing.T) {
+ 		{"30 mtime=1350244992.023960108\n", map[string]string{"mtime": "1350244992.023960108"}, true},
+ 		{"3 somelongkey=\n", nil, false},
+ 		{"50 tooshort=\n", nil, false},
+-		{"23 GNU.sparse.offset=0\n25 GNU.sparse.numbytes=1\n" +
+-			"23 GNU.sparse.offset=2\n25 GNU.sparse.numbytes=3\n",
+-			map[string]string{"GNU.sparse.map": "0,1,2,3"}, true},
+ 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
+ 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
+ 		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
+ 			map[string]string{"key2": "val2"}, true},
++		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=2\n" +
++			"23 GNU.sparse.offset=1\n25 GNU.sparse.numbytes=2\n" +
++			"23 GNU.sparse.offset=3\n25 GNU.sparse.numbytes=4\n",
++			map[string]string{paxGNUSparseSize: "10", paxGNUSparseNumBlocks: "2", paxGNUSparseMap: "1,2,3,4"}, true},
++		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
++			"25 GNU.sparse.numbytes=2\n23 GNU.sparse.offset=1\n",
++			nil, false},
++		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
++			"25 GNU.sparse.offset=1,2\n25 GNU.sparse.numbytes=2\n",
++			nil, false},
+ 	}
+ 
+ 	for i, v := range vectors {

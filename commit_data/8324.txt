@@ -10,6 +10,49 @@ Date:   Thu May 5 13:37:42 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4485044
-
+---
  src/pkg/crypto/x509/x509.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index f2a039b5ad..d0c5a26a9a 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -186,6 +186,7 @@ type validity struct {
+ }
+ 
+ type publicKeyInfo struct {
++	Raw       asn1.RawContent
+ 	Algorithm algorithmIdentifier
+ 	PublicKey asn1.BitString
+ }
+@@ -402,8 +403,10 @@ const (
+ 
+ // A Certificate represents an X.509 certificate.
+ type Certificate struct {
+-	Raw                []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
+-	RawTBSCertificate  []byte // Certificate part of raw ASN.1 DER content.
++	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
++	RawTBSCertificate       []byte // Certificate part of raw ASN.1 DER content.
++	RawSubjectPublicKeyInfo []byte // DER encoded SubjectPublicKeyInfo.
++
+ 	Signature          []byte
+ 	SignatureAlgorithm SignatureAlgorithm
+ 
+@@ -567,6 +570,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 	out := new(Certificate)
+ 	out.Raw = in.Raw
+ 	out.RawTBSCertificate = in.TBSCertificate.Raw
++	out.RawSubjectPublicKeyInfo = in.TBSCertificate.PublicKey.Raw
+ 
+ 	out.Signature = in.SignatureValue.RightAlign()
+ 	out.SignatureAlgorithm =
+@@ -983,7 +987,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 		Issuer:             parent.Subject.toRDNSequence(),
+ 		Validity:           validity{template.NotBefore, template.NotAfter},
+ 		Subject:            template.Subject.toRDNSequence(),
+-		PublicKey:          publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
++		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{oidRSA}, encodedPublicKey},
+ 		Extensions:         extensions,
+ 	}
+ 

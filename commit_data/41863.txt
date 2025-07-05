@@ -15,7 +15,34 @@ Date:   Tue Oct 29 15:35:42 2019 +0100
     Run-TryBot: Clément Chigot <clement.chigot%atos.net@gtempaccount.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/export_test.go | 2 ++
  src/runtime/proc_test.go   | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f5b44a29a0..0bd5c902e8 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -40,6 +40,8 @@ var Usleep = usleep
+ 
+ var PhysHugePageSize = physHugePageSize
+ 
++var NetpollGenericInit = netpollGenericInit
++
+ type LFNode struct {
+ 	Next    uint64
+ 	Pushcnt uintptr
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 3a1bf91fa5..9b80ce31e5 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -992,7 +992,7 @@ func TestNetpollBreak(t *testing.T) {
+ 	}
+ 
+ 	// Make sure that netpoll is initialized.
+-	time.Sleep(1)
++	runtime.NetpollGenericInit()
+ 
+ 	start := time.Now()
+ 	c := make(chan bool, 2)

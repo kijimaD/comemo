@@ -31,7 +31,7 @@ Date:   Mon Apr 25 16:26:10 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go                  |  2 +-
  src/cmd/compile/internal/syntax/testdata/typeset.go        | 14 ++++++++------
  src/cmd/compile/internal/types2/expr.go                    |  6 ++++++
@@ -39,3 +39,101 @@ Date:   Mon Apr 25 16:26:10 2022 -0700
  .../internal/types2/testdata/fixedbugs/issue49482.go       |  2 +-
  test/fixedbugs/issue23587.go                               |  2 +-
  6 files changed, 24 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index fe1c76e81b..a89dcfae52 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -827,7 +827,7 @@ func (p *parser) unaryExpr() Expr {
+ 	switch p.tok {
+ 	case _Operator, _Star:
+ 		switch p.op {
+-		case Mul, Add, Sub, Not, Xor:
++		case Mul, Add, Sub, Not, Xor, Tilde:
+ 			x := new(Operation)
+ 			x.pos = p.pos()
+ 			x.Op = p.op
+diff --git a/src/cmd/compile/internal/syntax/testdata/typeset.go b/src/cmd/compile/internal/syntax/testdata/typeset.go
+index 19b74f28ea..fe5c3f45a8 100644
+--- a/src/cmd/compile/internal/syntax/testdata/typeset.go
++++ b/src/cmd/compile/internal/syntax/testdata/typeset.go
+@@ -65,15 +65,17 @@ func _[_ t[t] | t[t]]() {}
+ 
+ // Single-expression type parameter lists and those that don't start
+ // with a (type parameter) name are considered array sizes.
+-// The term must be a valid expression (it could be a type - and then
+-// a type-checker will complain - but we don't allow ~ in the expr).
++// The term must be a valid expression (it could be a type incl. a
++// tilde term) but the type-checker will complain.
+ type (
+         _[t] t
+-        _[/* ERROR unexpected ~ */ ~t] t
+         _[t|t] t
+-        _[/* ERROR unexpected ~ */ ~t|t] t
+-        _[t| /* ERROR unexpected ~ */ ~t] t
+-        _[/* ERROR unexpected ~ */ ~t|~t] t
++
++        // These are invalid and the type-checker will complain.
++        _[~t] t
++        _[~t|t] t
++        _[t|~t] t
++        _[~t|~t] t
+ )
+ 
+ type (
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 27f290420b..33d329f82d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -208,6 +208,12 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		x.typ = ch.elem
+ 		check.hasCallOrRecv = true
+ 		return
++
++	case syntax.Tilde:
++		// Provide a better error position and message than what check.op below could do.
++		check.error(e, "cannot use ~ outside of interface or type constraint")
++		x.mode = invalid
++		return
+ 	}
+ 
+ 	if !check.op(unaryOpPredicates, x, e.Op) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr0.go b/src/cmd/compile/internal/types2/testdata/check/expr0.go
+index 1aac726327..821b07f007 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/expr0.go
+@@ -178,3 +178,10 @@ func _() {
+ 	_ = -g /* ERROR 2-valued g */ ()
+ 	_ = <-g /* ERROR 2-valued g */ ()
+ }
++
++// ~ is accepted as unary operator only permitted in interface type elements
++var (
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
++)
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go
+index f289d2e52d..503d9946b4 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go
+@@ -22,4 +22,4 @@ type _[P /* ERROR non-function P */ (*int)] int
+ type _[P *struct /* ERROR "not an expression" */ {}| int /* ERROR "not an expression" */ ] struct{}
+ 
+ // The following fails to parse, due to the '~'
+-type _[P *struct /* ERROR "not an expression" */ {}|~ /* ERROR "unexpected ~" */ int] struct{}
++type _[P *struct /* ERROR "not an expression" */ {}|~int /* ERROR "not an expression" */ ] struct{}
+diff --git a/test/fixedbugs/issue23587.go b/test/fixedbugs/issue23587.go
+index 2308992347..9040767f8c 100644
+--- a/test/fixedbugs/issue23587.go
++++ b/test/fixedbugs/issue23587.go
+@@ -7,7 +7,7 @@
+ package p
+ 
+ func _(x int) {
+-	_ = ~x    // ERROR "unexpected ~"
++	_ = ~x    // unary ~ permitted but the type-checker will complain
+ }
+ 
+ func _(x int) {

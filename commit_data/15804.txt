@@ -9,7 +9,7 @@ Date:   Fri Mar 15 15:09:17 2013 -0700
     R=golang-dev, adg, fullung
     CC=golang-dev
     https://golang.org/cl/7777043
-
+---
  src/pkg/net/http/client_test.go    | 34 +++++++++++------------
  src/pkg/net/http/fs_test.go        | 26 +++++++++---------
  src/pkg/net/http/serve_test.go     | 44 +++++++++++++++---------------
@@ -17,3 +17,857 @@ Date:   Fri Mar 15 15:09:17 2013 -0700
  src/pkg/net/http/transport_test.go | 56 +++++++++++++++++++-------------------
  src/pkg/net/http/z_last_test.go    | 51 +++++++++++++++++++++++++++-------
  6 files changed, 124 insertions(+), 93 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 4d40dc972d..d7d2c18799 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -54,7 +54,7 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
+ }
+ 
+ func TestClient(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(robotsTxtHandler)
+ 	defer ts.Close()
+ 
+@@ -72,7 +72,7 @@ func TestClient(t *testing.T) {
+ }
+ 
+ func TestClientHead(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(robotsTxtHandler)
+ 	defer ts.Close()
+ 
+@@ -95,7 +95,7 @@ func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err error)
+ }
+ 
+ func TestGetRequestFormat(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &recordingTransport{}
+ 	client := &Client{Transport: tr}
+ 	url := "http://dummy.faketld/"
+@@ -112,7 +112,7 @@ func TestGetRequestFormat(t *testing.T) {
+ }
+ 
+ func TestPostRequestFormat(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &recordingTransport{}
+ 	client := &Client{Transport: tr}
+ 
+@@ -139,7 +139,7 @@ func TestPostRequestFormat(t *testing.T) {
+ }
+ 
+ func TestPostFormRequestFormat(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &recordingTransport{}
+ 	client := &Client{Transport: tr}
+ 
+@@ -181,7 +181,7 @@ func TestPostFormRequestFormat(t *testing.T) {
+ }
+ 
+ func TestRedirects(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		n, _ := strconv.Atoi(r.FormValue("n"))
+@@ -255,7 +255,7 @@ func TestRedirects(t *testing.T) {
+ }
+ 
+ func TestPostRedirects(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	var log struct {
+ 		sync.Mutex
+ 		bytes.Buffer
+@@ -373,7 +373,7 @@ func (j *TestJar) Cookies(u *url.URL) []*Cookie {
+ }
+ 
+ func TestRedirectCookiesOnRequest(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(echoCookiesRedirectHandler)
+ 	defer ts.Close()
+@@ -391,7 +391,7 @@ func TestRedirectCookiesOnRequest(t *testing.T) {
+ }
+ 
+ func TestRedirectCookiesJar(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(echoCookiesRedirectHandler)
+ 	defer ts.Close()
+@@ -428,7 +428,7 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
+ }
+ 
+ func TestJarCalls(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		pathSuffix := r.RequestURI[1:]
+ 		if r.RequestURI == "/nosetcookie" {
+@@ -492,7 +492,7 @@ func (j *RecordingJar) logf(format string, args ...interface{}) {
+ }
+ 
+ func TestStreamingGet(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	say := make(chan string)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.(Flusher).Flush()
+@@ -543,7 +543,7 @@ func (c *writeCountingConn) Write(p []byte) (int, error) {
+ // TestClientWrites verifies that client requests are buffered and we
+ // don't send a TCP packet per line of the http request + body.
+ func TestClientWrites(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	}))
+ 	defer ts.Close()
+@@ -577,7 +577,7 @@ func TestClientWrites(t *testing.T) {
+ }
+ 
+ func TestClientInsecureTransport(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Write([]byte("Hello"))
+ 	}))
+@@ -605,7 +605,7 @@ func TestClientInsecureTransport(t *testing.T) {
+ }
+ 
+ func TestClientErrorWithRequestURI(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
+ 	req.RequestURI = "/this/field/is/illegal/and/should/error/"
+ 	_, err := DefaultClient.Do(req)
+@@ -634,7 +634,7 @@ func newTLSTransport(t *testing.T, ts *httptest.Server) *Transport {
+ }
+ 
+ func TestClientWithCorrectTLSServerName(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.TLS.ServerName != "127.0.0.1" {
+ 			t.Errorf("expected client to set ServerName 127.0.0.1, got: %q", r.TLS.ServerName)
+@@ -649,7 +649,7 @@ func TestClientWithCorrectTLSServerName(t *testing.T) {
+ }
+ 
+ func TestClientWithIncorrectTLSServerName(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	defer ts.Close()
+ 
+@@ -667,7 +667,7 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
+ 
+ // Verify Response.ContentLength is populated. http://golang.org/issue/4126
+ func TestClientHeadContentLength(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if v := r.FormValue("cl"); v != "" {
+ 			w.Header().Set("Content-Length", v)
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 95a55f3e1d..2c3737653b 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -54,7 +54,7 @@ var ServeFileRangeTests = []struct {
+ }
+ 
+ func TestServeFile(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "testdata/file")
+ 	}))
+@@ -170,7 +170,7 @@ var fsRedirectTestData = []struct {
+ }
+ 
+ func TestFSRedirect(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(StripPrefix("/test", FileServer(Dir("."))))
+ 	defer ts.Close()
+ 
+@@ -195,7 +195,7 @@ func (fs *testFileSystem) Open(name string) (File, error) {
+ }
+ 
+ func TestFileServerCleans(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ch := make(chan string, 1)
+ 	fs := FileServer(&testFileSystem{func(name string) (File, error) {
+ 		ch <- name
+@@ -227,7 +227,7 @@ func mustRemoveAll(dir string) {
+ }
+ 
+ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tempDir, err := ioutil.TempDir("", "")
+ 	if err != nil {
+ 		t.Fatalf("TempDir: %v", err)
+@@ -306,7 +306,7 @@ func TestEmptyDirOpenCWD(t *testing.T) {
+ }
+ 
+ func TestServeFileContentType(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const ctype = "icecream/chocolate"
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.FormValue("override") == "1" {
+@@ -330,7 +330,7 @@ func TestServeFileContentType(t *testing.T) {
+ }
+ 
+ func TestServeFileMimeType(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "testdata/style.css")
+ 	}))
+@@ -347,7 +347,7 @@ func TestServeFileMimeType(t *testing.T) {
+ }
+ 
+ func TestServeFileFromCWD(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "fs_test.go")
+ 	}))
+@@ -363,7 +363,7 @@ func TestServeFileFromCWD(t *testing.T) {
+ }
+ 
+ func TestServeFileWithContentEncoding(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Encoding", "foo")
+ 		ServeFile(w, r, "testdata/file")
+@@ -380,7 +380,7 @@ func TestServeFileWithContentEncoding(t *testing.T) {
+ }
+ 
+ func TestServeIndexHtml(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const want = "index.html says hello\n"
+ 	ts := httptest.NewServer(FileServer(Dir(".")))
+ 	defer ts.Close()
+@@ -402,7 +402,7 @@ func TestServeIndexHtml(t *testing.T) {
+ }
+ 
+ func TestFileServerZeroByte(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(FileServer(Dir(".")))
+ 	defer ts.Close()
+ 
+@@ -471,7 +471,7 @@ func (fs fakeFS) Open(name string) (File, error) {
+ }
+ 
+ func TestDirectoryIfNotModified(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const indexContents = "I am a fake index.html file"
+ 	fileMod := time.Unix(1000000000, 0).UTC()
+ 	fileModStr := fileMod.Format(TimeFormat)
+@@ -545,7 +545,7 @@ func mustStat(t *testing.T, fileName string) os.FileInfo {
+ }
+ 
+ func TestServeContent(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	type serveParam struct {
+ 		name        string
+ 		modtime     time.Time
+@@ -678,7 +678,7 @@ func TestServeContent(t *testing.T) {
+ 
+ // verifies that sendfile is being used on Linux
+ func TestLinuxSendfile(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	if runtime.GOOS != "linux" {
+ 		t.Skip("skipping; linux-only test")
+ 	}
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 3300fef59b..5b9cd97184 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -184,7 +184,7 @@ var vtests = []struct {
+ }
+ 
+ func TestHostHandlers(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	mux := NewServeMux()
+ 	for _, h := range handlers {
+ 		mux.Handle(h.pattern, stringHandler(h.msg))
+@@ -257,7 +257,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ }
+ 
+ func TestServerTimeouts(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	reqNum := 0
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
+ 		reqNum++
+@@ -333,7 +333,7 @@ func TestServerTimeouts(t *testing.T) {
+ // shouldn't cause a handler to block forever on reads (next HTTP
+ // request) that will never happen.
+ func TestOnlyWriteTimeout(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	var conn net.Conn
+ 	var afterTimeoutErrc = make(chan error, 1)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+@@ -392,7 +392,7 @@ func (l trackLastConnListener) Accept() (c net.Conn, err error) {
+ 
+ // TestIdentityResponse verifies that a handler can unset
+ func TestIdentityResponse(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+ 		rw.Header().Set("Content-Length", "3")
+ 		rw.Header().Set("Transfer-Encoding", req.FormValue("te"))
+@@ -468,7 +468,7 @@ func TestIdentityResponse(t *testing.T) {
+ }
+ 
+ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	s := httptest.NewServer(h)
+ 	defer s.Close()
+ 
+@@ -539,7 +539,7 @@ func TestHandlersCanSetConnectionClose10(t *testing.T) {
+ }
+ 
+ func TestSetsRemoteAddr(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "%s", r.RemoteAddr)
+ 	}))
+@@ -560,7 +560,7 @@ func TestSetsRemoteAddr(t *testing.T) {
+ }
+ 
+ func TestChunkedResponseHeaders(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	log.SetOutput(ioutil.Discard) // is noisy otherwise
+ 	defer log.SetOutput(os.Stderr)
+ 
+@@ -591,7 +591,7 @@ func TestChunkedResponseHeaders(t *testing.T) {
+ // chunking in their response headers and aren't allowed to produce
+ // output.
+ func Test304Responses(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.WriteHeader(StatusNotModified)
+ 		_, err := w.Write([]byte("illegal body"))
+@@ -621,7 +621,7 @@ func Test304Responses(t *testing.T) {
+ // allowed to produce output, and don't set a Content-Type since
+ // the real type of the body data cannot be inferred.
+ func TestHeadResponses(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		_, err := w.Write([]byte("Ignored body"))
+ 		if err != ErrBodyNotAllowed {
+@@ -656,7 +656,7 @@ func TestHeadResponses(t *testing.T) {
+ }
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	ts.Config.ReadTimeout = 250 * time.Millisecond
+ 	ts.StartTLS()
+@@ -676,7 +676,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
+ }
+ 
+ func TestTLSServer(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.TLS != nil {
+ 			w.Header().Set("X-TLS-Set", "true")
+@@ -759,7 +759,7 @@ var serverExpectTests = []serverExpectTest{
+ // Tests that the server responds to the "Expect" request header
+ // correctly.
+ func TestServerExpect(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		// Note using r.FormValue("readbody") because for POST
+ 		// requests that would read from r.Body, which we only
+@@ -897,7 +897,7 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
+ }
+ 
+ func TestTimeoutHandler(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	sendHi := make(chan bool, 1)
+ 	writeErrors := make(chan error, 1)
+ 	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -972,7 +972,7 @@ func TestRedirectMunging(t *testing.T) {
+ // the previous request's body, which is not optimal for zero-lengthed bodies,
+ // as the client would then see http.ErrBodyReadAfterClose and not 0, io.EOF.
+ func TestZeroLengthPostAndResponse(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+ 		all, err := ioutil.ReadAll(r.Body)
+ 		if err != nil {
+@@ -1023,7 +1023,7 @@ func TestHandlerPanicWithHijack(t *testing.T) {
+ }
+ 
+ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	// Unlike the other tests that set the log output to ioutil.Discard
+ 	// to quiet the output, this test uses a pipe.  The pipe serves three
+ 	// purposes:
+@@ -1089,7 +1089,7 @@ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
+ }
+ 
+ func TestNoDate(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header()["Date"] = nil
+ 	}))
+@@ -1105,7 +1105,7 @@ func TestNoDate(t *testing.T) {
+ }
+ 
+ func TestStripPrefix(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("X-Path", r.URL.Path)
+ 	})
+@@ -1132,7 +1132,7 @@ func TestStripPrefix(t *testing.T) {
+ }
+ 
+ func TestRequestLimit(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		t.Fatalf("didn't expect to get request in Handler")
+ 	}))
+@@ -1176,7 +1176,7 @@ func (cr countReader) Read(p []byte) (n int, err error) {
+ }
+ 
+ func TestRequestBodyLimit(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const limit = 1 << 20
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		r.Body = MaxBytesReader(w, r.Body, limit)
+@@ -1213,7 +1213,7 @@ func TestRequestBodyLimit(t *testing.T) {
+ // TestClientWriteShutdown tests that if the client shuts down the write
+ // side of their TCP connection, the server doesn't send a 400 Bad Request.
+ func TestClientWriteShutdown(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	defer ts.Close()
+ 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+@@ -1268,7 +1268,7 @@ func TestServerBufferedChunking(t *testing.T) {
+ // closing the TCP connection, causing the client to get a RST.
+ // See http://golang.org/issue/3595
+ func TestServerGracefulClose(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		Error(w, "bye", StatusUnauthorized)
+ 	}))
+@@ -1311,7 +1311,7 @@ func TestServerGracefulClose(t *testing.T) {
+ }
+ 
+ func TestCaseSensitiveMethod(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.Method != "get" {
+ 			t.Errorf(`Got method %q; want "get"`, r.Method)
+diff --git a/src/pkg/net/http/sniff_test.go b/src/pkg/net/http/sniff_test.go
+index 09665901dc..106d94ec1c 100644
+--- a/src/pkg/net/http/sniff_test.go
++++ b/src/pkg/net/http/sniff_test.go
+@@ -54,7 +54,7 @@ func TestDetectContentType(t *testing.T) {
+ }
+ 
+ func TestServerContentType(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		i, _ := strconv.Atoi(r.FormValue("i"))
+ 		tt := sniffTests[i]
+@@ -85,7 +85,7 @@ func TestServerContentType(t *testing.T) {
+ }
+ 
+ func TestContentTypeWithCopy(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 
+ 	const (
+ 		input    = "\n<html>\n\t<head>\n"
+@@ -119,7 +119,7 @@ func TestContentTypeWithCopy(t *testing.T) {
+ }
+ 
+ func TestSniffWriteSize(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		size, _ := strconv.Atoi(r.FormValue("size"))
+ 		written, err := io.WriteString(w, strings.Repeat("a", size))
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 213c5198dd..c361979bbb 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -102,7 +102,7 @@ func (tcs *testConnSet) check(t *testing.T) {
+ // Two subsequent requests and verify their response is the same.
+ // The response from the server is our own IP:port
+ func TestTransportKeepAlives(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+@@ -135,7 +135,7 @@ func TestTransportKeepAlives(t *testing.T) {
+ }
+ 
+ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+@@ -186,7 +186,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+ }
+ 
+ func TestTransportConnectionCloseOnRequest(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+@@ -237,7 +237,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
+ }
+ 
+ func TestTransportIdleCacheKeys(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+@@ -270,7 +270,7 @@ func TestTransportIdleCacheKeys(t *testing.T) {
+ }
+ 
+ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	resch := make(chan string)
+ 	gotReq := make(chan bool)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -339,7 +339,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ }
+ 
+ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+@@ -396,7 +396,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ // Test for http://golang.org/issue/2616 (appropriate issue number)
+ // This fails pretty reliably with GOMAXPROCS=100 or something high.
+ func TestStressSurpriseServerCloses(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping test in short mode")
+ 	}
+@@ -452,7 +452,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
+ // TestTransportHeadResponses verifies that we deal with Content-Lengths
+ // with no bodies properly
+ func TestTransportHeadResponses(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.Method != "HEAD" {
+ 			panic("expected HEAD; got " + r.Method)
+@@ -481,7 +481,7 @@ func TestTransportHeadResponses(t *testing.T) {
+ // TestTransportHeadChunkedResponse verifies that we ignore chunked transfer-encoding
+ // on responses to HEAD requests.
+ func TestTransportHeadChunkedResponse(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.Method != "HEAD" {
+ 			panic("expected HEAD; got " + r.Method)
+@@ -523,7 +523,7 @@ var roundTripTests = []struct {
+ 
+ // Test that the modification made to the Request by the RoundTripper is cleaned up
+ func TestRoundTripGzip(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const responseBody = "test response body"
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+ 		accept := req.Header.Get("Accept-Encoding")
+@@ -580,7 +580,7 @@ func TestRoundTripGzip(t *testing.T) {
+ }
+ 
+ func TestTransportGzip(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ 	const nRandBytes = 1024 * 1024
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+@@ -673,7 +673,7 @@ func TestTransportGzip(t *testing.T) {
+ }
+ 
+ func TestTransportProxy(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ch := make(chan string, 1)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ch <- "real server"
+@@ -702,7 +702,7 @@ func TestTransportProxy(t *testing.T) {
+ // but checks that we don't recurse forever, and checks that
+ // Content-Encoding is removed.
+ func TestTransportGzipRecursive(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Encoding", "gzip")
+ 		w.Write(rgz)
+@@ -729,7 +729,7 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	gotReqCh := make(chan bool)
+ 	unblockCh := make(chan bool)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -795,7 +795,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ // golang.org/issue/4531: Transport leaks goroutines when
+ // request.ContentLength is explicitly short
+ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	}))
+ 	defer ts.Close()
+@@ -834,7 +834,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+ 
+ // This used to crash; http://golang.org/issue/3266
+ func TestTransportIdleConnCrash(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &Transport{}
+ 	c := &Client{Transport: tr}
+ 
+@@ -864,7 +864,7 @@ func TestTransportIdleConnCrash(t *testing.T) {
+ // which sadly lacked a triggering test.  The large response body made
+ // the old race easier to trigger.
+ func TestIssue3644(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const numFoos = 5000
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Connection", "close")
+@@ -892,7 +892,7 @@ func TestIssue3644(t *testing.T) {
+ // Test that a client receives a server's reply, even if the server doesn't read
+ // the entire request body.
+ func TestIssue3595(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const deniedMsg = "sorry, denied."
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		Error(w, deniedMsg, StatusUnauthorized)
+@@ -917,7 +917,7 @@ func TestIssue3595(t *testing.T) {
+ // From http://golang.org/issue/4454 ,
+ // "client fails to handle requests with no body and chunked encoding"
+ func TestChunkedNoContent(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.WriteHeader(StatusNoContent)
+ 	}))
+@@ -940,7 +940,7 @@ func TestChunkedNoContent(t *testing.T) {
+ }
+ 
+ func TestTransportConcurrency(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const maxProcs = 16
+ 	const numReqs = 500
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+@@ -985,7 +985,7 @@ func TestTransportConcurrency(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()
+ 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
+@@ -1046,7 +1046,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()
+ 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
+@@ -1114,7 +1114,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ }
+ 
+ func TestTransportResponseHeaderTimeout(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping timeout test in -short mode")
+ 	}
+@@ -1161,7 +1161,7 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
+ }
+ 
+ func TestTransportCancelRequest(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping test in -short mode")
+ 	}
+@@ -1218,7 +1218,7 @@ func TestTransportCancelRequest(t *testing.T) {
+ // Calling Close on a Response.Body used to just read until EOF.
+ // Now it actually closes the TCP connection.
+ func TestTransportCloseResponseBody(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	writeErr := make(chan error, 1)
+ 	msg := []byte("young\n")
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -1291,7 +1291,7 @@ func (fooProto) RoundTrip(req *Request) (*Response, error) {
+ }
+ 
+ func TestTransportAltProto(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &Transport{}
+ 	c := &Client{Transport: tr}
+ 	tr.RegisterProtocol("foo", fooProto{})
+@@ -1310,7 +1310,7 @@ func TestTransportAltProto(t *testing.T) {
+ }
+ 
+ func TestTransportNoHost(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 	tr := &Transport{}
+ 	_, err := tr.RoundTrip(&Request{
+ 		Header: make(Header),
+@@ -1325,7 +1325,7 @@ func TestTransportNoHost(t *testing.T) {
+ }
+ 
+ func TestTransportSocketLateBinding(t *testing.T) {
+-	defer checkLeakedTransports(t)
++	defer afterTest(t)
+ 
+ 	mux := NewServeMux()
+ 	fooGate := make(chan bool, 1)
+diff --git a/src/pkg/net/http/z_last_test.go b/src/pkg/net/http/z_last_test.go
+index 44095a8d9f..e27add9758 100644
+--- a/src/pkg/net/http/z_last_test.go
++++ b/src/pkg/net/http/z_last_test.go
+@@ -7,27 +7,56 @@ package http_test
+ import (
+ 	"net/http"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
++func interestingGoroutines() (gs []string) {
++	buf := make([]byte, 2<<20)
++	buf = buf[:runtime.Stack(buf, true)]
++	for _, g := range strings.Split(string(buf), "\n\n") {
++		sl := strings.SplitN(g, "\n", 2)
++		if len(sl) != 2 {
++			continue
++		}
++		stack := strings.TrimSpace(sl[1])
++		if stack == "" ||
++			strings.Contains(stack, "created by net.newPollServer") ||
++			strings.Contains(stack, "created by testing.RunTests") ||
++			strings.Contains(stack, "closeWriteAndWait") ||
++			strings.Contains(stack, "testing.Main(") {
++			continue
++		}
++		gs = append(gs, stack)
++	}
++	sort.Strings(gs)
++	return
++}
++
+ // Verify the other tests didn't leave any goroutines running.
+ // This is in a file named z_last_test.go so it sorts at the end.
+ func TestGoroutinesRunning(t *testing.T) {
+-	n := runtime.NumGoroutine()
++	gs := interestingGoroutines()
++
++	n := 0
++	stackCount := make(map[string]int)
++	for _, g := range gs {
++		stackCount[g]++
++		n++
++	}
++
+ 	t.Logf("num goroutines = %d", n)
+-	if n > 20 {
+-		// Currently 14 on Linux (blocked in epoll_wait,
+-		// waiting for on fds that are closed?), but give some
+-		// slop for now.
+-		buf := make([]byte, 1<<20)
+-		buf = buf[:runtime.Stack(buf, true)]
+-		t.Errorf("Too many goroutines:\n%s", buf)
++	if n > 0 {
++		t.Error("Too many goroutines.")
++		for stack, count := range stackCount {
++			t.Logf("%d instances of:\n%s", count, stack)
++		}
+ 	}
+ }
+ 
+-func checkLeakedTransports(t *testing.T) {
++func afterTest(t *testing.T) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+ 		return
+@@ -40,6 +69,7 @@ func checkLeakedTransports(t *testing.T) {
+ 		").writeLoop(":                                 "a Transport",
+ 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
+ 		"timeoutHandler":                               "a TimeoutHandler",
++		"net.(*netFD).connect(":                        "a timing out dial",
+ 	}
+ 	for i := 0; i < 4; i++ {
+ 		bad = ""
+@@ -56,5 +86,6 @@ func checkLeakedTransports(t *testing.T) {
+ 		// shutting down, so give it some time.
+ 		time.Sleep(250 * time.Millisecond)
+ 	}
+-	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
++	gs := interestingGoroutines()
++	t.Errorf("Test appears to have leaked %s:\n%s", bad, strings.Join(gs, "\n\n"))
+ }

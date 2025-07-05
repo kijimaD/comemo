@@ -16,7 +16,7 @@ Date:   Fri May 1 17:30:33 2020 -0400
     Change-Id: Ic41c0b9833d2e8a31fa3ce8067d92aa2f165bf72
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231600
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/build.go               | 11 -----------
  src/cmd/dist/buildruntime.go        |  2 --
  src/cmd/go/alldocs.go               |  3 ---
@@ -25,3 +25,153 @@ Date:   Fri May 1 17:30:33 2020 -0400
  src/cmd/internal/objabi/util.go     | 11 ++++-------
  src/internal/cfg/cfg.go             |  1 -
  7 files changed, 4 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d22ee1d361..9e2b4f33b8 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -31,7 +31,6 @@ var (
+ 	goos             string
+ 	goarm            string
+ 	go386            string
+-	goamd64          string
+ 	gomips           string
+ 	gomips64         string
+ 	goppc64          string
+@@ -152,12 +151,6 @@ func xinit() {
+ 	}
+ 	go386 = b
+ 
+-	b = os.Getenv("GOAMD64")
+-	if b == "" {
+-		b = "alignedjumps"
+-	}
+-	goamd64 = b
+-
+ 	b = os.Getenv("GOMIPS")
+ 	if b == "" {
+ 		b = "hardfloat"
+@@ -230,7 +223,6 @@ func xinit() {
+ 
+ 	// For tools being invoked but also for os.ExpandEnv.
+ 	os.Setenv("GO386", go386)
+-	os.Setenv("GOAMD64", goamd64)
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOARM", goarm)
+ 	os.Setenv("GOHOSTARCH", gohostarch)
+@@ -1171,9 +1163,6 @@ func cmdenv() {
+ 	if goarch == "386" {
+ 		xprintf(format, "GO386", go386)
+ 	}
+-	if goarch == "amd64" {
+-		xprintf(format, "GOAMD64", goamd64)
+-	}
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		xprintf(format, "GOMIPS", gomips)
+ 	}
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index f11933c925..2744951597 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -42,7 +42,6 @@ func mkzversion(dir, file string) {
+ //
+ //	const defaultGOROOT = <goroot>
+ //	const defaultGO386 = <go386>
+-//	const defaultGOAMD64 = <goamd64>
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOMIPS = <gomips>
+ //	const defaultGOMIPS64 = <gomips64>
+@@ -72,7 +71,6 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+-	fmt.Fprintf(&buf, "const defaultGOAMD64 = `%s`\n", goamd64)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5c1f7254bf..fdeef651c7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1754,9 +1754,6 @@
+ // 	GO386
+ // 		For GOARCH=386, the floating point instruction set.
+ // 		Valid values are 387, sse2.
+-// 	GOAMD64
+-// 		For GOARCH=amd64, jumps can be optionally be aligned such that they do not end on
+-// 		or cross 32 byte boundaries.  Valid values are alignedjumps (default), normaljumps.
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 21f55e852f..7f8f8e92be 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -241,7 +241,6 @@ var (
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+ 	GO386    = envOr("GO386", objabi.GO386)
+-	GOAMD64  = envOr("GOAMD64", objabi.GOAMD64)
+ 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
+ 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+ 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+@@ -267,8 +266,6 @@ func GetArchEnv() (key, val string) {
+ 		return "GOARM", GOARM
+ 	case "386":
+ 		return "GO386", GO386
+-	case "amd64":
+-		return "GOAMD64", GOAMD64
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 9583b3f327..693de8ff49 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -582,9 +582,6 @@ Architecture-specific environment variables:
+ 	GO386
+ 		For GOARCH=386, the floating point instruction set.
+ 		Valid values are 387, sse2.
+-	GOAMD64
+-		For GOARCH=amd64, jumps can be optionally be aligned such that they do not end on
+-		or cross 32 byte boundaries.  Valid values are alignedjumps (default), normaljumps.
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 72dd5856f8..2f94ec6a67 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -37,16 +37,13 @@ var (
+ 
+ const (
+ 	ElfRelocOffset   = 256
+-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
++	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
++	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
+ )
+ 
++// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
+ func goamd64() string {
+-	switch v := envOr("GOAMD64", defaultGOAMD64); v {
+-	case "normaljumps", "alignedjumps":
+-		return v
+-	}
+-	log.Fatalf("Invalid GOAMD64 value. Must be normaljumps or alignedjumps.")
+-	panic("unreachable")
++	return Go115AMD64
+ }
+ 
+ func goarm() int {
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index e40b7b4d1a..bdbe9df3e7 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -33,7 +33,6 @@ const KnownEnv = `
+ 	GCCGO
+ 	GO111MODULE
+ 	GO386
+-	GOAMD64
+ 	GOARCH
+ 	GOARM
+ 	GOBIN

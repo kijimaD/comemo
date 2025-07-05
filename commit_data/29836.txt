@@ -16,7 +16,68 @@ Date:   Fri Sep 2 21:03:57 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/archive/tar/common.go |  4 ++++
  src/archive/tar/reader.go | 14 +++++++-------
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 38997fe754..d2ae66d554 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -20,6 +20,10 @@ import (
+ 	"time"
+ )
+ 
++// BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
++// architectures. If a large value is encountered when decoding, the result
++// stored in Header will be the truncated version.
++
+ // Header type flags.
+ const (
+ 	TypeReg           = '0'    // regular file
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 462fb8d5d4..4eff314c76 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -269,13 +269,13 @@ func (tr *Reader) checkForGNUSparsePAXHeaders(hdr *Header, headers map[string]st
+ 		hdr.Name = sparseName
+ 	}
+ 	if sparseSizeOk {
+-		realSize, err := strconv.ParseInt(sparseSize, 10, 0)
++		realSize, err := strconv.ParseInt(sparseSize, 10, 64)
+ 		if err != nil {
+ 			return nil, ErrHeader
+ 		}
+ 		hdr.Size = realSize
+ 	} else if sparseRealSizeOk {
+-		realSize, err := strconv.ParseInt(sparseRealSize, 10, 0)
++		realSize, err := strconv.ParseInt(sparseRealSize, 10, 64)
+ 		if err != nil {
+ 			return nil, ErrHeader
+ 		}
+@@ -312,11 +312,11 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
+ 		case paxGname:
+ 			hdr.Gname = v
+ 		case paxUid:
+-			id64, err = strconv.ParseInt(v, 10, 0)
+-			hdr.Uid = int(id64)
++			id64, err = strconv.ParseInt(v, 10, 64)
++			hdr.Uid = int(id64) // Integer overflow possible
+ 		case paxGid:
+-			id64, err = strconv.ParseInt(v, 10, 0)
+-			hdr.Gid = int(id64)
++			id64, err = strconv.ParseInt(v, 10, 64)
++			hdr.Gid = int(id64) // Integer overflow possible
+ 		case paxAtime:
+ 			hdr.AccessTime, err = parsePAXTime(v)
+ 		case paxMtime:
+@@ -324,7 +324,7 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
+ 		case paxCtime:
+ 			hdr.ChangeTime, err = parsePAXTime(v)
+ 		case paxSize:
+-			hdr.Size, err = strconv.ParseInt(v, 10, 0)
++			hdr.Size, err = strconv.ParseInt(v, 10, 64)
+ 		default:
+ 			if strings.HasPrefix(k, paxXattr) {
+ 				if hdr.Xattrs == nil {

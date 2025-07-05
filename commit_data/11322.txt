@@ -17,8 +17,210 @@ Date:   Mon Jan 23 00:50:05 2012 -0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5539070
-
+---
  src/pkg/encoding/xml/marshal.go      | 58 +++++++++++++++++++++---------------
  src/pkg/encoding/xml/marshal_test.go | 50 +++++++++++++++++++++++++++++++
  src/pkg/encoding/xml/read.go         | 12 ++++----
  3 files changed, 91 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index d25ee30a72..1cb6b5b146 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -181,23 +181,43 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 		if finfo.flags&fAttr == 0 {
+ 			continue
+ 		}
+-		var str string
+-		if fv := val.FieldByIndex(finfo.idx); fv.Kind() == reflect.String {
+-			str = fv.String()
+-		} else {
+-			str = fmt.Sprint(fv.Interface())
++		fv := val.FieldByIndex(finfo.idx)
++		switch fv.Kind() {
++		case reflect.String, reflect.Array, reflect.Slice:
++			// TODO: Should we really do this once ,omitempty is in?
++			if fv.Len() == 0 {
++				continue
++			}
+ 		}
+-		if str != "" {
+-			p.WriteByte(' ')
+-			p.WriteString(finfo.name)
+-			p.WriteString(`="`)
+-			Escape(p, []byte(str))
+-			p.WriteByte('"')
++		p.WriteByte(' ')
++		p.WriteString(finfo.name)
++		p.WriteString(`="`)
++		if err := p.marshalSimple(fv.Type(), fv); err != nil {
++			return err
+ 		}
++		p.WriteByte('"')
++	}
++	p.WriteByte('>')
++
++	if val.Kind() == reflect.Struct {
++		err = p.marshalStruct(tinfo, val)
++	} else {
++		err = p.marshalSimple(typ, val)
+ 	}
++	if err != nil {
++		return err
++	}
++
++	p.WriteByte('<')
++	p.WriteByte('/')
++	p.WriteString(name)
+ 	p.WriteByte('>')
+ 
+-	switch k := val.Kind(); k {
++	return nil
++}
++
++func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
++	switch val.Kind() {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		p.WriteString(strconv.FormatInt(val.Int(), 10))
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+@@ -205,6 +225,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 	case reflect.Float32, reflect.Float64:
+ 		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, 64))
+ 	case reflect.String:
++		// TODO: Add EscapeString.
+ 		Escape(p, []byte(val.String()))
+ 	case reflect.Bool:
+ 		p.WriteString(strconv.FormatBool(val.Bool()))
+@@ -217,21 +238,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 		Escape(p, bytes)
+ 	case reflect.Slice:
+ 		// will be []byte
+-		bytes := val.Interface().([]byte)
+-		Escape(p, bytes)
+-	case reflect.Struct:
+-		if err := p.marshalStruct(tinfo, val); err != nil {
+-			return err
+-		}
++		Escape(p, val.Bytes())
+ 	default:
+ 		return &UnsupportedTypeError{typ}
+ 	}
+-
+-	p.WriteByte('<')
+-	p.WriteByte('/')
+-	p.WriteString(name)
+-	p.WriteByte('>')
+-
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index f23b2cb7e0..6beff17019 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -184,6 +184,18 @@ type RecurseB struct {
+ 	B string
+ }
+ 
++type PresenceTest struct {
++	Exists *struct{}
++}
++
++type MyBytes []byte
++
++type Data struct {
++	Bytes  []byte
++	Attr   []byte `xml:",attr"`
++	Custom MyBytes
++}
++
+ type Plain struct {
+ 	V interface{}
+ }
+@@ -225,6 +237,44 @@ var marshalTests = []struct {
+ 	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 
++	// A pointer to struct{} may be used to test for an element's presence.
++	{
++		Value:     &PresenceTest{new(struct{})},
++		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
++	},
++	{
++		Value:     &PresenceTest{},
++		ExpectXML: `<PresenceTest></PresenceTest>`,
++	},
++
++	// A pointer to struct{} may be used to test for an element's presence.
++	{
++		Value:     &PresenceTest{new(struct{})},
++		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
++	},
++	{
++		Value:     &PresenceTest{},
++		ExpectXML: `<PresenceTest></PresenceTest>`,
++	},
++
++	// A []byte field is only nil if the element was not found.
++	{
++		Value:         &Data{},
++		ExpectXML:     `<Data></Data>`,
++		UnmarshalOnly: true,
++	},
++	{
++		Value:         &Data{Bytes: []byte{}, Custom: MyBytes{}, Attr: []byte{}},
++		ExpectXML:     `<Data Attr=""><Bytes></Bytes><Custom></Custom></Data>`,
++		UnmarshalOnly: true,
++	},
++
++	// Check that []byte works, including named []byte types.
++	{
++		Value:     &Data{Bytes: []byte("ab"), Custom: MyBytes("cd"), Attr: []byte{'v'}},
++		ExpectXML: `<Data Attr="v"><Bytes>ab</Bytes><Custom>cd</Custom></Data>`,
++	},
++
+ 	// Test innerxml
+ 	{
+ 		Value: &SecretAgent{
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 4419ed1e47..a795fdec79 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -134,7 +134,7 @@ import (
+ //
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+-// []byte.
++// []byte. The saved []byte is never nil.
+ //
+ // Unmarshal maps an attribute value to a string or []byte by saving
+ // the value in the string or slice.
+@@ -309,14 +309,12 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 			case fAttr:
+ 				strv := sv.FieldByIndex(finfo.idx)
+ 				// Look for attribute.
+-				val := ""
+ 				for _, a := range start.Attr {
+ 					if a.Name.Local == finfo.name {
+-						val = a.Value
++						copyValue(strv, []byte(a.Value))
+ 						break
+ 					}
+ 				}
+-				copyValue(strv, []byte(val))
+ 
+ 			case fCharData:
+ 				if !saveData.IsValid() {
+@@ -473,7 +471,11 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 	case reflect.String:
+ 		t.SetString(string(src))
+ 	case reflect.Slice:
+-		t.Set(reflect.ValueOf(src))
++		if len(src) == 0 {
++			// non-nil to flag presence
++			src = []byte{}
++		}
++		t.SetBytes(src)
+ 	}
+ 	return nil
+ }

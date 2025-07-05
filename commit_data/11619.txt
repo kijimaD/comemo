@@ -9,6 +9,24 @@ Date:   Sat Feb 4 01:39:29 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5629050
-
+---
  src/cmd/dist/unix.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index d62ebcaa83..2c3624ad54 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -641,6 +641,12 @@ main(int argc, char **argv)
+ 		gohostarch = "amd64";
+ #elif defined(__linux__)
+ 	gohostos = "linux";
++#elif defined(__FreeBSD__)
++	gohostos = "freebsd";
++#elif defined(__OpenBSD__)
++	gohostos = "openbsd";
++#elif defined(__NetBSD__)
++	gohostos = "netbsd";
+ #else
+ 	fatal("unknown operating system");
+ #endif

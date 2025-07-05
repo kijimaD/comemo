@@ -62,7 +62,7 @@ Date:   Wed Nov 12 14:54:31 2014 -0500
     R=r, khr
     CC=austin, golang-codereviews, iant, rlh
     https://golang.org/cl/174950043
-
+---
  src/runtime/asm_386.s        | 53 ++++++++++++++---------------------
  src/runtime/asm_amd64.s      | 52 +++++++++++++---------------------
  src/runtime/asm_amd64p32.s   | 43 ++++++++++-------------------
@@ -100,3 +100,1821 @@ Date:   Wed Nov 12 14:54:31 2014 -0500
  src/runtime/symtab.go        | 19 ++++++-------
  src/runtime/traceback.go     | 30 ++++++++++----------
  36 files changed, 259 insertions(+), 422 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 45c8e4e6be..8cdfebde56 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -200,62 +200,49 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	JMP	AX
+ 	RET
+ 
+-// switchtoM is a dummy routine that onM leaves at the bottom
++// systemstack_switch is a dummy routine that systemstack leaves at the bottom
+ // of the G stack.  We need to distinguish the routine that
+ // lives at the bottom of the G stack from the one that lives
+-// at the top of the M stack because the one at the top of
+-// the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
++// at the top of the system stack because the one at the top of
++// the system stack terminates the stack walk (see topofstack()).
++TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
+-// func onM_signalok(fn func())
+-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB), NOSPLIT, $0-4
++	MOVL	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX	// AX = g
+ 	MOVL	g_m(AX), BX	// BX = m
++
+ 	MOVL	m_gsignal(BX), DX	// DX = gsignal
+ 	CMPL	AX, DX
+-	JEQ	ongsignal
+-	JMP	runtime·onM(SB)
+-
+-ongsignal:
+-	MOVL	fn+0(FP), DI	// DI = fn
+-	MOVL	DI, DX
+-	MOVL	0(DI), DI
+-	CALL	DI
+-	RET
+-
+-// func onM(fn func())
+-TEXT runtime·onM(SB), NOSPLIT, $0-4
+-	MOVL	fn+0(FP), DI	// DI = fn
+-	get_tls(CX)
+-	MOVL	g(CX), AX	// AX = g
+-	MOVL	g_m(AX), BX	// BX = m
++	JEQ	noswitch
+ 
+ 	MOVL	m_g0(BX), DX	// DX = g0
+ 	CMPL	AX, DX
+-	JEQ	onm
++	JEQ	noswitch
+ 
+ 	MOVL	m_curg(BX), BP
+ 	CMPL	AX, BP
+-	JEQ	oncurg
++	JEQ	switch
+ 	
+-	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Bad: g is not gsignal, not g0, not curg. What is it?
+ 	// Hide call from linker nosplit analysis.
+-	MOVL	$runtime·badonm(SB), AX
++	MOVL	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
+ 
+-oncurg:
++switch:
+ 	// save our state in g->sched.  Pretend to
+-	// be switchtoM if the G stack is scanned.
+-	MOVL	$runtime·switchtoM(SB), (g_sched+gobuf_pc)(AX)
++	// be systemstack_switch if the G stack is scanned.
++	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
+ 	MOVL	SP, (g_sched+gobuf_sp)(AX)
+ 	MOVL	AX, (g_sched+gobuf_g)(AX)
+ 
+ 	// switch to g0
+ 	MOVL	DX, g(CX)
+ 	MOVL	(g_sched+gobuf_sp)(DX), BX
+-	// make it look like mstart called onM on g0, to stop traceback
++	// make it look like mstart called systemstack on g0, to stop traceback
+ 	SUBL	$4, BX
+ 	MOVL	$runtime·mstart(SB), DX
+ 	MOVL	DX, 0(BX)
+@@ -276,8 +263,8 @@ oncurg:
+ 	MOVL	$0, (g_sched+gobuf_sp)(AX)
+ 	RET
+ 
+-onm:
+-	// already on m stack, just call directly
++noswitch:
++	// already on system stack, just call directly
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+ 	CALL	DI
+@@ -741,7 +728,7 @@ needm:
+ 	// the same SP back to m->sched.sp. That seems redundant,
+ 	// but if an unrecovered panic happens, unwindm will
+ 	// restore the g->sched.sp from the stack location
+-	// and then onM will try to use it. If we don't set it here,
++	// and then systemstack will try to use it. If we don't set it here,
+ 	// that restored SP will be uninitialized (typically 0) and
+ 	// will not be usable.
+ 	MOVL	m_g0(BP), SI
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 9a74a5310b..5840c32b5a 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -190,55 +190,41 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	JMP	AX
+ 	RET
+ 
+-// switchtoM is a dummy routine that onM leaves at the bottom
++// systemstack_switch is a dummy routine that systemstack leaves at the bottom
+ // of the G stack.  We need to distinguish the routine that
+ // lives at the bottom of the G stack from the one that lives
+-// at the top of the M stack because the one at the top of
+-// the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
++// at the top of the system stack because the one at the top of
++// the system stack terminates the stack walk (see topofstack()).
++TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
+-// func onM_signalok(fn func())
+-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-8
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB), NOSPLIT, $0-8
++	MOVQ	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX	// AX = g
+ 	MOVQ	g_m(AX), BX	// BX = m
++
+ 	MOVQ	m_gsignal(BX), DX	// DX = gsignal
+ 	CMPQ	AX, DX
+-	JEQ	ongsignal
+-	JMP	runtime·onM(SB)
+-
+-ongsignal:
+-	MOVQ	fn+0(FP), DI	// DI = fn
+-	MOVQ	DI, DX
+-	MOVQ	0(DI), DI
+-	CALL	DI
+-	RET
+-
+-// func onM(fn func())
+-TEXT runtime·onM(SB), NOSPLIT, $0-8
+-	MOVQ	fn+0(FP), DI	// DI = fn
+-	get_tls(CX)
+-	MOVQ	g(CX), AX	// AX = g
+-	MOVQ	g_m(AX), BX	// BX = m
++	JEQ	noswitch
+ 
+ 	MOVQ	m_g0(BX), DX	// DX = g0
+ 	CMPQ	AX, DX
+-	JEQ	onm
++	JEQ	noswitch
+ 
+ 	MOVQ	m_curg(BX), BP
+ 	CMPQ	AX, BP
+-	JEQ	oncurg
++	JEQ	switch
+ 	
+-	// Not g0, not curg. Must be gsignal, but that's not allowed.
+-	// Hide call from linker nosplit analysis.
+-	MOVQ	$runtime·badonm(SB), AX
++	// Bad: g is not gsignal, not g0, not curg. What is it?
++	MOVQ	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
+ 
+-oncurg:
++switch:
+ 	// save our state in g->sched.  Pretend to
+-	// be switchtoM if the G stack is scanned.
+-	MOVQ	$runtime·switchtoM(SB), BP
++	// be systemstack_switch if the G stack is scanned.
++	MOVQ	$runtime·systemstack_switch(SB), BP
+ 	MOVQ	BP, (g_sched+gobuf_pc)(AX)
+ 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
+ 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+@@ -246,7 +232,7 @@ oncurg:
+ 	// switch to g0
+ 	MOVQ	DX, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(DX), BX
+-	// make it look like mstart called onM on g0, to stop traceback
++	// make it look like mstart called systemstack on g0, to stop traceback
+ 	SUBQ	$8, BX
+ 	MOVQ	$runtime·mstart(SB), DX
+ 	MOVQ	DX, 0(BX)
+@@ -267,7 +253,7 @@ oncurg:
+ 	MOVQ	$0, (g_sched+gobuf_sp)(AX)
+ 	RET
+ 
+-onm:
++noswitch:
+ 	// already on m stack, just call directly
+ 	MOVQ	DI, DX
+ 	MOVQ	0(DI), DI
+@@ -727,7 +713,7 @@ needm:
+ 	// the same SP back to m->sched.sp. That seems redundant,
+ 	// but if an unrecovered panic happens, unwindm will
+ 	// restore the g->sched.sp from the stack location
+-	// and then onM will try to use it. If we don't set it here,
++	// and then systemstack will try to use it. If we don't set it here,
+ 	// that restored SP will be uninitialized (typically 0) and
+ 	// will not be usable.
+ 	MOVQ	m_g0(BP), SI
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 99c8569bc9..a202e7ea36 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -165,55 +165,42 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	JMP	AX
+ 	RET
+ 
+-// switchtoM is a dummy routine that onM leaves at the bottom
++// systemstack_switch is a dummy routine that systemstack leaves at the bottom
+ // of the G stack.  We need to distinguish the routine that
+ // lives at the bottom of the G stack from the one that lives
+-// at the top of the M stack because the one at the top of
++// at the top of the system stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
++TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
+-// func onM_signalok(fn func())
+-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB), NOSPLIT, $0-4
++	MOVL	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX	// AX = g
+ 	MOVL	g_m(AX), BX	// BX = m
++
+ 	MOVL	m_gsignal(BX), DX	// DX = gsignal
+ 	CMPL	AX, DX
+-	JEQ	ongsignal
+-	JMP	runtime·onM(SB)
+-
+-ongsignal:
+-	MOVL	fn+0(FP), DI	// DI = fn
+-	MOVL	DI, DX
+-	MOVL	0(DI), DI
+-	CALL	DI
+-	RET
+-
+-// func onM(fn func())
+-TEXT runtime·onM(SB), NOSPLIT, $0-4
+-	MOVL	fn+0(FP), DI	// DI = fn
+-	get_tls(CX)
+-	MOVL	g(CX), AX	// AX = g
+-	MOVL	g_m(AX), BX	// BX = m
++	JEQ	noswitch
+ 
+ 	MOVL	m_g0(BX), DX	// DX = g0
+ 	CMPL	AX, DX
+-	JEQ	onm
++	JEQ	noswitch
+ 
+ 	MOVL	m_curg(BX), R8
+ 	CMPL	AX, R8
+-	JEQ	oncurg
++	JEQ	switch
+ 	
+ 	// Not g0, not curg. Must be gsignal, but that's not allowed.
+ 	// Hide call from linker nosplit analysis.
+-	MOVL	$runtime·badonm(SB), AX
++	MOVL	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
+ 
+-oncurg:
++switch:
+ 	// save our state in g->sched.  Pretend to
+-	// be switchtoM if the G stack is scanned.
+-	MOVL	$runtime·switchtoM(SB), SI
++	// be systemstack_switch if the G stack is scanned.
++	MOVL	$runtime·systemstack_switch(SB), SI
+ 	MOVL	SI, (g_sched+gobuf_pc)(AX)
+ 	MOVL	SP, (g_sched+gobuf_sp)(AX)
+ 	MOVL	AX, (g_sched+gobuf_g)(AX)
+@@ -237,7 +224,7 @@ oncurg:
+ 	MOVL	$0, (g_sched+gobuf_sp)(AX)
+ 	RET
+ 
+-onm:
++noswitch:
+ 	// already on m stack, just call directly
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 897f568054..50dc4f7f2e 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -191,55 +191,42 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ 	B	runtime·badmcall2(SB)
+ 	RET
+ 
+-// switchtoM is a dummy routine that onM leaves at the bottom
++// systemstack_switch is a dummy routine that systemstack leaves at the bottom
+ // of the G stack.  We need to distinguish the routine that
+ // lives at the bottom of the G stack from the one that lives
+-// at the top of the M stack because the one at the top of
+-// the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
++// at the top of the system stack because the one at the top of
++// the system stack terminates the stack walk (see topofstack()).
++TEXT runtime·systemstack_switch(SB),NOSPLIT,$0-0
+ 	MOVW	$0, R0
+ 	BL	(R0) // clobber lr to ensure push {lr} is kept
+ 	RET
+ 
+-// func onM_signalok(fn func())
+-TEXT runtime·onM_signalok(SB), NOSPLIT, $4-4
+-	MOVW	g_m(g), R1
+-	MOVW	m_gsignal(R1), R2
+-	MOVW	fn+0(FP), R0
+-	CMP	g, R2
+-	B.EQ	ongsignal
+-	MOVW	R0, 4(R13)
+-	BL	runtime·onM(SB)
+-	RET
+-
+-ongsignal:
+-	MOVW	R0, R7
+-	MOVW	0(R0), R0
+-	BL	(R0)
+-	RET
+-
+-// func onM(fn func())
+-TEXT runtime·onM(SB),NOSPLIT,$0-4
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB),NOSPLIT,$0-4
+ 	MOVW	fn+0(FP), R0	// R0 = fn
+ 	MOVW	g_m(g), R1	// R1 = m
+ 
++	MOVW	m_gsignal(R1), R2	// R2 = gsignal
++	CMP	g, R2
++	B.EQ	noswitch
++
+ 	MOVW	m_g0(R1), R2	// R2 = g0
+ 	CMP	g, R2
+-	B.EQ	onm
++	B.EQ	noswitch
+ 
+ 	MOVW	m_curg(R1), R3
+ 	CMP	g, R3
+-	B.EQ	oncurg
++	B.EQ	switch
+ 
+-	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Bad: g is not gsignal, not g0, not curg. What is it?
+ 	// Hide call from linker nosplit analysis.
+-	MOVW	$runtime·badonm(SB), R0
++	MOVW	$runtime·badsystemstack(SB), R0
+ 	BL	(R0)
+ 
+-oncurg:
++switch:
+ 	// save our state in g->sched.  Pretend to
+-	// be switchtoM if the G stack is scanned.
+-	MOVW	$runtime·switchtoM(SB), R3
++	// be systemstack_switch if the G stack is scanned.
++	MOVW	$runtime·systemstack_switch(SB), R3
+ 	ADD	$4, R3, R3 // get past push {lr}
+ 	MOVW	R3, (g_sched+gobuf_pc)(g)
+ 	MOVW	SP, (g_sched+gobuf_sp)(g)
+@@ -252,7 +239,7 @@ oncurg:
+ 	BL	setg<>(SB)
+ 	MOVW	R5, R0
+ 	MOVW	(g_sched+gobuf_sp)(R2), R3
+-	// make it look like mstart called onM on g0, to stop traceback
++	// make it look like mstart called systemstack on g0, to stop traceback
+ 	SUB	$4, R3, R3
+ 	MOVW	$runtime·mstart(SB), R4
+ 	MOVW	R4, 0(R3)
+@@ -272,7 +259,7 @@ oncurg:
+ 	MOVW	R3, (g_sched+gobuf_sp)(g)
+ 	RET
+ 
+-onm:
++noswitch:
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+ 	BL	(R0)
+@@ -567,7 +554,7 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+ 	// the same SP back to m->sched.sp. That seems redundant,
+ 	// but if an unrecovered panic happens, unwindm will
+ 	// restore the g->sched.sp from the stack location
+-	// and then onM will try to use it. If we don't set it here,
++	// and then systemstack will try to use it. If we don't set it here,
+ 	// that restored SP will be uninitialized (typically 0) and
+ 	// will not be usable.
+ 	MOVW	g_m(g), R8
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index b1632cdd16..fd55a0aca8 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -85,7 +85,7 @@ func atomicstore(addr *uint32, v uint32) {
+ //go:nosplit
+ func cas64(addr *uint64, old, new uint64) bool {
+ 	var ok bool
+-	onM(func() {
++	systemstack(func() {
+ 		lock(addrLock(addr))
+ 		if *addr == old {
+ 			*addr = new
+@@ -99,7 +99,7 @@ func cas64(addr *uint64, old, new uint64) bool {
+ //go:nosplit
+ func xadd64(addr *uint64, delta int64) uint64 {
+ 	var r uint64
+-	onM(func() {
++	systemstack(func() {
+ 		lock(addrLock(addr))
+ 		r = *addr + uint64(delta)
+ 		*addr = r
+@@ -111,7 +111,7 @@ func xadd64(addr *uint64, delta int64) uint64 {
+ //go:nosplit
+ func xchg64(addr *uint64, v uint64) uint64 {
+ 	var r uint64
+-	onM(func() {
++	systemstack(func() {
+ 		lock(addrLock(addr))
+ 		r = *addr
+ 		*addr = v
+@@ -123,7 +123,7 @@ func xchg64(addr *uint64, v uint64) uint64 {
+ //go:nosplit
+ func atomicload64(addr *uint64) uint64 {
+ 	var r uint64
+-	onM(func() {
++	systemstack(func() {
+ 		lock(addrLock(addr))
+ 		r = *addr
+ 		unlock(addrLock(addr))
+@@ -133,7 +133,7 @@ func atomicload64(addr *uint64) uint64 {
+ 
+ //go:nosplit
+ func atomicstore64(addr *uint64, v uint64) {
+-	onM(func() {
++	systemstack(func() {
+ 		lock(addrLock(addr))
+ 		*addr = v
+ 		unlock(addrLock(addr))
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a1fc06d39d..258cabfc83 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -103,7 +103,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 
+ 	// Create an extra M for callbacks on threads not created by Go on first cgo call.
+ 	if needextram == 1 && cas(&needextram, 1, 0) {
+-		onM(newextram)
++		systemstack(newextram)
+ 	}
+ 
+ 	/*
+@@ -195,7 +195,7 @@ func cgocallbackg1() {
+ 	gp := getg()
+ 	if gp.m.needextram {
+ 		gp.m.needextram = false
+-		onM(newextram)
++		systemstack(newextram)
+ 	}
+ 
+ 	// Add entry to defer stack in case of panic.
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 245eaebdac..d56678e21f 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -102,9 +102,9 @@ var (
+ )
+ 
+ func setcpuprofilerate(hz int32) {
+-	g := getg()
+-	g.m.scalararg[0] = uintptr(hz)
+-	onM(setcpuprofilerate_m)
++	systemstack(func() {
++		setcpuprofilerate_m(hz)
++	})
+ }
+ 
+ // lostProfileData is a no-op function used in profiles
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index f954265aa5..105b79cfef 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -25,14 +25,14 @@ func GOMAXPROCS(n int) int {
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+ 	gp.m.gcing = 1
+-	onM(stoptheworld)
++	systemstack(stoptheworld)
+ 
+ 	// newprocs will be processed by starttheworld
+ 	newprocs = int32(n)
+ 
+ 	gp.m.gcing = 0
+ 	semrelease(&worldsema)
+-	onM(starttheworld)
++	systemstack(starttheworld)
+ 	return ret
+ }
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0ecf91fdf8..e871236e48 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -59,21 +59,21 @@ func parforiters_m()
+ 
+ func NewParFor(nthrmax uint32) *ParFor {
+ 	var desc *ParFor
+-	onM(func() {
++	systemstack(func() {
+ 		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
+ 	})
+ 	return desc
+ }
+ 
+ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
+-	onM(func() {
++	systemstack(func() {
+ 		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
+ 			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
+ 	})
+ }
+ 
+ func ParForDo(desc *ParFor) {
+-	onM(func() {
++	systemstack(func() {
+ 		parfordo((*parfor)(unsafe.Pointer(desc)))
+ 	})
+ }
+@@ -87,7 +87,7 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+ func GCMask(x interface{}) (ret []byte) {
+ 	e := (*eface)(unsafe.Pointer(&x))
+ 	s := (*slice)(unsafe.Pointer(&ret))
+-	onM(func() {
++	systemstack(func() {
+ 		var len uintptr
+ 		getgcmask(e.data, e._type, &s.array, &len)
+ 		s.len = uint(len)
+@@ -97,10 +97,10 @@ func GCMask(x interface{}) (ret []byte) {
+ }
+ 
+ func RunSchedLocalQueueTest() {
+-	onM(testSchedLocalQueue)
++	systemstack(testSchedLocalQueue)
+ }
+ func RunSchedLocalQueueStealTest() {
+-	onM(testSchedLocalQueueSteal)
++	systemstack(testSchedLocalQueueSteal)
+ }
+ 
+ var HaveGoodHash = haveGoodHash
+@@ -121,7 +121,7 @@ func GogoBytes() int32 {
+ 
+ // entry point for testing
+ func GostringW(w []uint16) (s string) {
+-	onM(func() {
++	systemstack(func() {
+ 		s = gostringw(&w[0])
+ 	})
+ 	return
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 6cc5df810c..34fdeb2b41 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -112,7 +112,8 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
+ 		xpc--
+ 	}
+-	line = int(funcline(f, xpc, &file))
++	file, line32 := funcline(f, xpc)
++	line = int(line32)
+ 	ok = true
+ 	return
+ }
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 01e70a34d7..c942e01639 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -602,8 +602,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ 			if i > 0 && pc > f.entry {
+ 				pc--
+ 			}
+-			var file string
+-			line := funcline(f, pc, &file)
++			file, line := funcline(f, pc)
+ 			dumpstr(file)
+ 			dumpint(uint64(line))
+ 		}
+@@ -657,11 +656,8 @@ func mdump() {
+ 	flush()
+ }
+ 
+-func writeheapdump_m() {
++func writeheapdump_m(fd uintptr) {
+ 	_g_ := getg()
+-	fd := _g_.m.scalararg[0]
+-	_g_.m.scalararg[0] = 0
+-
+ 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
+ 	_g_.waitreason = "dumping heap"
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a11724500f..89b6ffac3f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -57,7 +57,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	// This function must be atomic wrt GC, but for performance reasons
+ 	// we don't acquirem/releasem on fast path. The code below does not have
+ 	// split stack checks, so it can't be preempted by GC.
+-	// Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
++	// Functions like roundup/add are inlined. And systemstack/racemalloc are nosplit.
+ 	// If debugMalloc = true, these assumptions are checked below.
+ 	if debugMalloc {
+ 		mp := acquirem()
+@@ -143,7 +143,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			s = c.alloc[tinySizeClass]
+ 			v := s.freelist
+ 			if v == nil {
+-				onM(func() {
++				systemstack(func() {
+ 					mCache_Refill(c, tinySizeClass)
+ 				})
+ 				s = c.alloc[tinySizeClass]
+@@ -173,7 +173,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			s = c.alloc[sizeclass]
+ 			v := s.freelist
+ 			if v == nil {
+-				onM(func() {
++				systemstack(func() {
+ 					mCache_Refill(c, int32(sizeclass))
+ 				})
+ 				s = c.alloc[sizeclass]
+@@ -193,7 +193,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		c.local_cachealloc += intptr(size)
+ 	} else {
+ 		var s *mspan
+-		onM(func() {
++		systemstack(func() {
+ 			s = largeAlloc(size, uint32(flags))
+ 		})
+ 		x = unsafe.Pointer(uintptr(s.start << pageShift))
+@@ -247,22 +247,17 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 				// into the GC bitmap. It's 7 times slower than copying
+ 				// from the pre-unrolled mask, but saves 1/16 of type size
+ 				// memory for the mask.
+-				mp := acquirem()
+-				mp.ptrarg[0] = x
+-				mp.ptrarg[1] = unsafe.Pointer(typ)
+-				mp.scalararg[0] = uintptr(size)
+-				mp.scalararg[1] = uintptr(size0)
+-				onM(unrollgcproginplace_m)
+-				releasem(mp)
++				systemstack(func() {
++					unrollgcproginplace_m(x, typ, size, size0)
++				})
+ 				goto marked
+ 			}
+ 			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+ 			// Check whether the program is already unrolled.
+ 			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+-				mp := acquirem()
+-				mp.ptrarg[0] = unsafe.Pointer(typ)
+-				onM(unrollgcprog_m)
+-				releasem(mp)
++				systemstack(func() {
++					unrollgcprog_m(typ)
++				})
+ 			}
+ 			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+ 		} else {
+@@ -434,7 +429,7 @@ func gogc(force int32) {
+ 	mp = acquirem()
+ 	mp.gcing = 1
+ 	releasem(mp)
+-	onM(stoptheworld)
++	systemstack(stoptheworld)
+ 	if mp != acquirem() {
+ 		gothrow("gogc: rescheduled")
+ 	}
+@@ -455,20 +450,16 @@ func gogc(force int32) {
+ 			startTime = nanotime()
+ 		}
+ 		// switch to g0, call gc, then switch back
+-		mp.scalararg[0] = uintptr(uint32(startTime)) // low 32 bits
+-		mp.scalararg[1] = uintptr(startTime >> 32)   // high 32 bits
+-		if force >= 2 {
+-			mp.scalararg[2] = 1 // eagersweep
+-		} else {
+-			mp.scalararg[2] = 0
+-		}
+-		onM(gc_m)
++		eagersweep := force >= 2
++		systemstack(func() {
++			gc_m(startTime, eagersweep)
++		})
+ 	}
+ 
+ 	// all done
+ 	mp.gcing = 0
+ 	semrelease(&worldsema)
+-	onM(starttheworld)
++	systemstack(starttheworld)
+ 	releasem(mp)
+ 	mp = nil
+ 
+@@ -580,8 +571,8 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	f := (*eface)(unsafe.Pointer(&finalizer))
+ 	ftyp := f._type
+ 	if ftyp == nil {
+-		// switch to M stack and remove finalizer
+-		onM(func() {
++		// switch to system stack and remove finalizer
++		systemstack(func() {
+ 			removefinalizer(e.data)
+ 		})
+ 		return
+@@ -628,7 +619,7 @@ okarg:
+ 	// make sure we have a finalizer goroutine
+ 	createfing()
+ 
+-	onM(func() {
++	systemstack(func() {
+ 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
+ 			gothrow("runtime.SetFinalizer: finalizer already set")
+ 		}
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 7482bc047f..d3afef6be6 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -35,7 +35,7 @@ func allocmcache() *mcache {
+ }
+ 
+ func freemcache(c *mcache) {
+-	onM(func() {
++	systemstack(func() {
+ 		mCache_ReleaseAll(c)
+ 		stackcache_clear(c)
+ 		gcworkbuffree(c.gcworkbuf)
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 6bd250d380..1835672512 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -82,15 +82,16 @@ func ReadMemStats(m *MemStats) {
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+ 	gp.m.gcing = 1
+-	onM(stoptheworld)
++	systemstack(stoptheworld)
+ 
+-	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
+-	onM(readmemstats_m)
++	systemstack(func() {
++		readmemstats_m(m)
++	})
+ 
+ 	gp.m.gcing = 0
+ 	gp.m.locks++
+ 	semrelease(&worldsema)
+-	onM(starttheworld)
++	systemstack(starttheworld)
+ 	gp.m.locks--
+ }
+ 
+@@ -99,14 +100,15 @@ func writeHeapDump(fd uintptr) {
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+ 	gp.m.gcing = 1
+-	onM(stoptheworld)
++	systemstack(stoptheworld)
+ 
+-	gp.m.scalararg[0] = fd
+-	onM(writeheapdump_m)
++	systemstack(func() {
++		writeheapdump_m(fd)
++	})
+ 
+ 	gp.m.gcing = 0
+ 	gp.m.locks++
+ 	semrelease(&worldsema)
+-	onM(starttheworld)
++	systemstack(starttheworld)
+ 	gp.m.locks--
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 569bf5ddcc..0bb735355b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1058,7 +1058,7 @@ func sweepone() uintptr {
+ 
+ func gosweepone() uintptr {
+ 	var ret uintptr
+-	onM(func() {
++	systemstack(func() {
+ 		ret = sweepone()
+ 	})
+ 	return ret
+@@ -1152,7 +1152,7 @@ func updatememstats(stats *gcstats) {
+ 	}
+ 
+ 	// Flush MCache's to MCentral.
+-	onM(flushallmcaches)
++	systemstack(flushallmcaches)
+ 
+ 	// Aggregate local stats.
+ 	cachestats()
+@@ -1193,13 +1193,6 @@ func updatememstats(stats *gcstats) {
+ 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
+ }
+ 
+-// Structure of arguments passed to function gc().
+-// This allows the arguments to be passed via mcall.
+-type gc_args struct {
+-	start_time int64 // start time of GC in ns (just before stoptheworld)
+-	eagersweep bool
+-}
+-
+ func gcinit() {
+ 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
+ 		gothrow("runtime: size of Workbuf is suboptimal")
+@@ -1211,21 +1204,18 @@ func gcinit() {
+ 	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
+ }
+ 
+-func gc_m() {
++func gc_m(start_time int64, eagersweep bool) {
+ 	_g_ := getg()
+ 	gp := _g_.m.curg
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+ 	gp.waitreason = "garbage collection"
+ 
+-	var a gc_args
+-	a.start_time = int64(_g_.m.scalararg[0]) | int64(uintptr(_g_.m.scalararg[1]))<<32
+-	a.eagersweep = _g_.m.scalararg[2] != 0
+-	gc(&a)
++	gc(start_time, eagersweep)
+ 
+ 	if nbadblock > 0 {
+ 		// Work out path from root to bad block.
+ 		for {
+-			gc(&a)
++			gc(start_time, eagersweep)
+ 			if nbadblock >= int32(len(badblock)) {
+ 				gothrow("cannot find path to bad pointer")
+ 			}
+@@ -1235,7 +1225,7 @@ func gc_m() {
+ 	casgstatus(gp, _Gwaiting, _Grunning)
+ }
+ 
+-func gc(args *gc_args) {
++func gc(start_time int64, eagersweep bool) {
+ 	if _DebugGCPtrs {
+ 		print("GC start\n")
+ 	}
+@@ -1246,8 +1236,8 @@ func gc(args *gc_args) {
+ 
+ 	_g_ := getg()
+ 	_g_.m.traceback = 2
+-	t0 := args.start_time
+-	work.tstart = args.start_time
++	t0 := start_time
++	work.tstart = start_time
+ 
+ 	var t1 int64
+ 	if debug.gctrace > 0 {
+@@ -1367,7 +1357,7 @@ func gc(args *gc_args) {
+ 	sweep.spanidx = 0
+ 	unlock(&mheap_.lock)
+ 
+-	if _ConcurrentSweep && !args.eagersweep {
++	if _ConcurrentSweep && !eagersweep {
+ 		lock(&gclock)
+ 		if !sweep.started {
+ 			go bgsweep()
+@@ -1394,11 +1384,7 @@ func gc(args *gc_args) {
+ 	}
+ }
+ 
+-func readmemstats_m() {
+-	_g_ := getg()
+-	stats := (*mstats)(_g_.m.ptrarg[0])
+-	_g_.m.ptrarg[0] = nil
+-
++func readmemstats_m(stats *MemStats) {
+ 	updatememstats(nil)
+ 
+ 	// Size of the trailing by_size array differs between Go and C,
+@@ -1406,14 +1392,14 @@ func readmemstats_m() {
+ 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
+ 
+ 	// Stack numbers are part of the heap numbers, separate those out for user consumption
+-	stats.stacks_sys = stats.stacks_inuse
+-	stats.heap_inuse -= stats.stacks_inuse
+-	stats.heap_sys -= stats.stacks_inuse
++	stats.StackSys = stats.StackInuse
++	stats.HeapInuse -= stats.StackInuse
++	stats.HeapSys -= stats.StackInuse
+ }
+ 
+ //go:linkname readGCStats runtime/debug.readGCStats
+ func readGCStats(pauses *[]uint64) {
+-	onM(func() {
++	systemstack(func() {
+ 		readGCStats_m(pauses)
+ 	})
+ }
+@@ -1578,16 +1564,7 @@ func unrollglobgcprog(prog *byte, size uintptr) bitvector {
+ 	return bitvector{int32(masksize * 8), &mask[0]}
+ }
+ 
+-func unrollgcproginplace_m() {
+-	_g_ := getg()
+-
+-	v := _g_.m.ptrarg[0]
+-	typ := (*_type)(_g_.m.ptrarg[1])
+-	size := _g_.m.scalararg[0]
+-	size0 := _g_.m.scalararg[1]
+-	_g_.m.ptrarg[0] = nil
+-	_g_.m.ptrarg[1] = nil
+-
++func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
+ 	pos := uintptr(0)
+ 	prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+ 	for pos != size0 {
+@@ -1613,12 +1590,7 @@ func unrollgcproginplace_m() {
+ var unroll mutex
+ 
+ // Unrolls GC program in typ.gc[1] into typ.gc[0]
+-func unrollgcprog_m() {
+-	_g_ := getg()
+-
+-	typ := (*_type)(_g_.m.ptrarg[0])
+-	_g_.m.ptrarg[0] = nil
+-
++func unrollgcprog_m(typ *_type) {
+ 	lock(&unroll)
+ 	mask := (*byte)(unsafe.Pointer(uintptr(typ.gc[0])))
+ 	if *mask == 0 {
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index f7e01c898c..6d4ae61c11 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -28,7 +28,7 @@ func gc_unixnanotime(now *int64) {
+ 
+ func freeOSMemory() {
+ 	gogc(2) // force GC and do eager sweep
+-	onM(scavenge_m)
++	systemstack(scavenge_m)
+ }
+ 
+ var poolcleanup func()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b451b631c1..fedcd69c5a 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -174,7 +174,7 @@ func mHeap_Reclaim(h *mheap, npage uintptr) {
+ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("_mheap_alloc not on M stack")
++		gothrow("_mheap_alloc not on g0 stack")
+ 	}
+ 	lock(&h.lock)
+ 
+@@ -226,7 +226,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero
+ 	// It might trigger stack growth, and the stack growth code needs
+ 	// to be able to allocate heap.
+ 	var s *mspan
+-	onM(func() {
++	systemstack(func() {
+ 		s = mHeap_Alloc_m(h, npage, sizeclass, large)
+ 	})
+ 
+@@ -242,7 +242,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero
+ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("mheap_allocstack not on M stack")
++		gothrow("mheap_allocstack not on g0 stack")
+ 	}
+ 	lock(&h.lock)
+ 	s := mHeap_AllocSpanLocked(h, npage)
+@@ -428,7 +428,7 @@ func mHeap_LookupMaybe(h *mheap, v unsafe.Pointer) *mspan {
+ 
+ // Free the span back into the heap.
+ func mHeap_Free(h *mheap, s *mspan, acct int32) {
+-	onM(func() {
++	systemstack(func() {
+ 		mp := getg().m
+ 		lock(&h.lock)
+ 		memstats.heap_alloc += uint64(mp.mcache.local_cachealloc)
+@@ -447,7 +447,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
+ func mHeap_FreeStack(h *mheap, s *mspan) {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("mheap_freestack not on M stack")
++		gothrow("mheap_freestack not on g0 stack")
+ 	}
+ 	s.needzero = 1
+ 	lock(&h.lock)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 6ff33743b7..ba989b1b86 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -244,7 +244,7 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
+ 	// This reduces potential contention and chances of deadlocks.
+ 	// Since the object must be alive during call to mProf_Malloc,
+ 	// it's fine to do this non-atomically.
+-	onM(func() {
++	systemstack(func() {
+ 		setprofilebucket(p, b)
+ 	})
+ }
+@@ -523,7 +523,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 		gp := getg()
+ 		semacquire(&worldsema, false)
+ 		gp.m.gcing = 1
+-		onM(stoptheworld)
++		systemstack(stoptheworld)
+ 
+ 		n = NumGoroutine()
+ 		if n <= len(p) {
+@@ -531,7 +531,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 			r := p
+ 			sp := getcallersp(unsafe.Pointer(&p))
+ 			pc := getcallerpc(unsafe.Pointer(&p))
+-			onM(func() {
++			systemstack(func() {
+ 				saveg(pc, sp, gp, &r[0])
+ 			})
+ 			r = r[1:]
+@@ -546,7 +546,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 
+ 		gp.m.gcing = 0
+ 		semrelease(&worldsema)
+-		onM(starttheworld)
++		systemstack(starttheworld)
+ 	}
+ 
+ 	return n, ok
+@@ -570,7 +570,7 @@ func Stack(buf []byte, all bool) int {
+ 		semacquire(&worldsema, false)
+ 		mp.gcing = 1
+ 		releasem(mp)
+-		onM(stoptheworld)
++		systemstack(stoptheworld)
+ 		if mp != acquirem() {
+ 			gothrow("Stack: rescheduled")
+ 		}
+@@ -580,7 +580,7 @@ func Stack(buf []byte, all bool) int {
+ 	if len(buf) > 0 {
+ 		sp := getcallersp(unsafe.Pointer(&buf))
+ 		pc := getcallerpc(unsafe.Pointer(&buf))
+-		onM(func() {
++		systemstack(func() {
+ 			g0 := getg()
+ 			g0.writebuf = buf[0:0:len(buf)]
+ 			goroutineheader(gp)
+@@ -596,7 +596,7 @@ func Stack(buf []byte, all bool) int {
+ 	if all {
+ 		mp.gcing = 0
+ 		semrelease(&worldsema)
+-		onM(starttheworld)
++		systemstack(starttheworld)
+ 	}
+ 	releasem(mp)
+ 	return n
+@@ -619,7 +619,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
+ 		goroutineheader(gp)
+ 		pc := getcallerpc(unsafe.Pointer(&p))
+ 		sp := getcallersp(unsafe.Pointer(&p))
+-		onM(func() {
++		systemstack(func() {
+ 			traceback(pc, sp, 0, gp)
+ 		})
+ 	} else {
+@@ -639,7 +639,7 @@ func tracefree(p unsafe.Pointer, size uintptr) {
+ 	goroutineheader(gp)
+ 	pc := getcallerpc(unsafe.Pointer(&p))
+ 	sp := getcallersp(unsafe.Pointer(&p))
+-	onM(func() {
++	systemstack(func() {
+ 		traceback(pc, sp, 0, gp)
+ 	})
+ 	print("\n")
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index e11623c1bd..dd00b2a96d 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -72,7 +72,7 @@ type pollCache struct {
+ var pollcache pollCache
+ 
+ func netpollServerInit() {
+-	onM(netpollinit)
++	systemstack(netpollinit)
+ }
+ 
+ func netpollOpen(fd uintptr) (*pollDesc, int) {
+@@ -94,7 +94,7 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
+ 	unlock(&pd.lock)
+ 
+ 	var errno int32
+-	onM(func() {
++	systemstack(func() {
+ 		errno = netpollopen(fd, pd)
+ 	})
+ 	return pd, int(errno)
+@@ -110,7 +110,7 @@ func netpollClose(pd *pollDesc) {
+ 	if pd.rg != 0 && pd.rg != pdReady {
+ 		gothrow("netpollClose: blocked read on closing descriptor")
+ 	}
+-	onM(func() {
++	systemstack(func() {
+ 		netpollclose(uintptr(pd.fd))
+ 	})
+ 	pollcache.free(pd)
+@@ -143,7 +143,7 @@ func netpollWait(pd *pollDesc, mode int) int {
+ 	}
+ 	// As for now only Solaris uses level-triggered IO.
+ 	if GOOS == "solaris" {
+-		onM(func() {
++		systemstack(func() {
+ 			netpollarm(pd, mode)
+ 		})
+ 	}
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index b30ffbe830..2fbf2cae04 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -24,7 +24,7 @@ func semawakeup(mp *m) {
+ //go:nosplit
+ func semacreate() uintptr {
+ 	var x uintptr
+-	onM(func() {
++	systemstack(func() {
+ 		x = uintptr(mach_semcreate())
+ 	})
+ 	return x
+@@ -349,7 +349,7 @@ func semasleep1(ns int64) int32 {
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+ 	var r int32
+-	onM(func() {
++	systemstack(func() {
+ 		r = semasleep1(ns)
+ 	})
+ 	return r
+@@ -368,9 +368,9 @@ func mach_semrelease(sem uint32) {
+ 
+ 		// mach_semrelease must be completely nosplit,
+ 		// because it is called from Go code.
+-		// If we're going to die, start that process on the m stack
++		// If we're going to die, start that process on the system stack
+ 		// to avoid a Go stack split.
+-		onM_signalok(func() { macherror(r, "semaphore_signal") })
++		systemstack(func() { macherror(r, "semaphore_signal") })
+ 	}
+ }
+ 
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 0b2fedad97..dd22b61d6b 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -32,7 +32,7 @@ func getncpu() int32 {
+ 
+ //go:nosplit
+ func futexsleep(addr *uint32, val uint32, ns int64) {
+-	onM(func() {
++	systemstack(func() {
+ 		futexsleep1(addr, val, ns)
+ 	})
+ }
+@@ -60,7 +60,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ 		return
+ 	}
+ 
+-	onM(func() {
++	systemstack(func() {
+ 		print("umtx_wake_addr=", addr, " ret=", ret, "\n")
+ 	})
+ }
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 311d0ab1ab..cbbd2d689b 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -58,7 +58,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ 	// I don't know that futex wakeup can return
+ 	// EAGAIN or EINTR, but if it does, it would be
+ 	// safe to loop and call futex again.
+-	onM_signalok(func() {
++	systemstack(func() {
+ 		print("futexwakeup addr=", addr, " returned ", ret, "\n")
+ 	})
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 9f3b9a3aaf..8debd33560 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -55,8 +55,8 @@ func throwinit() {
+ //go:nosplit
+ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	if getg().m.curg != getg() {
+-		// go code on the m stack can't defer
+-		gothrow("defer on m")
++		// go code on the system stack can't defer
++		gothrow("defer on system stack")
+ 	}
+ 
+ 	// the arguments of fn are in a perilous state.  The stack map
+@@ -71,7 +71,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	}
+ 	callerpc := getcallerpc(unsafe.Pointer(&siz))
+ 
+-	onM(func() {
++	systemstack(func() {
+ 		d := newdefer(siz)
+ 		if d._panic != nil {
+ 			gothrow("deferproc: d.panic != nil after newdefer")
+@@ -322,7 +322,7 @@ func gopanic(e interface{}) {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		gothrow("panic on m stack")
++		gothrow("panic on system stack")
+ 	}
+ 
+ 	// m.softfloat is set during software floating point.
+@@ -470,17 +470,17 @@ func gorecover(argp uintptr) interface{} {
+ 
+ //go:nosplit
+ func startpanic() {
+-	onM_signalok(startpanic_m)
++	systemstack(startpanic_m)
+ }
+ 
+ //go:nosplit
+ func dopanic(unused int) {
++	pc := getcallerpc(unsafe.Pointer(&unused))
++	sp := getcallersp(unsafe.Pointer(&unused))
+ 	gp := getg()
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(gp)
+-	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
+-	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
+-	onM_signalok(dopanic_m) // should never return
++	systemstack(func() {
++		dopanic_m(gp, pc, sp) // should never return
++	})
+ 	*(*int)(nil) = 0
+ }
+ 
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 4c387485fc..17eadb4135 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -94,20 +94,13 @@ func startpanic_m() {
+ var didothers bool
+ var deadlock mutex
+ 
+-func dopanic_m() {
+-	_g_ := getg()
+-
+-	gp := (*g)(_g_.m.ptrarg[0])
+-	_g_.m.ptrarg[0] = nil
+-	pc := uintptr(_g_.m.scalararg[0])
+-	sp := uintptr(_g_.m.scalararg[1])
+-	_g_.m.scalararg[1] = 0
+-
++func dopanic_m(gp *g, pc, sp uintptr) {
+ 	if gp.sig != 0 {
+ 		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
+ 	}
+ 
+ 	var docrash bool
++	_g_ := getg()
+ 	if t := gotraceback(&docrash); t > 0 {
+ 		if gp != gp.m.g0 {
+ 			print("\n")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 140717535b..05ecb3d9eb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -27,7 +27,7 @@ func main() {
+ 		maxstacksize = 250000000
+ 	}
+ 
+-	onM(newsysmon)
++	systemstack(newsysmon)
+ 
+ 	// Lock the main goroutine onto this, the main OS thread,
+ 	// during initialization.  Most programs won't care, but a few
+@@ -151,7 +151,7 @@ func goparkunlock(lock *mutex, reason string) {
+ }
+ 
+ func goready(gp *g) {
+-	onM(func() {
++	systemstack(func() {
+ 		ready(gp)
+ 	})
+ }
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 319c8e6eed..a19bf144c1 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -362,7 +362,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ //go:nosplit
+ func casgstatus(gp *g, oldval, newval uint32) {
+ 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+-		onM(func() {
++		systemstack(func() {
+ 			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ 			gothrow("casgstatus: bad incoming values")
+ 		})
+@@ -374,7 +374,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		// Help GC if needed.
+ 		if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
+ 			gp.preemptscan = false
+-			onM(func() {
++			systemstack(func() {
+ 				gcphasework(gp)
+ 			})
+ 		}
+@@ -1573,8 +1573,8 @@ func save(pc, sp uintptr) {
+ // because we do not know which of the uintptr arguments are
+ // really pointers (back into the stack).
+ // In practice, this means that we make the fast path run through
+-// entersyscall doing no-split things, and the slow path has to use onM
+-// to run bigger things on the m stack.
++// entersyscall doing no-split things, and the slow path has to use systemstack
++// to run bigger things on the system stack.
+ //
+ // reentersyscall is the entry point used by cgo callbacks, where explicitly
+ // saved SP and PC are restored. This is needed when exitsyscall will be called
+@@ -1602,11 +1602,11 @@ func reentersyscall(pc, sp uintptr) {
+ 	_g_.syscallpc = pc
+ 	casgstatus(_g_, _Grunning, _Gsyscall)
+ 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+-		onM(entersyscall_bad)
++		systemstack(entersyscall_bad)
+ 	}
+ 
+ 	if atomicload(&sched.sysmonwait) != 0 { // TODO: fast atomic
+-		onM(entersyscall_sysmon)
++		systemstack(entersyscall_sysmon)
+ 		save(pc, sp)
+ 	}
+ 
+@@ -1614,7 +1614,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	_g_.m.p.m = nil
+ 	atomicstore(&_g_.m.p.status, _Psyscall)
+ 	if sched.gcwaiting != 0 {
+-		onM(entersyscall_gcwait)
++		systemstack(entersyscall_gcwait)
+ 		save(pc, sp)
+ 	}
+ 
+@@ -1674,10 +1674,10 @@ func entersyscallblock(dummy int32) {
+ 	_g_.syscallpc = _g_.sched.pc
+ 	casgstatus(_g_, _Grunning, _Gsyscall)
+ 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+-		onM(entersyscall_bad)
++		systemstack(entersyscall_bad)
+ 	}
+ 
+-	onM(entersyscallblock_handoff)
++	systemstack(entersyscallblock_handoff)
+ 
+ 	// Resave for traceback during blocked call.
+ 	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+@@ -1768,18 +1768,18 @@ func exitsyscallfast() bool {
+ 	// Try to get any other idle P.
+ 	_g_.m.p = nil
+ 	if sched.pidle != nil {
+-		onM(exitsyscallfast_pidle)
+-		if _g_.m.scalararg[0] != 0 {
+-			_g_.m.scalararg[0] = 0
++		var ok bool
++		systemstack(func() {
++			ok = exitsyscallfast_pidle()
++		})
++		if ok {
+ 			return true
+ 		}
+ 	}
+ 	return false
+ }
+ 
+-func exitsyscallfast_pidle() {
+-	_g_ := getg()
+-
++func exitsyscallfast_pidle() bool {
+ 	lock(&sched.lock)
+ 	_p_ := pidleget()
+ 	if _p_ != nil && atomicload(&sched.sysmonwait) != 0 {
+@@ -1789,10 +1789,9 @@ func exitsyscallfast_pidle() {
+ 	unlock(&sched.lock)
+ 	if _p_ != nil {
+ 		acquirep(_p_)
+-		_g_.m.scalararg[0] = 1
+-	} else {
+-		_g_.m.scalararg[0] = 0
++		return true
+ 	}
++	return false
+ }
+ 
+ // exitsyscall slow path on g0.
+@@ -1844,7 +1843,7 @@ func beforefork() {
+ // Called from syscall package before fork.
+ //go:nosplit
+ func syscall_BeforeFork() {
+-	onM(beforefork)
++	systemstack(beforefork)
+ }
+ 
+ func afterfork() {
+@@ -1863,7 +1862,7 @@ func afterfork() {
+ // Called from syscall package after fork in parent.
+ //go:nosplit
+ func syscall_AfterFork() {
+-	onM(afterfork)
++	systemstack(afterfork)
+ }
+ 
+ // Allocate a new g, with a stack big enough for stacksize bytes.
+@@ -1871,7 +1870,7 @@ func malg(stacksize int32) *g {
+ 	newg := allocg()
+ 	if stacksize >= 0 {
+ 		stacksize = round2(_StackSystem + stacksize)
+-		onM(func() {
++		systemstack(func() {
+ 			newg.stack = stackalloc(uint32(stacksize))
+ 		})
+ 		newg.stackguard0 = newg.stack.lo + _StackGuard
+@@ -1894,7 +1893,7 @@ func newproc(siz int32, fn *funcval) {
+ 	}
+ 
+ 	pc := getcallerpc(unsafe.Pointer(&siz))
+-	onM(func() {
++	systemstack(func() {
+ 		newproc1(fn, (*uint8)(argp), siz, 0, pc)
+ 	})
+ }
+@@ -2037,7 +2036,7 @@ retry:
+ 		_p_.gfreecnt--
+ 		if gp.stack.lo == 0 {
+ 			// Stack was deallocated in gfput.  Allocate a new one.
+-			onM(func() {
++			systemstack(func() {
+ 				gp.stack = stackalloc(_FixedStack)
+ 			})
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+@@ -2121,7 +2120,7 @@ func UnlockOSThread() {
+ func unlockOSThread() {
+ 	_g_ := getg()
+ 	if _g_.m.locked < _LockInternal {
+-		onM(badunlockosthread)
++		systemstack(badunlockosthread)
+ 	}
+ 	_g_.m.locked -= _LockInternal
+ 	dounlockOSThread()
+@@ -2307,12 +2306,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ }
+ 
+ // Arrange to call fn with a traceback hz times a second.
+-func setcpuprofilerate_m() {
+-	_g_ := getg()
+-
+-	hz := int32(_g_.m.scalararg[0])
+-	_g_.m.scalararg[0] = 0
+-
++func setcpuprofilerate_m(hz int32) {
+ 	// Force sane arguments.
+ 	if hz < 0 {
+ 		hz = 0
+@@ -2320,6 +2314,7 @@ func setcpuprofilerate_m() {
+ 
+ 	// Disable preemption, otherwise we can be rescheduled to another thread
+ 	// that has profiling enabled.
++	_g_ := getg()
+ 	_g_.m.locks++
+ 
+ 	// Stop profiler on this thread so that it is safe to lock prof.
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 7d38fae1c3..649cd7295c 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -80,8 +80,8 @@ func racesymbolize(ctx *symbolizeContext) {
+ 	}
+ 
+ 	ctx.fn = funcname(f)
+-	var file string
+-	ctx.line = uintptr(funcline(f, ctx.pc, &file))
++	file, line := funcline(f, ctx.pc)
++	ctx.line = uintptr(line)
+ 	ctx.file = &bytes(file)[0] // assume NUL-terminated
+ 	ctx.off = ctx.pc - f.entry
+ 	ctx.res = 1
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 81782ebfc0..c999b3072d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -245,8 +245,6 @@ type m struct {
+ 	traceback     uint8
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+ 	waitlock      unsafe.Pointer
+-	scalararg     [4]uintptr        // scalar argument/return for mcall
+-	ptrarg        [4]unsafe.Pointer // pointer argument/return for mcall
+ 	//#ifdef GOOS_windows
+ 	thread uintptr // thread handle
+ 	// these are here because they are too large to be on the stack
+diff --git a/src/runtime/signal.go b/src/runtime/signal.go
+deleted file mode 100644
+index 8bfd82c2ad..0000000000
+--- a/src/runtime/signal.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-func sigenable_m() {
+-	_g_ := getg()
+-	sigenable(uint32(_g_.m.scalararg[0]))
+-}
+-
+-func sigdisable_m() {
+-	_g_ := getg()
+-	sigdisable(uint32(_g_.m.scalararg[0]))
+-}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ee2ee2e752..c457083dcf 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -7,5 +7,5 @@
+ package runtime
+ 
+ func os_sigpipe() {
+-	onM(sigpipe)
++	systemstack(sigpipe)
+ }
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index b2155ce86e..82ead228fa 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -139,7 +139,7 @@ func signal_enable(s uint32) {
+ 		return
+ 	}
+ 	sig.wanted[s/32] |= 1 << (s & 31)
+-	sigenable_go(s)
++	sigenable(s)
+ }
+ 
+ // Must only be called from a single goroutine at a time.
+@@ -148,7 +148,7 @@ func signal_disable(s uint32) {
+ 		return
+ 	}
+ 	sig.wanted[s/32] &^= 1 << (s & 31)
+-	sigdisable_go(s)
++	sigdisable(s)
+ }
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -156,15 +156,3 @@ func signal_disable(s uint32) {
+ func badsignal(sig uintptr) {
+ 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }
+-
+-func sigenable_go(s uint32) {
+-	g := getg()
+-	g.m.scalararg[0] = uintptr(s)
+-	onM(sigenable_m)
+-}
+-
+-func sigdisable_go(s uint32) {
+-	g := getg()
+-	g.m.scalararg[0] = uintptr(s)
+-	onM(sigdisable_m)
+-}
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index d806d1f048..746b9ea216 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -606,7 +606,7 @@ done:
+ 
+ //go:nosplit
+ func _sfloat2(pc uint32, regs *[15]uint32) {
+-	onM(func() {
++	systemstack(func() {
+ 		pc = sfloat2(pc, regs)
+ 	})
+ }
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index f93160b157..40dfc76a6d 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -418,8 +418,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	if stackDebug >= 2 {
+ 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
+ 	}
+-	if f.entry == switchtoMPC {
+-		// A special routine at the bottom of stack of a goroutine that does an onM call.
++	if f.entry == systemstack_switchPC {
++		// A special routine at the bottom of stack of a goroutine that does an systemstack call.
+ 		// We will allow it to be copied even though we don't
+ 		// have full GC info for it (because it is written in asm).
+ 		return true
+@@ -801,7 +801,7 @@ func shrinkfinish() {
+ 
+ //go:nosplit
+ func morestackc() {
+-	onM(func() {
++	systemstack(func() {
+ 		gothrow("attempt to execute C code on Go stack")
+ 	})
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2be4ad5315..bca0a1d7cd 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -38,56 +38,28 @@ func getg() *g
+ //go:noescape
+ func mcall(fn func(*g))
+ 
+-// onM switches from the g to the g0 stack and invokes fn().
+-// When fn returns, onM switches back to the g and returns,
+-// continuing execution on the g stack.
+-// If arguments must be passed to fn, they can be written to
+-// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
+-// before the call and then consulted during fn.
+-// Similarly, fn can pass return values back in those locations.
+-// If fn is written in Go, it can be a closure, which avoids the need for
+-// ptrarg and scalararg entirely.
+-// After reading values out of ptrarg and scalararg it is conventional
+-// to zero them to avoid (memory or information) leaks.
++// systemstack runs fn on a system stack.
++// If systemstack is called from the per-OS-thread (g0) stack, or
++// if systemstack is called from the signal handling (gsignal) stack,
++// systemstack calls fn directly and returns.
++// Otherwise, systemstack is being called from the limited stack
++// of an ordinary goroutine. In this case, systemstack switches
++// to the per-OS-thread stack, calls fn, and switches back.
++// It is common to use a func literal as the argument, in order
++// to share inputs and outputs with the code around the call
++// to system stack:
+ //
+-// If onM is called from a g0 stack, it invokes fn and returns,
+-// without any stack switches.
+-//
+-// If onM is called from a gsignal stack, it crashes the program.
+-// The implication is that functions used in signal handlers must
+-// not use onM.
+-//
+-// NOTE(rsc): We could introduce a separate onMsignal that is
+-// like onM but if called from a gsignal stack would just run fn on
+-// that stack. The caller of onMsignal would be required to save the
+-// old values of ptrarg/scalararg and restore them when the call
+-// was finished, in case the signal interrupted an onM sequence
+-// in progress on the g or g0 stacks. Until there is a clear need for this,
+-// we just reject onM in signal handling contexts entirely.
+-//
+-//go:noescape
+-func onM(fn func())
+-
+-// onMsignal is like onM but is allowed to be used in code that
+-// might run on the gsignal stack. Code running on a signal stack
+-// may be interrupting an onM sequence on the main stack, so
+-// if the onMsignal calling sequence writes to ptrarg/scalararg,
+-// it must first save the old values and then restore them when
+-// finished. As an exception to the rule, it is fine not to save and
+-// restore the values if the program is trying to crash rather than
+-// return from the signal handler.
+-// Once all the runtime is written in Go, there will be no ptrarg/scalararg
+-// and the distinction between onM and onMsignal (and perhaps mcall)
+-// can go away.
+-//
+-// If onMsignal is called from a gsignal stack, it invokes fn directly,
+-// without a stack switch. Otherwise onMsignal behaves like onM.
++//	... set up y ...
++//	systemstack(func() {
++//		x = bigcall(y)
++//	})
++//	... use x ...
+ //
+ //go:noescape
+-func onM_signalok(fn func())
++func systemstack(fn func())
+ 
+-func badonm() {
+-	gothrow("onM called from signal goroutine")
++func badsystemstack() {
++	gothrow("systemstack called from unexpected goroutine")
+ }
+ 
+ // memclr clears n bytes starting at ptr.
+@@ -272,4 +244,4 @@ func call268435456(fn, arg unsafe.Pointer, n, retoffset uint32)
+ func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
+ func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
+ 
+-func switchtoM()
++func systemstack_switch()
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index e11fd128a0..749a289cd1 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -121,8 +121,8 @@ func (f *Func) Entry() uintptr {
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	// Pass strict=false here, because anyone can call this function,
+ 	// and they might just be wrong about targetpc belonging to f.
+-	line = int(funcline1(f.raw(), pc, &file, false))
+-	return file, line
++	file, line32 := funcline1(f.raw(), pc, false)
++	return file, int(line32)
+ }
+ 
+ func findfunc(pc uintptr) *_func {
+@@ -207,20 +207,19 @@ func gofuncname(f *_func) string {
+ 	return gostringnocopy(funcname(f))
+ }
+ 
+-func funcline1(f *_func, targetpc uintptr, file *string, strict bool) int32 {
+-	*file = "?"
++func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
+ 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
+-	line := pcvalue(f, f.pcln, targetpc, strict)
++	line = pcvalue(f, f.pcln, targetpc, strict)
+ 	if fileno == -1 || line == -1 || fileno >= len(filetab) {
+ 		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
+-		return 0
++		return "?", 0
+ 	}
+-	*file = gostringnocopy(&pclntable[filetab[fileno]])
+-	return line
++	file = gostringnocopy(&pclntable[filetab[fileno]])
++	return
+ }
+ 
+-func funcline(f *_func, targetpc uintptr, file *string) int32 {
+-	return funcline1(f, targetpc, file, true)
++func funcline(f *_func, targetpc uintptr) (file string, line int32) {
++	return funcline1(f, targetpc, true)
+ }
+ 
+ func funcspdelta(f *_func, targetpc uintptr) int32 {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 78678815c8..e1cc9123f2 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -32,16 +32,16 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+ 
+ var (
+ 	// initialized in tracebackinit
+-	deferprocPC uintptr
+-	goexitPC    uintptr
+-	jmpdeferPC  uintptr
+-	mcallPC     uintptr
+-	morestackPC uintptr
+-	mstartPC    uintptr
+-	newprocPC   uintptr
+-	rt0_goPC    uintptr
+-	sigpanicPC  uintptr
+-	switchtoMPC uintptr
++	deferprocPC          uintptr
++	goexitPC             uintptr
++	jmpdeferPC           uintptr
++	mcallPC              uintptr
++	morestackPC          uintptr
++	mstartPC             uintptr
++	newprocPC            uintptr
++	rt0_goPC             uintptr
++	sigpanicPC           uintptr
++	systemstack_switchPC uintptr
+ 
+ 	externalthreadhandlerp uintptr // initialized elsewhere
+ )
+@@ -60,7 +60,7 @@ func tracebackinit() {
+ 	newprocPC = funcPC(newproc)
+ 	rt0_goPC = funcPC(rt0_go)
+ 	sigpanicPC = funcPC(sigpanic)
+-	switchtoMPC = funcPC(switchtoM)
++	systemstack_switchPC = funcPC(systemstack_switch)
+ }
+ 
+ // Traceback over the deferred function calls.
+@@ -337,8 +337,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 					print(hex(argp[i]))
+ 				}
+ 				print(")\n")
+-				var file string
+-				line := funcline(f, tracepc, &file)
++				file, line := funcline(f, tracepc)
+ 				print("\t", file, ":", line)
+ 				if frame.pc > f.entry {
+ 					print(" +", hex(frame.pc-f.entry))
+@@ -482,8 +481,7 @@ func printcreatedby(gp *g) {
+ 		if pc > f.entry {
+ 			tracepc -= _PCQuantum
+ 		}
+-		var file string
+-		line := funcline(f, tracepc, &file)
++		file, line := funcline(f, tracepc)
+ 		print("\t", file, ":", line)
+ 		if pc > f.entry {
+ 			print(" +", hex(pc-f.entry))
+@@ -530,7 +528,7 @@ func callers(skip int, pcbuf *uintptr, m int) int {
+ 	sp := getcallersp(unsafe.Pointer(&skip))
+ 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
+ 	var n int
+-	onM(func() {
++	systemstack(func() {
+ 		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
+ 	})
+ 	return n

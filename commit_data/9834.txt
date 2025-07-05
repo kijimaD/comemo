@@ -10,6 +10,22 @@ Date:   Thu Sep 29 15:35:01 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/5165041
-
+---
  src/pkg/io/ioutil/ioutil.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index fffa1320f5..dd50d96869 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -104,6 +104,10 @@ func NopCloser(r io.Reader) io.ReadCloser {
+ 
+ type devNull int
+ 
++// devNull implements ReaderFrom as an optimization so io.Copy to
++// ioutil.Discard can avoid doing unnecessary work.
++var _ io.ReaderFrom = devNull(0)
++
+ func (devNull) Write(p []byte) (int, os.Error) {
+ 	return len(p), nil
+ }

@@ -24,8 +24,67 @@ Date:   Wed Apr 13 16:24:57 2011 -0400
     R=golang-dev, r, iant2
     CC=golang-dev
     https://golang.org/cl/4413042
-
+---
  src/Make.common  | 9 +++++++++
  src/pkg/Makefile | 6 +++---
  test/run         | 1 +
  3 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/Make.common b/src/Make.common
+index af6d04adc1..34d7016f42 100644
+--- a/src/Make.common
++++ b/src/Make.common
+@@ -5,6 +5,15 @@
+ clean:
+ 	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+ 
++install.clean: install
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++
++test.clean: test
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++
++testshort.clean: testshort
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++
+ %.make:
+ 	$(MAKE) -C $* install
+ 
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 8eaf39d79d..2e6e092b0b 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -233,18 +233,18 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
+ 
+ %.install:
+ 	+@echo install $*
+-	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
++	+@$(MAKE) -C $* install.clean >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
+ 
+ %.nuke:
+ 	+$(MAKE) -C $* nuke
+ 
+ %.test:
+ 	+@echo test $*
+-	+@$(MAKE) -C $* test >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
++	+@$(MAKE) -C $* test.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+ 
+ %.testshort:
+ 	+@echo test $*
+-	+@$(MAKE) -C $* testshort >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
++	+@$(MAKE) -C $* testshort.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+ 
+ %.bench:
+ 	+$(MAKE) -C $* bench	
+diff --git a/test/run b/test/run
+index a74933f358..628cc2d7b4 100755
+--- a/test/run
++++ b/test/run
+@@ -99,6 +99,7 @@ do
+ 			echo $i >>pass.out
+ 		fi
+ 		echo $(awk 'NR==1{print $2}' $TMP2FILE) $D/$F >>times.out
++		rm -f $F.$A $A.out
+ 	) done
+ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |

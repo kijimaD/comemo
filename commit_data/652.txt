@@ -7,7 +7,7 @@ Date:   Tue Sep 16 13:42:47 2008 -0700
     R=r,presotto
     OCL=15393
     CL=15399
-
+---
  src/lib/net/Makefile               |  44 ++++
  src/lib/net/cvt.s                  |  38 +++
  src/lib/net/ip.go                  | 431 +++++++++++++++++++++++++++++++++
@@ -18,3 +18,1597 @@ Date:   Tue Sep 16 13:42:47 2008 -0700
  src/syscall/syscall_amd64_darwin.s |  21 ++
  src/syscall/syscall_amd64_linux.s  |  21 ++
  9 files changed, 1517 insertions(+)
+
+diff --git a/src/lib/net/Makefile b/src/lib/net/Makefile
+new file mode 100644
+index 0000000000..5d0802173f
+--- /dev/null
++++ b/src/lib/net/Makefile
+@@ -0,0 +1,44 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++O=6
++GC=$(O)g
++AS=$(O)a
++
++NET=$(GOROOT)/pkg/net.a
++SOCKET=$(GOROOT)/pkg/socket.a
++IP=$(GOROOT)/pkg/ip.$O
++
++NETO=\
++	net.$O\
++
++SOCKETO=\
++	cvt.$O\
++	socket_$(GOOS).$O\
++
++$(NET): $(NETO)
++	$(O)ar grc $(NET) $(NETO)
++
++$(NETO): $(IP) $(SOCKET)
++
++$(SOCKET): $(SOCKETO)
++	$(O)ar grc $(SOCKET) $(SOCKETO)
++
++$(GOROOT)/pkg/%.$O: %.$O
++	cp $*.$O $(GOROOT)/pkg/$*.$O
++	rm $*.$O
++
++install: nuke $(IP) $(SOCKET) $(NET)
++
++nuke:
++	rm -f *.$O *.a $(IP) $(NET)
++
++clean:
++	rm -f *.$O *.a
++
++%.$O:	%.go
++	$(GC) $<
++
++%.$O:	%.s
++	$(AS) $<
+diff --git a/src/lib/net/cvt.s b/src/lib/net/cvt.s
+new file mode 100644
+index 0000000000..920f52351e
+--- /dev/null
++++ b/src/lib/net/cvt.s
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Type-unsafe casts.
++
++TEXT socket·SockaddrPtr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·Int32Ptr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·LingerPtr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT	socket·TimevalPtr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·SockaddrInet4ToSockaddr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·SockaddrToSockaddrInet4(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·SockaddrInet6ToSockaddr(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
++TEXT socket·SockaddrToSockaddrInet6(SB),7,$0
++	MOVQ	8(SP), AX
++	MOVQ	AX, 16(SP)
++	RET
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+new file mode 100644
+index 0000000000..ddb5114c50
+--- /dev/null
++++ b/src/lib/net/ip.go
+@@ -0,0 +1,431 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP address manipulations
++//
++// IPv4 addresses are 4 bytes; IPv6 addresses are 16 bytes.
++// An IPv4 address can be converted to an IPv6 address by
++// adding a canonical prefix (10 zeros, 2 0xFFs).
++// This library accepts either size of byte array but always
++// returns 16-byte addresses.
++
++package ip
++
++export const (
++	IPv4len = 4;
++	IPv6len = 16
++)
++
++// Make the 4 bytes into an IPv4 address (in IPv6 form)
++func MakeIPv4(a, b, c, d byte) *[]byte {
++	p := new([]byte, IPv6len)
++	for i := 0; i < 10; i++ {
++		p[i] = 0
++	}
++	p[10] = 0xff;
++	p[11] = 0xff;
++	p[12] = a;
++	p[13] = b;
++	p[14] = c;
++	p[15] = d
++	return p
++}
++
++// Well-known IP addresses
++export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr *[]byte
++
++func init() {
++	IPv4bcast = MakeIPv4(0xff, 0xff, 0xff, 0xff);
++	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
++	IPv4allrouter = MakeIPv4(0xe0, 0x00, 0x00, 0x02);
++	IPv4prefix = MakeIPv4(0, 0, 0, 0);
++	IPallbits = new([]byte, IPv6len);
++	for i := 0; i < IPv6len; i++ {
++		IPallbits[i] = 0xff
++	}
++	IPnoaddr = new([]byte, IPv6len);	// zeroed
++}
++
++// Is p all zeros?
++func IsZeros(p *[]byte) bool {
++	for i := 0; i < len(p); i++ {
++		if p[i] != 0 {
++			return false
++		}
++	}
++	return true
++}
++
++// Is p an IPv4 address (perhaps in IPv6 form)?
++// If so, return the 4-byte V4 array.
++export func ToIPv4(p *[]byte) *[]byte {
++	if len(p) == IPv4len {
++		return p
++	}
++	if len(p) == IPv6len
++	&& IsZeros(p[0:10])
++	&& p[10] == 0xff
++	&& p[11] == 0xff {
++		return p[12:16]
++	}
++	return nil
++}
++
++// Convert p to IPv6 form.
++export func ToIPv6(p *[]byte) *[]byte {
++	if len(p) == IPv4len {
++		return MakeIPv4(p[0], p[1], p[2], p[3])
++	}
++	if len(p) == IPv6len {
++		return p
++	}
++	return nil
++}
++
++// Default route masks for IPv4.
++export var (
++	ClassAMask = MakeIPv4(0xff, 0, 0, 0);
++	ClassBMask = MakeIPv4(0xff, 0xff, 0, 0);
++	ClassCMask = MakeIPv4(0xff, 0xff, 0xff, 0);
++)
++
++export func DefaultMask(p *[]byte) *[]byte {
++	if p = ToIPv4(p); p == nil {
++		return nil
++	}
++	switch true {
++	case p[0] < 0x80:
++		return ClassAMask;
++	case p[0] < 0xC0:
++		return ClassBMask;
++	default:
++		return ClassCMask;
++	}
++	return nil;	// not reached
++}
++
++// Apply mask to ip, returning new address.
++export func Mask(ip *[]byte, mask *[]byte) *[]byte {
++	n := len(ip)
++	if n != len(mask) {
++		return nil
++	}
++	out := new([]byte, n)
++	for i := 0; i < n; i++ {
++		out[i] = ip[i] & mask[i];
++	}
++	return out
++}
++
++// Convert i to decimal string.
++func itod(i uint) string {
++	if i == 0 {
++		return "0"
++	}
++
++	// Assemble decimal in reverse order.
++	var b [32]byte;
++	bp := len(b);
++	for ; i > 0; i /= 10 {
++		bp--;
++		b[bp] = byte(i%10) + '0'
++	}
++
++	// return string(b[bp:len(b)])
++	return string((&b)[bp:len(b)])
++}
++
++// Convert i to hexadecimal string.
++func itox(i uint) string {
++	if i == 0 {
++		return "0"
++	}
++
++	// Assemble hexadecimal in reverse order.
++	var b [32]byte;
++	bp := len(b);
++	for ; i > 0; i /= 16 {
++		bp--;
++		b[bp] = "0123456789abcdef"[byte(i%16)]
++	}
++
++	// return string(b[bp:len(b)])
++	return string((&b)[bp:len(b)])
++}
++
++// Convert IP address to string.
++export func IPToString(p *[]byte) string {
++	// If IPv4, use dotted notation.
++	if p4 := ToIPv4(p); p4 != nil {
++		return itod(uint(p4[0]))+"."
++			+itod(uint(p4[1]))+"."
++			+itod(uint(p4[2]))+"."
++			+itod(uint(p4[3]))
++	}
++	if len(p) != IPv6len {
++		return "?"
++	}
++
++	// Find longest run of zeros.
++	e0 := -1;
++	e1 := -1
++	for i := 0; i < 16; i+=2 {
++		j := i
++		for j < 16 && p[j] == 0 && p[j+1] == 0 {
++			j += 2
++		}
++		if j > i && j - i > e1 - e0 {
++			e0 = i;
++			e1 = j
++		}
++	}
++
++	// Print with possible :: in place of run of zeros
++	var s string;
++	for i := 0; i < 16; i += 2 {
++		if i == e0 {
++			s += "::";
++			i = e1
++			if i >= 16 {
++				break
++			}
++		} else if i > 0 {
++			s += ":"
++		}
++		s += itox((uint(p[i])<<8) | uint(p[i+1]))
++	}
++	return s
++}
++
++// If mask is a sequence of 1 bits followed by 0 bits,
++// return the number of 1 bits.
++func SimpleMaskLength(mask *[]byte) int {
++	var i int
++	for i = 0; i < len(mask); i++ {
++		if mask[i] != 0xFF {
++			break
++		}
++	}
++	n := 8*i;
++	v := mask[i]
++	for v & 0x80 != 0 {
++		n++
++		v <<= 1
++	}
++	if v != 0 {
++		return -1
++	}
++	for i++; i < len(mask); i++ {
++		if mask[i] != 0 {
++			return -1
++		}
++	}
++	return n
++}
++
++export func MaskToString(mask *[]byte) string {
++	switch len(mask) {
++	case 4:
++		n := SimpleMaskLength(mask)
++		if n >= 0 {
++			return itod(uint(n+(IPv6len-IPv4len)*8))
++		}
++	case 16:
++		n := SimpleMaskLength(mask)
++		if n >= 0 {
++			return itod(uint(n))
++		}
++	}
++	return IPToString(mask)
++}
++
++// Parsing.
++
++// Bigger than we need, not too big to worry about overflow
++const Big = 0xFFFFFF
++
++// Decimal to integer starting at &s[i].
++// Returns number, new offset, success.
++func dtoi(s string, i int) (n int, i1 int, ok bool) {
++	if len(s) <= i || s[i] < '0' || s[i] > '9' {
++		return 0, i, false
++	}
++	n = 0;
++	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
++		n = n*10 + int(s[i] - '0')
++		if n >= Big {
++			return 0, i, false
++		}
++	}
++	return n, i, true
++}
++
++// Is b a hex digit?
++func ishex(b byte) bool {
++	return '0' <= b && b <= '9'
++		|| 'a' <= b && b <= 'f'
++		|| 'A' <= b && b <= 'F'
++}
++
++// Hexadecimal to integer starting at &s[i].
++// Returns number, new offset, success.
++func xtoi(s string, i int) (n int, i1 int, ok bool) {
++	if len(s) <= i || !ishex(s[i]) {
++		return 0, i, false
++	}
++
++	n = 0;
++	for ; i < len(s) && ishex(s[i]); i++ {
++		n *= 16
++		if '0' <= s[i] && s[i] <= '9' {
++			n += int(s[i] - '0')
++		} else if 'a' <= s[i] && s[i] <= 'f' {
++			n += int(s[i] - 'a') + 10
++		} else {
++			n += int(s[i] -'A') + 10
++		}
++		if n >= Big {
++			return 0, i, false
++		}
++	}
++	return n, i, true
++}
++
++// Parse IPv4 address (d.d.d.d).
++func ParseIPv4(s string) *[]byte {
++	var p [IPv4len]byte
++	i := 0
++	for j := 0; j < IPv4len; j++ {
++		if j > 0 {
++			if s[i] != '.' {
++				return nil
++			}
++			i++
++		}
++		var (
++			n int;
++			ok bool
++		)
++		n, i, ok = dtoi(s, i)
++		if !ok || n > 0xFF {
++			return nil
++		}
++		p[j] = byte(n)
++	}
++	if i != len(s) {
++		return nil
++	}
++	return MakeIPv4(p[0], p[1], p[2], p[3])
++}
++
++// Parse IPv6 address.  Many forms.
++// The basic form is a sequence of eight colon-separated
++// 16-bit hex numbers separated by colons,
++// as in 0123:4567:89ab:cdef:0123:4567:89ab:cdef.
++// Two exceptions:
++//	* A run of zeros can be replaced with "::".
++//	* The last 32 bits can be in IPv4 form.
++// Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
++func ParseIPv6(s string) *[]byte {
++	p := new([]byte, 16);
++	ellipsis := -1;	// position of ellipsis in p
++	i := 0;	// index in string s
++
++	// Might have leading ellipsis
++	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
++		ellipsis = 0;
++		i = 2
++	}
++
++	// Loop, parsing hex numbers followed by colon.
++	j := 0;
++L:	for j < IPv6len {
++		// Hex number.
++		n, i1, ok := xtoi(s, i)
++		if !ok || n >= 0xFFFF {
++			return nil
++		}
++
++		// If followed by dot, might be in trailing IPv4.
++		if s[i1] == '.' {
++			if ellipsis < 0 && j != IPv6len - IPv4len {
++				// Not the right place.
++				return nil
++			}
++			if j+IPv4len > IPv6len {
++				// Not enough room.
++				return nil
++			}
++			p4 := ParseIPv4(s[i:len(s)]);
++			if p4 == nil {
++				return nil
++			}
++			// BUG: p[j:j+4] = p4
++			p[j] = p4[12];
++			p[j+1] = p4[13];
++			p[j+2] = p4[14];
++			p[j+3] = p4[15];
++			i = len(s);
++			j += 4
++			break
++		}
++
++		// Save this 16-bit chunk.
++		p[j] = byte(n>>8);
++		p[j+1] = byte(n);
++		j += 2;
++
++		// Stop at end of string.
++		i = i1
++		if i == len(s) {
++			break
++		}
++
++		// Otherwise must be followed by colon and more.
++		if s[i] != ':' && i+1 == len(s) {
++			return nil
++		}
++		i++
++
++		// Look for ellipsis.
++		if s[i+1] == ':' {
++			if ellipsis >= 0 {	// already have one
++				return nil
++			}
++			ellipsis = j;
++			if i++; i == len(s) {	// can be at end
++				break
++			}
++		}
++	}
++
++	// Must have used entire string.
++	if i != len(s) {
++		return nil
++	}
++
++	// If didn't parse enough, expand ellipsis.
++	if j < IPv6len {
++		if ellipsis < 0 {
++			return nil
++		}
++		n := IPv6len - j
++		for k := j; k >= ellipsis; k-- {
++			p[k+n] = p[k]
++		}
++		for k := ellipsis+n-1; k>=ellipsis; k-- {
++			p[k] = 0
++		}
++	}
++	return p
++}
++
++export func ParseIP(s string) *[]byte {
++	p := ParseIPv4(s)
++	if p != nil {
++		return p
++	}
++	return ParseIPv6(s)
++}
++
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+new file mode 100644
+index 0000000000..d44f2d3050
+--- /dev/null
++++ b/src/lib/net/net.go
+@@ -0,0 +1,483 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os";
++	"ip";
++	"socket";
++	"strings";
++	"syscall"
++)
++
++func NewError(s string) *os.Error {
++	e := new(os.Error);
++	e.s = s;
++	return e
++}
++
++export var (
++	BadAddress = NewError("malformed addres");
++	UnknownNetwork = NewError("unknown network");
++	UnknownHost = NewError("unknown host");
++	UnknownPort = NewError("unknown port");
++	UnknownSocketFamily = NewError("unknown socket family");
++)
++
++// Split "host:port" into "host" and "port".
++// Host cannot contain colons unless it is bracketed.
++func SplitHostPort(hostport string) (host, port string, err *os.Error) {
++	// The port starts after the last colon.
++	var i int
++	for i = len(hostport)-1; i >= 0; i-- {
++		if hostport[i] == ':' {
++			break
++		}
++	}
++	if i < 0 {
++		return "", "", BadAddress
++	}
++	
++	host = hostport[0:i];
++	port = hostport[i+1:len(hostport)];
++	
++	// Can put brackets around host ...
++	if host[0] == '[' && host[len(host)-1] == ']' {
++		host = host[1:len(host)-1]
++	} else {
++		// ... but if there are no brackets, no colons.
++		for i := 0; i < len(host); i++ {
++			if host[i] == ':' {
++				return "", "", BadAddress
++			}
++		}
++	}
++	return host, port, nil
++}
++
++// Join "host" and "port" into "host:port".
++// If host contains colons, will join into "[host]:port".
++func JoinHostPort(host, port string) string {
++	// If host has colons, have to bracket it.
++	for i := 0; i < len(host); i++ {
++		if host[i] == ':' {
++			return "[" + host + "]:" + port
++		}
++	}
++	return host + ":" + port
++}
++
++// Convert "host:port" into IP address and port.
++// For now, host and port must be numeric literals.
++// Eventually, we'll have name resolution.
++func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.Error) {
++	var host, port string;
++	host, port, err = SplitHostPort(hostport);
++	if err != nil {
++		return nil, 0, err
++	}
++	
++	// TODO: Resolve host.
++	
++	addr := ip.ParseIP(host);
++	if addr == nil {
++print("Failed to parse: ", host, "\n");
++		return nil, 0, UnknownHost
++	}
++	
++	// TODO: Resolve port.
++	
++	p, ok := strings.atoi(port);
++	if !ok || p < 0 || p > 0xFFFF {
++		return nil, 0, UnknownPort
++	}
++	
++	return addr, p, nil
++}
++
++// Convert socket address into "host:port".
++func SockaddrToHostPort(sa *socket.Sockaddr) (hostport string, err *os.Error) {
++	switch sa.family {
++	case socket.AF_INET, socket.AF_INET6:
++		addr, port, e := socket.SockaddrToIP(sa)
++		if e != nil {
++			return "", e
++		}
++		host := ip.IPToString(addr);
++		return JoinHostPort(host, strings.itoa(port)), nil
++	default:
++		return "", UnknownSocketFamily
++	}
++	return "", nil // not reached
++}
++
++// Boolean to int.
++func boolint(b bool) int {
++	if b {
++		return 1
++	} 
++	return 0
++}
++
++// Generic Socket creation.
++func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
++	s, e := socket.socket(f, p, t);
++	if e != nil {
++		return -1, e
++	}
++	
++	var r int64
++	if la != nil {
++		r, e = socket.bind(s, la)
++		if e != nil {
++			syscall.close(s)
++			return -1, e
++		}
++	}
++	
++	if ra != nil {
++		r, e = socket.connect(s, ra)
++		if e != nil {
++			syscall.close(s)
++			return -1, e
++		}
++	}
++	
++	return s, nil
++}
++
++
++// Generic implementation of Conn interface; not exported.
++
++type ConnBase struct {
++	fd *os.FD;
++	raddr string;
++}
++
++// Eventually, these will use epoll or some such.
++
++func (c *ConnBase) FD() int64 {
++	if c == nil || c.fd == nil {
++		return -1
++	}
++	return c.fd.fd
++}
++
++func (c *ConnBase) Read(b *[]byte) (n int, err *os.Error) {
++	n, err = c.fd.Read(b)
++	return n, err
++}
++
++func (c *ConnBase) Write(b *[]byte) (n int, err *os.Error) {
++	n, err = c.fd.Write(b)
++	return n, err
++}
++
++func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
++	if c == nil {
++		return -1, "", os.EINVAL
++	}
++	n, err = c.Read(b)
++	return n, c.raddr, err
++}
++
++func (c *ConnBase) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
++	if c == nil {
++		return -1, os.EINVAL
++	}
++	if raddr != c.raddr {
++		return -1, os.EINVAL
++	}
++	n, err = c.Write(b)
++	return n, err
++}
++
++func (c *ConnBase) Close() *os.Error {
++	if c == nil {
++		return os.EINVAL
++	}
++	return c.fd.Close()
++}
++
++func (c *ConnBase) SetReadBuffer(bytes int) *os.Error {
++	return socket.setsockopt_int(c.FD(), socket.SOL_SOCKET, socket.SO_RCVBUF, bytes);
++}
++
++func (c *ConnBase) SetWriteBuffer(bytes int) *os.Error {
++	return socket.setsockopt_int(c.FD(), socket.SOL_SOCKET, socket.SO_SNDBUF, bytes);
++}
++
++func (c *ConnBase) SetReadTimeout(nsec int64) *os.Error {
++	return socket.setsockopt_tv(c.FD(), socket.SOL_SOCKET, socket.SO_RCVTIMEO, nsec);
++}
++
++func (c *ConnBase) SetWriteTimeout(nsec int64) *os.Error {
++	return socket.setsockopt_tv(c.FD(), socket.SOL_SOCKET, socket.SO_SNDTIMEO, nsec);
++}
++
++func (c *ConnBase) SetTimeout(nsec int64) *os.Error {
++	if e := c.SetReadTimeout(nsec); e != nil {
++		return e
++	}
++	return c.SetWriteTimeout(nsec)
++}
++
++func (c *ConnBase) SetReuseAddr(reuse bool) *os.Error {
++	return socket.setsockopt_int(c.FD(), socket.SOL_SOCKET, socket.SO_REUSEADDR, boolint(reuse));
++}
++
++func (c *ConnBase) BindToDevice(dev string) *os.Error {
++	// TODO: call setsockopt with null-terminated string pointer
++	return os.EINVAL
++}
++
++func (c *ConnBase) SetDontRoute(dontroute bool) *os.Error {
++	return socket.setsockopt_int(c.FD(), socket.SOL_SOCKET, socket.SO_DONTROUTE, boolint(dontroute));
++}
++
++func (c *ConnBase) SetKeepAlive(keepalive bool) *os.Error {
++	return socket.setsockopt_int(c.FD(), socket.SOL_SOCKET, socket.SO_KEEPALIVE, boolint(keepalive));
++}
++
++func (c *ConnBase) SetLinger(sec int) *os.Error {
++	return socket.setsockopt_linger(c.FD(), socket.SOL_SOCKET, socket.SO_LINGER, sec);
++}
++
++
++// Internet sockets (TCP, UDP)
++
++// Should we try to use the IPv4 socket interface if we're
++// only dealing with IPv4 sockets?  As long as the host system
++// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
++// interface.  That simplifies our code and is most general.
++// If we need to build on a system without IPv6 support, setting
++// PreferIPv4 here should fall back to the IPv4 socket interface when possible.
++const PreferIPv4 = false
++
++func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Error) {
++	// Parse addresses (unless they are empty).
++	var lip, rip *[]byte
++	var lport, rport int
++	var lerr, rerr *os.Error
++	if laddr != "" {
++		lip, lport, lerr = HostPortToIP(net, laddr)
++		if lerr != nil {
++			return -1, lerr
++		}
++	}
++	if raddr != "" {
++		rip, rport, rerr = HostPortToIP(net, raddr)
++		if rerr != nil {
++			return -1, rerr
++		}
++	}
++
++	// Figure out IP version.  
++	// If network has a suffix like "tcp4", obey it.
++	vers := 0;
++	switch net[len(net)-1] {
++	case '4':
++		vers = 4
++	case '6':
++		vers = 6
++	default:
++		// Otherwise, guess.
++		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
++		if PreferIPv4
++		&& (lip == nil || ip.ToIPv4(lip) != nil)
++		&& (rip == nil || ip.ToIPv4(rip) != nil) {
++			vers = 4
++		} else {
++			vers = 6
++		}
++	}
++
++	var cvt *(addr *[]byte, port int) (sa *socket.Sockaddr, err *os.Error)
++	var family int64
++	if vers == 4 {
++		cvt = &socket.IPv4ToSockaddr;
++		family = socket.AF_INET
++	} else {
++		cvt = &socket.IPv6ToSockaddr;
++		family = socket.AF_INET6
++	}
++	
++	var la, ra *socket.Sockaddr;
++	if lip != nil {
++		la, lerr = cvt(lip, lport);
++		if lerr != nil {
++			return -1, lerr
++		}
++	}
++	if rip != nil {
++		ra, rerr = cvt(rip, rport);
++		if rerr != nil {
++			return -1, rerr
++		}
++	}
++
++	fd, err = Socket(family, proto, 0, la, ra);
++	return fd, err
++}
++
++
++// TCP connections.
++
++export type ConnTCP struct {
++	base ConnBase
++}
++
++// New TCP methods
++func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
++	if c == nil {
++		return os.EINVAL
++	}
++	return socket.setsockopt_int(c.base.fd.fd, socket.IPPROTO_TCP, socket.TCP_NODELAY, boolint(nodelay))
++}
++
++// Wrappers
++func (c *ConnTCP) Read(b *[]byte) (n int, err *os.Error) {
++	n, err = (&c.base).Read(b)
++	return n, err
++}
++func (c *ConnTCP) Write(b *[]byte) (n int, err *os.Error) {
++	n, err = (&c.base).Write(b)
++	return n, err
++}
++func (c *ConnTCP) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
++	n, raddr, err = (&c.base).ReadFrom(b)
++	return n, raddr, err
++}
++func (c *ConnTCP) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
++	n, err = (&c.base).WriteTo(raddr, b)
++	return n, err
++}
++func (c *ConnTCP) Close() *os.Error {
++	return (&c.base).Close()
++}
++func (c *ConnTCP) SetReadBuffer(bytes int) *os.Error {
++	return (&c.base).SetReadBuffer(bytes)
++}
++func (c *ConnTCP) SetWriteBuffer(bytes int) *os.Error {
++	return (&c.base).SetWriteBuffer(bytes)
++}
++func (c *ConnTCP) SetTimeout(nsec int64) *os.Error {
++	return (&c.base).SetTimeout(nsec)
++}
++func (c *ConnTCP) SetReadTimeout(nsec int64) *os.Error {
++	return (&c.base).SetReadTimeout(nsec)
++}
++func (c *ConnTCP) SetWriteTimeout(nsec int64) *os.Error {
++	return (&c.base).SetWriteTimeout(nsec)
++}
++func (c *ConnTCP) SetLinger(sec int) *os.Error {
++	return (&c.base).SetLinger(sec)
++}
++func (c *ConnTCP) SetReuseAddr(reuseaddr bool) *os.Error {
++	return (&c.base).SetReuseAddr(reuseaddr)
++}
++func (c *ConnTCP) BindToDevice(dev string) *os.Error {
++	return (&c.base).BindToDevice(dev)
++}
++func (c *ConnTCP) SetDontRoute(dontroute bool) *os.Error {
++	return (&c.base).SetDontRoute(dontroute)
++}
++func (c *ConnTCP) SetKeepAlive(keepalive bool) *os.Error {
++	return (&c.base).SetKeepAlive(keepalive)
++}
++
++export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
++	fd, e := DialInternet(net, laddr, raddr, socket.SOCK_STREAM)
++	if e != nil {
++		return nil, e
++	}
++	c = new(ConnTCP);
++	c.base.fd = os.NewFD(fd);
++	c.SetNoDelay(true)
++	return c, nil
++}
++
++
++// TODO: UDP connections
++
++
++// TODO: raw IP connections
++
++
++// TODO: raw ethernet connections
++
++
++export type Conn interface {
++	Read(b *[]byte) (n int, err *os.Error);
++	Write(b *[]byte) (n int, err *os.Error);
++	ReadFrom(b *[]byte) (n int, addr string, err *os.Error);
++	WriteTo(addr string, b *[]byte) (n int, err *os.Error);
++	Close() *os.Error;
++	SetReadBuffer(bytes int) *os.Error;
++	SetWriteBuffer(bytes int) *os.Error;
++	SetTimeout(nsec int64) *os.Error;
++	SetReadTimeout(nsec int64) *os.Error;
++	SetWriteTimeout(nsec int64) *os.Error;
++	SetLinger(sec int) *os.Error;
++	SetReuseAddr(reuseaddr bool) *os.Error;
++	SetDontRoute(dontroute bool) *os.Error;
++	SetKeepAlive(keepalive bool) *os.Error;
++	BindToDevice(dev string) *os.Error;
++}
++
++type NoConn struct { unused int }
++func (c *NoConn) Read(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
++func (c *NoConn) Write(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
++func (c *NoConn) ReadFrom(b *[]byte) (n int, addr string, err *os.Error) { return -1, "", os.EINVAL }
++func (c *NoConn) WriteTo(addr string, b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
++func (c *NoConn) Close() *os.Error { return nil }
++func (c *NoConn) SetReadBuffer(bytes int) *os.Error { return os.EINVAL }
++func (c *NoConn) SetWriteBuffer(bytes int) *os.Error { return os.EINVAL }
++func (c *NoConn) SetTimeout(nsec int64) *os.Error { return os.EINVAL }
++func (c *NoConn) SetReadTimeout(nsec int64) *os.Error { return os.EINVAL }
++func (c *NoConn) SetWriteTimeout(nsec int64) *os.Error { return os.EINVAL }
++func (c *NoConn) SetLinger(sec int) *os.Error { return os.EINVAL }
++func (c *NoConn) SetReuseAddr(reuseaddr bool) *os.Error { return os.EINVAL }
++func (c *NoConn) SetDontRoute(dontroute bool) *os.Error { return os.EINVAL }
++func (c *NoConn) SetKeepAlive(keepalive bool) *os.Error { return os.EINVAL }
++func (c *NoConn) BindToDevice(dev string) *os.Error { return os.EINVAL }
++
++var noconn NoConn
++
++// Dial's arguments are the network, local address, and remote address.
++// Examples:
++//	Dial("tcp", "", "12.34.56.78:80")
++//	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
++//	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
++//
++// Eventually, we plan to allow names in addition to IP addresses,
++// but that requires writing a DNS library.
++
++export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		c, err := DialTCP(net, laddr, raddr)
++		if err != nil {
++			return &noconn, err
++		}
++		return c, nil
++/*
++	case "udp", "udp4", "upd6":
++		c, err := DialUDP(net, laddr, raddr)
++		return c, err
++	case "ether":
++		c, err := DialEther(net, laddr, raddr)
++		return c, err
++	case "ipv4":
++		c, err := DialIPv4(net, laddr, raddr)
++		return c, err
++	case "ipv6":
++		c, err := DialIPv6(net, laddr, raddr)
++		return c, err
++*/
++	}
++	return nil, UnknownNetwork
++}
++
+diff --git a/src/lib/net/socket_darwin.go b/src/lib/net/socket_darwin.go
+new file mode 100644
+index 0000000000..a114002eab
+--- /dev/null
++++ b/src/lib/net/socket_darwin.go
+@@ -0,0 +1,231 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Low-level socket interface.
++// Only for implementing net package.
++// DO NOT USE DIRECTLY.
++
++package socket
++
++import (
++	"os";
++	"ip";
++	"syscall"
++)
++
++export const (
++	ACCEPT = 30;
++	SOCKET = 97;
++	CONNECT = 98;
++	GETSOCKOPT = 118;
++	BIND = 104;
++	SETSOCKOPT = 105;
++	LISTEN = 106;
++
++	AF_UNIX = 1;
++	AF_INET = 2;
++	AF_DATAKIT = 9;
++	AF_INET6 = 30;
++
++	SOCK_STREAM = 1;
++	SOCK_DGRAM = 2;
++	SOCK_RAW = 3;
++	SOCK_RDM = 4;
++	SOCK_SEQPACKET = 5;
++
++	SOL_SOCKET = 0xffff;
++
++	SO_REUSEADDR = 0x0004;
++	SO_KEEPALIVE = 0x0008;
++	SO_DONTROUTE = 0x0010;
++	SO_BROADCAST = 0x0020;
++	SO_USELOOPBACK = 0x0040;
++	SO_LINGER = 0x1080;
++	SO_REUSEPORT = 0x0200;
++	SO_SNDBUF = 0x1001;
++	SO_RCVBUF = 0x1002;
++	SO_SNDTIMEO = 0x1005;
++	SO_RCVTIMEO = 0x1006;
++	SO_NOSIGPIPE = 0x1022;
++
++	IPPROTO_TCP = 6;
++	IPPROTO_UDP = 17;
++
++	TCP_NODELAY = 0x01;
++)
++
++export type SockaddrUnix struct {
++	len	byte;
++	family	byte;
++	path	[104]byte
++}
++export const SizeofSockaddrUnix = 106
++
++export type SockaddrInet4 struct {
++	len	byte;
++	family	byte;
++	port	[2]byte;
++	addr	[4]byte;
++	zero	[8]byte
++}
++export const SizeofSockaddrInet4 = 16
++
++export type SockaddrInet6 struct {
++	len	byte;
++	family	byte;
++	port	[2]byte;
++	flowinfo	[4]byte;
++	addr	[16]byte;
++	scopeid	[4]byte;
++}
++export const SizeofSockaddrInet6 = 28
++
++export type Sockaddr struct {
++	len	byte;
++	family	byte;
++	opaque	[126]byte
++}
++export const SizeofSockaddr = 128
++
++export type Timeval struct {
++	sec int32;
++	usec int32;
++}
++export type Linger struct {
++	yes int32;
++	sec int32;
++}
++
++func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
++func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
++func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
++func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
++func SockaddrPtr(s *Sockaddr) int64;
++func Int32Ptr(ip *int32) int64;
++func TimevalPtr(tv *Timeval) int64;
++func LingerPtr(l *Linger) int64;
++
++export func socket(domain, proto, typ int64) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(SOCKET, domain, proto, typ);
++	return r1, os.ErrnoToError(e)
++}
++
++export func connect(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(CONNECT, fd, SockaddrPtr(sa), int64(sa.len));
++	return r1, os.ErrnoToError(e)
++}
++
++export func bind(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(BIND, fd, SockaddrPtr(sa), int64(sa.len));
++	return r1, os.ErrnoToError(e)
++}
++
++export func listen(fd, n int64) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(LISTEN, fd, n, 0);
++	return r1, os.ErrnoToError(e)
++}
++
++export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	n := int32(sa.len);
++	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
++	return r1, os.ErrnoToError(e)
++}
++
++export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err *os.Error) {
++	if fd < 0 {
++		return -1, os.EINVAL
++	}
++	r1, r2, e := syscall.Syscall6(SETSOCKOPT, fd, level, opt, valueptr, length, 0);
++	return r1, os.ErrnoToError(e)
++}
++
++export func setsockopt_int(fd, level, opt int64, value int) *os.Error {
++	n := int32(opt);
++	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4)
++	return e
++}
++
++export func setsockopt_tv(fd, level, opt, nsec int64) *os.Error {
++	var tv Timeval;
++	nsec += 999;
++	tv.sec = int32(nsec/1000000000);
++	tv.usec = int32(nsec%1000000000);
++	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4)
++	return e
++}
++
++export func setsockopt_linger(fd, level, opt int64, sec int) *os.Error {
++	var l Linger;
++	if sec != 0 {
++		l.yes = 1;
++		l.sec = sec
++	} else {
++		l.yes = 0;
++		l.sec = 0
++	}
++	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8)
++	return err
++}
++
++/*
++export func getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno int64) {
++	r1, r2, err := syscall.Syscall6(GETSOCKOPT, fd, level, opt, valueptr, lenptr, 0);
++	return r1, err;
++}
++*/
++
++export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
++	p = ip.ToIPv4(p)
++	if p == nil || port < 0 || port > 0xFFFF {
++		return nil, os.EINVAL
++	}
++	sa := new(SockaddrInet4);
++	sa.len = SizeofSockaddrInet4;
++	sa.family = AF_INET;
++	sa.port[0] = byte(port>>8);
++	sa.port[1] = byte(port);
++	for i := 0; i < ip.IPv4len; i++ {
++		sa.addr[i] = p[i]
++	}
++	return SockaddrInet4ToSockaddr(sa), nil
++}
++
++export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
++	p = ip.ToIPv6(p)
++	if p == nil || port < 0 || port > 0xFFFF {
++		return nil, os.EINVAL
++	}
++	sa := new(SockaddrInet6);
++	sa.len = SizeofSockaddrInet6;
++	sa.family = AF_INET6;
++	sa.port[0] = byte(port>>8);
++	sa.port[1] = byte(port);
++	for i := 0; i < ip.IPv6len; i++ {
++		sa.addr[i] = p[i]
++	}
++	return SockaddrInet6ToSockaddr(sa), nil
++}
++
++export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
++	switch sa1.family {
++	case AF_INET:
++		sa := SockaddrToSockaddrInet4(sa1);
++		a := ip.ToIPv6(&sa.addr)
++		if a == nil {
++			return nil, 0, os.EINVAL
++		}
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++	case AF_INET6:
++		sa := SockaddrToSockaddrInet6(sa1);
++		a := ip.ToIPv6(&sa.addr)
++		if a == nil {
++			return nil, 0, os.EINVAL
++		}
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++	default:
++		return nil, 0, os.EINVAL
++	}
++	return nil, 0, nil	// not reached
++}
++
+diff --git a/src/lib/net/socket_linux.go b/src/lib/net/socket_linux.go
+new file mode 100644
+index 0000000000..5dacaf58e5
+--- /dev/null
++++ b/src/lib/net/socket_linux.go
+@@ -0,0 +1,247 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Low-level socket interface.
++// Only for implementing net package.
++// DO NOT USE DIRECTLY.
++
++package socket
++
++import (
++	"os";
++	"ip";
++	"syscall"
++)
++
++export const (
++	SOCKET = 41;
++	CONNECT = 42;
++	ACCEPT = 43;
++	SETSOCKOPT = 54;
++	GETSOCKOPT = 55;
++	BIND = 49;
++	LISTEN = 50;
++
++	AF_UNIX = 1;
++	AF_INET = 2;
++	AF_INET6 = 10;
++
++	SOCK_STREAM = 1;
++	SOCK_DGRAM = 2;
++	SOCK_RAW = 3;
++	SOCK_RDM = 4;
++	SOCK_SEQPACKET = 5;
++
++	SOL_SOCKET = 1;
++
++	SO_DEBUG = 1;
++	SO_REUSEADDR = 2;
++	SO_TYPE = 3;
++	SO_ERROR = 4;
++	SO_DONTROUTE = 5;
++	SO_BROADCAST = 6;
++	SO_SNDBUF = 7;
++	SO_RCVBUF = 8;
++	SO_SNDBUFFORCE = 32;
++	SO_RCVBUFFORCE = 33;
++	SO_KEEPALIVE = 9;
++	SO_OOBINLINE = 10;
++	SO_NO_CHECK = 11;
++	SO_PRIORITY = 12;
++	SO_LINGER = 13;
++	SO_BSDCOMPAT = 14;
++	SO_PASSCRED = 16;
++	SO_PEERCRED = 17;
++	SO_RCVLOWAT = 18;
++	SO_SNDLOWAT = 19;
++	SO_RCVTIMEO = 20;
++	SO_SNDTIMEO = 21;
++	SO_BINDTODEVICE = 25;
++
++	IPPROTO_TCP = 6;
++	IPPROTO_UDP = 17;
++
++	TCP_NODELAY = 0x01;
++)
++
++export type SockaddrUnix struct {
++	family	uint16;
++	path	[108]byte
++}
++export const SizeofSockaddrUnix = 110
++
++export type SockaddrInet4 struct {
++	family	uint16;
++	port	[2]byte;
++	addr	[4]byte;
++	zero	[8]byte
++}
++export const SizeofSockaddrInet4 = 16
++
++export type SockaddrInet6 struct {
++	family	uint16;
++	port	[2]byte;
++	flowinfo	[4]byte;
++	addr	[16]byte;
++	scopeid	[4]byte;
++}
++export const SizeofSockaddrInet6 = 28
++
++export type Sockaddr struct {
++	family	uint16;
++	opaque	[126]byte
++}
++export const SizeofSockaddr = 128
++
++export type Timeval struct {
++	sec int32;
++	usec int32;
++}
++export type Linger struct {
++	yes int32;
++	sec int32;
++}
++
++func (s *Sockaddr) Len() int64 {
++	switch s.family {
++	case AF_UNIX:
++		return SizeofSockaddrUnix
++	case AF_INET:
++		return SizeofSockaddrInet4
++	case AF_INET6:
++		return SizeofSockaddrInet6
++	}
++	return 0
++}
++
++func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
++func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
++func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
++func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
++func SockaddrPtr(s *Sockaddr) int64;
++func Int32Ptr(ip *int32) int64;
++func TimevalPtr(tv *Timeval) int64;
++func LingerPtr(l *Linger) int64;
++
++export func socket(domain, proto, typ int64) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(SOCKET, domain, proto, typ);
++	return r1, os.ErrnoToError(e)
++}
++
++export func connect(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(CONNECT, fd, SockaddrPtr(sa), sa.Len());
++	return r1, os.ErrnoToError(e)
++}
++
++export func bind(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(BIND, fd, SockaddrPtr(sa), sa.Len());
++	return r1, os.ErrnoToError(e)
++}
++
++export func listen(fd, n int64) (ret int64, err *os.Error) {
++	r1, r2, e := syscall.Syscall(LISTEN, fd, n, 0);
++	return r1, os.ErrnoToError(e)
++}
++
++export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
++	n := int32(sa.Len());
++	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
++	return r1, os.ErrnoToError(e)
++}
++
++export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err *os.Error) {
++	if fd < 0 {
++		return -1, os.EINVAL
++	}
++	r1, r2, e := syscall.Syscall6(SETSOCKOPT, fd, level, opt, valueptr, length, 0);
++	return r1, os.ErrnoToError(e)
++}
++
++export func setsockopt_int(fd, level, opt int64, value int) *os.Error {
++	n := int32(opt);
++	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4)
++	return e
++}
++
++export func setsockopt_tv(fd, level, opt, nsec int64) *os.Error {
++	var tv Timeval;
++	nsec += 999;
++	tv.sec = int32(nsec/1000000000);
++	tv.usec = int32(nsec%1000000000);
++	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4)
++	return e
++}
++
++export func setsockopt_linger(fd, level, opt int64, sec int) *os.Error {
++	var l Linger;
++	if sec != 0 {
++		l.yes = 1;
++		l.sec = sec
++	} else {
++		l.yes = 0;
++		l.sec = 0
++	}
++	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8)
++	return err
++}
++
++/*
++export func getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno int64) {
++	r1, r2, err := syscall.Syscall6(GETSOCKOPT, fd, level, opt, valueptr, lenptr, 0);
++	return r1, err;
++}
++*/
++
++export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
++	p = ip.ToIPv4(p)
++	if p == nil || port < 0 || port > 0xFFFF {
++		return nil, os.EINVAL
++	}
++	sa := new(SockaddrInet4);
++	sa.family = AF_INET;
++	sa.port[0] = byte(port>>8);
++	sa.port[1] = byte(port);
++	for i := 0; i < ip.IPv4len; i++ {
++		sa.addr[i] = p[i]
++	}
++	return SockaddrInet4ToSockaddr(sa), nil
++}
++
++export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
++	p = ip.ToIPv6(p)
++	if p == nil || port < 0 || port > 0xFFFF {
++		return nil, os.EINVAL
++	}
++	sa := new(SockaddrInet6);
++	sa.family = AF_INET6;
++	sa.port[0] = byte(port>>8);
++	sa.port[1] = byte(port);
++	for i := 0; i < ip.IPv6len; i++ {
++		sa.addr[i] = p[i]
++	}
++	return SockaddrInet6ToSockaddr(sa), nil
++}
++
++export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
++	switch sa1.family {
++	case AF_INET:
++		sa := SockaddrToSockaddrInet4(sa1);
++		a := ip.ToIPv6(&sa.addr)
++		if a == nil {
++			return nil, 0, os.EINVAL
++		}
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++	case AF_INET6:
++		sa := SockaddrToSockaddrInet6(sa1);
++		a := ip.ToIPv6(&sa.addr)
++		if a == nil {
++			return nil, 0, os.EINVAL
++		}
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++	default:
++		return nil, 0, os.EINVAL
++	}
++	return nil, 0, nil	// not reached
++}
++
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 384be24295..986ed9c4b5 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -9,6 +9,7 @@ package syscall
+  */
+ 
+ export func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++export func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
+ export func AddrToInt(b *byte) int64;
+ 
+ /*
+diff --git a/src/syscall/syscall_amd64_darwin.s b/src/syscall/syscall_amd64_darwin.s
+index 5631803e26..1fab42dc62 100644
+--- a/src/syscall/syscall_amd64_darwin.s
++++ b/src/syscall/syscall_amd64_darwin.s
+@@ -7,6 +7,7 @@
+ //
+ 
+ // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+ TEXT	syscall·Syscall(SB),7,$-8
+@@ -26,6 +27,26 @@ TEXT	syscall·Syscall(SB),7,$-8
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
++TEXT	syscall·Syscall6(SB),7,$-8
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	ADDQ	$0x2000000, AX
++	SYSCALL
++	JCC	5(PC)
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	RET
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
++
+ // conversion operators - really just casts
+ TEXT	syscall·AddrToInt(SB),7,$-8
+ 	MOVQ	8(SP), AX
+diff --git a/src/syscall/syscall_amd64_linux.s b/src/syscall/syscall_amd64_linux.s
+index e69fe7aadd..a0b72ceedb 100644
+--- a/src/syscall/syscall_amd64_linux.s
++++ b/src/syscall/syscall_amd64_linux.s
+@@ -29,6 +29,27 @@ TEXT	syscall·Syscall(SB),7,$-8
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
++TEXT syscall·Syscall6(SB),7,$-8
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	ADDQ	$0x2000000, AX
++	SYSCALL
++	JLS	6(PC)
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	NEGQ	AX
++	MOVQ	AX, 80(SP)  // errno
++	RET
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
++
+ // conversion operators - really just casts
+ TEXT	syscall·AddrToInt(SB),7,$-8
+ 	MOVQ	8(SP), AX

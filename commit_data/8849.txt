@@ -12,6 +12,71 @@ Date:   Fri Jun 24 17:29:19 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4641075
-
+---
  src/cmd/ebnflint/ebnflint.go | 29 ++++++++++++++++++-----------
  1 file changed, 18 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index cac39179f2..0b04431568 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -35,6 +35,12 @@ var (
+ )
+ 
+ 
++func report(err os.Error) {
++	scanner.PrintError(os.Stderr, err)
++	os.Exit(1)
++}
++
++
+ func extractEBNF(src []byte) []byte {
+ 	var buf bytes.Buffer
+ 
+@@ -75,34 +81,35 @@ func extractEBNF(src []byte) []byte {
+ func main() {
+ 	flag.Parse()
+ 
+-	var filename string
++	var (
++		filename string
++		src      []byte
++		err      os.Error
++	)
+ 	switch flag.NArg() {
+ 	case 0:
+-		filename = "/dev/stdin"
++		filename = "<stdin>"
++		src, err = ioutil.ReadAll(os.Stdin)
+ 	case 1:
+ 		filename = flag.Arg(0)
++		src, err = ioutil.ReadFile(filename)
+ 	default:
+ 		usage()
+ 	}
+-
+-	src, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+-		scanner.PrintError(os.Stderr, err)
+-		os.Exit(1)
++		report(err)
+ 	}
+ 
+-	if filepath.Ext(filename) == ".html" {
++	if filepath.Ext(filename) == ".html" || bytes.Index(src, open) >= 0 {
+ 		src = extractEBNF(src)
+ 	}
+ 
+ 	grammar, err := ebnf.Parse(fset, filename, src)
+ 	if err != nil {
+-		scanner.PrintError(os.Stderr, err)
+-		os.Exit(1)
++		report(err)
+ 	}
+ 
+ 	if err = ebnf.Verify(fset, grammar, *start); err != nil {
+-		scanner.PrintError(os.Stderr, err)
+-		os.Exit(1)
++		report(err)
+ 	}
+ }

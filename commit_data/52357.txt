@@ -12,9 +12,99 @@ Date:   Tue Apr 5 23:33:58 2022 +0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 10 ++++++++++
  test/typeparam/issue52117.dir/a.go        | 15 +++++++++++++++
  test/typeparam/issue52117.dir/b.go        |  7 +++++++
  test/typeparam/issue52117.go              |  7 +++++++
  4 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 41435a7afe..92a5945da6 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -417,6 +417,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	var dictAssign *ir.AssignStmt
+ 	if outer != nil {
+ 		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
++		dictVar.SetSym(outer.Sym().Pkg.Lookup(dictVar.Sym().Name))
+ 		g.dnum++
+ 		dictVar.Class = ir.PAUTO
+ 		typed(types.Types[types.TUINTPTR], dictVar)
+@@ -431,6 +432,9 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	var rcvrAssign ir.Node
+ 	if rcvrValue != nil {
+ 		rcvrVar = ir.NewNameAt(pos, typecheck.LookupNum(".rcvr", g.dnum))
++		if outer != nil {
++			rcvrVar.SetSym(outer.Sym().Pkg.Lookup(rcvrVar.Sym().Name))
++		}
+ 		g.dnum++
+ 		typed(rcvrValue.Type(), rcvrVar)
+ 		rcvrAssign = ir.NewAssignStmt(pos, rcvrVar, rcvrValue)
+@@ -2222,6 +2226,9 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 	for i := 0; i < typ.NumParams(); i++ {
+ 		t := typ.Params().Field(i).Type
+ 		arg := ir.NewNameAt(pos, typecheck.LookupNum("a", i))
++		if outer != nil {
++			arg.SetSym(outer.Sym().Pkg.Lookup(arg.Sym().Name))
++		}
+ 		arg.Class = ir.PPARAM
+ 		typed(t, arg)
+ 		arg.Curfn = fn
+@@ -2234,6 +2241,9 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 	for i := 0; i < typ.NumResults(); i++ {
+ 		t := typ.Results().Field(i).Type
+ 		result := ir.NewNameAt(pos, typecheck.LookupNum("r", i)) // TODO: names not needed?
++		if outer != nil {
++			result.SetSym(outer.Sym().Pkg.Lookup(result.Sym().Name))
++		}
+ 		result.Class = ir.PPARAMOUT
+ 		typed(t, result)
+ 		result.Curfn = fn
+diff --git a/test/typeparam/issue52117.dir/a.go b/test/typeparam/issue52117.dir/a.go
+new file mode 100644
+index 0000000000..e571ea9462
+--- /dev/null
++++ b/test/typeparam/issue52117.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Compare[T int | uint](a, b T) int {
++	return 0
++}
++
++type Slice[T int | uint] struct{}
++
++func (l Slice[T]) Comparator() func(v1, v2 T) int {
++	return Compare[T]
++}
+diff --git a/test/typeparam/issue52117.dir/b.go b/test/typeparam/issue52117.dir/b.go
+new file mode 100644
+index 0000000000..3d3bf4ced9
+--- /dev/null
++++ b/test/typeparam/issue52117.dir/b.go
+@@ -0,0 +1,7 @@
++package b
++
++import "./a"
++
++func Test() {
++	var _ a.Slice[uint]
++}
+diff --git a/test/typeparam/issue52117.go b/test/typeparam/issue52117.go
+new file mode 100644
+index 0000000000..8bb5c3e213
+--- /dev/null
++++ b/test/typeparam/issue52117.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

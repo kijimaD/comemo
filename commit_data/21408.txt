@@ -10,6 +10,20 @@ Date:   Thu Jan 1 22:40:11 2015 +0100
     Change-Id: I092b118130f131c6344d9d058bea4ad6379032b8
     Reviewed-on: https://go-review.googlesource.com/2218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f01e9c57f5..7d2f8773fc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -250,7 +250,7 @@ fatal(char *fmt, ...)
+ 	if(strncmp(getgoversion(), "release", 7) == 0) {
+ 		print("\n");
+ 		print("Please file a bug report including a short program that triggers the error.\n");
+-		print("http://code.google.com/p/go/issues/entry?template=compilerbug\n");
++		print("https://golang.org/issue/new\n");
+ 	}
+ 	hcrash();
+ 	errorexit();

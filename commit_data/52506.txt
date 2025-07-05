@@ -16,6 +16,20 @@ Date:   Fri May 6 16:50:19 2022 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
-
+---
  src/crypto/rand/rand_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 64b865289d..830983c74a 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -59,7 +59,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 	}
+ 	if atomic.LoadUint32(&r.used) != 2 {
+ 		r.mu.Lock()
+-		if r.used != 2 {
++		if atomic.LoadUint32(&r.used) != 2 {
+ 			f, err := os.Open(urandomDevice)
+ 			if err != nil {
+ 				r.mu.Unlock()

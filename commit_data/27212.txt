@@ -7,6 +7,24 @@ Date:   Wed Mar 16 12:57:17 2016 -0400
     Change-Id: I049d2596fe8ce0e93391599f5c224779fd8e316f
     Reviewed-on: https://go-review.googlesource.com/20761
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/debug/garbage.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 4d3ca79a81..8144497177 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -155,6 +155,12 @@ func SetPanicOnFault(enabled bool) bool {
+ 
+ // WriteHeapDump writes a description of the heap and the objects in
+ // it to the given file descriptor.
++//
++// WriteHeapDump suspends the execution of all goroutines until the heap
++// dump is completely written.  Thus, the file descriptor must not be
++// connected to a pipe or socket whose other end is in the same Go
++// process; instead, use a temporary file or network socket.
++//
+ // The heap dump format is defined at https://golang.org/s/go15heapdump.
+ func WriteHeapDump(fd uintptr)
+ 

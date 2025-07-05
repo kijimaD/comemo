@@ -15,6 +15,40 @@ Date:   Sun Oct 20 17:23:02 2019 -0400
     Change-Id: I1301e3b4d35893c31c4c5a5147a0d775987bd6f4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202337
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/preempt.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 71c3089830..544c251a9f 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -55,6 +55,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"unsafe"
+ )
+ 
+ type suspendGState struct {
+@@ -369,9 +370,12 @@ func isAsyncSafePoint(gp *g, pc, sp uintptr) bool {
+ 		// functions (except at calls).
+ 		return false
+ 	}
+-	if funcdata(f, _FUNCDATA_LocalsPointerMaps) == nil {
++	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
+ 		// This is assembly code. Don't assume it's
+-		// well-formed.
++		// well-formed. We identify assembly code by
++		// checking that it has either no stack map, or
++		// no_pointers_stackmap, which is the stack map
++		// for ones marked as NO_LOCAL_POINTERS.
+ 		//
+ 		// TODO: Are there cases that are safe but don't have a
+ 		// locals pointer map, like empty frame functions?
+@@ -395,3 +399,5 @@ func isAsyncSafePoint(gp *g, pc, sp uintptr) bool {
+ 
+ 	return true
+ }
++
++var no_pointers_stackmap uint64 // defined in assembly, for NO_LOCAL_POINTERS macro

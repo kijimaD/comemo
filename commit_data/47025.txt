@@ -22,7 +22,7 @@ Date:   Fri Jun 26 16:22:35 2020 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/deps_test.go               |   8 +-
  src/go/format/format_test.go            |   4 +
  src/go/printer/gobuild.go               | 170 ++++++++++++++++++++++++++++++++
@@ -43,3 +43,512 @@ Date:   Fri Jun 26 16:22:35 2020 -0400
  src/go/printer/testdata/gobuild7.golden |  11 +++
  src/go/printer/testdata/gobuild7.input  |  11 +++
  19 files changed, 307 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 42184276ea..e05d0aac2e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -279,7 +279,10 @@ var depsRules = `
+ 	< go/ast
+ 	< go/parser;
+ 
+-	go/parser, text/tabwriter
++	FMT
++	< go/build/constraint;
++
++	go/build/constraint, go/parser, text/tabwriter
+ 	< go/printer
+ 	< go/format;
+ 
+@@ -292,9 +295,6 @@ var depsRules = `
+ 	container/heap, go/constant, go/parser, regexp
+ 	< go/types;
+ 
+-	FMT
+-	< go/build/constraint;
+-
+ 	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
+ 	< go/build;
+ 
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index 27f4c74cdf..6cc0278b79 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -151,6 +151,10 @@ var tests = []string{
+ 	// erroneous programs
+ 	"ERROR1 + 2 +",
+ 	"ERRORx :=  0",
++
++	// build comments
++	"// copyright\n\n//go:build x\n\npackage p\n",
++	"// copyright\n\n//go:build x\n// +build x\n\npackage p\n",
+ }
+ 
+ func String(s string) (string, error) {
+diff --git a/src/go/printer/gobuild.go b/src/go/printer/gobuild.go
+new file mode 100644
+index 0000000000..f00492d077
+--- /dev/null
++++ b/src/go/printer/gobuild.go
+@@ -0,0 +1,170 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package printer
++
++import (
++	"go/build/constraint"
++	"sort"
++	"text/tabwriter"
++)
++
++func (p *printer) fixGoBuildLines() {
++	if len(p.goBuild)+len(p.plusBuild) == 0 {
++		return
++	}
++
++	// Find latest possible placement of //go:build and // +build comments.
++	// That's just after the last blank line before we find a non-comment.
++	// (We'll add another blank line after our comment block.)
++	// When we start dropping // +build comments, we can skip over /* */ comments too.
++	// Note that we are processing tabwriter input, so every comment
++	// begins and ends with a tabwriter.Escape byte.
++	// And some newlines have turned into \f bytes.
++	insert := 0
++	for pos := 0; ; {
++		// Skip leading space at beginning of line.
++		blank := true
++		for pos < len(p.output) && (p.output[pos] == ' ' || p.output[pos] == '\t') {
++			pos++
++		}
++		// Skip over // comment if any.
++		if pos+3 < len(p.output) && p.output[pos] == tabwriter.Escape && p.output[pos+1] == '/' && p.output[pos+2] == '/' {
++			blank = false
++			for pos < len(p.output) && !isNL(p.output[pos]) {
++				pos++
++			}
++		}
++		// Skip over \n at end of line.
++		if pos >= len(p.output) || !isNL(p.output[pos]) {
++			break
++		}
++		pos++
++
++		if blank {
++			insert = pos
++		}
++	}
++
++	// If there is a //go:build comment before the place we identified,
++	// use that point instead. (Earlier in the file is always fine.)
++	if len(p.goBuild) > 0 && p.goBuild[0] < insert {
++		insert = p.goBuild[0]
++	} else if len(p.plusBuild) > 0 && p.plusBuild[0] < insert {
++		insert = p.plusBuild[0]
++	}
++
++	var x constraint.Expr
++	switch len(p.goBuild) {
++	case 0:
++		// Synthesize //go:build expression from // +build lines.
++		for _, pos := range p.plusBuild {
++			y, err := constraint.Parse(p.commentTextAt(pos))
++			if err != nil {
++				x = nil
++				break
++			}
++			if x == nil {
++				x = y
++			} else {
++				x = &constraint.AndExpr{X: x, Y: y}
++			}
++		}
++	case 1:
++		// Parse //go:build expression.
++		x, _ = constraint.Parse(p.commentTextAt(p.goBuild[0]))
++	}
++
++	var block []byte
++	if x == nil {
++		// Don't have a valid //go:build expression to treat as truth.
++		// Bring all the lines together but leave them alone.
++		// Note that these are already tabwriter-escaped.
++		for _, pos := range p.goBuild {
++			block = append(block, p.lineAt(pos)...)
++		}
++		for _, pos := range p.plusBuild {
++			block = append(block, p.lineAt(pos)...)
++		}
++	} else {
++		block = append(block, tabwriter.Escape)
++		block = append(block, "//go:build "...)
++		block = append(block, x.String()...)
++		block = append(block, tabwriter.Escape, '\n')
++		if len(p.plusBuild) > 0 {
++			lines, err := constraint.PlusBuildLines(x)
++			if err != nil {
++				lines = []string{"// +build error: " + err.Error()}
++			}
++			for _, line := range lines {
++				block = append(block, tabwriter.Escape)
++				block = append(block, line...)
++				block = append(block, tabwriter.Escape, '\n')
++			}
++		}
++	}
++	block = append(block, '\n')
++
++	// Build sorted list of lines to delete from remainder of output.
++	toDelete := append(p.goBuild, p.plusBuild...)
++	sort.Ints(toDelete)
++
++	// Collect output after insertion point, with lines deleted, into after.
++	var after []byte
++	start := insert
++	for _, end := range toDelete {
++		if end < start {
++			continue
++		}
++		after = appendLines(after, p.output[start:end])
++		start = end + len(p.lineAt(end))
++	}
++	after = appendLines(after, p.output[start:])
++	if n := len(after); n >= 2 && isNL(after[n-1]) && isNL(after[n-2]) {
++		after = after[:n-1]
++	}
++
++	p.output = p.output[:insert]
++	p.output = append(p.output, block...)
++	p.output = append(p.output, after...)
++}
++
++// appendLines is like append(x, y...)
++// but it avoids creating doubled blank lines,
++// which would not be gofmt-standard output.
++// It assumes that only whole blocks of lines are being appended,
++// not line fragments.
++func appendLines(x, y []byte) []byte {
++	if len(y) > 0 && isNL(y[0]) && // y starts in blank line
++		(len(x) == 0 || len(x) >= 2 && isNL(x[len(x)-1]) && isNL(x[len(x)-2])) { // x is empty or ends in blank line
++		y = y[1:] // delete y's leading blank line
++	}
++	return append(x, y...)
++}
++
++func (p *printer) lineAt(start int) []byte {
++	pos := start
++	for pos < len(p.output) && !isNL(p.output[pos]) {
++		pos++
++	}
++	if pos < len(p.output) {
++		pos++
++	}
++	return p.output[start:pos]
++}
++
++func (p *printer) commentTextAt(start int) string {
++	if start < len(p.output) && p.output[start] == tabwriter.Escape {
++		start++
++	}
++	pos := start
++	for pos < len(p.output) && p.output[pos] != tabwriter.Escape && !isNL(p.output[pos]) {
++		pos++
++	}
++	return string(p.output[start:pos])
++}
++
++func isNL(b byte) bool {
++	return b == '\n' || b == '\f'
++}
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 0077afeaff..f02c1b847b 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -8,6 +8,7 @@ package printer
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/build/constraint"
+ 	"go/token"
+ 	"io"
+ 	"os"
+@@ -64,6 +65,8 @@ type printer struct {
+ 	lastTok      token.Token  // last token printed (token.ILLEGAL if it's whitespace)
+ 	prevOpen     token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
+ 	wsbuf        []whiteSpace // delayed white space
++	goBuild      []int        // start index of all //go:build comments in output
++	plusBuild    []int        // start index of all // +build comments in output
+ 
+ 	// Positions
+ 	// The out position differs from the pos position when the result
+@@ -649,6 +652,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 
+ 	// shortcut common case of //-style comments
+ 	if text[1] == '/' {
++		if constraint.IsGoBuild(text) {
++			p.goBuild = append(p.goBuild, len(p.output))
++		} else if constraint.IsPlusBuild(text) {
++			p.plusBuild = append(p.plusBuild, len(p.output))
++		}
+ 		p.writeString(pos, trimRight(text), true)
+ 		return
+ 	}
+@@ -1122,6 +1130,8 @@ func (p *printer) printNode(node interface{}) error {
+ 	// get comments ready for use
+ 	p.nextComment()
+ 
++	p.print(pmode(0))
++
+ 	// format node
+ 	switch n := node.(type) {
+ 	case ast.Expr:
+@@ -1313,6 +1323,10 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
+ 	p.impliedSemi = false // EOF acts like a newline
+ 	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
+ 
++	// output is buffered in p.output now.
++	// fix //go:build and // +build comments if needed.
++	p.fixGoBuildLines()
++
+ 	// redirect output through a trimmer to eliminate trailing whitespace
+ 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
+ 	// formatting information. The tabwriter could provide trimming
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index b15dcbf000..03c4badb04 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -88,8 +88,11 @@ func lineAt(text []byte, offs int) []byte {
+ 
+ // diff compares a and b.
+ func diff(aname, bname string, a, b []byte) error {
+-	var buf bytes.Buffer // holding long error message
++	if bytes.Equal(a, b) {
++		return nil
++	}
+ 
++	var buf bytes.Buffer // holding long error message
+ 	// compare lengths
+ 	if len(a) != len(b) {
+ 		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
+@@ -97,7 +100,7 @@ func diff(aname, bname string, a, b []byte) error {
+ 
+ 	// compare contents
+ 	line := 1
+-	offs := 1
++	offs := 0
+ 	for i := 0; i < len(a) && i < len(b); i++ {
+ 		ch := a[i]
+ 		if ch != b[i] {
+@@ -112,10 +115,8 @@ func diff(aname, bname string, a, b []byte) error {
+ 		}
+ 	}
+ 
+-	if buf.Len() > 0 {
+-		return errors.New(buf.String())
+-	}
+-	return nil
++	fmt.Fprintf(&buf, "\n%s:\n%s\n%s:\n%s", aname, a, bname, b)
++	return errors.New(buf.String())
+ }
+ 
+ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+@@ -207,6 +208,13 @@ var data = []entry{
+ 	{"go2numbers.input", "go2numbers.golden", idempotent},
+ 	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
+ 	{"generics.input", "generics.golden", idempotent},
++	{"gobuild1.input", "gobuild1.golden", idempotent},
++	{"gobuild2.input", "gobuild2.golden", idempotent},
++	{"gobuild3.input", "gobuild3.golden", idempotent},
++	{"gobuild4.input", "gobuild4.golden", idempotent},
++	{"gobuild5.input", "gobuild5.golden", idempotent},
++	{"gobuild6.input", "gobuild6.golden", idempotent},
++	{"gobuild7.input", "gobuild7.golden", idempotent},
+ }
+ 
+ func TestFiles(t *testing.T) {
+diff --git a/src/go/printer/testdata/gobuild1.golden b/src/go/printer/testdata/gobuild1.golden
+new file mode 100644
+index 0000000000..649da40e91
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild1.golden
+@@ -0,0 +1,6 @@
++//go:build x
++// +build x
++
++package p
++
++func f()
+diff --git a/src/go/printer/testdata/gobuild1.input b/src/go/printer/testdata/gobuild1.input
+new file mode 100644
+index 0000000000..6538ee61af
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild1.input
+@@ -0,0 +1,7 @@
++package p
++
++//go:build x
++
++func f()
++
++// +build y
+diff --git a/src/go/printer/testdata/gobuild2.golden b/src/go/printer/testdata/gobuild2.golden
+new file mode 100644
+index 0000000000..c46fd34c55
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild2.golden
+@@ -0,0 +1,8 @@
++//go:build x
++// +build x
++
++// other comment
++
++package p
++
++func f()
+diff --git a/src/go/printer/testdata/gobuild2.input b/src/go/printer/testdata/gobuild2.input
+new file mode 100644
+index 0000000000..f0f772a7b2
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild2.input
+@@ -0,0 +1,9 @@
++// +build y
++
++// other comment
++
++package p
++
++func f()
++
++//go:build x
+diff --git a/src/go/printer/testdata/gobuild3.golden b/src/go/printer/testdata/gobuild3.golden
+new file mode 100644
+index 0000000000..db92c5787e
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild3.golden
+@@ -0,0 +1,10 @@
++// other comment
++
++//go:build x
++// +build x
++
++// yet another comment
++
++package p
++
++func f()
+diff --git a/src/go/printer/testdata/gobuild3.input b/src/go/printer/testdata/gobuild3.input
+new file mode 100644
+index 0000000000..d0c97b27ad
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild3.input
+@@ -0,0 +1,11 @@
++// other comment
++
++// +build y
++
++// yet another comment
++
++package p
++
++//go:build x
++
++func f()
+diff --git a/src/go/printer/testdata/gobuild4.golden b/src/go/printer/testdata/gobuild4.golden
+new file mode 100644
+index 0000000000..b16477f9ad
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild4.golden
+@@ -0,0 +1,6 @@
++//go:build (x || y) && z
++// +build x y
++// +build z
++
++// doc comment
++package p
+diff --git a/src/go/printer/testdata/gobuild4.input b/src/go/printer/testdata/gobuild4.input
+new file mode 100644
+index 0000000000..29d5a0ae14
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild4.input
+@@ -0,0 +1,5 @@
++// doc comment
++package p
++
++// +build x y
++// +build z
+diff --git a/src/go/printer/testdata/gobuild5.golden b/src/go/printer/testdata/gobuild5.golden
+new file mode 100644
+index 0000000000..2808a53cce
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild5.golden
+@@ -0,0 +1,4 @@
++//go:build !(x || y) && z
++// +build !x,!y,z
++
++package p
+diff --git a/src/go/printer/testdata/gobuild5.input b/src/go/printer/testdata/gobuild5.input
+new file mode 100644
+index 0000000000..ec5815cdc6
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild5.input
+@@ -0,0 +1,4 @@
++//go:build !(x || y) && z
++// +build something else
++
++package p
+diff --git a/src/go/printer/testdata/gobuild6.golden b/src/go/printer/testdata/gobuild6.golden
+new file mode 100644
+index 0000000000..abb1e2acbb
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild6.golden
+@@ -0,0 +1,5 @@
++//go:build !(x || y) && z
++
++// no +build line
++
++package p
+diff --git a/src/go/printer/testdata/gobuild6.input b/src/go/printer/testdata/gobuild6.input
+new file mode 100644
+index 0000000000..162189754f
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild6.input
+@@ -0,0 +1,4 @@
++//go:build !(x || y) && z
++// no +build line
++
++package p
+diff --git a/src/go/printer/testdata/gobuild7.golden b/src/go/printer/testdata/gobuild7.golden
+new file mode 100644
+index 0000000000..bf41dd4b59
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild7.golden
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Delete this file once Go 1.17 comes out and we can retire Go 1.15 support.
++
++//go:build !go1.16
++// +build !go1.16
++
++// Package buildtag defines an Analyzer that checks build tags.
++package buildtag
+diff --git a/src/go/printer/testdata/gobuild7.input b/src/go/printer/testdata/gobuild7.input
+new file mode 100644
+index 0000000000..bf41dd4b59
+--- /dev/null
++++ b/src/go/printer/testdata/gobuild7.input
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Delete this file once Go 1.17 comes out and we can retire Go 1.15 support.
++
++//go:build !go1.16
++// +build !go1.16
++
++// Package buildtag defines an Analyzer that checks build tags.
++package buildtag

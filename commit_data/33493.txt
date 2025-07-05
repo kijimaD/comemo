@@ -10,7 +10,67 @@ Date:   Fri Aug 18 12:11:11 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/57030
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  .../golang.org/x/arch/arm64/arm64asm/ext_test.go       |  4 ++--
  .../x/arch/arm64/arm64asm/objdumpext_test.go           | 18 +++++-------------
  2 files changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/ext_test.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/ext_test.go
+index ef2162cf77..bf0ee13d41 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/ext_test.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/ext_test.go
+@@ -503,7 +503,7 @@ func JSONCases(t *testing.T) func(func([]byte)) {
+ 	return func(try func([]byte)) {
+ 		data, err := ioutil.ReadFile("inst.json")
+ 		if err != nil {
+-			log.Fatal(err)
++			t.Fatal(err)
+ 		}
+ 		var insts []InstJson
+ 		var instsN []InstJson
+@@ -513,7 +513,7 @@ func JSONCases(t *testing.T) func(func([]byte)) {
+ 			N = 16
+ 		}
+ 		if err := json.Unmarshal(data, &insts); err != nil {
+-			log.Fatal(err)
++			t.Fatal(err)
+ 		}
+ 		// Append instructions to get more test cases.
+ 		for i := 0; i < N; {
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
+index b430f98ec9..8c6ebfb2c3 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
+@@ -27,27 +27,19 @@ func testObjdumpARM64(t *testing.T, generate func(func([]byte))) {
+ }
+ 
+ func testObjdumpArch(t *testing.T, generate func(func([]byte)), arch Mode) {
+-	if _, err := os.Stat(objdumpPath); err != nil {
+-		t.Skip(err)
+-	}
+-	// Check objdump can disassemble elf64-aarch64.
+-	if test := objdumpinfo(); test == false {
+-		t.Skip("Skip the test if installed objdump doesn't support aarch64 elf format")
+-	}
++	checkObjdumpAarch64(t)
+ 	testExtDis(t, "gnu", arch, objdump, generate, allowedMismatchObjdump)
+ 	testExtDis(t, "plan9", arch, objdump, generate, allowedMismatchObjdump)
+ }
+ 
+-func objdumpinfo() bool {
+-	var i = []byte("aarch64")
++func checkObjdumpAarch64(t *testing.T) {
+ 	out, err := exec.Command(objdumpPath, "-i").Output()
+ 	if err != nil {
+-		log.Fatal(err)
++		t.Skip("cannot run objdump: %v\n%s", err, out)
+ 	}
+-	if bytes.Contains(out, i) {
+-		return true
++	if !strings.Contains(string(out), "aarch64") {
++		t.Skip("objdump does not have aarch64 support")
+ 	}
+-	return false
+ }
+ 
+ func objdump(ext *ExtDis) error {

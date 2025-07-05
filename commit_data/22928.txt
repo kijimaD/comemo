@@ -7,6 +7,20 @@ Date:   Wed Apr 15 14:47:08 2015 -0400
     Change-Id: I9ceceb29291ea9f5d7b675dfabd665c5e3618471
     Reviewed-on: https://go-review.googlesource.com/8955
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 70187b3c20..44f78d7c13 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -272,7 +272,7 @@ func (t *tester) registerTests() {
+ 		} else if t.hasBash() && t.goos != "android" && !iOS {
+ 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
+ 		}
+-		if t.goos == "darwin" && t.goarch == "amd64" {
++		if t.extLink() && t.goos == "darwin" && t.goarch == "amd64" {
+ 			// TODO(crawshaw): add darwin/arm{,64}
+ 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
+ 		}

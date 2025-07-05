@@ -8,6 +8,29 @@ Date:   Wed Oct 25 10:57:00 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/73391
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/devel/release.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index b4e7566d15..2e5b0d44ae 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -38,6 +38,17 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.1">Go
+ 1.9.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.9.2 (released 2017/10/25) includes fixes to the compiler, linker, runtime,
++documentation, <code>go</code> command,
++and the <code>crypto/x509</code>, <code>database/sql</code>, <code>log</code>,
++and <code>net/smtp</code> packages.
++It includes a fix to a bug introduced in Go 1.9.1 that broke <code>go</code> <code>get</code>
++of non-Git repositories under certain conditions.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.2">Go
++1.9.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.8">go1.8 (released 2017/02/16)</h2>
+ 
+ <p>

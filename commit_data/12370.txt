@@ -21,7 +21,7 @@ Date:   Tue Mar 6 00:13:10 2012 +0900
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/5677086
-
+---
  src/pkg/net/file_test.go       |  11 +-
  src/pkg/net/iprawsock_posix.go |   7 +
  src/pkg/net/ipsock_posix.go    |  82 ++++---
@@ -36,3 +36,982 @@ Date:   Tue Mar 6 00:13:10 2012 +0900
  src/pkg/net/unicast_test.go    | 527 +++++++++++++++++++++++++++++++++++++----
  src/pkg/net/unixsock_posix.go  |   2 +-
  13 files changed, 593 insertions(+), 110 deletions(-)
+
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 868388efa1..2d057ff70b 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -60,12 +60,7 @@ func TestFileListener(t *testing.T) {
+ 		return
+ 	}
+ 	testFileListener(t, "tcp", "127.0.0.1")
+-	testFileListener(t, "tcp", "127.0.0.1")
+-	if supportsIPv6 && supportsIPv4map {
+-		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+-		testFileListener(t, "tcp", "127.0.0.1")
+-		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+-	}
++	testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+ 	if runtime.GOOS == "linux" {
+ 		testFileListener(t, "unix", "@gotest/net")
+ 		testFileListener(t, "unixpacket", "@gotest/net")
+@@ -125,12 +120,10 @@ func TestFilePacketConn(t *testing.T) {
+ 	}
+ 	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
+ 	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
++	testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
+ 	if supportsIPv6 {
+ 		testFilePacketConnListen(t, "udp", "[::1]:0")
+ 	}
+-	if supportsIPv6 && supportsIPv4map {
+-		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
+-	}
+ 	if runtime.GOOS == "linux" {
+ 		testFilePacketConnListen(t, "unixgram", "@gotest1/net")
+ 	}
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 9caa86985a..6bbe67c3d9 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -34,6 +34,13 @@ func (a *IPAddr) family() int {
+ 	return syscall.AF_INET6
+ }
+ 
++func (a *IPAddr) isWildcard() bool {
++	if a == nil || a.IP == nil {
++		return true
++	}
++	return a.IP.IsUnspecified()
++}
++
+ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, 0)
+ }
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 4841057d6b..ed313195c9 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -38,6 +38,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 			continue
+ 		}
+ 		defer closesocket(s)
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
+ 		if err != nil {
+ 			continue
+@@ -55,58 +56,75 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ // favoriteAddrFamily returns the appropriate address family to
+ // the given net, laddr, raddr and mode.  At first it figures
+ // address family out from the net.  If mode indicates "listen"
+-// and laddr.(type).IP is nil, it assumes that the user wants to
+-// make a passive connection with wildcard address family, both
+-// INET and INET6, and wildcard address.  Otherwise guess: if the
+-// addresses are IPv4 then returns INET, or else returns INET6.
+-func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) int {
++// and laddr is a wildcard, it assumes that the user wants to
++// make a passive connection with a wildcard address family, both
++// AF_INET and AF_INET6, and a wildcard address like following:
++//
++//	1. A wild-wild listen, "tcp" + ""
++//	If the platform supports both IPv6 and IPv6 IPv4-mapping
++//	capabilities, we assume that the user want to listen on
++//	both IPv4 and IPv6 wildcard address over an AF_INET6
++//	socket with IPV6_V6ONLY=0.  Otherwise we prefer an IPv4
++//	wildcard address listen over an AF_INET socket.
++//
++//	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
++//	Same as 1.
++//
++//	3. A wild-ipv6wild listen, "tcp" + "[::]"
++//	Almost same as 1 but we prefer an IPv6 wildcard address
++//	listen over an AF_INET6 socket with IPV6_V6ONLY=0 when
++//	the platform supports IPv6 capability but not IPv6 IPv4-
++//	mapping capability.
++//
++//	4. A ipv4-ipv4wild listen, "tcp4" + "" or "0.0.0.0"
++//	We use an IPv4 (AF_INET) wildcard address listen.
++//
++//	5. A ipv6-ipv6wild listen, "tcp6" + "" or "[::]"
++//	We use an IPv6 (AF_INET6, IPV6_V6ONLY=1) wildcard address
++//	listen.
++//
++// Otherwise guess: if the addresses are IPv4 then returns AF_INET,
++// or else returns AF_INET6.  It also returns a boolean value what
++// designates IPV6_V6ONLY option.
++//
++// Note that OpenBSD allows neither "net.inet6.ip6.v6only=1" change
++// nor IPPROTO_IPV6 level IPV6_V6ONLY socket option setting.
++func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
+ 	switch net[len(net)-1] {
+ 	case '4':
+-		return syscall.AF_INET
++		return syscall.AF_INET, false
+ 	case '6':
+-		return syscall.AF_INET6
++		return syscall.AF_INET6, true
+ 	}
+ 
+-	if mode == "listen" {
+-		// Note that OpenBSD allows neither "net.inet6.ip6.v6only"
+-		// change nor IPPROTO_IPV6 level IPV6_V6ONLY socket option
+-		// setting.
+-		switch a := laddr.(type) {
+-		case *TCPAddr:
+-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
+-				return syscall.AF_INET6
+-			}
+-		case *UDPAddr:
+-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
+-				return syscall.AF_INET6
+-			}
+-		case *IPAddr:
+-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
+-				return syscall.AF_INET6
+-			}
++	if mode == "listen" && laddr.isWildcard() {
++		if supportsIPv4map {
++			return syscall.AF_INET6, false
+ 		}
++		return laddr.family(), false
+ 	}
+ 
+ 	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
+ 		(raddr == nil || raddr.family() == syscall.AF_INET) {
+-		return syscall.AF_INET
++		return syscall.AF_INET, false
+ 	}
+-	return syscall.AF_INET6
++	return syscall.AF_INET6, false
+ }
+ 
+-// Internet sockets (TCP, UDP)
++// Internet sockets (TCP, UDP, IP)
+ 
+-// A sockaddr represents a TCP or UDP network address that can
++// A sockaddr represents a TCP, UDP or IP network address that can
+ // be converted into a syscall.Sockaddr.
+ type sockaddr interface {
+ 	Addr
+-	sockaddr(family int) (syscall.Sockaddr, error)
+ 	family() int
++	isWildcard() bool
++	sockaddr(family int) (syscall.Sockaddr, error)
+ }
+ 
+ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	var la, ra syscall.Sockaddr
+-	family := favoriteAddrFamily(net, laddr, raddr, mode)
++	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+ 	if laddr != nil {
+ 		if la, err = laddr.sockaddr(family); err != nil {
+ 			goto Error
+@@ -117,7 +135,7 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
+ 			goto Error
+ 		}
+ 	}
+-	fd, err = socket(net, family, sotype, proto, la, ra, toAddr)
++	fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, toAddr)
+ 	if err != nil {
+ 		goto Error
+ 	}
+@@ -152,7 +170,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
+ 		}
+ 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+ 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+-		// which it refuses to do.  Rewrite to the IPv6 all zeros.
++		// which it refuses to do.  Rewrite to the IPv6 unspecified address.
+ 		if ip.Equal(IPv4zero) {
+ 			ip = IPv6zero
+ 		}
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index c1a90de013..f62fc6547c 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -11,6 +11,14 @@ import (
+ 	"time"
+ )
+ 
++// avoidOSXFirewallDialogPopup avoids OS X, former konwn as MacOS X,
++// firewall dialog popups during tests.  It looks like OS X checks
++// wildcard listens by default for security reasons.  A listen with
++// specific address doesn't make dialog popups for now.
++var avoidOSXFirewallDialogPopup = func() bool {
++	return testing.Short() && runtime.GOOS == "darwin"
++}
++
+ func TestShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		return
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index b986216815..2531e364d7 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -128,19 +128,14 @@ func TestTCPServer(t *testing.T) {
+ 		doTest(t, "tcp6", "[::]", "[::1]")
+ 		doTest(t, "tcp6", "[::1]", "[::1]")
+ 	}
+-	if supportsIPv6 && supportsIPv4map {
++	if supportsIPv4map {
+ 		doTest(t, "tcp", "[::ffff:0.0.0.0]", "127.0.0.1")
+ 		doTest(t, "tcp", "[::]", "127.0.0.1")
+ 		doTest(t, "tcp4", "[::ffff:0.0.0.0]", "127.0.0.1")
+-		doTest(t, "tcp6", "", "127.0.0.1")
+-		doTest(t, "tcp6", "[::ffff:0.0.0.0]", "127.0.0.1")
+-		doTest(t, "tcp6", "[::]", "127.0.0.1")
+ 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
+ 		doTest(t, "tcp", "[::ffff:127.0.0.1]", "127.0.0.1")
+ 		doTest(t, "tcp4", "127.0.0.1", "[::ffff:127.0.0.1]")
+ 		doTest(t, "tcp4", "[::ffff:127.0.0.1]", "127.0.0.1")
+-		doTest(t, "tcp6", "127.0.0.1", "[::ffff:127.0.0.1]")
+-		doTest(t, "tcp6", "[::ffff:127.0.0.1]", "127.0.0.1")
+ 	}
+ }
+ 
+@@ -215,7 +210,7 @@ func TestUDPServer(t *testing.T) {
+ 	for _, isEmpty := range []bool{false, true} {
+ 		doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1", isEmpty)
+ 		doTestPacket(t, "udp", "", "127.0.0.1", isEmpty)
+-		if supportsIPv6 && supportsIPv4map {
++		if supportsIPv4map {
+ 			doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]", isEmpty)
+ 			doTestPacket(t, "udp", "[::]", "127.0.0.1", isEmpty)
+ 			doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]", isEmpty)
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index dc139f04a2..3ae16054e4 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -16,7 +16,7 @@ import (
+ var listenerBacklog = maxListenerBacklog()
+ 
+ // Generic socket creation.
+-func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+ 	s, err := syscall.Socket(f, t, p)
+@@ -27,7 +27,7 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+-	err = setDefaultSockopts(s, f, t)
++	err = setDefaultSockopts(s, f, t, ipv6only)
+ 	if err != nil {
+ 		closesocket(s)
+ 		return nil, err
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index 79e0e57e21..fff65f362b 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -13,12 +13,17 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, t int) error {
++func setDefaultSockopts(s, f, t int, ipv6only bool) error {
+ 	switch f {
+ 	case syscall.AF_INET6:
+-		// Allow both IP versions even if the OS default is otherwise.
+-		// Note that some operating systems never admit this option.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		if ipv6only {
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
++		} else {
++			// Allow both IP versions even if the OS default
++			// is otherwise.  Note that some operating systems
++			// never admit this option.
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		}
+ 	}
+ 	// Allow broadcast.
+ 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+diff --git a/src/pkg/net/sockopt_linux.go b/src/pkg/net/sockopt_linux.go
+index 7509c29eec..0f47538c54 100644
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -11,12 +11,17 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, t int) error {
++func setDefaultSockopts(s, f, t int, ipv6only bool) error {
+ 	switch f {
+ 	case syscall.AF_INET6:
+-		// Allow both IP versions even if the OS default is otherwise.
+-		// Note that some operating systems never admit this option.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		if ipv6only {
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
++		} else {
++			// Allow both IP versions even if the OS default
++			// is otherwise.  Note that some operating systems
++			// never admit this option.
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		}
+ 	}
+ 	// Allow broadcast.
+ 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index b18af67d75..509b5963bf 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -11,12 +11,17 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s syscall.Handle, f, t int) error {
++func setDefaultSockopts(s syscall.Handle, f, t int, ipv6only bool) error {
+ 	switch f {
+ 	case syscall.AF_INET6:
+-		// Allow both IP versions even if the OS default is otherwise.
+-		// Note that some operating systems never admit this option.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		if ipv6only {
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
++		} else {
++			// Allow both IP versions even if the OS default
++			// is otherwise.  Note that some operating systems
++			// never admit this option.
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++		}
+ 	}
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index e05bc10170..a073ab9f24 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -46,6 +46,13 @@ func (a *TCPAddr) family() int {
+ 	return syscall.AF_INET6
+ }
+ 
++func (a *TCPAddr) isWildcard() bool {
++	if a == nil || a.IP == nil {
++		return true
++	}
++	return a.IP.IsUnspecified()
++}
++
+ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port)
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 1f99dc5386..9e820e1c57 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -37,6 +37,13 @@ func (a *UDPAddr) family() int {
+ 	return syscall.AF_INET6
+ }
+ 
++func (a *UDPAddr) isWildcard() bool {
++	if a == nil || a.IP == nil {
++		return true
++	}
++	return a.IP.IsUnspecified()
++}
++
+ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port)
+ }
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 297276d3a7..4fd5d32d91 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -7,81 +7,484 @@ package net
+ import (
+ 	"io"
+ 	"runtime"
++	"syscall"
+ 	"testing"
+ )
+ 
+-var unicastTests = []struct {
+-	net    string
+-	laddr  string
+-	ipv6   bool
+-	packet bool
++var listenerTests = []struct {
++	net      string
++	laddr    string
++	ipv6     bool // test with underlying AF_INET6 socket
++	wildcard bool // test with wildcard address
+ }{
+-	{net: "tcp4", laddr: "127.0.0.1:0"},
+-	{net: "tcp4", laddr: "previous"},
+-	{net: "tcp6", laddr: "[::1]:0", ipv6: true},
+-	{net: "tcp6", laddr: "previous", ipv6: true},
+-	{net: "udp4", laddr: "127.0.0.1:0", packet: true},
+-	{net: "udp6", laddr: "[::1]:0", ipv6: true, packet: true},
++	{net: "tcp", laddr: "", wildcard: true},
++	{net: "tcp", laddr: "0.0.0.0", wildcard: true},
++	{net: "tcp", laddr: "[::ffff:0.0.0.0]", wildcard: true},
++	{net: "tcp", laddr: "[::]", ipv6: true, wildcard: true},
++
++	{net: "tcp", laddr: "127.0.0.1"},
++	{net: "tcp", laddr: "[::ffff:127.0.0.1]"},
++	{net: "tcp", laddr: "[::1]", ipv6: true},
++
++	{net: "tcp4", laddr: "", wildcard: true},
++	{net: "tcp4", laddr: "0.0.0.0", wildcard: true},
++	{net: "tcp4", laddr: "[::ffff:0.0.0.0]", wildcard: true},
++
++	{net: "tcp4", laddr: "127.0.0.1"},
++	{net: "tcp4", laddr: "[::ffff:127.0.0.1]"},
++
++	{net: "tcp6", laddr: "", ipv6: true, wildcard: true},
++	{net: "tcp6", laddr: "[::]", ipv6: true, wildcard: true},
++
++	{net: "tcp6", laddr: "[::1]", ipv6: true},
++}
++
++// TestTCPListener tests both single and double listen to a test
++// listener with same address family, same listening address and
++// same port.
++func TestTCPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		return
++	}
++
++	for _, tt := range listenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
++		if tt.ipv6 && !supportsIPv6 {
++			continue
++		}
++		port := usableLocalPort(t, tt.net, tt.laddr)
++		l1, err := Listen(tt.net, tt.laddr+":"+port)
++		if err != nil {
++			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
++		}
++		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
++		l2, err := Listen(tt.net, tt.laddr+":"+port)
++		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
++		fd := l1.(*TCPListener).fd
++		switch fd.family {
++		case syscall.AF_INET:
++			testIPv4UnicastSocketOptions(t, fd)
++		case syscall.AF_INET6:
++			testIPv6UnicastSocketOptions(t, fd)
++		}
++		l1.(io.Closer).Close()
++	}
+ }
+ 
+-func TestUnicastTCPAndUDP(t *testing.T) {
+-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
++// TestUDPListener tests both single and double listen to a test
++// listener with same address family, same listening address and
++// same port.
++func TestUDPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
+ 		return
+ 	}
+ 
+-	prevladdr := ""
+-	for _, tt := range unicastTests {
++	toudpnet := func(net string) string {
++		switch net {
++		case "tcp":
++			return "udp"
++		case "tcp4":
++			return "udp4"
++		case "tcp6":
++			return "udp6"
++		}
++		return "<nil>"
++	}
++
++	for _, tt := range listenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
+ 		if tt.ipv6 && !supportsIPv6 {
+ 			continue
+ 		}
+-		var (
+-			fd     *netFD
+-			closer io.Closer
+-		)
+-		if !tt.packet {
+-			if tt.laddr == "previous" {
+-				tt.laddr = prevladdr
++		tt.net = toudpnet(tt.net)
++		port := usableLocalPort(t, tt.net, tt.laddr)
++		l1, err := ListenPacket(tt.net, tt.laddr+":"+port)
++		if err != nil {
++			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
++		}
++		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
++		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
++		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
++		fd := l1.(*UDPConn).fd
++		switch fd.family {
++		case syscall.AF_INET:
++			testIPv4UnicastSocketOptions(t, fd)
++		case syscall.AF_INET6:
++			testIPv6UnicastSocketOptions(t, fd)
++		}
++		l1.(io.Closer).Close()
++	}
++}
++
++func TestSimpleTCPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		return
++	}
++
++	for _, tt := range listenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
++		if tt.ipv6 {
++			continue
++		}
++		port := usableLocalPort(t, tt.net, tt.laddr)
++		l1, err := Listen(tt.net, tt.laddr+":"+port)
++		if err != nil {
++			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
++		}
++		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
++		l2, err := Listen(tt.net, tt.laddr+":"+port)
++		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
++		l1.(io.Closer).Close()
++	}
++}
++
++func TestSimpleUDPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		return
++	}
++
++	toudpnet := func(net string) string {
++		switch net {
++		case "tcp":
++			return "udp"
++		case "tcp4":
++			return "udp4"
++		case "tcp6":
++			return "udp6"
++		}
++		return "<nil>"
++	}
++
++	for _, tt := range listenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
++		if tt.ipv6 {
++			continue
++		}
++		tt.net = toudpnet(tt.net)
++		port := usableLocalPort(t, tt.net, tt.laddr)
++		l1, err := ListenPacket(tt.net, tt.laddr+":"+port)
++		if err != nil {
++			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
++		}
++		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
++		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
++		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
++		l1.(io.Closer).Close()
++	}
++}
++
++var dualStackListenerTests = []struct {
++	net1     string // first listener
++	laddr1   string
++	net2     string // second listener
++	laddr2   string
++	wildcard bool  // test with wildcard address
++	xerr     error // expected error value, nil or other
++}{
++	// Test cases and expected results for the attemping 2nd listen on the same port
++	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
++	// ------------------------------------------------------------------------------------
++	// "tcp"  ""                 "tcp"  ""                    -        -       -       - 
++	// "tcp"  ""                 "tcp"  "0.0.0.0"             -        -       -       - 
++	// "tcp"  "0.0.0.0"          "tcp"  ""                    -        -       -       - 
++	// ------------------------------------------------------------------------------------
++	// "tcp"  ""                 "tcp"  "[::]"                -        -       -       ok
++	// "tcp"  "[::]"             "tcp"  ""                    -        -       -       ok
++	// "tcp"  "0.0.0.0"          "tcp"  "[::]"                -        -       -       ok
++	// "tcp"  "[::]"             "tcp"  "0.0.0.0"             -        -       -       ok
++	// "tcp"  "[::ffff:0.0.0.0]" "tcp"  "[::]"                -        -       -       ok
++	// "tcp"  "[::]"             "tcp"  "[::ffff:0.0.0.0]"    -        -       -       ok
++	// ------------------------------------------------------------------------------------
++	// "tcp4" ""                 "tcp6" ""                    ok       ok      ok      ok
++	// "tcp6" ""                 "tcp4" ""                    ok       ok      ok      ok
++	// "tcp4" "0.0.0.0"          "tcp6" "[::]"                ok       ok      ok      ok
++	// "tcp6" "[::]"             "tcp4" "0.0.0.0"             ok       ok      ok      ok
++	// ------------------------------------------------------------------------------------
++	// "tcp"  "127.0.0.1"        "tcp"  "[::1]"               ok       ok      ok      ok
++	// "tcp"  "[::1]"            "tcp"  "127.0.0.1"           ok       ok      ok      ok
++	// "tcp4" "127.0.0.1"        "tcp6" "[::1]"               ok       ok      ok      ok
++	// "tcp6" "[::1]"            "tcp4" "127.0.0.1"           ok       ok      ok      ok
++	//
++	// Platform default configurations:
++	// darwin, kernel version 11.3.0
++	//	net.inet6.ip6.v6only=0 (overridable by sysctl or IPV6_V6ONLY option)
++	// freebsd, kernel version 8.2
++	//	net.inet6.ip6.v6only=1 (overridable by sysctl or IPV6_V6ONLY option)
++	// linux, kernel version 3.0.0
++	//	net.ipv6.bindv6only=0 (overridable by sysctl or IPV6_V6ONLY option)
++	// openbsd, kernel version 5.0
++	//	net.inet6.ip6.v6only=1 (overriding is prohibited)
++
++	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "0.0.0.0", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "0.0.0.0", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
++
++	{net1: "tcp", laddr1: "", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "0.0.0.0", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "0.0.0.0", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "[::ffff:0.0.0.0]", net2: "tcp", laddr2: "[::]", wildcard: true, xerr: syscall.EADDRINUSE},
++	{net1: "tcp", laddr1: "[::]", net2: "tcp", laddr2: "[::ffff:0.0.0.0]", wildcard: true, xerr: syscall.EADDRINUSE},
++
++	{net1: "tcp4", laddr1: "", net2: "tcp6", laddr2: "", wildcard: true},
++	{net1: "tcp6", laddr1: "", net2: "tcp4", laddr2: "", wildcard: true},
++	{net1: "tcp4", laddr1: "0.0.0.0", net2: "tcp6", laddr2: "[::]", wildcard: true},
++	{net1: "tcp6", laddr1: "[::]", net2: "tcp4", laddr2: "0.0.0.0", wildcard: true},
++
++	{net1: "tcp", laddr1: "127.0.0.1", net2: "tcp", laddr2: "[::1]"},
++	{net1: "tcp", laddr1: "[::1]", net2: "tcp", laddr2: "127.0.0.1"},
++	{net1: "tcp4", laddr1: "127.0.0.1", net2: "tcp6", laddr2: "[::1]"},
++	{net1: "tcp6", laddr1: "[::1]", net2: "tcp4", laddr2: "127.0.0.1"},
++}
++
++// TestDualStackTCPListener tests both single and double listen
++// to a test listener with various address families, differnet
++// listening address and same port.
++func TestDualStackTCPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		return
++	}
++	if !supportsIPv6 {
++		return
++	}
++
++	for _, tt := range dualStackListenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
++		switch runtime.GOOS {
++		case "openbsd":
++			if tt.wildcard && differentWildcardAddr(tt.laddr1, tt.laddr2) {
++				tt.xerr = nil
+ 			}
+-			l, err := Listen(tt.net, tt.laddr)
+-			if err != nil {
+-				t.Fatalf("Listen failed: %v", err)
++		}
++		port := usableLocalPort(t, tt.net1, tt.laddr1)
++		laddr := tt.laddr1 + ":" + port
++		l1, err := Listen(tt.net1, laddr)
++		if err != nil {
++			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net1, laddr, err)
++		}
++		checkFirstListener(t, tt.net1, laddr, l1)
++		laddr = tt.laddr2 + ":" + port
++		l2, err := Listen(tt.net2, laddr)
++		checkDualStackSecondListener(t, tt.net2, laddr, tt.xerr, err, l2)
++		l1.Close()
++	}
++}
++
++// TestDualStackUDPListener tests both single and double listen
++// to a test listener with various address families, differnet
++// listening address and same port.
++func TestDualStackUDPListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		return
++	}
++	if !supportsIPv6 {
++		return
++	}
++
++	toudpnet := func(net string) string {
++		switch net {
++		case "tcp":
++			return "udp"
++		case "tcp4":
++			return "udp4"
++		case "tcp6":
++			return "udp6"
++		}
++		return "<nil>"
++	}
++
++	for _, tt := range dualStackListenerTests {
++		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++			continue
++		}
++		tt.net1 = toudpnet(tt.net1)
++		tt.net2 = toudpnet(tt.net2)
++		switch runtime.GOOS {
++		case "openbsd":
++			if tt.wildcard && differentWildcardAddr(tt.laddr1, tt.laddr2) {
++				tt.xerr = nil
++			}
++		}
++		port := usableLocalPort(t, tt.net1, tt.laddr1)
++		laddr := tt.laddr1 + ":" + port
++		l1, err := ListenPacket(tt.net1, laddr)
++		if err != nil {
++			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net1, laddr, err)
++		}
++		checkFirstListener(t, tt.net1, laddr, l1)
++		laddr = tt.laddr2 + ":" + port
++		l2, err := ListenPacket(tt.net2, laddr)
++		checkDualStackSecondListener(t, tt.net2, laddr, tt.xerr, err, l2)
++		l1.Close()
++	}
++}
++
++func usableLocalPort(t *testing.T, net, laddr string) string {
++	var nladdr string
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		l, err := Listen(net, laddr+":0")
++		if err != nil {
++			t.Fatalf("Probe Listen(%q, %q) failed: %v", net, laddr, err)
++		}
++		defer l.Close()
++		nladdr = l.(*TCPListener).Addr().String()
++	case "udp", "udp4", "udp6":
++		c, err := ListenPacket(net, laddr+":0")
++		if err != nil {
++			t.Fatalf("Probe ListenPacket(%q, %q) failed: %v", net, laddr, err)
++		}
++		defer c.Close()
++		nladdr = c.(*UDPConn).LocalAddr().String()
++	}
++	_, port, err := SplitHostPort(nladdr)
++	if err != nil {
++		t.Fatalf("SplitHostPort failed: %v", err)
++	}
++	return port
++}
++
++func differentWildcardAddr(i, j string) bool {
++	if (i == "" || i == "0.0.0.0" || i == "::ffff:0.0.0.0") && (j == "" || j == "0.0.0.0" || j == "::ffff:0.0.0.0") {
++		return false
++	}
++	if i == "[::]" && j == "[::]" {
++		return false
++	}
++	return true
++}
++
++func checkFirstListener(t *testing.T, net, laddr string, l interface{}) {
++	switch net {
++	case "tcp":
++		fd := l.(*TCPListener).fd
++		checkDualStackAddrFamily(t, net, laddr, fd)
++	case "tcp4":
++		fd := l.(*TCPListener).fd
++		if fd.family != syscall.AF_INET {
++			t.Fatalf("First Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET)
++		}
++	case "tcp6":
++		fd := l.(*TCPListener).fd
++		if fd.family != syscall.AF_INET6 {
++			t.Fatalf("First Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
++		}
++	case "udp":
++		fd := l.(*UDPConn).fd
++		checkDualStackAddrFamily(t, net, laddr, fd)
++	case "udp4":
++		fd := l.(*UDPConn).fd
++		if fd.family != syscall.AF_INET {
++			t.Fatalf("First ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET)
++		}
++	case "udp6":
++		fd := l.(*UDPConn).fd
++		if fd.family != syscall.AF_INET6 {
++			t.Fatalf("First ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
++		}
++	default:
++		t.Fatalf("Unexpected network: %q", net)
++	}
++}
++
++func checkSecondListener(t *testing.T, net, laddr string, err error, l interface{}) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		if err == nil {
++			l.(*TCPListener).Close()
++			t.Fatalf("Second Listen(%q, %q) should fail", net, laddr)
++		}
++	case "udp", "udp4", "udp6":
++		if err == nil {
++			l.(*UDPConn).Close()
++			t.Fatalf("Second ListenPacket(%q, %q) should fail", net, laddr)
++		}
++	default:
++		t.Fatalf("Unexpected network: %q", net)
++	}
++}
++
++func checkDualStackSecondListener(t *testing.T, net, laddr string, xerr, err error, l interface{}) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		if xerr == nil && err != nil || xerr != nil && err == nil {
++			t.Fatalf("Second Listen(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
++		}
++		l.(*TCPListener).Close()
++	case "udp", "udp4", "udp6":
++		if xerr == nil && err != nil || xerr != nil && err == nil {
++			t.Fatalf("Second ListenPacket(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
++		}
++		l.(*UDPConn).Close()
++	default:
++		t.Fatalf("Unexpected network: %q", net)
++	}
++}
++
++func checkDualStackAddrFamily(t *testing.T, net, laddr string, fd *netFD) {
++	switch a := fd.laddr.(type) {
++	case *TCPAddr:
++		// If a node under test supports both IPv6 capability
++		// and IPv6 IPv4-mapping capability, we can assume
++		// that the node listens on a wildcard address with an
++		// AF_INET6 socket.
++		if supportsIPv4map && fd.laddr.(*TCPAddr).isWildcard() {
++			if fd.family != syscall.AF_INET6 {
++				t.Fatalf("Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
+ 			}
+-			prevladdr = l.Addr().String()
+-			closer = l
+-			fd = l.(*TCPListener).fd
+ 		} else {
+-			c, err := ListenPacket(tt.net, tt.laddr)
+-			if err != nil {
+-				t.Fatalf("ListenPacket failed: %v", err)
++			if fd.family != a.family() {
++				t.Fatalf("Listen(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, a.family())
+ 			}
+-			closer = c
+-			fd = c.(*UDPConn).fd
+ 		}
+-		if !tt.ipv6 {
+-			testIPv4UnicastSocketOptions(t, fd)
++	case *UDPAddr:
++		// If a node under test supports both IPv6 capability
++		// and IPv6 IPv4-mapping capability, we can assume
++		// that the node listens on a wildcard address with an
++		// AF_INET6 socket.
++		if supportsIPv4map && fd.laddr.(*UDPAddr).isWildcard() {
++			if fd.family != syscall.AF_INET6 {
++				t.Fatalf("ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, syscall.AF_INET6)
++			}
+ 		} else {
+-			testIPv6UnicastSocketOptions(t, fd)
++			if fd.family != a.family() {
++				t.Fatalf("ListenPacket(%q, %q) returns address family %v, expected %v", net, laddr, fd.family, a.family())
++			}
+ 		}
+-		closer.Close()
++	default:
++		t.Fatalf("Unexpected protocol address type: %T", a)
+ 	}
+ }
+ 
+ func testIPv4UnicastSocketOptions(t *testing.T, fd *netFD) {
+-	tos, err := ipv4TOS(fd)
++	_, err := ipv4TOS(fd)
+ 	if err != nil {
+ 		t.Fatalf("ipv4TOS failed: %v", err)
+ 	}
+-	t.Logf("IPv4 TOS: %v", tos)
+ 	err = setIPv4TOS(fd, 1)
+ 	if err != nil {
+ 		t.Fatalf("setIPv4TOS failed: %v", err)
+ 	}
+-
+-	ttl, err := ipv4TTL(fd)
++	_, err = ipv4TTL(fd)
+ 	if err != nil {
+ 		t.Fatalf("ipv4TTL failed: %v", err)
+ 	}
+-	t.Logf("IPv4 TTL: %v", ttl)
+ 	err = setIPv4TTL(fd, 1)
+ 	if err != nil {
+ 		t.Fatalf("setIPv4TTL failed: %v", err)
+@@ -89,23 +492,53 @@ func testIPv4UnicastSocketOptions(t *testing.T, fd *netFD) {
+ }
+ 
+ func testIPv6UnicastSocketOptions(t *testing.T, fd *netFD) {
+-	tos, err := ipv6TrafficClass(fd)
++	_, err := ipv6TrafficClass(fd)
+ 	if err != nil {
+ 		t.Fatalf("ipv6TrafficClass failed: %v", err)
+ 	}
+-	t.Logf("IPv6 TrafficClass: %v", tos)
+ 	err = setIPv6TrafficClass(fd, 1)
+ 	if err != nil {
+ 		t.Fatalf("setIPv6TrafficClass failed: %v", err)
+ 	}
+-
+-	hoplim, err := ipv6HopLimit(fd)
++	_, err = ipv6HopLimit(fd)
+ 	if err != nil {
+ 		t.Fatalf("ipv6HopLimit failed: %v", err)
+ 	}
+-	t.Logf("IPv6 HopLimit: %v", hoplim)
+ 	err = setIPv6HopLimit(fd, 1)
+ 	if err != nil {
+ 		t.Fatalf("setIPv6HopLimit failed: %v", err)
+ 	}
+ }
++
++var prohibitionaryDialArgTests = []struct {
++	net  string
++	addr string
++}{
++	{"tcp6", "127.0.0.1"},
++	{"tcp6", "[::ffff:127.0.0.1]"},
++}
++
++func TestProhibitionaryDialArgs(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		return
++	}
++	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.
++	if !supportsIPv4map || avoidOSXFirewallDialogPopup() {
++		return
++	}
++
++	port := usableLocalPort(t, "tcp", "[::]")
++	l, err := Listen("tcp", "[::]"+":"+port)
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	defer l.Close()
++
++	for _, tt := range prohibitionaryDialArgTests {
++		_, err = Dial(tt.net, tt.addr+":"+port)
++		if err == nil {
++			t.Fatal("Dial(%q, %q) should fail", tt.net, tt.addr)
++		}
++	}
++}
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 3a94cf5c5a..5be028f953 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -59,7 +59,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 		f = sockaddrToUnixpacket
+ 	}
+ 
+-	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
++	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, f)
+ 	if err != nil {
+ 		goto Error
+ 	}

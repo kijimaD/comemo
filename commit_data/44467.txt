@@ -28,3 +28,22 @@ Date:   Thu Jul 9 21:23:49 2020 -0400
  src/net/ipsock_plan9.go         | 20 +++++++++++++-------
  src/net/ipsock_plan9_test.go    | 29 +++++++++++++++++++++++++++++
  20 files changed, 155 insertions(+), 52 deletions(-)
+
+diff --cc src/crypto/rsa/pkcs1v15.go
+index 5475239c6b,0cbd6d0045..213ddb4add
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@@ -14,11 -14,9 +14,11 @@@ import 
+  	"crypto/internal/randutil"
+  )
+  
+ +import "crypto/internal/boring"
+ +
+- // This file implements encryption and decryption using PKCS#1 v1.5 padding.
++ // This file implements encryption and decryption using PKCS #1 v1.5 padding.
+  
+- // PKCS1v15DecrypterOpts is for passing options to PKCS#1 v1.5 decryption using
++ // PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
+  // the crypto.Decrypter interface.
+  type PKCS1v15DecryptOptions struct {
+  	// SessionKeyLen is the length of the session key that is being

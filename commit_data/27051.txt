@@ -18,10 +18,313 @@ Date:   Fri Feb 5 14:16:31 2016 -0700
     Change-Id: Iaf0cf1580b686afebd79718ed67ea744f5ed9fc5
     Reviewed-on: https://go-review.googlesource.com/19280
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/alldocs.go         | 22 ++++++++++++++++++----
  src/cmd/go/test.go            | 40 ++++++++++++++++++++++++++++------------
  src/go/doc/example.go         | 30 ++++++++++++++++++------------
  src/math/rand/example_test.go | 10 ++++++++++
  src/testing/example.go        | 26 +++++++++++++++++++++-----
  5 files changed, 95 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 21ace292ea..b6c880bb52 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1537,10 +1537,11 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
+ 
+ An example function is similar to a test function but, instead of using
+ *testing.T to report success or failure, prints output to os.Stdout.
+-That output is compared against the function's "Output:" comment, which
+-must be the last comment in the function body (see example below). An
+-example with no such comment, or with no text after "Output:" is compiled
+-but not executed.
++If the last comment in the function starts with "Output:" then the output
++is compared exactly against the comment (see examples below). If the last
++comment begins with "Unordered output:" then the output is compared to the
++comment, however the order of the lines is ignored. An example with no such
++comment, or with no text after "Output:" is compiled but not executed.
+ 
+ Godoc displays the body of ExampleXXX to demonstrate the use
+ of the function, constant, or variable XXX.  An example of a method M with
+@@ -1556,6 +1557,19 @@ Here is an example of an example:
+ 		// this example.
+ 	}
+ 
++Here is another example where the ordering of the output is ignored:
++
++	func ExamplePerm() {
++		for _, value := range Perm(4) {
++			fmt.Println(value)
++		}
++		// Unordered output: 4
++		// 2
++		// 1
++		// 3
++		// 0
++	}
++
+ The entire test file is presented as the example when it contains a single
+ example function, at least one other function, type, variable, or constant
+ declaration, and no test or benchmark functions.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ca1a7d2722..a17bc4e982 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -311,10 +311,11 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
+ 
+ An example function is similar to a test function but, instead of using
+ *testing.T to report success or failure, prints output to os.Stdout.
+-That output is compared against the function's "Output:" comment, which
+-must be the last comment in the function body (see example below). An
+-example with no such comment, or with no text after "Output:" is compiled
+-but not executed.
++If the last comment in the function starts with "Output:" then the output
++is compared exactly against the comment (see examples below). If the last
++comment begins with "Unordered output:" then the output is compared to the
++comment, however the order of the lines is ignored. An example with no such
++comment, or with no text after "Output:" is compiled but not executed.
+ 
+ Godoc displays the body of ExampleXXX to demonstrate the use
+ of the function, constant, or variable XXX.  An example of a method M with
+@@ -330,6 +331,20 @@ Here is an example of an example:
+ 		// this example.
+ 	}
+ 
++Here is another example where the ordering of the output is ignored:
++
++	func ExamplePerm() {
++		for _, value := range Perm(4) {
++			fmt.Println(value)
++		}
++
++		// Unordered output: 4
++		// 2
++		// 1
++		// 3
++		// 0
++	}
++
+ The entire test file is presented as the example when it contains a single
+ example function, at least one other function, type, variable, or constant
+ declaration, and no test or benchmark functions.
+@@ -1323,9 +1338,10 @@ func (t *testFuncs) Tested() string {
+ }
+ 
+ type testFunc struct {
+-	Package string // imported package name (_test or _xtest)
+-	Name    string // function name
+-	Output  string // output, for examples
++	Package   string // imported package name (_test or _xtest)
++	Name      string // function name
++	Output    string // output, for examples
++	Unordered bool   // output is allowed to be unordered.
+ }
+ 
+ var testFileSet = token.NewFileSet()
+@@ -1349,21 +1365,21 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 			if t.TestMain != nil {
+ 				return errors.New("multiple definitions of TestMain")
+ 			}
+-			t.TestMain = &testFunc{pkg, name, ""}
++			t.TestMain = &testFunc{pkg, name, "", false}
+ 			*doImport, *seen = true, true
+ 		case isTest(name, "Test"):
+ 			err := checkTestFunc(n, "T")
+ 			if err != nil {
+ 				return err
+ 			}
+-			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
++			t.Tests = append(t.Tests, testFunc{pkg, name, "", false})
+ 			*doImport, *seen = true, true
+ 		case isTest(name, "Benchmark"):
+ 			err := checkTestFunc(n, "B")
+ 			if err != nil {
+ 				return err
+ 			}
+-			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
++			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
+ 			*doImport, *seen = true, true
+ 		}
+ 	}
+@@ -1375,7 +1391,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 			// Don't run examples with no output.
+ 			continue
+ 		}
+-		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
++		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output, e.Unordered})
+ 		*seen = true
+ 	}
+ 	return nil
+@@ -1435,7 +1451,7 @@ var benchmarks = []testing.InternalBenchmark{
+ 
+ var examples = []testing.InternalExample{
+ {{range .Examples}}
+-	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}},
++	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}, {{.Unordered}}},
+ {{end}}
+ }
+ 
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index c414e548cc..bbf8096ce2 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -26,8 +26,9 @@ type Example struct {
+ 	Play        *ast.File // a whole program version of the example
+ 	Comments    []*ast.CommentGroup
+ 	Output      string // expected output
+-	EmptyOutput bool   // expect empty output
+-	Order       int    // original source code order
++	Unordered   bool
++	EmptyOutput bool // expect empty output
++	Order       int  // original source code order
+ }
+ 
+ // Examples returns the examples found in the files, sorted by Name field.
+@@ -71,7 +72,7 @@ func Examples(files ...*ast.File) []*Example {
+ 			if f.Doc != nil {
+ 				doc = f.Doc.Text()
+ 			}
+-			output, hasOutput := exampleOutput(f.Body, file.Comments)
++			output, unordered, hasOutput := exampleOutput(f.Body, file.Comments)
+ 			flist = append(flist, &Example{
+ 				Name:        name[len("Example"):],
+ 				Doc:         doc,
+@@ -79,6 +80,7 @@ func Examples(files ...*ast.File) []*Example {
+ 				Play:        playExample(file, f.Body),
+ 				Comments:    file.Comments,
+ 				Output:      output,
++				Unordered:   unordered,
+ 				EmptyOutput: output == "" && hasOutput,
+ 				Order:       len(flist),
+ 			})
+@@ -96,24 +98,27 @@ func Examples(files ...*ast.File) []*Example {
+ 	return list
+ }
+ 
+-var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
++var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
+ 
+ // Extracts the expected output and whether there was a valid output comment
+-func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, ok bool) {
++func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
+ 	if _, last := lastComment(b, comments); last != nil {
+ 		// test that it begins with the correct prefix
+ 		text := last.Text()
+-		if loc := outputPrefix.FindStringIndex(text); loc != nil {
++		if loc := outputPrefix.FindStringSubmatchIndex(text); loc != nil {
++			if loc[2] != -1 {
++				unordered = true
++			}
+ 			text = text[loc[1]:]
+ 			// Strip zero or more spaces followed by \n or a single space.
+ 			text = strings.TrimLeft(text, " ")
+ 			if len(text) > 0 && text[0] == '\n' {
+ 				text = text[1:]
+ 			}
+-			return text, true
++			return text, unordered, true
+ 		}
+ 	}
+-	return "", false // no suitable comment found
++	return "", false, false // no suitable comment found
+ }
+ 
+ // isTest tells whether name looks like a test, example, or benchmark.
+@@ -255,7 +260,8 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 		}
+ 	}
+ 
+-	// Strip "Output:" comment and adjust body end position.
++	// Strip the "Output:" or "Unordered output:" comment and adjust body
++	// end position.
+ 	body, comments = stripOutputComment(body, comments)
+ 
+ 	// Synthesize import declaration.
+@@ -318,10 +324,10 @@ func playExampleFile(file *ast.File) *ast.File {
+ 	return &f
+ }
+ 
+-// stripOutputComment finds and removes an "Output:" comment from body
+-// and comments, and adjusts the body block's end position.
++// stripOutputComment finds and removes the "Output:" or "Unordered output:"
++// comment from body and comments, and adjusts the body block's end position.
+ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
+-	// Do nothing if no "Output:" comment found.
++	// Do nothing if there is no "Output:" or "Unordered output:" comment.
+ 	i, last := lastComment(body, comments)
+ 	if last == nil || !outputPrefix.MatchString(last.Text()) {
+ 		return body, comments
+diff --git a/src/math/rand/example_test.go b/src/math/rand/example_test.go
+index e6cd4f7ac0..614eeaed51 100644
+--- a/src/math/rand/example_test.go
++++ b/src/math/rand/example_test.go
+@@ -95,3 +95,13 @@ func Example_rand() {
+ 	// Int63n(10)  7                   6                   3
+ 	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
+ }
++
++func ExamplePerm() {
++	for _, value := range rand.Perm(3) {
++		fmt.Println(value)
++	}
++
++	// Unordered output: 1
++	// 2
++	// 0
++}
+diff --git a/src/testing/example.go b/src/testing/example.go
+index 30baf27030..fd8343f3bf 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -9,14 +9,16 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"sort"
+ 	"strings"
+ 	"time"
+ )
+ 
+ type InternalExample struct {
+-	Name   string
+-	F      func()
+-	Output string
++	Name      string
++	F         func()
++	Output    string
++	Unordered bool
+ }
+ 
+ func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+@@ -41,6 +43,12 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 	return
+ }
+ 
++func sortLines(output string) string {
++	lines := strings.Split(output, "\n")
++	sort.Strings(lines)
++	return strings.Join(lines, "\n")
++}
++
+ func runExample(eg InternalExample) (ok bool) {
+ 	if *chatty {
+ 		fmt.Printf("=== RUN   %s\n", eg.Name)
+@@ -80,8 +88,16 @@ func runExample(eg InternalExample) (ok bool) {
+ 
+ 		var fail string
+ 		err := recover()
+-		if g, e := strings.TrimSpace(out), strings.TrimSpace(eg.Output); g != e && err == nil {
+-			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", g, e)
++		got := strings.TrimSpace(out)
++		want := strings.TrimSpace(eg.Output)
++		if eg.Unordered {
++			if sortLines(got) != sortLines(want) && err == nil {
++				fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", out, eg.Output)
++			}
++		} else {
++			if got != want && err == nil {
++				fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
++			}
+ 		}
+ 		if fail != "" || err != nil {
+ 			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)

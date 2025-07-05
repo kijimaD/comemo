@@ -7,8 +7,172 @@ Date:   Thu Nov 4 10:30:39 2010 -0400
     R=rsc, chris
     CC=golang-dev
     https://golang.org/cl/2420041
-
+---
  src/pkg/net/dnsclient.go    | 20 ++++++++++++--
  src/pkg/net/dnsname_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/srv_test.go     | 22 +++++++++++++++
  3 files changed, 105 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index accee63890..f1cd47bb19 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -196,12 +196,16 @@ func isDomainName(s string) bool {
+ 	if len(s) == 0 {
+ 		return false
+ 	}
++	if len(s) > 255 {
++		return false
++	}
+ 	if s[len(s)-1] != '.' { // simplify checking loop: make name end in dot
+ 		s += "."
+ 	}
+ 
+ 	last := byte('.')
+ 	ok := false // ok once we've seen a letter
++	partlen := 0
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+ 		switch {
+@@ -209,18 +213,25 @@ func isDomainName(s string) bool {
+ 			return false
+ 		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_':
+ 			ok = true
++			partlen++
+ 		case '0' <= c && c <= '9':
+ 			// fine
++			partlen++
+ 		case c == '-':
+ 			// byte before dash cannot be dot
+ 			if last == '.' {
+ 				return false
+ 			}
++			partlen++
+ 		case c == '.':
+ 			// byte before dot cannot be dot, dash
+ 			if last == '.' || last == '-' {
+ 				return false
+ 			}
++			if partlen > 63 || partlen == 0 {
++				return false
++			}
++			partlen = 0
+ 		}
+ 		last = c
+ 	}
+@@ -315,9 +326,14 @@ type SRV struct {
+ 	Weight   uint16
+ }
+ 
+-func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
++// LookupSRV tries to resolve an SRV query of the given service,
++// protocol, and domain name, as specified in RFC 2782. In most cases
++// the proto argument can be the same as the corresponding
++// Addr.Network().
++func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
++	target := "_" + service + "._" + proto + "." + name
+ 	var records []dnsRR
+-	cname, records, err = lookup(name, dnsTypeSRV)
++	cname, records, err = lookup(target, dnsTypeSRV)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/net/dnsname_test.go b/src/pkg/net/dnsname_test.go
+new file mode 100644
+index 0000000000..67acc8744f
+--- /dev/null
++++ b/src/pkg/net/dnsname_test.go
+@@ -0,0 +1,65 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"testing"
++)
++
++type testCase struct {
++	name   string
++	result bool
++}
++
++var tests = []testCase{
++	// RFC2181, section 11.
++	testCase{"_xmpp-server._tcp.google.com", true},
++	testCase{"_xmpp-server._tcp.google.com", true},
++	testCase{"foo.com", true},
++	testCase{"1foo.com", true},
++	testCase{"26.0.0.73.com", true},
++	testCase{"fo-o.com", true},
++	testCase{"fo1o.com", true},
++	testCase{"foo1.com", true},
++	testCase{"a.b..com", false},
++}
++
++func getTestCases(ch chan<- *testCase) {
++	defer close(ch)
++	var char59 = ""
++	var char63 = ""
++	var char64 = ""
++	for i := 0; i < 59; i++ {
++		char59 += "a"
++	}
++	char63 = char59 + "aaaa"
++	char64 = char63 + "a"
++
++	for _, tc := range tests {
++		ch <- &tc
++	}
++
++	ch <- &testCase{char63 + ".com", true}
++	ch <- &testCase{char64 + ".com", false}
++	// 255 char name is fine:
++	ch <- &testCase{char59 + "." + char63 + "." + char63 + "." +
++		char63 + ".com",
++		true}
++	// 256 char name is bad:
++	ch <- &testCase{char59 + "a." + char63 + "." + char63 + "." +
++		char63 + ".com",
++		false}
++}
++
++func TestDNSNames(t *testing.T) {
++	ch := make(chan *testCase)
++	go getTestCases(ch)
++	for tc := range ch {
++		if isDomainName(tc.name) != tc.result {
++			t.Errorf("isDomainName(%v) failed: Should be %v",
++				tc.name, tc.result)
++		}
++	}
++}
+diff --git a/src/pkg/net/srv_test.go b/src/pkg/net/srv_test.go
+new file mode 100644
+index 0000000000..4dd6089cdd
+--- /dev/null
++++ b/src/pkg/net/srv_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO It would be nice to use a mock DNS server, to eliminate
++// external dependencies.
++
++package net
++
++import (
++	"testing"
++)
++
++func TestGoogleSRV(t *testing.T) {
++	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
++	if err != nil {
++		t.Errorf("failed: %s", err)
++	}
++	if len(addrs) == 0 {
++		t.Errorf("no results")
++	}
++}

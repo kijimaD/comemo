@@ -15,7 +15,58 @@ Date:   Sat Mar 15 22:58:18 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/type.go  | 7 +++++++
  src/reflect/value.go | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b6fc99a934..0004cab985 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -59,6 +59,9 @@ type Type interface {
+ 	// method signature, without a receiver, and the Func field is nil.
+ 	//
+ 	// Methods are sorted in lexicographic order.
++	//
++	// Calling this method will force the linker to retain all exported methods in all packages.
++	// This may make the executable binary larger but will not affect execution time.
+ 	Method(int) Method
+ 
+ 	// MethodByName returns the method with that name in the type's
+@@ -69,6 +72,10 @@ type Type interface {
+ 	//
+ 	// For an interface type, the returned Method's Type field gives the
+ 	// method signature, without a receiver, and the Func field is nil.
++	//
++	// Calling this method will cause the linker to retain all methods with this name in all packages.
++	// If the linker can't determine the name, it will retain all exported methods.
++	// This may make the executable binary larger but will not affect execution time.
+ 	MethodByName(string) (Method, bool)
+ 
+ 	// NumMethod returns the number of methods accessible using Method.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 881664d21a..6e062a56d1 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1799,6 +1799,9 @@ func copyVal(typ *abi.Type, fl flag, ptr unsafe.Pointer) Value {
+ // The arguments to a Call on the returned function should not include
+ // a receiver; the returned function will always use v as the receiver.
+ // Method panics if i is out of range or if v is a nil interface value.
++//
++// Calling this method will force the linker to retain all exported methods in all packages.
++// This may make the executable binary larger but will not affect execution time.
+ func (v Value) Method(i int) Value {
+ 	if v.typ() == nil {
+ 		panic(&ValueError{"reflect.Value.Method", Invalid})
+@@ -1835,6 +1838,10 @@ func (v Value) NumMethod() int {
+ // The arguments to a Call on the returned function should not include
+ // a receiver; the returned function will always use v as the receiver.
+ // It returns the zero Value if no method was found.
++//
++// Calling this method will cause the linker to retain all methods with this name in all packages.
++// If the linker can't determine the name, it will retain all exported methods.
++// This may make the executable binary larger but will not affect execution time.
+ func (v Value) MethodByName(name string) Value {
+ 	if v.typ() == nil {
+ 		panic(&ValueError{"reflect.Value.MethodByName", Invalid})

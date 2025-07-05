@@ -11,6 +11,22 @@ Date:   Tue Sep 27 15:58:33 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/goroot/gc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index 79403d29fc..5517598519 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -69,8 +69,8 @@ func (gd *gccgoDirs) init() {
+ 	const prefix = "libraries: ="
+ 	var dirs []string
+ 	for _, dirEntry := range dirsEntries {
+-		if strings.HasPrefix(dirEntry, prefix) {
+-			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
++		if after, found := strings.CutPrefix(dirEntry, prefix); found {
++			dirs = filepath.SplitList(after)
+ 			break
+ 		}
+ 	}

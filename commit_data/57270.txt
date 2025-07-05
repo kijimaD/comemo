@@ -15,9 +15,344 @@ Date:   Sat Jun 10 08:26:34 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  30 ------
  src/cmd/compile/internal/ssa/memcombine.go    |  70 ++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 129 --------------------------
  test/codegen/memcombine.go                    |  22 +++++
  4 files changed, 92 insertions(+), 159 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 5f9b85fc41..5db5deb4bb 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1487,36 +1487,6 @@
+   && clobber(x)
+   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+ 
+-(MOVBstore [i] {s} p
+-  x1:(MOVBload [j] {s2} p2 mem)
+-    mem2:(MOVBstore [i-1] {s} p
+-      x2:(MOVBload [j-1] {s2} p2 mem) mem))
+-  && x1.Uses == 1
+-  && x2.Uses == 1
+-  && mem2.Uses == 1
+-  && clobber(x1, x2, mem2)
+-  => (MOVWstore [i-1] {s} p (MOVWload [j-1] {s2} p2 mem) mem)
+-
+-(MOVWstore [i] {s} p
+-  x1:(MOVWload [j] {s2} p2 mem)
+-    mem2:(MOVWstore [i-2] {s} p
+-      x2:(MOVWload [j-2] {s2} p2 mem) mem))
+-  && x1.Uses == 1
+-  && x2.Uses == 1
+-  && mem2.Uses == 1
+-  && clobber(x1, x2, mem2)
+-  => (MOVLstore [i-2] {s} p (MOVLload [j-2] {s2} p2 mem) mem)
+-
+-(MOVLstore [i] {s} p
+-  x1:(MOVLload [j] {s2} p2 mem)
+-    mem2:(MOVLstore [i-4] {s} p
+-      x2:(MOVLload [j-4] {s2} p2 mem) mem))
+-  && x1.Uses == 1
+-  && x2.Uses == 1
+-  && mem2.Uses == 1
+-  && clobber(x1, x2, mem2)
+-  => (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
+-
+ // Merge load and op
+ // TODO: add indexed variants?
+ ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/memcombine.go b/src/cmd/compile/internal/ssa/memcombine.go
+index b2c5fe3abf..5c26fec7fe 100644
+--- a/src/cmd/compile/internal/ssa/memcombine.go
++++ b/src/cmd/compile/internal/ssa/memcombine.go
+@@ -499,6 +499,8 @@ func combineStores(root *Value, n int64) bool {
+ 			return false
+ 		}
+ 		if x.Aux.(*types.Type).Size() != size {
++			// TODO: the constant source and consecutive load source cases
++			// do not need all the stores to be the same size.
+ 			return false
+ 		}
+ 		base, off := splitPtr(x.Args[0])
+@@ -572,6 +574,74 @@ func combineStores(root *Value, n int64) bool {
+ 		return true
+ 	}
+ 
++	// Check for consecutive loads as the source of the stores.
++	var loadMem *Value
++	var loadBase BaseAddress
++	var loadIdx int64
++	for i := int64(0); i < n; i++ {
++		load := a[i].store.Args[1]
++		if load.Op != OpLoad {
++			loadMem = nil
++			break
++		}
++		if load.Uses != 1 {
++			loadMem = nil
++			break
++		}
++		if load.Type.IsPtr() {
++			// Don't combine stores containing a pointer, as we need
++			// a write barrier for those. This can't currently happen,
++			// but might in the future if we ever have another
++			// 8-byte-reg/4-byte-ptr architecture like amd64p32.
++			loadMem = nil
++			break
++		}
++		mem := load.Args[1]
++		base, idx := splitPtr(load.Args[0])
++		if loadMem == nil {
++			// First one we found
++			loadMem = mem
++			loadBase = base
++			loadIdx = idx
++			continue
++		}
++		if base != loadBase || mem != loadMem {
++			loadMem = nil
++			break
++		}
++		if idx != loadIdx+(a[i].offset-a[0].offset) {
++			loadMem = nil
++			break
++		}
++	}
++	if loadMem != nil {
++		// Modify the first load to do a larger load instead.
++		load := a[0].store.Args[1]
++		switch size * n {
++		case 2:
++			load.Type = types.Types[types.TUINT16]
++		case 4:
++			load.Type = types.Types[types.TUINT32]
++		case 8:
++			load.Type = types.Types[types.TUINT64]
++		}
++
++		// Modify root to do the store.
++		for i := int64(0); i < n; i++ {
++			v := a[i].store
++			if v == root {
++				v.Aux = load.Type // widen store type
++				v.SetArg(0, ptr)
++				v.SetArg(1, load)
++				v.SetArg(2, mem)
++			} else {
++				clobber(v)
++				v.Type = types.Types[types.TBOOL] // erase memory type
++			}
++		}
++		return true
++	}
++
+ 	// Check that all the shift/trunc are of the same base value.
+ 	shiftBase := getShiftBase(a)
+ 	if shiftBase == nil {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 88bd48f331..2d4a886ea5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -10181,8 +10181,6 @@ func rewriteValueAMD64_OpAMD64MOVBstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (MOVBstore [off] {sym} ptr y:(SETL x) mem)
+ 	// cond: y.Uses == 1
+ 	// result: (SETLstore [off] {sym} ptr x mem)
+@@ -10516,47 +10514,6 @@ func rewriteValueAMD64_OpAMD64MOVBstore(v *Value) bool {
+ 		v.AddArg3(base, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstore [i] {s} p x1:(MOVBload [j] {s2} p2 mem) mem2:(MOVBstore [i-1] {s} p x2:(MOVBload [j-1] {s2} p2 mem) mem))
+-	// cond: x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)
+-	// result: (MOVWstore [i-1] {s} p (MOVWload [j-1] {s2} p2 mem) mem)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		x1 := v_1
+-		if x1.Op != OpAMD64MOVBload {
+-			break
+-		}
+-		j := auxIntToInt32(x1.AuxInt)
+-		s2 := auxToSym(x1.Aux)
+-		mem := x1.Args[1]
+-		p2 := x1.Args[0]
+-		mem2 := v_2
+-		if mem2.Op != OpAMD64MOVBstore || auxIntToInt32(mem2.AuxInt) != i-1 || auxToSym(mem2.Aux) != s {
+-			break
+-		}
+-		_ = mem2.Args[2]
+-		if p != mem2.Args[0] {
+-			break
+-		}
+-		x2 := mem2.Args[1]
+-		if x2.Op != OpAMD64MOVBload || auxIntToInt32(x2.AuxInt) != j-1 || auxToSym(x2.Aux) != s2 {
+-			break
+-		}
+-		_ = x2.Args[1]
+-		if p2 != x2.Args[0] || mem != x2.Args[1] || mem != mem2.Args[2] || !(x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVWstore)
+-		v.AuxInt = int32ToAuxInt(i - 1)
+-		v.Aux = symToAux(s)
+-		v0 := b.NewValue0(x2.Pos, OpAMD64MOVWload, typ.UInt16)
+-		v0.AuxInt = int32ToAuxInt(j - 1)
+-		v0.Aux = symToAux(s2)
+-		v0.AddArg2(p2, mem)
+-		v.AddArg3(p, v0, mem)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value) bool {
+@@ -11069,8 +11026,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (MOVLstore [off] {sym} ptr (MOVLQSX x) mem)
+ 	// result: (MOVLstore [off] {sym} ptr x mem)
+ 	for {
+@@ -11184,47 +11139,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore(v *Value) bool {
+ 		v.AddArg3(base, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVLstore [i] {s} p x1:(MOVLload [j] {s2} p2 mem) mem2:(MOVLstore [i-4] {s} p x2:(MOVLload [j-4] {s2} p2 mem) mem))
+-	// cond: x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)
+-	// result: (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		x1 := v_1
+-		if x1.Op != OpAMD64MOVLload {
+-			break
+-		}
+-		j := auxIntToInt32(x1.AuxInt)
+-		s2 := auxToSym(x1.Aux)
+-		mem := x1.Args[1]
+-		p2 := x1.Args[0]
+-		mem2 := v_2
+-		if mem2.Op != OpAMD64MOVLstore || auxIntToInt32(mem2.AuxInt) != i-4 || auxToSym(mem2.Aux) != s {
+-			break
+-		}
+-		_ = mem2.Args[2]
+-		if p != mem2.Args[0] {
+-			break
+-		}
+-		x2 := mem2.Args[1]
+-		if x2.Op != OpAMD64MOVLload || auxIntToInt32(x2.AuxInt) != j-4 || auxToSym(x2.Aux) != s2 {
+-			break
+-		}
+-		_ = x2.Args[1]
+-		if p2 != x2.Args[0] || mem != x2.Args[1] || mem != mem2.Args[2] || !(x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVQstore)
+-		v.AuxInt = int32ToAuxInt(i - 4)
+-		v.Aux = symToAux(s)
+-		v0 := b.NewValue0(x2.Pos, OpAMD64MOVQload, typ.UInt64)
+-		v0.AuxInt = int32ToAuxInt(j - 4)
+-		v0.Aux = symToAux(s2)
+-		v0.AddArg2(p2, mem)
+-		v.AddArg3(p, v0, mem)
+-		return true
+-	}
+ 	// match: (MOVLstore {sym} [off] ptr y:(ADDLload x [off] {sym} ptr mem) mem)
+ 	// cond: y.Uses==1 && clobber(y)
+ 	// result: (ADDLmodify [off] {sym} ptr x mem)
+@@ -13270,8 +13184,6 @@ func rewriteValueAMD64_OpAMD64MOVWstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (MOVWstore [off] {sym} ptr (MOVWQSX x) mem)
+ 	// result: (MOVWstore [off] {sym} ptr x mem)
+ 	for {
+@@ -13385,47 +13297,6 @@ func rewriteValueAMD64_OpAMD64MOVWstore(v *Value) bool {
+ 		v.AddArg3(base, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVWstore [i] {s} p x1:(MOVWload [j] {s2} p2 mem) mem2:(MOVWstore [i-2] {s} p x2:(MOVWload [j-2] {s2} p2 mem) mem))
+-	// cond: x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)
+-	// result: (MOVLstore [i-2] {s} p (MOVLload [j-2] {s2} p2 mem) mem)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		x1 := v_1
+-		if x1.Op != OpAMD64MOVWload {
+-			break
+-		}
+-		j := auxIntToInt32(x1.AuxInt)
+-		s2 := auxToSym(x1.Aux)
+-		mem := x1.Args[1]
+-		p2 := x1.Args[0]
+-		mem2 := v_2
+-		if mem2.Op != OpAMD64MOVWstore || auxIntToInt32(mem2.AuxInt) != i-2 || auxToSym(mem2.Aux) != s {
+-			break
+-		}
+-		_ = mem2.Args[2]
+-		if p != mem2.Args[0] {
+-			break
+-		}
+-		x2 := mem2.Args[1]
+-		if x2.Op != OpAMD64MOVWload || auxIntToInt32(x2.AuxInt) != j-2 || auxToSym(x2.Aux) != s2 {
+-			break
+-		}
+-		_ = x2.Args[1]
+-		if p2 != x2.Args[0] || mem != x2.Args[1] || mem != mem2.Args[2] || !(x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVLstore)
+-		v.AuxInt = int32ToAuxInt(i - 2)
+-		v.Aux = symToAux(s)
+-		v0 := b.NewValue0(x2.Pos, OpAMD64MOVLload, typ.UInt32)
+-		v0.AuxInt = int32ToAuxInt(j - 2)
+-		v0.Aux = symToAux(s2)
+-		v0.AddArg2(p2, mem)
+-		v.AddArg3(p, v0, mem)
+-		return true
+-	}
+ 	// match: (MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)
+ 	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+ 	// result: (MOVBEWstore [i] {s} p w mem)
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 0d1c390dfc..adad9c613d 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -836,3 +836,25 @@ func zero_uint64_2(d1, d2 []uint64) {
+ 	d1[0], d1[1] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+ 	d2[1], d2[0] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+ }
++
++func loadstore(p, q *[4]uint8) {
++	// amd64:"MOVL",-"MOVB"
++	// arm64:"MOVWU",-"MOVBU"
++	x0, x1, x2, x3 := q[0], q[1], q[2], q[3]
++	// amd64:"MOVL",-"MOVB"
++	// arm64:"MOVW",-"MOVB"
++	p[0], p[1], p[2], p[3] = x0, x1, x2, x3
++}
++
++type S1 struct {
++	a, b int16
++}
++
++func loadstore2(p, q *S1) {
++	// amd64:"MOVL",-"MOVWLZX"
++	// arm64:"MOVWU",-"MOVH"
++	a, b := p.a, p.b
++	// amd64:"MOVL",-"MOVW"
++	// arm64:"MOVW",-"MOVH"
++	q.a, q.b = a, b
++}

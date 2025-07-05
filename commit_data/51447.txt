@@ -13,7 +13,88 @@ Date:   Fri Jan 28 15:17:46 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Trust: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 18 +++++++++---------
  src/cmd/go/internal/workcmd/edit.go | 18 +++++++++---------
  2 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 826b0ccf19..9dd41a8078 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1472,19 +1472,14 @@
+ // The -json flag prints the final go.work file in JSON format instead of
+ // writing it back to go.mod. The JSON output corresponds to these Go types:
+ //
+-// 	type Module struct {
+-// 		Path    string
+-// 		Version string
+-// 	}
+-//
+ // 	type GoWork struct {
+-// 		Go        string
+-// 		Directory []Directory
+-// 		Replace   []Replace
++// 		Go      string
++// 		Use     []Use
++// 		Replace []Replace
+ // 	}
+ //
+ // 	type Use struct {
+-// 		Path       string
++// 		DiskPath   string
+ // 		ModulePath string
+ // 	}
+ //
+@@ -1493,6 +1488,11 @@
+ // 		New Module
+ // 	}
+ //
++// 	type Module struct {
++// 		Path    string
++// 		Version string
++// 	}
++//
+ // See the workspaces design proposal at
+ // https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+ // more information.
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index c42000710e..879ddc3b1d 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -63,19 +63,14 @@ writing it back to go.mod.
+ The -json flag prints the final go.work file in JSON format instead of
+ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 
+-	type Module struct {
+-		Path    string
+-		Version string
+-	}
+-
+ 	type GoWork struct {
+-		Go        string
+-		Directory []Directory
+-		Replace   []Replace
++		Go      string
++		Use     []Use
++		Replace []Replace
+ 	}
+ 
+ 	type Use struct {
+-		Path       string
++		DiskPath   string
+ 		ModulePath string
+ 	}
+ 
+@@ -84,6 +79,11 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		New Module
+ 	}
+ 
++	type Module struct {
++		Path    string
++		Version string
++	}
++
+ See the workspaces design proposal at
+ https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+ more information.

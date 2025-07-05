@@ -17,10 +17,181 @@ Date:   Thu Dec 22 11:27:48 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/example_test.go     |  4 ++--
  src/go/types/object.go           | 50 ++++++++++++++++++++++++++++++++++++----
  src/go/types/object_test.go      | 36 +++++++++++++++++++++++++++++
  src/go/types/predicates.go       |  2 +-
  src/go/types/testdata/decls4.src |  1 +
  5 files changed, 85 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 8882e5063a..2a2fb3fc59 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -239,10 +239,10 @@ func fib(x int) int {
+ 	// type S string:
+ 	//   defined at fib.go:4:6
+ 	//   used at 6:23
+-	// type int int:
++	// type int:
+ 	//   defined at -
+ 	//   used at 8:12, 8:17
+-	// type string string:
++	// type string:
+ 	//   defined at -
+ 	//   used at 4:8
+ 	// var b S:
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 57b82c5983..9a1740825f 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -163,6 +163,30 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+ 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+ }
+ 
++func (obj *TypeName) isAlias() bool {
++	switch t := obj.typ.(type) {
++	case nil:
++		return false
++	case *Basic:
++		// It would seem that we should be able to look for different names here;
++		// but the names of universeByte/Rune are "byte" and "rune", respectively.
++		// We do this so that we get better error messages. However, general alias
++		// types don't have that name information and thus behave differently when
++		// reporting errors (we won't see the alias name, only the original name).
++		// Maybe we should remove the special handling for the predeclared types
++		// as well to be consistent (at the cost of slightly less clear error
++		// messages when byte/rune are involved).
++		// This also plays out in the implementation of the Identical(Type, Type)
++		// predicate.
++		// TODO(gri) consider possible clean up
++		return t == universeByte || t == universeRune
++	case *Named:
++		return obj != t.obj
++	default:
++		return true
++	}
++}
++
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
+@@ -242,7 +266,9 @@ type Nil struct {
+ }
+ 
+ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
++	var tname *TypeName
+ 	typ := obj.Type()
++
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+ 		fmt.Fprintf(buf, "package %s", obj.Name())
+@@ -255,8 +281,8 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		buf.WriteString("const")
+ 
+ 	case *TypeName:
++		tname = obj
+ 		buf.WriteString("type")
+-		typ = typ.Underlying()
+ 
+ 	case *Var:
+ 		if obj.isField {
+@@ -297,12 +323,26 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	}
+ 	buf.WriteString(obj.Name())
+ 
+-	// TODO(gri) indicate type alias if we have one
++	if typ == nil {
++		return
++	}
+ 
+-	if typ != nil {
+-		buf.WriteByte(' ')
+-		WriteType(buf, typ, qf)
++	if tname != nil {
++		// We have a type object: Don't print anything more for
++		// basic types since there's no more information (names
++		// are the same; see also comment in TypeName.isAlias).
++		if _, ok := typ.(*Basic); ok {
++			return
++		}
++		if tname.isAlias() {
++			buf.WriteString(" =")
++		} else {
++			typ = typ.Underlying()
++		}
+ 	}
++
++	buf.WriteByte(' ')
++	WriteType(buf, typ, qf)
+ }
+ 
+ func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+new file mode 100644
+index 0000000000..c9fc7b7258
+--- /dev/null
++++ b/src/go/types/object_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "testing"
++
++func TestIsAlias(t *testing.T) {
++	check := func(obj *TypeName, want bool) {
++		if got := obj.isAlias(); got != want {
++			t.Errorf("%v: got isAlias = %v; want %v", obj, got, want)
++		}
++	}
++
++	// predeclared types
++	for _, name := range Universe.Names() {
++		if obj, _ := Universe.Lookup(name).(*TypeName); obj != nil {
++			check(obj, name == "byte" || name == "rune")
++		}
++	}
++
++	// various other types
++	t0 := NewTypeName(0, nil, "t0", nil)
++	check(t0, false) // no type yet
++
++	t1 := NewTypeName(0, nil, "t1", nil)
++	n1 := NewNamed(t1, new(Struct), nil)
++	check(t1, false) // type name refers to named type and vice versa
++
++	t2 := NewTypeName(0, nil, "t2", new(Interface))
++	check(t2, true) // type name refers to unnamed type
++
++	t3 := NewTypeName(0, nil, "t3", n1)
++	check(t3, true) // type name refers to named type with different type name (true alias)
++}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 21fd81e3c2..707fb9619d 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -139,7 +139,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Basic:
+ 		// Basic types are singletons except for the rune and byte
+ 		// aliases, thus we cannot solely rely on the x == y check
+-		// above.
++		// above. See also comment in TypeName.isAlias.
+ 		if y, ok := y.(*Basic); ok {
+ 			return x.kind == y.kind
+ 		}
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/decls4.src
+index 6030edb7cb..5e5e2e940b 100644
+--- a/src/go/types/testdata/decls4.src
++++ b/src/go/types/testdata/decls4.src
+@@ -63,6 +63,7 @@ func (Ai /* ERROR "invalid receiver" */) m1() {}
+ func (T0) m1() {}
+ func (A0) m1 /* ERROR already declared */ () {}
+ func (A0) m2 () {}
++func (A3 /* ERROR invalid receiver */ ) m1 () {}
+ func (A10 /* ERROR invalid receiver */ ) m1() {}
+ 
+ // x0 has methods m1, m2 declared via receiver type names T0 and A0

@@ -11,6 +11,20 @@ Date:   Wed Jan 30 17:35:18 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/objfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c6d2de4273..a94717a404 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -252,7 +252,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 	for i := 0; i < len(s.P); i += 16 {
+ 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
+ 		j := i
+-		for j = i; j < i+16 && j < len(s.P); j++ {
++		for ; j < i+16 && j < len(s.P); j++ {
+ 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
+ 		}
+ 		for ; j < i+16; j++ {

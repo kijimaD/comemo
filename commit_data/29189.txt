@@ -9,7 +9,182 @@ Date:   Tue Aug 30 14:48:01 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go   | 92 ++++++++++++++++++++----------------
  src/cmd/compile/internal/gc/noder.go | 46 +-----------------
  2 files changed, 51 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 7b1ba35fca..309da90458 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -75,6 +75,54 @@ const (
+ 	UintptrEscapes           // pointers converted to uintptr escape
+ )
+ 
++func PragmaValue(verb string) Pragma {
++	switch verb {
++	case "go:nointerface":
++		if obj.Fieldtrack_enabled != 0 {
++			return Nointerface
++		}
++	case "go:noescape":
++		return Noescape
++	case "go:norace":
++		return Norace
++	case "go:nosplit":
++		return Nosplit
++	case "go:noinline":
++		return Noinline
++	case "go:systemstack":
++		if !compiling_runtime {
++			Yyerror("//go:systemstack only allowed in runtime")
++		}
++		return Systemstack
++	case "go:nowritebarrier":
++		if !compiling_runtime {
++			Yyerror("//go:nowritebarrier only allowed in runtime")
++		}
++		return Nowritebarrier
++	case "go:nowritebarrierrec":
++		if !compiling_runtime {
++			Yyerror("//go:nowritebarrierrec only allowed in runtime")
++		}
++		return Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
++	case "go:cgo_unsafe_args":
++		return CgoUnsafeArgs
++	case "go:uintptrescapes":
++		// For the next function declared in the file
++		// any uintptr arguments may be pointer values
++		// converted to uintptr. This directive
++		// ensures that the referenced allocated
++		// object, if any, is retained and not moved
++		// until the call completes, even though from
++		// the types alone it would appear that the
++		// object is no longer needed during the
++		// call. The conversion to uintptr must appear
++		// in the argument list.
++		// Used in syscall/dll_windows.go.
++		return UintptrEscapes
++	}
++	return 0
++}
++
+ type lexer struct {
+ 	// source
+ 	bin        *bufio.Reader
+@@ -888,48 +936,8 @@ func (l *lexer) getlinepragma() rune {
+ 				break
+ 			}
+ 			Lookup(f[1]).Linkname = f[2]
+-		case "go:nointerface":
+-			if obj.Fieldtrack_enabled != 0 {
+-				l.pragma |= Nointerface
+-			}
+-		case "go:noescape":
+-			l.pragma |= Noescape
+-		case "go:norace":
+-			l.pragma |= Norace
+-		case "go:nosplit":
+-			l.pragma |= Nosplit
+-		case "go:noinline":
+-			l.pragma |= Noinline
+-		case "go:systemstack":
+-			if !compiling_runtime {
+-				Yyerror("//go:systemstack only allowed in runtime")
+-			}
+-			l.pragma |= Systemstack
+-		case "go:nowritebarrier":
+-			if !compiling_runtime {
+-				Yyerror("//go:nowritebarrier only allowed in runtime")
+-			}
+-			l.pragma |= Nowritebarrier
+-		case "go:nowritebarrierrec":
+-			if !compiling_runtime {
+-				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+-			}
+-			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+-		case "go:cgo_unsafe_args":
+-			l.pragma |= CgoUnsafeArgs
+-		case "go:uintptrescapes":
+-			// For the next function declared in the file
+-			// any uintptr arguments may be pointer values
+-			// converted to uintptr. This directive
+-			// ensures that the referenced allocated
+-			// object, if any, is retained and not moved
+-			// until the call completes, even though from
+-			// the types alone it would appear that the
+-			// object is no longer needed during the
+-			// call. The conversion to uintptr must appear
+-			// in the argument list.
+-			// Used in syscall/dll_windows.go.
+-			l.pragma |= UintptrEscapes
++		default:
++			l.pragma |= PragmaValue(verb)
+ 		}
+ 		return c
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 44c6df9e5e..8e2b9ef5fc 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -12,7 +12,6 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"cmd/compile/internal/syntax"
+-	"cmd/internal/obj"
+ )
+ 
+ func parseFile(filename string) {
+@@ -1014,50 +1013,7 @@ func (p *noder) pragma() Pragma {
+ 			verb = verb[:i]
+ 		}
+ 
+-		switch verb {
+-		case "go:nointerface":
+-			if obj.Fieldtrack_enabled != 0 {
+-				res |= Nointerface
+-			}
+-		case "go:noescape":
+-			res |= Noescape
+-		case "go:norace":
+-			res |= Norace
+-		case "go:nosplit":
+-			res |= Nosplit
+-		case "go:noinline":
+-			res |= Noinline
+-		case "go:systemstack":
+-			if !compiling_runtime {
+-				Yyerror("//go:systemstack only allowed in runtime")
+-			}
+-			res |= Systemstack
+-		case "go:nowritebarrier":
+-			if !compiling_runtime {
+-				Yyerror("//go:nowritebarrier only allowed in runtime")
+-			}
+-			res |= Nowritebarrier
+-		case "go:nowritebarrierrec":
+-			if !compiling_runtime {
+-				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+-			}
+-			res |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+-		case "go:cgo_unsafe_args":
+-			res |= CgoUnsafeArgs
+-		case "go:uintptrescapes":
+-			// For the next function declared in the file
+-			// any uintptr arguments may be pointer values
+-			// converted to uintptr. This directive
+-			// ensures that the referenced allocated
+-			// object, if any, is retained and not moved
+-			// until the call completes, even though from
+-			// the types alone it would appear that the
+-			// object is no longer needed during the
+-			// call. The conversion to uintptr must appear
+-			// in the argument list.
+-			// Used in syscall/dll_windows.go.
+-			res |= UintptrEscapes
+-		}
++		res |= PragmaValue(verb)
+ 	}
+ 	return res
+ }

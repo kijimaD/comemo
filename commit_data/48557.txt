@@ -20,10 +20,87 @@ Date:   Fri May 28 11:58:05 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go         | 4 ++--
  src/go/types/check.go       | 4 ++--
  src/go/types/check_test.go  | 2 +-
  src/go/types/stdlib_test.go | 3 ++-
  src/go/types/types_test.go  | 6 ++++++
  5 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index ed62a785d6..8c0d9d22bf 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -101,12 +101,12 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
+-	// GoVersion describes the accepted Go language version. The string
++	// goVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+ 	// empty; an empty string indicates the latest language version.
+ 	// If the format is invalid, invoking the type checker will cause a
+ 	// panic.
+-	GoVersion string
++	goVersion string
+ 
+ 	// If IgnoreFuncBodies is set, function bodies are not
+ 	// type-checked.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 25ea4906be..a923c3c612 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -179,9 +179,9 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		info = new(Info)
+ 	}
+ 
+-	version, err := parseGoVersion(conf.GoVersion)
++	version, err := parseGoVersion(conf.goVersion)
+ 	if err != nil {
+-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
++		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.goVersion, err))
+ 	}
+ 
+ 	return &Checker{
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index c5dc93eade..9c71277264 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -240,7 +240,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
+ 	conf.Sizes = sizes
+-	conf.GoVersion = goVersion
++	SetGoVersion(&conf, goVersion)
+ 
+ 	// special case for importC.src
+ 	if len(filenames) == 1 {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 3dea8dcf1e..503d0a6f44 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -134,7 +134,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		// parse and type-check file
+ 		file, err := parser.ParseFile(fset, filename, nil, 0)
+ 		if err == nil {
+-			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
++			conf := Config{Importer: stdLibImporter}
++			SetGoVersion(&conf, goVersion)
+ 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+diff --git a/src/go/types/types_test.go b/src/go/types/types_test.go
+index fd9462c4a2..25cd996628 100644
+--- a/src/go/types/types_test.go
++++ b/src/go/types/types_test.go
+@@ -11,3 +11,9 @@ import "sync/atomic"
+ // for tests where we may want to have a consistent
+ // numbering for each individual test case.
+ func ResetId() { atomic.StoreUint32(&lastId, 0) }
++
++// SetGoVersion sets the unexported goVersion field on config, so that tests
++// which assert on behavior for older Go versions can set it.
++func SetGoVersion(config *Config, goVersion string) {
++	config.goVersion = goVersion
++}

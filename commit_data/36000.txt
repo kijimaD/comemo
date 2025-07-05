@@ -11,8 +11,121 @@ Date:   Tue Mar 27 16:00:57 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/cert_pool.go | 27 +++++++++++++++++++++++++++
  src/crypto/x509/root.go      |  3 +++
  src/crypto/x509/x509_test.go | 38 +++++++++++++++++++++++++++++++++++++-
  3 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 71ffbdf0e0..a1646b9826 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -25,16 +25,43 @@ func NewCertPool() *CertPool {
+ 	}
+ }
+ 
++func (s *CertPool) copy() *CertPool {
++	p := &CertPool{
++		bySubjectKeyId: make(map[string][]int, len(s.bySubjectKeyId)),
++		byName:         make(map[string][]int, len(s.byName)),
++		certs:          make([]*Certificate, len(s.certs)),
++	}
++	for k, v := range s.bySubjectKeyId {
++		indexes := make([]int, len(v))
++		copy(indexes, v)
++		p.bySubjectKeyId[k] = indexes
++	}
++	for k, v := range s.byName {
++		indexes := make([]int, len(v))
++		copy(indexes, v)
++		p.byName[k] = indexes
++	}
++	copy(p.certs, s.certs)
++	return p
++}
++
+ // SystemCertPool returns a copy of the system cert pool.
+ //
+ // Any mutations to the returned pool are not written to disk and do
+ // not affect any other pool.
++//
++// New changes in the the system cert pool might not be reflected
++// in subsequent calls.
+ func SystemCertPool() (*CertPool, error) {
+ 	if runtime.GOOS == "windows" {
+ 		// Issue 16736, 18609:
+ 		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
+ 	}
+ 
++	if sysRoots := systemRootsPool(); sysRoots != nil {
++		return sysRoots.copy(), nil
++	}
++
+ 	return loadSystemRoots()
+ }
+ 
+diff --git a/src/crypto/x509/root.go b/src/crypto/x509/root.go
+index 787d955be4..240296247d 100644
+--- a/src/crypto/x509/root.go
++++ b/src/crypto/x509/root.go
+@@ -19,4 +19,7 @@ func systemRootsPool() *CertPool {
+ 
+ func initSystemRoots() {
+ 	systemRoots, systemRootsErr = loadSystemRoots()
++	if systemRootsErr != nil {
++		systemRoots = nil
++	}
+ }
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index b396da1b98..46460e1f66 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1656,10 +1656,46 @@ func TestSystemCertPool(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("not implemented on Windows; Issue 16736, 18609")
+ 	}
+-	_, err := SystemCertPool()
++	if runtime.GOOS == "nacl" {
++		t.Skip("not implemented on NaCl; Issue 24561")
++	}
++	a, err := SystemCertPool()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	b, err := SystemCertPool()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !reflect.DeepEqual(a, b) {
++		t.Fatal("two calls to SystemCertPool had different results")
++	}
++	if ok := b.AppendCertsFromPEM([]byte(`
++-----BEGIN CERTIFICATE-----
++MIIDBjCCAe6gAwIBAgIRANXM5I3gjuqDfTp/PYrs+u8wDQYJKoZIhvcNAQELBQAw
++EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0xODAzMjcxOTU2MjFaFw0xOTAzMjcxOTU2
++MjFaMBIxEDAOBgNVBAoTB0FjbWUgQ28wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
++ggEKAoIBAQDK+9m3rjsO2Djes6bIYQZ3eV29JF09ZrjOrEHLtaKrD6/acsoSoTsf
++cQr+rzzztdB5ijWXCS64zo/0OiqBeZUNZ67jVdToa9qW5UYe2H0Y+ZNdfA5GYMFD
++yk/l3/uBu3suTZPfXiW2TjEi27Q8ruNUIZ54DpTcs6y2rBRFzadPWwn/VQMlvRXM
++jrzl8Y08dgnYmaAHprxVzwMXcQ/Brol+v9GvjaH1DooHqkn8O178wsPQNhdtvN01
++IXL46cYdcUwWrE/GX5u+9DaSi+0KWxAPQ+NVD5qUI0CKl4714yGGh7feXMjJdHgl
++VG4QJZlJvC4FsURgCHJT6uHGIelnSwhbAgMBAAGjVzBVMA4GA1UdDwEB/wQEAwIF
++oDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMCAGA1UdEQQZMBeC
++FVRlc3RTeXN0ZW1DZXJ0UG9vbC5nbzANBgkqhkiG9w0BAQsFAAOCAQEAwuSRx/VR
++BKh2ICxZjL6jBwk/7UlU1XKbhQD96RqkidDNGEc6eLZ90Z5XXTurEsXqdm5jQYPs
++1cdcSW+fOSMl7MfW9e5tM66FaIPZl9rKZ1r7GkOfgn93xdLAWe8XHd19xRfDreub
++YC8DVqgLASOEYFupVSl76ktPfxkU5KCvmUf3P2PrRybk1qLGFytGxfyice2gHSNI
++gify3K/+H/7wCkyFW4xYvzl7WW4mXxoqPRPjQt1J423DhnnQ4G1P8V/vhUpXNXOq
++N9IEPnWuihC09cyx/WMQIUlWnaQLHdfpPS04Iez3yy2PdfXJzwfPrja7rNE+skK6
++pa/O1nF0AfWOpw==
++-----END CERTIFICATE-----
++	`)); !ok {
++		t.Fatal("AppendCertsFromPEM failed")
++	}
++	if reflect.DeepEqual(a, b) {
++		t.Fatal("changing one pool modified the other")
++	}
+ }
+ 
+ const emptyNameConstraintsPEM = `

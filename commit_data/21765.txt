@@ -24,7 +24,52 @@ Date:   Tue Feb 3 11:48:50 2015 -0500
     Change-Id: I23e599112ec9919f72e53ac82d9bebbbae3439ed
     Reviewed-on: https://go-review.googlesource.com/3783
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cc/lexbody              | 4 +++-
  src/cmd/internal/asm/lexbody.go | 4 ++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index f586aaa20e..4749273eba 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -572,6 +572,8 @@ getc(void)
+ 	c = peekc;
+ 	if(c != IGN) {
+ 		peekc = IGN;
++		if(c == '\n')
++			lineno++;
+ 		return c;
+ 	}
+ 	c = GETC();
+@@ -633,7 +635,7 @@ loop:
+ 				return l;
+ 			}
+ 		}
+-		peekc = c;
++		unget(c);
+ 		return l;
+ 	}
+ 	switch(c)
+diff --git a/src/cmd/internal/asm/lexbody.go b/src/cmd/internal/asm/lexbody.go
+index df0407c7a9..14a82f8228 100644
+--- a/src/cmd/internal/asm/lexbody.go
++++ b/src/cmd/internal/asm/lexbody.go
+@@ -534,6 +534,9 @@ func getc() int {
+ 	c = peekc
+ 	if c != IGN {
+ 		peekc = IGN
++		if c == '\n' {
++			Lineno++
++		}
+ 		return c
+ 	}
+ 
+@@ -599,6 +602,7 @@ loop:
+ 		}
+ 
+ 		peekc = c
++		unget(c)
+ 		return l
+ 	}
+ 

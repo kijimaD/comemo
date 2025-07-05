@@ -34,9 +34,299 @@ Date:   Mon Aug 22 11:29:03 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-
+---
  src/time/export_test.go |   2 +
  src/time/format.go      |  86 ++++++++++++++++++++++++++++++++++
  src/time/format_test.go | 120 +++++++++++++++++++++++++++++++++++-------------
  src/time/time_test.go   |  12 +++++
  4 files changed, 189 insertions(+), 31 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index afe1560dea..b75d06c6b7 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -135,3 +135,5 @@ var Quote = quote
+ 
+ var AppendFormatAny = Time.appendFormat
+ var AppendFormatRFC3339 = Time.appendFormatRFC3339
++var ParseAny = parse
++var ParseRFC3339 = parseRFC3339
+diff --git a/src/time/format.go b/src/time/format.go
+index 6d5da323dc..afb130cf94 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -618,6 +618,7 @@ func (t Time) Format(layout string) string {
+ // AppendFormat is like Format but appends the textual
+ // representation to b and returns the extended buffer.
+ func (t Time) AppendFormat(b []byte, layout string) []byte {
++	// Optimize for RFC3339 as it accounts for over half of all representations.
+ 	switch layout {
+ 	case RFC3339:
+ 		return t.appendFormatRFC3339(b, false)
+@@ -1018,6 +1019,12 @@ func skip(value, prefix string) (string, error) {
+ // differ by the actual zone offset. To avoid such problems, prefer time layouts
+ // that use a numeric zone offset, or use ParseInLocation.
+ func Parse(layout, value string) (Time, error) {
++	// Optimize for RFC3339 as it accounts for over half of all representations.
++	if layout == RFC3339 || layout == RFC3339Nano {
++		if t, ok := parseRFC3339(value, Local); ok {
++			return t, nil
++		}
++	}
+ 	return parse(layout, value, UTC, Local)
+ }
+ 
+@@ -1027,9 +1034,88 @@ func Parse(layout, value string) (Time, error) {
+ // Second, when given a zone offset or abbreviation, Parse tries to match it
+ // against the Local location; ParseInLocation uses the given location.
+ func ParseInLocation(layout, value string, loc *Location) (Time, error) {
++	// Optimize for RFC3339 as it accounts for over half of all representations.
++	if layout == RFC3339 || layout == RFC3339Nano {
++		if t, ok := parseRFC3339(value, loc); ok {
++			return t, nil
++		}
++	}
+ 	return parse(layout, value, loc, loc)
+ }
+ 
++func parseRFC3339(s string, local *Location) (Time, bool) {
++	// parseUint parses s as an unsigned decimal integer and
++	// verifies that it is within some range.
++	// If it is invalid or out-of-range,
++	// it sets ok to false and returns the min value.
++	ok := true
++	parseUint := func(s string, min, max int) (x int) {
++		for _, c := range []byte(s) {
++			if c < '0' || '9' < c {
++				ok = false
++				return min
++			}
++			x = x*10 + int(c) - '0'
++		}
++		if x < min || max < x {
++			ok = false
++			return min
++		}
++		return x
++	}
++
++	// Parse the date and time.
++	if len(s) < len("2006-01-02T15:04:05") {
++		return Time{}, false
++	}
++	year := parseUint(s[0:4], 0, 9999)                       // e.g., 2006
++	month := parseUint(s[5:7], 1, 12)                        // e.g., 01
++	day := parseUint(s[8:10], 1, daysIn(Month(month), year)) // e.g., 02
++	hour := parseUint(s[11:13], 0, 23)                       // e.g., 15
++	min := parseUint(s[14:16], 0, 59)                        // e.g., 04
++	sec := parseUint(s[17:19], 0, 59)                        // e.g., 05
++	if !ok || !(s[4] == '-' && s[7] == '-' && s[10] == 'T' && s[13] == ':' && s[16] == ':') {
++		return Time{}, false
++	}
++	s = s[19:]
++
++	// Parse the fractional second.
++	var nsec int
++	if len(s) >= 2 && s[0] == '.' && isDigit(s, 1) {
++		n := 2
++		for ; n < len(s) && isDigit(s, n); n++ {
++		}
++		nsec, _, _ = parseNanoseconds(s, n)
++		s = s[n:]
++	}
++
++	// Parse the time zone.
++	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
++	if s != "Z" {
++		if len(s) != len("-07:00") {
++			return Time{}, false
++		}
++		hr := parseUint(s[1:3], 0, 23) // e.g., 07
++		mm := parseUint(s[4:6], 0, 59) // e.g., 00
++		if !ok || !((s[0] == '-' || s[0] == '+') && s[3] == ':') {
++			return Time{}, false
++		}
++		zoneOffset := (hr*60 + mm) * 60
++		if s[0] == '-' {
++			zoneOffset *= -1
++		}
++		t.addSec(-int64(zoneOffset))
++
++		// Use local zone with the given offset if possible.
++		if _, offset, _, _, _ := local.lookup(t.unixSec()); offset == zoneOffset {
++			t.setLoc(local)
++		} else {
++			t.setLoc(FixedZone("", zoneOffset))
++		}
++	}
++	return t, true
++}
++
+ func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
+ 	alayout, avalue := layout, value
+ 	rangeErrString := "" // set if a value is out of range
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 4880e1703c..ae2dc9036f 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -871,44 +871,44 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
+ 	}
+ }
+ 
++var longFractionalDigitsTests = []struct {
++	value string
++	want  int
++}{
++	// 9 digits
++	{"2021-09-29T16:04:33.000000000Z", 0},
++	{"2021-09-29T16:04:33.000000001Z", 1},
++	{"2021-09-29T16:04:33.100000000Z", 100_000_000},
++	{"2021-09-29T16:04:33.100000001Z", 100_000_001},
++	{"2021-09-29T16:04:33.999999999Z", 999_999_999},
++	{"2021-09-29T16:04:33.012345678Z", 12_345_678},
++	// 10 digits, truncates
++	{"2021-09-29T16:04:33.0000000000Z", 0},
++	{"2021-09-29T16:04:33.0000000001Z", 0},
++	{"2021-09-29T16:04:33.1000000000Z", 100_000_000},
++	{"2021-09-29T16:04:33.1000000009Z", 100_000_000},
++	{"2021-09-29T16:04:33.9999999999Z", 999_999_999},
++	{"2021-09-29T16:04:33.0123456789Z", 12_345_678},
++	// 11 digits, truncates
++	{"2021-09-29T16:04:33.10000000000Z", 100_000_000},
++	{"2021-09-29T16:04:33.00123456789Z", 1_234_567},
++	// 12 digits, truncates
++	{"2021-09-29T16:04:33.000123456789Z", 123_456},
++	// 15 digits, truncates
++	{"2021-09-29T16:04:33.9999999999999999Z", 999_999_999},
++}
++
+ // Issue 48685 and 54567.
+ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
+-	tests := []struct {
+-		s    string
+-		want int
+-	}{
+-		// 9 digits
+-		{"2021-09-29T16:04:33.000000000Z", 0},
+-		{"2021-09-29T16:04:33.000000001Z", 1},
+-		{"2021-09-29T16:04:33.100000000Z", 100_000_000},
+-		{"2021-09-29T16:04:33.100000001Z", 100_000_001},
+-		{"2021-09-29T16:04:33.999999999Z", 999_999_999},
+-		{"2021-09-29T16:04:33.012345678Z", 12_345_678},
+-		// 10 digits, truncates
+-		{"2021-09-29T16:04:33.0000000000Z", 0},
+-		{"2021-09-29T16:04:33.0000000001Z", 0},
+-		{"2021-09-29T16:04:33.1000000000Z", 100_000_000},
+-		{"2021-09-29T16:04:33.1000000009Z", 100_000_000},
+-		{"2021-09-29T16:04:33.9999999999Z", 999_999_999},
+-		{"2021-09-29T16:04:33.0123456789Z", 12_345_678},
+-		// 11 digits, truncates
+-		{"2021-09-29T16:04:33.10000000000Z", 100_000_000},
+-		{"2021-09-29T16:04:33.00123456789Z", 1_234_567},
+-		// 12 digits, truncates
+-		{"2021-09-29T16:04:33.000123456789Z", 123_456},
+-		// 15 digits, truncates
+-		{"2021-09-29T16:04:33.9999999999999999Z", 999_999_999},
+-	}
+-
+-	for _, tt := range tests {
++	for _, tt := range longFractionalDigitsTests {
+ 		for _, format := range []string{RFC3339, RFC3339Nano} {
+-			tm, err := Parse(format, tt.s)
++			tm, err := Parse(format, tt.value)
+ 			if err != nil {
+-				t.Errorf("Parse(%q, %q) error: %v", format, tt.s, err)
++				t.Errorf("Parse(%q, %q) error: %v", format, tt.value, err)
+ 				continue
+ 			}
+ 			if got := tm.Nanosecond(); got != tt.want {
+-				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.s, got, tt.want)
++				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.value, got, tt.want)
+ 			}
+ 		}
+ 	}
+@@ -955,3 +955,61 @@ func FuzzFormatRFC3339(f *testing.F) {
+ 		}
+ 	})
+ }
++
++func FuzzParseRFC3339(f *testing.F) {
++	for _, tt := range formatTests {
++		f.Add(tt.result)
++	}
++	for _, tt := range parseTests {
++		f.Add(tt.value)
++	}
++	for _, tt := range parseErrorTests {
++		f.Add(tt.value)
++	}
++	for _, tt := range longFractionalDigitsTests {
++		f.Add(tt.value)
++	}
++
++	f.Fuzz(func(t *testing.T, s string) {
++		// equalTime is like time.Time.Equal, but also compares the time zone.
++		equalTime := func(t1, t2 Time) bool {
++			name1, offset1 := t1.Zone()
++			name2, offset2 := t2.Zone()
++			return t1.Equal(t2) && name1 == name2 && offset1 == offset2
++		}
++
++		for _, tz := range []*Location{UTC, Local} {
++			// Parsing as RFC3339 or RFC3339Nano should be identical.
++			t1, err1 := ParseAny(RFC3339, s, UTC, tz)
++			t2, err2 := ParseAny(RFC3339Nano, s, UTC, tz)
++			switch {
++			case (err1 == nil) != (err2 == nil):
++				t.Fatalf("ParseAny(%q) error mismatch:\n\tgot:  %v\n\twant: %v", s, err1, err2)
++			case !equalTime(t1, t2):
++				t.Fatalf("ParseAny(%q) value mismatch:\n\tgot:  %v\n\twant: %v", s, t1, t2)
++			}
++
++			// TODO(https://go.dev/issue/54580):
++			// Remove these checks after ParseAny rejects all invalid RFC 3339.
++			if err1 == nil {
++				num2 := func(s string) byte { return 10*(s[0]-'0') + (s[1] - '0') }
++				switch {
++				case len(s) > 12 && s[12] == ':':
++					t.Skipf("ParseAny(%q) incorrectly allows single-digit hour fields", s)
++				case len(s) > 19 && s[19] == ',':
++					t.Skipf("ParseAny(%q) incorrectly allows comma as sub-second separator", s)
++				case !strings.HasSuffix(s, "Z") && len(s) > 4 && (num2(s[len(s)-5:]) >= 24 || num2(s[len(s)-2:]) >= 60):
++					t.Skipf("ParseAny(%q) incorrectly allows out-of-range zone offset", s)
++				}
++			}
++
++			// Customized parser should be identical to general parser.
++			switch got, ok := ParseRFC3339(s, tz); {
++			case ok != (err1 == nil):
++				t.Fatalf("ParseRFC3339(%q) error mismatch:\n\tgot:  %v\n\twant: %v", s, ok, err1 == nil)
++			case !equalTime(got, t1):
++				t.Fatalf("ParseRFC3339(%q) value mismatch:\n\tgot:  %v\n\twant: %v", s, got, t2)
++			}
++		}
++	})
++}
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index f2c6c3977e..f0fed62930 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1445,6 +1445,18 @@ func BenchmarkParse(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkParseRFC3339UTC(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Parse(RFC3339, "2020-08-22T11:27:43.123456789Z")
++	}
++}
++
++func BenchmarkParseRFC3339TZ(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Parse(RFC3339, "2020-08-22T11:27:43.123456789-02:00")
++	}
++}
++
+ func BenchmarkParseDuration(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		ParseDuration("9007199254.740993ms")

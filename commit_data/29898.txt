@@ -16,8 +16,206 @@ Date:   Sun Oct 16 05:00:27 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request_test.go  | 64 ++++++++++++++++++++++++++++++++++++++-----
  src/net/http/response_test.go | 34 ++++++++++++++++++++---
  src/net/http/transfer.go      | 30 +++++++++++++++-----
  3 files changed, 110 insertions(+), 18 deletions(-)
+
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index f7203e9168..c52eb81f03 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -365,18 +365,68 @@ func TestFormFileOrder(t *testing.T) {
+ 
+ var readRequestErrorTests = []struct {
+ 	in  string
+-	err error
++	err string
++
++	header Header
+ }{
+-	{"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", nil},
+-	{"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF},
+-	{"", io.EOF},
++	0: {"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", "", Header{"Header": {"foo"}}},
++	1: {"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF.Error(), nil},
++	2: {"", io.EOF.Error(), nil},
++	3: {
++		in:  "HEAD / HTTP/1.1\r\nContent-Length:4\r\n\r\n",
++		err: "http: method cannot contain a Content-Length",
++	},
++	4: {
++		in:     "HEAD / HTTP/1.1\r\n\r\n",
++		header: Header{},
++	},
++
++	// Multiple Content-Length values should either be
++	// deduplicated if same or reject otherwise
++	// See Issue 16490.
++	5: {
++		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 0\r\n\r\nGopher hey\r\n",
++		err: "cannot contain multiple Content-Length headers",
++	},
++	6: {
++		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 6\r\n\r\nGopher\r\n",
++		err: "cannot contain multiple Content-Length headers",
++	},
++	7: {
++		in:     "PUT / HTTP/1.1\r\nContent-Length: 6 \r\nContent-Length: 6\r\nContent-Length:6\r\n\r\nGopher\r\n",
++		err:    "",
++		header: Header{"Content-Length": {"6"}},
++	},
++	8: {
++		in:  "PUT / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 6 \r\n\r\n",
++		err: "cannot contain multiple Content-Length headers",
++	},
++	9: {
++		in:  "POST / HTTP/1.1\r\nContent-Length:\r\nContent-Length: 3\r\n\r\n",
++		err: "cannot contain multiple Content-Length headers",
++	},
++	10: {
++		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
++		header: Header{"Content-Length": {"0"}},
++	},
+ }
+ 
+ func TestReadRequestErrors(t *testing.T) {
+ 	for i, tt := range readRequestErrorTests {
+-		_, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
+-		if err != tt.err {
+-			t.Errorf("%d. got error = %v; want %v", i, err, tt.err)
++		req, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
++		if err == nil {
++			if tt.err != "" {
++				t.Errorf("#%d: got nil err; want %q", i, tt.err)
++			}
++
++			if !reflect.DeepEqual(tt.header, req.Header) {
++				t.Errorf("#%d: gotHeader: %q wantHeader: %q", i, req.Header, tt.header)
++			}
++			continue
++		}
++
++		if tt.err == "" || !strings.Contains(err.Error(), tt.err) {
++			t.Errorf("%d: got error = %v; want %v", i, err, tt.err)
+ 		}
+ 	}
+ }
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 126da92735..342d4f5fc5 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -792,6 +792,7 @@ func TestReadResponseErrors(t *testing.T) {
+ 	type testCase struct {
+ 		name    string // optional, defaults to in
+ 		in      string
++		header  Header
+ 		wantErr interface{} // nil, err value, or string substring
+ 	}
+ 
+@@ -817,11 +818,22 @@ func TestReadResponseErrors(t *testing.T) {
+ 		}
+ 	}
+ 
++	contentLength := func(status, body string, wantErr interface{}, header Header) testCase {
++		return testCase{
++			name:    fmt.Sprintf("status %q %q", status, body),
++			in:      fmt.Sprintf("HTTP/1.1 %s\r\n%s", status, body),
++			wantErr: wantErr,
++			header:  header,
++		}
++	}
++
++	errMultiCL := "message cannot contain multiple Content-Length headers"
++
+ 	tests := []testCase{
+-		{"", "", io.ErrUnexpectedEOF},
+-		{"", "HTTP/1.1 301 Moved Permanently\r\nFoo: bar", io.ErrUnexpectedEOF},
+-		{"", "HTTP/1.1", "malformed HTTP response"},
+-		{"", "HTTP/2.0", "malformed HTTP response"},
++		{"", "", nil, io.ErrUnexpectedEOF},
++		{"", "HTTP/1.1 301 Moved Permanently\r\nFoo: bar", nil, io.ErrUnexpectedEOF},
++		{"", "HTTP/1.1", nil, "malformed HTTP response"},
++		{"", "HTTP/2.0", nil, "malformed HTTP response"},
+ 		status("20X Unknown", true),
+ 		status("abcd Unknown", true),
+ 		status("二百/两百 OK", true),
+@@ -846,7 +858,21 @@ func TestReadResponseErrors(t *testing.T) {
+ 		version("HTTP/A.B", true),
+ 		version("HTTP/1", true),
+ 		version("http/1.1", true),
++
++		contentLength("200 OK", "Content-Length: 10\r\nContent-Length: 7\r\n\r\nGopher hey\r\n", errMultiCL, nil),
++		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil, Header{"Content-Length": {"7"}}),
++		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL, nil),
++		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil, Header{"Content-Length": {"0"}}),
++		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil, nil),
++		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL, nil),
++
++		// multiple content-length headers for 204 and 304 should still be checked
++		contentLength("204 OK", "Content-Length: 7\r\nContent-Length: 8\r\n\r\n", errMultiCL, nil),
++		contentLength("204 OK", "Content-Length: 3\r\nContent-Length: 3\r\n\r\n", nil, nil),
++		contentLength("304 OK", "Content-Length: 880\r\nContent-Length: 1\r\n\r\n", errMultiCL, nil),
++		contentLength("304 OK", "Content-Length: 961\r\nContent-Length: 961\r\n\r\n", nil, nil),
+ 	}
++
+ 	for i, tt := range tests {
+ 		br := bufio.NewReader(strings.NewReader(tt.in))
+ 		_, rerr := ReadResponse(br, nil)
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 9d31b71f32..b6446486ee 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -473,8 +473,29 @@ func (t *transferReader) fixTransferEncoding() error {
+ // function is not a method, because ultimately it should be shared by
+ // ReadResponse and ReadRequest.
+ func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
+-	contentLens := header["Content-Length"]
+ 	isRequest := !isResponse
++	contentLens := header["Content-Length"]
++
++	// Hardening against HTTP request smuggling
++	if len(contentLens) > 1 {
++		// Per RFC 7230 Section 3.3.2, prevent multiple
++		// Content-Length headers if they differ in value.
++		// If there are dups of the value, remove the dups.
++		// See Issue 16490.
++		first := strings.TrimSpace(contentLens[0])
++		for _, ct := range contentLens[1:] {
++			if first != strings.TrimSpace(ct) {
++				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
++			}
++		}
++
++		// deduplicate Content-Length
++		header.Del("Content-Length")
++		header.Add("Content-Length", first)
++
++		contentLens = header["Content-Length"]
++	}
++
+ 	// Logic based on response type or status
+ 	if noBodyExpected(requestMethod) {
+ 		// For HTTP requests, as part of hardening against request
+@@ -494,11 +515,6 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		return 0, nil
+ 	}
+ 
+-	if len(contentLens) > 1 {
+-		// harden against HTTP request smuggling. See RFC 7230.
+-		return 0, errors.New("http: message cannot contain multiple Content-Length headers")
+-	}
+-
+ 	// Logic based on Transfer-Encoding
+ 	if chunked(te) {
+ 		return -1, nil
+@@ -519,7 +535,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		header.Del("Content-Length")
+ 	}
+ 
+-	if !isResponse {
++	if isRequest {
+ 		// RFC 2616 neither explicitly permits nor forbids an
+ 		// entity-body on a GET request so we permit one if
+ 		// declared, but we default to 0 here (not -1 below)

@@ -10,10 +10,218 @@ Date:   Wed Mar 6 16:48:20 2013 -0500
     R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
     https://golang.org/cl/7532043
-
+---
  src/pkg/net/http/export_test.go       |  2 ++
  src/pkg/net/http/header_test.go       |  2 +-
  src/pkg/net/http/request.go           |  2 +-
  src/pkg/net/http/request_test.go      |  2 +-
  src/pkg/net/http/requestwrite_test.go | 36 +++++++++++++++++------------------
  5 files changed, 23 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/net/http/export_test.go b/src/pkg/net/http/export_test.go
+index a7bca20a07..3fc2453267 100644
+--- a/src/pkg/net/http/export_test.go
++++ b/src/pkg/net/http/export_test.go
+@@ -54,3 +54,5 @@ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+ 	}
+ 	return &timeoutHandler{handler, f, ""}
+ }
++
++var DefaultUserAgent = defaultUserAgent
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index 2313b55493..93a904536a 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -178,7 +178,7 @@ var testHeader = Header{
+ 	"Content-Length": {"123"},
+ 	"Content-Type":   {"text/plain"},
+ 	"Date":           {"some date at some time Z"},
+-	"Server":         {"Go http package"},
++	"Server":         {DefaultUserAgent},
+ }
+ 
+ var buf bytes.Buffer
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 217f35b483..dabb169d1f 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -283,7 +283,7 @@ func valueOrDefault(value, def string) string {
+ 	return def
+ }
+ 
+-const defaultUserAgent = "Go http package"
++const defaultUserAgent = "Go 1.1 package http"
+ 
+ // Write writes an HTTP/1.1 request -- header and body -- in wire format.
+ // This method consults the following fields of the request:
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 00ad791ded..46d622992f 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -289,7 +289,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
+ 	want := []string{
+ 		"GET / HTTP/1.1\r\n",
+ 		"Host: foo.com\r\n",
+-		"User-Agent: Go http package\r\n",
++		"User-Agent: " + DefaultUserAgent + "\r\n",
+ 		"\r\n",
+ 	}
+ 	if !reflect.DeepEqual(got, want) {
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index bc637f18b0..f78d3882a8 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -93,13 +93,13 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
+ 
+ 		WantProxy: "GET http://www.google.com/search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
+ 	},
+@@ -123,14 +123,14 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "POST /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
+ 
+ 		WantProxy: "POST http://www.google.com/search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
+@@ -156,7 +156,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "POST /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+@@ -164,7 +164,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantProxy: "POST http://www.google.com/search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+@@ -187,14 +187,14 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+ 			"abcdef",
+ 
+ 		WantProxy: "POST http://example.com/ HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+ 			"abcdef",
+@@ -210,7 +210,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"\r\n",
+ 	},
+ 
+@@ -232,13 +232,13 @@ var reqWriteTests = []reqWriteTest{
+ 		// Also, nginx expects it for POST and PUT.
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Content-Length: 0\r\n" +
+ 			"\r\n",
+ 
+ 		WantProxy: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Content-Length: 0\r\n" +
+ 			"\r\n",
+ 	},
+@@ -258,13 +258,13 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("x") + chunk(""),
+ 
+ 		WantProxy: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("x") + chunk(""),
+ 	},
+@@ -325,7 +325,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET /foo HTTP/1.1\r\n" +
+ 			"Host: \r\n" +
+-			"User-Agent: Go http package\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
+ 			"X-Foo: X-Bar\r\n\r\n",
+ 	},
+ 
+@@ -351,7 +351,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET /search HTTP/1.1\r\n" +
+ 			"Host: \r\n" +
+-			"User-Agent: Go http package\r\n\r\n",
++			"User-Agent: Go 1.1 package http\r\n\r\n",
+ 	},
+ 
+ 	// Opaque test #1 from golang.org/issue/4860
+@@ -370,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET /%2F/%2F/ HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+-			"User-Agent: Go http package\r\n\r\n",
++			"User-Agent: Go 1.1 package http\r\n\r\n",
+ 	},
+ 
+ 	// Opaque test #2 from golang.org/issue/4860
+@@ -389,7 +389,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		WantWrite: "GET http://y.google.com/%2F/%2F/ HTTP/1.1\r\n" +
+ 			"Host: x.google.com\r\n" +
+-			"User-Agent: Go http package\r\n\r\n",
++			"User-Agent: Go 1.1 package http\r\n\r\n",
+ 	},
+ }
+ 
+@@ -474,7 +474,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
+ 	}
+ 	expected := "POST / HTTP/1.1\r\n" +
+ 		"Host: foo.com\r\n" +
+-		"User-Agent: Go http package\r\n" +
++		"User-Agent: Go 1.1 package http\r\n" +
+ 		"Transfer-Encoding: chunked\r\n\r\n" +
+ 		// TODO: currently we don't buffer before chunking, so we get a
+ 		// single "m" chunk before the other chunks, as this was the 1-byte

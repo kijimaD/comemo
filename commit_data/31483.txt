@@ -16,6 +16,31 @@ Date:   Wed Feb 22 06:56:26 2017 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/run.bash | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 293b775efa..c0029c51f4 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -8,9 +8,17 @@ set -e
+ eval $(go env)
+ export GOROOT   # the api test requires GOROOT to be set.
+ 
++# We disallow local import for non-local packages, if $GOROOT happens
++# to be under $GOPATH, then some tests below will fail.  $GOPATH needs
++# to be set to a non-empty string, else Go will set a default value
++# that may also conflict with $GOROOT.  The $GOPATH value doesn't need
++# to point to an actual directory, it just needs to pass the semantic
++# checks performed by Go.  Use $GOROOT to define $GOPATH so that we
++# don't blunder into a user-defined symbolic link.
++GOPATH=$GOROOT/nonexistentpath
++export GOPATH
++
+ unset CDPATH	# in case user has it set
+-unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
+-                # to be under $GOPATH, then some tests below will fail
+ unset GOBIN     # Issue 14340
+ 
+ export GOHOSTOS

@@ -11,6 +11,27 @@ Date:   Thu May 27 16:16:37 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/323275
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index b3485a0ca6..4e847708e5 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -373,6 +373,15 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- database/sql -->
+ 
++<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
++  <dd>
++    <p><!-- CL 239217 -->
++      The <a href="/pkg/debug/elf/#SHT_MIPS_ABIFLAGS"><code>SHT_MIPS_ABIFLAGS</code></a>
++      constant has been added.
++    </p>
++  </dd>
++</dl><!-- debug/elf -->
++
+ <dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
+   <dd>
+     <p><!-- CL 299531 -->

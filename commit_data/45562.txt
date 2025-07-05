@@ -13,6 +13,30 @@ Date:   Tue Oct 27 23:03:11 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 2e5d0ff991..a62e55191e 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -535,6 +535,9 @@ func archRISCV64() *Arch {
+ 
+ 	// Standard register names.
+ 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
++		if i == riscv.REG_G {
++			continue
++		}
+ 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
+ 		register[name] = int16(i)
+ 	}
+@@ -571,7 +574,7 @@ func archRISCV64() *Arch {
+ 	register["S8"] = riscv.REG_S8
+ 	register["S9"] = riscv.REG_S9
+ 	register["S10"] = riscv.REG_S10
+-	register["S11"] = riscv.REG_S11
++	// Skip S11 as it is the g register.
+ 	register["T3"] = riscv.REG_T3
+ 	register["T4"] = riscv.REG_T4
+ 	register["T5"] = riscv.REG_T5

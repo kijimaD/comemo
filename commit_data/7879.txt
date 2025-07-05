@@ -9,6 +9,20 @@ Date:   Fri Mar 25 15:28:53 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4280071
-
+---
  test/fixedbugs/bug081.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug081.go b/test/fixedbugs/bug081.go
+index 8d3d538c8f..026ce8002f 100644
+--- a/test/fixedbugs/bug081.go
++++ b/test/fixedbugs/bug081.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-const x x = 2 // ERROR "loop"
++const x x = 2 // ERROR "loop|type"
+ 
+ /*
+ bug081.go:3: first constant must evaluate an expression

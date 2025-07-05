@@ -11,7 +11,74 @@ Date:   Mon Oct 24 21:20:04 2016 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go      |  6 +++++-
  src/encoding/json/encode_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 667df31ce3..98a9899502 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -443,7 +443,11 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 		e.WriteString("null")
+ 		return
+ 	}
+-	m := v.Interface().(Marshaler)
++	m, ok := v.Interface().(Marshaler)
++	if !ok {
++		e.WriteString("null")
++		return
++	}
+ 	b, err := m.MarshalJSON()
+ 	if err == nil {
+ 		// copy JSON into buffer, checking validity.
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index b2c9e91dde..ebcf07cf38 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -293,6 +293,44 @@ type BugX struct {
+ 	BugB
+ }
+ 
++// Issue 16042. Even if a nil interface value is passed in
++// as long as it implements MarshalJSON, it should be marshaled.
++type nilMarshaler string
++
++func (nm *nilMarshaler) MarshalJSON() ([]byte, error) {
++	if nm == nil {
++		return Marshal("0zenil0")
++	}
++	return Marshal("zenil:" + string(*nm))
++}
++
++// Issue 16042.
++func TestNilMarshal(t *testing.T) {
++	testCases := []struct {
++		v    interface{}
++		want string
++	}{
++		{v: nil, want: `null`},
++		{v: new(float64), want: `0`},
++		{v: []interface{}(nil), want: `null`},
++		{v: []string(nil), want: `null`},
++		{v: map[string]string(nil), want: `null`},
++		{v: []byte(nil), want: `null`},
++		{v: struct{ M string }{"gopher"}, want: `{"M":"gopher"}`},
++		{v: struct{ M Marshaler }{}, want: `{"M":null}`},
++		{v: struct{ M Marshaler }{(*nilMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
++		{v: struct{ M interface{} }{(*nilMarshaler)(nil)}, want: `{"M":null}`},
++	}
++
++	for _, tt := range testCases {
++		out, err := Marshal(tt.v)
++		if err != nil || string(out) != tt.want {
++			t.Errorf("Marshal(%#v) = %#q, %#v, want %#q, nil", tt.v, out, err, tt.want)
++			continue
++		}
++	}
++}
++
+ // Issue 5245.
+ func TestEmbeddedBug(t *testing.T) {
+ 	v := BugB{

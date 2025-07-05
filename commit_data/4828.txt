@@ -11,7 +11,48 @@ Date:   Tue Feb 9 20:29:08 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/206055
-
+---
  .hgignore             | 4 +---
  test/garbage/Makefile | 8 ++++----
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 9b858c97bc..323c81e81d 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -32,9 +32,7 @@ src/pkg/runtime/runtime.acid.*
+ test/pass.out
+ test/run.out
+ test/times.out
+-test/garbage/parser
+-test/garbage/peano
+-test/garbage/tree
++test/garbage/*.out
+ 
+ syntax:regexp
+ ^pkg/
+diff --git a/test/garbage/Makefile b/test/garbage/Makefile
+index 0574a6f493..0a3ae8e550 100644
+--- a/test/garbage/Makefile
++++ b/test/garbage/Makefile
+@@ -9,16 +9,16 @@ ALL=\
+ 	peano\
+ 	tree\
+ 
+-all: $(ALL)
++all: $(addsuffix .out, $(ALL))
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+ 
+-%: %.$O
++%.out: %.$O
+ 	$(LD) -o $@ $*.$O
+ 
+-%.bench: %
+-	./$*
++%.bench: %.out
++	./$*.out
+ 
+ bench: $(addsuffix .bench, $(ALL))
+ 

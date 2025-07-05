@@ -18,9 +18,196 @@ Date:   Wed Apr 7 16:17:08 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/308509
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                | 32 +++++-------
  src/cmd/go/internal/modload/modfile.go             |  2 +-
  .../go/testdata/script/mod_go_version_missing.txt  | 60 +++++++++++-----------
  src/cmd/go/testdata/script/mod_retention.txt       |  6 +--
  4 files changed, 45 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index d385af0ba3..fdfb83646e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -431,30 +431,22 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		// automatically since Go 1.12, so this module either dates to Go 1.11 or
+ 		// has been erroneously hand-edited.
+ 		//
++		// The semantics of the go.mod file are more-or-less the same from Go 1.11
++		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
++		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
++		// scripts may assume that it ends up as a Go 1.16 module. We can't go
++		// higher than that, because we don't know which semantics the user intends.
++		//
++		// (Note that 'go mod init' always adds the latest version, so scripts that
++		// use 'go mod init' will result in current-version modules instead of Go
++		// 1.16 modules.)
++		//
+ 		// If we are able to modify the go.mod file, we will add a 'go' directive
+ 		// to at least make the situation explicit going forward.
+ 		if cfg.BuildMod == "mod" {
+-			// TODO(#44976): If we implicitly upgrade to the latest Go version once
+-			// lazy loading is implemented, we could accidentally prune out
+-			// dependencies from what was formerly a Go 1.11 module, resulting in
+-			// downgrades (if only lower requirements on that module remain) and/or
+-			// upgrades (if no requirement remains and we end up re-resolving to
+-			// latest).
+-			//
+-			// We should probably instead load the dependencies using Go 1.11
+-			// semantics to ensure that we capture everything that is relevant, or
+-			// perhaps error out and let the user tell us which version they intend.
+-			//
+-			// If we are running 'go mod tidy' in particular, we will have enough
+-			// information to upgrade the 'go' version after loading is complete.
+-			addGoStmt(latestGoVersion())
++			addGoStmt("1.16")
+ 		} else {
+-			// Reproducibility requires that if we change the semantics of a module,
+-			// we write some explicit change to its go.mod file. We cannot write to
+-			// the go.mod file (because we are in readonly or vendor mode), so we must
+-			// not change its semantics either. The go.mod file looks as if it were
+-			// created by Go 1.11, so assume Go 1.11 semantics.
+-			rawGoVersion.Store(Target, "1.11")
++			rawGoVersion.Store(Target, "1.16")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 6351871844..3e4772f217 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -291,7 +291,7 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ // (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
+ // transitively *imported by* the packages and tests in the main module.)
+ func (i *modFileIndex) allPatternClosesOverTests() bool {
+-	if i != nil && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
++	if i != nil && i.goVersionV != "" && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
+ 		// The module explicitly predates the change in "all" for lazy loading, so
+ 		// continue to use the older interpretation. (If i == nil, we not in any
+ 		// module at all and should use the latest semantics.)
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index 43ddea7954..ea5050ca3d 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -1,50 +1,48 @@
+ cp go.mod go.mod.orig
+ 
+-# With -mod=readonly, we should not update the go version in use.
+-#
+-# We started adding the go version automatically in Go 1.12, so a module without
+-# one encountered in the wild (such as in the module cache) should assume Go
+-# 1.11 semantics.
++# For modules whose go.mod file does not include a 'go' directive,
++# we assume the language and dependency semantics of Go 1.16,
++# but do not trigger “automatic vendoring” mode (-mod=vendor),
++# which was added in Go 1.14 and was not triggered
++# under the same conditions in Go 1.16 (which would instead
++# default to -mod=readonly when no 'go' directive is present).
+ 
+-# For Go 1.11 modules, 'all' should include dependencies of tests.
+-# (They are pruned out as of Go 1.16.)
++# For Go 1.16 modules, 'all' should prune out dependencies of tests,
++# even if the 'go' directive is missing.
+ 
+ go list -mod=readonly all
+ stdout '^example.com/dep$'
+-stdout '^example.com/testdep$'
++! stdout '^example.com/testdep$'
+ cp stdout list-1.txt
+ cmp go.mod go.mod.orig
+ 
+-# For Go 1.11 modules, automatic vendoring should not take effect.
+-# (That behavior was added in Go 1.14.)
++# We should only default to -mod=vendor if the 'go' directive is explicit in the
++# go.mod file. Otherwise, we don't actually know whether the module was written
++# against Go 1.11 or 1.16. We would have to update the go.mod file to clarify,
++# and as of Go 1.16 we don't update the go.mod file by default.
++#
++# If we set -mod=vendor explicitly, we shouldn't apply the Go 1.14
++# consistency check, because — again — we don't know whether we're in a 1.11
++# module or a bad-script-edited 1.16 module.
+ 
+-go list all  # should default to -mod=readonly, not -mod=vendor.
+-cmp stdout list-1.txt
++! go list -mod=vendor all
++! stderr '^go: inconsistent vendoring'
++stderr 'cannot find package "\." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
+ 
+ # When we set -mod=mod, the go version should be updated immediately,
+-# narrowing the "all" pattern reported by that command.
++# to Go 1.16 (not the current version).
+ 
+ go list -mod=mod all
+ ! stdout '^example.com/testdep$'
+-cp stdout list-2.txt
+-cmpenv go.mod go.mod.want
+-
+-go list -mod=mod all
+-cmp stdout list-2.txt
++cmp stdout list-1.txt
++cmp go.mod go.mod.want
+ 
+-# The updated version should have been written back to go.mod, so
+-# automatic vendoring should come into effect (and fail).
++# The updated version should have been written back to go.mod, so now the 'go'
++# directive is explicit. -mod=vendor should trigger by default, and the stronger
++# Go 1.14 consistency check should apply.
+ ! go list all
+ stderr '^go: inconsistent vendoring'
+-
+-cp go.mod.orig go.mod
+-
+-# In readonly or vendor mode (not -mod=mod), the inferred Go version is 1.11.
+-# For Go 1.11 modules, Go 1.13 features should not be enabled.
+-
+-! go build -mod=readonly .
+-stderr '^# example\.com/m\n\.[/\\]m\.go:5:11: underscores in numeric literals requires go1\.13 or later \(-lang was set to go1\.11; check go\.mod\)$'
+-cmp go.mod go.mod.orig
++! stderr badedit
+ 
+ 
+ -- go.mod --
+@@ -59,7 +57,7 @@ replace (
+ -- go.mod.want --
+ module example.com/m
+ 
+-go $goversion
++go 1.16
+ 
+ require example.com/dep v0.1.0
+ 
+@@ -69,7 +67,7 @@ replace (
+ )
+ -- vendor/example.com/dep/dep.go --
+ package dep
+-import _ "example.com/bananas"
++import _ "example.com/badedit"
+ -- vendor/modules.txt --
+ HAHAHA this is broken.
+ 
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index a4441c4b3c..711d28b10f 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -64,7 +64,7 @@ cmp go.mod go.mod.tidy
+ # However, that should not remove other redundant requirements.
+ cp go.mod.nogo go.mod
+ go list -mod=mod all
+-cmpenv go.mod go.mod.currentgo
++cmpenv go.mod go.mod.addedgo
+ 
+ 
+ -- go.mod.tidy --
+@@ -133,10 +133,10 @@ require (
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+ )
+--- go.mod.currentgo --
++-- go.mod.addedgo --
+ module m
+ 
+-go $goversion
++go 1.16
+ 
+ require (
+ 	rsc.io/quote v1.5.2

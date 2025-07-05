@@ -7,6 +7,40 @@ Date:   Sat Mar 27 23:12:30 2010 -0700
     R=cemeyer, rsc
     CC=golang-dev
     https://golang.org/cl/809041
-
+---
  src/pkg/xml/xml.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 796dce5828..3737fbec91 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -107,10 +107,6 @@ type Directive []byte
+ 
+ func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+ 
+-type readByter interface {
+-	ReadByte() (b byte, err os.Error)
+-}
+-
+ // CopyToken returns a copy of a Token.
+ func CopyToken(t Token) Token {
+ 	switch v := t.(type) {
+@@ -167,7 +163,7 @@ type Parser struct {
+ 	//
+ 	Entity map[string]string
+ 
+-	r         readByter
++	r         io.ReadByter
+ 	buf       bytes.Buffer
+ 	stk       *stack
+ 	free      *stack
+@@ -194,7 +190,7 @@ func NewParser(r io.Reader) *Parser {
+ 	// Assume that if reader has its own
+ 	// ReadByte, it's efficient enough.
+ 	// Otherwise, use bufio.
+-	if rb, ok := r.(readByter); ok {
++	if rb, ok := r.(io.ReadByter); ok {
+ 		p.r = rb
+ 	} else {
+ 		p.r = bufio.NewReader(r)

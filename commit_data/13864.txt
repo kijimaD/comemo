@@ -10,7 +10,43 @@ Date:   Tue Sep 18 23:42:18 2012 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6498079
-
+---
  src/cmd/cgo/main.go | 1 +
  src/cmd/cgo/out.go  | 8 ++++++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 05389bb696..892b1198f5 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -147,6 +147,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
+ var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
+ var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
+ var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
++var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
+ var goarch, goos string
+ 
+ func main() {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index aa084b65c9..02ef5873f0 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -51,12 +51,16 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
+ 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
+ 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
+-	fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
++	if *importSyscall {
++		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
++	}
+ 	if !*gccgo && *importRuntimeCgo {
+ 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
+-	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
++	if *importSyscall {
++		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
++	}
+ 
+ 	typedefNames := make([]string, 0, len(typedef))
+ 	for name := range typedef {

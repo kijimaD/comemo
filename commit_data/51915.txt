@@ -12,6 +12,29 @@ Date:   Tue Mar 22 20:57:19 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 13c19dbdac..6dd3333eb0 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -45,17 +45,6 @@ func Callee(n ir.Node) ir.Node {
+ 	return typecheck(n, ctxExpr|ctxCallee)
+ }
+ 
+-func FuncBody(n *ir.Func) {
+-	ir.CurFunc = n
+-	errorsBefore := base.Errors()
+-	Stmts(n.Body)
+-	CheckUnused(n)
+-	CheckReturn(n)
+-	if ir.IsBlank(n.Nname) || base.Errors() > errorsBefore {
+-		n.Body = nil // blank function or type errors; do not compile
+-	}
+-}
+-
+ var importlist []*ir.Func
+ 
+ // AllImportedBodies reads in the bodies of all imported functions and typechecks

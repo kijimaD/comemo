@@ -9,6 +9,20 @@ Date:   Mon Sep 7 16:04:01 2015 +1000
     Change-Id: Ie6bcd361a2f2e390b7f6c4980fcae2c41bb7e52f
     Reviewed-on: https://go-review.googlesource.com/14355
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/dist/buildruntime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 4e9bede6e2..1e7b4a7f62 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -32,7 +32,7 @@ func mkzversion(dir, file string) {
+ 			"const defaultGoroot = `%s`\n"+
+ 			"const theVersion = `%s`\n"+
+ 			"const goexperiment = `%s`\n"+
+-			"const stackGuardMultiplier = %d\n"+
++			"const stackGuardMultiplier = %d\n\n"+
+ 			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
+ 
+ 	writefile(out, file, writeSkipSame)

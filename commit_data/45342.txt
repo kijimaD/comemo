@@ -16,8 +16,77 @@ Date:   Mon Oct 19 14:02:14 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/build.go  |  4 ----
  src/cmd/go/internal/modload/init.go   | 10 ----------
  src/cmd/go/internal/modload/testgo.go | 11 -----------
  3 files changed, 25 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index f49b52df56..b9abb0b93c 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -13,7 +13,6 @@ import (
+ 	"internal/goroot"
+ 	"os"
+ 	"path/filepath"
+-	"runtime/debug"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -312,9 +311,6 @@ func mustFindModule(target, path string) module.Version {
+ 		return Target
+ 	}
+ 
+-	if printStackInDie {
+-		debug.PrintStack()
+-	}
+ 	base.Fatalf("build %v: cannot find module for path %v", target, path)
+ 	panic("unreachable")
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index e1b784860b..1fcc53735c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -16,7 +16,6 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -330,16 +329,7 @@ func ModFilePath() string {
+ 	return filepath.Join(modRoot, "go.mod")
+ }
+ 
+-// printStackInDie causes die to print a stack trace.
+-//
+-// It is enabled by the testgo tag, and helps to diagnose paths that
+-// unexpectedly require a main module.
+-var printStackInDie = false
+-
+ func die() {
+-	if printStackInDie {
+-		debug.PrintStack()
+-	}
+ 	if cfg.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+diff --git a/src/cmd/go/internal/modload/testgo.go b/src/cmd/go/internal/modload/testgo.go
+deleted file mode 100644
+index 6b34f5be39..0000000000
+--- a/src/cmd/go/internal/modload/testgo.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build testgo
+-
+-package modload
+-
+-func init() {
+-	printStackInDie = true
+-}

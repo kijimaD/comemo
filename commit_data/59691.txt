@@ -19,7 +19,88 @@ Date:   Tue Apr 2 13:41:00 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/json/decode_test.go |  5 +++--
  src/encoding/json/encode.go      | 25 ++++---------------------
  2 files changed, 7 insertions(+), 23 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index a10c1e1ebb..f5b44677b3 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"math/big"
+ 	"net"
+ 	"reflect"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -1998,7 +1999,7 @@ func TestByteKind(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Unmarshal error: %v", err)
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Fatalf("Marshal/Unmarshal mismatch:\n\tgot:  %v\n\twant: %v", got, want)
+ 	}
+ }
+@@ -2017,7 +2018,7 @@ func TestSliceOfCustomByte(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Unmarshal error: %v", err)
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Fatalf("Marshal/Unmarshal mismatch:\n\tgot:  %v\n\twant: %v", got, want)
+ 	}
+ }
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index d6f6900dc9..0035a65cfc 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1042,25 +1042,6 @@ type field struct {
+ 	encoder encoderFunc
+ }
+ 
+-// byIndex sorts field by index sequence.
+-type byIndex []field
+-
+-func (x byIndex) Len() int { return len(x) }
+-
+-func (x byIndex) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-
+-func (x byIndex) Less(i, j int) bool {
+-	for k, xik := range x[i].index {
+-		if k >= len(x[j].index) {
+-			return false
+-		}
+-		if xik != x[j].index[k] {
+-			return xik < x[j].index[k]
+-		}
+-	}
+-	return len(x[i].index) < len(x[j].index)
+-}
+-
+ // typeFields returns a list of fields that JSON should recognize for the given type.
+ // The algorithm is breadth-first search over the set of structs to include - the top struct
+ // and then any reachable anonymous structs.
+@@ -1195,7 +1176,7 @@ func typeFields(t reflect.Type) structFields {
+ 		if x[i].tag != x[j].tag {
+ 			return x[i].tag
+ 		}
+-		return byIndex(x).Less(i, j)
++		return slices.Compare(x[i].index, x[j].index) == -1
+ 	})
+ 
+ 	// Delete all fields that are hidden by the Go rules for embedded fields,
+@@ -1227,7 +1208,9 @@ func typeFields(t reflect.Type) structFields {
+ 	}
+ 
+ 	fields = out
+-	sort.Sort(byIndex(fields))
++	slices.SortFunc(fields, func(i, j field) int {
++		return slices.Compare(i.index, j.index)
++	})
+ 
+ 	for i := range fields {
+ 		f := &fields[i]

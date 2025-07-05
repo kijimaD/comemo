@@ -12,8 +12,123 @@ Date:   Sat Aug 29 15:41:57 2015 -0500
     Change-Id: I7bc1cfee94ef83beb2f97c31ec6a97e19872fb89
     Reviewed-on: https://go-review.googlesource.com/14043
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/ctl_ssa.go | 31 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go    | 11 +++++----
  src/cmd/compile/internal/ssa/opGen.go           |  4 ++++
  3 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+index cc55134b96..09880ef94f 100644
+--- a/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/ctl_ssa.go
+@@ -115,6 +115,35 @@ func testSwitch() {
+ 	}
+ }
+ 
++type junk struct {
++	step int
++}
++
++// flagOverwrite_ssa is intended to reproduce an issue seen where a XOR
++// was scheduled between a compare and branch, clearing flags.
++func flagOverwrite_ssa(s *junk, c int) int {
++	switch {
++	}
++	if '0' <= c && c <= '9' {
++		s.step = 0
++		return 1
++	}
++	if c == 'e' || c == 'E' {
++		s.step = 0
++		return 2
++	}
++	s.step = 0
++	return 3
++}
++
++func testFlagOverwrite() {
++	j := junk{}
++	if got := flagOverwrite_ssa(&j, ' '); got != 3 {
++		println("flagOverwrite_ssa =", got, "wanted 3")
++		failed = true
++	}
++}
++
+ var failed = false
+ 
+ func main() {
+@@ -124,6 +153,8 @@ func main() {
+ 	testSwitch()
+ 	testFallthrough()
+ 
++	testFlagOverwrite()
++
+ 	if failed {
+ 		panic("failed")
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 555a5149a7..09ffd4526f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -93,6 +93,7 @@ func init() {
+ 	// Common regInfo
+ 	var (
+ 		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
++		gp01flags = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
+ 		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
+ 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+@@ -338,10 +339,12 @@ func init() {
+ 		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+ 		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+ 
+-		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
+-		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
+-		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
+-		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
++		// clobbers flags as liblink will rewrite these to XOR reg, reg if the constant is zero
++		// TODO: revisit when issue 12405 is fixed
++		{name: "MOVBconst", reg: gp01flags, asm: "MOVB"}, // 8 low bits of auxint
++		{name: "MOVWconst", reg: gp01flags, asm: "MOVW"}, // 16 low bits of auxint
++		{name: "MOVLconst", reg: gp01flags, asm: "MOVL"}, // 32 low bits of auxint
++		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ"}, // auxint
+ 
+ 		{name: "CVTSD2SL", reg: fpgp, asm: "CVTSD2SL"}, // convert float64 to int32
+ 		{name: "CVTSD2SQ", reg: fpgp, asm: "CVTSD2SQ"}, // convert float64 to int64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a41b04b29f..8263268019 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2645,6 +2645,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBconst",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2654,6 +2655,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWconst",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2663,6 +2665,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLconst",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2672,6 +2675,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQconst",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},

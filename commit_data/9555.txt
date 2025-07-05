@@ -7,6 +7,20 @@ Date:   Tue Aug 30 09:00:33 2011 -0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4964052
-
+---
  misc/dashboard/godashboard/gobuild.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index 7ccbdebb65..ae8d99b3f8 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -279,7 +279,7 @@ class CommitHandler(DashboardHandler):
+                 n.parentnode = parenthash
+                 n.user = user
+                 n.date = date
+-                n.desc = desc.encode('utf8')
++                n.desc = desc
+                 n.put()
+             db.run_in_transaction(add_commit)
+             n = nodeByHash(node)

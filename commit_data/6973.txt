@@ -7,6 +7,24 @@ Date:   Wed Dec 15 14:57:49 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3701041
-
+---
  src/cmd/5l/asm.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index a26d5e209d..7ceea59b67 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -105,6 +105,12 @@ adddynrel(Sym *s, Reloc *r)
+ 	diag("adddynrel: unsupported binary format");
+ }
+ 
++void
++adddynsym(Sym *s)
++{
++	diag("adddynsym: not implemented");
++}
++
+ static void
+ elfsetupplt(void)
+ {

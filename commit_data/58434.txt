@@ -13,6 +13,20 @@ Date:   Thu Nov 2 07:14:21 2023 +0000
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/go/internal/modload/search.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index aea301a7db..d392b5bf3d 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -213,8 +213,6 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 		}
+ 		walkPkgs(root, modPrefix, prune)
+ 	}
+-
+-	return
+ }
+ 
+ // walkFromIndex matches packages in a module using the module index. modroot

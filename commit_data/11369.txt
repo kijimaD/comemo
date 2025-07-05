@@ -7,10 +7,132 @@ Date:   Tue Jan 24 16:36:20 2012 -0800
     R=r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5574058
-
+---
  src/cmd/cgo/ast.go             |  2 +-
  src/cmd/godoc/parser.go        |  2 +-
  src/cmd/gofmt/gofmt.go         |  4 ++--
  src/pkg/go/parser/interface.go | 15 ++++++++++-----
  src/pkg/go/parser/parser.go    |  4 ++--
  5 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index fc855dd497..da6ae4176d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -16,7 +16,7 @@ import (
+ 	"strings"
+ )
+ 
+-func parse(name string, flags uint) *ast.File {
++func parse(name string, flags parser.Mode) *ast.File {
+ 	ast1, err := parser.ParseFile(fset, name, nil, flags)
+ 	if err != nil {
+ 		if list, ok := err.(scanner.ErrorList); ok {
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index fa303e904e..da38c52657 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -17,7 +17,7 @@ import (
+ 	"path/filepath"
+ )
+ 
+-func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, error) {
++func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
+ 	src, err := ReadFile(fs, filename)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 0023e2f218..6d610adc0e 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -44,7 +44,7 @@ var (
+ 	fset        = token.NewFileSet()
+ 	exitCode    = 0
+ 	rewrite     func(*ast.File) *ast.File
+-	parserMode  uint
++	parserMode  parser.Mode
+ 	printerMode uint
+ )
+ 
+@@ -60,7 +60,7 @@ func usage() {
+ }
+ 
+ func initParserMode() {
+-	parserMode = uint(0)
++	parserMode = parser.Mode(0)
+ 	if *comments {
+ 		parserMode |= parser.ParseComments
+ 	}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 4b72f38518..f1b4ce34d1 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -45,12 +45,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
+ 	return ioutil.ReadFile(filename)
+ }
+ 
+-// The mode parameter to the Parse* functions is a set of flags (or 0).
++// A Mode value is a set of flags (or 0).
+ // They control the amount of source code parsed and other optional
+ // parser functionality.
+ //
++type Mode uint
++
+ const (
+-	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
++	PackageClauseOnly Mode = 1 << iota // parsing stops after package clause
+ 	ImportsOnly                        // parsing stops after import declarations
+ 	ParseComments                      // parse comments and add them to AST
+ 	Trace                              // print a trace of parsed productions
+@@ -77,7 +79,7 @@ const (
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by file position.
+ //
+-func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint) (*ast.File, error) {
++func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (*ast.File, error) {
+ 	text, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+@@ -97,7 +99,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint)
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+ // first error encountered are returned.
+ //
+-func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode uint) (pkgs map[string]*ast.Package, first error) {
++func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+ 	fd, err := os.Open(path)
+ 	if err != nil {
+ 		return nil, err
+@@ -117,7 +119,10 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ 				name := src.Name.Name
+ 				pkg, found := pkgs[name]
+ 				if !found {
+-					pkg = &ast.Package{name, nil, nil, make(map[string]*ast.File)}
++					pkg = &ast.Package{
++						Name:  name,
++						Files: make(map[string]*ast.File),
++					}
+ 					pkgs[name] = pkg
+ 				}
+ 				pkg.Files[filename] = src
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index d90f5775df..ab8953f4fb 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -23,7 +23,7 @@ type parser struct {
+ 	scanner scanner.Scanner
+ 
+ 	// Tracing/debugging
+-	mode   uint // parsing mode
++	mode   Mode // parsing mode
+ 	trace  bool // == (mode & Trace != 0)
+ 	indent uint // indentation used for tracing output
+ 
+@@ -52,7 +52,7 @@ type parser struct {
+ 	targetStack [][]*ast.Ident // stack of unresolved labels
+ }
+ 
+-func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
++func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
+ 	p.file = fset.AddFile(filename, fset.Base(), len(src))
+ 	var m uint
+ 	if mode&ParseComments != 0 {

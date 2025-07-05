@@ -8,6 +8,21 @@ Date:   Sat Jun 28 15:53:07 2014 -0700
     R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/109220044
-
+---
  src/pkg/strings/replace.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+index cb9d7b1fa4..d6d742b942 100644
+--- a/src/pkg/strings/replace.go
++++ b/src/pkg/strings/replace.go
+@@ -6,7 +6,8 @@ package strings
+ 
+ import "io"
+ 
+-// A Replacer replaces a list of strings with replacements.
++// Replacer replaces a list of strings with replacements.
++// It is safe for concurrent use by multiple goroutines.
+ type Replacer struct {
+ 	r replacer
+ }

@@ -11,6 +11,18 @@ Date:   Wed Nov 18 11:10:59 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/net_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index e51745a033..6dcfc2190e 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -282,5 +282,5 @@ func TestListenCloseListen(t *testing.T) {
+ 		}
+ 		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
+ 	}
+-	t.Fatal("failed to listen/close/listen on same address after %d tries", maxTries)
++	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
+ }

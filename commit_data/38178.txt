@@ -9,6 +9,72 @@ Date:   Tue Sep 25 13:44:45 2018 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strconv/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++--
  1 file changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/example_test.go b/src/strconv/example_test.go
+index 15725456e2..2d1a2a9dbf 100644
+--- a/src/strconv/example_test.go
++++ b/src/strconv/example_test.go
+@@ -265,7 +265,7 @@ func ExampleParseUint() {
+ }
+ 
+ func ExampleQuote() {
+-	s := strconv.Quote(`"Fran & Freddie's Diner	☺"`)
++	s := strconv.Quote(`"Fran & Freddie's Diner	☺"`) // there is a tab character inside the string literal
+ 	fmt.Println(s)
+ 
+ 	// Output:
+@@ -288,14 +288,50 @@ func ExampleQuoteRuneToASCII() {
+ 	// '\u263a'
+ }
+ 
++func ExampleQuoteRuneToGraphic() {
++	s := strconv.QuoteRuneToGraphic('☺')
++	fmt.Println(s)
++
++	s = strconv.QuoteRuneToGraphic('\u263a')
++	fmt.Println(s)
++
++	s = strconv.QuoteRuneToGraphic('\u000a')
++	fmt.Println(s)
++
++	s = strconv.QuoteRuneToGraphic('	') // tab character
++	fmt.Println(s)
++
++	// Output:
++	// '☺'
++	// '☺'
++	// '\n'
++	// '\t'
++}
++
+ func ExampleQuoteToASCII() {
+-	s := strconv.QuoteToASCII(`"Fran & Freddie's Diner	☺"`)
++	s := strconv.QuoteToASCII(`"Fran & Freddie's Diner	☺"`) // there is a tab character inside the string literal
+ 	fmt.Println(s)
+ 
+ 	// Output:
+ 	// "\"Fran & Freddie's Diner\t\u263a\""
+ }
+ 
++func ExampleQuoteToGraphic() {
++	s := strconv.QuoteToGraphic("☺")
++	fmt.Println(s)
++
++	s = strconv.QuoteToGraphic("This is a \u263a	\u000a") // there is a tab character inside the string literal
++	fmt.Println(s)
++
++	s = strconv.QuoteToGraphic(`" This is a ☺ \n "`)
++	fmt.Println(s)
++
++	// Output:
++	// "☺"
++	// "This is a ☺\t\n"
++	// "\" This is a ☺ \\n \""
++}
++
+ func ExampleUnquote() {
+ 	s, err := strconv.Unquote("You can't unquote a string without quotes")
+ 	fmt.Printf("%q, %v\n", s, err)

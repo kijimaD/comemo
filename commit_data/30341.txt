@@ -15,7 +15,7 @@ Date:   Thu Oct 27 17:36:39 2016 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/main2.c     | 13 +++++++++++++
  src/runtime/sys_darwin_386.s      |  6 +++---
  src/runtime/sys_darwin_amd64.s    | 19 ++++++++++---------
@@ -30,3 +30,360 @@ Date:   Thu Oct 27 17:36:39 2016 -0400
  src/runtime/sys_openbsd_amd64.s   | 11 ++++++++---
  src/runtime/sys_solaris_amd64.s   | 11 ++++++++---
  13 files changed, 122 insertions(+), 54 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main2.c b/misc/cgo/testcarchive/main2.c
+index 372697760d..56f890cad4 100644
+--- a/misc/cgo/testcarchive/main2.c
++++ b/misc/cgo/testcarchive/main2.c
+@@ -7,8 +7,10 @@
+ 
+ #include <setjmp.h>
+ #include <signal.h>
++#include <stdarg.h>
+ #include <stddef.h>
+ #include <stdio.h>
++#include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/types.h>
+@@ -46,11 +48,22 @@ static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
+ static jmp_buf jmp;
+ static char* nullPointer;
+ 
++// An arbitrary function which requires proper stack alignment; see
++// http://golang.org/issue/17641.
++static void callWithVarargs(void* dummy, ...) {
++	va_list args;
++	va_start(args, dummy);
++	va_end(args);
++}
++
+ // Signal handler for SIGSEGV on a C thread.
+ static void segvHandler(int signo, siginfo_t* info, void* ctxt) {
+ 	sigset_t mask;
+ 	int i;
+ 
++	// Call an arbitrary function that requires the stack to be properly aligned.
++	callWithVarargs("dummy arg", 3.1415);
++
+ 	if (sigemptyset(&mask) < 0) {
+ 		die("sigemptyset");
+ 	}
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 45658d0ae6..200961f225 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -254,12 +254,12 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVL	info+8(FP), CX
+ 	MOVL	ctx+12(FP), DX
+ 	MOVL	SP, SI
+-	SUBL	$32, SP		// align stack; handler might be C code
+-	ANDL	$~15, SP
++	SUBL	$32, SP
++	ANDL	$~15, SP	// align stack: handler might be a C function
+ 	MOVL	BX, 0(SP)
+ 	MOVL	CX, 4(SP)
+ 	MOVL	DX, 8(SP)
+-	MOVL	SI, 12(SP)
++	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+ 	CALL	AX
+ 	MOVL	12(SP), AX
+ 	MOVL	AX, SP
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index a15ac3e158..96fa5b9710 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -219,15 +219,16 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0-24
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVQ fn+0(FP),    AX
+-	MOVL sig+8(FP),   DI
+-	MOVQ info+16(FP), SI
+-	MOVQ ctx+24(FP),  DX
+-	MOVQ SP, BP
+-	SUBQ $64, SP
+-	ANDQ $~15, SP     // alignment for x86_64 ABI
+-	CALL AX
+-	MOVQ BP, SP
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
++	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$32
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index fd960e608a..88c7f9dd8a 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -188,11 +188,16 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 7f3cd56cad..8b6ee1f2a6 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -208,14 +208,20 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+-	MOVL	sig+4(FP), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	info+8(FP), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	ctx+12(FP), AX
+-	MOVL	AX, 8(SP)
+ 	MOVL	fn+0(FP), AX
++	MOVL	sig+4(FP), BX
++	MOVL	info+8(FP), CX
++	MOVL	ctx+12(FP), DX
++	MOVL	SP, SI
++	SUBL	$32, SP
++	ANDL	$~15, SP	// align stack: handler might be a C function
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+ 	CALL	AX
++	MOVL	12(SP), AX
++	MOVL	AX, SP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 118febde47..19007dc401 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -184,11 +184,16 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 86ca06fd2c..1d798c741e 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -212,14 +212,20 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+-	MOVL	sig+4(FP), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	info+8(FP), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	ctx+12(FP), AX
+-	MOVL	AX, 8(SP)
+ 	MOVL	fn+0(FP), AX
++	MOVL	sig+4(FP), BX
++	MOVL	info+8(FP), CX
++	MOVL	ctx+12(FP), DX
++	MOVL	SP, SI
++	SUBL	$32, SP
++	ANDL	$-15, SP	// align stack: handler might be a C function
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+ 	CALL	AX
++	MOVL	12(SP), AX
++	MOVL	AX, SP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index ee7b0ffb37..7f88e1db23 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -219,11 +219,16 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index a276001fe1..50d35e5b5c 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -216,14 +216,20 @@ TEXT runtime·sigaction(SB),NOSPLIT,$24
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+-	MOVL	sig+4(FP), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	info+8(FP), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	ctx+12(FP), AX
+-	MOVL	AX, 8(SP)
+ 	MOVL	fn+0(FP), AX
++	MOVL	sig+4(FP), BX
++	MOVL	info+8(FP), CX
++	MOVL	ctx+12(FP), DX
++	MOVL	SP, SI
++	SUBL	$32, SP
++	ANDL	$-15, SP	// align stack: handler might be a C function
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+ 	CALL	AX
++	MOVL	12(SP), AX
++	MOVL	AX, SP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index e0dd85f2aa..2c50adb123 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -238,11 +238,16 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$32
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 9357d346d1..e969395088 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -196,14 +196,20 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+-	MOVL	sig+4(FP), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	info+8(FP), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	ctx+12(FP), AX
+-	MOVL	AX, 8(SP)
+ 	MOVL	fn+0(FP), AX
++	MOVL	sig+4(FP), BX
++	MOVL	info+8(FP), CX
++	MOVL	ctx+12(FP), DX
++	MOVL	SP, SI
++	SUBL	$32, SP
++	ANDL	$~15, SP	// align stack: handler might be a C function
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+ 	CALL	AX
++	MOVL	12(SP), AX
++	MOVL	AX, SP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index e22a2faeeb..01d6bd8e85 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -229,11 +229,16 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index a36bd37ff0..c542db3986 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -290,11 +290,16 @@ exit:
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+-	MOVL	sig+8(FP), DI
++	MOVQ	fn+0(FP),    AX
++	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+-	MOVQ	ctx+24(FP), DX
+-	MOVQ	fn+0(FP), AX
++	MOVQ	ctx+24(FP),  DX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP     // alignment for x86_64 ABI
+ 	CALL	AX
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,

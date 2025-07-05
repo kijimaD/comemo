@@ -7,7 +7,35 @@ Date:   Fri Apr 29 13:06:03 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4439082
-
+---
  src/pkg/go/parser/parser.go      | 4 ----
  src/pkg/go/parser/parser_test.go | 1 +
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 5c57e41d13..afa9ae517b 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1780,10 +1780,6 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 				rhs = lhs[0]
+ 				lhs = nil // there is no lhs
+ 			}
+-			if x, isUnary := rhs.(*ast.UnaryExpr); !isUnary || x.Op != token.ARROW {
+-				p.errorExpected(rhs.Pos(), "send or receive operation")
+-				rhs = &ast.BadExpr{rhs.Pos(), rhs.End()}
+-			}
+ 			if lhs != nil {
+ 				comm = &ast.AssignStmt{lhs, pos, tok, []ast.Expr{rhs}}
+ 			} else {
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 2f1ee6bfc0..5b52f51d4a 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -51,6 +51,7 @@ var validPrograms = []interface{}{
+ 	`package p; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
+ 	`package p; var a = T{{1, 2}, {3, 4}}`,
+ 	`package p; func f() { select { case <- c: case c <- d: case c <- <- d: case <-c <- d: } };`,
++	`package p; func f() { select { case x := (<-c): } };`,
+ 	`package p; func f() { if ; true {} };`,
+ 	`package p; func f() { switch ; {} };`,
+ }

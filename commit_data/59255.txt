@@ -17,9 +17,177 @@ Date:   Tue Feb 27 22:39:35 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/60427.txt                          |  4 ++
  doc/next/6-stdlib/99-minor/reflect/60427.md |  6 +++
  src/reflect/all_test.go                     | 41 ++++++++++++++++-
  src/reflect/type.go                         | 68 +++++++++++++++++++++++++++++
  4 files changed, 118 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/60427.txt b/api/next/60427.txt
+new file mode 100644
+index 0000000000..0be9da0782
+--- /dev/null
++++ b/api/next/60427.txt
+@@ -0,0 +1,4 @@
++pkg reflect, type Type interface, OverflowComplex(complex128) bool #60427
++pkg reflect, type Type interface, OverflowFloat(float64) bool #60427
++pkg reflect, type Type interface, OverflowInt(int64) bool #60427
++pkg reflect, type Type interface, OverflowUint(uint64) bool #60427
+diff --git a/doc/next/6-stdlib/99-minor/reflect/60427.md b/doc/next/6-stdlib/99-minor/reflect/60427.md
+new file mode 100644
+index 0000000000..92230cde1a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/reflect/60427.md
+@@ -0,0 +1,6 @@
++The new methods synonymous with the method of the same name in [`reflect.Value`](/pkg/reflect#Value)
++are added to [`reflect.Type`](/pkg/reflect#Type):
++1. [`OverflowComplex`](/pkg/reflect#Type.OverflowComplex)
++2. [`OverflowFloat`](/pkg/reflect#Type.OverflowFloat)
++3. [`OverflowInt`](/pkg/reflect#Type.OverflowInt)
++4. [`OverflowUint`](/pkg/reflect#Type.OverflowUint)
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index c85de721a0..6e5c7d12e2 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4827,7 +4827,7 @@ func TestComparable(t *testing.T) {
+ 	}
+ }
+ 
+-func TestOverflow(t *testing.T) {
++func TestValueOverflow(t *testing.T) {
+ 	if ovf := V(float64(0)).OverflowFloat(1e300); ovf {
+ 		t.Errorf("%v wrongly overflows float64", 1e300)
+ 	}
+@@ -4866,6 +4866,45 @@ func TestOverflow(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeOverflow(t *testing.T) {
++	if ovf := TypeFor[float64]().OverflowFloat(1e300); ovf {
++		t.Errorf("%v wrongly overflows float64", 1e300)
++	}
++
++	maxFloat32 := float64((1<<24 - 1) << (127 - 23))
++	if ovf := TypeFor[float32]().OverflowFloat(maxFloat32); ovf {
++		t.Errorf("%v wrongly overflows float32", maxFloat32)
++	}
++	ovfFloat32 := float64((1<<24-1)<<(127-23) + 1<<(127-52))
++	if ovf := TypeFor[float32]().OverflowFloat(ovfFloat32); !ovf {
++		t.Errorf("%v should overflow float32", ovfFloat32)
++	}
++	if ovf := TypeFor[float32]().OverflowFloat(-ovfFloat32); !ovf {
++		t.Errorf("%v should overflow float32", -ovfFloat32)
++	}
++
++	maxInt32 := int64(0x7fffffff)
++	if ovf := TypeFor[int32]().OverflowInt(maxInt32); ovf {
++		t.Errorf("%v wrongly overflows int32", maxInt32)
++	}
++	if ovf := TypeFor[int32]().OverflowInt(-1 << 31); ovf {
++		t.Errorf("%v wrongly overflows int32", -int64(1)<<31)
++	}
++	ovfInt32 := int64(1 << 31)
++	if ovf := TypeFor[int32]().OverflowInt(ovfInt32); !ovf {
++		t.Errorf("%v should overflow int32", ovfInt32)
++	}
++
++	maxUint32 := uint64(0xffffffff)
++	if ovf := TypeFor[uint32]().OverflowUint(maxUint32); ovf {
++		t.Errorf("%v wrongly overflows uint32", maxUint32)
++	}
++	ovfUint32 := uint64(1 << 32)
++	if ovf := TypeFor[uint32]().OverflowUint(ovfUint32); !ovf {
++		t.Errorf("%v should overflow uint32", ovfUint32)
++	}
++}
++
+ func checkSameType(t *testing.T, x Type, y any) {
+ 	if x != TypeOf(y) || TypeOf(Zero(x).Interface()) != TypeOf(y) {
+ 		t.Errorf("did not find preexisting type for %s (vs %s)", TypeOf(x), TypeOf(y))
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 55d339fa39..89f33e6cf8 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -225,6 +225,22 @@ type Type interface {
+ 	// It panics if i is not in the range [0, NumOut()).
+ 	Out(i int) Type
+ 
++	// OverflowComplex reports whether the complex128 x cannot be represented by type t.
++	// It panics if t's Kind is not Complex64 or Complex128.
++	OverflowComplex(x complex128) bool
++
++	// OverflowFloat reports whether the float64 x cannot be represented by type t.
++	// It panics if t's Kind is not Float32 or Float64.
++	OverflowFloat(x float64) bool
++
++	// OverflowInt reports whether the int64 x cannot be represented by type t.
++	// It panics if t's Kind is not Int, Int8, Int16, Int32, or Int64.
++	OverflowInt(x int64) bool
++
++	// OverflowUint reports whether the uint64 x cannot be represented by type t.
++	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
++	OverflowUint(x uint64) bool
++
+ 	common() *abi.Type
+ 	uncommon() *uncommonType
+ }
+@@ -297,6 +313,58 @@ type rtype struct {
+ 	t abi.Type
+ }
+ 
++// OverflowComplex reports whether the complex128 x cannot be represented by type t.
++// It panics if t's Kind is not Complex64 or Complex128.
++func (t *rtype) OverflowComplex(x complex128) bool {
++	k := t.Kind()
++	switch k {
++	case Complex64:
++		return overflowFloat32(real(x)) || overflowFloat32(imag(x))
++	case Complex128:
++		return false
++	}
++	panic("reflect: OverflowComplex of non-complex type " + t.String())
++}
++
++// OverflowFloat reports whether the float64 x cannot be represented by type t.
++// It panics if t's Kind is not Float32 or Float64.
++func (t *rtype) OverflowFloat(x float64) bool {
++	k := t.Kind()
++	switch k {
++	case Float32:
++		return overflowFloat32(x)
++	case Float64:
++		return false
++	}
++	panic("reflect: OverflowFloat of non-float type " + t.String())
++}
++
++// OverflowInt reports whether the int64 x cannot be represented by type t.
++// It panics if t's Kind is not Int, Int8, Int16, Int32, or Int64.
++func (t *rtype) OverflowInt(x int64) bool {
++	k := t.Kind()
++	switch k {
++	case Int, Int8, Int16, Int32, Int64:
++		bitSize := t.Size() * 8
++		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
++		return x != trunc
++	}
++	panic("reflect: OverflowInt of non-int type " + t.String())
++}
++
++// OverflowUint reports whether the uint64 x cannot be represented by type t.
++// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
++func (t *rtype) OverflowUint(x uint64) bool {
++	k := t.Kind()
++	switch k {
++	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
++		bitSize := t.Size() * 8
++		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
++		return x != trunc
++	}
++	panic("reflect: OverflowUint of non-uint type " + t.String())
++}
++
+ func (t *rtype) common() *abi.Type {
+ 	return &t.t
+ }

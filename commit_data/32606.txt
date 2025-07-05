@@ -14,6 +14,23 @@ Date:   Thu May 4 16:14:59 2017 +0300
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 205b39512e..a0c5565cd2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1448,6 +1448,11 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+ }
+ 
+ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
++	if Linkmode == LinkExternal && Headtype == objabi.Hwindows {
++		// gcc on Windows places .debug_gdb_scripts to a wrong location
++		// which causes program not to run. See https://golang.org/issue/20183
++		return syms
++	}
+ 
+ 	if gdbscript != "" {
+ 		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)

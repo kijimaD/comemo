@@ -11,7 +11,7 @@ Date:   Mon Aug 24 15:23:27 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go   | 10 ++++++++++
  src/cmd/compile/internal/gc/noder.go |  8 ++++----
  src/cmd/compile/internal/gc/subr.go  |  7 -------
@@ -19,3 +19,138 @@ Date:   Mon Aug 24 15:23:27 2020 +0700
  test/fixedbugs/issue22921.go         | 18 ++++++++++++++++++
  test/runtime.go                      |  2 +-
  6 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index cd64d9a7bf..4f6fddd089 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -297,6 +297,16 @@ func oldname(s *types.Sym) *Node {
+ 	return n
+ }
+ 
++// importName is like oldname, but it reports an error if sym is from another package and not exported.
++func importName(sym *types.Sym) *Node {
++	n := oldname(sym)
++	if !types.IsExported(sym.Name) && sym.Pkg != localpkg {
++		n.SetDiag(true)
++		yyerror("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
++	}
++	return n
++}
++
+ // := declarations
+ func colasname(n *Node) bool {
+ 	switch n.Op {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 802aab2268..590c1a16de 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -653,7 +653,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		obj := p.expr(expr.X)
+ 		if obj.Op == OPACK {
+ 			obj.Name.SetUsed(true)
+-			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
++			return importName(obj.Name.Pkg.Lookup(expr.Sel.Value))
+ 		}
+ 		n := nodSym(OXDOT, obj, p.name(expr.Sel))
+ 		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
+@@ -857,7 +857,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
+ 		p.setlineno(method)
+ 		var n *Node
+ 		if method.Name == nil {
+-			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
++			n = p.nodSym(method, ODCLFIELD, importName(p.packname(method.Type)), nil)
+ 		} else {
+ 			mname := p.name(method.Name)
+ 			sig := p.typeExpr(method.Type)
+@@ -896,7 +896,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ 			def.Name.SetUsed(true)
+ 			pkg = def.Name.Pkg
+ 		}
+-		return restrictlookup(expr.Sel.Value, pkg)
++		return pkg.Lookup(expr.Sel.Value)
+ 	}
+ 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
+ }
+@@ -911,7 +911,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
+ 	}
+ 
+ 	sym := p.packname(typ)
+-	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
++	n := p.nodSym(typ, ODCLFIELD, importName(sym), lookup(sym.Name))
+ 	n.SetEmbedded(true)
+ 
+ 	if isStar {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9362c74288..9c6cd24eb7 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -271,13 +271,6 @@ func autolabel(prefix string) *types.Sym {
+ 	return lookupN(prefix, int(n))
+ }
+ 
+-func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
+-	if !types.IsExported(name) && pkg != localpkg {
+-		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
+-	}
+-	return pkg.Lookup(name)
+-}
+-
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+ func importdot(opkg *types.Pkg, pack *Node) {
+diff --git a/test/fixedbugs/bug229.go b/test/fixedbugs/bug229.go
+index 4baf65e48b..a30202fa2c 100644
+--- a/test/fixedbugs/bug229.go
++++ b/test/fixedbugs/bug229.go
+@@ -10,11 +10,11 @@ import "testing"
+ 
+ func main() {
+ 	var t testing.T
+-	
++
+ 	// make sure error mentions that
+ 	// name is unexported, not just "name not found".
+ 
+-	t.common.name = nil	// ERROR "unexported"
+-	
+-	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
++	t.common.name = nil // ERROR "unexported"
++
++	println(testing.anyLowercaseName("asdf")) // ERROR "unexported"
+ }
+diff --git a/test/fixedbugs/issue22921.go b/test/fixedbugs/issue22921.go
+new file mode 100644
+index 0000000000..04f78b2c08
+--- /dev/null
++++ b/test/fixedbugs/issue22921.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "bytes"
++
++type _ struct{ bytes.nonexist } // ERROR "unexported"
++
++type _ interface{ bytes.nonexist } // ERROR "unexported"
++
++func main() {
++	var _ bytes.Buffer
++	var _ bytes.buffer // ERROR "unexported"
++}
+diff --git a/test/runtime.go b/test/runtime.go
+index 0cf781b814..bccc9b53af 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -17,5 +17,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true)	// ERROR "unexported" "undefined"
++	runtime.printbool(true)	// ERROR "unexported"
+ }

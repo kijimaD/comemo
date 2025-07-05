@@ -7,6 +7,19 @@ Date:   Thu Nov 1 16:27:43 2012 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/6775093
-
+---
  src/pkg/go/ast/scope.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 11e6b13f16..6edb31016e 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -76,6 +76,7 @@ func (s *Scope) String() string {
+ //	Pkg	*Scope       package scope
+ //	Con     int          iota for the respective declaration
+ //	Con     != nil       constant value
++//	Typ     *Scope       method scope; nil if no methods
+ //
+ type Object struct {
+ 	Kind ObjKind

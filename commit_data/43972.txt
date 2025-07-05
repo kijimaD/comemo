@@ -20,7 +20,41 @@ Date:   Thu Apr 30 13:24:05 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strconv/atof.go      | 6 +++++-
  src/strconv/atof_test.go | 5 +++--
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index c1e9907e09..28ad094080 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -55,7 +55,11 @@ func special(s string) (f float64, n int, ok bool) {
+ 		fallthrough
+ 	case 'i', 'I':
+ 		n := commonPrefixLenIgnoreCase(s, "infinity")
+-		// both "inf" and "infinity" are ok
++		// Anything longer than "inf" is ok, but if we
++		// don't have "infinity", only consume "inf".
++		if 3 < n && n < 8 {
++			n = 3
++		}
+ 		if n == 3 || n == 8 {
+ 			return math.Inf(sign), nsign + n, true
+ 		}
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index 8201e75af6..c30cb2e0fe 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -486,8 +486,9 @@ func TestParseFloatPrefix(t *testing.T) {
+ 			continue
+ 		}
+ 		// Adding characters that do not extend a number should not invalidate it.
+-		// Test a few.
+-		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")"} {
++		// Test a few. The "i" and "init" cases test that we accept "infi", "infinit"
++		// correctly as "inf" with suffix.
++		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")", "i", "init"} {
+ 			in := test.in + suffix
+ 			_, n, err := ParseFloatPrefix(in, 64)
+ 			if err != nil {

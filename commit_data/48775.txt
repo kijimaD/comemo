@@ -11,8 +11,52 @@ Date:   Fri Jun 11 03:54:25 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/327054
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go          | 1 +
  src/cmd/compile/internal/noder/noder.go         | 5 +++++
  src/cmd/compile/internal/reflectdata/reflect.go | 4 ++++
  3 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 71712ab1a5..824a8baa83 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -46,6 +46,7 @@ type DebugFlags struct {
+ 	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+ 	TypeAssert           int    `help:"print information about type assertion inlining"`
+ 	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
++	Unified              int    `help:"enable unified IR construction"`
+ 	WB                   int    `help:"print information about write barriers"`
+ 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index d417edcbd5..c7970396f8 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -76,6 +76,11 @@ func LoadPackage(filenames []string) {
+ 	}
+ 	base.Timer.AddEvent(int64(lines), "lines")
+ 
++	if base.Debug.Unified != 0 {
++		useUnifiedIR(noders)
++		return
++	}
++
+ 	if base.Flag.G != 0 {
+ 		// Use types2 to type-check and possibly generate IR.
+ 		check2(noders)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index f16034ea70..5516f707fa 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1780,6 +1780,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 		// TODO: check that we do the right thing when rcvr.IsInterface().
+ 		generic = true
+ 	}
++	if base.Debug.Unified != 0 {
++		// TODO(mdempsky): Support dictionaries for unified IR.
++		generic = false
++	}
+ 	newnam := ir.MethodSym(rcvr, method.Sym)
+ 	lsym := newnam.Linksym()
+ 	if newnam.Siggen() {

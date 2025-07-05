@@ -11,6 +11,47 @@ Date:   Sat Oct 12 14:01:57 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile2.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index caa442c0d3..3f68d335ac 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -200,11 +201,11 @@ func (w *writer) StringTable() {
+ 		}
+ 		pc := &s.Func.Pcln
+ 		for _, f := range pc.File {
+-			w.AddString(f)
++			w.AddString(filepath.ToSlash(f))
+ 		}
+ 		for _, call := range pc.InlTree.nodes {
+ 			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
+-			w.AddString(f)
++			w.AddString(filepath.ToSlash(f))
+ 		}
+ 	})
+ 	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
+@@ -242,8 +243,12 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.TopFrame() {
+ 		flag |= goobj2.SymFlagTopFrame
+ 	}
++	name := s.Name
++	if strings.HasPrefix(name, "gofile..") {
++		name = filepath.ToSlash(name)
++	}
+ 	o := goobj2.Sym{
+-		Name: s.Name,
++		Name: name,
+ 		ABI:  abi,
+ 		Type: uint8(s.Type),
+ 		Flag: flag,

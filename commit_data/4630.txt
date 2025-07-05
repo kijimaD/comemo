@@ -9,7 +9,58 @@ Date:   Mon Jan 18 16:52:18 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/186213
-
+---
  src/cmd/gc/dcl.c         |  4 +++-
  test/fixedbugs/bug243.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index adf8da9bc0..e8ca1f1f72 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -325,8 +325,10 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 			declare(v, dclcontext);
+ 			v->ntype = t;
+ 			v->defn = as2;
++			if(funcdepth > 0)
++				init = list(init, nod(ODCL, v, N));
+ 		}
+-		return list1(as2);
++		return list(init, as2);
+ 	}
+ 	
+ 	for(; vl; vl=vl->next) {
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+new file mode 100644
+index 0000000000..01112dae73
+--- /dev/null
++++ b/test/fixedbugs/bug243.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"net"
++	"os"
++)
++
++func main() {
++	os.Stdout.Close()
++	var listen, _ = net.Listen("tcp", ":0")
++
++	go func() {
++		for {
++			var conn, _ = listen.Accept()
++			fmt.Println("[SERVER] ", conn)
++		}
++	}()
++
++	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
++	fmt.Println("[CLIENT] ", conn)
++}

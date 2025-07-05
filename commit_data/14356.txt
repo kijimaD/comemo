@@ -15,7 +15,72 @@ Date:   Thu Nov 8 10:34:54 2012 -0600
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6818104
-
+---
  src/cmd/api/goapi.go                  | 25 +++++--------------------
  src/cmd/api/testdata/src/pkg/p1/p1.go |  6 ++++++
  2 files changed, 11 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 26b3482409..e5f0129956 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -331,20 +331,6 @@ const (
+ 	loaded
+ )
+ 
+-// hardCodedConstantType is a hack until the type checker is sufficient for our needs.
+-// Rather than litter the code with unnecessary type annotations, we'll hard-code
+-// the cases we can't handle yet.
+-func (w *Walker) hardCodedConstantType(name string) (typ string, ok bool) {
+-	switch w.scope[0] {
+-	case "pkg syscall":
+-		switch name {
+-		case "darwinAMD64":
+-			return "bool", true
+-		}
+-	}
+-	return "", false
+-}
+-
+ func (w *Walker) Features() (fs []string) {
+ 	for f := range w.features {
+ 		fs = append(fs, f)
+@@ -596,6 +582,10 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
+ 		}
+ 		return constDepPrefix + v.Name, nil
+ 	case *ast.BinaryExpr:
++		switch v.Op {
++		case token.EQL, token.LSS, token.GTR, token.NOT, token.NEQ, token.LEQ, token.GEQ:
++			return "bool", nil
++		}
+ 		left, err := w.constValueType(v.X)
+ 		if err != nil {
+ 			return "", err
+@@ -768,12 +758,7 @@ func (w *Walker) walkConst(vs *ast.ValueSpec) {
+ 				var err error
+ 				litType, err = w.constValueType(vs.Values[0])
+ 				if err != nil {
+-					if t, ok := w.hardCodedConstantType(ident.Name); ok {
+-						litType = t
+-						err = nil
+-					} else {
+-						log.Fatalf("unknown kind in const %q (%T): %v", ident.Name, vs.Values[0], err)
+-					}
++					log.Fatalf("unknown kind in const %q (%T): %v", ident.Name, vs.Values[0], err)
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/api/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+index 412f06b615..a98ca1e911 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/p1.go
++++ b/src/cmd/api/testdata/src/pkg/p1/p1.go
+@@ -161,3 +161,9 @@ func (common) OnBothTandBVal()  {}
+ type EmbedSelector struct {
+ 	time.Time
+ }
++
++const (
++	foo          = "foo"
++	foo2  string = "foo2"
++	truth        = foo == "foo" || foo2 == "foo2"
++)

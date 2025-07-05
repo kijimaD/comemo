@@ -7,7 +7,67 @@ Date:   Wed Dec 21 12:13:27 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5503054
-
+---
  misc/dashboard/app/build/build.go | 9 +++++----
  misc/dashboard/app/build/test.go  | 4 ++--
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index ac68300c36..eded544e7d 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -176,7 +176,7 @@ type Result struct {
+ 	GoHash string
+ 
+ 	OK      bool
+-	Log     []byte `datastore:"-"`        // for JSON unmarshaling
++	Log     string `datastore:"-"`        // for JSON unmarshaling only
+ 	LogHash string `datastore:",noindex"` // Key to the Log record.
+ }
+ 
+@@ -208,12 +208,12 @@ type Log struct {
+ 	CompressedLog []byte
+ }
+ 
+-func PutLog(c appengine.Context, text []byte) (hash string, err os.Error) {
++func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
+ 	h := sha1.New()
+-	h.Write(text)
++	io.WriteString(h, text)
+ 	b := new(bytes.Buffer)
+ 	z, _ := gzip.NewWriterLevel(b, gzip.BestCompression)
+-	z.Write(text)
++	io.WriteString(z, text)
+ 	z.Close()
+ 	hash = fmt.Sprintf("%x", h.Sum())
+ 	key := datastore.NewKey(c, "Log", hash, 0, nil)
+@@ -511,6 +511,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ // logHandler displays log text for a given hash.
+ // It handles paths like "/log/hash".
+ func logHandler(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("Content-type", "text/plain")
+ 	c := appengine.NewContext(r)
+ 	h := r.URL.Path[len("/log/"):]
+ 	k := datastore.NewKey(c, "Log", h, 0, nil)
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 4d84441492..cf78ace760 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -90,7 +90,7 @@ var testRequests = []struct {
+ 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+ 
+ 	// logs
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
+ 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
+ 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
+ 
+@@ -106,7 +106,7 @@ var testRequests = []struct {
+ 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
+ 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
+ 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
+-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: []byte("boo")}, nil},
++	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: "boo"}, nil},
+ }
+ 
+ func testHandler(w http.ResponseWriter, r *http.Request) {

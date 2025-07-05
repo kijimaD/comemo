@@ -14,7 +14,68 @@ Date:   Fri Oct 1 15:39:21 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 13 +------------
  src/cmd/internal/obj/sym.go                |  9 +++++++++
  2 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 1e9d5748cc..dc778a6fb9 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -15,7 +15,6 @@
+ package liveness
+ 
+ import (
+-	"crypto/md5"
+ 	"crypto/sha1"
+ 	"fmt"
+ 	"os"
+@@ -1326,19 +1325,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 		loff = objw.BitVec(&liveSymTmp, loff, locals)
+ 	}
+ 
+-	// Give these LSyms content-addressable names,
+-	// so that they can be de-duplicated.
+-	// This provides significant binary size savings.
+-	//
+ 	// These symbols will be added to Ctxt.Data by addGCLocals
+ 	// after parallel compilation is done.
+-	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
+-		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
+-			lsym.P = tmpSym.P
+-			lsym.Set(obj.AttrContentAddressable, true)
+-		})
+-	}
+-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp)
++	return base.Ctxt.GCLocalsSym(argsSymTmp.P), base.Ctxt.GCLocalsSym(liveSymTmp.P)
+ }
+ 
+ // Entry pointer for Compute analysis. Solves for the Compute of
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index a272c517b3..a8360527ef 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -34,6 +34,7 @@ package obj
+ import (
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/objabi"
++	"crypto/md5"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"log"
+@@ -172,6 +173,14 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ 	})
+ }
+ 
++// GCLocalsSym generates a content-addressable sym containing data.
++func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
++	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(data)), func(lsym *LSym) {
++		lsym.P = data
++		lsym.Set(AttrContentAddressable, true)
++	})
++}
++
+ // Assign index to symbols.
+ // asm is set to true if this is called by the assembler (i.e. not the compiler),
+ // in which case all the symbols are non-package (for now).

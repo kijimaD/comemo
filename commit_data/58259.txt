@@ -12,8 +12,113 @@ Date:   Thu Oct 12 08:35:37 2023 +0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 38 +++++++++++++++++++++++----------
  test/fixedbugs/issue63489a.go           | 16 ++++++++++++++
  test/fixedbugs/issue63489b.go           | 11 ++++++++++
  3 files changed, 54 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index c09a79d4f5..e77119695b 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -29,8 +29,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 
+ 	// setup and syntax error reporting
+ 	files := make([]*syntax.File, len(noders))
++	// posBaseMap maps all file pos bases back to *syntax.File
++	// for checking Go version mismatched.
++	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
+ 	for i, p := range noders {
+ 		files[i] = p.file
++		posBaseMap[p.file.Pos().Base()] = p.file
+ 	}
+ 
+ 	// typechecking
+@@ -43,17 +47,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		Context:            ctxt,
+ 		GoVersion:          base.Flag.Lang,
+ 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
+-		Error: func(err error) {
+-			terr := err.(types2.Error)
+-			msg := terr.Msg
+-			// if we have a version error, hint at the -lang setting
+-			if versionErrorRx.MatchString(msg) {
+-				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
+-			}
+-			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+-		},
+-		Importer: &importer,
+-		Sizes:    types2.SizesFor("gc", buildcfg.GOARCH),
++		Importer:           &importer,
++		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
+ 	}
+ 	if base.Flag.ErrorURL {
+ 		conf.ErrorURL = " [go.dev/e/%s]"
+@@ -69,6 +64,27 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		FileVersions:       make(map[*syntax.PosBase]types2.Version),
+ 		// expand as needed
+ 	}
++	conf.Error = func(err error) {
++		terr := err.(types2.Error)
++		msg := terr.Msg
++		if versionErrorRx.MatchString(msg) {
++			posBase := terr.Pos.Base()
++			for !posBase.IsFileBase() { // line directive base
++				posBase = posBase.Pos().Base()
++			}
++			v := info.FileVersions[posBase]
++			fileVersion := fmt.Sprintf("go%d.%d", v.Major, v.Minor)
++			file := posBaseMap[posBase]
++			if file.GoVersion == fileVersion {
++				// If we have a version error caused by //go:build, report it.
++				msg = fmt.Sprintf("%s (file declares //go:build %s)", msg, fileVersion)
++			} else {
++				// Otherwise, hint at the -lang setting.
++				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
++			}
++		}
++		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
++	}
+ 
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 	base.ExitIfErrors()
+diff --git a/test/fixedbugs/issue63489a.go b/test/fixedbugs/issue63489a.go
+new file mode 100644
+index 0000000000..b88120f2c0
+--- /dev/null
++++ b/test/fixedbugs/issue63489a.go
+@@ -0,0 +1,16 @@
++// errorcheck -lang=go1.21
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.4
++
++package p
++
++const c = 0o123 // ERROR "file declares //go:build go1.4"
++
++// ERROR "file declares //go:build go1.4"
++
++//line issue63489a.go:13:1
++const d = 0o124
+diff --git a/test/fixedbugs/issue63489b.go b/test/fixedbugs/issue63489b.go
+new file mode 100644
+index 0000000000..2ad590dfc3
+--- /dev/null
++++ b/test/fixedbugs/issue63489b.go
+@@ -0,0 +1,11 @@
++// errorcheck -lang=go1.4
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.4
++
++package p
++
++const c = 0o123 // ERROR "file declares //go:build go1.4"

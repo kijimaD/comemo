@@ -23,7 +23,61 @@ Date:   Wed Nov 1 23:19:39 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/netip/netip.go      |  6 ++++++
  src/net/netip/netip_test.go | 18 +++++++++++++++++-
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 99cb754fae..46f466c076 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1309,6 +1309,12 @@ func ParsePrefix(s string) (Prefix, error) {
+ 	}
+ 
+ 	bitsStr := s[i+1:]
++
++	// strconv.Atoi accepts a leading sign and leading zeroes, but we don't want that.
++	if len(bitsStr) > 1 && (bitsStr[0] < '1' || bitsStr[0] > '9') {
++		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
++	}
++
+ 	bits, err := strconv.Atoi(bitsStr)
+ 	if err != nil {
+ 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 39893e0f6d..36e57ce171 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1456,7 +1456,7 @@ func TestParsePrefixError(t *testing.T) {
+ 		},
+ 		{
+ 			prefix: "1.1.1.0/-1",
+-			errstr: "out of range",
++			errstr: "bad bits",
+ 		},
+ 		{
+ 			prefix: "1.1.1.0/33",
+@@ -1475,6 +1475,22 @@ func TestParsePrefixError(t *testing.T) {
+ 			prefix: "2001:db8::%a/32",
+ 			errstr: "zones cannot be present",
+ 		},
++		{
++			prefix: "1.1.1.0/+32",
++			errstr: "bad bits",
++		},
++		{
++			prefix: "1.1.1.0/-32",
++			errstr: "bad bits",
++		},
++		{
++			prefix: "1.1.1.0/032",
++			errstr: "bad bits",
++		},
++		{
++			prefix: "1.1.1.0/0032",
++			errstr: "bad bits",
++		},
+ 	}
+ 	for _, test := range tests {
+ 		t.Run(test.prefix, func(t *testing.T) {

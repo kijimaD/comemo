@@ -11,6 +11,20 @@ Date:   Mon Apr 17 12:23:36 2023 +0300
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/plugin/plugin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index a5489e638b..187d127432 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -39,7 +39,7 @@
+ //     some packages may not be initialized until long after the
+ //     application has started running.
+ //
+-//   - Bugs in applications that load plugins could be exploited by an
++//   - Bugs in applications that load plugins could be exploited by
+ //     an attacker to load dangerous or untrusted libraries.
+ //
+ //   - Runtime crashes are likely to occur unless all parts of the

@@ -11,7 +11,7 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go          |  2 +-
  src/cmd/compile/internal/s390x/ssa.go        |  5 +++
  src/cmd/compile/internal/ssa/gen/S390X.rules |  3 ++
@@ -21,3 +21,226 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
  src/cmd/vet/all/whitelist/s390x.txt          |  2 +
  src/runtime/asm_s390x.s                      | 66 ++++++++++++++++++++++++++++
  8 files changed, 118 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a463b222e1..7f947530b1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -408,7 +408,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	switch objabi.GOARCH {
+-	case "amd64", "amd64p32", "386", "arm", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "mips", "mipsle":
++	case "amd64", "amd64p32", "386", "arm", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "mips", "mipsle", "s390x":
+ 	default:
+ 		// Other architectures don't support the buffered
+ 		// write barrier yet.
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index c9d1f52c8f..23735ec3a6 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -511,6 +511,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
+ 		s.Call(v)
++	case ssa.OpS390XLoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
+ 	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
+ 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 6b997bd46d..5c457d0a75 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -446,6 +446,9 @@
+ 
+ (If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <typ.Bool> cond)) yes no)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ // ***************************
+ // Above: lowering rules
+ // Below: optimizations
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index ec4c9b2a3e..73510d40a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -116,6 +116,7 @@ func init() {
+ 
+ 		// R10 and R11 are reserved by the assembler.
+ 		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14")
++		gpg  = gp | buildReg("g")
+ 		gpsp = gp | sp
+ 
+ 		// R0 is considered to contain the value 0 in address calculations.
+@@ -453,6 +454,11 @@ func init() {
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+ 
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary,
++		// but clobbers R14 (LR) because it's a call.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++
+ 		// MOVDconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+ 		// (particularly stack maps). It takes a memory arg so it
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6859f36e51..5075c1cc23 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1686,6 +1686,7 @@ const (
+ 	OpS390XLoweredNilCheck
+ 	OpS390XLoweredRound32F
+ 	OpS390XLoweredRound64F
++	OpS390XLoweredWB
+ 	OpS390XMOVDconvert
+ 	OpS390XFlagEQ
+ 	OpS390XFlagLT
+@@ -22074,6 +22075,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4}, // R2
++				{1, 8}, // R3
++			},
++			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++		},
++	},
+ 	{
+ 		name:   "MOVDconvert",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index fe9b2bd001..43929d0550 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -753,6 +753,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpTrunc64to32_0(v)
+ 	case OpTrunc64to8:
+ 		return rewriteValueS390X_OpTrunc64to8_0(v)
++	case OpWB:
++		return rewriteValueS390X_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValueS390X_OpXor16_0(v)
+ 	case OpXor32:
+@@ -39218,6 +39220,24 @@ func rewriteValueS390X_OpTrunc64to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpS390XLoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index f18236c4f1..68e5461a3c 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -15,3 +15,5 @@ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl
+ runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
+ runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
+ runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 6b71830557..766a408c3c 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -1303,3 +1303,69 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	$1, ret+0(FP)
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - R2 is the destination of the write
++// - R3 is the value being written at R2.
++// It clobbers R10 and R11 (the linker temp registers).
++// It does not clobber any other general-purpose registers,
++// but may clobber others (e.g., floating point registers).
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$88
++	// Save the registers clobbered by the fast path.
++	MOVD	R1, 80(R15)
++	MOVD	R4, 88(R15)
++	MOVD	g_m(g), R1
++	MOVD	m_p(R1), R1
++	MOVD	(p_wbBuf+wbBuf_next)(R1), R4
++	// Increment wbBuf.next position.
++	ADD	$16, R4
++	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
++	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
++	MOVD	R1, R10		// R10 is linker temp register
++	// Record the write.
++	MOVD	R3, -16(R4)	// Record value
++	MOVD	(R2), R1	// TODO: This turns bad writes into bad reads.
++	MOVD	R1, -8(R4)	// Record *slot
++	// Is the buffer full?
++	CMPBEQ	R4, R10, flush
++ret:
++	MOVD	80(R15), R1
++	MOVD	88(R15), R4
++	// Do the write.
++	MOVD	R3, (R2)
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	MOVD	R2, 8(R15)	// Also first argument to wbBufFlush
++	MOVD	R3, 16(R15)	// Also second argument to wbBufFlush
++	MOVD	R0, 24(R15)
++	// R1 already saved.
++	// R4 already saved.
++	MOVD	R5, 32(R15)
++	MOVD	R6, 40(R15)
++	MOVD	R7, 48(R15)
++	MOVD	R8, 56(R15)
++	MOVD	R9, 64(R15)
++	// R10 and R11 are linker temp registers.
++	MOVD	R12, 72(R15)
++	// R13 is g.
++	// R14 is LR.
++	// R15 is SP.
++
++	// This takes arguments R2 and R3.
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVD	8(R15), R2
++	MOVD	16(R15), R3
++	MOVD	24(R15), R0
++	MOVD	32(R15), R5
++	MOVD	40(R15), R6
++	MOVD	48(R15), R7
++	MOVD	56(R15), R8
++	MOVD	64(R15), R9
++	MOVD	72(R15), R12
++	JMP	ret

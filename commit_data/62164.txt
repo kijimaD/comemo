@@ -16,9 +16,120 @@ Date:   Sun Dec 22 21:23:55 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/exec.go         | 14 +++++++++++---
  src/os/exec_plan9.go   |  3 ---
  src/os/exec_unix.go    |  4 +---
  src/os/exec_windows.go |  2 --
  4 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 3f83139da5..212689b0fa 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -52,6 +52,9 @@ type Process struct {
+ 	// This is a pointer to a separate memory allocation
+ 	// so that we can use runtime.AddCleanup.
+ 	handle *processHandle
++
++	// cleanup is used to clean up the process handle.
++	cleanup runtime.Cleanup
+ }
+ 
+ // processHandle holds an operating system handle to a process.
+@@ -111,7 +114,6 @@ func newPIDProcess(pid int) *Process {
+ 	p := &Process{
+ 		Pid: pid,
+ 	}
+-	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+ }
+ 
+@@ -128,7 +130,9 @@ func newHandleProcess(pid int, handle uintptr) *Process {
+ 		Pid:    pid,
+ 		handle: ph,
+ 	}
+-	runtime.SetFinalizer(p, (*Process).Release)
++
++	p.cleanup = runtime.AddCleanup(p, (*processHandle).release, ph)
++
+ 	return p
+ }
+ 
+@@ -137,7 +141,6 @@ func newDoneProcess(pid int) *Process {
+ 		Pid: pid,
+ 	}
+ 	p.state.Store(uint32(statusDone)) // No persistent reference, as there is no handle.
+-	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+ }
+ 
+@@ -197,7 +200,12 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+ 		if !p.state.CompareAndSwap(state, uint32(reason)) {
+ 			continue
+ 		}
++
++		// No need for more cleanup.
++		p.cleanup.Stop()
++
+ 		p.handle.release()
++
+ 		return status
+ 	}
+ }
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index bc7a9cdcbc..6e32a1ae17 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"internal/itoa"
+-	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+@@ -95,8 +94,6 @@ func (p *Process) release() error {
+ 	// Just mark the PID unusable.
+ 	p.pidDeactivate(statusReleased)
+ 
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(p, nil)
+ 	return nil
+ }
+ 
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index e58801b184..3b2552eb51 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -8,7 +8,6 @@ package os
+ 
+ import (
+ 	"errors"
+-	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+@@ -136,8 +135,7 @@ func (p *Process) release() error {
+ 		// Just mark the PID unusable.
+ 		p.pidDeactivate(statusReleased)
+ 	}
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(p, nil)
++
+ 	return nil
+ }
+ 
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 969eeb7c21..0eebe76da3 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -83,8 +83,6 @@ func (p *Process) release() error {
+ 		return syscall.EINVAL
+ 	}
+ 
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(p, nil)
+ 	return nil
+ }
+ 

@@ -11,8 +11,80 @@ Date:   Wed Jun 15 21:47:29 2011 -0700
     R=r, rsc, r
     CC=golang-dev
     https://golang.org/cl/4589056
-
+---
  src/pkg/go/printer/nodes.go                   | 10 ++++++++--
  src/pkg/go/printer/testdata/statements.golden | 15 +++++++++++++++
  src/pkg/go/printer/testdata/statements.input  | 13 +++++++++++++
  3 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 0fca8a161b..f2b79d8103 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1158,8 +1158,14 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 
+ 	case *ast.SelectStmt:
+ 		p.print(token.SELECT, blank)
+-		p.block(s.Body, 0)
+-		*multiLine = true
++		body := s.Body
++		if len(body.List) == 0 && !p.commentBefore(p.fset.Position(body.Rbrace)) {
++			// print empty select statement w/o comments on one line
++			p.print(body.Lbrace, token.LBRACE, body.Rbrace, token.RBRACE)
++		} else {
++			p.block(body, 0)
++			*multiLine = true
++		}
+ 
+ 	case *ast.ForStmt:
+ 		p.print(token.FOR)
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 2900602699..0e48404413 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -111,6 +111,21 @@ func _() {
+ }
+ 
+ 
++// Formatting of selected select statements.
++func _() {
++	select {}
++	select { /* this comment should not be tab-aligned because the closing } is on the same line */
++	}
++	select {	/* this comment should be tab-aligned */
++	}
++	select {	// this comment should be tab-aligned
++	}
++	select {
++	case <-c:
++	}
++}
++
++
+ // Formatting of for-statement headers.
+ func _() {
+ 	for {
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 21e61efc4f..86a753c5ad 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -91,6 +91,19 @@ func _() {
+ }
+ 
+ 
++// Formatting of selected select statements.
++func _() {
++	select {
++	}
++	select { /* this comment should not be tab-aligned because the closing } is on the same line */ }
++	select { /* this comment should be tab-aligned */
++	}
++	select { // this comment should be tab-aligned
++	}
++	select { case <-c: }
++}
++
++
+ // Formatting of for-statement headers.
+ func _() {
+ 	for{}

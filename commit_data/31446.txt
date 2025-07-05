@@ -13,7 +13,34 @@ Date:   Mon Feb 20 22:57:10 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/aes/asm_ppc64le.s     | 2 +-
  src/crypto/aes/cipher_ppc64le.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/aes/asm_ppc64le.s b/src/crypto/aes/asm_ppc64le.s
+index 93975703f5..e476d4e747 100644
+--- a/src/crypto/aes/asm_ppc64le.s
++++ b/src/crypto/aes/asm_ppc64le.s
+@@ -439,7 +439,7 @@ TEXT ·decryptBlockAsm(SB),NOSPLIT|NOFRAME,$0
+ 	// Load the arguments inside the registers
+ 	MOVD dst+0(FP), BLK_OUT
+ 	MOVD src+8(FP), BLK_INP
+-	MOVD enc+16(FP), BLK_KEY
++	MOVD dec+16(FP), BLK_KEY
+ 
+ 	MOVWZ 240(BLK_KEY), BLK_ROUNDS // lwz 6,240(5)
+ 	MOVD $15, BLK_IDX              // li 7,15
+diff --git a/src/crypto/aes/cipher_ppc64le.go b/src/crypto/aes/cipher_ppc64le.go
+index bf7be5f89f..4a564e926c 100644
+--- a/src/crypto/aes/cipher_ppc64le.go
++++ b/src/crypto/aes/cipher_ppc64le.go
+@@ -20,7 +20,7 @@ func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
+ 
+ //go:noescape
+ 
+-func doEncryptKeyAsm()
++func doEncryptKeyAsm(key *byte, keylen int, dec *uint32) int
+ 
+ //go:noescape
+ 

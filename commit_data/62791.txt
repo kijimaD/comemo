@@ -13,6 +13,34 @@ Date:   Thu Apr 10 15:31:03 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/proc.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 16339decbd..c7ae71a136 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6636,20 +6636,14 @@ func globrunqget() *g {
+ 
+ // Try get a batch of G's from the global runnable queue.
+ // sched.lock must be held.
+-func globrunqgetbatch(max int32) (gp *g, q gQueue, qsize int32) {
++func globrunqgetbatch(n int32) (gp *g, q gQueue, qsize int32) {
+ 	assertLockHeld(&sched.lock)
+ 
+ 	if sched.runqsize == 0 {
+ 		return
+ 	}
+ 
+-	n := sched.runqsize/gomaxprocs + 1
+-	if n > sched.runqsize {
+-		n = sched.runqsize
+-	}
+-	if n > max {
+-		n = max
+-	}
++	n = min(n, sched.runqsize, sched.runqsize/gomaxprocs+1)
+ 
+ 	sched.runqsize -= n
+ 

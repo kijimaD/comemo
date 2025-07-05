@@ -23,9 +23,256 @@ Date:   Thu Nov 12 04:30:15 2020 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf_test.go              |   3 +-
  src/cmd/link/internal/ld/go.go                    |  60 ++++++++++-
  src/cmd/link/internal/ld/go_test.go               | 121 ++++++++++++++++++++++
  src/cmd/link/internal/ld/testdata/issue39256/x.go |   2 +
  4 files changed, 184 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 37f0e77336..776fc1b4f9 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -123,7 +124,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
+ 
+ 	var count int
+ 	for _, lib := range libs {
+-		if lib == "libc.so" {
++		if lib == "libc.so" || strings.HasPrefix(lib, "libc.so.") {
+ 			count++
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index a6cd4c0541..fbc7a78d0e 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -18,6 +18,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"sort"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -289,6 +291,62 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
+ 	return
+ }
+ 
++// openbsdTrimLibVersion indicates whether a shared library is
++// versioned and if it is, returns the unversioned name. The
++// OpenBSD library naming scheme is lib<name>.so.<major>.<minor>
++func openbsdTrimLibVersion(lib string) (string, bool) {
++	parts := strings.Split(lib, ".")
++	if len(parts) != 4 {
++		return "", false
++	}
++	if parts[1] != "so" {
++		return "", false
++	}
++	if _, err := strconv.Atoi(parts[2]); err != nil {
++		return "", false
++	}
++	if _, err := strconv.Atoi(parts[3]); err != nil {
++		return "", false
++	}
++	return fmt.Sprintf("%s.%s", parts[0], parts[1]), true
++}
++
++// dedupLibrariesOpenBSD dedups a list of shared libraries, treating versioned
++// and unversioned libraries as equivalents. Versioned libraries are preferred
++// and retained over unversioned libraries. This avoids the situation where
++// the use of cgo results in a DT_NEEDED for a versioned library (for example,
++// libc.so.96.1), while a dynamic import specifies an unversioned library (for
++// example, libc.so) - this would otherwise result in two DT_NEEDED entries
++// for the same library, resulting in a failure when ld.so attempts to load
++// the Go binary.
++func dedupLibrariesOpenBSD(ctxt *Link, libs []string) []string {
++	libraries := make(map[string]string)
++	for _, lib := range libs {
++		if name, ok := openbsdTrimLibVersion(lib); ok {
++			// Record unversioned name as seen.
++			seenlib[name] = true
++			libraries[name] = lib
++		} else if _, ok := libraries[lib]; !ok {
++			libraries[lib] = lib
++		}
++	}
++
++	libs = nil
++	for _, lib := range libraries {
++		libs = append(libs, lib)
++	}
++	sort.Strings(libs)
++
++	return libs
++}
++
++func dedupLibraries(ctxt *Link, libs []string) []string {
++	if ctxt.Target.IsOpenbsd() {
++		return dedupLibrariesOpenBSD(ctxt, libs)
++	}
++	return libs
++}
++
+ var seenlib = make(map[string]bool)
+ 
+ func adddynlib(ctxt *Link, lib string) {
+@@ -385,7 +443,7 @@ func (ctxt *Link) addexport() {
+ 	for _, exp := range ctxt.dynexp {
+ 		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
+ 	}
+-	for _, lib := range dynlib {
++	for _, lib := range dedupLibraries(ctxt, dynlib) {
+ 		adddynlib(ctxt, lib)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/go_test.go b/src/cmd/link/internal/ld/go_test.go
+new file mode 100644
+index 0000000000..0197196023
+--- /dev/null
++++ b/src/cmd/link/internal/ld/go_test.go
+@@ -0,0 +1,121 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/objabi"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++func TestDedupLibraries(t *testing.T) {
++	ctxt := &Link{}
++	ctxt.Target.HeadType = objabi.Hlinux
++
++	libs := []string{"libc.so", "libc.so.6"}
++
++	got := dedupLibraries(ctxt, libs)
++	if !reflect.DeepEqual(got, libs) {
++		t.Errorf("dedupLibraries(%v) = %v, want %v", libs, got, libs)
++	}
++}
++
++func TestDedupLibrariesOpenBSD(t *testing.T) {
++	ctxt := &Link{}
++	ctxt.Target.HeadType = objabi.Hopenbsd
++
++	tests := []struct {
++		libs []string
++		want []string
++	}{
++		{
++			libs: []string{"libc.so"},
++			want: []string{"libc.so"},
++		},
++		{
++			libs: []string{"libc.so", "libc.so.96.1"},
++			want: []string{"libc.so.96.1"},
++		},
++		{
++			libs: []string{"libc.so.96.1", "libc.so"},
++			want: []string{"libc.so.96.1"},
++		},
++		{
++			libs: []string{"libc.a", "libc.so.96.1"},
++			want: []string{"libc.a", "libc.so.96.1"},
++		},
++		{
++			libs: []string{"libpthread.so", "libc.so"},
++			want: []string{"libc.so", "libpthread.so"},
++		},
++		{
++			libs: []string{"libpthread.so.26.1", "libpthread.so", "libc.so.96.1", "libc.so"},
++			want: []string{"libc.so.96.1", "libpthread.so.26.1"},
++		},
++		{
++			libs: []string{"libpthread.so.26.1", "libpthread.so", "libc.so.96.1", "libc.so", "libfoo.so"},
++			want: []string{"libc.so.96.1", "libfoo.so", "libpthread.so.26.1"},
++		},
++	}
++
++	for _, test := range tests {
++		t.Run("dedup", func(t *testing.T) {
++			got := dedupLibraries(ctxt, test.libs)
++			if !reflect.DeepEqual(got, test.want) {
++				t.Errorf("dedupLibraries(%v) = %v, want %v", test.libs, got, test.want)
++			}
++		})
++	}
++}
++
++func TestDedupLibrariesOpenBSDLink(t *testing.T) {
++	// The behavior we're checking for is of interest only on OpenBSD.
++	if runtime.GOOS != "openbsd" {
++		t.Skip("test only useful on openbsd")
++	}
++
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	t.Parallel()
++
++	dir, err := ioutil.TempDir("", "dedup-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	// cgo_import_dynamic both the unversioned libraries and pull in the
++	// net package to get a cgo package with a versioned library.
++	srcFile := filepath.Join(dir, "x.go")
++	src := `package main
++
++import (
++	_ "net"
++)
++
++//go:cgo_import_dynamic _ _ "libc.so"
++
++func main() {}`
++	if err := ioutil.WriteFile(srcFile, []byte(src), 0644); err != nil {
++		t.Fatal(err)
++	}
++
++	exe := filepath.Join(dir, "deduped.exe")
++	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, srcFile).CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failure: %s\n%s\n", err, string(out))
++	}
++
++	// Result should be runnable.
++	if _, err = exec.Command(exe).CombinedOutput(); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue39256/x.go b/src/cmd/link/internal/ld/testdata/issue39256/x.go
+index d8562ad172..97bc1cc407 100644
+--- a/src/cmd/link/internal/ld/testdata/issue39256/x.go
++++ b/src/cmd/link/internal/ld/testdata/issue39256/x.go
+@@ -13,6 +13,8 @@ import (
+ //go:cgo_import_dynamic libc_close close "libc.so"
+ //go:cgo_import_dynamic libc_open open "libc.so"
+ 
++//go:cgo_import_dynamic _ _ "libc.so"
++
+ func trampoline()
+ 
+ func main() {

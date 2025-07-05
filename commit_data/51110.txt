@@ -18,6 +18,48 @@ Date:   Mon Dec 6 13:33:54 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369734
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index e4e0d2300d..15cec4e1f0 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -41,10 +41,6 @@ Do not send CLs removing the interior tags from such phrases.
+   For details see the <a href="https://golang.org/ref/spec">language spec</a>.
+ </p>
+ <ul>
+-  <li>
+-    The new token <code>~</code> is added to the set of
+-    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
+-  </li>
+   <li>
+     The syntax for
+     <a href="https://golang.org/ref/spec#Function_declarations">Function</a> and
+@@ -52,6 +48,14 @@ Do not send CLs removing the interior tags from such phrases.
+     now accepts
+     <a href="https://golang.org/ref/spec#Type_parameters">type parameters</a>.
+   </li>
++  <li>
++    Parameterized functions and types can be instantiated by following them with a list of
++    type arguments in square brackets.
++  </li>
++  <li>
++    The new token <code>~</code> has been added to the set of
++    <a href="https://golang.org/ref/spec#Operators_and_punctuation">operators and punctuation</a>.
++  </li>
+   <li>
+     The syntax for
+     <a href="https://golang.org/ref/spec#Interface_types">Interface types</a>
+@@ -60,10 +64,6 @@ Do not send CLs removing the interior tags from such phrases.
+     as type constraints.
+     An interface now defines a set of types as well as a set of methods.
+   </li>
+-  <li>
+-    Parameterized functions and types can be instantiated by following them with a list of
+-    type arguments in square brackets.
+-  </li>
+   <li>
+     The new
+     <a href="https://golang.org/ref/spec#Predeclared_identifiers">predeclared identifier</a>

@@ -24,7 +24,40 @@ Date:   Fri Aug 2 10:19:52 2013 -0700
     R=golang-dev, adg, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/12316043
-
+---
  misc/dist/bindist.go | 1 +
  src/run.bash         | 9 ++++++---
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 754bd280c2..f56a88dc6b 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -50,6 +50,7 @@ const (
+ var preBuildCleanFiles = []string{
+ 	"lib/codereview",
+ 	"misc/dashboard/godashboard",
++	"src/cmd/api",
+ 	"src/cmd/cov",
+ 	"src/cmd/prof",
+ 	"src/pkg/exp",
+diff --git a/src/run.bash b/src/run.bash
+index 83ef65bf0b..e5f2c384bb 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -176,9 +176,12 @@ unset GOMAXPROCS
+ time go run run.go || exit 1
+ ) || exit $?
+ 
+-echo
+-echo '# Checking API compatibility.'
+-go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.txt -except $GOROOT/api/except.txt
++if [ -d "$GOROOT/src/cmd/api" ]
++then
++	echo
++	echo '# Checking API compatibility.'
++	go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.txt -except $GOROOT/api/except.txt
++fi
+ 
+ echo
+ echo ALL TESTS PASSED

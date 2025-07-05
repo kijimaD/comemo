@@ -8,6 +8,20 @@ Date:   Wed Jun 16 13:37:07 2010 +1000
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/1675047
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index b9626815a4..fec2b4a4a4 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -100,7 +100,7 @@ if $havex; then
+ fi
+ 
+ # They all compile; now generate the code to call them.
+-# trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
++trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ 
+ # Suppress output to stdout on Linux
+ MAKEFLAGS=

@@ -11,7 +11,7 @@ Date:   Fri Mar 15 15:24:13 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7773047
-
+---
  src/cmd/gc/dcl.c         | 36 ++++++++++++++++++++++++------------
  src/cmd/gc/go.h          |  1 +
  test/fixedbugs/bug040.go |  2 +-
@@ -22,3 +22,235 @@ Date:   Fri Mar 15 15:24:13 2013 -0400
  test/funcdup.go          | 27 +++++++++++++++++++++++++++
  test/funcdup2.go         | 17 +++++++++++++++++
  9 files changed, 74 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index aa2489d9a1..45945467b9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -225,8 +225,12 @@ declare(Node *n, int ctxt)
+ 	if(ctxt == PAUTO)
+ 		n->xoffset = 0;
+ 
+-	if(s->block == block)
+-		redeclare(s, "in this block");
++	if(s->block == block) {
++		// functype will print errors about duplicate function arguments.
++		// Don't repeat the error here.
++		if(ctxt != PPARAM && ctxt != PPARAMOUT)
++			redeclare(s, "in this block");
++	}
+ 
+ 	s->block = block;
+ 	s->lastlineno = parserline();
+@@ -824,22 +828,24 @@ structfield(Node *n)
+ 	return f;
+ }
+ 
++static uint32 uniqgen;
++
+ static void
+ checkdupfields(Type *t, char* what)
+ {
+-	Type* t1;
+ 	int lno;
+ 
+ 	lno = lineno;
+ 
+-	for( ; t; t=t->down)
+-		if(t->sym && t->nname && !isblank(t->nname))
+-			for(t1=t->down; t1; t1=t1->down)
+-				if(t1->sym == t->sym) {
+-					lineno = t->nname->lineno;
+-					yyerror("duplicate %s %s", what, t->sym->name);
+-					break;
+-				}
++	for( ; t; t=t->down) {
++		if(t->sym && t->nname && !isblank(t->nname)) {
++			if(t->sym->uniqgen == uniqgen) {
++				lineno = t->nname->lineno;
++				yyerror("duplicate %s %s", what, t->sym->name);
++			} else
++				t->sym->uniqgen = uniqgen;
++		}
++	}
+ 
+ 	lineno = lno;
+ }
+@@ -865,6 +871,7 @@ tostruct(NodeList *l)
+ 		if(f->broke)
+ 			t->broke = 1;
+ 
++	uniqgen++;
+ 	checkdupfields(t->type, "field");
+ 
+ 	if (!t->broke)
+@@ -897,7 +904,6 @@ tofunargs(NodeList *l)
+ 		if(f->broke)
+ 			t->broke = 1;
+ 
+-	checkdupfields(t->type, "argument");
+ 	return t;
+ }
+ 
+@@ -1004,6 +1010,7 @@ tointerface(NodeList *l)
+ 		if(f->broke)
+ 			t->broke = 1;
+ 
++	uniqgen++;
+ 	checkdupfields(t->type, "method");
+ 	t = sortinter(t);
+ 	checkwidth(t);
+@@ -1187,6 +1194,11 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 	t->type->down = tofunargs(out);
+ 	t->type->down->down = tofunargs(in);
+ 
++	uniqgen++;
++	checkdupfields(t->type->type, "argument");
++	checkdupfields(t->type->down->type, "argument");
++	checkdupfields(t->type->down->down->type, "argument");
++
+ 	if (t->type->broke || t->type->down->broke || t->type->down->down->broke)
+ 		t->broke = 1;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7e5e1b7356..4bfb73e5b7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -369,6 +369,7 @@ struct	Sym
+ 	uchar	sym;		// huffman encoding in object file
+ 	Sym*	link;
+ 	int32	npkg;	// number of imported packages with this name
++	uint32	uniqgen;
+ 
+ 	// saved and restored by dcopy
+ 	Pkg*	pkg;
+diff --git a/test/fixedbugs/bug040.go b/test/fixedbugs/bug040.go
+index 007f47f9f5..d2cf88afcb 100644
+--- a/test/fixedbugs/bug040.go
++++ b/test/fixedbugs/bug040.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func f (x,		// GCCGO_ERROR "previous"
+-	x int) {	// ERROR "redeclared|redefinition" "duplicate"
++	x int) {	// ERROR "duplicate argument|redefinition"
+ }
+diff --git a/test/fixedbugs/bug342.go b/test/fixedbugs/bug342.go
+index 5f1efbdfe1..ffcb668116 100644
+--- a/test/fixedbugs/bug342.go
++++ b/test/fixedbugs/bug342.go
+@@ -9,11 +9,7 @@
+ package p
+ 
+ type a interface {
+-	foo(x int) (x int) // ERROR "redeclared|redefinition"
+-}
+-
+-var b interface {
+-	bar(y int) (y int) // ERROR "redeclared|redefinition"
++	foo(x int) (x int) // ERROR "duplicate argument|redefinition"
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug412.go b/test/fixedbugs/bug412.go
+index 8dd0a5fcc1..c7ddc0cac8 100644
+--- a/test/fixedbugs/bug412.go
++++ b/test/fixedbugs/bug412.go
+@@ -7,8 +7,8 @@
+ package p
+ 
+ type t struct {
+-	x int  // ERROR "duplicate field x|duplicate field name .x."
+-	x int
++	x int  // GCCGO_ERROR "duplicate field name .x."
++	x int  // GC_ERROR "duplicate field x"
+ }
+ 
+ func f(t *t) int {
+diff --git a/test/fixedbugs/bug469.go b/test/fixedbugs/bug469.go
+deleted file mode 100644
+index 71157a4c41..0000000000
+--- a/test/fixedbugs/bug469.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// compile
+-
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// The gccgo compiler would complain about a redefinition of i, but
+-// the spec imposes no requirements on parameter names in a function
+-// type.
+-
+-package p
+-
+-type F func(i int) (i int)
+diff --git a/test/func1.go b/test/func1.go
+index c89f7ff2ea..fb6f56184f 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -14,6 +14,6 @@ func f1(a int) (int, float32) {
+ }
+ 
+ 
+-func f2(a int) (a int, b float32) { // ERROR "redeclared|definition"
++func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition"
+ 	return 8, 8.0
+ }
+diff --git a/test/funcdup.go b/test/funcdup.go
+new file mode 100644
+index 0000000000..706dd63ca1
+--- /dev/null
++++ b/test/funcdup.go
+@@ -0,0 +1,27 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T interface {
++	F1(i int) (i int) // ERROR "duplicate argument i"
++	F2(i, i int) // ERROR "duplicate argument i"
++	F3() (i, i int) // ERROR "duplicate argument i"
++}
++
++type T1 func(i, i int) // ERROR "duplicate argument i"
++type T2 func(i int) (i int) // ERROR "duplicate argument i"
++type T3 func() (i, i int) // ERROR "duplicate argument i"
++
++type R struct{}
++
++func (i *R) F1(i int)         {} // ERROR "duplicate argument i"
++func (i *R) F2() (i int)      {return 0} // ERROR "duplicate argument i"
++func (i *R) F3(j int) (j int) {return 0} // ERROR "duplicate argument j"
++
++func F1(i, i int)      {} // ERROR "duplicate argument i"
++func F2(i int) (i int) {return 0} // ERROR "duplicate argument i"
++func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i"
+diff --git a/test/funcdup2.go b/test/funcdup2.go
+new file mode 100644
+index 0000000000..aeb5f7eb61
+--- /dev/null
++++ b/test/funcdup2.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var T interface {
++	F1(i int) (i int) // ERROR "duplicate argument i"
++	F2(i, i int) // ERROR "duplicate argument i"
++	F3() (i, i int) // ERROR "duplicate argument i"
++}
++
++var T1 func(i, i int) // ERROR "duplicate argument i"
++var T2 func(i int) (i int) // ERROR "duplicate argument i"
++var T3 func() (i, i int) // ERROR "duplicate argument i"

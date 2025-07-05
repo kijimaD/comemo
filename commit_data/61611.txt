@@ -13,9 +13,160 @@ Date:   Sun Nov 10 11:02:44 2024 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/internal/fips/hkdf/hkdf.go      |  2 ++
  src/crypto/internal/fips/hkdf/hkdf_test.go | 28 ++++++++++++++++++++++++
  src/crypto/internal/fips/hmac/hmac.go      | 35 +++++++++++++++++-------------
  src/crypto/internal/fips/indicator.go      |  5 +++++
  4 files changed, 55 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/internal/fips/hkdf/hkdf.go b/src/crypto/internal/fips/hkdf/hkdf.go
+index 914c955fd2..745a0525bb 100644
+--- a/src/crypto/internal/fips/hkdf/hkdf.go
++++ b/src/crypto/internal/fips/hkdf/hkdf.go
+@@ -17,6 +17,7 @@ func Extract[H fips.Hash](h func() H, secret, salt []byte) []byte {
+ 		salt = make([]byte, h().Size())
+ 	}
+ 	extractor := hmac.New(h, salt)
++	hmac.MarkAsUsedInHKDF(extractor)
+ 	extractor.Write(secret)
+ 	return extractor.Sum(nil)
+ }
+@@ -24,6 +25,7 @@ func Extract[H fips.Hash](h func() H, secret, salt []byte) []byte {
+ func Expand[H fips.Hash](h func() H, pseudorandomKey, info []byte, keyLen int) []byte {
+ 	out := make([]byte, 0, keyLen)
+ 	expander := hmac.New(h, pseudorandomKey)
++	hmac.MarkAsUsedInHKDF(expander)
+ 	var counter uint8
+ 	var buf []byte
+ 
+diff --git a/src/crypto/internal/fips/hkdf/hkdf_test.go b/src/crypto/internal/fips/hkdf/hkdf_test.go
+index f78d1e7af3..6bb2c6bc4a 100644
+--- a/src/crypto/internal/fips/hkdf/hkdf_test.go
++++ b/src/crypto/internal/fips/hkdf/hkdf_test.go
+@@ -5,6 +5,8 @@ package hkdf_test
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/boring"
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/hkdf"
+ 	"crypto/md5"
+ 	"crypto/sha1"
+@@ -331,6 +333,32 @@ func TestHKDFLimit(t *testing.T) {
+ 	hkdf.Key(hash, master, nil, info, limit+1)
+ }
+ 
++func TestFIPSServiceIndicator(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("in BoringCrypto mode HMAC is not from the Go FIPS module")
++	}
++
++	fips.ResetServiceIndicator()
++	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), nil, nil, 32)
++	if !fips.ServiceIndicator() {
++		t.Error("FIPS service indicator should be set")
++	}
++
++	// Key too short.
++	fips.ResetServiceIndicator()
++	hkdf.Key(sha256.New, []byte("key"), nil, nil, 32)
++	if fips.ServiceIndicator() {
++		t.Error("FIPS service indicator should not be set")
++	}
++
++	// Salt and info are short, which is ok, but translates to a short HMAC key.
++	fips.ResetServiceIndicator()
++	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), []byte("info"), 32)
++	if !fips.ServiceIndicator() {
++		t.Error("FIPS service indicator should be set")
++	}
++}
++
+ func Benchmark16ByteMD5Single(b *testing.B) {
+ 	benchmarkHKDFSingle(md5.New, 16, b)
+ }
+diff --git a/src/crypto/internal/fips/hmac/hmac.go b/src/crypto/internal/fips/hmac/hmac.go
+index ef6136e155..e47de385df 100644
+--- a/src/crypto/internal/fips/hmac/hmac.go
++++ b/src/crypto/internal/fips/hmac/hmac.go
+@@ -35,9 +35,25 @@ type HMAC struct {
+ 	// copy of the key, but rather the marshaled state of outer/inner after
+ 	// opad/ipad has been fed into it.
+ 	marshaled bool
++
++	// forHKDF and keyLen are stored to inform the service indicator decision.
++	forHKDF bool
++	keyLen  int
+ }
+ 
+ func (h *HMAC) Sum(in []byte) []byte {
++	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
++	// legacy use (i.e. verification only) and we don't support that. However,
++	// HKDF uses the HMAC key for the salt, which is allowed to be shorter.
++	if h.keyLen < 112/8 && !h.forHKDF {
++		fips.RecordNonApproved()
++	}
++	switch h.inner.(type) {
++	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
++	default:
++		fips.RecordNonApproved()
++	}
++
+ 	origLen := len(in)
+ 	in = h.inner.Sum(in)
+ 
+@@ -113,7 +129,7 @@ func (h *HMAC) Reset() {
+ 
+ // New returns a new HMAC hash using the given [fips.Hash] type and key.
+ func New[H fips.Hash](h func() H, key []byte) *HMAC {
+-	hm := new(HMAC)
++	hm := &HMAC{keyLen: len(key)}
+ 	hm.outer = h()
+ 	hm.inner = h()
+ 	unique := true
+@@ -129,7 +145,6 @@ func New[H fips.Hash](h func() H, key []byte) *HMAC {
+ 	if !unique {
+ 		panic("crypto/hmac: hash generation function does not produce unique values")
+ 	}
+-	setServiceIndicator(hm.outer, key)
+ 	blocksize := hm.inner.BlockSize()
+ 	hm.ipad = make([]byte, blocksize)
+ 	hm.opad = make([]byte, blocksize)
+@@ -151,17 +166,7 @@ func New[H fips.Hash](h func() H, key []byte) *HMAC {
+ 	return hm
+ }
+ 
+-func setServiceIndicator(h fips.Hash, key []byte) {
+-	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
+-	// legacy use (i.e. verification only) and we don't support that.
+-	if len(key) < 112/8 {
+-		fips.RecordNonApproved()
+-	}
+-
+-	switch h.(type) {
+-	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
+-		fips.RecordApproved()
+-	default:
+-		fips.RecordNonApproved()
+-	}
++// MarkAsUsedInHKDF records that this HMAC instance is used as part of HKDF.
++func MarkAsUsedInHKDF(h *HMAC) {
++	h.forHKDF = true
+ }
+diff --git a/src/crypto/internal/fips/indicator.go b/src/crypto/internal/fips/indicator.go
+index 9e4f3c7845..984b39ad2e 100644
+--- a/src/crypto/internal/fips/indicator.go
++++ b/src/crypto/internal/fips/indicator.go
+@@ -44,6 +44,11 @@ func ServiceIndicator() bool {
+ 
+ // RecordApproved is an internal function that records the use of an approved
+ // service. It does not override RecordNonApproved calls in the same span.
++//
++// It should be called by exposed functions that perform a whole cryptographic
++// alrgorithm (e.g. by Sum, not by New, unless a cryptographic Instantiate
++// algorithm is performed) and should be called after any checks that may cause
++// the function to error out or panic.
+ func RecordApproved() {
+ 	if getIndicator() == indicatorUnset {
+ 		setIndicator(indicatorTrue)

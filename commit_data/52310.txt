@@ -12,6 +12,34 @@ Date:   Sun Nov 7 21:37:25 2021 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/asm_riscv64.s | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 9052649c9e..00caa9f18a 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -213,14 +213,14 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+ 	JMP	runtime·morestack(SB)
+ 
+ // AES hashing not implemented for riscv64
+-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+-	JMP	runtime·memhashFallback(SB)
+-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+-	JMP	runtime·strhashFallback(SB)
+-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+-	JMP	runtime·memhash32Fallback(SB)
+-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+-	JMP	runtime·memhash64Fallback(SB)
++TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
++	JMP	runtime·memhashFallback<ABIInternal>(SB)
++TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·strhashFallback<ABIInternal>(SB)
++TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
++TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+ // func return0()
+ TEXT runtime·return0(SB), NOSPLIT, $0

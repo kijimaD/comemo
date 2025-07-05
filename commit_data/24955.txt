@@ -11,10 +11,153 @@ Date:   Wed Sep 9 22:56:26 2015 -0400
     Change-Id: I9ad0c5c7fa3e97bd79a32da372e1a962565bb3af
     Reviewed-on: https://go-review.googlesource.com/3973
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go       | 51 ++++++++++++++++++----------------------------
  src/cmd/dist/util_gc.go    |  8 ++++++++
  src/cmd/dist/util_gccgo.go |  4 ++++
  src/cmd/dist/vfp_arm.s     | 17 ++++++++++++++++
  src/cmd/dist/vfp_default.s | 13 ++++++++++++
  5 files changed, 62 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index f13210f4de..34cbf50282 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -480,6 +480,14 @@ func main() {
+ 		}
+ 	}
+ 
++	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
++		useVFPv1() // might fail with SIGILL
++		println("VFPv1 OK.")
++		useVFPv3() // might fail with SIGILL
++		println("VFPv3 OK.")
++		os.Exit(0)
++	}
++
+ 	xinit()
+ 	xmain()
+ 	xexit(0)
+@@ -515,40 +523,21 @@ func xgetgoarm() string {
+ 		// OpenBSD currently only supports softfloat.
+ 		return "5"
+ 	}
+-	if goos != "linux" {
+-		// All other arm platforms that we support
+-		// require ARMv7.
++
++	// Try to exec ourselves in a mode to detect VFP support.
++	// Seeing how far it gets determines which instructions failed.
++	// The test is OS-agnostic.
++	out := run("", 0, os.Args[0], "-check-goarm")
++	v1ok := strings.Contains(out, "VFPv1 OK.")
++	v3ok := strings.Contains(out, "VFPv3 OK.")
++
++	if v1ok && v3ok {
+ 		return "7"
+ 	}
+-	cpuinfo := readfile("/proc/cpuinfo")
+-	goarm := "5"
+-	for _, line := range splitlines(cpuinfo) {
+-		line := strings.SplitN(line, ":", 2)
+-		if len(line) < 2 {
+-			continue
+-		}
+-		if strings.TrimSpace(line[0]) != "Features" {
+-			continue
+-		}
+-		features := splitfields(line[1])
+-		sort.Strings(features) // so vfpv3 sorts after vfp
+-
+-		// Infer GOARM value from the vfp features available
+-		// on this host. Values of GOARM detected are:
+-		// 5: no vfp support was found
+-		// 6: vfp (v1) support was detected, but no higher
+-		// 7: vfpv3 support was detected.
+-		// This matches the assertions in runtime.checkarm.
+-		for _, f := range features {
+-			switch f {
+-			case "vfp":
+-				goarm = "6"
+-			case "vfpv3":
+-				goarm = "7"
+-			}
+-		}
++	if v1ok {
++		return "6"
+ 	}
+-	return goarm
++	return "5"
+ }
+ 
+ func min(a, b int) int {
+diff --git a/src/cmd/dist/util_gc.go b/src/cmd/dist/util_gc.go
+index 9f6cfd01b7..81e52b6fb4 100644
+--- a/src/cmd/dist/util_gc.go
++++ b/src/cmd/dist/util_gc.go
+@@ -17,3 +17,11 @@ func cansse2() bool {
+ 	cpuid(&info, 1)
+ 	return info[3]&(1<<26) != 0 // SSE2
+ }
++
++// useVFPv1 tries to execute one VFPv1 instruction on ARM.
++// It will crash the current process if VFPv1 is missing.
++func useVFPv1()
++
++// useVFPv3 tries to execute one VFPv3 instruction on ARM.
++// It will crash the current process if VFPv3 is missing.
++func useVFPv3()
+diff --git a/src/cmd/dist/util_gccgo.go b/src/cmd/dist/util_gccgo.go
+index 14ac70bca5..18e328f81a 100644
+--- a/src/cmd/dist/util_gccgo.go
++++ b/src/cmd/dist/util_gccgo.go
+@@ -18,3 +18,7 @@ int supports_sse2() {
+ import "C"
+ 
+ func cansse2() bool { return C.supports_sse2() != 0 }
++
++func useVFPv1() {}
++
++func useVFPv3() {}
+diff --git a/src/cmd/dist/vfp_arm.s b/src/cmd/dist/vfp_arm.s
+new file mode 100644
+index 0000000000..647c439c6f
+--- /dev/null
++++ b/src/cmd/dist/vfp_arm.s
+@@ -0,0 +1,17 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gc,arm
++
++#include "textflag.h"
++
++// try to run "vmov.f64 d0, d0" instruction
++TEXT ·useVFPv1(SB),NOSPLIT,$0
++	WORD $0xeeb00b40	// vmov.f64 d0, d0
++	RET
++
++// try to run VFPv3-only "vmov.f64 d0, #112" instruction
++TEXT ·useVFPv3(SB),NOSPLIT,$0
++	WORD $0xeeb70b00	// vmov.f64 d0, #112
++	RET
+diff --git a/src/cmd/dist/vfp_default.s b/src/cmd/dist/vfp_default.s
+new file mode 100644
+index 0000000000..5cf9997a07
+--- /dev/null
++++ b/src/cmd/dist/vfp_default.s
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !arm,gc
++
++#include "textflag.h"
++
++TEXT ·useVFPv1(SB),NOSPLIT,$0
++	RET
++
++TEXT ·useVFPv3(SB),NOSPLIT,$0
++	RET

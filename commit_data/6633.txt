@@ -7,10 +7,104 @@ Date:   Tue Oct 26 08:36:07 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2741041
-
+---
  src/cmd/gc/builtin.c.boot |  1 +
  src/cmd/gc/runtime.go     |  1 +
  src/cmd/gc/typecheck.c    |  7 ++++++-
  src/cmd/gc/walk.c         |  5 ++++-
  src/pkg/runtime/slice.c   | 18 ++++++++++++++++++
  5 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 12f870d781..bb1a5f5fa6 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -33,6 +33,7 @@ char *runtimeimport =
+ 	"func \"\".stringiter (? string, ? int) int\n"
+ 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+ 	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
++	"func \"\".slicestringcopy (to any, fr any) int\n"
+ 	"func \"\".convI2E (elem any) any\n"
+ 	"func \"\".convI2I (typ *uint8, elem any) any\n"
+ 	"func \"\".convT2E (typ *uint8, elem any) any\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 36ed7e96ff..2279384473 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -48,6 +48,7 @@ func stringtosliceint(string) []int
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv int)
+ func slicecopy(to any, fr any, wid uint32) int
++func slicestringcopy(to any, fr any) int
+ 
+ // interface conversions
+ func convI2E(elem any) (ret any)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 43cf4a7c36..614833740a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -926,13 +926,18 @@ reswitch:
+ 			goto error;
+ 		defaultlit(&n->left, T);
+ 		defaultlit(&n->right, T);
++		
++		// copy([]byte, string)
++		if(isslice(n->left->type) && n->left->type->type == types[TUINT8] && n->right->type->etype == TSTRING)
++			goto ret;
++
+ 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
+ 			if(!isslice(n->left->type) && !isslice(n->right->type))
+ 				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);
+ 			else if(!isslice(n->left->type))
+ 				yyerror("first argument to copy should be slice; have %lT", n->left->type);
+ 			else
+-				yyerror("second argument to copy should be slice; have %lT", n->right->type);
++				yyerror("second argument to copy should be slice or string; have %lT", n->right->type);
+ 			goto error;
+ 		}
+ 		if(!eqtype(n->left->type->type, n->right->type->type)) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4588ac1c18..bf20102c7d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1261,7 +1261,10 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OCOPY:
+-		fn = syslook("slicecopy", 1);
++		if(n->right->type->etype == TSTRING)
++			fn = syslook("slicestringcopy", 1);
++		else
++			fn = syslook("slicecopy", 1);
+ 		argtype(fn, n->left->type);
+ 		argtype(fn, n->right->type);
+ 		n = mkcall1(fn, n->type, init,
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 67e44e93c0..d0ba4ede3f 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -217,6 +217,24 @@ out:
+ 	}
+ }
+ 
++void
++·slicestringcopy(Slice to, String fm, int32 ret)
++{
++	if(fm.len == 0 || to.len == 0) {
++		ret = 0;
++		goto out;
++	}
++	
++	ret = fm.len;
++	if(to.len < ret)
++		ret = to.len;
++	
++	memmove(to.array, fm.str, ret);
++
++out:
++	FLUSH(&ret);
++}
++
+ void
+ ·printslice(Slice a)
+ {

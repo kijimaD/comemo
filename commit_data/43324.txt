@@ -12,6 +12,20 @@ Date:   Wed Mar 25 17:22:57 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 01dc31b4d8..88c51d65b3 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -620,7 +620,7 @@ func setupdynexp(ctxt *Link) {
+ 			panic("dynexp entry not reachable")
+ 		}
+ 	}
+-	sort.Slice(dynexp, func(i, j int) bool {
++	sort.Slice(d, func(i, j int) bool {
+ 		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
+ 	})
+ 

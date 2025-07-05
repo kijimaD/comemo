@@ -22,6 +22,28 @@ Date:   Wed Jun 7 11:06:00 2017 -0700
     Change-Id: Ia75834c67483cf761c10025c8df758f225ef67c2
     Reviewed-on: https://go-review.googlesource.com/45072
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9a1cf0a0fe..9ab0804609 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 9, 2017",
++	"Subtitle": "Version of June 7, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3384,7 +3384,7 @@ to the type of the other operand.
+ 
+ <p>
+ The right operand in a shift expression must have unsigned integer type
+-or be an untyped constant that can be converted to unsigned integer type.
++or be an untyped constant representable by a value of type <code>uint</code>.
+ If the left operand of a non-constant shift expression is an untyped constant,
+ it is first converted to the type it would assume if the shift expression were
+ replaced by its left operand alone.

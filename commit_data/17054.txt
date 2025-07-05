@@ -31,10 +31,152 @@ Date:   Tue Aug 6 23:42:33 2013 +0900
     R=dvyukov, alex.brainman, minux.ma
     CC=golang-dev
     https://golang.org/cl/8608044
-
+---
  src/pkg/net/fd_poll_runtime.go |  7 +++++++
  src/pkg/net/fd_unix.go         | 22 ++++++++++++----------
  src/pkg/net/fd_windows.go      | 18 ++++++++++--------
  src/pkg/net/file_unix.go       |  4 ++++
  src/pkg/net/sock_posix.go      |  4 ++++
  5 files changed, 37 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index 4f20a7e062..6ae5c609ac 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -38,7 +38,11 @@ func (pd *pollDesc) Init(fd *netFD) error {
+ }
+ 
+ func (pd *pollDesc) Close() {
++	if pd.runtimeCtx == 0 {
++		return
++	}
+ 	runtime_pollClose(pd.runtimeCtx)
++	pd.runtimeCtx = 0
+ }
+ 
+ func (pd *pollDesc) Lock() {
+@@ -53,6 +57,9 @@ func (pd *pollDesc) Wakeup() {
+ // Evict evicts fd from the pending list, unblocking any I/O running on fd.
+ // Return value is whether the pollServer should be woken up.
+ func (pd *pollDesc) Evict() bool {
++	if pd.runtimeCtx == 0 {
++		return false
++	}
+ 	runtime_pollUnblock(pd.runtimeCtx)
+ 	return false
+ }
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 14a3187ea5..a2a771491e 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -55,17 +55,15 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
+ 	return dial(net, addr, localAddr, ra, deadline)
+ }
+ 
+-func newFD(fd, family, sotype int, net string) (*netFD, error) {
+-	netfd := &netFD{
+-		sysfd:  fd,
+-		family: family,
+-		sotype: sotype,
+-		net:    net,
+-	}
+-	if err := netfd.pd.Init(netfd); err != nil {
+-		return nil, err
++func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
++	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
++}
++
++func (fd *netFD) init() error {
++	if err := fd.pd.Init(fd); err != nil {
++		return err
+ 	}
+-	return netfd, nil
++	return nil
+ }
+ 
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+@@ -401,6 +399,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 		closesocket(s)
+ 		return nil, err
+ 	}
++	if err = netfd.init(); err != nil {
++		fd.Close()
++		return nil, err
++	}
+ 	lsa, _ := syscall.Getsockname(netfd.sysfd)
+ 	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+ 	return netfd, nil
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 9ed99edb4c..974a542a96 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -242,14 +242,12 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
+ 		return nil, initErr
+ 	}
+ 	onceStartServer.Do(startServer)
+-	fd := &netFD{
+-		sysfd:  sysfd,
+-		family: family,
+-		sotype: sotype,
+-		net:    net,
+-	}
++	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
++}
++
++func (fd *netFD) init() error {
+ 	if err := fd.pd.Init(fd); err != nil {
+-		return nil, err
++		return err
+ 	}
+ 	fd.rop.mode = 'r'
+ 	fd.wop.mode = 'w'
+@@ -261,7 +259,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
+ 		fd.rop.errc = make(chan error)
+ 		fd.rop.errc = make(chan error)
+ 	}
+-	return fd, nil
++	return nil
+ }
+ 
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+@@ -473,6 +471,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 		closesocket(s)
+ 		return nil, &OpError{"accept", fd.net, fd.laddr, err}
+ 	}
++	if err := netfd.init(); err != nil {
++		fd.Close()
++		return nil, err
++	}
+ 
+ 	// Submit accept request.
+ 	o := &fd.rop
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 1e7420cf77..fe01918a1f 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -67,6 +67,10 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 		closesocket(fd)
+ 		return nil, err
+ 	}
++	if err := netfd.init(); err != nil {
++		netfd.Close()
++		return nil, err
++	}
+ 	netfd.setAddr(laddr, raddr)
+ 	return netfd, nil
+ }
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 1b66d3761b..5c6ca8d28a 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -93,6 +93,10 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
+ 		closesocket(s)
+ 		return nil, err
+ 	}
++	if err := fd.init(); err != nil {
++		fd.Close()
++		return nil, err
++	}
+ 
+ 	var rsa syscall.Sockaddr
+ 	if raddr != nil {

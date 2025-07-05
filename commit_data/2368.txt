@@ -7,10 +7,244 @@ Date:   Tue Jun 2 23:21:58 2009 -0700
     R=ken
     OCL=29806
     CL=29808
-
+---
  src/cmd/6g/cgen.c |  6 ++--
  src/cmd/6g/ggen.c | 11 +++----
  src/cmd/gc/go.h   |  3 ++
  src/cmd/gc/subr.c | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/walk.c | 20 +++++++++---
  5 files changed, 119 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 5ac8b0f9cc..1bc399c170 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -224,7 +224,7 @@ cgen(Node *n, Node *res)
+ 
+ 	case OLEN:
+ 		if(istype(nl->type, TMAP)) {
+-			// map hsd len in the first 32-bit word.
++			// map has len in the first 32-bit word.
+ 			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+@@ -245,7 +245,7 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
+-			// both slice and string have len in the first 32-bit word.
++			// both slice and string have len one pointer into the struct.
+ 			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			agen(nl, &n1);
+@@ -835,7 +835,7 @@ stkof(Node *n)
+ 
+ /*
+  * block copy:
+- *	memmove(&n, &ns, w);
++ *	memmove(&ns, &n, w);
+  */
+ void
+ sgen(Node *n, Node *ns, int32 w)
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index b92d24ebcd..05a79ced38 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -127,8 +127,11 @@ ginscall(Node *f, int proc)
+ 		gins(APUSHQ, &con, N);
+ 		if(proc == 1)
+ 			ginscall(newproc, 0);
+-		else
++		else {
++			if(!hasdefer)
++				fatal("hasdefer=0 but has defer");
+ 			ginscall(deferproc, 0);
++		}
+ 		gins(APOPQ, N, &reg);
+ 		gins(APOPQ, N, &reg);
+ 		break;
+@@ -176,7 +179,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	nodo.xoffset -= widthptr;
+ 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
+ 
+-	nodo.xoffset = n->left->xoffset + 4*widthptr;
++	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+ 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+ 
+ 	// BOTCH nodr.type = fntype;
+@@ -852,10 +855,6 @@ lit:
+ 		p->from.scale = types[TINT32]->width;
+ 		p->from.offset += types[tptr]->width;
+ //print("%P\n", p);
+-
+-		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
+-		p->from.offset += types[tptr]->width+types[TINT32]->width;
+ 		break;
+ 	}
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5abdfcce07..e35721e7e4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -755,6 +755,9 @@ void	tempname(Node*, Type*);
+ Node*	staticname(Type*);
+ int	iscomposite(Type*);
+ Node*	callnew(Type*);
++Node*	saferef(Node*);
++int	is64(Type*);
++int	noconv(Type*, Type*);
+ 
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index dcaa11a004..96d6b4deb3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1806,6 +1806,62 @@ loop:
+ 	return 1;
+ }
+ 
++/*
++ * Is this a 64-bit type?
++ */
++int
++is64(Type *t)
++{
++	if(t == T)
++		return 0;
++	switch(simtype[t->etype]) {
++	case TINT64:
++	case TUINT64:
++	case TPTR64:
++		return 1;
++	}
++	return 0;
++}
++
++/*
++ * Is a conversion between t1 and t2 a no-op?
++ */
++int
++noconv(Type *t1, Type *t2)
++{
++	int e1, e2;
++
++	e1 = simtype[t1->etype];
++	e2 = simtype[t2->etype];
++
++	switch(e1) {
++	case TINT8:
++	case TUINT8:
++		return e2 == TINT8 || e2 == TUINT8;
++
++	case TINT16:
++	case TUINT16:
++		return e2 == TINT16 || e2 == TUINT16;
++
++	case TINT32:
++	case TUINT32:
++	case TPTR32:
++		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32;
++
++	case TINT64:
++	case TUINT64:
++	case TPTR64:
++		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64;
++
++	case TFLOAT32:
++		return e2 == TFLOAT32;
++
++	case TFLOAT64:
++		return e2 == TFLOAT64;
++	}
++	return 0;
++}
++
+ void
+ argtype(Node *on, Type *t)
+ {
+@@ -2417,6 +2473,42 @@ staticname(Type *t)
+ 	return n;
+ }
+ 
++/*
++ * return side effect-free n, moving side effects to top.
++ */
++Node*
++saferef(Node *n)
++{
++	Node *l;
++	Node *r;
++
++	switch(n->op) {
++	case ONAME:
++		return n;
++	case ODOT:
++		l = saferef(n->left);
++		if(l == n->left)
++			return n;
++		r = nod(OXXX, N, N);
++		*r = *n;
++		r->left = l;
++		walktype(r, Elv);
++		return r;
++
++	case OINDEX:
++	case ODOTPTR:
++	case OIND:
++		l = nod(OXXX, N, N);
++		tempname(l, ptrto(n->type));
++		addtotop(nod(OAS, l, nod(OADDR, n, N)));
++		r = nod(OIND, l, N);
++		walktype(r, Elv);
++		return r;
++	}
++	fatal("saferef %N", n);
++	return N;
++}
++
+ void
+ setmaxarg(Type *t)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c552c0928d..4cb412c6cb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1143,10 +1143,10 @@ loop:
+ 	 * rewrite div and mod into function calls
+ 	 * on 32-bit architectures.
+ 	 */
+- 	switch(n->op) {
+- 	case ODIV:
+- 	case OMOD:
+- 		et = n->left->type->etype;
++	switch(n->op) {
++	case ODIV:
++	case OMOD:
++		et = n->left->type->etype;
+ 		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+ 			break;
+ 		if(et == TINT64)
+@@ -1163,9 +1163,21 @@ loop:
+ 		n->right = nod(OCONV, n->right, N);
+ 		n->right->type = types[et];
+ 		r = nod(OCALL, l, list(n->left, n->right));
++		r = nod(OCONV, r, N);
++		r->type = n->left->left->type;
+ 		walktype(r, Erv);
+ 		indir(n, r);
+ 		goto ret;
++
++	case OASOP:
++		et = n->left->type->etype;
++		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
++			break;
++		l = saferef(n->left);
++		r = nod(OAS, l, nod(n->etype, l, n->right));
++		walktype(r, Etop);
++		indir(n, r);
++		goto ret;
+ 	}
+ 
+ 	if(t == T)

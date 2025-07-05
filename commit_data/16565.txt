@@ -10,8 +10,189 @@ Date:   Thu Jun 13 16:03:58 2013 +0400
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/10026046
-
+---
  src/cmd/gc/racewalk.c                            | 30 ++++----
  src/pkg/runtime/race/testdata/mop_test.go        | 88 ++++++++++++++++++++++++
  src/pkg/runtime/race/testdata/regression_test.go | 17 +++++
  3 files changed, 121 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 41edc52c76..74d8522580 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -122,8 +122,20 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	if(debug['w'] > 1)
+ 		dump("racewalk-before", n);
+ 	setlineno(n);
+-	if(init == nil || init == &n->ninit)
++	if(init == nil)
+ 		fatal("racewalk: bad init list");
++	if(init == &n->ninit) {
++		// If init == &n->ninit and n->ninit is non-nil,
++		// racewalknode might append it to itself.
++		// nil it out and handle it separately before putting it back.
++		l = n->ninit;
++		n->ninit = nil;
++		racewalklist(l, nil);
++		racewalknode(&n, &l, wr, skip);  // recurse with nil n->ninit
++		appendinit(&n, l);
++		*np = n;
++		return;
++	}
+ 
+ 	racewalklist(n->ninit, nil);
+ 
+@@ -255,13 +267,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		// side effects are safe.
+ 		// n->right may not be executed,
+ 		// so instrumentation goes to n->right->ninit, not init.
+-		// If right->ninit is non-nil, racewalknode might append it to itself.
+-		// nil it out and handle it separately before putting it back.
+-		l = n->right->ninit;
+-		n->right->ninit = nil;
+-		racewalklist(l, nil);
+-		racewalknode(&n->right, &l, wr, 0);
+-		appendinit(&n->right, l);
++		racewalknode(&n->right, &n->right->ninit, wr, 0);
+ 		goto ret;
+ 
+ 	case ONAME:
+@@ -400,12 +406,8 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ ret:
+ 	if(n->op != OBLOCK)  // OBLOCK is handled above in a special way.
+ 		racewalklist(n->list, init);
+-	l = nil;
+-	racewalknode(&n->ntest, &l, 0, 0);
+-	n->ninit = concat(n->ninit, l);
+-	l = nil;
+-	racewalknode(&n->nincr, &l, 0, 0);
+-	n->ninit = concat(n->ninit, l);
++	racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
++	racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
+ 	racewalklist(n->nbody, nil);
+ 	racewalklist(n->nelse, nil);
+ 	racewalklist(n->rlist, nil);
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index d221f444e3..620b7ab6e4 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -306,6 +306,94 @@ func TestRaceRange(t *testing.T) {
+ 	}
+ }
+ 
++func TestRaceForInit(t *testing.T) {
++	c := make(chan int)
++	x := 0
++	go func() {
++		c <- x
++	}()
++	for x = 42; false; {
++	}
++	<-c
++}
++
++func TestNoRaceForInit(t *testing.T) {
++	done := make(chan bool)
++	c := make(chan bool)
++	x := 0
++	go func() {
++		for {
++			_, ok := <-c
++			if !ok {
++				done <- true
++				return
++			}
++			x++
++		}
++	}()
++	i := 0
++	for x = 42; i < 10; i++ {
++		c <- true
++	}
++	close(c)
++	<-done
++}
++
++func TestRaceForTest(t *testing.T) {
++	done := make(chan bool)
++	c := make(chan bool)
++	stop := false
++	go func() {
++		for {
++			_, ok := <-c
++			if !ok {
++				done <- true
++				return
++			}
++			stop = true
++		}
++	}()
++	for !stop {
++		c <- true
++	}
++	close(c)
++	<-done
++}
++
++func TestRaceForIncr(t *testing.T) {
++	done := make(chan bool)
++	c := make(chan bool)
++	x := 0
++	go func() {
++		for {
++			_, ok := <-c
++			if !ok {
++				done <- true
++				return
++			}
++			x++
++		}
++	}()
++	for i := 0; i < 10; x++ {
++		i++
++		c <- true
++	}
++	close(c)
++	<-done
++}
++
++func TestNoRaceForIncr(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	go func() {
++		x++
++		done <- true
++	}()
++	for i := 0; i < 0; x++ {
++	}
++	<-done
++}
++
+ func TestRacePlus(t *testing.T) {
+ 	var x, y, z int
+ 	ch := make(chan int, 2)
+diff --git a/src/pkg/runtime/race/testdata/regression_test.go b/src/pkg/runtime/race/testdata/regression_test.go
+index 49e03d9082..d461269d98 100644
+--- a/src/pkg/runtime/race/testdata/regression_test.go
++++ b/src/pkg/runtime/race/testdata/regression_test.go
+@@ -175,3 +175,20 @@ type inltype struct {
+ func inlinetest(p **inltype) *inltype {
+ 	return *p
+ }
++
++type iface interface {
++	Foo() *struct{ b bool }
++}
++
++type Int int
++
++func (i Int) Foo() *struct{ b bool } {
++	return &struct{ b bool }{false}
++}
++
++func TestNoRaceForInfiniteLoop(t *testing.T) {
++	var x Int
++	// interface conversion causes nodes to be put on init list
++	for iface(x).Foo().b {
++	}
++}

@@ -7,6 +7,20 @@ Date:   Thu Aug 30 16:10:33 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6489059
-
+---
  src/pkg/go/scanner/errors.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index 8a75a96508..22de69c3c1 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -120,7 +120,7 @@ func PrintError(w io.Writer, err error) {
+ 		for _, e := range list {
+ 			fmt.Fprintf(w, "%s\n", e)
+ 		}
+-	} else {
++	} else if err != nil {
+ 		fmt.Fprintf(w, "%s\n", err)
+ 	}
+ }

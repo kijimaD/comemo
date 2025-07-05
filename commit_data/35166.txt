@@ -12,6 +12,20 @@ Date:   Thu Jan 4 15:09:21 2018 -0500
     Change-Id: I01e4017cb36ceb147b56935c2636de52ce7bdfdb
     Reviewed-on: https://go-review.googlesource.com/86239
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 60e2a3aa48..5951c83a97 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1799,7 +1799,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	// GCC and clang.
+ 	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-")
+ 	if cfg.BuildN || cfg.BuildX {
+-		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
++		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
+ 		if cfg.BuildN {
+ 			return false
+ 		}

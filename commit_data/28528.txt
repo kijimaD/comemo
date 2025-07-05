@@ -20,6 +20,43 @@ Date:   Wed Jun 1 15:13:55 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 21 ++++++++++++++++++++-
  1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 73d2e336d2..b44bf77c5d 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -61,7 +61,7 @@ func compileToAsm(dir, arch, pkg string) string {
+ 
+ 	var stdout, stderr bytes.Buffer
+ 	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+-	cmd.Env = append([]string{"GOARCH=" + arch}, os.Environ()...)
++	cmd.Env = mergeEnvLists([]string{"GOARCH=" + arch}, os.Environ())
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {
+@@ -103,3 +103,22 @@ func f(x int) int {
+ 		[]string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
+ 	},
+ }
++
++// mergeEnvLists merges the two environment lists such that
++// variables with the same name in "in" replace those in "out".
++// This always returns a newly allocated slice.
++func mergeEnvLists(in, out []string) []string {
++	out = append([]string(nil), out...)
++NextVar:
++	for _, inkv := range in {
++		k := strings.SplitAfterN(inkv, "=", 2)[0]
++		for i, outkv := range out {
++			if strings.HasPrefix(outkv, k) {
++				out[i] = inkv
++				continue NextVar
++			}
++		}
++		out = append(out, inkv)
++	}
++	return out
++}

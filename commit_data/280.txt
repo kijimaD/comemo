@@ -5,10 +5,62 @@ Date:   Thu Jul 3 13:42:04 2008 -0700
     drop some superfluous file prefixes in runtime
     
     SVN=125956
-
+---
  src/runtime/Makefile                       | 9 ++++++---
  src/runtime/clean.bash                     | 2 +-
  src/runtime/{runtime_map.c => map.c}       | 0
  src/runtime/{runtime_print.c => print.c}   | 0
  src/runtime/{runtime_string.c => string.c} | 0
  5 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 8b80e3f01d..e3f15c836d 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -18,9 +18,9 @@ LIBOFILES=\
+ 	rt2_$(GOARCH).$O\
+ 	sys_$(GOARCH)_$(GOOS).$O\
+ 	runtime.$O\
+-	runtime_map.$O\
+-	runtime_print.$O\
+-	runtime_string.$O\
++	map.$O\
++	print.$O\
++	string.$O\
+ 	sys_file.$O\
+ 
+ OFILES=$(RT0OFILES) $(LIBOFILES)
+@@ -38,6 +38,9 @@ $(LIB): $(LIBOFILES)
+ 
+ $(OFILES): $(HFILES)
+ 
++nuke:
++	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
++
+ clean:
+ 	rm -f *.$(O) *.a
+ 
+diff --git a/src/runtime/clean.bash b/src/runtime/clean.bash
+index 8d6bed7d10..a64198096a 100644
+--- a/src/runtime/clean.bash
++++ b/src/runtime/clean.bash
+@@ -6,6 +6,6 @@ set -ex
+ 
+ for GOOS in linux darwin
+ do
+-	make clean
++	make nuke
+ done
+ 
+diff --git a/src/runtime/runtime_map.c b/src/runtime/map.c
+similarity index 100%
+rename from src/runtime/runtime_map.c
+rename to src/runtime/map.c
+diff --git a/src/runtime/runtime_print.c b/src/runtime/print.c
+similarity index 100%
+rename from src/runtime/runtime_print.c
+rename to src/runtime/print.c
+diff --git a/src/runtime/runtime_string.c b/src/runtime/string.c
+similarity index 100%
+rename from src/runtime/runtime_string.c
+rename to src/runtime/string.c

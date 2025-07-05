@@ -8,7 +8,33 @@ Date:   Sun Jun 9 21:58:35 2013 +0400
     R=golang-dev, remyoudompheng, bradfitz
     CC=golang-dev
     https://golang.org/cl/10139043
-
+---
  src/pkg/runtime/iface.c   | 2 +-
  src/pkg/runtime/runtime.h | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 5973d6d03c..58d17d87dd 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -85,7 +85,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	}
+ 
+ 	ni = inter->mhdr.len;
+-	m = runtime·malloc(sizeof(*m) + ni*sizeof m->fun[0]);
++	m = runtime·persistentalloc(sizeof(*m) + ni*sizeof m->fun[0], 0);
+ 	m->inter = inter;
+ 	m->type = type;
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e616990ccf..564493511b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -418,6 +418,7 @@ struct	Func
+ };
+ 
+ // layout of Itab known to compilers
++// allocated in non-garbage-collected memory
+ struct	Itab
+ {
+ 	InterfaceType*	inter;

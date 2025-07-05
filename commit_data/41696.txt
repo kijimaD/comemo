@@ -7,6 +7,21 @@ Date:   Sat Mar 23 14:51:05 2019 +0100
     Change-Id: I224db88f3809001802e004077ce856f0e3347c67
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169017
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 35b3285a08..a237f58609 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -20,6 +20,9 @@
+ // 		log.Println(http.ListenAndServe("localhost:6060", nil))
+ // 	}()
+ //
++// If you are not using DefaultServeMux, you will have to register handlers
++// with the mux you are using.
++//
+ // Then use the pprof tool to look at the heap profile:
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/heap

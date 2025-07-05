@@ -9,6 +9,27 @@ Date:   Thu Jul 2 22:05:06 2009 -0700
     DELTA=28  (28 added, 0 deleted, 0 changed)
     OCL=31128
     CL=31130
-
+---
  src/pkg/sync/asm_arm.s | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/pkg/sync/asm_arm.s b/src/pkg/sync/asm_arm.s
+new file mode 100644
+index 0000000000..a6ad9d949c
+--- /dev/null
++++ b/src/pkg/sync/asm_arm.s
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func cas(val *int32, old, new int32) bool
++// Atomically:
++//	if *val == old {
++//		*val = new;
++//		return true;
++//	}else
++//		return false;
++
++TEXT	sync·cas+0(SB),0,$12
++	TODO

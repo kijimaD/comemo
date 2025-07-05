@@ -7,7 +7,57 @@ Date:   Mon Dec 12 19:45:40 2011 -0200
     R=golang-dev, dsymonds, r, rsc
     CC=golang-dev
     https://golang.org/cl/5483044
-
+---
  src/pkg/reflect/all_test.go | 22 +++++++++++++++++-----
  src/pkg/reflect/value.go    |  2 +-
  2 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index e43260196f..2f9f83fbc6 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1557,14 +1557,26 @@ func TestSmallNegativeInt(t *testing.T) {
+ func TestSlice(t *testing.T) {
+ 	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
+ 	v := ValueOf(xs).Slice(3, 5).Interface().([]int)
+-	if len(v) != 2 || v[0] != 4 || v[1] != 5 {
+-		t.Errorf("xs.Slice(3, 5) = %v", v)
++	if len(v) != 2 {
++		t.Errorf("len(xs.Slice(3, 5)) = %d", len(v))
++	}
++	if cap(v) != 5 {
++		t.Errorf("cap(xs.Slice(3, 5)) = %d", cap(v))
++	}
++	if !DeepEqual(v[0:5], xs[3:]) {
++		t.Errorf("xs.Slice(3, 5)[0:5] = %v", v[0:5])
+ 	}
+ 
+-	xa := [7]int{10, 20, 30, 40, 50, 60, 70}
++	xa := [8]int{10, 20, 30, 40, 50, 60, 70, 80}
+ 	v = ValueOf(&xa).Elem().Slice(2, 5).Interface().([]int)
+-	if len(v) != 3 || v[0] != 30 || v[1] != 40 || v[2] != 50 {
+-		t.Errorf("xa.Slice(2, 5) = %v", v)
++	if len(v) != 3 {
++		t.Errorf("len(xa.Slice(2, 5)) = %d", len(v))
++	}
++	if cap(v) != 6 {
++		t.Errorf("cap(xa.Slice(2, 5)) = %d", cap(v))
++	}
++	if !DeepEqual(v[0:6], xa[2:]) {
++		t.Errorf("xs.Slice(2, 5)[0:6] = %v", v[0:6])
+ 	}
+ }
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 1c4f67de3a..92c10ba2b9 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1356,7 +1356,7 @@ func (v Value) Slice(beg, end int) Value {
+ 	s := (*SliceHeader)(unsafe.Pointer(&x))
+ 	s.Data = uintptr(base) + uintptr(beg)*toCommonType(typ.elem).Size()
+ 	s.Len = end - beg
+-	s.Cap = end - beg
++	s.Cap = cap - beg
+ 
+ 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
+ 	return Value{typ.common(), unsafe.Pointer(&x), fl}

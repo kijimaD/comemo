@@ -21,7 +21,110 @@ Date:   Tue Jun 22 18:10:59 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/name.go      | 47 ++++++++++++++++++++------------
  src/cmd/compile/internal/noder/reader.go | 13 ++-------
  2 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index b6c68bc5e0..ff9784df1b 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -358,39 +358,52 @@ func (n *Name) Byval() bool {
+ 	return n.Canonical().flags&nameByval != 0
+ }
+ 
++// NewClosureVar creates a new closure variable for fn to refer to
++// outer variable n.
++func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
++	c := NewNameAt(pos, n.Sym())
++	c.Curfn = fn
++	c.Class = PAUTOHEAP
++	c.SetIsClosureVar(true)
++	c.Defn = n.Canonical()
++	c.Outer = n
++
++	fn.ClosureVars = append(fn.ClosureVars, c)
++
++	return c
++}
++
+ // CaptureName returns a Name suitable for referring to n from within function
+ // fn or from the package block if fn is nil. If n is a free variable declared
+-// within a function that encloses fn, then CaptureName returns a closure
+-// variable that refers to n and adds it to fn.ClosureVars. Otherwise, it simply
+-// returns n.
++// within a function that encloses fn, then CaptureName returns the closure
++// variable that refers to n within fn, creating it if necessary.
++// Otherwise, it simply returns n.
+ func CaptureName(pos src.XPos, fn *Func, n *Name) *Name {
+-	if n.IsClosureVar() {
+-		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
+-	}
+-	if n.Op() != ONAME || n.Curfn == nil || n.Curfn == fn {
++	if n.Op() != ONAME || n.Curfn == nil {
+ 		return n // okay to use directly
+ 	}
+-	if fn == nil {
+-		base.FatalfAt(pos, "package-block reference to %v, declared in %v", n, n.Curfn)
++	if n.IsClosureVar() {
++		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
+ 	}
+ 
+ 	c := n.Innermost
+-	if c != nil && c.Curfn == fn {
++	if c == nil {
++		c = n
++	}
++	if c.Curfn == fn {
+ 		return c
+ 	}
+ 
++	if fn == nil {
++		base.FatalfAt(pos, "package-block reference to %v, declared in %v", n, n.Curfn)
++	}
++
+ 	// Do not have a closure var for the active closure yet; make one.
+-	c = NewNameAt(pos, n.Sym())
+-	c.Curfn = fn
+-	c.Class = PAUTOHEAP
+-	c.SetIsClosureVar(true)
+-	c.Defn = n
++	c = NewClosureVar(pos, fn, c)
+ 
+ 	// Link into list of active closure variables.
+ 	// Popped from list in FinishCaptureNames.
+-	c.Outer = n.Innermost
+ 	n.Innermost = c
+-	fn.ClosureVars = append(fn.ClosureVars, c)
+ 
+ 	return c
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 4fc9e7a777..b106e89892 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1558,20 +1558,13 @@ func (r *reader) funcLit() ir.Node {
+ 		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
+ 	}
+ 
+-	fn.ClosureVars = make([]*ir.Name, r.len())
+-	for i := range fn.ClosureVars {
++	fn.ClosureVars = make([]*ir.Name, 0, r.len())
++	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+ 		pos := r.pos()
+ 		outer := r.useLocal()
+ 
+-		cv := ir.NewNameAt(pos, outer.Sym())
++		cv := ir.NewClosureVar(pos, fn, outer)
+ 		r.setType(cv, outer.Type())
+-		cv.Curfn = fn
+-		cv.Class = ir.PAUTOHEAP
+-		cv.SetIsClosureVar(true)
+-		cv.Defn = outer.Canonical()
+-		cv.Outer = outer
+-
+-		fn.ClosureVars[i] = cv
+ 	}
+ 
+ 	r.addBody(fn)

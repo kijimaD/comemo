@@ -22,9 +22,73 @@ Date:   Sun Dec 17 16:11:14 2017 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/hypot.go | 7 +------
  src/math/j0.go    | 4 +---
  src/math/sin.go   | 4 +---
  src/math/sinh.go  | 4 +---
  4 files changed, 4 insertions(+), 15 deletions(-)
+
+diff --git a/src/math/hypot.go b/src/math/hypot.go
+index 2087cb05b3..c7f19d4d38 100644
+--- a/src/math/hypot.go
++++ b/src/math/hypot.go
+@@ -26,12 +26,7 @@ func hypot(p, q float64) float64 {
+ 	case IsNaN(p) || IsNaN(q):
+ 		return NaN()
+ 	}
+-	if p < 0 {
+-		p = -p
+-	}
+-	if q < 0 {
+-		q = -q
+-	}
++	p, q = Abs(p), Abs(q)
+ 	if p < q {
+ 		p, q = q, p
+ 	}
+diff --git a/src/math/j0.go b/src/math/j0.go
+index fe26791175..5523fc34a0 100644
+--- a/src/math/j0.go
++++ b/src/math/j0.go
+@@ -99,9 +99,7 @@ func J0(x float64) float64 {
+ 		return 1
+ 	}
+ 
+-	if x < 0 {
+-		x = -x
+-	}
++	x = Abs(x)
+ 	if x >= 2 {
+ 		s, c := Sincos(x)
+ 		ss := s - c
+diff --git a/src/math/sin.go b/src/math/sin.go
+index 7a75a5f63d..929cac34ec 100644
+--- a/src/math/sin.go
++++ b/src/math/sin.go
+@@ -131,9 +131,7 @@ func cos(x float64) float64 {
+ 
+ 	// make argument positive
+ 	sign := false
+-	if x < 0 {
+-		x = -x
+-	}
++	x = Abs(x)
+ 
+ 	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
+ 	y := float64(j)      // integer part of x/(Pi/4), as float
+diff --git a/src/math/sinh.go b/src/math/sinh.go
+index 2bdd7b1205..30bbc0661e 100644
+--- a/src/math/sinh.go
++++ b/src/math/sinh.go
+@@ -71,9 +71,7 @@ func sinh(x float64) float64 {
+ func Cosh(x float64) float64
+ 
+ func cosh(x float64) float64 {
+-	if x < 0 {
+-		x = -x
+-	}
++	x = Abs(x)
+ 	if x > 21 {
+ 		return Exp(x) / 2
+ 	}

@@ -17,7 +17,66 @@ Date:   Fri Nov 6 17:37:03 2020 -0800
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/os/file.go    |  9 ++++++++-
  src/os/os_test.go | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 52dd94339b..ebeb0d0ac9 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -44,11 +44,13 @@ import (
+ 	"errors"
+ 	"internal/poll"
+ 	"internal/testlog"
++	"internal/unsafeheader"
+ 	"io"
+ 	"io/fs"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
++	"unsafe"
+ )
+ 
+ // Name returns the name of the file as presented to Open.
+@@ -246,7 +248,12 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ // WriteString is like Write, but writes the contents of string s rather than
+ // a slice of bytes.
+ func (f *File) WriteString(s string) (n int, err error) {
+-	return f.Write([]byte(s))
++	var b []byte
++	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
++	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
++	hdr.Cap = len(s)
++	hdr.Len = len(s)
++	return f.Write(b)
+ }
+ 
+ // Mkdir creates a new directory with the specified name and permission
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a32e5fc11e..f27c796c05 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2773,3 +2773,21 @@ func TestReadFileProc(t *testing.T) {
+ 		t.Fatalf("read %s: not newline-terminated: %q", name, data)
+ 	}
+ }
++
++func TestWriteStringAlloc(t *testing.T) {
++	if runtime.GOOS == "js" {
++		t.Skip("js allocates a lot during File.WriteString")
++	}
++	d := t.TempDir()
++	f, err := Create(filepath.Join(d, "whiteboard.txt"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	allocs := testing.AllocsPerRun(100, func() {
++		f.WriteString("I will not allocate when passed a string longer than 32 bytes.\n")
++	})
++	if allocs != 0 {
++		t.Errorf("expected 0 allocs for File.WriteString, got %v", allocs)
++	}
++}

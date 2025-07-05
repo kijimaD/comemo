@@ -11,8 +11,91 @@ Date:   Sun Sep 4 18:45:00 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/os/exec/example_test.go | 3 +--
  src/os/exec/exec_test.go    | 6 +++---
  src/os/os_test.go           | 5 ++---
  3 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index bb166ceaf4..150f5cff48 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -5,7 +5,6 @@
+ package exec_test
+ 
+ import (
+-	"bytes"
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
+@@ -28,7 +27,7 @@ func ExampleLookPath() {
+ func ExampleCommand() {
+ 	cmd := exec.Command("tr", "a-z", "A-Z")
+ 	cmd.Stdin = strings.NewReader("some input")
+-	var out bytes.Buffer
++	var out strings.Builder
+ 	cmd.Stdout = &out
+ 	err := cmd.Run()
+ 	if err != nil {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 8f79b19eb6..52001bf9e3 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -804,7 +804,7 @@ func TestExtraFiles(t *testing.T) {
+ 	}
+ 
+ 	c = exec.CommandContext(ctx, exe)
+-	var stdout, stderr bytes.Buffer
++	var stdout, stderr strings.Builder
+ 	c.Stdout = &stdout
+ 	c.Stderr = &stderr
+ 	c.ExtraFiles = []*os.File{tf}
+@@ -822,7 +822,7 @@ func TestExtraFiles(t *testing.T) {
+ 	}
+ 	err = c.Run()
+ 	if err != nil {
+-		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
++		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.String(), stderr.String())
+ 	}
+ 	if stdout.String() != text {
+ 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
+@@ -904,7 +904,7 @@ func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+ 	testWith := func(r io.Reader) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			cmd := helperCommand(t, "echo", "foo")
+-			var out bytes.Buffer
++			var out strings.Builder
+ 			cmd.Stdin = r
+ 			cmd.Stdout = &out
+ 			if err := cmd.Run(); err != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index ea935d3295..3f75f28938 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -5,7 +5,6 @@
+ package os_test
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -1167,7 +1166,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	}
+ 	w.Close()
+ 
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	io.Copy(&b, r)
+ 	output := b.String()
+ 
+@@ -1718,7 +1717,7 @@ func runBinHostname(t *testing.T) string {
+ 	}
+ 	w.Close()
+ 
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	io.Copy(&b, r)
+ 	_, err = p.Wait()
+ 	if err != nil {

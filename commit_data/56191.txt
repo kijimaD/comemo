@@ -12,6 +12,21 @@ Date:   Mon Feb 6 06:07:07 2023 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/cache/default.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 426dddfb97..f39699d5ba 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -14,7 +14,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ )
+ 
+-// Default returns the default cache to use, or nil if no cache should be used.
++// Default returns the default cache to use.
++// It never returns nil.
+ func Default() *Cache {
+ 	defaultOnce.Do(initDefaultCache)
+ 	return defaultCache

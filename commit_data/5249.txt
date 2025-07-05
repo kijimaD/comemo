@@ -10,8 +10,63 @@ Date:   Thu Apr 8 13:24:53 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/869045
-
+---
  src/pkg/runtime/mgc0.c    | 1 +
  src/pkg/runtime/proc.c    | 9 ++++++---
  src/pkg/runtime/runtime.h | 4 ++++
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index f61c10c603..5265bea21f 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -135,6 +135,7 @@ mark(void)
+ 		case Grunnable:
+ 		case Gsyscall:
+ 		case Gwaiting:
++		case Grecovery:
+ 			scanstack(gp);
+ 			break;
+ 		}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 454a4a2175..1a1895dcb4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -461,9 +461,7 @@ scheduler(void)
+ 			
+ 			// unwind to the stack frame with d->sp in it.
+ 			unwindstack(gp, d->sp);
+-			if(d->sp < gp->stackguard || gp->stackbase < d->sp)
+-				throw("bad stack in recovery");
+-			
++
+ 			// make the deferproc for this d return again,
+ 			// this time returning 1.  function will jump to
+ 			// standard return epilogue.
+@@ -930,6 +928,11 @@ unwindstack(G *gp, byte *sp)
+ 		gp->stackguard = top->stackguard;
+ 		free(stk);
+ 	}
++
++	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
++		printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
++		throw("bad unwindstack");
++	}
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e2aedb4cee..26ce4b635c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -92,6 +92,10 @@ extern	register	M*	m;
+ enum
+ {
+ 	// G status
++	//
++	// If you add to this list, add to the list
++	// of "okay during garbage collection" status
++	// in mgc0.c too.
+ 	Gidle,
+ 	Grunnable,
+ 	Grunning,

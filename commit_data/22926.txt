@@ -12,7 +12,73 @@ Date:   Tue Apr 14 10:20:18 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go   | 10 +---------
  src/go/build/build.go |  9 +++++++--
  2 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3e40394e5a..cbdd9d22c9 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1249,15 +1249,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	for _, a1 := range all {
+ 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+-			if _, ok := buildToolchain.(gccgoToolchain); ok {
+-				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
+-			} else {
+-				dir = filepath.Join(dir, goos+"_"+goarch)
+-				if buildContext.InstallSuffix != "" {
+-					dir += "_" + buildContext.InstallSuffix
+-				}
+-			}
+-			inc = append(inc, flag, dir)
++			inc = append(inc, flag, a1.p.build.PkgTargetRoot)
+ 		}
+ 	}
+ 
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index f0fe5ae85e..155156b9a5 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -354,6 +354,7 @@ type Package struct {
+ 	Root          string   // root of Go tree where this package lives
+ 	SrcRoot       string   // package source root directory ("" if unknown)
+ 	PkgRoot       string   // package install root directory ("" if unknown)
++	PkgTargetRoot string   // architecture dependent install root directory ("" if unknown)
+ 	BinDir        string   // command install directory ("" if unknown)
+ 	Goroot        bool     // package found in Go root
+ 	PkgObj        string   // installed .a file
+@@ -462,18 +463,21 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		return p, fmt.Errorf("import %q: invalid import path", path)
+ 	}
+ 
++	var pkgtargetroot string
+ 	var pkga string
+ 	var pkgerr error
+ 	switch ctxt.Compiler {
+ 	case "gccgo":
++		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH
+ 		dir, elem := pathpkg.Split(p.ImportPath)
+-		pkga = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + dir + "lib" + elem + ".a"
++		pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+ 	case "gc":
+ 		suffix := ""
+ 		if ctxt.InstallSuffix != "" {
+ 			suffix = "_" + ctxt.InstallSuffix
+ 		}
+-		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix + "/" + p.ImportPath + ".a"
++		pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
++		pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+ 	default:
+ 		// Save error for end of function.
+ 		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)
+@@ -590,6 +594,7 @@ Found:
+ 		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+ 		p.BinDir = ctxt.joinPath(p.Root, "bin")
+ 		if pkga != "" {
++			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 			p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 		}
+ 	}

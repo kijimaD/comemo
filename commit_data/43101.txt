@@ -16,7 +16,7 @@ Date:   Thu Feb 27 03:44:13 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |   3 +-
  src/cmd/go.sum                                     |   7 +-
  .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
@@ -25,3 +25,368 @@ Date:   Thu Feb 27 03:44:13 2020 -0500
  src/cmd/vendor/modules.txt                         |   5 +-
  src/cmd/vet/main.go                                |   4 +
  7 files changed, 240 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 0096c74e86..e1e5b34e6e 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,6 +8,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
+ 	golang.org/x/mod v0.2.0
+ 	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
+-	golang.org/x/tools v0.0.0-20200219195521-7c4b6277d74d
+-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
++	golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 2bb6a9ab06..73eff83010 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,12 +13,13 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 h1:Sy5bstxEqwwbYs6n0/pBuxKENqOeZUgD45Gp3Q3pqLg=
+ golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+-golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
+ golang.org/x/mod v0.2.0 h1:KU7oHjnv3XNWfa5COkzUifxZmxp1TyI7ImMXqFxLwvQ=
+ golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20200226121028-0de0cce0169b/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+@@ -28,8 +29,8 @@ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e h1:aZzprAO9/8oim3qStq3wc1Xuxx4QmAGriC4VU4ojemQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20200219195521-7c4b6277d74d h1:ZQ18He7VORO2x4IEBuwfdp56K+ftEzRjvL0cFuCGCcM=
+-golang.org/x/tools v0.0.0-20200219195521-7c4b6277d74d/go.mod h1:TB2adYChydJhpapKDTa4BR/hXlZSLoq2Wpct/0txZ28=
++golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca h1:cFQHQhDv9N1vc+64dtXDAyd3exHDGfRTtveOnD0IsLI=
++golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca/go.mod h1:o4KQGtdN14AW+yjsvvwRTJJuXz8XRtIHtEnmAXLyFUw=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index b80271afb9..384f025570 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -51,7 +51,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return // not enough arguments, e.g. called with return values of another function
+ 		}
+ 		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
+-			pass.ReportRangef(call, "second argument to errors.As must be a pointer to an interface or a type implementing error")
++			pass.ReportRangef(call, "second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+ 		}
+ 	})
+ 	return nil, nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+new file mode 100644
+index 0000000000..c5a71a7c57
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+@@ -0,0 +1,101 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package ifaceassert defines an Analyzer that flags
++// impossible interface-interface type assertions.
++package ifaceassert
++
++import (
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++)
++
++const Doc = `detect impossible interface-to-interface type assertions
++
++This checker flags type assertions v.(T) and corresponding type-switch cases
++in which the static type V of v is an interface that cannot possibly implement
++the target interface T. This occurs when V and T contain methods with the same
++name but different signatures. Example:
++
++	var v interface {
++		Read()
++	}
++	_ = v.(io.Reader)
++
++The Read method in v has a different signature than the Read method in
++io.Reader, so this assertion cannot succeed.
++`
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "ifaceassert",
++	Doc:      Doc,
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++// assertableTo checks whether interface v can be asserted into t. It returns
++// nil on success, or the first conflicting method on failure.
++func assertableTo(v, t types.Type) *types.Func {
++	// ensure that v and t are interfaces
++	V, _ := v.Underlying().(*types.Interface)
++	T, _ := t.Underlying().(*types.Interface)
++	if V == nil || T == nil {
++		return nil
++	}
++	if f, wrongType := types.MissingMethod(V, T, false); wrongType {
++		return f
++	}
++	return nil
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++	nodeFilter := []ast.Node{
++		(*ast.TypeAssertExpr)(nil),
++		(*ast.TypeSwitchStmt)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		var (
++			assert  *ast.TypeAssertExpr // v.(T) expression
++			targets []ast.Expr          // interfaces T in v.(T)
++		)
++		switch n := n.(type) {
++		case *ast.TypeAssertExpr:
++			// take care of v.(type) in *ast.TypeSwitchStmt
++			if n.Type == nil {
++				return
++			}
++			assert = n
++			targets = append(targets, n.Type)
++		case *ast.TypeSwitchStmt:
++			// retrieve type assertion from type switch's 'assign' field
++			switch t := n.Assign.(type) {
++			case *ast.ExprStmt:
++				assert = t.X.(*ast.TypeAssertExpr)
++			case *ast.AssignStmt:
++				assert = t.Rhs[0].(*ast.TypeAssertExpr)
++			}
++			// gather target types from case clauses
++			for _, c := range n.Body.List {
++				targets = append(targets, c.(*ast.CaseClause).List...)
++			}
++		}
++		V := pass.TypesInfo.TypeOf(assert.X)
++		for _, target := range targets {
++			T := pass.TypesInfo.TypeOf(target)
++			if f := assertableTo(V, T); f != nil {
++				pass.Reportf(
++					target.Pos(),
++					"impossible type assertion: no type can implement both %v and %v (conflicting types for %v method)",
++					V, T, f.Name(),
++				)
++			}
++		}
++	})
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+new file mode 100644
+index 0000000000..ac2cd84ad3
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -0,0 +1,126 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package stringintconv defines an Analyzer that flags type conversions
++// from integers to strings.
++package stringintconv
++
++import (
++	"fmt"
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++)
++
++const Doc = `check for string(int) conversions
++
++This checker flags conversions of the form string(x) where x is an integer
++(but not byte or rune) type. Such conversions are discouraged because they
++return the UTF-8 representation of the Unicode code point x, and not a decimal
++string representation of x as one might expect. Furthermore, if x denotes an
++invalid code point, the conversion cannot be statically rejected.
++
++For conversions that intend on using the code point, consider replacing them
++with string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the
++string representation of the value in the desired base.
++`
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "stringintconv",
++	Doc:      Doc,
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++func typeName(typ types.Type) string {
++	if v, _ := typ.(interface{ Name() string }); v != nil {
++		return v.Name()
++	}
++	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil {
++		return v.Obj().Name()
++	}
++	return ""
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++	nodeFilter := []ast.Node{
++		(*ast.CallExpr)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		call := n.(*ast.CallExpr)
++
++		// Retrieve target type name.
++		var tname *types.TypeName
++		switch fun := call.Fun.(type) {
++		case *ast.Ident:
++			tname, _ = pass.TypesInfo.Uses[fun].(*types.TypeName)
++		case *ast.SelectorExpr:
++			tname, _ = pass.TypesInfo.Uses[fun.Sel].(*types.TypeName)
++		}
++		if tname == nil {
++			return
++		}
++		target := tname.Name()
++
++		// Check that target type T in T(v) has an underlying type of string.
++		T, _ := tname.Type().Underlying().(*types.Basic)
++		if T == nil || T.Kind() != types.String {
++			return
++		}
++		if s := T.Name(); target != s {
++			target += " (" + s + ")"
++		}
++
++		// Check that type V of v has an underlying integral type that is not byte or rune.
++		if len(call.Args) != 1 {
++			return
++		}
++		v := call.Args[0]
++		vtyp := pass.TypesInfo.TypeOf(v)
++		V, _ := vtyp.Underlying().(*types.Basic)
++		if V == nil || V.Info()&types.IsInteger == 0 {
++			return
++		}
++		switch V.Kind() {
++		case types.Byte, types.Rune, types.UntypedRune:
++			return
++		}
++
++		// Retrieve source type name.
++		source := typeName(vtyp)
++		if source == "" {
++			return
++		}
++		if s := V.Name(); source != s {
++			source += " (" + s + ")"
++		}
++		diag := analysis.Diagnostic{
++			Pos:     n.Pos(),
++			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune", source, target),
++			SuggestedFixes: []analysis.SuggestedFix{
++				{
++					Message: "Did you mean to convert a rune to a string?",
++					TextEdits: []analysis.TextEdit{
++						{
++							Pos:     v.Pos(),
++							End:     v.Pos(),
++							NewText: []byte("rune("),
++						},
++						{
++							Pos:     v.End(),
++							End:     v.End(),
++							NewText: []byte(")"),
++						},
++					},
++				},
++			},
++		}
++		pass.Report(diag)
++	})
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8bb7b7423e..9f4c9985c6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -43,7 +43,7 @@ golang.org/x/mod/zip
+ ## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20200219195521-7c4b6277d74d
++# golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+@@ -59,6 +59,7 @@ golang.org/x/tools/go/analysis/passes/copylock
+ golang.org/x/tools/go/analysis/passes/ctrlflow
+ golang.org/x/tools/go/analysis/passes/errorsas
+ golang.org/x/tools/go/analysis/passes/httpresponse
++golang.org/x/tools/go/analysis/passes/ifaceassert
+ golang.org/x/tools/go/analysis/passes/inspect
+ golang.org/x/tools/go/analysis/passes/internal/analysisutil
+ golang.org/x/tools/go/analysis/passes/loopclosure
+@@ -67,6 +68,7 @@ golang.org/x/tools/go/analysis/passes/nilfunc
+ golang.org/x/tools/go/analysis/passes/printf
+ golang.org/x/tools/go/analysis/passes/shift
+ golang.org/x/tools/go/analysis/passes/stdmethods
++golang.org/x/tools/go/analysis/passes/stringintconv
+ golang.org/x/tools/go/analysis/passes/structtag
+ golang.org/x/tools/go/analysis/passes/tests
+ golang.org/x/tools/go/analysis/passes/unmarshal
+@@ -80,6 +82,5 @@ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+-## explicit
+ golang.org/x/xerrors
+ golang.org/x/xerrors/internal
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 2a4f929d60..6381de840c 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -15,12 +15,14 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/copylock"
+ 	"golang.org/x/tools/go/analysis/passes/errorsas"
+ 	"golang.org/x/tools/go/analysis/passes/httpresponse"
++	"golang.org/x/tools/go/analysis/passes/ifaceassert"
+ 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+ 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+ 	"golang.org/x/tools/go/analysis/passes/nilfunc"
+ 	"golang.org/x/tools/go/analysis/passes/printf"
+ 	"golang.org/x/tools/go/analysis/passes/shift"
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
++	"golang.org/x/tools/go/analysis/passes/stringintconv"
+ 	"golang.org/x/tools/go/analysis/passes/structtag"
+ 	"golang.org/x/tools/go/analysis/passes/tests"
+ 	"golang.org/x/tools/go/analysis/passes/unmarshal"
+@@ -43,12 +45,14 @@ func main() {
+ 		copylock.Analyzer,
+ 		errorsas.Analyzer,
+ 		httpresponse.Analyzer,
++		ifaceassert.Analyzer,
+ 		loopclosure.Analyzer,
+ 		lostcancel.Analyzer,
+ 		nilfunc.Analyzer,
+ 		printf.Analyzer,
+ 		shift.Analyzer,
+ 		stdmethods.Analyzer,
++		stringintconv.Analyzer,
+ 		structtag.Analyzer,
+ 		tests.Analyzer,
+ 		unmarshal.Analyzer,

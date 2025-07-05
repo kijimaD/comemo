@@ -15,7 +15,41 @@ Date:   Sun Nov 17 22:41:03 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/628955
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/test/testflag.go           | 4 ++--
  src/cmd/go/testdata/script/test_json_build.txt | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 30da2b08c1..f91e4e6705 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/work"
+ 	"errors"
+@@ -355,7 +354,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		delete(addFromGOFLAGS, "v")
+ 		delete(addFromGOFLAGS, "test.v")
+ 
+-		cfg.BuildJSON = true
++		// TODO(austin,#70402): Re-enable this once LUCI can handle build JSON in the test stream.
++		//cfg.BuildJSON = true
+ 	}
+ 
+ 	// Inject flags from GOFLAGS before the explicit command-line arguments.
+diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+index f3e08d035f..d3d0c8bb1e 100644
+--- a/src/cmd/go/testdata/script/test_json_build.txt
++++ b/src/cmd/go/testdata/script/test_json_build.txt
+@@ -1,3 +1,6 @@
++# TODO(austin,#70402)
++skip
++
+ [short] skip
+ 
+ # Test a build error directly in a test file.

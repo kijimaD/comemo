@@ -10,7 +10,7 @@ Date:   Fri May 8 15:40:31 2009 -0700
     R=ken
     OCL=28553
     CL=28578
-
+---
  src/cmd/6g/cgen.c   |  2 +-
  src/cmd/6g/gsubr.c  |  4 +--
  src/cmd/6g/obj.c    |  2 +-
@@ -23,3 +23,719 @@ Date:   Fri May 8 15:40:31 2009 -0700
  src/cmd/gc/subr.c   | 71 +++++++++++++++++++++++++++++++------------
  src/cmd/gc/walk.c   | 11 ++-----
  11 files changed, 172 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 8f8fe7273a..0e7db2c060 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -384,7 +384,7 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCONV:
+-		if(!eqtype(n->type, nl->type))
++		if(!cvttype(n->type, nl->type))
+ 			fatal("agen: non-trivial OCONV");
+ 		agen(nl, res);
+ 		return;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index b29cab3041..f63d1c352d 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1105,8 +1105,8 @@ naddr(Node *n, Addr *a)
+ 		if(n->method) {
+ 			if(n->type != T)
+ 			if(n->type->sym != S)
+-			if(n->type->sym->opackage != nil)
+-				a->sym = pkglookup(a->sym->name, n->type->sym->opackage);
++			if(n->type->sym->package != nil)
++				a->sym = pkglookup(a->sym->name, n->type->sym->package);
+ 		}
+ 
+ 		switch(n->class) {
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 1970d1fabc..25416a936e 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -40,7 +40,7 @@ zname(Biobuf *b, Sym *s, int t)
+ 	Bputc(b, t);		/* type */
+ 	Bputc(b, s->sym);	/* sym */
+ 
+-	for(n=s->opackage; *n; n++)
++	for(n=s->package; *n; n++)
+ 		Bputc(b, *n);
+ 	Bputdot(b);
+ 	for(n=s->name; *n; n++)
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 59a591ccca..50b5823945 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int explicit)
+ 	}
+ 
+ 	// avoided repeated calculations, errors
+-	if(eqtype(n->type, t)) {
++	if(cvttype(n->type, t)) {
+ 		n->type = t;
+ 		return;
+ 	}
+@@ -99,8 +99,19 @@ convlit1(Node *n, Type *t, int explicit)
+ 	}
+ 
+ 	// if already has non-ideal type, cannot change implicitly
+-	if(n->type->etype != TIDEAL && n->type->etype != TNIL && !explicit)
+-		goto bad;
++	if(!explicit) {
++		switch(n->type->etype) {
++		case TIDEAL:
++		case TNIL:
++			break;
++		case TSTRING:
++			if(n->type == idealstring)
++				break;
++			// fall through
++		default:
++			goto bad;
++		}
++	}
+ 
+ 	switch(ct) {
+ 	default:
+@@ -532,7 +543,7 @@ unary:
+ 
+ 	switch(TUP(n->op, v.ctype)) {
+ 	default:
+-		yyerror("illegal constant expression %O %T %d", n->op, nl->type, v.ctype);
++		yyerror("illegal constant expression %O %T", n->op, nl->type);
+ 		return;
+ 
+ 	case TUP(OPLUS, CTINT):
+@@ -588,12 +599,6 @@ ret:
+ 	*n = *nl;
+ 	n->val = v;
+ 
+-	// lose type name if any:
+-	//	type T int
+-	//	const A T = 1;
+-	// A+0 has type int, not T.
+-	n->type = types[n->type->etype];
+-
+ 	// check range.
+ 	lno = lineno;
+ 	lineno = n->lineno;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index bf9afee2f7..3e6f760922 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -250,7 +250,7 @@ methodsym(Sym *nsym, Type *t0)
+ 
+ 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
+ //print("methodname %s\n", buf);
+-	return pkglookup(buf, s->opackage);
++	return pkglookup(buf, s->package);
+ 
+ bad:
+ 	yyerror("illegal <this> type: %T", t);
+@@ -797,7 +797,6 @@ dcopy(Sym *a, Sym *b)
+ 	a->otype = b->otype;
+ 	a->oconst = b->oconst;
+ 	a->package = b->package;
+-	a->opackage = b->opackage;
+ 	a->lexical = b->lexical;
+ 	a->undef = b->undef;
+ 	a->vargen = b->vargen;
+@@ -1632,7 +1631,7 @@ unsafenmagic(Node *l, Node *r)
+ 	s = l->sym;
+ 	if(s == S)
+ 		goto no;
+-	if(strcmp(s->opackage, "unsafe") != 0)
++	if(strcmp(s->package, "unsafe") != 0)
+ 		goto no;
+ 
+ 	if(strcmp(s->name, "Sizeof") == 0) {
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 07c7411e40..001cabde12 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -288,14 +288,11 @@ importsym(Node *ss, int lexical)
+ {
+ 	Sym *s;
+ 
+-	renamepkg(ss);
+-
+ 	if(ss->op != OIMPORT)
+ 		fatal("importsym: oops1 %N", ss);
+ 
+ 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+ 	/* TODO botch - need some diagnostic checking for the following assignment */
+-	s->opackage = ss->osym->name;
+ 	if(exportname(ss->sym->name))
+ 		s->export = 1;
+ 	else
+@@ -319,8 +316,6 @@ pkgtype(char *name, char *pkg)
+ 	n = nod(OIMPORT, N, N);
+ 	n->sym = lookup(name);
+ 	n->psym = lookup(pkg);
+-	n->osym = n->psym;
+-	renamepkg(n);
+ 	s = importsym(n, LATYPE);
+ 
+ 	if(s->otype == T) {
+@@ -371,7 +366,7 @@ importvar(Node *ss, Type *t, int ctxt)
+ 
+ 	s = importsym(ss, LNAME);
+ 	if(s->oname != N) {
+-		if(eqtype(t, s->oname->type))
++		if(cvttype(t, s->oname->type))
+ 			return;
+ 		warn("redeclare import var %S from %T to %T",
+ 			s, s->oname->type, t);
+@@ -390,10 +385,10 @@ importtype(Node *ss, Type *t)
+ 
+ 	s = importsym(ss, LATYPE);
+ 	if(s->otype != T) {
+-		if(eqtype(t, s->otype))
++		if(cvttype(t, s->otype))
+ 			return;
+ 		if(s->otype->etype != TFORW) {
+-			warn("redeclare import type %S from %T to %T",
++			warn("redeclare import type %S from %lT to %lT",
+ 				s, s->otype, t);
+ 			s->otype = typ(0);
+ 		}
+@@ -464,12 +459,3 @@ return;
+ 	}
+ }
+ 
+-
+-
+-void
+-renamepkg(Node *n)
+-{
+-	if(n->psym == pkgimportname)
+-		if(pkgmyname != S)
+-			n->psym = pkgmyname;
+-}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 29e2fd64ba..657c582f5d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -223,7 +223,6 @@ struct	Node
+ 	Node*	outer;	// outer PPARAMREF in nested closure
+ 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+ 
+-	Sym*	osym;		// import
+ 	Sym*	psym;		// import
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+@@ -245,12 +244,12 @@ struct	Sym
+ 	uchar	uniq;		// imbedded field name first found
+ 	uchar	siggen;		// signature generated
+ 
+-	char*	opackage;	// original package name
+ 	char*	package;	// package name
+ 	char*	name;		// variable name
+ 	Node*	oname;		// ONAME node if a var
+ 	Type*	otype;		// TYPE node if a type
+ 	Node*	oconst;		// OLITERAL node if a const
++	char*	opack;		// package reference if lexical == LPACK
+ 	vlong	offset;		// stack location if automatic
+ 	int32	lexical;
+ 	int32	vargen;		// unique variable number
+@@ -555,6 +554,7 @@ EXTERN	uchar	issimple[NTYPE];
+ EXTERN	uchar	okforeq[NTYPE];
+ EXTERN	uchar	okforadd[NTYPE];
+ EXTERN	uchar	okforand[NTYPE];
++EXTERN	Type*	idealstring;
+ 
+ EXTERN	Mpint*	minintval[NTYPE];
+ EXTERN	Mpint*	maxintval[NTYPE];
+@@ -699,6 +699,8 @@ void	errorexit(void);
+ uint32	stringhash(char*);
+ Sym*	lookup(char*);
+ Sym*	pkglookup(char*, char*);
++Sym*	opkglookup(char*, char*);
++void	importdot(Sym*);
+ void	yyerror(char*, ...);
+ void	warn(char*, ...);
+ void	fatal(char*, ...);
+@@ -728,6 +730,7 @@ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+ Sym*	signame(Type*);
+ int	eqtype(Type*, Type*);
++int	cvttype(Type*, Type*);
+ int	eqtypenoname(Type*, Type*);
+ void	argtype(Node*, Type*);
+ int	eqargs(Type*, Type*);
+@@ -847,7 +850,7 @@ Node*	unsafenmagic(Node*, Node*);
+ /*
+  *	export.c
+  */
+-void	renamepkg(Node*);
++void	renameimports(void);
+ void	autoexport(Sym*);
+ int	exportname(char*);
+ void	exportsym(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index db78c4dc93..7dc6352522 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -115,7 +115,10 @@
+ 
+ %%
+ file:
+-	package import_there imports oxdcl_list
++	loadsys
++	package
++	imports
++	oxdcl_list
+ 	{
+ 		if(debug['f'])
+ 			frame(1);
+@@ -128,13 +131,26 @@ package:
+ 	{
+ 		yyerror("package statement must be first");
+ 		mkpackage("main");
+-		cannedimports("sys.6", sysimport);
+ 	}
+ |	LPACKAGE sym
+ 	{
+ 		mkpackage($2->name);
++	}
++
++/*
++ * this loads the definitions for the sys functions,
++ * so that the compiler can generate calls to them,
++ * but does not make the name "sys" visible as a package.
++ */
++loadsys:
++	{
+ 		cannedimports("sys.6", sysimport);
+ 	}
++	import_package
++	import_there
++	{
++		pkgimportname = S;
++	}
+ 
+ imports:
+ |	imports import
+@@ -145,26 +161,27 @@ import:
+ |	LIMPORT '(' ')'
+ 
+ import_stmt:
+-	import_here import_package import_there
++	import_here import_package import_there import_done
+ 
+ import_here:
+ 	LLITERAL
+ 	{
+ 		// import with original name
++		pkgimportname = S;
+ 		pkgmyname = S;
+ 		importfile(&$1);
+ 	}
+ |	sym LLITERAL
+ 	{
+ 		// import with given name
++		pkgimportname = S;
+ 		pkgmyname = $1;
+-		pkgmyname->lexical = LPACK;
+ 		importfile(&$2);
+ 	}
+ |	'.' LLITERAL
+ 	{
+-		// import with my name
+-		pkgmyname = lookup(package);
++		// import into my name space
++		pkgmyname = lookup(".");
+ 		importfile(&$2);
+ 	}
+ 
+@@ -172,14 +189,8 @@ import_package:
+ 	LPACKAGE sym
+ 	{
+ 		pkgimportname = $2;
+-
+ 		if(strcmp($2->name, "main") == 0)
+ 			yyerror("cannot import package main");
+-
+-		// if we are not remapping the package name
+-		// then the imported package name is LPACK
+-		if(pkgmyname == S)
+-			pkgimportname->lexical = LPACK;
+ 	}
+ 
+ import_there:
+@@ -187,13 +198,51 @@ import_there:
+ 	{
+ 		checkimports();
+ 		unimportfile();
+-		pkgimportname = S;
+ 	}
+ |	LIMPORT '$' '$' hidden_import_list '$' '$'
+ 	{
+ 		checkimports();
+ 	}
+ 
++import_done:
++	{
++		Sym *import, *my;
++
++		import = pkgimportname;
++		my = pkgmyname;
++		pkgmyname = S;
++		pkgimportname = S;
++
++		if(import == S)
++			break;
++		if(my == S)
++			my = import;
++		if(my->name[0] == '.') {
++			importdot(import);
++			break;
++		}
++
++		// In order to allow multifile packages to use type names
++		// that are the same as the package name (i.e. go/parser
++		// is package parser and has a type called parser), we have
++		// to not bother trying to declare the package if it is our package.
++		// TODO(rsc): Is there a better way to tell if the package is ours?
++		if(my == import && strcmp(import->name, package) == 0)
++			break;
++
++		if(my->lexical != LNAME || my->oname != N || my->otype != T) {
++			// TODO(rsc): this line is only needed because of the
++			//	package net
++			//	import "net"
++			// convention; if we get rid of it, the check can go away
++			// and we can just always print the error
++			if(my->lexical != LPACK || strcmp(my->opack, import->name) != 0)
++				yyerror("redeclaration of %S by import", my);
++		}
++		my->lexical = LPACK;
++		my->opack = import->name;
++	}
++
+ hidden_import_list:
+ 	{
+ 		defercheckwidth();
+@@ -963,8 +1012,16 @@ pexpr:
+ lpack:
+ 	LPACK
+ 	{
+-		context = $1->name;
++		context = $1->opack;
++	}
++/*
++ * adding this would enable gri's nested package idea
++ *
++|	lpack '.' LPACK
++	{
++		context = $3->opack;
+ 	}
++ */
+ 
+ laconst:
+ 	LACONST
+@@ -2028,7 +2085,6 @@ hidden_importsym:
+ 	sym1 '.' sym2
+ 	{
+ 		$$ = nod(OIMPORT, N, N);
+-		$$->osym = $1;
+ 		$$->psym = $1;
+ 		$$->sym = $3;
+ 	}
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e5edf50513..43cd2f6f83 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -773,7 +773,7 @@ talph:
+ 		s = pkglookup(s->name, context);
+ 		if(s->lexical == LIGNORE)
+ 			goto l0;
+-		if(!exportname(s->name) && strcmp(package, s->opackage) != 0)
++		if(!exportname(s->name) && strcmp(package, s->package) != 0)
+ 			s = pkglookup(s->name, ".private");
+ 	}
+ 
+@@ -1134,7 +1134,6 @@ static	struct
+ 	"string",	LBASETYPE,	TSTRING,
+ 
+ 	"any",		LBASETYPE,	TANY,
+-	"sys",		LPACK,		Txxx,
+ 
+ 	"break",	LBREAK,		Txxx,
+ 	"case",		LCASE,		Txxx,
+@@ -1200,6 +1199,7 @@ lexinit(void)
+ 		lex = syms[i].lexical;
+ 		s = lookup(syms[i].name);
+ 		s->lexical = lex;
++		s->package = package;
+ 
+ 		if(lex != LBASETYPE)
+ 			continue;
+@@ -1220,6 +1220,14 @@ lexinit(void)
+ 		types[etype] = t;
+ 		s->otype = t;
+ 	}
++
++	// logically, the type of a string literal.
++	// types[TSTRING] is the named type string
++	// (the type of x in var x string or var x = "hello").
++	// this is the ideal form
++	// (the type of x in const x = "hello").
++	// TODO(rsc): this may need some more thought.
++	idealstring = typ(TSTRING);
+ }
+ 
+ struct
+@@ -1304,15 +1312,16 @@ mkpackage(char* pkg)
+ 	}
+ 
+ 	// redefine all names to be this package
+-	package = pkg;
+ 	for(h=0; h<NHASH; h++)
+-		for(s = hash[h]; s != S; s = s->link) {
+-			s->package = package;
+-			s->opackage = package;
+-		}
++		for(s = hash[h]; s != S; s = s->link)
++			if(s->package == package)
++				s->package = pkg;
++	package = pkg;
+ 
+ 	// declare this name as a package
+-	lookup(package)->lexical = LPACK;
++	s = lookup(package);
++	s->lexical = LPACK;
++	s->opack = s->name;
+ 
+ 	if(outfile == nil) {
+ 		p = strrchr(infile, '/');
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 50f5269816..6a5ee5dc73 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -151,14 +151,13 @@ lookup(char *p)
+ 		if(s->name[0] != c)
+ 			continue;
+ 		if(strcmp(s->name, p) == 0)
+-			if(strcmp(s->package, package) == 0)
++			if(s->package && strcmp(s->package, package) == 0)
+ 				return s;
+ 	}
+ 
+ 	s = mal(sizeof(*s));
+ 	s->lexical = LNAME;
+ 	s->name = mal(strlen(p)+1);
+-	s->opackage = package;
+ 	s->package = package;
+ 
+ 	strcpy(s->name, p);
+@@ -182,7 +181,7 @@ pkglookup(char *p, char *k)
+ 		if(s->name[0] != c)
+ 			continue;
+ 		if(strcmp(s->name, p) == 0)
+-			if(strcmp(s->package, k) == 0)
++			if(s->package && strcmp(s->package, k) == 0)
+ 				return s;
+ 	}
+ 
+@@ -193,7 +192,6 @@ pkglookup(char *p, char *k)
+ 
+ 	// botch - should probably try to reuse the pkg string
+ 	s->package = mal(strlen(k)+1);
+-	s->opackage = s->package;
+ 	strcpy(s->package, k);
+ 
+ 	s->link = hash[h];
+@@ -202,6 +200,37 @@ pkglookup(char *p, char *k)
+ 	return s;
+ }
+ 
++// find all the symbols in package opkg
++// and make them available in the current package
++void
++importdot(Sym *opkg)
++{
++	Sym *s, *s1;
++	uint32 h;
++	int c;
++
++	if(strcmp(opkg->name, package) == 0)
++		return;
++
++	c = opkg->name[0];
++	for(h=0; h<NHASH; h++) {
++		for(s = hash[h]; s != S; s = s->link) {
++			if(s->package[0] != c)
++				continue;
++			if(strcmp(s->package, opkg->name) != 0)
++				continue;
++			s1 = lookup(s->name);
++			if(s1->oname != N || s1->otype != T) {
++				yyerror("redeclaration of %S during import", s1);
++				continue;
++			}
++			s1->lexical = s->lexical;
++			s1->oname = s->oname;
++			s1->otype = s->otype;
++		}
++	}
++}
++
+ void
+ gethunk(void)
+ {
+@@ -942,7 +971,7 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	Sym *s;
+-	char *opk, *pkg, *nam;
++	char *pkg, *nam;
+ 
+ 	s = va_arg(fp->args, Sym*);
+ 	if(s == S) {
+@@ -952,18 +981,15 @@ Sconv(Fmt *fp)
+ 
+ 	pkg = "<nil>";
+ 	nam = pkg;
+-	opk = pkg;
+ 
+-	if(s->opackage != nil)
+-		opk = s->opackage;
+ 	if(s->package != nil)
+ 		pkg = s->package;
+ 	if(s->name != nil)
+ 		nam = s->name;
+ 
+ 	if(!(fp->flags & FmtShort))
+-	if(strcmp(opk, package) != 0 || (fp->flags & FmtLong)) {
+-		fmtprint(fp, "%s.%s", opk, nam);
++	if(strcmp(pkg, package) != 0 || (fp->flags & FmtLong)) {
++		fmtprint(fp, "%s.%s", pkg, nam);
+ 		return 0;
+ 	}
+ 	fmtstrcpy(fp, nam);
+@@ -1013,7 +1039,7 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, "%hS", s);
+ 			else
+ 				fmtprint(fp, "%lS", s);
+-			if(strcmp(s->opackage, package) == 0)
++			if(strcmp(s->package, package) == 0)
+ 			if(s->otype != t || (!s->export && !s->imported)) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+@@ -1607,7 +1633,7 @@ bad:
+ }
+ 
+ int
+-eqtype1(Type *t1, Type *t2, int d)
++eqtype1(Type *t1, Type *t2, int d, int names)
+ {
+ 	if(d >= 10)
+ 		return 1;
+@@ -1617,13 +1643,15 @@ eqtype1(Type *t1, Type *t2, int d)
+ 		return 0;
+ 	if(t1->etype != t2->etype)
+ 		return 0;
++	if(names && t1->etype != TFIELD && t1->sym && t2->sym && t1 != t2)
++		return 0;
+ 	switch(t1->etype) {
+ 	case TINTER:
+ 	case TSTRUCT:
+ 		t1 = t1->type;
+ 		t2 = t2->type;
+ 		for(;;) {
+-			if(!eqtype1(t1, t2, d+1))
++			if(!eqtype1(t1, t2, d+1, names))
+ 				return 0;
+ 			if(t1 == T)
+ 				return 1;
+@@ -1659,7 +1687,7 @@ eqtype1(Type *t1, Type *t2, int d)
+ 					return 0;
+ 				if(ta->etype != TFIELD || tb->etype != TFIELD)
+ 					return 0;
+-				if(!eqtype1(ta->type, tb->type, d+1))
++				if(!eqtype1(ta->type, tb->type, d+1, names))
+ 					return 0;
+ 				ta = ta->down;
+ 				tb = tb->down;
+@@ -1675,13 +1703,19 @@ eqtype1(Type *t1, Type *t2, int d)
+ 			break;
+ 		return 0;
+ 	}
+-	return eqtype1(t1->type, t2->type, d+1);
++	return eqtype1(t1->type, t2->type, d+1, names);
+ }
+ 
+ int
+ eqtype(Type *t1, Type *t2)
+ {
+-	return eqtype1(t1, t2, 0);
++	return eqtype1(t1, t2, 0, 1);
++}
++
++int
++cvttype(Type *t1, Type *t2)
++{
++	return eqtype1(t1, t2, 0, 0);
+ }
+ 
+ int
+@@ -1690,7 +1724,6 @@ eqtypenoname(Type *t1, Type *t2)
+ 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+ 		return eqtype(t1, t2);
+ 
+-
+ 	t1 = t1->type;
+ 	t2 = t2->type;
+ 	for(;;) {
+@@ -2576,7 +2609,7 @@ expand0(Type *t, int followptr)
+ 
+ 	if(u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
++			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+ 				continue;
+ 			if(f->sym->uniq)
+ 				continue;
+@@ -2593,7 +2626,7 @@ expand0(Type *t, int followptr)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
++			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+ 				continue;
+ 			if(f->sym->uniq)
+ 				continue;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f5d390203e..c2beb3cae7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1107,15 +1107,8 @@ loop:
+ 		break;
+ 	}
+ 
+-	if(t == T) {
++	if(t == T)
+ 		t = n->left->type;
+-		// throw away name:
+-		//	type MyInt int
+-		//	var x MyInt = 0;
+-		// -x has type int, not MyInt.
+-		if(t != T)
+-			t = types[t->etype];
+-	}
+ 	n->type = t;
+ 	goto ret;
+ 
+@@ -1210,7 +1203,7 @@ walkconv(Node *n)
+ 		return;
+ 
+ 	// nil conversion
+-	if(eqtype(t, l->type)) {
++	if(cvttype(t, l->type)) {
+ 		if(l->op != ONAME) {
+ 			indir(n, l);
+ 			n->type = t;

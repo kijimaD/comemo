@@ -40,6 +40,61 @@ Date:   Tue Nov 7 20:08:52 2017 +0200
     Change-Id: Iac99ed839c7b95d6dc66602ba8fe1fc5b500c47c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/76410
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 29 +++++++++++++++++++++++++++--
  1 file changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 377914177f..c94d2b50bd 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -254,6 +254,16 @@ type Transport struct {
+ 	// Zero means to use a default limit.
+ 	MaxResponseHeaderBytes int64
+ 
++	// WriteBufferSize specifies the size of the write buffer used
++	// when writing to the transport.
++	// If zero, a default (currently 4KB) is used.
++	WriteBufferSize int
++
++	// ReadBufferSize specifies the size of the read buffer used
++	// when reading from the transport.
++	//If zero, a default (currently 4KB) is used.
++	ReadBufferSize int
++
+ 	// nextProtoOnce guards initialization of TLSNextProto and
+ 	// h2transport (via onceSetNextProtoDefaults)
+ 	nextProtoOnce sync.Once
+@@ -266,6 +276,20 @@ type Transport struct {
+ 	ForceAttemptHTTP2 bool
+ }
+ 
++func (t *Transport) writeBufferSize() int {
++	if t.WriteBufferSize > 0 {
++		return t.WriteBufferSize
++	}
++	return 4 << 10
++}
++
++func (t *Transport) readBufferSize() int {
++	if t.ReadBufferSize > 0 {
++		return t.ReadBufferSize
++	}
++	return 4 << 10
++}
++
+ // h2Transport is the interface we expect to be able to call from
+ // net/http against an *http2.Transport that's either bundled into
+ // h2_bundle.go or supplied by the user via x/net/http2.
+@@ -1360,8 +1384,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
+ 	if t.MaxConnsPerHost > 0 {
+ 		pconn.conn = &connCloseListener{Conn: pconn.conn, t: t, cmKey: pconn.cacheKey}
+ 	}
+-	pconn.br = bufio.NewReader(pconn)
+-	pconn.bw = bufio.NewWriter(persistConnWriter{pconn})
++	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
++	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
++
+ 	go pconn.readLoop()
+ 	go pconn.writeLoop()
+ 	return pconn, nil

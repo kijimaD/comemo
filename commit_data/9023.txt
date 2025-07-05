@@ -7,6 +7,26 @@ Date:   Tue Jul 12 01:39:09 2011 -0400
     R=adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/4700041
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index d632200d39..e1a1cabe5a 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -86,6 +86,14 @@ the Go tree (and avoid writing Makefiles).
+ </p>
+ 
+ 
++<h3 id="r58.minor">Minor revisions</h3>
++
++<p>r58.1 adds 
++<a href="http://code.google.com/p/go/source/detail?r=293c25943586">build</a> and
++<a href="http://code.google.com/p/go/source/detail?r=bf17e96b6582">runtime</a>
++changes to make Go run on OS X 10.7 Lion.
++</p>
++
+ <h2 id="r57">r57 (released 2011/05/03)</h2>
+ 
+ <p>

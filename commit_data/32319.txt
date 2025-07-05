@@ -12,7 +12,7 @@ Date:   Wed Apr 19 20:38:10 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/scan_test.go           | 1 -
  src/encoding/gob/codec_test.go   | 1 -
  src/encoding/gob/error.go        | 1 -
@@ -22,3 +22,108 @@ Date:   Wed Apr 19 20:38:10 2017 +0100
  src/runtime/runtime_test.go      | 1 -
  src/text/template/parse/parse.go | 1 -
  8 files changed, 11 deletions(-)
+
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index 1bb1e88393..2568225688 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -169,7 +169,6 @@ func genLine(buf *bytes.Buffer, lineNum, n int, addNewline bool) {
+ 		}
+ 		buf.WriteByte('\n')
+ 	}
+-	return
+ }
+ 
+ // Test the line splitter, including some carriage returns but no long lines.
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 31c6aa6dd7..c102059590 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -47,7 +47,6 @@ func testError(t *testing.T) {
+ 	if e := recover(); e != nil {
+ 		t.Error(e.(gobError).err) // Will re-panic if not one of our errors, such as a runtime error.
+ 	}
+-	return
+ }
+ 
+ func newDecBuffer(data []byte) *decBuffer {
+diff --git a/src/encoding/gob/error.go b/src/encoding/gob/error.go
+index 8b5265c278..949333bc03 100644
+--- a/src/encoding/gob/error.go
++++ b/src/encoding/gob/error.go
+@@ -39,5 +39,4 @@ func catchError(err *error) {
+ 		}
+ 		*err = ge.err
+ 	}
+-	return
+ }
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 08b8711c2d..bea4ff2a3a 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -887,8 +887,6 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 	default:
+ 		panic("unreachable")
+ 	}
+-
+-	return
+ }
+ 
+ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
+@@ -1268,8 +1266,6 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
+ 	default:
+ 		panic("unreachable")
+ 	}
+-
+-	return
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 6930df531b..da153447df 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -230,7 +230,6 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		runtime.GC()
+ 	}
+ 	p.WriteTo(w, debug)
+-	return
+ }
+ 
+ // Index responds with the pprof-formatted profile named by the request.
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index 3c2b12fe8e..757e88d1d9 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -240,7 +240,6 @@ func (root *mTreap) removeSpan(span *mspan) {
+ 		}
+ 	}
+ 	root.removeNode(t)
+-	return
+ }
+ 
+ // scavengetreap visits each node in the treap and scavenges the
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 666bc0a546..e9bc256712 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -79,7 +79,6 @@ func defer1() {
+ 			panic("bad recover")
+ 		}
+ 	}(1, 2, 3)
+-	return
+ }
+ 
+ func BenchmarkDefer10(b *testing.B) {
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 6060c6d74b..a91a544ce0 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -202,7 +202,6 @@ func (t *Tree) recover(errp *error) {
+ 		}
+ 		*errp = e.(error)
+ 	}
+-	return
+ }
+ 
+ // startParse initializes the parser, using the lexer.

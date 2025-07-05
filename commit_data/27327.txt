@@ -12,7 +12,83 @@ Date:   Fri Mar 18 19:11:19 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/20980
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/sub_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/testing/testing.go  |  2 +-
  2 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 6455540498..07f6785c13 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -178,6 +178,57 @@ func TestTRun(t *T) {
+ 				t.Errorf("count was %d; want 4", count)
+ 			}
+ 		},
++	}, {
++		desc:   "run no more than *parallel tests concurrently",
++		ok:     true,
++		maxPar: 4,
++		f: func(t *T) {
++			max := 0
++			in := make(chan int)
++			out := make(chan int)
++			ctx := t.context
++			t.Run("wait", func(t *T) {
++				t.Run("controller", func(t *T) {
++					// Verify sequential tests don't skew counts.
++					t.Run("seq1", func(t *T) {})
++					t.Run("seq2", func(t *T) {})
++					t.Run("seq3", func(t *T) {})
++					t.Parallel()
++					for i := 0; i < 80; i++ {
++						ctx.mu.Lock()
++						if ctx.running > max {
++							max = ctx.running
++						}
++						ctx.mu.Unlock()
++						<-in
++						// force a minimum to avoid a race, although it works
++						// without it.
++						if i >= ctx.maxParallel-2 { // max - this - 1
++							out <- i
++						}
++					}
++					close(out)
++				})
++				// Ensure we don't exceed the maximum even with nested parallelism.
++				for i := 0; i < 2; i++ {
++					t.Run("", func(t *T) {
++						t.Parallel()
++						for j := 0; j < 40; j++ {
++							t.Run("", func(t *T) {
++								t.Run("seq1", func(t *T) {})
++								t.Run("seq2", func(t *T) {})
++								t.Parallel()
++								in <- j
++								<-out
++							})
++						}
++					})
++				}
++			})
++			if max != ctx.maxParallel {
++				realTest.Errorf("max: got %d; want: %d", max, ctx.maxParallel)
++			}
++		},
+ 	}, {
+ 		desc: "alternate sequential and parallel",
+ 		// Sequential tests should partake in the counting of running threads.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 0aa60d9ddc..03a7fbfddd 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -602,7 +602,7 @@ type testContext struct {
+ func newTestContext(maxParallel int) *testContext {
+ 	return &testContext{
+ 		startParallel: make(chan bool),
+-		maxParallel:   *parallel,
++		maxParallel:   maxParallel,
+ 		running:       1, // Set the count to 1 for the main (sequential) test.
+ 	}
+ }

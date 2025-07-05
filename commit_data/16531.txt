@@ -7,7 +7,70 @@ Date:   Mon Jun 10 22:58:04 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10137043
-
+---
  src/pkg/runtime/chan.c                     |  3 ++-
  src/pkg/runtime/race/testdata/chan_test.go | 25 ++++++++++++++++++++++++-
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 403a72dc8a..6aa9bd40e1 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -186,7 +186,6 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 	}
+ 
+ 	runtime·lock(c);
+-	// TODO(dvyukov): add similar instrumentation to select.
+ 	if(raceenabled)
+ 		runtime·racereadpc(c, pc, runtime·chansend);
+ 	if(c->closed)
+@@ -946,6 +945,8 @@ loop:
+ 			break;
+ 
+ 		case CaseSend:
++			if(raceenabled)
++				runtime·racereadpc(c, cas->pc, runtime·chansend);
+ 			if(c->closed)
+ 				goto sclose;
+ 			if(c->dataqsiz > 0) {
+diff --git a/src/pkg/runtime/race/testdata/chan_test.go b/src/pkg/runtime/race/testdata/chan_test.go
+index 2332f097eb..614ba4a4e2 100644
+--- a/src/pkg/runtime/race/testdata/chan_test.go
++++ b/src/pkg/runtime/race/testdata/chan_test.go
+@@ -311,12 +311,35 @@ func TestRaceChanSendClose(t *testing.T) {
+ 	go func() {
+ 		defer func() {
+ 			recover()
++			compl <- true
+ 		}()
+ 		c <- 1
++	}()
++	go func() {
++		time.Sleep(10 * time.Millisecond)
++		close(c)
+ 		compl <- true
+ 	}()
++	<-compl
++	<-compl
++}
++
++func TestRaceChanSendSelectClose(t *testing.T) {
++	compl := make(chan bool, 2)
++	c := make(chan int, 1)
++	c1 := make(chan int)
++	go func() {
++		defer func() {
++			recover()
++			compl <- true
++		}()
++		time.Sleep(10 * time.Millisecond)
++		select {
++		case c <- 1:
++		case <-c1:
++		}
++	}()
+ 	go func() {
+-		time.Sleep(1e7)
+ 		close(c)
+ 		compl <- true
+ 	}()

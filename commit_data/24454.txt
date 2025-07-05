@@ -14,7 +14,136 @@ Date:   Wed Jul 29 16:16:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12852
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++
  src/runtime/stubs.go          |  9 ++++-
  2 files changed, 96 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index d2847b0d45..d1322340ca 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -36,6 +36,17 @@ func TestCgoTraceback(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoCallbackGC(t *testing.T) {
++	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
++		t.Skipf("no pthreads on %s", runtime.GOOS)
++	}
++	got := executeTest(t, cgoCallbackGCSource, nil)
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
+ func TestCgoExternalThreadPanic(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+@@ -191,6 +202,83 @@ func main() {
+ }
+ `
+ 
++const cgoCallbackGCSource = `
++package main
++
++import "runtime"
++
++/*
++#include <pthread.h>
++
++void go_callback();
++
++static void *thr(void *arg) {
++    go_callback();
++    return 0;
++}
++
++static void foo() {
++    pthread_t th;
++    pthread_create(&th, 0, thr, 0);
++    pthread_join(th, 0);
++}
++*/
++import "C"
++import "fmt"
++
++//export go_callback
++func go_callback() {
++	runtime.GC()
++	grow()
++	runtime.GC()
++}
++
++var cnt int
++
++func grow() {
++	x := 10000
++	sum := 0
++	if grow1(&x, &sum) == 0 {
++		panic("bad")
++	}
++}
++
++func grow1(x, sum *int) int {
++	if *x == 0 {
++		return *sum + 1
++	}
++	*x--
++	sum1 := *sum + *x
++	return grow1(x, &sum1)
++}
++
++func main() {
++	const P = 100
++	done := make(chan bool)
++	// allocate a bunch of stack frames and spray them with pointers
++	for i := 0; i < P; i++ {
++		go func() {
++			grow()
++			done <- true
++		}()
++	}
++	for i := 0; i < P; i++ {
++		<-done
++	}
++	// now give these stack frames to cgo callbacks
++	for i := 0; i < P; i++ {
++		go func() {
++			C.foo()
++			done <- true
++		}()
++	}
++	for i := 0; i < P; i++ {
++		<-done
++	}
++	fmt.Printf("OK\n")
++}
++`
++
+ const cgoExternalThreadPanicSource = `
+ package main
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 5ac1c57e3f..e6b015684b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -128,9 +128,16 @@ func breakpoint()
+ func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
+ 
+ func procyield(cycles uint32)
+-func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+ func goexit()
+ 
++// Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
++// so not all have these arguments. Mark them uintptr so that the GC
++// does not misinterpret memory when the arguments are not present.
++// cgocallback_gofunc is not called from go, only from cgocallback,
++// so the arguments will be found via cgocallback's pointer-declared arguments.
++// See the assembly implementations for more details.
++func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
++
+ //go:noescape
+ func cas(ptr *uint32, old, new uint32) bool
+ 

@@ -7,7 +7,7 @@ Date:   Thu Jan 28 16:11:38 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194099
-
+---
  src/cmd/5a/a.h     |  4 +++-
  src/cmd/5a/lex.c   |  2 ++
  src/cmd/6a/a.h     |  4 +++-
@@ -19,3 +19,273 @@ Date:   Thu Jan 28 16:11:38 2010 -0800
  src/cmd/cc/lexbody | 20 ++++++++++++++++++--
  src/cmd/cc/macbody |  2 ++
  10 files changed, 56 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 34591817f6..a6b75e2b7e 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -142,6 +142,7 @@ EXTERN	int32	lineno;
+ EXTERN	int	nerrors;
+ EXTERN	int32	nhunk;
+ EXTERN	int	ninclude;
++EXTERN	int32	nsymb;
+ EXTERN	Gen	nullgen;
+ EXTERN	char*	outfile;
+ EXTERN	int	pass;
+@@ -149,7 +150,7 @@ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
+ EXTERN	int	sym;
+-EXTERN	char	symb[NSYMB];
++EXTERN	char*	symb;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+ EXTERN	int32	thunk;
+@@ -157,6 +158,7 @@ EXTERN	Biobuf	obuf;
+ 
+ void*	alloc(int32);
+ void*	allocn(void*, int32, int32);
++void    ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 540c12af59..53ffab2831 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -57,6 +57,8 @@ main(int argc, char *argv[])
+ 
+ 	thechar = '5';
+ 	thestring = "arm";
++
++	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index f1a0453156..34b69b6ea7 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -155,6 +155,7 @@ EXTERN	int32	lineno;
+ EXTERN	int	nerrors;
+ EXTERN	int32	nhunk;
+ EXTERN	int	ninclude;
++EXTERN	int32	nsymb;
+ EXTERN	Gen	nullgen;
+ EXTERN	char*	outfile;
+ EXTERN	int	pass;
+@@ -162,7 +163,7 @@ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
+ EXTERN	int	sym;
+-EXTERN	char	symb[NSYMB];
++EXTERN	char*	symb;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+ EXTERN	int32	thunk;
+@@ -170,6 +171,7 @@ EXTERN	Biobuf	obuf;
+ 
+ void*   alloc(int32);
+ void*	allocn(void*, int32, int32);
++void    ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index a1814b0805..f5e99342f8 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -61,6 +61,7 @@ main(int argc, char *argv[])
+ 	thechar = '6';
+ 	thestring = "amd64";
+ 
++	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index c019ce4d66..9b38f5fbd1 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -156,6 +156,7 @@ EXTERN	int32	lineno;
+ EXTERN	int	nerrors;
+ EXTERN	int32	nhunk;
+ EXTERN	int	ninclude;
++EXTERN	int32	nsymb;
+ EXTERN	Gen	nullgen;
+ EXTERN	char*	outfile;
+ EXTERN	int	pass;
+@@ -163,7 +164,7 @@ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
+ EXTERN	int	sym;
+-EXTERN	char	symb[NSYMB];
++EXTERN	char*	symb;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+ EXTERN	int32	thunk;
+@@ -171,6 +172,7 @@ EXTERN	Biobuf	obuf;
+ 
+ void*   alloc(int32);
+ void*	allocn(void*, int32, int32);
++void    ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index a00ac49f6c..41d9c51904 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -60,6 +60,8 @@ main(int argc, char *argv[])
+ 
+ 	thechar = '8';
+ 	thestring = "386";
++
++	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 93b5f8bf79..62a33ae5e7 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -492,6 +492,7 @@ EXTERN	int32	nhunk;
+ EXTERN	int	ninclude;
+ EXTERN	Node*	nodproto;
+ EXTERN	Node*	nodcast;
++EXTERN	int32	nsymb;
+ EXTERN	Biobuf	outbuf;
+ EXTERN	Biobuf	diagbuf;
+ EXTERN	char*	outfile;
+@@ -500,7 +501,7 @@ EXTERN	int	peekc;
+ EXTERN	int32	stkoff;
+ EXTERN	Type*	strf;
+ EXTERN	Type*	strl;
+-EXTERN	char	symb[NSYMB];
++EXTERN	char*	symb;
+ EXTERN	Sym*	symstring;
+ EXTERN	int	taggen;
+ EXTERN	Type*	tfield;
+@@ -573,6 +574,7 @@ int	mpatov(char*, vlong*);
+  */
+ void*	allocn(void*, int32, int32);
+ void*	alloc(int32);
++void    ensuresymb(int32);
+ void	cinit(void);
+ int	compile(char*, char**, int);
+ void	errorexit(void);
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index fd4b0b87b2..b722ab15f6 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -85,6 +85,7 @@ main(int argc, char *argv[])
+ 	char *defs[50], *p;
+ 	int nproc, nout, i, c, ndef;
+ 
++	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	tinit();
+ 	cinit();
+@@ -392,7 +393,7 @@ newfile(char *s, int f)
+ Sym*
+ slookup(char *s)
+ {
+-
++	ensuresymb(strlen(s));
+ 	strcpy(symb, s);
+ 	return lookup();
+ }
+@@ -408,7 +409,9 @@ lookup(void)
+ 
+ 	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
+ 		// turn leading · into ""·
+-		memmove(symb+2, symb, strlen(symb)+1);
++		h = strlen(symb);
++		ensuresymb(h+2);
++		memmove(symb+2, symb, h+1);
+ 		symb[0] = '"';
+ 		symb[1] = '"';
+ 	}
+@@ -1584,3 +1587,17 @@ allocn(void *p, int32 n, int32 d)
+ 		memset((char*)p+n, 0, d);
+ 	return p;
+ }
++
++void
++ensuresymb(int32 n)
++{
++	if(symb == nil) {
++		symb = alloc(NSYMB+1);
++		nsymb = NSYMB;
++	}	
++
++	if(n > nsymb) {
++		symb = allocn(symb, nsymb, n+1-nsymb);
++		nsymb = n;
++	}
++}
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index c6246e95ff..6be2bce92f 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -125,6 +125,20 @@ allocn(void *p, int32 on, int32 n)
+ 	return p;
+ }
+ 
++void
++ensuresymb(int32 n)
++{
++	if(symb == nil) {
++		symb = alloc(NSYMB+1);
++		nsymb = NSYMB;
++	}
++
++	if(n > nsymb) {
++		symb = allocn(symb, nsymb, n+1-nsymb);
++		nsymb = n;
++	}
++}
++
+ void
+ setinclude(char *p)
+ {
+@@ -209,7 +223,7 @@ newfile(char *s, int f)
+ Sym*
+ slookup(char *s)
+ {
+-
++	ensuresymb(strlen(s));
+ 	strcpy(symb, s);
+ 	return lookup();
+ }
+@@ -225,7 +239,9 @@ lookup(void)
+ 
+ 	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
+ 		// turn leading · into ""·
+-		memmove(symb+2, symb, strlen(symb)+1);
++		h = strlen(symb);
++		ensuresymb(h+2);
++		memmove(symb+2, symb, h+1);
+ 		symb[0] = '"';
+ 		symb[1] = '"';
+ 	}
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 21d69bcc78..7d3acaa8e0 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -140,6 +140,7 @@ dodefine(char *cp)
+ 	char *p;
+ 	int32 l;
+ 
++	ensuresymb(strlen(cp));
+ 	strcpy(symb, cp);
+ 	p = strchr(symb, '=');
+ 	if(p) {
+@@ -574,6 +575,7 @@ macinc(void)
+ 	for(i=0; i<ninclude; i++) {
+ 		if(i == 0 && c0 == '>')
+ 			continue;
++		ensuresymb(strlen(include[i])+strlen(str)+2);
+ 		strcpy(symb, include[i]);
+ 		strcat(symb, "/");
+ 		if(strcmp(symb, "./") == 0)

@@ -20,6 +20,29 @@ Date:   Thu Nov 9 22:20:27 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  misc/wasm/go_wasip1_wasm_exec | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/misc/wasm/go_wasip1_wasm_exec b/misc/wasm/go_wasip1_wasm_exec
+index dc110327af..cd16b96ea7 100755
+--- a/misc/wasm/go_wasip1_wasm_exec
++++ b/misc/wasm/go_wasip1_wasm_exec
+@@ -14,8 +14,15 @@ case "$GOWASIRUNTIME" in
+ 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
+ 	"wasmtime" | "")
+-		# TODO(go.dev/issue/63718): Switch to the new CLI offered in the major version 14 of Wasmtime.
+-		exec env WASMTIME_NEW_CLI=0 wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
++		# Match the major version in "wasmtime-cli 14.0.0". For versions before 14
++		# we need to use the old CLI. This requires Bash v3.0 and above.
++		# TODO(johanbrandhorst): Remove this condition once 1.22 is released.
++		# From 1.23 onwards we'll only support the new wasmtime CLI.
++		if [[ "$(wasmtime --version)" =~ wasmtime-cli[[:space:]]([0-9]+)\.[0-9]+\.[0-9]+ && "${BASH_REMATCH[1]}" -lt 14 ]]; then
++			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
++		else
++			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
++		fi
+ 		;;
+ 	*)
+ 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"

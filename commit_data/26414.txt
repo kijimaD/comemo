@@ -14,7 +14,56 @@ Date:   Wed Jan 20 22:53:50 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18810
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go      |  1 +
  src/net/http/client_test.go | 18 +++++++++++++++++-
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index faac5d4e2e..3106d229da 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -445,6 +445,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
+ 	for redirect := 0; ; redirect++ {
+ 		if redirect != 0 {
+ 			nreq := new(Request)
++			nreq.Cancel = ireq.Cancel
+ 			nreq.Method = ireq.Method
+ 			if ireq.Method == "POST" || ireq.Method == "PUT" {
+ 				nreq.Method = "GET"
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index cfad71e029..8939dc8baf 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -240,7 +240,9 @@ func TestClientRedirects(t *testing.T) {
+ 
+ 	var checkErr error
+ 	var lastVia []*Request
+-	c = &Client{CheckRedirect: func(_ *Request, via []*Request) error {
++	var lastReq *Request
++	c = &Client{CheckRedirect: func(req *Request, via []*Request) error {
++		lastReq = req
+ 		lastVia = via
+ 		return checkErr
+ 	}}
+@@ -260,6 +262,20 @@ func TestClientRedirects(t *testing.T) {
+ 		t.Errorf("expected lastVia to have contained %d elements; got %d", e, g)
+ 	}
+ 
++	// Test that Request.Cancel is propagated between requests (Issue 14053)
++	creq, _ := NewRequest("HEAD", ts.URL, nil)
++	cancel := make(chan struct{})
++	creq.Cancel = cancel
++	if _, err := c.Do(creq); err != nil {
++		t.Fatal(err)
++	}
++	if lastReq == nil {
++		t.Fatal("didn't see redirect")
++	}
++	if lastReq.Cancel != cancel {
++		t.Errorf("expected lastReq to have the cancel channel set on the inital req")
++	}
++
+ 	checkErr = errors.New("no redirects allowed")
+ 	res, err = c.Get(ts.URL)
+ 	if urlError, ok := err.(*url.Error); !ok || urlError.Err != checkErr {

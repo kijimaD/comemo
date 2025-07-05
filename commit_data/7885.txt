@@ -11,6 +11,21 @@ Date:   Sat Mar 26 11:24:02 2011 -0700
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4289074
-
+---
  test/init.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/init.go b/test/init.go
+index b6c8c97063..74c2d5c261 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -12,7 +12,7 @@ func init() {
+ }
+ 
+ func main() {
+-	init()         // ERROR "undefined: init"
++	init()         // ERROR "undefined.*init"
+ 	runtime.init() // ERROR "unexported.*runtime\.init"
+-	var _ = init   // ERROR "undefined: init"
++	var _ = init   // ERROR "undefined.*init"
+ }

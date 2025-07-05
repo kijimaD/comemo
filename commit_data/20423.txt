@@ -10,6 +10,20 @@ Date:   Sun Sep 7 07:31:53 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/137280043
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index a1a6c14a40..fff1eb6011 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -60,7 +60,7 @@ echo # Building C bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool
+ :: Windows has no glob expansion, so spell out cmd/dist/*.c.
+-gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildgo.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
++gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildgo.c cmd/dist/buildruntime.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist env -wp >env.bat
+ if errorlevel 1 goto fail

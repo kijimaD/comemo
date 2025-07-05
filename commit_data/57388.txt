@@ -16,6 +16,52 @@ Date:   Mon Jul 31 16:56:01 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/internal/testerrors/ptr_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 7f56501c58..8fff7615d3 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"slices"
+ 	"strings"
+ 	"sync/atomic"
+@@ -253,7 +252,10 @@ var ptrTests = []ptrTest{
+ 	{
+ 		// Exported functions may not return Go pointers.
+ 		name: "export1",
+-		c:    `extern unsigned char *GoFn21();`,
++		c: `#ifdef _WIN32
++		    __declspec(dllexport)
++			#endif
++		    extern unsigned char *GoFn21();`,
+ 		support: `//export GoFn21
+ 		          func GoFn21() *byte { return new(byte) }`,
+ 		body: `C.GoFn21()`,
+@@ -263,6 +265,9 @@ var ptrTests = []ptrTest{
+ 		// Returning a C pointer is fine.
+ 		name: "exportok",
+ 		c: `#include <stdlib.h>
++		    #ifdef _WIN32
++		    __declspec(dllexport)
++			#endif
+ 		    extern unsigned char *GoFn22();`,
+ 		support: `//export GoFn22
+ 		          func GoFn22() *byte { return (*byte)(C.malloc(1)) }`,
+@@ -472,10 +477,6 @@ var ptrTests = []ptrTest{
+ func TestPointerChecks(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	if runtime.GOOS == "windows" {
+-		// TODO: Skip just the cases that fail?
+-		t.Skipf("some tests fail to build on %s", runtime.GOOS)
+-	}
+ 
+ 	var gopath string
+ 	var dir string

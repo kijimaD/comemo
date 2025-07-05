@@ -21,7 +21,38 @@ Date:   Tue Dec 4 16:25:39 2018 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/alldocs.go               | 4 +---
  src/cmd/go/internal/help/helpdoc.go | 4 +---
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 12134b21c0..9108775e75 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1472,9 +1472,7 @@
+ //
+ // Each entry in the GOFLAGS list must be a standalone flag.
+ // Because the entries are space-separated, flag values must
+-// not contain spaces. In some cases, you can provide multiple flag
+-// values instead: for example, to set '-ldflags=-s -w'
+-// you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
++// not contain spaces.
+ //
+ // Environment variables for use with cgo:
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index c8ea66a327..ba9b14a4e6 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -509,9 +509,7 @@ General-purpose environment variables:
+ 
+ Each entry in the GOFLAGS list must be a standalone flag.
+ Because the entries are space-separated, flag values must
+-not contain spaces. In some cases, you can provide multiple flag
+-values instead: for example, to set '-ldflags=-s -w'
+-you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
++not contain spaces.
+ 
+ Environment variables for use with cgo:
+ 

@@ -9,7 +9,42 @@ Date:   Fri Jul 13 08:05:41 2012 +0200
     R=golang-dev, r
     CC=golang-dev, remy
     https://golang.org/cl/6350103
-
+---
  src/cmd/gc/typecheck.c |  2 +-
  test/ddd1.go           | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index cc4faf5a7a..0335fe0c32 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -929,7 +929,7 @@ reswitch:
+ 			goto doconv;
+ 		}
+ 
+-		if(count(n->list) == 1)
++		if(count(n->list) == 1 && !n->isddd)
+ 			typecheck(&n->list->n, Erv | Efnstruct);
+ 		else
+ 			typechecklist(n->list, Erv);
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 1e070093c3..09d70c3de3 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -22,6 +22,16 @@ var (
+ 	_ = sum([]int{1}) // ERROR "\[\]int literal.*as type int|incompatible"
+ )
+ 
++func sum3(int, int, int) int { return 0 }
++func tuple() (int, int, int) { return 1, 2, 3 }
++
++var (
++	_ = sum(tuple())
++	_ = sum(tuple()...) // ERROR "multiple-value"
++	_ = sum3(tuple())
++	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
++)
++
+ type T []T
+ 
+ func funny(args ...T) int { return 0 }

@@ -16,10 +16,101 @@ Date:   Fri Dec 2 23:18:16 2011 +0900
     R=cw, golang-dev
     CC=golang-dev
     https://golang.org/cl/5447071
-
+---
  src/pkg/net/iprawsock_posix.go     | 10 ----------
  src/pkg/net/sock.go                |  5 -----
  src/pkg/net/udpsock_posix.go       | 10 ----------
  src/pkg/syscall/syscall_bsd.go     |  9 ---------
  src/pkg/syscall/syscall_windows.go |  1 -
  5 files changed, 35 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 3bb99f9a57..d3cb38a651 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -267,16 +267,6 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err error) {
+ 	return newIPConn(fd), nil
+ }
+ 
+-// BindToDevice binds an IPConn to a network interface.
+-func (c *IPConn) BindToDevice(device string) error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	c.fd.incref()
+-	defer c.fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+-}
+-
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 33f11f219c..777f204b18 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -111,11 +111,6 @@ func setReuseAddr(fd *netFD, reuse bool) error {
+ 	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
+ }
+ 
+-func bindToDevice(fd *netFD, dev string) error {
+-	// TODO(rsc): call setsockopt with null-terminated string pointer
+-	return os.EINVAL
+-}
+-
+ func setDontRoute(fd *netFD, dontroute bool) error {
+ 	fd.incref()
+ 	defer fd.decref()
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 2cfcc609d4..c25ec9c506 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -240,16 +240,6 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ 	return newUDPConn(fd), nil
+ }
+ 
+-// BindToDevice binds a UDPConn to a network interface.
+-func (c *UDPConn) BindToDevice(device string) error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	c.fd.incref()
+-	defer c.fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+-}
+-
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 8969c5d672..cf1752b6fd 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -522,15 +522,6 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	return
+ }
+ 
+-// TODO:
+-// FreeBSD has IP_SENDIF.  Darwin probably needs BSDLLCTest, see:
+-// http://developer.apple.com/mac/library/samplecode/BSDLLCTest/index.html
+-
+-// BindToDevice binds the socket associated with fd to device.
+-func BindToDevice(fd int, device string) (err error) {
+-	return ENOSYS
+-}
+-
+ //sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, err error)
+ 
+ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err error) {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 305e7a4b4a..8ee208a5c4 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -650,7 +650,6 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
+ 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
+ }
+ func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
+-func BindToDevice(fd Handle, device string) (err error)                        { return EWINDOWS }
+ 
+ // TODO(brainman): fix all needed for os
+ 

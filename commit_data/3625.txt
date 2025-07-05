@@ -7,6 +7,37 @@ Date:   Thu Oct 22 11:07:39 2009 -0700
     R=r
     CC=go-dev
     http://go/go-review/1012005
-
+---
  .hgignore | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/.hgignore b/.hgignore
+new file mode 100644
+index 0000000000..3a66c74f0d
+--- /dev/null
++++ b/.hgignore
+@@ -0,0 +1,24 @@
++syntax:glob
++*.[568ao]
++*.ao
++*.so
++[568a].out
++_obj
++_test
++src/cmd/6a/6a
++y.tab.[ch]
++src/cmd/6l/enam.c
++src/cmd/gc/builtin.c
++src/cmd/gc/mkbuiltin1
++src/cmd/gc/opnames.h
++src/pkg/exp/ogle/ogle
++src/pkg/runtime/cgo2c
++src/pkg/runtime/amd64/asm.h
++test/pass.out
++test/run.out
++test/times.out
++*.pyc
++
++syntax:regexp
++^pkg/
++^src/cmd/(.*)/6?\1$

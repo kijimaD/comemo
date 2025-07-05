@@ -17,7 +17,7 @@ Date:   Thu Sep 25 07:59:01 2014 -0700
     R=iant, rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/144130043
-
+---
  misc/cgo/test/callback.go   | 45 +++++++++++++++++++++
  misc/cgo/test/callback_c.c  | 16 ++++++++
  misc/cgo/test/cgo_test.go   | 98 +++++++++++++++++++++++----------------------
@@ -28,3 +28,328 @@ Date:   Thu Sep 25 07:59:01 2014 -0700
  src/runtime/cgo/callbacks.c |  3 ++
  src/runtime/stack.c         |  4 +-
  9 files changed, 161 insertions(+), 50 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index a7f1a3ecd6..44167e6e9e 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -10,6 +10,9 @@ void callGoFoo(void);
+ void callGoStackCheck(void);
+ void callPanic(void);
+ void callCgoAllocate(void);
++int callGoReturnVal(void);
++int returnAfterGrow(void);
++int returnAfterGrowFromGo(void);
+ */
+ import "C"
+ 
+@@ -212,6 +215,48 @@ func testAllocateFromC(t *testing.T) {
+ 	C.callCgoAllocate() // crashes or exits on failure
+ }
+ 
++// Test that C code can return a value if it calls a Go function that
++// causes a stack copy.
++func testReturnAfterGrow(t *testing.T) {
++	// Use a new goroutine so that we get a small stack.
++	c := make(chan int)
++	go func() {
++		c <- int(C.returnAfterGrow())
++	}()
++	if got, want := <-c, 123456; got != want {
++		t.Errorf("got %d want %d", got, want)
++	}
++}
++
++// Test that we can return a value from Go->C->Go if the Go code
++// causes a stack copy.
++func testReturnAfterGrowFromGo(t *testing.T) {
++	// Use a new goroutine so that we get a small stack.
++	c := make(chan int)
++	go func() {
++		c <- int(C.returnAfterGrowFromGo())
++	}()
++	if got, want := <-c, 129*128/2; got != want {
++		t.Errorf("got %d want %d", got, want)
++	}
++}
++
++//export goReturnVal
++func goReturnVal() (r C.int) {
++	// Force a stack copy.
++	var f func(int) int
++	f = func(i int) int {
++		var buf [256]byte
++		use(buf[:])
++		if i == 0 {
++			return 0
++		}
++		return i + f(i-1)
++	}
++	r = C.int(f(128))
++	return
++}
++
+ func testCallbackStack(t *testing.T) {
+ 	// Make cgo call and callback with different amount of stack stack available.
+ 	// We do not do any explicit checks, just ensure that it does not crash.
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index dcd4ddd4ee..5bb6425340 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -64,3 +64,19 @@ callGoStackCheck(void)
+ 	extern void goStackCheck(void);
+ 	goStackCheck();
+ }
++
++int
++returnAfterGrow(void)
++{
++	extern int goReturnVal(void);
++	goReturnVal();
++	return 123456;
++}
++
++int
++returnAfterGrowFromGo(void)
++{
++	extern int goReturnVal(void);
++	return goReturnVal();
++}
++
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 1d1abf7291..fcfad83049 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -10,53 +10,55 @@ import "testing"
+ // so that they can use cgo (import "C").
+ // These wrappers are here for gotest to find.
+ 
+-func TestAlign(t *testing.T)               { testAlign(t) }
+-func TestConst(t *testing.T)               { testConst(t) }
+-func TestEnum(t *testing.T)                { testEnum(t) }
+-func TestAtol(t *testing.T)                { testAtol(t) }
+-func TestErrno(t *testing.T)               { testErrno(t) }
+-func TestMultipleAssign(t *testing.T)      { testMultipleAssign(t) }
+-func TestUnsignedInt(t *testing.T)         { testUnsignedInt(t) }
+-func TestCallback(t *testing.T)            { testCallback(t) }
+-func TestCallbackGC(t *testing.T)          { testCallbackGC(t) }
+-func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }
+-func TestCallbackPanicLoop(t *testing.T)   { testCallbackPanicLoop(t) }
+-func TestCallbackPanicLocked(t *testing.T) { testCallbackPanicLocked(t) }
+-func TestPanicFromC(t *testing.T)          { testPanicFromC(t) }
+-func TestAllocateFromC(t *testing.T)       { testAllocateFromC(t) }
+-func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
+-func TestBlocking(t *testing.T)            { testBlocking(t) }
+-func Test1328(t *testing.T)                { test1328(t) }
+-func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+-func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+-func TestHelpers(t *testing.T)             { testHelpers(t) }
+-func TestLibgcc(t *testing.T)              { testLibgcc(t) }
+-func Test1635(t *testing.T)                { test1635(t) }
+-func TestPrintf(t *testing.T)              { testPrintf(t) }
+-func Test4029(t *testing.T)                { test4029(t) }
+-func TestBoolAlign(t *testing.T)           { testBoolAlign(t) }
+-func Test3729(t *testing.T)                { test3729(t) }
+-func Test3775(t *testing.T)                { test3775(t) }
+-func TestCthread(t *testing.T)             { testCthread(t) }
+-func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
+-func Test5227(t *testing.T)                { test5227(t) }
+-func TestCflags(t *testing.T)              { testCflags(t) }
+-func Test5337(t *testing.T)                { test5337(t) }
+-func Test5548(t *testing.T)                { test5548(t) }
+-func Test5603(t *testing.T)                { test5603(t) }
+-func Test6833(t *testing.T)                { test6833(t) }
+-func Test3250(t *testing.T)                { test3250(t) }
+-func TestCallbackStack(t *testing.T)       { testCallbackStack(t) }
+-func TestFpVar(t *testing.T)               { testFpVar(t) }
+-func Test4339(t *testing.T)                { test4339(t) }
+-func Test6390(t *testing.T)                { test6390(t) }
+-func Test5986(t *testing.T)                { test5986(t) }
+-func Test7665(t *testing.T)                { test7665(t) }
+-func TestNaming(t *testing.T)              { testNaming(t) }
+-func Test7560(t *testing.T)                { test7560(t) }
+-func Test5242(t *testing.T)                { test5242(t) }
+-func Test8092(t *testing.T)                { test8092(t) }
+-func Test7978(t *testing.T)                { test7978(t) }
+-func Test8694(t *testing.T)                { test8694(t) }
++func TestAlign(t *testing.T)                 { testAlign(t) }
++func TestConst(t *testing.T)                 { testConst(t) }
++func TestEnum(t *testing.T)                  { testEnum(t) }
++func TestAtol(t *testing.T)                  { testAtol(t) }
++func TestErrno(t *testing.T)                 { testErrno(t) }
++func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
++func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
++func TestCallback(t *testing.T)              { testCallback(t) }
++func TestCallbackGC(t *testing.T)            { testCallbackGC(t) }
++func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
++func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
++func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
++func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
++func TestAllocateFromC(t *testing.T)         { testAllocateFromC(t) }
++func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
++func TestBlocking(t *testing.T)              { testBlocking(t) }
++func Test1328(t *testing.T)                  { test1328(t) }
++func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
++func TestSetEnv(t *testing.T)                { testSetEnv(t) }
++func TestHelpers(t *testing.T)               { testHelpers(t) }
++func TestLibgcc(t *testing.T)                { testLibgcc(t) }
++func Test1635(t *testing.T)                  { test1635(t) }
++func TestPrintf(t *testing.T)                { testPrintf(t) }
++func Test4029(t *testing.T)                  { test4029(t) }
++func TestBoolAlign(t *testing.T)             { testBoolAlign(t) }
++func Test3729(t *testing.T)                  { test3729(t) }
++func Test3775(t *testing.T)                  { test3775(t) }
++func TestCthread(t *testing.T)               { testCthread(t) }
++func TestCallbackCallers(t *testing.T)       { testCallbackCallers(t) }
++func Test5227(t *testing.T)                  { test5227(t) }
++func TestCflags(t *testing.T)                { testCflags(t) }
++func Test5337(t *testing.T)                  { test5337(t) }
++func Test5548(t *testing.T)                  { test5548(t) }
++func Test5603(t *testing.T)                  { test5603(t) }
++func Test6833(t *testing.T)                  { test6833(t) }
++func Test3250(t *testing.T)                  { test3250(t) }
++func TestCallbackStack(t *testing.T)         { testCallbackStack(t) }
++func TestFpVar(t *testing.T)                 { testFpVar(t) }
++func Test4339(t *testing.T)                  { test4339(t) }
++func Test6390(t *testing.T)                  { test6390(t) }
++func Test5986(t *testing.T)                  { test5986(t) }
++func Test7665(t *testing.T)                  { test7665(t) }
++func TestNaming(t *testing.T)                { testNaming(t) }
++func Test7560(t *testing.T)                  { test7560(t) }
++func Test5242(t *testing.T)                  { test5242(t) }
++func Test8092(t *testing.T)                  { test8092(t) }
++func Test7978(t *testing.T)                  { test7978(t) }
++func Test8694(t *testing.T)                  { test8694(t) }
++func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
++func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2d14f766fc..4e5b3a2454 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -44,6 +44,7 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	if *importRuntimeCgo {
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
++		fmt.Fprintf(fm, "char* cgo_topofstack(void) { return (char*)0; }\n")
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+ 		// which provides crosscall2.  We just need a prototype.
+@@ -519,9 +520,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	// Use packed attribute to force no padding in this struct in case
+ 	// gcc has different packing requirements.
+ 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
++	if n.FuncType.Result != nil {
++		// Save the stack top for use below.
++		fmt.Fprintf(fgcc, "\tchar *stktop = cgo_topofstack();\n")
++	}
+ 	fmt.Fprintf(fgcc, "\t")
+ 	if t := n.FuncType.Result; t != nil {
+-		fmt.Fprintf(fgcc, "a->r = ")
++		fmt.Fprintf(fgcc, "__typeof__(a->r) r = ")
+ 		if c := t.C.String(); c[len(c)-1] == '*' {
+ 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
+ 		}
+@@ -544,6 +549,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 		fmt.Fprintf(fgcc, "a->p%d", i)
+ 	}
+ 	fmt.Fprintf(fgcc, ");\n")
++	if n.FuncType.Result != nil {
++		// The cgo call may have caused a stack copy (via a callback).
++		// Adjust the return value pointer appropriately.
++		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (cgo_topofstack() - stktop));\n")
++		// Save the return value.
++		fmt.Fprintf(fgcc, "\ta->r = r;\n")
++	}
+ 	if n.AddError {
+ 		fmt.Fprintf(fgcc, "\treturn errno;\n")
+ 	}
+@@ -1131,6 +1143,8 @@ __cgo_size_assert(__cgo_long_long, 8)
+ __cgo_size_assert(float, 4)
+ __cgo_size_assert(double, 8)
+ 
++extern char* cgo_topofstack(void);
++
+ #include <errno.h>
+ #include <string.h>
+ `
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 846a214d55..f1b3346e83 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2275,3 +2275,13 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
++
++// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
++// Must obey the gcc calling convention.
++TEXT cgo_topofstack(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	g(CX), AX
++	MOVL	g_m(AX), AX
++	MOVL	m_curg(AX), AX
++	MOVL	(g_stack+stack_hi)(AX), AX
++	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7304d79a2f..b4c6c6bdca 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2220,3 +2220,14 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
++
++
++// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
++// Must obey the gcc calling convention.
++TEXT cgo_topofstack(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVQ	g(CX), AX
++	MOVQ	g_m(AX), AX
++	MOVQ	m_curg(AX), AX
++	MOVQ	(g_stack+stack_hi)(AX), AX
++	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 38d97b78f3..2c5de8afb1 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1300,3 +1300,11 @@ yieldloop:
+ 	RET
+ 	SUB	$1, R1
+ 	B yieldloop
++
++// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
++// Must obey the gcc calling convention.
++TEXT cgo_topofstack(SB),NOSPLIT,$0
++	MOVW	g_m(g), R0
++	MOVW	m_curg(R0), R0
++	MOVW	(g_stack+stack_hi)(R0), R0
++	RET
+diff --git a/src/runtime/cgo/callbacks.c b/src/runtime/cgo/callbacks.c
+index 16614d03db..cea9b1667f 100644
+--- a/src/runtime/cgo/callbacks.c
++++ b/src/runtime/cgo/callbacks.c
+@@ -78,3 +78,6 @@ void (*_cgo_free)(void*) = x_cgo_free;
+ #pragma cgo_import_static x_cgo_thread_start
+ extern void x_cgo_thread_start(void*);
+ void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
++
++#pragma cgo_export_static cgo_topofstack
++#pragma cgo_export_dynamic cgo_topofstack
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 0d8814731c..2d23c717bd 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -827,7 +827,9 @@ runtime·shrinkstack(G *gp)
+ 	if(used >= oldsize / 4)
+ 		return; // still using at least 1/4 of the segment.
+ 
+-	if(gp->syscallsp != 0) // TODO: can we handle this case?
++	// We can't copy the stack if we're in a syscall.
++	// The syscall might have pointers into the stack.
++	if(gp->syscallsp != 0)
+ 		return;
+ 
+ #ifdef GOOS_windows

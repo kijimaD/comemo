@@ -15,6 +15,25 @@ Date:   Thu Apr 14 13:40:35 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/runtime/mem_linux.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 1ee13bd7e6..61fdcee543 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -132,6 +132,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		}
+ 	}
+ 
++	if uintptr(v)&(sys.PhysPageSize-1) != 0 || n&(sys.PhysPageSize-1) != 0 {
++		// madvise will round this to any physical page
++		// *covered* by this range, so an unaligned madvise
++		// will release more memory than intended.
++		throw("unaligned sysUnused")
++	}
++
+ 	madvise(v, n, _MADV_DONTNEED)
+ }
+ 

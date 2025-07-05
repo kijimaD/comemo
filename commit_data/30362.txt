@@ -9,7 +9,40 @@ Date:   Wed Nov 2 09:10:29 2016 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go   | 2 +-
  src/runtime/symtab.go | 5 +----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1f47dc4de4..baec534aaf 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -475,7 +475,7 @@ func schedinit() {
+ 	goargs()
+ 	goenvs()
+ 	parsedebugvars()
+-	gcinit() // requires modulesinit
++	gcinit()
+ 
+ 	sched.lastpoll = uint64(nanotime())
+ 	procs := ncpu
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 9ec95d7a0c..bba3ccfc20 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -267,13 +267,10 @@ func activeModules() []*moduledata {
+ //
+ // Only one goroutine may call modulesinit at a time.
+ func modulesinit() {
+-	oldNum := len(activeModules())
+ 	modules := new([]*moduledata)
+-	num := 0
+ 	for md := &firstmoduledata; md != nil; md = md.next {
+ 		*modules = append(*modules, md)
+-		num++
+-		if num > oldNum {
++		if md.gcdatamask == (bitvector{}) {
+ 			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
+ 			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+ 		}

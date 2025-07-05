@@ -17,6 +17,50 @@ Date:   Tue Sep 30 09:51:49 2014 +1000
     R=golang-codereviews, gobot, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/151800043
-
+---
  src/crypto/x509/root_unix.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 11ad3c440d..10057c0c03 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -17,6 +17,13 @@ var certFiles = []string{
+ 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
+ }
+ 
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{
++	"/system/etc/security/cacerts", // Android
++
++}
++
+ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+ 	return nil, nil
+ }
+@@ -32,6 +39,24 @@ func initSystemRoots() {
+ 		}
+ 	}
+ 
++	for _, directory := range certDirectories {
++		fis, err := ioutil.ReadDir(directory)
++		if err != nil {
++			continue
++		}
++		rootsAdded := false
++		for _, fi := range fis {
++			data, err := ioutil.ReadFile(directory + "/" + fi.Name())
++			if err == nil && roots.AppendCertsFromPEM(data) {
++				rootsAdded = true
++			}
++		}
++		if rootsAdded {
++			systemRoots = roots
++			return
++		}
++	}
++
+ 	// All of the files failed to load. systemRoots will be nil which will
+ 	// trigger a specific error at verification time.
+ }

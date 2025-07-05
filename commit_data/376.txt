@@ -5,9 +5,136 @@ Date:   Wed Jul 16 17:22:54 2008 -0700
     parameter declartions in func literals
     
     SVN=127678
-
+---
  src/cmd/6g/gen.c |  7 ++++---
  src/cmd/gc/dcl.c | 26 ++++++++++++++++++++++++++
  src/cmd/gc/go.h  |  2 ++
  src/cmd/gc/go.y  |  4 ----
  4 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index bc682fa449..3a6735cd62 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -102,11 +102,12 @@ allocparams(void)
+ 	 * parameters, is the offset in the
+ 	 * parameter list.
+ 	 */
+-	d = autodcl;
++	d = paramdcl->forw;;
+ 	t = funcfirst(&list, curfn->type);
+ 	while(t != T) {
+ 		if(d == D)
+ 			fatal("allocparams: this & in nil");
++
+ 		if(d->op != ONAME) {
+ 			d = d->forw;
+ 			continue;
+@@ -114,7 +115,7 @@ allocparams(void)
+ 
+ 		n = d->dnode;
+ 		if(n->class != PPARAM)
+-			fatal("allocparams: this & in class");
++			fatal("allocparams: this & in class %N %d", n, n->class);
+ 
+ 		n->xoffset = t->width;
+ 		d = d->forw;
+@@ -133,7 +134,7 @@ allocparams(void)
+ 
+ 			n = d->dnode;
+ 			if(n->class != PPARAM)
+-				fatal("allocparams: out class");
++				fatal("allocparams: out class %N %d", n, n->class);
+ 
+ 			n->xoffset = t->width;
+ 			d = d->forw;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 54a3fadb04..e37e953796 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -370,6 +370,8 @@ funcargs(Type *t)
+ 	Iter save;
+ 	int all;
+ 
++	paramdcl = autodcl->back;	// base of arguments - see allocparams in gen.c
++
+ 	// declare the this/in arguments
+ 	n1 = funcfirst(&save, t);
+ 	while(n1 != T) {
+@@ -601,6 +603,30 @@ markdclstack(void)
+ 	}
+ }
+ 
++void
++dumpdcl(char *st)
++{
++	Sym *s, *d;
++	int i;
++
++	print("\ndumpdcl: %s %p\n", st, b0stack);
++
++	i = 0;
++	for(d=dclstack; d!=S; d=d->link) {
++		i++;
++		print("    %.2d %p", i, d);
++		if(d == b0stack)
++			print(" (b0)");
++		if(d->name == nil) {
++			print("\n");
++			continue;
++		}
++		print(" '%s'", d->name);
++		s = pkglookup(d->name, d->package);
++		print(" %lS\n", s);
++	}
++}
++
+ void
+ testdclstack(void)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d51e0d08f5..ed1f903e58 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -385,6 +385,7 @@ EXTERN	vlong	minintval[NTYPE];
+ EXTERN	vlong	maxintval[NTYPE];
+ 
+ EXTERN	Dcl*	autodcl;
++EXTERN	Dcl*	paramdcl;
+ EXTERN	Dcl*	externdcl;
+ EXTERN	Dcl*	exportlist;
+ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+@@ -529,6 +530,7 @@ Type*	sortinter(Type*);
+ void	markdcl(void);
+ void	popdcl(void);
+ void	poptodcl(void);
++void	dumpdcl(char*);
+ void	markdclstack(void);
+ void	testdclstack(void);
+ Sym*	pushdcl(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d5ef370c46..0b0e425c5f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1024,7 +1024,6 @@ fnliteral:
+ 
+ 		$$ = newname(lookup(namebuf));
+ 		addvar($$, $1, PEXTERN);
+-dump("lit1", $$);
+ 
+ 		{
+ 			Node *n;
+@@ -1035,13 +1034,10 @@ dump("lit1", $$);
+ 			n->nbody = $3;
+ 			if(n->nbody == N)
+ 				n->nbody = nod(ORETURN, N, N);
+-dump("comp1", n);
+ 			compile(n);
+-dump("comp2", n);
+ 		}
+ 
+ 		$$ = nod(OADDR, $$, N);
+-dump("lit2", $$);
+ 	}
+ 
+ fnbody:

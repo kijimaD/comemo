@@ -14,8 +14,48 @@ Date:   Mon May 17 11:40:21 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ir/func.go | 2 +-
  src/cmd/compile/internal/ir/node.go | 2 +-
  src/cmd/compile/internal/ir/val.go  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 20fe965711..a4231a1bcb 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -279,7 +279,7 @@ func FuncSymName(s *types.Sym) string {
+ // MarkFunc marks a node as a function.
+ func MarkFunc(n *Name) {
+ 	if n.Op() != ONAME || n.Class != Pxxx {
+-		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
++		base.FatalfAt(n.Pos(), "expected ONAME/Pxxx node, got %v (%v/%v)", n, n.Op(), n.Class)
+ 	}
+ 
+ 	n.Class = PFUNC
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index af559cc082..9191eeb1d6 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -563,7 +563,7 @@ func OuterValue(n Node) Node {
+ 	for {
+ 		switch nn := n; nn.Op() {
+ 		case OXDOT:
+-			base.Fatalf("OXDOT in walk")
++			base.FatalfAt(n.Pos(), "OXDOT in walk: %v", n)
+ 		case ODOT:
+ 			nn := nn.(*SelectorExpr)
+ 			n = nn.X
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index 03c320e205..af9f95b29d 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -66,7 +66,7 @@ func Float64Val(v constant.Value) float64 {
+ 
+ func AssertValidTypeForConst(t *types.Type, v constant.Value) {
+ 	if !ValidTypeForConst(t, v) {
+-		base.Fatalf("%v does not represent %v", t, v)
++		base.Fatalf("%v does not represent %v (%v)", t, v, v.Kind())
+ 	}
+ }
+ 

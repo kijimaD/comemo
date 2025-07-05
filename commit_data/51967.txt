@@ -12,9 +12,129 @@ Date:   Sat Mar 12 16:18:23 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/io/fs/walk.go              |  3 +++
  src/io/fs/walk_test.go         | 33 +++++++++++++++++++++++++++++++++
  src/path/filepath/path.go      |  3 +++
  src/path/filepath/path_test.go | 35 +++++++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+)
+
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 534876bad3..52a51bbd37 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -76,6 +76,9 @@ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
+ 		// Second call, to report ReadDir error.
+ 		err = walkDirFn(name, d, err)
+ 		if err != nil {
++			if err == SkipDir && d.IsDir() {
++				err = nil
++			}
+ 			return err
+ 		}
+ 	}
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index 5e127e71cd..04358beb24 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -8,6 +8,8 @@ import (
+ 	. "io/fs"
+ 	"os"
+ 	pathpkg "path"
++	"path/filepath"
++	"reflect"
+ 	"testing"
+ 	"testing/fstest"
+ )
+@@ -122,3 +124,34 @@ func TestWalkDir(t *testing.T) {
+ 	}
+ 	checkMarks(t, true)
+ }
++
++func TestIssue51617(t *testing.T) {
++	dir := t.TempDir()
++	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
++		if err := os.Mkdir(filepath.Join(dir, sub), 0755); err != nil {
++			t.Fatal(err)
++		}
++	}
++	bad := filepath.Join(dir, "a", "bad")
++	if err := os.Chmod(bad, 0); err != nil {
++		t.Fatal(err)
++	}
++	defer os.Chmod(bad, 0700) // avoid errors on cleanup
++	var saw []string
++	err := WalkDir(os.DirFS(dir), ".", func(path string, d DirEntry, err error) error {
++		if err != nil {
++			return filepath.SkipDir
++		}
++		if d.IsDir() {
++			saw = append(saw, path)
++		}
++		return nil
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := []string{".", "a", "a/bad", "a/next"}
++	if !reflect.DeepEqual(saw, want) {
++		t.Errorf("got directories %v, want %v", saw, want)
++	}
++}
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index b56534dead..0554deb2ff 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -396,6 +396,9 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
+ 		// Second call, to report ReadDir error.
+ 		err = walkDirFn(path, d, err)
+ 		if err != nil {
++			if err == SkipDir && d.IsDir() {
++				err = nil
++			}
+ 			return err
+ 		}
+ 	}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index cfd0c8244d..1456ea737a 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1526,3 +1526,38 @@ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
+ 		t.Logf("EvalSymlinks(%q) = %q", check, resolved)
+ 	}
+ }
++
++func TestIssue51617(t *testing.T) {
++	dir := t.TempDir()
++	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
++		if err := os.Mkdir(filepath.Join(dir, sub), 0755); err != nil {
++			t.Fatal(err)
++		}
++	}
++	bad := filepath.Join(dir, "a", "bad")
++	if err := os.Chmod(bad, 0); err != nil {
++		t.Fatal(err)
++	}
++	defer os.Chmod(bad, 0700) // avoid errors on cleanup
++	var saw []string
++	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
++		if err != nil {
++			return filepath.SkipDir
++		}
++		if d.IsDir() {
++			rel, err := filepath.Rel(dir, path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			saw = append(saw, rel)
++		}
++		return nil
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
++	if !reflect.DeepEqual(saw, want) {
++		t.Errorf("got directories %v, want %v", saw, want)
++	}
++}

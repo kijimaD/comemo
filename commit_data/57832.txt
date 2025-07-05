@@ -18,7 +18,7 @@ Date:   Fri Jun 30 12:17:06 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511558
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |  41 ++-
  .../internal/inline/inlheur/analyze_func_flags.go  | 338 +++++++++++++++++++++
  .../internal/inline/inlheur/funcprops_test.go      |   2 +-
@@ -26,3 +26,872 @@ Date:   Fri Jun 30 12:17:06 2023 -0400
  .../inline/inlheur/testdata/props/funcflags.go     | 295 ++++++++++++++++++
  .../internal/inline/inlheur/testdata/props/stub.go | 107 -------
  6 files changed, 703 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 29ca95637c..9ff94123af 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -18,8 +18,24 @@ import (
+ 
+ const (
+ 	debugTraceFuncs = 1 << iota
++	debugTraceFuncFlags
+ )
+ 
++// propAnalyzer interface is used for defining one or more analyzer
++// helper objects, each tasked with computing some specific subset of
++// the properties we're interested in. The assumption is that
++// properties are independent, so each new analyzer that implements
++// this interface can operate entirely on its own. For a given analyzer
++// there will be a sequence of calls to nodeVisitPre and nodeVisitPost
++// as the nodes within a function are visited, then a followup call to
++// setResults so that the analyzer can transfer its results into the
++// final properties object.
++type propAnalyzer interface {
++	nodeVisitPre(n ir.Node)
++	nodeVisitPost(n ir.Node)
++	setResults(fp *FuncProps)
++}
++
+ // fnInlHeur contains inline heuristics state information about
+ // a specific Go function being analyzed/considered by the inliner.
+ type fnInlHeur struct {
+@@ -37,8 +53,29 @@ func computeFuncProps(fn *ir.Func) *FuncProps {
+ 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
+ 			fn.Sym().Name, fn)
+ 	}
+-	// implementation stubbed out for now
+-	return &FuncProps{}
++	ffa := makeFuncFlagsAnalyzer(fn)
++	analyzers := []propAnalyzer{ffa}
++	fp := new(FuncProps)
++	runAnalyzersOnFunction(fn, analyzers)
++	for _, a := range analyzers {
++		a.setResults(fp)
++	}
++	return fp
++}
++
++func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
++	var doNode func(ir.Node) bool
++	doNode = func(n ir.Node) bool {
++		for _, a := range analyzers {
++			a.nodeVisitPre(n)
++		}
++		ir.DoChildren(n, doNode)
++		for _, a := range analyzers {
++			a.nodeVisitPost(n)
++		}
++		return false
++	}
++	doNode(fn)
+ }
+ 
+ func fnFileLine(fn *ir.Func) (string, uint) {
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+new file mode 100644
+index 0000000000..41c31a4607
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -0,0 +1,338 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
++	"fmt"
++	"os"
++)
++
++// funcFlagsAnalyzer computes the "Flags" value for the FuncProps
++// object we're computing. The main item of interest here is "nstate",
++// which stores the disposition of a given ir Node with respect to the
++// flags/properties we're trying to compute.
++type funcFlagsAnalyzer struct {
++	fn     *ir.Func
++	nstate map[ir.Node]pstate
++	noInfo bool // set if we see something inscrutable/un-analyzable
++}
++
++// pstate keeps track of the disposition of a given node and its
++// children with respect to panic/exit calls.
++type pstate int
++
++const (
++	psNoInfo     pstate = iota // nothing interesting about this node
++	psCallsPanic               // node causes call to panic or os.Exit
++	psMayReturn                // executing node may trigger a "return" stmt
++	psTop                      // dataflow lattice "top" element
++)
++
++func makeFuncFlagsAnalyzer(fn *ir.Func) *funcFlagsAnalyzer {
++	return &funcFlagsAnalyzer{
++		fn:     fn,
++		nstate: make(map[ir.Node]pstate),
++	}
++}
++
++// setResults transfers func flag results to 'fp'.
++func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
++	var rv FuncPropBits
++	if !ffa.noInfo && ffa.stateForList(ffa.fn.Body) == psCallsPanic {
++		rv = FuncPropNeverReturns
++	}
++	// This is slightly hacky and not at all required, but include a
++	// special case for main.main, which often ends in a call to
++	// os.Exit. People who write code like this (very common I
++	// imagine)
++	//
++	//   func main() {
++	//     rc = perform()
++	//     ...
++	//     foo()
++	//     os.Exit(rc)
++	//   }
++	//
++	// will be constantly surprised when foo() is inlined in many
++	// other spots in the program but not in main().
++	if isMainMain(ffa.fn) {
++		rv &^= FuncPropNeverReturns
++	}
++	fp.Flags = rv
++}
++
++func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
++	val, ok := ffa.nstate[n]
++	if !ok {
++		base.Fatalf("funcFlagsAnalyzer: fn %q node %s line %s: internal error, no setting for node:\n%+v\n", ffa.fn.Sym().Name, n.Op().String(), ir.Line(n), n)
++	}
++	return val
++}
++
++func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
++	if _, ok := ffa.nstate[n]; ok {
++		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
++	} else {
++		ffa.nstate[n] = st
++	}
++}
++
++func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
++	ffa.nstate[n] = st
++}
++
++// blockCombine merges together states as part of a linear sequence of
++// statements, where 'pred' and 'succ' are analysis results for a pair
++// of consecutive statements. Examples:
++//
++//	case 1:             case 2:
++//	    panic("foo")      if q { return x }        <-pred
++//	    return x          panic("boo")             <-succ
++//
++// In case 1, since the pred state is "always panic" it doesn't matter
++// what the succ state is, hence the state for the combination of the
++// two blocks is "always panics". In case 2, because there is a path
++// to return that avoids the panic in succ, the state for the
++// combination of the two statements is "may return".
++func blockCombine(pred, succ pstate) pstate {
++	switch succ {
++	case psTop:
++		return pred
++	case psMayReturn:
++		if pred == psCallsPanic {
++			return psCallsPanic
++		}
++		return psMayReturn
++	case psNoInfo:
++		return pred
++	case psCallsPanic:
++		if pred == psMayReturn {
++			return psMayReturn
++		}
++		return psCallsPanic
++	}
++	panic("should never execute")
++}
++
++// branchCombine combines two states at a control flow branch point where
++// either p1 or p2 executes (as in an "if" statement).
++func branchCombine(p1, p2 pstate) pstate {
++	if p1 == psCallsPanic && p2 == psCallsPanic {
++		return psCallsPanic
++	}
++	if p1 == psMayReturn || p2 == psMayReturn {
++		return psMayReturn
++	}
++	return psNoInfo
++}
++
++// stateForList walks through a list of statements and computes the
++// state/diposition for the entire list as a whole.
++func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
++	st := psTop
++	for i := range list {
++		n := list[i]
++		psi := ffa.getstate(n)
++		if debugTrace&debugTraceFuncFlags != 0 {
++			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
++				ir.Line(n), n.Op().String(), psi.String())
++		}
++		st = blockCombine(st, psi)
++	}
++	if st == psTop {
++		st = psNoInfo
++	}
++	return st
++}
++
++func isMainMain(fn *ir.Func) bool {
++	s := fn.Sym()
++	return (s.Pkg.Name == "main" && s.Name == "main")
++}
++
++func isWellKnownFunc(s *types.Sym, pkg, name string) bool {
++	return s.Pkg.Path == pkg && s.Name == name
++}
++
++// isExitCall reports TRUE if the node itself is an unconditional
++// call to os.Exit(), a panic, or a function that does likewise.
++func isExitCall(n ir.Node) bool {
++	if n.Op() != ir.OCALLFUNC {
++		return false
++	}
++	cx := n.(*ir.CallExpr)
++	name := ir.StaticCalleeName(cx.X)
++	if name == nil {
++		return false
++	}
++	s := name.Sym()
++	if isWellKnownFunc(s, "os", "Exit") ||
++		isWellKnownFunc(s, "runtime", "throw") {
++		return true
++	}
++	// FIXME: consult results of flags computation for
++	// previously analyzed Go functions, including props
++	// read from export data for functions in other packages.
++	return false
++}
++
++// pessimize is called to record the fact that we saw something in the
++// function that renders it entirely impossible to analyze.
++func (ffa *funcFlagsAnalyzer) pessimize() {
++	ffa.noInfo = true
++}
++
++// shouldVisit reports TRUE if this is an interesting node from the
++// perspective of computing function flags. NB: due to the fact that
++// ir.CallExpr implements the Stmt interface, we wind up visiting
++// a lot of nodes that we don't really need to, but these can
++// simply be screened out as part of the visit.
++func shouldVisit(n ir.Node) bool {
++	_, isStmt := n.(ir.Stmt)
++	return n.Op() != ir.ODCL &&
++		(isStmt || n.Op() == ir.OCALLFUNC || n.Op() == ir.OPANIC)
++}
++
++// nodeVisitPost helps implement the propAnalyzer interface; when
++// called on a given node, it decides the disposition of that node
++// based on the state(s) of the node's children.
++func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
++	if debugTrace&debugTraceFuncFlags != 0 {
++		fmt.Fprintf(os.Stderr, "=+= nodevis %v %s should=%v\n",
++			ir.Line(n), n.Op().String(), shouldVisit(n))
++	}
++	if !shouldVisit(n) {
++		// invoke soft set, since node may be shared (e.g. ONAME)
++		ffa.setstateSoft(n, psNoInfo)
++		return
++	}
++	var st pstate
++	switch n.Op() {
++	case ir.OCALLFUNC:
++		if isExitCall(n) {
++			st = psCallsPanic
++		}
++	case ir.OPANIC:
++		st = psCallsPanic
++	case ir.ORETURN:
++		st = psMayReturn
++	case ir.OBREAK, ir.OCONTINUE:
++		// FIXME: this handling of break/continue is sub-optimal; we
++		// have them as "mayReturn" in order to help with this case:
++		//
++		//   for {
++		//     if q() { break }
++		//     panic(...)
++		//   }
++		//
++		// where the effect of the 'break' is to cause the subsequent
++		// panic to be skipped. One possible improvement would be to
++		// track whether the currently enclosing loop is a "for {" or
++		// a for/range with condition, then use mayReturn only for the
++		// former. Note also that "break X" or "continue X" is treated
++		// the same as "goto", since we don't have a good way to track
++		// the target of the branch.
++		st = psMayReturn
++		n := n.(*ir.BranchStmt)
++		if n.Label != nil {
++			ffa.pessimize()
++		}
++	case ir.OBLOCK:
++		n := n.(*ir.BlockStmt)
++		st = ffa.stateForList(n.List)
++	case ir.OCASE:
++		if ccst, ok := n.(*ir.CaseClause); ok {
++			st = ffa.stateForList(ccst.Body)
++		} else if ccst, ok := n.(*ir.CommClause); ok {
++			st = ffa.stateForList(ccst.Body)
++		} else {
++			panic("unexpected")
++		}
++	case ir.OIF:
++		n := n.(*ir.IfStmt)
++		st = branchCombine(ffa.stateForList(n.Body), ffa.stateForList(n.Else))
++	case ir.OFOR:
++		// Treat for { XXX } like a block.
++		// Treat for <cond> { XXX } like an if statement with no else.
++		n := n.(*ir.ForStmt)
++		bst := ffa.stateForList(n.Body)
++		if n.Cond == nil {
++			st = bst
++		} else {
++			if bst == psMayReturn {
++				st = psMayReturn
++			}
++		}
++	case ir.ORANGE:
++		// Treat for range { XXX } like an if statement with no else.
++		n := n.(*ir.RangeStmt)
++		if ffa.stateForList(n.Body) == psMayReturn {
++			st = psMayReturn
++		}
++	case ir.OGOTO:
++		// punt if we see even one goto. if we built a control
++		// flow graph we could do more, but this is just a tree walk.
++		ffa.pessimize()
++	case ir.OSELECT:
++		// process selects for "may return" but not "always panics",
++		// the latter case seems very improbable.
++		n := n.(*ir.SelectStmt)
++		if len(n.Cases) != 0 {
++			st = psTop
++			for _, c := range n.Cases {
++				st = branchCombine(ffa.stateForList(c.Body), st)
++			}
++		}
++	case ir.OSWITCH:
++		n := n.(*ir.SwitchStmt)
++		if len(n.Cases) != 0 {
++			st = psTop
++			for _, c := range n.Cases {
++				st = branchCombine(ffa.stateForList(c.Body), st)
++			}
++		}
++
++		st, fall := psTop, psNoInfo
++		for i := len(n.Cases) - 1; i >= 0; i-- {
++			cas := n.Cases[i]
++			cst := ffa.stateForList(cas.Body)
++			endsInFallthrough := false
++			if len(cas.Body) != 0 {
++				endsInFallthrough = cas.Body[0].Op() == ir.OFALL
++			}
++			if endsInFallthrough {
++				cst = blockCombine(cst, fall)
++			}
++			st = branchCombine(st, cst)
++			fall = cst
++		}
++	case ir.OFALL:
++		// Not important.
++	case ir.ODCLFUNC, ir.ORECOVER, ir.OAS, ir.OAS2, ir.OAS2FUNC, ir.OASOP,
++		ir.OPRINTN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
++		ir.OSEND, ir.ORECV, ir.OSELRECV2, ir.OGO, ir.OAPPEND, ir.OAS2DOTTYPE,
++		ir.OAS2MAPR, ir.OGETG, ir.ODELETE, ir.OINLMARK, ir.OAS2RECV,
++		ir.OMIN, ir.OMAX, ir.OMAKE, ir.ORECOVERFP, ir.OGETCALLERSP:
++		// these should all be benign/uninteresting
++	case ir.OTAILCALL, ir.OJUMPTABLE, ir.OTYPESW:
++		// don't expect to see these at all.
++		base.Fatalf("unexpected op %s in func %s",
++			n.Op().String(), ir.FuncName(ffa.fn))
++	default:
++		base.Fatalf("%v: unhandled op %s in func %v",
++			ir.Line(n), n.Op().String(), ir.FuncName(ffa.fn))
++	}
++	if debugTrace&debugTraceFuncFlags != 0 {
++		fmt.Fprintf(os.Stderr, "=-= %v: visit n=%s returns %s\n",
++			ir.Line(n), n.Op().String(), st.String())
++	}
++	ffa.setstate(n, st)
++}
++
++func (ffa *funcFlagsAnalyzer) nodeVisitPre(n ir.Node) {
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 47e3418e41..4f19053d76 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -35,7 +35,7 @@ func TestFuncProperties(t *testing.T) {
+ 	// to building a fresh compiler on the fly, or using some other
+ 	// scheme.
+ 
+-	testcases := []string{"stub"}
++	testcases := []string{"funcflags"}
+ 
+ 	for _, tc := range testcases {
+ 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
+diff --git a/src/cmd/compile/internal/inline/inlheur/pstate_string.go b/src/cmd/compile/internal/inline/inlheur/pstate_string.go
+new file mode 100644
+index 0000000000..e6108d1318
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/pstate_string.go
+@@ -0,0 +1,30 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code generated by "stringer -type pstate"; DO NOT EDIT.
++
++package inlheur
++
++import "strconv"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[psNoInfo-0]
++	_ = x[psCallsPanic-1]
++	_ = x[psMayReturn-2]
++	_ = x[psTop-3]
++}
++
++const _pstate_name = "psNoInfopsCallsPanicpsMayReturnpsTop"
++
++var _pstate_index = [...]uint8{0, 8, 20, 31, 36}
++
++func (i pstate) String() string {
++	if i < 0 || i >= pstate(len(_pstate_index)-1) {
++		return "pstate(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _pstate_name[_pstate_index[i]:_pstate_index[i+1]]
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+new file mode 100644
+index 0000000000..947c9a1835
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -0,0 +1,295 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++
++package funcflags
++
++import "os"
++
++// funcflags.go T_simple 19 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_simple() {
++	panic("bad")
++}
++
++// funcflags.go T_nested 28 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_nested(x int) {
++	if x < 10 {
++		panic("bad")
++	} else {
++		panic("good")
++	}
++}
++
++// funcflags.go T_block1 41 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_block1(x int) {
++	panic("bad")
++	if x < 10 {
++		return
++	}
++}
++
++// funcflags.go T_block2 52 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_block2(x int) {
++	if x < 10 {
++		return
++	}
++	panic("bad")
++}
++
++// funcflags.go T_switches1 64 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_switches1(x int) {
++	switch x {
++	case 1:
++		panic("one")
++	case 2:
++		panic("two")
++	}
++	panic("whatev")
++}
++
++// funcflags.go T_switches1a 78 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_switches1a(x int) {
++	switch x {
++	case 2:
++		panic("two")
++	}
++}
++
++// funcflags.go T_switches2 89 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_switches2(x int) {
++	switch x {
++	case 1:
++		panic("one")
++	case 2:
++		panic("two")
++	default:
++		return
++	}
++	panic("whatev")
++}
++
++// funcflags.go T_switches3 105 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_switches3(x interface{}) {
++	switch x.(type) {
++	case bool:
++		panic("one")
++	case float32:
++		panic("two")
++	}
++}
++
++// funcflags.go T_switches4 119 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_switches4(x int) {
++	switch x {
++	case 1:
++		x++
++		fallthrough
++	case 2:
++		panic("two")
++		fallthrough
++	default:
++		panic("bad")
++	}
++	panic("whatev")
++}
++
++// funcflags.go T_recov 137 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_recov(x int) {
++	if x := recover(); x != nil {
++		panic(x)
++	}
++}
++
++// funcflags.go T_forloops1 148 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_forloops1(x int) {
++	for {
++		panic("wokketa")
++	}
++}
++
++// funcflags.go T_forloops2 158 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_forloops2(x int) {
++	for {
++		println("blah")
++		if true {
++			break
++		}
++		panic("warg")
++	}
++}
++
++// funcflags.go T_forloops3 172 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_forloops3(x int) {
++	for i := 0; i < 101; i++ {
++		println("blah")
++		if true {
++			continue
++		}
++		panic("plark")
++	}
++	for i := range [10]int{} {
++		println(i)
++		panic("plark")
++	}
++	panic("whatev")
++}
++
++// funcflags.go T_hasgotos 191 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_hasgotos(x int, y int) {
++	{
++		xx := x
++		panic("bad")
++	lab1:
++		goto lab2
++	lab2:
++		if false {
++			goto lab1
++		} else {
++			goto lab4
++		}
++	lab4:
++		if xx < y {
++		lab3:
++			if false {
++				goto lab3
++			}
++		}
++		println(9)
++	}
++}
++
++// funcflags.go T_break_with_label 218 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_break_with_label(x int, y int) {
++	// presence of break with label should pessimize this func
++	// (similar to goto).
++	panic("bad")
++lab1:
++	for {
++		println("blah")
++		if x < 0 {
++			break lab1
++		}
++		panic("hubba")
++	}
++}
++
++// funcflags.go T_callsexit 237 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_callsexit(x int) {
++	if x < 0 {
++		os.Exit(1)
++	}
++	os.Exit(2)
++}
++
++// funcflags.go T_exitinexpr 248 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_exitinexpr(x int) {
++	// This function does indeed unconditionally call exit, since the
++	// first thing it does is invoke exprcallsexit, however from the
++	// perspective of this function, the call is not at the statement
++	// level, so we'll wind up missing it.
++	if exprcallsexit(x) < 0 {
++		println("foo")
++	}
++}
++
++// funcflags.go T_select_noreturn 263 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_select_noreturn(chi chan int, chf chan float32, p *int) {
++	rv := 0
++	select {
++	case i := <-chi:
++		rv = i
++	case f := <-chf:
++		rv = int(f)
++	}
++	*p = rv
++	panic("bad")
++}
++
++// funcflags.go T_select_mayreturn 279 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
++	rv := 0
++	select {
++	case i := <-chi:
++		rv = i
++		return i
++	case f := <-chf:
++		rv = int(f)
++	}
++	*p = rv
++	panic("bad")
++}
++
++func exprcallsexit(x int) int {
++	os.Exit(x)
++	return x
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go
+deleted file mode 100644
+index 2e43eddc0f..0000000000
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go
++++ /dev/null
+@@ -1,107 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// DO NOT EDIT (use 'go test -v -update-expected' instead.)
+-// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
+-// for more information on the format of this file.
+-// <endfilepreamble>
+-
+-package stub
+-
+-// stub.go T_stub 16 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_stub() {
+-}
+-
+-func ThisFunctionShouldBeIgnored(x int) {
+-	println(x)
+-}
+-
+-// stub.go init.0 27 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func init() {
+-	ThisFunctionShouldBeIgnored(1)
+-}
+-
+-// stub.go T_contains_closures 43 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-// stub.go T_contains_closures.func1 44 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-// stub.go T_contains_closures.func2 46 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_contains_closures(q int) func() {
+-	f := func() { M["a"] = 9 }
+-	f()
+-	f2 := func() { M["a"] = 4 }
+-	if M["b"] != 9 {
+-		return f
+-	}
+-	return f2
+-}
+-
+-// stub.go T_Unique[go.shape.int] 69 0 4
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-// stub.go T_Unique[go.shape.string] 69 1 4
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-// stub.go T_Unique[int] 69 2 4
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-// stub.go T_Unique[string] 69 3 4
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_Unique[T comparable](set []T) []T {
+-	nset := make([]T, 0, 8)
+-loop:
+-	for _, s := range set {
+-		for _, e := range nset {
+-			if s == e {
+-				continue loop
+-			}
+-		}
+-		nset = append(nset, s)
+-	}
+-
+-	return nset
+-}
+-
+-// stub.go T_uniq_int_count 88 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_uniq_int_count(s []int) int {
+-	return len(T_Unique[int](s))
+-}
+-
+-// stub.go T_uniq_string_count 96 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_uniq_string_count(s []string) int {
+-	return len(T_Unique[string](s))
+-}
+-
+-// stub.go T_epilog 104 0 1
+-// <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+-// <endfuncpreamble>
+-func T_epilog() {
+-}
+-
+-var M = map[string]int{}

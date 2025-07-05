@@ -22,9 +22,94 @@ Date:   Thu Dec 12 17:00:08 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/test/issue8945.go                    | 16 ----------------
  misc/cgo/test/test.go                         |  5 +++++
  misc/cgo/test/testdata/issue9026/issue9026.go |  4 ++--
  misc/cgo/test/testx.go                        | 12 ++++++++++++
  4 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/test/issue8945.go b/misc/cgo/test/issue8945.go
+deleted file mode 100644
+index 57a5b2db44..0000000000
+--- a/misc/cgo/test/issue8945.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gccgo
+-
+-package cgotest
+-
+-//typedef void (*PFunc)();
+-//PFunc success_cb;
+-import "C"
+-
+-//export Test
+-func Test() {
+-	_ = C.success_cb
+-}
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 68bfa90825..b0148995fe 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -562,6 +562,11 @@ void issue8811Execute() {
+ 		issue8811Init();
+ }
+ 
++// issue 8945
++
++typedef void (*PFunc8945)();
++PFunc8945 func8945;
++
+ // issue 9557
+ 
+ struct issue9557_t {
+diff --git a/misc/cgo/test/testdata/issue9026/issue9026.go b/misc/cgo/test/testdata/issue9026/issue9026.go
+index 0af86e64da..ff269ca9eb 100644
+--- a/misc/cgo/test/testdata/issue9026/issue9026.go
++++ b/misc/cgo/test/testdata/issue9026/issue9026.go
+@@ -4,9 +4,9 @@ package issue9026
+ // per-package counter used to create fresh identifiers.
+ 
+ /*
+-typedef struct {} git_merge_file_input;
++typedef struct { int i; } git_merge_file_input;
+ 
+-typedef struct {} git_merge_file_options;
++typedef struct { int j; } git_merge_file_options;
+ 
+ void git_merge_file(
+         git_merge_file_input *in,
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index bb1b50802b..42979b5f4d 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -102,6 +102,11 @@ static void issue7978c(uint32_t *sync) {
+ // #include'd twice.  No runtime test; just make sure it compiles.
+ #include "issue8331.h"
+ 
++// issue 8945
++
++typedef void (*PFunc8945)();
++extern PFunc8945 func8945; // definition is in test.go
++
+ // issue 20910
+ void callMulti(void);
+ 
+@@ -514,6 +519,13 @@ func test7978(t *testing.T) {
+ 
+ var issue8331Var C.issue8331
+ 
++// issue 8945
++
++//export Test8945
++func Test8945() {
++	_ = C.func8945
++}
++
+ // issue 20910
+ 
+ //export multi

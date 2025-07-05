@@ -18,7 +18,78 @@ Date:   Fri Sep 15 15:36:16 2017 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path.go      | 24 ++++++++++++------------
  src/path/filepath/path_test.go | 12 ++++++------
  2 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index c242143c7a..87f8faf21a 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -351,23 +351,23 @@ type WalkFunc func(path string, info os.FileInfo, err error) error
+ 
+ var lstat = os.Lstat // for testing
+ 
+-// walk recursively descends path, calling w.
++// walk recursively descends path, calling walkFn.
+ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+-	err := walkFn(path, info, nil)
+-	if err != nil {
+-		if info.IsDir() && err == SkipDir {
+-			return nil
+-		}
+-		return err
+-	}
+-
+ 	if !info.IsDir() {
+-		return nil
++		return walkFn(path, info, nil)
+ 	}
+ 
+ 	names, err := readDirNames(path)
+-	if err != nil {
+-		return walkFn(path, info, err)
++	err1 := walkFn(path, info, err)
++	// If err != nil, walk can't walk into this directory.
++	// err1 != nil means walkFn want walk to skip this directory or stop walking.
++	// Therefore, if one of err and err1 isn't nil, walk will return.
++	if err != nil || err1 != nil {
++		// The caller's behavior is controlled by the return value, which is decided
++		// by walkFn. walkFn may ignore err and return nil.
++		// If walkFn returns SkipDir, it will be handled by the caller.
++		// So walk should return whatever walkFn returns.
++		return err1
+ 	}
+ 
+ 	for _, name := range names {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index e1c801b659..3ebd3fbd2d 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -389,6 +389,12 @@ func checkMarks(t *testing.T, report bool) {
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+ func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
++	name := info.Name()
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.name == name {
++			n.mark++
++		}
++	})
+ 	if err != nil {
+ 		*errors = append(*errors, err)
+ 		if clear {
+@@ -396,12 +402,6 @@ func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
+ 		}
+ 		return err
+ 	}
+-	name := info.Name()
+-	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.name == name {
+-			n.mark++
+-		}
+-	})
+ 	return nil
+ }
+ 

@@ -26,7 +26,46 @@ Date:   Wed Jan 6 10:47:35 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/mini.go   | 4 ++++
  src/cmd/compile/internal/walk/expr.go | 3 ++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 4dd9a8807a..429f4ed360 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -58,6 +58,7 @@ const (
+ 	miniTypecheckShift = 2
+ 	miniDiag           = 1 << 4
+ 	miniHasCall        = 1 << 5 // for miniStmt
++	miniWalked         = 1 << 6 // to prevent/catch re-walking
+ )
+ 
+ func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
+@@ -71,6 +72,9 @@ func (n *miniNode) SetTypecheck(x uint8) {
+ func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
+ func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
+ 
++func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
++func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }
++
+ // Empty, immutable graph structure.
+ 
+ func (n *miniNode) Init() Nodes { return Nodes{} }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 893a95f403..449f8ea3ec 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -497,9 +497,10 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ }
+ 
+ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+-	if len(n.Rargs) != 0 {
++	if n.Walked() {
+ 		return // already walked
+ 	}
++	n.SetWalked(true)
+ 
+ 	// If this is a method call t.M(...),
+ 	// rewrite into a function call T.M(t, ...).

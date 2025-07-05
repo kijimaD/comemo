@@ -11,9 +11,169 @@ Date:   Thu Apr 28 11:53:58 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/deps.go      |  5 +++--
  src/go/build/deps_test.go |  2 +-
  src/os/exec/exec.go       | 31 +++++++++++++++++++++++++++++++
  src/os/exec/exec_test.go  | 39 +++++++++++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 0838914b9c..e8dd6cf3d9 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -8,6 +8,7 @@ var builddeps = map[string][]string{
+ 	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"compress/zlib":                     {"bufio", "bytes", "compress/flate", "errors", "fmt", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"container/heap":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort"},
++	"context":                           {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"crypto":                            {"errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+@@ -39,7 +40,7 @@ var builddeps = map[string][]string{
+ 	"math":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"net/url":                 {"bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"os":                      {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"os/exec":                 {"bytes", "errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"os/exec":                 {"bytes", "context", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"os/signal":               {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"path":                    {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"path/filepath":           {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+@@ -61,5 +62,5 @@ var builddeps = map[string][]string{
+ 	"unicode":                 {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf16":           {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf8":            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"cmd/go":                  {"bufio", "bytes", "compress/flate", "compress/zlib", "container/heap", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go":                  {"bufio", "bytes", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 2db5ba67d1..a87de577b5 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -140,7 +140,7 @@ var pkgDeps = map[string][]string{
+ 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+-	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
++	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
+ 	"os/signal":     {"L2", "os", "syscall"},
+ 
+ 	// OS enables basic operating system functionality,
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 340ebd498b..76fcba90bf 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -13,6 +13,7 @@ package exec
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"io"
+ 	"os"
+@@ -262,6 +263,15 @@ func (c *Cmd) Run() error {
+ 	return c.Wait()
+ }
+ 
++// RunContext is like Run, but kills the process (by calling os.Process.Kill)
++// if ctx is done before the process ends on its own.
++func (c *Cmd) RunContext(ctx context.Context) error {
++	if err := c.Start(); err != nil {
++		return err
++	}
++	return c.WaitContext(ctx)
++}
++
+ // lookExtensions finds windows executable by its dir and path.
+ // It uses LookPath to try appropriate extensions.
+ // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+@@ -386,6 +396,12 @@ func (e *ExitError) Error() string {
+ //
+ // Wait releases any resources associated with the Cmd.
+ func (c *Cmd) Wait() error {
++	return c.WaitContext(nil)
++}
++
++// WaitContext is like Wait, but kills the process (by calling os.Process.Kill)
++// if ctx is done before the process ends on its own.
++func (c *Cmd) WaitContext(ctx context.Context) error {
+ 	if c.Process == nil {
+ 		return errors.New("exec: not started")
+ 	}
+@@ -393,7 +409,22 @@ func (c *Cmd) Wait() error {
+ 		return errors.New("exec: Wait was already called")
+ 	}
+ 	c.finished = true
++
++	var waitDone chan struct{}
++	if ctx != nil {
++		waitDone := make(chan struct{})
++		go func() {
++			select {
++			case <-ctx.Done():
++				c.Process.Kill()
++			case <-waitDone:
++			}
++		}()
++	}
+ 	state, err := c.Process.Wait()
++	if waitDone != nil {
++		close(waitDone)
++	}
+ 	c.ProcessState = state
+ 
+ 	var copyError error
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index ed2721bb5e..1151ca7d0f 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -10,6 +10,7 @@ package exec_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -835,3 +836,41 @@ func TestOutputStderrCapture(t *testing.T) {
+ 		t.Errorf("ExitError.Stderr = %q; want %q", got, want)
+ 	}
+ }
++
++func TestContext(t *testing.T) {
++	c := helperCommand(t, "pipetest")
++	stdin, err := c.StdinPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	stdout, err := c.StdoutPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	if err := c.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	if _, err := stdin.Write([]byte("O:hi\n")); err != nil {
++		t.Fatal(err)
++	}
++	buf := make([]byte, 5)
++	n, err := io.ReadFull(stdout, buf)
++	if n != len(buf) || err != nil || string(buf) != "O:hi\n" {
++		t.Fatalf("ReadFull = %d, %v, %q", n, err, buf[:n])
++	}
++	waitErr := make(chan error, 1)
++	go func() {
++		waitErr <- c.WaitContext(ctx)
++	}()
++	cancel()
++	select {
++	case err := <-waitErr:
++		if err == nil {
++			t.Fatal("expected Wait failure")
++		}
++	case <-time.After(3 * time.Second):
++		t.Fatal("timeout waiting for child process death")
++	}
++}

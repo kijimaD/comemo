@@ -21,6 +21,20 @@ Date:   Mon Sep 19 21:35:04 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/mime/multipart/multipart.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index aa05ac8f9c..b3a904f0af 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -360,7 +360,7 @@ func (r *Reader) nextPart(rawPart bool) (*Part, error) {
+ 			return nil, io.EOF
+ 		}
+ 		if err != nil {
+-			return nil, fmt.Errorf("multipart: NextPart: %v", err)
++			return nil, fmt.Errorf("multipart: NextPart: %w", err)
+ 		}
+ 
+ 		if r.isBoundaryDelimiterLine(line) {

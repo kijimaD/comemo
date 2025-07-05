@@ -34,8 +34,75 @@ Date:   Tue May 9 16:16:42 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_windows.go       | 11 +++++++++++
  src/internal/poll/sendfile_windows.go |  3 +++
  src/syscall/syscall_windows.go        |  5 -----
  3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index f863ecb998..9df39edced 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -522,6 +522,10 @@ func (fd *FD) readConsole(b []byte) (int, error) {
+ 
+ // Pread emulates the Unix pread system call.
+ func (fd *FD) Pread(b []byte, off int64) (int, error) {
++	if fd.kind == kindPipe {
++		// Pread does not work with pipes
++		return 0, syscall.ESPIPE
++	}
+ 	// Call incref, not readLock, because since pread specifies the
+ 	// offset it is independent from other reads.
+ 	if err := fd.incref(); err != nil {
+@@ -744,6 +748,10 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
+ 
+ // Pwrite emulates the Unix pwrite system call.
+ func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
++	if fd.kind == kindPipe {
++		// Pwrite does not work with pipes
++		return 0, syscall.ESPIPE
++	}
+ 	// Call incref, not writeLock, because since pwrite specifies the
+ 	// offset it is independent from other writes.
+ 	if err := fd.incref(); err != nil {
+@@ -992,6 +1000,9 @@ func (fd *FD) Accept(sysSocket func() (syscall.Handle, error)) (syscall.Handle,
+ 
+ // Seek wraps syscall.Seek.
+ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
++	if fd.kind == kindPipe {
++		return 0, syscall.ESPIPE
++	}
+ 	if err := fd.incref(); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index 50c3ee86c0..8c3353bc6f 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -15,6 +15,9 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
+ 		// TransmitFile does not work with pipes
+ 		return 0, syscall.ESPIPE
+ 	}
++	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
++		return 0, syscall.ESPIPE
++	}
+ 
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 8687d1cc21..cf6049a2f2 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -498,11 +498,6 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
+ 	case 2:
+ 		w = FILE_END
+ 	}
+-	// use GetFileType to check pipe, pipe can't do seek
+-	ft, _ := GetFileType(fd)
+-	if ft == FILE_TYPE_PIPE {
+-		return 0, ESPIPE
+-	}
+ 	err = setFilePointerEx(fd, offset, &newoffset, w)
+ 	return
+ }

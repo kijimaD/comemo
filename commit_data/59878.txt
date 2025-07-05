@@ -21,6 +21,20 @@ Date:   Mon May 6 07:35:48 2024 +0000
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/x509/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 812b0d2d28..800cc6620c 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -964,7 +964,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ 					}
+ 					oidStr := ext.Id.String()
+ 					if seenExts[oidStr] {
+-						return nil, errors.New("x509: certificate contains duplicate extensions")
++						return nil, fmt.Errorf("x509: certificate contains duplicate extension with OID %q", oidStr)
+ 					}
+ 					seenExts[oidStr] = true
+ 					cert.Extensions = append(cert.Extensions, ext)

@@ -13,7 +13,77 @@ Date:   Tue Oct 9 13:25:47 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6637052
-
+---
  src/pkg/crypto/tls/handshake_messages.go      |  7 +++++--
  src/pkg/crypto/tls/handshake_messages_test.go | 13 +++++++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 2e9b9a692d..cdd4917077 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -247,6 +247,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 	m.nextProtoNeg = false
+ 	m.serverName = ""
+ 	m.ocspStapling = false
++	m.ticketSupported = false
++	m.sessionTicket = nil
+ 
+ 	if len(data) == 0 {
+ 		// ClientHello is optionally followed by extension data
+@@ -478,6 +480,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 	m.nextProtoNeg = false
+ 	m.nextProtos = nil
+ 	m.ocspStapling = false
++	m.ticketSupported = false
+ 
+ 	if len(data) == 0 {
+ 		// ServerHello is optionally followed by extension data
+@@ -507,14 +510,14 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 		switch extension {
+ 		case extensionNextProtoNeg:
+ 			m.nextProtoNeg = true
+-			d := data
++			d := data[:length]
+ 			for len(d) > 0 {
+ 				l := int(d[0])
+ 				d = d[1:]
+ 				if l == 0 || l > len(d) {
+ 					return false
+ 				}
+-				m.nextProtos = append(m.nextProtos, string(d[0:l]))
++				m.nextProtos = append(m.nextProtos, string(d[:l]))
+ 				d = d[l:]
+ 			}
+ 		case extensionStatusRequest:
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index b06f7b2d7d..3434bad9fb 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -129,6 +129,12 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	for i := range m.supportedCurves {
+ 		m.supportedCurves[i] = uint16(rand.Intn(30000))
+ 	}
++	if rand.Intn(10) > 5 {
++		m.ticketSupported = true
++		if rand.Intn(10) > 5 {
++			m.sessionTicket = randomBytes(rand.Intn(300), rand)
++		}
++	}
+ 
+ 	return reflect.ValueOf(m)
+ }
+@@ -151,6 +157,13 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 		}
+ 	}
+ 
++	if rand.Intn(10) > 5 {
++		m.ocspStapling = true
++	}
++	if rand.Intn(10) > 5 {
++		m.ticketSupported = true
++	}
++
+ 	return reflect.ValueOf(m)
+ }
+ 

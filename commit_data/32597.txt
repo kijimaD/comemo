@@ -19,6 +19,23 @@ Date:   Thu May 4 17:36:20 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b69e3a6018..43c7d73f9f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1075,7 +1075,10 @@ func (l *Link) hostlink() {
+ 		argv = append(argv, "-pie")
+ 	case BuildmodeCShared:
+ 		if Headtype == objabi.Hdarwin {
+-			argv = append(argv, "-dynamiclib", "-Wl,-read_only_relocs,suppress")
++			argv = append(argv, "-dynamiclib")
++			if SysArch.Family != sys.AMD64 {
++				argv = append(argv, "-Wl,-read_only_relocs,suppress")
++			}
+ 		} else {
+ 			// ELF.
+ 			argv = append(argv, "-Wl,-Bsymbolic")

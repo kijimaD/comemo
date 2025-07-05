@@ -9,8 +9,88 @@ Date:   Wed Jul 27 17:56:13 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4819049
-
+---
  src/cmd/gc/dcl.c                    | 12 +++++++++---
  src/pkg/runtime/debug/stack_test.go |  4 ++--
  test/fixedbugs/bug350.go            | 15 +++++++++++++++
  3 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 827cd99d9c..ba1aa83888 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1079,7 +1079,10 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 		if(t0->width < types[tptr]->width)
+ 			suffix = "·i";
+ 	}
+-	p = smprint("%#hT·%s%s", t0, nsym->name, suffix);
++	if(t0->sym == S && isptr[t0->etype])
++		p = smprint("(%#hT).%s%s", t0, nsym->name, suffix);
++	else
++		p = smprint("%#hT.%s%s", t0, nsym->name, suffix);
+ 	s = pkglookup(p, s->pkg);
+ 	free(p);
+ 	return s;
+@@ -1106,14 +1109,17 @@ methodname1(Node *n, Node *t)
+ 	char *star;
+ 	char *p;
+ 
+-	star = "";
++	star = nil;
+ 	if(t->op == OIND) {
+ 		star = "*";
+ 		t = t->left;
+ 	}
+ 	if(t->sym == S || isblank(n))
+ 		return newname(n->sym);
+-	p = smprint("%s%S·%S", star, t->sym, n->sym);
++	if(star)
++		p = smprint("(%s%S).%S", star, t->sym, n->sym);
++	else
++		p = smprint("%S.%S", t->sym, n->sym);
+ 	n = newname(pkglookup(p, t->sym->pkg));
+ 	free(p);
+ 	return n;
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index 4aeea13ffd..94293bb934 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -23,7 +23,7 @@ func (t T) method() []byte {
+ 	Don't worry much about the base levels, but check the ones in our own package.
+ 
+ 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:15 (0x13878)
+-			*T.ptrmethod: return Stack()
++			(*T).ptrmethod: return Stack()
+ 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:18 (0x138dd)
+ 			T.method: return t.ptrmethod()
+ 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:23 (0x13920)
+@@ -40,7 +40,7 @@ func TestStack(t *testing.T) {
+ 		t.Fatal("too few lines")
+ 	}
+ 	check(t, lines[0], "src/pkg/runtime/debug/stack_test.go")
+-	check(t, lines[1], "\t*T.ptrmethod: return Stack()")
++	check(t, lines[1], "\t(*T).ptrmethod: return Stack()")
+ 	check(t, lines[2], "src/pkg/runtime/debug/stack_test.go")
+ 	check(t, lines[3], "\tT.method: return t.ptrmethod()")
+ 	check(t, lines[4], "src/pkg/runtime/debug/stack_test.go")
+diff --git a/test/fixedbugs/bug350.go b/test/fixedbugs/bug350.go
+new file mode 100644
+index 0000000000..aac2949017
+--- /dev/null
++++ b/test/fixedbugs/bug350.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T int
++
++func (T) m() {}
++func (T) m() {} // ERROR "T[.]m redeclared"
++
++func (*T) p() {}
++func (*T) p() {} // ERROR "[(][*]T[)][.]p redeclared"

@@ -13,6 +13,21 @@ Date:   Wed May 22 17:57:32 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 92b1ea8d67..b5346b1be7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2349,6 +2349,9 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 			appendSetting("-ldflags", ldflags)
+ 		}
+ 	}
++	if cfg.BuildCover {
++		appendSetting("-cover", "true")
++	}
+ 	if cfg.BuildMSan {
+ 		appendSetting("-msan", "true")
+ 	}

@@ -14,7 +14,7 @@ Date:   Sat Jun 11 13:25:57 2022 +0300
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-
+---
  api/except.txt                        |  66 ++++++++
  api/next/53280.txt                    |  42 +++++
  src/syscall/export_freebsd_test.go    |  12 --
@@ -34,3 +34,1953 @@ Date:   Sat Jun 11 13:25:57 2022 +0300
  src/syscall/ztypes_freebsd_arm.go     |  53 ------
  src/syscall/ztypes_freebsd_arm64.go   |  53 ------
  18 files changed, 190 insertions(+), 1060 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index eaaf86a2ec..efd00a96bd 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -508,3 +508,69 @@ pkg unicode, const Version = "8.0.0"
+ pkg unicode, const Version = "9.0.0"
+ pkg html/template, method (*Template) Funcs(FuncMap) *Template
+ pkg html/template, type FuncMap map[string]interface{}
++pkg syscall (freebsd-386), const SYS_FSTAT = 189
++pkg syscall (freebsd-386), const SYS_FSTATAT = 493
++pkg syscall (freebsd-386), const SYS_FSTATFS = 397
++pkg syscall (freebsd-386), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-386), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-386), const SYS_LSTAT = 190
++pkg syscall (freebsd-386), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-386), const SYS_MKNODAT = 498
++pkg syscall (freebsd-386), const SYS_STAT = 188
++pkg syscall (freebsd-386), const SYS_STAT ideal-int
++pkg syscall (freebsd-386), const SYS_STATFS = 396
++pkg syscall (freebsd-386-cgo), const SYS_FSTAT = 189
++pkg syscall (freebsd-386-cgo), const SYS_FSTATAT = 493
++pkg syscall (freebsd-386-cgo), const SYS_FSTATFS = 397
++pkg syscall (freebsd-386-cgo), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-386-cgo), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-386-cgo), const SYS_LSTAT = 190
++pkg syscall (freebsd-386-cgo), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-386-cgo), const SYS_MKNODAT = 498
++pkg syscall (freebsd-386-cgo), const SYS_STAT = 188
++pkg syscall (freebsd-386-cgo), const SYS_STAT ideal-int
++pkg syscall (freebsd-386-cgo), const SYS_STATFS = 396
++pkg syscall (freebsd-amd64), const SYS_FSTAT = 189
++pkg syscall (freebsd-amd64), const SYS_FSTATAT = 493
++pkg syscall (freebsd-amd64), const SYS_FSTATFS = 397
++pkg syscall (freebsd-amd64), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-amd64), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-amd64), const SYS_LSTAT = 190
++pkg syscall (freebsd-amd64), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-amd64), const SYS_MKNODAT = 498
++pkg syscall (freebsd-amd64), const SYS_STAT = 188
++pkg syscall (freebsd-amd64), const SYS_STAT ideal-int
++pkg syscall (freebsd-amd64), const SYS_STATFS = 396
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTAT = 189
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTATAT = 493
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTATFS = 397
++pkg syscall (freebsd-amd64-cgo), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-amd64-cgo), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-amd64-cgo), const SYS_LSTAT = 190
++pkg syscall (freebsd-amd64-cgo), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-amd64-cgo), const SYS_MKNODAT = 498
++pkg syscall (freebsd-amd64-cgo), const SYS_STAT = 188
++pkg syscall (freebsd-amd64-cgo), const SYS_STAT ideal-int
++pkg syscall (freebsd-amd64-cgo), const SYS_STATFS = 396
++pkg syscall (freebsd-arm), const SYS_FSTAT = 189
++pkg syscall (freebsd-arm), const SYS_FSTATAT = 493
++pkg syscall (freebsd-arm), const SYS_FSTATFS = 397
++pkg syscall (freebsd-arm), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-arm), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-arm), const SYS_LSTAT = 190
++pkg syscall (freebsd-arm), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-arm), const SYS_MKNODAT = 498
++pkg syscall (freebsd-arm), const SYS_STAT = 188
++pkg syscall (freebsd-arm), const SYS_STAT ideal-int
++pkg syscall (freebsd-arm), const SYS_STATFS = 396
++pkg syscall (freebsd-arm-cgo), const SYS_FSTAT = 189
++pkg syscall (freebsd-arm-cgo), const SYS_FSTATAT = 493
++pkg syscall (freebsd-arm-cgo), const SYS_FSTATFS = 397
++pkg syscall (freebsd-arm-cgo), const SYS_GETDIRENTRIES = 196
++pkg syscall (freebsd-arm-cgo), const SYS_GETFSSTAT = 395
++pkg syscall (freebsd-arm-cgo), const SYS_LSTAT = 190
++pkg syscall (freebsd-arm-cgo), const SYS_LSTAT ideal-int
++pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 498
++pkg syscall (freebsd-arm-cgo), const SYS_STAT = 188
++pkg syscall (freebsd-arm-cgo), const SYS_STAT ideal-int
++pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 396
+diff --git a/api/next/53280.txt b/api/next/53280.txt
+new file mode 100644
+index 0000000000..ba3b069ec0
+--- /dev/null
++++ b/api/next/53280.txt
+@@ -0,0 +1,42 @@
++pkg syscall (freebsd-386), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-386), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-386), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-386), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-386), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-386), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-386), const SYS_STATFS = 555 #53280
++pkg syscall (freebsd-386-cgo), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-386-cgo), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-386-cgo), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-386-cgo), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-386-cgo), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-386-cgo), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-386-cgo), const SYS_STATFS = 555 #53280
++pkg syscall (freebsd-amd64), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-amd64), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-amd64), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-amd64), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-amd64), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-amd64), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-amd64), const SYS_STATFS = 555 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-amd64-cgo), const SYS_STATFS = 555 #53280
++pkg syscall (freebsd-arm), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-arm), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-arm), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-arm), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-arm), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-arm), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-arm), const SYS_STATFS = 555 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_FSTAT = 551 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_FSTATAT = 552 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_FSTATFS = 556 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_GETDIRENTRIES = 554 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_GETFSSTAT = 557 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 559 #53280
++pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 555 #53280
+diff --git a/src/syscall/export_freebsd_test.go b/src/syscall/export_freebsd_test.go
+deleted file mode 100644
+index d47f09024f..0000000000
+--- a/src/syscall/export_freebsd_test.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-type Dirent_freebsd11 = dirent_freebsd11
+-
+-var (
+-	Roundup              = roundup
+-	ConvertFromDirents11 = convertFromDirents11
+-)
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 0637215f89..0100f4cd14 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -22,25 +22,12 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+-const (
+-	_SYS_FSTAT_FREEBSD12         = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
+-	_SYS_FSTATAT_FREEBSD12       = 552 // { int fstatat(int fd, _In_z_ char *path, _Out_ struct stat *buf, int flag); }
+-	_SYS_GETDIRENTRIES_FREEBSD12 = 554 // { ssize_t getdirentries(int fd, _Out_writes_bytes_(count) char *buf, size_t count, _Out_ off_t *basep); }
+-	_SYS_STATFS_FREEBSD12        = 555 // { int statfs(_In_z_ char *path, _Out_ struct statfs *buf); }
+-	_SYS_FSTATFS_FREEBSD12       = 556 // { int fstatfs(int fd, _Out_ struct statfs *buf); }
+-	_SYS_GETFSSTAT_FREEBSD12     = 557 // { int getfsstat(_Out_writes_bytes_opt_(bufsize) struct statfs *buf, long bufsize, int mode); }
+-	_SYS_MKNODAT_FREEBSD12       = 559 // { int mknodat(int fd, _In_z_ char *path, mode_t mode, dev_t dev); }
+-)
+-
+ // See https://www.freebsd.org/doc/en_US.ISO8859-1/books/porters-handbook/versions.html.
+ var (
+ 	osreldateOnce sync.Once
+ 	osreldate     uint32
+ )
+ 
+-// INO64_FIRST from /usr/src/lib/libc/sys/compat-ino64.h
+-const _ino64First = 1200031
+-
+ func supportsABI(ver uint32) bool {
+ 	osreldateOnce.Do(func() { osreldate, _ = SysctlUint32("kern.osreldate") })
+ 	return osreldate >= ver
+@@ -148,273 +135,49 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+ 
+ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	var (
+-		_p0          unsafe.Pointer
+-		bufsize      uintptr
+-		oldBuf       []statfs_freebsd11_t
+-		needsConvert bool
++		_p0     unsafe.Pointer
++		bufsize uintptr
+ 	)
+-
+ 	if len(buf) > 0 {
+-		if supportsABI(_ino64First) {
+-			_p0 = unsafe.Pointer(&buf[0])
+-			bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+-		} else {
+-			n := len(buf)
+-			oldBuf = make([]statfs_freebsd11_t, n)
+-			_p0 = unsafe.Pointer(&oldBuf[0])
+-			bufsize = unsafe.Sizeof(statfs_freebsd11_t{}) * uintptr(n)
+-			needsConvert = true
+-		}
++		_p0 = unsafe.Pointer(&buf[0])
++		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+-	var sysno uintptr = SYS_GETFSSTAT
+-	if supportsABI(_ino64First) {
+-		sysno = _SYS_GETFSSTAT_FREEBSD12
+-	}
+-	r0, _, e1 := Syscall(sysno, uintptr(_p0), bufsize, uintptr(flags))
++	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+-	if e1 == 0 && needsConvert {
+-		for i := range oldBuf {
+-			buf[i].convertFrom(&oldBuf[i])
+-		}
+-	}
+ 	return
+ }
+ 
+ func Stat(path string, st *Stat_t) (err error) {
+-	var oldStat stat_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return fstatat_freebsd12(_AT_FDCWD, path, st, 0)
+-	}
+-	err = stat(path, &oldStat)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStat)
+-	return nil
++	return Fstatat(_AT_FDCWD, path, st, 0)
+ }
+ 
+ func Lstat(path string, st *Stat_t) (err error) {
+-	var oldStat stat_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return fstatat_freebsd12(_AT_FDCWD, path, st, _AT_SYMLINK_NOFOLLOW)
+-	}
+-	err = lstat(path, &oldStat)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStat)
+-	return nil
+-}
+-
+-func Fstat(fd int, st *Stat_t) (err error) {
+-	var oldStat stat_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return fstat_freebsd12(fd, st)
+-	}
+-	err = fstat(fd, &oldStat)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStat)
+-	return nil
+-}
+-
+-func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
+-	var oldStat stat_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return fstatat_freebsd12(fd, path, st, flags)
+-	}
+-	err = fstatat(fd, path, &oldStat, flags)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStat)
+-	return nil
+-}
+-
+-func Statfs(path string, st *Statfs_t) (err error) {
+-	var oldStatfs statfs_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return statfs_freebsd12(path, st)
+-	}
+-	err = statfs(path, &oldStatfs)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStatfs)
+-	return nil
+-}
+-
+-func Fstatfs(fd int, st *Statfs_t) (err error) {
+-	var oldStatfs statfs_freebsd11_t
+-	if supportsABI(_ino64First) {
+-		return fstatfs_freebsd12(fd, st)
+-	}
+-	err = fstatfs(fd, &oldStatfs)
+-	if err != nil {
+-		return err
+-	}
+-
+-	st.convertFrom(&oldStatfs)
+-	return nil
++	return Fstatat(_AT_FDCWD, path, st, _AT_SYMLINK_NOFOLLOW)
+ }
+ 
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+-	if supportsABI(_ino64First) {
+-		if basep == nil || unsafe.Sizeof(*basep) == 8 {
+-			return getdirentries_freebsd12(fd, buf, (*uint64)(unsafe.Pointer(basep)))
+-		}
+-		// The freebsd12 syscall needs a 64-bit base. On 32-bit machines
+-		// we can't just use the basep passed in. See #32498.
+-		var base uint64 = uint64(*basep)
+-		n, err = getdirentries_freebsd12(fd, buf, &base)
+-		*basep = uintptr(base)
+-		if base>>32 != 0 {
+-			// We can't stuff the base back into a uintptr, so any
+-			// future calls would be suspect. Generate an error.
+-			// EIO is allowed by getdirentries.
+-			err = EIO
+-		}
+-		return
++	if basep == nil || unsafe.Sizeof(*basep) == 8 {
++		return getdirentries(fd, buf, (*uint64)(unsafe.Pointer(basep)))
+ 	}
+-
+-	// The old syscall entries are smaller than the new. Use 1/4 of the original
+-	// buffer size rounded up to DIRBLKSIZ (see /usr/src/lib/libc/sys/getdirentries.c).
+-	oldBufLen := roundup(len(buf)/4, _dirblksiz)
+-	oldBuf := make([]byte, oldBufLen)
+-	n, err = getdirentries(fd, oldBuf, basep)
+-	if err == nil && n > 0 {
+-		n = convertFromDirents11(buf, oldBuf[:n])
++	// The syscall needs a 64-bit base. On 32-bit machines
++	// we can't just use the basep passed in. See #32498.
++	var base uint64 = uint64(*basep)
++	n, err = getdirentries(fd, buf, &base)
++	*basep = uintptr(base)
++	if base>>32 != 0 {
++		// We can't stuff the base back into a uintptr, so any
++		// future calls would be suspect. Generate an error.
++		// EIO is allowed by getdirentries.
++		err = EIO
+ 	}
+ 	return
+ }
+ 
+ func Mknod(path string, mode uint32, dev uint64) (err error) {
+-	var oldDev int
+-	if supportsABI(_ino64First) {
+-		return mknodat_freebsd12(_AT_FDCWD, path, mode, dev)
+-	}
+-	oldDev = int(dev)
+-	return mknod(path, mode, oldDev)
+-}
+-
+-// round x to the nearest multiple of y, larger or equal to x.
+-//
+-// from /usr/include/sys/param.h Macros for counting and rounding.
+-// #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+-func roundup(x, y int) int {
+-	return ((x + y - 1) / y) * y
+-}
+-
+-func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
+-	*s = Stat_t{
+-		Dev:           uint64(old.Dev),
+-		Ino:           uint64(old.Ino),
+-		Nlink:         uint64(old.Nlink),
+-		Mode:          old.Mode,
+-		Uid:           old.Uid,
+-		Gid:           old.Gid,
+-		Rdev:          uint64(old.Rdev),
+-		Atimespec:     old.Atimespec,
+-		Mtimespec:     old.Mtimespec,
+-		Ctimespec:     old.Ctimespec,
+-		Birthtimespec: old.Birthtimespec,
+-		Size:          old.Size,
+-		Blocks:        old.Blocks,
+-		Blksize:       old.Blksize,
+-		Flags:         old.Flags,
+-		Gen:           uint64(old.Gen),
+-	}
+-}
+-
+-func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
+-	*s = Statfs_t{
+-		Version:     _statfsVersion,
+-		Type:        old.Type,
+-		Flags:       old.Flags,
+-		Bsize:       old.Bsize,
+-		Iosize:      old.Iosize,
+-		Blocks:      old.Blocks,
+-		Bfree:       old.Bfree,
+-		Bavail:      old.Bavail,
+-		Files:       old.Files,
+-		Ffree:       old.Ffree,
+-		Syncwrites:  old.Syncwrites,
+-		Asyncwrites: old.Asyncwrites,
+-		Syncreads:   old.Syncreads,
+-		Asyncreads:  old.Asyncreads,
+-		// Spare
+-		Namemax: old.Namemax,
+-		Owner:   old.Owner,
+-		Fsid:    old.Fsid,
+-		// Charspare
+-		// Fstypename
+-		// Mntfromname
+-		// Mntonname
+-	}
+-
+-	sl := old.Fstypename[:]
+-	n := clen(*(*[]byte)(unsafe.Pointer(&sl)))
+-	copy(s.Fstypename[:], old.Fstypename[:n])
+-
+-	sl = old.Mntfromname[:]
+-	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+-	copy(s.Mntfromname[:], old.Mntfromname[:n])
+-
+-	sl = old.Mntonname[:]
+-	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+-	copy(s.Mntonname[:], old.Mntonname[:n])
+-}
+-
+-func convertFromDirents11(buf []byte, old []byte) int {
+-	const (
+-		fixedSize    = int(unsafe.Offsetof(Dirent{}.Name))
+-		oldFixedSize = int(unsafe.Offsetof(dirent_freebsd11{}.Name))
+-	)
+-
+-	dstPos := 0
+-	srcPos := 0
+-	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
+-		var dstDirent Dirent
+-		var srcDirent dirent_freebsd11
+-
+-		// If multiple direntries are written, sometimes when we reach the final one,
+-		// we may have cap of old less than size of dirent_freebsd11.
+-		copy((*[unsafe.Sizeof(srcDirent)]byte)(unsafe.Pointer(&srcDirent))[:], old[srcPos:])
+-
+-		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
+-		if dstPos+reclen > len(buf) {
+-			break
+-		}
+-
+-		dstDirent.Fileno = uint64(srcDirent.Fileno)
+-		dstDirent.Off = 0
+-		dstDirent.Reclen = uint16(reclen)
+-		dstDirent.Type = srcDirent.Type
+-		dstDirent.Pad0 = 0
+-		dstDirent.Namlen = uint16(srcDirent.Namlen)
+-		dstDirent.Pad1 = 0
+-
+-		copy(dstDirent.Name[:], srcDirent.Name[:srcDirent.Namlen])
+-		copy(buf[dstPos:], (*[unsafe.Sizeof(dstDirent)]byte)(unsafe.Pointer(&dstDirent))[:])
+-		padding := buf[dstPos+fixedSize+int(dstDirent.Namlen) : dstPos+reclen]
+-		for i := range padding {
+-			padding[i] = 0
+-		}
+-
+-		dstPos += int(dstDirent.Reclen)
+-		srcPos += int(srcDirent.Reclen)
+-	}
+-
+-	return dstPos
++	return mknodat(_AT_FDCWD, path, mode, dev)
+ }
+ 
+ /*
+@@ -436,16 +199,12 @@ func convertFromDirents11(buf []byte, old []byte) int {
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+ //sys	Fpathconf(fd int, name int) (val int, err error)
+-//sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
+-//sys	fstat_freebsd12(fd int, stat *Stat_t) (err error) = _SYS_FSTAT_FREEBSD12
+-//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+-//sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) = _SYS_FSTATAT_FREEBSD12
+-//sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
+-//sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) = _SYS_FSTATFS_FREEBSD12
++//sys	Fstat(fd int, stat *Stat_t) (err error)
++//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
++//sys	Fstatfs(fd int, stat *Statfs_t) (err error)
+ //sys	Fsync(fd int) (err error)
+ //sys	Ftruncate(fd int, length int64) (err error)
+-//sys	getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
+-//sys	getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) = _SYS_GETDIRENTRIES_FREEBSD12
++//sys	getdirentries(fd int, buf []byte, basep *uint64) (n int, err error)
+ //sys	Getdtablesize() (size int)
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (uid int)
+@@ -466,11 +225,9 @@ func convertFromDirents11(buf []byte, old []byte) int {
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Link(path string, link string) (err error)
+ //sys	Listen(s int, backlog int) (err error)
+-//sys	lstat(path string, stat *stat_freebsd11_t) (err error)
+ //sys	Mkdir(path string, mode uint32) (err error)
+ //sys	Mkfifo(path string, mode uint32) (err error)
+-//sys	mknod(path string, mode uint32, dev int) (err error)
+-//sys	mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) = _SYS_MKNODAT_FREEBSD12
++//sys	mknodat(fd int, path string, mode uint32, dev uint64) (err error)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+@@ -495,9 +252,7 @@ func convertFromDirents11(buf []byte, old []byte) int {
+ //sysnb	Setsid() (pid int, err error)
+ //sysnb	Settimeofday(tp *Timeval) (err error)
+ //sysnb	Setuid(uid int) (err error)
+-//sys	stat(path string, stat *stat_freebsd11_t) (err error)
+-//sys	statfs(path string, stat *statfs_freebsd11_t) (err error)
+-//sys	statfs_freebsd12(path string, stat *Statfs_t) (err error) = _SYS_STATFS_FREEBSD12
++//sys	Statfs(path string, stat *Statfs_t) (err error)
+ //sys	Symlink(path string, link string) (err error)
+ //sys	Sync() (err error)
+ //sys	Truncate(path string, length int64) (err error)
+diff --git a/src/syscall/syscall_freebsd_test.go b/src/syscall/syscall_freebsd_test.go
+index f04b12b6d3..15e3802fbe 100644
+--- a/src/syscall/syscall_freebsd_test.go
++++ b/src/syscall/syscall_freebsd_test.go
+@@ -7,53 +7,10 @@
+ package syscall_test
+ 
+ import (
+-	"fmt"
+ 	"os"
+-	"syscall"
+ 	"testing"
+-	"unsafe"
+ )
+ 
+-func TestConvertFromDirent11(t *testing.T) {
+-	const (
+-		filenameFmt  = "%04d"
+-		numFiles     = 64
+-		fixedHdrSize = int(unsafe.Offsetof(syscall.Dirent_freebsd11{}.Name))
+-	)
+-
+-	namlen := len(fmt.Sprintf(filenameFmt, 0))
+-	reclen := syscall.Roundup(fixedHdrSize+namlen+1, 4)
+-	old := make([]byte, numFiles*reclen)
+-	for i := 0; i < numFiles; i++ {
+-		dent := syscall.Dirent_freebsd11{
+-			Fileno: uint32(i + 1),
+-			Reclen: uint16(reclen),
+-			Type:   syscall.DT_REG,
+-			Namlen: uint8(namlen),
+-		}
+-		rec := make([]byte, reclen)
+-		copy(rec, (*[fixedHdrSize]byte)(unsafe.Pointer(&dent))[:])
+-		copy(rec[fixedHdrSize:], fmt.Sprintf(filenameFmt, i+1))
+-		copy(old[i*reclen:], rec)
+-	}
+-
+-	buf := make([]byte, 2*len(old))
+-	n := syscall.ConvertFromDirents11(buf, old)
+-
+-	names := make([]string, 0, numFiles)
+-	_, _, names = syscall.ParseDirent(buf[:n], -1, names)
+-
+-	if len(names) != numFiles {
+-		t.Errorf("expected %d files, have %d; names: %q", numFiles, len(names), names)
+-	}
+-
+-	for i, name := range names {
+-		if expected := fmt.Sprintf(filenameFmt, i+1); name != expected {
+-			t.Errorf("expected names[%d] to be %q; got %q", i, expected, name)
+-		}
+-	}
+-}
+-
+ func TestMain(m *testing.M) {
+ 	if os.Getenv("GO_DEATHSIG_PARENT") == "1" {
+ 		deathSignalParent()
+diff --git a/src/syscall/types_freebsd.go b/src/syscall/types_freebsd.go
+index 83bc7dc499..703101526a 100644
+--- a/src/syscall/types_freebsd.go
++++ b/src/syscall/types_freebsd.go
+@@ -14,9 +14,6 @@ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ package syscall
+ 
+ /*
+-#define	_WANT_FREEBSD11_STAT	1
+-#define	_WANT_FREEBSD11_STATFS	1
+-#define	_WANT_FREEBSD11_DIRENT	1
+ #define	_WANT_FREEBSD11_KEVENT	1
+ 
+ #include <dirent.h>
+@@ -172,18 +169,12 @@ const (
+ 
+ type Stat_t C.struct_stat
+ 
+-type stat_freebsd11_t C.struct_freebsd11_stat
+-
+ type Statfs_t C.struct_statfs
+ 
+-type statfs_freebsd11_t C.struct_freebsd11_statfs
+-
+ type Flock_t C.struct_flock
+ 
+ type Dirent C.struct_dirent
+ 
+-type dirent_freebsd11 C.struct_freebsd11_dirent
+-
+ type Fsid C.struct_fsid
+ 
+ // File system limits
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 04bad4acc9..3839dd7074 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -463,7 +463,7 @@ func Fpathconf(fd int, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat(fd int, stat *stat_freebsd11_t) (err error) {
++func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -473,17 +473,7 @@ func fstat(fd int, stat *stat_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -498,22 +488,7 @@ func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(_SYS_FSTATAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
++func Fstatfs(fd int, stat *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -523,16 +498,6 @@ func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTATFS_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fsync(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+@@ -553,7 +518,7 @@ func Ftruncate(fd int, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
++func getdirentries(fd int, buf []byte, basep *uint64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+@@ -570,23 +535,6 @@ func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall6(_SYS_GETDIRENTRIES_FREEBSD12, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdtablesize() (size int) {
+ 	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0)
+ 	size = int(r0)
+@@ -788,21 +736,6 @@ func Listen(s int, backlog int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func lstat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdir(path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -833,28 +766,13 @@ func Mkfifo(path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) {
++func mknodat(fd int, path string, mode uint32, dev uint64) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall6(_SYS_MKNODAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
++	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -1175,22 +1093,7 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func stat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func statfs(path string, stat *statfs_freebsd11_t) (err error) {
++func Statfs(path string, stat *Statfs_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -1205,21 +1108,6 @@ func statfs(path string, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func statfs_freebsd12(path string, stat *Statfs_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(_SYS_STATFS_FREEBSD12, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Symlink(path string, link string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index eeb9c0cb9b..109230216c 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -463,7 +463,7 @@ func Fpathconf(fd int, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat(fd int, stat *stat_freebsd11_t) (err error) {
++func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -473,17 +473,7 @@ func fstat(fd int, stat *stat_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -498,22 +488,7 @@ func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(_SYS_FSTATAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
++func Fstatfs(fd int, stat *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -523,16 +498,6 @@ func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTATFS_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fsync(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+@@ -553,7 +518,7 @@ func Ftruncate(fd int, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
++func getdirentries(fd int, buf []byte, basep *uint64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+@@ -570,23 +535,6 @@ func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall6(_SYS_GETDIRENTRIES_FREEBSD12, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdtablesize() (size int) {
+ 	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0)
+ 	size = int(r0)
+@@ -788,21 +736,6 @@ func Listen(s int, backlog int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func lstat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdir(path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -833,28 +766,13 @@ func Mkfifo(path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) {
++func mknodat(fd int, path string, mode uint32, dev uint64) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall6(_SYS_MKNODAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
++	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -1175,22 +1093,7 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func stat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func statfs(path string, stat *statfs_freebsd11_t) (err error) {
++func Statfs(path string, stat *Statfs_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -1205,21 +1108,6 @@ func statfs(path string, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func statfs_freebsd12(path string, stat *Statfs_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(_SYS_STATFS_FREEBSD12, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Symlink(path string, link string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 8ea4282ba4..53e48d5666 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -463,7 +463,7 @@ func Fpathconf(fd int, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat(fd int, stat *stat_freebsd11_t) (err error) {
++func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -473,17 +473,7 @@ func fstat(fd int, stat *stat_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -498,22 +488,7 @@ func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(_SYS_FSTATAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
++func Fstatfs(fd int, stat *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -523,16 +498,6 @@ func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTATFS_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fsync(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+@@ -553,7 +518,7 @@ func Ftruncate(fd int, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
++func getdirentries(fd int, buf []byte, basep *uint64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+@@ -570,23 +535,6 @@ func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall6(_SYS_GETDIRENTRIES_FREEBSD12, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdtablesize() (size int) {
+ 	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0)
+ 	size = int(r0)
+@@ -788,21 +736,6 @@ func Listen(s int, backlog int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func lstat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdir(path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -833,28 +766,13 @@ func Mkfifo(path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) {
++func mknodat(fd int, path string, mode uint32, dev uint64) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall6(_SYS_MKNODAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
++	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -1175,22 +1093,7 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func stat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func statfs(path string, stat *statfs_freebsd11_t) (err error) {
++func Statfs(path string, stat *Statfs_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -1205,21 +1108,6 @@ func statfs(path string, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func statfs_freebsd12(path string, stat *Statfs_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(_SYS_STATFS_FREEBSD12, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Symlink(path string, link string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_freebsd_arm64.go b/src/syscall/zsyscall_freebsd_arm64.go
+index 73bf50559d..320ce1f76e 100644
+--- a/src/syscall/zsyscall_freebsd_arm64.go
++++ b/src/syscall/zsyscall_freebsd_arm64.go
+@@ -463,7 +463,7 @@ func Fpathconf(fd int, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat(fd int, stat *stat_freebsd11_t) (err error) {
++func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -473,17 +473,7 @@ func fstat(fd int, stat *stat_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -498,22 +488,7 @@ func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(_SYS_FSTATAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
++func Fstatfs(fd int, stat *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -523,16 +498,6 @@ func fstatfs(fd int, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) {
+-	_, _, e1 := Syscall(_SYS_FSTATFS_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fsync(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+@@ -553,7 +518,7 @@ func Ftruncate(fd int, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
++func getdirentries(fd int, buf []byte, basep *uint64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
+@@ -570,23 +535,6 @@ func getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getdirentries_freebsd12(fd int, buf []byte, basep *uint64) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall6(_SYS_GETDIRENTRIES_FREEBSD12, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdtablesize() (size int) {
+ 	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0)
+ 	size = int(r0)
+@@ -788,21 +736,6 @@ func Listen(s int, backlog int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func lstat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdir(path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -833,28 +766,13 @@ func Mkfifo(path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) {
++func mknodat(fd int, path string, mode uint32, dev uint64) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+ 		return
+ 	}
+-	_, _, e1 := Syscall6(_SYS_MKNODAT_FREEBSD12, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
++	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev), 0, 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -1175,22 +1093,7 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func stat(path string, stat *stat_freebsd11_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func statfs(path string, stat *statfs_freebsd11_t) (err error) {
++func Statfs(path string, stat *Statfs_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {
+@@ -1205,21 +1108,6 @@ func statfs(path string, stat *statfs_freebsd11_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func statfs_freebsd12(path string, stat *Statfs_t) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(_SYS_STATFS_FREEBSD12, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Symlink(path string, link string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsysnum_freebsd_386.go b/src/syscall/zsysnum_freebsd_386.go
+index 355b2ec303..ada885e458 100644
+--- a/src/syscall/zsysnum_freebsd_386.go
++++ b/src/syscall/zsysnum_freebsd_386.go
+@@ -120,14 +120,10 @@ const (
+ 	SYS_SETGID                   = 181 // { int setgid(gid_t gid); }
+ 	SYS_SETEGID                  = 182 // { int setegid(gid_t egid); }
+ 	SYS_SETEUID                  = 183 // { int seteuid(uid_t euid); }
+-	SYS_STAT                     = 188 // { int stat(char *path, struct stat *ub); }
+-	SYS_FSTAT                    = 189 // { int fstat(int fd, struct stat *sb); }
+-	SYS_LSTAT                    = 190 // { int lstat(char *path, struct stat *ub); }
+ 	SYS_PATHCONF                 = 191 // { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF                = 192 // { int fpathconf(int fd, int name); }
+ 	SYS_GETRLIMIT                = 194 // { int getrlimit(u_int which, \
+ 	SYS_SETRLIMIT                = 195 // { int setrlimit(u_int which, \
+-	SYS_GETDIRENTRIES            = 196 // { int getdirentries(int fd, char *buf, \
+ 	SYS_FREEBSD6_MMAP            = 197 // { caddr_t freebsd6_mmap(caddr_t addr, \
+ 	SYS_FREEBSD6_LSEEK           = 199 // { off_t freebsd6_lseek(int fd, int pad, \
+ 	SYS_FREEBSD6_TRUNCATE        = 200 // { int freebsd6_truncate(char *path, int pad, \
+@@ -234,9 +230,6 @@ const (
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+-	SYS_GETFSSTAT                = 395 // { int getfsstat(struct statfs *buf, \
+-	SYS_STATFS                   = 396 // { int statfs(char *path, \
+-	SYS_FSTATFS                  = 397 // { int fstatfs(int fd, struct statfs *buf); }
+ 	SYS_FHSTATFS                 = 398 // { int fhstatfs(const struct fhandle *u_fhp, \
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+@@ -306,12 +299,10 @@ const (
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \
+-	SYS_FSTATAT                  = 493 // { int fstatat(int fd, char *path, \
+ 	SYS_FUTIMESAT                = 494 // { int futimesat(int fd, char *path, \
+ 	SYS_LINKAT                   = 495 // { int linkat(int fd1, char *path1, int fd2, \
+ 	SYS_MKDIRAT                  = 496 // { int mkdirat(int fd, char *path, mode_t mode); }
+ 	SYS_MKFIFOAT                 = 497 // { int mkfifoat(int fd, char *path, mode_t mode); }
+-	SYS_MKNODAT                  = 498 // { int mknodat(int fd, char *path, mode_t mode, \
+ 	SYS_OPENAT                   = 499 // { int openat(int fd, char *path, int flag, \
+ 	SYS_READLINKAT               = 500 // { int readlinkat(int fd, char *path, char *buf, \
+ 	SYS_RENAMEAT                 = 501 // { int renameat(int oldfd, char *old, int newfd, \
+@@ -348,4 +339,11 @@ const (
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ 	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
++	SYS_FSTAT                    = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
++	SYS_FSTATAT                  = 552 // { int fstatat(int fd, _In_z_ char *path, \
++	SYS_GETDIRENTRIES            = 554 // { ssize_t getdirentries(int fd, \
++	SYS_STATFS                   = 555 // { int statfs(_In_z_ char *path, \
++	SYS_FSTATFS                  = 556 // { int fstatfs(int fd, \
++	SYS_GETFSSTAT                = 557 // { int getfsstat( \
++	SYS_MKNODAT                  = 559 // { int mknodat(int fd, _In_z_ char *path, \
+ )
+diff --git a/src/syscall/zsysnum_freebsd_amd64.go b/src/syscall/zsysnum_freebsd_amd64.go
+index 84c821c955..85a50ad94b 100644
+--- a/src/syscall/zsysnum_freebsd_amd64.go
++++ b/src/syscall/zsysnum_freebsd_amd64.go
+@@ -120,14 +120,10 @@ const (
+ 	SYS_SETGID                   = 181 // { int setgid(gid_t gid); }
+ 	SYS_SETEGID                  = 182 // { int setegid(gid_t egid); }
+ 	SYS_SETEUID                  = 183 // { int seteuid(uid_t euid); }
+-	SYS_STAT                     = 188 // { int stat(char *path, struct stat *ub); }
+-	SYS_FSTAT                    = 189 // { int fstat(int fd, struct stat *sb); }
+-	SYS_LSTAT                    = 190 // { int lstat(char *path, struct stat *ub); }
+ 	SYS_PATHCONF                 = 191 // { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF                = 192 // { int fpathconf(int fd, int name); }
+ 	SYS_GETRLIMIT                = 194 // { int getrlimit(u_int which, \
+ 	SYS_SETRLIMIT                = 195 // { int setrlimit(u_int which, \
+-	SYS_GETDIRENTRIES            = 196 // { int getdirentries(int fd, char *buf, \
+ 	SYS_FREEBSD6_MMAP            = 197 // { caddr_t freebsd6_mmap(caddr_t addr, \
+ 	SYS_FREEBSD6_LSEEK           = 199 // { off_t freebsd6_lseek(int fd, int pad, \
+ 	SYS_FREEBSD6_TRUNCATE        = 200 // { int freebsd6_truncate(char *path, int pad, \
+@@ -234,9 +230,6 @@ const (
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+-	SYS_GETFSSTAT                = 395 // { int getfsstat(struct statfs *buf, \
+-	SYS_STATFS                   = 396 // { int statfs(char *path, \
+-	SYS_FSTATFS                  = 397 // { int fstatfs(int fd, struct statfs *buf); }
+ 	SYS_FHSTATFS                 = 398 // { int fhstatfs(const struct fhandle *u_fhp, \
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+@@ -306,12 +299,10 @@ const (
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \
+-	SYS_FSTATAT                  = 493 // { int fstatat(int fd, char *path, \
+ 	SYS_FUTIMESAT                = 494 // { int futimesat(int fd, char *path, \
+ 	SYS_LINKAT                   = 495 // { int linkat(int fd1, char *path1, int fd2, \
+ 	SYS_MKDIRAT                  = 496 // { int mkdirat(int fd, char *path, mode_t mode); }
+ 	SYS_MKFIFOAT                 = 497 // { int mkfifoat(int fd, char *path, mode_t mode); }
+-	SYS_MKNODAT                  = 498 // { int mknodat(int fd, char *path, mode_t mode, \
+ 	SYS_OPENAT                   = 499 // { int openat(int fd, char *path, int flag, \
+ 	SYS_READLINKAT               = 500 // { int readlinkat(int fd, char *path, char *buf, \
+ 	SYS_RENAMEAT                 = 501 // { int renameat(int oldfd, char *old, int newfd, \
+@@ -348,4 +339,11 @@ const (
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ 	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
++	SYS_FSTAT                    = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
++	SYS_FSTATAT                  = 552 // { int fstatat(int fd, _In_z_ char *path, \
++	SYS_GETDIRENTRIES            = 554 // { ssize_t getdirentries(int fd, \
++	SYS_STATFS                   = 555 // { int statfs(_In_z_ char *path, \
++	SYS_FSTATFS                  = 556 // { int fstatfs(int fd, \
++	SYS_GETFSSTAT                = 557 // { int getfsstat( \
++	SYS_MKNODAT                  = 559 // { int mknodat(int fd, _In_z_ char *path, \
+ )
+diff --git a/src/syscall/zsysnum_freebsd_arm.go b/src/syscall/zsysnum_freebsd_arm.go
+index 785e7875f4..7f6e3fc3f5 100644
+--- a/src/syscall/zsysnum_freebsd_arm.go
++++ b/src/syscall/zsysnum_freebsd_arm.go
+@@ -120,14 +120,10 @@ const (
+ 	SYS_SETGID                   = 181 // { int setgid(gid_t gid); }
+ 	SYS_SETEGID                  = 182 // { int setegid(gid_t egid); }
+ 	SYS_SETEUID                  = 183 // { int seteuid(uid_t euid); }
+-	SYS_STAT                     = 188 // { int stat(char *path, struct stat *ub); }
+-	SYS_FSTAT                    = 189 // { int fstat(int fd, struct stat *sb); }
+-	SYS_LSTAT                    = 190 // { int lstat(char *path, struct stat *ub); }
+ 	SYS_PATHCONF                 = 191 // { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF                = 192 // { int fpathconf(int fd, int name); }
+ 	SYS_GETRLIMIT                = 194 // { int getrlimit(u_int which, \
+ 	SYS_SETRLIMIT                = 195 // { int setrlimit(u_int which, \
+-	SYS_GETDIRENTRIES            = 196 // { int getdirentries(int fd, char *buf, \
+ 	SYS_FREEBSD6_MMAP            = 197 // { caddr_t freebsd6_mmap(caddr_t addr, \
+ 	SYS_FREEBSD6_LSEEK           = 199 // { off_t freebsd6_lseek(int fd, int pad, \
+ 	SYS_FREEBSD6_TRUNCATE        = 200 // { int freebsd6_truncate(char *path, int pad, \
+@@ -234,9 +230,6 @@ const (
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+-	SYS_GETFSSTAT                = 395 // { int getfsstat(struct statfs *buf, \
+-	SYS_STATFS                   = 396 // { int statfs(char *path, \
+-	SYS_FSTATFS                  = 397 // { int fstatfs(int fd, struct statfs *buf); }
+ 	SYS_FHSTATFS                 = 398 // { int fhstatfs(const struct fhandle *u_fhp, \
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+@@ -306,12 +299,10 @@ const (
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \
+-	SYS_FSTATAT                  = 493 // { int fstatat(int fd, char *path, \
+ 	SYS_FUTIMESAT                = 494 // { int futimesat(int fd, char *path, \
+ 	SYS_LINKAT                   = 495 // { int linkat(int fd1, char *path1, int fd2, \
+ 	SYS_MKDIRAT                  = 496 // { int mkdirat(int fd, char *path, mode_t mode); }
+ 	SYS_MKFIFOAT                 = 497 // { int mkfifoat(int fd, char *path, mode_t mode); }
+-	SYS_MKNODAT                  = 498 // { int mknodat(int fd, char *path, mode_t mode, \
+ 	SYS_OPENAT                   = 499 // { int openat(int fd, char *path, int flag, \
+ 	SYS_READLINKAT               = 500 // { int readlinkat(int fd, char *path, char *buf, \
+ 	SYS_RENAMEAT                 = 501 // { int renameat(int oldfd, char *old, int newfd, \
+@@ -348,4 +339,11 @@ const (
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ 	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
++	SYS_FSTAT                    = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
++	SYS_FSTATAT                  = 552 // { int fstatat(int fd, _In_z_ char *path, \
++	SYS_GETDIRENTRIES            = 554 // { ssize_t getdirentries(int fd, \
++	SYS_STATFS                   = 555 // { int statfs(_In_z_ char *path, \
++	SYS_FSTATFS                  = 556 // { int fstatfs(int fd, \
++	SYS_GETFSSTAT                = 557 // { int getfsstat( \
++	SYS_MKNODAT                  = 559 // { int mknodat(int fd, _In_z_ char *path, \
+ )
+diff --git a/src/syscall/zsysnum_freebsd_arm64.go b/src/syscall/zsysnum_freebsd_arm64.go
+index 7144a8abed..bde0f3bcb7 100644
+--- a/src/syscall/zsysnum_freebsd_arm64.go
++++ b/src/syscall/zsysnum_freebsd_arm64.go
+@@ -123,14 +123,10 @@ const (
+ 	SYS_SETGID                   = 181 // { int setgid(gid_t gid); }
+ 	SYS_SETEGID                  = 182 // { int setegid(gid_t egid); }
+ 	SYS_SETEUID                  = 183 // { int seteuid(uid_t euid); }
+-	SYS_STAT                     = 188 // { int stat(char *path, struct stat *ub); }
+-	SYS_FSTAT                    = 189 // { int fstat(int fd, struct stat *sb); }
+-	SYS_LSTAT                    = 190 // { int lstat(char *path, struct stat *ub); }
+ 	SYS_PATHCONF                 = 191 // { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF                = 192 // { int fpathconf(int fd, int name); }
+ 	SYS_GETRLIMIT                = 194 // { int getrlimit(u_int which, struct rlimit *rlp); } getrlimit __getrlimit_args int
+ 	SYS_SETRLIMIT                = 195 // { int setrlimit(u_int which, struct rlimit *rlp); } setrlimit __setrlimit_args int
+-	SYS_GETDIRENTRIES            = 196 // { int getdirentries(int fd, char *buf, u_int count, long *basep); }
+ 	SYS___SYSCTL                 = 202 // { int __sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen); } __sysctl sysctl_args int
+ 	SYS_MLOCK                    = 203 // { int mlock(const void *addr, size_t len); }
+ 	SYS_MUNLOCK                  = 204 // { int munlock(const void *addr, size_t len); }
+@@ -250,9 +246,6 @@ const (
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, int count); }
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, int call, void *arg); }
+-	SYS_GETFSSTAT                = 395 // { int getfsstat(struct statfs *buf, long bufsize, int mode); }
+-	SYS_STATFS                   = 396 // { int statfs(char *path, struct statfs *buf); }
+-	SYS_FSTATFS                  = 397 // { int fstatfs(int fd, struct statfs *buf); }
+ 	SYS_FHSTATFS                 = 398 // { int fhstatfs(const struct fhandle *u_fhp, struct statfs *buf); }
+ 	SYS_KSEM_CLOSE               = 400 // { int ksem_close(semid_t id); }
+ 	SYS_KSEM_POST                = 401 // { int ksem_post(semid_t id); }
+@@ -337,12 +330,10 @@ const (
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, int flag); }
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, gid_t gid, int flag); }
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, char **envv); }
+-	SYS_FSTATAT                  = 493 // { int fstatat(int fd, char *path, struct stat *buf, int flag); }
+ 	SYS_FUTIMESAT                = 494 // { int futimesat(int fd, char *path, struct timeval *times); }
+ 	SYS_LINKAT                   = 495 // { int linkat(int fd1, char *path1, int fd2, char *path2, int flag); }
+ 	SYS_MKDIRAT                  = 496 // { int mkdirat(int fd, char *path, mode_t mode); }
+ 	SYS_MKFIFOAT                 = 497 // { int mkfifoat(int fd, char *path, mode_t mode); }
+-	SYS_MKNODAT                  = 498 // { int mknodat(int fd, char *path, mode_t mode, dev_t dev); }
+ 	SYS_OPENAT                   = 499 // { int openat(int fd, char *path, int flag, mode_t mode); }
+ 	SYS_READLINKAT               = 500 // { int readlinkat(int fd, char *path, char *buf, size_t bufsize); }
+ 	SYS_RENAMEAT                 = 501 // { int renameat(int oldfd, char *old, int newfd, char *new); }
+@@ -393,4 +384,11 @@ const (
+ 	SYS_NUMA_GETAFFINITY         = 548 // { int numa_getaffinity(cpuwhich_t which, id_t id, struct vm_domain_policy_entry *policy); }
+ 	SYS_NUMA_SETAFFINITY         = 549 // { int numa_setaffinity(cpuwhich_t which, id_t id, const struct vm_domain_policy_entry *policy); }
+ 	SYS_FDATASYNC                = 550 // { int fdatasync(int fd); }
++	SYS_FSTAT                    = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
++	SYS_FSTATAT                  = 552 // { int fstatat(int fd, _In_z_ char *path, \
++	SYS_GETDIRENTRIES            = 554 // { ssize_t getdirentries(int fd, \
++	SYS_STATFS                   = 555 // { int statfs(_In_z_ char *path, \
++	SYS_FSTATFS                  = 556 // { int fstatfs(int fd, \
++	SYS_GETFSSTAT                = 557 // { int getfsstat( \
++	SYS_MKNODAT                  = 559 // { int mknodat(int fd, _In_z_ char *path, \
+ )
+diff --git a/src/syscall/ztypes_freebsd_386.go b/src/syscall/ztypes_freebsd_386.go
+index e1946dece8..70ae808ef9 100644
+--- a/src/syscall/ztypes_freebsd_386.go
++++ b/src/syscall/ztypes_freebsd_386.go
+@@ -106,27 +106,6 @@ type Stat_t struct {
+ 	Spare         [10]uint64
+ }
+ 
+-type stat_freebsd11_t struct {
+-	Dev           uint32
+-	Ino           uint32
+-	Mode          uint16
+-	Nlink         uint16
+-	Uid           uint32
+-	Gid           uint32
+-	Rdev          uint32
+-	Atimespec     Timespec
+-	Mtimespec     Timespec
+-	Ctimespec     Timespec
+-	Size          int64
+-	Blocks        int64
+-	Blksize       int32
+-	Flags         uint32
+-	Gen           uint32
+-	Lspare        int32
+-	Birthtimespec Timespec
+-	Pad_cgo_0     [8]byte
+-}
+-
+ type Statfs_t struct {
+ 	Version     uint32
+ 	Type        uint32
+@@ -152,31 +131,6 @@ type Statfs_t struct {
+ 	Mntonname   [1024]int8
+ }
+ 
+-type statfs_freebsd11_t struct {
+-	Version     uint32
+-	Type        uint32
+-	Flags       uint64
+-	Bsize       uint64
+-	Iosize      uint64
+-	Blocks      uint64
+-	Bfree       uint64
+-	Bavail      int64
+-	Files       uint64
+-	Ffree       int64
+-	Syncwrites  uint64
+-	Asyncwrites uint64
+-	Syncreads   uint64
+-	Asyncreads  uint64
+-	Spare       [10]uint64
+-	Namemax     uint32
+-	Owner       uint32
+-	Fsid        Fsid
+-	Charspare   [80]int8
+-	Fstypename  [16]int8
+-	Mntfromname [88]int8
+-	Mntonname   [88]int8
+-}
+-
+ type Flock_t struct {
+ 	Start  int64
+ 	Len    int64
+@@ -197,14 +151,6 @@ type Dirent struct {
+ 	Name   [256]int8
+ }
+ 
+-type dirent_freebsd11 struct {
+-	Fileno uint32
+-	Reclen uint16
+-	Type   uint8
+-	Namlen uint8
+-	Name   [256]int8
+-}
+-
+ type Fsid struct {
+ 	Val [2]int32
+ }
+diff --git a/src/syscall/ztypes_freebsd_amd64.go b/src/syscall/ztypes_freebsd_amd64.go
+index a718345d79..050432a693 100644
+--- a/src/syscall/ztypes_freebsd_amd64.go
++++ b/src/syscall/ztypes_freebsd_amd64.go
+@@ -102,26 +102,6 @@ type Stat_t struct {
+ 	Spare         [10]uint64
+ }
+ 
+-type stat_freebsd11_t struct {
+-	Dev           uint32
+-	Ino           uint32
+-	Mode          uint16
+-	Nlink         uint16
+-	Uid           uint32
+-	Gid           uint32
+-	Rdev          uint32
+-	Atimespec     Timespec
+-	Mtimespec     Timespec
+-	Ctimespec     Timespec
+-	Size          int64
+-	Blocks        int64
+-	Blksize       int32
+-	Flags         uint32
+-	Gen           uint32
+-	Lspare        int32
+-	Birthtimespec Timespec
+-}
+-
+ type Statfs_t struct {
+ 	Version     uint32
+ 	Type        uint32
+@@ -147,31 +127,6 @@ type Statfs_t struct {
+ 	Mntonname   [1024]int8
+ }
+ 
+-type statfs_freebsd11_t struct {
+-	Version     uint32
+-	Type        uint32
+-	Flags       uint64
+-	Bsize       uint64
+-	Iosize      uint64
+-	Blocks      uint64
+-	Bfree       uint64
+-	Bavail      int64
+-	Files       uint64
+-	Ffree       int64
+-	Syncwrites  uint64
+-	Asyncwrites uint64
+-	Syncreads   uint64
+-	Asyncreads  uint64
+-	Spare       [10]uint64
+-	Namemax     uint32
+-	Owner       uint32
+-	Fsid        Fsid
+-	Charspare   [80]int8
+-	Fstypename  [16]int8
+-	Mntfromname [88]int8
+-	Mntonname   [88]int8
+-}
+-
+ type Flock_t struct {
+ 	Start     int64
+ 	Len       int64
+@@ -193,14 +148,6 @@ type Dirent struct {
+ 	Name   [256]int8
+ }
+ 
+-type dirent_freebsd11 struct {
+-	Fileno uint32
+-	Reclen uint16
+-	Type   uint8
+-	Namlen uint8
+-	Name   [256]int8
+-}
+-
+ type Fsid struct {
+ 	Val [2]int32
+ }
+diff --git a/src/syscall/ztypes_freebsd_arm.go b/src/syscall/ztypes_freebsd_arm.go
+index 9c5a066713..ae5ed56c88 100644
+--- a/src/syscall/ztypes_freebsd_arm.go
++++ b/src/syscall/ztypes_freebsd_arm.go
+@@ -104,26 +104,6 @@ type Stat_t struct {
+ 	Spare         [10]uint64
+ }
+ 
+-type stat_freebsd11_t struct {
+-	Dev           uint32
+-	Ino           uint32
+-	Mode          uint16
+-	Nlink         uint16
+-	Uid           uint32
+-	Gid           uint32
+-	Rdev          uint32
+-	Atimespec     Timespec
+-	Mtimespec     Timespec
+-	Ctimespec     Timespec
+-	Size          int64
+-	Blocks        int64
+-	Blksize       int32
+-	Flags         uint32
+-	Gen           uint32
+-	Lspare        int32
+-	Birthtimespec Timespec
+-}
+-
+ type Statfs_t struct {
+ 	Version     uint32
+ 	Type        uint32
+@@ -149,31 +129,6 @@ type Statfs_t struct {
+ 	Mntonname   [1024]int8
+ }
+ 
+-type statfs_freebsd11_t struct {
+-	Version     uint32
+-	Type        uint32
+-	Flags       uint64
+-	Bsize       uint64
+-	Iosize      uint64
+-	Blocks      uint64
+-	Bfree       uint64
+-	Bavail      int64
+-	Files       uint64
+-	Ffree       int64
+-	Syncwrites  uint64
+-	Asyncwrites uint64
+-	Syncreads   uint64
+-	Asyncreads  uint64
+-	Spare       [10]uint64
+-	Namemax     uint32
+-	Owner       uint32
+-	Fsid        Fsid
+-	Charspare   [80]int8
+-	Fstypename  [16]int8
+-	Mntfromname [88]int8
+-	Mntonname   [88]int8
+-}
+-
+ type Flock_t struct {
+ 	Start     int64
+ 	Len       int64
+@@ -195,14 +150,6 @@ type Dirent struct {
+ 	Name   [256]int8
+ }
+ 
+-type dirent_freebsd11 struct {
+-	Fileno uint32
+-	Reclen uint16
+-	Type   uint8
+-	Namlen uint8
+-	Name   [256]int8
+-}
+-
+ type Fsid struct {
+ 	Val [2]int32
+ }
+diff --git a/src/syscall/ztypes_freebsd_arm64.go b/src/syscall/ztypes_freebsd_arm64.go
+index 3ccd9fc0dd..b3ab991f8e 100644
+--- a/src/syscall/ztypes_freebsd_arm64.go
++++ b/src/syscall/ztypes_freebsd_arm64.go
+@@ -102,26 +102,6 @@ type Stat_t struct {
+ 	Spare         [10]uint64
+ }
+ 
+-type stat_freebsd11_t struct {
+-	Dev           uint32
+-	Ino           uint32
+-	Mode          uint16
+-	Nlink         uint16
+-	Uid           uint32
+-	Gid           uint32
+-	Rdev          uint32
+-	Atimespec     Timespec
+-	Mtimespec     Timespec
+-	Ctimespec     Timespec
+-	Size          int64
+-	Blocks        int64
+-	Blksize       int32
+-	Flags         uint32
+-	Gen           uint32
+-	Lspare        int32
+-	Birthtimespec Timespec
+-}
+-
+ type Statfs_t struct {
+ 	Version     uint32
+ 	Type        uint32
+@@ -147,31 +127,6 @@ type Statfs_t struct {
+ 	Mntonname   [1024]int8
+ }
+ 
+-type statfs_freebsd11_t struct {
+-	Version     uint32
+-	Type        uint32
+-	Flags       uint64
+-	Bsize       uint64
+-	Iosize      uint64
+-	Blocks      uint64
+-	Bfree       uint64
+-	Bavail      int64
+-	Files       uint64
+-	Ffree       int64
+-	Syncwrites  uint64
+-	Asyncwrites uint64
+-	Syncreads   uint64
+-	Asyncreads  uint64
+-	Spare       [10]uint64
+-	Namemax     uint32
+-	Owner       uint32
+-	Fsid        Fsid
+-	Charspare   [80]int8
+-	Fstypename  [16]int8
+-	Mntfromname [88]int8
+-	Mntonname   [88]int8
+-}
+-
+ type Flock_t struct {
+ 	Start     int64
+ 	Len       int64
+@@ -193,14 +148,6 @@ type Dirent struct {
+ 	Name   [256]int8
+ }
+ 
+-type dirent_freebsd11 struct {
+-	Fileno uint32
+-	Reclen uint16
+-	Type   uint8
+-	Namlen uint8
+-	Name   [256]int8
+-}
+-
+ type Fsid struct {
+ 	Val [2]int32
+ }

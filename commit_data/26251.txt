@@ -9,6 +9,36 @@ Date:   Wed Jan 6 15:41:37 2016 -0500
     Change-Id: I0f231d198c76632c23692fc1337b57cfeafaf4c7
     Reviewed-on: https://go-review.googlesource.com/18338
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/devel/release.html | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 4857e07e3e..adcf6b079c 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -12,6 +12,24 @@ git pull
+ git checkout <i>release-branch</i>
+ </pre>
+ 
++<h2 id="policy">Release Policy</h2>
++
++<p>
++Each major Go release obsoletes and ends support for the previous one.
++For example, if Go 1.5 has been released, then it is the current release
++and Go 1.4 and earlier are no longer supported.
++We fix critical problems in the current release as needed by issuing minor revisions
++(for example, Go 1.5.1, Go 1.5.2, and so on).
++</p>
++
++<p>
++As a special case, we issue minor revisions for critical security problems
++in both the current release and the previous release.
++For example, if Go 1.5 is the current release then we will issue minor revisions
++to fix critical security problems in both Go 1.4 and Go 1.5 as they arise.
++See the <a href="/security">security policy</a> for more details.
++</p>
++
+ <h2 id="go1.5">go1.5 (released 2015/08/19)</h2>
+ 
+ <p>

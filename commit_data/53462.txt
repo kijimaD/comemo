@@ -13,8 +13,89 @@ Date:   Wed Aug 17 14:56:18 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go     |  4 ++--
  src/runtime/runtime2.go |  3 +--
  src/runtime/time.go     | 10 +++++-----
  3 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b57644cc21..f100e321d4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3329,7 +3329,7 @@ func dropg() {
+ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+ 	// If it's not yet time for the first timer, or the first adjusted
+ 	// timer, then there is nothing to do.
+-	next := int64(atomic.Load64(&pp.timer0When))
++	next := int64(pp.timer0When.Load())
+ 	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+ 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+ 		next = nextAdj
+@@ -4787,7 +4787,7 @@ func (pp *p) destroy() {
+ 		pp.timers = nil
+ 		pp.numTimers = 0
+ 		pp.deletedTimers = 0
+-		atomic.Store64(&pp.timer0When, 0)
++		pp.timer0When.Store(0)
+ 		unlock(&pp.timersLock)
+ 		unlock(&plocal.timersLock)
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 63ba534815..34638d9fb3 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -670,9 +670,8 @@ type p struct {
+ 	_ uint32 // Alignment for atomic fields below
+ 
+ 	// The when field of the first entry on the timer heap.
+-	// This is updated using atomic functions.
+ 	// This is 0 if the timer heap is empty.
+-	timer0When uint64
++	timer0When atomic.Uint64
+ 
+ 	// The earliest known nextwhen field of a timer with
+ 	// timerModifiedEarlier status. Because the timer may have been
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index a4bbc53cfa..0ab2c9c21d 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -301,7 +301,7 @@ func doaddtimer(pp *p, t *timer) {
+ 	pp.timers = append(pp.timers, t)
+ 	siftupTimer(pp.timers, i)
+ 	if t == pp.timers[0] {
+-		atomic.Store64(&pp.timer0When, uint64(t.when))
++		pp.timer0When.Store(uint64(t.when))
+ 	}
+ 	atomic.Xadd(&pp.numTimers, 1)
+ }
+@@ -754,7 +754,7 @@ func addAdjustedTimers(pp *p, moved []*timer) {
+ //
+ //go:nowritebarrierrec
+ func nobarrierWakeTime(pp *p) int64 {
+-	next := int64(atomic.Load64(&pp.timer0When))
++	next := int64(pp.timer0When.Load())
+ 	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+ 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+ 		next = nextAdj
+@@ -1003,9 +1003,9 @@ func verifyTimerHeap(pp *p) {
+ // The caller must have locked the timers for pp.
+ func updateTimer0When(pp *p) {
+ 	if len(pp.timers) == 0 {
+-		atomic.Store64(&pp.timer0When, 0)
++		pp.timer0When.Store(0)
+ 	} else {
+-		atomic.Store64(&pp.timer0When, uint64(pp.timers[0].when))
++		pp.timer0When.Store(uint64(pp.timers[0].when))
+ 	}
+ }
+ 
+@@ -1039,7 +1039,7 @@ func timeSleepUntil() int64 {
+ 			continue
+ 		}
+ 
+-		w := int64(atomic.Load64(&pp.timer0When))
++		w := int64(pp.timer0When.Load())
+ 		if w != 0 && w < next {
+ 			next = w
+ 		}

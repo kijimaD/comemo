@@ -9,6 +9,20 @@ Date:   Fri Jul 13 13:44:51 2018 -0500
     Change-Id: I1181e191f4742f166c9b67a6f41332a237cf0ede
     Reviewed-on: https://go-review.googlesource.com/123855
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 41fbf96370..88b0a91699 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -113,6 +113,8 @@ type Cmd struct {
+ 	// ExtraFiles specifies additional open files to be inherited by the
+ 	// new process. It does not include standard input, standard output, or
+ 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
++	//
++	// ExtraFiles is not supported on Windows.
+ 	ExtraFiles []*os.File
+ 
+ 	// SysProcAttr holds optional, operating system-specific attributes.

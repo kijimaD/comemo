@@ -7,6 +7,61 @@ Date:   Mon Mar 27 15:55:15 2017 +1100
     Change-Id: I6b6a6dc57e48e02ff0d452755b8dcf5543b3caed
     Reviewed-on: https://go-review.googlesource.com/38759
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/pe/file_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 46 insertions(+)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 182b8e3811..7957083639 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -476,3 +476,49 @@ func main() {
+ 	fmt.Printf("main=%p\n", main)
+ }
+ `
++
++func TestBuildingWindowsGUI(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows only test")
++	}
++	tmpdir, err := ioutil.TempDir("", "TestBuildingWindowsGUI")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "a.go")
++	err = ioutil.WriteFile(src, []byte(`package main; func main() {}`), 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++	exe := filepath.Join(tmpdir, "a.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags", "-H=windowsgui", "-o", exe, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("building test executable failed: %s %s", err, out)
++	}
++
++	f, err := Open(exe)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	const _IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
++
++	switch oh := f.OptionalHeader.(type) {
++	case *OptionalHeader32:
++		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
++			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
++		}
++	case *OptionalHeader64:
++		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
++			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
++		}
++	default:
++		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
++	}
++}

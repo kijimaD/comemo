@@ -17,7 +17,35 @@ Date:   Tue Jan 3 13:11:10 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 3 +++
  test/inline_big.go                     | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 8620db2adb..e3b2e44f61 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -742,6 +742,9 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+ 	ir.CurFunc = fn
+ 	maxCost := int32(inlineMaxBudget)
+ 	if isBigFunc(fn) {
++		if base.Flag.LowerM > 1 {
++			fmt.Printf("%v: function %v considered 'big'; revising maxCost from %d to %d\n", ir.Line(fn), fn, maxCost, inlineBigFunctionMaxCost)
++		}
+ 		maxCost = inlineBigFunctionMaxCost
+ 	}
+ 	var inlCalls []*ir.InlinedCallExpr
+diff --git a/test/inline_big.go b/test/inline_big.go
+index 83672753f7..7dd1abdb6a 100644
+--- a/test/inline_big.go
++++ b/test/inline_big.go
+@@ -20,7 +20,7 @@ func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a do
+ 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]
+ }
+ 
+-func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape"
++func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'"
+ 	// Add lots of nodes to f's body. We need >5000.
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	a[0] = 0

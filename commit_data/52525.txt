@@ -16,7 +16,7 @@ Date:   Tue Nov 23 03:00:32 2021 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/des/block.go                 | 6 +-----
  src/database/sql/example_cli_test.go    | 6 ++----
  src/debug/plan9obj/file.go              | 3 +--
@@ -27,3 +27,143 @@ Date:   Tue Nov 23 03:00:32 2021 +0000
  src/runtime/metrics/description_test.go | 2 +-
  src/testing/sub_test.go                 | 2 +-
  9 files changed, 12 insertions(+), 23 deletions(-)
+
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index cc2888e2c7..c649dee94f 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -248,9 +248,7 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
+ // By doing so, we can have the input blocks (four bits each), and the key blocks (six bits each) well-aligned without
+ // extra shifts/rotations for alignments.
+ func unpack(x uint64) uint64 {
+-	var result uint64
+-
+-	result = ((x>>(6*1))&0xff)<<(8*0) |
++	return ((x>>(6*1))&0xff)<<(8*0) |
+ 		((x>>(6*3))&0xff)<<(8*1) |
+ 		((x>>(6*5))&0xff)<<(8*2) |
+ 		((x>>(6*7))&0xff)<<(8*3) |
+@@ -258,6 +256,4 @@ func unpack(x uint64) uint64 {
+ 		((x>>(6*2))&0xff)<<(8*5) |
+ 		((x>>(6*4))&0xff)<<(8*6) |
+ 		((x>>(6*6))&0xff)<<(8*7)
+-
+-	return result
+ }
+diff --git a/src/database/sql/example_cli_test.go b/src/database/sql/example_cli_test.go
+index 8c61d755bb..1e297af022 100644
+--- a/src/database/sql/example_cli_test.go
++++ b/src/database/sql/example_cli_test.go
+@@ -49,10 +49,8 @@ func Example_openDBCLI() {
+ 	signal.Notify(appSignal, os.Interrupt)
+ 
+ 	go func() {
+-		select {
+-		case <-appSignal:
+-			stop()
+-		}
++		<-appSignal
++		stop()
+ 	}()
+ 
+ 	Ping(ctx)
+diff --git a/src/debug/plan9obj/file.go b/src/debug/plan9obj/file.go
+index 0c33fa10bb..aa03429624 100644
+--- a/src/debug/plan9obj/file.go
++++ b/src/debug/plan9obj/file.go
+@@ -216,8 +216,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
+ 			p = p[4:]
+ 		}
+ 
+-		var typ byte
+-		typ = p[0] & 0x7F
++		typ := p[0] & 0x7F
+ 		s.typ = typ
+ 		p = p[1:]
+ 
+diff --git a/src/go/build/constraint/expr.go b/src/go/build/constraint/expr.go
+index 957eb9b527..d64eead654 100644
+--- a/src/go/build/constraint/expr.go
++++ b/src/go/build/constraint/expr.go
+@@ -345,7 +345,6 @@ func (p *exprParser) lex() {
+ 	p.i += len(tag)
+ 	p.tok = p.s[p.pos:p.i]
+ 	p.isTag = true
+-	return
+ }
+ 
+ // IsPlusBuild reports whether the line of text is a “// +build” constraint.
+diff --git a/src/math/tan.go b/src/math/tan.go
+index 515dd82f73..8f6e71e82b 100644
+--- a/src/math/tan.go
++++ b/src/math/tan.go
+@@ -67,10 +67,10 @@ var _tanP = [...]float64{
+ }
+ var _tanQ = [...]float64{
+ 	1.00000000000000000000e0,
+-	1.36812963470692954678e4,  //0x40cab8a5eeb36572
+-	-1.32089234440210967447e6, //0xc13427bc582abc96
+-	2.50083801823357915839e7,  //0x4177d98fc2ead8ef
+-	-5.38695755929454629881e7, //0xc189afe03cbe5a31
++	1.36812963470692954678e4,  // 0x40cab8a5eeb36572
++	-1.32089234440210967447e6, // 0xc13427bc582abc96
++	2.50083801823357915839e7,  // 0x4177d98fc2ead8ef
++	-5.38695755929454629881e7, // 0xc189afe03cbe5a31
+ }
+ 
+ // Tan returns the tangent of the radian argument x.
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 309dfcc0e1..c2393a0741 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -303,10 +303,8 @@ func canonicalHost(host string) (string, error) {
+ 			return "", err
+ 		}
+ 	}
+-	if strings.HasSuffix(host, ".") {
+-		// Strip trailing dot from fully qualified domain names.
+-		host = host[:len(host)-1]
+-	}
++	// Strip trailing dot from fully qualified domain names.
++	host = strings.TrimSuffix(host, ".")
+ 	encoded, err := toASCII(host)
+ 	if err != nil {
+ 		return "", err
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index b7244134f0..082490faaa 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -622,7 +622,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
+ 	go spc.copyToBackend(errc)
+ 	go spc.copyFromBackend(errc)
+ 	<-errc
+-	return
+ }
+ 
+ // switchProtocolCopier exists so goroutines proxying data back and
+diff --git a/src/runtime/metrics/description_test.go b/src/runtime/metrics/description_test.go
+index fd1fd46efc..192c1f29cc 100644
+--- a/src/runtime/metrics/description_test.go
++++ b/src/runtime/metrics/description_test.go
+@@ -103,7 +103,7 @@ func TestDescriptionDocs(t *testing.T) {
+ 	}
+ 	if len(docs) > len(descriptions) {
+ 	docsLoop:
+-		for name, _ := range docs {
++		for name := range docs {
+ 			for _, d := range descriptions {
+ 				if name == d.Name {
+ 					continue docsLoop
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 6a5add6f4e..6324d463cf 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -724,7 +724,7 @@ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
+ 	var first = true
+ 	Benchmark(func(b *B) {
+ 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
+-			panic(fmt.Sprintf("ReadMemStats not called before first run"))
++			panic("ReadMemStats not called before first run")
+ 		}
+ 		first = false
+ 	})

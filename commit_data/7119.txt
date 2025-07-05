@@ -7,7 +7,36 @@ Date:   Thu Jan 13 17:41:45 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4006041
-
+---
  src/pkg/exp/ogle/cmd.go                    | 3 ++-
  src/pkg/go/typechecker/typechecker_test.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index ff137b0f89..4f67032d0c 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -64,7 +64,8 @@ func Main() {
+ func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
+ 	sc := new(scanner.Scanner)
+ 	ev := new(scanner.ErrorVector)
+-	sc.Init(fset, "input", input, ev, 0)
++	file := fset.AddFile("input", fset.Base(), len(input))
++	sc.Init(file, input, ev, 0)
+ 	return sc, ev
+ }
+ 
+diff --git a/src/pkg/go/typechecker/typechecker_test.go b/src/pkg/go/typechecker/typechecker_test.go
+index 9c5b52e415..33f4a6223f 100644
+--- a/src/pkg/go/typechecker/typechecker_test.go
++++ b/src/pkg/go/typechecker/typechecker_test.go
+@@ -68,7 +68,8 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+ 		}
+ 
+ 		var s scanner.Scanner
+-		s.Init(fset, filename, src, nil, scanner.ScanComments)
++		file := fset.AddFile(filename, fset.Base(), len(src))
++		s.Init(file, src, nil, scanner.ScanComments)
+ 		var prev token.Pos // position of last non-comment token
+ 	loop:
+ 		for {

@@ -15,7 +15,7 @@ Date:   Thu May 31 18:51:00 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/life/main.go        | 2 +-
  misc/cgo/stdio/chain.go      | 2 +-
  misc/cgo/stdio/fib.go        | 2 +-
@@ -37,3 +37,210 @@ Date:   Thu May 31 18:51:00 2018 +0300
  test/run.go                  | 4 ----
  test/sigchld.go              | 2 +-
  20 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index 45376fd05a..145a273bdd 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -1,4 +1,4 @@
+-// cmpout -tags=use_go_run
++// run -tags=use_go_run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index 0fa813cab7..cdc385208c 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -1,4 +1,4 @@
+-// cmpout -tags=use_go_run
++// run -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 56e32552ee..58f185c90f 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -1,4 +1,4 @@
+-// cmpout -tags=use_go_run
++// run -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 63bff4c617..56220d34be 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -1,4 +1,4 @@
+-// cmpout -tags=use_go_run
++// run -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/deferprint.go b/test/deferprint.go
+index 3dc08542c1..b74677ac59 100644
+--- a/test/deferprint.go
++++ b/test/deferprint.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug206.go b/test/fixedbugs/bug206.go
+index c2382acf13..91efa3ff79 100644
+--- a/test/fixedbugs/bug206.go
++++ b/test/fixedbugs/bug206.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug328.go b/test/fixedbugs/bug328.go
+index 180af05fde..57043f30af 100644
+--- a/test/fixedbugs/bug328.go
++++ b/test/fixedbugs/bug328.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug409.go b/test/fixedbugs/bug409.go
+index 9e08a8e676..e8546361ab 100644
+--- a/test/fixedbugs/bug409.go
++++ b/test/fixedbugs/bug409.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue21887.go b/test/fixedbugs/issue21887.go
+index 9e3e91fcdb..73c3f43596 100644
+--- a/test/fixedbugs/issue21887.go
++++ b/test/fixedbugs/issue21887.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue22683.go b/test/fixedbugs/issue22683.go
+index a59a0edaf4..47c7f6513d 100644
+--- a/test/fixedbugs/issue22683.go
++++ b/test/fixedbugs/issue22683.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue25322.go b/test/fixedbugs/issue25322.go
+index 7489bbdfc2..ee4ff53e2e 100644
+--- a/test/fixedbugs/issue25322.go
++++ b/test/fixedbugs/issue25322.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue6899.go b/test/fixedbugs/issue6899.go
+index f98f551b32..d7f8578029 100644
+--- a/test/fixedbugs/issue6899.go
++++ b/test/fixedbugs/issue6899.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/goprint.go b/test/goprint.go
+index 0648c77e7d..57eeac53a8 100644
+--- a/test/goprint.go
++++ b/test/goprint.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/helloworld.go b/test/helloworld.go
+index 5025ec9bb3..06851d13b3 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index 665e52a5f3..5d78dc0147 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 6df8dc4ddf..7bb3cabbc2 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/print.go b/test/print.go
+index b7f3db0a41..7718c735e4 100644
+--- a/test/print.go
++++ b/test/print.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/printbig.go b/test/printbig.go
+index 5693c58d4f..9e08c39adc 100644
+--- a/test/printbig.go
++++ b/test/printbig.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 0805ecd4fc..3cd1911877 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -502,10 +502,6 @@ func (t *test) run() {
+ 
+ 	// TODO: Clean up/simplify this switch statement.
+ 	switch action {
+-	case "rundircmpout":
+-		action = "rundir"
+-	case "cmpout":
+-		action = "run" // the run case already looks for <dir>/<test>.out files
+ 	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
+ 		// nothing to do
+ 	case "errorcheckandrundir":
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 38437e5522..3b49606409 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,5 +1,5 @@
+ // +build !plan9,!windows
+-// cmpout
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

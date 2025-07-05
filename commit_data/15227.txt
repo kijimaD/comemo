@@ -7,6 +7,51 @@ Date:   Thu Feb 14 07:02:32 2013 +0900
     R=dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/7305081
-
+---
  src/pkg/net/dial_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 9aa8af5e3e..2303e8fa46 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"reflect"
+ 	"regexp"
+ 	"runtime"
+ 	"testing"
+@@ -223,6 +224,31 @@ func TestDialError(t *testing.T) {
+ 	}
+ }
+ 
++var invalidDialAndListenArgTests = []struct {
++	net  string
++	addr string
++	err  error
++}{
++	{"foo", "bar", &OpError{Op: "dial", Net: "foo", Addr: nil, Err: UnknownNetworkError("foo")}},
++	{"baz", "", &OpError{Op: "listen", Net: "baz", Addr: nil, Err: UnknownNetworkError("baz")}},
++	{"tcp", "", &OpError{Op: "dial", Net: "tcp", Addr: nil, Err: errMissingAddress}},
++}
++
++func TestInvalidDialAndListenArgs(t *testing.T) {
++	for _, tt := range invalidDialAndListenArgTests {
++		var err error
++		switch tt.err.(*OpError).Op {
++		case "dial":
++			_, err = Dial(tt.net, tt.addr)
++		case "listen":
++			_, err = Listen(tt.net, tt.addr)
++		}
++		if !reflect.DeepEqual(tt.err, err) {
++			t.Fatalf("got %#v; expected %#v", err, tt.err)
++		}
++	}
++}
++
+ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+ 		// TODO(bradfitz): test on other platforms

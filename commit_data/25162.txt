@@ -56,8 +56,205 @@ Date:   Thu Sep 24 14:39:27 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go     | 20 ++++++++++++++++++
  src/runtime/mgcmark.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++---
  src/runtime/mheap.go   | 25 ++++++++++++++++++++--
  3 files changed, 97 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a3960852a1..268e9b9ccd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -763,6 +763,12 @@ var work struct {
+ 	alldone note
+ 	markfor *parfor
+ 
++	// finalizersDone indicates that finalizers and objects with
++	// finalizers have been scanned by markroot. During concurrent
++	// GC, this happens during the concurrent scan phase. During
++	// STW GC, this happens during mark termination.
++	finalizersDone bool
++
+ 	bgMarkReady note   // signal background mark worker has started
+ 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
+ 	// Background mark completion signaling
+@@ -938,6 +944,8 @@ func gc(mode gcMode) {
+ 
+ 	gcResetMarkState()
+ 
++	work.finalizersDone = false
++
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+ 		gcController.startCycle()
+ 		heapGoal = gcController.heapGoal
+@@ -970,6 +978,10 @@ func gc(mode gcMode) {
+ 			// boundaries where there are up-pointers.
+ 			setGCPhase(_GCscan)
+ 
++			// markrootSpans uses work.spans, so make sure
++			// it is up to date.
++			gcCopySpans()
++
+ 			gcBgMarkPrepare() // Must happen before assist enable.
+ 
+ 			// At this point all Ps have enabled the write
+@@ -1037,6 +1049,10 @@ func gc(mode gcMode) {
+ 		// below. The important thing is that the wb remains active until
+ 		// all marking is complete. This includes writes made by the GC.
+ 
++		// markroot is done now, so record that objects with
++		// finalizers have been scanned.
++		work.finalizersDone = true
++
+ 		// Flush the gcWork caches. This must be done before
+ 		// endCycle since endCycle depends on statistics kept
+ 		// in these caches.
+@@ -1442,6 +1458,10 @@ func gcMark(start_time int64) {
+ 		notesleep(&work.alldone)
+ 	}
+ 
++	// markroot is done now, so record that objects with
++	// finalizers have been scanned.
++	work.finalizersDone = true
++
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		if allp[i].gcw.wbuf != 0 {
+ 			throw("P has cached GC work at end of mark termination")
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index bdbde65d14..cdcca5797c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -118,9 +118,38 @@ func markroot(desc *parfor, i uint32) {
+ //
+ //go:nowritebarrier
+ func markrootSpans(gcw *gcWork, shard int) {
++	// Objects with finalizers have two GC-related invariants:
++	//
++	// 1) Everything reachable from the object must be marked.
++	// This ensures that when we pass the object to its finalizer,
++	// everything the finalizer can reach will be retained.
++	//
++	// 2) Finalizer specials (which are not in the garbage
++	// collected heap) are roots. In practice, this means the fn
++	// field must be scanned.
++	//
++	// TODO(austin): There are several ideas for making this more
++	// efficient in issue #11485.
++
++	// We process objects with finalizers only during the first
++	// markroot pass. In concurrent GC, this happens during
++	// concurrent scan and we depend on addfinalizer to ensure the
++	// above invariants for objects that get finalizers after
++	// concurrent scan. In STW GC, this will happen during mark
++	// termination.
++	if work.finalizersDone {
++		return
++	}
++
+ 	sg := mheap_.sweepgen
+ 	startSpan := shard * len(work.spans) / _RootSpansShards
+ 	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
++	// Note that work.spans may not include spans that were
++	// allocated between entering the scan phase and now. This is
++	// okay because any objects with finalizers in those spans
++	// must have been allocated and given finalizers after we
++	// entered the scan phase, so addfinalizer will have ensured
++	// the above invariants for them.
+ 	for _, s := range work.spans[startSpan:endSpan] {
+ 		if s.state != mSpanInUse {
+ 			continue
+@@ -130,6 +159,22 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 			print("sweep ", s.sweepgen, " ", sg, "\n")
+ 			throw("gc: unswept span")
+ 		}
++
++		// Speculatively check if there are any specials
++		// without acquiring the span lock. This may race with
++		// adding the first special to a span, but in that
++		// case addfinalizer will observe that the GC is
++		// active (which is globally synchronized) and ensure
++		// the above invariants. We may also ensure the
++		// invariants, but it's okay to scan an object twice.
++		if s.specials == nil {
++			continue
++		}
++
++		// Lock the specials to prevent a special from being
++		// removed from the list while we're traversing it.
++		lock(&s.speciallock)
++
+ 		for sp := s.specials; sp != nil; sp = sp.next {
+ 			if sp.kind != _KindSpecialFinalizer {
+ 				continue
+@@ -139,11 +184,17 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 			spf := (*specialfinalizer)(unsafe.Pointer(sp))
+ 			// A finalizer can be set for an inner byte of an object, find object beginning.
+ 			p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+-			if gcphase != _GCscan {
+-				scanobject(p, gcw) // scanned during mark termination
+-			}
++
++			// Mark everything that can be reached from
++			// the object (but *not* the object itself or
++			// we'll never collect it).
++			scanobject(p, gcw)
++
++			// The special itself is a root.
+ 			scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], gcw)
+ 		}
++
++		unlock(&s.speciallock)
+ 	}
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index bc4e7c1272..b0834bc173 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -930,7 +930,8 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	}
+ 
+ 	// Ensure that the span is swept.
+-	// GC accesses specials list w/o locks. And it's just much safer.
++	// Sweeping accesses the specials list w/o locks, so we have
++	// to synchronize with it. And it's just much safer.
+ 	mp := acquirem()
+ 	mSpan_EnsureSwept(span)
+ 
+@@ -977,7 +978,8 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ 	}
+ 
+ 	// Ensure that the span is swept.
+-	// GC accesses specials list w/o locks. And it's just much safer.
++	// Sweeping accesses the specials list w/o locks, so we have
++	// to synchronize with it. And it's just much safer.
+ 	mp := acquirem()
+ 	mSpan_EnsureSwept(span)
+ 
+@@ -1025,6 +1027,25 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 	s.fint = fint
+ 	s.ot = ot
+ 	if addspecial(p, &s.special) {
++		// This is responsible for maintaining the same
++		// GC-related invariants as markrootSpans in any
++		// situation where it's possible that markrootSpans
++		// has already run but mark termination hasn't yet.
++		if gcphase != _GCoff {
++			_, base, _ := findObject(p)
++			mp := acquirem()
++			gcw := &mp.p.ptr().gcw
++			// Mark everything reachable from the object
++			// so it's retained for the finalizer.
++			scanobject(uintptr(base), gcw)
++			// Mark the finalizer itself, since the
++			// special isn't part of the GC'd heap.
++			scanblock(uintptr(unsafe.Pointer(&s.fn)), ptrSize, &oneptrmask[0], gcw)
++			if gcBlackenPromptly {
++				gcw.dispose()
++			}
++			releasem(mp)
++		}
+ 		return true
+ 	}
+ 

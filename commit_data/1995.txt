@@ -13,10 +13,347 @@ Date:   Sun Apr 12 17:01:17 2009 -0700
     DELTA=259  (161 added, 96 deleted, 2 changed)
     OCL=27343
     CL=27343
-
+---
  src/runtime/rune.c    | 113 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/runtime.h |   1 +
  src/runtime/string.c  | 100 +-------------------------------------------
  test/golden.out       |   4 ++
  test/stringrange.go   |  47 +++++++++++++++++++++
  5 files changed, 167 insertions(+), 98 deletions(-)
+
+diff --git a/src/runtime/rune.c b/src/runtime/rune.c
+index 9e731ad219..2acf421cb0 100644
+--- a/src/runtime/rune.c
++++ b/src/runtime/rune.c
+@@ -52,6 +52,119 @@ enum
+ 	Runemax	= 0x10FFFF,	/* maximum rune value */
+ };
+ 
++/*
++ * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
++ * This is a slower but "safe" version of the old chartorune
++ * that works on strings that are not necessarily null-terminated.
++ * 
++ * If you know for sure that your string is null-terminated,
++ * chartorune will be a bit faster.
++ *
++ * It is guaranteed not to attempt to access "length"
++ * past the incoming pointer.  This is to avoid
++ * possible access violations.  If the string appears to be
++ * well-formed but incomplete (i.e., to get the whole Rune
++ * we'd need to read past str+length) then we'll set the Rune
++ * to Bad and return 0.
++ *
++ * Note that if we have decoding problems for other
++ * reasons, we return 1 instead of 0.
++ */
++int32
++charntorune(int32 *rune, uint8 *str, int32 length)
++{
++	int32 c, c1, c2, c3, l;
++
++	/* When we're not allowed to read anything */
++	if(length <= 0) {
++		goto badlen;
++	}
++
++	/*
++	 * one character sequence (7-bit value)
++	 *	00000-0007F => T1
++	 */
++	c = *(uint8*)str;
++	if(c < Tx) {
++		*rune = c;
++		return 1;
++	}
++
++	// If we can't read more than one character we must stop
++	if(length <= 1) {
++		goto badlen;
++	}
++
++	/*
++	 * two character sequence (11-bit value)
++	 *	0080-07FF => T2 Tx
++	 */
++	c1 = *(uint8*)(str+1) ^ Tx;
++	if(c1 & Testx)
++		goto bad;
++	if(c < T3) {
++		if(c < T2)
++			goto bad;
++		l = ((c << Bitx) | c1) & Rune2;
++		if(l <= Rune1)
++			goto bad;
++		*rune = l;
++		return 2;
++	}
++
++	// If we can't read more than two characters we must stop
++	if(length <= 2) {
++		goto badlen;
++	}
++
++	/*
++	 * three character sequence (16-bit value)
++	 *	0800-FFFF => T3 Tx Tx
++	 */
++	c2 = *(uint8*)(str+2) ^ Tx;
++	if(c2 & Testx)
++		goto bad;
++	if(c < T4) {
++		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
++		if(l <= Rune2)
++			goto bad;
++		*rune = l;
++		return 3;
++	}
++
++	if (length <= 3)
++		goto badlen;
++
++	/*
++	 * four character sequence (21-bit value)
++	 *	10000-1FFFFF => T4 Tx Tx Tx
++	 */
++	c3 = *(uint8*)(str+3) ^ Tx;
++	if (c3 & Testx)
++		goto bad;
++	if (c < T5) {
++		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
++		if (l <= Rune3 || l > Runemax)
++			goto bad;
++		*rune = l;
++		return 4;
++	}
++
++	// Support for 5-byte or longer UTF-8 would go here, but
++	// since we don't have that, we'll just fall through to bad.
++
++	/*
++	 * bad decoding
++	 */
++bad:
++	*rune = Bad;
++	return 1;
++badlen:
++	*rune = Bad;
++	return 0;
++
++}
++
+ int32
+ runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
+ {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index bdadbfc17e..6b398c2bfa 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -272,6 +272,7 @@ int32	strcmp(byte*, byte*);
+ int32	findnull(byte*);
+ void	dump(byte*, int32);
+ int32	runetochar(byte*, int32);
++int32	charntorune(int32*, uint8*, int32);
+ 
+ /*
+  * very low level c-called
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 4d89e96001..b9b361861e 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -189,11 +189,9 @@ sys·arraystring(Array b, String s)
+ 	FLUSH(&s);
+ }
+ 
+-static	int32	chartorune(int32 *rune, byte *str);
+ enum
+ {
+ 	Runeself	= 0x80,
+-	Runeerror	= 0xfffd,
+ };
+ 
+ // func	stringiter(string, int) (retk int);
+@@ -213,13 +211,7 @@ sys·stringiter(String s, int32 k, int32 retk)
+ 
+ 	if(l >= Runeself) {
+ 		// multi-char rune
+-		n = chartorune(&l, s.str+k);
+-		if(k+n > s.len) {
+-			// special case of multi-char rune
+-			// that ran off end of string
+-			l = Runeerror;
+-			n = 1;
+-		}
++		n = charntorune(&l, s.str+k, s.len-k);
+ 	}
+ 
+ 	retk = k+n;
+@@ -246,13 +238,7 @@ sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
+ 
+ 	if(l >= Runeself) {
+ 		// multi-char rune
+-		n = chartorune(&l, s.str+k);
+-		if(k+n > s.len) {
+-			// special case of multi-char rune
+-			// that ran off end of string
+-			l = Runeerror;
+-			n = 1;
+-		}
++		n = charntorune(&l, s.str+k, s.len-k);
+ 	}
+ 
+ 	retk = k+n;
+@@ -262,85 +248,3 @@ out:
+ 	FLUSH(&retk);
+ 	FLUSH(&retv);
+ }
+-
+-//
+-// copied from plan9 library
+-//
+-
+-enum
+-{
+-	Bit1	= 7,
+-	Bitx	= 6,
+-	Bit2	= 5,
+-	Bit3	= 4,
+-	Bit4	= 3,
+-
+-	T1	= ((1<<(Bit1+1))-1) ^ 0xFF,	/* 0000 0000 */
+-	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
+-	T2	= ((1<<(Bit2+1))-1) ^ 0xFF,	/* 1100 0000 */
+-	T3	= ((1<<(Bit3+1))-1) ^ 0xFF,	/* 1110 0000 */
+-	T4	= ((1<<(Bit4+1))-1) ^ 0xFF,	/* 1111 0000 */
+-
+-	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
+-	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
+-	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
+-
+-	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
+-	Testx	= Maskx ^ 0xFF,			/* 1100 0000 */
+-};
+-
+-static int32
+-chartorune(int32 *rune, byte *str)
+-{
+-	int32 c, c1, c2;
+-	int32 l;
+-
+-	/*
+-	 * one character sequence
+-	 *	00000-0007F => T1
+-	 */
+-	c = str[0];
+-	if(c < Tx) {
+-		*rune = c;
+-		return 1;
+-	}
+-
+-	/*
+-	 * two character sequence
+-	 *	0080-07FF => T2 Tx
+-	 */
+-	c1 = str[1] ^ Tx;
+-	if(c1 & Testx)
+-		goto bad;
+-	if(c < T3) {
+-		if(c < T2)
+-			goto bad;
+-		l = ((c << Bitx) | c1) & Rune2;
+-		if(l <= Rune1)
+-			goto bad;
+-		*rune = l;
+-		return 2;
+-	}
+-
+-	/*
+-	 * three character sequence
+-	 *	0800-FFFF => T3 Tx Tx
+-	 */
+-	c2 = str[2] ^ Tx;
+-	if(c2 & Testx)
+-		goto bad;
+-	if(c < T4) {
+-		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
+-		if(l <= Rune2)
+-			goto bad;
+-		*rune = l;
+-		return 3;
+-	}
+-
+-	/*
+-	 * bad decoding
+-	 */
+-bad:
+-	*rune = Runeerror;
+-	return 1;
+-}
+diff --git a/test/golden.out b/test/golden.out
+index b3cc4fb543..7cb408b8e2 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -67,6 +67,10 @@ panic PC=xxx
+ =========== ./sigchld.go
+ survived SIGCHLD
+ 
++=========== ./stringrange.go
++after loop i is 18 not 17
++FAIL
++
+ =========== ./turing.go
+ Hello World!
+ 
+diff --git a/test/stringrange.go b/test/stringrange.go
+new file mode 100644
+index 0000000000..66d25e1f4f
+--- /dev/null
++++ b/test/stringrange.go
+@@ -0,0 +1,47 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import(
++        "fmt";
++        "utf8";
++)
++
++func main() {
++	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx";
++	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' };
++	var rune, size int;
++	offset := 0;
++	var i, c int;
++	ok := true;
++	cnum := 0;
++	for i, c = range s {
++		rune, size := utf8.DecodeRuneInString(s, i);  // check it another way
++		if i != offset {
++			fmt.Printf("unexpected offset %d not %d\n", i, offset);
++			ok = false;
++		}
++		if rune != expect[cnum] {
++			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, rune, expect[cnum]);
++			ok = false;
++		}
++		if c != expect[cnum] {
++			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, rune, expect[cnum]);
++			ok = false;
++		}
++		offset += size;
++		cnum++;
++	}
++	if i != len(s)-1 {
++		fmt.Println("after loop i is", i, "not", len(s)-1);
++		ok = false;
++	}
++	if !ok {
++		fmt.Println("FAIL");
++		sys.Exit(1)
++	}
++}

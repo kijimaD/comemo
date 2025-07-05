@@ -12,7 +12,7 @@ Date:   Fri Jun 18 17:28:29 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.17.html                                  |   7 ++
  src/cmd/go/alldocs.go                            |   6 +-
  src/cmd/go/internal/modcmd/graph.go              |  13 ++-
@@ -21,3 +21,274 @@ Date:   Fri Jun 18 17:28:29 2021 -0400
  src/cmd/go/internal/modload/buildlist.go         |  26 +++++-
  src/cmd/go/testdata/script/mod_graph_version.txt | 101 +++++++++++++++++++++++
  7 files changed, 154 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 02cd18d037..22896c8c27 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -187,6 +187,13 @@ Do not send CLs removing the interior tags from such phrases.
+   features.
+ </p>
+ 
++<p><!-- golang.org/issue/46366 -->
++  The <code>go</code> <code>mod</code> <code>graph</code> subcommand also
++  supports the <code>-go</code> flag, which causes it to report the graph as
++  seen by the indicated Go version, showing dependencies that may otherwise be
++  pruned out by lazy loading.
++</p>
++
+ <h4 id="module-deprecation-comments">Module deprecation comments</h4>
+ 
+ <p><!-- golang.org/issue/40357 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 27f993aeb3..fd95da23eb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1186,13 +1186,17 @@
+ //
+ // Usage:
+ //
+-// 	go mod graph
++// 	go mod graph [-go=version]
+ //
+ // Graph prints the module requirement graph (with replacements applied)
+ // in text form. Each line in the output has two space-separated fields: a module
+ // and one of its requirements. Each module is identified as a string of the form
+ // path@version, except for the main module, which has no @version suffix.
+ //
++// The -go flag causes graph to report the module graph as loaded by by the
++// given Go version, instead of the version indicated by the 'go' directive
++// in the go.mod file.
++//
+ // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+ //
+ //
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 77853304e9..903bd9970f 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ var cmdGraph = &base.Command{
+-	UsageLine: "go mod graph",
++	UsageLine: "go mod graph [-go=version]",
+ 	Short:     "print module requirement graph",
+ 	Long: `
+ Graph prints the module requirement graph (with replacements applied)
+@@ -26,12 +26,21 @@ in text form. Each line in the output has two space-separated fields: a module
+ and one of its requirements. Each module is identified as a string of the form
+ path@version, except for the main module, which has no @version suffix.
+ 
++The -go flag causes graph to report the module graph as loaded by by the
++given Go version, instead of the version indicated by the 'go' directive
++in the go.mod file.
++
+ See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+ 	`,
+ 	Run: runGraph,
+ }
+ 
++var (
++	graphGo goVersionFlag
++)
++
+ func init() {
++	cmdGraph.Flag.Var(&graphGo, "go", "")
+ 	base.AddModCommonFlags(&cmdGraph.Flag)
+ }
+ 
+@@ -41,7 +50,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+-	mg := modload.LoadModGraph(ctx)
++	mg := modload.LoadModGraph(ctx, graphGo.String())
+ 
+ 	w := bufio.NewWriter(os.Stdout)
+ 	defer w.Flush()
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 5c321c783a..5a6eca32cf 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -54,7 +54,8 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 
+ 	// Use a slice of result channels, so that the output is deterministic.
+-	mods := modload.LoadModGraph(ctx).BuildList()[1:]
++	const defaultGoVersion = ""
++	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[1:]
+ 	errsChans := make([]<-chan []error, len(mods))
+ 
+ 	for i, mod := range mods {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ea5c4e229a..9672e5598e 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -506,7 +506,8 @@ type versionReason struct {
+ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	// LoadModGraph also sets modload.Target, which is needed by various resolver
+ 	// methods.
+-	mg := modload.LoadModGraph(ctx)
++	const defaultGoVersion = ""
++	mg := modload.LoadModGraph(ctx, defaultGoVersion)
+ 
+ 	buildList := mg.BuildList()
+ 	initialVersion := make(map[string]string, len(buildList))
+@@ -1803,7 +1804,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 		return false
+ 	}
+ 
+-	r.buildList = modload.LoadModGraph(ctx).BuildList()
++	const defaultGoVersion = ""
++	r.buildList = modload.LoadModGraph(ctx, defaultGoVersion).BuildList()
+ 	r.buildListVersion = make(map[string]string, len(r.buildList))
+ 	for _, m := range r.buildList {
+ 		r.buildListVersion[m.Path] = m.Version
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 64eaa16e8b..604a57b437 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -403,11 +403,33 @@ func (mg *ModuleGraph) allRootsSelected() bool {
+ // LoadModGraph loads and returns the graph of module dependencies of the main module,
+ // without loading any packages.
+ //
++// If the goVersion string is non-empty, the returned graph is the graph
++// as interpreted by the given Go version (instead of the version indicated
++// in the go.mod file).
++//
+ // Modules are loaded automatically (and lazily) in LoadPackages:
+ // LoadModGraph need only be called if LoadPackages is not,
+ // typically in commands that care about modules but no particular package.
+-func LoadModGraph(ctx context.Context) *ModuleGraph {
+-	rs, mg, err := expandGraph(ctx, LoadModFile(ctx))
++func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
++	rs := LoadModFile(ctx)
++
++	if goVersion != "" {
++		depth := modDepthFromGoVersion(goVersion)
++		if depth == eager && rs.depth != eager {
++			// Use newRequirements instead of convertDepth because convertDepth
++			// also updates roots; here, we want to report the unmodified roots
++			// even though they may seem inconsistent.
++			rs = newRequirements(eager, rs.rootModules, rs.direct)
++		}
++
++		mg, err := rs.Graph(ctx)
++		if err != nil {
++			base.Fatalf("go: %v", err)
++		}
++		return mg
++	}
++
++	rs, mg, err := expandGraph(ctx, rs)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_graph_version.txt b/src/cmd/go/testdata/script/mod_graph_version.txt
+new file mode 100644
+index 0000000000..f9a73f4617
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_graph_version.txt
+@@ -0,0 +1,101 @@
++# For this module, Go 1.17 prunes out a (transitive and otherwise-irrelevant)
++# requirement on a retracted higher version of a dependency.
++# However, when Go 1.16 reads the same requirements from the go.mod file,
++# it does not prune out that requirement, and selects the retracted version.
++#
++# The Go 1.16 module graph looks like:
++#
++# m ---- lazy v0.1.0 ---- requireincompatible v0.1.0 ---- incompatible v2.0.0+incompatible
++# |        |
++# + -------+------------- incompatible v1.0.0
++#
++# The Go 1.17 module graph is the same except that the dependencies of
++# requireincompatible are pruned out (because the module that requires
++# it — lazy v0.1.0 — specifies 'go 1.17', and it is not otherwise relevant to
++# the main module).
++
++cp go.mod go.mod.orig
++
++go mod graph
++cp stdout graph-1.17.txt
++stdout '^example\.com/m example\.com/retract/incompatible@v1\.0\.0$'
++stdout '^example\.net/lazy@v0\.1\.0 example\.com/retract/incompatible@v1\.0\.0$'
++! stdout 'example\.com/retract/incompatible@v2\.0\.0\+incompatible'
++
++go mod graph -go=1.17
++cmp stdout graph-1.17.txt
++
++cmp go.mod go.mod.orig
++
++
++# Setting -go=1.16 should report the graph as viewed by Go 1.16,
++# but should not edit the go.mod file.
++
++go mod graph -go=1.16
++cp stdout graph-1.16.txt
++stdout '^example\.com/m example\.com/retract/incompatible@v1\.0\.0$'
++stdout '^example\.net/lazy@v0\.1\.0 example.com/retract/incompatible@v1\.0\.0$'
++stdout '^example.net/requireincompatible@v0.1.0 example.com/retract/incompatible@v2\.0\.0\+incompatible$'
++
++cmp go.mod go.mod.orig
++
++
++# If we actually update the go.mod file to the requested go version,
++# we should get the same selected versions, but the roots of the graph
++# may be updated.
++#
++# TODO(#45551): The roots should not be updated.
++
++go mod edit -go=1.16
++go mod graph
++! stdout '^example\.com/m example\.com/retract/incompatible@v1\.0\.0$'
++stdout '^example\.net/lazy@v0.1.0 example.com/retract/incompatible@v1\.0\.0$'
++stdout '^example.net/requireincompatible@v0.1.0 example.com/retract/incompatible@v2\.0\.0\+incompatible$'
++	# TODO(#45551): cmp stdout graph-1.16.txt
++
++
++# Unsupported go versions should be rejected, since we don't know
++# what versions they would report.
++! go mod graph -go=1.99999999999
++stderr '^invalid value "1\.99999999999" for flag -go: maximum supported Go version is '$goversion'\nusage: go mod graph \[-go=version\]\nRun ''go help mod graph'' for details.$'
++
++
++-- go.mod --
++// Module m indirectly imports a package from
++// example.com/retract/incompatible. Its selected version of
++// that module is lower under Go 1.17 semantics than under Go 1.16.
++module example.com/m
++
++go 1.17
++
++replace (
++	example.net/lazy v0.1.0 => ./lazy
++	example.net/requireincompatible v0.1.0 => ./requireincompatible
++)
++
++require (
++	example.com/retract/incompatible v1.0.0 // indirect
++	example.net/lazy v0.1.0
++)
++-- lazy/go.mod --
++// Module lazy requires example.com/retract/incompatible v1.0.0.
++//
++// When viewed from the outside it also has a transitive dependency
++// on v2.0.0+incompatible, but in lazy mode that transitive dependency
++// is pruned out.
++module example.net/lazy
++
++go 1.17
++
++exclude example.com/retract/incompatible v2.0.0+incompatible
++
++require (
++	example.com/retract/incompatible v1.0.0
++	example.net/requireincompatible v0.1.0
++)
++-- requireincompatible/go.mod --
++module example.net/requireincompatible
++
++go 1.15
++
++require example.com/retract/incompatible v2.0.0+incompatible

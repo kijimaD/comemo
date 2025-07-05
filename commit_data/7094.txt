@@ -16,7 +16,7 @@ Date:   Tue Jan 11 20:54:30 2011 -0500
     R=r, nsz, rsc
     CC=golang-dev
     https://golang.org/cl/3786043
-
+---
  src/pkg/crypto/openpgp/armor/Makefile      |  12 ++
  src/pkg/crypto/openpgp/armor/armor.go      | 220 +++++++++++++++++++++++++++++
  src/pkg/crypto/openpgp/armor/armor_test.go |  97 +++++++++++++
@@ -24,3 +24,588 @@ Date:   Tue Jan 11 20:54:30 2011 -0500
  src/pkg/crypto/openpgp/error/Makefile      |  11 ++
  src/pkg/crypto/openpgp/error/error.go      |  46 ++++++
  6 files changed, 548 insertions(+)
+
+diff --git a/src/pkg/crypto/openpgp/armor/Makefile b/src/pkg/crypto/openpgp/armor/Makefile
+new file mode 100644
+index 0000000000..138e314e9f
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/armor/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../../Make.inc
++
++TARG=crypto/openpgp/armor
++GOFILES=\
++	armor.go\
++	encode.go\
++
++include ../../../../Make.pkg
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+new file mode 100644
+index 0000000000..97080f6c6d
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -0,0 +1,220 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements OpenPGP ASCII Armor, see RFC 4880. OpenPGP Armor is
++// very similar to PEM except that it has an additional CRC checksum.
++package armor
++
++import (
++	"bytes"
++	"crypto/openpgp/error"
++	"encoding/base64"
++	"encoding/line"
++	"io"
++	"os"
++)
++
++// A Block represents an OpenPGP armored structure.
++//
++// The encoded form is:
++//    -----BEGIN Type-----
++//    Headers
++//
++//    base64-encoded Bytes
++//    '=' base64 encoded checksum
++//    -----END Type-----
++// where Headers is a possibly empty sequence of Key: Value lines.
++//
++// Since the armored data can be very large, this package presents a streaming
++// interface.
++type Block struct {
++	Type    string            // The type, taken from the preamble (i.e. "PGP SIGNATURE").
++	Header  map[string]string // Optional headers.
++	Body    io.Reader         // A Reader from which the contents can be read
++	lReader lineReader
++	oReader openpgpReader
++}
++
++var ArmorCorrupt os.Error = error.StructuralError("armor invalid")
++
++const crc24Init = 0xb704ce
++const crc24Poly = 0x1864cfb
++const crc24Mask = 0xffffff
++
++// crc24 calculates the OpenPGP checksum as specified in RFC 4880, section 6.1
++func crc24(crc uint32, d []byte) uint32 {
++	for _, b := range d {
++		crc ^= uint32(b) << 16
++		for i := 0; i < 8; i++ {
++			crc <<= 1
++			if crc&0x1000000 != 0 {
++				crc ^= crc24Poly
++			}
++		}
++	}
++	return crc
++}
++
++var armorStart = []byte("-----BEGIN ")
++var armorEnd = []byte("-----END ")
++var armorEndOfLine = []byte("-----")
++
++// lineReader wraps a line based reader. It watches for the end of an armor
++// block and records the expected CRC value.
++type lineReader struct {
++	in  *line.Reader
++	buf []byte
++	eof bool
++	crc uint32
++}
++
++func (l *lineReader) Read(p []byte) (n int, err os.Error) {
++	if l.eof {
++		return 0, os.EOF
++	}
++
++	if len(l.buf) > 0 {
++		n = copy(p, l.buf)
++		l.buf = l.buf[n:]
++		return
++	}
++
++	line, isPrefix, err := l.in.ReadLine()
++	if err != nil {
++		return
++	}
++	if isPrefix {
++		return 0, ArmorCorrupt
++	}
++
++	if len(line) == 5 && line[0] == '=' {
++		// This is the checksum line
++		var expectedBytes [3]byte
++		var m int
++		m, err = base64.StdEncoding.Decode(expectedBytes[0:], line[1:])
++		if m != 3 || err != nil {
++			return
++		}
++		l.crc = uint32(expectedBytes[0])<<16 |
++			uint32(expectedBytes[1])<<8 |
++			uint32(expectedBytes[2])
++
++		line, _, err = l.in.ReadLine()
++		if err != nil && err != os.EOF {
++			return
++		}
++		if !bytes.HasPrefix(line, armorEnd) {
++			return 0, ArmorCorrupt
++		}
++
++		l.eof = true
++		return 0, os.EOF
++	}
++
++	if len(line) != 64 {
++		return 0, ArmorCorrupt
++	}
++
++	n = copy(p, line)
++	bytesToSave := len(line) - n
++	if bytesToSave > 0 {
++		if cap(l.buf) < bytesToSave {
++			l.buf = make([]byte, 0, bytesToSave)
++		}
++		l.buf = l.buf[0:bytesToSave]
++		copy(l.buf, line[n:])
++	}
++
++	return
++}
++
++// openpgpReader passes Read calls to the underlying base64 decoder, but keeps
++// a running CRC of the resulting data and checks the CRC against the value
++// found by the lineReader at EOF.
++type openpgpReader struct {
++	lReader    *lineReader
++	b64Reader  io.Reader
++	currentCRC uint32
++}
++
++func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
++	n, err = r.b64Reader.Read(p)
++	r.currentCRC = crc24(r.currentCRC, p[:n])
++
++	if err == os.EOF {
++		if r.lReader.crc != uint32(r.currentCRC&crc24Mask) {
++			return 0, ArmorCorrupt
++		}
++	}
++
++	return
++}
++
++// Decode reads a PGP armored block from the given Reader. It will ignore
++// leading garbage. If it doesn't find a block, it will return nil, os.EOF. The
++// given Reader is not usable after calling this function: an arbitary amount
++// of data may have been read past the end of the block.
++func Decode(in io.Reader) (p *Block, err os.Error) {
++	r := line.NewReader(in, 100)
++	var line []byte
++	ignoreNext := false
++
++TryNextBlock:
++	p = nil
++
++	// Skip leading garbage
++	for {
++		ignoreThis := ignoreNext
++		line, ignoreNext, err = r.ReadLine()
++		if err != nil {
++			return
++		}
++		if ignoreNext || ignoreThis {
++			continue
++		}
++		line = bytes.TrimSpace(line)
++		if len(line) > len(armorStart)+len(armorEndOfLine) && bytes.HasPrefix(line, armorStart) {
++			break
++		}
++	}
++
++	p = new(Block)
++	p.Type = string(line[len(armorStart) : len(line)-len(armorEndOfLine)])
++	p.Header = make(map[string]string)
++	nextIsContinuation := false
++	var lastKey string
++
++	// Read headers
++	for {
++		isContinuation := nextIsContinuation
++		line, nextIsContinuation, err = r.ReadLine()
++		if err != nil {
++			p = nil
++			return
++		}
++		if isContinuation {
++			p.Header[lastKey] += string(line)
++			continue
++		}
++		line = bytes.TrimSpace(line)
++		if len(line) == 0 {
++			break
++		}
++
++		i := bytes.Index(line, []byte(": "))
++		if i == -1 {
++			goto TryNextBlock
++		}
++		lastKey = string(line[:i])
++		p.Header[lastKey] = string(line[i+2:])
++	}
++
++	p.lReader.in = r
++	p.oReader.currentCRC = crc24Init
++	p.oReader.lReader = &p.lReader
++	p.oReader.b64Reader = base64.NewDecoder(base64.StdEncoding, &p.lReader)
++	p.Body = &p.oReader
++
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/armor/armor_test.go b/src/pkg/crypto/openpgp/armor/armor_test.go
+new file mode 100644
+index 0000000000..e4ffd414b6
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/armor/armor_test.go
+@@ -0,0 +1,97 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package armor
++
++import (
++	"bytes"
++	"hash/adler32"
++	"io/ioutil"
++	"testing"
++)
++
++func TestDecodeEncode(t *testing.T) {
++	buf := bytes.NewBuffer([]byte(armorExample1))
++	result, err := Decode(buf)
++	if err != nil {
++		t.Error(err)
++	}
++	expectedType := "PGP SIGNATURE"
++	if result.Type != expectedType {
++		t.Errorf("result.Type: got:%s want:%s", result.Type, expectedType)
++	}
++	if len(result.Header) != 1 {
++		t.Errorf("len(result.Header): got:%d want:1", len(result.Header))
++	}
++	v, ok := result.Header["Version"]
++	if !ok || v != "GnuPG v1.4.10 (GNU/Linux)" {
++		t.Errorf("result.Header: got:%#v", result.Header)
++	}
++
++	contents, err := ioutil.ReadAll(result.Body)
++	if err != nil {
++		t.Error(err)
++	}
++
++	if adler32.Checksum(contents) != 0x789d7f00 {
++		t.Errorf("contents: got: %x", contents)
++	}
++
++	buf = bytes.NewBuffer(nil)
++	w, err := Encode(buf, result.Type, result.Header)
++	if err != nil {
++		t.Error(err)
++	}
++	_, err = w.Write(contents)
++	if err != nil {
++		t.Error(err)
++	}
++	w.Close()
++
++	if !bytes.Equal(buf.Bytes(), []byte(armorExample1)) {
++		t.Errorf("got: %s\nwant: %s", string(buf.Bytes()), armorExample1)
++	}
++}
++
++func TestLongHeader(t *testing.T) {
++	buf := bytes.NewBuffer([]byte(armorLongLine))
++	result, err := Decode(buf)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	value, ok := result.Header["Version"]
++	if !ok {
++		t.Errorf("missing Version header")
++	}
++	if value != longValueExpected {
++		t.Errorf("got: %s want: %s", value, longValueExpected)
++	}
++}
++
++const armorExample1 = `-----BEGIN PGP SIGNATURE-----
++Version: GnuPG v1.4.10 (GNU/Linux)
++
++iQEcBAABAgAGBQJMtFESAAoJEKsQXJGvOPsVj40H/1WW6jaMXv4BW+1ueDSMDwM8
++kx1fLOXbVM5/Kn5LStZNt1jWWnpxdz7eq3uiqeCQjmqUoRde3YbB2EMnnwRbAhpp
++cacnAvy9ZQ78OTxUdNW1mhX5bS6q1MTEJnl+DcyigD70HG/yNNQD7sOPMdYQw0TA
++byQBwmLwmTsuZsrYqB68QyLHI+DUugn+kX6Hd2WDB62DKa2suoIUIHQQCd/ofwB3
++WfCYInXQKKOSxu2YOg2Eb4kLNhSMc1i9uKUWAH+sdgJh7NBgdoE4MaNtBFkHXRvv
++okWuf3+xA9ksp1npSY/mDvgHijmjvtpRDe6iUeqfCn8N9u9CBg8geANgaG8+QA4=
++=wfQG
++-----END PGP SIGNATURE-----`
++
++const armorLongLine = `-----BEGIN PGP SIGNATURE-----
++Version: 0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz
++
++iQEcBAABAgAGBQJMtFESAAoJEKsQXJGvOPsVj40H/1WW6jaMXv4BW+1ueDSMDwM8
++kx1fLOXbVM5/Kn5LStZNt1jWWnpxdz7eq3uiqeCQjmqUoRde3YbB2EMnnwRbAhpp
++cacnAvy9ZQ78OTxUdNW1mhX5bS6q1MTEJnl+DcyigD70HG/yNNQD7sOPMdYQw0TA
++byQBwmLwmTsuZsrYqB68QyLHI+DUugn+kX6Hd2WDB62DKa2suoIUIHQQCd/ofwB3
++WfCYInXQKKOSxu2YOg2Eb4kLNhSMc1i9uKUWAH+sdgJh7NBgdoE4MaNtBFkHXRvv
++okWuf3+xA9ksp1npSY/mDvgHijmjvtpRDe6iUeqfCn8N9u9CBg8geANgaG8+QA4=
++=wfQG
++-----END PGP SIGNATURE-----`
++
++const longValueExpected = "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
+diff --git a/src/pkg/crypto/openpgp/armor/encode.go b/src/pkg/crypto/openpgp/armor/encode.go
+new file mode 100644
+index 0000000000..410e734602
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/armor/encode.go
+@@ -0,0 +1,162 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package armor
++
++import (
++	"encoding/base64"
++	"io"
++	"os"
++)
++
++var armorHeaderSep = []byte(": ")
++var blockEnd = []byte("\n=")
++var newline = []byte("\n")
++var armorEndOfLineOut = []byte("-----\n")
++
++// writeSlices writes its arguments to the given Writer.
++func writeSlices(out io.Writer, slices ...[]byte) (err os.Error) {
++	for _, s := range slices {
++		_, err := out.Write(s)
++		if err != nil {
++			return
++		}
++	}
++	return
++}
++
++// lineBreaker breaks data across several lines, all of the same byte length
++// (except possibly the last). Lines are broken with a single '\n'.
++type lineBreaker struct {
++	lineLength  int
++	line        []byte
++	used        int
++	out         io.Writer
++	haveWritten bool
++}
++
++func newLineBreaker(out io.Writer, lineLength int) *lineBreaker {
++	return &lineBreaker{
++		lineLength: lineLength,
++		line:       make([]byte, lineLength),
++		used:       0,
++		out:        out,
++	}
++}
++
++func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
++	n = len(b)
++
++	if n == 0 {
++		return
++	}
++
++	if l.used == 0 && l.haveWritten {
++		_, err = l.out.Write([]byte{'\n'})
++		if err != nil {
++			return
++		}
++	}
++
++	if l.used+len(b) < l.lineLength {
++		l.used += copy(l.line[l.used:], b)
++		return
++	}
++
++	l.haveWritten = true
++	_, err = l.out.Write(l.line[0:l.used])
++	if err != nil {
++		return
++	}
++	excess := l.lineLength - l.used
++	l.used = 0
++
++	_, err = l.out.Write(b[0:excess])
++	if err != nil {
++		return
++	}
++
++	_, err = l.Write(b[excess:])
++	return
++}
++
++func (l *lineBreaker) Close() (err os.Error) {
++	if l.used > 0 {
++		_, err = l.out.Write(l.line[0:l.used])
++		if err != nil {
++			return
++		}
++	}
++
++	return
++}
++
++// encoding keeps track of a running CRC24 over the data which has been written
++// to it and outputs a OpenPGP checksum when closed, followed by an armor
++// trailer.
++//
++// It's built into a stack of io.Writers:
++//    encoding -> base64 encoder -> lineBreaker -> out
++type encoding struct {
++	out       io.Writer
++	breaker   *lineBreaker
++	b64       io.WriteCloser
++	crc       uint32
++	blockType []byte
++}
++
++func (e *encoding) Write(data []byte) (n int, err os.Error) {
++	e.crc = crc24(e.crc, data)
++	return e.b64.Write(data)
++}
++
++func (e *encoding) Close() (err os.Error) {
++	err = e.b64.Close()
++	if err != nil {
++		return
++	}
++
++	var checksumBytes [3]byte
++	checksumBytes[0] = byte(e.crc >> 16)
++	checksumBytes[1] = byte(e.crc >> 8)
++	checksumBytes[2] = byte(e.crc)
++
++	var b64ChecksumBytes [4]byte
++	base64.StdEncoding.Encode(b64ChecksumBytes[:], checksumBytes[:])
++
++	return writeSlices(e.out, blockEnd, b64ChecksumBytes[:], newline, armorEnd, e.blockType, armorEndOfLine)
++}
++
++// Encode returns a WriteCloser which will encode the data written to it in
++// OpenPGP armor.
++func Encode(out io.Writer, blockType string, headers map[string]string) (w io.WriteCloser, err os.Error) {
++	bType := []byte(blockType)
++	err = writeSlices(out, armorStart, bType, armorEndOfLineOut)
++	if err != nil {
++		return
++	}
++
++	for k, v := range headers {
++		err = writeSlices(out, []byte(k), armorHeaderSep, []byte(v), newline)
++		if err != nil {
++			return
++		}
++	}
++
++	if len(headers) > 0 {
++		_, err := out.Write(newline)
++		if err != nil {
++			return
++		}
++	}
++
++	e := &encoding{
++		out:       out,
++		breaker:   newLineBreaker(out, 64),
++		crc:       crc24Init,
++		blockType: bType,
++	}
++	e.b64 = base64.NewEncoder(base64.StdEncoding, e.breaker)
++	return e, nil
++}
+diff --git a/src/pkg/crypto/openpgp/error/Makefile b/src/pkg/crypto/openpgp/error/Makefile
+new file mode 100644
+index 0000000000..8c370a0894
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/error/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../../Make.inc
++
++TARG=crypto/openpgp/error
++GOFILES=\
++	error.go\
++
++include ../../../../Make.pkg
+diff --git a/src/pkg/crypto/openpgp/error/error.go b/src/pkg/crypto/openpgp/error/error.go
+new file mode 100644
+index 0000000000..2d80ce3734
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/error/error.go
+@@ -0,0 +1,46 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package contains common error types for the OpenPGP packages.
++package error
++
++// A StructuralError is returned when OpenPGP data is found to be syntactically
++// invalid.
++type StructuralError string
++
++func (s StructuralError) String() string {
++	return "OpenPGP data invalid: " + string(s)
++}
++
++// UnsupportedError indicates that, although the OpenPGP data is valid, it
++// makes use of currently unimplemented features.
++type UnsupportedError string
++
++func (s UnsupportedError) String() string {
++	return "OpenPGP feature unsupported: " + string(s)
++}
++
++// InvalidArgumentError indicates that the caller is in error and passed an
++// incorrect value.
++type InvalidArgumentError string
++
++func (i InvalidArgumentError) String() string {
++	return "OpenPGP argument invalid: " + string(i)
++}
++
++// SignatureError indicates that a syntactically valid signature failed to
++// validate.
++type SignatureError string
++
++func (b SignatureError) String() string {
++	return "OpenPGP signature invalid: " + string(b)
++}
++
++type keyIncorrect int
++
++func (ki keyIncorrect) String() string {
++	return "the given key was incorrect"
++}
++
++var KeyIncorrectError = keyIncorrect(0)

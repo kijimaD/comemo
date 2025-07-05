@@ -7,6 +7,20 @@ Date:   Mon Dec 11 17:05:14 2017 -0500
     Change-Id: Ie7f2890eab9ad82da93babc92380b13c611af3d0
     Reviewed-on: https://go-review.googlesource.com/83375
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.10.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 99607abd80..e2ac5319d3 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -36,7 +36,7 @@ OVERVIEW HERE
+ <h2 id="language">Changes to the language</h2>
+ 
+ <p>
+-There are no substantial changes to the language.
++There are no significant changes to the language.
+ </p>
+ 
+ <p><!-- CL 60230 -->

@@ -19,9 +19,133 @@ Date:   Thu Jun 3 18:29:05 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325110
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/export_test.go | 20 ++++----------------
  src/runtime/mgc.go         | 15 +++++----------
  src/runtime/mgcscavenge.go |  4 ++--
  src/runtime/mgcsweep.go    |  4 ++--
  4 files changed, 13 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index fa878c4946..60c06c3f10 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -145,40 +145,28 @@ func RunSchedLocalQueueStealTest() {
+ 	}
+ }
+ 
+-// Temporary to enable register ABI bringup.
+-// TODO(register args): convert back to local variables in RunSchedLocalQueueEmptyTest that
+-// get passed to the "go" stmts there.
+-var RunSchedLocalQueueEmptyState struct {
+-	done  chan bool
+-	ready *uint32
+-	p     *p
+-}
+-
+ func RunSchedLocalQueueEmptyTest(iters int) {
+ 	// Test that runq is not spuriously reported as empty.
+ 	// Runq emptiness affects scheduling decisions and spurious emptiness
+ 	// can lead to underutilization (both runnable Gs and idle Ps coexist
+ 	// for arbitrary long time).
+ 	done := make(chan bool, 1)
+-	RunSchedLocalQueueEmptyState.done = done
+ 	p := new(p)
+-	RunSchedLocalQueueEmptyState.p = p
+ 	gs := make([]g, 2)
+ 	ready := new(uint32)
+-	RunSchedLocalQueueEmptyState.ready = ready
+ 	for i := 0; i < iters; i++ {
+ 		*ready = 0
+ 		next0 := (i & 1) == 0
+ 		next1 := (i & 2) == 0
+ 		runqput(p, &gs[0], next0)
+ 		go func() {
+-			for atomic.Xadd(RunSchedLocalQueueEmptyState.ready, 1); atomic.Load(RunSchedLocalQueueEmptyState.ready) != 2; {
++			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+ 			}
+-			if runqempty(RunSchedLocalQueueEmptyState.p) {
+-				//println("next:", next0, next1)
++			if runqempty(p) {
++				println("next:", next0, next1)
+ 				throw("queue is empty")
+ 			}
+-			RunSchedLocalQueueEmptyState.done <- true
++			done <- true
+ 		}()
+ 		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+ 		}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4585663535..c239fa0f63 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -167,22 +167,17 @@ func gcinit() {
+ 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+ }
+ 
+-// Temporary in order to enable register ABI work.
+-// TODO(register args): convert back to local chan in gcenabled, passed to "go" stmts.
+-var gcenable_setup chan int
+-
+ // gcenable is called after the bulk of the runtime initialization,
+ // just before we're about to start letting user code run.
+ // It kicks off the background sweeper goroutine, the background
+ // scavenger goroutine, and enables GC.
+ func gcenable() {
+ 	// Kick off sweeping and scavenging.
+-	gcenable_setup = make(chan int, 2)
+-	go bgsweep()
+-	go bgscavenge()
+-	<-gcenable_setup
+-	<-gcenable_setup
+-	gcenable_setup = nil
++	c := make(chan int, 2)
++	go bgsweep(c)
++	go bgscavenge(c)
++	<-c
++	<-c
+ 	memstats.enablegc = true // now that runtime is initialized, GC is okay
+ }
+ 
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 7578129f9d..9cb61ed0a6 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -249,7 +249,7 @@ func scavengeSleep(ns int64) int64 {
+ // The background scavenger maintains the RSS of the application below
+ // the line described by the proportional scavenging statistics in
+ // the mheap struct.
+-func bgscavenge() {
++func bgscavenge(c chan int) {
+ 	scavenge.g = getg()
+ 
+ 	lockInit(&scavenge.lock, lockRankScavenge)
+@@ -261,7 +261,7 @@ func bgscavenge() {
+ 		wakeScavenger()
+ 	}
+ 
+-	gcenable_setup <- 1
++	c <- 1
+ 	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
+ 
+ 	// Exponentially-weighted moving average of the fraction of time this
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 8fe3a65340..1812644623 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -153,13 +153,13 @@ func finishsweep_m() {
+ 	nextMarkBitArenaEpoch()
+ }
+ 
+-func bgsweep() {
++func bgsweep(c chan int) {
+ 	sweep.g = getg()
+ 
+ 	lockInit(&sweep.lock, lockRankSweep)
+ 	lock(&sweep.lock)
+ 	sweep.parked = true
+-	gcenable_setup <- 1
++	c <- 1
+ 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+ 
+ 	for {

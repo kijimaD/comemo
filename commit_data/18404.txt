@@ -10,7 +10,26 @@ Date:   Mon Feb 3 09:52:03 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/59550044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 804c17979f..069b8fd346 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -382,3 +382,4 @@ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Ziad Hatahet <hatahet@gmail.com>
+ Zorion Arrizabalaga <zorionk@gmail.com>
++申习之 <bronze1man@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9b029332a7..87a8543ae5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -528,3 +528,4 @@ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Yves Junqueira <yves.junqueira@gmail.com>
+ Ziad Hatahet <hatahet@gmail.com>
+ Zorion Arrizabalaga <zorionk@gmail.com>
++申习之 <bronze1man@gmail.com>

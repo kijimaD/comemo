@@ -42,7 +42,75 @@ Date:   Sun Sep 2 17:03:34 2018 +0100
     Change-Id: I866a50e809c398512cb87648c955eaa4bf4d8606
     Reviewed-on: https://go-review.googlesource.com/132895
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go      | 19 ++++++-------------
  src/strings/strings_test.go | 14 ++++++++++++++
  2 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index e0bebced63..df95715ec8 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -423,27 +423,20 @@ func Join(a []string, sep string) string {
+ 		return ""
+ 	case 1:
+ 		return a[0]
+-	case 2:
+-		// Special case for common small values.
+-		// Remove if golang.org/issue/6714 is fixed
+-		return a[0] + sep + a[1]
+-	case 3:
+-		// Special case for common small values.
+-		// Remove if golang.org/issue/6714 is fixed
+-		return a[0] + sep + a[1] + sep + a[2]
+ 	}
+ 	n := len(sep) * (len(a) - 1)
+ 	for i := 0; i < len(a); i++ {
+ 		n += len(a[i])
+ 	}
+ 
+-	b := make([]byte, n)
+-	bp := copy(b, a[0])
++	var b Builder
++	b.Grow(n)
++	b.WriteString(a[0])
+ 	for _, s := range a[1:] {
+-		bp += copy(b[bp:], sep)
+-		bp += copy(b[bp:], s)
++		b.WriteString(sep)
++		b.WriteString(s)
+ 	}
+-	return string(b)
++	return b.String()
+ }
+ 
+ // HasPrefix tests whether the string s begins with prefix.
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index d6197ed895..20bc484f39 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"math/rand"
+ 	"reflect"
++	"strconv"
+ 	. "strings"
+ 	"testing"
+ 	"unicode"
+@@ -1711,3 +1712,16 @@ func BenchmarkIndexPeriodic(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkJoin(b *testing.B) {
++	vals := []string{"red", "yellow", "pink", "green", "purple", "orange", "blue"}
++	for l := 0; l <= len(vals); l++ {
++		b.Run(strconv.Itoa(l), func(b *testing.B) {
++			b.ReportAllocs()
++			vals := vals[:l]
++			for i := 0; i < b.N; i++ {
++				Join(vals, " and ")
++			}
++		})
++	}
++}

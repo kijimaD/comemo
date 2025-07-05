@@ -54,8 +54,82 @@ Date:   Fri Oct 15 19:22:10 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356549
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go |  2 +-
  src/runtime/mgcpacer.go    |  2 +-
  src/runtime/mheap.go       | 18 +++++++++---------
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 01fd1dbd97..01f917bded 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -263,7 +263,7 @@ var ReadUnaligned64 = readUnaligned64
+ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 	stopTheWorld("CountPagesInUse")
+ 
+-	pagesInUse = uintptr(mheap_.pagesInUse)
++	pagesInUse = uintptr(mheap_.pagesInUse.Load())
+ 
+ 	for _, s := range mheap_.allspans {
+ 		if s.state.get() == mSpanInUse {
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 342ea419fe..3cd4ea2fde 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -752,7 +752,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 			heapDistance = _PageSize
+ 		}
+ 		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
+-		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
++		pagesInUse := mheap_.pagesInUse.Load()
+ 		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
+ 		if sweepDistancePages <= 0 {
+ 			mheap_.sweepPagesPerByte = 0
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b78f752ded..a787f67460 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -96,17 +96,17 @@ type mheap struct {
+ 	// any given time, the system is at (gcController.heapLive,
+ 	// pagesSwept) in this space.
+ 	//
+-	// It's important that the line pass through a point we
+-	// control rather than simply starting at a (0,0) origin
++	// It is important that the line pass through a point we
++	// control rather than simply starting at a 0,0 origin
+ 	// because that lets us adjust sweep pacing at any time while
+ 	// accounting for current progress. If we could only adjust
+ 	// the slope, it would create a discontinuity in debt if any
+ 	// progress has already been made.
+-	pagesInUse         uint64  // pages of spans in stats mSpanInUse; updated atomically
+-	pagesSwept         uint64  // pages swept this cycle; updated atomically
+-	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
+-	sweepHeapLiveBasis uint64  // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
+-	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
++	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
++	pagesSwept         uint64        // pages swept this cycle; updated atomically
++	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
++	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
++	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
+ 	// TODO(austin): pagesInUse should be a uintptr, but the 386
+ 	// compiler can't 8-byte align fields.
+ 
+@@ -1311,7 +1311,7 @@ HaveSpan:
+ 		atomic.Or8(&arena.pageInUse[pageIdx], pageMask)
+ 
+ 		// Update related page sweeper stats.
+-		atomic.Xadd64(&h.pagesInUse, int64(npages))
++		h.pagesInUse.Add(int64(npages))
+ 	}
+ 
+ 	// Make sure the newly allocated span will be observed
+@@ -1468,7 +1468,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+ 			throw("mheap.freeSpanLocked - invalid free")
+ 		}
+-		atomic.Xadd64(&h.pagesInUse, -int64(s.npages))
++		h.pagesInUse.Add(-int64(s.npages))
+ 
+ 		// Clear in-use bit in arena page bitmap.
+ 		arena, pageIdx, pageMask := pageIndexOf(s.base())

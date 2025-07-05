@@ -11,6 +11,25 @@ Date:   Thu Oct 20 22:22:25 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index e6f9173aaf..e5d288167e 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -216,6 +216,13 @@ by making copies of the data.  In pseudo-Go definitions:
+ 	// C data with explicit length to Go []byte
+ 	func C.GoBytes(unsafe.Pointer, C.int) []byte
+ 
++As a special case, C.malloc does not call the C library malloc directly
++but instead calls a Go helper function that wraps the C library malloc
++but guarantees never to return nil. If C's malloc indicates out of memory,
++the helper function crashes the program, like when Go itself runs out
++of memory. Because C.malloc cannot fail, it has no two-result form
++that returns errno.
++
+ C references to Go
+ 
+ Go functions can be exported for use by C code in the following way:

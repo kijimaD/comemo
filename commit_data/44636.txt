@@ -11,7 +11,149 @@ Date:   Fri Aug 14 15:47:49 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/test/testflag.go      | 29 +++++++++++++++++++++----
  src/cmd/go/testdata/script/test_flags.txt | 35 +++++++++++++++++++++++++------
  2 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 1ff34f7445..4f0a8924f1 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -214,9 +214,13 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 
+ 	explicitArgs := make([]string, 0, len(args))
+ 	inPkgList := false
++	afterFlagWithoutValue := false
+ 	for len(args) > 0 {
+ 		f, remainingArgs, err := cmdflag.ParseOne(&CmdTest.Flag, args)
+ 
++		wasAfterFlagWithoutValue := afterFlagWithoutValue
++		afterFlagWithoutValue = false // provisionally
++
+ 		if errors.Is(err, flag.ErrHelp) {
+ 			exitWithUsage()
+ 		}
+@@ -233,10 +237,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+ 			if !inPkgList && packageNames != nil {
+ 				// We already saw the package list previously, and this argument is not
+-				// a flag, so it — and everything after it — must be a literal argument
+-				// to the test binary.
+-				explicitArgs = append(explicitArgs, args...)
+-				break
++				// a flag, so it — and everything after it — must be either a value for
++				// a preceding flag or a literal argument to the test binary.
++				if wasAfterFlagWithoutValue {
++					// This argument could syntactically be a flag value, so
++					// optimistically assume that it is and keep looking for go command
++					// flags after it.
++					//
++					// (If we're wrong, we'll at least be consistent with historical
++					// behavior; see https://golang.org/issue/40763.)
++					explicitArgs = append(explicitArgs, nf.RawArg)
++					args = remainingArgs
++					continue
++				} else {
++					// This argument syntactically cannot be a flag value, so it must be a
++					// positional argument, and so must everything after it.
++					explicitArgs = append(explicitArgs, args...)
++					break
++				}
+ 			}
+ 
+ 			inPkgList = true
+@@ -272,6 +290,9 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 
+ 			explicitArgs = append(explicitArgs, nd.RawArg)
+ 			args = remainingArgs
++			if !nd.HasValue {
++				afterFlagWithoutValue = true
++			}
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index d38e37f238..63385e6997 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -10,7 +10,7 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ ! stderr .
+ 
+ # For backward-compatibility with previous releases of the 'go' command,
+-# arguments that appear after unrecognized flags should not be  treated
++# arguments that appear after unrecognized flags should not be treated
+ # as packages, even if they are unambiguously not arguments to flags.
+ # Even though ./x looks like a package path, the real package should be
+ # the implicit '.'.
+@@ -18,6 +18,22 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ stderr '^no Go files in .+$'
+ ! stderr '/x'
+ 
++# However, *flags* that appear after unrecognized flags should still be
++# interpreted as flags, under the (possibly-erroneous) assumption that
++# unrecognized flags are non-boolean.
++
++go test -v -x ./x -timeout 24h -boolflag=true foo -timeout 25h
++stdout 'args: foo -timeout 25h'
++stdout 'timeout: 24h0m0s$'  # -timeout is unambiguously not a flag, so the real flag wins.
++
++go test -v -x ./x -timeout 24h -boolflag foo -timeout 25h
++stdout 'args: foo -test\.timeout=25h0m0s'  # For legacy reasons, '-timeout ' is erroneously rewritten to -test.timeout; see https://golang.org/issue/40763.
++stdout 'timeout: 24h0m0s$'  # Actual flag wins.
++
++go test -v -x ./x -timeout 24h -stringflag foo -timeout 25h
++stdout 'args: $'
++stdout 'timeout: 25h0m0s$'  # Later flag wins.
++
+ # An explicit '-outputdir=' argument should set test.outputdir
+ # to the 'go' command's working directory, not zero it out
+ # for the test binary.
+@@ -30,23 +46,23 @@ exists ./cover.out
+ # with the 'test.' prefix in the GOFLAGS entry...
+ env GOFLAGS='-test.timeout=24h0m0s -count=1'
+ go test -v -x ./x
+-stdout '.*: 24h0m0s$'
++stdout 'timeout: 24h0m0s$'
+ stderr '-test.count=1'
+ 
+ # ...or without.
+ env GOFLAGS='-timeout=24h0m0s -count=1'
+ go test -v -x ./x
+-stdout '.*: 24h0m0s$'
++stdout 'timeout: 24h0m0s$'
+ stderr '-test.count=1'
+ 
+ # Arguments from the command line should override GOFLAGS...
+ go test -v -x -timeout=25h0m0s ./x
+-stdout '.*: 25h0m0s$'
++stdout 'timeout: 25h0m0s$'
+ stderr '-test.count=1'
+ 
+ # ...even if they use a different flag name.
+ go test -v -x -test.timeout=26h0m0s ./x
+-stdout '.*: 26h0m0s$'
++stdout 'timeout: 26h0m0s$'
+ stderr '-test\.timeout=26h0m0s'
+ ! stderr 'timeout=24h0m0s'
+ stderr '-test.count=1'
+@@ -99,11 +115,18 @@ package x
+ 
+ import (
+ 	"flag"
++	"strings"
+ 	"testing"
+ )
+ 
+ var _ = flag.String("usage_message", "", "dummy flag to check usage message")
++var boolflag = flag.Bool("boolflag", false, "ignored boolean flag")
++var stringflag = flag.String("stringflag", "", "ignored string flag")
+ 
+ func TestLogTimeout(t *testing.T) {
+-	t.Log(flag.Lookup("test.timeout").Value)
++	t.Logf("timeout: %v", flag.Lookup("test.timeout").Value)
++}
++
++func TestLogArgs(t *testing.T) {
++	t.Logf("args: %s", strings.Join(flag.Args(), " "))
+ }

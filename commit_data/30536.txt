@@ -8,6 +8,27 @@ Date:   Thu Nov 10 19:02:07 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/33112
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/reflect/all_test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4c11609218..7dfdfd8709 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5914,8 +5914,13 @@ func TestSwapper(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInaccessibleField(t *testing.T) {
+-	var b Buffer
++// TestUnaddressableField tests that the reflect package will not allow
++// a type from another package to be used as a named type with an
++// unexported field.
++//
++// This ensures that unexported fields cannot be modified by other packages.
++func TestUnaddressableField(t *testing.T) {
++	var b Buffer // type defined in reflect, a different package
+ 	var localBuffer struct {
+ 		buf []byte
+ 	}

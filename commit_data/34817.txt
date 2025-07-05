@@ -11,7 +11,65 @@ Date:   Wed Nov 15 17:30:53 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/user/cgo_lookup_unix.go | 12 ++++++++++--
  src/os/user/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 6f66851bbb..987a2d8c7d 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -114,8 +114,8 @@ func lookupUnixUid(uid int) (*User, error) {
+ 
+ func buildUser(pwd *C.struct_passwd) *User {
+ 	u := &User{
+-		Uid:      strconv.Itoa(int(pwd.pw_uid)),
+-		Gid:      strconv.Itoa(int(pwd.pw_gid)),
++		Uid:      strconv.FormatUint(uint64(pwd.pw_uid), 10),
++		Gid:      strconv.FormatUint(uint64(pwd.pw_gid), 10),
+ 		Username: C.GoString(pwd.pw_name),
+ 		Name:     C.GoString(pwd.pw_gecos),
+ 		HomeDir:  C.GoString(pwd.pw_dir),
+@@ -269,3 +269,11 @@ const maxBufferSize = 1 << 20
+ func isSizeReasonable(sz int64) bool {
+ 	return sz > 0 && sz <= maxBufferSize
+ }
++
++// Because we can't use cgo in tests:
++func structPasswdForNegativeTest() C.struct_passwd {
++	sp := C.struct_passwd{}
++	sp.pw_uid = 1<<32 - 2
++	sp.pw_gid = 1<<32 - 3
++	return sp
++}
+diff --git a/src/os/user/cgo_unix_test.go b/src/os/user/cgo_unix_test.go
+new file mode 100644
+index 0000000000..674111800f
+--- /dev/null
++++ b/src/os/user/cgo_unix_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd !android,linux netbsd openbsd solaris
++// +build cgo
++
++package user
++
++import (
++	"testing"
++)
++
++// Issue 22739
++func TestNegativeUid(t *testing.T) {
++	sp := structPasswdForNegativeTest()
++	u := buildUser(&sp)
++	if g, w := u.Uid, "4294967294"; g != w {
++		t.Errorf("Uid = %q; want %q", g, w)
++	}
++	if g, w := u.Gid, "4294967293"; g != w {
++		t.Errorf("Gid = %q; want %q", g, w)
++	}
++}

@@ -11,6 +11,20 @@ Date:   Tue Dec 23 11:09:15 2014 +0100
     Change-Id: I87494a8dd6ea45263882536bf6c0f294eda6866d
     Reviewed-on: https://go-review.googlesource.com/2033
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/runtime/os1_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 9581f0cb67..aa9d67fe1e 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -182,7 +182,7 @@ func exit(e int) {
+ 	} else {
+ 		// build error string
+ 		var tmp [32]byte
+-		status = []byte(gostringnocopy(&itoa(tmp[:], uint64(e))[0]) + "\x00")
++		status = []byte(gostringnocopy(&itoa(tmp[:len(tmp)-1], uint64(e))[0]))
+ 	}
+ 	goexitsall(&status[0])
+ 	exits(&status[0])

@@ -24,6 +24,23 @@ Date:   Thu Mar 23 15:17:50 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/testing/flag_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/flag_test.go b/src/testing/flag_test.go
+index 483ae6530d..416d8c9862 100644
+--- a/src/testing/flag_test.go
++++ b/src/testing/flag_test.go
+@@ -39,7 +39,10 @@ func TestFlag(t *testing.T) {
+ 			cmd.Env = append(cmd.Environ(), flagTestEnv+"=1")
+ 			b, err := cmd.CombinedOutput()
+ 			if len(b) > 0 {
+-				t.Logf("%s", b)
++				// When we set -test.v=test2json, we need to escape the ^V control
++				// character used for JSON framing so that the JSON parser doesn't
++				// misinterpret the subprocess output as output from the parent test.
++				t.Logf("%q", b)
+ 			}
+ 			if err != nil {
+ 				t.Error(err)

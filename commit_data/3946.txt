@@ -7,7 +7,28 @@ Date:   Mon Nov 9 23:54:35 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1025034
-
+---
  doc/go_faq.html      | 2 +-
  doc/go_lang_faq.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 88baa08f35..1d819baf2e 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1,4 +1,4 @@
+-<!-- The Go Programming Language FAQ -->
++<!-- FAQ -->
+ 
+ <h2 id="Origins">Origins</h2>
+ 
+diff --git a/doc/go_lang_faq.html b/doc/go_lang_faq.html
+index 28c84427f4..2cc8a56172 100644
+--- a/doc/go_lang_faq.html
++++ b/doc/go_lang_faq.html
+@@ -1,4 +1,4 @@
+-<!-- The Go Programming Language Design FAQ -->
++<!-- Language Design FAQ -->
+ 
+ <h2 id="origins">Origins</h2>
+ 

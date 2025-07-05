@@ -16,7 +16,46 @@ Date:   Thu Dec 7 23:04:50 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go |  4 ++--
  test/live_syscall.go                 | 12 ++++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index de89adf0e0..4b24be893a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -395,11 +395,11 @@ func ordercall(n *Node, order *Order) {
+ 			// by copying it into a temp and marking that temp
+ 			// still alive when we pop the temp stack.
+ 			xp := n.List.Addr(i)
+-			for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
++			for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
+ 				xp = &(*xp).Left
+ 			}
+ 			x := *xp
+-			if x.Type.IsPtr() {
++			if x.Type.IsUnsafePtr() {
+ 				x = ordercopyexpr(x, x.Type, order, 0)
+ 				x.Name.SetKeepalive(true)
+ 				*xp = x
+diff --git a/test/live_syscall.go b/test/live_syscall.go
+index f693e9357a..6d954653cc 100644
+--- a/test/live_syscall.go
++++ b/test/live_syscall.go
+@@ -26,3 +26,15 @@ func h() {
+ 	var v int
+ 	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "h &v does not escape"
+ }
++
++func i() {
++	var t int
++	p := unsafe.Pointer(&t) // ERROR "i &t does not escape"
++	f(uintptr(p))           // ERROR "live at call to f: .?autotmp"
++}
++
++func j() {
++	var v int
++	p := unsafe.Pointer(&v)              // ERROR "j &v does not escape"
++	syscall.Syscall(0, 1, uintptr(p), 2) // ERROR "live at call to Syscall: .?autotmp"
++}

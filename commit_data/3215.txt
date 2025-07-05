@@ -9,6 +9,20 @@ Date:   Thu Sep 3 16:37:02 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=34338
     CL=34350
-
+---
  src/pkg/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 9f8be910b2..f9d38a4b0c 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1631,7 +1631,7 @@ func (p *parser) parseStmt() ast.Stmt {
+ 		// tokens that may start a top-level expression
+ 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
+ 		token.LBRACK, token.STRUCT,  // composite type
+-		token.MUL, token.AND, token.ARROW:  // unary operators
++		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:  // unary operators
+ 		return p.parseSimpleStmt(true);
+ 	case token.GO:
+ 		return p.parseGoStmt();

@@ -16,8 +16,85 @@ Date:   Sat Dec 16 15:04:05 2017 +0900
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go     |  1 +
  src/cmd/doc/pkg.go          | 17 +++++++++--------
  src/cmd/doc/testdata/pkg.go | 17 +++++++++--------
  3 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index ee7c430cbd..07e59a2d3e 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -292,6 +292,7 @@ var tests = []test{
+ 			`unexportedField.*int.*Comment on line with unexported field.`,
+ 			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
+ 			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field.`,
++			`\*qualified.ExportedEmbeddedType.*Comment on line with exported embedded \*selector.field.`,
+ 			`unexportedType.*Comment on line with unexported embedded field.`,
+ 			`\*unexportedType.*Comment on line with unexported embedded \*field.`,
+ 			`io.Reader.*Comment on line with embedded Reader.`,
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 99a00c5632..11011de018 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -702,9 +702,16 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 	for _, field := range fields.List {
+ 		names := field.Names
+ 		if len(names) == 0 {
+-			// Embedded type. Use the name of the type. It must be of type ident or *ident.
++			// Embedded type. Use the name of the type. It must be of the form ident or
++			// pkg.ident (for structs and interfaces), or *ident or *pkg.ident (structs only).
+ 			// Nothing else is allowed.
+-			switch ident := field.Type.(type) {
++			ty := field.Type
++			if se, ok := field.Type.(*ast.StarExpr); !isInterface && ok {
++				// The form *ident or *pkg.ident is only valid on
++				// embedded types in structs.
++				ty = se.X
++			}
++			switch ident := ty.(type) {
+ 			case *ast.Ident:
+ 				if isInterface && ident.Name == "error" && ident.Obj == nil {
+ 					// For documentation purposes, we consider the builtin error
+@@ -714,12 +721,6 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 					continue
+ 				}
+ 				names = []*ast.Ident{ident}
+-			case *ast.StarExpr:
+-				// Must have the form *identifier.
+-				// This is only valid on embedded types in structs.
+-				if ident, ok := ident.X.(*ast.Ident); ok && !isInterface {
+-					names = []*ast.Ident{ident}
+-				}
+ 			case *ast.SelectorExpr:
+ 				// An embedded type may refer to a type in another package.
+ 				names = []*ast.Ident{ident.Sel}
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index d0995bbf7d..bc069939f8 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -60,14 +60,15 @@ func internalFunc(a int) bool
+ // Comment about exported type.
+ type ExportedType struct {
+ 	// Comment before exported field.
+-	ExportedField         int // Comment on line with exported field.
+-	unexportedField       int // Comment on line with unexported field.
+-	ExportedEmbeddedType      // Comment on line with exported embedded field.
+-	*ExportedEmbeddedType     // Comment on line with exported embedded *field.
+-	unexportedType            // Comment on line with unexported embedded field.
+-	*unexportedType           // Comment on line with unexported embedded *field.
+-	io.Reader                 // Comment on line with embedded Reader.
+-	error                     // Comment on line with embedded error.
++	ExportedField                   int // Comment on line with exported field.
++	unexportedField                 int // Comment on line with unexported field.
++	ExportedEmbeddedType                // Comment on line with exported embedded field.
++	*ExportedEmbeddedType               // Comment on line with exported embedded *field.
++	*qualified.ExportedEmbeddedType     // Comment on line with exported embedded *selector.field.
++	unexportedType                      // Comment on line with unexported embedded field.
++	*unexportedType                     // Comment on line with unexported embedded *field.
++	io.Reader                           // Comment on line with embedded Reader.
++	error                               // Comment on line with embedded error.
+ }
+ 
+ // Comment about exported method.

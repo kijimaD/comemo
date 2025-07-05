@@ -17,7 +17,7 @@ Date:   Wed Aug 25 13:50:24 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/archive/tar/fuzz_test.go   | 80 ++++++++++++++++++++++++++++++++++++
  src/archive/zip/fuzz_test.go   | 81 +++++++++++++++++++++++++++++++++++++
  src/compress/gzip/fuzz_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++
@@ -26,3 +26,572 @@ Date:   Wed Aug 25 13:50:24 2021 -0700
  src/image/jpeg/fuzz_test.go    | 61 ++++++++++++++++++++++++++++
  src/image/png/fuzz_test.go     | 68 +++++++++++++++++++++++++++++++
  7 files changed, 526 insertions(+)
+
+diff --git a/src/archive/tar/fuzz_test.go b/src/archive/tar/fuzz_test.go
+new file mode 100644
+index 0000000000..e73e0d2609
+--- /dev/null
++++ b/src/archive/tar/fuzz_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tar
++
++import (
++	"bytes"
++	"io"
++	"testing"
++)
++
++func FuzzReader(f *testing.F) {
++	b := bytes.NewBuffer(nil)
++	w := NewWriter(b)
++	inp := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
++	err := w.WriteHeader(&Header{
++		Name: "lorem.txt",
++		Mode: 0600,
++		Size: int64(len(inp)),
++	})
++	if err != nil {
++		f.Fatalf("failed to create writer: %s", err)
++	}
++	_, err = w.Write(inp)
++	if err != nil {
++		f.Fatalf("failed to write file to archive: %s", err)
++	}
++	if err := w.Close(); err != nil {
++		f.Fatalf("failed to write archive: %s", err)
++	}
++	f.Add(b.Bytes())
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		r := NewReader(bytes.NewReader(b))
++		type file struct {
++			header  *Header
++			content []byte
++		}
++		files := []file{}
++		for {
++			hdr, err := r.Next()
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				return
++			}
++			buf := bytes.NewBuffer(nil)
++			if _, err := io.Copy(buf, r); err != nil {
++				continue
++			}
++			files = append(files, file{header: hdr, content: buf.Bytes()})
++		}
++
++		// If we were unable to read anything out of the archive don't
++		// bother trying to roundtrip it.
++		if len(files) == 0 {
++			return
++		}
++
++		out := bytes.NewBuffer(nil)
++		w := NewWriter(out)
++		for _, f := range files {
++			if err := w.WriteHeader(f.header); err != nil {
++				t.Fatalf("unable to write previously parsed header: %s", err)
++			}
++			if _, err := w.Write(f.content); err != nil {
++				t.Fatalf("unable to write previously parsed content: %s", err)
++			}
++		}
++		if err := w.Close(); err != nil {
++			t.Fatalf("Unable to write archive: %s", err)
++		}
++
++		// TODO: We may want to check if the archive roundtrips. This would require
++		// taking into account addition of the two zero trailer blocks that Writer.Close
++		// appends.
++	})
++}
+diff --git a/src/archive/zip/fuzz_test.go b/src/archive/zip/fuzz_test.go
+new file mode 100644
+index 0000000000..7dffde69bf
+--- /dev/null
++++ b/src/archive/zip/fuzz_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zip
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func FuzzReader(f *testing.F) {
++	testdata, err := os.ReadDir("testdata")
++	if err != nil {
++		f.Fatalf("failed to read testdata directory: %s", err)
++	}
++	for _, de := range testdata {
++		if de.IsDir() {
++			continue
++		}
++		b, err := os.ReadFile(filepath.Join("testdata", de.Name()))
++		if err != nil {
++			f.Fatalf("failed to read testdata: %s", err)
++		}
++		f.Add(b)
++	}
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		r, err := NewReader(bytes.NewReader(b), int64(len(b)))
++		if err != nil {
++			return
++		}
++
++		type file struct {
++			header  *FileHeader
++			content []byte
++		}
++		files := []file{}
++
++		for _, f := range r.File {
++			fr, err := f.Open()
++			if err != nil {
++				continue
++			}
++			content, err := io.ReadAll(fr)
++			if err != nil {
++				continue
++			}
++			files = append(files, file{header: &f.FileHeader, content: content})
++			if _, err := r.Open(f.Name); err != nil {
++				continue
++			}
++		}
++
++		// If we were unable to read anything out of the archive don't
++		// bother trying to roundtrip it.
++		if len(files) == 0 {
++			return
++		}
++
++		w := NewWriter(io.Discard)
++		for _, f := range files {
++			ww, err := w.CreateHeader(f.header)
++			if err != nil {
++				t.Fatalf("unable to write previously parsed header: %s", err)
++			}
++			if _, err := ww.Write(f.content); err != nil {
++				t.Fatalf("unable to write previously parsed content: %s", err)
++			}
++		}
++
++		if err := w.Close(); err != nil {
++			t.Fatalf("Unable to write archive: %s", err)
++		}
++
++		// TODO: We may want to check if the archive roundtrips.
++	})
++}
+diff --git a/src/compress/gzip/fuzz_test.go b/src/compress/gzip/fuzz_test.go
+new file mode 100644
+index 0000000000..80d803ce93
+--- /dev/null
++++ b/src/compress/gzip/fuzz_test.go
+@@ -0,0 +1,92 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gzip
++
++import (
++	"bytes"
++	"encoding/base64"
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func FuzzReader(f *testing.F) {
++	inp := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
++	for _, level := range []int{BestSpeed, BestCompression, DefaultCompression, HuffmanOnly} {
++		b := bytes.NewBuffer(nil)
++		w, err := NewWriterLevel(b, level)
++		if err != nil {
++			f.Fatalf("failed to construct writer: %s", err)
++		}
++		_, err = w.Write(inp)
++		if err != nil {
++			f.Fatalf("failed to write: %s", err)
++		}
++		f.Add(b.Bytes())
++	}
++
++	testdata, err := os.ReadDir("testdata")
++	if err != nil {
++		f.Fatalf("failed to read testdata directory: %s", err)
++	}
++	for _, de := range testdata {
++		if de.IsDir() {
++			continue
++		}
++		b, err := os.ReadFile(filepath.Join("testdata", de.Name()))
++		if err != nil {
++			f.Fatalf("failed to read testdata: %s", err)
++		}
++
++		// decode any base64 encoded test files
++		if strings.HasPrefix(de.Name(), ".base64") {
++			b, err = base64.StdEncoding.DecodeString(string(b))
++			if err != nil {
++				f.Fatalf("failed to decode base64 testdata: %s", err)
++			}
++		}
++
++		f.Add(b)
++	}
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		for _, multistream := range []bool{true, false} {
++			r, err := NewReader(bytes.NewBuffer(b))
++			if err != nil {
++				continue
++			}
++
++			r.Multistream(multistream)
++
++			decompressed := bytes.NewBuffer(nil)
++			if _, err := io.Copy(decompressed, r); err != nil {
++				continue
++			}
++
++			if err := r.Close(); err != nil {
++				continue
++			}
++
++			for _, level := range []int{NoCompression, BestSpeed, BestCompression, DefaultCompression, HuffmanOnly} {
++				w, err := NewWriterLevel(io.Discard, level)
++				if err != nil {
++					t.Fatalf("failed to construct writer: %s", err)
++				}
++				_, err = w.Write(decompressed.Bytes())
++				if err != nil {
++					t.Fatalf("failed to write: %s", err)
++				}
++				if err := w.Flush(); err != nil {
++					t.Fatalf("failed to flush: %s", err)
++				}
++				if err := w.Close(); err != nil {
++					t.Fatalf("failed to close: %s", err)
++				}
++			}
++		}
++	})
++}
+diff --git a/src/encoding/json/fuzz_test.go b/src/encoding/json/fuzz_test.go
+new file mode 100644
+index 0000000000..778664c3e5
+--- /dev/null
++++ b/src/encoding/json/fuzz_test.go
+@@ -0,0 +1,83 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json
++
++import (
++	"bytes"
++	"io"
++	"testing"
++)
++
++func FuzzUnmarshalJSON(f *testing.F) {
++	f.Add([]byte(`{
++"object": {
++	"slice": [
++		1,
++		2.0,
++		"3",
++		[4],
++		{5: {}}
++	]
++},
++"slice": [[]],
++"string": ":)",
++"int": 1e5,
++"float": 3e-9"
++}`))
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		for _, typ := range []func() interface{}{
++			func() interface{} { return new(interface{}) },
++			func() interface{} { return new(map[string]interface{}) },
++			func() interface{} { return new([]interface{}) },
++		} {
++			i := typ()
++			if err := Unmarshal(b, i); err != nil {
++				return
++			}
++
++			encoded, err := Marshal(i)
++			if err != nil {
++				t.Fatalf("failed to marshal: %s", err)
++			}
++
++			if err := Unmarshal(encoded, i); err != nil {
++				t.Fatalf("failed to roundtrip: %s", err)
++			}
++		}
++	})
++}
++
++func FuzzDecoderToken(f *testing.F) {
++	f.Add([]byte(`{
++"object": {
++	"slice": [
++		1,
++		2.0,
++		"3",
++		[4],
++		{5: {}}
++	]
++},
++"slice": [[]],
++"string": ":)",
++"int": 1e5,
++"float": 3e-9"
++}`))
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		r := bytes.NewReader(b)
++		d := NewDecoder(r)
++		for {
++			_, err := d.Token()
++			if err != nil {
++				if err == io.EOF {
++					break
++				}
++				return
++			}
++		}
++	})
++}
+diff --git a/src/image/gif/fuzz_test.go b/src/image/gif/fuzz_test.go
+new file mode 100644
+index 0000000000..3ddf15d80f
+--- /dev/null
++++ b/src/image/gif/fuzz_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gif
++
++import (
++	"bytes"
++	"image"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func FuzzDecode(f *testing.F) {
++	testdata, err := os.ReadDir("../testdata")
++	if err != nil {
++		f.Fatalf("failed to read testdata directory: %s", err)
++	}
++	for _, de := range testdata {
++		if de.IsDir() || !strings.HasSuffix(de.Name(), ".gif") {
++			continue
++		}
++		b, err := os.ReadFile(filepath.Join("../testdata", de.Name()))
++		if err != nil {
++			f.Fatalf("failed to read testdata: %s", err)
++		}
++		f.Add(b)
++	}
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
++		if err != nil {
++			return
++		}
++		if cfg.Width*cfg.Height > 1e6 {
++			return
++		}
++		img, typ, err := image.Decode(bytes.NewReader(b))
++		if err != nil || typ != "gif" {
++			return
++		}
++		for q := 1; q <= 256; q++ {
++			var w bytes.Buffer
++			err := Encode(&w, img, &Options{NumColors: q})
++			if err != nil {
++				t.Fatalf("failed to encode valid image: %s", err)
++			}
++			img1, err := Decode(&w)
++			if err != nil {
++				t.Fatalf("failed to decode roundtripped image: %s", err)
++			}
++			got := img1.Bounds()
++			want := img.Bounds()
++			if !got.Eq(want) {
++				t.Fatalf("roundtripped image bounds have changed, got: %v, want: %v", got, want)
++			}
++		}
++	})
++}
+diff --git a/src/image/jpeg/fuzz_test.go b/src/image/jpeg/fuzz_test.go
+new file mode 100644
+index 0000000000..716f06f43c
+--- /dev/null
++++ b/src/image/jpeg/fuzz_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package jpeg
++
++import (
++	"bytes"
++	"image"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func FuzzDecode(f *testing.F) {
++	testdata, err := os.ReadDir("../testdata")
++	if err != nil {
++		f.Fatalf("failed to read testdata directory: %s", err)
++	}
++	for _, de := range testdata {
++		if de.IsDir() || !strings.HasSuffix(de.Name(), ".jpeg") {
++			continue
++		}
++		b, err := os.ReadFile(filepath.Join("../testdata", de.Name()))
++		if err != nil {
++			f.Fatalf("failed to read testdata: %s", err)
++		}
++		f.Add(b)
++	}
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
++		if err != nil {
++			return
++		}
++		if cfg.Width*cfg.Height > 1e6 {
++			return
++		}
++		img, typ, err := image.Decode(bytes.NewReader(b))
++		if err != nil || typ != "jpeg" {
++			return
++		}
++		for q := 1; q <= 100; q++ {
++			var w bytes.Buffer
++			err := Encode(&w, img, &Options{Quality: q})
++			if err != nil {
++				t.Fatalf("failed to encode valid image: %s", err)
++			}
++			img1, err := Decode(&w)
++			if err != nil {
++				t.Fatalf("failed to decode roundtripped image: %s", err)
++			}
++			got := img1.Bounds()
++			want := img.Bounds()
++			if !got.Eq(want) {
++				t.Fatalf("roundtripped image bounds have changed, got: %s, want: %s", got, want)
++			}
++		}
++	})
++}
+diff --git a/src/image/png/fuzz_test.go b/src/image/png/fuzz_test.go
+new file mode 100644
+index 0000000000..22b3ef082a
+--- /dev/null
++++ b/src/image/png/fuzz_test.go
+@@ -0,0 +1,68 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package png
++
++import (
++	"bytes"
++	"image"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func FuzzDecode(f *testing.F) {
++	testdata, err := os.ReadDir("../testdata")
++	if err != nil {
++		f.Fatalf("failed to read testdata directory: %s", err)
++	}
++	for _, de := range testdata {
++		if de.IsDir() || !strings.HasSuffix(de.Name(), ".png") {
++			continue
++		}
++		b, err := os.ReadFile(filepath.Join("../testdata", de.Name()))
++		if err != nil {
++			f.Fatalf("failed to read testdata: %s", err)
++		}
++		f.Add(b)
++	}
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
++		if err != nil {
++			return
++		}
++		if cfg.Width*cfg.Height > 1e6 {
++			return
++		}
++		img, typ, err := image.Decode(bytes.NewReader(b))
++		if err != nil || typ != "png" {
++			return
++		}
++		levels := []CompressionLevel{
++			DefaultCompression,
++			NoCompression,
++			BestSpeed,
++			BestCompression,
++		}
++		for _, l := range levels {
++			var w bytes.Buffer
++			e := &Encoder{CompressionLevel: l}
++			err = e.Encode(&w, img)
++			if err != nil {
++				t.Fatalf("failed to encode valid image: %s", err)
++			}
++			img1, err := Decode(&w)
++			if err != nil {
++				t.Fatalf("failed to decode roundtripped image: %s", err)
++			}
++			got := img1.Bounds()
++			want := img.Bounds()
++			if !got.Eq(want) {
++				t.Fatalf("roundtripped image bounds have changed, got: %s, want: %s", got, want)
++			}
++		}
++	})
++}

@@ -7,6 +7,20 @@ Date:   Tue Apr 3 08:10:51 2012 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5952046
-
+---
  misc/dashboard/app/app.yaml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index 6e19db09c6..c5a1f6cb8a 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -6,7 +6,7 @@
+ application: golang-org
+ version: build
+ runtime: go
+-api_version: go1beta
++api_version: go1
+ 
+ handlers:
+ - url: /static

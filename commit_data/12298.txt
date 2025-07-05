@@ -7,6 +7,28 @@ Date:   Wed Feb 29 21:51:21 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5715044
-
+---
  test/fixedbugs/bug426.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug426.go b/test/fixedbugs/bug426.go
+new file mode 100644
+index 0000000000..a1af3cf997
+--- /dev/null
++++ b/test/fixedbugs/bug426.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo crashed compiling this.
++
++package p
++
++type T *T
++
++func f(t T) {
++	println(t, *t)
++}

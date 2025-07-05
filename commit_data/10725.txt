@@ -7,7 +7,32 @@ Date:   Mon Dec 12 18:01:02 2011 -0500
     R=golang-dev, dsymonds, gri
     CC=golang-dev
     https://golang.org/cl/5485048
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cae64eb87e..0385f470c6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -38,6 +38,7 @@ Chris Farmiloe <chrisfarms@gmail.com>
+ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
++Christoph Hack <christoph@tux21b.org>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0195bd52de..88c15093b7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -74,6 +74,7 @@ Chris Hundt <hundt@google.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
++Christoph Hack <christoph@tux21b.org>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>

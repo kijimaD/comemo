@@ -22,7 +22,7 @@ Date:   Thu Feb 28 16:21:58 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7440044
-
+---
  src/cmd/ld/data.c        | 51 +++++++++++++++++++++++++-----------------------
  src/cmd/ld/ldelf.c       | 49 +++++++++++++++++++++++++++++++++++-----------
  src/cmd/ld/ldmacho.c     | 35 ++++++++++++++++++++++++---------
@@ -30,3 +30,407 @@ Date:   Thu Feb 28 16:21:58 2013 -0500
  src/cmd/ld/lib.h         |  3 ++-
  src/pkg/runtime/symtab.c | 10 +++++++++-
  6 files changed, 128 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 1e0bd2cd0f..6c6b1be433 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -58,70 +58,73 @@ datcmp(Sym *s1, Sym *s2)
+ }
+ 
+ Sym*
+-datsort(Sym *l)
++listsort(Sym *l, int (*cmp)(Sym*, Sym*), int off)
+ {
+ 	Sym *l1, *l2, *le;
++	#define NEXT(l) (*(Sym**)((char*)(l)+off))
+ 
+-	if(l == 0 || l->next == 0)
++	if(l == 0 || NEXT(l) == 0)
+ 		return l;
+ 
+ 	l1 = l;
+ 	l2 = l;
+ 	for(;;) {
+-		l2 = l2->next;
++		l2 = NEXT(l2);
+ 		if(l2 == 0)
+ 			break;
+-		l2 = l2->next;
++		l2 = NEXT(l2);
+ 		if(l2 == 0)
+ 			break;
+-		l1 = l1->next;
++		l1 = NEXT(l1);
+ 	}
+ 
+-	l2 = l1->next;
+-	l1->next = 0;
+-	l1 = datsort(l);
+-	l2 = datsort(l2);
++	l2 = NEXT(l1);
++	NEXT(l1) = 0;
++	l1 = listsort(l, cmp, off);
++	l2 = listsort(l2, cmp, off);
+ 
+ 	/* set up lead element */
+-	if(datcmp(l1, l2) < 0) {
++	if(cmp(l1, l2) < 0) {
+ 		l = l1;
+-		l1 = l1->next;
++		l1 = NEXT(l1);
+ 	} else {
+ 		l = l2;
+-		l2 = l2->next;
++		l2 = NEXT(l2);
+ 	}
+ 	le = l;
+ 
+ 	for(;;) {
+ 		if(l1 == 0) {
+ 			while(l2) {
+-				le->next = l2;
++				NEXT(le) = l2;
+ 				le = l2;
+-				l2 = l2->next;
++				l2 = NEXT(l2);
+ 			}
+-			le->next = 0;
++			NEXT(le) = 0;
+ 			break;
+ 		}
+ 		if(l2 == 0) {
+ 			while(l1) {
+-				le->next = l1;
++				NEXT(le) = l1;
+ 				le = l1;
+-				l1 = l1->next;
++				l1 = NEXT(l1);
+ 			}
+ 			break;
+ 		}
+-		if(datcmp(l1, l2) < 0) {
+-			le->next = l1;
++		if(cmp(l1, l2) < 0) {
++			NEXT(le) = l1;
+ 			le = l1;
+-			l1 = l1->next;
++			l1 = NEXT(l1);
+ 		} else {
+-			le->next = l2;
++			NEXT(le) = l2;
+ 			le = l2;
+-			l2 = l2->next;
++			l2 = NEXT(l2);
+ 		}
+ 	}
+-	le->next = 0;
++	NEXT(le) = 0;
+ 	return l;
++	
++	#undef NEXT
+ }
+ 
+ Reloc*
+@@ -1010,7 +1013,7 @@ dodata(void)
+ 				s->type = SDATARELRO;
+ 		}
+ 	}
+-	datap = datsort(datap);
++	datap = listsort(datap, datcmp, offsetof(Sym, next));
+ 
+ 	/*
+ 	 * allocate sections.  list is sorted by type,
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 19c582b007..2bbf4f83e3 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -311,6 +311,16 @@ static int	map(ElfObj*, ElfSect*);
+ static int	readsym(ElfObj*, int i, ElfSym*, int);
+ static int	reltype(char*, int, uchar*);
+ 
++int
++valuecmp(Sym *a, Sym *b)
++{
++	if(a->value < b->value)
++		return -1;
++	if(a->value > b->value)
++		return +1;
++	return 0;
++}
++
+ void
+ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+@@ -541,13 +551,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		}
+ 		s->size = sect->size;
+ 		s->align = sect->align;
+-		if(s->type == STEXT) {
+-			if(etextp)
+-				etextp->next = s;
+-			else
+-				textp = s;
+-			etextp = s;
+-		}
+ 		sect->sym = s;
+ 	}
+ 
+@@ -583,6 +586,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		}
+ 		s = sym.sym;
++		if(s->outer != S) {
++			if(s->dupok)
++				continue;
++			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
++			errorexit();
++		}
+ 		s->sub = sect->sym->sub;
+ 		sect->sym->sub = s;
+ 		s->type = sect->sym->type | (s->type&~SMASK) | SSUB;
+@@ -611,7 +620,25 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				p->link = nil;
+ 				p->pc = pc++;
+ 				s->text = p;
+-
++			}
++		}
++	}
++	
++	// Sort outer lists by address, adding to textp.
++	// This keeps textp in increasing address order.
++	for(i=0; i<obj->nsect; i++) {
++		s = obj->sect[i].sym;
++		if(s == S)
++			continue;
++		if(s->sub)
++			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
++		if(s->type == STEXT) {
++			if(etextp)
++				etextp->next = s;
++			else
++				textp = s;
++			etextp = s;
++			for(s = s->sub; s != S; s = s->sub) {
+ 				etextp->next = s;
+ 				etextp = s;
+ 			}
+@@ -792,7 +819,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 				// set dupok generally. See http://codereview.appspot.com/5823055/
+ 				// comment #5 for details.
+ 				if(s && sym->other == 2) {
+-					s->type = SHIDDEN;
++					s->type |= SHIDDEN;
+ 					s->dupok = 1;
+ 				}
+ 			}
+@@ -804,14 +831,14 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 					// and should only reference by its index, not name, so we
+ 					// don't bother to add them into hash table
+ 					s = newsym(sym->name, version);
+-					s->type = SHIDDEN;
++					s->type |= SHIDDEN;
+ 				}
+ 			break;
+ 		case ElfSymBindWeak:
+ 			if(needSym) {
+ 				s = newsym(sym->name, 0);
+ 				if(sym->other == 2)
+-					s->type = SHIDDEN;
++					s->type |= SHIDDEN;
+ 			}
+ 			break;
+ 		default:
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 3310903e18..41852f17c6 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -593,13 +593,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			} else
+ 				s->type = SDATA;
+ 		}
+-		if(s->type == STEXT) {
+-			if(etextp)
+-				etextp->next = s;
+-			else
+-				textp = s;
+-			etextp = s;
+-		}
+ 		sect->sym = s;
+ 	}
+ 	
+@@ -631,6 +624,12 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			werrstr("reference to invalid section %s/%s", sect->segname, sect->name);
+ 			continue;
+ 		}
++		if(s->outer != S) {
++			if(s->dupok)
++				continue;
++			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
++			errorexit();
++		}
+ 		s->type = outer->type | SSUB;
+ 		s->sub = outer->sub;
+ 		outer->sub = s;
+@@ -661,11 +660,29 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			p->link = nil;
+ 			p->pc = pc++;
+ 			s->text = p;
++		}
++		sym->sym = s;
++	}
+ 
+-			etextp->next = s;
++	// Sort outer lists by address, adding to textp.
++	// This keeps textp in increasing address order.
++	for(i=0; i<c->seg.nsect; i++) {
++		sect = &c->seg.sect[i];
++		if((s = sect->sym) == S)
++			continue;
++		if(s->sub)
++			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
++		if(s->type == STEXT) {
++			if(etextp)
++				etextp->next = s;
++			else
++				textp = s;
+ 			etextp = s;
++			for(s = s->sub; s != S; s = s->sub) {
++				etextp->next = s;
++				etextp = s;
++			}
+ 		}
+-		sym->sym = s;
+ 	}
+ 
+ 	// load relocations
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 8923bc729c..f41827befd 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -236,13 +236,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		s->p = sect->base;
+ 		s->np = sect->size;
+ 		s->size = sect->size;
+-		if(s->type == STEXT) {
+-			if(etextp)
+-				etextp->next = s;
+-			else
+-				textp = s;
+-			etextp = s;
+-		}
+ 		sect->sym = s;
+ 		if(strcmp(sect->name, ".rsrc") == 0)
+ 			setpersrc(sect->sym);
+@@ -327,6 +320,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			goto bad;
+ 	
+ 		s = sym->sym;
++		if(s->outer != S) {
++			if(s->dupok)
++				continue;
++			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
++			errorexit();
++		}
+ 		if(sym->sectnum == 0) {// extern
+ 			if(s->type == SDYNIMPORT)
+ 				s->plt = -2; // flag for dynimport in PE object files.
+@@ -367,9 +366,27 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			p->link = nil;
+ 			p->pc = pc++;
+ 			s->text = p;
+-	
+-			etextp->next = s;
++		}
++	}
++
++	// Sort outer lists by address, adding to textp.
++	// This keeps textp in increasing address order.
++	for(i=0; i<obj->nsect; i++) {
++		s = obj->sect[i].sym;
++		if(s == S)
++			continue;
++		if(s->sub)
++			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
++		if(s->type == STEXT) {
++			if(etextp)
++				etextp->next = s;
++			else
++				textp = s;
+ 			etextp = s;
++			for(s = s->sub; s != S; s = s->sub) {
++				etextp->next = s;
++				etextp = s;
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index d2a8b6fbef..acfad97751 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -196,7 +196,6 @@ void	deadcode(void);
+ Reloc*	addrel(Sym*);
+ void	codeblk(int32, int32);
+ void	datblk(int32, int32);
+-Sym*	datsort(Sym*);
+ void	reloc(void);
+ void	relocsym(Sym*);
+ void	savedata(Sym*, Prog*, char*);
+@@ -238,6 +237,8 @@ void	setpersrc(Sym*);
+ void	doversion(void);
+ void	usage(void);
+ void	setinterp(char*);
++Sym*	listsort(Sym*, int(*cmp)(Sym*, Sym*), int);
++int	valuecmp(Sym*, Sym*);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 2485586855..d7221c4767 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -195,12 +195,13 @@ static int32 nfname;
+ 
+ static uint32 funcinit;
+ static Lock funclock;
++static uintptr lastvalue;
+ 
+ static void
+ dofunc(Sym *sym)
+ {
+ 	Func *f;
+-
++	
+ 	switch(sym->symtype) {
+ 	case 't':
+ 	case 'T':
+@@ -208,6 +209,11 @@ dofunc(Sym *sym)
+ 	case 'L':
+ 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
+ 			break;
++		if(sym->value < lastvalue) {
++			runtime·printf("symbols out of order: %p before %p\n", lastvalue, sym->value);
++			runtime·throw("malformed symbol table");
++		}
++		lastvalue = sym->value;
+ 		if(func == nil) {
+ 			nfunc++;
+ 			break;
+@@ -544,6 +550,7 @@ buildfuncs(void)
+ 	// count funcs, fnames
+ 	nfunc = 0;
+ 	nfname = 0;
++	lastvalue = 0;
+ 	walksymtab(dofunc);
+ 
+ 	// Initialize tables.
+@@ -553,6 +560,7 @@ buildfuncs(void)
+ 	func[nfunc].entry = (uint64)etext;
+ 	fname = runtime·mallocgc(nfname*sizeof fname[0], FlagNoPointers, 0, 1);
+ 	nfunc = 0;
++	lastvalue = 0;
+ 	walksymtab(dofunc);
+ 
+ 	// split pc/ln table by func

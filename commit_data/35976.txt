@@ -19,6 +19,22 @@ Date:   Mon Mar 26 13:37:00 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/debug_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index ff9f17525b..d0a7a69db9 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -551,7 +551,9 @@ type gdbState struct {
+ 
+ func newGdb(tag, executable string, args ...string) dbgr {
+ 	// Turn off shell, necessary for Darwin apparently
+-	cmd := exec.Command(gdb, "-ex", "set startup-with-shell off", executable)
++	cmd := exec.Command(gdb, "-nx",
++		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
++		"-ex", "set startup-with-shell off", executable)
+ 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
+ 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
+ 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")

@@ -14,6 +14,22 @@ Date:   Sun Nov 4 20:06:37 2012 +1100
     R=golang-dev, minux.ma, r, rsc
     CC=golang-dev
     https://golang.org/cl/6813045
-
+---
  src/cmd/5g/ggen.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index a60f414943..8566f935df 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -407,7 +407,9 @@ cgen_asop(Node *n)
+ hard:
+ 	n2.op = 0;
+ 	n1.op = 0;
+-	if(nr->ullman >= nl->ullman || nl->addable) {
++	if(nr->op == OLITERAL) {
++		// don't allocate a register for literals.
++	} else if(nr->ullman >= nl->ullman || nl->addable) {
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 		nr = &n2;

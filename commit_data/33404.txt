@@ -24,8 +24,75 @@ Date:   Tue May 30 12:59:25 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
  src/runtime/iface.go                   |  9 +--------
  src/runtime/plugin.go                  |  2 +-
  3 files changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index e3d8b1537e..a08ea0f73b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1463,14 +1463,13 @@ func dumptabs() {
+ 		// }
+ 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
+ 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
+-		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
+-		o += 4                                 // skip unused field
+-		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+-		// at runtime the itab will contain pointers to types, other itabs and
+-		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+-		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+-		// TODO: mark readonly after we pre-add the function pointers
+-
++		o = duint32(i.lsym, o, typehash(i.t)) // copy of type hash
++		o += 4                                // skip unused field
++		for _, fn := range genfun(i.t, i.itype) {
++			o = dsymptr(i.lsym, o, fn, 0) // method pointer for each method
++		}
++		// Nothing writes static itabs, so they are read only.
++		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+ 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
+ 		dsymptr(ilink, 0, i.lsym, 0)
+ 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 665dbdbc16..1f31bcae6d 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -167,13 +167,6 @@ func itabAdd(m *itab) {
+ 	}
+ }
+ 
+-// Adds m to the set of initial itabs.
+-// itabLock must be held.
+-func itabAddStartup(m *itab) {
+-	m.init() // TODO: remove after CL 44341
+-	itabAdd(m)
+-}
+-
+ // init fills in the m.fun array with all the code pointers for
+ // the m.inter/m._type pair. If the type does not implement the interface,
+ // it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
+@@ -230,7 +223,7 @@ func itabsinit() {
+ 	lock(&itabLock)
+ 	for _, md := range activeModules() {
+ 		for _, i := range md.itablinks {
+-			itabAddStartup(i)
++			itabAdd(i)
+ 		}
+ 	}
+ 	unlock(&itabLock)
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 34b306ae25..caecba67f8 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -56,7 +56,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 
+ 	lock(&itabLock)
+ 	for _, i := range md.itablinks {
+-		itabAddStartup(i)
++		itabAdd(i)
+ 	}
+ 	unlock(&itabLock)
+ 

@@ -8,6 +8,20 @@ Date:   Wed May 20 11:10:18 2009 -0700
     DELTA=2  (0 added, 2 deleted, 0 changed)
     OCL=29094
     CL=29096
-
+---
  doc/go_spec.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e065ed2f10..7e66b6542f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -13,8 +13,6 @@ Todo's:
+ 	a T struct { a b int }.
+ [ ] should probably write something about evaluation order of statements even
+ 	though obvious
+-[ ] document new assignment rules (for named types on either side of an
+-	assignment, the types must be identical)
+ [ ] document T.m mechanism to obtain a function from a method
+ -->
+ 

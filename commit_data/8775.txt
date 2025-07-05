@@ -8,6 +8,20 @@ Date:   Sat Jun 18 21:53:18 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4648042
-
+---
  src/pkg/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 2f545f7102..ac5487fd53 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -570,7 +570,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err os.Error)
+ // Handler object that calls f.
+ type HandlerFunc func(ResponseWriter, *Request)
+ 
+-// ServeHTTP calls f(w, req).
++// ServeHTTP calls f(w, r).
+ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ 	f(w, r)
+ }

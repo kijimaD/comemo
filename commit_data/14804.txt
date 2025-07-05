@@ -9,6 +9,23 @@ Date:   Mon Jan 7 09:44:35 2013 +1100
     R=golang-dev, adg
     CC=golang-dev, rsc
     https://golang.org/cl/7064045
-
+---
  src/pkg/encoding/json/encode.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 83d5ee88b8..fb57f1d51b 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -75,8 +75,9 @@ import (
+ //   Field int `json:",omitempty"`
+ //
+ // The "string" option signals that a field is stored as JSON inside a
+-// JSON-encoded string.  This extra level of encoding is sometimes
+-// used when communicating with JavaScript programs:
++// JSON-encoded string. It applies only to fields of string, floating point,
++// or integer types. This extra level of encoding is sometimes used when
++// communicating with JavaScript programs:
+ //
+ //    Int64String int64 `json:",string"`
+ //

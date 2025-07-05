@@ -13,6 +13,20 @@ Date:   Tue Nov 9 08:08:16 2021 -0800
     Trust: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/versions_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index ee1a8ca3aa..e8bda78291 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !boringcrypto
++
+ package amd64_test
+ 
+ import (

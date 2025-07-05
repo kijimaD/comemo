@@ -16,6 +16,25 @@ Date:   Fri Apr 22 16:29:05 2011 -0400
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/4395042
-
+---
  src/pkg/container/heap/heap_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 89d444dd54..5eb54374ab 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package heap
++package heap_test
+ 
+ import (
+ 	"testing"
+ 	"container/vector"
++	. "container/heap"
+ )
+ 
+ 

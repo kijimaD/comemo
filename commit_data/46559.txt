@@ -12,6 +12,26 @@ Date:   Mon Jan 11 14:21:40 2021 -0500
     Trust: Rebecca Stambler <rstambler@golang.org>
     Run-TryBot: Rebecca Stambler <rstambler@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  doc/editors.html | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 7a46fb745d..e0d0c530e5 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -19,13 +19,11 @@ editing, navigation, testing, and debugging experience.
+ </p>
+ 
+ <ul>
+-<li><a href="https://github.com/fatih/vim-go">vim</a>: vim-go plugin provides Go programming language support</li>
+ <li><a href="https://marketplace.visualstudio.com/items?itemName=golang.go">Visual Studio Code</a>:
+ Go extension provides support for the Go programming language</li>
+ <li><a href="https://www.jetbrains.com/go">GoLand</a>: GoLand is distributed either as a standalone IDE
+ or as a plugin for IntelliJ IDEA Ultimate</li>
+-<li><a href="https://atom.io/packages/go-plus">Atom</a>: Go-Plus is an Atom package that provides enhanced Go support</li>
+-</ul>
++<li><a href="https://github.com/fatih/vim-go">vim</a>: vim-go plugin provides Go programming language support</li>
+ 
+ <p>
+ Note that these are only a few top solutions; a more comprehensive

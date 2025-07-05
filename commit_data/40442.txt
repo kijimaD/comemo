@@ -24,7 +24,41 @@ Date:   Sun Mar 10 21:43:45 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164958
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/text/template/exec.go      | 2 +-
  src/text/template/exec_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 0e2ab0e211..4db63bfa09 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -285,7 +285,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
+ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
+ 	defer s.pop(s.mark())
+ 	val := s.evalPipeline(dot, pipe)
+-	truth, ok := isTrue(val)
++	truth, ok := isTrue(indirectInterface(val))
+ 	if !ok {
+ 		s.errorf("if/with can't use %v", val)
+ 	}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index a95631718c..c45df89d59 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -413,6 +413,7 @@ var execTests = []execTest{
+ 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
+ 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
+ 	{"if nil", "{{if nil}}TRUE{{end}}", "", tVal, false},
++	{"if on typed nil interface value", "{{if .NonEmptyInterfaceTypedNil}}TRUE{{ end }}", "", tVal, true},
+ 	{"if 1", "{{if 1}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+ 	{"if 0", "{{if 0}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+ 	{"if 1.5", "{{if 1.5}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+@@ -515,6 +516,7 @@ var execTests = []execTest{
+ 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
+ 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
+ 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}}{{$y}}{{end}}", "v", tVal, true},
++	{"with on typed nil interface value", "{{with .NonEmptyInterfaceTypedNil}}TRUE{{ end }}", "", tVal, true},
+ 
+ 	// Range.
+ 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},

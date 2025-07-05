@@ -19,7 +19,7 @@ Date:   Thu Oct 24 21:29:30 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go  | 2 +-
  src/cmd/compile/internal/gc/walk.go | 4 ++--
  test/fixedbugs/bug373.go            | 2 +-
@@ -28,3 +28,101 @@ Date:   Thu Oct 24 21:29:30 2019 -0400
  test/fixedbugs/issue29870b.go       | 2 +-
  test/typeswitch2b.go                | 4 ++--
  7 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 2970993056..0d5df2e0bd 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -32,7 +32,7 @@ func typecheckTypeSwitch(n *Node) {
+ 	// declaration itself. So if there are no cases, we won't
+ 	// notice that it went unused.
+ 	if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
+-		yyerrorl(v.Pos, "%v declared and not used", v.Sym)
++		yyerrorl(v.Pos, "%v declared but not used", v.Sym)
+ 	}
+ 
+ 	var defCase, nilCase *Node
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7d9f0cbd58..0e780bad6c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -50,10 +50,10 @@ func walk(fn *Node) {
+ 			if defn.Left.Name.Used() {
+ 				continue
+ 			}
+-			yyerrorl(defn.Left.Pos, "%v declared and not used", ln.Sym)
++			yyerrorl(defn.Left.Pos, "%v declared but not used", ln.Sym)
+ 			defn.Left.Name.SetUsed(true) // suppress repeats
+ 		} else {
+-			yyerrorl(ln.Pos, "%v declared and not used", ln.Sym)
++			yyerrorl(ln.Pos, "%v declared but not used", ln.Sym)
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/bug373.go b/test/fixedbugs/bug373.go
+index aa0f5d1efa..6b7a312097 100644
+--- a/test/fixedbugs/bug373.go
++++ b/test/fixedbugs/bug373.go
+@@ -9,7 +9,7 @@
+ package foo
+ 
+ func f(x interface{}) {
+-	switch t := x.(type) {  // ERROR "declared and not used"
++	switch t := x.(type) {  // ERROR "declared but not used"
+ 	case int:
+ 	}
+ }
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index 530694af12..ee1bbf810b 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -48,8 +48,8 @@ func main() {
+ 		log.Fatalf("expected cmd/compile to fail")
+ 	}
+ 	wantErrs := []string{
+-		"7:9: n declared and not used",
+-		"7:12: err declared and not used",
++		"7:9: n declared but not used",
++		"7:12: err declared but not used",
+ 	}
+ 	outStr := string(out)
+ 	for _, want := range wantErrs {
+diff --git a/test/fixedbugs/issue23116.go b/test/fixedbugs/issue23116.go
+index 1737fee2c8..b4b36d4ba9 100644
+--- a/test/fixedbugs/issue23116.go
++++ b/test/fixedbugs/issue23116.go
+@@ -10,6 +10,6 @@ func f(x interface{}) {
+ 	switch x.(type) {
+ 	}
+ 
+-	switch t := x.(type) { // ERROR "declared and not used"
++	switch t := x.(type) { // ERROR "declared but not used"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue29870b.go b/test/fixedbugs/issue29870b.go
+index 1bac566bbb..2d5f638530 100644
+--- a/test/fixedbugs/issue29870b.go
++++ b/test/fixedbugs/issue29870b.go
+@@ -10,5 +10,5 @@
+ package main
+ 
+ func _() {
+-	x := 7 // ERROR "x declared and not used"
++	x := 7 // ERROR "x declared but not used"
+ }
+diff --git a/test/typeswitch2b.go b/test/typeswitch2b.go
+index 135ae86cff..6da0d5fa6e 100644
+--- a/test/typeswitch2b.go
++++ b/test/typeswitch2b.go
+@@ -11,9 +11,9 @@ package main
+ 
+ func notused(x interface{}) {
+ 	// The first t is in a different scope than the 2nd t; it cannot
+-	// be accessed (=> declared and not used error); but it is legal
++	// be accessed (=> declared but not used error); but it is legal
+ 	// to declare it.
+-	switch t := 0; t := x.(type) { // ERROR "declared and not used"
++	switch t := 0; t := x.(type) { // ERROR "declared but not used"
+ 	case int:
+ 		_ = t // this is using the t of "t := x.(type)"
+ 	}

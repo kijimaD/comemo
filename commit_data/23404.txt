@@ -12,7 +12,60 @@ Date:   Tue May 12 15:51:22 2015 -0400
     Change-Id: I5890a9ec1ac69a38509416eda5aea13b8b12b94a
     Reviewed-on: https://go-review.googlesource.com/9929
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5g/ggen.go          | 22 +++++++++++++++-------
  src/cmd/internal/gc/cgen.go |  1 +
  2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index ade4bd6096..c2bd6dda0a 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -480,20 +480,28 @@ func ginscon(as int, c int64, n *gc.Node) {
+ }
+ 
+ func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Mpgetfix(n1.Val.U.Xval) == 0 && n2.Op != gc.OLITERAL {
++		op = gc.Brrev(op)
++		n1, n2 = n2, n1
++	}
+ 	var r1, r2, g1, g2 gc.Node
+ 	gc.Regalloc(&r1, t, n1)
+ 	gc.Regalloc(&g1, n1.Type, &r1)
+ 	gc.Cgen(n1, &g1)
+ 	gmove(&g1, &r1)
+-	gc.Regalloc(&r2, t, n2)
+-	gc.Regalloc(&g2, n1.Type, &r2)
+-	gc.Cgen(n2, &g2)
+-	gmove(&g2, &r2)
+-	gins(optoas(gc.OCMP, t), &r1, &r2)
++	if gc.Isint[t.Etype] && n2.Op == gc.OLITERAL && gc.Mpgetfix(n2.Val.U.Xval) == 0 {
++		gins(arm.ACMP, &r1, n2)
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++		gins(optoas(gc.OCMP, t), &r1, &r2)
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
+ 	gc.Regfree(&g1)
+ 	gc.Regfree(&r1)
+-	gc.Regfree(&g2)
+-	gc.Regfree(&r2)
+ 	return gc.Gbranch(optoas(op, t), nil, likely)
+ }
+ 
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 0c847c291c..3763a367b0 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -1045,6 +1045,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 						n1.Op = OINDREG
+ 						n1.Type = Types[Tptr]
+ 						n1.Xoffset = int64(Array_nel)
++						Nodconst(&n2, Types[TUINT32], int64(v))
+ 						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &n1, &n2, +1)
+ 						Ginscall(Panicindex, -1)
+ 						Patch(p1, Pc)

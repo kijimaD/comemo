@@ -9,7 +9,7 @@ Date:   Thu Oct 13 13:59:13 2011 -0400
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5262041
-
+---
  src/pkg/crypto/tls/Makefile                 | 18 ++++++
  src/pkg/crypto/tls/common.go                | 37 ++++-------
  src/pkg/crypto/tls/handshake_client.go      |  6 +-
@@ -20,3 +20,356 @@ Date:   Thu Oct 13 13:59:13 2011 -0400
  src/pkg/crypto/tls/root_unix.go             | 27 ++++++++
  src/pkg/http/serve_test.go                  | 11 +++-
  9 files changed, 208 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/Makefile b/src/pkg/crypto/tls/Makefile
+index 000314be51..063c2a292a 100644
+--- a/src/pkg/crypto/tls/Makefile
++++ b/src/pkg/crypto/tls/Makefile
+@@ -17,4 +17,22 @@ GOFILES=\
+ 	prf.go\
+ 	tls.go\
+ 
++ifeq ($(CGO_ENABLED),1)
++CGOFILES_darwin=\
++	root_darwin.go
++else
++GOFILES_darwin+=root_stub.go
++endif
++
++GOFILES_freebsd+=root_unix.go
++GOFILES_linux+=root_unix.go
++GOFILES_openbsd+=root_unix.go
++GOFILES_plan9+=root_stub.go
++GOFILES_windows+=root_stub.go
++
++GOFILES+=$(GOFILES_$(GOOS))
++ifneq ($(CGOFILES_$(GOOS)),)
++CGOFILES+=$(CGOFILES_$(GOOS))
++endif
++
+ include ../../../Make.pkg
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 8b4dafbc00..ea520859b8 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -9,7 +9,6 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -155,6 +154,14 @@ type Config struct {
+ 	// anything more than self-signed.
+ 	AuthenticateClient bool
+ 
++	// InsecureSkipVerify controls whether a client verifies the
++	// server's certificate chain and host name.
++	// If InsecureSkipVerify is true, TLS accepts any certificate
++	// presented by the server and any host name in that certificate.
++	// In this mode, TLS is susceptible to man-in-the-middle attacks.
++	// This should be used only for testing.
++	InsecureSkipVerify bool
++
+ 	// CipherSuites is a list of supported cipher suites. If CipherSuites
+ 	// is nil, TLS uses a list of suites supported by the implementation.
+ 	CipherSuites []uint16
+@@ -284,15 +291,6 @@ func defaultConfig() *Config {
+ 	return &emptyConfig
+ }
+ 
+-// Possible certificate files; stop after finding one.
+-// On OS X we should really be using the Directory Services keychain
+-// but that requires a lot of Mach goo to get at.  Instead we use
+-// the same root set that curl uses.
+-var certFiles = []string{
+-	"/etc/ssl/certs/ca-certificates.crt", // Linux etc
+-	"/usr/share/curl/curl-ca-bundle.crt", // OS X
+-}
+-
+ var once sync.Once
+ 
+ func defaultRoots() *x509.CertPool {
+@@ -310,21 +308,10 @@ func initDefaults() {
+ 	initDefaultCipherSuites()
+ }
+ 
+-var varDefaultRoots *x509.CertPool
+-
+-func initDefaultRoots() {
+-	roots := x509.NewCertPool()
+-	for _, file := range certFiles {
+-		data, err := ioutil.ReadFile(file)
+-		if err == nil {
+-			roots.AppendCertsFromPEM(data)
+-			break
+-		}
+-	}
+-	varDefaultRoots = roots
+-}
+-
+-var varDefaultCipherSuites []uint16
++var (
++	varDefaultRoots        *x509.CertPool
++	varDefaultCipherSuites []uint16
++)
+ 
+ func initDefaultCipherSuites() {
+ 	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 0badc39c44..575a121f39 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -97,11 +97,9 @@ func (c *Conn) clientHandshake() os.Error {
+ 		certs[i] = cert
+ 	}
+ 
+-	// If we don't have a root CA set configured then anything is accepted.
+-	// TODO(rsc): Find certificates for OS X 10.6.
+-	if c.config.RootCAs != nil {
++	if !c.config.InsecureSkipVerify {
+ 		opts := x509.VerifyOptions{
+-			Roots:         c.config.RootCAs,
++			Roots:         c.config.rootCAs(),
+ 			CurrentTime:   c.config.time(),
+ 			DNSName:       c.config.ServerName,
+ 			Intermediates: x509.NewCertPool(),
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 9873eb32f3..1939f3dba3 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -38,6 +38,7 @@ func init() {
+ 	testConfig.Certificates[0].Certificate = [][]byte{testCertificate}
+ 	testConfig.Certificates[0].PrivateKey = testPrivateKey
+ 	testConfig.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
++	testConfig.InsecureSkipVerify = true
+ }
+ 
+ func testClientHelloFailure(t *testing.T, m handshakeMessage, expected os.Error) {
+diff --git a/src/pkg/crypto/tls/root_darwin.go b/src/pkg/crypto/tls/root_darwin.go
+new file mode 100644
+index 0000000000..15122416bd
+--- /dev/null
++++ b/src/pkg/crypto/tls/root_darwin.go
+@@ -0,0 +1,95 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++/*
++// Note: We disable -Werror here because the code in this file uses a deprecated API to stay
++// compatible with both Mac OS X 10.6 and 10.7. Using a deprecated function on Darwin generates
++// a warning.
++#cgo CFLAGS: -Wno-error
++#cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/Security.h>
++
++// FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
++//
++// On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
++// certificates of the system. On failure, the function returns -1.
++//
++// Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
++// we've consumed its content.
++int FetchPEMRoots(CFDataRef *pemRoots) {
++	if (pemRoots == NULL) {
++		return -1;
++	}
++
++	CFArrayRef certs = NULL;
++	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
++	if (err != noErr) {
++		return -1;
++	}
++
++	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
++	int i, ncerts = CFArrayGetCount(certs);
++	for (i = 0; i < ncerts; i++) {
++		CFDataRef data = NULL;
++		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
++		if (cert == NULL) {
++			continue;
++		}
++
++		// SecKeychainImportExport is deprecated in >= OS X 10.7, and has been replaced by
++		// SecItemExport.  If we're built on a host with a Lion SDK, this code gets conditionally
++		// included in the output, also for binaries meant for 10.6.
++		//
++		// To make sure that we run on both Mac OS X 10.6 and 10.7 we use weak linking
++		// and check whether SecItemExport is available before we attempt to call it. On
++		// 10.6, this won't be the case, and we'll fall back to calling SecKeychainItemExport.
++#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
++		if (SecItemExport) {
++			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
++			if (err != noErr) {
++				continue;
++			}
++		} else
++#endif
++		if (data == NULL) {
++			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
++			if (err != noErr) {
++				continue;
++			}
++		}
++
++		if (data != NULL) {
++			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
++			CFRelease(data);
++		}
++	}
++
++	CFRelease(certs);
++
++	*pemRoots = combinedData;
++	return 0;
++}
++*/
++import "C"
++import (
++	"crypto/x509"
++	"unsafe"
++)
++
++func initDefaultRoots() {
++	roots := x509.NewCertPool()
++
++	var data C.CFDataRef = nil
++	err := C.FetchPEMRoots(&data)
++	if err != -1 {
++		defer C.CFRelease(C.CFTypeRef(data))
++		buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
++		roots.AppendCertsFromPEM(buf)
++	}
++
++	varDefaultRoots = roots
++}
+diff --git a/src/pkg/crypto/tls/root_stub.go b/src/pkg/crypto/tls/root_stub.go
+new file mode 100644
+index 0000000000..1903eed813
+--- /dev/null
++++ b/src/pkg/crypto/tls/root_stub.go
+@@ -0,0 +1,8 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++func initDefaultRoots() {
++}
+diff --git a/src/pkg/crypto/tls/root_test.go b/src/pkg/crypto/tls/root_test.go
+new file mode 100644
+index 0000000000..95a89d843c
+--- /dev/null
++++ b/src/pkg/crypto/tls/root_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"testing"
++)
++
++var tlsServers = []string{
++	"google.com:443",
++	"github.com:443",
++	"twitter.com:443",
++}
++
++func TestOSCertBundles(t *testing.T) {
++	defaultRoots()
++
++	if testing.Short() {
++		t.Logf("skipping certificate tests in short mode")
++		return
++	}
++
++	for _, addr := range tlsServers {
++		conn, err := Dial("tcp", addr, nil)
++		if err != nil {
++			t.Errorf("unable to verify %v: %v", addr, err)
++			continue
++		}
++		err = conn.Close()
++		if err != nil {
++			t.Error(err)
++		}
++	}
++}
+diff --git a/src/pkg/crypto/tls/root_unix.go b/src/pkg/crypto/tls/root_unix.go
+new file mode 100644
+index 0000000000..57af92aed4
+--- /dev/null
++++ b/src/pkg/crypto/tls/root_unix.go
+@@ -0,0 +1,27 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto/x509"
++	"io/ioutil"
++)
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/etc/ssl/certs/ca-certificates.crt", // Linux etc
++}
++
++func initDefaultRoots() {
++	roots := x509.NewCertPool()
++	for _, file := range certFiles {
++		data, err := ioutil.ReadFile(file)
++		if err == nil {
++			roots.AppendCertsFromPEM(data)
++			break
++		}
++	}
++	varDefaultRoots = roots
++}
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index d0941b6926..6669d9dc05 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -9,14 +9,15 @@ package http_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"crypto/tls"
+ 	"fmt"
+ 	. "http"
+ 	"http/httptest"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+-	"os"
+ 	"net"
++	"os"
+ 	"reflect"
+ 	"strings"
+ 	"syscall"
+@@ -583,7 +584,13 @@ func TestTLSServer(t *testing.T) {
+ 			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
+ 			return
+ 		}
+-		res, err := Get(ts.URL)
++		noVerifyTransport := &Transport{
++			TLSClientConfig: &tls.Config{
++				InsecureSkipVerify: true,
++			},
++		}
++		client := &Client{Transport: noVerifyTransport}
++		res, err := client.Get(ts.URL)
+ 		if err != nil {
+ 			t.Error(err)
+ 			return

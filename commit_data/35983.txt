@@ -11,7 +11,7 @@ Date:   Mon Mar 26 19:00:15 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 5 +++--
  src/cmd/go/internal/work/init.go             | 3 ++-
  src/cmd/link/internal/ld/config.go           | 2 +-
@@ -19,3 +19,102 @@ Date:   Mon Mar 26 19:00:15 2018 -0700
  src/runtime/testdata/testprogcgo/raceprof.go | 2 +-
  src/runtime/testdata/testprogcgo/racesig.go  | 2 +-
  6 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d66ac20aa4..eef6309a5d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4821,7 +4821,8 @@ func TestBuildmodePIE(t *testing.T) {
+ 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+ 	switch platform {
+ 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+-		"android/amd64", "android/arm", "android/arm64", "android/386":
++		"android/amd64", "android/arm", "android/arm64", "android/386",
++		"freebsd/amd64":
+ 	case "darwin/amd64":
+ 	default:
+ 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
+@@ -4836,7 +4837,7 @@ func TestBuildmodePIE(t *testing.T) {
+ 	tg.run("build", "-buildmode=pie", "-o", obj, src)
+ 
+ 	switch runtime.GOOS {
+-	case "linux", "android":
++	case "linux", "android", "freebsd":
+ 		f, err := elf.Open(obj)
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 527e81103e..c820e0bec0 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -139,7 +139,8 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+-				"android/amd64", "android/arm", "android/arm64", "android/386":
++				"android/amd64", "android/arm", "android/arm64", "android/386",
++				"freebsd/amd64":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64":
+ 				codegenArg = "-shared"
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 302dabecb7..a20dfd3f32 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -39,7 +39,7 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "pie":
+ 		switch objabi.GOOS {
+ 		case "android", "linux":
+-		case "darwin":
++		case "darwin", "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+ 			default:
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 3b9fedc7a4..fc0cfd9aed 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -343,7 +343,7 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
+ }
+ 
+ func TestRaceProf(t *testing.T) {
+-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
+ 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+@@ -372,7 +372,7 @@ func TestRaceProf(t *testing.T) {
+ 
+ func TestRaceSignal(t *testing.T) {
+ 	t.Parallel()
+-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
+ 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprogcgo/raceprof.go b/src/runtime/testdata/testprogcgo/raceprof.go
+index fe624c541f..f7ca629789 100644
+--- a/src/runtime/testdata/testprogcgo/raceprof.go
++++ b/src/runtime/testdata/testprogcgo/raceprof.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 freebsd,amd64
+ 
+ package main
+ 
+diff --git a/src/runtime/testdata/testprogcgo/racesig.go b/src/runtime/testdata/testprogcgo/racesig.go
+index d0c1c3ce54..a079b3fd1a 100644
+--- a/src/runtime/testdata/testprogcgo/racesig.go
++++ b/src/runtime/testdata/testprogcgo/racesig.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 freebsd,amd64
+ 
+ package main
+ 

@@ -11,7 +11,50 @@ Date:   Mon Aug 24 21:34:33 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/modfile.go | 4 ++--
  src/cmd/go/internal/modload/mvs.go     | 2 --
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 0b135c5fb5..a45c4a63be 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -345,7 +345,7 @@ type retraction struct {
+ 
+ // goModSummary returns a summary of the go.mod file for module m,
+ // taking into account any replacements for m, exclusions of its dependencies,
+-// and or vendoring.
++// and/or vendoring.
+ //
+ // goModSummary cannot be used on the Target module, as its requirements
+ // may change.
+@@ -405,7 +405,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 				return cached{nil, module.VersionError(actual, errors.New("parsing go.mod: missing module line"))}
+ 			}
+ 
+-			// In theory we should only allow mpath to be unequal to mod.Path here if the
++			// In theory we should only allow mpath to be unequal to m.Path here if the
+ 			// version that we fetched lacks an explicit go.mod file: if the go.mod file
+ 			// is explicit, then it should match exactly (to ensure that imports of other
+ 			// packages within the module are interpreted correctly). Unfortunately, we
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index d023ab5094..24856260d4 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -14,7 +14,6 @@ import (
+ 
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/mvs"
+-	"cmd/go/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -24,7 +23,6 @@ import (
+ // with any exclusions or replacements applied internally.
+ type mvsReqs struct {
+ 	buildList []module.Version
+-	cache     par.Cache // module.Version → Required method results
+ }
+ 
+ // Reqs returns the current module requirement graph.

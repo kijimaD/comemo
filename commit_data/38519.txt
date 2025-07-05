@@ -11,7 +11,7 @@ Date:   Sun Oct 28 11:04:24 2018 -0400
     Change-Id: I2610c4a66756e2a6f21f9823dcbe39edd9c9ea21
     Reviewed-on: https://go-review.googlesource.com/c/145298
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/key_schedule.go                     |  85 ++++
  src/crypto/tls/key_schedule_test.go                | 175 ++++++++
  src/go/build/deps_test.go                          |   2 +-
@@ -19,3 +19,905 @@ Date:   Sun Oct 28 11:04:24 2018 -0400
  src/vendor/golang_org/x/crypto/hkdf/hkdf.go        |  93 +++++
  src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go   | 449 +++++++++++++++++++++
  6 files changed, 859 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+new file mode 100644
+index 0000000000..21b50f177d
+--- /dev/null
++++ b/src/crypto/tls/key_schedule.go
+@@ -0,0 +1,85 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"golang_org/x/crypto/cryptobyte"
++	"golang_org/x/crypto/hkdf"
++	"hash"
++)
++
++// This file contains the functions necessary to compute the TLS 1.3 key
++// schedule. See RFC 8446, Section 7.
++
++const (
++	resumptionBinderLabel         = "res binder"
++	clientHandshakeTrafficLabel   = "c hs traffic"
++	serverHandshakeTrafficLabel   = "s hs traffic"
++	clientApplicationTrafficLabel = "c ap traffic"
++	serverApplicationTrafficLabel = "s ap traffic"
++	exporterLabel                 = "exp master"
++	resumptionLabel               = "res master"
++	trafficUpdateLabel            = "traffic upd"
++)
++
++// expandLabel implements HKDF-Expand-Label from RFC 8446, Section 7.1.
++func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []byte, length int) []byte {
++	var hkdfLabel cryptobyte.Builder
++	hkdfLabel.AddUint16(uint16(length))
++	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++		b.AddBytes([]byte("tls13 "))
++		b.AddBytes([]byte(label))
++	})
++	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++		b.AddBytes(context)
++	})
++	out := make([]byte, length)
++	n, err := hkdf.Expand(c.hash.New, secret, hkdfLabel.BytesOrPanic()).Read(out)
++	if err != nil || n != length {
++		panic("tls: HKDF-Expand-Label invocation failed unexpectedly")
++	}
++	return out
++}
++
++// deriveSecret implements Derive-Secret from RFC 8446, Section 7.1.
++func (c *cipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript hash.Hash) []byte {
++	if transcript == nil {
++		transcript = c.hash.New()
++	}
++	return c.expandLabel(secret, label, transcript.Sum(nil), c.hash.Size())
++}
++
++// extract implements HKDF-Extract with the cipher suite hash.
++func (c *cipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
++	if newSecret == nil {
++		newSecret = make([]byte, c.hash.Size())
++	}
++	return hkdf.Extract(c.hash.New, newSecret, currentSecret)
++}
++
++// nextTrafficSecret generates the next traffic secret, given the current one,
++// according to RFC 8446, Section 7.2.
++func (c *cipherSuiteTLS13) nextTrafficSecret(trafficSecret []byte) []byte {
++	return c.expandLabel(trafficSecret, trafficUpdateLabel, nil, c.hash.Size())
++}
++
++// trafficKey generates traffic keys according to RFC 8446, Section 7.3.
++func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
++	key = c.expandLabel(trafficSecret, "key", nil, c.keyLen)
++	iv = c.expandLabel(trafficSecret, "iv", nil, aeadNonceLength)
++	return
++}
++
++// exportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to
++// RFC 8446, Section 7.5.
++func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
++	expMasterSecret := c.deriveSecret(masterSecret, exporterLabel, transcript)
++	return func(label string, context []byte, length int) ([]byte, error) {
++		secret := c.deriveSecret(expMasterSecret, label, nil)
++		h := c.hash.New()
++		h.Write(context)
++		return c.expandLabel(secret, "exporter", h.Sum(nil), length), nil
++	}
++}
+diff --git a/src/crypto/tls/key_schedule_test.go b/src/crypto/tls/key_schedule_test.go
+new file mode 100644
+index 0000000000..79ff6a62b1
+--- /dev/null
++++ b/src/crypto/tls/key_schedule_test.go
+@@ -0,0 +1,175 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"bytes"
++	"encoding/hex"
++	"hash"
++	"strings"
++	"testing"
++	"unicode"
++)
++
++// This file contains tests derived from draft-ietf-tls-tls13-vectors-07.
++
++func parseVector(v string) []byte {
++	v = strings.Map(func(c rune) rune {
++		if unicode.IsSpace(c) {
++			return -1
++		}
++		return c
++	}, v)
++	parts := strings.Split(v, ":")
++	v = parts[len(parts)-1]
++	res, err := hex.DecodeString(v)
++	if err != nil {
++		panic(err)
++	}
++	return res
++}
++
++func TestDeriveSecret(t *testing.T) {
++	chTranscript := cipherSuitesTLS13[0].hash.New()
++	chTranscript.Write(parseVector(`
++	payload (512 octets):  01 00 01 fc 03 03 1b c3 ce b6 bb e3 9c ff
++	93 83 55 b5 a5 0a db 6d b2 1b 7a 6a f6 49 d7 b4 bc 41 9d 78 76
++	48 7d 95 00 00 06 13 01 13 03 13 02 01 00 01 cd 00 00 00 0b 00
++	09 00 00 06 73 65 72 76 65 72 ff 01 00 01 00 00 0a 00 14 00 12
++	00 1d 00 17 00 18 00 19 01 00 01 01 01 02 01 03 01 04 00 33 00
++	26 00 24 00 1d 00 20 e4 ff b6 8a c0 5f 8d 96 c9 9d a2 66 98 34
++	6c 6b e1 64 82 ba dd da fe 05 1a 66 b4 f1 8d 66 8f 0b 00 2a 00
++	00 00 2b 00 03 02 03 04 00 0d 00 20 00 1e 04 03 05 03 06 03 02
++	03 08 04 08 05 08 06 04 01 05 01 06 01 02 01 04 02 05 02 06 02
++	02 02 00 2d 00 02 01 01 00 1c 00 02 40 01 00 15 00 57 00 00 00
++	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
++	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
++	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
++	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
++	00 29 00 dd 00 b8 00 b2 2c 03 5d 82 93 59 ee 5f f7 af 4e c9 00
++	00 00 00 26 2a 64 94 dc 48 6d 2c 8a 34 cb 33 fa 90 bf 1b 00 70
++	ad 3c 49 88 83 c9 36 7c 09 a2 be 78 5a bc 55 cd 22 60 97 a3 a9
++	82 11 72 83 f8 2a 03 a1 43 ef d3 ff 5d d3 6d 64 e8 61 be 7f d6
++	1d 28 27 db 27 9c ce 14 50 77 d4 54 a3 66 4d 4e 6d a4 d2 9e e0
++	37 25 a6 a4 da fc d0 fc 67 d2 ae a7 05 29 51 3e 3d a2 67 7f a5
++	90 6c 5b 3f 7d 8f 92 f2 28 bd a4 0d da 72 14 70 f9 fb f2 97 b5
++	ae a6 17 64 6f ac 5c 03 27 2e 97 07 27 c6 21 a7 91 41 ef 5f 7d
++	e6 50 5e 5b fb c3 88 e9 33 43 69 40 93 93 4a e4 d3 57 fa d6 aa
++	cb 00 21 20 3a dd 4f b2 d8 fd f8 22 a0 ca 3c f7 67 8e f5 e8 8d
++	ae 99 01 41 c5 92 4d 57 bb 6f a3 1b 9e 5f 9d`))
++
++	type args struct {
++		secret     []byte
++		label      string
++		transcript hash.Hash
++	}
++	tests := []struct {
++		name string
++		args args
++		want []byte
++	}{
++		{
++			`derive secret for handshake "tls13 derived"`,
++			args{
++				parseVector(`PRK (32 octets):  33 ad 0a 1c 60 7e c0 3b 09 e6 cd 98 93 68 0c e2
++				10 ad f3 00 aa 1f 26 60 e1 b2 2e 10 f1 70 f9 2a`),
++				"derived",
++				nil,
++			},
++			parseVector(`expanded (32 octets):  6f 26 15 a1 08 c7 02 c5 67 8f 54 fc 9d ba
++			b6 97 16 c0 76 18 9c 48 25 0c eb ea c3 57 6c 36 11 ba`),
++		},
++		{
++			`derive secret "tls13 c e traffic"`,
++			args{
++				parseVector(`PRK (32 octets):  9b 21 88 e9 b2 fc 6d 64 d7 1d c3 29 90 0e 20 bb
++				41 91 50 00 f6 78 aa 83 9c bb 79 7c b7 d8 33 2c`),
++				"c e traffic",
++				chTranscript,
++			},
++			parseVector(`expanded (32 octets):  3f bb e6 a6 0d eb 66 c3 0a 32 79 5a ba 0e
++			ff 7e aa 10 10 55 86 e7 be 5c 09 67 8d 63 b6 ca ab 62`),
++		},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			c := cipherSuitesTLS13[0]
++			if got := c.deriveSecret(tt.args.secret, tt.args.label, tt.args.transcript); !bytes.Equal(got, tt.want) {
++				t.Errorf("cipherSuiteTLS13.deriveSecret() = % x, want % x", got, tt.want)
++			}
++		})
++	}
++}
++
++func TestTrafficKey(t *testing.T) {
++	trafficSecret := parseVector(
++		`PRK (32 octets):  b6 7b 7d 69 0c c1 6c 4e 75 e5 42 13 cb 2d 37 b4
++		e9 c9 12 bc de d9 10 5d 42 be fd 59 d3 91 ad 38`)
++	wantKey := parseVector(
++		`key expanded (16 octets):  3f ce 51 60 09 c2 17 27 d0 f2 e4 e8 6e
++		e4 03 bc`)
++	wantIV := parseVector(
++		`iv expanded (12 octets):  5d 31 3e b2 67 12 76 ee 13 00 0b 30`)
++
++	c := cipherSuitesTLS13[0]
++	gotKey, gotIV := c.trafficKey(trafficSecret)
++	if !bytes.Equal(gotKey, wantKey) {
++		t.Errorf("cipherSuiteTLS13.trafficKey() gotKey = % x, want % x", gotKey, wantKey)
++	}
++	if !bytes.Equal(gotIV, wantIV) {
++		t.Errorf("cipherSuiteTLS13.trafficKey() gotIV = % x, want % x", gotIV, wantIV)
++	}
++}
++
++func TestExtract(t *testing.T) {
++	type args struct {
++		newSecret     []byte
++		currentSecret []byte
++	}
++	tests := []struct {
++		name string
++		args args
++		want []byte
++	}{
++		{
++			`extract secret "early"`,
++			args{
++				nil,
++				nil,
++			},
++			parseVector(`secret (32 octets):  33 ad 0a 1c 60 7e c0 3b 09 e6 cd 98 93 68 0c
++			e2 10 ad f3 00 aa 1f 26 60 e1 b2 2e 10 f1 70 f9 2a`),
++		},
++		{
++			`extract secret "master"`,
++			args{
++				nil,
++				parseVector(`salt (32 octets):  43 de 77 e0 c7 77 13 85 9a 94 4d b9 db 25 90 b5
++				31 90 a6 5b 3e e2 e4 f1 2d d7 a0 bb 7c e2 54 b4`),
++			},
++			parseVector(`secret (32 octets):  18 df 06 84 3d 13 a0 8b f2 a4 49 84 4c 5f 8a
++			47 80 01 bc 4d 4c 62 79 84 d5 a4 1d a8 d0 40 29 19`),
++		},
++		{
++			`extract secret "handshake"`,
++			args{
++				parseVector(`IKM (32 octets):  8b d4 05 4f b5 5b 9d 63 fd fb ac f9 f0 4b 9f 0d
++				35 e6 d6 3f 53 75 63 ef d4 62 72 90 0f 89 49 2d`),
++				parseVector(`salt (32 octets):  6f 26 15 a1 08 c7 02 c5 67 8f 54 fc 9d ba b6 97
++				16 c0 76 18 9c 48 25 0c eb ea c3 57 6c 36 11 ba`),
++			},
++			parseVector(`secret (32 octets):  1d c8 26 e9 36 06 aa 6f dc 0a ad c1 2f 74 1b
++			01 04 6a a6 b9 9f 69 1e d2 21 a9 f0 ca 04 3f be ac`),
++		},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			c := cipherSuitesTLS13[0]
++			if got := c.extract(tt.args.newSecret, tt.args.currentSecret); !bytes.Equal(got, tt.want) {
++				t.Errorf("cipherSuiteTLS13.extract() = % x, want % x", got, tt.want)
++			}
++		})
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 2bb63f4e84..ec6e6b4890 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -389,7 +389,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// SSL/TLS.
+ 	"crypto/tls": {
+-		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte",
++		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/hkdf",
+ 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
+ 	},
+ 	"crypto/x509": {
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/example_test.go b/src/vendor/golang_org/x/crypto/hkdf/example_test.go
+new file mode 100644
+index 0000000000..1fd140a324
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/hkdf/example_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hkdf_test
++
++import (
++	"bytes"
++	"crypto/rand"
++	"crypto/sha256"
++	"fmt"
++	"io"
++
++	"golang_org/x/crypto/hkdf"
++)
++
++// Usage example that expands one master secret into three other
++// cryptographically secure keys.
++func Example_usage() {
++	// Underlying hash function for HMAC.
++	hash := sha256.New
++
++	// Cryptographically secure master secret.
++	secret := []byte{0x00, 0x01, 0x02, 0x03} // i.e. NOT this.
++
++	// Non-secret salt, optional (can be nil).
++	// Recommended: hash-length random value.
++	salt := make([]byte, hash().Size())
++	if _, err := rand.Read(salt); err != nil {
++		panic(err)
++	}
++
++	// Non-secret context info, optional (can be nil).
++	info := []byte("hkdf example")
++
++	// Generate three 128-bit derived keys.
++	hkdf := hkdf.New(hash, secret, salt, info)
++
++	var keys [][]byte
++	for i := 0; i < 3; i++ {
++		key := make([]byte, 16)
++		if _, err := io.ReadFull(hkdf, key); err != nil {
++			panic(err)
++		}
++		keys = append(keys, key)
++	}
++
++	for i := range keys {
++		fmt.Printf("Key #%d: %v\n", i+1, !bytes.Equal(keys[i], make([]byte, 16)))
++	}
++
++	// Output:
++	// Key #1: true
++	// Key #2: true
++	// Key #3: true
++}
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/hkdf.go b/src/vendor/golang_org/x/crypto/hkdf/hkdf.go
+new file mode 100644
+index 0000000000..dda3f143be
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/hkdf/hkdf.go
+@@ -0,0 +1,93 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package hkdf implements the HMAC-based Extract-and-Expand Key Derivation
++// Function (HKDF) as defined in RFC 5869.
++//
++// HKDF is a cryptographic key derivation function (KDF) with the goal of
++// expanding limited input keying material into one or more cryptographically
++// strong secret keys.
++package hkdf // import "golang.org/x/crypto/hkdf"
++
++import (
++	"crypto/hmac"
++	"errors"
++	"hash"
++	"io"
++)
++
++// Extract generates a pseudorandom key for use with Expand from an input secret
++// and an optional independent salt.
++//
++// Only use this function if you need to reuse the extracted key with multiple
++// Expand invocations and different context values. Most common scenarios,
++// including the generation of multiple keys, should use New instead.
++func Extract(hash func() hash.Hash, secret, salt []byte) []byte {
++	if salt == nil {
++		salt = make([]byte, hash().Size())
++	}
++	extractor := hmac.New(hash, salt)
++	extractor.Write(secret)
++	return extractor.Sum(nil)
++}
++
++type hkdf struct {
++	expander hash.Hash
++	size     int
++
++	info    []byte
++	counter byte
++
++	prev []byte
++	buf  []byte
++}
++
++func (f *hkdf) Read(p []byte) (int, error) {
++	// Check whether enough data can be generated
++	need := len(p)
++	remains := len(f.buf) + int(255-f.counter+1)*f.size
++	if remains < need {
++		return 0, errors.New("hkdf: entropy limit reached")
++	}
++	// Read any leftover from the buffer
++	n := copy(p, f.buf)
++	p = p[n:]
++
++	// Fill the rest of the buffer
++	for len(p) > 0 {
++		f.expander.Reset()
++		f.expander.Write(f.prev)
++		f.expander.Write(f.info)
++		f.expander.Write([]byte{f.counter})
++		f.prev = f.expander.Sum(f.prev[:0])
++		f.counter++
++
++		// Copy the new batch into p
++		f.buf = f.prev
++		n = copy(p, f.buf)
++		p = p[n:]
++	}
++	// Save leftovers for next run
++	f.buf = f.buf[n:]
++
++	return need, nil
++}
++
++// Expand returns a Reader, from which keys can be read, using the given
++// pseudorandom key and optional context info, skipping the extraction step.
++//
++// The pseudorandomKey should have been generated by Extract, or be a uniformly
++// random or pseudorandom cryptographically strong key. See RFC 5869, Section
++// 3.3. Most common scenarios will want to use New instead.
++func Expand(hash func() hash.Hash, pseudorandomKey, info []byte) io.Reader {
++	expander := hmac.New(hash, pseudorandomKey)
++	return &hkdf{expander, expander.Size(), info, 1, nil, nil}
++}
++
++// New returns a Reader, from which keys can be read, using the given hash,
++// secret, salt and context info. Salt and info can be nil.
++func New(hash func() hash.Hash, secret, salt, info []byte) io.Reader {
++	prk := Extract(hash, secret, salt)
++	return Expand(hash, prk, info)
++}
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go b/src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go
+new file mode 100644
+index 0000000000..ea575772ef
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go
+@@ -0,0 +1,449 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package hkdf
++
++import (
++	"bytes"
++	"crypto/md5"
++	"crypto/sha1"
++	"crypto/sha256"
++	"crypto/sha512"
++	"hash"
++	"io"
++	"testing"
++)
++
++type hkdfTest struct {
++	hash   func() hash.Hash
++	master []byte
++	salt   []byte
++	prk    []byte
++	info   []byte
++	out    []byte
++}
++
++var hkdfTests = []hkdfTest{
++	// Tests from RFC 5869
++	{
++		sha256.New,
++		[]byte{
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++		},
++		[]byte{
++			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
++			0x08, 0x09, 0x0a, 0x0b, 0x0c,
++		},
++		[]byte{
++			0x07, 0x77, 0x09, 0x36, 0x2c, 0x2e, 0x32, 0xdf,
++			0x0d, 0xdc, 0x3f, 0x0d, 0xc4, 0x7b, 0xba, 0x63,
++			0x90, 0xb6, 0xc7, 0x3b, 0xb5, 0x0f, 0x9c, 0x31,
++			0x22, 0xec, 0x84, 0x4a, 0xd7, 0xc2, 0xb3, 0xe5,
++		},
++		[]byte{
++			0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
++			0xf8, 0xf9,
++		},
++		[]byte{
++			0x3c, 0xb2, 0x5f, 0x25, 0xfa, 0xac, 0xd5, 0x7a,
++			0x90, 0x43, 0x4f, 0x64, 0xd0, 0x36, 0x2f, 0x2a,
++			0x2d, 0x2d, 0x0a, 0x90, 0xcf, 0x1a, 0x5a, 0x4c,
++			0x5d, 0xb0, 0x2d, 0x56, 0xec, 0xc4, 0xc5, 0xbf,
++			0x34, 0x00, 0x72, 0x08, 0xd5, 0xb8, 0x87, 0x18,
++			0x58, 0x65,
++		},
++	},
++	{
++		sha256.New,
++		[]byte{
++			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
++			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
++			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
++			0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
++			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
++			0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
++			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
++			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
++			0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
++			0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
++		},
++		[]byte{
++			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
++			0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
++			0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
++			0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
++			0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
++			0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
++			0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
++			0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
++			0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
++			0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
++		},
++		[]byte{
++			0x06, 0xa6, 0xb8, 0x8c, 0x58, 0x53, 0x36, 0x1a,
++			0x06, 0x10, 0x4c, 0x9c, 0xeb, 0x35, 0xb4, 0x5c,
++			0xef, 0x76, 0x00, 0x14, 0x90, 0x46, 0x71, 0x01,
++			0x4a, 0x19, 0x3f, 0x40, 0xc1, 0x5f, 0xc2, 0x44,
++		},
++		[]byte{
++			0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
++			0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
++			0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
++			0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
++			0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
++			0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
++			0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
++			0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
++			0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
++			0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
++		},
++		[]byte{
++			0xb1, 0x1e, 0x39, 0x8d, 0xc8, 0x03, 0x27, 0xa1,
++			0xc8, 0xe7, 0xf7, 0x8c, 0x59, 0x6a, 0x49, 0x34,
++			0x4f, 0x01, 0x2e, 0xda, 0x2d, 0x4e, 0xfa, 0xd8,
++			0xa0, 0x50, 0xcc, 0x4c, 0x19, 0xaf, 0xa9, 0x7c,
++			0x59, 0x04, 0x5a, 0x99, 0xca, 0xc7, 0x82, 0x72,
++			0x71, 0xcb, 0x41, 0xc6, 0x5e, 0x59, 0x0e, 0x09,
++			0xda, 0x32, 0x75, 0x60, 0x0c, 0x2f, 0x09, 0xb8,
++			0x36, 0x77, 0x93, 0xa9, 0xac, 0xa3, 0xdb, 0x71,
++			0xcc, 0x30, 0xc5, 0x81, 0x79, 0xec, 0x3e, 0x87,
++			0xc1, 0x4c, 0x01, 0xd5, 0xc1, 0xf3, 0x43, 0x4f,
++			0x1d, 0x87,
++		},
++	},
++	{
++		sha256.New,
++		[]byte{
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++		},
++		[]byte{},
++		[]byte{
++			0x19, 0xef, 0x24, 0xa3, 0x2c, 0x71, 0x7b, 0x16,
++			0x7f, 0x33, 0xa9, 0x1d, 0x6f, 0x64, 0x8b, 0xdf,
++			0x96, 0x59, 0x67, 0x76, 0xaf, 0xdb, 0x63, 0x77,
++			0xac, 0x43, 0x4c, 0x1c, 0x29, 0x3c, 0xcb, 0x04,
++		},
++		[]byte{},
++		[]byte{
++			0x8d, 0xa4, 0xe7, 0x75, 0xa5, 0x63, 0xc1, 0x8f,
++			0x71, 0x5f, 0x80, 0x2a, 0x06, 0x3c, 0x5a, 0x31,
++			0xb8, 0xa1, 0x1f, 0x5c, 0x5e, 0xe1, 0x87, 0x9e,
++			0xc3, 0x45, 0x4e, 0x5f, 0x3c, 0x73, 0x8d, 0x2d,
++			0x9d, 0x20, 0x13, 0x95, 0xfa, 0xa4, 0xb6, 0x1a,
++			0x96, 0xc8,
++		},
++	},
++	{
++		sha256.New,
++		[]byte{
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++		},
++		nil,
++		[]byte{
++			0x19, 0xef, 0x24, 0xa3, 0x2c, 0x71, 0x7b, 0x16,
++			0x7f, 0x33, 0xa9, 0x1d, 0x6f, 0x64, 0x8b, 0xdf,
++			0x96, 0x59, 0x67, 0x76, 0xaf, 0xdb, 0x63, 0x77,
++			0xac, 0x43, 0x4c, 0x1c, 0x29, 0x3c, 0xcb, 0x04,
++		},
++		nil,
++		[]byte{
++			0x8d, 0xa4, 0xe7, 0x75, 0xa5, 0x63, 0xc1, 0x8f,
++			0x71, 0x5f, 0x80, 0x2a, 0x06, 0x3c, 0x5a, 0x31,
++			0xb8, 0xa1, 0x1f, 0x5c, 0x5e, 0xe1, 0x87, 0x9e,
++			0xc3, 0x45, 0x4e, 0x5f, 0x3c, 0x73, 0x8d, 0x2d,
++			0x9d, 0x20, 0x13, 0x95, 0xfa, 0xa4, 0xb6, 0x1a,
++			0x96, 0xc8,
++		},
++	},
++	{
++		sha1.New,
++		[]byte{
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b,
++		},
++		[]byte{
++			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
++			0x08, 0x09, 0x0a, 0x0b, 0x0c,
++		},
++		[]byte{
++			0x9b, 0x6c, 0x18, 0xc4, 0x32, 0xa7, 0xbf, 0x8f,
++			0x0e, 0x71, 0xc8, 0xeb, 0x88, 0xf4, 0xb3, 0x0b,
++			0xaa, 0x2b, 0xa2, 0x43,
++		},
++		[]byte{
++			0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
++			0xf8, 0xf9,
++		},
++		[]byte{
++			0x08, 0x5a, 0x01, 0xea, 0x1b, 0x10, 0xf3, 0x69,
++			0x33, 0x06, 0x8b, 0x56, 0xef, 0xa5, 0xad, 0x81,
++			0xa4, 0xf1, 0x4b, 0x82, 0x2f, 0x5b, 0x09, 0x15,
++			0x68, 0xa9, 0xcd, 0xd4, 0xf1, 0x55, 0xfd, 0xa2,
++			0xc2, 0x2e, 0x42, 0x24, 0x78, 0xd3, 0x05, 0xf3,
++			0xf8, 0x96,
++		},
++	},
++	{
++		sha1.New,
++		[]byte{
++			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
++			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
++			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
++			0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
++			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
++			0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
++			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
++			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
++			0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
++			0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
++		},
++		[]byte{
++			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
++			0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
++			0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
++			0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
++			0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
++			0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
++			0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
++			0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
++			0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
++			0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
++		},
++		[]byte{
++			0x8a, 0xda, 0xe0, 0x9a, 0x2a, 0x30, 0x70, 0x59,
++			0x47, 0x8d, 0x30, 0x9b, 0x26, 0xc4, 0x11, 0x5a,
++			0x22, 0x4c, 0xfa, 0xf6,
++		},
++		[]byte{
++			0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
++			0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
++			0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
++			0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
++			0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
++			0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
++			0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
++			0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
++			0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
++			0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
++		},
++		[]byte{
++			0x0b, 0xd7, 0x70, 0xa7, 0x4d, 0x11, 0x60, 0xf7,
++			0xc9, 0xf1, 0x2c, 0xd5, 0x91, 0x2a, 0x06, 0xeb,
++			0xff, 0x6a, 0xdc, 0xae, 0x89, 0x9d, 0x92, 0x19,
++			0x1f, 0xe4, 0x30, 0x56, 0x73, 0xba, 0x2f, 0xfe,
++			0x8f, 0xa3, 0xf1, 0xa4, 0xe5, 0xad, 0x79, 0xf3,
++			0xf3, 0x34, 0xb3, 0xb2, 0x02, 0xb2, 0x17, 0x3c,
++			0x48, 0x6e, 0xa3, 0x7c, 0xe3, 0xd3, 0x97, 0xed,
++			0x03, 0x4c, 0x7f, 0x9d, 0xfe, 0xb1, 0x5c, 0x5e,
++			0x92, 0x73, 0x36, 0xd0, 0x44, 0x1f, 0x4c, 0x43,
++			0x00, 0xe2, 0xcf, 0xf0, 0xd0, 0x90, 0x0b, 0x52,
++			0xd3, 0xb4,
++		},
++	},
++	{
++		sha1.New,
++		[]byte{
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++			0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
++		},
++		[]byte{},
++		[]byte{
++			0xda, 0x8c, 0x8a, 0x73, 0xc7, 0xfa, 0x77, 0x28,
++			0x8e, 0xc6, 0xf5, 0xe7, 0xc2, 0x97, 0x78, 0x6a,
++			0xa0, 0xd3, 0x2d, 0x01,
++		},
++		[]byte{},
++		[]byte{
++			0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
++			0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
++			0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
++			0xe0, 0x7b, 0x6b, 0x87, 0xe8, 0xdf, 0x21, 0xd0,
++			0xea, 0x00, 0x03, 0x3d, 0xe0, 0x39, 0x84, 0xd3,
++			0x49, 0x18,
++		},
++	},
++	{
++		sha1.New,
++		[]byte{
++			0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
++			0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
++			0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
++		},
++		nil,
++		[]byte{
++			0x2a, 0xdc, 0xca, 0xda, 0x18, 0x77, 0x9e, 0x7c,
++			0x20, 0x77, 0xad, 0x2e, 0xb1, 0x9d, 0x3f, 0x3e,
++			0x73, 0x13, 0x85, 0xdd,
++		},
++		nil,
++		[]byte{
++			0x2c, 0x91, 0x11, 0x72, 0x04, 0xd7, 0x45, 0xf3,
++			0x50, 0x0d, 0x63, 0x6a, 0x62, 0xf6, 0x4f, 0x0a,
++			0xb3, 0xba, 0xe5, 0x48, 0xaa, 0x53, 0xd4, 0x23,
++			0xb0, 0xd1, 0xf2, 0x7e, 0xbb, 0xa6, 0xf5, 0xe5,
++			0x67, 0x3a, 0x08, 0x1d, 0x70, 0xcc, 0xe7, 0xac,
++			0xfc, 0x48,
++		},
++	},
++}
++
++func TestHKDF(t *testing.T) {
++	for i, tt := range hkdfTests {
++		prk := Extract(tt.hash, tt.master, tt.salt)
++		if !bytes.Equal(prk, tt.prk) {
++			t.Errorf("test %d: incorrect PRK: have %v, need %v.", i, prk, tt.prk)
++		}
++
++		hkdf := New(tt.hash, tt.master, tt.salt, tt.info)
++		out := make([]byte, len(tt.out))
++
++		n, err := io.ReadFull(hkdf, out)
++		if n != len(tt.out) || err != nil {
++			t.Errorf("test %d: not enough output bytes: %d.", i, n)
++		}
++
++		if !bytes.Equal(out, tt.out) {
++			t.Errorf("test %d: incorrect output: have %v, need %v.", i, out, tt.out)
++		}
++
++		hkdf = Expand(tt.hash, prk, tt.info)
++
++		n, err = io.ReadFull(hkdf, out)
++		if n != len(tt.out) || err != nil {
++			t.Errorf("test %d: not enough output bytes from Expand: %d.", i, n)
++		}
++
++		if !bytes.Equal(out, tt.out) {
++			t.Errorf("test %d: incorrect output from Expand: have %v, need %v.", i, out, tt.out)
++		}
++	}
++}
++
++func TestHKDFMultiRead(t *testing.T) {
++	for i, tt := range hkdfTests {
++		hkdf := New(tt.hash, tt.master, tt.salt, tt.info)
++		out := make([]byte, len(tt.out))
++
++		for b := 0; b < len(tt.out); b++ {
++			n, err := io.ReadFull(hkdf, out[b:b+1])
++			if n != 1 || err != nil {
++				t.Errorf("test %d.%d: not enough output bytes: have %d, need %d .", i, b, n, len(tt.out))
++			}
++		}
++
++		if !bytes.Equal(out, tt.out) {
++			t.Errorf("test %d: incorrect output: have %v, need %v.", i, out, tt.out)
++		}
++	}
++}
++
++func TestHKDFLimit(t *testing.T) {
++	hash := sha1.New
++	master := []byte{0x00, 0x01, 0x02, 0x03}
++	info := []byte{}
++
++	hkdf := New(hash, master, nil, info)
++	limit := hash().Size() * 255
++	out := make([]byte, limit)
++
++	// The maximum output bytes should be extractable
++	n, err := io.ReadFull(hkdf, out)
++	if n != limit || err != nil {
++		t.Errorf("not enough output bytes: %d, %v.", n, err)
++	}
++
++	// Reading one more should fail
++	n, err = io.ReadFull(hkdf, make([]byte, 1))
++	if n > 0 || err == nil {
++		t.Errorf("key expansion overflowed: n = %d, err = %v", n, err)
++	}
++}
++
++func Benchmark16ByteMD5Single(b *testing.B) {
++	benchmarkHKDFSingle(md5.New, 16, b)
++}
++
++func Benchmark20ByteSHA1Single(b *testing.B) {
++	benchmarkHKDFSingle(sha1.New, 20, b)
++}
++
++func Benchmark32ByteSHA256Single(b *testing.B) {
++	benchmarkHKDFSingle(sha256.New, 32, b)
++}
++
++func Benchmark64ByteSHA512Single(b *testing.B) {
++	benchmarkHKDFSingle(sha512.New, 64, b)
++}
++
++func Benchmark8ByteMD5Stream(b *testing.B) {
++	benchmarkHKDFStream(md5.New, 8, b)
++}
++
++func Benchmark16ByteMD5Stream(b *testing.B) {
++	benchmarkHKDFStream(md5.New, 16, b)
++}
++
++func Benchmark8ByteSHA1Stream(b *testing.B) {
++	benchmarkHKDFStream(sha1.New, 8, b)
++}
++
++func Benchmark20ByteSHA1Stream(b *testing.B) {
++	benchmarkHKDFStream(sha1.New, 20, b)
++}
++
++func Benchmark8ByteSHA256Stream(b *testing.B) {
++	benchmarkHKDFStream(sha256.New, 8, b)
++}
++
++func Benchmark32ByteSHA256Stream(b *testing.B) {
++	benchmarkHKDFStream(sha256.New, 32, b)
++}
++
++func Benchmark8ByteSHA512Stream(b *testing.B) {
++	benchmarkHKDFStream(sha512.New, 8, b)
++}
++
++func Benchmark64ByteSHA512Stream(b *testing.B) {
++	benchmarkHKDFStream(sha512.New, 64, b)
++}
++
++func benchmarkHKDFSingle(hasher func() hash.Hash, block int, b *testing.B) {
++	master := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
++	salt := []byte{0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17}
++	info := []byte{0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27}
++	out := make([]byte, block)
++
++	b.SetBytes(int64(block))
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		hkdf := New(hasher, master, salt, info)
++		io.ReadFull(hkdf, out)
++	}
++}
++
++func benchmarkHKDFStream(hasher func() hash.Hash, block int, b *testing.B) {
++	master := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
++	salt := []byte{0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17}
++	info := []byte{0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27}
++	out := make([]byte, block)
++
++	b.SetBytes(int64(block))
++	b.ResetTimer()
++
++	hkdf := New(hasher, master, salt, info)
++	for i := 0; i < b.N; i++ {
++		_, err := io.ReadFull(hkdf, out)
++		if err != nil {
++			hkdf = New(hasher, master, salt, info)
++			i--
++		}
++	}
++}

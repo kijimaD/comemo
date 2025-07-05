@@ -12,6 +12,29 @@ Date:   Fri Jul 15 18:41:41 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue23870.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/issue23870.go b/test/fixedbugs/issue23870.go
+new file mode 100644
+index 0000000000..02aa2949c3
+--- /dev/null
++++ b/test/fixedbugs/issue23870.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Crashed gccgo.
++
++package p
++
++var F func() [0]struct{
++	A int
++}
++
++var i int
++var V = (F()[i]).A

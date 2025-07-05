@@ -19,7 +19,7 @@ Date:   Thu Aug 30 15:47:04 2018 -0600
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 22 +++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
  src/cmd/compile/internal/ssa/gen/genericOps.go | 12 +++--
@@ -27,3 +27,234 @@ Date:   Thu Aug 30 15:47:04 2018 -0600
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
  test/inline_math_bits_rotate.go                | 28 +++++++++++
  6 files changed, 151 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2a8927acd6..4c2f0098ce 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3347,6 +3347,28 @@ func init() {
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[TINT], args[0])
+ 		},
+ 		sys.ARM64)
++	addF("math/bits", "RotateLeft8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue2(ssa.OpRotateLeft8, types.Types[TUINT8], args[0], args[1])
++		},
++		sys.AMD64)
++	addF("math/bits", "RotateLeft16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue2(ssa.OpRotateLeft16, types.Types[TUINT16], args[0], args[1])
++		},
++		sys.AMD64)
++	addF("math/bits", "RotateLeft32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
++		},
++		sys.AMD64)
++	addF("math/bits", "RotateLeft64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
++		},
++		sys.AMD64)
++	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
++
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 10d917632e..a7474ec465 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -768,6 +768,11 @@
+ (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
+ (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
+ 
++(RotateLeft8  a b) -> (ROLB a b)
++(RotateLeft16 a b) -> (ROLW a b)
++(RotateLeft32 a b) -> (ROLL a b)
++(RotateLeft64 a b) -> (ROLQ a b)
++
+ // Non-constant rotates.
+ // We want to issue a rotate when the Go source contains code like
+ //     y &= 63
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a5b80770bb..7292012d26 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -264,10 +264,14 @@ var genericOps = []opData{
+ 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
+ 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
+ 
+-	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
+-	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
+-	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+-	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
++	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
++	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
++	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
++	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
++	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
++	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
++	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
++	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+ 
+ 	// Square root, float64 only.
+ 	// Special cases:
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b960d96ec7..0689c0ef32 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2182,6 +2182,10 @@ const (
+ 	OpPopCount16
+ 	OpPopCount32
+ 	OpPopCount64
++	OpRotateLeft8
++	OpRotateLeft16
++	OpRotateLeft32
++	OpRotateLeft64
+ 	OpSqrt
+ 	OpFloor
+ 	OpCeil
+@@ -27644,6 +27648,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "RotateLeft8",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "RotateLeft16",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "RotateLeft32",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "RotateLeft64",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "Sqrt",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e592610c26..9a443ec0c4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -941,6 +941,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpPopCount64_0(v)
+ 	case OpPopCount8:
+ 		return rewriteValueAMD64_OpPopCount8_0(v)
++	case OpRotateLeft16:
++		return rewriteValueAMD64_OpRotateLeft16_0(v)
++	case OpRotateLeft32:
++		return rewriteValueAMD64_OpRotateLeft32_0(v)
++	case OpRotateLeft64:
++		return rewriteValueAMD64_OpRotateLeft64_0(v)
++	case OpRotateLeft8:
++		return rewriteValueAMD64_OpRotateLeft8_0(v)
+ 	case OpRound32F:
+ 		return rewriteValueAMD64_OpRound32F_0(v)
+ 	case OpRound64F:
+@@ -60745,6 +60753,62 @@ func rewriteValueAMD64_OpPopCount8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpRotateLeft16_0(v *Value) bool {
++	// match: (RotateLeft16 a b)
++	// cond:
++	// result: (ROLW a b)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		b := v.Args[1]
++		v.reset(OpAMD64ROLW)
++		v.AddArg(a)
++		v.AddArg(b)
++		return true
++	}
++}
++func rewriteValueAMD64_OpRotateLeft32_0(v *Value) bool {
++	// match: (RotateLeft32 a b)
++	// cond:
++	// result: (ROLL a b)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		b := v.Args[1]
++		v.reset(OpAMD64ROLL)
++		v.AddArg(a)
++		v.AddArg(b)
++		return true
++	}
++}
++func rewriteValueAMD64_OpRotateLeft64_0(v *Value) bool {
++	// match: (RotateLeft64 a b)
++	// cond:
++	// result: (ROLQ a b)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		b := v.Args[1]
++		v.reset(OpAMD64ROLQ)
++		v.AddArg(a)
++		v.AddArg(b)
++		return true
++	}
++}
++func rewriteValueAMD64_OpRotateLeft8_0(v *Value) bool {
++	// match: (RotateLeft8 a b)
++	// cond:
++	// result: (ROLB a b)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		b := v.Args[1]
++		v.reset(OpAMD64ROLB)
++		v.AddArg(a)
++		v.AddArg(b)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+diff --git a/test/inline_math_bits_rotate.go b/test/inline_math_bits_rotate.go
+new file mode 100644
+index 0000000000..a0341ea497
+--- /dev/null
++++ b/test/inline_math_bits_rotate.go
+@@ -0,0 +1,28 @@
++// +build amd64
++// errorcheck -0 -m
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that inlining of math/bits.RotateLeft* treats those calls as intrinsics.
++
++package p
++
++import "math/bits"
++
++var (
++	x8  uint8
++	x16 uint16
++	x32 uint32
++	x64 uint64
++	x   uint
++)
++
++func f() { // ERROR "can inline f"
++	x8 = bits.RotateLeft8(x8, 1)
++	x16 = bits.RotateLeft16(x16, 1)
++	x32 = bits.RotateLeft32(x32, 1)
++	x64 = bits.RotateLeft64(x64, 1)
++	x = bits.RotateLeft(x, 1)
++}

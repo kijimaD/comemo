@@ -12,7 +12,52 @@ Date:   Wed May 4 18:39:26 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/complit.go | 11 ++++++++++-
  test/fixedbugs/issue52673.go             | 16 ++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index df6d811d62..748a53df33 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -235,7 +235,16 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 		case ir.OSLICELIT:
+ 			value := value.(*ir.CompLitExpr)
+ 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
+-				slicelit(ctxt, value, a, init)
++				var sinit ir.Nodes
++				slicelit(ctxt, value, a, &sinit)
++				if kind == initKindStatic {
++					// When doing static initialization, init statements may contain dynamic
++					// expression, which will be initialized later, causing liveness analysis
++					// confuses about variables lifetime. So making sure those expressions
++					// are ordered correctly here. See issue #52673.
++					orderBlock(&sinit, map[string][]*ir.Name{})
++				}
++				init.Append(sinit...)
+ 				continue
+ 			}
+ 
+diff --git a/test/fixedbugs/issue52673.go b/test/fixedbugs/issue52673.go
+new file mode 100644
+index 0000000000..1540363893
+--- /dev/null
++++ b/test/fixedbugs/issue52673.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var x string
++	func() [10][]bool {
++		return [10][]bool{
++			[]bool{bool(x < "")},
++			[]bool{}, []bool{}, []bool{}, []bool{}}
++	}()
++}

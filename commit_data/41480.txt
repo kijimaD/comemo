@@ -15,6 +15,20 @@ Date:   Sun Oct 6 08:03:44 2019 -0400
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/os_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 974374ec66..b94ab0d232 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2254,8 +2254,6 @@ func TestPipeThreads(t *testing.T) {
+ 		t.Skip("skipping on Plan 9; does not support runtime poller")
+ 	case "js":
+ 		t.Skip("skipping on js; no support for os.Pipe")
+-	case "darwin":
+-		t.Skip("skipping on Darwin; issue 33953")
+ 	}
+ 
+ 	threads := 100

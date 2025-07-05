@@ -212,3 +212,20 @@ Date:   Wed Apr 27 20:09:28 2022 +0200
  test/typeparam/cons.go                             |    2 +-
  test/uintptrkeepalive.go                           |   11 +
  204 files changed, 6594 insertions(+), 4893 deletions(-)
+
+diff --cc src/crypto/tls/common.go
+index fdcebd8a06,59b41effbe..1861efce66
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -988,10 -981,7 +984,10 @@@ const roleServer = fals
+  func (c *Config) supportedVersions(isClient bool) []uint16 {
+  	versions := make([]uint16, 0, len(supportedVersions))
+  	for _, v := range supportedVersions {
+ +		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+ +			continue
+ +		}
+- 		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
++ 		if (c == nil || c.MinVersion == 0) &&
+  			isClient && v < VersionTLS12 {
+  			continue
+  		}

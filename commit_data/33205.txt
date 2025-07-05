@@ -10,10 +10,112 @@ Date:   Sun Jul 30 21:00:09 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/52110
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                            | 17 +++++++++++++++++
  src/cmd/go/testdata/src/testlist/bench_test.go   | 14 ++++++++++++++
  src/cmd/go/testdata/src/testlist/example_test.go | 21 +++++++++++++++++++++
  src/cmd/go/testdata/src/testlist/test_test.go    | 10 ++++++++++
  src/testing/testing.go                           |  2 +-
  5 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e706e27bdf..7d80d965ae 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4314,3 +4314,20 @@ func TestTestRegexps(t *testing.T) {
+ 		t.Errorf("reduced output:<<<\n%s>>> want:<<<\n%s>>>", have, want)
+ 	}
+ }
++
++func TestListTests(t *testing.T) {
++	var tg *testgoData
++	testWith := func(listName, expected string) func(*testing.T) {
++		return func(t *testing.T) {
++			tg = testgo(t)
++			defer tg.cleanup()
++			tg.run("test", "./testdata/src/testlist/...", fmt.Sprintf("-list=%s", listName))
++			tg.grepStdout(expected, fmt.Sprintf("-test.list=%s returned %q, expected %s", listName, tg.getStdout(), expected))
++		}
++	}
++
++	t.Run("Test", testWith("Test", "TestSimple"))
++	t.Run("Bench", testWith("Benchmark", "BenchmarkSimple"))
++	t.Run("Example1", testWith("Example", "ExampleSimple"))
++	t.Run("Example2", testWith("Example", "ExampleWithEmptyOutput"))
++}
+diff --git a/src/cmd/go/testdata/src/testlist/bench_test.go b/src/cmd/go/testdata/src/testlist/bench_test.go
+new file mode 100644
+index 0000000000..22f147b633
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testlist/bench_test.go
+@@ -0,0 +1,14 @@
++package testlist
++
++import (
++	"fmt"
++	"testing"
++)
++
++func BenchmarkSimplefunc(b *testing.B) {
++	b.StopTimer()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		_ = fmt.Sprint("Test for bench")
++	}
++}
+diff --git a/src/cmd/go/testdata/src/testlist/example_test.go b/src/cmd/go/testdata/src/testlist/example_test.go
+new file mode 100644
+index 0000000000..0298dfde81
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testlist/example_test.go
+@@ -0,0 +1,21 @@
++package testlist
++
++import (
++	"fmt"
++)
++
++func ExampleSimple() {
++	fmt.Println("Test with Output.")
++
++	// Output: Test with Output.
++}
++
++func ExampleWithEmptyOutput() {
++	fmt.Println("")
++
++	// Output:
++}
++
++func ExampleNoOutput() {
++	_ = fmt.Sprint("Test with no output")
++}
+diff --git a/src/cmd/go/testdata/src/testlist/test_test.go b/src/cmd/go/testdata/src/testlist/test_test.go
+new file mode 100644
+index 0000000000..bdc09f27c5
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testlist/test_test.go
+@@ -0,0 +1,10 @@
++package testlist
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestSimple(t *testing.T) {
++	_ = fmt.Sprint("Test simple")
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 3d1c0c6947..11af926c80 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -970,7 +970,7 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
+ 		}
+ 	}
+ 	for _, example := range examples {
+-		if ok, _ := matchString(*matchList, example.Name); ok && example.Output != "" {
++		if ok, _ := matchString(*matchList, example.Name); ok {
+ 			fmt.Println(example.Name)
+ 		}
+ 	}

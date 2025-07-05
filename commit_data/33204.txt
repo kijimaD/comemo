@@ -31,7 +31,7 @@ Date:   Tue Jul 18 08:35:00 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go     |  2 +-
  src/cmd/compile/internal/arm64/ssa.go   |  2 +-
  src/cmd/compile/internal/gc/asm_test.go | 24 +++++++++++++++++++++++-
@@ -44,3 +44,404 @@ Date:   Tue Jul 18 08:35:00 2017 -0400
  src/cmd/internal/obj/ppc64/asm9.go      | 20 ++++++++++++++++++++
  src/cmd/internal/obj/s390x/asmz.go      | 20 ++++++++++++++++++++
  11 files changed, 128 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 343f2d3aec..93abee3da0 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -464,6 +464,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARMMOVWaddr:
+ 		p := s.Prog(arm.AMOVW)
+ 		p.From.Type = obj.TYPE_ADDR
++		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -485,7 +486,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case nil:
+ 			// No sym, just MOVW $off(SP), R
+ 			wantreg = "SP"
+-			p.From.Reg = arm.REGSP
+ 			p.From.Offset = v.AuxInt
+ 		}
+ 		if reg := v.Args[0].RegName(); reg != wantreg {
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index dec6a4e93e..0f9e82c727 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -260,6 +260,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARM64MOVDaddr:
+ 		p := s.Prog(arm64.AMOVD)
+ 		p.From.Type = obj.TYPE_ADDR
++		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -281,7 +282,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case nil:
+ 			// No sym, just MOVD $off(SP), R
+ 			wantreg = "SP"
+-			p.From.Reg = arm64.REGSP
+ 			p.From.Offset = v.AuxInt
+ 		}
+ 		if reg := v.Args[0].RegName(); reg != wantreg {
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 221b8497f1..08ec638f44 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -898,6 +898,17 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		[]string{"\tCMPL\t[A-Z]"},
+ 	},
++	{
++		// make sure assembly output has matching offset and base register.
++		`
++		func f72(a, b int) int {
++			var x [16]byte // use some frame
++			_ = x
++			return b
++		}
++		`,
++		[]string{"b\\+40\\(SP\\)"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+@@ -1302,6 +1313,17 @@ var linuxARMTests = []*asmTest{
+ 		`,
+ 		[]string{"\tCLZ\t"},
+ 	},
++	{
++		// make sure assembly output has matching offset and base register.
++		`
++		func f13(a, b int) int {
++			var x [16]byte // use some frame
++			_ = x
++			return b
++		}
++		`,
++		[]string{"b\\+4\\(FP\\)"},
++	},
+ }
+ 
+ var linuxARM64Tests = []*asmTest{
+@@ -1473,7 +1495,7 @@ var linuxARM64Tests = []*asmTest{
+ 			return
+ 		}
+ 		`,
+-		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(RSP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(RSP\\)"},
++		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
+ 	},
+ }
+ 
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index d2b4885eaa..e65515a85b 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -273,6 +273,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpMIPSMOVWaddr:
+ 		p := s.Prog(mips.AMOVW)
+ 		p.From.Type = obj.TYPE_ADDR
++		p.From.Reg = v.Args[0].Reg()
+ 		var wantreg string
+ 		// MOVW $sym+off(base), R
+ 		// the assembler expands it as the following:
+@@ -291,7 +292,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case nil:
+ 			// No sym, just MOVW $off(SP), R
+ 			wantreg = "SP"
+-			p.From.Reg = mips.REGSP
+ 			p.From.Offset = v.AuxInt
+ 		}
+ 		if reg := v.Args[0].RegName(); reg != wantreg {
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 5a7a601942..db163f3e9d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -247,6 +247,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpMIPS64MOVVaddr:
+ 		p := s.Prog(mips.AMOVV)
+ 		p.From.Type = obj.TYPE_ADDR
++		p.From.Reg = v.Args[0].Reg()
+ 		var wantreg string
+ 		// MOVV $sym+off(base), R
+ 		// the assembler expands it as the following:
+@@ -265,7 +266,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case nil:
+ 			// No sym, just MOVV $off(SP), R
+ 			wantreg = "SP"
+-			p.From.Reg = mips.REGSP
+ 			p.From.Offset = v.AuxInt
+ 		}
+ 		if reg := v.Args[0].RegName(); reg != wantreg {
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index a95dabccf0..5fe140fdcf 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -638,6 +638,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpPPC64MOVDaddr:
+ 		p := s.Prog(ppc64.AMOVD)
+ 		p.From.Type = obj.TYPE_ADDR
++		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -660,7 +661,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case nil:
+ 			// No sym, just MOVD $off(SP), R
+ 			wantreg = "SP"
+-			p.From.Reg = ppc64.REGSP
+ 			p.From.Offset = v.AuxInt
+ 		}
+ 		if reg := v.Args[0].RegName(); reg != wantreg {
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index cfda99f602..8abf732b2c 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1167,6 +1167,11 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			return C_ADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = c.autosize + a.Offset
+ 			if t := immaddr(int32(c.instoffset)); t != 0 {
+ 				if immhalf(int32(c.instoffset)) {
+@@ -1185,6 +1190,11 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			return C_LAUTO
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = c.autosize + a.Offset + 4
+ 			if t := immaddr(int32(c.instoffset)); t != 0 {
+ 				if immhalf(int32(c.instoffset)) {
+@@ -1285,10 +1295,20 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			return C_LCONADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = c.autosize + a.Offset
+ 			return c.aconsize()
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = c.autosize + a.Offset + 4
+ 			return c.aconsize()
+ 		}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 04a481863a..4419909f69 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1149,10 +1149,20 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 			return C_GOTADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			return autoclass(c.instoffset)
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + 8
+ 			return autoclass(c.instoffset)
+ 
+@@ -1228,10 +1238,20 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 			return C_VCONADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			goto aconsize
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + 8
+ 			goto aconsize
+ 		}
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 3cfb260d60..6257e5b83d 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -556,6 +556,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			return C_LEXT
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -563,6 +568,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			return C_LAUTO
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -616,6 +626,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			return C_LECON
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+@@ -623,6 +638,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			return C_LACON
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index bdbac03f9c..4d787b1c35 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -758,6 +758,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_GOTADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -765,6 +770,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_LAUTO
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -817,6 +827,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_LCON
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+@@ -824,6 +839,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			return C_LACON
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 3bba7b2a5c..6d2b870f0a 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -505,6 +505,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			return C_GOTADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -512,6 +517,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			return C_LAUTO
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SAUTO
+@@ -567,6 +577,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			return C_SYMADDR
+ 
+ 		case obj.NAME_AUTO:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-SP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON
+@@ -574,6 +589,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			return C_LACON
+ 
+ 		case obj.NAME_PARAM:
++			if a.Reg == REGSP {
++				// unset base register for better printing, since
++				// a.Offset is still relative to pseudo-FP.
++				a.Reg = obj.REG_NONE
++			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+ 				return C_SACON

@@ -7,6 +7,30 @@ Date:   Fri Jul 12 04:34:04 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/10981043
-
+---
  src/cmd/cgo/doc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 701ac6f8d9..17f01c313e 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -49,7 +49,7 @@ to the flags derived from these directives.  Package-specific flags should
+ be set using the directives, not the environment variables, so that builds
+ work in unmodified environments.
+ 
+-Within the Go file, C identifiers or field names that are keywords in Go
++Within the Go file, C's struct field names that are keywords in Go
+ can be accessed by prefixing them with an underscore: if x points at a C
+ struct with a field named "type", x._type accesses the field.
+ 
+@@ -63,6 +63,9 @@ The C type void* is represented by Go's unsafe.Pointer.
+ To access a struct, union, or enum type directly, prefix it with
+ struct_, union_, or enum_, as in C.struct_stat.
+ 
++As Go doesn't have support for C's union type in the general case,
++C's union types are represented as a Go byte array with the same length.
++
+ Go structs cannot embed fields with C types.
+ 
+ Any C function (even void functions) may be called in a multiple

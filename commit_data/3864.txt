@@ -7,8 +7,48 @@ Date:   Fri Nov 6 14:36:34 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1026009
-
+---
  doc/gccgo_contribute.html                       | 2 +-
  doc/{go_gccgo_setup.html => gccgo_install.html} | 0
  doc/install.html                                | 4 ++--
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 57a59587d0..5b6dba0032 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -7,7 +7,7 @@ These are some notes on contributing to the <code>gccgo</code>
+ frontend for GCC.  For information on contributing to parts of Go other
+ than <code>gccgo</code>, see <a href="contribute.html">Contributing to
+ the Go project</a>.  For information on building <code>gccgo</code>
+-for yourself, see <a href="go_gccgo_setup.html">Setting up and using
++for yourself, see <a href="gccgo_install.html">Setting up and using
+ gccgo</a>.
+ </p>
+ 
+diff --git a/doc/go_gccgo_setup.html b/doc/gccgo_install.html
+similarity index 100%
+rename from doc/go_gccgo_setup.html
+rename to doc/gccgo_install.html
+diff --git a/doc/install.html b/doc/install.html
+index 5478a4adc2..cac844ffd4 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -8,7 +8,7 @@ This document explains how to check out, build, and use the <code>gc</code> Go
+ compiler and tools (<code>6g</code>, <code>8g</code> etc.).
+ For information on how to use <code>gccgo</code>, a more traditional
+ compiler using the GCC back end, see
+-<a href="go_gccgo_setup.html">Setting up and using gccgo</a>.
++<a href="gccgo_install.html">Setting up and using gccgo</a>.
+ </p>
+ 
+ <h2>Environment variables</h2>
+@@ -120,7 +120,7 @@ support for segmented stacks, and a strong goroutine implementation.
+ </p>
+ 
+ <p>
+-See the separate <a href="go_gccgo_setup.html"><code>gccgo</code> document</a>
++See the separate <a href="gccgo_install.html"><code>gccgo</code> document</a>
+ for details about that compiler and environment.
+ </p>
+ 

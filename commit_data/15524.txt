@@ -11,7 +11,7 @@ Date:   Fri Mar 1 00:27:57 2013 -0500
     R=golang-dev, iant, ality
     CC=golang-dev
     https://golang.org/cl/7424048
-
+---
  src/cmd/5c/swt.c    |  16 +--
  src/cmd/6c/swt.c    |  16 +--
  src/cmd/8c/swt.c    |  16 +--
@@ -26,3 +26,944 @@ Date:   Fri Mar 1 00:27:57 2013 -0500
  src/cmd/ld/lib.h    |   1 +
  src/cmd/ld/symtab.c |   9 ++
  13 files changed, 240 insertions(+), 366 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index ff33eab14b..87b77518b5 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -393,22 +393,12 @@ outcode(void)
+ 	}
+ 
+ 	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+-	if(ndynimp > 0 || ndynexp > 0) {
+-		int i;
+-
++	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&outbuf, "\n");
+ 		Bprint(&outbuf, "$$  // exports\n\n");
+ 		Bprint(&outbuf, "$$  // local types\n\n");
+-		Bprint(&outbuf, "$$  // dynimport\n");
+-		for(i=0; i<ndynimp; i++)
+-			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&outbuf, "\n$$  // dynexport\n");
+-		for(i=0; i<ndynexp; i++)
+-			Bprint(&outbuf, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+-		Bprint(&outbuf, "\n$$  // dynlinker\n");
+-		if(dynlinker != nil) {
+-			Bprint(&outbuf, "dynlinker %s\n", dynlinker);
+-		}
++		Bprint(&outbuf, "$$  // cgo\n");
++		Bprint(&outbuf, "%s", fmtstrflush(&pragcgobuf));
+ 		Bprint(&outbuf, "\n$$\n\n");
+ 	}
+ 	Bprint(&outbuf, "!\n");
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 068401e19b..58d6d51291 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -247,22 +247,12 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+-	if(ndynimp > 0 || ndynexp > 0) {
+-		int i;
+-
++	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynimport\n");
+-		for(i=0; i<ndynimp; i++)
+-			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "\n$$  // dynexport\n");
+-		for(i=0; i<ndynexp; i++)
+-			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+-		Bprint(&b, "\n$$  // dynlinker\n");
+-		if(dynlinker != nil) {
+-			Bprint(&b, "dynlinker %s\n", dynlinker);
+-		}
++		Bprint(&b, "$$  // cgo\n");
++		Bprint(&b, "%s", fmtstrflush(&pragcgobuf));
+ 		Bprint(&b, "\n$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index dc68b60354..d331eee1ae 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -251,22 +251,12 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+-	if(ndynimp > 0 || ndynexp > 0) {
+-		int i;
+-
++	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynimport\n");
+-		for(i=0; i<ndynimp; i++)
+-			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "\n$$  // dynexport\n");
+-		for(i=0; i<ndynexp; i++)
+-			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+-		Bprint(&b, "\n$$  // dynlinker\n");
+-		if(dynlinker != nil) {
+-			Bprint(&b, "dynlinker %s\n", dynlinker);
+-		}
++		Bprint(&b, "$$  // cgo\n");
++		Bprint(&b, "%s", fmtstrflush(&pragcgobuf));
+ 		Bprint(&b, "\n$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 5cad8d92b4..866aeb0abb 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -444,25 +444,6 @@ struct	Funct
+ 	Sym*	castfr[NTYPE];
+ };
+ 
+-struct	Dynimp
+-{
+-	char*	local;
+-	char*	remote;
+-	char*	path;
+-};
+-
+-EXTERN	Dynimp	*dynimp;
+-EXTERN	int	ndynimp;
+-
+-struct	Dynexp
+-{
+-	char*	local;
+-	char*	remote;
+-};
+-
+-EXTERN	Dynexp	*dynexp;
+-EXTERN	int	ndynexp;
+-
+ EXTERN struct
+ {
+ 	Type*	tenum;		/* type of entire enum */
+@@ -533,6 +514,7 @@ EXTERN	int	ncontin;
+ EXTERN	int	canreach;
+ EXTERN	int	warnreach;
+ EXTERN	Bits	zbits;
++EXTERN	Fmt	pragcgobuf;
+ 
+ extern	char	*onames[], *tnames[], *gnames[];
+ extern	char	*cnames[], *qnames[], *bnames[];
+@@ -774,10 +756,7 @@ void	pragfpround(void);
+ void	pragdataflag(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+-void	pragdynimport(void);
+-void	pragdynexport(void);
+-void	pragdynlinker(void);
+-EXTERN	char *dynlinker;
++void	pragcgo(char*);
+ 
+ /*
+  * calls to machine depend part
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index ea2e81deeb..2f038f520b 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -662,82 +662,93 @@ getimpsym(void)
+ 	return lookup();
+ }
+ 
+-void
+-pragdynimport(void)
++static int
++more(void)
+ {
+-	Sym *local, *remote;
+-	char *path;
+-	Dynimp *f;
+-
+-	local = getimpsym();
+-	if(local == nil)
+-		goto err;
+-
+-	remote = getimpsym();
+-	if(remote == nil)
+-		goto err;
+-
+-	path = getquoted();
+-	if(path == nil)
+-		goto err;
+-
+-	if(ndynimp%32 == 0)
+-		dynimp = realloc(dynimp, (ndynimp+32)*sizeof dynimp[0]);
+-	f = &dynimp[ndynimp++];
+-	f->local = local->name;
+-	f->remote = remote->name;
+-	f->path = path;
+-	goto out;
+-
+-err:
+-	yyerror("usage: #pragma dynimport local remote \"path\"");
+-
+-out:
+-	while(getnsc() != '\n')
+-		;
++	int c;
++	
++	do
++		c = getnsc();
++	while(c == ' ' || c == '\t');
++	unget(c);
++	return c != '\n';
+ }
+ 
+ void
+-pragdynexport(void)
++pragcgo(char *verb)
+ {
+ 	Sym *local, *remote;
+-	Dynexp *f;
+-
+-	local = getsym();
+-	if(local == nil)
+-		goto err;
+-
+-	remote = getsym();
+-	if(remote == nil)
+-		goto err;
+-
+-	if(ndynexp%32 == 0)
+-		dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+-	f = &dynexp[ndynexp++];
+-	f->local = local->name;
+-	f->remote = remote->name;
+-	goto out;
+-
+-err:
+-	yyerror("usage: #pragma dynexport local remote");
+-
+-out:
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-pragdynlinker(void)
+-{
+-	dynlinker = getquoted();
+-	if(dynlinker == nil)
+-		goto err;
+-
+-	goto out;
++	char *p;
+ 
+-err:
+-	yyerror("usage: #pragma dynlinker \"path\"");
++	if(strcmp(verb, "cgo_dynamic_linker") == 0 || strcmp(verb, "dynlinker") == 0) {
++		p = getquoted();
++		if(p == nil)
++			goto err1;
++		fmtprint(&pragcgobuf, "cgo_dynamic_linker %q\n", p);
++		goto out;
++	
++	err1:
++		yyerror("usage: #pragma cgo_dynamic_linker \"path\"");
++		goto out;
++	}	
++	
++	if(strcmp(verb, "cgo_export") == 0 || strcmp(verb, "dynexport") == 0) {
++		local = getimpsym();
++		if(local == nil)
++			goto err2;
++		if(!more()) {
++			fmtprint(&pragcgobuf, "cgo_export %q\n", local->name);
++			goto out;
++		}
++		remote = getimpsym();
++		if(remote == nil)
++			goto err2;
++		fmtprint(&pragcgobuf, "cgo_export %q %q\n", local->name, remote->name);
++		goto out;
++	
++	err2:
++		yyerror("usage: #pragma cgo_export local [remote]");
++		goto out;
++	}
++	
++	if(strcmp(verb, "cgo_import_dynamic") == 0 || strcmp(verb, "dynimport") == 0) {
++		local = getimpsym();
++		if(local == nil)
++			goto err3;
++		if(!more()) {
++			fmtprint(&pragcgobuf, "cgo_import_dynamic %q\n", local->name);
++			goto out;
++		}
++		remote = getimpsym();
++		if(remote == nil)
++			goto err3;
++		if(!more()) {
++			fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q\n", local->name, remote->name);
++			goto out;
++		}
++		p = getquoted();
++		if(p == nil)	
++			goto err3;
++		fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q %q\n", local->name, remote->name, p);
++		goto out;
++	
++	err3:
++		yyerror("usage: #pragma cgo_import_dynamic local [remote [\"library\"]]");
++		goto out;
++	}
++	
++	if(strcmp(verb, "cgo_import_static") == 0) {
++		local = getimpsym();
++		if(local == nil)
++			goto err4;
++		fmtprint(&pragcgobuf, "cgo_import_static %q\n", local->name);
++		goto out;
+ 
++	err4:
++		yyerror("usage: #pragma cgo_import_static local [remote]");
++		goto out;
++	}
++	
+ out:
+ 	while(getnsc() != '\n')
+ 		;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 16238153ec..4fb0be9a42 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -124,6 +124,9 @@ main(int argc, char *argv[])
+ 	cinit();
+ 	ginit();
+ 	arginit();
++	
++	fmtstrinit(&pragcgobuf);
++	quotefmtinstall();
+ 
+ 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
+ 	ndef = 0;
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 4cc9c73d9d..5fa980267b 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -47,22 +47,9 @@ pragvararg(void)
+ }
+ 
+ void
+-pragdynimport(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-pragdynexport(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-pragdynlinker(void)
++pragcgo(char *name)
+ {
++	USED(name);
+ 	while(getnsc() != '\n')
+ 		;
+ }
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index e9b4ba9fb0..f0a507669c 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -743,16 +743,8 @@ macprag(void)
+ 		pragincomplete();
+ 		return;
+ 	}
+-	if(s && strcmp(s->name, "dynimport") == 0) {
+-		pragdynimport();
+-		return;
+-	}
+-	if(s && strcmp(s->name, "dynexport") == 0) {
+-		pragdynexport();
+-		return;
+-	}
+-	if(s && strcmp(s->name, "dynlinker") == 0) {
+-		pragdynlinker();
++	if(s && (strncmp(s->name, "cgo_", 4) == 0 || strncmp(s->name, "dyn", 3) == 0)) {
++		pragcgo(s->name);
+ 		return;
+ 	}
+ 	while(getnsc() != '\n')
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 334ceefc99..955b7c495e 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -343,13 +343,13 @@ cgo examine the executable. Cgo records the list of shared library
+ references and resolved names and writes them into a new file
+ _cgo_import.c, which looks like:
+ 
+-	#pragma dynlinker "/lib64/ld-linux-x86-64.so.2"
+-	#pragma dynimport puts puts#GLIBC_2.2.5 "libc.so.6"
+-	#pragma dynimport __libc_start_main __libc_start_main#GLIBC_2.2.5 "libc.so.6"
+-	#pragma dynimport stdout stdout#GLIBC_2.2.5 "libc.so.6"
+-	#pragma dynimport fflush fflush#GLIBC_2.2.5 "libc.so.6"
+-	#pragma dynimport _ _ "libpthread.so.0"
+-	#pragma dynimport _ _ "libc.so.6"
++	#pragma cgo_dynamic_linker "/lib64/ld-linux-x86-64.so.2"
++	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
++	#pragma cgo_import_dynamic __libc_start_main __libc_start_main#GLIBC_2.2.5 "libc.so.6"
++	#pragma cgo_import_dynamic stdout stdout#GLIBC_2.2.5 "libc.so.6"
++	#pragma cgo_import_dynamic fflush fflush#GLIBC_2.2.5 "libc.so.6"
++	#pragma cgo_import_dynamic _ _ "libpthread.so.0"
++	#pragma cgo_import_dynamic _ _ "libc.so.6"
+ 
+ In the end, the compiled Go package, which will eventually be
+ presented to 6l as part of a larger program, contains:
+@@ -448,7 +448,7 @@ and then processed by the linker.
+ 
+ The directives are:
+ 
+-#pragma cgo_dynamic_import <local> [<remote> ["<library>"]]
++#pragma cgo_import_dynamic <local> [<remote> ["<library>"]]
+ 
+ 	In internal linking mode, allow an unresolved reference to
+ 	<local>, assuming it will be resolved by a dynamic library
+@@ -459,9 +459,9 @@ The directives are:
+ 	In the <remote>, # or @ can be used to introduce a symbol version.
+ 
+ 	Examples:
+-	#pragma cgo_dynamic_import puts
+-	#pragma cgo_dynamic_import puts puts#GLIBC_2.2.5
+-	#pragma cgo_dynamic_import puts puts#GLIBC_2.2.5 "libc.so.6"
++	#pragma cgo_import_dynamic puts
++	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5
++	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
+ 
+ 	A side effect of the cgo_dynamic_import directive with a
+ 	library is to make the final binary depend on that dynamic
+@@ -469,7 +469,7 @@ The directives are:
+ 	symbols, use _ for local and remote.
+ 
+ 	Example:
+-	#pragma cgo_dynamic_import _ _ "libc.so.6"
++	#pragma cgo_import_dynamic _ _ "libc.so.6"
+ 
+ 	For compatibility with current versions of SWIG,
+ 	#pragma dynimport is an alias for #pragma cgo_dynamic_import.
+@@ -495,7 +495,7 @@ The directives are:
+ 	For compatibility with current versions of SWIG,
+ 	#pragma dynexport is an alias for #pragma cgo_export.
+ 
+-#pragma cgo_static_import <local>
++#pragma cgo_import_static <local>
+ 
+ 	In external linking mode, allow unresolved references to
+ 	<local> in the go.o object file prepared for the host linker,
+@@ -503,7 +503,7 @@ The directives are:
+ 	other object files that will be linked with go.o.
+ 
+ 	Example:
+-	#pragma cgo_static_import puts_wrapper
++	#pragma cgo_import_static puts_wrapper
+ 
+ #pragma cgo_ldflag "<arg>"
+ 
+@@ -531,10 +531,9 @@ The following code will be generated by cgo:
+ 
+ 	// compiled by 6c
+ 
+-	#pragma cgo_dynamic_import sin sin#GLIBC_2.2.5 "libm.so.6"
+-	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
++	#pragma cgo_import_dynamic sin sin#GLIBC_2.2.5 "libm.so.6"
+ 
+-	#pragma cgo_static_import _cgo_gcc_Cfunc_sin
++	#pragma cgo_import_static _cgo_gcc_Cfunc_sin
+ 	#pragma cgo_ldflag "-lm"
+ 
+ 	void _cgo_gcc_Cfunc_sin(void*);
+@@ -578,7 +577,7 @@ particular foo.cgo2.o. It links together the 6g- and 6c-generated
+ object files, along with any other Go code, into a go.o file. While
+ doing that, 6l will discover that there is no definition for
+ _cgo_gcc_Cfunc_sin, referred to by the 6c-compiled source file. This
+-is okay, because 6l also processes the cgo_static_import directive and
++is okay, because 6l also processes the cgo_import_static directive and
+ knows that _cgo_gcc_Cfunc_sin is expected to be supplied by a host
+ object file, so 6l does not treat the missing symbol as an error when
+ creating go.o. Indeed, the definition for _cgo_gcc_Cfunc_sin will be
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2b48ce2b4a..cb0ab44bdc 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -163,10 +163,13 @@ func dynimport(obj string) {
+ 	}
+ 
+ 	if f, err := elf.Open(obj); err == nil {
+-		if sec := f.Section(".interp"); sec != nil {
+-			if data, err := sec.Data(); err == nil && len(data) > 1 {
+-				// skip trailing \0 in data
+-				fmt.Fprintf(stdout, "#pragma dynlinker %q\n", string(data[:len(data)-1]))
++		if !*importRuntimeCgo {
++			// We are runtime/cgo, so emit the cgo_dynamic_linker line.
++			if sec := f.Section(".interp"); sec != nil {
++				if data, err := sec.Data(); err == nil && len(data) > 1 {
++					// skip trailing \0 in data
++					fmt.Fprintf(stdout, "#pragma cgo_dynamic_linker %q\n", string(data[:len(data)-1]))
++				}
+ 			}
+ 		}
+ 		sym, err := f.ImportedSymbols()
+@@ -178,14 +181,14 @@ func dynimport(obj string) {
+ 			if s.Version != "" {
+ 				targ += "#" + s.Version
+ 			}
+-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
++			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
+ 		}
+ 		lib, err := f.ImportedLibraries()
+ 		if err != nil {
+ 			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
+ 		}
+ 		for _, l := range lib {
+-			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
++			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic _ _ %q\n", l)
+ 		}
+ 		return
+ 	}
+@@ -199,14 +202,14 @@ func dynimport(obj string) {
+ 			if len(s) > 0 && s[0] == '_' {
+ 				s = s[1:]
+ 			}
+-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s, s, "")
++			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", s, s, "")
+ 		}
+ 		lib, err := f.ImportedLibraries()
+ 		if err != nil {
+ 			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
+ 		}
+ 		for _, l := range lib {
+-			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
++			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic _ _ %q\n", l)
+ 		}
+ 		return
+ 	}
+@@ -219,7 +222,7 @@ func dynimport(obj string) {
+ 		for _, s := range sym {
+ 			ss := strings.Split(s, ":")
+ 			name := strings.Split(ss[0], "@")[0]
+-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
++			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
+ 		}
+ 		return
+ 	}
+@@ -377,6 +380,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 	_, argSize = p.structType(n)
+ 
+ 	// C wrapper calls into gcc, passing a pointer to the argument frame.
++	fmt.Fprintf(fc, "#pragma cgo_import_static _cgo%s%s\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fc, "\n")
+ 	fmt.Fprintf(fc, "void\n")
+@@ -647,7 +651,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		if fn.Recv != nil {
+ 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+ 		}
+-		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
++		fmt.Fprintf(fc, "#pragma cgo_export %s\n", goname)
+ 		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
+ 		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
+ 		fmt.Fprintf(fc, "void\n")
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index c5b9aa5384..b2527b13ef 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -67,9 +67,7 @@ ilookup(char *name)
+ }
+ 
+ static void loadpkgdata(char*, char*, char*, int);
+-static void loaddynimport(char*, char*, char*, int);
+-static void loaddynexport(char*, char*, char*, int);
+-static void loaddynlinker(char*, char*, char*, int);
++static void loadcgo(char*, char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+ static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+ 
+@@ -178,12 +176,12 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 
+ 	loadpkgdata(filename, pkg, p0, p1 - p0);
+ 
+-	// look for dynimport section
+-	p0 = strstr(p1, "\n$$  // dynimport");
++	// look for cgo section
++	p0 = strstr(p1, "\n$$  // cgo");
+ 	if(p0 != nil) {
+ 		p0 = strchr(p0+1, '\n');
+ 		if(p0 == nil) {
+-			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
++			fprint(2, "%s: found $$ // cgo but no newline in %s\n", argv0, filename);
+ 			if(debug['u'])
+ 				errorexit();
+ 			return;
+@@ -192,55 +190,12 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 		if(p1 == nil)
+ 			p1 = strstr(p0, "\n!\n");
+ 		if(p1 == nil) {
+-			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
++			fprint(2, "%s: cannot find end of // cgo section in %s\n", argv0, filename);
+ 			if(debug['u'])
+ 				errorexit();
+ 			return;
+ 		}
+-		loaddynimport(filename, pkg, p0 + 1, p1 - (p0+1));
+-	}
+-
+-	// look for dynexp section
+-	p0 = strstr(p1, "\n$$  // dynexport");
+-	if(p0 != nil) {
+-		p0 = strchr(p0+1, '\n');
+-		if(p0 == nil) {
+-			fprint(2, "%s: found $$ // dynexport but no newline in %s\n", argv0, filename);
+-			if(debug['u'])
+-				errorexit();
+-			return;
+-		}
+-		p1 = strstr(p0, "\n$$");
+-		if(p1 == nil)
+-			p1 = strstr(p0, "\n!\n");
+-		if(p1 == nil) {
+-			fprint(2, "%s: cannot find end of // dynexport section in %s\n", argv0, filename);
+-			if(debug['u'])
+-				errorexit();
+-			return;
+-		}
+-		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
+-	}
+-
+-	p0 = strstr(p1, "\n$$  // dynlinker");
+-	if(p0 != nil) {
+-		p0 = strchr(p0+1, '\n');
+-		if(p0 == nil) {
+-			fprint(2, "%s: found $$ // dynlinker but no newline in %s\n", argv0, filename);
+-			if(debug['u'])
+-				errorexit();
+-			return;
+-		}
+-		p1 = strstr(p0, "\n$$");
+-		if(p1 == nil)
+-			p1 = strstr(p0, "\n!\n");
+-		if(p1 == nil) {
+-			fprint(2, "%s: cannot find end of // dynlinker section in %s\n", argv0, filename);
+-			if(debug['u'])
+-				errorexit();
+-			return;
+-		}
+-		loaddynlinker(filename, pkg, p0 + 1, p1 - (p0+1));
++		loadcgo(filename, pkg, p0 + 1, p1 - (p0+1));
+ 	}
+ }
+ 
+@@ -456,165 +411,129 @@ useline:
+ }
+ 
+ static void
+-loaddynimport(char *file, char *pkg, char *p, int n)
++loadcgo(char *file, char *pkg, char *p, int n)
+ {
+-	char *pend, *next, *name, *def, *p0, *lib, *q;
++	char *pend, *next, *p0, *q;
++	char *f[10], *local, *remote, *lib;
++	int nf;
+ 	Sym *s;
+ 
+ 	USED(file);
+ 	pend = p + n;
++	p0 = nil;
+ 	for(; p<pend; p=next) {
+ 		next = strchr(p, '\n');
+ 		if(next == nil)
+ 			next = "";
+ 		else
+ 			*next++ = '\0';
+-		p0 = p;
+-		if(strncmp(p, "dynimport ", 10) != 0)
+-			goto err;
+-		p += 10;
+-		name = p;
+-		p = strchr(name, ' ');
+-		if(p == nil)
+-			goto err;
+-		while(*p == ' ')
+-			p++;
+-		def = p;
+-		p = strchr(def, ' ');
+-		if(p == nil)
+-			goto err;
+-		while(*p == ' ')
+-			p++;
+-		lib = p;
+ 
+-		// successful parse: now can edit the line
+-		*strchr(name, ' ') = 0;
+-		*strchr(def, ' ') = 0;
++		free(p0);
++		p0 = strdup(p); // save for error message
++		nf = tokenize(p, f, nelem(f));
+ 		
+-		if(debug['d']) {
+-			fprint(2, "%s: %s: cannot use dynamic imports with -d flag\n", argv0, file);
+-			nerrors++;
+-			return;
+-		}
++		if(strcmp(f[0], "cgo_import_dynamic") == 0) {
++			if(nf < 2 || nf > 4)
++				goto err;
++			
++			local = f[1];
++			remote = local;
++			if(nf > 2)
++				remote = f[2];
++			lib = "";
++			if(nf > 3)
++				lib = f[3];
++			
++			if(debug['d']) {
++				fprint(2, "%s: %s: cannot use dynamic imports with -d flag\n", argv0, file);
++				nerrors++;
++				return;
++			}
+ 		
+-		if(strcmp(name, "_") == 0 && strcmp(def, "_") == 0) {
+-			// allow #pragma dynimport _ _ "foo.so"
+-			// to force a link of foo.so.
+-			havedynamic = 1;
+-			adddynlib(lib);
++			if(strcmp(local, "_") == 0 && strcmp(remote, "_") == 0) {
++				// allow #pragma dynimport _ _ "foo.so"
++				// to force a link of foo.so.
++				havedynamic = 1;
++				adddynlib(lib);
++				continue;
++			}
++
++			local = expandpkg(local, pkg);
++			q = strchr(remote, '#');
++			if(q)
++				*q++ = '\0';
++			s = lookup(local, 0);
++			if(local != f[1])
++				free(local);
++			if(s->type == 0 || s->type == SXREF) {
++				s->dynimplib = lib;
++				s->dynimpname = remote;
++				s->dynimpvers = q;
++				s->type = SDYNIMPORT;
++				havedynamic = 1;
++			}
+ 			continue;
+ 		}
+-
+-		name = expandpkg(name, pkg);
+-		q = strchr(def, '#');
+-		if(q)
+-			*q++ = '\0';
+-		s = lookup(name, 0);
+-		free(name);
+-		if(s->type == 0 || s->type == SXREF) {
+-			s->dynimplib = lib;
+-			s->dynimpname = def;
+-			s->dynimpvers = q;
+-			s->type = SDYNIMPORT;
+-			havedynamic = 1;
++		
++		if(strcmp(f[0], "cgo_import_static") == 0) {
++			if(nf != 2)
++				goto err;
++			if(isobj) {
++				local = f[1];
++				s = lookup(local, 0);
++				s->type = SHOSTOBJ;
++				s->size = 0;
++			}
++			continue;
+ 		}
+-	}
+-	return;
+-
+-err:
+-	fprint(2, "%s: %s: invalid dynimport line: %s\n", argv0, file, p0);
+-	nerrors++;
+-}
+-
+-static void
+-loaddynexport(char *file, char *pkg, char *p, int n)
+-{
+-	char *pend, *next, *local, *elocal, *remote, *p0;
+-	Sym *s;
+-
+-	USED(file);
+-	pend = p + n;
+-	for(; p<pend; p=next) {
+-		next = strchr(p, '\n');
+-		if(next == nil)
+-			next = "";
+-		else
+-			*next++ = '\0';
+-		p0 = p;
+-		if(strncmp(p, "dynexport ", 10) != 0)
+-			goto err;
+-		p += 10;
+-		local = p;
+-		p = strchr(local, ' ');
+-		if(p == nil)
+-			goto err;
+-		while(*p == ' ')
+-			p++;
+-		remote = p;
+ 
+-		// successful parse: now can edit the line
+-		*strchr(local, ' ') = 0;
++		if(strcmp(f[0], "cgo_export") == 0) {
++			if(nf < 2 || nf > 3)
++				goto err;
++			local = f[1];
++			if(nf > 2)
++				remote = f[2];
++			else
++				remote = local;
++			local = expandpkg(local, pkg);
++			s = lookup(local, 0);
++			if(s->dynimplib != nil) {
++				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
++				nerrors++;
++			}
++			s->dynimpname = remote;
++			s->dynexport = 1;
+ 
+-		elocal = expandpkg(local, pkg);
++			if(ndynexp%32 == 0)
++				dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
++			dynexp[ndynexp++] = s;
+ 
+-		s = lookup(elocal, 0);
+-		if(s->dynimplib != nil) {
+-			fprint(2, "%s: symbol is both dynimport and dynexport %s\n", argv0, local);
+-			nerrors++;
++			if(local != f[1])
++				free(local);
++			continue;
+ 		}
+-		s->dynimpname = remote;
+-		s->dynexport = 1;
+-
+-		if(ndynexp%32 == 0)
+-			dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+-		dynexp[ndynexp++] = s;
+-
+-		if (elocal != local)
+-			free(elocal);
+-	}
+-	return;
+-
+-err:
+-	fprint(2, "%s: invalid dynexport line: %s\n", argv0, p0);
+-	nerrors++;
+-}
+-
+-static void
+-loaddynlinker(char *file, char *pkg, char *p, int n)
+-{
+-	char *pend, *next, *dynlinker, *p0;
+-
+-	USED(file);
+-	USED(pkg);
+-	pend = p + n;
+-	for(; p<pend; p=next) {
+-		next = strchr(p, '\n');
+-		if(next == nil)
+-			next = "";
+-		else
+-			*next++ = '\0';
+-		p0 = p;
+-		if(strncmp(p, "dynlinker ", 10) != 0)
+-			goto err;
+-		p += 10;
+-		dynlinker = p;
+-
+-		if(*dynlinker == '\0')
+-			goto err;
+-		if(!debug['I']) { // not overrided by cmdline
+-			if(interpreter != nil && strcmp(interpreter, dynlinker) != 0) {
+-				fprint(2, "%s: conflict dynlinker: %s and %s\n", argv0, interpreter, dynlinker);
+-				nerrors++;
+-				return;
++		
++		if(strcmp(f[0], "cgo_dynamic_linker") == 0) {
++			if(nf != 2)
++				goto err;
++			
++			if(!debug['I']) { // not overridden by command line
++				if(interpreter != nil && strcmp(interpreter, f[1]) != 0) {
++					fprint(2, "%s: conflict dynlinker: %s and %s\n", argv0, interpreter, f[1]);
++					nerrors++;
++					return;
++				}
++				free(interpreter);
++				interpreter = strdup(f[1]);
+ 			}
+-			free(interpreter);
+-			interpreter = strdup(dynlinker);
++			continue;
+ 		}
+ 	}
++	free(p0);
+ 	return;
+ 
+ err:
+-	fprint(2, "%s: invalid dynlinker line: %s\n", argv0, p0);
++	fprint(2, "%s: %s: invalid dynimport line: %s\n", argv0, file, p0);
+ 	nerrors++;
+ }
+ 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index acfad97751..94ad76eccb 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -63,6 +63,7 @@ enum
+ 	SFILE,
+ 	SCONST,
+ 	SDYNIMPORT,
++	SHOSTOBJ,
+ 
+ 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+ 	SMASK = SSUB - 1,
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 144f82a3ba..89a594872e 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -135,6 +135,8 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ void
+ asmelfsym(void)
+ {
++	Sym *s;
++
+ 	// the first symbol entry is reserved
+ 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
+ 
+@@ -144,6 +146,13 @@ asmelfsym(void)
+ 	elfbind = STB_GLOBAL;
+ 	elfglobalsymndx = numelfsym;
+ 	genasmsym(putelfsym);
++	
++	for(s=allsym; s!=S; s=s->allsym) {
++		if(s->type != SHOSTOBJ)
++			continue;
++		putelfsyment(putelfstr(s->name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
++		s->elfsym = numelfsym++;
++	}
+ }
+ 
+ static void

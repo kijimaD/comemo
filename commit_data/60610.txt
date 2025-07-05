@@ -10,6 +10,24 @@ Date:   Tue Aug 6 10:06:39 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/603515
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/os_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 46c4f138c3..e421795380 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1533,10 +1533,10 @@ func testChtimes(t *testing.T, name string) {
+ 				t.Log(errormsg)
+ 				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
+ 			} else {
+-				t.Errorf(errormsg)
++				t.Error(errormsg)
+ 			}
+ 		default:
+-			t.Errorf(errormsg)
++			t.Error(errormsg)
+ 		}
+ 	}
+ 

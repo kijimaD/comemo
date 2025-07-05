@@ -10,9 +10,252 @@ Date:   Thu Dec 22 22:24:43 2011 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5504080
-
+---
  src/cmd/go/build.go    | 39 ++++++++++++++++++++-------------
  src/cmd/go/pkg.go      |  1 +
  src/cmd/go/test.go     | 59 ++++++++++++++++++++++++++++++++++++++------------
  src/cmd/go/testflag.go | 33 +++++++++++++++++++++++++++-
  4 files changed, 102 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7e87956e7d..701d6cd6d7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -336,6 +336,26 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	return a
+ }
+ 
++// actionList returns the list of actions in the dag rooted at root
++// as visited in a depth-first post-order traversal.
++func actionList(root *action) []*action {
++	seen := map[*action]bool{}
++	all := []*action{}
++	var walk func(*action)
++	walk = func(a *action) {
++		if seen[a] {
++			return
++		}
++		seen[a] = true
++		for _, a1 := range a.deps {
++			walk(a1)
++		}
++		all = append(all, a)
++	}
++	walk(root)
++	return all
++}
++
+ // do runs the action graph rooted at root.
+ func (b *builder) do(root *action) {
+ 	// Build list of all actions, assigning depth-first post-order priority.
+@@ -349,27 +369,16 @@ func (b *builder) do(root *action) {
+ 	// ensure that, all else being equal, the execution prefers
+ 	// to do what it would have done first in a simple depth-first
+ 	// dependency order traversal.
+-	all := map[*action]bool{}
+-	priority := 0
+-	var walk func(*action)
+-	walk = func(a *action) {
+-		if all[a] {
+-			return
+-		}
+-		all[a] = true
+-		priority++
+-		for _, a1 := range a.deps {
+-			walk(a1)
+-		}
+-		a.priority = priority
++	all := actionList(root)
++	for i, a := range all {
++		a.priority = i
+ 	}
+-	walk(root)
+ 
+ 	b.readySema = make(chan bool, len(all))
+ 	done := make(chan bool)
+ 
+ 	// Initialize per-action execution state.
+-	for a := range all {
++	for _, a := range all {
+ 		for _, a1 := range a.deps {
+ 			a1.triggers = append(a1.triggers, a)
+ 		}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8f0f59c687..f3f79b6a7d 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -48,6 +48,7 @@ type Package struct {
+ 	imports []*Package
+ 	gofiles []string // GoFiles+CgoFiles, absolute paths
+ 	target  string   // installed file for this package (may be executable)
++	fake    bool     // synthesized package
+ }
+ 
+ // packageCache is a lookup cache for loadPackage,
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e43a2711f1..4904703ec3 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -193,25 +193,28 @@ See the documentation of the testing package for more information.
+ // For now just use the gotest code.
+ 
+ var (
+-	testC     bool     // -c flag
+-	testX     bool     // -x flag
+-	testFiles []string // -file flag(s)  TODO: not respected
+-	testArgs  []string
++	testC        bool     // -c flag
++	testX        bool     // -x flag
++	testV        bool     // -v flag
++	testFiles    []string // -file flag(s)  TODO: not respected
++	testArgs     []string
++	testShowPass bool // whether to display passing output
+ )
+ 
+ func runTest(cmd *Command, args []string) {
+-	// Determine which are the import paths
+-	// (leading arguments not starting with -).
+-	i := 0
+-	for i < len(args) && !strings.HasPrefix(args[i], "-") {
+-		i++
+-	}
+-	pkgs := packages(args[:i])
++	var pkgArgs []string
++	pkgArgs, testArgs = testFlags(args)
++
++	// show test PASS output when no packages
++	// are listed (implicitly current directory: "go test")
++	// or when the -v flag has been given.
++	testShowPass = len(pkgArgs) == 0 || testV
++
++	pkgs := packages(pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		fatalf("no packages to test")
+ 	}
+ 
+-	testArgs = testFlags(args[i:])
+ 	if testC && len(pkgs) != 1 {
+ 		fatalf("cannot use -c flag with multiple packages")
+ 	}
+@@ -243,9 +246,31 @@ func runTest(cmd *Command, args []string) {
+ 			a.deps = append(a.deps, runs[i-1])
+ 		}
+ 	}
++	root := &action{deps: runs}
++
++	// If we are building any out-of-date packages other
++	// than those under test, warn.
++	okBuild := map[*Package]bool{}
++	for _, p := range pkgs {
++		okBuild[p] = true
++	}
++
++	warned := false
++	for _, a := range actionList(root) {
++		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake {
++			okBuild[a.p] = true // don't warn again
++			if !warned {
++				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
++				warned = true
++			}
++			fmt.Fprintf(os.Stderr, "\t%s\n", a.p.ImportPath)
++		}
++	}
++	if warned {
++		fmt.Fprintf(os.Stderr, "installing these packages with 'go install' will speed future tests.\n\n")
++	}
+ 
+-	allRuns := &action{deps: runs}
+-	b.do(allRuns)
++	b.do(root)
+ }
+ 
+ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+@@ -312,6 +337,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
+ 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
+ 		ptest.pkgdir = testDir
++		ptest.fake = true
+ 		a := b.action(modeBuild, modeBuild, ptest)
+ 		a.objdir = testDir + string(filepath.Separator)
+ 		a.objpkg = ptestObj
+@@ -333,6 +359,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 			info:       &build.DirInfo{},
+ 			imports:    imports,
+ 			pkgdir:     testDir,
++			fake:       true,
+ 		}
+ 		pxtest.imports = append(pxtest.imports, ptest)
+ 		a := b.action(modeBuild, modeBuild, pxtest)
+@@ -349,6 +376,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 		t:       p.t,
+ 		info:    &build.DirInfo{},
+ 		imports: []*Package{ptest},
++		fake:    true,
+ 	}
+ 	if pxtest != nil {
+ 		pmain.imports = append(pmain.imports, pxtest)
+@@ -407,6 +435,9 @@ func (b *builder) runTest(a *action) error {
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
+ 		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
++		if testShowPass {
++			os.Stdout.Write(out)
++		}
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 249a9316b1..07133035e9 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -78,10 +78,39 @@ var testFlagDefn = []*testFlagSpec{
+ // Unfortunately for us, we need to do our own flag processing because go test
+ // grabs some flags but otherwise its command line is just a holding place for
+ // test.out's arguments.
+-func testFlags(args []string) (passToTest []string) {
++// We allow known flags both before and after the package name list,
++// to allow both
++//	go test fmt -custom-flag-for-fmt-test
++//	go test -x math
++func testFlags(args []string) (packageNames, passToTest []string) {
++	inPkg := false
+ 	for i := 0; i < len(args); i++ {
++		if !strings.HasPrefix(args[i], "-") {
++			if !inPkg && packageNames == nil {
++				// First package name we've seen.
++				inPkg = true
++			}
++			if inPkg {
++				packageNames = append(packageNames, args[i])
++				continue
++			}
++		}
++
++		if inPkg {
++			// Found an argument beginning with "-"; end of package list.
++			inPkg = false
++		}
++
+ 		f, value, extraWord := testFlag(args, i)
+ 		if f == nil {
++			// This is a flag we do not know; we must assume
++			// that any args we see after this might be flag 
++			// arguments, not package names.
++			inPkg = false
++			if packageNames == nil {
++				// make non-nil: we have seen the empty package list
++				packageNames = []string{}
++			}
+ 			passToTest = append(passToTest, args[i])
+ 			continue
+ 		}
+@@ -90,6 +119,8 @@ func testFlags(args []string) (passToTest []string) {
+ 			setBoolFlag(&testC, value)
+ 		case "x":
+ 			setBoolFlag(&testX, value)
++		case "v":
++			setBoolFlag(&testV, value)
+ 		case "file":
+ 			testFiles = append(testFiles, value)
+ 		}

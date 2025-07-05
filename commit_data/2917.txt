@@ -7,7 +7,107 @@ Date:   Fri Aug 7 14:38:31 2009 -0700
     R=ken
     OCL=32900
     CL=32900
-
+---
  src/cmd/gc/walk.c        | 38 ++++++++++++++++++++++++++++++++++----
  test/fixedbugs/bug185.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 90196ad7d6..0d9f7f520e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -247,12 +247,22 @@ walkstmtlist(NodeList *l)
+ 		walkstmt(&l->n);
+ }
+ 
++static int
++samelist(NodeList *a, NodeList *b)
++{
++	for(; a && b; a=a->next, b=b->next)
++		if(a->n != b->n)
++			return 0;
++	return a == b;
++}
++
++
+ void
+ walkstmt(Node **np)
+ {
+ 	NodeList *init;
+-	NodeList *ll;
+-	int lno;
++	NodeList *ll, *rl;
++	int cl, lno;
+ 	Node *n;
+ 
+ 	n = *np;
+@@ -350,8 +360,28 @@ walkstmt(Node **np)
+ 
+ 	case ORETURN:
+ 		walkexprlist(n->list, &n->ninit);
+-		if(curfn->type->outnamed && n->list == nil) {
+-			// print("special return\n");
++		if(curfn->type->outnamed && count(n->list) != 1) {
++			if(n->list == nil) {
++				// print("special return\n");
++				break;
++			}
++			// assign to the function out parameters,
++			// so that reorder3 can fix up conflicts
++			rl = nil;
++			for(ll=curfn->dcl; ll != nil; ll=ll->next) {
++				cl = ll->n->class & ~PHEAP;
++				if(cl == PAUTO)
++					break;
++				if(cl == PPARAMOUT)
++					rl = list(rl, ll->n);
++			}
++			if(samelist(rl, n->list)) {
++				// special return in disguise
++				n->list = nil;
++				break;
++			}
++			ll = ascompatee(n->op, rl, n->list, &n->ninit);
++			n->list = reorder3(ll);
+ 			break;
+ 		}
+ 		ll = ascompatte(n->op, getoutarg(curfn->type), n->list, 1, &n->ninit);
+diff --git a/test/fixedbugs/bug185.go b/test/fixedbugs/bug185.go
+new file mode 100644
+index 0000000000..7f4bcb2c79
+--- /dev/null
++++ b/test/fixedbugs/bug185.go
+@@ -0,0 +1,33 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func g() { }
++
++func f1() (a, b int) {
++	a, b = 2, 1;
++	g();	// defeat optimizer
++	return a, b;
++}
++
++func f2() (a, b int) {
++	a, b = 1, 2;
++	g();	// defeat optimizer
++	return b, a;
++}
++
++func main() {
++	x, y := f1();
++	if x != 2 || y != 1 {
++		panicln("f1", x, y);
++	}
++
++	x, y = f2();
++	if x != 2 || y != 1 {
++		panicln("f2", x, y);
++	}
++}

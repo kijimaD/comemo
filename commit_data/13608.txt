@@ -9,7 +9,52 @@ Date:   Thu Aug 9 10:19:25 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6454124
-
+---
  src/pkg/exp/html/parse.go                           | 7 ++++++-
  src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 03c007e1cd..0ae660c83d 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -42,6 +42,8 @@ type parser struct {
+ 	fosterParenting bool
+ 	// quirks is whether the parser is operating in "quirks mode."
+ 	quirks bool
++	// fragment is whether the parser is parsing an HTML fragment.
++	fragment bool
+ 	// context is the context element when parsing an HTML fragment
+ 	// (section 12.4).
+ 	context *Node
+@@ -1692,7 +1694,9 @@ func afterBodyIM(p *parser) bool {
+ 		}
+ 	case EndTagToken:
+ 		if p.tok.DataAtom == a.Html {
+-			p.im = afterAfterBodyIM
++			if !p.fragment {
++				p.im = afterAfterBodyIM
++			}
+ 			return true
+ 		}
+ 	case CommentToken:
+@@ -2054,6 +2058,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+ 			Type: DocumentNode,
+ 		},
+ 		scripting: true,
++		fragment:  true,
+ 		context:   context,
+ 	}
+ 
+diff --git a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+index d3df267de9..392483ce79 100644
+--- a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
++++ b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+@@ -80,6 +80,6 @@ PASS "</select><option>"
+ PASS "<input><option>"
+ PASS "<keygen><option>"
+ PASS "<textarea><option>"
+-FAIL "</html><!--abc-->"
++PASS "</html><!--abc-->"
+ PASS "</frameset><frame>"
+ PASS ""

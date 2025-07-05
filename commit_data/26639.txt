@@ -9,7 +9,357 @@ Date:   Wed Feb 17 12:17:11 2016 +0100
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  17 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 248 +++++++++++++++++++++++++
  2 files changed, 265 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 09ab918787..f83634c394 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -20,6 +20,13 @@
+ // For now, the generated successors must be a permutation of the matched successors.
+ 
+ // constant folding
++(Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
++(Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])
++(Trunc32to16 (Const32 [c])) -> (Const16 [int64(int16(c))])
++(Trunc64to8 (Const64 [c])) -> (Const8 [int64(int8(c))])
++(Trunc64to16 (Const64 [c])) -> (Const16 [int64(int16(c))])
++(Trunc64to32 (Const64 [c])) -> (Const32 [int64(int32(c))])
++
+ (Neg8 (Const8 [c])) -> (Const8 [-c])
+ (Neg16 (Const16 [c])) -> (Const16 [-c])
+ (Neg32 (Const32 [c])) -> (Const32 [-c])
+@@ -70,14 +77,22 @@
+ (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
+ (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
+ (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
++
+ (Eq64 x x) -> (ConstBool [1])
+ (Eq32 x x) -> (ConstBool [1])
+ (Eq16 x x) -> (ConstBool [1])
+ (Eq8 x x) -> (ConstBool [1])
++(Eq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i((int8(c) != 0) == (int8(d) != 0))])
++(Eq8 (ConstBool [0]) x) -> (Not x)
++(Eq8 (ConstBool [1]) x) -> x
++
+ (Neq64 x x) -> (ConstBool [0])
+ (Neq32 x x) -> (ConstBool [0])
+ (Neq16 x x) -> (ConstBool [0])
+ (Neq8 x x) -> (ConstBool [0])
++(Neq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i((int8(c) != 0) != (int8(d) != 0))])
++(Neq8 (ConstBool [0]) x) -> x
++(Neq8 (ConstBool [1]) x) -> (Not x)
+ 
+ (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
+ (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [c-d]) x)
+@@ -94,11 +109,13 @@
+ (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
+ (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
+ (Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
++(Eq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Eq8 (ConstBool <t> [c]) x)
+ 
+ (Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
+ (Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
+ (Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
+ (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
++(Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
+ 
+ (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
+ (Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index c6fcb22565..ae36112a50 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -303,6 +303,18 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpSub64(v, config)
+ 	case OpSub8:
+ 		return rewriteValuegeneric_OpSub8(v, config)
++	case OpTrunc16to8:
++		return rewriteValuegeneric_OpTrunc16to8(v, config)
++	case OpTrunc32to16:
++		return rewriteValuegeneric_OpTrunc32to16(v, config)
++	case OpTrunc32to8:
++		return rewriteValuegeneric_OpTrunc32to8(v, config)
++	case OpTrunc64to16:
++		return rewriteValuegeneric_OpTrunc64to16(v, config)
++	case OpTrunc64to32:
++		return rewriteValuegeneric_OpTrunc64to32(v, config)
++	case OpTrunc64to8:
++		return rewriteValuegeneric_OpTrunc64to8(v, config)
+ 	case OpXor16:
+ 		return rewriteValuegeneric_OpXor16(v, config)
+ 	case OpXor32:
+@@ -1899,6 +1911,53 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
++	// match: (Eq8 (ConstBool [c]) (ConstBool [d]))
++	// cond:
++	// result: (ConstBool [b2i((int8(c) != 0) == (int8(d) != 0))])
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConstBool {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i((int8(c) != 0) == (int8(d) != 0))
++		return true
++	}
++	// match: (Eq8 (ConstBool [0]) x)
++	// cond:
++	// result: (Not x)
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		if v.Args[0].AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Eq8 (ConstBool [1]) x)
++	// cond:
++	// result: x
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		if v.Args[0].AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Eq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
+ 	// cond:
+ 	// result: (Eq8 (Const8 <t> [c-d]) x)
+@@ -1946,6 +2005,26 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Eq8 x (ConstBool <t> [c]))
++	// cond: x.Op != OpConstBool
++	// result: (Eq8 (ConstBool <t> [c]) x)
++	for {
++		x := v.Args[0]
++		if v.Args[1].Op != OpConstBool {
++			break
++		}
++		t := v.Args[1].Type
++		c := v.Args[1].AuxInt
++		if !(x.Op != OpConstBool) {
++			break
++		}
++		v.reset(OpEq8)
++		v0 := b.NewValue0(v.Line, OpConstBool, t)
++		v0.AuxInt = c
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Eq8  (Const8  [c]) (Const8  [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(int8(c)  == int8(d))])
+@@ -4429,6 +4508,53 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (Neq8 (ConstBool [c]) (ConstBool [d]))
++	// cond:
++	// result: (ConstBool [b2i((int8(c) != 0) != (int8(d) != 0))])
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConstBool {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i((int8(c) != 0) != (int8(d) != 0))
++		return true
++	}
++	// match: (Neq8 (ConstBool [0]) x)
++	// cond:
++	// result: x
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		if v.Args[0].AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Neq8 (ConstBool [1]) x)
++	// cond:
++	// result: (Not x)
++	for {
++		if v.Args[0].Op != OpConstBool {
++			break
++		}
++		if v.Args[0].AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Neq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
+ 	// cond:
+ 	// result: (Neq8 (Const8 <t> [c-d]) x)
+@@ -4476,6 +4602,26 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Neq8 x (ConstBool <t> [c]))
++	// cond: x.Op != OpConstBool
++	// result: (Neq8 (ConstBool <t> [c]) x)
++	for {
++		x := v.Args[0]
++		if v.Args[1].Op != OpConstBool {
++			break
++		}
++		t := v.Args[1].Type
++		c := v.Args[1].AuxInt
++		if !(x.Op != OpConstBool) {
++			break
++		}
++		v.reset(OpNeq8)
++		v0 := b.NewValue0(v.Line, OpConstBool, t)
++		v0.AuxInt = c
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Neq8  (Const8  [c]) (Const8  [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(int8(c)  != int8(d))])
+@@ -7275,6 +7421,108 @@ func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpTrunc16to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc16to8 (Const16 [c]))
++	// cond:
++	// result: (Const8 [int64(int8(c))])
++	for {
++		if v.Args[0].Op != OpConst16 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst8)
++		v.AuxInt = int64(int8(c))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to16 (Const32 [c]))
++	// cond:
++	// result: (Const16 [int64(int16(c))])
++	for {
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst16)
++		v.AuxInt = int64(int16(c))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to8 (Const32 [c]))
++	// cond:
++	// result: (Const8 [int64(int8(c))])
++	for {
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst8)
++		v.AuxInt = int64(int8(c))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to16 (Const64 [c]))
++	// cond:
++	// result: (Const16 [int64(int16(c))])
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst16)
++		v.AuxInt = int64(int16(c))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to32 (Const64 [c]))
++	// cond:
++	// result: (Const32 [int64(int32(c))])
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst32)
++		v.AuxInt = int64(int32(c))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to8 (Const64 [c]))
++	// cond:
++	// result: (Const8 [int64(int8(c))])
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst8)
++		v.AuxInt = int64(int8(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpXor16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

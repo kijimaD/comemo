@@ -7,7 +7,74 @@ Date:   Tue Apr 27 17:19:15 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/944043
-
+---
  src/cmd/gc/go.h  |  7 -------
  src/cmd/gc/lex.c | 21 ++++++++-------------
  2 files changed, 8 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8f7450ef48..3051ebe2ba 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1241,10 +1241,3 @@ int	duintptr(Sym *s, int off, uint64 v);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+ void	genembedtramp(Type*, Type*, Sym*);
+ int	gen_as_init(Node*);
+-
+-
+-enum {
+-	SysUnix = 1<<1,
+-	SysWindows = 1<<2,
+-};
+-int	systemtype(int);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f6359da560..7424f69671 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -8,6 +8,8 @@
+ #include <ar.h>
+ 
+ extern int yychar;
++int windows;
++
+ void lexfini(void);
+ void yytinit(void);
+ 
+@@ -81,7 +83,10 @@ main(int argc, char *argv[])
+ 	if(getwd(pathname, 999) == 0)
+ 		strcpy(pathname, "/???");
+ 
+-	if(systemtype(SysWindows)) {
++	if(isalpha(pathname[0]) && pathname[1] == ':') {
++		// On Windows.
++		windows = 1;
++
+ 		// Canonicalize path by converting \ to / (Windows accepts both).
+ 		for(p=pathname; *p; p++)
+ 			if(*p == '\\')
+@@ -247,9 +252,9 @@ addidir(char* dir)
+ int
+ islocalname(Strlit *name)
+ {
+-	if(systemtype(SysUnix) && name->len >= 1 && name->s[0] == '/')
++	if(!windows && name->len >= 1 && name->s[0] == '/')
+ 		return 1;
+-	if(systemtype(SysWindows) && name->len >= 3 &&
++	if(windows && name->len >= 3 &&
+ 	   isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
+ 	   	return 1;
+ 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
+@@ -1673,13 +1678,3 @@ mkpackage(char* pkgname)
+ 		outfile = smprint("%s.%c", namebuf, thechar);
+ 	}
+ }
+-
+-int
+-systemtype(int sys)
+-{
+-#ifdef __MINGW32__
+-	return sys&SysWindows;
+-#else
+-	return sys&SysUnix;
+-#endif
+-}

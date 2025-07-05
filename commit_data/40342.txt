@@ -15,8 +15,83 @@ Date:   Mon May 6 17:49:47 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175337
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/next.txt                |  2 ++
  src/net/http/cookie.go      |  5 +++++
  src/net/http/cookie_test.go | 13 +++++++++++++
  3 files changed, 20 insertions(+)
+
+diff --git a/api/next.txt b/api/next.txt
+index f671a36b4c..d0feb7cd77 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -180,6 +180,8 @@ pkg net, type ListenConfig struct, KeepAlive time.Duration
+ pkg net/http, const StatusEarlyHints = 103
+ pkg net/http, const StatusEarlyHints ideal-int
+ pkg net/http, method (Header) Clone() Header
++pkg net/http, const SameSiteNoneMode = 4
++pkg net/http, const SameSiteNoneMode SameSite
+ pkg net/http, type Server struct, BaseContext func(net.Listener) context.Context
+ pkg net/http, type Server struct, ConnContext func(context.Context, net.Conn) context.Context
+ pkg net/http, type Transport struct, ForceAttemptHTTP2 bool
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index fd8c71c645..91ff544e79 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -48,6 +48,7 @@ const (
+ 	SameSiteDefaultMode SameSite = iota + 1
+ 	SameSiteLaxMode
+ 	SameSiteStrictMode
++	SameSiteNoneMode
+ )
+ 
+ // readSetCookies parses all "Set-Cookie" values from
+@@ -105,6 +106,8 @@ func readSetCookies(h Header) []*Cookie {
+ 					c.SameSite = SameSiteLaxMode
+ 				case "strict":
+ 					c.SameSite = SameSiteStrictMode
++				case "none":
++					c.SameSite = SameSiteNoneMode
+ 				default:
+ 					c.SameSite = SameSiteDefaultMode
+ 				}
+@@ -217,6 +220,8 @@ func (c *Cookie) String() string {
+ 	switch c.SameSite {
+ 	case SameSiteDefaultMode:
+ 		b.WriteString("; SameSite")
++	case SameSiteNoneMode:
++		b.WriteString("; SameSite=None")
+ 	case SameSiteLaxMode:
+ 		b.WriteString("; SameSite=Lax")
+ 	case SameSiteStrictMode:
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index bfaea46f8c..9e8196ebce 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -77,6 +77,10 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "cookie-14", Value: "samesite-strict", SameSite: SameSiteStrictMode},
+ 		"cookie-14=samesite-strict; SameSite=Strict",
+ 	},
++	{
++		&Cookie{Name: "cookie-15", Value: "samesite-none", SameSite: SameSiteNoneMode},
++		"cookie-15=samesite-none; SameSite=None",
++	},
+ 	// The "special" cookies have values containing commas or spaces which
+ 	// are disallowed by RFC 6265 but are common in the wild.
+ 	{
+@@ -296,6 +300,15 @@ var readSetCookiesTests = []struct {
+ 			Raw:      "samesitestrict=foo; SameSite=Strict",
+ 		}},
+ 	},
++	{
++		Header{"Set-Cookie": {"samesitenone=foo; SameSite=None"}},
++		[]*Cookie{{
++			Name:     "samesitenone",
++			Value:    "foo",
++			SameSite: SameSiteNoneMode,
++			Raw:      "samesitenone=foo; SameSite=None",
++		}},
++	},
+ 	// Make sure we can properly read back the Set-Cookie headers we create
+ 	// for values containing spaces or commas:
+ 	{

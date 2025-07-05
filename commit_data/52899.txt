@@ -18,8 +18,182 @@ Date:   Fri Jun 10 13:24:33 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/run.go                   |   6 ++-
  test/typeparam/mdempsky/16.go |  34 +++++++++++++
  test/typeparam/mdempsky/17.go | 110 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 148 insertions(+), 2 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index ff3cc1aabb..c8e8ab9dfc 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1964,8 +1964,10 @@ var types2Failures32Bit = setOf(
+ )
+ 
+ var go118Failures = setOf(
+-	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
+-	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
++	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
++	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
++	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
++	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+ )
+ 
+ // In all of these cases, the 1.17 compiler reports reasonable errors, but either the
+diff --git a/test/typeparam/mdempsky/16.go b/test/typeparam/mdempsky/16.go
+new file mode 100644
+index 0000000000..f4f79b9aac
+--- /dev/null
++++ b/test/typeparam/mdempsky/16.go
+@@ -0,0 +1,34 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that type assertion panics mention the real interface type,
++// not their shape type.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"strings"
++)
++
++func main() {
++	// The exact error message isn't important, but it should mention
++	// `main.T`, not `go.shape.int_0`.
++	if have := F[T](); !strings.Contains(have, "interface { T() main.T }") {
++		fmt.Printf("FAIL: unexpected panic message: %q\n", have)
++	}
++}
++
++type T int
++
++func F[T any]() (res string) {
++	defer func() {
++		res = recover().(runtime.Error).Error()
++	}()
++	_ = interface{ T() T }(nil).(T)
++	return
++}
+diff --git a/test/typeparam/mdempsky/17.go b/test/typeparam/mdempsky/17.go
+new file mode 100644
+index 0000000000..12385c3f9e
+--- /dev/null
++++ b/test/typeparam/mdempsky/17.go
+@@ -0,0 +1,110 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that implicit conversions of derived types to interface type
++// in range loops work correctly.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++)
++
++func main() {
++	test{"int", "V"}.match(RangeArrayAny[V]())
++	test{"int", "V"}.match(RangeArrayIface[V]())
++	test{"V"}.match(RangeChanAny[V]())
++	test{"V"}.match(RangeChanIface[V]())
++	test{"K", "V"}.match(RangeMapAny[K, V]())
++	test{"K", "V"}.match(RangeMapIface[K, V]())
++	test{"int", "V"}.match(RangeSliceAny[V]())
++	test{"int", "V"}.match(RangeSliceIface[V]())
++}
++
++type test []string
++
++func (t test) match(args ...any) {
++	if len(t) != len(args) {
++		fmt.Printf("FAIL: want %v values, have %v\n", len(t), len(args))
++		return
++	}
++	for i, want := range t {
++		if have := reflect.TypeOf(args[i]).Name(); want != have {
++			fmt.Printf("FAIL: %v: want type %v, have %v\n", i, want, have)
++		}
++	}
++}
++
++type iface interface{ M() int }
++
++type K int
++type V int
++
++func (K) M() int { return 0 }
++func (V) M() int { return 0 }
++
++func RangeArrayAny[V any]() (k, v any) {
++	for k, v = range [...]V{zero[V]()} {
++	}
++	return
++}
++
++func RangeArrayIface[V iface]() (k any, v iface) {
++	for k, v = range [...]V{zero[V]()} {
++	}
++	return
++}
++
++func RangeChanAny[V any]() (v any) {
++	for v = range chanOf(zero[V]()) {
++	}
++	return
++}
++
++func RangeChanIface[V iface]() (v iface) {
++	for v = range chanOf(zero[V]()) {
++	}
++	return
++}
++
++func RangeMapAny[K comparable, V any]() (k, v any) {
++	for k, v = range map[K]V{zero[K](): zero[V]()} {
++	}
++	return
++}
++
++func RangeMapIface[K interface {
++	iface
++	comparable
++}, V iface]() (k, v iface) {
++	for k, v = range map[K]V{zero[K](): zero[V]()} {
++	}
++	return
++}
++
++func RangeSliceAny[V any]() (k, v any) {
++	for k, v = range []V{zero[V]()} {
++	}
++	return
++}
++
++func RangeSliceIface[V iface]() (k any, v iface) {
++	for k, v = range []V{zero[V]()} {
++	}
++	return
++}
++
++func chanOf[T any](elems ...T) chan T {
++	c := make(chan T, len(elems))
++	for _, elem := range elems {
++		c <- elem
++	}
++	close(c)
++	return c
++}
++
++func zero[T any]() (_ T) { return }

@@ -46,8 +46,101 @@ Date:   Fri Nov 25 14:22:36 2022 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  3 +++
  src/unicode/utf16/utf16.go                | 22 +++++++++++++++-------
  src/unicode/utf16/utf16_test.go           | 17 +++++++++++++++++
  3 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 201f5773e9..e59104df53 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -123,6 +123,9 @@ func TestIntendedInlining(t *testing.T) {
+ 			"AppendRune",
+ 			"ValidRune",
+ 		},
++		"unicode/utf16": {
++			"Decode",
++		},
+ 		"reflect": {
+ 			"Value.Bool",
+ 			"Value.Bytes",
+diff --git a/src/unicode/utf16/utf16.go b/src/unicode/utf16/utf16.go
+index 38d8be6060..1c6d2c66c3 100644
+--- a/src/unicode/utf16/utf16.go
++++ b/src/unicode/utf16/utf16.go
+@@ -103,23 +103,31 @@ func AppendRune(a []uint16, r rune) []uint16 {
+ // Decode returns the Unicode code point sequence represented
+ // by the UTF-16 encoding s.
+ func Decode(s []uint16) []rune {
+-	a := make([]rune, len(s))
+-	n := 0
++	// Preallocate capacity to hold up to 64 runes.
++	// Decode inlines, so the allocation can live on the stack.
++	buf := make([]rune, 0, 64)
++	return decode(s, buf)
++}
++
++// decode appends to buf the Unicode code point sequence represented
++// by the UTF-16 encoding s and return the extended buffer.
++func decode(s []uint16, buf []rune) []rune {
+ 	for i := 0; i < len(s); i++ {
++		var ar rune
+ 		switch r := s[i]; {
+ 		case r < surr1, surr3 <= r:
+ 			// normal rune
+-			a[n] = rune(r)
++			ar = rune(r)
+ 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
+ 			surr2 <= s[i+1] && s[i+1] < surr3:
+ 			// valid surrogate sequence
+-			a[n] = DecodeRune(rune(r), rune(s[i+1]))
++			ar = DecodeRune(rune(r), rune(s[i+1]))
+ 			i++
+ 		default:
+ 			// invalid surrogate sequence
+-			a[n] = replacementChar
++			ar = replacementChar
+ 		}
+-		n++
++		buf = append(buf, ar)
+ 	}
+-	return a[:n]
++	return buf
+ }
+diff --git a/src/unicode/utf16/utf16_test.go b/src/unicode/utf16/utf16_test.go
+index be339b1fdf..a5a503d387 100644
+--- a/src/unicode/utf16/utf16_test.go
++++ b/src/unicode/utf16/utf16_test.go
+@@ -5,6 +5,7 @@
+ package utf16_test
+ 
+ import (
++	"internal/testenv"
+ 	"reflect"
+ 	"testing"
+ 	"unicode"
+@@ -103,6 +104,22 @@ var decodeTests = []decodeTest{
+ 	{[]uint16{0xdfff}, []rune{0xfffd}},
+ }
+ 
++func TestAllocationsDecode(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++
++	for _, tt := range decodeTests {
++		allocs := testing.AllocsPerRun(10, func() {
++			out := Decode(tt.in)
++			if out == nil {
++				t.Errorf("Decode(%x) = nil", tt.in)
++			}
++		})
++		if allocs > 0 {
++			t.Errorf("Decode allocated %v times", allocs)
++		}
++	}
++}
++
+ func TestDecode(t *testing.T) {
+ 	for _, tt := range decodeTests {
+ 		out := Decode(tt.in)

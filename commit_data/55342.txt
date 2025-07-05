@@ -19,6 +19,25 @@ Date:   Fri Jan 27 22:48:57 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Evan Phoenix <evan@phx.io>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  misc/wasm/wasm_exec_node.js | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec_node.js b/misc/wasm/wasm_exec_node.js
+index f9200ca950..90905db115 100644
+--- a/misc/wasm/wasm_exec_node.js
++++ b/misc/wasm/wasm_exec_node.js
+@@ -14,12 +14,7 @@ globalThis.fs = require("fs");
+ globalThis.TextEncoder = require("util").TextEncoder;
+ globalThis.TextDecoder = require("util").TextDecoder;
+ 
+-globalThis.performance = {
+-	now() {
+-		const [sec, nsec] = process.hrtime();
+-		return sec * 1000 + nsec / 1000000;
+-	},
+-};
++globalThis.performance ??= require("performance");
+ 
+ const crypto = require("crypto");
+ globalThis.crypto = {

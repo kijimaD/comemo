@@ -13,7 +13,64 @@ Date:   Wed Apr 1 21:38:05 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8383
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go | 10 ----------
  src/cmd/internal/obj/x86/obj6.go | 10 ----------
  2 files changed, 20 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 2d3e537ca0..847fce6490 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -112,11 +112,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+-			if s.Type == 0 {
+-				s.Type = obj.SRODATA
+-				obj.Adduint32(ctxt, s, i32)
+-			}
+-
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+ 			p.From.Name = obj.NAME_EXTERN
+@@ -128,11 +123,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+-			if s.Type == 0 {
+-				s.Type = obj.SRODATA
+-				obj.Adduint64(ctxt, s, i64)
+-			}
+-
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+ 			p.From.Name = obj.NAME_EXTERN
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 743a48a494..7a4fc128e6 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -249,11 +249,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+-			if s.Type == 0 {
+-				s.Type = obj.SRODATA
+-				obj.Adduint32(ctxt, s, i32)
+-			}
+-
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
+@@ -293,11 +288,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+-			if s.Type == 0 {
+-				s.Type = obj.SRODATA
+-				obj.Adduint64(ctxt, s, i64)
+-			}
+-
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s

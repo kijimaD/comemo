@@ -9,6 +9,33 @@ Date:   Mon Jan 4 09:12:31 2016 -0800
     Change-Id: I713bb715d25d23e084b054aea8e1c3197dde90d4
     Reviewed-on: https://go-review.googlesource.com/18222
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/log/syslog/doc.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/log/syslog/doc.go b/src/log/syslog/doc.go
+index 54e76edb34..dfcc2dde34 100644
+--- a/src/log/syslog/doc.go
++++ b/src/log/syslog/doc.go
+@@ -9,10 +9,18 @@
+ // Only one call to Dial is necessary. On write failures,
+ // the syslog client will attempt to reconnect to the server
+ // and write again.
++//
++// The syslog package is frozen and not accepting new features.
++// Some external packages provide more functionality. See:
++//
++//   https://godoc.org/?q=syslog
+ package syslog
+ 
+-// BUG(brainman): This package is not implemented on Windows yet.
++// BUG(brainman): This package is not implemented on Windows. As the
++// syslog package is frozen, Windows users are encouraged to
++// use a package outside of the standard library. For background,
++// see https://golang.org/issue/1108.
+ 
+-// BUG(akumar): This package is not implemented on Plan 9 yet.
++// BUG(akumar): This package is not implemented on Plan 9.
+ 
+-// BUG(minux): This package is not implemented on NaCl (Native Client) yet.
++// BUG(minux): This package is not implemented on NaCl (Native Client).

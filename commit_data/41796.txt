@@ -11,6 +11,19 @@ Date:   Fri Oct 4 11:53:22 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 6c8e558f29..bc629e1d9e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1485,6 +1485,7 @@ var cgoEnabled = map[string]bool{
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,
+ 	"freebsd/arm":     true,
++	"freebsd/arm64":   false,
+ 	"illumos/amd64":   true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,

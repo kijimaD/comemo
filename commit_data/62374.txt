@@ -9,7 +9,7 @@ Date:   Mon Feb 24 10:21:01 2025 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/swig/swig_test.go             |  5 ++--
  src/cmd/cgo/internal/testcarchive/carchive_test.go | 28 +++++++++++-----------
  src/cmd/cgo/internal/testcshared/cshared_test.go   |  2 +-
@@ -27,3 +27,412 @@ Date:   Mon Feb 24 10:21:01 2025 +0100
  src/runtime/internal/wasitest/nonblock_test.go     |  5 +++-
  src/runtime/internal/wasitest/tcpecho_test.go      |  5 +++-
  16 files changed, 42 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/swig/swig_test.go b/src/cmd/cgo/internal/swig/swig_test.go
+index 923378b2dd..603dab4917 100644
+--- a/src/cmd/cgo/internal/swig/swig_test.go
++++ b/src/cmd/cgo/internal/swig/swig_test.go
+@@ -40,8 +40,9 @@ func TestCallback(t *testing.T) {
+ }
+ 
+ func run(t *testing.T, dir string, lto bool, args ...string) {
++	testenv.MustHaveGoRun(t)
+ 	runArgs := append([]string{"run", "."}, args...)
+-	cmd := exec.Command("go", runArgs...)
++	cmd := exec.Command(testenv.GoToolPath(t), runArgs...)
+ 	cmd.Dir = dir
+ 	if lto {
+ 		// On the builders we're using the default /usr/bin/ld, but
+@@ -68,7 +69,7 @@ func run(t *testing.T, dir string, lto bool, args ...string) {
+ 
+ func mustHaveCxx(t *testing.T) {
+ 	// Ask the go tool for the CXX it's configured to use.
+-	cxx, err := exec.Command("go", "env", "CXX").CombinedOutput()
++	cxx, err := exec.Command(testenv.GoToolPath(t), "env", "CXX").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go env CXX failed: %s", err)
+ 	}
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index c263b82d57..155eca9a73 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -218,7 +218,7 @@ func genHeader(t *testing.T, header, dir string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", "cgo",
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
+ 		"-objdir", objDir,
+ 		"-exportheader", header)
+ 	cmd.Args = append(cmd.Args, files...)
+@@ -524,7 +524,7 @@ func TestEarlySignalHandler(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+@@ -674,7 +674,7 @@ func buildSignalForwardingTest(t *testing.T) {
+ 	}
+ 
+ 	t.Log("go build -buildmode=c-archive -o libgo2.a ./libgo2")
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+ 	out, err := cmd.CombinedOutput()
+ 	if len(out) > 0 {
+ 		t.Logf("%s", out)
+@@ -801,7 +801,7 @@ func TestOsSignal(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo3.a", "./libgo3")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo3.a", "./libgo3")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+@@ -843,7 +843,7 @@ func TestSigaltstack(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo4.a", "./libgo4")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo4.a", "./libgo4")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+@@ -908,7 +908,7 @@ func TestExtar(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-ldflags=-extar="+filepath.Join(dir, "testar"), "-o", "libgo4.a", "./libgo4")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-ldflags=-extar="+filepath.Join(dir, "testar"), "-o", "libgo4.a", "./libgo4")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+@@ -955,7 +955,7 @@ func TestPIE(t *testing.T) {
+ 	// be running this test in a GOROOT owned by root.)
+ 	genHeader(t, "p.h", "./p")
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "./libgo")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "./libgo")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+@@ -1042,7 +1042,7 @@ func TestSIGPROF(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo6.a", "./libgo6")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo6.a", "./libgo6")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1089,7 +1089,7 @@ func TestCompileWithoutShared(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-gcflags=-shared=false", "-o", "libgo2.a", "./libgo2")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-gcflags=-shared=false", "-o", "libgo2.a", "./libgo2")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1204,7 +1204,7 @@ func TestManyCalls(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1259,7 +1259,7 @@ func TestPreemption(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1309,7 +1309,7 @@ func TestDeepStack(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1372,7 +1372,7 @@ func BenchmarkCgoCallbackMainThread(b *testing.B) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo10.a", "./libgo10")
++	cmd := exec.Command(testenv.GoToolPath(b), "build", "-buildmode=c-archive", "-o", "libgo10.a", "./libgo10")
+ 	out, err := cmd.CombinedOutput()
+ 	b.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+@@ -1414,7 +1414,7 @@ func TestSharedObject(t *testing.T) {
+ 		}()
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo_s.a", "./libgo")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo_s.a", "./libgo")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+ 	if err != nil {
+diff --git a/src/cmd/cgo/internal/testcshared/cshared_test.go b/src/cmd/cgo/internal/testcshared/cshared_test.go
+index 9fe5e791fe..096959562c 100644
+--- a/src/cmd/cgo/internal/testcshared/cshared_test.go
++++ b/src/cmd/cgo/internal/testcshared/cshared_test.go
+@@ -407,7 +407,7 @@ func main() {
+ 		argv = append(argv, "-ldflags", "-extldflags=-Wl,--export-all-symbols")
+ 	}
+ 	argv = append(argv, "-o", objfile, srcfile)
+-	out, err := exec.Command("go", argv...).CombinedOutput()
++	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
+ 	}
+diff --git a/src/cmd/cgo/internal/testerrors/argposition_test.go b/src/cmd/cgo/internal/testerrors/argposition_test.go
+index 714f9b45f8..035552127b 100644
+--- a/src/cmd/cgo/internal/testerrors/argposition_test.go
++++ b/src/cmd/cgo/internal/testerrors/argposition_test.go
+@@ -81,7 +81,7 @@ func TestArgumentsPositions(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", "cgo",
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
+ 		"-srcdir", testdata,
+ 		"-objdir", dir,
+ 		"issue42580.go")
+diff --git a/src/cmd/cgo/internal/testerrors/badsym_test.go b/src/cmd/cgo/internal/testerrors/badsym_test.go
+index 6c87977bd1..4fd5c44505 100644
+--- a/src/cmd/cgo/internal/testerrors/badsym_test.go
++++ b/src/cmd/cgo/internal/testerrors/badsym_test.go
+@@ -136,7 +136,7 @@ func TestBadSymbol(t *testing.T) {
+ 	makeFile(godir, "go.mod", "module badsym")
+ 
+ 	// Try to build our little package.
+-	cmd := exec.Command("go", "build", "-ldflags=-v")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-v")
+ 	cmd.Dir = godir
+ 	output, err := cmd.CombinedOutput()
+ 
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 941c7eff20..1a0de6da03 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -76,7 +76,7 @@ func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
+ 	for _, file := range files {
+ 		args = append(args, path(file))
+ 	}
+-	cmd := exec.Command("go", args...)
++	cmd := exec.Command(testenv.GoToolPath(t), args...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Errorf("expected cgo to fail but it succeeded")
+@@ -105,7 +105,7 @@ func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
+ func sizeofLongDouble(t *testing.T) int {
+ 	testenv.MustHaveGoRun(t)
+ 	testenv.MustHaveCGO(t)
+-	cmd := exec.Command("go", "run", path("long_double_size.go"))
++	cmd := exec.Command(testenv.GoToolPath(t), "run", path("long_double_size.go"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
+@@ -158,7 +158,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
+ 			testenv.MustHaveCGO(t)
+ 			t.Parallel()
+ 
+-			cmd := exec.Command("go", "build", path("issue14669.go"))
++			cmd := exec.Command(testenv.GoToolPath(t), "build", path("issue14669.go"))
+ 			cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cflags)
+ 			out, err := cmd.CombinedOutput()
+ 			if err != nil {
+@@ -173,7 +173,7 @@ func TestMallocCrashesOnNil(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 	t.Parallel()
+ 
+-	cmd := exec.Command("go", "run", path("malloc.go"))
++	cmd := exec.Command(testenv.GoToolPath(t), "run", path("malloc.go"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Logf("%#q:\n%s", strings.Join(cmd.Args, " "), out)
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 9a8187f55f..beba0d26ac 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -609,7 +609,7 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
+ 	if cgocheck2 {
+ 		exeName = "ptrtest2.exe"
+ 	}
+-	cmd := exec.Command("go", "build", "-o", exeName)
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exeName)
+ 	cmd.Dir = src
+ 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 
+diff --git a/src/cmd/cgo/internal/testfortran/fortran_test.go b/src/cmd/cgo/internal/testfortran/fortran_test.go
+index 0eae7c5f53..9ccf916d84 100644
+--- a/src/cmd/cgo/internal/testfortran/fortran_test.go
++++ b/src/cmd/cgo/internal/testfortran/fortran_test.go
+@@ -75,7 +75,7 @@ func TestFortran(t *testing.T) {
+ 	// Finally, run the actual test.
+ 	t.Log("go", "run", "./testdata/testprog")
+ 	var stdout, stderr strings.Builder
+-	cmd := exec.Command("go", "run", "./testdata/testprog")
++	cmd := exec.Command(testenv.GoToolPath(t), "run", "./testdata/testprog")
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	err := cmd.Run()
+diff --git a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+index 8138b7fa3d..0ee953f57f 100644
+--- a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
++++ b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+@@ -51,7 +51,7 @@ func TestGoDefs(t *testing.T) {
+ 	}
+ 
+ 	for _, fp := range filePrefixes {
+-		cmd := exec.Command("go", "tool", "cgo",
++		cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
+ 			"-godefs",
+ 			"-srcdir", testdata,
+ 			"-objdir", dir,
+@@ -107,7 +107,7 @@ func TestGoDefs(t *testing.T) {
+ 	// instead of invoking 'go build' and the resulting binary separately, so that
+ 	// this test can pass on mobile builders, which do not copy artifacts back
+ 	// from remote invocations.
+-	cmd := exec.Command("go", "run", ".")
++	cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
+ 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 	cmd.Dir = dir
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+diff --git a/src/cmd/cgo/internal/testlife/life_test.go b/src/cmd/cgo/internal/testlife/life_test.go
+index e93d29c4d9..3b8f570995 100644
+--- a/src/cmd/cgo/internal/testlife/life_test.go
++++ b/src/cmd/cgo/internal/testlife/life_test.go
+@@ -50,7 +50,7 @@ func TestTestRun(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 	testenv.MustHaveCGO(t)
+ 
+-	cmd := exec.Command("go", "run", "main.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "run", "main.go")
+ 	got, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("%v: %s\n%s", cmd, err, got)
+diff --git a/src/cmd/cgo/internal/testso/so_test.go b/src/cmd/cgo/internal/testso/so_test.go
+index e011167f38..2be7807f77 100644
+--- a/src/cmd/cgo/internal/testso/so_test.go
++++ b/src/cmd/cgo/internal/testso/so_test.go
+@@ -104,7 +104,7 @@ func testSO(t *testing.T, dir string) {
+ 		}
+ 	}
+ 
+-	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
++	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "main.exe", "main.go")
+ 	cmd.Dir = modRoot
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	out, err = cmd.CombinedOutput()
+diff --git a/src/cmd/cgo/internal/teststdio/stdio_test.go b/src/cmd/cgo/internal/teststdio/stdio_test.go
+index 3883422d6f..9150281ae8 100644
+--- a/src/cmd/cgo/internal/teststdio/stdio_test.go
++++ b/src/cmd/cgo/internal/teststdio/stdio_test.go
+@@ -59,7 +59,7 @@ func TestTestRun(t *testing.T) {
+ 		file := file
+ 		wantFile := strings.Replace(file, ".go", ".out", 1)
+ 		t.Run(file, func(t *testing.T) {
+-			cmd := exec.Command("go", "run", file)
++			cmd := exec.Command(testenv.GoToolPath(t), "run", file)
+ 			got, err := cmd.CombinedOutput()
+ 			if err != nil {
+ 				t.Fatalf("%v: %s\n%s", cmd, err, got)
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index d913d3ca76..5d61b66089 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -243,7 +243,7 @@ func TestImportStdLib(t *testing.T) {
+ 
+ 	// Get list of packages in stdlib. Filter out test-only packages with {{if .GoFiles}} check.
+ 	var stderr bytes.Buffer
+-	cmd := exec.Command("go", "list", "-f", "{{if .GoFiles}}{{.ImportPath}}{{end}}", "std")
++	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{if .GoFiles}}{{.ImportPath}}{{end}}", "std")
+ 	cmd.Stderr = &stderr
+ 	out, err := cmd.Output()
+ 	if err != nil {
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index fbabc657fe..60c35a9619 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -101,8 +101,8 @@ func TestPanicNilRace(t *testing.T) {
+ }
+ 
+ func TestCmdBisect(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	out, err := exec.Command("go", "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
++	testenv.MustHaveGoRun(t)
++	out, err := exec.Command(testenv.GoToolPath(t), "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("exec bisect: %v\n%s", err, out)
+ 	}
+diff --git a/src/runtime/internal/wasitest/nonblock_test.go b/src/runtime/internal/wasitest/nonblock_test.go
+index 3072b96ed8..f5f6bb84d0 100644
+--- a/src/runtime/internal/wasitest/nonblock_test.go
++++ b/src/runtime/internal/wasitest/nonblock_test.go
+@@ -10,6 +10,7 @@ package wasi_test
+ import (
+ 	"bufio"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"math/rand"
+ 	"os"
+@@ -41,6 +42,8 @@ func TestNonblock(t *testing.T) {
+ 		t.Skip("wasmer does not support non-blocking I/O")
+ 	}
+ 
++	testenv.MustHaveGoRun(t)
++
+ 	for _, mode := range []string{"os.OpenFile", "os.NewFile"} {
+ 		t.Run(mode, func(t *testing.T) {
+ 			args := []string{"run", "./testdata/nonblock.go", mode}
+@@ -62,7 +65,7 @@ func TestNonblock(t *testing.T) {
+ 				fifos[len(fifos)-i-1] = &fifo{file, path}
+ 			}
+ 
+-			subProcess := exec.Command("go", args...)
++			subProcess := exec.Command(testenv.GoToolPath(t), args...)
+ 
+ 			subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+ 
+diff --git a/src/runtime/internal/wasitest/tcpecho_test.go b/src/runtime/internal/wasitest/tcpecho_test.go
+index bbcea90310..aa57d9e2e3 100644
+--- a/src/runtime/internal/wasitest/tcpecho_test.go
++++ b/src/runtime/internal/wasitest/tcpecho_test.go
+@@ -7,6 +7,7 @@ package wasi_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"math/rand"
+ 	"net"
+ 	"os"
+@@ -20,6 +21,8 @@ func TestTCPEcho(t *testing.T) {
+ 		t.Skip()
+ 	}
+ 
++	testenv.MustHaveGoRun(t)
++
+ 	// We're unable to use port 0 here (let the OS choose a spare port).
+ 	// Although the WASM runtime accepts port 0, and the WASM module listens
+ 	// successfully, there's no way for this test to query the selected port
+@@ -44,7 +47,7 @@ func TestTCPEcho(t *testing.T) {
+ 		port++
+ 	}
+ 
+-	subProcess := exec.Command("go", "run", "./testdata/tcpecho.go")
++	subProcess := exec.Command(testenv.GoToolPath(t), "run", "./testdata/tcpecho.go")
+ 
+ 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+ 

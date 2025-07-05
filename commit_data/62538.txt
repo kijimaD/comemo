@@ -15,6 +15,20 @@ Date:   Tue Mar 11 21:19:11 2025 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/internal/buildcfg/exp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 2dd6045979..8fb4beb7c9 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -82,7 +82,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	// XCOFF format (as far as can be determined) doesn't seem to
+ 	// support the necessary section subtypes for DWARF-specific
+ 	// things like .debug_addr (needed for DWARF 5).
+-	dwarf5Supported := (goos != "dwarwin" && goos != "ios" && goos != "aix")
++	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
+ 
+ 	baseline := goexperiment.Flags{
+ 		RegabiWrappers:  regabiSupported,

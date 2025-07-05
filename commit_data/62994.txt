@@ -29,6 +29,26 @@ Date:   Fri May 9 15:09:39 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 9f251e746b..c91fed5088 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -602,6 +602,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 					// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
+ 					continue
+ 				}
++
++				if arch.Family == sys.RISCV64 &&
++					(strings.HasPrefix(elfsym.name, "$d") || strings.HasPrefix(elfsym.name, "$x")) {
++					// Ignore RISC-V mapping symbols, which
++					// are similar to ARM64's case.
++					// See issue 73591.
++					continue
++				}
+ 			}
+ 
+ 			if strings.HasPrefix(elfsym.name, ".Linfo_string") {

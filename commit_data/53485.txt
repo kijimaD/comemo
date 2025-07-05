@@ -26,7 +26,7 @@ Date:   Tue Aug 9 10:20:22 2022 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/syscall_linux.go           |  7 +++++++
  src/syscall/syscall_linux_386.go       |  1 -
  src/syscall/syscall_linux_amd64.go     |  1 -
@@ -49,3 +49,380 @@ Date:   Tue Aug 9 10:20:22 2022 +0200
  src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
  src/syscall/zsyscall_linux_s390x.go    | 11 -----------
  21 files changed, 7 insertions(+), 138 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index e1837b91a7..55a49cc3eb 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -115,6 +115,13 @@ func Creat(path string, mode uint32) (fd int, err error) {
+ 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
+ }
+ 
++func EpollCreate(size int) (fd int, err error) {
++	if size <= 0 {
++		return -1, EINVAL
++	}
++	return EpollCreate1(0)
++}
++
+ func isGroupMember(gid int) bool {
+ 	groups, err := Getgroups()
+ 	if err != nil {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index fc7df8496e..a8c2933517 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -19,7 +19,6 @@ func setTimeval(sec, usec int64) Timeval {
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 0bcc664d32..229cf1ccf5 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -7,7 +7,6 @@ package syscall
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 9db702729f..f9f993bdfa 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -46,7 +46,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 1ccbad1b75..6b482adcfd 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -8,13 +8,6 @@ import "unsafe"
+ 
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	if size <= 0 {
+-		return -1, EINVAL
+-	}
+-	return EpollCreate1(0)
+-}
+-
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_loong64.go b/src/syscall/syscall_linux_loong64.go
+index 99674b4a8b..531522089e 100644
+--- a/src/syscall/syscall_linux_loong64.go
++++ b/src/syscall/syscall_linux_loong64.go
+@@ -8,13 +8,6 @@ import "unsafe"
+ 
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	if size <= 0 {
+-		return -1, EINVAL
+-	}
+-	return EpollCreate1(0)
+-}
+-
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 258eb97b7e..89b450b050 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -9,7 +9,6 @@ package syscall
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 5390277926..53c3a26469 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -13,7 +13,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 88ad8e4cd4..5c20dfa8f6 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -9,7 +9,6 @@ package syscall
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 1386044609..9a0de850a2 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -8,13 +8,6 @@ import "unsafe"
+ 
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	if size <= 0 {
+-		return -1, EINVAL
+-	}
+-	return EpollCreate1(0)
+-}
+-
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 46b252dc95..8e31385c0f 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -9,7 +9,6 @@ import "unsafe"
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 36a3d7ed39..51af3b0f8d 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN32, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 07f328e1e2..8b0f952ed0 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index df79dbd0e1..577655d002 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1225,17 +1225,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN32, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 1ef8eebe4f..3ffec82490 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 1ed877ce7e..bc3715016f 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 3d7cc9e373..de216cd614 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 59b49ddf74..b41a3b3370 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 93632bd1cb..7e9a3d7d8a 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index fc8f6b7bcf..12727cf1ea 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 568bb430a6..65135e0897 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -1067,17 +1067,6 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {

@@ -13,7 +13,7 @@ Date:   Sun Aug 27 00:01:37 2023 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go          |  2 +-
  src/cmd/compile/internal/escape/expr.go            |  2 +-
  src/cmd/compile/internal/gc/compile.go             |  7 +--
@@ -27,3 +27,340 @@ Date:   Sun Aug 27 00:01:37 2023 +0700
  test/escape4.go                                    |  2 +-
  test/escape_closure.go                             |  2 +-
  12 files changed, 38 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 7df367caf7..5997d8328a 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -139,7 +139,7 @@ func Batch(fns []*ir.Func, recursive bool) {
+ 		b.initFunc(fn)
+ 	}
+ 	for _, fn := range fns {
+-		if !fn.IsHiddenClosure() {
++		if !fn.IsClosure() {
+ 			b.walkFunc(fn)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index 6aa5ad7413..3c47bdf9e1 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -230,7 +230,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		k = e.spill(k, n)
+ 		e.closures = append(e.closures, closure{k, n})
+ 
+-		if fn := n.Func; fn.IsHiddenClosure() {
++		if fn := n.Func; fn.IsClosure() {
+ 			for _, cv := range fn.ClosureVars {
+ 				if loc := e.oldLoc(cv); !loc.captured {
+ 					loc.captured = true
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 496daacb42..81a6023e47 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -39,12 +39,7 @@ func enqueueFunc(fn *ir.Func) {
+ 		return
+ 	}
+ 
+-	// Don't try compiling dead hidden closure.
+-	if fn.IsDeadcodeClosure() {
+-		return
+-	}
+-
+-	if clo := fn.OClosure; clo != nil && !ir.IsTrivialClosure(clo) {
++	if fn.IsClosure() {
+ 		return // we'll get this as part of its enclosing function
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 31b3bdfa25..017bc25e46 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -186,57 +186,6 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
+ 	})
+ }
+ 
+-// GarbageCollectUnreferencedHiddenClosures makes a pass over all the
+-// top-level (non-hidden-closure) functions looking for nested closure
+-// functions that are reachable, then sweeps through the Target.Decls
+-// list and marks any non-reachable hidden closure function as dead.
+-// See issues #59404 and #59638 for more context.
+-func GarbageCollectUnreferencedHiddenClosures() {
+-
+-	liveFuncs := make(map[*ir.Func]bool)
+-
+-	var markLiveFuncs func(fn *ir.Func)
+-	markLiveFuncs = func(fn *ir.Func) {
+-		if liveFuncs[fn] {
+-			return
+-		}
+-		liveFuncs[fn] = true
+-		ir.Visit(fn, func(n ir.Node) {
+-			if clo, ok := n.(*ir.ClosureExpr); ok {
+-				markLiveFuncs(clo.Func)
+-			}
+-		})
+-	}
+-
+-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+-		fn := typecheck.Target.Funcs[i]
+-		if fn.IsHiddenClosure() {
+-			continue
+-		}
+-		markLiveFuncs(fn)
+-	}
+-
+-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+-		fn := typecheck.Target.Funcs[i]
+-		if !fn.IsHiddenClosure() {
+-			continue
+-		}
+-		if fn.IsDeadcodeClosure() {
+-			continue
+-		}
+-		if liveFuncs[fn] {
+-			continue
+-		}
+-		fn.SetIsDeadcodeClosure(true)
+-		if base.Flag.LowerM > 2 {
+-			fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
+-		}
+-		if fn.Inl != nil && fn.LSym == nil {
+-			ir.InitLSym(fn, true)
+-		}
+-	}
+-}
+-
+ // inlineBudget determines the max budget for function 'fn' prior to
+ // analyzing the hairiness of the body of 'fn'. We pass in the pgo
+ // profile if available (which can change the budget), also a
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index 9b2efd7f27..5b3fbf6be7 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -49,11 +49,6 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 	}
+ 
+ 	if base.Flag.LowerL != 0 {
+-		// Perform a garbage collection of hidden closures functions that
+-		// are no longer reachable from top-level functions following
+-		// inlining. See #59404 and #59638 for more context.
+-		inline.GarbageCollectUnreferencedHiddenClosures()
+-
+ 		if base.Debug.DumpInlFuncProps != "" {
+ 			inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
+ 		}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index d0c8ee359b..3c4ec4a64f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -222,21 +222,17 @@ type Mark struct {
+ type ScopeID int32
+ 
+ const (
+-	funcDupok      = 1 << iota // duplicate definitions ok
+-	funcWrapper                // hide frame from users (elide in tracebacks, don't count as a frame for recover())
+-	funcABIWrapper             // is an ABI wrapper (also set flagWrapper)
+-	funcNeedctxt               // function uses context register (has closure variables)
+-	// true if closure inside a function; false if a simple function or a
+-	// closure in a global variable initialization
+-	funcIsHiddenClosure
+-	funcIsDeadcodeClosure        // true if closure is deadcode
+-	funcHasDefer                 // contains a defer statement
+-	funcNilCheckDisabled         // disable nil checks when compiling this function
+-	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
+-	funcNeverReturns             // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
+-	funcOpenCodedDeferDisallowed // can't do open-coded defers
+-	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
+-	funcPackageInit              // compiler emitted .init func for package
++	funcDupok                    = 1 << iota // duplicate definitions ok
++	funcWrapper                              // hide frame from users (elide in tracebacks, don't count as a frame for recover())
++	funcABIWrapper                           // is an ABI wrapper (also set flagWrapper)
++	funcNeedctxt                             // function uses context register (has closure variables)
++	funcHasDefer                             // contains a defer statement
++	funcNilCheckDisabled                     // disable nil checks when compiling this function
++	funcInlinabilityChecked                  // inliner has already determined whether the function is inlinable
++	funcNeverReturns                         // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
++	funcOpenCodedDeferDisallowed             // can't do open-coded defers
++	funcClosureResultsLost                   // closure is called indirectly and we lost track of its results; used by escape analysis
++	funcPackageInit                          // compiler emitted .init func for package
+ )
+ 
+ type SymAndPos struct {
+@@ -248,8 +244,6 @@ func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
+ func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
+ func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper != 0 }
+ func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
+-func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
+-func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeClosure != 0 }
+ func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
+ func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
+ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
+@@ -262,8 +256,6 @@ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+ func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper, b) }
+ func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
+-func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
+-func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeClosure, b) }
+ func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
+ func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
+@@ -281,6 +273,14 @@ func (f *Func) SetWBPos(pos src.XPos) {
+ 	}
+ }
+ 
++func (f *Func) IsClosure() bool {
++	if f.OClosure == nil {
++		return false
++	}
++	// Trivial closure will be converted to global.
++	return !IsTrivialClosure(f.OClosure)
++}
++
+ // FuncName returns the name (without the package) of the function f.
+ func FuncName(f *Func) string {
+ 	if f == nil || f.Nname == nil {
+@@ -484,19 +484,20 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ // should have an inline-adjusted position, whereas the ODCLFUNC and
+ // ONAME must not.
+ //
+-// outerfn is the enclosing function, if any. The returned function is
++// outerfn is the enclosing function. The returned function is
+ // appending to pkg.Funcs.
+ //
+ // why is the reason we're generating this Func. It can be OCLOSURE
+ // (for a normal function literal) or OGO or ODEFER (for wrapping a
+ // call expression that has parameters or results).
+ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
+-	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
+-	fn.SetIsHiddenClosure(outerfn != nil)
+-	if outerfn != nil {
+-		fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
++	if outerfn == nil {
++		base.FatalfAt(fpos, "outerfn is nil")
+ 	}
+ 
++	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
++	fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
++
+ 	clo := &ClosureExpr{Func: fn}
+ 	clo.op = OCLOSURE
+ 	clo.pos = cpos
+diff --git a/src/cmd/compile/internal/ir/scc.go b/src/cmd/compile/internal/ir/scc.go
+index a640f4fc16..265dce251e 100644
+--- a/src/cmd/compile/internal/ir/scc.go
++++ b/src/cmd/compile/internal/ir/scc.go
+@@ -14,10 +14,10 @@ package ir
+ // The algorithm (known as Tarjan's algorithm) for doing that is taken from
+ // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
+ //
+-// First, a hidden closure function (n.Func.IsHiddenClosure()) cannot be the
+-// root of a connected component. Refusing to use it as a root
+-// forces it into the component of the function in which it appears.
+-// This is more convenient for escape analysis.
++// First, a non-trivial closure function (fn.OClosure != nil) cannot be
++// the root of a connected component. Refusing to use it as a root forces
++// it into the component of the function in which it appears.  This is
++// more convenient for escape analysis.
+ //
+ // Second, each function becomes two virtual nodes in the graph,
+ // with numbers n and n+1. We record the function's node number as n
+@@ -54,7 +54,7 @@ func VisitFuncsBottomUp(list []*Func, analyze func(list []*Func, recursive bool)
+ 	v.analyze = analyze
+ 	v.nodeID = make(map[*Func]uint32)
+ 	for _, n := range list {
+-		if !n.IsHiddenClosure() {
++		if !n.IsClosure() {
+ 			v.visit(n)
+ 		}
+ 	}
+@@ -97,7 +97,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
+ 		}
+ 	})
+ 
+-	if (min == id || min == id+1) && !n.IsHiddenClosure() {
++	if (min == id || min == id+1) && !n.IsClosure() {
+ 		// This node is the root of a strongly connected component.
+ 
+ 		// The original min was id+1. If the bottomUpVisitor found its way
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 58fbb72f5d..ff44adedb4 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3061,11 +3061,6 @@ func (r *reader) funcLit() ir.Node {
+ 
+ 	r.addBody(fn, nil)
+ 
+-	// un-hide closures belong to init function.
+-	if (r.curfn.IsPackageInit() || strings.HasPrefix(r.curfn.Sym().Name, "init.")) && ir.IsTrivialClosure(fn.OClosure) {
+-		fn.SetIsHiddenClosure(false)
+-	}
+-
+ 	return fn.OClosure
+ }
+ 
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 91c0a27faf..56203120b2 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -393,12 +393,6 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 			if base.Debug.Closure > 0 {
+ 				base.WarnfAt(r.Pos(), "closure converted to global")
+ 			}
+-			// Issue 59680: if the closure we're looking at was produced
+-			// by inlining, it could be marked as hidden, which we don't
+-			// want (moving the func to a static init will effectively
+-			// hide it from escape analysis). Mark as non-hidden here.
+-			// so that it will participated in escape analysis.
+-			r.Func.SetIsHiddenClosure(false)
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+ 			// TODO if roff != 0 { panic }
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 441da70105..e3981a5161 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -94,7 +94,7 @@ func main() {
+ 			return x + 2
+ 		}
+ 		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
+-			return func(x int) int { // ERROR "can inline main.func12"
++			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes to heap"
+ 				return x + 1
+ 			}, 42
+ 		}() // ERROR "func literal does not escape" "inlining call to main.func12"
+@@ -109,7 +109,7 @@ func main() {
+ 				return x + 2
+ 			}
+ 			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
+-				return func(x int) int { // ERROR   "can inline main.func13.2"
++				return func(x int) int { // ERROR   "can inline main.func13.2" "func literal escapes to heap"
+ 					return x + 1
+ 				}, 42
+ 			}() // ERROR "func literal does not escape" "inlining call to main.func13.2"
+diff --git a/test/escape4.go b/test/escape4.go
+index c4a2fc15e7..ddeaff81ec 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -25,7 +25,7 @@ func f1() {
+ 	// Escape analysis used to miss inlined code in closures.
+ 
+ 	func() { // ERROR "can inline f1.func1"
+-		p = alloc(3) // ERROR "inlining call to alloc"
++		p = alloc(3) // ERROR "inlining call to alloc" "moved to heap: x"
+ 	}() // ERROR "inlining call to f1.func1" "inlining call to alloc" "moved to heap: x"
+ 
+ 	f = func() { // ERROR "func literal escapes to heap" "can inline f1.func2"
+diff --git a/test/escape_closure.go b/test/escape_closure.go
+index 0b19d6f6e8..84f3adf35d 100644
+--- a/test/escape_closure.go
++++ b/test/escape_closure.go
+@@ -134,7 +134,7 @@ func ClosureCallArgs14() {
+ func ClosureCallArgs15() {
+ 	x := 0 // ERROR "moved to heap: x"
+ 	p := &x
+-	sink = func(p **int) *int { // ERROR "leaking param content: p" "func literal does not escape"
++	sink = func(p **int) *int { // ERROR "leaking param: p to result ~r0 level=1" "func literal does not escape"
+ 		return *p
+ 	}(&p)
+ }

@@ -29,10 +29,207 @@ Date:   Mon Oct 4 11:56:12 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go | 24 +++++++++--
  src/cmd/compile/internal/typecheck/subr.go    |  2 +-
  test/typeparam/issue48716.dir/a.go            | 51 +++++++++++++++++++++++
  test/typeparam/issue48716.dir/main.go         | 58 +++++++++++++++++++++++++++
  test/typeparam/issue48716.go                  |  7 ++++
  5 files changed, 138 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 08850079eb..df49d74a40 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1822,9 +1822,25 @@ func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types
+ 	instSym := baseSym.Pkg.Lookup(name)
+ 	if instSym.Def != nil {
+ 		// May match existing type from previous import or
+-		// types2-to-types1 conversion, or from in-progress instantiation
+-		// in the current type import stack.
+-		return instSym.Def.Type()
++		// types2-to-types1 conversion.
++		t := instSym.Def.Type()
++		if t.Kind() != types.TFORW {
++			return t
++		}
++		// Or, we have started creating this type in (*TSubster).Typ, but its
++		// underlying type was not completed yet, so we need to add this type
++		// to deferredInstStack, if not already there.
++		found := false
++		for _, t2 := range deferredInstStack {
++			if t2 == t {
++				found = true
++				break
++			}
++		}
++		if !found {
++			deferredInstStack = append(deferredInstStack, t)
++		}
++		return t
+ 	}
+ 
+ 	t := NewIncompleteNamedType(baseType.Pos(), instSym)
+@@ -1865,6 +1881,7 @@ func resumeDoInst() {
+ // during a type substitution for an instantiation. This is needed for
+ // instantiations of mutually recursive types.
+ func doInst(t *types.Type) *types.Type {
++	assert(t.Kind() == types.TFORW)
+ 	return Instantiate(t.Pos(), t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
+ }
+ 
+@@ -1873,6 +1890,7 @@ func doInst(t *types.Type) *types.Type {
+ // instantiation being created, baseType is the base generic type, and targs are
+ // the type arguments that baseType is being instantiated with.
+ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
++	assert(t.Kind() == types.TFORW)
+ 	subst := Tsubster{
+ 		Tparams:       baseType.RParams(),
+ 		Targs:         targs,
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 68240329f5..6288d15a01 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1217,7 +1217,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 		}
+ 	case types.TFORW:
+ 		if ts.SubstForwFunc != nil {
+-			newt = ts.SubstForwFunc(t)
++			return ts.SubstForwFunc(forw)
+ 		} else {
+ 			assert(false)
+ 		}
+diff --git a/test/typeparam/issue48716.dir/a.go b/test/typeparam/issue48716.dir/a.go
+new file mode 100644
+index 0000000000..63e599d9a1
+--- /dev/null
++++ b/test/typeparam/issue48716.dir/a.go
+@@ -0,0 +1,51 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Pair[L, R any] struct {
++	L L
++	R R
++}
++
++func Two[L, R any](l L, r R) Pair[L, R] {
++	return Pair[L, R]{L: l, R: r}
++}
++
++type Map[K, V any] interface {
++	Put(K, V)
++	Len() int
++	Iterate(func(Pair[K, V]) bool)
++}
++
++type HashMap[K comparable, V any] struct {
++	m map[K]V
++}
++
++func NewHashMap[K comparable, V any](capacity int) HashMap[K, V] {
++	var m map[K]V
++	if capacity >= 1 {
++		m = make(map[K]V, capacity)
++	} else {
++		m = map[K]V{}
++	}
++
++	return HashMap[K, V]{m: m}
++}
++
++func (m HashMap[K, V]) Put(k K, v V) {
++	m.m[k] = v
++}
++
++func (m HashMap[K, V]) Len() int {
++	return len(m.m)
++}
++
++func (m HashMap[K, V]) Iterate(cb func(Pair[K, V]) bool) {
++	for k, v := range m.m {
++		if !cb(Two(k, v)) {
++			return
++		}
++	}
++}
+diff --git a/test/typeparam/issue48716.dir/main.go b/test/typeparam/issue48716.dir/main.go
+new file mode 100644
+index 0000000000..adde0f5afe
+--- /dev/null
++++ b/test/typeparam/issue48716.dir/main.go
+@@ -0,0 +1,58 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++)
++
++// Creates copy of set
++func Copy[T comparable](src MapSet[T]) (dst MapSet[T]) {
++	dst = HashSet[T](src.Len())
++	Fill(src, dst)
++	return
++}
++
++// Fill src from dst
++func Fill[T any](src, dst MapSet[T]) {
++	src.Iterate(func(t T) bool {
++		dst.Add(t)
++		return true
++	})
++	return
++}
++
++type MapSet[T any] struct {
++	m a.Map[T, struct{}]
++}
++
++func HashSet[T comparable](capacity int) MapSet[T] {
++	return FromMap[T](a.NewHashMap[T, struct{}](capacity))
++}
++
++func FromMap[T any](m a.Map[T, struct{}]) MapSet[T] {
++	return MapSet[T]{
++		m: m,
++	}
++}
++
++func (s MapSet[T]) Add(t T) {
++	s.m.Put(t, struct{}{})
++}
++
++func (s MapSet[T]) Len() int {
++	return s.m.Len()
++}
++
++func (s MapSet[T]) Iterate(cb func(T) bool) {
++	s.m.Iterate(func(p a.Pair[T, struct{}]) bool {
++		return cb(p.L)
++	})
++}
++
++func main() {
++	x := FromMap[int](a.NewHashMap[int, struct{}](1))
++	Copy[int](x)
++}
+diff --git a/test/typeparam/issue48716.go b/test/typeparam/issue48716.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48716.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

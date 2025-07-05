@@ -22,6 +22,36 @@ Date:   Fri Jun 3 19:15:24 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/utils.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/escape/utils.go b/src/cmd/compile/internal/escape/utils.go
+index 2c6e9bcbeb..b481d8e4b6 100644
+--- a/src/cmd/compile/internal/escape/utils.go
++++ b/src/cmd/compile/internal/escape/utils.go
+@@ -7,6 +7,7 @@ package escape
+ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
+ )
+ 
+ func isSliceSelfAssign(dst, src ir.Node) bool {
+@@ -185,10 +186,16 @@ func HeapAllocReason(n ir.Node) string {
+ 	if n.Type().Size() > ir.MaxStackVarSize {
+ 		return "too large for stack"
+ 	}
++	if n.Type().Alignment() > int64(types.PtrSize) {
++		return "too aligned for stack"
++	}
+ 
+ 	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
++	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Alignment() > int64(types.PtrSize) {
++		return "too aligned for stack"
++	}
+ 
+ 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"

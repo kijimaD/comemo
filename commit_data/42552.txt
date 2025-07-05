@@ -13,6 +13,20 @@ Date:   Sun Jan 12 06:49:19 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/escape.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/escape.go b/src/html/escape.go
+index dae404fab1..1dc12873b0 100644
+--- a/src/html/escape.go
++++ b/src/html/escape.go
+@@ -12,7 +12,7 @@ import (
+ 
+ // These replacements permit compatibility with old numeric entities that
+ // assumed Windows-1252 encoding.
+-// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
++// https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
+ var replacementTable = [...]rune{
+ 	'\u20AC', // First entry is what 0x80 should be replaced with.
+ 	'\u0081',

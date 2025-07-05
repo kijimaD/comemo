@@ -11,6 +11,25 @@ Date:   Mon Jan 6 16:58:37 2020 +0000
     GitHub-Pull-Request: golang/go#36413
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213440
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .github/ISSUE_TEMPLATE | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE b/.github/ISSUE_TEMPLATE
+index 9d5156b2e2..5cbfc09fe7 100644
+--- a/.github/ISSUE_TEMPLATE
++++ b/.github/ISSUE_TEMPLATE
+@@ -1,4 +1,7 @@
+-<!-- Please answer these questions before submitting your issue. Thanks! -->
++<!--
++Please answer these questions before submitting your issue. Thanks!
++For questions please use one of our forums: https://github.com/golang/go/wiki/Questions
++-->
+ 
+ ### What version of Go are you using (`go version`)?
+ 
+@@ -33,4 +36,3 @@ A link on play.golang.org is best.
+ 
+ 
+ ### What did you see instead?
+-

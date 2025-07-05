@@ -9,7 +9,7 @@ Date:   Sun Nov 8 16:47:32 2009 -0800
     
     R=rsc
     http://go/go-review/1024024
-
+---
  doc/style.css          |   1 -
  lib/godoc/dirlist.html |   8 ++-
  lib/godoc/dirs.html    |   6 --
@@ -18,3 +18,436 @@ Date:   Sun Nov 8 16:47:32 2009 -0800
  lib/godoc/package.txt  |   2 +-
  src/cmd/godoc/godoc.go | 184 ++++++++++++++++++++++++++++++++++++++++---------
  7 files changed, 180 insertions(+), 47 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index 167ad48899..629509b2ac 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -184,7 +184,6 @@ a.noline {
+ table.layout {
+   border-width: 0px;
+   border-spacing: 0px;
+-  border-width: 0px;
+   padding: 0px;
+ }
+ 
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index 03980078fb..7962885625 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -8,7 +8,10 @@
+ <table class="layout">
+ <tr>
+ 	<th align="left">File</th>
+-	<th width="100" align="right">Size</th>
++	<td width="25">&nbsp;</td>
++	<th align="right">Bytes</th>
++	<td width="25">&nbsp;</td>
++	<th align="left">Modified</th>
+ </tr>
+ <tr>
+ 	<td><a href=".." class="noline">..</a></td>
+@@ -16,7 +19,10 @@
+ {.repeated section @}
+ <tr>
+ 	<td align="left"><a href="{Name|html}" class="noline">{Name|html}</a></td>
++	<td></td>
+ 	<td align="right">{Size|html}</td>
++	<td></td>
++	<td align="left">{Mtime_ns|time}</td>
+ </tr>
+ {.end}
+ </table>
+diff --git a/lib/godoc/dirs.html b/lib/godoc/dirs.html
+deleted file mode 100644
+index 394f2df3c6..0000000000
+--- a/lib/godoc/dirs.html
++++ /dev/null
+@@ -1,6 +0,0 @@
+-<table class="layout">
+-<tr><td colspan="2"><a href="{Path|path}">{Name|html}</a></td><td width="10"></td><td>{Text|html}</td></tr>
+-{.repeated section Dirs}
+-	<tr><td width="25"></td><td>{@|dir}</td></tr>
+-{.end}
+-</table>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 445b3c68f7..7367f2d29a 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -97,7 +97,7 @@
+     <li class="navhead">Programming</li>
+     <li><a href="/cmd" class="noline">Command documentation</a></li>
+     <li><a href="/pkg" class="noline">Package documentation</a></li>
+-    <li><a href="/src" class="noline">Sources</a></li>
++    <li><a href="/src" class="noline">Source files</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Help</li>
+@@ -113,7 +113,7 @@
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Last update</li>
+-	<li>{Timestamp|html}</li>
++	<li>{Timestamp|time}</li>
+   </ul>
+ </div>
+ 
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 82e8963b12..e39899008c 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -76,10 +76,22 @@
+ 	{.end}
+ {.end}
+ {.section Dirs}
+-	{.section Dirs}
+-		<h2>Subdirectories</h2>
+-		{.repeated section @}
+-			{@|dir}
+-		{.end}
++	<h2>Subdirectories</h2>
++	<p>
++	<table class="layout">
++	<tr>
++	<th align="left" colspan="{MaxHeight|html}">Name</th>
++	<td width="25">&nbsp;</td>
++	<th align="left">Synopsis</th>
++	</tr>
++	{.repeated section List}
++		<tr>
++		{Depth|padding}
++		<td align="left" colspan="{Height|html}"><a href="{Path|html}" class="noline">{Name|html}<a></td>
++		<td></td>
++		<td align="left">{Synopsis|html}</td>
++		</tr>
+ 	{.end}
++	</table>
++	</p>
+ {.end}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 1891ff63c6..77d20f49fd 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -77,7 +77,7 @@ BUGS
+ 
+ SUBDIRECTORIES
+ 
+-{.repeated section @}
++{.repeated section List}
+ 	{Name}
+ {.end}
+ {.end}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index cecc2d8c3a..02e5119f01 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -152,19 +152,20 @@ func firstSentence(s string) string {
+ // Package directories
+ 
+ type Directory struct {
++	Depth	int;
+ 	Path	string;	// includes Name
+ 	Name	string;
+-	Text	string;	// package documentation, if any
+-	Dirs	[]*Directory;
++	Text	string;		// package documentation, if any
++	Dirs	[]*Directory;	// subdirectories
+ }
+ 
+ 
+-func newDirTree(path, name string, depth int) *Directory {
+-	if depth <= 0 {
++func newDirTree(path, name string, depth, maxDepth int) *Directory {
++	if depth >= maxDepth {
+ 		// return a dummy directory so that the parent directory
+ 		// doesn't get discarded just because we reached the max
+ 		// directory depth
+-		return &Directory{path, name, "", nil};
++		return &Directory{depth, path, name, "", nil};
+ 	}
+ 
+ 	list, _ := io.ReadDir(path);	// ignore errors
+@@ -183,7 +184,14 @@ func newDirTree(path, name string, depth int) *Directory {
+ 				// no package documentation yet; take the first found
+ 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+ 					parser.ParseComments | parser.PackageClauseOnly);
+-				if err == nil && file.Name.Value == name && file.Doc != nil {
++				if err == nil &&
++					// Also accept fakePkgName, so we get synopses for commmands.
++					// Note: This may lead to incorrect results if there is a
++					// (left-over) "documentation" package somewhere in a package
++					// directory of different name, but this is very unlikely and
++					// against current conventions.
++					(file.Name.Value == name || file.Name.Value == fakePkgName) &&
++					file.Doc != nil {
+ 					// found documentation; extract a synopsys
+ 					text = firstSentence(doc.CommentText(file.Doc));
+ 				}
+@@ -198,7 +206,7 @@ func newDirTree(path, name string, depth int) *Directory {
+ 		i := 0;
+ 		for _, d := range list {
+ 			if isPkgDir(d) {
+-				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth-1);
++				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1, maxDepth);
+ 				if dd != nil {
+ 					dirs[i] = dd;
+ 					i++;
+@@ -214,21 +222,43 @@ func newDirTree(path, name string, depth int) *Directory {
+ 		return nil;
+ 	}
+ 
+-	return &Directory{path, name, text, dirs};
++	return &Directory{depth, path, name, text, dirs};
+ }
+ 
+ 
+-// newDirectory creates a new package directory tree with at most depth
++// newDirectory creates a new package directory tree with at most maxDepth
+ // levels, anchored at root which is relative to goroot. The result tree
+ // only contains directories that contain package files or that contain
+ // subdirectories containing package files (transitively).
+ //
+-func newDirectory(root string, depth int) *Directory {
++func newDirectory(root string, maxDepth int) *Directory {
+ 	d, err := os.Lstat(root);
+ 	if err != nil || !isPkgDir(d) {
+ 		return nil;
+ 	}
+-	return newDirTree(root, d.Name, depth);
++	return newDirTree(root, d.Name, 0, maxDepth);
++}
++
++
++func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {
++	if dir != nil {
++		if !skipRoot {
++			c <- dir;
++		}
++		for _, d := range dir.Dirs {
++			d.walk(c, false);
++		}
++	}
++}
++
++
++func (dir *Directory) iter(skipRoot bool) <-chan *Directory {
++	c := make(chan *Directory);
++	go func() {
++		dir.walk(c, skipRoot);
++		close(c);
++	}();
++	return c;
+ }
+ 
+ 
+@@ -255,6 +285,93 @@ func (dir *Directory) lookup(path string) *Directory {
+ }
+ 
+ 
++// DirEntry describes a directory entry. The Depth and Height values
++// are useful for presenting an entry in an indented fashion.
++//
++type DirEntry struct {
++	Depth		int;	// >= 0
++	Height		int;	// = DirList.MaxHeight - Depth, > 0
++	Path		string;	// includes Name, relative to DirList root
++	Name		string;
++	Synopsis	string;
++}
++
++
++type DirList struct {
++	MaxHeight	int;	// directory tree height, > 0
++	List		[]DirEntry;
++}
++
++
++// listing creates a (linear) directory listing from a directory tree.
++// If skipRoot is set, the root directory itself is excluded from the list.
++//
++func (root *Directory) listing(skipRoot bool) *DirList {
++	if root == nil {
++		return nil;
++	}
++
++	// determine number of entries n and maximum height
++	n := 0;
++	minDepth := 1<<30;	// infinity
++	maxDepth := 0;
++	for d := range root.iter(skipRoot) {
++		n++;
++		if minDepth > d.Depth {
++			minDepth = d.Depth;
++		}
++		if maxDepth < d.Depth {
++			maxDepth = d.Depth;
++		}
++	}
++	maxHeight := maxDepth-minDepth+1;
++
++	if n == 0 {
++		return nil;
++	}
++
++	// create list
++	list := make([]DirEntry, n);
++	i := 0;
++	for d := range root.iter(skipRoot) {
++		p := &list[i];
++		p.Depth = d.Depth - minDepth;
++		p.Height = maxHeight - p.Depth;
++		// the path is relative to root.Path - remove the root.Path
++		// prefix (the prefix should always be present but avoid
++		// crashes and check)
++		path := d.Path;
++		if strings.HasPrefix(d.Path, root.Path) {
++			path = d.Path[len(root.Path):len(d.Path)];
++		}
++		// remove trailing '/' if any - path must be relative
++		if len(path) > 0 && path[0] == '/' {
++			path = path[1:len(path)];
++		}
++		p.Path = path;
++		p.Name = d.Name;
++		p.Synopsis = d.Text;
++		i++;
++	}
++
++	return &DirList{maxHeight, list};
++}
++
++
++func listing(dirs []*os.Dir) *DirList {
++	list := make([]DirEntry, len(dirs)+1);
++	list[0] = DirEntry{0, 1, "..", "..", ""};
++	for i, d := range dirs {
++		p := &list[i+1];
++		p.Depth = 0;
++		p.Height = 1;
++		p.Path = d.Name;
++		p.Name = d.Name;
++	}
++	return &DirList{1, list};
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Parsing
+ 
+@@ -438,15 +555,6 @@ func textFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
+-// Template formatter for "dir" format.
+-func dirFmt(w io.Writer, x interface{}, format string) {
+-	_ = x.(*Directory);	// die quickly if x has the wrong type
+-	if err := dirsHtml.Execute(x, w); err != nil {
+-		log.Stderrf("dirsHtml.Execute: %s", err);
+-	}
+-}
+-
+-
+ func removePrefix(s, prefix string) string {
+ 	if strings.HasPrefix(s, prefix) {
+ 		return s[len(prefix):len(s)];
+@@ -525,16 +633,32 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
++// Template formatter for "padding" format.
++func paddingFmt(w io.Writer, x interface{}, format string) {
++	for i := x.(int); i > 0; i-- {
++		fmt.Fprint(w, `<td width="25"></td>`);
++	}
++}
++
++
++// Template formatter for "time" format.
++func timeFmt(w io.Writer, x interface{}, format string) {
++	// note: os.Dir.Mtime_ns is in uint64 in ns!
++	template.HtmlEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
++}
++
++
+ var fmap = template.FormatterMap{
+ 	"": textFmt,
+ 	"html": htmlFmt,
+ 	"html-comment": htmlCommentFmt,
+-	"dir": dirFmt,
+ 	"path": pathFmt,
+ 	"link": linkFmt,
+ 	"infoClass": infoClassFmt,
+ 	"infoLine": infoLineFmt,
+ 	"infoSnippet": infoSnippetFmt,
++	"padding": paddingFmt,
++	"time": timeFmt,
+ }
+ 
+ 
+@@ -553,8 +677,7 @@ func readTemplate(name string) *template.Template {
+ 
+ 
+ var (
+-	dirListHtml,
+-		dirsHtml,
++	dirlistHtml,
+ 		godocHtml,
+ 		packageHtml,
+ 		packageText,
+@@ -566,8 +689,7 @@ var (
+ func readTemplates() {
+ 	// have to delay until after flags processing,
+ 	// so that main has chdir'ed to goroot.
+-	dirListHtml = readTemplate("dirlist.html");
+-	dirsHtml = readTemplate("dirs.html");
++	dirlistHtml = readTemplate("dirlist.html");
+ 	godocHtml = readTemplate("godoc.html");
+ 	packageHtml = readTemplate("package.html");
+ 	packageText = readTemplate("package.txt");
+@@ -583,7 +705,7 @@ func readTemplates() {
+ func servePage(c *http.Conn, title, query string, content []byte) {
+ 	type Data struct {
+ 		Title		string;
+-		Timestamp	string;
++		Timestamp	uint64;	// int64 to be compatible with os.Dir.Mtime_ns
+ 		Query		string;
+ 		Content		[]byte;
+ 	}
+@@ -591,7 +713,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
+ 	_, ts := fsTree.get();
+ 	d := Data{
+ 		Title: title,
+-		Timestamp: time.SecondsToLocalTime(ts).String(),
++		Timestamp: uint64(ts)*1e9,	// timestamp in ns
+ 		Query: query,
+ 		Content: content,
+ 	};
+@@ -756,8 +878,8 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ 	}
+ 
+ 	var buf bytes.Buffer;
+-	if err := dirListHtml.Execute(list, &buf); err != nil {
+-		log.Stderrf("dirListHtml.Execute: %s", err);
++	if err := dirlistHtml.Execute(list, &buf); err != nil {
++		log.Stderrf("dirlistHtml.Execute: %s", err);
+ 	}
+ 
+ 	servePage(c, "Directory " + path, "", buf.Bytes());
+@@ -818,7 +940,7 @@ const fakePkgName = "documentation"
+ 
+ type PageInfo struct {
+ 	PDoc	*doc.PackageDoc;	// nil if no package found
+-	Dirs	*Directory;		// nil if no directory information found
++	Dirs	*DirList;		// nil if no directory information found
+ 	IsPkg	bool;			// false if this is not documenting a real package
+ }
+ 
+@@ -885,7 +1007,7 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
+ 		dir = newDirectory(dirname, 1);
+ 	}
+ 
+-	return PageInfo{pdoc, dir, h.isPkg};
++	return PageInfo{pdoc, dir.listing(true), h.isPkg};
+ }
+ 
+ 

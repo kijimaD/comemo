@@ -14,6 +14,28 @@ Date:   Mon Apr 26 17:49:28 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/time/tick_test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 9a1cdf9ab2..b5d0a189bc 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -52,9 +52,14 @@ func TestTicker(t *testing.T) {
+ 		t1 := Now()
+ 		dt := t1.Sub(t0)
+ 		target := 3 * delta * Duration(count/2)
+-		slop := target * 2 / 10
++		slop := target * 3 / 10
+ 		if dt < target-slop || dt > target+slop {
+-			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
++			errs = append(errs, fmt.Sprintf("%d %s ticks then %d %s ticks took %s, expected [%s,%s]", count/2, delta, count/2, delta*2, dt, target-slop, target+slop))
++			if dt > target+slop {
++				// System may be overloaded; sleep a bit
++				// in the hopes it will recover.
++				Sleep(Second / 2)
++			}
+ 			continue
+ 		}
+ 		// Now test that the ticker stopped.

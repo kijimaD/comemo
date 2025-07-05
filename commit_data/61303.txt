@@ -15,6 +15,46 @@ Date:   Thu Oct 24 17:41:43 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/os_windows_test.go | 21 ++-------------------
  1 file changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index d9c8fe3db9..591798e9c0 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1017,8 +1017,8 @@ func TestStatNUL(t *testing.T) {
+ // works on Windows when developer mode is active.
+ // This is supported starting Windows 10 (1703, v10.0.14972).
+ func TestSymlinkCreation(t *testing.T) {
+-	if !testenv.HasSymlink() && !isWindowsDeveloperModeActive() {
+-		t.Skip("Windows developer mode is not active")
++	if !testenv.HasSymlink() {
++		t.Skip("skipping test; no symlink support")
+ 	}
+ 	t.Parallel()
+ 
+@@ -1034,23 +1034,6 @@ func TestSymlinkCreation(t *testing.T) {
+ 	}
+ }
+ 
+-// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
+-// Returns false for prior Windows versions.
+-// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
+-func isWindowsDeveloperModeActive() bool {
+-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
+-	if err != nil {
+-		return false
+-	}
+-
+-	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
+-	if err != nil {
+-		return false
+-	}
+-
+-	return val != 0
+-}
+-
+ // TestRootRelativeDirSymlink verifies that symlinks to paths relative to the
+ // drive root (beginning with "\" but no volume name) are created with the
+ // correct symlink type.

@@ -7,6 +7,19 @@ Date:   Tue Aug 17 23:08:19 2010 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/2005042
-
+---
  src/pkg/time/zoneinfo.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 6e5b2efb76..a3c66d6e9d 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -11,7 +11,6 @@ package time
+ 
+ import (
+ 	"io/ioutil"
+-	"once"
+ 	"os"
+ )
+ 

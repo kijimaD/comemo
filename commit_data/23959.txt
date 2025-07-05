@@ -9,7 +9,63 @@ Date:   Thu Jun 25 18:03:50 2015 -0500
     Change-Id: Id8a46f1ee20cb1f46775d0c04cc4944d729dfceb
     Reviewed-on: https://go-review.googlesource.com/11540
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go          |  3 +++
  src/cmd/compile/internal/ssa/deadstore_test.go | 13 ++++++++-----
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 1ca6e36ae7..e889177841 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -105,6 +105,9 @@ func checkFunc(f *Func) {
+ 			}
+ 
+ 			if v.Op == OpAddr {
++				if len(v.Args) == 0 {
++					f.Fatalf("no args for OpAddr %s", v.LongString())
++				}
+ 				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
+ 					f.Fatalf("bad arg to OpAddr %v", v)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 042e7f66ff..3b29e1c430 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -14,9 +14,10 @@ func TestDeadStore(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr1", OpAddr, ptrType, 0, nil),
+-			Valu("addr2", OpAddr, ptrType, 0, nil),
++			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
++			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+ 			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
+ 			Valu("store3", OpStore, TypeMem, 0, nil, "addr1", "v", "store2"),
+@@ -40,8 +41,9 @@ func TestDeadStorePhi(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr", OpAddr, ptrType, 0, nil),
++			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
+ 			Goto("loop")),
+ 		Bloc("loop",
+ 			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "store"),
+@@ -66,9 +68,10 @@ func TestDeadStoreTypes(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr1", OpAddr, t1, 0, nil),
+-			Valu("addr2", OpAddr, t2, 0, nil),
++			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
++			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+ 			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
+ 			Goto("exit")),

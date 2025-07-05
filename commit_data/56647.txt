@@ -14,6 +14,20 @@ Date:   Wed May 17 09:38:20 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/nbpipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/nbpipe_test.go b/src/runtime/nbpipe_test.go
+index bb21003c35..378257261d 100644
+--- a/src/runtime/nbpipe_test.go
++++ b/src/runtime/nbpipe_test.go
+@@ -67,7 +67,7 @@ func checkCloseonexec(t *testing.T, fd int32, name string) {
+ 	t.Helper()
+ 	flags := runtime.Fcntl(fd, syscall.F_GETFD, 0)
+ 	if flags < 0 {
+-		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(flags))
++		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(-flags))
+ 	} else if flags&syscall.FD_CLOEXEC == 0 {
+ 		t.Errorf("FD_CLOEXEC not set in %s flags %#x", name, flags)
+ 	}

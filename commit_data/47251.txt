@@ -20,7 +20,7 @@ Date:   Mon Mar 1 19:23:42 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297929
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/base.go              |  2 +-
  src/cmd/compile/internal/ssa/rewrite.go            |  6 +--
  src/cmd/compile/internal/ssagen/ssa.go             |  3 ++
@@ -28,3 +28,213 @@ Date:   Mon Mar 1 19:23:42 2021 -0500
  .../compile/internal/typecheck/builtin/runtime.go  |  4 +-
  src/cmd/compile/internal/walk/race.go              | 27 ++--------
  6 files changed, 44 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 3b9bc3a8af..4c2516f60e 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -70,6 +70,6 @@ var NoInstrumentPkgs = []string{
+ 	"internal/cpu",
+ }
+ 
+-// Don't insert racefuncenterfp/racefuncexit into the following packages.
++// Don't insert racefuncenter/racefuncexit into the following packages.
+ // Memory accesses in the packages are either uninteresting or will cause false positives.
+ var NoRacePkgs = []string{"sync", "sync/atomic"}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9243000cef..07bbdb8813 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1612,18 +1612,18 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
+ 	if !f.Config.Race {
+ 		return false
+ 	}
+-	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncenterfp") && !isSameCall(sym, "runtime.racefuncexit") {
++	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncexit") {
+ 		return false
+ 	}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+ 			case OpStaticCall, OpStaticLECall:
+-				// Check for racefuncenter/racefuncenterfp will encounter racefuncexit and vice versa.
++				// Check for racefuncenter will encounter racefuncexit and vice versa.
+ 				// Allow calls to panic*
+ 				s := v.Aux.(*AuxCall).Fn.String()
+ 				switch s {
+-				case "runtime.racefuncenter", "runtime.racefuncenterfp", "runtime.racefuncexit",
++				case "runtime.racefuncenter", "runtime.racefuncexit",
+ 					"runtime.panicdivide", "runtime.panicwrap",
+ 					"runtime.panicshift":
+ 					continue
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b590bd4f2f..961cae419a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4564,6 +4564,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
+ 	if sym.Pkg == types.LocalPkg {
+ 		pkg = base.Ctxt.Pkgpath
+ 	}
++	if sym.Pkg == ir.Pkgs.Runtime {
++		pkg = "runtime"
++	}
+ 	if base.Flag.Race && pkg == "sync/atomic" {
+ 		// The race detector needs to be able to intercept these calls.
+ 		// We can't intrinsify them.
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 3c7776d9ae..ddec26df59 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -177,26 +177,26 @@ var runtimeDecls = [...]struct {
+ 	{"uint64tofloat64", funcTag, 116},
+ 	{"uint32tofloat64", funcTag, 117},
+ 	{"complex128div", funcTag, 118},
++	{"getcallerpc", funcTag, 119},
+ 	{"racefuncenter", funcTag, 31},
+-	{"racefuncenterfp", funcTag, 9},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 119},
+-	{"racewriterange", funcTag, 119},
+-	{"msanread", funcTag, 119},
+-	{"msanwrite", funcTag, 119},
+-	{"msanmove", funcTag, 120},
+-	{"checkptrAlignment", funcTag, 121},
+-	{"checkptrArithmetic", funcTag, 123},
+-	{"libfuzzerTraceCmp1", funcTag, 125},
+-	{"libfuzzerTraceCmp2", funcTag, 127},
+-	{"libfuzzerTraceCmp4", funcTag, 128},
+-	{"libfuzzerTraceCmp8", funcTag, 129},
+-	{"libfuzzerTraceConstCmp1", funcTag, 125},
+-	{"libfuzzerTraceConstCmp2", funcTag, 127},
+-	{"libfuzzerTraceConstCmp4", funcTag, 128},
+-	{"libfuzzerTraceConstCmp8", funcTag, 129},
++	{"racereadrange", funcTag, 120},
++	{"racewriterange", funcTag, 120},
++	{"msanread", funcTag, 120},
++	{"msanwrite", funcTag, 120},
++	{"msanmove", funcTag, 121},
++	{"checkptrAlignment", funcTag, 122},
++	{"checkptrArithmetic", funcTag, 124},
++	{"libfuzzerTraceCmp1", funcTag, 126},
++	{"libfuzzerTraceCmp2", funcTag, 128},
++	{"libfuzzerTraceCmp4", funcTag, 129},
++	{"libfuzzerTraceCmp8", funcTag, 130},
++	{"libfuzzerTraceConstCmp1", funcTag, 126},
++	{"libfuzzerTraceConstCmp2", funcTag, 128},
++	{"libfuzzerTraceConstCmp4", funcTag, 129},
++	{"libfuzzerTraceConstCmp8", funcTag, 130},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+@@ -219,7 +219,7 @@ func params(tlist ...*types.Type) []*types.Field {
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [130]*types.Type
++	var typs [131]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -339,16 +339,17 @@ func runtimeTypes() []*types.Type {
+ 	typs[116] = newSig(params(typs[24]), params(typs[20]))
+ 	typs[117] = newSig(params(typs[65]), params(typs[20]))
+ 	typs[118] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[119] = newSig(params(typs[5], typs[5]), nil)
+-	typs[120] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[121] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[122] = types.NewSlice(typs[7])
+-	typs[123] = newSig(params(typs[7], typs[122]), nil)
+-	typs[124] = types.Types[types.TUINT8]
+-	typs[125] = newSig(params(typs[124], typs[124]), nil)
+-	typs[126] = types.Types[types.TUINT16]
+-	typs[127] = newSig(params(typs[126], typs[126]), nil)
+-	typs[128] = newSig(params(typs[65], typs[65]), nil)
+-	typs[129] = newSig(params(typs[24], typs[24]), nil)
++	typs[119] = newSig(nil, params(typs[5]))
++	typs[120] = newSig(params(typs[5], typs[5]), nil)
++	typs[121] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[122] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[123] = types.NewSlice(typs[7])
++	typs[124] = newSig(params(typs[7], typs[123]), nil)
++	typs[125] = types.Types[types.TUINT8]
++	typs[126] = newSig(params(typs[125], typs[125]), nil)
++	typs[127] = types.Types[types.TUINT16]
++	typs[128] = newSig(params(typs[127], typs[127]), nil)
++	typs[129] = newSig(params(typs[65], typs[65]), nil)
++	typs[130] = newSig(params(typs[24], typs[24]), nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index d5e00afcf8..8575148b5b 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -6,6 +6,7 @@
+ // to update builtin.go. This is not done automatically
+ // to avoid depending on having a working compiler binary.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package runtime
+@@ -224,9 +225,10 @@ func uint32tofloat64(uint32) float64
+ 
+ func complex128div(num complex128, den complex128) (quo complex128)
+ 
++func getcallerpc() uintptr
++
+ // race detection
+ func racefuncenter(uintptr)
+-func racefuncenterfp()
+ func racefuncexit()
+ func raceread(uintptr)
+ func racewrite(uintptr)
+diff --git a/src/cmd/compile/internal/walk/race.go b/src/cmd/compile/internal/walk/race.go
+index 47cd2fdc22..859e5c57f0 100644
+--- a/src/cmd/compile/internal/walk/race.go
++++ b/src/cmd/compile/internal/walk/race.go
+@@ -7,11 +7,8 @@ package walk
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/ssagen"
+-	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"cmd/internal/sys"
+ )
+ 
+ func instrument(fn *ir.Func) {
+@@ -26,26 +23,12 @@ func instrument(fn *ir.Func) {
+ 	if base.Flag.Race {
+ 		lno := base.Pos
+ 		base.Pos = src.NoXPos
+-		if ssagen.Arch.LinkArch.Arch.Family != sys.AMD64 {
+-			fn.Enter.Prepend(mkcallstmt("racefuncenterfp"))
+-			fn.Exit.Append(mkcallstmt("racefuncexit"))
+-		} else {
+-
+-			// nodpc is the PC of the caller as extracted by
+-			// getcallerpc. We use -widthptr(FP) for x86.
+-			// This only works for amd64. This will not
+-			// work on arm or others that might support
+-			// race in the future.
+-
+-			nodpc := ir.NewNameAt(src.NoXPos, typecheck.Lookup(".fp"))
+-			nodpc.Class = ir.PPARAM
+-			nodpc.SetUsed(true)
+-			nodpc.SetType(types.Types[types.TUINTPTR])
+-			nodpc.SetFrameOffset(int64(-types.PtrSize))
+-			fn.Dcl = append(fn.Dcl, nodpc)
+-			fn.Enter.Prepend(mkcallstmt("racefuncenter", nodpc))
+-			fn.Exit.Append(mkcallstmt("racefuncexit"))
++		var init ir.Nodes
++		fn.Enter.Prepend(mkcallstmt("racefuncenter", mkcall("getcallerpc", types.Types[types.TUINTPTR], &init)))
++		if len(init) != 0 {
++			base.Fatalf("race walk: unexpected init for getcallerpc")
+ 		}
++		fn.Exit.Append(mkcallstmt("racefuncexit"))
+ 		base.Pos = lno
+ 	}
+ }

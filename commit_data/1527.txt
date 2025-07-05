@@ -7,7 +7,7 @@ Date:   Tue Jan 20 15:22:33 2009 -0800
     R=r
     OCL=23134
     CL=23134
-
+---
  usr/gri/pretty/ast.go         |   7 ++-
  usr/gri/pretty/compilation.go |   3 +-
  usr/gri/pretty/parser.go      | 115 +++++++++---------------------------------
@@ -17,3 +17,435 @@ Date:   Tue Jan 20 15:22:33 2009 -0800
  usr/gri/pretty/test.sh        |   5 +-
  usr/gri/pretty/typechecker.go |   1 -
  8 files changed, 35 insertions(+), 115 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 1790a08510..788ac74b14 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -387,7 +387,6 @@ var BadStat = NewStat(0, Scanner.ILLEGAL);
+ 
+ type Decl struct {
+ 	Node;
+-	Exported bool;
+ 	Ident *Expr;  // nil for ()-style declarations
+ 	Typ *Type;
+ 	Val *Expr;
+@@ -397,14 +396,14 @@ type Decl struct {
+ }
+ 
+ 
+-func NewDecl(pos, tok int, exported bool) *Decl {
++func NewDecl(pos, tok int) *Decl {
+ 	d := new(Decl);
+-	d.Pos, d.Tok, d.Exported = pos, tok, exported;
++	d.Pos, d.Tok = pos, tok;
+ 	return d;
+ }
+ 
+ 
+-var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
++var BadDecl = NewDecl(0, Scanner.ILLEGAL);
+ 
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index cb4d62aa36..725c6fa509 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -30,7 +30,6 @@ type Flags struct {
+ 	Columns bool;
+ 	Testmode bool;
+ 	Tokenchan bool;
+-	Naming bool;
+ }
+ 
+ 
+@@ -136,7 +135,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	}
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, flags.Naming, &scanner, tstream);
++	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner, tstream);
+ 
+ 	prog := parser.ParseProgram();
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 10355e878e..38c87bf284 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -13,7 +13,7 @@ import (
+ 
+ type Parser struct {
+ 	// Tracing/debugging
+-	verbose, sixg, deps, naming bool;
++	verbose, sixg, deps bool;
+ 	indent uint;
+ 
+ 	// Scanner
+@@ -109,11 +109,10 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(verbose, sixg, deps, naming bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
++func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+ 	P.verbose = verbose;
+ 	P.sixg = sixg;
+ 	P.deps = deps;
+-	P.naming = naming;
+ 	P.indent = 0;
+ 
+ 	P.scanner = scanner;
+@@ -192,33 +191,6 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
+ }
+ 
+ 
+-func (P *Parser) VerifyExport1(p *AST.Expr, exported bool) {
+-	obj := p.Obj;
+-	if exported {
+-		if !obj.IsExported() {
+-			P.Error(obj.Pos, `"` + obj.Ident + `" should be uppercase`);
+-		}
+-	} else if P.scope_lev == 0 {
+-		if obj.IsExported() {
+-			P.Error(obj.Pos, `"` + obj.Ident + `" should be lowercase`);
+-		}
+-	}
+-}
+-
+-
+-func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
+-	if !P.naming {
+-		return;
+-	}
+-	for p.Tok == Scanner.COMMA {
+-		P.VerifyExport1(p.X, exported);
+-		p = p.Y;
+-	}
+-	P.VerifyExport1(p, exported);
+-}
+-
+-
+-
+ // ----------------------------------------------------------------------------
+ // AST support
+ 
+@@ -1500,7 +1472,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 	P.Trace("ImportSpec");
+ 
+-	d := AST.NewDecl(pos, Scanner.IMPORT, false);
++	d := AST.NewDecl(pos, Scanner.IMPORT);
+ 	if P.tok == Scanner.PERIOD {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+ 		P.Next();
+@@ -1526,10 +1498,10 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ }
+ 
+ 
+-func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
++func (P *Parser) ParseConstSpec(pos int) *AST.Decl {
+ 	P.Trace("ConstSpec");
+ 
+-	d := AST.NewDecl(pos, Scanner.CONST, exported);
++	d := AST.NewDecl(pos, Scanner.CONST);
+ 	d.Ident = P.ParseIdentList();
+ 	d.Typ = P.TryType();
+ 	if P.tok == Scanner.ASSIGN {
+@@ -1538,32 +1510,29 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 	}
+ 
+ 	P.Declare(d.Ident, AST.CONST);
+-	P.VerifyExport(d.Ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+ }
+ 
+ 
+-func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
++func (P *Parser) ParseTypeSpec(pos int) *AST.Decl {
+ 	P.Trace("TypeSpec");
+ 
+-	d := AST.NewDecl(pos, Scanner.TYPE, exported);
++	d := AST.NewDecl(pos, Scanner.TYPE);
+ 	d.Ident = P.ParseIdent(nil);
+ 	d.Typ = P.ParseType();
+ 	P.opt_semi = true;
+ 
+-	P.VerifyExport(d.Ident, exported);
+-
+ 	P.Ecart();
+ 	return d;
+ }
+ 
+ 
+-func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
++func (P *Parser) ParseVarSpec(pos int) *AST.Decl {
+ 	P.Trace("VarSpec");
+ 
+-	d := AST.NewDecl(pos, Scanner.VAR, exported);
++	d := AST.NewDecl(pos, Scanner.VAR);
+ 	d.Ident = P.ParseIdentList();
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+@@ -1577,7 +1546,6 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 	}
+ 
+ 	P.Declare(d.Ident, AST.VAR);
+-	P.VerifyExport(d.Ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1585,19 +1553,19 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 
+ 
+ // TODO replace this by using function pointers derived from methods
+-func (P *Parser) ParseSpec(exported bool, pos int, keyword int) *AST.Decl {
++func (P *Parser) ParseSpec(pos int, keyword int) *AST.Decl {
+ 	switch keyword {
+ 	case Scanner.IMPORT: return P.ParseImportSpec(pos);
+-	case Scanner.CONST: return P.ParseConstSpec(exported, pos);
+-	case Scanner.TYPE: return P.ParseTypeSpec(exported, pos);
+-	case Scanner.VAR: return P.ParseVarSpec(exported, pos);
++	case Scanner.CONST: return P.ParseConstSpec(pos);
++	case Scanner.TYPE: return P.ParseTypeSpec(pos);
++	case Scanner.VAR: return P.ParseVarSpec(pos);
+ 	}
+ 	panic("UNREACHABLE");
+ 	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
++func (P *Parser) ParseDecl(keyword int) *AST.Decl {
+ 	P.Trace("Decl");
+ 
+ 	d := AST.BadDecl;
+@@ -1605,10 +1573,10 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 	P.Expect(keyword);
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+-		d = AST.NewDecl(pos, keyword, exported);
++		d = AST.NewDecl(pos, keyword);
+ 		d.List = array.New(0);
+ 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+-			d.List.Push(P.ParseSpec(exported, pos, keyword));
++			d.List.Push(P.ParseSpec(pos, keyword));
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.Next();
+ 			} else {
+@@ -1620,7 +1588,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 		P.opt_semi = true;
+ 
+ 	} else {
+-		d = P.ParseSpec(exported, pos, keyword);
++		d = P.ParseSpec(pos, keyword);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1637,10 +1605,10 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ // func (recv) ident (params) type
+ // func (recv) ident (params) (results)
+ 
+-func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
++func (P *Parser) ParseFunctionDecl() *AST.Decl {
+ 	P.Trace("FunctionDecl");
+ 
+-	d := AST.NewDecl(P.pos, Scanner.FUNC, exported);
++	d := AST.NewDecl(P.pos, Scanner.FUNC);
+ 	P.Expect(Scanner.FUNC);
+ 
+ 	var recv *AST.Type;
+@@ -1662,21 +1630,6 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 		P.scope_lev--;
+ 	}
+ 
+-	if recv == nil || exported {
+-		P.VerifyExport(d.Ident, exported);
+-	}
+-
+-	P.Ecart();
+-	return d;
+-}
+-
+-
+-func (P *Parser) ParseExportDecl() *AST.Decl {
+-	P.Trace("ExportDecl");
+-
+-	d := AST.NewDecl(P.pos, Scanner.EXPORT, false);
+-	d.Ident = P.ParseIdentList();
+-
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1687,35 +1640,15 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
+ 	indent := P.indent;
+ 
+ 	d := AST.BadDecl;
+-	exported := false;
+-	// TODO don't use bool flag for export
+-	if P.tok == Scanner.EXPORT || P.tok == Scanner.PACKAGE {
+-		if P.scope_lev == 0 {
+-			exported = true;
+-		} else {
+-			P.Error(P.pos, "local declarations cannot be exported");
+-		}
+-		P.Next();
+-	}
+ 
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+-		d = P.ParseDecl(exported, P.tok);
++		d = P.ParseDecl(P.tok);
+ 	case Scanner.FUNC:
+-		d = P.ParseFunctionDecl(exported);
+-	case Scanner.EXPORT:
+-		if exported {
+-			P.Error(P.pos, "cannot mark export declaration for export");
+-		}
+-		P.Next();
+-		d = P.ParseExportDecl();
++		d = P.ParseFunctionDecl();
+ 	default:
+-		if exported && (P.tok == Scanner.IDENT || P.tok == Scanner.LPAREN) {
+-			d = P.ParseExportDecl();
+-		} else {
+-			P.Error(P.pos, "declaration expected");
+-			P.Next();  // make progress
+-		}
++		P.Error(P.pos, "declaration expected");
++		P.Next();  // make progress
+ 	}
+ 
+ 	if indent != P.indent {
+@@ -1741,7 +1674,7 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 	{	P.OpenScope();
+ 		p.Decls = array.New(0);
+ 		for P.tok == Scanner.IMPORT {
+-			p.Decls.Push(P.ParseDecl(false, Scanner.IMPORT));
++			p.Decls.Push(P.ParseDecl(Scanner.IMPORT));
+ 			P.OptSemicolon();
+ 		}
+ 		if !P.deps {
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 94233ee44d..e483d14dee 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -25,7 +25,6 @@ func init() {
+ 	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
+ 	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+ 	Flag.BoolVar(&flags.Tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+-	Flag.BoolVar(&flags.Naming, "naming", false, "verify export naming scheme");
+ }
+ 
+ 
+@@ -55,7 +54,7 @@ func main() {
+ 			if nerrors > 0 {
+ 				return;
+ 			}
+-			if !flags.Naming && !*silent && !flags.Testmode {
++			if !*silent && !flags.Testmode {
+ 				Printer.Print(prog);
+ 			}
+ 		}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index e502ee0b36..25ac9cd67b 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -791,10 +791,6 @@ func (P *Printer) Stat(s *AST.Stat) {
+ 
+ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 	if !parenthesized {
+-		if d.Exported {
+-			P.String(d.Pos, "export");
+-			P.separator = blank;
+-		}
+ 		P.Token(d.Pos, d.Tok);
+ 		P.separator = blank;
+ 	}
+@@ -827,10 +823,6 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 			P.Expr(d.Val);
+ 			P.separator = semicolon;
+ 
+-		case Scanner.EXPORT:
+-			P.Expr(d.Ident);
+-			P.separator = semicolon;
+-
+ 		case Scanner.TYPE:
+ 			P.Expr(d.Ident);
+ 			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 617460bca8..fda7c541ef 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -76,7 +76,7 @@ const (
+ 	PERIOD;
+ 
+ 	// keywords
+-	Keywords_beg;  // do not export eventually
++	keywords_beg;
+ 	BREAK;
+ 	CASE;
+ 	CHAN;
+@@ -85,7 +85,6 @@ const (
+ 
+ 	DEFAULT;
+ 	ELSE;
+-	EXPORT;
+ 	FALLTHROUGH;
+ 	FOR;
+ 
+@@ -106,7 +105,7 @@ const (
+ 	SWITCH;
+ 	TYPE;
+ 	VAR;
+-	Keywords_end;  // do not export eventually
++	keywords_end;
+ 
+ 	// AST use only
+ 	EXPRSTAT;
+@@ -187,7 +186,6 @@ func TokenString(tok int) string {
+ 
+ 	case DEFAULT: return "default";
+ 	case ELSE: return "else";
+-	case EXPORT: return "export";
+ 	case FALLTHROUGH: return "fallthrough";
+ 	case FOR: return "for";
+ 
+@@ -249,7 +247,7 @@ var keywords map [string] int;
+ 
+ func init() {
+ 	keywords = make(map [string] int);
+-	for i := Keywords_beg + 1; i < Keywords_end; i++ {
++	for i := keywords_beg + 1; i < keywords_end; i++ {
+ 		keywords[TokenString(i)] = i;
+ 	}
+ }
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 12a55350d3..03b8a917c8 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -24,8 +24,9 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	# files with errors (skip them)
+-	method1.go | selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+-	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
++	method1.go | selftest1.go | func3.go | \
++	bug014.go | bug025.go | bug029.go | bug032.go | bug050.go |  bug068.go | \
++	bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
+ 	* ) $1 $2; count $F;;
+ 	esac
+ }
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index 9835ffbe48..7bdd41758e 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -64,7 +64,6 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
+ 		// single declaration
+ 		switch d.Tok {
+ 		case Scanner.IMPORT:
+-		case Scanner.EXPORT:
+ 		case Scanner.CONST:
+ 		case Scanner.VAR:
+ 		case Scanner.TYPE:

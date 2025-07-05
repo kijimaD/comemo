@@ -12,6 +12,30 @@ Date:   Wed Dec 15 20:03:11 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cb57aa301c..ed98f5375f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
+-	"Subtitle": "Version of Dec 13, 2021",
++	"Subtitle": "Version of Dec 16, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1532,7 +1532,9 @@ interface {
+ <p>
+ Implementation restriction:
+ A union with more than one term cannot contain interface types
+-with non-empty <a href="#Method_sets">method sets</a>.
++with non-empty <a href="#Method_sets">method sets</a> or which
++are or embed the <a href="#Predeclared_identifiers">predeclared identifier</a>
++<code>comparable</code>.
+ </p>
+ 
+ <p>

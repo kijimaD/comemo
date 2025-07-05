@@ -14,6 +14,25 @@ Date:   Tue Oct 5 10:48:24 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/xcoff.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index b57ccb4fe0..aba6138c83 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -822,9 +822,12 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
+ 		}
+ 	}
+ 
++	name = ldr.SymExtname(x)
++	name = mangleABIName(ctxt, ldr, x, name)
++
+ 	s := &XcoffSymEnt64{
+ 		Nsclass: C_EXT,
+-		Noffset: uint32(xfile.stringTable.add(ldr.SymExtname(x))),
++		Noffset: uint32(xfile.stringTable.add(name)),
+ 		Nvalue:  uint64(ldr.SymValue(x)),
+ 		Nscnum:  f.getXCOFFscnum(ldr.SymSect(x)),
+ 		Ntype:   SYM_TYPE_FUNC,

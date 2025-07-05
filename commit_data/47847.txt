@@ -13,9 +13,99 @@ Date:   Tue Apr 13 16:33:42 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go   |  1 +
  src/cmd/compile/internal/types2/check.go      |  2 --
  src/cmd/compile/internal/types2/type.go       | 13 +++++++++++--
  src/cmd/compile/internal/types2/types_test.go |  8 ++++++++
  4 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 9d31fef69b..b3b16131ce 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -349,6 +349,7 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
++		ResetId() // avoid renumbering of type parameter ids when adding tests
+ 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
+ 		var name string
+ 		if strings.HasPrefix(test.src, brokenPkg) {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 7703d98fa6..66637459e7 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -83,7 +83,6 @@ type Checker struct {
+ 	pkg  *Package
+ 	*Info
+ 	version version                     // accepted language version
+-	nextId  uint64                      // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+ 	posMap  map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
+@@ -178,7 +177,6 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		pkg:     pkg,
+ 		Info:    info,
+ 		version: version,
+-		nextId:  1,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+ 		posMap:  make(map[*Interface][]syntax.Pos),
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 277ed06026..daa00ddd3a 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -7,6 +7,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"sync/atomic"
+ )
+ 
+ // A Type represents a type of Go.
+@@ -718,6 +719,15 @@ func (t *Named) AddMethod(m *Func) {
+ 	}
+ }
+ 
++// Note: This is a uint32 rather than a uint64 because the
++// respective 64 bit atomic instructions are not available
++// on all platforms.
++var lastId uint32
++
++// nextId returns a value increasing monotonically by 1 with
++// each call, starting with 1. It may be called concurrently.
++func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
++
+ // A TypeParam represents a type parameter type.
+ type TypeParam struct {
+ 	check *Checker  // for lazy type bound completion
+@@ -733,8 +743,7 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
+ // NewTypeParam returns a new TypeParam.
+ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+ 	assert(bound != nil)
+-	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
+-	check.nextId++
++	typ := &TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+diff --git a/src/cmd/compile/internal/types2/types_test.go b/src/cmd/compile/internal/types2/types_test.go
+index 11dca0b53d..096402148d 100644
+--- a/src/cmd/compile/internal/types2/types_test.go
++++ b/src/cmd/compile/internal/types2/types_test.go
+@@ -4,6 +4,14 @@
+ 
+ package types2
+ 
++import "sync/atomic"
++
+ func init() {
+ 	acceptMethodTypeParams = true
+ }
++
++// Upon calling ResetId, nextId starts with 1 again.
++// It may be called concurrently. This is only needed
++// for tests where we may want to have a consistent
++// numbering for each individual test case.
++func ResetId() { atomic.StoreUint32(&lastId, 0) }

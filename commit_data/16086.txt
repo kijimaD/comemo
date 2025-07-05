@@ -7,7 +7,32 @@ Date:   Wed Apr 3 16:41:53 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8351043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4217c998d0..917259533f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -18,6 +18,7 @@ Alex Brainman <alex.brainman@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
++Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 19bcaea520..d614b8daba 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -46,6 +46,7 @@ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
+ Alexandru Moșoi <brtzsnr@gmail.com>
++Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>

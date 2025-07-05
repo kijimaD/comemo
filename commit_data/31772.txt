@@ -11,8 +11,109 @@ Date:   Wed Mar 15 11:27:26 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteAMD64.go |  8 +++----
  test/fixedbugs/issue19555.go                 | 36 ++++++++++++++++++++++++++++
  3 files changed, 42 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3e68a2a732..ca760cad15 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1406,11 +1406,11 @@
+ (CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
+ 
+ // Convert TESTx to TESTxconst if possible.
+-(TESTQ (MOVQconst [c]) x) && c < 1<<31 -> (TESTQconst [c] x)
++(TESTQ (MOVQconst [c]) x) && is32Bit(c) -> (TESTQconst [c] x)
+ (TESTL (MOVLconst [c]) x) -> (TESTLconst [c] x)
+ (TESTW (MOVLconst [c]) x) -> (TESTWconst [c] x)
+ (TESTB (MOVLconst [c]) x) -> (TESTBconst [c] x)
+-(TESTQ x (MOVQconst [c])) && c < 1<<31 -> (TESTQconst [c] x)
++(TESTQ x (MOVQconst [c])) && is32Bit(c) -> (TESTQconst [c] x)
+ (TESTL x (MOVLconst [c])) -> (TESTLconst [c] x)
+ (TESTW x (MOVLconst [c])) -> (TESTWconst [c] x)
+ (TESTB x (MOVLconst [c])) -> (TESTBconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2a7291c502..e581dfe513 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -16360,7 +16360,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (TESTQ (MOVQconst [c]) x)
+-	// cond: c < 1<<31
++	// cond: is32Bit(c)
+ 	// result: (TESTQconst [c] x)
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -16369,7 +16369,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
+ 		}
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+-		if !(c < 1<<31) {
++		if !(is32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64TESTQconst)
+@@ -16378,7 +16378,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (TESTQ x (MOVQconst [c]))
+-	// cond: c < 1<<31
++	// cond: is32Bit(c)
+ 	// result: (TESTQconst [c] x)
+ 	for {
+ 		x := v.Args[0]
+@@ -16387,7 +16387,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(c < 1<<31) {
++		if !(is32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64TESTQconst)
+diff --git a/test/fixedbugs/issue19555.go b/test/fixedbugs/issue19555.go
+new file mode 100644
+index 0000000000..53b2ebde51
+--- /dev/null
++++ b/test/fixedbugs/issue19555.go
+@@ -0,0 +1,36 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type NodeLink struct{}
++
++// A role our end of NodeLink is intended to play
++type LinkRole int64
++
++const (
++	LinkServer LinkRole = iota // link created as server
++	LinkClient                 // link created as client
++
++	// for testing:
++	linkNoRecvSend LinkRole = 1 << 16 // do not spawn serveRecv & serveSend
++	linkFlagsMask  LinkRole = (1<<32 - 1) << 16
++)
++
++func NewNodeLink(role LinkRole) *NodeLink {
++	var nextConnId uint32
++	switch role &^ linkFlagsMask {
++	case LinkServer:
++		nextConnId = 0 // all initiated by us connId will be even
++	case LinkClient:
++		nextConnId = 1 // ----//---- odd
++	default:
++		panic("invalid conn role")
++	}
++
++	_ = nextConnId
++	return nil
++}

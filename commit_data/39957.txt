@@ -10,6 +10,25 @@ Date:   Thu Mar 14 16:33:35 2019 -0400
     Change-Id: If64b75493227b4fd69c0bbb529f84e6df2d1b93f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167709
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/builtin/builtin.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 61ed6100b4..01190e9900 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -226,10 +226,9 @@ func close(c chan<- Type)
+ // invocation of F then behaves like a call to panic, terminating G's
+ // execution and running any deferred functions. This continues until all
+ // functions in the executing goroutine have stopped, in reverse order. At
+-// that point, the program is terminated and the error condition is reported,
+-// including the value of the argument to panic. This termination sequence
+-// is called panicking and can be controlled by the built-in function
+-// recover.
++// that point, the program is terminated with a non-zero exit code. This
++// termination sequence is called panicking and can be controlled by the
++// built-in function recover.
+ func panic(v interface{})
+ 
+ // The recover built-in function allows a program to manage behavior of a

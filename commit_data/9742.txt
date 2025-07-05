@@ -11,7 +11,87 @@ Date:   Mon Sep 19 13:11:24 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5071041
-
+---
  src/cmd/gc/subr.c | 14 +++++++++-----
  test/map1.go      | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9448c3ffe8..b450b9b0e8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -548,9 +548,13 @@ maptype(Type *key, Type *val)
+ {
+ 	Type *t;
+ 
+-
+-	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ) {
+-		if(key->etype == TFORW) {
++	if(key != nil) {
++		switch(key->etype) {
++		case TARRAY:
++		case TSTRUCT:
++			yyerror("invalid map key type %T", key);
++			break;
++		case TFORW:
+ 			// map[key] used during definition of key.
+ 			// postpone check until key is fully defined.
+ 			// if there are multiple uses of map[key]
+@@ -559,8 +563,8 @@ maptype(Type *key, Type *val)
+ 			// good enough.
+ 			if(key->maplineno == 0)
+ 				key->maplineno = lineno;
+-		} else
+-			yyerror("invalid map key type %T", key);
++			break;
++		}
+ 	}
+ 	t = typ(TMAP);
+ 	t->down = key;
+diff --git a/test/map1.go b/test/map1.go
+new file mode 100644
+index 0000000000..3a56cf057d
+--- /dev/null
++++ b/test/map1.go
+@@ -0,0 +1,41 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {}
++
++type v bool
++
++var (
++	// valid
++	_ map[int8]v 
++	_ map[uint8]v 
++	_ map[int16]v 
++	_ map[uint16]v 
++	_ map[int32]v 
++	_ map[uint32]v 
++	_ map[int64]v 
++	_ map[uint64]v 
++	_ map[int]v 
++	_ map[uint]v 
++	_ map[uintptr]v
++	_ map[float32]v
++	_ map[float64]v
++	_ map[complex64]v
++	_ map[complex128]v
++	_ map[bool]v
++	_ map[string]v
++	_ map[chan int]v
++	_ map[func()]v
++	_ map[*int]v
++	_ map[map[int]int]v
++
++	// invalid
++	_ map[struct{}]v // ERROR "invalid map key"
++	_ map[[]int]v  // ERROR "invalid map key"
++	_ map[[10]int]v // ERROR "invalid map key"
++)

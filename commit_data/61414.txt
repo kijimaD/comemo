@@ -20,9 +20,119 @@ Date:   Thu Sep 26 19:11:50 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 +++++++++
  src/cmd/internal/obj/loong64/a.out.go           | 10 +++++++++
  src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
  src/cmd/internal/obj/loong64/asm.go             | 27 +++++++++++++++++++++++++
  4 files changed, 55 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 7638ab1be5..fbfe90a2b0 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -433,3 +433,13 @@ lable2:
+ 	XVMOVQ		-2044(R4), X5   // 8510a02c
+ 	XVMOVQ		y+16(FP), X6    // 0660802c
+ 	XVMOVQ		x+2030(FP), X7  // 07d89f2c
++
++	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
++	VSEQB		V1, V2, V3      // 43040070
++	VSEQH		V1, V2, V3      // 43840070
++	VSEQW		V1, V2, V3      // 43040170
++	VSEQV		V1, V2, V3      // 43840170
++	XVSEQB		X3, X2, X4      // 440c0074
++	XVSEQH		X3, X2, X4      // 448c0074
++	XVSEQW		X3, X2, X4      // 440c0174
++	XVSEQV		X3, X2, X4      // 448c0174
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index e7736a918d..4e4135b017 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -628,6 +628,16 @@ const (
+ 	AVMOVQ
+ 	AXVMOVQ
+ 
++	// LSX and LASX integer comparison instruction
++	AVSEQB
++	AXVSEQB
++	AVSEQH
++	AXVSEQH
++	AVSEQW
++	AXVSEQW
++	AVSEQV
++	AXVSEQV
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index fc5100d595..a316c75522 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -257,5 +257,13 @@ var Anames = []string{
+ 	"FTINTRNEVD",
+ 	"VMOVQ",
+ 	"XVMOVQ",
++	"VSEQB",
++	"XVSEQB",
++	"VSEQH",
++	"XVSEQH",
++	"VSEQW",
++	"XVSEQW",
++	"VSEQV",
++	"XVSEQV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index c59c3576c1..be316ff763 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -85,6 +85,8 @@ var optab = []Optab{
+ 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
+ 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
+ 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
++	{AVSEQB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
++	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+ 
+ 	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+ 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+@@ -1283,6 +1285,15 @@ func buildop(ctxt *obj.Link) {
+ 				}
+ 				opset(i, r0)
+ 			}
++		case AVSEQB:
++			opset(AVSEQH, r0)
++			opset(AVSEQW, r0)
++			opset(AVSEQV, r0)
++
++		case AXVSEQB:
++			opset(AXVSEQH, r0)
++			opset(AXVSEQW, r0)
++			opset(AXVSEQV, r0)
+ 		}
+ 	}
+ }
+@@ -2125,6 +2136,22 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x07088 << 15 // vstx
+ 	case AXVMOVQ:
+ 		return 0x07098 << 15 // xvstx
++	case AVSEQB:
++		return 0x0e000 << 15 // vseq.b
++	case AXVSEQB:
++		return 0x0e800 << 15 // xvseq.b
++	case AVSEQH:
++		return 0x0e001 << 15 // vseq.h
++	case AXVSEQH:
++		return 0x0e801 << 15 // xvseq.h
++	case AVSEQW:
++		return 0x0e002 << 15 // vseq.w
++	case AXVSEQW:
++		return 0x0e802 << 15 // xvseq.w
++	case AVSEQV:
++		return 0x0e003 << 15 // vseq.d
++	case AXVSEQV:
++		return 0x0e803 << 15 // xvseq.d
+ 	}
+ 
+ 	if a < 0 {

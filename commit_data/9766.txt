@@ -16,7 +16,59 @@ Date:   Wed Sep 21 12:36:17 2011 -0300
     R=golang-dev, bradfitz, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5081043
-
+---
  src/pkg/bytes/bytes.go      | 19 ++++++++++++-------
  src/pkg/bytes/bytes_test.go |  8 +++++++-
  2 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 5119fce949..ea6bf5ec20 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -572,13 +572,18 @@ func Runes(s []byte) []int {
+ // non-overlapping instances of old replaced by new.
+ // If n < 0, there is no limit on the number of replacements.
+ func Replace(s, old, new []byte, n int) []byte {
+-	if n == 0 {
+-		return s // avoid allocation
+-	}
+-	// Compute number of replacements.
+-	if m := Count(s, old); m == 0 {
+-		return s // avoid allocation
+-	} else if n <= 0 || m < n {
++	m := 0
++	if n != 0 {
++		// Compute number of replacements.
++		m = Count(s, old)
++	}
++	if m == 0 {
++		// Nothing to do. Just copy.
++		t := make([]byte, len(s))
++		copy(t, s)
++		return t
++	}
++	if n < 0 || m < n {
+ 		n = m
+ 	}
+ 
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 9444358a85..1679279d36 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -829,9 +829,15 @@ var ReplaceTests = []ReplaceTest{
+ 
+ func TestReplace(t *testing.T) {
+ 	for _, tt := range ReplaceTests {
+-		if s := string(Replace([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)); s != tt.out {
++		in := append([]byte(tt.in), []byte("<spare>")...)
++		in = in[:len(tt.in)]
++		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
++		if s := string(out); s != tt.out {
+ 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+ 		}
++		if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
++			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
++		}
+ 	}
+ }
+ 

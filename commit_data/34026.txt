@@ -14,9 +14,71 @@ Date:   Thu Sep 21 19:23:51 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/66373
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go         | 2 +-
  src/crypto/tls/handshake_client_test.go | 2 +-
  src/encoding/json/decode_test.go        | 2 +-
  src/encoding/pem/pem.go                 | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a1413820c7..709790bc3d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -758,7 +758,7 @@ func genhash(ctxt *Link, lib *Library) {
+ 		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
+ 		return
+ 	}
+-	firstEOL := bytes.Index(pkgDefBytes, []byte("\n"))
++	firstEOL := bytes.IndexByte(pkgDefBytes, '\n')
+ 	if firstEOL < 0 {
+ 		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
+ 		return
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index eaef8aa7a1..cc3ab714a6 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -85,7 +85,7 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
+ 	o.all = append(o.all, data...)
+ 
+ 	for {
+-		i := bytes.Index(o.line, []byte{'\n'})
++		i := bytes.IndexByte(o.line, '\n')
+ 		if i < 0 {
+ 			break
+ 		}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index bd38ddd319..5a72f3a7c6 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -88,7 +88,7 @@ func (u unmarshalerText) MarshalText() ([]byte, error) {
+ }
+ 
+ func (u *unmarshalerText) UnmarshalText(b []byte) error {
+-	pos := bytes.Index(b, []byte(":"))
++	pos := bytes.IndexByte(b, ':')
+ 	if pos == -1 {
+ 		return errors.New("missing separator")
+ 	}
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index 5e1ab90cff..887647b570 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -36,7 +36,7 @@ type Block struct {
+ // bytes) is also returned and this will always be smaller than the original
+ // argument.
+ func getLine(data []byte) (line, rest []byte) {
+-	i := bytes.Index(data, []byte{'\n'})
++	i := bytes.IndexByte(data, '\n')
+ 	var j int
+ 	if i < 0 {
+ 		i = len(data)
+@@ -106,7 +106,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 		}
+ 		line, next := getLine(rest)
+ 
+-		i := bytes.Index(line, []byte{':'})
++		i := bytes.IndexByte(line, ':')
+ 		if i == -1 {
+ 			break
+ 		}

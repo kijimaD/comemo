@@ -10,7 +10,38 @@ Date:   Wed Aug 2 12:30:58 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/52852
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/doc.go | 3 +++
  src/cmd/cgo/out.go | 3 ++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index b2388829a8..bed2ab44c7 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -241,7 +241,10 @@ They will be available in the C code as:
+ found in the _cgo_export.h generated header, after any preambles
+ copied from the cgo input files. Functions with multiple
+ return values are mapped to functions returning a struct.
++
+ Not all Go types can be mapped to C types in a useful way.
++Go struct types are not supported; use a C struct type.
++Go array types are not supported; use a C pointer.
+ 
+ Using //export in a file places a restriction on the preamble:
+ since it is copied into two different C output files, it must not
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 9ab6bd8f97..228f981c94 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1223,8 +1223,9 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			// Slice: pointer, len, cap.
+ 			return &Type{Size: p.PtrSize * 3, Align: p.PtrSize, C: c("GoSlice")}
+ 		}
++		// Non-slice array types are not supported.
+ 	case *ast.StructType:
+-		// TODO
++		// Not supported.
+ 	case *ast.FuncType:
+ 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
+ 	case *ast.InterfaceType:

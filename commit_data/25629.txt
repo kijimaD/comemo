@@ -12,6 +12,21 @@ Date:   Thu Nov 12 12:24:36 2015 -0500
     Change-Id: I4fb9287b698f4a3b90b8af9fc6a2efb3b082bfe5
     Reviewed-on: https://go-review.googlesource.com/16848
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  test/heapsampling.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/heapsampling.go b/test/heapsampling.go
+index ed9208c1f4..c00b866680 100644
+--- a/test/heapsampling.go
++++ b/test/heapsampling.go
+@@ -92,6 +92,9 @@ func checkValue(fname string, ln int, name string, want, got int64) {
+ 
+ func getMemProfileRecords() []runtime.MemProfileRecord {
+ 	// Force the runtime to update the object and byte counts.
++	// This can take up to two GC cycles to get a complete
++	// snapshot of the current point in time.
++	runtime.GC()
+ 	runtime.GC()
+ 
+ 	// Find out how many records there are (MemProfile(nil, true)),

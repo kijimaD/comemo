@@ -15,6 +15,31 @@ Date:   Wed Mar 23 18:57:16 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm64/asm.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index abae0f87bc..229a4d300b 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -1146,7 +1146,8 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
+ 		if !ldr.AttrReachable(s) {
+ 			continue
+ 		}
+-		if ldr.SymType(s) == sym.STEXT {
++		t := ldr.SymType(s)
++		if t == sym.STEXT {
+ 			if ctxt.IsDarwin() || ctxt.IsWindows() {
+ 				// Cannot relocate into middle of function.
+ 				// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
+@@ -1159,6 +1160,9 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
+ 			}
+ 			continue // we don't target the middle of other functions
+ 		}
++		if t >= sym.SDWARFSECT {
++			continue // no need to add label for DWARF symbols
++		}
+ 		sz := ldr.SymSize(s)
+ 		if sz <= limit {
+ 			continue

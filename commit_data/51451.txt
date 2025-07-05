@@ -12,7 +12,34 @@ Date:   Tue Feb 1 09:56:41 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/workcmd/work.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9dd41a8078..8e13a0f653 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1379,7 +1379,7 @@
+ // builds from local modules.
+ //
+ // go.work files are line-oriented. Each line holds a single directive,
+-// made up of a keyword followed by aruments. For example:
++// made up of a keyword followed by arguments. For example:
+ //
+ // 	go 1.18
+ //
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+index 5bb0a2e8ba..d3cc250231 100644
+--- a/src/cmd/go/internal/workcmd/work.go
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -27,7 +27,7 @@ workspace that does not specify modules to be used cannot be used to do
+ builds from local modules.
+ 
+ go.work files are line-oriented. Each line holds a single directive,
+-made up of a keyword followed by aruments. For example:
++made up of a keyword followed by arguments. For example:
+ 
+ 	go 1.18
+ 

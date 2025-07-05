@@ -10,7 +10,91 @@ Date:   Tue Feb 4 10:19:02 2014 -0800
     R=golang-codereviews, gobot, gri
     CC=golang-codereviews
     https://golang.org/cl/53310044
-
+---
  src/pkg/text/tabwriter/tabwriter.go      | 12 +++++++----
  src/pkg/text/tabwriter/tabwriter_test.go | 37 ++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index 722ac8d877..c0c32d5dec 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -434,9 +434,13 @@ func (b *Writer) terminateCell(htab bool) int {
+ 	return len(*line)
+ }
+ 
+-func handlePanic(err *error) {
++func handlePanic(err *error, op string) {
+ 	if e := recover(); e != nil {
+-		*err = e.(osError).err // re-panics if it's not a local osError
++		if nerr, ok := e.(osError); ok {
++			*err = nerr.err
++			return
++		}
++		panic("tabwriter: panic during " + op)
+ 	}
+ }
+ 
+@@ -447,7 +451,7 @@ func handlePanic(err *error) {
+ //
+ func (b *Writer) Flush() (err error) {
+ 	defer b.reset() // even in the presence of errors
+-	defer handlePanic(&err)
++	defer handlePanic(&err, "Flush")
+ 
+ 	// add current cell if not empty
+ 	if b.cell.size > 0 {
+@@ -471,7 +475,7 @@ var hbar = []byte("---\n")
+ // while writing to the underlying output stream.
+ //
+ func (b *Writer) Write(buf []byte) (n int, err error) {
+-	defer handlePanic(&err)
++	defer handlePanic(&err, "Write")
+ 
+ 	// split text into cells
+ 	n = 0
+diff --git a/src/pkg/text/tabwriter/tabwriter_test.go b/src/pkg/text/tabwriter/tabwriter_test.go
+index b0526a03f7..9d3111e2c2 100644
+--- a/src/pkg/text/tabwriter/tabwriter_test.go
++++ b/src/pkg/text/tabwriter/tabwriter_test.go
+@@ -613,3 +613,40 @@ func Test(t *testing.T) {
+ 		check(t, e.testname, e.minwidth, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected)
+ 	}
+ }
++
++type panicWriter struct{}
++
++func (panicWriter) Write([]byte) (int, error) {
++	panic("cannot write")
++}
++
++func wantPanicString(t *testing.T, want string) {
++	if e := recover(); e != nil {
++		got, ok := e.(string)
++		switch {
++		case !ok:
++			t.Errorf("got %v (%T), want panic string", e, e)
++		case got != want:
++			t.Errorf("wrong panic message: got %q, want %q", got, want)
++		}
++	}
++}
++
++func TestPanicDuringFlush(t *testing.T) {
++	defer wantPanicString(t, "tabwriter: panic during Flush")
++	var p panicWriter
++	w := new(Writer)
++	w.Init(p, 0, 0, 5, ' ', 0)
++	io.WriteString(w, "a")
++	w.Flush()
++	t.Errorf("failed to panic during Flush")
++}
++
++func TestPanicDuringWrite(t *testing.T) {
++	defer wantPanicString(t, "tabwriter: panic during Write")
++	var p panicWriter
++	w := new(Writer)
++	w.Init(p, 0, 0, 5, ' ', 0)
++	io.WriteString(w, "a\n\n") // the second \n triggers a call to w.Write and thus a panic
++	t.Errorf("failed to panic during Write")
++}

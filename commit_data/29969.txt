@@ -10,6 +10,35 @@ Date:   Tue Oct 18 09:37:54 2016 -0400
     Change-Id: I4e94f606df786af8143f8649c9afde570f346301
     Reviewed-on: https://go-review.googlesource.com/31353
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/get.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 01b4e015d2..4f7562b43d 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -98,6 +98,23 @@ func runGet(cmd *Command, args []string) {
+ 		os.Setenv("GIT_TERMINAL_PROMPT", "0")
+ 	}
+ 
++	// Disable any ssh connection pooling by Git.
++	// If a Git subprocess forks a child into the background to cache a new connection,
++	// that child keeps stdout/stderr open. After the Git subprocess exits,
++	// os /exec expects to be able to read from the stdout/stderr pipe
++	// until EOF to get all the data that the Git subprocess wrote before exiting.
++	// The EOF doesn't come until the child exits too, because the child
++	// is holding the write end of the pipe.
++	// This is unfortunate, but it has come up at least twice
++	// (see golang.org/issue/13453 and golang.org/issue/16104)
++	// and confuses users when it does.
++	// If the user has explicitly set GIT_SSH or GIT_SSH_COMMAND,
++	// assume they know what they are doing and don't step on it.
++	// But default to turning off ControlMaster.
++	if os.Getenv("GIT_SSH") == "" && os.Getenv("GIT_SSH_COMMAND") == "" {
++		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
++	}
++
+ 	// Phase 1.  Download/update.
+ 	var stk importStack
+ 	mode := 0

@@ -23,7 +23,124 @@ Date:   Thu Oct 7 12:21:01 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/debug/gosym/symtab.go      | 53 +++++++++++++++++++++++++++++++++++++-----
  src/debug/gosym/symtab_test.go | 19 +++++++++++++++
  2 files changed, 66 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index 00701c2875..72490dca8a 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -32,10 +32,28 @@ type Sym struct {
+ // Static reports whether this symbol is static (not visible outside its file).
+ func (s *Sym) Static() bool { return s.Type >= 'a' }
+ 
++// nameWithoutInst returns s.Name if s.Name has no brackets (does not reference an
++// instantiated type, function, or method). If s.Name contains brackets, then it
++// returns s.Name with all the contents between (and including) the outermost left
++// and right bracket removed. This is useful to ignore any extra slashes or dots
++// inside the brackets from the string searches below, where needed.
++func (s *Sym) nameWithoutInst() string {
++	start := strings.Index(s.Name, "[")
++	if start < 0 {
++		return s.Name
++	}
++	end := strings.LastIndex(s.Name, "]")
++	if end < 0 {
++		// Malformed name, should contain closing bracket too.
++		return s.Name
++	}
++	return s.Name[0:start] + s.Name[end+1:]
++}
++
+ // PackageName returns the package part of the symbol name,
+ // or the empty string if there is none.
+ func (s *Sym) PackageName() string {
+-	name := s.Name
++	name := s.nameWithoutInst()
+ 
+ 	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
+ 	// See variable reservedimports in cmd/compile/internal/gc/subr.go
+@@ -55,23 +73,46 @@ func (s *Sym) PackageName() string {
+ }
+ 
+ // ReceiverName returns the receiver type name of this symbol,
+-// or the empty string if there is none.
++// or the empty string if there is none.  A receiver name is only detected in
++// the case that s.Name is fully-specified with a package name.
+ func (s *Sym) ReceiverName() string {
+-	pathend := strings.LastIndex(s.Name, "/")
++	name := s.nameWithoutInst()
++	// If we find a slash in name, it should precede any bracketed expression
++	// that was removed, so pathend will apply correctly to name and s.Name.
++	pathend := strings.LastIndex(name, "/")
+ 	if pathend < 0 {
+ 		pathend = 0
+ 	}
+-	l := strings.Index(s.Name[pathend:], ".")
+-	r := strings.LastIndex(s.Name[pathend:], ".")
++	// Find the first dot after pathend (or from the beginning, if there was
++	// no slash in name).
++	l := strings.Index(name[pathend:], ".")
++	// Find the last dot after pathend (or the beginnng).
++	r := strings.LastIndex(name[pathend:], ".")
+ 	if l == -1 || r == -1 || l == r {
++		// There is no receiver if we didn't find two distinct dots after pathend.
+ 		return ""
+ 	}
++	// Given there is a trailing '.' that is in name, find it now in s.Name.
++	// pathend+l should apply to s.Name, because it should be the dot in the
++	// package name.
++	r = strings.LastIndex(s.Name[pathend:], ".")
+ 	return s.Name[pathend+l+1 : pathend+r]
+ }
+ 
+ // BaseName returns the symbol name without the package or receiver name.
+ func (s *Sym) BaseName() string {
+-	if i := strings.LastIndex(s.Name, "."); i != -1 {
++	name := s.nameWithoutInst()
++	if i := strings.LastIndex(name, "."); i != -1 {
++		if s.Name != name {
++			brack := strings.Index(s.Name, "[")
++			if i > brack {
++				// BaseName is a method name after the brackets, so
++				// recalculate for s.Name. Otherwise, i applies
++				// correctly to s.Name, since it is before the
++				// brackets.
++				i = strings.LastIndex(s.Name, ".")
++			}
++		}
+ 		return s.Name[i+1:]
+ 	}
+ 	return s.Name
+diff --git a/src/debug/gosym/symtab_test.go b/src/debug/gosym/symtab_test.go
+index b6ed8f554c..da3c21209d 100644
+--- a/src/debug/gosym/symtab_test.go
++++ b/src/debug/gosym/symtab_test.go
+@@ -33,6 +33,25 @@ func TestStandardLibPathPackage(t *testing.T) {
+ 	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
+ }
+ 
++func TestGenericNames(t *testing.T) {
++	s1 := Sym{Name: "main.set[int]"}
++	s2 := Sym{Name: "main.(*value[int]).get"}
++	s3 := Sym{Name: "a/b.absDifference[c/d.orderedAbs[float64]]"}
++	s4 := Sym{Name: "main.testfunction[.shape.int]"}
++	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "main")
++	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "main")
++	assertString(t, fmt.Sprintf("package of %q", s3.Name), s3.PackageName(), "a/b")
++	assertString(t, fmt.Sprintf("package of %q", s4.Name), s4.PackageName(), "main")
++	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "")
++	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "(*value[int])")
++	assertString(t, fmt.Sprintf("receiver of %q", s3.Name), s3.ReceiverName(), "")
++	assertString(t, fmt.Sprintf("receiver of %q", s4.Name), s4.ReceiverName(), "")
++	assertString(t, fmt.Sprintf("base of %q", s1.Name), s1.BaseName(), "set[int]")
++	assertString(t, fmt.Sprintf("base of %q", s2.Name), s2.BaseName(), "get")
++	assertString(t, fmt.Sprintf("base of %q", s3.Name), s3.BaseName(), "absDifference[c/d.orderedAbs[float64]]")
++	assertString(t, fmt.Sprintf("base of %q", s4.Name), s4.BaseName(), "testfunction[.shape.int]")
++}
++
+ func TestRemotePackage(t *testing.T) {
+ 	s1 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.(*FlagSet).PrintDefaults"}
+ 	s2 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.PrintDefaults"}

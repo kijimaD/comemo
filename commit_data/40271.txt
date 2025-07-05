@@ -15,6 +15,19 @@ Date:   Tue Apr 30 19:57:46 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e47f25dce6..560b19b680 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -666,6 +666,7 @@ func runInstall(dir string, ch chan struct{}) {
+ 		if goldflags != "" {
+ 			link = append(link, goldflags)
+ 		}
++		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
+ 		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
+ 		targ = len(link) - 1
+ 	}

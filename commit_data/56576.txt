@@ -23,7 +23,76 @@ Date:   Tue May 16 15:16:06 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/slices/slices.go      |  6 ++----
  src/slices/slices_test.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 3c1dfac3dd..837863bacc 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -98,8 +98,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ 		// the slice up to the next storage class.
+ 		// This is what Grow does but we don't call Grow because
+ 		// that might copy the values twice.
+-		s2 := append(S(nil), make(S, n+m)...)
+-		copy(s2, s[:i])
++		s2 := append(s[:i], make(S, n+m-i)...)
+ 		copy(s2[i:], v)
+ 		copy(s2[i+m:], s[i:])
+ 		return s2
+@@ -219,8 +218,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 	tot := len(s[:i]) + len(v) + len(s[j:])
+ 	if tot > cap(s) {
+ 		// Too big to fit, allocate and copy over.
+-		s2 := append(S(nil), make(S, tot)...) // See Insert
+-		copy(s2, s[:i])
++		s2 := append(s[:i], make(S, tot-i)...) // See Insert
+ 		copy(s2[i:], v)
+ 		copy(s2[i+len(v):], s[j:])
+ 		return s2
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index c13a67c2d4..2f3a03bd9f 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -781,3 +781,39 @@ func TestRotate(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestInsertGrowthRate(t *testing.T) {
++	b := make([]byte, 1)
++	maxCap := cap(b)
++	nGrow := 0
++	const N = 1e6
++	for i := 0; i < N; i++ {
++		b = Insert(b, len(b)-1, 0)
++		if cap(b) > maxCap {
++			maxCap = cap(b)
++			nGrow++
++		}
++	}
++	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
++	if nGrow > want {
++		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
++	}
++}
++
++func TestReplaceGrowthRate(t *testing.T) {
++	b := make([]byte, 2)
++	maxCap := cap(b)
++	nGrow := 0
++	const N = 1e6
++	for i := 0; i < N; i++ {
++		b = Replace(b, len(b)-2, len(b)-1, 0, 0)
++		if cap(b) > maxCap {
++			maxCap = cap(b)
++			nGrow++
++		}
++	}
++	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
++	if nGrow > want {
++		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
++	}
++}

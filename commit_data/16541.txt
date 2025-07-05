@@ -9,7 +9,48 @@ Date:   Tue Jun 11 21:19:29 2013 +0200
     R=dvyukov, remyoudompheng, rsc
     CC=gobot, golang-dev
     https://golang.org/cl/9910043
-
+---
  src/cmd/gc/racewalk.c                            |  6 +++++-
  src/pkg/runtime/race/testdata/regression_test.go | 15 +++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 8b644e7a45..60ed0f0643 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -255,7 +255,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		// side effects are safe.
+ 		// n->right may not be executed,
+ 		// so instrumentation goes to n->right->ninit, not init.
+-		l = nil;
++		// If right->ninit is non-nil, racewalknode might append it to itself.
++		// nil it out and handle it separately before putting it back.
++		l = n->right->ninit;
++		n->right->ninit = nil;
++		racewalklist(l, nil);
+ 		racewalknode(&n->right, &l, wr, 0);
+ 		appendinit(&n->right, l);
+ 		goto ret;
+diff --git a/src/pkg/runtime/race/testdata/regression_test.go b/src/pkg/runtime/race/testdata/regression_test.go
+index f08ee3ed31..49e03d9082 100644
+--- a/src/pkg/runtime/race/testdata/regression_test.go
++++ b/src/pkg/runtime/race/testdata/regression_test.go
+@@ -160,3 +160,18 @@ func noRaceReturn(c chan int) (a, b int) {
+ 	}()
+ 	return a, 10
+ }
++
++func issue5431() {
++	var p **inltype
++	if inlinetest(p).x && inlinetest(p).y {
++	} else if inlinetest(p).x || inlinetest(p).y {
++	}
++}
++
++type inltype struct {
++	x, y bool
++}
++
++func inlinetest(p **inltype) *inltype {
++	return *p
++}

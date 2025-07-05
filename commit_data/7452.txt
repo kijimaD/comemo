@@ -8,7 +8,112 @@ Date:   Sat Feb 12 18:03:54 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4187046
-
+---
  src/pkg/gob/decoder.go      | 15 ++++++++++---
  src/pkg/gob/encoder_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 7527c5f1ff..922794ea83 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -153,9 +153,13 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 
+ // Decode reads the next value from the connection and stores
+ // it in the data represented by the empty interface value.
+-// The value underlying e must be the correct type for the next
++// If e is nil, the value will be discarded. Otherwise,
++// the value underlying e must either be the correct type for the next
+ // data item received, and must be a pointer.
+ func (dec *Decoder) Decode(e interface{}) os.Error {
++	if e == nil {
++		return dec.DecodeValue(nil)
++	}
+ 	value := reflect.NewValue(e)
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller.  Make sure it's a pointer.
+@@ -169,7 +173,8 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ // DecodeValue reads the next value from the connection and stores
+ // it in the data represented by the reflection value.
+ // The value must be the correct type for the next
+-// data item received.
++// data item received, or it may be nil, which means the
++// value will be discarded.
+ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+ 	// Make sure we're single-threaded through here.
+ 	dec.mutex.Lock()
+@@ -179,7 +184,11 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+ 	dec.err = nil
+ 	id := dec.decodeTypeSequence(false)
+ 	if id >= 0 {
+-		dec.err = dec.decodeValue(id, value)
++		// A nil value means "ignore the data".  Since it's already read into
++		// the decoder's buffer, all we need to do is not bother to decode it.
++		if value != nil {
++			dec.err = dec.decodeValue(id, value)
++		}
+ 	}
+ 	return dec.err
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 1456ca00c9..8825fe15d0 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -384,6 +384,57 @@ func TestInterfaceIndirect(t *testing.T) {
+ 	}
+ }
+ 
++func TestDecodeIntoEmptyStruct(t *testing.T) {
++	type Empty struct{}
++	empty := &Empty{}
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	err := enc.Encode(&struct{ A int }{23})
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	err = dec.Decode(empty)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++}
++
++func TestStructDecodeIntoNil(t *testing.T) {
++	nonempty := &struct{ A int }{23}
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	err := enc.Encode(nonempty)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	err = dec.Decode(nil)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	if b.Len() != 0 {
++		t.Fatalf("%d bytes remain after decode", b.Len())
++	}
++}
++
++func TestSingletonDecodeIntoNil(t *testing.T) {
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	err := enc.Encode("hello world")
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	err = dec.Decode(nil)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	if b.Len() != 0 {
++		t.Fatalf("%d bytes remain after decode", b.Len())
++	}
++}
++
+ // Another bug from golang-nuts, involving nested interfaces.
+ type Bug0Outer struct {
+ 	Bug0Field interface{}

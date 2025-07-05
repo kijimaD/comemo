@@ -13,7 +13,52 @@ Date:   Wed Apr 27 21:36:11 2011 -0700
     R=rsc, bradfitzwork, eds
     CC=golang-dev
     https://golang.org/cl/4441073
-
+---
  src/pkg/hash/adler32/adler32.go      |  4 ++--
  src/pkg/hash/adler32/adler32_test.go | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index f13a937933..84943d9ae4 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -43,8 +43,8 @@ func (d *digest) Size() int { return Size }
+ 
+ // Add p to the running checksum a, b.
+ func update(a, b uint32, p []byte) (aa, bb uint32) {
+-	for i := 0; i < len(p); i++ {
+-		a += uint32(p[i])
++	for _, pi := range p {
++		a += uint32(pi)
+ 		b += a
+ 		// invariant: a <= b
+ 		if b > (0xffffffff-255)/2 {
+diff --git a/src/pkg/hash/adler32/adler32_test.go b/src/pkg/hash/adler32/adler32_test.go
+index ffa5569bcd..01f931c685 100644
+--- a/src/pkg/hash/adler32/adler32_test.go
++++ b/src/pkg/hash/adler32/adler32_test.go
+@@ -5,6 +5,7 @@
+ package adler32
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"testing"
+ )
+@@ -61,3 +62,16 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkGolden(b *testing.B) {
++	b.StopTimer()
++	c := New()
++	var buf bytes.Buffer
++	for _, g := range golden {
++		buf.Write([]byte(g.in))
++	}
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		c.Write(buf.Bytes())
++	}
++}

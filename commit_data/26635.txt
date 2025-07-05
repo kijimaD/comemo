@@ -13,6 +13,30 @@ Date:   Fri Feb 19 09:58:22 2016 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1932f324ea..e65aee4a27 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2930,12 +2930,15 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 
+ 	// Tell gcc not to include the work directory in object files.
+ 	if b.gccSupportsFlag("-fdebug-prefix-map=a=b") {
+-		// -gno-record-gcc-switches is supported by all gcc/clang
+-		// versions that support -fdebug-prefix-map.
+-		a = append(a, "-gno-record-gcc-switches")
+ 		a = append(a, "-fdebug-prefix-map="+b.work+"=/tmp/go-build")
+ 	}
+ 
++	// Tell gcc not to include flags in object files, which defeats the
++	// point of -fdebug-prefix-map above.
++	if b.gccSupportsFlag("-gno-record-gcc-switches") {
++		a = append(a, "-gno-record-gcc-switches")
++	}
++
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+ 	// See https://golang.org/issue/3253.

@@ -12,6 +12,23 @@ Date:   Thu Dec 16 17:54:27 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.18.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 2ec5fae8c7..5f6476908a 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -103,6 +103,11 @@ Do not send CLs removing the interior tags from such phrases.
+       embedding a type parameter in an interface type is not permitted.
+       Whether these will ever be permitted is unclear at present.
+     </li>
++    <li>
++      A union element with more than one term may not contain an
++      interface type with a non-empty method set. Whether this will
++      ever be permitted is unclear at present.
++    </li>
+   </ul>
+ </p>
+ 

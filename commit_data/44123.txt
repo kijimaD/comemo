@@ -11,7 +11,7 @@ Date:   Tue May 12 17:16:51 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go               |  2 +-
  src/cmd/link/internal/ld/elf2.go              | 23 -----------------------
  src/cmd/link/internal/ld/lib.go               |  3 ++-
@@ -19,3 +19,99 @@ Date:   Tue May 12 17:16:51 2020 -0400
  src/cmd/link/internal/loader/loader_test.go   |  2 +-
  src/cmd/link/internal/loader/symbolbuilder.go |  2 +-
  6 files changed, 6 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b6ef555a6b..341ac84469 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -628,7 +628,7 @@ func elfwriteshdrs(out *OutBuf) uint32 {
+ 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
+ }
+ 
+-func elfsetstring2(ctxt *Link, s loader.Sym, str string, off int) {
++func elfsetstring(ctxt *Link, s loader.Sym, str string, off int) {
+ 	if nelfstr >= len(elfstr) {
+ 		ctxt.Errorf(s, "too many elf strings")
+ 		errorexit()
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+deleted file mode 100644
+index c7fab6c623..0000000000
+--- a/src/cmd/link/internal/ld/elf2.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import "cmd/link/internal/sym"
+-
+-// Temporary dumping around for sym.Symbol version of helper
+-// functions in elf.go, still being used for some archs/oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted and the sym.Symbol functions are not needed.
+-
+-func elfsetstring(s *sym.Symbol, str string, off int) {
+-	if nelfstr >= len(elfstr) {
+-		Errorf(s, "too many elf strings")
+-		errorexit()
+-	}
+-
+-	elfstr[nelfstr].s = str
+-	elfstr[nelfstr].off = off
+-	nelfstr++
+-}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 34052f1f6b..09b9c18024 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -506,7 +506,8 @@ func (ctxt *Link) loadlib() {
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	ctxt.loader = loader.NewLoader(flags, elfsetstring, &ctxt.ErrorReporter.ErrorReporter)
++	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
++	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
+ 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
+ 		return ctxt.loader.SymName(s)
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index e906ec3d5e..7ee5bacb5a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -312,7 +312,7 @@ const (
+ 	nonPkgRef
+ )
+ 
+-type elfsetstringFunc func(s *sym.Symbol, str string, off int)
++type elfsetstringFunc func(str string, off int)
+ 
+ // extSymPayload holds the payload (data + relocations) for linker-synthesized
+ // external symbols (note that symbol value is stored in a separate slice).
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 60ef69afb9..dfaad6e0d2 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -28,7 +28,7 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
+ }
+ 
+ func mkLoader() *Loader {
+-	edummy := func(s *sym.Symbol, str string, off int) {}
++	edummy := func(str string, off int) {}
+ 	er := ErrorReporter{}
+ 	ldr := NewLoader(0, edummy, &er)
+ 	er.ldr = ldr
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 70adb369a4..b84a96d15c 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -363,7 +363,7 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
+ 	r := sb.size
+ 	if sb.name == ".shstrtab" {
+ 		// FIXME: find a better mechanism for this
+-		sb.l.elfsetstring(nil, str, int(r))
++		sb.l.elfsetstring(str, int(r))
+ 	}
+ 	sb.data = append(sb.data, str...)
+ 	sb.data = append(sb.data, 0)

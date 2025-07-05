@@ -13,6 +13,40 @@ Date:   Tue Nov 24 18:09:00 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 18 +++++++++++-------
  1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 503dc449d3..368fe1fcab 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -210,13 +210,7 @@ func Main(archInit func(*Arch)) {
+ 	// initialize types package
+ 	// (we need to do this to break dependencies that otherwise
+ 	// would lead to import cycles)
+-	types.Widthptr = Widthptr
+-	types.Dowidth = dowidth
+-	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+-		return typenamesym(t).Linksym()
+-	}
+-
+-	initUniverse()
++	initializeTypesPackage()
+ 
+ 	dclcontext = ir.PEXTERN
+ 
+@@ -1125,3 +1119,13 @@ func parseLang(s string) (lang, error) {
+ 	}
+ 	return lang{major: major, minor: minor}, nil
+ }
++
++func initializeTypesPackage() {
++	types.Widthptr = Widthptr
++	types.Dowidth = dowidth
++	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
++		return typenamesym(t).Linksym()
++	}
++
++	initUniverse()
++}

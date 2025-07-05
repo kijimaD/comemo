@@ -13,7 +13,105 @@ Date:   Sat Mar 4 01:44:45 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go   |  7 ++++---
  src/cmd/go/internal/test/test.go | 21 ++++-----------------
  2 files changed, 8 insertions(+), 20 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index ad7a72c9a6..4406c9aa4f 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -107,7 +107,7 @@ func main() {
+ 	// Approximately 1 in a 100 binaries fail to start. If it happens,
+ 	// try again. These failures happen for several reasons beyond
+ 	// our control, but all of them are safe to retry as they happen
+-	// before lldb encounters the initial SIGUSR2 stop. As we
++	// before lldb encounters the initial getwd breakpoint. As we
+ 	// know the tests haven't started, we are not hiding flaky tests
+ 	// with this retry.
+ 	for i := 0; i < 5; i++ {
+@@ -232,7 +232,6 @@ func run(bin string, args []string) (err error) {
+ 	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGUSR1 --stop false --pass true --notify false`)
+-	s.do(`process handle SIGUSR2 --stop true --pass false --notify true`) // sent by test harness
+ 	s.do(`process handle SIGCONT --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
+ 	s.do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
+@@ -245,9 +244,11 @@ func run(bin string, args []string) (err error) {
+ 		return nil
+ 	}
+ 
++	s.do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
++
+ 	started = true
+ 
+-	s.doCmd("run", "stop reason = signal SIGUSR2", 20*time.Second)
++	s.doCmd("run", "stop reason = breakpoint", 20*time.Second)
+ 
+ 	// Move the current working directory into the faux gopath.
+ 	if pkgpath != "src" {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 6d841b12ba..a3f95b1548 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -907,13 +907,9 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 
+ 	if cfg.BuildContext.GOOS == "darwin" {
+ 		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
+-			t.IsIOS = true
+-			t.NeedOS = true
++			t.NeedCgo = true
+ 		}
+ 	}
+-	if t.TestMain == nil {
+-		t.NeedOS = true
+-	}
+ 
+ 	for _, cp := range pmain.Internal.Imports {
+ 		if len(cp.Internal.CoverVars) > 0 {
+@@ -1360,8 +1356,7 @@ type testFuncs struct {
+ 	NeedTest    bool
+ 	ImportXtest bool
+ 	NeedXtest   bool
+-	NeedOS      bool
+-	IsIOS       bool
++	NeedCgo     bool
+ 	Cover       []coverInfo
+ }
+ 
+@@ -1475,7 +1470,7 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
+ package main
+ 
+ import (
+-{{if .NeedOS}}
++{{if not .TestMain}}
+ 	"os"
+ {{end}}
+ 	"testing"
+@@ -1491,10 +1486,8 @@ import (
+ 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
+ {{end}}
+ 
+-{{if .IsIOS}}
+-	"os/signal"
++{{if .NeedCgo}}
+ 	_ "runtime/cgo"
+-	"syscall"
+ {{end}}
+ )
+ 
+@@ -1560,12 +1553,6 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
+ {{end}}
+ 
+ func main() {
+-{{if .IsIOS}}
+-	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
+-	syscall.Kill(0, syscall.SIGUSR2)
+-	signal.Reset(syscall.SIGUSR2)
+-{{end}}
+-
+ {{if .CoverEnabled}}
+ 	testing.RegisterCover(testing.Cover{
+ 		Mode: {{printf "%q" .CoverMode}},

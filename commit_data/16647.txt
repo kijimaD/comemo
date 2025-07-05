@@ -9,6 +9,20 @@ Date:   Wed Jun 26 21:20:53 2013 +0400
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/10484046
-
+---
  misc/dashboard/app/build/ui.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index cc3629a5ae..3e2b523e9e 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -211,7 +211,7 @@ func builderArch(s string) string {
+ 
+ // builderArchShort returns a short arch tag for a builder string
+ func builderArchShort(s string) string {
+-	if s == "linux-amd64-race" {
++	if strings.Contains(s+"-", "-race-") {
+ 		return "race"
+ 	}
+ 	arch := builderArch(s)

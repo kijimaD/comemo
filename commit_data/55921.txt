@@ -19,7 +19,45 @@ Date:   Tue Nov 22 00:14:11 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/mail/message.go      |  2 +-
  src/net/mail/message_test.go | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 6268c08f47..a416007fdb 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -54,7 +54,7 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 	tp := textproto.NewReader(bufio.NewReader(r))
+ 
+ 	hdr, err := tp.ReadMIMEHeader()
+-	if err != nil {
++	if err != nil && (err != io.EOF || len(hdr) == 0) {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 61e50ccfd5..4b581ccc73 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -39,6 +39,19 @@ So, "Hello".
+ 		},
+ 		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
+ 	},
++	{
++		// RFC 5965, Appendix B.1, a part of the multipart message (a header-only sub message)
++		in: `Feedback-Type: abuse
++User-Agent: SomeGenerator/1.0
++Version: 1
++`,
++		header: Header{
++			"Feedback-Type": []string{"abuse"},
++			"User-Agent":    []string{"SomeGenerator/1.0"},
++			"Version":       []string{"1"},
++		},
++		body: "",
++	},
+ }
+ 
+ func TestParsing(t *testing.T) {

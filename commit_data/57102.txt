@@ -11,7 +11,90 @@ Date:   Mon Jun 19 19:17:46 2023 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/trace/annotation.go |  8 ++++----
  src/runtime/trace/trace.go      | 14 +++++++-------
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index f2ef0dd31d..2666d14201 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -21,7 +21,7 @@ type traceContextKey struct{}
+ // like the Go execution tracer may assume there are only a bounded
+ // number of unique task types in the system.
+ //
+-// The returned Task's End method is used to mark the task's end.
++// The returned Task's [Task.End] method is used to mark the task's end.
+ // The trace tool measures task latency as the time between task creation
+ // and when the End method is called, and provides the latency
+ // distribution per task type.
+@@ -75,7 +75,7 @@ type Task struct {
+ 	// TODO(hyangah): record parent id?
+ }
+ 
+-// End marks the end of the operation represented by the Task.
++// End marks the end of the operation represented by the [Task].
+ func (t *Task) End() {
+ 	userTaskEnd(t.id)
+ }
+@@ -97,7 +97,7 @@ func Log(ctx context.Context, category, message string) {
+ 	userLog(id, category, message)
+ }
+ 
+-// Logf is like Log, but the value is formatted using the specified format spec.
++// Logf is like [Log], but the value is formatted using the specified format spec.
+ func Logf(ctx context.Context, category, format string, args ...any) {
+ 	if IsEnabled() {
+ 		// Ideally this should be just Log, but that will
+@@ -142,7 +142,7 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
+ }
+ 
+ // StartRegion starts a region and returns it.
+-// The returned Region's End method must be called
++// The returned Region's [Region.End] method must be called
+ // from the same goroutine where the region was started.
+ // Within each goroutine, regions must nest. That is, regions started
+ // after this region must be ended before this region can be ended.
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index 86c97e2a11..935d222f02 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -33,7 +33,7 @@
+ //
+ //	import _ "net/http/pprof"
+ //
+-// See the net/http/pprof package for more details about all of the
++// See the [net/http/pprof] package for more details about all of the
+ // debug endpoints installed by this import.
+ //
+ // # User annotation
+@@ -44,11 +44,11 @@
+ // There are three types of user annotations: log messages, regions,
+ // and tasks.
+ //
+-// Log emits a timestamped message to the execution trace along with
++// [Log] emits a timestamped message to the execution trace along with
+ // additional information such as the category of the message and
+-// which goroutine called Log. The execution tracer provides UIs to filter
++// which goroutine called [Log]. The execution tracer provides UIs to filter
+ // and group goroutines using the log category and the message supplied
+-// in Log.
++// in [Log].
+ //
+ // A region is for logging a time interval during a goroutine's execution.
+ // By definition, a region starts and ends in the same goroutine.
+@@ -72,10 +72,10 @@
+ // operations such as an RPC request, an HTTP request, or an
+ // interesting local operation which may require multiple goroutines
+ // working together. Since tasks can involve multiple goroutines,
+-// they are tracked via a context.Context object. NewTask creates
+-// a new task and embeds it in the returned context.Context object.
++// they are tracked via a [context.Context] object. [NewTask] creates
++// a new task and embeds it in the returned [context.Context] object.
+ // Log messages and regions are attached to the task, if any, in the
+-// Context passed to Log and WithRegion.
++// Context passed to [Log] and [WithRegion].
+ //
+ // For example, assume that we decided to froth milk, extract coffee,
+ // and mix milk and coffee in separate goroutines. With a task,

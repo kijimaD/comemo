@@ -17,6 +17,25 @@ Date:   Tue Jul 7 17:55:40 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 65ac654b14..c42c7fbd29 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1558,10 +1558,10 @@ top:
+ 	gcMarkTermination(nextTriggerRatio)
+ }
+ 
++// World must be stopped and mark assists and background workers must be
++// disabled.
+ func gcMarkTermination(nextTriggerRatio float64) {
+-	// World is stopped.
+-	// Start marktermination which includes enabling the write barrier.
+-	atomic.Store(&gcBlackenEnabled, 0)
++	// Start marktermination (write barrier remains enabled for now).
+ 	setGCPhase(_GCmarktermination)
+ 
+ 	work.heap1 = memstats.heap_live

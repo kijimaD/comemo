@@ -12,8 +12,86 @@ Date:   Thu Aug 22 10:33:37 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12898045
-
+---
  src/pkg/net/lookup.go         | 13 +++++++++++++
  src/pkg/net/lookup_unix.go    | 14 +++++++-------
  src/pkg/net/lookup_windows.go |  5 +++++
  3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/lookup.go b/src/pkg/net/lookup.go
+index 28d439d643..0cd1993129 100644
+--- a/src/pkg/net/lookup.go
++++ b/src/pkg/net/lookup.go
+@@ -8,6 +8,19 @@ import (
+ 	"time"
+ )
+ 
++// protocols contains minimal mappings between internet protocol
++// names and numbers for platforms that don't have a complete list of
++// protocol numbers.
++//
++// See http://www.iana.org/assignments/protocol-numbers
++var protocols = map[string]int{
++	"icmp": 1, "ICMP": 1,
++	"igmp": 2, "IGMP": 2,
++	"tcp": 6, "TCP": 6,
++	"udp": 17, "UDP": 17,
++	"ipv6-icmp": 58, "IPV6-ICMP": 58, "IPv6-ICMP": 58,
++}
++
+ var lookupGroup singleflight
+ 
+ // lookupHostMerge wraps lookupHost, but makes sure that for any given
+diff --git a/src/pkg/net/lookup_unix.go b/src/pkg/net/lookup_unix.go
+index fa98eed5f2..a39e726192 100644
+--- a/src/pkg/net/lookup_unix.go
++++ b/src/pkg/net/lookup_unix.go
+@@ -11,15 +11,11 @@ import (
+ 	"sync"
+ )
+ 
+-var (
+-	protocols         map[string]int
+-	onceReadProtocols sync.Once
+-)
++var onceReadProtocols sync.Once
+ 
+ // readProtocols loads contents of /etc/protocols into protocols map
+ // for quick access.
+ func readProtocols() {
+-	protocols = make(map[string]int)
+ 	if file, err := open("/etc/protocols"); err == nil {
+ 		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 			// tcp    6   TCP    # transmission control protocol
+@@ -31,9 +27,13 @@ func readProtocols() {
+ 				continue
+ 			}
+ 			if proto, _, ok := dtoi(f[1], 0); ok {
+-				protocols[f[0]] = proto
++				if _, ok := protocols[f[0]]; !ok {
++					protocols[f[0]] = proto
++				}
+ 				for _, alias := range f[2:] {
+-					protocols[alias] = proto
++					if _, ok := protocols[alias]; !ok {
++						protocols[alias] = proto
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index 6d20b7976a..dcbb6d74f1 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -42,6 +42,11 @@ func lookupProtocol(name string) (proto int, err error) {
+ 		ch <- result{proto: proto, err: err}
+ 	}()
+ 	r := <-ch
++	if r.err != nil {
++		if proto, ok := protocols[name]; ok {
++			return protol, nil
++		}
++	}
+ 	return r.proto, r.err
+ }
+ 

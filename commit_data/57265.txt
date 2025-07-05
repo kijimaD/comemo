@@ -11,6 +11,39 @@ Date:   Fri Jun 16 16:03:29 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 595e656e5b..de0a54d588 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1930,6 +1930,13 @@ func (ctxt *Link) hostlink() {
+ 		// dsymutil may not clean up its temp directory at exit.
+ 		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
+ 		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
++		if ctxt.Debugvlog != 0 {
++			ctxt.Logf("host link dsymutil:")
++			for _, v := range cmd.Args {
++				ctxt.Logf(" %q", v)
++			}
++			ctxt.Logf("\n")
++		}
+ 		if out, err := cmd.CombinedOutput(); err != nil {
+ 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+ 		}
+@@ -1943,6 +1950,13 @@ func (ctxt *Link) hostlink() {
+ 			stripArgs = append(stripArgs, "-x")
+ 		}
+ 		stripArgs = append(stripArgs, *flagOutfile)
++		if ctxt.Debugvlog != 0 {
++			ctxt.Logf("host link strip: %q", stripCmd)
++			for _, v := range stripArgs {
++				ctxt.Logf(" %q", v)
++			}
++			ctxt.Logf("\n")
++		}
+ 		if out, err := exec.Command(stripCmd, stripArgs...).CombinedOutput(); err != nil {
+ 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
+ 		}

@@ -7,8 +7,48 @@ Date:   Tue Sep 21 22:41:32 2010 -0400
     R=kaib
     CC=golang-dev
     https://golang.org/cl/2254044
-
+---
  src/Make.inc | 2 +-
  test/run     | 2 +-
  test/run-arm | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 3544f26ca4..6af9145f9e 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -42,7 +42,7 @@ ifeq ($(GOOS),darwin)
+ GOARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
+ else
+ # Ask uname -m for the processor.
+-GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/'}
++GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/; s/arm.*/arm/'}
+ endif
+ endif
+ 
+diff --git a/test/run b/test/run
+index f4765d7fae..016094c90a 100755
+--- a/test/run
++++ b/test/run
+@@ -14,7 +14,7 @@ X386)
+ 	;;
+ Xarm)
+ 	export A=5
+-	export E=${GORUN:-qemu-arm -cpu cortex-a8}
++	export E="$GORUN"
+ 	;;
+ *)
+ 	echo 1>&2 run: unsupported '$GOARCH'
+diff --git a/test/run-arm b/test/run-arm
+index a62df10ca4..b3e3307ed9 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -13,7 +13,7 @@ X386)
+ 	;;
+ Xarm)
+ 	export A=5
+-	export E="${GORUN:-qemu-arm -cpu cortex-a8}"
++	export E="$GORUN"
+ 	;;
+ *)
+ 	echo 1>&2 run: unsupported '$GOARCH'

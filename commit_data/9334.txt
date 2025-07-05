@@ -7,7 +7,7 @@ Date:   Wed Aug 10 21:36:48 2011 -0400
     R=bradfitz, dsymonds, fshahriar
     CC=golang-dev
     https://golang.org/cl/4859043
-
+---
  src/Make.inc                   | 26 +++++++++++++++++++++-----
  src/pkg/net/Makefile           | 29 ++++++++++++++++++-----------
  src/pkg/os/user/Makefile       |  2 +-
@@ -17,3 +17,241 @@ Date:   Wed Aug 10 21:36:48 2011 -0400
  src/pkg/runtime/cgo/Makefile   | 21 ++-------------------
  src/run.bash                   |  6 +++---
  8 files changed, 53 insertions(+), 41 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index a6edb165a7..8f549f6245 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -121,6 +121,21 @@ HOST_CFLAGS=-I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
+ HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
+ PWD=$(shell pwd)
+ 
++# Decide whether use of cgo is okay.
++ifeq ($(CGO_ENABLED),)
++# Default on...
++CGO_ENABLED:=1
++ifeq ($(GOARCH),arm)  # ... but not on ARM
++CGO_ENABLED:=0
++endif
++ifeq ($(GOOS),plan9)  # ... and not on Plan 9
++CGO_ENABLED:=0
++endif
++ifeq ($(GOOS),openbsd)  # ... and not on OpenBSD
++CGO_ENABLED:=0
++endif
++endif
++
+ # Make environment more standard.
+ LANG:=
+ LC_ALL:=C
+@@ -130,11 +145,12 @@ GREP_COLORS:=
+ export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
+ 
+ go-env:
+-	@echo export GOARCH=$(GOARCH)
+-	@echo export GOOS=$(GOOS)
+-	@echo export GOHOSTARCH=$(GOHOSTARCH)
+-	@echo export GOHOSTOS=$(GOHOSTOS)
+-	@echo export O=$O
++	@echo export GOARCH="$(GOARCH)"
++	@echo export GOOS="$(GOOS)"
++	@echo export GOHOSTARCH="$(GOHOSTARCH)"
++	@echo export GOHOSTOS="$(GOHOSTOS)"
++	@echo export CGO_ENABLED="$(CGO_ENABLED)"
++	@echo export O="$O"
+ 	@echo export AS="$(AS)"
+ 	@echo export CC="$(CC)"
+ 	@echo export GC="$(GC)"
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 6b3d0b328b..cc895f7568 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -36,9 +36,13 @@ GOFILES_freebsd=\
+ 	sendfile_stub.go\
+ 	sock_bsd.go\
+ 
++ifeq ($(CGO_ENABLED),1)
+ CGOFILES_freebsd=\
+ 	cgo_bsd.go\
+-	cgo_unix.go\
++	cgo_unix.go
++else
++GOFILES_freebsd+=cgo_stub.go
++endif
+ 
+ GOFILES_darwin=\
+ 	dnsclient_unix.go\
+@@ -53,9 +57,13 @@ GOFILES_darwin=\
+ 	sendfile_stub.go\
+ 	sock_bsd.go\
+ 
++ifeq ($(CGO_ENABLED),1)
+ CGOFILES_darwin=\
+ 	cgo_bsd.go\
+-	cgo_unix.go\
++	cgo_unix.go
++else
++GOFILES_darwin+=cgo_stub.go
++endif
+ 
+ GOFILES_linux=\
+ 	dnsclient_unix.go\
+@@ -69,6 +77,14 @@ GOFILES_linux=\
+ 	sendfile_linux.go\
+ 	sock_linux.go\
+ 
++ifeq ($(CGO_ENABLED),1)
++CGOFILES_linux=\
++	cgo_linux.go\
++	cgo_unix.go
++else
++GOFILES_linux+=cgo_stub.go
++endif
++
+ GOFILES_openbsd=\
+ 	dnsclient.go\
+ 	dnsconfig.go\
+@@ -86,15 +102,6 @@ GOFILES_plan9=\
+ 	lookup_unix.go\
+ 	sendfile_stub.go\
+ 
+-ifeq ($(GOARCH),arm)
+-# ARM has no cgo, so use the stubs.
+-GOFILES_linux+=cgo_stub.go
+-else
+-CGOFILES_linux=\
+-	cgo_linux.go\
+-	cgo_unix.go
+-endif
+-
+ GOFILES_windows=\
+ 	file_windows.go\
+ 	interface_windows.go\
+diff --git a/src/pkg/os/user/Makefile b/src/pkg/os/user/Makefile
+index 731f7999ac..aabb54995d 100644
+--- a/src/pkg/os/user/Makefile
++++ b/src/pkg/os/user/Makefile
+@@ -8,7 +8,7 @@ TARG=os/user
+ GOFILES=\
+ 	user.go\
+ 
+-ifneq ($(GOARCH),arm)
++ifeq ($(CGO_ENABLED),1)
+ CGOFILES_linux=\
+ 	lookup_unix.go
+ CGOFILES_freebsd=\
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 678de802b5..1b2c9e8c99 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -25,6 +25,10 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
+ */
+ import "C"
+ 
++func init() {
++	implemented = true
++}
++
+ // Lookup looks up a user by username. If the user cannot be found,
+ // the returned error is of type UnknownUserError.
+ func Lookup(username string) (*User, os.Error) {
+diff --git a/src/pkg/os/user/user.go b/src/pkg/os/user/user.go
+index dd009211d7..f71e11d8b2 100644
+--- a/src/pkg/os/user/user.go
++++ b/src/pkg/os/user/user.go
+@@ -9,6 +9,8 @@ import (
+ 	"strconv"
+ )
+ 
++var implemented = false // set to true by lookup_unix.go's init
++
+ // User represents a user account.
+ type User struct {
+ 	Uid      int // user id
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index ee917b57af..59f15e4c67 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -13,8 +13,8 @@ import (
+ )
+ 
+ func skip(t *testing.T) bool {
+-	if runtime.GOARCH == "arm" {
+-		t.Logf("user: cgo not implemented on arm; skipping tests")
++	if !implemented {
++		t.Logf("user: not implemented; skipping tests")
+ 		return true
+ 	}
+ 
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+index e7a2fa7c64..766794797f 100644
+--- a/src/pkg/runtime/cgo/Makefile
++++ b/src/pkg/runtime/cgo/Makefile
+@@ -4,29 +4,12 @@
+ 
+ include ../../../Make.inc
+ 
+-ENABLED:=1
+-
+-ifeq ($(GOARCH),arm)
+-ENABLED:=0
+-endif
+-
+-ifeq ($(GOOS),plan9)
+-ENABLED:=0
+-endif
+-ifeq ($(GOOS),openbsd)
+-ENABLED:=0
+-endif
+-
+-ifeq ($(DISABLE_CGO),1)
+-ENABLED:=0
+-endif
+-
+ TARG=runtime/cgo
+ 
+ GOFILES=\
+ 	cgo.go\
+ 
+-ifeq ($(ENABLED),1)
++ifeq ($(CGO_ENABLED),1)
+ 
+ # Unwarranted chumminess with Make.pkg's cgo rules.
+ # Do not try this at home.
+@@ -59,7 +42,7 @@ endif
+ 
+ include ../../../Make.pkg
+ 
+-ifeq ($(ENABLED),1)
++ifeq ($(CGO_ENABLED),1)
+ _cgo_defun.c:
+ 	echo >$@
+ 
+diff --git a/src/run.bash b/src/run.bash
+index ae79a0cec3..a9689bf15e 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -49,20 +49,20 @@ GOMAXPROCS=10 gomake testshort
+ time gomake test
+ ) || exit $?
+ 
+-[ "$GOARCH" == arm ] ||
++[ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio
+ gomake clean
+ ./test.bash
+ ) || exit $?
+ 
+-[ "$GOARCH" == arm ] ||
++[ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/life
+ gomake clean
+ ./test.bash
+ ) || exit $?
+ 
+-[ "$GOARCH" == arm ] ||
++[ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/test
+ gomake clean

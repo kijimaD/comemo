@@ -9,7 +9,7 @@ Date:   Wed Sep 4 15:19:21 2013 -0700
     R=golang-dev, jsing, iant, bradfitz
     CC=golang-dev
     https://golang.org/cl/13247046
-
+---
  misc/cgo/test/cthread_unix.c              |  2 +-
  misc/cgo/testso/cgoso.go                  |  1 +
  src/cmd/6l/obj.c                          |  1 +
@@ -24,3 +24,364 @@ Date:   Wed Sep 4 15:19:21 2013 -0700
  src/pkg/runtime/cgo/setenv.c              |  2 +-
  src/run.bash                              |  5 +-
  13 files changed, 204 insertions(+), 21 deletions(-)
+
+diff --git a/misc/cgo/test/cthread_unix.c b/misc/cgo/test/cthread_unix.c
+index 998bc00cb7..3f39c15e0e 100644
+--- a/misc/cgo/test/cthread_unix.c
++++ b/misc/cgo/test/cthread_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include <pthread.h>
+ #include "_cgo_export.h"
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+index 0f800afb17..ba6218348c 100644
+--- a/misc/cgo/testso/cgoso.go
++++ b/misc/cgo/testso/cgoso.go
+@@ -8,6 +8,7 @@ package cgosotest
+ // intentionally write the same LDFLAGS differently
+ // to test correct handling of LDFLAGS.
+ #cgo linux LDFLAGS: -L. -lcgosotest
++#cgo dragonfly LDFLAGS: -L. -l cgosotest
+ #cgo freebsd LDFLAGS: -L. -l cgosotest
+ #cgo openbsd LDFLAGS: -L. -l cgosotest
+ #cgo netbsd LDFLAGS: -L. libcgosotest.so
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index b972c535b9..12ca0f6350 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -152,6 +152,7 @@ main(int argc, char *argv[])
+ 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+ 		break;
+ 	case Hdarwin:
++	case Hdragonfly:
+ 	case Hfreebsd:
+ 	case Hlinux:
+ 	case Hnetbsd:
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 7639615b48..0d67ae999b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -582,6 +582,16 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64
+ 		}
+ 	}
+ 
++	// DragonFly declares errno with __thread, which results in a symbol
++	// type of R_386_TLS_GD or R_X86_64_TLSGD. The Go linker does not
++	// currently know how to handle TLS relocations, hence we have to
++	// force external linking for any libraries that link in code that
++	// uses errno. This can be removed if the Go linker ever supports
++	// these relocation types.
++	if(HEADTYPE == Hdragonfly)
++	if(strcmp(pkg, "net") == 0 || strcmp(pkg, "os/user") == 0)
++		isinternal = 0;
++
+ 	if(!isinternal)
+ 		externalobj = 1;
+ 
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index ecea22456e..043351a950 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -258,21 +258,23 @@ func (ctxt *Context) SrcDirs() []string {
+ var Default Context = defaultContext()
+ 
+ var cgoEnabled = map[string]bool{
+-	"darwin/386":    true,
+-	"darwin/amd64":  true,
+-	"freebsd/386":   true,
+-	"freebsd/amd64": true,
+-	"freebsd/arm":   true,
+-	"linux/386":     true,
+-	"linux/amd64":   true,
+-	"linux/arm":     true,
+-	"netbsd/386":    true,
+-	"netbsd/amd64":  true,
+-	"netbsd/arm":    true,
+-	"openbsd/386":   true,
+-	"openbsd/amd64": true,
+-	"windows/386":   true,
+-	"windows/amd64": true,
++	"darwin/386":      true,
++	"darwin/amd64":    true,
++	"dragonfly/386":   true,
++	"dragonfly/amd64": true,
++	"freebsd/386":     true,
++	"freebsd/amd64":   true,
++	"freebsd/arm":     true,
++	"linux/386":       true,
++	"linux/amd64":     true,
++	"linux/arm":       true,
++	"netbsd/386":      true,
++	"netbsd/amd64":    true,
++	"netbsd/arm":      true,
++	"openbsd/386":     true,
++	"openbsd/amd64":   true,
++	"windows/386":     true,
++	"windows/amd64":   true,
+ }
+ 
+ func defaultContext() Context {
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 6095422638..e709f7e521 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ // +build cgo
+ 
+ package user
+diff --git a/src/pkg/runtime/cgo/cgo.go b/src/pkg/runtime/cgo/cgo.go
+index e0d5386683..258b6fba10 100644
+--- a/src/pkg/runtime/cgo/cgo.go
++++ b/src/pkg/runtime/cgo/cgo.go
+@@ -12,6 +12,7 @@ package cgo
+ /*
+ 
+ #cgo darwin LDFLAGS: -lpthread
++#cgo dragonfly LDFLAGS: -lpthread
+ #cgo freebsd LDFLAGS: -lpthread
+ #cgo linux LDFLAGS: -lpthread
+ #cgo netbsd LDFLAGS: -lpthread
+diff --git a/src/pkg/runtime/cgo/dragonfly.c b/src/pkg/runtime/cgo/dragonfly.c
+new file mode 100644
+index 0000000000..acf53e2655
+--- /dev/null
++++ b/src/pkg/runtime/cgo/dragonfly.c
+@@ -0,0 +1,13 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Supply environ and __progname, because we don't
++// link against the standard DragonFly crt0.o and the
++// libc dynamic library needs them.
++
++char *environ[1];
++char *__progname;
++
++#pragma dynexport environ environ
++#pragma dynexport __progname __progname
+diff --git a/src/pkg/runtime/cgo/gcc_dragonfly_386.c b/src/pkg/runtime/cgo/gcc_dragonfly_386.c
+new file mode 100644
+index 0000000000..6797824c6d
+--- /dev/null
++++ b/src/pkg/runtime/cgo/gcc_dragonfly_386.c
+@@ -0,0 +1,77 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <sys/types.h>
++#include <sys/signalvar.h>
++#include <pthread.h>
++#include <signal.h>
++#include <string.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++static void (*setmg_gcc)(void*, void*);
++
++void
++x_cgo_init(G *g, void (*setmg)(void*, void*))
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setmg_gcc = setmg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	SIGFILLSET(ign);
++	sigprocmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++
++	sigprocmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * _cgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	/*
++	 * Set specific keys.
++	 */
++	setmg_gcc((void*)ts.m, (void*)ts.g);
++
++	crosscall_386(ts.fn);
++	return nil;
++}
+diff --git a/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c b/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c
+new file mode 100644
+index 0000000000..eb342a2ff5
+--- /dev/null
++++ b/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -0,0 +1,77 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <sys/types.h>
++#include <sys/signalvar.h>
++#include <pthread.h>
++#include <signal.h>
++#include <string.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++static void (*setmg_gcc)(void*, void*);
++
++void
++x_cgo_init(G *g, void (*setmg)(void*, void*))
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setmg_gcc = setmg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	SIGFILLSET(ign);
++	sigprocmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++
++	ts->g->stackguard = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++
++	sigprocmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * _cgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	/*
++	 * Set specific keys.
++	 */
++	setmg_gcc((void*)ts.m, (void*)ts.g);
++
++	crosscall_amd64(ts.fn);
++	return nil;
++}
+diff --git a/src/pkg/runtime/cgo/gcc_setenv.c b/src/pkg/runtime/cgo/gcc_setenv.c
+index a0938166d1..8b128b9465 100644
+--- a/src/pkg/runtime/cgo/gcc_setenv.c
++++ b/src/pkg/runtime/cgo/gcc_setenv.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include "libcgo.h"
+ 
+diff --git a/src/pkg/runtime/cgo/setenv.c b/src/pkg/runtime/cgo/setenv.c
+index 4c47cdb002..2d03db09f1 100644
+--- a/src/pkg/runtime/cgo/setenv.c
++++ b/src/pkg/runtime/cgo/setenv.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #pragma cgo_import_static x_cgo_setenv
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 9af3f95b07..6adb7f63de 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -104,7 +104,8 @@ go run $GOROOT/test/run.go - . || exit 1
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
+ go test -ldflags '-linkmode=auto' || exit 1
+-go test -ldflags '-linkmode=internal' || exit 1
++# linkmode=internal fails on dragonfly since errno is a TLS relocation.
++[ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
+ case "$GOHOSTOS-$GOARCH" in
+ openbsd-386 | openbsd-amd64)
+ 	# test linkmode=external, but __thread not supported, so skip testtls.
+@@ -118,7 +119,7 @@ darwin-386 | darwin-amd64)
+ 	*) go test -ldflags '-linkmode=external'  || exit 1;;
+ 	esac
+ 	;;
+-freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
++dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
+ 	go test -ldflags '-linkmode=external' || exit 1
+ 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
+ 	go test -ldflags '-linkmode=external' ../testtls || exit 1

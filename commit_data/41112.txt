@@ -14,7 +14,7 @@ Date:   Sun Sep 1 10:49:27 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_nacl.go                        |   3 +
  src/runtime/testdata/testfaketime/faketime.go |  28 +++++++
  src/runtime/time.go                           |   3 -
@@ -22,3 +22,296 @@ Date:   Sun Sep 1 10:49:27 2019 -0400
  src/runtime/time_nofake.go                    |   7 ++
  src/runtime/time_test.go                      |  93 ++++++++++++++++++++++++
  6 files changed, 232 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index e82bae78d3..8cda597ca5 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -289,6 +289,9 @@ func closeonexec(int32)                                   {}
+ // gsignalStack is unused on nacl.
+ type gsignalStack struct{}
+ 
++// nacl fake time support - time in nanoseconds since 1970
++var faketime int64
++
+ var writelock uint32 // test-and-set spin lock for write
+ 
+ // lastfaketime stores the last faketime value written to fd 1 or 2.
+diff --git a/src/runtime/testdata/testfaketime/faketime.go b/src/runtime/testdata/testfaketime/faketime.go
+new file mode 100644
+index 0000000000..1fb15ebb16
+--- /dev/null
++++ b/src/runtime/testdata/testfaketime/faketime.go
+@@ -0,0 +1,28 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test faketime support. This is its own test program because we have
++// to build it with custom build tags and hence want to minimize
++// dependencies.
++
++package main
++
++import (
++	"os"
++	"time"
++)
++
++func main() {
++	println("line 1")
++	// Stream switch, increments time
++	os.Stdout.WriteString("line 2\n")
++	os.Stdout.WriteString("line 3\n")
++	// Stream switch, increments time
++	os.Stderr.WriteString("line 4\n")
++	// Time jump
++	time.Sleep(1 * time.Second)
++	os.Stdout.WriteString("line 5\n")
++	// Print the current time.
++	os.Stdout.WriteString(time.Now().UTC().Format(time.RFC3339))
++}
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 28a4722866..ac2a9aae8f 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -71,9 +71,6 @@ type timersBucket struct {
+ 	t            []*timer
+ }
+ 
+-// nacl fake time support - time in nanoseconds since 1970
+-var faketime int64
+-
+ // Package time APIs.
+ // Godoc uses the comments in package time, not these.
+ 
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+new file mode 100644
+index 0000000000..bef3a65873
+--- /dev/null
++++ b/src/runtime/time_fake.go
+@@ -0,0 +1,101 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build faketime
++// +build !nacl
++// +build !windows
++
++// Faketime isn't currently supported on Windows. This would require:
++//
++// 1. Shadowing time_now, which is implemented in assembly on Windows.
++//    Since that's exported directly to the time package from runtime
++//    assembly, this would involve moving it from sys_windows_*.s into
++//    its own assembly files build-tagged with !faketime and using the
++//    implementation of time_now from timestub.go in faketime mode.
++//
++// 2. Modifying syscall.Write to call syscall.faketimeWrite,
++//    translating the Stdout and Stderr handles into FDs 1 and 2.
++//    (See CL 192739 PS 3.)
++
++package runtime
++
++import "unsafe"
++
++// faketime is the simulated time in nanoseconds since 1970 for the
++// playground.
++var faketime int64 = 1257894000000000000
++
++var faketimeState struct {
++	lock mutex
++
++	// lastfaketime is the last faketime value written to fd 1 or 2.
++	lastfaketime int64
++
++	// lastfd is the fd to which lastfaketime was written.
++	//
++	// Subsequent writes to the same fd may use the same
++	// timestamp, but the timestamp must increase if the fd
++	// changes.
++	lastfd uintptr
++}
++
++//go:nosplit
++func nanotime() int64 {
++	return faketime
++}
++
++func walltime() (sec int64, nsec int32) {
++	return faketime / 1000000000, int32(faketime % 1000000000)
++}
++
++func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
++	if !(fd == 1 || fd == 2) {
++		// Do an ordinary write.
++		return write1(fd, p, n)
++	}
++
++	// Write with the playback header.
++
++	// First, lock to avoid interleaving writes.
++	lock(&faketimeState.lock)
++
++	// If the current fd doesn't match the fd of the previous write,
++	// ensure that the timestamp is strictly greater. That way, we can
++	// recover the original order even if we read the fds separately.
++	t := faketimeState.lastfaketime
++	if fd != faketimeState.lastfd {
++		t++
++		faketimeState.lastfd = fd
++	}
++	if faketime > t {
++		t = faketime
++	}
++	faketimeState.lastfaketime = t
++
++	// Playback header: 0 0 P B <8-byte time> <4-byte data length> (big endian)
++	var buf [4 + 8 + 4]byte
++	buf[2] = 'P'
++	buf[3] = 'B'
++	tu := uint64(t)
++	buf[4] = byte(tu >> (7 * 8))
++	buf[5] = byte(tu >> (6 * 8))
++	buf[6] = byte(tu >> (5 * 8))
++	buf[7] = byte(tu >> (4 * 8))
++	buf[8] = byte(tu >> (3 * 8))
++	buf[9] = byte(tu >> (2 * 8))
++	buf[10] = byte(tu >> (1 * 8))
++	buf[11] = byte(tu >> (0 * 8))
++	nu := uint32(n)
++	buf[12] = byte(nu >> (3 * 8))
++	buf[13] = byte(nu >> (2 * 8))
++	buf[14] = byte(nu >> (1 * 8))
++	buf[15] = byte(nu >> (0 * 8))
++	write1(fd, unsafe.Pointer(&buf[0]), int32(len(buf)))
++
++	// Write actual data.
++	res := write1(fd, p, n)
++
++	unlock(&faketimeState.lock)
++	return res
++}
+diff --git a/src/runtime/time_nofake.go b/src/runtime/time_nofake.go
+index 233097d170..0b153b9583 100644
+--- a/src/runtime/time_nofake.go
++++ b/src/runtime/time_nofake.go
+@@ -2,12 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !faketime
+ // +build !nacl
+ 
+ package runtime
+ 
+ import "unsafe"
+ 
++// faketime is the simulated time in nanoseconds since 1970 for the
++// playground.
++//
++// Zero means not to use faketime.
++var faketime int64
++
+ //go:nosplit
+ func nanotime() int64 {
+ 	return nanotime1()
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+new file mode 100644
+index 0000000000..bf29561144
+--- /dev/null
++++ b/src/runtime/time_test.go
+@@ -0,0 +1,93 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"bytes"
++	"encoding/binary"
++	"errors"
++	"internal/testenv"
++	"os/exec"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++func TestFakeTime(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("faketime not supported on windows")
++	}
++
++	t.Parallel()
++
++	exe, err := buildTestProg(t, "testfaketime", "-tags=faketime")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var stdout, stderr bytes.Buffer
++	cmd := exec.Command(exe)
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++
++	err = testenv.CleanCmdEnv(cmd).Run()
++	if err != nil {
++		t.Fatalf("exit status: %v\n%s", err, stderr.String())
++	}
++
++	t.Logf("raw stdout: %q", stdout.String())
++	t.Logf("raw stderr: %q", stdout.String())
++
++	f1, err1 := parseFakeTime(stdout.Bytes())
++	if err1 != nil {
++		t.Fatal(err1)
++	}
++	f2, err2 := parseFakeTime(stderr.Bytes())
++	if err2 != nil {
++		t.Fatal(err2)
++	}
++
++	const time0 = 1257894000000000000
++	got := [][]fakeTimeFrame{f1, f2}
++	var want = [][]fakeTimeFrame{{
++		{time0 + 1, "line 2\n"},
++		{time0 + 1, "line 3\n"},
++		{time0 + 1e9, "line 5\n"},
++		{time0 + 1e9, "2009-11-10T23:00:01Z"},
++	}, {
++		{time0, "line 1\n"},
++		{time0 + 2, "line 4\n"},
++	}}
++	if !reflect.DeepEqual(want, got) {
++		t.Fatalf("want %v, got %v", want, got)
++	}
++}
++
++type fakeTimeFrame struct {
++	time uint64
++	data string
++}
++
++func parseFakeTime(x []byte) ([]fakeTimeFrame, error) {
++	var frames []fakeTimeFrame
++	for len(x) != 0 {
++		if len(x) < 4+8+4 {
++			return nil, errors.New("truncated header")
++		}
++		const magic = "\x00\x00PB"
++		if string(x[:len(magic)]) != magic {
++			return nil, errors.New("bad magic")
++		}
++		x = x[len(magic):]
++		time := binary.BigEndian.Uint64(x)
++		x = x[8:]
++		dlen := binary.BigEndian.Uint32(x)
++		x = x[4:]
++		data := string(x[:dlen])
++		x = x[dlen:]
++		frames = append(frames, fakeTimeFrame{time, data})
++	}
++	return frames, nil
++}

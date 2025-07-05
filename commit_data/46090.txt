@@ -11,6 +11,20 @@ Date:   Mon Dec 7 18:10:56 2020 +0100
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.16.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 4f1789a659..5ad3cae6d9 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -194,7 +194,7 @@ Do not send CLs removing the interior tags from such phrases.
+   The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+   deprecated and will be removed in a future version. This flag permits
+   fetching from repositories and resolving custom domains using insecure
+-  schemes such as HTTP, and also bypassess module sum validation using the
++  schemes such as HTTP, and also bypasses module sum validation using the
+   checksum database. To permit the use of insecure schemes, use the
+   <code>GOINSECURE</code> environment variable instead. To bypass module
+   sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code>.

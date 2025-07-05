@@ -10,6 +10,20 @@ Date:   Fri Nov 14 15:53:15 2014 -0500
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/169630043
-
+---
  src/liblink/list6.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index d6b91c72b0..54cce4aa4b 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -156,7 +156,7 @@ Dconv(Fmt *fp)
+ 			s += sprint(s, "%d ", i);
+ 		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
+ 		if(a->class != 0)
+-			s += sprint(s, " class=%s", cnames9[a->class]);
++			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+ 		if(a->sym != nil)
+ 			s += sprint(s, " sym=%s", a->sym->name);
+ 		if(a->type == D_BRANCH && a->u.branch != nil)

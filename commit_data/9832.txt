@@ -10,6 +10,22 @@ Date:   Thu Sep 29 12:07:38 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5143050
-
+---
  src/pkg/runtime/runtime-gdb.py | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index f815e102c1..ace27e66df 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -122,8 +122,8 @@ class ChanTypePrinter:
+ 		return str(self.val.type)
+ 
+ 	def children(self):
+-		# see chan.c chanbuf()
+-		et = [x.type for x in self.val['free'].type.target().fields() if x.name == 'elem'][0]
++		# see chan.c chanbuf().  et is the type stolen from hchan<T>::recvq->first->elem
++		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
+                 ptr = (self.val.address + 1).cast(et.pointer())
+                 for i in range(self.val["qcount"]):
+ 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]

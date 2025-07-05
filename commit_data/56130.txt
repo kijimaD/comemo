@@ -17,7 +17,7 @@ Date:   Sat Mar 25 16:38:37 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/roundtrip.go                                           | 2 +-
  src/net/http/transport_default_other.go                             | 3 +--
  src/net/http/{transport_default_js.go => transport_default_wasm.go} | 3 +--
@@ -27,3 +27,113 @@ Date:   Sat Mar 25 16:38:37 2023 -0700
  src/net/internal/socktest/sys_unix.go                               | 2 +-
  src/net/smtp/smtp_test.go                                           | 2 +-
  8 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/roundtrip.go b/src/net/http/roundtrip.go
+index c4c5d3b6eb..49ea1a71ed 100644
+--- a/src/net/http/roundtrip.go
++++ b/src/net/http/roundtrip.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js || !wasm
++//go:build !js
+ 
+ package http
+ 
+diff --git a/src/net/http/transport_default_other.go b/src/net/http/transport_default_other.go
+index 8a2f1cc42b..4f6c5c1271 100644
+--- a/src/net/http/transport_default_other.go
++++ b/src/net/http/transport_default_other.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !(js && wasm)
+-// +build !js !wasm
++//go:build !wasm
+ 
+ package http
+ 
+diff --git a/src/net/http/transport_default_js.go b/src/net/http/transport_default_wasm.go
+similarity index 89%
+rename from src/net/http/transport_default_js.go
+rename to src/net/http/transport_default_wasm.go
+index c07d35ef86..3946812d74 100644
+--- a/src/net/http/transport_default_js.go
++++ b/src/net/http/transport_default_wasm.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
+-// +build js,wasm
++//go:build (js && wasm) || wasip1
+ 
+ package http
+ 
+diff --git a/src/net/internal/socktest/main_test.go b/src/net/internal/socktest/main_test.go
+index c7c8d16d4c..0197feb3f1 100644
+--- a/src/net/internal/socktest/main_test.go
++++ b/src/net/internal/socktest/main_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9
++//go:build !js && !plan9 && !wasip1
+ 
+ package socktest_test
+ 
+diff --git a/src/net/internal/socktest/main_unix_test.go b/src/net/internal/socktest/main_unix_test.go
+index 7d21f6f99f..19ffb28bb9 100644
+--- a/src/net/internal/socktest/main_unix_test.go
++++ b/src/net/internal/socktest/main_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !windows
++//go:build !js && !plan9 && !wasip1 && !windows
+ 
+ package socktest_test
+ 
+diff --git a/src/net/internal/socktest/switch_unix.go b/src/net/internal/socktest/switch_unix.go
+index f2e95d68c1..ff92877648 100644
+--- a/src/net/internal/socktest/switch_unix.go
++++ b/src/net/internal/socktest/switch_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package socktest
+ 
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+index e1040d3087..712462abf4 100644
+--- a/src/net/internal/socktest/sys_unix.go
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package socktest
+ 
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index dba074436b..259b10b93d 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -948,7 +948,7 @@ QUIT
+ `
+ 
+ func TestTLSClient(t *testing.T) {
+-	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
++	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+ 		testenv.SkipFlaky(t, 19229)
+ 	}
+ 	ln := newLocalListener(t)

@@ -8,6 +8,20 @@ Date:   Wed Apr 7 20:30:55 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/834046
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 74da593c41..b5a21e7469 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -19,7 +19,7 @@ GOBIN="${GOBIN:-$HOME/bin}"
+ _GC=$GC	# Make.$GOARCH will overwrite this
+ 
+ if [ ! -f [Mm]akefile ]; then
+-	echo 'please create a Makefile for gotest; see http://golang.org/doc/contribute.html (sic) for details' 1>&2
++	echo 'please create a Makefile for gotest; see http://golang.org/doc/code.html for details' 1>&2
+ 	exit 2
+ fi
+ 

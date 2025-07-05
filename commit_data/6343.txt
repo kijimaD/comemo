@@ -9,7 +9,7 @@ Date:   Wed Sep 22 14:05:14 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2193048
-
+---
  src/pkg/go/ast/ast.go                          | 9 +++++----
  src/pkg/go/parser/parser.go                    | 9 +++++++--
  src/pkg/go/parser/parser_test.go               | 1 +
@@ -18,3 +18,141 @@ Date:   Wed Sep 22 14:05:14 2010 -0700
  src/pkg/go/printer/testdata/expressions.input  | 7 +++++++
  src/pkg/go/printer/testdata/expressions.raw    | 7 +++++++
  7 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 6cdc8850c3..10396e4044 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -210,10 +210,11 @@ type (
+ 
+ 	// A CallExpr node represents an expression followed by an argument list.
+ 	CallExpr struct {
+-		Fun    Expr           // function expression
+-		Lparen token.Position // position of "("
+-		Args   []Expr         // function arguments
+-		Rparen token.Position // positions of ")"
++		Fun      Expr           // function expression
++		Lparen   token.Position // position of "("
++		Args     []Expr         // function arguments
++		Ellipsis token.Position // position of "...", if any
++		Rparen   token.Position // position of ")"
+ 	}
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c5edfdf25a..e13640a91a 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -942,8 +942,13 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	lparen := p.expect(token.LPAREN)
+ 	p.exprLev++
+ 	var list vector.Vector
+-	for p.tok != token.RPAREN && p.tok != token.EOF {
++	var ellipsis token.Position
++	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
+ 		list.Push(p.parseExpr())
++		if p.tok == token.ELLIPSIS {
++			ellipsis = p.pos
++			p.next()
++		}
+ 		if p.tok != token.COMMA {
+ 			break
+ 		}
+@@ -952,7 +957,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	p.exprLev--
+ 	rparen := p.expect(token.RPAREN)
+ 
+-	return &ast.CallExpr{fun, lparen, makeExprList(&list), rparen}
++	return &ast.CallExpr{fun, lparen, makeExprList(&list), ellipsis, rparen}
+ }
+ 
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index a3cc84383d..3998049ac4 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -37,6 +37,7 @@ var validPrograms = []interface{}{
+ 	`package main; func f(func() func() func())` + "\n",
+ 	`package main; func f(...T)` + "\n",
+ 	`package main; func f(float, ...int)` + "\n",
++	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) }` + "\n",
+ 	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
+ 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
+ 	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} }` + "\n",
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 404c7b0adc..2451116fdb 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -686,7 +686,7 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+ 	case *ast.CallExpr:
+ 		body, suffix = splitSelector(x.Fun)
+ 		if body != nil {
+-			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Rparen}
++			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Ellipsis, x.Rparen}
+ 			return
+ 		}
+ 	case *ast.IndexExpr:
+@@ -847,6 +847,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.expr1(x.Fun, token.HighestPrec, depth, 0, multiLine)
+ 		p.print(x.Lparen, token.LPAREN)
+ 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
++		if x.Ellipsis.IsValid() {
++			p.print(x.Ellipsis, token.ELLIPSIS)
++		}
+ 		p.print(x.Rparen, token.RPAREN)
+ 
+ 	case *ast.CompositeLit:
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 0436bf11ff..d8cd90efed 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -169,6 +169,13 @@ func _() {
+ }
+ 
+ 
++func f(x int, args ...int) {
++	f(0, args...)
++	f(1, args)
++	f(2, args[0])
++}
++
++
+ func _() {
+ 	_ = T{}
+ 	_ = struct{}{}
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index b799166241..7dac6fd74a 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -169,6 +169,13 @@ func _() {
+ }
+ 
+ 
++func f(x int, args ...int) {
++	f(0, args...)
++	f(1, args)
++	f(2, args[0])
++}
++
++
+ func _() {
+ 	_ = T{}
+ 	_ = struct{}{}
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index d7009b3773..6b3f579def 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -169,6 +169,13 @@ func _() {
+ }
+ 
+ 
++func f(x int, args ...int) {
++	f(0, args...)
++	f(1, args)
++	f(2, args[0])
++}
++
++
+ func _() {
+ 	_ = T{}
+ 	_ = struct{}{}

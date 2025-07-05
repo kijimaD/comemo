@@ -8,6 +8,20 @@ Date:   Fri Feb 17 11:35:38 2012 +1100
     R=golang-dev, gri, nigeltao
     CC=golang-dev
     https://golang.org/cl/5675071
-
+---
  src/pkg/net/textproto/textproto.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/textproto/textproto.go b/src/pkg/net/textproto/textproto.go
+index e47b6908ad..ad5840cf7d 100644
+--- a/src/pkg/net/textproto/textproto.go
++++ b/src/pkg/net/textproto/textproto.go
+@@ -21,7 +21,7 @@
+ // Writer, to write dot-encoded text blocks.
+ //
+ // Conn, a convenient packaging of Reader, Writer, and Pipeline for use
+-// with a single network connection."
++// with a single network connection.
+ //
+ package textproto
+ 

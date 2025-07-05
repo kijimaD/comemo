@@ -16,9 +16,79 @@ Date:   Fri Feb 26 17:40:18 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297150
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go                |  6 +++++-
  src/cmd/go/internal/modload/list.go                 | 14 +++-----------
  src/cmd/go/testdata/script/mod_proxy_https.txt      |  1 +
  src/cmd/go/testdata/script/mod_retract_versions.txt |  3 +--
  4 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 8ad5f834de..5a151b4802 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -113,7 +113,11 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
+ 	if listRetracted {
+ 		allowed = CheckExclusions
+ 	}
+-	m.Versions, _ = versions(ctx, m.Path, allowed)
++	var err error
++	m.Versions, err = versions(ctx, m.Path, allowed)
++	if err != nil && m.Error == nil {
++		m.Error = &modinfo.ModuleError{Err: err.Error()}
++	}
+ }
+ 
+ // addRetraction fills in m.Retracted if the module was retracted by its author.
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 3491f941cd..de16c2f786 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -136,17 +136,9 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
+ 				if listVersions {
+ 					// Don't make the user provide an explicit '@latest' when they're
+ 					// explicitly asking what the available versions are.
+-					// Instead, resolve the module, even if it isn't an existing dependency.
+-					info, err := Query(ctx, arg, "latest", "", nil)
+-					if err == nil {
+-						mod := moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false, listRetracted)
+-						mods = append(mods, mod)
+-					} else {
+-						mods = append(mods, &modinfo.ModulePublic{
+-							Path:  arg,
+-							Error: modinfoError(arg, "", err),
+-						})
+-					}
++					// Instead, return a modinfo without a version,
++					// to which we can attach the requested version list.
++					mods = append(mods, &modinfo.ModulePublic{Path: arg})
+ 					continue
+ 				}
+ 				if cfg.BuildMod == "vendor" {
+diff --git a/src/cmd/go/testdata/script/mod_proxy_https.txt b/src/cmd/go/testdata/script/mod_proxy_https.txt
+index a23090cd0a..a5e28dd0b9 100644
+--- a/src/cmd/go/testdata/script/mod_proxy_https.txt
++++ b/src/cmd/go/testdata/script/mod_proxy_https.txt
+@@ -10,6 +10,7 @@ stderr 'invalid proxy URL.*proxydir'
+ # GOPROXY HTTPS paths may elide the "https://" prefix.
+ # (See golang.org/issue/32191.)
+ env GOPROXY=proxy.golang.org
++env GOSUMDB=
+ go list -versions -m golang.org/x/text
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_retract_versions.txt b/src/cmd/go/testdata/script/mod_retract_versions.txt
+index 93ce5926e3..961a0a1fa3 100644
+--- a/src/cmd/go/testdata/script/mod_retract_versions.txt
++++ b/src/cmd/go/testdata/script/mod_retract_versions.txt
+@@ -10,9 +10,8 @@ go list -m -e -f $FMT example.com/retract/self/pseudo@latest
+ stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
+ 
+ 
+-	# BUG(#44296): Adding --versions should not cause a retracted version to be reported.
+ go list -m -e -f $FMT --versions example.com/retract/self/pseudo
+-stdout '^example.com/retract/self/pseudo "v1.9.0"$'
++stdout '^example.com/retract/self/pseudo ""$'
+ 
+ go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
+ stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'

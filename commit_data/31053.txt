@@ -12,9 +12,93 @@ Date:   Tue Jan 17 21:24:17 2017 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  doc/go1.8.html                  |  5 -----
  src/crypto/x509/cert_pool.go    | 11 ++++++++++-
  src/crypto/x509/root_windows.go |  5 +++++
  src/crypto/x509/x509_test.go    |  4 ++++
  4 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 608b4802be..337f13d630 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -809,11 +809,6 @@ Optimizations and minor bug fixes are not listed.
+ 
+ <dl id="crypto_x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+   <dd>
+-    <p> <!-- CL 30578 -->
+-      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+-      is now implemented on Windows.
+-    </p>
+-
+     <p> <!-- CL 24743 -->
+       PSS signatures are now supported.
+     </p>
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index fea33df379..71ffbdf0e0 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -4,7 +4,11 @@
+ 
+ package x509
+ 
+-import "encoding/pem"
++import (
++	"encoding/pem"
++	"errors"
++	"runtime"
++)
+ 
+ // CertPool is a set of certificates.
+ type CertPool struct {
+@@ -26,6 +30,11 @@ func NewCertPool() *CertPool {
+ // Any mutations to the returned pool are not written to disk and do
+ // not affect any other pool.
+ func SystemCertPool() (*CertPool, error) {
++	if runtime.GOOS == "windows" {
++		// Issue 16736, 18609:
++		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
++	}
++
+ 	return loadSystemRoots()
+ }
+ 
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index ca2fba5cb4..a936fec7d8 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -226,6 +226,11 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ }
+ 
+ func loadSystemRoots() (*CertPool, error) {
++	// TODO: restore this functionality on Windows. We tried to do
++	// it in Go 1.8 but had to revert it. See Issue 18609.
++	// Returning (nil, nil) was the old behavior, prior to CL 30578.
++	return nil, nil
++
+ 	const CRYPT_E_NOT_FOUND = 0x80092004
+ 
+ 	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index aa30d85b7d..b085dad90f 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"net"
+ 	"os/exec"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -1477,6 +1478,9 @@ func TestMultipleRDN(t *testing.T) {
+ }
+ 
+ func TestSystemCertPool(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("not implemented on Windows; Issue 16736, 18609")
++	}
+ 	_, err := SystemCertPool()
+ 	if err != nil {
+ 		t.Fatal(err)

@@ -15,7 +15,7 @@ Date:   Thu Apr 5 21:28:06 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm.go     |  4 +---
  src/cmd/compile/internal/gc/ssa.go   |  1 -
  src/cmd/go/internal/test/test.go     |  4 +---
@@ -30,3 +30,248 @@ Date:   Thu Apr 5 21:28:06 2018 +0100
  src/cmd/link/internal/loadpe/ldpe.go |  4 +---
  src/cmd/vet/method.go                |  4 +---
  13 files changed, 6 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 6e86ac0fbe..b0e985f0bc 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -223,9 +223,7 @@ func ParseARMCondition(cond string) (uint8, bool) {
+ }
+ 
+ func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
+-	if strings.HasPrefix(cond, ".") {
+-		cond = cond[1:]
+-	}
++	cond = strings.TrimPrefix(cond, ".")
+ 	if cond == "" {
+ 		return arm.C_SCOND_NONE, true
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a2a67ee728..fcb6223528 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -226,7 +226,6 @@ func (s *state) updateUnsetPredPos(b *ssa.Block) {
+ 		p.Pos = bestPos
+ 		s.updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
+ 	}
+-	return
+ }
+ 
+ type state struct {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7f14ce3cd7..b82484a12c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -722,9 +722,7 @@ func runTest(cmd *base.Command, args []string) {
+ 		buildTest, runTest, printTest, err := builderTest(&b, p)
+ 		if err != nil {
+ 			str := err.Error()
+-			if strings.HasPrefix(str, "\n") {
+-				str = str[1:]
+-			}
++			str = strings.TrimPrefix(str, "\n")
+ 			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
+ 
+ 			if p.ImportPath != "" {
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index ef4655357d..a88ae74d31 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2844,7 +2844,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[3] = o4
+ 	out[4] = o5
+ 	out[5] = o6
+-	return
+ }
+ 
+ func (c *ctxt5) movxt(p *obj.Prog) uint32 {
+@@ -3315,8 +3314,7 @@ func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint3
+ 
+ // MOVW $"lower 16-bit", Reg
+ func (c *ctxt5) omvs(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+-	var o1 uint32
+-	o1 = ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
++	o1 := ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+ 	o1 |= 0x30 << 20
+ 	o1 |= (uint32(dr) & 15) << 12
+ 	o1 |= uint32(a.Offset) & 0x0fff
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 98d6141632..45d793ce59 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1533,9 +1533,6 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+ 	}
+ 
+ 	c.ctxt.Diag("illegal combination: %v %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
+-	if ops == nil {
+-		ops = optab
+-	}
+ 	// Turn illegal instruction into an UNDEF, avoid crashing in asmout
+ 	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0}
+ }
+@@ -4264,7 +4261,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[2] = o3
+ 	out[3] = o4
+ 	out[4] = o5
+-	return
+ }
+ 
+ /*
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 94296f9351..0a391b978b 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -739,9 +739,6 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 
+ 	c.ctxt.Diag("illegal combination %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
+ 	prasm(p)
+-	if ops == nil {
+-		ops = optab
+-	}
+ 	// Turn illegal instruction into an UNDEF, avoid crashing in asmout.
+ 	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0}
+ }
+@@ -1602,7 +1599,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[1] = o2
+ 	out[2] = o3
+ 	out[3] = o4
+-	return
+ }
+ 
+ func (c *ctxt0) vregoff(a *obj.Addr) int64 {
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 92365e9178..bfa17fc3b0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -3560,7 +3560,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[2] = o3
+ 	out[3] = o4
+ 	out[4] = o5
+-	return
+ }
+ 
+ func (c *ctxt9) vregoff(a *obj.Addr) int64 {
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 13bef85c29..f39882c82f 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -32,11 +32,6 @@ package x86
+ 
+ import "cmd/internal/obj"
+ 
+-// mark flags
+-const (
+-	DONE = 1 << iota
+-)
+-
+ const (
+ 	REG_NONE = 0
+ )
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 136dd0e35e..d817a89af7 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3168,7 +3168,6 @@ bas:
+ bad:
+ 	ctxt.Diag("asmidx: bad address %d/%d/%d", scale, index, base)
+ 	ab.Put1(0)
+-	return
+ }
+ 
+ func (ab *AsmBuf) relput4(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr) {
+@@ -3436,7 +3435,6 @@ putrelv:
+ 
+ bad:
+ 	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, a))
+-	return
+ }
+ 
+ func (ab *AsmBuf) asmand(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
+@@ -4400,8 +4398,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					ab.PutInt32(0)
+ 				}
+ 
+-				break
+-
+ 			case Zbyte:
+ 				v = vaddr(ctxt, p, &p.From, &rel)
+ 				if rel.Siz != 0 {
+@@ -4776,7 +4772,6 @@ bad:
+ 
+ 	ctxt.Diag("invalid instruction: %v", p)
+ 	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
+-	return
+ }
+ 
+ // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index d0522c8f43..ecb9e39a6b 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -106,21 +106,6 @@ func (c *count) IsCountFlag() bool {
+ 	return true
+ }
+ 
+-type fn0 func()
+-
+-func (f fn0) Set(s string) error {
+-	f()
+-	return nil
+-}
+-
+-func (f fn0) Get() interface{} { return nil }
+-
+-func (f fn0) String() string { return "" }
+-
+-func (f fn0) IsBoolFlag() bool {
+-	return true
+-}
+-
+ type fn1 func(string)
+ 
+ func (f fn1) Set(s string) error {
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 6ddf8d6cd7..ef8ef4324b 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -141,9 +141,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
+ 	// Clean filenames returned by src.Pos.SymFilename()
+ 	// or src.PosBase.SymFilename() removing
+ 	// the leading src.FileSymPrefix.
+-	if strings.HasPrefix(filename, src.FileSymPrefix) {
+-		filename = filename[len(src.FileSymPrefix):]
+-	}
++	filename = strings.TrimPrefix(filename, src.FileSymPrefix)
+ 
+ 	// Expand literal "$GOROOT" rewrited by obj.AbsFile()
+ 	filename = filepath.Clean(os.ExpandEnv(filename))
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 09c9e31c2e..c8fae37898 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -406,9 +406,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
+ 		name = sectsyms[f.Sections[pesym.SectionNumber-1]].Name
+ 	} else {
+ 		name = symname
+-		if strings.HasPrefix(name, "__imp_") {
+-			name = name[6:] // __imp_Name => Name
+-		}
++		name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+ 		if arch.Family == sys.I386 && name[0] == '_' {
+ 			name = name[1:] // _Name => Name
+ 		}
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index b13ce2fcb5..5783278d2c 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -166,9 +166,7 @@ func (f *File) matchParams(expect []string, actual []ast.Expr, prefix string) bo
+ 
+ // Does this one type match?
+ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+-	if strings.HasPrefix(expect, "=") {
+-		expect = expect[1:]
+-	}
++	expect = strings.TrimPrefix(expect, "=")
+ 	// Strip package name if we're in that package.
+ 	if n := len(f.file.Name.Name); len(expect) > n && expect[:n] == f.file.Name.Name && expect[n] == '.' {
+ 		expect = expect[n+1:]

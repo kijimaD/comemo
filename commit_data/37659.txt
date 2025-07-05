@@ -14,9 +14,62 @@ Date:   Tue Aug 21 08:31:38 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/types_openbsd.go        | 2 ++
  src/syscall/ztypes_openbsd_386.go   | 2 ++
  src/syscall/ztypes_openbsd_amd64.go | 2 ++
  src/syscall/ztypes_openbsd_arm.go   | 2 ++
  4 files changed, 8 insertions(+)
+
+diff --git a/src/syscall/types_openbsd.go b/src/syscall/types_openbsd.go
+index 93456c31a0..922864815b 100644
+--- a/src/syscall/types_openbsd.go
++++ b/src/syscall/types_openbsd.go
+@@ -114,6 +114,8 @@ const ( // Directory mode bits
+ 	S_IRUSR  = C.S_IRUSR
+ 	S_IWUSR  = C.S_IWUSR
+ 	S_IXUSR  = C.S_IXUSR
++	S_IRWXG  = C.S_IRWXG
++	S_IRWXO  = C.S_IRWXO
+ )
+ 
+ type Stat_t C.struct_stat
+diff --git a/src/syscall/ztypes_openbsd_386.go b/src/syscall/ztypes_openbsd_386.go
+index 04d53966f4..c2a03ebdd8 100644
+--- a/src/syscall/ztypes_openbsd_386.go
++++ b/src/syscall/ztypes_openbsd_386.go
+@@ -71,6 +71,8 @@ const (
+ 	S_IRUSR  = 0x100
+ 	S_IWUSR  = 0x80
+ 	S_IXUSR  = 0x40
++	S_IRWXG  = 0x38
++	S_IRWXO  = 0x7
+ )
+ 
+ type Stat_t struct {
+diff --git a/src/syscall/ztypes_openbsd_amd64.go b/src/syscall/ztypes_openbsd_amd64.go
+index aad787a3e4..1a659ba2fe 100644
+--- a/src/syscall/ztypes_openbsd_amd64.go
++++ b/src/syscall/ztypes_openbsd_amd64.go
+@@ -71,6 +71,8 @@ const (
+ 	S_IRUSR  = 0x100
+ 	S_IWUSR  = 0x80
+ 	S_IXUSR  = 0x40
++	S_IRWXG  = 0x38
++	S_IRWXO  = 0x7
+ )
+ 
+ type Stat_t struct {
+diff --git a/src/syscall/ztypes_openbsd_arm.go b/src/syscall/ztypes_openbsd_arm.go
+index 4383b68eae..e75043f2c6 100644
+--- a/src/syscall/ztypes_openbsd_arm.go
++++ b/src/syscall/ztypes_openbsd_arm.go
+@@ -71,6 +71,8 @@ const (
+ 	S_IRUSR  = 0x100
+ 	S_IWUSR  = 0x80
+ 	S_IXUSR  = 0x40
++	S_IRWXG  = 0x38
++	S_IRWXO  = 0x7
+ )
+ 
+ type Stat_t struct {

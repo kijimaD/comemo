@@ -13,7 +13,7 @@ Date:   Thu Jun 22 17:57:22 2023 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ecdh/ecdh.go       |  6 +++++-
  src/crypto/ecdsa/ecdsa.go     | 10 +++++++++-
  src/crypto/ed25519/ed25519.go |  5 ++++-
@@ -21,3 +21,176 @@ Date:   Thu Jun 22 17:57:22 2023 +0200
  src/crypto/rsa/pss.go         | 10 ++++++++++
  src/crypto/rsa/rsa.go         | 16 +++++++++++++---
  6 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index 74420559b5..b86f521787 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -16,7 +16,11 @@ import (
+ )
+ 
+ type Curve interface {
+-	// GenerateKey generates a new PrivateKey from rand.
++	// GenerateKey generates a random PrivateKey.
++	//
++	// Most applications should use [crypto/rand.Reader] as rand. Note that the
++	// returned key does not depend deterministically on the bytes read from rand,
++	// and may change between calls and/or between versions.
+ 	GenerateKey(rand io.Reader) (*PrivateKey, error)
+ 
+ 	// NewPrivateKey checks that key is valid and returns a PrivateKey.
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 1c93cefdbf..e1503779ae 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -150,7 +150,11 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
+ 	return SignASN1(rand, priv, digest)
+ }
+ 
+-// GenerateKey generates a public and private key pair.
++// GenerateKey generates a new ECDSA private key for the specified curve.
++//
++// Most applications should use [crypto/rand.Reader] as rand. Note that the
++// returned key does not depend deterministically on the bytes read from rand,
++// and may change between calls and/or between versions.
+ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+ 	randutil.MaybeReadByte(rand)
+ 
+@@ -245,6 +249,10 @@ var errNoAsm = errors.New("no assembly implementation available")
+ // using the private key, priv. If the hash is longer than the bit-length of the
+ // private key's curve order, the hash will be truncated to that length. It
+ // returns the ASN.1 encoded signature.
++//
++// The signature is randomized. Most applications should use [crypto/rand.Reader]
++// as rand. Note that the returned signature does not depend deterministically on
++// the bytes read from rand, and may change between calls and/or between versions.
+ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+ 	randutil.MaybeReadByte(rand)
+ 
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 32a8d9e86c..1dda9e5e9a 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -76,7 +76,7 @@ func (priv PrivateKey) Seed() []byte {
+ 	return bytes.Clone(priv[:SeedSize])
+ }
+ 
+-// Sign signs the given message with priv. rand is ignored.
++// Sign signs the given message with priv. rand is ignored and can be nil.
+ //
+ // If opts.HashFunc() is [crypto.SHA512], the pre-hashed variant Ed25519ph is used
+ // and message is expected to be a SHA-512 hash, otherwise opts.HashFunc() must
+@@ -132,6 +132,9 @@ func (o *Options) HashFunc() crypto.Hash { return o.Hash }
+ 
+ // GenerateKey generates a public/private key pair using entropy from rand.
+ // If rand is nil, [crypto/rand.Reader] will be used.
++//
++// The output of this function is deterministic, and equivalent to reading
++// [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
+ func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
+ 	if rand == nil {
+ 		rand = cryptorand.Reader
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 489555358d..55fea1ab93 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -31,7 +31,10 @@ type PKCS1v15DecryptOptions struct {
+ //
+ // The random parameter is used as a source of entropy to ensure that
+ // encrypting the same message twice doesn't result in the same
+-// ciphertext.
++// ciphertext. Most applications should use [crypto/rand.Reader]
++// as random. Note that the returned ciphertext does not depend
++// deterministically on the bytes read from random, and may change
++// between calls and/or between versions.
+ //
+ // WARNING: use of this function to encrypt plaintexts other than
+ // session keys is dangerous. Use RSA OAEP in new protocols.
+@@ -79,7 +82,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
+ }
+ 
+ // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
+-// The random parameter is legacy and ignored, and it can be as nil.
++// The random parameter is legacy and ignored, and it can be nil.
+ //
+ // Note that whether this function returns an error or not discloses secret
+ // information. If an attacker can cause this function to run repeatedly and
+@@ -275,7 +278,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ // function. If hash is zero, hashed is signed directly. This isn't
+ // advisable except for interoperability.
+ //
+-// The random parameter is legacy and ignored, and it can be as nil.
++// The random parameter is legacy and ignored, and it can be nil.
+ //
+ // This function is deterministic. Thus, if the set of possible
+ // messages is small, an attacker may be able to build a map from
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index f7d23b55ef..3a377cc9db 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -285,7 +285,17 @@ var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be
+ // digest must be the result of hashing the input message using the given hash
+ // function. The opts argument may be nil, in which case sensible defaults are
+ // used. If opts.Hash is set, it overrides hash.
++//
++// The signature is randomized depending on the message, key, and salt size,
++// using bytes from rand. Most applications should use [crypto/rand.Reader] as
++// rand.
+ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
++	// Note that while we don't commit to deterministic execution with respect
++	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
++	// it's probably relied upon by some. It's a tolerable promise because a
++	// well-specified number of random bytes is included in the signature, in a
++	// well-specified way.
++
+ 	if boring.Enabled && rand == boring.RandReader {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 88e44508cd..f0aef1f542 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -263,8 +263,11 @@ func (priv *PrivateKey) Validate() error {
+ 	return nil
+ }
+ 
+-// GenerateKey generates an RSA keypair of the given bit size using the
+-// random source random (for example, crypto/rand.Reader).
++// GenerateKey generates a random RSA private key of the given bit size.
++//
++// Most applications should use [crypto/rand.Reader] as rand. Note that the
++// returned key does not depend deterministically on the bytes read from rand,
++// and may change between calls and/or between versions.
+ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	return GenerateMultiPrimeKey(random, 2, bits)
+ }
+@@ -500,6 +503,7 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
+ //
+ // The random parameter is used as a source of entropy to ensure that
+ // encrypting the same message twice doesn't result in the same ciphertext.
++// Most applications should use [crypto/rand.Reader] as random.
+ //
+ // The label parameter may contain arbitrary data that will not be encrypted,
+ // but which gives important context to the message. For example, if a given
+@@ -510,6 +514,12 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
+ // The message must be no longer than the length of the public modulus minus
+ // twice the hash length, minus a further 2.
+ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++	// Note that while we don't commit to deterministic execution with respect
++	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
++	// Law it's probably relied upon by some. It's a tolerable promise because a
++	// well-specified number of random bytes is included in the ciphertext, in a
++	// well-specified way.
++
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err
+ 	}
+@@ -691,7 +701,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
+ // Encryption and decryption of a given message must use the same hash function
+ // and sha256.New() is a reasonable choice.
+ //
+-// The random parameter is legacy and ignored, and it can be as nil.
++// The random parameter is legacy and ignored, and it can be nil.
+ //
+ // The label parameter must match the value given when encrypting. See
+ // EncryptOAEP for details.

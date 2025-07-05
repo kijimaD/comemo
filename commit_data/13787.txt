@@ -7,7 +7,7 @@ Date:   Tue Sep 11 07:37:43 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6489056
-
+---
  src/pkg/net/{dnsconfig.go => dnsconfig_unix.go}            | 0
  src/pkg/net/{fd.go => fd_unix.go}                          | 0
  src/pkg/net/{file.go => file_unix.go}                      | 0
@@ -19,3 +19,44 @@ Date:   Tue Sep 11 07:37:43 2012 +0900
  src/pkg/net/{sockoptip.go => sockoptip_posix.go}           | 0
  src/pkg/net/{unicast_test.go => unicast_posix_test.go}     | 0
  10 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig_unix.go
+similarity index 100%
+rename from src/pkg/net/dnsconfig.go
+rename to src/pkg/net/dnsconfig_unix.go
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd_unix.go
+similarity index 100%
+rename from src/pkg/net/fd.go
+rename to src/pkg/net/fd_unix.go
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file_unix.go
+similarity index 100%
+rename from src/pkg/net/file.go
+rename to src/pkg/net/file_unix.go
+diff --git a/src/pkg/net/doc.go b/src/pkg/net/lookup.go
+similarity index 100%
+rename from src/pkg/net/doc.go
+rename to src/pkg/net/lookup.go
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_posix_test.go
+similarity index 100%
+rename from src/pkg/net/multicast_test.go
+rename to src/pkg/net/multicast_posix_test.go
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver_unix.go
+similarity index 100%
+rename from src/pkg/net/newpollserver.go
+rename to src/pkg/net/newpollserver_unix.go
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock_posix.go
+similarity index 100%
+rename from src/pkg/net/sock.go
+rename to src/pkg/net/sock_posix.go
+diff --git a/src/pkg/net/sockopt.go b/src/pkg/net/sockopt_posix.go
+similarity index 100%
+rename from src/pkg/net/sockopt.go
+rename to src/pkg/net/sockopt_posix.go
+diff --git a/src/pkg/net/sockoptip.go b/src/pkg/net/sockoptip_posix.go
+similarity index 100%
+rename from src/pkg/net/sockoptip.go
+rename to src/pkg/net/sockoptip_posix.go
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_posix_test.go
+similarity index 100%
+rename from src/pkg/net/unicast_test.go
+rename to src/pkg/net/unicast_posix_test.go

@@ -10,6 +10,18 @@ Date:   Tue Nov 1 21:49:33 2011 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5330043
-
+---
  src/pkg/exp/ebnf/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/ebnf/parser.go b/src/pkg/exp/ebnf/parser.go
+index dac5dd8339..b550c2b64f 100644
+--- a/src/pkg/exp/ebnf/parser.go
++++ b/src/pkg/exp/ebnf/parser.go
+@@ -187,5 +187,5 @@ func (p *parser) parse(filename string, src io.Reader) Grammar {
+ func Parse(filename string, src io.Reader) (Grammar, os.Error) {
+ 	var p parser
+ 	grammar := p.parse(filename, src)
+-	return grammar, p.errors.Error()
++	return grammar, p.errors.Err()
+ }

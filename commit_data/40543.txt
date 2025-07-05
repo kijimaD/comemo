@@ -12,10 +12,346 @@ Date:   Thu May 16 12:45:52 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174437
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/crypto/ecdsa/ecdsa.go            |  19 +++--
  src/crypto/ecdsa/ecdsa_noasm.go      |  22 +++++
  src/crypto/ecdsa/ecdsa_s390x.go      | 153 +++++++++++++++++++++++++++++++++++
  src/crypto/ecdsa/ecdsa_s390x.s       |  31 +++++++
  src/crypto/ecdsa/ecdsa_s390x_test.go |  33 ++++++++
  5 files changed, 252 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index e059f181c7..ddc3b35ba3 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -21,13 +21,12 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/elliptic"
++	"crypto/internal/randutil"
+ 	"crypto/sha512"
+ 	"encoding/asn1"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+-
+-	"crypto/internal/randutil"
+ )
+ 
+ // A invertible implements fast inverse mod Curve.Params().N
+@@ -190,14 +189,21 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 
+ 	// See [NSA] 3.4.1
+ 	c := priv.PublicKey.Curve
++	e := hashToInt(hash, c)
++	r, s, err = sign(priv, &csprng, c, e)
++	return
++}
++
++func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
+ 	N := c.Params().N
+ 	if N.Sign() == 0 {
+ 		return nil, nil, errZeroParam
+ 	}
++
+ 	var k, kInv *big.Int
+ 	for {
+ 		for {
+-			k, err = randFieldElement(c, csprng)
++			k, err = randFieldElement(c, *csprng)
+ 			if err != nil {
+ 				r = nil
+ 				return
+@@ -215,8 +221,6 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 				break
+ 			}
+ 		}
+-
+-		e := hashToInt(hash, c)
+ 		s = new(big.Int).Mul(priv.D, r)
+ 		s.Add(s, e)
+ 		s.Mul(s, kInv)
+@@ -225,7 +229,6 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 			break
+ 		}
+ 	}
+-
+ 	return
+ }
+ 
+@@ -243,8 +246,12 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 		return false
+ 	}
+ 	e := hashToInt(hash, c)
++	return verify(pub, c, e, r, s)
++}
+ 
++func verifyGeneric(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
+ 	var w *big.Int
++	N := c.Params().N
+ 	if in, ok := c.(invertible); ok {
+ 		w = in.Inverse(s)
+ 	} else {
+diff --git a/src/crypto/ecdsa/ecdsa_noasm.go b/src/crypto/ecdsa/ecdsa_noasm.go
+new file mode 100644
+index 0000000000..2dfdb866d6
+--- /dev/null
++++ b/src/crypto/ecdsa/ecdsa_noasm.go
+@@ -0,0 +1,22 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !s390x
++
++package ecdsa
++
++import (
++	"crypto/cipher"
++	"crypto/elliptic"
++	"math/big"
++)
++
++func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
++	r, s, err = signGeneric(priv, csprng, c, e)
++	return
++}
++
++func verify(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
++	return verifyGeneric(pub, c, e, r, s)
++}
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.go b/src/crypto/ecdsa/ecdsa_s390x.go
+new file mode 100644
+index 0000000000..f07c3bf50c
+--- /dev/null
++++ b/src/crypto/ecdsa/ecdsa_s390x.go
+@@ -0,0 +1,153 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build s390x,!gccgo
++
++package ecdsa
++
++import (
++	"crypto/cipher"
++	"crypto/elliptic"
++	"internal/cpu"
++	"math/big"
++)
++
++// s390x accelerated signatures
++//go:noescape
++func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
++
++type signverify int
++
++const (
++	signing signverify = iota
++	verifying
++)
++
++// bufferOffsets represents the offset of a particular parameter in
++// the buffer passed to the KDSA instruction.
++type bufferOffsets struct {
++	baseSize       int
++	hashSize       int
++	offsetHash     int
++	offsetKey1     int
++	offsetRNorKey2 int
++	offsetR        int
++	offsetS        int
++	functionCode   uint64
++}
++
++func canUseKDSA(sv signverify, c elliptic.Curve, bo *bufferOffsets) bool {
++	if !cpu.S390X.HasECDSA {
++		return false
++	}
++
++	switch c.Params().Name {
++	case "P-256":
++		bo.baseSize = 32
++		bo.hashSize = 32
++		bo.offsetHash = 64
++		bo.offsetKey1 = 96
++		bo.offsetRNorKey2 = 128
++		bo.offsetR = 0
++		bo.offsetS = 32
++		if sv == signing {
++			bo.functionCode = 137
++		} else {
++			bo.functionCode = 1
++		}
++		return true
++	case "P-384":
++		bo.baseSize = 48
++		bo.hashSize = 48
++		bo.offsetHash = 96
++		bo.offsetKey1 = 144
++		bo.offsetRNorKey2 = 192
++		bo.offsetR = 0
++		bo.offsetS = 48
++		if sv == signing {
++			bo.functionCode = 138
++		} else {
++			bo.functionCode = 2
++		}
++		return true
++	case "P-521":
++		bo.baseSize = 66
++		bo.hashSize = 80
++		bo.offsetHash = 160
++		bo.offsetKey1 = 254
++		bo.offsetRNorKey2 = 334
++		bo.offsetR = 14
++		bo.offsetS = 94
++		if sv == signing {
++			bo.functionCode = 139
++		} else {
++			bo.functionCode = 3
++		}
++		return true
++	}
++	return false
++}
++
++// zeroExtendAndCopy pads src with leading zeros until it has the size given.
++// It then copies the padded src into the dst. Bytes beyond size in dst are
++// not modified.
++func zeroExtendAndCopy(dst, src []byte, size int) {
++	nz := size - len(src)
++	if nz < 0 {
++		panic("src is too long")
++	}
++	// the compiler should replace this loop with a memclr call
++	z := dst[:nz]
++	for i := range z {
++		z[i] = 0
++	}
++	copy(dst[nz:size], src[:size-nz])
++	return
++}
++
++func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
++	var bo bufferOffsets
++	if canUseKDSA(signing, c, &bo) && e.Sign() != 0 {
++		var buffer [1720]byte
++		for {
++			var k *big.Int
++			k, err = randFieldElement(c, csprng)
++			if err != nil {
++				return nil, nil, err
++			}
++			zeroExtendAndCopy(buffer[bo.offsetHash:], e.Bytes(), bo.hashSize)
++			zeroExtendAndCopy(buffer[bo.offsetKey1:], priv.D.Bytes(), bo.baseSize)
++			zeroExtendAndCopy(buffer[bo.offsetRNorKey2:], k.Bytes(), bo.baseSize)
++			errn := kdsaSig(bo.functionCode, &buffer)
++			if errn == 2 {
++				return nil, nil, errZeroParam
++			}
++			if errn == 0 { // success == 0 means successful signing
++				r = new(big.Int)
++				r.SetBytes(buffer[bo.offsetR : bo.offsetR+bo.baseSize])
++				s = new(big.Int)
++				s.SetBytes(buffer[bo.offsetS : bo.offsetS+bo.baseSize])
++				return
++			}
++			//at this point, it must be that errn == 1: retry
++		}
++	}
++	r, s, err = signGeneric(priv, csprng, c, e)
++	return
++}
++
++func verify(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
++	var bo bufferOffsets
++	if canUseKDSA(verifying, c, &bo) && e.Sign() != 0 {
++		var buffer [1720]byte
++		zeroExtendAndCopy(buffer[bo.offsetR:], r.Bytes(), bo.baseSize)
++		zeroExtendAndCopy(buffer[bo.offsetS:], s.Bytes(), bo.baseSize)
++		zeroExtendAndCopy(buffer[bo.offsetHash:], e.Bytes(), bo.hashSize)
++		zeroExtendAndCopy(buffer[bo.offsetKey1:], pub.X.Bytes(), bo.baseSize)
++		zeroExtendAndCopy(buffer[bo.offsetRNorKey2:], pub.Y.Bytes(), bo.baseSize)
++		errn := kdsaSig(bo.functionCode, &buffer)
++		return errn == 0
++	}
++	return verifyGeneric(pub, c, e, r, s)
++}
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.s b/src/crypto/ecdsa/ecdsa_s390x.s
+new file mode 100644
+index 0000000000..6ee00ce79c
+--- /dev/null
++++ b/src/crypto/ecdsa/ecdsa_s390x.s
+@@ -0,0 +1,31 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
++TEXT ·kdsaSig(SB), NOSPLIT|NOFRAME, $0-24
++	MOVD fc+0(FP), R0    // function code
++	MOVD block+8(FP), R1 // address parameter block
++
++loop:
++	WORD $0xB93A0008 // compute digital signature authentication
++	BVS  loop        // branch back if interrupted
++	BEQ  success     // signature creation successful
++	BGT  retry       // signing unsuccessful, but retry with new CSPRN
++
++error:
++	MOVD $2, R2          // fallthrough indicates fatal error
++	MOVD R2, errn+16(FP) // return 2 - sign/verify abort
++	RET
++
++retry:
++	MOVD $1, R2
++	MOVD R2, errn+16(FP) // return 1 - sign/verify was unsuccessful -- if sign, retry with new RN
++	RET
++
++success:
++	MOVD $0, R2
++	MOVD R2, errn+16(FP) // return 0 - sign/verify was successful
++	RET
+diff --git a/src/crypto/ecdsa/ecdsa_s390x_test.go b/src/crypto/ecdsa/ecdsa_s390x_test.go
+new file mode 100644
+index 0000000000..80babc9cb4
+--- /dev/null
++++ b/src/crypto/ecdsa/ecdsa_s390x_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build s390x,!gccgo
++
++package ecdsa
++
++import (
++	"crypto/elliptic"
++	"testing"
++)
++
++func TestNoAsm(t *testing.T) {
++	curves := [...]elliptic.Curve{
++		elliptic.P256(),
++		elliptic.P384(),
++		elliptic.P521(),
++	}
++
++	for _, curve := range curves {
++		// override the name of the curve to stop the assembly path being taken
++		params := *curve.Params()
++		name := params.Name
++		params.Name = name + "_GENERIC_OVERRIDE"
++
++		testKeyGeneration(t, &params, name)
++		testSignAndVerify(t, &params, name)
++		testNonceSafety(t, &params, name)
++		testINDCCA(t, &params, name)
++		testNegativeInputs(t, &params, name)
++	}
++}

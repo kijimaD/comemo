@@ -8,7 +8,77 @@ Date:   Sun Aug 30 19:46:35 2009 -0700
     DELTA=38  (33 added, 3 deleted, 2 changed)
     OCL=34101
     CL=34104
-
+---
  src/pkg/gob/encoder.go      | 16 ++++++++++++----
  src/pkg/gob/encoder_test.go | 22 ++++++++++++++++++++++
  2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 2d84028aaf..f4a5610295 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -241,22 +241,30 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 
+ 	// We only send structs - everything else is basic or an error
+ 	switch t := rt.(type) {
+-	case *reflect.StructType:
++	case *reflect.StructType:	// TODO: when compiler handles type lists, can fold these
+ 		break;	// we handle these
+ 	case *reflect.ChanType:
+ 		enc.badType(rt);
+ 		return;
+-	case *reflect.MapType:
++	case *reflect.FuncType:
+ 		enc.badType(rt);
+ 		return;
+-	case *reflect.FuncType:
++	case *reflect.MapType:
+ 		enc.badType(rt);
+ 		return;
+ 	case *reflect.InterfaceType:
+ 		enc.badType(rt);
+ 		return;
++	// Array and slice types are not sent, only their element types.
++	// If we see one here it's user error.
++	case *reflect.ArrayType:
++		enc.badType(rt);
++		return;
++	case *reflect.SliceType:
++		enc.badType(rt);
++		return;
+ 	default:
+-		return;	// basic, array, etc; not a type to be sent.
++		return;	// basic, not a type to be sent.
+ 	}
+ 
+ 	// Have we already sent this type?  This time we ask about the base type.
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 534816fc84..4cad834d09 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -243,3 +243,25 @@ func TestBadData(t *testing.T) {
+ 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
+ 	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
+ }
++
++// Types not supported by the Encoder (only structs work at the top level).
++// Basic types work implicitly.
++var unsupportedValues = []interface{} {
++	[]int{ 1, 2, 3 },
++	[3]int{ 1, 2, 3 },
++	make(chan int),
++	func(a int) bool { return true },
++	make(map[string] int),
++	new(interface{}),
++}
++
++func TestUnsupported(t *testing.T) {
++	var b bytes.Buffer;
++	enc := NewEncoder(&b);
++	for _, v := range unsupportedValues {
++		err := enc.Encode(v);
++		if err == nil {
++			t.Errorf("expected error for %T; got none", v)
++		}
++	}
++}

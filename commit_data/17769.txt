@@ -12,8 +12,75 @@ Date:   Wed Oct 9 08:37:06 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14441051
-
+---
  src/pkg/compress/flate/inflate.go           |   4 ++++
  src/pkg/compress/gzip/gunzip_test.go        |  31 ++++++++++++++++++++++++++++
  src/pkg/compress/gzip/testdata/issue6550.gz | Bin 0 -> 65536 bytes
  3 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 34ba00d5af..3eb3b2b83e 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -644,6 +644,10 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
+ 		if n > huffmanChunkBits {
+ 			chunk = h.links[chunk>>huffmanValueShift][(f.b>>huffmanChunkBits)&h.linkMask]
+ 			n = uint(chunk & huffmanCountMask)
++			if n == 0 {
++				f.err = CorruptInputError(f.roffset)
++				return 0, f.err
++			}
+ 		}
+ 		if n <= f.nb {
+ 			f.b >>= n
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index a1333580dc..572fb58488 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -7,7 +7,10 @@ package gzip
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
++	"os"
+ 	"testing"
++	"time"
+ )
+ 
+ type gunzipTest struct {
+@@ -302,3 +305,31 @@ func TestDecompressor(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue6550(t *testing.T) {
++	f, err := os.Open("testdata/issue6550.gz")
++	if err != nil {
++		t.Fatal(err)
++	}
++	gzip, err := NewReader(f)
++	if err != nil {
++		t.Fatalf("NewReader(testdata/issue6550.gz): %v", err)
++	}
++	defer gzip.Close()
++	done := make(chan bool, 1)
++	go func() {
++		_, err := io.Copy(ioutil.Discard, gzip)
++		if err == nil {
++			t.Errorf("Copy succeeded")
++		} else {
++			t.Logf("Copy failed (correctly): %v", err)
++		}
++		done <- true
++	}()
++	select {
++	case <-time.After(1 * time.Second):
++		t.Errorf("Copy hung")
++	case <-done:
++		// ok
++	}
++}
+diff --git a/src/pkg/compress/gzip/testdata/issue6550.gz b/src/pkg/compress/gzip/testdata/issue6550.gz
+new file mode 100644
+index 0000000000..57972b6366
+Binary files /dev/null and b/src/pkg/compress/gzip/testdata/issue6550.gz differ

@@ -15,6 +15,37 @@ Date:   Thu Dec 17 01:39:28 2015 +0000
     Change-Id: I33c49b6a4a7a3596735a4cc7865ad625809da900
     Reviewed-on: https://go-review.googlesource.com/17932
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/response.go | 18 +++++++++++-------
  1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 0e39ed3a3a..57ae364f57 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -72,14 +72,18 @@ type Response struct {
+ 	// ReadResponse nor Response.Write ever closes a connection.
+ 	Close bool
+ 
+-	// Trailer maps trailer keys to values, in the same
+-	// format as the header.
++	// Trailer maps trailer keys to values in the same
++	// format as Header.
+ 	//
+-	// The Trailer initially contains only the server's
+-	// pre-declared trailer keys, but with nil values. Trailer
+-	// must not be access concurrently with Read calls on the
+-	// Body. After Body.Read has returned io.EOF, Trailer can be read
+-	// again and will contain any values sent by the server.
++	// The Trailer initially contains only nil values, one for
++	// each key specified in the server's "Trailer" header
++	// value. Those values are not added to Header.
++	//
++	// Trailer must not be accessed concurrently with Read calls
++	// on the Body.
++	//
++	// After Body.Read has returned io.EOF, Trailer will contain
++	// any trailer values sent by the server.
+ 	Trailer Header
+ 
+ 	// The Request that was sent to obtain this Response.

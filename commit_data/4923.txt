@@ -7,6 +7,30 @@ Date:   Mon Feb 22 16:51:28 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/218063
-
+---
  doc/go_mem.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index ede79720a6..4772bc2178 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -190,7 +190,8 @@ the send on that channel completes.
+ </p>
+ 
+ <p>
+-This program:
++This program (as above, but with the send and receive statements swapped and
++using an unbuffered channel):
+ </p>
+ 
+ <pre>
+@@ -222,7 +223,7 @@ before the <code>print</code>.
+ If the channel were buffered (e.g., <code>c = make(chan int, 1)</code>)
+ then the program would not be guaranteed to print
+ <code>"hello, world"</code>.  (It might print the empty string;
+-it cannot print <code>"hello, sailor"</code>, nor can it crash.)
++it cannot print <code>"goodbye, universe"</code>, nor can it crash.)
+ </p>
+ 
+ <h3>Locks</h3>

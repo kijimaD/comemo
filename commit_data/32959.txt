@@ -9,7 +9,48 @@ Date:   Fri Jun 16 06:10:00 2017 +0000
     Change-Id: Ieb79244d17623e112a385e6b43843d3ffb185cf6
     Reviewed-on: https://go-review.googlesource.com/45995
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 27da4e0aeb..afe23a5258 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -16,7 +16,6 @@ Aaron France <aaron.l.france@gmail.com>
+ Aaron Torres <tcboox@gmail.com>
+ Abe Haskins <abeisgreat@abeisgreat.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+-acoshift <acoshift@gmail.com>
+ Adam Eijdenberg <adam@continusec.com>
+ Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+@@ -931,6 +930,7 @@ Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+ Teleport Inc.
+ Terrel Shumway <gopher@shumway.us>
+ Tetsuo Kiso <tetsuokiso9@gmail.com>
++Thanatat Tamtan <acoshift@gmail.com>
+ Thiago Fransosi Farina <thiago.farina@gmail.com>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Bonfort <thomas.bonfort@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 037e54d026..5c71a1b116 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -40,7 +40,6 @@ Aaron Torres <tcboox@gmail.com>
+ Aaron Zinman <aaron@azinman.com>
+ Abe Haskins <abeisgreat@abeisgreat.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+-acoshift <acoshift@gmail.com>
+ Adam Bender <abender@google.com>
+ Adam Eijdenberg <adam@continusec.com>
+ Adam Langley <agl@golang.org>
+@@ -1234,6 +1233,7 @@ Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+ Terrel Shumway <gopher@shumway.us>
+ Tetsuo Kiso <tetsuokiso9@gmail.com>
+ Than McIntosh <thanm@google.com>
++Thanatat Tamtan <acoshift@gmail.com>
+ Thiago Fransosi Farina <thiago.farina@gmail.com> <tfarina@chromium.org>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Bonfort <thomas.bonfort@gmail.com>

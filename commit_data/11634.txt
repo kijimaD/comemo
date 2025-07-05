@@ -9,6 +9,19 @@ Date:   Mon Feb 6 13:24:45 2012 +1100
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/5635046
-
+---
  src/pkg/html/escape.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index c0b5262af8..dbe1b9cd37 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package html provides functions for escaping and unescaping HTML text.
+ package html
+ 
+ import (

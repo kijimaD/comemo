@@ -10,6 +10,27 @@ Date:   Thu Oct 28 15:39:11 2021 +0800
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/regexp/regexp.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 7d56bd6b8e..26ac5f48b2 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -793,11 +793,12 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
+ 				accept = false
+ 			}
+ 			var width int
+-			// TODO: use step()
+ 			if b == nil {
+-				_, width = utf8.DecodeRuneInString(s[pos:end])
++				is := inputString{str: s}
++				_, width = is.step(pos)
+ 			} else {
+-				_, width = utf8.DecodeRune(b[pos:end])
++				ib := inputBytes{str: b}
++				_, width = ib.step(pos)
+ 			}
+ 			if width > 0 {
+ 				pos += width

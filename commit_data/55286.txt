@@ -18,6 +18,30 @@ Date:   Tue Dec 20 12:00:36 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/pkginit/init.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index e13a7fbfe0..57593fdb9b 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -75,14 +75,14 @@ func Task() *ir.Name {
+ 
+ 	// Find imported packages with init tasks.
+ 	for _, pkg := range typecheck.Target.Imports {
+-		n := typecheck.Resolve(ir.NewIdent(base.Pos, pkg.Lookup(".inittask")))
+-		if n.Op() == ir.ONONAME {
++		n, ok := pkg.Lookup(".inittask").Def.(*ir.Name)
++		if !ok {
+ 			continue
+ 		}
+-		if n.Op() != ir.ONAME || n.(*ir.Name).Class != ir.PEXTERN {
++		if n.Op() != ir.ONAME || n.Class != ir.PEXTERN {
+ 			base.Fatalf("bad inittask: %v", n)
+ 		}
+-		deps = append(deps, n.(*ir.Name).Linksym())
++		deps = append(deps, n.Linksym())
+ 	}
+ 	if base.Flag.ASan {
+ 		// Make an initialization function to call runtime.asanregisterglobals to register an

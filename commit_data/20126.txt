@@ -8,7 +8,36 @@ Date:   Mon Aug 18 22:24:15 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/128360043
-
+---
  src/liblink/list9.c | 2 ++
  src/liblink/obj9.c  | 4 ++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 9700a16849..9e205b7a9e 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -125,6 +125,8 @@ Pconv(Fmt *fp)
+ 				s += sprint(s, ",%D", &p->from3);
+ 			sprint(s, ",%D", &p->to);
+ 		}
++		if(p->spadj != 0)
++			return fmtprint(fp, "%s # spadj=%d", str, p->spadj);
+ 	}
+ 	return fmtstrcpy(fp, str);
+ }
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 28793676cc..d0c14dfb57 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -617,6 +617,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			q->link = q1;
+ 			break;
+ 
++		case AADD:
++			if(p->to.type == D_REG && p->to.reg == REGSP && p->from.type == D_CONST)
++				p->spadj = -p->from.offset;
++			break;
+ 		}
+ 	}
+ 

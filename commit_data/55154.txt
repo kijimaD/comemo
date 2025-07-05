@@ -18,7 +18,7 @@ Date:   Wed Jan 11 09:17:55 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go  |  2 +-
  src/cmd/compile/internal/types2/decl.go      |  2 +-
  src/cmd/compile/internal/types2/mono.go      |  2 +-
@@ -35,3 +35,358 @@ Date:   Wed Jan 11 09:17:55 2023 -0800
  src/go/types/util.go                         | 22 ++++++++++++++
  src/go/types/util_test.go                    | 12 ++++++++
  15 files changed, 115 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index af315e7b70..236b05e059 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -622,7 +622,7 @@ func sortedInstances(m map[*syntax.Name]Instance) (instances []recordedInstance)
+ 		instances = append(instances, recordedInstance{id, inst})
+ 	}
+ 	sort.Slice(instances, func(i, j int) bool {
+-		return instances[i].Name.Pos().Cmp(instances[j].Name.Pos()) < 0
++		return CmpPos(instances[i].Name.Pos(), instances[j].Name.Pos()) < 0
+ 	})
+ 	return instances
+ }
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 530a8f5b69..82fb727511 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -360,7 +360,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ func firstInSrc(path []Object) int {
+ 	fst, pos := 0, path[0].Pos()
+ 	for i, t := range path[1:] {
+-		if t.Pos().Cmp(pos) < 0 {
++		if cmpPos(t.Pos(), pos) < 0 {
+ 			fst, pos = i+1, t.Pos()
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/mono.go b/src/cmd/compile/internal/types2/mono.go
+index eb1d5e7d2e..5b68f2aaa4 100644
+--- a/src/cmd/compile/internal/types2/mono.go
++++ b/src/cmd/compile/internal/types2/mono.go
+@@ -284,7 +284,7 @@ func (w *monoGraph) localNamedVertex(pkg *Package, named *Named) int {
+ 	// parameters that it's implicitly parameterized by.
+ 	for scope := obj.Parent(); scope != root; scope = scope.Parent() {
+ 		for _, elem := range scope.elems {
+-			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && elem.Pos().Cmp(obj.Pos()) < 0 {
++			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && cmpPos(elem.Pos(), obj.Pos()) < 0 {
+ 				if tpar, ok := elem.Type().(*TypeParam); ok {
+ 					if idx < 0 {
+ 						idx = len(w.vertices)
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index a679a3d954..25bde6a794 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -83,7 +83,7 @@ func (s *Scope) Lookup(name string) Object {
+ // whose scope is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+-		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || obj.scopePos().Cmp(pos) <= 0) {
++		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
+ 			return s, obj
+ 		}
+ 	}
+@@ -175,7 +175,7 @@ func (s *Scope) End() syntax.Pos { return s.end }
+ // The result is guaranteed to be valid only if the type-checked
+ // AST has complete position information.
+ func (s *Scope) Contains(pos syntax.Pos) bool {
+-	return s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
++	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
+ }
+ 
+ // Innermost returns the innermost (child) scope containing
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 9edcaa1318..01debc66c1 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		}
+ 	}
+ 	sort.Slice(unused, func(i, j int) bool {
+-		return unused[i].pos.Cmp(unused[j].pos) < 0
++		return cmpPos(unused[i].pos, unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+ 		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
+diff --git a/src/cmd/compile/internal/types2/util.go b/src/cmd/compile/internal/types2/util.go
+new file mode 100644
+index 0000000000..01da1c12ca
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/util.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains various functionality that is
++// different between go/types and types2. Factoring
++// out this code allows more of the rest of the code
++// to be shared.
++
++package types2
++
++import "cmd/compile/internal/syntax"
++
++// cmpPos compares the positions p and q and returns a result r as follows:
++//
++// r <  0: p is before q
++// r == 0: p and q are the same position (but may not be identical)
++// r >  0: p is after q
++//
++// If p and q are in different files, p is before q if the filename
++// of p sorts lexicographically before the filename of q.
++func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
+diff --git a/src/cmd/compile/internal/types2/util_test.go b/src/cmd/compile/internal/types2/util_test.go
+new file mode 100644
+index 0000000000..4cbd002355
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/util_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file exports various functionality of util.go
++// so that it can be used in (package-external) tests.
++
++package types2
++
++import "cmd/compile/internal/syntax"
++
++func CmpPos(p, q syntax.Pos) int { return cmpPos(p, q) }
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index df6d0c3d44..ba45ca293e 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -620,7 +620,7 @@ func sortedInstances(m map[*ast.Ident]Instance) (instances []recordedInstance) {
+ 		instances = append(instances, recordedInstance{id, inst})
+ 	}
+ 	sort.Slice(instances, func(i, j int) bool {
+-		return instances[i].Ident.Pos() < instances[j].Ident.Pos()
++		return CmpPos(instances[i].Ident.Pos(), instances[j].Ident.Pos()) < 0
+ 	})
+ 	return instances
+ }
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 018ff7f38e..9d84cf4da6 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -355,7 +355,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ func firstInSrc(path []Object) int {
+ 	fst, pos := 0, path[0].Pos()
+ 	for i, t := range path[1:] {
+-		if t.Pos() < pos {
++		if cmpPos(t.Pos(), pos) < 0 {
+ 			fst, pos = i+1, t.Pos()
+ 		}
+ 	}
+diff --git a/src/go/types/generator.go b/src/go/types/generator.go
+index eb9ee939f8..4f7d6661ef 100644
+--- a/src/go/types/generator.go
++++ b/src/go/types/generator.go
+@@ -80,20 +80,25 @@ var filemap = map[string]action{
+ 	"package.go":          nil,
+ 	"pointer.go":          nil,
+ 	"predicates.go":       nil,
+-	"selection.go":        nil,
+-	"sizes.go":            func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
+-	"slice.go":            nil,
+-	"subst.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
+-	"termlist.go":         nil,
+-	"termlist_test.go":    nil,
+-	"tuple.go":            nil,
+-	"typelists.go":        nil,
+-	"typeparam.go":        nil,
+-	"typeterm_test.go":    nil,
+-	"typeterm.go":         nil,
+-	"under.go":            nil,
+-	"universe.go":         fixGlobalTypVarDecl,
+-	"validtype.go":        nil,
++	"scope.go": func(f *ast.File) {
++		fixTokenPos(f)
++		renameIdent(f, "Squash", "squash")
++		renameIdent(f, "InsertLazy", "_InsertLazy")
++	},
++	"selection.go":     nil,
++	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
++	"slice.go":         nil,
++	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
++	"termlist.go":      nil,
++	"termlist_test.go": nil,
++	"tuple.go":         nil,
++	"typelists.go":     nil,
++	"typeparam.go":     nil,
++	"typeterm_test.go": nil,
++	"typeterm.go":      nil,
++	"under.go":         nil,
++	"universe.go":      fixGlobalTypVarDecl,
++	"validtype.go":     nil,
+ }
+ 
+ // TODO(gri) We should be able to make these rewriters more configurable/composable.
+@@ -134,15 +139,23 @@ func fixTokenPos(f *ast.File) {
+ 	ast.Inspect(f, func(n ast.Node) bool {
+ 		switch n := n.(type) {
+ 		case *ast.ImportSpec:
++			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
+ 			if n.Path.Kind == token.STRING && n.Path.Value == `"cmd/compile/internal/syntax"` {
+ 				n.Path.Value = `"go/token"`
+ 				return false
+ 			}
+ 		case *ast.SelectorExpr:
++			// rewrite syntax.Pos to token.Pos
+ 			if x, _ := n.X.(*ast.Ident); x != nil && x.Name == "syntax" && n.Sel.Name == "Pos" {
+ 				x.Name = "token"
+ 				return false
+ 			}
++		case *ast.CallExpr:
++			// rewrite x.IsKnown() to x.IsValid()
++			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && fun.Sel.Name == "IsKnown" && len(n.Args) == 0 {
++				fun.Sel.Name = "IsValid"
++				return false
++			}
+ 		}
+ 		return true
+ 	})
+@@ -153,6 +166,7 @@ func fixTraceSel(f *ast.File) {
+ 	ast.Inspect(f, func(n ast.Node) bool {
+ 		switch n := n.(type) {
+ 		case *ast.SelectorExpr:
++			// rewrite x.Trace to x.trace (for Config.Trace)
+ 			if n.Sel.Name == "Trace" {
+ 				n.Sel.Name = "trace"
+ 				return false
+@@ -169,6 +183,7 @@ func fixGlobalTypVarDecl(f *ast.File) {
+ 	ast.Inspect(f, func(n ast.Node) bool {
+ 		switch n := n.(type) {
+ 		case *ast.ValueSpec:
++			// rewrite type Typ = [...]Type{...} to type Typ = []Type{...}
+ 			if len(n.Names) == 1 && n.Names[0].Name == "Typ" && len(n.Values) == 1 {
+ 				n.Values[0].(*ast.CompositeLit).Type.(*ast.ArrayType).Len = nil
+ 				return false
+diff --git a/src/go/types/mono.go b/src/go/types/mono.go
+index cf3f5a8bdc..ebf4d8cef7 100644
+--- a/src/go/types/mono.go
++++ b/src/go/types/mono.go
+@@ -282,7 +282,7 @@ func (w *monoGraph) localNamedVertex(pkg *Package, named *Named) int {
+ 	// parameters that it's implicitly parameterized by.
+ 	for scope := obj.Parent(); scope != root; scope = scope.Parent() {
+ 		for _, elem := range scope.elems {
+-			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && elem.Pos() < obj.Pos() {
++			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && cmpPos(elem.Pos(), obj.Pos()) < 0 {
+ 				if tpar, ok := elem.Type().(*TypeParam); ok {
+ 					if idx < 0 {
+ 						idx = len(w.vertices)
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index fc42ce6524..433f31a478 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -1,3 +1,5 @@
++// Code generated by "go run generator.go"; DO NOT EDIT.
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -83,7 +85,7 @@ func (s *Scope) Lookup(name string) Object {
+ // whose scope is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+-		if obj := s.Lookup(name); obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
++		if obj := s.Lookup(name); obj != nil && (!pos.IsValid() || cmpPos(obj.scopePos(), pos) <= 0) {
+ 			return s, obj
+ 		}
+ 	}
+@@ -107,11 +109,11 @@ func (s *Scope) Insert(obj Object) Object {
+ 	return nil
+ }
+ 
+-// _InsertLazy is like Insert, but allows deferring construction of the
++// InsertLazy is like Insert, but allows deferring construction of the
+ // inserted object until it's accessed with Lookup. The Object
+-// returned by resolve must have the same name as given to _InsertLazy.
++// returned by resolve must have the same name as given to InsertLazy.
+ // If s already contains an alternative object with the same name,
+-// _InsertLazy leaves s unchanged and returns false. Otherwise it
++// InsertLazy leaves s unchanged and returns false. Otherwise it
+ // records the binding and returns true. The object's parent scope
+ // will be set to s after resolve is called.
+ func (s *Scope) _InsertLazy(name string, resolve func() Object) bool {
+@@ -129,7 +131,7 @@ func (s *Scope) insert(name string, obj Object) {
+ 	s.elems[name] = obj
+ }
+ 
+-// squash merges s with its parent scope p by adding all
++// Squash merges s with its parent scope p by adding all
+ // objects of s to p, adding all children of s to the
+ // children of p, and removing s from p's children.
+ // The function f is called for each object obj in s which
+@@ -175,7 +177,7 @@ func (s *Scope) End() token.Pos { return s.end }
+ // The result is guaranteed to be valid only if the type-checked
+ // AST has complete position information.
+ func (s *Scope) Contains(pos token.Pos) bool {
+-	return s.pos <= pos && pos < s.end
++	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
+ }
+ 
+ // Innermost returns the innermost (child) scope containing
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 1a4c58888a..5c08a74c32 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -65,7 +65,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		}
+ 	}
+ 	sort.Slice(unused, func(i, j int) bool {
+-		return unused[i].pos < unused[j].pos
++		return cmpPos(unused[i].pos, unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+ 		check.softErrorf(v, UnusedVar, "%s declared and not used", v.name)
+diff --git a/src/go/types/util.go b/src/go/types/util.go
+new file mode 100644
+index 0000000000..87e1240010
+--- /dev/null
++++ b/src/go/types/util.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains various functionality that is
++// different between go/types and types2. Factoring
++// out this code allows more of the rest of the code
++// to be shared.
++
++package types
++
++import "go/token"
++
++// cmpPos compares the positions p and q and returns a result r as follows:
++//
++// r <  0: p is before q
++// r == 0: p and q are the same position (but may not be identical)
++// r >  0: p is after q
++//
++// If p and q are in different files, p is before q if the filename
++// of p sorts lexicographically before the filename of q.
++func cmpPos(p, q token.Pos) int { return int(p - q) }
+diff --git a/src/go/types/util_test.go b/src/go/types/util_test.go
+new file mode 100644
+index 0000000000..cba6e24319
+--- /dev/null
++++ b/src/go/types/util_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file exports various functionality of util.go
++// so that it can be used in (package-external) tests.
++
++package types
++
++import "go/token"
++
++func CmpPos(p, q token.Pos) int { return cmpPos(p, q) }

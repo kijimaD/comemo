@@ -7,7 +7,98 @@ Date:   Fri Aug 31 18:09:31 2012 -0400
     R=rsc, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/6330061
-
+---
  src/pkg/encoding/xml/xml.go      | 31 ++++++++++++++++++++++++++++++-
  src/pkg/encoding/xml/xml_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 623f417801..fbd2208e33 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -584,6 +584,7 @@ func (d *Decoder) RawToken() (Token, error) {
+ 			if inquote == 0 && b == '>' && depth == 0 {
+ 				break
+ 			}
++		HandleB:
+ 			d.buf.WriteByte(b)
+ 			switch {
+ 			case b == inquote:
+@@ -599,7 +600,35 @@ func (d *Decoder) RawToken() (Token, error) {
+ 				depth--
+ 
+ 			case b == '<' && inquote == 0:
+-				depth++
++				// Look for <!-- to begin comment.
++				s := "!--"
++				for i := 0; i < len(s); i++ {
++					if b, ok = d.mustgetc(); !ok {
++						return nil, d.err
++					}
++					if b != s[i] {
++						for j := 0; j < i; j++ {
++							d.buf.WriteByte(s[j])
++						}
++						depth++
++						goto HandleB
++					}
++				}
++
++				// Remove < that was written above.
++				d.buf.Truncate(d.buf.Len() - 1)
++
++				// Look for terminator.
++				var b0, b1 byte
++				for {
++					if b, ok = d.mustgetc(); !ok {
++						return nil, d.err
++					}
++					if b0 == '-' && b1 == '-' && b == '>' {
++						break
++					}
++					b0, b1 = b1, b
++				}
+ 			}
+ 		}
+ 		return Directive(d.buf.Bytes()), nil
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index d556789fdd..2ad4d4af5d 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -621,3 +621,36 @@ func TestProcInstEncoding(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Ensure that directives with comments include the complete
++// text of any nested directives.
++
++var directivesWithCommentsInput = `
++<!DOCTYPE [<!-- a comment --><!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]>
++<!DOCTYPE [<!ENTITY go "Golang"><!-- a comment-->]>
++<!DOCTYPE <!-> <!> <!----> <!-->--> <!--->--> [<!ENTITY go "Golang"><!-- a comment-->]>
++`
++
++var directivesWithCommentsTokens = []Token{
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY go "Golang">]`),
++	CharData("\n"),
++	Directive(`DOCTYPE <!-> <!>    [<!ENTITY go "Golang">]`),
++	CharData("\n"),
++}
++
++func TestDirectivesWithComments(t *testing.T) {
++	d := NewDecoder(strings.NewReader(directivesWithCommentsInput))
++
++	for i, want := range directivesWithCommentsTokens {
++		have, err := d.Token()
++		if err != nil {
++			t.Fatalf("token %d: unexpected error: %s", i, err)
++		}
++		if !reflect.DeepEqual(have, want) {
++			t.Errorf("token %d = %#v want %#v", i, have, want)
++		}
++	}
++}

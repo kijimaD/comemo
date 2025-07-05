@@ -7,6 +7,21 @@ Date:   Fri Apr 15 11:21:29 2011 -0400
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/4442042
-
+---
  src/pkg/net/srv_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/srv_test.go b/src/pkg/net/srv_test.go
+index 4dd6089cdd..8ebb4a4035 100644
+--- a/src/pkg/net/srv_test.go
++++ b/src/pkg/net/srv_test.go
+@@ -12,6 +12,9 @@ import (
+ )
+ 
+ func TestGoogleSRV(t *testing.T) {
++	if testing.Short() {
++		return
++	}
+ 	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+ 	if err != nil {
+ 		t.Errorf("failed: %s", err)

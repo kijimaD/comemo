@@ -16,6 +16,23 @@ Date:   Tue May 9 19:36:13 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/trace.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 860b53bdbb..64314f62e8 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -206,6 +206,11 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
+ 	return traceBufPtr(unsafe.Pointer(b))
+ }
+ 
++// traceEnabled returns true if the trace is currently enabled.
++func traceEnabled() bool {
++	return trace.enabled
++}
++
+ // StartTrace enables tracing for the current process.
+ // While tracing, the data will be buffered and available via ReadTrace.
+ // StartTrace returns an error if tracing is already enabled.

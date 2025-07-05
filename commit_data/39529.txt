@@ -17,7 +17,90 @@ Date:   Sun Oct 28 01:44:09 2018 +0700
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go      |  8 ++++++--
  src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++--
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 731553dca6..3900bcc165 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -125,7 +125,7 @@ type UnmarshalTypeError struct {
+ 	Type   reflect.Type // type of Go value it could not be assigned to
+ 	Offset int64        // error occurred after reading Offset bytes
+ 	Struct string       // name of the struct type containing the field
+-	Field  string       // name of the field holding the Go value
++	Field  string       // the full path from root node to the field
+ }
+ 
+ func (e *UnmarshalTypeError) Error() string {
+@@ -730,7 +730,11 @@ func (d *decodeState) object(v reflect.Value) error {
+ 					}
+ 					subv = subv.Field(i)
+ 				}
+-				d.errorContext.Field = f.name
++				if originalErrorContext.Field == "" {
++					d.errorContext.Field = f.name
++				} else {
++					d.errorContext.Field = originalErrorContext.Field + "." + f.name
++				}
+ 				d.errorContext.Struct = t
+ 			} else if d.disallowUnknownFields {
+ 				d.saveError(fmt.Errorf("json: unknown field %q", key))
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 60454c6058..d99d65d763 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -45,6 +45,14 @@ type W struct {
+ 	S SS
+ }
+ 
++type P struct {
++	PP PP
++}
++
++type PP struct {
++	T T
++}
++
+ type SS string
+ 
+ func (*SS) UnmarshalJSON(data []byte) error {
+@@ -816,7 +824,7 @@ var unmarshalTests = []unmarshalTest{
+ 		err: &UnmarshalTypeError{
+ 			Value:  "string",
+ 			Struct: "V",
+-			Field:  "F2",
++			Field:  "V.F2",
+ 			Type:   reflect.TypeOf(int32(0)),
+ 			Offset: 20,
+ 		},
+@@ -827,7 +835,7 @@ var unmarshalTests = []unmarshalTest{
+ 		err: &UnmarshalTypeError{
+ 			Value:  "string",
+ 			Struct: "V",
+-			Field:  "F2",
++			Field:  "V.F2",
+ 			Type:   reflect.TypeOf(int32(0)),
+ 			Offset: 30,
+ 		},
+@@ -923,6 +931,18 @@ var unmarshalTests = []unmarshalTest{
+ 		ptr: new(MustNotUnmarshalText),
+ 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+ 	},
++	// #22369
++	{
++		in:  `{"PP": {"T": {"Y": "bad-type"}}}`,
++		ptr: new(P),
++		err: &UnmarshalTypeError{
++			Value:  "string",
++			Struct: "T",
++			Field:  "PP.T.Y",
++			Type:   reflect.TypeOf(int(0)),
++			Offset: 29,
++		},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

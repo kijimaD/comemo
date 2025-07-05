@@ -20,7 +20,7 @@ Date:   Thu Mar 3 11:30:17 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  4 +-
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/inl.go       |  2 +-
@@ -33,3 +33,260 @@ Date:   Thu Mar 3 11:30:17 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go | 12 +++---
  src/cmd/compile/internal/gc/walk.go      |  2 +-
  11 files changed, 86 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 36cd1198a0..6f11b968f9 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -303,7 +303,7 @@ func genhash(sym *Sym, t *Type) {
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+ 	typecheck(&fn, Etop)
+-	typecheckslice(fn.Nbody.Slice(), Etop)
++	typechecklist(fn.Nbody, Etop)
+ 	Curfn = nil
+ 
+ 	// Disable safemode while compiling this code: the code we
+@@ -511,7 +511,7 @@ func geneq(sym *Sym, t *Type) {
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+ 	typecheck(&fn, Etop)
+-	typecheckslice(fn.Nbody.Slice(), Etop)
++	typechecklist(fn.Nbody, Etop)
+ 	Curfn = nil
+ 
+ 	// Disable safemode while compiling this code: the code we
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 40829d0e31..e284604db0 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -111,7 +111,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 		Curfn = func_
+ 		olddd := decldepth
+ 		decldepth = 1
+-		typecheckslice(func_.Nbody.Slice(), Etop)
++		typechecklist(func_.Nbody, Etop)
+ 		decldepth = olddd
+ 		Curfn = oldfn
+ 	}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 7b8020d2ca..347296ba6b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -87,7 +87,7 @@ func typecheckinl(fn *Node) {
+ 
+ 	savefn := Curfn
+ 	Curfn = fn
+-	typecheckslice(fn.Func.Inl.Slice(), Etop)
++	typechecklist(fn.Func.Inl, Etop)
+ 	Curfn = savefn
+ 
+ 	safemode = save_safemode
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 153928ec06..6509e83c92 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -406,7 +406,7 @@ func Main() {
+ 			Curfn = l.N
+ 			decldepth = 1
+ 			saveerrors()
+-			typecheckslice(l.N.Nbody.Slice(), Etop)
++			typechecklist(l.N.Nbody, Etop)
+ 			checkreturn(l.N)
+ 			if nerrors != 0 {
+ 				l.N.Nbody.Set(nil) // type errors; do not compile
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index b6fd388b0a..beacec7128 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -128,7 +128,7 @@ out:
+ 	}
+ 
+ 	decldepth++
+-	typecheckslice(n.Nbody.Slice(), Etop)
++	typechecklist(n.Nbody, Etop)
+ 	decldepth--
+ }
+ 
+@@ -400,7 +400,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 	n.Nbody.Append(v1)
+ 
+ 	typecheck(&n.Left, Erv)
+-	typecheckslice(n.Nbody.Slice(), Etop)
++	typechecklist(n.Nbody, Etop)
+ 	walkstmt(&n)
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 5c3eea8efb..64c35d2533 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -79,7 +79,7 @@ func typecheckselect(sel *Node) {
+ 			}
+ 		}
+ 
+-		typecheckslice(ncase.Nbody.Slice(), Etop)
++		typechecklist(ncase.Nbody, Etop)
+ 	}
+ 
+ 	sel.Xoffset = int64(count)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b8bd66c7b1..6997659b57 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2215,7 +2215,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		fn.Func.Dupok = true
+ 	}
+ 	typecheck(&fn, Etop)
+-	typecheckslice(fn.Nbody.Slice(), Etop)
++	typechecklist(fn.Nbody, Etop)
+ 
+ 	inlcalls(fn)
+ 	escAnalyze([]*Node{fn}, false)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 1835642b95..d29377b8ae 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -181,7 +181,7 @@ func typecheckswitch(n *Node) {
+ 			}
+ 		}
+ 
+-		typecheckslice(ncase.Nbody.Slice(), Etop)
++		typechecklist(ncase.Nbody, Etop)
+ 	}
+ 
+ 	lineno = lno
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index f18733104f..70d79d8713 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -494,3 +494,72 @@ func (n *Nodes) AppendNodeList(l *NodeList) {
+ 		}
+ 	}
+ }
++
++// nodeSeqIterator is an interface used to iterate over a sequence of nodes.
++// TODO(iant): Remove after conversion from NodeList to Nodes is complete.
++type nodeSeqIterator interface {
++	// Return whether iteration is complete.
++	Done() bool
++	// Advance to the next node.
++	Next()
++	// Return the current node.
++	N() *Node
++	// Return the address of the current node.
++	P() **Node
++}
++
++// nodeListIterator is a type that implements nodeSeqIterator using a
++// *NodeList.
++type nodeListIterator struct {
++	l *NodeList
++}
++
++func (nli *nodeListIterator) Done() bool {
++	return nli.l == nil
++}
++
++func (nli *nodeListIterator) Next() {
++	nli.l = nli.l.Next
++}
++
++func (nli *nodeListIterator) N() *Node {
++	return nli.l.N
++}
++
++func (nli *nodeListIterator) P() **Node {
++	return &nli.l.N
++}
++
++// nodesIterator implements nodeSeqIterator using a Nodes.
++type nodesIterator struct {
++	n Nodes
++	i int
++}
++
++func (ni *nodesIterator) Done() bool {
++	return ni.i >= len(ni.n.Slice())
++}
++
++func (ni *nodesIterator) Next() {
++	ni.i++
++}
++
++func (ni *nodesIterator) N() *Node {
++	return ni.n.Slice()[ni.i]
++}
++
++func (ni *nodesIterator) P() **Node {
++	return &ni.n.Slice()[ni.i]
++}
++
++// nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
++func nodeSeqIterate(ns interface{}) nodeSeqIterator {
++	switch ns := ns.(type) {
++	case *NodeList:
++		return &nodeListIterator{ns}
++	case Nodes:
++		return &nodesIterator{ns, 0}
++	default:
++		panic("can't happen")
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 17ea693d31..760ee8fc17 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -34,9 +34,9 @@ func resolve(n *Node) *Node {
+ 	return n
+ }
+ 
+-func typechecklist(l *NodeList, top int) {
+-	for ; l != nil; l = l.Next {
+-		typecheck(&l.N, top)
++func typechecklist(l interface{}, top int) {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		typecheck(it.P(), top)
+ 	}
+ }
+ 
+@@ -2073,7 +2073,7 @@ OpSwitch:
+ 			}
+ 		}
+ 		typecheck(&n.Right, Etop)
+-		typecheckslice(n.Nbody.Slice(), Etop)
++		typechecklist(n.Nbody, Etop)
+ 		decldepth--
+ 		break OpSwitch
+ 
+@@ -2087,7 +2087,7 @@ OpSwitch:
+ 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
+ 			}
+ 		}
+-		typecheckslice(n.Nbody.Slice(), Etop)
++		typechecklist(n.Nbody, Etop)
+ 		typechecklist(n.Rlist, Etop)
+ 		break OpSwitch
+ 
+@@ -2137,7 +2137,7 @@ OpSwitch:
+ 	case OXCASE:
+ 		ok |= Etop
+ 		typechecklist(n.List, Erv)
+-		typecheckslice(n.Nbody.Slice(), Etop)
++		typechecklist(n.Nbody, Etop)
+ 		break OpSwitch
+ 
+ 	case ODCLFUNC:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index dba8ad3fde..c85bfd7b0f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3965,7 +3965,7 @@ func walkprintfunc(np **Node, init **NodeList) {
+ 	funcbody(fn)
+ 
+ 	typecheck(&fn, Etop)
+-	typecheckslice(fn.Nbody.Slice(), Etop)
++	typechecklist(fn.Nbody, Etop)
+ 	xtop = list(xtop, fn)
+ 	Curfn = oldfn
+ 

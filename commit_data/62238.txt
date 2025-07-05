@@ -15,9 +15,195 @@ Date:   Tue Dec 24 07:23:13 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Commit-Queue: Alan Donovan <adonovan@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/labels.go          | 14 +++++------
  src/go/types/labels.go                             | 22 +++++++++---------
  .../types/testdata/check/doubled_labels.go         | 26 +++++++++++++++++++++
  src/internal/types/testdata/check/issue70974.go    | 27 ++++++++++++++++++++++
  4 files changed, 71 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index e44b7c7f70..6a6f64b4b8 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -112,8 +112,8 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 		return varDeclPos.IsKnown() && slices.Contains(badJumps, jmp)
+ 	}
+ 
+-	var stmtBranches func(syntax.Stmt)
+-	stmtBranches = func(s syntax.Stmt) {
++	var stmtBranches func(*syntax.LabeledStmt, syntax.Stmt)
++	stmtBranches = func(lstmt *syntax.LabeledStmt, s syntax.Stmt) {
+ 		switch s := s.(type) {
+ 		case *syntax.DeclStmt:
+ 			for _, d := range s.DeclList {
+@@ -163,7 +163,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 				fwdJumps = fwdJumps[:i]
+ 				lstmt = s
+ 			}
+-			stmtBranches(s.Stmt)
++			stmtBranches(lstmt, s.Stmt)
+ 
+ 		case *syntax.BranchStmt:
+ 			if s.Label == nil {
+@@ -232,9 +232,9 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 			fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, s.List)...)
+ 
+ 		case *syntax.IfStmt:
+-			stmtBranches(s.Then)
++			stmtBranches(lstmt, s.Then)
+ 			if s.Else != nil {
+-				stmtBranches(s.Else)
++				stmtBranches(lstmt, s.Else)
+ 			}
+ 
+ 		case *syntax.SwitchStmt:
+@@ -250,12 +250,12 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 			}
+ 
+ 		case *syntax.ForStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 		}
+ 	}
+ 
+ 	for _, s := range list {
+-		stmtBranches(s)
++		stmtBranches(nil, s)
+ 	}
+ 
+ 	return fwdJumps
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index 97b753581a..7b6324880a 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -119,8 +119,8 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 		fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, list)...)
+ 	}
+ 
+-	var stmtBranches func(ast.Stmt)
+-	stmtBranches = func(s ast.Stmt) {
++	var stmtBranches func(*ast.LabeledStmt, ast.Stmt)
++	stmtBranches = func(lstmt *ast.LabeledStmt, s ast.Stmt) {
+ 		switch s := s.(type) {
+ 		case *ast.DeclStmt:
+ 			if d, _ := s.Decl.(*ast.GenDecl); d != nil && d.Tok == token.VAR {
+@@ -168,7 +168,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 				fwdJumps = fwdJumps[:i]
+ 				lstmt = s
+ 			}
+-			stmtBranches(s.Stmt)
++			stmtBranches(lstmt, s.Stmt)
+ 
+ 		case *ast.BranchStmt:
+ 			if s.Label == nil {
+@@ -235,36 +235,36 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 			blockBranches(lstmt, s.List)
+ 
+ 		case *ast.IfStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 			if s.Else != nil {
+-				stmtBranches(s.Else)
++				stmtBranches(lstmt, s.Else)
+ 			}
+ 
+ 		case *ast.CaseClause:
+ 			blockBranches(nil, s.Body)
+ 
+ 		case *ast.SwitchStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 
+ 		case *ast.TypeSwitchStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 
+ 		case *ast.CommClause:
+ 			blockBranches(nil, s.Body)
+ 
+ 		case *ast.SelectStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 
+ 		case *ast.ForStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 
+ 		case *ast.RangeStmt:
+-			stmtBranches(s.Body)
++			stmtBranches(lstmt, s.Body)
+ 		}
+ 	}
+ 
+ 	for _, s := range list {
+-		stmtBranches(s)
++		stmtBranches(nil, s)
+ 	}
+ 
+ 	return fwdJumps
+diff --git a/src/internal/types/testdata/check/doubled_labels.go b/src/internal/types/testdata/check/doubled_labels.go
+new file mode 100644
+index 0000000000..f3de27020b
+--- /dev/null
++++ b/src/internal/types/testdata/check/doubled_labels.go
+@@ -0,0 +1,26 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++outer:
++inner:
++	for {
++		continue inner
++		break inner
++	}
++	goto outer
++}
++
++func _() {
++outer:
++inner:
++	for {
++		continue inner
++		continue outer /* ERROR "invalid continue label outer" */
++		break outer    /* ERROR "invalid break label outer" */
++	}
++	goto outer
++}
+diff --git a/src/internal/types/testdata/check/issue70974.go b/src/internal/types/testdata/check/issue70974.go
+new file mode 100644
+index 0000000000..59b11653ce
+--- /dev/null
++++ b/src/internal/types/testdata/check/issue70974.go
+@@ -0,0 +1,27 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++outer:
++	for {
++		break outer
++	}
++
++	for {
++		break outer /* ERROR "invalid break label outer" */
++	}
++}
++
++func _() {
++outer:
++	for {
++		continue outer
++	}
++
++	for {
++		continue outer /* ERROR "invalid continue label outer" */
++	}
++}

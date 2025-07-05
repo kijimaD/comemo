@@ -15,7 +15,49 @@ Date:   Fri Apr 9 15:50:40 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/encoding.go      | 8 ++++----
  src/internal/fuzz/encoding_test.go | 7 +++++++
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index c018ef5fe2..c2f7d22b75 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -181,14 +181,14 @@ func parseCorpusValue(line []byte) (interface{}, error) {
+ 		}
+ 		return parseUint(val, typ)
+ 	case "float32":
+-		if kind != token.FLOAT {
+-			return nil, fmt.Errorf("float literal required for float32 type")
++		if kind != token.FLOAT && kind != token.INT {
++			return nil, fmt.Errorf("float or integer literal required for float32 type")
+ 		}
+ 		v, err := strconv.ParseFloat(val, 32)
+ 		return float32(v), err
+ 	case "float64":
+-		if kind != token.FLOAT {
+-			return nil, fmt.Errorf("float literal required for float64 type")
++		if kind != token.FLOAT && kind != token.INT {
++			return nil, fmt.Errorf("float or integer literal required for float64 type")
+ 		}
+ 		return strconv.ParseFloat(val, 64)
+ 	default:
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index cbf4999f8d..3cd8d0e2ab 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -72,6 +72,13 @@ string("extra")
+ 		},
+ 		{
+ 			in: `go test fuzz v1
++float64(0)
++float32(0)
++`,
++			ok: true, // will be an integer literal since there is no decimal
++		},
++		{
++			in: `go test fuzz v1
+ int(-23)
+ int8(-2)
+ int64(2342425)

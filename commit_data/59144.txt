@@ -14,6 +14,20 @@ Date:   Mon Feb 19 15:22:37 2024 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index a8422181cc..e352b39caf 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -352,7 +352,7 @@ func (p *Profile) Remove(value any) {
+ //
+ // The debug parameter enables additional output.
+ // Passing debug=0 writes the gzip-compressed protocol buffer described
+-// in https://github.com/google/pprof/tree/master/proto#overview.
++// in https://github.com/google/pprof/tree/main/proto#overview.
+ // Passing debug=1 writes the legacy text format with comments
+ // translating addresses to function names and line numbers, so that a
+ // programmer can read the profile without tools.

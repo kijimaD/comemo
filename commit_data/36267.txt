@@ -67,8 +67,80 @@ Date:   Sun Apr 15 09:31:39 2018 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules |  2 +-
  src/cmd/compile/internal/ssa/rewrite386.go | 26 ++++++++++++++++++++++++++
  test/codegen/arithmetic.go                 | 10 ++++++++++
  3 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index de278810af..bde61f58cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -841,7 +841,7 @@
+ (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
+ 
+ // Merge load to op
+-((ADD|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR)Lmem x [off] {sym} ptr mem)
++((ADD|AND|OR|XOR|SUB)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB)Lmem x [off] {sym} ptr mem)
+ ((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SDmem x [off] {sym} ptr mem)
+ ((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SSmem x [off] {sym} ptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 6ac81702c9..233cd43f69 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -14871,6 +14871,32 @@ func rewriteValue386_Op386SUBL_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (SUBL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (SUBLmem x [off] {sym} ptr mem)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(Op386SUBLmem)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(x)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (SUBL x x)
+ 	// cond:
+ 	// result: (MOVLconst [0])
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index d38f80c1e9..ce7a7c27f4 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -10,6 +10,16 @@ package codegen
+ // simplifications and optimizations on integer types.
+ // For codegen tests on float types, see floats.go.
+ 
++// ----------------- //
++//    Subtraction    //
++// ----------------- //
++
++func SubMem(arr []int) int {
++	// 386:"SUBL\t4"
++	// amd64:"SUBQ\t8"
++	return arr[0] - arr[1]
++}
++
+ // -------------------- //
+ //    Multiplication    //
+ // -------------------- //

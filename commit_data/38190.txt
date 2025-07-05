@@ -12,7 +12,59 @@ Date:   Tue Sep 25 17:41:11 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go      |  4 ++--
  src/runtime/mgcsweep.go | 11 ++++++++---
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9a35c7671f..e12df7f7d2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -789,7 +789,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ 		trigger = uint64(float64(memstats.heap_marked) * (1 + triggerRatio))
+ 		// Don't trigger below the minimum heap size.
+ 		minTrigger := heapminimum
+-		if !gosweepdone() {
++		if !isSweepDone() {
+ 			// Concurrent sweep happens in the heap growth
+ 			// from heap_live to gc_trigger, so ensure
+ 			// that concurrent sweep has some heap growth
+@@ -834,7 +834,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ 	}
+ 
+ 	// Update sweep pacing.
+-	if gosweepdone() {
++	if isSweepDone() {
+ 		mheap_.sweepPagesPerByte = 0
+ 	} else {
+ 		// Concurrent sweep needs to sweep all of the in-use
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 35b717ca9b..627a6a023f 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -60,7 +60,7 @@ func bgsweep(c chan int) {
+ 			Gosched()
+ 		}
+ 		lock(&sweep.lock)
+-		if !gosweepdone() {
++		if !isSweepDone() {
+ 			// This can happen if a GC runs between
+ 			// gosweepone returning ^0 above
+ 			// and the lock being acquired.
+@@ -134,8 +134,13 @@ func sweepone() uintptr {
+ 	return npages
+ }
+ 
+-//go:nowritebarrier
+-func gosweepdone() bool {
++// isSweepDone reports whether all spans are swept or currently being swept.
++//
++// Note that this condition may transition from false to true at any
++// time as the sweeper runs. It may transition from true to false if a
++// GC runs; to prevent that the caller must be non-preemptible or must
++// somehow block GC progress.
++func isSweepDone() bool {
+ 	return mheap_.sweepdone != 0
+ }
+ 

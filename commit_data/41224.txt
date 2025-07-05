@@ -16,8 +16,135 @@ Date:   Fri Sep 13 13:58:58 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go              |  8 ++++----
  src/cmd/go/script_test.go                     | 20 ++++++++++++++----
  src/cmd/go/testdata/script/build_trimpath.txt | 29 ++++++++++++++++++++++++---
  3 files changed, 46 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 4564e32e65..626cacfe99 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -201,12 +201,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	// same compiler settings and can reuse each other's results.
+ 	// If not, the reason is already recorded in buildGcflags.
+ 	fmt.Fprintf(h, "compile\n")
++	// Only include the package directory if it may affect the output.
++	// We trim workspace paths for all packages when -trimpath is set.
+ 	// The compiler hides the exact value of $GOROOT
+-	// when building things in GOROOT,
+-	// but it does not hide the exact value of $GOPATH.
+-	// Include the full dir in that case.
++	// when building things in GOROOT.
+ 	// Assume b.WorkDir is being trimmed properly.
+-	if !p.Goroot && !strings.HasPrefix(p.Dir, b.WorkDir) {
++	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
+ 		fmt.Fprintf(h, "dir %s\n", p.Dir)
+ 	}
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 4dcb4b4e0d..5e50dd14c7 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -441,10 +441,15 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
+ 		// It would be strange to say "this file can have any content except this precise byte sequence".
+ 		ts.fatalf("unsupported: ! cmp")
+ 	}
++	quiet := false
++	if len(args) > 0 && args[0] == "-q" {
++		quiet = true
++		args = args[1:]
++	}
+ 	if len(args) != 2 {
+ 		ts.fatalf("usage: cmp file1 file2")
+ 	}
+-	ts.doCmdCmp(args, false)
++	ts.doCmdCmp(args, false, quiet)
+ }
+ 
+ // cmpenv compares two files with environment variable substitution.
+@@ -452,13 +457,18 @@ func (ts *testScript) cmdCmpenv(neg bool, args []string) {
+ 	if neg {
+ 		ts.fatalf("unsupported: ! cmpenv")
+ 	}
++	quiet := false
++	if len(args) > 0 && args[0] == "-q" {
++		quiet = true
++		args = args[1:]
++	}
+ 	if len(args) != 2 {
+ 		ts.fatalf("usage: cmpenv file1 file2")
+ 	}
+-	ts.doCmdCmp(args, true)
++	ts.doCmdCmp(args, true, quiet)
+ }
+ 
+-func (ts *testScript) doCmdCmp(args []string, env bool) {
++func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
+ 	name1, name2 := args[0], args[1]
+ 	var text1, text2 string
+ 	if name1 == "stdout" {
+@@ -484,7 +494,9 @@ func (ts *testScript) doCmdCmp(args []string, env bool) {
+ 		return
+ 	}
+ 
+-	fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
++	if !quiet {
++		fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
++	}
+ 	ts.fatalf("%s and %s differ", name1, name2)
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index f785b0cb9e..668f75599e 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -1,21 +1,44 @@
+ [short] skip
+ 
+ env -r GOROOT_REGEXP=$GOROOT
+-env -r WORK_REGEXP=$WORK
++env -r WORK_REGEXP='$WORK'  # don't expand $WORK; grep replaces $WORK in text before matching.
+ env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
+ 
++# A binary built without -trimpath should contain the current workspace
++# and GOROOT for debugging and stack traces.
++cd a
++go build -o hello.exe hello.go
++grep -q $WORK_REGEXP hello.exe
++grep -q $GOROOT_REGEXP hello.exe
++
++# A binary built with -trimpath should not contain the current workspace
++# or GOROOT.
+ go build -trimpath -o hello.exe hello.go
+ ! grep -q $GOROOT_REGEXP hello.exe
+ ! grep -q $WORK_REGEXP hello.exe
++cd ..
+ 
++# A binary from an external module built with -trimpath should not contain
++# the current workspace or GOROOT.
+ env GO111MODULE=on
+ go build -trimpath -o fortune.exe rsc.io/fortune
+ ! grep -q $GOROOT_REGEXP fortune.exe
+ ! grep -q $WORK_REGEXP fortune.exe
+ 
+--- hello.go --
++# Two binaries built from identical packages in different directories
++# should be identical.
++mkdir b
++cp a/go.mod a/hello.go b
++cd a
++go build -trimpath -o ../a.exe .
++cd ../b
++go build -trimpath -o ../b.exe .
++cd ..
++cmp -q a.exe b.exe
++
++-- a/hello.go --
+ package main
+ func main() { println("hello") }
+ 
+--- go.mod --
++-- a/go.mod --
+ module m

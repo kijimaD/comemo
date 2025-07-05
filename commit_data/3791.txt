@@ -8,10 +8,643 @@ Date:   Wed Nov 4 22:45:59 2009 -0800
     
     R=rsc
     http://go/go-review/1018055
-
+---
  src/pkg/hash/adler32/adler32.go |   4 +-
  src/pkg/http/fs.go              |  33 ++++----
  src/pkg/http/request_test.go    |   6 +-
  src/pkg/http/status.go          | 163 ++++++++++++++++++++--------------------
  src/pkg/http/url_test.go        | 111 ++++++++++++++-------------
  5 files changed, 157 insertions(+), 160 deletions(-)
+
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index fbf9177f89..2cd7a198ae 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -21,7 +21,7 @@ const (
+ )
+ 
+ // The size of an Adler-32 checksum in bytes.
+-const Size = 4;
++const Size = 4
+ 
+ // digest represents the partial evaluation of a checksum.
+ type digest struct {
+@@ -51,7 +51,7 @@ func update(a, b uint32, p []byte) (aa, bb uint32) {
+ 		a += uint32(p[i]);
+ 		b += a;
+ 		// invariant: a <= b
+-		if b > (0xffffffff - 255) / 2 {
++		if b > (0xffffffff - 255)/2 {
+ 			a %= mod;
+ 			b %= mod;
+ 			// invariant: a < mod && b < mod
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index cbc3a1e60f..edeec693e2 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -16,14 +16,14 @@ import (
+ )
+ 
+ // TODO this should be in a mime package somewhere
+-var contentByExt = map[string] string {
+-	".css":	"text/css",
+-	".gif":	"image/gif",
+-	".html":	"text/html; charset=utf-8",
+-	".jpg":	"image/jpeg",
+-	".js":	"application/x-javascript",
+-	".pdf":	"application/pdf",
+-	".png":	"image/png",
++var contentByExt = map[string]string{
++	".css": "text/css",
++	".gif": "image/gif",
++	".html": "text/html; charset=utf-8",
++	".jpg": "image/jpeg",
++	".js": "application/x-javascript",
++	".pdf": "application/pdf",
++	".png": "image/png",
+ }
+ 
+ // Heuristic: b is text if it is valid UTF-8 and doesn't
+@@ -57,12 +57,12 @@ func dirList(c *Conn, f *os.File) {
+ 	for {
+ 		dirs, err := f.Readdir(100);
+ 		if err != nil || len(dirs) == 0 {
+-			break
++			break;
+ 		}
+ 		for _, d := range dirs {
+ 			name := d.Name;
+ 			if d.IsDirectory() {
+-				name += "/"
++				name += "/";
+ 			}
+ 			// TODO htmlescape
+ 			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name);
+@@ -76,9 +76,9 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	const indexPage = "/index.html";
+ 
+ 	// redirect to strip off any index.html
+-	n := len(name) - len(indexPage);
++	n := len(name)-len(indexPage);
+ 	if n >= 0 && name[n:len(name)] == indexPage {
+-		Redirect(c, name[0:n+1], StatusMovedPermanently);
++		Redirect(c, name[0 : n+1], StatusMovedPermanently);
+ 		return;
+ 	}
+ 
+@@ -103,12 +103,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 		url := r.Url.Path;
+ 		if d.IsDirectory() {
+ 			if url[len(url)-1] != '/' {
+-				Redirect(c, url + "/", StatusMovedPermanently);
++				Redirect(c, url+"/", StatusMovedPermanently);
+ 				return;
+ 			}
+ 		} else {
+ 			if url[len(url)-1] == '/' {
+-				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
++				Redirect(c, url[0 : len(url)-1], StatusMovedPermanently);
+ 				return;
+ 			}
+ 		}
+@@ -160,8 +160,8 @@ func ServeFile(c *Conn, r *Request, name string) {
+ }
+ 
+ type fileHandler struct {
+-	root string;
+-	prefix string;
++	root	string;
++	prefix	string;
+ }
+ 
+ // FileServer returns a handler that serves HTTP requests
+@@ -181,4 +181,3 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
+ 	path = path[len(f.prefix):len(path)];
+ 	serveFileInternal(c, r, f.root + "/" + path, true);
+ }
+-
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 7bddda3db0..239da79acd 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -103,8 +103,8 @@ func TestPostContentTypeParsing(t *testing.T) {
+ 
+ func TestRedirect(t *testing.T) {
+ 	const (
+-		start = "http://codesearch.google.com/";
+-		end = "http://www.google.com/codesearch";
++		start	= "http://codesearch.google.com/";
++		end	= "http://www.google.com/codesearch";
+ 	)
+ 	r, url, err := Get(start);
+ 	if err != nil {
+@@ -112,6 +112,6 @@ func TestRedirect(t *testing.T) {
+ 	}
+ 	r.Body.Close();
+ 	if r.StatusCode != 200 || url != end {
+-		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end)
++		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end);
+ 	}
+ }
+diff --git a/src/pkg/http/status.go b/src/pkg/http/status.go
+index 6d1c5ab28a..21662c7ea4 100644
+--- a/src/pkg/http/status.go
++++ b/src/pkg/http/status.go
+@@ -6,96 +6,95 @@ package http
+ 
+ // HTTP status codes, defined in RFC 2616.
+ const (
+-	StatusContinue = 100;
+-	StatusSwitchingProtocols = 101;
++	StatusContinue			= 100;
++	StatusSwitchingProtocols	= 101;
+ 
+-	StatusOK = 200;
+-	StatusCreated = 201;
+-	StatusAccepted = 202;
+-	StatusNonAuthoritativeInfo = 203;
+-	StatusNoContent = 204;
+-	StatusResetContent = 205;
+-	StatusPartialContent = 206;
++	StatusOK			= 200;
++	StatusCreated			= 201;
++	StatusAccepted			= 202;
++	StatusNonAuthoritativeInfo	= 203;
++	StatusNoContent			= 204;
++	StatusResetContent		= 205;
++	StatusPartialContent		= 206;
+ 
+-	StatusMultipleChoices = 300;
+-	StatusMovedPermanently = 301;
+-	StatusFound = 302;
+-	StatusSeeOther = 303;
+-	StatusNotModified = 304;
+-	StatusUseProxy = 305;
+-	StatusTemporaryRedirect = 307;
++	StatusMultipleChoices	= 300;
++	StatusMovedPermanently	= 301;
++	StatusFound		= 302;
++	StatusSeeOther		= 303;
++	StatusNotModified	= 304;
++	StatusUseProxy		= 305;
++	StatusTemporaryRedirect	= 307;
+ 
+-	StatusBadRequest = 400;
+-	StatusUnauthorized = 401;
+-	StatusPaymentRequired = 402;
+-	StatusForbidden = 403;
+-	StatusNotFound = 404;
+-	StatusMethodNotAllowed = 405;
+-	StatusNotAcceptable = 406;
+-	StatusProxyAuthRequired = 407;
+-	StatusRequestTimeout = 408;
+-	StatusConflict = 409;
+-	StatusGone = 410;
+-	StatusLengthRequired = 411;
+-	StatusPreconditionFailed = 412;
+-	StatusRequestEntityTooLarge = 413;
+-	StatusRequestURITooLong = 414;
+-	StatusUnsupportedMediaType = 415;
+-	StatusRequestedRangeNotSatisfiable = 416;
+-	StatusExpectationFailed = 417;
++	StatusBadRequest			= 400;
++	StatusUnauthorized			= 401;
++	StatusPaymentRequired			= 402;
++	StatusForbidden				= 403;
++	StatusNotFound				= 404;
++	StatusMethodNotAllowed			= 405;
++	StatusNotAcceptable			= 406;
++	StatusProxyAuthRequired			= 407;
++	StatusRequestTimeout			= 408;
++	StatusConflict				= 409;
++	StatusGone				= 410;
++	StatusLengthRequired			= 411;
++	StatusPreconditionFailed		= 412;
++	StatusRequestEntityTooLarge		= 413;
++	StatusRequestURITooLong			= 414;
++	StatusUnsupportedMediaType		= 415;
++	StatusRequestedRangeNotSatisfiable	= 416;
++	StatusExpectationFailed			= 417;
+ 
+-	StatusInternalServerError = 500;
+-	StatusNotImplemented = 501;
+-	StatusBadGateway = 502;
+-	StatusServiceUnavailable = 503;
+-	StatusGatewayTimeout = 504;
+-	StatusHTTPVersionNotSupported = 505;
++	StatusInternalServerError	= 500;
++	StatusNotImplemented		= 501;
++	StatusBadGateway		= 502;
++	StatusServiceUnavailable	= 503;
++	StatusGatewayTimeout		= 504;
++	StatusHTTPVersionNotSupported	= 505;
+ )
+ 
+-var statusText = map[int]string {
+-	StatusContinue:			"Continue",
+-	StatusSwitchingProtocols:	"Switching Protocols",
++var statusText = map[int]string{
++	StatusContinue: "Continue",
++	StatusSwitchingProtocols: "Switching Protocols",
+ 
+-	StatusOK:			"OK",
+-	StatusCreated:			"Created",
+-	StatusAccepted:			"Accepted",
+-	StatusNonAuthoritativeInfo:	"Non-Authoritative Information",
+-	StatusNoContent:		"No Content",
+-	StatusResetContent:		"Reset Content",
+-	StatusPartialContent:		"Partial Content",
++	StatusOK: "OK",
++	StatusCreated: "Created",
++	StatusAccepted: "Accepted",
++	StatusNonAuthoritativeInfo: "Non-Authoritative Information",
++	StatusNoContent: "No Content",
++	StatusResetContent: "Reset Content",
++	StatusPartialContent: "Partial Content",
+ 
+-	StatusMultipleChoices:		"Multiple Choices",
+-	StatusMovedPermanently:		"Moved Permanently",
+-	StatusFound:			"Found",
+-	StatusSeeOther:			"See Other",
+-	StatusNotModified:		"Not Modified",
+-	StatusUseProxy:			"Use Proxy",
+-	StatusTemporaryRedirect:	"Temporary Redirect",
++	StatusMultipleChoices: "Multiple Choices",
++	StatusMovedPermanently: "Moved Permanently",
++	StatusFound: "Found",
++	StatusSeeOther: "See Other",
++	StatusNotModified: "Not Modified",
++	StatusUseProxy: "Use Proxy",
++	StatusTemporaryRedirect: "Temporary Redirect",
+ 
+-	StatusBadRequest:		"Bad Request",
+-	StatusUnauthorized:		"Unauthorized",
+-	StatusPaymentRequired:		"Payment Required",
+-	StatusForbidden:		"Forbidden",
+-	StatusNotFound:			"Not Found",
+-	StatusMethodNotAllowed:		"Method Not Allowed",
+-	StatusNotAcceptable:		"Not Acceptable",
+-	StatusProxyAuthRequired:	"Proxy Authentication Required",
+-	StatusRequestTimeout:		"Request Timeout",
+-	StatusConflict:			"Conflict",
+-	StatusGone:			"Gone",
+-	StatusLengthRequired:		"Length Required",
+-	StatusPreconditionFailed:	"Precondition Failed",
+-	StatusRequestEntityTooLarge:	"Request Entity Too Large",
+-	StatusRequestURITooLong:	"Request URI Too Long",
+-	StatusUnsupportedMediaType:	"Unsupported Media Type",
+-	StatusRequestedRangeNotSatisfiable:	"Requested Range Not Satisfiable",
+-	StatusExpectationFailed:	"Expectation Failed",
++	StatusBadRequest: "Bad Request",
++	StatusUnauthorized: "Unauthorized",
++	StatusPaymentRequired: "Payment Required",
++	StatusForbidden: "Forbidden",
++	StatusNotFound: "Not Found",
++	StatusMethodNotAllowed: "Method Not Allowed",
++	StatusNotAcceptable: "Not Acceptable",
++	StatusProxyAuthRequired: "Proxy Authentication Required",
++	StatusRequestTimeout: "Request Timeout",
++	StatusConflict: "Conflict",
++	StatusGone: "Gone",
++	StatusLengthRequired: "Length Required",
++	StatusPreconditionFailed: "Precondition Failed",
++	StatusRequestEntityTooLarge: "Request Entity Too Large",
++	StatusRequestURITooLong: "Request URI Too Long",
++	StatusUnsupportedMediaType: "Unsupported Media Type",
++	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
++	StatusExpectationFailed: "Expectation Failed",
+ 
+-	StatusInternalServerError:	"Internal Server Error",
+-	StatusNotImplemented:		"Not Implemented",
+-	StatusBadGateway:		"Bad Gateway",
+-	StatusServiceUnavailable:	"Service Unavailable",
+-	StatusGatewayTimeout:		"Gateway Timeout",
+-	StatusHTTPVersionNotSupported:	"HTTP Version Not Supported",
++	StatusInternalServerError: "Internal Server Error",
++	StatusNotImplemented: "Not Implemented",
++	StatusBadGateway: "Bad Gateway",
++	StatusServiceUnavailable: "Service Unavailable",
++	StatusGatewayTimeout: "Gateway Timeout",
++	StatusHTTPVersionNotSupported: "HTTP Version Not Supported",
+ }
+-
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 9e7ec94e5f..90d5bdd00b 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -17,12 +17,12 @@ import (
+ //	test ParseURL
+ 
+ type URLTest struct {
+-	in string;
+-	out *URL;
+-	roundtrip string; // expected result of reserializing the URL; empty means same as "in".
++	in		string;
++	out		*URL;
++	roundtrip	string;	// expected result of reserializing the URL; empty means same as "in".
+ }
+ 
+-var urltests = []URLTest {
++var urltests = []URLTest{
+ 	// no path
+ 	URLTest{
+ 		"http://www.google.com",
+@@ -30,9 +30,9 @@ var urltests = []URLTest {
+ 			"http://www.google.com",
+ 			"http", "//www.google.com",
+ 			"www.google.com", "", "www.google.com",
+-			"", "", ""
++			"", "", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// path
+ 	URLTest{
+@@ -41,9 +41,9 @@ var urltests = []URLTest {
+ 			"http://www.google.com/",
+ 			"http", "//www.google.com/",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "", ""
++			"/", "", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// path with hex escaping... note that space roundtrips to +
+ 	URLTest{
+@@ -52,9 +52,9 @@ var urltests = []URLTest {
+ 			"http://www.google.com/file%20one%26two",
+ 			"http", "//www.google.com/file%20one%26two",
+ 			"www.google.com", "", "www.google.com",
+-			"/file one&two", "", ""
++			"/file one&two", "", "",
+ 		},
+-		"http://www.google.com/file+one%26two"
++		"http://www.google.com/file+one%26two",
+ 	},
+ 	// user
+ 	URLTest{
+@@ -63,9 +63,9 @@ var urltests = []URLTest {
+ 			"ftp://webmaster@www.google.com/",
+ 			"ftp", "//webmaster@www.google.com/",
+ 			"webmaster@www.google.com", "webmaster", "www.google.com",
+-			"/", "", ""
++			"/", "", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// escape sequence in username
+ 	URLTest{
+@@ -74,9 +74,9 @@ var urltests = []URLTest {
+ 			"ftp://john%20doe@www.google.com/",
+ 			"ftp", "//john%20doe@www.google.com/",
+ 			"john doe@www.google.com", "john doe", "www.google.com",
+-			"/", "", ""
++			"/", "", "",
+ 		},
+-		"ftp://john+doe@www.google.com/"
++		"ftp://john+doe@www.google.com/",
+ 	},
+ 	// query
+ 	URLTest{
+@@ -85,9 +85,9 @@ var urltests = []URLTest {
+ 			"http://www.google.com/?q=go+language",
+ 			"http", "//www.google.com/?q=go+language",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", ""
++			"/", "q=go+language", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// query with hex escaping: NOT parsed
+ 	URLTest{
+@@ -96,9 +96,9 @@ var urltests = []URLTest {
+ 			"http://www.google.com/?q=go%20language",
+ 			"http", "//www.google.com/?q=go%20language",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "q=go%20language", ""
++			"/", "q=go%20language", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// path without /, so no query parsing
+ 	URLTest{
+@@ -107,9 +107,9 @@ var urltests = []URLTest {
+ 			"http:www.google.com/?q=go+language",
+ 			"http", "www.google.com/?q=go+language",
+ 			"", "", "",
+-			"www.google.com/?q=go language", "", ""
++			"www.google.com/?q=go language", "", "",
+ 		},
+-		"http:www.google.com/%3fq%3dgo+language"
++		"http:www.google.com/%3fq%3dgo+language",
+ 	},
+ 	// non-authority
+ 	URLTest{
+@@ -118,9 +118,9 @@ var urltests = []URLTest {
+ 			"mailto:/webmaster@golang.org",
+ 			"mailto", "/webmaster@golang.org",
+ 			"", "", "",
+-			"/webmaster@golang.org", "", ""
++			"/webmaster@golang.org", "", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// non-authority
+ 	URLTest{
+@@ -129,9 +129,9 @@ var urltests = []URLTest {
+ 			"mailto:webmaster@golang.org",
+ 			"mailto", "webmaster@golang.org",
+ 			"", "", "",
+-			"webmaster@golang.org", "", ""
++			"webmaster@golang.org", "", "",
+ 		},
+-		""
++		"",
+ 	},
+ 	// unescaped :// in query should not create a scheme
+ 	URLTest{
+@@ -140,35 +140,35 @@ var urltests = []URLTest {
+ 			"/foo?query=http://bad",
+ 			"", "/foo?query=http://bad",
+ 			"", "", "",
+-			"/foo", "query=http://bad", ""
++			"/foo", "query=http://bad", "",
+ 		},
+-		""
++		"",
+ 	},
+ }
+ 
+-var urlnofragtests = []URLTest {
++var urlnofragtests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+ 			"http://www.google.com/?q=go+language#foo",
+ 			"http", "//www.google.com/?q=go+language#foo",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language#foo", ""
++			"/", "q=go+language#foo", "",
+ 		},
+-		""
++		"",
+ 	},
+ }
+ 
+-var urlfragtests = []URLTest {
++var urlfragtests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+ 			"http://www.google.com/?q=go+language",
+ 			"http", "//www.google.com/?q=go+language",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", "foo"
++			"/", "q=go+language", "foo",
+ 		},
+-		""
++		"",
+ 	},
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo%26bar",
+@@ -176,9 +176,9 @@ var urlfragtests = []URLTest {
+ 			"http://www.google.com/?q=go+language",
+ 			"http", "//www.google.com/?q=go+language",
+ 			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", "foo&bar"
++			"/", "q=go+language", "foo&bar",
+ 		},
+-		""
++		"",
+ 	},
+ }
+ 
+@@ -241,64 +241,64 @@ func TestURLString(t *testing.T) {
+ }
+ 
+ type URLEscapeTest struct {
+-	in string;
+-	out string;
+-	err os.Error;
++	in	string;
++	out	string;
++	err	os.Error;
+ }
+ 
+-var unescapeTests = []URLEscapeTest {
++var unescapeTests = []URLEscapeTest{
+ 	URLEscapeTest{
+ 		"",
+ 		"",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"abc",
+ 		"abc",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"1%41",
+ 		"1A",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"1%41%42%43",
+ 		"1ABC",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"%4a",
+ 		"J",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"%6F",
+ 		"o",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+-		"%", // not enough characters after %
++		"%",	// not enough characters after %
+ 		"",
+ 		URLEscapeError("%"),
+ 	},
+ 	URLEscapeTest{
+-		"%a", // not enough characters after %
++		"%a",	// not enough characters after %
+ 		"",
+ 		URLEscapeError("%a"),
+ 	},
+ 	URLEscapeTest{
+-		"%1", // not enough characters after %
++		"%1",	// not enough characters after %
+ 		"",
+ 		URLEscapeError("%1"),
+ 	},
+ 	URLEscapeTest{
+-		"123%45%6", // not enough characters after %
++		"123%45%6",	// not enough characters after %
+ 		"",
+ 		URLEscapeError("%6"),
+ 	},
+ 	URLEscapeTest{
+-		"%zzzzz", // invalid hex digits
++		"%zzzzz",	// invalid hex digits
+ 		"",
+ 		URLEscapeError("%zz"),
+ 	},
+@@ -313,31 +313,31 @@ func TestURLUnescape(t *testing.T) {
+ 	}
+ }
+ 
+-var escapeTests = []URLEscapeTest {
++var escapeTests = []URLEscapeTest{
+ 	URLEscapeTest{
+ 		"",
+ 		"",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"abc",
+ 		"abc",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"one two",
+ 		"one+two",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		"10%",
+ 		"10%25",
+-		nil
++		nil,
+ 	},
+ 	URLEscapeTest{
+ 		" ?&=#+%!",
+ 		"+%3f%26%3d%23%2b%25!",
+-		nil
++		nil,
+ 	},
+ }
+ 
+@@ -355,4 +355,3 @@ func TestURLEscape(t *testing.T) {
+ 		}
+ 	}
+ }
+-

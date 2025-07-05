@@ -9,7 +9,91 @@ Date:   Thu Jul 25 09:36:22 2013 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/11813043
-
+---
  src/pkg/go/parser/interface.go   | 15 +++++++++------
  src/pkg/go/parser/parser_test.go | 18 ++++++++++--------
  2 files changed, 19 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 149257ca6b..0f83ca9314 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -15,6 +15,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ // If src != nil, readSource converts src to a []byte if possible;
+@@ -115,11 +116,13 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ 	return
+ }
+ 
+-// ParseDir calls ParseFile for the files in the directory specified by path and
+-// returns a map of package name -> package AST with all the packages found. If
+-// filter != nil, only the files with os.FileInfo entries passing through the filter
+-// are considered. The mode bits are passed to ParseFile unchanged. Position
+-// information is recorded in the file set fset.
++// ParseDir calls ParseFile for all files with names ending in ".go" in the
++// directory specified by path and returns a map of package name -> package
++// AST with all the packages found.
++//
++// If filter != nil, only the files with os.FileInfo entries passing through
++// the filter (and ending in ".go") are considered. The mode bits are passed
++// to ParseFile unchanged. Position information is recorded in fset.
+ //
+ // If the directory couldn't be read, a nil map and the respective error are
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+@@ -139,7 +142,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ 
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, d := range list {
+-		if filter == nil || filter(d) {
++		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
+ 			filename := filepath.Join(path, d.Name())
+ 			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+ 				name := src.Name.Name
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 48813d1061..0a34b7e505 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -34,13 +34,12 @@ func TestParse(t *testing.T) {
+ 
+ func nameFilter(filename string) bool {
+ 	switch filename {
+-	case "parser.go":
+-	case "interface.go":
+-	case "parser_test.go":
+-	default:
+-		return false
++	case "parser.go", "interface.go", "parser_test.go":
++		return true
++	case "parser.go.orig":
++		return true // permit but should be ignored by ParseDir
+ 	}
+-	return true
++	return false
+ }
+ 
+ func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+@@ -51,14 +50,17 @@ func TestParseDir(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("ParseDir(%s): %v", path, err)
+ 	}
+-	if len(pkgs) != 1 {
+-		t.Errorf("incorrect number of packages: %d", len(pkgs))
++	if n := len(pkgs); n != 1 {
++		t.Errorf("got %d packages; want 1", n)
+ 	}
+ 	pkg := pkgs["parser"]
+ 	if pkg == nil {
+ 		t.Errorf(`package "parser" not found`)
+ 		return
+ 	}
++	if n := len(pkg.Files); n != 3 {
++		t.Errorf("got %d package files; want 3", n)
++	}
+ 	for filename := range pkg.Files {
+ 		if !nameFilter(filename) {
+ 			t.Errorf("unexpected package file: %s", filename)

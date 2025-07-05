@@ -12,6 +12,20 @@ Date:   Thu Jan 7 14:25:35 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/282272
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/arm64/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index d6c25fac41..14a20a17d5 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -1041,7 +1041,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
+ }
+ 
+ // machoLabelName returns the name of the "label" symbol used for a
+-// relocation targetting s+off. The label symbols is used on darwin
++// relocation targeting s+off. The label symbols is used on darwin
+ // when external linking, so that the addend fits in a Mach-O relocation.
+ func machoLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
+ 	return fmt.Sprintf("%s.%d", ldr.SymExtname(s), off/machoRelocLimit)

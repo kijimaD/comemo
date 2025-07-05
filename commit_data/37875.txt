@@ -22,10 +22,270 @@ Date:   Mon Sep 3 12:14:31 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/float_test.go      | 111 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/check.go          |  15 ++--
  src/cmd/compile/internal/ssa/gen/generic.rules |   4 +-
  src/cmd/compile/internal/ssa/rewrite.go        |  32 +++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go |   8 +-
  5 files changed, 159 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+index 4cb9532e55..c0a8cfc89e 100644
+--- a/src/cmd/compile/internal/gc/float_test.go
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -362,6 +362,117 @@ func TestFloatConvertFolded(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloat32StoreToLoadConstantFold(t *testing.T) {
++	// Test that math.Float32{,from}bits constant fold correctly.
++	// In particular we need to be careful that signalling NaN (sNaN) values
++	// are not converted to quiet NaN (qNaN) values during compilation.
++	// See issue #27193 for more information.
++
++	// signalling NaNs
++	{
++		const nan = uint32(0x7f800001) // sNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0x7fbfffff) // sNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0xff800001) // sNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0xffbfffff) // sNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++
++	// quiet NaNs
++	{
++		const nan = uint32(0x7fc00000) // qNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0x7fffffff) // qNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0x8fc00000) // qNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++	{
++		const nan = uint32(0x8fffffff) // qNaN
++		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
++			t.Errorf("got %#x, want %#x", x, nan)
++		}
++	}
++
++	// infinities
++	{
++		const inf = uint32(0x7f800000) // +∞
++		if x := math.Float32bits(math.Float32frombits(inf)); x != inf {
++			t.Errorf("got %#x, want %#x", x, inf)
++		}
++	}
++	{
++		const negInf = uint32(0xff800000) // -∞
++		if x := math.Float32bits(math.Float32frombits(negInf)); x != negInf {
++			t.Errorf("got %#x, want %#x", x, negInf)
++		}
++	}
++
++	// numbers
++	{
++		const zero = uint32(0) // +0.0
++		if x := math.Float32bits(math.Float32frombits(zero)); x != zero {
++			t.Errorf("got %#x, want %#x", x, zero)
++		}
++	}
++	{
++		const negZero = uint32(1 << 31) // -0.0
++		if x := math.Float32bits(math.Float32frombits(negZero)); x != negZero {
++			t.Errorf("got %#x, want %#x", x, negZero)
++		}
++	}
++	{
++		const one = uint32(0x3f800000) // 1.0
++		if x := math.Float32bits(math.Float32frombits(one)); x != one {
++			t.Errorf("got %#x, want %#x", x, one)
++		}
++	}
++	{
++		const negOne = uint32(0xbf800000) // -1.0
++		if x := math.Float32bits(math.Float32frombits(negOne)); x != negOne {
++			t.Errorf("got %#x, want %#x", x, negOne)
++		}
++	}
++	{
++		const frac = uint32(0x3fc00000) // +1.5
++		if x := math.Float32bits(math.Float32frombits(frac)); x != frac {
++			t.Errorf("got %#x, want %#x", x, frac)
++		}
++	}
++	{
++		const negFrac = uint32(0xbfc00000) // -1.5
++		if x := math.Float32bits(math.Float32frombits(negFrac)); x != negFrac {
++			t.Errorf("got %#x, want %#x", x, negFrac)
++		}
++	}
++}
++
+ var sinkFloat float64
+ 
+ func BenchmarkMul2(b *testing.B) {
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 556e7fb7f7..13e8d7b3de 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"math"
++	"math/bits"
+ )
+ 
+ // checkFunc checks invariants of f.
+@@ -146,7 +147,7 @@ func checkFunc(f *Func) {
+ 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
+ 			case auxFloat32:
+ 				canHaveAuxInt = true
+-				if !isExactFloat32(v) {
++				if !isExactFloat32(v.AuxFloat()) {
+ 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
+ 				}
+ 			case auxString, auxSym, auxTyp:
+@@ -508,8 +509,12 @@ func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
+ 	return sdom.isAncestorEq(x, y)
+ }
+ 
+-// isExactFloat32 reports whether v has an AuxInt that can be exactly represented as a float32.
+-func isExactFloat32(v *Value) bool {
+-	x := v.AuxFloat()
+-	return math.Float64bits(x) == math.Float64bits(float64(float32(x)))
++// isExactFloat32 reports whether x can be exactly represented as a float32.
++func isExactFloat32(x float64) bool {
++	// Check the mantissa is in range.
++	if bits.TrailingZeros64(math.Float64bits(x)) < 52-23 {
++		return false
++	}
++	// Check the exponent is in range. The mantissa check above is sufficient for NaN values.
++	return math.IsNaN(x) || x == float64(float32(x))
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 96051414dc..aa944b5379 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -572,9 +572,9 @@
+ 
+ // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
+ (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) -> (Const64F [x])
+-(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) -> (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
++(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) -> (Const32F [f2i(extend32Fto64F(math.Float32frombits(uint32(x))))])
+ (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   -> (Const64  [x])
+-(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
++(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))])
+ 
+ // Float Loads up to Zeros so they can be constant folded.
+ (Load <t1> op:(OffPtr [o1] p1)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 4b12a84cdf..ca6280deb1 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -418,6 +418,38 @@ func shiftIsBounded(v *Value) bool {
+ 	return v.AuxInt != 0
+ }
+ 
++// truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
++// of the mantissa. It will panic if the truncation results in lost information.
++func truncate64Fto32F(f float64) float32 {
++	if !isExactFloat32(f) {
++		panic("truncate64Fto32F: truncation is not exact")
++	}
++	if !math.IsNaN(f) {
++		return float32(f)
++	}
++	// NaN bit patterns aren't necessarily preserved across conversion
++	// instructions so we need to do the conversion manually.
++	b := math.Float64bits(f)
++	m := b & ((1 << 52) - 1) // mantissa (a.k.a. significand)
++	//          | sign                  | exponent   | mantissa       |
++	r := uint32(((b >> 32) & (1 << 31)) | 0x7f800000 | (m >> (52 - 23)))
++	return math.Float32frombits(r)
++}
++
++// extend32Fto64F converts a float32 value to a float64 value preserving the bit
++// pattern of the mantissa.
++func extend32Fto64F(f float32) float64 {
++	if !math.IsNaN(float64(f)) {
++		return float64(f)
++	}
++	// NaN bit patterns aren't necessarily preserved across conversion
++	// instructions so we need to do the conversion manually.
++	b := uint64(math.Float32bits(f))
++	//   | sign                  | exponent      | mantissa                    |
++	r := ((b << 32) & (1 << 63)) | (0x7ff << 52) | ((b & 0x7fffff) << (52 - 23))
++	return math.Float64frombits(r)
++}
++
+ // i2f is used in rules for converting from an AuxInt to a float.
+ func i2f(i int64) float64 {
+ 	return math.Float64frombits(uint64(i))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 343b3581c1..81bebede46 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -13483,7 +13483,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
+ 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1)
+-	// result: (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
++	// result: (Const32F [f2i(extend32Fto64F(math.Float32frombits(uint32(x))))])
+ 	for {
+ 		t1 := v.Type
+ 		_ = v.Args[1]
+@@ -13504,7 +13504,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpConst32F)
+-		v.AuxInt = f2i(float64(math.Float32frombits(uint32(x))))
++		v.AuxInt = f2i(extend32Fto64F(math.Float32frombits(uint32(x))))
+ 		return true
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
+@@ -13535,7 +13535,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
+ 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)
+-	// result: (Const32 [int64(int32(math.Float32bits(float32(i2f(x)))))])
++	// result: (Const32 [int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))])
+ 	for {
+ 		t1 := v.Type
+ 		_ = v.Args[1]
+@@ -13556,7 +13556,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpConst32)
+-		v.AuxInt = int64(int32(math.Float32bits(float32(i2f(x)))))
++		v.AuxInt = int64(int32(math.Float32bits(truncate64Fto32F(i2f(x)))))
+ 		return true
+ 	}
+ 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))

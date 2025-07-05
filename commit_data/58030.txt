@@ -31,7 +31,7 @@ Date:   Wed Aug 16 19:49:04 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/520375
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../cgo/internal/testshared/testdata/dep2/dep2.go  |  6 ++++
  .../internal/testshared/testdata/depBase/dep.go    | 16 +++++++++
  .../testshared/testdata/depBaseInternal/dep.go     | 13 ++++++++
@@ -39,3 +39,178 @@ Date:   Wed Aug 16 19:49:04 2023 -0400
  src/cmd/link/internal/ld/inittask.go               | 38 +++++++++++++++-------
  src/runtime/proc.go                                |  6 ++--
  6 files changed, 66 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testshared/testdata/dep2/dep2.go b/src/cmd/cgo/internal/testshared/testdata/dep2/dep2.go
+index 94f38cf507..18d774b5fc 100644
+--- a/src/cmd/cgo/internal/testshared/testdata/dep2/dep2.go
++++ b/src/cmd/cgo/internal/testshared/testdata/dep2/dep2.go
+@@ -2,6 +2,12 @@ package dep2
+ 
+ import "testshared/depBase"
+ 
++func init() {
++	if !depBase.Initialized {
++		panic("depBase not initialized")
++	}
++}
++
+ var W int = 1
+ 
+ var hasProg depBase.HasProg
+diff --git a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+index e7cc7c81eb..a143fe2ff1 100644
+--- a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
++++ b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+@@ -7,8 +7,24 @@ package depBase
+ import (
+ 	"os"
+ 	"reflect"
++
++	"testshared/depBaseInternal"
+ )
+ 
++// Issue 61973: indirect dependencies are not initialized.
++func init() {
++	if !depBaseInternal.Initialized {
++		panic("depBaseInternal not initialized")
++	}
++	if os.Stdout == nil {
++		panic("os.Stdout is nil")
++	}
++
++	Initialized = true
++}
++
++var Initialized bool
++
+ var SlicePtr interface{} = &[]int{}
+ 
+ var V int = 1
+diff --git a/src/cmd/cgo/internal/testshared/testdata/depBaseInternal/dep.go b/src/cmd/cgo/internal/testshared/testdata/depBaseInternal/dep.go
+new file mode 100644
+index 0000000000..906bff09c4
+--- /dev/null
++++ b/src/cmd/cgo/internal/testshared/testdata/depBaseInternal/dep.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// depBaseInternal is only imported by depBase.
++
++package depBaseInternal
++
++var Initialized bool
++
++func init() {
++	Initialized = true
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index a051e43401..70b4a7ca30 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -51,6 +51,7 @@ func (d *deadcodePass) init() {
+ 			s := loader.Sym(i)
+ 			d.mark(s, 0)
+ 		}
++		d.mark(d.ctxt.mainInittasks, 0)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/inittask.go b/src/cmd/link/internal/ld/inittask.go
+index 0699107cd0..c4c5beb55e 100644
+--- a/src/cmd/link/internal/ld/inittask.go
++++ b/src/cmd/link/internal/ld/inittask.go
+@@ -41,15 +41,21 @@ func (ctxt *Link) inittasks() {
+ 	switch ctxt.BuildMode {
+ 	case BuildModeExe, BuildModePIE, BuildModeCArchive, BuildModeCShared:
+ 		// Normally the inittask list will be run on program startup.
+-		ctxt.mainInittasks = ctxt.inittaskSym("main..inittask", "go:main.inittasks")
++		ctxt.mainInittasks = ctxt.inittaskSym([]string{"main..inittask"}, "go:main.inittasks")
+ 	case BuildModePlugin:
+ 		// For plugins, the list will be run on plugin load.
+-		ctxt.mainInittasks = ctxt.inittaskSym(fmt.Sprintf("%s..inittask", objabi.PathToPrefix(*flagPluginPath)), "go:plugin.inittasks")
++		ctxt.mainInittasks = ctxt.inittaskSym([]string{fmt.Sprintf("%s..inittask", objabi.PathToPrefix(*flagPluginPath))}, "go:plugin.inittasks")
+ 		// Make symbol local so multiple plugins don't clobber each other's inittask list.
+ 		ctxt.loader.SetAttrLocal(ctxt.mainInittasks, true)
+ 	case BuildModeShared:
+-		// Nothing to do. The inittask list will be built by
+-		// the final build (with the -linkshared option).
++		// For a shared library, all packages are roots.
++		var roots []string
++		for _, lib := range ctxt.Library {
++			roots = append(roots, fmt.Sprintf("%s..inittask", objabi.PathToPrefix(lib.Pkg)))
++		}
++		ctxt.mainInittasks = ctxt.inittaskSym(roots, "go:shlib.inittasks")
++		// Make symbol local so multiple plugins don't clobber each other's inittask list.
++		ctxt.loader.SetAttrLocal(ctxt.mainInittasks, true)
+ 	default:
+ 		Exitf("unhandled build mode %d", ctxt.BuildMode)
+ 	}
+@@ -58,7 +64,7 @@ func (ctxt *Link) inittasks() {
+ 	// initialize the runtime_inittasks variable.
+ 	ldr := ctxt.loader
+ 	if ldr.Lookup("runtime.runtime_inittasks", 0) != 0 {
+-		t := ctxt.inittaskSym("runtime..inittask", "go:runtime.inittasks")
++		t := ctxt.inittaskSym([]string{"runtime..inittask"}, "go:runtime.inittasks")
+ 
+ 		// This slice header is already defined in runtime/proc.go, so we update it here with new contents.
+ 		sh := ldr.Lookup("runtime.runtime_inittasks", 0)
+@@ -72,11 +78,17 @@ func (ctxt *Link) inittasks() {
+ }
+ 
+ // inittaskSym builds a symbol containing pointers to all the inittasks
+-// that need to be run, given the root inittask symbol.
+-func (ctxt *Link) inittaskSym(rootName, symName string) loader.Sym {
++// that need to be run, given a list of root inittask symbols.
++func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
+ 	ldr := ctxt.loader
+-	root := ldr.Lookup(rootName, 0)
+-	if root == 0 {
++	var roots []loader.Sym
++	for _, n := range rootNames {
++		p := ldr.Lookup(n, 0)
++		if p != 0 {
++			roots = append(roots, p)
++		}
++	}
++	if len(roots) == 0 {
+ 		// Nothing to do
+ 		return 0
+ 	}
+@@ -98,13 +110,15 @@ func (ctxt *Link) inittaskSym(rootName, symName string) loader.Sym {
+ 	// p's direct imports that have not yet been scheduled.
+ 	m := map[loader.Sym]int{}
+ 
+-	// Find all reachable inittask records from the root.
++	// Find all reachable inittask records from the roots.
+ 	// Keep track of the dependency edges between them in edges.
+ 	// Keep track of how many imports each package has in m.
+ 	// q is the list of found but not yet explored packages.
+ 	var q []loader.Sym
+-	m[root] = 0
+-	q = append(q, root)
++	for _, p := range roots {
++		m[p] = 0
++		q = append(q, p)
++	}
+ 	for len(q) > 0 {
+ 		x := q[len(q)-1]
+ 		q = q[:len(q)-1]
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 263945dd6c..fa76d3250c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -244,8 +244,10 @@ func main() {
+ 	// list can arrive a few different ways, but it will always
+ 	// contain the init tasks computed by the linker for all the
+ 	// packages in the program (excluding those added at runtime
+-	// by package plugin).
+-	for _, m := range activeModules() {
++	// by package plugin). Run through the modules in dependency
++	// order (the order they are initialized by the dynamic
++	// loader, i.e. they are added to the moduledata linked list).
++	for m := &firstmoduledata; m != nil; m = m.next {
+ 		doInit(m.inittasks)
+ 	}
+ 

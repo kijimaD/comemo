@@ -11,7 +11,41 @@ Date:   Thu Feb 7 13:11:12 2019 +0530
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue30087.go             | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0702da25ee..7593f0d1e1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3603,7 +3603,7 @@ func typecheckas2(n *Node) {
+ mismatch:
+ 	switch r.Op {
+ 	default:
+-		yyerror("assignment mismatch: %d variable but %d values", cl, cr)
++		yyerror("assignment mismatch: %d variables but %d values", cl, cr)
+ 	case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		yyerror("assignment mismatch: %d variables but %v returns %d values", cl, r.Left, cr)
+ 	}
+diff --git a/test/fixedbugs/issue30087.go b/test/fixedbugs/issue30087.go
+new file mode 100644
+index 0000000000..dc12364d80
+--- /dev/null
++++ b/test/fixedbugs/issue30087.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values"
++	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values"
++	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values"
++	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
++}

@@ -11,9 +11,147 @@ Date:   Thu Aug 21 21:10:30 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/129480043
-
+---
  src/pkg/runtime/netpoll.goc   | 21 ++++++++++-----------
  src/pkg/runtime/time.goc      |  8 +++-----
  src/pkg/time/internal_test.go |  2 +-
  src/pkg/time/sleep.go         |  6 +++---
  4 files changed, 17 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index bbb3d06e9a..e8ae84f127 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -74,9 +74,9 @@ static struct
+ 
+ static bool	netpollblock(PollDesc*, int32, bool);
+ static G*	netpollunblock(PollDesc*, int32, bool);
+-static void	deadline(int64, Eface);
+-static void	readDeadline(int64, Eface);
+-static void	writeDeadline(int64, Eface);
++static void	deadline(Eface);
++static void	readDeadline(Eface);
++static void	writeDeadline(Eface);
+ static PollDesc*	allocPollDesc(void);
+ static intgo	checkerr(PollDesc *pd, int32 mode);
+ 
+@@ -384,13 +384,12 @@ netpollunblock(PollDesc *pd, int32 mode, bool ioready)
+ }
+ 
+ static void
+-deadlineimpl(int64 now, Eface arg, bool read, bool write)
++deadlineimpl(Eface arg, bool read, bool write)
+ {
+ 	PollDesc *pd;
+ 	uint32 seq;
+ 	G *rg, *wg;
+ 
+-	USED(now);
+ 	pd = (PollDesc*)arg.data;
+ 	// This is the seq when the timer was set.
+ 	// If it's stale, ignore the timer event.
+@@ -424,21 +423,21 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
+ }
+ 
+ static void
+-deadline(int64 now, Eface arg)
++deadline(Eface arg)
+ {
+-	deadlineimpl(now, arg, true, true);
++	deadlineimpl(arg, true, true);
+ }
+ 
+ static void
+-readDeadline(int64 now, Eface arg)
++readDeadline(Eface arg)
+ {
+-	deadlineimpl(now, arg, true, false);
++	deadlineimpl(arg, true, false);
+ }
+ 
+ static void
+-writeDeadline(int64 now, Eface arg)
++writeDeadline(Eface arg)
+ {
+-	deadlineimpl(now, arg, false, true);
++	deadlineimpl(arg, false, true);
+ }
+ 
+ static PollDesc*
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index f9126bd76a..1d6346233c 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -70,10 +70,8 @@ static void siftdown(int32);
+ 
+ // Ready the goroutine e.data.
+ static void
+-ready(int64 now, Eface e)
++ready(Eface e)
+ {
+-	USED(now);
+-
+ 	runtime·ready(e.data);
+ }
+ 
+@@ -201,7 +199,7 @@ timerproc(void)
+ {
+ 	int64 delta, now;
+ 	Timer *t;
+-	void (*f)(int64, Eface);
++	void (*f)(Eface);
+ 	Eface arg;
+ 
+ 	for(;;) {
+@@ -233,7 +231,7 @@ timerproc(void)
+ 			runtime·unlock(&timers.lock);
+ 			if(raceenabled)
+ 				runtime·raceacquire(t);
+-			f(now, arg);
++			f(arg);
+ 
+ 			// clear f and arg to avoid leak while sleeping for next timer
+ 			f = nil;
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index f09d30507f..b02292ea16 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -12,7 +12,7 @@ func init() {
+ var Interrupt = interrupt
+ var DaysIn = daysIn
+ 
+-func empty(now int64, arg interface{}) {}
++func empty(arg interface{}) {}
+ 
+ // Test that a runtimeTimer with a duration so large it overflows
+ // does not cause other timers to hang.
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 6a03f417bd..0fd7c9328e 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -17,7 +17,7 @@ type runtimeTimer struct {
+ 	i      int32
+ 	when   int64
+ 	period int64
+-	f      func(int64, interface{}) // NOTE: must not be closure
++	f      func(interface{}) // NOTE: must not be closure
+ 	arg    interface{}
+ }
+ 
+@@ -83,7 +83,7 @@ func (t *Timer) Reset(d Duration) bool {
+ 	return active
+ }
+ 
+-func sendTime(now int64, c interface{}) {
++func sendTime(c interface{}) {
+ 	// Non-blocking send of time on c.
+ 	// Used in NewTimer, it cannot block anyway (buffer).
+ 	// Used in NewTicker, dropping sends on the floor is
+@@ -117,6 +117,6 @@ func AfterFunc(d Duration, f func()) *Timer {
+ 	return t
+ }
+ 
+-func goFunc(now int64, arg interface{}) {
++func goFunc(arg interface{}) {
+ 	go arg.(func())()
+ }

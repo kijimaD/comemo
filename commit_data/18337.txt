@@ -11,7 +11,7 @@ Date:   Wed Jan 22 23:30:52 2014 +0100
     R=rsc, aram
     CC=golang-codereviews
     https://golang.org/cl/49970044
-
+---
  src/cmd/nm/nm.go                                 |   4 +
  src/cmd/nm/plan9obj.go                           |  48 ++++
  src/pkg/debug/plan9obj/file.go                   | 346 +++++++++++++++++++++++
@@ -21,3 +21,631 @@ Date:   Wed Jan 22 23:30:52 2014 +0100
  src/pkg/debug/plan9obj/testdata/amd64-plan9-exec | Bin 0 -> 34279 bytes
  src/pkg/debug/plan9obj/testdata/hello.c          |   8 +
  8 files changed, 578 insertions(+)
+
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index fdf6ef673e..a4036184e4 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -105,6 +105,10 @@ var parsers = []struct {
+ 	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
+ 	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
+ 	{[]byte("MZ"), peSymbols},
++	{[]byte("\x00\x00\x01\xEB"), plan9Symbols}, // 386
++	{[]byte("\x00\x00\x04\x07"), plan9Symbols}, // mips
++	{[]byte("\x00\x00\x06\x47"), plan9Symbols}, // arm
++	{[]byte("\x00\x00\x8A\x97"), plan9Symbols}, // amd64
+ }
+ 
+ func nm(file string) {
+diff --git a/src/cmd/nm/plan9obj.go b/src/cmd/nm/plan9obj.go
+new file mode 100644
+index 0000000000..006c66ebfd
+--- /dev/null
++++ b/src/cmd/nm/plan9obj.go
+@@ -0,0 +1,48 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of Plan 9 a.out executables.
++
++package main
++
++import (
++	"debug/plan9obj"
++	"os"
++	"sort"
++)
++
++func plan9Symbols(f *os.File) []Sym {
++	p, err := plan9obj.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	plan9Syms, err := p.Symbols()
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return nil
++	}
++
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++	for _, s := range plan9Syms {
++		addrs = append(addrs, s.Value)
++	}
++	sort.Sort(uint64s(addrs))
++
++	var syms []Sym
++
++	for _, s := range plan9Syms {
++		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
++		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
++		if i < len(addrs) {
++			sym.Size = int64(addrs[i] - s.Value)
++		}
++		syms = append(syms, sym)
++	}
++
++	return syms
++}
+diff --git a/src/pkg/debug/plan9obj/file.go b/src/pkg/debug/plan9obj/file.go
+new file mode 100644
+index 0000000000..a4c95a92a5
+--- /dev/null
++++ b/src/pkg/debug/plan9obj/file.go
+@@ -0,0 +1,346 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package plan9obj implements access to Plan 9 a.out object files.
++package plan9obj
++
++import (
++	"encoding/binary"
++	"errors"
++	"fmt"
++	"io"
++	"os"
++)
++
++// A FileHeader represents an Plan 9 a.out file header.
++type FileHeader struct {
++	Ptrsz int
++}
++
++// A File represents an open Plan 9 a.out file.
++type File struct {
++	FileHeader
++	Sections []*Section
++	closer   io.Closer
++}
++
++type SectionHeader struct {
++	Name   string
++	Size   uint32
++	Offset uint32
++}
++
++// A Section represents a single section in an Plan 9 a.out file.
++type Section struct {
++	SectionHeader
++
++	// Embed ReaderAt for ReadAt method.
++	// Do not embed SectionReader directly
++	// to avoid having Read and Seek.
++	// If a client wants Read and Seek it must use
++	// Open() to avoid fighting over the seek offset
++	// with other clients.
++	io.ReaderAt
++	sr *io.SectionReader
++}
++
++// Data reads and returns the contents of the Plan 9 a.out section.
++func (s *Section) Data() ([]byte, error) {
++	dat := make([]byte, s.sr.Size())
++	n, err := s.sr.ReadAt(dat, 0)
++	return dat[0:n], err
++}
++
++// Open returns a new ReadSeeker reading the Plan 9 a.out section.
++func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
++
++// A ProgHeader represents a single Plan 9 a.out program header.
++type ProgHeader struct {
++	Magic uint32
++	Text  uint32
++	Data  uint32
++	Bss   uint32
++	Syms  uint32
++	Entry uint64
++	Spsz  uint32
++	Pcsz  uint32
++}
++
++// A Prog represents the program header in an Plan 9 a.out binary.
++type Prog struct {
++	ProgHeader
++
++	// Embed ReaderAt for ReadAt method.
++	// Do not embed SectionReader directly
++	// to avoid having Read and Seek.
++	// If a client wants Read and Seek it must use
++	// Open() to avoid fighting over the seek offset
++	// with other clients.
++	io.ReaderAt
++	sr *io.SectionReader
++}
++
++// Open returns a new ReadSeeker reading the Plan 9 a.out program body.
++func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-1) }
++
++// A Symbol represents an entry in a Plan 9 a.out symbol table section.
++type Sym struct {
++	Value uint64
++	Type  rune
++	Name  string
++}
++
++/*
++ * Plan 9 a.out reader
++ */
++
++type FormatError struct {
++	off int
++	msg string
++	val interface{}
++}
++
++func (e *FormatError) Error() string {
++	msg := e.msg
++	if e.val != nil {
++		msg += fmt.Sprintf(" '%v'", e.val)
++	}
++	msg += fmt.Sprintf(" in record at byte %#x", e.off)
++	return msg
++}
++
++// Open opens the named file using os.Open and prepares it for use as an Plan 9 a.out binary.
++func Open(name string) (*File, error) {
++	f, err := os.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	ff, err := NewFile(f)
++	if err != nil {
++		f.Close()
++		return nil, err
++	}
++	ff.closer = f
++	return ff, nil
++}
++
++// Close closes the File.
++// If the File was created using NewFile directly instead of Open,
++// Close has no effect.
++func (f *File) Close() error {
++	var err error
++	if f.closer != nil {
++		err = f.closer.Close()
++		f.closer = nil
++	}
++	return err
++}
++
++func parseMagic(magic [4]byte) (*ExecTable, error) {
++	for _, e := range exectab {
++		if string(magic[:]) == e.Magic {
++			return &e, nil
++		}
++	}
++	return nil, &FormatError{0, "bad magic number", magic[:]}
++}
++
++// NewFile creates a new File for accessing an Plan 9 binary in an underlying reader.
++// The Plan 9 binary is expected to start at position 0 in the ReaderAt.
++func NewFile(r io.ReaderAt) (*File, error) {
++	sr := io.NewSectionReader(r, 0, 1<<63-1)
++	// Read and decode Plan 9 magic
++	var magic [4]byte
++	if _, err := r.ReadAt(magic[:], 0); err != nil {
++		return nil, err
++	}
++	mp, err := parseMagic(magic)
++	if err != nil {
++		return nil, err
++	}
++
++	f := &File{FileHeader{mp.Ptrsz}, nil, nil}
++
++	ph := new(prog)
++	if err := binary.Read(sr, binary.BigEndian, ph); err != nil {
++		return nil, err
++	}
++
++	p := new(Prog)
++	p.ProgHeader = ProgHeader{
++		Magic: ph.Magic,
++		Text:  ph.Text,
++		Data:  ph.Data,
++		Bss:   ph.Bss,
++		Syms:  ph.Syms,
++		Entry: uint64(ph.Entry),
++		Spsz:  ph.Spsz,
++		Pcsz:  ph.Pcsz,
++	}
++
++	if mp.Ptrsz == 8 {
++		if err := binary.Read(sr, binary.BigEndian, &p.Entry); err != nil {
++			return nil, err
++		}
++	}
++
++	var sects = []struct {
++		name string
++		size uint32
++	}{
++		{"text", ph.Text},
++		{"data", ph.Data},
++		{"syms", ph.Syms},
++		{"spsz", ph.Spsz},
++		{"pcsz", ph.Pcsz},
++	}
++
++	f.Sections = make([]*Section, 5)
++
++	off := mp.Hsize
++
++	for i, sect := range sects {
++		s := new(Section)
++		s.SectionHeader = SectionHeader{
++			Name:   sect.name,
++			Size:   sect.size,
++			Offset: off,
++		}
++		off += sect.size
++		s.sr = io.NewSectionReader(r, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
++		s.ReaderAt = s.sr
++		f.Sections[i] = s
++	}
++
++	return f, nil
++}
++
++func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
++	var order binary.ByteOrder = binary.BigEndian
++	var s sym
++	p := data
++	for len(p) >= 4 {
++		// Symbol type, value.
++		if len(p) < ptrsz {
++			return &FormatError{len(data), "unexpected EOF", nil}
++		}
++		// fixed-width value
++		if ptrsz == 8 {
++			s.value = order.Uint64(p[0:8])
++			p = p[8:]
++		} else {
++			s.value = uint64(order.Uint32(p[0:4]))
++			p = p[4:]
++		}
++
++		var typ byte
++		typ = p[0] & 0x7F
++		s.typ = typ
++		p = p[1:]
++
++		// Name.
++		var i int
++		var nnul int
++		for i = 0; i < len(p); i++ {
++			if p[i] == 0 {
++				nnul = 1
++				break
++			}
++		}
++		switch typ {
++		case 'z', 'Z':
++			p = p[i+nnul:]
++			for i = 0; i+2 <= len(p); i += 2 {
++				if p[i] == 0 && p[i+1] == 0 {
++					nnul = 2
++					break
++				}
++			}
++		}
++		if len(p) < i+nnul {
++			return &FormatError{len(data), "unexpected EOF", nil}
++		}
++		s.name = p[0:i]
++		i += nnul
++		p = p[i:]
++
++		fn(s)
++	}
++	return nil
++}
++
++// NewTable decodes the Go symbol table in data,
++// returning an in-memory representation.
++func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
++	var n int
++	err := walksymtab(symtab, ptrsz, func(s sym) error {
++		n++
++		return nil
++	})
++	if err != nil {
++		return nil, err
++	}
++
++	fname := make(map[uint16]string)
++	syms := make([]Sym, 0, n)
++	err = walksymtab(symtab, ptrsz, func(s sym) error {
++		n := len(syms)
++		syms = syms[0 : n+1]
++		ts := &syms[n]
++		ts.Type = rune(s.typ)
++		ts.Value = s.value
++		switch s.typ {
++		default:
++			ts.Name = string(s.name[:])
++		case 'z', 'Z':
++			for i := 0; i < len(s.name); i += 2 {
++				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2])
++				elt, ok := fname[eltIdx]
++				if !ok {
++					return &FormatError{-1, "bad filename code", eltIdx}
++				}
++				if n := len(ts.Name); n > 0 && ts.Name[n-1] != '/' {
++					ts.Name += "/"
++				}
++				ts.Name += elt
++			}
++		}
++		switch s.typ {
++		case 'f':
++			fname[uint16(s.value)] = ts.Name
++		}
++		return nil
++	})
++	if err != nil {
++		return nil, err
++	}
++
++	return syms, nil
++}
++
++// Symbols returns the symbol table for f.
++func (f *File) Symbols() ([]Sym, error) {
++	symtabSection := f.Section("syms")
++	if symtabSection == nil {
++		return nil, errors.New("no symbol section")
++	}
++
++	symtab, err := symtabSection.Data()
++	if err != nil {
++		return nil, errors.New("cannot load symbol section")
++	}
++
++	return newTable(symtab, f.Ptrsz)
++}
++
++// Section returns a section with the given name, or nil if no such
++// section exists.
++func (f *File) Section(name string) *Section {
++	for _, s := range f.Sections {
++		if s.Name == name {
++			return s
++		}
++	}
++	return nil
++}
+diff --git a/src/pkg/debug/plan9obj/file_test.go b/src/pkg/debug/plan9obj/file_test.go
+new file mode 100644
+index 0000000000..cc1db40929
+--- /dev/null
++++ b/src/pkg/debug/plan9obj/file_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package plan9obj
++
++import (
++	"reflect"
++	"testing"
++)
++
++type fileTest struct {
++	file     string
++	hdr      FileHeader
++	sections []*SectionHeader
++}
++
++var fileTests = []fileTest{
++	{
++		"testdata/386-plan9-exec",
++		FileHeader{4},
++		[]*SectionHeader{
++			{"text", 0x4c5f, 0x20},
++			{"data", 0x94c, 0x4c7f},
++			{"syms", 0x2c2b, 0x55cb},
++			{"spsz", 0x0, 0x81f6},
++			{"pcsz", 0xf7a, 0x81f6},
++		},
++	},
++	{
++		"testdata/amd64-plan9-exec",
++		FileHeader{8},
++		[]*SectionHeader{
++			{"text", 0x4213, 0x28},
++			{"data", 0xa80, 0x423b},
++			{"syms", 0x2c8c, 0x4cbb},
++			{"spsz", 0x0, 0x7947},
++			{"pcsz", 0xca0, 0x7947},
++		},
++	},
++}
++
++func TestOpen(t *testing.T) {
++	for i := range fileTests {
++		tt := &fileTests[i]
++
++		f, err := Open(tt.file)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
++			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
++			continue
++		}
++
++		for i, sh := range f.Sections {
++			if i >= len(tt.sections) {
++				break
++			}
++			have := &sh.SectionHeader
++			want := tt.sections[i]
++			if !reflect.DeepEqual(have, want) {
++				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++			}
++		}
++		tn := len(tt.sections)
++		fn := len(f.Sections)
++		if tn != fn {
++			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
++		}
++	}
++}
++
++func TestOpenFailure(t *testing.T) {
++	filename := "file.go"    // not a Plan 9 a.out file
++	_, err := Open(filename) // don't crash
++	if err == nil {
++		t.Errorf("open %s: succeeded unexpectedly", filename)
++	}
++}
+diff --git a/src/pkg/debug/plan9obj/plan9obj.go b/src/pkg/debug/plan9obj/plan9obj.go
+new file mode 100644
+index 0000000000..4e3b08f416
+--- /dev/null
++++ b/src/pkg/debug/plan9obj/plan9obj.go
+@@ -0,0 +1,91 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Plan 9 a.out constants and data structures
++ */
++
++package plan9obj
++
++import (
++	"bytes"
++	"encoding/binary"
++)
++
++// Plan 9 Program header.
++type prog struct {
++	Magic uint32 /* magic number */
++	Text  uint32 /* size of text segment */
++	Data  uint32 /* size of initialized data */
++	Bss   uint32 /* size of uninitialized data */
++	Syms  uint32 /* size of symbol table */
++	Entry uint32 /* entry point */
++	Spsz  uint32 /* size of pc/sp offset table */
++	Pcsz  uint32 /* size of pc/line number table */
++}
++
++// Plan 9 symbol table entries.
++type sym struct {
++	value uint64
++	typ   byte
++	name  []byte
++}
++
++const (
++	hsize      = 4 * 8
++	_HDR_MAGIC = 0x00008000 /* header expansion */
++)
++
++func magic(f, b int) string {
++	buf := new(bytes.Buffer)
++	var i uint32 = uint32((f) | ((((4 * (b)) + 0) * (b)) + 7))
++	binary.Write(buf, binary.BigEndian, i)
++	return string(buf.Bytes())
++}
++
++var (
++	_A_MAGIC = magic(0, 8)           /* 68020 (retired) */
++	_I_MAGIC = magic(0, 11)          /* intel 386 */
++	_J_MAGIC = magic(0, 12)          /* intel 960 (retired) */
++	_K_MAGIC = magic(0, 13)          /* sparc */
++	_V_MAGIC = magic(0, 16)          /* mips 3000 BE */
++	_X_MAGIC = magic(0, 17)          /* att dsp 3210 (retired) */
++	_M_MAGIC = magic(0, 18)          /* mips 4000 BE */
++	_D_MAGIC = magic(0, 19)          /* amd 29000 (retired) */
++	_E_MAGIC = magic(0, 20)          /* arm */
++	_Q_MAGIC = magic(0, 21)          /* powerpc */
++	_N_MAGIC = magic(0, 22)          /* mips 4000 LE */
++	_L_MAGIC = magic(0, 23)          /* dec alpha (retired) */
++	_P_MAGIC = magic(0, 24)          /* mips 3000 LE */
++	_U_MAGIC = magic(0, 25)          /* sparc64 (retired) */
++	_S_MAGIC = magic(_HDR_MAGIC, 26) /* amd64 */
++	_T_MAGIC = magic(_HDR_MAGIC, 27) /* powerpc64 */
++	_R_MAGIC = magic(_HDR_MAGIC, 28) /* arm64 */
++)
++
++type ExecTable struct {
++	Magic string
++	Ptrsz int
++	Hsize uint32
++}
++
++var exectab = []ExecTable{
++	{_A_MAGIC, 4, hsize},
++	{_I_MAGIC, 4, hsize},
++	{_J_MAGIC, 4, hsize},
++	{_K_MAGIC, 4, hsize},
++	{_V_MAGIC, 4, hsize},
++	{_X_MAGIC, 4, hsize},
++	{_M_MAGIC, 4, hsize},
++	{_D_MAGIC, 4, hsize},
++	{_E_MAGIC, 4, hsize},
++	{_Q_MAGIC, 4, hsize},
++	{_N_MAGIC, 4, hsize},
++	{_L_MAGIC, 4, hsize},
++	{_P_MAGIC, 4, hsize},
++	{_U_MAGIC, 4, hsize},
++	{_S_MAGIC, 8, hsize + 8},
++	{_T_MAGIC, 8, hsize + 8},
++	{_R_MAGIC, 8, hsize + 8},
++}
+diff --git a/src/pkg/debug/plan9obj/testdata/386-plan9-exec b/src/pkg/debug/plan9obj/testdata/386-plan9-exec
+new file mode 100755
+index 0000000000..748e83f8e6
+Binary files /dev/null and b/src/pkg/debug/plan9obj/testdata/386-plan9-exec differ
+diff --git a/src/pkg/debug/plan9obj/testdata/amd64-plan9-exec b/src/pkg/debug/plan9obj/testdata/amd64-plan9-exec
+new file mode 100755
+index 0000000000..3e257dd8ff
+Binary files /dev/null and b/src/pkg/debug/plan9obj/testdata/amd64-plan9-exec differ
+diff --git a/src/pkg/debug/plan9obj/testdata/hello.c b/src/pkg/debug/plan9obj/testdata/hello.c
+new file mode 100644
+index 0000000000..c0d633e29f
+--- /dev/null
++++ b/src/pkg/debug/plan9obj/testdata/hello.c
+@@ -0,0 +1,8 @@
++#include <u.h>
++#include <libc.h>
++
++void
++main(void)
++{
++	print("hello, world\n");
++}

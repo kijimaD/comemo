@@ -15,6 +15,21 @@ Date:   Fri Nov 11 22:16:20 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/malloc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 7ff2190876..bababe042e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -571,6 +571,9 @@ func mallocinit() {
+ 		userArenaHint.addr = p
+ 		userArenaHint.next, mheap_.userArena.arenaHints = mheap_.userArena.arenaHints, userArenaHint
+ 	}
++	// Initialize the memory limit here because the allocator is going to look at it
++	// but we haven't called gcinit yet and we're definitely going to allocate memory before then.
++	gcController.memoryLimit.Store(maxInt64)
+ }
+ 
+ // sysAlloc allocates heap arena space for at least n bytes. The

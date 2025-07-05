@@ -9,7 +9,58 @@ Date:   Tue Jul 14 01:56:51 2015 -0400
     Change-Id: I68506af58088155d38d492b49b19c5fc2048b087
     Reviewed-on: https://go-review.googlesource.com/12176
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/go_test.go | 14 ++++++++++++++
  src/cmd/go/test.go    | 10 ++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 59e90b7f60..c8741ca2ff 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2094,3 +2094,17 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
+ 		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
+ 	}
+ }
++
++func TestGoTestImportErrorStack(t *testing.T) {
++	const out = `package testdep/p1 (test)
++	imports testdep/p2
++	imports testdep/p3: no buildable Go source files`
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("test", "testdep/p1")
++	if !strings.Contains(tg.stderr.String(), out) {
++		t.Fatal("did not give full import stack:\n\n%s", tg.stderr.String())
++	}
++}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e62f4bd19d..aeb4228600 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -578,6 +578,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
++		if len(p1.DepsErrors) > 0 {
++			err := p1.DepsErrors[0]
++			err.Pos = "" // show full import stack
++			return nil, nil, nil, err
++		}
+ 		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+ 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
+ 			// Can't change that code, because that code is only for loading the
+@@ -604,6 +609,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
++		if len(p1.DepsErrors) > 0 {
++			err := p1.DepsErrors[0]
++			err.Pos = "" // show full import stack
++			return nil, nil, nil, err
++		}
+ 		ximports = append(ximports, p1)
+ 		p.XTestImports[i] = p1.ImportPath
+ 	}

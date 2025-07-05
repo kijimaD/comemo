@@ -28,6 +28,32 @@ Date:   Mon Sep 2 13:57:09 2019 +0000
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/filter.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 32352cb92c..c398e6e603 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -474,7 +474,9 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 			}
+ 		}
+ 	} else {
+-		for _, f := range pkg.Files {
++		// Iterate over filenames for deterministic order.
++		for _, filename := range filenames {
++			f := pkg.Files[filename]
+ 			imports = append(imports, f.Imports...)
+ 		}
+ 	}
+@@ -484,7 +486,8 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	if mode&FilterUnassociatedComments == 0 {
+ 		comments = make([]*CommentGroup, ncomments)
+ 		i := 0
+-		for _, f := range pkg.Files {
++		for _, filename := range filenames {
++			f := pkg.Files[filename]
+ 			i += copy(comments[i:], f.Comments)
+ 		}
+ 	}

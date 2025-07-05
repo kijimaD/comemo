@@ -15,6 +15,44 @@ Date:   Mon Jan 27 15:29:29 2020 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.14.html | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 245b068ce8..f5f0735741 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -217,6 +217,32 @@ TODO
+   of <code>GOINSECURE</code> is a comma-separated list of glob patterns.
+ </p>
+ 
++<h4 id="commands-outside-modules">Commands outside modules</h4>
++
++<p><!-- golang.org/issue/32027 -->
++  When module-aware mode is enabled explicitly (by setting
++  <code>GO111MODULE=on</code>), most module commands have more
++  limited functionality if no <code>go.mod</code> file is present. For
++  example, <code>go</code> <code>build</code>,
++  <code>go</code> <code>run</code>, and other build commands can only build
++  packages in the standard library and packages specified as <code>.go</code>
++  files on the command line.
++</p>
++
++<p>
++  Previously, the <code>go</code> command would resolve each package path
++  to the latest version of a module but would not record the module path
++  or version. This resulted in <a href="https://golang.org/issue/32027">slow,
++  non-reproducible builds</a>.
++</p>
++
++<p>
++  <code>go</code> <code>get</code> continues to work as before, as do
++  <code>go</code> <code>mod</code> <code>download</code> and
++  <code>go</code> <code>list</code> <code>-m</code> with explicit version
++  patterns.
++</p>
++
+ <h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
+ <!-- golang.org/issue/34165 -->
+ 

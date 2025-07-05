@@ -19,7 +19,79 @@ Date:   Tue Jun 10 11:12:10 2025 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/dist/build.go | 33 +++++++++++++++------------------
  src/cmd/dist/test.go  |  2 +-
  2 files changed, 16 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 832aa3c244..024050c2dd 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1390,7 +1390,21 @@ func toolenv() []string {
+ 	return env
+ }
+ 
+-var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
++var (
++	toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
++
++	// Keep in sync with binExes in cmd/distpack/pack.go.
++	binExesIncludedInDistpack = []string{"cmd/go", "cmd/gofmt"}
++
++	// Keep in sync with the filter in cmd/distpack/pack.go.
++	toolsIncludedInDistpack = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
++
++	// We could install all tools in "cmd", but is unnecessary because we will
++	// remove them in distpack, so instead install the tools that will actually
++	// be included in distpack, which is a superset of toolchain. Not installing
++	// the tools will help us test what happens when the tools aren't present.
++	toolsToInstall = slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
++)
+ 
+ // The bootstrap command runs a build from scratch,
+ // stopping at having installed the go_bootstrap command.
+@@ -1456,11 +1470,6 @@ func cmdbootstrap() {
+ 	// GOEXPERIMENT.
+ 	os.Setenv("GOEXPERIMENT", "none")
+ 
+-	if debug {
+-		// cmd/buildid is used in debug mode.
+-		toolchain = append(toolchain, "cmd/buildid")
+-	}
+-
+ 	if isdir(pathf("%s/src/pkg", goroot)) {
+ 		fatalf("\n\n"+
+ 			"The Go package sources have moved to $GOROOT/src.\n"+
+@@ -1589,18 +1598,6 @@ func cmdbootstrap() {
+ 		os.Setenv("GOCACHE", oldgocache)
+ 	}
+ 
+-	// Keep in sync with binExes in cmd/distpack/pack.go.
+-	binExesIncludedInDistpack := []string{"cmd/go", "cmd/gofmt"}
+-
+-	// Keep in sync with the filter in cmd/distpack/pack.go.
+-	toolsIncludedInDistpack := []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
+-
+-	// We could install all tools in "cmd", but is unnecessary because we will
+-	// remove them in distpack, so instead install the tools that will actually
+-	// be included in distpack, which is a superset of toolchain. Not installing
+-	// the tools will help us test what happens when the tools aren't present.
+-	toolsToInstall := slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
+-
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.
+ 		timelog("build", "toolchain")
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 82c6ee4631..637433d451 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -178,7 +178,7 @@ func (t *tester) run() {
+ 			// otherwise relevant to the actual set of packages under test.
+ 			goInstall(toolenv(), gorootBinGo, toolchain...)
+ 			goInstall(toolenv(), gorootBinGo, toolchain...)
+-			goInstall(toolenv(), gorootBinGo, "cmd")
++			goInstall(toolenv(), gorootBinGo, toolsToInstall...)
+ 		}
+ 	}
+ 

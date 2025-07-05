@@ -21,8 +21,79 @@ Date:   Wed Aug 10 19:46:48 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/syscall/syscall_darwin_test.go | 23 -----------------------
  src/syscall/syscall_nacl.go        |  1 +
  src/syscall/syscall_test.go        | 14 ++++++++++++++
  3 files changed, 15 insertions(+), 23 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin_test.go b/src/syscall/syscall_darwin_test.go
+deleted file mode 100644
+index cea5636d07..0000000000
+--- a/src/syscall/syscall_darwin_test.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin
+-// +build amd64 386 arm arm64
+-
+-package syscall_test
+-
+-import (
+-	"syscall"
+-	"testing"
+-)
+-
+-func TestDarwinGettimeofday(t *testing.T) {
+-	tv := &syscall.Timeval{}
+-	if err := syscall.Gettimeofday(tv); err != nil {
+-		t.Fatal(err)
+-	}
+-	if tv.Sec == 0 && tv.Usec == 0 {
+-		t.Fatal("Sec and Usec both zero")
+-	}
+-}
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index ba6eafed1c..d22d0c7536 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -295,6 +295,7 @@ func Getgroups() ([]int, error)         { return []int{1}, nil }
+ func Getpagesize() int                  { return 65536 }
+ func Getppid() int                      { return 2 }
+ func Getpid() int                       { return 3 }
++func Gettimeofday(tv *Timeval) error    { return ENOSYS }
+ func Getuid() int                       { return 1 }
+ func Kill(pid int, signum Signal) error { return ENOSYS }
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+diff --git a/src/syscall/syscall_test.go b/src/syscall/syscall_test.go
+index 0a0b8b7a26..c3fffda2df 100644
+--- a/src/syscall/syscall_test.go
++++ b/src/syscall/syscall_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -59,3 +60,16 @@ func TestExecErrPermutedFds(t *testing.T) {
+ 		t.Fatalf("StartProcess of invalid program returned err = nil")
+ 	}
+ }
++
++func TestGettimeofday(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("not implemented on nacl")
++	}
++	tv := &syscall.Timeval{}
++	if err := syscall.Gettimeofday(tv); err != nil {
++		t.Fatal(err)
++	}
++	if tv.Sec == 0 && tv.Usec == 0 {
++		t.Fatal("Sec and Usec both zero")
++	}
++}

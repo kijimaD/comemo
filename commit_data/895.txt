@@ -9,10 +9,625 @@ Date:   Fri Oct 17 16:19:31 2008 -0700
     R=r
     OCL=17378
     CL=17378
-
+---
  usr/gri/pretty/Makefile.iant |  12 +---
  usr/gri/pretty/node.go       |  16 ++++-
  usr/gri/pretty/parser.go     | 147 ++++++++++++++++++++++---------------------
  usr/gri/pretty/printer.go    |  37 ++++++-----
  usr/gri/pretty/scanner.go    |  37 +++++++----
  5 files changed, 136 insertions(+), 113 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index 603261a11d..e80b2585ef 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -23,17 +23,7 @@ pretty: $(PRETTY_OBJS)
+ 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+ 
+ test: pretty
+-	pretty -s *.go
+-	pretty -s ../gosrc/*.go
+-	pretty -s $(GOROOT)/test/sieve.go
+-	pretty -s $(GOROOT)/src/pkg/*.go
+-	pretty -s $(GOROOT)/src/lib/flag.go
+-	pretty -s $(GOROOT)/src/lib/fmt.go
+-	pretty -s $(GOROOT)/src/lib/rand.go
+-	pretty -s $(GOROOT)/src/lib/math/*.go
+-	pretty -s $(GOROOT)/src/lib/container/*.go
+-	pretty -s $(GOROOT)/src/syscall/*.go
+-	echo "DONE"
++	test.sh
+ 
+ install: pretty
+ 	cp pretty $(HOME)/bin/pretty
+diff --git a/usr/gri/pretty/node.go b/usr/gri/pretty/node.go
+index 55fbf1ce9b..1fef1c8ff2 100644
+--- a/usr/gri/pretty/node.go
++++ b/usr/gri/pretty/node.go
+@@ -74,8 +74,10 @@ export func NewList() *List {
+ export type Expr struct {
+ 	pos, tok int;
+ 	x, y *Expr;  // binary (x, y) and unary (y) expressions
++	// TODO find a more space efficient way to hold these
+ 	s string;  // identifiers and literals
+-	t *Type;  // operands that are types
++	t *Type;  // type expressions, function literal types
++	block *List;  // stats for function literals
+ }
+ 
+ 
+@@ -108,6 +110,9 @@ export func NewLit(pos, tok int, s string) *Expr {
+ }
+ 
+ 
++export var BadExpr = NewExpr(0, Scanner.ILLEGAL, nil, nil);
++
++
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+@@ -159,6 +164,9 @@ export func NewTypeExpr(t *Type) *Expr {
+ }
+ 
+ 
++export var BadType = NewType(0, Scanner.ILLEGAL);
++
++
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+@@ -178,6 +186,9 @@ export func NewStat(pos, tok int) *Stat {
+ }
+ 
+ 
++export var BadStat = NewStat(0, Scanner.ILLEGAL);
++
++
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+@@ -200,6 +211,9 @@ export func NewDecl(pos, tok int, exported bool) *Decl {
+ }
+ 
+ 
++export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
++
++
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 576e8fc39e..f634eed1c3 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -65,6 +65,7 @@ func (P *Parser) Next0() {
+ 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
+ 	}
+ 	P.opt_semi = false;
++	
+ 	if P.verbose {
+ 		P.PrintIndent();
+ 		print("[", P.pos, "] ", Scanner.TokenString(P.tok), "\n");
+@@ -75,6 +76,13 @@ func (P *Parser) Next0() {
+ func (P *Parser) Next() {
+ 	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
+ 		P.comments.Add(Node.NewComment(P.pos, P.val));
++		if P.val == "/*ERROR*/" {
++			// the position of the next token is the position of the next expected error
++
++		} else if P.val == "/*SYNC*/" {
++			// synchronized at the next token
++			
++		}
+ 	}
+ }
+ 
+@@ -111,6 +119,26 @@ func (P *Parser) OptSemicolon() {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// AST support
++
++func ExprType(x *Node.Expr) *Node.Type {
++	var t *Node.Type;
++	if x.tok == Scanner.TYPE {
++		t = x.t;
++	} else if x.tok == Scanner.IDENT {
++		// assume a type name
++		t = Node.NewType(x.pos, Scanner.IDENT);
++		t.expr = x;
++	} else if x.tok == Scanner.PERIOD && x.y != nil && ExprType(x.x) != nil {
++		// possibly a qualified (type) identifier
++		t = Node.NewType(x.pos, Scanner.IDENT);
++		t.expr = x;
++	}
++	return t;
++}
++
++
+ func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
+ 	if x != nil && x.tok == Scanner.TYPE {
+ 		P.Error(x.pos, "expected expression, found type");
+@@ -137,7 +165,7 @@ func (P *Parser) ParseDeclaration() *Node.Decl;
+ func (P *Parser) ParseIdent() *Node.Expr {
+ 	P.Trace("Ident");
+ 
+-	var x *Node.Expr;
++	x := Node.BadExpr;
+ 	if P.tok == Scanner.IDENT {
+ 		x = Node.NewLit(P.pos, Scanner.IDENT, P.val);
+ 		if P.verbose {
+@@ -176,13 +204,14 @@ func (P *Parser) ParseIdentList() *Node.Expr {
+ func (P *Parser) ParseType() *Node.Type {
+ 	P.Trace("Type");
+ 	
+-	typ := P.TryType();
+-	if typ == nil {
++	t := P.TryType();
++	if t == nil {
+ 		P.Error(P.pos, "type expected");
++		t = Node.BadType;
+ 	}
+ 	
+ 	P.Ecart();
+-	return typ;
++	return t;
+ }
+ 
+ 
+@@ -474,11 +503,10 @@ func (P *Parser) ParsePointerType() *Node.Type {
+ }
+ 
+ 
+-// Returns nil if no type was found.
+ func (P *Parser) TryType() *Node.Type {
+ 	P.Trace("Type (try)");
+ 	
+-	var t *Node.Type;
++	t := Node.BadType;
+ 	switch P.tok {
+ 	case Scanner.IDENT: t = P.ParseTypeName();
+ 	case Scanner.LBRACK: t = P.ParseArrayType();
+@@ -488,6 +516,7 @@ func (P *Parser) TryType() *Node.Type {
+ 	case Scanner.MAP: t = P.ParseMapType();
+ 	case Scanner.STRUCT: t = P.ParseStructType();
+ 	case Scanner.MUL: t = P.ParsePointerType();
++	default: t = nil;  // no type found
+ 	}
+ 
+ 	P.Ecart();
+@@ -503,7 +532,11 @@ func (P *Parser) ParseStatementList() *Node.List {
+ 	
+ 	list := Node.NewList();
+ 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		list.Add(P.ParseStatement());
++		s := P.ParseStatement();
++		if s != nil {
++			// not the empty statement
++			list.Add(s);
++		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
+ 		} else if P.opt_semi {
+@@ -542,7 +575,7 @@ func (P *Parser) ParseBlock() *Node.List {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-// TODO: Make this non-recursive.
++// TODO make this non-recursive
+ func (P *Parser) ParseExpressionList() *Node.Expr {
+ 	P.Trace("ExpressionList");
+ 
+@@ -562,26 +595,29 @@ func (P *Parser) ParseExpressionList() *Node.Expr {
+ func (P *Parser) ParseFunctionLit() *Node.Expr {
+ 	P.Trace("FunctionLit");
+ 	
++	x := Node.NewLit(P.pos, Scanner.FUNC, "");
+ 	P.Expect(Scanner.FUNC);
+-	P.ParseFunctionType();
++	x.t = P.ParseFunctionType();
+ 	P.scope_lev++;
+-	P.ParseBlock();
++	x.block = P.ParseBlock();
+ 	P.scope_lev--;
+ 	
+ 	P.Ecart();
+-	return Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
++	return x;
+ }
+ 
+ 
+ func (P *Parser) ParseOperand() *Node.Expr {
+ 	P.Trace("Operand");
+ 
+-	var x *Node.Expr;
++	x := Node.BadExpr;
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+ 		x = P.ParseIdent();
+ 		
+ 	case Scanner.LPAREN:
++		// TODO we could have a function type here as in: new(*())
++		// (currently not working)
+ 		P.Next();
+ 		P.expr_lev++;
+ 		x = P.ParseExpression();
+@@ -607,7 +643,6 @@ func (P *Parser) ParseOperand() *Node.Expr {
+ 		} else {
+ 			P.Error(P.pos, "operand expected");
+ 			P.Next();  // make progress
+-			x = Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
+ 		}
+ 	}
+ 
+@@ -697,6 +732,7 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
+ }
+ 
+ 
++// TODO make this non-recursive
+ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
+ 	P.Trace("ExpressionPairList");
+ 	
+@@ -726,10 +762,12 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
+ func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
+ 	P.Trace("CompositeLit");
+ 	
+-	pos := P.pos;
+-	P.Expect(Scanner.LBRACE);
+-	x := P.NewExpr(pos, Scanner.LBRACE, nil, P.ParseExpressionPairList(0));
++	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
+ 	x.t = t;
++	P.Expect(Scanner.LBRACE);
++	if P.tok != Scanner.RBRACE {
++		x.y = P.ParseExpressionPairList(0);
++	}
+ 	P.Expect(Scanner.RBRACE);
+ 	
+ 	P.Ecart();
+@@ -752,13 +790,7 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
+ 			// (composites inside control clauses must be parenthesized)
+ 			var t *Node.Type;
+ 			if P.expr_lev > 0 {
+-				if x.tok == Scanner.TYPE {
+-					t = x.t;
+-				} else if x.tok == Scanner.IDENT {
+-					// assume a type name
+-					t = Node.NewType(x.pos, Scanner.IDENT);
+-					t.expr = x;
+-				}
++				t = ExprType(x);
+ 			}
+ 			if t != nil {
+ 				x = P.ParseCompositeLit(t);
+@@ -768,8 +800,8 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
+ 		default: goto exit;
+ 		}
+ 	}
++	
+ exit:
+-
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -778,7 +810,7 @@ exit:
+ func (P *Parser) ParseUnaryExpr() *Node.Expr {
+ 	P.Trace("UnaryExpr");
+ 	
+-	var x *Node.Expr;
++	x := Node.BadExpr;
+ 	switch P.tok {
+ 	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
+ 		pos, tok := P.pos, P.tok;
+@@ -840,8 +872,7 @@ func (P *Parser) ParseExpression() *Node.Expr {
+ func (P *Parser) ParseSimpleStat() *Node.Stat {
+ 	P.Trace("SimpleStat");
+ 	
+-	var s *Node.Stat;
+-
++	s := Node.BadStat;
+ 	x := P.ParseExpressionList();
+ 	
+ 	switch P.tok {
+@@ -874,7 +905,7 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
+ 			pos, tok = P.pos, P.tok;
+ 			P.Next();
+ 		} else {
+-			pos, tok = x.pos, 0;  // TODO give this a token value
++			pos, tok = x.pos, Scanner.EXPRSTAT;
+ 		}
+ 		s = Node.NewStat(pos, tok);
+ 		s.expr = x;
+@@ -974,15 +1005,18 @@ func (P *Parser) ParseIfStat() *Node.Stat {
+ 			s.post = P.ParseIfStat();
+ 		} else {
+ 			// For 6g compliance - should really be P.ParseBlock()
+-			t := P.ParseStatement();
+-			if t.tok != Scanner.LBRACE {
+-				// wrap in a block if we don't have one
+-				t1 := Node.NewStat(P.pos, Scanner.LBRACE);
+-				t1.block = Node.NewList();
+-				t1.block.Add(t);
+-				t = t1;
++			s1 := P.ParseStatement();
++			if s1 != nil {
++				// not the empty statement
++				if s1.tok != Scanner.LBRACE {
++					// wrap in a block if we don't have one
++					b := Node.NewStat(P.pos, Scanner.LBRACE);
++					b.block = Node.NewList();
++					b.block.Add(s1);
++					s1 = b;
++				}
++				s.post = s1;
+ 			}
+-			s.post = t;
+ 		}
+ 	}
+ 	
+@@ -1117,17 +1151,11 @@ func (P *Parser) ParseRangeStat() *Node.Stat {
+ }
+ 
+ 
+-func (P *Parser) ParseEmptyStat() {
+-	P.Trace("EmptyStat");
+-	P.Ecart();
+-}
+-
+-
+ func (P *Parser) ParseStatement() *Node.Stat {
+ 	P.Trace("Statement");
+ 	indent := P.indent;
+ 
+-	var s *Node.Stat;
++	s := Node.BadStat;
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		s = Node.NewStat(P.pos, P.tok);
+@@ -1162,7 +1190,8 @@ func (P *Parser) ParseStatement() *Node.Stat {
+ 	case Scanner.SELECT:
+ 		s = P.ParseSelectStat();
+ 	default:
+-		P.ParseEmptyStat();  // for complete tracing output only
++		// empty statement
++		s = nil;
+ 	}
+ 
+ 	if indent != P.indent {
+@@ -1250,7 +1279,7 @@ func (P *Parser) ParseVarSpec(exported bool) *Node.Decl {
+ }
+ 
+ 
+-// TODO Replace this by using function pointers derived from methods.
++// TODO replace this by using function pointers derived from methods
+ func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
+ 	switch keyword {
+ 	case Scanner.IMPORT: return P.ParseImportSpec();
+@@ -1266,7 +1295,7 @@ func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
+ func (P *Parser) ParseDecl(exported bool, keyword int) *Node.Decl {
+ 	P.Trace("Decl");
+ 	
+-	var d *Node.Decl;
++	d := Node.BadDecl;
+ 	P.Expect(keyword);
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+@@ -1334,30 +1363,9 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
+ func (P *Parser) ParseExportDecl() *Node.Decl {
+ 	P.Trace("ExportDecl");
+ 	
+-	// TODO This is deprecated syntax and should go away eventually.
+-	// (Also at the moment the syntax is everything goes...)
+-	//P.Expect(Scanner.EXPORT);
+-
+ 	d := Node.NewDecl(P.pos, Scanner.EXPORT, false);
+-	
+-	has_paren := false;
+-	if P.tok == Scanner.LPAREN {
+-		P.Next();
+-		has_paren = true;
+-	}
+ 	d.ident = P.ParseIdentList();
+-	/*
+-	for P.tok == Scanner.IDENT {
+-		P.ParseIdent();
+-		if P.tok == Scanner.COMMA {
+-			P.Next();  // TODO this seems wrong
+-		}
+-	}
+-	*/
+-	if has_paren {
+-		P.Expect(Scanner.RPAREN)
+-	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1367,8 +1375,7 @@ func (P *Parser) ParseDeclaration() *Node.Decl {
+ 	P.Trace("Declaration");
+ 	indent := P.indent;
+ 	
+-	var d *Node.Decl;
+-
++	d := Node.BadDecl;
+ 	exported := false;
+ 	if P.tok == Scanner.EXPORT {
+ 		if P.scope_lev == 0 {
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 53d906dd30..7a65a8e1d9 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -90,6 +90,12 @@ func (P *Printer) CloseScope(paren string) {
+ 	P.semi, P.newl = false, 1;
+ }
+ 
++func (P *Printer) Error(pos int, tok int, msg string) {
++	P.String(0, "<");
++	P.Token(pos, tok);
++	P.String(0, " " + msg + ">");
++}
++
+ 
+ // ----------------------------------------------------------------------------
+ // Types
+@@ -140,11 +146,6 @@ func (P *Printer) Fields(list *Node.List) {
+ 
+ 
+ func (P *Printer) Type(t *Node.Type) {
+-	if t == nil {  // TODO remove this check
+-		P.String(0, "<nil type>");
+-		return;
+-	}
+-
+ 	switch t.tok {
+ 	case Scanner.IDENT:
+ 		P.Expr(t.expr);
+@@ -192,7 +193,7 @@ func (P *Printer) Type(t *Node.Type) {
+ 		}
+ 
+ 	default:
+-		panic("UNREACHABLE");
++		P.Error(t.pos, t.tok, "type");
+ 	}
+ }
+ 
+@@ -200,6 +201,8 @@ func (P *Printer) Type(t *Node.Type) {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
++func (P *Printer) Block(list *Node.List, indent bool);
++
+ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 	if x == nil {
+ 		return;  // empty expression list
+@@ -214,6 +217,13 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 		// literal
+ 		P.String(x.pos, x.s);
+ 
++	case Scanner.FUNC:
++		// function literal
++		P.String(x.pos, "func");
++		P.Type(x.t);
++		P.Block(x.block, true);
++		P.newl = 0;
++
+ 	case Scanner.COMMA:
+ 		// list
+ 		P.Expr1(x.x, 0);
+@@ -344,13 +354,8 @@ func (P *Printer) ControlClause(s *Node.Stat) {
+ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool);
+ 
+ func (P *Printer) Stat(s *Node.Stat) {
+-	if s == nil {  // TODO remove this check
+-		P.String(0, "<nil stat>");
+-		return;
+-	}
+-
+ 	switch s.tok {
+-	case 0: // TODO use a real token const
++	case Scanner.EXPRSTAT:
+ 		// expression statement
+ 		P.Expr(s.expr);
+ 		P.semi = true;
+@@ -430,8 +435,7 @@ func (P *Printer) Stat(s *Node.Stat) {
+ 		P.semi = true;
+ 
+ 	default:
+-		P.String(s.pos, "<stat>");
+-		P.semi = true;
++		P.Error(s.pos, s.tok, "stat");
+ 	}
+ }
+ 
+@@ -441,11 +445,6 @@ func (P *Printer) Stat(s *Node.Stat) {
+ 
+ 
+ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
+-	if d == nil {  // TODO remove this check
+-		P.String(0, "<nil decl>");
+-		return;
+-	}
+-
+ 	if !parenthesized {
+ 		if d.exported {
+ 			P.String(0, "export ");
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index a3dee2128f..1878dc359b 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -104,6 +104,9 @@ export const (
+ 	TYPE;
+ 	VAR;
+ 	KEYWORDS_END;
++	
++	// AST use only
++	EXPRSTAT;
+ )
+ 
+ 
+@@ -201,6 +204,8 @@ export func TokenString(tok int) string {
+ 	case SWITCH: return "switch";
+ 	case TYPE: return "type";
+ 	case VAR: return "var";
++	
++	case EXPRSTAT: return "EXPRSTAT";
+ 	}
+ 	
+ 	return "token(" + Utils.IntToString(tok, 10) + ")";
+@@ -268,10 +273,12 @@ func digit_val(ch int) int {
+ 
+ 
+ export type Scanner struct {
++	// error handling
+ 	filename string;  // error reporting only
+ 	nerrors int;  // number of errors
+ 	errpos int;  // last error position
+-	
++
++	// scanning
+ 	src string;  // scanned source
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+@@ -400,24 +407,30 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ }
+ 
+ 
++func (S *Scanner) ErrorMsg(pos int, msg string) {
++	print(S.filename);
++	if pos >= 0 {
++		// print position
++		line, col := S.LineCol(pos);
++		if VerboseMsgs {
++			print(":", line, ":", col);
++		} else {
++			print(":", line);
++		}
++	}
++	print(": ", msg, "\n");
++}
++
++
+ func (S *Scanner) Error(pos int, msg string) {
+ 	const errdist = 10;
+ 	delta := pos - S.errpos;  // may be negative!
+ 	if delta < 0 {
+ 		delta = -delta;
+ 	}
++	
+ 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
+-		print(S.filename);
+-		if pos >= 0 {
+-			// print position
+-			line, col := S.LineCol(pos);
+-			if VerboseMsgs {
+-				print(":", line, ":", col);
+-			} else {
+-				print(":", line);
+-			}
+-		}
+-		print(": ", msg, "\n");
++		S.ErrorMsg(pos, msg);
+ 		S.nerrors++;
+ 		S.errpos = pos;
+ 	}

@@ -241,7 +241,52 @@ Date:   Tue Jan 14 22:13:29 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  4 ++++
  test/prove.go                         | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 8d0bb73d4c..9d2ee5ceed 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1653,6 +1653,10 @@ func initLimit(v *Value) limit {
+ 	case OpCtz8, OpBitLen8:
+ 		lim = lim.unsignedMax(8)
+ 
++	// bool to uint8 conversion
++	case OpCvtBoolToUint8:
++		lim = lim.unsignedMax(1)
++
+ 	// length operations
+ 	case OpStringLen, OpSliceLen, OpSliceCap:
+ 		lim = lim.signedMin(0)
+diff --git a/test/prove.go b/test/prove.go
+index edfd8908a2..908b05c7fa 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1712,6 +1712,24 @@ func clampedIdx2(x []int, i int) int {
+ 	return x[max(min(i, len(x)-1), 0)] // TODO: can't get rid of this bounds check yet
+ }
+ 
++func cvtBoolToUint8Disprove(b bool) byte {
++	var c byte
++	if b {
++		c = 1
++	}
++	if c == 2 { // ERROR "Disproved Eq8"
++		c = 3
++	}
++	return c
++}
++func cvtBoolToUint8BCE(b bool, a [2]int64) int64 {
++	c := byte(0)
++	if b {
++		c = 1
++	}
++	return a[c] // ERROR "Proved IsInBounds$"
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

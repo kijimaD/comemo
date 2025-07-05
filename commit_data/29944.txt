@@ -18,8 +18,172 @@ Date:   Mon Oct 17 15:47:18 2016 -0400
     Change-Id: I7dcc2c20ce6b073e1daae323d3e49d17d1d52802
     Reviewed-on: https://go-review.googlesource.com/31144
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/format.go    |  8 ++++----
  src/time/time.go      | 29 +++++++++++++++++++----------
  src/time/time_test.go | 19 ++++++++++++++++++-
  3 files changed, 41 insertions(+), 15 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index ea95f0be44..0ad3cf64e4 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1021,12 +1021,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		// If that zone was in effect at the given time, use it.
+ 		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
+ 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+-			t.loc = local
++			t.setLoc(local)
+ 			return t, nil
+ 		}
+ 
+ 		// Otherwise create fake zone to record offset.
+-		t.loc = FixedZone(zoneName, zoneOffset)
++		t.setLoc(FixedZone(zoneName, zoneOffset))
+ 		return t, nil
+ 	}
+ 
+@@ -1037,7 +1037,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
+ 		if ok {
+ 			t.sec -= int64(offset)
+-			t.loc = local
++			t.setLoc(local)
+ 			return t, nil
+ 		}
+ 
+@@ -1046,7 +1046,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+ 			offset *= 3600
+ 		}
+-		t.loc = FixedZone(zoneName, offset)
++		t.setLoc(FixedZone(zoneName, offset))
+ 		return t, nil
+ 	}
+ 
+diff --git a/src/time/time.go b/src/time/time.go
+index 569ba354ee..d9e1f645eb 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -50,11 +50,18 @@ type Time struct {
+ 	// loc specifies the Location that should be used to
+ 	// determine the minute, hour, month, day, and year
+ 	// that correspond to this Time.
+-	// Only the zero Time has a nil Location.
+-	// In that case it is interpreted to mean UTC.
++	// The nil location means UTC.
++	// All UTC times are represented with loc==nil, never loc==&utcLoc.
+ 	loc *Location
+ }
+ 
++func (t *Time) setLoc(loc *Location) {
++	if loc == &utcLoc {
++		loc = nil
++	}
++	t.loc = loc
++}
++
+ // After reports whether the time instant t is after u.
+ func (t Time) After(u Time) bool {
+ 	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
+@@ -788,13 +795,13 @@ func Now() Time {
+ 
+ // UTC returns t with the location set to UTC.
+ func (t Time) UTC() Time {
+-	t.loc = UTC
++	t.setLoc(&utcLoc)
+ 	return t
+ }
+ 
+ // Local returns t with the location set to local time.
+ func (t Time) Local() Time {
+-	t.loc = Local
++	t.setLoc(Local)
+ 	return t
+ }
+ 
+@@ -805,7 +812,7 @@ func (t Time) In(loc *Location) Time {
+ 	if loc == nil {
+ 		panic("time: missing Location in call to Time.In")
+ 	}
+-	t.loc = loc
++	t.setLoc(loc)
+ 	return t
+ }
+ 
+@@ -846,7 +853,7 @@ const timeBinaryVersion byte = 1
+ func (t Time) MarshalBinary() ([]byte, error) {
+ 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+ 
+-	if t.Location() == &utcLoc {
++	if t.Location() == UTC {
+ 		offsetMin = -1
+ 	} else {
+ 		_, offset := t.Zone()
+@@ -907,11 +914,11 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+ 
+ 	if offset == -1*60 {
+-		t.loc = &utcLoc
++		t.setLoc(&utcLoc)
+ 	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
+-		t.loc = Local
++		t.setLoc(Local)
+ 	} else {
+-		t.loc = FixedZone("", offset)
++		t.setLoc(FixedZone("", offset))
+ 	}
+ 
+ 	return nil
+@@ -1104,7 +1111,9 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 		unix -= int64(offset)
+ 	}
+ 
+-	return Time{unix + unixToInternal, int32(nsec), loc}
++	t := Time{unix + unixToInternal, int32(nsec), nil}
++	t.setLoc(loc)
++	return t
+ }
+ 
+ // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 293c71203a..0af9da34a2 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1117,6 +1117,8 @@ var defaultLocTests = []struct {
+ 
+ 	{"Truncate", func(t1, t2 Time) bool { return t1.Truncate(Hour).Equal(t2.Truncate(Hour)) }},
+ 	{"Round", func(t1, t2 Time) bool { return t1.Round(Hour).Equal(t2.Round(Hour)) }},
++	
++	{"== Time{}", func(t1, t2 Time) bool { return (t1==Time{}) == (t2==Time{}) }},
+ }
+ 
+ func TestDefaultLoc(t *testing.T) {
+@@ -1126,7 +1128,7 @@ func TestDefaultLoc(t *testing.T) {
+ 		t1 := Time{}
+ 		t2 := Time{}.UTC()
+ 		if !tt.f(t1, t2) {
+-			t.Errorf("Default fail on fuction: %s", tt.name)
++			t.Errorf("Time{} and Time{}.UTC() behave differently for %s", tt.name)
+ 		}
+ 	}
+ }
+@@ -1213,3 +1215,18 @@ func BenchmarkDay(b *testing.B) {
+ 		_ = t.Day()
+ 	}
+ }
++
++func TestMarshalBinaryZeroTime(t *testing.T) {
++	t0 := Time{}
++	enc, err := t0.MarshalBinary()
++	if err != nil {
++		t.Fatal(err)
++	}
++	t1 := Now() // not zero
++	if err := t1.UnmarshalBinary(enc); err != nil {
++		t.Fatal(err)
++	}
++	if t1 != t0 {
++		t.Errorf("t0=%#v\nt1=%#v\nwant identical structures", t0, t1)
++	}
++}

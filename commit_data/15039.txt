@@ -15,6 +15,27 @@ Date:   Wed Jan 30 09:41:16 2013 -0800
     R=rsc, ality
     CC=golang-dev
     https://golang.org/cl/7235066
-
+---
  src/pkg/os/file_plan9.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index fb2f2347d7..fabe5b979c 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -104,7 +104,6 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 		append = true
+ 	}
+ 
+-	syscall.ForkLock.RLock()
+ 	if (create && trunc) || excl {
+ 		fd, e = syscall.Create(name, flag, syscallMode(perm))
+ 	} else {
+@@ -117,7 +116,6 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 			}
+ 		}
+ 	}
+-	syscall.ForkLock.RUnlock()
+ 
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}

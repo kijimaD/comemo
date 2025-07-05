@@ -21,8 +21,93 @@ Date:   Thu Apr 22 18:34:57 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go | 20 +++++++++++++++---
  test/abi/wrapdefer_largetmp.go         | 37 ++++++++++++++++++++++++++++++++++
  test/abi/wrapdefer_largetmp.out        |  1 +
  3 files changed, 55 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index dcb8f654f5..7037b8ea60 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1592,12 +1592,26 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 		return n.Esc() != ir.EscNever
+ 	}()
+ 
+-	// A helper for making a copy of an argument.
++	// A helper for making a copy of an argument. Note that it is
++	// not safe to use o.copyExpr(arg) if we're putting a
++	// reference to the temp into the closure (as opposed to
++	// copying it in by value), since in the by-reference case we
++	// need a temporary whose lifetime extends to the end of the
++	// function (as opposed to being local to the current block or
++	// statement being ordered).
+ 	mkArgCopy := func(arg ir.Node) *ir.Name {
+-		argCopy := o.copyExpr(arg)
++		t := arg.Type()
++		byval := t.Size() <= 128 || cloEscapes
++		var argCopy *ir.Name
++		if byval {
++			argCopy = o.copyExpr(arg)
++		} else {
++			argCopy = typecheck.Temp(t)
++			o.append(ir.NewAssignStmt(base.Pos, argCopy, arg))
++		}
+ 		// The value of 128 below is meant to be consistent with code
+ 		// in escape analysis that picks byval/byaddr based on size.
+-		argCopy.SetByval(argCopy.Type().Size() <= 128 || cloEscapes)
++		argCopy.SetByval(byval)
+ 		return argCopy
+ 	}
+ 
+diff --git a/test/abi/wrapdefer_largetmp.go b/test/abi/wrapdefer_largetmp.go
+new file mode 100644
+index 0000000000..fb6eebaaca
+--- /dev/null
++++ b/test/abi/wrapdefer_largetmp.go
+@@ -0,0 +1,37 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:noinline
++func F() {
++	b := g()
++	defer g2(b)
++	n := g()[20]
++	println(n)
++}
++
++type T [45]int
++
++var x = 0
++
++//go:noinline
++func g() T {
++	x++
++	return T{20: x}
++}
++
++//go:noinline
++func g2(t T) {
++	if t[20] != 1 {
++		println("FAIL", t[20])
++	}
++}
++
++func main() { F() }
+diff --git a/test/abi/wrapdefer_largetmp.out b/test/abi/wrapdefer_largetmp.out
+new file mode 100644
+index 0000000000..0cfbf08886
+--- /dev/null
++++ b/test/abi/wrapdefer_largetmp.out
+@@ -0,0 +1 @@
++2

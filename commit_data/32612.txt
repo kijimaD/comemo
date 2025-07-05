@@ -58,6 +58,20 @@ Date:   Sun Apr 30 18:21:16 2017 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index d312cfed7e..e212f38ff1 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -686,7 +686,7 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
+ 	o := &fd.wop
+ 	o.InitBufs(buf)
+ 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+-		return syscall.WSASend(o.fd.Sysfd, &o.bufs[0], uint32(len(*buf)), &o.qty, 0, &o.o, nil)
++		return syscall.WSASend(o.fd.Sysfd, &o.bufs[0], uint32(len(o.bufs)), &o.qty, 0, &o.o, nil)
+ 	})
+ 	o.ClearBufs()
+ 	TestHookDidWritev(n)

@@ -13,7 +13,7 @@ Date:   Sun Aug 5 21:35:41 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6450092
-
+---
  src/cmd/gc/builtin.c           |  1 +
  src/cmd/gc/runtime.go          |  1 +
  src/cmd/gc/walk.c              | 29 ++++++++++++++++-----------
@@ -21,3 +21,175 @@ Date:   Sun Aug 5 21:35:41 2012 +0200
  src/pkg/runtime/string.goc     | 20 +++++++++++++++++++
  src/pkg/runtime/string_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 89 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index e17aa7953a..535e38fac5 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -27,6 +27,7 @@ char *runtimeimport =
+ 	"func @\"\".appendslice(@\"\".typ *byte, @\"\".x any, @\"\".y []any) (? any)\n"
+ 	"func @\"\".appendstr(@\"\".typ *byte, @\"\".x []byte, @\"\".y string) (? []byte)\n"
+ 	"func @\"\".cmpstring(? string, ? string) (? int)\n"
++	"func @\"\".eqstring(? string, ? string) (? bool)\n"
+ 	"func @\"\".slicestring(? string, ? int, ? int) (? string)\n"
+ 	"func @\"\".slicestring1(? string, ? int) (? string)\n"
+ 	"func @\"\".intstring(? int64) (? string)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 91fb7720f5..408f624cff 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -45,6 +45,7 @@ func appendslice(typ *byte, x any, y []any) any
+ func appendstr(typ *byte, x []byte, y string) []byte
+ 
+ func cmpstring(string, string) int
++func eqstring(string, string) bool
+ func slicestring(string, int, int) string
+ func slicestring1(string, int) string
+ func intstring(int64) string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 20f8bbfe93..4855b13ba9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1021,27 +1021,34 @@ walkexpr(Node **np, NodeList **init)
+ 			goto ret;
+ 		}
+ 
+-		// prepare for rewrite below
+ 		if(n->etype == OEQ || n->etype == ONE) {
++			// prepare for rewrite below
+ 			n->left = cheapexpr(n->left, init);
+ 			n->right = cheapexpr(n->right, init);
+-		}
+ 
+-		// sys_cmpstring(s1, s2) :: 0
+-		r = mkcall("cmpstring", types[TINT], init,
+-			conv(n->left, types[TSTRING]),
+-			conv(n->right, types[TSTRING]));
+-		r = nod(n->etype, r, nodintconst(0));
++			r = mkcall("eqstring", types[TBOOL], init,
++				conv(n->left, types[TSTRING]),
++				conv(n->right, types[TSTRING]));
+ 
+-		// quick check of len before full compare for == or !=
+-		if(n->etype == OEQ || n->etype == ONE) {
+-			if(n->etype == OEQ)
++			// quick check of len before full compare for == or !=
++			if(n->etype == OEQ) {
++				// len(left) == len(right) && eqstring(left, right)
+ 				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
+-			else
++			} else {
++				// len(left) != len(right) || !eqstring(left, right)
++				r = nod(ONOT, r, N);
+ 				r = nod(OOROR, nod(ONE, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
++			}
+ 			typecheck(&r, Erv);
+ 			walkexpr(&r, nil);
++		} else {
++			// sys_cmpstring(s1, s2) :: 0
++			r = mkcall("cmpstring", types[TINT], init,
++				conv(n->left, types[TSTRING]),
++				conv(n->right, types[TSTRING]));
++			r = nod(n->etype, r, nodintconst(0));
+ 		}
++
+ 		typecheck(&r, Erv);
+ 		if(n->type->etype != TBOOL) fatal("cmp %T", n->type);
+ 		r->type = n->type;
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index bc848da38c..ce872755ff 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -324,6 +324,10 @@ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+ 		*eq = false;
+ 		return;
+ 	}
++	if(((String*)a)->str == ((String*)b)->str) {
++		*eq = true;
++		return;
++	}
+ 	runtime·memequal(eq, alen, ((String*)a)->str, ((String*)b)->str);
+ }
+ 
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 7cab6d2417..b72a1aa5e7 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -204,6 +204,26 @@ func cmpstring(s1 String, s2 String) (v int32) {
+ 	v = cmpstring(s1, s2);
+ }
+ 
++func eqstring(s1 String, s2 String) (v bool) {
++	uint32 i, l;
++
++	if(s1.len != s2.len) {
++		v = false;
++		return;
++	}
++	if(s1.str == s2.str) {
++		v = true;
++		return;
++	}
++	l = s1.len;
++	for(i=0; i<l; i++)
++		if(s1.str[i] != s2.str[i]) {
++			v = false;
++			return;
++		}
++	v = true;
++}
++
+ int32
+ runtime·strcmp(byte *s1, byte *s2)
+ {
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+new file mode 100644
+index 0000000000..8f13f0f428
+--- /dev/null
++++ b/src/pkg/runtime/string_test.go
+@@ -0,0 +1,45 @@
++package runtime_test
++
++import (
++	"testing"
++)
++
++func BenchmarkCompareStringEqual(b *testing.B) {
++	bytes := []byte("Hello Gophers!")
++	s1, s2 := string(bytes), string(bytes)
++	for i := 0; i < b.N; i++ {
++		if s1 != s2 {
++			b.Fatal("s1 != s2")
++		}
++	}
++}
++
++func BenchmarkCompareStringIdentical(b *testing.B) {
++	s1 := "Hello Gophers!"
++	s2 := s1
++	for i := 0; i < b.N; i++ {
++		if s1 != s2 {
++			b.Fatal("s1 != s2")
++		}
++	}
++}
++
++func BenchmarkCompareStringSameLength(b *testing.B) {
++	s1 := "Hello Gophers!"
++	s2 := "Hello, Gophers"
++	for i := 0; i < b.N; i++ {
++		if s1 == s2 {
++			b.Fatal("s1 == s2")
++		}
++	}
++}
++
++func BenchmarkCompareStringDifferentLength(b *testing.B) {
++	s1 := "Hello Gophers!"
++	s2 := "Hello, Gophers!"
++	for i := 0; i < b.N; i++ {
++		if s1 == s2 {
++			b.Fatal("s1 == s2")
++		}
++	}
++}

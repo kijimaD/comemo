@@ -15,9 +15,89 @@ Date:   Thu Sep 7 11:07:30 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/regexp/syntax/prog.go  | 2 +-
  src/time/zoneinfo.go       | 2 +-
  src/unicode/letter.go      | 8 ++++----
  src/unicode/letter_test.go | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 66995e2052..d69ae1a12d 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -247,7 +247,7 @@ func (i *Inst) MatchRunePos(r rune) int {
+ 	lo := 0
+ 	hi := len(rune) / 2
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		if c := rune[2*m]; c <= r {
+ 			if r <= rune[2*m+1] {
+ 				return m
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 4edcf3d98f..42d40d584e 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -184,7 +184,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
+ 	lo := 0
+ 	hi := len(tx)
+ 	for hi-lo > 1 {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		lim := tx[m].when
+ 		if sec < lim {
+ 			end = lim
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index f3f8e52964..f64dfc9af5 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -106,7 +106,7 @@ func is16(ranges []Range16, r uint16) bool {
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		range_ := &ranges[m]
+ 		if range_.Lo <= r && r <= range_.Hi {
+ 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+@@ -139,7 +139,7 @@ func is32(ranges []Range32, r uint32) bool {
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		range_ := ranges[m]
+ 		if range_.Lo <= r && r <= range_.Hi {
+ 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+@@ -216,7 +216,7 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
+ 	lo := 0
+ 	hi := len(caseRange)
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		cr := caseRange[m]
+ 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
+ 			delta := cr.Delta[_case]
+@@ -350,7 +350,7 @@ func SimpleFold(r rune) rune {
+ 	lo := 0
+ 	hi := len(caseOrbit)
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		if rune(caseOrbit[m].From) < r {
+ 			lo = m + 1
+ 		} else {
+diff --git a/src/unicode/letter_test.go b/src/unicode/letter_test.go
+index a91e3a326f..123f9a642e 100644
+--- a/src/unicode/letter_test.go
++++ b/src/unicode/letter_test.go
+@@ -518,7 +518,7 @@ func binary(ranges []Range16, r uint16) bool {
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+-		m := lo + (hi-lo)/2
++		m := int(uint(lo+hi) >> 1)
+ 		range_ := &ranges[m]
+ 		if range_.Lo <= r && r <= range_.Hi {
+ 			return (r-range_.Lo)%range_.Stride == 0

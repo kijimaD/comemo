@@ -22,7 +22,7 @@ Date:   Thu Sep 11 13:40:17 2008 -0700
     DELTA=263  (59 added, 176 deleted, 28 changed)
     OCL=15153
     CL=15153
-
+---
  src/lib/os/Makefile              |   4 +-
  src/lib/os/os.go                 | 161 ---------------------------------------
  src/lib/os/os_base.go            |  18 -----
@@ -33,3 +33,449 @@ Date:   Thu Sep 11 13:40:17 2008 -0700
  src/syscall/file_amd64_linux.go  |  34 +++++++--
  src/syscall/syscall.go           |  14 ++++
  9 files changed, 87 insertions(+), 212 deletions(-)
+
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index 737d876c0f..d20effbd29 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -8,11 +8,11 @@ GC=$(O)g
+ PKG=$(GOROOT)/pkg/os.a
+ 
+ O1=\
+-	os_base.$O os_error.$O
++	os_error.$O
+ O2=\
+ 	os_file.$O
+ 
+-install: $(PKG)
++install: nuke $(PKG)
+ 
+ $(PKG): a1 a2
+ 
+diff --git a/src/lib/os/os.go b/src/lib/os/os.go
+deleted file mode 100644
+index 6f1941343f..0000000000
+--- a/src/lib/os/os.go
++++ /dev/null
+@@ -1,161 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import syscall "syscall"
+-
+-// Support types and routines for OS library
+-
+-// FDs are wrappers for file descriptors
+-export type FD struct {
+-	fd int64
+-}
+-
+-// Errors are singleton structures. Use the Print()/String() methods to get their contents --
+-// they handle the nil (no error) case.
+-export type Error struct {
+-	s string
+-}
+-
+-export func NewFD(fd int64) *FD {
+-	if fd < 0 {
+-		return nil
+-	}
+-	n := new(FD);	// TODO(r): how about return &FD{fd} ?
+-	n.fd = fd;
+-	return n;
+-}
+-
+-export var (
+-	Stdin = NewFD(0);
+-	Stdout = NewFD(1);
+-	Stderr = NewFD(2);
+-)
+-
+-export func StringToBytes(b *[]byte, s string) bool {
+-	if len(s) >= len(b) {
+-		return false
+-	}
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i]
+-	}
+-	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
+-	return true
+-}
+-
+-var ErrorTab = new(map[int64] *Error);
+-
+-func ErrnoToError(errno int64) *Error {
+-	if errno == 0 {
+-		return nil
+-	}
+-	err, ok := ErrorTab[errno]
+-	if ok {
+-		return err
+-	}
+-	e := new(Error);
+-	e.s = syscall.errstr(errno);
+-	ErrorTab[errno] = e;
+-	return e;
+-}
+-
+-export var (
+-	ENONE = ErrnoToError(syscall.ENONE);
+-	EPERM = ErrnoToError(syscall.EPERM);
+-	ENOENT = ErrnoToError(syscall.ENOENT);
+-	ESRCH = ErrnoToError(syscall.ESRCH);
+-	EINTR = ErrnoToError(syscall.EINTR);
+-	EIO = ErrnoToError(syscall.EIO);
+-	ENXIO = ErrnoToError(syscall.ENXIO);
+-	E2BIG = ErrnoToError(syscall.E2BIG);
+-	ENOEXEC = ErrnoToError(syscall.ENOEXEC);
+-	EBADF = ErrnoToError(syscall.EBADF);
+-	ECHILD = ErrnoToError(syscall.ECHILD);
+-	EDEADLK = ErrnoToError(syscall.EDEADLK);
+-	ENOMEM = ErrnoToError(syscall.ENOMEM);
+-	EACCES = ErrnoToError(syscall.EACCES);
+-	EFAULT = ErrnoToError(syscall.EFAULT);
+-	ENOTBLK = ErrnoToError(syscall.ENOTBLK);
+-	EBUSY = ErrnoToError(syscall.EBUSY);
+-	EEXIST = ErrnoToError(syscall.EEXIST);
+-	EXDEV = ErrnoToError(syscall.EXDEV);
+-	ENODEV = ErrnoToError(syscall.ENODEV);
+-	ENOTDIR = ErrnoToError(syscall.ENOTDIR);
+-	EISDIR = ErrnoToError(syscall.EISDIR);
+-	EINVAL = ErrnoToError(syscall.EINVAL);
+-	ENFILE = ErrnoToError(syscall.ENFILE);
+-	EMFILE = ErrnoToError(syscall.EMFILE);
+-	ENOTTY = ErrnoToError(syscall.ENOTTY);
+-	ETXTBSY = ErrnoToError(syscall.ETXTBSY);
+-	EFBIG = ErrnoToError(syscall.EFBIG);
+-	ENOSPC = ErrnoToError(syscall.ENOSPC);
+-	ESPIPE = ErrnoToError(syscall.ESPIPE);
+-	EROFS = ErrnoToError(syscall.EROFS);
+-	EMLINK = ErrnoToError(syscall.EMLINK);
+-	EPIPE = ErrnoToError(syscall.EPIPE);
+-	EDOM = ErrnoToError(syscall.EDOM);
+-	ERANGE = ErrnoToError(syscall.ERANGE);
+-	EAGAIN = ErrnoToError(syscall.EAGAIN);
+-)
+-
+-export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
+-	var buf [512]byte;
+-	if !StringToBytes(&buf, name) {
+-		return nil, EINVAL
+-	}
+-	r, e := syscall.open(&buf[0], mode, flags);
+-	return NewFD(r), ErrnoToError(e)
+-}
+-
+-func (fd *FD) Close() *Error {
+-	if fd == nil {
+-		return EINVAL
+-	}
+-	r, e := syscall.close(fd.fd);
+-	fd.fd = -1;  // so it can't be closed again
+-	return ErrnoToError(e)
+-}
+-
+-func (fd *FD) Read(b *[]byte) (ret int64, err *Error) {
+-	if fd == nil {
+-		return -1, EINVAL
+-	}
+-	r, e := syscall.read(fd.fd, &b[0], int64(len(b)));
+-	return r, ErrnoToError(e)
+-}
+-
+-func (fd *FD) Write(b *[]byte) (ret int64, err *Error) {
+-	if fd == nil {
+-		return -1, EINVAL
+-	}
+-	r, e := syscall.write(fd.fd, &b[0], int64(len(b)));
+-	return r, ErrnoToError(e)
+-}
+-
+-func (fd *FD) WriteString(s string) (ret int64, err *Error) {
+-	if fd == nil {
+-		return -1, EINVAL
+-	}
+-	b := new([]byte, len(s)+1);
+-	if !StringToBytes(b, s) {
+-		return -1, EINVAL
+-	}
+-	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
+-	return r, ErrnoToError(e)
+-}
+-
+-const NoError = "No Error"
+-
+-func (e *Error) String() string {
+-	if e == nil {
+-		return NoError
+-	} else {
+-		return e.s
+-	}
+-}
+-
+-func (e *Error) Print() {
+-	Stderr.WriteString(e.String())
+-}
+diff --git a/src/lib/os/os_base.go b/src/lib/os/os_base.go
+deleted file mode 100644
+index 54c2ae26b0..0000000000
+--- a/src/lib/os/os_base.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-// Support types and routines for OS library
+-
+-export func StringToBytes(b *[]byte, s string) bool {
+-	if len(s) >= len(b) {
+-		return false
+-	}
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i]
+-	}
+-	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
+-	return true
+-}
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 2da63da5af..16799ed5e3 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -6,8 +6,8 @@ package os
+ 
+ import syscall "syscall"
+ 
+-// Errors are singleton structures. Use the Print()/String() methods to get their contents --
+-// they handle the nil (no error) case.
++// Errors are singleton structures. Use the String() method to get their contents --
++// it handles the nil (no error) case.
+ export type Error struct {
+ 	s string
+ }
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 7513f800e9..333c70c69f 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -28,11 +28,7 @@ export var (
+ )
+ 
+ export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
+-	var buf [512]byte;
+-	if !StringToBytes(&buf, name) {
+-		return nil, EINVAL
+-	}
+-	r, e := syscall.open(&buf[0], mode, flags);
++	r, e := syscall.open(name, mode, flags);
+ 	return NewFD(r), ErrnoToError(e)
+ }
+ 
+@@ -66,7 +62,7 @@ func (fd *FD) WriteString(s string) (ret int64, err *Error) {
+ 		return -1, EINVAL
+ 	}
+ 	b := new([]byte, len(s)+1);
+-	if !StringToBytes(b, s) {
++	if !syscall.StringToBytes(b, s) {
+ 		return -1, EINVAL
+ 	}
+ 	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
+diff --git a/src/syscall/Makefile b/src/syscall/Makefile
+index 468909a109..9ae0c6a72d 100644
+--- a/src/syscall/Makefile
++++ b/src/syscall/Makefile
+@@ -8,23 +8,31 @@ CC=$(O)c
+ AS=$(O)a
+ GC=$(O)g
+ 
+-PKG=syscall.a
++PKG=$(GOROOT)/pkg/syscall.a
+ 
+-OFILES=\
++O1=\
+ 	syscall.$O \
+ 	errstr_$(GOOS).$O \
++
++O2=\
+ 	file_$(GOARCH)_$(GOOS).$O \
+ 	syscall_$(GOARCH)_$(GOOS).$O \
+ 
+ 
+-install: $(PKG)
+-	cp $(PKG) $(GOROOT)/pkg/$(PKG)
++install: nuke $(PKG)
++
++$(PKG): a1 a2
++
++a1: 	$(O1)
++	$(O)ar grc $(PKG) $(O1)
++	rm *.6
+ 
+-$(PKG): $(OFILES)
+-	$(O)ar grc $(PKG) $(OFILES)
++a2: 	$(O2)
++	$(O)ar grc $(PKG) $(O2)
++	rm *.6
+ 
+ nuke:
+-	rm -f *.$(O) *.a $(GOROOT)/pkg/$(PKG)
++	rm -f *.$(O) *.a $(PKG)
+ 
+ clean:
+ 	rm -f *.$(O) *.a
+diff --git a/src/syscall/file_amd64_darwin.go b/src/syscall/file_amd64_darwin.go
+index 58cf6e93b1..95d3ce55d4 100644
+--- a/src/syscall/file_amd64_darwin.go
++++ b/src/syscall/file_amd64_darwin.go
+@@ -65,15 +65,25 @@ const (
+ 	O_TRUNC = 0x400;
+ )
+ 
+-export func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
++const NameBufsize = 512
++
++export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSOPEN = 5;
+-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
++	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), mode, perm);
+ 	return r1, err;
+ }
+ 
+-export func creat(name *byte, mode int64) (ret int64, errno int64) {
++export func creat(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSOPEN = 5;
+-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
++	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), O_CREAT|O_WRONLY|O_TRUNC, perm);
+ 	return r1, err;
+ }
+ 
+@@ -106,9 +116,13 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-export func stat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func stat(name string, buf *Stat) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSSTAT = 338;
+-	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(name), StatToInt(buf), 0);
++	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(&namebuf[0]), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+@@ -124,8 +138,12 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func unlink(name *byte) (ret int64, errno int64) {
++export func unlink(name string) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSUNLINK = 10;
+-	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
++	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(&namebuf[0]), 0, 0);
+ 	return r1, err;
+ }
+diff --git a/src/syscall/file_amd64_linux.go b/src/syscall/file_amd64_linux.go
+index d00222a260..dc99d7de39 100644
+--- a/src/syscall/file_amd64_linux.go
++++ b/src/syscall/file_amd64_linux.go
+@@ -66,15 +66,25 @@ const (
+ 	O_TRUNC = 0x200;
+ )
+ 
+-export func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
++const NameBufsize = 512
++
++export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSOPEN = 2;
+-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
++	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), mode, perm);
+ 	return r1, err;
+ }
+ 
+-export func creat(name *byte, mode int64) (ret int64, errno int64) {
++export func creat(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSOPEN = 2;
+-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
++	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]),  O_CREAT|O_WRONLY|O_TRUNC, perm);
+ 	return r1, err;
+ }
+ 
+@@ -108,9 +118,13 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-export func stat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func stat(name string, buf *Stat) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSSTAT = 4;
+-	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(name), StatToInt(buf), 0);
++	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(&namebuf[0]), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+@@ -126,8 +140,12 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func unlink(name *byte) (ret int64, errno int64) {
++export func unlink(name string) (ret int64, errno int64) {
++	var namebuf [NameBufsize]byte;
++	if !StringToBytes(&namebuf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
+ 	const SYSUNLINK = 87;
+-	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
++	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(&namebuf[0]), 0, 0);
+ 	return r1, err;
+ }
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 7f31c11c95..384be24295 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -11,3 +11,17 @@ package syscall
+ export func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+ export func AddrToInt(b *byte) int64;
+ 
++/*
++ * Used to convert file names to byte arrays for passing to kernel,
++ * but useful elsewhere too.
++ */
++export func StringToBytes(b *[]byte, s string) bool {
++	if len(s) >= len(b) {
++		return false
++	}
++	for i := 0; i < len(s); i++ {
++		b[i] = s[i]
++	}
++	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
++	return true
++}

@@ -9,6 +9,22 @@ Date:   Mon Aug 12 12:52:23 2013 +1000
     R=golang-dev, mischief, adg
     CC=golang-dev
     https://golang.org/cl/12731043
-
+---
  src/pkg/crypto/rand/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/example_test.go b/src/pkg/crypto/rand/example_test.go
+index 5af8e46f5d..5db9e92cb7 100644
+--- a/src/pkg/crypto/rand/example_test.go
++++ b/src/pkg/crypto/rand/example_test.go
+@@ -16,8 +16,8 @@ import (
+ func ExampleRead() {
+ 	c := 10
+ 	b := make([]byte, c)
+-	n, err := io.ReadFull(rand.Reader, b)
+-	if n != len(b) || err != nil {
++	_, err := io.ReadFull(rand.Reader, b)
++	if err != nil {
+ 		fmt.Println("error:", err)
+ 		return
+ 	}

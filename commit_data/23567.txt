@@ -25,7 +25,7 @@ Date:   Mon May 25 14:51:02 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go   | 35 +++++++++++++++++++
  misc/cgo/testshared/src/dep2/dep2.go |  9 +++++
  misc/cgo/testshared/src/exe2/exe2.go |  7 ++++
@@ -34,3 +34,306 @@ Date:   Mon May 25 14:51:02 2015 +1200
  src/cmd/link/internal/ld/lib.go      | 67 ++++++++++++++++++++++++------------
  src/cmd/link/internal/ld/link.go     |  1 +
  7 files changed, 112 insertions(+), 27 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 1d731af2a2..f7a99afce4 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -368,6 +368,21 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
+ 	}
+ }
+ 
++// A Go shared library contains a note indicating which other Go shared libraries it
++// was linked against in an unmapped section.
++func testDepsNote(t *testing.T, f *elf.File, note *note) {
++	if note.section.Flags != 0 {
++		t.Errorf("package list section has flags %v", note.section.Flags)
++	}
++	if isOffsetLoaded(f, note.section.Offset) {
++		t.Errorf("package list section contained in PT_LOAD segment")
++	}
++	// libdep.so just links against the lib containing the runtime.
++	if note.desc != soname {
++		t.Errorf("incorrect dependency list %q", note.desc)
++	}
++}
++
+ // The shared library contains notes with defined contents; see above.
+ func TestNotes(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
+@@ -382,6 +397,7 @@ func TestNotes(t *testing.T) {
+ 	}
+ 	pkgListNoteFound := false
+ 	abiHashNoteFound := false
++	depsNoteFound := false
+ 	for _, note := range notes {
+ 		if note.name != "GO\x00\x00" {
+ 			continue
+@@ -399,6 +415,12 @@ func TestNotes(t *testing.T) {
+ 			}
+ 			testABIHashNote(t, f, note)
+ 			abiHashNoteFound = true
++		case 3: // ELF_NOTE_GODEPS_TAG
++			if depsNoteFound {
++				t.Error("multiple abi hash notes")
++			}
++			testDepsNote(t, f, note)
++			depsNoteFound = true
+ 		}
+ 	}
+ 	if !pkgListNoteFound {
+@@ -407,6 +429,19 @@ func TestNotes(t *testing.T) {
+ 	if !abiHashNoteFound {
+ 		t.Error("abi hash note not found")
+ 	}
++	if !depsNoteFound {
++		t.Error("deps note not found")
++	}
++}
++
++// Build a GOPATH package (dep) into a shared library that links against the goroot
++// runtime, another package (dep2) that links against the first, and and an
++// executable that links against dep2.
++func TestTwoGOPathShlibs(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep2")
++	goCmd(t, "install", "-linkshared", "exe2")
++	run(t, "executable linked to GOPATH library", "./bin/exe2")
+ }
+ 
+ // Testing rebuilding of shared libraries when they are stale is a bit more
+diff --git a/misc/cgo/testshared/src/dep2/dep2.go b/misc/cgo/testshared/src/dep2/dep2.go
+new file mode 100644
+index 0000000000..af8ad5e756
+--- /dev/null
++++ b/misc/cgo/testshared/src/dep2/dep2.go
+@@ -0,0 +1,9 @@
++package dep2
++
++import "dep"
++
++var W int = 1
++
++func G() int {
++	return dep.F() + 1
++}
+diff --git a/misc/cgo/testshared/src/exe2/exe2.go b/misc/cgo/testshared/src/exe2/exe2.go
+new file mode 100644
+index 0000000000..acdb4ddcc5
+--- /dev/null
++++ b/misc/cgo/testshared/src/exe2/exe2.go
+@@ -0,0 +1,7 @@
++package main
++
++import "dep2"
++
++func main() {
++	dep2.W = dep2.G() + 1
++}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 83f10d39f6..68d21f415c 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -9,7 +9,9 @@ import (
+ 	"crypto/sha1"
+ 	"encoding/binary"
+ 	"fmt"
++	"path/filepath"
+ 	"sort"
++	"strings"
+ )
+ 
+ /*
+@@ -1205,6 +1207,7 @@ func elfwritebuildinfo() int {
+ const (
+ 	ELF_NOTE_GOPKGLIST_TAG = 1
+ 	ELF_NOTE_GOABIHASH_TAG = 2
++	ELF_NOTE_GODEPS_TAG    = 3
+ )
+ 
+ var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
+@@ -1697,6 +1700,7 @@ func doelf() {
+ 		if Buildmode == BuildmodeShared {
+ 			Addstring(shstrtab, ".note.go.abihash")
+ 			Addstring(shstrtab, ".note.go.pkg-list")
++			Addstring(shstrtab, ".note.go.deps")
+ 		}
+ 	}
+ 
+@@ -1904,6 +1908,11 @@ func doelf() {
+ 		}
+ 		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+ 		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
++		var deplist []string
++		for _, shlib := range Ctxt.Shlibs {
++			deplist = append(deplist, filepath.Base(shlib.Path))
++		}
++		addgonote(".note.go.deps", ELF_NOTE_GODEPS_TAG, []byte(strings.Join(deplist, "\n")))
+ 	}
+ }
+ 
+@@ -1976,6 +1985,8 @@ func Asmbelf(symo int64) {
+ 			sh = elfshname(".note.go.abihash")
+ 			sh.type_ = SHT_NOTE
+ 			sh.flags = SHF_ALLOC
++			sh = elfshname(".note.go.deps")
++			sh.type_ = SHT_NOTE
+ 		}
+ 		goto elfobj
+ 	}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 875b8d2e17..80a6c6ed7d 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -653,15 +653,14 @@ func deadcode() {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		// Mark all symbols as reachable when building a
+-		// shared library.
++		// Mark all symbols defined in this library as reachable when
++		// building a shared library.
+ 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-			if s.Type != 0 {
++			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
+ 				mark(s)
+ 			}
+ 		}
+-		mark(Linkrlookup(Ctxt, "main.main", 0))
+-		mark(Linkrlookup(Ctxt, "main.init", 0))
++		markflood()
+ 	} else {
+ 		mark(Linklookup(Ctxt, INITENTRY, 0))
+ 		if Linkshared && Buildmode == BuildmodeExe {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 26d722911b..8caac0f89c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -983,15 +983,35 @@ func hostlink() {
+ 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+ 
+ 	if Linkshared {
+-		for _, shlib := range Ctxt.Shlibs {
+-			dir, base := filepath.Split(shlib.Path)
+-			argv = append(argv, "-L"+dir)
+-			if !rpath.set {
+-				argv = append(argv, "-Wl,-rpath="+dir)
++		seenDirs := make(map[string]bool)
++		seenLibs := make(map[string]bool)
++		addshlib := func(path string) {
++			dir, base := filepath.Split(path)
++			if !seenDirs[dir] {
++				argv = append(argv, "-L"+dir)
++				if !rpath.set {
++					argv = append(argv, "-Wl,-rpath="+dir)
++				}
++				seenDirs[dir] = true
+ 			}
+ 			base = strings.TrimSuffix(base, ".so")
+ 			base = strings.TrimPrefix(base, "lib")
+-			argv = append(argv, "-l"+base)
++			if !seenLibs[base] {
++				argv = append(argv, "-l"+base)
++				seenLibs[base] = true
++			}
++		}
++		for _, shlib := range Ctxt.Shlibs {
++			addshlib(shlib.Path)
++			for _, dep := range shlib.Deps {
++				if dep == "" {
++					continue
++				}
++				libpath := findshlib(dep)
++				if libpath != "" {
++					addshlib(libpath)
++				}
++			}
+ 		}
+ 	}
+ 
+@@ -1214,18 +1234,20 @@ func readnote(f *elf.File, name []byte, typ int32) ([]byte, error) {
+ 	return nil, nil
+ }
+ 
+-func ldshlibsyms(shlib string) {
+-	found := false
+-	libpath := ""
++func findshlib(shlib string) string {
+ 	for _, libdir := range Ctxt.Libdir {
+-		libpath = filepath.Join(libdir, shlib)
++		libpath := filepath.Join(libdir, shlib)
+ 		if _, err := os.Stat(libpath); err == nil {
+-			found = true
+-			break
++			return libpath
+ 		}
+ 	}
+-	if !found {
+-		Diag("cannot find shared library: %s", shlib)
++	Diag("cannot find shared library: %s", shlib)
++	return ""
++}
++
++func ldshlibsyms(shlib string) {
++	libpath := findshlib(shlib)
++	if libpath == "" {
+ 		return
+ 	}
+ 	for _, processedlib := range Ctxt.Shlibs {
+@@ -1251,6 +1273,13 @@ func ldshlibsyms(shlib string) {
+ 		return
+ 	}
+ 
++	depsbytes, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GODEPS_TAG)
++	if err != nil {
++		Diag("cannot read dep list from shared library %s: %v", libpath, err)
++		return
++	}
++	deps := strings.Split(string(depsbytes), "\n")
++
+ 	syms, err := f.Symbols()
+ 	if err != nil {
+ 		Diag("cannot read symbols from shared library: %s", libpath)
+@@ -1272,12 +1301,6 @@ func ldshlibsyms(shlib string) {
+ 		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
+ 			continue
+ 		}
+-		if s.Section == elf.SHN_UNDEF {
+-			continue
+-		}
+-		if strings.HasPrefix(s.Name, "_") {
+-			continue
+-		}
+ 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+ 			gcmasks[s.Value] = readelfsymboldata(f, &s)
+ 		}
+@@ -1285,7 +1308,7 @@ func ldshlibsyms(shlib string) {
+ 			continue
+ 		}
+ 		lsym := Linklookup(Ctxt, s.Name, 0)
+-		if lsym.Type != 0 && lsym.Dupok == 0 {
++		if lsym.Type != 0 && lsym.Type != obj.SDYNIMPORT && lsym.Dupok == 0 {
+ 			Diag(
+ 				"Found duplicate symbol %s reading from %s, first found in %s",
+ 				s.Name, shlib, lsym.File)
+@@ -1342,7 +1365,7 @@ func ldshlibsyms(shlib string) {
+ 		Ctxt.Etextp = last
+ 	}
+ 
+-	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash})
++	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps})
+ }
+ 
+ func mywhatsys() {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 4b034a4e81..a288148a5a 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -117,6 +117,7 @@ type Auto struct {
+ type Shlib struct {
+ 	Path string
+ 	Hash []byte
++	Deps []string
+ }
+ 
+ type Link struct {

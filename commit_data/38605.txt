@@ -14,6 +14,36 @@ Date:   Fri Nov 9 11:45:04 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 11 +----------
  1 file changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index fd484a6472..f459cb3dec 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -486,7 +486,7 @@ opswitch:
+ 		OIND, OSPTR, OITAB, OIDATA, OADDR:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR:
++	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+@@ -538,15 +538,6 @@ opswitch:
+ 			n.SetTypecheck(1)
+ 		}
+ 
+-	case OLSH, ORSH:
+-		n.Left = walkexpr(n.Left, init)
+-		n.Right = walkexpr(n.Right, init)
+-		t := n.Left.Type
+-		n.SetBounded(bounded(n.Right, 8*t.Width))
+-		if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+-			Warn("shift bounds check elided")
+-		}
+-
+ 	case OCOMPLEX:
+ 		// Use results from call expression as arguments for complex.
+ 		if n.Left == nil && n.Right == nil {

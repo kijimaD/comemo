@@ -7,7 +7,7 @@ Date:   Mon Feb 19 02:20:57 2018 +0900
     Change-Id: I1f25b11fb9b7cd3c09968ed99913dc85db2025ef
     Reviewed-on: https://go-review.googlesource.com/94976
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html               | 2 +-
  src/archive/tar/reader.go            | 2 +-
  src/cmd/go/internal/work/exec.go     | 2 +-
@@ -15,3 +15,82 @@ Date:   Mon Feb 19 02:20:57 2018 +0900
  src/cmd/link/internal/ppc64/asm.go   | 2 +-
  src/runtime/trace/trace.go           | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index ababbf84ac..5c2c95bfed 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -121,7 +121,7 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.5">Go
+ </p>
+ 
+ <p>
+-go1.8.6 (released 2018/01/22) includes the the same fix in <code>math/big</code>
++go1.8.6 (released 2018/01/22) includes the same fix in <code>math/big</code>
+ as Go 1.9.3 and was released at the same time.
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.6">Go
+ 1.8.6 milestone</a> on our issue tracker for details.
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 6025e82b1b..ccfedb5851 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -204,7 +204,7 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block) error {
+ // readGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers.
+ // If they are found, then this function reads the sparse map and returns it.
+ // This assumes that 0.0 headers have already been converted to 0.1 headers
+-// by the the PAX header parsing logic.
++// by the PAX header parsing logic.
+ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
+ 	// Identify the version of GNU headers.
+ 	var is1x0 bool
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 02981d7164..ab216e748f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -630,7 +630,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	}
+ 
+ 	// For gccgo on ELF systems, we write the build ID as an assembler file.
+-	// This lets us set the the SHF_EXCLUDE flag.
++	// This lets us set the SHF_EXCLUDE flag.
+ 	// This is read by readGccgoArchive in cmd/internal/buildid/buildid.go.
+ 	if a.buildID != "" && cfg.BuildToolchainName == "gccgo" {
+ 		switch cfg.Goos {
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 2e0b916f7c..fb3cae45fc 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -176,7 +176,7 @@ const (
+ 	R_ADDRPOWER_TOCREL
+ 
+ 	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
+-	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
++	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
+ 	// relocated symbol rather than the symbol's address.
+ 	R_ADDRPOWER_TOCREL_DS
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4e277f9aa9..9f32415ae6 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -693,7 +693,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+ 
+ 		return true
+ 	case objabi.R_POWER_TLS_LE:
+-		// The thread pointer points 0x7000 bytes after the start of the the
++		// The thread pointer points 0x7000 bytes after the start of the
+ 		// thread local storage area as documented in section "3.7.2 TLS
+ 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
+ 		// Specification".
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index 6cc9f8c7b9..1472dc31c5 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -71,7 +71,7 @@
+ // interesting local operation which may require multiple goroutines
+ // working together. Since tasks can involve multiple goroutines,
+ // they are tracked via a context.Context object. NewContext creates
+-// a new task and embeds it in the the returned context.Context object.
++// a new task and embeds it in the returned context.Context object.
+ // Log messages and spans are attached to the task, if any, in the
+ // Context passed to Log and WithSpan.
+ //

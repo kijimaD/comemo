@@ -7,7 +7,7 @@ Date:   Tue Nov 1 22:58:09 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/5328062
-
+---
  doc/codelab/wiki/index.html          | 16 +++++++--------
  doc/codelab/wiki/wiki.html           | 16 +++++++--------
  doc/debugging_with_gdb.html          |  4 ++--
@@ -43,3 +43,783 @@ Date:   Tue Nov 1 22:58:09 2011 -0400
  src/pkg/template/helper.go           |  4 ++--
  src/pkg/utf8/string.go               | 20 ++++---------------
  34 files changed, 91 insertions(+), 105 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 21248c1861..3dafc5cbef 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -107,7 +107,7 @@ func (p *Page) save() error {
+ <p>
+ This method's signature reads: "This is a method named <code>save</code> that
+ takes as its receiver <code>p</code>, a pointer to <code>Page</code> . It takes
+-no parameters, and returns a value of type <code>os.Error</code>." 
++no parameters, and returns a value of type <code>error</code>." 
+ </p>
+ 
+ <p>
+@@ -116,7 +116,7 @@ file. For simplicity, we will use the <code>Title</code> as the file name.
+ </p>
+ 
+ <p>
+-The <code>save</code> method returns an <code>os.Error</code> value because
++The <code>save</code> method returns an <code>error</code> value because
+ that is the return type of <code>WriteFile</code> (a standard library function
+ that writes a byte slice to a file).  The <code>save</code> method returns the
+ error value, to let the application handle it should anything go wrong while
+@@ -152,7 +152,7 @@ The function <code>loadPage</code> constructs the file name from
+ 
+ <p>
+ Functions can return multiple values. The standard library function 
+-<code>io.ReadFile</code> returns <code>[]byte</code> and <code>os.Error</code>. 
++<code>io.ReadFile</code> returns <code>[]byte</code> and <code>error</code>. 
+ In <code>loadPage</code>, error isn't being handled yet; the "blank identifier"
+ represented by the underscore (<code>_</code>) symbol is used to throw away the
+ error return value (in essence, assigning the value to nothing). 
+@@ -161,7 +161,7 @@ error return value (in essence, assigning the value to nothing).
+ <p>
+ But what happens if <code>ReadFile</code> encounters an error?  For example,
+ the file might not exist. We should not ignore such errors.  Let's modify the
+-function to return <code>*Page</code> and <code>os.Error</code>.
++function to return <code>*Page</code> and <code>error</code>.
+ </p>
+ 
+ <pre>
+@@ -178,7 +178,7 @@ func loadPage(title string) (*Page, error) {
+ <p>
+ Callers of this function can now check the second parameter; if it is
+ <code>nil</code> then it has successfully loaded a Page. If not, it will be an
+-<code>os.Error</code> that can be handled by the caller (see the <a
++<code>error</code> that can be handled by the caller (see the <a
+ href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
+ details).
+ </p>
+@@ -337,7 +337,7 @@ HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
+ </p>
+ 
+ <p>
+-Again, note the use of <code>_</code> to ignore the <code>os.Error</code> 
++Again, note the use of <code>_</code> to ignore the <code>error</code> 
+ return value from <code>loadPage</code>. This is done here for simplicity
+ and generally considered bad practice. We will attend to this later.
+ </p>
+@@ -711,7 +711,7 @@ var templates = make(map[string]*template.Template)
+ Then we create an <code>init</code> function, which will be called before
+ <code>main</code> at program initialization. The function
+ <code>template.Must</code> is a convenience wrapper that panics when passed a
+-non-nil <code>os.Error</code> value, and otherwise returns the
++non-nil <code>error</code> value, and otherwise returns the
+ <code>*Template</code> unaltered. A panic is appropriate here; if the templates
+ can't be loaded the only sensible thing to do is exit the program.
+ </p>
+@@ -768,7 +768,7 @@ The function <code>regexp.MustCompile</code> will parse and compile the
+ regular expression, and return a <code>regexp.Regexp</code>. 
+ <code>MustCompile</code> is distinct from <code>Compile</code> in that it will
+ panic if the expression compilation fails, while <code>Compile</code> returns
+-an <code>os.Error</code> as a second parameter. 
++an <code>error</code> as a second parameter. 
+ </p>
+ 
+ <p>
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index 634babd8b8..c3dee3f709 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -101,7 +101,7 @@ But what about persistent storage? We can address that by creating a
+ <p>
+ This method's signature reads: "This is a method named <code>save</code> that
+ takes as its receiver <code>p</code>, a pointer to <code>Page</code> . It takes
+-no parameters, and returns a value of type <code>os.Error</code>." 
++no parameters, and returns a value of type <code>error</code>." 
+ </p>
+ 
+ <p>
+@@ -110,7 +110,7 @@ file. For simplicity, we will use the <code>Title</code> as the file name.
+ </p>
+ 
+ <p>
+-The <code>save</code> method returns an <code>os.Error</code> value because
++The <code>save</code> method returns an <code>error</code> value because
+ that is the return type of <code>WriteFile</code> (a standard library function
+ that writes a byte slice to a file).  The <code>save</code> method returns the
+ error value, to let the application handle it should anything go wrong while
+@@ -142,7 +142,7 @@ The function <code>loadPage</code> constructs the file name from
+ 
+ <p>
+ Functions can return multiple values. The standard library function 
+-<code>io.ReadFile</code> returns <code>[]byte</code> and <code>os.Error</code>. 
++<code>io.ReadFile</code> returns <code>[]byte</code> and <code>error</code>. 
+ In <code>loadPage</code>, error isn't being handled yet; the "blank identifier"
+ represented by the underscore (<code>_</code>) symbol is used to throw away the
+ error return value (in essence, assigning the value to nothing). 
+@@ -151,7 +151,7 @@ error return value (in essence, assigning the value to nothing).
+ <p>
+ But what happens if <code>ReadFile</code> encounters an error?  For example,
+ the file might not exist. We should not ignore such errors.  Let's modify the
+-function to return <code>*Page</code> and <code>os.Error</code>.
++function to return <code>*Page</code> and <code>error</code>.
+ </p>
+ 
+ <pre>
+@@ -161,7 +161,7 @@ function to return <code>*Page</code> and <code>os.Error</code>.
+ <p>
+ Callers of this function can now check the second parameter; if it is
+ <code>nil</code> then it has successfully loaded a Page. If not, it will be an
+-<code>os.Error</code> that can be handled by the caller (see the <a
++<code>error</code> that can be handled by the caller (see the <a
+ href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
+ details).
+ </p>
+@@ -297,7 +297,7 @@ HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
+ </p>
+ 
+ <p>
+-Again, note the use of <code>_</code> to ignore the <code>os.Error</code> 
++Again, note the use of <code>_</code> to ignore the <code>error</code> 
+ return value from <code>loadPage</code>. This is done here for simplicity
+ and generally considered bad practice. We will attend to this later.
+ </p>
+@@ -575,7 +575,7 @@ our <code>*Template</code> values, keyed by <code>string</code>
+ Then we create an <code>init</code> function, which will be called before
+ <code>main</code> at program initialization. The function
+ <code>template.Must</code> is a convenience wrapper that panics when passed a
+-non-nil <code>os.Error</code> value, and otherwise returns the
++non-nil <code>error</code> value, and otherwise returns the
+ <code>*Template</code> unaltered. A panic is appropriate here; if the templates
+ can't be loaded the only sensible thing to do is exit the program.
+ </p>
+@@ -622,7 +622,7 @@ The function <code>regexp.MustCompile</code> will parse and compile the
+ regular expression, and return a <code>regexp.Regexp</code>. 
+ <code>MustCompile</code> is distinct from <code>Compile</code> in that it will
+ panic if the expression compilation fails, while <code>Compile</code> returns
+-an <code>os.Error</code> as a second parameter. 
++an <code>error</code> as a second parameter. 
+ </p>
+ 
+ <p>
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 04850c0266..874c468345 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -288,8 +288,8 @@ The other goroutine, number 1, is stuck in <code>runtime.gosched</code>, blocked
+ #1  0x00000000004031c9 in runtime.chanrecv (c=void, ep=void, selected=void, received=void)
+  at  /home/lvd/g/src/pkg/runtime/chan.c:342
+ #2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/lvd/g/src/pkg/runtime/chan.c:423
+-#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, os.Error *)} 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/lvd/g/src/pkg/testing/testing.go:201
+-#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, os.Error *)} 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
++#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/lvd/g/src/pkg/testing/testing.go:201
++#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
+     at /home/lvd/g/src/pkg/testing/testing.go:168
+ #5  0x0000000000400dc1 in main.main () at /home/lvd/g/src/pkg/regexp/_testmain.go:98
+ #6  0x00000000004022e7 in runtime.mainstart () at /home/lvd/g/src/pkg/runtime/amd64/asm.s:78
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 25f4f3e663..86e4d3282d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -276,7 +276,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 				v[0] = 0;
+ 				v[1] = 0;
+ 			} else {
+-				·_Cerrno(v, e);	/* fill in v as os.Error for errno e */
++				·_Cerrno(v, e);	/* fill in v as error for errno e */
+ 			}
+ 		}`)
+ 	}
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 431a535f9b..7414a25052 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -304,7 +304,7 @@ func isStandardPath(s string) bool {
+ 
+ // run runs the command cmd in directory dir with standard input stdin.
+ // If the command fails, run prints the command and output on standard error
+-// in addition to returning a non-nil os.Error.
++// in addition to returning a non-nil error.
+ func run(dir string, stdin []byte, cmd ...string) error {
+ 	return genRun(dir, stdin, cmd, false)
+ }
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 08b9845b37..e826f89d71 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -232,23 +232,23 @@ type MethodSig struct {
+ // we let it go.  But if it does have a fmt.ScanState, then the
+ // rest has to match.
+ var canonicalMethods = map[string]MethodSig{
+-	// "Flush": {{}, {"os.Error"}}, // http.Flusher and jpeg.writer conflict
+-	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},               // fmt.Formatter
+-	"GobDecode":     {[]string{"[]byte"}, []string{"os.Error"}},                 // gob.GobDecoder
+-	"GobEncode":     {[]string{}, []string{"[]byte", "os.Error"}},               // gob.GobEncoder
+-	"MarshalJSON":   {[]string{}, []string{"[]byte", "os.Error"}},               // json.Marshaler
+-	"MarshalXML":    {[]string{}, []string{"[]byte", "os.Error"}},               // xml.Marshaler
+-	"Peek":          {[]string{"=int"}, []string{"[]byte", "os.Error"}},         // image.reader (matching bufio.Reader)
+-	"ReadByte":      {[]string{}, []string{"byte", "os.Error"}},                 // io.ByteReader
+-	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "os.Error"}},    // io.ReaderFrom
+-	"ReadRune":      {[]string{}, []string{"rune", "int", "os.Error"}},          // io.RuneReader
+-	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"os.Error"}}, // fmt.Scanner
+-	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "os.Error"}}, // io.Seeker
+-	"UnmarshalJSON": {[]string{"[]byte"}, []string{"os.Error"}},                 // json.Unmarshaler
+-	"UnreadByte":    {[]string{}, []string{"os.Error"}},
+-	"UnreadRune":    {[]string{}, []string{"os.Error"}},
+-	"WriteByte":     {[]string{"byte"}, []string{"os.Error"}},                // jpeg.writer (matching bufio.Writer)
+-	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "os.Error"}}, // io.WriterTo
++	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
++	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},            // fmt.Formatter
++	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                 // gob.GobDecoder
++	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},               // gob.GobEncoder
++	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},               // json.Marshaler
++	"MarshalXML":    {[]string{}, []string{"[]byte", "error"}},               // xml.Marshaler
++	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},         // image.reader (matching bufio.Reader)
++	"ReadByte":      {[]string{}, []string{"byte", "error"}},                 // io.ByteReader
++	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},    // io.ReaderFrom
++	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},          // io.RuneReader
++	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"error"}}, // fmt.Scanner
++	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "error"}}, // io.Seeker
++	"UnmarshalJSON": {[]string{"[]byte"}, []string{"error"}},                 // json.Unmarshaler
++	"UnreadByte":    {[]string{}, []string{"error"}},
++	"UnreadRune":    {[]string{}, []string{"error"}},
++	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
++	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
+ }
+ 
+ func (f *File) checkMethod(id *ast.Ident, t *ast.FuncType) {
+@@ -560,11 +560,11 @@ type BadTypeUsedInTests struct {
+ 	X int "hello" // ERROR "struct field tag"
+ }
+ 
+-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] os.Error"
++func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
+ }
+ 
+ type BadInterfaceUsedInTests interface {
+-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, os.Error[)]"
++	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
+ }
+ 
+ // printf is used by the test.
+diff --git a/src/pkg/compress/bzip2/bit_reader.go b/src/pkg/compress/bzip2/bit_reader.go
+index 390ee7c926..d058c14833 100644
+--- a/src/pkg/compress/bzip2/bit_reader.go
++++ b/src/pkg/compress/bzip2/bit_reader.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // bitReader wraps an io.Reader and provides the ability to read values,
+-// bit-by-bit, from it. Its Read* methods don't return the usual os.Error
++// bit-by-bit, from it. Its Read* methods don't return the usual error
+ // because the error handling was verbose. Instead, any error is kept and can
+ // be checked afterwards.
+ type bitReader struct {
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index d1b9577cd3..c9344ffadf 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -55,8 +55,7 @@ type CRTValue struct {
+ }
+ 
+ // Validate performs basic sanity checks on the key.
+-// It returns nil if the key is valid, or else an os.Error describing a problem.
+-
++// It returns nil if the key is valid, or else an error describing a problem.
+ func (priv *PrivateKey) Validate() error {
+ 	// Check that the prime factors are actually prime. Note that this is
+ 	// just a sanity check. Since the random witnesses chosen by
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index c0523370d6..6312c34d6d 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -828,7 +828,7 @@ func (c *Conn) OCSPResponse() []byte {
+ }
+ 
+ // VerifyHostname checks that the peer certificate chain is valid for
+-// connecting to host.  If so, it returns nil; if not, it returns an os.Error
++// connecting to host.  If so, it returns nil; if not, it returns an error
+ // describing the problem.
+ func (c *Conn) VerifyHostname(host string) error {
+ 	c.handshakeMutex.Lock()
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 49056cfa2d..3021d20a67 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -226,7 +226,7 @@ func matchHostnames(pattern, host string) bool {
+ }
+ 
+ // VerifyHostname returns nil if c is a valid certificate for the named host.
+-// Otherwise it returns an os.Error describing the mismatch.
++// Otherwise it returns an error describing the mismatch.
+ func (c *Certificate) VerifyHostname(h string) error {
+ 	if len(c.DNSNames) > 0 {
+ 		for _, match := range c.DNSNames {
+diff --git a/src/pkg/exp/ssh/channel.go b/src/pkg/exp/ssh/channel.go
+index 428e71c806..6ff8203ce2 100644
+--- a/src/pkg/exp/ssh/channel.go
++++ b/src/pkg/exp/ssh/channel.go
+@@ -20,7 +20,7 @@ type Channel interface {
+ 	// peer is likely to signal a protocol error and drop the connection.
+ 	Reject(reason RejectionReason, message string) error
+ 
+-	// Read may return a ChannelRequest as an os.Error.
++	// Read may return a ChannelRequest as an error.
+ 	Read(data []byte) (int, error)
+ 	Write(data []byte) (int, error)
+ 	Close() error
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index d88af95031..69dbd5ac5f 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -188,7 +188,7 @@ func (p *gcParser) error(err interface{}) {
+ 	if s, ok := err.(string); ok {
+ 		err = errors.New(s)
+ 	}
+-	// panic with a runtime.Error if err is not an os.Error
++	// panic with a runtime.Error if err is not an error
+ 	panic(importError{p.scanner.Pos(), err.(error)})
+ }
+ 
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8191ab3b45..1345644544 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -198,7 +198,7 @@ func Sprintf(format string, a ...interface{}) string {
+ }
+ 
+ // Errorf formats according to a format specifier and returns the string 
+-// as a value that satisfies os.Error.
++// as a value that satisfies error.
+ func Errorf(format string, a ...interface{}) error {
+ 	return errors.New(Sprintf(format, a...))
+ }
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index 70c9547e3c..fb3068e1e9 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -114,7 +114,7 @@ func (p *printer) Write(data []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// localError wraps locally caught os.Errors so we can distinguish
++// localError wraps locally caught errors so we can distinguish
+ // them from genuine panics which we don't want to return as errors.
+ type localError struct {
+ 	err error
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 2a1445dae3..8f1ed1159d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -54,7 +54,7 @@ const (
+ 	noExtraLinebreak
+ )
+ 
+-// local error wrapper so we can distinguish os.Errors we want to return
++// local error wrapper so we can distinguish errors we want to return
+ // as errors from genuine panics (which we don't want to return as errors)
+ type osError struct {
+ 	err error
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index 7621cf55c1..cd9620b878 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -135,8 +135,8 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+ 	return list
+ }
+ 
+-// GetError is like GetErrorList, but it returns an os.Error instead
+-// so that a nil result can be assigned to an os.Error variable and
++// GetError is like GetErrorList, but it returns an error instead
++// so that a nil result can be assigned to an error variable and
+ // remains nil.
+ //
+ func (h *ErrorVector) GetError(mode int) error {
+diff --git a/src/pkg/gob/error.go b/src/pkg/gob/error.go
+index b0c40086d5..fbae8b683d 100644
+--- a/src/pkg/gob/error.go
++++ b/src/pkg/gob/error.go
+@@ -9,16 +9,16 @@ import "fmt"
+ // Errors in decoding and encoding are handled using panic and recover.
+ // Panics caused by user error (that is, everything except run-time panics
+ // such as "index out of bounds" errors) do not leave the file that caused
+-// them, but are instead turned into plain os.Error returns.  Encoding and
+-// decoding functions and methods that do not return an os.Error either use
++// them, but are instead turned into plain error returns.  Encoding and
++// decoding functions and methods that do not return an error either use
+ // panic to report an error or are guaranteed error-free.
+ 
+-// A gobError wraps an os.Error and is used to distinguish errors (panics) generated in this package.
++// A gobError is used to distinguish errors (panics) generated in this package.
+ type gobError struct {
+ 	err error
+ }
+ 
+-// errorf is like error but takes Printf-style arguments to construct an os.Error.
++// errorf is like error_ but takes Printf-style arguments to construct an error.
+ // It always prefixes the message with "gob: ".
+ func errorf(format string, args ...interface{}) {
+ 	error_(fmt.Errorf("gob: "+format, args...))
+@@ -30,7 +30,7 @@ func error_(err error) {
+ }
+ 
+ // catchError is meant to be used as a deferred function to turn a panic(gobError) into a
+-// plain os.Error.  It overwrites the error return of the function that deferred its call.
++// plain error.  It overwrites the error return of the function that deferred its call.
+ func catchError(err *error) {
+ 	if e := recover(); e != nil {
+ 		*err = e.(gobError).err // Will re-panic if not one of our errors, such as a runtime error.
+diff --git a/src/pkg/old/netchan/import.go b/src/pkg/old/netchan/import.go
+index 0c00e1574e..7243672ecd 100644
+--- a/src/pkg/old/netchan/import.go
++++ b/src/pkg/old/netchan/import.go
+@@ -186,7 +186,7 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) err
+ // The channel to be bound to the remote site's channel is provided
+ // in the call and may be of arbitrary channel type.
+ // Despite the literal signature, the effective signature is
+-//	ImportNValues(name string, chT chan T, dir Dir, size, n int) os.Error
++//	ImportNValues(name string, chT chan T, dir Dir, size, n int) error
+ // Example usage:
+ //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
+ //	if err != nil { log.Fatal(err) }
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index abf98768d4..263881e0c1 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -22,7 +22,7 @@ import (
+ // If n <= 0, Readdir returns all the FileInfo from the directory in
+ // a single slice. In this case, if Readdir succeeds (reads all
+ // the way to the end of the directory), it returns the slice and a
+-// nil os.Error. If it encounters an error before the end of the
++// nil error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+@@ -87,7 +87,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ // If n <= 0, Readdirnames returns all the names from the directory in
+ // a single slice. In this case, if Readdirnames succeeds (reads all
+ // the way to the end of the directory), it returns the slice and a
+-// nil os.Error. If it encounters an error before the end of the
++// nil error. If it encounters an error before the end of the
+ // directory, Readdirnames returns the names read until that point and
+ // a non-nil error.
+ func (file *File) Readdirnames(n int) (names []string, err error) {
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index df89a0e82e..e59c1af2ea 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -24,7 +24,7 @@ const (
+ // If n <= 0, Readdirnames returns all the names from the directory in
+ // a single slice. In this case, if Readdirnames succeeds (reads all
+ // the way to the end of the directory), it returns the slice and a
+-// nil os.Error. If it encounters an error before the end of the
++// nil error. If it encounters an error before the end of the
+ // directory, Readdirnames returns the names read until that point and
+ // a non-nil error.
+ func (f *File) Readdirnames(n int) (names []string, err error) {
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index dc8e6f0034..f4038168fc 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -141,7 +141,7 @@ func Lstat(name string) (fi *FileInfo, err error) {
+ // If n <= 0, Readdir returns all the FileInfo from the directory in
+ // a single slice. In this case, if Readdir succeeds (reads all
+ // the way to the end of the directory), it returns the slice and a
+-// nil os.Error. If it encounters an error before the end of the
++// nil error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 96cadce4d8..a8c36cb1bc 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -131,7 +131,7 @@ func (file *File) Close() error {
+ // If n <= 0, Readdir returns all the FileInfo from the directory in
+ // a single slice. In this case, if Readdir succeeds (reads all
+ // the way to the end of the directory), it returns the slice and a
+-// nil os.Error. If it encounters an error before the end of the
++// nil error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index c707b119bd..8810796daf 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -32,7 +32,7 @@ var good_re = []string{
+ /*
+ type stringError struct {
+ 	re  string
+-	err os.Error
++	err error
+ }
+ 
+ var bad_re = []stringError{
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index f29ea8dba0..02d577f677 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -27,7 +27,7 @@ const debugText = `<html>
+ 		<th align=center>Method</th><th align=center>Calls</th>
+ 		{{range .Method}}
+ 			<tr>
+-			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) os.Error</td>
++			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) error</td>
+ 			<td align=center>{{.Type.NumCalls}}</td>
+ 			</tr>
+ 		{{end}}
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 39652b9f41..0f7f0b47a6 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -18,12 +18,12 @@
+ 		  registering the service).
+ 		- the method has two arguments, both exported or local types.
+ 		- the method's second argument is a pointer.
+-		- the method has return type os.Error.
++		- the method has return type error.
+ 
+ 	The method's first argument represents the arguments provided by the caller; the
+ 	second argument represents the result parameters to be returned to the caller.
+ 	The method's return value, if non-nil, is passed back as a string that the client
+-	sees as an os.ErrorString.
++	sees as if created by errors.New.
+ 
+ 	The server may handle requests on a single connection by calling ServeConn.  More
+ 	typically it will create a network listener and call Accept or, for an HTTP
+@@ -55,14 +55,14 @@
+ 
+ 		type Arith int
+ 
+-		func (t *Arith) Multiply(args *Args, reply *int) os.Error {
++		func (t *Arith) Multiply(args *Args, reply *int) error {
+ 			*reply = args.A * args.B
+ 			return nil
+ 		}
+ 
+-		func (t *Arith) Divide(args *Args, quo *Quotient) os.Error {
++		func (t *Arith) Divide(args *Args, quo *Quotient) error {
+ 			if args.B == 0 {
+-				return os.ErrorString("divide by zero")
++				return errors.New("divide by zero")
+ 			}
+ 			quo.Quo = args.A / args.B
+ 			quo.Rem = args.A % args.B
+@@ -133,10 +133,9 @@ const (
+ 	DefaultDebugPath = "/debug/rpc"
+ )
+ 
+-// Precompute the reflect type for os.Error.  Can't use os.Error directly
++// Precompute the reflect type for error.  Can't use error directly
+ // because Typeof takes an empty interface value.  This is annoying.
+-var unusedError *error
+-var typeOfOsError = reflect.TypeOf(unusedError).Elem()
++var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+ 
+ type methodType struct {
+ 	sync.Mutex // protects counters
+@@ -210,7 +209,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
+ // receiver value that satisfy the following conditions:
+ //	- exported method
+ //	- two arguments, both pointers to exported structs
+-//	- one return value, of type os.Error
++//	- one return value, of type error
+ // It returns an error if the receiver is not an exported type or has no
+ // suitable methods.
+ // The client accesses each method using a string of the form "Type.Method",
+@@ -281,13 +280,13 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
+ 			log.Println("method", mname, "reply type not exported or local:", replyType)
+ 			continue
+ 		}
+-		// Method needs one out: os.Error.
++		// Method needs one out: error.
+ 		if mtype.NumOut() != 1 {
+ 			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+ 			continue
+ 		}
+-		if returnType := mtype.Out(0); returnType != typeOfOsError {
+-			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
++		if returnType := mtype.Out(0); returnType != typeOfError {
++			log.Println("method", mname, "returns", returnType.String(), "not error")
+ 			continue
+ 		}
+ 		s.method[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+@@ -339,7 +338,7 @@ func (s *service) call(server *Server, sending *sync.Mutex, mtype *methodType, r
+ 	function := mtype.method.Func
+ 	// Invoke the method, providing a new value for the reply.
+ 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
+-	// The return value for the method is an os.Error.
++	// The return value for the method is an error.
+ 	errInter := returnValues[0].Interface()
+ 	errmsg := ""
+ 	if errInter != nil {
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index 13dc52b32a..4b0ee4931e 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -10,7 +10,7 @@ type Error interface {
+ 
+ 	// RuntimeError is a no-op function but
+ 	// serves to distinguish types that are runtime
+-	// errors from ordinary os.Errors: a type is a
++	// errors from ordinary errors: a type is a
+ 	// runtime error if it has a RuntimeError method.
+ 	RuntimeError()
+ }
+diff --git a/src/pkg/smtp/auth.go b/src/pkg/smtp/auth.go
+index c4cdcb130d..10a757fc64 100644
+--- a/src/pkg/smtp/auth.go
++++ b/src/pkg/smtp/auth.go
+@@ -13,7 +13,7 @@ type Auth interface {
+ 	// and optionally data to include in the initial AUTH message
+ 	// sent to the server. It can return proto == "" to indicate
+ 	// that the authentication should be skipped.
+-	// If it returns a non-nil os.Error, the SMTP client aborts
++	// If it returns a non-nil error, the SMTP client aborts
+ 	// the authentication attempt and closes the connection.
+ 	Start(server *ServerInfo) (proto string, toServer []byte, err error)
+ 
+@@ -21,7 +21,7 @@ type Auth interface {
+ 	// the fromServer data. If more is true, the server expects a
+ 	// response, which Next should return as toServer; otherwise
+ 	// Next should return toServer == nil.
+-	// If Next returns a non-nil os.Error, the SMTP client aborts
++	// If Next returns a non-nil error, the SMTP client aborts
+ 	// the authentication attempt and closes the connection.
+ 	Next(fromServer []byte, more bool) (toServer []byte, err error)
+ }
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 670e3c5390..d588b385d2 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -212,7 +212,7 @@ func (b *Writer) dump() {
+ 	print("\n")
+ }
+ 
+-// local error wrapper so we can distinguish os.Errors we want to return
++// local error wrapper so we can distinguish errors we want to return
+ // as errors from genuine panics (which we don't want to return as errors)
+ type osError struct {
+ 	err error
+diff --git a/src/pkg/template/doc.go b/src/pkg/template/doc.go
+index a52f32d91b..42f9e560be 100644
+--- a/src/pkg/template/doc.go
++++ b/src/pkg/template/doc.go
+@@ -117,7 +117,7 @@ An argument is a simple value, denoted by one of the following.
+ 		.Method
+ 	  The result is the value of invoking the method with dot as the
+ 	  receiver, dot.Method(). Such a method must have one return value (of
+-	  any type) or two return values, the second of which is an os.Error.
++	  any type) or two return values, the second of which is an error.
+ 	  If it has two and the returned error is non-nil, execution terminates
+ 	  and an error is returned to the caller as the value of Execute.
+ 	  Method invocations may be chained and combined with fields and keys
+@@ -159,7 +159,7 @@ passed as the last argument of the following command. The output of the final
+ command in the pipeline is the value of the pipeline.
+ 
+ The output of a command will be either one value or two values, the second of
+-which has type os.Error. If that second value is present and evaluates to
++which has type error. If that second value is present and evaluates to
+ non-nil, execution terminates and the error is returned to the caller of
+ Execute.
+ 
+diff --git a/src/pkg/template/exec.go b/src/pkg/template/exec.go
+index 7850f6daf5..228477ce79 100644
+--- a/src/pkg/template/exec.go
++++ b/src/pkg/template/exec.go
+@@ -492,7 +492,7 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
+ 		argv[i] = final
+ 	}
+ 	result := fun.Call(argv)
+-	// If we have an os.Error that is not nil, stop execution and return that error to the caller.
++	// If we have an error that is not nil, stop execution and return that error to the caller.
+ 	if len(result) == 2 && !result[1].IsNil() {
+ 		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+ 	}
+diff --git a/src/pkg/template/exec_test.go b/src/pkg/template/exec_test.go
+index 20839c3e34..e32de4d40f 100644
+--- a/src/pkg/template/exec_test.go
++++ b/src/pkg/template/exec_test.go
+@@ -158,7 +158,7 @@ func (t *T) MSort(m map[string]int) []string {
+ 	return keys
+ }
+ 
+-// EPERM returns a value and an os.Error according to its argument.
++// EPERM returns a value and an error according to its argument.
+ func (t *T) EPERM(error bool) (bool, error) {
+ 	if error {
+ 		return true, os.EPERM
+diff --git a/src/pkg/template/funcs.go b/src/pkg/template/funcs.go
+index 59c2ee708c..26c3a6e848 100644
+--- a/src/pkg/template/funcs.go
++++ b/src/pkg/template/funcs.go
+@@ -17,7 +17,7 @@ import (
+ 
+ // FuncMap is the type of the map defining the mapping from names to functions.
+ // Each function must have either a single return value, or two return values of
+-// which the second has type os.Error. If the second argument evaluates to non-nil
++// which the second has type error. If the second argument evaluates to non-nil
+ // during execution, execution terminates and Execute returns an error.
+ type FuncMap map[string]interface{}
+ 
+@@ -68,7 +68,7 @@ func addFuncs(out, in FuncMap) {
+ 
+ // goodFunc checks that the function or method has the right result signature.
+ func goodFunc(typ reflect.Type) bool {
+-	// We allow functions with 1 result or 2 results where the second is an os.Error.
++	// We allow functions with 1 result or 2 results where the second is an error.
+ 	switch {
+ 	case typ.NumOut() == 1:
+ 		return true
+diff --git a/src/pkg/template/helper.go b/src/pkg/template/helper.go
+index b7a9deeba9..a743a8326e 100644
+--- a/src/pkg/template/helper.go
++++ b/src/pkg/template/helper.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // Functions and methods to parse a single template.
+ 
+-// Must is a helper that wraps a call to a function returning (*Template, os.Error)
++// Must is a helper that wraps a call to a function returning (*Template, error)
+ // and panics if the error is non-nil. It is intended for use in variable initializations
+ // such as
+ //	var t = template.Must(template.New("name").Parse("text"))
+@@ -66,7 +66,7 @@ func (t *Template) parseFileInSet(filename string, set *Set) (*Template, error)
+ 
+ // Functions and methods to parse a set.
+ 
+-// SetMust is a helper that wraps a call to a function returning (*Set, os.Error)
++// SetMust is a helper that wraps a call to a function returning (*Set, error)
+ // and panics if the error is non-nil. It is intended for use in variable initializations
+ // such as
+ //	var s = template.SetMust(template.ParseSetFiles("file"))
+diff --git a/src/pkg/utf8/string.go b/src/pkg/utf8/string.go
+index ce430ba4f5..443decf056 100644
+--- a/src/pkg/utf8/string.go
++++ b/src/pkg/utf8/string.go
+@@ -4,6 +4,8 @@
+ 
+ package utf8
+ 
++import "errors"
++
+ // String wraps a regular string with a small structure that provides more
+ // efficient indexing by code point index, as opposed to byte index.
+ // Scanning incrementally forwards or backwards is O(1) per index operation
+@@ -193,19 +195,5 @@ func (s *String) At(i int) rune {
+ 	return r
+ }
+ 
+-// We want the panic in At(i) to satisfy os.Error, because that's what
+-// runtime panics satisfy, but we can't import os.  This is our solution.
+-
+-// error is the type of the error returned if a user calls String.At(i) with i out of range.
+-// It satisfies os.Error and runtime.Error.
+-type error_ string
+-
+-func (err error_) String() string {
+-	return string(err)
+-}
+-
+-func (err error_) RunTimeError() {
+-}
+-
+-var outOfRange = error_("utf8.String: index out of range")
+-var sliceOutOfRange = error_("utf8.String: slice index out of range")
++var outOfRange = errors.New("utf8.String: index out of range")
++var sliceOutOfRange = errors.New("utf8.String: slice index out of range")

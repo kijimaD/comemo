@@ -8,7 +8,40 @@ Date:   Mon Jun 2 08:44:47 2014 +1000
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/106730043
-
+---
  src/run.bash | 5 -----
  src/run.bat  | 5 -----
  2 files changed, 10 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 76216ba010..6eec7caa40 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -197,11 +197,6 @@ time ./run || exit 1
+ time ./run || exit 1
+ ) || exit $?
+ 
+-echo
+-echo '#' ../misc/goplay
+-go build ../misc/goplay
+-rm -f goplay
+-
+ [ "$GOOS" == nacl ] ||
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout
+diff --git a/src/run.bat b/src/run.bat
+index fdaacfff44..62692acaf2 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -73,11 +73,6 @@ if errorlevel 1 goto fail
+ echo.
+ :norace
+ 
+-echo # ..\misc\goplay
+-go build ..\misc\goplay
+-if errorlevel 1 goto fail
+-echo.
+-
+ echo # ..\test\bench\go1
+ go test ..\test\bench\go1
+ if errorlevel 1 goto fail

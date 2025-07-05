@@ -8,7 +8,7 @@ Date:   Thu Jul 10 15:14:49 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/103680046
-
+---
  src/pkg/runtime/arch_arm.h        |   6 +-
  src/pkg/runtime/asm_arm.s         |   9 +-
  src/pkg/runtime/defs_nacl_arm.h   |  70 ++++++++++
@@ -22,3 +22,653 @@ Date:   Thu Jul 10 15:14:49 2014 -0400
  src/pkg/runtime/vlop_arm.s        |  43 +++---
  src/pkg/runtime/vlrt_arm.c        |   1 +
  12 files changed, 470 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index b9711289f4..2a1077e2fc 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -6,7 +6,11 @@ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+ 	CacheLineSize = 32,
+-	RuntimeGogoBytes = 80,
++	RuntimeGogoBytes = 84,
++#ifdef GOOS_nacl
++	PhysPageSize = 65536,
++#else
+ 	PhysPageSize = 4096,
++#endif
+ 	PCQuantum = 4
+ };
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 6711d5105b..36b2577f30 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -36,6 +36,7 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
+ 	MOVW	R13, g_stackbase(g)
+ 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
++#ifndef GOOS_nacl
+ 	// if there is an _cgo_init, call it.
+ 	MOVW	_cgo_init(SB), R4
+ 	CMP	$0, R4
+@@ -46,6 +47,7 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
+ 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+ 	MOVW	g, R0 			// arg 0: G
+ 	BL	(R4) // will clobber R0-R3
++#endif
+ 
+ nocgo:
+ 	// update stackguard after _cgo_init
+@@ -90,7 +92,11 @@ GLOBL	runtime·main·f(SB),RODATA,$4
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	// gdb won't skip this breakpoint instruction automatically,
+ 	// so you must manually "set $pc+=4" to skip it and continue.
++#ifdef GOOS_nacl
++	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
++#else
+ 	WORD	$0xe1200071	// BKPT 0x0001
++#endif
+ 	RET
+ 
+ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+@@ -139,7 +145,8 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
+ 	MOVW	R11, gobuf_lr(R1)
+ 	MOVW	R11, gobuf_ctxt(R1)
+ 	CMP	R11, R11 // set condition codes for == test, needed by stack split
+-	MOVW	gobuf_pc(R1), PC
++	MOVW	gobuf_pc(R1), R11
++	B	(R11)
+ 
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+diff --git a/src/pkg/runtime/defs_nacl_arm.h b/src/pkg/runtime/defs_nacl_arm.h
+new file mode 100644
+index 0000000000..9ce07ccb21
+--- /dev/null
++++ b/src/pkg/runtime/defs_nacl_arm.h
+@@ -0,0 +1,70 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Created by hand, not machine generated.
++
++enum
++{
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	SIGSEGV = 11,
++	SIGPROF = 27,
++};
++
++typedef struct Siginfo Siginfo;
++
++// native_client/src/trusted/service_runtime/include/machine/_types.h
++typedef struct Timespec Timespec;
++
++struct Timespec
++{
++	int64 tv_sec;
++	int32 tv_nsec;
++};
++
++// native_client/src/trusted/service_runtime/nacl_exception.h
++// native_client/src/include/nacl/nacl_exception.h
++
++typedef struct ExcContext ExcContext;
++typedef struct ExcPortable ExcPortable;
++typedef struct ExcRegsARM ExcRegsARM;
++
++struct ExcRegsARM
++{
++	uint32	r0;
++	uint32	r1;
++	uint32	r2;
++	uint32	r3;
++	uint32	r4;
++	uint32	r5;
++	uint32	r6;
++	uint32	r7;
++	uint32	r8;
++	uint32	r9;	// the value reported here is undefined.
++	uint32	r10;
++	uint32	r11;
++	uint32	r12;
++	uint32	sp;	/* r13 */
++	uint32	lr;	/* r14 */
++	uint32	pc;	/* r15 */
++	uint32	cpsr;
++};
++
++struct ExcContext
++{
++	uint32	size;
++	uint32	portable_context_offset;
++	uint32	portable_context_size;
++	uint32	arch;
++	uint32	regs_size;
++	uint32	reserved[11];
++	ExcRegsARM	regs;
++};
++
++struct ExcPortableContext
++{
++	uint32	pc;
++	uint32	sp;
++	uint32	fp;
++};
+diff --git a/src/pkg/runtime/os_nacl_arm.c b/src/pkg/runtime/os_nacl_arm.c
+new file mode 100644
+index 0000000000..c94b2c78a6
+--- /dev/null
++++ b/src/pkg/runtime/os_nacl_arm.c
+@@ -0,0 +1,24 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "../../cmd/ld/textflag.h"
++
++void
++runtime·checkgoarm(void)
++{
++	return; // NaCl/ARM only supports ARMv7
++}
++
++#pragma textflag NOSPLIT
++int64
++runtime·cputicks(void)
++{
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand1.
++	return runtime·nanotime();
++}
+diff --git a/src/pkg/runtime/rt0_nacl_arm.s b/src/pkg/runtime/rt0_nacl_arm.s
+new file mode 100644
+index 0000000000..df84d5d02b
+--- /dev/null
++++ b/src/pkg/runtime/rt0_nacl_arm.s
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++// NaCl entry has:
++//	0(FP) - 0
++//	4(FP) - cleanup function pointer, always 0
++//	8(FP) - envc
++//	12(FP) - argc
++//	16(FP) - argv, then 0, then envv, then 0, then auxv
++TEXT _rt0_arm_nacl(SB),NOSPLIT,$-4
++	MOVW	8(R13), R0
++	MOVW	$12(R13), R1
++	MOVM.DB.W [R0-R1], (R13)
++	B	main(SB)
++
++TEXT main(SB),NOSPLIT,$0
++	B	_rt0_go(SB)
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 26dbbbd3e2..ec0df1d170 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -370,11 +370,6 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
+ {
+ 	int32 res, bit;
+ 
+-	if(v >= (int64)div*0x7fffffffLL) {
+-		if(rem != nil)
+-			*rem = 0;
+-		return 0x7fffffff;
+-	}
+ 	res = 0;
+ 	for(bit = 30; bit >= 0; bit--) {
+ 		if(v >= ((int64)div<<bit)) {
+@@ -382,6 +377,11 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
+ 			res += 1<<bit;
+ 		}
+ 	}
++	if(v >= (int64)div) {
++		if(rem != nil)
++			*rem = 0;
++		return 0x7fffffff;
++	}
+ 	if(rem != nil)
+ 		*rem = v;
+ 	return res;
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 1e8636846d..1f9a2325d1 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signal_nacl_arm.h b/src/pkg/runtime/signal_nacl_arm.h
+new file mode 100644
+index 0000000000..e5bbb211dd
+--- /dev/null
++++ b/src/pkg/runtime/signal_nacl_arm.h
+@@ -0,0 +1,28 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs)
++
++#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).r0)
++#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).r1)
++#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).r2)
++#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).r3)
++#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).r4)
++#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).r5)
++#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).r6)
++#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).r7)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
++#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).r11)
++#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).r12)
++#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).sp)
++#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).lr)
++#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).pc)
++#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).cpsr)
++#define SIG_FAULT(info, ctxt) (~0)
++#define SIG_TRAP(info, ctxt) (~0)
++#define SIG_ERROR(info, ctxt) (~0)
++#define SIG_OLDMASK(info, ctxt) (~0)
++#define SIG_CODE0(info, ctxt) (~0)
+diff --git a/src/pkg/runtime/sys_nacl_arm.s b/src/pkg/runtime/sys_nacl_arm.s
+new file mode 100644
+index 0000000000..6a22368507
+--- /dev/null
++++ b/src/pkg/runtime/sys_nacl_arm.s
+@@ -0,0 +1,278 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
++#include "syscall_nacl.h"
++
++#define NACL_SYSCALL(code) \
++	MOVW	$(0x10000 + ((code)<<5)), R8; BL (R8)
++
++#define NACL_SYSJMP(code) \
++	MOVW	$(0x10000 + ((code)<<5)), R8; B (R8)
++
++TEXT runtime·exit(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_exit)
++
++TEXT runtime·exit1(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_thread_exit)
++
++TEXT runtime·open(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+0(FP), R1
++	MOVW	arg3+0(FP), R2
++	NACL_SYSJMP(SYS_open)
++
++TEXT runtime·close(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_close)
++
++TEXT runtime·read(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	NACL_SYSJMP(SYS_read)
++
++// func naclWrite(fd int, b []byte) int
++TEXT syscall·naclWrite(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	NACL_SYSCALL(SYS_write)
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT runtime·write(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	NACL_SYSJMP(SYS_write)
++
++TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	NACL_SYSJMP(SYS_exception_stack)
++
++TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	NACL_SYSJMP(SYS_exception_handler)
++
++TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_sem_create)
++
++TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_sem_wait)
++
++TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_sem_post)
++
++TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_mutex_create)
++
++TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_mutex_lock)
++
++TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_mutex_trylock)
++
++TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_mutex_unlock)
++
++TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_cond_create)
++
++TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	NACL_SYSJMP(SYS_cond_wait)
++
++TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_cond_signal)
++
++TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	NACL_SYSJMP(SYS_cond_broadcast)
++
++TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	NACL_SYSJMP(SYS_cond_timed_wait_abs)
++
++TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	MOVW	arg4+12(FP), R3
++	NACL_SYSJMP(SYS_thread_create)
++
++TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
++	MOVW	0(R9), R0 // TLS
++	MOVW	-8(R0), R1 // g
++	MOVW	-4(R0), R2 // m
++	MOVW	R2, g_m(R1)
++	MOVW	R1, g
++	B runtime·mstart(SB)
++
++TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	NACL_SYSJMP(SYS_nanosleep)
++
++TEXT runtime·osyield(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sched_yield)
++
++TEXT runtime·mmap(SB),NOSPLIT,$8
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	MOVW	arg3+8(FP), R2
++	MOVW	arg4+12(FP), R3
++	MOVW	arg5+16(FP), R4
++	// arg6:offset should be passed as a pointer (to int64)
++	MOVW	arg6+20(FP), R5
++	MOVW	R5, 4(R13)
++	MOVW	$0, R6
++	MOVW	R6, 8(R13)
++	MOVW	$4(R13), R5
++	MOVM.DB.W [R4,R5], (R13) // arg5 and arg6 are passed on stack
++	NACL_SYSCALL(SYS_mmap)
++	MOVM.IA.W (R13), [R4, R5]
++	CMP	$-4095, R0
++	RSB.HI	$0, R0
++	RET
++
++TEXT time·now(SB),NOSPLIT,$16
++	MOVW	$0, R0 // real time clock
++	MOVW	$4(R13), R1
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVW	4(R13), R0 // low 32-bit sec
++	MOVW	8(R13), R1 // high 32-bit sec
++	MOVW	12(R13), R2 // nsec
++	MOVW	R0, sec+0(FP)
++	MOVW	R1, sec+4(FP)
++	MOVW	R2, sec+8(FP)
++	RET
++
++TEXT syscall·now(SB),NOSPLIT,$0
++	B time·now(SB)
++
++TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
++	MOVW	arg1+0(FP), R0
++	MOVW	arg2+4(FP), R1
++	NACL_SYSJMP(SYS_clock_gettime)
++
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB),NOSPLIT,$16
++	MOVW	$0, R0 // real time clock
++	MOVW	$4(R13), R1
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVW	4(R13), R0 // low 32-bit sec
++	MOVW	8(R13), R1 // high 32-bit sec (ignored for now)
++	MOVW	12(R13), R2 // nsec
++	MOVW	$1000000000, R3
++	MULLU	R0, R3, (R1, R0)
++	MOVW	$0, R4
++	ADD.S	R2, R0
++	ADC	R4, R1
++	MOVW	0(FP), R2
++	MOVW	R0, 0(R2)
++	MOVW	R1, 4(R2)
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$80
++	// load g from thread context
++	MOVW	$ctxt+-4(FP), R0
++	MOVW	(16*4+10*4)(R0), g
++
++	// check that g exists
++	CMP	$0, g
++	BNE 	4(PC)
++	MOVW  	$runtime·badsignal2(SB), R11
++	BL	(R11)
++	RET
++
++	// save g
++	MOVW	g, R3
++	MOVW	g, 20(R13)
++
++	// g = m->gsignal
++	MOVW	g_m(g), R8
++	MOVW	m_gsignal(R8), g
++
++	// copy arguments for call to sighandler
++	MOVW	$11, R0
++	MOVW	R0, 4(R13) // signal
++	MOVW	$0, R0
++	MOVW	R0, 8(R13) // siginfo
++	MOVW	$ctxt+-4(FP), R0
++	MOVW	R0, 12(R13) // context
++	MOVW	R3, 16(R13) // g
++
++	BL	runtime·sighandler(SB)
++
++	// restore g
++	MOVW	20(R13), g
++
++sigtramp_ret:
++	// Enable exceptions again.
++	NACL_SYSCALL(SYS_exception_clear_flag)
++
++	// Restore registers as best we can. Impossible to do perfectly.
++	// See comment in sys_nacl_386.s for extended rationale.
++	MOVW	$ctxt+-4(FP), R1
++	ADD	$64, R1
++	MOVW	(0*4)(R1), R0
++	MOVW	(2*4)(R1), R2
++	MOVW	(3*4)(R1), R3
++	MOVW	(4*4)(R1), R4
++	MOVW	(5*4)(R1), R5
++	MOVW	(6*4)(R1), R6
++	MOVW	(7*4)(R1), R7
++	MOVW	(8*4)(R1), R8
++	// cannot write to R9
++	MOVW	(10*4)(R1), g
++	MOVW	(11*4)(R1), R11
++	MOVW	(12*4)(R1), R12
++	MOVW	(13*4)(R1), R13
++	MOVW	(14*4)(R1), R14
++	MOVW	(15*4)(R1), R1
++	B	(R1)
++
++nog:
++	MOVW	$0, R0
++	RET
++
++TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
++	RET
++
++TEXT runtime·casp(SB),NOSPLIT,$0
++	B	runtime·cas(SB)
++
++// This is only valid for ARMv6+, however, NaCl/ARM is only defined
++// for ARMv7A anyway.
++// bool armcas(int32 *val, int32 old, int32 new)
++// AtomiBLy:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	}else
++//		return 0;
++TEXT runtime·cas(SB),NOSPLIT,$0
++	B runtime·armcas(SB)
++
++TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
++	WORD $0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
+diff --git a/src/pkg/runtime/tls_arm.s b/src/pkg/runtime/tls_arm.s
+index 040ce7d856..37edfa968e 100644
+--- a/src/pkg/runtime/tls_arm.s
++++ b/src/pkg/runtime/tls_arm.s
+@@ -23,6 +23,10 @@
+ // NOTE: runtime.gogo assumes that R1 is preserved by this function.
+ //       runtime.mcall assumes this function only clobbers R0 and R11.
+ TEXT runtime·save_g(SB),NOSPLIT,$0
++#ifdef GOOS_nacl
++	// nothing to do as nacl/arm does not use TLS at all.
++	RET
++#endif
+ 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+@@ -40,6 +44,10 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
+ // thread-local memory, for use after calling externally compiled
+ // ARM code that overwrote those registers.
+ TEXT runtime·load_g(SB),NOSPLIT,$0
++#ifdef GOOS_nacl
++	// nothing to do as nacl/arm does not use TLS at all.
++	RET
++#endif
+ 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index c33640695c..02bab3107e 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -108,7 +108,8 @@ TEXT udiv<>(SB),NOSPLIT,$-4
+ 	CLZ 	R(q), R(s) // find normalizing shift
+ 	MOVW.S	R(q)<<R(s), R(a)
+ 	MOVW	$fast_udiv_tab<>-64(SB), R(M)
+-	MOVBU.NE	R(a)>>25(R(M)), R(a) // index by most significant 7 bits of divisor
++	ADD.NE	R(a)>>25, R(M), R(a) // index by most significant 7 bits of divisor
++	MOVBU.NE	(R(a)), R(a)
+ 
+ 	SUB.S	$7, R(s)
+ 	RSB 	$0, R(q), R(M) // M = -q
+@@ -181,26 +182,26 @@ udiv_by_0:
+ 	MOVW	R1, 0(R13) // expected here for traceback
+ 	B 	runtime·panicdivide(SB)
+ 
+-TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
+-	// var tab [64]byte
+-	// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
+-	// laid out here as little-endian uint32s
+-	WORD $0xf4f8fcff
+-	WORD $0xe6eaedf0
+-	WORD $0xdadde0e3
+-	WORD $0xcfd2d4d7
+-	WORD $0xc5c7cacc
+-	WORD $0xbcbec0c3
+-	WORD $0xb4b6b8ba
+-	WORD $0xacaeb0b2
+-	WORD $0xa5a7a8aa
+-	WORD $0x9fa0a2a3
+-	WORD $0x999a9c9d
+-	WORD $0x93949697
+-	WORD $0x8e8f9092
+-	WORD $0x898a8c8d
+-	WORD $0x85868788
+-	WORD $0x81828384
++// var tab [64]byte
++// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
++// laid out here as little-endian uint32s
++DATA fast_udiv_tab<>+0x00(SB)/4, $0xf4f8fcff
++DATA fast_udiv_tab<>+0x04(SB)/4, $0xe6eaedf0
++DATA fast_udiv_tab<>+0x08(SB)/4, $0xdadde0e3
++DATA fast_udiv_tab<>+0x0c(SB)/4, $0xcfd2d4d7
++DATA fast_udiv_tab<>+0x10(SB)/4, $0xc5c7cacc
++DATA fast_udiv_tab<>+0x14(SB)/4, $0xbcbec0c3
++DATA fast_udiv_tab<>+0x18(SB)/4, $0xb4b6b8ba
++DATA fast_udiv_tab<>+0x1c(SB)/4, $0xacaeb0b2
++DATA fast_udiv_tab<>+0x20(SB)/4, $0xa5a7a8aa
++DATA fast_udiv_tab<>+0x24(SB)/4, $0x9fa0a2a3
++DATA fast_udiv_tab<>+0x28(SB)/4, $0x999a9c9d
++DATA fast_udiv_tab<>+0x2c(SB)/4, $0x93949697
++DATA fast_udiv_tab<>+0x30(SB)/4, $0x8e8f9092
++DATA fast_udiv_tab<>+0x34(SB)/4, $0x898a8c8d
++DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
++DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
++GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ 
+ // The linker will pass numerator in R(TMP), and it also
+ // expects the result in R(TMP)
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 7dd71b40e3..016fd7a357 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -506,6 +506,7 @@ _mmv(Vlong *l, Vlong *r)
+ 	l->lo = r->lo;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ _vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
+ {

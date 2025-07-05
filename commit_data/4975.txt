@@ -8,7 +8,7 @@ Date:   Tue Mar 2 18:32:11 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224105
-
+---
  src/cmd/6g/cgen.c        |  17 ++++---
  src/cmd/6g/cplx.c        | 122 +++++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/6g/gg.h          |   2 +
@@ -21,3 +21,630 @@ Date:   Tue Mar 2 18:32:11 2010 -0800
  test/ken/cplx1.go        |  85 +++++++++++++++++++++++++++++++++
  test/ken/cplx2.go        |  95 ++++++++++++++++++++++++++++++++++++
  11 files changed, 442 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 7344fe7102..6038352e96 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -116,6 +116,11 @@ cgen(Node *n, Node *res)
+ 		break;
+ 	}
+ 
++	if(complexop(n, res)) {
++		complexgen(n, res);
++		goto ret;
++	}
++
+ 	if(n->addable) {
+ 		gmove(n, res);
+ 		goto ret;
+@@ -134,13 +139,6 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
+-	// complex ops are special.
+-	if(iscomplex[n->type->etype] || iscomplex[res->type->etype] ||
+-	   n->left != N && iscomplex[n->left->type->etype]) {
+-		complexgen(n, res);
+-		goto ret;
+-	}
+-
+ 	a = optoas(OAS, n->type);
+ 	if(sudoaddable(a, n, &addr)) {
+ 		if(res->op == OREGISTER) {
+@@ -802,6 +800,7 @@ bgen(Node *n, int true, Prog *to)
+ 				goto ret;
+ 			}				
+ 			a = brcom(a);
++			true = !true;
+ 		}
+ 
+ 		// make simplest on right
+@@ -849,6 +848,10 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
++		if(iscomplex[nl->type->etype]) {
++			complexbool(a, nl, nr, true, to);
++			break;
++		}
+ 
+ 		if(nr->ullman >= UINF) {
+ 			regalloc(&n1, nr->type, N);
+diff --git a/src/cmd/6g/cplx.c b/src/cmd/6g/cplx.c
+index 6c91761a35..e7361af561 100644
+--- a/src/cmd/6g/cplx.c
++++ b/src/cmd/6g/cplx.c
+@@ -26,7 +26,7 @@ complexmove(Node *f, Node *t, int perm)
+ 	int ft, tt;
+ 	Node n1, n2, n3, n4, nc;
+ 
+-	if(1||debug['g']) {
++	if(debug['g']) {
+ 		dump("\ncomplex-f", f);
+ 		dump("complex-t", t);
+ 	}
+@@ -113,6 +113,28 @@ complexmove(Node *f, Node *t, int perm)
+ 	}
+ }
+ 
++int
++complexop(Node *n, Node *res)
++{
++	if(n != N && n->type != T)
++	if(iscomplex[n->type->etype]) {
++		switch(n->op) {
++		case OCONV:
++		case OADD:
++		case OSUB:
++		case OMUL:
++		case ODIV:
++		case OMINUS:
++			goto yes;
++		}
++//dump("complexop no", n);
++	}
++	return 0;
++
++yes:
++	return 1;
++}
++
+ void
+ complexgen(Node *n, Node *res)
+ {
+@@ -121,7 +143,7 @@ complexgen(Node *n, Node *res)
+ 	Node ra, rb, rc, rd;
+ 	int tl, tr;
+ 
+-	if(1||debug['g']) {
++	if(debug['g']) {
+ 		dump("\ncomplex-n", n);
+ 		dump("complex-res", res);
+ 	}
+@@ -257,10 +279,104 @@ complexgen(Node *n, Node *res)
+ 			complexmove(nl, res, 2);
+ 			break;
+ 		}
+-		fatal("opcode %O", n->op);
++
++		subnode(&n1, &n2, nl);
++		subnode(&n3, &n4, nr);
++		subnode(&n5, &n6, res);
++
++		regalloc(&ra, n5.type, N);
++		regalloc(&rb, n5.type, N);
++		regalloc(&rc, n6.type, N);
++		regalloc(&rd, n6.type, N);
++
++		gmove(&n1, &ra);
++		gmove(&n3, &rc);
++		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
++		
++		gmove(&n2, &rb);
++		gmove(&n4, &rd);
++		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
++		gins(optoas(OADD, n5.type), &rb, &ra);	// ra = (a*c + b*d)
++
++		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
++		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
++		gins(optoas(OSUB, n5.type), &rd, &rc);	// rc = (b*c - a*d)
++
++		gmove(&n3, &rb);
++		gins(optoas(OMUL, n5.type), &rb, &rb);	// rb = c*c
++		gmove(&n4, &rd);
++		gins(optoas(OMUL, n5.type), &rd, &rd);	// rd = d*d
++		gins(optoas(OADD, n5.type), &rd, &rb);	// rb = (c*c + d*d)
++
++		gins(optoas(ODIV, n5.type), &rb, &ra);	// ra = (a*c + b*d)/(c*c + d*d)
++		gins(optoas(ODIV, n5.type), &rb, &rc);	// rc = (b*c - a*d)/(c*c + d*d)
++
++		gmove(&ra, &n5);
++		gmove(&rc, &n6);
++
++		regfree(&ra);
++		regfree(&rb);
++		regfree(&rc);
++		regfree(&rd);
++		break;
+ 	}
+ }
+ 
++void
++complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
++{
++	Node n1, n2, n3, n4;
++	Node na, nb, nc;
++
++	// make both sides addable in ullman order
++	if(nr != N) {
++		if(nl->ullman > nr->ullman && !nl->addable) {
++			tempname(&n1, nl->type);
++			complexgen(nl, &n1);
++			nl = &n1;
++		}
++		if(!nr->addable) {
++			tempname(&n2, nr->type);
++			complexgen(nr, &n2);
++			nr = &n2;
++		}
++	}
++	if(!nl->addable) {
++		tempname(&n1, nl->type);
++		complexgen(nl, &n1);
++		nl = &n1;
++	}
++
++	// build tree
++	// real(l) == real(r) && imag(l) == imag(r)
++
++	subnode(&n1, &n2, nl);
++	subnode(&n3, &n4, nr);
++
++	memset(&na, 0, sizeof(na));
++	na.op = OANDAND;
++	na.left = &nb;
++	na.right = &nc;
++	na.type = types[TBOOL];
++
++	memset(&nb, 0, sizeof(na));
++	nb.op = OEQ;
++	nb.left = &n1;
++	nb.right = &n3;
++	nb.type = types[TBOOL];
++
++	memset(&nc, 0, sizeof(na));
++	nc.op = OEQ;
++	nc.left = &n2;
++	nc.right = &n4;
++	nc.type = types[TBOOL];
++
++	if(op == ONE)
++		true = !true;
++
++	bgen(&na, true, to);
++}
++
+ int
+ cplxsubtype(int et)
+ {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index d2d5629cd4..3fb2cbf626 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -134,8 +134,10 @@ void	nodfconst(Node*, Type*, Mpflt*);
+ /*
+  * cplx.c
+  */
++int	complexop(Node*, Node*);
+ void	complexmove(Node*, Node*, int);
+ void	complexgen(Node*, Node*);
++void	complexbool(int, Node*, Node*, int, Prog*);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 2ad6535b1e..bf043892ca 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -288,6 +288,11 @@ regalloc(Node *n, Type *t, Node *o)
+ 				goto out;
+ 		yyerror("out of floating registers");
+ 		goto err;
++
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++		tempname(n, t);
++		return;
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+ 
+@@ -305,6 +310,8 @@ regfree(Node *n)
+ {
+ 	int i;
+ 
++	if(n->op == ONAME && iscomplex[n->type->etype])
++		return;
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+ 	i = n->val.u.reg;
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 57dd674fb1..437d41fcf7 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -554,6 +554,12 @@ cgen_as(Node *nl, Node *nr)
+ 			nr->val.ctype = CTNIL;
+ 			break;
+ 
++		case TCOMPLEX64:
++		case TCOMPLEX128:
++			nr->val.u.cval = mal(sizeof(*nr->val.u.cval));
++			mpmovecflt(&nr->val.u.cval->real, 0.0);
++			mpmovecflt(&nr->val.u.cval->imag, 0.0);
++			break;
+ 		}
+ 		nr->op = OLITERAL;
+ 		nr->type = tl;
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 1e2772f66b..9451885afb 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -79,6 +79,21 @@ type FloatType struct {
+ 	commonType
+ }
+ 
++// Complex64Type represents a complex64 type.
++type Complex64Type struct {
++	commonType
++}
++
++// Complex128Type represents acomplex128 type.
++type Complex128Type struct {
++	commonType
++}
++
++// ComplexType represents a complex type.
++type ComplexType struct {
++	commonType
++}
++
+ // Int16Type represents an int16 type.
+ type Int16Type struct {
+ 	commonType
+@@ -585,6 +600,12 @@ func toType(i interface{}) Type {
+ 		return (*Float32Type)(unsafe.Pointer(v))
+ 	case *runtime.Float64Type:
+ 		return (*Float64Type)(unsafe.Pointer(v))
++	case *runtime.ComplexType:
++		return (*ComplexType)(unsafe.Pointer(v))
++	case *runtime.Complex64Type:
++		return (*Complex64Type)(unsafe.Pointer(v))
++	case *runtime.Complex128Type:
++		return (*Complex128Type)(unsafe.Pointer(v))
+ 	case *runtime.IntType:
+ 		return (*IntType)(unsafe.Pointer(v))
+ 	case *runtime.Int8Type:
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index d183a9c59a..2543499f5c 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -186,6 +186,63 @@ func (v *Float64Value) Set(x float64) {
+ // Set sets v to the value x.
+ func (v *Float64Value) SetValue(x Value) { v.Set(x.(*Float64Value).Get()) }
+ 
++//// ComplexValue represents a complex value.
++//type ComplexValue struct {
++//	value
++//}
++//
++//// Get returns the underlying complex value.
++//func (v *ComplexValue) Get() complex { return *(*complex)(v.addr) }
++//
++//// Set sets v to the value x.
++//func (v *ComplexValue) Set(x complex) {
++//	if !v.canSet {
++//		panic(cannotSet)
++//	}
++//	*(*complex)(v.addr) = x
++//}
++//
++//// Set sets v to the value x.
++//func (v *ComplexValue) SetValue(x Value) { v.Set(x.(*ComplexValue).Get()) }
++//
++//// Complex64Value represents a complex64 value.
++//type Complex64Value struct {
++//	value
++//}
++//
++//// Get returns the underlying complex64 value.
++//func (v *Complex64Value) Get() complex64 { return *(*complex64)(v.addr) }
++//
++//// Set sets v to the value x.
++//func (v *Complex64Value) Set(x complex64) {
++//	if !v.canSet {
++//		panic(cannotSet)
++//	}
++//	*(*complex64)(v.addr) = x
++//}
++//
++//// Set sets v to the value x.
++//func (v *Complex64Value) SetValue(x Value) { v.Set(x.(*Complex64Value).Get()) }
++//
++//// Complex128Value represents a complex128 value.
++//type Complex128Value struct {
++//	value
++//}
++//
++//// Get returns the underlying complex128 value.
++//func (v *Complex128Value) Get() complex128 { return *(*complex128)(v.addr) }
++//
++//// Set sets v to the value x.
++//func (v *Complex128Value) Set(x complex128) {
++//	if !v.canSet {
++//		panic(cannotSet)
++//	}
++//	*(*complex128)(v.addr) = x
++//}
++//
++//// Set sets v to the value x.
++//func (v *Complex128Value) SetValue(x Value) { v.Set(x.(*Complex128Value).Get()) }
++
+ // IntValue represents an int value.
+ type IntValue struct {
+ 	value
+@@ -1246,6 +1303,12 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 		return (*Float32Value)(v)
+ 	case *Float64Type:
+ 		return (*Float64Value)(v)
++		//	case *ComplexType:
++		//		return (*ComplexValue)(v)
++		//	case *Complex64Type:
++		//		return (*Complex64Value)(v)
++		//	case *Complex128Type:
++		//		return (*Complex128Value)(v)
+ 	case *IntType:
+ 		return (*IntValue)(v)
+ 	case *Int8Type:
+diff --git a/test/golden.out b/test/golden.out
+index cf2297e1a7..448a104377 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -56,6 +56,12 @@ Hello World!
+ 
+ == ken/
+ 
++=========== ken/cplx0.go
++(+5.000000e+000,+6.000000e+000i)
++(+5.000000e+000,+6.000000e+000i)
++(+5.000000e+000,+6.000000e+000i)
++(+5.000000e+000,+6.000000e+000i)
++
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+new file mode 100644
+index 0000000000..cf78e5719f
+--- /dev/null
++++ b/test/ken/cplx0.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const (
++	R = 5
++	I = 6i
++
++	C1 = R + I // ADD(5,6)
++)
++
++func doprint(c complex) { println(c) }
++
++func main() {
++
++	// constants
++	println(C1)
++	doprint(C1)
++
++	// variables
++	c1 := C1
++	println(c1)
++	doprint(c1)
++}
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+new file mode 100644
+index 0000000000..4686a4e52a
+--- /dev/null
++++ b/test/ken/cplx1.go
+@@ -0,0 +1,85 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const (
++	R = 5
++	I = 6i
++
++	C1 = R + I // ADD(5,6)
++)
++
++func main() {
++	var b bool
++
++	// constants
++	b = (5 + 6i) == C1
++	if !b {
++		panicln("const bool 1", b)
++	}
++
++	b = (5 + 6i) != C1
++	if b {
++		panicln("const bool 2", b)
++	}
++
++	b = C1 == (5 + 6i)
++	if !b {
++		panicln("const bool 3", b)
++	}
++
++	b = C1 != (5 + 6i)
++	if b {
++		panicln("const bool 4", b)
++	}
++
++	// vars passed through parameters
++	booltest(5+6i, true)
++	booltest(5+7i, false)
++	booltest(6+6i, false)
++	booltest(6+9i, false)
++}
++
++func booltest(a complex, r bool) {
++	var b bool
++
++	b = a == C1
++	if b != r {
++		panicln("param bool 1", a, b, r)
++	}
++
++	b = a != C1
++	if b == r {
++		panicln("param bool 2", a, b, r)
++	}
++
++	b = C1 == a
++	if b != r {
++		panicln("param bool 3", a, b, r)
++	}
++
++	b = C1 != a
++	if b == r {
++		panicln("param bool 4", a, b, r)
++	}
++
++	if r {
++		if a != C1 {
++			panicln("param bool 5", a, b, r)
++		}
++		if C1 != a {
++			panicln("param bool 6", a, b, r)
++		}
++	} else {
++		if a == C1 {
++			panicln("param bool 6", a, b, r)
++		}
++		if C1 == a {
++			panicln("param bool 7", a, b, r)
++		}
++	}
++}
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+new file mode 100644
+index 0000000000..06fd3812fe
+--- /dev/null
++++ b/test/ken/cplx2.go
+@@ -0,0 +1,95 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const (
++	R = 5
++	I = 6i
++
++	C1 = R + I    // ADD(5,6)
++	C2 = R - I    // SUB(5,-6)
++	C3 = -(R + I) // ADD(5,6) NEG(-5,-6)
++	C4 = -(R - I) // SUB(5,-6) NEG(-5,6)
++
++	C5 = C1 + R // ADD(10,6)
++	C6 = C1 + I // ADD(5,12)
++
++	Ca = C5 + C6 // ADD(15,18)
++	Cb = C5 - C6 // SUB(5,-6)
++
++	Cc = C5 * C6 // MUL(-22,-150)
++	Cd = C5 / C6 // DIV(0.721893,-0.532544)
++	Ce = Cd * C6 // MUL(10,6) sb C5
++)
++
++func main() {
++
++	r := 5 + 0i
++	if r != R {
++		panicln("opcode 1", r, R)
++	}
++
++	i := 6i
++	if i != I {
++		panicln("opcode 2", i, I)
++	}
++
++	c1 := r + i
++	if c1 != C1 {
++		panicln("opcode x", c1, C1)
++	}
++
++	c2 := r - i
++	if c2 != C2 {
++		panicln("opcode x", c2, C2)
++	}
++
++	c3 := -(r + i)
++	if c3 != C3 {
++		panicln("opcode x", c3, C3)
++	}
++
++	c4 := -(r - i)
++	if c4 != C4 {
++		panicln("opcode x", c4, C4)
++	}
++
++	c5 := c1 + r
++	if c5 != C5 {
++		panicln("opcode x", c5, C5)
++	}
++
++	c6 := c1 + i
++	if c6 != C6 {
++		panicln("opcode x", c6, C6)
++	}
++
++	ca := c5 + c6
++	if ca != Ca {
++		panicln("opcode x", ca, Ca)
++	}
++
++	cb := c5 - c6
++	if cb != Cb {
++		panicln("opcode x", cb, Cb)
++	}
++
++	cc := c5 * c6
++	if cc != Cc {
++		panicln("opcode x", cc, Cc)
++	}
++
++	cd := c5 / c6
++	if cd != Cd {
++		panicln("opcode x", cd, Cd)
++	}
++
++	ce := cd * c6
++	if ce != Ce {
++		panicln("opcode x", ce, Ce)
++	}
++}

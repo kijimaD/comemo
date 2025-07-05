@@ -9,6 +9,24 @@ Date:   Sun Dec 27 07:57:57 2009 +1100
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/181057
-
+---
  doc/devel/roadmap.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index d2158d928e..8a49823747 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -32,7 +32,12 @@ Possibly rewrite restriction on goto across variable declarations.
+ Variant types.  A way to define a type as being the union of some set
+ of types.
+ <li>
++Possibly provide a method that will be run by the garbage
++collector when an item is freed.
++<li>
+ Generics.  An active topic of discussion.
++<li>
++Exceptions.  An active topic of discussion.
+ </ul>
+ 
+ <h3 id="Implementation_roadmap">

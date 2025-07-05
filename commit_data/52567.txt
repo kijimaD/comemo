@@ -15,7 +15,7 @@ Date:   Tue May 10 14:21:31 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go.mod                                     |   5 +-
  src/cmd/go.sum                                     |  10 +-
  src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   1 -
@@ -71,3 +71,2147 @@ Date:   Tue May 10 14:21:31 2022 -0700
  src/cmd/vendor/golang.org/x/xerrors/wrap.go        | 106 -----------
  src/cmd/vendor/modules.txt                         |   8 +-
  54 files changed, 267 insertions(+), 913 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 51a1e71311..7e80e3ca17 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,15 +5,14 @@ go 1.19
+ require (
+ 	github.com/google/pprof v0.0.0-20220314021825-5bba342933ea
+ 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
+-	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
++	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197
++	golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d // indirect
+ 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
+-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index b65cab54b7..fce3ca84dd 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,8 +9,8 @@ golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VA
+ golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd h1:XcWmESyNjXJMLahc3mqVQJcgSTDxFxhETVlfk9uGc38=
+ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+-golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 h1:kQgndtyPBW/JIYERgdxfwMYh3AVStj88WQTlNDi2a+o=
+-golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3/go.mod h1:3p9vT2HGsQu2K1YbXdKPJLVgG5VJdoTa1poYQBtP1AY=
++golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 h1:6zppjxzCulZykYSLyVDYbneBfbaBIQPYMevg0bEwv2s=
++golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4/go.mod h1:jJ57K6gSWd91VN4djpZkiMVwK6gcyfeH4XE8wZrZaV4=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+@@ -18,7 +18,5 @@ golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 h1:xHms4gcpe1YE7A3yIllJXP16C
+ golang.org/x/sys v0.0.0-20220422013727-9388b58f7150/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197 h1:WMZWqasfF4Mn7qLi4QW7JmUmwV6ucBntOppK8p6dYKQ=
+-golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197/go.mod h1:Uh6Zz+xoGYZom868N8YTex3t7RhtHDBrE8Gzo9bV56E=
+-golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+-golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275 h1:ismY4QcvigOCsXTuUEtx/f/vntz7reNAQnMGPI0Z4KE=
++golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275/go.mod h1:SgwaegtQh8clINPpECJMqnxLv9I09HLqnW3RMqW0CA4=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index 956f30cbb3..70947ee779 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -285,7 +285,6 @@ func (x *Line) Span() (start, end Position) {
+ //		"x"
+ //		"y"
+ //	)
+-//
+ type LineBlock struct {
+ 	Comments
+ 	Start  Position
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 355b5a4568..c26d1d29ec 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -15,7 +15,7 @@
+ // but additional checking functions, most notably Check, verify that
+ // a particular path, version pair is valid.
+ //
+-// Escaped Paths
++// # Escaped Paths
+ //
+ // Module paths appear as substrings of file system paths
+ // (in the download cache) and of web server URLs in the proxy protocol.
+@@ -55,7 +55,7 @@
+ // Import paths have never allowed exclamation marks, so there is no
+ // need to define how to escape a literal !.
+ //
+-// Unicode Restrictions
++// # Unicode Restrictions
+ //
+ // Today, paths are disallowed from using Unicode.
+ //
+@@ -102,9 +102,9 @@ import (
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
++	"errors"
+ 
+ 	"golang.org/x/mod/semver"
+-	errors "golang.org/x/xerrors"
+ )
+ 
+ // A Version (for clients, a module.Version) is defined by a module path and version pair.
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+index 467d25e689..4d86eef440 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+@@ -16,11 +16,9 @@
+ //
+ // A Go module database server signs texts using public key cryptography.
+ // A given server may have multiple public keys, each
+-// identified by the first 32 bits of the SHA-256 hash of
+-// the concatenation of the server name, a newline, and
+-// the encoded public key.
++// identified by a 32-bit hash of the public key.
+ //
+-// Verifying Notes
++// # Verifying Notes
+ //
+ // A Verifier allows verification of signatures by one server public key.
+ // It can report the name of the server and the uint32 hash of the key,
+@@ -47,7 +45,7 @@
+ // the message signatures and returns a Note structure
+ // containing the message text and (verified or unverified) signatures.
+ //
+-// Signing Notes
++// # Signing Notes
+ //
+ // A Signer allows signing a text with a given key.
+ // It can report the name of the server and the hash of the key
+@@ -63,7 +61,7 @@
+ // The Sign function takes as input a Note and a list of Signers
+ // and returns an encoded, signed message.
+ //
+-// Signed Note Format
++// # Signed Note Format
+ //
+ // A signed note consists of a text ending in newline (U+000A),
+ // followed by a blank line (only a newline),
+@@ -77,15 +75,13 @@
+ // A signature is a base64 encoding of 4+n bytes.
+ //
+ // The first four bytes in the signature are the uint32 key hash
+-// stored in big-endian order, which is to say they are the first
+-// four bytes of the truncated SHA-256 used to derive the key hash
+-// in the first place.
++// stored in big-endian order.
+ //
+ // The remaining n bytes are the result of using the specified key
+ // to sign the note text (including the final newline but not the
+ // separating blank line).
+ //
+-// Generating Keys
++// # Generating Keys
+ //
+ // There is only one key type, Ed25519 with algorithm identifier 1.
+ // New key types may be introduced in the future as needed,
+@@ -95,7 +91,7 @@
+ // The GenerateKey function generates and returns a new signer
+ // and corresponding verifier.
+ //
+-// Example
++// # Example
+ //
+ // Here is a well-formed signed note:
+ //
+@@ -175,7 +171,6 @@
+ //
+ //	— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
+ //	— EnochRoot rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ=
+-//
+ package note
+ 
+ import (
+@@ -496,8 +491,9 @@ func (e *InvalidSignatureError) Error() string {
+ }
+ 
+ var (
+-	errMalformedNote = errors.New("malformed note")
+-	errInvalidSigner = errors.New("invalid signer")
++	errMalformedNote      = errors.New("malformed note")
++	errInvalidSigner      = errors.New("invalid signer")
++	errMismatchedVerifier = errors.New("verifier name or hash doesn't match signature")
+ 
+ 	sigSplit  = []byte("\n\n")
+ 	sigPrefix = []byte("— ")
+@@ -589,6 +585,11 @@ func Open(msg []byte, known Verifiers) (*Note, error) {
+ 			return nil, err
+ 		}
+ 
++		// Check that known.Verifier returned the right verifier.
++		if v.Name() != name || v.KeyHash() != hash {
++			return nil, errMismatchedVerifier
++		}
++
+ 		// Drop repeated signatures by a single verifier.
+ 		if seen[nameHash{name, hash}] {
+ 			continue
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+index 28866f18f8..2e523a566d 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+@@ -54,7 +54,6 @@ func NewServer(ops ServerOps) *Server {
+ //	for _, path := range sumdb.ServerPaths {
+ //		http.Handle(path, srv)
+ //	}
+-//
+ var ServerPaths = []string{
+ 	"/lookup/",
+ 	"/latest",
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+index 01d06c4e26..ae065f8557 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+@@ -8,7 +8,6 @@
+ // This package follows the design of Certificate Transparency (RFC 6962)
+ // and its proofs are compatible with that system.
+ // See TestCertificateTransparency.
+-//
+ package tlog
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index ca0f7ad42f..949cae2c34 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -931,7 +931,9 @@ func (e *zipError) Unwrap() error {
+ }
+ 
+ // strToFold returns a string with the property that
++//
+ //	strings.EqualFold(s, t) iff strToFold(s) == strToFold(t)
++//
+ // This lets us test a large set of strings for fold-equivalent
+ // duplicates without making a quadratic number of calls
+ // to EqualFold. Note that strings.ToUpper and strings.ToLower
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 94a3bd5d07..7679bda435 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -3,12 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-
+ Package analysis defines the interface between a modular static
+ analysis and an analysis driver program.
+ 
+-
+-Background
++# Background
+ 
+ A static analysis is a function that inspects a package of Go code and
+ reports a set of diagnostics (typically mistakes in the code), and
+@@ -32,8 +30,7 @@ frameworks, code review tools, code-base indexers (such as SourceGraph),
+ documentation viewers (such as godoc), batch pipelines for large code
+ bases, and so on.
+ 
+-
+-Analyzer
++# Analyzer
+ 
+ The primary type in the API is Analyzer. An Analyzer statically
+ describes an analysis function: its name, documentation, flags,
+@@ -115,8 +112,7 @@ Finally, the Run field contains a function to be called by the driver to
+ execute the analysis on a single package. The driver passes it an
+ instance of the Pass type.
+ 
+-
+-Pass
++# Pass
+ 
+ A Pass describes a single unit of work: the application of a particular
+ Analyzer to a particular package of Go code.
+@@ -202,8 +198,7 @@ raw text file, use the following sequence:
+ 	...
+ 	pass.Reportf(tf.LineStart(line), "oops")
+ 
+-
+-Modular analysis with Facts
++# Modular analysis with Facts
+ 
+ To improve efficiency and scalability, large programs are routinely
+ built using separate compilation: units of the program are compiled
+@@ -280,8 +275,7 @@ this fact is built in to the analyzer so that it correctly checks
+ calls to log.Printf even when run in a driver that does not apply
+ it to standard packages. We would like to remove this limitation in future.
+ 
+-
+-Testing an Analyzer
++# Testing an Analyzer
+ 
+ The analysistest subpackage provides utilities for testing an Analyzer.
+ In a few lines of code, it is possible to run an analyzer on a package
+@@ -289,8 +283,7 @@ of testdata files and check that it reported all the expected
+ diagnostics and facts (and no more). Expectations are expressed using
+ "// want ..." comments in the input code.
+ 
+-
+-Standalone commands
++# Standalone commands
+ 
+ Analyzers are provided in the form of packages that a driver program is
+ expected to import. The vet command imports a set of several analyzers,
+@@ -316,6 +309,5 @@ entirety as:
+ 
+ A tool that provides multiple analyzers can use multichecker in a
+ similar way, giving it the list of Analyzers.
+-
+ */
+ package analysis
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+index 1fb69c6159..006abab84e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+@@ -33,7 +33,6 @@
+ // accurately ascertain whether pkg.T implements an interface pkg.I
+ // defined as interface{f()}. Exported thus means "described in export
+ // data".
+-//
+ package facts
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
+index ade0cc6fab..8a5553e2e9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
+@@ -20,7 +20,6 @@ import (
+ //
+ // Packages in the map that are only indirectly imported may be
+ // incomplete (!pkg.Complete()).
+-//
+ func importMap(imports []*types.Package) map[string]*types.Package {
+ 	objects := make(map[types.Object]bool)
+ 	packages := make(map[string]*types.Package)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go118.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go118.go
+new file mode 100644
+index 0000000000..d8211afdc8
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go118.go
+@@ -0,0 +1,12 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.19
++// +build !go1.19
++
++package asmdecl
++
++func additionalArches() []*asmArch {
++	return nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go119.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go119.go
+new file mode 100644
+index 0000000000..3018383e7f
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/arches_go119.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.19
++// +build go1.19
++
++package asmdecl
++
++var asmArchLoong64 = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true}
++
++func additionalArches() []*asmArch {
++	return []*asmArch{&asmArchLoong64}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index b05ed5c157..6fbfe7e181 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -114,6 +114,7 @@ var (
+ )
+ 
+ func init() {
++	arches = append(arches, additionalArches()...)
+ 	for _, arch := range arches {
+ 		arch.sizes = types.SizesFor("gc", arch.name)
+ 		if arch.sizes == nil {
+@@ -731,7 +732,7 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 					src = 8
+ 				}
+ 			}
+-		case "mips", "mipsle", "mips64", "mips64le":
++		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+ 			switch op {
+ 			case "MOVB", "MOVBU":
+ 				src = 1
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index 5ae47d8948..0d8b0bf4f1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -94,8 +94,10 @@ func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr, seen map[*
+ }
+ 
+ // checkRedundant checks for expressions of the form
+-//   e && e
+-//   e || e
++//
++//	e && e
++//	e || e
++//
+ // Exprs must contain only side effect free expressions.
+ func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
+ 	seen := make(map[string]bool)
+@@ -110,8 +112,10 @@ func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
+ }
+ 
+ // checkSuspect checks for expressions of the form
+-//   x != c1 || x != c2
+-//   x == c1 && x == c2
++//
++//	x != c1 || x != c2
++//	x == c1 && x == c2
++//
+ // where c1 and c2 are constant expressions.
+ // If c1 and c2 are the same then it's redundant;
+ // if c1 and c2 are different then it's always true or always false.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index 5768d0b9b0..b61ee5c3dc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -122,8 +122,8 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
+ // For example, for each raw cgo source file in the original package,
+ // such as this one:
+ //
+-// 	package p
+-// 	import "C"
++//	package p
++//	import "C"
+ //	import "fmt"
+ //	type T int
+ //	const k = 3
+@@ -147,9 +147,9 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
+ // the receiver into the first parameter;
+ // and all functions are renamed to "_".
+ //
+-// 	package p
+-// 	import . "·this·" // declares T, k, x, y, f, g, T.f
+-// 	import "C"
++//	package p
++//	import . "·this·" // declares T, k, x, y, f, g, T.f
++//	import "C"
+ //	import "fmt"
+ //	const _ = 3
+ //	var _, _ = fmt.Println()
+@@ -169,7 +169,6 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
+ // C.f would resolve to "·this·"._C_func_f, for example. But we have
+ // limited ourselves here to preserving function bodies and initializer
+ // expressions since that is all that the cgocall analyzer needs.
+-//
+ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*ast.File, info *types.Info, sizes types.Sizes) ([]*ast.File, *types.Info, error) {
+ 	const thispkg = "·this·"
+ 
+@@ -284,8 +283,9 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
+ 
+ // cgoBaseType tries to look through type conversions involving
+ // unsafe.Pointer to find the real type. It converts:
+-//   unsafe.Pointer(x) => x
+-//   *(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
++//
++//	unsafe.Pointer(x) => x
++//	*(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
+ func cgoBaseType(info *types.Info, arg ast.Expr) types.Type {
+ 	switch arg := arg.(type) {
+ 	case *ast.CallExpr:
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 350dc4e0fe..8cc93e94dc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -128,7 +128,7 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
+ 	}
+ 	if fun, ok := pass.TypesInfo.Uses[id].(*types.Builtin); ok {
+ 		switch fun.Name() {
+-		case "new", "len", "cap", "Sizeof":
++		case "new", "len", "cap", "Sizeof", "Offsetof", "Alignof":
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index 384f025570..96adad3ee8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -7,6 +7,7 @@
+ package errorsas
+ 
+ import (
++	"errors"
+ 	"go/ast"
+ 	"go/types"
+ 
+@@ -50,26 +51,39 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if len(call.Args) < 2 {
+ 			return // not enough arguments, e.g. called with return values of another function
+ 		}
+-		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
+-			pass.ReportRangef(call, "second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
++		if fn.FullName() != "errors.As" {
++			return
++		}
++		if err := checkAsTarget(pass, call.Args[1]); err != nil {
++			pass.ReportRangef(call, "%v", err)
+ 		}
+ 	})
+ 	return nil, nil
+ }
+ 
+-var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
++var errorType = types.Universe.Lookup("error").Type()
+ 
+ // pointerToInterfaceOrError reports whether the type of e is a pointer to an interface or a type implementing error,
+ // or is the empty interface.
+-func pointerToInterfaceOrError(pass *analysis.Pass, e ast.Expr) bool {
++
++// checkAsTarget reports an error if the second argument to errors.As is invalid.
++func checkAsTarget(pass *analysis.Pass, e ast.Expr) error {
+ 	t := pass.TypesInfo.Types[e].Type
+ 	if it, ok := t.Underlying().(*types.Interface); ok && it.NumMethods() == 0 {
+-		return true
++		// A target of interface{} is always allowed, since it often indicates
++		// a value forwarded from another source.
++		return nil
+ 	}
+ 	pt, ok := t.Underlying().(*types.Pointer)
+ 	if !ok {
+-		return false
++		return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
++	}
++	if pt.Elem() == errorType {
++		return errors.New("second argument to errors.As should not be *error")
+ 	}
+ 	_, ok = pt.Elem().Underlying().(*types.Interface)
+-	return ok || types.Implements(pt.Elem(), errorType)
++	if ok || types.Implements(pt.Elem(), errorType.Underlying().(*types.Interface)) {
++		return nil
++	}
++	return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+index fd9e2af2b1..092ac75cca 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+@@ -62,7 +62,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		// Find the innermost containing block, and get the list
+ 		// of statements starting with the one containing call.
+-		stmts := restOfBlock(stack)
++		stmts, withinAnotherCall := restOfBlock(stack)
++		if withinAnotherCall {
++			// We skip cases when the results of a call to http member
++			// are passed directly to another call, as that later call
++			// could check err != nil and create false positives (#52661).
++			return true
++		}
+ 		if len(stmts) < 2 {
+ 			return true // the call to the http function is the last statement of the block.
+ 		}
+@@ -71,6 +77,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if !ok {
+ 			return true // the first statement is not assignment.
+ 		}
++
+ 		resp := rootIdent(asg.Lhs[0])
+ 		if resp == nil {
+ 			return true // could not find the http.Response in the assignment.
+@@ -129,21 +136,34 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
+ 	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
+ }
+ 
+-// restOfBlock, given a traversal stack, finds the innermost containing
+-// block and returns the suffix of its statements starting with the
+-// current node (the last element of stack).
+-func restOfBlock(stack []ast.Node) []ast.Stmt {
++// restOfBlock, given a traversal stack, checks if the current node
++// (the last element of stack) appears as an argument to another call.
++// If not, it finds the innermost containing block and returns the
++// suffix of its statements starting with the current node. Otherwise,
++// returns an empty slice.
++func restOfBlock(stack []ast.Node) ([]ast.Stmt, bool) {
+ 	for i := len(stack) - 1; i >= 0; i-- {
++		// If the current node appears within another call, then
++		// this has to happen within the same block. We can thus
++		// immediately return on whichever we see first, a block
++		// statement or a call statement.
++
+ 		if b, ok := stack[i].(*ast.BlockStmt); ok {
+ 			for j, v := range b.List {
+ 				if v == stack[i+1] {
+-					return b.List[j:]
++					return b.List[j:], false
+ 				}
+ 			}
+ 			break
+ 		}
++
++		// The call to an http member currently analyzed is at len(stack)-1.
++		if _, ok := stack[i].(*ast.CallExpr); ok && i != len(stack)-1 {
++			return nil, true // e.g. "resp, err := wrap(http.Get(...))"
++		}
++
+ 	}
+-	return nil
++	return nil, false
+ }
+ 
+ // rootIdent finds the root identifier x in a chain of selections x.y.z, or nil if not found.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+index 4bb652a726..c1c1127d08 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+@@ -19,14 +19,13 @@
+ //		Requires:       []*analysis.Analyzer{inspect.Analyzer},
+ //	}
+ //
+-// 	func run(pass *analysis.Pass) (interface{}, error) {
+-// 		inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+-// 		inspect.Preorder(nil, func(n ast.Node) {
+-// 			...
+-// 		})
+-// 		return nil
+-// 	}
+-//
++//	func run(pass *analysis.Pass) (interface{}, error) {
++//		inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++//		inspect.Preorder(nil, func(n ast.Node) {
++//			...
++//		})
++//		return nil
++//	}
+ package inspect
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index 3ea91574dc..98de9a9bac 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -128,9 +128,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ // (but not awaited) in another goroutine as a consequence of the call.
+ // For example, given the g.Go call below, it returns the function literal expression.
+ //
+-//   import "sync/errgroup"
+-//   var g errgroup.Group
+-//   g.Go(func() error { ... })
++//	import "sync/errgroup"
++//	var g errgroup.Group
++//	g.Go(func() error { ... })
+ //
+ // Currently only "golang.org/x/sync/errgroup.Group()" is considered.
+ func goInvokes(info *types.Info, call *ast.CallExpr) ast.Expr {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index dee37d78ae..c4ccc95b4f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -342,7 +342,6 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ // not do so with gccgo, and nor do some other build systems.
+ // TODO(adonovan): eliminate the redundant facts once this restriction
+ // is lifted.
+-//
+ var isPrint = stringSet{
+ 	"fmt.Errorf":   true,
+ 	"fmt.Fprint":   true,
+@@ -931,9 +930,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ // recursiveStringer reports whether the argument e is a potential
+ // recursive call to stringer or is an error, such as t and &t in these examples:
+ //
+-// 	func (t *T) String() string { printf("%s",  t) }
+-// 	func (t  T) Error() string { printf("%s",  t) }
+-// 	func (t  T) String() string { printf("%s", &t) }
++//	func (t *T) String() string { printf("%s",  t) }
++//	func (t  T) Error() string { printf("%s",  t) }
++//	func (t  T) String() string { printf("%s", &t) }
+ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
+ 	typ := pass.TypesInfo.Types[e].Type
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+index 0d6c8ebf16..c490a84ea7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+@@ -50,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			}
+ 		case *ast.CallExpr:
+ 			// Only signal.Notify(make(chan os.Signal), os.Interrupt) is safe,
+-			// conservatively treate others as not safe, see golang/go#45043
++			// conservatively treat others as not safe, see golang/go#45043
+ 			if isBuiltinMake(pass.TypesInfo, arg) {
+ 				return
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index ffa5205dd7..56b20ebd51 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -84,7 +84,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	return nil, nil
+ }
+ 
+-// Checks the contents of a fuzz function.
++// checkFuzz checks the contents of a fuzz function.
+ func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	params := checkFuzzCall(pass, fn)
+ 	if params != nil {
+@@ -92,15 +92,17 @@ func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	}
+ }
+ 
+-// Check the arguments of f.Fuzz() calls :
+-// 1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
+-// 2. The called function in f.Fuzz(func(){}) should not return result.
+-// 3. First argument of func() should be of type *testing.T
+-// 4. Second argument onwards should be of type []byte, string, bool, byte,
+-//	  rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
+-//	  uint32, uint64
+-// 5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
+-//    The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
++// checkFuzzCall checks the arguments of f.Fuzz() calls:
++//
++//  1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
++//  2. The called function in f.Fuzz(func(){}) should not return result.
++//  3. First argument of func() should be of type *testing.T
++//  4. Second argument onwards should be of type []byte, string, bool, byte,
++//     rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
++//     uint32, uint64
++//  5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
++//     The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
++//
+ // Returns the list of parameters to the fuzz function, if they are valid fuzz parameters.
+ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) {
+ 	ast.Inspect(fn, func(n ast.Node) bool {
+@@ -160,7 +162,7 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple)
+ 	return params
+ }
+ 
+-// Check that the arguments of f.Add() calls have the same number and type of arguments as
++// checkAddCalls checks that the arguments of f.Add calls have the same number and type of arguments as
+ // the signature of the function passed to (*testing.F).Fuzz
+ func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
+ 	ast.Inspect(fn, func(n ast.Node) bool {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index b539866ddd..9827b57f52 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -6,13 +6,13 @@
+ // driver that analyzes a single compilation unit during a build.
+ // It is invoked by a build system such as "go vet":
+ //
+-//   $ go vet -vettool=$(which vet)
++//	$ go vet -vettool=$(which vet)
+ //
+ // It supports the following command-line protocol:
+ //
+-//      -V=full         describe executable               (to the build tool)
+-//      -flags          describe flags                    (to the build tool)
+-//      foo.cfg         description of compilation unit (from the build tool)
++//	-V=full         describe executable               (to the build tool)
++//	-flags          describe flags                    (to the build tool)
++//	foo.cfg         description of compilation unit (from the build tool)
+ //
+ // This package does not depend on go/packages.
+ // If you need a standalone tool, use multichecker,
+@@ -79,11 +79,10 @@ type Config struct {
+ //
+ // The protocol required by 'go vet -vettool=...' is that the tool must support:
+ //
+-//      -flags          describe flags in JSON
+-//      -V=full         describe executable for build caching
+-//      foo.cfg         perform separate modular analyze on the single
+-//                      unit described by a JSON config file foo.cfg.
+-//
++//	-flags          describe flags in JSON
++//	-V=full         describe executable for build caching
++//	foo.cfg         perform separate modular analyze on the single
++//	                unit described by a JSON config file foo.cfg.
+ func Main(analyzers ...*analysis.Analyzer) {
+ 	progname := filepath.Base(os.Args[0])
+ 	log.SetFlags(0)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+index 23e57bf02b..9da5692af5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+@@ -14,6 +14,8 @@ import (
+ // Validate reports an error if any of the analyzers are misconfigured.
+ // Checks include:
+ // that the name is a valid identifier;
++// that the Doc is not empty;
++// that the Run is non-nil;
+ // that the Requires graph is acyclic;
+ // that analyzer fact types are unique;
+ // that each fact type is a pointer.
+@@ -46,6 +48,9 @@ func Validate(analyzers []*Analyzer) error {
+ 				return fmt.Errorf("analyzer %q is undocumented", a)
+ 			}
+ 
++			if a.Run == nil {
++				return fmt.Errorf("analyzer %q has nil Run", a)
++			}
+ 			// fact types
+ 			for _, f := range a.FactTypes {
+ 				if f == nil {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+index a5c6d6d4fa..1d8c401939 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+@@ -22,9 +22,9 @@ import (
+ // additional whitespace abutting a node to be enclosed by it.
+ // In this example:
+ //
+-//              z := x + y // add them
+-//                   <-A->
+-//                  <----B----->
++//	z := x + y // add them
++//	     <-A->
++//	    <----B----->
+ //
+ // the ast.BinaryExpr(+) node is considered to enclose interval B
+ // even though its [Pos()..End()) is actually only interval A.
+@@ -43,10 +43,10 @@ import (
+ // interior whitespace of path[0].
+ // In this example:
+ //
+-//              z := x + y // add them
+-//                <--C-->     <---E-->
+-//                  ^
+-//                  D
++//	z := x + y // add them
++//	  <--C-->     <---E-->
++//	    ^
++//	    D
+ //
+ // intervals C, D and E are inexact.  C is contained by the
+ // z-assignment statement, because it spans three of its children (:=,
+@@ -59,7 +59,6 @@ import (
+ // Requires FileSet; see loader.tokenFileContainsPos.
+ //
+ // Postcondition: path is never nil; it always contains at least 'root'.
+-//
+ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Node, exact bool) {
+ 	// fmt.Printf("EnclosingInterval %d %d\n", start, end) // debugging
+ 
+@@ -162,7 +161,6 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
+ // tokenNode is a dummy implementation of ast.Node for a single token.
+ // They are used transiently by PathEnclosingInterval but never escape
+ // this package.
+-//
+ type tokenNode struct {
+ 	pos token.Pos
+ 	end token.Pos
+@@ -183,7 +181,6 @@ func tok(pos token.Pos, len int) ast.Node {
+ // childrenOf returns the direct non-nil children of ast.Node n.
+ // It may include fake ast.Node implementations for bare tokens.
+ // it is not safe to call (e.g.) ast.Walk on such nodes.
+-//
+ func childrenOf(n ast.Node) []ast.Node {
+ 	var children []ast.Node
+ 
+@@ -488,7 +485,6 @@ func (sl byPos) Swap(i, j int) {
+ // TODO(adonovan): in some cases (e.g. Field, FieldList, Ident,
+ // StarExpr) we could be much more specific given the path to the AST
+ // root.  Perhaps we should do that.
+-//
+ func NodeDescription(n ast.Node) string {
+ 	switch n := n.(type) {
+ 	case *ast.ArrayType:
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
+index 2087ceec9c..18d1adb05d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
+@@ -22,8 +22,11 @@ func AddImport(fset *token.FileSet, f *ast.File, path string) (added bool) {
+ // If name is not empty, it is used to rename the import.
+ //
+ // For example, calling
++//
+ //	AddNamedImport(fset, f, "pathpkg", "path")
++//
+ // adds
++//
+ //	import pathpkg "path"
+ func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added bool) {
+ 	if imports(f, name, path) {
+@@ -270,8 +273,8 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
+ 			}
+ 			if j > 0 {
+ 				lastImpspec := gen.Specs[j-1].(*ast.ImportSpec)
+-				lastLine := fset.Position(lastImpspec.Path.ValuePos).Line
+-				line := fset.Position(impspec.Path.ValuePos).Line
++				lastLine := fset.PositionFor(lastImpspec.Path.ValuePos, false).Line
++				line := fset.PositionFor(impspec.Path.ValuePos, false).Line
+ 
+ 				// We deleted an entry but now there may be
+ 				// a blank line-sized hole where the import was.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+index 6d9ca23e2b..f430b21b9b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+@@ -41,7 +41,6 @@ type ApplyFunc func(*Cursor) bool
+ // Children are traversed in the order in which they appear in the
+ // respective node's struct definition. A package's files are
+ // traversed in the filenames' alphabetical order.
+-//
+ func Apply(root ast.Node, pre, post ApplyFunc) (result ast.Node) {
+ 	parent := &struct{ ast.Node }{root}
+ 	defer func() {
+@@ -65,8 +64,8 @@ var abort = new(int) // singleton, to signal termination of Apply
+ // c.Parent(), and f is the field identifier with name c.Name(),
+ // the following invariants hold:
+ //
+-//   p.f            == c.Node()  if c.Index() <  0
+-//   p.f[c.Index()] == c.Node()  if c.Index() >= 0
++//	p.f            == c.Node()  if c.Index() <  0
++//	p.f[c.Index()] == c.Node()  if c.Index() >= 0
+ //
+ // The methods Replace, Delete, InsertBefore, and InsertAfter
+ // can be used to change the AST without disrupting Apply.
+@@ -294,6 +293,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 		a.apply(n, "Fields", nil, n.Fields)
+ 
+ 	case *ast.FuncType:
++		if tparams := typeparams.ForFuncType(n); tparams != nil {
++			a.apply(n, "TypeParams", nil, tparams)
++		}
+ 		a.apply(n, "Params", nil, n.Params)
+ 		a.apply(n, "Results", nil, n.Results)
+ 
+@@ -406,6 +408,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 	case *ast.TypeSpec:
+ 		a.apply(n, "Doc", nil, n.Doc)
+ 		a.apply(n, "Name", nil, n.Name)
++		if tparams := typeparams.ForTypeSpec(n); tparams != nil {
++			a.apply(n, "TypeParams", nil, tparams)
++		}
+ 		a.apply(n, "Type", nil, n.Type)
+ 		a.apply(n, "Comment", nil, n.Comment)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+index 11f4fc369a..11ab2bc85a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+@@ -77,12 +77,14 @@ const (
+ // typeOf returns a distinct single-bit value that represents the type of n.
+ //
+ // Various implementations were benchmarked with BenchmarkNewInspector:
+-//								GOGC=off
+-// - type switch				4.9-5.5ms	2.1ms
+-// - binary search over a sorted list of types  5.5-5.9ms	2.5ms
+-// - linear scan, frequency-ordered list 	5.9-6.1ms	2.7ms
+-// - linear scan, unordered list		6.4ms		2.7ms
+-// - hash table					6.5ms		3.1ms
++//
++//	                                                                GOGC=off
++//	- type switch					4.9-5.5ms	2.1ms
++//	- binary search over a sorted list of types	5.5-5.9ms	2.5ms
++//	- linear scan, frequency-ordered list		5.9-6.1ms	2.7ms
++//	- linear scan, unordered list			6.4ms		2.7ms
++//	- hash table					6.5ms		3.1ms
++//
+ // A perfect hash seemed like overkill.
+ //
+ // The compiler's switch statement is the clear winner
+@@ -90,7 +92,6 @@ const (
+ // with constant conditions and good branch prediction.
+ // (Sadly it is the most verbose in source code.)
+ // Binary search suffered from poor branch prediction.
+-//
+ func typeOf(n ast.Node) uint64 {
+ 	// Fast path: nearly half of all nodes are identifiers.
+ 	if _, ok := n.(*ast.Ident); ok {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go b/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
+index 7f95a2961a..dad6a444d8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
+@@ -443,7 +443,6 @@ func (b *builder) rangeStmt(s *ast.RangeStmt, label *lblock) {
+ // Destinations associated with unlabeled for/switch/select stmts.
+ // We push/pop one of these as we enter/leave each construct and for
+ // each BranchStmt we scan for the innermost target of the right type.
+-//
+ type targets struct {
+ 	tail         *targets // rest of stack
+ 	_break       *Block
+@@ -454,7 +453,6 @@ type targets struct {
+ // Destinations associated with a labeled block.
+ // We populate these as labels are encountered in forward gotos or
+ // labeled statements.
+-//
+ type lblock struct {
+ 	_goto     *Block
+ 	_break    *Block
+@@ -463,7 +461,6 @@ type lblock struct {
+ 
+ // labeledBlock returns the branch target associated with the
+ // specified label, creating it if needed.
+-//
+ func (b *builder) labeledBlock(label *ast.Ident) *lblock {
+ 	lb := b.lblocks[label.Obj]
+ 	if lb == nil {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go b/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
+index 3ebc65f60e..37d799f4bc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
+@@ -20,14 +20,14 @@
+ //
+ // produces this CFG:
+ //
+-//    1:  x := f()
+-//        x != nil
+-//        succs: 2, 3
+-//    2:  T()
+-//        succs: 4
+-//    3:  F()
+-//        succs: 4
+-//    4:
++//	1:  x := f()
++//	    x != nil
++//	    succs: 2, 3
++//	2:  T()
++//	    succs: 4
++//	3:  F()
++//	    succs: 4
++//	4:
+ //
+ // The CFG does contain Return statements; even implicit returns are
+ // materialized (at the position of the function's closing brace).
+@@ -36,7 +36,6 @@
+ // edges, nor the short-circuit semantics of the && and || operators,
+ // nor abnormal control flow caused by panic.  If you need this
+ // information, use golang.org/x/tools/go/ssa instead.
+-//
+ package cfg
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index 557202b4d1..f27d871295 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -14,8 +14,10 @@
+ // distinct but logically equivalent.
+ //
+ // A single object may have multiple paths. In this example,
+-//     type A struct{ X int }
+-//     type B A
++//
++//	type A struct{ X int }
++//	type B A
++//
+ // the field X has two paths due to its membership of both A and B.
+ // The For(obj) function always returns one of these paths, arbitrarily
+ // but consistently.
+@@ -45,30 +47,30 @@ type Path string
+ // The sequences represent a path through the package/object/type graph.
+ // We classify these operators by their type:
+ //
+-//   PO package->object	Package.Scope.Lookup
+-//   OT  object->type 	Object.Type
+-//   TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
+-//   TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
++//	PO package->object	Package.Scope.Lookup
++//	OT  object->type 	Object.Type
++//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
++//	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
+ //
+ // All valid paths start with a package and end at an object
+ // and thus may be defined by the regular language:
+ //
+-//   objectpath = PO (OT TT* TO)*
++//	objectpath = PO (OT TT* TO)*
+ //
+ // The concrete encoding follows directly:
+-// - The only PO operator is Package.Scope.Lookup, which requires an identifier.
+-// - The only OT operator is Object.Type,
+-//   which we encode as '.' because dot cannot appear in an identifier.
+-// - The TT operators are encoded as [EKPRUTC];
+-//   one of these (TypeParam) requires an integer operand,
+-//   which is encoded as a string of decimal digits.
+-// - The TO operators are encoded as [AFMO];
+-//   three of these (At,Field,Method) require an integer operand,
+-//   which is encoded as a string of decimal digits.
+-//   These indices are stable across different representations
+-//   of the same package, even source and export data.
+-//   The indices used are implementation specific and may not correspond to
+-//   the argument to the go/types function.
++//   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
++//   - The only OT operator is Object.Type,
++//     which we encode as '.' because dot cannot appear in an identifier.
++//   - The TT operators are encoded as [EKPRUTC];
++//     one of these (TypeParam) requires an integer operand,
++//     which is encoded as a string of decimal digits.
++//   - The TO operators are encoded as [AFMO];
++//     three of these (At,Field,Method) require an integer operand,
++//     which is encoded as a string of decimal digits.
++//     These indices are stable across different representations
++//     of the same package, even source and export data.
++//     The indices used are implementation specific and may not correspond to
++//     the argument to the go/types function.
+ //
+ // In the example below,
+ //
+@@ -81,15 +83,14 @@ type Path string
+ // field X has the path "T.UM0.RA1.F0",
+ // representing the following sequence of operations:
+ //
+-//    p.Lookup("T")					T
+-//    .Type().Underlying().Method(0).			f
+-//    .Type().Results().At(1)				b
+-//    .Type().Field(0)					X
++//	p.Lookup("T")					T
++//	.Type().Underlying().Method(0).			f
++//	.Type().Results().At(1)				b
++//	.Type().Field(0)					X
+ //
+ // The encoding is not maximally compact---every R or P is
+ // followed by an A, for example---but this simplifies the
+ // encoder and decoder.
+-//
+ const (
+ 	// object->type operators
+ 	opType = '.' // .Type()		  (Object)
+@@ -136,10 +137,10 @@ const (
+ //
+ // For(X) would return a path that denotes the following sequence of operations:
+ //
+-//    p.Scope().Lookup("T")				(TypeName T)
+-//    .Type().Underlying().Method(0).			(method Func f)
+-//    .Type().Results().At(1)				(field Var b)
+-//    .Type().Field(0)					(field Var X)
++//	p.Scope().Lookup("T")				(TypeName T)
++//	.Type().Underlying().Method(0).			(method Func f)
++//	.Type().Results().At(1)				(field Var b)
++//	.Type().Field(0)					(field Var X)
+ //
+ // where p is the package (*types.Package) to which X belongs.
+ func For(obj types.Object) (Path, error) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/imports.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/imports.go
+index 9c441dba9c..b81ce0c330 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/imports.go
+@@ -12,7 +12,6 @@ import "go/types"
+ // package Q, Q appears earlier than P in the result.
+ // The algorithm follows import statements in the order they
+ // appear in the source code, so the result is a total order.
+-//
+ func Dependencies(pkgs ...*types.Package) []*types.Package {
+ 	var result []*types.Package
+ 	seen := make(map[*types.Package]bool)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index c9f8f25a0d..dcc029b873 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -24,7 +24,6 @@ import (
+ // Just as with map[K]V, a nil *Map is a valid empty map.
+ //
+ // Not thread-safe.
+-//
+ type Map struct {
+ 	hasher Hasher             // shared by many Maps
+ 	table  map[uint32][]entry // maps hash to bucket; entry.key==nil means unused
+@@ -57,14 +56,12 @@ type entry struct {
+ //
+ // If SetHasher is not called, the Map will create a private hasher at
+ // the first call to Insert.
+-//
+ func (m *Map) SetHasher(hasher Hasher) {
+ 	m.hasher = hasher
+ }
+ 
+ // Delete removes the entry with the given key, if any.
+ // It returns true if the entry was found.
+-//
+ func (m *Map) Delete(key types.Type) bool {
+ 	if m != nil && m.table != nil {
+ 		hash := m.hasher.Hash(key)
+@@ -84,7 +81,6 @@ func (m *Map) Delete(key types.Type) bool {
+ 
+ // At returns the map entry for the given key.
+ // The result is nil if the entry is not present.
+-//
+ func (m *Map) At(key types.Type) interface{} {
+ 	if m != nil && m.table != nil {
+ 		for _, e := range m.table[m.hasher.Hash(key)] {
+@@ -145,7 +141,6 @@ func (m *Map) Len() int {
+ // f will not be invoked for it, but if f inserts a map entry that
+ // Iterate has not yet reached, whether or not f will be invoked for
+ // it is unspecified.
+-//
+ func (m *Map) Iterate(f func(key types.Type, value interface{})) {
+ 	if m != nil {
+ 		for _, bucket := range m.table {
+@@ -190,14 +185,12 @@ func (m *Map) toString(values bool) string {
+ // String returns a string representation of the map's entries.
+ // Values are printed using fmt.Sprintf("%v", v).
+ // Order is unspecified.
+-//
+ func (m *Map) String() string {
+ 	return m.toString(true)
+ }
+ 
+ // KeysString returns a string representation of the map's key set.
+ // Order is unspecified.
+-//
+ func (m *Map) KeysString() string {
+ 	return m.toString(false)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
+index 32084610f4..a5d9310830 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
+@@ -25,7 +25,6 @@ type MethodSetCache struct {
+ // If cache is nil, this function is equivalent to types.NewMethodSet(T).
+ // Utility functions can thus expose an optional *MethodSetCache
+ // parameter to clients that care about performance.
+-//
+ func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
+ 	if cache == nil {
+ 		return types.NewMethodSet(T)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/ui.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/ui.go
+index 9849c24cef..fa55b0a1e6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/ui.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/ui.go
+@@ -22,7 +22,6 @@ import "go/types"
+ // this function is intended only for user interfaces.
+ //
+ // The order of the result is as for types.MethodSet(T).
+-//
+ func IntuitiveMethodSet(T types.Type, msets *MethodSetCache) []*types.Selection {
+ 	isPointerToConcrete := func(T types.Type) bool {
+ 		ptr, ok := T.(*types.Pointer)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+index df9fbd5141..073a4cd101 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+@@ -10,21 +10,22 @@ import (
+ 
+ // SymbolMatcher implements a fuzzy matching algorithm optimized for Go symbols
+ // of the form:
+-//  example.com/path/to/package.object.field
++//
++//	example.com/path/to/package.object.field
+ //
+ // Knowing that we are matching symbols like this allows us to make the
+ // following optimizations:
+-//  - We can incorporate right-to-left relevance directly into the score
+-//    calculation.
+-//  - We can match from right to left, discarding leading bytes if the input is
+-//    too long.
+-//  - We just take the right-most match without losing too much precision. This
+-//    allows us to use an O(n) algorithm.
+-//  - We can operate directly on chunked strings; in many cases we will
+-//    be storing the package path and/or package name separately from the
+-//    symbol or identifiers, so doing this avoids allocating strings.
+-//  - We can return the index of the right-most match, allowing us to trim
+-//    irrelevant qualification.
++//   - We can incorporate right-to-left relevance directly into the score
++//     calculation.
++//   - We can match from right to left, discarding leading bytes if the input is
++//     too long.
++//   - We just take the right-most match without losing too much precision. This
++//     allows us to use an O(n) algorithm.
++//   - We can operate directly on chunked strings; in many cases we will
++//     be storing the package path and/or package name separately from the
++//     symbol or identifiers, so doing this avoids allocating strings.
++//   - We can return the index of the right-most match, allowing us to trim
++//     irrelevant qualification.
+ //
+ // This implementation is experimental, serving as a reference fast algorithm
+ // to compare to the fuzzy algorithm implemented by Matcher.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index ab6b30b83e..25a1426d30 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -16,11 +16,10 @@
+ // Additionally, this package contains common utilities for working with the
+ // new generic constructs, to supplement the standard library APIs. Notably,
+ // the StructuralTerms API computes a minimal representation of the structural
+-// restrictions on a type parameter. In the future, this API may be available
+-// from go/types.
++// restrictions on a type parameter.
+ //
+-// See the example/README.md for a more detailed guide on how to update tools
+-// to support generics.
++// An external version of these APIs is available in the
++// golang.org/x/exp/typeparams module.
+ package typeparams
+ 
+ import (
+@@ -121,15 +120,15 @@ func OriginMethod(fn *types.Func) *types.Func {
+ //
+ // For example, consider the following type declarations:
+ //
+-//  type Interface[T any] interface {
+-//  	Accept(T)
+-//  }
++//	type Interface[T any] interface {
++//		Accept(T)
++//	}
+ //
+-//  type Container[T any] struct {
+-//  	Element T
+-//  }
++//	type Container[T any] struct {
++//		Element T
++//	}
+ //
+-//  func (c Container[T]) Accept(t T) { c.Element = t }
++//	func (c Container[T]) Accept(t T) { c.Element = t }
+ //
+ // In this case, GenericAssignableTo reports that instantiations of Container
+ // are assignable to the corresponding instantiation of Interface.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+index 090f142a5f..9c631b6512 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+@@ -24,20 +24,22 @@ var ErrEmptyTypeSet = errors.New("empty type set")
+ // Structural type restrictions of a type parameter are created via
+ // non-interface types embedded in its constraint interface (directly, or via a
+ // chain of interface embeddings). For example, in the declaration
+-//  type T[P interface{~int; m()}] int
++//
++//	type T[P interface{~int; m()}] int
++//
+ // the structural restriction of the type parameter P is ~int.
+ //
+ // With interface embedding and unions, the specification of structural type
+ // restrictions may be arbitrarily complex. For example, consider the
+ // following:
+ //
+-//  type A interface{ ~string|~[]byte }
++//	type A interface{ ~string|~[]byte }
+ //
+-//  type B interface{ int|string }
++//	type B interface{ int|string }
+ //
+-//  type C interface { ~string|~int }
++//	type C interface { ~string|~int }
+ //
+-//  type T[P interface{ A|B; C }] int
++//	type T[P interface{ A|B; C }] int
+ //
+ // In this example, the structural type restriction of P is ~string|int: A|B
+ // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+index 7ddee28d98..7350bb702a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+@@ -10,11 +10,10 @@ import "go/types"
+ 
+ // A term describes elementary type sets:
+ //
+-//   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
+-//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+-//   T:  &term{false, T}  == {T}                    // set of type T
+-//  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+-//
++//	 ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
++//	 𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
++//	 T:  &term{false, T}  == {T}                    // set of type T
++//	~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+ type term struct {
+ 	tilde bool // valid if typ != nil
+ 	typ   types.Type
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/LICENSE b/src/cmd/vendor/golang.org/x/xerrors/LICENSE
+deleted file mode 100644
+index e4a47e17f1..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/LICENSE
++++ /dev/null
+@@ -1,27 +0,0 @@
+-Copyright (c) 2019 The Go Authors. All rights reserved.
+-
+-Redistribution and use in source and binary forms, with or without
+-modification, are permitted provided that the following conditions are
+-met:
+-
+-   * Redistributions of source code must retain the above copyright
+-notice, this list of conditions and the following disclaimer.
+-   * Redistributions in binary form must reproduce the above
+-copyright notice, this list of conditions and the following disclaimer
+-in the documentation and/or other materials provided with the
+-distribution.
+-   * Neither the name of Google Inc. nor the names of its
+-contributors may be used to endorse or promote products derived from
+-this software without specific prior written permission.
+-
+-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/PATENTS b/src/cmd/vendor/golang.org/x/xerrors/PATENTS
+deleted file mode 100644
+index 733099041f..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/PATENTS
++++ /dev/null
+@@ -1,22 +0,0 @@
+-Additional IP Rights Grant (Patents)
+-
+-"This implementation" means the copyrightable works distributed by
+-Google as part of the Go project.
+-
+-Google hereby grants to You a perpetual, worldwide, non-exclusive,
+-no-charge, royalty-free, irrevocable (except as stated in this section)
+-patent license to make, have made, use, offer to sell, sell, import,
+-transfer and otherwise run, modify and propagate the contents of this
+-implementation of Go, where such license applies only to those patent
+-claims, both currently owned or controlled by Google and acquired in
+-the future, licensable by Google that are necessarily infringed by this
+-implementation of Go.  This grant does not include claims that would be
+-infringed only as a consequence of further modification of this
+-implementation.  If you or your agent or exclusive licensee institute or
+-order or agree to the institution of patent litigation against any
+-entity (including a cross-claim or counterclaim in a lawsuit) alleging
+-that this implementation of Go or any code incorporated within this
+-implementation of Go constitutes direct or contributory patent
+-infringement, or inducement of patent infringement, then any patent
+-rights granted to you under this License for this implementation of Go
+-shall terminate as of the date such litigation is filed.
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/README b/src/cmd/vendor/golang.org/x/xerrors/README
+deleted file mode 100644
+index aac7867a56..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/README
++++ /dev/null
+@@ -1,2 +0,0 @@
+-This repository holds the transition packages for the new Go 1.13 error values.
+-See golang.org/design/29934-error-values.
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/adaptor.go b/src/cmd/vendor/golang.org/x/xerrors/adaptor.go
+deleted file mode 100644
+index 4317f24833..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/adaptor.go
++++ /dev/null
+@@ -1,193 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io"
+-	"reflect"
+-	"strconv"
+-)
+-
+-// FormatError calls the FormatError method of f with an errors.Printer
+-// configured according to s and verb, and writes the result to s.
+-func FormatError(f Formatter, s fmt.State, verb rune) {
+-	// Assuming this function is only called from the Format method, and given
+-	// that FormatError takes precedence over Format, it cannot be called from
+-	// any package that supports errors.Formatter. It is therefore safe to
+-	// disregard that State may be a specific printer implementation and use one
+-	// of our choice instead.
+-
+-	// limitations: does not support printing error as Go struct.
+-
+-	var (
+-		sep    = " " // separator before next error
+-		p      = &state{State: s}
+-		direct = true
+-	)
+-
+-	var err error = f
+-
+-	switch verb {
+-	// Note that this switch must match the preference order
+-	// for ordinary string printing (%#v before %+v, and so on).
+-
+-	case 'v':
+-		if s.Flag('#') {
+-			if stringer, ok := err.(fmt.GoStringer); ok {
+-				io.WriteString(&p.buf, stringer.GoString())
+-				goto exit
+-			}
+-			// proceed as if it were %v
+-		} else if s.Flag('+') {
+-			p.printDetail = true
+-			sep = "\n  - "
+-		}
+-	case 's':
+-	case 'q', 'x', 'X':
+-		// Use an intermediate buffer in the rare cases that precision,
+-		// truncation, or one of the alternative verbs (q, x, and X) are
+-		// specified.
+-		direct = false
+-
+-	default:
+-		p.buf.WriteString("%!")
+-		p.buf.WriteRune(verb)
+-		p.buf.WriteByte('(')
+-		switch {
+-		case err != nil:
+-			p.buf.WriteString(reflect.TypeOf(f).String())
+-		default:
+-			p.buf.WriteString("<nil>")
+-		}
+-		p.buf.WriteByte(')')
+-		io.Copy(s, &p.buf)
+-		return
+-	}
+-
+-loop:
+-	for {
+-		switch v := err.(type) {
+-		case Formatter:
+-			err = v.FormatError((*printer)(p))
+-		case fmt.Formatter:
+-			v.Format(p, 'v')
+-			break loop
+-		default:
+-			io.WriteString(&p.buf, v.Error())
+-			break loop
+-		}
+-		if err == nil {
+-			break
+-		}
+-		if p.needColon || !p.printDetail {
+-			p.buf.WriteByte(':')
+-			p.needColon = false
+-		}
+-		p.buf.WriteString(sep)
+-		p.inDetail = false
+-		p.needNewline = false
+-	}
+-
+-exit:
+-	width, okW := s.Width()
+-	prec, okP := s.Precision()
+-
+-	if !direct || (okW && width > 0) || okP {
+-		// Construct format string from State s.
+-		format := []byte{'%'}
+-		if s.Flag('-') {
+-			format = append(format, '-')
+-		}
+-		if s.Flag('+') {
+-			format = append(format, '+')
+-		}
+-		if s.Flag(' ') {
+-			format = append(format, ' ')
+-		}
+-		if okW {
+-			format = strconv.AppendInt(format, int64(width), 10)
+-		}
+-		if okP {
+-			format = append(format, '.')
+-			format = strconv.AppendInt(format, int64(prec), 10)
+-		}
+-		format = append(format, string(verb)...)
+-		fmt.Fprintf(s, string(format), p.buf.String())
+-	} else {
+-		io.Copy(s, &p.buf)
+-	}
+-}
+-
+-var detailSep = []byte("\n    ")
+-
+-// state tracks error printing state. It implements fmt.State.
+-type state struct {
+-	fmt.State
+-	buf bytes.Buffer
+-
+-	printDetail bool
+-	inDetail    bool
+-	needColon   bool
+-	needNewline bool
+-}
+-
+-func (s *state) Write(b []byte) (n int, err error) {
+-	if s.printDetail {
+-		if len(b) == 0 {
+-			return 0, nil
+-		}
+-		if s.inDetail && s.needColon {
+-			s.needNewline = true
+-			if b[0] == '\n' {
+-				b = b[1:]
+-			}
+-		}
+-		k := 0
+-		for i, c := range b {
+-			if s.needNewline {
+-				if s.inDetail && s.needColon {
+-					s.buf.WriteByte(':')
+-					s.needColon = false
+-				}
+-				s.buf.Write(detailSep)
+-				s.needNewline = false
+-			}
+-			if c == '\n' {
+-				s.buf.Write(b[k:i])
+-				k = i + 1
+-				s.needNewline = true
+-			}
+-		}
+-		s.buf.Write(b[k:])
+-		if !s.inDetail {
+-			s.needColon = true
+-		}
+-	} else if !s.inDetail {
+-		s.buf.Write(b)
+-	}
+-	return len(b), nil
+-}
+-
+-// printer wraps a state to implement an xerrors.Printer.
+-type printer state
+-
+-func (s *printer) Print(args ...interface{}) {
+-	if !s.inDetail || s.printDetail {
+-		fmt.Fprint((*state)(s), args...)
+-	}
+-}
+-
+-func (s *printer) Printf(format string, args ...interface{}) {
+-	if !s.inDetail || s.printDetail {
+-		fmt.Fprintf((*state)(s), format, args...)
+-	}
+-}
+-
+-func (s *printer) Detail() bool {
+-	s.inDetail = true
+-	return s.printDetail
+-}
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/codereview.cfg b/src/cmd/vendor/golang.org/x/xerrors/codereview.cfg
+deleted file mode 100644
+index 3f8b14b64e..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/codereview.cfg
++++ /dev/null
+@@ -1 +0,0 @@
+-issuerepo: golang/go
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/doc.go b/src/cmd/vendor/golang.org/x/xerrors/doc.go
+deleted file mode 100644
+index eef99d9d54..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/doc.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package xerrors implements functions to manipulate errors.
+-//
+-// This package is based on the Go 2 proposal for error values:
+-//   https://golang.org/design/29934-error-values
+-//
+-// These functions were incorporated into the standard library's errors package
+-// in Go 1.13:
+-// - Is
+-// - As
+-// - Unwrap
+-//
+-// Also, Errorf's %w verb was incorporated into fmt.Errorf.
+-//
+-// Use this package to get equivalent behavior in all supported Go versions.
+-//
+-// No other features of this package were included in Go 1.13, and at present
+-// there are no plans to include any of them.
+-package xerrors // import "golang.org/x/xerrors"
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/errors.go b/src/cmd/vendor/golang.org/x/xerrors/errors.go
+deleted file mode 100644
+index e88d3772d8..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/errors.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-import "fmt"
+-
+-// errorString is a trivial implementation of error.
+-type errorString struct {
+-	s     string
+-	frame Frame
+-}
+-
+-// New returns an error that formats as the given text.
+-//
+-// The returned error contains a Frame set to the caller's location and
+-// implements Formatter to show this information when printed with details.
+-func New(text string) error {
+-	return &errorString{text, Caller(1)}
+-}
+-
+-func (e *errorString) Error() string {
+-	return e.s
+-}
+-
+-func (e *errorString) Format(s fmt.State, v rune) { FormatError(e, s, v) }
+-
+-func (e *errorString) FormatError(p Printer) (next error) {
+-	p.Print(e.s)
+-	e.frame.Format(p)
+-	return nil
+-}
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/fmt.go b/src/cmd/vendor/golang.org/x/xerrors/fmt.go
+deleted file mode 100644
+index 829862ddf6..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/fmt.go
++++ /dev/null
+@@ -1,187 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-import (
+-	"fmt"
+-	"strings"
+-	"unicode"
+-	"unicode/utf8"
+-
+-	"golang.org/x/xerrors/internal"
+-)
+-
+-const percentBangString = "%!"
+-
+-// Errorf formats according to a format specifier and returns the string as a
+-// value that satisfies error.
+-//
+-// The returned error includes the file and line number of the caller when
+-// formatted with additional detail enabled. If the last argument is an error
+-// the returned error's Format method will return it if the format string ends
+-// with ": %s", ": %v", or ": %w". If the last argument is an error and the
+-// format string ends with ": %w", the returned error implements an Unwrap
+-// method returning it.
+-//
+-// If the format specifier includes a %w verb with an error operand in a
+-// position other than at the end, the returned error will still implement an
+-// Unwrap method returning the operand, but the error's Format method will not
+-// return the wrapped error.
+-//
+-// It is invalid to include more than one %w verb or to supply it with an
+-// operand that does not implement the error interface. The %w verb is otherwise
+-// a synonym for %v.
+-func Errorf(format string, a ...interface{}) error {
+-	format = formatPlusW(format)
+-	// Support a ": %[wsv]" suffix, which works well with xerrors.Formatter.
+-	wrap := strings.HasSuffix(format, ": %w")
+-	idx, format2, ok := parsePercentW(format)
+-	percentWElsewhere := !wrap && idx >= 0
+-	if !percentWElsewhere && (wrap || strings.HasSuffix(format, ": %s") || strings.HasSuffix(format, ": %v")) {
+-		err := errorAt(a, len(a)-1)
+-		if err == nil {
+-			return &noWrapError{fmt.Sprintf(format, a...), nil, Caller(1)}
+-		}
+-		// TODO: this is not entirely correct. The error value could be
+-		// printed elsewhere in format if it mixes numbered with unnumbered
+-		// substitutions. With relatively small changes to doPrintf we can
+-		// have it optionally ignore extra arguments and pass the argument
+-		// list in its entirety.
+-		msg := fmt.Sprintf(format[:len(format)-len(": %s")], a[:len(a)-1]...)
+-		frame := Frame{}
+-		if internal.EnableTrace {
+-			frame = Caller(1)
+-		}
+-		if wrap {
+-			return &wrapError{msg, err, frame}
+-		}
+-		return &noWrapError{msg, err, frame}
+-	}
+-	// Support %w anywhere.
+-	// TODO: don't repeat the wrapped error's message when %w occurs in the middle.
+-	msg := fmt.Sprintf(format2, a...)
+-	if idx < 0 {
+-		return &noWrapError{msg, nil, Caller(1)}
+-	}
+-	err := errorAt(a, idx)
+-	if !ok || err == nil {
+-		// Too many %ws or argument of %w is not an error. Approximate the Go
+-		// 1.13 fmt.Errorf message.
+-		return &noWrapError{fmt.Sprintf("%sw(%s)", percentBangString, msg), nil, Caller(1)}
+-	}
+-	frame := Frame{}
+-	if internal.EnableTrace {
+-		frame = Caller(1)
+-	}
+-	return &wrapError{msg, err, frame}
+-}
+-
+-func errorAt(args []interface{}, i int) error {
+-	if i < 0 || i >= len(args) {
+-		return nil
+-	}
+-	err, ok := args[i].(error)
+-	if !ok {
+-		return nil
+-	}
+-	return err
+-}
+-
+-// formatPlusW is used to avoid the vet check that will barf at %w.
+-func formatPlusW(s string) string {
+-	return s
+-}
+-
+-// Return the index of the only %w in format, or -1 if none.
+-// Also return a rewritten format string with %w replaced by %v, and
+-// false if there is more than one %w.
+-// TODO: handle "%[N]w".
+-func parsePercentW(format string) (idx int, newFormat string, ok bool) {
+-	// Loosely copied from golang.org/x/tools/go/analysis/passes/printf/printf.go.
+-	idx = -1
+-	ok = true
+-	n := 0
+-	sz := 0
+-	var isW bool
+-	for i := 0; i < len(format); i += sz {
+-		if format[i] != '%' {
+-			sz = 1
+-			continue
+-		}
+-		// "%%" is not a format directive.
+-		if i+1 < len(format) && format[i+1] == '%' {
+-			sz = 2
+-			continue
+-		}
+-		sz, isW = parsePrintfVerb(format[i:])
+-		if isW {
+-			if idx >= 0 {
+-				ok = false
+-			} else {
+-				idx = n
+-			}
+-			// "Replace" the last character, the 'w', with a 'v'.
+-			p := i + sz - 1
+-			format = format[:p] + "v" + format[p+1:]
+-		}
+-		n++
+-	}
+-	return idx, format, ok
+-}
+-
+-// Parse the printf verb starting with a % at s[0].
+-// Return how many bytes it occupies and whether the verb is 'w'.
+-func parsePrintfVerb(s string) (int, bool) {
+-	// Assume only that the directive is a sequence of non-letters followed by a single letter.
+-	sz := 0
+-	var r rune
+-	for i := 1; i < len(s); i += sz {
+-		r, sz = utf8.DecodeRuneInString(s[i:])
+-		if unicode.IsLetter(r) {
+-			return i + sz, r == 'w'
+-		}
+-	}
+-	return len(s), false
+-}
+-
+-type noWrapError struct {
+-	msg   string
+-	err   error
+-	frame Frame
+-}
+-
+-func (e *noWrapError) Error() string {
+-	return fmt.Sprint(e)
+-}
+-
+-func (e *noWrapError) Format(s fmt.State, v rune) { FormatError(e, s, v) }
+-
+-func (e *noWrapError) FormatError(p Printer) (next error) {
+-	p.Print(e.msg)
+-	e.frame.Format(p)
+-	return e.err
+-}
+-
+-type wrapError struct {
+-	msg   string
+-	err   error
+-	frame Frame
+-}
+-
+-func (e *wrapError) Error() string {
+-	return fmt.Sprint(e)
+-}
+-
+-func (e *wrapError) Format(s fmt.State, v rune) { FormatError(e, s, v) }
+-
+-func (e *wrapError) FormatError(p Printer) (next error) {
+-	p.Print(e.msg)
+-	e.frame.Format(p)
+-	return e.err
+-}
+-
+-func (e *wrapError) Unwrap() error {
+-	return e.err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/format.go b/src/cmd/vendor/golang.org/x/xerrors/format.go
+deleted file mode 100644
+index 1bc9c26b97..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/format.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-// A Formatter formats error messages.
+-type Formatter interface {
+-	error
+-
+-	// FormatError prints the receiver's first error and returns the next error in
+-	// the error chain, if any.
+-	FormatError(p Printer) (next error)
+-}
+-
+-// A Printer formats error messages.
+-//
+-// The most common implementation of Printer is the one provided by package fmt
+-// during Printf (as of Go 1.13). Localization packages such as golang.org/x/text/message
+-// typically provide their own implementations.
+-type Printer interface {
+-	// Print appends args to the message output.
+-	Print(args ...interface{})
+-
+-	// Printf writes a formatted string.
+-	Printf(format string, args ...interface{})
+-
+-	// Detail reports whether error detail is requested.
+-	// After the first call to Detail, all text written to the Printer
+-	// is formatted as additional detail, or ignored when
+-	// detail has not been requested.
+-	// If Detail returns false, the caller can avoid printing the detail at all.
+-	Detail() bool
+-}
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/frame.go b/src/cmd/vendor/golang.org/x/xerrors/frame.go
+deleted file mode 100644
+index 0de628ec50..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/frame.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-import (
+-	"runtime"
+-)
+-
+-// A Frame contains part of a call stack.
+-type Frame struct {
+-	// Make room for three PCs: the one we were asked for, what it called,
+-	// and possibly a PC for skipPleaseUseCallersFrames. See:
+-	// https://go.googlesource.com/go/+/032678e0fb/src/runtime/extern.go#169
+-	frames [3]uintptr
+-}
+-
+-// Caller returns a Frame that describes a frame on the caller's stack.
+-// The argument skip is the number of frames to skip over.
+-// Caller(0) returns the frame for the caller of Caller.
+-func Caller(skip int) Frame {
+-	var s Frame
+-	runtime.Callers(skip+1, s.frames[:])
+-	return s
+-}
+-
+-// location reports the file, line, and function of a frame.
+-//
+-// The returned function may be "" even if file and line are not.
+-func (f Frame) location() (function, file string, line int) {
+-	frames := runtime.CallersFrames(f.frames[:])
+-	if _, ok := frames.Next(); !ok {
+-		return "", "", 0
+-	}
+-	fr, ok := frames.Next()
+-	if !ok {
+-		return "", "", 0
+-	}
+-	return fr.Function, fr.File, fr.Line
+-}
+-
+-// Format prints the stack as error detail.
+-// It should be called from an error's Format implementation
+-// after printing any other error detail.
+-func (f Frame) Format(p Printer) {
+-	if p.Detail() {
+-		function, file, line := f.location()
+-		if function != "" {
+-			p.Printf("%s\n    ", function)
+-		}
+-		if file != "" {
+-			p.Printf("%s:%d\n", file, line)
+-		}
+-	}
+-}
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/internal/internal.go b/src/cmd/vendor/golang.org/x/xerrors/internal/internal.go
+deleted file mode 100644
+index 89f4eca5df..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/internal/internal.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package internal
+-
+-// EnableTrace indicates whether stack information should be recorded in errors.
+-var EnableTrace = true
+diff --git a/src/cmd/vendor/golang.org/x/xerrors/wrap.go b/src/cmd/vendor/golang.org/x/xerrors/wrap.go
+deleted file mode 100644
+index 9a3b510374..0000000000
+--- a/src/cmd/vendor/golang.org/x/xerrors/wrap.go
++++ /dev/null
+@@ -1,106 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xerrors
+-
+-import (
+-	"reflect"
+-)
+-
+-// A Wrapper provides context around another error.
+-type Wrapper interface {
+-	// Unwrap returns the next error in the error chain.
+-	// If there is no next error, Unwrap returns nil.
+-	Unwrap() error
+-}
+-
+-// Opaque returns an error with the same error formatting as err
+-// but that does not match err and cannot be unwrapped.
+-func Opaque(err error) error {
+-	return noWrapper{err}
+-}
+-
+-type noWrapper struct {
+-	error
+-}
+-
+-func (e noWrapper) FormatError(p Printer) (next error) {
+-	if f, ok := e.error.(Formatter); ok {
+-		return f.FormatError(p)
+-	}
+-	p.Print(e.error)
+-	return nil
+-}
+-
+-// Unwrap returns the result of calling the Unwrap method on err, if err implements
+-// Unwrap. Otherwise, Unwrap returns nil.
+-func Unwrap(err error) error {
+-	u, ok := err.(Wrapper)
+-	if !ok {
+-		return nil
+-	}
+-	return u.Unwrap()
+-}
+-
+-// Is reports whether any error in err's chain matches target.
+-//
+-// An error is considered to match a target if it is equal to that target or if
+-// it implements a method Is(error) bool such that Is(target) returns true.
+-func Is(err, target error) bool {
+-	if target == nil {
+-		return err == target
+-	}
+-
+-	isComparable := reflect.TypeOf(target).Comparable()
+-	for {
+-		if isComparable && err == target {
+-			return true
+-		}
+-		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
+-			return true
+-		}
+-		// TODO: consider supporing target.Is(err). This would allow
+-		// user-definable predicates, but also may allow for coping with sloppy
+-		// APIs, thereby making it easier to get away with them.
+-		if err = Unwrap(err); err == nil {
+-			return false
+-		}
+-	}
+-}
+-
+-// As finds the first error in err's chain that matches the type to which target
+-// points, and if so, sets the target to its value and returns true. An error
+-// matches a type if it is assignable to the target type, or if it has a method
+-// As(interface{}) bool such that As(target) returns true. As will panic if target
+-// is not a non-nil pointer to a type which implements error or is of interface type.
+-//
+-// The As method should set the target to its value and return true if err
+-// matches the type to which target points.
+-func As(err error, target interface{}) bool {
+-	if target == nil {
+-		panic("errors: target cannot be nil")
+-	}
+-	val := reflect.ValueOf(target)
+-	typ := val.Type()
+-	if typ.Kind() != reflect.Ptr || val.IsNil() {
+-		panic("errors: target must be a non-nil pointer")
+-	}
+-	if e := typ.Elem(); e.Kind() != reflect.Interface && !e.Implements(errorType) {
+-		panic("errors: *target must be interface or implement error")
+-	}
+-	targetType := typ.Elem()
+-	for err != nil {
+-		if reflect.TypeOf(err).AssignableTo(targetType) {
+-			val.Elem().Set(reflect.ValueOf(err))
+-			return true
+-		}
+-		if x, ok := err.(interface{ As(interface{}) bool }); ok && x.As(target) {
+-			return true
+-		}
+-		err = Unwrap(err)
+-	}
+-	return false
+-}
+-
+-var errorType = reflect.TypeOf((*error)(nil)).Elem()
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c31727b99f..86db4e15f0 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+-# golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
++# golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -49,7 +49,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197
++# golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+@@ -94,7 +94,3 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
+ golang.org/x/tools/internal/typeparams
+-# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+-## explicit; go 1.11
+-golang.org/x/xerrors
+-golang.org/x/xerrors/internal

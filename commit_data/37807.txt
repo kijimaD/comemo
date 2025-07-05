@@ -14,7 +14,7 @@ Date:   Wed Jul 18 10:19:35 2018 -0400
     Change-Id: I803efc561c31a0ca1d93eca434fda1c862a7b2c5
     Reviewed-on: https://go-review.googlesource.com/125479
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go       |  2 +-
  src/cmd/link/internal/ld/lib.go          |  2 +-
  src/cmd/link/internal/ld/symtab.go       |  2 +-
@@ -22,3 +22,135 @@ Date:   Wed Jul 18 10:19:35 2018 -0400
  src/cmd/link/internal/sym/sizeof_test.go |  2 +-
  src/cmd/link/internal/sym/symbol.go      | 41 ++++++++++++++++++++++----------
  6 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 829635d219..e922fe2db9 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -410,7 +410,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 		}
+ 	case objabi.R_PCREL:
+ 		if r.Siz == 4 {
+-			if r.Xsym.Type == sym.SDYNIMPORT && r.Xsym.ElfType == elf.STT_FUNC {
++			if r.Xsym.Type == sym.SDYNIMPORT && r.Xsym.ElfType() == elf.STT_FUNC {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 511cdd891a..331b6ca614 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1706,7 +1706,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			continue
+ 		}
+ 		lsym.Type = sym.SDYNIMPORT
+-		lsym.ElfType = elf.ST_TYPE(elfsym.Info)
++		lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
+ 		lsym.Size = int64(elfsym.Size)
+ 		if elfsym.Section != elf.SHN_UNDEF {
+ 			// Set .File for the library that actually defines the symbol.
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 88d476710b..2a04ef3824 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -93,7 +93,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 	case UndefinedSym:
+ 		// ElfType is only set for symbols read from Go shared libraries, but
+ 		// for other symbols it is left as STT_NOTYPE which is fine.
+-		typ = int(x.ElfType)
++		typ = int(x.ElfType())
+ 
+ 	case TLSSym:
+ 		typ = STT_TLS
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 245da19d9d..88199f3a56 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -285,7 +285,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 		case objabi.R_PCRELDBL, objabi.R_CALL:
+ 			isdbl = true
+ 		}
+-		if r.Xsym.Type == sym.SDYNIMPORT && (r.Xsym.ElfType == elf.STT_FUNC || r.Type == objabi.R_CALL) {
++		if r.Xsym.Type == sym.SDYNIMPORT && (r.Xsym.ElfType() == elf.STT_FUNC || r.Type == objabi.R_CALL) {
+ 			if isdbl {
+ 				switch r.Siz {
+ 				case 2:
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index a9bc174d59..da4602a161 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 112, 184},
++		{Symbol{}, 108, 176},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index c05b82a665..95ad8654b5 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -24,18 +24,14 @@ type Symbol struct {
+ 	LocalElfsym int32
+ 	Value       int64
+ 	Size        int64
+-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+-	// is not set for symbols defined by the packages being linked or by symbols
+-	// read by ldelf (and so is left as elf.STT_NOTYPE).
+-	ElfType  elf.SymType
+-	Sub      *Symbol
+-	Outer    *Symbol
+-	Gotype   *Symbol
+-	File     string
+-	auxinfo  *AuxSymbol
+-	Sect     *Section
+-	FuncInfo *FuncInfo
+-	Lib      *Library // Package defining this symbol
++	Sub         *Symbol
++	Outer       *Symbol
++	Gotype      *Symbol
++	File        string
++	auxinfo     *AuxSymbol
++	Sect        *Section
++	FuncInfo    *FuncInfo
++	Lib         *Library // Package defining this symbol
+ 	// P contains the raw symbol data.
+ 	P []byte
+ 	R []Reloc
+@@ -49,6 +45,10 @@ type AuxSymbol struct {
+ 	localentry uint8
+ 	plt        int32
+ 	got        int32
++	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
++	// is not set for symbols defined by the packages being linked or by symbols
++	// read by ldelf (and so is left as elf.STT_NOTYPE).
++	elftype elf.SymType
+ }
+ 
+ func (s *Symbol) String() string {
+@@ -378,6 +378,23 @@ func (s *Symbol) SetGot(val int32) {
+ 	s.auxinfo.got = val
+ }
+ 
++func (s *Symbol) ElfType() elf.SymType {
++	if s.auxinfo == nil {
++		return elf.STT_NOTYPE
++	}
++	return s.auxinfo.elftype
++}
++
++func (s *Symbol) SetElfType(val elf.SymType) {
++	if s.auxinfo == nil {
++		if val == elf.STT_NOTYPE {
++			return
++		}
++		s.makeAuxInfo()
++	}
++	s.auxinfo.elftype = val
++}
++
+ // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
+ // Used for sub-symbols when loading host objects (see e.g. ldelf.go).
+ func SortSub(l *Symbol) *Symbol {

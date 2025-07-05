@@ -10,6 +10,21 @@ Date:   Thu Nov 2 09:19:10 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a4f6452de5..5e31ef3d35 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -155,6 +155,9 @@ func TestMain(m *testing.M) {
+ 		os.Setenv("CCACHE_DIR", filepath.Join(home, ".ccache"))
+ 	}
+ 	os.Setenv("HOME", "/test-go-home-does-not-exist")
++	if os.Getenv("GOCACHE") == "" {
++		os.Setenv("GOCACHE", "off") // because $HOME is gone
++	}
+ 
+ 	r := m.Run()
+ 

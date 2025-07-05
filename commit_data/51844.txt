@@ -18,8 +18,68 @@ Date:   Wed Mar 2 11:59:48 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/abi/abi_arm64.go   |  2 --
  src/internal/abi/abi_generic.go |  2 +-
  src/internal/buildcfg/exp.go    | 14 ++++++++++----
  3 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/abi/abi_arm64.go b/src/internal/abi/abi_arm64.go
+index 8f85901c47..4dc51431bf 100644
+--- a/src/internal/abi/abi_arm64.go
++++ b/src/internal/abi/abi_arm64.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.regabiargs
+-
+ package abi
+ 
+ const (
+diff --git a/src/internal/abi/abi_generic.go b/src/internal/abi/abi_generic.go
+index d7d2f3749b..bc8483b4f9 100644
+--- a/src/internal/abi/abi_generic.go
++++ b/src/internal/abi/abi_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !goexperiment.regabiargs && !amd64
++//go:build !goexperiment.regabiargs && !amd64 && !arm64
+ 
+ package abi
+ 
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index a56b36efdf..b2bf9b2c83 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -56,9 +56,16 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ //
+ // TODO(mdempsky): Move to internal/goexperiment.
+ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+-	regabiSupported := false
++	// regabiSupported is set to true on platforms where register ABI is
++	// supported and enabled by default.
++	// regabiAlwaysOn is set to true on platforms where register ABI is
++	// always on.
++	var regabiSupported, regabiAlwaysOn bool
+ 	switch goarch {
+-	case "amd64", "arm64", "ppc64le", "ppc64":
++	case "amd64", "arm64":
++		regabiAlwaysOn = true
++		fallthrough
++	case "ppc64le", "ppc64":
+ 		regabiSupported = true
+ 	}
+ 
+@@ -120,8 +127,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		}
+ 	}
+ 
+-	// regabi is always enabled on amd64.
+-	if goarch == "amd64" {
++	if regabiAlwaysOn {
+ 		flags.RegabiWrappers = true
+ 		flags.RegabiArgs = true
+ 	}

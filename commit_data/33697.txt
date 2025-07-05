@@ -8,7 +8,34 @@ Date:   Mon Aug 28 14:57:47 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/59414
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 2 +-
  src/cmd/link/internal/ld/go.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 80fbd8a1d7..cd364f0576 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2700,7 +2700,7 @@ elfobj:
+ 	}
+ }
+ 
+-func Elfadddynsym(ctxt *Link, s *Symbol) {
++func elfadddynsym(ctxt *Link, s *Symbol) {
+ 	if elf64 {
+ 		s.Dynid = int32(Nelfsym)
+ 		Nelfsym++
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 56d2f3f42e..8f7b60dab7 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -321,7 +321,7 @@ func Adddynsym(ctxt *Link, s *Symbol) {
+ 	}
+ 
+ 	if Iself {
+-		Elfadddynsym(ctxt, s)
++		elfadddynsym(ctxt, s)
+ 	} else if Headtype == objabi.Hdarwin {
+ 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
+ 	} else if Headtype == objabi.Hwindows {

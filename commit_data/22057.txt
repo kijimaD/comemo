@@ -9,6 +9,21 @@ Date:   Fri Feb 20 13:15:56 2015 -0500
     Change-Id: If637aa2ed6f8886126b77cf9cc8a0535ec7c4369
     Reviewed-on: https://go-review.googlesource.com/5453
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/print1_write_android.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/print1_write_android.go b/src/runtime/print1_write_android.go
+index 1f4f0996fe..54d4826375 100644
+--- a/src/runtime/print1_write_android.go
++++ b/src/runtime/print1_write_android.go
+@@ -45,6 +45,9 @@ func writeErr(b []byte) {
+ 		}
+ 	}
+ 
++	// Write to stderr for command-line programs.
++	write(2, unsafe.Pointer(&b[0]), int32(len(b)))
++
+ 	// Log format: "<header>\x00<message m bytes>\x00"
+ 	//
+ 	// <header>

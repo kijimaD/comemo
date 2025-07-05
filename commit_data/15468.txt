@@ -11,6 +11,22 @@ Date:   Wed Feb 27 19:47:14 2013 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7385055
-
+---
  src/cmd/gc/pgen.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 6f732b991e..df8903bafe 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -209,8 +209,10 @@ allocauto(Prog* ptxt)
+ 	ll = curfn->dcl;
+ 	n = ll->n;
+ 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
++		// No locals used at all
+ 		curfn->dcl = nil;
+ 		stksize = 0;
++		fixautoused(ptxt);
+ 		return;
+ 	}
+ 

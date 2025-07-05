@@ -16,7 +16,50 @@ Date:   Tue Nov 8 16:47:04 2016 -0500
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/read.go      |  4 +++-
  src/encoding/xml/read_test.go | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index ba62366560..ed4470f3eb 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -582,7 +582,9 @@ Loop:
+ 	case reflect.String:
+ 		t.SetString(string(saveXMLData))
+ 	case reflect.Slice:
+-		t.Set(reflect.ValueOf(saveXMLData))
++		if t.Type().Elem().Kind() == reflect.Uint8 {
++			t.Set(reflect.ValueOf(saveXMLData))
++		}
+ 	}
+ 
+ 	return nil
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 7a98092803..b53d72c716 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -733,3 +733,22 @@ func TestMalformedComment(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type IXField struct {
++	Five        int      `xml:"five"`
++	NotInnerXML []string `xml:",innerxml"`
++}
++
++// Issue 15600. ",innerxml" on a field that can't hold it.
++func TestInvalidInnerXMLType(t *testing.T) {
++	v := new(IXField)
++	if err := Unmarshal([]byte(`<tag><five>5</five><innertag/></tag>`), v); err != nil {
++		t.Errorf("Unmarshal failed: got %v", err)
++	}
++	if v.Five != 5 {
++		t.Errorf("Five = %v, want 5", v.Five)
++	}
++	if v.NotInnerXML != nil {
++		t.Errorf("NotInnerXML = %v, want nil", v.NotInnerXML)
++	}
++}

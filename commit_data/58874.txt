@@ -33,7 +33,177 @@ Date:   Mon Jan 8 17:20:14 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/os/example_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/os/os_test.go      | 34 ++++++++++++----------
  2 files changed, 95 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 656232c472..7437a74cd0 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -5,12 +5,14 @@
+ package os_test
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io/fs"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -317,3 +319,77 @@ func ExampleReadlink() {
+ 	// Output:
+ 	// hello.link links to hello.txt
+ }
++
++func ExampleUserCacheDir() {
++	dir, dirErr := os.UserCacheDir()
++	if dirErr == nil {
++		dir = filepath.Join(dir, "ExampleUserCacheDir")
++	}
++
++	getCache := func(name string) ([]byte, error) {
++		if dirErr != nil {
++			return nil, &os.PathError{Op: "getCache", Path: name, Err: os.ErrNotExist}
++		}
++		return os.ReadFile(filepath.Join(dir, name))
++	}
++
++	var mkdirOnce sync.Once
++	putCache := func(name string, b []byte) error {
++		if dirErr != nil {
++			return &os.PathError{Op: "putCache", Path: name, Err: dirErr}
++		}
++		mkdirOnce.Do(func() {
++			if err := os.MkdirAll(dir, 0700); err != nil {
++				log.Printf("can't create user cache dir: %v", err)
++			}
++		})
++		return os.WriteFile(filepath.Join(dir, name), b, 0600)
++	}
++
++	// Read and store cached data.
++	// …
++	_ = getCache
++	_ = putCache
++
++	// Output:
++}
++
++func ExampleUserConfigDir() {
++	dir, dirErr := os.UserConfigDir()
++
++	var (
++		configPath string
++		origConfig []byte
++	)
++	if dirErr == nil {
++		configPath = filepath.Join(dir, "ExampleUserConfigDir", "example.conf")
++		var err error
++		origConfig, err = os.ReadFile(configPath)
++		if err != nil && !os.IsNotExist(err) {
++			// The user has a config file but we couldn't read it.
++			// Report the error instead of ignoring their configuration.
++			log.Fatal(err)
++		}
++	}
++
++	// Use and perhaps make changes to the config.
++	config := bytes.Clone(origConfig)
++	// …
++
++	// Save changes.
++	if !bytes.Equal(config, origConfig) {
++		if configPath == "" {
++			log.Printf("not saving config changes: %v", dirErr)
++		} else {
++			err := os.MkdirAll(filepath.Dir(configPath), 0700)
++			if err == nil {
++				err = os.WriteFile(configPath, config, 0600)
++			}
++			if err != nil {
++				log.Printf("error saving config changes: %v", err)
++			}
++		}
++	}
++
++	// Output:
++}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 2f5b117bd9..6adc3b5479 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/fs"
++	"log"
+ 	. "os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -33,6 +34,8 @@ func TestMain(m *testing.M) {
+ 		Exit(0)
+ 	}
+ 
++	log.SetFlags(log.LstdFlags | log.Lshortfile)
++
+ 	Exit(m.Run())
+ }
+ 
+@@ -2847,16 +2850,17 @@ func TestUserCacheDir(t *testing.T) {
+ 		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
+ 	}
+ 
+-	if err := MkdirAll(dir, 0777); err != nil {
+-		t.Fatalf("could not create UserCacheDir: %v", err)
+-	}
+-	d, err := MkdirTemp(dir, "TestUserCacheDir")
++	fi, err := Stat(dir)
+ 	if err != nil {
+-		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
+-	}
+-	if err := Remove(d); err != nil {
++		if IsNotExist(err) {
++			t.Log(err)
++			return
++		}
+ 		t.Fatal(err)
+ 	}
++	if !fi.IsDir() {
++		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
++	}
+ }
+ 
+ func TestUserConfigDir(t *testing.T) {
+@@ -2870,17 +2874,17 @@ func TestUserConfigDir(t *testing.T) {
+ 		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
+ 	}
+ 
+-	if err := MkdirAll(dir, 0777); err != nil {
+-		t.Fatalf("could not create UserConfigDir: %v", err)
+-	}
+-
+-	d, err := MkdirTemp(dir, "TestUserConfigDir")
++	fi, err := Stat(dir)
+ 	if err != nil {
+-		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
+-	}
+-	if err := Remove(d); err != nil {
++		if IsNotExist(err) {
++			t.Log(err)
++			return
++		}
+ 		t.Fatal(err)
+ 	}
++	if !fi.IsDir() {
++		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
++	}
+ }
+ 
+ func TestUserHomeDir(t *testing.T) {

@@ -8,6 +8,23 @@ Date:   Tue Aug 11 08:55:16 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/247937
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index dc237e7278..d1f2ac583d 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1908,11 +1908,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	d.synthesizeslicetypes(ctxt, dwtypes.Child)
+ 	d.synthesizemaptypes(ctxt, dwtypes.Child)
+ 	d.synthesizechantypes(ctxt, dwtypes.Child)
+-
+-	// NB: at this stage we have all the DIE objects constructed, but
+-	// they have loader.Sym attributes and not sym.Symbol attributes.
+-	// At the point when loadlibfull runs we will need to visit
+-	// every DIE constructed and convert the symbols.
+ }
+ 
+ // dwarfGenerateDebugSyms constructs debug_line, debug_frame, and

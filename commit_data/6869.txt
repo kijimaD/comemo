@@ -7,7 +7,37 @@ Date:   Tue Dec 7 18:06:31 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3508041
-
+---
  src/pkg/runtime/debug.go | 3 +++
  src/pkg/runtime/proc.c   | 7 +++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index b5f6571faa..3cc5472f6b 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -26,6 +26,9 @@ func GOMAXPROCS(n int) int
+ // Cgocalls returns the number of cgo calls made by the current process.
+ func Cgocalls() int64
+ 
++// Goroutines returns the number of goroutines that currently exist.
++func Goroutines() int32
++
+ type MemStatsType struct {
+ 	// General statistics.
+ 	// Not locked during update; approximate.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 31641ba982..ff8673a314 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1192,3 +1192,10 @@ runtime·mid(uint32 ret)
+ 	ret = m->id;
+ 	FLUSH(&ret);
+ }
++
++void
++runtime·Goroutines(int32 ret)
++{
++	ret = runtime·sched.gcount;
++	FLUSH(&ret);
++}

@@ -27,7 +27,7 @@ Date:   Tue Jun 4 19:17:41 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +-
  src/cmd/compile/internal/s390x/ssa.go        |  2 +
  src/cmd/compile/internal/ssa/gen/S390X.rules | 19 ++++----
@@ -37,3 +37,316 @@ Date:   Tue Jun 4 19:17:41 2019 +0100
  src/runtime/internal/atomic/asm_s390x.s      | 24 ++++++++++
  src/runtime/internal/atomic/atomic_s390x.go  | 25 +++--------
  8 files changed, 108 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8637d725ad..4c9bcfe2a5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3093,7 +3093,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Loadp",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
+@@ -3125,7 +3125,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.S390X)
+ 
+ 	addF("runtime/internal/atomic", "Xchg",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 7a897ae754..7ddebe7b64 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -800,6 +800,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		bne := s.Prog(s390x.ABNE)
+ 		bne.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(bne, cs)
++	case ssa.OpS390XSYNC:
++		s.Prog(s390x.ASYNC)
+ 	case ssa.OpClobber:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index f3cfee7e97..cbf53506d7 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -139,16 +139,15 @@
+ (RoundToEven x) -> (FIDBR [4] x)
+ (Round       x) -> (FIDBR [1] x)
+ 
+-// Atomic loads.
+-(AtomicLoad8  ptr mem) -> (MOVBZatomicload ptr mem)
+-(AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
+-(AtomicLoad64 ptr mem) -> (MOVDatomicload ptr mem)
+-(AtomicLoadPtr ptr mem) -> (MOVDatomicload ptr mem)
+-
+-// Atomic stores.
+-(AtomicStore32 ptr val mem) -> (MOVWatomicstore ptr val mem)
+-(AtomicStore64 ptr val mem) -> (MOVDatomicstore ptr val mem)
+-(AtomicStorePtrNoWB ptr val mem) -> (MOVDatomicstore ptr val mem)
++// Atomic loads and stores.
++// The SYNC instruction (fast-BCR-serialization) prevents store-load
++// reordering. Other sequences of memory operations (load-load,
++// store-store and load-store) are already guaranteed not to be reordered.
++(AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) -> (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
++(AtomicStore(32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(W|D|D)atomicstore ptr val mem))
++
++// Store-release doesn't require store-load ordering.
++(AtomicStoreRel32 ptr val mem) -> (MOVWatomicstore ptr val mem)
+ 
+ // Atomic adds.
+ (AtomicAdd32 ptr val mem) -> (AddTupleFirst32 val (LAA ptr val mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index fcc2c732fc..03c8b3de06 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -187,6 +187,8 @@ func init() {
+ 		fpstore    = regInfo{inputs: []regMask{ptrspsb, fp, 0}}
+ 		fpstoreidx = regInfo{inputs: []regMask{ptrsp, ptrsp, fp, 0}}
+ 
++		sync = regInfo{inputs: []regMask{0}}
++
+ 		// LoweredAtomicCas may overwrite arg1, so force it to R0 for now.
+ 		cas = regInfo{inputs: []regMask{ptrsp, r0, gpsp, 0}, outputs: []regMask{gp, 0}, clobbers: r0}
+ 
+@@ -493,6 +495,9 @@ func init() {
+ 		{name: "FlagGT"}, // CC=2 (greater than)
+ 		{name: "FlagOV"}, // CC=3 (overflow)
+ 
++		// Fast-BCR-serialization to ensure store-load ordering.
++		{name: "SYNC", argLength: 1, reg: sync, asm: "SYNC", typ: "Mem"},
++
+ 		// Atomic loads. These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.
+ 		// load from arg0+auxint+aux.  arg1=mem.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1026ab7995..8e701cdd9f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2054,6 +2054,7 @@ const (
+ 	OpS390XFlagLT
+ 	OpS390XFlagGT
+ 	OpS390XFlagOV
++	OpS390XSYNC
+ 	OpS390XMOVBZatomicload
+ 	OpS390XMOVWZatomicload
+ 	OpS390XMOVDatomicload
+@@ -27614,6 +27615,12 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:   "SYNC",
++		argLen: 1,
++		asm:    s390x.ASYNC,
++		reg:    regInfo{},
++	},
+ 	{
+ 		name:           "MOVBZatomicload",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index c5b7e564bb..7781590f2a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -61,6 +61,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicLoad64_0(v)
+ 	case OpAtomicLoad8:
+ 		return rewriteValueS390X_OpAtomicLoad8_0(v)
++	case OpAtomicLoadAcq32:
++		return rewriteValueS390X_OpAtomicLoadAcq32_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicStore32:
+@@ -69,6 +71,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicStore64_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueS390X_OpAtomicStorePtrNoWB_0(v)
++	case OpAtomicStoreRel32:
++		return rewriteValueS390X_OpAtomicStoreRel32_0(v)
+ 	case OpAvg64u:
+ 		return rewriteValueS390X_OpAvg64u_0(v)
+ 	case OpBitLen64:
+@@ -1132,6 +1136,19 @@ func rewriteValueS390X_OpAtomicLoad8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicLoadAcq32_0(v *Value) bool {
++	// match: (AtomicLoadAcq32 ptr mem)
++	// cond:
++	// result: (MOVWZatomicload ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpS390XMOVWZatomicload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
+ 	// match: (AtomicLoadPtr ptr mem)
+ 	// cond:
+@@ -1146,44 +1163,68 @@ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueS390X_OpAtomicStore32_0(v *Value) bool {
++	b := v.Block
+ 	// match: (AtomicStore32 ptr val mem)
+ 	// cond:
+-	// result: (MOVWatomicstore ptr val mem)
++	// result: (SYNC (MOVWatomicstore ptr val mem))
+ 	for {
+ 		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+-		v.reset(OpS390XMOVWatomicstore)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		v.reset(OpS390XSYNC)
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWatomicstore, types.TypeMem)
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+ func rewriteValueS390X_OpAtomicStore64_0(v *Value) bool {
++	b := v.Block
+ 	// match: (AtomicStore64 ptr val mem)
+ 	// cond:
+-	// result: (MOVDatomicstore ptr val mem)
++	// result: (SYNC (MOVDatomicstore ptr val mem))
+ 	for {
+ 		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+-		v.reset(OpS390XMOVDatomicstore)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		v.reset(OpS390XSYNC)
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDatomicstore, types.TypeMem)
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+ func rewriteValueS390X_OpAtomicStorePtrNoWB_0(v *Value) bool {
++	b := v.Block
+ 	// match: (AtomicStorePtrNoWB ptr val mem)
+ 	// cond:
+-	// result: (MOVDatomicstore ptr val mem)
++	// result: (SYNC (MOVDatomicstore ptr val mem))
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpS390XSYNC)
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDatomicstore, types.TypeMem)
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicStoreRel32_0(v *Value) bool {
++	// match: (AtomicStoreRel32 ptr val mem)
++	// cond:
++	// result: (MOVWatomicstore ptr val mem)
+ 	for {
+ 		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+-		v.reset(OpS390XMOVDatomicstore)
++		v.reset(OpS390XMOVWatomicstore)
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+diff --git a/src/runtime/internal/atomic/asm_s390x.s b/src/runtime/internal/atomic/asm_s390x.s
+index 512fde5a12..084f5b5163 100644
+--- a/src/runtime/internal/atomic/asm_s390x.s
++++ b/src/runtime/internal/atomic/asm_s390x.s
+@@ -4,6 +4,30 @@
+ 
+ #include "textflag.h"
+ 
++// func Store(ptr *uint32, val uint32)
++TEXT ·Store(SB), NOSPLIT, $0
++	MOVD	ptr+0(FP), R2
++	MOVWZ	val+8(FP), R3
++	MOVW	R3, 0(R2)
++	SYNC
++	RET
++
++// func Store64(ptr *uint64, val uint64)
++TEXT ·Store64(SB), NOSPLIT, $0
++	MOVD	ptr+0(FP), R2
++	MOVD	val+8(FP), R3
++	MOVD	R3, 0(R2)
++	SYNC
++	RET
++
++// func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
++TEXT ·StorepNoWB(SB), NOSPLIT, $0
++	MOVD	ptr+0(FP), R2
++	MOVD	val+8(FP), R3
++	MOVD	R3, 0(R2)
++	SYNC
++	RET
++
+ // func Cas(ptr *uint32, old, new uint32) bool
+ // Atomically:
+ //	if *ptr == old {
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index 0ad96d3502..5a1f411ca1 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -36,30 +36,17 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
+-//go:noinline
+-//go:nosplit
+-func Store(ptr *uint32, val uint32) {
+-	*ptr = val
+-}
+-
+-//go:noinline
+-//go:nosplit
+-func Store64(ptr *uint64, val uint64) {
+-	*ptr = val
+-}
++//go:noescape
++func Store(ptr *uint32, val uint32)
+ 
+-//go:notinheap
+-type noWB struct{}
++//go:noescape
++func Store64(ptr *uint64, val uint64)
+ 
+ // NO go:noescape annotation; see atomic_pointer.go.
+-//go:noinline
+-//go:nosplit
+-func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
+-	*(**noWB)(ptr) = (*noWB)(val)
+-}
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
+-//go:noinline
+ //go:nosplit
++//go:noinline
+ func StoreRel(ptr *uint32, val uint32) {
+ 	*ptr = val
+ }

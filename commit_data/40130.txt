@@ -27,7 +27,7 @@ Date:   Thu Apr 4 00:29:16 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/bio/buf.go              | 24 +++++++++++++
  src/cmd/internal/bio/buf_mmap.go         | 62 ++++++++++++++++++++++++++++++++
  src/cmd/internal/bio/buf_nommap.go       | 11 ++++++
@@ -36,3 +36,307 @@ Date:   Thu Apr 4 00:29:16 2019 -0400
  src/cmd/link/internal/objfile/objfile.go | 16 ++++++---
  src/cmd/link/internal/sym/attribute.go   |  6 +++-
  7 files changed, 144 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/internal/bio/buf.go b/src/cmd/internal/bio/buf.go
+index a3edd74383..388105c3c7 100644
+--- a/src/cmd/internal/bio/buf.go
++++ b/src/cmd/internal/bio/buf.go
+@@ -7,6 +7,7 @@ package bio
+ 
+ import (
+ 	"bufio"
++	"io"
+ 	"log"
+ 	"os"
+ )
+@@ -105,3 +106,26 @@ func (r *Reader) File() *os.File {
+ func (w *Writer) File() *os.File {
+ 	return w.f
+ }
++
++// Slice reads the next length bytes of r into a slice.
++//
++// This slice may be backed by mmap'ed memory. Currently, this memory
++// will never be unmapped. The second result reports whether the
++// backing memory is read-only.
++func (r *Reader) Slice(length uint64) ([]byte, bool, error) {
++	if length == 0 {
++		return []byte{}, false, nil
++	}
++
++	data, ok := r.sliceOS(length)
++	if ok {
++		return data, true, nil
++	}
++
++	data = make([]byte, length)
++	_, err := io.ReadFull(r, data)
++	if err != nil {
++		return nil, false, err
++	}
++	return data, false, nil
++}
+diff --git a/src/cmd/internal/bio/buf_mmap.go b/src/cmd/internal/bio/buf_mmap.go
+new file mode 100644
+index 0000000000..b8c78b3311
+--- /dev/null
++++ b/src/cmd/internal/bio/buf_mmap.go
+@@ -0,0 +1,62 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package bio
++
++import (
++	"runtime"
++	"sync/atomic"
++	"syscall"
++)
++
++// mmapLimit is the maximum number of mmaped regions to create before
++// falling back to reading into a heap-allocated slice. This exists
++// because some operating systems place a limit on the number of
++// distinct mapped regions per process. As of this writing:
++//
++//  Darwin    unlimited
++//  DragonFly   1000000 (vm.max_proc_mmap)
++//  FreeBSD   unlimited
++//  Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
++//  NetBSD    unlimited
++//  OpenBSD   unlimited
++var mmapLimit int32 = 1<<31 - 1
++
++func init() {
++	// Linux is the only practically concerning OS.
++	if runtime.GOOS == "linux" {
++		mmapLimit = 30000
++	}
++}
++
++func (r *Reader) sliceOS(length uint64) ([]byte, bool) {
++	// For small slices, don't bother with the overhead of a
++	// mapping, especially since we have no way to unmap it.
++	const threshold = 16 << 10
++	if length < threshold {
++		return nil, false
++	}
++
++	// Have we reached the mmap limit?
++	if atomic.AddInt32(&mmapLimit, -1) < 0 {
++		atomic.AddInt32(&mmapLimit, 1)
++		return nil, false
++	}
++
++	// Page-align the offset.
++	off := r.Offset()
++	align := syscall.Getpagesize()
++	aoff := off &^ int64(align-1)
++
++	data, err := syscall.Mmap(int(r.f.Fd()), aoff, int(length+uint64(off-aoff)), syscall.PROT_READ, syscall.MAP_SHARED|syscall.MAP_FILE)
++	if err != nil {
++		return nil, false
++	}
++
++	data = data[off-aoff:]
++	r.Seek(int64(length), 1)
++	return data, true
++}
+diff --git a/src/cmd/internal/bio/buf_nommap.go b/src/cmd/internal/bio/buf_nommap.go
+new file mode 100644
+index 0000000000..f43c67ac2d
+--- /dev/null
++++ b/src/cmd/internal/bio/buf_nommap.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
++
++package bio
++
++func (r *Reader) sliceOS(length uint64) ([]byte, bool) {
++	return nil, false
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 5d31de99ee..52d33edbbb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -127,6 +127,15 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
+ // This is a performance-critical function for the linker; be careful
+ // to avoid introducing unnecessary allocations in the main loop.
+ func relocsym(ctxt *Link, s *sym.Symbol) {
++	if len(s.R) == 0 {
++		return
++	}
++	if s.Attr.ReadOnly() {
++		// The symbol's content is backed by read-only memory.
++		// Copy it to writable memory to apply relocations.
++		s.P = append([]byte(nil), s.P...)
++		s.Attr.Set(sym.AttrReadOnly, false)
++	}
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+ 		r := &s.R[ri]
+ 		if r.Done {
+@@ -2384,17 +2393,21 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
+ 	if err != nil {
+ 		log.Fatalf("NewWriterLevel failed: %s", err)
+ 	}
+-	for _, sym := range syms {
+-		// sym.P may be read-only. Apply relocations in a
++	for _, s := range syms {
++		// s.P may be read-only. Apply relocations in a
+ 		// temporary buffer, and immediately write it out.
+-		oldP := sym.P
+-		ctxt.relocbuf = append(ctxt.relocbuf[:0], sym.P...)
+-		sym.P = ctxt.relocbuf
+-		relocsym(ctxt, sym)
+-		if _, err := z.Write(sym.P); err != nil {
++		oldP := s.P
++		wasReadOnly := s.Attr.ReadOnly()
++		if len(s.R) != 0 && wasReadOnly {
++			ctxt.relocbuf = append(ctxt.relocbuf[:0], s.P...)
++			s.P = ctxt.relocbuf
++			s.Attr.Set(sym.AttrReadOnly, false)
++		}
++		relocsym(ctxt, s)
++		if _, err := z.Write(s.P); err != nil {
+ 			log.Fatalf("compression failed: %s", err)
+ 		}
+-		for i := sym.Size - int64(len(sym.P)); i > 0; {
++		for i := s.Size - int64(len(s.P)); i > 0; {
+ 			b := zeros[:]
+ 			if i < int64(len(b)) {
+ 				b = b[:i]
+@@ -2405,13 +2418,15 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
+ 			}
+ 			i -= int64(n)
+ 		}
+-		// Restore sym.P, for 1. not holding temp buffer live
+-		// unnecessarily, 2. if compression is not beneficial,
+-		// we'll go back to use the uncompressed contents, in
+-		// which case we still need sym.P.
+-		sym.P = oldP
+-		for i := range sym.R {
+-			sym.R[i].Done = false
++		// Restore s.P if a temporary buffer was used. If compression
++		// is not beneficial, we'll go back to use the uncompressed
++		// contents, in which case we still need s.P.
++		if len(s.R) != 0 && wasReadOnly {
++			s.P = oldP
++			s.Attr.Set(sym.AttrReadOnly, wasReadOnly)
++			for i := range s.R {
++				s.R[i].Done = false
++			}
+ 		}
+ 	}
+ 	if err := z.Close(); err != nil {
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 3efd43d6ae..f8e65ef8ae 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -158,6 +158,7 @@ func (out *OutBuf) WriteSym(s *sym.Symbol) {
+ 		start := out.off
+ 		out.Write(s.P)
+ 		s.P = out.buf[start:out.off]
++		s.Attr.Set(sym.AttrReadOnly, false)
+ 	} else {
+ 		out.Write(s.P)
+ 	}
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index 7f93912a44..3de669ee8d 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -34,7 +34,7 @@ var emptyPkg = []byte(`"".`)
+ 
+ // objReader reads Go object files.
+ type objReader struct {
+-	rd              *bufio.Reader
++	rd              *bio.Reader
+ 	arch            *sys.Arch
+ 	syms            *sym.Symbols
+ 	lib             *sym.Library
+@@ -43,6 +43,7 @@ type objReader struct {
+ 	localSymVersion int
+ 	flags           int
+ 	strictDupMsgs   int
++	dataSize        int
+ 
+ 	// rdBuf is used by readString and readSymName as scratch for reading strings.
+ 	rdBuf []byte
+@@ -56,6 +57,8 @@ type objReader struct {
+ 	funcdata    []*sym.Symbol
+ 	funcdataoff []int64
+ 	file        []*sym.Symbol
++
++	dataReadOnly bool // whether data is backed by read-only memory
+ }
+ 
+ // Flags to enable optional behavior during object loading/reading.
+@@ -76,7 +79,7 @@ const (
+ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
+ 	start := f.Offset()
+ 	r := &objReader{
+-		rd:              f.Reader,
++		rd:              f,
+ 		lib:             lib,
+ 		arch:            arch,
+ 		syms:            syms,
+@@ -133,7 +136,10 @@ func (r *objReader) loadObjFile() {
+ 	r.readSlices()
+ 
+ 	// Data section
+-	r.readFull(r.data)
++	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
++	if err != nil {
++		log.Fatalf("%s: error reading %s", r.pn, err)
++	}
+ 
+ 	// Defined symbols
+ 	for {
+@@ -156,9 +162,8 @@ func (r *objReader) loadObjFile() {
+ }
+ 
+ func (r *objReader) readSlices() {
++	r.dataSize = r.readInt()
+ 	n := r.readInt()
+-	r.data = make([]byte, n)
+-	n = r.readInt()
+ 	r.reloc = make([]sym.Reloc, n)
+ 	n = r.readInt()
+ 	r.pcdata = make([]sym.Pcdata, n)
+@@ -249,6 +254,7 @@ overwrite:
+ 		dup.Gotype = typ
+ 	}
+ 	s.P = data
++	s.Attr.Set(sym.AttrReadOnly, r.dataReadOnly)
+ 	if nreloc > 0 {
+ 		s.R = r.reloc[:nreloc:nreloc]
+ 		if !isdup {
+diff --git a/src/cmd/link/internal/sym/attribute.go b/src/cmd/link/internal/sym/attribute.go
+index 74fda1495e..4b69bf32d0 100644
+--- a/src/cmd/link/internal/sym/attribute.go
++++ b/src/cmd/link/internal/sym/attribute.go
+@@ -78,7 +78,10 @@ const (
+ 	// AttrTopFrame means that the function is an entry point and unwinders
+ 	// should stop when they hit this function.
+ 	AttrTopFrame
+-	// 18 attributes defined so far.
++	// AttrReadOnly indicates whether the symbol's content (Symbol.P) is backed by
++	// read-only memory.
++	AttrReadOnly
++	// 19 attributes defined so far.
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -99,6 +102,7 @@ func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0
+ func (a Attribute) SubSymbol() bool        { return a&AttrSubSymbol != 0 }
+ func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
+ func (a Attribute) TopFrame() bool         { return a&AttrTopFrame != 0 }
++func (a Attribute) ReadOnly() bool         { return a&AttrReadOnly != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()

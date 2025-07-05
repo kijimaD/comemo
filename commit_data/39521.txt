@@ -35,6 +35,34 @@ Date:   Sun Jan 13 18:10:19 2019 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/extfloat.go | 15 ++-------------
  1 file changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index 32d3340f5f..2a2dd7a408 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -214,20 +214,9 @@ func (f *extFloat) Normalize() uint {
+ // Multiply sets f to the product f*g: the result is correctly rounded,
+ // but not normalized.
+ func (f *extFloat) Multiply(g extFloat) {
+-	fhi, flo := f.mant>>32, uint64(uint32(f.mant))
+-	ghi, glo := g.mant>>32, uint64(uint32(g.mant))
+-
+-	// Cross products.
+-	cross1 := fhi * glo
+-	cross2 := flo * ghi
+-
+-	// f.mant*g.mant is fhi*ghi << 64 + (cross1+cross2) << 32 + flo*glo
+-	f.mant = fhi*ghi + (cross1 >> 32) + (cross2 >> 32)
+-	rem := uint64(uint32(cross1)) + uint64(uint32(cross2)) + ((flo * glo) >> 32)
++	hi, lo := bits.Mul64(f.mant, g.mant)
+ 	// Round up.
+-	rem += (1 << 31)
+-
+-	f.mant += (rem >> 32)
++	f.mant = hi + (lo >> 63)
+ 	f.exp = f.exp + g.exp + 64
+ }
+ 

@@ -9,9 +9,90 @@ Date:   Mon Jan 14 14:09:42 2013 -0800
     R=golang-dev, dave, dvyukov
     CC=golang-dev
     https://golang.org/cl/7103046
-
+---
  src/pkg/time/export_test.go   | 19 +++++++++++++++++++
  src/pkg/time/internal_test.go |  2 +-
  src/pkg/time/time.go          |  4 ++--
  src/pkg/time/time_test.go     | 16 ++++++++++++++++
  4 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/time/export_test.go b/src/pkg/time/export_test.go
+new file mode 100644
+index 0000000000..130ca8f7eb
+--- /dev/null
++++ b/src/pkg/time/export_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"sync"
++)
++
++func ResetLocalOnceForTest() {
++	localOnce = sync.Once{}
++	localLoc = Location{}
++}
++
++func ForceUSPacificForTesting() {
++	ResetLocalOnceForTest()
++	localOnce.Do(initTestingZone)
++}
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index b753896d77..918a9f33be 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -6,7 +6,7 @@ package time
+ 
+ func init() {
+ 	// force US/Pacific for time zone tests
+-	localOnce.Do(initTestingZone)
++	ForceUSPacificForTesting()
+ }
+ 
+ var Interrupt = interrupt
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 190cc37ddb..d291672af1 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -261,8 +261,8 @@ func (t Time) abs() uint64 {
+ // extracting both return values from a single zone lookup.
+ func (t Time) locabs() (name string, offset int, abs uint64) {
+ 	l := t.loc
+-	if l == nil {
+-		l = &utcLoc
++	if l == nil || l == &localLoc {
++		l = l.get()
+ 	}
+ 	// Avoid function call if we hit the local time cache.
+ 	sec := t.sec + internalToUnix
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 0224fed4bd..a8953aefd3 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -1227,6 +1227,22 @@ func TestParseDurationRoundTrip(t *testing.T) {
+ 	}
+ }
+ 
++// golang.org/issue/4622
++func TestLocationRace(t *testing.T) {
++	ResetLocalOnceForTest() // reset the Once to trigger the race
++
++	c := make(chan string, 1)
++	go func() {
++		c <- Now().String()
++	}()
++	Now().String()
++	<-c
++	Sleep(100 * Millisecond)
++
++	// Back to Los Angeles for subsequent tests:
++	ForceUSPacificForTesting()
++}
++
+ var (
+ 	t Time
+ 	u int64

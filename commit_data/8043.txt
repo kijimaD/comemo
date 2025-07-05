@@ -9,6 +9,44 @@ Date:   Mon Apr 11 10:39:21 2011 +1000
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/4343056
-
+---
  src/pkg/net/multicast_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 32fdec85bd..be6dbf2dc1 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -5,14 +5,21 @@
+ package net
+ 
+ import (
++	"flag"
+ 	"runtime"
+ 	"testing"
+ )
+ 
++var multicast = flag.Bool("multicast", false, "enable multicast tests")
++
+ func TestMulticastJoinAndLeave(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		return
+ 	}
++	if !*multicast {
++		t.Logf("test disabled; use --multicast to enable")
++		return
++	}
+ 
+ 	addr := &UDPAddr{
+ 		IP:   IPv4zero,
+@@ -40,6 +47,10 @@ func TestMulticastJoinAndLeave(t *testing.T) {
+ }
+ 
+ func TestJoinFailureWithIPv6Address(t *testing.T) {
++	if !*multicast {
++		t.Logf("test disabled; use --multicast to enable")
++		return
++	}
+ 	addr := &UDPAddr{
+ 		IP:   IPv4zero,
+ 		Port: 0,

@@ -13,7 +13,7 @@ Date:   Wed Jun 14 11:36:36 2017 -0700
     Change-Id: I0d8e19a53e3744abc0c661ea95486f94ec67585e
     Reviewed-on: https://go-review.googlesource.com/45703
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/asm5.go        |   8 +--
  src/runtime/softfloat_arm.go            |   6 +-
  src/runtime/vlop_arm.s                  | 112 ++++++++++++++++++++++++++++++++
@@ -22,3 +22,293 @@ Date:   Wed Jun 14 11:36:36 2017 -0700
  test/fixedbugs/issue19507.go            |   8 +++
  test/run.go                             |  59 ++++++++++++++++-
  7 files changed, 215 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 04b1cb7442..417da44574 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1480,10 +1480,10 @@ func buildop(ctxt *obj.Link) {
+ 
+ 	deferreturn = ctxt.Lookup("runtime.deferreturn")
+ 
+-	symdiv = ctxt.Lookup("_div")
+-	symdivu = ctxt.Lookup("_divu")
+-	symmod = ctxt.Lookup("_mod")
+-	symmodu = ctxt.Lookup("_modu")
++	symdiv = ctxt.Lookup("runtime._div")
++	symdivu = ctxt.Lookup("runtime._divu")
++	symmod = ctxt.Lookup("runtime._mod")
++	symmodu = ctxt.Lookup("runtime._modu")
+ 
+ 	var n int
+ 
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 8519f4cbd5..726699d720 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -655,6 +655,10 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
+ }
+ 
+ // Stubs to pacify vet. Not safe to call from Go.
+-// Calls to these functions are inserted by the compiler.
++// Calls to these functions are inserted by the compiler or assembler.
+ func _sfloat()
+ func udiv()
++func _div()
++func _divu()
++func _mod()
++func _modu()
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 7489a65071..6a602ffbb8 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -199,6 +199,118 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
+ DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
+ GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ 
++// The linker will pass numerator in R8
++#define Rn R8
++// The linker expects the result in RTMP
++#define RTMP R11
++
++TEXT runtime·_divu(SB), NOSPLIT, $16-0
++	// It's not strictly true that there are no local pointers.
++	// It could be that the saved registers Rq, Rr, Rs, and Rm
++	// contain pointers. However, the only way this can matter
++	// is if the stack grows (which it can't, udiv is nosplit)
++	// or if a fault happens and more frames are added to
++	// the stack due to deferred functions.
++	// In the latter case, the stack can grow arbitrarily,
++	// and garbage collection can happen, and those
++	// operations care about pointers, but in that case
++	// the calling frame is dead, and so are the saved
++	// registers. So we can claim there are no pointers here.
++	NO_LOCAL_POINTERS
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++
++	MOVW	Rn, Rr			/* numerator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
++	BL  	runtime·udiv(SB)
++	MOVW	Rq, RTMP
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
++	RET
++
++TEXT runtime·_modu(SB), NOSPLIT, $16-0
++	NO_LOCAL_POINTERS
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++
++	MOVW	Rn, Rr			/* numerator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
++	BL  	runtime·udiv(SB)
++	MOVW	Rr, RTMP
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
++	RET
++
++TEXT runtime·_div(SB),NOSPLIT,$16-0
++	NO_LOCAL_POINTERS
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++	MOVW	Rn, Rr			/* numerator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
++	CMP 	$0, Rr
++	BGE 	d1
++	RSB 	$0, Rr, Rr
++	CMP 	$0, Rq
++	BGE 	d2
++	RSB 	$0, Rq, Rq
++d0:
++	BL  	runtime·udiv(SB)  	/* none/both neg */
++	MOVW	Rq, RTMP
++	B	out1
++d1:
++	CMP 	$0, Rq
++	BGE 	d0
++	RSB 	$0, Rq, Rq
++d2:
++	BL  	runtime·udiv(SB)  	/* one neg */
++	RSB	$0, Rq, RTMP
++out1:
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
++	RET
++
++TEXT runtime·_mod(SB),NOSPLIT,$16-0
++	NO_LOCAL_POINTERS
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++	MOVW	Rn, Rr			/* numerator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
++	CMP 	$0, Rq
++	RSB.LT	$0, Rq, Rq
++	CMP 	$0, Rr
++	BGE 	m1
++	RSB 	$0, Rr, Rr
++	BL  	runtime·udiv(SB)  	/* neg numerator */
++	RSB 	$0, Rr, RTMP
++	B   	out
++m1:
++	BL  	runtime·udiv(SB)  	/* pos numerator */
++	MOVW	Rr, RTMP
++out:
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
++	RET
++
+ // _mul64by32 and _div64by32 not implemented on arm
+ TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+ 	MOVW	$0, R0
+diff --git a/test/fixedbugs/issue19507.dir/div_arm.s b/test/fixedbugs/issue19507.dir/div_arm.s
+new file mode 100644
+index 0000000000..f67c3bb66d
+--- /dev/null
++++ b/test/fixedbugs/issue19507.dir/div_arm.s
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT main·f(SB),0,$0-8
++	MOVW	x+0(FP), R1
++	MOVW	x+4(FP), R2
++	DIVU	R1, R2
++	DIV	R1, R2
++	MODU	R1, R2
++	MOD	R1, R2
++	RET
+diff --git a/test/fixedbugs/issue19507.dir/main.go b/test/fixedbugs/issue19507.dir/main.go
+new file mode 100644
+index 0000000000..c115556f91
+--- /dev/null
++++ b/test/fixedbugs/issue19507.dir/main.go
+@@ -0,0 +1,16 @@
++// +build arm
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we can compile assembly with DIV and MOD in it.
++// They get rewritten to runtime calls on GOARM=5.
++
++package main
++
++func f(x, y uint32)
++
++func main() {
++	f(5, 8)
++}
+diff --git a/test/fixedbugs/issue19507.go b/test/fixedbugs/issue19507.go
+new file mode 100644
+index 0000000000..543e17e50b
+--- /dev/null
++++ b/test/fixedbugs/issue19507.go
+@@ -0,0 +1,8 @@
++// +build arm
++// builddir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index dc86ab7438..2fa206746b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -480,7 +480,7 @@ func (t *test) run() {
+ 		action = "rundir"
+ 	case "cmpout":
+ 		action = "run" // the run case already looks for <dir>/<test>.out files
+-	case "compile", "compiledir", "build", "run", "buildrun", "runoutput", "rundir":
++	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir":
+ 		// nothing to do
+ 	case "errorcheckandrundir":
+ 		wantError = false // should be no error if also will run
+@@ -706,6 +706,63 @@ func (t *test) run() {
+ 			t.err = err
+ 		}
+ 
++	case "builddir":
++		// Build an executable from all the .go and .s files in a subdirectory.
++		useTmp = true
++		longdir := filepath.Join(cwd, t.goDirName())
++		files, dirErr := ioutil.ReadDir(longdir)
++		if dirErr != nil {
++			t.err = dirErr
++			break
++		}
++		var gos []os.FileInfo
++		var asms []os.FileInfo
++		for _, file := range files {
++			switch filepath.Ext(file.Name()) {
++			case ".go":
++				gos = append(gos, file)
++			case ".s":
++				asms = append(asms, file)
++			}
++
++		}
++		var objs []string
++		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
++		for _, file := range gos {
++			cmd = append(cmd, filepath.Join(longdir, file.Name()))
++		}
++		_, err := runcmd(cmd...)
++		if err != nil {
++			t.err = err
++			break
++		}
++		objs = append(objs, "go.o")
++		if len(asms) > 0 {
++			cmd = []string{"go", "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
++			for _, file := range asms {
++				cmd = append(cmd, filepath.Join(longdir, file.Name()))
++			}
++			_, err = runcmd(cmd...)
++			if err != nil {
++				t.err = err
++				break
++			}
++			objs = append(objs, "asm.o")
++		}
++		cmd = []string{"go", "tool", "pack", "c", "all.a"}
++		cmd = append(cmd, objs...)
++		_, err = runcmd(cmd...)
++		if err != nil {
++			t.err = err
++			break
++		}
++		cmd = []string{"go", "tool", "link", "all.a"}
++		_, err = runcmd(cmd...)
++		if err != nil {
++			t.err = err
++			break
++		}
++
+ 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
+ 		// TODO: not supported on NaCl
+ 		useTmp = true

@@ -11,7 +11,7 @@ Date:   Thu Apr 14 19:04:45 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/asm/internal/asm/asm.go                        |  4 ++--
  src/cmd/cgo/ast.go                                     | 10 +++++-----
  src/cmd/compile/internal/s390x/peep.go                 |  4 ++--
@@ -50,3 +50,1024 @@ Date:   Thu Apr 14 19:04:45 2016 -0700
  src/cmd/link/internal/x86/asm.go                       |  2 +-
  src/cmd/vet/structtag.go                               |  2 +-
  37 files changed, 108 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index d674914c67..24906e2cce 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -59,7 +59,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 		}
+ 		p.pendingLabels = p.pendingLabels[0:0]
+ 	}
+-	prog.Pc = int64(p.pc)
++	prog.Pc = p.pc
+ 	if *flags.Debug {
+ 		fmt.Println(p.histLineNum, prog)
+ 	}
+@@ -371,7 +371,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 				Offset: p.getConstant(prog, op, &a[0]),
+ 			}
+ 			reg := int16(p.getConstant(prog, op, &a[1]))
+-			reg, ok := p.arch.RegisterNumber("R", int16(reg))
++			reg, ok := p.arch.RegisterNumber("R", reg)
+ 			if !ok {
+ 				p.errorf("bad register number %d", reg)
+ 				return
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 2859d59750..823da43c1d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -73,7 +73,7 @@ func (f *File) ReadGo(name string) {
+ 		}
+ 		for _, spec := range d.Specs {
+ 			s, ok := spec.(*ast.ImportSpec)
+-			if !ok || string(s.Path.Value) != `"C"` {
++			if !ok || s.Path.Value != `"C"` {
+ 				continue
+ 			}
+ 			sawC = true
+@@ -106,7 +106,7 @@ func (f *File) ReadGo(name string) {
+ 		ws := 0
+ 		for _, spec := range d.Specs {
+ 			s, ok := spec.(*ast.ImportSpec)
+-			if !ok || string(s.Path.Value) != `"C"` {
++			if !ok || s.Path.Value != `"C"` {
+ 				d.Specs[ws] = spec
+ 				ws++
+ 			}
+@@ -147,7 +147,7 @@ func commentText(g *ast.CommentGroup) string {
+ 	}
+ 	var pieces []string
+ 	for _, com := range g.List {
+-		c := string(com.Text)
++		c := com.Text
+ 		// Remove comment markers.
+ 		// The parser has given us exactly the comment text.
+ 		switch c[1] {
+@@ -242,11 +242,11 @@ func (f *File) saveExport(x interface{}, context string) {
+ 		return
+ 	}
+ 	for _, c := range n.Doc.List {
+-		if !strings.HasPrefix(string(c.Text), "//export ") {
++		if !strings.HasPrefix(c.Text, "//export ") {
+ 			continue
+ 		}
+ 
+-		name := strings.TrimSpace(string(c.Text[9:]))
++		name := strings.TrimSpace(c.Text[9:])
+ 		if name == "" {
+ 			error_(c.Pos(), "export missing name")
+ 		}
+diff --git a/src/cmd/compile/internal/s390x/peep.go b/src/cmd/compile/internal/s390x/peep.go
+index 86258d67da..cd6a8c5d8c 100644
+--- a/src/cmd/compile/internal/s390x/peep.go
++++ b/src/cmd/compile/internal/s390x/peep.go
+@@ -135,7 +135,7 @@ func pushback(r0 *gc.Flow) {
+ 		}
+ 	}
+ 
+-	t := obj.Prog(*r0.Prog)
++	t := *r0.Prog
+ 	for r = gc.Uniqp(r0); ; r = gc.Uniqp(r) {
+ 		p0 = r.Link.Prog
+ 		p := r.Prog
+@@ -162,7 +162,7 @@ func pushback(r0 *gc.Flow) {
+ 
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("\tafter\n")
+-		for r := (*gc.Flow)(b); ; r = r.Link {
++		for r := b; ; r = r.Link {
+ 			fmt.Printf("\t%v\n", r.Prog)
+ 			if r == r0 {
+ 				break
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 19e1fe4f77..05ea503049 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -30,7 +30,7 @@ var httpClient = http.DefaultClient
+ // when we're connecting to https servers that might not be there
+ // or might be using self-signed certificates.
+ var impatientInsecureHTTPClient = &http.Client{
+-	Timeout: time.Duration(5 * time.Second),
++	Timeout: 5 * time.Second,
+ 	Transport: &http.Transport{
+ 		TLSClientConfig: &tls.Config{
+ 			InsecureSkipVerify: true,
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index e3342999fa..4ff71f2168 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -253,7 +253,7 @@ func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string
+ 		return "", fmt.Errorf("unable to parse output of bzr info")
+ 	}
+ 	out = out[:i]
+-	return strings.TrimSpace(string(out)), nil
++	return strings.TrimSpace(out), nil
+ }
+ 
+ // vcsSvn describes how to use Subversion.
+@@ -294,7 +294,7 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
+ 		return "", fmt.Errorf("unable to parse output of svn info")
+ 	}
+ 	out = out[:i]
+-	return strings.TrimSpace(string(out)), nil
++	return strings.TrimSpace(out), nil
+ }
+ 
+ func (v *vcsCmd) String() string {
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index d833beeb2d..ffa1b416d6 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -250,7 +250,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+-			literal := fmt.Sprintf("$f32.%08x", uint32(i32))
++			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+@@ -263,7 +263,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+-			literal := fmt.Sprintf("$f64.%016x", uint64(i64))
++			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index d7f0840bc1..5fe4cb10a5 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -183,7 +183,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+ 	case 4:
+ 		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
+ 	case 8:
+-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(v))
++		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
+ 	}
+ 
+ 	return off + wid
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 13e7600c21..73d6cabbcb 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -1024,7 +1024,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = OP_IRR(opirr(ctxt, p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+ 
+ 	case 5: /* syscall */
+-		o1 = uint32(oprrr(ctxt, p.As))
++		o1 = oprrr(ctxt, p.As)
+ 
+ 	case 6: /* beq r1,[r2],sbra */
+ 		v := int32(0)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 60505dfbb5..17175ebf06 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -371,9 +371,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 			name = "TLS"
+ 		}
+ 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
+-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
++			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(r.Add))
+ 		} else {
+-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
++			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
+ 		}
+ 	}
+ }
+@@ -473,7 +473,7 @@ func (w *objWriter) writeSym(s *LSym) {
+ 
+ func (w *objWriter) writeInt(sval int64) {
+ 	var v uint64
+-	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
++	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
+ 	p := w.varintbuf[:]
+ 	for v = uv; v >= 0x80; v >>= 7 {
+ 		p[0] = uint8(v | 0x80)
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index eca7531f3c..a086be9f66 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -64,7 +64,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		if val == oldval && started != 0 {
+ 			val = valfunc(ctxt, func_, val, p, 1, arg)
+ 			if ctxt.Debugpcln != 0 {
+-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(int64(p.Pc)), "", p)
++				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+ 			}
+ 			continue
+ 		}
+@@ -76,7 +76,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		if p.Link != nil && p.Link.Pc == p.Pc {
+ 			val = valfunc(ctxt, func_, val, p, 1, arg)
+ 			if ctxt.Debugpcln != 0 {
+-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(int64(p.Pc)), "", p)
++				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+ 			}
+ 			continue
+ 		}
+@@ -96,7 +96,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		// where the 0x80 bit indicates that the integer continues.
+ 
+ 		if ctxt.Debugpcln != 0 {
+-			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(int64(p.Pc)), val, p)
++			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(p.Pc), val, p)
+ 		}
+ 
+ 		if started != 0 {
+@@ -118,7 +118,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 
+ 	if started != 0 {
+ 		if ctxt.Debugpcln != 0 {
+-			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(int64(func_.Text.Pc)+func_.Size))
++			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(func_.Text.Pc+func_.Size))
+ 		}
+ 		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
+ 		addvarint(ctxt, dst, 0) // terminator
+@@ -164,7 +164,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 		if file == f {
+ 			pcln.Lastfile = f
+ 			pcln.Lastindex = int(i)
+-			return int32(i)
++			return i
+ 		}
+ 	}
+ 	pcln.File = append(pcln.File, f)
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index e793f26803..f786f3c443 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1384,7 +1384,7 @@ const (
+ // which relocation to use with a load or store and only supports the needed
+ // instructions.
+ func opform(ctxt *obj.Link, insn uint32) int {
+-	switch uint32(insn) {
++	switch insn {
+ 	default:
+ 		ctxt.Diag("bad insn in loadform: %x", insn)
+ 	case OPVCC(58, 0, 0, 0), // ld
+@@ -2198,9 +2198,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		v := oprrr(ctxt, p.As)
+ 		t := v & (1<<10 | 1) /* OE|Rc */
+-		o1 = AOP_RRR(uint32(v)&^uint32(t), REGTMP, uint32(r), uint32(p.From.Reg))
++		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
+ 		o2 = AOP_RRR(OP_MULLW, REGTMP, REGTMP, uint32(p.From.Reg))
+-		o3 = AOP_RRR(OP_SUBF|uint32(t), uint32(p.To.Reg), REGTMP, uint32(r))
++		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
+ 		if p.As == AREMU {
+ 			o4 = o3
+ 
+@@ -2216,9 +2216,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		v := oprrr(ctxt, p.As)
+ 		t := v & (1<<10 | 1) /* OE|Rc */
+-		o1 = AOP_RRR(uint32(v)&^uint32(t), REGTMP, uint32(r), uint32(p.From.Reg))
++		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
+ 		o2 = AOP_RRR(OP_MULLD, REGTMP, REGTMP, uint32(p.From.Reg))
+-		o3 = AOP_RRR(OP_SUBF|uint32(t), uint32(p.To.Reg), REGTMP, uint32(r))
++		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
+ 
+ 	case 52: /* mtfsbNx cr(n) */
+ 		v := regoff(ctxt, &p.From) & 31
+@@ -2485,7 +2485,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			ctxt.Diag("invalid offset against tls var %v", p)
+ 		}
+ 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+-		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
++		o2 = AOP_IRR(opload(ctxt, AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 		rel := obj.Addrel(ctxt.Cursym)
+ 		rel.Off = int32(ctxt.Pc)
+ 		rel.Siz = 8
+@@ -2499,7 +2499,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+-		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
++		o2 = AOP_IRR(opload(ctxt, AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 		rel := obj.Addrel(ctxt.Cursym)
+ 		rel.Off = int32(ctxt.Pc)
+ 		rel.Siz = 8
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 04e6a76e1a..294cedcb0a 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -279,7 +279,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 
+ 	case TYPE_SHIFT:
+ 		v := int(a.Offset)
+-		op := string("<<>>->@>"[((v>>5)&3)<<1:])
++		op := "<<>>->@>"[((v>>5)&3)<<1:]
+ 		if v&(1<<4) != 0 {
+ 			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
+ 		} else {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index e806a834fd..57ef045b98 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3308,7 +3308,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 			case Pf2, /* xmm opcode escape */
+ 				Pf3:
+-				ctxt.AsmBuf.Put2(byte(o.prefix), Pm)
++				ctxt.AsmBuf.Put2(o.prefix, Pm)
+ 
+ 			case Pef3:
+ 				ctxt.AsmBuf.Put3(Pe, Pf3, Pm)
+@@ -3421,7 +3421,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				asmand(ctxt, p, &p.From, &p.To)
+ 
+ 			case Zm2_r:
+-				ctxt.AsmBuf.Put2(byte(op), byte(o.op[z+1]))
++				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
+ 				asmand(ctxt, p, &p.From, &p.To)
+ 
+ 			case Zm_r_xm:
+@@ -3531,7 +3531,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				}
+ 				ctxt.AsmBuf.Put1(byte(op))
+ 				if p.As == AXABORT {
+-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
++					ctxt.AsmBuf.Put1(o.op[z+1])
+ 				}
+ 				ctxt.AsmBuf.Put1(byte(vaddr(ctxt, p, a, nil)))
+ 
+@@ -3657,7 +3657,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				if yt.zcase == Zcallcon {
+ 					ctxt.AsmBuf.Put1(byte(op))
+ 				} else {
+-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
++					ctxt.AsmBuf.Put1(o.op[z+1])
+ 				}
+ 				r = obj.Addrel(ctxt.Cursym)
+ 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+@@ -3667,7 +3667,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.AsmBuf.PutInt32(0)
+ 
+ 			case Zcallind:
+-				ctxt.AsmBuf.Put2(byte(op), byte(o.op[z+1]))
++				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
+ 				r = obj.Addrel(ctxt.Cursym)
+ 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+ 				r.Type = obj.R_ADDR
+@@ -3722,7 +3722,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 						log.Fatalf("bad code")
+ 					}
+ 
+-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
++					ctxt.AsmBuf.Put1(o.op[z+1])
+ 					r = obj.Addrel(ctxt.Cursym)
+ 					r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+ 					r.Sym = p.To.Sym
+@@ -3762,7 +3762,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 							v--
+ 						}
+ 
+-						ctxt.AsmBuf.Put1(byte(o.op[z+1]))
++						ctxt.AsmBuf.Put1(o.op[z+1])
+ 						ctxt.AsmBuf.PutInt32(int32(v))
+ 					}
+ 
+@@ -3784,7 +3784,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 					if yt.zcase == Zbr {
+ 						ctxt.AsmBuf.Put1(0x0f)
+ 					}
+-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
++					ctxt.AsmBuf.Put1(o.op[z+1])
+ 					ctxt.AsmBuf.PutInt32(0)
+ 				}
+ 
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index 1d808f77eb..6ee389dc2e 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -59,7 +59,7 @@ func (f *plan9File) symbols() ([]Sym, error) {
+ 		if !validSymType[s.Type] {
+ 			continue
+ 		}
+-		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
++		sym := Sym{Addr: s.Value, Name: s.Name, Code: s.Type}
+ 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+ 		if i < len(addrs) {
+ 			sym.Size = int64(addrs[i] - s.Value)
+diff --git a/src/cmd/internal/pprof/profile/legacy_profile.go b/src/cmd/internal/pprof/profile/legacy_profile.go
+index 3d4da6b4d7..8ccfe45176 100644
+--- a/src/cmd/internal/pprof/profile/legacy_profile.go
++++ b/src/cmd/internal/pprof/profile/legacy_profile.go
+@@ -74,7 +74,7 @@ func parseGoCount(b []byte) (*Profile, error) {
+ 	if m == nil {
+ 		return nil, errUnrecognized
+ 	}
+-	profileType := string(m[1])
++	profileType := m[1]
+ 	p := &Profile{
+ 		PeriodType: &ValueType{Type: profileType, Unit: "count"},
+ 		Period:     1,
+@@ -99,11 +99,11 @@ func parseGoCount(b []byte) (*Profile, error) {
+ 		if m == nil {
+ 			return nil, errMalformed
+ 		}
+-		n, err := strconv.ParseInt(string(m[1]), 0, 64)
++		n, err := strconv.ParseInt(m[1], 0, 64)
+ 		if err != nil {
+ 			return nil, errMalformed
+ 		}
+-		fields := strings.Fields(string(m[2]))
++		fields := strings.Fields(m[2])
+ 		locs := make([]*Location, 0, len(fields))
+ 		for _, stk := range fields {
+ 			addr, err := strconv.ParseUint(stk, 0, 64)
+@@ -458,7 +458,7 @@ func parseCPUSamples(b []byte, parse func(b []byte) (uint64, []byte), adjust boo
+ 		}
+ 		p.Sample = append(p.Sample,
+ 			&Sample{
+-				Value:    []int64{int64(count), int64(count) * int64(p.Period)},
++				Value:    []int64{int64(count), int64(count) * p.Period},
+ 				Location: sloc,
+ 			})
+ 	}
+@@ -488,7 +488,7 @@ func parseHeap(b []byte) (p *Profile, err error) {
+ 
+ 		var period int64
+ 		if len(header[6]) > 0 {
+-			if period, err = strconv.ParseInt(string(header[6]), 10, 64); err != nil {
++			if period, err = strconv.ParseInt(header[6], 10, 64); err != nil {
+ 				return nil, errUnrecognized
+ 			}
+ 		}
+diff --git a/src/cmd/internal/unvendor/golang.org/x/arch/arm/armasm/decode.go b/src/cmd/internal/unvendor/golang.org/x/arch/arm/armasm/decode.go
+index 6b4d73841b..cc81dc3f50 100644
+--- a/src/cmd/internal/unvendor/golang.org/x/arch/arm/armasm/decode.go
++++ b/src/cmd/internal/unvendor/golang.org/x/arch/arm/armasm/decode.go
+@@ -233,9 +233,9 @@ func decodeArg(aop instArg, x uint32) Arg {
+ 		typ, count := decodeShift(x)
+ 		// ROR #0 here means ROR #0, but decodeShift rewrites to RRX #1.
+ 		if typ == RotateRightExt {
+-			return Reg(Rm)
++			return Rm
+ 		}
+-		return RegShift{Rm, typ, uint8(count)}
++		return RegShift{Rm, typ, count}
+ 
+ 	case arg_R_shift_R:
+ 		Rm := Reg(x & (1<<4 - 1))
+@@ -247,9 +247,9 @@ func decodeArg(aop instArg, x uint32) Arg {
+ 		Rm := Reg(x & (1<<4 - 1))
+ 		typ, count := decodeShift(x)
+ 		if typ == ShiftLeft && count == 0 {
+-			return Reg(Rm)
++			return Rm
+ 		}
+-		return RegShift{Rm, typ, uint8(count)}
++		return RegShift{Rm, typ, count}
+ 
+ 	case arg_R1_0:
+ 		return Reg((x & (1<<4 - 1)))
+diff --git a/src/cmd/internal/unvendor/golang.org/x/arch/x86/x86asm/decode.go b/src/cmd/internal/unvendor/golang.org/x/arch/x86/x86asm/decode.go
+index e4122c1e6d..9b3597300e 100644
+--- a/src/cmd/internal/unvendor/golang.org/x/arch/x86/x86asm/decode.go
++++ b/src/cmd/internal/unvendor/golang.org/x/arch/x86/x86asm/decode.go
+@@ -1041,7 +1041,7 @@ Decode:
+ 
+ 		case xArgMoffs8, xArgMoffs16, xArgMoffs32, xArgMoffs64:
+ 			// TODO(rsc): Can address be 64 bits?
+-			mem = Mem{Disp: int64(immc)}
++			mem = Mem{Disp: immc}
+ 			if segIndex >= 0 {
+ 				mem.Segment = prefixToSegment(inst.Prefix[segIndex])
+ 				inst.Prefix[segIndex] |= PrefixImplicit
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index a6dce6c2c9..ab96a59151 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -735,7 +735,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 1188615716..69e1d8f317 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -649,7 +649,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index d3ba5ff3f3..d8ffffa157 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -488,7 +488,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cf51b0a908..105503f6ef 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -80,7 +80,7 @@ func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+ 	case 4:
+ 		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
+ 	case 8:
+-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(v))
++		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
+ 	}
+ 
+ 	return off + wid
+@@ -757,7 +757,7 @@ func blk(start *LSym, addr int64, size int64) {
+ 		}
+ 		Ctxt.Cursym = sym
+ 		if sym.Value < addr {
+-			Diag("phase error: addr=%#x but sym=%#x type=%d", int64(addr), int64(sym.Value), sym.Type)
++			Diag("phase error: addr=%#x but sym=%#x type=%d", addr, sym.Value, sym.Type)
+ 			errorexit()
+ 		}
+ 
+@@ -773,7 +773,7 @@ func blk(start *LSym, addr int64, size int64) {
+ 			addr = sym.Value + sym.Size
+ 		}
+ 		if addr != sym.Value+sym.Size {
+-			Diag("phase error: addr=%#x value+size=%#x", int64(addr), int64(sym.Value)+sym.Size)
++			Diag("phase error: addr=%#x value+size=%#x", addr, sym.Value+sym.Size)
+ 			errorexit()
+ 		}
+ 
+@@ -821,14 +821,14 @@ func Codeblk(addr int64, size int64) {
+ 		}
+ 
+ 		if addr < sym.Value {
+-			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
++			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
+ 			for ; addr < sym.Value; addr++ {
+ 				fmt.Fprintf(Bso, " %.2x", 0)
+ 			}
+ 			fmt.Fprintf(Bso, "\n")
+ 		}
+ 
+-		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(int64(addr)), sym.Name)
++		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(addr), sym.Name)
+ 		q = sym.P
+ 
+ 		for len(q) >= 16 {
+@@ -844,7 +844,7 @@ func Codeblk(addr int64, size int64) {
+ 	}
+ 
+ 	if addr < eaddr {
+-		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
++		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
+ 		for ; addr < eaddr; addr++ {
+ 			fmt.Fprintf(Bso, " %.2x", 0)
+ 		}
+@@ -892,7 +892,7 @@ func Datblk(addr int64, size int64) {
+ 		p = sym.P
+ 		ep = p[len(sym.P):]
+ 		for -cap(p) < -cap(ep) {
+-			if -cap(p) > -cap(sym.P) && int(-cap(p)+cap(sym.P))%16 == 0 {
++			if -cap(p) > -cap(sym.P) && (-cap(p)+cap(sym.P))%16 == 0 {
+ 				fmt.Fprintf(Bso, "\n\t%.8x|", uint(addr+int64(-cap(p)+cap(sym.P))))
+ 			}
+ 			fmt.Fprintf(Bso, " %.2x", p[0])
+@@ -924,7 +924,7 @@ func Datblk(addr int64, size int64) {
+ 					typ = "call"
+ 				}
+ 
+-				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, int64(r.Add), int64(r.Sym.Value+r.Add))
++				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
+ 			}
+ 		}
+ 	}
+@@ -1279,7 +1279,7 @@ func dodata() {
+ 
+ 	for s := datap; s != nil; s = s.Next {
+ 		if int64(len(s.P)) > s.Size {
+-			Diag("%s: initialize bounds (%d < %d)", s.Name, int64(s.Size), len(s.P))
++			Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 5fa8b4c81f..4725b91d01 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -53,12 +53,12 @@ func uncommonSize() int    { return 2 * SysArch.PtrSize }   // runtime.uncommont
+ 
+ // Type.commonType.kind
+ func decodetype_kind(s *LSym) uint8 {
+-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindMask) //  0x13 / 0x1f
++	return s.P[2*SysArch.PtrSize+7] & obj.KindMask //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ func decodetype_usegcprog(s *LSym) uint8 {
+-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindGCProg) //  0x13 / 0x1f
++	return s.P[2*SysArch.PtrSize+7] & obj.KindGCProg //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b1208b63a8..bec9946ec5 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -615,7 +615,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
+ 		Adduint8(Ctxt, s, uint8(value))
+ 		p := data.([]byte)
+ 		for i := 0; int64(i) < value; i++ {
+-			Adduint8(Ctxt, s, uint8(p[i]))
++			Adduint8(Ctxt, s, p[i])
+ 		}
+ 
+ 	case DW_FORM_block2: // block
+@@ -624,7 +624,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
+ 		Adduint16(Ctxt, s, uint16(value))
+ 		p := data.([]byte)
+ 		for i := 0; int64(i) < value; i++ {
+-			Adduint8(Ctxt, s, uint8(p[i]))
++			Adduint8(Ctxt, s, p[i])
+ 		}
+ 
+ 	case DW_FORM_block4: // block
+@@ -633,7 +633,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
+ 		Adduint32(Ctxt, s, uint32(value))
+ 		p := data.([]byte)
+ 		for i := 0; int64(i) < value; i++ {
+-			Adduint8(Ctxt, s, uint8(p[i]))
++			Adduint8(Ctxt, s, p[i])
+ 		}
+ 
+ 	case DW_FORM_block: // block
+@@ -641,7 +641,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
+ 
+ 		p := data.([]byte)
+ 		for i := 0; int64(i) < value; i++ {
+-			Adduint8(Ctxt, s, uint8(p[i]))
++			Adduint8(Ctxt, s, p[i])
+ 		}
+ 
+ 	case DW_FORM_data1: // constant
+@@ -1179,7 +1179,7 @@ func synthesizemaptypes(die *DWDie) {
+ 		// Construct type to represent an array of BucketSize keys
+ 		keyname := nameFromDIESym(keytype)
+ 		dwhks := mkinternaltype(DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *DWDie) {
+-			newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(keysize), 0)
++			newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*keysize, 0)
+ 			t := keytype
+ 			if indirect_key {
+ 				t = defptrto(keytype)
+@@ -1193,7 +1193,7 @@ func synthesizemaptypes(die *DWDie) {
+ 		// Construct type to represent an array of BucketSize values
+ 		valname := nameFromDIESym(valtype)
+ 		dwhvs := mkinternaltype(DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *DWDie) {
+-			newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(valsize), 0)
++			newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*valsize, 0)
+ 			t := valtype
+ 			if indirect_val {
+ 				t = defptrto(valtype)
+@@ -1225,7 +1225,7 @@ func synthesizemaptypes(die *DWDie) {
+ 				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(SysArch.PtrSize))
+ 			}
+ 
+-			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*int64(keysize)+BucketSize*int64(valsize)+int64(SysArch.RegSize), 0)
++			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(SysArch.RegSize), 0)
+ 		})
+ 
+ 		// Construct hash<K,V>
+@@ -1269,7 +1269,7 @@ func synthesizechantypes(die *DWDie) {
+ 			} else {
+ 				elemsize = 0
+ 			}
+-			newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, int64(sudogsize)+int64(elemsize), nil)
++			newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, int64(sudogsize)+elemsize, nil)
+ 		})
+ 
+ 		// waitq<T>
+@@ -1787,7 +1787,7 @@ func writeinfo(prev *LSym) *LSym {
+ 		}
+ 
+ 		setuint32(Ctxt, s, 0, uint32(cusize))
+-		newattr(compunit, DW_AT_byte_size, DW_CLS_CONSTANT, int64(cusize), 0)
++		newattr(compunit, DW_AT_byte_size, DW_CLS_CONSTANT, cusize, 0)
+ 	}
+ 	return prev
+ }
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 7c760775b5..02f7897db9 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2026,7 +2026,7 @@ func doelf() {
+ 			h.Write(l.hash)
+ 		}
+ 		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+-		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
++		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
+ 		var deplist []string
+ 		for _, shlib := range Ctxt.Shlibs {
+ 			deplist = append(deplist, filepath.Base(shlib.Path))
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index d07a2a2c34..59e71f4dd4 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -500,7 +500,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 	elfobj.e = e
+ 	elfobj.f = f
+-	elfobj.base = int64(base)
++	elfobj.base = base
+ 	elfobj.length = length
+ 	elfobj.name = pn
+ 
+@@ -612,7 +612,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+ 				goto bad
+ 			}
+ 
+-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
++			sect.nameoff = e.Uint32(b.Name[:])
+ 			sect.type_ = e.Uint32(b.Type[:])
+ 			sect.flags = e.Uint64(b.Flags[:])
+ 			sect.addr = e.Uint64(b.Addr[:])
+@@ -629,7 +629,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+ 				goto bad
+ 			}
+ 
+-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
++			sect.nameoff = e.Uint32(b.Name[:])
+ 			sect.type_ = e.Uint32(b.Type[:])
+ 			sect.flags = uint64(e.Uint32(b.Flags[:]))
+ 			sect.addr = uint64(e.Uint32(b.Addr[:]))
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 8dc4033bbc..105fc137f9 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -399,8 +399,8 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 			return -1
+ 		}
+ 		s.name = cstring(strbuf[v:])
+-		s.type_ = uint8(p[4])
+-		s.sectnum = uint8(p[5])
++		s.type_ = p[4]
++		s.sectnum = p[5]
+ 		s.desc = m.e.Uint16(p[6:])
+ 		if m.is64 {
+ 			s.value = m.e.Uint64(p[8:])
+@@ -460,8 +460,8 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	is64 = e.Uint32(hdr[:]) == 0xFEEDFACF
+-	ncmd = e.Uint32([]byte(hdr[4*4:]))
+-	cmdsz = e.Uint32([]byte(hdr[5*4:]))
++	ncmd = e.Uint32(hdr[4*4:])
++	cmdsz = e.Uint32(hdr[5*4:])
+ 	if ncmd > 0x10000 || cmdsz >= 0x01000000 {
+ 		err = fmt.Errorf("implausible mach-o header ncmd=%d cmdsz=%d", ncmd, cmdsz)
+ 		goto bad
+@@ -475,11 +475,11 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 	m.f = f
+ 	m.e = e
+-	m.cputype = uint(e.Uint32([]byte(hdr[1*4:])))
+-	m.subcputype = uint(e.Uint32([]byte(hdr[2*4:])))
+-	m.filetype = e.Uint32([]byte(hdr[3*4:]))
++	m.cputype = uint(e.Uint32(hdr[1*4:]))
++	m.subcputype = uint(e.Uint32(hdr[2*4:]))
++	m.filetype = e.Uint32(hdr[3*4:])
+ 	m.ncmd = uint(ncmd)
+-	m.flags = e.Uint32([]byte(hdr[6*4:]))
++	m.flags = e.Uint32(hdr[6*4:])
+ 	m.is64 = is64
+ 	m.base = base
+ 	m.length = length
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 7f7121ff94..c51479fb4e 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -175,14 +175,14 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
+ 	// TODO return error if found .cormeta
+ 
+ 	// load string table
+-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+ 
+ 	if _, err := io.ReadFull(f, symbuf[:4]); err != nil {
+ 		goto bad
+ 	}
+ 	l = Le32(symbuf[:])
+ 	peobj.snames = make([]byte, l)
+-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+ 	if _, err := io.ReadFull(f, peobj.snames); err != nil {
+ 		goto bad
+ 	}
+@@ -203,9 +203,9 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
+ 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
+ 
+ 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
+-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
++	f.Seek(base+int64(peobj.fh.PointerToSymbolTable), 0)
+ 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
+-		f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
++		f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+ 		if _, err := io.ReadFull(f, symbuf[:]); err != nil {
+ 			goto bad
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bdcc84a129..a18098e7e7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -765,7 +765,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
+ 	if arsize&1 != 0 {
+ 		arsize++
+ 	}
+-	return int64(arsize) + SAR_HDR
++	return arsize + SAR_HDR
+ }
+ 
+ func objfile(lib *Library) {
+@@ -1953,7 +1953,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 				continue
+ 			}
+ 			if len(s.P) > 0 {
+-				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, int(len(s.P)), s.Type, s.Attr.Special())
++				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, len(s.P), s.Type, s.Attr.Special())
+ 			}
+ 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+ 
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 1d9a1a9324..46cce4c331 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -703,11 +703,11 @@ func machosymtab() {
+ 			Addstring(symstr, s.Extname)
+ 		} else {
+ 			for p = s.Extname; p != ""; p = p[1:] {
+-				if uint8(p[0]) == 0xc2 && uint8((p[1:])[0]) == 0xb7 {
++				if p[0] == 0xc2 && (p[1:])[0] == 0xb7 {
+ 					Adduint8(Ctxt, symstr, '.')
+ 					p = p[1:]
+ 				} else {
+-					Adduint8(Ctxt, symstr, uint8(p[0]))
++					Adduint8(Ctxt, symstr, p[0])
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index b4d2a2184f..dffb7a3d9b 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -472,7 +472,7 @@ func (r *objReader) readInt64() int64 {
+ 		}
+ 	}
+ 
+-	return int64(uv>>1) ^ (int64(uint64(uv)<<63) >> 63)
++	return int64(uv>>1) ^ (int64(uv<<63) >> 63)
+ }
+ 
+ func (r *objReader) readInt() int {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 74ef8c2929..345eaa1ac2 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -179,7 +179,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
+ 
+ 		dv = val - newval
+ 		newval = val
+-		v = (uint32(dv) << 1) ^ uint32(int32(dv>>31))
++		v = (uint32(dv) << 1) ^ uint32(dv>>31)
+ 		addvarint(&out, v)
+ 
+ 		// pc delta
+@@ -378,7 +378,7 @@ func pclntab() {
+ 	ftab.Size = int64(len(ftab.P))
+ 
+ 	if Debug['v'] != 0 {
+-		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
++		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 0204b8c8c2..8985c40588 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -877,7 +877,7 @@ func peemitreloc(text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	ctors.NumberOfRelocations = 1
+ 	ctors.PointerToRelocations = uint32(Cpos())
+ 	sectoff := ctors.VirtualAddress
+-	Lputl(uint32(sectoff))
++	Lputl(sectoff)
+ 	Lputl(uint32(dottext.Dynid))
+ 	switch obj.Getgoarch() {
+ 	default:
+@@ -1043,7 +1043,7 @@ func addpesymtable() {
+ 	// write COFF string table
+ 	Lputl(uint32(len(strtbl)) + 4)
+ 	for i := 0; i < len(strtbl); i++ {
+-		Cput(uint8(strtbl[i]))
++		Cput(strtbl[i])
+ 	}
+ 	if Linkmode != LinkExternal {
+ 		strnput("", int(h.SizeOfRawData-uint32(size)))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 60bec0d6c9..96e8de5030 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -236,10 +236,10 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_
+ 
+ 		var i int
+ 		if t == 'z' || t == 'Z' {
+-			Cput(uint8(s[0]))
++			Cput(s[0])
+ 			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
+-				Cput(uint8(s[i]))
+-				Cput(uint8(s[i+1]))
++				Cput(s[i])
++				Cput(s[i+1])
+ 			}
+ 
+ 			Cput(0)
+@@ -251,7 +251,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_
+ 				s = s[1:]
+ 			}
+ 			for i = 0; i < len(s); i++ {
+-				Cput(uint8(s[i]))
++				Cput(s[i])
+ 			}
+ 			Cput(0)
+ 		}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index ad6a1f7524..785002b02c 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -193,7 +193,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+@@ -214,7 +214,7 @@ func asmb() {
+ 		if ld.SysArch == sys.ArchMIPS64LE {
+ 			magic = uint32(4*26*26 + 7)
+ 		}
+-		ld.Thearch.Lput(uint32(magic))              /* magic */
++		ld.Thearch.Lput(magic)                      /* magic */
+ 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
+ 		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 3970f3c5f9..562e0810e0 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -913,7 +913,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 19a8917ec8..5231ad1f6c 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -699,7 +699,7 @@ func asmb() {
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(uint8(sym.P[i]))
++					ld.Cput(sym.P[i])
+ 				}
+ 
+ 				ld.Cflush()
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index e8164a46f9..abff14fb1d 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -111,7 +111,7 @@ func validateStructTag(tag string) error {
+ 		if i >= len(tag) {
+ 			return errTagValueSyntax
+ 		}
+-		qvalue := string(tag[:i+1])
++		qvalue := tag[:i+1]
+ 		tag = tag[i+1:]
+ 
+ 		if _, err := strconv.Unquote(qvalue); err != nil {

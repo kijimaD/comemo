@@ -10,6 +10,20 @@ Date:   Fri May 9 09:56:15 2025 +0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/crypto/sha1/sha1block_loong64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha1/sha1block_loong64.s b/src/crypto/sha1/sha1block_loong64.s
+index 7e9d6e0933..b76b193ad0 100644
+--- a/src/crypto/sha1/sha1block_loong64.s
++++ b/src/crypto/sha1/sha1block_loong64.s
+@@ -29,7 +29,7 @@
+ 
+ #define LOAD1(index) \
+ 	MOVW	(index*4)(R5), REGTMP3; \
+-	WORD	$0x3a73; \	// REVB2W REGTMP3, REGTMP3   to big-endian
++	REVB2W	REGTMP3, REGTMP3; \
+ 	MOVW	REGTMP3, (index*4)(R3)
+ 
+ #define LOAD(index) \

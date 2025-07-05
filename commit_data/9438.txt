@@ -7,7 +7,54 @@ Date:   Mon Aug 22 15:40:15 2011 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4921047
-
+---
  src/cmd/gofix/osopen.go      |  1 +
  src/cmd/gofix/osopen_test.go | 23 +++++++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 56147c390e..19c19b5b63 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -31,6 +31,7 @@ func osopen(f *ast.File) bool {
+ 		// Rename O_CREAT to O_CREATE.
+ 		if expr, ok := n.(ast.Expr); ok && isPkgDot(expr, "os", "O_CREAT") {
+ 			expr.(*ast.SelectorExpr).Sel.Name = "O_CREATE"
++			fixed = true
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/gofix/osopen_test.go b/src/cmd/gofix/osopen_test.go
+index 43ddd1a40d..a33bcd4fb4 100644
+--- a/src/cmd/gofix/osopen_test.go
++++ b/src/cmd/gofix/osopen_test.go
+@@ -54,6 +54,29 @@ func f() {
+ 	os.OpenFile(a, os.O_SURPRISE|os.O_CREATE, 0666)
+ 	_ = os.O_CREATE
+ }
++`,
++	},
++	{
++		Name: "osopen.1",
++		In: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	_ = os.O_CREAT
++}
++`,
++		Out: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	_ = os.O_CREATE
++}
+ `,
+ 	},
+ }

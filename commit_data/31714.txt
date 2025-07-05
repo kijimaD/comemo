@@ -38,7 +38,7 @@ Date:   Wed Mar 8 14:26:23 2017 -0800
     Change-Id: I493f5ee6e78457cf7b00025aba6b6e28e50bb740
     Reviewed-on: https://go-review.googlesource.com/37970
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/errors/test.bash           |  2 +-
  src/cmd/compile/internal/gc/main.go |  1 +
  src/cmd/compile/internal/gc/subr.go |  2 +-
@@ -47,3 +47,191 @@ Date:   Wed Mar 8 14:26:23 2017 -0800
  src/cmd/internal/src/pos_test.go    | 20 ++++++++------------
  test/run.go                         |  3 ++-
  7 files changed, 38 insertions(+), 29 deletions(-)
+
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 05261e9d76..27d7dc1cfe 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -17,7 +17,7 @@ check() {
+ expect() {
+ 	file=$1
+ 	shift
+-	if go build $file >errs 2>&1; then
++	if go build -gcflags=-C $file >errs 2>&1; then
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail on $file but it succeeded
+ 		exit 1
+ 	fi
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2c4615cba1..49227ecaf6 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -166,6 +166,7 @@ func Main() {
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+ 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
+ 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
++	obj.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
+ 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
+ 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
+ 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 923205ca39..880f1350d3 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -87,7 +87,7 @@ func hcrash() {
+ }
+ 
+ func linestr(pos src.XPos) string {
+-	return Ctxt.OutermostPos(pos).String()
++	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0)
+ }
+ 
+ // lasterror keeps track of the most recently issued error.
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index f1f832362b..69898c7385 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Ctxt.OutermostPos(p.Pos).String()
++	return p.Ctxt.OutermostPos(p.Pos).Format(false)
+ }
+ 
+ var armCondCode = []string{
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 04e2068d7c..a1ea3fcdac 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -13,8 +13,7 @@ import "strconv"
+ // position base and zero line number).
+ //
+ // The (line, column) values refer to a position in a file independent of any
+-// position base ("absolute" position). Line numbers start at 1, column values
+-// start at 0 and are byte offsets from the beginning of the line.
++// position base ("absolute" file position).
+ //
+ // The position base is used to determine the "relative" position, that is the
+ // filename and line number relative to the position base. If the base refers
+@@ -80,30 +79,42 @@ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
+ func (p Pos) SymFilename() string { return p.base.SymFilename() }
+ 
+ func (p Pos) String() string {
++	return p.Format(true)
++}
++
++// Format formats a position as "filename:line" or "filename:line:column",
++// controlled by the showCol flag.
++// If the position is relative to a line directive, the original position
++// is appended in square brackets without column (since the column doesn't
++// change).
++func (p Pos) Format(showCol bool) string {
+ 	if !p.IsKnown() {
+ 		return "<unknown line number>"
+ 	}
+ 
+-	s := posString(p.Filename(), p.Line(), p.Col())
+ 	if b := p.base; b == b.Pos().base {
+ 		// base is file base (incl. nil)
+-		return s
++		return format(p.Filename(), p.Line(), p.Col(), showCol)
+ 	}
+ 
+ 	// base is relative
+-	return posString(p.RelFilename(), p.RelLine(), p.Col()) + "[" + s + "]"
++	// Print the column only for the original position since the
++	// relative position's column information may be bogus (it's
++	// typically generated code and we can't say much about the
++	// original source at that point but for the file:line info
++	// that's provided via a line directive).
++	// TODO(gri) This may not be true if we have an inlining base.
++	// We may want to differentiate at some point.
++	return format(p.RelFilename(), p.RelLine(), 0, false) +
++		"[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
+ }
+ 
+-// Don't print column numbers because existing tests may not work anymore.
+-// It's a variable for now so that the tests can enable it.
+-// TODO(gri) fix this
+-var printColumn = false
+-
+-// posString formats a (filename, line, col) tuple as a printable position.
+-func posString(filename string, line, col uint) string {
++// format formats a (filename, line, col) tuple as "filename:line" (showCol
++// is false) or "filename:line:column" (showCol is true).
++func format(filename string, line, col uint, showCol bool) string {
+ 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+ 	// col == colMax is interpreted as unknown column value
+-	if printColumn && col < colMax {
++	if showCol && col < colMax {
+ 		s += ":" + strconv.FormatUint(uint64(col), 10)
+ 	}
+ 	return s
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index 3dc5d37b15..a101bc10b1 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -10,8 +10,6 @@ import (
+ )
+ 
+ func TestPos(t *testing.T) {
+-	printColumn = true
+-
+ 	f0 := NewFileBase("", "")
+ 	f1 := NewFileBase("f1", "f1")
+ 	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
+@@ -41,15 +39,15 @@ func TestPos(t *testing.T) {
+ 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
+-		{MakePos(f2, 7, 10), "f2:16:10[:7:10]", "", 7, 10, "f2", 16},
+-		{MakePos(f3, 12, 7), "f3:101:7[f1:12:7]", "f1", 12, 7, "f3", 101},
+-		{MakePos(f4, 25, 1), "f4:114:1[f3:25:1]", "f3", 25, 1, "f4", 114},
++		{MakePos(f2, 7, 10), "f2:16[:7:10]", "", 7, 10, "f2", 16},
++		{MakePos(f3, 12, 7), "f3:101[f1:12:7]", "f1", 12, 7, "f3", 101},
++		{MakePos(f4, 25, 1), "f4:114[f3:25:1]", "f3", 25, 1, "f4", 114},
+ 
+ 		// positions from issue #19392
+-		{MakePos(fc, 4, 0), "c.go:10:0[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
+-		{MakePos(ft, 7, 0), "t.go:20:0[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
+-		{MakePos(fv, 10, 0), "v.go:30:0[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
+-		{MakePos(ff, 13, 0), "f.go:40:0[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
++		{MakePos(fc, 4, 0), "c.go:10[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
++		{MakePos(ft, 7, 0), "t.go:20[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
++		{MakePos(fv, 10, 0), "v.go:30[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
++		{MakePos(ff, 13, 0), "f.go:40[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
+ 	} {
+ 		pos := test.pos
+ 		if got := pos.String(); got != test.string {
+@@ -120,8 +118,6 @@ func TestPredicates(t *testing.T) {
+ }
+ 
+ func TestLico(t *testing.T) {
+-	printColumn = true
+-
+ 	for _, test := range []struct {
+ 		x         lico
+ 		string    string
+@@ -140,7 +136,7 @@ func TestLico(t *testing.T) {
+ 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
+ 	} {
+ 		x := test.x
+-		if got := posString("", x.Line(), x.Col()); got != test.string {
++		if got := format("", x.Line(), x.Col(), true); got != test.string {
+ 			t.Errorf("%s: got %q", test.string, got)
+ 		}
+ 	}
+diff --git a/test/run.go b/test/run.go
+index 19ca328765..3a97cf2c3b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -585,7 +585,8 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "errorcheck":
+-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
++		// TODO(gri) remove need for -C (disable printing of columns in error messages)
++		cmdline := []string{"go", "tool", "compile", "-C", "-e", "-o", "a.o"}
+ 		// No need to add -dynlink even if linkshared if we're just checking for errors...
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, long)

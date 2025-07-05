@@ -14,6 +14,33 @@ Date:   Thu Nov 3 15:34:05 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index 6f2f9074c1..d52e7f196d 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -5,6 +5,7 @@
+ package net_test
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -34,3 +35,13 @@ func ExampleListener() {
+ 		}(conn)
+ 	}
+ }
++
++func ExampleCIDRMask() {
++	// This mask corresponds to a /31 subnet
++	fmt.Println(net.CIDRMask(31, 32))
++
++	// This mask corresponds to a /64 subnet for a IPv6 mask
++	fmt.Println(net.CIDRMask(64, 128))
++	// Output: fffffffe
++	// ffffffffffffffff0000000000000000
++}

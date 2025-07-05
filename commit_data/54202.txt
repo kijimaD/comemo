@@ -13,6 +13,20 @@ Date:   Wed Sep 28 21:38:31 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/nm/nm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 178eeb27be..78fa60014b 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -29,7 +29,7 @@ const helpText = `usage: go tool nm [options] file...
+ `
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, helpText)
++	fmt.Fprint(os.Stderr, helpText)
+ 	os.Exit(2)
+ }
+ 

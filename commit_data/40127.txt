@@ -15,7 +15,71 @@ Date:   Thu Apr 4 00:30:25 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/data.go  | 10 ++++------
  src/cmd/link/internal/ld/dwarf.go | 10 ++++++----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a6f75b74e1..04fe3cb3b5 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -168,12 +168,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 		if r.Siz == 0 { // informational relocation - no work to do
+ 			continue
+ 		}
+-		if r.Type == objabi.R_DWARFFILEREF {
+-			// These should have been processed previously during
+-			// line table writing.
+-			Errorf(s, "orphan R_DWARFFILEREF reloc to %v", r.Sym.Name)
+-			continue
+-		}
+ 
+ 		// We need to be able to reference dynimport symbols when linking against
+ 		// shared libraries, and Solaris, Darwin and AIX need it always
+@@ -490,6 +484,10 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 			// This isn't a real relocation so it must not update
+ 			// its offset value.
+ 			continue
++
++		case objabi.R_DWARFFILEREF:
++			// The final file index is saved in r.Add in dwarf.go:writelines.
++			o = r.Add
+ 		}
+ 
+ 		if r.Variant != sym.RV_NONE {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 0d159c7658..9e7fea0101 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1302,7 +1302,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+ 		ls.SetUint32(ctxt.Arch, headerLengthOffset, uint32(headerend-headerstart))
+ 	}
+ 
+-	// Apply any R_DWARFFILEREF relocations, since we now know the
++	// Process any R_DWARFFILEREF relocations, since we now know the
+ 	// line table file indices for this compilation unit. Note that
+ 	// this loop visits only subprogram DIEs: if the compiler is
+ 	// changed to generate DW_AT_decl_file attributes for other
+@@ -1315,8 +1315,6 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+ 			if r.Type != objabi.R_DWARFFILEREF {
+ 				continue
+ 			}
+-			// Mark relocation as applied (signal to relocsym)
+-			r.Done = true
+ 			idx, ok := fileNums[int(r.Sym.Value)]
+ 			if ok {
+ 				if int(int32(idx)) != idx {
+@@ -1329,7 +1327,11 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+ 					Errorf(f, "bad R_DWARFFILEREF relocation offset %d + 4 would write past length %d", r.Off, len(s.P))
+ 					continue
+ 				}
+-				ctxt.Arch.ByteOrder.PutUint32(f.P[r.Off:r.Off+4], uint32(idx))
++				if r.Add != 0 {
++					Errorf(f, "bad R_DWARFFILEREF relocation: addend not zero")
++				}
++				r.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
++				r.Add = int64(idx) // record the index in r.Add, we'll apply it in the reloc phase.
+ 			} else {
+ 				_, found := missing[int(r.Sym.Value)]
+ 				if !found {

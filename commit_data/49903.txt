@@ -14,6 +14,22 @@ Date:   Mon Sep 20 14:59:54 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/buildcfg/cfg_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/cfg_test.go b/src/internal/buildcfg/cfg_test.go
+index 9180441c28..0123593317 100644
+--- a/src/internal/buildcfg/cfg_test.go
++++ b/src/internal/buildcfg/cfg_test.go
+@@ -18,8 +18,9 @@ func TestConfigFlags(t *testing.T) {
+ 	if goamd64() != 4 {
+ 		t.Errorf("Wrong parsing of GOAMD64=v4")
+ 	}
++	Error = nil
+ 	os.Setenv("GOAMD64", "1")
+-	if goamd64() != 1 {
++	if goamd64(); Error == nil {
+ 		t.Errorf("Wrong parsing of GOAMD64=1")
+ 	}
+ }

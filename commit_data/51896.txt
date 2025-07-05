@@ -14,6 +14,22 @@ Date:   Sun Mar 20 09:32:00 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/os/rlimit_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/rlimit_test.go b/src/os/rlimit_test.go
+index 5859e682ea..58a6a051b3 100644
+--- a/src/os/rlimit_test.go
++++ b/src/os/rlimit_test.go
+@@ -11,8 +11,8 @@ import (
+ )
+ 
+ func TestOpenFileLimit(t *testing.T) {
+-	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+-		t.Skip("broken on openbsd/arm and openbsd/arm64 builder - go.dev/issue/51713")
++	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" || runtime.GOARCH == "mips64") {
++		t.Skip("broken on openbsd/arm, openbsd/arm64, openbsd/mips64 builder - go.dev/issue/51713")
+ 	}
+ 
+ 	// For open file count,

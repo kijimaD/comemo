@@ -10,6 +10,20 @@ Date:   Tue Apr 27 02:29:59 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/313449
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index bbcdd54b02..95bf7d30f8 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4323,7 +4323,7 @@ MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
+ <p>
+ Converting a slice to an array pointer yields a pointer to the underlying array of the slice.
+ If the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
+-a <a href="#Run_time_panics">run-time panic<a/> occurs.
++a <a href="#Run_time_panics">run-time panic</a> occurs.
+ </p>
+ 
+ <pre>

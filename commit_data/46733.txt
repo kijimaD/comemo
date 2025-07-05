@@ -29,3 +29,34 @@ Date:   Sun Jan 24 17:36:59 2021 -0800
  src/cmd/compile/internal/ssa/deadstore.go |  8 ++++----
  test/closure6.go                          | 18 ++++++++++++++++++
  5 files changed, 45 insertions(+), 6 deletions(-)
+
+diff --cc src/cmd/compile/internal/inline/inl.go
+index f0be169f56,9f9bb87dd5..bbbdaa63d4
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@@ -354,17 -354,16 +354,23 @@@ func (v *hairyVisitor) doNode(n ir.Node
+  		return true
+  
+  	case ir.OCLOSURE:
+ +		// TODO(danscales,mdempsky): Get working with -G.
+ +		// Probably after #43818 is fixed.
+ +		if base.Flag.G > 0 {
+ +			v.reason = "inlining closures not yet working with -G"
+ +			return true
+ +		}
+ +
+- 		// TODO(danscales) - fix some bugs when budget is lowered below 30
++ 		// TODO(danscales) - fix some bugs when budget is lowered below 15
+  		// Maybe make budget proportional to number of closure variables, e.g.:
+  		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
+- 		v.budget -= 30
++ 		v.budget -= 15
++ 		// Scan body of closure (which DoChildren doesn't automatically
++ 		// do) to check for disallowed ops in the body and include the
++ 		// body in the budget.
++ 		if doList(n.(*ir.ClosureExpr).Func.Body, v.do) {
++ 			return true
++ 		}
+  
+  	case ir.ORANGE,
+  		ir.OSELECT,

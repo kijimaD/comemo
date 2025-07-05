@@ -17,8 +17,77 @@ Date:   Wed Dec 18 15:38:53 2013 -0500
     R=golang-dev, iant, rsc
     CC=golang-dev
     https://golang.org/cl/22730043
-
+---
  src/pkg/math/rand/example_test.go |  4 ++--
  src/pkg/math/rand/rand.go         |  4 ++--
  src/pkg/math/rand/rand_test.go    | 18 ++++++++++++++++++
  3 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/rand/example_test.go b/src/pkg/math/rand/example_test.go
+index f429914531..b93a371a04 100644
+--- a/src/pkg/math/rand/example_test.go
++++ b/src/pkg/math/rand/example_test.go
+@@ -83,8 +83,8 @@ func Example_rand() {
+ 	// Perm generates a random permutation of the numbers [0, n).
+ 	show("Perm", r.Perm(5), r.Perm(5), r.Perm(5))
+ 	// Output:
+-	// Float32     0.2635776           0.6358173           0.6718283
+-	// Float64     0.628605430454327   0.4504798828572669  0.9562755949377957
++	// Float32     0.73793465          0.38461488          0.9940225
++	// Float64     0.6919607852308565  0.29140004584133117 0.2262092163027547
+ 	// ExpFloat64  0.3362240648200941  1.4256072328483647  0.24354758816173044
+ 	// NormFloat64 0.17233959114940064 1.577014951434847   0.04259129641113857
+ 	// Int31       1501292890          1486668269          182840835
+diff --git a/src/pkg/math/rand/rand.go b/src/pkg/math/rand/rand.go
+index 04fb67d19d..d3ea840178 100644
+--- a/src/pkg/math/rand/rand.go
++++ b/src/pkg/math/rand/rand.go
+@@ -95,10 +95,10 @@ func (r *Rand) Intn(n int) int {
+ }
+ 
+ // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+-func (r *Rand) Float64() float64 { return float64(r.Int63()) / (1 << 63) }
++func (r *Rand) Float64() float64 { return float64(r.Int63n(1<<53)) / (1 << 53) }
+ 
+ // Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+-func (r *Rand) Float32() float32 { return float32(r.Float64()) }
++func (r *Rand) Float32() float32 { return float32(r.Int31n(1<<24)) / (1 << 24) }
+ 
+ // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
+ func (r *Rand) Perm(n int) []int {
+diff --git a/src/pkg/math/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+index 4f0a8d0ee9..c174c613f4 100644
+--- a/src/pkg/math/rand/rand_test.go
++++ b/src/pkg/math/rand/rand_test.go
+@@ -322,6 +322,17 @@ func TestExpTables(t *testing.T) {
+ 	}
+ }
+ 
++// For issue 6721, the problem came after 7533753 calls, so check 10e6.
++func TestFloat32(t *testing.T) {
++	r := New(NewSource(1))
++	for ct := 0; ct < 10e6; ct++ {
++		f := r.Float32()
++		if f >= 1 {
++			t.Fatal("Float32() should be in range [0,1). ct:", ct, "f:", f)
++		}
++	}
++}
++
+ // Benchmarks
+ 
+ func BenchmarkInt63Threadsafe(b *testing.B) {
+@@ -358,6 +369,13 @@ func BenchmarkInt31n1000(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkFloat32(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Float32()
++	}
++}
++
+ func BenchmarkPerm3(b *testing.B) {
+ 	r := New(NewSource(1))
+ 	for n := b.N; n > 0; n-- {

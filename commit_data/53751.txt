@@ -26,7 +26,7 @@ Date:   Thu Jun 30 15:19:59 2022 -0700
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/syscall_linux.go           | 13 +++++++++----
  src/syscall/syscall_linux_386.go       |  5 ++++-
  src/syscall/syscall_linux_amd64.go     |  5 ++++-
@@ -52,3 +52,535 @@ Date:   Thu Jun 30 15:19:59 2022 -0700
  src/syscall/zsyscall_linux_riscv64.go  | 15 +++++++++++++++
  src/syscall/zsyscall_linux_s390x.go    | 15 +++++++++++++++
  24 files changed, 244 insertions(+), 14 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 55a49cc3eb..c3038fc09a 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -137,10 +137,15 @@ func isGroupMember(gid int) bool {
+ }
+ 
+ //sys	faccessat(dirfd int, path string, mode uint32) (err error)
++//sys	faccessat2(dirfd int, path string, mode uint32, flags int) (err error) = _SYS_faccessat2
+ 
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+-	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+-		return EINVAL
++	if flags == 0 {
++		return faccessat(dirfd, path, mode)
++	}
++
++	if err := faccessat2(dirfd, path, mode, flags); err != ENOSYS && err != EPERM {
++		return err
+ 	}
+ 
+ 	// The Linux kernel faccessat system call does not take any flags.
+@@ -149,8 +154,8 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	// Because people naturally expect syscall.Faccessat to act
+ 	// like C faccessat, we do the same.
+ 
+-	if flags == 0 {
+-		return faccessat(dirfd, path, mode)
++	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
++		return EINVAL
+ 	}
+ 
+ 	var st Stat_t
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index a8c2933517..7602736905 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS32
++const (
++	_SYS_setgroups  = SYS_SETGROUPS32
++	_SYS_faccessat2 = 439
++)
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 229cf1ccf5..02e411666e 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,7 +4,10 @@
+ 
+ package syscall
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index f9f993bdfa..1b5d639ebe 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS32
++const (
++	_SYS_setgroups  = SYS_SETGROUPS32
++	_SYS_faccessat2 = 439
++)
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 6b482adcfd..3ce6849064 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_loong64.go b/src/syscall/syscall_linux_loong64.go
+index 531522089e..2cd3494668 100644
+--- a/src/syscall/syscall_linux_loong64.go
++++ b/src/syscall/syscall_linux_loong64.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 89b450b050..2d3784e7de 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -6,7 +6,10 @@
+ 
+ package syscall
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 5439
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 53c3a26469..59825e4a98 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -8,7 +8,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 4439
++)
+ 
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 5c20dfa8f6..ba8f1e78cf 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -6,7 +6,10 @@
+ 
+ package syscall
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 9a0de850a2..82c4094143 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 8e31385c0f..fb97180483 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_setgroups = SYS_SETGROUPS
++const (
++	_SYS_setgroups  = SYS_SETGROUPS
++	_SYS_faccessat2 = 439
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 51af3b0f8d..6a646fba4f 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 8b0f952ed0..d5b0099a9a 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 577655d002..db5ec60448 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 1e19dcd22d..7655ccbb3d 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_loong64.go b/src/syscall/zsyscall_linux_loong64.go
+index b3d703d86b..abbc19be60 100644
+--- a/src/syscall/zsyscall_linux_loong64.go
++++ b/src/syscall/zsyscall_linux_loong64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 3ffec82490..792668c1d5 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index bc3715016f..27dbcb8a2d 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index de216cd614..0362303c5f 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index b41a3b3370..5320dfa65a 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 7e9a3d7d8a..61f3063352 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 12727cf1ea..3e14ab37a1 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index 702f723846..4a3fa5dbd8 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 65135e0897..1fca71e304 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -24,6 +24,21 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func faccessat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(_SYS_faccessat2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)

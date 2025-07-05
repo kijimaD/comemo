@@ -14,7 +14,72 @@ Date:   Mon Feb 19 12:34:53 2018 +0000
     Change-Id: I439115662307923c9f498d3e7b1f32c6d205e1ad
     Reviewed-on: https://go-review.googlesource.com/94777
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/os/stat_plan9.go         |  6 +++---
  src/syscall/syscall_plan9.go | 15 +++++++++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index 8057fd4a02..15999c001c 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -9,7 +9,7 @@ import (
+ 	"time"
+ )
+ 
+-const _BIT16SZ = 2
++const bitSize16 = 2
+ 
+ func fileInfoFromStat(d *syscall.Dir) FileInfo {
+ 	fs := &fileStat{
+@@ -46,7 +46,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
+ 	size := syscall.STATFIXLEN + 16*4
+ 
+ 	for i := 0; i < 2; i++ {
+-		buf := make([]byte, _BIT16SZ+size)
++		buf := make([]byte, bitSize16+size)
+ 
+ 		var n int
+ 		switch a := arg.(type) {
+@@ -60,7 +60,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
+ 			panic("phase error in dirstat")
+ 		}
+ 
+-		if n < _BIT16SZ {
++		if n < bitSize16 {
+ 			return nil, &PathError{"stat", name, err}
+ 		}
+ 
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 12b61ee164..7595126faa 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -14,6 +14,7 @@ package syscall
+ import "unsafe"
+ 
+ const ImplementsGetwd = true
++const bitSize16 = 2
+ 
+ // ErrorString implements Error's String method by returning itself.
+ type ErrorString string
+@@ -164,6 +165,20 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ }
+ 
+ func Mkdir(path string, mode uint32) (err error) {
++	// If path exists and is not a directory, Create will fail silently.
++	// Work around this by rejecting Mkdir if path exists.
++	statbuf := make([]byte, bitSize16)
++	// Remove any trailing slashes from path, otherwise the Stat will
++	// fail with ENOTDIR.
++	n := len(path)
++	for n > 1 && path[n-1] == '/' {
++		n--
++	}
++	_, err = Stat(path[0:n], statbuf)
++	if err == nil {
++		return EEXIST
++	}
++
+ 	fd, err := Create(path, O_RDONLY, DMDIR|mode)
+ 
+ 	if fd != -1 {

@@ -13,7 +13,7 @@ Date:   Wed Feb 25 12:56:44 2015 +1100
     Change-Id: I6df343fef7bcacad30d36c7900dbfb621465a4fe
     Reviewed-on: https://go-review.googlesource.com/5836
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/types_linux.go          | 4 +++-
  src/syscall/ztypes_linux_386.go     | 4 +++-
  src/syscall/ztypes_linux_amd64.go   | 4 +++-
@@ -21,3 +21,94 @@ Date:   Wed Feb 25 12:56:44 2015 +1100
  src/syscall/ztypes_linux_ppc64.go   | 4 +++-
  src/syscall/ztypes_linux_ppc64le.go | 4 +++-
  6 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index 5e9f698cf1..1fec1bc367 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -376,7 +376,9 @@ type Ustat_t C.struct_ustat
+ type EpollEvent C.struct_my_epoll_event
+ 
+ const (
+-	_AT_FDCWD = C.AT_FDCWD
++	_AT_FDCWD            = C.AT_FDCWD
++	_AT_REMOVEDIR        = C.AT_REMOVEDIR
++	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+ )
+ 
+ // Terminal handling
+diff --git a/src/syscall/ztypes_linux_386.go b/src/syscall/ztypes_linux_386.go
+index daecb1dedc..a887f31427 100644
+--- a/src/syscall/ztypes_linux_386.go
++++ b/src/syscall/ztypes_linux_386.go
+@@ -572,7 +572,9 @@ type EpollEvent struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD            = -0x64
++	_AT_REMOVEDIR        = 0x200
++	_AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ type Termios struct {
+diff --git a/src/syscall/ztypes_linux_amd64.go b/src/syscall/ztypes_linux_amd64.go
+index 694fe1eac7..adf95caee7 100644
+--- a/src/syscall/ztypes_linux_amd64.go
++++ b/src/syscall/ztypes_linux_amd64.go
+@@ -590,7 +590,9 @@ type EpollEvent struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD            = -0x64
++	_AT_REMOVEDIR        = 0x200
++	_AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ type Termios struct {
+diff --git a/src/syscall/ztypes_linux_arm.go b/src/syscall/ztypes_linux_arm.go
+index 5f21a948df..1ae9718945 100644
+--- a/src/syscall/ztypes_linux_arm.go
++++ b/src/syscall/ztypes_linux_arm.go
+@@ -561,7 +561,9 @@ type EpollEvent struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD            = -0x64
++	_AT_REMOVEDIR        = 0x200
++	_AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ type Termios struct {
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index 204d806853..fe438364d4 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -578,7 +578,9 @@ type EpollEvent struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD            = -0x64
++	_AT_REMOVEDIR        = 0x200
++	_AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ type Termios struct {
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index df481f5c76..c6b6f1615d 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -578,7 +578,9 @@ type EpollEvent struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD            = -0x64
++	_AT_REMOVEDIR        = 0x200
++	_AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ type Termios struct {

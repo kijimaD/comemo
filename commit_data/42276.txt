@@ -23,6 +23,20 @@ Date:   Wed Nov 20 14:43:04 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testplugin/plugin_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index bf7abcbd69..ab98f61c0a 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -70,7 +70,7 @@ func testMain(m *testing.M) int {
+ 
+ 	os.Setenv("LD_LIBRARY_PATH", modRoot)
+ 
+-	goCmd(nil, "build", "-i", "-buildmode=plugin", "./plugin1")
++	goCmd(nil, "build", "-buildmode=plugin", "./plugin1")
+ 	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
+ 	so, err := ioutil.ReadFile("plugin2.so")
+ 	if err != nil {

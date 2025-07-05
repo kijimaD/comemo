@@ -13,6 +13,22 @@ Date:   Tue Jan 31 18:15:42 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5576079
-
+---
  src/cmd/gc/mkopnames | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/mkopnames b/src/cmd/gc/mkopnames
+index fb2ceec81f..d3f27e8152 100755
+--- a/src/cmd/gc/mkopnames
++++ b/src/cmd/gc/mkopnames
+@@ -14,8 +14,8 @@ echo '{'
+ sed -n '/OXXX/,/OEND/p' go.h |
+ 	cpp |
+ 	sed 's!//.*!!; /^#/d'  |
+-	tr ' ' '\n' |
+-	tr -d ' \t,' |
++	tr ' ' '\012' |
++	tr -d ' \011,' |
+ 	grep . |
+ 	sort |
+ 	grep -v '^OEND$' |

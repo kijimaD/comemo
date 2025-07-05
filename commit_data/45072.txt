@@ -14,7 +14,49 @@ Date:   Wed Sep 2 13:44:36 2020 +0300
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go      |  3 ++-
  src/crypto/x509/x509_test.go | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 16655a3c70..5fd4f6fa17 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1689,7 +1689,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId
+ 			if oid, ok := oidFromExtKeyUsage(u); ok {
+ 				oids = append(oids, oid)
+ 			} else {
+-				panic("internal error")
++				err = errors.New("x509: unknown extended key usage")
++				return
+ 			}
+ 		}
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d0315900e4..6345c3f5ab 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2754,3 +2754,22 @@ func TestRSAPSAParameters(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUnknownExtKey(t *testing.T) {
++	const errorContains = "unknown extended key usage"
++
++	template := &Certificate{
++		SerialNumber: big.NewInt(10),
++		DNSNames:     []string{"foo"},
++		ExtKeyUsage:  []ExtKeyUsage{ExtKeyUsage(-1)},
++	}
++	signer, err := rsa.GenerateKey(rand.Reader, 1024)
++	if err != nil {
++		t.Errorf("failed to generate key for TestUnknownExtKey")
++	}
++
++	_, err = CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
++	if !strings.Contains(err.Error(), errorContains) {
++		t.Errorf("expected error containing %q, got %s", errorContains, err)
++	}
++}

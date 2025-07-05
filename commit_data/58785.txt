@@ -15,6 +15,25 @@ Date:   Mon Dec 11 12:31:25 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go1.22.html | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index a7a51a1ffd..720d356efe 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -117,13 +117,6 @@ packages that do not have their own test files. Prior to Go 1.22 a
+   <code>mymod/mypack    coverage: 0.0% of statements</code>
+ </p>
+ 
+-<h3 id="cgo">Cgo</h3>
+-
+-<!-- https://go.dev/issue/56378 -->
+-<p>
+-  <!-- add #cgo noescape/nocallback annotations -->
+-</p>
+-
+ <h3 id="trace">Trace</h3>
+ 
+ <!-- https://go.dev/issue/63960 -->

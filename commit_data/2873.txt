@@ -8,7 +8,30 @@ Date:   Tue Aug 4 14:22:23 2009 -0700
     DELTA=0  (0 added, 0 deleted, 0 changed)
     OCL=32730
     CL=32735
-
+---
  src/Make.386   | 2 +-
  src/Make.amd64 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.386 b/src/Make.386
+index 137220931b..6471f065a8 100644
+--- a/src/Make.386
++++ b/src/Make.386
+@@ -7,4 +7,4 @@ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+ LD=${O}l
+-OS=568vq
+\ No newline at end of file
++OS=568vq
+diff --git a/src/Make.amd64 b/src/Make.amd64
+index 79edb4fee4..c8f97dc0ca 100644
+--- a/src/Make.amd64
++++ b/src/Make.amd64
+@@ -7,4 +7,4 @@ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+ LD=${O}l
+-OS=568vq
+\ No newline at end of file
++OS=568vq

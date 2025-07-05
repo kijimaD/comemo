@@ -25,8 +25,84 @@ Date:   Wed Jun 7 21:01:48 2017 +0000
     Change-Id: I1107eb197e902ae8185c781ad1bc4e2bc61d1f4c
     Reviewed-on: https://go-review.googlesource.com/45088
     Reviewed-by: Paul Marks <pmarks@google.com>
-
+---
  src/net/dial_test.go    | 18 ++++++++++++++++++
  src/net/ipsock.go       |  7 +++++++
  src/syscall/net_nacl.go | 13 +++++++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index a49a9d7426..59a016a0c5 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -887,3 +887,21 @@ func TestCancelAfterDial(t *testing.T) {
+ 		try()
+ 	}
+ }
++
++// Issue 18806: it should always be possible to net.Dial a
++// net.Listener().Addr().String when the listen address was ":n", even
++// if the machine has halfway configured IPv6 such that it can bind on
++// "::" not connect back to that same address.
++func TestDialListenerAddr(t *testing.T) {
++	ln, err := Listen("tcp", ":0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	addr := ln.Addr().String()
++	c, err := Dial("tcp", addr)
++	if err != nil {
++		t.Fatalf("for addr %q, dial error: %v", addr, err)
++	}
++	c.Close()
++}
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index ade6eab62a..6049692d37 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -254,6 +254,13 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
+ 		ips = []IPAddr{{IP: ip}}
+ 	} else if ip, zone := parseIPv6(host, true); ip != nil {
+ 		ips = []IPAddr{{IP: ip, Zone: zone}}
++		// Issue 18806: if the machine has halfway configured
++		// IPv6 such that it can bind on "::" (IPv6unspecified)
++		// but not connect back to that same address, fall
++		// back to dialing 0.0.0.0.
++		if ip.Equal(IPv6unspecified) {
++			ips = append(ips, IPAddr{IP: IPv4zero})
++		}
+ 	} else {
+ 		// Try as a DNS name.
+ 		ips, err = r.LookupIPAddr(ctx, host)
+diff --git a/src/syscall/net_nacl.go b/src/syscall/net_nacl.go
+index 9dc5d0ca0b..b019cbff87 100644
+--- a/src/syscall/net_nacl.go
++++ b/src/syscall/net_nacl.go
+@@ -177,6 +177,11 @@ func (sa *SockaddrInet4) copy() Sockaddr {
+ 
+ func (sa *SockaddrInet4) key() interface{} { return *sa }
+ 
++func isIPv4Localhost(sa Sockaddr) bool {
++	sa4, ok := sa.(*SockaddrInet4)
++	return ok && sa4.Addr == [4]byte{127, 0, 0, 1}
++}
++
+ type SockaddrInet6 struct {
+ 	Port   int
+ 	ZoneId uint32
+@@ -601,6 +606,14 @@ func (f *netFile) connect(sa Sockaddr) error {
+ 		return EISCONN
+ 	}
+ 	l, ok := net.listener[netAddr{f.proto, f.sotype, sa.key()}]
++	if !ok {
++		// If we're dialing 127.0.0.1 but found nothing, try
++		// 0.0.0.0 also. (Issue 20611)
++		if isIPv4Localhost(sa) {
++			sa = &SockaddrInet4{Port: sa.(*SockaddrInet4).Port}
++			l, ok = net.listener[netAddr{f.proto, f.sotype, sa.key()}]
++		}
++	}
+ 	if !ok || l.listenerClosed() {
+ 		net.Unlock()
+ 		return ECONNREFUSED

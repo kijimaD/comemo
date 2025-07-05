@@ -14,7 +14,7 @@ Date:   Fri May 13 15:31:09 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4425063
-
+---
  src/cmd/gotype/gotype.go             |   6 +-
  src/pkg/go/types/Makefile            |   1 +
  src/pkg/go/types/check.go            | 230 +++++++++++++++++++++++++++++++++++
@@ -24,3 +24,1161 @@ Date:   Fri May 13 15:31:09 2011 -0700
  src/pkg/go/types/testdata/test0.src  | 154 +++++++++++++++++++++++
  src/pkg/go/types/types.go            | 169 +++++++++++++++++++++++--
  8 files changed, 849 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+index 5684673227..b6a23ae5fa 100644
+--- a/src/cmd/gotype/gotype.go
++++ b/src/cmd/gotype/gotype.go
+@@ -178,8 +178,10 @@ func processPackage(fset *token.FileSet, files map[string]*ast.File) {
+ 		report(err)
+ 		return
+ 	}
+-	// TODO(gri): typecheck package
+-	_ = pkg
++	_, err = types.Check(fset, pkg)
++	if err != nil {
++		report(err)
++	}
+ }
+ 
+ 
+diff --git a/src/pkg/go/types/Makefile b/src/pkg/go/types/Makefile
+index 54e762b362..4ca707c735 100644
+--- a/src/pkg/go/types/Makefile
++++ b/src/pkg/go/types/Makefile
+@@ -6,6 +6,7 @@ include ../../../Make.inc
+ 
+ TARG=go/types
+ GOFILES=\
++	check.go\
+ 	const.go\
+ 	exportdata.go\
+ 	gcimporter.go\
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+new file mode 100644
+index 0000000000..99914a098d
+--- /dev/null
++++ b/src/pkg/go/types/check.go
+@@ -0,0 +1,230 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the Check function, which typechecks a package.
++
++package types
++
++import (
++	"fmt"
++	"go/ast"
++	"go/scanner"
++	"go/token"
++	"os"
++	"strconv"
++)
++
++
++const debug = false
++
++
++type checker struct {
++	fset *token.FileSet
++	scanner.ErrorVector
++	types map[ast.Expr]Type
++}
++
++
++func (c *checker) errorf(pos token.Pos, format string, args ...interface{}) string {
++	msg := fmt.Sprintf(format, args...)
++	c.Error(c.fset.Position(pos), msg)
++	return msg
++}
++
++
++// collectFields collects struct fields tok = token.STRUCT), interface methods
++// (tok = token.INTERFACE), and function arguments/results (tok = token.FUNC).
++func (c *checker) collectFields(tok token.Token, list *ast.FieldList, cycleOk bool) (fields ObjList, tags []string, isVariadic bool) {
++	if list != nil {
++		for _, field := range list.List {
++			ftype := field.Type
++			if t, ok := ftype.(*ast.Ellipsis); ok {
++				ftype = t.Elt
++				isVariadic = true
++			}
++			typ := c.makeType(ftype, cycleOk)
++			tag := ""
++			if field.Tag != nil {
++				assert(field.Tag.Kind == token.STRING)
++				tag, _ = strconv.Unquote(field.Tag.Value)
++			}
++			if len(field.Names) > 0 {
++				// named fields
++				for _, name := range field.Names {
++					obj := name.Obj
++					obj.Type = typ
++					fields = append(fields, obj)
++					if tok == token.STRUCT {
++						tags = append(tags, tag)
++					}
++				}
++			} else {
++				// anonymous field
++				switch tok {
++				case token.STRUCT:
++					tags = append(tags, tag)
++					fallthrough
++				case token.FUNC:
++					obj := ast.NewObj(ast.Var, "")
++					obj.Type = typ
++					fields = append(fields, obj)
++				case token.INTERFACE:
++					utyp := Underlying(typ)
++					if typ, ok := utyp.(*Interface); ok {
++						// TODO(gri) This is not good enough. Check for double declarations!
++						fields = append(fields, typ.Methods...)
++					} else if _, ok := utyp.(*Bad); !ok {
++						// if utyp is Bad, don't complain (the root cause was reported before)
++						c.errorf(ftype.Pos(), "interface contains embedded non-interface type")
++					}
++				default:
++					panic("unreachable")
++				}
++			}
++		}
++	}
++	return
++}
++
++
++// makeType makes a new type for an AST type specification x or returns
++// the type referred to by a type name x. If cycleOk is set, a type may
++// refer to itself directly or indirectly; otherwise cycles are errors.
++//
++func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
++	if debug {
++		fmt.Printf("makeType (cycleOk = %v)\n", cycleOk)
++		ast.Print(c.fset, x)
++		defer func() {
++			fmt.Printf("-> %T %v\n\n", typ, typ)
++		}()
++	}
++
++	switch t := x.(type) {
++	case *ast.BadExpr:
++		return &Bad{}
++
++	case *ast.Ident:
++		// type name
++		obj := t.Obj
++		if obj == nil {
++			// unresolved identifier (error has been reported before)
++			return &Bad{Msg: "unresolved identifier"}
++		}
++		if obj.Kind != ast.Typ {
++			msg := c.errorf(t.Pos(), "%s is not a type", t.Name)
++			return &Bad{Msg: msg}
++		}
++		c.checkObj(obj, cycleOk)
++		if !cycleOk && obj.Type.(*Name).Underlying == nil {
++			msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
++			return &Bad{Msg: msg}
++		}
++		return obj.Type.(Type)
++
++	case *ast.ParenExpr:
++		return c.makeType(t.X, cycleOk)
++
++	case *ast.SelectorExpr:
++		// qualified identifier
++		// TODO (gri) eventually, this code belongs to expression
++		//            type checking - here for the time being
++		if ident, ok := t.X.(*ast.Ident); ok {
++			if obj := ident.Obj; obj != nil {
++				if obj.Kind != ast.Pkg {
++					msg := c.errorf(ident.Pos(), "%s is not a package", obj.Name)
++					return &Bad{Msg: msg}
++				}
++				// TODO(gri) we have a package name but don't
++				// have the mapping from package name to package
++				// scope anymore (created in ast.NewPackage).
++				return &Bad{} // for now
++			}
++		}
++		// TODO(gri) can this really happen (the parser should have excluded this)?
++		msg := c.errorf(t.Pos(), "expected qualified identifier")
++		return &Bad{Msg: msg}
++
++	case *ast.StarExpr:
++		return &Pointer{Base: c.makeType(t.X, true)}
++
++	case *ast.ArrayType:
++		if t.Len != nil {
++			// TODO(gri) compute length
++			return &Array{Elt: c.makeType(t.Elt, cycleOk)}
++		}
++		return &Slice{Elt: c.makeType(t.Elt, true)}
++
++	case *ast.StructType:
++		fields, tags, _ := c.collectFields(token.STRUCT, t.Fields, cycleOk)
++		return &Struct{Fields: fields, Tags: tags}
++
++	case *ast.FuncType:
++		params, _, _ := c.collectFields(token.FUNC, t.Params, true)
++		results, _, isVariadic := c.collectFields(token.FUNC, t.Results, true)
++		return &Func{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
++
++	case *ast.InterfaceType:
++		methods, _, _ := c.collectFields(token.INTERFACE, t.Methods, cycleOk)
++		methods.Sort()
++		return &Interface{Methods: methods}
++
++	case *ast.MapType:
++		return &Map{Key: c.makeType(t.Key, true), Elt: c.makeType(t.Key, true)}
++
++	case *ast.ChanType:
++		return &Chan{Dir: t.Dir, Elt: c.makeType(t.Value, true)}
++	}
++
++	panic(fmt.Sprintf("unreachable (%T)", x))
++}
++
++
++// checkObj type checks an object.
++func (c *checker) checkObj(obj *ast.Object, ref bool) {
++	if obj.Type != nil {
++		// object has already been type checked
++		return
++	}
++
++	switch obj.Kind {
++	case ast.Bad:
++		// ignore
++
++	case ast.Con:
++		// TODO(gri) complete this
++
++	case ast.Typ:
++		typ := &Name{Obj: obj}
++		obj.Type = typ // "mark" object so recursion terminates
++		typ.Underlying = Underlying(c.makeType(obj.Decl.(*ast.TypeSpec).Type, ref))
++
++	case ast.Var:
++		// TODO(gri) complete this
++
++	case ast.Fun:
++		// TODO(gri) complete this
++
++	default:
++		panic("unreachable")
++	}
++}
++
++
++// Check typechecks a package.
++// It augments the AST by assigning types to all ast.Objects and returns a map
++// of types for all expression nodes in statements, and a scanner.ErrorList if
++// there are errors.
++//
++func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err os.Error) {
++	var c checker
++	c.fset = fset
++	c.types = make(map[ast.Expr]Type)
++
++	for _, obj := range pkg.Scope.Objects {
++		c.checkObj(obj, false)
++	}
++
++	return c.types, c.GetError(scanner.NoMultiples)
++}
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/go/types/check_test.go
+new file mode 100644
+index 0000000000..6ecb12b1ee
+--- /dev/null
++++ b/src/pkg/go/types/check_test.go
+@@ -0,0 +1,224 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements a typechecker test harness. The packages specified
++// in tests are typechecked. Error messages reported by the typechecker are
++// compared against the error messages expected in the test files.
++//
++// Expected errors are indicated in the test files by putting a comment
++// of the form /* ERROR "rx" */ immediately following an offending token.
++// The harness will verify that an error matching the regular expression
++// rx is reported at that source position. Consecutive comments may be
++// used to indicate multiple errors for the same token position.
++//
++// For instance, the following test file indicates that a "not declared"
++// error should be reported for the undeclared variable x:
++//
++//	package p
++//	func f() {
++//		_ = x /* ERROR "not declared" */ + 1
++//	}
++
++package types
++
++import (
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"go/scanner"
++	"go/token"
++	"io/ioutil"
++	"os"
++	"regexp"
++	"testing"
++)
++
++
++// The test filenames do not end in .go so that they are invisible
++// to gofmt since they contain comments that must not change their
++// positions relative to surrounding tokens.
++
++var tests = []struct {
++	name  string
++	files []string
++}{
++	{"test0", []string{"testdata/test0.src"}},
++}
++
++
++var fset = token.NewFileSet()
++
++
++// TODO(gri) This functionality should be in token.Fileset.
++func getFile(filename string) *token.File {
++	for f := range fset.Files() {
++		if f.Name() == filename {
++			return f
++		}
++	}
++	return nil
++}
++
++
++// TODO(gri) This functionality should be in token.Fileset.
++func getPos(filename string, offset int) token.Pos {
++	if f := getFile(filename); f != nil {
++		return f.Pos(offset)
++	}
++	return token.NoPos
++}
++
++
++// TODO(gri) Need to revisit parser interface. We should be able to use parser.ParseFiles
++//           or a similar function instead.
++func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, os.Error) {
++	files := make(map[string]*ast.File)
++	var errors scanner.ErrorList
++	for _, filename := range filenames {
++		if _, exists := files[filename]; exists {
++			t.Fatalf("%s: duplicate file %s", testname, filename)
++		}
++		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors)
++		if file == nil {
++			t.Fatalf("%s: could not parse file %s", testname, filename)
++		}
++		files[filename] = file
++		if err != nil {
++			// if the parser returns a non-scanner.ErrorList error
++			// the file couldn't be read in the first place and
++			// file == nil; in that case we shouldn't reach here
++			errors = append(errors, err.(scanner.ErrorList)...)
++		}
++
++	}
++	return files, errors
++}
++
++
++// ERROR comments must be of the form /* ERROR "rx" */ and rx is
++// a regular expression that matches the expected error message.
++//
++var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
++
++// expectedErrors collects the regular expressions of ERROR comments found
++// in files and returns them as a map of error positions to error messages.
++//
++func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) map[token.Pos]string {
++	errors := make(map[token.Pos]string)
++	for filename := range files {
++		src, err := ioutil.ReadFile(filename)
++		if err != nil {
++			t.Fatalf("%s: could not read %s", testname, filename)
++		}
++
++		var s scanner.Scanner
++		// file was parsed already - do not add it again to the file
++		// set otherwise the position information returned here will
++		// not match the position information collected by the parser
++		s.Init(getFile(filename), src, nil, scanner.ScanComments)
++		var prev token.Pos // position of last non-comment token
++
++	scanFile:
++		for {
++			pos, tok, lit := s.Scan()
++			switch tok {
++			case token.EOF:
++				break scanFile
++			case token.COMMENT:
++				s := errRx.FindStringSubmatch(lit)
++				if len(s) == 2 {
++					errors[prev] = string(s[1])
++				}
++			default:
++				prev = pos
++			}
++		}
++	}
++	return errors
++}
++
++
++func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
++	if errors == nil {
++		return
++	}
++	for _, error := range errors.(scanner.ErrorList) {
++		// error.Pos is a token.Position, but we want
++		// a token.Pos so we can do a map lookup
++		// TODO(gri) Need to move scanner.Errors over
++		//           to use token.Pos and file set info.
++		pos := getPos(error.Pos.Filename, error.Pos.Offset)
++		if msg, found := expected[pos]; found {
++			// we expect a message at pos; check if it matches
++			rx, err := regexp.Compile(msg)
++			if err != nil {
++				t.Errorf("%s: %v", error.Pos, err)
++				continue
++			}
++			if match := rx.MatchString(error.Msg); !match {
++				t.Errorf("%s: %q does not match %q", error.Pos, error.Msg, msg)
++				continue
++			}
++			// we have a match - eliminate this error
++			expected[pos] = "", false
++		} else {
++			// To keep in mind when analyzing failed test output:
++			// If the same error position occurs multiple times in errors,
++			// this message will be triggered (because the first error at
++			// the position removes this position from the expected errors).
++			t.Errorf("%s: no (multiple?) error expected, but found: %s", error.Pos, error.Msg)
++		}
++	}
++}
++
++
++func check(t *testing.T, testname string, testfiles []string) {
++	// TODO(gri) Eventually all these different phases should be
++	//           subsumed into a single function call that takes
++	//           a set of files and creates a fully resolved and
++	//           type-checked AST.
++
++	files, err := parseFiles(t, testname, testfiles)
++
++	// we are expecting the following errors
++	// (collect these after parsing the files so that
++	// they are found in the file set)
++	errors := expectedErrors(t, testname, files)
++
++	// verify errors returned by the parser
++	eliminate(t, errors, err)
++
++	// verify errors returned after resolving identifiers
++	pkg, err := ast.NewPackage(fset, files, GcImporter, Universe)
++	eliminate(t, errors, err)
++
++	// verify errors returned by the typechecker
++	_, err = Check(fset, pkg)
++	eliminate(t, errors, err)
++
++	// there should be no expected errors left
++	if len(errors) > 0 {
++		t.Errorf("%s: %d errors not reported:", testname, len(errors))
++		for pos, msg := range errors {
++			t.Errorf("%s: %s\n", fset.Position(pos), msg)
++		}
++	}
++}
++
++
++func TestCheck(t *testing.T) {
++	// For easy debugging w/o changing the testing code,
++	// if there is a local test file, only test that file.
++	const testfile = "test.go"
++	if fi, err := os.Stat(testfile); err == nil && fi.IsRegular() {
++		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
++		check(t, testfile, []string{testfile})
++		return
++	}
++
++	// Otherwise, run all the tests.
++	for _, test := range tests {
++		check(t, test.name, test.files)
++	}
++}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 30adc04e72..5acaf8ceaf 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -344,28 +344,22 @@ func (p *gcParser) parseName() (name string) {
+ 
+ // Field = Name Type [ ":" string_lit ] .
+ //
+-func (p *gcParser) parseField(scope *ast.Scope) {
+-	// TODO(gri) The code below is not correct for anonymous fields:
+-	//           The name is the type name; it should not be empty.
++func (p *gcParser) parseField() (fld *ast.Object, tag string) {
+ 	name := p.parseName()
+ 	ftyp := p.parseType()
+ 	if name == "" {
+ 		// anonymous field - ftyp must be T or *T and T must be a type name
+-		ftyp = Deref(ftyp)
+-		if ftyp, ok := ftyp.(*Name); ok {
+-			name = ftyp.Obj.Name
+-		} else {
++		if _, ok := Deref(ftyp).(*Name); !ok {
+ 			p.errorf("anonymous field expected")
+ 		}
+ 	}
+ 	if p.tok == ':' {
+ 		p.next()
+-		tag := p.expect(scanner.String)
+-		_ = tag // TODO(gri) store tag somewhere
++		tag = p.expect(scanner.String)
+ 	}
+-	fld := ast.NewObj(ast.Var, name)
++	fld = ast.NewObj(ast.Var, name)
+ 	fld.Type = ftyp
+-	scope.Insert(fld)
++	return
+ }
+ 
+ 
+@@ -373,103 +367,119 @@ func (p *gcParser) parseField(scope *ast.Scope) {
+ // FieldList  = Field { ";" Field } .
+ //
+ func (p *gcParser) parseStructType() Type {
++	var fields []*ast.Object
++	var tags []string
++
++	parseField := func() {
++		fld, tag := p.parseField()
++		fields = append(fields, fld)
++		tags = append(tags, tag)
++	}
++
+ 	p.expectKeyword("struct")
+ 	p.expect('{')
+-	scope := ast.NewScope(nil)
+ 	if p.tok != '}' {
+-		p.parseField(scope)
++		parseField()
+ 		for p.tok == ';' {
+ 			p.next()
+-			p.parseField(scope)
++			parseField()
+ 		}
+ 	}
+ 	p.expect('}')
+-	return &Struct{}
++
++	return &Struct{Fields: fields, Tags: tags}
+ }
+ 
+ 
+ // Parameter = ( identifier | "?" ) [ "..." ] Type .
+ //
+-func (p *gcParser) parseParameter(scope *ast.Scope, isVariadic *bool) {
++func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
+ 	name := p.parseName()
+ 	if name == "" {
+ 		name = "_" // cannot access unnamed identifiers
+ 	}
+-	if isVariadic != nil {
+-		if *isVariadic {
+-			p.error("... not on final argument")
+-		}
+-		if p.tok == '.' {
+-			p.expectSpecial("...")
+-			*isVariadic = true
+-		}
++	if p.tok == '.' {
++		p.expectSpecial("...")
++		isVariadic = true
+ 	}
+ 	ptyp := p.parseType()
+-	par := ast.NewObj(ast.Var, name)
++	par = ast.NewObj(ast.Var, name)
+ 	par.Type = ptyp
+-	scope.Insert(par)
++	return
+ }
+ 
+ 
+ // Parameters    = "(" [ ParameterList ] ")" .
+ // ParameterList = { Parameter "," } Parameter .
+ //
+-func (p *gcParser) parseParameters(scope *ast.Scope, isVariadic *bool) {
++func (p *gcParser) parseParameters() (list []*ast.Object, isVariadic bool) {
++	parseParameter := func() {
++		par, variadic := p.parseParameter()
++		list = append(list, par)
++		if variadic {
++			if isVariadic {
++				p.error("... not on final argument")
++			}
++			isVariadic = true
++		}
++	}
++
+ 	p.expect('(')
+ 	if p.tok != ')' {
+-		p.parseParameter(scope, isVariadic)
++		parseParameter()
+ 		for p.tok == ',' {
+ 			p.next()
+-			p.parseParameter(scope, isVariadic)
++			parseParameter()
+ 		}
+ 	}
+ 	p.expect(')')
++
++	return
+ }
+ 
+ 
+ // Signature = Parameters [ Result ] .
+ // Result    = Type | Parameters .
+ //
+-func (p *gcParser) parseSignature(scope *ast.Scope, isVariadic *bool) {
+-	p.parseParameters(scope, isVariadic)
++func (p *gcParser) parseSignature() *Func {
++	params, isVariadic := p.parseParameters()
+ 
+ 	// optional result type
++	var results []*ast.Object
+ 	switch p.tok {
+ 	case scanner.Ident, scanner.String, '[', '*', '<':
+ 		// single, unnamed result
+ 		result := ast.NewObj(ast.Var, "_")
+ 		result.Type = p.parseType()
+-		scope.Insert(result)
++		results = []*ast.Object{result}
+ 	case '(':
+ 		// named or multiple result(s)
+-		p.parseParameters(scope, nil)
++		var variadic bool
++		results, variadic = p.parseParameters()
++		if variadic {
++			p.error("... not permitted on result type")
++		}
+ 	}
+-}
+ 
+-
+-// FuncType = "func" Signature .
+-//
+-func (p *gcParser) parseFuncType() Type {
+-	// "func" already consumed
+-	scope := ast.NewScope(nil)
+-	isVariadic := false
+-	p.parseSignature(scope, &isVariadic)
+-	return &Func{IsVariadic: isVariadic}
++	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
+ }
+ 
+ 
+ // MethodSpec = identifier Signature .
+ //
+-func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
++func (p *gcParser) parseMethodSpec() *ast.Object {
+ 	if p.tok == scanner.Ident {
+ 		p.expect(scanner.Ident)
+ 	} else {
++		// TODO(gri) should this be parseExportedName here?
+ 		p.parsePkgId()
+ 		p.expect('.')
+ 		p.parseDotIdent()
+ 	}
+-	isVariadic := false
+-	p.parseSignature(scope, &isVariadic)
++	p.parseSignature()
++
++	// TODO(gri) compute method object
++	return ast.NewObj(ast.Fun, "_")
+ }
+ 
+ 
+@@ -477,18 +487,26 @@ func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
+ // MethodList    = MethodSpec { ";" MethodSpec } .
+ //
+ func (p *gcParser) parseInterfaceType() Type {
++	var methods ObjList
++
++	parseMethod := func() {
++		meth := p.parseMethodSpec()
++		methods = append(methods, meth)
++	}
++
+ 	p.expectKeyword("interface")
+ 	p.expect('{')
+-	scope := ast.NewScope(nil)
+ 	if p.tok != '}' {
+-		p.parseMethodSpec(scope)
++		parseMethod()
+ 		for p.tok == ';' {
+ 			p.next()
+-			p.parseMethodSpec(scope)
++			parseMethod()
+ 		}
+ 	}
+ 	p.expect('}')
+-	return &Interface{}
++
++	methods.Sort()
++	return &Interface{Methods: methods}
+ }
+ 
+ 
+@@ -520,6 +538,7 @@ func (p *gcParser) parseChanType() Type {
+ // TypeName = ExportedName .
+ // SliceType = "[" "]" Type .
+ // PointerType = "*" Type .
++// FuncType = "func" Signature .
+ //
+ func (p *gcParser) parseType() Type {
+ 	switch p.tok {
+@@ -530,8 +549,9 @@ func (p *gcParser) parseType() Type {
+ 		case "struct":
+ 			return p.parseStructType()
+ 		case "func":
+-			p.next() // parseFuncType assumes "func" is already consumed
+-			return p.parseFuncType()
++			// FuncType
++			p.next()
++			return p.parseSignature()
+ 		case "interface":
+ 			return p.parseInterfaceType()
+ 		case "map":
+@@ -713,7 +733,7 @@ func (p *gcParser) parseVarDecl() {
+ func (p *gcParser) parseFuncDecl() {
+ 	// "func" already consumed
+ 	obj := p.parseExportedName(ast.Fun)
+-	obj.Type = p.parseFuncType()
++	obj.Type = p.parseSignature()
+ }
+ 
+ 
+@@ -722,14 +742,11 @@ func (p *gcParser) parseFuncDecl() {
+ //
+ func (p *gcParser) parseMethodDecl() {
+ 	// "func" already consumed
+-	scope := ast.NewScope(nil) // method scope
+ 	p.expect('(')
+-	p.parseParameter(scope, nil) // receiver
++	p.parseParameter() // receiver
+ 	p.expect(')')
+ 	p.expect(scanner.Ident)
+-	isVariadic := false
+-	p.parseSignature(scope, &isVariadic)
+-
++	p.parseSignature()
+ }
+ 
+ 
+diff --git a/src/pkg/go/types/testdata/exports.go b/src/pkg/go/types/testdata/exports.go
+index 461db0acc9..1de2e00ad8 100644
+--- a/src/pkg/go/types/testdata/exports.go
++++ b/src/pkg/go/types/testdata/exports.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file is used to generate a .6 object file which
++// This file is used to generate an object file which
+ // serves as test file for gcimporter_test.go.
+ 
+ package exports
+diff --git a/src/pkg/go/types/testdata/test0.src b/src/pkg/go/types/testdata/test0.src
+new file mode 100644
+index 0000000000..7013055ac0
+--- /dev/null
++++ b/src/pkg/go/types/testdata/test0.src
+@@ -0,0 +1,154 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// type declarations
++
++package test0
++
++import "unsafe"
++
++const pi = 3.1415
++
++type (
++	N undeclared /* ERROR "undeclared" */
++	B bool
++	I int32
++	A [10]P
++	T struct {
++		x, y P
++	}
++	P *T
++	R (*R)
++	F func(A) I
++	Y interface {
++		f(A) I
++	}
++	S [](((P)))
++	M map[I]F
++	C chan<- I
++)
++
++
++type (
++	p1 pi /* ERROR "not a package" */ .foo
++	p2 unsafe.Pointer
++)
++
++
++type (
++	Pi pi /* ERROR "not a type" */
++
++	a /* ERROR "illegal cycle" */ a
++	a /* ERROR "redeclared" */ int
++
++	// where the cycle error appears depends on the
++	// order in which declarations are processed
++	// (which depends on the order in which a map
++	// is iterated through)
++	b c
++	c /* ERROR "illegal cycle" */ d
++	d e
++	e b
++
++	t *t
++
++	U V
++	V *W
++	W U
++
++	P1 *S2
++	P2 P1
++
++	S0 struct {
++	}
++	S1 struct {
++		a, b, c int
++		u, v, a /* ERROR "redeclared" */ float32
++	}
++	S2 struct {
++		U // anonymous field
++		// TODO(gri) recognize double-declaration below
++		// U /* ERROR "redeclared" */ int
++	}
++	S3 struct {
++		x S2
++	}
++	S4/* ERROR "illegal cycle" */ struct {
++		S4
++	}
++	S5 struct {
++		S6
++	}
++	S6 /* ERROR "illegal cycle" */ struct {
++		field S7
++	}
++	S7 struct {
++		S5
++	}
++
++	L1 []L1
++	L2 []int
++
++	A1 [10]int
++	A2 /* ERROR "illegal cycle" */ [10]A2
++	A3 /* ERROR "illegal cycle" */ [10]struct {
++		x A4
++	}
++	A4 [10]A3
++
++	F1 func()
++	F2 func(x, y, z float32)
++	F3 func(x, y, x /* ERROR "redeclared" */ float32)
++	F4 func() (x, y, x /* ERROR "redeclared" */ float32)
++	F5 func(x int) (x /* ERROR "redeclared" */ float32)
++	F6 func(x ...int)
++
++	I1 interface{}
++	I2 interface {
++		m1()
++	}
++	I3 interface {
++		m1()
++		m1 /* ERROR "redeclared" */ ()
++	}
++	I4 interface {
++		m1(x, y, x /* ERROR "redeclared" */ float32)
++		m2() (x, y, x /* ERROR "redeclared" */ float32)
++		m3(x int) (x /* ERROR "redeclared" */ float32)
++	}
++	I5 interface {
++		m1(I5)
++	}
++	I6 interface {
++		S0 /* ERROR "non-interface" */
++	}
++	I7 interface {
++		I1
++		I1
++	}
++	I8 /* ERROR "illegal cycle" */ interface {
++		I8
++	}
++	I9 /* ERROR "illegal cycle" */ interface {
++		I10
++	}
++	I10 interface {
++		I11
++	}
++	I11 interface {
++		I9
++	}
++
++	C1 chan int
++	C2 <-chan int
++	C3 chan<- C3
++	C4 chan C5
++	C5 chan C6
++	C6 chan C4
++
++	M1 map[Last]string
++	M2 map[string]M2
++
++	Last int
++)
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 2ee645d989..10b0145b89 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -7,7 +7,10 @@
+ //
+ package types
+ 
+-import "go/ast"
++import (
++	"go/ast"
++	"sort"
++)
+ 
+ 
+ // All types implement the Type interface.
+@@ -23,6 +26,13 @@ type ImplementsType struct{}
+ func (t *ImplementsType) isType() {}
+ 
+ 
++// A Bad type is a non-nil placeholder type when we don't know a type.
++type Bad struct {
++	ImplementsType
++	Msg string // for better error reporting/debugging
++}
++
++
+ // A Basic represents a (unnamed) basic type.
+ type Basic struct {
+ 	ImplementsType
+@@ -46,9 +56,15 @@ type Slice struct {
+ 
+ 
+ // A Struct represents a struct type struct{...}.
++// Anonymous fields are represented by objects with empty names.
+ type Struct struct {
+ 	ImplementsType
+-	// TODO(gri) need to remember fields.
++	Fields ObjList  // struct fields; or nil
++	Tags   []string // corresponding tags; or nil
++	// TODO(gri) This type needs some rethinking:
++	// - at the moment anonymous fields are marked with "" object names,
++	//   and their names have to be reconstructed
++	// - there is no scope for fast lookup (but the parser creates one)
+ }
+ 
+ 
+@@ -60,17 +76,20 @@ type Pointer struct {
+ 
+ 
+ // A Func represents a function type func(...) (...).
++// Unnamed parameters are represented by objects with empty names.
+ type Func struct {
+ 	ImplementsType
+-	IsVariadic bool
+-	// TODO(gri) need to remember parameters.
++	Recv       *ast.Object // nil if not a method
++	Params     ObjList     // (incoming) parameters from left to right; or nil
++	Results    ObjList     // (outgoing) results from left to right; or nil
++	IsVariadic bool        // true if the last parameter's type is of the form ...T
+ }
+ 
+ 
+ // An Interface represents an interface type interface{...}.
+ type Interface struct {
+ 	ImplementsType
+-	// TODO(gri) need to remember methods.
++	Methods ObjList // interface methods sorted by name; or nil
+ }
+ 
+ 
+@@ -112,11 +131,143 @@ func Deref(typ Type) Type {
+ func Underlying(typ Type) Type {
+ 	if typ, ok := typ.(*Name); ok {
+ 		utyp := typ.Underlying
+-		if _, ok := utyp.(*Basic); ok {
+-			return typ
++		if _, ok := utyp.(*Basic); !ok {
++			return utyp
+ 		}
+-		return utyp
+-
++		// the underlying type of a type name referring
++		// to an (untyped) basic type is the basic type
++		// name
+ 	}
+ 	return typ
+ }
++
++
++// An ObjList represents an ordered (in some fashion) list of objects.
++type ObjList []*ast.Object
++
++// ObjList implements sort.Interface.
++func (list ObjList) Len() int           { return len(list) }
++func (list ObjList) Less(i, j int) bool { return list[i].Name < list[j].Name }
++func (list ObjList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
++
++// Sort sorts an object list by object name.
++func (list ObjList) Sort() { sort.Sort(list) }
++
++
++// identicalTypes returns true if both lists a and b have the
++// same length and corresponding objects have identical types.
++func identicalTypes(a, b ObjList) bool {
++	if len(a) == len(b) {
++		for i, x := range a {
++			y := b[i]
++			if !Identical(x.Type.(Type), y.Type.(Type)) {
++				return false
++			}
++		}
++		return true
++	}
++	return false
++}
++
++
++// Identical returns true if two types are identical.
++func Identical(x, y Type) bool {
++	if x == y {
++		return true
++	}
++
++	switch x := x.(type) {
++	case *Bad:
++		// A Bad type is always identical to any other type
++		// (to avoid spurious follow-up errors).
++		return true
++
++	case *Basic:
++		if y, ok := y.(*Basic); ok {
++			panic("unimplemented")
++			_ = y
++		}
++
++	case *Array:
++		// Two array types are identical if they have identical element types
++		// and the same array length.
++		if y, ok := y.(*Array); ok {
++			return x.Len == y.Len && Identical(x.Elt, y.Elt)
++		}
++
++	case *Slice:
++		// Two slice types are identical if they have identical element types.
++		if y, ok := y.(*Slice); ok {
++			return Identical(x.Elt, y.Elt)
++		}
++
++	case *Struct:
++		// Two struct types are identical if they have the same sequence of fields,
++		// and if corresponding fields have the same names, and identical types,
++		// and identical tags. Two anonymous fields are considered to have the same
++		// name. Lower-case field names from different packages are always different.
++		if y, ok := y.(*Struct); ok {
++			// TODO(gri) handle structs from different packages
++			if identicalTypes(x.Fields, y.Fields) {
++				for i, f := range x.Fields {
++					g := y.Fields[i]
++					if f.Name != g.Name || x.Tags[i] != y.Tags[i] {
++						return false
++					}
++				}
++				return true
++			}
++		}
++
++	case *Pointer:
++		// Two pointer types are identical if they have identical base types.
++		if y, ok := y.(*Pointer); ok {
++			return Identical(x.Base, y.Base)
++		}
++
++	case *Func:
++		// Two function types are identical if they have the same number of parameters
++		// and result values, corresponding parameter and result types are identical,
++		// and either both functions are variadic or neither is. Parameter and result
++		// names are not required to match.
++		if y, ok := y.(*Func); ok {
++			return identicalTypes(x.Params, y.Params) &&
++				identicalTypes(x.Results, y.Results) &&
++				x.IsVariadic == y.IsVariadic
++		}
++
++	case *Interface:
++		// Two interface types are identical if they have the same set of methods with
++		// the same names and identical function types. Lower-case method names from
++		// different packages are always different. The order of the methods is irrelevant.
++		if y, ok := y.(*Interface); ok {
++			return identicalTypes(x.Methods, y.Methods) // methods are sorted
++		}
++
++	case *Map:
++		// Two map types are identical if they have identical key and value types.
++		if y, ok := y.(*Map); ok {
++			return Identical(x.Key, y.Key) && Identical(x.Elt, y.Elt)
++		}
++
++	case *Chan:
++		// Two channel types are identical if they have identical value types
++		// and the same direction.
++		if y, ok := y.(*Chan); ok {
++			return x.Dir == y.Dir && Identical(x.Elt, y.Elt)
++		}
++
++	case *Name:
++		// Two named types are identical if their type names originate
++		// in the same type declaration.
++		if y, ok := y.(*Name); ok {
++			return x.Obj == y.Obj ||
++				// permit bad objects to be equal to avoid
++				// follow up errors
++				x.Obj != nil && x.Obj.Kind == ast.Bad ||
++				y.Obj != nil && y.Obj.Kind == ast.Bad
++		}
++	}
++
++	return false
++}

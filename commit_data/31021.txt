@@ -12,10 +12,122 @@ Date:   Wed Jan 11 15:02:16 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go    | 11 +++++++++++
  misc/cgo/testshared/src/iface/main.go | 17 +++++++++++++++++
  misc/cgo/testshared/src/iface_a/a.go  | 17 +++++++++++++++++
  misc/cgo/testshared/src/iface_b/b.go  | 17 +++++++++++++++++
  misc/cgo/testshared/src/iface_i/i.go  | 17 +++++++++++++++++
  5 files changed, 79 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index af4f91550f..f0766e511e 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -815,3 +815,14 @@ func TestImplicitInclusion(t *testing.T) {
+ 	goCmd(t, "install", "-linkshared", "implicitcmd")
+ 	run(t, "running executable linked against library that contains same package as it", "./bin/implicitcmd")
+ }
++
++// Tests to make sure that the type fields of empty interfaces and itab
++// fields of nonempty interfaces are unique even across modules,
++// so that interface equality works correctly.
++func TestInterface(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_a")
++	// Note: iface_i gets installed implicitly as a dependency of iface_a.
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_b")
++	goCmd(t, "install", "-linkshared", "iface")
++	run(t, "running type/itab uniqueness tester", "./bin/iface")
++}
+diff --git a/misc/cgo/testshared/src/iface/main.go b/misc/cgo/testshared/src/iface/main.go
+new file mode 100644
+index 0000000000..3d5b54e73b
+--- /dev/null
++++ b/misc/cgo/testshared/src/iface/main.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "iface_a"
++import "iface_b"
++
++func main() {
++	if iface_a.F() != iface_b.F() {
++		panic("empty interfaces not equal")
++	}
++	if iface_a.G() != iface_b.G() {
++		panic("non-empty interfaces not equal")
++	}
++}
+diff --git a/misc/cgo/testshared/src/iface_a/a.go b/misc/cgo/testshared/src/iface_a/a.go
+new file mode 100644
+index 0000000000..e11047c166
+--- /dev/null
++++ b/misc/cgo/testshared/src/iface_a/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iface_a
++
++import "iface_i"
++
++//go:noinline
++func F() interface{} {
++	return (*iface_i.T)(nil)
++}
++
++//go:noinline
++func G() iface_i.I {
++	return (*iface_i.T)(nil)
++}
+diff --git a/misc/cgo/testshared/src/iface_b/b.go b/misc/cgo/testshared/src/iface_b/b.go
+new file mode 100644
+index 0000000000..47aee2e77e
+--- /dev/null
++++ b/misc/cgo/testshared/src/iface_b/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iface_b
++
++import "iface_i"
++
++//go:noinline
++func F() interface{} {
++	return (*iface_i.T)(nil)
++}
++
++//go:noinline
++func G() iface_i.I {
++	return (*iface_i.T)(nil)
++}
+diff --git a/misc/cgo/testshared/src/iface_i/i.go b/misc/cgo/testshared/src/iface_i/i.go
+new file mode 100644
+index 0000000000..31c80387c7
+--- /dev/null
++++ b/misc/cgo/testshared/src/iface_i/i.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iface_i
++
++type I interface {
++	M()
++}
++
++type T struct {
++}
++
++func (t *T) M() {
++}
++
++// *T implements I

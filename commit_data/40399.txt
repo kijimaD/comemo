@@ -17,10 +17,89 @@ Date:   Wed May 8 13:43:44 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/android_arm.txt |  4 ----
  src/cmd/vet/all/whitelist/arm.txt         |  7 -------
  src/cmd/vet/all/whitelist/linux_arm.txt   |  5 -----
  src/runtime/stubs_arm.go                  | 11 +++++++++--
  src/runtime/sys_linux_arm.s               |  2 +-
  5 files changed, 10 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/android_arm.txt b/src/cmd/vet/all/whitelist/android_arm.txt
+deleted file mode 100644
+index dda4fb539d..0000000000
+--- a/src/cmd/vet/all/whitelist/android_arm.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-// android/arm-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+-runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+deleted file mode 100644
+index 307f17bac8..0000000000
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// arm-specific vet whitelist. See readme.txt for details.
+-
+-// Intentionally missing declarations.
+-runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+-runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
+-runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+-runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm.txt b/src/cmd/vet/all/whitelist/linux_arm.txt
+deleted file mode 100644
+index a911700c3d..0000000000
+--- a/src/cmd/vet/all/whitelist/linux_arm.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// linux/arm-specific vet whitelist. See readme.txt for details.
+-
+-// These SP references occur after a stack-altering call. They're fine.
+-runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+-runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+diff --git a/src/runtime/stubs_arm.go b/src/runtime/stubs_arm.go
+index 28ab6b16e8..c13bf16de2 100644
+--- a/src/runtime/stubs_arm.go
++++ b/src/runtime/stubs_arm.go
+@@ -4,10 +4,17 @@
+ 
+ package runtime
+ 
+-// Stubs to pacify vet. Not safe to call from Go.
+-// Calls to these functions are inserted by the compiler or assembler.
++// Called from compiler-generated code; declared for go vet.
+ func udiv()
+ func _div()
+ func _divu()
+ func _mod()
+ func _modu()
++
++// Called from assembly only; declared for go vet.
++func usplitR0()
++func load_g()
++func save_g()
++func emptyfunc()
++func _initcgo()
++func read_tls_fallback()
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 637123be45..9c7398451c 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -345,7 +345,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	$0, R5
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+-	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
+ 	MOVW	$-16(R1), R1
+ 	MOVW	mp+8(FP), R6
+ 	MOVW	R6, 0(R1)
+@@ -366,6 +365,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
++	NOP	R13	// tell vet SP/R13 changed - stop checking offsets
+ 	MOVW	12(R13), R0
+ 	MOVW	$1234, R1
+ 	CMP	R0, R1

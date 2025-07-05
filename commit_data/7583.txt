@@ -8,8 +8,88 @@ Date:   Sat Feb 26 09:25:29 2011 +1100
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/4240044
-
+---
  src/pkg/compress/lzw/reader.go      |  6 +++---
  src/pkg/compress/lzw/reader_test.go | 21 +++++++++++++++++++++
  src/pkg/compress/lzw/writer_test.go | 11 +++++++++++
  3 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index 505b24bb5d..9838acd4ea 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -99,6 +99,9 @@ func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.
+ 		// The c == hi case is a special case.
+ 		suffix [1 << maxWidth]uint8
+ 		prefix [1 << maxWidth]uint16
++		// buf is a scratch buffer for reconstituting the bytes that a code expands to.
++		// Code suffixes are written right-to-left from the end of the buffer.
++		buf [1 << maxWidth]byte
+ 	)
+ 
+ 	// Loop over the code stream, converting codes into decompressed bytes.
+@@ -131,9 +134,6 @@ func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.
+ 		case code == eof:
+ 			return w.Flush()
+ 		case code <= hi:
+-			// buf is a scratch buffer for reconstituting the bytes that a code expands to.
+-			// Code suffixes are written right-to-left from the end of the buffer.
+-			var buf [1 << maxWidth]byte
+ 			c, i := code, len(buf)-1
+ 			if code == hi {
+ 				// code == hi is a special case which expands to the last expansion
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+index cfc15065bb..7795a4c148 100644
+--- a/src/pkg/compress/lzw/reader_test.go
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -7,6 +7,7 @@ package lzw
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -109,3 +110,23 @@ func TestReader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type devNull struct{}
++
++func (devNull) Write(p []byte) (int, os.Error) {
++	return len(p), nil
++}
++
++func BenchmarkDecoder(b *testing.B) {
++	b.StopTimer()
++	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
++	compressed := bytes.NewBuffer(nil)
++	w := NewWriter(compressed, LSB, 8)
++	io.Copy(w, bytes.NewBuffer(buf0))
++	w.Close()
++	buf1 := compressed.Bytes()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		io.Copy(devNull{}, NewReader(bytes.NewBuffer(buf1), LSB, 8))
++	}
++}
+diff --git a/src/pkg/compress/lzw/writer_test.go b/src/pkg/compress/lzw/writer_test.go
+index 2199522f8e..715b974aa1 100644
+--- a/src/pkg/compress/lzw/writer_test.go
++++ b/src/pkg/compress/lzw/writer_test.go
+@@ -98,3 +98,14 @@ func TestWriter(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkEncoder(b *testing.B) {
++	b.StopTimer()
++	buf, _ := ioutil.ReadFile("../testdata/e.txt")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		w := NewWriter(devNull{}, LSB, 8)
++		w.Write(buf)
++		w.Close()
++	}
++}

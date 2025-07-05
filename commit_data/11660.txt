@@ -7,6 +7,23 @@ Date:   Mon Feb 6 13:48:43 2012 -0500
     R=golang-dev, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5634048
-
+---
  src/make.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index fcc320e573..32a91a2fc9 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -51,6 +51,11 @@ DEFGOROOT='-DDEFAULT_GOROOT="'"$(cd .. && pwd)"'"'
+ gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+ echo
+ 
++if [ "$1" = "--dist-tool" ]; then
++	# Stop after building dist tool.
++	exit 0
++fi
++
+ echo '# Building compilers and Go bootstrap tool.'
+ ../bin/tool/dist bootstrap -v # builds go_bootstrap
+ echo

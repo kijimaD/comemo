@@ -16,7 +16,73 @@ Date:   Tue May 27 14:16:17 2025 -0700
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/os/os_test.go              |  4 ++--
  src/syscall/syscall_windows.go | 30 +++++++++++++++---------------
  2 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 281f13c7c9..9f6eb13e1f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2309,9 +2309,9 @@ func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
+ 		var f *File
+ 		var err error
+ 		if r == nil {
+-			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
++			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
+ 		} else {
+-			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
++			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
+ 		}
+ 		if err == nil {
+ 			f.Close()
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 653e20f496..01c039cf28 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -398,22 +398,7 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 	if flag&O_CLOEXEC == 0 {
+ 		sa = makeInheritSa()
+ 	}
+-	// We don't use CREATE_ALWAYS, because when opening a file with
+-	// FILE_ATTRIBUTE_READONLY these will replace an existing file
+-	// with a new, read-only one. See https://go.dev/issue/38225.
+-	//
+-	// Instead, we ftruncate the file after opening when O_TRUNC is set.
+-	var createmode uint32
+ 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+-	switch {
+-	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+-		createmode = CREATE_NEW
+-		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
+-	case flag&O_CREAT == O_CREAT:
+-		createmode = OPEN_ALWAYS
+-	default:
+-		createmode = OPEN_EXISTING
+-	}
+ 	if perm&S_IWRITE == 0 {
+ 		attrs = FILE_ATTRIBUTE_READONLY
+ 	}
+@@ -433,6 +418,21 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+ 		attrs |= _FILE_FLAG_WRITE_THROUGH
+ 	}
++	// We don't use CREATE_ALWAYS, because when opening a file with
++	// FILE_ATTRIBUTE_READONLY these will replace an existing file
++	// with a new, read-only one. See https://go.dev/issue/38225.
++	//
++	// Instead, we ftruncate the file after opening when O_TRUNC is set.
++	var createmode uint32
++	switch {
++	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
++		createmode = CREATE_NEW
++		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
++	case flag&O_CREAT == O_CREAT:
++		createmode = OPEN_ALWAYS
++	default:
++		createmode = OPEN_EXISTING
++	}
+ 	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
+ 	if h == InvalidHandle {
+ 		if err == ERROR_ACCESS_DENIED && (attrs&FILE_FLAG_BACKUP_SEMANTICS == 0) {

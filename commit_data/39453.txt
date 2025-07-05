@@ -22,7 +22,7 @@ Date:   Fri Nov 23 13:45:51 2018 +0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go  | 19 +------------------
  src/cmd/link/internal/arm/obj.go    | 19 +------------------
  src/cmd/link/internal/arm64/obj.go  | 17 -----------------
@@ -35,3 +35,468 @@ Date:   Fri Nov 23 13:45:51 2018 +0700
  src/cmd/link/internal/s390x/obj.go  |  8 --------
  src/cmd/link/internal/x86/obj.go    | 19 +------------------
  11 files changed, 4 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 87e809166a..eeeed1ab1a 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -84,9 +83,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x200000
+ 		}
+@@ -99,9 +95,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x1000000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 
+ 	case objabi.Hlinux, /* elf64 executable */
+ 		objabi.Hfreebsd,   /* freebsd */
+@@ -115,9 +108,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -130,19 +120,12 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+-		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
++		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+ 		return
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 77716bb954..ea91711df0 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -81,9 +80,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4128
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -99,9 +95,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+@@ -113,9 +106,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+@@ -125,19 +115,12 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+-		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
++		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+ 		return
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 405d22d74f..04202012ee 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -80,9 +79,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -93,9 +89,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+@@ -105,9 +98,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -119,15 +109,8 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b87ee8094f..e1d2da3f30 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -88,7 +88,6 @@ var (
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+-	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
+ 	flagEntrySymbol = flag.String("E", "", "set `entry` symbol name")
+ 
+ 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
+@@ -181,7 +180,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 {
+-		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
++		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
+ 	}
+ 
+ 	switch ctxt.BuildMode {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 68251786ed..3d9cb4898d 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -975,15 +975,9 @@ func Peinit(ctxt *Link) {
+ 	if *FlagTextAddr == -1 {
+ 		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
+ 	}
+-	if *FlagDataAddr == -1 {
+-		*FlagDataAddr = 0
+-	}
+ 	if *FlagRound == -1 {
+ 		*FlagRound = int(PESECTALIGN)
+ 	}
+-	if *FlagDataAddr != 0 && *FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*FlagDataAddr), uint32(*FlagRound))
+-	}
+ }
+ 
+ func pewrite(ctxt *Link) {
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 188c7a5cff..4535b1ad60 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -97,7 +97,6 @@ type XcoffAoutHdr64 struct {
+ 	Ox64flags   uint16   // Additional Flags For 64-Bit Objects
+ 	Oresv3a     int16    // Reserved
+ 	Oresv3      [2]int32 // Reserved
+-
+ }
+ 
+ // Section Header
+@@ -507,7 +506,6 @@ func Xcoffinit(ctxt *Link) {
+ 		Errorf(nil, "-T not available on AIX")
+ 	}
+ 	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
+-	*FlagDataAddr = 0
+ 	if *FlagRound != -1 {
+ 		Errorf(nil, "-R not available on AIX")
+ 	}
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index c5d3451c39..3c71e23497 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -82,15 +81,8 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 83974e5b56..b01746e59a 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -81,9 +80,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 16*1024 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 16 * 1024
+ 		}
+@@ -94,9 +90,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+@@ -108,15 +101,8 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index fbedc728d9..ef84031739 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -85,9 +84,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4128
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -98,9 +94,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+@@ -112,19 +105,11 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case objabi.Haix:
+ 		ld.Xcoffinit(ctxt)
+-
+-	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+ 	}
+ }
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 9ac7eb8217..a7e30e2d65 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -81,15 +80,8 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 6a744dc04e..dbb31263a8 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"fmt"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+@@ -79,9 +78,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -91,9 +87,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -108,9 +101,6 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x08048000 + int64(ld.HEADR)
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+@@ -122,19 +112,12 @@ func archinit(ctxt *ld.Link) {
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 0x20000
+ 		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+-		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
++		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+ 		return
+ 	}
+-
+-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
+-	}
+ }

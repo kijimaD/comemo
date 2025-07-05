@@ -17,9 +17,148 @@ Date:   Thu Apr 23 21:15:03 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/syscall/exec_bsd.go    | 23 +++++++++++++++++------
  src/syscall/exec_darwin.go | 23 +++++++++++++++++------
  src/syscall/exec_libc.go   | 23 +++++++++++++++++------
  src/syscall/exec_linux.go  | 25 ++++++++++++++++++-------
  4 files changed, 69 insertions(+), 25 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 30b88eba7a..af6c836961 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -15,12 +15,23 @@ type SysProcAttr struct {
+ 	Credential *Credential // Credential.
+ 	Ptrace     bool        // Enable tracing.
+ 	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+-	Setctty    bool        // Set controlling terminal to fd Ctty
+-	Noctty     bool        // Detach fd 0 from controlling terminal
+-	Ctty       int         // Controlling TTY fd
+-	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+-	Pgid       int         // Child's process group ID if Setpgid.
++	// Setpgid sets the process group ID of the child to Pgid,
++	// or, if Pgid == 0, to the new child's process ID.
++	Setpgid bool
++	// Setctty sets the controlling terminal of the child to
++	// file descriptor Ctty. Ctty must be a descriptor number
++	// in the child process: an index into ProcAttr.Files.
++	// This is only meaningful if Setsid is true.
++	Setctty bool
++	Noctty  bool // Detach fd 0 from controlling terminal
++	Ctty    int  // Controlling TTY fd
++	// Foreground places the child process group in the foreground.
++	// This implies Setpgid. The Ctty field must be set to
++	// the descriptor of the controlling TTY.
++	// Unlike Setctty, in this case Ctty must be a descriptor
++	// number in the parent process.
++	Foreground bool
++	Pgid       int // Child's process group ID if Setpgid.
+ }
+ 
+ // Implemented in runtime package.
+diff --git a/src/syscall/exec_darwin.go b/src/syscall/exec_darwin.go
+index ac1ead3a2b..f035d55553 100644
+--- a/src/syscall/exec_darwin.go
++++ b/src/syscall/exec_darwin.go
+@@ -13,12 +13,23 @@ type SysProcAttr struct {
+ 	Credential *Credential // Credential.
+ 	Ptrace     bool        // Enable tracing.
+ 	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+-	Setctty    bool        // Set controlling terminal to fd Ctty
+-	Noctty     bool        // Detach fd 0 from controlling terminal
+-	Ctty       int         // Controlling TTY fd
+-	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+-	Pgid       int         // Child's process group ID if Setpgid.
++	// Setpgid sets the process group ID of the child to Pgid,
++	// or, if Pgid == 0, to the new child's process ID.
++	Setpgid bool
++	// Setctty sets the controlling terminal of the child to
++	// file descriptor Ctty. Ctty must be a descriptor number
++	// in the child process: an index into ProcAttr.Files.
++	// This is only meaningful if Setsid is true.
++	Setctty bool
++	Noctty  bool // Detach fd 0 from controlling terminal
++	Ctty    int  // Controlling TTY fd
++	// Foreground places the child process group in the foreground.
++	// This implies Setpgid. The Ctty field must be set to
++	// the descriptor of the controlling TTY.
++	// Unlike Setctty, in this case Ctty must be a descriptor
++	// number in the parent process.
++	Foreground bool
++	Pgid       int // Child's process group ID if Setpgid.
+ }
+ 
+ // Implemented in runtime package.
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 0133139000..3722858325 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -16,12 +16,23 @@ type SysProcAttr struct {
+ 	Chroot     string      // Chroot.
+ 	Credential *Credential // Credential.
+ 	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+-	Setctty    bool        // Set controlling terminal to fd Ctty
+-	Noctty     bool        // Detach fd 0 from controlling terminal
+-	Ctty       int         // Controlling TTY fd
+-	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+-	Pgid       int         // Child's process group ID if Setpgid.
++	// Setpgid sets the process group ID of the child to Pgid,
++	// or, if Pgid == 0, to the new child's process ID.
++	Setpgid bool
++	// Setctty sets the controlling terminal of the child to
++	// file descriptor Ctty. Ctty must be a descriptor number
++	// in the child process: an index into ProcAttr.Files.
++	// This is only meaningful if Setsid is true.
++	Setctty bool
++	Noctty  bool // Detach fd 0 from controlling terminal
++	Ctty    int  // Controlling TTY fd
++	// Foreground places the child process group in the foreground.
++	// This implies Setpgid. The Ctty field must be set to
++	// the descriptor of the controlling TTY.
++	// Unlike Setctty, in this case Ctty must be a descriptor
++	// number in the parent process.
++	Foreground bool
++	Pgid       int // Child's process group ID if Setpgid.
+ }
+ 
+ // Implemented in runtime package.
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index f32d682493..23d7343d3a 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -25,13 +25,24 @@ type SysProcAttr struct {
+ 	// Ptrace tells the child to call ptrace(PTRACE_TRACEME).
+ 	// Call runtime.LockOSThread before starting a process with this set,
+ 	// and don't call UnlockOSThread until done with PtraceSyscall calls.
+-	Ptrace       bool
+-	Setsid       bool           // Create session.
+-	Setpgid      bool           // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+-	Setctty      bool           // Set controlling terminal to fd Ctty (only meaningful if Setsid is set)
+-	Noctty       bool           // Detach fd 0 from controlling terminal
+-	Ctty         int            // Controlling TTY fd
+-	Foreground   bool           // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
++	Ptrace bool
++	Setsid bool // Create session.
++	// Setpgid sets the process group ID of the child to Pgid,
++	// or, if Pgid == 0, to the new child's process ID.
++	Setpgid bool
++	// Setctty sets the controlling terminal of the child to
++	// file descriptor Ctty. Ctty must be a descriptor number
++	// in the child process: an index into ProcAttr.Files.
++	// This is only meaningful if Setsid is true.
++	Setctty bool
++	Noctty  bool // Detach fd 0 from controlling terminal
++	Ctty    int  // Controlling TTY fd
++	// Foreground places the child process group in the foreground.
++	// This implies Setpgid. The Ctty field must be set to
++	// the descriptor of the controlling TTY.
++	// Unlike Setctty, in this case Ctty must be a descriptor
++	// number in the parent process.
++	Foreground   bool
+ 	Pgid         int            // Child's process group ID if Setpgid.
+ 	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
+ 	Cloneflags   uintptr        // Flags for clone calls (Linux only)

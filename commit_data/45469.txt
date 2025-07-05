@@ -19,7 +19,7 @@ Date:   Wed Jul 1 16:02:42 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/internal/work/gc.go          |   6 +-
  src/runtime/export_test.go              |  26 +++
  src/runtime/metrics.go                  | 367 ++++++++++++++++++++++++++++++++
@@ -30,3 +30,900 @@ Date:   Wed Jul 1 16:02:42 2020 +0000
  src/runtime/metrics_test.go             | 114 ++++++++++
  src/runtime/mstats.go                   |   3 +-
  9 files changed, 781 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index e93031431c..0c4a7fa6e3 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -89,7 +89,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
+ 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+ 	if p.Standard {
+ 		switch p.ImportPath {
+-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "runtime/trace", "sync", "syscall", "time":
++		case "bytes", "internal/poll", "net", "os":
++			fallthrough
++		case "runtime/metrics", "runtime/pprof", "runtime/trace":
++			fallthrough
++		case "sync", "syscall", "time":
+ 			extFiles++
+ 		}
+ 	}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ff901fd7be..d043fe3ee5 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -298,6 +298,32 @@ func (p *ProfBuf) Close() {
+ 	(*profBuf)(p).close()
+ }
+ 
++func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
++	stopTheWorld("ReadMetricsSlow")
++
++	// Initialize the metrics beforehand because this could
++	// allocate and skew the stats.
++	semacquire(&metricsSema)
++	initMetrics()
++	semrelease(&metricsSema)
++
++	systemstack(func() {
++		// Read memstats first. It's going to flush
++		// the mcaches which readMetrics does not do, so
++		// going the other way around may result in
++		// inconsistent statistics.
++		readmemstats_m(memStats)
++	})
++
++	// Read metrics off the system stack.
++	//
++	// The only part of readMetrics that could allocate
++	// and skew the stats is initMetrics.
++	readMetrics(samplesp, len, cap)
++
++	startTheWorld()
++}
++
+ // ReadMemStatsSlow returns both the runtime-computed MemStats and
+ // MemStats accumulated by scanning the heap.
+ func ReadMemStatsSlow() (base, slow MemStats) {
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+new file mode 100644
+index 0000000000..44b5a29751
+--- /dev/null
++++ b/src/runtime/metrics.go
+@@ -0,0 +1,367 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Metrics implementation exported to runtime/metrics.
++
++import (
++	"unsafe"
++)
++
++var (
++	// metrics is a map of runtime/metrics keys to
++	// data used by the runtime to sample each metric's
++	// value.
++	metricsSema uint32 = 1
++	metricsInit bool
++	metrics     map[string]metricData
++)
++
++type metricData struct {
++	// deps is the set of runtime statistics that this metric
++	// depends on. Before compute is called, the statAggregate
++	// which will be passed must ensure() these dependencies.
++	deps statDepSet
++
++	// compute is a function that populates a metricValue
++	// given a populated statAggregate structure.
++	compute func(in *statAggregate, out *metricValue)
++}
++
++// initMetrics initializes the metrics map if it hasn't been yet.
++//
++// metricsSema must be held.
++func initMetrics() {
++	if metricsInit {
++		return
++	}
++	metrics = map[string]metricData{
++		"/memory/classes/heap/free:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.committed - in.heapStats.inHeap -
++					in.heapStats.inStacks - in.heapStats.inWorkBufs -
++					in.heapStats.inPtrScalarBits)
++			},
++		},
++		"/memory/classes/heap/objects:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.heapStats.inObjects
++			},
++		},
++		"/memory/classes/heap/released:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.released)
++			},
++		},
++		"/memory/classes/heap/stacks:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.inStacks)
++			},
++		},
++		"/memory/classes/heap/unused:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.inHeap) - in.heapStats.inObjects
++			},
++		},
++		"/memory/classes/metadata/mcache/free:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.mCacheSys - in.sysStats.mCacheInUse
++			},
++		},
++		"/memory/classes/metadata/mcache/inuse:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.mCacheInUse
++			},
++		},
++		"/memory/classes/metadata/mspan/free:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.mSpanSys - in.sysStats.mSpanInUse
++			},
++		},
++		"/memory/classes/metadata/mspan/inuse:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.mSpanInUse
++			},
++		},
++		"/memory/classes/metadata/other:bytes": {
++			deps: makeStatDepSet(heapStatsDep, sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.inWorkBufs+in.heapStats.inPtrScalarBits) + in.sysStats.gcMiscSys
++			},
++		},
++		"/memory/classes/os-stacks:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.stacksSys
++			},
++		},
++		"/memory/classes/other:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.otherSys
++			},
++		},
++		"/memory/classes/profiling/buckets:bytes": {
++			deps: makeStatDepSet(sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.sysStats.buckHashSys
++			},
++		},
++		"/memory/classes/total:bytes": {
++			deps: makeStatDepSet(heapStatsDep, sysStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.committed+in.heapStats.released) +
++					in.sysStats.stacksSys + in.sysStats.mSpanSys +
++					in.sysStats.mCacheSys + in.sysStats.buckHashSys +
++					in.sysStats.gcMiscSys + in.sysStats.otherSys
++			},
++		},
++	}
++	metricsInit = true
++}
++
++// statDep is a dependency on a group of statistics
++// that a metric might have.
++type statDep uint
++
++const (
++	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
++	sysStatsDep                 // corresponds to sysStatsAggregate
++	numStatsDeps
++)
++
++// statDepSet represents a set of statDeps.
++//
++// Under the hood, it's a bitmap.
++type statDepSet [1]uint64
++
++// makeStatDepSet creates a new statDepSet from a list of statDeps.
++func makeStatDepSet(deps ...statDep) statDepSet {
++	var s statDepSet
++	for _, d := range deps {
++		s[d/64] |= 1 << (d % 64)
++	}
++	return s
++}
++
++// differennce returns set difference of s from b as a new set.
++func (s statDepSet) difference(b statDepSet) statDepSet {
++	var c statDepSet
++	for i := range s {
++		c[i] = s[i] &^ b[i]
++	}
++	return c
++}
++
++// union returns the union of the two sets as a new set.
++func (s statDepSet) union(b statDepSet) statDepSet {
++	var c statDepSet
++	for i := range s {
++		c[i] = s[i] | b[i]
++	}
++	return c
++}
++
++// empty returns true if there are no dependencies in the set.
++func (s *statDepSet) empty() bool {
++	for _, c := range s {
++		if c != 0 {
++			return false
++		}
++	}
++	return true
++}
++
++// has returns true if the set contains a given statDep.
++func (s *statDepSet) has(d statDep) bool {
++	return s[d/64]&(1<<(d%64)) != 0
++}
++
++// heapStatsAggregate represents memory stats obtained from the
++// runtime. This set of stats is grouped together because they
++// depend on each other in some way to make sense of the runtime's
++// current heap memory use. They're also sharded across Ps, so it
++// makes sense to grab them all at once.
++type heapStatsAggregate struct {
++	heapStatsDelta
++
++	// inObjects is the bytes of memory occupied by objects,
++	// derived from other values in heapStats.
++	inObjects uint64
++}
++
++// compute populates the heapStatsAggregate with values from the runtime.
++func (a *heapStatsAggregate) compute() {
++	memstats.heapStats.read(&a.heapStatsDelta)
++
++	// Calculate derived stats.
++	a.inObjects = uint64(a.largeAlloc - a.largeFree)
++	for i := range a.smallAllocCount {
++		a.inObjects += uint64(a.smallAllocCount[i]-a.smallFreeCount[i]) * uint64(class_to_size[i])
++	}
++}
++
++// sysStatsAggregate represents system memory stats obtained
++// from the runtime. This set of stats is grouped together because
++// they're all relatively cheap to acquire and generally independent
++// of one another and other runtime memory stats. The fact that they
++// may be acquired at different times, especially with respect to
++// heapStatsAggregate, means there could be some skew, but because of
++// these stats are independent, there's no real consistency issue here.
++type sysStatsAggregate struct {
++	stacksSys   uint64
++	mSpanSys    uint64
++	mSpanInUse  uint64
++	mCacheSys   uint64
++	mCacheInUse uint64
++	buckHashSys uint64
++	gcMiscSys   uint64
++	otherSys    uint64
++}
++
++// compute populates the sysStatsAggregate with values from the runtime.
++func (a *sysStatsAggregate) compute() {
++	a.stacksSys = memstats.stacks_sys.load()
++	a.buckHashSys = memstats.buckhash_sys.load()
++	a.gcMiscSys = memstats.gcMiscSys.load()
++	a.otherSys = memstats.other_sys.load()
++
++	systemstack(func() {
++		lock(&mheap_.lock)
++		a.mSpanSys = memstats.mspan_sys.load()
++		a.mSpanInUse = uint64(mheap_.spanalloc.inuse)
++		a.mCacheSys = memstats.mcache_sys.load()
++		a.mCacheInUse = uint64(mheap_.cachealloc.inuse)
++		unlock(&mheap_.lock)
++	})
++}
++
++// statAggregate is the main driver of the metrics implementation.
++//
++// It contains multiple aggregates of runtime statistics, as well
++// as a set of these aggregates that it has populated. The aggergates
++// are populated lazily by its ensure method.
++type statAggregate struct {
++	ensured   statDepSet
++	heapStats heapStatsAggregate
++	sysStats  sysStatsAggregate
++}
++
++// ensure populates statistics aggregates determined by deps if they
++// haven't yet been populated.
++func (a *statAggregate) ensure(deps *statDepSet) {
++	missing := deps.difference(a.ensured)
++	if missing.empty() {
++		return
++	}
++	for i := statDep(0); i < numStatsDeps; i++ {
++		if !missing.has(i) {
++			continue
++		}
++		switch i {
++		case heapStatsDep:
++			a.heapStats.compute()
++		case sysStatsDep:
++			a.sysStats.compute()
++		}
++	}
++	a.ensured = a.ensured.union(missing)
++}
++
++// metricValidKind is a runtime copy of runtime/metrics.ValueKind and
++// must be kept structurally identical to that type.
++type metricKind int
++
++const (
++	// These values must be kept identical to their corresponding Kind* values
++	// in the runtime/metrics package.
++	metricKindBad metricKind = iota
++	metricKindUint64
++	metricKindFloat64
++	metricKindFloat64Histogram
++)
++
++// metricSample is a runtime copy of runtime/metrics.Sample and
++// must be kept structurally identical to that type.
++type metricSample struct {
++	name  string
++	value metricValue
++}
++
++// metricValue is a runtime copy of runtime/metrics.Sample and
++// must be kept structurally identical to that type.
++type metricValue struct {
++	kind    metricKind
++	scalar  uint64         // contains scalar values for scalar Kinds.
++	pointer unsafe.Pointer // contains non-scalar values.
++}
++
++// agg is used by readMetrics, and is protected by metricsSema.
++//
++// Managed as a global variable because its pointer will be
++// an argument to a dynamically-defined function, and we'd
++// like to avoid it escaping to the heap.
++var agg statAggregate
++
++// readMetrics is the implementation of runtime/metrics.Read.
++//
++//go:linkname readMetrics runtime/metrics.runtime_readMetrics
++func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
++	// Construct a slice from the args.
++	sl := slice{samplesp, len, cap}
++	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
++
++	// Acquire the metricsSema but with handoff. This operation
++	// is expensive enough that queueing up goroutines and handing
++	// off between them will be noticably better-behaved.
++	semacquire1(&metricsSema, true, 0, 0)
++
++	// Ensure the map is initialized.
++	initMetrics()
++
++	// Clear agg defensively.
++	agg = statAggregate{}
++
++	// Sample.
++	for i := range samples {
++		sample := &samples[i]
++		data, ok := metrics[sample.name]
++		if !ok {
++			sample.value.kind = metricKindBad
++			continue
++		}
++		// Ensure we have all the stats we need.
++		// agg is populated lazily.
++		agg.ensure(&data.deps)
++
++		// Compute the value based on the stats we have.
++		data.compute(&agg, &sample.value)
++	}
++
++	semrelease(&metricsSema)
++}
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 32bb950a72..2e7df7e09f 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -10,7 +10,7 @@ type Description struct {
+ 	//
+ 	// The format of the metric may be described by the following regular expression.
+ 	//
+-	// 	^(?P<name>/[^:]+):(?P<unit>[^:*\/]+(?:[*\/][^:*\/]+)*)$
++	// 	^(?P<name>/[^:]+):(?P<unit>[^:*/]+(?:[*/][^:*/]+)*)$
+ 	//
+ 	// The format splits the name into two components, separated by a colon: a path which always
+ 	// starts with a /, and a machine-parseable unit. The name may contain any valid Unicode
+@@ -26,6 +26,9 @@ type Description struct {
+ 	// A complete name might look like "/memory/heap/free:bytes".
+ 	Name string
+ 
++	// Description is an English language sentence describing the metric.
++	Description string
++
+ 	// Kind is the kind of value for this metric.
+ 	//
+ 	// The purpose of this field is to allow users to filter out metrics whose values are
+@@ -44,7 +47,80 @@ type Description struct {
+ 	StopTheWorld bool
+ }
+ 
+-var allDesc = []Description{}
++// The English language descriptions below must be kept in sync with the
++// descriptions of each metric in doc.go.
++var allDesc = []Description{
++	{
++		Name:        "/memory/classes/heap/free:bytes",
++		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/heap/objects:bytes",
++		Description: "Memory occupied by live objects and dead objects that have not yet been collected.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/heap/released:bytes",
++		Description: "Memory that has been returned to the underlying system.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/heap/stacks:bytes",
++		Description: "Memory allocated from the heap that is occupied by stacks.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/heap/unused:bytes",
++		Description: "Memory that is unavailable for allocation, but cannot be returned to the underlying system.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/metadata/mcache/free:bytes",
++		Description: "Memory that is reserved for runtime mcache structures, but not in-use.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/metadata/mcache/inuse:bytes",
++		Description: "Memory that is occupied by runtime mcache structures that are currently being used.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/metadata/mspan/free:bytes",
++		Description: "Memory that is reserved for runtime mspan structures, but not in-use.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/metadata/mspan/inuse:bytes",
++		Description: "Memory that is occupied by runtime mspan structures that are currently being used.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/metadata/other:bytes",
++		Description: "Memory that is reserved for or used to hold runtime metadata.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/os-stacks:bytes",
++		Description: "Stack memory allocated by the underlying operating system.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/other:bytes",
++		Description: "Memory used by execution trace buffers, structures for debugging the runtime, finalizer and profiler specials, and more.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/profiling/buckets:bytes",
++		Description: "Memory that is used by the stack trace hash map used for profiling.",
++		Kind:        KindUint64,
++	},
++	{
++		Name:        "/memory/classes/total:bytes",
++		Description: "All memory mapped by the Go runtime into the current process as read-write. Note that this does not include memory mapped by code called via cgo or via the syscall package. Sum of all metrics in /memory/classes.",
++		Kind:        KindUint64,
++	},
++}
+ 
+ // All returns a slice of containing metric descriptions for all supported metrics.
+ func All() []Description {
+diff --git a/src/runtime/metrics/description_test.go b/src/runtime/metrics/description_test.go
+new file mode 100644
+index 0000000000..e966a281a1
+--- /dev/null
++++ b/src/runtime/metrics/description_test.go
+@@ -0,0 +1,125 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package metrics_test
++
++import (
++	"bufio"
++	"os"
++	"path/filepath"
++	"regexp"
++	"runtime"
++	"runtime/metrics"
++	"strings"
++	"testing"
++)
++
++func TestDescriptionNameFormat(t *testing.T) {
++	r := regexp.MustCompile("^(?P<name>/[^:]+):(?P<unit>[^:*/]+(?:[*/][^:*/]+)*)$")
++	descriptions := metrics.All()
++	for _, desc := range descriptions {
++		if !r.MatchString(desc.Name) {
++			t.Errorf("metrics %q does not match regexp %s", desc.Name, r)
++		}
++	}
++}
++
++func extractMetricDocs(t *testing.T) map[string]string {
++	if runtime.GOOS == "android" {
++		t.Skip("no access to Go source on android")
++	}
++
++	// Get doc.go.
++	_, filename, _, _ := runtime.Caller(0)
++	filename = filepath.Join(filepath.Dir(filename), "doc.go")
++
++	f, err := os.Open(filename)
++	if err != nil {
++		t.Fatal(err)
++	}
++	const (
++		stateSearch          = iota // look for list of metrics
++		stateNextMetric             // look for next metric
++		stateNextDescription        // build description
++	)
++	state := stateSearch
++	s := bufio.NewScanner(f)
++	result := make(map[string]string)
++	var metric string
++	var prevMetric string
++	var desc strings.Builder
++	for s.Scan() {
++		line := strings.TrimSpace(s.Text())
++		switch state {
++		case stateSearch:
++			if line == "Supported metrics" {
++				state = stateNextMetric
++			}
++		case stateNextMetric:
++			// Ignore empty lines until we find a non-empty
++			// one. This will be our metric name.
++			if len(line) != 0 {
++				prevMetric = metric
++				metric = line
++				if prevMetric > metric {
++					t.Errorf("metrics %s and %s are out of lexicographical order", prevMetric, metric)
++				}
++				state = stateNextDescription
++			}
++		case stateNextDescription:
++			if len(line) == 0 || line == `*/` {
++				// An empty line means we're done.
++				// Write down the description and look
++				// for a new metric.
++				result[metric] = desc.String()
++				desc.Reset()
++				state = stateNextMetric
++			} else {
++				// As long as we're seeing data, assume that's
++				// part of the description and append it.
++				if desc.Len() != 0 {
++					// Turn previous newlines into spaces.
++					desc.WriteString(" ")
++				}
++				desc.WriteString(line)
++			}
++		}
++		if line == `*/` {
++			break
++		}
++	}
++	if state == stateSearch {
++		t.Fatalf("failed to find supported metrics docs in %s", filename)
++	}
++	return result
++}
++
++func TestDescriptionDocs(t *testing.T) {
++	docs := extractMetricDocs(t)
++	descriptions := metrics.All()
++	for _, d := range descriptions {
++		want := d.Description
++		got, ok := docs[d.Name]
++		if !ok {
++			t.Errorf("no docs found for metric %s", d.Name)
++			continue
++		}
++		if got != want {
++			t.Errorf("mismatched description and docs for metric %s", d.Name)
++			t.Errorf("want: %q, got %q", want, got)
++			continue
++		}
++	}
++	if len(docs) > len(descriptions) {
++	docsLoop:
++		for name, _ := range docs {
++			for _, d := range descriptions {
++				if name == d.Name {
++					continue docsLoop
++				}
++			}
++			t.Errorf("stale documentation for non-existent metric: %s", name)
++		}
++	}
++}
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index b48c22ba30..fb4e23a2b5 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -44,6 +44,60 @@ the documentation of the Name field of the Description struct.
+ 
+ Supported metrics
+ 
+-TODO(mknyszek): List them here as they're added.
++	/memory/classes/heap/free:bytes
++		Memory that is available for allocation, and may be returned
++		to the underlying system.
++
++	/memory/classes/heap/objects:bytes
++		Memory occupied by live objects and dead objects that have
++		not yet been collected.
++
++	/memory/classes/heap/released:bytes
++		Memory that has been returned to the underlying system.
++
++	/memory/classes/heap/stacks:bytes
++		Memory allocated from the heap that is occupied by stacks.
++
++	/memory/classes/heap/unused:bytes
++		Memory that is unavailable for allocation, but cannot be
++		returned to the underlying system.
++
++	/memory/classes/metadata/mcache/free:bytes
++		Memory that is reserved for runtime mcache structures, but
++		not in-use.
++
++	/memory/classes/metadata/mcache/inuse:bytes
++		Memory that is occupied by runtime mcache structures that
++		are currently being used.
++
++	/memory/classes/metadata/mspan/free:bytes
++		Memory that is reserved for runtime mspan structures, but
++		not in-use.
++
++	/memory/classes/metadata/mspan/inuse:bytes
++		Memory that is occupied by runtime mspan structures that are
++		currently being used.
++
++	/memory/classes/metadata/other:bytes
++		Memory that is reserved for or used to hold runtime
++		metadata.
++
++	/memory/classes/os-stacks:bytes
++		Stack memory allocated by the underlying operating system.
++
++	/memory/classes/other:bytes
++		Memory used by execution trace buffers, structures for
++		debugging the runtime, finalizer and profiler specials, and
++		more.
++
++	/memory/classes/profiling/buckets:bytes
++		Memory that is used by the stack trace hash map used for
++		profiling.
++
++	/memory/classes/total:bytes
++		All memory mapped by the Go runtime into the current process
++		as read-write. Note that this does not include memory mapped
++		by code called via cgo or via the syscall package.
++		Sum of all metrics in /memory/classes.
+ */
+ package metrics
+diff --git a/src/runtime/metrics/sample.go b/src/runtime/metrics/sample.go
+index c7a3fc424a..b4b0979aa6 100644
+--- a/src/runtime/metrics/sample.go
++++ b/src/runtime/metrics/sample.go
+@@ -4,6 +4,11 @@
+ 
+ package metrics
+ 
++import (
++	_ "runtime" // depends on the runtime via a linkname'd function
++	"unsafe"
++)
++
+ // Sample captures a single metric sample.
+ type Sample struct {
+ 	// Name is the name of the metric sampled.
+@@ -16,6 +21,9 @@ type Sample struct {
+ 	Value Value
+ }
+ 
++// Implemented in the runtime.
++func runtime_readMetrics(unsafe.Pointer, int, int)
++
+ // Read populates each Value field in the given slice of metric samples.
+ //
+ // Desired metrics should be present in the slice with the appropriate name.
+@@ -25,5 +33,5 @@ type Sample struct {
+ // will have the value populated as KindBad to indicate that the name is
+ // unknown.
+ func Read(m []Sample) {
+-	panic("unimplemented")
++	runtime_readMetrics(unsafe.Pointer(&m[0]), len(m), cap(m))
+ }
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+new file mode 100644
+index 0000000000..f00aad07c4
+--- /dev/null
++++ b/src/runtime/metrics_test.go
+@@ -0,0 +1,114 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"runtime/metrics"
++	"strings"
++	"testing"
++	"unsafe"
++)
++
++func prepareAllMetricsSamples() (map[string]metrics.Description, []metrics.Sample) {
++	all := metrics.All()
++	samples := make([]metrics.Sample, len(all))
++	descs := make(map[string]metrics.Description)
++	for i := range all {
++		samples[i].Name = all[i].Name
++		descs[all[i].Name] = all[i]
++	}
++	return descs, samples
++}
++
++func TestReadMetrics(t *testing.T) {
++	// Tests whether readMetrics produces values aligning
++	// with ReadMemStats while the world is stopped.
++	var mstats runtime.MemStats
++	_, samples := prepareAllMetricsSamples()
++	runtime.ReadMetricsSlow(&mstats, unsafe.Pointer(&samples[0]), len(samples), cap(samples))
++
++	checkUint64 := func(t *testing.T, m string, got, want uint64) {
++		t.Helper()
++		if got != want {
++			t.Errorf("metric %q: got %d, want %d", m, got, want)
++		}
++	}
++
++	// Check to make sure the values we read line up with other values we read.
++	for i := range samples {
++		switch name := samples[i].Name; name {
++		case "/memory/classes/heap/free:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapIdle-mstats.HeapReleased)
++		case "/memory/classes/heap/released:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapReleased)
++		case "/memory/classes/heap/objects:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapAlloc)
++		case "/memory/classes/heap/unused:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapInuse-mstats.HeapAlloc)
++		case "/memory/classes/heap/stacks:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.StackInuse)
++		case "/memory/classes/metadata/mcache/free:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.MCacheSys-mstats.MCacheInuse)
++		case "/memory/classes/metadata/mcache/inuse:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.MCacheInuse)
++		case "/memory/classes/metadata/mspan/free:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.MSpanSys-mstats.MSpanInuse)
++		case "/memory/classes/metadata/mspan/inuse:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.MSpanInuse)
++		case "/memory/classes/metadata/other:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.GCSys)
++		case "/memory/classes/os-stacks:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.StackSys-mstats.StackInuse)
++		case "/memory/classes/other:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.OtherSys)
++		case "/memory/classes/profiling/buckets:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
++		case "/memory/classes/total:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
++		}
++	}
++}
++
++func TestReadMetricsConsistency(t *testing.T) {
++	// Tests whether readMetrics produces consistent, sensible values.
++	// The values are read concurrently with the runtime doing other
++	// things (e.g. allocating) so what we read can't reasonably compared
++	// to runtime values.
++
++	// Read all the supported metrics through the metrics package.
++	descs, samples := prepareAllMetricsSamples()
++	metrics.Read(samples)
++
++	// Check to make sure the values we read make sense.
++	var totalVirtual struct {
++		got, want uint64
++	}
++	for i := range samples {
++		kind := samples[i].Value.Kind()
++		if want := descs[samples[i].Name].Kind; kind != want {
++			t.Errorf("supported metric %q has unexpected kind: got %d, want %d", samples[i].Name, kind, want)
++			continue
++		}
++		if samples[i].Name != "/memory/classes/total:bytes" && strings.HasPrefix(samples[i].Name, "/memory/classes") {
++			v := samples[i].Value.Uint64()
++			totalVirtual.want += v
++
++			// None of these stats should ever get this big.
++			// If they do, there's probably overflow involved,
++			// usually due to bad accounting.
++			if int64(v) < 0 {
++				t.Errorf("%q has high/negative value: %d", samples[i].Name, v)
++			}
++		}
++		switch samples[i].Name {
++		case "/memory/classes/total:bytes":
++			totalVirtual.got = samples[i].Value.Uint64()
++		}
++	}
++	if totalVirtual.got != totalVirtual.want {
++		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
++	}
++}
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index a8eca85fe6..512a06cffa 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -882,7 +882,8 @@ func (m *consistentHeapStats) unsafeClear() {
+ // heapStatsDelta, the resulting values should be complete and
+ // valid statistic values.
+ //
+-// Not safe to call concurrently.
++// Not safe to call concurrently. The world must be stopped
++// or metricsSema must be held.
+ func (m *consistentHeapStats) read(out *heapStatsDelta) {
+ 	// Getting preempted after this point is not safe because
+ 	// we read allp. We need to make sure a STW can't happen

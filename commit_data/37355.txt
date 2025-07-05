@@ -13,8 +13,235 @@ Date:   Wed Jul 18 14:40:20 2018 -0400
     Change-Id: I7be8eaf110f4fa6fc76ea4cd39aea3dd8addf0b0
     Reviewed-on: https://go-review.googlesource.com/124707
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/help/helpdoc.go   | 34 ++++++++++++++---
  src/cmd/go/internal/modfetch/proxy.go | 69 ++++++++++++++++++++++++++++++++++-
  src/cmd/go/internal/modload/help.go   | 22 ++++++++++-
  3 files changed, 116 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index a5cfffd980..c6dfaad4c6 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -195,6 +195,7 @@ using the named version control system, and then the path inside
+ that repository. The supported version control systems are:
+ 
+ 	Bazaar      .bzr
++	Fossil      .fossil
+ 	Git         .git
+ 	Mercurial   .hg
+ 	Subversion  .svn
+@@ -238,7 +239,7 @@ The meta tag should appear as early in the file as possible.
+ In particular, it should appear before any raw JavaScript or CSS,
+ to avoid confusing the go command's restricted parser.
+ 
+-The vcs is one of "git", "hg", "svn", etc,
++The vcs is one of "bzr", "fossil", "git", "hg", "svn".
+ 
+ The repo-root is the root of the version control system
+ containing a scheme and not containing a .vcs qualifier.
+@@ -260,12 +261,22 @@ the go tool will verify that https://example.org/?go-get=1 contains the
+ same meta tag and then git clone https://code.org/r/p/exproj into
+ GOPATH/src/example.org.
+ 
+-New downloaded packages are written to the first directory listed in the GOPATH
+-environment variable (For more details see: 'go help gopath').
++When using GOPATH, downloaded packages are written to the first directory
++listed in the GOPATH environment variable.
++(See 'go help gopath-get' and 'go help gopath'.)
++
++When using modules, downloaded packages are stored in the module cache.
++(See 'go help modules-get' and 'go help goproxy'.)
++
++When using modules, an additional variant of the go-import meta tag is
++recognized and is preferred over those listing version control systems.
++That variant uses "mod" as the vcs in the content value, as in:
++
++	<meta name="go-import" content="example.org mod https://code.org/moduleproxy">
+ 
+-The go command attempts to download the version of the
+-package appropriate for the Go release being used.
+-Run 'go help get' for more.
++This tag means to fetch modules with paths beginning with example.org
++from the module proxy available at the URL https://code.org/moduleproxy.
++See 'go help goproxy' for details about the proxy protocol.
+ 
+ Import path checking
+ 
+@@ -288,6 +299,9 @@ Import path checking is disabled for code found within vendor trees.
+ This makes it possible to copy code into alternate locations in vendor trees
+ without needing to update import comments.
+ 
++Import path checking is also disabled when using modules.
++Import path comments are obsoleted by the go.mod file's module statement.
++
+ See https://golang.org/s/go14customimport for details.
+ 	`,
+ }
+@@ -360,6 +374,12 @@ in the list.
+ 
+ See https://golang.org/doc/code.html for an example.
+ 
++GOPATH and Modules
++
++When using modules, GOPATH is no longer used for resolving imports.
++However, it is still used to store downloaded source code (in GOPATH/src/mod)
++and compiled commands (in GOPATH/bin).
++
+ Internal Directories
+ 
+ Code in or below a directory named "internal" is importable only
+@@ -471,6 +491,8 @@ General-purpose environment variables:
+ 		Examples are linux, darwin, windows, netbsd.
+ 	GOPATH
+ 		For more details see: 'go help gopath'.
++	GOPROXY
++		URL of Go module proxy. See 'go help goproxy'.
+ 	GORACE
+ 		Options for the race detector.
+ 		See https://golang.org/doc/articles/race_detector.html.
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 4cc7457308..ffd65d4ad0 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -14,18 +14,85 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
+ )
+ 
++var HelpGoproxy = &base.Command{
++	UsageLine: "goproxy",
++	Short:     "module proxy protocol",
++	Long: `
++The go command by default downloads modules from version control systems
++directly, just as 'go get' always has. If the GOPROXY environment variable
++is set to the URL of a module proxy, the go command will instead fetch
++all modules from that proxy. No matter the source of the modules, downloaded
++modules must match existing entries in go.sum (see 'go help modules' for
++discussion of verification).
++
++A Go module proxy is any web server that can respond to GET requests for
++URLs of a specified form. The requests have no query parameters, so even
++a site serving from a fixed file system (including a file:/// URL)
++can be a module proxy.
++
++The GET requests sent to a Go module proxy are:
++
++GET $GOPROXY/<module>/@v/list returns a list of all known versions of the
++given module, one per line.
++
++GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
++about that version of the given module.
++
++GET $GOPROXY/<module>/@v/<version>.mod returns the go.mod file
++for that version of the given module.
++
++GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
++for that version of the given module.
++
++To avoid problems when serving from case-sensitive file systems,
++the <module> and <version> elements are case-encoded, replacing every
++uppercase letter with an exclamation mark followed by the correponding
++lower-case letter: github.com/Azure encodes as github.com/!azure.
++
++The JSON-formatted metadata about a given module corresponds to
++this Go data structure, which may be expanded in the future:
++
++    type Info struct {
++        Version string    // version string
++        Time    time.Time // commit time
++    }
++
++The zip archive for a specific version of a given module is a
++standard zip file that contains the file tree corresponding
++to the module's source code and related files. The archive uses
++slash-separated paths, and every file path in the archive must
++begin with <module>@<version>/, where the module and version are
++substituted directly, not case-encoded. The root of the module
++file tree corresponds to the <module>@<version>/ prefix in the
++archive.
++
++Even when downloading directly from version control systems,
++the go command synthesizes explicit info, mod, and zip files
++and stores them in its local cache, $GOPATH/src/mod/cache/download,
++the same as if it had downloaded them directly from a proxy.
++The cache layout is the same as the proxy URL space, so
++serving $GOPATH/src/mod/cache/download at (or copying it to)
++https://example.com/proxy would let other users access those
++cached module versions with GOPROXY=https://example.com/proxy.
++`,
++}
++
+ var proxyURL = os.Getenv("GOPROXY")
+ 
+ func lookupProxy(path string) (Repo, error) {
++	if strings.Contains(proxyURL, ",") {
++		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
++	}
+ 	u, err := url.Parse(proxyURL)
+ 	if err != nil || u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "file" {
+ 		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
+-		return nil, fmt.Errorf("invalid $GOPROXY setting")
++		return nil, fmt.Errorf("invalid $GOPROXY setting: malformed URL or invalid scheme (must be http, https, file)")
+ 	}
+ 	return newProxyRepo(u.String(), path)
+ }
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 8b3b5a3a78..3efa708f0b 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -49,6 +49,10 @@ Module support is enabled only when the current directory is outside
+ GOPATH/src and itself contains a go.mod file or is below a directory
+ containing a go.mod file.
+ 
++In module-aware mode, GOPATH no longer defines the meaning of imports
++during a build, but it still stores downloaded dependencies (in GOPATH/src/mod)
++and installed commands (in GOPATH/bin, unless GOBIN is set).
++
+ Defining a module
+ 
+ A module is defined by a tree of Go source files with a go.mod file
+@@ -245,7 +249,6 @@ For example, these commands are all valid:
+ 	go get github.com/gorilla/mux@c856192   # records v0.0.0-20180517173623-c85619274f5d
+ 	go get github.com/gorilla/mux@master    # records current meaning of master
+ 
+-
+ Module compatibility and semantic versioning
+ 
+ The go command requires that modules use semantic versions and expects that
+@@ -314,7 +317,15 @@ See https://research.swtch.com/vgo-import for more information about
+ semantic import versioning, and see https://semver.org/ for more about
+ semantic versioning.
+ 
+-Module verification
++Module code layout
++
++For now, see https://research.swtch.com/vgo-module for information
++about how source code in version control systems is mapped to
++module file trees.
++
++TODO: Add documentation to go command.
++
++Module downloading and verification
+ 
+ The go command maintains, in the main module's root directory alongside
+ go.mod, a file named go.sum containing the expected cryptographic checksums
+@@ -330,6 +341,13 @@ each command invocation. The 'go mod -verify' command checks that
+ the cached copies of module downloads still match both their recorded
+ checksums and the entries in go.sum.
+ 
++The go command can fetch modules from a proxy instead of connecting
++to source control systems directly, according to the setting of the GOPROXY
++environment variable.
++
++See 'go help goproxy' for details about the proxy and also the format of
++the cached downloaded packages.
++
+ Modules and vendoring
+ 
+ When using modules, the go command completely ignores vendor directories.

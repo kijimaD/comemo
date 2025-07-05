@@ -10,6 +10,21 @@ Date:   Thu Apr 18 00:30:03 2019 -0600
     Change-Id: I46fdab9d572e132ccc23ef907f9cc6b2d06b37c4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172698
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/quick/quick.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 0457fc7571..2cfb6c85db 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -180,7 +180,8 @@ type Config struct {
+ 	MaxCount int
+ 	// MaxCountScale is a non-negative scale factor applied to the
+ 	// default maximum.
+-	// If zero, the default is unchanged.
++	// If zero, the default is configured by the -quickchecks flag
++	// which defaults to 100.
+ 	MaxCountScale float64
+ 	// Rand specifies a source of random numbers.
+ 	// If nil, a default pseudo-random source will be used.

@@ -7,6 +7,20 @@ Date:   Tue Jul 18 07:18:35 2017 +0300
     Change-Id: Ie6a88b70d7c45c59995ee2f57fb28f9a3cbb404d
     Reviewed-on: https://go-review.googlesource.com/49470
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 59bbf59c30..c609fe4cc4 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1813,7 +1813,7 @@ func (tx *Tx) Rollback() error {
+ 	return tx.rollback(false)
+ }
+ 
+-// Prepare creates a prepared statement for use within a transaction.
++// PrepareContext creates a prepared statement for use within a transaction.
+ //
+ // The returned statement operates within the transaction and will be closed
+ // when the transaction has been committed or rolled back.

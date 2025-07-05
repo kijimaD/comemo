@@ -17,7 +17,7 @@ Date:   Fri Sep 28 15:24:32 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/syscall_solaris.go                     |  7 +++
  src/syscall/asm_solaris_amd64.s                    |  4 ++
  src/syscall/{exec_solaris.go => exec_libc.go}      | 23 +++++++---
@@ -25,3 +25,297 @@ Date:   Fri Sep 28 15:24:32 2018 +0200
  src/syscall/mkall.sh                               | 13 +++++-
  .../{mksyscall_solaris.pl => mksyscall_libc.pl}    | 50 +++++++++++++++++++---
  6 files changed, 89 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 9f05a47892..94e018d479 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -83,6 +83,13 @@ func syscall_close(fd int32) int32 {
+ 	return int32(sysvicall1(&libc_close, uintptr(fd)))
+ }
+ 
++const _F_DUP2FD = 0x9
++
++//go:nosplit
++func syscall_dup2(oldfd, newfd uintptr) (val, err uintptr) {
++	return syscall_fcntl(oldfd, _F_DUP2FD, newfd)
++}
++
+ //go:nosplit
+ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ 	call := libcall{
+diff --git a/src/syscall/asm_solaris_amd64.s b/src/syscall/asm_solaris_amd64.s
+index 6fa041866d..c61e04a42f 100644
+--- a/src/syscall/asm_solaris_amd64.s
++++ b/src/syscall/asm_solaris_amd64.s
+@@ -23,6 +23,10 @@ TEXT ·chroot1(SB),NOSPLIT,$0
+ TEXT ·close(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_close(SB)
+ 
++TEXT ·dup2child(SB),NOSPLIT,$0
++	JMP	runtime·syscall_dup2(SB)
++	RET
++
+ TEXT ·execve(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_execve(SB)
+ 
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_libc.go
+similarity index 92%
+rename from src/syscall/exec_solaris.go
+rename to src/syscall/exec_libc.go
+index 9735ae5706..d6d34c04c3 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_libc.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build aix solaris
++
++// This file handles forkAndExecInChild function for OS using libc syscall like AIX or Solaris.
++
+ package syscall
+ 
+ import (
+@@ -28,6 +32,7 @@ func runtime_AfterForkInChild()
+ func chdir(path uintptr) (err Errno)
+ func chroot1(path uintptr) (err Errno)
+ func close(fd uintptr) (err Errno)
++func dup2child(old uintptr, new uintptr) (val uintptr, err Errno)
+ func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
+ func exit(code uintptr)
+ func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err Errno)
+@@ -43,7 +48,7 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
+ 
+ // syscall defines this global on our behalf to avoid a build dependency on other platforms
+ func init() {
+-	execveSolaris = execve
++	execveLibc = execve
+ }
+ 
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+@@ -178,7 +183,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		_, err1 = fcntl1(uintptr(pipe), F_DUP2FD, uintptr(nextfd))
++		_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -191,11 +196,14 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+-			_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(nextfd))
++			_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
++			if err1 != 0 {
++				goto childerror
++			}
++			_, err1 = fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+ 		}
+@@ -218,7 +226,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 		// The new fd is created NOT close-on-exec,
+ 		// which is exactly what we want.
+-		_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(i))
++		_, err1 = dup2child(uintptr(fd[i]), uintptr(i))
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -242,6 +250,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Set the controlling TTY to Ctty
+ 	if sys.Setctty {
++		// On AIX, TIOCSCTTY is undefined
++		if TIOCSCTTY == 0 {
++			err1 = ENOSYS
++			goto childerror
++		}
+ 		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 9a950ac17f..3b84256b8e 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Fork, exec, wait, etc.
+ 
+@@ -246,9 +246,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ func runtime_BeforeExec()
+ func runtime_AfterExec()
+ 
+-// execveSolaris is non-nil on Solaris, set to execve in exec_solaris.go; this
++// execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
+ // avoids a build dependency for other platforms.
+-var execveSolaris func(path uintptr, argv uintptr, envp uintptr) (err Errno)
++var execveLibc func(path uintptr, argv uintptr, envp uintptr) (err Errno)
+ 
+ // Exec invokes the execve(2) system call.
+ func Exec(argv0 string, argv []string, envv []string) (err error) {
+@@ -267,9 +267,9 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	runtime_BeforeExec()
+ 
+ 	var err1 Errno
+-	if runtime.GOOS == "solaris" {
+-		// RawSyscall should never be used on Solaris.
+-		err1 = execveSolaris(
++	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
++		// RawSyscall should never be used on Solaris or AIX.
++		err1 = execveLibc(
+ 			uintptr(unsafe.Pointer(argv0p)),
+ 			uintptr(unsafe.Pointer(&argvp[0])),
+ 			uintptr(unsafe.Pointer(&envvp[0])))
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index b381b93161..b783921d1a 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -115,6 +115,11 @@ _* | *_ | _)
+ 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
+ 	exit 1
+ 	;;
++aix_ppc64)
++	mkerrors="$mkerrors -maix64"
++	mksyscall="./mksyscall_libc.pl -aix"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ darwin_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+@@ -301,7 +306,7 @@ plan9_386)
+ 	mktypes="XXX"
+ 	;;
+ solaris_amd64)
+-	mksyscall="./mksyscall_solaris.pl"
++	mksyscall="./mksyscall_libc.pl -solaris"
+ 	mkerrors="$mkerrors -m64"
+ 	mksysnum=
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+@@ -327,5 +332,9 @@ esac
+ 	if [ -n "$mksyscall" ]; then echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+ 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
+-	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go"; fi
++	if [ -n "$mktypes" ]; then
++		# ztypes_$GOOSARCH.go could be erased before "go run mkpost.go" is called.
++		# Therefore, "go run" tries to recompile syscall package but ztypes is empty and it fails.
++		echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go.NEW && mv ztypes_$GOOSARCH.go.NEW ztypes_$GOOSARCH.go";
++	fi
+ ) | $run
+diff --git a/src/syscall/mksyscall_solaris.pl b/src/syscall/mksyscall_libc.pl
+similarity index 89%
+rename from src/syscall/mksyscall_solaris.pl
+rename to src/syscall/mksyscall_libc.pl
+index 9172975914..6f57bee79e 100755
+--- a/src/syscall/mksyscall_solaris.pl
++++ b/src/syscall/mksyscall_libc.pl
+@@ -19,10 +19,12 @@
+ 
+ use strict;
+ 
+-my $cmdline = "mksyscall_solaris.pl " . join(' ', @ARGV);
++my $cmdline = "mksyscall_libc.pl " . join(' ', @ARGV);
+ my $errors = 0;
+ my $_32bit = "";
+ my $tags = "";  # build tags
++my $aix = 0;
++my $solaris = 0;
+ 
+ binmode STDOUT;
+ 
+@@ -33,14 +35,23 @@ if($ARGV[0] eq "-b32") {
+ 	$_32bit = "little-endian";
+ 	shift;
+ }
++if($ARGV[0] eq "-aix") {
++	$aix = 1;
++	shift;
++}
++if($ARGV[0] eq "-solaris") {
++	$solaris = 1;
++	shift;
++}
+ if($ARGV[0] eq "-tags") {
+ 	shift;
+ 	$tags = $ARGV[0];
+ 	shift;
+ }
+ 
++
+ if($ARGV[0] =~ /^-/) {
+-	print STDERR "usage: mksyscall_solaris.pl [-b32 | -l32] [-tags x,y] [file ...]\n";
++	print STDERR "usage: mksyscall_libc.pl [-b32 | -l32] [-aix | -solaris] [-tags x,y] [file ...]\n";
+ 	exit 1;
+ }
+ 
+@@ -96,8 +107,22 @@ while(<>) {
+ 	my @out = parseparamlist($out);
+ 
+ 	# So file name.
+-	if($modname eq "") {
+-		$modname = "libc";
++	if($aix) {
++		if($modname eq "") {
++			$modname = "libc.a/shr_64.o";
++		} else {
++			print STDERR "$func: only syscall using libc are available\n";
++			$errors = 1;
++			next;
++		}
++
++	}
++	if($solaris) {
++		if($modname eq "") {
++			$modname = "libc";
++		}
++		$modname .= ".so";
++
+ 	}
+ 
+ 	# System call name.
+@@ -114,7 +139,7 @@ while(<>) {
+ 	$sysname =~ y/A-Z/a-z/; # All libc functions are lowercase.
+ 
+ 	# Runtime import of function to allow cross-platform builds.
+-	$dynimports .= "//go:cgo_import_dynamic ${sysvarname} ${sysname} \"$modname.so\"\n";
++	$dynimports .= "//go:cgo_import_dynamic ${sysvarname} ${sysname} \"$modname\"\n";
+ 	# Link symbol to proc address variable.
+ 	$linknames .= "//go:linkname ${sysvarname} ${sysvarname}\n";
+ 	# Library proc address variable.
+@@ -184,10 +209,21 @@ while(<>) {
+ 	}
+ 	my $nargs = @args;
+ 
++	my $asmfuncname="";
++	my $asmrawfuncname="";
++
++	if($aix){
++		$asmfuncname="syscall6";
++		$asmrawfuncname="rawSyscall6";
++	} else {
++		$asmfuncname="sysvicall6";
++		$asmrawfuncname="rawSysvicall6";
++	}
++
+ 	# Determine which form to use; pad args with zeros.
+-	my $asm = "${syscalldot}sysvicall6";
++	my $asm = "${syscalldot}${asmfuncname}";
+ 	if ($nonblock) {
+-		$asm = "${syscalldot}rawSysvicall6";
++		$asm = "${syscalldot}${asmrawfuncname}";
+ 	}
+ 	if(@args <= 6) {
+ 		while(@args < 6) {

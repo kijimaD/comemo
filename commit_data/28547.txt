@@ -11,8 +11,74 @@ Date:   Wed Jun 1 22:51:30 2016 +0200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/cthread.go   |  4 ++++
  misc/cgo/test/issue7978.go |  2 +-
  src/cmd/dist/test.go       | 12 +-----------
  3 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/misc/cgo/test/cthread.go b/misc/cgo/test/cthread.go
+index 1ca182c75e..af44911756 100644
+--- a/misc/cgo/test/cthread.go
++++ b/misc/cgo/test/cthread.go
+@@ -8,6 +8,7 @@ package cgotest
+ import "C"
+ 
+ import (
++	"runtime"
+ 	"sync"
+ 	"testing"
+ )
+@@ -30,6 +31,9 @@ func Add(x int) {
+ }
+ 
+ func testCthread(t *testing.T) {
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
++	}
+ 	sum.i = 0
+ 	C.doAdd(10, 6)
+ 
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index d5f6cc71d0..e4cbf1d926 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -103,7 +103,7 @@ func test7978(t *testing.T) {
+ 	if C.HAS_SYNC_FETCH_AND_ADD == 0 {
+ 		t.Skip("clang required for __sync_fetch_and_add support on darwin/arm")
+ 	}
+-	if runtime.GOOS == "android" {
++	if runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+ 		t.Skip("GOTRACEBACK is not passed on to the exec wrapper")
+ 	}
+ 	if os.Getenv("GOTRACEBACK") != "2" {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 33ed018245..0a384c73b2 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -465,11 +465,7 @@ func (t *tester) registerTests() {
+ 			})
+ 		}
+ 	}
+-	if t.cgoEnabled && !t.iOS() {
+-		// TODO(crawshaw): reenable on iOS
+-		// golang.org/issue/15919
+-		//
+-		// These tests are not designed to run off the host.
++	if t.cgoEnabled {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "cgo_test",
+ 			heading: "../misc/cgo/test",
+@@ -729,12 +725,6 @@ func (t *tester) runHostTest(dirBanner, pkg string) error {
+ func (t *tester) cgoTest(dt *distTest) error {
+ 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+ 
+-	if t.iOS() {
+-		cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags())
+-		cmd.Env = env
+-		return cmd.Run()
+-	}
+-
+ 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+ 	cmd.Env = env
+ 

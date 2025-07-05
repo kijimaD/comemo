@@ -15,7 +15,7 @@ Date:   Wed May 8 18:28:21 2019 -0400
     Change-Id: If37ab2b3f6fca4696b8a6afb2ef11ba6c4fb42e0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176106
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/windows.txt       |  6 ------
  src/cmd/vet/all/whitelist/windows_386.txt   |  8 --------
  src/cmd/vet/all/whitelist/windows_amd64.txt |  5 -----
@@ -25,3 +25,302 @@ Date:   Wed May 8 18:28:21 2019 -0400
  src/runtime/sys_windows_amd64.s             | 12 ++++++------
  src/runtime/sys_windows_arm.s               | 22 +++++++++++-----------
  8 files changed, 38 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/windows.txt b/src/cmd/vet/all/whitelist/windows.txt
+deleted file mode 100644
+index 9391183d64..0000000000
+--- a/src/cmd/vet/all/whitelist/windows.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// windows-specific vet whitelist. See readme.txt for details.
+-
+-// Issue 18609
+-crypto/x509/root_windows.go: unreachable code
+-
+-runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+deleted file mode 100644
+index 60875a424c..0000000000
+--- a/src/cmd/vet/all/whitelist/windows_386.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// windows/386-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_windows_386.s: [386] profileloop: use of 4(SP) points beyond argument frame
+-runtime/sys_windows_386.s: [386] ctrlhandler: 4(SP) should be _type+0(FP)
+-runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+-runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+-runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
+-runtime/sys_windows_386.s: [386] sigtramp: function sigtramp missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+deleted file mode 100644
+index 348afd152e..0000000000
+--- a/src/cmd/vet/all/whitelist/windows_amd64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// windows/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte ret+8(FP)
+-runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
+-runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 74d395df70..1e3ebe8942 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -229,7 +229,11 @@ func loadSystemRoots() (*CertPool, error) {
+ 	// TODO: restore this functionality on Windows. We tried to do
+ 	// it in Go 1.8 but had to revert it. See Issue 18609.
+ 	// Returning (nil, nil) was the old behavior, prior to CL 30578.
+-	return nil, nil
++	// The if statement here avoids vet complaining about
++	// unreachable code below.
++	if true {
++		return nil, nil
++	}
+ 
+ 	const CRYPT_E_NOT_FOUND = 0x80092004
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index d3e84fe3dc..4d051a246a 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -133,9 +133,9 @@ var (
+ 
+ // Function to be called by windows CreateThread
+ // to start new os thread.
+-func tstart_stdcall(newm *m) uint32
++func tstart_stdcall(newm *m)
+ 
+-func ctrlhandler(_type uint32) uint32
++func ctrlhandler(_type uint32)
+ 
+ type mOS struct {
+ 	waitsema uintptr // semaphore for parking on locks
+@@ -907,6 +907,9 @@ func ctrlhandler1(_type uint32) uint32 {
+ // in sys_windows_386.s and sys_windows_amd64.s
+ func profileloop()
+ 
++// called from zcallback_windows_*.s to sys_windows_*.s
++func callbackasm1()
++
+ var profiletimer uintptr
+ 
+ func profilem(mp *m, thread uintptr) {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index ff9f4bafa5..761da8eaef 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -76,7 +76,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ // exception record and context pointers.
+ // Handler function is stored in AX.
+ // Return 0 for 'not handled', -1 for handled.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
++TEXT sigtramp<>(SB),NOSPLIT,$0-0
+ 	MOVL	ptrs+0(FP), CX
+ 	SUBL	$40, SP
+ 
+@@ -155,7 +155,7 @@ done:
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+ 	MOVL	$runtime·exceptionhandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
++	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+ 	// is never called
+@@ -163,17 +163,21 @@ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
++	JMP	sigtramp<>(SB)
+ 
++// Called by OS using stdcall ABI: bool ctrlhandler(uint32).
+ TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·ctrlhandler1(SB)
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
++// Called by OS using stdcall ABI: uint32 profileloop(void*).
+ TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+ 	ADDL	$12, SP
+@@ -232,7 +236,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
++TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+ 
+ 	// remove return address from stack, we are not returning there
+@@ -308,7 +312,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+ 	RET
+ 
+ // void tstart(M *newm);
+-TEXT runtime·tstart(SB),NOSPLIT,$0
++TEXT tstart<>(SB),NOSPLIT,$0
+ 	MOVL	newm+0(FP), CX		// m
+ 	MOVL	m_g0(CX), DX		// g
+ 
+@@ -340,7 +344,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	MOVL	newm+0(FP), BX
+ 
+ 	PUSHL	BX
+-	CALL	runtime·tstart(SB)
++	CALL	tstart<>(SB)
+ 	POPL	BX
+ 
+ 	// Adjust stack for stdcall to return properly.
+@@ -383,7 +387,7 @@ TEXT runtime·onosstack(SB),NOSPLIT,$0
+ 	MOVL	SI, m_libcallg(BP)
+ 	// sp must be the last, because once async cpu profiler finds
+ 	// all three values to be non-zero, it will use them
+-	LEAL	usec+0(FP), SI
++	LEAL	fn+0(FP), SI
+ 	MOVL	SI, m_libcallsp(BP)
+ 
+ 	MOVL	m_g0(BP), SI
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 43a26497ad..39ebe1bdf9 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -110,7 +110,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ // exception record and context pointers.
+ // Handler function is stored in AX.
+ // Return 0 for 'not handled', -1 for handled.
+-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0-0
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	// CX: PEXCEPTION_POINTERS ExceptionInfo
+ 
+ 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
+@@ -200,18 +200,18 @@ done:
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	$runtime·exceptionhandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
++	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·firstcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
++	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
++	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
+-	MOVQ	CX, 16(SP)		// spill
++	MOVQ	CX, _type+16(SP)		// spill
+ 	MOVQ	$runtime·ctrlhandler1(SB), CX
+ 	MOVQ	CX, 0(SP)
+ 	CALL	runtime·externalthreadhandler(SB)
+@@ -413,7 +413,7 @@ TEXT runtime·onosstack(SB),NOSPLIT,$0
+ 	MOVQ	R12, m_libcallg(R13)
+ 	// sp must be the last, because once async cpu profiler finds
+ 	// all three values to be non-zero, it will use them
+-	LEAQ	usec+0(FP), R12
++	LEAQ	fn+0(FP), R12
+ 	MOVQ	R12, m_libcallsp(R13)
+ 
+ 	MOVQ	m_g0(R13), R14
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 60be74b95c..8f8af0a4f7 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -116,7 +116,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT|NOFRAME,$0
+ // int32_t sigtramp(
+ //     PEXCEPTION_POINTERS ExceptionInfo,
+ //     func *GoExceptionHandler);
+-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R0, R4-R11, R14], (R13)	// push {r0, r4-r11, lr} (SP-=40)
+ 	SUB	$(8+20), R13		// reserve space for g, sp, and
+ 					// parameters/retval to go call
+@@ -198,7 +198,7 @@ done:
+ 	// handler, don't clobber the stored SP and PC on the stack.
+ 	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
+ 	MOVW	0x40(R3), R2			// load PC from context record
+-	MOVW	$runtime·returntramp(SB), R1
++	MOVW	$returntramp<>(SB), R1
+ 	CMP	R1, R2
+ 	B.EQ	return				// do not clobber saved SP/PC
+ 
+@@ -211,7 +211,7 @@ done:
+ 	// Set up context record to return to returntramp on g0 stack
+ 	MOVW	R12, 0x38(R3)			// save g0 stack pointer
+ 						// in context record
+-	MOVW	$runtime·returntramp(SB), R2	// save resume address
++	MOVW	$returntramp<>(SB), R2	// save resume address
+ 	MOVW	R2, 0x40(R3)			// in context record
+ 
+ return:
+@@ -222,20 +222,20 @@ return:
+ // This is part of the control flow guard workaround.
+ // It switches stacks and jumps to the continuation address.
+ //
+-TEXT runtime·returntramp(SB),NOSPLIT|NOFRAME,$0
++TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.IA	(R13), [R13, R15]		// ldm sp, [sp, pc]
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·exceptionhandler(SB), R1
+-	B	runtime·sigtramp(SB)
++	B	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·firstcontinuehandler(SB), R1
+-	B	runtime·sigtramp(SB)
++	B	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+-	B	runtime·sigtramp(SB)
++	B	sigtramp<>(SB)
+ 
+ TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·ctrlhandler1(SB), R1
+@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	BL	runtime·save_g(SB)
+ 
+ 	// do per-thread TLS initialization
+-	BL	runtime·init_thread_tls(SB)
++	BL	init_thread_tls<>(SB)
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVW	R13, R0
+@@ -475,7 +475,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	BIC	$0x7, R13		// alignment for ABI
+ 	MOVW	runtime·_SwitchToThread(SB), R0
+ 	BL	(R0)
+-	MOVW 	R4, R13			// restore stack pointer 
++	MOVW 	R4, R13			// restore stack pointer
+ 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+@@ -654,7 +654,7 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW 	$runtime·tls_g(SB), R1
+ 	MOVW	R0, (R1)
+ 
+-	BL	runtime·init_thread_tls(SB)
++	BL	init_thread_tls<>(SB)
+ 
+ 	MOVW	R4, R13
+ 	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
+@@ -674,7 +674,7 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
+ // handler can get the real g from the thread's m.
+ //
+ // Clobbers R0-R3
+-TEXT runtime·init_thread_tls(SB),NOSPLIT|NOFRAME,$0
++TEXT init_thread_tls<>(SB),NOSPLIT|NOFRAME,$0
+ 	// compute &_TEB->TlsSlots[tls_g]
+ 	MRC	15, 0, R0, C13, C0, 2
+ 	ADD	$0xe10, R0

@@ -8,6 +8,19 @@ Date:   Sun Aug 3 13:31:06 2008 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=13785
     CL=13785
-
+---
  src/cmd/cc/lex.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index e3a8e440d8..a1de21cd82 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -244,6 +244,7 @@ compile(char *file, char **defs, int ndef)
+ 			errorexit();
+ 		}
+ 		Binit(&outbuf, c, OWRITE);
++		outfile = strdup(outfile);
+ 	}
+ 	newio();
+ 	first = 0;

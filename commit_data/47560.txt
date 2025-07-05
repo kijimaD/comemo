@@ -11,6 +11,21 @@ Date:   Mon Mar 29 11:32:50 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/errorcodes.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 4d9db18f9c..257fc4eff4 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -6,9 +6,6 @@ package types
+ 
+ type errorCode int
+ 
+-// TODO(rFindley): ensure that existing error codes do not change in the
+-//                 dev.typeparams branch.
+-
+ // This file defines the error codes that can be produced during type-checking.
+ // Collectively, these codes provide an identifier that may be used to
+ // implement special handling for certain types of errors.

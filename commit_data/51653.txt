@@ -68,7 +68,7 @@ Date:   Thu Feb 24 22:11:40 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  24 +--
  src/cmd/compile/internal/types2/infer.go           | 135 +++++++++++++----
  .../types2/testdata/check/funcinference.go2        |  14 +-
@@ -91,3 +91,1272 @@ Date:   Thu Feb 24 22:11:40 2022 -0800
  test/typeparam/settable.go                         |   2 +-
  test/typeparam/typelist.go                         |   8 +-
  21 files changed, 648 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 46b184f53c..8133e963d7 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -474,52 +474,54 @@ func TestInstanceInfo(t *testing.T) {
+ 		// 	`func(float64)`,
+ 		// },
+ 
+-		{`package s1; func f[T any, P interface{~*T}](x T) {}; func _(x string) { f(x) }`,
++		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func(x string)`,
+ 		},
+-		{`package s2; func f[T any, P interface{~*T}](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s2; func f[T any, P interface{*T}](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `*int`},
+ 			`func(x []int)`,
+ 		},
+-		{`package s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s3; type C[T any] interface{chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`},
+ 			`func(x []int)`,
+ 		},
+-		{`package s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func(x []int)`,
+ 		},
+ 
+-		{`package t1; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = f[string] }`,
++		{`package t1; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = f[string] }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func() string`,
+ 		},
+-		{`package t2; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
++		{`package t2; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func() string`,
+ 		},
+-		{`package t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
++		{`package t3; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func() []int`,
+ 		},
+-		{`package t4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
++		{`package t4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = (f[int]) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func() []int`,
+ 		},
+-		{`package i0; import lib "generic_lib"; func _() { lib.F(42) }`,
++
++		{`package i0; import "lib"; func _() { lib.F(42) }`,
+ 			`F`,
+ 			[]string{`int`},
+ 			`func(int)`,
+ 		},
++
+ 		{`package type0; type T[P interface{~int}] struct{ x P }; var _ T[int]`,
+ 			`T`,
+ 			[]string{`int`},
+@@ -540,7 +542,7 @@ func TestInstanceInfo(t *testing.T) {
+ 			[]string{`[]int`, `int`},
+ 			`struct{x []int; y int}`,
+ 		},
+-		{`package type4; import lib "generic_lib"; var _ lib.T[int]`,
++		{`package type4; import "lib"; var _ lib.T[int]`,
+ 			`T`,
+ 			[]string{`int`},
+ 			`[]int`,
+@@ -548,7 +550,7 @@ func TestInstanceInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		const lib = `package generic_lib
++		const lib = `package lib
+ 
+ func F[P any](P) {}
+ 
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 617f3edad7..29633028f3 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -488,21 +488,88 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 		}
+ 	}
+ 
+-	// If a constraint has a core type, unify the corresponding type parameter with it.
+-	for _, tpar := range tparams {
+-		if ctype := adjCoreType(tpar); ctype != nil {
+-			if !u.unify(tpar, ctype) {
+-				// TODO(gri) improve error message by providing the type arguments
+-				//           which we know already
+-				check.errorf(pos, "%s does not match %s", tpar, ctype)
+-				return nil, 0
++	// Repeatedly apply constraint type inference as long as
++	// there are still unknown type arguments and progress is
++	// being made.
++	//
++	// This is an O(n^2) algorithm where n is the number of
++	// type parameters: if there is progress (and iteration
++	// continues), at least one type argument is inferred
++	// per iteration and we have a doubly nested loop.
++	// In practice this is not a problem because the number
++	// of type parameters tends to be very small (< 5 or so).
++	// (It should be possible for unification to efficiently
++	// signal newly inferred type arguments; then the loops
++	// here could handle the respective type parameters only,
++	// but that will come at a cost of extra complexity which
++	// may not be worth it.)
++	for n := u.x.unknowns(); n > 0; {
++		nn := n
++
++		for i, tpar := range tparams {
++			// If there is a core term (i.e., a core type with tilde information)
++			// unify the type parameter with the core type.
++			if core, single := coreTerm(tpar); core != nil {
++				// A type parameter can be unified with its core type in two cases.
++				tx := u.x.at(i)
++				switch {
++				case tx != nil:
++					// The corresponding type argument tx is known.
++					// In this case, if the core type has a tilde, the type argument's underlying
++					// type must match the core type, otherwise the type argument and the core type
++					// must match.
++					// If tx is an external type parameter, don't consider its underlying type
++					// (which is an interface). Core type unification will attempt to unify against
++					// core.typ.
++					// Note also that even with inexact unification we cannot leave away the under
++					// call here because it's possible that both tx and core.typ are named types,
++					// with under(tx) being a (named) basic type matching core.typ. Such cases do
++					// not match with inexact unification.
++					if core.tilde && !isTypeParam(tx) {
++						tx = under(tx)
++					}
++					if !u.unify(tx, core.typ) {
++						// TODO(gri) improve error message by providing the type arguments
++						//           which we know already
++						// Don't use term.String() as it always qualifies types, even if they
++						// are in the current package.
++						tilde := ""
++						if core.tilde {
++							tilde = "~"
++						}
++						check.errorf(pos, "%s does not match %s%s", tpar, tilde, core.typ)
++						return nil, 0
++					}
++
++				case single && !core.tilde:
++					// The corresponding type argument tx is unknown and there's a single
++					// specific type and no tilde.
++					// In this case the type argument must be that single type; set it.
++					u.x.set(i, core.typ)
++
++				default:
++					// Unification is not possible and no progress was made.
++					continue
++				}
++
++				// The number of known type arguments may have changed.
++				nn = u.x.unknowns()
++				if nn == 0 {
++					break // all type arguments are known
++				}
+ 			}
+ 		}
++
++		assert(nn <= n)
++		if nn == n {
++			break // no progress
++		}
++		n = nn
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments which were inferred from core types. The newly inferred non-
+-	// nil entries may still contain references to other type parameters.
++	// arguments which were inferred from core terms. The newly inferred non-nil
++	// entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+@@ -591,26 +658,40 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 	return
+ }
+ 
+-// adjCoreType returns the core type of tpar unless the
+-// type parameter embeds a single, possibly named type,
+-// in which case it returns that single type instead.
+-// (The core type is always the underlying type of that
+-// single type.)
+-func adjCoreType(tpar *TypeParam) Type {
+-	var single *term
+-	if tpar.is(func(t *term) bool {
+-		if single == nil && t != nil {
+-			single = t
+-			return true
+-		}
+-		return false // zero or more than one terms
+-	}) {
++// If the type parameter has a single specific type S, coreTerm returns (S, true).
++// Otherwise, if tpar has a core type T, it returns a term corresponding to that
++// core type and false. In that case, if any term of tpar has a tilde, the core
++// term has a tilde. In all other cases coreTerm returns (nil, false).
++func coreTerm(tpar *TypeParam) (*term, bool) {
++	n := 0
++	var single *term // valid if n == 1
++	var tilde bool
++	tpar.is(func(t *term) bool {
++		if t == nil {
++			assert(n == 0)
++			return false // no terms
++		}
++		n++
++		single = t
++		if t.tilde {
++			tilde = true
++		}
++		return true
++	})
++	if n == 1 {
+ 		if debug {
+-			assert(under(single.typ) == coreType(tpar))
++			assert(debug && under(single.typ) == coreType(tpar))
+ 		}
+-		return single.typ
++		return single, true
++	}
++	if typ := coreType(tpar); typ != nil {
++		// A core type is always an underlying type.
++		// If any term of tpar has a tilde, we don't
++		// have a precise core type and we must return
++		// a tilde as well.
++		return &term{tilde, typ}, false
+ 	}
+-	return coreType(tpar)
++	return nil, false
+ }
+ 
+ type cycleFinder struct {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/funcinference.go2 b/src/cmd/compile/internal/types2/testdata/check/funcinference.go2
+index 7160e18b19..45d0781cd7 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/funcinference.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/funcinference.go2
+@@ -8,21 +8,21 @@ import "strconv"
+ 
+ type any interface{}
+ 
+-func f0[A any, B interface{~*C}, C interface{~*D}, D interface{~*A}](A, B, C, D) {}
++func f0[A any, B interface{*C}, C interface{*D}, D interface{*A}](A, B, C, D) {}
+ func _() {
+ 	f := f0[string]
+ 	f("a", nil, nil, nil)
+ 	f0("a", nil, nil, nil)
+ }
+ 
+-func f1[A any, B interface{~*A}](A, B) {}
++func f1[A any, B interface{*A}](A, B) {}
+ func _() {
+ 	f := f1[int]
+ 	f(int(0), new(int))
+ 	f1(int(0), new(int))
+ }
+ 
+-func f2[A any, B interface{~[]A}](A, B) {}
++func f2[A any, B interface{[]A}](A, B) {}
+ func _() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -38,7 +38,7 @@ func _() {
+ // 	f3(x, &x, &x)
+ // }
+ 
+-func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C) {}
++func f4[A any, B interface{[]C}, C interface{*A}](A, B, C) {}
+ func _() {
+ 	f := f4[int]
+ 	var x int
+@@ -46,7 +46,7 @@ func _() {
+ 	f4(x, []*int{}, &x)
+ }
+ 
+-func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A { panic(0) }
++func f5[A interface{struct{b B; c C}}, B any, C interface{*B}](x B) A { panic(0) }
+ func _() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+@@ -79,14 +79,14 @@ var _ = Double(MySlice{1})
+ 
+ type Setter[B any] interface {
+ 	Set(string)
+-	~*B
++	*B
+ }
+ 
+ func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
+ 	result := make([]T, len(s))
+ 	for i, v := range s {
+ 		// The type of &result[i] is *T which is in the type list
+-		// of Setter2, so we can convert it to PT.
++		// of Setter, so we can convert it to PT.
+ 		p := PT(&result[i])
+ 		// PT has a Set method.
+ 		p.Set(v)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinference.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
+index 8876ccaa4e..3d3380da9c 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
+@@ -14,7 +14,7 @@ func _() {
+ }
+ 
+ // recursive inference
+-type Tr[A any, B ~*C, C ~*D, D ~*A] int
++type Tr[A any, B *C, C *D, D *A] int
+ func _() {
+ 	var x Tr[string]
+ 	var y Tr[string, ***string, **string, *string]
+@@ -25,11 +25,11 @@ func _() {
+ }
+ 
+ // other patterns of inference
+-type To0[A any, B ~[]A] int
+-type To1[A any, B ~struct{a A}] int
+-type To2[A any, B ~[][]A] int
+-type To3[A any, B ~[3]*A] int
+-type To4[A any, B any, C ~struct{a A; b B}] int
++type To0[A any, B []A] int
++type To1[A any, B struct{a A}] int
++type To2[A any, B [][]A] int
++type To3[A any, B [3]*A] int
++type To4[A any, B any, C struct{a A; b B}] int
+ func _() {
+ 	var _ To0[int]
+ 	var _ To1[int]
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/inference.go2 b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+index e762f33605..e3d6bfb212 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/inference.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+@@ -78,7 +78,7 @@ func _() {
+ 	related1(si, "foo" /* ERROR cannot use "foo" */ )
+ }
+ 
+-func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
++func related2[Elem any, Slice interface{[]Elem}](e Elem, s Slice) {}
+ 
+ func _() {
+ 	// related2 can be called with explicit instantiation.
+@@ -109,16 +109,8 @@ func _() {
+ 	related3[int, []int]()
+ 	related3[byte, List[byte]]()
+ 
+-	// Alternatively, the 2nd type argument can be inferred
+-	// from the first one through constraint type inference.
+-	related3[int]()
+-
+-	// The inferred type is the core type of the Slice
+-	// type parameter.
+-	var _ []int = related3[int]()
+-
+-	// It is not the defined parameterized type List.
+-	type anotherList []float32
+-	var _ anotherList = related3[float32]() // valid
+-	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
++	// The 2nd type argument cannot be inferred from the first
++	// one because there's two possible choices: []Elem and
++	// List[Elem].
++	related3[int]( /* ERROR cannot infer Slice */ )
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/typesets.go2 b/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
+index e19dcf8da3..55ef02284b 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/typesets.go2
+@@ -35,7 +35,7 @@ func _() int {
+ 	return deref(p)
+ }
+ 
+-func addrOfCopy[V any, P ~*V](v V) P {
++func addrOfCopy[V any, P *V](v V) P {
+ 	return &v
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go2
+index b8ba0ad4a7..01c9672745 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go2
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-func f[F interface{~*Q}, G interface{~*R}, Q, R any](q Q, r R) {}
++func f[F interface{*Q}, G interface{*R}, Q, R any](q Q, r R) {}
+ 
+ func _() {
+ 	f[*float64, *int](1, 2)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go2
+new file mode 100644
+index 0000000000..ef873e6ea8
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go2
+@@ -0,0 +1,164 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Constraint type inference should be independent of the
++// ordering of the type parameter declarations. Try all
++// permutations in the test case below.
++// Permutations produced by https://go.dev/play/p/PHcZNGJTEBZ.
++
++func f00[S1 ~[]E1, S2 ~[]E2, E1 ~byte, E2 ~byte](S1, S2) {}
++func f01[S2 ~[]E2, S1 ~[]E1, E1 ~byte, E2 ~byte](S1, S2) {}
++func f02[E1 ~byte, S1 ~[]E1, S2 ~[]E2, E2 ~byte](S1, S2) {}
++func f03[S1 ~[]E1, E1 ~byte, S2 ~[]E2, E2 ~byte](S1, S2) {}
++func f04[S2 ~[]E2, E1 ~byte, S1 ~[]E1, E2 ~byte](S1, S2) {}
++func f05[E1 ~byte, S2 ~[]E2, S1 ~[]E1, E2 ~byte](S1, S2) {}
++func f06[E2 ~byte, S2 ~[]E2, S1 ~[]E1, E1 ~byte](S1, S2) {}
++func f07[S2 ~[]E2, E2 ~byte, S1 ~[]E1, E1 ~byte](S1, S2) {}
++func f08[S1 ~[]E1, E2 ~byte, S2 ~[]E2, E1 ~byte](S1, S2) {}
++func f09[E2 ~byte, S1 ~[]E1, S2 ~[]E2, E1 ~byte](S1, S2) {}
++func f10[S2 ~[]E2, S1 ~[]E1, E2 ~byte, E1 ~byte](S1, S2) {}
++func f11[S1 ~[]E1, S2 ~[]E2, E2 ~byte, E1 ~byte](S1, S2) {}
++func f12[S1 ~[]E1, E1 ~byte, E2 ~byte, S2 ~[]E2](S1, S2) {}
++func f13[E1 ~byte, S1 ~[]E1, E2 ~byte, S2 ~[]E2](S1, S2) {}
++func f14[E2 ~byte, S1 ~[]E1, E1 ~byte, S2 ~[]E2](S1, S2) {}
++func f15[S1 ~[]E1, E2 ~byte, E1 ~byte, S2 ~[]E2](S1, S2) {}
++func f16[E1 ~byte, E2 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
++func f17[E2 ~byte, E1 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
++func f18[E2 ~byte, E1 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
++func f19[E1 ~byte, E2 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
++func f20[S2 ~[]E2, E2 ~byte, E1 ~byte, S1 ~[]E1](S1, S2) {}
++func f21[E2 ~byte, S2 ~[]E2, E1 ~byte, S1 ~[]E1](S1, S2) {}
++func f22[E1 ~byte, S2 ~[]E2, E2 ~byte, S1 ~[]E1](S1, S2) {}
++func f23[S2 ~[]E2, E1 ~byte, E2 ~byte, S1 ~[]E1](S1, S2) {}
++
++type myByte byte
++
++func _(a []byte, b []myByte) {
++	f00(a, b)
++	f01(a, b)
++	f02(a, b)
++	f03(a, b)
++	f04(a, b)
++	f05(a, b)
++	f06(a, b)
++	f07(a, b)
++	f08(a, b)
++	f09(a, b)
++	f10(a, b)
++	f11(a, b)
++	f12(a, b)
++	f13(a, b)
++	f14(a, b)
++	f15(a, b)
++	f16(a, b)
++	f17(a, b)
++	f18(a, b)
++	f19(a, b)
++	f20(a, b)
++	f21(a, b)
++	f22(a, b)
++	f23(a, b)
++}
++
++// Constraint type inference may have to iterate.
++// Again, the order of the type parameters shouldn't matter.
++
++func g0[S ~[]E, M ~map[string]S, E any](m M) {}
++func g1[M ~map[string]S, S ~[]E, E any](m M) {}
++func g2[E any, S ~[]E, M ~map[string]S](m M) {}
++func g3[S ~[]E, E any, M ~map[string]S](m M) {}
++func g4[M ~map[string]S, E any, S ~[]E](m M) {}
++func g5[E any, M ~map[string]S, S ~[]E](m M) {}
++
++func _(m map[string][]byte) {
++	g0(m)
++	g1(m)
++	g2(m)
++	g3(m)
++	g4(m)
++	g5(m)
++}
++
++// Worst-case scenario.
++// There are 10 unknown type parameters. In each iteration of
++// constraint type inference we infer one more, from right to left.
++// Each iteration looks repeatedly at all 11 type parameters,
++// requiring a total of 10*11 = 110 iterations with the current
++// implementation. Pathological case.
++
++func h[K any, J ~*K, I ~*J, H ~*I, G ~*H, F ~*G, E ~*F, D ~*E, C ~*D, B ~*C, A ~*B](x A) {}
++
++func _(x **********int) {
++	h(x)
++}
++
++// Examples with channel constraints and tilde.
++
++func ch1[P chan<- int]() (_ P)           { return } // core(P) == chan<- int   (single type, no tilde)
++func ch2[P ~chan int]()                  { return } // core(P) == ~chan<- int  (tilde)
++func ch3[P chan E, E any](E)             { return } // core(P) == chan<- E     (single type, no tilde)
++func ch4[P chan E | ~chan<- E, E any](E) { return } // core(P) == ~chan<- E    (tilde)
++func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (not a single type)
++
++func _() {
++	// P can be inferred as there's a single specific type and no tilde.
++	var _ chan int = ch1 /* ERROR cannot use ch1.*value of type chan<- int */ ()
++	var _ chan<- int = ch1()
++
++	// P cannot be inferred as there's a tilde.
++	ch2( /* ERROR cannot infer P */ )
++	type myChan chan int
++	ch2[myChan]()
++
++	// P can be inferred as there's a single specific type and no tilde.
++	var e int
++	ch3(e)
++
++	// P cannot be inferred as there's more than one specific type and a tilde.
++	ch4( /* ERROR cannot infer P */ e)
++	_ = ch4[chan int]
++
++	// P cannot be inferred as there's more than one specific type.
++	ch5( /* ERROR cannot infer P */ )
++	ch5[chan<- int]()
++}
++
++// test case from issue
++
++func equal[M1 ~map[K1]V1, M2 ~map[K2]V2, K1, K2 ~uint32, V1, V2 ~string](m1 M1, m2 M2) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[K2(k)]; !ok || V2(v1) != v2 {
++			return false
++		}
++	}
++	return true
++}
++
++func equalFixed[K1, K2 ~uint32, V1, V2 ~string](m1 map[K1]V1, m2 map[K2]V2) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[K2(k)]; !ok || v1 != V1(v2) {
++			return false
++		}
++	}
++	return true
++}
++
++type (
++	someNumericID uint32
++	someStringID  string
++)
++
++func _() {
++	foo := map[uint32]string{10: "bar"}
++	bar := map[someNumericID]someStringID{10: "bar"}
++	equal(foo, bar)
++}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 50edce9881..03a9534c94 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -247,6 +247,17 @@ func (d *tparamsList) set(i int, typ Type) {
+ 	}
+ }
+ 
++// unknowns returns the number of type parameters for which no type has been set yet.
++func (d *tparamsList) unknowns() int {
++	n := 0
++	for _, ti := range d.indices {
++		if ti <= 0 {
++			n++
++		}
++	}
++	return n
++}
++
+ // types returns the list of inferred types (via unification) for the type parameters
+ // described by d, and an index. If all types were inferred, the returned index is < 0.
+ // Otherwise, it is the index of the first type parameter which couldn't be inferred;
+@@ -348,8 +359,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// (see issue #50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
++			// Caution: This may not be correct in light of ~ constraints.
++			//          See issue #51376.
++			// TODO(gri) investigate!
++			//
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core type (adjCoreType).
++			// we look at the adjusted core type (coreTerm).
+ 			// If the adjusted core type is a named type N; the
+ 			// corresponding core type is under(N). Since !u.exact
+ 			// and y doesn't have a name, unification will end up
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 85452dffe6..58b59900f9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -466,52 +466,54 @@ func TestInstanceInfo(t *testing.T) {
+ 			`func(float64, *byte, ...[]byte)`,
+ 		},
+ 
+-		{`package s1; func f[T any, P interface{~*T}](x T) {}; func _(x string) { f(x) }`,
++		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func(x string)`,
+ 		},
+-		{`package s2; func f[T any, P interface{~*T}](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s2; func f[T any, P interface{*T}](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `*int`},
+ 			`func(x []int)`,
+ 		},
+-		{`package s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s3; type C[T any] interface{chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`},
+ 			`func(x []int)`,
+ 		},
+-		{`package s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
++		{`package s4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func(x []int)`,
+ 		},
+ 
+-		{`package t1; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = f[string] }`,
++		{`package t1; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = f[string] }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func() string`,
+ 		},
+-		{`package t2; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
++		{`package t2; func f[T any, P interface{*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func() string`,
+ 		},
+-		{`package t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T { return nil }; func _() { _ = f[int] }`,
++		{`package t3; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
+ 			`f`,
+-			[]string{`int`, `chan<- int`},
++			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func() []int`,
+ 		},
+-		{`package t4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
++		{`package t4; type C[T any] interface{chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = (f[int]) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func() []int`,
+ 		},
++
+ 		{`package i0; import "lib"; func _() { lib.F(42) }`,
+ 			`F`,
+ 			[]string{`int`},
+ 			`func(int)`,
+ 		},
++
+ 		{`package type0; type T[P interface{~int}] struct{ x P }; var _ T[int]`,
+ 			`T`,
+ 			[]string{`int`},
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index d481aaa877..429510291e 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -487,21 +487,88 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 		}
+ 	}
+ 
+-	// If a constraint has a core type, unify the corresponding type parameter with it.
+-	for _, tpar := range tparams {
+-		if ctype := adjCoreType(tpar); ctype != nil {
+-			if !u.unify(tpar, ctype) {
+-				// TODO(gri) improve error message by providing the type arguments
+-				//           which we know already
+-				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, ctype)
+-				return nil, 0
++	// Repeatedly apply constraint type inference as long as
++	// there are still unknown type arguments and progress is
++	// being made.
++	//
++	// This is an O(n^2) algorithm where n is the number of
++	// type parameters: if there is progress (and iteration
++	// continues), at least one type argument is inferred
++	// per iteration and we have a doubly nested loop.
++	// In practice this is not a problem because the number
++	// of type parameters tends to be very small (< 5 or so).
++	// (It should be possible for unification to efficiently
++	// signal newly inferred type arguments; then the loops
++	// here could handle the respective type parameters only,
++	// but that will come at a cost of extra complexity which
++	// may not be worth it.)
++	for n := u.x.unknowns(); n > 0; {
++		nn := n
++
++		for i, tpar := range tparams {
++			// If there is a core term (i.e., a core type with tilde information)
++			// unify the type parameter with the core type.
++			if core, single := coreTerm(tpar); core != nil {
++				// A type parameter can be unified with its core type in two cases.
++				tx := u.x.at(i)
++				switch {
++				case tx != nil:
++					// The corresponding type argument tx is known.
++					// In this case, if the core type has a tilde, the type argument's underlying
++					// type must match the core type, otherwise the type argument and the core type
++					// must match.
++					// If tx is an external type parameter, don't consider its underlying type
++					// (which is an interface). Core type unification will attempt to unify against
++					// core.typ.
++					// Note also that even with inexact unification we cannot leave away the under
++					// call here because it's possible that both tx and core.typ are named types,
++					// with under(tx) being a (named) basic type matching core.typ. Such cases do
++					// not match with inexact unification.
++					if core.tilde && !isTypeParam(tx) {
++						tx = under(tx)
++					}
++					if !u.unify(tx, core.typ) {
++						// TODO(gri) improve error message by providing the type arguments
++						//           which we know already
++						// Don't use term.String() as it always qualifies types, even if they
++						// are in the current package.
++						tilde := ""
++						if core.tilde {
++							tilde = "~"
++						}
++						check.errorf(posn, _InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
++						return nil, 0
++					}
++
++				case single && !core.tilde:
++					// The corresponding type argument tx is unknown and there's a single
++					// specific type and no tilde.
++					// In this case the type argument must be that single type; set it.
++					u.x.set(i, core.typ)
++
++				default:
++					// Unification is not possible and no progress was made.
++					continue
++				}
++
++				// The number of known type arguments may have changed.
++				nn = u.x.unknowns()
++				if nn == 0 {
++					break // all type arguments are known
++				}
+ 			}
+ 		}
++
++		assert(nn <= n)
++		if nn == n {
++			break // no progress
++		}
++		n = nn
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments which were inferred from core types. The newly inferred non-
+-	// nil entries may still contain references to other type parameters.
++	// arguments which were inferred from core terms. The newly inferred non-nil
++	// entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+@@ -590,26 +657,40 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	return
+ }
+ 
+-// adjCoreType returns the core type of tpar unless the
+-// type parameter embeds a single, possibly named type,
+-// in which case it returns that single type instead.
+-// (The core type is always the underlying type of that
+-// single type.)
+-func adjCoreType(tpar *TypeParam) Type {
+-	var single *term
+-	if tpar.is(func(t *term) bool {
+-		if single == nil && t != nil {
+-			single = t
+-			return true
++// If the type parameter has a single specific type S, coreTerm returns (S, true).
++// Otherwise, if tpar has a core type T, it returns a term corresponding to that
++// core type and false. In that case, if any term of tpar has a tilde, the core
++// term has a tilde. In all other cases coreTerm returns (nil, false).
++func coreTerm(tpar *TypeParam) (*term, bool) {
++	n := 0
++	var single *term // valid if n == 1
++	var tilde bool
++	tpar.is(func(t *term) bool {
++		if t == nil {
++			assert(n == 0)
++			return false // no terms
+ 		}
+-		return false // zero or more than one terms
+-	}) {
++		n++
++		single = t
++		if t.tilde {
++			tilde = true
++		}
++		return true
++	})
++	if n == 1 {
+ 		if debug {
+-			assert(under(single.typ) == coreType(tpar))
++			assert(debug && under(single.typ) == coreType(tpar))
+ 		}
+-		return single.typ
++		return single, true
++	}
++	if typ := coreType(tpar); typ != nil {
++		// A core type is always an underlying type.
++		// If any term of tpar has a tilde, we don't
++		// have a precise core type and we must return
++		// a tilde as well.
++		return &term{tilde, typ}, false
+ 	}
+-	return coreType(tpar)
++	return nil, false
+ }
+ 
+ type cycleFinder struct {
+diff --git a/src/go/types/testdata/check/funcinference.go2 b/src/go/types/testdata/check/funcinference.go2
+index f04b76ca1a..45d0781cd7 100644
+--- a/src/go/types/testdata/check/funcinference.go2
++++ b/src/go/types/testdata/check/funcinference.go2
+@@ -8,21 +8,21 @@ import "strconv"
+ 
+ type any interface{}
+ 
+-func f0[A any, B interface{~*C}, C interface{~*D}, D interface{~*A}](A, B, C, D) {}
++func f0[A any, B interface{*C}, C interface{*D}, D interface{*A}](A, B, C, D) {}
+ func _() {
+ 	f := f0[string]
+ 	f("a", nil, nil, nil)
+ 	f0("a", nil, nil, nil)
+ }
+ 
+-func f1[A any, B interface{~*A}](A, B) {}
++func f1[A any, B interface{*A}](A, B) {}
+ func _() {
+ 	f := f1[int]
+ 	f(int(0), new(int))
+ 	f1(int(0), new(int))
+ }
+ 
+-func f2[A any, B interface{~[]A}](A, B) {}
++func f2[A any, B interface{[]A}](A, B) {}
+ func _() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -38,7 +38,7 @@ func _() {
+ // 	f3(x, &x, &x)
+ // }
+ 
+-func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C) {}
++func f4[A any, B interface{[]C}, C interface{*A}](A, B, C) {}
+ func _() {
+ 	f := f4[int]
+ 	var x int
+@@ -46,7 +46,7 @@ func _() {
+ 	f4(x, []*int{}, &x)
+ }
+ 
+-func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A { panic(0) }
++func f5[A interface{struct{b B; c C}}, B any, C interface{*B}](x B) A { panic(0) }
+ func _() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+@@ -79,7 +79,7 @@ var _ = Double(MySlice{1})
+ 
+ type Setter[B any] interface {
+ 	Set(string)
+-	~*B
++	*B
+ }
+ 
+ func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
+diff --git a/src/go/types/testdata/check/typeinference.go2 b/src/go/types/testdata/check/typeinference.go2
+index 8876ccaa4e..3d3380da9c 100644
+--- a/src/go/types/testdata/check/typeinference.go2
++++ b/src/go/types/testdata/check/typeinference.go2
+@@ -14,7 +14,7 @@ func _() {
+ }
+ 
+ // recursive inference
+-type Tr[A any, B ~*C, C ~*D, D ~*A] int
++type Tr[A any, B *C, C *D, D *A] int
+ func _() {
+ 	var x Tr[string]
+ 	var y Tr[string, ***string, **string, *string]
+@@ -25,11 +25,11 @@ func _() {
+ }
+ 
+ // other patterns of inference
+-type To0[A any, B ~[]A] int
+-type To1[A any, B ~struct{a A}] int
+-type To2[A any, B ~[][]A] int
+-type To3[A any, B ~[3]*A] int
+-type To4[A any, B any, C ~struct{a A; b B}] int
++type To0[A any, B []A] int
++type To1[A any, B struct{a A}] int
++type To2[A any, B [][]A] int
++type To3[A any, B [3]*A] int
++type To4[A any, B any, C struct{a A; b B}] int
+ func _() {
+ 	var _ To0[int]
+ 	var _ To1[int]
+diff --git a/src/go/types/testdata/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+index 70d393b455..e59a544660 100644
+--- a/src/go/types/testdata/examples/inference.go2
++++ b/src/go/types/testdata/examples/inference.go2
+@@ -78,7 +78,7 @@ func _() {
+ 	related1(si, "foo" /* ERROR cannot use "foo" */ )
+ }
+ 
+-func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
++func related2[Elem any, Slice interface{[]Elem}](e Elem, s Slice) {}
+ 
+ func _() {
+ 	// related2 can be called with explicit instantiation.
+@@ -109,16 +109,8 @@ func _() {
+ 	related3[int, []int]()
+ 	related3[byte, List[byte]]()
+ 
+-	// Alternatively, the 2nd type argument can be inferred
+-	// from the first one through constraint type inference.
+-	related3[int]()
+-
+-	// The inferred type is the core type of the Slice
+-	// type parameter.
+-	var _ []int = related3[int]()
+-
+-	// It is not the defined parameterized type List.
+-	type anotherList []float32
+-	var _ anotherList = related3[float32]() // valid
+-	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
++	// The 2nd type argument cannot be inferred from the first
++	// one because there's two possible choices: []Elem and
++	// List[Elem].
++	related3 /* ERROR cannot infer Slice */ [int]()
+ }
+diff --git a/src/go/types/testdata/examples/typesets.go2 b/src/go/types/testdata/examples/typesets.go2
+index cf01072d8c..fcddf1f1a5 100644
+--- a/src/go/types/testdata/examples/typesets.go2
++++ b/src/go/types/testdata/examples/typesets.go2
+@@ -35,7 +35,7 @@ func _() int {
+ 	return deref(p)
+ }
+ 
+-func addrOfCopy[V any, P ~*V](v V) P {
++func addrOfCopy[V any, P *V](v V) P {
+ 	return &v
+ }
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue45548.go2 b/src/go/types/testdata/fixedbugs/issue45548.go2
+index b8ba0ad4a7..01c9672745 100644
+--- a/src/go/types/testdata/fixedbugs/issue45548.go2
++++ b/src/go/types/testdata/fixedbugs/issue45548.go2
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-func f[F interface{~*Q}, G interface{~*R}, Q, R any](q Q, r R) {}
++func f[F interface{*Q}, G interface{*R}, Q, R any](q Q, r R) {}
+ 
+ func _() {
+ 	f[*float64, *int](1, 2)
+diff --git a/src/go/types/testdata/fixedbugs/issue51229.go2 b/src/go/types/testdata/fixedbugs/issue51229.go2
+new file mode 100644
+index 0000000000..808b6471f6
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51229.go2
+@@ -0,0 +1,164 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Constraint type inference should be independent of the
++// ordering of the type parameter declarations. Try all
++// permutations in the test case below.
++// Permutations produced by https://go.dev/play/p/PHcZNGJTEBZ.
++
++func f00[S1 ~[]E1, S2 ~[]E2, E1 ~byte, E2 ~byte](S1, S2) {}
++func f01[S2 ~[]E2, S1 ~[]E1, E1 ~byte, E2 ~byte](S1, S2) {}
++func f02[E1 ~byte, S1 ~[]E1, S2 ~[]E2, E2 ~byte](S1, S2) {}
++func f03[S1 ~[]E1, E1 ~byte, S2 ~[]E2, E2 ~byte](S1, S2) {}
++func f04[S2 ~[]E2, E1 ~byte, S1 ~[]E1, E2 ~byte](S1, S2) {}
++func f05[E1 ~byte, S2 ~[]E2, S1 ~[]E1, E2 ~byte](S1, S2) {}
++func f06[E2 ~byte, S2 ~[]E2, S1 ~[]E1, E1 ~byte](S1, S2) {}
++func f07[S2 ~[]E2, E2 ~byte, S1 ~[]E1, E1 ~byte](S1, S2) {}
++func f08[S1 ~[]E1, E2 ~byte, S2 ~[]E2, E1 ~byte](S1, S2) {}
++func f09[E2 ~byte, S1 ~[]E1, S2 ~[]E2, E1 ~byte](S1, S2) {}
++func f10[S2 ~[]E2, S1 ~[]E1, E2 ~byte, E1 ~byte](S1, S2) {}
++func f11[S1 ~[]E1, S2 ~[]E2, E2 ~byte, E1 ~byte](S1, S2) {}
++func f12[S1 ~[]E1, E1 ~byte, E2 ~byte, S2 ~[]E2](S1, S2) {}
++func f13[E1 ~byte, S1 ~[]E1, E2 ~byte, S2 ~[]E2](S1, S2) {}
++func f14[E2 ~byte, S1 ~[]E1, E1 ~byte, S2 ~[]E2](S1, S2) {}
++func f15[S1 ~[]E1, E2 ~byte, E1 ~byte, S2 ~[]E2](S1, S2) {}
++func f16[E1 ~byte, E2 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
++func f17[E2 ~byte, E1 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
++func f18[E2 ~byte, E1 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
++func f19[E1 ~byte, E2 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
++func f20[S2 ~[]E2, E2 ~byte, E1 ~byte, S1 ~[]E1](S1, S2) {}
++func f21[E2 ~byte, S2 ~[]E2, E1 ~byte, S1 ~[]E1](S1, S2) {}
++func f22[E1 ~byte, S2 ~[]E2, E2 ~byte, S1 ~[]E1](S1, S2) {}
++func f23[S2 ~[]E2, E1 ~byte, E2 ~byte, S1 ~[]E1](S1, S2) {}
++
++type myByte byte
++
++func _(a []byte, b []myByte) {
++	f00(a, b)
++	f01(a, b)
++	f02(a, b)
++	f03(a, b)
++	f04(a, b)
++	f05(a, b)
++	f06(a, b)
++	f07(a, b)
++	f08(a, b)
++	f09(a, b)
++	f10(a, b)
++	f11(a, b)
++	f12(a, b)
++	f13(a, b)
++	f14(a, b)
++	f15(a, b)
++	f16(a, b)
++	f17(a, b)
++	f18(a, b)
++	f19(a, b)
++	f20(a, b)
++	f21(a, b)
++	f22(a, b)
++	f23(a, b)
++}
++
++// Constraint type inference may have to iterate.
++// Again, the order of the type parameters shouldn't matter.
++
++func g0[S ~[]E, M ~map[string]S, E any](m M) {}
++func g1[M ~map[string]S, S ~[]E, E any](m M) {}
++func g2[E any, S ~[]E, M ~map[string]S](m M) {}
++func g3[S ~[]E, E any, M ~map[string]S](m M) {}
++func g4[M ~map[string]S, E any, S ~[]E](m M) {}
++func g5[E any, M ~map[string]S, S ~[]E](m M) {}
++
++func _(m map[string][]byte) {
++	g0(m)
++	g1(m)
++	g2(m)
++	g3(m)
++	g4(m)
++	g5(m)
++}
++
++// Worst-case scenario.
++// There are 10 unknown type parameters. In each iteration of
++// constraint type inference we infer one more, from right to left.
++// Each iteration looks repeatedly at all 11 type parameters,
++// requiring a total of 10*11 = 110 iterations with the current
++// implementation. Pathological case.
++
++func h[K any, J ~*K, I ~*J, H ~*I, G ~*H, F ~*G, E ~*F, D ~*E, C ~*D, B ~*C, A ~*B](x A) {}
++
++func _(x **********int) {
++	h(x)
++}
++
++// Examples with channel constraints and tilde.
++
++func ch1[P chan<- int]() (_ P)           { return } // core(P) == chan<- int   (single type, no tilde)
++func ch2[P ~chan int]()                  { return } // core(P) == ~chan<- int  (tilde)
++func ch3[P chan E, E any](E)             { return } // core(P) == chan<- E     (single type, no tilde)
++func ch4[P chan E | ~chan<- E, E any](E) { return } // core(P) == ~chan<- E    (tilde)
++func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (not a single type)
++
++func _() {
++	// P can be inferred as there's a single specific type and no tilde.
++	var _ chan int = ch1 /* ERROR cannot use ch1.*value of type chan<- int */ ()
++	var _ chan<- int = ch1()
++
++	// P cannot be inferred as there's a tilde.
++	ch2 /* ERROR cannot infer P */ ()
++	type myChan chan int
++	ch2[myChan]()
++
++	// P can be inferred as there's a single specific type and no tilde.
++	var e int
++	ch3(e)
++
++	// P cannot be inferred as there's more than one specific type and a tilde.
++	ch4 /* ERROR cannot infer P */ (e)
++	_ = ch4[chan int]
++
++	// P cannot be inferred as there's more than one specific type.
++	ch5 /* ERROR cannot infer P */ ()
++	ch5[chan<- int]()
++}
++
++// test case from issue
++
++func equal[M1 ~map[K1]V1, M2 ~map[K2]V2, K1, K2 ~uint32, V1, V2 ~string](m1 M1, m2 M2) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[K2(k)]; !ok || V2(v1) != v2 {
++			return false
++		}
++	}
++	return true
++}
++
++func equalFixed[K1, K2 ~uint32, V1, V2 ~string](m1 map[K1]V1, m2 map[K2]V2) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[K2(k)]; !ok || v1 != V1(v2) {
++			return false
++		}
++	}
++	return true
++}
++
++type (
++	someNumericID uint32
++	someStringID  string
++)
++
++func _() {
++	foo := map[uint32]string{10: "bar"}
++	bar := map[someNumericID]someStringID{10: "bar"}
++	equal(foo, bar)
++}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index ac904d6d6b..e8d355ed31 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -247,6 +247,17 @@ func (d *tparamsList) set(i int, typ Type) {
+ 	}
+ }
+ 
++// unknowns returns the number of type parameters for which no type has been set yet.
++func (d *tparamsList) unknowns() int {
++	n := 0
++	for _, ti := range d.indices {
++		if ti <= 0 {
++			n++
++		}
++	}
++	return n
++}
++
+ // types returns the list of inferred types (via unification) for the type parameters
+ // described by d, and an index. If all types were inferred, the returned index is < 0.
+ // Otherwise, it is the index of the first type parameter which couldn't be inferred;
+@@ -348,8 +359,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// (see issue #50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
++			// Caution: This may not be correct in light of ~ constraints.
++			//          See issue #51376.
++			// TODO(gri) investigate!
++			//
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core type (adjCoreType).
++			// we look at the adjusted core type (coreTerm).
+ 			// If the adjusted core type is a named type N; the
+ 			// corresponding core type is under(N). Since !u.exact
+ 			// and y doesn't have a name, unification will end up
+diff --git a/test/typeparam/issue48424.go b/test/typeparam/issue48424.go
+index b1238df697..c5e5d4b105 100644
+--- a/test/typeparam/issue48424.go
++++ b/test/typeparam/issue48424.go
+@@ -13,14 +13,14 @@ func identity[T int](x T) T {
+ 	return x
+ }
+ 
+-func min[T int|string](x, y T) T {
++func min[T int | string](x, y T) T {
+ 	if x < y {
+ 		return x
+ 	}
+ 	return y
+ }
+ 
+-func max[T ~float64](x, y T) T {
++func max[T ~int | ~float64](x, y T) T {
+ 	if x > y {
+ 		return x
+ 	}
+@@ -48,7 +48,7 @@ func main() {
+ // Some random type parameter lists with elided interfaces.
+ 
+ type (
+-	_ [T struct{}] struct{}
+-	_ [M map[K]V, K comparable, V any] struct{}
+-	_ [_ interface{}|int] struct{}
++	_[T struct{}]                     struct{}
++	_[M map[K]V, K comparable, V any] struct{}
++	_[_ interface{} | int]            struct{}
+ )
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+index 1f7eba3558..56cf36745b 100644
+--- a/test/typeparam/settable.go
++++ b/test/typeparam/settable.go
+@@ -15,7 +15,7 @@ import (
+ 
+ type Setter[B any] interface {
+ 	Set(string)
+-	~*B
++	*B
+ }
+ 
+ // Takes two type parameters where PT = *T
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 27e1b60ab0..7c713212b0 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -89,7 +89,7 @@ func f1x() {
+ }
+ */
+ 
+-func f2[A any, B interface{ ~[]A }](_ A, _ B) {}
++func f2[A any, B interface{ []A }](_ A, _ B) {}
+ func f2x() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -109,7 +109,7 @@ func f3x() {
+ }
+ */
+ 
+-func f4[A any, B interface{ ~[]C }, C interface{ ~*A }](_ A, _ B, c C) {}
++func f4[A any, B interface{ []C }, C interface{ *A }](_ A, _ B, c C) {}
+ func f4x() {
+ 	f := f4[int]
+ 	var x int
+@@ -118,11 +118,11 @@ func f4x() {
+ }
+ 
+ func f5[A interface {
+-	~struct {
++	struct {
+ 		b B
+ 		c C
+ 	}
+-}, B any, C interface{ ~*B }](x B) A {
++}, B any, C interface{ *B }](x B) A {
+ 	panic(0)
+ }
+ func f5x() {

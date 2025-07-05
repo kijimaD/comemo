@@ -13,8 +13,69 @@ Date:   Fri Nov 4 18:22:06 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go    | 12 ++++++++++++
  src/reflect/export_test.go |  4 ++++
  src/reflect/type.go        | 10 ++++++++++
  3 files changed, 26 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index c99ad79b64..4c11609218 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5913,3 +5913,15 @@ func TestSwapper(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestInaccessibleField(t *testing.T) {
++	var b Buffer
++	var localBuffer struct {
++		buf []byte
++	}
++	lv := ValueOf(&localBuffer).Elem()
++	rv := ValueOf(b)
++	shouldPanic(func() {
++		lv.Set(rv)
++	})
++}
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 2cc1530250..ffd1104487 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -113,3 +113,7 @@ func IsExported(t Type) bool {
+ func ResolveReflectName(s string) {
+ 	resolveReflectName(newName(s, "", "", false))
+ }
++
++type Buffer struct {
++	buf []byte
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 66c27ebb93..e04eff7931 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1680,6 +1680,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 		if len(t.fields) != len(v.fields) {
+ 			return false
+ 		}
++		allExported := true
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+ 			vf := &v.fields[i]
+@@ -1695,6 +1696,15 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 			if tf.offset != vf.offset {
+ 				return false
+ 			}
++			allExported = allExported && tf.name.isExported()
++		}
++		if !allExported && t.pkgPath.name() != v.pkgPath.name() {
++			// An unexported field of a struct is not
++			// visible outside of the package that defines
++			// it, so the package path is implicitly part
++			// of the definition of any struct with an
++			// unexported field.
++			return false
+ 		}
+ 		return true
+ 	}

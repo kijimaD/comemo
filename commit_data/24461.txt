@@ -10,6 +10,20 @@ Date:   Wed Jul 29 19:56:10 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12859
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/trace/trace_stack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index f3baf0bb69..3fe1747f1f 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -21,7 +21,7 @@ import (
+ // In particular that we strip bottom uninteresting frames like goexit,
+ // top uninteresting frames (runtime guts).
+ func TestTraceSymbolize(t *testing.T) {
+-	testenv.MustHaveExec(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {

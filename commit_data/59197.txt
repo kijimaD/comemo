@@ -18,10 +18,175 @@ Date:   Tue Nov 28 20:41:03 2023 +0800
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/exec_test.go        |  2 ++
  src/text/template/doc.go              |  7 +++++
  src/text/template/exec_test.go        |  2 ++
  src/text/template/parse/parse.go      | 56 +++++++++++++++++++----------------
  src/text/template/parse/parse_test.go |  4 +++
  5 files changed, 45 insertions(+), 26 deletions(-)
+
+diff --git a/src/html/template/exec_test.go b/src/html/template/exec_test.go
+index 05302156e0..f60308e679 100644
+--- a/src/html/template/exec_test.go
++++ b/src/html/template/exec_test.go
+@@ -561,6 +561,8 @@ var execTests = []execTest{
+ 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
+ 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}}{{$y}}{{end}}", "v", tVal, true},
+ 	{"with on typed nil interface value", "{{with .NonEmptyInterfaceTypedNil}}TRUE{{ end }}", "", tVal, true},
++	{"with else with", "{{with 0}}{{.}}{{else with true}}{{.}}{{end}}", "true", tVal, true},
++	{"with else with chain", "{{with 0}}{{.}}{{else with false}}{{.}}{{else with `notempty`}}{{.}}{{end}}", "notempty", tVal, true},
+ 
+ 	// Range.
+ 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 032784bc3f..b3ffaabb15 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -144,6 +144,13 @@ data, defined in detail in the corresponding sections that follow.
+ 		is executed; otherwise, dot is set to the value of the pipeline
+ 		and T1 is executed.
+ 
++	{{with pipeline}} T1 {{else with pipeline}} T0 {{end}}
++		To simplify the appearance of with-else chains, the else action
++		of a with may include another with directly; the effect is exactly
++		the same as writing
++			{{with pipeline}} T1 {{else}}{{with pipeline}} T0 {{end}}{{end}}
++
++
+ Arguments
+ 
+ An argument is a simple value, denoted by one of the following.
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index e607fd3bee..8fdd9280f2 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -569,6 +569,8 @@ var execTests = []execTest{
+ 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
+ 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}}{{$y}}{{end}}", "v", tVal, true},
+ 	{"with on typed nil interface value", "{{with .NonEmptyInterfaceTypedNil}}TRUE{{ end }}", "", tVal, true},
++	{"with else with", "{{with 0}}{{.}}{{else with true}}{{.}}{{end}}", "true", tVal, true},
++	{"with else with chain", "{{with 0}}{{.}}{{else with false}}{{.}}{{else with `notempty`}}{{.}}{{end}}", "notempty", tVal, true},
+ 
+ 	// Range.
+ 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index d43d5334ba..b768dd4985 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -521,7 +521,7 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
+ 	}
+ }
+ 
+-func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
++func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+ 	defer t.popVars(len(t.vars))
+ 	pipe = t.pipeline(context, itemRightDelim)
+ 	if context == "range" {
+@@ -535,27 +535,30 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ 	switch next.Type() {
+ 	case nodeEnd: //done
+ 	case nodeElse:
+-		if allowElseIf {
+-			// Special case for "else if". If the "else" is followed immediately by an "if",
+-			// the elseControl will have left the "if" token pending. Treat
+-			//	{{if a}}_{{else if b}}_{{end}}
+-			// as
+-			//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}.
+-			// To do this, parse the if as usual and stop at it {{end}}; the subsequent{{end}}
+-			// is assumed. This technique works even for long if-else-if chains.
+-			// TODO: Should we allow else-if in with and range?
+-			if t.peek().typ == itemIf {
+-				t.next() // Consume the "if" token.
+-				elseList = t.newList(next.Position())
+-				elseList.append(t.ifControl())
+-				// Do not consume the next item - only one {{end}} required.
+-				break
++		// Special case for "else if" and "else with".
++		// If the "else" is followed immediately by an "if" or "with",
++		// the elseControl will have left the "if" or "with" token pending. Treat
++		//	{{if a}}_{{else if b}}_{{end}}
++		//  {{with a}}_{{else with b}}_{{end}}
++		// as
++		//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}
++		//  {{with a}}_{{else}}{{with b}}_{{end}}{{end}}.
++		// To do this, parse the "if" or "with" as usual and stop at it {{end}};
++		// the subsequent{{end}} is assumed. This technique works even for long if-else-if chains.
++		if context == "if" && t.peek().typ == itemIf {
++			t.next() // Consume the "if" token.
++			elseList = t.newList(next.Position())
++			elseList.append(t.ifControl())
++		} else if context == "with" && t.peek().typ == itemWith {
++			t.next()
++			elseList = t.newList(next.Position())
++			elseList.append(t.withControl())
++		} else {
++			elseList, next = t.itemList()
++			if next.Type() != nodeEnd {
++				t.errorf("expected end; found %s", next)
+ 			}
+ 		}
+-		elseList, next = t.itemList()
+-		if next.Type() != nodeEnd {
+-			t.errorf("expected end; found %s", next)
+-		}
+ 	}
+ 	return pipe.Position(), pipe.Line, pipe, list, elseList
+ }
+@@ -567,7 +570,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ //
+ // If keyword is past.
+ func (t *Tree) ifControl() Node {
+-	return t.newIf(t.parseControl(true, "if"))
++	return t.newIf(t.parseControl("if"))
+ }
+ 
+ // Range:
+@@ -577,7 +580,7 @@ func (t *Tree) ifControl() Node {
+ //
+ // Range keyword is past.
+ func (t *Tree) rangeControl() Node {
+-	r := t.newRange(t.parseControl(false, "range"))
++	r := t.newRange(t.parseControl("range"))
+ 	return r
+ }
+ 
+@@ -588,7 +591,7 @@ func (t *Tree) rangeControl() Node {
+ //
+ // If keyword is past.
+ func (t *Tree) withControl() Node {
+-	return t.newWith(t.parseControl(false, "with"))
++	return t.newWith(t.parseControl("with"))
+ }
+ 
+ // End:
+@@ -606,10 +609,11 @@ func (t *Tree) endControl() Node {
+ //
+ // Else keyword is past.
+ func (t *Tree) elseControl() Node {
+-	// Special case for "else if".
+ 	peek := t.peekNonSpace()
+-	if peek.typ == itemIf {
+-		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
++	// The "{{else if ... " and "{{else with ..." will be
++	// treated as "{{else}}{{if ..." and "{{else}}{{with ...".
++	// So return the else node here.
++	if peek.typ == itemIf || peek.typ == itemWith {
+ 		return t.newElse(peek.pos, peek.line)
+ 	}
+ 	token := t.expect(itemRightDelim, "else")
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 59e0a17412..faf226d1c3 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -244,6 +244,10 @@ var parseTests = []parseTest{
+ 		`{{with .X}}"hello"{{end}}`},
+ 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
+ 		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
++	{"with with else with", "{{with .X}}hello{{else with .Y}}goodbye{{end}}", noError,
++		`{{with .X}}"hello"{{else}}{{with .Y}}"goodbye"{{end}}{{end}}`},
++	{"with else chain", "{{with .X}}X{{else with .Y}}Y{{else with .Z}}Z{{end}}", noError,
++		`{{with .X}}"X"{{else}}{{with .Y}}"Y"{{else}}{{with .Z}}"Z"{{end}}{{end}}{{end}}`},
+ 	// Trimming spaces.
+ 	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
+ 	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},

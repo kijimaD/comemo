@@ -12,8 +12,209 @@ Date:   Tue Dec 29 23:26:45 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go   | 38 +++++++++++++++++++++
  src/cmd/compile/internal/ir/node_gen.go | 58 +++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ir/stmt.go     | 60 ---------------------------------
  3 files changed, 96 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 3b5da32d8c..17ef720172 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -136,6 +136,10 @@ func main() {
+ 		fmt.Fprintf(&buf, "}\n")
+ 	}
+ 
++	for _, name := range []string{"CaseClause", "CommClause"} {
++		sliceHelper(&buf, name)
++	}
++
+ 	out, err := format.Source(buf.Bytes())
+ 	if err != nil {
+ 		// write out mangled source so we can see the bug.
+@@ -148,6 +152,40 @@ func main() {
+ 	}
+ }
+ 
++func sliceHelper(buf *bytes.Buffer, name string) {
++	tmpl := fmt.Sprintf(`
++func copy%[1]ss(list []*%[2]s) []*%[2]s {
++	if list == nil {
++		return nil
++	}
++	c := make([]*%[2]s, len(list))
++	copy(c, list)
++	return c
++}
++func maybeDo%[1]ss(list []*%[2]s, err error, do func(Node) error) error {
++	if err != nil {
++		return err
++	}
++	for _, x := range list {
++		if x != nil {
++			if err := do(x); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
++func edit%[1]ss(list []*%[2]s, edit func(Node) Node) {
++	for i, x := range list {
++		if x != nil {
++			list[i] = edit(x).(*%[2]s)
++		}
++	}
++}
++`, strings.TrimSuffix(name, "Clause"), name)
++	fmt.Fprintln(buf, tmpl)
++}
++
+ func forNodeFields(typName string, typ *types.Struct, f func(name string, is func(types.Type) bool)) {
+ 	for i, n := 0, typ.NumFields(); i < n; i++ {
+ 		v := typ.Field(i)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index fe54b62f18..a2a30a0587 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -1015,3 +1015,61 @@ func (n *typeNode) doChildren(do func(Node) error) error {
+ }
+ func (n *typeNode) editChildren(edit func(Node) Node) {
+ }
++
++func copyCases(list []*CaseClause) []*CaseClause {
++	if list == nil {
++		return nil
++	}
++	c := make([]*CaseClause, len(list))
++	copy(c, list)
++	return c
++}
++func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
++	if err != nil {
++		return err
++	}
++	for _, x := range list {
++		if x != nil {
++			if err := do(x); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
++func editCases(list []*CaseClause, edit func(Node) Node) {
++	for i, x := range list {
++		if x != nil {
++			list[i] = edit(x).(*CaseClause)
++		}
++	}
++}
++
++func copyComms(list []*CommClause) []*CommClause {
++	if list == nil {
++		return nil
++	}
++	c := make([]*CommClause, len(list))
++	copy(c, list)
++	return c
++}
++func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
++	if err != nil {
++		return err
++	}
++	for _, x := range list {
++		if x != nil {
++			if err := do(x); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
++func editComms(list []*CommClause, edit func(Node) Node) {
++	for i, x := range list {
++		if x != nil {
++			list[i] = edit(x).(*CommClause)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 1301e65e26..d88280dda7 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -184,36 +184,6 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseClause {
+ 	return n
+ }
+ 
+-// TODO(mdempsky): Generate these with mknode.go.
+-func copyCases(list []*CaseClause) []*CaseClause {
+-	if list == nil {
+-		return nil
+-	}
+-	c := make([]*CaseClause, len(list))
+-	copy(c, list)
+-	return c
+-}
+-func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
+-	if err != nil {
+-		return err
+-	}
+-	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
+-		}
+-	}
+-	return nil
+-}
+-func editCases(list []*CaseClause, edit func(Node) Node) {
+-	for i, x := range list {
+-		if x != nil {
+-			list[i] = edit(x).(*CaseClause)
+-		}
+-	}
+-}
+-
+ type CommClause struct {
+ 	miniStmt
+ 	Comm Node // communication case
+@@ -227,36 +197,6 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
+ 	return n
+ }
+ 
+-// TODO(mdempsky): Generate these with mknode.go.
+-func copyComms(list []*CommClause) []*CommClause {
+-	if list == nil {
+-		return nil
+-	}
+-	c := make([]*CommClause, len(list))
+-	copy(c, list)
+-	return c
+-}
+-func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
+-	if err != nil {
+-		return err
+-	}
+-	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
+-		}
+-	}
+-	return nil
+-}
+-func editComms(list []*CommClause, edit func(Node) Node) {
+-	for i, x := range list {
+-		if x != nil {
+-			list[i] = edit(x).(*CommClause)
+-		}
+-	}
+-}
+-
+ // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
+ // Op can be OFOR or OFORUNTIL (!Cond).
+ type ForStmt struct {

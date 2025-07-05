@@ -7,7 +7,60 @@ Date:   Wed Feb 23 15:03:30 2011 -0800
     R=adg, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4229042
-
+---
  src/pkg/http/client.go      |  3 +++
  src/pkg/http/client_test.go | 23 +++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 116b926433..c2e2d3eed1 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -171,6 +171,9 @@ func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
+ 		}
+ 
+ 		var req Request
++		req.Method = "GET"
++		req.ProtoMajor = 1
++		req.ProtoMinor = 1
+ 		if base == nil {
+ 			req.URL, err = ParseURL(url)
+ 		} else {
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 013653a829..a541ffc08e 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -8,6 +8,7 @@ package http
+ 
+ import (
+ 	"io/ioutil"
++	"os"
+ 	"strings"
+ 	"testing"
+ )
+@@ -38,3 +39,25 @@ func TestClientHead(t *testing.T) {
+ 		t.Error("Last-Modified header not found.")
+ 	}
+ }
++
++type recordingTransport struct {
++	req *Request
++}
++
++func (t *recordingTransport) Do(req *Request) (resp *Response, err os.Error) {
++	t.req = req
++	return nil, os.NewError("dummy impl")
++}
++
++func TestGetRequestFormat(t *testing.T) {
++	tr := &recordingTransport{}
++	client := &Client{transport: tr}
++	url := "http://dummy.faketld/"
++	client.Get(url) // Note: doesn't hit network
++	if tr.req.Method != "GET" {
++		t.Fatalf("expected method %q; got %q", "GET", tr.req.Method)
++	}
++	if tr.req.URL.String() != url {
++		t.Fatalf("expected URL %q; got %q", url, tr.req.URL.String())
++	}
++}

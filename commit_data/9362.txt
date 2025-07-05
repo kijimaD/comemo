@@ -7,6 +7,23 @@ Date:   Mon Aug 15 21:19:07 2011 +1000
     R=golang-dev, dsymonds, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4873048
-
+---
  src/version.bash | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/version.bash b/src/version.bash
+index ce5a9969a2..e3677a7368 100755
+--- a/src/version.bash
++++ b/src/version.bash
+@@ -5,8 +5,9 @@
+ 
+ # Check that we can use 'hg'
+ if ! hg version > /dev/null 2>&1; then
+-	echo 'hg not installed' 1>&2
+-	exit 2
++	echo 'unable to report version: hg not installed' 1>&2
++	echo 'unknown'
++	exit 0
+ fi
+ 
+ # Get numerical revision

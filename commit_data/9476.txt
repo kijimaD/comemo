@@ -7,9 +7,71 @@ Date:   Wed Aug 24 13:59:33 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4926046
-
+---
  src/pkg/net/dnsclient_unix.go  | 2 +-
  src/pkg/net/iprawsock_posix.go | 4 ++--
  src/pkg/net/tcpsock_posix.go   | 2 +-
  src/pkg/net/udpsock_posix.go   | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index f407b17783..cb46455091 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -113,7 +113,7 @@ func convertRR_A(records []dnsRR) []IP {
+ func convertRR_AAAA(records []dnsRR) []IP {
+ 	addrs := make([]IP, len(records))
+ 	for i, rr := range records {
+-		a := make(IP, 16)
++		a := make(IP, IPv6len)
+ 		copy(a, rr.(*dnsRR_AAAA).AAAA[:])
+ 		addrs[i] = a
+ 	}
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 4e11518006..5cbc588702 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -25,7 +25,7 @@ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+ }
+ 
+ func (a *IPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
++	if a == nil || len(a.IP) <= IPv4len {
+ 		return syscall.AF_INET
+ 	}
+ 	if a.IP.To4() != nil {
+@@ -158,7 +158,7 @@ func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &IPAddr{sa.Addr[0:]}
+-		if len(b) >= 4 { // discard ipv4 header
++		if len(b) >= IPv4len { // discard ipv4 header
+ 			hsize := (int(b[0]) & 0xf) * 4
+ 			copy(b, b[hsize:])
+ 			n -= hsize
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 5560301b40..f01c380c46 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -23,7 +23,7 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ }
+ 
+ func (a *TCPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
++	if a == nil || len(a.IP) <= IPv4len {
+ 		return syscall.AF_INET
+ 	}
+ 	if a.IP.To4() != nil {
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index dfda997946..1dc79f736a 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -23,7 +23,7 @@ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ }
+ 
+ func (a *UDPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
++	if a == nil || len(a.IP) <= IPv4len {
+ 		return syscall.AF_INET
+ 	}
+ 	if a.IP.To4() != nil {

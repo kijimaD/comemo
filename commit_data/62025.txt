@@ -16,6 +16,23 @@ Date:   Tue Jan 14 06:58:32 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/api/api_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index 7848233333..cac624af8a 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -201,7 +201,10 @@ func BenchmarkAll(b *testing.B) {
+ 		for _, context := range contexts {
+ 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
+ 			for _, name := range w.stdPackages {
+-				pkg, _ := w.import_(name)
++				pkg, err := w.import_(name)
++				if _, nogo := err.(*build.NoGoError); nogo {
++					continue
++				}
+ 				w.export(pkg)
+ 			}
+ 			w.Features()

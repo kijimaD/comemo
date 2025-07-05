@@ -9,7 +9,32 @@ Date:   Fri Sep 4 13:16:07 2015 -0700
     Change-Id: Ic3dde6216496b4b89d570584d34cb0971fdf379d
     Reviewed-on: https://go-review.googlesource.com/14330
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go | 1 +
  src/cmd/compile/internal/x86/prog.go   | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 6c46f20a3b..56d402a638 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -116,6 +116,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.AJPL:       {Flags: gc.Cjmp | gc.UseCarry},
+ 	x86.AJPS:       {Flags: gc.Cjmp | gc.UseCarry},
+ 	obj.AJMP:       {Flags: gc.Jump | gc.Break | gc.KillCarry},
++	x86.ALEAW:      {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.ALEAL:      {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.ALEAQ:      {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.AMOVBLSX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index 8e1b7573b5..ef38ad119b 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -152,6 +152,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.AJPL:      {Flags: gc.Cjmp | gc.UseCarry},
+ 	x86.AJPS:      {Flags: gc.Cjmp | gc.UseCarry},
+ 	obj.AJMP:      {Flags: gc.Jump | gc.Break | gc.KillCarry},
++	x86.ALEAW:     {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.ALEAL:     {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.AMOVBLSX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 	x86.AMOVBLZX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},

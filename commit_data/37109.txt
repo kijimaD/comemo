@@ -27,8 +27,163 @@ Date:   Thu Jun 28 21:01:45 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go |  4 +--
  src/net/http/serve_test.go  | 59 +++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go      | 32 ++++++++++++++----------
  3 files changed, 80 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index e0ceb40021..7c7b5d5667 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -198,8 +198,8 @@ func (s *Server) ExportAllConnsIdle() bool {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	for c := range s.activeConn {
+-		st, ok := c.curState.Load().(ConnState)
+-		if !ok || st != StateIdle {
++		st, unixSec := c.getState()
++		if unixSec == 0 || st != StateIdle {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index de76f5eab0..5ab17a649e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"crypto/tls"
+ 	"encoding/json"
+ 	"errors"
++	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -5562,6 +5563,64 @@ func testServerShutdown(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
++var slowTests = flag.Bool("slow", false, "run slow tests")
++
++func TestServerShutdownStateNew(t *testing.T) {
++	if !*slowTests {
++		t.Skip("skipping slow test without -slow flag")
++	}
++	setParallel(t)
++	defer afterTest(t)
++
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		// nothing.
++	}))
++	defer ts.Close()
++
++	// Start a connection but never write to it.
++	c, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++
++	shutdownRes := make(chan error, 1)
++	go func() {
++		shutdownRes <- ts.Config.Shutdown(context.Background())
++	}()
++	readRes := make(chan error, 1)
++	go func() {
++		_, err := c.Read([]byte{0})
++		readRes <- err
++	}()
++
++	const expectTimeout = 5 * time.Second
++	t0 := time.Now()
++	select {
++	case got := <-shutdownRes:
++		d := time.Since(t0)
++		if got != nil {
++			t.Fatalf("shutdown error after %v: %v", d, err)
++		}
++		if d < expectTimeout/2 {
++			t.Errorf("shutdown too soon after %v", d)
++		}
++	case <-time.After(expectTimeout * 3 / 2):
++		t.Fatalf("timeout waiting for shutdown")
++	}
++
++	// Wait for c.Read to unblock; should be already done at this point,
++	// or within a few milliseconds.
++	select {
++	case err := <-readRes:
++		if err == nil {
++			t.Error("expected error from Read")
++		}
++	case <-time.After(2 * time.Second):
++		t.Errorf("timeout waiting for Read to unblock")
++	}
++}
++
+ // Issue 17878: tests that we can call Close twice.
+ func TestServerCloseDeadlock(t *testing.T) {
+ 	var s Server
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index fc3106d38d..5349c39c61 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -283,7 +283,7 @@ type conn struct {
+ 
+ 	curReq atomic.Value // of *response (which has a Request in it)
+ 
+-	curState atomic.Value // of ConnState
++	curState struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
+ 
+ 	// mu guards hijackedv
+ 	mu sync.Mutex
+@@ -1679,21 +1679,19 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
+ 	case StateHijacked, StateClosed:
+ 		srv.trackConn(c, false)
+ 	}
+-	c.curState.Store(connStateInterface[state])
++	if state > 0xff || state < 0 {
++		panic("internal error")
++	}
++	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
++	atomic.StoreUint64(&c.curState.atomic, packedState)
+ 	if hook := srv.ConnState; hook != nil {
+ 		hook(nc, state)
+ 	}
+ }
+ 
+-// connStateInterface is an array of the interface{} versions of
+-// ConnState values, so we can use them in atomic.Values later without
+-// paying the cost of shoving their integers in an interface{}.
+-var connStateInterface = [...]interface{}{
+-	StateNew:      StateNew,
+-	StateActive:   StateActive,
+-	StateIdle:     StateIdle,
+-	StateHijacked: StateHijacked,
+-	StateClosed:   StateClosed,
++func (c *conn) getState() (state ConnState, unixSec int64) {
++	packedState := atomic.LoadUint64(&c.curState.atomic)
++	return ConnState(packedState & 0xff), int64(packedState >> 8)
+ }
+ 
+ // badRequestError is a literal string (used by in the server in HTML,
+@@ -2624,8 +2622,16 @@ func (s *Server) closeIdleConns() bool {
+ 	defer s.mu.Unlock()
+ 	quiescent := true
+ 	for c := range s.activeConn {
+-		st, ok := c.curState.Load().(ConnState)
+-		if !ok || st != StateIdle {
++		st, unixSec := c.getState()
++		// Issue 22682: treat StateNew connections as if
++		// they're idle if we haven't read the first request's
++		// header in over 5 seconds.
++		if st == StateNew && unixSec < time.Now().Unix()-5 {
++			st = StateIdle
++		}
++		if st != StateIdle || unixSec == 0 {
++			// Assume unixSec == 0 means it's a very new
++			// connection, without state set yet.
+ 			quiescent = false
+ 			continue
+ 		}

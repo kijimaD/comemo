@@ -7,6 +7,26 @@ Date:   Mon Nov 14 01:21:38 2011 -0500
     TBR=brainman
     CC=golang-dev
     https://golang.org/cl/5371086
-
+---
  src/pkg/syscall/dll_windows.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/syscall/dll_windows.go b/src/pkg/syscall/dll_windows.go
+index 461ce3f099..c6acdfce2c 100644
+--- a/src/pkg/syscall/dll_windows.go
++++ b/src/pkg/syscall/dll_windows.go
+@@ -15,6 +15,14 @@ func (e Errno) Error() string {
+ 	return errstr(e)
+ }
+ 
++func (e Errno) Temporary() bool {
++	return e == EINTR || e == EMFILE || e.Timeout()
++}
++
++func (e Errno) Timeout() bool {
++	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
++}
++
+ // DLLError describes reasons for DLL load failures.
+ type DLLError struct {
+ 	Err     error

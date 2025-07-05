@@ -14,7 +14,44 @@ Date:   Wed Jan 28 20:44:55 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3512
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/9g/gobj.c | 5 ++++-
  src/cmd/9g/peep.c | 7 ++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/9g/gobj.c b/src/cmd/9g/gobj.c
+index 3da55878a7..cda0b0e714 100644
+--- a/src/cmd/9g/gobj.c
++++ b/src/cmd/9g/gobj.c
+@@ -236,5 +236,8 @@ void
+ nopout(Prog *p)
+ {
+ 	p->as = ANOP;
++	p->from = zprog.from;
++	p->from3 = zprog.from3;
++	p->reg = zprog.reg;
++	p->to = zprog.to;
+ }
+-
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+index 4e636b1484..11a6b591a2 100644
+--- a/src/cmd/9g/peep.c
++++ b/src/cmd/9g/peep.c
+@@ -327,15 +327,12 @@ ret:
+ void
+ excise(Flow *r)
+ {
+-	Prog *p, *l;
++	Prog *p;
+ 
+ 	p = r->prog;
+ 	if(debug['P'] && debug['v'])
+ 		print("%P ===delete===\n", p);
+-	l = p->link;
+-	*p = zprog;
+-	p->as = ANOP;
+-	p->link = l;
++	nopout(p);
+ 	ostats.ndelmov++;
+ }
+ 

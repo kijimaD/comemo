@@ -14,6 +14,20 @@ Date:   Thu Mar 7 17:53:18 2019 +0000
     GitHub-Pull-Request: golang/go#27198
     Reviewed-on: https://go-review.googlesource.com/c/go/+/131275
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/pprof/label.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 35647ee3ce..20f9cdbae6 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -54,6 +54,8 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ // Labels takes an even number of strings representing key-value pairs
+ // and makes a LabelSet containing them.
+ // A label overwrites a prior label with the same key.
++// Currently only CPU profile utilizes labels information.
++// See https://golang.org/issue/23458 for details.
+ func Labels(args ...string) LabelSet {
+ 	if len(args)%2 != 0 {
+ 		panic("uneven number of arguments to pprof.Labels")

@@ -100,3 +100,4 @@ Date:   Tue Jan 31 12:57:12 2017 -0500
  test/fixedbugs/issue18640.go                     |  26 +++
  test/fixedbugs/issue18655.go                     |  22 +++
  63 files changed, 1335 insertions(+), 840 deletions(-)
+

@@ -16,10 +16,250 @@ Date:   Mon Jul 31 20:58:45 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/next/51971.txt                 |  3 +++
  src/net/http/filetransport.go      | 19 +++++++++++++++
  src/net/http/filetransport_test.go | 42 ++++++++++++++++++++++++++++++++
  src/net/http/fs.go                 | 50 +++++++++++++++++++++++++++++++++++---
  src/net/http/fs_test.go            | 49 +++++++++++++++++++++++++++++++++++++
  5 files changed, 160 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/51971.txt b/api/next/51971.txt
+new file mode 100644
+index 0000000000..f884c3c079
+--- /dev/null
++++ b/api/next/51971.txt
+@@ -0,0 +1,3 @@
++pkg net/http, func ServeFileFS(ResponseWriter, *Request, fs.FS, string) #51971
++pkg net/http, func FileServerFS(fs.FS) Handler #51971
++pkg net/http, func NewFileTransportFS(fs.FS) RoundTripper #51971
+diff --git a/src/net/http/filetransport.go b/src/net/http/filetransport.go
+index 94684b07a1..2a9e9b02ba 100644
+--- a/src/net/http/filetransport.go
++++ b/src/net/http/filetransport.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ )
+ 
+ // fileTransport implements RoundTripper for the 'file' protocol.
+@@ -31,6 +32,24 @@ func NewFileTransport(fs FileSystem) RoundTripper {
+ 	return fileTransport{fileHandler{fs}}
+ }
+ 
++// NewFileTransportFS returns a new RoundTripper, serving the provided
++// file system fsys. The returned RoundTripper ignores the URL host in its
++// incoming requests, as well as most other properties of the
++// request.
++//
++// The typical use case for NewFileTransportFS is to register the "file"
++// protocol with a Transport, as in:
++//
++//	fsys := os.DirFS("/")
++//	t := &http.Transport{}
++//	t.RegisterProtocol("file", http.NewFileTransportFS(fsys))
++//	c := &http.Client{Transport: t}
++//	res, err := c.Get("file:///etc/passwd")
++//	...
++func NewFileTransportFS(fsys fs.FS) RoundTripper {
++	return NewFileTransport(FS(fsys))
++}
++
+ func (t fileTransport) RoundTrip(req *Request) (resp *Response, err error) {
+ 	// We start ServeHTTP in a goroutine, which may take a long
+ 	// time if the file is large. The newPopulateResponseWriter
+diff --git a/src/net/http/filetransport_test.go b/src/net/http/filetransport_test.go
+index 77fc8eeccf..b3e3301e10 100644
+--- a/src/net/http/filetransport_test.go
++++ b/src/net/http/filetransport_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
++	"testing/fstest"
+ )
+ 
+ func checker(t *testing.T) func(string, error) {
+@@ -62,3 +63,44 @@ func TestFileTransport(t *testing.T) {
+ 	}
+ 	res.Body.Close()
+ }
++
++func TestFileTransportFS(t *testing.T) {
++	check := checker(t)
++
++	fsys := fstest.MapFS{
++		"index.html": {Data: []byte("index.html says hello")},
++	}
++
++	tr := &Transport{}
++	tr.RegisterProtocol("file", NewFileTransportFS(fsys))
++	c := &Client{Transport: tr}
++
++	for fname, mfile := range fsys {
++		urlstr := "file:///" + fname
++		res, err := c.Get(urlstr)
++		check("Get "+urlstr, err)
++		if res.StatusCode != 200 {
++			t.Errorf("for %s, StatusCode = %d, want 200", urlstr, res.StatusCode)
++		}
++		if res.ContentLength != -1 {
++			t.Errorf("for %s, ContentLength = %d, want -1", urlstr, res.ContentLength)
++		}
++		if res.Body == nil {
++			t.Fatalf("for %s, nil Body", urlstr)
++		}
++		slurp, err := io.ReadAll(res.Body)
++		res.Body.Close()
++		check("ReadAll "+urlstr, err)
++		if string(slurp) != string(mfile.Data) {
++			t.Errorf("for %s, got content %q, want %q", urlstr, string(slurp), "Bar")
++		}
++	}
++
++	const badURL = "file://../no-exist.txt"
++	res, err := c.Get(badURL)
++	check("Get "+badURL, err)
++	if res.StatusCode != 404 {
++		t.Errorf("for %s, StatusCode = %d, want 404", badURL, res.StatusCode)
++	}
++	res.Body.Close()
++}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 41e0b43ac8..c605fe3aca 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -741,6 +741,40 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
+ 	serveFile(w, r, Dir(dir), file, false)
+ }
+ 
++// ServeFileFS replies to the request with the contents
++// of the named file or directory from the file system fsys.
++//
++// If the provided file or directory name is a relative path, it is
++// interpreted relative to the current directory and may ascend to
++// parent directories. If the provided name is constructed from user
++// input, it should be sanitized before calling ServeFile.
++//
++// As a precaution, ServeFile will reject requests where r.URL.Path
++// contains a ".." path element; this protects against callers who
++// might unsafely use filepath.Join on r.URL.Path without sanitizing
++// it and then use that filepath.Join result as the name argument.
++//
++// As another special case, ServeFile redirects any request where r.URL.Path
++// ends in "/index.html" to the same path, without the final
++// "index.html". To avoid such redirects either modify the path or
++// use ServeContent.
++//
++// Outside of those two special cases, ServeFile does not use
++// r.URL.Path for selecting the file or directory to serve; only the
++// file or directory provided in the name argument is used.
++func ServeFileFS(w ResponseWriter, r *Request, fsys fs.FS, name string) {
++	if containsDotDot(r.URL.Path) {
++		// Too many programs use r.URL.Path to construct the argument to
++		// serveFile. Reject the request under the assumption that happened
++		// here and ".." may not be wanted.
++		// Note that name might not contain "..", for example if code (still
++		// incorrectly) used filepath.Join(myDir, r.URL.Path).
++		Error(w, "invalid URL path", StatusBadRequest)
++		return
++	}
++	serveFile(w, r, FS(fsys), name, false)
++}
++
+ func containsDotDot(v string) bool {
+ 	if !strings.Contains(v, "..") {
+ 		return false
+@@ -850,13 +884,23 @@ func FS(fsys fs.FS) FileSystem {
+ //
+ //	http.Handle("/", http.FileServer(http.Dir("/tmp")))
+ //
+-// To use an fs.FS implementation, use http.FS to convert it:
+-//
+-//	http.Handle("/", http.FileServer(http.FS(fsys)))
++// To use an fs.FS implementation, use http.FileServerFS instead.
+ func FileServer(root FileSystem) Handler {
+ 	return &fileHandler{root}
+ }
+ 
++// FileServerFS returns a handler that serves HTTP requests
++// with the contents of the file system fsys.
++//
++// As a special case, the returned file server redirects any request
++// ending in "/index.html" to the same path, without the final
++// "index.html".
++//
++//	http.Handle("/", http.FileServerFS(fsys))
++func FileServerFS(root fs.FS) Handler {
++	return FileServer(FS(root))
++}
++
+ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 	upath := r.URL.Path
+ 	if !strings.HasPrefix(upath, "/") {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 3fb9e01235..bb96d2ca68 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -26,6 +26,7 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"testing"
++	"testing/fstest"
+ 	"time"
+ )
+ 
+@@ -1559,3 +1560,51 @@ func testFileServerMethods(t *testing.T, mode testMode) {
+ 		}
+ 	}
+ }
++
++func TestFileServerFS(t *testing.T) {
++	filename := "index.html"
++	contents := []byte("index.html says hello")
++	fsys := fstest.MapFS{
++		filename: {Data: contents},
++	}
++	ts := newClientServerTest(t, http1Mode, FileServerFS(fsys)).ts
++	defer ts.Close()
++
++	res, err := ts.Client().Get(ts.URL + "/" + filename)
++	if err != nil {
++		t.Fatal(err)
++	}
++	b, err := io.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal("reading Body:", err)
++	}
++	if s := string(b); s != string(contents) {
++		t.Errorf("for path %q got %q, want %q", filename, s, contents)
++	}
++	res.Body.Close()
++}
++
++func TestServeFileFS(t *testing.T) {
++	filename := "index.html"
++	contents := []byte("index.html says hello")
++	fsys := fstest.MapFS{
++		filename: {Data: contents},
++	}
++	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		ServeFileFS(w, r, fsys, filename)
++	})).ts
++	defer ts.Close()
++
++	res, err := ts.Client().Get(ts.URL + "/" + filename)
++	if err != nil {
++		t.Fatal(err)
++	}
++	b, err := io.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal("reading Body:", err)
++	}
++	if s := string(b); s != string(contents) {
++		t.Errorf("for path %q got %q, want %q", filename, s, contents)
++	}
++	res.Body.Close()
++}

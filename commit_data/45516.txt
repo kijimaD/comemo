@@ -10,6 +10,38 @@ Date:   Wed Oct 21 10:59:22 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264027
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/common.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index e4f18bf5eb..66d2c005a7 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -294,10 +294,26 @@ func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, le
+ type ClientAuthType int
+ 
+ const (
++	// NoClientCert indicates that no client certificate should be requested
++	// during the handshake, and if any certificates are sent they will not
++	// be verified.
+ 	NoClientCert ClientAuthType = iota
++	// RequestClientCert indicates that a client certificate should be requested
++	// during the handshake, but does not require that the client send any
++	// certificates.
+ 	RequestClientCert
++	// RequireAnyClientCert indicates that a client certificate should be requested
++	// during the handshake, and that at least one certificate is required to be
++	// sent by the client, but that certificate is not required to be valid.
+ 	RequireAnyClientCert
++	// VerifyClientCertIfGiven indicates that a client certificate should be requested
++	// during the handshake, but does not require that the client sends a
++	// certificate. If the client does send a certificate it is required to be
++	// valid.
+ 	VerifyClientCertIfGiven
++	// RequireAndVerifyClientCert indicates that a client certificate should be requested
++	// during the handshake, and that at least one valid certificate is required
++	// to be sent by the client.
+ 	RequireAndVerifyClientCert
+ )
+ 

@@ -7,7 +7,32 @@ Date:   Thu Nov 4 10:30:13 2010 -0400
     R=r
     CC=cjyar, golang-dev
     https://golang.org/cl/2818041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 071beddcba..e3ae943cd9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -25,6 +25,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
++Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ada228659f..68cb9676e0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -57,6 +57,7 @@ Brad Fitzpatrick <brad@danga.com> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
++Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>

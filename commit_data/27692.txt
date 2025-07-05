@@ -11,6 +11,21 @@ Date:   Fri Apr 8 17:50:03 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/context/context_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 74af9a301c..573470e084 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -494,6 +494,9 @@ func TestLayersTimeout(t *testing.T) {
+ }
+ 
+ func testLayers(t *testing.T, seed int64, testTimeout bool) {
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 15158)
++	}
+ 	rand.Seed(seed)
+ 	errorf := func(format string, a ...interface{}) {
+ 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)

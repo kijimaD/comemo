@@ -7,7 +7,130 @@ Date:   Fri Feb 27 17:52:12 2015 -0800
     Change-Id: I9a6ebb747d5b9756c214bdeb19f60820602d7a24
     Reviewed-on: https://go-review.googlesource.com/6340
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 40 ++++++++++++++++++++++------------------
  src/math/big/float_test.go | 23 ++++++++++++-----------
  2 files changed, 34 insertions(+), 29 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 81502bd79d..e133581eeb 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -231,31 +231,34 @@ func (x *Float) Sign() int {
+ 	return 1
+ }
+ 
+-// MantExp breaks x into its mantissa and exponent components.
+-// It returns mant and exp satisfying x == mant × 2**exp, with
+-// the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
+-// mant has the same precision and rounding mode as x.
+-// If a non-nil *Float argument z is provided, MantExp stores
+-// the result mant in z instead of allocating a new Float.
++// MantExp breaks x into its mantissa and exponent components
++// and returns the exponent. If a non-nil mant argument is
++// provided its value is set to the mantissa of x, with the
++// same precision and rounding mode as x. The components
++// satisfy x == mant × 2**exp, with 0.5 <= |mant| < 1.0.
++// Calling MantExp with a nil argument is an efficient way to
++// get the exponent of the receiver.
+ //
+ // Special cases are:
+ //
+-//	(  ±0).MantExp() =   ±0, 0
+-//	(±Inf).MantExp() = ±Inf, 0
+-//      ( NaN).MantExp() =  NaN, 0
++//	(  ±0).MantExp(mant) = 0, with mant set to   ±0
++//	(±Inf).MantExp(mant) = 0, with mant set to ±Inf
++//	( NaN).MantExp(mant) = 0, with mant set to  NaN
+ //
+-// MantExp does not modify x; the result mant is a new Float.
+-func (x *Float) MantExp(z *Float) (mant *Float, exp int) {
++// x and mant may be the same in which case x is set to its
++// mantissa value.
++func (x *Float) MantExp(mant *Float) (exp int) {
+ 	if debugFloat {
+ 		validate(x)
+ 	}
+-	if z == nil {
+-		z = new(Float)
+-	}
+-	mant = z.Copy(x)
+-	if len(z.mant) != 0 {
++	if len(x.mant) != 0 {
+ 		exp = int(x.exp)
+-		mant.exp = 0 // after reading x.exp (x and mant may be aliases)
++	}
++	if mant != nil {
++		mant.Copy(x)
++		if x.exp >= MinExp {
++			mant.exp = 0
++		}
+ 	}
+ 	return
+ }
+@@ -265,7 +268,8 @@ func (x *Float) MantExp(z *Float) (mant *Float, exp int) {
+ // as mant. SetMantExp is an inverse of MantExp but does
+ // not require 0.5 <= |mant| < 1.0. Specifically:
+ //
+-//	new(Float).SetMantExp(x.MantExp()).Cmp(x) == 0
++//	mant := new(Float)
++//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x) == 0
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 6c05167d86..aaf4970785 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -216,7 +216,7 @@ func feq(x, y *Float) bool {
+ func TestFloatMantExp(t *testing.T) {
+ 	for _, test := range []struct {
+ 		x    string
+-		frac string
++		mant string
+ 		exp  int
+ 	}{
+ 		{"0", "0", 0},
+@@ -231,23 +231,23 @@ func TestFloatMantExp(t *testing.T) {
+ 		{"-0.125", "-0.5", -2},
+ 	} {
+ 		x := makeFloat(test.x)
+-		frac := makeFloat(test.frac)
+-		f, e := x.MantExp(nil)
+-		if !feq(f, frac) || e != test.exp {
+-			t.Errorf("%s.MantExp(nil) = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
++		mant := makeFloat(test.mant)
++		m := new(Float)
++		e := x.MantExp(m)
++		if !feq(m, mant) || e != test.exp {
++			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Format('g', 10), e, test.mant, test.exp)
+ 		}
+ 	}
+ }
+ 
+ func TestFloatMantExpAliasing(t *testing.T) {
+ 	x := makeFloat("0.5p10")
+-	z := new(Float)
+-	if m, _ := x.MantExp(z); m != z {
+-		t.Fatalf("Float.MantExp didn't use supplied *Float")
+-	}
+-	if _, e := x.MantExp(x); e != 10 {
++	if e := x.MantExp(x); e != 10 {
+ 		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
+ 	}
++	if want := makeFloat("0.5"); !feq(x, want) {
++		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Format('g', 10), want.Format('g', 10))
++	}
+ }
+ 
+ func TestFloatSetMantExp(t *testing.T) {
+@@ -281,7 +281,8 @@ func TestFloatSetMantExp(t *testing.T) {
+ 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+ 		}
+ 		// test inverse property
+-		if z.SetMantExp(want.MantExp(nil)).Cmp(want) != 0 {
++		mant := new(Float)
++		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
+ 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
+ 		}
+ 	}

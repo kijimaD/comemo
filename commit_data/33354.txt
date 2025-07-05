@@ -9,6 +9,22 @@ Date:   Mon Aug 14 21:12:49 2017 +0200
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/strings.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 099fb8031b..caabc5affd 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -310,8 +310,8 @@ func SplitAfter(s, sep string) []string {
+ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+ 
+ // Fields splits the string s around each instance of one or more consecutive white space
+-// characters, as defined by unicode.IsSpace, returning an array of substrings of s or an
+-// empty list if s contains only white space.
++// characters, as defined by unicode.IsSpace, returning a slice of substrings of s or an
++// empty slice if s contains only white space.
+ func Fields(s string) []string {
+ 	// First count the fields.
+ 	// This is an exact count if s is ASCII, otherwise it is an approximation.

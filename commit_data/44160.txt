@@ -14,6 +14,20 @@ Date:   Mon May 18 18:27:10 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 71ee04128c..4a5dfecf6d 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -97,7 +97,7 @@ func main() {
+ 	}
+ 	if ok && !*flags.SymABIs {
+ 		ctxt.NumberSyms(true)
+-		obj.WriteObjFile(ctxt, buf, "")
++		obj.WriteObjFile(ctxt, buf, *flags.Importpath)
+ 	}
+ 	if !ok || diag {
+ 		if failedFile != "" {

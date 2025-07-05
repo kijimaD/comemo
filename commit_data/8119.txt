@@ -7,6 +7,20 @@ Date:   Fri Apr 15 06:49:39 2011 -0700
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4430042
-
+---
  src/pkg/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 4da7b5c379..aebe75e345 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -406,7 +406,7 @@ func decUint8Array(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]byte))
++			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(string))
+ 		}
+ 		p = *(*unsafe.Pointer)(p)
+ 	}

@@ -11,8 +11,99 @@ Date:   Tue Feb 14 14:22:34 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5651084
-
+---
  src/pkg/os/error.go       | 18 ++++++++++++++++++
  src/pkg/os/error_plan9.go | 18 ------------------
  src/pkg/os/error_posix.go | 20 +-------------------
  3 files changed, 19 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index c3dd06feb7..135cdae1f9 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -12,3 +12,21 @@ type PathError struct {
+ }
+ 
+ func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
++
++// SyscallError records an error from a specific system call.
++type SyscallError struct {
++	Syscall string
++	Err     error
++}
++
++func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err.Error() }
++
++// NewSyscallError returns, as an error, a new SyscallError
++// with the given system call name and error details.
++// As a convenience, if err is nil, NewSyscallError returns nil.
++func NewSyscallError(syscall string, err error) error {
++	if err == nil {
++		return nil
++	}
++	return &SyscallError{syscall, err}
++}
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 3c727b2ab3..cc847e0774 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -9,24 +9,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// SyscallError records an error from a specific system call.
+-type SyscallError struct {
+-	Syscall string
+-	Err     string
+-}
+-
+-func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err }
+-
+-// NewSyscallError returns, as an error, a new SyscallError
+-// with the given system call name and error details.
+-// As a convenience, if err is nil, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, err error) error {
+-	if err == nil {
+-		return nil
+-	}
+-	return &SyscallError{syscall, err.Error()}
+-}
+-
+ var (
+ 	Eshortstat = errors.New("stat buffer too small")
+ 	Ebadstat   = errors.New("malformed stat buffer")
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 7fdf3e10f0..57c9b6f278 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -6,7 +6,7 @@
+ 
+ package os
+ 
+-import syscall "syscall"
++import "syscall"
+ 
+ // Commonly known Unix errors.
+ var (
+@@ -49,21 +49,3 @@ var (
+ 	ETIMEDOUT    error = syscall.ETIMEDOUT
+ 	ENOTCONN     error = syscall.ENOTCONN
+ )
+-
+-// SyscallError records an error from a specific system call.
+-type SyscallError struct {
+-	Syscall string
+-	Errno   error
+-}
+-
+-func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Errno.Error() }
+-
+-// NewSyscallError returns, as an error, a new SyscallError
+-// with the given system call name and error details.
+-// As a convenience, if err is nil, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, err error) error {
+-	if err == nil {
+-		return nil
+-	}
+-	return &SyscallError{syscall, err}
+-}

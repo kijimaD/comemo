@@ -7,6 +7,21 @@ Date:   Thu Mar 17 16:37:34 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/4248066
-
+---
  doc/go_faq.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 312d0e2c5a..5f92b0528a 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -558,7 +558,8 @@ type Fooer interface {
+ 
+ <p>
+ A type must then implement the <code>ImplementsFooer</code> method to be a
+-<code>Fooer</code>, clearly documenting the fact.
++<code>Fooer</code>, clearly documenting the fact and announcing it in
++<a href="/cmd/godoc/">godoc</a>'s output.
+ </p>
+ 
+ <pre>

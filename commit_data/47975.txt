@@ -14,7 +14,7 @@ Date:   Tue Apr 20 10:25:19 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/unixsock_posix.go                                     |  2 +-
  ...{unixsock_readmsg_posix.go => unixsock_readmsg_cloexec.go} |  8 +++-----
  ...sock_readmsg_linux.go => unixsock_readmsg_cmsg_cloexec.go} | 11 ++++-------
@@ -23,3 +23,117 @@ Date:   Tue Apr 20 10:25:19 2021 +0200
  src/syscall/zerrors_openbsd_386.go                            |  1 +
  src/syscall/zerrors_openbsd_amd64.go                          |  1 +
  7 files changed, 12 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 0306b5989b..99a89c827b 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -114,7 +114,7 @@ func (c *UnixConn) readFrom(b []byte) (int, *UnixAddr, error) {
+ func (c *UnixConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
+ 	var sa syscall.Sockaddr
+ 	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, readMsgFlags)
+-	if oobn > 0 {
++	if readMsgFlags == 0 && err == nil && oobn > 0 {
+ 		setReadMsgCloseOnExec(oob[:oobn])
+ 	}
+ 
+diff --git a/src/net/unixsock_readmsg_posix.go b/src/net/unixsock_readmsg_cloexec.go
+similarity index 78%
+rename from src/net/unixsock_readmsg_posix.go
+rename to src/net/unixsock_readmsg_cloexec.go
+index 07d7df5e66..716484cc6c 100644
+--- a/src/net/unixsock_readmsg_posix.go
++++ b/src/net/unixsock_readmsg_cloexec.go
+@@ -2,14 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || netbsd || openbsd || solaris
+-// +build aix darwin dragonfly freebsd netbsd openbsd solaris
++//go:build aix || darwin || freebsd || solaris
++// +build aix darwin freebsd solaris
+ 
+ package net
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ const readMsgFlags = 0
+ 
+diff --git a/src/net/unixsock_readmsg_linux.go b/src/net/unixsock_readmsg_cmsg_cloexec.go
+similarity index 59%
+rename from src/net/unixsock_readmsg_linux.go
+rename to src/net/unixsock_readmsg_cmsg_cloexec.go
+index 3296681017..bb851b89c0 100644
+--- a/src/net/unixsock_readmsg_linux.go
++++ b/src/net/unixsock_readmsg_cmsg_cloexec.go
+@@ -2,16 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux
+-// +build linux
++//go:build dragonfly || linux || netbsd || openbsd
++// +build dragonfly linux netbsd openbsd
+ 
+ package net
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ const readMsgFlags = syscall.MSG_CMSG_CLOEXEC
+ 
+-func setReadMsgCloseOnExec(oob []byte) {
+-}
++func setReadMsgCloseOnExec(oob []byte) {}
+diff --git a/src/net/unixsock_readmsg_other.go b/src/net/unixsock_readmsg_other.go
+index c8db657cd6..329076183a 100644
+--- a/src/net/unixsock_readmsg_other.go
++++ b/src/net/unixsock_readmsg_other.go
+@@ -9,5 +9,4 @@ package net
+ 
+ const readMsgFlags = 0
+ 
+-func setReadMsgCloseOnExec(oob []byte) {
+-}
++func setReadMsgCloseOnExec(oob []byte) {}
+diff --git a/src/syscall/zerrors_dragonfly_amd64.go b/src/syscall/zerrors_dragonfly_amd64.go
+index b572f44a6b..8ed611b3e4 100644
+--- a/src/syscall/zerrors_dragonfly_amd64.go
++++ b/src/syscall/zerrors_dragonfly_amd64.go
+@@ -850,6 +850,7 @@ const (
+ 	MAP_VPAGETABLE                    = 0x2000
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
++	MSG_CMSG_CLOEXEC                  = 0x1000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+ 	MSG_DONTWAIT                      = 0x80
+diff --git a/src/syscall/zerrors_openbsd_386.go b/src/syscall/zerrors_openbsd_386.go
+index 04d1b3f177..a8457c6edf 100644
+--- a/src/syscall/zerrors_openbsd_386.go
++++ b/src/syscall/zerrors_openbsd_386.go
+@@ -891,6 +891,7 @@ const (
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_BCAST                         = 0x100
++	MSG_CMSG_CLOEXEC                  = 0x800
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+ 	MSG_DONTWAIT                      = 0x80
+diff --git a/src/syscall/zerrors_openbsd_amd64.go b/src/syscall/zerrors_openbsd_amd64.go
+index 923a3a47c5..eb19537a2a 100644
+--- a/src/syscall/zerrors_openbsd_amd64.go
++++ b/src/syscall/zerrors_openbsd_amd64.go
+@@ -891,6 +891,7 @@ const (
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_BCAST                         = 0x100
++	MSG_CMSG_CLOEXEC                  = 0x800
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+ 	MSG_DONTWAIT                      = 0x80

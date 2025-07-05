@@ -18,9 +18,136 @@ Date:   Tue Mar 26 12:02:36 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go        | 12 ++++++++++++
  src/cmd/link/internal/ld/lib.go          | 10 +++++++++-
  src/cmd/link/internal/ld/main.go         |  1 +
  src/cmd/link/internal/objfile/objfile.go |  9 +++++----
  4 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d923b7599d..e86247dd04 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1797,6 +1797,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 
+ 	// fake root DIE for compile unit DIEs
+ 	var dwroot dwarf.DWDie
++	flagVariants := make(map[string]bool)
+ 
+ 	for _, lib := range ctxt.Library {
+ 		unit := &compilationUnit{lib: lib}
+@@ -1825,7 +1826,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 			// version, so it should be safe for readers to scan
+ 			// forward to the semicolon.
+ 			producer += "; " + string(producerExtra.P)
++			flagVariants[string(producerExtra.P)] = true
++		} else {
++			flagVariants[""] = true
+ 		}
++
+ 		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+ 
+ 		if len(lib.Textp) == 0 {
+@@ -1876,6 +1881,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		}
+ 	}
+ 
++	// Fix for 31034: if the objects feeding into this link were compiled
++	// with different sets of flags, then don't issue an error if
++	// the -strictdups checks fail.
++	if checkStrictDups > 1 && len(flagVariants) > 1 {
++		checkStrictDups = 1
++	}
++
+ 	// Create DIEs for global variables and the types they use.
+ 	genasmsym(ctxt, defdwsymb)
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f53e0273c6..c5f35af254 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -200,6 +200,10 @@ var (
+ 
+ 	nerrors  int
+ 	liveness int64
++
++	// See -strictdups command line flag.
++	checkStrictDups   int // 0=off 1=warning 2=error
++	strictDupMsgCount int
+ )
+ 
+ var (
+@@ -283,6 +287,9 @@ func errorexit() {
+ 	if nerrors != 0 {
+ 		Exit(2)
+ 	}
++	if checkStrictDups > 1 && strictDupMsgCount > 0 {
++		Exit(2)
++	}
+ 	Exit(0)
+ }
+ 
+@@ -1745,7 +1752,8 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn, flags)
++	c := objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn, flags)
++	strictDupMsgCount += c
+ 	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index e5859868b7..48a9953893 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -148,6 +148,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	if objabi.Fieldtrack_enabled != 0 {
+ 		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
+ 	}
++	checkStrictDups = *FlagStrictDups
+ 
+ 	startProfile()
+ 	if ctxt.BuildMode == BuildModeUnset {
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index 9b76f2801d..f3957822b0 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -42,6 +42,7 @@ type objReader struct {
+ 	dupSym          *sym.Symbol
+ 	localSymVersion int
+ 	flags           int
++	strictDupMsgs   int
+ 
+ 	// rdBuf is used by readString and readSymName as scratch for reading strings.
+ 	rdBuf []byte
+@@ -72,7 +73,7 @@ const (
+ 
+ // Load loads an object file f into library lib.
+ // The symbols loaded are added to syms.
+-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) {
++func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
+ 	start := f.Offset()
+ 	r := &objReader{
+ 		rd:              f.Reader,
+@@ -88,6 +89,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
+ 	if f.Offset() != start+length {
+ 		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
+ 	}
++	return r.strictDupMsgs
+ }
+ 
+ func (r *objReader) loadObjFile() {
+@@ -376,9 +378,8 @@ overwrite:
+ 			// params; I am guessing that the pos is being inherited
+ 			// from the spot where the wrapper is needed.
+ 			whitelist := strings.HasPrefix(dup.Name, "go.info.go.interface")
+-
+-			if r.flags&StrictDupsErrFlag != 0 && !whitelist {
+-				log.Fatalf("failed duplicate symbol check on '%s' reading %s", dup.Name, r.pn)
++			if !whitelist {
++				r.strictDupMsgs++
+ 			}
+ 		}
+ 	}

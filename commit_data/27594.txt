@@ -19,8 +19,86 @@ Date:   Mon Apr 4 15:41:56 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  1 -
  src/cmd/compile/internal/gc/export.go  | 13 ++++++-------
  src/cmd/compile/internal/gc/parser.go  |  7 +------
  3 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 103a0b354b..8c53372b80 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -290,7 +290,6 @@ func (p *importer) typ() *Type {
+ 
+ 		// parser.go:hidden_pkgtype
+ 		t = pkgtype(tsym)
+-		importsym(tsym, OTYPE)
+ 		p.typList = append(p.typList, t)
+ 
+ 		// read underlying type
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 17681d0700..9fc6e56275 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -445,10 +445,8 @@ func dumpexport() {
+ 	}
+ }
+ 
+-// import
+-
+-// return the sym for ss, which should match lexical
+-func importsym(s *Sym, op Op) *Sym {
++// importsym declares symbol s as an imported object representable by op.
++func importsym(s *Sym, op Op) {
+ 	if s.Def != nil && s.Def.Op != op {
+ 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
+ 		redeclare(s, pkgstr)
+@@ -462,11 +460,10 @@ func importsym(s *Sym, op Op) *Sym {
+ 			s.Flags |= SymPackage // package scope
+ 		}
+ 	}
+-
+-	return s
+ }
+ 
+-// return the type pkg.name, forward declaring if needed
++// pkgtype returns the named type declared by symbol s.
++// If no such type has been declared yet, a forward declaration is returned.
+ func pkgtype(s *Sym) *Type {
+ 	importsym(s, OTYPE)
+ 	if s.Def == nil || s.Def.Op != OTYPE {
+@@ -506,6 +503,7 @@ func importimport(s *Sym, path string) {
+ 	}
+ }
+ 
++// importconst declares symbol s as an imported constant with type t and value n.
+ func importconst(s *Sym, t *Type, n *Node) {
+ 	importsym(s, OLITERAL)
+ 	n = convlit(n, t)
+@@ -533,6 +531,7 @@ func importconst(s *Sym, t *Type, n *Node) {
+ 	}
+ }
+ 
++// importvar declares symbol s as an imported variable with type t.
+ func importvar(s *Sym, t *Type) {
+ 	importsym(s, ONAME)
+ 	if s.Def != nil && s.Def.Op == ONAME {
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index aecd0361be..6538877e68 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2931,12 +2931,7 @@ func (p *parser) hidden_pkgtype() *Type {
+ 		defer p.trace("hidden_pkgtype")()
+ 	}
+ 
+-	s1 := p.hidden_pkg_importsym()
+-
+-	ss := pkgtype(s1)
+-	importsym(s1, OTYPE)
+-
+-	return ss
++	return pkgtype(p.hidden_pkg_importsym())
+ }
+ 
+ // ----------------------------------------------------------------------------

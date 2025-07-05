@@ -25,9 +25,124 @@ Date:   Fri Oct 4 13:05:13 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 11 +++++--
  src/cmd/go/internal/modget/get.go                  |  9 ------
  src/cmd/go/testdata/script/list_ambiguous_path.txt | 37 ++++++++++++++++++++++
  .../go/testdata/script/mod_get_trailing_slash.txt  | 14 ++++----
  4 files changed, 51 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b8cd36f1da..205ecc596d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1950,9 +1950,14 @@ func Packages(args []string) []*Package {
+ // cannot be loaded at all.
+ // The packages that fail to load will have p.Error != nil.
+ func PackagesAndErrors(patterns []string) []*Package {
+-	if len(patterns) > 0 {
+-		for _, p := range patterns {
+-			if strings.HasSuffix(p, ".go") {
++	for _, p := range patterns {
++		// Listing is only supported with all patterns referring to either:
++		// - Files that are part of the same directory.
++		// - Explicit package paths or patterns.
++		if strings.HasSuffix(p, ".go") {
++			// We need to test whether the path is an actual Go file and not a
++			// package path or pattern ending in '.go' (see golang.org/issue/34653).
++			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+ 				return []*Package{GoFilesPackage(patterns)}
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 3fcd2d412a..1cae311c4c 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -678,15 +678,6 @@ func runGet(cmd *base.Command, args []string) {
+ 	if *getD || len(pkgPatterns) == 0 {
+ 		return
+ 	}
+-	// TODO(golang.org/issue/32483): handle paths ending with ".go" consistently
+-	// with 'go build'. When we load packages above, we interpret arguments as
+-	// package patterns, not source files. To preserve that interpretation here,
+-	// we add a trailing slash to any patterns ending with ".go".
+-	for i := range pkgPatterns {
+-		if strings.HasSuffix(pkgPatterns[i], ".go") {
+-			pkgPatterns[i] += "/"
+-		}
+-	}
+ 	work.BuildInit()
+ 	pkgs := load.PackagesForBuild(pkgPatterns)
+ 	work.InstallPackages(pkgPatterns, pkgs)
+diff --git a/src/cmd/go/testdata/script/list_ambiguous_path.txt b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+new file mode 100644
+index 0000000000..9f1aa37be8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+@@ -0,0 +1,37 @@
++# Ensures that we can correctly list package patterns ending in '.go'.
++# See golang.org/issue/34653.
++
++# A single pattern for a package ending in '.go'.
++go list ./foo.go
++stdout '^test/foo.go$'
++
++# Multiple patterns for packages including one ending in '.go'.
++go list ./bar ./foo.go
++stdout '^test/bar$'
++stdout '^test/foo.go$'
++
++# A single pattern for a Go file.
++go list ./a.go
++stdout '^command-line-arguments$'
++
++# A single typo-ed pattern for a Go file. This should
++# treat the wrong pattern as if it were a package.
++! go list ./foo.go/b.go
++stderr 'package ./foo.go/b.go: cannot find package "."'
++
++# Multiple patterns for Go files with a typo. This should
++# treat the wrong pattern as if it were a non-existint file.
++! go list ./foo.go/a.go ./foo.go/b.go
++[windows] stderr './foo.go/b.go: The system cannot find the file specified'
++[!windows] stderr './foo.go/b.go: no such file or directory'
++
++-- a.go --
++package main
++-- bar/a.go --
++package bar
++-- foo.go/a.go --
++package foo.go
++-- go.mod --
++module "test"
++
++go 1.13
+diff --git a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+index 8828738abb..7b5d90c50b 100644
+--- a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
++++ b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+@@ -1,8 +1,9 @@
+-# go list should fail to load a package ending with ".go" since that denotes
+-# a source file. However, ".go/" should work.
+-# TODO(golang.org/issue/32483): perhaps we should treat non-existent paths
+-# with .go suffixes as package paths instead.
+-! go list example.com/dotgo.go
++# go list should succeed to load a package ending with ".go" if the path does
++# not correspond to an existing local file. Listing a pattern ending with
++# ".go/" should try to list a package regardless of whether a file exists at the
++# path without the suffixed "/" or not.
++go list example.com/dotgo.go
++stdout ^example.com/dotgo.go$
+ go list example.com/dotgo.go/
+ stdout ^example.com/dotgo.go$
+ 
+@@ -15,9 +16,6 @@ go get -d example.com/dotgo.go@v1.0.0
+ go get -d example.com/dotgo.go/@v1.0.0
+ 
+ # go get (without -d) should also succeed in either case.
+-# TODO(golang.org/issue/32483): we should be consistent with 'go build',
+-# 'go list', and other commands. 'go list example.com/dotgo.go' (above) and
+-# 'go get example.com/dotgo.go' should both succeed or both fail.
+ [short] skip
+ go get example.com/dotgo.go
+ go get example.com/dotgo.go/

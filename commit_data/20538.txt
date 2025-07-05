@@ -16,6 +16,22 @@ Date:   Tue Sep 16 17:46:25 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/144030043
-
+---
  src/runtime/stack_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 3a0802a1c2..652c72eeed 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -71,10 +71,6 @@ func TestStackMem(t *testing.T) {
+ 
+ // Test stack growing in different contexts.
+ func TestStackGrowth(t *testing.T) {
+-	switch GOARCH {
+-	case "386", "arm":
+-		t.Skipf("skipping test on %q; see issue 8083", GOARCH)
+-	}
+ 	t.Parallel()
+ 	var wg sync.WaitGroup
+ 

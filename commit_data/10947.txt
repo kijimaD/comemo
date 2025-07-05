@@ -9,7 +9,59 @@ Date:   Wed Dec 21 10:49:35 2011 -0800
     R=golang-dev, agl, rsc
     CC=golang-dev
     https://golang.org/cl/5500064
-
+---
  src/pkg/crypto/x509/cert_pool.go   |  3 +++
  src/pkg/crypto/x509/verify_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+index adc7f9bc6d..5a0a87678e 100644
+--- a/src/pkg/crypto/x509/cert_pool.go
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -28,6 +28,9 @@ func NewCertPool() *CertPool {
+ // given certificate. If no such certificate can be found or the signature
+ // doesn't match, it returns nil.
+ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
++	if s == nil {
++		return
++	}
+ 	var candidates []int
+ 
+ 	if len(cert.AuthorityKeyId) > 0 {
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index df5443023f..2016858307 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -19,6 +19,7 @@ type verifyTest struct {
+ 	roots         []string
+ 	currentTime   int64
+ 	dnsName       string
++	nilRoots      bool
+ 
+ 	errorCallback  func(*testing.T, int, error) bool
+ 	expectedChains [][]string
+@@ -45,6 +46,14 @@ var verifyTests = []verifyTest{
+ 
+ 		errorCallback: expectHostnameError,
+ 	},
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{thawteIntermediate},
++		nilRoots:      true, // verifies that we don't crash
++		currentTime:   1302726541,
++		dnsName:       "www.google.com",
++		errorCallback: expectAuthorityUnknown,
++	},
+ 	{
+ 		leaf:          googleLeaf,
+ 		intermediates: []string{thawteIntermediate},
+@@ -136,6 +145,9 @@ func TestVerify(t *testing.T) {
+ 			DNSName:       test.dnsName,
+ 			CurrentTime:   time.Unix(test.currentTime, 0),
+ 		}
++		if test.nilRoots {
++			opts.Roots = nil
++		}
+ 
+ 		for j, root := range test.roots {
+ 			ok := opts.Roots.AppendCertsFromPEM([]byte(root))

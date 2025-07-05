@@ -15,7 +15,137 @@ Date:   Tue Apr 8 13:39:08 2025 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/context/context.go | 14 +++++---
  src/context/x_test.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 98 insertions(+), 4 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 6020e2d310..4f150f6a1d 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -288,11 +288,17 @@ func withCancel(parent Context) *cancelCtx {
+ func Cause(c Context) error {
+ 	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
+ 		cc.mu.Lock()
+-		defer cc.mu.Unlock()
+-		return cc.cause
++		cause := cc.cause
++		cc.mu.Unlock()
++		if cause != nil {
++			return cause
++		}
++		// Either this context is not canceled,
++		// or it is canceled and the cancellation happened in a
++		// custom context implementation rather than a *cancelCtx.
+ 	}
+-	// There is no cancelCtxKey value, so we know that c is
+-	// not a descendant of some Context created by WithCancelCause.
++	// There is no cancelCtxKey value with a cause, so we know that c is
++	// not a descendant of some canceled Context created by WithCancelCause.
+ 	// Therefore, there is no specific cause to return.
+ 	// If this is not one of the standard Context types,
+ 	// it might still have an error even though it won't have a cause.
+diff --git a/src/context/x_test.go b/src/context/x_test.go
+index 82a8c45c54..937cab1445 100644
+--- a/src/context/x_test.go
++++ b/src/context/x_test.go
+@@ -798,6 +798,45 @@ func TestCause(t *testing.T) {
+ 			err:   nil,
+ 			cause: nil,
+ 		},
++		{
++			name: "parent of custom context not canceled",
++			ctx: func() Context {
++				ctx, _ := WithCancelCause(Background())
++				ctx, cancel2 := newCustomContext(ctx)
++				cancel2()
++				return ctx
++			},
++			err:   Canceled,
++			cause: Canceled,
++		},
++		{
++			name: "parent of custom context is canceled before",
++			ctx: func() Context {
++				ctx, cancel1 := WithCancelCause(Background())
++				ctx, cancel2 := newCustomContext(ctx)
++				cancel1(parentCause)
++				cancel2()
++				return ctx
++			},
++			err:   Canceled,
++			cause: parentCause,
++		},
++		{
++			name: "parent of custom context is canceled after",
++			ctx: func() Context {
++				ctx, cancel1 := WithCancelCause(Background())
++				ctx, cancel2 := newCustomContext(ctx)
++				cancel2()
++				cancel1(parentCause)
++				return ctx
++			},
++			err: Canceled,
++			// This isn't really right: the child context was canceled before
++			// the parent context, and shouldn't inherit the parent's cause.
++			// However, since the child is a custom context, Cause has no way
++			// to tell which was canceled first and returns the parent's cause.
++			cause: parentCause,
++		},
+ 	} {
+ 		test := test
+ 		t.Run(test.name, func(t *testing.T) {
+@@ -1089,3 +1128,52 @@ func TestAfterFuncCalledAsynchronously(t *testing.T) {
+ 		t.Fatalf("AfterFunc not called after context is canceled")
+ 	}
+ }
++
++// customContext is a custom Context implementation.
++type customContext struct {
++	parent Context
++
++	doneOnce sync.Once
++	donec    chan struct{}
++	err      error
++}
++
++func newCustomContext(parent Context) (Context, CancelFunc) {
++	c := &customContext{
++		parent: parent,
++		donec:  make(chan struct{}),
++	}
++	AfterFunc(parent, func() {
++		c.doneOnce.Do(func() {
++			c.err = parent.Err()
++			close(c.donec)
++		})
++	})
++	return c, func() {
++		c.doneOnce.Do(func() {
++			c.err = Canceled
++			close(c.donec)
++		})
++	}
++}
++
++func (c *customContext) Deadline() (time.Time, bool) {
++	return c.parent.Deadline()
++}
++
++func (c *customContext) Done() <-chan struct{} {
++	return c.donec
++}
++
++func (c *customContext) Err() error {
++	select {
++	case <-c.donec:
++		return c.err
++	default:
++		return nil
++	}
++}
++
++func (c *customContext) Value(key any) any {
++	return c.parent.Value(key)
++}

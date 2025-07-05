@@ -13,7 +13,34 @@ Date:   Wed Jul 11 23:42:40 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/sinh.go | 2 +-
  src/net/ip.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/sinh.go b/src/math/sinh.go
+index 39e7c2047a..573a37e35f 100644
+--- a/src/math/sinh.go
++++ b/src/math/sinh.go
+@@ -43,7 +43,7 @@ func sinh(x float64) float64 {
+ 	}
+ 
+ 	var temp float64
+-	switch true {
++	switch {
+ 	case x > 21:
+ 		temp = Exp(x) * 0.5
+ 
+diff --git a/src/net/ip.go b/src/net/ip.go
+index da8dca588e..410de92ccc 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -222,7 +222,7 @@ func (ip IP) DefaultMask() IPMask {
+ 	if ip = ip.To4(); ip == nil {
+ 		return nil
+ 	}
+-	switch true {
++	switch {
+ 	case ip[0] < 0x80:
+ 		return classAMask
+ 	case ip[0] < 0xC0:

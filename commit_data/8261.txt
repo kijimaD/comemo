@@ -9,9 +9,101 @@ Date:   Thu Apr 28 13:14:35 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4442099
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/subr.c        |  2 ++
  src/cmd/gc/typecheck.c   | 21 ++++++++++++++++-----
  test/fixedbugs/bug337.go | 19 +++++++++++++++++++
  4 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f58b767891..359881e11e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -225,6 +225,7 @@ struct	Node
+ 	Type*	realtype;	// as determined by typecheck
+ 	NodeList*	list;
+ 	NodeList*	rlist;
++	Node*	orig;		// original form, for printing
+ 
+ 	// for-body
+ 	NodeList*	ninit;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index bb25056940..b6fc106ab8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1454,6 +1454,8 @@ Nconv(Fmt *fp)
+ 	}
+ 
+ 	if(fp->flags & FmtSharp) {
++		if(n->orig != N)
++			n = n->orig;
+ 		exprfmt(fp, n, 0);
+ 		goto out;
+ 	}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index c48bf7a29b..9aaf3e6efe 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -894,12 +894,20 @@ reswitch:
+ 		// might be constant
+ 		switch(t->etype) {
+ 		case TSTRING:
+-			if(isconst(l, CTSTR))
+-				nodconst(n, types[TINT], l->val.u.sval->len);
++			if(isconst(l, CTSTR)) {
++				r = nod(OXXX, N, N);
++				nodconst(r, types[TINT], l->val.u.sval->len);
++				r->orig = n;
++				n = r;
++			}
+ 			break;
+ 		case TARRAY:
+-			if(t->bound >= 0 && l->op == ONAME)
+-				nodconst(n, types[TINT], t->bound);
++			if(t->bound >= 0 && l->op == ONAME) {
++				r = nod(OXXX, N, N);
++				nodconst(r, types[TINT], t->bound);
++				r->orig = n;
++				n = r;
++			}
+ 			break;
+ 		}
+ 		n->type = types[TINT];
+@@ -1357,7 +1365,10 @@ ret:
+ 		goto error;
+ 	}
+ 	if((top & Etop) && !(top & (Ecall|Erv|Etype)) && !(ok & Etop)) {
+-		yyerror("%#N not used", n);
++		if(n->diag == 0) {
++			yyerror("%#N not used", n);
++			n->diag = 1;
++		}
+ 		goto error;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug337.go b/test/fixedbugs/bug337.go
+new file mode 100644
+index 0000000000..62e310e725
+--- /dev/null
++++ b/test/fixedbugs/bug337.go
+@@ -0,0 +1,19 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1722.
++
++// Check that the error messages says 
++//	bug337.go:16: len("foo") not used
++// and not
++//	bug337.go:16: 3 not used
++
++package main
++
++func main() {
++	len("foo")	// ERROR "len"
++}
++

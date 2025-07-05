@@ -15,8 +15,103 @@ Date:   Tue Apr 5 23:01:10 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go  | 21 ++++++---------------
  src/cmd/link/internal/ld/elf.go    | 10 ++++------
  src/cmd/link/internal/ld/symtab.go |  6 ++----
  3 files changed, 12 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index fd177cfef0..4465a727a5 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2169,18 +2169,10 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 	elfstrdbg[ElfStrDebugStr] = Addstring(shstrtab, ".debug_str")
+ 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
+ 	if Linkmode == LinkExternal {
+-		switch Thearch.Thechar {
+-		case '0', '6', '7', '9', 'z':
+-			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
+-			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
+-			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
+-			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rela.debug_frame")
+-		default:
+-			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rel.debug_info")
+-			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rel.debug_aranges")
+-			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
+-			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rel.debug_frame")
+-		}
++		elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, elfRelType+".debug_info")
++		elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, elfRelType+".debug_aranges")
++		elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, elfRelType+".debug_line")
++		elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, elfRelType+".debug_frame")
+ 
+ 		infosym = Linklookup(Ctxt, ".debug_info", 0)
+ 		infosym.Attr |= AttrHidden
+@@ -2222,10 +2214,9 @@ func dwarfaddelfsectionsyms() {
+ 
+ func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
+ 	sh := newElfShdr(elfstrdbg[elfstr])
+-	switch Thearch.Thechar {
+-	case '0', '6', '7', '9', 'z':
++	if elfRelType == ".rela" {
+ 		sh.type_ = SHT_RELA
+-	default:
++	} else {
+ 		sh.type_ = SHT_REL
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index ffb7c4bdde..3b40c66592 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1885,10 +1885,9 @@ func doelf() {
+ 
+ 		s.Type = obj.SELFROSECT
+ 		s.Attr |= AttrReachable
+-		switch Thearch.Thechar {
+-		case '0', '6', '7', '9', 'z':
++		if elf64 {
+ 			s.Size += ELF64SYMSIZE
+-		default:
++		} else {
+ 			s.Size += ELF32SYMSIZE
+ 		}
+ 
+@@ -1967,10 +1966,9 @@ func doelf() {
+ 		elfwritedynentsym(s, DT_HASH, Linklookup(Ctxt, ".hash", 0))
+ 
+ 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
+-		switch Thearch.Thechar {
+-		case '0', '6', '7', '9', 'z':
++		if elf64 {
+ 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
+-		default:
++		} else {
+ 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
+ 		}
+ 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3258bc1ff9..0fe0a68c65 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -66,8 +66,7 @@ func putelfstr(s string) int {
+ }
+ 
+ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
+-	switch Thearch.Thechar {
+-	case '0', '6', '7', '9', 'z':
++	if elf64 {
+ 		Thearch.Lput(uint32(off))
+ 		Cput(uint8(info))
+ 		Cput(uint8(other))
+@@ -75,8 +74,7 @@ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other in
+ 		Thearch.Vput(uint64(addr))
+ 		Thearch.Vput(uint64(size))
+ 		Symsize += ELF64SYMSIZE
+-
+-	default:
++	} else {
+ 		Thearch.Lput(uint32(off))
+ 		Thearch.Lput(uint32(addr))
+ 		Thearch.Lput(uint32(size))

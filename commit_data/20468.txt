@@ -15,8 +15,48 @@ Date:   Tue Sep 9 17:12:05 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/140440044
-
+---
  src/runtime/memclr_386.s      | 2 ++
  src/runtime/memclr_amd64.s    | 2 ++
  src/runtime/sys_windows_386.s | 2 +-
  3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 8b163923e9..1520aea2e0 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -6,6 +6,8 @@
+ 
+ #include "textflag.h"
+ 
++// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
++
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), DI
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 35b3b4beef..94a2c7f236 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -6,6 +6,8 @@
+ 
+ #include "textflag.h"
+ 
++// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
++
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), DI
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index ebcfdf4e0d..9b1fc7a205 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -191,7 +191,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+ 	LEAL	g_end(SP), BX
+ 	MOVL	BX, g_m(SP)
+-	LEAL	-4096(SP), CX
++	LEAL	-8192(SP), CX
+ 	MOVL	CX, (g_stack+stack_lo)(SP)
+ 	ADDL	$const_StackGuard, CX
+ 	MOVL	CX, g_stackguard0(SP)

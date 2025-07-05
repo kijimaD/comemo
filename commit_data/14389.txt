@@ -9,6 +9,29 @@ Date:   Tue Nov 13 07:08:29 2012 +0100
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/6847043
-
+---
  src/cmd/gc/gen.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 456ca622fb..1cbda6245b 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -649,7 +649,7 @@ clearslim(Node *n)
+ 	switch(simtype[n->type->etype]) {
+ 	case TCOMPLEX64:
+ 	case TCOMPLEX128:
+-		z.val.u.cval = mal(sizeof(z.val.u.cval));
++		z.val.u.cval = mal(sizeof(*z.val.u.cval));
+ 		mpmovecflt(&z.val.u.cval->real, 0.0);
+ 		mpmovecflt(&z.val.u.cval->imag, 0.0);
+ 		break;
+@@ -681,7 +681,7 @@ clearslim(Node *n)
+ 	case TUINT32:
+ 	case TUINT64:
+ 		z.val.ctype = CTINT;
+-		z.val.u.xval = mal(sizeof(z.val.u.xval));
++		z.val.u.xval = mal(sizeof(*z.val.u.xval));
+ 		mpmovecfix(z.val.u.xval, 0);
+ 		break;
+ 

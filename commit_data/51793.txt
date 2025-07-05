@@ -14,7 +14,39 @@ Date:   Tue Mar 15 08:56:07 2022 -0700
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu_x86_test.go    |  3 +++
  src/internal/cpu/export_x86_test.go | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index c8be210055..43d6b211ea 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -19,6 +19,9 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
+ }
+ 
+ func TestDisableSSE3(t *testing.T) {
++	if GetGOAMD64level() > 1 {
++		t.Skip("skipping test: can't run on GOAMD64>v1 machines")
++	}
+ 	runDebugOptionsTest(t, "TestSSE3DebugOption", "cpu.sse3=off")
+ }
+ 
+diff --git a/src/internal/cpu/export_x86_test.go b/src/internal/cpu/export_x86_test.go
+new file mode 100644
+index 0000000000..a12b6f2723
+--- /dev/null
++++ b/src/internal/cpu/export_x86_test.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64
++
++package cpu
++
++var (
++	GetGOAMD64level = getGOAMD64level
++)

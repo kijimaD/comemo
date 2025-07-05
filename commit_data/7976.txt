@@ -7,6 +7,29 @@ Date:   Tue Apr 5 11:35:16 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4315049
-
+---
  src/pkg/net/hosts.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index 8525f578d7..d75e9e038a 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -59,7 +59,7 @@ func readHosts() {
+ 	}
+ }
+ 
+-// lookupStaticHosts looks up the addresses for the given host from /etc/hosts.
++// lookupStaticHost looks up the addresses for the given host from /etc/hosts.
+ func lookupStaticHost(host string) []string {
+ 	hosts.Lock()
+ 	defer hosts.Unlock()
+@@ -72,7 +72,7 @@ func lookupStaticHost(host string) []string {
+ 	return nil
+ }
+ 
+-// rlookupStaticHosts looks up the hosts for the given address from /etc/hosts.
++// lookupStaticAddr looks up the hosts for the given address from /etc/hosts.
+ func lookupStaticAddr(addr string) []string {
+ 	hosts.Lock()
+ 	defer hosts.Unlock()

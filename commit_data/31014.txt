@@ -11,7 +11,124 @@ Date:   Thu Dec 29 15:49:01 2016 -0800
     Change-Id: Ie54ea5fefcd677ad87ced03466bbfd783771e974
     Reviewed-on: https://go-review.googlesource.com/35102
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go  | 20 ++++++++++++--------
  src/cmd/compile/internal/gc/noder.go | 31 ++++++++++++++++---------------
  2 files changed, 28 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 75f58a731c..b0b31dd30d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -344,8 +344,9 @@ func Main() {
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+-		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
+-			xtop[i] = typecheck(xtop[i], Etop)
++		n := xtop[i]
++		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
++			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+ 
+@@ -355,8 +356,9 @@ func Main() {
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+-		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
+-			xtop[i] = typecheck(xtop[i], Etop)
++		n := xtop[i]
++		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
++			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+ 	resumecheckwidth()
+@@ -366,8 +368,9 @@ func Main() {
+ 	timings.Start("fe", "typecheck", "func")
+ 	var fcount int64
+ 	for i := 0; i < len(xtop); i++ {
+-		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
+-			Curfn = xtop[i]
++		n := xtop[i]
++		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
++			Curfn = n
+ 			decldepth = 1
+ 			saveerrors()
+ 			typecheckslice(Curfn.Nbody.Slice(), Etop)
+@@ -459,8 +462,9 @@ func Main() {
+ 	timings.Start("be", "compilefuncs")
+ 	fcount = 0
+ 	for i := 0; i < len(xtop); i++ {
+-		if xtop[i].Op == ODCLFUNC {
+-			funccompile(xtop[i])
++		n := xtop[i]
++		if n.Op == ODCLFUNC {
++			funccompile(n)
+ 			fcount++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3f6fe20b6b..8d830ad62d 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -153,11 +153,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 
+ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	names := p.declNames(decl.NameList)
+-
+-	var typ *Node
+-	if decl.Type != nil {
+-		typ = p.typeExpr(decl.Type)
+-	}
++	typ := p.typeExprOrNil(decl.Type)
+ 
+ 	var exprs []*Node
+ 	if decl.Values != nil {
+@@ -170,11 +166,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 
+ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
+ 	names := p.declNames(decl.NameList)
+-
+-	var typ *Node
+-	if decl.Type != nil {
+-		typ = p.typeExpr(decl.Type)
+-	}
++	typ := p.typeExprOrNil(decl.Type)
+ 
+ 	var exprs []*Node
+ 	if decl.Values != nil {
+@@ -190,12 +182,14 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 	}
+ 
+ 	name := typedcl0(p.name(decl.Name))
+-	name.Name.Param.Pragma = Pragma(decl.Pragma)
+-
+-	var typ *Node
+-	if decl.Type != nil {
+-		typ = p.typeExpr(decl.Type)
++	pragma := Pragma(decl.Pragma)
++	if pragma != 0 && decl.Alias {
++		yyerror("cannot specify directive with type alias")
++		pragma = 0
+ 	}
++	name.Name.Param.Pragma = pragma
++
++	typ := p.typeExprOrNil(decl.Type)
+ 
+ 	return typedcl1(name, typ, true)
+ }
+@@ -470,6 +464,13 @@ func (p *noder) typeExpr(typ syntax.Expr) *Node {
+ 	return p.expr(typ)
+ }
+ 
++func (p *noder) typeExprOrNil(typ syntax.Expr) *Node {
++	if typ != nil {
++		return p.expr(typ)
++	}
++	return nil
++}
++
+ func (p *noder) chanDir(dir syntax.ChanDir) ChanDir {
+ 	switch dir {
+ 	case 0:

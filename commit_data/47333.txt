@@ -15,6 +15,20 @@ Date:   Thu Mar 11 15:04:16 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/socks_bundle.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/socks_bundle.go b/src/net/http/socks_bundle.go
+index fc22391039..e446669589 100644
+--- a/src/net/http/socks_bundle.go
++++ b/src/net/http/socks_bundle.go
+@@ -362,8 +362,6 @@ func (d *socksDialer) DialWithConn(ctx context.Context, c net.Conn, network, add
+ // Unlike DialContext, it returns a raw transport connection instead
+ // of a forward proxy connection.
+ //
+-// Dial uses context.Background internally.
+-//
+ // Deprecated: Use DialContext or DialWithConn instead.
+ func (d *socksDialer) Dial(network, address string) (net.Conn, error) {
+ 	if err := d.validateTarget(network, address); err != nil {

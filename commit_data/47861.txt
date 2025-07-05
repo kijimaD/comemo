@@ -13,6 +13,25 @@ Date:   Mon Mar 15 16:15:23 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 45ccc806bd..cb73caf3bb 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1257,12 +1257,7 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 	}
+ 
+ 	var i uintptr
+-	for i = 0; i < n; i += sys.PtrSize {
+-		// Find bits for this word.
+-		if i != 0 {
+-			// Avoid needless hbits.next() on last iteration.
+-			hbits = hbits.next()
+-		}
++	for i = 0; i < n; i, hbits = i+sys.PtrSize, hbits.next() {
+ 		// Load bits once. See CL 22712 and issue 16973 for discussion.
+ 		bits := hbits.bits()
+ 		if bits&bitScan == 0 {

@@ -47,7 +47,7 @@ Date:   Fri Sep 16 15:56:16 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/test.go            |  5 ++---
  test/bench/go1/fasta_test.go    |  2 --
  test/bench/go1/gob_test.go      | 46 +++++++++++++++++++++--------------------
@@ -56,3 +56,326 @@ Date:   Fri Sep 16 15:56:16 2022 -0400
  test/bench/go1/revcomp_test.go  |  6 ++++--
  test/bench/go1/template_test.go | 15 +++++++++-----
  7 files changed, 69 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 29a886f456..66ebdf92bf 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -828,9 +828,8 @@ func (t *tester) registerTests() {
+ 
+ 	if goos != "android" && !t.iOS() {
+ 		// There are no tests in this directory, only benchmarks.
+-		// Check that the test binary builds but don't bother running it.
+-		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
+-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
++		// Check that the test binary builds.
++		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), ".")
+ 	}
+ 	if goos != "android" && !t.iOS() {
+ 		// Only start multiple test dir shards on builders,
+diff --git a/test/bench/go1/fasta_test.go b/test/bench/go1/fasta_test.go
+index af4fbac274..f8bfbf459a 100644
+--- a/test/bench/go1/fasta_test.go
++++ b/test/bench/go1/fasta_test.go
+@@ -8,8 +8,6 @@ import "runtime"
+ 
+ // Not a benchmark; input for revcomp.
+ 
+-var fastabytes = makefasta()
+-
+ func makefasta() []byte {
+ 	var n int = 25e6
+ 	if runtime.GOARCH == "arm" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
+diff --git a/test/bench/go1/gob_test.go b/test/bench/go1/gob_test.go
+index f289fcca7c..9fc1677870 100644
+--- a/test/bench/go1/gob_test.go
++++ b/test/bench/go1/gob_test.go
+@@ -16,31 +16,28 @@ import (
+ 	"testing"
+ )
+ 
+-var (
+-	gobbytes []byte
+-	gobdata  *JSONResponse
+-)
+-
+-func init() {
+-	gobdata = gobResponse(&jsondata)
++func makeGob(jsondata *JSONResponse) (data *JSONResponse, b []byte) {
++	data = gobResponse(jsondata)
+ 
+ 	var buf bytes.Buffer
+-	if err := gob.NewEncoder(&buf).Encode(gobdata); err != nil {
++	if err := gob.NewEncoder(&buf).Encode(data); err != nil {
+ 		panic(err)
+ 	}
+-	gobbytes = buf.Bytes()
++	b = buf.Bytes()
+ 
+ 	var r JSONResponse
+-	if err := gob.NewDecoder(bytes.NewBuffer(gobbytes)).Decode(&r); err != nil {
++	if err := gob.NewDecoder(bytes.NewBuffer(b)).Decode(&r); err != nil {
+ 		panic(err)
+ 	}
+-	if !reflect.DeepEqual(gobdata, &r) {
++	if !reflect.DeepEqual(data, &r) {
+ 		log.Printf("%v\n%v", jsondata, r)
+ 		b, _ := json.Marshal(&jsondata)
+ 		br, _ := json.Marshal(&r)
+ 		log.Printf("%s\n%s\n", b, br)
+ 		panic("gob: encode+decode lost data")
+ 	}
++
++	return
+ }
+ 
+ // gob turns [] into null, so make a copy of the data structure like that
+@@ -61,33 +58,38 @@ func gobNode(n *JSONNode) *JSONNode {
+ 	return n1
+ }
+ 
+-func gobdec() {
+-	if gobbytes == nil {
+-		panic("gobdata not initialized")
+-	}
++func gobdec(b []byte) {
+ 	var r JSONResponse
+-	if err := gob.NewDecoder(bytes.NewBuffer(gobbytes)).Decode(&r); err != nil {
++	if err := gob.NewDecoder(bytes.NewBuffer(b)).Decode(&r); err != nil {
+ 		panic(err)
+ 	}
+ 	_ = r
+ }
+ 
+-func gobenc() {
+-	if err := gob.NewEncoder(io.Discard).Encode(&gobdata); err != nil {
++func gobenc(data *JSONResponse) {
++	if err := gob.NewEncoder(io.Discard).Encode(data); err != nil {
+ 		panic(err)
+ 	}
+ }
+ 
+ func BenchmarkGobDecode(b *testing.B) {
+-	b.SetBytes(int64(len(gobbytes)))
++	jsonbytes := makeJsonBytes()
++	jsondata := makeJsonData(jsonbytes)
++	_, bytes := makeGob(jsondata)
++	b.ResetTimer()
++	b.SetBytes(int64(len(bytes)))
+ 	for i := 0; i < b.N; i++ {
+-		gobdec()
++		gobdec(bytes)
+ 	}
+ }
+ 
+ func BenchmarkGobEncode(b *testing.B) {
+-	b.SetBytes(int64(len(gobbytes)))
++	jsonbytes := makeJsonBytes()
++	jsondata := makeJsonData(jsonbytes)
++	data, bytes := makeGob(jsondata)
++	b.ResetTimer()
++	b.SetBytes(int64(len(bytes)))
+ 	for i := 0; i < b.N; i++ {
+-		gobenc()
++		gobenc(data)
+ 	}
+ }
+diff --git a/test/bench/go1/gzip_test.go b/test/bench/go1/gzip_test.go
+index d3f98da11d..e73665b858 100644
+--- a/test/bench/go1/gzip_test.go
++++ b/test/bench/go1/gzip_test.go
+@@ -13,20 +13,19 @@ import (
+ 	"testing"
+ )
+ 
+-var (
+-	jsongunz = bytes.Repeat(jsonbytes, 10)
+-	jsongz   []byte
+-)
++func makeGunzip(jsonbytes []byte) []byte {
++	return bytes.Repeat(jsonbytes, 10)
++}
+ 
+-func init() {
++func makeGzip(jsongunz []byte) []byte {
+ 	var buf bytes.Buffer
+ 	c := gz.NewWriter(&buf)
+ 	c.Write(jsongunz)
+ 	c.Close()
+-	jsongz = buf.Bytes()
++	return buf.Bytes()
+ }
+ 
+-func gzip() {
++func gzip(jsongunz []byte) {
+ 	c := gz.NewWriter(io.Discard)
+ 	if _, err := c.Write(jsongunz); err != nil {
+ 		panic(err)
+@@ -36,7 +35,7 @@ func gzip() {
+ 	}
+ }
+ 
+-func gunzip() {
++func gunzip(jsongz []byte) {
+ 	r, err := gz.NewReader(bytes.NewBuffer(jsongz))
+ 	if err != nil {
+ 		panic(err)
+@@ -48,15 +47,22 @@ func gunzip() {
+ }
+ 
+ func BenchmarkGzip(b *testing.B) {
++	jsonbytes := makeJsonBytes()
++	jsongunz := makeGunzip(jsonbytes)
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(jsongunz)))
+ 	for i := 0; i < b.N; i++ {
+-		gzip()
++		gzip(jsongunz)
+ 	}
+ }
+ 
+ func BenchmarkGunzip(b *testing.B) {
++	jsonbytes := makeJsonBytes()
++	jsongunz := makeGunzip(jsonbytes)
++	jsongz := makeGzip(jsongunz)
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(jsongunz)))
+ 	for i := 0; i < b.N; i++ {
+-		gunzip()
++		gunzip(jsongz)
+ 	}
+ }
+diff --git a/test/bench/go1/json_test.go b/test/bench/go1/json_test.go
+index 782ef7674c..963127be27 100644
+--- a/test/bench/go1/json_test.go
++++ b/test/bench/go1/json_test.go
+@@ -15,11 +15,6 @@ import (
+ 	"testing"
+ )
+ 
+-var (
+-	jsonbytes = makeJsonBytes()
+-	jsondata  = makeJsonData()
+-)
+-
+ func makeJsonBytes() []byte {
+ 	var r io.Reader
+ 	r = bytes.NewReader(bytes.Replace(jsonbz2_base64, []byte{'\n'}, nil, -1))
+@@ -32,12 +27,12 @@ func makeJsonBytes() []byte {
+ 	return b
+ }
+ 
+-func makeJsonData() JSONResponse {
++func makeJsonData(jsonbytes []byte) *JSONResponse {
+ 	var v JSONResponse
+ 	if err := json.Unmarshal(jsonbytes, &v); err != nil {
+ 		panic(err)
+ 	}
+-	return v
++	return &v
+ }
+ 
+ type JSONResponse struct {
+@@ -55,16 +50,16 @@ type JSONNode struct {
+ 	MeanT    int64       `json:"mean_t"`
+ }
+ 
+-func jsondec() {
++func jsondec(bytes []byte) {
+ 	var r JSONResponse
+-	if err := json.Unmarshal(jsonbytes, &r); err != nil {
++	if err := json.Unmarshal(bytes, &r); err != nil {
+ 		panic(err)
+ 	}
+ 	_ = r
+ }
+ 
+-func jsonenc() {
+-	buf, err := json.Marshal(&jsondata)
++func jsonenc(data *JSONResponse) {
++	buf, err := json.Marshal(data)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -72,15 +67,20 @@ func jsonenc() {
+ }
+ 
+ func BenchmarkJSONEncode(b *testing.B) {
++	jsonbytes := makeJsonBytes()
++	jsondata := makeJsonData(jsonbytes)
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(jsonbytes)))
+ 	for i := 0; i < b.N; i++ {
+-		jsonenc()
++		jsonenc(jsondata)
+ 	}
+ }
+ 
+ func BenchmarkJSONDecode(b *testing.B) {
++	jsonbytes := makeJsonBytes()
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(jsonbytes)))
+ 	for i := 0; i < b.N; i++ {
+-		jsondec()
++		jsondec(jsonbytes)
+ 	}
+ }
+diff --git a/test/bench/go1/revcomp_test.go b/test/bench/go1/revcomp_test.go
+index c2e2c39baf..f3bcf0f84d 100644
+--- a/test/bench/go1/revcomp_test.go
++++ b/test/bench/go1/revcomp_test.go
+@@ -78,8 +78,10 @@ func revcomp(data []byte) {
+ }
+ 
+ func BenchmarkRevcomp(b *testing.B) {
+-	b.SetBytes(int64(len(fastabytes)))
++	bytes := makefasta()
++	b.ResetTimer()
++	b.SetBytes(int64(len(bytes)))
+ 	for i := 0; i < b.N; i++ {
+-		revcomp(fastabytes)
++		revcomp(bytes)
+ 	}
+ }
+diff --git a/test/bench/go1/template_test.go b/test/bench/go1/template_test.go
+index b7e98d5c20..86d96a9571 100644
+--- a/test/bench/go1/template_test.go
++++ b/test/bench/go1/template_test.go
+@@ -49,9 +49,9 @@ func stripTabNL(r rune) rune {
+ 	return r
+ }
+ 
+-var tmpl = template.Must(template.New("main").Parse(strings.Map(stripTabNL, tmplText)))
++func makeTemplate(jsonbytes []byte, jsondata *JSONResponse) *template.Template {
++	tmpl := template.Must(template.New("main").Parse(strings.Map(stripTabNL, tmplText)))
+ 
+-func init() {
+ 	var buf bytes.Buffer
+ 	if err := tmpl.Execute(&buf, &jsondata); err != nil {
+ 		panic(err)
+@@ -60,17 +60,22 @@ func init() {
+ 		println(buf.Len(), len(jsonbytes))
+ 		panic("wrong output")
+ 	}
++	return tmpl
+ }
+ 
+-func tmplexec() {
+-	if err := tmpl.Execute(io.Discard, &jsondata); err != nil {
++func tmplexec(tmpl *template.Template, jsondata *JSONResponse) {
++	if err := tmpl.Execute(io.Discard, jsondata); err != nil {
+ 		panic(err)
+ 	}
+ }
+ 
+ func BenchmarkTemplate(b *testing.B) {
++	jsonbytes := makeJsonBytes()
++	jsondata := makeJsonData(jsonbytes)
++	tmpl := makeTemplate(jsonbytes, jsondata)
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(jsonbytes)))
+ 	for i := 0; i < b.N; i++ {
+-		tmplexec()
++		tmplexec(tmpl, jsondata)
+ 	}
+ }

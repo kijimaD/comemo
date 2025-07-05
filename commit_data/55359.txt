@@ -14,8 +14,68 @@ Date:   Sat Jan 28 19:55:19 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go     | 11 ++++++++++-
  src/cmd/link/internal/mips/obj.go   |  4 ++++
  src/cmd/link/internal/mips64/obj.go |  4 ++++
  3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 738bea11c8..2c6ea643fc 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -209,6 +209,11 @@ type ELFArch struct {
+ 	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
+ 	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
+ 	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
++
++	// DynamicReadOnly can be set to true to make the .dynamic
++	// section read-only. By default it is writable.
++	// This is used by MIPS targets.
++	DynamicReadOnly bool
+ }
+ 
+ type Elfstring struct {
+@@ -1563,7 +1568,11 @@ func (ctxt *Link) doelf() {
+ 
+ 		/* define dynamic elf table */
+ 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
+-		dynamic.SetType(sym.SELFSECT) // writable
++		if thearch.ELF.DynamicReadOnly {
++			dynamic.SetType(sym.SELFROSECT)
++		} else {
++			dynamic.SetType(sym.SELFSECT)
++		}
+ 
+ 		if ctxt.IsS390X() {
+ 			// S390X uses .got instead of .got.plt
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 709c493a53..61c22d986f 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -72,6 +72,10 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Elfreloc1:    elfreloc1,
+ 			ElfrelocSize: 8,
+ 			Elfsetupplt:  elfsetupplt,
++
++			// Historically GNU ld creates a read-only
++			// .dynamic section.
++			DynamicReadOnly: true,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 986cd078be..ce4494c61d 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -70,6 +70,10 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Elfreloc1:    elfreloc1,
+ 			ElfrelocSize: 24,
+ 			Elfsetupplt:  elfsetupplt,
++
++			// Historically GNU ld creates a read-only
++			// .dynamic section.
++			DynamicReadOnly: true,
+ 		},
+ 	}
+ 

@@ -9,6 +9,22 @@ Date:   Fri Aug 11 10:45:50 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ff8b81354b..c0368f9bcb 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -543,10 +543,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 
+ 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
+ 	types := make([]dwarf.Type, len(names))
+-	nameToIndex := make(map[*Name]int)
+-	for i, n := range names {
+-		nameToIndex[n] = i
+-	}
+ 	nameToRef := make(map[*Name]*Ref)
+ 	for _, ref := range f.Ref {
+ 		nameToRef[ref.Name] = ref

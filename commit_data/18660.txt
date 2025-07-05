@@ -8,6 +8,20 @@ Date:   Wed Feb 26 07:38:13 2014 -0800
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/68960044
-
+---
  include/link.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/link.h b/include/link.h
+index 0d50777f4c..fa8b249dff 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -110,7 +110,7 @@ struct	Prog
+ 	uchar	optab;	// 5l
+ 
+ 	char	width;	/* fake for DATA */
+-	char	mode;	/* 16, 32, or 64 in 8l, 8l; internal use in 5g, 6g, 8g */
++	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
+ };
+ 
+ // prevent incompatible type signatures between liblink and 8l on Plan 9

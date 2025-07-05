@@ -16,7 +16,36 @@ Date:   Wed Jun 14 06:44:43 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
  src/cmd/internal/obj/arm64/asm7.go           | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 686ae0fa42..2d53969a28 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -406,8 +406,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    FCMPES $(0.0), F29                         // b823201e
+    FCMPED F13, F10                            // 50216d1e
+    FCMPED $(0.0), F25                         // 3823601e
+-   // FCSELS EQ, F26, F27, F25                // 590f3b1e
+-   // FCSELD PL, F8, F22, F7                  // 075d761e
++   FCSELS EQ, F26, F27, F25                   // 590f3b1e
++   FCSELD PL, F8, F22, F7                     // 075d761e
+    //TODO FCVTASW F21, R15                    // af02241e
+    //TODO FCVTAS F20, ZR                      // 9f02249e
+    //TODO FCVTASW F6, R11                     // cb00641e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index fd6fcb77ea..ddd43485f7 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -536,7 +536,7 @@ var optab = []Optab{
+ 	{AFCMPS, C_FREG, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+ 	{AFCMPS, C_FCON, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+ 	{AFCCMPS, C_COND, C_FREG, C_VCON, 57, 4, 0, 0, 0},
+-	{AFCSELD, C_COND, C_REG, C_FREG, 18, 4, 0, 0, 0},
++	{AFCSELD, C_COND, C_FREG, C_FREG, 18, 4, 0, 0, 0},
+ 	{AFCVTSD, C_FREG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+ 	{ACLREX, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
+ 	{ACLREX, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},

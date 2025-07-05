@@ -12,7 +12,7 @@ Date:   Tue Nov 9 18:48:16 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go                          |  1 +
  src/go/types/decl.go                           | 57 +++++++++++++++++++-------
  src/go/types/testdata/fixedbugs/issue45550.go2 |  4 +-
@@ -21,3 +21,229 @@ Date:   Tue Nov 9 18:48:16 2021 -0500
  src/go/types/testdata/fixedbugs/issue48529.go2 |  2 +-
  src/go/types/testdata/fixedbugs/issue49439.go2 | 26 ++++++++++++
  7 files changed, 83 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 1d55fb4342..93e6ffa761 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -48,6 +48,7 @@ type context struct {
+ 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+ 	errpos        positioner             // if set, identifier position of a constant with inherited initializer
++	inTParamList  bool                   // set if inside a type parameter list
+ 	sig           *Signature             // function signature if inside a function; nil otherwise
+ 	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
+ 	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index eccdec9a03..0188bdaaf9 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -227,13 +227,23 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
+ 	assert(obj.color() >= grey)
+ 	start := obj.color() - grey // index of obj in objPath
+ 	cycle := check.objPath[start:]
+-	nval := 0 // number of (constant or variable) values in the cycle
+-	ndef := 0 // number of type definitions in the cycle
++	tparCycle := false // if set, the cycle is through a type parameter list
++	nval := 0          // number of (constant or variable) values in the cycle; valid if !generic
++	ndef := 0          // number of type definitions in the cycle; valid if !generic
++loop:
+ 	for _, obj := range cycle {
+ 		switch obj := obj.(type) {
+ 		case *Const, *Var:
+ 			nval++
+ 		case *TypeName:
++			// If we reach a generic type that is part of a cycle
++			// and we are in a type parameter list, we have a cycle
++			// through a type parameter list, which is invalid.
++			if check.context.inTParamList && isGeneric(obj.typ) {
++				tparCycle = true
++				break loop
++			}
++
+ 			// Determine if the type name is an alias or not. For
+ 			// package-level objects, use the object map which
+ 			// provides syntactic information (which doesn't rely
+@@ -261,7 +271,11 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
+ 
+ 	if trace {
+ 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
+-		check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
++		if tparCycle {
++			check.trace(obj.Pos(), "## cycle contains: generic type in a type parameter list")
++		} else {
++			check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
++		}
+ 		defer func() {
+ 			if !valid {
+ 				check.trace(obj.Pos(), "=> error: cycle is invalid")
+@@ -269,18 +283,20 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
+ 		}()
+ 	}
+ 
+-	// A cycle involving only constants and variables is invalid but we
+-	// ignore them here because they are reported via the initialization
+-	// cycle check.
+-	if nval == len(cycle) {
+-		return true
+-	}
++	if !tparCycle {
++		// A cycle involving only constants and variables is invalid but we
++		// ignore them here because they are reported via the initialization
++		// cycle check.
++		if nval == len(cycle) {
++			return true
++		}
+ 
+-	// A cycle involving only types (and possibly functions) must have at least
+-	// one type definition to be permitted: If there is no type definition, we
+-	// have a sequence of alias type names which will expand ad infinitum.
+-	if nval == 0 && ndef > 0 {
+-		return true
++		// A cycle involving only types (and possibly functions) must have at least
++		// one type definition to be permitted: If there is no type definition, we
++		// have a sequence of alias type names which will expand ad infinitum.
++		if nval == 0 && ndef > 0 {
++			return true
++		}
+ 	}
+ 
+ 	check.cycleError(cycle)
+@@ -676,6 +692,19 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	// Example: type T[P T[P]] interface{}
+ 	*dst = bindTParams(tparams)
+ 
++	// Signal to cycle detection that we are in a type parameter list.
++	// We can only be inside one type parameter list at any given time:
++	// function closures may appear inside a type parameter list but they
++	// cannot be generic, and their bodies are processed in delayed and
++	// sequential fashion. Note that with each new declaration, we save
++	// the existing context and restore it when done; thus inTPList is
++	// true exactly only when we are in a specific type parameter list.
++	assert(!check.inTParamList)
++	check.inTParamList = true
++	defer func() {
++		check.inTParamList = false
++	}()
++
+ 	index := 0
+ 	var bounds []Type
+ 	var posns []positioner // bound positions
+diff --git a/src/go/types/testdata/fixedbugs/issue45550.go2 b/src/go/types/testdata/fixedbugs/issue45550.go2
+index c3e9e34b87..3eeaca0957 100644
+--- a/src/go/types/testdata/fixedbugs/issue45550.go2
++++ b/src/go/types/testdata/fixedbugs/issue45550.go2
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-type Builder[T interface{ struct{ Builder[T] } }] struct{}
++type Builder /* ERROR illegal cycle */ [T interface{ struct{ Builder[T] } }] struct{}
+ type myBuilder struct {
+-	Builder[myBuilder /* ERROR myBuilder does not satisfy */]
++	Builder[myBuilder]
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue46461.go2 b/src/go/types/testdata/fixedbugs/issue46461.go2
+index 8bf31090b8..4432402a30 100644
+--- a/src/go/types/testdata/fixedbugs/issue46461.go2
++++ b/src/go/types/testdata/fixedbugs/issue46461.go2
+@@ -5,16 +5,16 @@
+ package p
+ 
+ // test case 1
+-type T[U interface{ M() T[U] }] int
++type T /* ERROR illegal cycle */ [U interface{ M() T[U] }] int
+ 
+ type X int
+ 
+ func (X) M() T[X] { return 0 }
+ 
+ // test case 2
+-type A[T interface{ A[T] }] interface{}
++type A /* ERROR illegal cycle */ [T interface{ A[T] }] interface{}
+ 
+ // test case 3
+-type A2[U interface{ A2[U] }] interface{ M() A2[U] }
++type A2 /* ERROR illegal cycle */ [U interface{ A2[U] }] interface{ M() A2[U] }
+ 
+ type I interface{ A2[I]; M() A2[I] }
+diff --git a/src/go/types/testdata/fixedbugs/issue47796.go2 b/src/go/types/testdata/fixedbugs/issue47796.go2
+index 9c10683e22..6667ba4fec 100644
+--- a/src/go/types/testdata/fixedbugs/issue47796.go2
++++ b/src/go/types/testdata/fixedbugs/issue47796.go2
+@@ -6,16 +6,16 @@ package p
+ 
+ // parameterized types with self-recursive constraints
+ type (
+-	T1[P T1[P]]                            interface{}
+-	T2[P, Q T2[P, Q]]                      interface{}
++	T1 /* ERROR illegal cycle */ [P T1[P]]                            interface{}
++	T2 /* ERROR illegal cycle */ [P, Q T2[P, Q]]                      interface{}
+ 	T3[P T2[P, Q], Q interface{ ~string }] interface{}
+ 
+-	T4a[P T4a[P]]                                                        interface{ ~int }
+-	T4b[P T4b[int]]                                                      interface{ ~int }
+-	T4c[P T4c[string /* ERROR string does not satisfy T4c\[string\] */]] interface{ ~int }
++	T4a /* ERROR illegal cycle */ [P T4a[P]]                                                        interface{ ~int }
++	T4b /* ERROR illegal cycle */ [P T4b[int]]                                                      interface{ ~int }
++	T4c /* ERROR illegal cycle */ [P T4c[string]] interface{ ~int }
+ 
+ 	// mutually recursive constraints
+-	T5[P T6[P]] interface{ int }
++	T5 /* ERROR illegal cycle */ [P T6[P]] interface{ int }
+ 	T6[P T5[P]] interface{ int }
+ )
+ 
+@@ -28,6 +28,6 @@ var (
+ 
+ // test case from issue
+ 
+-type Eq[a Eq[a]] interface {
++type Eq /* ERROR illegal cycle */ [a Eq[a]] interface {
+ 	Equal(that a) bool
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue48529.go2 b/src/go/types/testdata/fixedbugs/issue48529.go2
+index 4f92dec7fe..a3653fa19c 100644
+--- a/src/go/types/testdata/fixedbugs/issue48529.go2
++++ b/src/go/types/testdata/fixedbugs/issue48529.go2
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-type T[U interface{ M() T /* ERROR "got 2 arguments but 1 type parameters" */ [U, int] }] int
++type T /* ERROR illegal cycle */ [U interface{ M() T[U, int] }] int
+ 
+ type X int
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue49439.go2 b/src/go/types/testdata/fixedbugs/issue49439.go2
+new file mode 100644
+index 0000000000..6cc838b3b3
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49439.go2
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type T0 /* ERROR illegal cycle */ [P T0[P]] struct{}
++
++type T1 /* ERROR illegal cycle */ [P T2[P]] struct{}
++type T2[P T1[P]] struct{}
++
++type T3 /* ERROR illegal cycle */ [P interface{ ~struct{ f T3[int] } }] struct{}
++
++// valid cycle in M
++type N[P M[P]] struct{}
++type M[Q any] struct { F *M[Q] }
++
++// "crazy" case
++type TC[P [unsafe.Sizeof(func() {
++        type T [P [unsafe.Sizeof(func(){})]byte] struct{}
++})]byte] struct{}
++
++// test case from issue
++type X /* ERROR illegal cycle */ [T any, PT X[T]] interface{}

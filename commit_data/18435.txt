@@ -8,6 +8,33 @@ Date:   Sun Feb 9 13:56:47 2014 -0800
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/60530049
-
+---
  src/pkg/archive/zip/writer_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index 8b1c4dfd26..4bfa870809 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -125,3 +125,21 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+ 		t.Errorf("File contents %q, want %q", b, wt.Data)
+ 	}
+ }
++
++func BenchmarkCompressedZipGarbage(b *testing.B) {
++	b.ReportAllocs()
++	var buf bytes.Buffer
++	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		zw := NewWriter(&buf)
++		for j := 0; j < 3; j++ {
++			w, _ := zw.CreateHeader(&FileHeader{
++				Name:   "foo",
++				Method: Deflate,
++			})
++			w.Write(bigBuf)
++		}
++		zw.Close()
++	}
++}

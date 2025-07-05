@@ -7,7 +7,7 @@ Date:   Tue Jan 31 10:38:07 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5552054
-
+---
  src/Make.inc                                          |  4 ++--
  src/cmd/{goapi => api}/goapi.go                       |  2 +-
  src/cmd/{goapi => api}/goapi_test.go                  |  0
@@ -19,3 +19,116 @@ Date:   Tue Jan 31 10:38:07 2012 -0500
  src/make.bash                                         |  5 +++--
  src/pkg/runtime/autogen.sh                            |  4 ++--
  10 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 818801f686..1853b9465f 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -105,8 +105,8 @@ LD=$(QUOTED_GOROOT)/bin/go-tool/$(O)l
+ OS=568vq
+ CFLAGS=-FVw
+ 
+-HOST_CC=quietgcc
+-HOST_LD=quietgcc
++HOST_CC=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
++HOST_LD=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
+ HOST_O=o
+ HOST_YFLAGS=-d
+ HOST_AR?=ar
+diff --git a/src/cmd/goapi/goapi.go b/src/cmd/api/goapi.go
+similarity index 99%
+rename from src/cmd/goapi/goapi.go
+rename to src/cmd/api/goapi.go
+index a9fbbeac3d..c862280b2c 100644
+--- a/src/cmd/goapi/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Goapi computes the exported API of a set of Go packages.
++// Api computes the exported API of a set of Go packages.
+ package main
+ 
+ import (
+diff --git a/src/cmd/goapi/goapi_test.go b/src/cmd/api/goapi_test.go
+similarity index 100%
+rename from src/cmd/goapi/goapi_test.go
+rename to src/cmd/api/goapi_test.go
+diff --git a/src/cmd/goapi/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+similarity index 100%
+rename from src/cmd/goapi/testdata/src/pkg/p1/golden.txt
+rename to src/cmd/api/testdata/src/pkg/p1/golden.txt
+diff --git a/src/cmd/goapi/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+similarity index 100%
+rename from src/cmd/goapi/testdata/src/pkg/p1/p1.go
+rename to src/cmd/api/testdata/src/pkg/p1/p1.go
+diff --git a/src/cmd/goapi/testdata/src/pkg/p2/golden.txt b/src/cmd/api/testdata/src/pkg/p2/golden.txt
+similarity index 100%
+rename from src/cmd/goapi/testdata/src/pkg/p2/golden.txt
+rename to src/cmd/api/testdata/src/pkg/p2/golden.txt
+diff --git a/src/cmd/goapi/testdata/src/pkg/p2/p2.go b/src/cmd/api/testdata/src/pkg/p2/p2.go
+similarity index 100%
+rename from src/cmd/goapi/testdata/src/pkg/p2/p2.go
+rename to src/cmd/api/testdata/src/pkg/p2/p2.go
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d1bc8d5ce5..2a32e2aea4 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -229,9 +229,13 @@ Loop:
+ // isGoTool is the list of directories for Go programs that are installed in
+ // $GOROOT/bin/go-tool.
+ var isGoTool = map[string]bool{
+-	"cmd/fix":  true,
+-	"cmd/vet":  true,
+-	"cmd/yacc": true,
++	"cmd/api":      true,
++	"cmd/cgo":      true,
++	"cmd/fix":      true,
++	"cmd/vet":      true,
++	"cmd/yacc":     true,
++	"exp/gotype":   true,
++	"exp/ebnflint": true,
+ }
+ 
+ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
+diff --git a/src/make.bash b/src/make.bash
+index 2fdcb3b247..fafd843e02 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -44,10 +44,11 @@ export MAKEFLAGS
+ unset CDPATH	# in case user has it set
+ 
+ rm -f "$GOBIN"/quietgcc
++rm -f "$GOROOT/bin/go-tool/quietgcc"
+ CC=${CC:-gcc}
+ export CC
+-sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+-chmod +x "$GOBIN"/quietgcc
++sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOROOT"/bin/go-tool/quietgcc
++chmod +x "$GOROOT"/bin/go-tool/quietgcc
+ 
+ export GOMAKE="$GOROOT"/bin/go-tool/make
+ rm -f "$GOBIN"/gomake
+diff --git a/src/pkg/runtime/autogen.sh b/src/pkg/runtime/autogen.sh
+index ca443ba7dc..b2bb7ad2f1 100755
+--- a/src/pkg/runtime/autogen.sh
++++ b/src/pkg/runtime/autogen.sh
+@@ -27,7 +27,7 @@ if [ "$GOROOT" = "" ]; then
+ fi
+ 
+ # Use goc2c to translate .goc files into arch-specific .c files.
+-quietgcc -o goc2c -I "$GOROOT/include" goc2c.c "$GOROOT/lib/lib9.a"
++"$GOROOT"/bin/go-tool/quietgcc -o goc2c -I "$GOROOT/include" goc2c.c "$GOROOT/lib/lib9.a"
+ for file in *.goc
+ do
+ 	for arch in $GOARCHES
+@@ -39,7 +39,7 @@ do
+ done
+ 
+ # Version constants.
+-quietgcc -o mkversion -I "$GOROOT/include" mkversion.c "$GOROOT/lib/lib9.a"
++"$GOROOT"/bin/go-tool/quietgcc -o mkversion -I "$GOROOT/include" mkversion.c "$GOROOT/lib/lib9.a"
+ GOROOT="$GOROOT_FINAL" ./mkversion >z.tmp
+ mv z.tmp zversion.go
+ 

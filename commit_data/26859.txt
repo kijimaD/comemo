@@ -30,8 +30,110 @@ Date:   Sun Feb 28 15:51:11 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/TODO           |  2 +-
  src/cmd/compile/internal/ssa/func.go        | 39 ++++++++++++++++++-----------
  src/cmd/compile/internal/ssa/gen/rulegen.go |  2 ++
  3 files changed, 28 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 57bed9a9a3..4e39d1e9c3 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -47,7 +47,7 @@ Optimizations (better compiler)
+ -------------------------------
+ - Smaller Value.Type (int32 or ptr)?  Get rid of types altogether?
+ - OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
+-- Constant cache
++- Use a constant cache for OpConstNil, OpConstInterface, OpConstSlice, maybe OpConstString
+ - Handle signed division overflow and sign extension earlier
+ - Implement 64 bit const division with high multiply, maybe in the frontend?
+ - Add bit widths to complex ops
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 9441110769..7cc5f6c8d9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -35,6 +35,8 @@ type Func struct {
+ 
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
++
++	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+@@ -270,38 +272,47 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1,
+ 	return v
+ }
+ 
++// constVal returns a constant value for c.
++func (f *Func) constVal(line int32, op Op, t Type, c int64) *Value {
++	if f.constants == nil {
++		f.constants = make(map[int64][]*Value)
++	}
++	vv := f.constants[c]
++	for _, v := range vv {
++		if v.Op == op && v.Type.Equal(t) {
++			return v
++		}
++	}
++	v := f.Entry.NewValue0I(line, op, t, c)
++	f.constants[c] = append(vv, v)
++	return v
++}
++
+ // ConstInt returns an int constant representing its argument.
+ func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
+-	// TODO: cache?
+ 	i := int64(0)
+ 	if c {
+ 		i = 1
+ 	}
+-	return f.Entry.NewValue0I(line, OpConstBool, t, i)
++	return f.constVal(line, OpConstBool, t, i)
+ }
+ func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst8, t, int64(c))
++	return f.constVal(line, OpConst8, t, int64(c))
+ }
+ func (f *Func) ConstInt16(line int32, t Type, c int16) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst16, t, int64(c))
++	return f.constVal(line, OpConst16, t, int64(c))
+ }
+ func (f *Func) ConstInt32(line int32, t Type, c int32) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst32, t, int64(c))
++	return f.constVal(line, OpConst32, t, int64(c))
+ }
+ func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst64, t, c)
++	return f.constVal(line, OpConst64, t, c)
+ }
+ func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst32F, t, int64(math.Float64bits(c)))
++	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)))
+ }
+ func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
+-	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst64F, t, int64(math.Float64bits(c)))
++	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)))
+ }
+ 
+ func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 55287c187d..c2da3e6489 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -426,6 +426,8 @@ func genResult(w io.Writer, arch arch, result string) {
+ 	genResult0(w, arch, result, new(int), true, move)
+ }
+ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool) string {
++	// TODO: when generating a constant result, use f.constVal to avoid
++	// introducing copies just to clean them up again.
+ 	if result[0] != '(' {
+ 		// variable
+ 		if top {

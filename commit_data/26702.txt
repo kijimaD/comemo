@@ -9,7 +9,7 @@ Date:   Sat Feb 6 20:35:29 2016 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/prog.go  | 4 ++--
  src/cmd/compile/internal/gc/inl.go    | 2 +-
  src/cmd/compile/internal/gc/parser.go | 2 +-
@@ -25,3 +25,200 @@ Date:   Sat Feb 6 20:35:29 2016 +0900
  src/path/filepath/symlink.go          | 2 +-
  src/runtime/chan.go                   | 2 +-
  14 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 81be77a5b0..49a329b535 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -98,11 +98,11 @@ var progtable = [arm.ALAST]obj.ProgInfo{
+ 	arm.AMOVH: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	arm.AMOVW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+-	// In addtion, duffzero reads R0,R1 and writes R1.  This fact is
++	// In addition, duffzero reads R0,R1 and writes R1.  This fact is
+ 	// encoded in peep.c
+ 	obj.ADUFFZERO: {Flags: gc.Call},
+ 
+-	// In addtion, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
++	// In addition, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
+ 	// encoded in peep.c
+ 	obj.ADUFFCOPY: {Flags: gc.Call},
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 64afd67438..a445f712e2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -7,7 +7,7 @@
+ // saves a copy of the body. Then inlcalls walks each function body to
+ // expand calls to inlinable functions.
+ //
+-// The debug['l'] flag controls the agressiveness. Note that main() swaps level 0 and 1,
++// The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
+ // making 1 the default and -l disable.  -ll and more is useful to flush out bugs.
+ // These additional levels (beyond -l) may be buggy and are not supported.
+ //      0: disabled
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index f49f69c798..fbc5a5e1eb 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -5,7 +5,7 @@
+ package gc
+ 
+ // The recursive-descent parser is built around a slighty modified grammar
+-// of Go to accomodate for the constraints imposed by strict one token look-
++// of Go to accommodate for the constraints imposed by strict one token look-
+ // ahead, and for better error handling. Subsequent checks of the constructed
+ // syntax tree restrict the language accepted by the compiler to proper Go.
+ //
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 19a70e177e..1a51dc3b88 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -60,7 +60,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// Treat MRC 15, 0, <reg>, C13, C0, 3 specially.
+ 	case AMRC:
+ 		if p.To.Offset&0xffff0fff == 0xee1d0f70 {
+-			// Because the instruction might be rewriten to a BL which returns in R0
++			// Because the instruction might be rewritten to a BL which returns in R0
+ 			// the register must be zero.
+ 			if p.To.Offset&0xf000 != 0 {
+ 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index ee022b803a..dc57a6335a 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -14,7 +14,7 @@
+ // possible.
+ //
+ // Two sets of interfaces are included in this package. When a more abstract
+-// interface isn't neccessary, there are functions for encrypting/decrypting
++// interface isn't necessary, there are functions for encrypting/decrypting
+ // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
+ // over the public-key primitive, the PrivateKey struct implements the
+ // Decrypter and Signer interfaces from the crypto package.
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 7b42ff1a9d..f928ee6923 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -44,7 +44,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv Typ
+ 		scope = pkg.scope
+ 	} else {
+ 		// The package scope extent (position information) may be
+-		// incorrect (files spread accross a wide range of fset
++		// incorrect (files spread across a wide range of fset
+ 		// positions) - ignore it and just consider its children
+ 		// (file scopes).
+ 		for _, fscope := range pkg.scope.children {
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index db4b5f4510..d219bbd393 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -89,7 +89,7 @@ func (e WordEncoder) bEncode(buf *bytes.Buffer, charset, s string) {
+ 
+ 	var currentLen, last, runeLen int
+ 	for i := 0; i < len(s); i += runeLen {
+-		// Multi-byte characters must not be split accross encoded-words.
++		// Multi-byte characters must not be split across encoded-words.
+ 		// See RFC 2047, section 5.3.
+ 		_, runeLen = utf8.DecodeRuneInString(s[i:])
+ 
+@@ -119,7 +119,7 @@ func (e WordEncoder) qEncode(buf *bytes.Buffer, charset, s string) {
+ 	var currentLen, runeLen int
+ 	for i := 0; i < len(s); i += runeLen {
+ 		b := s[i]
+-		// Multi-byte characters must not be split accross encoded-words.
++		// Multi-byte characters must not be split across encoded-words.
+ 		// See RFC 2047, section 5.3.
+ 		var encLen int
+ 		if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {
+diff --git a/src/net/dnsmsg.go b/src/net/dnsmsg.go
+index 2ec4c8c301..5747fd232b 100644
+--- a/src/net/dnsmsg.go
++++ b/src/net/dnsmsg.go
+@@ -315,7 +315,7 @@ func (rr *dnsRR_TXT) Walk(f func(v interface{}, name, tag string) bool) bool {
+ 		if !f(&txt, "Txt", "") {
+ 			return false
+ 		}
+-		// more bytes than rr.Hdr.Rdlength said there woudld be
++		// more bytes than rr.Hdr.Rdlength said there would be
+ 		if rr.Hdr.Rdlength-n < uint16(len(txt))+1 {
+ 			return false
+ 		}
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index a2573df251..7e52adb607 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -167,7 +167,7 @@ func (s *Server) Close() {
+ 			// few milliseconds wasn't liked (early versions of
+ 			// https://golang.org/cl/15151) so now we just
+ 			// forcefully close StateNew. The docs for Server.Close say
+-			// we wait for "oustanding requests", so we don't close things
++			// we wait for "outstanding requests", so we don't close things
+ 			// in StateActive.
+ 			if st == http.StateIdle || st == http.StateNew {
+ 				s.closeConn(c)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1b5cda3159..e2d8d277e0 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1009,7 +1009,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 					w.closeAfterReply = true
+ 				}
+ 			default:
+-				// Some other kind of error occured, like a read timeout, or
++				// Some other kind of error occurred, like a read timeout, or
+ 				// corrupt chunked encoding. In any case, whatever remains
+ 				// on the wire must not be parsed as another HTTP request.
+ 				w.closeAfterReply = true
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index feedb3420d..03e9162b14 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1357,7 +1357,7 @@ type writeRequest struct {
+ 	req *transportRequest
+ 	ch  chan<- error
+ 
+-	// Optional blocking chan for Expect: 100-continue (for recieve).
++	// Optional blocking chan for Expect: 100-continue (for receive).
+ 	// If not nil, writeLoop blocks sending request body until
+ 	// it receives from this chan.
+ 	continueCh <-chan struct{}
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 5c073da991..2f7d48d5bd 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -177,7 +177,7 @@ func TestStatDir(t *testing.T) {
+ 	}
+ 
+ 	if !os.SameFile(fi, fi2) {
+-		t.Fatal("race condition occured")
++		t.Fatal("race condition occurred")
+ 	}
+ }
+ 
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index bc287c5ecb..f627a94ddb 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -100,7 +100,7 @@ func walkSymlinks(path string) (string, error) {
+ 			return "", err
+ 		}
+ 		if runtime.GOOS == "windows" {
+-			// walkLinks(".", ...) always retuns "." on unix.
++			// walkLinks(".", ...) always returns "." on unix.
+ 			// But on windows it returns symlink target, if current
+ 			// directory is a symlink. Stop the walk, if symlink
+ 			// target is not absolute path, and return "."
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 5be18beb23..063c5ce391 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -421,7 +421,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 
+ 	if sg := c.sendq.dequeue(); sg != nil {
+ 		// Found a waiting sender.  If buffer is size 0, receive value
+-		// directly from sender.  Otherwise, recieve from head of queue
++		// directly from sender.  Otherwise, receive from head of queue
+ 		// and add sender's value to the tail of the queue (both map to
+ 		// the same buffer slot because the queue is full).
+ 		recv(c, sg, ep, func() { unlock(&c.lock) })

@@ -9,6 +9,20 @@ Date:   Sun Aug 4 12:47:55 2019 +0530
     Change-Id: If0aa48f953633690884ddcff033b3be6d1d66443
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188541
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/response.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 2065a25015..cd9d796c26 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -66,7 +66,7 @@ type Response struct {
+ 	// The Body is automatically dechunked if the server replied
+ 	// with a "chunked" Transfer-Encoding.
+ 	//
+-	// As of Go 1.12, the Body will be also implement io.Writer
++	// As of Go 1.12, the Body will also implement io.Writer
+ 	// on a successful "101 Switching Protocols" response,
+ 	// as used by WebSockets and HTTP/2's "h2c" mode.
+ 	Body io.ReadCloser

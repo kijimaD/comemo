@@ -10,6 +10,17 @@ Date:   Fri May 1 21:56:28 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9642
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/nacltest.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index eb1ac3d908..049aad2ff2 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -78,3 +78,5 @@ GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ..
+ # Run standard build and tests.
+ export PATH=$(pwd)/../misc/nacl:$PATH
+ GOOS=nacl GOARCH=$naclGOARCH ./all.bash
++
++rm -f syscall/fstest_nacl.go

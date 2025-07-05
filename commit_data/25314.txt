@@ -14,6 +14,22 @@ Date:   Tue Oct 20 13:15:12 2015 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime2.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5d0aad0f69..d95a183f99 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -513,8 +513,8 @@ type _func struct {
+ 	entry   uintptr // start pc
+ 	nameoff int32   // function name
+ 
+-	args  int32 // in/out args size
+-	frame int32 // legacy frame size; use pcsp if possible
++	args int32 // in/out args size
++	_    int32 // Previously: legacy frame size. TODO: Remove this.
+ 
+ 	pcsp      int32
+ 	pcfile    int32

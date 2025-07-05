@@ -21,8 +21,107 @@ Date:   Fri Jul 24 11:00:36 2020 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  8 +++++++
  test/fixedbugs/issue40367.go          | 41 +++++++++++++++++++++++++++++++++++
  test/prove.go                         |  6 +++--
  3 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a8e43d0114..6c6be39d34 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1051,6 +1051,11 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
+ 	//
+ 	// If all of these conditions are true, then i1 < max and i1 >= min.
+ 
++	// To ensure this is a loop header node.
++	if len(b.Preds) != 2 {
++		return
++	}
++
+ 	for _, i1 := range b.Values {
+ 		if i1.Op != OpPhi {
+ 			continue
+@@ -1093,6 +1098,9 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
+ 				}
+ 				br = negative
+ 			}
++			if br == unknown {
++				continue
++			}
+ 
+ 			tr, has := domainRelationTable[control.Op]
+ 			if !has {
+diff --git a/test/fixedbugs/issue40367.go b/test/fixedbugs/issue40367.go
+new file mode 100644
+index 0000000000..0dc5ad7120
+--- /dev/null
++++ b/test/fixedbugs/issue40367.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func case1() {
++	rates := []int32{1,2,3,4,5,6}
++	var sink [6]int
++	j := len(sink)
++	for star, _ := range rates {
++		if star+1 < 1 {
++			panic("")
++		}
++		j--
++		sink[j] = j
++	}
++}
++
++func case2() {
++	i := 0
++	var sink [3]int
++	j := len(sink)
++top:
++	j--
++	sink[j] = j
++	if i < 2 {
++		i++
++		if i < 1 {
++			return
++		}
++		goto top
++	}
++}
++
++func main() {
++	case1()
++	case2()
++}
+\ No newline at end of file
+diff --git a/test/prove.go b/test/prove.go
+index d37021d283..3c19c513b6 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -670,7 +670,8 @@ func oforuntil(b []int) {
+ 	i := 0
+ 	if len(b) > i {
+ 	top:
+-		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
++		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
++		// println(b[i]) // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+ 		i++
+ 		if i < len(b) {
+ 			goto top
+@@ -720,7 +721,8 @@ func range1(b []int) {
+ // range2 elements are larger, so they use the general form of a range loop.
+ func range2(b [][32]int) {
+ 	for i, v := range b {
+-		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
++		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
++		b[i][0] = v[0] + 1 // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+ 		if i < len(b) {    // ERROR "Proved Less64$"
+ 			println("x")
+ 		}

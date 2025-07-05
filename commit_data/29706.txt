@@ -53,7 +53,74 @@ Date:   Mon Oct 3 12:45:12 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/append_test.go | 16 ++++++++++++++++
  src/runtime/slice.go       |  9 +++++++--
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/append_test.go b/src/runtime/append_test.go
+index 6b8968e382..6bd8f3bd95 100644
+--- a/src/runtime/append_test.go
++++ b/src/runtime/append_test.go
+@@ -100,6 +100,22 @@ func BenchmarkAppendSlice(b *testing.B) {
+ 	}
+ }
+ 
++var (
++	blackhole []byte
++)
++
++func BenchmarkAppendSliceLarge(b *testing.B) {
++	for _, length := range []int{1 << 10, 4 << 10, 16 << 10, 64 << 10, 256 << 10, 1024 << 10} {
++		y := make([]byte, length)
++		b.Run(fmt.Sprint(length, "Bytes"), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				blackhole = nil
++				blackhole = append(blackhole, y...)
++			}
++		})
++	}
++}
++
+ func BenchmarkAppendStr(b *testing.B) {
+ 	for _, str := range []string{
+ 		"1",
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index dd8dcb1873..7f4de450d2 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -111,19 +111,22 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		}
+ 	}
+ 
+-	var lenmem, capmem uintptr
++	var lenmem, newlenmem, capmem uintptr
+ 	const ptrSize = unsafe.Sizeof((*byte)(nil))
+ 	switch et.size {
+ 	case 1:
+ 		lenmem = uintptr(old.len)
++		newlenmem = uintptr(cap)
+ 		capmem = roundupsize(uintptr(newcap))
+ 		newcap = int(capmem)
+ 	case ptrSize:
+ 		lenmem = uintptr(old.len) * ptrSize
++		newlenmem = uintptr(cap) * ptrSize
+ 		capmem = roundupsize(uintptr(newcap) * ptrSize)
+ 		newcap = int(capmem / ptrSize)
+ 	default:
+ 		lenmem = uintptr(old.len) * et.size
++		newlenmem = uintptr(cap) * et.size
+ 		capmem = roundupsize(uintptr(newcap) * et.size)
+ 		newcap = int(capmem / et.size)
+ 	}
+@@ -136,7 +139,9 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	if et.kind&kindNoPointers != 0 {
+ 		p = mallocgc(capmem, nil, false)
+ 		memmove(p, old.array, lenmem)
+-		memclr(add(p, lenmem), capmem-lenmem)
++		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
++		// Only clear the part that will not be overwritten.
++		memclr(add(p, newlenmem), capmem-newlenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		p = mallocgc(capmem, et, true)

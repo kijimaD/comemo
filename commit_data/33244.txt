@@ -13,6 +13,22 @@ Date:   Wed Jun 7 11:42:36 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/runtime/hashmap_fast.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index 67b9787909..6f21624d32 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -635,8 +635,8 @@ again:
+ 			if b.tophash[i] != top {
+ 				if b.tophash[i] == empty && inserti == nil {
+ 					inserti = &b.tophash[i]
+-					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+-					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
++					insertk = add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize)
++					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+ 				}
+ 				continue
+ 			}

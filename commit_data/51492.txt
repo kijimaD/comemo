@@ -23,9 +23,174 @@ Date:   Wed Feb 2 16:31:26 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/382634
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 58 +++++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/lookup.go   |  5 ++-
  src/go/types/api_test.go                    | 58 +++++++++++++++++++++++++++++
  src/go/types/lookup.go                      |  5 ++-
  4 files changed, 122 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 80e998ebee..094374f7f1 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2369,3 +2369,61 @@ type Bad Bad // invalid type
+ 		}
+ 	}
+ }
++
++func TestMissingMethodAlternative(t *testing.T) {
++	const src = `
++package p
++type T interface {
++	m()
++}
++
++type V0 struct{}
++func (V0) m() {}
++
++type V1 struct{}
++
++type V2 struct{}
++func (V2) m() int
++
++type V3 struct{}
++func (*V3) m()
++
++type V4 struct{}
++func (V4) M()
++`
++
++	pkg, err := pkgFor("p.go", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
++	lookup := func(name string) (*Func, bool) {
++		return MissingMethod(pkg.Scope().Lookup(name).Type(), T, true)
++	}
++
++	// V0 has method m with correct signature. Should not report wrongType.
++	method, wrongType := lookup("V0")
++	if method != nil || wrongType {
++		t.Fatalf("V0: got method = %v, wrongType = %v", method, wrongType)
++	}
++
++	checkMissingMethod := func(tname string, reportWrongType bool) {
++		method, wrongType := lookup(tname)
++		if method == nil || method.Name() != "m" || wrongType != reportWrongType {
++			t.Fatalf("%s: got method = %v, wrongType = %v", tname, method, wrongType)
++		}
++	}
++
++	// V1 has no method m. Should not report wrongType.
++	checkMissingMethod("V1", false)
++
++	// V2 has method m with wrong signature type (ignoring receiver). Should report wrongType.
++	checkMissingMethod("V2", true)
++
++	// V3 has no method m but it exists on *V3. Should report wrongType.
++	checkMissingMethod("V3", true)
++
++	// V4 has no method m but has M. Should not report wrongType.
++	checkMissingMethod("V4", false)
++}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 80f085803e..fc6b34941a 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -281,8 +281,9 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ // x is of interface type V).
+ //
+ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+-	m, typ := (*Checker)(nil).missingMethod(V, T, static)
+-	return m, typ != nil
++	m, alt := (*Checker)(nil).missingMethod(V, T, static)
++	// Only report a wrong type if the alternative method has the same name as m.
++	return m, alt != nil && alt.name == m.name // alt != nil implies m != nil
+ }
+ 
+ // missingMethod is like MissingMethod but accepts a *Checker as receiver.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 5f4d48472c..a18ee16c7b 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2362,3 +2362,61 @@ type Bad Bad // invalid type
+ 		}
+ 	}
+ }
++
++func TestMissingMethodAlternative(t *testing.T) {
++	const src = `
++package p
++type T interface {
++	m()
++}
++
++type V0 struct{}
++func (V0) m() {}
++
++type V1 struct{}
++
++type V2 struct{}
++func (V2) m() int
++
++type V3 struct{}
++func (*V3) m()
++
++type V4 struct{}
++func (V4) M()
++`
++
++	pkg, err := pkgFor("p.go", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
++	lookup := func(name string) (*Func, bool) {
++		return MissingMethod(pkg.Scope().Lookup(name).Type(), T, true)
++	}
++
++	// V0 has method m with correct signature. Should not report wrongType.
++	method, wrongType := lookup("V0")
++	if method != nil || wrongType {
++		t.Fatalf("V0: got method = %v, wrongType = %v", method, wrongType)
++	}
++
++	checkMissingMethod := func(tname string, reportWrongType bool) {
++		method, wrongType := lookup(tname)
++		if method == nil || method.Name() != "m" || wrongType != reportWrongType {
++			t.Fatalf("%s: got method = %v, wrongType = %v", tname, method, wrongType)
++		}
++	}
++
++	// V1 has no method m. Should not report wrongType.
++	checkMissingMethod("V1", false)
++
++	// V2 has method m with wrong signature type (ignoring receiver). Should report wrongType.
++	checkMissingMethod("V2", true)
++
++	// V3 has no method m but it exists on *V3. Should report wrongType.
++	checkMissingMethod("V3", true)
++
++	// V4 has no method m but has M. Should not report wrongType.
++	checkMissingMethod("V4", false)
++}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index b08308088c..77e8fe9df5 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -281,8 +281,9 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ // x is of interface type V).
+ //
+ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+-	m, typ := (*Checker)(nil).missingMethod(V, T, static)
+-	return m, typ != nil
++	m, alt := (*Checker)(nil).missingMethod(V, T, static)
++	// Only report a wrong type if the alternative method has the same name as m.
++	return m, alt != nil && alt.name == m.name // alt != nil implies m != nil
+ }
+ 
+ // missingMethod is like MissingMethod but accepts a *Checker as receiver.

@@ -7,7 +7,34 @@ Date:   Mon Jul 27 04:13:19 2015 +0300
     Change-Id: I2c21b012534be20443157c6b77ef21bd585902b0
     Reviewed-on: https://go-review.googlesource.com/12636
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6862707390..1ca176b953 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -94,7 +94,7 @@ Brendan Daniel Tracey <tracey.brendan@gmail.com>
+ Brett Cannon <bcannon@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
+-Brian Gitonga Marete <marete@toshnix.com>
++Brian Gitonga Marete <marete@toshnix.com> <bgmarete@gmail.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Smith <ohohvi@gmail.com>
+ Bryan Ford <brynosaurus@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index bffcaf8933..f3f53f11c3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -140,7 +140,7 @@ Brendan O'Dea <bod@golang.org>
+ Brett Cannon <bcannon@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
+-Brian Gitonga Marete <marete@toshnix.com>
++Brian Gitonga Marete <marete@toshnix.com> <bgmarete@gmail.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
+ Brian Smith <ohohvi@gmail.com>

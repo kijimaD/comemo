@@ -9,6 +9,24 @@ Date:   Wed Oct 28 11:43:15 2015 +1300
     Change-Id: I80ebce9094e084a4746039106ccf1ad9c4b8bb7c
     Reviewed-on: https://go-review.googlesource.com/16384
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/x86/reg.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/x86/reg.go b/src/cmd/compile/internal/x86/reg.go
+index b3a5fdf4e0..76d90b8e89 100644
+--- a/src/cmd/compile/internal/x86/reg.go
++++ b/src/cmd/compile/internal/x86/reg.go
+@@ -62,7 +62,11 @@ func regnames(n *int) []string {
+ }
+ 
+ func excludedregs() uint64 {
+-	return RtoB(x86.REG_SP)
++	if gc.Ctxt.Flag_shared != 0 {
++		return RtoB(x86.REG_SP) | RtoB(x86.REG_CX)
++	} else {
++		return RtoB(x86.REG_SP)
++	}
+ }
+ 
+ func doregbits(r int) uint64 {

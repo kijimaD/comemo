@@ -10,6 +10,23 @@ Date:   Wed Mar 7 00:02:07 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5754060
-
+---
  src/pkg/net/multicast_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index fe5e8de2f6..67261b1ee7 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -90,6 +90,11 @@ func TestSimpleMulticastListener(t *testing.T) {
+ 	case "plan9":
+ 		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
++	case "windows":
++		if testing.Short() || !*testExternal {
++			t.Logf("skipping test on windows to avoid firewall")
++			return
++		}
+ 	}
+ 
+ 	for _, tt := range multicastListenerTests {

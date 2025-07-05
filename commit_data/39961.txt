@@ -13,8 +13,87 @@ Date:   Fri Apr 5 10:23:15 2019 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/fakedb_test.go |  4 +++-
  src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
  src/database/sql/sql_test.go    | 15 +++++++++++++++
  3 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index dcdd264baa..f30edc00ea 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1158,7 +1158,9 @@ func converterForType(typ string) driver.ValueConverter {
+ 		// TODO(coopernurse): add type-specific converter
+ 		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "datetime":
+-		return driver.DefaultParameterConverter
++		return driver.NotNull{Converter: driver.DefaultParameterConverter}
++	case "nulldatetime":
++		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "any":
+ 		return anyTypeConverter{}
+ 	}
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 8cdc903c68..3b3ac27436 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -286,6 +286,32 @@ func (n NullBool) Value() (driver.Value, error) {
+ 	return n.Bool, nil
+ }
+ 
++// NullTime represents a time.Time that may be null.
++// NullTime implements the Scanner interface so
++// it can be used as a scan destination, similar to NullString.
++type NullTime struct {
++	Time  time.Time
++	Valid bool // Valid is true if Time is not NULL
++}
++
++// Scan implements the Scanner interface.
++func (n *NullTime) Scan(value interface{}) error {
++	if value == nil {
++		n.Time, n.Valid = time.Time{}, false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.Time, value)
++}
++
++// Value implements the driver Valuer interface.
++func (n NullTime) Value() (driver.Value, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return n.Time, nil
++}
++
+ // Scanner is an interface used by Scan.
+ type Scanner interface {
+ 	// Scan assigns a value from a database driver.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 64b9dfea5c..c07c5d3bd2 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1695,6 +1695,21 @@ func TestNullBoolParam(t *testing.T) {
+ 	nullTestRun(t, spec)
+ }
+ 
++func TestNullTimeParam(t *testing.T) {
++	t0 := time.Time{}
++	t1 := time.Date(2000, 1, 1, 8, 9, 10, 11, time.UTC)
++	t2 := time.Date(2010, 1, 1, 8, 9, 10, 11, time.UTC)
++	spec := nullTestSpec{"nulldatetime", "datetime", [6]nullTestRow{
++		{NullTime{t1, true}, t2, NullTime{t1, true}},
++		{NullTime{t1, false}, t2, NullTime{t0, false}},
++		{t1, t2, NullTime{t1, true}},
++		{NullTime{t1, true}, t2, NullTime{t1, true}},
++		{NullTime{t1, false}, t2, NullTime{t0, false}},
++		{t2, NullTime{t1, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
+ func nullTestRun(t *testing.T, spec nullTestSpec) {
+ 	db := newTestDB(t, "")
+ 	defer closeDB(t, db)

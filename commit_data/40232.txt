@@ -14,6 +14,40 @@ Date:   Sat Apr 27 11:45:11 2019 +0200
     Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/syscall/exec_windows.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index c78bad8e00..8d6141c0ca 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -219,10 +219,12 @@ type ProcAttr struct {
+ }
+ 
+ type SysProcAttr struct {
+-	HideWindow    bool
+-	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
+-	CreationFlags uint32
+-	Token         Token // if set, runs new process in the security context represented by the token
++	HideWindow        bool
++	CmdLine           string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
++	CreationFlags     uint32
++	Token             Token               // if set, runs new process in the security context represented by the token
++	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
++	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
+ }
+ 
+ var zeroProcAttr ProcAttr
+@@ -323,9 +325,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 
+ 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
+ 	if sys.Token != 0 {
+-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
++		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+ 	} else {
+-		err = CreateProcess(argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
++		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+ 	}
+ 	if err != nil {
+ 		return 0, 0, err

@@ -12,7 +12,7 @@ Date:   Wed Nov 17 20:17:55 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instantiate.go                    | 21 +++++++++----------
  src/go/types/testdata/check/issues.go2         |  6 +++---
  src/go/types/testdata/check/typeinst2.go2      | 28 +++++++++++++-------------
@@ -21,3 +21,237 @@ Date:   Wed Nov 17 20:17:55 2021 -0500
  src/go/types/testdata/fixedbugs/issue45920.go2 |  4 ++--
  src/go/types/testdata/fixedbugs/issue47411.go2 | 10 ++++-----
  7 files changed, 37 insertions(+), 38 deletions(-)
+
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 63b4a1ea4a..011fb8e540 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -188,18 +188,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	// type set of V is not empty
+ 
+ 	// No type with non-empty type set satisfies the empty type set.
+-	// TODO(gri) should use "implements" rather than "satisfies" throughout
+ 	if Ti.typeSet().IsEmpty() {
+-		return errorf("%s does not satisfy %s (constraint type set is empty)", V, T)
++		return errorf("cannot implement %s (empty type set)", T)
+ 	}
+ 
+ 	// If T is comparable, V must be comparable.
+-	// TODO(gri) the error messages needs to be better, here
++	// TODO(gri) the error messages could be better, here
+ 	if Ti.IsComparable() && !Comparable(V) {
+-		if Vi != nil && Vi.typeSet().IsAll() {
+-			return errorf("%s has no constraints", V)
++		if Vi != nil && Vi.Empty() {
++			return errorf("empty interface %s does not implement %s", V, T)
+ 		}
+-		return errorf("%s does not satisfy comparable", V)
++		return errorf("%s does not implement comparable", V)
+ 	}
+ 
+ 	// V must implement T (methods)
+@@ -209,16 +208,16 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+ 			//           (print warning for now)
+ 			// Old warning:
+-			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
++			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
+ 			if wrong != nil {
+ 				// TODO(gri) This can still report uninstantiated types which makes the error message
+ 				//           more difficult to read then necessary.
+ 				// TODO(rFindley) should this use parentheses rather than ':' for qualification?
+-				return errorf("%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
++				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
+ 					V, T, wrong, m,
+ 				)
+ 			}
+-			return errorf("%s does not satisfy %s (missing method %s)", V, T, m.name)
++			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
+ 		}
+ 	}
+ 
+@@ -234,7 +233,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	if Vi != nil {
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+-			return errorf("%s does not satisfy %s", V, T)
++			return errorf("%s does not implement %s", V, T)
+ 		}
+ 		return nil
+ 	}
+@@ -242,7 +241,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	// Otherwise, V's type must be included in the iface type set.
+ 	if !Ti.typeSet().includes(V) {
+ 		// TODO(gri) report which type is missing
+-		return errorf("%s does not satisfy %s", V, T)
++		return errorf("%s does not implement %s", V, T)
+ 	}
+ 
+ 	return nil
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index b7bba5d3b1..fdb49d55f2 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -59,7 +59,7 @@ func _() {
+ type T1[P interface{~uint}] struct{}
+ 
+ func _[P any]() {
+-    _ = T1[P /* ERROR P has no constraints */ ]{}
++    _ = T1[P /* ERROR empty interface P does not implement interface{~uint} */ ]{}
+ }
+ 
+ // This is the original (simplified) program causing the same issue.
+@@ -75,8 +75,8 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
+-func NewT2[U any]() T2[U /* ERROR U has no constraints */ ] {
+-    return T2[U /* ERROR U has no constraints */ ]{}
++func NewT2[U any]() T2[U /* ERROR empty interface U does not implement Unsigned */ ] {
++    return T2[U /* ERROR empty interface U does not implement Unsigned */ ]{}
+ }
+ 
+ func _() {
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index f07c42a1da..1c3eb21b22 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -208,7 +208,7 @@ func f0[T I0]() {}
+ var _ = f0[int]
+ var _ = f0[bool]
+ var _ = f0[string]
+-var _ = f0[float64 /* ERROR does not satisfy I0 */ ]
++var _ = f0[float64 /* ERROR does not implement I0 */ ]
+ 
+ type I01 interface {
+ 	E0
+@@ -217,9 +217,9 @@ type I01 interface {
+ 
+ func f01[T I01]() {}
+ var _ = f01[int]
+-var _ = f01[bool /* ERROR does not satisfy I0 */ ]
++var _ = f01[bool /* ERROR does not implement I0 */ ]
+ var _ = f01[string]
+-var _ = f01[float64 /* ERROR does not satisfy I0 */ ]
++var _ = f01[float64 /* ERROR does not implement I0 */ ]
+ 
+ type I012 interface {
+ 	E0
+@@ -228,10 +228,10 @@ type I012 interface {
+ }
+ 
+ func f012[T I012]() {}
+-var _ = f012[int /* ERROR does not satisfy I012.*type set is empty */ ]
+-var _ = f012[bool /* ERROR does not satisfy I012.*type set is empty */ ]
+-var _ = f012[string /* ERROR does not satisfy I012.*type set is empty */ ]
+-var _ = f012[float64 /* ERROR does not satisfy I012.*type set is empty */ ]
++var _ = f012[int /* ERROR cannot implement I012.*empty type set */ ]
++var _ = f012[bool /* ERROR cannot implement I012.*empty type set */ ]
++var _ = f012[string /* ERROR cannot implement I012.*empty type set */ ]
++var _ = f012[float64 /* ERROR cannot implement I012.*empty type set */ ]
+ 
+ type I12 interface {
+ 	E1
+@@ -239,9 +239,9 @@ type I12 interface {
+ }
+ 
+ func f12[T I12]() {}
+-var _ = f12[int /* ERROR does not satisfy I12 */ ]
+-var _ = f12[bool /* ERROR does not satisfy I12 */ ]
+-var _ = f12[string /* ERROR does not satisfy I12 */ ]
++var _ = f12[int /* ERROR does not implement I12 */ ]
++var _ = f12[bool /* ERROR does not implement I12 */ ]
++var _ = f12[string /* ERROR does not implement I12 */ ]
+ var _ = f12[float64]
+ 
+ type I0_ interface {
+@@ -251,9 +251,9 @@ type I0_ interface {
+ 
+ func f0_[T I0_]() {}
+ var _ = f0_[int]
+-var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
+-var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
+-var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
++var _ = f0_[bool /* ERROR does not implement I0_ */ ]
++var _ = f0_[string /* ERROR does not implement I0_ */ ]
++var _ = f0_[float64 /* ERROR does not implement I0_ */ ]
+ 
+ // Using a function instance as a type is an error.
+ var _ f0 // ERROR not a type
+@@ -271,7 +271,7 @@ func gg[T any]() {}
+ func hh[T ~int]() {}
+ 
+ func _[T none]() {
+-        _ = ff[int /* ERROR int does not satisfy none \(constraint type set is empty\) */ ]
++        _ = ff[int /* ERROR cannot implement none \(empty type set\) */ ]
+         _ = ff[T]  // pathological but ok because T's type set is empty, too
+         _ = gg[int]
+         _ = gg[T]
+diff --git a/src/go/types/testdata/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+index 73246b0137..ffa30ee2cb 100644
+--- a/src/go/types/testdata/examples/inference.go2
++++ b/src/go/types/testdata/examples/inference.go2
+@@ -97,7 +97,7 @@ func _() {
+ 	// last.
+ 	related2(1.2, []float64{})
+ 	related2(1.0, []int{})
+-	related2 /* ERROR does not satisfy */ (float64(1.0), []int{})
++	related2 /* ERROR does not implement */ (float64(1.0), []int{}) // TODO(gri) fix error position
+ }
+ 
+ type List[P any] []P
+diff --git a/src/go/types/testdata/fixedbugs/issue39754.go2 b/src/go/types/testdata/fixedbugs/issue39754.go2
+index 4b4420d997..cecbc88043 100644
+--- a/src/go/types/testdata/fixedbugs/issue39754.go2
++++ b/src/go/types/testdata/fixedbugs/issue39754.go2
+@@ -16,9 +16,9 @@ func f[V interface{}, A, B Box[V]]() {}
+ 
+ func _() {
+ 	f[int, Optional[int], Optional[int]]()
+-	_ = f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]
++	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
+ 	// TODO(gri) Provide better position information here.
+ 	//           See TODO in call.go, Checker.arguments.
+ 	// TODO(rFindley) Reconcile this error position with types2.
+-	f /* ERROR does not satisfy Box */ [int, Optional[int], Optional[string]]()
++	f /* ERROR does not implement Box */ [int, Optional[int], Optional[string]]()
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue45920.go2 b/src/go/types/testdata/fixedbugs/issue45920.go2
+index 60a9e83fa9..a0e2d0c970 100644
+--- a/src/go/types/testdata/fixedbugs/issue45920.go2
++++ b/src/go/types/testdata/fixedbugs/issue45920.go2
+@@ -8,10 +8,10 @@ func f1[T any, C chan T | <-chan T](ch C) {}
+ 
+ func _(ch chan int)   { f1(ch) }
+ func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1 /* ERROR chan<- int does not satisfy chan int\|<-chan int */ (ch) }
++func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int\|<-chan int */ (ch) }
+ 
+ func f2[T any, C chan T | chan<- T](ch C) {}
+ 
+ func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2 /* ERROR <-chan int does not satisfy chan int\|chan<- int */ (ch) }
++func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int\|chan<- int */ (ch) }
+ func _(ch chan<- int) { f2(ch) }
+diff --git a/src/go/types/testdata/fixedbugs/issue47411.go2 b/src/go/types/testdata/fixedbugs/issue47411.go2
+index fde704bb41..d6c34be8db 100644
+--- a/src/go/types/testdata/fixedbugs/issue47411.go2
++++ b/src/go/types/testdata/fixedbugs/issue47411.go2
+@@ -15,12 +15,12 @@ func _[P comparable,
+         _ = f[int]
+         _ = f[P]
+         _ = f[Q]
+-        _ = f[func /* ERROR does not satisfy comparable */ ()]
+-        _ = f[R /* ERROR R has no constraints */ ]
++        _ = f[func /* ERROR does not implement comparable */ ()]
++        _ = f[R /* ERROR empty interface R does not implement comparable */ ]
+ 
+         _ = g[int]
+-	_ = g[P /* ERROR P does not satisfy interface{interface{comparable; ~int\|~string} */ ]
++        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
+         _ = g[Q]
+-        _ = g[func /* ERROR does not satisfy comparable */()]
+-        _ = g[R /* ERROR R has no constraints */ ]
++        _ = g[func /* ERROR does not implement comparable */ ()]
++        _ = g[R /* ERROR empty interface R does not implement interface{interface{comparable; ~int\|~string} */ ]
+ }

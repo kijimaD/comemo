@@ -30,6 +30,20 @@ Date:   Wed Jun 16 14:34:54 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 7723250468..8d01b913c3 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -68,7 +68,7 @@ func TestAllDependencies(t *testing.T) {
+ 
+ 			// There is no vendor directory, so the module must have no dependencies.
+ 			// Check that the list of active modules contains only the main module.
+-			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
++			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
+ 			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+ 			cmd.Dir = m.Dir
+ 			cmd.Stderr = new(strings.Builder)

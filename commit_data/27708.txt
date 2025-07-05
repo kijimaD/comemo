@@ -15,7 +15,7 @@ Date:   Sun Mar 27 17:29:53 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go       | 10 +++++-----
  src/runtime/crash_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/error.go      | 13 ++++++++++++-
@@ -24,3 +24,198 @@ Date:   Sun Mar 27 17:29:53 2016 -0700
  src/runtime/proc.go       |  2 +-
  src/runtime/select.go     |  2 +-
  7 files changed, 68 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 954b389f47..8543cb4c9c 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -64,7 +64,7 @@ func makechan(t *chantype, size int64) *hchan {
+ 		throw("makechan: bad alignment")
+ 	}
+ 	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
+-		panic("makechan: size out of range")
++		panic(plainError("makechan: size out of range"))
+ 	}
+ 
+ 	var c *hchan
+@@ -171,7 +171,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 
+ 	if c.closed != 0 {
+ 		unlock(&c.lock)
+-		panic("send on closed channel")
++		panic(plainError("send on closed channel"))
+ 	}
+ 
+ 	if sg := c.recvq.dequeue(); sg != nil {
+@@ -231,7 +231,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		if c.closed == 0 {
+ 			throw("chansend: spurious wakeup")
+ 		}
+-		panic("send on closed channel")
++		panic(plainError("send on closed channel"))
+ 	}
+ 	gp.param = nil
+ 	if mysg.releasetime > 0 {
+@@ -302,13 +302,13 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
+ 
+ func closechan(c *hchan) {
+ 	if c == nil {
+-		panic("close of nil channel")
++		panic(plainError("close of nil channel"))
+ 	}
+ 
+ 	lock(&c.lock)
+ 	if c.closed != 0 {
+ 		unlock(&c.lock)
+-		panic("close of closed channel")
++		panic(plainError("close of closed channel"))
+ 	}
+ 
+ 	if raceenabled {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 85fcc69fed..2941b8e8f8 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -273,6 +273,52 @@ func TestGoexitInPanic(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 14965: Runtime panics should be of type runtime.Error
++func TestRuntimePanicWithRuntimeError(t *testing.T) {
++	testCases := [...]func(){
++		0: func() {
++			var m map[uint64]bool
++			m[1234] = true
++		},
++		1: func() {
++			ch := make(chan struct{})
++			close(ch)
++			close(ch)
++		},
++		2: func() {
++			var ch = make(chan struct{})
++			close(ch)
++			ch <- struct{}{}
++		},
++		3: func() {
++			var s = make([]int, 2)
++			_ = s[2]
++		},
++		4: func() {
++			n := -1
++			_ = make(chan bool, n)
++		},
++		5: func() {
++			close((chan bool)(nil))
++		},
++	}
++
++	for i, fn := range testCases {
++		got := panicValue(fn)
++		if _, ok := got.(runtime.Error); !ok {
++			t.Errorf("test #%d: recovered value %v(type %T) does not implement runtime.Error", i, got, got)
++		}
++	}
++}
++
++func panicValue(fn func()) (recovered interface{}) {
++	defer func() {
++		recovered = recover()
++	}()
++	fn()
++	return
++}
++
+ func TestPanicAfterGoexit(t *testing.T) {
+ 	// an uncaught panic should still work after goexit
+ 	output := runTestProg(t, "testprog", "PanicAfterGoexit")
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 3e1ec4bc5a..15f6bdf014 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -50,6 +50,17 @@ func (e errorString) Error() string {
+ 	return "runtime error: " + string(e)
+ }
+ 
++// plainError represents a runtime error described a string without
++// the prefix "runtime error: " after invoking errorString.Error().
++// See Issue #14965.
++type plainError string
++
++func (e plainError) RuntimeError() {}
++
++func (e plainError) Error() string {
++	return string(e)
++}
++
+ type stringer interface {
+ 	String() string
+ }
+@@ -82,5 +93,5 @@ func printany(i interface{}) {
+ 
+ // called from generated code
+ func panicwrap(pkg, typ, meth string) {
+-	panic("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer")
++	panic(plainError("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer"))
+ }
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 80b2b5338c..9e18192cd8 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -194,7 +194,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 	}
+ 
+ 	if hint < 0 || int64(int32(hint)) != hint {
+-		panic("makemap: size out of range")
++		panic(plainError("makemap: size out of range"))
+ 		// TODO: make hint an int, then none of this nonsense
+ 	}
+ 
+@@ -428,7 +428,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 
+ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 	if h == nil {
+-		panic("assignment to entry in nil map")
++		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5f1e2f64c0..ee4728c9a5 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -793,7 +793,7 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+ 		flags |= flagNoScan
+ 	}
+ 	if int(n) < 0 || (typ.size > 0 && n > _MaxMem/typ.size) {
+-		panic("runtime: allocation size out of range")
++		panic(plainError("runtime: allocation size out of range"))
+ 	}
+ 	return mallocgc(typ.size*n, typ, flags)
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1f55b0fa21..1a9dbd6c53 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -381,7 +381,7 @@ func badmcall2(fn func(*g)) {
+ }
+ 
+ func badreflectcall() {
+-	panic("runtime: arg size to reflect.call more than 1GB")
++	panic(plainError("arg size to reflect.call more than 1GB"))
+ }
+ 
+ func lockedOSThread() bool {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index c80c833b15..9810db5453 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -594,7 +594,7 @@ retc:
+ sclose:
+ 	// send on closed channel
+ 	selunlock(scases, lockorder)
+-	panic("send on closed channel")
++	panic(plainError("send on closed channel"))
+ }
+ 
+ func (c *hchan) sortkey() uintptr {

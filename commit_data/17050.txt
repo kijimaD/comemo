@@ -7,6 +7,20 @@ Date:   Tue Aug 6 14:43:36 2013 +0400
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/12502044
-
+---
  src/pkg/net/tcp_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index dedd41df94..c2a3bb3e11 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -330,7 +330,7 @@ func TestTCPConcurrentAccept(t *testing.T) {
+ }
+ 
+ func TestTCPReadWriteMallocs(t *testing.T) {
+-	maxMallocs := 0
++	maxMallocs := 10000
+ 	switch runtime.GOOS {
+ 	// Add other OSes if you know how many mallocs they do.
+ 	case "windows":

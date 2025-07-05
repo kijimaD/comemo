@@ -7,6 +7,63 @@ Date:   Fri Feb 19 08:21:21 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/216052
-
+---
  src/pkg/http/persist.go | 20 +++++++++++++++++++-
  1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/persist.go b/src/pkg/http/persist.go
+index a4da3da657..8bfc097558 100644
+--- a/src/pkg/http/persist.go
++++ b/src/pkg/http/persist.go
+@@ -45,6 +45,8 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
+ // called before Read has signaled the end of the keep-alive logic. The user
+ // should not call Close while Read or Write is in progress.
+ func (sc *ServerConn) Close() (c net.Conn, r *bufio.Reader) {
++	sc.lk.Lock()
++	defer sc.lk.Unlock()
+ 	c = sc.c
+ 	r = sc.r
+ 	sc.c = nil
+@@ -111,6 +113,14 @@ func (sc *ServerConn) Read() (req *Request, err os.Error) {
+ 	return
+ }
+ 
++// Pending returns the number of unanswered requests
++// that have been received on the connection.
++func (sc *ServerConn) Pending() int {
++	sc.lk.Lock()
++	defer sc.lk.Unlock()
++	return sc.nread - sc.nwritten
++}
++
+ // Write writes a repsonse. To close the connection gracefully, set the
+ // Response.Close field to true. Write should be considered operational until
+ // it returns an error, regardless of any errors returned on the Read side.
+@@ -176,11 +186,11 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ // called before the user or Read have signaled the end of the keep-alive
+ // logic. The user should not call Close while Read or Write is in progress.
+ func (cc *ClientConn) Close() (c net.Conn, r *bufio.Reader) {
++	cc.lk.Lock()
+ 	c = cc.c
+ 	r = cc.r
+ 	cc.c = nil
+ 	cc.r = nil
+-	cc.lk.Lock()
+ 	cc.reqm.Init()
+ 	cc.lk.Unlock()
+ 	return
+@@ -228,6 +238,14 @@ func (cc *ClientConn) Write(req *Request) os.Error {
+ 	return nil
+ }
+ 
++// Pending returns the number of unanswered requests
++// that have been sent on the connection.
++func (cc *ClientConn) Pending() int {
++	cc.lk.Lock()
++	defer cc.lk.Unlock()
++	return cc.nwritten - cc.nread
++}
++
+ // Read reads the next response from the wire. A valid response might be
+ // returned together with an ErrPersistEOF, which means that the remote
+ // requested that this be the last request serviced. Read can be called

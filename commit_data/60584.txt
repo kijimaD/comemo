@@ -19,9 +19,88 @@ Date:   Wed Apr 10 11:37:56 2024 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  9 +++++++++
  src/cmd/internal/obj/loong64/a.out.go           |  6 ++++++
  src/cmd/internal/obj/loong64/anames.go          |  4 ++++
  src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
  4 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index e648d178dd..e16bd78fee 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -269,3 +269,12 @@ lable2:
+ 	AMMAXDBVU	R14, (R13), R12 // acb97038
+ 	AMMINDBWU	R14, (R13), R12 // ac397138
+ 	AMMINDBVU	R14, (R13), R12 // acb97138
++
++	FMINF	F4, F5, F6		// a6900a01
++	FMINF	F4, F5			// a5900a01
++	FMIND	F4, F5, F6		// a6100b01
++	FMIND	F4, F5			// a5100b01
++	FMAXF	F4, F5, F6		// a6900801
++	FMAXF	F4, F5			// a5900801
++	FMAXD	F4, F5, F6		// a6100901
++	FMAXD	F4, F5			// a5100901
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index cf5c74fde2..9309a3b09a 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -440,6 +440,12 @@ const (
+ 	ARDTIMED
+ 	ACPUCFG
+ 
++	// 3.2.1.3
++	AFMINF
++	AFMIND
++	AFMAXF
++	AFMAXD
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 9bfc57e239..42d9ea4d18 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -179,5 +179,9 @@ var Anames = []string{
+ 	"RDTIMEHW",
+ 	"RDTIMED",
+ 	"CPUCFG",
++	"FMINF",
++	"FMIND",
++	"FMAXF",
++	"FMAXD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 8c9ff2096e..c0f9dee380 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1052,6 +1052,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASUBF, r0)
+ 			opset(ASUBD, r0)
+ 			opset(AADDD, r0)
++			opset(AFMINF, r0)
++			opset(AFMIND, r0)
++			opset(AFMAXF, r0)
++			opset(AFMAXD, r0)
+ 
+ 		case AAND:
+ 			opset(AOR, r0)
+@@ -1872,6 +1876,14 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x0c2<<20 | 0x3<<15 // FCMP.SLT.D
+ 	case ACMPGTF:
+ 		return 0x0c1<<20 | 0x3<<15 // FCMP.SLT.S
++	case AFMINF:
++		return 0x215 << 15 // fmin.s
++	case AFMIND:
++		return 0x216 << 15 // fmin.d
++	case AFMAXF:
++		return 0x211 << 15 // fmax.s
++	case AFMAXD:
++		return 0x212 << 15 // fmax.d
+ 	}
+ 
+ 	if a < 0 {

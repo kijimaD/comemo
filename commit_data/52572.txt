@@ -16,6 +16,21 @@ Date:   Sun May 8 23:26:28 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/stack.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b7df231722..3a22dcd552 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1346,7 +1346,8 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		if p != nil {
+ 			n := *(*uintptr)(p)
+ 			p = add(p, goarch.PtrSize)
+-			*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
++			r0 := (*stackObjectRecord)(noescape(p))
++			objs = unsafe.Slice(r0, int(n))
+ 			// Note: the noescape above is needed to keep
+ 			// getStackMap from "leaking param content:
+ 			// frame".  That leak propagates up to getgcmask, then

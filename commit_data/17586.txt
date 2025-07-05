@@ -50,7 +50,7 @@ Date:   Thu Sep 12 14:00:16 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13367052
-
+---
  src/cmd/5l/noop.c           |  59 ++++++++++++
  src/cmd/6l/pass.c           |  32 ++++++-
  src/cmd/8l/pass.c           |  32 ++++++-
@@ -71,3 +71,835 @@ Date:   Thu Sep 12 14:00:16 2013 -0400
  src/pkg/runtime/stack.c     |  13 ++-
  test/recover.go             | 216 +++++++++++++++++++++++++++++++++++++++++++-
  19 files changed, 394 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 7b63aa7156..0bd76040d3 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -271,6 +271,35 @@ noops(void)
+ 				p->to.offset = -autosize;
+ 				p->to.reg = REGSP;
+ 				p->spadj = autosize;
++				
++				if(cursym->text->reg & WRAPPER) {
++					// g->panicwrap += autosize;
++					// MOVW panicwrap_offset(g), R3
++					// ADD $autosize, R3
++					// MOVW R3 panicwrap_offset(g)
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_OREG;
++					p->from.reg = REGG;
++					p->from.offset = 2*PtrSize;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++				
++					p = appendp(p);
++					p->as = AADD;
++					p->from.type = D_CONST;
++					p->from.offset = autosize;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++					
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_REG;
++					p->from.reg = 3;
++					p->to.type = D_OREG;
++					p->to.reg = REGG;
++					p->to.offset = 2*PtrSize;
++				}
+ 				break;
+ 	
+ 			case ARET:
+@@ -290,6 +319,36 @@ noops(void)
+ 						break;
+ 					}
+ 				}
++
++				if(cursym->text->reg & WRAPPER) {
++					// g->panicwrap -= autosize;
++					// MOVW panicwrap_offset(g), R3
++					// SUB $autosize, R3
++					// MOVW R3 panicwrap_offset(g)
++					p->as = AMOVW;
++					p->from.type = D_OREG;
++					p->from.reg = REGG;
++					p->from.offset = 2*PtrSize;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++					p = appendp(p);
++				
++					p->as = ASUB;
++					p->from.type = D_CONST;
++					p->from.offset = autosize;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++					p = appendp(p);
++
++					p->as = AMOVW;
++					p->from.type = D_REG;
++					p->from.reg = 3;
++					p->to.type = D_OREG;
++					p->to.reg = REGG;
++					p->to.offset = 2*PtrSize;
++					p = appendp(p);
++				}
++
+ 				p->as = AMOVW;
+ 				p->scond |= C_PBIT;
+ 				p->from.type = D_OREG;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index d24672432f..1be3c18fe2 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -511,11 +511,12 @@ dostkoff(void)
+ 			diag("nosplit func likely to overflow stack");
+ 
+ 		q = P;
+-		if(!(p->from.scale & NOSPLIT)) {
++		if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {
+ 			p = appendp(p);
+ 			p = load_g_cx(p); // load g into CX
+-			p = stacksplit(p, autoffset, &q); // emit split check
+ 		}
++		if(!(cursym->text->from.scale & NOSPLIT))
++			p = stacksplit(p, autoffset, &q); // emit split check
+ 
+ 		if(autoffset) {
+ 			p = appendp(p);
+@@ -523,8 +524,6 @@ dostkoff(void)
+ 			p->from.type = D_CONST;
+ 			p->from.offset = autoffset;
+ 			p->spadj = autoffset;
+-			if(q != P)
+-				q->pcond = p;
+ 		} else {
+ 			// zero-byte stack adjustment.
+ 			// Insert a fake non-zero adjustment so that stkcheck can
+@@ -536,7 +535,19 @@ dostkoff(void)
+ 			p->as = ANOP;
+ 			p->spadj = PtrSize;
+ 		}
++		if(q != P)
++			q->pcond = p;
+ 		deltasp = autoffset;
++		
++		if(cursym->text->from.scale & WRAPPER) {
++			// g->panicwrap += autoffset + PtrSize;
++			p = appendp(p);
++			p->as = AADDL;
++			p->from.type = D_CONST;
++			p->from.offset = autoffset + PtrSize;
++			p->to.type = D_INDIR+D_CX;
++			p->to.offset = 2*PtrSize;
++		}
+ 
+ 		if(debug['K'] > 1 && autoffset) {
+ 			// 6l -KK means double-check for stack overflow
+@@ -654,6 +665,19 @@ dostkoff(void)
+ 	
+ 			if(autoffset != deltasp)
+ 				diag("unbalanced PUSH/POP");
++
++			if(cursym->text->from.scale & WRAPPER) {
++				p = load_g_cx(p);
++				p = appendp(p);
++				// g->panicwrap -= autoffset + PtrSize;
++				p->as = ASUBL;
++				p->from.type = D_CONST;
++				p->from.offset = autoffset + PtrSize;
++				p->to.type = D_INDIR+D_CX;
++				p->to.offset = 2*PtrSize;
++				p = appendp(p);
++				p->as = ARET;
++			}
+ 	
+ 			if(autoffset) {
+ 				p->as = AADJSP;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index b558ffaa9d..1eaf78fe0a 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -444,11 +444,12 @@ dostkoff(void)
+ 
+ 		q = P;
+ 
+-		if(!(p->from.scale & NOSPLIT)) {
++		if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {
+ 			p = appendp(p);
+ 			p = load_g_cx(p); // load g into CX
+-			p = stacksplit(p, autoffset, &q); // emit split check
+ 		}
++		if(!(cursym->text->from.scale & NOSPLIT))
++			p = stacksplit(p, autoffset, &q); // emit split check
+ 
+ 		if(autoffset) {
+ 			p = appendp(p);
+@@ -456,8 +457,6 @@ dostkoff(void)
+ 			p->from.type = D_CONST;
+ 			p->from.offset = autoffset;
+ 			p->spadj = autoffset;
+-			if(q != P)
+-				q->pcond = p;
+ 		} else {
+ 			// zero-byte stack adjustment.
+ 			// Insert a fake non-zero adjustment so that stkcheck can
+@@ -469,8 +468,20 @@ dostkoff(void)
+ 			p->as = ANOP;
+ 			p->spadj = PtrSize;
+ 		}
++		if(q != P)
++			q->pcond = p;
+ 		deltasp = autoffset;
+ 		
++		if(cursym->text->from.scale & WRAPPER) {
++			// g->panicwrap += autoffset + PtrSize;
++			p = appendp(p);
++			p->as = AADDL;
++			p->from.type = D_CONST;
++			p->from.offset = autoffset + PtrSize;
++			p->to.type = D_INDIR+D_CX;
++			p->to.offset = 2*PtrSize;
++		}
++		
+ 		if(debug['Z'] && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
+ 			// 8l -Z means zero the stack frame on entry.
+ 			// This slows down function calls but can help avoid
+@@ -540,6 +551,19 @@ dostkoff(void)
+ 	
+ 			if(autoffset != deltasp)
+ 				diag("unbalanced PUSH/POP");
++
++			if(cursym->text->from.scale & WRAPPER) {
++				p = load_g_cx(p);
++				p = appendp(p);
++				// g->panicwrap -= autoffset + PtrSize;
++				p->as = ASUBL;
++				p->from.type = D_CONST;
++				p->from.offset = autoffset + PtrSize;
++				p->to.type = D_INDIR+D_CX;
++				p->to.offset = 2*PtrSize;
++				p = appendp(p);
++				p->as = ARET;
++			}
+ 	
+ 			if(autoffset) {
+ 				p->as = AADJSP;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 103aedb41e..ba73508b8f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -272,6 +272,7 @@ struct	Node
+ 	uchar	implicit;
+ 	uchar	addrtaken;	// address taken, even if not moved to heap
+ 	uchar	dupok;	// duplicate definitions ok (for func)
++	uchar	wrapper;	// is method wrapper (for func)
+ 	schar	likely; // likeliness of if statement
+ 	uchar	hasbreak;	// has break statement
+ 	uchar	needzero; // if it contains pointers, needs to be zeroed on function entry
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index d649fc49da..0fbac84cf6 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -95,7 +95,18 @@ compile(Node *fn)
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+ 	if(fn->dupok)
+-		ptxt->TEXTFLAG = DUPOK;
++		ptxt->TEXTFLAG |= DUPOK;
++	if(fn->wrapper)
++		ptxt->TEXTFLAG |= WRAPPER;
++
++	// Clumsy but important.
++	// See test/recover.go for test cases and src/pkg/reflect/value.go
++	// for the actual functions being considered.
++	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
++		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
++			ptxt->TEXTFLAG |= WRAPPER;
++	}	
++	
+ 	afunclit(&ptxt->from, curfn->nname);
+ 
+ 	ginit();
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 54fddbb909..3b3b576312 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2588,6 +2588,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		n->left = newname(methodsym(method->sym, methodrcvr, 0));
+ 		fn->nbody = list(fn->nbody, n);
+ 	} else {
++		fn->wrapper = 1; // ignore frame for panic+recover matching
+ 		call = nod(OCALL, dot, N);
+ 		call->list = args;
+ 		call->isddd = isddd;
+diff --git a/src/cmd/ld/textflag.h b/src/cmd/ld/textflag.h
+index 64ae647fb6..1d62db7368 100644
+--- a/src/cmd/ld/textflag.h
++++ b/src/cmd/ld/textflag.h
+@@ -17,3 +17,5 @@
+ #define RODATA	8
+ // This data contains no pointers.
+ #define NOPTR	16
++// This is a wrapper function and should not count as disabling 'recover'.
++#define WRAPPER 32
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index ef814966e7..75413c7521 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -8,7 +8,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),NOSPLIT,$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+@@ -19,7 +19,7 @@ TEXT ·makeFuncStub(SB),NOSPLIT,$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),NOSPLIT,$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 1aa10440c3..7129598437 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -8,7 +8,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),NOSPLIT,$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+@@ -19,7 +19,7 @@ TEXT ·makeFuncStub(SB),NOSPLIT,$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),NOSPLIT,$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index 5e456ea2c3..68ded4ac6b 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -8,7 +8,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),NOSPLIT,$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+@@ -19,7 +19,7 @@ TEXT ·makeFuncStub(SB),NOSPLIT,$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),NOSPLIT,$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index dbecc59da8..20fc459e59 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -497,6 +497,10 @@ func (v Value) call(op string, in []Value) []Value {
+ // frame into a call using Values.
+ // It is in this file so that it can be next to the call method above.
+ // The remainder of the MakeFunc implementation is in makefunc.go.
++//
++// NOTE: This function must be marked as a "wrapper" in the generated code,
++// so that the linker can make it work correctly for panic and recover.
++// The gc compilers know to do that for the name "reflect.callReflect".
+ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 	ftyp := ctxt.typ
+ 	f := ctxt.fn
+@@ -650,6 +654,10 @@ func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
+ // to deal with individual Values for each argument.
+ // It is in this file so that it can be next to the two similar functions above.
+ // The remainder of the makeMethodValue implementation is in makefunc.go.
++//
++// NOTE: This function must be marked as a "wrapper" in the generated code,
++// so that the linker can make it work correctly for panic and recover.
++// The gc compilers know to do that for the name "reflect.callMethod".
+ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 	t, fn, rcvr := methodReceiver("call", ctxt.rcvr, ctxt.method)
+ 	total, in, outOffset, out := frameSize(t, true)
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 79f2e79296..5c642c0ed8 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -340,7 +340,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-12
+ 	JMP	AX
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), 0, $MAXSIZE-12;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index a85056c9ea..2c2ffedd1e 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -319,7 +319,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-20
+ 	JMP	AX
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), 0, $MAXSIZE-20;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	/* copy arguments to stack */		\
+ 	MOVQ	argptr+8(FP), SI;		\
+ 	MOVLQZX argsize+16(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index b66f80e2c6..f483e6fc8a 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -300,7 +300,7 @@ TEXT reflect·call(SB), NOSPLIT, $-4-12
+ 	B	(R1)
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), 0, $MAXSIZE-12;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
+ 	/* copy arguments to stack */		\
+ 	MOVW	argptr+4(FP), R0;		\
+ 	MOVW	argsize+8(FP), R2;		\
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index c14d52016c..a1e91d3d8f 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -339,69 +339,27 @@ runtime·unwindstack(G *gp, byte *sp)
+ void
+ runtime·recover(byte *argp, Eface ret)
+ {
+-	Stktop *top, *oldtop;
+ 	Panic *p;
++	Stktop *top;
+ 
+-	// Must be a panic going on.
+-	if((p = g->panic) == nil || p->recovered)
+-		goto nomatch;
+-
+-	// Frame must be at the top of the stack segment,
+-	// because each deferred call starts a new stack
+-	// segment as a side effect of using reflect.call.
+-	// (There has to be some way to remember the
+-	// variable argument frame size, and the segment
+-	// code already takes care of that for us, so we
+-	// reuse it.)
+-	//
+-	// As usual closures complicate things: the fp that
+-	// the closure implementation function claims to have
+-	// is where the explicit arguments start, after the
+-	// implicit pointer arguments and PC slot.
+-	// If we're on the first new segment for a closure,
+-	// then fp == top - top->args is correct, but if
+-	// the closure has its own big argument frame and
+-	// allocated a second segment (see below),
+-	// the fp is slightly above top - top->args.
+-	// That condition can't happen normally though
+-	// (stack pointers go down, not up), so we can accept
+-	// any fp between top and top - top->args as
+-	// indicating the top of the segment.
++	// Must be an unrecovered panic in progress.
++	// Must be on a stack segment created for a deferred call during a panic.
++	// Must be at the top of that segment, meaning the deferred call itself
++	// and not something it called. The top frame in the segment will have
++	// argument pointer argp == top - top->argsize.
++	// The subtraction of g->panicwrap allows wrapper functions that
++	// do not count as official calls to adjust what we consider the top frame
++	// while they are active on the stack. The linker emits adjustments of
++	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
+ 	top = (Stktop*)g->stackbase;
+-	if(argp < (byte*)top - top->argsize || (byte*)top < argp)
+-		goto nomatch;
+-
+-	// The deferred call makes a new segment big enough
+-	// for the argument frame but not necessarily big
+-	// enough for the function's local frame (size unknown
+-	// at the time of the call), so the function might have
+-	// made its own segment immediately.  If that's the
+-	// case, back top up to the older one, the one that
+-	// reflect.call would have made for the panic.
+-	//
+-	// The fp comparison here checks that the argument
+-	// frame that was copied during the split (the top->args
+-	// bytes above top->fp) abuts the old top of stack.
+-	// This is a correct test for both closure and non-closure code.
+-	oldtop = (Stktop*)top->stackbase;
+-	if(oldtop != nil && top->argp == (byte*)oldtop - top->argsize)
+-		top = oldtop;
+-
+-	// Now we have the segment that was created to
+-	// run this call.  It must have been marked as a panic segment.
+-	if(!top->panic)
+-		goto nomatch;
+-
+-	// Okay, this is the top frame of a deferred call
+-	// in response to a panic.  It can see the panic argument.
+-	p->recovered = 1;
+-	ret = p->arg;
+-	FLUSH(&ret);
+-	return;
+-
+-nomatch:
+-	ret.type = nil;
+-	ret.data = nil;
++	p = g->panic;
++	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
++		p->recovered = 1;
++		ret = p->arg;
++	} else {
++		ret.type = nil;
++		ret.data = nil;
++	}
+ 	FLUSH(&ret);
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d37014f3a5..0edd7e0ac9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1773,6 +1773,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	newg->gopc = (uintptr)callerpc;
+ 	newg->status = Grunnable;
+ 	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
++	newg->panicwrap = 0;
+ 	if(raceenabled)
+ 		newg->racectx = runtime·racegostart((void*)callerpc);
+ 	runqput(m->p, newg);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 151804f2a6..9974fa3269 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -250,6 +250,8 @@ struct	G
+ 	// stackguard0 can be set to StackPreempt as opposed to stackguard
+ 	uintptr	stackguard0;	// cannot move - also known to linker, libmach, runtime/cgo
+ 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
++	uint32	panicwrap;	// cannot move - also known to linker
++	uint32	selgen;		// valid sudog pointer
+ 	Defer*	defer;
+ 	Panic*	panic;
+ 	Gobuf	sched;
+@@ -264,7 +266,6 @@ struct	G
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+ 	int64	goid;
+-	uint32	selgen;		// valid sudog pointer
+ 	int8*	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+ 	bool	ispanic;
+@@ -403,6 +404,7 @@ struct	Stktop
+ 	uintptr	stackbase;
+ 	Gobuf	gobuf;
+ 	uint32	argsize;
++	uint32	panicwrap;
+ 
+ 	uint8*	argp;	// pointer to arguments in old frame
+ 	uintptr	free;	// if free>0, call stackfree using free as size
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 6b34f091e1..011c616bac 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -174,6 +174,7 @@ runtime·oldstack(void)
+ 	gp->stackbase = top->stackbase;
+ 	gp->stackguard = top->stackguard;
+ 	gp->stackguard0 = gp->stackguard;
++	gp->panicwrap = top->panicwrap;
+ 
+ 	if(top->free != 0) {
+ 		gp->stacksize -= top->free;
+@@ -195,7 +196,7 @@ void
+ runtime·newstack(void)
+ {
+ 	int32 framesize, argsize, oldstatus;
+-	Stktop *top;
++	Stktop *top, *oldtop;
+ 	byte *stk;
+ 	uintptr sp;
+ 	uintptr *src, *dst, *dstend;
+@@ -316,6 +317,16 @@ runtime·newstack(void)
+ 	// copy flag from panic
+ 	top->panic = gp->ispanic;
+ 	gp->ispanic = false;
++	
++	// if this isn't a panic, maybe we're splitting the stack for a panic.
++	// if we're splitting in the top frame, propagate the panic flag
++	// forward so that recover will know we're in a panic.
++	oldtop = (Stktop*)top->stackbase;
++	if(oldtop != nil && oldtop->panic && top->argp == (byte*)oldtop - oldtop->argsize - gp->panicwrap)
++		top->panic = true;
++
++	top->panicwrap = gp->panicwrap;
++	gp->panicwrap = 0;
+ 
+ 	gp->stackbase = (uintptr)top;
+ 	gp->stackguard = (uintptr)stk + StackGuard;
+diff --git a/test/recover.go b/test/recover.go
+index 7c27d7c4d6..dc8bcfe801 100644
+--- a/test/recover.go
++++ b/test/recover.go
+@@ -10,6 +10,7 @@ package main
+ 
+ import (
+ 	"os"
++	"reflect"
+ 	"runtime"
+ )
+ 
+@@ -26,15 +27,39 @@ func main() {
+ 	test6()
+ 	test6WithClosures()
+ 	test7()
++	test8()
++	test9()
++	test9reflect1()
++	test9reflect2()
++	test10()
++	test10reflect1()
++	test10reflect2()
++	test11()
++	test11reflect1()
++	test11reflect2()
++	test12()
++	test12reflect1()
++	test12reflect2()
++	test13()
++	test13reflect1()
++	test13reflect2()
++	test14()
++	test14reflect1()
++	test14reflect2()
++	test15()
+ }
+ 
+ func die() {
+ 	runtime.Breakpoint() // can't depend on panic
+ }
+ 
+-func mustRecover(x interface{}) {
+-	mustNotRecover() // because it's not a defer call
+-	v := recover()
++func mustRecoverBody(v1, v2, v3, x interface{}) {
++	v := v1
++	if v != nil {
++		println("spurious recover", v)
++		die()
++	}
++	v = v2
+ 	if v == nil {
+ 		println("missing recover")
+ 		die() // panic is useless here
+@@ -45,13 +70,21 @@ func mustRecover(x interface{}) {
+ 	}
+ 
+ 	// the value should be gone now regardless
+-	v = recover()
++	v = v3
+ 	if v != nil {
+ 		println("recover didn't recover")
+ 		die()
+ 	}
+ }
+ 
++func doubleRecover() interface{} {
++	return recover()
++}
++
++func mustRecover(x interface{}) {
++	mustRecoverBody(doubleRecover(), recover(), recover(), x)
++}
++
+ func mustNotRecover() {
+ 	v := recover()
+ 	if v != nil {
+@@ -277,3 +310,178 @@ func test8() {
+ 		die()
+ 	}
+ }
++
++type I interface{ M() }
++
++// pointer receiver, so no wrapper in i.M()
++type T1 struct {}
++
++func (*T1) M() {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 9)
++}
++
++func test9() {
++	var i I = &T1{}
++	defer i.M()
++	panic(9)
++}
++
++func test9reflect1() {
++	f := reflect.ValueOf(&T1{}).Method(0).Interface().(func())
++	defer f()
++	panic(9)
++}
++
++func test9reflect2() {
++	f := reflect.TypeOf(&T1{}).Method(0).Func.Interface().(func(*T1))
++	defer f(&T1{})
++	panic(9)
++}
++
++// word-sized value receiver, so no wrapper in i.M()
++type T2 uintptr
++
++func (T2) M() {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 10)
++}
++
++func test10() {
++	var i I = T2(0)
++	defer i.M()
++	panic(10)
++}
++
++func test10reflect1() {
++	f := reflect.ValueOf(T2(0)).Method(0).Interface().(func())
++	defer f()
++	panic(10)
++}
++
++func test10reflect2() {
++	f := reflect.TypeOf(T2(0)).Method(0).Func.Interface().(func(T2))
++	defer f(T2(0))
++	panic(10)
++}
++
++// tiny receiver, so basic wrapper in i.M()
++type T3 struct {}
++
++func (T3) M() {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 11)
++}
++
++func test11() {
++	var i I = T3{}
++	defer i.M()
++	panic(11)
++}
++
++func test11reflect1() {
++	f := reflect.ValueOf(T3{}).Method(0).Interface().(func())
++	defer f()
++	panic(11)
++}
++
++func test11reflect2() {
++	f := reflect.TypeOf(T3{}).Method(0).Func.Interface().(func(T3))
++	defer f(T3{})
++	panic(11)
++}
++
++// large receiver, so basic wrapper in i.M()
++type T4 [2]string
++
++func (T4) M() {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 12)
++}
++
++func test12() {
++	var i I = T4{}
++	defer i.M()
++	panic(12)
++}
++
++func test12reflect1() {
++	f := reflect.ValueOf(T4{}).Method(0).Interface().(func())
++	defer f()
++	panic(12)
++}
++
++func test12reflect2() {
++	f := reflect.TypeOf(T4{}).Method(0).Func.Interface().(func(T4))
++	defer f(T4{})
++	panic(12)
++}
++
++// enormous receiver, so wrapper splits stack to call M
++type T5 [8192]byte
++
++func (T5) M() {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 13)
++}
++
++func test13() {
++	var i I = T5{}
++	defer i.M()
++	panic(13)
++}
++
++func test13reflect1() {
++	f := reflect.ValueOf(T5{}).Method(0).Interface().(func())
++	defer f()
++	panic(13)
++}
++
++func test13reflect2() {
++	f := reflect.TypeOf(T5{}).Method(0).Func.Interface().(func(T5))
++	defer f(T5{})
++	panic(13)
++}
++
++// enormous receiver + enormous method frame, so wrapper splits stack to call M,
++// and then M splits stack to allocate its frame.
++// recover must look back two frames to find the panic.
++type T6 [8192]byte
++
++var global byte
++
++func (T6) M() {
++	var x [8192]byte
++	x[0] = 1
++	x[1] = 2
++	for i := range x {
++		global += x[i]
++	}
++	mustRecoverBody(doubleRecover(), recover(), recover(), 14)
++}
++
++func test14() {
++	var i I = T6{}
++	defer i.M()
++	panic(14)
++}
++
++func test14reflect1() {
++	f := reflect.ValueOf(T6{}).Method(0).Interface().(func())
++	defer f()
++	panic(14)
++}
++
++func test14reflect2() {
++	f := reflect.TypeOf(T6{}).Method(0).Func.Interface().(func(T6))
++	defer f(T6{})
++	panic(14)
++}
++
++// function created by reflect.MakeFunc
++
++func reflectFunc(args []reflect.Value) (results []reflect.Value) {
++	mustRecoverBody(doubleRecover(), recover(), recover(), 15)
++	return nil
++}
++
++func test15() {
++	f := reflect.MakeFunc(reflect.TypeOf((func())(nil)), reflectFunc).Interface().(func())
++	defer f()
++	panic(15)
++}

@@ -5,6 +5,20 @@ Date:   Thu Jun 12 13:37:54 2008 -0700
     remove reference to 9ar
     
     SVN=122486
-
+---
  src/cmd/cc/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index e81c2afc02..cf52c8818a 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -37,7 +37,7 @@ OFILES=\
+ 	compat.$O\
+ 
+ $(LIB): $(OFILES)
+-	9ar rsc $(LIB) $(OFILES)
++	ar rsc $(LIB) $(OFILES)
+ 
+ $(OFILES): $(HFILES)
+ 

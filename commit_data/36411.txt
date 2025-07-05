@@ -10,6 +10,20 @@ Date:   Wed Apr 25 11:07:29 2018 -0700
     Change-Id: I7b6799e0a95475202cacefc3a7f02487e61bfd31
     Reviewed-on: https://go-review.googlesource.com/109355
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index d0090bc3fe..710a796cc0 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -819,7 +819,7 @@ func TestRuntimeTypeAttr(t *testing.T) {
+ 	}
+ 
+ 	// Explicitly test external linking, for dsymutil compatility on Darwin.
+-	for _, flags := range []string{"-ldflags=linkmode=internal", "-ldflags=-linkmode=external"} {
++	for _, flags := range []string{"-ldflags=-linkmode=internal", "-ldflags=-linkmode=external"} {
+ 		t.Run("flags="+flags, func(t *testing.T) {
+ 			if runtime.GOARCH == "ppc64" && strings.Contains(flags, "external") {
+ 				t.Skip("-linkmode=external not supported on ppc64")

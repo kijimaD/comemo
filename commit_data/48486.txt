@@ -24,6 +24,28 @@ Date:   Thu May 20 18:03:49 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/buildcfg/exp.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 417d87cf4a..11cd05f2ed 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -29,7 +29,7 @@ var experimentBaseline = goexperiment.Flags{
+ 	RegabiWrappers: regabiSupported,
+ 	RegabiG:        regabiSupported,
+ 	RegabiReflect:  regabiSupported,
+-	RegabiDefer:    regabiSupported,
++	RegabiDefer:    true,
+ 	RegabiArgs:     regabiSupported,
+ }
+ 
+@@ -103,7 +103,6 @@ func parseExperiments() goexperiment.Flags {
+ 		flags.RegabiWrappers = false
+ 		flags.RegabiG = false
+ 		flags.RegabiReflect = false
+-		flags.RegabiDefer = false
+ 		flags.RegabiArgs = false
+ 	}
+ 	// Check regabi dependencies.

@@ -12,6 +12,22 @@ Date:   Tue Jan 23 17:54:57 2018 -0700
     Change-Id: I00acada1a3ba01ef701d6d4ffae6cc2cbb6a068f
     Reviewed-on: https://go-review.googlesource.com/89375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  lib/time/update.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 16552fb6f9..b54fc9e4f6 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -16,8 +16,8 @@ rm -rf work
+ mkdir work
+ cd work
+ mkdir zoneinfo
+-curl -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
+-curl -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
++curl -L -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
++curl -L -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
+ tar xzf tzcode$CODE.tar.gz
+ tar xzf tzdata$DATA.tar.gz
+ 

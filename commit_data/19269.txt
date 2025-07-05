@@ -22,7 +22,7 @@ Date:   Fri May 2 17:32:42 2014 +0100
     R=minux.ma, rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/93720045
-
+---
  src/pkg/runtime/asm_386.s      |  3 +++
  src/pkg/runtime/asm_amd64.s    |  3 +++
  src/pkg/runtime/asm_amd64p32.s |  3 +++
@@ -31,3 +31,116 @@ Date:   Fri May 2 17:32:42 2014 +0100
  src/pkg/runtime/mgc0.c         |  4 +++-
  src/pkg/runtime/mgc0.go        |  7 +++++++
  7 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index e7ea093a41..dae241a15b 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -2146,3 +2146,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	ADDL	$4,DI
+ 	
+ 	RET
++
++TEXT runtime·timenow(SB), NOSPLIT, $0-0
++	JMP	time·now(SB)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index eeda9aa7f4..27abb37cdb 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -2179,3 +2179,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	ADDQ	$8,DI
+ 
+ 	RET
++
++TEXT runtime·timenow(SB), NOSPLIT, $0-0
++	JMP	time·now(SB)
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 47e1d52a8b..775ffccf14 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -1064,3 +1064,6 @@ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ eqret:
+ 	MOVB	AX, ret+24(FP)
+ 	RET
++
++TEXT runtime·timenow(SB), NOSPLIT, $0-0
++	JMP	time·now(SB)
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index e1464a07b2..c691b04a85 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -747,3 +747,6 @@ _sib_notfound:
+ 	MOVW	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
++
++TEXT runtime·timenow(SB), NOSPLIT, $0-0
++	B	time·now(SB)
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 75322478e4..58717ecf7e 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"runtime"
+ 	"runtime/debug"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestGcSys(t *testing.T) {
+@@ -152,6 +153,18 @@ func TestGcRescan(t *testing.T) {
+ 	}
+ }
+ 
++func TestGcLastTime(t *testing.T) {
++	ms := new(runtime.MemStats)
++	t0 := time.Now().UnixNano()
++	runtime.GC()
++	t1 := time.Now().UnixNano()
++	runtime.ReadMemStats(ms)
++	last := int64(ms.LastGC)
++	if t0 > last || last > t1 {
++		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
++	}
++}
++
+ func BenchmarkSetTypeNoPtr1(b *testing.B) {
+ 	type NoPtr1 struct {
+ 		p uintptr
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 359d426fc8..70c0c933ad 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -91,6 +91,8 @@ enum {
+ // Initialized from $GOGC.  GOGC=off means no gc.
+ static int32 gcpercent = GcpercentUnknown;
+ 
++void runtime·gc_unixnanotime(int64 *now);
++
+ static FuncVal* poolcleanup;
+ 
+ void
+@@ -2404,7 +2406,7 @@ gc(struct gc_args *args)
+ 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+ 
+ 	t4 = runtime·nanotime();
+-	mstats.last_gc = t4;
++	runtime·gc_unixnanotime((int64*)&mstats.last_gc);  // must be Unix time to make sense to user
+ 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+ 	mstats.pause_total_ns += t4 - t0;
+ 	mstats.numgc++;
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+index 00b2710166..624485d18b 100644
+--- a/src/pkg/runtime/mgc0.go
++++ b/src/pkg/runtime/mgc0.go
+@@ -18,3 +18,10 @@ func gc_g_ptr(ret *interface{}) {
+ func gc_itab_ptr(ret *interface{}) {
+ 	*ret = (*itab)(nil)
+ }
++
++func timenow() (sec int64, nsec int32)
++
++func gc_unixnanotime(now *int64) {
++	sec, nsec := timenow()
++	*now = sec*1e9 + int64(nsec)
++}

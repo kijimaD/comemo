@@ -8,9 +8,117 @@ Date:   Tue Sep 2 20:03:48 2014 +0400
     R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/133240043
-
+---
  src/pkg/runtime/mgc0.c   | 33 ---------------------------------
  src/pkg/runtime/mgc0.go  | 29 +++++++++++++++++++++++++++++
  src/pkg/runtime/stubs.go |  1 -
  src/pkg/runtime/thunk.s  |  3 +++
  4 files changed, 32 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 0aacbcebaf..4d75ed5a2e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -82,39 +82,6 @@ enum {
+ // Initialized from $GOGC.  GOGC=off means no gc.
+ extern int32 runtime·gcpercent;
+ 
+-static FuncVal* poolcleanup;
+-
+-void
+-sync·runtime_registerPoolCleanup(FuncVal *f)
+-{
+-	poolcleanup = f;
+-}
+-
+-void
+-runtime·clearpools(void)
+-{
+-	P *p, **pp;
+-	MCache *c;
+-	int32 i;
+-
+-	// clear sync.Pool's
+-	if(poolcleanup != nil)
+-		reflect·call(poolcleanup, nil, 0, 0);
+-
+-	for(pp=runtime·allp; p=*pp; pp++) {
+-		// clear tinyalloc pool
+-		c = p->mcache;
+-		if(c != nil) {
+-			c->tiny = nil;
+-			c->tinysize = 0;
+-			c->sudogcache = nil;
+-		}
+-		// clear defer pools
+-		for(i=0; i<nelem(p->deferpool); i++)
+-			p->deferpool[i] = nil;
+-	}
+-}
+-
+ // Holding worldsema grants an M the right to try to stop the world.
+ // The procedure is:
+ //
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+index 275c7ed676..93af63e63e 100644
+--- a/src/pkg/runtime/mgc0.go
++++ b/src/pkg/runtime/mgc0.go
+@@ -39,3 +39,32 @@ func freeOSMemory() {
+ 	gogc(2) // force GC and do eager sweep
+ 	onM(&scavenge_m)
+ }
++
++var poolcleanup func()
++
++func registerPoolCleanup(f func()) {
++	poolcleanup = f
++}
++
++func clearpools() {
++	// clear sync.Pools
++	if poolcleanup != nil {
++		poolcleanup()
++	}
++
++	for _, p := range &allp {
++		if p == nil {
++			break
++		}
++		// clear tinyalloc pool
++		if c := p.mcache; c != nil {
++			c.tiny = nil
++			c.tinysize = 0
++			c.sudogcache = nil
++		}
++		// clear defer pools
++		for i := range p.deferpool {
++			p.deferpool[i] = nil
++		}
++	}
++}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 2e5c0481ab..e057eb0659 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -110,7 +110,6 @@ const (
+ func gosched()
+ func starttheworld()
+ func stoptheworld()
+-func clearpools()
+ 
+ // exported value for testing
+ var hashLoad = loadFactor
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 75e52c81c1..57943ea997 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -38,6 +38,9 @@ TEXT sync·runtime_Semacquire(SB),NOSPLIT,$0-0
+ TEXT sync·runtime_Semrelease(SB),NOSPLIT,$0-0
+ 	JMP	runtime·asyncsemrelease(SB)
+ 
++TEXT sync·runtime_registerPoolCleanup(SB),NOSPLIT,$0-0
++	JMP	runtime·registerPoolCleanup(SB)
++
+ TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
+ 	JMP	runtime·asyncsemacquire(SB)
+ 

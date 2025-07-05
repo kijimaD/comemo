@@ -7,7 +7,7 @@ Date:   Fri Feb 3 10:12:25 2012 +1100
     R=rsc, dsymonds, bsiegert, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5619052
-
+---
  src/pkg/crypto/x509/pkcs1.go         |  2 +-
  src/pkg/crypto/x509/x509.go          |  4 ++--
  src/pkg/database/sql/fakedb_test.go  | 14 +++++++-------
@@ -30,3 +30,432 @@ Date:   Fri Feb 3 10:12:25 2012 +1100
  src/pkg/regexp/syntax/parse.go       |  4 ++--
  src/pkg/unicode/maketables.go        |  6 +++++-
  21 files changed, 91 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/pkcs1.go b/src/pkg/crypto/x509/pkcs1.go
+index 31d0dd0c22..3aaa8c5832 100644
+--- a/src/pkg/crypto/x509/pkcs1.go
++++ b/src/pkg/crypto/x509/pkcs1.go
+@@ -40,7 +40,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
+ 	var priv pkcs1PrivateKey
+ 	rest, err := asn1.Unmarshal(der, &priv)
+ 	if len(rest) > 0 {
+-		err = asn1.SyntaxError{"trailing data"}
++		err = asn1.SyntaxError{Msg: "trailing data"}
+ 		return
+ 	}
+ 	if err != nil {
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index bf39c5dec0..7b45ba51f4 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -592,7 +592,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 					return nil, err
+ 				}
+ 				if !seq.IsCompound || seq.Tag != 16 || seq.Class != 0 {
+-					return nil, asn1.StructuralError{"bad SAN sequence"}
++					return nil, asn1.StructuralError{Msg: "bad SAN sequence"}
+ 				}
+ 
+ 				parsedName := false
+@@ -744,7 +744,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, error) {
+ 		return nil, err
+ 	}
+ 	if len(rest) > 0 {
+-		return nil, asn1.SyntaxError{"trailing data"}
++		return nil, asn1.SyntaxError{Msg: "trailing data"}
+ 	}
+ 
+ 	return parseCertificate(&cert)
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index df25023e12..889e2a2523 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -586,25 +586,25 @@ func converterForType(typ string) driver.ValueConverter {
+ 	case "bool":
+ 		return driver.Bool
+ 	case "nullbool":
+-		return driver.Null{driver.Bool}
++		return driver.Null{Converter: driver.Bool}
+ 	case "int32":
+ 		return driver.Int32
+ 	case "string":
+-		return driver.NotNull{driver.String}
++		return driver.NotNull{Converter: driver.String}
+ 	case "nullstring":
+-		return driver.Null{driver.String}
++		return driver.Null{Converter: driver.String}
+ 	case "int64":
+ 		// TODO(coopernurse): add type-specific converter
+-		return driver.NotNull{driver.DefaultParameterConverter}
++		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+ 	case "nullint64":
+ 		// TODO(coopernurse): add type-specific converter
+-		return driver.Null{driver.DefaultParameterConverter}
++		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "float64":
+ 		// TODO(coopernurse): add type-specific converter
+-		return driver.NotNull{driver.DefaultParameterConverter}
++		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+ 	case "nullfloat64":
+ 		// TODO(coopernurse): add type-specific converter
+-		return driver.Null{driver.DefaultParameterConverter}
++		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "datetime":
+ 		return driver.DefaultParameterConverter
+ 	}
+diff --git a/src/pkg/exp/inotify/inotify_linux.go b/src/pkg/exp/inotify/inotify_linux.go
+index f12436618f..912cf5db82 100644
+--- a/src/pkg/exp/inotify/inotify_linux.go
++++ b/src/pkg/exp/inotify/inotify_linux.go
+@@ -107,7 +107,11 @@ func (w *Watcher) AddWatch(path string, flags uint32) error {
+ 	}
+ 	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
+ 	if err != nil {
+-		return &os.PathError{"inotify_add_watch", path, err}
++		return &os.PathError{
++			Op:   "inotify_add_watch",
++			Path: path,
++			Err:  err,
++		}
+ 	}
+ 
+ 	if !found {
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 7c59bf9bd6..d5b58d2664 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -33,8 +33,11 @@ func Examples(pkg *ast.Package) []*Example {
+ 				continue
+ 			}
+ 			examples = append(examples, &Example{
+-				Name:   name[len("Example"):],
+-				Body:   &printer.CommentedNode{f.Body, src.Comments},
++				Name: name[len("Example"):],
++				Body: &printer.CommentedNode{
++					Node:     f.Body,
++					Comments: src.Comments,
++				},
+ 				Output: f.Doc.Text(),
+ 			})
+ 		}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index af45bc5b1c..e7f7cd1c1e 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -230,7 +230,13 @@ func TestScan(t *testing.T) {
+ 	var s Scanner
+ 	s.Init(fset.AddFile("", fset.Base(), len(source)), source, &testErrorHandler{t}, ScanComments|dontInsertSemis)
+ 	index := 0
+-	epos := token.Position{"", 0, 1, 1} // expected position
++	// epos is the expected position
++	epos := token.Position{
++		Filename: "",
++		Offset:   0,
++		Line:     1,
++		Column:   1,
++	}
+ 	for {
+ 		pos, tok, lit := s.Scan()
+ 		if lit == "" {
+@@ -505,7 +511,12 @@ func TestLineComments(t *testing.T) {
+ 	for _, s := range segs {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+-		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
++		checkPos(t, lit, p, token.Position{
++			Filename: s.filename,
++			Offset:   pos.Offset,
++			Line:     s.line,
++			Column:   pos.Column,
++		})
+ 	}
+ 
+ 	if S.ErrorCount != 0 {
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 0e31674f05..70cada3f50 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -1471,7 +1471,7 @@ func TestEscapeText(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		b, e := []byte(test.input), newEscaper(nil)
+-		c := e.escapeText(context{}, &parse.TextNode{parse.NodeText, b})
++		c := e.escapeText(context{}, &parse.TextNode{NodeType: parse.NodeText, Text: b})
+ 		if !test.output.eq(c) {
+ 			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
+ 			continue
+diff --git a/src/pkg/image/draw/bench_test.go b/src/pkg/image/draw/bench_test.go
+index 4cd2095c44..cc62e25f1b 100644
+--- a/src/pkg/image/draw/bench_test.go
++++ b/src/pkg/image/draw/bench_test.go
+@@ -56,7 +56,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 	var src image.Image
+ 	switch scm {
+ 	case nil:
+-		src = &image.Uniform{color.RGBA{0x11, 0x22, 0x33, 0xff}}
++		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0xff}}
+ 	case color.RGBAModel:
+ 		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+@@ -145,7 +145,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 		x := 3 * i % (dstw - srcw)
+ 		y := 7 * i % (dsth - srch)
+ 
+-		DrawMask(dst, dst.Bounds().Add(image.Point{x, y}), src, image.ZP, mask, image.ZP, op)
++		DrawMask(dst, dst.Bounds().Add(image.Pt(x, y)), src, image.ZP, mask, image.ZP, op)
+ 	}
+ }
+ 
+diff --git a/src/pkg/image/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+index 56a45026b5..1db75b3e3f 100644
+--- a/src/pkg/image/draw/draw_test.go
++++ b/src/pkg/image/draw/draw_test.go
+@@ -168,15 +168,15 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
+ 		sy := y + sp.Y - r.Min.Y
+ 		my := y + mp.Y - r.Min.Y
+ 		for x := r.Min.X; x < r.Max.X; x++ {
+-			if !(image.Point{x, y}.In(b)) {
++			if !(image.Pt(x, y).In(b)) {
+ 				continue
+ 			}
+ 			sx := x + sp.X - r.Min.X
+-			if !(image.Point{sx, sy}.In(sb)) {
++			if !(image.Pt(sx, sy).In(sb)) {
+ 				continue
+ 			}
+ 			mx := x + mp.X - r.Min.X
+-			if !(image.Point{mx, my}.In(mb)) {
++			if !(image.Pt(mx, my).In(mb)) {
+ 				continue
+ 			}
+ 
+@@ -313,7 +313,7 @@ func TestFill(t *testing.T) {
+ 		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
+ 		b := m.Bounds()
+ 		c := color.RGBA{11, 0, 0, 255}
+-		src := &image.Uniform{c}
++		src := &image.Uniform{C: c}
+ 		check := func(desc string) {
+ 			for y := b.Min.Y; y < b.Max.Y; y++ {
+ 				for x := b.Min.X; x < b.Max.X; x++ {
+@@ -333,21 +333,21 @@ func TestFill(t *testing.T) {
+ 		check("pixel")
+ 		// Draw 1 row at a time.
+ 		c = color.RGBA{0, 22, 0, 255}
+-		src = &image.Uniform{c}
++		src = &image.Uniform{C: c}
+ 		for y := b.Min.Y; y < b.Max.Y; y++ {
+ 			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
+ 		}
+ 		check("row")
+ 		// Draw 1 column at a time.
+ 		c = color.RGBA{0, 0, 33, 255}
+-		src = &image.Uniform{c}
++		src = &image.Uniform{C: c}
+ 		for x := b.Min.X; x < b.Max.X; x++ {
+ 			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
+ 		}
+ 		check("column")
+ 		// Draw the whole image at once.
+ 		c = color.RGBA{44, 55, 66, 77}
+-		src = &image.Uniform{c}
++		src = &image.Uniform{C: c}
+ 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
+ 		check("whole")
+ 	}
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 24b53c5b0a..8b36948d69 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -416,7 +416,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
+ 	if err := d.decode(r, true); err != nil {
+ 		return image.Config{}, err
+ 	}
+-	return image.Config{d.globalColorMap, d.width, d.height}, nil
++	return image.Config{
++		ColorModel: d.globalColorMap,
++		Width:      d.width,
++		Height:     d.height,
++	}, nil
+ }
+ 
+ func init() {
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 2e412ad171..d9adf6e587 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -454,9 +454,17 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
+ 	}
+ 	switch d.nComp {
+ 	case nGrayComponent:
+-		return image.Config{color.GrayModel, d.width, d.height}, nil
++		return image.Config{
++			ColorModel: color.GrayModel,
++			Width:      d.width,
++			Height:     d.height,
++		}, nil
+ 	case nColorComponent:
+-		return image.Config{color.YCbCrModel, d.width, d.height}, nil
++		return image.Config{
++			ColorModel: color.YCbCrModel,
++			Width:      d.width,
++			Height:     d.height,
++		}, nil
+ 	}
+ 	return image.Config{}, FormatError("missing SOF marker")
+ }
+diff --git a/src/pkg/image/jpeg/writer.go b/src/pkg/image/jpeg/writer.go
+index 71fe37ce7f..3322c09fe7 100644
+--- a/src/pkg/image/jpeg/writer.go
++++ b/src/pkg/image/jpeg/writer.go
+@@ -458,7 +458,7 @@ func (e *encoder) writeSOS(m image.Image) {
+ 			for i := 0; i < 4; i++ {
+ 				xOff := (i & 1) * 8
+ 				yOff := (i & 2) * 4
+-				p := image.Point{x + xOff, y + yOff}
++				p := image.Pt(x+xOff, y+yOff)
+ 				if rgba != nil {
+ 					rgbaToYCbCr(rgba, p, &yBlock, &cbBlock[i], &crBlock[i])
+ 				} else {
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 7eb8cea9d5..fe07d60a91 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -690,7 +690,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
+ 	case cbTCA16:
+ 		cm = color.NRGBA64Model
+ 	}
+-	return image.Config{cm, d.width, d.height}, nil
++	return image.Config{
++		ColorModel: cm,
++		Width:      d.width,
++		Height:     d.height,
++	}, nil
+ }
+ 
+ func init() {
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 43161da684..5d450258bd 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -245,7 +245,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
+ 	}
+ 
+ 	method := ireq.Method
+-	err = &url.Error{method[0:1] + strings.ToLower(method[1:]), urlStr, err}
++	err = &url.Error{
++		Op:  method[0:1] + strings.ToLower(method[1:]),
++		URL: urlStr,
++		Err: err,
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/net/http/httputil/persist.go b/src/pkg/net/http/httputil/persist.go
+index 1266bd3ad2..c065ccfb49 100644
+--- a/src/pkg/net/http/httputil/persist.go
++++ b/src/pkg/net/http/httputil/persist.go
+@@ -18,8 +18,8 @@ import (
+ )
+ 
+ var (
+-	ErrPersistEOF = &http.ProtocolError{"persistent connection closed"}
+-	ErrPipeline   = &http.ProtocolError{"pipeline error"}
++	ErrPersistEOF = &http.ProtocolError{ErrorString: "persistent connection closed"}
++	ErrPipeline   = &http.ProtocolError{ErrorString: "pipeline error"}
+ )
+ 
+ // This is an API usage error - the local side is closed.
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index a410bb6ce1..06bc24cd8a 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -36,7 +36,11 @@ func newPollServer() (s *pollServer, err error) {
+ 	return s, nil
+ 
+ Errno:
+-	err = &os.PathError{"setnonblock", s.pr.Name(), err}
++	err = &os.PathError{
++		Op:   "setnonblock",
++		Path: s.pr.Name(),
++		Err:  err,
++	}
+ Error:
+ 	s.pr.Close()
+ 	s.pw.Close()
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 69c4407695..34f9ae317e 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -232,7 +232,12 @@ func DialHTTPPath(network, address, path string) (*Client, error) {
+ 		err = errors.New("unexpected HTTP response: " + resp.Status)
+ 	}
+ 	conn.Close()
+-	return nil, &net.OpError{"dial-http", network + " " + address, nil, err}
++	return nil, &net.OpError{
++		Op:   "dial-http",
++		Net:  network + " " + address,
++		Addr: nil,
++		Err:  err,
++	}
+ }
+ 
+ // Dial connects to an RPC server at the specified network address.
+diff --git a/src/pkg/net/smtp/smtp.go b/src/pkg/net/smtp/smtp.go
+index 8d935ffb7a..f600cc8648 100644
+--- a/src/pkg/net/smtp/smtp.go
++++ b/src/pkg/net/smtp/smtp.go
+@@ -155,7 +155,7 @@ func (c *Client) Auth(a Auth) error {
+ 			// the last message isn't base64 because it isn't a challenge
+ 			msg = []byte(msg64)
+ 		default:
+-			err = &textproto.Error{code, msg64}
++			err = &textproto.Error{Code: code, Msg: msg64}
+ 		}
+ 		resp, err = a.Next(msg, code == 334)
+ 		if err != nil {
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index b89f91c197..9463d2c0e3 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -29,7 +29,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 		return nil, NewSyscallError("GetExitCodeProcess", e)
+ 	}
+ 	p.done = true
+-	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
++	return &Waitmsg{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+ }
+ 
+ // Signal sends a signal to the Process.
+diff --git a/src/pkg/regexp/syntax/parse.go b/src/pkg/regexp/syntax/parse.go
+index 6f8acbbefb..3e841c72d2 100644
+--- a/src/pkg/regexp/syntax/parse.go
++++ b/src/pkg/regexp/syntax/parse.go
+@@ -1377,8 +1377,8 @@ func (p *parser) appendGroup(r []rune, g charGroup) []rune {
+ }
+ 
+ var anyTable = &unicode.RangeTable{
+-	[]unicode.Range16{{0, 1<<16 - 1, 1}},
+-	[]unicode.Range32{{1 << 16, unicode.MaxRune, 1}},
++	R16: []unicode.Range16{{Lo: 0, Hi: 1<<16 - 1, Stride: 1}},
++	R32: []unicode.Range32{{Lo: 1 << 16, Hi: unicode.MaxRune, Stride: 1}},
+ }
+ 
+ // unicodeTable returns the unicode.RangeTable identified by name
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 393f8eadea..ba39fecdb3 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -652,7 +652,11 @@ func foldAdjacent(r []Script) []unicode.Range32 {
+ 			s[j-1].Hi = r[i].hi
+ 		} else {
+ 			s = s[0 : j+1]
+-			s[j] = unicode.Range32{uint32(r[i].lo), uint32(r[i].hi), 1}
++			s[j] = unicode.Range32{
++				Lo:     uint32(r[i].lo),
++				Hi:     uint32(r[i].hi),
++				Stride: 1,
++			}
+ 			j++
+ 		}
+ 	}

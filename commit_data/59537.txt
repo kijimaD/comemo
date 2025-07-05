@@ -12,6 +12,20 @@ Date:   Fri Mar 22 01:26:02 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/database/sql/doc.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/doc.txt b/src/database/sql/doc.txt
+index 1341b5768f..9aa9b2bf40 100644
+--- a/src/database/sql/doc.txt
++++ b/src/database/sql/doc.txt
+@@ -37,7 +37,7 @@ Goals of the sql and sql/driver packages:
+ 
+ * Push complexity, where necessary, down into the sql+driver packages,
+   rather than exposing it to users. Said otherwise, the sql package
+-  should expose an ideal database that's not finnicky about how it's
++  should expose an ideal database that's not finicky about how it's
+   accessed, even if that's not true.
+ 
+ * Provide optional interfaces in sql/driver for drivers to implement

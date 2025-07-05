@@ -16,6 +16,40 @@ Date:   Mon May 16 12:14:14 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/issue20014.dir/main.go | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/issue20014.dir/main.go b/test/fixedbugs/issue20014.dir/main.go
+index ac9957de40..098ac6b99a 100644
+--- a/test/fixedbugs/issue20014.dir/main.go
++++ b/test/fixedbugs/issue20014.dir/main.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"sort"
+ 	"strings"
+ 
+ 	"issue20014.dir/a"
+@@ -13,12 +14,17 @@ import (
+ func main() {
+ 	samePackage()
+ 	crossPackage()
++
+ 	// Print fields registered with field tracking.
++	var fields []string
+ 	for _, line := range strings.Split(fieldTrackInfo, "\n") {
+-		if line == "" {
+-			continue
++		if line != "" {
++			fields = append(fields, strings.Split(line, "\t")[0])
+ 		}
+-		println(strings.Split(line, "\t")[0])
++	}
++	sort.Strings(fields) // for stable output, regardless of optimizations
++	for _, field := range fields {
++		println(field)
+ 	}
+ }
+ 

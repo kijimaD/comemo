@@ -10,6 +10,25 @@ Date:   Sat Jun 14 16:47:40 2014 +1000
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/105140047
-
+---
  src/pkg/os/os_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index baf913c2f0..0b43766dd9 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -1294,8 +1294,12 @@ func TestKillStartProcess(t *testing.T) {
+ }
+ 
+ func TestGetppid(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	switch runtime.GOOS {
++	case "nacl":
+ 		t.Skip("skipping on nacl")
++	case "plan9":
++		// TODO: golang.org/issue/8206
++		t.Skipf("skipping test on plan9; see issue 8206")
+ 	}
+ 
+ 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {

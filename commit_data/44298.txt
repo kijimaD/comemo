@@ -24,7 +24,7 @@ Date:   Sat Jun 6 20:59:12 2020 -0400
     Reviewed-by: Khosrow Moossavi <khos2ow@gmail.com>
     Reviewed-by: Leigh McCulloch <leighmcc@gmail.com>
     Reviewed-by: Urban Ishimwe <urbainishimwe@gmail.com>
-
+---
  doc/go1.10.html                             |  4 +--
  src/cmd/cgo/doc.go                          |  2 +-
  src/cmd/compile/fmt_test.go                 | 16 +++++------
@@ -40,3 +40,413 @@ Date:   Sat Jun 6 20:59:12 2020 -0400
  src/runtime/cgo_sigaction.go                |  2 +-
  src/runtime/debugcall.go                    |  2 +-
  14 files changed, 56 insertions(+), 56 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 41db36ab1e..95871e0e5c 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -30,7 +30,7 @@ adds <a href="#test">caching of successful test results</a>,
+ runs <a href="#test-vet">vet automatically during tests</a>,
+ and
+ permits <a href="#cgo">passing string values directly between Go and C using cgo</a>.
+-A new <a href="#cgo">compiler option whitelist</a> may cause
++A new <a href="#cgo">hard-coded set of safe compiler options</a> may cause
+ unexpected <a href="https://golang.org/s/invalidflag"><code>invalid
+ flag</code></a> errors in code that built successfully with older
+ releases.
+@@ -267,7 +267,7 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
+ 
+ <p>
+ Options specified by cgo using <code>#cgo CFLAGS</code> and the like
+-are now checked against a whitelist of permitted options.
++are now checked against an allowlist of permitted options.
+ This closes a security hole in which a downloaded package uses
+ compiler options like
+ <span style="white-space: nowrap"><code>-fplugin</code></span>
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 4366df4b55..ca18c45d9d 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -990,7 +990,7 @@ produces a file named a.out, even if cmd/link does so by invoking the host
+ linker in external linking mode.
+ 
+ By default, cmd/link will decide the linking mode as follows: if the only
+-packages using cgo are those on a whitelist of standard library
++packages using cgo are those on a list of known standard library
+ packages (net, os/user, runtime/cgo), cmd/link will use internal linking
+ mode. Otherwise, there are non-standard cgo packages involved, and cmd/link
+ will use external linking mode. The first rule means that a build of
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index f1af6473c7..768ca7fc89 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -96,7 +96,7 @@ func TestFormats(t *testing.T) {
+ 			}
+ 
+ 			importPath := filepath.Join("cmd/compile", path)
+-			if blacklistedPackages[filepath.ToSlash(importPath)] {
++			if blocklistedPackages[filepath.ToSlash(importPath)] {
+ 				return filepath.SkipDir
+ 			}
+ 
+@@ -344,8 +344,8 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
+ 	for index, file := range files {
+ 		ast.Inspect(file, func(n ast.Node) bool {
+ 			if call, ok := n.(*ast.CallExpr); ok {
+-				// ignore blacklisted functions
+-				if blacklistedFunctions[nodeString(call.Fun)] {
++				// ignore blocklisted functions
++				if blocklistedFunctions[nodeString(call.Fun)] {
+ 					return true
+ 				}
+ 				// look for an arguments that might be a format string
+@@ -354,7 +354,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
+ 						// make sure we have enough arguments
+ 						n := numFormatArgs(s)
+ 						if i+1+n > len(call.Args) {
+-							t.Errorf("%s: not enough format args (blacklist %s?)", posString(call), nodeString(call.Fun))
++							t.Errorf("%s: not enough format args (blocklist %s?)", posString(call), nodeString(call.Fun))
+ 							break // ignore this call
+ 						}
+ 						// assume last n arguments are to be formatted;
+@@ -549,14 +549,14 @@ func formatReplace(in string, f func(i int, s string) string) string {
+ 	return string(append(buf, in[i0:]...))
+ }
+ 
+-// blacklistedPackages is the set of packages which can
++// blocklistedPackages is the set of packages which can
+ // be ignored.
+-var blacklistedPackages = map[string]bool{}
++var blocklistedPackages = map[string]bool{}
+ 
+-// blacklistedFunctions is the set of functions which may have
++// blocklistedFunctions is the set of functions which may have
+ // format-like arguments but which don't do any formatting and
+ // thus may be ignored.
+-var blacklistedFunctions = map[string]bool{}
++var blocklistedFunctions = map[string]bool{}
+ 
+ func init() {
+ 	// verify that knownFormats entries are correctly formatted
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 8e781a7997..f3e9ab78ef 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -141,13 +141,13 @@ func isSelfAssign(dst, src *Node) bool {
+ 	return samesafeexpr(dst.Left, src.Left)
+ }
+ 
+-// mayAffectMemory reports whether n evaluation may affect program memory state.
+-// If expression can't affect it, then it can be safely ignored by the escape analysis.
++// mayAffectMemory reports whether evaluation of n may affect the program's
++// memory state. If the expression can't affect memory state, then it can be
++// safely ignored by the escape analysis.
+ func mayAffectMemory(n *Node) bool {
+-	// We may want to use "memory safe" black list instead of general
+-	// "side-effect free", which can include all calls and other ops
+-	// that can affect allocate or change global state.
+-	// It's safer to start from a whitelist for now.
++	// We may want to use a list of "memory safe" ops instead of generally
++	// "side-effect free", which would include all calls and other ops that can
++	// allocate or change global state. For now, it's safer to start with the latter.
+ 	//
+ 	// We're ignoring things like division by zero, index out of range,
+ 	// and nil pointer dereference here.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 318d688d2e..9a4fdcda5f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -168,7 +168,7 @@ func gcBackendConcurrency(gcflags []string) int {
+ CheckFlags:
+ 	for _, flag := range gcflags {
+ 		// Concurrent compilation is presumed incompatible with any gcflags,
+-		// except for a small whitelist of commonly used flags.
++		// except for a small allowlist of commonly used flags.
+ 		// If the user knows better, they can manually add their own -c to the gcflags.
+ 		switch flag {
+ 		case "-N", "-l", "-S", "-B", "-C", "-I":
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ab38bc3f5c..b871f664ea 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -634,15 +634,15 @@ func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
+ 
+-	// For the moment, whitelist DWARF subprogram DIEs for
++	// For the moment, allowlist DWARF subprogram DIEs for
+ 	// auto-generated wrapper functions. What seems to happen
+ 	// here is that we get different line numbers on formal
+ 	// params; I am guessing that the pos is being inherited
+ 	// from the spot where the wrapper is needed.
+-	whitelist := strings.HasPrefix(name, "go.info.go.interface") ||
++	allowlist := strings.HasPrefix(name, "go.info.go.interface") ||
+ 		strings.HasPrefix(name, "go.info.go.builtin") ||
+ 		strings.HasPrefix(name, "go.debuglines")
+-	if !whitelist {
++	if !allowlist {
+ 		l.strictDupMsgs++
+ 	}
+ }
+diff --git a/src/cmd/oldlink/internal/objfile/objfile.go b/src/cmd/oldlink/internal/objfile/objfile.go
+index 6882b7694b..ae28e9673a 100644
+--- a/src/cmd/oldlink/internal/objfile/objfile.go
++++ b/src/cmd/oldlink/internal/objfile/objfile.go
+@@ -411,16 +411,16 @@ overwrite:
+ 			}
+ 			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
+ 
+-			// For the moment, whitelist DWARF subprogram DIEs for
++			// For the moment, allowlist DWARF subprogram DIEs for
+ 			// auto-generated wrapper functions. What seems to happen
+ 			// here is that we get different line numbers on formal
+ 			// params; I am guessing that the pos is being inherited
+ 			// from the spot where the wrapper is needed.
+-			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
++			allowlist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+ 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
+ 				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
+ 				strings.HasPrefix(dup.Name, "go.debuglines"))
+-			if !whitelist {
++			if !allowlist {
+ 				r.strictDupMsgs++
+ 			}
+ 		}
+diff --git a/src/html/template/html.go b/src/html/template/html.go
+index 13a0cd0436..d3359cac0a 100644
+--- a/src/html/template/html.go
++++ b/src/html/template/html.go
+@@ -240,7 +240,7 @@ func htmlNameFilter(args ...interface{}) string {
+ 	}
+ 	s = strings.ToLower(s)
+ 	if t := attrType(s); t != contentTypePlain {
+-		// TODO: Split attr and element name part filters so we can whitelist
++		// TODO: Split attr and element name part filters so we can allowlist
+ 		// attributes.
+ 		return filterFailsafe
+ 	}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index e924e2a07f..e4a00dd569 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -503,7 +503,7 @@ func valueOrDefault(value, def string) string {
+ 
+ // NOTE: This is not intended to reflect the actual Go version being used.
+ // It was changed at the time of Go 1.1 release because the former User-Agent
+-// had ended up on a blacklist for some intrusion detection systems.
++// had ended up on a blocklist for some intrusion detection systems.
+ // See https://codereview.appspot.com/7532043.
+ const defaultUserAgent = "Go-http-client/1.1"
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b613c21f16..a75dd1461f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1698,8 +1698,8 @@ func (c *conn) closeWriteAndWait() {
+ 	time.Sleep(rstAvoidanceDelay)
+ }
+ 
+-// validNextProto reports whether the proto is not a blacklisted ALPN
+-// protocol name. Empty and built-in protocol types are blacklisted
++// validNextProto reports whether the proto is not a blocklisted ALPN
++// protocol name. Empty and built-in protocol types are blocklisted
+ // and can't be overridden with alternate implementations.
+ func validNextProto(proto string) bool {
+ 	switch proto {
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index fb3ee1ea7a..f8813ce6be 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -40,8 +40,8 @@ func (e *PtyError) Error() string {
+ 
+ func (e *PtyError) Unwrap() error { return e.Errno }
+ 
+-// Open returns a master pty and the name of the linked slave tty.
+-func Open() (master *os.File, slave string, err error) {
++// Open returns a control pty and the name of the linked process tty.
++func Open() (pty *os.File, processTTY string, err error) {
+ 	m, err := C.posix_openpt(C.O_RDWR)
+ 	if err != nil {
+ 		return nil, "", ptyError("posix_openpt", err)
+@@ -54,6 +54,6 @@ func Open() (master *os.File, slave string, err error) {
+ 		C.close(m)
+ 		return nil, "", ptyError("unlockpt", err)
+ 	}
+-	slave = C.GoString(C.ptsname(m))
+-	return os.NewFile(uintptr(m), "pty-master"), slave, nil
++	processTTY = C.GoString(C.ptsname(m))
++	return os.NewFile(uintptr(m), "pty"), processTTY, nil
+ }
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 849a96ec0e..a117221400 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/exec"
+-	"os/signal/internal/pty"
++	ptypkg "os/signal/internal/pty"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -71,20 +71,20 @@ func TestTerminalSignal(t *testing.T) {
+ 	// The test only fails when using a "slow device," in this
+ 	// case a pseudo-terminal.
+ 
+-	master, sname, err := pty.Open()
++	pty, procTTYName, err := ptypkg.Open()
+ 	if err != nil {
+-		ptyErr := err.(*pty.PtyError)
++		ptyErr := err.(*ptypkg.PtyError)
+ 		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
+ 			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
+ 		}
+ 		t.Fatal(err)
+ 	}
+-	defer master.Close()
+-	slave, err := os.OpenFile(sname, os.O_RDWR, 0)
++	defer pty.Close()
++	procTTY, err := os.OpenFile(procTTYName, os.O_RDWR, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer slave.Close()
++	defer procTTY.Close()
+ 
+ 	// Start an interactive shell.
+ 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+@@ -92,9 +92,9 @@ func TestTerminalSignal(t *testing.T) {
+ 	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
+ 	// Clear HISTFILE so that we don't read or clobber the user's bash history.
+ 	cmd.Env = append(os.Environ(), "HISTFILE=")
+-	cmd.Stdin = slave
+-	cmd.Stdout = slave
+-	cmd.Stderr = slave
++	cmd.Stdin = procTTY
++	cmd.Stdout = procTTY
++	cmd.Stderr = procTTY
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Setsid:  true,
+ 		Setctty: true,
+@@ -105,21 +105,21 @@ func TestTerminalSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if err := slave.Close(); err != nil {
+-		t.Errorf("closing slave: %v", err)
++	if err := procTTY.Close(); err != nil {
++		t.Errorf("closing procTTY: %v", err)
+ 	}
+ 
+ 	progReady := make(chan bool)
+ 	sawPrompt := make(chan bool, 10)
+ 	const prompt = "prompt> "
+ 
+-	// Read data from master in the background.
++	// Read data from pty in the background.
+ 	var wg sync.WaitGroup
+ 	wg.Add(1)
+ 	defer wg.Wait()
+ 	go func() {
+ 		defer wg.Done()
+-		input := bufio.NewReader(master)
++		input := bufio.NewReader(pty)
+ 		var line, handled []byte
+ 		for {
+ 			b, err := input.ReadByte()
+@@ -130,11 +130,11 @@ func TestTerminalSignal(t *testing.T) {
+ 				if perr, ok := err.(*os.PathError); ok {
+ 					err = perr.Err
+ 				}
+-				// EOF means master is closed.
++				// EOF means pty is closed.
+ 				// EIO means child process is done.
+-				// "file already closed" means deferred close of master has happened.
++				// "file already closed" means deferred close of pty has happened.
+ 				if err != io.EOF && err != syscall.EIO && !strings.Contains(err.Error(), "file already closed") {
+-					t.Logf("error reading from master: %v", err)
++					t.Logf("error reading from pty: %v", err)
+ 				}
+ 				return
+ 			}
+@@ -161,7 +161,7 @@ func TestTerminalSignal(t *testing.T) {
+ 	}()
+ 
+ 	// Set the bash prompt so that we can see it.
+-	if _, err := master.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
++	if _, err := pty.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
+ 		t.Fatalf("setting prompt: %v", err)
+ 	}
+ 	select {
+@@ -172,7 +172,7 @@ func TestTerminalSignal(t *testing.T) {
+ 
+ 	// Start a small program that reads from stdin
+ 	// (namely the code at the top of this function).
+-	if _, err := master.Write([]byte("GO_TEST_TERMINAL_SIGNALS=1 " + os.Args[0] + " -test.run=TestTerminalSignal\n")); err != nil {
++	if _, err := pty.Write([]byte("GO_TEST_TERMINAL_SIGNALS=1 " + os.Args[0] + " -test.run=TestTerminalSignal\n")); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -190,7 +190,7 @@ func TestTerminalSignal(t *testing.T) {
+ 	time.Sleep(pause)
+ 
+ 	// Send a ^Z to stop the program.
+-	if _, err := master.Write([]byte{26}); err != nil {
++	if _, err := pty.Write([]byte{26}); err != nil {
+ 		t.Fatalf("writing ^Z to pty: %v", err)
+ 	}
+ 
+@@ -202,7 +202,7 @@ func TestTerminalSignal(t *testing.T) {
+ 	}
+ 
+ 	// Restart the stopped program.
+-	if _, err := master.Write([]byte("fg\n")); err != nil {
++	if _, err := pty.Write([]byte("fg\n")); err != nil {
+ 		t.Fatalf("writing %q to pty: %v", "fg", err)
+ 	}
+ 
+@@ -217,7 +217,7 @@ func TestTerminalSignal(t *testing.T) {
+ 
+ 	// Write some data for the program to read,
+ 	// which should cause it to exit.
+-	if _, err := master.Write([]byte{'\n'}); err != nil {
++	if _, err := pty.Write([]byte{'\n'}); err != nil {
+ 		t.Fatalf("writing %q to pty: %v", "\n", err)
+ 	}
+ 
+@@ -229,7 +229,7 @@ func TestTerminalSignal(t *testing.T) {
+ 	}
+ 
+ 	// Exit the shell with the program's exit status.
+-	if _, err := master.Write([]byte("exit $?\n")); err != nil {
++	if _, err := pty.Write([]byte("exit $?\n")); err != nil {
+ 		t.Fatalf("writing %q to pty: %v", "exit", err)
+ 	}
+ 
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index bc5e0786d9..967b8b9a0d 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -18,7 +18,7 @@ var _cgo_sigaction unsafe.Pointer
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigaction(sig uint32, new, old *sigactiont) {
+-	// The runtime package is explicitly blacklisted from sanitizer
++	// The runtime package is explicitly blocklisted from sanitizer
+ 	// instrumentation in racewalk.go, but we might be calling into instrumented C
+ 	// functions here — so we need the pointer parameters to be properly marked.
+ 	//
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 5cbe382ce7..496e6ce8cc 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -61,7 +61,7 @@ func debugCallCheck(pc uintptr) string {
+ 			"debugCall16384",
+ 			"debugCall32768",
+ 			"debugCall65536":
+-			// These functions are whitelisted so that the debugger can initiate multiple function calls.
++			// These functions are allowlisted so that the debugger can initiate multiple function calls.
+ 			// See: https://golang.org/cl/161137/
+ 			return
+ 		}

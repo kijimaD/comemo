@@ -17,7 +17,202 @@ Date:   Thu Feb 2 19:33:01 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/xcoff/file.go  | 14 ++++--------
  src/internal/xcoff/xcoff.go | 56 ++++++++++++++++++++++-----------------------
  2 files changed, 32 insertions(+), 38 deletions(-)
+
+diff --git a/src/internal/xcoff/file.go b/src/internal/xcoff/file.go
+index e859de932a..536bd74c30 100644
+--- a/src/internal/xcoff/file.go
++++ b/src/internal/xcoff/file.go
+@@ -173,7 +173,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 	var nscns uint16
+ 	var symptr uint64
+-	var nsyms int32
++	var nsyms uint32
+ 	var opthdr uint16
+ 	var hdrsz int
+ 	switch f.TargetMachine {
+@@ -283,9 +283,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, err
+ 			}
+ 			numaux = int(se.Nnumaux)
+-			if numaux < 0 {
+-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
+-			}
+ 			sym.SectionNumber = int(se.Nscnum)
+ 			sym.StorageClass = int(se.Nsclass)
+ 			sym.Value = uint64(se.Nvalue)
+@@ -306,9 +303,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, err
+ 			}
+ 			numaux = int(se.Nnumaux)
+-			if numaux < 0 {
+-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
+-			}
+ 			sym.SectionNumber = int(se.Nscnum)
+ 			sym.StorageClass = int(se.Nsclass)
+ 			sym.Value = se.Nvalue
+@@ -517,7 +511,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
+ 		return nil, err
+ 	}
+ 	var istlen uint32
+-	var nimpid int32
++	var nimpid uint32
+ 	var impoff uint64
+ 	switch f.TargetMachine {
+ 	case U802TOCMAGIC:
+@@ -587,7 +581,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	}
+ 	var stlen uint32
+ 	var stoff uint64
+-	var nsyms int32
++	var nsyms uint32
+ 	var symoff uint64
+ 	switch f.TargetMachine {
+ 	case U802TOCMAGIC:
+@@ -632,7 +626,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	all := make([]ImportedSymbol, 0)
+ 	for i := 0; i < int(nsyms); i++ {
+ 		var name string
+-		var ifile int32
++		var ifile uint32
+ 		var ok bool
+ 		switch f.TargetMachine {
+ 		case U802TOCMAGIC:
+diff --git a/src/internal/xcoff/xcoff.go b/src/internal/xcoff/xcoff.go
+index f8465d7289..db81542ed3 100644
+--- a/src/internal/xcoff/xcoff.go
++++ b/src/internal/xcoff/xcoff.go
+@@ -8,9 +8,9 @@ package xcoff
+ type FileHeader32 struct {
+ 	Fmagic   uint16 // Target machine
+ 	Fnscns   uint16 // Number of sections
+-	Ftimedat int32  // Time and date of file creation
++	Ftimedat uint32 // Time and date of file creation
+ 	Fsymptr  uint32 // Byte offset to symbol table start
+-	Fnsyms   int32  // Number of entries in symbol table
++	Fnsyms   uint32 // Number of entries in symbol table
+ 	Fopthdr  uint16 // Number of bytes in optional header
+ 	Fflags   uint16 // Flags
+ }
+@@ -18,11 +18,11 @@ type FileHeader32 struct {
+ type FileHeader64 struct {
+ 	Fmagic   uint16 // Target machine
+ 	Fnscns   uint16 // Number of sections
+-	Ftimedat int32  // Time and date of file creation
++	Ftimedat uint32 // Time and date of file creation
+ 	Fsymptr  uint64 // Byte offset to symbol table start
+ 	Fopthdr  uint16 // Number of bytes in optional header
+ 	Fflags   uint16 // Flags
+-	Fnsyms   int32  // Number of entries in symbol table
++	Fnsyms   uint32 // Number of entries in symbol table
+ }
+ 
+ const (
+@@ -109,19 +109,19 @@ const (
+ type SymEnt32 struct {
+ 	Nname   [8]byte // Symbol name
+ 	Nvalue  uint32  // Symbol value
+-	Nscnum  int16   // Section number of symbol
++	Nscnum  uint16  // Section number of symbol
+ 	Ntype   uint16  // Basic and derived type specification
+-	Nsclass int8    // Storage class of symbol
+-	Nnumaux int8    // Number of auxiliary entries
++	Nsclass uint8   // Storage class of symbol
++	Nnumaux uint8   // Number of auxiliary entries
+ }
+ 
+ type SymEnt64 struct {
+ 	Nvalue  uint64 // Symbol value
+ 	Noffset uint32 // Offset of the name in string table or .debug section
+-	Nscnum  int16  // Section number of symbol
++	Nscnum  uint16 // Section number of symbol
+ 	Ntype   uint16 // Basic and derived type specification
+-	Nsclass int8   // Storage class of symbol
+-	Nnumaux int8   // Number of auxiliary entries
++	Nsclass uint8  // Storage class of symbol
++	Nnumaux uint8  // Number of auxiliary entries
+ }
+ 
+ const SYMESZ = 18
+@@ -203,7 +203,7 @@ type AuxSect64 struct {
+ 
+ // csect Auxiliary Entry.
+ type AuxCSect32 struct {
+-	Xscnlen   int32  // Length or symbol table index
++	Xscnlen   uint32 // Length or symbol table index
+ 	Xparmhash uint32 // Offset of parameter type-check string
+ 	Xsnhash   uint16 // .typchk section number
+ 	Xsmtyp    uint8  // Symbol alignment and type
+@@ -218,7 +218,7 @@ type AuxCSect64 struct {
+ 	Xsnhash   uint16 // .typchk section number
+ 	Xsmtyp    uint8  // Symbol alignment and type
+ 	Xsmclas   uint8  // Storage-mapping class
+-	Xscnlenhi int32  // Upper 4 bytes of length or symbol table index
++	Xscnlenhi uint32 // Upper 4 bytes of length or symbol table index
+ 	Xpad      uint8  // Unused
+ 	Xauxtype  uint8  // Type of auxiliary entry
+ }
+@@ -274,22 +274,22 @@ const (
+ 
+ // Loader Header.
+ type LoaderHeader32 struct {
+-	Lversion int32  // Loader section version number
+-	Lnsyms   int32  // Number of symbol table entries
+-	Lnreloc  int32  // Number of relocation table entries
++	Lversion uint32 // Loader section version number
++	Lnsyms   uint32 // Number of symbol table entries
++	Lnreloc  uint32 // Number of relocation table entries
+ 	Listlen  uint32 // Length of import file ID string table
+-	Lnimpid  int32  // Number of import file IDs
++	Lnimpid  uint32 // Number of import file IDs
+ 	Limpoff  uint32 // Offset to start of import file IDs
+ 	Lstlen   uint32 // Length of string table
+ 	Lstoff   uint32 // Offset to start of string table
+ }
+ 
+ type LoaderHeader64 struct {
+-	Lversion int32  // Loader section version number
+-	Lnsyms   int32  // Number of symbol table entries
+-	Lnreloc  int32  // Number of relocation table entries
++	Lversion uint32 // Loader section version number
++	Lnsyms   uint32 // Number of symbol table entries
++	Lnreloc  uint32 // Number of relocation table entries
+ 	Listlen  uint32 // Length of import file ID string table
+-	Lnimpid  int32  // Number of import file IDs
++	Lnimpid  uint32 // Number of import file IDs
+ 	Lstlen   uint32 // Length of string table
+ 	Limpoff  uint64 // Offset to start of import file IDs
+ 	Lstoff   uint64 // Offset to start of string table
+@@ -306,20 +306,20 @@ const (
+ type LoaderSymbol32 struct {
+ 	Lname   [8]byte // Symbol name or byte offset into string table
+ 	Lvalue  uint32  // Address field
+-	Lscnum  int16   // Section number containing symbol
+-	Lsmtype int8    // Symbol type, export, import flags
+-	Lsmclas int8    // Symbol storage class
+-	Lifile  int32   // Import file ID; ordinal of import file IDs
++	Lscnum  uint16  // Section number containing symbol
++	Lsmtype uint8   // Symbol type, export, import flags
++	Lsmclas uint8   // Symbol storage class
++	Lifile  uint32  // Import file ID; ordinal of import file IDs
+ 	Lparm   uint32  // Parameter type-check field
+ }
+ 
+ type LoaderSymbol64 struct {
+ 	Lvalue  uint64 // Address field
+ 	Loffset uint32 // Byte offset into string table of symbol name
+-	Lscnum  int16  // Section number containing symbol
+-	Lsmtype int8   // Symbol type, export, import flags
+-	Lsmclas int8   // Symbol storage class
+-	Lifile  int32  // Import file ID; ordinal of import file IDs
++	Lscnum  uint16 // Section number containing symbol
++	Lsmtype uint8  // Symbol type, export, import flags
++	Lsmclas uint8  // Symbol storage class
++	Lifile  uint32 // Import file ID; ordinal of import file IDs
+ 	Lparm   uint32 // Parameter type-check field
+ }
+ 

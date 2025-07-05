@@ -11,9 +11,93 @@ Date:   Tue Jul 24 15:01:22 2018 -0400
     Change-Id: If4844571e9e429b541de0d40c36ff4c5743b2031
     Reviewed-on: https://go-review.googlesource.com/125656
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go           |  1 +
  src/cmd/go/internal/modinfo/info.go        |  1 +
  src/cmd/go/testdata/script/mod_enabled.txt |  4 ++++
  src/cmd/go/testdata/script/mod_list.txt    | 18 +++++++++---------
  4 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index c1d008ce38..d21e896834 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -203,6 +203,7 @@ applied to a Go struct, but now a Module struct:
+         Main     bool         // is this the main module?
+         Indirect bool         // is this module only an indirect dependency of main module?
+         Dir      string       // directory holding files for this module, if any
++        GoMod    string       // path to go.mod file for this module, if any
+         Error    *ModuleError // error loading module
+     }
+ 
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index 3920546c94..761b526b93 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -19,6 +19,7 @@ type ModulePublic struct {
+ 	Main     bool          `json:",omitempty"` // is this the main module?
+ 	Indirect bool          `json:",omitempty"` // module is only indirectly needed by main module
+ 	Dir      string        `json:",omitempty"` // directory holding local copy of files, if any
++	GoMod    string        `json:",omitempty"` // path to go.mod file describing module, if any
+ 	Error    *ModuleError  `json:",omitempty"` // error loading module
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+index 189d4edc91..828194da4a 100644
+--- a/src/cmd/go/testdata/script/mod_enabled.txt
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -4,6 +4,8 @@ env GO111MODULE=auto
+ cd $GOPATH/src/x/y/z
+ go env GOMOD
+ ! stdout . # no non-empty lines
++! go list -m -f {{.GoMod}}
++stderr 'not using modules'
+ 
+ cd $GOPATH/src/x/y/z/w
+ go env GOMOD
+@@ -16,6 +18,8 @@ go env GOMOD
+ cd $GOPATH/foo
+ go env GOMOD
+ stdout foo[/\\]go.mod
++go list -m -f {{.GoMod}}
++stdout foo[/\\]go.mod
+ 
+ cd $GOPATH/foo/bar/baz
+ go env GOMOD
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index 1597ebbf12..bdf90074ab 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -1,13 +1,13 @@
+ env GO111MODULE=on
+ 
+-# list {{.Dir}} shows main module but not not-yet-downloaded dependency
+-go list -m -f '{{.Path}} {{.Main}} {{.Dir}}' all
+-stdout '^x true .*[\\/]src$'
+-stdout '^rsc.io/quote false $'
++# list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
++go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
++stdout '^x true .*[\\/]src[\\/]go.mod .*[\\/]src$'
++stdout '^rsc.io/quote false .*[\\/]v1.5.2.mod $'
+ 
+-# list {{.Dir}} shows dependency after download
+-go list -f {{.Dir}} rsc.io/quote
+-stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.2'
++# list {{.Dir}} shows dependency after download (and go list without -m downloads it)
++go list -f '{{.Dir}}' rsc.io/quote
++stdout '.*mod[\\/]rsc.io[\\/]quote@v1.5.2$'
+ 
+ # downloaded dependencies are read-only
+ exists -readonly $GOPATH/src/mod/rsc.io/quote@v1.5.2
+@@ -20,9 +20,9 @@ go clean -modcache
+ # list {{.Dir}} shows replaced directories
+ cp go.mod2 go.mod
+ go list -f {{.Dir}} rsc.io/quote
+-go list -m -f '{{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} => {{.Version}} {{.Dir}}{{end}}' all
++go list -m -f '{{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} {{.GoMod}} => {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' all
+ stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.1'
+-stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 => v1.3.1.*sampler@v1.3.1'
++stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 .*[\\/]v1.3.1.mod => v1.3.1.*sampler@v1.3.1 .*[\\/]v1.3.1.mod'
+ 
+ # list std should work
+ go list std

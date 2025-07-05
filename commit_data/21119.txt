@@ -38,7 +38,7 @@ Date:   Sun Nov 16 16:44:45 2014 -0500
     R=r
     CC=dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/177870043
-
+---
  src/runtime/chan.go         |  1 +
  src/runtime/mgc0.go         | 16 ++++++++
  src/runtime/proc.go         | 10 +++++
@@ -46,3 +46,211 @@ Date:   Sun Nov 16 16:44:45 2014 -0500
  src/runtime/sema.go         |  2 +
  test/fixedbugs/issue9110.go | 90 +++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 121 insertions(+)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 0049701826..0eb87df74f 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -630,6 +630,7 @@ func (q *waitq) dequeue() *sudog {
+ 			return nil
+ 		}
+ 		q.first = sgp.next
++		sgp.next = nil
+ 		if q.last == sgp {
+ 			q.last = nil
+ 		}
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 3a7204b54f..cbf5e9cfde 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -51,10 +51,26 @@ func clearpools() {
+ 		if c := p.mcache; c != nil {
+ 			c.tiny = nil
+ 			c.tinysize = 0
++
++			// disconnect cached list before dropping it on the floor,
++			// so that a dangling ref to one entry does not pin all of them.
++			var sg, sgnext *sudog
++			for sg = c.sudogcache; sg != nil; sg = sgnext {
++				sgnext = sg.next
++				sg.next = nil
++			}
+ 			c.sudogcache = nil
+ 		}
++
+ 		// clear defer pools
+ 		for i := range p.deferpool {
++			// disconnect cached list before dropping it on the floor,
++			// so that a dangling ref to one entry does not pin all of them.
++			var d, dlink *_defer
++			for d = p.deferpool[i]; d != nil; d = dlink {
++				dlink = d.link
++				d.link = nil
++			}
+ 			p.deferpool[i] = nil
+ 		}
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5b8c7d8ae9..517ca03df6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -152,6 +152,7 @@ func acquireSudog() *sudog {
+ 			gothrow("acquireSudog: found s.elem != nil in cache")
+ 		}
+ 		c.sudogcache = s.next
++		s.next = nil
+ 		return s
+ 	}
+ 
+@@ -177,6 +178,15 @@ func releaseSudog(s *sudog) {
+ 	if s.selectdone != nil {
+ 		gothrow("runtime: sudog with non-nil selectdone")
+ 	}
++	if s.next != nil {
++		gothrow("runtime: sudog with non-nil next")
++	}
++	if s.prev != nil {
++		gothrow("runtime: sudog with non-nil prev")
++	}
++	if s.waitlink != nil {
++		gothrow("runtime: sudog with non-nil waitlink")
++	}
+ 	gp := getg()
+ 	if gp.param != nil {
+ 		gothrow("runtime: releaseSudog with non-nil gp.param")
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index efe68c1f5c..f735a71e2f 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -404,6 +404,7 @@ loop:
+ 			}
+ 		}
+ 		sgnext = sglist.waitlink
++		sglist.waitlink = nil
+ 		releaseSudog(sglist)
+ 		sglist = sgnext
+ 	}
+@@ -641,6 +642,7 @@ func (q *waitq) dequeueSudoG(s *sudog) {
+ 			if q.last == sgp {
+ 				q.last = prevsgp
+ 			}
++			s.next = nil
+ 			return
+ 		}
+ 		l = &sgp.next
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index d2a028c01b..26dbd30ea3 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -201,6 +201,7 @@ func syncsemacquire(s *syncSema) {
+ 		}
+ 		unlock(&s.lock)
+ 		if wake != nil {
++			wake.next = nil
+ 			goready(wake.g)
+ 		}
+ 	} else {
+@@ -242,6 +243,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 		if wake.releasetime != 0 {
+ 			wake.releasetime = cputicks()
+ 		}
++		wake.next = nil
+ 		goready(wake.g)
+ 		n--
+ 	}
+diff --git a/test/fixedbugs/issue9110.go b/test/fixedbugs/issue9110.go
+new file mode 100644
+index 0000000000..729463305e
+--- /dev/null
++++ b/test/fixedbugs/issue9110.go
+@@ -0,0 +1,90 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Scenario that used to leak arbitrarily many SudoG structs.
++// See golang.org/issue/9110.
++
++package main
++
++import (
++	"runtime"
++	"runtime/debug"
++	"sync"
++	"time"
++)
++
++func main() {
++	debug.SetGCPercent(1000000) // only GC when we ask for GC
++
++	var stats, stats1, stats2 runtime.MemStats
++
++	release := func() {}
++	for i := 0; i < 20; i++ {
++		if i == 10 {
++			// Should be warmed up by now.
++			runtime.ReadMemStats(&stats1)
++		}
++
++		c := make(chan int)
++		for i := 0; i < 10; i++ {
++			go func() {
++				select {
++				case <-c:
++				case <-c:
++				case <-c:
++				}
++			}()
++		}
++		time.Sleep(1 * time.Millisecond)
++		release()
++
++		close(c) // let select put its sudog's into the cache
++		time.Sleep(1 * time.Millisecond)
++
++		// pick up top sudog
++		var cond1 sync.Cond
++		var mu1 sync.Mutex
++		cond1.L = &mu1
++		go func() {
++			mu1.Lock()
++			cond1.Wait()
++			mu1.Unlock()
++		}()
++		time.Sleep(1 * time.Millisecond)
++
++		// pick up next sudog
++		var cond2 sync.Cond
++		var mu2 sync.Mutex
++		cond2.L = &mu2
++		go func() {
++			mu2.Lock()
++			cond2.Wait()
++			mu2.Unlock()
++		}()
++		time.Sleep(1 * time.Millisecond)
++
++		// put top sudog back
++		cond1.Broadcast()
++		time.Sleep(1 * time.Millisecond)
++
++		// drop cache on floor
++		runtime.GC()
++
++		// release cond2 after select has gotten to run
++		release = func() {
++			cond2.Broadcast()
++			time.Sleep(1 * time.Millisecond)
++		}
++	}
++
++	runtime.GC()
++
++	runtime.ReadMemStats(&stats2)
++
++	if int(stats2.HeapObjects)-int(stats1.HeapObjects) > 20 { // normally at most 1 or 2; was 300 with leak
++		print("BUG: object leak: ", stats.HeapObjects, " -> ", stats1.HeapObjects, " -> ", stats2.HeapObjects, "\n")
++	}
++}

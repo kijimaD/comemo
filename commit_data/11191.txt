@@ -8,6 +8,20 @@ Date:   Tue Jan 17 09:04:51 2012 +1100
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/5545068
-
+---
  doc/devel/weekly.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 188209a84d..d40fd41f19 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -14,7 +14,7 @@ hg pull
+ hg update weekly.<i>YYYY-MM-DD</i>
+ </pre>
+ 
+-<h2 id="2012-01-14">2012-01-15</h2>
++<h2 id="2012-01-15">2012-01-15</h2>
+ 
+ <pre>
+ This weekly snapshot includes two package changes that may require changes to

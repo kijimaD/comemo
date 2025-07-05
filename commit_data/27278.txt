@@ -7,6 +7,24 @@ Date:   Fri Mar 18 16:43:43 2016 +0100
     Change-Id: If45410a2d7e48d1c9e6800cd98f81dd89024832c
     Reviewed-on: https://go-review.googlesource.com/20852
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/benchmark.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index ef16963401..3e85392d03 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -535,8 +535,11 @@ func (pb *PB) Next() bool {
+ // The body function will be run in each goroutine. It should set up any
+ // goroutine-local state and then iterate until pb.Next returns false.
+ // It should not use the StartTimer, StopTimer, or ResetTimer functions,
+-// because they have global effect.
++// because they have global effect. It should also not call Run.
+ func (b *B) RunParallel(body func(*PB)) {
++	if b.N == 0 {
++		return // Nothing to do when probing.
++	}
+ 	// Calculate grain size as number of iterations that take ~100µs.
+ 	// 100µs is enough to amortize the overhead and provide sufficient
+ 	// dynamic load balancing.

@@ -9,6 +9,20 @@ Date:   Wed Nov 29 21:15:31 2017 +0000
     Change-Id: I37f7a59c15828aa720fe787fff42fb3ef17729c7
     Reviewed-on: https://go-review.googlesource.com/80815
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/buffer.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 67771846fc..dc9d5e95d3 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -56,6 +56,8 @@ func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
+ 
+ // String returns the contents of the unread portion of the buffer
+ // as a string. If the Buffer is a nil pointer, it returns "<nil>".
++//
++// To build strings more efficiently, see the strings.Builder type.
+ func (b *Buffer) String() string {
+ 	if b == nil {
+ 		// Special case, useful in debugging.

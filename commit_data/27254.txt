@@ -15,7 +15,7 @@ Date:   Thu Mar 17 01:47:16 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20796
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go     |  2 +-
  src/cmd/compile/internal/gc/dcl.go         | 49 ++++++++++++------------------
  src/cmd/compile/internal/gc/esc.go         |  2 +-
@@ -32,3 +32,465 @@ Date:   Thu Mar 17 01:47:16 2016 -0700
  src/cmd/compile/internal/gc/universe.go    |  4 ---
  src/cmd/compile/internal/gc/walk.go        |  6 ++--
  15 files changed, 60 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index ed373568ad..10faf52a6f 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -595,7 +595,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
+ 	call.List.Set(callargs)
+ 	call.Isddd = ddd
+-	if t0.Outtuple == 0 {
++	if t0.Results().NumFields() == 0 {
+ 		body = append(body, call)
+ 	} else {
+ 		n := Nod(OAS2, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6d1e6f4223..8b05cdb23a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -655,37 +655,31 @@ func funcargs2(t *Type) {
+ 		Fatalf("funcargs2 %v", t)
+ 	}
+ 
+-	if t.Thistuple != 0 {
+-		for _, ft := range t.Recvs().Fields().Slice() {
+-			if ft.Nname == nil || ft.Nname.Sym == nil {
+-				continue
+-			}
+-			n := ft.Nname // no need for newname(ft->nname->sym)
+-			n.Type = ft.Type
+-			declare(n, PPARAM)
++	for _, ft := range t.Recvs().Fields().Slice() {
++		if ft.Nname == nil || ft.Nname.Sym == nil {
++			continue
+ 		}
++		n := ft.Nname // no need for newname(ft->nname->sym)
++		n.Type = ft.Type
++		declare(n, PPARAM)
+ 	}
+ 
+-	if t.Intuple != 0 {
+-		for _, ft := range t.Params().Fields().Slice() {
+-			if ft.Nname == nil || ft.Nname.Sym == nil {
+-				continue
+-			}
+-			n := ft.Nname
+-			n.Type = ft.Type
+-			declare(n, PPARAM)
++	for _, ft := range t.Params().Fields().Slice() {
++		if ft.Nname == nil || ft.Nname.Sym == nil {
++			continue
+ 		}
++		n := ft.Nname
++		n.Type = ft.Type
++		declare(n, PPARAM)
+ 	}
+ 
+-	if t.Outtuple != 0 {
+-		for _, ft := range t.Results().Fields().Slice() {
+-			if ft.Nname == nil || ft.Nname.Sym == nil {
+-				continue
+-			}
+-			n := ft.Nname
+-			n.Type = ft.Type
+-			declare(n, PPARAMOUT)
++	for _, ft := range t.Results().Fields().Slice() {
++		if ft.Nname == nil || ft.Nname.Sym == nil {
++			continue
+ 		}
++		n := ft.Nname
++		n.Type = ft.Type
++		declare(n, PPARAMOUT)
+ 	}
+ }
+ 
+@@ -1068,13 +1062,8 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 		t.Broke = true
+ 	}
+ 
+-	if this != nil {
+-		t.Thistuple = 1
+-	}
+-	t.Outtuple = len(out)
+-	t.Intuple = len(in)
+ 	t.Outnamed = false
+-	if t.Outtuple > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
++	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
+ 		s := out[0].Left.Orig.Sym
+ 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
+ 			t.Outnamed = true
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 21fc2695a0..aa75cc7cbd 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -810,7 +810,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	case ORETURN:
+ 		ll := n.List
+-		if n.List.Len() == 1 && Curfn.Type.Outtuple > 1 {
++		if n.List.Len() == 1 && Curfn.Type.Results().NumFields() > 1 {
+ 			// OAS2FUNC in disguise
+ 			// esccall already done on n->list->n
+ 			// tie n->list->n->escretval to curfn->dcl PPARAMOUT's
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index ef0d856c8d..3e6b517436 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -130,7 +130,7 @@ func reexportdep(n *Node) {
+ 			}
+ 
+ 			// nodes for method calls.
+-			if n.Type == nil || n.Type.Thistuple > 0 {
++			if n.Type == nil || n.Type.Recv() != nil {
+ 				break
+ 			}
+ 			fallthrough
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3af269d4dd..73b030dd8a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -630,7 +630,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		if flag&FmtShort != 0 {
+ 			// no leading func
+ 		} else {
+-			if t.Thistuple != 0 {
++			if t.Recv() != nil {
+ 				buf.WriteString("method")
+ 				buf.WriteString(Tconv(t.Recvs(), 0))
+ 				buf.WriteString(" ")
+@@ -639,7 +639,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		}
+ 		buf.WriteString(Tconv(t.Params(), 0))
+ 
+-		switch t.Outtuple {
++		switch t.Results().NumFields() {
+ 		case 0:
+ 			break
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index abe576eed1..15922abb59 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -34,7 +34,7 @@ import (
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+ // the ->sym can be re-used in the local package, so peel it off the receiver's type.
+ func fnpkg(fn *Node) *Pkg {
+-	if fn.Type.Thistuple != 0 {
++	if fn.Type.Recv() != nil {
+ 		// method
+ 		rcvr := fn.Type.Recv().Type
+ 
+@@ -592,7 +592,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	}
+ 
+ 	// assign receiver.
+-	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
++	if fn.Type.Recv() != nil && n.Left.Op == ODOTMETH {
+ 		// method call with a receiver.
+ 		t := fn.Type.Recv()
+ 
+@@ -635,8 +635,8 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	if n.List.Len() == 1 {
+ 		switch n.List.First().Op {
+ 		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
+-			if n.List.First().Left.Type.Outtuple > 1 {
+-				multiret = n.List.First().Left.Type.Outtuple - 1
++			if n.List.First().Left.Type.Results().NumFields() > 1 {
++				multiret = n.List.First().Left.Type.Results().NumFields() - 1
+ 			}
+ 		}
+ 	}
+@@ -644,9 +644,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	if variadic {
+ 		varargcount = n.List.Len() + multiret
+ 		if n.Left.Op != ODOTMETH {
+-			varargcount -= fn.Type.Thistuple
++			varargcount -= fn.Type.Recvs().NumFields()
+ 		}
+-		varargcount -= fn.Type.Intuple - 1
++		varargcount -= fn.Type.Params().NumFields() - 1
+ 	}
+ 
+ 	// assign arguments to the parameters' temp names
+@@ -656,7 +656,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	li := 0
+ 
+ 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
+-	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
++	if fn.Type.Recv() != nil && n.Left.Op != ODOTMETH {
+ 		// non-method call to method
+ 		if n.List.Len() == 0 {
+ 			Fatalf("non-method call to method without first arg: %v", Nconv(n, FmtSign))
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 14e70be10d..fa2cea7fbf 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -326,14 +326,14 @@ func ismulticall(l Nodes) bool {
+ 	}
+ 
+ 	// call must return multiple values
+-	return n.Left.Type.Outtuple > 1
++	return n.Left.Type.Results().NumFields() > 1
+ }
+ 
+ // Copyret emits t1, t2, ... = n, where n is a function call,
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) []*Node {
+ 	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
+-		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
++		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
+ 	}
+ 
+ 	var l1 []*Node
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6abb57d490..43b692d59d 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -147,18 +147,18 @@ func emitptrargsmap() {
+ 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+ 	nbitmap := 1
+-	if Curfn.Type.Outtuple > 0 {
++	if Curfn.Type.Results().NumFields() > 0 {
+ 		nbitmap = 2
+ 	}
+ 	off := duint32(sym, 0, uint32(nbitmap))
+ 	off = duint32(sym, off, uint32(bv.n))
+ 	var xoffset int64
+-	if Curfn.Type.Thistuple > 0 {
++	if Curfn.Type.Recv() != nil {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
+ 	}
+ 
+-	if Curfn.Type.Intuple > 0 {
++	if Curfn.Type.Params().NumFields() > 0 {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
+ 	}
+@@ -166,7 +166,7 @@ func emitptrargsmap() {
+ 	for j := 0; int32(j) < bv.n; j += 32 {
+ 		off = duint32(sym, off, bv.b[j/32])
+ 	}
+-	if Curfn.Type.Outtuple > 0 {
++	if Curfn.Type.Results().NumFields() > 0 {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
+ 		for j := 0; int32(j) < bv.n; j += 32 {
+@@ -503,7 +503,7 @@ func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		lineno = Curfn.Func.Endlineno
+ 	}
+ 
+-	if Curfn.Type.Outtuple != 0 {
++	if Curfn.Type.Results().NumFields() != 0 {
+ 		Ginscall(throwreturn, 0)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index b5a7a97c85..a414d1b3c0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -286,7 +286,7 @@ func methods(t *Type) []*Sig {
+ 	// generating code if necessary.
+ 	var ms []*Sig
+ 	for _, f := range mt.AllMethods().Slice() {
+-		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
++		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
+ 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if f.Type.Recv() == nil {
+@@ -1041,8 +1041,8 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		inCount := t.Thistuple + t.Intuple
+-		outCount := t.Outtuple
++		inCount := t.Recvs().NumFields() + t.Params().NumFields()
++		outCount := t.Results().NumFields()
+ 		if isddd {
+ 			outCount |= 1 << 15
+ 		}
+@@ -1052,7 +1052,7 @@ ok:
+ 			ot += 4 // align for *rtype
+ 		}
+ 
+-		dataAdd := (inCount + t.Outtuple) * Widthptr
++		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 6578593a8c..11c0f419da 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+-		{Type{}, 132, 224},
++		{Type{}, 116, 184},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 26d45700e5..8d2d5008e3 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1556,7 +1556,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 	c := 0
+ 	if u.Etype == TSTRUCT || u.Etype == TINTER {
+ 		for _, f := range u.Fields().Slice() {
+-			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
++			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+ 					*save = f
+ 				}
+@@ -1807,7 +1807,7 @@ func expandmeth(t *Type) {
+ 		}
+ 
+ 		// dotpath may have dug out arbitrary fields, we only want methods.
+-		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
++		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
+ 			continue
+ 		}
+ 
+@@ -1981,7 +1981,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		call := Nod(OCALL, dot, nil)
+ 		call.List.Set(args)
+ 		call.Isddd = isddd
+-		if method.Type.Outtuple > 0 {
++		if method.Type.Results().NumFields() > 0 {
+ 			n := Nod(ORETURN, nil, nil)
+ 			n.List.Set1(call)
+ 			call = n
+@@ -2051,7 +2051,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
+ 		}
+ 	}
+ 
+-	if m.Type.Etype != TFUNC || m.Type.Thistuple == 0 {
++	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
+ 		Yyerror("%v.%v is a field, not a method", t, s)
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index d328d2b96d..624c506626 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -112,22 +112,17 @@ type Type struct {
+ 	Broke       bool // broken type definition.
+ 	Align       uint8
+ 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
++	Outnamed    bool  // on TFUNC
+ 
+-	Nod    *Node // canonical OTYPE node
+-	Orig   *Type // original type (type literal or predefined type)
+-	Lineno int32
+-
+-	// TFUNC
+-	Thistuple int
+-	Outtuple  int
+-	Intuple   int
+-	Outnamed  bool
++	Nod  *Node // canonical OTYPE node
++	Orig *Type // original type (type literal or predefined type)
+ 
+ 	methods    Fields
+ 	allMethods Fields
+ 
+ 	Sym    *Sym
+ 	Vargen int32 // unique name for OTYPE/ONAME
++	Lineno int32
+ 
+ 	Nname  *Node
+ 	Argwid int64
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d0de0834c2..1a28745f74 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -845,7 +845,7 @@ OpSwitch:
+ 				return
+ 			}
+ 
+-			if n.Type.Etype != TFUNC || n.Type.Thistuple != 1 {
++			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
+ 				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
+ 				n.Type = nil
+ 				n.Type = nil
+@@ -1327,11 +1327,11 @@ OpSwitch:
+ 
+ 		typecheckaste(OCALL, n.Left, n.Isddd, t.Params(), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
+ 		ok |= Etop
+-		if t.Outtuple == 0 {
++		if t.Results().NumFields() == 0 {
+ 			break OpSwitch
+ 		}
+ 		ok |= Erv
+-		if t.Outtuple == 1 {
++		if t.Results().NumFields() == 1 {
+ 			n.Type = l.Type.Results().Field(0).Type
+ 
+ 			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime != 0 || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
+@@ -1445,8 +1445,8 @@ OpSwitch:
+ 			}
+ 
+ 			t := n.List.First().Left.Type
+-			if t.Outtuple != 2 {
+-				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Outtuple)
++			if t.Results().NumFields() != 2 {
++				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
+ 				n.Type = nil
+ 				return
+ 			}
+@@ -3957,7 +3957,7 @@ func (n *Node) isterminating() bool {
+ }
+ 
+ func checkreturn(fn *Node) {
+-	if fn.Type.Outtuple != 0 && len(fn.Nbody.Slice()) != 0 {
++	if fn.Type.Results().NumFields() != 0 && len(fn.Nbody.Slice()) != 0 {
+ 		markbreaklist(fn.Nbody, nil)
+ 		if !fn.Nbody.isterminating() {
+ 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 277a530ff3..cf310d49f0 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -387,10 +387,6 @@ func lexinit1() {
+ 	*f.RecvsP() = rcvr
+ 	*f.ResultsP() = out
+ 	*f.ParamsP() = in
+-	f.Thistuple = 1
+-	f.Intuple = 0
+-	f.Outnamed = false
+-	f.Outtuple = 1
+ 
+ 	t := typ(TINTER)
+ 	field = newField()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4e3079fd7e..6d136f6272 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -657,7 +657,7 @@ opswitch:
+ 
+ 			// Update type of OCALLFUNC node.
+ 			// Output arguments had not changed, but their offsets could.
+-			if n.Left.Type.Outtuple == 1 {
++			if n.Left.Type.Results().NumFields() == 1 {
+ 				n.Type = n.Left.Type.Results().Field(0).Type
+ 			} else {
+ 				n.Type = n.Left.Type.Results()
+@@ -2634,11 +2634,11 @@ func vmkcall(fn *Node, t *Type, init *Nodes, va []*Node) *Node {
+ 		Fatalf("mkcall %v %v", fn, fn.Type)
+ 	}
+ 
+-	n := fn.Type.Intuple
++	n := fn.Type.Params().NumFields()
+ 
+ 	r := Nod(OCALL, fn, nil)
+ 	r.List.Set(va[:n])
+-	if fn.Type.Outtuple > 0 {
++	if fn.Type.Results().NumFields() > 0 {
+ 		typecheck(&r, Erv|Efnstruct)
+ 	} else {
+ 		typecheck(&r, Etop)

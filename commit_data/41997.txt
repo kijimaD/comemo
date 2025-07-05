@@ -26,7 +26,7 @@ Date:   Fri Nov 1 14:04:08 2019 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go         | 101 ++++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/check.go        |   6 +-
  src/cmd/compile/internal/ssa/cse.go          |   4 +-
@@ -40,3 +40,413 @@ Date:   Fri Nov 1 14:04:08 2019 -0700
  src/cmd/compile/internal/ssa/sparsetree.go   |   2 +-
  src/runtime/defer_test.go                    |  27 +++++++
  12 files changed, 140 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index d6ce9017e4..c205a09d1c 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -126,6 +126,19 @@ type Liveness struct {
+ 	regMaps     []liveRegMask
+ 
+ 	cache progeffectscache
++
++	// These are only populated if open-coded defers are being used.
++	// List of vars/stack slots storing defer args
++	openDeferVars []openDeferVarInfo
++	// Map from defer arg OpVarDef to the block where the OpVarDef occurs.
++	openDeferVardefToBlockMap map[*Node]*ssa.Block
++	// Map of blocks that cannot reach a return or exit (panic)
++	nonReturnBlocks map[*ssa.Block]bool
++}
++
++type openDeferVarInfo struct {
++	n         *Node // Var/stack slot storing a defer arg
++	varsIndex int   // Index of variable in lv.vars
+ }
+ 
+ // LivenessMap maps from *ssa.Value to LivenessIndex.
+@@ -819,12 +832,58 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
+ func (lv *Liveness) prologue() {
+ 	lv.initcache()
+ 
++	if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
++		lv.openDeferVardefToBlockMap = make(map[*Node]*ssa.Block)
++		for i, n := range lv.vars {
++			if n.Name.OpenDeferSlot() {
++				lv.openDeferVars = append(lv.openDeferVars, openDeferVarInfo{n: n, varsIndex: i})
++			}
++		}
++
++		// Find any blocks that cannot reach a return or a BlockExit
++		// (panic) -- these must be because of an infinite loop.
++		reachesRet := make(map[ssa.ID]bool)
++		blockList := make([]*ssa.Block, 0, 256)
++
++		for _, b := range lv.f.Blocks {
++			if b.Kind == ssa.BlockRet || b.Kind == ssa.BlockRetJmp || b.Kind == ssa.BlockExit {
++				blockList = append(blockList, b)
++			}
++		}
++
++		for len(blockList) > 0 {
++			b := blockList[0]
++			blockList = blockList[1:]
++			if reachesRet[b.ID] {
++				continue
++			}
++			reachesRet[b.ID] = true
++			for _, e := range b.Preds {
++				blockList = append(blockList, e.Block())
++			}
++		}
++
++		lv.nonReturnBlocks = make(map[*ssa.Block]bool)
++		for _, b := range lv.f.Blocks {
++			if !reachesRet[b.ID] {
++				lv.nonReturnBlocks[b] = true
++				//fmt.Println("No reach ret", lv.f.Name, b.ID, b.Kind)
++			}
++		}
++	}
++
+ 	for _, b := range lv.f.Blocks {
+ 		be := lv.blockEffects(b)
+ 
+ 		// Walk the block instructions backward and update the block
+ 		// effects with the each prog effects.
+ 		for j := len(b.Values) - 1; j >= 0; j-- {
++			if b.Values[j].Op == ssa.OpVarDef {
++				n := b.Values[j].Aux.(*Node)
++				if n.Name.OpenDeferSlot() {
++					lv.openDeferVardefToBlockMap[n] = b
++				}
++			}
+ 			pos, e := lv.valueEffects(b.Values[j])
+ 			regUevar, regKill := lv.regEffects(b.Values[j])
+ 			if e&varkill != 0 {
+@@ -841,6 +900,20 @@ func (lv *Liveness) prologue() {
+ 	}
+ }
+ 
++// markDeferVarsLive marks each variable storing an open-coded defer arg as
++// specially live in block b if the variable definition dominates block b.
++func (lv *Liveness) markDeferVarsLive(b *ssa.Block, newliveout *varRegVec) {
++	// Only force computation of dominators if we have a block where we need
++	// to specially mark defer args live.
++	sdom := lv.f.Sdom()
++	for _, info := range lv.openDeferVars {
++		defB := lv.openDeferVardefToBlockMap[info.n]
++		if sdom.IsAncestorEq(defB, b) {
++			newliveout.vars.Set(int32(info.varsIndex))
++		}
++	}
++}
++
+ // Solve the liveness dataflow equations.
+ func (lv *Liveness) solve() {
+ 	// These temporary bitvectors exist to avoid successive allocations and
+@@ -872,16 +945,7 @@ func (lv *Liveness) solve() {
+ 					newliveout.vars.Set(pos)
+ 				}
+ 			case ssa.BlockExit:
+-				if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
+-					// All stack slots storing args for open-coded
+-					// defers are live at panic exit (since they
+-					// will be used in running defers)
+-					for i, n := range lv.vars {
+-						if n.Name.OpenDeferSlot() {
+-							newliveout.vars.Set(int32(i))
+-						}
+-					}
+-				}
++				// panic exit - nothing to do
+ 			default:
+ 				// A variable is live on output from this block
+ 				// if it is live on input to some successor.
+@@ -893,6 +957,23 @@ func (lv *Liveness) solve() {
+ 				}
+ 			}
+ 
++			if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() &&
++				(b.Kind == ssa.BlockExit || lv.nonReturnBlocks[b]) {
++				// Open-coded defer args slots must be live
++				// everywhere in a function, since a panic can
++				// occur (almost) anywhere. Force all appropriate
++				// defer arg slots to be live in BlockExit (panic)
++				// blocks and in blocks that do not reach a return
++				// (because of infinite loop).
++				//
++				// We are assuming that the defer exit code at
++				// BlockReturn/BlockReturnJmp accesses all of the
++				// defer args (with pointers), and so keeps them
++				// live. This analysis may have to be adjusted if
++				// that changes (because of optimizations).
++				lv.markDeferVarsLive(b, &newliveout)
++			}
++
+ 			if !be.liveout.Eq(newliveout) {
+ 				change = true
+ 				be.liveout.Copy(newliveout)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index e97377bf5c..4e258fe82b 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -284,7 +284,7 @@ func checkFunc(f *Func) {
+ 	if f.RegAlloc == nil {
+ 		// Note: regalloc introduces non-dominating args.
+ 		// See TODO in regalloc.go.
+-		sdom := f.sdom()
++		sdom := f.Sdom()
+ 		for _, b := range f.Blocks {
+ 			for _, v := range b.Values {
+ 				for i, arg := range v.Args {
+@@ -500,11 +500,11 @@ func memCheck(f *Func) {
+ 
+ // domCheck reports whether x dominates y (including x==y).
+ func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
+-	if !sdom.isAncestorEq(f.Entry, y) {
++	if !sdom.IsAncestorEq(f.Entry, y) {
+ 		// unreachable - ignore
+ 		return true
+ 	}
+-	return sdom.isAncestorEq(x, y)
++	return sdom.IsAncestorEq(x, y)
+ }
+ 
+ // isExactFloat32 reports whether x can be exactly represented as a float32.
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 1fdcffcae8..15dfe6d795 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -155,7 +155,7 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 
+ 	// Compute substitutions we would like to do. We substitute v for w
+ 	// if v and w are in the same equivalence class and v dominates w.
+@@ -179,7 +179,7 @@ func cse(f *Func) {
+ 				if w == nil {
+ 					continue
+ 				}
+-				if sdom.isAncestorEq(v.Block, w.Block) {
++				if sdom.IsAncestorEq(v.Block, w.Block) {
+ 					rewrite[w.ID] = v
+ 					e[j] = nil
+ 				} else {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 332e201899..7cf72a8e37 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -647,7 +647,7 @@ func (f *Func) Idom() []*Block {
+ 
+ // sdom returns a sparse tree representing the dominator relationships
+ // among the blocks of f.
+-func (f *Func) sdom() SparseTree {
++func (f *Func) Sdom() SparseTree {
+ 	if f.cachedSdom == nil {
+ 		f.cachedSdom = newSparseTree(f, f.Idom())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 012dd77868..49898a1322 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -266,14 +266,14 @@ func (l *loop) isWithinOrEq(ll *loop) bool {
+ // we're relying on loop nests to not be terribly deep.
+ func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
+ 	var o *loop
+-	for o = l.outer; o != nil && !sdom.isAncestorEq(o.header, b); o = o.outer {
++	for o = l.outer; o != nil && !sdom.IsAncestorEq(o.header, b); o = o.outer {
+ 	}
+ 	return o
+ }
+ 
+ func loopnestfor(f *Func) *loopnest {
+ 	po := f.postorder()
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 	b2l := make([]*loop, f.NumBlocks())
+ 	loops := make([]*loop, 0)
+ 	visited := make([]bool, f.NumBlocks())
+@@ -305,7 +305,7 @@ func loopnestfor(f *Func) *loopnest {
+ 			bb := e.b
+ 			l := b2l[bb.ID]
+ 
+-			if sdom.isAncestorEq(bb, b) { // Found a loop header
++			if sdom.IsAncestorEq(bb, b) { // Found a loop header
+ 				if f.pass != nil && f.pass.debug > 4 {
+ 					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
+ 				}
+@@ -324,7 +324,7 @@ func loopnestfor(f *Func) *loopnest {
+ 				// Perhaps a loop header is inherited.
+ 				// is there any loop containing our successor whose
+ 				// header dominates b?
+-				if !sdom.isAncestorEq(l.header, b) {
++				if !sdom.IsAncestorEq(l.header, b) {
+ 					l = l.nearestOuterLoop(sdom, b)
+ 				}
+ 				if f.pass != nil && f.pass.debug > 4 {
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index d53014943d..d99b15b2b6 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -83,7 +83,7 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value) {
+ // TODO: handle 32 bit operations
+ func findIndVar(f *Func) []indVar {
+ 	var iv []indVar
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 
+ 	for _, b := range f.Blocks {
+ 		if b.Kind != BlockIf || len(b.Preds) != 2 {
+@@ -187,7 +187,7 @@ func findIndVar(f *Func) []indVar {
+ 
+ 		// Second condition: b.Succs[0] dominates nxt so that
+ 		// nxt is computed when inc < max, meaning nxt <= max.
+-		if !sdom.isAncestorEq(b.Succs[0].b, nxt.Block) {
++		if !sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
+ 			// inc+ind can only be reached through the branch that enters the loop.
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 33e8dc9103..cf6bdbe37b 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -15,7 +15,7 @@ func nilcheckelim(f *Func) {
+ 	// A nil check is redundant if the same nil check was successful in a
+ 	// dominating block. The efficacy of this pass depends heavily on the
+ 	// efficacy of the cse pass.
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 
+ 	// TODO: Eliminate more nil checks.
+ 	// We can recursively remove any chain of fixed offset calculations,
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 1840d6d54e..cc3319e188 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -24,7 +24,7 @@ package ssa
+ //
+ // In this case we can replace x with a copy of b.
+ func phiopt(f *Func) {
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 	for _, b := range f.Blocks {
+ 		if len(b.Preds) != 2 || len(b.Values) == 0 {
+ 			// TODO: handle more than 2 predecessors, e.g. a || b || c.
+@@ -93,7 +93,7 @@ func phiopt(f *Func) {
+ 			// value is always computed. This guarantees that the side effects
+ 			// of value are not seen if a is false.
+ 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
+-				if tmp := v.Args[1-reverse]; sdom.isAncestorEq(tmp.Block, b) {
++				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+ 					v.reset(OpOrB)
+ 					v.SetArgs2(b0.Controls[0], tmp)
+ 					if f.pass.debug > 0 {
+@@ -109,7 +109,7 @@ func phiopt(f *Func) {
+ 			// value is always computed. This guarantees that the side effects
+ 			// of value are not seen if a is false.
+ 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+-				if tmp := v.Args[reverse]; sdom.isAncestorEq(tmp.Block, b) {
++				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+ 					v.reset(OpAndB)
+ 					v.SetArgs2(b0.Controls[0], tmp)
+ 					if f.pass.debug > 0 {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index ce5f6f2cfa..774fa94dbc 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -848,7 +848,7 @@ func prove(f *Func) {
+ 	})
+ 
+ 	idom := f.Idom()
+-	sdom := f.sdom()
++	sdom := f.Sdom()
+ 
+ 	// DFS on the dominator tree.
+ 	//
+@@ -948,10 +948,10 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
+ 	// has one predecessor then (apart from the degenerate case),
+ 	// there is no path from entry that can reach b through p.Succs[1].
+ 	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
+-	if sdom.isAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
++	if sdom.IsAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
+ 		return positive
+ 	}
+-	if sdom.isAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
++	if sdom.IsAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
+ 		return negative
+ 	}
+ 	return unknown
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index d7e931d0b8..e125ae4239 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -683,7 +683,7 @@ func (s *regAllocState) init(f *Func) {
+ 	s.endRegs = make([][]endReg, f.NumBlocks())
+ 	s.startRegs = make([][]startReg, f.NumBlocks())
+ 	s.spillLive = make([][]ID, f.NumBlocks())
+-	s.sdom = f.sdom()
++	s.sdom = f.Sdom()
+ 
+ 	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
+ 	if f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+@@ -1916,7 +1916,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 	for _, spillID := range stacklive {
+ 		v := e.s.orig[spillID]
+ 		spill := e.s.values[v.ID].spill
+-		if !e.s.sdom.isAncestorEq(spill.Block, e.p) {
++		if !e.s.sdom.IsAncestorEq(spill.Block, e.p) {
+ 			// Spills were placed that only dominate the uses found
+ 			// during the first regalloc pass. The edge fixup code
+ 			// can't use a spill location if the spill doesn't dominate
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index fe96912c00..1be20b2cda 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -179,7 +179,7 @@ func (t SparseTree) Child(x *Block) *Block {
+ }
+ 
+ // isAncestorEq reports whether x is an ancestor of or equal to y.
+-func (t SparseTree) isAncestorEq(x, y *Block) bool {
++func (t SparseTree) IsAncestorEq(x, y *Block) bool {
+ 	if x == y {
+ 		return true
+ 	}
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+index 51cd4bb9cc..3d8f81277f 100644
+--- a/src/runtime/defer_test.go
++++ b/src/runtime/defer_test.go
+@@ -254,3 +254,30 @@ func TestNonSSAableArgs(t *testing.T) {
+ 		save4 = element.z
+ 	}(sideeffect2(foo).element)
+ }
++
++//go:noinline
++func doPanic() {
++	panic("Test panic")
++}
++
++func TestDeferForFuncWithNoExit(t *testing.T) {
++	cond := 1
++	defer func() {
++		if cond != 2 {
++			t.Fatal(fmt.Sprintf("cond: wanted 2, got %v", cond))
++		}
++		if recover() != "Test panic" {
++			t.Fatal("Didn't find expected panic")
++		}
++	}()
++	x := 0
++	// Force a stack copy, to make sure that the &cond pointer passed to defer
++	// function is properly updated.
++	growStackIter(&x, 1000)
++	cond = 2
++	doPanic()
++
++	// This function has no exit/return, since it ends with an infinite loop
++	for {
++	}
++}

@@ -11,7 +11,36 @@ Date:   Wed Apr 4 09:52:42 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5970078
-
+---
  src/pkg/encoding/ascii85/ascii85.go      | 1 +
  src/pkg/encoding/ascii85/ascii85_test.go | 5 +++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 7d004b5e5d..705022792a 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -57,6 +57,7 @@ func Encode(dst, src []byte) int {
+ 		if v == 0 && len(src) >= 4 {
+ 			dst[0] = 'z'
+ 			dst = dst[1:]
++			src = src[4:]
+ 			n++
+ 			continue
+ 		}
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 70e67d8b06..42cf7e80e1 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -28,6 +28,11 @@ var pairs = []testpair{
+ 			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
+ 			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
+ 	},
++	// Special case when shortening !!!!! to z.
++	{
++		"\000\000\000\000",
++		"z",
++	},
+ }
+ 
+ var bigtest = pairs[len(pairs)-1]

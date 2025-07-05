@@ -11,6 +11,22 @@ Date:   Wed Dec 12 03:43:48 2018 +1100
     Reviewed-on: https://go-review.googlesource.com/c/153579
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 6d82b69a9d..e395d15310 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -193,6 +193,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 	switch runtime.GOOS {
+ 	case "darwin", "dragonfly", "netbsd", "solaris":
+ 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
++	case "openbsd":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 	// Ignore the failure if the tests are running in a QEMU-based emulator,
+ 	// QEMU is not perfect at emulating everything.

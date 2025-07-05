@@ -12,6 +12,20 @@ Date:   Mon Jan 6 14:33:49 2020 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 4ed8a02d67..db28e2ed03 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -87,7 +87,7 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+-	FlagNewLdElf    = flag.Bool("newldelf", false, "ELF host obj load with new loader")
++	FlagNewLdElf    = flag.Bool("newldelf", true, "ELF host obj load with new loader")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")

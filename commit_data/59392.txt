@@ -24,6 +24,27 @@ Date:   Thu Feb 29 19:08:59 2024 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index f31ca3aeb7..35dfff06d6 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -469,6 +469,7 @@ func (t *timer) needsAdd(state uint32) bool {
+ func (t *timer) maybeAdd() {
+ 	ts := &getg().m.p.ptr().timers
+ 	ts.lock()
++	ts.cleanHead()
+ 	state, mp := t.lock()
+ 	when := int64(0)
+ 	if t.needsAdd(state) {
+@@ -525,7 +526,6 @@ func (ts *timers) cleanHead() {
+ 		t.unlock(state, mp)
+ 		if !updated {
+ 			// Head of timers does not need adjustment.
+-			t.unlock(state, mp)
+ 			return
+ 		}
+ 	}

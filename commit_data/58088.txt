@@ -14,7 +14,81 @@ Date:   Wed Sep 27 15:25:40 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/internal/zstd/block.go                         |  44 +++++++++------------
  .../zstd/testdata/f2a8e35c.helloworld-11000x.zst   | Bin 0 -> 47 bytes
  2 files changed, 18 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/zstd/block.go b/src/internal/zstd/block.go
+index 8732661fa1..11a99cd778 100644
+--- a/src/internal/zstd/block.go
++++ b/src/internal/zstd/block.go
+@@ -388,46 +388,38 @@ func (r *Reader) copyFromWindow(rbr *reverseBitReader, offset, match uint32) err
+ 		return rbr.makeError("invalid zero offset")
+ 	}
+ 
++	// Offset may point into the buffer or the window and
++	// match may extend past the end of the initial buffer.
++	// |--r.window--|--r.buffer--|
++	//        |<-----offset------|
++	//        |------match----------->|
++	bufferOffset := uint32(0)
+ 	lenBlock := uint32(len(r.buffer))
+ 	if lenBlock < offset {
+ 		lenWindow := r.window.len()
+-		windowOffset := offset - lenBlock
+-		if windowOffset > lenWindow {
++		copy := offset - lenBlock
++		if copy > lenWindow {
+ 			return rbr.makeError("offset past window")
+ 		}
+-		from := lenWindow - windowOffset
+-		if from+match <= lenWindow {
+-			r.buffer = r.window.appendTo(r.buffer, from, from+match)
+-			return nil
+-		}
+-		r.buffer = r.window.appendTo(r.buffer, from, lenWindow)
+-		copied := lenWindow - from
+-		offset -= copied
+-		match -= copied
+-
+-		if offset == 0 && match > 0 {
+-			return rbr.makeError("invalid offset")
++		windowOffset := lenWindow - copy
++		if copy > match {
++			copy = match
+ 		}
+-	}
+-
+-	from := lenBlock - offset
+-	if offset >= match {
+-		r.buffer = append(r.buffer, r.buffer[from:from+match]...)
+-		return nil
++		r.buffer = r.window.appendTo(r.buffer, windowOffset, windowOffset+copy)
++		match -= copy
++	} else {
++		bufferOffset = lenBlock - offset
+ 	}
+ 
+ 	// We are being asked to copy data that we are adding to the
+ 	// buffer in the same copy.
+ 	for match > 0 {
+-		var copy uint32
+-		if offset >= match {
++		copy := uint32(len(r.buffer)) - bufferOffset
++		if copy > match {
+ 			copy = match
+-		} else {
+-			copy = offset
+ 		}
+-		r.buffer = append(r.buffer, r.buffer[from:from+copy]...)
++		r.buffer = append(r.buffer, r.buffer[bufferOffset:bufferOffset+copy]...)
+ 		match -= copy
+-		from += copy
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/zstd/testdata/f2a8e35c.helloworld-11000x.zst b/src/internal/zstd/testdata/f2a8e35c.helloworld-11000x.zst
+new file mode 100644
+index 0000000000..87a8aca9ae
+Binary files /dev/null and b/src/internal/zstd/testdata/f2a8e35c.helloworld-11000x.zst differ

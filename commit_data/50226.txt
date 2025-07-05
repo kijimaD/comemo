@@ -14,6 +14,20 @@ Date:   Sat Oct 9 20:09:21 2021 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 33cd5985e0..78822098a7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1125,7 +1125,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if v.Args[0].Reg() != v.Reg() {
+ 			// POPCNT on Intel has a false dependency on the destination register.
+ 			// Xor register with itself to break the dependency.
+-			p := s.Prog(x86.AXORQ)
++			p := s.Prog(x86.AXORL)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = v.Reg()
+ 			p.To.Type = obj.TYPE_REG

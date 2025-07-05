@@ -63,9 +63,234 @@ Date:   Thu Jan 3 09:25:06 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  8 +--
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 74 ++++++++++++++++++++++++++++
  test/codegen/mathbits.go                     |  7 +++
  4 files changed, 89 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e03988dac2..3f4355c387 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3290,7 +3290,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.ARM64)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+@@ -3298,7 +3298,7 @@ func init() {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
+ 		},
+-		sys.ARM64, sys.S390X, sys.PPC64)
++		sys.S390X, sys.PPC64)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
+@@ -3311,7 +3311,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.ARM64)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
+@@ -3319,7 +3319,7 @@ func init() {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
+ 		},
+-		sys.ARM64, sys.S390X)
++		sys.S390X)
+ 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
+ 	// ReverseBytes inlines correctly, no need to intrinsify it.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index ca123d7375..6e0420983a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -97,9 +97,13 @@
+ 
+ (Ctz64NonZero x) -> (Ctz64 x)
+ (Ctz32NonZero x) -> (Ctz32 x)
++(Ctz16NonZero x) -> (Ctz32 x)
++(Ctz8NonZero x) -> (Ctz32 x)
+ 
+ (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
+ (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
++(Ctz16 <t> x) -> (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
++(Ctz8 <t> x) -> (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+ 
+ (PopCount64 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> x))))
+ (PopCount32 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt32to64 x)))))
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 25246ce5e5..24f392a43e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -473,6 +473,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueARM64_OpConstNil_0(v)
++	case OpCtz16:
++		return rewriteValueARM64_OpCtz16_0(v)
++	case OpCtz16NonZero:
++		return rewriteValueARM64_OpCtz16NonZero_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueARM64_OpCtz32_0(v)
+ 	case OpCtz32NonZero:
+@@ -481,6 +485,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpCtz64_0(v)
+ 	case OpCtz64NonZero:
+ 		return rewriteValueARM64_OpCtz64NonZero_0(v)
++	case OpCtz8:
++		return rewriteValueARM64_OpCtz8_0(v)
++	case OpCtz8NonZero:
++		return rewriteValueARM64_OpCtz8NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueARM64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto32U:
+@@ -33182,6 +33190,39 @@ func rewriteValueARM64_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCtz16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz16 <t> x)
++	// cond:
++	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64CLZW)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64RBITW, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpARM64ORconst, typ.UInt32)
++		v1.AuxInt = 0x10000
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpCtz16NonZero_0(v *Value) bool {
++	// match: (Ctz16NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -33236,6 +33277,39 @@ func rewriteValueARM64_OpCtz64NonZero_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCtz8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz8 <t> x)
++	// cond:
++	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64CLZW)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64RBITW, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpARM64ORconst, typ.UInt32)
++		v1.AuxInt = 0x100
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpCtz8NonZero_0(v *Value) bool {
++	// match: (Ctz8NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 09939bb6be..c77b66c3f7 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -242,6 +242,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
+ 
+ func TrailingZeros(n uint) int {
+ 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
+ 	// ppc64le:"ANDN","POPCNTD"
+@@ -250,6 +251,7 @@ func TrailingZeros(n uint) int {
+ 
+ func TrailingZeros64(n uint64) int {
+ 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
+ 	// ppc64le:"ANDN","POPCNTD"
+@@ -258,6 +260,7 @@ func TrailingZeros64(n uint64) int {
+ 
+ func TrailingZeros32(n uint32) int {
+ 	// amd64:"BTSQ\\t\\$32","BSFQ"
++	// arm64:"RBITW","CLZW"
+ 	// s390x:"FLOGR","MOVWZ"
+ 	// ppc64:"ANDN","POPCNTW"
+ 	// ppc64le:"ANDN","POPCNTW"
+@@ -266,6 +269,7 @@ func TrailingZeros32(n uint32) int {
+ 
+ func TrailingZeros16(n uint16) int {
+ 	// amd64:"BSFL","BTSL\\t\\$16"
++	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+ 	// ppc64:"POPCNTD","OR\\t\\$65536"
+ 	// ppc64le:"POPCNTD","OR\\t\\$65536"
+@@ -274,6 +278,7 @@ func TrailingZeros16(n uint16) int {
+ 
+ func TrailingZeros8(n uint8) int {
+ 	// amd64:"BSFL","BTSL\\t\\$8"
++	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$256"
+ 	return bits.TrailingZeros8(n)
+ }
+@@ -314,6 +319,7 @@ func IterateBits16(n uint16) int {
+ 	i := 0
+ 	for n != 0 {
+ 		// amd64:"BSFL",-"BTSL"
++		// arm64:"RBITW","CLZW",-"ORR"
+ 		i += bits.TrailingZeros16(n)
+ 		n &= n - 1
+ 	}
+@@ -324,6 +330,7 @@ func IterateBits8(n uint8) int {
+ 	i := 0
+ 	for n != 0 {
+ 		// amd64:"BSFL",-"BTSL"
++		// arm64:"RBITW","CLZW",-"ORR"
+ 		i += bits.TrailingZeros8(n)
+ 		n &= n - 1
+ 	}

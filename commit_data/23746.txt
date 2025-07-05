@@ -7,6 +7,20 @@ Date:   Tue Jun 9 14:15:41 2015 -0700
     Change-Id: I95b72b6be39fbb923b5f0743d17d7f8bd3ee3814
     Reviewed-on: https://go-review.googlesource.com/10860
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .gitignore | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index bbfcc790fb..6a3ce32ec8 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,7 +24,7 @@ doc/articles/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+ misc/cgo/testso/main
+-src/cmd/*/y.output
++src/cmd/**/y.output
+ src/cmd/cgo/zdefaultcc.go
+ src/cmd/go/zdefaultcc.go
+ src/cmd/internal/obj/zbootstrap.go

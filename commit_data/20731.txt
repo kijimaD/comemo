@@ -14,8 +14,130 @@ Date:   Fri Oct 3 20:27:08 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/154870043
-
+---
  src/fmt/doc.go      | 17 ++++++++++++++++-
  src/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++--
  src/fmt/print.go    |  4 ++++
  3 files changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 00dd8d01cd..304b9e9581 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -13,7 +13,7 @@
+ 	The verbs:
+ 
+ 	General:
+-		%v	the value in a default format.
++		%v	the value in a default format
+ 			when printing structs, the plus flag (%+v) adds field names
+ 		%#v	a Go-syntax representation of the value
+ 		%T	a Go-syntax representation of the type of the value
+@@ -51,6 +51,21 @@
+ 	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
+ 	Similarly, there is no need to specify the size of the operand (int8, int64).
+ 
++	The default format for %v is:
++		bool:                    %t
++		int, int8 etc.:          %d
++		uint, uint8 etc.:        %d, %x if printed with %#v
++		float32, complex64, etc: %g
++		string:                  %s
++		chan:                    %p
++		pointer:                 %p
++	For compound objects, the elements are printed using these rules, recursively,
++	laid out like this:
++		struct:             {field0 field1 ...}
++		array, slice:       [elem0  elem1 ...]
++		maps:               map[key1:value1 key2:value2]
++		pointer to above:   &{}, &[], &map[]
++
+ 	Width is specified by an optional decimal number immediately following the verb.
+ 	If absent, the width is whatever is necessary to represent the value.
+ 	Precision is specified after the (optional) width by a period followed by a
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 4c3ba8fad1..ff5fa79a32 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -965,11 +965,12 @@ func TestFlagParser(t *testing.T) {
+ }
+ 
+ func TestStructPrinter(t *testing.T) {
+-	var s struct {
++	type T struct {
+ 		a string
+ 		b string
+ 		c int
+ 	}
++	var s T
+ 	s.a = "abc"
+ 	s.b = "def"
+ 	s.c = 123
+@@ -979,15 +980,38 @@ func TestStructPrinter(t *testing.T) {
+ 	}{
+ 		{"%v", "{abc def 123}"},
+ 		{"%+v", "{a:abc b:def c:123}"},
++		{"%#v", `fmt_test.T{a:"abc", b:"def", c:123}`},
+ 	}
+ 	for _, tt := range tests {
+ 		out := Sprintf(tt.fmt, s)
+ 		if out != tt.out {
+-			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
++			t.Errorf("Sprintf(%q, s) = %#q, want %#q", tt.fmt, out, tt.out)
++		}
++		// The same but with a pointer.
++		out = Sprintf(tt.fmt, &s)
++		if out != "&"+tt.out {
++			t.Errorf("Sprintf(%q, &s) = %#q, want %#q", tt.fmt, out, "&"+tt.out)
+ 		}
+ 	}
+ }
+ 
++func TestSlicePrinter(t *testing.T) {
++	slice := []int{}
++	s := Sprint(slice)
++	if s != "[]" {
++		t.Errorf("empty slice printed as %q not %q", s, "[]")
++	}
++	slice = []int{1, 2, 3}
++	s = Sprint(slice)
++	if s != "[1 2 3]" {
++		t.Errorf("slice: got %q expected %q", s, "[1 2 3]")
++	}
++	s = Sprint(&slice)
++	if s != "&[1 2 3]" {
++		t.Errorf("&slice: got %q expected %q", s, "&[1 2 3]")
++	}
++}
++
+ // presentInMap checks map printing using substrings so we don't depend on the
+ // print order.
+ func presentInMap(s string, a []string, t *testing.T) {
+@@ -1014,6 +1038,12 @@ func TestMapPrinter(t *testing.T) {
+ 	a := []string{"1:one", "2:two", "3:three"}
+ 	presentInMap(Sprintf("%v", m1), a, t)
+ 	presentInMap(Sprint(m1), a, t)
++	// Pointer to map prints the same but with initial &.
++	if !strings.HasPrefix(Sprint(&m1), "&") {
++		t.Errorf("no initial & for address of map")
++	}
++	presentInMap(Sprintf("%v", &m1), a, t)
++	presentInMap(Sprint(&m1), a, t)
+ }
+ 
+ func TestEmptyMap(t *testing.T) {
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 0c66c57817..59a30d221e 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -994,6 +994,10 @@ BigSwitch:
+ 				p.buf.WriteByte('&')
+ 				p.printValue(a, verb, depth+1)
+ 				break BigSwitch
++			case reflect.Map:
++				p.buf.WriteByte('&')
++				p.printValue(a, verb, depth+1)
++				break BigSwitch
+ 			}
+ 		}
+ 		fallthrough

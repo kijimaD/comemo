@@ -15,7 +15,7 @@ Date:   Fri Oct 2 16:05:33 2020 -0400
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/test/flagdefs_test.go |   2 +-
  src/cmd/go/internal/test/test.go          |   1 -
  src/go/build/deps_test.go                 |   5 +-
@@ -27,3 +27,921 @@ Date:   Fri Oct 2 16:05:33 2020 -0400
  src/testing/internal/testdeps/deps.go     |   9 +
  src/testing/testing.go                    |   6 +-
  10 files changed, 704 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index ab5440b380..50711ecff9 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -17,7 +17,7 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
+ 		}
+ 		name := strings.TrimPrefix(f.Name, "test.")
+ 		switch name {
+-		case "testlogfile", "paniconexit0":
++		case "testlogfile", "paniconexit0", "fuzzworker":
+ 			// These are internal flags.
+ 		default:
+ 			if !passFlagToTest[name] {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 109acb53da..5758910a5f 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -467,7 +467,6 @@ See the documentation of the testing package for more information.
+ `,
+ }
+ 
+-// TODO(katiehockman): complete the testing here
+ var (
+ 	testBench        string                            // -bench flag
+ 	testC            bool                              // -c flag
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index fa8ecf10f4..e5f38d4fbc 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -467,7 +467,10 @@ var depsRules = `
+ 	FMT, flag, runtime/debug, runtime/trace
+ 	< testing;
+ 
+-	internal/testlog, runtime/pprof, regexp
++	FMT, encoding/json
++	< internal/fuzz;
++
++	internal/fuzz, internal/testlog, runtime/pprof, regexp
+ 	< testing/internal/testdeps;
+ 
+ 	OS, flag, testing, internal/cfg
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+new file mode 100644
+index 0000000000..4f1d204834
+--- /dev/null
++++ b/src/internal/fuzz/fuzz.go
+@@ -0,0 +1,143 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fuzz provides common fuzzing functionality for tests built with
++// "go test" and for programs that use fuzzing functionality in the testing
++// package.
++package fuzz
++
++import (
++	"os"
++	"runtime"
++	"sync"
++	"time"
++)
++
++// CoordinateFuzzing creates several worker processes and communicates with
++// them to test random inputs that could trigger crashes and expose bugs.
++// The worker processes run the same binary in the same directory with the
++// same environment variables as the coordinator process. Workers also run
++// with the same arguments as the coordinator, except with the -test.fuzzworker
++// flag prepended to the argument list.
++//
++// parallel is the number of worker processes to run in parallel. If parallel
++// is 0, CoordinateFuzzing will run GOMAXPROCS workers.
++//
++// seed is a list of seed values added by the fuzz target with testing.F.Add.
++// Seed values from testdata and GOFUZZCACHE should not be included in this
++// list; this function loads them separately.
++func CoordinateFuzzing(parallel int, seed [][]byte) error {
++	if parallel == 0 {
++		parallel = runtime.GOMAXPROCS(0)
++	}
++	// TODO(jayconrod): support fuzzing indefinitely or with a given duration.
++	// The value below is just a placeholder until we figure out how to handle
++	// interrupts.
++	duration := 5 * time.Second
++
++	// TODO(jayconrod): do we want to support fuzzing different binaries?
++	dir := "" // same as self
++	binPath := os.Args[0]
++	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
++	env := os.Environ() // same as self
++
++	c := &coordinator{
++		doneC:  make(chan struct{}),
++		inputC: make(chan corpusEntry),
++	}
++
++	newWorker := func() *worker {
++		return &worker{
++			dir:         dir,
++			binPath:     binPath,
++			args:        args,
++			env:         env,
++			coordinator: c,
++		}
++	}
++
++	corpus := corpus{entries: make([]corpusEntry, len(seed))}
++	for i, v := range seed {
++		corpus.entries[i].b = v
++	}
++	if len(corpus.entries) == 0 {
++		// TODO(jayconrod,katiehockman): pick a good starting corpus when one is
++		// missing or very small.
++		corpus.entries = append(corpus.entries, corpusEntry{b: []byte{0}})
++	}
++
++	// TODO(jayconrod,katiehockman): read corpus from testdata.
++	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
++
++	// Start workers.
++	workers := make([]*worker, parallel)
++	runErrs := make([]error, parallel)
++	var wg sync.WaitGroup
++	wg.Add(parallel)
++	for i := 0; i < parallel; i++ {
++		go func(i int) {
++			defer wg.Done()
++			workers[i] = newWorker()
++			runErrs[i] = workers[i].runFuzzing()
++		}(i)
++	}
++
++	// Main event loop.
++	stopC := time.After(duration)
++	i := 0
++	for {
++		select {
++		// TODO(jayconrod): handle interruptions like SIGINT.
++		// TODO(jayconrod,katiehockman): receive crashers and new corpus values
++		// from workers.
++
++		case <-stopC:
++			// Time's up.
++			close(c.doneC)
++
++		case <-c.doneC:
++			// Wait for workers to stop and return.
++			wg.Wait()
++			for _, err := range runErrs {
++				if err != nil {
++					return err
++				}
++			}
++			return nil
++
++		case c.inputC <- corpus.entries[i]:
++			// Sent the next input to any worker.
++			// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
++			// which corpus value to send next (or generates something new).
++			i = (i + 1) % len(corpus.entries)
++		}
++	}
++
++	// TODO(jayconrod,katiehockman): write crashers to testdata and other inputs
++	// to GOFUZZCACHE. If the testdata directory is outside the current module,
++	// always write to GOFUZZCACHE, since the testdata is likely read-only.
++}
++
++type corpus struct {
++	entries []corpusEntry
++}
++
++// TODO(jayconrod,katiehockman): decide whether and how to unify this type
++// with the equivalent in testing.
++type corpusEntry struct {
++	b []byte
++}
++
++// coordinator holds channels that workers can use to communicate with
++// the coordinator.
++type coordinator struct {
++	// doneC is closed to indicate fuzzing is done and workers should stop.
++	// doneC may be closed due to a time limit expiring or a fatal error in
++	// a worker.
++	doneC chan struct{}
++
++	// inputC is sent values to fuzz by the coordinator. Any worker may receive
++	// values from this channel.
++	inputC chan corpusEntry
++}
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+new file mode 100644
+index 0000000000..259caa8a59
+--- /dev/null
++++ b/src/internal/fuzz/sys_posix.go
+@@ -0,0 +1,25 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package fuzz
++
++import (
++	"os"
++	"os/exec"
++)
++
++// setWorkerComm configures communciation channels on the cmd that will
++// run a worker process.
++func setWorkerComm(cmd *exec.Cmd, fuzzIn, fuzzOut *os.File) {
++	cmd.ExtraFiles = []*os.File{fuzzIn, fuzzOut}
++}
++
++// getWorkerComm returns communication channels in the worker process.
++func getWorkerComm() (fuzzIn, fuzzOut *os.File, err error) {
++	fuzzIn = os.NewFile(3, "fuzz_in")
++	fuzzOut = os.NewFile(4, "fuzz_out")
++	return fuzzIn, fuzzOut, nil
++}
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+new file mode 100644
+index 0000000000..a67548477b
+--- /dev/null
++++ b/src/internal/fuzz/sys_windows.go
+@@ -0,0 +1,49 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package fuzz
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"strconv"
++	"strings"
++	"syscall"
++)
++
++// setWorkerComm configures communciation channels on the cmd that will
++// run a worker process.
++func setWorkerComm(cmd *exec.Cmd, fuzzIn, fuzzOut *os.File) {
++	syscall.SetHandleInformation(syscall.Handle(fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
++	syscall.SetHandleInformation(syscall.Handle(fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
++	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x", fuzzIn.Fd(), fuzzOut.Fd()))
++}
++
++// getWorkerComm returns communication channels in the worker process.
++func getWorkerComm() (fuzzIn *os.File, fuzzOut *os.File, err error) {
++	v := os.Getenv("GO_TEST_FUZZ_WORKER_HANDLES")
++	if v == "" {
++		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
++	}
++	parts := strings.Split(v, ",")
++	if len(parts) != 2 {
++		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value")
++	}
++	base := 16
++	bitSize := 64
++	in, err := strconv.ParseInt(parts[0], base, bitSize)
++	if err != nil {
++		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
++	}
++	out, err := strconv.ParseInt(parts[1], base, bitSize)
++	if err != nil {
++		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
++	}
++	fuzzIn = os.NewFile(uintptr(in), "fuzz_in")
++	fuzzOut = os.NewFile(uintptr(out), "fuzz_out")
++	return fuzzIn, fuzzOut, nil
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+new file mode 100644
+index 0000000000..543e352e7f
+--- /dev/null
++++ b/src/internal/fuzz/worker.go
+@@ -0,0 +1,381 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++import (
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"runtime"
++	"time"
++)
++
++const (
++	// workerFuzzDuration is the amount of time a worker can spend testing random
++	// variations of an input given by the coordinator.
++	workerFuzzDuration = 100 * time.Millisecond
++
++	// workerTimeoutDuration is the amount of time a worker can go without
++	// responding to the coordinator before being stopped.
++	workerTimeoutDuration = 1 * time.Second
++)
++
++// worker manages a worker process running a test binary.
++type worker struct {
++	dir     string   // working directory, same as package directory
++	binPath string   // path to test executable
++	args    []string // arguments for test executable
++	env     []string // environment for test executable
++
++	coordinator *coordinator
++
++	cmd     *exec.Cmd     // current worker process
++	client  *workerClient // used to communicate with worker process
++	waitErr error         // last error returned by wait, set before termC is closed.
++	termC   chan struct{} // closed by wait when worker process terminates
++}
++
++// runFuzzing runs the test binary to perform fuzzing.
++//
++// This function loops until w.coordinator.doneC is closed or some
++// fatal error is encountered. It receives inputs from w.coordinator.inputC,
++// then passes those on to the worker process. If the worker crashes,
++// runFuzzing restarts it and continues.
++func (w *worker) runFuzzing() error {
++	// Start the process.
++	if err := w.start(); err != nil {
++		// We couldn't start the worker process. We can't do anything, and it's
++		// likely that other workers can't either, so give up.
++		close(w.coordinator.doneC)
++		return err
++	}
++
++	inputC := w.coordinator.inputC // set to nil when processing input
++	fuzzC := make(chan struct{})   // sent when we finish processing an input.
++
++	// Main event loop.
++	for {
++		select {
++		case <-w.coordinator.doneC:
++			// All workers were told to stop.
++			return w.stop()
++
++		case <-w.termC:
++			// Worker process terminated unexpectedly.
++			// TODO(jayconrod,katiehockman): handle crasher.
++
++			// Restart the process.
++			if err := w.start(); err != nil {
++				close(w.coordinator.doneC)
++				return err
++			}
++
++		case input := <-inputC:
++			// Received input from coordinator.
++			inputC = nil // block new inputs until we finish with this one.
++			go func() {
++				args := fuzzArgs{
++					Value:       input.b,
++					DurationSec: workerFuzzDuration.Seconds(),
++				}
++				_, err := w.client.fuzz(args)
++				if err != nil {
++					// TODO(jayconrod): if we get an error here, something failed between
++					// main and the call to testing.F.Fuzz. The error here won't
++					// be useful. Collect stderr, clean it up, and return that.
++					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
++					// TODO(jayconrod): time out if the test process hangs.
++				}
++
++				fuzzC <- struct{}{}
++			}()
++
++		case <-fuzzC:
++			// Worker finished fuzzing.
++			// TODO(jayconrod,katiehockman): gather statistics. Collect "interesting"
++			// inputs and add to corpus.
++			inputC = w.coordinator.inputC // unblock new inputs
++		}
++	}
++}
++
++// start runs a new worker process.
++//
++// If the process couldn't be started, start returns an error. Start won't
++// return later termination errors from the process if they occur.
++//
++// If the process starts successfully, start returns nil. stop must be called
++// once later to clean up, even if the process terminates on its own.
++//
++// When the process terminates, w.waitErr is set to the error (if any), and
++// w.termC is closed.
++func (w *worker) start() (err error) {
++	if w.cmd != nil {
++		panic("worker already started")
++	}
++	w.waitErr = nil
++	w.termC = nil
++
++	cmd := exec.Command(w.binPath, w.args...)
++	cmd.Dir = w.dir
++	cmd.Env = w.env
++	// TODO(jayconrod): set stdout and stderr to nil or buffer. A large number
++	// of workers may be very noisy, but for now, this output is useful for
++	// debugging.
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++
++	// TODO(jayconrod): set up shared memory between the coordinator and worker to
++	// transfer values and coverage data. If the worker crashes, we need to be
++	// able to find the value that caused the crash.
++
++	// Create the "fuzz_in" and "fuzz_out" pipes so we can communicate with
++	// the worker. We don't use stdin and stdout, since the test binary may
++	// do something else with those.
++	//
++	// Each pipe has a reader and a writer. The coordinator writes to fuzzInW
++	// and reads from fuzzOutR. The worker inherits fuzzInR and fuzzOutW.
++	// The coordinator closes fuzzInR and fuzzOutW after starting the worker,
++	// since we have no further need of them.
++	fuzzInR, fuzzInW, err := os.Pipe()
++	if err != nil {
++		return err
++	}
++	defer fuzzInR.Close()
++	fuzzOutR, fuzzOutW, err := os.Pipe()
++	if err != nil {
++		fuzzInW.Close()
++		return err
++	}
++	defer fuzzOutW.Close()
++	setWorkerComm(cmd, fuzzInR, fuzzOutW)
++
++	// Start the worker process.
++	if err := cmd.Start(); err != nil {
++		fuzzInW.Close()
++		fuzzOutR.Close()
++		return err
++	}
++
++	// Worker started successfully.
++	// After this, w.client owns fuzzInW and fuzzOutR, so w.client.Close must be
++	// called later by stop.
++	w.cmd = cmd
++	w.termC = make(chan struct{})
++	w.client = newWorkerClient(fuzzInW, fuzzOutR)
++
++	go func() {
++		w.waitErr = w.cmd.Wait()
++		close(w.termC)
++	}()
++
++	return nil
++}
++
++// stop tells the worker process to exit by closing w.client, then blocks until
++// it terminates. If the worker doesn't terminate after a short time, stop
++// signals it with os.Interrupt (where supported), then os.Kill.
++//
++// stop returns the error the process terminated with, if any (same as
++// w.waitErr).
++//
++// stop must be called once after start returns successfully, even if the
++// worker process terminates unexpectedly.
++func (w *worker) stop() error {
++	if w.termC == nil {
++		panic("worker was not started successfully")
++	}
++	select {
++	case <-w.termC:
++		// Worker already terminated, perhaps unexpectedly.
++		if w.client == nil {
++			panic("worker already stopped")
++		}
++		w.client.Close()
++		w.cmd = nil
++		w.client = nil
++		return w.waitErr
++	default:
++		// Worker still running.
++	}
++
++	// Tell the worker to stop by closing fuzz_in. It won't actually stop until it
++	// finishes with earlier calls.
++	closeC := make(chan struct{})
++	go func() {
++		w.client.Close()
++		close(closeC)
++	}()
++
++	sig := os.Interrupt
++	if runtime.GOOS == "windows" {
++		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
++		// Windows; using it with os.Process.Signal will return an error.”
++		// Fall back to Kill instead.
++		sig = os.Kill
++	}
++
++	t := time.NewTimer(workerTimeoutDuration)
++	for {
++		select {
++		case <-w.termC:
++			// Worker terminated.
++			t.Stop()
++			<-closeC
++			w.cmd = nil
++			w.client = nil
++			return w.waitErr
++
++		case <-t.C:
++			// Timer fired before worker terminated.
++			switch sig {
++			case os.Interrupt:
++				// Try to stop the worker with SIGINT and wait a little longer.
++				w.cmd.Process.Signal(sig)
++				sig = os.Kill
++				t.Reset(workerTimeoutDuration)
++
++			case os.Kill:
++				// Try to stop the worker with SIGKILL and keep waiting.
++				w.cmd.Process.Signal(sig)
++				sig = nil
++				t.Reset(workerTimeoutDuration)
++
++			case nil:
++				// Still waiting. Print a message to let the user know why.
++				fmt.Fprintf(os.Stderr, "go: waiting for fuzz worker to terminate...\n")
++			}
++		}
++	}
++}
++
++// RunFuzzWorker is called in a worker process to communicate with the
++// coordinator process in order to fuzz random inputs. RunFuzzWorker loops
++// until the coordinator tells it to stop.
++//
++// fn is a wrapper on the fuzz function. It may return an error to indicate
++// a given input "crashed". The coordinator will also record a crasher if
++// the function times out or terminates the process.
++//
++// RunFuzzWorker returns an error if it could not communicate with the
++// coordinator process.
++func RunFuzzWorker(fn func([]byte) error) error {
++	fuzzIn, fuzzOut, err := getWorkerComm()
++	if err != nil {
++		return err
++	}
++	srv := &workerServer{fn: fn}
++	return srv.serve(fuzzIn, fuzzOut)
++}
++
++// call is serialized and sent from the coordinator on fuzz_in. It acts as
++// a minimalist RPC mechanism. Exactly one of its fields must be set to indicate
++// which method to call.
++type call struct {
++	Fuzz *fuzzArgs
++}
++
++type fuzzArgs struct {
++	Value       []byte
++	DurationSec float64
++}
++
++type fuzzResponse struct{}
++
++// workerServer is a minimalist RPC server, run in fuzz worker processes.
++type workerServer struct {
++	fn func([]byte) error
++}
++
++// serve deserializes and executes RPCs on a given pair of pipes.
++//
++// serve returns errors communicating over the pipes. It does not return
++// errors from methods; those are passed through response values.
++func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) error {
++	enc := json.NewEncoder(fuzzOut)
++	dec := json.NewDecoder(fuzzIn)
++	for {
++		var c call
++		if err := dec.Decode(&c); err == io.EOF {
++			return nil
++		} else if err != nil {
++			return err
++		}
++
++		var resp interface{}
++		switch {
++		case c.Fuzz != nil:
++			resp = ws.fuzz(*c.Fuzz)
++		default:
++			return errors.New("no arguments provided for any call")
++		}
++
++		if err := enc.Encode(resp); err != nil {
++			return err
++		}
++	}
++}
++
++// fuzz runs the test function on random variations of a given input value for
++// a given amount of time. fuzz returns early if it finds an input that crashes
++// the fuzz function or an input that expands coverage.
++func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
++	// TODO(jayconrod, katiehockman): implement
++	return fuzzResponse{}
++}
++
++// workerClient is a minimalist RPC client, run in the fuzz coordinator.
++type workerClient struct {
++	fuzzIn  io.WriteCloser
++	fuzzOut io.ReadCloser
++	enc     *json.Encoder
++	dec     *json.Decoder
++}
++
++func newWorkerClient(fuzzIn io.WriteCloser, fuzzOut io.ReadCloser) *workerClient {
++	return &workerClient{
++		fuzzIn:  fuzzIn,
++		fuzzOut: fuzzOut,
++		enc:     json.NewEncoder(fuzzIn),
++		dec:     json.NewDecoder(fuzzOut),
++	}
++}
++
++// Close shuts down the connection to the RPC server (the worker process) by
++// closing fuzz_in. Close drains fuzz_out (avoiding a SIGPIPE in the worker),
++// and closes it after the worker process closes the other end.
++func (wc *workerClient) Close() error {
++	// Close fuzzIn. This signals to the server that there are no more calls,
++	// and it should exit.
++	if err := wc.fuzzIn.Close(); err != nil {
++		wc.fuzzOut.Close()
++		return err
++	}
++
++	// Drain fuzzOut and close it. When the server exits, the kernel will close
++	// its end of fuzzOut, and we'll get EOF.
++	if _, err := io.Copy(ioutil.Discard, wc.fuzzOut); err != nil {
++		wc.fuzzOut.Close()
++		return err
++	}
++	return wc.fuzzOut.Close()
++}
++
++// fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
++func (wc *workerClient) fuzz(args fuzzArgs) (fuzzResponse, error) {
++	c := call{Fuzz: &args}
++	if err := wc.enc.Encode(c); err != nil {
++		return fuzzResponse{}, err
++	}
++	var resp fuzzResponse
++	if err := wc.dec.Decode(&resp); err != nil {
++		return fuzzResponse{}, err
++	}
++	return resp, nil
++}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 11bbd8fb16..6773b7161d 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -15,9 +15,13 @@ import (
+ 
+ func initFuzzFlags() {
+ 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
++	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
+ }
+ 
+-var matchFuzz *string
++var (
++	matchFuzz    *string
++	isFuzzWorker *bool
++)
+ 
+ // InternalFuzzTarget is an internal type but exported because it is cross-package;
+ // it is part of the implementation of the "go test" command.
+@@ -33,7 +37,6 @@ type F struct {
+ 	corpus   []corpusEntry // corpus is the in-memory corpus
+ 	result   FuzzResult    // result is the result of running the fuzz target
+ 	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
+-	fuzz     bool          // fuzz indicates whether the fuzzing engine should run
+ }
+ 
+ // corpus corpusEntry
+@@ -88,7 +91,6 @@ func (f *F) Fuzz(ff interface{}) {
+ 				t.Fail()
+ 				t.output = []byte(fmt.Sprintf("    %s", err))
+ 			}
+-			f.setRan()
+ 			f.inFuzzFn = false
+ 			t.signal <- true // signal that the test has finished
+ 		}()
+@@ -100,30 +102,76 @@ func (f *F) Fuzz(ff interface{}) {
+ 		t.finished = true
+ 	}
+ 
+-	// Run the seed corpus first
+-	for _, c := range f.corpus {
+-		t := &T{
+-			common: common{
+-				signal: make(chan bool),
+-				w:      f.w,
+-				chatty: f.chatty,
+-			},
+-			context: newTestContext(1, nil),
++	switch {
++	case f.context.coordinateFuzzing != nil:
++		// Fuzzing is enabled, and this is the test process started by 'go test'.
++		// Act as the coordinator process, and coordinate workers to perform the
++		// actual fuzzing.
++		seed := make([][]byte, len(f.corpus))
++		for i, e := range f.corpus {
++			seed[i] = e.b
+ 		}
+-		go run(t, c.b)
+-		<-t.signal
+-		if t.Failed() {
+-			f.Fail()
+-			errStr += string(t.output)
++		err := f.context.coordinateFuzzing(*parallel, seed)
++		f.setRan()
++		f.finished = true
++		f.result = FuzzResult{Error: err}
++		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
++		// and set FuzzResult properly.
++
++	case f.context.runFuzzWorker != nil:
++		// Fuzzing is enabled, and this is a worker process. Follow instructions
++		// from the coordinator.
++		err := f.context.runFuzzWorker(func(input []byte) error {
++			t := &T{
++				common: common{
++					signal: make(chan bool),
++					w:      f.w,
++					chatty: f.chatty,
++				},
++				context: newTestContext(1, nil),
++			}
++			go run(t, input)
++			<-t.signal
++			if t.Failed() {
++				return errors.New(string(t.output))
++			}
++			return nil
++		})
++		if err != nil {
++			// TODO(jayconrod,katiehockman): how should we handle a failure to
++			// communicate with the coordinator? Might be caused by the coordinator
++			// terminating early.
++			fmt.Fprintf(os.Stderr, "testing: communicating with fuzz coordinator: %v\n", err)
++			os.Exit(1)
+ 		}
+-	}
+-	f.finished = true
+-	if f.Failed() {
+-		f.result = FuzzResult{Error: errors.New(errStr)}
+-		return
+-	}
++		f.setRan()
++		f.finished = true
+ 
+-	// TODO: if f.fuzz is set, run fuzzing engine
++	default:
++		// Fuzzing is not enabled. Only run the seed corpus.
++		for _, c := range f.corpus {
++			t := &T{
++				common: common{
++					signal: make(chan bool),
++					w:      f.w,
++					chatty: f.chatty,
++				},
++				context: newTestContext(1, nil),
++			}
++			go run(t, c.b)
++			<-t.signal
++			if t.Failed() {
++				f.Fail()
++				errStr += string(t.output)
++			}
++			f.setRan()
++		}
++		f.finished = true
++		if f.Failed() {
++			f.result = FuzzResult{Error: errors.New(errStr)}
++			return
++		}
++	}
+ }
+ 
+ func (f *F) report() {
+@@ -202,8 +250,10 @@ func (r FuzzResult) String() string {
+ 
+ // fuzzContext holds all fields that are common to all fuzz targets.
+ type fuzzContext struct {
+-	runMatch  *matcher
+-	fuzzMatch *matcher
++	runMatch          *matcher
++	fuzzMatch         *matcher
++	coordinateFuzzing func(int, [][]byte) error
++	runFuzzWorker     func(func([]byte) error) error
+ }
+ 
+ // RunFuzzTargets is an internal function but exported because it is cross-package;
+@@ -218,7 +268,7 @@ func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
+ // engine to generate or mutate inputs.
+ func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+ 	ok = true
+-	if len(fuzzTargets) == 0 {
++	if len(fuzzTargets) == 0 || *isFuzzWorker {
+ 		return ran, ok
+ 	}
+ 	ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
+@@ -249,25 +299,21 @@ func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
+ 	return ran, ok
+ }
+ 
+-// RunFuzzing is an internal function but exported because it is cross-package;
+-// it is part of the implementation of the "go test" command.
+-func RunFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ok bool) {
+-	_, ok = runFuzzing(matchString, fuzzTargets)
+-	return ok
+-}
+-
+ // runFuzzing runs the fuzz target matching the pattern for -fuzz. Only one such
+ // fuzz target must match. This will run the fuzzing engine to generate and
+ // mutate new inputs against the f.Fuzz function.
+-func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+-	if len(fuzzTargets) == 0 {
++//
++// If fuzzing is disabled (-test.fuzz is not set), runFuzzing
++// returns immediately.
++func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
++	if len(fuzzTargets) == 0 || *matchFuzz == "" {
+ 		return false, true
+ 	}
+-	ctx := &fuzzContext{
+-		fuzzMatch: newMatcher(matchString, *matchFuzz, "-test.fuzz"),
+-	}
+-	if *matchFuzz == "" {
+-		return false, true
++	ctx := &fuzzContext{fuzzMatch: newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")}
++	if *isFuzzWorker {
++		ctx.runFuzzWorker = deps.RunFuzzWorker
++	} else {
++		ctx.coordinateFuzzing = deps.CoordinateFuzzing
+ 	}
+ 	f := &F{
+ 		common: common{
+@@ -275,7 +321,6 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
+ 			w:      os.Stdout,
+ 		},
+ 		context: ctx,
+-		fuzz:    true,
+ 	}
+ 	var (
+ 		ft    InternalFuzzTarget
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 3608d33294..9665092f4c 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -12,6 +12,7 @@ package testdeps
+ 
+ import (
+ 	"bufio"
++	"internal/fuzz"
+ 	"internal/testlog"
+ 	"io"
+ 	"regexp"
+@@ -126,3 +127,11 @@ func (TestDeps) StopTestLog() error {
+ func (TestDeps) SetPanicOnExit0(v bool) {
+ 	testlog.SetPanicOnExit0(v)
+ }
++
++func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte) error {
++	return fuzz.CoordinateFuzzing(parallel, seed)
++}
++
++func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
++	return fuzz.RunFuzzWorker(fn)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 7cf3323d51..2c2e77dc4b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1324,6 +1324,8 @@ func (f matchStringOnly) ImportPath() string                          { return "
+ func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+ func (f matchStringOnly) StopTestLog() error                          { return errMain }
+ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
++func (f matchStringOnly) CoordinateFuzzing(int, [][]byte) error       { return errMain }
++func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error      { return errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1366,6 +1368,8 @@ type testDeps interface {
+ 	StartTestLog(io.Writer)
+ 	StopTestLog() error
+ 	WriteProfileTo(string, io.Writer, int) error
++	CoordinateFuzzing(int, [][]byte) error
++	RunFuzzWorker(func([]byte) error) error
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+@@ -1431,7 +1435,7 @@ func (m *M) Run() (code int) {
+ 		return
+ 	}
+ 
+-	fuzzingRan, fuzzingOk := runFuzzing(m.deps.MatchString, m.fuzzTargets)
++	fuzzingRan, fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+ 	if *matchFuzz != "" && !fuzzingRan {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+ 	}

@@ -17,10 +17,143 @@ Date:   Sat Apr 7 03:08:46 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 22 ++++++++--------------
  src/cmd/compile/internal/gc/const.go   | 23 ++++-------------------
  src/cmd/compile/internal/gc/export.go  |  2 +-
  test/const1.go                         |  4 ++--
  test/fixedbugs/issue21221.go           | 18 ++++++++++++++++++
  5 files changed, 33 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 0e00fa070a..ca0f523a79 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -319,7 +319,8 @@ func (p *importer) pkg() *types.Pkg {
+ }
+ 
+ func idealType(typ *types.Type) *types.Type {
+-	if typ.IsUntyped() {
++	switch typ {
++	case types.Idealint, types.Idealrune, types.Idealfloat, types.Idealcomplex:
+ 		// canonicalize ideal types
+ 		typ = types.Types[TIDEAL]
+ 	}
+@@ -795,8 +796,12 @@ func (p *importer) value(typ *types.Type) (x Val) {
+ 	case floatTag:
+ 		f := newMpflt()
+ 		p.float(f)
+-		if typ == types.Idealint || typ.IsInteger() {
++		if typ == types.Idealint || typ.IsInteger() || typ.IsPtr() || typ.IsUnsafePtr() {
+ 			// uncommon case: large int encoded as float
++			//
++			// This happens for unsigned typed integers
++			// and (on 64-bit platforms) pointers because
++			// of values in the range [2^63, 2^64).
+ 			u := new(Mpint)
+ 			u.SetFloat(f)
+ 			x.U = u
+@@ -929,18 +934,7 @@ func (p *importer) node() *Node {
+ 		pos := p.pos()
+ 		typ := p.typ()
+ 		n := npos(pos, nodlit(p.value(typ)))
+-		if !typ.IsUntyped() {
+-			// Type-checking simplifies unsafe.Pointer(uintptr(c))
+-			// to unsafe.Pointer(c) which then cannot type-checked
+-			// again. Re-introduce explicit uintptr(c) conversion.
+-			// (issue 16317).
+-			if typ.IsUnsafePtr() {
+-				n = nodl(pos, OCONV, n, nil)
+-				n.Type = types.Types[TUINTPTR]
+-			}
+-			n = nodl(pos, OCONV, n, nil)
+-			n.Type = typ
+-		}
++		n.Type = idealType(typ)
+ 		return n
+ 
+ 	case ONAME:
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index e4bbfe876d..27c2e14d76 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -331,26 +331,11 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 		case TARRAY:
+ 			goto bad
+ 
+-		case TPTR32,
+-			TPTR64,
+-			TINTER,
+-			TMAP,
+-			TCHAN,
+-			TFUNC,
+-			TSLICE,
+-			TUNSAFEPTR:
+-			break
++		case TPTR32, TPTR64, TUNSAFEPTR:
++			n.SetVal(Val{new(Mpint)})
+ 
+-		// A nil literal may be converted to uintptr
+-		// if it is an unsafe.Pointer
+-		case TUINTPTR:
+-			if n.Type.Etype == TUNSAFEPTR {
+-				i := new(Mpint)
+-				i.SetInt64(0)
+-				n.SetVal(Val{i})
+-			} else {
+-				goto bad
+-			}
++		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
++			break
+ 		}
+ 
+ 	case CTSTR, CTBOOL:
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a583728608..f0fdc5bd25 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -145,7 +145,7 @@ func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val
+ 	}
+ 
+ 	n := npos(pos, nodlit(val))
+-	n = convlit1(n, t, false, reuseOK)
++	n.Type = t
+ 	n.Sym = s
+ 	declare(n, PEXTERN)
+ 
+diff --git a/test/const1.go b/test/const1.go
+index 58bddee7e0..62abe4145a 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -90,5 +90,5 @@ func main() {
+ const ptr = nil // ERROR "const.*nil"
+ const _ = string([]byte(nil)) // ERROR "is not a? ?constant"
+ const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
+-const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type"
+-const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type"
++const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant"
++const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant"
+diff --git a/test/fixedbugs/issue21221.go b/test/fixedbugs/issue21221.go
+new file mode 100644
+index 0000000000..bd5a4b550e
+--- /dev/null
++++ b/test/fixedbugs/issue21221.go
+@@ -0,0 +1,18 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func main() {
++	if unsafe.Pointer(uintptr(0)) != unsafe.Pointer(nil) {
++		panic("fail")
++	}
++	if (*int)(unsafe.Pointer(uintptr(0))) != (*int)(nil) {
++		panic("fail")
++	}
++}

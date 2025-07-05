@@ -12,6 +12,21 @@ Date:   Wed Jun 8 21:15:26 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/time/format.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 13c2bb6e52..c2ae793020 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -51,6 +51,9 @@ import "errors"
+ // use of "GMT" in that case.
+ // In general RFC1123Z should be used instead of RFC1123 for servers
+ // that insist on that format, and RFC3339 should be preferred for new protocols.
++// RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
++// when used with time.Parse they do not accept all the time formats
++// permitted by the RFCs.
+ const (
+ 	ANSIC       = "Mon Jan _2 15:04:05 2006"
+ 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"

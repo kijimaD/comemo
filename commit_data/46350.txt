@@ -33,7 +33,7 @@ Date:   Wed Dec 23 00:54:11 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go                 |  51 ----
  src/cmd/compile/internal/gc/go.go                  |   7 -
  src/cmd/compile/internal/gc/main.go                |   3 +-
@@ -44,3 +44,953 @@ Date:   Wed Dec 23 00:54:11 2020 -0500
  src/cmd/compile/internal/staticdata/data.go        | 296 +++++++++++++++++++++
  .../compile/internal/{gc => staticdata}/embed.go   |  23 +-
  9 files changed, 336 insertions(+), 316 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index aaf5b35057..7b2bf5b606 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -28,57 +28,6 @@ func NoWriteBarrierRecCheck() {
+ 
+ var nowritebarrierrecCheck *nowritebarrierrecChecker
+ 
+-// funcsym returns s·f.
+-func funcsym(s *types.Sym) *types.Sym {
+-	// funcsymsmu here serves to protect not just mutations of funcsyms (below),
+-	// but also the package lookup of the func sym name,
+-	// since this function gets called concurrently from the backend.
+-	// There are no other concurrent package lookups in the backend,
+-	// except for the types package, which is protected separately.
+-	// Reusing funcsymsmu to also cover this package lookup
+-	// avoids a general, broader, expensive package lookup mutex.
+-	// Note makefuncsym also does package look-up of func sym names,
+-	// but that it is only called serially, from the front end.
+-	funcsymsmu.Lock()
+-	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
+-	// Don't export s·f when compiling for dynamic linking.
+-	// When dynamically linking, the necessary function
+-	// symbols will be created explicitly with makefuncsym.
+-	// See the makefuncsym comment for details.
+-	if !base.Ctxt.Flag_dynlink && !existed {
+-		funcsyms = append(funcsyms, s)
+-	}
+-	funcsymsmu.Unlock()
+-	return sf
+-}
+-
+-// makefuncsym ensures that s·f is exported.
+-// It is only used with -dynlink.
+-// When not compiling for dynamic linking,
+-// the funcsyms are created as needed by
+-// the packages that use them.
+-// Normally we emit the s·f stubs as DUPOK syms,
+-// but DUPOK doesn't work across shared library boundaries.
+-// So instead, when dynamic linking, we only create
+-// the s·f stubs in s's package.
+-func makefuncsym(s *types.Sym) {
+-	if !base.Ctxt.Flag_dynlink {
+-		base.Fatalf("makefuncsym dynlink")
+-	}
+-	if s.IsBlank() {
+-		return
+-	}
+-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
+-		// runtime.getg(), getclosureptr(), getcallerpc(), and
+-		// getcallersp() are not real functions and so do not
+-		// get funcsyms.
+-		return
+-	}
+-	if _, existed := s.Pkg.LookupOK(ir.FuncSymName(s)); !existed {
+-		funcsyms = append(funcsyms, s)
+-	}
+-}
+-
+ type nowritebarrierrecChecker struct {
+ 	// extraCalls contains extra function calls that may not be
+ 	// visible during later analysis. It maps from the ODCLFUNC of
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c979edcdf8..6f97d43fef 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -7,20 +7,13 @@ package gc
+ import (
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+-	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"sync"
+ )
+ 
+ var pragcgobuf [][]string
+ 
+ var zerosize int64
+ 
+-var (
+-	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
+-	funcsyms   []*types.Sym
+-)
+-
+ // interface to back end
+ 
+ type Arch struct {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7b540d8675..bb6ace6562 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/noder"
+ 	"cmd/compile/internal/ssa"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/dwarf"
+@@ -194,7 +195,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	typecheck.Target = new(ir.Package)
+ 
+-	typecheck.NeedFuncSym = makefuncsym
++	typecheck.NeedFuncSym = staticdata.NeedFuncSym
+ 	typecheck.NeedITab = func(t, iface *types.Type) { itabname(t, iface) }
+ 	typecheck.NeedRuntimeType = addsignat // TODO(rsc): typenamesym for lock?
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0dbe1da8d4..50935d4e98 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -8,22 +8,16 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/archive"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/src"
+-	"crypto/sha256"
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/constant"
+-	"io"
+-	"io/ioutil"
+-	"os"
+-	"sort"
+-	"strconv"
+ )
+ 
+ // These modes say which kind of object file to generate.
+@@ -117,7 +111,7 @@ func dumpdata() {
+ 	numDecls := len(typecheck.Target.Decls)
+ 
+ 	dumpglobls(typecheck.Target.Externs)
+-	dumpfuncsyms()
++	staticdata.WriteFuncSyms()
+ 	addptabs()
+ 	numExports := len(typecheck.Target.Exports)
+ 	addsignats(typecheck.Target.Externs)
+@@ -270,17 +264,6 @@ func dumpglobls(externs []ir.Node) {
+ 	}
+ }
+ 
+-func dumpfuncsyms() {
+-	sort.Slice(funcsyms, func(i, j int) bool {
+-		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
+-	})
+-	for _, s := range funcsyms {
+-		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+-		objw.SymPtr(sf, 0, s.Linksym(), 0)
+-		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+-	}
+-}
+-
+ // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+ //
+ // This is done during the sequential phase after compilation, since
+@@ -307,210 +290,6 @@ func addGCLocals() {
+ 	}
+ }
+ 
+-const (
+-	stringSymPrefix  = "go.string."
+-	stringSymPattern = ".gostring.%d.%x"
+-)
+-
+-// stringsym returns a symbol containing the string s.
+-// The symbol contains the string data, not a string header.
+-func stringsym(pos src.XPos, s string) (data *obj.LSym) {
+-	var symname string
+-	if len(s) > 100 {
+-		// Huge strings are hashed to avoid long names in object files.
+-		// Indulge in some paranoia by writing the length of s, too,
+-		// as protection against length extension attacks.
+-		// Same pattern is known to fileStringSym below.
+-		h := sha256.New()
+-		io.WriteString(h, s)
+-		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
+-	} else {
+-		// Small strings get named directly by their contents.
+-		symname = strconv.Quote(s)
+-	}
+-
+-	symdata := base.Ctxt.Lookup(stringSymPrefix + symname)
+-	if !symdata.OnList() {
+-		off := dstringdata(symdata, 0, s, pos, "string")
+-		objw.Global(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+-		symdata.Set(obj.AttrContentAddressable, true)
+-	}
+-
+-	return symdata
+-}
+-
+-// fileStringSym returns a symbol for the contents and the size of file.
+-// If readonly is true, the symbol shares storage with any literal string
+-// or other file with the same content and is placed in a read-only section.
+-// If readonly is false, the symbol is a read-write copy separate from any other,
+-// for use as the backing store of a []byte.
+-// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
+-// The returned symbol contains the data itself, not a string header.
+-func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
+-	f, err := os.Open(file)
+-	if err != nil {
+-		return nil, 0, err
+-	}
+-	defer f.Close()
+-	info, err := f.Stat()
+-	if err != nil {
+-		return nil, 0, err
+-	}
+-	if !info.Mode().IsRegular() {
+-		return nil, 0, fmt.Errorf("not a regular file")
+-	}
+-	size := info.Size()
+-	if size <= 1*1024 {
+-		data, err := ioutil.ReadAll(f)
+-		if err != nil {
+-			return nil, 0, err
+-		}
+-		if int64(len(data)) != size {
+-			return nil, 0, fmt.Errorf("file changed between reads")
+-		}
+-		var sym *obj.LSym
+-		if readonly {
+-			sym = stringsym(pos, string(data))
+-		} else {
+-			sym = slicedata(pos, string(data)).Sym().Linksym()
+-		}
+-		if len(hash) > 0 {
+-			sum := sha256.Sum256(data)
+-			copy(hash, sum[:])
+-		}
+-		return sym, size, nil
+-	}
+-	if size > 2e9 {
+-		// ggloblsym takes an int32,
+-		// and probably the rest of the toolchain
+-		// can't handle such big symbols either.
+-		// See golang.org/issue/9862.
+-		return nil, 0, fmt.Errorf("file too large")
+-	}
+-
+-	// File is too big to read and keep in memory.
+-	// Compute hash if needed for read-only content hashing or if the caller wants it.
+-	var sum []byte
+-	if readonly || len(hash) > 0 {
+-		h := sha256.New()
+-		n, err := io.Copy(h, f)
+-		if err != nil {
+-			return nil, 0, err
+-		}
+-		if n != size {
+-			return nil, 0, fmt.Errorf("file changed between reads")
+-		}
+-		sum = h.Sum(nil)
+-		copy(hash, sum)
+-	}
+-
+-	var symdata *obj.LSym
+-	if readonly {
+-		symname := fmt.Sprintf(stringSymPattern, size, sum)
+-		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
+-		if !symdata.OnList() {
+-			info := symdata.NewFileInfo()
+-			info.Name = file
+-			info.Size = size
+-			objw.Global(symdata, int32(size), obj.DUPOK|obj.RODATA|obj.LOCAL)
+-			// Note: AttrContentAddressable cannot be set here,
+-			// because the content-addressable-handling code
+-			// does not know about file symbols.
+-		}
+-	} else {
+-		// Emit a zero-length data symbol
+-		// and then fix up length and content to use file.
+-		symdata = slicedata(pos, "").Sym().Linksym()
+-		symdata.Size = size
+-		symdata.Type = objabi.SNOPTRDATA
+-		info := symdata.NewFileInfo()
+-		info.Name = file
+-		info.Size = size
+-	}
+-
+-	return symdata, size, nil
+-}
+-
+-var slicedataGen int
+-
+-func slicedata(pos src.XPos, s string) *ir.Name {
+-	slicedataGen++
+-	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+-	sym := types.LocalPkg.Lookup(symname)
+-	symnode := typecheck.NewName(sym)
+-	sym.Def = symnode
+-
+-	lsym := sym.Linksym()
+-	off := dstringdata(lsym, 0, s, pos, "slice")
+-	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+-
+-	return symnode
+-}
+-
+-func slicebytes(nam *ir.Name, off int64, s string) {
+-	if nam.Op() != ir.ONAME {
+-		base.Fatalf("slicebytes %v", nam)
+-	}
+-	slicesym(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
+-}
+-
+-func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+-	// Objects that are too large will cause the data section to overflow right away,
+-	// causing a cryptic error message by the linker. Check for oversize objects here
+-	// and provide a useful error message instead.
+-	if int64(len(t)) > 2e9 {
+-		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
+-		return 0
+-	}
+-
+-	s.WriteString(base.Ctxt, int64(off), len(t), t)
+-	return off + len(t)
+-}
+-
+-// slicesym writes a static slice symbol {&arr, lencap, lencap} to n+noff.
+-// slicesym does not modify n.
+-func slicesym(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+-	s := n.Sym().Linksym()
+-	if arr.Op() != ir.ONAME {
+-		base.Fatalf("slicesym non-name arr %v", arr)
+-	}
+-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Sym().Linksym(), 0)
+-	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
+-	s.WriteInt(base.Ctxt, noff+types.SliceCapOffset, types.PtrSize, lencap)
+-}
+-
+-// addrsym writes the static address of a to n. a must be an ONAME.
+-// Neither n nor a is modified.
+-func addrsym(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+-	if n.Op() != ir.ONAME {
+-		base.Fatalf("addrsym n op %v", n.Op())
+-	}
+-	if n.Sym() == nil {
+-		base.Fatalf("addrsym nil n sym")
+-	}
+-	if a.Op() != ir.ONAME {
+-		base.Fatalf("addrsym a op %v", a.Op())
+-	}
+-	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Sym().Linksym(), aoff)
+-}
+-
+-// pfuncsym writes the static address of f to n. f must be a global function.
+-// Neither n nor f is modified.
+-func pfuncsym(n *ir.Name, noff int64, f *ir.Name) {
+-	if n.Op() != ir.ONAME {
+-		base.Fatalf("pfuncsym n op %v", n.Op())
+-	}
+-	if n.Sym() == nil {
+-		base.Fatalf("pfuncsym nil n sym")
+-	}
+-	if f.Class_ != ir.PFUNC {
+-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
+-	}
+-	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, noff, types.PtrSize, funcsym(f.Sym()).Linksym(), 0)
+-}
+-
+ // litsym writes the static literal c to n.
+ // Neither n nor c is modified.
+ func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+@@ -558,7 +337,7 @@ func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 
+ 	case constant.String:
+ 		i := constant.StringVal(u)
+-		symdata := stringsym(n.Pos(), i)
++		symdata := staticdata.StringSym(n.Pos(), i)
+ 		s.WriteAddr(base.Ctxt, noff, types.PtrSize, symdata, 0)
+ 		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
+ 
+@@ -588,3 +367,9 @@ func ggloblnod(nam ir.Node) {
+ 		s.Pkg = "_"
+ 	}
+ }
++
++func dumpembeds() {
++	for _, v := range typecheck.Target.Embeds {
++		staticdata.WriteEmbed(v)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 26591ad5ab..d818be94a4 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -76,7 +77,7 @@ func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
+ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+ 	if rn.Class_ == ir.PFUNC {
+ 		// TODO if roff != 0 { panic }
+-		pfuncsym(l, loff, rn)
++		staticdata.InitFunc(l, loff, rn)
+ 		return true
+ 	}
+ 	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+@@ -130,7 +131,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
+ 		r := r.(*ir.AddrExpr)
+ 		if a := r.X; a.Op() == ir.ONAME {
+ 			a := a.(*ir.Name)
+-			addrsym(l, loff, a, 0)
++			staticdata.InitAddr(l, loff, a, 0)
+ 			return true
+ 		}
+ 
+@@ -139,14 +140,14 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
+ 		switch r.X.Op() {
+ 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
+ 			// copy pointer
+-			addrsym(l, loff, s.inittemps[r], 0)
++			staticdata.InitAddr(l, loff, s.inittemps[r], 0)
+ 			return true
+ 		}
+ 
+ 	case ir.OSLICELIT:
+ 		r := r.(*ir.CompLitExpr)
+ 		// copy slice
+-		slicesym(l, loff, s.inittemps[r], r.Len)
++		staticdata.InitSlice(l, loff, s.inittemps[r], r.Len)
+ 		return true
+ 
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+@@ -207,7 +208,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 	case ir.OADDR:
+ 		r := r.(*ir.AddrExpr)
+ 		if name, offset, ok := stataddr(r.X); ok {
+-			addrsym(l, loff, name, offset)
++			staticdata.InitAddr(l, loff, name, offset)
+ 			return true
+ 		}
+ 		fallthrough
+@@ -220,7 +221,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 			a := staticname(r.X.Type())
+ 
+ 			s.inittemps[r] = a
+-			addrsym(l, loff, a, 0)
++			staticdata.InitAddr(l, loff, a, 0)
+ 
+ 			// Init underlying literal.
+ 			if !s.staticassign(a, 0, r.X, a.Type()) {
+@@ -234,7 +235,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 		r := r.(*ir.ConvExpr)
+ 		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+ 			sval := ir.StringVal(r.X)
+-			slicebytes(l, loff, sval)
++			staticdata.InitSliceBytes(l, loff, sval)
+ 			return true
+ 		}
+ 
+@@ -246,7 +247,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 		ta.SetNoalg(true)
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+-		slicesym(l, loff, a, r.Len)
++		staticdata.InitSlice(l, loff, a, r.Len)
+ 		// Fall through to init underlying array.
+ 		l = a
+ 		loff = 0
+@@ -284,7 +285,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+ 			// TODO if roff != 0 { panic }
+-			pfuncsym(l, loff, r.Func.Nname)
++			staticdata.InitFunc(l, loff, r.Func.Nname)
+ 			return true
+ 		}
+ 		closuredebugruntimecheck(r)
+@@ -321,7 +322,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 		// Create a copy of l to modify while we emit data.
+ 
+ 		// Emit itab, advance offset.
+-		addrsym(l, loff, itab.X.(*ir.Name), 0)
++		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
+ 
+ 		// Emit data.
+ 		if types.IsDirectIface(val.Type()) {
+@@ -342,7 +343,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 			if !s.staticassign(a, 0, val, val.Type()) {
+ 				s.append(ir.NewAssignStmt(base.Pos, a, val))
+ 			}
+-			addrsym(l, loff+int64(types.PtrSize), a, 0)
++			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
+ 		}
+ 
+ 		return true
+@@ -638,7 +639,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		if !ok || name.Class_ != ir.PEXTERN {
+ 			base.Fatalf("slicelit: %v", var_)
+ 		}
+-		slicesym(name, offset, vstat, t.NumElem())
++		staticdata.InitSlice(name, offset, vstat, t.NumElem())
+ 		return
+ 	}
+ 
+@@ -1138,7 +1139,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 		return
+ 	case ir.OMETHEXPR:
+ 		r := r.(*ir.MethodExpr)
+-		pfuncsym(name, offset, r.FuncName())
++		staticdata.InitFunc(name, offset, r.FuncName())
+ 		return
+ 	case ir.ONAME:
+ 		r := r.(*ir.Name)
+@@ -1146,7 +1147,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 			base.Fatalf("genAsStatic %+v", as)
+ 		}
+ 		if r.Class_ == ir.PFUNC {
+-			pfuncsym(name, offset, r)
++			staticdata.InitFunc(name, offset, r)
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index feb2d0de8f..51eeb9315a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -21,6 +21,7 @@ import (
+ 	"cmd/compile/internal/liveness"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -2115,13 +2116,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
+ 	case ir.OMETHEXPR:
+ 		n := n.(*ir.MethodExpr)
+-		sym := funcsym(n.FuncName().Sym()).Linksym()
++		sym := staticdata.FuncSym(n.FuncName().Sym()).Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+ 		if n.Class_ == ir.PFUNC {
+ 			// "value" of a function is the address of the function's closure
+-			sym := funcsym(n.Sym()).Linksym()
++			sym := staticdata.FuncSym(n.Sym()).Linksym()
+ 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
+ 		}
+ 		if s.canSSA(n) {
+@@ -7160,7 +7161,7 @@ func (e *ssafn) StringData(s string) *obj.LSym {
+ 	if e.strings == nil {
+ 		e.strings = make(map[string]*obj.LSym)
+ 	}
+-	data := stringsym(e.curfn.Pos(), s)
++	data := staticdata.StringSym(e.curfn.Pos(), s)
+ 	e.strings[s] = data
+ 	return data
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9e4de7f804..9c2484f3dc 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -526,7 +527,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		// Emit string symbol now to avoid emitting
+ 		// any concurrently during the backend.
+ 		if v := n.Val(); v.Kind() == constant.String {
+-			_ = stringsym(n.Pos(), constant.StringVal(v))
++			_ = staticdata.StringSym(n.Pos(), constant.StringVal(v))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+new file mode 100644
+index 0000000000..7627aaa11a
+--- /dev/null
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -0,0 +1,296 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package staticdata
++
++import (
++	"crypto/sha256"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"sort"
++	"strconv"
++	"sync"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/objw"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
++	"cmd/internal/src"
++)
++
++// InitAddr writes the static address of a to n. a must be an ONAME.
++// Neither n nor a is modified.
++func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
++	if n.Op() != ir.ONAME {
++		base.Fatalf("addrsym n op %v", n.Op())
++	}
++	if n.Sym() == nil {
++		base.Fatalf("addrsym nil n sym")
++	}
++	if a.Op() != ir.ONAME {
++		base.Fatalf("addrsym a op %v", a.Op())
++	}
++	s := n.Sym().Linksym()
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Sym().Linksym(), aoff)
++}
++
++// InitFunc writes the static address of f to n. f must be a global function.
++// Neither n nor f is modified.
++func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
++	if n.Op() != ir.ONAME {
++		base.Fatalf("pfuncsym n op %v", n.Op())
++	}
++	if n.Sym() == nil {
++		base.Fatalf("pfuncsym nil n sym")
++	}
++	if f.Class_ != ir.PFUNC {
++		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
++	}
++	s := n.Sym().Linksym()
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncSym(f.Sym()).Linksym(), 0)
++}
++
++// InitSlice writes a static slice symbol {&arr, lencap, lencap} to n+noff.
++// InitSlice does not modify n.
++func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
++	s := n.Sym().Linksym()
++	if arr.Op() != ir.ONAME {
++		base.Fatalf("slicesym non-name arr %v", arr)
++	}
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Sym().Linksym(), 0)
++	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
++	s.WriteInt(base.Ctxt, noff+types.SliceCapOffset, types.PtrSize, lencap)
++}
++
++func InitSliceBytes(nam *ir.Name, off int64, s string) {
++	if nam.Op() != ir.ONAME {
++		base.Fatalf("slicebytes %v", nam)
++	}
++	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
++}
++
++const (
++	stringSymPrefix  = "go.string."
++	stringSymPattern = ".gostring.%d.%x"
++)
++
++// StringSym returns a symbol containing the string s.
++// The symbol contains the string data, not a string header.
++func StringSym(pos src.XPos, s string) (data *obj.LSym) {
++	var symname string
++	if len(s) > 100 {
++		// Huge strings are hashed to avoid long names in object files.
++		// Indulge in some paranoia by writing the length of s, too,
++		// as protection against length extension attacks.
++		// Same pattern is known to fileStringSym below.
++		h := sha256.New()
++		io.WriteString(h, s)
++		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
++	} else {
++		// Small strings get named directly by their contents.
++		symname = strconv.Quote(s)
++	}
++
++	symdata := base.Ctxt.Lookup(stringSymPrefix + symname)
++	if !symdata.OnList() {
++		off := dstringdata(symdata, 0, s, pos, "string")
++		objw.Global(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
++		symdata.Set(obj.AttrContentAddressable, true)
++	}
++
++	return symdata
++}
++
++// fileStringSym returns a symbol for the contents and the size of file.
++// If readonly is true, the symbol shares storage with any literal string
++// or other file with the same content and is placed in a read-only section.
++// If readonly is false, the symbol is a read-write copy separate from any other,
++// for use as the backing store of a []byte.
++// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
++// The returned symbol contains the data itself, not a string header.
++func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
++	f, err := os.Open(file)
++	if err != nil {
++		return nil, 0, err
++	}
++	defer f.Close()
++	info, err := f.Stat()
++	if err != nil {
++		return nil, 0, err
++	}
++	if !info.Mode().IsRegular() {
++		return nil, 0, fmt.Errorf("not a regular file")
++	}
++	size := info.Size()
++	if size <= 1*1024 {
++		data, err := ioutil.ReadAll(f)
++		if err != nil {
++			return nil, 0, err
++		}
++		if int64(len(data)) != size {
++			return nil, 0, fmt.Errorf("file changed between reads")
++		}
++		var sym *obj.LSym
++		if readonly {
++			sym = StringSym(pos, string(data))
++		} else {
++			sym = slicedata(pos, string(data)).Sym().Linksym()
++		}
++		if len(hash) > 0 {
++			sum := sha256.Sum256(data)
++			copy(hash, sum[:])
++		}
++		return sym, size, nil
++	}
++	if size > 2e9 {
++		// ggloblsym takes an int32,
++		// and probably the rest of the toolchain
++		// can't handle such big symbols either.
++		// See golang.org/issue/9862.
++		return nil, 0, fmt.Errorf("file too large")
++	}
++
++	// File is too big to read and keep in memory.
++	// Compute hash if needed for read-only content hashing or if the caller wants it.
++	var sum []byte
++	if readonly || len(hash) > 0 {
++		h := sha256.New()
++		n, err := io.Copy(h, f)
++		if err != nil {
++			return nil, 0, err
++		}
++		if n != size {
++			return nil, 0, fmt.Errorf("file changed between reads")
++		}
++		sum = h.Sum(nil)
++		copy(hash, sum)
++	}
++
++	var symdata *obj.LSym
++	if readonly {
++		symname := fmt.Sprintf(stringSymPattern, size, sum)
++		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
++		if !symdata.OnList() {
++			info := symdata.NewFileInfo()
++			info.Name = file
++			info.Size = size
++			objw.Global(symdata, int32(size), obj.DUPOK|obj.RODATA|obj.LOCAL)
++			// Note: AttrContentAddressable cannot be set here,
++			// because the content-addressable-handling code
++			// does not know about file symbols.
++		}
++	} else {
++		// Emit a zero-length data symbol
++		// and then fix up length and content to use file.
++		symdata = slicedata(pos, "").Sym().Linksym()
++		symdata.Size = size
++		symdata.Type = objabi.SNOPTRDATA
++		info := symdata.NewFileInfo()
++		info.Name = file
++		info.Size = size
++	}
++
++	return symdata, size, nil
++}
++
++var slicedataGen int
++
++func slicedata(pos src.XPos, s string) *ir.Name {
++	slicedataGen++
++	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
++	sym := types.LocalPkg.Lookup(symname)
++	symnode := typecheck.NewName(sym)
++	sym.Def = symnode
++
++	lsym := sym.Linksym()
++	off := dstringdata(lsym, 0, s, pos, "slice")
++	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
++
++	return symnode
++}
++
++func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
++	// Objects that are too large will cause the data section to overflow right away,
++	// causing a cryptic error message by the linker. Check for oversize objects here
++	// and provide a useful error message instead.
++	if int64(len(t)) > 2e9 {
++		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
++		return 0
++	}
++
++	s.WriteString(base.Ctxt, int64(off), len(t), t)
++	return off + len(t)
++}
++
++var (
++	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
++	funcsyms   []*types.Sym
++)
++
++// FuncSym returns s·f.
++func FuncSym(s *types.Sym) *types.Sym {
++	// funcsymsmu here serves to protect not just mutations of funcsyms (below),
++	// but also the package lookup of the func sym name,
++	// since this function gets called concurrently from the backend.
++	// There are no other concurrent package lookups in the backend,
++	// except for the types package, which is protected separately.
++	// Reusing funcsymsmu to also cover this package lookup
++	// avoids a general, broader, expensive package lookup mutex.
++	// Note makefuncsym also does package look-up of func sym names,
++	// but that it is only called serially, from the front end.
++	funcsymsmu.Lock()
++	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
++	// Don't export s·f when compiling for dynamic linking.
++	// When dynamically linking, the necessary function
++	// symbols will be created explicitly with makefuncsym.
++	// See the makefuncsym comment for details.
++	if !base.Ctxt.Flag_dynlink && !existed {
++		funcsyms = append(funcsyms, s)
++	}
++	funcsymsmu.Unlock()
++	return sf
++}
++
++// NeedFuncSym ensures that s·f is exported.
++// It is only used with -dynlink.
++// When not compiling for dynamic linking,
++// the funcsyms are created as needed by
++// the packages that use them.
++// Normally we emit the s·f stubs as DUPOK syms,
++// but DUPOK doesn't work across shared library boundaries.
++// So instead, when dynamic linking, we only create
++// the s·f stubs in s's package.
++func NeedFuncSym(s *types.Sym) {
++	if !base.Ctxt.Flag_dynlink {
++		base.Fatalf("makefuncsym dynlink")
++	}
++	if s.IsBlank() {
++		return
++	}
++	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
++		// runtime.getg(), getclosureptr(), getcallerpc(), and
++		// getcallersp() are not real functions and so do not
++		// get funcsyms.
++		return
++	}
++	if _, existed := s.Pkg.LookupOK(ir.FuncSymName(s)); !existed {
++		funcsyms = append(funcsyms, s)
++	}
++}
++
++func WriteFuncSyms() {
++	sort.Slice(funcsyms, func(i, j int) bool {
++		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
++	})
++	for _, s := range funcsyms {
++		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
++		objw.SymPtr(sf, 0, s.Linksym(), 0)
++		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+similarity index 95%
+rename from src/cmd/compile/internal/gc/embed.go
+rename to src/cmd/compile/internal/staticdata/embed.go
+index 959d8cd7fe..55c9a3356e 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -2,19 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package staticdata
+ 
+ import (
++	"path"
++	"sort"
++	"strings"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+-	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-
+-	"path"
+-	"sort"
+-	"strings"
+ )
+ 
+ const (
+@@ -132,15 +131,9 @@ func embedFileLess(x, y string) bool {
+ 	return xdir < ydir || xdir == ydir && xelem < yelem
+ }
+ 
+-func dumpembeds() {
+-	for _, v := range typecheck.Target.Embeds {
+-		initEmbed(v)
+-	}
+-}
+-
+-// initEmbed emits the init data for a //go:embed variable,
++// WriteEmbed emits the init data for a //go:embed variable,
+ // which is either a string, a []byte, or an embed.FS.
+-func initEmbed(v *ir.Name) {
++func WriteEmbed(v *ir.Name) {
+ 	files := embedFileList(v)
+ 	switch kind := embedKind(v.Type()); kind {
+ 	case embedUnknown:
+@@ -176,7 +169,7 @@ func initEmbed(v *ir.Name) {
+ 		const hashSize = 16
+ 		hash := make([]byte, hashSize)
+ 		for _, file := range files {
+-			off = objw.SymPtr(slicedata, off, stringsym(v.Pos(), file), 0) // file string
++			off = objw.SymPtr(slicedata, off, StringSym(v.Pos(), file), 0) // file string
+ 			off = objw.Uintptr(slicedata, off, uint64(len(file)))
+ 			if strings.HasSuffix(file, "/") {
+ 				// entry for directory - no data

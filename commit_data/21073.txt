@@ -13,7 +13,7 @@ Date:   Tue Nov 11 22:30:02 2014 -0500
     R=r, dave
     CC=golang-codereviews
     https://golang.org/cl/168580043
-
+---
  src/runtime/asm_arm.s           |  10 +-
  src/runtime/softfloat64.go      |  22 +-
  src/runtime/softfloat64_test.go |   2 +-
@@ -21,3 +21,1443 @@ Date:   Tue Nov 11 22:30:02 2014 -0500
  src/runtime/softfloat_arm.go    | 644 +++++++++++++++++++++++++++++++++++++
  src/runtime/sqrt.go             |   4 -
  6 files changed, 662 insertions(+), 707 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index e883d7e586..897f568054 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -55,7 +55,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVW	(g_stack+stack_lo)(g), R0
+-	ADD	$const_StackGuard, R0
++	ADD	$const__StackGuard, R0
+ 	MOVW	R0, g_stackguard0(g)
+ 	MOVW	R0, g_stackguard1(g)
+ 
+@@ -202,15 +202,17 @@ TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // func onM_signalok(fn func())
+-TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
++TEXT runtime·onM_signalok(SB), NOSPLIT, $4-4
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_gsignal(R1), R2
++	MOVW	fn+0(FP), R0
+ 	CMP	g, R2
+ 	B.EQ	ongsignal
+-	B	runtime·onM(SB)
++	MOVW	R0, 4(R13)
++	BL	runtime·onM(SB)
++	RET
+ 
+ ongsignal:
+-	MOVW	fn+0(FP), R0
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+ 	BL	(R0)
+diff --git a/src/runtime/softfloat64.go b/src/runtime/softfloat64.go
+index 4fcf8f2690..c157a14e26 100644
+--- a/src/runtime/softfloat64.go
++++ b/src/runtime/softfloat64.go
+@@ -340,7 +340,7 @@ func f32to64(f uint32) uint64 {
+ 	return fpack64(fs64, uint64(fm)<<d, fe, 0)
+ }
+ 
+-func fcmp64(f, g uint64) (cmp int, isnan bool) {
++func fcmp64(f, g uint64) (cmp int32, isnan bool) {
+ 	fs, fm, _, fi, fn := funpack64(f)
+ 	gs, gm, _, gi, gn := funpack64(g)
+ 
+@@ -486,13 +486,13 @@ again2:
+ 
+ // callable from C
+ 
+-func fadd64c(f, g uint64, ret *uint64)            { *ret = fadd64(f, g) }
+-func fsub64c(f, g uint64, ret *uint64)            { *ret = fsub64(f, g) }
+-func fmul64c(f, g uint64, ret *uint64)            { *ret = fmul64(f, g) }
+-func fdiv64c(f, g uint64, ret *uint64)            { *ret = fdiv64(f, g) }
+-func fneg64c(f uint64, ret *uint64)               { *ret = fneg64(f) }
+-func f32to64c(f uint32, ret *uint64)              { *ret = f32to64(f) }
+-func f64to32c(f uint64, ret *uint32)              { *ret = f64to32(f) }
+-func fcmp64c(f, g uint64, ret *int, retnan *bool) { *ret, *retnan = fcmp64(f, g) }
+-func fintto64c(val int64, ret *uint64)            { *ret = fintto64(val) }
+-func f64tointc(f uint64, ret *int64, retok *bool) { *ret, *retok = f64toint(f) }
++func fadd64c(f, g uint64, ret *uint64)              { *ret = fadd64(f, g) }
++func fsub64c(f, g uint64, ret *uint64)              { *ret = fsub64(f, g) }
++func fmul64c(f, g uint64, ret *uint64)              { *ret = fmul64(f, g) }
++func fdiv64c(f, g uint64, ret *uint64)              { *ret = fdiv64(f, g) }
++func fneg64c(f uint64, ret *uint64)                 { *ret = fneg64(f) }
++func f32to64c(f uint32, ret *uint64)                { *ret = f32to64(f) }
++func f64to32c(f uint64, ret *uint32)                { *ret = f64to32(f) }
++func fcmp64c(f, g uint64, ret *int32, retnan *bool) { *ret, *retnan = fcmp64(f, g) }
++func fintto64c(val int64, ret *uint64)              { *ret = fintto64(val) }
++func f64tointc(f uint64, ret *int64, retok *bool)   { *ret, *retok = f64toint(f) }
+diff --git a/src/runtime/softfloat64_test.go b/src/runtime/softfloat64_test.go
+index df63010fbd..e108872835 100644
+--- a/src/runtime/softfloat64_test.go
++++ b/src/runtime/softfloat64_test.go
+@@ -182,7 +182,7 @@ func hwcmp(f, g float64) (cmp int, isnan bool) {
+ func testcmp(t *testing.T, f, g float64) {
+ 	hcmp, hisnan := hwcmp(f, g)
+ 	scmp, sisnan := Fcmp64(math.Float64bits(f), math.Float64bits(g))
+-	if hcmp != scmp || hisnan != sisnan {
++	if int32(hcmp) != scmp || hisnan != sisnan {
+ 		err(t, "cmp(%g, %g) = sw %v, %v, hw %v, %v\n", f, g, scmp, sisnan, hcmp, hisnan)
+ 	}
+ }
+diff --git a/src/runtime/softfloat_arm.c b/src/runtime/softfloat_arm.c
+deleted file mode 100644
+index 3f3f33a19e..0000000000
+--- a/src/runtime/softfloat_arm.c
++++ /dev/null
+@@ -1,687 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Software floating point interpretaton of ARM 7500 FP instructions.
+-// The interpretation is not bit compatible with the 7500.
+-// It uses true little-endian doubles, while the 7500 used mixed-endian.
+-
+-#include "runtime.h"
+-#include "textflag.h"
+-
+-#define CPSR 14
+-#define FLAGS_N (1U << 31)
+-#define FLAGS_Z (1U << 30)
+-#define FLAGS_C (1U << 29)
+-#define FLAGS_V (1U << 28)
+-
+-void	runtime·abort(void);
+-void	runtime·sqrtC(uint64, uint64*);
+-
+-static	uint32	trace = 0;
+-
+-static void
+-fabort(void)
+-{
+-	if (1) {
+-		runtime·printf("Unsupported floating point instruction\n");
+-		runtime·abort();
+-	}
+-}
+-
+-static void
+-putf(uint32 reg, uint32 val)
+-{
+-	g->m->freglo[reg] = val;
+-}
+-
+-static void
+-putd(uint32 reg, uint64 val)
+-{
+-	g->m->freglo[reg] = (uint32)val;
+-	g->m->freghi[reg] = (uint32)(val>>32);
+-}
+-
+-static uint64
+-getd(uint32 reg)
+-{
+-	return (uint64)g->m->freglo[reg] | ((uint64)g->m->freghi[reg]<<32);
+-}
+-
+-static void
+-fprint(void)
+-{
+-	uint32 i;
+-	for (i = 0; i < 16; i++) {
+-		runtime·printf("\tf%d:\t%X %X\n", i, g->m->freghi[i], g->m->freglo[i]);
+-	}
+-}
+-
+-static uint32
+-d2f(uint64 d)
+-{
+-	uint32 x;
+-
+-	runtime·f64to32c(d, &x);
+-	return x;
+-}
+-
+-static uint64
+-f2d(uint32 f)
+-{
+-	uint64 x;
+-
+-	runtime·f32to64c(f, &x);
+-	return x;
+-}
+-
+-static uint32
+-fstatus(bool nan, int32 cmp)
+-{
+-	if(nan)
+-		return FLAGS_C | FLAGS_V;
+-	if(cmp == 0)
+-		return FLAGS_Z | FLAGS_C;
+-	if(cmp < 0)
+-		return FLAGS_N;
+-	return FLAGS_C;
+-}
+-
+-// conditions array record the required CPSR cond field for the
+-// first 5 pairs of conditional execution opcodes
+-// higher 4 bits are must set, lower 4 bits are must clear
+-#pragma dataflag NOPTR
+-static const uint8 conditions[10/2] = {
+-	[0/2] = (FLAGS_Z >> 24) | 0, // 0: EQ (Z set), 1: NE (Z clear)
+-	[2/2] = (FLAGS_C >> 24) | 0, // 2: CS/HS (C set), 3: CC/LO (C clear)
+-	[4/2] = (FLAGS_N >> 24) | 0, // 4: MI (N set), 5: PL (N clear)
+-	[6/2] = (FLAGS_V >> 24) | 0, // 6: VS (V set), 7: VC (V clear)
+-	[8/2] = (FLAGS_C >> 24) | 
+-	        (FLAGS_Z >> 28),     // 8: HI (C set and Z clear), 9: LS (C clear and Z set)
+-};
+-
+-#define FAULT (0x80000000U) // impossible PC offset
+-
+-// returns number of words that the fp instruction
+-// is occupying, 0 if next instruction isn't float.
+-static uint32
+-stepflt(uint32 *pc, uint32 *regs)
+-{
+-	uint32 i, opc, regd, regm, regn, cpsr;
+-	int32 delta;
+-	uint32 *addr;
+-	uint64 uval;
+-	int64 sval;
+-	bool nan, ok;
+-	int32 cmp;
+-	M *m;
+-
+-	// m is locked in vlop_arm.s, so g->m cannot change during this function call,
+-	// so caching it in a local variable is safe.
+-	m = g->m;
+-	i = *pc;
+-
+-	if(trace)
+-		runtime·printf("stepflt %p %x (cpsr %x)\n", pc, i, regs[CPSR] >> 28);
+-
+-	opc = i >> 28;
+-	if(opc == 14) // common case first
+-		goto execute;
+-	cpsr = regs[CPSR] >> 28;
+-	switch(opc) {
+-	case 0: case 1: case 2: case 3: case 4: 
+-	case 5: case 6: case 7: case 8: case 9:
+-		if(((cpsr & (conditions[opc/2] >> 4)) == (conditions[opc/2] >> 4)) &&
+-		   ((cpsr & (conditions[opc/2] & 0xf)) == 0)) {
+-			if(opc & 1) return 1;
+-		} else {
+-			if(!(opc & 1)) return 1;
+-		}
+-		break;
+-	case 10: // GE (N == V)
+-	case 11: // LT (N != V)
+-		if((cpsr & (FLAGS_N >> 28)) == (cpsr & (FLAGS_V >> 28))) {
+-			if(opc & 1) return 1;
+-		} else {
+-			if(!(opc & 1)) return 1;
+-		}
+-		break;
+-	case 12: // GT (N == V and Z == 0)
+-	case 13: // LE (N != V or Z == 1)
+-		if((cpsr & (FLAGS_N >> 28)) == (cpsr & (FLAGS_V >> 28)) &&
+-		   (cpsr & (FLAGS_Z >> 28)) == 0) {
+-			if(opc & 1) return 1;
+-		} else {
+-			if(!(opc & 1)) return 1;
+-		}
+-		break;
+-	case 14: // AL
+-		break;
+-	case 15: // shouldn't happen
+-		return 0;
+-	}
+-	if(trace)
+-		runtime·printf("conditional %x (cpsr %x) pass\n", opc, cpsr);
+-	i = (0xeU << 28) | (i & 0xfffffff);
+-
+-execute:
+-	// special cases
+-	if((i&0xfffff000) == 0xe59fb000) {
+-		// load r11 from pc-relative address.
+-		// might be part of a floating point move
+-		// (or might not, but no harm in simulating
+-		// one instruction too many).
+-		addr = (uint32*)((uint8*)pc + (i&0xfff) + 8);
+-		regs[11] = addr[0];
+-
+-		if(trace)
+-			runtime·printf("*** cpu R[%d] = *(%p) %x\n",
+-				11, addr, regs[11]);
+-		return 1;
+-	}
+-	if(i == 0xe08bb00d) {
+-		// add sp to r11.
+-		// might be part of a large stack offset address
+-		// (or might not, but again no harm done).
+-		regs[11] += regs[13];
+-
+-		if(trace)
+-			runtime·printf("*** cpu R[%d] += R[%d] %x\n",
+-				11, 13, regs[11]);
+-		return 1;
+-	}
+-	if(i == 0xeef1fa10) {
+-		regs[CPSR] = (regs[CPSR]&0x0fffffff) | m->fflag;
+-
+-		if(trace)
+-			runtime·printf("*** fpsr R[CPSR] = F[CPSR] %x\n", regs[CPSR]);
+-		return 1;
+-	}
+-	if((i&0xff000000) == 0xea000000) {
+-		// unconditional branch
+-		// can happen in the middle of floating point
+-		// if the linker decides it is time to lay down
+-		// a sequence of instruction stream constants.
+-		delta = i&0xffffff;
+-		delta = (delta<<8) >> 8;	// sign extend
+-
+-		if(trace)
+-			runtime·printf("*** cpu PC += %x\n", (delta+2)*4);
+-		return delta+2;
+-	}
+-
+-	goto stage1;
+-
+-stage1:	// load/store regn is cpureg, regm is 8bit offset
+-	regd = i>>12 & 0xf;
+-	regn = i>>16 & 0xf;
+-	regm = (i & 0xff) << 2;	// PLUS or MINUS ??
+-
+-	switch(i & 0xfff00f00) {
+-	default:
+-		goto stage2;
+-
+-	case 0xed900a00:	// single load
+-		addr = (uint32*)(regs[regn] + regm);
+-		if((uintptr)addr < 4096) {
+-			if(trace)
+-				runtime·printf("*** load @%p => fault\n", addr);
+-			return FAULT;
+-		}
+-		m->freglo[regd] = addr[0];
+-
+-		if(trace)
+-			runtime·printf("*** load F[%d] = %x\n",
+-				regd, m->freglo[regd]);
+-		break;
+-
+-	case 0xed900b00:	// double load
+-		addr = (uint32*)(regs[regn] + regm);
+-		if((uintptr)addr < 4096) {
+-			if(trace)
+-				runtime·printf("*** double load @%p => fault\n", addr);
+-			return FAULT;
+-		}
+-		m->freglo[regd] = addr[0];
+-		m->freghi[regd] = addr[1];
+-
+-		if(trace)
+-			runtime·printf("*** load D[%d] = %x-%x\n",
+-				regd, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xed800a00:	// single store
+-		addr = (uint32*)(regs[regn] + regm);
+-		if((uintptr)addr < 4096) {
+-			if(trace)
+-				runtime·printf("*** store @%p => fault\n", addr);
+-			return FAULT;
+-		}
+-		addr[0] = m->freglo[regd];
+-
+-		if(trace)
+-			runtime·printf("*** *(%p) = %x\n",
+-				addr, addr[0]);
+-		break;
+-
+-	case 0xed800b00:	// double store
+-		addr = (uint32*)(regs[regn] + regm);
+-		if((uintptr)addr < 4096) {
+-			if(trace)
+-				runtime·printf("*** double store @%p => fault\n", addr);
+-			return FAULT;
+-		}
+-		addr[0] = m->freglo[regd];
+-		addr[1] = m->freghi[regd];
+-
+-		if(trace)
+-			runtime·printf("*** *(%p) = %x-%x\n",
+-				addr, addr[1], addr[0]);
+-		break;
+-	}
+-	return 1;
+-
+-stage2:	// regd, regm, regn are 4bit variables
+-	regm = i>>0 & 0xf;
+-	switch(i & 0xfff00ff0) {
+-	default:
+-		goto stage3;
+-
+-	case 0xf3000110:	// veor
+-		m->freglo[regd] = m->freglo[regm]^m->freglo[regn];
+-		m->freghi[regd] = m->freghi[regm]^m->freghi[regn];
+-
+-		if(trace)
+-			runtime·printf("*** veor D[%d] = %x-%x\n",
+-				regd, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb00b00:	// D[regd] = const(regn,regm)
+-		regn = (regn<<4) | regm;
+-		regm = 0x40000000UL;
+-		if(regn & 0x80)
+-			regm |= 0x80000000UL;
+-		if(regn & 0x40)
+-			regm ^= 0x7fc00000UL;
+-		regm |= (regn & 0x3f) << 16;
+-		m->freglo[regd] = 0;
+-		m->freghi[regd] = regm;
+-
+-		if(trace)
+-			runtime·printf("*** immed D[%d] = %x-%x\n",
+-				regd, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb00a00:	// F[regd] = const(regn,regm)
+-		regn = (regn<<4) | regm;
+-		regm = 0x40000000UL;
+-		if(regn & 0x80)
+-			regm |= 0x80000000UL;
+-		if(regn & 0x40)
+-			regm ^= 0x7e000000UL;
+-		regm |= (regn & 0x3f) << 19;
+-		m->freglo[regd] = regm;
+-
+-		if(trace)
+-			runtime·printf("*** immed D[%d] = %x\n",
+-				regd, m->freglo[regd]);
+-		break;
+-
+-	case 0xee300b00:	// D[regd] = D[regn]+D[regm]
+-		runtime·fadd64c(getd(regn), getd(regm), &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** add D[%d] = D[%d]+D[%d] %x-%x\n",
+-				regd, regn, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xee300a00:	// F[regd] = F[regn]+F[regm]
+-		runtime·fadd64c(f2d(m->freglo[regn]), f2d(m->freglo[regm]), &uval);
+-		m->freglo[regd] = d2f(uval);
+-
+-		if(trace)
+-			runtime·printf("*** add F[%d] = F[%d]+F[%d] %x\n",
+-				regd, regn, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xee300b40:	// D[regd] = D[regn]-D[regm]
+-		runtime·fsub64c(getd(regn), getd(regm), &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** sub D[%d] = D[%d]-D[%d] %x-%x\n",
+-				regd, regn, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xee300a40:	// F[regd] = F[regn]-F[regm]
+-		runtime·fsub64c(f2d(m->freglo[regn]), f2d(m->freglo[regm]), &uval);
+-		m->freglo[regd] = d2f(uval);
+-
+-		if(trace)
+-			runtime·printf("*** sub F[%d] = F[%d]-F[%d] %x\n",
+-				regd, regn, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xee200b00:	// D[regd] = D[regn]*D[regm]
+-		runtime·fmul64c(getd(regn), getd(regm), &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** mul D[%d] = D[%d]*D[%d] %x-%x\n",
+-				regd, regn, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xee200a00:	// F[regd] = F[regn]*F[regm]
+-		runtime·fmul64c(f2d(m->freglo[regn]), f2d(m->freglo[regm]), &uval);
+-		m->freglo[regd] = d2f(uval);
+-
+-		if(trace)
+-			runtime·printf("*** mul F[%d] = F[%d]*F[%d] %x\n",
+-				regd, regn, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xee800b00:	// D[regd] = D[regn]/D[regm]
+-		runtime·fdiv64c(getd(regn), getd(regm), &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** div D[%d] = D[%d]/D[%d] %x-%x\n",
+-				regd, regn, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xee800a00:	// F[regd] = F[regn]/F[regm]
+-		runtime·fdiv64c(f2d(m->freglo[regn]), f2d(m->freglo[regm]), &uval);
+-		m->freglo[regd] = d2f(uval);
+-
+-		if(trace)
+-			runtime·printf("*** div F[%d] = F[%d]/F[%d] %x\n",
+-				regd, regn, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xee000b10:	// S[regn] = R[regd] (MOVW) (regm ignored)
+-		m->freglo[regn] = regs[regd];
+-
+-		if(trace)
+-			runtime·printf("*** cpy S[%d] = R[%d] %x\n",
+-				regn, regd, m->freglo[regn]);
+-		break;
+-
+-	case 0xee100b10:	// R[regd] = S[regn] (MOVW) (regm ignored)
+-		regs[regd] = m->freglo[regn];
+-
+-		if(trace)
+-			runtime·printf("*** cpy R[%d] = S[%d] %x\n",
+-				regd, regn, regs[regd]);
+-		break;
+-	}
+-	return 1;
+-
+-stage3:	// regd, regm are 4bit variables
+-	switch(i & 0xffff0ff0) {
+-	default:
+-		goto done;
+-
+-	case 0xeeb00a40:	// F[regd] = F[regm] (MOVF)
+-		m->freglo[regd] = m->freglo[regm];
+-
+-		if(trace)
+-			runtime·printf("*** F[%d] = F[%d] %x\n",
+-				regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb00b40:	// D[regd] = D[regm] (MOVD)
+-		m->freglo[regd] = m->freglo[regm];
+-		m->freghi[regd] = m->freghi[regm];
+-
+-		if(trace)
+-			runtime·printf("*** D[%d] = D[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb10bc0:	// D[regd] = sqrt D[regm]
+-		runtime·sqrtC(getd(regm), &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** D[%d] = sqrt D[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb00bc0:	// D[regd] = abs D[regm]
+-		m->freglo[regd] = m->freglo[regm];
+-		m->freghi[regd] = m->freghi[regm] & ((1<<31)-1);
+-
+-		if(trace)
+-			runtime·printf("*** D[%d] = abs D[%d] %x-%x\n",
+-					regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb00ac0:	// F[regd] = abs F[regm]
+-		m->freglo[regd] = m->freglo[regm] & ((1<<31)-1);
+-
+-		if(trace)
+-			runtime·printf("*** F[%d] = abs F[%d] %x\n",
+-					regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb40bc0:	// D[regd] :: D[regm] (CMPD)
+-		runtime·fcmp64c(getd(regd), getd(regm), &cmp, &nan);
+-		m->fflag = fstatus(nan, cmp);
+-
+-		if(trace)
+-			runtime·printf("*** cmp D[%d]::D[%d] %x\n",
+-				regd, regm, m->fflag);
+-		break;
+-
+-	case 0xeeb40ac0:	// F[regd] :: F[regm] (CMPF)
+-		runtime·fcmp64c(f2d(m->freglo[regd]), f2d(m->freglo[regm]), &cmp, &nan);
+-		m->fflag = fstatus(nan, cmp);
+-
+-		if(trace)
+-			runtime·printf("*** cmp F[%d]::F[%d] %x\n",
+-				regd, regm, m->fflag);
+-		break;
+-
+-	case 0xeeb70ac0:	// D[regd] = F[regm] (MOVFD)
+-		putd(regd, f2d(m->freglo[regm]));
+-
+-		if(trace)
+-			runtime·printf("*** f2d D[%d]=F[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb70bc0:	// F[regd] = D[regm] (MOVDF)
+-		m->freglo[regd] = d2f(getd(regm));
+-
+-		if(trace)
+-			runtime·printf("*** d2f F[%d]=D[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeebd0ac0:	// S[regd] = F[regm] (MOVFW)
+-		runtime·f64tointc(f2d(m->freglo[regm]), &sval, &ok);
+-		if(!ok || (int32)sval != sval)
+-			sval = 0;
+-		m->freglo[regd] = sval;
+-
+-		if(trace)
+-			runtime·printf("*** fix S[%d]=F[%d] %x\n",
+-				regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeebc0ac0:	// S[regd] = F[regm] (MOVFW.U)
+-		runtime·f64tointc(f2d(m->freglo[regm]), &sval, &ok);
+-		if(!ok || (uint32)sval != sval)
+-			sval = 0;
+-		m->freglo[regd] = sval;
+-
+-		if(trace)
+-			runtime·printf("*** fix unsigned S[%d]=F[%d] %x\n",
+-				regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeebd0bc0:	// S[regd] = D[regm] (MOVDW)
+-		runtime·f64tointc(getd(regm), &sval, &ok);
+-		if(!ok || (int32)sval != sval)
+-			sval = 0;
+-		m->freglo[regd] = sval;
+-
+-		if(trace)
+-			runtime·printf("*** fix S[%d]=D[%d] %x\n",
+-				regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeebc0bc0:	// S[regd] = D[regm] (MOVDW.U)
+-		runtime·f64tointc(getd(regm), &sval, &ok);
+-		if(!ok || (uint32)sval != sval)
+-			sval = 0;
+-		m->freglo[regd] = sval;
+-
+-		if(trace)
+-			runtime·printf("*** fix unsigned S[%d]=D[%d] %x\n",
+-				regd, regm, m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb80ac0:	// D[regd] = S[regm] (MOVWF)
+-		cmp = m->freglo[regm];
+-		if(cmp < 0) {
+-			runtime·fintto64c(-cmp, &uval);
+-			putf(regd, d2f(uval));
+-			m->freglo[regd] ^= 0x80000000;
+-		} else {
+-			runtime·fintto64c(cmp, &uval);
+-			putf(regd, d2f(uval));
+-		}
+-
+-		if(trace)
+-			runtime·printf("*** float D[%d]=S[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb80a40:	// D[regd] = S[regm] (MOVWF.U)
+-		runtime·fintto64c(m->freglo[regm], &uval);
+-		putf(regd, d2f(uval));
+-
+-		if(trace)
+-			runtime·printf("*** float unsigned D[%d]=S[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb80bc0:	// D[regd] = S[regm] (MOVWD)
+-		cmp = m->freglo[regm];
+-		if(cmp < 0) {
+-			runtime·fintto64c(-cmp, &uval);
+-			putd(regd, uval);
+-			m->freghi[regd] ^= 0x80000000;
+-		} else {
+-			runtime·fintto64c(cmp, &uval);
+-			putd(regd, uval);
+-		}
+-
+-		if(trace)
+-			runtime·printf("*** float D[%d]=S[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-
+-	case 0xeeb80b40:	// D[regd] = S[regm] (MOVWD.U)
+-		runtime·fintto64c(m->freglo[regm], &uval);
+-		putd(regd, uval);
+-
+-		if(trace)
+-			runtime·printf("*** float unsigned D[%d]=S[%d] %x-%x\n",
+-				regd, regm, m->freghi[regd], m->freglo[regd]);
+-		break;
+-	}
+-	return 1;
+-
+-done:
+-	if((i&0xff000000) == 0xee000000 ||
+-	   (i&0xff000000) == 0xed000000) {
+-		runtime·printf("stepflt %p %x\n", pc, i);
+-		fabort();
+-	}
+-	return 0;
+-}
+-
+-typedef struct Sfregs Sfregs;
+-
+-// NOTE: These are all recorded as pointers because they are possibly live registers,
+-// and we don't know what they contain. Recording them as pointers should be
+-// safer than not.
+-struct Sfregs
+-{
+-	uint32 *r0;
+-	uint32 *r1;
+-	uint32 *r2;
+-	uint32 *r3;
+-	uint32 *r4;
+-	uint32 *r5;
+-	uint32 *r6;
+-	uint32 *r7;
+-	uint32 *r8;
+-	uint32 *r9;
+-	uint32 *r10;
+-	uint32 *r11;
+-	uint32 *r12;
+-	uint32 *r13;
+-	uint32 cspr;
+-};
+-
+-static void sfloat2(void);
+-void _sfloatpanic(void);
+-
+-#pragma textflag NOSPLIT
+-uint32*
+-runtime·_sfloat2(uint32 *pc, Sfregs regs)
+-{
+-	void (*fn)(void);
+-	
+-	g->m->ptrarg[0] = pc;
+-	g->m->ptrarg[1] = &regs;
+-	fn = sfloat2;
+-	runtime·onM(&fn);
+-	pc = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	return pc;
+-}
+-
+-static void
+-sfloat2(void)
+-{
+-	uint32 *pc;
+-	G *curg;
+-	Sfregs *regs;
+-	int32 skip;
+-	bool first;
+-	
+-	pc = g->m->ptrarg[0];
+-	regs = g->m->ptrarg[1];
+-	g->m->ptrarg[0] = nil;
+-	g->m->ptrarg[1] = nil;
+-
+-	first = true;
+-	while(skip = stepflt(pc, (uint32*)&regs->r0)) {
+-		first = false;
+-		if(skip == FAULT) {
+-			// Encountered bad address in store/load.
+-			// Record signal information and return to assembly
+-			// trampoline that fakes the call.
+-			enum { SIGSEGV = 11 };
+-			curg = g->m->curg;
+-			curg->sig = SIGSEGV;
+-			curg->sigcode0 = 0;
+-			curg->sigcode1 = 0;
+-			curg->sigpc = (uint32)pc;
+-			pc = (uint32*)_sfloatpanic;
+-			break;
+-		}
+-		pc += skip;
+-	}
+-	if(first) {
+-		runtime·printf("sfloat2 %p %x\n", pc, *pc);
+-		fabort(); // not ok to fail first instruction
+-	}
+-		
+-	g->m->ptrarg[0] = pc;
+-}
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+new file mode 100644
+index 0000000000..d806d1f048
+--- /dev/null
++++ b/src/runtime/softfloat_arm.go
+@@ -0,0 +1,644 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Software floating point interpretaton of ARM 7500 FP instructions.
++// The interpretation is not bit compatible with the 7500.
++// It uses true little-endian doubles, while the 7500 used mixed-endian.
++
++package runtime
++
++import "unsafe"
++
++const (
++	_CPSR    = 14
++	_FLAGS_N = 1 << 31
++	_FLAGS_Z = 1 << 30
++	_FLAGS_C = 1 << 29
++	_FLAGS_V = 1 << 28
++)
++
++var fptrace = 0
++
++func fabort() {
++	gothrow("unsupported floating point instruction")
++}
++
++func fputf(reg uint32, val uint32) {
++	_g_ := getg()
++	_g_.m.freglo[reg] = val
++}
++
++func fputd(reg uint32, val uint64) {
++	_g_ := getg()
++	_g_.m.freglo[reg] = uint32(val)
++	_g_.m.freghi[reg] = uint32(val >> 32)
++}
++
++func fgetd(reg uint32) uint64 {
++	_g_ := getg()
++	return uint64(_g_.m.freglo[reg]) | uint64(_g_.m.freghi[reg])<<32
++}
++
++func fprintregs() {
++	_g_ := getg()
++	for i := range _g_.m.freglo {
++		print("\tf", i, ":\t", hex(_g_.m.freghi[i]), " ", hex(_g_.m.freglo[i]), "\n")
++	}
++}
++
++func fstatus(nan bool, cmp int32) uint32 {
++	if nan {
++		return _FLAGS_C | _FLAGS_V
++	}
++	if cmp == 0 {
++		return _FLAGS_Z | _FLAGS_C
++	}
++	if cmp < 0 {
++		return _FLAGS_N
++	}
++	return _FLAGS_C
++}
++
++// conditions array record the required CPSR cond field for the
++// first 5 pairs of conditional execution opcodes
++// higher 4 bits are must set, lower 4 bits are must clear
++var conditions = [10 / 2]uint32{
++	0 / 2: _FLAGS_Z>>24 | 0, // 0: EQ (Z set), 1: NE (Z clear)
++	2 / 2: _FLAGS_C>>24 | 0, // 2: CS/HS (C set), 3: CC/LO (C clear)
++	4 / 2: _FLAGS_N>>24 | 0, // 4: MI (N set), 5: PL (N clear)
++	6 / 2: _FLAGS_V>>24 | 0, // 6: VS (V set), 7: VC (V clear)
++	8 / 2: _FLAGS_C>>24 |
++		_FLAGS_Z>>28,
++}
++
++const _FAULT = 0x80000000 // impossible PC offset
++
++// returns number of words that the fp instruction
++// is occupying, 0 if next instruction isn't float.
++func stepflt(pc *uint32, regs *[15]uint32) uint32 {
++	var (
++		i, opc, regd, regm, regn, cpsr uint32
++		cmp, delta                     int32
++		uval                           uint64
++		sval                           int64
++		nan, ok                        bool
++	)
++
++	// m is locked in vlop_arm.s, so g.m cannot change during this function call,
++	// so caching it in a local variable is safe.
++	m := getg().m
++	i = *pc
++
++	if fptrace > 0 {
++		print("stepflt ", pc, " ", hex(i), " (cpsr ", hex(regs[_CPSR]>>28), ")\n")
++	}
++
++	opc = i >> 28
++	if opc == 14 { // common case first
++		goto execute
++	}
++
++	cpsr = regs[_CPSR] >> 28
++	switch opc {
++	case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9:
++		if cpsr&(conditions[opc/2]>>4) == conditions[opc/2]>>4 &&
++			cpsr&(conditions[opc/2]&0xf) == 0 {
++			if opc&1 != 0 {
++				return 1
++			}
++		} else {
++			if opc&1 == 0 {
++				return 1
++			}
++		}
++
++	case 10, 11: // GE (N == V), LT (N != V)
++		if cpsr&(_FLAGS_N>>28) == cpsr&(_FLAGS_V>>28) {
++			if opc&1 != 0 {
++				return 1
++			}
++		} else {
++			if opc&1 == 0 {
++				return 1
++			}
++		}
++
++	case 12, 13: // GT (N == V and Z == 0), LE (N != V or Z == 1)
++		if cpsr&(_FLAGS_N>>28) == cpsr&(_FLAGS_V>>28) &&
++			cpsr&(_FLAGS_Z>>28) == 0 {
++			if opc&1 != 0 {
++				return 1
++			}
++		} else {
++			if opc&1 == 0 {
++				return 1
++			}
++		}
++
++	case 14: // AL
++		// ok
++
++	case 15: // shouldn't happen
++		return 0
++	}
++
++	if fptrace > 0 {
++		print("conditional ", hex(opc), " (cpsr ", hex(cpsr), ") pass\n")
++	}
++	i = 0xe<<28 | i&(1<<28-1)
++
++execute:
++	// special cases
++	if i&0xfffff000 == 0xe59fb000 {
++		// load r11 from pc-relative address.
++		// might be part of a floating point move
++		// (or might not, but no harm in simulating
++		// one instruction too many).
++		addr := (*[1]uint32)(add(unsafe.Pointer(pc), uintptr(i&0xfff+8)))
++		regs[11] = addr[0]
++
++		if fptrace > 0 {
++			print("*** cpu R[11] = *(", addr, ") ", hex(regs[11]), "\n")
++		}
++		return 1
++	}
++	if i == 0xe08bb00d {
++		// add sp to r11.
++		// might be part of a large stack offset address
++		// (or might not, but again no harm done).
++		regs[11] += regs[13]
++
++		if fptrace > 0 {
++			print("*** cpu R[11] += R[13] ", hex(regs[11]), "\n")
++		}
++		return 1
++	}
++	if i == 0xeef1fa10 {
++		regs[_CPSR] = regs[_CPSR]&0x0fffffff | m.fflag
++
++		if fptrace > 0 {
++			print("*** fpsr R[CPSR] = F[CPSR] ", hex(regs[_CPSR]), "\n")
++		}
++		return 1
++	}
++	if i&0xff000000 == 0xea000000 {
++		// unconditional branch
++		// can happen in the middle of floating point
++		// if the linker decides it is time to lay down
++		// a sequence of instruction stream constants.
++		delta = int32(i&0xffffff) << 8 >> 8 // sign extend
++
++		if fptrace > 0 {
++			print("*** cpu PC += ", hex((delta+2)*4), "\n")
++		}
++		return uint32(delta + 2)
++	}
++
++	goto stage1
++
++stage1: // load/store regn is cpureg, regm is 8bit offset
++	regd = i >> 12 & 0xf
++	regn = i >> 16 & 0xf
++	regm = i & 0xff << 2 // PLUS or MINUS ??
++
++	switch i & 0xfff00f00 {
++	default:
++		goto stage2
++
++	case 0xed900a00: // single load
++		uaddr := uintptr(regs[regn] + regm)
++		if uaddr < 4096 {
++			if fptrace > 0 {
++				print("*** load @", hex(uaddr), " => fault\n")
++			}
++			return _FAULT
++		}
++		addr := (*[1]uint32)(unsafe.Pointer(uaddr))
++		m.freglo[regd] = addr[0]
++
++		if fptrace > 0 {
++			print("*** load F[", regd, "] = ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xed900b00: // double load
++		uaddr := uintptr(regs[regn] + regm)
++		if uaddr < 4096 {
++			if fptrace > 0 {
++				print("*** double load @", hex(uaddr), " => fault\n")
++			}
++			return _FAULT
++		}
++		addr := (*[2]uint32)(unsafe.Pointer(uaddr))
++		m.freglo[regd] = addr[0]
++		m.freghi[regd] = addr[1]
++
++		if fptrace > 0 {
++			print("*** load D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xed800a00: // single store
++		uaddr := uintptr(regs[regn] + regm)
++		if uaddr < 4096 {
++			if fptrace > 0 {
++				print("*** store @", hex(uaddr), " => fault\n")
++			}
++			return _FAULT
++		}
++		addr := (*[1]uint32)(unsafe.Pointer(uaddr))
++		addr[0] = m.freglo[regd]
++
++		if fptrace > 0 {
++			print("*** *(", addr, ") = ", hex(addr[0]), "\n")
++		}
++		break
++
++	case 0xed800b00: // double store
++		uaddr := uintptr(regs[regn] + regm)
++		if uaddr < 4096 {
++			if fptrace > 0 {
++				print("*** double store @", hex(uaddr), " => fault\n")
++			}
++			return _FAULT
++		}
++		addr := (*[2]uint32)(unsafe.Pointer(uaddr))
++		addr[0] = m.freglo[regd]
++		addr[1] = m.freghi[regd]
++
++		if fptrace > 0 {
++			print("*** *(", addr, ") = ", hex(addr[1]), "-", hex(addr[0]), "\n")
++		}
++		break
++	}
++	return 1
++
++stage2: // regd, regm, regn are 4bit variables
++	regm = i >> 0 & 0xf
++	switch i & 0xfff00ff0 {
++	default:
++		goto stage3
++
++	case 0xf3000110: // veor
++		m.freglo[regd] = m.freglo[regm] ^ m.freglo[regn]
++		m.freghi[regd] = m.freghi[regm] ^ m.freghi[regn]
++
++		if fptrace > 0 {
++			print("*** veor D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb00b00: // D[regd] = const(regn,regm)
++		regn = regn<<4 | regm
++		regm = 0x40000000
++		if regn&0x80 != 0 {
++			regm |= 0x80000000
++		}
++		if regn&0x40 != 0 {
++			regm ^= 0x7fc00000
++		}
++		regm |= regn & 0x3f << 16
++		m.freglo[regd] = 0
++		m.freghi[regd] = regm
++
++		if fptrace > 0 {
++			print("*** immed D[", regd, "] = ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb00a00: // F[regd] = const(regn,regm)
++		regn = regn<<4 | regm
++		regm = 0x40000000
++		if regn&0x80 != 0 {
++			regm |= 0x80000000
++		}
++		if regn&0x40 != 0 {
++			regm ^= 0x7e000000
++		}
++		regm |= regn & 0x3f << 19
++		m.freglo[regd] = regm
++
++		if fptrace > 0 {
++			print("*** immed D[", regd, "] = ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee300b00: // D[regd] = D[regn]+D[regm]
++		fadd64c(fgetd(regn), fgetd(regm), &uval)
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** add D[", regd, "] = D[", regn, "]+D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee300a00: // F[regd] = F[regn]+F[regm]
++		fadd64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
++		m.freglo[regd] = f64to32(uval)
++
++		if fptrace > 0 {
++			print("*** add F[", regd, "] = F[", regn, "]+F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee300b40: // D[regd] = D[regn]-D[regm]
++		fsub64c(fgetd(regn), fgetd(regm), &uval)
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** sub D[", regd, "] = D[", regn, "]-D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee300a40: // F[regd] = F[regn]-F[regm]
++		fsub64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
++		m.freglo[regd] = f64to32(uval)
++
++		if fptrace > 0 {
++			print("*** sub F[", regd, "] = F[", regn, "]-F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee200b00: // D[regd] = D[regn]*D[regm]
++		fmul64c(fgetd(regn), fgetd(regm), &uval)
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** mul D[", regd, "] = D[", regn, "]*D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee200a00: // F[regd] = F[regn]*F[regm]
++		fmul64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
++		m.freglo[regd] = f64to32(uval)
++
++		if fptrace > 0 {
++			print("*** mul F[", regd, "] = F[", regn, "]*F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee800b00: // D[regd] = D[regn]/D[regm]
++		fdiv64c(fgetd(regn), fgetd(regm), &uval)
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** div D[", regd, "] = D[", regn, "]/D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee800a00: // F[regd] = F[regn]/F[regm]
++		fdiv64c(f32to64(m.freglo[regn]), f32to64(m.freglo[regm]), &uval)
++		m.freglo[regd] = f64to32(uval)
++
++		if fptrace > 0 {
++			print("*** div F[", regd, "] = F[", regn, "]/F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xee000b10: // S[regn] = R[regd] (MOVW) (regm ignored)
++		m.freglo[regn] = regs[regd]
++
++		if fptrace > 0 {
++			print("*** cpy S[", regn, "] = R[", regd, "] ", hex(m.freglo[regn]), "\n")
++		}
++		break
++
++	case 0xee100b10: // R[regd] = S[regn] (MOVW) (regm ignored)
++		regs[regd] = m.freglo[regn]
++
++		if fptrace > 0 {
++			print("*** cpy R[", regd, "] = S[", regn, "] ", hex(regs[regd]), "\n")
++		}
++		break
++	}
++	return 1
++
++stage3: // regd, regm are 4bit variables
++	switch i & 0xffff0ff0 {
++	default:
++		goto done
++
++	case 0xeeb00a40: // F[regd] = F[regm] (MOVF)
++		m.freglo[regd] = m.freglo[regm]
++
++		if fptrace > 0 {
++			print("*** F[", regd, "] = F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb00b40: // D[regd] = D[regm] (MOVD)
++		m.freglo[regd] = m.freglo[regm]
++		m.freghi[regd] = m.freghi[regm]
++
++		if fptrace > 0 {
++			print("*** D[", regd, "] = D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb10bc0: // D[regd] = sqrt D[regm]
++		uval = float64bits(sqrt(float64frombits(fgetd(regm))))
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** D[", regd, "] = sqrt D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb00bc0: // D[regd] = abs D[regm]
++		m.freglo[regd] = m.freglo[regm]
++		m.freghi[regd] = m.freghi[regm] & (1<<31 - 1)
++
++		if fptrace > 0 {
++			print("*** D[", regd, "] = abs D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb00ac0: // F[regd] = abs F[regm]
++		m.freglo[regd] = m.freglo[regm] & (1<<31 - 1)
++
++		if fptrace > 0 {
++			print("*** F[", regd, "] = abs F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb40bc0: // D[regd] :: D[regm] (CMPD)
++		fcmp64c(fgetd(regd), fgetd(regm), &cmp, &nan)
++		m.fflag = fstatus(nan, cmp)
++
++		if fptrace > 0 {
++			print("*** cmp D[", regd, "]::D[", regm, "] ", hex(m.fflag), "\n")
++		}
++		break
++
++	case 0xeeb40ac0: // F[regd] :: F[regm] (CMPF)
++		fcmp64c(f32to64(m.freglo[regd]), f32to64(m.freglo[regm]), &cmp, &nan)
++		m.fflag = fstatus(nan, cmp)
++
++		if fptrace > 0 {
++			print("*** cmp F[", regd, "]::F[", regm, "] ", hex(m.fflag), "\n")
++		}
++		break
++
++	case 0xeeb70ac0: // D[regd] = F[regm] (MOVFD)
++		fputd(regd, f32to64(m.freglo[regm]))
++
++		if fptrace > 0 {
++			print("*** f2d D[", regd, "]=F[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb70bc0: // F[regd] = D[regm] (MOVDF)
++		m.freglo[regd] = f64to32(fgetd(regm))
++
++		if fptrace > 0 {
++			print("*** d2f F[", regd, "]=D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeebd0ac0: // S[regd] = F[regm] (MOVFW)
++		f64tointc(f32to64(m.freglo[regm]), &sval, &ok)
++		if !ok || int64(int32(sval)) != sval {
++			sval = 0
++		}
++		m.freglo[regd] = uint32(sval)
++		if fptrace > 0 {
++			print("*** fix S[", regd, "]=F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeebc0ac0: // S[regd] = F[regm] (MOVFW.U)
++		f64tointc(f32to64(m.freglo[regm]), &sval, &ok)
++		if !ok || int64(uint32(sval)) != sval {
++			sval = 0
++		}
++		m.freglo[regd] = uint32(sval)
++
++		if fptrace > 0 {
++			print("*** fix unsigned S[", regd, "]=F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeebd0bc0: // S[regd] = D[regm] (MOVDW)
++		f64tointc(fgetd(regm), &sval, &ok)
++		if !ok || int64(int32(sval)) != sval {
++			sval = 0
++		}
++		m.freglo[regd] = uint32(sval)
++
++		if fptrace > 0 {
++			print("*** fix S[", regd, "]=D[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeebc0bc0: // S[regd] = D[regm] (MOVDW.U)
++		f64tointc(fgetd(regm), &sval, &ok)
++		if !ok || int64(uint32(sval)) != sval {
++			sval = 0
++		}
++		m.freglo[regd] = uint32(sval)
++
++		if fptrace > 0 {
++			print("*** fix unsigned S[", regd, "]=D[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb80ac0: // D[regd] = S[regm] (MOVWF)
++		cmp = int32(m.freglo[regm])
++		if cmp < 0 {
++			fintto64c(int64(-cmp), &uval)
++			fputf(regd, f64to32(uval))
++			m.freglo[regd] ^= 0x80000000
++		} else {
++			fintto64c(int64(cmp), &uval)
++			fputf(regd, f64to32(uval))
++		}
++
++		if fptrace > 0 {
++			print("*** float D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb80a40: // D[regd] = S[regm] (MOVWF.U)
++		fintto64c(int64(m.freglo[regm]), &uval)
++		fputf(regd, f64to32(uval))
++
++		if fptrace > 0 {
++			print("*** float unsigned D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb80bc0: // D[regd] = S[regm] (MOVWD)
++		cmp = int32(m.freglo[regm])
++		if cmp < 0 {
++			fintto64c(int64(-cmp), &uval)
++			fputd(regd, uval)
++			m.freghi[regd] ^= 0x80000000
++		} else {
++			fintto64c(int64(cmp), &uval)
++			fputd(regd, uval)
++		}
++
++		if fptrace > 0 {
++			print("*** float D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++
++	case 0xeeb80b40: // D[regd] = S[regm] (MOVWD.U)
++		fintto64c(int64(m.freglo[regm]), &uval)
++		fputd(regd, uval)
++
++		if fptrace > 0 {
++			print("*** float unsigned D[", regd, "]=S[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		break
++	}
++	return 1
++
++done:
++	if i&0xff000000 == 0xee000000 ||
++		i&0xff000000 == 0xed000000 {
++		print("stepflt ", pc, " ", hex(i), "\n")
++		fabort()
++	}
++	return 0
++}
++
++//go:nosplit
++func _sfloat2(pc uint32, regs *[15]uint32) {
++	onM(func() {
++		pc = sfloat2(pc, regs)
++	})
++}
++
++func _sfloatpanic()
++
++func sfloat2(pc uint32, regs *[15]uint32) uint32 {
++	first := true
++	for {
++		skip := stepflt((*uint32)(unsafe.Pointer(uintptr(pc))), regs)
++		if skip == 0 {
++			break
++		}
++		first = false
++		if skip == _FAULT {
++			// Encountered bad address in store/load.
++			// Record signal information and return to assembly
++			// trampoline that fakes the call.
++			const SIGSEGV = 11
++			curg := getg().m.curg
++			curg.sig = SIGSEGV
++			curg.sigcode0 = 0
++			curg.sigcode1 = 0
++			curg.sigpc = uintptr(pc)
++			pc = uint32(funcPC(_sfloatpanic))
++			break
++		}
++		pc += 4 * uint32(skip)
++	}
++	if first {
++		print("sfloat2 ", pc, " ", hex(*(*uint32)(unsafe.Pointer(uintptr(pc)))), "\n")
++		fabort() // not ok to fail first instruction
++	}
++	return pc
++}
+diff --git a/src/runtime/sqrt.go b/src/runtime/sqrt.go
+index 372ab62eb9..e3a27014b5 100644
+--- a/src/runtime/sqrt.go
++++ b/src/runtime/sqrt.go
+@@ -141,7 +141,3 @@ func sqrt(x float64) float64 {
+ 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+ 	return float64frombits(ix)
+ }
+-
+-func sqrtC(f float64, r *float64) {
+-	*r = sqrt(f)
+-}

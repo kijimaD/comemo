@@ -8,6 +8,17 @@ Date:   Wed Jan 29 09:28:23 2014 +0100
     R=jas, mikioh.mikioh, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/51200045
-
+---
  test/sigchld.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sigchld.go b/test/sigchld.go
+index a60d28deaa..38437e5522 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,4 +1,4 @@
+-// +build !windows
++// +build !plan9,!windows
+ // cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.

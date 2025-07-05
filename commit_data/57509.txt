@@ -21,6 +21,20 @@ Date:   Mon Aug 14 11:16:48 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cache/prog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/prog.go b/src/cmd/go/internal/cache/prog.go
+index 30f69b34c7..8d826f0b99 100644
+--- a/src/cmd/go/internal/cache/prog.go
++++ b/src/cmd/go/internal/cache/prog.go
+@@ -229,7 +229,7 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
+ 			if c.closing.Load() {
+ 				return // quietly
+ 			}
+-			if errors.Is(err, io.EOF) {
++			if err == io.EOF {
+ 				c.mu.Lock()
+ 				inFlight := len(c.inFlight)
+ 				c.mu.Unlock()

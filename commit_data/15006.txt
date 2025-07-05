@@ -12,6 +12,23 @@ Date:   Mon Jan 28 15:47:25 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7224043
-
+---
  src/cmd/ld/symtab.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 4b83e36b01..87b72659b1 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -367,9 +367,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 			return;
+ 		}
+ 		if(ver)
+-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s->name, ver, typ ? typ->name : "");
++			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, name, ver, typ ? typ->name : "");
+ 		else
+-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s->name, typ ? typ->name : "");
++			Bprint(&bso, "%c %.8llux %s %s\n", t, v, name, typ ? typ->name : "");
+ 	}
+ }
+ 

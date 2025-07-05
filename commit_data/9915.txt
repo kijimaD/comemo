@@ -7,10 +7,389 @@ Date:   Mon Oct 10 14:44:37 2011 +1100
     R=mikesamuel, andybalholm
     CC=golang-dev
     https://golang.org/cl/5218041
-
+---
  src/pkg/html/Makefile       |   1 +
  src/pkg/html/escape.go      |  14 ++--
  src/pkg/html/parse_test.go  |  23 +++++--
  src/pkg/html/render.go      | 159 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/html/render_test.go | 111 +++++++++++++++++++++++++++++++
  5 files changed, 300 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/html/Makefile b/src/pkg/html/Makefile
+index 28dc1a3f52..2d664720d3 100644
+--- a/src/pkg/html/Makefile
++++ b/src/pkg/html/Makefile
+@@ -12,6 +12,7 @@ GOFILES=\
+ 	escape.go\
+ 	node.go\
+ 	parse.go\
++	render.go\
+ 	token.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index 0de97c5ac1..4d0661ff36 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -6,6 +6,7 @@ package html
+ 
+ import (
+ 	"bytes"
++	"os"
+ 	"strings"
+ 	"utf8"
+ )
+@@ -184,10 +185,12 @@ func unescape(b []byte) []byte {
+ 
+ const escapedChars = `&'<>"`
+ 
+-func escape(buf *bytes.Buffer, s string) {
++func escape(w writer, s string) os.Error {
+ 	i := strings.IndexAny(s, escapedChars)
+ 	for i != -1 {
+-		buf.WriteString(s[0:i])
++		if _, err := w.WriteString(s[:i]); err != nil {
++			return err
++		}
+ 		var esc string
+ 		switch s[i] {
+ 		case '&':
+@@ -204,10 +207,13 @@ func escape(buf *bytes.Buffer, s string) {
+ 			panic("unrecognized escape character")
+ 		}
+ 		s = s[i+1:]
+-		buf.WriteString(esc)
++		if _, err := w.WriteString(esc); err != nil {
++			return err
++		}
+ 		i = strings.IndexAny(s, escapedChars)
+ 	}
+-	buf.WriteString(s)
++	_, err := w.WriteString(s)
++	return err
+ }
+ 
+ // EscapeString escapes special characters like "<" to become "&lt;". It
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 7d918d2508..5a473694b3 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			actual, err := dump(doc)
++			got, err := dump(doc)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -147,9 +147,24 @@ func TestParser(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			expected := string(b)
+-			if actual != expected {
+-				t.Errorf("%s test #%d %q, actual vs expected:\n----\n%s----\n%s----", filename, i, text, actual, expected)
++			if want := string(b); got != want {
++				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", filename, i, text, got, want)
++			}
++			// Check that rendering and re-parsing results in an identical tree.
++			pr, pw := io.Pipe()
++			go func() {
++				pw.CloseWithError(Render(pw, doc))
++			}()
++			doc1, err := Parse(pr)
++			if err != nil {
++				t.Fatal(err)
++			}
++			got1, err := dump(doc1)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if got != got1 {
++				t.Errorf("%s test #%d %q, got vs got1:\n----\n%s----\n%s----", filename, i, text, got, got1)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+new file mode 100644
+index 0000000000..bf7b5995a1
+--- /dev/null
++++ b/src/pkg/html/render.go
+@@ -0,0 +1,159 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bufio"
++	"fmt"
++	"io"
++	"os"
++)
++
++type writer interface {
++	io.Writer
++	WriteByte(byte) os.Error
++	WriteString(string) (int, os.Error)
++}
++
++// Render renders the parse tree n to the given writer.
++//
++// For 'well-formed' parse trees, calling Parse on the output of Render will
++// result in a clone of the original tree.
++//
++// 'Well-formed' is not formally specified, but calling Parse on arbitrary
++// input results in a 'well-formed' parse tree if Parse does not return an
++// error. Programmatically constructed trees are typically also 'well-formed',
++// but it is possible to construct a tree that, when rendered and re-parsed,
++// results in a different tree. A simple example is that a solitary text node
++// would become a tree containing <html>, <head> and <body> elements. Another
++// example is that the programmatic equivalent of "a<head>b</head>c" becomes
++// "<html><head><head/><body>abc</body></html>".
++//
++// Comment nodes are elided from the output, analogous to Parse skipping over
++// any <!--comment--> input.
++func Render(w io.Writer, n *Node) os.Error {
++	if x, ok := w.(writer); ok {
++		return render(x, n)
++	}
++	buf := bufio.NewWriter(w)
++	if err := render(buf, n); err != nil {
++		return err
++	}
++	return buf.Flush()
++}
++
++func render(w writer, n *Node) os.Error {
++	// Render non-element nodes; these are the easy cases.
++	switch n.Type {
++	case ErrorNode:
++		return os.NewError("html: cannot render an ErrorNode node")
++	case TextNode:
++		return escape(w, n.Data)
++	case DocumentNode:
++		for _, c := range n.Child {
++			if err := render(w, c); err != nil {
++				return err
++			}
++		}
++		return nil
++	case ElementNode:
++		// No-op.
++	case CommentNode:
++		return nil
++	case DoctypeNode:
++		if _, err := w.WriteString("<!DOCTYPE "); err != nil {
++			return err
++		}
++		if _, err := w.WriteString(n.Data); err != nil {
++			return err
++		}
++		return w.WriteByte('>')
++	default:
++		return os.NewError("html: unknown node type")
++	}
++
++	// TODO: figure out what to do with <script>, <style>, <noembed>,
++	// <noframes> and <noscript> elements. A tentative plan:
++	// 1. render the <xxx> opening tag as normal.
++	// 2. maybe error out if any child is not a text node.
++	// 3. render the text nodes (without escaping??).
++	// 4. maybe error out if `</xxx` is a case-insensitive substring of the
++	// concatenation of the children's data.
++	// 5. maybe error out if the concatenation of the children's data contains an
++	// unbalanced escaping text span start ("<!--") not followed by an end ("-->").
++	// 6. render the closing tag as normal.
++
++	// Render the <xxx> opening tag.
++	if err := w.WriteByte('<'); err != nil {
++		return err
++	}
++	if _, err := w.WriteString(n.Data); err != nil {
++		return err
++	}
++	for _, a := range n.Attr {
++		if err := w.WriteByte(' '); err != nil {
++			return err
++		}
++		if _, err := w.WriteString(a.Key); err != nil {
++			return err
++		}
++		if _, err := w.WriteString(`="`); err != nil {
++			return err
++		}
++		if err := escape(w, a.Val); err != nil {
++			return err
++		}
++		if err := w.WriteByte('"'); err != nil {
++			return err
++		}
++	}
++	if voidElements[n.Data] {
++		if len(n.Child) != 0 {
++			return fmt.Errorf("html: void element <%s> has child nodes", n.Data)
++		}
++		_, err := w.WriteString("/>")
++		return err
++	}
++	if err := w.WriteByte('>'); err != nil {
++		return err
++	}
++
++	// Render any child nodes.
++	for _, c := range n.Child {
++		if err := render(w, c); err != nil {
++			return err
++		}
++	}
++
++	// Render the </xxx> closing tag.
++	if _, err := w.WriteString("</"); err != nil {
++		return err
++	}
++	if _, err := w.WriteString(n.Data); err != nil {
++		return err
++	}
++	return w.WriteByte('>')
++}
++
++// Section 13.1.2, "Elements", gives this list of void elements. Void elements
++// are those that can't have any contents.
++var voidElements = map[string]bool{
++	"area":    true,
++	"base":    true,
++	"br":      true,
++	"col":     true,
++	"command": true,
++	"embed":   true,
++	"hr":      true,
++	"img":     true,
++	"input":   true,
++	"keygen":  true,
++	"link":    true,
++	"meta":    true,
++	"param":   true,
++	"source":  true,
++	"track":   true,
++	"wbr":     true,
++}
+diff --git a/src/pkg/html/render_test.go b/src/pkg/html/render_test.go
+new file mode 100644
+index 0000000000..d166a3b873
+--- /dev/null
++++ b/src/pkg/html/render_test.go
+@@ -0,0 +1,111 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestRenderer(t *testing.T) {
++	n := &Node{
++		Type: ElementNode,
++		Data: "html",
++		Child: []*Node{
++			&Node{
++				Type: ElementNode,
++				Data: "head",
++			},
++			&Node{
++				Type: ElementNode,
++				Data: "body",
++				Child: []*Node{
++					&Node{
++						Type: TextNode,
++						Data: "0<1",
++					},
++					&Node{
++						Type: ElementNode,
++						Data: "p",
++						Attr: []Attribute{
++							Attribute{
++								Key: "id",
++								Val: "A",
++							},
++							Attribute{
++								Key: "foo",
++								Val: `abc"def`,
++							},
++						},
++						Child: []*Node{
++							&Node{
++								Type: TextNode,
++								Data: "2",
++							},
++							&Node{
++								Type: ElementNode,
++								Data: "b",
++								Attr: []Attribute{
++									Attribute{
++										Key: "empty",
++										Val: "",
++									},
++								},
++								Child: []*Node{
++									&Node{
++										Type: TextNode,
++										Data: "3",
++									},
++								},
++							},
++							&Node{
++								Type: ElementNode,
++								Data: "i",
++								Attr: []Attribute{
++									Attribute{
++										Key: "backslash",
++										Val: `\`,
++									},
++								},
++								Child: []*Node{
++									&Node{
++										Type: TextNode,
++										Data: "&4",
++									},
++								},
++							},
++						},
++					},
++					&Node{
++						Type: TextNode,
++						Data: "5",
++					},
++					&Node{
++						Type: ElementNode,
++						Data: "blockquote",
++					},
++					&Node{
++						Type: ElementNode,
++						Data: "br",
++					},
++					&Node{
++						Type: TextNode,
++						Data: "6",
++					},
++				},
++			},
++		},
++	}
++	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&quot;def">` +
++		`2<b empty="">3</b><i backslash="\">&amp;4</i></p>` +
++		`5<blockquote></blockquote><br/>6</body></html>`
++	b := new(bytes.Buffer)
++	if err := Render(b, n); err != nil {
++		t.Fatal(err)
++	}
++	if got := b.String(); got != want {
++		t.Errorf("got vs want:\n%s\n%s\n", got, want)
++	}
++}

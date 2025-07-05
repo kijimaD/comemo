@@ -8,8 +8,288 @@ Date:   Mon Feb 9 11:24:35 2009 -0800
     DELTA=200  (176 added, 12 deleted, 12 changed)
     OCL=24680
     CL=24680
-
+---
  src/lib/os/dir_amd64_darwin.go | 68 +++++++++++++++++++++++++++++++++++---
  src/lib/os/dir_amd64_linux.go  | 69 +++++++++++++++++++++++++++++++++++---
  src/lib/os/os_test.go          | 75 +++++++++++++++++++++++++++++++++---------
  3 files changed, 188 insertions(+), 24 deletions(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 72879f8d91..0ad1475ca6 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -37,9 +37,9 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 			if count == 0 {
+ 				break
+ 			}
+-			dir := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
+-			w = uintptr(dir.Reclen);
+-			if dir.Ino == 0 {
++			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
++			w = uintptr(dirent.Reclen);
++			if dirent.Ino == 0 {
+ 				continue
+ 			}
+ 			count--;
+@@ -51,8 +51,68 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 				names = nnames;
+ 			}
+ 			names = names[0:len(names)+1];
+-			names[len(names)-1] = string(dir.Name[0:dir.Namlen]);
++			names[len(names)-1] = string(dirent.Name[0:dirent.Namlen]);
+ 		}
+ 	}
+ 	return names, nil;
+ }
++
++// TODO(r): see comment in dir_amd64_linux.go
++
++// Negative count means read until EOF.
++func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
++	dirname := fd.name;
++	if dirname == "" {
++		dirname = ".";
++	}
++	dirname += "/";
++	// Getdirentries needs the file offset - it's too hard for the kernel to remember
++	// a number it already has written down.
++	base, err1 := syscall.Seek(fd.fd, 0, 1);
++	if err1 != 0 {
++		return nil, os.ErrnoToError(err1)
++	}
++	// The buffer must be at least a block long.
++	// TODO(r): use fstatfs to find fs block size.
++	var buf = make([]byte, 8192);
++	dirs = make([]Dir, 0, 100);	// TODO: could be smarter about size
++	for {
++		if count == 0 {
++			break
++		}
++		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], int64(len(buf)), &base);
++		if ret < 0 || err2 != 0 {
++			return dirs, os.ErrnoToError(err2)
++		}
++		if ret == 0 {
++			break
++		}
++		for w, i := uintptr(0),uintptr(0); i < uintptr(ret); i += w {
++			if count == 0 {
++				break
++			}
++			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
++			w = uintptr(dirent.Reclen);
++			if dirent.Ino == 0 {
++				continue
++			}
++			count--;
++			if len(dirs) == cap(dirs) {
++				ndirs := make([]Dir, len(dirs), 2*len(dirs));
++				for i := 0; i < len(dirs); i++ {
++					ndirs[i] = dirs[i]
++				}
++				dirs = ndirs;
++			}
++			dirs = dirs[0:len(dirs)+1];
++			filename := string(dirent.Name[0:dirent.Namlen]);
++			dirp, err := Stat(dirname + filename);
++			if dir == nil || err != nil {
++				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
++			} else {
++				dirs[len(dirs)-1] = *dirp;
++			}
++		}
++	}
++	return dirs, nil;
++}
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index 65bc796bc7..bd81146aea 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -40,9 +40,9 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 			if count == 0 {
+ 				break
+ 			}
+-			dir := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
+-			w = uintptr(dir.Reclen);
+-			if dir.Ino == 0 {
++			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
++			w = uintptr(dirent.Reclen);
++			if dirent.Ino == 0 {
+ 				continue
+ 			}
+ 			count--;
+@@ -54,8 +54,69 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 				names = nnames;
+ 			}
+ 			names = names[0:len(names)+1];
+-			names[len(names)-1] = string(dir.Name[0:clen(dir.Name)]);
++			names[len(names)-1] = string(dirent.Name[0:clen(dirent.Name)]);
+ 		}
+ 	}
+ 	return names, nil;
+ }
++
++// TODO(r): Readdir duplicates a lot of Readdirnames. The other way would
++// be to have Readdir (which could then be portable) call Readdirnames and
++// then do the Stats.  The existing design was chosen to avoid allocating a
++// throwaway names array, but the issue should be revisited once we have
++// a better handle on what that overhead is with a strong garbage collector.
++// Also, it's possible given the nature of the Unix kernel that interleaving
++// reads of the directory with stats (as done here) would work better than
++// one big read of the directory followed by a long run of Stat calls.
++
++// Negative count means read until EOF.
++func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
++	dirname := fd.name;
++	if dirname == "" {
++		dirname = ".";
++	}
++	dirname += "/";
++	// The buffer must be at least a block long.
++	// TODO(r): use fstatfs to find fs block size.
++	var buf = make([]syscall.Dirent, 8192/unsafe.Sizeof(*new(syscall.Dirent)));
++	dirs = make([]Dir, 0, 100);	// TODO: could be smarter about size
++	for {
++		if count == 0 {
++			break
++		}
++		ret, err2 := syscall.Getdents(fd.fd, &buf[0], int64(len(buf) * unsafe.Sizeof(buf[0])));
++		if ret < 0 || err2 != 0 {
++			return dirs, os.ErrnoToError(err2)
++		}
++		if ret == 0 {
++			break
++		}
++		for w, i := uintptr(0),uintptr(0); i < uintptr(ret); i += w {
++			if count == 0 {
++				break
++			}
++			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
++			w = uintptr(dirent.Reclen);
++			if dirent.Ino == 0 {
++				continue
++			}
++			count--;
++			if len(dirs) == cap(dirs) {
++				ndirs := make([]Dir, len(dirs), 2*len(dirs));
++				for i := 0; i < len(dirs); i++ {
++					ndirs[i] = dirs[i]
++				}
++				dirs = ndirs;
++			}
++			dirs = dirs[0:len(dirs)+1];
++			filename := string(dirent.Name[0:clen(dirent.Name)]);
++			dirp, err := Stat(dirname + filename);
++			if dirp ==  nil || err != nil {
++				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
++			} else {
++				dirs[len(dirs)-1] = *dirp;
++			}
++		}
++	}
++	return dirs, nil;
++}
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 2fc4b617cb..5e0c2bf4bc 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -10,6 +10,25 @@ import (
+ 	"testing";
+ )
+ 
++var dot = []string{
++	"dir_amd64_darwin.go",
++	"dir_amd64_linux.go",
++	"os_env.go",
++	"os_error.go",
++	"os_file.go",
++	"os_test.go",
++	"os_time.go",
++	"os_types.go",
++	"stat_amd64_darwin.go",
++	"stat_amd64_linux.go"
++}
++
++var etc = []string{
++	"group",
++	"hosts",
++	"passwd",
++}
++
+ func size(file string, t *testing.T) uint64 {
+ 	fd, err := Open(file, O_RDONLY, 0);
+ 	defer fd.Close();
+@@ -78,29 +97,17 @@ func TestLstat(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReaddirnames(t *testing.T) {
+-	fd, err := Open(".", O_RDONLY, 0);
++func testReaddirnames(dir string, contents []string, t *testing.T) {
++	fd, err := Open(dir, O_RDONLY, 0);
+ 	defer fd.Close();
+ 	if err != nil {
+-		t.Fatal("open . failed:", err);
++		t.Fatalf("open %q failed: %s\n", dir, err.String());
+ 	}
+ 	s, err2 := Readdirnames(fd, -1);
+ 	if err2 != nil {
+ 		t.Fatal("readdirnames . failed:", err);
+ 	}
+-	a := []string{
+-		"dir_amd64_darwin.go",
+-		"dir_amd64_linux.go",
+-		"os_env.go",
+-		"os_error.go",
+-		"os_file.go",
+-		"os_test.go",
+-		"os_time.go",
+-		"os_types.go",
+-		"stat_amd64_darwin.go",
+-		"stat_amd64_linux.go"
+-	};
+-	for i, m := range a {
++	for i, m := range contents {
+ 		found := false;
+ 		for j, n := range s {
+ 			if m == n {
+@@ -115,3 +122,39 @@ func TestReaddirnames(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func testReaddir(dir string, contents []string, t *testing.T) {
++	fd, err := Open(dir, O_RDONLY, 0);
++	defer fd.Close();
++	if err != nil {
++		t.Fatalf("open %q failed: %s\n", dir, err.String());
++	}
++	s, err2 := Readdir(fd, -1);
++	if err2 != nil {
++		t.Fatal("readdir . failed:", err);
++	}
++	for i, m := range contents {
++		found := false;
++		for j, n := range s {
++			if m == n.Name {
++				if found {
++					t.Error("present twice:", m);
++				}
++				found = true
++			}
++		}
++		if !found {
++			t.Error("could not find", m);
++		}
++	}
++}
++
++func TestReaddirnames(t *testing.T) {
++	testReaddirnames(".", dot, t);
++	testReaddirnames("/etc", etc, t);
++}
++
++func TestReaddir(t *testing.T) {
++	testReaddir(".", dot, t);
++	testReaddir("/etc", etc, t);
++}

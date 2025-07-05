@@ -7,7 +7,7 @@ Date:   Tue Oct 25 22:19:39 2011 -0700
     R=ken, r
     CC=golang-dev
     https://golang.org/cl/5293046
-
+---
  src/cmd/gc/Makefile        |  2 ++
  src/cmd/gc/builtin.c.boot  |  6 ++--
  src/cmd/gc/export.c        |  2 +-
@@ -24,3 +24,541 @@ Date:   Tue Oct 25 22:19:39 2011 -0700
  src/cmd/ld/lib.c           | 24 ++++++++++++--
  src/pkg/runtime/string.goc |  6 ++--
  15 files changed, 186 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index f7e3051783..11f466ae80 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -44,6 +44,8 @@ OFILES=\
+ 	walk.$O\
+ 	y1.tab.$O\
+ 
++HOST_CFLAGS+=-DGOEXPERIMENT='"$(GOEXPERIMENT)"' 
++
+ NOINSTALL=1
+ include ../../Make.clib
+ 
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index bf9d96d6a7..f6508b55a3 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -31,11 +31,11 @@ char *runtimeimport =
+ 	"func @\"\".slicestring1 (? string, ? int) string\n"
+ 	"func @\"\".intstring (? int64) string\n"
+ 	"func @\"\".slicebytetostring (? []byte) string\n"
+-	"func @\"\".sliceinttostring (? []int) string\n"
++	"func @\"\".slicerunetostring (? []rune) string\n"
+ 	"func @\"\".stringtoslicebyte (? string) []byte\n"
+-	"func @\"\".stringtosliceint (? string) []int\n"
++	"func @\"\".stringtoslicerune (? string) []rune\n"
+ 	"func @\"\".stringiter (? string, ? int) int\n"
+-	"func @\"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func @\"\".stringiter2 (? string, ? int) (retk int, retv rune)\n"
+ 	"func @\"\".slicecopy (to any, fr any, wid uint32) int\n"
+ 	"func @\"\".slicestringcopy (to any, fr any) int\n"
+ 	"func @\"\".convI2E (elem any) any\n"
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index e2f8c6f0c7..f79619e8f5 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -94,7 +94,7 @@ dumpprereq(Type *t)
+ 	if(t == T)
+ 		return;
+ 
+-	if(t->printed || t == types[t->etype] || t == bytetype)
++	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
+ 		return;
+ 	t->printed = 1;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 73cef3ddea..74d38bb789 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -785,6 +785,7 @@ EXTERN	Type*	types[NTYPE];
+ EXTERN	Type*	idealstring;
+ EXTERN	Type*	idealbool;
+ EXTERN	Type*	bytetype;
++EXTERN	Type*	runetype;
+ EXTERN	uchar	simtype[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isforw[NTYPE];
+@@ -840,6 +841,7 @@ EXTERN	Node*	nblank;
+ 
+ extern	int	thechar;
+ extern	char*	thestring;
++
+ EXTERN	char*	hunk;
+ EXTERN	int32	nhunk;
+ EXTERN	int32	thunk;
+@@ -854,6 +856,8 @@ EXTERN	int	packagequotes;
+ EXTERN	int	longsymnames;
+ EXTERN	int	compiling_runtime;
+ 
++EXTERN	int	rune32;
++
+ /*
+  *	y.tab.c
+  */
+@@ -1009,6 +1013,7 @@ Node*	renameinit(Node *n);
+ void	cannedimports(char *file, char *cp);
+ void	importfile(Val *f, int line);
+ char*	lexname(int lex);
++char*	expstring(void);
+ void	mkpackage(char* pkgname);
+ void	unimportfile(void);
+ int32	yylex(void);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 73a23ee5a4..1d7f0e82e3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -30,6 +30,60 @@ static void	addidir(char*);
+ static int	getlinepragma(void);
+ static char *goos, *goarch, *goroot;
+ 
++// Compiler experiments.
++// These are controlled by the GCEXPERIMENT environment
++// variable recorded when the compiler is built.
++static struct {
++	char *name;
++	int *val;
++} exper[] = {
++	{"rune32", &rune32},
++};
++
++static void
++addexp(char *s)
++{
++	int i;
++	
++	for(i=0; i<nelem(exper); i++) {
++		if(strcmp(exper[i].name, s) == 0) {
++			*exper[i].val = 1;
++			return;
++		}
++	}
++	
++	print("unknown experiment %s\n", s);
++	exits("unknown experiment");
++}
++
++static void
++setexp(void)
++{
++	char *f[20];
++	int i, nf;
++	
++	// The makefile #defines GOEXPERIMENT for us.
++	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
++	for(i=0; i<nf; i++)
++		addexp(f[i]);
++}
++
++char*
++expstring(void)
++{
++	int i;
++	static char buf[512];
++
++	strcpy(buf, "X");
++	for(i=0; i<nelem(exper); i++)
++		if(*exper[i].val)
++			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
++	if(strlen(buf) == 1)
++		strcpy(buf, "X,none");
++	buf[1] = ':';
++	return buf;
++}
++
+ // Our own isdigit, isspace, isalpha, isalnum that take care 
+ // of EOF and other out of range arguments.
+ static int
+@@ -94,7 +148,7 @@ usage(void)
+ 	print("  -u disable package unsafe\n");
+ 	print("  -w print the parse tree after typing\n");
+ 	print("  -x print lex tokens\n");
+-	exits(0);
++	exits("usage");
+ }
+ 
+ void
+@@ -144,6 +198,8 @@ main(int argc, char *argv[])
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+ 	goarch = thestring;
++	
++	setexp();
+ 
+ 	outfile = nil;
+ 	ARGBEGIN {
+@@ -170,7 +226,10 @@ main(int argc, char *argv[])
+ 		break;
+ 
+ 	case 'V':
+-		print("%cg version %s\n", thechar, getgoversion());
++		p = expstring();
++		if(strcmp(p, "X:none") == 0)
++			p = "";
++		print("%cg version %s%s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+ 		exits(0);
+ 	} ARGEND
+ 
+@@ -540,7 +599,7 @@ importfile(Val *f, int line)
+ 			yyerror("import %s: not a go object file", file);
+ 			errorexit();
+ 		}
+-		q = smprint("%s %s %s", getgoos(), thestring, getgoversion());
++		q = smprint("%s %s %s %s", getgoos(), thestring, getgoversion(), expstring());
+ 		if(strcmp(p+10, q) != 0) {
+ 			yyerror("import %s: object is [%s] expected [%s]", file, p+10, q);
+ 			errorexit();
+@@ -1720,6 +1779,18 @@ lexinit1(void)
+ 	s1 = pkglookup("byte", builtinpkg);
+ 	s1->lexical = LNAME;
+ 	s1->def = typenod(bytetype);
++
++	// rune alias
++	s = lookup("rune");
++	s->lexical = LNAME;
++	if(rune32)
++		runetype = typ(TINT32);
++	else
++		runetype = typ(TINT);
++	runetype->sym = s;
++	s1 = pkglookup("rune", builtinpkg);
++	s1->lexical = LNAME;
++	s1->def = typenod(runetype);
+ }
+ 
+ static void
+@@ -1761,6 +1832,10 @@ lexfini(void)
+ 	if(s->def == N)
+ 		s->def = typenod(bytetype);
+ 
++	s = lookup("rune");
++	if(s->def == N)
++		s->def = typenod(runetype);
++
+ 	types[TNIL] = typ(TNIL);
+ 	s = lookup("nil");
+ 	if(s->def == N) {
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index aba2aafd81..994f71f3f8 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -23,7 +23,7 @@ dumpobj(void)
+ 		errorexit();
+ 	}
+ 
+-	Bprint(bout, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
+ 	Bprint(bout, "  exports automatically generated from\n");
+ 	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
+ 	dumpexport();
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 5cbafd895a..062e793be2 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -54,7 +54,7 @@ typecheckrange(Node *n)
+ 
+ 	case TSTRING:
+ 		t1 = types[TINT];
+-		t2 = types[TINT];
++		t2 = runetype;
+ 		break;
+ 	}
+ 
+@@ -216,7 +216,7 @@ walkrange(Node *n)
+ 		if(v2 == N)
+ 			a = nod(OAS, hv1, mkcall("stringiter", types[TINT], nil, ha, hv1));
+ 		else {
+-			hv2 = temp(types[TINT]);
++			hv2 = temp(runetype);
+ 			a = nod(OAS2, N, N);
+ 			a->list = list(list1(hv1), hv2);
+ 			fn = syslook("stringiter2", 0);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 816235bcc2..67ad6bc5a4 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -692,7 +692,7 @@ dtypesym(Type *t)
+ 		tbase = t->type;
+ 	dupok = tbase->sym == S;
+ 
+-	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype))	// int, float, etc
++	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype || tbase == runetype))	// int, float, etc
+ 		goto ok;
+ 
+ 	// named types from other files are defined only by those files
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index b190e50a7a..1bf2ad482e 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -47,11 +47,11 @@ func slicestring(string, int, int) string
+ func slicestring1(string, int) string
+ func intstring(int64) string
+ func slicebytetostring([]byte) string
+-func sliceinttostring([]int) string
++func slicerunetostring([]rune) string
+ func stringtoslicebyte(string) []byte
+-func stringtosliceint(string) []int
++func stringtoslicerune(string) []rune
+ func stringiter(string, int) int
+-func stringiter2(string, int) (retk int, retv int)
++func stringiter2(string, int) (retk int, retv rune)
+ func slicecopy(to any, fr any, wid uint32) int
+ func slicestringcopy(to any, fr any) int
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 56537efa02..bd6585518b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1285,13 +1285,15 @@ Tpretty(Fmt *fp, Type *t)
+ 		// called from typesym
+ 		if(t == bytetype)
+ 			t = types[bytetype->etype];
++		if(t == runetype)
++			t = types[runetype->etype];
+ 	}
+ 
+ 	if(t->etype != TFIELD
+ 	&& t->sym != S
+ 	&& !(fp->flags&FmtLong)) {
+ 		s = t->sym;
+-		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype)
++		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype || t == runetype)
+ 			return fmtprint(fp, "%s", s->name);
+ 		if(exporting) {
+ 			if(fp->flags & FmtShort)
+@@ -1875,6 +1877,11 @@ eqtype(Type *t1, Type *t2)
+ 			if((t1 == types[TUINT8] || t1 == bytetype) && (t2 == types[TUINT8] || t2 == bytetype))
+ 				return 1;
+ 			break;
++		case TINT:
++		case TINT32:
++			if((t1 == types[runetype->etype] || t1 == runetype) && (t2 == types[runetype->etype] || t2 == runetype))
++				return 1;
++			break;
+ 		}
+ 		return 0;
+ 	}
+@@ -2100,7 +2107,7 @@ convertop(Type *src, Type *dst, char **why)
+ 		return OCONV;
+ 	}
+ 
+-	// 6. src is an integer or has type []byte or []int
++	// 6. src is an integer or has type []byte or []rune
+ 	// and dst is a string type.
+ 	if(isint[src->etype] && dst->etype == TSTRING)
+ 		return ORUNESTR;
+@@ -2108,16 +2115,16 @@ convertop(Type *src, Type *dst, char **why)
+ 	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
+ 		if(eqtype(src->type, bytetype))
+ 			return OARRAYBYTESTR;
+-		if(eqtype(src->type, types[TINT]))
++		if(eqtype(src->type, runetype))
+ 			return OARRAYRUNESTR;
+ 	}
+ 	
+-	// 7. src is a string and dst is []byte or []int.
++	// 7. src is a string and dst is []byte or []rune.
+ 	// String to slice.
+ 	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
+ 		if(eqtype(dst->type, bytetype))
+ 			return OSTRARRAYBYTE;
+-		if(eqtype(dst->type, types[TINT]))
++		if(eqtype(dst->type, runetype))
+ 			return OSTRARRAYRUNE;
+ 	}
+ 	
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 21cf77e300..d42477fd8b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2469,7 +2469,7 @@ stringtoarraylit(Node **np)
+ 		while(p < ep)
+ 			l = list(l, nod(OKEY, nodintconst(i++), nodintconst((uchar)*p++)));
+ 	} else {
+-		// utf-8 []int
++		// utf-8 []rune
+ 		while(p < ep) {
+ 			p += chartorune(&r, p);
+ 			l = list(l, nod(OKEY, nodintconst(i++), nodintconst(r)));
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9d06f1b7f5..e94e043317 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1151,8 +1151,8 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OARRAYRUNESTR:
+-		// sliceinttostring([]int) string;
+-		n = mkcall("sliceinttostring", n->type, init, n->left);
++		// slicerunetostring([]rune) string;
++		n = mkcall("slicerunetostring", n->type, init, n->left);
+ 		goto ret;
+ 
+ 	case OSTRARRAYBYTE:
+@@ -1161,8 +1161,8 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OSTRARRAYRUNE:
+-		// stringtosliceint(string) []int
+-		n = mkcall("stringtosliceint", n->type, init, n->left);
++		// stringtoslicerune(string) []rune
++		n = mkcall("stringtoslicerune", n->type, init, n->left);
+ 		goto ret;
+ 
+ 	case OCMPIFACE:
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 96f36605fd..c02903bc7a 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -611,6 +611,43 @@ qcmd(char *arname, int count, char **files)
+ 	close(fd);
+ }
+ 
++/*
++ *	does the object header line p match the last one we saw?
++ *	update *lastp if it gets more specific.
++ */
++int
++matchhdr(char *p, char **lastp)
++{
++	int n;
++	char *last;
++	
++	// no information?
++	last = *lastp;
++	if(last == nil) {
++		*lastp = strdup(p);
++		return 1;
++	}
++
++	// identical match?
++	if(strcmp(last, p) == 0)
++		return 1;
++
++	// last has extra fields
++	n = strlen(p);
++	if(n < strlen(last) && last[n] == ' ')
++		return 1;
++
++	// p has extra fields - save in last
++	n = strlen(last);
++	if(n < strlen(p) && p[n] == ' ') {
++		free(last);
++		*lastp = strdup(p);
++		return 1;
++	}
++	
++	return 0;
++}	
++
+ /*
+  *	extract the symbol references from an object file
+  */
+@@ -670,18 +707,23 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 		return;
+ 	}
+ 	
+-	if ((lastobj >= 0 && obj != lastobj) || (objhdr != nil && strcmp(p, objhdr) != 0)) {
+-		fprint(2, "gopack: inconsistent object file %s\n", file);
++	if (!matchhdr(p, &objhdr)) {
++		fprint(2, "gopack: inconsistent object file %s: [%s] vs [%s]\n", file, p, objhdr);
+ 		errors++;
+ 		allobj = 0;
+ 		free(p);
+ 		return;
+ 	}
++	free(p);
++
++	// Old check.  Should be impossible since objhdrs match, but keep the check anyway.
++	if (lastobj >= 0 && obj != lastobj) {
++		fprint(2, "gopack: inconsistent object file %s\n", file);
++		errors++;
++		allobj = 0;
++		return;
++	}
+ 	lastobj = obj;
+-	if(objhdr == nil)
+-		objhdr = p;
+-	else
+-		free(p);
+ 		
+ 	if (!readar(b, obj, offset+size, 0)) {
+ 		fprint(2, "gopack: invalid symbol reference in file %s\n", file);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 456d41f5a1..8f95665b33 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -46,6 +46,7 @@ static int	cout = -1;
+ char*	goroot;
+ char*	goarch;
+ char*	goos;
++char*	theline;
+ 
+ void
+ Lflag(char *arg)
+@@ -478,12 +479,31 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 		diag("%s: not an object file", pn);
+ 		return;
+ 	}
+-	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
+-	if(strcmp(line+10, t) != 0 && !debug['f']) {
++	
++	// First, check that the basic goos, string, and version match.
++	t = smprint("%s %s %s ", getgoos(), thestring, getgoversion());
++	line[n] = ' ';
++	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
++		line[n] = '\0';
+ 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
+ 		free(t);
+ 		return;
+ 	}
++	
++	// Second, check that longer lines match each other exactly,
++	// so that the Go compiler and write additional information
++	// that must be the same from run to run.
++	line[n] = '\0';
++	if(n-10 > strlen(t)) {
++		if(theline == nil)
++			theline = strdup(line+10);
++		else if(strcmp(theline, line+10) != 0) {
++			line[n] = '\0';
++			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
++			free(t);
++			return;
++		}
++	}
+ 	free(t);
+ 	line[n] = '\n';
+ 
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 53cd84c6e6..0e2dddda34 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -278,7 +278,7 @@ func stringtoslicebyte(s String) (b Slice) {
+ 	runtime·memmove(b.array, s.str, s.len);
+ }
+ 
+-func sliceinttostring(b Slice) (s String) {
++func slicerunetostring(b Slice) (s String) {
+ 	int32 siz1, siz2, i;
+ 	int32 *a;
+ 	byte dum[8];
+@@ -301,13 +301,13 @@ func sliceinttostring(b Slice) (s String) {
+ 	s.str[s.len] = 0;
+ }
+ 
+-func stringtosliceint(s String) (b Slice) {
++func stringtoslicerune(s String) (b Slice) {
+ 	int32 n;
+ 	int32 dum, *r;
+ 	uint8 *p, *ep;
+ 
+ 	// two passes.
+-	// unlike sliceinttostring, no race because strings are immutable.
++	// unlike slicerunetostring, no race because strings are immutable.
+ 	p = s.str;
+ 	ep = s.str+s.len;
+ 	n = 0;

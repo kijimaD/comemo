@@ -12,7 +12,38 @@ Date:   Fri Jun 21 14:45:26 2024 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/typeparam.go | 4 ++--
  src/go/types/typeparam.go                    | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 9ad064906f..e22981e1ad 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -25,8 +25,8 @@ type TypeParam struct {
+ }
+ 
+ // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
+-// or Signature type by calling SetTypeParams. Setting a type parameter on more
+-// than one type will result in a panic.
++// type by calling SetTypeParams. Setting a type parameter on more than one type
++// will result in a panic.
+ //
+ // The constraint argument can be nil, and set later via SetConstraint. If the
+ // constraint is non-nil, it must be fully defined.
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 58a02de860..789b63d7a1 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -28,8 +28,8 @@ type TypeParam struct {
+ }
+ 
+ // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
+-// or Signature type by calling SetTypeParams. Setting a type parameter on more
+-// than one type will result in a panic.
++// type by calling SetTypeParams. Setting a type parameter on more than one type
++// will result in a panic.
+ //
+ // The constraint argument can be nil, and set later via SetConstraint. If the
+ // constraint is non-nil, it must be fully defined.

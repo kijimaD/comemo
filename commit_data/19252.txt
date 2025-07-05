@@ -9,6 +9,23 @@ Date:   Mon Apr 28 14:29:45 2014 -0400
     R=golang-codereviews, robert.hencke, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/97780045
-
+---
  src/pkg/log/syslog/syslog.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 1c7588e365..5e09599162 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -115,9 +115,10 @@ func New(priority Priority, tag string) (w *Writer, err error) {
+ }
+ 
+ // Dial establishes a connection to a log daemon by connecting to
+-// address raddr on the network net.  Each write to the returned
++// address raddr on the specified network.  Each write to the returned
+ // writer sends a log message with the given facility, severity and
+ // tag.
++// If network is empty, Dial will connect to the local syslog server.
+ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+ 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
+ 		return nil, errors.New("log/syslog: invalid priority")

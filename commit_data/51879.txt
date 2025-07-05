@@ -14,7 +14,44 @@ Date:   Mon Mar 14 13:26:42 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/392755
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go | 7 ++++---
  src/go/types/unify.go                    | 7 ++++---
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 97d327cf8b..a7f68a05b1 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -39,9 +39,10 @@ const (
+ 	// due to implementation issues (e.g., see issues #48619, #48656).
+ 	unificationDepthLimit = 50
+ 
+-	// Whether to panic when unificationDepthLimit is reached. Turn on when
+-	// investigating infinite recursion.
+-	panicAtUnificationDepthLimit = false
++	// Whether to panic when unificationDepthLimit is reached.
++	// If disabled, a recursion depth overflow results in a (quiet)
++	// unification failure.
++	panicAtUnificationDepthLimit = true
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 7b9aeeee0a..0742e40d8b 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -39,9 +39,10 @@ const (
+ 	// due to implementation issues (e.g., see issues #48619, #48656).
+ 	unificationDepthLimit = 50
+ 
+-	// Whether to panic when unificationDepthLimit is reached. Turn on when
+-	// investigating infinite recursion.
+-	panicAtUnificationDepthLimit = false
++	// Whether to panic when unificationDepthLimit is reached.
++	// If disabled, a recursion depth overflow results in a (quiet)
++	// unification failure.
++	panicAtUnificationDepthLimit = true
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.

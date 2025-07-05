@@ -9,6 +9,20 @@ Date:   Wed Mar 9 08:36:44 2016 -0800
     Change-Id: I6c55f87228f0980058a10f204b57ead7594e3492
     Reviewed-on: https://go-review.googlesource.com/20490
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index b624c6675c..59b3d20a51 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -78,7 +78,7 @@ no matter who makes the change.
+ A custom git command called <code>git-codereview</code>,
+ discussed below, helps manage the code review process through a Google-hosted
+ <a href="https://go-review.googlesource.com/">instance</a> of the code review
+-system called <a https://www.gerritcodereview.com/">Gerrit</a>.
++system called <a href="https://www.gerritcodereview.com/">Gerrit</a>.
+ </p>
+ 
+ <h3 id="auth">Set up authentication for code review</h3>

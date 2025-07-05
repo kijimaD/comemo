@@ -12,10 +12,1005 @@ Date:   Fri Dec 20 12:10:53 2013 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/44300043
-
+---
  src/cmd/pack/ar.c  | 107 +-----------------
  src/libmach/5obj.c | 171 -----------------------------
  src/libmach/6obj.c | 173 -----------------------------
  src/libmach/8obj.c | 170 ----------------------------
  src/libmach/obj.c  | 316 -----------------------------------------------------
  5 files changed, 4 insertions(+), 933 deletions(-)
+
+diff --git a/src/cmd/pack/ar.c b/src/cmd/pack/ar.c
+index 738c1f78d6..0700623733 100644
+--- a/src/cmd/pack/ar.c
++++ b/src/cmd/pack/ar.c
+@@ -1553,20 +1553,6 @@ arstrdup(char *s)
+ 	return t;
+ }
+ 
+-
+-/*
+- *	Parts of libmach we're not supposed
+- *	to look at but need for arread_cutprefix.
+- */
+-extern int _read5(Biobuf*, Prog*);
+-extern int _read6(Biobuf*, Prog*);
+-extern int _read8(Biobuf*, Prog*);
+-int (*reader[256])(Biobuf*, Prog*) = {
+-	[ObjArm] = _read5,
+-	[ObjAmd64] = _read6,
+-	[Obj386] = _read8,
+-};
+-
+ #define isdelim(c) ((c) == '/' || (c) == '\\')
+ 
+ /*
+@@ -1595,94 +1581,9 @@ iswinpathstart(char *p, char *drive)
+ int
+ arread_cutprefix(Biobuf *b, Armember *bp)
+ {
+-	vlong offset, o, end;
+-	int n, t;
+-	int (*rd)(Biobuf*, Prog*);
+-	char *w, *inprefix, d1, d2;
+-	Prog p;
+-	
+-	offset = Boffset(b);
+-	end = offset + bp->size;
+-	t = objtype(b, nil);
+-	if(t < 0)
+-		return 0;
+-	if((rd = reader[t]) == nil)
+-		return 0;
+-	
+-	// copy header
+-	w = bp->member;
+-	n = Boffset(b) - offset;
+-	Bseek(b, -n, 1);
+-	if(Bread(b, w, n) != n)
+-		return 0;
+-	offset += n;
+-	w += n;
+-	
+-	// read object file one pseudo-instruction at a time,
+-	// eliding the file name instructions that refer to
+-	// the prefix.
+-	memset(&p, 0, sizeof p);
+-	inprefix = nil;
+-	while(Boffset(b) < end && rd(b, &p)) {
+-		if(p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
+-			// part of a file path.
+-			// we'll keep continuing (skipping the copy)
+-			// around the loop until either we get to a
+-			// name piece that should be kept or we see
+-			// the whole prefix.
+-
+-			if(inprefix == nil && prefix[0] == '/' && p.id[1] == '/' && p.id[2] == '\0') {
+-				// leading /
+-				inprefix = prefix+1;
+-			} else if(inprefix == nil && iswinpathstart(prefix, &d1) && iswinpathstart(p.id + 1, &d2) && d1 == d2 && p.id[4] == '\0') {
+-				// leading c:\ ...
+-				inprefix = prefix+3;
+-			} else if(inprefix != nil) {
+-				// handle subsequent elements
+-				n = strlen(p.id+1);
+-				if(strncmp(p.id+1, inprefix, n) == 0 && (isdelim(inprefix[n]) || inprefix[n] == '\0')) {
+-					inprefix += n;
+-					if(isdelim(inprefix[0]))
+-						inprefix++;
+-				}
+-			}
+-			
+-			if(inprefix && inprefix[0] == '\0') {
+-				// reached end of prefix.
+-				// if we another path element follows,
+-				// nudge the offset to skip over the prefix we saw.
+-				// if not, leave offset alone, to emit the whole name.
+-				// additional name elements will not be skipped
+-				// because inprefix is now nil and we won't see another
+-				// leading / in this name.
+-				inprefix = nil;
+-				o = Boffset(b);
+-				if(o < end && rd(b, &p) && p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
+-					// print("skip %lld-%lld\n", offset, o);
+-					offset = o;
+-				}
+-			}
+-		} else {
+-			// didn't find the whole prefix.
+-			// give up and let it emit the entire name.
+-			inprefix = nil;
+-		}
++	// TODO: reimplement
++	USED(b);
++	USED(bp);
+ 
+-		// copy instructions
+-		if(!inprefix) {
+-			n = Boffset(b) - offset;
+-			Bseek(b, -n, 1);
+-			if(Bread(b, w, n) != n)
+-				return 0;
+-			offset += n;
+-			w += n;
+-		}
+-	}
+-	bp->size = w - (char*)bp->member;
+-	sprint(bp->hdr.size, "%-10lld", (vlong)bp->size);
+-	strncpy(bp->hdr.fmag, ARFMAG, 2);
+-	Bseek(b, end, 0);
+-	if(Boffset(b)&1)
+-		BGETC(b);
+-	return 1;
++	return 0;
+ }
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+deleted file mode 100644
+index 7fd3459a8e..0000000000
+--- a/src/libmach/5obj.c
++++ /dev/null
+@@ -1,171 +0,0 @@
+-// Inferno libmach/5obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/libmach/5obj.c
+-//
+-// 	Copyright © 1994-1999 Lucent Technologies Inc.
+-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-/*
+- * 5obj.c - identify and parse an arm object file
+- */
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <mach.h>
+-#include "../cmd/5l/5.out.h"
+-#include "obj.h"
+-
+-typedef struct Addr	Addr;
+-struct Addr
+-{
+-	char	type;
+-	char	sym;
+-	char	name;
+-	char	gotype;
+-};
+-static Addr addr(Biobuf*);
+-static char type2char(int);
+-static void skip(Biobuf*, int);
+-
+-int
+-_is5(char *s)
+-{
+-	return  s[0] == ANAME				/* ANAME */
+-		&& s[1] == D_FILE			/* type */
+-		&& s[2] == 1				/* sym */
+-		&& s[3] == '<';				/* name of file */
+-}
+-
+-int
+-_read5(Biobuf *bp, Prog *p)
+-{
+-	int as, n;
+-	Addr a;
+-
+-	as = BGETC(bp);			/* as */
+-	if(as < 0)
+-		return 0;
+-	p->kind = aNone;
+-	p->sig = 0;
+-	if(as == ANAME || as == ASIGNAME){
+-		if(as == ASIGNAME){
+-			Bread(bp, &p->sig, 4);
+-			p->sig = leswal(p->sig);
+-		}
+-		p->kind = aName;
+-		p->type = type2char(BGETC(bp));		/* type */
+-		p->sym = BGETC(bp);			/* sym */
+-		n = 0;
+-		for(;;) {
+-			as = BGETC(bp);
+-			if(as < 0)
+-				return 0;
+-			n++;
+-			if(as == 0)
+-				break;
+-		}
+-		p->id = malloc(n);
+-		if(p->id == 0)
+-			return 0;
+-		Bseek(bp, -n, 1);
+-		if(Bread(bp, p->id, n) != n)
+-			return 0;
+-		return 1;
+-	}
+-	if(as == ATEXT)
+-		p->kind = aText;
+-	else if(as == AGLOBL)
+-		p->kind = aData;
+-	skip(bp, 6);		/* scond(1), reg(1), lineno(4) */
+-	a = addr(bp);
+-	addr(bp);
+-	if(a.type != D_OREG || a.name != D_STATIC && a.name != D_EXTERN)
+-		p->kind = aNone;
+-	p->sym = a.sym;
+-	return 1;
+-}
+-
+-static Addr
+-addr(Biobuf *bp)
+-{
+-	Addr a;
+-	long off;
+-
+-	a.type = BGETC(bp);	/* a.type */
+-	skip(bp,1);		/* reg */
+-	a.sym = BGETC(bp);	/* sym index */
+-	a.name = BGETC(bp);	/* sym type */
+-	a.gotype = BGETC(bp);	/* go type */
+-	switch(a.type){
+-	default:
+-	case D_NONE:
+-	case D_REG:
+-	case D_FREG:
+-	case D_PSR:
+-	case D_FPCR:
+-		break;
+-	case D_REGREG:
+-	case D_REGREG2:
+-		Bgetc(bp);
+-		break;
+-	case D_CONST2:
+-		Bgetle4(bp); // fall through
+-	case D_OREG:
+-	case D_CONST:
+-	case D_BRANCH:
+-	case D_SHIFT:
+-		off = BGETLE4(bp);
+-		if(off < 0)
+-			off = -off;
+-		if(a.sym && (a.name==D_PARAM || a.name==D_AUTO))
+-			_offset(a.sym, off);
+-		break;
+-	case D_SCONST:
+-		skip(bp, NSNAME);
+-		break;
+-	case D_FCONST:
+-		skip(bp, 8);
+-		break;
+-	}
+-	return a;
+-}
+-
+-static char
+-type2char(int t)
+-{
+-	switch(t){
+-	case D_EXTERN:		return 'U';
+-	case D_STATIC:		return 'b';
+-	case D_AUTO:		return 'a';
+-	case D_PARAM:		return 'p';
+-	default:		return UNKNOWN;
+-	}
+-}
+-
+-static void
+-skip(Biobuf *bp, int n)
+-{
+-	while (n-- > 0)
+-		Bgetc(bp);
+-}
+diff --git a/src/libmach/6obj.c b/src/libmach/6obj.c
+deleted file mode 100644
+index 1921c9e4c9..0000000000
+--- a/src/libmach/6obj.c
++++ /dev/null
+@@ -1,173 +0,0 @@
+-// Inferno libmach/6obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/libmach/6obj.c
+-//
+-// 	Copyright © 1994-1999 Lucent Technologies Inc.
+-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-/*
+- * 6obj.c - identify and parse an amd64 object file
+- */
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <mach.h>
+-#include "../cmd/6l/6.out.h"
+-#include "obj.h"
+-
+-typedef struct Addr	Addr;
+-struct Addr
+-{
+-	char	sym;
+-	char	flags;
+-	char gotype;
+-};
+-static	Addr	addr(Biobuf*);
+-static	char	type2char(int);
+-static	void	skip(Biobuf*, int);
+-
+-int
+-_is6(char *t)
+-{
+-	uchar *s = (uchar*)t;
+-
+-	return  s[0] == (ANAME&0xff)			/* also = ANAME */
+-		&& s[1] == ((ANAME>>8)&0xff)
+-		&& s[2] == D_FILE			/* type */
+-		&& s[3] == 1				/* sym */
+-		&& s[4] == '<';				/* name of file */
+-}
+-
+-int
+-_read6(Biobuf *bp, Prog* p)
+-{
+-	int as, n, c;
+-	Addr a;
+-
+-	as = BGETC(bp);		/* as(low) */
+-	if(as < 0)
+-		return 0;
+-	c = BGETC(bp);		/* as(high) */
+-	if(c < 0)
+-		return 0;
+-	as |= ((c & 0xff) << 8);
+-	p->kind = aNone;
+-	p->sig = 0;
+-	if(as == ANAME || as == ASIGNAME){
+-		if(as == ASIGNAME){
+-			Bread(bp, &p->sig, 4);
+-			p->sig = leswal(p->sig);
+-		}
+-		p->kind = aName;
+-		p->type = type2char(BGETC(bp));		/* type */
+-		p->sym = BGETC(bp);			/* sym */
+-		n = 0;
+-		for(;;) {
+-			as = BGETC(bp);
+-			if(as < 0)
+-				return 0;
+-			n++;
+-			if(as == 0)
+-				break;
+-		}
+-		p->id = malloc(n);
+-		if(p->id == 0)
+-			return 0;
+-		Bseek(bp, -n, 1);
+-		if(Bread(bp, p->id, n) != n)
+-			return 0;
+-		return 1;
+-	}
+-	if(as == ATEXT)
+-		p->kind = aText;
+-	if(as == AGLOBL)
+-		p->kind = aData;
+-	skip(bp, 4);		/* lineno(4) */
+-	a = addr(bp);
+-	addr(bp);
+-	if(!(a.flags & T_SYM))
+-		p->kind = aNone;
+-	p->sym = a.sym;
+-	return 1;
+-}
+-
+-static Addr
+-addr(Biobuf *bp)
+-{
+-	Addr a;
+-	int t;
+-	int32 l;
+-	vlong off;
+-
+-	off = 0;
+-	a.sym = -1;
+-	a.flags = BGETC(bp);			/* flags */
+-	a.gotype = 0;
+-	if(a.flags & T_INDEX)
+-		skip(bp, 2);
+-	if(a.flags & T_OFFSET){
+-		l = BGETLE4(bp);
+-		off = l;
+-		if(a.flags & T_64){
+-			l = BGETLE4(bp);
+-			off = ((vlong)l << 32) | (off & 0xFFFFFFFF);
+-		}
+-		if(off < 0)
+-			off = -(uvlong)off;
+-	}
+-	if(a.flags & T_SYM)
+-		a.sym = BGETC(bp);
+-	if(a.flags & T_FCONST)
+-		skip(bp, 8);
+-	else
+-	if(a.flags & T_SCONST)
+-		skip(bp, NSNAME);
+-	if(a.flags & T_TYPE) {
+-		t = BGETC(bp);
+-		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
+-			_offset(a.sym, off);
+-	}
+-	if(a.flags & T_GOTYPE)
+-		a.gotype = BGETC(bp);
+-	return a;
+-}
+-
+-static char
+-type2char(int t)
+-{
+-	switch(t){
+-	case D_EXTERN:		return 'U';
+-	case D_STATIC:		return 'b';
+-	case D_AUTO:		return 'a';
+-	case D_PARAM:		return 'p';
+-	default:		return UNKNOWN;
+-	}
+-}
+-
+-static void
+-skip(Biobuf *bp, int n)
+-{
+-	while (n-- > 0)
+-		Bgetc(bp);
+-}
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+deleted file mode 100644
+index c44d92c55a..0000000000
+--- a/src/libmach/8obj.c
++++ /dev/null
+@@ -1,170 +0,0 @@
+-// Inferno libmach/8obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/libmach/8obj.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.
+-//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-/*
+- * 8obj.c - identify and parse a 386 object file
+- */
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <mach.h>
+-#include "../cmd/8l/8.out.h"
+-#include "obj.h"
+-
+-typedef struct Addr	Addr;
+-struct Addr
+-{
+-	char	sym;
+-	char	flags;
+-	char gotype;
+-};
+-static	Addr	addr(Biobuf*);
+-static	char	type2char(int);
+-static	void	skip(Biobuf*, int);
+-
+-int
+-_is8(char *t)
+-{
+-	uchar *s = (uchar*)t;
+-
+-	return  s[0] == (ANAME&0xff)			/* also = ANAME */
+-		&& s[1] == ((ANAME>>8)&0xff)
+-		&& s[2] == D_FILE			/* type */
+-		&& s[3] == 1				/* sym */
+-		&& s[4] == '<';				/* name of file */
+-}
+-
+-int
+-_read8(Biobuf *bp, Prog* p)
+-{
+-	int as, n, c;
+-	Addr a;
+-
+-	as = BGETC(bp);		/* as(low) */
+-	if(as < 0)
+-		return 0;
+-	c = BGETC(bp);		/* as(high) */
+-	if(c < 0)
+-		return 0;
+-	as |= ((c & 0xff) << 8);
+-	p->kind = aNone;
+-	p->sig = 0;
+-	if(as == ANAME || as == ASIGNAME){
+-		if(as == ASIGNAME){
+-			Bread(bp, &p->sig, 4);
+-			p->sig = leswal(p->sig);
+-		}
+-		p->kind = aName;
+-		p->type = type2char(BGETC(bp));		/* type */
+-		p->sym = BGETC(bp);			/* sym */
+-		n = 0;
+-		for(;;) {
+-			as = BGETC(bp);
+-			if(as < 0)
+-				return 0;
+-			n++;
+-			if(as == 0)
+-				break;
+-		}
+-		p->id = malloc(n);
+-		if(p->id == 0)
+-			return 0;
+-		Bseek(bp, -n, 1);
+-		if(Bread(bp, p->id, n) != n)
+-			return 0;
+-		return 1;
+-	}
+-	if(as == ATEXT)
+-		p->kind = aText;
+-	if(as == AGLOBL)
+-		p->kind = aData;
+-	skip(bp, 4);		/* lineno(4) */
+-	a = addr(bp);
+-	addr(bp);
+-	if(!(a.flags & T_SYM))
+-		p->kind = aNone;
+-	p->sym = a.sym;
+-	return 1;
+-}
+-
+-static Addr
+-addr(Biobuf *bp)
+-{
+-	Addr a;
+-	int t;
+-	long off;
+-
+-	off = 0;
+-	a.gotype = 0;
+-	a.sym = -1;
+-	a.flags = BGETC(bp);			/* flags */
+-	if(a.flags & T_INDEX)
+-		skip(bp, 2);
+-	if(a.flags & T_OFFSET){
+-		off = BGETLE4(bp);
+-		if(off < 0)
+-			off = -off;
+-	}
+-	if(a.flags & T_OFFSET2){
+-		Bgetle4(bp);
+-	}
+-	if(a.flags & T_SYM)
+-		a.sym = BGETC(bp);
+-	if(a.flags & T_FCONST)
+-		skip(bp, 8);
+-	else
+-	if(a.flags & T_SCONST)
+-		skip(bp, NSNAME);
+-	if(a.flags & T_TYPE) {
+-		t = BGETC(bp);
+-		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
+-			_offset(a.sym, off);
+-	}
+-	if(a.flags & T_GOTYPE)
+-		a.gotype = BGETC(bp);
+-	return a;
+-}
+-
+-static char
+-type2char(int t)
+-{
+-	switch(t){
+-	case D_EXTERN:		return 'U';
+-	case D_STATIC:		return 'b';
+-	case D_AUTO:		return 'a';
+-	case D_PARAM:		return 'p';
+-	default:		return UNKNOWN;
+-	}
+-}
+-
+-static void
+-skip(Biobuf *bp, int n)
+-{
+-	while (n-- > 0)
+-		Bgetc(bp);
+-}
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index 729a3eab80..d350b569a5 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -37,132 +37,6 @@
+ #include <mach.h>
+ #include "obj.h"
+ 
+-#define islocal(t)	((t)=='a' || (t)=='p')
+-
+-enum
+-{
+-	NNAMES	= 50,
+-	MAXIS	= 8,		/* max length to determine if a file is a .? file */
+-	MAXOFF	= 0x7fffffff,	/* larger than any possible local offset */
+-	NHASH	= 1024,		/* must be power of two */
+-	HASHMUL	= 79L,
+-};
+-
+-int	_is2(char*),		/* in [$OS].c */
+-	_is5(char*),
+-	_is6(char*),
+-	_is7(char*),
+-	_is8(char*),
+-	_is9(char*),
+-	_isk(char*),
+-	_isq(char*),
+-	_isv(char*),
+-	_isu(char*),
+-	_read2(Biobuf*, Prog*),
+-	_read5(Biobuf*, Prog*),
+-	_read6(Biobuf*, Prog*),
+-	_read7(Biobuf*, Prog*),
+-	_read8(Biobuf*, Prog*),
+-	_read9(Biobuf*, Prog*),
+-	_readk(Biobuf*, Prog*),
+-	_readq(Biobuf*, Prog*),
+-	_readv(Biobuf*, Prog*),
+-	_readu(Biobuf*, Prog*);
+-
+-typedef struct Obj	Obj;
+-typedef struct Symtab	Symtab;
+-
+-struct	Obj		/* functions to handle each intermediate (.$O) file */
+-{
+-	char	*name;				/* name of each $O file */
+-	int	(*is)(char*);			/* test for each type of $O file */
+-	int	(*read)(Biobuf*, Prog*);	/* read for each type of $O file*/
+-};
+-
+-static Obj	obj[] =
+-{			/* functions to identify and parse each type of obj */
+-	[Obj68020]   = { "68020 .2",	_is2, _read2 },
+-	[ObjAmd64]   = { "amd64 .6",	_is6 , _read6 },
+-	[ObjArm]     = { "arm .5",	_is5, _read5 },
+-	[ObjAlpha]   = { "alpha .7",	_is7, _read7 },
+-	[Obj386]     = { "386 .8",	_is8, _read8 },
+-	[ObjSparc]   = { "sparc .k",	_isk, _readk },
+-	[ObjPower]   = { "power .q",	_isq, _readq },
+-	[ObjMips]    = { "mips .v",	_isv, _readv },
+-	[ObjSparc64] = { "sparc64 .u",  _isu, _readu },
+-	[ObjPower64] = { "power64 .9",	_is9, _read9 },
+-	[Maxobjtype] = { 0, 0, 0 }
+-};
+-
+-struct	Symtab
+-{
+-	struct	Sym 	s;
+-	struct	Symtab	*next;
+-};
+-
+-static	Symtab *hash[NHASH];
+-static	Sym	*names[NNAMES];	/* working set of active names */
+-
+-static	int	processprog(Prog*,int);	/* decode each symbol reference */
+-static	void	objreset(void);
+-static	void	objlookup(int, char *, int, uint);
+-static	void 	objupdate(int, int);
+-
+-static	int	sequence;
+-
+-int
+-objtype(Biobuf *bp, char **name)
+-{
+-	int i;
+-	char buf[MAXIS];
+-	int c;
+-	char *p;
+-
+-	/*
+-	 * Look for import block.
+-	 */
+-	p = Brdline(bp, '\n');
+-	if(p == nil)
+-		return -1;
+-	if(Blinelen(bp) < 10 || strncmp(p, "go object ", 10) != 0)
+-		return -1;
+-	Bseek(bp, -1, 1);
+-
+-	/*
+-	 * Found one.  Skip until "\n!\n"
+-	 */
+-	for(;;) {
+-		if((c = BGETC(bp)) == Beof)
+-			return -1;
+-		if(c != '\n')
+-			continue;
+-		c = BGETC(bp);
+-		if(c != '!'){
+-			Bungetc(bp);
+-			continue;
+-		}
+-		c = BGETC(bp);
+-		if(c != '\n'){
+-			Bungetc(bp);
+-			continue;
+-		}
+-		break;
+-	}
+-
+-	if(Bread(bp, buf, MAXIS) < MAXIS)
+-		return -1;
+-	Bseek(bp, -MAXIS, 1);
+-	for (i = 0; i < Maxobjtype; i++) {
+-		if (obj[i].is && (*obj[i].is)(buf)) {
+-			if (name)
+-				*name = obj[i].name;
+-			return i;
+-		}
+-	}
+-
+-	return -1;
+-}
+-
+ int
+ isar(Biobuf *bp)
+ {
+@@ -175,179 +49,6 @@ isar(Biobuf *bp)
+ 	return 0;
+ }
+ 
+-/*
+- * determine what kind of object file this is and process it.
+- * return whether or not this was a recognized intermediate file.
+- */
+-int
+-readobj(Biobuf *bp, int objtype)
+-{
+-	Prog p;
+-
+-	if (objtype < 0 || objtype >= Maxobjtype || obj[objtype].is == 0)
+-		return 1;
+-	objreset();
+-	while ((*obj[objtype].read)(bp, &p))
+-		if (!processprog(&p, 1))
+-			return 0;
+-	return 1;
+-}
+-
+-int
+-readar(Biobuf *bp, int objtype, vlong end, int doautos)
+-{
+-	Prog p;
+-
+-	if (objtype < 0 || objtype >= Maxobjtype || obj[objtype].is == 0)
+-		return 1;
+-	objreset();
+-	while ((*obj[objtype].read)(bp, &p) && Boffset(bp) < end)
+-		if (!processprog(&p, doautos))
+-			return 0;
+-	return 1;
+-}
+-
+-/*
+- *	decode a symbol reference or definition
+- */
+-static	int
+-processprog(Prog *p, int doautos)
+-{
+-	if(p->kind == aNone)
+-		return 1;
+-	if((schar)p->sym < 0 || p->sym >= NNAMES)
+-		return 0;
+-	switch(p->kind)
+-	{
+-	case aName:
+-		if (!doautos)
+-		if(p->type != 'U' && p->type != 'b')
+-			break;
+-		objlookup(p->sym, p->id, p->type, p->sig);
+-		break;
+-	case aText:
+-		objupdate(p->sym, 'T');
+-		break;
+-	case aData:
+-		objupdate(p->sym, 'D');
+-		break;
+-	default:
+-		break;
+-	}
+-	return 1;
+-}
+-
+-/*
+- * find the entry for s in the symbol array.
+- * make a new entry if it is not already there.
+- */
+-static void
+-objlookup(int id, char *name, int type, uint sig)
+-{
+-	uint32 h;
+-	char *cp;
+-	Sym *s;
+-	Symtab *sp;
+-
+-	s = names[id];
+-	if(s && strcmp(s->name, name) == 0) {
+-		s->type = type;
+-		s->sig = sig;
+-		return;
+-	}
+-
+-	h = *name;
+-	for(cp = name+1; *cp; h += *cp++)
+-		h *= HASHMUL;
+-	h &= NHASH-1;
+-	if (type == 'U' || type == 'b' || islocal(type)) {
+-		for(sp = hash[h]; sp; sp = sp->next)
+-			if(strcmp(sp->s.name, name) == 0) {
+-				switch(sp->s.type) {
+-				case 'T':
+-				case 'D':
+-				case 'U':
+-					if (type == 'U') {
+-						names[id] = &sp->s;
+-						return;
+-					}
+-					break;
+-				case 't':
+-				case 'd':
+-				case 'b':
+-					if (type == 'b') {
+-						names[id] = &sp->s;
+-						return;
+-					}
+-					break;
+-				case 'a':
+-				case 'p':
+-					if (islocal(type)) {
+-						names[id] = &sp->s;
+-						return;
+-					}
+-					break;
+-				default:
+-					break;
+-				}
+-			}
+-	}
+-	sp = malloc(sizeof(Symtab));
+-	if(sp == nil)
+-		sysfatal("out of memory");
+-	sp->s.name = name;
+-	sp->s.type = type;
+-	sp->s.sig = sig;
+-	sp->s.value = islocal(type) ? MAXOFF : 0;
+-	sp->s.sequence = sequence++;
+-	names[id] = &sp->s;
+-	sp->next = hash[h];
+-	hash[h] = sp;
+-	return;
+-}
+-/*
+- *	traverse the symbol lists
+- */
+-void
+-objtraverse(void (*fn)(Sym*, void*), void *pointer)
+-{
+-	int i;
+-	Symtab *s;
+-
+-	for(i = 0; i < NHASH; i++)
+-		for(s = hash[i]; s; s = s->next)
+-			(*fn)(&s->s, pointer);
+-}
+-
+-/*
+- * update the offset information for a 'a' or 'p' symbol in an intermediate file
+- */
+-void
+-_offset(int id, vlong off)
+-{
+-	Sym *s;
+-
+-	s = names[id];
+-	if (s && s->name[0] && islocal(s->type) && s->value > off)
+-		s->value = off;
+-}
+-
+-/*
+- * update the type of a global text or data symbol
+- */
+-static void
+-objupdate(int id, int type)
+-{
+-	Sym *s;
+-
+-	s = names[id];
+-	if (s && s->name[0])
+-		if (s->type == 'U')
+-			s->type = type;
+-		else if (s->type == 'b')
+-			s->type = tolower(type);
+-}
+-
+ /*
+  * look for the next file in an archive
+  */
+@@ -374,20 +75,3 @@ nextar(Biobuf *bp, int offset, char *buf)
+ 		arsize++;
+ 	return arsize + SAR_HDR;
+ }
+-
+-static void
+-objreset(void)
+-{
+-	int i;
+-	Symtab *s, *n;
+-
+-	for(i = 0; i < NHASH; i++) {
+-		for(s = hash[i]; s; s = n) {
+-			n = s->next;
+-			free(s->s.name);
+-			free(s);
+-		}
+-		hash[i] = 0;
+-	}
+-	memset(names, 0, sizeof names);
+-}

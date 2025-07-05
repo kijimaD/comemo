@@ -16,7 +16,64 @@ Date:   Fri Nov 17 15:47:33 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/template/escape_test.go | 22 ++++++++++++++++++++++
  src/html/template/template.go    |  8 ++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 92f12ca0e0..2312c9c1c3 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1903,3 +1903,25 @@ func BenchmarkEscapedExecute(b *testing.B) {
+ 		buf.Reset()
+ 	}
+ }
++
++// Covers issue 22780.
++func TestOrphanedTemplate(t *testing.T) {
++	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))
++	t2 := Must(t1.New("foo").Parse(`bar`))
++
++	var b bytes.Buffer
++	const wantError = `template: "foo" is an incomplete or empty template`
++	if err := t1.Execute(&b, "javascript:alert(1)"); err == nil {
++		t.Fatal("expected error executing t1")
++	} else if gotError := err.Error(); gotError != wantError {
++		t.Fatalf("got t1 execution error:\n\t%s\nwant:\n\t%s", gotError, wantError)
++	}
++	b.Reset()
++	if err := t2.Execute(&b, nil); err != nil {
++		t.Fatalf("error executing t1: %s", err)
++	}
++	const want = "bar"
++	if got := b.String(); got != want {
++		t.Fatalf("t2 rendered %q, want %q", got, want)
++	}
++}
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index d77aa3d7df..9dc066855f 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -300,6 +300,10 @@ func New(name string) *Template {
+ // New allocates a new HTML template associated with the given one
+ // and with the same delimiters. The association, which is transitive,
+ // allows one template to invoke another with a {{template}} action.
++//
++// If a template with the given name already exists, the new HTML template
++// will replace it. The existing template will be reset and disassociated with
++// t.
+ func (t *Template) New(name string) *Template {
+ 	t.nameSpace.mu.Lock()
+ 	defer t.nameSpace.mu.Unlock()
+@@ -314,6 +318,10 @@ func (t *Template) new(name string) *Template {
+ 		nil,
+ 		t.nameSpace,
+ 	}
++	if existing, ok := tmpl.set[name]; ok {
++		emptyTmpl := New(existing.Name())
++		*existing = *emptyTmpl
++	}
+ 	tmpl.set[name] = tmpl
+ 	return tmpl
+ }

@@ -13,6 +13,22 @@ Date:   Thu Aug 11 09:54:04 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1e7d80d3e9..88ac347ad7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -506,7 +506,9 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 	if n.Op == ONAME && n.Class == PAUTOHEAP {
+ 		nn := Nod(OIND, n.Name.Heapaddr, nil)
+ 		nn = typecheck(nn, Erv)
+-		return walkexpr(nn, init)
++		nn = walkexpr(nn, init)
++		nn.Left.NonNil = true
++		return nn
+ 	}
+ 
+ opswitch:

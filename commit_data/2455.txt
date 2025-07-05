@@ -8,6 +8,20 @@ Date:   Tue Jun 16 09:30:16 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=30342
     CL=30342
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 971ef4425b..12a21b6e20 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -80,7 +80,7 @@ var (
+ 	// file system roots
+ 	goroot string;
+ 	pkgroot = flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
+-	tmplroot = flag.String("tmplroot", "src/cmd/godoc", "root template directory (if unrooted, relative to goroot)");
++	tmplroot = flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
+ 
+ 	// periodic sync
+ 	syncCmd = flag.String("sync", "", "sync command; disabled if empty");

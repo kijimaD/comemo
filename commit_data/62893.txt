@@ -12,8 +12,54 @@ Date:   Fri Apr 25 15:30:53 2025 +0200
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/next/6-stdlib/99-minor/net/63529.md | 1 +
  src/net/listen_test.go                  | 5 +++--
  src/syscall/syscall_windows.go          | 4 +++-
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/net/63529.md b/doc/next/6-stdlib/99-minor/net/63529.md
+new file mode 100644
+index 0000000000..4cf05c90cd
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/63529.md
+@@ -0,0 +1 @@
++On Windows, the [ListenMulticastUDP] now supports IPv6 addresses.
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 9100b3d9f7..59c1277a97 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -610,7 +610,8 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 	if !supportsIPv6() {
+ 		t.Skip("IPv6 is not supported")
+ 	}
+-	if os.Getuid() != 0 {
++	// On Windows, the test can be run by non-admin users.
++	if runtime.GOOS != "windows" && os.Getuid() != 0 {
+ 		t.Skip("must be root")
+ 	}
+ 
+@@ -669,7 +670,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
+ 
+ func multicastRIBContains(ip IP) (bool, error) {
+ 	switch runtime.GOOS {
+-	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "illumos", "windows":
++	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "illumos":
+ 		return true, nil // not implemented yet
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 6ecdea6971..c4782031a4 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -1192,7 +1192,9 @@ func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
+ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
+ 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
+ }
+-func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
++func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
++	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
++}
+ 
+ func Getpid() (pid int) { return int(getCurrentProcessId()) }
+ 

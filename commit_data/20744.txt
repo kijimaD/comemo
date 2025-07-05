@@ -10,6 +10,36 @@ Date:   Mon Oct 6 15:49:07 2014 -0400
     R=golang-codereviews
     CC=adg, bradfitz, golang-codereviews, iant
     https://golang.org/cl/155910043
-
+---
  src/net/url/url.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 0b32cd7c8a..f167408fab 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -441,6 +441,24 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ }
+ 
+ // String reassembles the URL into a valid URL string.
++// The general form of the result is one of:
++//
++//	scheme:opaque
++//	scheme://userinfo@host/path?query#fragment
++//
++// If u.Opaque is non-empty, String uses the first form;
++// otherwise it uses the second form.
++//
++// In the second form, the following rules apply:
++//	- if u.Scheme is empty, scheme: is omitted.
++//	- if u.User is nil, userinfo@ is omitted.
++//	- if u.Host is empty, host/ is omitted.
++//	- if u.Scheme and u.Host are empty and u.User is nil,
++//	   the entire scheme://userinfo@host/ is omitted.
++//	- if u.Host is non-empty and u.Path begins with a /,
++//	   the form host/path does not add its own /.
++//	- if u.RawQuery is empty, ?query is omitted.
++//	- if u.Fragment is empty, #fragment is omitted.
+ func (u *URL) String() string {
+ 	var buf bytes.Buffer
+ 	if u.Scheme != "" {

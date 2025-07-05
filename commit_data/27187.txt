@@ -11,7 +11,7 @@ Date:   Mon Mar 14 12:45:18 2016 -0700
     Change-Id: I210be804a0c33370ec9977414918c02c675b0fbe
     Reviewed-on: https://go-review.googlesource.com/20691
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 26 ++++++-------
  src/cmd/compile/internal/gc/subr.go            |  9 -----
  src/cmd/compile/internal/gc/type.go            | 21 +++++++---
@@ -23,3 +23,417 @@ Date:   Mon Mar 14 12:45:18 2016 -0700
  src/cmd/compile/internal/ssa/type.go           | 54 +++++++++++++-------------
  src/cmd/compile/internal/ssa/type_test.go      | 48 +++++++++++------------
  10 files changed, 88 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 805420b966..56f2474635 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1865,7 +1865,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		t := n.Left.Type
+ 		if canSSAType(t) {
+ 			v := s.expr(n.Left)
+-			return s.newValue1I(ssa.OpStructSelect, n.Type, fieldIdx(n), v)
++			return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
+ 		}
+ 		p := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+@@ -1956,7 +1956,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 						// eface type could also be struct{p *byte; q [0]int}
+ 						continue
+ 					}
+-					data = s.newValue1I(ssa.OpStructSelect, f, i, data)
++					data = s.newValue1I(ssa.OpStructSelect, f, int64(i), data)
+ 					break
+ 				}
+ 			default:
+@@ -2186,11 +2186,11 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
+ 			new := s.newValue0(ssa.StructMakeOp(t.NumFields()), t)
+ 
+ 			// Add fields as args.
+-			for i := int64(0); i < nf; i++ {
++			for i := 0; i < nf; i++ {
+ 				if i == idx {
+ 					new.AddArg(right)
+ 				} else {
+-					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), i, old))
++					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), int64(i), old))
+ 				}
+ 			}
+ 
+@@ -2280,7 +2280,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+ 		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
+-		for i := int64(0); i < n; i++ {
++		for i := 0; i < n; i++ {
+ 			v.AddArg(s.zeroVal(t.FieldType(i).(*Type)))
+ 		}
+ 		return v
+@@ -2883,10 +2883,10 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+-		for i := int64(0); i < n; i++ {
++		for i := 0; i < n; i++ {
+ 			ft := t.FieldType(i)
+ 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
+ 			s.storeTypeScalars(ft.(*Type), addr, val)
+ 		}
+ 	default:
+@@ -2912,13 +2912,13 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+-		for i := int64(0); i < n; i++ {
++		for i := 0; i < n; i++ {
+ 			ft := t.FieldType(i)
+ 			if !haspointers(ft.(*Type)) {
+ 				continue
+ 			}
+ 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
+ 			s.storeTypePtrs(ft.(*Type), addr, val)
+ 		}
+ 	default:
+@@ -2943,13 +2943,13 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+-		for i := int64(0); i < n; i++ {
++		for i := 0; i < n; i++ {
+ 			ft := t.FieldType(i)
+ 			if !haspointers(ft.(*Type)) {
+ 				continue
+ 			}
+ 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
+ 			s.storeTypePtrsWB(ft.(*Type), addr, val)
+ 		}
+ 	default:
+@@ -3935,14 +3935,14 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
+ }
+ 
+ // fieldIdx finds the index of the field referred to by the ODOT node n.
+-func fieldIdx(n *Node) int64 {
++func fieldIdx(n *Node) int {
+ 	t := n.Left.Type
+ 	f := n.Right
+ 	if t.Etype != TSTRUCT {
+ 		panic("ODOT's LHS is not a struct")
+ 	}
+ 
+-	var i int64
++	var i int
+ 	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 		if t1.Sym != f.Sym {
+ 			i++
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 004b9b128e..df9702a59a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2199,15 +2199,6 @@ func liststmt(l []*Node) *Node {
+ 	return n
+ }
+ 
+-// return nelem of list
+-func structcount(t *Type) int {
+-	v := 0
+-	for t, it := IterFields(t); t != nil; t = it.Next() {
+-		v++
+-	}
+-	return v
+-}
+-
+ // return power of 2 of the constant
+ // operand. -1 if it is not a power of 2.
+ // 1000+ if it is a -(power of 2)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 797174fcab..2f05f4e5c5 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -643,14 +643,18 @@ func (t *Type) PtrTo() ssa.Type {
+ 	return Ptrto(t)
+ }
+ 
+-func (t *Type) NumFields() int64 {
+-	return int64(countfield(t))
++func (t *Type) NumFields() int {
++	n := 0
++	for f, it := IterFields(t); f != nil; f = it.Next() {
++		n++
++	}
++	return n
+ }
+-func (t *Type) FieldType(i int64) ssa.Type {
+-	return t.Field(int(i)).Type
++func (t *Type) FieldType(i int) ssa.Type {
++	return t.Field(i).Type
+ }
+-func (t *Type) FieldOff(i int64) int64 {
+-	return t.Field(int(i)).Width
++func (t *Type) FieldOff(i int) int64 {
++	return t.Field(i).Width
+ }
+ 
+ func (t *Type) NumElem() int64 {
+@@ -663,3 +667,8 @@ func (t *Type) NumElem() int64 {
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
++
++// TODO(mdempsky): Replace all of these with direct calls to t.NumFields().
++func countfield(t *Type) int  { return t.NumFields() }
++func downcount(t *Type) int   { return t.NumFields() }
++func structcount(t *Type) int { return t.NumFields() }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7df04c855a..cf3cadbe77 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2577,17 +2577,6 @@ func hasddd(t *Type) bool {
+ 	return false
+ }
+ 
+-// downcount is the same as countfield
+-// TODO decide if we want both (for semantic reasons)
+-func downcount(t *Type) int {
+-	n := 0
+-	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
+-		n++
+-	}
+-
+-	return n
+-}
+-
+ // typecheck assignment: type list = expression list
+ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc func() string) {
+ 	var t *Type
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index aff6a77947..b9f2b52107 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3072,14 +3072,6 @@ func eqfor(t *Type, needsize *int) *Node {
+ 	return n
+ }
+ 
+-func countfield(t *Type) int {
+-	n := 0
+-	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+-		n++
+-	}
+-	return n
+-}
+-
+ func walkcompare(np **Node, init *Nodes) {
+ 	n := *np
+ 
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 826eff1ee0..ba840878b9 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -192,9 +192,9 @@ func decomposeUser(f *Func) {
+ 		case t.IsStruct():
+ 			n := t.NumFields()
+ 			for _, v := range f.NamedValues[name] {
+-				for i := int64(0); i < n; i++ {
++				for i := 0; i < n; i++ {
+ 					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
+-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
++					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), v)
+ 					f.NamedValues[fname] = append(f.NamedValues[fname], x)
+ 				}
+ 			}
+@@ -219,12 +219,12 @@ func decomposeStructPhi(v *Value) {
+ 	t := v.Type
+ 	n := t.NumFields()
+ 	var fields [MaxStruct]*Value
+-	for i := int64(0); i < n; i++ {
++	for i := 0; i < n; i++ {
+ 		fields[i] = v.Block.NewValue0(v.Line, OpPhi, t.FieldType(i))
+ 	}
+ 	for _, a := range v.Args {
+-		for i := int64(0); i < n; i++ {
+-			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, a))
++		for i := 0; i < n; i++ {
++			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), a))
+ 		}
+ 	}
+ 	v.reset(StructMakeOp(n))
+@@ -244,7 +244,7 @@ const MaxStruct = 4
+ 
+ // StructMakeOp returns the opcode to construct a struct with the
+ // given number of fields.
+-func StructMakeOp(nf int64) Op {
++func StructMakeOp(nf int) Op {
+ 	switch nf {
+ 	case 0:
+ 		return OpStructMake0
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 2186d8921c..47aa6de52e 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -473,7 +473,7 @@
+     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+ 
+ (StructSelect [i] (Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
+-  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
++  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+ 
+ (Store _ (StructMake0) mem) -> mem
+ (Store dst (StructMake1 <t> f0) mem) ->
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 116d11e3d6..815468d94f 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7517,7 +7517,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+ 	}
+ 	// match: (StructSelect [i] (Load <t> ptr mem))
+ 	// cond: !config.fe.CanSSA(t)
+-	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
++	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+ 	for {
+ 		i := v.AuxInt
+ 		if v.Args[0].Op != OpLoad {
+@@ -7536,7 +7536,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+ 		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
+ 		v.reset(OpCopy)
+ 		v.AddArg(v1)
+-		v1.AuxInt = t.FieldOff(i)
++		v1.AuxInt = t.FieldOff(int(i))
+ 		v1.AddArg(ptr)
+ 		v0.AddArg(v1)
+ 		v0.AddArg(mem)
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 427fb011b8..8851e35579 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -31,9 +31,9 @@ type Type interface {
+ 	ElemType() Type // given []T or *T or [n]T, return T
+ 	PtrTo() Type    // given T, return *T
+ 
+-	NumFields() int64       // # of fields of a struct
+-	FieldType(i int64) Type // type of ith field of the struct
+-	FieldOff(i int64) int64 // offset of ith field of the struct
++	NumFields() int       // # of fields of a struct
++	FieldType(i int) Type // type of ith field of the struct
++	FieldOff(i int) int64 // offset of ith field of the struct
+ 
+ 	NumElem() int64 // # of elements of an array
+ 
+@@ -53,30 +53,30 @@ type CompilerType struct {
+ 	Int128 bool
+ }
+ 
+-func (t *CompilerType) Size() int64            { return t.size } // Size in bytes
+-func (t *CompilerType) Alignment() int64       { return 0 }
+-func (t *CompilerType) IsBoolean() bool        { return false }
+-func (t *CompilerType) IsInteger() bool        { return false }
+-func (t *CompilerType) IsSigned() bool         { return false }
+-func (t *CompilerType) IsFloat() bool          { return false }
+-func (t *CompilerType) IsComplex() bool        { return false }
+-func (t *CompilerType) IsPtr() bool            { return false }
+-func (t *CompilerType) IsString() bool         { return false }
+-func (t *CompilerType) IsSlice() bool          { return false }
+-func (t *CompilerType) IsArray() bool          { return false }
+-func (t *CompilerType) IsStruct() bool         { return false }
+-func (t *CompilerType) IsInterface() bool      { return false }
+-func (t *CompilerType) IsMemory() bool         { return t.Memory }
+-func (t *CompilerType) IsFlags() bool          { return t.Flags }
+-func (t *CompilerType) IsVoid() bool           { return t.Void }
+-func (t *CompilerType) String() string         { return t.Name }
+-func (t *CompilerType) SimpleString() string   { return t.Name }
+-func (t *CompilerType) ElemType() Type         { panic("not implemented") }
+-func (t *CompilerType) PtrTo() Type            { panic("not implemented") }
+-func (t *CompilerType) NumFields() int64       { panic("not implemented") }
+-func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
+-func (t *CompilerType) FieldOff(i int64) int64 { panic("not implemented") }
+-func (t *CompilerType) NumElem() int64         { panic("not implemented") }
++func (t *CompilerType) Size() int64          { return t.size } // Size in bytes
++func (t *CompilerType) Alignment() int64     { return 0 }
++func (t *CompilerType) IsBoolean() bool      { return false }
++func (t *CompilerType) IsInteger() bool      { return false }
++func (t *CompilerType) IsSigned() bool       { return false }
++func (t *CompilerType) IsFloat() bool        { return false }
++func (t *CompilerType) IsComplex() bool      { return false }
++func (t *CompilerType) IsPtr() bool          { return false }
++func (t *CompilerType) IsString() bool       { return false }
++func (t *CompilerType) IsSlice() bool        { return false }
++func (t *CompilerType) IsArray() bool        { return false }
++func (t *CompilerType) IsStruct() bool       { return false }
++func (t *CompilerType) IsInterface() bool    { return false }
++func (t *CompilerType) IsMemory() bool       { return t.Memory }
++func (t *CompilerType) IsFlags() bool        { return t.Flags }
++func (t *CompilerType) IsVoid() bool         { return t.Void }
++func (t *CompilerType) String() string       { return t.Name }
++func (t *CompilerType) SimpleString() string { return t.Name }
++func (t *CompilerType) ElemType() Type       { panic("not implemented") }
++func (t *CompilerType) PtrTo() Type          { panic("not implemented") }
++func (t *CompilerType) NumFields() int       { panic("not implemented") }
++func (t *CompilerType) FieldType(i int) Type { panic("not implemented") }
++func (t *CompilerType) FieldOff(i int) int64 { panic("not implemented") }
++func (t *CompilerType) NumElem() int64       { panic("not implemented") }
+ 
+ // Cmp is a comparison between values a and b.
+ // -1 if a < b
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 048eda5d66..bc55f8e8d0 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -24,30 +24,30 @@ type TypeImpl struct {
+ 	Name string
+ }
+ 
+-func (t *TypeImpl) Size() int64            { return t.Size_ }
+-func (t *TypeImpl) Alignment() int64       { return t.Align }
+-func (t *TypeImpl) IsBoolean() bool        { return t.Boolean }
+-func (t *TypeImpl) IsInteger() bool        { return t.Integer }
+-func (t *TypeImpl) IsSigned() bool         { return t.Signed }
+-func (t *TypeImpl) IsFloat() bool          { return t.Float }
+-func (t *TypeImpl) IsComplex() bool        { return t.Complex }
+-func (t *TypeImpl) IsPtr() bool            { return t.Ptr }
+-func (t *TypeImpl) IsString() bool         { return t.string }
+-func (t *TypeImpl) IsSlice() bool          { return t.slice }
+-func (t *TypeImpl) IsArray() bool          { return t.array }
+-func (t *TypeImpl) IsStruct() bool         { return t.struct_ }
+-func (t *TypeImpl) IsInterface() bool      { return t.inter }
+-func (t *TypeImpl) IsMemory() bool         { return false }
+-func (t *TypeImpl) IsFlags() bool          { return false }
+-func (t *TypeImpl) IsVoid() bool           { return false }
+-func (t *TypeImpl) String() string         { return t.Name }
+-func (t *TypeImpl) SimpleString() string   { return t.Name }
+-func (t *TypeImpl) ElemType() Type         { return t.Elem_ }
+-func (t *TypeImpl) PtrTo() Type            { panic("not implemented") }
+-func (t *TypeImpl) NumFields() int64       { panic("not implemented") }
+-func (t *TypeImpl) FieldType(i int64) Type { panic("not implemented") }
+-func (t *TypeImpl) FieldOff(i int64) int64 { panic("not implemented") }
+-func (t *TypeImpl) NumElem() int64         { panic("not implemented") }
++func (t *TypeImpl) Size() int64          { return t.Size_ }
++func (t *TypeImpl) Alignment() int64     { return t.Align }
++func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool      { return t.Integer }
++func (t *TypeImpl) IsSigned() bool       { return t.Signed }
++func (t *TypeImpl) IsFloat() bool        { return t.Float }
++func (t *TypeImpl) IsComplex() bool      { return t.Complex }
++func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
++func (t *TypeImpl) IsString() bool       { return t.string }
++func (t *TypeImpl) IsSlice() bool        { return t.slice }
++func (t *TypeImpl) IsArray() bool        { return t.array }
++func (t *TypeImpl) IsStruct() bool       { return t.struct_ }
++func (t *TypeImpl) IsInterface() bool    { return t.inter }
++func (t *TypeImpl) IsMemory() bool       { return false }
++func (t *TypeImpl) IsFlags() bool        { return false }
++func (t *TypeImpl) IsVoid() bool         { return false }
++func (t *TypeImpl) String() string       { return t.Name }
++func (t *TypeImpl) SimpleString() string { return t.Name }
++func (t *TypeImpl) ElemType() Type       { return t.Elem_ }
++func (t *TypeImpl) PtrTo() Type          { panic("not implemented") }
++func (t *TypeImpl) NumFields() int       { panic("not implemented") }
++func (t *TypeImpl) FieldType(i int) Type { panic("not implemented") }
++func (t *TypeImpl) FieldOff(i int) int64 { panic("not implemented") }
++func (t *TypeImpl) NumElem() int64       { panic("not implemented") }
+ 
+ func (t *TypeImpl) Equal(u Type) bool {
+ 	x, ok := u.(*TypeImpl)

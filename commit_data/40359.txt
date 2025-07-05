@@ -16,7 +16,80 @@ Date:   Tue Apr 30 14:56:12 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue29781.go | 11 +++++++++++
  src/cmd/cgo/godefs.go       | 36 +++++++++++++++++++++++-------------
  2 files changed, 34 insertions(+), 13 deletions(-)
+
+diff --git a/misc/cgo/test/issue29781.go b/misc/cgo/test/issue29781.go
+index 0fd8c08b8e..c80919dc17 100644
+--- a/misc/cgo/test/issue29781.go
++++ b/misc/cgo/test/issue29781.go
+@@ -11,7 +11,18 @@ package cgotest
+ // #define ISSUE29781C 0
+ import "C"
+ 
++var issue29781X struct{ X int }
++
++func issue29781F(...int) int { return 0 }
++
+ func issue29781G() {
+ 	var p *C.char
+ 	C.issue29781F(&p, C.ISSUE29781C+1)
++	C.issue29781F(nil, (C.int)(
++		0))
++	C.issue29781F(&p, (C.int)(0))
++	C.issue29781F(&p, (C.int)(
++		0))
++	C.issue29781F(&p, (C.int)(issue29781X.
++		X))
+ }
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 64384a606b..b4fd9c5a6e 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -136,21 +136,31 @@ func gofmt(n interface{}) string {
+ // (due to the printer possibly inserting newlines because of position
+ // information) operators.
+ var gofmtLineReplacer = strings.NewReplacer(
+-	"{\n", "{",
+-	",\n", ",",
++	// Want to replace \n without ; after everything from
++	// https://golang.org/ref/spec#Operators_and_punctuation
++	// EXCEPT ++ -- ) ] }
+ 	"++\n", "++;",
+ 	"--\n", "--;",
+-	"+\n", "+",
+-	"-\n", "-",
+-	"*\n", "*",
+-	"/\n", "/",
+-	"%\n", "%",
+-	"&\n", "&",
+-	"|\n", "|",
+-	"^\n", "^",
+-	"<\n", "<",
+-	">\n", ">",
+-	"=\n", "=",
++
++	"+\n", "+ ",
++	"-\n", "- ",
++	"*\n", "* ",
++	"/\n", "/ ",
++	"%\n", "% ",
++	"&\n", "& ",
++	"|\n", "| ",
++	"^\n", "^ ",
++	"<\n", "< ",
++	">\n", "> ",
++	"=\n", "= ",
++	"!\n", "! ", // not possible in gofmt today
++	"(\n", "(",
++	"[\n", "[", // not possible in gofmt today
++	"{\n", "{",
++	",\n", ",",
++	".\n", ". ",
++	":\n", ": ", // not possible in gofmt today
++
+ 	"\n", ";",
+ )
+ 

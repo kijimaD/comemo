@@ -13,6 +13,30 @@ Date:   Fri Jun 16 11:48:09 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index abc56de533..4490784236 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -185,12 +185,15 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 
+ 	select {
+ 	case <-ctx.Done():
+-		// The DNS lookup timed out for some reason. Force
++		// If the DNS lookup timed out for some reason, force
+ 		// future requests to start the DNS lookup again
+ 		// rather than waiting for the current lookup to
+ 		// complete. See issue 8602.
+-		err := mapErr(ctx.Err())
+-		lookupGroup.Forget(host)
++		ctxErr := ctx.Err()
++		if ctxErr == context.DeadlineExceeded {
++			lookupGroup.Forget(host)
++		}
++		err := mapErr(ctxErr)
+ 		if trace != nil && trace.DNSDone != nil {
+ 			trace.DNSDone(nil, false, err)
+ 		}

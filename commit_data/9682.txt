@@ -7,6 +7,22 @@ Date:   Wed Sep 14 11:18:43 2011 -0700
     R=golang-dev, cw
     CC=golang-dev
     https://golang.org/cl/5004045
-
+---
  src/pkg/path/filepath/path.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 668d20fa13..c40d9ff564 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -302,7 +302,9 @@ func walk(path string, info *os.FileInfo, walkFn WalkFunc) os.Error {
+ 
+ // Walk walks the file tree rooted at root, calling walkFn for each file or
+ // directory in the tree, including root. All errors that arise visiting files
+-// and directories are filtered by walkFn.
++// and directories are filtered by walkFn. The files are walked in lexical
++// order, which makes the output deterministic but means that for very
++// large directories Walk can be inefficient.
+ func Walk(root string, walkFn WalkFunc) os.Error {
+ 	info, err := os.Lstat(root)
+ 	if err != nil {

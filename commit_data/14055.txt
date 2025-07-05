@@ -9,7 +9,7 @@ Date:   Sun Oct 7 18:37:05 2012 +0200
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6620070
-
+---
  test/fixedbugs/bug083.go                       |  7 ++----
  test/fixedbugs/bug133.go                       |  7 ++----
  test/fixedbugs/bug160.go                       |  7 ++----
@@ -24,3 +24,260 @@ Date:   Sun Oct 7 18:37:05 2012 +0200
  test/fixedbugs/bug414.go                       |  7 +++---
  test/run.go                                    | 15 +++---------
  13 files changed, 59 insertions(+), 80 deletions(-)
+
+diff --git a/test/fixedbugs/bug083.go b/test/fixedbugs/bug083.go
+index 8bdecaadb5..54a17423a0 100644
+--- a/test/fixedbugs/bug083.go
++++ b/test/fixedbugs/bug083.go
+@@ -1,10 +1,7 @@
+-// $G $D/$F.dir/bug0.go && errchk $G $D/$F.dir/bug1.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// errorcheckdir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-ignored
++package ignored
+diff --git a/test/fixedbugs/bug133.go b/test/fixedbugs/bug133.go
+index a6baac26ca..54a17423a0 100644
+--- a/test/fixedbugs/bug133.go
++++ b/test/fixedbugs/bug133.go
+@@ -1,10 +1,7 @@
+-// $G $D/$F.dir/bug0.go && $G $D/$F.dir/bug1.go && errchk $G $D/$F.dir/bug2.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// errorcheckdir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-ignored
++package ignored
+diff --git a/test/fixedbugs/bug160.go b/test/fixedbugs/bug160.go
+index c5e166a0cf..fde797bfcd 100644
+--- a/test/fixedbugs/bug160.go
++++ b/test/fixedbugs/bug160.go
+@@ -1,10 +1,7 @@
+-// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-nothing to see here
++package ignored
+diff --git a/test/fixedbugs/bug322.go b/test/fixedbugs/bug322.go
+index 401a8600a9..21efbb5593 100644
+--- a/test/fixedbugs/bug322.go
++++ b/test/fixedbugs/bug322.go
+@@ -1,11 +1,8 @@
+-// $G $D/$F.dir/lib.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: fails incorrectly
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Test case for issue 1402.
+-ignored
++package ignored
+diff --git a/test/fixedbugs/bug324.dir/main.go b/test/fixedbugs/bug324.dir/prog.go
+similarity index 100%
+rename from test/fixedbugs/bug324.dir/main.go
+rename to test/fixedbugs/bug324.dir/prog.go
+diff --git a/test/fixedbugs/bug324.go b/test/fixedbugs/bug324.go
+index ee090ae42f..36b8b56d12 100644
+--- a/test/fixedbugs/bug324.go
++++ b/test/fixedbugs/bug324.go
+@@ -1,11 +1,10 @@
+-// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for issue 1550
+-ignored
++// Test case for issue 1550: a type cannot implement an interface
++// from another package with a private method, and type assertions
++// should fail.
++package ignored
+diff --git a/test/fixedbugs/bug367.dir/main.go b/test/fixedbugs/bug367.dir/prog.go
+similarity index 100%
+rename from test/fixedbugs/bug367.dir/main.go
+rename to test/fixedbugs/bug367.dir/prog.go
+diff --git a/test/fixedbugs/bug367.go b/test/fixedbugs/bug367.go
+index bf8edcd1b8..05252cd9a6 100644
+--- a/test/fixedbugs/bug367.go
++++ b/test/fixedbugs/bug367.go
+@@ -1,10 +1,10 @@
+-// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: should not fail
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Issue 1536: bug when handling imported interfaces with
++// private methods.
++
+ package ignored
+diff --git a/test/fixedbugs/bug414.dir/main.go b/test/fixedbugs/bug414.dir/main.go
+deleted file mode 100644
+index 52001233c6..0000000000
+--- a/test/fixedbugs/bug414.dir/main.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-	  package main
+-	
+-	  import "./p1"
+-	
+-	  type MyObject struct {
+-	    p1.Fer
+-	  }
+-	
+-	  func main() {
+-	    var b p1.Fer = &p1.Object{}
+-	    p1.PrintFer(b)
+-	    var c p1.Fer = &MyObject{b}
+-	    p1.PrintFer(c)
+-	  }
+diff --git a/test/fixedbugs/bug414.dir/p1.go b/test/fixedbugs/bug414.dir/p1.go
+index 7768818bf9..2463834843 100644
+--- a/test/fixedbugs/bug414.dir/p1.go
++++ b/test/fixedbugs/bug414.dir/p1.go
+@@ -2,20 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-	  package p1
+-	
+-	  import "fmt"
+-	
+-	  type Fer interface {
+-	    f() string
+-	  }
+-	
+-	  type Object struct {}
+-	
+-	  func (this *Object) f() string {
+-	    return "Object.f"
+-	  }
+-	
+-	  func PrintFer(fer Fer) {
+-	    fmt.Sprintln(fer.f())
+-	  }
++package p1
++
++import "fmt"
++
++type Fer interface {
++	f() string
++}
++
++type Object struct{}
++
++func (this *Object) f() string {
++	return "Object.f"
++}
++
++func PrintFer(fer Fer) {
++	fmt.Sprintln(fer.f())
++}
+diff --git a/test/fixedbugs/bug414.dir/prog.go b/test/fixedbugs/bug414.dir/prog.go
+new file mode 100644
+index 0000000000..f55d946968
+--- /dev/null
++++ b/test/fixedbugs/bug414.dir/prog.go
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./p1"
++
++type MyObject struct {
++	p1.Fer
++}
++
++func main() {
++	var b p1.Fer = &p1.Object{}
++	p1.PrintFer(b)
++	var c p1.Fer = &MyObject{b}
++	p1.PrintFer(c)
++}
+diff --git a/test/fixedbugs/bug414.go b/test/fixedbugs/bug414.go
+index 5612fd5c23..35e19be38e 100644
+--- a/test/fixedbugs/bug414.go
++++ b/test/fixedbugs/bug414.go
+@@ -1,10 +1,9 @@
+-// $G $D/$F.dir/p1.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Issue 1743: test embedding of imported types with private methods.
++
+ package ignored
+diff --git a/test/run.go b/test/run.go
+index 49bcd96c94..c22bfb2ec3 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -672,22 +672,15 @@ var skipOkay = map[string]bool{
+ 	"dwarf/z7.go":             true,
+ 	"dwarf/z8.go":             true,
+ 	"dwarf/z9.go":             true,
+-	"fixedbugs/bug083.go":     true,
+-	"fixedbugs/bug133.go":     true,
+-	"fixedbugs/bug160.go":     true,
+ 	"fixedbugs/bug191.go":     true,
+-	"fixedbugs/bug248.go":     true,
+-	"fixedbugs/bug302.go":     true,
+-	"fixedbugs/bug313.go":     true,
+-	"fixedbugs/bug322.go":     true,
+-	"fixedbugs/bug324.go":     true,
+-	"fixedbugs/bug345.go":     true,
+-	"fixedbugs/bug367.go":     true,
++	"fixedbugs/bug248.go":     true, // combines errorcheckdir and rundir in the same dir.
++	"fixedbugs/bug302.go":     true, // tests both .$O and .a imports.
++	"fixedbugs/bug313.go":     true, // errorcheckdir with failures in the middle.
++	"fixedbugs/bug345.go":     true, // needs the appropriate flags in gc invocation.
+ 	"fixedbugs/bug369.go":     true,
+ 	"fixedbugs/bug382.go":     true,
+ 	"fixedbugs/bug385_32.go":  true,
+ 	"fixedbugs/bug385_64.go":  true,
+-	"fixedbugs/bug414.go":     true,
+ 	"fixedbugs/bug424.go":     true,
+ 	"fixedbugs/bug429.go":     true,
+ 	"fixedbugs/bug437.go":     true,

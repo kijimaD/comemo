@@ -12,6 +12,33 @@ Date:   Tue Dec 16 14:06:53 2014 +1100
     Change-Id: If707bcc698d1666a369b39ddfa9770685fbe3879
     Reviewed-on: https://go-review.googlesource.com/1579
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/net/textproto/reader.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index eea9207f25..09b3352edd 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -13,10 +13,6 @@ import (
+ 	"strings"
+ )
+ 
+-// BUG(rsc): To let callers manage exposure to denial of service
+-// attacks, Reader should allow them to set and reset a limit on
+-// the number of bytes read from the connection.
+-
+ // A Reader implements convenience methods for reading requests
+ // or responses from a text protocol network connection.
+ type Reader struct {
+@@ -26,6 +22,10 @@ type Reader struct {
+ }
+ 
+ // NewReader returns a new Reader reading from r.
++//
++// To avoid denial of service attacks, the provided bufio.Reader
++// should be reading from an io.LimitReader or similar Reader to bound
++// the size of responses.
+ func NewReader(r *bufio.Reader) *Reader {
+ 	return &Reader{R: r}
+ }

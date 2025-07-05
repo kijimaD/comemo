@@ -7,7 +7,7 @@ Date:   Tue Mar 24 15:04:18 2009 -0700
     TBR=r
     OCL=26686
     CL=26688
-
+---
  src/runtime/darwin/signal.c    |   1 +
  src/runtime/linux/amd64/defs.h | 203 +++++++++++++++++++++++++++++++++--------
  src/runtime/linux/defs.c       |  42 +++++++++
@@ -16,3 +16,599 @@ Date:   Tue Mar 24 15:04:18 2009 -0700
  src/runtime/linux/signal.c     | 193 +++++++++------------------------------
  src/runtime/linux/thread.c     |   7 +-
  7 files changed, 292 insertions(+), 189 deletions(-)
+
+diff --git a/src/runtime/darwin/signal.c b/src/runtime/darwin/signal.c
+index 2325b503cf..374b6bd6f7 100644
+--- a/src/runtime/darwin/signal.c
++++ b/src/runtime/darwin/signal.c
+@@ -64,6 +64,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		dumpregs(r);
+ 	}
+ 
++	sys·Breakpoint();
+ 	sys_Exit(2);
+ }
+ 
+diff --git a/src/runtime/linux/amd64/defs.h b/src/runtime/linux/amd64/defs.h
+index e4c9ec08ca..43b0475239 100644
+--- a/src/runtime/linux/amd64/defs.h
++++ b/src/runtime/linux/amd64/defs.h
+@@ -1,48 +1,175 @@
+-/*
+- *  System structs for Linux, amd64
+- */
+-
+-typedef uint64 dev_t;
+-typedef uint64 ino_t;
+-typedef uint32 mode_t;
+-typedef uint64 nlink_t;
+-typedef uint32 uid_t;
+-typedef uint32 gid_t;
+-typedef int64 off_t;
+-typedef int64 blksize_t;
+-typedef int64 blkcnt_t;
+-typedef int64 time_t;
+-
+-struct timespec {
+-	time_t tv_sec;
++// godefs -f -m64 defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x20,
++	MAP_PRIVATE = 0x2,
++	SA_RESTART = 0x10000000,
++	SA_ONSTACK = 0x8000000,
++	SA_RESTORER = 0x4000000,
++	SA_SIGINFO = 0x4,
++};
++
++// Types
++#pragma pack on
++
++typedef struct Timespec Timespec;
++struct Timespec {
++	int64 tv_sec;
+ 	int64 tv_nsec;
+ };
+ 
+-struct timeval {
+-	time_t tv_sec;
++typedef struct Timeval Timeval;
++struct Timeval {
++	int64 tv_sec;
+ 	int64 tv_usec;
+ };
+ 
+-struct stat {
+-	dev_t	st_dev;     /* ID of device containing file */
+-	ino_t	st_ino;     /* inode number */
+-	nlink_t	st_nlink;   /* number of hard links */
+-	mode_t	st_mode;    /* protection */
+-	uid_t	st_uid;     /* user ID of owner */
+-	gid_t	st_gid;     /* group ID of owner */
+-	int32	pad0;
+-	dev_t	st_rdev;    /* device ID (if special file) */
+-	off_t	st_size;    /* total size, in bytes */
+-	blksize_t st_blksize; /* blocksize for filesystem I/O */
+-	blkcnt_t	st_blocks;  /* number of blocks allocated */
+-	struct timespec	st_atime;   /* time of last access */
+-	struct timespec	st_mtime;   /* time of last modification */
+-	struct timespec	st_ctime;   /* time of last status change */
++typedef struct Sigaction Sigaction;
++struct Sigaction {
++	void *sa_handler;
++	uint64 sa_flags;
++	void *sa_restorer;
++	uint64 sa_mask;
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	byte pad0[4];
++	byte _sifields[112];
+ };
++#pragma pack off
++// godefs -f -m64 defs1.c
++
++// MACHINE GENERATED - DO NOT EDIT.
+ 
+-#define	O_CREAT	0100
++// Constants
+ 
+-// Linux-specific system calls
+-int64	futex(uint32*, int32, uint32, struct timespec*, uint32*, uint32);
+-int64	clone(int32, void*, M*, G*, void(*)(void));
++// Types
++#pragma pack on
+ 
++typedef struct Usigset Usigset;
++struct Usigset {
++	uint64 __val[16];
++};
++
++typedef struct Fpxreg Fpxreg;
++struct Fpxreg {
++	uint16 significand[4];
++	uint16 exponent;
++	uint16 padding[3];
++};
++
++typedef struct Xmmreg Xmmreg;
++struct Xmmreg {
++	uint32 element[4];
++};
++
++typedef struct Fpstate Fpstate;
++struct Fpstate {
++	uint16 cwd;
++	uint16 swd;
++	uint16 ftw;
++	uint16 fop;
++	uint64 rip;
++	uint64 rdp;
++	uint32 mxcsr;
++	uint32 mxcr_mask;
++	Fpxreg _st[8];
++	Xmmreg _xmm[16];
++	uint32 padding[24];
++};
++
++typedef struct Fpxreg1 Fpxreg1;
++struct Fpxreg1 {
++	uint16 significand[4];
++	uint16 exponent;
++	uint16 padding[3];
++};
++
++typedef struct Xmmreg1 Xmmreg1;
++struct Xmmreg1 {
++	uint32 element[4];
++};
++
++typedef struct Fpstate1 Fpstate1;
++struct Fpstate1 {
++	uint16 cwd;
++	uint16 swd;
++	uint16 ftw;
++	uint16 fop;
++	uint64 rip;
++	uint64 rdp;
++	uint32 mxcsr;
++	uint32 mxcr_mask;
++	Fpxreg1 _st[8];
++	Xmmreg1 _xmm[16];
++	uint32 padding[24];
++};
++
++typedef struct Sigaltstack Sigaltstack;
++struct Sigaltstack {
++	void *ss_sp;
++	int32 ss_flags;
++	byte pad0[4];
++	uint64 ss_size;
++};
++
++typedef struct Mcontext Mcontext;
++struct Mcontext {
++	int64 gregs[23];
++	Fpstate *fpregs;
++	uint64 __reserved1[8];
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	uint64 uc_flags;
++	Ucontext *uc_link;
++	Sigaltstack uc_stack;
++	Mcontext uc_mcontext;
++	Usigset uc_sigmask;
++	Fpstate __fpregs_mem;
++};
++
++typedef struct Sigcontext Sigcontext;
++struct Sigcontext {
++	uint64 r8;
++	uint64 r9;
++	uint64 r10;
++	uint64 r11;
++	uint64 r12;
++	uint64 r13;
++	uint64 r14;
++	uint64 r15;
++	uint64 rdi;
++	uint64 rsi;
++	uint64 rbp;
++	uint64 rbx;
++	uint64 rdx;
++	uint64 rax;
++	uint64 rcx;
++	uint64 rsp;
++	uint64 rip;
++	uint64 eflags;
++	uint16 cs;
++	uint16 gs;
++	uint16 fs;
++	uint16 __pad0;
++	uint64 err;
++	uint64 trapno;
++	uint64 oldmask;
++	uint64 cr2;
++	Fpstate1 *fpstate;
++	uint64 __reserved1[8];
++};
++#pragma pack off
+diff --git a/src/runtime/linux/defs.c b/src/runtime/linux/defs.c
+new file mode 100644
+index 0000000000..9e635b429a
+--- /dev/null
++++ b/src/runtime/linux/defs.c
+@@ -0,0 +1,42 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Input to godefs
++	godefs -f -m64 defs.c >amd64/defs.h
++	godefs -f -m64 defs1.c >>amd64/defs.h
++	godefs defs.c >386/defs.h
++	godefs defs1.c >>386/defs.h
++ */
++
++// Linux glibc and Linux kernel define different and conflicting
++// definitions for struct sigaction, struct timespec, etc.
++// We want the kernel ones, which are in the asm/* headers.
++// But then we'd get conflicts when we include the system
++// headers for things like ucontext_t, so that happens in
++// a separate file, defs1.c.
++
++#include <asm/signal.h>
++#include <asm/siginfo.h>
++#include <asm/mman.h>
++
++enum {
++	$PROT_NONE = PROT_NONE,
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$PROT_EXEC = PROT_EXEC,
++
++	$MAP_ANON = MAP_ANONYMOUS,
++	$MAP_PRIVATE = MAP_PRIVATE,
++
++	$SA_RESTART = SA_RESTART,
++	$SA_ONSTACK = SA_ONSTACK,
++	$SA_RESTORER = SA_RESTORER,
++	$SA_SIGINFO = SA_SIGINFO,
++};
++
++typedef struct timespec $Timespec;
++typedef struct timeval $Timeval;
++typedef struct sigaction $Sigaction;
++typedef siginfo_t $Siginfo;
+diff --git a/src/runtime/linux/defs1.c b/src/runtime/linux/defs1.c
+new file mode 100644
+index 0000000000..72de5c1fd6
+--- /dev/null
++++ b/src/runtime/linux/defs1.c
+@@ -0,0 +1,25 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Input to godefs
++	godefs -f -m64 defs.c >amd64/defs.h
++	godefs -f -m64 defs1.c >>amd64/defs.h
++	godefs defs.c >386/defs.h
++	godefs defs1.c >>386/defs.h
++ */
++
++#include <ucontext.h>
++
++typedef __sigset_t $Usigset;
++typedef struct _libc_fpxreg $Fpxreg;
++typedef struct _libc_xmmreg $Xmmreg;
++typedef struct _libc_fpstate $Fpstate;
++typedef struct _fpxreg $Fpxreg1;
++typedef struct _xmmreg $Xmmreg1;
++typedef struct _fpstate $Fpstate1;
++typedef struct sigaltstack $Sigaltstack;
++typedef mcontext_t $Mcontext;
++typedef ucontext_t $Ucontext;
++typedef struct sigcontext $Sigcontext;
+diff --git a/src/runtime/linux/os.h b/src/runtime/linux/os.h
+new file mode 100644
+index 0000000000..c616193676
+--- /dev/null
++++ b/src/runtime/linux/os.h
+@@ -0,0 +1,10 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linux-specific system calls
++int64	futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
++int64	clone(int32, void*, M*, G*, void(*)(void));
++
++struct Sigaction;
++void	rt_sigaction(int64, struct Sigaction*, void*, uint64);
+diff --git a/src/runtime/linux/signal.c b/src/runtime/linux/signal.c
+index 5805f35abf..87bea263af 100644
+--- a/src/runtime/linux/signal.c
++++ b/src/runtime/linux/signal.c
+@@ -5,102 +5,34 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "signals.h"
+-
+-/* From /usr/include/asm-x86_64/sigcontext.h */
+-struct _fpstate {
+-  uint16   cwd;
+-  uint16   swd;
+-  uint16   twd;    /* Note this is not the same as the 32bit/x87/FSAVE twd */
+-  uint16   fop;
+-  uint64   rip;
+-  uint32   rdp;
+-  uint32   mxcsr;
+-  uint32   mxcsr_mask;
+-  uint32   st_space[32];   /* 8*16 bytes for each FP-reg */
+-  uint32   xmm_space[64];  /* 16*16 bytes for each XMM-reg  */
+-  uint32   reserved2[24];
+-};
+-
+-struct sigcontext {
+-  uint64 r8;
+-  uint64 r9;
+-  uint64 r10;
+-  uint64 r11;
+-  uint64 r12;
+-  uint64 r13;
+-  uint64 r14;
+-  uint64 r15;
+-  uint64 rdi;
+-  uint64 rsi;
+-  uint64 rbp;
+-  uint64 rbx;
+-  uint64 rdx;
+-  uint64 rax;
+-  uint64 rcx;
+-  uint64 rsp;
+-  uint64 rip;
+-  uint64 eflags;           /* RFLAGS */
+-  uint16 cs;
+-  uint16 gs;
+-  uint16 fs;
+-  uint16 __pad0;
+-  uint64 err;
+-  uint64 trapno;
+-  uint64 oldmask;
+-  uint64 cr2;
+-  struct _fpstate *fpstate;       /* zero when no FPU context */
+-  uint64 reserved1[8];
+-};
+-
+-
+-/* From /usr/include/asm-x86_64/signal.h */
+-typedef struct sigaltstack {
+-	void /*__user*/ *ss_sp;
+-	int32 ss_flags;
+-	uint64 ss_size;
+-} stack_t;
+-
+-typedef uint64 sigset_t;
+-
+-
+-/* From /usr/include/asm-x86_64/ucontext.h */
+-struct ucontext {
+-  uint64            uc_flags;
+-  struct ucontext  *uc_link;
+-  stack_t           uc_stack;
+-  struct sigcontext uc_mcontext;
+-  sigset_t          uc_sigmask;   /* mask last for extensibility */
+-};
+-
++#include "os.h"
+ 
+ void
+-print_sigcontext(struct sigcontext *sc)
++dumpregs(Sigcontext *r)
+ {
+-	prints("\nrax     ");  sys·printhex(sc->rax);
+-	prints("\nrbx     ");  sys·printhex(sc->rbx);
+-	prints("\nrcx     ");  sys·printhex(sc->rcx);
+-	prints("\nrdx     ");  sys·printhex(sc->rdx);
+-	prints("\nrdi     ");  sys·printhex(sc->rdi);
+-	prints("\nrsi     ");  sys·printhex(sc->rsi);
+-	prints("\nrbp     ");  sys·printhex(sc->rbp);
+-	prints("\nrsp     ");  sys·printhex(sc->rsp);
+-	prints("\nr8      ");  sys·printhex(sc->r8 );
+-	prints("\nr9      ");  sys·printhex(sc->r9 );
+-	prints("\nr10     ");  sys·printhex(sc->r10);
+-	prints("\nr11     ");  sys·printhex(sc->r11);
+-	prints("\nr12     ");  sys·printhex(sc->r12);
+-	prints("\nr13     ");  sys·printhex(sc->r13);
+-	prints("\nr14     ");  sys·printhex(sc->r14);
+-	prints("\nr15     ");  sys·printhex(sc->r15);
+-	prints("\nrip     ");  sys·printhex(sc->rip);
+-	prints("\nrflags  ");  sys·printhex(sc->eflags);
+-	prints("\ncs      ");  sys·printhex(sc->cs);
+-	prints("\nfs      ");  sys·printhex(sc->fs);
+-	prints("\ngs      ");  sys·printhex(sc->gs);
+-	prints("\n");
++	printf("rax     %X\n", r->rax);
++	printf("rbx     %X\n", r->rbx);
++	printf("rcx     %X\n", r->rcx);
++	printf("rdx     %X\n", r->rdx);
++	printf("rdi     %X\n", r->rdi);
++	printf("rsi     %X\n", r->rsi);
++	printf("rbp     %X\n", r->rbp);
++	printf("rsp     %X\n", r->rsp);
++	printf("r8      %X\n", r->r8 );
++	printf("r9      %X\n", r->r9 );
++	printf("r10     %X\n", r->r10);
++	printf("r11     %X\n", r->r11);
++	printf("r12     %X\n", r->r12);
++	printf("r13     %X\n", r->r13);
++	printf("r14     %X\n", r->r14);
++	printf("r15     %X\n", r->r15);
++	printf("rip     %X\n", r->rip);
++	printf("rflags  %X\n", r->eflags);
++	printf("cs      %X\n", (uint64)r->cs);
++	printf("fs      %X\n", (uint64)r->fs);
++	printf("gs      %X\n", (uint64)r->gs);
+ }
+ 
+-
+ /*
+  * This assembler routine takes the args from registers, puts them on the stack,
+  * and calls sighandler().
+@@ -109,89 +41,54 @@ extern void sigtramp(void);
+ extern void sigignore(void);	// just returns
+ extern void sigreturn(void);	// calls sigreturn
+ 
+-/*
+- * Rudimentary reverse-engineered definition of signal interface.
+- * You'd think it would be documented.
+- */
+-/* From /usr/include/bits/siginfo.h */
+-struct siginfo {
+-	int32	si_signo;		/* signal number */
+-	int32	si_errno;		/* errno association */
+-	int32	si_code;		/* signal code */
+-	int32	si_status;		/* exit value */
+-	void	*si_addr;		/* faulting address */
+-	/* more stuff here */
+-};
+-
+-// This is a struct sigaction from /usr/include/asm/signal.h
+-struct sigaction {
+-	void (*sa_handler)(int32, struct siginfo*, void*);
+-	uint64 sa_flags;
+-	void (*sa_restorer)(void);
+-	uint64 sa_mask;
+-};
+-
+ void
+-sighandler(int32 sig, struct siginfo* info, void** context)
++sighandler(int32 sig, Siginfo* info, void* context)
+ {
++	Ucontext *uc;
++	Mcontext *mc;
++	Sigcontext *sc;
++
+ 	if(panicking)	// traceback already printed
+ 		sys_Exit(2);
+ 
+-	struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
++	uc = context;
++	mc = &uc->uc_mcontext;
++	sc = (Sigcontext*)mc;	// same layout, more conveient names
+ 
+-	if(sig < 0 || sig >= NSIG){
+-		prints("Signal ");
+-		sys·printint(sig);
+-	}else{
+-		prints(sigtab[sig].name);
+-	}
++	if(sig < 0 || sig >= NSIG)
++		printf("Signal %d\n", sig);
++	else
++		printf("%s\n", sigtab[sig].name);
+ 
+-	prints("\nFaulting address: ");  sys·printpointer(info->si_addr);
+-	prints("\npc: ");  sys·printhex(sc->rip);
+-	prints("\n\n");
++	printf("Faulting address: %p\n", *(void**)info->_sifields);
++	printf("PC=%X\n", sc->rip);
++	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
++		traceback((void*)sc->rip, (void*)sc->rsp, (void*)sc->r15);
+ 		tracebackothers((void*)sc->r15);
+-		print_sigcontext(sc);
++		dumpregs(sc);
+ 	}
+ 
+ 	sys·Breakpoint();
+ 	sys_Exit(2);
+ }
+ 
+-struct stack_t {
+-	void *sp;
+-	int32 flags;
+-	int32 pad;
+-	int64 size;
+-};
+-
+ void
+ signalstack(byte *p, int32 n)
+ {
+-	struct stack_t st;
++	Sigaltstack st;
+ 
+-	st.sp = p;
+-	st.size = n;
+-	st.pad = 0;
+-	st.flags = 0;
++	st.ss_sp = p;
++	st.ss_size = n;
++	st.ss_flags = 0;
+ 	sigaltstack(&st, nil);
+ }
+ 
+-void	rt_sigaction(int64, void*, void*, uint64);
+-
+-enum {
+-	SA_RESTART = 0x10000000,
+-	SA_ONSTACK = 0x08000000,
+-	SA_RESTORER = 0x04000000,
+-	SA_SIGINFO = 0x00000004,
+-};
+-
+ void
+ initsig(void)
+ {
+-	static struct sigaction sa;
++	static Sigaction sa;
+ 
+ 	int32 i;
+ 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+diff --git a/src/runtime/linux/thread.c b/src/runtime/linux/thread.c
+index df24b0712d..4375eca9fc 100644
+--- a/src/runtime/linux/thread.c
++++ b/src/runtime/linux/thread.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "signals.h"
++#include "os.h"
+ 
+ // Linux futex.
+ //
+@@ -24,12 +25,12 @@ enum
+ 	EAGAIN = 11,
+ };
+ 
+-// TODO(rsc) I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
++// TODO(rsc): I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
+ // I wonder if the timespec that gets to the kernel
+-// actually has two 32-bit numbers in it, so tha
++// actually has two 32-bit numbers in it, so that
+ // a 64-bit 1<<40 ends up being 0 seconds,
+ // 1<<8 nanoseconds.
+-static struct timespec longtime =
++static Timespec longtime =
+ {
+ 	1<<30,	// 34 years
+ 	0

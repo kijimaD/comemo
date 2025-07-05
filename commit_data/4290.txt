@@ -9,7 +9,7 @@ Date:   Wed Dec 2 18:31:29 2009 -0800
     
     R=ken2
     https://golang.org/cl/163091
-
+---
  src/cmd/8g/cgen.c   | 73 +++++++++++++++++------------------------------------
  src/cmd/8g/cgen64.c | 10 +++-----
  src/cmd/8g/gg.h     |  2 --
@@ -18,3 +18,703 @@ Date:   Wed Dec 2 18:31:29 2009 -0800
  src/cmd/8g/opt.h    |  2 --
  src/cmd/8g/reg.c    |  4 +++
  7 files changed, 61 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 3f0514a36d..1ab35ab70d 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -10,18 +10,16 @@
+ void
+ mgen(Node *n, Node *n1, Node *rg)
+ {
+-	n1->ostk = 0;
+ 	n1->op = OEMPTY;
+ 
+ 	if(n->addable) {
+ 		*n1 = *n;
+-		n1->ostk = 0;
+ 		if(n1->op == OREGISTER || n1->op == OINDREG)
+ 			reg[n->val.u.reg]++;
+ 		return;
+ 	}
+ 	if(n->type->width > widthptr)
+-		tempalloc(n1, n->type);
++		tempname(n1, n->type);
+ 	else
+ 		regalloc(n1, n->type, rg);
+ 	cgen(n, n1);
+@@ -30,9 +28,7 @@ mgen(Node *n, Node *n1, Node *rg)
+ void
+ mfree(Node *n)
+ {
+-	if(n->ostk)
+-		tempfree(n);
+-	else if(n->op == OREGISTER)
++	if(n->op == OREGISTER)
+ 		regfree(n);
+ }
+ 
+@@ -70,10 +66,9 @@ cgen(Node *n, Node *res)
+ 
+ 	// function calls on both sides?  introduce temporary
+ 	if(n->ullman >= UINF && res->ullman >= UINF) {
+-		tempalloc(&n1, n->type);
++		tempname(&n1, n->type);
+ 		cgen(n, &n1);
+ 		cgen(&n1, res);
+-		tempfree(&n1);
+ 		return;
+ 	}
+ 
+@@ -107,10 +102,9 @@ cgen(Node *n, Node *res)
+ 	if(!n->addable && !res->addable) {
+ 		// could use regalloc here sometimes,
+ 		// but have to check for ullman >= UINF.
+-		tempalloc(&n1, n->type);
++		tempname(&n1, n->type);
+ 		cgen(n, &n1);
+ 		cgen(&n1, res);
+-		tempfree(&n1);
+ 		return;
+ 	}
+ 
+@@ -132,12 +126,11 @@ cgen(Node *n, Node *res)
+ 	if(nl != N && nl->ullman >= UINF)
+ 	if(nr != N && nr->ullman >= UINF) {
+ 		// both are hard
+-		tempalloc(&n1, nl->type);
++		tempname(&n1, nl->type);
+ 		cgen(nl, &n1);
+ 		n2 = *n;
+ 		n2.left = &n1;
+ 		cgen(&n2, res);
+-		tempfree(&n1);
+ 		return;
+ 	}
+ 
+@@ -240,11 +233,10 @@ cgen(Node *n, Node *res)
+ 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
+ 			// map has len in the first 32-bit word.
+ 			// a zero pointer means zero length
+-			tempalloc(&n1, types[tptr]);
++			tempname(&n1, types[tptr]);
+ 			cgen(nl, &n1);
+ 			regalloc(&n2, types[tptr], N);
+ 			gmove(&n1, &n2);
+-			tempfree(&n1);
+ 			n1 = n2;
+ 
+ 			nodconst(&n2, types[tptr], 0);
+@@ -354,7 +346,7 @@ sbop:	// symmetric binary
+ 
+ abop:	// asymmetric binary
+ 	if(nl->ullman >= nr->ullman) {
+-		tempalloc(&nt, nl->type);
++		tempname(&nt, nl->type);
+ 		cgen(nl, &nt);
+ 		mgen(nr, &n2, N);
+ 		regalloc(&n1, nl->type, res);
+@@ -363,7 +355,6 @@ abop:	// asymmetric binary
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+ 		mfree(&n2);
+-		tempfree(&nt);
+ 	} else {
+ 		regalloc(&n2, nr->type, res);
+ 		cgen(nr, &n2);
+@@ -377,11 +368,10 @@ abop:	// asymmetric binary
+ 	return;
+ 
+ uop:	// unary
+-	tempalloc(&n1, nl->type);
++	tempname(&n1, nl->type);
+ 	cgen(nl, &n1);
+ 	gins(a, N, &n1);
+ 	gmove(&n1, res);
+-	tempfree(&n1);
+ 	return;
+ 
+ flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
+@@ -490,30 +480,27 @@ agen(Node *n, Node *res)
+ 		if(nr->addable) {
+ 			agenr(nl, &n3, res);
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, types[TINT32]);
++				tempname(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+-				tempfree(&tmp);
+ 			}
+ 		} else if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, types[TINT32]);
++				tempname(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+-				tempfree(&tmp);
+ 			}
+ 			regalloc(&n3, types[tptr], res);
+ 			agen(nl, &n3);
+ 		} else {
+-			tempalloc(&tmp, types[TINT32]);
++			tempname(&tmp, types[TINT32]);
+ 			cgen(nr, &tmp);
+ 			nr = &tmp;
+ 			agenr(nl, &n3, res);
+ 			regalloc(&n1, tmp.type, N);
+ 			gins(optoas(OAS, tmp.type), &tmp, &n1);
+-			tempfree(&tmp);
+ 		}
+ 
+ 		// &a is in &n3 (allocated in res)
+@@ -693,11 +680,10 @@ igen(Node *n, Node *a, Node *res)
+ {
+ 	Node n1;
+ 
+-	tempalloc(&n1, types[tptr]);
++	tempname(&n1, types[tptr]);
+ 	agen(n, &n1);
+ 	regalloc(a, types[tptr], res);
+ 	gmove(&n1, a);
+-	tempfree(&n1);
+ 	a->op = OINDREG;
+ 	a->type = n->type;
+ }
+@@ -713,11 +699,10 @@ agenr(Node *n, Node *a, Node *res)
+ {
+ 	Node n1;
+ 
+-	tempalloc(&n1, types[tptr]);
++	tempname(&n1, types[tptr]);
+ 	agen(n, &n1);
+ 	regalloc(a, types[tptr], res);
+ 	gmove(&n1, a);
+-	tempfree(&n1);
+ }
+ 
+ /*
+@@ -925,14 +910,12 @@ bgen(Node *n, int true, Prog *to)
+ 				// all the other ops have the same problem.
+ 				// We need to figure out what the right general
+ 				// solution is, besides telling people to use float64.
+-				tempalloc(&t1, types[TFLOAT32]);
+-				tempalloc(&t2, types[TFLOAT32]);
++				tempname(&t1, types[TFLOAT32]);
++				tempname(&t2, types[TFLOAT32]);
+ 				cgen(nr, &t1);
+ 				cgen(nl, &t2);
+ 				gmove(&t2, &tmp);
+ 				gins(AFCOMFP, &t1, &tmp);
+-				tempfree(&t2);
+-				tempfree(&t1);
+ 			}
+ 			gins(AFSTSW, N, &ax);
+ 			gins(ASAHF, N, N);
+@@ -954,57 +937,49 @@ bgen(Node *n, int true, Prog *to)
+ 
+ 		if(is64(nr->type)) {
+ 			if(!nl->addable) {
+-				tempalloc(&n1, nl->type);
++				tempname(&n1, nl->type);
+ 				cgen(nl, &n1);
+ 				nl = &n1;
+ 			}
+ 			if(!nr->addable) {
+-				tempalloc(&n2, nr->type);
++				tempname(&n2, nr->type);
+ 				cgen(nr, &n2);
+ 				nr = &n2;
+ 			}
+ 			cmp64(nl, nr, a, to);
+-			if(nr == &n2)
+-				tempfree(&n2);
+-			if(nl == &n1)
+-				tempfree(&n1);
+ 			break;
+ 		}
+ 
+ 		a = optoas(a, nr->type);
+ 
+ 		if(nr->ullman >= UINF) {
+-			tempalloc(&n1, nl->type);
+-			tempalloc(&tmp, nr->type);
++			tempname(&n1, nl->type);
++			tempname(&tmp, nr->type);
+ 			cgen(nr, &tmp);
+ 			cgen(nl, &n1);
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(&tmp, &n2);
+-			tempfree(&tmp);
+ 			goto cmp;
+ 		}
+ 
+-		tempalloc(&n1, nl->type);
++		tempname(&n1, nl->type);
+ 		cgen(nl, &n1);
+ 
+ 		if(smallintconst(nr)) {
+ 			gins(optoas(OCMP, nr->type), &n1, nr);
+ 			patch(gbranch(a, nr->type), to);
+-			tempfree(&n1);
+ 			break;
+ 		}
+ 
+-		tempalloc(&tmp, nr->type);
++		tempname(&tmp, nr->type);
+ 		cgen(nr, &tmp);
+ 		regalloc(&n2, nr->type, N);
+ 		gmove(&tmp, &n2);
+-		tempfree(&tmp);
+ 
+ cmp:
+ 		gins(optoas(OCMP, nr->type), &n1, &n2);
+ 		patch(gbranch(a, nr->type), to);
+ 		regfree(&n2);
+-		tempfree(&n1);
+ 		break;
+ 	}
+ }
+@@ -1073,8 +1048,8 @@ sgen(Node *n, Node *res, int32 w)
+ 	nodreg(&dst, types[tptr], D_DI);
+ 	nodreg(&src, types[tptr], D_SI);
+ 
+-	tempalloc(&tsrc, types[tptr]);
+-	tempalloc(&tdst, types[tptr]);
++	tempname(&tsrc, types[tptr]);
++	tempname(&tdst, types[tptr]);
+ 	if(!n->addable)
+ 		agen(n, &tsrc);
+ 	if(!res->addable)
+@@ -1087,8 +1062,6 @@ sgen(Node *n, Node *res, int32 w)
+ 		agen(res, &dst);
+ 	else
+ 		gmove(&tdst, &dst);
+-	tempfree(&tdst);
+-	tempfree(&tsrc);
+ 
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// doublewords
+diff --git a/src/cmd/8g/cgen64.c b/src/cmd/8g/cgen64.c
+index 6b3dae65a5..ba99cec743 100644
+--- a/src/cmd/8g/cgen64.c
++++ b/src/cmd/8g/cgen64.c
+@@ -60,12 +60,12 @@ cgen64(Node *n, Node *res)
+ 	l = n->left;
+ 	r = n->right;
+ 	if(!l->addable) {
+-		tempalloc(&t1, l->type);
++		tempname(&t1, l->type);
+ 		cgen(l, &t1);
+ 		l = &t1;
+ 	}
+ 	if(r != N && !r->addable) {
+-		tempalloc(&t2, r->type);
++		tempname(&t2, r->type);
+ 		cgen(r, &t2);
+ 		r = &t2;
+ 	}
+@@ -417,11 +417,7 @@ cgen64(Node *n, Node *res)
+ 	gins(AMOVL, &dx, &hi1);
+ 	splitclean();
+ 
+-out:
+-	if(r == &t2)
+-		tempfree(&t2);
+-	if(l == &t1)
+-		tempfree(&t1);
++out:;
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 3c0292cca8..c8d4ad6132 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -137,8 +137,6 @@ void	ginit(void);
+ void	gclean(void);
+ void	regalloc(Node*, Type*, Node*);
+ void	regfree(Node*);
+-void	tempalloc(Node*, Type*);
+-void	tempfree(Node*);
+ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c0a917be29..8ec8d9ba27 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -80,6 +80,7 @@ compile(Node *fn)
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
++if(0)
+ 	if(!debug['N'] || debug['R'] || debug['P']) {
+ 		regopt(ptxt);
+ 	}
+@@ -198,7 +199,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	i = i->left;		// interface
+ 
+ 	if(!i->addable) {
+-		tempalloc(&tmpi, i->type);
++		tempname(&tmpi, i->type);
+ 		cgen(i, &tmpi);
+ 		i = &tmpi;
+ 	}
+@@ -230,9 +231,6 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	regfree(&nodr);
+ 	regfree(&nodo);
+ 
+-	if(i == &tmpi)
+-		tempfree(i);
+-
+ 	setmaxarg(n->left->type);
+ }
+ 
+@@ -254,7 +252,7 @@ cgen_call(Node *n, int proc)
+ 	if(n->left->ullman >= UINF) {
+ 		// if name involves a fn call
+ 		// precompute the address of the fn
+-		tempalloc(&afun, types[tptr]);
++		tempname(&afun, types[tptr]);
+ 		cgen(n->left, &afun);
+ 	}
+ 
+@@ -267,7 +265,6 @@ cgen_call(Node *n, int proc)
+ 	if(n->left->ullman >= UINF) {
+ 		regalloc(&nod, types[tptr], N);
+ 		cgen_as(&nod, &afun);
+-		tempfree(&afun);
+ 		nod.type = t;
+ 		ginscall(&nod, proc);
+ 		regfree(&nod);
+@@ -385,12 +382,11 @@ cgen_asop(Node *n)
+ 	nr = n->right;
+ 
+ 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+-		tempalloc(&n1, nr->type);
++		tempname(&n1, nr->type);
+ 		cgen(nr, &n1);
+ 		n2 = *n;
+ 		n2.right = &n1;
+ 		cgen_asop(&n2);
+-		tempfree(&n1);
+ 		goto ret;
+ 	}
+ 
+@@ -475,12 +471,12 @@ cgen_asop(Node *n)
+ 
+ hard:
+ 	if(nr->ullman > nl->ullman) {
+-		tempalloc(&n2, nr->type);
++		tempname(&n2, nr->type);
+ 		cgen(nr, &n2);
+ 		igen(nl, &n1, N);
+ 	} else {
+ 		igen(nl, &n1, N);
+-		tempalloc(&n2, nr->type);
++		tempname(&n2, nr->type);
+ 		cgen(nr, &n2);
+ 	}
+ 
+@@ -489,13 +485,11 @@ hard:
+ 	n3.right = &n2;
+ 	n3.op = n->etype;
+ 
+-	tempalloc(&n4, nl->type);
++	tempname(&n4, nl->type);
+ 	cgen(&n3, &n4);
+ 	gmove(&n4, &n1);
+ 
+ 	regfree(&n1);
+-	tempfree(&n4);
+-	tempfree(&n2);
+ 
+ ret:
+ 	;
+@@ -528,8 +522,8 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ {
+ 	Node n1, t1, t2, nz;
+ 
+-	tempalloc(&t1, nl->type);
+-	tempalloc(&t2, nr->type);
++	tempname(&t1, nl->type);
++	tempname(&t2, nr->type);
+ 	cgen(nl, &t1);
+ 	cgen(nr, &t2);
+ 
+@@ -546,8 +540,6 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 		gins(optoas(OEXTEND, t), N, N);
+ 	gins(optoas(op, t), &n1, N);
+ 	regfree(&n1);
+-	tempfree(&t2);
+-	tempfree(&t1);
+ 
+ 	if(op == ODIV)
+ 		gmove(ax, res);
+@@ -567,7 +559,7 @@ savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
+ 	// and not the destination
+ 	memset(oldx, 0, sizeof *oldx);
+ 	if(r > 0 && !samereg(x, res)) {
+-		tempalloc(oldx, types[TINT32]);
++		tempname(oldx, types[TINT32]);
+ 		gmove(x, oldx);
+ 	}
+ 
+@@ -582,7 +574,6 @@ restx(Node *x, Node *oldx)
+ 	if(oldx->op != 0) {
+ 		x->type = types[TINT32];
+ 		gmove(oldx, x);
+-		tempfree(oldx);
+ 	}
+ }
+ 
+@@ -653,7 +644,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	memset(&oldcx, 0, sizeof oldcx);
+ 	nodreg(&cx, types[TUINT32], D_CX);
+ 	if(reg[D_CX] > 1 && !samereg(&cx, res)) {
+-		tempalloc(&oldcx, types[TUINT32]);
++		tempname(&oldcx, types[TUINT32]);
+ 		gmove(&cx, &oldcx);
+ 	}
+ 
+@@ -683,10 +674,8 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	patch(p1, pc);
+ 	gins(a, &n1, &n2);
+ 
+-	if(oldcx.op != 0) {
++	if(oldcx.op != 0)
+ 		gmove(&oldcx, &cx);
+-		tempfree(&oldcx);
+-	}
+ 
+ 	gmove(&n2, res);
+ 
+@@ -971,7 +960,7 @@ sliceslice:
+ 		if(bad)
+ 			goto no;
+ 
+-		tempalloc(&ntemp, res->type);
++		tempname(&ntemp, res->type);
+ 		if(!sleasy(&nodes[0])) {
+ 			cgen(&nodes[0], &ntemp);
+ 			nnode0 = ntemp;
+@@ -1079,8 +1068,6 @@ sliceslice:
+ 	if(!sleasy(res)) {
+ 		cgen(&nres, res);
+ 	}
+-	if(ntemp.op != OXXX)
+-		tempfree(&ntemp);
+ 	return 1;
+ 
+ no:
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 2e8c01bec2..9e65a06e42 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -793,42 +793,6 @@ regfree(Node *n)
+ 		fatal("regfree %R", i);
+ }
+ 
+-void
+-tempalloc(Node *n, Type *t)
+-{
+-	int w;
+-
+-	dowidth(t);
+-
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
+-	n->sym = S;
+-	n->type = t;
+-	n->etype = t->etype;
+-	n->class = PAUTO;
+-	n->addable = 1;
+-	n->ullman = 1;
+-	n->noescape = 1;
+-	n->ostk = stksize;
+-
+-	w = t->width;
+-	stksize += w;
+-	stksize = rnd(stksize, w);
+-	n->xoffset = -stksize;
+-//print("tempalloc %d -> %d from %p\n", n->ostk, n->xoffset, __builtin_return_address(0));
+-	if(stksize > maxstksize)
+-		maxstksize = stksize;
+-}
+-
+-void
+-tempfree(Node *n)
+-{
+-//print("tempfree %d\n", n->xoffset);
+-	if(n->xoffset != -stksize)
+-		fatal("tempfree %lld %d", -n->xoffset, stksize);
+-	stksize = n->ostk;
+-}
+-
+ /*
+  * initialize n to be register r of type t.
+  */
+@@ -1072,6 +1036,15 @@ bignodes(void)
+ 	mpmovecflt(zerof.val.u.fval, 0);
+ }
+ 
++void
++memname(Node *n, Type *t)
++{
++	tempname(n, t);
++	strcpy(namebuf, n->sym->name);
++	namebuf[0] = '.';	// keep optimizer from registerizing
++	n->sym = lookup(namebuf);
++}
++
+ void
+ gmove(Node *f, Node *t)
+ {
+@@ -1297,8 +1270,8 @@ gmove(Node *f, Node *t)
+ 		}
+ 
+ 		// set round to zero mode during conversion
+-		tempalloc(&t1, types[TUINT16]);
+-		tempalloc(&t2, types[TUINT16]);
++		memname(&t1, types[TUINT16]);
++		memname(&t2, types[TUINT16]);
+ 		gins(AFSTCW, N, &t1);
+ 		gins(AMOVW, ncon(0xf7f), &t2);
+ 		gins(AFLDCW, &t2, N);
+@@ -1309,8 +1282,6 @@ gmove(Node *f, Node *t)
+ 		else
+ 			gins(AFMOVVP, &r1, t);
+ 		gins(AFLDCW, &t1, N);
+-		tempfree(&t2);
+-		tempfree(&t1);
+ 		return;
+ 
+ 	case CASE(TFLOAT32, TINT8):
+@@ -1320,7 +1291,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TFLOAT64, TUINT16):
+ 	case CASE(TFLOAT64, TUINT8):
+ 		// convert via int32.
+-		tempalloc(&t1, types[TINT32]);
++		tempname(&t1, types[TINT32]);
+ 		gmove(f, &t1);
+ 		switch(tt) {
+ 		default:
+@@ -1352,13 +1323,12 @@ gmove(Node *f, Node *t)
+ 			gmove(&t1, t);
+ 			break;
+ 		}
+-		tempfree(&t1);
+ 		return;
+ 
+ 	case CASE(TFLOAT32, TUINT32):
+ 	case CASE(TFLOAT64, TUINT32):
+ 		// convert via int64.
+-		tempalloc(&t1, types[TINT64]);
++		tempname(&t1, types[TINT64]);
+ 		gmove(f, &t1);
+ 		split64(&t1, &tlo, &thi);
+ 		gins(ACMPL, &thi, ncon(0));
+@@ -1367,7 +1337,6 @@ gmove(Node *f, Node *t)
+ 		patch(p1, pc);
+ 		gmove(&tlo, t);
+ 		splitclean();
+-		tempfree(&t1);
+ 		return;
+ 
+ 	case CASE(TFLOAT32, TUINT64):
+@@ -1405,12 +1374,11 @@ gmove(Node *f, Node *t)
+ 		//	otherwise, subtract 2^63, convert, and add it back.
+ 
+ 		// set round to zero mode during conversion
+-		tempalloc(&t1, types[TUINT16]);
+-		tempalloc(&t2, types[TUINT16]);
++		memname(&t1, types[TUINT16]);
++		memname(&t2, types[TUINT16]);
+ 		gins(AFSTCW, N, &t1);
+ 		gins(AMOVW, ncon(0xf7f), &t2);
+ 		gins(AFLDCW, &t2, N);
+-		tempfree(&t2);
+ 
+ 		// actual work
+ 		gmove(&two63f, &f0);
+@@ -1432,7 +1400,6 @@ gmove(Node *f, Node *t)
+ 
+ 		// restore rounding mode
+ 		gins(AFLDCW, &t1, N);
+-		tempfree(&t1);
+ 		return;
+ 
+ 	/*
+@@ -1487,7 +1454,7 @@ gmove(Node *f, Node *t)
+ 		nodreg(&ax, types[TUINT32], D_AX);
+ 		nodreg(&dx, types[TUINT32], D_DX);
+ 		nodreg(&cx, types[TUINT32], D_CX);
+-		tempalloc(&t1, f->type);
++		tempname(&t1, f->type);
+ 		split64(&t1, &tlo, &thi);
+ 		gmove(f, &t1);
+ 		gins(ACMPL, &thi, ncon(0));
+@@ -1516,7 +1483,6 @@ gmove(Node *f, Node *t)
+ 		gmove(&r1, t);
+ 		patch(p2, pc);
+ 		splitclean();
+-		tempfree(&t1);
+ 		return;
+ 
+ 	/*
+@@ -1563,10 +1529,9 @@ gmove(Node *f, Node *t)
+ 
+ 	case CASE(TFLOAT64, TFLOAT32):
+ 		if(f->op == OREGISTER && t->op == OREGISTER) {
+-			tempalloc(&r1, types[TFLOAT32]);
++			tempname(&r1, types[TFLOAT32]);
+ 			gins(AFMOVFP, f, &r1);
+ 			gins(AFMOVF, &r1, t);
+-			tempfree(&r1);
+ 			return;
+ 		}
+ 		if(f->op == OREGISTER)
+@@ -1597,10 +1562,9 @@ hard:
+ 
+ hardmem:
+ 	// requires memory intermediate
+-	tempalloc(&r1, cvt);
++	tempname(&r1, cvt);
+ 	gmove(f, &r1);
+ 	gmove(&r1, t);
+-	tempfree(&r1);
+ 	return;
+ 
+ fatal:
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index 9a8866b8d1..8f31dec3b3 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -34,8 +34,6 @@
+ #define	D_HI	D_NONE
+ #define	D_LO	D_NONE
+ 
+-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
+-
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+ #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
+ #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 568f72912f..82736c087e 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -287,8 +287,12 @@ regopt(Prog *firstp)
+ 		case ASHRW:
+ 		case AIMULL:
+ 		case AIMULW:
++		case ANEGB:
+ 		case ANEGL:
++		case ANEGW:
++		case ANOTB:
+ 		case ANOTL:
++		case ANOTW:
+ 		case AADCL:
+ 		case ASBBL:
+ 

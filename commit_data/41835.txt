@@ -9,6 +9,26 @@ Date:   Mon Oct 28 16:49:27 2019 +0000
     Change-Id: I5ae1bb2bfddaa05245b364556d2b999b158a4cc4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203879
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 0160d9a781..58210b6529 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -56,6 +56,14 @@ TODO
+   Go 1.14 is the last Go release to support 32-bit binaries on
+   macOS (the <code>darwin/386</code> port). They are no longer
+   supported by macOS, starting with macOS 10.15 (Catalina).
++  Go continues to support the 64-bit <code>darwin/amd64</code> port.
++</p>
++
++<p><!-- golang.org/issue/34751 -->
++  Go 1.14 will likely be the last Go release to support 32-bit
++  binaries on iOS, iPadOS, watchOS, and tvOS
++  (the <code>darwin/arm</code> port). Go continues to support the
++  64-bit <code>darwin/arm64</code> port.
+ </p>
+ 
+ <h3 id="nacl">Native Client (NaCl)</h3>

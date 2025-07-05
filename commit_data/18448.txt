@@ -12,6 +12,20 @@ Date:   Mon Feb 10 20:27:31 2014 -0500
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/50060047
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 3c27d99154..15d1dfbace 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -368,7 +368,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OPACK:
+-		yyerror("use of package %S not in selector", n->sym);
++		yyerror("use of package %S without selector", n->sym);
+ 		goto error;
+ 
+ 	case ODDD:

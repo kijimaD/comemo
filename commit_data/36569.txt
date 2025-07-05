@@ -14,6 +14,54 @@ Date:   Mon Feb 5 19:44:09 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strconv/example_test.go | 34 +++++++++++++++-------------------
  1 file changed, 15 insertions(+), 19 deletions(-)
+
+diff --git a/src/strconv/example_test.go b/src/strconv/example_test.go
+index 01fbbc0fb9..5c2e8a9b56 100644
+--- a/src/strconv/example_test.go
++++ b/src/strconv/example_test.go
+@@ -281,27 +281,23 @@ func ExampleQuoteToASCII() {
+ }
+ 
+ func ExampleUnquote() {
+-	test := func(s string) {
+-		t, err := strconv.Unquote(s)
+-		if err != nil {
+-			fmt.Printf("Unquote(%#v): %v\n", s, err)
+-		} else {
+-			fmt.Printf("Unquote(%#v) = %v\n", s, t)
+-		}
+-	}
+-
+-	s := `\"Fran & Freddie's Diner\t\u263a\"\"`
+-	// If the string doesn't have quotes, it can't be unquoted.
+-	test(s) // invalid syntax
+-	test("`" + s + "`")
+-	test(`"` + s + `"`)
+-	test(`'\u263a'`)
++	s, err := strconv.Unquote("You can't unquote a string without quotes")
++	fmt.Printf("%q, %v\n", s, err)
++	s, err = strconv.Unquote("\"The string must be either double-quoted\"")
++	fmt.Printf("%q, %v\n", s, err)
++	s, err = strconv.Unquote("`or backquoted.`")
++	fmt.Printf("%q, %v\n", s, err)
++	s, err = strconv.Unquote("'\u263a'") // single character only allowed in single quotes
++	fmt.Printf("%q, %v\n", s, err)
++	s, err = strconv.Unquote("'\u2639\u2639'")
++	fmt.Printf("%q, %v\n", s, err)
+ 
+ 	// Output:
+-	// Unquote("\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\""): invalid syntax
+-	// Unquote("`\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\"`") = \"Fran & Freddie's Diner\t\u263a\"\"
+-	// Unquote("\"\\\"Fran & Freddie's Diner\\t\\u263a\\\"\\\"\"") = "Fran & Freddie's Diner	☺""
+-	// Unquote("'\\u263a'") = ☺
++	// "", invalid syntax
++	// "The string must be either double-quoted", <nil>
++	// "or backquoted.", <nil>
++	// "☺", <nil>
++	// "", invalid syntax
+ }
+ 
+ func ExampleUnquoteChar() {

@@ -7,6 +7,28 @@ Date:   Mon Aug 15 14:25:54 2011 -0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4904044
-
+---
  src/version.bash | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/version.bash b/src/version.bash
+index 21cfb82095..fc899e2e3e 100755
+--- a/src/version.bash
++++ b/src/version.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-GOROOT=$(cd `dirname $0`/..; pwd)
++GOROOT=$(dirname $0)/..
+ 
+ # If a version file created by -save is available, use it
+ if [ -f "$GOROOT/VERSION" ]; then
+@@ -45,7 +45,6 @@ fi
+ 
+ if [ "$1" = "-save" ]; then
+ 	echo $VERSION > $GOROOT/VERSION
+-	echo "Saved '$VERSION' to $GOROOT/VERSION" 1>&2
+ else
+ 	echo $VERSION
+ fi

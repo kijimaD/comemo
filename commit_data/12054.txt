@@ -9,7 +9,7 @@ Date:   Sun Feb 19 03:19:05 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5671098
-
+---
  lib/time/zoneinfo/Africa/Abidjan                   | Bin 79 -> 0 bytes
  lib/time/zoneinfo/Africa/Accra                     | Bin 162 -> 0 bytes
  lib/time/zoneinfo/Africa/Addis_Ababa               | Bin 81 -> 0 bytes
@@ -592,3 +592,2328 @@ Date:   Sun Feb 19 03:19:05 2012 -0500
  lib/time/zoneinfo/WET                              | Bin 706 -> 0 bytes
  lib/time/zoneinfo/Zulu                             | Bin 62 -> 0 bytes
  581 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/lib/time/zoneinfo/Africa/Abidjan b/lib/time/zoneinfo/Africa/Abidjan
+deleted file mode 100644
+index 711f3d065e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Abidjan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Accra b/lib/time/zoneinfo/Africa/Accra
+deleted file mode 100644
+index 39391a6135..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Accra and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Addis_Ababa b/lib/time/zoneinfo/Africa/Addis_Ababa
+deleted file mode 100644
+index 296825c913..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Addis_Ababa and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Algiers b/lib/time/zoneinfo/Africa/Algiers
+deleted file mode 100644
+index 1583f2ff07..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Algiers and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Asmara b/lib/time/zoneinfo/Africa/Asmara
+deleted file mode 100644
+index 296825c913..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Asmara and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Asmera b/lib/time/zoneinfo/Africa/Asmera
+deleted file mode 100644
+index 296825c913..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Asmera and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Bamako b/lib/time/zoneinfo/Africa/Bamako
+deleted file mode 100644
+index edd3ec2c0c..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Bamako and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Bangui b/lib/time/zoneinfo/Africa/Bangui
+deleted file mode 100644
+index 50b07712e9..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Bangui and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Banjul b/lib/time/zoneinfo/Africa/Banjul
+deleted file mode 100644
+index 23756bc01e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Banjul and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Bissau b/lib/time/zoneinfo/Africa/Bissau
+deleted file mode 100644
+index 9b1089a3ab..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Bissau and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Blantyre b/lib/time/zoneinfo/Africa/Blantyre
+deleted file mode 100644
+index 4e33b3d762..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Blantyre and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Brazzaville b/lib/time/zoneinfo/Africa/Brazzaville
+deleted file mode 100644
+index 44879fde11..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Brazzaville and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Bujumbura b/lib/time/zoneinfo/Africa/Bujumbura
+deleted file mode 100644
+index 3b226f6613..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Bujumbura and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Cairo b/lib/time/zoneinfo/Africa/Cairo
+deleted file mode 100644
+index 133db5c24b..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Cairo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Casablanca b/lib/time/zoneinfo/Africa/Casablanca
+deleted file mode 100644
+index 243a55e177..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Casablanca and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Ceuta b/lib/time/zoneinfo/Africa/Ceuta
+deleted file mode 100644
+index eb5a0e63ff..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Ceuta and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Conakry b/lib/time/zoneinfo/Africa/Conakry
+deleted file mode 100644
+index 389e1fb9f5..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Conakry and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Dakar b/lib/time/zoneinfo/Africa/Dakar
+deleted file mode 100644
+index abb9a4dca2..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Dakar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Dar_es_Salaam b/lib/time/zoneinfo/Africa/Dar_es_Salaam
+deleted file mode 100644
+index ecc4158cf3..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Dar_es_Salaam and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Djibouti b/lib/time/zoneinfo/Africa/Djibouti
+deleted file mode 100644
+index 21680925f7..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Djibouti and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Douala b/lib/time/zoneinfo/Africa/Douala
+deleted file mode 100644
+index 06a6491b01..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Douala and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/El_Aaiun b/lib/time/zoneinfo/Africa/El_Aaiun
+deleted file mode 100644
+index 7804b2efb1..0000000000
+Binary files a/lib/time/zoneinfo/Africa/El_Aaiun and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Freetown b/lib/time/zoneinfo/Africa/Freetown
+deleted file mode 100644
+index 46943bc69e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Freetown and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Gaborone b/lib/time/zoneinfo/Africa/Gaborone
+deleted file mode 100644
+index e88d804853..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Gaborone and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Harare b/lib/time/zoneinfo/Africa/Harare
+deleted file mode 100644
+index a04d74cc6e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Harare and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Johannesburg b/lib/time/zoneinfo/Africa/Johannesburg
+deleted file mode 100644
+index f3d17746f5..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Johannesburg and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Juba b/lib/time/zoneinfo/Africa/Juba
+deleted file mode 100644
+index 3a6b600f7e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Juba and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Kampala b/lib/time/zoneinfo/Africa/Kampala
+deleted file mode 100644
+index 0f947ba65a..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Kampala and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Khartoum b/lib/time/zoneinfo/Africa/Khartoum
+deleted file mode 100644
+index a1067f13dc..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Khartoum and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Kigali b/lib/time/zoneinfo/Africa/Kigali
+deleted file mode 100644
+index 5d1f034142..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Kigali and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Kinshasa b/lib/time/zoneinfo/Africa/Kinshasa
+deleted file mode 100644
+index 9513ecc38f..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Kinshasa and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Lagos b/lib/time/zoneinfo/Africa/Lagos
+deleted file mode 100644
+index 8ad2e9ceb9..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Lagos and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Libreville b/lib/time/zoneinfo/Africa/Libreville
+deleted file mode 100644
+index 7a92c77cb3..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Libreville and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Lome b/lib/time/zoneinfo/Africa/Lome
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Lome and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Luanda b/lib/time/zoneinfo/Africa/Luanda
+deleted file mode 100644
+index fdb10a9e61..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Luanda and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Lubumbashi b/lib/time/zoneinfo/Africa/Lubumbashi
+deleted file mode 100644
+index 3b226f6613..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Lubumbashi and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Lusaka b/lib/time/zoneinfo/Africa/Lusaka
+deleted file mode 100644
+index 568d419d00..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Lusaka and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Malabo b/lib/time/zoneinfo/Africa/Malabo
+deleted file mode 100644
+index 730f483811..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Malabo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Maputo b/lib/time/zoneinfo/Africa/Maputo
+deleted file mode 100644
+index c79785d9e9..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Maputo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Maseru b/lib/time/zoneinfo/Africa/Maseru
+deleted file mode 100644
+index f4a410200a..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Maseru and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Mbabane b/lib/time/zoneinfo/Africa/Mbabane
+deleted file mode 100644
+index 117eb9207a..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Mbabane and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Mogadishu b/lib/time/zoneinfo/Africa/Mogadishu
+deleted file mode 100644
+index 6b76041232..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Mogadishu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Monrovia b/lib/time/zoneinfo/Africa/Monrovia
+deleted file mode 100644
+index 94021f119b..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Monrovia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Nairobi b/lib/time/zoneinfo/Africa/Nairobi
+deleted file mode 100644
+index a233f5923c..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Nairobi and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Ndjamena b/lib/time/zoneinfo/Africa/Ndjamena
+deleted file mode 100644
+index f41aa318df..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Ndjamena and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Niamey b/lib/time/zoneinfo/Africa/Niamey
+deleted file mode 100644
+index dc159dc8c5..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Niamey and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Nouakchott b/lib/time/zoneinfo/Africa/Nouakchott
+deleted file mode 100644
+index df8919dea3..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Nouakchott and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Ouagadougou b/lib/time/zoneinfo/Africa/Ouagadougou
+deleted file mode 100644
+index 73a3ec6651..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Ouagadougou and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Porto-Novo b/lib/time/zoneinfo/Africa/Porto-Novo
+deleted file mode 100644
+index 4ed3e70b0a..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Porto-Novo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Sao_Tome b/lib/time/zoneinfo/Africa/Sao_Tome
+deleted file mode 100644
+index 61dff31ef6..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Sao_Tome and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Timbuktu b/lib/time/zoneinfo/Africa/Timbuktu
+deleted file mode 100644
+index edd3ec2c0c..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Timbuktu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Tripoli b/lib/time/zoneinfo/Africa/Tripoli
+deleted file mode 100644
+index 5072fce08e..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Tripoli and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Tunis b/lib/time/zoneinfo/Africa/Tunis
+deleted file mode 100644
+index 1c53e1b518..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Tunis and /dev/null differ
+diff --git a/lib/time/zoneinfo/Africa/Windhoek b/lib/time/zoneinfo/Africa/Windhoek
+deleted file mode 100644
+index e1ef292393..0000000000
+Binary files a/lib/time/zoneinfo/Africa/Windhoek and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Adak b/lib/time/zoneinfo/America/Adak
+deleted file mode 100644
+index 1fbd895caa..0000000000
+Binary files a/lib/time/zoneinfo/America/Adak and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Anchorage b/lib/time/zoneinfo/America/Anchorage
+deleted file mode 100644
+index 3372b0c994..0000000000
+Binary files a/lib/time/zoneinfo/America/Anchorage and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Anguilla b/lib/time/zoneinfo/America/Anguilla
+deleted file mode 100644
+index 778ba0644b..0000000000
+Binary files a/lib/time/zoneinfo/America/Anguilla and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Antigua b/lib/time/zoneinfo/America/Antigua
+deleted file mode 100644
+index 60ee9b7743..0000000000
+Binary files a/lib/time/zoneinfo/America/Antigua and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Araguaina b/lib/time/zoneinfo/America/Araguaina
+deleted file mode 100644
+index f230df0504..0000000000
+Binary files a/lib/time/zoneinfo/America/Araguaina and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Buenos_Aires b/lib/time/zoneinfo/America/Argentina/Buenos_Aires
+deleted file mode 100644
+index 58674f8e7a..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Buenos_Aires and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Catamarca b/lib/time/zoneinfo/America/Argentina/Catamarca
+deleted file mode 100644
+index 25a97e1636..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Catamarca and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/ComodRivadavia b/lib/time/zoneinfo/America/Argentina/ComodRivadavia
+deleted file mode 100644
+index 25a97e1636..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/ComodRivadavia and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Cordoba b/lib/time/zoneinfo/America/Argentina/Cordoba
+deleted file mode 100644
+index aaac862638..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Cordoba and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Jujuy b/lib/time/zoneinfo/America/Argentina/Jujuy
+deleted file mode 100644
+index a25d1aaa8b..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Jujuy and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/La_Rioja b/lib/time/zoneinfo/America/Argentina/La_Rioja
+deleted file mode 100644
+index 63fabb19a2..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/La_Rioja and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Mendoza b/lib/time/zoneinfo/America/Argentina/Mendoza
+deleted file mode 100644
+index d6fedcaf5f..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Mendoza and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Rio_Gallegos b/lib/time/zoneinfo/America/Argentina/Rio_Gallegos
+deleted file mode 100644
+index bb3bffc800..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Rio_Gallegos and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Salta b/lib/time/zoneinfo/America/Argentina/Salta
+deleted file mode 100644
+index 2699d2088e..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Salta and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/San_Juan b/lib/time/zoneinfo/America/Argentina/San_Juan
+deleted file mode 100644
+index 6978de09a7..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/San_Juan and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/San_Luis b/lib/time/zoneinfo/America/Argentina/San_Luis
+deleted file mode 100644
+index c1dd6a148b..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/San_Luis and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Tucuman b/lib/time/zoneinfo/America/Argentina/Tucuman
+deleted file mode 100644
+index dd659ddd98..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Tucuman and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Argentina/Ushuaia b/lib/time/zoneinfo/America/Argentina/Ushuaia
+deleted file mode 100644
+index a7f6c89ac9..0000000000
+Binary files a/lib/time/zoneinfo/America/Argentina/Ushuaia and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Aruba b/lib/time/zoneinfo/America/Aruba
+deleted file mode 100644
+index 72e834ced7..0000000000
+Binary files a/lib/time/zoneinfo/America/Aruba and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Asuncion b/lib/time/zoneinfo/America/Asuncion
+deleted file mode 100644
+index 4979c24aee..0000000000
+Binary files a/lib/time/zoneinfo/America/Asuncion and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Atikokan b/lib/time/zoneinfo/America/Atikokan
+deleted file mode 100644
+index 0d23d0ca7c..0000000000
+Binary files a/lib/time/zoneinfo/America/Atikokan and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Atka b/lib/time/zoneinfo/America/Atka
+deleted file mode 100644
+index 1fbd895caa..0000000000
+Binary files a/lib/time/zoneinfo/America/Atka and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Bahia b/lib/time/zoneinfo/America/Bahia
+deleted file mode 100644
+index 5de715a05c..0000000000
+Binary files a/lib/time/zoneinfo/America/Bahia and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Bahia_Banderas b/lib/time/zoneinfo/America/Bahia_Banderas
+deleted file mode 100644
+index 204770f030..0000000000
+Binary files a/lib/time/zoneinfo/America/Bahia_Banderas and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Barbados b/lib/time/zoneinfo/America/Barbados
+deleted file mode 100644
+index a159515edb..0000000000
+Binary files a/lib/time/zoneinfo/America/Barbados and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Belem b/lib/time/zoneinfo/America/Belem
+deleted file mode 100644
+index 91eba086f1..0000000000
+Binary files a/lib/time/zoneinfo/America/Belem and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Belize b/lib/time/zoneinfo/America/Belize
+deleted file mode 100644
+index 25fb6087f9..0000000000
+Binary files a/lib/time/zoneinfo/America/Belize and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Blanc-Sablon b/lib/time/zoneinfo/America/Blanc-Sablon
+deleted file mode 100644
+index e4b90c17df..0000000000
+Binary files a/lib/time/zoneinfo/America/Blanc-Sablon and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Boa_Vista b/lib/time/zoneinfo/America/Boa_Vista
+deleted file mode 100644
+index 5d21bab047..0000000000
+Binary files a/lib/time/zoneinfo/America/Boa_Vista and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Bogota b/lib/time/zoneinfo/America/Bogota
+deleted file mode 100644
+index a40414b72a..0000000000
+Binary files a/lib/time/zoneinfo/America/Bogota and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Boise b/lib/time/zoneinfo/America/Boise
+deleted file mode 100644
+index 6941f4c814..0000000000
+Binary files a/lib/time/zoneinfo/America/Boise and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Buenos_Aires b/lib/time/zoneinfo/America/Buenos_Aires
+deleted file mode 100644
+index 58674f8e7a..0000000000
+Binary files a/lib/time/zoneinfo/America/Buenos_Aires and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cambridge_Bay b/lib/time/zoneinfo/America/Cambridge_Bay
+deleted file mode 100644
+index d0702a3a74..0000000000
+Binary files a/lib/time/zoneinfo/America/Cambridge_Bay and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Campo_Grande b/lib/time/zoneinfo/America/Campo_Grande
+deleted file mode 100644
+index 74bba4fca1..0000000000
+Binary files a/lib/time/zoneinfo/America/Campo_Grande and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cancun b/lib/time/zoneinfo/America/Cancun
+deleted file mode 100644
+index 873df3edc5..0000000000
+Binary files a/lib/time/zoneinfo/America/Cancun and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Caracas b/lib/time/zoneinfo/America/Caracas
+deleted file mode 100644
+index 8536c5a81c..0000000000
+Binary files a/lib/time/zoneinfo/America/Caracas and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Catamarca b/lib/time/zoneinfo/America/Catamarca
+deleted file mode 100644
+index 25a97e1636..0000000000
+Binary files a/lib/time/zoneinfo/America/Catamarca and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cayenne b/lib/time/zoneinfo/America/Cayenne
+deleted file mode 100644
+index ab913130b1..0000000000
+Binary files a/lib/time/zoneinfo/America/Cayenne and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cayman b/lib/time/zoneinfo/America/Cayman
+deleted file mode 100644
+index ef4f65eb97..0000000000
+Binary files a/lib/time/zoneinfo/America/Cayman and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Chicago b/lib/time/zoneinfo/America/Chicago
+deleted file mode 100644
+index 0ca3105622..0000000000
+Binary files a/lib/time/zoneinfo/America/Chicago and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Chihuahua b/lib/time/zoneinfo/America/Chihuahua
+deleted file mode 100644
+index 603b351ae9..0000000000
+Binary files a/lib/time/zoneinfo/America/Chihuahua and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Coral_Harbour b/lib/time/zoneinfo/America/Coral_Harbour
+deleted file mode 100644
+index 0d23d0ca7c..0000000000
+Binary files a/lib/time/zoneinfo/America/Coral_Harbour and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cordoba b/lib/time/zoneinfo/America/Cordoba
+deleted file mode 100644
+index aaac862638..0000000000
+Binary files a/lib/time/zoneinfo/America/Cordoba and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Costa_Rica b/lib/time/zoneinfo/America/Costa_Rica
+deleted file mode 100644
+index 72c5bdc27a..0000000000
+Binary files a/lib/time/zoneinfo/America/Costa_Rica and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Cuiaba b/lib/time/zoneinfo/America/Cuiaba
+deleted file mode 100644
+index 9187937598..0000000000
+Binary files a/lib/time/zoneinfo/America/Cuiaba and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Curacao b/lib/time/zoneinfo/America/Curacao
+deleted file mode 100644
+index 7938eb2852..0000000000
+Binary files a/lib/time/zoneinfo/America/Curacao and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Danmarkshavn b/lib/time/zoneinfo/America/Danmarkshavn
+deleted file mode 100644
+index fc780d1d83..0000000000
+Binary files a/lib/time/zoneinfo/America/Danmarkshavn and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Dawson b/lib/time/zoneinfo/America/Dawson
+deleted file mode 100644
+index 77acfb6639..0000000000
+Binary files a/lib/time/zoneinfo/America/Dawson and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Dawson_Creek b/lib/time/zoneinfo/America/Dawson_Creek
+deleted file mode 100644
+index d5cf439db4..0000000000
+Binary files a/lib/time/zoneinfo/America/Dawson_Creek and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Denver b/lib/time/zoneinfo/America/Denver
+deleted file mode 100644
+index 3e895a91b5..0000000000
+Binary files a/lib/time/zoneinfo/America/Denver and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Detroit b/lib/time/zoneinfo/America/Detroit
+deleted file mode 100644
+index 11ca4b3fa6..0000000000
+Binary files a/lib/time/zoneinfo/America/Detroit and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Dominica b/lib/time/zoneinfo/America/Dominica
+deleted file mode 100644
+index e963fab435..0000000000
+Binary files a/lib/time/zoneinfo/America/Dominica and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Edmonton b/lib/time/zoneinfo/America/Edmonton
+deleted file mode 100644
+index f77c33f52a..0000000000
+Binary files a/lib/time/zoneinfo/America/Edmonton and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Eirunepe b/lib/time/zoneinfo/America/Eirunepe
+deleted file mode 100644
+index 71e4411321..0000000000
+Binary files a/lib/time/zoneinfo/America/Eirunepe and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/El_Salvador b/lib/time/zoneinfo/America/El_Salvador
+deleted file mode 100644
+index 00759e96d2..0000000000
+Binary files a/lib/time/zoneinfo/America/El_Salvador and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Ensenada b/lib/time/zoneinfo/America/Ensenada
+deleted file mode 100644
+index 68b2eac796..0000000000
+Binary files a/lib/time/zoneinfo/America/Ensenada and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Fort_Wayne b/lib/time/zoneinfo/America/Fort_Wayne
+deleted file mode 100644
+index fca7634d38..0000000000
+Binary files a/lib/time/zoneinfo/America/Fort_Wayne and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Fortaleza b/lib/time/zoneinfo/America/Fortaleza
+deleted file mode 100644
+index 3ece848bbe..0000000000
+Binary files a/lib/time/zoneinfo/America/Fortaleza and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Glace_Bay b/lib/time/zoneinfo/America/Glace_Bay
+deleted file mode 100644
+index b4fd1ef722..0000000000
+Binary files a/lib/time/zoneinfo/America/Glace_Bay and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Godthab b/lib/time/zoneinfo/America/Godthab
+deleted file mode 100644
+index 7783091fc4..0000000000
+Binary files a/lib/time/zoneinfo/America/Godthab and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Goose_Bay b/lib/time/zoneinfo/America/Goose_Bay
+deleted file mode 100644
+index c2f7ffc9c2..0000000000
+Binary files a/lib/time/zoneinfo/America/Goose_Bay and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Grand_Turk b/lib/time/zoneinfo/America/Grand_Turk
+deleted file mode 100644
+index cea434d2d7..0000000000
+Binary files a/lib/time/zoneinfo/America/Grand_Turk and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Grenada b/lib/time/zoneinfo/America/Grenada
+deleted file mode 100644
+index 93b4699fd5..0000000000
+Binary files a/lib/time/zoneinfo/America/Grenada and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Guadeloupe b/lib/time/zoneinfo/America/Guadeloupe
+deleted file mode 100644
+index c20705c53d..0000000000
+Binary files a/lib/time/zoneinfo/America/Guadeloupe and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Guatemala b/lib/time/zoneinfo/America/Guatemala
+deleted file mode 100644
+index 291604c409..0000000000
+Binary files a/lib/time/zoneinfo/America/Guatemala and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Guayaquil b/lib/time/zoneinfo/America/Guayaquil
+deleted file mode 100644
+index 67babe5552..0000000000
+Binary files a/lib/time/zoneinfo/America/Guayaquil and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Guyana b/lib/time/zoneinfo/America/Guyana
+deleted file mode 100644
+index 11a59f5341..0000000000
+Binary files a/lib/time/zoneinfo/America/Guyana and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Halifax b/lib/time/zoneinfo/America/Halifax
+deleted file mode 100644
+index 30d2f5c5d4..0000000000
+Binary files a/lib/time/zoneinfo/America/Halifax and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Havana b/lib/time/zoneinfo/America/Havana
+deleted file mode 100644
+index 4eb3e752fe..0000000000
+Binary files a/lib/time/zoneinfo/America/Havana and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Hermosillo b/lib/time/zoneinfo/America/Hermosillo
+deleted file mode 100644
+index f378b02f1a..0000000000
+Binary files a/lib/time/zoneinfo/America/Hermosillo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Indianapolis b/lib/time/zoneinfo/America/Indiana/Indianapolis
+deleted file mode 100644
+index fca7634d38..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Indianapolis and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Knox b/lib/time/zoneinfo/America/Indiana/Knox
+deleted file mode 100644
+index f983d68aa9..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Knox and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Marengo b/lib/time/zoneinfo/America/Indiana/Marengo
+deleted file mode 100644
+index 0e543c3078..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Marengo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Petersburg b/lib/time/zoneinfo/America/Indiana/Petersburg
+deleted file mode 100644
+index be081d2e2e..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Petersburg and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Tell_City b/lib/time/zoneinfo/America/Indiana/Tell_City
+deleted file mode 100644
+index e812c68f70..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Tell_City and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Vevay b/lib/time/zoneinfo/America/Indiana/Vevay
+deleted file mode 100644
+index eabc869934..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Vevay and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Vincennes b/lib/time/zoneinfo/America/Indiana/Vincennes
+deleted file mode 100644
+index 50863e9de0..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Vincennes and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indiana/Winamac b/lib/time/zoneinfo/America/Indiana/Winamac
+deleted file mode 100644
+index ec3b19b91a..0000000000
+Binary files a/lib/time/zoneinfo/America/Indiana/Winamac and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Indianapolis b/lib/time/zoneinfo/America/Indianapolis
+deleted file mode 100644
+index fca7634d38..0000000000
+Binary files a/lib/time/zoneinfo/America/Indianapolis and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Inuvik b/lib/time/zoneinfo/America/Inuvik
+deleted file mode 100644
+index bece783310..0000000000
+Binary files a/lib/time/zoneinfo/America/Inuvik and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Iqaluit b/lib/time/zoneinfo/America/Iqaluit
+deleted file mode 100644
+index 1dc48824b7..0000000000
+Binary files a/lib/time/zoneinfo/America/Iqaluit and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Jamaica b/lib/time/zoneinfo/America/Jamaica
+deleted file mode 100644
+index 4b0d067cfa..0000000000
+Binary files a/lib/time/zoneinfo/America/Jamaica and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Jujuy b/lib/time/zoneinfo/America/Jujuy
+deleted file mode 100644
+index a25d1aaa8b..0000000000
+Binary files a/lib/time/zoneinfo/America/Jujuy and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Juneau b/lib/time/zoneinfo/America/Juneau
+deleted file mode 100644
+index 788c266484..0000000000
+Binary files a/lib/time/zoneinfo/America/Juneau and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Kentucky/Louisville b/lib/time/zoneinfo/America/Kentucky/Louisville
+deleted file mode 100644
+index 7c0d65e3a7..0000000000
+Binary files a/lib/time/zoneinfo/America/Kentucky/Louisville and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Kentucky/Monticello b/lib/time/zoneinfo/America/Kentucky/Monticello
+deleted file mode 100644
+index 373328f8b1..0000000000
+Binary files a/lib/time/zoneinfo/America/Kentucky/Monticello and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Knox_IN b/lib/time/zoneinfo/America/Knox_IN
+deleted file mode 100644
+index f983d68aa9..0000000000
+Binary files a/lib/time/zoneinfo/America/Knox_IN and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Kralendijk b/lib/time/zoneinfo/America/Kralendijk
+deleted file mode 100644
+index 7938eb2852..0000000000
+Binary files a/lib/time/zoneinfo/America/Kralendijk and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/La_Paz b/lib/time/zoneinfo/America/La_Paz
+deleted file mode 100644
+index bf005df62b..0000000000
+Binary files a/lib/time/zoneinfo/America/La_Paz and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Lima b/lib/time/zoneinfo/America/Lima
+deleted file mode 100644
+index 809450bc0a..0000000000
+Binary files a/lib/time/zoneinfo/America/Lima and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Los_Angeles b/lib/time/zoneinfo/America/Los_Angeles
+deleted file mode 100644
+index 3430a7f2a3..0000000000
+Binary files a/lib/time/zoneinfo/America/Los_Angeles and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Louisville b/lib/time/zoneinfo/America/Louisville
+deleted file mode 100644
+index 7c0d65e3a7..0000000000
+Binary files a/lib/time/zoneinfo/America/Louisville and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Lower_Princes b/lib/time/zoneinfo/America/Lower_Princes
+deleted file mode 100644
+index 7938eb2852..0000000000
+Binary files a/lib/time/zoneinfo/America/Lower_Princes and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Maceio b/lib/time/zoneinfo/America/Maceio
+deleted file mode 100644
+index 300d517406..0000000000
+Binary files a/lib/time/zoneinfo/America/Maceio and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Managua b/lib/time/zoneinfo/America/Managua
+deleted file mode 100644
+index dfd92b2f0f..0000000000
+Binary files a/lib/time/zoneinfo/America/Managua and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Manaus b/lib/time/zoneinfo/America/Manaus
+deleted file mode 100644
+index 2ffcd7642f..0000000000
+Binary files a/lib/time/zoneinfo/America/Manaus and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Marigot b/lib/time/zoneinfo/America/Marigot
+deleted file mode 100644
+index c20705c53d..0000000000
+Binary files a/lib/time/zoneinfo/America/Marigot and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Martinique b/lib/time/zoneinfo/America/Martinique
+deleted file mode 100644
+index aa232a7909..0000000000
+Binary files a/lib/time/zoneinfo/America/Martinique and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Matamoros b/lib/time/zoneinfo/America/Matamoros
+deleted file mode 100644
+index b8f727cf2f..0000000000
+Binary files a/lib/time/zoneinfo/America/Matamoros and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Mazatlan b/lib/time/zoneinfo/America/Mazatlan
+deleted file mode 100644
+index 1d2353a436..0000000000
+Binary files a/lib/time/zoneinfo/America/Mazatlan and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Mendoza b/lib/time/zoneinfo/America/Mendoza
+deleted file mode 100644
+index d6fedcaf5f..0000000000
+Binary files a/lib/time/zoneinfo/America/Mendoza and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Menominee b/lib/time/zoneinfo/America/Menominee
+deleted file mode 100644
+index 05cd49c698..0000000000
+Binary files a/lib/time/zoneinfo/America/Menominee and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Merida b/lib/time/zoneinfo/America/Merida
+deleted file mode 100644
+index 6a614e7c15..0000000000
+Binary files a/lib/time/zoneinfo/America/Merida and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Metlakatla b/lib/time/zoneinfo/America/Metlakatla
+deleted file mode 100644
+index 1f3fb72501..0000000000
+Binary files a/lib/time/zoneinfo/America/Metlakatla and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Mexico_City b/lib/time/zoneinfo/America/Mexico_City
+deleted file mode 100644
+index 51f060390b..0000000000
+Binary files a/lib/time/zoneinfo/America/Mexico_City and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Miquelon b/lib/time/zoneinfo/America/Miquelon
+deleted file mode 100644
+index 3c917c5d00..0000000000
+Binary files a/lib/time/zoneinfo/America/Miquelon and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Moncton b/lib/time/zoneinfo/America/Moncton
+deleted file mode 100644
+index edaa830bc0..0000000000
+Binary files a/lib/time/zoneinfo/America/Moncton and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Monterrey b/lib/time/zoneinfo/America/Monterrey
+deleted file mode 100644
+index fad97aa1b3..0000000000
+Binary files a/lib/time/zoneinfo/America/Monterrey and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Montevideo b/lib/time/zoneinfo/America/Montevideo
+deleted file mode 100644
+index 9c3a86d33d..0000000000
+Binary files a/lib/time/zoneinfo/America/Montevideo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Montreal b/lib/time/zoneinfo/America/Montreal
+deleted file mode 100644
+index a2f37c0d18..0000000000
+Binary files a/lib/time/zoneinfo/America/Montreal and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Montserrat b/lib/time/zoneinfo/America/Montserrat
+deleted file mode 100644
+index f15fd807c5..0000000000
+Binary files a/lib/time/zoneinfo/America/Montserrat and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Nassau b/lib/time/zoneinfo/America/Nassau
+deleted file mode 100644
+index 4f3cad28b2..0000000000
+Binary files a/lib/time/zoneinfo/America/Nassau and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/New_York b/lib/time/zoneinfo/America/New_York
+deleted file mode 100644
+index aa3fd4260a..0000000000
+Binary files a/lib/time/zoneinfo/America/New_York and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Nipigon b/lib/time/zoneinfo/America/Nipigon
+deleted file mode 100644
+index b590169ced..0000000000
+Binary files a/lib/time/zoneinfo/America/Nipigon and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Nome b/lib/time/zoneinfo/America/Nome
+deleted file mode 100644
+index 0de4706960..0000000000
+Binary files a/lib/time/zoneinfo/America/Nome and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Noronha b/lib/time/zoneinfo/America/Noronha
+deleted file mode 100644
+index e611a3e32b..0000000000
+Binary files a/lib/time/zoneinfo/America/Noronha and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/North_Dakota/Beulah b/lib/time/zoneinfo/America/North_Dakota/Beulah
+deleted file mode 100644
+index 148fea9064..0000000000
+Binary files a/lib/time/zoneinfo/America/North_Dakota/Beulah and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/North_Dakota/Center b/lib/time/zoneinfo/America/North_Dakota/Center
+deleted file mode 100644
+index 866a19b5dd..0000000000
+Binary files a/lib/time/zoneinfo/America/North_Dakota/Center and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/North_Dakota/New_Salem b/lib/time/zoneinfo/America/North_Dakota/New_Salem
+deleted file mode 100644
+index bcc50563d8..0000000000
+Binary files a/lib/time/zoneinfo/America/North_Dakota/New_Salem and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Ojinaga b/lib/time/zoneinfo/America/Ojinaga
+deleted file mode 100644
+index 76b5b85f04..0000000000
+Binary files a/lib/time/zoneinfo/America/Ojinaga and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Panama b/lib/time/zoneinfo/America/Panama
+deleted file mode 100644
+index a47de3e003..0000000000
+Binary files a/lib/time/zoneinfo/America/Panama and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Pangnirtung b/lib/time/zoneinfo/America/Pangnirtung
+deleted file mode 100644
+index 3f15438815..0000000000
+Binary files a/lib/time/zoneinfo/America/Pangnirtung and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Paramaribo b/lib/time/zoneinfo/America/Paramaribo
+deleted file mode 100644
+index a8013cd871..0000000000
+Binary files a/lib/time/zoneinfo/America/Paramaribo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Phoenix b/lib/time/zoneinfo/America/Phoenix
+deleted file mode 100644
+index 80867f11a7..0000000000
+Binary files a/lib/time/zoneinfo/America/Phoenix and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Port-au-Prince b/lib/time/zoneinfo/America/Port-au-Prince
+deleted file mode 100644
+index 11cc116ccd..0000000000
+Binary files a/lib/time/zoneinfo/America/Port-au-Prince and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Port_of_Spain b/lib/time/zoneinfo/America/Port_of_Spain
+deleted file mode 100644
+index ed109b9160..0000000000
+Binary files a/lib/time/zoneinfo/America/Port_of_Spain and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Porto_Acre b/lib/time/zoneinfo/America/Porto_Acre
+deleted file mode 100644
+index 729ebdbde0..0000000000
+Binary files a/lib/time/zoneinfo/America/Porto_Acre and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Porto_Velho b/lib/time/zoneinfo/America/Porto_Velho
+deleted file mode 100644
+index d165196426..0000000000
+Binary files a/lib/time/zoneinfo/America/Porto_Velho and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Puerto_Rico b/lib/time/zoneinfo/America/Puerto_Rico
+deleted file mode 100644
+index ace150c071..0000000000
+Binary files a/lib/time/zoneinfo/America/Puerto_Rico and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Rainy_River b/lib/time/zoneinfo/America/Rainy_River
+deleted file mode 100644
+index 3be1509ca8..0000000000
+Binary files a/lib/time/zoneinfo/America/Rainy_River and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Rankin_Inlet b/lib/time/zoneinfo/America/Rankin_Inlet
+deleted file mode 100644
+index b6f73984bd..0000000000
+Binary files a/lib/time/zoneinfo/America/Rankin_Inlet and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Recife b/lib/time/zoneinfo/America/Recife
+deleted file mode 100644
+index f5557eb995..0000000000
+Binary files a/lib/time/zoneinfo/America/Recife and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Regina b/lib/time/zoneinfo/America/Regina
+deleted file mode 100644
+index 4204584cfc..0000000000
+Binary files a/lib/time/zoneinfo/America/Regina and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Resolute b/lib/time/zoneinfo/America/Resolute
+deleted file mode 100644
+index 115c7e89d6..0000000000
+Binary files a/lib/time/zoneinfo/America/Resolute and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Rio_Branco b/lib/time/zoneinfo/America/Rio_Branco
+deleted file mode 100644
+index 729ebdbde0..0000000000
+Binary files a/lib/time/zoneinfo/America/Rio_Branco and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Rosario b/lib/time/zoneinfo/America/Rosario
+deleted file mode 100644
+index aaac862638..0000000000
+Binary files a/lib/time/zoneinfo/America/Rosario and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Santa_Isabel b/lib/time/zoneinfo/America/Santa_Isabel
+deleted file mode 100644
+index 39333941d0..0000000000
+Binary files a/lib/time/zoneinfo/America/Santa_Isabel and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Santarem b/lib/time/zoneinfo/America/Santarem
+deleted file mode 100644
+index f1a6bd32f4..0000000000
+Binary files a/lib/time/zoneinfo/America/Santarem and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Santiago b/lib/time/zoneinfo/America/Santiago
+deleted file mode 100644
+index 4958d78ea1..0000000000
+Binary files a/lib/time/zoneinfo/America/Santiago and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Santo_Domingo b/lib/time/zoneinfo/America/Santo_Domingo
+deleted file mode 100644
+index 67da6ec016..0000000000
+Binary files a/lib/time/zoneinfo/America/Santo_Domingo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Sao_Paulo b/lib/time/zoneinfo/America/Sao_Paulo
+deleted file mode 100644
+index bf666ca03e..0000000000
+Binary files a/lib/time/zoneinfo/America/Sao_Paulo and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Scoresbysund b/lib/time/zoneinfo/America/Scoresbysund
+deleted file mode 100644
+index ae7b8168f7..0000000000
+Binary files a/lib/time/zoneinfo/America/Scoresbysund and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Shiprock b/lib/time/zoneinfo/America/Shiprock
+deleted file mode 100644
+index 3e895a91b5..0000000000
+Binary files a/lib/time/zoneinfo/America/Shiprock and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Sitka b/lib/time/zoneinfo/America/Sitka
+deleted file mode 100644
+index 6d1dd9021e..0000000000
+Binary files a/lib/time/zoneinfo/America/Sitka and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Barthelemy b/lib/time/zoneinfo/America/St_Barthelemy
+deleted file mode 100644
+index c20705c53d..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Barthelemy and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Johns b/lib/time/zoneinfo/America/St_Johns
+deleted file mode 100644
+index 1984d7405f..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Johns and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Kitts b/lib/time/zoneinfo/America/St_Kitts
+deleted file mode 100644
+index 8f4454b89b..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Kitts and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Lucia b/lib/time/zoneinfo/America/St_Lucia
+deleted file mode 100644
+index 552b1aaac7..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Lucia and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Thomas b/lib/time/zoneinfo/America/St_Thomas
+deleted file mode 100644
+index 6ec521ac3e..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Thomas and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/St_Vincent b/lib/time/zoneinfo/America/St_Vincent
+deleted file mode 100644
+index 5cba1d0eef..0000000000
+Binary files a/lib/time/zoneinfo/America/St_Vincent and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Swift_Current b/lib/time/zoneinfo/America/Swift_Current
+deleted file mode 100644
+index d822cec5c1..0000000000
+Binary files a/lib/time/zoneinfo/America/Swift_Current and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Tegucigalpa b/lib/time/zoneinfo/America/Tegucigalpa
+deleted file mode 100644
+index a61ea16fff..0000000000
+Binary files a/lib/time/zoneinfo/America/Tegucigalpa and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Thule b/lib/time/zoneinfo/America/Thule
+deleted file mode 100644
+index d9131ce79f..0000000000
+Binary files a/lib/time/zoneinfo/America/Thule and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Thunder_Bay b/lib/time/zoneinfo/America/Thunder_Bay
+deleted file mode 100644
+index 5994aec01e..0000000000
+Binary files a/lib/time/zoneinfo/America/Thunder_Bay and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Tijuana b/lib/time/zoneinfo/America/Tijuana
+deleted file mode 100644
+index 68b2eac796..0000000000
+Binary files a/lib/time/zoneinfo/America/Tijuana and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Toronto b/lib/time/zoneinfo/America/Toronto
+deleted file mode 100644
+index ef28b83810..0000000000
+Binary files a/lib/time/zoneinfo/America/Toronto and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Tortola b/lib/time/zoneinfo/America/Tortola
+deleted file mode 100644
+index b9d356ae1a..0000000000
+Binary files a/lib/time/zoneinfo/America/Tortola and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Vancouver b/lib/time/zoneinfo/America/Vancouver
+deleted file mode 100644
+index 73477f1027..0000000000
+Binary files a/lib/time/zoneinfo/America/Vancouver and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Virgin b/lib/time/zoneinfo/America/Virgin
+deleted file mode 100644
+index 6ec521ac3e..0000000000
+Binary files a/lib/time/zoneinfo/America/Virgin and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Whitehorse b/lib/time/zoneinfo/America/Whitehorse
+deleted file mode 100644
+index 76fa9fc6f4..0000000000
+Binary files a/lib/time/zoneinfo/America/Whitehorse and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Winnipeg b/lib/time/zoneinfo/America/Winnipeg
+deleted file mode 100644
+index af93403a6b..0000000000
+Binary files a/lib/time/zoneinfo/America/Winnipeg and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Yakutat b/lib/time/zoneinfo/America/Yakutat
+deleted file mode 100644
+index 56fd73bacd..0000000000
+Binary files a/lib/time/zoneinfo/America/Yakutat and /dev/null differ
+diff --git a/lib/time/zoneinfo/America/Yellowknife b/lib/time/zoneinfo/America/Yellowknife
+deleted file mode 100644
+index bed66df587..0000000000
+Binary files a/lib/time/zoneinfo/America/Yellowknife and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Casey b/lib/time/zoneinfo/Antarctica/Casey
+deleted file mode 100644
+index 0108d87115..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Casey and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Davis b/lib/time/zoneinfo/Antarctica/Davis
+deleted file mode 100644
+index 0e0958a95b..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Davis and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/DumontDUrville b/lib/time/zoneinfo/Antarctica/DumontDUrville
+deleted file mode 100644
+index aabdc59ac2..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/DumontDUrville and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Macquarie b/lib/time/zoneinfo/Antarctica/Macquarie
+deleted file mode 100644
+index 82afda9f74..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Macquarie and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Mawson b/lib/time/zoneinfo/Antarctica/Mawson
+deleted file mode 100644
+index 2baeabf287..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Mawson and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/McMurdo b/lib/time/zoneinfo/Antarctica/McMurdo
+deleted file mode 100644
+index 53f90072d2..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/McMurdo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Palmer b/lib/time/zoneinfo/Antarctica/Palmer
+deleted file mode 100644
+index 8aaecb5f76..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Palmer and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Rothera b/lib/time/zoneinfo/Antarctica/Rothera
+deleted file mode 100644
+index 7be5be1c9e..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Rothera and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/South_Pole b/lib/time/zoneinfo/Antarctica/South_Pole
+deleted file mode 100644
+index 53f90072d2..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/South_Pole and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Syowa b/lib/time/zoneinfo/Antarctica/Syowa
+deleted file mode 100644
+index 531fa67b27..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Syowa and /dev/null differ
+diff --git a/lib/time/zoneinfo/Antarctica/Vostok b/lib/time/zoneinfo/Antarctica/Vostok
+deleted file mode 100644
+index 5aa065448b..0000000000
+Binary files a/lib/time/zoneinfo/Antarctica/Vostok and /dev/null differ
+diff --git a/lib/time/zoneinfo/Arctic/Longyearbyen b/lib/time/zoneinfo/Arctic/Longyearbyen
+deleted file mode 100644
+index 05994479e9..0000000000
+Binary files a/lib/time/zoneinfo/Arctic/Longyearbyen and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Aden b/lib/time/zoneinfo/Asia/Aden
+deleted file mode 100644
+index 1c6cd2cb69..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Aden and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Almaty b/lib/time/zoneinfo/Asia/Almaty
+deleted file mode 100644
+index 496e51cb74..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Almaty and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Amman b/lib/time/zoneinfo/Asia/Amman
+deleted file mode 100644
+index d10c892111..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Amman and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Anadyr b/lib/time/zoneinfo/Asia/Anadyr
+deleted file mode 100644
+index e85a45b25b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Anadyr and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Aqtau b/lib/time/zoneinfo/Asia/Aqtau
+deleted file mode 100644
+index 06a15bf9a9..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Aqtau and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Aqtobe b/lib/time/zoneinfo/Asia/Aqtobe
+deleted file mode 100644
+index 2dc02e29b7..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Aqtobe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ashgabat b/lib/time/zoneinfo/Asia/Ashgabat
+deleted file mode 100644
+index 0534afdb58..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ashgabat and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ashkhabad b/lib/time/zoneinfo/Asia/Ashkhabad
+deleted file mode 100644
+index 0534afdb58..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ashkhabad and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Baghdad b/lib/time/zoneinfo/Asia/Baghdad
+deleted file mode 100644
+index a1c5c35acf..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Baghdad and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Bahrain b/lib/time/zoneinfo/Asia/Bahrain
+deleted file mode 100644
+index 9f5755311f..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Bahrain and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Baku b/lib/time/zoneinfo/Asia/Baku
+deleted file mode 100644
+index d360748703..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Baku and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Bangkok b/lib/time/zoneinfo/Asia/Bangkok
+deleted file mode 100644
+index 6c1e438e5e..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Bangkok and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Beirut b/lib/time/zoneinfo/Asia/Beirut
+deleted file mode 100644
+index 882326dc32..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Beirut and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Bishkek b/lib/time/zoneinfo/Asia/Bishkek
+deleted file mode 100644
+index bca8416518..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Bishkek and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Brunei b/lib/time/zoneinfo/Asia/Brunei
+deleted file mode 100644
+index 9e5fa000d7..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Brunei and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Calcutta b/lib/time/zoneinfo/Asia/Calcutta
+deleted file mode 100644
+index bfe816e58b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Calcutta and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Choibalsan b/lib/time/zoneinfo/Asia/Choibalsan
+deleted file mode 100644
+index 2d53d9e522..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Choibalsan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Chongqing b/lib/time/zoneinfo/Asia/Chongqing
+deleted file mode 100644
+index 2a89922a0c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Chongqing and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Chungking b/lib/time/zoneinfo/Asia/Chungking
+deleted file mode 100644
+index 2a89922a0c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Chungking and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Colombo b/lib/time/zoneinfo/Asia/Colombo
+deleted file mode 100644
+index 1fc8407e5b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Colombo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Dacca b/lib/time/zoneinfo/Asia/Dacca
+deleted file mode 100644
+index 879346f015..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Dacca and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Damascus b/lib/time/zoneinfo/Asia/Damascus
+deleted file mode 100644
+index ccf17109c0..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Damascus and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Dhaka b/lib/time/zoneinfo/Asia/Dhaka
+deleted file mode 100644
+index 879346f015..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Dhaka and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Dili b/lib/time/zoneinfo/Asia/Dili
+deleted file mode 100644
+index 3685cda3bb..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Dili and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Dubai b/lib/time/zoneinfo/Asia/Dubai
+deleted file mode 100644
+index 37701cba97..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Dubai and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Dushanbe b/lib/time/zoneinfo/Asia/Dushanbe
+deleted file mode 100644
+index 42322080af..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Dushanbe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Gaza b/lib/time/zoneinfo/Asia/Gaza
+deleted file mode 100644
+index 21fca850d1..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Gaza and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Harbin b/lib/time/zoneinfo/Asia/Harbin
+deleted file mode 100644
+index 7f9840aaf4..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Harbin and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Hebron b/lib/time/zoneinfo/Asia/Hebron
+deleted file mode 100644
+index 01789c6dab..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Hebron and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ho_Chi_Minh b/lib/time/zoneinfo/Asia/Ho_Chi_Minh
+deleted file mode 100644
+index 7a7e65a74e..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ho_Chi_Minh and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Hong_Kong b/lib/time/zoneinfo/Asia/Hong_Kong
+deleted file mode 100644
+index 8b38e3ef0d..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Hong_Kong and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Hovd b/lib/time/zoneinfo/Asia/Hovd
+deleted file mode 100644
+index a6828e379b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Hovd and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Irkutsk b/lib/time/zoneinfo/Asia/Irkutsk
+deleted file mode 100644
+index 695e9a3d49..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Irkutsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Istanbul b/lib/time/zoneinfo/Asia/Istanbul
+deleted file mode 100644
+index 2fe8aaa17b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Istanbul and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Jakarta b/lib/time/zoneinfo/Asia/Jakarta
+deleted file mode 100644
+index 4c7cdd0b5a..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Jakarta and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Jayapura b/lib/time/zoneinfo/Asia/Jayapura
+deleted file mode 100644
+index d26d74b5d1..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Jayapura and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Jerusalem b/lib/time/zoneinfo/Asia/Jerusalem
+deleted file mode 100644
+index cd45bfb213..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Jerusalem and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kabul b/lib/time/zoneinfo/Asia/Kabul
+deleted file mode 100644
+index cba7b969fd..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kabul and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kamchatka b/lib/time/zoneinfo/Asia/Kamchatka
+deleted file mode 100644
+index 6e3de502a3..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kamchatka and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Karachi b/lib/time/zoneinfo/Asia/Karachi
+deleted file mode 100644
+index da9d8e45b1..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Karachi and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kashgar b/lib/time/zoneinfo/Asia/Kashgar
+deleted file mode 100644
+index 4de53a465b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kashgar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kathmandu b/lib/time/zoneinfo/Asia/Kathmandu
+deleted file mode 100644
+index 843ddbe09c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kathmandu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Katmandu b/lib/time/zoneinfo/Asia/Katmandu
+deleted file mode 100644
+index 843ddbe09c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Katmandu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kolkata b/lib/time/zoneinfo/Asia/Kolkata
+deleted file mode 100644
+index bfe816e58b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kolkata and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Krasnoyarsk b/lib/time/zoneinfo/Asia/Krasnoyarsk
+deleted file mode 100644
+index 16c3c677cf..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Krasnoyarsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kuala_Lumpur b/lib/time/zoneinfo/Asia/Kuala_Lumpur
+deleted file mode 100644
+index 094323788f..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kuala_Lumpur and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kuching b/lib/time/zoneinfo/Asia/Kuching
+deleted file mode 100644
+index d34c1bb625..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kuching and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Kuwait b/lib/time/zoneinfo/Asia/Kuwait
+deleted file mode 100644
+index 5f199a68b5..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Kuwait and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Macao b/lib/time/zoneinfo/Asia/Macao
+deleted file mode 100644
+index e6d4615abb..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Macao and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Macau b/lib/time/zoneinfo/Asia/Macau
+deleted file mode 100644
+index e6d4615abb..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Macau and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Magadan b/lib/time/zoneinfo/Asia/Magadan
+deleted file mode 100644
+index b3b11129a1..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Magadan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Makassar b/lib/time/zoneinfo/Asia/Makassar
+deleted file mode 100644
+index 48fcfca55b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Makassar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Manila b/lib/time/zoneinfo/Asia/Manila
+deleted file mode 100644
+index 0b3a4247a6..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Manila and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Muscat b/lib/time/zoneinfo/Asia/Muscat
+deleted file mode 100644
+index 98e33ea668..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Muscat and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Nicosia b/lib/time/zoneinfo/Asia/Nicosia
+deleted file mode 100644
+index b640be48ae..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Nicosia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Novokuznetsk b/lib/time/zoneinfo/Asia/Novokuznetsk
+deleted file mode 100644
+index 28b530409a..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Novokuznetsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Novosibirsk b/lib/time/zoneinfo/Asia/Novosibirsk
+deleted file mode 100644
+index 76353eee36..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Novosibirsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Omsk b/lib/time/zoneinfo/Asia/Omsk
+deleted file mode 100644
+index fc89bc8e69..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Omsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Oral b/lib/time/zoneinfo/Asia/Oral
+deleted file mode 100644
+index 0df4419c29..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Oral and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Phnom_Penh b/lib/time/zoneinfo/Asia/Phnom_Penh
+deleted file mode 100644
+index 3bc38d5346..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Phnom_Penh and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Pontianak b/lib/time/zoneinfo/Asia/Pontianak
+deleted file mode 100644
+index c1a532741d..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Pontianak and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Pyongyang b/lib/time/zoneinfo/Asia/Pyongyang
+deleted file mode 100644
+index 6e318c20eb..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Pyongyang and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Qatar b/lib/time/zoneinfo/Asia/Qatar
+deleted file mode 100644
+index b4bb272b92..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Qatar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Qyzylorda b/lib/time/zoneinfo/Asia/Qyzylorda
+deleted file mode 100644
+index e8627f586c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Qyzylorda and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Rangoon b/lib/time/zoneinfo/Asia/Rangoon
+deleted file mode 100644
+index 6be445c1dd..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Rangoon and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Riyadh b/lib/time/zoneinfo/Asia/Riyadh
+deleted file mode 100644
+index e86d069c2c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Riyadh and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Riyadh87 b/lib/time/zoneinfo/Asia/Riyadh87
+deleted file mode 100644
+index 188cb54e1d..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Riyadh87 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Riyadh88 b/lib/time/zoneinfo/Asia/Riyadh88
+deleted file mode 100644
+index 7f48dc2761..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Riyadh88 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Riyadh89 b/lib/time/zoneinfo/Asia/Riyadh89
+deleted file mode 100644
+index 4eb9671dce..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Riyadh89 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Saigon b/lib/time/zoneinfo/Asia/Saigon
+deleted file mode 100644
+index 7a7e65a74e..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Saigon and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Sakhalin b/lib/time/zoneinfo/Asia/Sakhalin
+deleted file mode 100644
+index e206c0970b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Sakhalin and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Samarkand b/lib/time/zoneinfo/Asia/Samarkand
+deleted file mode 100644
+index a7698a5e18..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Samarkand and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Seoul b/lib/time/zoneinfo/Asia/Seoul
+deleted file mode 100644
+index bcb8177439..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Seoul and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Shanghai b/lib/time/zoneinfo/Asia/Shanghai
+deleted file mode 100644
+index 3951289d16..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Shanghai and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Singapore b/lib/time/zoneinfo/Asia/Singapore
+deleted file mode 100644
+index 37d09ea100..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Singapore and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Taipei b/lib/time/zoneinfo/Asia/Taipei
+deleted file mode 100644
+index f76abb1855..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Taipei and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Tashkent b/lib/time/zoneinfo/Asia/Tashkent
+deleted file mode 100644
+index 261a21dd09..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Tashkent and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Tbilisi b/lib/time/zoneinfo/Asia/Tbilisi
+deleted file mode 100644
+index 15c541d849..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Tbilisi and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Tehran b/lib/time/zoneinfo/Asia/Tehran
+deleted file mode 100644
+index c11db76c02..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Tehran and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Tel_Aviv b/lib/time/zoneinfo/Asia/Tel_Aviv
+deleted file mode 100644
+index cd45bfb213..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Tel_Aviv and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Thimbu b/lib/time/zoneinfo/Asia/Thimbu
+deleted file mode 100644
+index 75184e6198..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Thimbu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Thimphu b/lib/time/zoneinfo/Asia/Thimphu
+deleted file mode 100644
+index 75184e6198..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Thimphu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Tokyo b/lib/time/zoneinfo/Asia/Tokyo
+deleted file mode 100644
+index 8883df2dcd..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Tokyo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ujung_Pandang b/lib/time/zoneinfo/Asia/Ujung_Pandang
+deleted file mode 100644
+index 48fcfca55b..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ujung_Pandang and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ulaanbaatar b/lib/time/zoneinfo/Asia/Ulaanbaatar
+deleted file mode 100644
+index 3be544c5af..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ulaanbaatar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Ulan_Bator b/lib/time/zoneinfo/Asia/Ulan_Bator
+deleted file mode 100644
+index 3be544c5af..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Ulan_Bator and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Urumqi b/lib/time/zoneinfo/Asia/Urumqi
+deleted file mode 100644
+index 10716cd029..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Urumqi and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Vientiane b/lib/time/zoneinfo/Asia/Vientiane
+deleted file mode 100644
+index b0b844f3c0..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Vientiane and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Vladivostok b/lib/time/zoneinfo/Asia/Vladivostok
+deleted file mode 100644
+index 2baae8cce2..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Vladivostok and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Yakutsk b/lib/time/zoneinfo/Asia/Yakutsk
+deleted file mode 100644
+index a3ba13470c..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Yakutsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Yekaterinburg b/lib/time/zoneinfo/Asia/Yekaterinburg
+deleted file mode 100644
+index a4143f13a7..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Yekaterinburg and /dev/null differ
+diff --git a/lib/time/zoneinfo/Asia/Yerevan b/lib/time/zoneinfo/Asia/Yerevan
+deleted file mode 100644
+index 1ee46cc405..0000000000
+Binary files a/lib/time/zoneinfo/Asia/Yerevan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Azores b/lib/time/zoneinfo/Atlantic/Azores
+deleted file mode 100644
+index d109c66b17..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Azores and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Bermuda b/lib/time/zoneinfo/Atlantic/Bermuda
+deleted file mode 100644
+index b47dabfa48..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Bermuda and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Canary b/lib/time/zoneinfo/Atlantic/Canary
+deleted file mode 100644
+index 18b01da011..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Canary and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Cape_Verde b/lib/time/zoneinfo/Atlantic/Cape_Verde
+deleted file mode 100644
+index 1701d893d0..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Cape_Verde and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Faeroe b/lib/time/zoneinfo/Atlantic/Faeroe
+deleted file mode 100644
+index cc9564cde0..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Faeroe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Faroe b/lib/time/zoneinfo/Atlantic/Faroe
+deleted file mode 100644
+index cc9564cde0..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Faroe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Jan_Mayen b/lib/time/zoneinfo/Atlantic/Jan_Mayen
+deleted file mode 100644
+index 05994479e9..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Jan_Mayen and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Madeira b/lib/time/zoneinfo/Atlantic/Madeira
+deleted file mode 100644
+index be64291af6..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Madeira and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Reykjavik b/lib/time/zoneinfo/Atlantic/Reykjavik
+deleted file mode 100644
+index 8b451c115b..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Reykjavik and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/South_Georgia b/lib/time/zoneinfo/Atlantic/South_Georgia
+deleted file mode 100644
+index 23fa33462e..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/South_Georgia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/St_Helena b/lib/time/zoneinfo/Atlantic/St_Helena
+deleted file mode 100644
+index 3d93dde4f0..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/St_Helena and /dev/null differ
+diff --git a/lib/time/zoneinfo/Atlantic/Stanley b/lib/time/zoneinfo/Atlantic/Stanley
+deleted file mode 100644
+index 59cdf6b346..0000000000
+Binary files a/lib/time/zoneinfo/Atlantic/Stanley and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/ACT b/lib/time/zoneinfo/Australia/ACT
+deleted file mode 100644
+index 10f6293528..0000000000
+Binary files a/lib/time/zoneinfo/Australia/ACT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Adelaide b/lib/time/zoneinfo/Australia/Adelaide
+deleted file mode 100644
+index 8d2fb92430..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Adelaide and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Brisbane b/lib/time/zoneinfo/Australia/Brisbane
+deleted file mode 100644
+index 6b3910bc9c..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Brisbane and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Broken_Hill b/lib/time/zoneinfo/Australia/Broken_Hill
+deleted file mode 100644
+index 8e6f1c945c..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Broken_Hill and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Canberra b/lib/time/zoneinfo/Australia/Canberra
+deleted file mode 100644
+index 10f6293528..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Canberra and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Currie b/lib/time/zoneinfo/Australia/Currie
+deleted file mode 100644
+index eb9fb9c40e..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Currie and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Darwin b/lib/time/zoneinfo/Australia/Darwin
+deleted file mode 100644
+index f78d281537..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Darwin and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Eucla b/lib/time/zoneinfo/Australia/Eucla
+deleted file mode 100644
+index c5002b7d82..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Eucla and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Hobart b/lib/time/zoneinfo/Australia/Hobart
+deleted file mode 100644
+index 2e0f0d07e4..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Hobart and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/LHI b/lib/time/zoneinfo/Australia/LHI
+deleted file mode 100644
+index ddeb2c86fc..0000000000
+Binary files a/lib/time/zoneinfo/Australia/LHI and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Lindeman b/lib/time/zoneinfo/Australia/Lindeman
+deleted file mode 100644
+index 5e80d6b1c7..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Lindeman and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Lord_Howe b/lib/time/zoneinfo/Australia/Lord_Howe
+deleted file mode 100644
+index ddeb2c86fc..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Lord_Howe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Melbourne b/lib/time/zoneinfo/Australia/Melbourne
+deleted file mode 100644
+index 4f8beba5d8..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Melbourne and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/NSW b/lib/time/zoneinfo/Australia/NSW
+deleted file mode 100644
+index 10f6293528..0000000000
+Binary files a/lib/time/zoneinfo/Australia/NSW and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/North b/lib/time/zoneinfo/Australia/North
+deleted file mode 100644
+index f78d281537..0000000000
+Binary files a/lib/time/zoneinfo/Australia/North and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Perth b/lib/time/zoneinfo/Australia/Perth
+deleted file mode 100644
+index 1449f4b767..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Perth and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Queensland b/lib/time/zoneinfo/Australia/Queensland
+deleted file mode 100644
+index 6b3910bc9c..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Queensland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/South b/lib/time/zoneinfo/Australia/South
+deleted file mode 100644
+index 8d2fb92430..0000000000
+Binary files a/lib/time/zoneinfo/Australia/South and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Sydney b/lib/time/zoneinfo/Australia/Sydney
+deleted file mode 100644
+index 10f6293528..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Sydney and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Tasmania b/lib/time/zoneinfo/Australia/Tasmania
+deleted file mode 100644
+index 2e0f0d07e4..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Tasmania and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Victoria b/lib/time/zoneinfo/Australia/Victoria
+deleted file mode 100644
+index 4f8beba5d8..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Victoria and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/West b/lib/time/zoneinfo/Australia/West
+deleted file mode 100644
+index 1449f4b767..0000000000
+Binary files a/lib/time/zoneinfo/Australia/West and /dev/null differ
+diff --git a/lib/time/zoneinfo/Australia/Yancowinna b/lib/time/zoneinfo/Australia/Yancowinna
+deleted file mode 100644
+index 8e6f1c945c..0000000000
+Binary files a/lib/time/zoneinfo/Australia/Yancowinna and /dev/null differ
+diff --git a/lib/time/zoneinfo/Brazil/Acre b/lib/time/zoneinfo/Brazil/Acre
+deleted file mode 100644
+index 729ebdbde0..0000000000
+Binary files a/lib/time/zoneinfo/Brazil/Acre and /dev/null differ
+diff --git a/lib/time/zoneinfo/Brazil/DeNoronha b/lib/time/zoneinfo/Brazil/DeNoronha
+deleted file mode 100644
+index e611a3e32b..0000000000
+Binary files a/lib/time/zoneinfo/Brazil/DeNoronha and /dev/null differ
+diff --git a/lib/time/zoneinfo/Brazil/East b/lib/time/zoneinfo/Brazil/East
+deleted file mode 100644
+index bf666ca03e..0000000000
+Binary files a/lib/time/zoneinfo/Brazil/East and /dev/null differ
+diff --git a/lib/time/zoneinfo/Brazil/West b/lib/time/zoneinfo/Brazil/West
+deleted file mode 100644
+index 2ffcd7642f..0000000000
+Binary files a/lib/time/zoneinfo/Brazil/West and /dev/null differ
+diff --git a/lib/time/zoneinfo/CET b/lib/time/zoneinfo/CET
+deleted file mode 100644
+index 770597529e..0000000000
+Binary files a/lib/time/zoneinfo/CET and /dev/null differ
+diff --git a/lib/time/zoneinfo/CST6CDT b/lib/time/zoneinfo/CST6CDT
+deleted file mode 100644
+index e280c5e2a9..0000000000
+Binary files a/lib/time/zoneinfo/CST6CDT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Atlantic b/lib/time/zoneinfo/Canada/Atlantic
+deleted file mode 100644
+index 30d2f5c5d4..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Atlantic and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Central b/lib/time/zoneinfo/Canada/Central
+deleted file mode 100644
+index af93403a6b..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Central and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/East-Saskatchewan b/lib/time/zoneinfo/Canada/East-Saskatchewan
+deleted file mode 100644
+index 4204584cfc..0000000000
+Binary files a/lib/time/zoneinfo/Canada/East-Saskatchewan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Eastern b/lib/time/zoneinfo/Canada/Eastern
+deleted file mode 100644
+index ef28b83810..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Eastern and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Mountain b/lib/time/zoneinfo/Canada/Mountain
+deleted file mode 100644
+index f77c33f52a..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Mountain and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Newfoundland b/lib/time/zoneinfo/Canada/Newfoundland
+deleted file mode 100644
+index 1984d7405f..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Newfoundland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Pacific b/lib/time/zoneinfo/Canada/Pacific
+deleted file mode 100644
+index 73477f1027..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Pacific and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Saskatchewan b/lib/time/zoneinfo/Canada/Saskatchewan
+deleted file mode 100644
+index 4204584cfc..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Saskatchewan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Canada/Yukon b/lib/time/zoneinfo/Canada/Yukon
+deleted file mode 100644
+index 76fa9fc6f4..0000000000
+Binary files a/lib/time/zoneinfo/Canada/Yukon and /dev/null differ
+diff --git a/lib/time/zoneinfo/Chile/Continental b/lib/time/zoneinfo/Chile/Continental
+deleted file mode 100644
+index 4958d78ea1..0000000000
+Binary files a/lib/time/zoneinfo/Chile/Continental and /dev/null differ
+diff --git a/lib/time/zoneinfo/Chile/EasterIsland b/lib/time/zoneinfo/Chile/EasterIsland
+deleted file mode 100644
+index d91ee1f53c..0000000000
+Binary files a/lib/time/zoneinfo/Chile/EasterIsland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Cuba b/lib/time/zoneinfo/Cuba
+deleted file mode 100644
+index 4eb3e752fe..0000000000
+Binary files a/lib/time/zoneinfo/Cuba and /dev/null differ
+diff --git a/lib/time/zoneinfo/EET b/lib/time/zoneinfo/EET
+deleted file mode 100644
+index 079d3ef61b..0000000000
+Binary files a/lib/time/zoneinfo/EET and /dev/null differ
+diff --git a/lib/time/zoneinfo/EST b/lib/time/zoneinfo/EST
+deleted file mode 100644
+index 1eb39ab3b4..0000000000
+Binary files a/lib/time/zoneinfo/EST and /dev/null differ
+diff --git a/lib/time/zoneinfo/EST5EDT b/lib/time/zoneinfo/EST5EDT
+deleted file mode 100644
+index a79731ad4f..0000000000
+Binary files a/lib/time/zoneinfo/EST5EDT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Egypt b/lib/time/zoneinfo/Egypt
+deleted file mode 100644
+index 133db5c24b..0000000000
+Binary files a/lib/time/zoneinfo/Egypt and /dev/null differ
+diff --git a/lib/time/zoneinfo/Eire b/lib/time/zoneinfo/Eire
+deleted file mode 100644
+index c8d0b25d09..0000000000
+Binary files a/lib/time/zoneinfo/Eire and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT b/lib/time/zoneinfo/Etc/GMT
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+0 b/lib/time/zoneinfo/Etc/GMT+0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+1 b/lib/time/zoneinfo/Etc/GMT+1
+deleted file mode 100644
+index 3a56381dab..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+1 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+10 b/lib/time/zoneinfo/Etc/GMT+10
+deleted file mode 100644
+index f2d553314a..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+10 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+11 b/lib/time/zoneinfo/Etc/GMT+11
+deleted file mode 100644
+index aecb141ecf..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+11 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+12 b/lib/time/zoneinfo/Etc/GMT+12
+deleted file mode 100644
+index 1857a053bc..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+12 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+2 b/lib/time/zoneinfo/Etc/GMT+2
+deleted file mode 100644
+index 47be7c98eb..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+2 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+3 b/lib/time/zoneinfo/Etc/GMT+3
+deleted file mode 100644
+index 7e95ac7a9d..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+3 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+4 b/lib/time/zoneinfo/Etc/GMT+4
+deleted file mode 100644
+index 2c2aae1eee..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+4 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+5 b/lib/time/zoneinfo/Etc/GMT+5
+deleted file mode 100644
+index 816fc7b068..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+5 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+6 b/lib/time/zoneinfo/Etc/GMT+6
+deleted file mode 100644
+index d0fb79c082..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+6 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+7 b/lib/time/zoneinfo/Etc/GMT+7
+deleted file mode 100644
+index 0e3de70f7c..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+7 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+8 b/lib/time/zoneinfo/Etc/GMT+8
+deleted file mode 100644
+index d0a0a00363..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+8 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT+9 b/lib/time/zoneinfo/Etc/GMT+9
+deleted file mode 100644
+index b0bbb47349..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT+9 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-0 b/lib/time/zoneinfo/Etc/GMT-0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-1 b/lib/time/zoneinfo/Etc/GMT-1
+deleted file mode 100644
+index 505832f5a0..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-1 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-10 b/lib/time/zoneinfo/Etc/GMT-10
+deleted file mode 100644
+index e1e05b1fbf..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-10 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-11 b/lib/time/zoneinfo/Etc/GMT-11
+deleted file mode 100644
+index c6f9b50b3e..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-11 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-12 b/lib/time/zoneinfo/Etc/GMT-12
+deleted file mode 100644
+index 8ddd89dcfd..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-12 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-13 b/lib/time/zoneinfo/Etc/GMT-13
+deleted file mode 100644
+index 932bd435bd..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-13 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-14 b/lib/time/zoneinfo/Etc/GMT-14
+deleted file mode 100644
+index 9ad48973bc..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-14 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-2 b/lib/time/zoneinfo/Etc/GMT-2
+deleted file mode 100644
+index 2d69f4bd7c..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-2 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-3 b/lib/time/zoneinfo/Etc/GMT-3
+deleted file mode 100644
+index c9d343e4a1..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-3 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-4 b/lib/time/zoneinfo/Etc/GMT-4
+deleted file mode 100644
+index 6e4721379e..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-4 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-5 b/lib/time/zoneinfo/Etc/GMT-5
+deleted file mode 100644
+index 73674c588b..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-5 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-6 b/lib/time/zoneinfo/Etc/GMT-6
+deleted file mode 100644
+index 1a0ccdf8ab..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-6 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-7 b/lib/time/zoneinfo/Etc/GMT-7
+deleted file mode 100644
+index 00b88e307a..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-7 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-8 b/lib/time/zoneinfo/Etc/GMT-8
+deleted file mode 100644
+index 2b0979cba6..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-8 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT-9 b/lib/time/zoneinfo/Etc/GMT-9
+deleted file mode 100644
+index 6095b84cb3..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT-9 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/GMT0 b/lib/time/zoneinfo/Etc/GMT0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/GMT0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/Greenwich b/lib/time/zoneinfo/Etc/Greenwich
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/Greenwich and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/UCT b/lib/time/zoneinfo/Etc/UCT
+deleted file mode 100644
+index 578ab45c1f..0000000000
+Binary files a/lib/time/zoneinfo/Etc/UCT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/UTC b/lib/time/zoneinfo/Etc/UTC
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/Etc/UTC and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/Universal b/lib/time/zoneinfo/Etc/Universal
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/Etc/Universal and /dev/null differ
+diff --git a/lib/time/zoneinfo/Etc/Zulu b/lib/time/zoneinfo/Etc/Zulu
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/Etc/Zulu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Amsterdam b/lib/time/zoneinfo/Europe/Amsterdam
+deleted file mode 100644
+index b77e2493ce..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Amsterdam and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Andorra b/lib/time/zoneinfo/Europe/Andorra
+deleted file mode 100644
+index 8ab6d57e28..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Andorra and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Athens b/lib/time/zoneinfo/Europe/Athens
+deleted file mode 100644
+index 71b5a6656c..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Athens and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Belfast b/lib/time/zoneinfo/Europe/Belfast
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Belfast and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Belgrade b/lib/time/zoneinfo/Europe/Belgrade
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Belgrade and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Berlin b/lib/time/zoneinfo/Europe/Berlin
+deleted file mode 100644
+index 388ddfe739..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Berlin and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Bratislava b/lib/time/zoneinfo/Europe/Bratislava
+deleted file mode 100644
+index c1790b3992..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Bratislava and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Brussels b/lib/time/zoneinfo/Europe/Brussels
+deleted file mode 100644
+index 6911c755fe..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Brussels and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Bucharest b/lib/time/zoneinfo/Europe/Bucharest
+deleted file mode 100644
+index f46b473472..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Bucharest and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Budapest b/lib/time/zoneinfo/Europe/Budapest
+deleted file mode 100644
+index 1986a2ff41..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Budapest and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Chisinau b/lib/time/zoneinfo/Europe/Chisinau
+deleted file mode 100644
+index 871dad77d1..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Chisinau and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Copenhagen b/lib/time/zoneinfo/Europe/Copenhagen
+deleted file mode 100644
+index 0395b93c76..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Copenhagen and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Dublin b/lib/time/zoneinfo/Europe/Dublin
+deleted file mode 100644
+index c8d0b25d09..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Dublin and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Gibraltar b/lib/time/zoneinfo/Europe/Gibraltar
+deleted file mode 100644
+index ac5130e927..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Gibraltar and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Guernsey b/lib/time/zoneinfo/Europe/Guernsey
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Guernsey and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Helsinki b/lib/time/zoneinfo/Europe/Helsinki
+deleted file mode 100644
+index 7bd3b4e4f2..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Helsinki and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Isle_of_Man b/lib/time/zoneinfo/Europe/Isle_of_Man
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Isle_of_Man and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Istanbul b/lib/time/zoneinfo/Europe/Istanbul
+deleted file mode 100644
+index 2fe8aaa17b..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Istanbul and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Jersey b/lib/time/zoneinfo/Europe/Jersey
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Jersey and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Kaliningrad b/lib/time/zoneinfo/Europe/Kaliningrad
+deleted file mode 100644
+index c7072fcf15..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Kaliningrad and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Kiev b/lib/time/zoneinfo/Europe/Kiev
+deleted file mode 100644
+index 7ee2bc6480..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Kiev and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Lisbon b/lib/time/zoneinfo/Europe/Lisbon
+deleted file mode 100644
+index de4a031b9f..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Lisbon and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Ljubljana b/lib/time/zoneinfo/Europe/Ljubljana
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Ljubljana and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/London b/lib/time/zoneinfo/Europe/London
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/Europe/London and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Luxembourg b/lib/time/zoneinfo/Europe/Luxembourg
+deleted file mode 100644
+index f31038fae8..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Luxembourg and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Madrid b/lib/time/zoneinfo/Europe/Madrid
+deleted file mode 100644
+index ac6dfc4fdf..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Madrid and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Malta b/lib/time/zoneinfo/Europe/Malta
+deleted file mode 100644
+index 9150bf4e65..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Malta and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Mariehamn b/lib/time/zoneinfo/Europe/Mariehamn
+deleted file mode 100644
+index 7bd3b4e4f2..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Mariehamn and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Minsk b/lib/time/zoneinfo/Europe/Minsk
+deleted file mode 100644
+index 8cbbfbd718..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Minsk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Monaco b/lib/time/zoneinfo/Europe/Monaco
+deleted file mode 100644
+index c5caa18ffb..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Monaco and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Moscow b/lib/time/zoneinfo/Europe/Moscow
+deleted file mode 100644
+index c4704dd11e..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Moscow and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Nicosia b/lib/time/zoneinfo/Europe/Nicosia
+deleted file mode 100644
+index b640be48ae..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Nicosia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Oslo b/lib/time/zoneinfo/Europe/Oslo
+deleted file mode 100644
+index 05994479e9..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Oslo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Paris b/lib/time/zoneinfo/Europe/Paris
+deleted file mode 100644
+index b2e9d04fd2..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Paris and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Podgorica b/lib/time/zoneinfo/Europe/Podgorica
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Podgorica and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Prague b/lib/time/zoneinfo/Europe/Prague
+deleted file mode 100644
+index c1790b3992..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Prague and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Riga b/lib/time/zoneinfo/Europe/Riga
+deleted file mode 100644
+index f213b04f39..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Riga and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Rome b/lib/time/zoneinfo/Europe/Rome
+deleted file mode 100644
+index 48489098d4..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Rome and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Samara b/lib/time/zoneinfo/Europe/Samara
+deleted file mode 100644
+index 8a25021045..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Samara and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/San_Marino b/lib/time/zoneinfo/Europe/San_Marino
+deleted file mode 100644
+index 48489098d4..0000000000
+Binary files a/lib/time/zoneinfo/Europe/San_Marino and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Sarajevo b/lib/time/zoneinfo/Europe/Sarajevo
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Sarajevo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Simferopol b/lib/time/zoneinfo/Europe/Simferopol
+deleted file mode 100644
+index 09f3909458..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Simferopol and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Skopje b/lib/time/zoneinfo/Europe/Skopje
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Skopje and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Sofia b/lib/time/zoneinfo/Europe/Sofia
+deleted file mode 100644
+index 180c0b343b..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Sofia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Stockholm b/lib/time/zoneinfo/Europe/Stockholm
+deleted file mode 100644
+index 56c7252966..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Stockholm and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Tallinn b/lib/time/zoneinfo/Europe/Tallinn
+deleted file mode 100644
+index 3c605d3602..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Tallinn and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Tirane b/lib/time/zoneinfo/Europe/Tirane
+deleted file mode 100644
+index a6328d1647..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Tirane and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Tiraspol b/lib/time/zoneinfo/Europe/Tiraspol
+deleted file mode 100644
+index 871dad77d1..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Tiraspol and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Uzhgorod b/lib/time/zoneinfo/Europe/Uzhgorod
+deleted file mode 100644
+index e12711d636..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Uzhgorod and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Vaduz b/lib/time/zoneinfo/Europe/Vaduz
+deleted file mode 100644
+index ca8a990ff0..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Vaduz and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Vatican b/lib/time/zoneinfo/Europe/Vatican
+deleted file mode 100644
+index 48489098d4..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Vatican and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Vienna b/lib/time/zoneinfo/Europe/Vienna
+deleted file mode 100644
+index fc66cef053..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Vienna and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Vilnius b/lib/time/zoneinfo/Europe/Vilnius
+deleted file mode 100644
+index 093f6c6b67..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Vilnius and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Volgograd b/lib/time/zoneinfo/Europe/Volgograd
+deleted file mode 100644
+index a13bc4f66c..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Volgograd and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Warsaw b/lib/time/zoneinfo/Europe/Warsaw
+deleted file mode 100644
+index c58d89ed0d..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Warsaw and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Zagreb b/lib/time/zoneinfo/Europe/Zagreb
+deleted file mode 100644
+index e13d61e115..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Zagreb and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Zaporozhye b/lib/time/zoneinfo/Europe/Zaporozhye
+deleted file mode 100644
+index fd0a9f874f..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Zaporozhye and /dev/null differ
+diff --git a/lib/time/zoneinfo/Europe/Zurich b/lib/time/zoneinfo/Europe/Zurich
+deleted file mode 100644
+index 9fb9ddfc9b..0000000000
+Binary files a/lib/time/zoneinfo/Europe/Zurich and /dev/null differ
+diff --git a/lib/time/zoneinfo/Factory b/lib/time/zoneinfo/Factory
+deleted file mode 100644
+index 50a522e340..0000000000
+Binary files a/lib/time/zoneinfo/Factory and /dev/null differ
+diff --git a/lib/time/zoneinfo/GB b/lib/time/zoneinfo/GB
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/GB and /dev/null differ
+diff --git a/lib/time/zoneinfo/GB-Eire b/lib/time/zoneinfo/GB-Eire
+deleted file mode 100644
+index e4195ef453..0000000000
+Binary files a/lib/time/zoneinfo/GB-Eire and /dev/null differ
+diff --git a/lib/time/zoneinfo/GMT b/lib/time/zoneinfo/GMT
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/GMT and /dev/null differ
+diff --git a/lib/time/zoneinfo/GMT+0 b/lib/time/zoneinfo/GMT+0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/GMT+0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/GMT-0 b/lib/time/zoneinfo/GMT-0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/GMT-0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/GMT0 b/lib/time/zoneinfo/GMT0
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/GMT0 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Greenwich b/lib/time/zoneinfo/Greenwich
+deleted file mode 100644
+index 8ab905fc8f..0000000000
+Binary files a/lib/time/zoneinfo/Greenwich and /dev/null differ
+diff --git a/lib/time/zoneinfo/HST b/lib/time/zoneinfo/HST
+deleted file mode 100644
+index 5d08a076a2..0000000000
+Binary files a/lib/time/zoneinfo/HST and /dev/null differ
+diff --git a/lib/time/zoneinfo/Hongkong b/lib/time/zoneinfo/Hongkong
+deleted file mode 100644
+index 8b38e3ef0d..0000000000
+Binary files a/lib/time/zoneinfo/Hongkong and /dev/null differ
+diff --git a/lib/time/zoneinfo/Iceland b/lib/time/zoneinfo/Iceland
+deleted file mode 100644
+index 8b451c115b..0000000000
+Binary files a/lib/time/zoneinfo/Iceland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Antananarivo b/lib/time/zoneinfo/Indian/Antananarivo
+deleted file mode 100644
+index 89ccfae7ce..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Antananarivo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Chagos b/lib/time/zoneinfo/Indian/Chagos
+deleted file mode 100644
+index c21a92b1a1..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Chagos and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Christmas b/lib/time/zoneinfo/Indian/Christmas
+deleted file mode 100644
+index 8fc1ed68fd..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Christmas and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Cocos b/lib/time/zoneinfo/Indian/Cocos
+deleted file mode 100644
+index 12011e549f..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Cocos and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Comoro b/lib/time/zoneinfo/Indian/Comoro
+deleted file mode 100644
+index bbeaade0e3..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Comoro and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Kerguelen b/lib/time/zoneinfo/Indian/Kerguelen
+deleted file mode 100644
+index d00c2bcb5e..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Kerguelen and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Mahe b/lib/time/zoneinfo/Indian/Mahe
+deleted file mode 100644
+index 9e8ab13201..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Mahe and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Maldives b/lib/time/zoneinfo/Indian/Maldives
+deleted file mode 100644
+index fcc3e8417c..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Maldives and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Mauritius b/lib/time/zoneinfo/Indian/Mauritius
+deleted file mode 100644
+index 176aab539e..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Mauritius and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Mayotte b/lib/time/zoneinfo/Indian/Mayotte
+deleted file mode 100644
+index 232cb123d6..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Mayotte and /dev/null differ
+diff --git a/lib/time/zoneinfo/Indian/Reunion b/lib/time/zoneinfo/Indian/Reunion
+deleted file mode 100644
+index 409d6f3586..0000000000
+Binary files a/lib/time/zoneinfo/Indian/Reunion and /dev/null differ
+diff --git a/lib/time/zoneinfo/Iran b/lib/time/zoneinfo/Iran
+deleted file mode 100644
+index c11db76c02..0000000000
+Binary files a/lib/time/zoneinfo/Iran and /dev/null differ
+diff --git a/lib/time/zoneinfo/Israel b/lib/time/zoneinfo/Israel
+deleted file mode 100644
+index cd45bfb213..0000000000
+Binary files a/lib/time/zoneinfo/Israel and /dev/null differ
+diff --git a/lib/time/zoneinfo/Jamaica b/lib/time/zoneinfo/Jamaica
+deleted file mode 100644
+index 4b0d067cfa..0000000000
+Binary files a/lib/time/zoneinfo/Jamaica and /dev/null differ
+diff --git a/lib/time/zoneinfo/Japan b/lib/time/zoneinfo/Japan
+deleted file mode 100644
+index 8883df2dcd..0000000000
+Binary files a/lib/time/zoneinfo/Japan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Kwajalein b/lib/time/zoneinfo/Kwajalein
+deleted file mode 100644
+index b88387bb2e..0000000000
+Binary files a/lib/time/zoneinfo/Kwajalein and /dev/null differ
+diff --git a/lib/time/zoneinfo/Libya b/lib/time/zoneinfo/Libya
+deleted file mode 100644
+index 5072fce08e..0000000000
+Binary files a/lib/time/zoneinfo/Libya and /dev/null differ
+diff --git a/lib/time/zoneinfo/MET b/lib/time/zoneinfo/MET
+deleted file mode 100644
+index 6f749b3ce6..0000000000
+Binary files a/lib/time/zoneinfo/MET and /dev/null differ
+diff --git a/lib/time/zoneinfo/MST b/lib/time/zoneinfo/MST
+deleted file mode 100644
+index 6d3fcab353..0000000000
+Binary files a/lib/time/zoneinfo/MST and /dev/null differ
+diff --git a/lib/time/zoneinfo/MST7MDT b/lib/time/zoneinfo/MST7MDT
+deleted file mode 100644
+index 4cb8a9273b..0000000000
+Binary files a/lib/time/zoneinfo/MST7MDT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mexico/BajaNorte b/lib/time/zoneinfo/Mexico/BajaNorte
+deleted file mode 100644
+index 68b2eac796..0000000000
+Binary files a/lib/time/zoneinfo/Mexico/BajaNorte and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mexico/BajaSur b/lib/time/zoneinfo/Mexico/BajaSur
+deleted file mode 100644
+index 1d2353a436..0000000000
+Binary files a/lib/time/zoneinfo/Mexico/BajaSur and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mexico/General b/lib/time/zoneinfo/Mexico/General
+deleted file mode 100644
+index 51f060390b..0000000000
+Binary files a/lib/time/zoneinfo/Mexico/General and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mideast/Riyadh87 b/lib/time/zoneinfo/Mideast/Riyadh87
+deleted file mode 100644
+index 188cb54e1d..0000000000
+Binary files a/lib/time/zoneinfo/Mideast/Riyadh87 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mideast/Riyadh88 b/lib/time/zoneinfo/Mideast/Riyadh88
+deleted file mode 100644
+index 7f48dc2761..0000000000
+Binary files a/lib/time/zoneinfo/Mideast/Riyadh88 and /dev/null differ
+diff --git a/lib/time/zoneinfo/Mideast/Riyadh89 b/lib/time/zoneinfo/Mideast/Riyadh89
+deleted file mode 100644
+index 4eb9671dce..0000000000
+Binary files a/lib/time/zoneinfo/Mideast/Riyadh89 and /dev/null differ
+diff --git a/lib/time/zoneinfo/NZ b/lib/time/zoneinfo/NZ
+deleted file mode 100644
+index 956946a17e..0000000000
+Binary files a/lib/time/zoneinfo/NZ and /dev/null differ
+diff --git a/lib/time/zoneinfo/NZ-CHAT b/lib/time/zoneinfo/NZ-CHAT
+deleted file mode 100644
+index caa3bbcd73..0000000000
+Binary files a/lib/time/zoneinfo/NZ-CHAT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Navajo b/lib/time/zoneinfo/Navajo
+deleted file mode 100644
+index 3e895a91b5..0000000000
+Binary files a/lib/time/zoneinfo/Navajo and /dev/null differ
+diff --git a/lib/time/zoneinfo/PRC b/lib/time/zoneinfo/PRC
+deleted file mode 100644
+index 3951289d16..0000000000
+Binary files a/lib/time/zoneinfo/PRC and /dev/null differ
+diff --git a/lib/time/zoneinfo/PST8PDT b/lib/time/zoneinfo/PST8PDT
+deleted file mode 100644
+index 4dab1d3fd6..0000000000
+Binary files a/lib/time/zoneinfo/PST8PDT and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Apia b/lib/time/zoneinfo/Pacific/Apia
+deleted file mode 100644
+index f3ae4e369b..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Apia and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Auckland b/lib/time/zoneinfo/Pacific/Auckland
+deleted file mode 100644
+index 956946a17e..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Auckland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Chatham b/lib/time/zoneinfo/Pacific/Chatham
+deleted file mode 100644
+index caa3bbcd73..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Chatham and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Chuuk b/lib/time/zoneinfo/Pacific/Chuuk
+deleted file mode 100644
+index 7900a70680..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Chuuk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Easter b/lib/time/zoneinfo/Pacific/Easter
+deleted file mode 100644
+index d91ee1f53c..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Easter and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Efate b/lib/time/zoneinfo/Pacific/Efate
+deleted file mode 100644
+index 4566a33442..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Efate and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Enderbury b/lib/time/zoneinfo/Pacific/Enderbury
+deleted file mode 100644
+index 1052d35db7..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Enderbury and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Fakaofo b/lib/time/zoneinfo/Pacific/Fakaofo
+deleted file mode 100644
+index 2fe5ef0e45..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Fakaofo and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Fiji b/lib/time/zoneinfo/Pacific/Fiji
+deleted file mode 100644
+index 90ae6df3d3..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Fiji and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Funafuti b/lib/time/zoneinfo/Pacific/Funafuti
+deleted file mode 100644
+index 64bf7f7c42..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Funafuti and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Galapagos b/lib/time/zoneinfo/Pacific/Galapagos
+deleted file mode 100644
+index ad8f18be3a..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Galapagos and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Gambier b/lib/time/zoneinfo/Pacific/Gambier
+deleted file mode 100644
+index 5a08148bc8..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Gambier and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Guadalcanal b/lib/time/zoneinfo/Pacific/Guadalcanal
+deleted file mode 100644
+index a2bd5ff603..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Guadalcanal and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Guam b/lib/time/zoneinfo/Pacific/Guam
+deleted file mode 100644
+index e6fafbeb66..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Guam and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Honolulu b/lib/time/zoneinfo/Pacific/Honolulu
+deleted file mode 100644
+index f2156d6cab..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Honolulu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Johnston b/lib/time/zoneinfo/Pacific/Johnston
+deleted file mode 100644
+index 5d08a076a2..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Johnston and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Kiritimati b/lib/time/zoneinfo/Pacific/Kiritimati
+deleted file mode 100644
+index c59ec729c8..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Kiritimati and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Kosrae b/lib/time/zoneinfo/Pacific/Kosrae
+deleted file mode 100644
+index 94cb056e22..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Kosrae and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Kwajalein b/lib/time/zoneinfo/Pacific/Kwajalein
+deleted file mode 100644
+index b88387bb2e..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Kwajalein and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Majuro b/lib/time/zoneinfo/Pacific/Majuro
+deleted file mode 100644
+index c1e01a4591..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Majuro and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Marquesas b/lib/time/zoneinfo/Pacific/Marquesas
+deleted file mode 100644
+index 48604223ff..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Marquesas and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Midway b/lib/time/zoneinfo/Pacific/Midway
+deleted file mode 100644
+index 3e27e9c74b..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Midway and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Nauru b/lib/time/zoneinfo/Pacific/Nauru
+deleted file mode 100644
+index 1261f4ab2f..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Nauru and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Niue b/lib/time/zoneinfo/Pacific/Niue
+deleted file mode 100644
+index 1b6644a234..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Niue and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Norfolk b/lib/time/zoneinfo/Pacific/Norfolk
+deleted file mode 100644
+index 22df8fb303..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Norfolk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Noumea b/lib/time/zoneinfo/Pacific/Noumea
+deleted file mode 100644
+index 9c0dc7a2ba..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Noumea and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Pago_Pago b/lib/time/zoneinfo/Pacific/Pago_Pago
+deleted file mode 100644
+index 3a51d3e431..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Pago_Pago and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Palau b/lib/time/zoneinfo/Pacific/Palau
+deleted file mode 100644
+index b8423cbc97..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Palau and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Pitcairn b/lib/time/zoneinfo/Pacific/Pitcairn
+deleted file mode 100644
+index 6740d8cad5..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Pitcairn and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Pohnpei b/lib/time/zoneinfo/Pacific/Pohnpei
+deleted file mode 100644
+index aa18916605..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Pohnpei and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Ponape b/lib/time/zoneinfo/Pacific/Ponape
+deleted file mode 100644
+index aa18916605..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Ponape and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Port_Moresby b/lib/time/zoneinfo/Pacific/Port_Moresby
+deleted file mode 100644
+index 74f63d928a..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Port_Moresby and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Rarotonga b/lib/time/zoneinfo/Pacific/Rarotonga
+deleted file mode 100644
+index ad923586f6..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Rarotonga and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Saipan b/lib/time/zoneinfo/Pacific/Saipan
+deleted file mode 100644
+index 54d132eac5..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Saipan and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Samoa b/lib/time/zoneinfo/Pacific/Samoa
+deleted file mode 100644
+index 3a51d3e431..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Samoa and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Tahiti b/lib/time/zoneinfo/Pacific/Tahiti
+deleted file mode 100644
+index 28a85c6508..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Tahiti and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Tarawa b/lib/time/zoneinfo/Pacific/Tarawa
+deleted file mode 100644
+index 2618fb3756..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Tarawa and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Tongatapu b/lib/time/zoneinfo/Pacific/Tongatapu
+deleted file mode 100644
+index 924578a027..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Tongatapu and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Truk b/lib/time/zoneinfo/Pacific/Truk
+deleted file mode 100644
+index 7900a70680..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Truk and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Wake b/lib/time/zoneinfo/Pacific/Wake
+deleted file mode 100644
+index 930c5e6c01..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Wake and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Wallis b/lib/time/zoneinfo/Pacific/Wallis
+deleted file mode 100644
+index 5c07a86ffe..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Wallis and /dev/null differ
+diff --git a/lib/time/zoneinfo/Pacific/Yap b/lib/time/zoneinfo/Pacific/Yap
+deleted file mode 100644
+index 7900a70680..0000000000
+Binary files a/lib/time/zoneinfo/Pacific/Yap and /dev/null differ
+diff --git a/lib/time/zoneinfo/Poland b/lib/time/zoneinfo/Poland
+deleted file mode 100644
+index c58d89ed0d..0000000000
+Binary files a/lib/time/zoneinfo/Poland and /dev/null differ
+diff --git a/lib/time/zoneinfo/Portugal b/lib/time/zoneinfo/Portugal
+deleted file mode 100644
+index de4a031b9f..0000000000
+Binary files a/lib/time/zoneinfo/Portugal and /dev/null differ
+diff --git a/lib/time/zoneinfo/ROC b/lib/time/zoneinfo/ROC
+deleted file mode 100644
+index f76abb1855..0000000000
+Binary files a/lib/time/zoneinfo/ROC and /dev/null differ
+diff --git a/lib/time/zoneinfo/ROK b/lib/time/zoneinfo/ROK
+deleted file mode 100644
+index bcb8177439..0000000000
+Binary files a/lib/time/zoneinfo/ROK and /dev/null differ
+diff --git a/lib/time/zoneinfo/Singapore b/lib/time/zoneinfo/Singapore
+deleted file mode 100644
+index 37d09ea100..0000000000
+Binary files a/lib/time/zoneinfo/Singapore and /dev/null differ
+diff --git a/lib/time/zoneinfo/Turkey b/lib/time/zoneinfo/Turkey
+deleted file mode 100644
+index 2fe8aaa17b..0000000000
+Binary files a/lib/time/zoneinfo/Turkey and /dev/null differ
+diff --git a/lib/time/zoneinfo/UCT b/lib/time/zoneinfo/UCT
+deleted file mode 100644
+index 578ab45c1f..0000000000
+Binary files a/lib/time/zoneinfo/UCT and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Alaska b/lib/time/zoneinfo/US/Alaska
+deleted file mode 100644
+index 3372b0c994..0000000000
+Binary files a/lib/time/zoneinfo/US/Alaska and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Aleutian b/lib/time/zoneinfo/US/Aleutian
+deleted file mode 100644
+index 1fbd895caa..0000000000
+Binary files a/lib/time/zoneinfo/US/Aleutian and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Arizona b/lib/time/zoneinfo/US/Arizona
+deleted file mode 100644
+index 80867f11a7..0000000000
+Binary files a/lib/time/zoneinfo/US/Arizona and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Central b/lib/time/zoneinfo/US/Central
+deleted file mode 100644
+index 0ca3105622..0000000000
+Binary files a/lib/time/zoneinfo/US/Central and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/East-Indiana b/lib/time/zoneinfo/US/East-Indiana
+deleted file mode 100644
+index fca7634d38..0000000000
+Binary files a/lib/time/zoneinfo/US/East-Indiana and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Eastern b/lib/time/zoneinfo/US/Eastern
+deleted file mode 100644
+index aa3fd4260a..0000000000
+Binary files a/lib/time/zoneinfo/US/Eastern and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Hawaii b/lib/time/zoneinfo/US/Hawaii
+deleted file mode 100644
+index f2156d6cab..0000000000
+Binary files a/lib/time/zoneinfo/US/Hawaii and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Indiana-Starke b/lib/time/zoneinfo/US/Indiana-Starke
+deleted file mode 100644
+index f983d68aa9..0000000000
+Binary files a/lib/time/zoneinfo/US/Indiana-Starke and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Michigan b/lib/time/zoneinfo/US/Michigan
+deleted file mode 100644
+index 11ca4b3fa6..0000000000
+Binary files a/lib/time/zoneinfo/US/Michigan and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Mountain b/lib/time/zoneinfo/US/Mountain
+deleted file mode 100644
+index 3e895a91b5..0000000000
+Binary files a/lib/time/zoneinfo/US/Mountain and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Pacific b/lib/time/zoneinfo/US/Pacific
+deleted file mode 100644
+index 3430a7f2a3..0000000000
+Binary files a/lib/time/zoneinfo/US/Pacific and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Pacific-New b/lib/time/zoneinfo/US/Pacific-New
+deleted file mode 100644
+index 3430a7f2a3..0000000000
+Binary files a/lib/time/zoneinfo/US/Pacific-New and /dev/null differ
+diff --git a/lib/time/zoneinfo/US/Samoa b/lib/time/zoneinfo/US/Samoa
+deleted file mode 100644
+index 3a51d3e431..0000000000
+Binary files a/lib/time/zoneinfo/US/Samoa and /dev/null differ
+diff --git a/lib/time/zoneinfo/UTC b/lib/time/zoneinfo/UTC
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/UTC and /dev/null differ
+diff --git a/lib/time/zoneinfo/Universal b/lib/time/zoneinfo/Universal
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/Universal and /dev/null differ
+diff --git a/lib/time/zoneinfo/W-SU b/lib/time/zoneinfo/W-SU
+deleted file mode 100644
+index c4704dd11e..0000000000
+Binary files a/lib/time/zoneinfo/W-SU and /dev/null differ
+diff --git a/lib/time/zoneinfo/WET b/lib/time/zoneinfo/WET
+deleted file mode 100644
+index 07d88eb764..0000000000
+Binary files a/lib/time/zoneinfo/WET and /dev/null differ
+diff --git a/lib/time/zoneinfo/Zulu b/lib/time/zoneinfo/Zulu
+deleted file mode 100644
+index 37c0ba3246..0000000000
+Binary files a/lib/time/zoneinfo/Zulu and /dev/null differ

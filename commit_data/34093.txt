@@ -9,7 +9,34 @@ Date:   Tue Oct 3 02:53:01 2017 -0700
     Change-Id: I2550843248eb27d90684d0036fe2add0b247ae5a
     Reviewed-on: https://go-review.googlesource.com/67810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/reader.go | 2 +-
  src/archive/tar/writer.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 94fa417308..bde6e1205c 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -611,7 +611,7 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
+ // If the current file is sparse, then the regions marked as a hole
+ // are read back as NUL-bytes.
+ //
+-// Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
++// Calling Read on special types like TypeLink, TypeSymlink, TypeChar,
+ // TypeBlock, TypeDir, and TypeFifo returns (0, io.EOF) regardless of what
+ // the Header.Size claims.
+ func (tr *Reader) Read(b []byte) (int, error) {
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 5e183cb2bb..0afb5577eb 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -392,7 +392,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ // If the current file is sparse, then the regions marked as a hole
+ // must be written as NUL-bytes.
+ //
+-// Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
++// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
+ // TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
+ // of what the Header.Size claims.
+ func (tw *Writer) Write(b []byte) (int, error) {

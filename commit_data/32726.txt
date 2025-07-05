@@ -17,9 +17,268 @@ Date:   Wed May 17 07:00:27 2017 +0000
     Change-Id: Iba1c99d9e6b7b16a749b4d93ca2102e17c5822fe
     Reviewed-on: https://go-review.googlesource.com/43561
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go    |  4 ++
  src/cmd/asm/internal/asm/testdata/arm.s      | 26 +++++-----
  src/cmd/asm/internal/asm/testdata/armerror.s | 10 ++++
  src/cmd/internal/obj/arm/asm5.go             | 76 +++++++++++++++++++++++-----
  4 files changed, 91 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 36aa4aedd8..7554a30b54 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -371,6 +371,10 @@ func TestARMEndToEnd(t *testing.T) {
+ 	}
+ }
+ 
++func TestARMErrors(t *testing.T) {
++	testErrors(t, "arm", "armerror")
++}
++
+ func TestARM64EndToEnd(t *testing.T) {
+ 	testEndToEnd(t, "arm64", "arm64")
+ }
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 66fb207e3e..1e26075611 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -47,7 +47,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	{
+ //		outcode($1, $2, &$3, 0, &$5);
+ //	}
+-	CLZ.S	R1, R2
++	CLZ	R1, R2
+ 
+ //
+ // MOVW
+@@ -114,9 +114,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	{
+ //		outcode($1, $2, &$3, $5, &nullgen);
+ //	}
+-	CMP.S	$1, R2
+-	CMP.S	R1<<R2, R3
+-	CMP.S	R1, R2
++	CMP	$1, R2
++	CMP	R1<<R2, R3
++	CMP	R1, R2
+ 
+ //
+ // MOVM
+@@ -132,7 +132,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	}
+ 	MOVM	0(R1), [R2,R5,R8,g] // MOVM	(R1), [R2,R5,R8,g]
+ 	MOVM	(R1), [R2-R5] // MOVM (R1), [R2,R3,R4,R5]
+-	MOVM.S	(R1), [R2]
++	MOVM	(R1), [R2]
+ 
+ //	LTYPE8 cond '[' reglist ']' ',' ioreg
+ //	{
+@@ -145,7 +145,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	}
+ 	MOVM	[R2,R5,R8,g], 0(R1) // MOVM	[R2,R5,R8,g], (R1)
+ 	MOVM	[R2-R5], (R1) // MOVM [R2,R3,R4,R5], (R1)
+-	MOVM.S	[R2], (R1)
++	MOVM	[R2], (R1)
+ 
+ //
+ // SWAP
+@@ -154,19 +154,19 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	{
+ //		outcode($1, $2, &$5, int32($3.Reg), &$7);
+ //	}
+-	STREX.S	R1, (R2), R3 // STREX.S (R2), R1, R3
++	STREX	R1, (R2), R3 // STREX (R2), R1, R3
+ 
+ //	LTYPE9 cond reg ',' ireg
+ //	{
+ //		outcode($1, $2, &$5, int32($3.Reg), &$3);
+ //	}
+-	STREX.S	R1, (R2) // STREX.S (R2), R1, R1
++	STREX	R1, (R2) // STREX (R2), R1, R1
+ 
+ //	LTYPE9 cond comma ireg ',' reg
+ //	{
+ //		outcode($1, $2, &$4, int32($6.Reg), &$6);
+ //	}
+-	STREX.S	(R2), R3 // STREX.S (R2), R3, R3
++	STREX	(R2), R3 // STREX (R2), R3, R3
+ 
+ //
+ // word
+@@ -184,26 +184,26 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	{
+ //		outcode($1, $2, &$3, 0, &$5);
+ //	}
+-	ABSF.S	F1, F2
++	ABSF	F1, F2
+ 
+ //	LTYPEK cond frcon ',' freg
+ //	{
+ //		outcode($1, $2, &$3, 0, &$5);
+ //	}
+-	ADDD.S	F1, F2
++	ADDD	F1, F2
+ 	MOVF	$0.5, F2 // MOVF $(0.5), F2
+ 
+ //	LTYPEK cond frcon ',' LFREG ',' freg
+ //	{
+ //		outcode($1, $2, &$3, $5, &$7);
+ //	}
+-	ADDD.S	F1, F2, F3
++	ADDD	F1, F2, F3
+ 
+ //	LTYPEL cond freg ',' freg
+ //	{
+ //		outcode($1, $2, &$3, int32($5.Reg), &nullgen);
+ //	}
+-	CMPD.S	F1, F2
++	CMPD	F1, F2
+ 
+ //
+ // MCR MRC
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+new file mode 100644
+index 0000000000..9ef276b40f
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -0,0 +1,10 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT errors(SB),$0
++	MULS.S	R1, R2, R3, R4     // ERROR "invalid .S suffix"
++	ADD.P	R1, R2, R3         // ERROR "invalid .P suffix"
++	SUB.W	R2, R3             // ERROR "invalid .W suffix"
++	BL	4(R4)              // ERROR "non-zero offset"
++	END
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 6d8856eed7..7bb77b6e19 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -597,6 +597,64 @@ func (c *ctxt5) asmoutnacl(origPC int32, p *obj.Prog, o *Optab, out []uint32) in
+ 	return size
+ }
+ 
++const (
++	T_SBIT = 1 << 0
++	T_PBIT = 1 << 1
++	T_WBIT = 1 << 2
++)
++
++var mayHaveSuffix = map[obj.As]uint8{
++	// bit logic
++	AAND: T_SBIT,
++	AEOR: T_SBIT,
++	AORR: T_SBIT,
++	ABIC: T_SBIT,
++	// arithmatic
++	ASUB: T_SBIT,
++	AADD: T_SBIT,
++	ASBC: T_SBIT,
++	AADC: T_SBIT,
++	ARSB: T_SBIT,
++	ARSC: T_SBIT,
++	// mov
++	AMVN:   T_SBIT,
++	AMOVW:  T_SBIT | T_PBIT | T_WBIT,
++	AMOVB:  T_SBIT | T_PBIT | T_WBIT,
++	AMOVBS: T_SBIT | T_PBIT | T_WBIT,
++	AMOVBU: T_SBIT | T_PBIT | T_WBIT,
++	AMOVH:  T_SBIT | T_PBIT | T_WBIT,
++	AMOVHS: T_SBIT | T_PBIT | T_WBIT,
++	AMOVHU: T_SBIT | T_PBIT | T_WBIT,
++	AMOVM:  T_PBIT | T_WBIT,
++	// shift
++	ASRL: T_SBIT,
++	ASRA: T_SBIT,
++	ASLL: T_SBIT,
++	// mul
++	AMUL:   T_SBIT,
++	AMULU:  T_SBIT,
++	AMULL:  T_SBIT,
++	AMULLU: T_SBIT,
++	// mula
++	AMULA:   T_SBIT,
++	AMULAL:  T_SBIT,
++	AMULALU: T_SBIT,
++	// MRC/MCR
++	AMRC: T_SBIT,
++}
++
++func checkBits(ctxt *obj.Link, p *obj.Prog) {
++	if p.Scond&C_SBIT != 0 && mayHaveSuffix[p.As]&T_SBIT == 0 {
++		ctxt.Diag("invalid .S suffix: %v", p)
++	}
++	if p.Scond&C_PBIT != 0 && mayHaveSuffix[p.As]&T_PBIT == 0 {
++		ctxt.Diag("invalid .P suffix: %v", p)
++	}
++	if p.Scond&C_WBIT != 0 && mayHaveSuffix[p.As]&T_WBIT == 0 {
++		ctxt.Diag("invalid .W suffix: %v", p)
++	}
++}
++
+ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var p *obj.Prog
+ 	var op *obj.Prog
+@@ -675,6 +733,9 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if p.As == AMOVW && p.To.Type == obj.TYPE_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
+ 			c.flushpool(p, 0, 0)
+ 		}
++
++		checkBits(ctxt, p)
++
+ 		pc += int32(m)
+ 	}
+ 
+@@ -2032,9 +2093,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.Scond&C_UBIT != 0 {
+ 			o1 |= 1 << 23
+ 		}
+-		if p.Scond&C_SBIT != 0 {
+-			o1 |= 1 << 22
+-		}
+ 		if p.Scond&C_WBIT != 0 {
+ 			o1 |= 1 << 21
+ 		}
+@@ -2610,9 +2668,6 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 	if sc&C_SBIT != 0 {
+ 		o |= 1 << 20
+ 	}
+-	if sc&(C_PBIT|C_WBIT) != 0 {
+-		c.ctxt.Diag(".nil/.W on dp instruction")
+-	}
+ 	switch a {
+ 	case ADIVHW:
+ 		return o | 0x71<<20 | 0xf<<12 | 0x1<<4
+@@ -2666,6 +2721,9 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 		return o | 0xc<<21
+ 
+ 	case AMOVB, AMOVH, AMOVW:
++		if sc&(C_PBIT|C_WBIT) != 0 {
++			c.ctxt.Diag("invalid .P/.W suffix: %v", p)
++		}
+ 		return o | 0xd<<21
+ 	case ABIC:
+ 		return o | 0xe<<21
+@@ -2799,9 +2857,6 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ }
+ 
+ func (c *ctxt5) opbra(p *obj.Prog, a obj.As, sc int) uint32 {
+-	if sc&(C_SBIT|C_PBIT|C_WBIT) != 0 {
+-		c.ctxt.Diag("%v: .nil/.nil/.W on bra instruction", p)
+-	}
+ 	sc &= C_SCOND
+ 	sc ^= C_SCOND_XOR
+ 	if a == ABL || a == obj.ADUFFZERO || a == obj.ADUFFCOPY {
+@@ -2939,9 +2994,6 @@ func (c *ctxt5) olhrr(i int, b int, r int, sc int) uint32 {
+ }
+ 
+ func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint32 {
+-	if sc&C_SBIT != 0 {
+-		c.ctxt.Diag(".nil on FLDR/FSTR instruction: %v", p)
+-	}
+ 	o := ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
+ 	if sc&C_PBIT == 0 {
+ 		o |= 1 << 24

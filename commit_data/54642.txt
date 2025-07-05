@@ -20,6 +20,23 @@ Date:   Tue Nov 1 17:27:41 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/proc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4285ff6b7c..a04c7b41aa 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -335,7 +335,10 @@ func goschedguarded() {
+ //
+ //go:nosplit
+ func goschedIfBusy() {
+-	if sched.npidle.Load() > 0 {
++	gp := getg()
++	// Call gosched if gp.preempt is set; we may be in a tight loop that
++	// doesn't otherwise yield.
++	if !gp.preempt && sched.npidle.Load() > 0 {
+ 		return
+ 	}
+ 	mcall(gosched_m)

@@ -8,6 +8,23 @@ Date:   Wed Jul 2 07:04:01 2014 -0700
     R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/107390044
-
+---
  src/pkg/bufio/scan_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/bufio/scan_test.go b/src/pkg/bufio/scan_test.go
+index ce49ece93a..3ddb25acf9 100644
+--- a/src/pkg/bufio/scan_test.go
++++ b/src/pkg/bufio/scan_test.go
+@@ -413,9 +413,9 @@ func TestScanWordsExcessiveWhiteSpace(t *testing.T) {
+ 	scanner.MaxTokenSize(smallMaxTokenSize)
+ 	scanner.Split(ScanWords)
+ 	if !scanner.Scan() {
+-		t.Fatal("scan failed: %v", scanner.Err())
++		t.Fatalf("scan failed: %v", scanner.Err())
+ 	}
+ 	if token := scanner.Text(); token != word {
+-		t.Fatal("unexpected token: %v", token)
++		t.Fatalf("unexpected token: %v", token)
+ 	}
+ }

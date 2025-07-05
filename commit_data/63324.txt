@@ -26,7 +26,41 @@ Date:   Mon Jun 23 16:36:25 2025 -0700
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  lib/wasm/go_wasip1_wasm_exec | 2 +-
  src/cmd/dist/test.go         | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/lib/wasm/go_wasip1_wasm_exec b/lib/wasm/go_wasip1_wasm_exec
+index 3b2d12ec45..2de1758793 100755
+--- a/lib/wasm/go_wasip1_wasm_exec
++++ b/lib/wasm/go_wasip1_wasm_exec
+@@ -14,7 +14,7 @@ case "$GOWASIRUNTIME" in
+ 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
+ 	"wasmtime" | "")
+-		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
++		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=8388608 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
+ 	*)
+ 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index c2eaeb1248..aa09d1eba3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -743,6 +743,15 @@ func (t *tester) registerTests() {
+ 		}
+ 	}
+ 
++	// Test GOEXPERIMENT=jsonv2.
++	if !strings.Contains(goexperiment, "jsonv2") {
++		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
++			variant: "jsonv2",
++			env:     []string{"GOEXPERIMENT=jsonv2"},
++			pkg:     "encoding/json/...",
++		})
++	}
++
+ 	// Test ios/amd64 for the iOS simulator.
+ 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
+ 		t.registerTest("GOOS=ios on darwin/amd64",

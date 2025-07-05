@@ -7,7 +7,36 @@ Date:   Wed Mar 21 16:42:04 2012 -0700
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5876047
-
+---
  doc/articles/laws_of_reflection.html | 2 +-
  doc/progs/interface2.go              | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/doc/articles/laws_of_reflection.html b/doc/articles/laws_of_reflection.html
+index ca729508bb..a6175f73c1 100644
+--- a/doc/articles/laws_of_reflection.html
++++ b/doc/articles/laws_of_reflection.html
+@@ -238,7 +238,7 @@ value (from here on we'll elide the boilerplate and focus just on
+ the executable code):
+ </p>
+ 
+-{{code "/doc/progs/interface2.go" `/var x/` `/STOP/`}}
++{{code "/doc/progs/interface2.go" `/START f9/` `/STOP/`}}
+ 
+ <p>
+ prints
+diff --git a/doc/progs/interface2.go b/doc/progs/interface2.go
+index 2deba32b46..a541d94e48 100644
+--- a/doc/progs/interface2.go
++++ b/doc/progs/interface2.go
+@@ -123,3 +123,10 @@ func f8() {
+ 	fmt.Println("t is now", t)
+ 	// STOP OMIT
+ }
++
++func f9() {
++	// START f9 OMIT
++	var x float64 = 3.4
++	fmt.Println("value:", reflect.ValueOf(x))
++	// STOP OMIT
++}

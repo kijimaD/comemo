@@ -13,7 +13,7 @@ Date:   Thu May 20 17:31:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1202042
-
+---
  src/cmd/5g/gsubr.c |  6 ++++++
  src/cmd/6g/gg.h    |  1 +
  src/cmd/6g/gsubr.c | 18 ++++++++++++++++++
@@ -24,3 +24,170 @@ Date:   Thu May 20 17:31:28 2010 -0700
  src/cmd/gc/gen.c   |  1 +
  src/cmd/gc/go.h    |  2 ++
  9 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ef78157472..ea6ab1d70b 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -197,6 +197,12 @@ afunclit(Addr *a)
+ 	}
+ }
+ 
++int32
++anyregalloc(void)
++{
++	return 0;
++}
++
+ /*
+  * allocate register of type t, leave in n.
+  * if o != N, o is desired fixed register.
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 875c773588..353a86dcd8 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -28,6 +28,7 @@ struct	Addr
+ 	uchar	index;
+ 	uchar	etype;
+ 	uchar	scale;	/* doubles as width in DATA op */
++	uchar	pun;	/* dont register variable */
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e9ad6c0946..1c11b14aeb 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -238,6 +238,23 @@ gclean(void)
+ 			yyerror("reg %R left allocated\n", i);
+ }
+ 
++int32
++anyregalloc(void)
++{
++	int i, j;
++
++	for(i=D_AL; i<=D_DI; i++) {
++		if(reg[i] == 0)
++			goto ok;
++		for(j=0; j<nelem(resvd); j++)
++			if(resvd[j] == i)
++				goto ok;
++		return 1;
++	ok:;
++	}
++	return 0;
++}
++
+ /*
+  * allocate register of type t, leave in n.
+  * if o != N, o is desired fixed register.
+@@ -982,6 +999,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->width = n->type->width;
+ 			a->gotype = ngotype(n);
+ 		}
++		a->pun = n->pun;
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+ 		if(a->sym == S)
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 10a00b38df..e92740e04b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -879,6 +879,8 @@ mkvar(Reg *r, Adr *a)
+ 			}
+ 		}
+ 	}
++	if(a->pun)
++		flag = 1;
+ 
+ 	switch(et) {
+ 	case 0:
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index a00d69711c..57cd1b56b5 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -30,6 +30,7 @@ struct	Addr
+ 	uchar	index;
+ 	uchar	etype;
+ 	uchar	scale;	/* doubles as width in DATA op */
++	uchar	pun;	/* dont register variable */
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 27fec96a73..3e85b7e30e 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -710,6 +710,23 @@ gclean(void)
+ 			yyerror("reg %R left allocated at %lux", i, regpc[i]);
+ }
+ 
++int32
++anyregalloc(void)
++{
++	int i, j;
++
++	for(i=D_AL; i<=D_DI; i++) {
++		if(reg[i] == 0)
++			goto ok;
++		for(j=0; j<nelem(resvd); j++)
++			if(resvd[j] == i)
++				goto ok;
++		return 1;
++	ok:;
++	}
++	return 0;
++}
++
+ /*
+  * allocate register of type t, leave in n.
+  * if o != N, o is desired fixed register.
+@@ -1692,6 +1709,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->width = n->type->width;
+ 			a->gotype = ngotype(n);
+ 		}
++		a->pun = n->pun;
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+ 		if(a->sym == S)
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index e23205c68f..3e57916c73 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -794,6 +794,8 @@ mkvar(Reg *r, Adr *a)
+ 			}
+ 		}
+ 	}
++	if(a->pun)
++		flag = 1;
+ 
+ 	switch(et) {
+ 	case 0:
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 437d41fcf7..ec41d9b8eb 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -663,4 +663,5 @@ tempname(Node *n, Type *t)
+ 	stksize += w;
+ 	stksize = rnd(stksize, w);
+ 	n->xoffset = -stksize;
++	n->pun = anyregalloc();
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3051ebe2ba..5aa95eee3b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -215,6 +215,7 @@ struct	Node
+ 	uchar	used;
+ 	uchar	oldref;
+ 	uchar	isddd;
++	uchar	pun;		// dont registerize variable ONAME
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -1241,3 +1242,4 @@ int	duintptr(Sym *s, int off, uint64 v);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+ void	genembedtramp(Type*, Type*, Sym*);
+ int	gen_as_init(Node*);
++int	anyregalloc();

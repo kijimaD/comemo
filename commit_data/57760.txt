@@ -13,6 +13,20 @@ Date:   Sat Aug 26 13:32:09 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/log/slog/handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 52c8e7e6ad..369b0a384e 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -179,7 +179,7 @@ const (
+ 	// message of the log call. The associated value is a string.
+ 	MessageKey = "msg"
+ 	// SourceKey is the key used by the built-in handlers for the source file
+-	// and line of the log call. The associated value is a string.
++	// and line of the log call. The associated value is a *[Source].
+ 	SourceKey = "source"
+ )
+ 

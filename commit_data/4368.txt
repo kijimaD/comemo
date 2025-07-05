@@ -6,7 +6,34 @@ Date:   Wed Dec 9 16:54:24 2009 -0800
     
     R=rsc
     https://golang.org/cl/172042
-
+---
  src/pkg/exp/eval/type.go       | 1 -
  src/pkg/net/dialgoogle_test.go | 3 +--
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 47e2285238..84a5861781 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -200,7 +200,6 @@ var (
+ func (t *uintType) compat(o Type, conv bool) bool {
+ 	t2, ok := o.lit().(*uintType);
+ 	return ok && t == t2;
+-	;
+ }
+ 
+ func (t *uintType) lit() Type	{ return t }
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 192540f669..932dd8cda5 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -51,8 +51,7 @@ var googleaddrs = []string{
+ 	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
+ 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
+ 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
+-	"[2001:4860:0:2001::68]:80" // ipv6.google.com; removed if ipv6 flag not set
+-	,
++	"[2001:4860:0:2001::68]:80",	// ipv6.google.com; removed if ipv6 flag not set
+ }
+ 
+ func TestDialGoogle(t *testing.T) {

@@ -7,7 +7,39 @@ Date:   Tue May 18 23:27:35 2010 -0700
     TBR=kaib
     CC=golang-dev
     https://golang.org/cl/1256042
-
+---
  test/arm-pass.txt   |  2 +-
  test/golden-arm.out | 11 -----------
  2 files changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index e4187c2999..8878f6dc8d 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -439,6 +439,6 @@ fixedbugs/bug259.go
+ fixedbugs/bug261.go
+ fixedbugs/bug262.go
+ fixedbugs/bug263.go
++fixedbugs/bug264.go
+ fixedbugs/bug265.go
+ bugs/bug260.go
+-bugs/bug264.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index c648023698..a51aea8e5a 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -108,14 +108,3 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
+-
+-=========== bugs/bug264.go
+-foo
+-bar
+-bar
+-bal
+-bal
+-panic: barCount != 1
+-
+-panic PC=xxx
+-BUG

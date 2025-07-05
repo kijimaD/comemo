@@ -7,7 +7,7 @@ Date:   Fri May 27 15:51:00 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4552056
-
+---
  src/pkg/big/int.go      | 79 ++++++++++++++++++++++++++++++++++++----------
  src/pkg/big/int_test.go | 43 +++++++++++++++++++++++++
  src/pkg/big/nat.go      | 83 +++++++++++++++++++++++++++++++++----------------
@@ -15,3 +15,533 @@ Date:   Fri May 27 15:51:00 2011 -0700
  src/pkg/big/rat.go      | 32 +++++++++++++++++--
  src/pkg/big/rat_test.go | 29 ++++++++++++++++-
  6 files changed, 275 insertions(+), 55 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 74fbef48d0..b96c387bf4 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"rand"
++	"strings"
+ )
+ 
+ // An Int represents a signed multi-precision integer.
+@@ -325,7 +326,7 @@ func charset(ch int) string {
+ 		return lowercaseDigits[0:2]
+ 	case 'o':
+ 		return lowercaseDigits[0:8]
+-	case 'd', 'v':
++	case 'd', 's', 'v':
+ 		return lowercaseDigits[0:10]
+ 	case 'x':
+ 		return lowercaseDigits[0:16]
+@@ -374,6 +375,49 @@ func (x *Int) Format(s fmt.State, ch int) {
+ }
+ 
+ 
++// Scan is a support routine for fmt.Scanner. It accepts the formats
++// 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase hexadecimal),
++// and 'X' (uppercase hexadecimal).
++func (x *Int) Scan(s fmt.ScanState, ch int) os.Error {
++	var base int
++	switch ch {
++	case 'b':
++		base = 2
++	case 'o':
++		base = 8
++	case 'd':
++		base = 10
++	case 'x', 'X':
++		base = 16
++	case 's', 'v':
++		// let scan determine the base
++	default:
++		return os.ErrorString("Int.Scan: invalid verb")
++	}
++
++	ch, _, err := s.ReadRune()
++	if err != nil {
++		return err
++	}
++	neg := false
++	switch ch {
++	case '-':
++		neg = true
++	case '+': // nothing to do
++	default:
++		s.UnreadRune()
++	}
++
++	x.abs, _, err = x.abs.scan(s, base)
++	if err != nil {
++		return err
++	}
++	x.neg = len(x.abs) > 0 && neg // 0 has no sign
++
++	return nil
++}
++
++
+ // Int64 returns the int64 representation of z.
+ // If z cannot be represented in an int64, the result is undefined.
+ func (x *Int) Int64() int64 {
+@@ -401,26 +445,27 @@ func (x *Int) Int64() int64 {
+ // base 2. Otherwise the selected base is 10.
+ //
+ func (z *Int) SetString(s string, base int) (*Int, bool) {
+-	if len(s) == 0 || base < 0 || base == 1 || 16 < base {
+-		return z, false
+-	}
+-
+-	neg := s[0] == '-'
+-	if neg || s[0] == '+' {
+-		s = s[1:]
+-		if len(s) == 0 {
+-			return z, false
++	neg := false
++	if len(s) > 0 {
++		switch s[0] {
++		case '-':
++			neg = true
++			fallthrough
++		case '+':
++			s = s[1:]
+ 		}
+ 	}
+ 
+-	var scanned int
+-	z.abs, _, scanned = z.abs.scan(s, base)
+-	if scanned != len(s) {
++	r := strings.NewReader(s)
++	abs, _, err := z.abs.scan(r, base)
++	if err != nil {
+ 		return z, false
+ 	}
+-	z.neg = len(z.abs) > 0 && neg // 0 has no sign
++	_, _, err = r.ReadRune()
+ 
+-	return z, true
++	z.abs = abs
++	z.neg = len(abs) > 0 && neg // 0 has no sign
++	return z, err == os.EOF     // err == os.EOF => scan consumed all of s
+ }
+ 
+ 
+@@ -784,11 +829,11 @@ func (z *Int) GobEncode() ([]byte, os.Error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (z *Int) GobDecode(buf []byte) os.Error {
+ 	if len(buf) == 0 {
+-		return os.NewError("Int.GobDecode: no data")
++		return os.ErrorString("Int.GobDecode: no data")
+ 	}
+ 	b := buf[0]
+ 	if b>>1 != version {
+-		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
++		return os.ErrorString(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+ 	}
+ 	z.neg = b&1 != 0
+ 	z.abs = z.abs.setBytes(buf[1:])
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 595f04956c..1a492925b8 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -397,6 +397,49 @@ func TestFormat(t *testing.T) {
+ }
+ 
+ 
++var scanTests = []struct {
++	input     string
++	format    string
++	output    string
++	remaining int
++}{
++	{"1010", "%b", "10", 0},
++	{"0b1010", "%v", "10", 0},
++	{"12", "%o", "10", 0},
++	{"012", "%v", "10", 0},
++	{"10", "%d", "10", 0},
++	{"10", "%v", "10", 0},
++	{"a", "%x", "10", 0},
++	{"0xa", "%v", "10", 0},
++	{"A", "%X", "10", 0},
++	{"-A", "%X", "-10", 0},
++	{"+0b1011001", "%v", "89", 0},
++	{"0xA", "%v", "10", 0},
++	{"0 ", "%v", "0", 1},
++	{"2+3", "%v", "2", 2},
++	{"0XABC 12", "%v", "2748", 3},
++}
++
++
++func TestScan(t *testing.T) {
++	var buf bytes.Buffer
++	for i, test := range scanTests {
++		x := new(Int)
++		buf.Reset()
++		buf.WriteString(test.input)
++		if _, err := fmt.Fscanf(&buf, test.format, x); err != nil {
++			t.Errorf("#%d error: %s", i, err.String())
++		}
++		if x.String() != test.output {
++			t.Errorf("#%d got %s; want %s", i, x.String(), test.output)
++		}
++		if buf.Len() != test.remaining {
++			t.Errorf("#%d got %d bytes remaining; want %d", i, buf.Len(), test.remaining)
++		}
++	}
++}
++
++
+ // Examples from the Go Language Spec, section "Arithmetic operators"
+ var divisionSignsTests = []struct {
+ 	x, y int64
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index c2b95e8a20..eb38750c16 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -18,7 +18,11 @@ package big
+ // These are the building blocks for the operations on signed integers
+ // and rationals.
+ 
+-import "rand"
++import (
++	"io"
++	"os"
++	"rand"
++)
+ 
+ 
+ // An unsigned integer x of the form
+@@ -604,68 +608,95 @@ func (x nat) bitLen() int {
+ }
+ 
+ 
+-func hexValue(ch byte) int {
+-	var d byte
++func hexValue(ch int) int {
++	var d int
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+ 		d = ch - '0'
+-	case 'a' <= ch && ch <= 'f':
++	case 'a' <= ch && ch <= 'z':
+ 		d = ch - 'a' + 10
+-	case 'A' <= ch && ch <= 'F':
++	case 'A' <= ch && ch <= 'Z':
+ 		d = ch - 'A' + 10
+ 	default:
+ 		return -1
+ 	}
+-	return int(d)
++	return d
+ }
+ 
+ 
+-// scan returns the natural number corresponding to the
+-// longest possible prefix of s representing a natural number in a
+-// given conversion base, the actual conversion base used, and the
+-// prefix length. The syntax of natural numbers follows the syntax
+-// of unsigned integer literals in Go.
++// scan returns the natural number corresponding to the longest
++// possible prefix read from r representing a natural number in a
++// given conversion base, the actual conversion base used, and an
++// error, if any. The syntax of natural numbers follows the syntax of
++// unsigned integer literals in Go.
+ //
+ // If the base argument is 0, the string prefix determines the actual
+ // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+ // ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
+ // base 2. Otherwise the selected base is 10.
+ //
+-func (z nat) scan(s string, base int) (nat, int, int) {
++func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
++	n := 0
++	ch, _, err := r.ReadRune()
++	if err != nil {
++		return z, 0, err
++	}
+ 	// determine base if necessary
+-	i, n := 0, len(s)
+ 	if base == 0 {
+ 		base = 10
+-		if n > 0 && s[0] == '0' {
+-			base, i = 8, 1
+-			if n > 1 {
+-				switch s[1] {
++		if ch == '0' {
++			n++
++			switch ch, _, err = r.ReadRune(); err {
++			case nil:
++				base = 8
++				switch ch {
+ 				case 'x', 'X':
+-					base, i = 16, 2
++					base = 16
+ 				case 'b', 'B':
+-					base, i = 2, 2
++					base = 2
+ 				}
++				if base == 2 || base == 16 {
++					n--
++					if ch, _, err = r.ReadRune(); err != nil {
++						return z, 0, os.ErrorString("syntax error scanning binary or hexadecimal number")
++					}
++				}
++			case os.EOF:
++				return z, 10, nil
++			default:
++				return z, 0, err
+ 			}
+ 		}
+ 	}
+ 
+-	// reject illegal bases or strings consisting only of prefix
+-	if base < 2 || 16 < base || (base != 8 && i >= n) {
+-		return z, 0, 0
++	// reject illegal bases
++	if base < 2 || 'z'-'a'+10 < base {
++		return z, 0, os.ErrorString("illegal number base")
+ 	}
+ 
+ 	// convert string
+ 	z = z.make(0)
+-	for ; i < n; i++ {
+-		d := hexValue(s[i])
++	for {
++		d := hexValue(ch)
+ 		if 0 <= d && d < base {
+ 			z = z.mulAddWW(z, Word(base), Word(d))
+ 		} else {
+-			break
++			r.UnreadRune()
++			if n > 0 {
++				break
++			}
++			return z, 0, os.ErrorString("syntax error scanning number")
++		}
++		n++
++		if ch, _, err = r.ReadRune(); err != nil {
++			if err == os.EOF {
++				break
++			}
++			return z, 0, err
+ 		}
+ 	}
+ 
+-	return z.norm(), base, i
++	return z.norm(), base, nil
+ }
+ 
+ 
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index a29843a3fa..25947adda1 100755
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -4,7 +4,10 @@
+ 
+ package big
+ 
+-import "testing"
++import (
++	"strings"
++	"testing"
++)
+ 
+ var cmpTests = []struct {
+ 	x, y nat
+@@ -180,6 +183,8 @@ var strTests = []struct {
+ 	{nat{1234567890}, uppercaseDigits[0:10], "1234567890"},
+ 	{nat{0xdeadbeef}, lowercaseDigits[0:16], "deadbeef"},
+ 	{nat{0xdeadbeef}, uppercaseDigits[0:16], "DEADBEEF"},
++	{nat{0x229be7}, lowercaseDigits[0:17], "1a2b3c"},
++	{nat{0x309663e6}, uppercaseDigits[0:32], "O9COV6"},
+ }
+ 
+ 
+@@ -190,15 +195,58 @@ func TestString(t *testing.T) {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, n := nat(nil).scan(a.s, len(a.c))
++		x, b, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+ 		if b != len(a.c) {
+ 			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
+ 		}
+-		if n != len(a.s) {
+-			t.Errorf("scan%+v\n\tgot n = %d; want %d", a, n, len(a.s))
++		if err != nil {
++			t.Errorf("scan%+v\n\tgot error = %s", a, err)
++		}
++	}
++}
++
++
++var natScanTests = []struct {
++	s    string // string to be scanned
++	x    nat    // expected nat
++	base int    // expected base
++	ok   bool   // expected success
++}{
++	{s: ""},
++	{"0", nil, 10, true},
++	{"0 ", nil, 8, true},
++	{s: "0x"},
++	{"08", nil, 8, true},
++	{"0b1", nat{1}, 2, true},
++	{"0b11000101", nat{0xc5}, 2, true},
++	{"03271", nat{03271}, 8, true},
++	{"10ab", nat{10}, 10, true},
++	{"1234567890", nat{1234567890}, 10, true},
++	{"0xdeadbeef", nat{0xdeadbeef}, 16, true},
++	{"0XDEADBEEF", nat{0xdeadbeef}, 16, true},
++}
++
++
++func TestScanBase0(t *testing.T) {
++	for _, a := range natScanTests {
++		x, b, err := nat(nil).scan(strings.NewReader(a.s), 0)
++		if err == nil && !a.ok {
++			t.Errorf("scan%+v\n\texpected error", a)
++		}
++		if err != nil {
++			if a.ok {
++				t.Errorf("scan%+v\n\tgot error = %s", a, err)
++			}
++			continue
++		}
++		if x.cmp(a.x) != 0 {
++			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
++		}
++		if b != a.base {
++			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.base)
+ 		}
+ 	}
+ }
+@@ -344,14 +392,14 @@ var expNNTests = []struct {
+ 
+ func TestExpNN(t *testing.T) {
+ 	for i, test := range expNNTests {
+-		x, _, _ := nat(nil).scan(test.x, 0)
+-		y, _, _ := nat(nil).scan(test.y, 0)
+-		out, _, _ := nat(nil).scan(test.out, 0)
++		x, _, _ := nat(nil).scan(strings.NewReader(test.x), 0)
++		y, _, _ := nat(nil).scan(strings.NewReader(test.y), 0)
++		out, _, _ := nat(nil).scan(strings.NewReader(test.out), 0)
+ 
+ 		var m nat
+ 
+ 		if len(test.m) > 0 {
+-			m, _, _ = nat(nil).scan(test.m, 0)
++			m, _, _ = nat(nil).scan(strings.NewReader(test.m), 0)
+ 		}
+ 
+ 		z := nat(nil).expNN(x, y, m)
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index 2adf316e64..f11c27425c 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -6,7 +6,11 @@
+ 
+ package big
+ 
+-import "strings"
++import (
++	"fmt"
++	"os"
++	"strings"
++)
+ 
+ // A Rat represents a quotient a/b of arbitrary precision. The zero value for
+ // a Rat, 0/0, is not a legal Rat.
+@@ -209,6 +213,28 @@ func (z *Rat) Set(x *Rat) *Rat {
+ }
+ 
+ 
++func ratTok(ch int) bool {
++	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
++}
++
++
++// Scan is a support routine for fmt.Scanner. It accepts the formats
++// 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
++func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
++	tok, err := s.Token(true, ratTok)
++	if err != nil {
++		return err
++	}
++	if strings.IndexRune("efgEFGv", ch) < 0 {
++		return os.ErrorString("Rat.Scan: invalid verb")
++	}
++	if _, ok := z.SetString(string(tok)); !ok {
++		return os.ErrorString("Rat.Scan: invalid syntax")
++	}
++	return nil
++}
++
++
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s can be given as a fraction "a/b" or as a floating-point number
+ // optionally followed by an exponent. If the operation failed, the value of z
+@@ -225,8 +251,8 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 			return z, false
+ 		}
+ 		s = s[sep+1:]
+-		var n int
+-		if z.b, _, n = z.b.scan(s, 10); n != len(s) {
++		var err os.Error
++		if z.b, _, err = z.b.scan(strings.NewReader(s), 10); err != nil {
+ 			return z, false
+ 		}
+ 		return z.norm(), true
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index 8f42949b08..ae5c7c9936 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -4,7 +4,11 @@
+ 
+ package big
+ 
+-import "testing"
++import (
++	"bytes"
++	"fmt"
++	"testing"
++)
+ 
+ 
+ var setStringTests = []struct {
+@@ -53,6 +57,29 @@ func TestRatSetString(t *testing.T) {
+ }
+ 
+ 
++func TestRatScan(t *testing.T) {
++	var buf bytes.Buffer
++	for i, test := range setStringTests {
++		x := new(Rat)
++		buf.Reset()
++		buf.WriteString(test.in)
++
++		_, err := fmt.Fscanf(&buf, "%v", x)
++		if err == nil != test.ok {
++			if test.ok {
++				t.Errorf("#%d error: %s", i, err.String())
++			} else {
++				t.Errorf("#%d expected error", i)
++			}
++			continue
++		}
++		if err == nil && x.RatString() != test.out {
++			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
++		}
++	}
++}
++
++
+ var floatStringTests = []struct {
+ 	in   string
+ 	prec int

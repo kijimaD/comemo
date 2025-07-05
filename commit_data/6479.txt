@@ -9,8 +9,106 @@ Date:   Fri Oct 8 16:46:05 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2400041
-
+---
  src/pkg/runtime/arm/asm.s | 24 +++++++++++++-----------
  src/pkg/runtime/proc.c    |  4 ++--
  src/pkg/runtime/runtime.h |  2 +-
  3 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 1144ff2a17..68d5f721c0 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -94,7 +94,7 @@ TEXT	breakpoint(SB),7,$0
+ // uintptr gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT gosave(SB), 7, $-4
+-	MOVW	0(FP), R0
++	MOVW	0(FP), R0		// gobuf
+ 	MOVW	SP, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+ 	MOVW	g, gobuf_g(R0)
+@@ -104,7 +104,7 @@ TEXT gosave(SB), 7, $-4
+ // void gogo(Gobuf*, uintptr)
+ // restore state from Gobuf; longjmp
+ TEXT	gogo(SB), 7, $-4
+-	MOVW	0(FP), R1			// gobuf
++	MOVW	0(FP), R1		// gobuf
+ 	MOVW	4(FP), R0		// return 2nd arg
+ 	MOVW	gobuf_g(R1), g
+ 	MOVW	0(g), R2		// make sure g != nil
+@@ -116,12 +116,14 @@ TEXT	gogo(SB), 7, $-4
+ // (call fn, returning to state in Gobuf)
+ // using frame size $-4 means do not save LR on stack.
+ TEXT gogocall(SB), 7, $-4
+-	MOVW	0(FP), R0
++	MOVW	0(FP), R0		// gobuf
+ 	MOVW	4(FP), R1		// fn
++	MOVW	8(FP), R2		// fp offset
+ 	MOVW	gobuf_g(R0), g
+-	MOVW	0(g), R2		// make sure g != nil
++	MOVW	0(g), R3		// make sure g != nil
+ 	MOVW	gobuf_sp(R0), SP	// restore SP
+ 	MOVW	gobuf_pc(R0), LR
++	SUB	R2, SP
+ 	MOVW	R1, PC
+ 
+ /*
+@@ -179,15 +181,15 @@ TEXT reflect·call(SB), 7, $-4
+ 	// If it turns out that f needs a larger frame than
+ 	// the default stack, f's usual stack growth prolog will
+ 	// allocate a new segment (and recopy the arguments).
+-	MOVW	4(SP), R0	// fn
+-	MOVW	8(SP), R1	// arg frame
+-	MOVW	12(SP), R2	// arg size
++	MOVW	4(SP), R0			// fn
++	MOVW	8(SP), R1			// arg frame
++	MOVW	12(SP), R2			// arg size
+ 
+-	MOVW	R0, m_morepc(m)	// f's PC
+-	MOVW	R1, m_morefp(m)	// argument frame pointer
+-	MOVW	R2, m_moreargs(m)	// f's argument size
++	MOVW	R0, m_morepc(m)			// f's PC
++	MOVW	R1, m_morefp(m)			// argument frame pointer
++	MOVW	R2, m_moreargs(m)		// f's argument size
+ 	MOVW	$1, R3
+-	MOVW	R3, m_moreframe(m)	// f's frame size
++	MOVW	R3, m_moreframe(m)		// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVW	m_g0(m), g
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 9483e4c290..3688a1c235 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -528,7 +528,7 @@ scheduler(void)
+ 	m->curg = gp;
+ 	gp->m = m;
+ 	if(gp->sched.pc == (byte*)goexit)	// kickoff
+-		gogocall(&gp->sched, (void(*)(void))gp->entry);
++		gogocall(&gp->sched, (void(*)(void))gp->entry, 0);
+ 	gogo(&gp->sched, 1);
+ }
+ 
+@@ -797,7 +797,7 @@ newstack(void)
+ 	label.sp = sp;
+ 	label.pc = (byte*)·lessstack;
+ 	label.g = m->curg;
+-	gogocall(&label, m->morepc);
++	gogocall(&label, m->morepc, 4);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 88f53e2a2e..15e846bd1b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -377,7 +377,7 @@ int32	charntorune(int32*, uint8*, int32);
+  * very low level c-called
+  */
+ void	gogo(Gobuf*, uintptr);
+-void	gogocall(Gobuf*, void(*)(void));
++void	gogocall(Gobuf*, void(*)(void), int64);
+ uintptr	gosave(Gobuf*);
+ void	·lessstack(void);
+ void	goargs(void);

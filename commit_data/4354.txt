@@ -9,10 +9,463 @@ Date:   Wed Dec 9 00:06:20 2009 -0800
     
     R=rsc
     https://golang.org/cl/157152
-
+---
  src/pkg/Makefile                 |   1 +
  src/pkg/crypto/xtea/Makefile     |  12 ++
  src/pkg/crypto/xtea/block.go     |  66 +++++++++++
  src/pkg/crypto/xtea/cipher.go    |  92 +++++++++++++++
  src/pkg/crypto/xtea/xtea_test.go | 246 +++++++++++++++++++++++++++++++++++++++
  5 files changed, 417 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 7643bee955..912bc9d604 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -36,6 +36,7 @@ DIRS=\
+ 	crypto/subtle\
+ 	crypto/tls\
+ 	crypto/x509\
++	crypto/xtea\
+ 	debug/dwarf\
+ 	debug/macho\
+ 	debug/elf\
+diff --git a/src/pkg/crypto/xtea/Makefile b/src/pkg/crypto/xtea/Makefile
+new file mode 100644
+index 0000000000..74cc1b0dcd
+--- /dev/null
++++ b/src/pkg/crypto/xtea/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=crypto/xtea
++GOFILES=\
++	cipher.go\
++	block.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/crypto/xtea/block.go b/src/pkg/crypto/xtea/block.go
+new file mode 100644
+index 0000000000..7cf768153b
+--- /dev/null
++++ b/src/pkg/crypto/xtea/block.go
+@@ -0,0 +1,66 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++	Implementation adapted from Needham and Wheeler's paper:
++	http://www.cix.co.uk/~klockstone/xtea.pdf
++
++	A precalculated look up table is used during encryption/decryption for values that are based purely on the key.
++*/
++
++package xtea
++
++// XTEA is based on 64 rounds.
++const numRounds = 64
++
++// blockToUint32 reads an 8 byte slice into two uint32s.
++// The block is treated as big endian.
++func blockToUint32(src []byte) (uint32, uint32) {
++	r0 := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3]);
++	r1 := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7]);
++	return r0, r1;
++}
++
++// uint32ToBlock writes two unint32s into an 8 byte data block.
++// Values are written as big endian.
++func uint32ToBlock(v0, v1 uint32, dst []byte) {
++	dst[0] = byte(v0 >> 24);
++	dst[1] = byte(v0 >> 16);
++	dst[2] = byte(v0 >> 8);
++	dst[3] = byte(v0);
++	dst[4] = byte(v1 >> 24);
++	dst[5] = byte(v1 >> 16);
++	dst[6] = byte(v1 >> 8);
++	dst[7] = byte(v1 >> 0);
++}
++
++// encryptBlock encrypts a single 8 byte block using XTEA.
++func encryptBlock(c *Cipher, src, dst []byte) {
++	v0, v1 := blockToUint32(src);
++
++	// Two rounds of XTEA applied per loop
++	for i := 0; i < numRounds; {
++		v0 += ((v1<<4 ^ v1>>5) + v1) ^ c.table[i];
++		i++;
++		v1 += ((v0<<4 ^ v0>>5) + v0) ^ c.table[i];
++		i++;
++	}
++
++	uint32ToBlock(v0, v1, dst);
++}
++
++// decryptBlock decrypt a single 8 byte block using XTEA.
++func decryptBlock(c *Cipher, src, dst []byte) {
++	v0, v1 := blockToUint32(src);
++
++	// Two rounds of XTEA applied per loop
++	for i := numRounds; i > 0; {
++		i--;
++		v1 -= ((v0<<4 ^ v0>>5) + v0) ^ c.table[i];
++		i--;
++		v0 -= ((v1<<4 ^ v1>>5) + v1) ^ c.table[i];
++	}
++
++	uint32ToBlock(v0, v1, dst);
++}
+diff --git a/src/pkg/crypto/xtea/cipher.go b/src/pkg/crypto/xtea/cipher.go
+new file mode 100644
+index 0000000000..71545b5acc
+--- /dev/null
++++ b/src/pkg/crypto/xtea/cipher.go
+@@ -0,0 +1,92 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements XTEA encryption, as defined in Needham and
++// Wheeler's 1997 technical report, "Tea extensions."
++package xtea
++
++// For details, see http://www.cix.co.uk/~klockstone/xtea.pdf
++
++import (
++	"os";
++	"strconv";
++)
++
++// The XTEA block size in bytes.
++const BlockSize = 8
++
++// A Cipher is an instance of an XTEA cipher using a particular key.
++// table contains a series of precalculated values that are used each round.
++type Cipher struct {
++	table [64]uint32;
++}
++
++type KeySizeError int
++
++func (k KeySizeError) String() string {
++	return "crypto/xtea: invalid key size " + strconv.Itoa(int(k))
++}
++
++// NewCipher creates and returns a new Cipher.
++// The key argument should be the XTEA key.
++// XTEA only supports 128 bit (16 byte) keys.
++func NewCipher(key []byte) (*Cipher, os.Error) {
++	k := len(key);
++	switch k {
++	default:
++		return nil, KeySizeError(k)
++	case 16:
++		break
++	}
++
++	c := new(Cipher);
++	initCipher(c, key);
++
++	return c, nil;
++}
++
++// BlockSize returns the XTEA block size, 8 bytes.
++// It is necessary to satisfy the Key interface in the
++// package "crypto/modes".
++func (c *Cipher) BlockSize() int	{ return BlockSize }
++
++// Encrypt encrypts the 8 byte buffer src using the key and stores the result in dst.
++// Note that for amounts of data larger than a block,
++// it is not safe to just call Encrypt on successive blocks;
++// instead, use an encryption mode like XTEACBC (see modes.go).
++func (c *Cipher) Encrypt(src, dst []byte)	{ encryptBlock(c, src, dst) }
++
++// Decrypt decrypts the 8 byte buffer src using the key k and stores the result in dst.
++func (c *Cipher) Decrypt(src, dst []byte)	{ decryptBlock(c, src, dst) }
++
++// Reset zeros the table, so that it will no longer appear in the process's memory.
++func (c *Cipher) Reset() {
++	for i := 0; i < len(c.table); i++ {
++		c.table[i] = 0
++	}
++}
++
++// initCipher initializes the cipher context by creating a look up table
++// of precalculated values that are based on the key.
++func initCipher(c *Cipher, key []byte) {
++	// Load the key into four uint32s
++	var k [4]uint32;
++	for i := 0; i < len(k); i++ {
++		j := i << 2;	// Multiply by 4
++		k[i] = uint32(key[j+0])<<24 | uint32(key[j+1])<<16 | uint32(key[j+2])<<8 | uint32(key[j+3]);
++	}
++
++	// Precalculate the table
++	const delta = 0x9E3779B9;
++	var sum uint32 = 0;
++
++	// Two rounds of XTEA applied per loop
++	for i := 0; i < numRounds; {
++		c.table[i] = sum + k[sum&3];
++		i++;
++		sum += delta;
++		c.table[i] = sum + k[(sum>>11)&3];
++		i++;
++	}
++}
+diff --git a/src/pkg/crypto/xtea/xtea_test.go b/src/pkg/crypto/xtea/xtea_test.go
+new file mode 100644
+index 0000000000..26221c4b42
+--- /dev/null
++++ b/src/pkg/crypto/xtea/xtea_test.go
+@@ -0,0 +1,246 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xtea
++
++import (
++	"testing";
++)
++
++// A sample test key for when we just want to initialise a cipher
++var testKey = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
++
++// Test that the block size for XTEA is correct
++func TestBlocksize(t *testing.T) {
++	if BlockSize != 8 {
++		t.Errorf("BlockSize constant - expected 8, got %d", BlockSize);
++		return;
++	}
++
++	c, err := NewCipher(testKey);
++	if err != nil {
++		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
++		return;
++	}
++
++	result := c.BlockSize();
++	if result != 8 {
++		t.Errorf("BlockSize function - expected 8, gotr %d", result);
++		return;
++	}
++}
++
++// A series of test values to confirm that the Cipher.table array was initialised correctly
++var testTable = []uint32{
++	0x00112233, 0x6B1568B8, 0xE28CE030, 0xC5089E2D, 0xC5089E2D, 0x1EFBD3A2, 0xA7845C2A, 0x78EF0917,
++	0x78EF0917, 0x172682D0, 0x5B6AC714, 0x822AC955, 0x3DE68511, 0xDC1DFECA, 0x2062430E, 0x3611343F,
++	0xF1CCEFFB, 0x900469B4, 0xD448ADF8, 0x2E3BE36D, 0xB6C46BF5, 0x994029F2, 0x994029F2, 0xF3335F67,
++	0x6AAAD6DF, 0x4D2694DC, 0x4D2694DC, 0xEB5E0E95, 0x2FA252D9, 0x4551440A, 0x121E10D6, 0xB0558A8F,
++	0xE388BDC3, 0x0A48C004, 0xC6047BC0, 0x643BF579, 0xA88039BD, 0x02736F32, 0x8AFBF7BA, 0x5C66A4A7,
++	0x5C66A4A7, 0xC76AEB2C, 0x3EE262A4, 0x215E20A1, 0x215E20A1, 0x7B515616, 0x03D9DE9E, 0x1988CFCF,
++	0xD5448B8B, 0x737C0544, 0xB7C04988, 0xDE804BC9, 0x9A3C0785, 0x3873813E, 0x7CB7C582, 0xD6AAFAF7,
++	0x4E22726F, 0x309E306C, 0x309E306C, 0x8A9165E1, 0x1319EE69, 0xF595AC66, 0xF595AC66, 0x4F88E1DB,
++}
++
++// Test that the cipher context is initialised correctly
++func TestCipherInit(t *testing.T) {
++	c, err := NewCipher(testKey);
++	if err != nil {
++		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
++		return;
++	}
++
++	for i := 0; i < len(c.table); i++ {
++		if c.table[i] != testTable[i] {
++			t.Errorf("NewCipher() failed to initialise Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i]);
++			break;
++		}
++	}
++}
++
++// Test that invalid key sizes return an error
++func TestInvalidKeySize(t *testing.T) {
++	// Test a long key
++	key := []byte{
++		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF,
++		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF,
++	};
++
++	_, err := NewCipher(key);
++	if err == nil {
++		t.Errorf("Invalid key size %d didn't result in an error.", len(key))
++	}
++
++	// Test a short key
++	key = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77};
++
++	_, err = NewCipher(key);
++	if err == nil {
++		t.Errorf("Invalid key size %d didn't result in an error.", len(key))
++	}
++}
++
++// Test that we can correctly decode some bytes we have encoded
++func TestEncodeDecode(t *testing.T) {
++	original := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
++	input := original;
++	output := make([]byte, BlockSize);
++
++	c, err := NewCipher(testKey);
++	if err != nil {
++		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
++		return;
++	}
++
++	// Encrypt the input block
++	c.Encrypt(input, output);
++
++	// Check that the output does not match the input
++	differs := false;
++	for i := 0; i < len(input); i++ {
++		if output[i] != input[i] {
++			differs = true;
++			break;
++		}
++	}
++	if differs == false {
++		t.Error("Cipher.Encrypt: Failed to encrypt the input block.");
++		return;
++	}
++
++	// Decrypt the block we just encrypted
++	input = output;
++	output = make([]byte, BlockSize);
++	c.Decrypt(input, output);
++
++	// Check that the output from decrypt matches our initial input
++	for i := 0; i < len(input); i++ {
++		if output[i] != original[i] {
++			t.Errorf("Decrypted byte %d differed. Expected %02X, got %02X\n", i, original[i], output[i]);
++			return;
++		}
++	}
++}
++
++// Test Vectors
++type CryptTest struct {
++	key		[]byte;
++	plainText	[]byte;
++	cipherText	[]byte;
++}
++
++var CryptTests = []CryptTest{
++	// These were sourced from http://www.freemedialibrary.com/index.php/XTEA_test_vectors
++	CryptTest{
++		[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f},
++		[]byte{0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48},
++		[]byte{0x49, 0x7d, 0xf3, 0xd0, 0x72, 0x61, 0x2c, 0xb5},
++	},
++	CryptTest{
++		[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f},
++		[]byte{0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41},
++		[]byte{0xe7, 0x8f, 0x2d, 0x13, 0x74, 0x43, 0x41, 0xd8},
++	},
++	CryptTest{
++		[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f},
++		[]byte{0x5a, 0x5b, 0x6e, 0x27, 0x89, 0x48, 0xd7, 0x7f},
++		[]byte{0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41},
++	},
++	CryptTest{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48},
++		[]byte{0xa0, 0x39, 0x05, 0x89, 0xf8, 0xb8, 0xef, 0xa5},
++	},
++	CryptTest{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41},
++		[]byte{0xed, 0x23, 0x37, 0x5a, 0x82, 0x1a, 0x8c, 0x2d},
++	},
++	CryptTest{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x70, 0xe1, 0x22, 0x5d, 0x6e, 0x4e, 0x76, 0x55},
++		[]byte{0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41},
++	},
++
++	// These vectors are from http://wiki.secondlife.com/wiki/XTEA_Strong_Encryption_Implementation#Bouncy_Castle_C.23_API
++	CryptTest{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0xDE, 0xE9, 0xD4, 0xD8, 0xF7, 0x13, 0x1E, 0xD9},
++	},
++	CryptTest{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
++		[]byte{0x06, 0x5C, 0x1B, 0x89, 0x75, 0xC6, 0xA8, 0x16},
++	},
++	CryptTest{
++		[]byte{0x01, 0x23, 0x45, 0x67, 0x12, 0x34, 0x56, 0x78, 0x23, 0x45, 0x67, 0x89, 0x34, 0x56, 0x78, 0x9A},
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0x1F, 0xF9, 0xA0, 0x26, 0x1A, 0xC6, 0x42, 0x64},
++	},
++	CryptTest{
++		[]byte{0x01, 0x23, 0x45, 0x67, 0x12, 0x34, 0x56, 0x78, 0x23, 0x45, 0x67, 0x89, 0x34, 0x56, 0x78, 0x9A},
++		[]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
++		[]byte{0x8C, 0x67, 0x15, 0x5B, 0x2E, 0xF9, 0x1E, 0xAD},
++	},
++}
++
++// Test encryption
++func TestCipherEncrypt(t *testing.T) {
++	for i, tt := range CryptTests {
++		c, err := NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err);
++			continue;
++		}
++
++		out := make([]byte, len(tt.plainText));
++		c.Encrypt(tt.plainText, out);
++
++		for j := 0; j < len(out); j++ {
++			if out[j] != tt.cipherText[j] {
++				t.Errorf("Cipher.Encrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.cipherText[j]);
++				break;
++			}
++		}
++	}
++}
++
++// Test decryption
++func TestCipherDecrypt(t *testing.T) {
++	for i, tt := range CryptTests {
++		c, err := NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("NewCipher(%d bytes), vector %d = %s", len(tt.key), i, err);
++			continue;
++		}
++
++		out := make([]byte, len(tt.cipherText));
++		c.Decrypt(tt.cipherText, out);
++
++		for j := 0; j < len(out); j++ {
++			if out[j] != tt.plainText[j] {
++				t.Errorf("Cipher.Decrypt %d: out[%d] = %02X, expected %02X", i, j, out[j], tt.plainText[j]);
++				break;
++			}
++		}
++	}
++}
++
++// Test resetting the cipher context
++func TestReset(t *testing.T) {
++	c, err := NewCipher(testKey);
++	if err != nil {
++		t.Errorf("NewCipher(%d bytes) = %s", len(testKey), err);
++		return;
++	}
++
++	c.Reset();
++	for i := 0; i < len(c.table); i++ {
++		if c.table[i] != 0 {
++			t.Errorf("Cipher.Reset: Failed to clear Cipher.table[%d]. expected 0, got %08X", i, c.table[i]);
++			return;
++		}
++	}
++}

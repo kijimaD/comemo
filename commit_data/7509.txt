@@ -7,6 +7,19 @@ Date:   Sat Feb 19 05:44:53 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4173063
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index 75936d637b..453a712892 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -21,6 +21,7 @@ _test
+ _testmain.go
+ y.tab.[ch]
+ doc/htmlgen
++doc/codelab/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/dashboard/builder/gobuilder
+ misc/goplay/goplay

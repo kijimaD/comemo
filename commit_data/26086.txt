@@ -11,8 +11,91 @@ Date:   Wed Dec 16 00:06:45 2015 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/issue13635.go | 24 ++++++++++++++++++++++++
  misc/cgo/errors/test.bash     | 15 +++++++++------
  src/cmd/cgo/gcc.go            |  1 +
  3 files changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/errors/issue13635.go b/misc/cgo/errors/issue13635.go
+new file mode 100644
+index 0000000000..689e958b40
+--- /dev/null
++++ b/misc/cgo/errors/issue13635.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 13635: used to output error about C.unsignedchar.
++// This test tests all such types.
++
++package pkg
++
++import "C"
++
++func main() {
++	var (
++		_ C.uchar         = "uc"  // ERROR HERE
++		_ C.schar         = "sc"  // ERROR HERE
++		_ C.ushort        = "us"  // ERROR HERE
++		_ C.uint          = "ui"  // ERROR HERE
++		_ C.ulong         = "ul"  // ERROR HERE
++		_ C.longlong      = "ll"  // ERROR HERE
++		_ C.ulonglong     = "ull" // ERROR HERE
++		_ C.complexfloat  = "cf"  // ERROR HERE
++		_ C.complexdouble = "cd"  // ERROR HERE
++	)
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 1744eee077..cd358a10f8 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -16,7 +16,7 @@ check() {
+ 
+ expect() {
+ 	file=$1
+-	error=$2
++	shift
+ 	if go build $file >errs 2>&1; then
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
+ 		exit 1
+@@ -25,11 +25,13 @@ expect() {
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
+ 		exit 1
+ 	fi
+-	if ! fgrep $error errs >/dev/null 2>&1; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
+-		cat 1>&2 errs
+-		exit 1
+-	fi
++	for error; do
++		if ! fgrep $error errs >/dev/null 2>&1; then
++			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
++			cat 1>&2 errs
++			exit 1
++		fi
++	done
+ }
+ 
+ check err1.go
+@@ -41,6 +43,7 @@ check issue11097a.go
+ check issue11097b.go
+ expect issue13129.go C.ushort
+ check issue13423.go
++expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+ 
+ if ! go run ptr.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b8c761fc4f..750b89b540 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1319,6 +1319,7 @@ var dwarfToName = map[string]string{
+ 	"long long int":          "longlong",
+ 	"long long unsigned int": "ulonglong",
+ 	"signed char":            "schar",
++	"unsigned char":          "uchar",
+ }
+ 
+ const signedDelta = 64

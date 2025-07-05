@@ -23,7 +23,7 @@ Date:   Tue Oct 18 16:07:36 2022 -0700
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/allocators.go   | 198 +++++++++++++
  src/cmd/compile/internal/ssa/_gen/main.go         |   1 +
  src/cmd/compile/internal/ssa/allocators.go        | 343 ++++++++++++++++++++++
@@ -46,3 +46,1311 @@ Date:   Tue Oct 18 16:07:36 2022 -0700
  src/cmd/compile/internal/ssa/tighten.go           |   6 +-
  src/cmd/compile/internal/ssa/writebarrier.go      |   3 +-
  21 files changed, 656 insertions(+), 213 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+new file mode 100644
+index 0000000000..0f3968c485
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -0,0 +1,198 @@
++package main
++
++// TODO: should we share backing storage for similarly-shaped types?
++// e.g. []*Value and []*Block, or even []int32 and []bool.
++
++import (
++	"bytes"
++	"fmt"
++	"go/format"
++	"io"
++	"log"
++	"os"
++)
++
++type allocator struct {
++	name     string // name for alloc/free functions
++	typ      string // the type they return/accept
++	mak      string // code to make a new object (takes power-of-2 size as fmt arg)
++	capacity string // code to calculate the capacity of an object. Should always report a power of 2.
++	resize   string // code to shrink to sub-power-of-two size (takes size as fmt arg)
++	clear    string // code for clearing object before putting it on the free list
++	minLog   int    // log_2 of minimum allocation size
++	maxLog   int    // log_2 of maximum allocation size
++}
++
++func genAllocators() {
++	allocators := []allocator{
++		{
++			name:     "ValueSlice",
++			typ:      "[]*Value",
++			capacity: "cap(%s)",
++			mak:      "make([]*Value, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = nil\n}",
++			minLog:   5,
++			maxLog:   32,
++		},
++		{
++			name:     "BlockSlice",
++			typ:      "[]*Block",
++			capacity: "cap(%s)",
++			mak:      "make([]*Block, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = nil\n}",
++			minLog:   5,
++			maxLog:   32,
++		},
++		{
++			name:     "BoolSlice",
++			typ:      "[]bool",
++			capacity: "cap(%s)",
++			mak:      "make([]bool, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = false\n}",
++			minLog:   8,
++			maxLog:   32,
++		},
++		{
++			name:     "IntSlice",
++			typ:      "[]int",
++			capacity: "cap(%s)",
++			mak:      "make([]int, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
++			minLog:   5,
++			maxLog:   32,
++		},
++		{
++			name:     "Int32Slice",
++			typ:      "[]int32",
++			capacity: "cap(%s)",
++			mak:      "make([]int32, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
++			minLog:   6,
++			maxLog:   32,
++		},
++		{
++			name:     "Int8Slice",
++			typ:      "[]int8",
++			capacity: "cap(%s)",
++			mak:      "make([]int8, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
++			minLog:   8,
++			maxLog:   32,
++		},
++		{
++			name:     "IDSlice",
++			typ:      "[]ID",
++			capacity: "cap(%s)",
++			mak:      "make([]ID, %s)",
++			resize:   "%s[:%s]",
++			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
++			minLog:   6,
++			maxLog:   32,
++		},
++		{
++			name:     "SparseSet",
++			typ:      "*sparseSet",
++			capacity: "%s.cap()",
++			mak:      "newSparseSet(%s)",
++			resize:   "", // larger-sized sparse sets are ok
++			clear:    "%s.clear()",
++			minLog:   5,
++			maxLog:   32,
++		},
++		{
++			name:     "SparseMap",
++			typ:      "*sparseMap",
++			capacity: "%s.cap()",
++			mak:      "newSparseMap(%s)",
++			resize:   "", // larger-sized sparse maps are ok
++			clear:    "%s.clear()",
++			minLog:   5,
++			maxLog:   32,
++		},
++		{
++			name:     "SparseMapPos",
++			typ:      "*sparseMapPos",
++			capacity: "%s.cap()",
++			mak:      "newSparseMapPos(%s)",
++			resize:   "", // larger-sized sparse maps are ok
++			clear:    "%s.clear()",
++			minLog:   5,
++			maxLog:   32,
++		},
++	}
++
++	w := new(bytes.Buffer)
++	fmt.Fprintf(w, "// Code generated from _gen/allocators.go; DO NOT EDIT.\n")
++	fmt.Fprintln(w)
++	fmt.Fprintln(w, "package ssa")
++
++	fmt.Fprintln(w, "import (")
++	fmt.Fprintln(w, "\"math/bits\"")
++	fmt.Fprintln(w, "\"sync\"")
++	fmt.Fprintln(w, ")")
++	for _, a := range allocators {
++		genAllocator(w, a)
++	}
++	// gofmt result
++	b := w.Bytes()
++	var err error
++	b, err = format.Source(b)
++	if err != nil {
++		fmt.Printf("%s\n", w.Bytes())
++		panic(err)
++	}
++
++	if err := os.WriteFile("../allocators.go", b, 0666); err != nil {
++		log.Fatalf("can't write output: %v\n", err)
++	}
++}
++func genAllocator(w io.Writer, a allocator) {
++	fmt.Fprintf(w, "var poolFree%s [%d]sync.Pool\n", a.name, a.maxLog-a.minLog)
++	fmt.Fprintf(w, "func (c *Cache) alloc%s(n int) %s {\n", a.name, a.typ)
++	fmt.Fprintf(w, "var s %s\n", a.typ)
++	fmt.Fprintf(w, "n2 := n\n")
++	fmt.Fprintf(w, "if n2 < %d { n2 = %d }\n", 1<<a.minLog, 1<<a.minLog)
++	fmt.Fprintf(w, "b := bits.Len(uint(n2-1))\n")
++	fmt.Fprintf(w, "v := poolFree%s[b-%d].Get()\n", a.name, a.minLog)
++	fmt.Fprintf(w, "if v == nil {\n")
++	fmt.Fprintf(w, "  s = %s\n", fmt.Sprintf(a.mak, "1<<b"))
++	fmt.Fprintf(w, "} else {\n")
++	if a.typ[0] == '*' {
++		fmt.Fprintf(w, "s = v.(%s)\n", a.typ)
++	} else {
++		fmt.Fprintf(w, "sp := v.(*%s)\n", a.typ)
++		fmt.Fprintf(w, "s = *sp\n")
++		fmt.Fprintf(w, "*sp = nil\n")
++		fmt.Fprintf(w, "c.hdr%s = append(c.hdr%s, sp)\n", a.name, a.name)
++	}
++	fmt.Fprintf(w, "}\n")
++	if a.resize != "" {
++		fmt.Fprintf(w, "s = %s\n", fmt.Sprintf(a.resize, "s", "n"))
++	}
++	fmt.Fprintf(w, "return s\n")
++	fmt.Fprintf(w, "}\n")
++	fmt.Fprintf(w, "func (c *Cache) free%s(s %s) {\n", a.name, a.typ)
++	fmt.Fprintf(w, "%s\n", fmt.Sprintf(a.clear, "s"))
++	fmt.Fprintf(w, "b := bits.Len(uint(%s) - 1)\n", fmt.Sprintf(a.capacity, "s"))
++	if a.typ[0] == '*' {
++		fmt.Fprintf(w, "poolFree%s[b-%d].Put(s)\n", a.name, a.minLog)
++	} else {
++		fmt.Fprintf(w, "var sp *%s\n", a.typ)
++		fmt.Fprintf(w, "if len(c.hdr%s) == 0 {\n", a.name)
++		fmt.Fprintf(w, "  sp = new(%s)\n", a.typ)
++		fmt.Fprintf(w, "} else {\n")
++		fmt.Fprintf(w, "  sp = c.hdr%s[len(c.hdr%s)-1]\n", a.name, a.name)
++		fmt.Fprintf(w, "  c.hdr%s[len(c.hdr%s)-1] = nil\n", a.name, a.name)
++		fmt.Fprintf(w, "  c.hdr%s = c.hdr%s[:len(c.hdr%s)-1]\n", a.name, a.name, a.name)
++		fmt.Fprintf(w, "}\n")
++		fmt.Fprintf(w, "*sp = s\n")
++		fmt.Fprintf(w, "poolFree%s[b-%d].Put(sp)\n", a.name, a.minLog)
++	}
++	fmt.Fprintf(w, "}\n")
++}
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index 6326c07645..6a8ae0e45c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -153,6 +153,7 @@ func main() {
+ 
+ 	tasks := []func(){
+ 		genOp,
++		genAllocators,
+ 	}
+ 	for _, a := range archs {
+ 		a := a // the funcs are ran concurrently at a later time
+diff --git a/src/cmd/compile/internal/ssa/allocators.go b/src/cmd/compile/internal/ssa/allocators.go
+new file mode 100644
+index 0000000000..7cd7cad1e9
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/allocators.go
+@@ -0,0 +1,343 @@
++// Code generated from _gen/allocators.go; DO NOT EDIT.
++
++package ssa
++
++import (
++	"math/bits"
++	"sync"
++)
++
++var poolFreeValueSlice [27]sync.Pool
++
++func (c *Cache) allocValueSlice(n int) []*Value {
++	var s []*Value
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeValueSlice[b-5].Get()
++	if v == nil {
++		s = make([]*Value, 1<<b)
++	} else {
++		sp := v.(*[]*Value)
++		s = *sp
++		*sp = nil
++		c.hdrValueSlice = append(c.hdrValueSlice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeValueSlice(s []*Value) {
++	for i := range s {
++		s[i] = nil
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]*Value
++	if len(c.hdrValueSlice) == 0 {
++		sp = new([]*Value)
++	} else {
++		sp = c.hdrValueSlice[len(c.hdrValueSlice)-1]
++		c.hdrValueSlice[len(c.hdrValueSlice)-1] = nil
++		c.hdrValueSlice = c.hdrValueSlice[:len(c.hdrValueSlice)-1]
++	}
++	*sp = s
++	poolFreeValueSlice[b-5].Put(sp)
++}
++
++var poolFreeBlockSlice [27]sync.Pool
++
++func (c *Cache) allocBlockSlice(n int) []*Block {
++	var s []*Block
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeBlockSlice[b-5].Get()
++	if v == nil {
++		s = make([]*Block, 1<<b)
++	} else {
++		sp := v.(*[]*Block)
++		s = *sp
++		*sp = nil
++		c.hdrBlockSlice = append(c.hdrBlockSlice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeBlockSlice(s []*Block) {
++	for i := range s {
++		s[i] = nil
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]*Block
++	if len(c.hdrBlockSlice) == 0 {
++		sp = new([]*Block)
++	} else {
++		sp = c.hdrBlockSlice[len(c.hdrBlockSlice)-1]
++		c.hdrBlockSlice[len(c.hdrBlockSlice)-1] = nil
++		c.hdrBlockSlice = c.hdrBlockSlice[:len(c.hdrBlockSlice)-1]
++	}
++	*sp = s
++	poolFreeBlockSlice[b-5].Put(sp)
++}
++
++var poolFreeBoolSlice [24]sync.Pool
++
++func (c *Cache) allocBoolSlice(n int) []bool {
++	var s []bool
++	n2 := n
++	if n2 < 256 {
++		n2 = 256
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeBoolSlice[b-8].Get()
++	if v == nil {
++		s = make([]bool, 1<<b)
++	} else {
++		sp := v.(*[]bool)
++		s = *sp
++		*sp = nil
++		c.hdrBoolSlice = append(c.hdrBoolSlice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeBoolSlice(s []bool) {
++	for i := range s {
++		s[i] = false
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]bool
++	if len(c.hdrBoolSlice) == 0 {
++		sp = new([]bool)
++	} else {
++		sp = c.hdrBoolSlice[len(c.hdrBoolSlice)-1]
++		c.hdrBoolSlice[len(c.hdrBoolSlice)-1] = nil
++		c.hdrBoolSlice = c.hdrBoolSlice[:len(c.hdrBoolSlice)-1]
++	}
++	*sp = s
++	poolFreeBoolSlice[b-8].Put(sp)
++}
++
++var poolFreeIntSlice [27]sync.Pool
++
++func (c *Cache) allocIntSlice(n int) []int {
++	var s []int
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeIntSlice[b-5].Get()
++	if v == nil {
++		s = make([]int, 1<<b)
++	} else {
++		sp := v.(*[]int)
++		s = *sp
++		*sp = nil
++		c.hdrIntSlice = append(c.hdrIntSlice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeIntSlice(s []int) {
++	for i := range s {
++		s[i] = 0
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]int
++	if len(c.hdrIntSlice) == 0 {
++		sp = new([]int)
++	} else {
++		sp = c.hdrIntSlice[len(c.hdrIntSlice)-1]
++		c.hdrIntSlice[len(c.hdrIntSlice)-1] = nil
++		c.hdrIntSlice = c.hdrIntSlice[:len(c.hdrIntSlice)-1]
++	}
++	*sp = s
++	poolFreeIntSlice[b-5].Put(sp)
++}
++
++var poolFreeInt32Slice [26]sync.Pool
++
++func (c *Cache) allocInt32Slice(n int) []int32 {
++	var s []int32
++	n2 := n
++	if n2 < 64 {
++		n2 = 64
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeInt32Slice[b-6].Get()
++	if v == nil {
++		s = make([]int32, 1<<b)
++	} else {
++		sp := v.(*[]int32)
++		s = *sp
++		*sp = nil
++		c.hdrInt32Slice = append(c.hdrInt32Slice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeInt32Slice(s []int32) {
++	for i := range s {
++		s[i] = 0
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]int32
++	if len(c.hdrInt32Slice) == 0 {
++		sp = new([]int32)
++	} else {
++		sp = c.hdrInt32Slice[len(c.hdrInt32Slice)-1]
++		c.hdrInt32Slice[len(c.hdrInt32Slice)-1] = nil
++		c.hdrInt32Slice = c.hdrInt32Slice[:len(c.hdrInt32Slice)-1]
++	}
++	*sp = s
++	poolFreeInt32Slice[b-6].Put(sp)
++}
++
++var poolFreeInt8Slice [24]sync.Pool
++
++func (c *Cache) allocInt8Slice(n int) []int8 {
++	var s []int8
++	n2 := n
++	if n2 < 256 {
++		n2 = 256
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeInt8Slice[b-8].Get()
++	if v == nil {
++		s = make([]int8, 1<<b)
++	} else {
++		sp := v.(*[]int8)
++		s = *sp
++		*sp = nil
++		c.hdrInt8Slice = append(c.hdrInt8Slice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeInt8Slice(s []int8) {
++	for i := range s {
++		s[i] = 0
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]int8
++	if len(c.hdrInt8Slice) == 0 {
++		sp = new([]int8)
++	} else {
++		sp = c.hdrInt8Slice[len(c.hdrInt8Slice)-1]
++		c.hdrInt8Slice[len(c.hdrInt8Slice)-1] = nil
++		c.hdrInt8Slice = c.hdrInt8Slice[:len(c.hdrInt8Slice)-1]
++	}
++	*sp = s
++	poolFreeInt8Slice[b-8].Put(sp)
++}
++
++var poolFreeIDSlice [26]sync.Pool
++
++func (c *Cache) allocIDSlice(n int) []ID {
++	var s []ID
++	n2 := n
++	if n2 < 64 {
++		n2 = 64
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeIDSlice[b-6].Get()
++	if v == nil {
++		s = make([]ID, 1<<b)
++	} else {
++		sp := v.(*[]ID)
++		s = *sp
++		*sp = nil
++		c.hdrIDSlice = append(c.hdrIDSlice, sp)
++	}
++	s = s[:n]
++	return s
++}
++func (c *Cache) freeIDSlice(s []ID) {
++	for i := range s {
++		s[i] = 0
++	}
++	b := bits.Len(uint(cap(s)) - 1)
++	var sp *[]ID
++	if len(c.hdrIDSlice) == 0 {
++		sp = new([]ID)
++	} else {
++		sp = c.hdrIDSlice[len(c.hdrIDSlice)-1]
++		c.hdrIDSlice[len(c.hdrIDSlice)-1] = nil
++		c.hdrIDSlice = c.hdrIDSlice[:len(c.hdrIDSlice)-1]
++	}
++	*sp = s
++	poolFreeIDSlice[b-6].Put(sp)
++}
++
++var poolFreeSparseSet [27]sync.Pool
++
++func (c *Cache) allocSparseSet(n int) *sparseSet {
++	var s *sparseSet
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeSparseSet[b-5].Get()
++	if v == nil {
++		s = newSparseSet(1 << b)
++	} else {
++		s = v.(*sparseSet)
++	}
++	return s
++}
++func (c *Cache) freeSparseSet(s *sparseSet) {
++	s.clear()
++	b := bits.Len(uint(s.cap()) - 1)
++	poolFreeSparseSet[b-5].Put(s)
++}
++
++var poolFreeSparseMap [27]sync.Pool
++
++func (c *Cache) allocSparseMap(n int) *sparseMap {
++	var s *sparseMap
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeSparseMap[b-5].Get()
++	if v == nil {
++		s = newSparseMap(1 << b)
++	} else {
++		s = v.(*sparseMap)
++	}
++	return s
++}
++func (c *Cache) freeSparseMap(s *sparseMap) {
++	s.clear()
++	b := bits.Len(uint(s.cap()) - 1)
++	poolFreeSparseMap[b-5].Put(s)
++}
++
++var poolFreeSparseMapPos [27]sync.Pool
++
++func (c *Cache) allocSparseMapPos(n int) *sparseMapPos {
++	var s *sparseMapPos
++	n2 := n
++	if n2 < 32 {
++		n2 = 32
++	}
++	b := bits.Len(uint(n2 - 1))
++	v := poolFreeSparseMapPos[b-5].Get()
++	if v == nil {
++		s = newSparseMapPos(1 << b)
++	} else {
++		s = v.(*sparseMapPos)
++	}
++	return s
++}
++func (c *Cache) freeSparseMapPos(s *sparseMapPos) {
++	s.clear()
++	b := bits.Len(uint(s.cap()) - 1)
++	poolFreeSparseMapPos[b-5].Put(s)
++}
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index 7577eb6c95..dd17f5fa15 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -21,18 +21,8 @@ type Cache struct {
+ 	// See stackalloc.go's {new,put}StackAllocState.
+ 	stackAllocState *stackAllocState
+ 
+-	domblockstore   []ID            // scratch space for computing dominators
+-	scrSparseSet    []*sparseSet    // scratch sparse sets to be re-used.
+-	scrSparseMap    []*sparseMap    // scratch sparse maps to be re-used.
+-	scrSparseMapPos []*sparseMapPos // scratch sparse maps to be re-used.
+-	scrPoset        []*poset        // scratch poset to be reused
+-	// deadcode contains reusable slices specifically for the deadcode pass.
+-	// It gets special treatment because of the frequency with which it is run.
+-	deadcode struct {
+-		liveOrderStmts []*Value
+-		live           []bool
+-		q              []*Value
+-	}
++	scrPoset []*poset // scratch poset to be reused
++
+ 	// Reusable regalloc state.
+ 	regallocValues []valState
+ 
+@@ -40,6 +30,16 @@ type Cache struct {
+ 	debugState       debugState
+ 
+ 	Liveness interface{} // *gc.livenessFuncCache
++
++	// Free "headers" for use by the allocators in allocators.go.
++	// Used to put slices in sync.Pools without allocation.
++	hdrValueSlice []*[]*Value
++	hdrBlockSlice []*[]*Block
++	hdrBoolSlice  []*[]bool
++	hdrIntSlice   []*[]int
++	hdrInt32Slice []*[]int32
++	hdrInt8Slice  []*[]int8
++	hdrIDSlice    []*[]ID
+ }
+ 
+ func (c *Cache) Reset() {
+@@ -64,19 +64,4 @@ func (c *Cache) Reset() {
+ 	for i := range c.regallocValues {
+ 		c.regallocValues[i] = valState{}
+ 	}
+-
+-	// liveOrderStmts gets used multiple times during compilation of a function.
+-	// We don't know where the high water mark was, so reslice to cap and search.
+-	c.deadcode.liveOrderStmts = c.deadcode.liveOrderStmts[:cap(c.deadcode.liveOrderStmts)]
+-	no := sort.Search(len(c.deadcode.liveOrderStmts), func(i int) bool { return c.deadcode.liveOrderStmts[i] == nil })
+-	xo := c.deadcode.liveOrderStmts[:no]
+-	for i := range xo {
+-		xo[i] = nil
+-	}
+-	c.deadcode.q = c.deadcode.q[:cap(c.deadcode.q)]
+-	nq := sort.Search(len(c.deadcode.q), func(i int) bool { return c.deadcode.q[i] == nil })
+-	xq := c.deadcode.q[:nq]
+-	for i := range xq {
+-		xq[i] = nil
+-	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index 500ce3ae61..ddf1c0fa89 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -9,7 +9,8 @@ package ssa
+ // Regalloc wants a critical-edge-free CFG so it can implement phi values.
+ func critical(f *Func) {
+ 	// maps from phi arg ID to the new block created for that argument
+-	blocks := make([]*Block, f.NumValues())
++	blocks := f.Cache.allocBlockSlice(f.NumValues())
++	defer f.Cache.freeBlockSlice(blocks)
+ 	// need to iterate over f.Blocks without range, as we might
+ 	// need to split critical edges on newly constructed blocks
+ 	for j := 0; j < len(f.Blocks); j++ {
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index a71b78ce65..d6497977c7 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -31,7 +31,9 @@ func cse(f *Func) {
+ 	// until it reaches a fixed point.
+ 
+ 	// Make initial coarse partitions by using a subset of the conditions above.
+-	a := make([]*Value, 0, f.NumValues())
++	a := f.Cache.allocValueSlice(f.NumValues())
++	defer func() { f.Cache.freeValueSlice(a) }() // inside closure to use final value of a
++	a = a[:0]
+ 	if f.auxmap == nil {
+ 		f.auxmap = auxmap{}
+ 	}
+@@ -49,7 +51,8 @@ func cse(f *Func) {
+ 	partition := partitionValues(a, f.auxmap)
+ 
+ 	// map from value id back to eqclass id
+-	valueEqClass := make([]ID, f.NumValues())
++	valueEqClass := f.Cache.allocIDSlice(f.NumValues())
++	defer f.Cache.freeIDSlice(valueEqClass)
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			// Use negative equivalence class #s for unique values.
+@@ -159,7 +162,8 @@ func cse(f *Func) {
+ 
+ 	// Compute substitutions we would like to do. We substitute v for w
+ 	// if v and w are in the same equivalence class and v dominates w.
+-	rewrite := make([]*Value, f.NumValues())
++	rewrite := f.Cache.allocValueSlice(f.NumValues())
++	defer f.Cache.freeValueSlice(rewrite)
+ 	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
+ 	for _, e := range partition {
+ 		byDom.a = e
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index b47b106975..cfadda82b0 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -9,12 +9,12 @@ import (
+ )
+ 
+ // findlive returns the reachable blocks and live values in f.
+-// The caller should call f.retDeadcodeLive(live) when it is done with it.
++// The caller should call f.Cache.freeBoolSlice(live) when it is done with it.
+ func findlive(f *Func) (reachable []bool, live []bool) {
+ 	reachable = ReachableBlocks(f)
+ 	var order []*Value
+ 	live, order = liveValues(f, reachable)
+-	f.retDeadcodeLiveOrderStmts(order)
++	f.Cache.freeValueSlice(order)
+ 	return
+ }
+ 
+@@ -51,21 +51,11 @@ func ReachableBlocks(f *Func) []bool {
+ // to be statements in reversed data flow order.
+ // The second result is used to help conserve statement boundaries for debugging.
+ // reachable is a map from block ID to whether the block is reachable.
+-// The caller should call f.retDeadcodeLive(live) and f.retDeadcodeLiveOrderStmts(liveOrderStmts)
++// The caller should call f.Cache.freeBoolSlice(live) and f.Cache.freeValueSlice(liveOrderStmts).
+ // when they are done with the return values.
+ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
+-	live = f.newDeadcodeLive()
+-	if cap(live) < f.NumValues() {
+-		live = make([]bool, f.NumValues())
+-	} else {
+-		live = live[:f.NumValues()]
+-		for i := range live {
+-			live[i] = false
+-		}
+-	}
+-
+-	liveOrderStmts = f.newDeadcodeLiveOrderStmts()
+-	liveOrderStmts = liveOrderStmts[:0]
++	live = f.Cache.allocBoolSlice(f.NumValues())
++	liveOrderStmts = f.Cache.allocValueSlice(f.NumValues())[:0]
+ 
+ 	// After regalloc, consider all values to be live.
+ 	// See the comment at the top of regalloc.go and in deadcode for details.
+@@ -101,8 +91,8 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 	}
+ 
+ 	// Find all live values
+-	q := f.Cache.deadcode.q[:0]
+-	defer func() { f.Cache.deadcode.q = q }()
++	q := f.Cache.allocValueSlice(f.NumValues())[:0]
++	defer f.Cache.freeValueSlice(q)
+ 
+ 	// Starting set: all control values of reachable blocks are live.
+ 	// Calls are live (because callee can observe the memory state).
+@@ -149,6 +139,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 	for len(q) > 0 {
+ 		// pop a reachable value
+ 		v := q[len(q)-1]
++		q[len(q)-1] = nil
+ 		q = q[:len(q)-1]
+ 		for i, x := range v.Args {
+ 			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
+@@ -213,8 +204,8 @@ func deadcode(f *Func) {
+ 
+ 	// Find live values.
+ 	live, order := liveValues(f, reachable)
+-	defer f.retDeadcodeLive(live)
+-	defer f.retDeadcodeLiveOrderStmts(order)
++	defer func() { f.Cache.freeBoolSlice(live) }()
++	defer func() { f.Cache.freeValueSlice(order) }()
+ 
+ 	// Remove dead & duplicate entries from namedValues map.
+ 	s := f.newSparseSet(f.NumValues())
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index f31e7df724..dd40b2ae81 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -21,7 +21,8 @@ type blockAndIndex struct {
+ // postorderWithNumbering provides a DFS postordering.
+ // This seems to make loop-finding more robust.
+ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
+-	seen := make([]bool, f.NumBlocks())
++	seen := f.Cache.allocBoolSlice(f.NumBlocks())
++	defer f.Cache.freeBoolSlice(seen)
+ 
+ 	// result ordering
+ 	order := make([]*Block, 0, len(f.Blocks))
+@@ -56,44 +57,6 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
+ 
+ type linkedBlocks func(*Block) []Edge
+ 
+-const nscratchslices = 7
+-
+-// experimentally, functions with 512 or fewer blocks account
+-// for 75% of memory (size) allocation for dominator computation
+-// in make.bash.
+-const minscratchblocks = 512
+-
+-func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
+-	tot := maxBlockID * nscratchslices
+-	scratch := cache.domblockstore
+-	if len(scratch) < tot {
+-		// req = min(1.5*tot, nscratchslices*minscratchblocks)
+-		// 50% padding allows for graph growth in later phases.
+-		req := (tot * 3) >> 1
+-		if req < nscratchslices*minscratchblocks {
+-			req = nscratchslices * minscratchblocks
+-		}
+-		scratch = make([]ID, req)
+-		cache.domblockstore = scratch
+-	} else {
+-		// Clear as much of scratch as we will (re)use
+-		scratch = scratch[0:tot]
+-		for i := range scratch {
+-			scratch[i] = 0
+-		}
+-	}
+-
+-	a = scratch[0*maxBlockID : 1*maxBlockID]
+-	b = scratch[1*maxBlockID : 2*maxBlockID]
+-	c = scratch[2*maxBlockID : 3*maxBlockID]
+-	d = scratch[3*maxBlockID : 4*maxBlockID]
+-	e = scratch[4*maxBlockID : 5*maxBlockID]
+-	f = scratch[5*maxBlockID : 6*maxBlockID]
+-	g = scratch[6*maxBlockID : 7*maxBlockID]
+-
+-	return
+-}
+-
+ func dominators(f *Func) []*Block {
+ 	preds := func(b *Block) []Edge { return b.Preds }
+ 	succs := func(b *Block) []Edge { return b.Succs }
+@@ -110,12 +73,21 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
+ 	// Adapted directly from the original TOPLAS article's "simple" algorithm
+ 
+ 	maxBlockID := entry.Func.NumBlocks()
+-	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Cache.scratchBlocksForDom(maxBlockID)
++	scratch := f.Cache.allocIDSlice(7 * maxBlockID)
++	defer f.Cache.freeIDSlice(scratch)
++	semi := scratch[0*maxBlockID : 1*maxBlockID]
++	vertex := scratch[1*maxBlockID : 2*maxBlockID]
++	label := scratch[2*maxBlockID : 3*maxBlockID]
++	parent := scratch[3*maxBlockID : 4*maxBlockID]
++	ancestor := scratch[4*maxBlockID : 5*maxBlockID]
++	bucketHead := scratch[5*maxBlockID : 6*maxBlockID]
++	bucketLink := scratch[6*maxBlockID : 7*maxBlockID]
+ 
+ 	// This version uses integers for most of the computation,
+ 	// to make the work arrays smaller and pointer-free.
+ 	// fromID translates from ID to *Block where that is needed.
+-	fromID := make([]*Block, maxBlockID)
++	fromID := f.Cache.allocBlockSlice(maxBlockID)
++	defer f.Cache.freeBlockSlice(fromID)
+ 	for _, v := range f.Blocks {
+ 		fromID[v.ID] = v
+ 	}
+@@ -243,7 +215,8 @@ func dominatorsSimple(f *Func) []*Block {
+ 	post := f.postorder()
+ 
+ 	// Make map from block id to order index (for intersect call)
+-	postnum := make([]int, f.NumBlocks())
++	postnum := f.Cache.allocIntSlice(f.NumBlocks())
++	defer f.Cache.freeIntSlice(postnum)
+ 	for i, b := range post {
+ 		postnum[b.ID] = i
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 61c45a6be7..cf2c9a0023 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -11,7 +11,8 @@ func flagalloc(f *Func) {
+ 	// Compute the in-register flag value we want at the end of
+ 	// each block. This is basically a best-effort live variable
+ 	// analysis, so it can be much simpler than a full analysis.
+-	end := make([]*Value, f.NumBlocks())
++	end := f.Cache.allocValueSlice(f.NumBlocks())
++	defer f.Cache.freeValueSlice(end)
+ 	po := f.postorder()
+ 	for n := 0; n < 2; n++ {
+ 		for _, b := range po {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a1330a539e..ec811af7c9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -105,74 +105,35 @@ func (f *Func) NumValues() int {
+ 
+ // newSparseSet returns a sparse set that can store at least up to n integers.
+ func (f *Func) newSparseSet(n int) *sparseSet {
+-	for i, scr := range f.Cache.scrSparseSet {
+-		if scr != nil && scr.cap() >= n {
+-			f.Cache.scrSparseSet[i] = nil
+-			scr.clear()
+-			return scr
+-		}
+-	}
+-	return newSparseSet(n)
++	return f.Cache.allocSparseSet(n)
+ }
+ 
+ // retSparseSet returns a sparse set to the config's cache of sparse
+ // sets to be reused by f.newSparseSet.
+ func (f *Func) retSparseSet(ss *sparseSet) {
+-	for i, scr := range f.Cache.scrSparseSet {
+-		if scr == nil {
+-			f.Cache.scrSparseSet[i] = ss
+-			return
+-		}
+-	}
+-	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
++	f.Cache.freeSparseSet(ss)
+ }
+ 
+ // newSparseMap returns a sparse map that can store at least up to n integers.
+ func (f *Func) newSparseMap(n int) *sparseMap {
+-	for i, scr := range f.Cache.scrSparseMap {
+-		if scr != nil && scr.cap() >= n {
+-			f.Cache.scrSparseMap[i] = nil
+-			scr.clear()
+-			return scr
+-		}
+-	}
+-	return newSparseMap(n)
++	return f.Cache.allocSparseMap(n)
+ }
+ 
+ // retSparseMap returns a sparse map to the config's cache of sparse
+ // sets to be reused by f.newSparseMap.
+ func (f *Func) retSparseMap(ss *sparseMap) {
+-	for i, scr := range f.Cache.scrSparseMap {
+-		if scr == nil {
+-			f.Cache.scrSparseMap[i] = ss
+-			return
+-		}
+-	}
+-	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
++	f.Cache.freeSparseMap(ss)
+ }
+ 
+ // newSparseMapPos returns a sparse map that can store at least up to n integers.
+ func (f *Func) newSparseMapPos(n int) *sparseMapPos {
+-	for i, scr := range f.Cache.scrSparseMapPos {
+-		if scr != nil && scr.cap() >= n {
+-			f.Cache.scrSparseMapPos[i] = nil
+-			scr.clear()
+-			return scr
+-		}
+-	}
+-	return newSparseMapPos(n)
++	return f.Cache.allocSparseMapPos(n)
+ }
+ 
+ // retSparseMapPos returns a sparse map to the config's cache of sparse
+ // sets to be reused by f.newSparseMapPos.
+ func (f *Func) retSparseMapPos(ss *sparseMapPos) {
+-	for i, scr := range f.Cache.scrSparseMapPos {
+-		if scr == nil {
+-			f.Cache.scrSparseMapPos[i] = ss
+-			return
+-		}
+-	}
+-	f.Cache.scrSparseMapPos = append(f.Cache.scrSparseMapPos, ss)
++	f.Cache.freeSparseMapPos(ss)
+ }
+ 
+ // newPoset returns a new poset from the internal cache
+@@ -190,33 +151,6 @@ func (f *Func) retPoset(po *poset) {
+ 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+ }
+ 
+-// newDeadcodeLive returns a slice for the
+-// deadcode pass to use to indicate which values are live.
+-func (f *Func) newDeadcodeLive() []bool {
+-	r := f.Cache.deadcode.live
+-	f.Cache.deadcode.live = nil
+-	return r
+-}
+-
+-// retDeadcodeLive returns a deadcode live value slice for re-use.
+-func (f *Func) retDeadcodeLive(live []bool) {
+-	f.Cache.deadcode.live = live
+-}
+-
+-// newDeadcodeLiveOrderStmts returns a slice for the
+-// deadcode pass to use to indicate which values
+-// need special treatment for statement boundaries.
+-func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
+-	r := f.Cache.deadcode.liveOrderStmts
+-	f.Cache.deadcode.liveOrderStmts = nil
+-	return r
+-}
+-
+-// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
+-func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
+-	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+-}
+-
+ func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
+ 	a, ok := f.CanonicalLocalSlots[slot]
+ 	if !ok {
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index 6abdb0d0c9..e4a8c6ffbf 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -20,9 +20,12 @@ func layoutRegallocOrder(f *Func) []*Block {
+ 
+ func layoutOrder(f *Func) []*Block {
+ 	order := make([]*Block, 0, f.NumBlocks())
+-	scheduled := make([]bool, f.NumBlocks())
+-	idToBlock := make([]*Block, f.NumBlocks())
+-	indegree := make([]int, f.NumBlocks())
++	scheduled := f.Cache.allocBoolSlice(f.NumBlocks())
++	defer f.Cache.freeBoolSlice(scheduled)
++	idToBlock := f.Cache.allocBlockSlice(f.NumBlocks())
++	defer f.Cache.freeBlockSlice(idToBlock)
++	indegree := f.Cache.allocIntSlice(f.NumBlocks())
++	defer f.Cache.freeIntSlice(indegree)
+ 	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
+ 	defer f.retSparseSet(posdegree)
+ 	// blocks with zero remaining degree. Use slice to simulate a LIFO queue to implement
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index f462bf29a6..1d0e53cf5b 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -117,8 +117,10 @@ func likelyadjust(f *Func) {
+ 	// in their rank order.  0 is default, more positive
+ 	// is less likely. It's possible to assign a negative
+ 	// unlikeliness (though not currently the case).
+-	certain := make([]int8, f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
+-	local := make([]int8, f.NumBlocks())   // for our immediate predecessors.
++	certain := f.Cache.allocInt8Slice(f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
++	defer f.Cache.freeInt8Slice(certain)
++	local := f.Cache.allocInt8Slice(f.NumBlocks()) // for our immediate predecessors.
++	defer f.Cache.freeInt8Slice(local)
+ 
+ 	po := f.postorder()
+ 	nest := f.loopnest()
+@@ -277,7 +279,8 @@ func loopnestfor(f *Func) *loopnest {
+ 	sdom := f.Sdom()
+ 	b2l := make([]*loop, f.NumBlocks())
+ 	loops := make([]*loop, 0)
+-	visited := make([]bool, f.NumBlocks())
++	visited := f.Cache.allocBoolSlice(f.NumBlocks())
++	defer f.Cache.freeBoolSlice(visited)
+ 	sawIrred := false
+ 
+ 	if f.pass.debug > 2 {
+@@ -369,7 +372,8 @@ func loopnestfor(f *Func) *loopnest {
+ 	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
+ 
+ 	// Calculate containsUnavoidableCall for regalloc
+-	dominatedByCall := make([]bool, f.NumBlocks())
++	dominatedByCall := f.Cache.allocBoolSlice(f.NumBlocks())
++	defer f.Cache.freeBoolSlice(dominatedByCall)
+ 	for _, b := range po {
+ 		if checkContainsCall(b) {
+ 			dominatedByCall[b.ID] = true
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 1326fa5ee8..5a4f0b23d6 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -94,7 +94,8 @@ func insertLoopReschedChecks(f *Func) {
+ 		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
+ 	}
+ 
+-	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
++	memDefsAtBlockEnds := f.Cache.allocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
++	defer f.Cache.freeValueSlice(memDefsAtBlockEnds)
+ 
+ 	// Propagate last mem definitions forward through successor blocks.
+ 	for i := len(po) - 1; i >= 0; i-- {
+@@ -404,7 +405,8 @@ outer:
+ func findLastMems(f *Func) []*Value {
+ 
+ 	var stores []*Value
+-	lastMems := make([]*Value, f.NumBlocks())
++	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
++	defer f.Cache.freeValueSlice(lastMems)
+ 	storeUse := f.newSparseSet(f.NumValues())
+ 	defer f.retSparseSet(storeUse)
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+index 2eefda1c8b..844a8f7124 100644
+--- a/src/cmd/compile/internal/ssa/looprotate.go
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -30,7 +30,8 @@ func loopRotate(f *Func) {
+ 		return
+ 	}
+ 
+-	idToIdx := make([]int, f.NumBlocks())
++	idToIdx := f.Cache.allocIntSlice(f.NumBlocks())
++	defer f.Cache.freeIntSlice(idToIdx)
+ 	for i, b := range f.Blocks {
+ 		idToIdx[b.ID] = i
+ 	}
+@@ -92,20 +93,21 @@ func loopRotate(f *Func) {
+ 	// Some blocks that are not part of a loop may be placed
+ 	// between loop blocks. In order to avoid these blocks from
+ 	// being overwritten, use a temporary slice.
+-	newOrder := make([]*Block, 0, f.NumBlocks())
+-	for _, b := range f.Blocks {
++	oldOrder := f.Cache.allocBlockSlice(len(f.Blocks))
++	defer f.Cache.freeBlockSlice(oldOrder)
++	copy(oldOrder, f.Blocks)
++	for _, b := range oldOrder {
+ 		if _, ok := move[b.ID]; ok {
+ 			continue
+ 		}
+-		newOrder = append(newOrder, b)
++		f.Blocks[j] = b
+ 		j++
+ 		for _, a := range after[b.ID] {
+-			newOrder = append(newOrder, a)
++			f.Blocks[j] = a
+ 			j++
+ 		}
+ 	}
+-	if j != len(f.Blocks) {
++	if j != len(oldOrder) {
+ 		f.Fatalf("bad reordering in looprotate")
+ 	}
+-	f.Blocks = newOrder
+ }
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 5f23790c97..4f797a473f 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -41,7 +41,8 @@ func nilcheckelim(f *Func) {
+ 	// map from value ID to bool indicating if value is known to be non-nil
+ 	// in the current dominator path being walked. This slice is updated by
+ 	// walkStates to maintain the known non-nil values.
+-	nonNilValues := make([]bool, f.NumValues())
++	nonNilValues := f.Cache.allocBoolSlice(f.NumValues())
++	defer f.Cache.freeBoolSlice(nonNilValues)
+ 
+ 	// make an initial pass identifying any non-nil values
+ 	for _, b := range f.Blocks {
+@@ -86,7 +87,8 @@ func nilcheckelim(f *Func) {
+ 	// allocate auxiliary date structures for computing store order
+ 	sset := f.newSparseSet(f.NumValues())
+ 	defer f.retSparseSet(sset)
+-	storeNumber := make([]int32, f.NumValues())
++	storeNumber := f.Cache.allocInt32Slice(f.NumValues())
++	defer f.Cache.freeInt32Slice(storeNumber)
+ 
+ 	// perform a depth first walk of the dominee tree
+ 	for len(work) > 0 {
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 85ba6b72c6..0d3b5d9e34 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -124,7 +124,7 @@ func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
+ 
+ func fprintFunc(p funcPrinter, f *Func) {
+ 	reachable, live := findlive(f)
+-	defer f.retDeadcodeLive(live)
++	defer f.Cache.freeBoolSlice(live)
+ 	p.header(f)
+ 	printed := make([]bool, f.NumValues())
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index ea7117586a..a25688fbd1 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -146,6 +146,7 @@ func regalloc(f *Func) {
+ 	var s regAllocState
+ 	s.init(f)
+ 	s.regalloc(f)
++	s.close()
+ }
+ 
+ type register uint8
+@@ -357,6 +358,12 @@ func (s *regAllocState) clobberRegs(m regMask) {
+ // setOrig records that c's original value is the same as
+ // v's original value.
+ func (s *regAllocState) setOrig(c *Value, v *Value) {
++	if int(c.ID) >= cap(s.orig) {
++		x := s.f.Cache.allocValueSlice(int(c.ID) + 1)
++		copy(x, s.orig)
++		s.f.Cache.freeValueSlice(s.orig)
++		s.orig = x
++	}
+ 	for int(c.ID) >= len(s.orig) {
+ 		s.orig = append(s.orig, nil)
+ 	}
+@@ -664,7 +671,7 @@ func (s *regAllocState) init(f *Func) {
+ 		s.f.Cache.regallocValues = make([]valState, nv)
+ 	}
+ 	s.values = s.f.Cache.regallocValues
+-	s.orig = make([]*Value, nv)
++	s.orig = s.f.Cache.allocValueSlice(nv)
+ 	s.copies = make(map[*Value]bool)
+ 	for _, b := range s.visitOrder {
+ 		for _, v := range b.Values {
+@@ -728,6 +735,10 @@ func (s *regAllocState) init(f *Func) {
+ 	}
+ }
+ 
++func (s *regAllocState) close() {
++	s.f.Cache.freeValueSlice(s.orig)
++}
++
+ // Adds a use record for id at distance dist from the start of the block.
+ // All calls to addUse must happen with nonincreasing dist.
+ func (s *regAllocState) addUse(id ID, dist int32, pos src.XPos) {
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 62eaa2ed45..6e570aa82a 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -94,13 +94,15 @@ func (op Op) isLoweredGetClosurePtr() bool {
+ func schedule(f *Func) {
+ 	// For each value, the number of times it is used in the block
+ 	// by values that have not been scheduled yet.
+-	uses := make([]int32, f.NumValues())
++	uses := f.Cache.allocInt32Slice(f.NumValues())
++	defer f.Cache.freeInt32Slice(uses)
+ 
+ 	// reusable priority queue
+ 	priq := new(ValHeap)
+ 
+ 	// "priority" for a value
+-	score := make([]int8, f.NumValues())
++	score := f.Cache.allocInt8Slice(f.NumValues())
++	defer f.Cache.freeInt8Slice(score)
+ 
+ 	// scheduling order. We queue values in this list in reverse order.
+ 	// A constant bound allows this to be stack-allocated. 64 is
+@@ -108,7 +110,8 @@ func schedule(f *Func) {
+ 	order := make([]*Value, 0, 64)
+ 
+ 	// maps mem values to the next live memory value
+-	nextMem := make([]*Value, f.NumValues())
++	nextMem := f.Cache.allocValueSlice(f.NumValues())
++	defer f.Cache.freeValueSlice(nextMem)
+ 	// additional pretend arguments for each Value. Used to enforce load/store ordering.
+ 	additionalArgs := make([][]*Value, f.NumValues())
+ 
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index d41f3996af..3e24b48a69 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -25,8 +25,6 @@ type stackAllocState struct {
+ 	values    []stackValState
+ 	interfere [][]ID // interfere[v.id] = values that interfere with v.
+ 	names     []LocalSlot
+-	slots     []int
+-	used      []bool
+ 
+ 	nArgSlot, // Number of Values sourced to arg slot
+ 	nNotNeed, // Number of Values not needing a stack slot
+@@ -57,12 +55,6 @@ func putStackAllocState(s *stackAllocState) {
+ 	for i := range s.names {
+ 		s.names[i] = LocalSlot{}
+ 	}
+-	for i := range s.slots {
+-		s.slots[i] = 0
+-	}
+-	for i := range s.used {
+-		s.used[i] = false
+-	}
+ 	s.f.Cache.stackAllocState = s
+ 	s.f = nil
+ 	s.live = nil
+@@ -218,25 +210,15 @@ func (s *stackAllocState) stackalloc() {
+ 
+ 	// Each time we assign a stack slot to a value v, we remember
+ 	// the slot we used via an index into locations[v.Type].
+-	slots := s.slots
+-	if n := f.NumValues(); cap(slots) >= n {
+-		slots = slots[:n]
+-	} else {
+-		slots = make([]int, n)
+-		s.slots = slots
+-	}
++	slots := f.Cache.allocIntSlice(f.NumValues())
++	defer f.Cache.freeIntSlice(slots)
+ 	for i := range slots {
+ 		slots[i] = -1
+ 	}
+ 
+ 	// Pick a stack slot for each value needing one.
+-	var used []bool
+-	if n := f.NumValues(); cap(s.used) >= n {
+-		used = s.used[:n]
+-	} else {
+-		used = make([]bool, n)
+-		s.used = used
+-	}
++	used := f.Cache.allocBoolSlice(f.NumValues())
++	defer f.Cache.freeBoolSlice(used)
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if !s.values[v.ID].needSlot {
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 214bf628bd..edae6a1cb7 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -10,7 +10,8 @@ package ssa
+ // A Value can be moved to any block that
+ // dominates all blocks in which it is used.
+ func tighten(f *Func) {
+-	canMove := make([]bool, f.NumValues())
++	canMove := f.Cache.allocBoolSlice(f.NumValues())
++	defer f.Cache.freeBoolSlice(canMove)
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op.isLoweredGetClosurePtr() {
+@@ -52,7 +53,8 @@ func tighten(f *Func) {
+ 	lca := makeLCArange(f)
+ 
+ 	// For each moveable value, record the block that dominates all uses found so far.
+-	target := make([]*Block, f.NumValues())
++	target := f.Cache.allocBlockSlice(f.NumValues())
++	defer f.Cache.freeBlockSlice(target)
+ 
+ 	// Grab loop information.
+ 	// We use this to make sure we don't tighten a value into a (deeper) loop.
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index f5a7ed5928..2e7fc769df 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -139,7 +139,8 @@ func writebarrier(f *Func) {
+ 			// allocate auxiliary data structures for computing store order
+ 			sset = f.newSparseSet(f.NumValues())
+ 			defer f.retSparseSet(sset)
+-			storeNumber = make([]int32, f.NumValues())
++			storeNumber = f.Cache.allocInt32Slice(f.NumValues())
++			defer f.Cache.freeInt32Slice(storeNumber)
+ 		}
+ 
+ 		// order values in store order

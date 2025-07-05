@@ -11,6 +11,45 @@ Date:   Fri Aug 31 23:48:15 2018 +0530
     Reviewed-by: Kevin Burke <kev@inburke.com>
     Run-TryBot: Kevin Burke <kev@inburke.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/example_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 9b72d7a383..1479b761b6 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -6,6 +6,7 @@ package fmt_test
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"strings"
+ )
+@@ -77,3 +78,25 @@ func ExampleFprintln() {
+ 	// there are 99 gophers
+ 	// 21
+ }
++
++func ExampleFscanln() {
++	s := `dmr 1771 1.61803398875
++	ken 271828 3.14159`
++	r := strings.NewReader(s)
++	var a string
++	var b int
++	var c float64
++	for {
++		n, err := fmt.Fscanln(r, &a, &b, &c)
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			panic(err)
++		}
++		fmt.Printf("%d: %s, %d, %f\n", n, a, b, c)
++	}
++	// Output:
++	// 3: dmr, 1771, 1.618034
++	// 3: ken, 271828, 3.141590
++}

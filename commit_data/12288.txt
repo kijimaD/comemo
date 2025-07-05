@@ -12,7 +12,51 @@ Date:   Wed Feb 29 13:55:50 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5696071
-
+---
  src/cmd/gc/walk.c        |  2 ++
  test/fixedbugs/bug425.go | 17 +++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9bd0a699cb..74298e1266 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1017,6 +1017,7 @@ walkexpr(Node **np, NodeList **init)
+ 			r = nod(n->etype, nod(OLEN, n->left, N), nod(OLEN, n->right, N));
+ 			typecheck(&r, Erv);
+ 			walkexpr(&r, init);
++			r->type = n->type;
+ 			n = r;
+ 			goto ret;
+ 		}
+@@ -1029,6 +1030,7 @@ walkexpr(Node **np, NodeList **init)
+ 			r = nod(n->etype, nod(OLEN, n->left->left, N), nodintconst(0));
+ 			typecheck(&r, Erv);
+ 			walkexpr(&r, init);
++			r->type = n->type;
+ 			n = r;
+ 			goto ret;
+ 		}
+diff --git a/test/fixedbugs/bug425.go b/test/fixedbugs/bug425.go
+new file mode 100644
+index 0000000000..5546bd96ba
+--- /dev/null
++++ b/test/fixedbugs/bug425.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=3119
++
++package main
++
++import "fmt"
++
++func main() {
++	s := "hello"
++	fmt.Println(s == "")
++	fmt.Println(s + "world" == "world")
++}

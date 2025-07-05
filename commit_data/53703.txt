@@ -16,9 +16,145 @@ Date:   Mon Aug 29 23:29:48 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go                          |  3 +-
  src/cmd/go/internal/imports/build.go           | 42 ++++++++++++++++++++------
  src/cmd/go/testdata/script/import_unix_tag.txt | 32 ++++++++++++++++++++
  src/go/build/syslist.go                        |  3 +-
  4 files changed, 69 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4440b44aae..05676035ba 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -939,7 +939,8 @@ func packagefile(pkg string) string {
+ }
+ 
+ // unixOS is the set of GOOS values matched by the "unix" build tag.
+-// This is the same list as in go/build/syslist.go.
++// This is the same list as in go/build/syslist.go and
++// cmd/go/internal/imports/build.go.
+ var unixOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index 957113686c..bbe08da6b3 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -20,6 +20,7 @@ package imports
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/cfg"
+ 	"errors"
+ 	"fmt"
+ 	"go/build/constraint"
+@@ -201,17 +202,22 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
+ 		return prefer
+ 	}
+ 
+-	have := tags[name]
+-	if name == "linux" {
+-		have = have || tags["android"]
+-	}
+-	if name == "solaris" {
+-		have = have || tags["illumos"]
++	if tags[name] {
++		return true
+ 	}
+-	if name == "darwin" {
+-		have = have || tags["ios"]
++
++	switch name {
++	case "linux":
++		return tags["android"]
++	case "solaris":
++		return tags["illumos"]
++	case "darwin":
++		return tags["ios"]
++	case "unix":
++		return unixOS[cfg.BuildContext.GOOS]
++	default:
++		return false
+ 	}
+-	return have
+ }
+ 
+ // eval is like
+@@ -322,6 +328,24 @@ var KnownOS = map[string]bool{
+ 	"zos":       true,
+ }
+ 
++// unixOS is the set of GOOS values matched by the "unix" build tag.
++// This is not used for filename matching.
++// This is the same list as in go/build/syslist.go and cmd/dist/build.go.
++var unixOS = map[string]bool{
++	"aix":       true,
++	"android":   true,
++	"darwin":    true,
++	"dragonfly": true,
++	"freebsd":   true,
++	"hurd":      true,
++	"illumos":   true,
++	"ios":       true,
++	"linux":     true,
++	"netbsd":    true,
++	"openbsd":   true,
++	"solaris":   true,
++}
++
+ var KnownArch = map[string]bool{
+ 	"386":         true,
+ 	"amd64":       true,
+diff --git a/src/cmd/go/testdata/script/import_unix_tag.txt b/src/cmd/go/testdata/script/import_unix_tag.txt
+new file mode 100644
+index 0000000000..b88ca1e2ee
+--- /dev/null
++++ b/src/cmd/go/testdata/script/import_unix_tag.txt
+@@ -0,0 +1,32 @@
++# Regression test for https://go.dev/issue/54712: the "unix" build constraint
++# was not applied consistently during package loading.
++
++go list -x -f '{{if .Module}}{{.ImportPath}}{{end}}' -deps .
++stdout 'example.com/version'
++
++-- go.mod --
++module example
++
++go 1.19
++
++require example.com/version v1.1.0
++-- go.sum --
++example.com/version v1.1.0 h1:VdPnGmIF1NJrntStkxGrF3L/OfhaL567VzCjncGUgtM=
++example.com/version v1.1.0/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q=
++-- main_notunix.go --
++//go:build !(aix || darwin || dragonfly || freebsd || hurd || linux || netbsd || openbsd || solaris)
++
++package main
++
++import _ "example.com/version"
++
++func main() {}
++
++-- main_unix.go --
++//go:build unix
++
++package main
++
++import _ "example.com/version"
++
++func main() {}
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 35cffce6dc..78ca565ce2 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -33,7 +33,8 @@ var knownOS = map[string]bool{
+ 
+ // unixOS is the set of GOOS values matched by the "unix" build tag.
+ // This is not used for filename matching.
+-// This list also appears in cmd/dist/build.go.
++// This list also appears in cmd/dist/build.go and
++// cmd/go/internal/imports/build.go.
+ var unixOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,

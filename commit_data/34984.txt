@@ -16,9 +16,109 @@ Date:   Fri Dec 1 12:17:37 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                 |  3 +++
  src/cmd/go/internal/work/exec.go      |  9 +++++++++
  src/cmd/go/testdata/src/vetcycle/p.go | 12 ++++++++++++
  src/cmd/vet/main.go                   |  8 ++++++++
  4 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e37352bba9..691945b9ef 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5115,6 +5115,9 @@ func TestTestVet(t *testing.T) {
+ 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+ 	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
+ 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
++
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("test", "vetcycle") // must not fail; #22890
+ }
+ 
+ func TestInstallDeps(t *testing.T) {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2e170fa040..43409de764 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -638,6 +638,8 @@ type vetConfig struct {
+ 	GoFiles     []string
+ 	ImportMap   map[string]string
+ 	PackageFile map[string]string
++
++	SucceedOnTypecheckFailure bool
+ }
+ 
+ // VetFlags are the flags to pass to vet.
+@@ -663,6 +665,13 @@ func (b *Builder) vet(a *Action) error {
+ 		vcfg.PackageFile["fmt"] = a1.built
+ 	}
+ 
++	// During go test, ignore type-checking failures during vet.
++	// We only run vet if the compilation has succeeded,
++	// so at least for now assume the bug is in vet.
++	// We know of at least #18395.
++	// TODO(rsc,gri): Try to remove this for Go 1.11.
++	vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
++
+ 	js, err := json.MarshalIndent(vcfg, "", "\t")
+ 	if err != nil {
+ 		return fmt.Errorf("internal error marshaling vet config: %v", err)
+diff --git a/src/cmd/go/testdata/src/vetcycle/p.go b/src/cmd/go/testdata/src/vetcycle/p.go
+new file mode 100644
+index 0000000000..857c3a611f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vetcycle/p.go
+@@ -0,0 +1,12 @@
++package p
++
++
++type (
++	_ interface{ m(B1) }
++	A1 interface{ a(D1) }
++	B1 interface{ A1 }
++	C1 interface{ B1 /* ERROR issue #18395 */ }
++	D1 interface{ C1 }
++)
++
++var _ A1 = C1 /* ERROR cannot use C1 */ (nil)
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 66f9449d7e..a10c798850 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -35,6 +35,8 @@ var (
+ 	tagList = []string{} // exploded version of tags flag; set in main
+ 
+ 	mustTypecheck bool
++
++	succeedOnTypecheckFailure bool // during go test, we ignore potential bugs in go/types
+ )
+ 
+ var exitCode = 0
+@@ -291,6 +293,8 @@ type vetConfig struct {
+ 	ImportMap   map[string]string
+ 	PackageFile map[string]string
+ 
++	SucceedOnTypecheckFailure bool
++
+ 	imp types.Importer
+ }
+ 
+@@ -336,6 +340,7 @@ func doPackageCfg(cfgFile string) {
+ 	if err := json.Unmarshal(js, &vcfg); err != nil {
+ 		errorf("parsing vet config %s: %v", cfgFile, err)
+ 	}
++	succeedOnTypecheckFailure = vcfg.SucceedOnTypecheckFailure
+ 	stdImporter = &vcfg
+ 	inittypes()
+ 	mustTypecheck = true
+@@ -427,6 +432,9 @@ func doPackage(names []string, basePkg *Package) *Package {
+ 	// Type check the package.
+ 	errs := pkg.check(fs, astFiles)
+ 	if errs != nil {
++		if succeedOnTypecheckFailure {
++			os.Exit(0)
++		}
+ 		if *verbose || mustTypecheck {
+ 			for _, err := range errs {
+ 				fmt.Fprintf(os.Stderr, "%v\n", err)

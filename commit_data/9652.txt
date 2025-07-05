@@ -9,7 +9,58 @@ Date:   Mon Sep 12 13:48:56 2011 -0400
     R=ukai, adg, rsc
     CC=golang-dev
     https://golang.org/cl/4992049
-
+---
  src/pkg/websocket/websocket.go      |  3 ---
  src/pkg/websocket/websocket_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index 1d063c31fc..bd82131e56 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -65,9 +65,6 @@ type WebSocketAddr struct {
+ // Network returns the network type for a WebSocket, "websocket".
+ func (addr WebSocketAddr) Network() string { return "websocket" }
+ 
+-// String returns the network address for a WebSocket.
+-func (addr WebSocketAddr) String() string { return addr.String() }
+-
+ // Config is a WebSocket configuration
+ type Config struct {
+ 	// A WebSocket server address.
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 058f38ce02..d2834cd1fc 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -87,6 +87,31 @@ func TestEcho(t *testing.T) {
+ 	conn.Close()
+ }
+ 
++func TestAddr(t *testing.T) {
++	once.Do(startServer)
++
++	// websocket.Dial()
++	client, err := net.Dial("tcp", serverAddr)
++	if err != nil {
++		t.Fatal("dialing", err)
++	}
++	conn, err := NewClient(newConfig(t, "/echo"), client)
++	if err != nil {
++		t.Errorf("WebSocket handshake error: %v", err)
++		return
++	}
++
++	ra := conn.RemoteAddr().String()
++	if !strings.HasPrefix(ra, "ws://") || !strings.HasSuffix(ra, "/echo") {
++		t.Errorf("Bad remote addr: %v", ra)
++	}
++	la := conn.LocalAddr().String()
++	if !strings.HasPrefix(la, "http://") {
++		t.Errorf("Bad local addr: %v", la)
++	}
++	conn.Close()
++}
++
+ func TestCount(t *testing.T) {
+ 	once.Do(startServer)
+ 

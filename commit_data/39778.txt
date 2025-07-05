@@ -12,8 +12,48 @@ Date:   Wed Mar 20 11:32:59 2019 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/go_test.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 141f13c63e..5b62ed939c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1495,7 +1495,7 @@
+ // 	GOFLAGS
+ // 		A space-separated list of -flag=value settings to apply
+ // 		to go commands by default, when the given flag is known by
+-// 		the current command. Flags listed on the command-line
++// 		the current command. Flags listed on the command line
+ // 		are applied after this list and therefore override it.
+ // 	GOOS
+ // 		The operating system for which to compile code.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index faf953ddeb..240ba594f5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5970,7 +5970,7 @@ func TestBadCgoDirectives(t *testing.T) {
+ 	if runtime.Compiler == "gc" {
+ 		tg.runFail("build", tg.path("src/x/_cgo_yy.go")) // ... but if forced, the comment is rejected
+ 		// Actually, today there is a separate issue that _ files named
+-		// on the command-line are ignored. Once that is fixed,
++		// on the command line are ignored. Once that is fixed,
+ 		// we want to see the cgo_ldflag error.
+ 		tg.grepStderr("//go:cgo_ldflag only allowed in cgo-generated code|no Go files", "did not reject //go:cgo_ldflag directive")
+ 	}
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index a989483e60..d931c9225b 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -489,7 +489,7 @@ General-purpose environment variables:
+ 	GOFLAGS
+ 		A space-separated list of -flag=value settings to apply
+ 		to go commands by default, when the given flag is known by
+-		the current command. Flags listed on the command-line
++		the current command. Flags listed on the command line
+ 		are applied after this list and therefore override it.
+ 	GOOS
+ 		The operating system for which to compile code.

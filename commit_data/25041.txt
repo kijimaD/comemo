@@ -7,6 +7,21 @@ Date:   Wed Sep 16 16:53:57 2015 -0700
     Change-Id: I101e9bc722f5ba4fa9941cb544d9c276fd4c0b8c
     Reviewed-on: https://go-review.googlesource.com/14651
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/testdata/issues.src | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 1e2f43b728..b108a2c158 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -17,8 +17,7 @@ func issue7035() {
+ 
+ func issue8066() {
+ 	const (
+-		// TODO(gri) Enable test below for releases 1.4 and higher
+-		// _ = float32(340282356779733661637539395458142568447)
++		_ = float32(340282356779733661637539395458142568447)
+ 		_ = float32(340282356779733661637539395458142568448 /* ERROR cannot convert */ )
+ 	)
+ }

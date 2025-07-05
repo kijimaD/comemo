@@ -7,9 +7,286 @@ Date:   Tue Oct 21 20:55:40 2008 -0700
     R=r
     OCL=17601
     CL=17601
-
+---
  src/cmd/gc/dcl.c  |   8 ++--
  src/cmd/gc/go.h   |   8 ++--
  src/cmd/gc/go.y   |  14 +++----
  src/cmd/gc/walk.c | 118 +++++++++++++++++++++++++++++++++++++++++++-----------
  4 files changed, 109 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 94a0646e4f..9a4fe73036 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -471,7 +471,7 @@ loop:
+ 
+ 	if(n->left != N && n->left->op == ONAME) {
+ 		f->nname = n->left;
+-		f->imbedded = n->imbedded;
++		f->embedded = n->embedded;
+ 	} else {
+ 		vargen++;
+ 		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
+@@ -1150,17 +1150,17 @@ resumecheckwidth(void)
+ }
+ 
+ Node*
+-imbedded(Sym *s)
++embedded(Sym *s)
+ {
+ 	Node *n;
+ 
+ 	n = newname(lookup(s->name));
+ 	n = nod(ODCLFIELD, n, N);
+-	n->imbedded = 1;
++	n->embedded = 1;
+ 	if(s == S)
+ 		return n;
+ 	n->type = oldtype(s);
+ 	if(isptr[n->type->etype])
+-		yyerror("imbedded type cannot be a pointer");
++		yyerror("embedded type cannot be a pointer");
+ 	return n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4e1c0c5d98..973b6f2c63 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -124,7 +124,7 @@ struct	Type
+ 	uchar	trecur;		// to detect loops
+ 	uchar	methptr;	// 1=direct 2=pointer
+ 	uchar	printed;
+-	uchar	imbedded;	// TFIELD imbedded type
++	uchar	embedded;	// TFIELD embedded type
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -163,7 +163,7 @@ struct	Node
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
+-	uchar	imbedded;	// ODCLFIELD imbedded type
++	uchar	embedded;	// ODCLFIELD embedded type
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -673,7 +673,7 @@ void	checkarglist(Node*);
+ void	checkwidth(Type*);
+ void	defercheckwidth(void);
+ void	resumecheckwidth(void);
+-Node*	imbedded(Sym*);
++Node*	embedded(Sym*);
+ 
+ /*
+  *	export.c
+@@ -714,7 +714,6 @@ void	walkstate(Node*);
+ void	walktype(Node*, int);
+ void	walkas(Node*);
+ void	walkbool(Node*);
+-void	adddot(Node*);
+ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
+ void	walkselect(Node*);
+@@ -747,6 +746,7 @@ Node*	arraylit(Node*);
+ Node*	maplit(Node*);
+ Node*	selectas(Node*, Node*);
+ Node*	old2new(Node*, Type*);
++Node*	adddot(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index fd0c5b48dc..352d60c9fd 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -58,7 +58,7 @@
+ %type	<node>		name onew_name new_name new_name_list_r
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+-%type	<node>		structdcl_list_r structdcl imbed
++%type	<node>		structdcl_list_r structdcl embed
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
+ 
+@@ -820,7 +820,7 @@ pexpr:
+ |	pexpr '.' sym2
+ 	{
+ 		$$ = nod(ODOT, $1, newname($3));
+-		adddot($$);
++		$$ = adddot($$);
+ 	}
+ |	pexpr '.' '(' type ')'
+ 	{
+@@ -1375,21 +1375,21 @@ structdcl:
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$->type = $2;
+ 	}
+-|	imbed
+-|	'*' imbed
++|	embed
++|	'*' embed
+ 	{
+ 		$$ = $2;
+ 		$$->type = ptrto($$->type);
+ 	}
+ 
+-imbed:
++embed:
+ 	LATYPE
+ 	{
+-		$$ = imbedded($1);
++		$$ = embedded($1);
+ 	}
+ |	lpack '.' LATYPE
+ 	{
+-		$$ = imbedded($3);
++		$$ = embedded($3);
+ 		context = nil;
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c78ac1ab7b..6c991c6a6a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1507,13 +1507,13 @@ void
+ walkdot(Node *n)
+ {
+ 	Type *t, *f;
++	int d;
+ 
+ 	if(n->left == N || n->right == N)
+ 		return;
+ 	switch(n->op) {
+ 	case ODOTINTER:
+ 	case ODOTMETH:
+-	case ODOTPTR:
+ 		return;	// already done
+ 	}
+ 
+@@ -1539,29 +1539,6 @@ walkdot(Node *n)
+ 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+ }
+ 
+-int
+-adddot1(Node *n, int d)
+-{
+-	return 1;
+-}
+-
+-void
+-adddot(Node *n)
+-{
+-	int d;
+-
+-	walktype(n->left, Erv);
+-	if(n->left->type == T)
+-		return;
+-	if(n->right->op != ONAME)
+-		return;
+-
+-	for(d=0; d<5; d++)
+-		if(adddot1(n, d))
+-			break;
+-//	dump("adddot", n);
+-}
+-
+ Node*
+ ascompatee(int op, Node **nl, Node **nr)
+ {
+@@ -3244,3 +3221,96 @@ loop:
+ 	r = listnext(&saver);
+ 	goto loop;
+ }
++
++int
++lookdot0(Sym *s, Type *t)
++{
++	Type *f, *u;
++	int c;
++
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++
++	c = 0;
++	if(u->etype == TSTRUCT || u->etype == TINTER) {
++		for(f=u->type; f!=T; f=f->down)
++			if(f->sym == s)
++				c++;
++	}
++//BOTCH need method
++	return c;
++}
++
++static	Node*	dotlist;
++
++int
++adddot1(Sym *s, Type *t, int d)
++{
++	Type *f, *u;
++	int c, a;
++
++	if(d == 0)
++		return lookdot0(s, t);
++
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++	if(u->etype != TSTRUCT && u->etype != TINTER)
++		return 0;
++
++	c = 0;
++	for(f=u->type; f!=T; f=f->down) {
++		if(!f->embedded)
++			continue;
++		if(f->sym == S)
++			continue;
++		a = adddot1(s, f->type, d-1);
++		if(a != 0 && c == 0) {
++			dotlist = nod(ODOT, dotlist, N);
++			dotlist->type = f;
++		}
++		c += a;
++	}
++	return c;
++}
++
++Node*
++adddot(Node *n)
++{
++	Type *t;
++	Sym *s;
++	Node *l;
++	int c, d;
++
++	walktype(n->left, Erv);
++	t = n->left->type;
++	if(t == T)
++		return n;
++
++	if(n->right->op != ONAME)
++		return n;
++	s = n->right->sym;
++	if(s == S)
++		return n;
++
++	dotlist = N;
++	for(d=0; d<5; d++) {
++		c = adddot1(s, t, d);
++		if(c > 0)
++			goto out;
++	}
++	return n;
++
++out:
++	if(c > 1)
++		yyerror("ambiguous DOT reference %S", s);
++
++	// rebuild elided dots
++	for(l=dotlist; l!=N; l=l->left) {
++		n = nod(ODOT, n, n->right);
++		n->left->right = newname(l->type->sym);
++	}
++
++	return n;
++}

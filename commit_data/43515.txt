@@ -9,9 +9,140 @@ Date:   Wed Apr 8 19:46:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/decodesym2.go | 11 +++++++++++
  src/cmd/link/internal/ld/main.go       |  4 ++--
  src/cmd/link/internal/ld/typelink.go   | 33 ++++++++++++++++++---------------
  src/cmd/link/internal/loader/loader.go |  9 ++++++++-
  4 files changed, 39 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym2.go b/src/cmd/link/internal/ld/decodesym2.go
+index 318ce36594..8b19afffa3 100644
+--- a/src/cmd/link/internal/ld/decodesym2.go
++++ b/src/cmd/link/internal/ld/decodesym2.go
+@@ -118,3 +118,14 @@ func decodetypeStructFieldOffsAnon2(ldr *loader.Loader, arch *sys.Arch, symIdx l
+ 	data := ldr.Data(symIdx)
+ 	return int64(decodeInuxi(arch, data[off+2*arch.PtrSize:], arch.PtrSize))
+ }
++
++// decodetypeStr2 returns the contents of an rtype's str field (a nameOff).
++func decodetypeStr2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string {
++	relocs := ldr.Relocs(symIdx)
++	str := decodetypeName2(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
++	data := ldr.Data(symIdx)
++	if data[2*arch.PtrSize+4]&tflagExtraStar != 0 {
++		return str[1:]
++	}
++	return str
++}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b91a195694..7f11731ef4 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -290,14 +290,14 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	bench.Start("textaddress")
+ 	ctxt.textaddress()
++	bench.Start("typelink")
++	ctxt.typelink()
+ 	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 	bench.Start("pclntab")
+ 	ctxt.pclntab()
+ 	bench.Start("findfunctab")
+ 	ctxt.findfunctab()
+-	bench.Start("typelink")
+-	ctxt.typelink()
+ 	bench.Start("symtab")
+ 	ctxt.symtab()
+ 	bench.Start("buildinfo")
+diff --git a/src/cmd/link/internal/ld/typelink.go b/src/cmd/link/internal/ld/typelink.go
+index 6b5ab080f3..22b679bf54 100644
+--- a/src/cmd/link/internal/ld/typelink.go
++++ b/src/cmd/link/internal/ld/typelink.go
+@@ -6,6 +6,7 @@ package ld
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"sort"
+ )
+@@ -14,7 +15,7 @@ type byTypeStr []typelinkSortKey
+ 
+ type typelinkSortKey struct {
+ 	TypeStr string
+-	Type    *sym.Symbol
++	Type    loader.Sym
+ }
+ 
+ func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
+@@ -25,25 +26,27 @@ func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ // Types that should be added to the typelinks table are marked with the
+ // MakeTypelink attribute by the compiler.
+ func (ctxt *Link) typelink() {
++	ldr := ctxt.loader
+ 	typelinks := byTypeStr{}
+-	for _, s := range ctxt.Syms.Allsym {
+-		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
+-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
++	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
++		if ldr.AttrReachable(s) && ldr.IsTypelink(s) {
++			typelinks = append(typelinks, typelinkSortKey{decodetypeStr2(ldr, ctxt.Arch, s), s})
+ 		}
+ 	}
+ 	sort.Sort(typelinks)
+ 
+-	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
+-	tl.Type = sym.STYPELINK
+-	tl.Attr |= sym.AttrReachable | sym.AttrLocal
+-	tl.Size = int64(4 * len(typelinks))
+-	tl.P = make([]byte, tl.Size)
+-	tl.R = make([]sym.Reloc, len(typelinks))
++	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
++	tl.SetType(sym.STYPELINK)
++	ldr.SetAttrReachable(tl.Sym(), true)
++	ldr.SetAttrLocal(tl.Sym(), true)
++	tl.SetSize(int64(4 * len(typelinks)))
++	tl.Grow(tl.Size())
++	relocs := tl.AddRelocs(len(typelinks))
+ 	for i, s := range typelinks {
+-		r := &tl.R[i]
+-		r.Sym = s.Type
+-		r.Off = int32(i * 4)
+-		r.Siz = 4
+-		r.Type = objabi.R_ADDROFF
++		r := relocs.At2(i)
++		r.SetSym(s.Type)
++		r.SetOff(int32(i * 4))
++		r.SetSiz(4)
++		r.SetType(objabi.R_ADDROFF)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 3437b42b65..cd5971c2e1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -659,7 +659,9 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
+ // Returns the attributes of the i-th symbol.
+ func (l *Loader) SymAttr(i Sym) uint8 {
+ 	if l.IsExternal(i) {
+-		// TODO: do something? External symbols have different representation of attributes. For now, ReflectMethod is the only thing matters and it cannot be set by external symbol.
++		// TODO: do something? External symbols have different representation of attributes.
++		// For now, ReflectMethod, NoSplit, GoType, and Typelink are used and they cannot be
++		// set by external symbol.
+ 		return 0
+ 	}
+ 	r, li := l.toLocal(i)
+@@ -982,6 +984,11 @@ func (l *Loader) IsGoType(i Sym) bool {
+ 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+ }
+ 
++// Returns whether this symbol should be included in typelink.
++func (l *Loader) IsTypelink(i Sym) bool {
++	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
++}
++
+ // Returns whether this is a "go.itablink.*" symbol.
+ func (l *Loader) IsItabLink(i Sym) bool {
+ 	if _, ok := l.itablink[i]; ok {

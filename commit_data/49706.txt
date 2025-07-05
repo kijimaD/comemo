@@ -44,7 +44,7 @@ Date:   Tue Jun 15 14:04:30 2021 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  4 ++
  src/cmd/compile/internal/arm64/ssa.go          |  6 +++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 ++
@@ -60,3 +60,429 @@ Date:   Tue Jun 15 14:04:30 2021 +0000
  src/runtime/internal/sys/intrinsics_common.go  | 15 ++++++++
  src/runtime/mgcmark.go                         | 25 +++++++------
  14 files changed, 174 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index fceb141ae9..fc547ebba0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1231,6 +1231,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux(&p.To, v)
++	case ssa.OpAMD64PrefetchT0, ssa.OpAMD64PrefetchNTA:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
+ 	case ssa.OpClobber:
+ 		p := s.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index c3319f9491..b985246117 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1095,6 +1095,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = condBits[v.Op]
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64PRFM:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredGetClosurePtr:
+ 		// Closure pointer is R26 (arm64.REGCTXT).
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 54ed5f7ad1..5b127c98e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2199,3 +2199,7 @@
+ 	&& isInlinableMemmove(dst, src, sz, config)
+ 	&& clobber(call)
+ 	=> (Move [sz] dst src mem)
++
++// Prefetch instructions
++(PrefetchCache ...)   => (PrefetchT0 ...)
++(PrefetchCacheStreamed ...) => (PrefetchNTA ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 1199d8075f..52ea7ac5e0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -169,6 +169,8 @@ func init() {
+ 
+ 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
+ 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
++
++		prefreg = regInfo{inputs: []regMask{gpspsbg}}
+ 	)
+ 
+ 	var AMD64ops = []opData{
+@@ -900,6 +902,11 @@ func init() {
+ 		{name: "ANDLlock", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
+ 		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+ 		{name: "ORLlock", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
++
++		// Prefetch instructions
++		// Do prefetch arg0 address. arg0=addr, arg1=memory. Instruction variant selects locality hint
++		{name: "PrefetchT0", argLength: 2, reg: prefreg, asm: "PREFETCHT0", hasSideEffects: true},
++		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index b44c8b826b..ca9d4a4f01 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2873,6 +2873,10 @@
+ (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ 
++// Prefetch instructions (aux is option: 0 - PLDL1KEEP; 1 - PLDL1STRM)
++(PrefetchCache addr mem)         => (PRFM [0] addr mem)
++(PrefetchCacheStreamed addr mem) => (PRFM [1] addr mem)
++
+ // Arch-specific inlining for small or disjoint runtime.memmove
+ (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
+ 	&& sz >= 0
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 5de0b5f020..acfb2880c2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -175,6 +175,7 @@ func init() {
+ 		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
+ 		fpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
+ 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
++		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
+ 	)
+ 	ops := []opData{
+ 		// binary ops
+@@ -729,6 +730,10 @@ func init() {
+ 		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
++
++		// Prefetch instruction
++		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
++		{name: "PRFM", argLength: 2, aux: "Int64", reg: prefreg, asm: "PRFM", hasSideEffects: true},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 9f6664386c..c183aedf2d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -618,6 +618,10 @@ var genericOps = []opData{
+ 	// Clobber experiment op
+ 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+ 	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
++
++	// Prefetch instruction
++	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
++	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
+ }
+ 
+ //     kind          controls        successors   implicit exit
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 672528aefe..573559db70 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1029,6 +1029,8 @@ const (
+ 	OpAMD64ANDLlock
+ 	OpAMD64ORBlock
+ 	OpAMD64ORLlock
++	OpAMD64PrefetchT0
++	OpAMD64PrefetchNTA
+ 
+ 	OpARMADD
+ 	OpARMADDconst
+@@ -1610,6 +1612,7 @@ const (
+ 	OpARM64LoweredPanicBoundsA
+ 	OpARM64LoweredPanicBoundsB
+ 	OpARM64LoweredPanicBoundsC
++	OpARM64PRFM
+ 
+ 	OpMIPSADD
+ 	OpMIPSADDconst
+@@ -2918,6 +2921,8 @@ const (
+ 	OpAtomicOr32Variant
+ 	OpClobber
+ 	OpClobberReg
++	OpPrefetchCache
++	OpPrefetchCacheStreamed
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -13559,6 +13564,28 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "PrefetchT0",
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            x86.APREFETCHT0,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++		},
++	},
++	{
++		name:           "PrefetchNTA",
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            x86.APREFETCHNTA,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+@@ -21451,6 +21478,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "PRFM",
++		auxType:        auxInt64,
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            arm64.APRFM,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+@@ -36313,6 +36352,18 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  0,
+ 		generic: true,
+ 	},
++	{
++		name:           "PrefetchCache",
++		argLen:         2,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "PrefetchCacheStreamed",
++		argLen:         2,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 1db16318c8..aa9293e347 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -951,6 +951,12 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return true
+ 	case OpPopCount8:
+ 		return rewriteValueAMD64_OpPopCount8(v)
++	case OpPrefetchCache:
++		v.Op = OpAMD64PrefetchT0
++		return true
++	case OpPrefetchCacheStreamed:
++		v.Op = OpAMD64PrefetchNTA
++		return true
+ 	case OpRotateLeft16:
+ 		v.Op = OpAMD64ROLW
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f9175e92fd..c62ff73c59 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -896,6 +896,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpPopCount32(v)
+ 	case OpPopCount64:
+ 		return rewriteValueARM64_OpPopCount64(v)
++	case OpPrefetchCache:
++		return rewriteValueARM64_OpPrefetchCache(v)
++	case OpPrefetchCacheStreamed:
++		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValueARM64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -25092,6 +25096,34 @@ func rewriteValueARM64_OpPopCount64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpPrefetchCache(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCache addr mem)
++	// result: (PRFM [0] addr mem)
++	for {
++		addr := v_0
++		mem := v_1
++		v.reset(OpARM64PRFM)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(addr, mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpPrefetchCacheStreamed(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCacheStreamed addr mem)
++	// result: (PRFM [1] addr mem)
++	for {
++		addr := v_0
++		mem := v_1
++		v.reset(OpARM64PRFM)
++		v.AuxInt = int64ToAuxInt(1)
++		v.AddArg2(addr, mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c86501b88b..1d5a872b1b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3831,6 +3831,21 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
+ 
++	/****** Prefetch ******/
++	makePrefetchFunc := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			s.vars[memVar] = s.newValue2(op, types.TypeMem, args[0], s.mem())
++			return nil
++		}
++	}
++
++	// Make Prefetch intrinsics for supported platforms
++	// On the unsupported platforms stub function will be eliminated
++	addF("runtime/internal/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
++		sys.AMD64, sys.ARM64)
++	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
++		sys.AMD64, sys.ARM64)
++
+ 	/******** runtime/internal/atomic ********/
+ 	addF("runtime/internal/atomic", "Load",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index a043d0972c..ae8deede3a 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -51,6 +51,12 @@ var complements = []obj.As{
+ 	ACMNW: ACMPW,
+ }
+ 
++// noZRreplace is the set of instructions for which $0 in the To operand
++// should NOT be replaced with REGZERO.
++var noZRreplace = map[obj.As]bool{
++	APRFM: true,
++}
++
+ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	// MOV	g_stackguard(g), RT1
+ 	p = obj.Appendp(p, c.newprog)
+@@ -226,7 +232,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REGZERO
+ 	}
+-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 {
++	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REGZERO
+ 	}
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+index 818d75ecc5..48d9759ca9 100644
+--- a/src/runtime/internal/sys/intrinsics_common.go
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -141,3 +141,18 @@ func TrailingZeros8(x uint8) int {
+ func Len8(x uint8) int {
+ 	return int(len8tab[x])
+ }
++
++// Prefetch prefetches data from memory addr to cache
++//
++// AMD64: Produce PREFETCHT0 instruction
++//
++// ARM64: Produce PRFM instruction with PLDL1KEEP option
++func Prefetch(addr uintptr) {}
++
++// PrefetchStreamed prefetches data from memory addr, with a hint that this data is being streamed.
++// That is, it is likely to be accessed very soon, but only once. If possible, this will avoid polluting the cache.
++//
++// AMD64: Produce PREFETCHNTA instruction
++//
++// ARM64: Produce PRFM instruction with PLDL1STRM option
++func PrefetchStreamed(addr uintptr) {}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 874d910720..64f1c79c36 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -1104,11 +1105,6 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 			gcw.balance()
+ 		}
+ 
+-		// This might be a good place to add prefetch code...
+-		// if(wbuf.nobj > 4) {
+-		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
+-		//  }
+-		//
+ 		b := gcw.tryGetFast()
+ 		if b == 0 {
+ 			b = gcw.tryGet()
+@@ -1135,6 +1131,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 			// No heap or root jobs.
+ 			break
+ 		}
++
+ 		scanobject(b, gcw)
+ 
+ 		// Flush background scan work credit.
+@@ -1199,6 +1196,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
+ //
+ //go:nowritebarrier
+ func scanobject(b uintptr, gcw *gcWork) {
++	// Prefetch object before we scan it.
++	//
++	// This will overlap fetching the beginning of the object with initial
++	// setup before we start scanning the object.
++	sys.Prefetch(b)
++
+ 	// Find the bits for b and the size of the object at b.
+ 	//
+ 	// b is either the beginning of an object, in which case this
+@@ -1437,12 +1440,12 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ 		}
+ 	}
+ 
+-	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but
+-	// seems like a nice optimization that can be added back in.
+-	// There needs to be time between the PREFETCH and the use.
+-	// Previously we put the obj in an 8 element buffer that is drained at a rate
+-	// to give the PREFETCH time to do its work.
+-	// Use of PREFETCHNTA might be more appropriate than PREFETCH
++	// We're adding obj to P's local workbuf, so it's likely
++	// this object will be processed soon by the same P.
++	// Even if the workbuf gets flushed, there will likely still be
++	// some benefit on platforms with inclusive shared caches.
++	sys.Prefetch(obj)
++	// Queue the obj for scanning.
+ 	if !gcw.putFast(obj) {
+ 		gcw.put(obj)
+ 	}

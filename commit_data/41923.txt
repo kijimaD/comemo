@@ -30,6 +30,28 @@ Date:   Fri Oct 25 18:23:35 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcscavenge.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 0a67f74150..d17da7ebb4 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -136,9 +136,13 @@ func gcPaceScavenger() {
+ 	// physical page.
+ 	retainedNow := heapRetained()
+ 
+-	// If we're already below our goal, publish the goal in case it changed
+-	// then disable the background scavenger.
+-	if retainedNow <= retainedGoal {
++	// If we're already below our goal or there's less the one physical page
++	// worth of work to do, publish the goal in case it changed then disable
++	// the background scavenger. We disable the background scavenger if there's
++	// less than one physical page of work to do to avoid a potential divide-by-zero
++	// in the calculations below (totalTime will be zero), and it's not worth
++	// turning on the scavenger for less than one page of work.
++	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
+ 		mheap_.scavengeRetainedGoal = retainedGoal
+ 		mheap_.scavengeBytesPerNS = 0
+ 		return

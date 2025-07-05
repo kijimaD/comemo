@@ -14,7 +14,7 @@ Date:   Sat Oct 5 13:44:36 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux.go           |  14 +--
  src/syscall/syscall_linux_386.go       |   7 +-
  src/syscall/syscall_linux_amd64.go     |   8 ++
@@ -48,3 +48,3046 @@ Date:   Sat Oct 5 13:44:36 2019 +0200
  src/syscall/ztypes_linux_ppc64le.go    |   6 ++
  src/syscall/ztypes_linux_s390x.go      |   6 ++
  32 files changed, 965 insertions(+), 843 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index ec3021cd23..ed57c93b1f 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -174,8 +174,6 @@ func Unlinkat(dirfd int, path string) error {
+ 	return unlinkat(dirfd, path, 0)
+ }
+ 
+-//sys	utimes(path string, times *[2]Timeval) (err error)
+-
+ func Utimes(path string, tv []Timeval) (err error) {
+ 	if len(tv) != 2 {
+ 		return EINVAL
+@@ -203,17 +201,11 @@ func UtimesNano(path string, ts []Timespec) (err error) {
+ 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+ }
+ 
+-//sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (err error)
+-
+ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
+ 	if len(tv) != 2 {
+ 		return EINVAL
+ 	}
+-	pathp, err := BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
++	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+ }
+ 
+ func Futimes(fd int, tv []Timeval) (err error) {
+@@ -908,7 +900,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sys	Close(fd int) (err error)
+ //sys	Dup(oldfd int) (fd int, err error)
+ //sys	Dup3(oldfd int, newfd int, flags int) (err error)
+-//sysnb	EpollCreate(size int) (fd int, err error)
+ //sysnb	EpollCreate1(flag int) (fd int, err error)
+ //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
+ //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
+@@ -942,7 +933,6 @@ func Getpgrp() (pid int) {
+ //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
+ //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+-//sys	Pause() (err error)
+ //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
+ //sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
+ //sys	read(fd int, p []byte) (n int, err error)
+@@ -977,8 +967,6 @@ func Setgid(gid int) (err error) {
+ //sysnb	Uname(buf *Utsname) (err error)
+ //sys	Unmount(target string, flags int) (err error) = SYS_UMOUNT2
+ //sys	Unshare(flags int) (err error)
+-//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+-//sys	Utime(path string, buf *Utimbuf) (err error)
+ //sys	write(fd int, p []byte) (n int, err error)
+ //sys	exitThread(code int) (err error) = SYS_EXIT
+ //sys	readlen(fd int, p *byte, np int) (n int, err error) = SYS_READ
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 7a41ed8edf..3c1e6e4218 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -51,6 +51,7 @@ func Pipe2(p []int, flags int) (err error) {
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+@@ -62,6 +63,7 @@ func Pipe2(p []int, flags int) (err error) {
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Ioperm(from int, num int, on int) (err error)
+ //sys	Iopl(level int) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -75,6 +77,7 @@ func Pipe2(p []int, flags int) (err error) {
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
+ //sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+@@ -177,9 +180,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	return newoffset, nil
+ }
+ 
+-// Vsyscalls on amd64.
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ // On x86 Linux, all the socket calls go through an extra indirection,
+ // I think because the 5-register system call interface can't handle
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 447676946e..0f28b55d47 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -10,6 +10,7 @@ const (
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+@@ -23,6 +24,7 @@ const (
+ //sys	Ioperm(from int, num int, on int) (err error)
+ //sys	Iopl(level int) (err error)
+ //sys	Listen(s int, n int) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -41,6 +43,7 @@ const (
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+@@ -73,6 +76,8 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ 	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+ }
+ 
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
++
+ //go:noescape
+ func gettimeofday(tv *Timeval) (err Errno)
+ 
+@@ -96,6 +101,9 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	return Time_t(tv.Sec), nil
+ }
+ 
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
++
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 9ba6eec11f..d346029a1f 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -81,6 +81,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+@@ -90,6 +91,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sysnb	Getuid() (uid int) = SYS_GETUID32
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Listen(s int, n int) (err error)
++//sys	Pause() (err error)
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+@@ -101,10 +103,13 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ 
+-// Vsyscalls on amd64.
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ //sys   Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys   Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 95065bfe2d..6d3b3dfde4 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -4,11 +4,20 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ const (
+ 	_SYS_dup       = SYS_DUP3
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
++func EpollCreate(size int) (fd int, err error) {
++	if size <= 0 {
++		return -1, EINVAL
++	}
++	return EpollCreate1(0)
++}
++
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+@@ -85,7 +94,6 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ }
+ 
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+-//sysnb	Time(t *Time_t) (tt Time_t, err error)
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+@@ -95,6 +103,50 @@ func setTimeval(sec, usec int64) Timeval {
+ 	return Timeval{Sec: sec, Usec: usec}
+ }
+ 
++func futimesat(dirfd int, path string, tv *[2]Timeval) (err error) {
++	if tv == nil {
++		return utimensat(dirfd, path, nil, 0)
++	}
++
++	ts := []Timespec{
++		NsecToTimespec(TimevalToNsec(tv[0])),
++		NsecToTimespec(TimevalToNsec(tv[1])),
++	}
++	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
++}
++
++func Time(t *Time_t) (Time_t, error) {
++	var tv Timeval
++	err := Gettimeofday(&tv)
++	if err != nil {
++		return 0, err
++	}
++	if t != nil {
++		*t = Time_t(tv.Sec)
++	}
++	return Time_t(tv.Sec), nil
++}
++
++func Utime(path string, buf *Utimbuf) error {
++	tv := []Timeval{
++		{Sec: buf.Actime},
++		{Sec: buf.Modtime},
++	}
++	return Utimes(path, tv)
++}
++
++func utimes(path string, tv *[2]Timeval) (err error) {
++	if tv == nil {
++		return utimensat(_AT_FDCWD, path, nil, 0)
++	}
++
++	ts := []Timespec{
++		NsecToTimespec(TimevalToNsec(tv[0])),
++		NsecToTimespec(TimevalToNsec(tv[1])),
++	}
++	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
++}
++
+ func Pipe(p []int) (err error) {
+ 	if len(p) != 2 {
+ 		return EINVAL
+@@ -139,20 +191,11 @@ func InotifyInit() (fd int, err error) {
+ 	return InotifyInit1(0)
+ }
+ 
+-// TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
+-// these when the deprecated syscalls that the syscall package relies on
+-// are removed.
+-const (
+-	SYS_GETPGRP      = 1060
+-	SYS_UTIMES       = 1037
+-	SYS_FUTIMESAT    = 1066
+-	SYS_PAUSE        = 1061
+-	SYS_USTAT        = 1070
+-	SYS_UTIME        = 1063
+-	SYS_LCHOWN       = 1032
+-	SYS_TIME         = 1062
+-	SYS_EPOLL_CREATE = 1042
+-	SYS_EPOLL_WAIT   = 1069
+-)
++//sys	ppoll(fds *pollFd, nfds int, timeout *Timespec, sigmask *sigset_t) (n int, err error)
++
++func Pause() error {
++	_, err := ppoll(nil, 0, nil, nil)
++	return err
++}
+ 
+ func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 59add3f867..157c32326b 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -13,6 +13,7 @@ const (
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+@@ -25,6 +26,7 @@ const (
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Listen(s int, n int) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -42,6 +44,7 @@ const (
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+@@ -75,6 +78,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	return pselect(nfd, r, w, e, ts, nil)
+ }
+ 
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ 
+ func Time(t *Time_t) (tt Time_t, err error) {
+@@ -89,6 +93,9 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	return Time_t(tv.Sec), nil
+ }
+ 
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
++
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 070be3bd63..f2fea71aac 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -17,6 +17,7 @@ const (
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+@@ -26,6 +27,7 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sysnb	Getuid() (uid int)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Listen(s int, n int) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -43,6 +45,7 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ 
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+@@ -64,8 +67,11 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	Ioperm(from int, num int, on int) (err error)
+ //sys	Iopl(level int) (err error)
+ 
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 30956c4804..22d6e56010 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -13,6 +13,8 @@ const (
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
++//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+@@ -29,6 +31,7 @@ const (
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Listen(s int, n int) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -47,6 +50,7 @@ const (
+ //sys	Stat(path string, stat *Stat_t) (err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	Truncate(path string, length int64) (err error)
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+@@ -65,9 +69,11 @@ const (
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
+-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 1a9c952cdc..fcedf5909a 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -12,6 +12,8 @@ const (
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
++//sysnb	EpollCreate(size int) (fd int, err error)
++//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+@@ -25,6 +27,7 @@ const (
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
++//sys	Pause() (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+@@ -43,11 +46,12 @@ const (
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE
+ //sys	Truncate(path string, length int64) (err error)
++//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+ //sysnb	setgroups(n int, list *_Gid_t) (err error)
+ 
++//sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ 
+ func Time(t *Time_t) (tt Time_t, err error) {
+ 	var tv Timeval
+@@ -61,6 +65,9 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	return Time_t(tv.Sec), nil
+ }
+ 
++//sys	Utime(path string, buf *Utimbuf) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
++
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index ccc5c54f0b..fd8ad94c88 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -416,6 +416,8 @@ const (
+ 	_AT_EACCESS          = C.AT_EACCESS
+ )
+ 
++type pollFd C.struct_pollfd
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index f25eb2512a..cdf0bfb86e 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1148,6 +1077,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN32, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1256,6 +1196,16 @@ func Iopl(level int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1417,6 +1367,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+@@ -1497,6 +1457,21 @@ func setrlimit(resource int, rlim *rlimit32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1515,3 +1490,33 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index a994b2397f..a7d55e6894 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1251,6 +1191,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1469,6 +1419,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1691,6 +1651,51 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe(p *[2]_C_int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index a7c978766c..1a9a21a4f3 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1327,6 +1256,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN32, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1415,6 +1355,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -1538,6 +1488,31 @@ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n i
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1559,6 +1534,36 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 17875dfb39..b62383e703 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1675,9 +1604,8 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Time(t *Time_t) (tt Time_t, err error) {
+-	r0, _, e1 := RawSyscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+-	tt = Time_t(r0)
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+@@ -1686,8 +1614,9 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++func ppoll(fds *pollFd, nfds int, timeout *Timespec, sigmask *sigset_t) (n int, err error) {
++	r0, _, e1 := Syscall6(SYS_PPOLL, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index cb5ab684fc..7945b55642 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1220,6 +1160,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1402,6 +1352,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1612,6 +1572,21 @@ func Iopl(level int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1633,6 +1608,36 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Lstat(path string, stat *Stat_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index b808c1e27c..c0aad6439f 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1251,6 +1191,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1458,6 +1408,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1676,6 +1636,21 @@ func pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1686,6 +1661,36 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 053c718ab7..271684137d 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1251,6 +1191,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1458,6 +1408,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1676,6 +1636,21 @@ func pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1686,6 +1661,36 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 94a5327b63..f0ee48f9be 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,17 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1220,6 +1160,16 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1402,6 +1352,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1612,6 +1572,21 @@ func Iopl(level int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1633,6 +1608,36 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Lstat(path string, stat *Stat_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index b92e4d691a..7bdf981dcd 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,34 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(events) > 0 {
++		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1296,6 +1253,16 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1519,6 +1486,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1709,6 +1686,21 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1730,15 +1722,28 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(events) > 0 {
+-		_p0 = unsafe.Pointer(&events[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+-	n = int(r0)
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index add09e4705..c45eebf4ad 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,34 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(events) > 0 {
++		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1296,6 +1253,16 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1519,6 +1486,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1709,6 +1686,21 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1730,15 +1722,28 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(events) > 0 {
+-		_p0 = unsafe.Pointer(&events[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+-	n = int(r0)
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index b91cb63da4..9ada8dc534 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -132,21 +132,6 @@ func unlinkat(dirfd int, path string, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func utimes(path string, times *[2]Timeval) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -162,16 +147,6 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func futimesat(dirfd int, path *byte, times *[2]Timeval) (err error) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -337,17 +312,6 @@ func Dup3(oldfd int, newfd int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollCreate(size int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func EpollCreate1(flag int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE1, uintptr(flag), 0, 0)
+ 	fd = int(r0)
+@@ -682,16 +646,6 @@ func Nanosleep(time *Timespec, leftover *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pause() (err error) {
+-	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func PivotRoot(newroot string, putold string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(newroot)
+@@ -950,31 +904,6 @@ func Unshare(flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ustat(dev int, ubuf *Ustat_t) (err error) {
+-	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Utime(path string, buf *Utimbuf) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func write(fd int, p []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1128,6 +1057,34 @@ func Dup2(oldfd int, newfd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func EpollCreate(size int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(events) > 0 {
++		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchown(fd int, uid int, gid int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid))
+ 	if e1 != 0 {
+@@ -1266,6 +1223,16 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Pause() (err error) {
++	_, _, e1 := Syscall(SYS_PAUSE, 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1489,6 +1456,16 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ustat(dev int, ubuf *Ustat_t) (err error) {
++	_, _, e1 := Syscall(SYS_USTAT, uintptr(dev), uintptr(unsafe.Pointer(ubuf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+@@ -1510,6 +1487,21 @@ func setgroups(n int, list *_Gid_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	if e1 != 0 {
+@@ -1520,15 +1512,28 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(events) > 0 {
+-		_p0 = unsafe.Pointer(&events[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
++func Utime(path string, buf *Utimbuf) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+-	n = int(r0)
++	_, _, e1 := Syscall(SYS_UTIME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(buf)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimes(path string, times *[2]Timeval) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+diff --git a/src/syscall/ztypes_linux_386.go b/src/syscall/ztypes_linux_386.go
+index c92dfad114..0252620f48 100644
+--- a/src/syscall/ztypes_linux_386.go
++++ b/src/syscall/ztypes_linux_386.go
+@@ -579,6 +579,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_amd64.go b/src/syscall/ztypes_linux_amd64.go
+index 623585a639..1fb0ee566f 100644
+--- a/src/syscall/ztypes_linux_amd64.go
++++ b/src/syscall/ztypes_linux_amd64.go
+@@ -597,6 +597,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_arm.go b/src/syscall/ztypes_linux_arm.go
+index 0c0a94a52f..a88b577bed 100644
+--- a/src/syscall/ztypes_linux_arm.go
++++ b/src/syscall/ztypes_linux_arm.go
+@@ -568,6 +568,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_arm64.go b/src/syscall/ztypes_linux_arm64.go
+index ea682c4efa..d7e3526af6 100644
+--- a/src/syscall/ztypes_linux_arm64.go
++++ b/src/syscall/ztypes_linux_arm64.go
+@@ -575,6 +575,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_mips.go b/src/syscall/ztypes_linux_mips.go
+index 6d42e48d60..621ef2d5a8 100644
+--- a/src/syscall/ztypes_linux_mips.go
++++ b/src/syscall/ztypes_linux_mips.go
+@@ -574,6 +574,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_mips64.go b/src/syscall/ztypes_linux_mips64.go
+index 397ded1f4d..cfcfd85b35 100644
+--- a/src/syscall/ztypes_linux_mips64.go
++++ b/src/syscall/ztypes_linux_mips64.go
+@@ -580,6 +580,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_mips64le.go b/src/syscall/ztypes_linux_mips64le.go
+index 397ded1f4d..cfcfd85b35 100644
+--- a/src/syscall/ztypes_linux_mips64le.go
++++ b/src/syscall/ztypes_linux_mips64le.go
+@@ -580,6 +580,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_mipsle.go b/src/syscall/ztypes_linux_mipsle.go
+index 6d42e48d60..621ef2d5a8 100644
+--- a/src/syscall/ztypes_linux_mipsle.go
++++ b/src/syscall/ztypes_linux_mipsle.go
+@@ -574,6 +574,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index 3d295390f6..8b6be21e2e 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -586,6 +586,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index 220083d9c5..a9c3ee2626 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -586,6 +586,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32
+diff --git a/src/syscall/ztypes_linux_s390x.go b/src/syscall/ztypes_linux_s390x.go
+index 2805966774..91f5ceff20 100644
+--- a/src/syscall/ztypes_linux_s390x.go
++++ b/src/syscall/ztypes_linux_s390x.go
+@@ -600,6 +600,12 @@ const (
+ 	_AT_EACCESS          = 0x200
+ )
+ 
++type pollFd struct {
++	Fd      int32
++	Events  int16
++	Revents int16
++}
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32

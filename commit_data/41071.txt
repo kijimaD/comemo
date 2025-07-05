@@ -16,6 +16,33 @@ Date:   Thu Aug 22 20:55:30 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/path/example_test.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/path/example_test.go b/src/path/example_test.go
+index 315401957a..67b9718664 100644
+--- a/src/path/example_test.go
++++ b/src/path/example_test.go
+@@ -102,11 +102,15 @@ func ExampleMatch() {
+ }
+ 
+ func ExampleSplit() {
+-	fmt.Println(path.Split("static/myfile.css"))
+-	fmt.Println(path.Split("myfile.css"))
+-	fmt.Println(path.Split(""))
++	split := func(s string) {
++		dir, file := path.Split(s)
++		fmt.Printf("path.Split(%q) = dir: %q, file: %q\n", s, dir, file)
++	}
++	split("static/myfile.css")
++	split("myfile.css")
++	split("")
+ 	// Output:
+-	// static/ myfile.css
+-	//  myfile.css
+-	//
++	// path.Split("static/myfile.css") = dir: "static/", file: "myfile.css"
++	// path.Split("myfile.css") = dir: "", file: "myfile.css"
++	// path.Split("") = dir: "", file: ""
+ }

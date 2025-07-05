@@ -14,7 +14,46 @@ Date:   Sun Oct 13 11:27:47 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/extern.go   | 7 +++++++
  src/runtime/runtime1.go | 2 ++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 4ddf3549e6..dc3772d936 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -127,6 +127,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
+ 	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
+ 
++	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
++	asynchronous goroutine preemption. This makes some loops
++	non-preemptible for long periods, which may delay GC and
++	goroutine scheduling. This is useful for debugging GC issues
++	because it also disables the conservative stack scanning used
++	for asynchronously preempted goroutines.
++
+ The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
+ See the documentation for those packages for details.
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index ad29818e0a..180dd7c7e4 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -315,6 +315,7 @@ var debug struct {
+ 	scheddetail        int32
+ 	schedtrace         int32
+ 	tracebackancestors int32
++	asyncpreemptoff    int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -334,6 +335,7 @@ var dbgvars = []dbgVar{
+ 	{"scheddetail", &debug.scheddetail},
+ 	{"schedtrace", &debug.schedtrace},
+ 	{"tracebackancestors", &debug.tracebackancestors},
++	{"asyncpreemptoff", &debug.asyncpreemptoff},
+ }
+ 
+ func parsedebugvars() {

@@ -7,7 +7,26 @@ Date:   Wed Sep 7 13:53:05 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4964066
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d2ebd6ae70..e4a4aa26ef 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -159,3 +159,4 @@ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
++Ziad Hatahet <hatahet@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d70564703c..2cab074691 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -239,3 +239,4 @@ Yongjian Xu <i3dmaster@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Yves Junqueira <yves.junqueira@gmail.com>
++Ziad Hatahet <hatahet@gmail.com>

@@ -16,9 +16,395 @@ Date:   Tue Aug 15 19:23:51 2023 +0800
     Auto-Submit: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  8 +--
  src/cmd/compile/internal/ssa/opGen.go           | 12 ++--
  src/cmd/internal/obj/loong64/obj.go             | 68 +++++++++++------------
  src/runtime/asm_loong64.s                       | 74 ++++++++++++-------------
  4 files changed, 81 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 97aa9590a7..10ffcb8b97 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -130,10 +130,10 @@ func init() {
+ 		gpspsbg    = gpspg | buildReg("SB")
+ 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+ 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+-		r1         = buildReg("R19")
+-		r2         = buildReg("R18")
+-		r3         = buildReg("R17")
+-		r4         = buildReg("R4")
++		r1         = buildReg("R20")
++		r2         = buildReg("R21")
++		r3         = buildReg("R23")
++		r4         = buildReg("R24")
+ 	)
+ 	// Common regInfo
+ 	var (
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 55a50fa284..e39190aaf7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -24911,8 +24911,8 @@ var opcodeTable = [...]opInfo{
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // R17
+-				{1, 8},     // R4
++				{0, 4194304}, // R23
++				{1, 8388608}, // R24
+ 			},
+ 		},
+ 	},
+@@ -24923,8 +24923,8 @@ var opcodeTable = [...]opInfo{
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 131072}, // R18
+-				{1, 65536},  // R17
++				{0, 1048576}, // R21
++				{1, 4194304}, // R23
+ 			},
+ 		},
+ 	},
+@@ -24935,8 +24935,8 @@ var opcodeTable = [...]opInfo{
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 262144}, // R19
+-				{1, 131072}, // R18
++				{0, 524288},  // R20
++				{1, 1048576}, // R21
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index fe98f8c11b..bc9cf2ec22 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -396,13 +396,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if c.cursym.Func().Text.From.Sym.Wrapper() && c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+-				//	MOV	g_panic(g), R1
+-				//	BEQ	R1, end
+-				//	MOV	panic_argp(R1), R2
+-				//	ADD	$(autosize+FIXED_FRAME), R29, R3
+-				//	BNE	R2, R3, end
+-				//	ADD	$FIXED_FRAME, R29, R2
+-				//	MOV	R2, panic_argp(R1)
++				//	MOV	g_panic(g), R20
++				//	BEQ	R20, end
++				//	MOV	panic_argp(R20), R24
++				//	ADD	$(autosize+FIXED_FRAME), R3, R30
++				//	BNE	R24, R30, end
++				//	ADD	$FIXED_FRAME, R3, R24
++				//	MOV	R24, panic_argp(R20)
+ 				// end:
+ 				//	NOP
+ 				//
+@@ -419,12 +419,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.From.Reg = REGG
+ 				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
+ 				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R19
++				q.To.Reg = REG_R20
+ 
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = ABEQ
+ 				q.From.Type = obj.TYPE_REG
+-				q.From.Reg = REG_R19
++				q.From.Reg = REG_R20
+ 				q.To.Type = obj.TYPE_BRANCH
+ 				q.Mark |= BRANCH
+ 				p1 = q
+@@ -432,10 +432,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = mov
+ 				q.From.Type = obj.TYPE_MEM
+-				q.From.Reg = REG_R19
++				q.From.Reg = REG_R20
+ 				q.From.Offset = 0 // Panic.argp
+ 				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R4
++				q.To.Reg = REG_R24
+ 
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = add
+@@ -443,13 +443,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.From.Offset = int64(autosize) + ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R5
++				q.To.Reg = REG_R30
+ 
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = ABNE
+ 				q.From.Type = obj.TYPE_REG
+-				q.From.Reg = REG_R4
+-				q.Reg = REG_R5
++				q.From.Reg = REG_R24
++				q.Reg = REG_R30
+ 				q.To.Type = obj.TYPE_BRANCH
+ 				q.Mark |= BRANCH
+ 				p2 = q
+@@ -460,14 +460,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.From.Offset = ctxt.Arch.FixedFrameSize
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_R4
++				q.To.Reg = REG_R24
+ 
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = mov
+ 				q.From.Type = obj.TYPE_REG
+-				q.From.Reg = REG_R4
++				q.From.Reg = REG_R24
+ 				q.To.Type = obj.TYPE_MEM
+-				q.To.Reg = REG_R19
++				q.To.Reg = REG_R20
+ 				q.To.Offset = 0 // Panic.argp
+ 
+ 				q = obj.Appendp(q, newprog)
+@@ -690,7 +690,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	// Jump back to here after morestack returns.
+ 	startPred := p
+ 
+-	// MOV	g_stackguard(g), R19
++	// MOV	g_stackguard(g), R20
+ 	p = obj.Appendp(p, c.newprog)
+ 
+ 	p.As = mov
+@@ -701,7 +701,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = REG_R19
++	p.To.Reg = REG_R20
+ 
+ 	// Mark the stack bound check and morestack call async nonpreemptible.
+ 	// If we get preempted here, when resumed the preemption request is
+@@ -712,15 +712,15 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	var q *obj.Prog
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+-		//	AGTU	SP, stackguard, R19
++		//	AGTU	SP, stackguard, R20
+ 		p = obj.Appendp(p, c.newprog)
+ 
+ 		p.As = ASGTU
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REGSP
+-		p.Reg = REG_R19
++		p.Reg = REG_R20
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_R19
++		p.To.Reg = REG_R20
+ 	} else {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+ 		offset := int64(framesize) - abi.StackSmall
+@@ -732,8 +732,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 			// stack guard to incorrectly succeed. We explicitly
+ 			// guard against underflow.
+ 			//
+-			//      SGTU    $(framesize-StackSmall), SP, R4
+-			//      BNE     R4, label-of-call-to-morestack
++			//      SGTU    $(framesize-StackSmall), SP, R24
++			//      BNE     R24, label-of-call-to-morestack
+ 
+ 			p = obj.Appendp(p, c.newprog)
+ 			p.As = ASGTU
+@@ -741,13 +741,13 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 			p.From.Offset = offset
+ 			p.Reg = REGSP
+ 			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_R4
++			p.To.Reg = REG_R24
+ 
+ 			p = obj.Appendp(p, c.newprog)
+ 			q = p
+ 			p.As = ABNE
+ 			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = REG_R4
++			p.From.Reg = REG_R24
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.Mark |= BRANCH
+ 		}
+@@ -759,35 +759,35 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.From.Offset = -offset
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_R4
++		p.To.Reg = REG_R24
+ 
+ 		p = obj.Appendp(p, c.newprog)
+ 		p.As = ASGTU
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_R4
+-		p.Reg = REG_R19
++		p.From.Reg = REG_R24
++		p.Reg = REG_R20
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_R19
++		p.To.Reg = REG_R20
+ 	}
+ 
+-	// q1: BNE	R19, done
++	// q1: BNE	R20, done
+ 	p = obj.Appendp(p, c.newprog)
+ 	q1 := p
+ 
+ 	p.As = ABNE
+ 	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = REG_R19
++	p.From.Reg = REG_R20
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	p.Mark |= BRANCH
+ 
+-	// MOV	LINK, R5
++	// MOV	LINK, R31
+ 	p = obj.Appendp(p, c.newprog)
+ 
+ 	p.As = mov
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = REGLINK
+ 	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = REG_R5
++	p.To.Reg = REG_R31
+ 	if q != nil {
+ 		q.To.SetTarget(p)
+ 		p.Mark |= LABEL
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 6ffa1392c4..93550b9342 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -214,7 +214,7 @@ noswitch:
+ 
+ // Called during function prolog when more stack is needed.
+ // Caller has already loaded:
+-// loong64: R5: LR
++// loong64: R31: LR
+ //
+ // The traceback routines see morestack on a g0 as being
+ // the top of a stack (for example, morestack calling newstack
+@@ -238,12 +238,12 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Set g->sched to context in f.
+ 	MOVV	R3, (g_sched+gobuf_sp)(g)
+ 	MOVV	R1, (g_sched+gobuf_pc)(g)
+-	MOVV	R5, (g_sched+gobuf_lr)(g)
++	MOVV	R31, (g_sched+gobuf_lr)(g)
+ 	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+-	MOVV	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
++	MOVV	R31, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+ 	MOVV	R3, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
+ 	MOVV	g, (m_morebuf+gobuf_g)(R7)
+ 
+@@ -775,70 +775,70 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+ // then tail call to the corresponding runtime handler.
+ // The tail call makes these stubs disappear in backtraces.
+ TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicIndex(SB)
+ TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicIndexU(SB)
+ TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSliceAlen(SB)
+ TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSliceAlenU(SB)
+ TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSliceAcap(SB)
+ TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSliceAcapU(SB)
+ TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicSliceB(SB)
+ TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicSliceBU(SB)
+ TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
+-	MOVV	R17, x+0(FP)
+-	MOVV	R4, y+8(FP)
++	MOVV	R23, x+0(FP)
++	MOVV	R24, y+8(FP)
+ 	JMP	runtime·goPanicSlice3Alen(SB)
+ TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
+-	MOVV	R17, x+0(FP)
+-	MOVV	R4, y+8(FP)
++	MOVV	R23, x+0(FP)
++	MOVV	R24, y+8(FP)
+ 	JMP	runtime·goPanicSlice3AlenU(SB)
+ TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
+-	MOVV	R17, x+0(FP)
+-	MOVV	R4, y+8(FP)
++	MOVV	R23, x+0(FP)
++	MOVV	R24, y+8(FP)
+ 	JMP	runtime·goPanicSlice3Acap(SB)
+ TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
+-	MOVV	R17, x+0(FP)
+-	MOVV	R4, y+8(FP)
++	MOVV	R23, x+0(FP)
++	MOVV	R24, y+8(FP)
+ 	JMP	runtime·goPanicSlice3AcapU(SB)
+ TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSlice3B(SB)
+ TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
+-	MOVV	R18, x+0(FP)
+-	MOVV	R17, y+8(FP)
++	MOVV	R21, x+0(FP)
++	MOVV	R23, y+8(FP)
+ 	JMP	runtime·goPanicSlice3BU(SB)
+ TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicSlice3C(SB)
+ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+-	MOVV	R19, x+0(FP)
+-	MOVV	R18, y+8(FP)
++	MOVV	R20, x+0(FP)
++	MOVV	R21, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
+ TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+-	MOVV	R17, x+0(FP)
+-	MOVV	R4, y+8(FP)
++	MOVV	R23, x+0(FP)
++	MOVV	R24, y+8(FP)
+ 	JMP	runtime·goPanicSliceConvert(SB)

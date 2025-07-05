@@ -96,8 +96,173 @@ Date:   Tue Jun 3 11:35:59 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, khr, r
     https://golang.org/cl/102040046
-
+---
  src/cmd/gc/esc.c | 43 ++++++++++++++++++++++++++++++++++++-------
  src/cmd/gc/go.h  |  4 +++-
  test/escape2.go  | 31 ++++++++++++++++++++++++++++---
  3 files changed, 67 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 4091682485..a75517813d 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -204,6 +204,13 @@ struct EscState {
+ 	// flow to.
+ 	Node	theSink;
+ 	
++	// If an analyzed function is recorded to return
++	// pieces obtained via indirection from a parameter,
++	// and later there is a call f(x) to that function,
++	// we create a link funcParam <- x to record that fact.
++	// The funcParam node is handled specially in escflood.
++	Node	funcParam;	
++	
+ 	NodeList*	dsts;		// all dst nodes
+ 	int	loopdepth;	// for detecting nested loop scopes
+ 	int	pdepth;		// for debug printing in recursions.
+@@ -269,7 +276,13 @@ analyze(NodeList *all, int recursive)
+ 	e->theSink.sym = lookup(".sink");
+ 	e->theSink.escloopdepth = -1;
+ 	e->recursive = recursive;
+-
++	
++	e->funcParam.op = ONAME;
++	e->funcParam.orig = &e->funcParam;
++	e->funcParam.class = PAUTO;
++	e->funcParam.sym = lookup(".param");
++	e->funcParam.escloopdepth = 10000000;
++	
+ 	for(l=all; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			l->n->esc = EscFuncPlanned;
+@@ -822,12 +835,17 @@ escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
+ 		escassign(e, &e->theSink, src);
+ 		return em;
+ 	}
+-	
++
+ 	if(em == EscNone)
+ 		return em;
++	
++	// If content inside parameter (reached via indirection)
++	// escapes back to results, mark as such.
++	if(em & EscContentEscapes)
++		escassign(e, &e->funcParam, src);
+ 
+ 	em0 = em;
+-	for(em >>= EscBits; em && dsts; em >>= 1, dsts=dsts->next)
++	for(em >>= EscReturnBits; em && dsts; em >>= 1, dsts=dsts->next)
+ 		if(em & 1)
+ 			escassign(e, dsts->n, src);
+ 
+@@ -1090,19 +1108,30 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 
+ 	// Input parameter flowing to output parameter?
+ 	if(dst->op == ONAME && dst->class == PPARAMOUT && dst->vargen <= 20) {
+-		if(src->op == ONAME && src->class == PPARAM && level == 0 && src->curfn == dst->curfn) {
+-			if(src->esc != EscScope && src->esc != EscHeap) {
++		if(src->op == ONAME && src->class == PPARAM && src->curfn == dst->curfn && src->esc != EscScope && src->esc != EscHeap) {
++			if(level == 0) {
+ 				if(debug['m'])
+ 					warnl(src->lineno, "leaking param: %hN to result %S", src, dst->sym);
+ 				if((src->esc&EscMask) != EscReturn)
+ 					src->esc = EscReturn;
+-				src->esc |= 1<<((dst->vargen-1) + EscBits);
++				src->esc |= 1<<((dst->vargen-1) + EscReturnBits);
++				goto recurse;
++			} else if(level > 0) {
++				if(debug['m'])
++					warnl(src->lineno, "%N leaking param %hN content to result %S", src->curfn->nname, src, dst->sym);
++				if((src->esc&EscMask) != EscReturn)
++					src->esc = EscReturn;
++				src->esc |= EscContentEscapes;
+ 				goto recurse;
+ 			}
+ 		}
+ 	}
+ 
+-	leaks = (level <= 0) && (dst->escloopdepth < src->escloopdepth);
++	// The second clause is for values pointed at by an object passed to a call
++	// that returns something reached via indirect from the object.
++	// We don't know which result it is or how many indirects, so we treat it as leaking.
++	leaks = level <= 0 && dst->escloopdepth < src->escloopdepth ||
++		level < 0 && dst == &e->funcParam && haspointers(src->type);
+ 
+ 	switch(src->op) {
+ 	case ONAME:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3e24258639..413e71069d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -236,8 +236,10 @@ enum
+ 	EscNone,
+ 	EscReturn,
+ 	EscNever,
+-	EscBits = 4,
++	EscBits = 3,
+ 	EscMask = (1<<EscBits) - 1,
++	EscContentEscapes = 1<<EscBits, // value obtained by indirect of parameter escapes to some returned result
++	EscReturnBits = EscBits+1,
+ };
+ 
+ struct	Node
+diff --git a/test/escape2.go b/test/escape2.go
+index 382e8e6d64..8cb3b6df66 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -135,7 +135,7 @@ func (b *Bar) Leak() *int { // ERROR "leaking param: b"
+ 	return &b.i // ERROR "&b.i escapes to heap"
+ }
+ 
+-func (b *Bar) AlsoNoLeak() *int { // ERROR "b does not escape"
++func (b *Bar) AlsoNoLeak() *int { // ERROR "leaking param b content to result ~r0"
+ 	return b.ii
+ }
+ 
+@@ -149,7 +149,7 @@ func (b Bar) LeaksToo() *int { // ERROR "leaking param: b"
+ 	return b.ii
+ }
+ 
+-func (b *Bar) LeaksABit() *int { // ERROR "b does not escape"
++func (b *Bar) LeaksABit() *int { // ERROR "leaking param b content to result ~r0"
+ 	v := 0    // ERROR "moved to heap: v"
+ 	b.ii = &v // ERROR "&v escapes"
+ 	return b.ii
+@@ -182,7 +182,7 @@ func (b *Bar2) Leak() []int { // ERROR "leaking param: b"
+ 	return b.i[:] // ERROR "b.i escapes to heap"
+ }
+ 
+-func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
++func (b *Bar2) AlsoNoLeak() []int { // ERROR "leaking param b content to result ~r0"
+ 	return b.ii[0:1]
+ }
+ 
+@@ -1443,3 +1443,28 @@ func bar151d() {
+ 	b := a[:]            // ERROR "a escapes to heap"
+ 	foo151(&b[4:8:8][0]) // ERROR "&b\[4:8:8\]\[0\] escapes to heap"
+ }
++
++// issue 8120
++
++type U struct {
++	s *string
++}
++
++func (u *U) String() *string { // ERROR "leaking param u content to result ~r0"
++	return u.s
++}
++
++type V struct {
++	s *string
++}
++
++func NewV(u U) *V { // ERROR "leaking param: u"
++	return &V{u.String()} // ERROR "&V literal escapes to heap" "u does not escape"
++}
++
++func foo152() {
++	a := "a"   // ERROR "moved to heap: a"
++	u := U{&a} // ERROR "&a escapes to heap"
++	v := NewV(u)
++	println(v)
++}

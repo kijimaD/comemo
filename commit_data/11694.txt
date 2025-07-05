@@ -9,7 +9,97 @@ Date:   Tue Feb 7 23:37:05 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5644048
-
+---
  src/pkg/fmt/fmt_test.go |  9 +++++++++
  src/pkg/fmt/print.go    | 30 ++++++++++++------------------
  2 files changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 44dcae46ce..86db9bc67c 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -423,6 +423,7 @@ var fmttests = []struct {
+ 	{"p0=%p", new(int), "p0=0xPTR"},
+ 	{"p1=%s", &pValue, "p1=String(p)"}, // String method...
+ 	{"p2=%p", &pValue, "p2=0xPTR"},     // ... not called with %p
++	{"p3=%p", (*int)(nil), "p3=0x0"},
+ 	{"p4=%#p", new(int), "p4=PTR"},
+ 
+ 	// %p on non-pointers
+@@ -431,6 +432,14 @@ var fmttests = []struct {
+ 	{"%p", make([]int, 1), "0xPTR"},
+ 	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
+ 
++	// %q on pointers
++	{"%q", (*int)(nil), "%!q(*int=<nil>)"},
++	{"%q", new(int), "%!q(*int=0xPTR)"},
++
++	// %v on pointers formats 0 as <nil>
++	{"%v", (*int)(nil), "<nil>"},
++	{"%v", new(int), "0xPTR"},
++
+ 	// %d on Stringer should give integer if possible
+ 	{"%s", time.Time{}.Month(), "January"},
+ 	{"%d", time.Time{}.Month(), "1"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 3b7d3464e2..c3ba2f339e 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -553,6 +553,14 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
+ }
+ 
+ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
++	switch verb {
++	case 'p', 'v', 'b', 'd', 'o', 'x', 'X':
++		// ok
++	default:
++		p.badVerb(verb)
++		return
++	}
++
+ 	var u uintptr
+ 	switch value.Kind() {
+ 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+@@ -561,6 +569,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+ 		p.badVerb(verb)
+ 		return
+ 	}
++
+ 	if goSyntax {
+ 		p.add('(')
+ 		p.buf.WriteString(value.Type().String())
+@@ -572,6 +581,8 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+ 			p.fmt0x64(uint64(u), true)
+ 		}
+ 		p.add(')')
++	} else if verb == 'v' && u == 0 {
++		p.buf.Write(nilAngleBytes)
+ 	} else {
+ 		p.fmt0x64(uint64(u), !p.fmt.sharp)
+ 	}
+@@ -929,24 +940,7 @@ BigSwitch:
+ 				break BigSwitch
+ 			}
+ 		}
+-		if goSyntax {
+-			p.buf.WriteByte('(')
+-			p.buf.WriteString(value.Type().String())
+-			p.buf.WriteByte(')')
+-			p.buf.WriteByte('(')
+-			if v == 0 {
+-				p.buf.Write(nilBytes)
+-			} else {
+-				p.fmt0x64(uint64(v), true)
+-			}
+-			p.buf.WriteByte(')')
+-			break
+-		}
+-		if v == 0 {
+-			p.buf.Write(nilAngleBytes)
+-			break
+-		}
+-		p.fmt0x64(uint64(v), true)
++		fallthrough
+ 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
+ 		p.fmtPointer(value, verb, goSyntax)
+ 	default:

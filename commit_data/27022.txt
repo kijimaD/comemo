@@ -23,8 +23,49 @@ Date:   Sun Mar 6 21:22:11 2016 -0800
     Change-Id: I1280b846e895c00b95bb6664958a7765bd819610
     Reviewed-on: https://go-review.googlesource.com/20296
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/TODO           | 1 -
  src/cmd/compile/internal/ssa/sizeof_test.go | 2 +-
  src/cmd/compile/internal/ssa/value.go       | 4 ++--
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index c5d6884e27..84e18039c7 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -29,7 +29,6 @@ Optimizations (better compiled code)
+ 
+ Optimizations (better compiler)
+ -------------------------------
+-- OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
+ - Handle signed division overflow and sign extension earlier
+ 
+ Regalloc
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 2232913f5d..8b79ecfe68 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Value{}, 60, 104},
++		{Value{}, 64, 112},
+ 		{Block{}, 124, 232},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 3ec788355d..a245d26f98 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -38,8 +38,8 @@ type Value struct {
+ 	// Source line number
+ 	Line int32
+ 
+-	// Storage for the first two args
+-	argstorage [2]*Value
++	// Storage for the first three args
++	argstorage [3]*Value
+ }
+ 
+ // Examples:

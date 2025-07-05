@@ -12,8 +12,84 @@ Date:   Mon May 27 15:58:24 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 12 ------------
  src/cmd/compile/internal/gc/order.go |  7 ++-----
  src/cmd/compile/internal/gc/plive.go | 12 ++++++++++++
  3 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 51c0fffc9e..1e15a67bbd 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -306,18 +306,6 @@ func ggloblsym(s *obj.LSym, width int32, flags int16) {
+ 	Ctxt.Globl(s, int64(width), int(flags))
+ }
+ 
+-func isfat(t *types.Type) bool {
+-	if t != nil {
+-		switch t.Etype {
+-		case TSTRUCT, TARRAY, TSLICE, TSTRING,
+-			TINTER: // maybe remove later
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+ func Addrconst(a *obj.Addr, v int64) {
+ 	a.Sym = nil
+ 	a.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 15850d72a1..0ea43f114e 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1028,7 +1028,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			}
+ 		}
+ 
+-		// key must be addressable
+ 	case OINDEXMAP:
+ 		n.Left = o.expr(n.Left, nil)
+ 		n.Right = o.expr(n.Right, nil)
+@@ -1048,6 +1047,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			}
+ 		}
+ 
++		// key must be addressable
+ 		n.Right = o.mapKeyTemp(n.Left.Type, n.Right)
+ 		if needCopy {
+ 			n = o.copyExpr(n, n.Type, false)
+@@ -1205,10 +1205,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		n.Left = o.expr(n.Left, nil)
+-		// TODO(rsc): The isfat is for consistency with componentgen and walkexpr.
+-		// It needs to be removed in all three places.
+-		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+-		if !isdirectiface(n.Type) || isfat(n.Type) || instrumenting {
++		if !isdirectiface(n.Type) || instrumenting {
+ 			n = o.copyExpr(n, n.Type, true)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a9a01e5c12..7d3377f40c 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1449,3 +1449,15 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 
+ 	return lv.livenessMap
+ }
++
++func isfat(t *types.Type) bool {
++	if t != nil {
++		switch t.Etype {
++		case TSTRUCT, TARRAY, TSLICE, TSTRING,
++			TINTER: // maybe remove later
++			return true
++		}
++	}
++
++	return false
++}

@@ -17,6 +17,22 @@ Date:   Fri Sep 30 14:16:12 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/verify.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 4a6c952a96..484c951fc9 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -87,6 +87,10 @@ func (h HostnameError) Error() string {
+ 			valid = c.Subject.CommonName
+ 		}
+ 	}
++
++	if len(valid) == 0 {
++		return "x509: certificate is not valid for any names, but wanted to match " + h.Host
++	}
+ 	return "x509: certificate is valid for " + valid + ", not " + h.Host
+ }
+ 

@@ -8,8 +8,130 @@ Date:   Wed Jul 27 21:26:16 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4823055
-
+---
  src/pkg/exp/template/exec.go | 15 ++++-----------
  src/pkg/rpc/server.go        | 16 +++++++++-------
  src/pkg/rpc/server_test.go   |  2 ++
  3 files changed, 15 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 33ef5f1408..40a947dbf0 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -10,8 +10,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"strings"
+-	"unicode"
+-	"utf8"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+@@ -356,12 +354,6 @@ func (s *state) evalFunction(dot reflect.Value, name string, args []node, final
+ 	return s.evalCall(dot, function, name, args, final)
+ }
+ 
+-// Is this an exported - upper case - name?
+-func isExported(name string) bool {
+-	rune, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(rune)
+-}
+-
+ // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
+ // The 'final' argument represents the return value from the preceding
+ // value of the pipeline, if any.
+@@ -383,12 +375,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []node, fina
+ 	// It's not a method; is it a field of a struct?
+ 	receiver, isNil := indirect(receiver)
+ 	if receiver.Kind() == reflect.Struct {
+-		field := receiver.FieldByName(fieldName)
+-		if field.IsValid() {
++		tField, ok := receiver.Type().FieldByName(fieldName)
++		if ok {
++			field := receiver.FieldByIndex(tField.Index)
+ 			if len(args) > 1 || final.IsValid() {
+ 				s.errorf("%s is not a method but has arguments", fieldName)
+ 			}
+-			if isExported(fieldName) { // valid and exported
++			if tField.PkgPath == "" { // field is exported
+ 				return field
+ 			}
+ 		}
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index b079c9bb9a..86767abea3 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -196,12 +196,14 @@ func isExported(name string) bool {
+ 	return unicode.IsUpper(rune)
+ }
+ 
+-// Is this type exported or local to this package?
+-func isExportedOrLocalType(t reflect.Type) bool {
++// Is this type exported or a builtin?
++func isExportedOrBuiltinType(t reflect.Type) bool {
+ 	for t.Kind() == reflect.Ptr {
+ 		t = t.Elem()
+ 	}
+-	return t.PkgPath() == "" || isExported(t.Name())
++	// PkgPath will be non-empty even for an exported type,
++	// so we need to check the type name as well.
++	return isExported(t.Name()) || t.PkgPath() == ""
+ }
+ 
+ // Register publishes in the server the set of methods of the
+@@ -239,7 +241,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 	if sname == "" {
+ 		log.Fatal("rpc: no service name for type", s.typ.String())
+ 	}
+-	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
++	if !isExported(sname) && !useName {
+ 		s := "rpc Register: type " + sname + " is not exported"
+ 		log.Print(s)
+ 		return os.NewError(s)
+@@ -255,7 +257,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 		method := s.typ.Method(m)
+ 		mtype := method.Type
+ 		mname := method.Name
+-		if mtype.PkgPath() != "" || !isExported(mname) {
++		if method.PkgPath != "" {
+ 			continue
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.
+@@ -265,7 +267,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 		}
+ 		// First arg need not be a pointer.
+ 		argType := mtype.In(1)
+-		if !isExportedOrLocalType(argType) {
++		if !isExportedOrBuiltinType(argType) {
+ 			log.Println(mname, "argument type not exported or local:", argType)
+ 			continue
+ 		}
+@@ -275,7 +277,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 			log.Println("method", mname, "reply type not a pointer:", replyType)
+ 			continue
+ 		}
+-		if !isExportedOrLocalType(replyType) {
++		if !isExportedOrBuiltinType(replyType) {
+ 			log.Println("method", mname, "reply type not exported or local:", replyType)
+ 			continue
+ 		}
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 1692168a8c..459dd59d6a 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -360,6 +360,7 @@ func countMallocs(dial func() (*Client, os.Error), t *testing.T) uint64 {
+ 	}
+ 	args := &Args{7, 8}
+ 	reply := new(Reply)
++	runtime.UpdateMemStats()
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+ 	const count = 100
+ 	for i := 0; i < count; i++ {
+@@ -371,6 +372,7 @@ func countMallocs(dial func() (*Client, os.Error), t *testing.T) uint64 {
+ 			t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 		}
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	return mallocs / count
+ }

@@ -26,6 +26,21 @@ Date:   Fri Aug 2 07:53:44 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/indent.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/encoding/json/indent.go b/src/encoding/json/indent.go
+index 1b49a369e3..fba19548c9 100644
+--- a/src/encoding/json/indent.go
++++ b/src/encoding/json/indent.go
+@@ -8,9 +8,6 @@ import "bytes"
+ 
+ // Compact appends to dst the JSON-encoded src with
+ // insignificant space characters elided.
+-// Like Marshal, Compact applies HTMLEscape to any
+-// string literals so that the JSON will be safe to embed
+-// inside HTML <script> tags.
+ func Compact(dst *bytes.Buffer, src []byte) error {
+ 	return compact(dst, src, false)
+ }

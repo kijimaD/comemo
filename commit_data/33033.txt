@@ -27,8 +27,37 @@ Date:   Tue Jun 27 17:30:39 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 3072 bytes
  src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
  src/archive/tar/writer.go                     |  10 ++++++++--
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/testdata/ustar.issue12594.tar b/src/archive/tar/testdata/ustar.issue12594.tar
+index c7910ae9f4..50fcd00976 100644
+Binary files a/src/archive/tar/testdata/ustar.issue12594.tar and b/src/archive/tar/testdata/ustar.issue12594.tar differ
+diff --git a/src/archive/tar/testdata/writer-big-long.tar b/src/archive/tar/testdata/writer-big-long.tar
+index 52bd748f3b..ea9bfa88bb 100644
+Binary files a/src/archive/tar/testdata/writer-big-long.tar and b/src/archive/tar/testdata/writer-big-long.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 596fb8b9e1..c51c243a8b 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -121,9 +121,15 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 		needsPaxHeader := paxKeyword != paxNone && len(s) > len(b) || !isASCII(s)
+ 		if needsPaxHeader {
+ 			paxHeaders[paxKeyword] = s
+-			return
+ 		}
+-		f.formatString(b, s)
++
++		// Write string in a best-effort manner to satisfy readers that expect
++		// the field to be non-empty.
++		s = toASCII(s)
++		if len(s) > len(b) {
++			s = s[:len(b)]
++		}
++		f.formatString(b, s) // Should never error
+ 	}
+ 	var formatNumeric = func(b []byte, x int64, paxKeyword string) {
+ 		// Try octal first.

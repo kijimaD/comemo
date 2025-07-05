@@ -10,6 +10,28 @@ Date:   Wed Jun 5 00:40:49 2013 +0200
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10003043
-
+---
  misc/pprof | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/pprof b/misc/pprof
+index f471c73951..5a43b66d2c 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -2616,6 +2616,7 @@ sub RemoveUninterestingFrames {
+                       'operator new[]',
+                       # Go
+                       'catstring',
++                      'cnew',
+                       'copyin',
+                       'gostring',
+                       'gostringsize',
+@@ -2640,6 +2641,8 @@ sub RemoveUninterestingFrames {
+                       'unsafe.New',
+                       'runtime.mallocgc',
+                       'runtime.catstring',
++                      'runtime.cnew',
++                      'runtime.cnewarray',
+                       'runtime.growslice',
+                       'runtime.ifaceT2E',
+                       'runtime.ifaceT2I',

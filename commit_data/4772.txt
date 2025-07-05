@@ -7,6 +7,20 @@ Date:   Tue Feb 2 23:01:21 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198084
-
+---
  src/pkg/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index b2b4b98f7d..c5b848414a 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -12,7 +12,7 @@ package sort
+ type Interface interface {
+ 	// Len is the number of elements in the collection.
+ 	Len() int
+-	// Less returns whether the element with index i is should sort
++	// Less returns whether the element with index i should sort
+ 	// before the element with index j.
+ 	Less(i, j int) bool
+ 	// Swap swaps the elements with indexes i and j.

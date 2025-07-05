@@ -11,7 +11,7 @@ Date:   Mon Sep 24 16:52:43 2012 -0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6555051
-
+---
  src/pkg/crypto/tls/common.go                  |  19 +
  src/pkg/crypto/tls/conn.go                    |   2 +
  src/pkg/crypto/tls/handshake_client.go        |   5 +-
@@ -23,3 +23,1722 @@ Date:   Mon Sep 24 16:52:43 2012 -0400
  src/pkg/crypto/tls/prf_test.go                |  15 +-
  src/pkg/crypto/tls/ticket.go                  | 182 +++++++++
  10 files changed, 1096 insertions(+), 209 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 4ba0bf8748..cfe2f2227f 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -41,6 +41,7 @@ const (
+ const (
+ 	typeClientHello        uint8 = 1
+ 	typeServerHello        uint8 = 2
++	typeNewSessionTicket   uint8 = 4
+ 	typeCertificate        uint8 = 11
+ 	typeServerKeyExchange  uint8 = 12
+ 	typeCertificateRequest uint8 = 13
+@@ -63,6 +64,7 @@ var (
+ 	extensionStatusRequest   uint16 = 5
+ 	extensionSupportedCurves uint16 = 10
+ 	extensionSupportedPoints uint16 = 11
++	extensionSessionTicket   uint16 = 35
+ 	extensionNextProtoNeg    uint16 = 13172 // not IANA assigned
+ )
+ 
+@@ -97,6 +99,7 @@ const (
+ // ConnectionState records basic TLS details about the connection.
+ type ConnectionState struct {
+ 	HandshakeComplete          bool
++	DidResume                  bool
+ 	CipherSuite                uint16
+ 	NegotiatedProtocol         string
+ 	NegotiatedProtocolIsMutual bool
+@@ -180,6 +183,22 @@ type Config struct {
+ 	// CipherSuites is a list of supported cipher suites. If CipherSuites
+ 	// is nil, TLS uses a list of suites supported by the implementation.
+ 	CipherSuites []uint16
++
++	// SessionTicketsDisabled may be set to true to disable session ticket
++	// (resumption) support.
++	SessionTicketsDisabled bool
++
++	// SessionTicketKey is used by TLS servers to provide session
++	// resumption. See RFC 5077. If zero, it will be filled with
++	// random data before the first server handshake.
++	//
++	// If multiple servers are terminating connections for the same host
++	// they should all have the same SessionTicketKey. If the
++	// SessionTicketKey leaks, previously recorded and future TLS
++	// connections using that key are compromised.
++	SessionTicketKey [32]byte
++
++	serverInitOnce sync.Once
+ }
+ 
+ func (c *Config) rand() io.Reader {
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 5dc344bed5..fd2ef1ecfa 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -31,6 +31,7 @@ type Conn struct {
+ 	haveVers          bool       // version has been negotiated
+ 	config            *Config    // configuration passed to constructor
+ 	handshakeComplete bool
++	didResume         bool // whether this connection was a session resumption
+ 	cipherSuite       uint16
+ 	ocspResponse      []byte // stapled OCSP response
+ 	peerCertificates  []*x509.Certificate
+@@ -830,6 +831,7 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 	state.HandshakeComplete = c.handshakeComplete
+ 	if c.handshakeComplete {
+ 		state.NegotiatedProtocol = c.clientProtocol
++		state.DidResume = c.didResume
+ 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
+ 		state.CipherSuite = c.cipherSuite
+ 		state.PeerCertificates = c.peerCertificates
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index c6637c593c..7db13bf70d 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -278,8 +278,9 @@ func (c *Conn) clientHandshake() error {
+ 		c.writeRecord(recordTypeHandshake, certVerify.marshal())
+ 	}
+ 
+-	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromPreMasterSecret(c.vers, preMasterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
++	masterSecret := masterFromPreMasterSecret(c.vers, preMasterSecret, hello.random, serverHello.random)
++	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
++		keysFromMasterSecret(c.vers, masterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
+ 
+ 	clientCipher := suite.cipher(clientKey, clientIV, false /* not for reading */)
+ 	clientHash := suite.mac(c.vers, clientMAC)
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 54c7a3e631..2e9b9a692d 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -18,6 +18,8 @@ type clientHelloMsg struct {
+ 	ocspStapling       bool
+ 	supportedCurves    []uint16
+ 	supportedPoints    []uint8
++	ticketSupported    bool
++	sessionTicket      []uint8
+ }
+ 
+ func (m *clientHelloMsg) equal(i interface{}) bool {
+@@ -36,7 +38,9 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
+ 		m.serverName == m1.serverName &&
+ 		m.ocspStapling == m1.ocspStapling &&
+ 		eqUint16s(m.supportedCurves, m1.supportedCurves) &&
+-		bytes.Equal(m.supportedPoints, m1.supportedPoints)
++		bytes.Equal(m.supportedPoints, m1.supportedPoints) &&
++		m.ticketSupported == m1.ticketSupported &&
++		bytes.Equal(m.sessionTicket, m1.sessionTicket)
+ }
+ 
+ func (m *clientHelloMsg) marshal() []byte {
+@@ -66,6 +70,10 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		extensionsLength += 1 + len(m.supportedPoints)
+ 		numExtensions++
+ 	}
++	if m.ticketSupported {
++		extensionsLength += len(m.sessionTicket)
++		numExtensions++
++	}
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -180,6 +188,17 @@ func (m *clientHelloMsg) marshal() []byte {
+ 			z = z[1:]
+ 		}
+ 	}
++	if m.ticketSupported {
++		// http://tools.ietf.org/html/rfc5077#section-3.2
++		z[0] = byte(extensionSessionTicket >> 8)
++		z[1] = byte(extensionSessionTicket)
++		l := len(m.sessionTicket)
++		z[2] = byte(l >> 8)
++		z[3] = byte(l)
++		z = z[4:]
++		copy(z, m.sessionTicket)
++		z = z[len(m.sessionTicket):]
++	}
+ 
+ 	m.raw = x
+ 
+@@ -311,6 +330,10 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 			}
+ 			m.supportedPoints = make([]uint8, l)
+ 			copy(m.supportedPoints, data[1:])
++		case extensionSessionTicket:
++			// http://tools.ietf.org/html/rfc5077#section-3.2
++			m.ticketSupported = true
++			m.sessionTicket = data[:length]
+ 		}
+ 		data = data[length:]
+ 	}
+@@ -328,6 +351,7 @@ type serverHelloMsg struct {
+ 	nextProtoNeg      bool
+ 	nextProtos        []string
+ 	ocspStapling      bool
++	ticketSupported   bool
+ }
+ 
+ func (m *serverHelloMsg) equal(i interface{}) bool {
+@@ -344,7 +368,8 @@ func (m *serverHelloMsg) equal(i interface{}) bool {
+ 		m.compressionMethod == m1.compressionMethod &&
+ 		m.nextProtoNeg == m1.nextProtoNeg &&
+ 		eqStrings(m.nextProtos, m1.nextProtos) &&
+-		m.ocspStapling == m1.ocspStapling
++		m.ocspStapling == m1.ocspStapling &&
++		m.ticketSupported == m1.ticketSupported
+ }
+ 
+ func (m *serverHelloMsg) marshal() []byte {
+@@ -368,6 +393,9 @@ func (m *serverHelloMsg) marshal() []byte {
+ 	if m.ocspStapling {
+ 		numExtensions++
+ 	}
++	if m.ticketSupported {
++		numExtensions++
++	}
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -416,6 +444,11 @@ func (m *serverHelloMsg) marshal() []byte {
+ 		z[1] = byte(extensionStatusRequest)
+ 		z = z[4:]
+ 	}
++	if m.ticketSupported {
++		z[0] = byte(extensionSessionTicket >> 8)
++		z[1] = byte(extensionSessionTicket)
++		z = z[4:]
++	}
+ 
+ 	m.raw = x
+ 
+@@ -489,6 +522,11 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 				return false
+ 			}
+ 			m.ocspStapling = true
++		case extensionSessionTicket:
++			if length > 0 {
++				return false
++			}
++			m.ticketSupported = true
+ 		}
+ 		data = data[length:]
+ 	}
+@@ -1030,6 +1068,65 @@ func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
+ 	return true
+ }
+ 
++type newSessionTicketMsg struct {
++	raw    []byte
++	ticket []byte
++}
++
++func (m *newSessionTicketMsg) equal(i interface{}) bool {
++	m1, ok := i.(*newSessionTicketMsg)
++	if !ok {
++		return false
++	}
++
++	return bytes.Equal(m.raw, m1.raw) &&
++		bytes.Equal(m.ticket, m1.ticket)
++}
++
++func (m *newSessionTicketMsg) marshal() (x []byte) {
++	if m.raw != nil {
++		return m.raw
++	}
++
++	// See http://tools.ietf.org/html/rfc5077#section-3.3
++	ticketLen := len(m.ticket)
++	length := 2 + 4 + ticketLen
++	x = make([]byte, 4+length)
++	x[0] = typeNewSessionTicket
++	x[1] = uint8(length >> 16)
++	x[2] = uint8(length >> 8)
++	x[3] = uint8(length)
++	x[8] = uint8(ticketLen >> 8)
++	x[9] = uint8(ticketLen)
++	copy(x[10:], m.ticket)
++
++	m.raw = x
++
++	return
++}
++
++func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
++	m.raw = data
++
++	if len(data) < 10 {
++		return false
++	}
++
++	length := uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
++	if uint32(len(data))-4 != length {
++		return false
++	}
++
++	ticketLen := int(data[8])<<8 + int(data[9])
++	if len(data)-10 != ticketLen {
++		return false
++	}
++
++	m.ticket = data[10:]
++
++	return true
++}
++
+ func eqUint16s(x, y []uint16) bool {
+ 	if len(x) != len(y) {
+ 		return false
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index e62a9d581b..b06f7b2d7d 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -22,6 +22,8 @@ var tests = []interface{}{
+ 	&certificateStatusMsg{},
+ 	&clientKeyExchangeMsg{},
+ 	&nextProtoMsg{},
++	&newSessionTicketMsg{},
++	&sessionState{},
+ }
+ 
+ type testMessage interface {
+@@ -207,3 +209,22 @@ func (*nextProtoMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	m.proto = randomString(rand.Intn(255), rand)
+ 	return reflect.ValueOf(m)
+ }
++
++func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
++	m := &newSessionTicketMsg{}
++	m.ticket = randomBytes(rand.Intn(4), rand)
++	return reflect.ValueOf(m)
++}
++
++func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
++	s := &sessionState{}
++	s.vers = uint16(rand.Intn(10000))
++	s.cipherSuite = uint16(rand.Intn(10000))
++	s.masterSecret = randomBytes(rand.Intn(100), rand)
++	numCerts := rand.Intn(20)
++	s.certificates = make([][]byte, numCerts)
++	for i := 0; i < numCerts; i++ {
++		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
++	}
++	return reflect.ValueOf(s)
++}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index e5049a2f0d..d841034502 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -13,31 +13,120 @@ import (
+ 	"io"
+ )
+ 
++// serverHandshakeState contains details of a server handshake in progress.
++// It's discarded once the handshake has completed.
++type serverHandshakeState struct {
++	c               *Conn
++	clientHello     *clientHelloMsg
++	hello           *serverHelloMsg
++	suite           *cipherSuite
++	ellipticOk      bool
++	sessionState    *sessionState
++	finishedHash    finishedHash
++	masterSecret    []byte
++	certsFromClient [][]byte
++}
++
++// serverHandshake performs a TLS handshake as a server.
+ func (c *Conn) serverHandshake() error {
+ 	config := c.config
+-	msg, err := c.readHandshake()
++
++	// If this is the first server handshake, we generate a random key to
++	// encrypt the tickets with.
++	config.serverInitOnce.Do(func() {
++		if config.SessionTicketsDisabled {
++			return
++		}
++
++		// If the key has already been set then we have nothing to do.
++		for _, b := range config.SessionTicketKey {
++			if b != 0 {
++				return
++			}
++		}
++
++		if _, err := io.ReadFull(config.rand(), config.SessionTicketKey[:]); err != nil {
++			config.SessionTicketsDisabled = true
++		}
++	})
++
++	hs := serverHandshakeState{
++		c: c,
++	}
++	isResume, err := hs.readClientHello()
+ 	if err != nil {
+ 		return err
+ 	}
+-	clientHello, ok := msg.(*clientHelloMsg)
++
++	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
++	if isResume {
++		// The client has included a session ticket and so we do an abbreviated handshake.
++		if err := hs.doResumeHandshake(); err != nil {
++			return err
++		}
++		if err := hs.establishKeys(); err != nil {
++			return err
++		}
++		if err := hs.sendFinished(); err != nil {
++			return err
++		}
++		if err := hs.readFinished(); err != nil {
++			return err
++		}
++		c.didResume = true
++	} else {
++		// The client didn't include a session ticket, or it wasn't
++		// valid so we do a full handshake.
++		if err := hs.doFullHandshake(); err != nil {
++			return err
++		}
++		if err := hs.establishKeys(); err != nil {
++			return err
++		}
++		if err := hs.readFinished(); err != nil {
++			return err
++		}
++		if err := hs.sendSessionTicket(); err != nil {
++			return err
++		}
++		if err := hs.sendFinished(); err != nil {
++			return err
++		}
++	}
++	c.handshakeComplete = true
++
++	return nil
++}
++
++// readClientHello reads a ClientHello message from the client and decides
++// whether we will perform session resumption.
++func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
++	config := hs.c.config
++	c := hs.c
++
++	msg, err := c.readHandshake()
++	if err != nil {
++		return false, err
++	}
++	var ok bool
++	hs.clientHello, ok = msg.(*clientHelloMsg)
+ 	if !ok {
+-		return c.sendAlert(alertUnexpectedMessage)
++		return false, c.sendAlert(alertUnexpectedMessage)
+ 	}
+-	vers, ok := mutualVersion(clientHello.vers)
++	c.vers, ok = mutualVersion(hs.clientHello.vers)
+ 	if !ok {
+-		return c.sendAlert(alertProtocolVersion)
++		return false, c.sendAlert(alertProtocolVersion)
+ 	}
+-	c.vers = vers
+ 	c.haveVers = true
+ 
+-	finishedHash := newFinishedHash(vers)
+-	finishedHash.Write(clientHello.marshal())
++	hs.finishedHash = newFinishedHash(c.vers)
++	hs.finishedHash.Write(hs.clientHello.marshal())
+ 
+-	hello := new(serverHelloMsg)
++	hs.hello = new(serverHelloMsg)
+ 
+ 	supportedCurve := false
+ Curves:
+-	for _, curve := range clientHello.supportedCurves {
++	for _, curve := range hs.clientHello.supportedCurves {
+ 		switch curve {
+ 		case curveP256, curveP384, curveP521:
+ 			supportedCurve = true
+@@ -46,110 +135,173 @@ Curves:
+ 	}
+ 
+ 	supportedPointFormat := false
+-	for _, pointFormat := range clientHello.supportedPoints {
++	for _, pointFormat := range hs.clientHello.supportedPoints {
+ 		if pointFormat == pointFormatUncompressed {
+ 			supportedPointFormat = true
+ 			break
+ 		}
+ 	}
+-
+-	ellipticOk := supportedCurve && supportedPointFormat
+-
+-	var suite *cipherSuite
+-FindCipherSuite:
+-	for _, id := range clientHello.cipherSuites {
+-		for _, supported := range config.cipherSuites() {
+-			if id == supported {
+-				var candidate *cipherSuite
+-
+-				for _, s := range cipherSuites {
+-					if s.id == id {
+-						candidate = s
+-						break
+-					}
+-				}
+-				if candidate == nil {
+-					continue
+-				}
+-				// Don't select a ciphersuite which we can't
+-				// support for this client.
+-				if candidate.elliptic && !ellipticOk {
+-					continue
+-				}
+-				suite = candidate
+-				break FindCipherSuite
+-			}
+-		}
+-	}
++	hs.ellipticOk = supportedCurve && supportedPointFormat
+ 
+ 	foundCompression := false
+ 	// We only support null compression, so check that the client offered it.
+-	for _, compression := range clientHello.compressionMethods {
++	for _, compression := range hs.clientHello.compressionMethods {
+ 		if compression == compressionNone {
+ 			foundCompression = true
+ 			break
+ 		}
+ 	}
+ 
+-	if suite == nil || !foundCompression {
+-		return c.sendAlert(alertHandshakeFailure)
++	if !foundCompression {
++		return false, c.sendAlert(alertHandshakeFailure)
+ 	}
+ 
+-	hello.vers = vers
+-	hello.cipherSuite = suite.id
++	hs.hello.vers = c.vers
+ 	t := uint32(config.time().Unix())
+-	hello.random = make([]byte, 32)
+-	hello.random[0] = byte(t >> 24)
+-	hello.random[1] = byte(t >> 16)
+-	hello.random[2] = byte(t >> 8)
+-	hello.random[3] = byte(t)
+-	_, err = io.ReadFull(config.rand(), hello.random[4:])
++	hs.hello.random = make([]byte, 32)
++	hs.hello.random[0] = byte(t >> 24)
++	hs.hello.random[1] = byte(t >> 16)
++	hs.hello.random[2] = byte(t >> 8)
++	hs.hello.random[3] = byte(t)
++	_, err = io.ReadFull(config.rand(), hs.hello.random[4:])
+ 	if err != nil {
+-		return c.sendAlert(alertInternalError)
++		return false, c.sendAlert(alertInternalError)
++	}
++	hs.hello.compressionMethod = compressionNone
++	if len(hs.clientHello.serverName) > 0 {
++		c.serverName = hs.clientHello.serverName
++	}
++	if hs.clientHello.nextProtoNeg {
++		hs.hello.nextProtoNeg = true
++		hs.hello.nextProtos = config.NextProtos
++	}
++
++	if hs.checkForResumption() {
++		return true, nil
++	}
++
++	for _, id := range hs.clientHello.cipherSuites {
++		if hs.suite = c.tryCipherSuite(id, hs.ellipticOk); hs.suite != nil {
++			break
++		}
++	}
++
++	if hs.suite == nil {
++		return false, c.sendAlert(alertHandshakeFailure)
++	}
++
++	return false, nil
++}
++
++// checkForResumption returns true if we should perform resumption on this connection.
++func (hs *serverHandshakeState) checkForResumption() bool {
++	c := hs.c
++
++	var ok bool
++	if hs.sessionState, ok = c.decryptTicket(hs.clientHello.sessionTicket); !ok {
++		return false
++	}
++
++	if hs.sessionState.vers > hs.clientHello.vers {
++		return false
++	}
++	if vers, ok := mutualVersion(hs.sessionState.vers); !ok || vers != hs.sessionState.vers {
++		return false
++	}
++
++	cipherSuiteOk := false
++	// Check that the client is still offering the ciphersuite in the session.
++	for _, id := range hs.clientHello.cipherSuites {
++		if id == hs.sessionState.cipherSuite {
++			cipherSuiteOk = true
++			break
++		}
+ 	}
+-	hello.compressionMethod = compressionNone
+-	if clientHello.nextProtoNeg {
+-		hello.nextProtoNeg = true
+-		hello.nextProtos = config.NextProtos
++	if !cipherSuiteOk {
++		return false
+ 	}
+ 
++	// Check that we also support the ciphersuite from the session.
++	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, hs.ellipticOk)
++	if hs.suite == nil {
++		return false
++	}
++
++	sessionHasClientCerts := len(hs.sessionState.certificates) != 0
++	needClientCerts := c.config.ClientAuth == RequireAnyClientCert || c.config.ClientAuth == RequireAndVerifyClientCert
++	if needClientCerts && !sessionHasClientCerts {
++		return false
++	}
++	if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
++		return false
++	}
++
++	return true
++}
++
++func (hs *serverHandshakeState) doResumeHandshake() error {
++	c := hs.c
++
++	hs.hello.cipherSuite = hs.suite.id
++	// We echo the client's session ID in the ServerHello to let it know
++	// that we're doing a resumption.
++	hs.hello.sessionId = hs.clientHello.sessionId
++	hs.finishedHash.Write(hs.hello.marshal())
++	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
++
++	if len(hs.sessionState.certificates) > 0 {
++		if _, err := hs.processCertsFromClient(hs.sessionState.certificates); err != nil {
++			return err
++		}
++	}
++
++	hs.masterSecret = hs.sessionState.masterSecret
++
++	return nil
++}
++
++func (hs *serverHandshakeState) doFullHandshake() error {
++	config := hs.c.config
++	c := hs.c
++
+ 	if len(config.Certificates) == 0 {
+ 		return c.sendAlert(alertInternalError)
+ 	}
+ 	cert := &config.Certificates[0]
+-	if len(clientHello.serverName) > 0 {
+-		c.serverName = clientHello.serverName
+-		cert = config.getCertificateForName(clientHello.serverName)
++	if len(hs.clientHello.serverName) > 0 {
++		cert = config.getCertificateForName(hs.clientHello.serverName)
+ 	}
+ 
+-	if clientHello.ocspStapling && len(cert.OCSPStaple) > 0 {
+-		hello.ocspStapling = true
++	if hs.clientHello.ocspStapling && len(cert.OCSPStaple) > 0 {
++		hs.hello.ocspStapling = true
+ 	}
+ 
+-	finishedHash.Write(hello.marshal())
+-	c.writeRecord(recordTypeHandshake, hello.marshal())
++	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !config.SessionTicketsDisabled
++	hs.hello.cipherSuite = hs.suite.id
++	hs.finishedHash.Write(hs.hello.marshal())
++	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
+ 
+ 	certMsg := new(certificateMsg)
+ 	certMsg.certificates = cert.Certificate
+-	finishedHash.Write(certMsg.marshal())
++	hs.finishedHash.Write(certMsg.marshal())
+ 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 
+-	if hello.ocspStapling {
++	if hs.hello.ocspStapling {
+ 		certStatus := new(certificateStatusMsg)
+ 		certStatus.statusType = statusTypeOCSP
+ 		certStatus.response = cert.OCSPStaple
+-		finishedHash.Write(certStatus.marshal())
++		hs.finishedHash.Write(certStatus.marshal())
+ 		c.writeRecord(recordTypeHandshake, certStatus.marshal())
+ 	}
+ 
+-	keyAgreement := suite.ka()
+-	skx, err := keyAgreement.generateServerKeyExchange(config, cert, clientHello, hello)
++	keyAgreement := hs.suite.ka()
++	skx, err := keyAgreement.generateServerKeyExchange(config, cert, hs.clientHello, hs.hello)
+ 	if err != nil {
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return err
+ 	}
+ 	if skx != nil {
+-		finishedHash.Write(skx.marshal())
++		hs.finishedHash.Write(skx.marshal())
+ 		c.writeRecord(recordTypeHandshake, skx.marshal())
+ 	}
+ 
+@@ -166,28 +318,29 @@ FindCipherSuite:
+ 		if config.ClientCAs != nil {
+ 			certReq.certificateAuthorities = config.ClientCAs.Subjects()
+ 		}
+-		finishedHash.Write(certReq.marshal())
++		hs.finishedHash.Write(certReq.marshal())
+ 		c.writeRecord(recordTypeHandshake, certReq.marshal())
+ 	}
+ 
+ 	helloDone := new(serverHelloDoneMsg)
+-	finishedHash.Write(helloDone.marshal())
++	hs.finishedHash.Write(helloDone.marshal())
+ 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
+ 
+ 	var pub *rsa.PublicKey // public key for client auth, if any
+ 
+-	msg, err = c.readHandshake()
++	msg, err := c.readHandshake()
+ 	if err != nil {
+ 		return err
+ 	}
+ 
++	var ok bool
+ 	// If we requested a client certificate, then the client must send a
+ 	// certificate message, even if it's empty.
+ 	if config.ClientAuth >= RequestClientCert {
+ 		if certMsg, ok = msg.(*certificateMsg); !ok {
+ 			return c.sendAlert(alertHandshakeFailure)
+ 		}
+-		finishedHash.Write(certMsg.marshal())
++		hs.finishedHash.Write(certMsg.marshal())
+ 
+ 		if len(certMsg.certificates) == 0 {
+ 			// The client didn't actually send a certificate
+@@ -198,55 +351,9 @@ FindCipherSuite:
+ 			}
+ 		}
+ 
+-		certs := make([]*x509.Certificate, len(certMsg.certificates))
+-		for i, asn1Data := range certMsg.certificates {
+-			if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
+-				c.sendAlert(alertBadCertificate)
+-				return errors.New("tls: failed to parse client certificate: " + err.Error())
+-			}
+-		}
+-
+-		if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
+-			opts := x509.VerifyOptions{
+-				Roots:         c.config.ClientCAs,
+-				CurrentTime:   c.config.time(),
+-				Intermediates: x509.NewCertPool(),
+-				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+-			}
+-
+-			for i, cert := range certs {
+-				if i == 0 {
+-					continue
+-				}
+-				opts.Intermediates.AddCert(cert)
+-			}
+-
+-			chains, err := certs[0].Verify(opts)
+-			if err != nil {
+-				c.sendAlert(alertBadCertificate)
+-				return errors.New("tls: failed to verify client's certificate: " + err.Error())
+-			}
+-
+-			ok := false
+-			for _, ku := range certs[0].ExtKeyUsage {
+-				if ku == x509.ExtKeyUsageClientAuth {
+-					ok = true
+-					break
+-				}
+-			}
+-			if !ok {
+-				c.sendAlert(alertHandshakeFailure)
+-				return errors.New("tls: client's certificate's extended key usage doesn't permit it to be used for client authentication")
+-			}
+-
+-			c.verifiedChains = chains
+-		}
+-
+-		if len(certs) > 0 {
+-			if pub, ok = certs[0].PublicKey.(*rsa.PublicKey); !ok {
+-				return c.sendAlert(alertUnsupportedCertificate)
+-			}
+-			c.peerCertificates = certs
++		pub, err = hs.processCertsFromClient(certMsg.certificates)
++		if err != nil {
++			return err
+ 		}
+ 
+ 		msg, err = c.readHandshake()
+@@ -260,7 +367,7 @@ FindCipherSuite:
+ 	if !ok {
+ 		return c.sendAlert(alertUnexpectedMessage)
+ 	}
+-	finishedHash.Write(ckx.marshal())
++	hs.finishedHash.Write(ckx.marshal())
+ 
+ 	// If we received a client cert in response to our certificate request message,
+ 	// the client will send us a certificateVerifyMsg immediately after the
+@@ -279,15 +386,15 @@ FindCipherSuite:
+ 		}
+ 
+ 		digest := make([]byte, 0, 36)
+-		digest = finishedHash.serverMD5.Sum(digest)
+-		digest = finishedHash.serverSHA1.Sum(digest)
++		digest = hs.finishedHash.serverMD5.Sum(digest)
++		digest = hs.finishedHash.serverSHA1.Sum(digest)
+ 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return errors.New("could not validate signature of connection nonces: " + err.Error())
+ 		}
+ 
+-		finishedHash.Write(certVerify.marshal())
++		hs.finishedHash.Write(certVerify.marshal())
+ 	}
+ 
+ 	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, cert, ckx, c.vers)
+@@ -295,20 +402,38 @@ FindCipherSuite:
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return err
+ 	}
++	hs.masterSecret = masterFromPreMasterSecret(c.vers, preMasterSecret, hs.clientHello.random, hs.hello.random)
++
++	return nil
++}
++
++func (hs *serverHandshakeState) establishKeys() error {
++	c := hs.c
+ 
+-	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromPreMasterSecret(c.vers, preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
++	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
++		keysFromMasterSecret(c.vers, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+ 
+-	clientCipher := suite.cipher(clientKey, clientIV, true /* for reading */)
+-	clientHash := suite.mac(c.vers, clientMAC)
++	clientCipher := hs.suite.cipher(clientKey, clientIV, true /* for reading */)
++	clientHash := hs.suite.mac(c.vers, clientMAC)
+ 	c.in.prepareCipherSpec(c.vers, clientCipher, clientHash)
++
++	serverCipher := hs.suite.cipher(serverKey, serverIV, false /* not for reading */)
++	serverHash := hs.suite.mac(c.vers, serverMAC)
++	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
++
++	return nil
++}
++
++func (hs *serverHandshakeState) readFinished() error {
++	c := hs.c
++
+ 	c.readRecord(recordTypeChangeCipherSpec)
+ 	if err := c.error(); err != nil {
+ 		return err
+ 	}
+ 
+-	if hello.nextProtoNeg {
+-		msg, err = c.readHandshake()
++	if hs.hello.nextProtoNeg {
++		msg, err := c.readHandshake()
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -316,11 +441,11 @@ FindCipherSuite:
+ 		if !ok {
+ 			return c.sendAlert(alertUnexpectedMessage)
+ 		}
+-		finishedHash.Write(nextProto.marshal())
++		hs.finishedHash.Write(nextProto.marshal())
+ 		c.clientProtocol = nextProto.proto
+ 	}
+ 
+-	msg, err = c.readHandshake()
++	msg, err := c.readHandshake()
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -329,25 +454,142 @@ FindCipherSuite:
+ 		return c.sendAlert(alertUnexpectedMessage)
+ 	}
+ 
+-	verify := finishedHash.clientSum(masterSecret)
++	verify := hs.finishedHash.clientSum(hs.masterSecret)
+ 	if len(verify) != len(clientFinished.verifyData) ||
+ 		subtle.ConstantTimeCompare(verify, clientFinished.verifyData) != 1 {
+ 		return c.sendAlert(alertHandshakeFailure)
+ 	}
+ 
+-	finishedHash.Write(clientFinished.marshal())
++	hs.finishedHash.Write(clientFinished.marshal())
++	return nil
++}
++
++func (hs *serverHandshakeState) sendSessionTicket() error {
++	if !hs.hello.ticketSupported {
++		return nil
++	}
++
++	c := hs.c
++	m := new(newSessionTicketMsg)
++
++	var err error
++	state := sessionState{
++		vers:         c.vers,
++		cipherSuite:  hs.suite.id,
++		masterSecret: hs.masterSecret,
++		certificates: hs.certsFromClient,
++	}
++	m.ticket, err = c.encryptTicket(&state)
++	if err != nil {
++		return err
++	}
++
++	hs.finishedHash.Write(m.marshal())
++	c.writeRecord(recordTypeHandshake, m.marshal())
++
++	return nil
++}
++
++func (hs *serverHandshakeState) sendFinished() error {
++	c := hs.c
+ 
+-	serverCipher := suite.cipher(serverKey, serverIV, false /* not for reading */)
+-	serverHash := suite.mac(c.vers, serverMAC)
+-	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
+ 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+ 
+ 	finished := new(finishedMsg)
+-	finished.verifyData = finishedHash.serverSum(masterSecret)
++	finished.verifyData = hs.finishedHash.serverSum(hs.masterSecret)
++	hs.finishedHash.Write(finished.marshal())
+ 	c.writeRecord(recordTypeHandshake, finished.marshal())
+ 
+-	c.handshakeComplete = true
+-	c.cipherSuite = suite.id
++	c.cipherSuite = hs.suite.id
++
++	return nil
++}
++
++// processCertsFromClient takes a chain of client certificates either from a
++// Certificates message or from a sessionState and verifies them. It returns
++// the public key of the leaf certificate.
++func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (*rsa.PublicKey, error) {
++	c := hs.c
++
++	hs.certsFromClient = certificates
++	certs := make([]*x509.Certificate, len(certificates))
++	var err error
++	for i, asn1Data := range certificates {
++		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
++			c.sendAlert(alertBadCertificate)
++			return nil, errors.New("tls: failed to parse client certificate: " + err.Error())
++		}
++	}
++
++	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
++		opts := x509.VerifyOptions{
++			Roots:         c.config.ClientCAs,
++			CurrentTime:   c.config.time(),
++			Intermediates: x509.NewCertPool(),
++			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
++		}
++
++		for _, cert := range certs[1:] {
++			opts.Intermediates.AddCert(cert)
++		}
++
++		chains, err := certs[0].Verify(opts)
++		if err != nil {
++			c.sendAlert(alertBadCertificate)
++			return nil, errors.New("tls: failed to verify client's certificate: " + err.Error())
++		}
++
++		ok := false
++		for _, ku := range certs[0].ExtKeyUsage {
++			if ku == x509.ExtKeyUsageClientAuth {
++				ok = true
++				break
++			}
++		}
++		if !ok {
++			c.sendAlert(alertHandshakeFailure)
++			return nil, errors.New("tls: client's certificate's extended key usage doesn't permit it to be used for client authentication")
++		}
++
++		c.verifiedChains = chains
++	}
++
++	if len(certs) > 0 {
++		pub, ok := certs[0].PublicKey.(*rsa.PublicKey)
++		if !ok {
++			return nil, c.sendAlert(alertUnsupportedCertificate)
++		}
++		c.peerCertificates = certs
++		return pub, nil
++	}
++
++	return nil, nil
++}
++
++// tryCipherSuite returns a cipherSuite with the given id if that cipher suite
++// is acceptable to use.
++func (c *Conn) tryCipherSuite(id uint16, ellipticOk bool) *cipherSuite {
++	for _, supported := range c.config.cipherSuites() {
++		if id == supported {
++			var candidate *cipherSuite
++
++			for _, s := range cipherSuites {
++				if s.id == id {
++					candidate = s
++					break
++				}
++			}
++			if candidate == nil {
++				continue
++			}
++			// Don't select a ciphersuite which we can't
++			// support for this client.
++			if candidate.elliptic && !ellipticOk {
++				continue
++			}
++			return candidate
++		}
++	}
+ 
+ 	return nil
+ }
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 22dbf9af2b..8ca3c2cf19 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -83,12 +83,20 @@ func TestRejectBadProtocolVersion(t *testing.T) {
+ }
+ 
+ func TestNoSuiteOverlap(t *testing.T) {
+-	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{0xff00}, []uint8{0}, false, "", false, nil, nil}
++	clientHello := &clientHelloMsg{
++		vers:               0x0301,
++		cipherSuites:       []uint16{0xff00},
++		compressionMethods: []uint8{0},
++	}
+ 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
+ }
+ 
+ func TestNoCompressionOverlap(t *testing.T) {
+-	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{TLS_RSA_WITH_RC4_128_SHA}, []uint8{0xff}, false, "", false, nil, nil}
++	clientHello := &clientHelloMsg{
++		vers:               0x0301,
++		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
++		compressionMethods: []uint8{0xff},
++	}
+ 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
+ }
+ 
+@@ -188,6 +196,11 @@ func TestHandshakeServerSNI(t *testing.T) {
+ 	testServerScript(t, "SNI", selectCertificateBySNIScript, testConfig, nil)
+ }
+ 
++func TestResumption(t *testing.T) {
++	testServerScript(t, "IssueTicket", issueSessionTicketTest, testConfig, nil)
++	testServerScript(t, "Resume", serverResumeTest, testConfig, nil)
++}
++
+ type clientauthTest struct {
+ 	name       string
+ 	clientauth ClientAuthType
+@@ -1039,21 +1052,37 @@ var sslv3ServerScript = [][]byte{
+ 
+ var selectCertificateBySNIScript = [][]byte{
+ 	{
+-		0x16, 0x03, 0x01, 0x00, 0x6e, 0x01, 0x00, 0x00,
+-		0x6a, 0x03, 0x01, 0x4f, 0x85, 0xc4, 0xc2, 0xb9,
+-		0x39, 0x80, 0x91, 0x66, 0x65, 0x56, 0x8e, 0xdd,
+-		0x48, 0xe9, 0xca, 0x34, 0x02, 0x3c, 0xaf, 0x0d,
+-		0x73, 0xb5, 0x2a, 0x05, 0x6e, 0xbd, 0x5e, 0x8f,
+-		0x38, 0xf9, 0xe5, 0x00, 0x00, 0x28, 0x00, 0x39,
+-		0x00, 0x38, 0x00, 0x35, 0x00, 0x16, 0x00, 0x13,
+-		0x00, 0x0a, 0x00, 0x33, 0x00, 0x32, 0x00, 0x2f,
+-		0x00, 0x05, 0x00, 0x04, 0x00, 0x15, 0x00, 0x12,
+-		0x00, 0x09, 0x00, 0x14, 0x00, 0x11, 0x00, 0x08,
+-		0x00, 0x06, 0x00, 0x03, 0x00, 0xff, 0x02, 0x01,
+-		0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x10, 0x00,
+-		0x0e, 0x00, 0x00, 0x0b, 0x73, 0x6e, 0x69, 0x74,
+-		0x65, 0x73, 0x74, 0x2e, 0x63, 0x6f, 0x6d, 0x00,
+-		0x23, 0x00, 0x00,
++		0x16, 0x03, 0x01, 0x00, 0xed, 0x01, 0x00, 0x00,
++		0xe9, 0x03, 0x02, 0x50, 0x5a, 0x1c, 0x90, 0x2b,
++		0xc8, 0xf1, 0xd9, 0x4b, 0xd0, 0x18, 0x69, 0xed,
++		0x5a, 0xbd, 0x68, 0xf6, 0xf7, 0xe3, 0xf0, 0x6e,
++		0xd1, 0xcc, 0xf1, 0x2d, 0x94, 0xa4, 0x01, 0x63,
++		0x91, 0xbe, 0xd0, 0x00, 0x00, 0x66, 0xc0, 0x14,
++		0xc0, 0x0a, 0xc0, 0x22, 0xc0, 0x21, 0x00, 0x39,
++		0x00, 0x38, 0x00, 0x88, 0x00, 0x87, 0xc0, 0x0f,
++		0xc0, 0x05, 0x00, 0x35, 0x00, 0x84, 0xc0, 0x12,
++		0xc0, 0x08, 0xc0, 0x1c, 0xc0, 0x1b, 0x00, 0x16,
++		0x00, 0x13, 0xc0, 0x0d, 0xc0, 0x03, 0x00, 0x0a,
++		0xc0, 0x13, 0xc0, 0x09, 0xc0, 0x1f, 0xc0, 0x1e,
++		0x00, 0x33, 0x00, 0x32, 0x00, 0x9a, 0x00, 0x99,
++		0x00, 0x45, 0x00, 0x44, 0xc0, 0x0e, 0xc0, 0x04,
++		0x00, 0x2f, 0x00, 0x96, 0x00, 0x41, 0xc0, 0x11,
++		0xc0, 0x07, 0xc0, 0x0c, 0xc0, 0x02, 0x00, 0x05,
++		0x00, 0x04, 0x00, 0x15, 0x00, 0x12, 0x00, 0x09,
++		0x00, 0x14, 0x00, 0x11, 0x00, 0x08, 0x00, 0x06,
++		0x00, 0x03, 0x00, 0xff, 0x02, 0x01, 0x00, 0x00,
++		0x59, 0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x00,
++		0x00, 0x0b, 0x73, 0x6e, 0x69, 0x74, 0x65, 0x73,
++		0x74, 0x2e, 0x63, 0x6f, 0x6d, 0x00, 0x0b, 0x00,
++		0x04, 0x03, 0x00, 0x01, 0x02, 0x00, 0x0a, 0x00,
++		0x34, 0x00, 0x32, 0x00, 0x0e, 0x00, 0x0d, 0x00,
++		0x19, 0x00, 0x0b, 0x00, 0x0c, 0x00, 0x18, 0x00,
++		0x09, 0x00, 0x0a, 0x00, 0x16, 0x00, 0x17, 0x00,
++		0x08, 0x00, 0x06, 0x00, 0x07, 0x00, 0x14, 0x00,
++		0x15, 0x00, 0x04, 0x00, 0x05, 0x00, 0x12, 0x00,
++		0x13, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00,
++		0x0f, 0x00, 0x10, 0x00, 0x11, 0x00, 0x0f, 0x00,
++		0x01, 0x01,
+ 	},
+ 	{
+ 		0x16, 0x03, 0x01, 0x00, 0x2a, 0x02, 0x00, 0x00,
+@@ -1131,45 +1160,323 @@ var selectCertificateBySNIScript = [][]byte{
+ 	},
+ 	{
+ 		0x16, 0x03, 0x01, 0x00, 0x86, 0x10, 0x00, 0x00,
+-		0x82, 0x00, 0x80, 0x70, 0x1d, 0x34, 0x75, 0xa2,
+-		0xe7, 0xe3, 0x2f, 0x3d, 0xc1, 0x1d, 0xca, 0x0b,
+-		0xe3, 0x64, 0xb9, 0x1a, 0x00, 0x69, 0xc4, 0x14,
+-		0x05, 0x07, 0x7e, 0xc3, 0x51, 0x43, 0x52, 0x66,
+-		0xe3, 0xbd, 0xff, 0x1b, 0x1a, 0x6a, 0x84, 0xf2,
+-		0x07, 0x24, 0xd7, 0x12, 0xa8, 0x58, 0xcf, 0x8a,
+-		0x50, 0x30, 0xe8, 0xc8, 0xb2, 0xf9, 0x58, 0x1c,
+-		0x56, 0x53, 0x76, 0x21, 0xe0, 0x03, 0x7f, 0x77,
+-		0xa7, 0xf1, 0xad, 0x67, 0xd4, 0xe2, 0x8f, 0xa0,
+-		0x58, 0x6c, 0xe0, 0x28, 0x59, 0xf3, 0xd1, 0x53,
+-		0x2b, 0x21, 0xbd, 0xa3, 0x84, 0x31, 0x73, 0xbf,
+-		0x84, 0x0f, 0x83, 0xf4, 0xc4, 0xd0, 0xe5, 0x3c,
+-		0x2d, 0x3e, 0xf2, 0x8a, 0x1e, 0xe7, 0xe9, 0x1f,
+-		0x12, 0x13, 0xad, 0x29, 0xd6, 0x0c, 0xc7, 0xc6,
+-		0x05, 0x53, 0x7d, 0x5e, 0xc6, 0x92, 0x72, 0xba,
+-		0xd2, 0x93, 0x8f, 0x53, 0x84, 0x87, 0x44, 0x05,
+-		0x9f, 0x5d, 0x66, 0x14, 0x03, 0x01, 0x00, 0x01,
+-		0x01, 0x16, 0x03, 0x01, 0x00, 0x24, 0xfc, 0x71,
+-		0xaa, 0xa8, 0x37, 0xa8, 0xbd, 0x63, 0xb7, 0xbc,
+-		0x95, 0xef, 0x0c, 0xcf, 0x39, 0x31, 0x93, 0xe6,
+-		0x86, 0xbd, 0x3f, 0x56, 0x9d, 0xf0, 0xb2, 0xb5,
+-		0xd1, 0xa7, 0xc6, 0x45, 0x89, 0x18, 0xfb, 0xa0,
+-		0x7f, 0xc1,
++		0x82, 0x00, 0x80, 0x45, 0x6d, 0x68, 0x61, 0xb9,
++		0x1a, 0xe5, 0xeb, 0x67, 0x22, 0x3b, 0x87, 0x19,
++		0x52, 0x86, 0x31, 0x91, 0xee, 0xcd, 0x17, 0x75,
++		0xc6, 0x44, 0xaf, 0x23, 0xef, 0xd9, 0xfa, 0xd2,
++		0x0b, 0xa2, 0xbb, 0xbf, 0x8b, 0x4b, 0x34, 0x50,
++		0xf6, 0x2e, 0x05, 0x09, 0x7e, 0xbf, 0xb3, 0xa6,
++		0x10, 0xe3, 0xc3, 0x49, 0x55, 0xa8, 0xdf, 0x6c,
++		0xaa, 0xab, 0x11, 0x4c, 0x80, 0x0a, 0x45, 0xf8,
++		0x37, 0xbb, 0xd3, 0x18, 0x4e, 0xec, 0x51, 0xbf,
++		0x1a, 0xf6, 0x11, 0x1b, 0xcf, 0x2c, 0xaf, 0x5f,
++		0x0b, 0x52, 0x4e, 0x92, 0x0c, 0x7a, 0xb2, 0x5d,
++		0xe2, 0x1f, 0x83, 0xbe, 0xf5, 0xbf, 0x05, 0xbf,
++		0x99, 0xd6, 0x9c, 0x86, 0x47, 0x5e, 0xb4, 0xff,
++		0xe7, 0xac, 0xad, 0x1e, 0x3c, 0xaa, 0x91, 0x39,
++		0xca, 0xad, 0xc5, 0x54, 0x64, 0x7e, 0xc2, 0x8a,
++		0x48, 0xee, 0xb6, 0x4e, 0xf9, 0x33, 0x82, 0x52,
++		0xe8, 0xed, 0x48, 0x14, 0x03, 0x01, 0x00, 0x01,
++		0x01, 0x16, 0x03, 0x01, 0x00, 0x24, 0xc1, 0x2f,
++		0x34, 0x03, 0x2a, 0xf2, 0xfd, 0x83, 0x69, 0x23,
++		0x8c, 0x9e, 0x66, 0x3b, 0xbb, 0xd1, 0xab, 0xbb,
++		0x51, 0x89, 0x27, 0x88, 0x0f, 0x08, 0x3e, 0x00,
++		0xdc, 0xc7, 0x47, 0x82, 0x13, 0x34, 0xec, 0xca,
++		0x68, 0x6a,
++	},
++	{
++		0x14, 0x03, 0x01, 0x00, 0x01, 0x01, 0x16, 0x03,
++		0x01, 0x00, 0x24, 0xda, 0x61, 0x76, 0x9f, 0x7a,
++		0x8a, 0xd0, 0x5f, 0x9b, 0x3d, 0xa7, 0xd5, 0xdd,
++		0x95, 0x4b, 0xd4, 0x64, 0x2d, 0x2d, 0x6a, 0x98,
++		0x9e, 0xfe, 0x77, 0x76, 0xe3, 0x02, 0x05, 0x0c,
++		0xb2, 0xa6, 0x15, 0x82, 0x28, 0x25, 0xc5, 0x17,
++		0x03, 0x01, 0x00, 0x21, 0x4e, 0x66, 0x2d, 0x50,
++		0x00, 0xa2, 0x44, 0x4d, 0xee, 0x5f, 0x81, 0x67,
++		0x21, 0x5d, 0x94, 0xc0, 0xfb, 0xdc, 0xbd, 0xf6,
++		0xa8, 0x32, 0x8e, 0x2c, 0x22, 0x58, 0x37, 0xb6,
++		0xa3, 0x1e, 0xf8, 0xdd, 0x83, 0x15, 0x03, 0x01,
++		0x00, 0x16, 0x68, 0x3b, 0x3a, 0xd0, 0x1e, 0xc4,
++		0x5e, 0x97, 0x6a, 0x47, 0x38, 0xfe, 0x17, 0x8e,
++		0xc0, 0xb6, 0x4a, 0x94, 0x00, 0xb5, 0x91, 0xbf,
++	},
++}
++
++var issueSessionTicketTest = [][]byte{
++	{
++		0x16, 0x03, 0x01, 0x00, 0xdd, 0x01, 0x00, 0x00,
++		0xd9, 0x03, 0x02, 0x50, 0x5a, 0x32, 0xb6, 0x36,
++		0x0e, 0x94, 0x63, 0x57, 0x93, 0xd7, 0x1e, 0xb2,
++		0xa7, 0xd3, 0x20, 0x24, 0x30, 0x3f, 0x46, 0xf9,
++		0xfe, 0x22, 0x02, 0xa1, 0xff, 0x57, 0xf8, 0x8f,
++		0x95, 0x4c, 0xdd, 0x00, 0x00, 0x66, 0xc0, 0x14,
++		0xc0, 0x0a, 0xc0, 0x22, 0xc0, 0x21, 0x00, 0x39,
++		0x00, 0x38, 0x00, 0x88, 0x00, 0x87, 0xc0, 0x0f,
++		0xc0, 0x05, 0x00, 0x35, 0x00, 0x84, 0xc0, 0x12,
++		0xc0, 0x08, 0xc0, 0x1c, 0xc0, 0x1b, 0x00, 0x16,
++		0x00, 0x13, 0xc0, 0x0d, 0xc0, 0x03, 0x00, 0x0a,
++		0xc0, 0x13, 0xc0, 0x09, 0xc0, 0x1f, 0xc0, 0x1e,
++		0x00, 0x33, 0x00, 0x32, 0x00, 0x9a, 0x00, 0x99,
++		0x00, 0x45, 0x00, 0x44, 0xc0, 0x0e, 0xc0, 0x04,
++		0x00, 0x2f, 0x00, 0x96, 0x00, 0x41, 0xc0, 0x11,
++		0xc0, 0x07, 0xc0, 0x0c, 0xc0, 0x02, 0x00, 0x05,
++		0x00, 0x04, 0x00, 0x15, 0x00, 0x12, 0x00, 0x09,
++		0x00, 0x14, 0x00, 0x11, 0x00, 0x08, 0x00, 0x06,
++		0x00, 0x03, 0x00, 0xff, 0x02, 0x01, 0x00, 0x00,
++		0x49, 0x00, 0x0b, 0x00, 0x04, 0x03, 0x00, 0x01,
++		0x02, 0x00, 0x0a, 0x00, 0x34, 0x00, 0x32, 0x00,
++		0x0e, 0x00, 0x0d, 0x00, 0x19, 0x00, 0x0b, 0x00,
++		0x0c, 0x00, 0x18, 0x00, 0x09, 0x00, 0x0a, 0x00,
++		0x16, 0x00, 0x17, 0x00, 0x08, 0x00, 0x06, 0x00,
++		0x07, 0x00, 0x14, 0x00, 0x15, 0x00, 0x04, 0x00,
++		0x05, 0x00, 0x12, 0x00, 0x13, 0x00, 0x01, 0x00,
++		0x02, 0x00, 0x03, 0x00, 0x0f, 0x00, 0x10, 0x00,
++		0x11, 0x00, 0x23, 0x00, 0x00, 0x00, 0x0f, 0x00,
++		0x01, 0x01,
++	},
++	{
++		0x16, 0x03, 0x01, 0x00, 0x30, 0x02, 0x00, 0x00,
++		0x2c, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00,
++		0x04, 0x00, 0x23, 0x00, 0x00, 0x16, 0x03, 0x01,
++		0x02, 0xbe, 0x0b, 0x00, 0x02, 0xba, 0x00, 0x02,
++		0xb7, 0x00, 0x02, 0xb4, 0x30, 0x82, 0x02, 0xb0,
++		0x30, 0x82, 0x02, 0x19, 0xa0, 0x03, 0x02, 0x01,
++		0x02, 0x02, 0x09, 0x00, 0x85, 0xb0, 0xbb, 0xa4,
++		0x8a, 0x7f, 0xb8, 0xca, 0x30, 0x0d, 0x06, 0x09,
++		0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
++		0x05, 0x05, 0x00, 0x30, 0x45, 0x31, 0x0b, 0x30,
++		0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02,
++		0x41, 0x55, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03,
++		0x55, 0x04, 0x08, 0x13, 0x0a, 0x53, 0x6f, 0x6d,
++		0x65, 0x2d, 0x53, 0x74, 0x61, 0x74, 0x65, 0x31,
++		0x21, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x04, 0x0a,
++		0x13, 0x18, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e,
++		0x65, 0x74, 0x20, 0x57, 0x69, 0x64, 0x67, 0x69,
++		0x74, 0x73, 0x20, 0x50, 0x74, 0x79, 0x20, 0x4c,
++		0x74, 0x64, 0x30, 0x1e, 0x17, 0x0d, 0x31, 0x30,
++		0x30, 0x34, 0x32, 0x34, 0x30, 0x39, 0x30, 0x39,
++		0x33, 0x38, 0x5a, 0x17, 0x0d, 0x31, 0x31, 0x30,
++		0x34, 0x32, 0x34, 0x30, 0x39, 0x30, 0x39, 0x33,
++		0x38, 0x5a, 0x30, 0x45, 0x31, 0x0b, 0x30, 0x09,
++		0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x41,
++		0x55, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03, 0x55,
++		0x04, 0x08, 0x13, 0x0a, 0x53, 0x6f, 0x6d, 0x65,
++		0x2d, 0x53, 0x74, 0x61, 0x74, 0x65, 0x31, 0x21,
++		0x30, 0x1f, 0x06, 0x03, 0x55, 0x04, 0x0a, 0x13,
++		0x18, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x65,
++		0x74, 0x20, 0x57, 0x69, 0x64, 0x67, 0x69, 0x74,
++		0x73, 0x20, 0x50, 0x74, 0x79, 0x20, 0x4c, 0x74,
++		0x64, 0x30, 0x81, 0x9f, 0x30, 0x0d, 0x06, 0x09,
++		0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
++		0x01, 0x05, 0x00, 0x03, 0x81, 0x8d, 0x00, 0x30,
++		0x81, 0x89, 0x02, 0x81, 0x81, 0x00, 0xbb, 0x79,
++		0xd6, 0xf5, 0x17, 0xb5, 0xe5, 0xbf, 0x46, 0x10,
++		0xd0, 0xdc, 0x69, 0xbe, 0xe6, 0x2b, 0x07, 0x43,
++		0x5a, 0xd0, 0x03, 0x2d, 0x8a, 0x7a, 0x43, 0x85,
++		0xb7, 0x14, 0x52, 0xe7, 0xa5, 0x65, 0x4c, 0x2c,
++		0x78, 0xb8, 0x23, 0x8c, 0xb5, 0xb4, 0x82, 0xe5,
++		0xde, 0x1f, 0x95, 0x3b, 0x7e, 0x62, 0xa5, 0x2c,
++		0xa5, 0x33, 0xd6, 0xfe, 0x12, 0x5c, 0x7a, 0x56,
++		0xfc, 0xf5, 0x06, 0xbf, 0xfa, 0x58, 0x7b, 0x26,
++		0x3f, 0xb5, 0xcd, 0x04, 0xd3, 0xd0, 0xc9, 0x21,
++		0x96, 0x4a, 0xc7, 0xf4, 0x54, 0x9f, 0x5a, 0xbf,
++		0xef, 0x42, 0x71, 0x00, 0xfe, 0x18, 0x99, 0x07,
++		0x7f, 0x7e, 0x88, 0x7d, 0x7d, 0xf1, 0x04, 0x39,
++		0xc4, 0xa2, 0x2e, 0xdb, 0x51, 0xc9, 0x7c, 0xe3,
++		0xc0, 0x4c, 0x3b, 0x32, 0x66, 0x01, 0xcf, 0xaf,
++		0xb1, 0x1d, 0xb8, 0x71, 0x9a, 0x1d, 0xdb, 0xdb,
++		0x89, 0x6b, 0xae, 0xda, 0x2d, 0x79, 0x02, 0x03,
++		0x01, 0x00, 0x01, 0xa3, 0x81, 0xa7, 0x30, 0x81,
++		0xa4, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
++		0x04, 0x16, 0x04, 0x14, 0xb1, 0xad, 0xe2, 0x85,
++		0x5a, 0xcf, 0xcb, 0x28, 0xdb, 0x69, 0xce, 0x23,
++		0x69, 0xde, 0xd3, 0x26, 0x8e, 0x18, 0x88, 0x39,
++		0x30, 0x75, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04,
++		0x6e, 0x30, 0x6c, 0x80, 0x14, 0xb1, 0xad, 0xe2,
++		0x85, 0x5a, 0xcf, 0xcb, 0x28, 0xdb, 0x69, 0xce,
++		0x23, 0x69, 0xde, 0xd3, 0x26, 0x8e, 0x18, 0x88,
++		0x39, 0xa1, 0x49, 0xa4, 0x47, 0x30, 0x45, 0x31,
++		0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
++		0x13, 0x02, 0x41, 0x55, 0x31, 0x13, 0x30, 0x11,
++		0x06, 0x03, 0x55, 0x04, 0x08, 0x13, 0x0a, 0x53,
++		0x6f, 0x6d, 0x65, 0x2d, 0x53, 0x74, 0x61, 0x74,
++		0x65, 0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55,
++		0x04, 0x0a, 0x13, 0x18, 0x49, 0x6e, 0x74, 0x65,
++		0x72, 0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64,
++		0x67, 0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79,
++		0x20, 0x4c, 0x74, 0x64, 0x82, 0x09, 0x00, 0x85,
++		0xb0, 0xbb, 0xa4, 0x8a, 0x7f, 0xb8, 0xca, 0x30,
++		0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04, 0x05,
++		0x30, 0x03, 0x01, 0x01, 0xff, 0x30, 0x0d, 0x06,
++		0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
++		0x01, 0x05, 0x05, 0x00, 0x03, 0x81, 0x81, 0x00,
++		0x08, 0x6c, 0x45, 0x24, 0xc7, 0x6b, 0xb1, 0x59,
++		0xab, 0x0c, 0x52, 0xcc, 0xf2, 0xb0, 0x14, 0xd7,
++		0x87, 0x9d, 0x7a, 0x64, 0x75, 0xb5, 0x5a, 0x95,
++		0x66, 0xe4, 0xc5, 0x2b, 0x8e, 0xae, 0x12, 0x66,
++		0x1f, 0xeb, 0x4f, 0x38, 0xb3, 0x6e, 0x60, 0xd3,
++		0x92, 0xfd, 0xf7, 0x41, 0x08, 0xb5, 0x25, 0x13,
++		0xb1, 0x18, 0x7a, 0x24, 0xfb, 0x30, 0x1d, 0xba,
++		0xed, 0x98, 0xb9, 0x17, 0xec, 0xe7, 0xd7, 0x31,
++		0x59, 0xdb, 0x95, 0xd3, 0x1d, 0x78, 0xea, 0x50,
++		0x56, 0x5c, 0xd5, 0x82, 0x5a, 0x2d, 0x5a, 0x5f,
++		0x33, 0xc4, 0xb6, 0xd8, 0xc9, 0x75, 0x90, 0x96,
++		0x8c, 0x0f, 0x52, 0x98, 0xb5, 0xcd, 0x98, 0x1f,
++		0x89, 0x20, 0x5f, 0xf2, 0xa0, 0x1c, 0xa3, 0x1b,
++		0x96, 0x94, 0xdd, 0xa9, 0xfd, 0x57, 0xe9, 0x70,
++		0xe8, 0x26, 0x6d, 0x71, 0x99, 0x9b, 0x26, 0x6e,
++		0x38, 0x50, 0x29, 0x6c, 0x90, 0xa7, 0xbd, 0xd9,
++		0x16, 0x03, 0x01, 0x00, 0x04, 0x0e, 0x00, 0x00,
++		0x00,
++	},
++	{
++		0x16, 0x03, 0x01, 0x00, 0x86, 0x10, 0x00, 0x00,
++		0x82, 0x00, 0x80, 0x92, 0x3f, 0xcc, 0x4d, 0x2f,
++		0xb2, 0x12, 0xc4, 0xf5, 0x72, 0xf3, 0x5a, 0x3c,
++		0x5a, 0xbb, 0x99, 0x89, 0xe6, 0x21, 0x0f, 0xdf,
++		0xf3, 0xa3, 0xd0, 0xce, 0x76, 0x55, 0xfd, 0xec,
++		0x38, 0x80, 0xf0, 0x46, 0x0b, 0xfa, 0x61, 0x7c,
++		0xc2, 0xb5, 0xe2, 0x89, 0x7b, 0xeb, 0xcf, 0x3e,
++		0x97, 0xab, 0x72, 0xf6, 0xfd, 0xcf, 0x10, 0x82,
++		0x3a, 0x05, 0x55, 0x7c, 0x2d, 0x7f, 0x44, 0x38,
++		0x9d, 0xeb, 0xa4, 0x7e, 0x53, 0x35, 0xda, 0xe0,
++		0x7c, 0x24, 0x66, 0x42, 0x5d, 0x85, 0xcf, 0xa6,
++		0x98, 0x81, 0xec, 0x42, 0x94, 0x4e, 0x25, 0xb1,
++		0x64, 0xac, 0x89, 0x98, 0x74, 0xd2, 0xeb, 0x51,
++		0x5a, 0xb3, 0xbd, 0x14, 0xf6, 0xc6, 0xec, 0x0b,
++		0xdd, 0x8b, 0x89, 0xdc, 0xde, 0xf3, 0xd6, 0x62,
++		0xee, 0xe3, 0xcf, 0xf5, 0x39, 0x23, 0x46, 0x4f,
++		0xb8, 0xef, 0x14, 0x39, 0x06, 0x36, 0xad, 0x84,
++		0x42, 0xb9, 0xd7, 0x14, 0x03, 0x01, 0x00, 0x01,
++		0x01, 0x16, 0x03, 0x01, 0x00, 0x24, 0xa1, 0xf0,
++		0x68, 0xf5, 0x29, 0x7e, 0x78, 0xaa, 0xbd, 0x59,
++		0xdc, 0x32, 0xab, 0x8e, 0x25, 0x54, 0x64, 0x9e,
++		0x2b, 0x08, 0xf9, 0xb8, 0xe3, 0x89, 0x09, 0xa4,
++		0xfd, 0x05, 0x78, 0x59, 0xcb, 0x33, 0xfc, 0x66,
++		0xb5, 0x73,
++	},
++	{
++		0x16, 0x03, 0x01, 0x00, 0x72, 0x04, 0x00, 0x00,
++		0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65,
++		0xe8, 0x4b, 0xd1, 0xef, 0xba, 0xfc, 0x00, 0xd4,
++		0x2f, 0xf5, 0x6f, 0xba, 0xdc, 0xb7, 0xd7, 0x87,
++		0x59, 0x58, 0x05, 0x06, 0x36, 0x8f, 0x47, 0xc7,
++		0x9e, 0x4c, 0xf8, 0xb5, 0xd7, 0x55, 0x84, 0x64,
++		0x0b, 0x4c, 0x0b, 0xad, 0x8d, 0x9b, 0x79, 0x4d,
++		0xd7, 0x61, 0xf7, 0x2b, 0x89, 0x46, 0x2b, 0x52,
++		0x1a, 0x3f, 0x51, 0x58, 0xce, 0x59, 0x23, 0xef,
++		0x60, 0x55, 0x07, 0xc0, 0x46, 0x97, 0xad, 0x0a,
++		0xe3, 0x55, 0x10, 0x06, 0xff, 0x57, 0x0c, 0xb1,
++		0x49, 0xac, 0x80, 0xc6, 0xc3, 0x95, 0x5f, 0x12,
++		0xe2, 0xe5, 0xaa, 0x9f, 0x78, 0xc2, 0x20, 0x14,
++		0x03, 0x01, 0x00, 0x01, 0x01, 0x16, 0x03, 0x01,
++		0x00, 0x24, 0x47, 0x51, 0xf1, 0x13, 0xc8, 0xa6,
++		0xd2, 0x2c, 0xad, 0x35, 0xff, 0x53, 0xe2, 0x72,
++		0x01, 0xcb, 0x33, 0xcd, 0xf4, 0xa0, 0x9c, 0x03,
++		0x47, 0xfe, 0xcd, 0xc1, 0x46, 0x8d, 0x41, 0x5e,
++		0x54, 0xf7, 0xc3, 0x85, 0x2b, 0x2f, 0x17, 0x03,
++		0x01, 0x00, 0x21, 0xf4, 0xbf, 0x94, 0x3e, 0x93,
++		0x0b, 0x1b, 0x75, 0x3a, 0xd9, 0xd0, 0x57, 0x75,
++		0xf3, 0xa7, 0x82, 0xc9, 0x6b, 0x9e, 0x43, 0x98,
++		0x44, 0x9e, 0x9f, 0xad, 0x03, 0xa8, 0xb9, 0xa3,
++		0x0a, 0xd1, 0xc4, 0xb4, 0x15, 0x03, 0x01, 0x00,
++		0x16, 0xee, 0x57, 0xbd, 0xd3, 0xb7, 0x20, 0x29,
++		0xd1, 0x24, 0xe2, 0xdc, 0x24, 0xc3, 0x73, 0x86,
++		0x81, 0x8e, 0x40, 0xc3, 0x6e, 0x99, 0x9e,
++	},
++}
++
++var serverResumeTest = [][]byte{
++	{
++		0x16, 0x03, 0x01, 0x01, 0x65, 0x01, 0x00, 0x01,
++		0x61, 0x03, 0x01, 0x50, 0x5a, 0x32, 0xe2, 0xde,
++		0x19, 0x5c, 0xb6, 0x51, 0x87, 0xa4, 0x30, 0x2e,
++		0x95, 0x26, 0xd6, 0xed, 0xbf, 0xbf, 0x24, 0xbb,
++		0xd1, 0x1a, 0x29, 0x9f, 0x37, 0xfd, 0xfb, 0xae,
++		0xc2, 0xba, 0x2b, 0x20, 0xb5, 0x7a, 0x00, 0x96,
++		0x92, 0x51, 0xfc, 0x41, 0x16, 0x29, 0xc0, 0x54,
++		0x5e, 0xa7, 0xa9, 0x1f, 0xf8, 0xbf, 0x79, 0xfa,
++		0x49, 0x5a, 0x15, 0x28, 0x72, 0x9a, 0x59, 0xf9,
++		0x9b, 0xc4, 0x3a, 0xa8, 0x00, 0x66, 0xc0, 0x14,
++		0xc0, 0x0a, 0xc0, 0x22, 0xc0, 0x21, 0x00, 0x39,
++		0x00, 0x38, 0x00, 0x88, 0x00, 0x87, 0xc0, 0x0f,
++		0xc0, 0x05, 0x00, 0x35, 0x00, 0x84, 0xc0, 0x12,
++		0xc0, 0x08, 0xc0, 0x1c, 0xc0, 0x1b, 0x00, 0x16,
++		0x00, 0x13, 0xc0, 0x0d, 0xc0, 0x03, 0x00, 0x0a,
++		0xc0, 0x13, 0xc0, 0x09, 0xc0, 0x1f, 0xc0, 0x1e,
++		0x00, 0x33, 0x00, 0x32, 0x00, 0x9a, 0x00, 0x99,
++		0x00, 0x45, 0x00, 0x44, 0xc0, 0x0e, 0xc0, 0x04,
++		0x00, 0x2f, 0x00, 0x96, 0x00, 0x41, 0xc0, 0x11,
++		0xc0, 0x07, 0xc0, 0x0c, 0xc0, 0x02, 0x00, 0x05,
++		0x00, 0x04, 0x00, 0x15, 0x00, 0x12, 0x00, 0x09,
++		0x00, 0x14, 0x00, 0x11, 0x00, 0x08, 0x00, 0x06,
++		0x00, 0x03, 0x00, 0xff, 0x02, 0x01, 0x00, 0x00,
++		0xb1, 0x00, 0x0b, 0x00, 0x04, 0x03, 0x00, 0x01,
++		0x02, 0x00, 0x0a, 0x00, 0x34, 0x00, 0x32, 0x00,
++		0x0e, 0x00, 0x0d, 0x00, 0x19, 0x00, 0x0b, 0x00,
++		0x0c, 0x00, 0x18, 0x00, 0x09, 0x00, 0x0a, 0x00,
++		0x16, 0x00, 0x17, 0x00, 0x08, 0x00, 0x06, 0x00,
++		0x07, 0x00, 0x14, 0x00, 0x15, 0x00, 0x04, 0x00,
++		0x05, 0x00, 0x12, 0x00, 0x13, 0x00, 0x01, 0x00,
++		0x02, 0x00, 0x03, 0x00, 0x0f, 0x00, 0x10, 0x00,
++		0x11, 0x00, 0x23, 0x00, 0x68, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0xe8, 0x4b,
++		0xd1, 0xef, 0xba, 0xfc, 0x00, 0xd4, 0x2f, 0xf5,
++		0x6f, 0xba, 0xdc, 0xb7, 0xd7, 0x87, 0x59, 0x58,
++		0x05, 0x06, 0x36, 0x8f, 0x47, 0xc7, 0x9e, 0x4c,
++		0xf8, 0xb5, 0xd7, 0x55, 0x84, 0x64, 0x0b, 0x4c,
++		0x0b, 0xad, 0x8d, 0x9b, 0x79, 0x4d, 0xd7, 0x61,
++		0xf7, 0x2b, 0x89, 0x46, 0x2b, 0x52, 0x1a, 0x3f,
++		0x51, 0x58, 0xce, 0x59, 0x23, 0xef, 0x60, 0x55,
++		0x07, 0xc0, 0x46, 0x97, 0xad, 0x0a, 0xe3, 0x55,
++		0x10, 0x06, 0xff, 0x57, 0x0c, 0xb1, 0x49, 0xac,
++		0x80, 0xc6, 0xc3, 0x95, 0x5f, 0x12, 0xe2, 0xe5,
++		0xaa, 0x9f, 0x78, 0xc2, 0x20, 0x00, 0x0f, 0x00,
++		0x01, 0x01,
++	},
++	{
++		0x16, 0x03, 0x01, 0x00, 0x4a, 0x02, 0x00, 0x00,
++		0x46, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x20, 0xb5, 0x7a, 0x00, 0x96,
++		0x92, 0x51, 0xfc, 0x41, 0x16, 0x29, 0xc0, 0x54,
++		0x5e, 0xa7, 0xa9, 0x1f, 0xf8, 0xbf, 0x79, 0xfa,
++		0x49, 0x5a, 0x15, 0x28, 0x72, 0x9a, 0x59, 0xf9,
++		0x9b, 0xc4, 0x3a, 0xa8, 0x00, 0x05, 0x00, 0x14,
++		0x03, 0x01, 0x00, 0x01, 0x01, 0x16, 0x03, 0x01,
++		0x00, 0x24, 0x2c, 0x86, 0xdd, 0x85, 0x21, 0xa7,
++		0xda, 0x25, 0xf5, 0x55, 0x62, 0x2d, 0x82, 0x6b,
++		0x9d, 0x67, 0x22, 0x28, 0xf4, 0x55, 0x33, 0xd0,
++		0x77, 0xc0, 0x9e, 0xb7, 0xf4, 0x96, 0x07, 0x8c,
++		0xf5, 0xea, 0x5b, 0x50, 0xa4, 0xb7,
+ 	},
+ 	{
+ 		0x14, 0x03, 0x01, 0x00, 0x01, 0x01, 0x16, 0x03,
+-		0x01, 0x00, 0x24, 0xb8, 0x6d, 0x9a, 0x90, 0x3c,
+-		0x45, 0xe0, 0xff, 0x63, 0xba, 0xab, 0x3d, 0x7a,
+-		0xa6, 0x49, 0x5a, 0x13, 0xdc, 0x0e, 0xa3, 0xba,
+-		0x7f, 0x04, 0x19, 0x45, 0xfd, 0xfb, 0xbd, 0x00,
+-		0xa3, 0xa7, 0x78, 0x81, 0x38, 0x9f, 0x10, 0x17,
+-		0x03, 0x01, 0x00, 0x21, 0x43, 0xc3, 0x91, 0xb7,
+-		0xbf, 0x50, 0x0b, 0x04, 0xb4, 0x5d, 0xc6, 0x20,
+-		0x64, 0xb8, 0x01, 0x09, 0x25, 0x2c, 0x03, 0x30,
+-		0xc0, 0x77, 0xc9, 0x5e, 0xe6, 0xe0, 0x99, 0xdc,
+-		0xcd, 0x75, 0x9d, 0x51, 0x82, 0x15, 0x03, 0x01,
+-		0x00, 0x16, 0x2d, 0x7a, 0x89, 0x7b, 0x36, 0x85,
+-		0x2a, 0x93, 0xcb, 0x83, 0xa7, 0x2f, 0x9e, 0x91,
+-		0xfc, 0xad, 0x57, 0xca, 0xf5, 0xbc, 0x13, 0x2f,
++		0x01, 0x00, 0x24, 0x15, 0x14, 0x9c, 0x21, 0xdd,
++		0x47, 0x61, 0x52, 0xf9, 0x22, 0x15, 0x55, 0x3c,
++		0xbd, 0xd7, 0xff, 0xf9, 0xbd, 0x84, 0xec, 0x97,
++		0x2d, 0x4e, 0xa9, 0x6a, 0xb9, 0x9b, 0x96, 0xc6,
++		0x9e, 0x5c, 0x77, 0xa8, 0x5d, 0x7a, 0x08,
++	},
++	{
++		0x17, 0x03, 0x01, 0x00, 0x21, 0x04, 0xab, 0x0f,
++		0x7c, 0x54, 0x20, 0xab, 0x34, 0xa3, 0x73, 0x92,
++		0xc5, 0xaa, 0xdd, 0x5b, 0xf5, 0x0c, 0xe4, 0x4f,
++		0xf1, 0x93, 0x07, 0xe5, 0xe8, 0x72, 0xc2, 0x03,
++		0x60, 0xfa, 0x64, 0x01, 0x00, 0x25, 0x15, 0x03,
++		0x01, 0x00, 0x16, 0xc7, 0xd9, 0xff, 0x67, 0xfc,
++		0x7a, 0xac, 0x8a, 0xe6, 0x23, 0xfe, 0x32, 0xbf,
++		0x84, 0xe1, 0xe2, 0xf5, 0x6a, 0xc8, 0xda, 0x30,
++		0x8f,
+ 	},
+ }
+ 
+diff --git a/src/pkg/crypto/tls/prf.go b/src/pkg/crypto/tls/prf.go
+index 637ef03e2d..df1eaad058 100644
+--- a/src/pkg/crypto/tls/prf.go
++++ b/src/pkg/crypto/tls/prf.go
+@@ -106,10 +106,9 @@ var keyExpansionLabel = []byte("key expansion")
+ var clientFinishedLabel = []byte("client finished")
+ var serverFinishedLabel = []byte("server finished")
+ 
+-// keysFromPreMasterSecret generates the connection keys from the pre master
+-// secret, given the lengths of the MAC key, cipher key and IV, as defined in
+-// RFC 2246, section 6.3.
+-func keysFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
++// masterFromPreMasterSecret generates the master secret from the pre-master
++// secret. See http://tools.ietf.org/html/rfc5246#section-8.1
++func masterFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte) []byte {
+ 	prf := pRF10
+ 	if version == versionSSL30 {
+ 		prf = pRF30
+@@ -118,9 +117,21 @@ func keysFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serv
+ 	var seed [tlsRandomLength * 2]byte
+ 	copy(seed[0:len(clientRandom)], clientRandom)
+ 	copy(seed[len(clientRandom):], serverRandom)
+-	masterSecret = make([]byte, masterSecretLength)
++	masterSecret := make([]byte, masterSecretLength)
+ 	prf(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
++	return masterSecret
++}
+ 
++// keysFromMasterSecret generates the connection keys from the master
++// secret, given the lengths of the MAC key, cipher key and IV, as defined in
++// RFC 2246, section 6.3.
++func keysFromMasterSecret(version uint16, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
++	prf := pRF10
++	if version == versionSSL30 {
++		prf = pRF30
++	}
++
++	var seed [tlsRandomLength * 2]byte
+ 	copy(seed[0:len(clientRandom)], serverRandom)
+ 	copy(seed[len(serverRandom):], clientRandom)
+ 
+diff --git a/src/pkg/crypto/tls/prf_test.go b/src/pkg/crypto/tls/prf_test.go
+index a32392cef7..ce6e36de8a 100644
+--- a/src/pkg/crypto/tls/prf_test.go
++++ b/src/pkg/crypto/tls/prf_test.go
+@@ -48,18 +48,23 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 		in, _ := hex.DecodeString(test.preMasterSecret)
+ 		clientRandom, _ := hex.DecodeString(test.clientRandom)
+ 		serverRandom, _ := hex.DecodeString(test.serverRandom)
+-		master, clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromPreMasterSecret(test.version, in, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
+-		masterString := hex.EncodeToString(master)
++
++		masterSecret := masterFromPreMasterSecret(test.version, in, clientRandom, serverRandom)
++		if s := hex.EncodeToString(masterSecret); s != test.masterSecret {
++			t.Errorf("#%d: bad master secret %s, want %s", s, test.masterSecret)
++			continue
++		}
++
++		clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromMasterSecret(test.version, masterSecret, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
+ 		clientMACString := hex.EncodeToString(clientMAC)
+ 		serverMACString := hex.EncodeToString(serverMAC)
+ 		clientKeyString := hex.EncodeToString(clientKey)
+ 		serverKeyString := hex.EncodeToString(serverKey)
+-		if masterString != test.masterSecret ||
+-			clientMACString != test.clientMAC ||
++		if clientMACString != test.clientMAC ||
+ 			serverMACString != test.serverMAC ||
+ 			clientKeyString != test.clientKey ||
+ 			serverKeyString != test.serverKey {
+-			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s, %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverKeyString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
++			t.Errorf("#%d: got: (%s, %s, %s, %s) want: (%s, %s, %s, %s)", i, clientMACString, serverMACString, clientKeyString, serverKeyString, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/crypto/tls/ticket.go b/src/pkg/crypto/tls/ticket.go
+new file mode 100644
+index 0000000000..4cfc5a53ff
+--- /dev/null
++++ b/src/pkg/crypto/tls/ticket.go
+@@ -0,0 +1,182 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"bytes"
++	"crypto/aes"
++	"crypto/cipher"
++	"crypto/hmac"
++	"crypto/sha256"
++	"crypto/subtle"
++	"errors"
++	"io"
++)
++
++// sessionState contains the information that is serialized into a session
++// ticket in order to later resume a connection.
++type sessionState struct {
++	vers         uint16
++	cipherSuite  uint16
++	masterSecret []byte
++	certificates [][]byte
++}
++
++func (s *sessionState) equal(i interface{}) bool {
++	s1, ok := i.(*sessionState)
++	if !ok {
++		return false
++	}
++
++	if s.vers != s1.vers ||
++		s.cipherSuite != s1.cipherSuite ||
++		!bytes.Equal(s.masterSecret, s1.masterSecret) {
++		return false
++	}
++
++	if len(s.certificates) != len(s1.certificates) {
++		return false
++	}
++
++	for i := range s.certificates {
++		if !bytes.Equal(s.certificates[i], s1.certificates[i]) {
++			return false
++		}
++	}
++
++	return true
++}
++
++func (s *sessionState) marshal() []byte {
++	length := 2 + 2 + 2 + len(s.masterSecret) + 2
++	for _, cert := range s.certificates {
++		length += 4 + len(cert)
++	}
++
++	ret := make([]byte, length)
++	x := ret
++	x[0] = byte(s.vers >> 8)
++	x[1] = byte(s.vers)
++	x[2] = byte(s.cipherSuite >> 8)
++	x[3] = byte(s.cipherSuite)
++	x[4] = byte(len(s.masterSecret) >> 8)
++	x[5] = byte(len(s.masterSecret))
++	x = x[6:]
++	copy(x, s.masterSecret)
++	x = x[len(s.masterSecret):]
++
++	x[0] = byte(len(s.certificates) >> 8)
++	x[1] = byte(len(s.certificates))
++	x = x[2:]
++
++	for _, cert := range s.certificates {
++		x[0] = byte(len(cert) >> 24)
++		x[1] = byte(len(cert) >> 16)
++		x[2] = byte(len(cert) >> 8)
++		x[3] = byte(len(cert))
++		copy(x[4:], cert)
++		x = x[4+len(cert):]
++	}
++
++	return ret
++}
++
++func (s *sessionState) unmarshal(data []byte) bool {
++	if len(data) < 8 {
++		return false
++	}
++
++	s.vers = uint16(data[0])<<8 | uint16(data[1])
++	s.cipherSuite = uint16(data[2])<<8 | uint16(data[3])
++	masterSecretLen := int(data[4])<<8 | int(data[5])
++	data = data[6:]
++	if len(data) < masterSecretLen {
++		return false
++	}
++
++	s.masterSecret = data[:masterSecretLen]
++	data = data[masterSecretLen:]
++
++	if len(data) < 2 {
++		return false
++	}
++
++	numCerts := int(data[0])<<8 | int(data[1])
++	data = data[2:]
++
++	s.certificates = make([][]byte, numCerts)
++	for i := range s.certificates {
++		if len(data) < 4 {
++			return false
++		}
++		certLen := int(data[0])<<24 | int(data[1])<<16 | int(data[2])<<8 | int(data[3])
++		data = data[4:]
++		if certLen < 0 {
++			return false
++		}
++		if len(data) < certLen {
++			return false
++		}
++		s.certificates[i] = data[:certLen]
++		data = data[certLen:]
++	}
++
++	if len(data) > 0 {
++		return false
++	}
++
++	return true
++}
++
++func (c *Conn) encryptTicket(state *sessionState) ([]byte, error) {
++	serialized := state.marshal()
++	encrypted := make([]byte, aes.BlockSize+len(serialized)+sha256.Size)
++	iv := encrypted[:aes.BlockSize]
++	macBytes := encrypted[len(encrypted)-sha256.Size:]
++
++	if _, err := io.ReadFull(c.config.rand(), iv); err != nil {
++		return nil, err
++	}
++	block, err := aes.NewCipher(c.config.SessionTicketKey[:16])
++	if err != nil {
++		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
++	}
++	cipher.NewCTR(block, iv).XORKeyStream(encrypted[aes.BlockSize:], serialized)
++
++	mac := hmac.New(sha256.New, c.config.SessionTicketKey[16:32])
++	mac.Write(encrypted[:len(encrypted)-sha256.Size])
++	mac.Sum(macBytes[:0])
++
++	return encrypted, nil
++}
++
++func (c *Conn) decryptTicket(encrypted []byte) (*sessionState, bool) {
++	if len(encrypted) < aes.BlockSize+sha256.Size {
++		return nil, false
++	}
++
++	iv := encrypted[:aes.BlockSize]
++	macBytes := encrypted[len(encrypted)-sha256.Size:]
++
++	mac := hmac.New(sha256.New, c.config.SessionTicketKey[16:32])
++	mac.Write(encrypted[:len(encrypted)-sha256.Size])
++	expected := mac.Sum(nil)
++
++	if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
++		return nil, false
++	}
++
++	block, err := aes.NewCipher(c.config.SessionTicketKey[:16])
++	if err != nil {
++		return nil, false
++	}
++	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
++	plaintext := ciphertext
++	cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
++
++	state := new(sessionState)
++	ok := state.unmarshal(plaintext)
++	return state, ok
++}

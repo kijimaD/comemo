@@ -30,7 +30,7 @@ Date:   Sat Oct 3 01:23:47 2020 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go1.16.html                        |  8 +++++
  src/cmd/compile/internal/gc/reflect.go |  3 +-
  src/internal/reflectlite/type.go       | 35 +++++++++++++++-------
@@ -43,3 +43,572 @@ Date:   Sat Oct 3 01:23:47 2020 +0700
  src/runtime/mfinal.go                  |  4 +--
  src/runtime/type.go                    | 26 ++++++++++++----
  11 files changed, 124 insertions(+), 64 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 720acc757a..509956fbf2 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -213,6 +213,14 @@ Do not send CLs removing the interior tags from such phrases.
+   with <code>"use of closed network connection"</code>.
+ </p>
+ 
++<h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
++
++<p><!-- CL 259237, golang.org/issue/22075 -->
++  For interface types and values, <a href="/pkg/reflect/#Value.Method">Method</a>,
++  <a href="/pkg/reflect/#Value.MethodByName">MethodByName</a>, and
++  <a href="/pkg/reflect/#Value.NumMethod">NumMethod</a> now
++  operate on the interface's exported method set, rather than its full method set.
++</p>
+ 
+ <h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 21429af782..229fcfeaee 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1275,8 +1275,9 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		}
+ 		ot = dgopkgpath(lsym, ot, tpkg)
+ 
++		xcount := sort.Search(n, func(i int) bool { return !types.IsExported(m[i].name.Name) })
+ 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+-		ot = duintptr(lsym, ot, uint64(n))
++		ot = duintptr(lsym, ot, uint64(xcount))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		dataAdd := imethodSize() * n
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 15ba30da36..37cf03594f 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -234,10 +234,13 @@ type imethod struct {
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	rtype
+-	pkgPath name      // import path
+-	methods []imethod // sorted by hash
++	pkgPath    name      // import path
++	expMethods []imethod // sorted by name, see runtime/type.go:interfacetype to see how it is encoded.
+ }
+ 
++func (t *interfaceType) methods() []imethod { return t.expMethods[:cap(t.expMethods)] }
++func (t *interfaceType) isEmpty() bool      { return cap(t.expMethods) == 0 }
++
+ // mapType represents a map type.
+ type mapType struct {
+ 	rtype
+@@ -695,7 +698,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
+ }
+ 
+ // NumMethod returns the number of interface methods in the type's method set.
+-func (t *interfaceType) NumMethod() int { return len(t.methods) }
++func (t *interfaceType) NumMethod() int { return len(t.expMethods) }
+ 
+ // TypeOf returns the reflection Type that represents the dynamic type of i.
+ // If i is a nil interface value, TypeOf returns nil.
+@@ -732,9 +735,10 @@ func implements(T, V *rtype) bool {
+ 		return false
+ 	}
+ 	t := (*interfaceType)(unsafe.Pointer(T))
+-	if len(t.methods) == 0 {
++	if t.isEmpty() {
+ 		return true
+ 	}
++	tmethods := t.methods()
+ 
+ 	// The same algorithm applies in both cases, but the
+ 	// method tables for an interface type and a concrete type
+@@ -751,10 +755,11 @@ func implements(T, V *rtype) bool {
+ 	if V.Kind() == Interface {
+ 		v := (*interfaceType)(unsafe.Pointer(V))
+ 		i := 0
+-		for j := 0; j < len(v.methods); j++ {
+-			tm := &t.methods[i]
++		vmethods := v.methods()
++		for j := 0; j < len(vmethods); j++ {
++			tm := &tmethods[i]
+ 			tmName := t.nameOff(tm.name)
+-			vm := &v.methods[j]
++			vm := &vmethods[j]
+ 			vmName := V.nameOff(vm.name)
+ 			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
+ 				if !tmName.isExported() {
+@@ -770,7 +775,7 @@ func implements(T, V *rtype) bool {
+ 						continue
+ 					}
+ 				}
+-				if i++; i >= len(t.methods) {
++				if i++; i >= len(tmethods) {
+ 					return true
+ 				}
+ 			}
+@@ -785,7 +790,7 @@ func implements(T, V *rtype) bool {
+ 	i := 0
+ 	vmethods := v.methods()
+ 	for j := 0; j < int(v.mcount); j++ {
+-		tm := &t.methods[i]
++		tm := &tmethods[i]
+ 		tmName := t.nameOff(tm.name)
+ 		vm := vmethods[j]
+ 		vmName := V.nameOff(vm.name)
+@@ -803,7 +808,7 @@ func implements(T, V *rtype) bool {
+ 					continue
+ 				}
+ 			}
+-			if i++; i >= len(t.methods) {
++			if i++; i >= len(tmethods) {
+ 				return true
+ 			}
+ 		}
+@@ -897,7 +902,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 	case Interface:
+ 		t := (*interfaceType)(unsafe.Pointer(T))
+ 		v := (*interfaceType)(unsafe.Pointer(V))
+-		if len(t.methods) == 0 && len(v.methods) == 0 {
++		if t.isEmpty() && v.isEmpty() {
+ 			return true
+ 		}
+ 		// Might have the same methods but still
+@@ -962,3 +967,11 @@ func toType(t *rtype) Type {
+ func ifaceIndir(t *rtype) bool {
+ 	return t.kind&kindDirectIface == 0
+ }
++
++func isEmptyIface(t *rtype) bool {
++	if t.Kind() != Interface {
++		return false
++	}
++	tt := (*interfaceType)(unsafe.Pointer(t))
++	return tt.isEmpty()
++}
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 0365eeeabf..fb0ec77b58 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -228,7 +228,7 @@ func (v Value) Elem() Value {
+ 	switch k {
+ 	case Interface:
+ 		var eface interface{}
+-		if v.typ.NumMethod() == 0 {
++		if isEmptyIface(v.typ) {
+ 			eface = *(*interface{})(v.ptr)
+ 		} else {
+ 			eface = (interface{})(*(*interface {
+@@ -433,7 +433,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 			return Value{dst, nil, flag(Interface)}
+ 		}
+ 		x := valueInterface(v)
+-		if dst.NumMethod() == 0 {
++		if isEmptyIface(dst) {
+ 			*(*interface{})(target) = x
+ 		} else {
+ 			ifaceE2I(dst, x, target)
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index a12712d254..be15362aae 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2995,6 +2995,14 @@ func TestUnexportedMethods(t *testing.T) {
+ 	if got := typ.NumMethod(); got != 0 {
+ 		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
+ 	}
++
++	var i unexpI
++	if got := TypeOf(&i).Elem().NumMethod(); got != 0 {
++		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
++	}
++	if got := ValueOf(&i).Elem().NumMethod(); got != 0 {
++		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
++	}
+ }
+ 
+ type InnerInt struct {
+@@ -3648,21 +3656,21 @@ func TestCallPanic(t *testing.T) {
+ 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
+ 	badCall(func() { call(v.Field(0).Method(0)) })          // .t0.W
+ 	badCall(func() { call(v.Field(0).Elem().Method(0)) })   // .t0.W
+-	badCall(func() { call(v.Field(0).Method(1)) })          // .t0.w
++	badMethod(func() { call(v.Field(0).Method(1)) })        // .t0.w
+ 	badMethod(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
+ 	ok(func() { call(v.Field(1).Method(0)) })               // .T1.Y
+ 	ok(func() { call(v.Field(1).Elem().Method(0)) })        // .T1.Y
+-	badCall(func() { call(v.Field(1).Method(1)) })          // .T1.y
++	badMethod(func() { call(v.Field(1).Method(1)) })        // .T1.y
+ 	badMethod(func() { call(v.Field(1).Elem().Method(2)) }) // .T1.y
+ 
+ 	ok(func() { call(v.Field(2).Method(0)) })               // .NamedT0.W
+ 	ok(func() { call(v.Field(2).Elem().Method(0)) })        // .NamedT0.W
+-	badCall(func() { call(v.Field(2).Method(1)) })          // .NamedT0.w
++	badMethod(func() { call(v.Field(2).Method(1)) })        // .NamedT0.w
+ 	badMethod(func() { call(v.Field(2).Elem().Method(2)) }) // .NamedT0.w
+ 
+ 	ok(func() { call(v.Field(3).Method(0)) })               // .NamedT1.Y
+ 	ok(func() { call(v.Field(3).Elem().Method(0)) })        // .NamedT1.Y
+-	badCall(func() { call(v.Field(3).Method(1)) })          // .NamedT1.y
++	badMethod(func() { call(v.Field(3).Method(1)) })        // .NamedT1.y
+ 	badMethod(func() { call(v.Field(3).Elem().Method(3)) }) // .NamedT1.y
+ 
+ 	ok(func() { call(v.Field(4).Field(0).Method(0)) })             // .NamedT2.T1.Y
+@@ -3672,7 +3680,7 @@ func TestCallPanic(t *testing.T) {
+ 
+ 	badCall(func() { call(v.Field(5).Method(0)) })          // .namedT0.W
+ 	badCall(func() { call(v.Field(5).Elem().Method(0)) })   // .namedT0.W
+-	badCall(func() { call(v.Field(5).Method(1)) })          // .namedT0.w
++	badMethod(func() { call(v.Field(5).Method(1)) })        // .namedT0.w
+ 	badMethod(func() { call(v.Field(5).Elem().Method(2)) }) // .namedT0.w
+ 
+ 	badCall(func() { call(v.Field(6).Method(0)) })        // .namedT1.Y
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index a3a616701b..0b34ca0c94 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -386,10 +386,14 @@ type imethod struct {
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	rtype
+-	pkgPath name      // import path
+-	methods []imethod // sorted by hash
++	pkgPath    name      // import path
++	expMethods []imethod // sorted by name, see runtime/type.go:interfacetype to see how it is encoded.
+ }
+ 
++// methods returns t's full method set, both exported and non-exported.
++func (t *interfaceType) methods() []imethod { return t.expMethods[:cap(t.expMethods)] }
++func (t *interfaceType) isEmpty() bool      { return cap(t.expMethods) == 0 }
++
+ // mapType represents a map type.
+ type mapType struct {
+ 	rtype
+@@ -1049,25 +1053,22 @@ func (d ChanDir) String() string {
+ 
+ // Method returns the i'th method in the type's method set.
+ func (t *interfaceType) Method(i int) (m Method) {
+-	if i < 0 || i >= len(t.methods) {
+-		return
++	if i < 0 || i >= len(t.expMethods) {
++		panic("reflect: Method index out of range")
+ 	}
+-	p := &t.methods[i]
++	p := &t.expMethods[i]
+ 	pname := t.nameOff(p.name)
+ 	m.Name = pname.name()
+ 	if !pname.isExported() {
+-		m.PkgPath = pname.pkgPath()
+-		if m.PkgPath == "" {
+-			m.PkgPath = t.pkgPath.name()
+-		}
++		panic("reflect: unexported method: " + pname.name())
+ 	}
+ 	m.Type = toType(t.typeOff(p.typ))
+ 	m.Index = i
+ 	return
+ }
+ 
+-// NumMethod returns the number of interface methods in the type's method set.
+-func (t *interfaceType) NumMethod() int { return len(t.methods) }
++// NumMethod returns the number of exported interface methods in the type's method set.
++func (t *interfaceType) NumMethod() int { return len(t.expMethods) }
+ 
+ // MethodByName method with the given name in the type's method set.
+ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+@@ -1075,8 +1076,8 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+ 		return
+ 	}
+ 	var p *imethod
+-	for i := range t.methods {
+-		p = &t.methods[i]
++	for i := range t.expMethods {
++		p = &t.expMethods[i]
+ 		if t.nameOff(p.name).name() == name {
+ 			return t.Method(i), true
+ 		}
+@@ -1485,9 +1486,10 @@ func implements(T, V *rtype) bool {
+ 		return false
+ 	}
+ 	t := (*interfaceType)(unsafe.Pointer(T))
+-	if len(t.methods) == 0 {
++	if t.isEmpty() {
+ 		return true
+ 	}
++	tmethods := t.methods()
+ 
+ 	// The same algorithm applies in both cases, but the
+ 	// method tables for an interface type and a concrete type
+@@ -1504,10 +1506,11 @@ func implements(T, V *rtype) bool {
+ 	if V.Kind() == Interface {
+ 		v := (*interfaceType)(unsafe.Pointer(V))
+ 		i := 0
+-		for j := 0; j < len(v.methods); j++ {
+-			tm := &t.methods[i]
++		vmethods := v.methods()
++		for j := 0; j < len(vmethods); j++ {
++			tm := &tmethods[i]
+ 			tmName := t.nameOff(tm.name)
+-			vm := &v.methods[j]
++			vm := &vmethods[j]
+ 			vmName := V.nameOff(vm.name)
+ 			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
+ 				if !tmName.isExported() {
+@@ -1523,7 +1526,7 @@ func implements(T, V *rtype) bool {
+ 						continue
+ 					}
+ 				}
+-				if i++; i >= len(t.methods) {
++				if i++; i >= len(tmethods) {
+ 					return true
+ 				}
+ 			}
+@@ -1538,7 +1541,7 @@ func implements(T, V *rtype) bool {
+ 	i := 0
+ 	vmethods := v.methods()
+ 	for j := 0; j < int(v.mcount); j++ {
+-		tm := &t.methods[i]
++		tm := &tmethods[i]
+ 		tmName := t.nameOff(tm.name)
+ 		vm := vmethods[j]
+ 		vmName := V.nameOff(vm.name)
+@@ -1556,7 +1559,7 @@ func implements(T, V *rtype) bool {
+ 					continue
+ 				}
+ 			}
+-			if i++; i >= len(t.methods) {
++			if i++; i >= len(tmethods) {
+ 				return true
+ 			}
+ 		}
+@@ -1658,7 +1661,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 	case Interface:
+ 		t := (*interfaceType)(unsafe.Pointer(T))
+ 		v := (*interfaceType)(unsafe.Pointer(V))
+-		if len(t.methods) == 0 && len(v.methods) == 0 {
++		if t.isEmpty() && v.isEmpty() {
+ 			return true
+ 		}
+ 		// Might have the same methods but still
+@@ -2442,7 +2445,7 @@ func StructOf(fields []StructField) Type {
+ 			switch f.typ.Kind() {
+ 			case Interface:
+ 				ift := (*interfaceType)(unsafe.Pointer(ft))
+-				for im, m := range ift.methods {
++				for im, m := range ift.methods() {
+ 					if ift.nameOff(m.name).pkgPath() != "" {
+ 						// TODO(sbinet).  Issue 15924.
+ 						panic("reflect: embedded interface with unexported method(s) not implemented")
+@@ -3149,3 +3152,11 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+ 		}
+ 	}
+ }
++
++func isEmptyIface(rt *rtype) bool {
++	if rt.Kind() != Interface {
++		return false
++	}
++	tt := (*interfaceType)(unsafe.Pointer(rt))
++	return len(tt.methods()) == 0
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index a14131e1f8..bb6371b867 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -635,10 +635,11 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
+ 	i := methodIndex
+ 	if v.typ.Kind() == Interface {
+ 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
+-		if uint(i) >= uint(len(tt.methods)) {
++		ttmethods := tt.methods()
++		if uint(i) >= uint(len(ttmethods)) {
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+-		m := &tt.methods[i]
++		m := &ttmethods[i]
+ 		if !tt.nameOff(m.name).isExported() {
+ 			panic("reflect: " + op + " of unexported method")
+ 		}
+@@ -812,7 +813,7 @@ func (v Value) Elem() Value {
+ 	switch k {
+ 	case Interface:
+ 		var eface interface{}
+-		if v.typ.NumMethod() == 0 {
++		if isEmptyIface(v.typ) {
+ 			eface = *(*interface{})(v.ptr)
+ 		} else {
+ 			eface = (interface{})(*(*interface {
+@@ -1033,7 +1034,7 @@ func valueInterface(v Value, safe bool) interface{} {
+ 		// Special case: return the element inside the interface.
+ 		// Empty interface has one layout, all interfaces with
+ 		// methods have a second layout.
+-		if v.NumMethod() == 0 {
++		if isEmptyIface(v.typ) {
+ 			return *(*interface{})(v.ptr)
+ 		}
+ 		return *(*interface {
+@@ -1908,10 +1909,11 @@ func (v Value) Type() Type {
+ 	if v.typ.Kind() == Interface {
+ 		// Method on interface.
+ 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
+-		if uint(i) >= uint(len(tt.methods)) {
++		ttmethods := tt.methods()
++		if uint(i) >= uint(len(ttmethods)) {
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+-		m := &tt.methods[i]
++		m := &ttmethods[i]
+ 		return v.typ.typeOff(m.typ)
+ 	}
+ 	// Method on concrete type.
+@@ -2429,7 +2431,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 			return Value{dst, nil, flag(Interface)}
+ 		}
+ 		x := valueInterface(v, false)
+-		if dst.NumMethod() == 0 {
++		if isEmptyIface(dst) {
+ 			*(*interface{})(target) = x
+ 		} else {
+ 			ifaceE2I(dst, x, target)
+@@ -2718,10 +2720,11 @@ func cvtDirect(v Value, typ Type) Value {
+ func cvtT2I(v Value, typ Type) Value {
+ 	target := unsafe_New(typ.common())
+ 	x := valueInterface(v, false)
+-	if typ.NumMethod() == 0 {
++	rt := typ.(*rtype)
++	if isEmptyIface(rt) {
+ 		*(*interface{})(target) = x
+ 	} else {
+-		ifaceE2I(typ.(*rtype), x, target)
++		ifaceE2I(rt, x, target)
+ 	}
+ 	return Value{typ.common(), target, v.flag.ro() | flagIndir | flag(Interface)}
+ }
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 0af48ab25c..4a98b84e4a 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -185,7 +185,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 		return strhash(p, h)
+ 	case kindInterface:
+ 		i := (*interfacetype)(unsafe.Pointer(t))
+-		if len(i.mhdr) == 0 {
++		if i.isEmpty() {
+ 			return nilinterhash(p, h)
+ 		}
+ 		return interhash(p, h)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 0504b89363..f8b7d429a3 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -31,16 +31,17 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
+ }
+ 
+ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+-	if len(inter.mhdr) == 0 {
++	if inter.isEmpty() {
+ 		throw("internal error - misuse of itab")
+ 	}
++	imethods := inter.methods()
+ 
+ 	// easy case
+ 	if typ.tflag&tflagUncommon == 0 {
+ 		if canfail {
+ 			return nil
+ 		}
+-		name := inter.typ.nameOff(inter.mhdr[0].name)
++		name := inter.typ.nameOff(imethods[0].name)
+ 		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
+ 	}
+ 
+@@ -63,7 +64,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	}
+ 
+ 	// Entry doesn't exist yet. Make a new entry & add it.
+-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
++	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(imethods)-1)*sys.PtrSize, 0, &memstats.other_sys))
+ 	m.inter = inter
+ 	m._type = typ
+ 	// The hash is used in type switches. However, compiler statically generates itab's
+@@ -197,7 +198,8 @@ func (m *itab) init() string {
+ 	// and interface names are unique,
+ 	// so can iterate over both in lock step;
+ 	// the loop is O(ni+nt) not O(ni*nt).
+-	ni := len(inter.mhdr)
++	imethods := inter.methods()
++	ni := len(imethods)
+ 	nt := int(x.mcount)
+ 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
+ 	j := 0
+@@ -205,7 +207,7 @@ func (m *itab) init() string {
+ 	var fun0 unsafe.Pointer
+ imethods:
+ 	for k := 0; k < ni; k++ {
+-		i := &inter.mhdr[k]
++		i := &imethods[k]
+ 		itype := inter.typ.typeOff(i.ityp)
+ 		name := inter.typ.nameOff(i.name)
+ 		iname := name.name()
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index cd6196dcab..6676ae6736 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -210,7 +210,7 @@ func runfinq() {
+ 					// set up with empty interface
+ 					(*eface)(frame)._type = &f.ot.typ
+ 					(*eface)(frame).data = f.arg
+-					if len(ityp.mhdr) != 0 {
++					if !ityp.isEmpty() {
+ 						// convert to interface with methods
+ 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
+ 						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
+@@ -394,7 +394,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		}
+ 	case fint.kind&kindMask == kindInterface:
+ 		ityp := (*interfacetype)(unsafe.Pointer(fint))
+-		if len(ityp.mhdr) == 0 {
++		if ityp.isEmpty() {
+ 			// ok - satisfies empty interface
+ 			goto okarg
+ 		}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 81455f3532..36492619e1 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -366,7 +366,19 @@ type imethod struct {
+ type interfacetype struct {
+ 	typ     _type
+ 	pkgpath name
+-	mhdr    []imethod
++	// expMethods contains all interface methods.
++	//
++	// - len(expMethods) returns number of exported methods.
++	// - cap(expMethods) returns all interface methods, including both exported/non-exported methods.
++	expMethods []imethod
++}
++
++func (it *interfacetype) methods() []imethod {
++	return it.expMethods[:cap(it.expMethods)]
++}
++
++func (it *interfacetype) isEmpty() bool {
++	return cap(it.expMethods) == 0
+ }
+ 
+ type maptype struct {
+@@ -664,13 +676,15 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 		if it.pkgpath.name() != iv.pkgpath.name() {
+ 			return false
+ 		}
+-		if len(it.mhdr) != len(iv.mhdr) {
++		itmethods := it.methods()
++		ivmethods := iv.methods()
++		if len(itmethods) != len(ivmethods) {
+ 			return false
+ 		}
+-		for i := range it.mhdr {
+-			tm := &it.mhdr[i]
+-			vm := &iv.mhdr[i]
+-			// Note the mhdr array can be relocated from
++		for i := range itmethods {
++			tm := &itmethods[i]
++			vm := &ivmethods[i]
++			// Note the expMethods array can be relocated from
+ 			// another module. See #17724.
+ 			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
+ 			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)

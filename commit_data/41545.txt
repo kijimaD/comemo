@@ -14,6 +14,32 @@ Date:   Wed Oct 9 15:37:46 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/objfile/objfile2.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index 2be34b823e..96d9ad1bd7 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -103,6 +103,7 @@ func (l *Loader) AddObj(pkg string, r *oReader) Sym {
+ 	if _, ok := l.start[r]; ok {
+ 		panic("already added")
+ 	}
++	pkg = objabi.PathToPrefix(pkg) // the object file contains escaped package path
+ 	if _, ok := l.objByPkg[pkg]; !ok {
+ 		l.objByPkg[pkg] = r
+ 	}
+@@ -189,7 +190,11 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
+ 		rr = r
+ 	default:
+ 		pkg := r.Pkg(int(p))
+-		rr = l.objByPkg[pkg]
++		var ok bool
++		rr, ok = l.objByPkg[pkg]
++		if !ok {
++			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
++		}
+ 	}
+ 	return l.ToGlobal(rr, int(s.SymIdx))
+ }

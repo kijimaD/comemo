@@ -19,7 +19,44 @@ Date:   Sat Mar 18 14:39:48 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 8 ++++++--
  src/cmd/compile/internal/gc/dcl.go     | 3 +++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index d6a25515df..d7d48cb07e 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -526,11 +526,15 @@ func (p *importer) typ() *Type {
+ 		functypefield0(t, nil, params, result)
+ 
+ 	case interfaceTag:
+-		t = p.newtyp(TINTER)
+ 		if p.int() != 0 {
+ 			formatErrorf("unexpected embedded interface")
+ 		}
+-		t.SetFields(p.methodList())
++		if ml := p.methodList(); len(ml) == 0 {
++			t = Types[TINTER]
++		} else {
++			t = p.newtyp(TINTER)
++			t.SetFields(ml)
++		}
+ 		checkwidth(t)
+ 
+ 	case mapTag:
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 94d18e2256..a1d6e4f0c7 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -860,6 +860,9 @@ func interfacefield(n *Node) *Field {
+ }
+ 
+ func tointerface(l []*Node) *Type {
++	if len(l) == 0 {
++		return Types[TINTER]
++	}
+ 	t := typ(TINTER)
+ 	tointerface0(t, l)
+ 	return t

@@ -14,7 +14,34 @@ Date:   Thu May 5 18:38:02 2022 -0400
     Auto-Submit: Filippo Valsorda <valsorda@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
  src/go/types/stdlib_test.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 4e54056e74..fc541a4b45 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -211,7 +211,7 @@ var excluded = map[string]bool{
+ 	"builtin": true,
+ 
+ 	// See #46027: some imports are missing for this submodule.
+-	"crypto/ed25519/internal/edwards25519/field/_asm": true,
++	"crypto/internal/edwards25519/field/_asm": true,
+ }
+ 
+ // typecheck typechecks the given package files.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 69bd20b504..d75729ac39 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -213,7 +213,7 @@ var excluded = map[string]bool{
+ 	"builtin": true,
+ 
+ 	// See #46027: some imports are missing for this submodule.
+-	"crypto/ed25519/internal/edwards25519/field/_asm": true,
++	"crypto/internal/edwards25519/field/_asm": true,
+ }
+ 
+ // typecheck typechecks the given package files.

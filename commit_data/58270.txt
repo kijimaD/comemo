@@ -19,7 +19,7 @@ Date:   Tue Oct 17 15:19:33 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/cover.bash            | 2 +-
  src/cmd/compile/internal/typecheck/_builtin/coverage.go | 1 -
  src/cmd/dist/notgo120.go                                | 1 -
@@ -110,3 +110,1094 @@ Date:   Tue Oct 17 15:19:33 2023 -0400
  src/strconv/bytealg_bootstrap.go                        | 1 -
  src/strconv/makeisprint.go                              | 1 -
  89 files changed, 6 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/cover.bash b/src/cmd/compile/internal/ssa/_gen/cover.bash
+index 7311cfb5f3..733f9db2c2 100755
+--- a/src/cmd/compile/internal/ssa/_gen/cover.bash
++++ b/src/cmd/compile/internal/ssa/_gen/cover.bash
+@@ -12,7 +12,7 @@
+ # regular 'go run .' usage to run the generator.
+ 
+ cat >main_test.go <<-EOF
+-	// +build ignore
++	//go:build ignore
+ 
+ 	package main
+ 
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/coverage.go b/src/cmd/compile/internal/typecheck/_builtin/coverage.go
+index ea4462dd97..02226356bc 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/coverage.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/coverage.go
+@@ -7,7 +7,6 @@
+ // to avoid depending on having a working compiler binary.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package coverage
+ 
+diff --git a/src/cmd/dist/notgo120.go b/src/cmd/dist/notgo120.go
+index dd7657112f..0b89ab3c02 100644
+--- a/src/cmd/dist/notgo120.go
++++ b/src/cmd/dist/notgo120.go
+@@ -17,6 +17,5 @@
+ // why Go moved on from Go 1.4 for bootstrap.
+ 
+ //go:build !go1.20
+-// +build !go1.20
+ 
+ package building_Go_requires_Go_1_20_6_or_later
+diff --git a/src/cmd/dist/sys_default.go b/src/cmd/dist/sys_default.go
+index e87c84ce3e..ae102270c3 100644
+--- a/src/cmd/dist/sys_default.go
++++ b/src/cmd/dist/sys_default.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package main
+ 
+diff --git a/src/cmd/dist/util_gc.go b/src/cmd/dist/util_gc.go
+index 875784d383..6efdf23e60 100644
+--- a/src/cmd/dist/util_gc.go
++++ b/src/cmd/dist/util_gc.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gc
+-// +build gc
+ 
+ package main
+ 
+diff --git a/src/cmd/dist/util_gccgo.go b/src/cmd/dist/util_gccgo.go
+index 3255b80365..2f7af7ed66 100644
+--- a/src/cmd/dist/util_gccgo.go
++++ b/src/cmd/dist/util_gccgo.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gccgo
+-// +build gccgo
+ 
+ package main
+ 
+diff --git a/src/cmd/dist/vfp_arm.s b/src/cmd/dist/vfp_arm.s
+index 525ee9b366..37fb4061af 100644
+--- a/src/cmd/dist/vfp_arm.s
++++ b/src/cmd/dist/vfp_arm.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gc
+-// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/cmd/dist/vfp_default.s b/src/cmd/dist/vfp_default.s
+index 0c1e16b0aa..a766edac28 100644
+--- a/src/cmd/dist/vfp_default.s
++++ b/src/cmd/dist/vfp_default.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gc && !arm
+-// +build gc,!arm
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index e95dfbfbb7..3db85bda53 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -299,7 +299,7 @@ func vendorPkg(vdir, pkg string) {
+ 	// a MultiplePackageError on an otherwise valid package: the package could
+ 	// have different names for GOOS=windows and GOOS=mac for example. On the
+ 	// other hand if there's a NoGoError, the package might have source files
+-	// specifying "// +build ignore" those packages should be skipped because
++	// specifying "//go:build ignore" those packages should be skipped because
+ 	// embeds from ignored files can't be used.
+ 	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
+ 	// need to figure this out when we switch to PackagesAndErrors as per the
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index cc6a482fd4..7cd5fcf36a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -706,7 +706,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	// Now committed to returning dir (not "").
+ 
+ 	// Are there Go source files in the directory?
+-	// We don't care about build tags, not even "+build ignore".
++	// We don't care about build tags, not even "go:build ignore".
+ 	// We're just looking for a plausible directory.
+ 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
+ 		// modindex.GetPackage will return ErrNotIndexed for any directories which
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index aefb19b5e3..5ddf0e7d9a 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
+ 
+diff --git a/src/cmd/internal/notsha256/sha256block_386.s b/src/cmd/internal/notsha256/sha256block_386.s
+index f2ba7d7a9b..0e27fa02d7 100644
+--- a/src/cmd/internal/notsha256/sha256block_386.s
++++ b/src/cmd/internal/notsha256/sha256block_386.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !purego
+-// +build !purego
+ 
+ // SHA256 block routine. See sha256block.go for Go equivalent.
+ //
+diff --git a/src/cmd/internal/notsha256/sha256block_amd64.go b/src/cmd/internal/notsha256/sha256block_amd64.go
+index 27b84a86b1..6a615e096f 100644
+--- a/src/cmd/internal/notsha256/sha256block_amd64.go
++++ b/src/cmd/internal/notsha256/sha256block_amd64.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !purego
+-// +build !purego
+ 
+ package notsha256
+ 
+diff --git a/src/cmd/internal/notsha256/sha256block_amd64.s b/src/cmd/internal/notsha256/sha256block_amd64.s
+index 36ea74451d..b25c979e9b 100644
+--- a/src/cmd/internal/notsha256/sha256block_amd64.s
++++ b/src/cmd/internal/notsha256/sha256block_amd64.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !purego
+-// +build !purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/cmd/internal/notsha256/sha256block_decl.go b/src/cmd/internal/notsha256/sha256block_decl.go
+index da66bdd26a..ab3f7d294b 100644
+--- a/src/cmd/internal/notsha256/sha256block_decl.go
++++ b/src/cmd/internal/notsha256/sha256block_decl.go
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !purego && (386 || amd64 || ppc64le || ppc64)
+-// +build !purego
+-// +build 386 amd64 ppc64le ppc64
+ 
+ package notsha256
+ 
+diff --git a/src/cmd/internal/notsha256/sha256block_generic.go b/src/cmd/internal/notsha256/sha256block_generic.go
+index 2664722bc2..76d53728ab 100644
+--- a/src/cmd/internal/notsha256/sha256block_generic.go
++++ b/src/cmd/internal/notsha256/sha256block_generic.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build purego || (!amd64 && !386 && !ppc64le && !ppc64)
+-// +build purego !amd64,!386,!ppc64le,!ppc64
+ 
+ package notsha256
+ 
+diff --git a/src/cmd/internal/notsha256/sha256block_ppc64x.s b/src/cmd/internal/notsha256/sha256block_ppc64x.s
+index ea4417d6c6..93e85509ea 100644
+--- a/src/cmd/internal/notsha256/sha256block_ppc64x.s
++++ b/src/cmd/internal/notsha256/sha256block_ppc64x.s
+@@ -9,8 +9,6 @@
+ //
+ 
+ //go:build !purego && (ppc64 || ppc64le)
+-// +build !purego
+-// +build ppc64 ppc64le
+ 
+ // Based on CRYPTOGAMS code with the following comment:
+ // # ====================================================================
+diff --git a/src/cmd/internal/obj/stringer.go b/src/cmd/internal/obj/stringer.go
+index a4d507d49a..b2b0df83ad 100644
+--- a/src/cmd/internal/obj/stringer.go
++++ b/src/cmd/internal/obj/stringer.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // This is a mini version of the stringer tool customized for the Anames table
+ // in the architecture support for obj.
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index f5f5e8ef4e..e535af6a1c 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build cgo
+-// +build cgo
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/execarchive.go b/src/cmd/link/internal/ld/execarchive.go
+index a9376e96a4..7a19567a6c 100644
+--- a/src/cmd/link/internal/ld/execarchive.go
++++ b/src/cmd/link/internal/ld/execarchive.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !wasm && !windows
+-// +build !wasm,!windows
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/execarchive_noexec.go b/src/cmd/link/internal/ld/execarchive_noexec.go
+index 5e1f2669d3..ada3e9f74a 100644
+--- a/src/cmd/link/internal/ld/execarchive_noexec.go
++++ b/src/cmd/link/internal/ld/execarchive_noexec.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build wasm || windows
+-// +build wasm windows
+ 
+ package ld
+ 
+diff --git a/src/crypto/boring/notboring_test.go b/src/crypto/boring/notboring_test.go
+index ffe18e9109..0701628464 100644
+--- a/src/crypto/boring/notboring_test.go
++++ b/src/crypto/boring/notboring_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build (goexperiment.boringcrypto && !boringcrypto) || (!goexperiment.boringcrypto && boringcrypto)
+-// +build goexperiment.boringcrypto,!boringcrypto !goexperiment.boringcrypto,boringcrypto
+ 
+ package boring_test
+ 
+diff --git a/src/crypto/internal/boring/sig/sig_other.s b/src/crypto/internal/boring/sig/sig_other.s
+index 2bbb1df301..f7ef4cd5b8 100644
+--- a/src/crypto/internal/boring/sig/sig_other.s
++++ b/src/crypto/internal/boring/sig/sig_other.s
+@@ -8,7 +8,6 @@
+ // On other platforms (those using this source file), they don't.
+ 
+ //go:build !amd64
+-// +build !amd64
+ 
+ TEXT ·BoringCrypto(SB),$0
+ 	RET
+diff --git a/src/crypto/internal/edwards25519/field/fe_arm64.s b/src/crypto/internal/edwards25519/field/fe_arm64.s
+index 751ab2ada3..3126a43419 100644
+--- a/src/crypto/internal/edwards25519/field/fe_arm64.s
++++ b/src/crypto/internal/edwards25519/field/fe_arm64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build arm64,gc,!purego
++//go:build arm64 && gc && !purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/internal/goexperiment/exp_arenas_off.go b/src/internal/goexperiment/exp_arenas_off.go
+index 9e40ebc37b..01f5332e5c 100644
+--- a/src/internal/goexperiment/exp_arenas_off.go
++++ b/src/internal/goexperiment/exp_arenas_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.arenas
+-// +build !goexperiment.arenas
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_arenas_on.go b/src/internal/goexperiment/exp_arenas_on.go
+index 92ef748f62..609dfbca99 100644
+--- a/src/internal/goexperiment/exp_arenas_on.go
++++ b/src/internal/goexperiment/exp_arenas_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.arenas
+-// +build goexperiment.arenas
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_boringcrypto_off.go b/src/internal/goexperiment/exp_boringcrypto_off.go
+index 020c75bd53..de712670fd 100644
+--- a/src/internal/goexperiment/exp_boringcrypto_off.go
++++ b/src/internal/goexperiment/exp_boringcrypto_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.boringcrypto
+-// +build !goexperiment.boringcrypto
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_boringcrypto_on.go b/src/internal/goexperiment/exp_boringcrypto_on.go
+index 1454329a46..ce476faa05 100644
+--- a/src/internal/goexperiment/exp_boringcrypto_on.go
++++ b/src/internal/goexperiment/exp_boringcrypto_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.boringcrypto
+-// +build goexperiment.boringcrypto
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_cacheprog_off.go b/src/internal/goexperiment/exp_cacheprog_off.go
+index 29aa869823..276855c7d6 100644
+--- a/src/internal/goexperiment/exp_cacheprog_off.go
++++ b/src/internal/goexperiment/exp_cacheprog_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.cacheprog
+-// +build !goexperiment.cacheprog
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_cacheprog_on.go b/src/internal/goexperiment/exp_cacheprog_on.go
+index 121b299b00..b959dd68b9 100644
+--- a/src/internal/goexperiment/exp_cacheprog_on.go
++++ b/src/internal/goexperiment/exp_cacheprog_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.cacheprog
+-// +build goexperiment.cacheprog
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_cgocheck2_off.go b/src/internal/goexperiment/exp_cgocheck2_off.go
+index 77aa538309..e99ad07861 100644
+--- a/src/internal/goexperiment/exp_cgocheck2_off.go
++++ b/src/internal/goexperiment/exp_cgocheck2_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.cgocheck2
+-// +build !goexperiment.cgocheck2
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_cgocheck2_on.go b/src/internal/goexperiment/exp_cgocheck2_on.go
+index 6201249ca5..f6d1790d4c 100644
+--- a/src/internal/goexperiment/exp_cgocheck2_on.go
++++ b/src/internal/goexperiment/exp_cgocheck2_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.cgocheck2
+-// +build goexperiment.cgocheck2
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_coverageredesign_off.go b/src/internal/goexperiment/exp_coverageredesign_off.go
+index 95d3a6c4ae..2c33177322 100644
+--- a/src/internal/goexperiment/exp_coverageredesign_off.go
++++ b/src/internal/goexperiment/exp_coverageredesign_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.coverageredesign
+-// +build !goexperiment.coverageredesign
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_coverageredesign_on.go b/src/internal/goexperiment/exp_coverageredesign_on.go
+index 330a234f20..3fc6c2f70a 100644
+--- a/src/internal/goexperiment/exp_coverageredesign_on.go
++++ b/src/internal/goexperiment/exp_coverageredesign_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.coverageredesign
+-// +build goexperiment.coverageredesign
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_fieldtrack_off.go b/src/internal/goexperiment/exp_fieldtrack_off.go
+index e5e132660e..ccced94cb0 100644
+--- a/src/internal/goexperiment/exp_fieldtrack_off.go
++++ b/src/internal/goexperiment/exp_fieldtrack_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.fieldtrack
+-// +build !goexperiment.fieldtrack
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_fieldtrack_on.go b/src/internal/goexperiment/exp_fieldtrack_on.go
+index 0d8c447246..a49756750a 100644
+--- a/src/internal/goexperiment/exp_fieldtrack_on.go
++++ b/src/internal/goexperiment/exp_fieldtrack_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.fieldtrack
+-// +build goexperiment.fieldtrack
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_heapminimum512kib_off.go b/src/internal/goexperiment/exp_heapminimum512kib_off.go
+index 09da431b40..d67c5bb674 100644
+--- a/src/internal/goexperiment/exp_heapminimum512kib_off.go
++++ b/src/internal/goexperiment/exp_heapminimum512kib_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.heapminimum512kib
+-// +build !goexperiment.heapminimum512kib
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_heapminimum512kib_on.go b/src/internal/goexperiment/exp_heapminimum512kib_on.go
+index bab684b5e6..2d29c98e1b 100644
+--- a/src/internal/goexperiment/exp_heapminimum512kib_on.go
++++ b/src/internal/goexperiment/exp_heapminimum512kib_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.heapminimum512kib
+-// +build goexperiment.heapminimum512kib
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_loopvar_off.go b/src/internal/goexperiment/exp_loopvar_off.go
+index 1cd7ee15d7..cfede54052 100644
+--- a/src/internal/goexperiment/exp_loopvar_off.go
++++ b/src/internal/goexperiment/exp_loopvar_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.loopvar
+-// +build !goexperiment.loopvar
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_loopvar_on.go b/src/internal/goexperiment/exp_loopvar_on.go
+index e3c8980c1e..e158e0a666 100644
+--- a/src/internal/goexperiment/exp_loopvar_on.go
++++ b/src/internal/goexperiment/exp_loopvar_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.loopvar
+-// +build goexperiment.loopvar
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_newinliner_off.go b/src/internal/goexperiment/exp_newinliner_off.go
+index 307c651b7a..d94e736528 100644
+--- a/src/internal/goexperiment/exp_newinliner_off.go
++++ b/src/internal/goexperiment/exp_newinliner_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_newinliner_on.go b/src/internal/goexperiment/exp_newinliner_on.go
+index 59f400ff57..6777dbc048 100644
+--- a/src/internal/goexperiment/exp_newinliner_on.go
++++ b/src/internal/goexperiment/exp_newinliner_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.newinliner
+-// +build goexperiment.newinliner
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_pagetrace_off.go b/src/internal/goexperiment/exp_pagetrace_off.go
+index 789e88332d..142be47d96 100644
+--- a/src/internal/goexperiment/exp_pagetrace_off.go
++++ b/src/internal/goexperiment/exp_pagetrace_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.pagetrace
+-// +build !goexperiment.pagetrace
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_pagetrace_on.go b/src/internal/goexperiment/exp_pagetrace_on.go
+index ea72b54863..f3b1614789 100644
+--- a/src/internal/goexperiment/exp_pagetrace_on.go
++++ b/src/internal/goexperiment/exp_pagetrace_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.pagetrace
+-// +build goexperiment.pagetrace
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_preemptibleloops_off.go b/src/internal/goexperiment/exp_preemptibleloops_off.go
+index 7a26088e80..cddcc1b8cc 100644
+--- a/src/internal/goexperiment/exp_preemptibleloops_off.go
++++ b/src/internal/goexperiment/exp_preemptibleloops_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.preemptibleloops
+-// +build !goexperiment.preemptibleloops
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_preemptibleloops_on.go b/src/internal/goexperiment/exp_preemptibleloops_on.go
+index a9ca28c57c..7f474c0357 100644
+--- a/src/internal/goexperiment/exp_preemptibleloops_on.go
++++ b/src/internal/goexperiment/exp_preemptibleloops_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.preemptibleloops
+-// +build goexperiment.preemptibleloops
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_range_off.go b/src/internal/goexperiment/exp_range_off.go
+index 4afb988ea7..82f5dc71b2 100644
+--- a/src/internal/goexperiment/exp_range_off.go
++++ b/src/internal/goexperiment/exp_range_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.range
+-// +build !goexperiment.range
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_range_on.go b/src/internal/goexperiment/exp_range_on.go
+index 67317593d3..1d0f30f49f 100644
+--- a/src/internal/goexperiment/exp_range_on.go
++++ b/src/internal/goexperiment/exp_range_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.range
+-// +build goexperiment.range
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_regabiargs_off.go b/src/internal/goexperiment/exp_regabiargs_off.go
+index 31a139bbf1..a8c8536fa0 100644
+--- a/src/internal/goexperiment/exp_regabiargs_off.go
++++ b/src/internal/goexperiment/exp_regabiargs_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.regabiargs
+-// +build !goexperiment.regabiargs
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_regabiargs_on.go b/src/internal/goexperiment/exp_regabiargs_on.go
+index 9b26f3c9cb..def3b94004 100644
+--- a/src/internal/goexperiment/exp_regabiargs_on.go
++++ b/src/internal/goexperiment/exp_regabiargs_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.regabiargs
+-// +build goexperiment.regabiargs
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_regabiwrappers_off.go b/src/internal/goexperiment/exp_regabiwrappers_off.go
+index bfa0fa3779..a65ed3649d 100644
+--- a/src/internal/goexperiment/exp_regabiwrappers_off.go
++++ b/src/internal/goexperiment/exp_regabiwrappers_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.regabiwrappers
+-// +build !goexperiment.regabiwrappers
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_regabiwrappers_on.go b/src/internal/goexperiment/exp_regabiwrappers_on.go
+index 11ffffbbff..d525c9a86d 100644
+--- a/src/internal/goexperiment/exp_regabiwrappers_on.go
++++ b/src/internal/goexperiment/exp_regabiwrappers_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.regabiwrappers
+-// +build goexperiment.regabiwrappers
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_staticlockranking_off.go b/src/internal/goexperiment/exp_staticlockranking_off.go
+index 3d546c04b4..5fafff2591 100644
+--- a/src/internal/goexperiment/exp_staticlockranking_off.go
++++ b/src/internal/goexperiment/exp_staticlockranking_off.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.staticlockranking
+-// +build !goexperiment.staticlockranking
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/exp_staticlockranking_on.go b/src/internal/goexperiment/exp_staticlockranking_on.go
+index 78188fb810..dfd32a8ad9 100644
+--- a/src/internal/goexperiment/exp_staticlockranking_on.go
++++ b/src/internal/goexperiment/exp_staticlockranking_on.go
+@@ -1,7 +1,6 @@
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.staticlockranking
+-// +build goexperiment.staticlockranking
+ 
+ package goexperiment
+ 
+diff --git a/src/internal/goexperiment/mkconsts.go b/src/internal/goexperiment/mkconsts.go
+index 204ca9d9aa..65c100fa3a 100644
+--- a/src/internal/goexperiment/mkconsts.go
++++ b/src/internal/goexperiment/mkconsts.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // mkconsts generates const definition files for each GOEXPERIMENT.
+ package main
+@@ -52,13 +51,12 @@ func main() {
+ 			data := fmt.Sprintf(`// Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build %s%s
+-// +build %s%s
+ 
+ package goexperiment
+ 
+ const %s = %v
+ const %sInt = %s
+-`, pick(val, "!", ""), buildTag, pick(val, "!", ""), buildTag, f, val, f, pick(val, "0", "1"))
++`, pick(val, "!", ""), buildTag, f, val, f, pick(val, "0", "1"))
+ 			if err := os.WriteFile(name, []byte(data), 0666); err != nil {
+ 				log.Fatalf("writing %s: %v", name, err)
+ 			}
+diff --git a/src/internal/race/norace.go b/src/internal/race/norace.go
+index 67b1305713..da650489fc 100644
+--- a/src/internal/race/norace.go
++++ b/src/internal/race/norace.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !race
+-// +build !race
+ 
+ package race
+ 
+diff --git a/src/internal/race/race.go b/src/internal/race/race.go
+index 40f2c99383..d2c7e53e41 100644
+--- a/src/internal/race/race.go
++++ b/src/internal/race/race.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build race
+-// +build race
+ 
+ package race
+ 
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 8cf4665f29..90f6a8c70e 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_amd64.go b/src/math/big/arith_amd64.go
+index 89108fe149..3db72582bb 100644
+--- a/src/math/big/arith_amd64.go
++++ b/src/math/big/arith_amd64.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ package big
+ 
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index b1e914c2bd..a5b65b1d3c 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index 10054bde47..ece3a96f51 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index addf2d64a1..204006e01d 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index 9b254f2213..f14f8d6794 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ package big
+ 
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 75f3ed2948..4d7bbc8771 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build math_big_pure_go
+-// +build math_big_pure_go
+ 
+ package big
+ 
+diff --git a/src/math/big/arith_decl_s390x.go b/src/math/big/arith_decl_s390x.go
+index 4193f3231c..6539166878 100644
+--- a/src/math/big/arith_decl_s390x.go
++++ b/src/math/big/arith_decl_s390x.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ package big
+ 
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 0ae3031967..847e3127fb 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !math_big_pure_go,loong64
++//go:build !math_big_pure_go && loong64
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 3ee6e27c82..393a3efb9b 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go && (mips64 || mips64le)
+-// +build !math_big_pure_go
+-// +build mips64 mips64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index b1d32821af..cdb4bbcab6 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go && (mips || mipsle)
+-// +build !math_big_pure_go
+-// +build mips mipsle
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 0613f5c3ad..9512a12270 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go && (ppc64 || ppc64le)
+-// +build !math_big_pure_go
+-// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index cb9ac18292..bad32497b7 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go && riscv64
+-// +build !math_big_pure_go,riscv64
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index aa6590e20a..01a7bb2d51 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_s390x_test.go b/src/math/big/arith_s390x_test.go
+index 093984b397..0b91cc1393 100644
+--- a/src/math/big/arith_s390x_test.go
++++ b/src/math/big/arith_s390x_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build s390x && !math_big_pure_go
+-// +build s390x,!math_big_pure_go
+ 
+ package big
+ 
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index 93eb16d21d..fd51031d8a 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !math_big_pure_go
+-// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/bits/bits_errors.go b/src/math/bits/bits_errors.go
+index 61cb5c9457..353d2f6ad3 100644
+--- a/src/math/bits/bits_errors.go
++++ b/src/math/bits/bits_errors.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !compiler_bootstrap
+-// +build !compiler_bootstrap
+ 
+ package bits
+ 
+diff --git a/src/math/bits/bits_errors_bootstrap.go b/src/math/bits/bits_errors_bootstrap.go
+index 4d610d33b8..6b14e41f83 100644
+--- a/src/math/bits/bits_errors_bootstrap.go
++++ b/src/math/bits/bits_errors_bootstrap.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build compiler_bootstrap
+-// +build compiler_bootstrap
+ 
+ // This version used only for bootstrap (on this path we want
+ // to avoid use of go:linkname as applied to variables).
+diff --git a/src/math/bits/make_examples.go b/src/math/bits/make_examples.go
+index 92e9aabfb5..4bd7f58147 100644
+--- a/src/math/bits/make_examples.go
++++ b/src/math/bits/make_examples.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // This program generates example_test.go.
+ 
+diff --git a/src/math/bits/make_tables.go b/src/math/bits/make_tables.go
+index 867025ea61..d067361a12 100644
+--- a/src/math/bits/make_tables.go
++++ b/src/math/bits/make_tables.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // This program generates bits_tables.go.
+ 
+diff --git a/src/math/floor_ppc64x.s b/src/math/floor_ppc64x.s
+index 584c27e28f..e9c5d49f4a 100644
+--- a/src/math/floor_ppc64x.s
++++ b/src/math/floor_ppc64x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ppc64 || ppc64le
+-// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/modf_ppc64x.s b/src/math/modf_ppc64x.s
+index 1303067661..410b523c0e 100644
+--- a/src/math/modf_ppc64x.s
++++ b/src/math/modf_ppc64x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ppc64 || ppc64le
+-// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/net/http/h2_error.go b/src/net/http/h2_error.go
+index 0391d31e5b..2c0b21ec07 100644
+--- a/src/net/http/h2_error.go
++++ b/src/net/http/h2_error.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !nethttpomithttp2
+-// +build !nethttpomithttp2
+ 
+ package http
+ 
+diff --git a/src/net/http/h2_error_test.go b/src/net/http/h2_error_test.go
+index 0d85e2f36c..5e400683b4 100644
+--- a/src/net/http/h2_error_test.go
++++ b/src/net/http/h2_error_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !nethttpomithttp2
+-// +build !nethttpomithttp2
+ 
+ package http
+ 
+diff --git a/src/net/sendfile_linux_test.go b/src/net/sendfile_linux_test.go
+index 8cd6acca17..0b5af36cdb 100644
+--- a/src/net/sendfile_linux_test.go
++++ b/src/net/sendfile_linux_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux
+-// +build linux
+ 
+ package net
+ 
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/runtime/internal/atomic/atomic_andor_test.go
+index a1918e3ecf..03c2c754f3 100644
+--- a/src/runtime/internal/atomic/atomic_andor_test.go
++++ b/src/runtime/internal/atomic/atomic_andor_test.go
+@@ -1,5 +1,4 @@
+ //go:build wasm || ppc64 || ppc64le
+-// +build wasm ppc64 ppc64le
+ 
+ //
+ // Copyright 2023 The Go Authors. All rights reserved.
+diff --git a/src/runtime/race_s390x.s b/src/runtime/race_s390x.s
+index beb7f830f2..dadc12f4db 100644
+--- a/src/runtime/race_s390x.s
++++ b/src/runtime/race_s390x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build race
+-// +build race
+ 
+ #include "go_asm.h"
+ #include "funcdata.h"
+diff --git a/src/runtime/vdso_linux_s390x.go b/src/runtime/vdso_linux_s390x.go
+index c1c0b1baa4..970ecd3ce6 100644
+--- a/src/runtime/vdso_linux_s390x.go
++++ b/src/runtime/vdso_linux_s390x.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux && s390x
+-// +build linux,s390x
+ 
+ package runtime
+ 
+diff --git a/src/sort/gen_sort_variants.go b/src/sort/gen_sort_variants.go
+index 89500e1c10..95fca70987 100644
+--- a/src/sort/gen_sort_variants.go
++++ b/src/sort/gen_sort_variants.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // This program is run via "go generate" (via a directive in sort.go)
+ // to generate implementation variants of the underlying sorting algorithm.
+diff --git a/src/strconv/bytealg.go b/src/strconv/bytealg.go
+index a2bb12c5f2..6fe1624c0e 100644
+--- a/src/strconv/bytealg.go
++++ b/src/strconv/bytealg.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !compiler_bootstrap
+-// +build !compiler_bootstrap
+ 
+ package strconv
+ 
+diff --git a/src/strconv/bytealg_bootstrap.go b/src/strconv/bytealg_bootstrap.go
+index 0ed79f4de7..12d96e5b53 100644
+--- a/src/strconv/bytealg_bootstrap.go
++++ b/src/strconv/bytealg_bootstrap.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build compiler_bootstrap
+-// +build compiler_bootstrap
+ 
+ package strconv
+ 
+diff --git a/src/strconv/makeisprint.go b/src/strconv/makeisprint.go
+index 909f9e4787..ff361e7b41 100644
+--- a/src/strconv/makeisprint.go
++++ b/src/strconv/makeisprint.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ //
+ // usage:

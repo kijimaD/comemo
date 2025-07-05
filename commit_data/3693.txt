@@ -9,7 +9,7 @@ Date:   Sun Nov 1 09:37:13 2009 -0800
     
     R=r
     http://go/go-review/1018010
-
+---
  src/pkg/os/Makefile                               |  4 +-
  src/pkg/os/{dir_darwin_386.go => dir_darwin.go}   |  0
  src/pkg/os/dir_darwin_amd64.go                    | 74 ---------------------
@@ -25,3 +25,555 @@ Date:   Sun Nov 1 09:37:13 2009 -0800
  src/pkg/os/stat_linux_arm.go                      | 44 ------------
  src/pkg/os/{stat_nacl_386.go => stat_nacl.go}     |  6 --
  14 files changed, 14 insertions(+), 392 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 323be5edb7..2b30483e9d 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -6,7 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=os
+ GOFILES=\
+-	dir_$(GOOS)_$(GOARCH).go\
++	dir_$(GOOS).go\
+ 	env.go\
+ 	error.go\
+ 	exec.go\
+@@ -14,7 +14,7 @@ GOFILES=\
+ 	getwd.go\
+ 	path.go\
+ 	proc.go\
+-	stat_$(GOOS)_$(GOARCH).go\
++	stat_$(GOOS).go\
+ 	sys_$(GOOS).go\
+ 	time.go\
+ 	types.go\
+diff --git a/src/pkg/os/dir_darwin_386.go b/src/pkg/os/dir_darwin.go
+similarity index 100%
+rename from src/pkg/os/dir_darwin_386.go
+rename to src/pkg/os/dir_darwin.go
+diff --git a/src/pkg/os/dir_darwin_amd64.go b/src/pkg/os/dir_darwin_amd64.go
+deleted file mode 100644
+index d42c59e91b..0000000000
+--- a/src/pkg/os/dir_darwin_amd64.go
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import (
+-	"syscall";
+-	"unsafe";
+-)
+-
+-const (
+-	blockSize = 4096;	// TODO(r): use statfs
+-)
+-
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo);
+-		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+-		file.dirinfo.buf = make([]byte, blockSize);
+-	}
+-	d := file.dirinfo;
+-	size := count;
+-	if size < 0 {
+-		size = 100;
+-	}
+-	names = make([]string, 0, size);	// Empty with room to grow.
+-	for count != 0 {
+-		// Refill the buffer if necessary
+-		if d.bufp >= d.nbuf {
+-			var errno int;
+-			d.bufp = 0;
+-			// Final argument is (basep *uintptr) and the syscall doesn't take nil.
+-			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
+-			if errno != 0 {
+-				d.nbuf = 0;
+-				return names, NewSyscallError("getdirentries", errno);
+-			}
+-			if d.nbuf <= 0 {
+-				break;	// EOF
+-			}
+-		}
+-		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+-			if dirent.Reclen == 0 {
+-				d.bufp = d.nbuf;
+-				break;
+-			}
+-			d.bufp += int(dirent.Reclen);
+-			if dirent.Ino == 0 {	// File absent in directory.
+-				continue;
+-			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0 : dirent.Namlen]);
+-			if name == "." || name == ".." {	// Useless names
+-				continue;
+-			}
+-			count--;
+-			if len(names) == cap(names) {
+-				nnames := make([]string, len(names), 2*len(names));
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i];
+-				}
+-				names = nnames;
+-			}
+-			names = names[0 : len(names)+1];
+-			names[len(names)-1] = name;
+-		}
+-	}
+-	return names, nil;
+-}
+diff --git a/src/pkg/os/dir_linux_amd64.go b/src/pkg/os/dir_linux.go
+similarity index 100%
+rename from src/pkg/os/dir_linux_amd64.go
+rename to src/pkg/os/dir_linux.go
+diff --git a/src/pkg/os/dir_linux_arm.go b/src/pkg/os/dir_linux_arm.go
+deleted file mode 100644
+index 64db8827b3..0000000000
+--- a/src/pkg/os/dir_linux_arm.go
++++ /dev/null
+@@ -1,81 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be dir_linux.go (and similarly
+-// dir_darwin.go) instead of having one copy per architecture.
+-
+-package os
+-
+-import (
+-	"syscall";
+-	"unsafe";
+-)
+-
+-const (
+-	blockSize = 4096;	// TODO(r): use statfs
+-)
+-
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i;
+-		}
+-	}
+-	return len(n);
+-}
+-
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo);
+-		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+-		file.dirinfo.buf = make([]byte, blockSize);
+-	}
+-	d := file.dirinfo;
+-	size := count;
+-	if size < 0 {
+-		size = 100;
+-	}
+-	names = make([]string, 0, size);	// Empty with room to grow.
+-	for count != 0 {
+-		// Refill the buffer if necessary
+-		if d.bufp >= d.nbuf {
+-			var errno int;
+-			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+-			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno);
+-			}
+-			if d.nbuf <= 0 {
+-				break;	// EOF
+-			}
+-			d.bufp = 0;
+-		}
+-		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+-			d.bufp += int(dirent.Reclen);
+-			if dirent.Ino == 0 {	// File absent in directory.
+-				continue;
+-			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0:clen(bytes)]);
+-			if name == "." || name == ".." {	// Useless names
+-				continue;
+-			}
+-			count--;
+-			if len(names) == cap(names) {
+-				nnames := make([]string, len(names), 2*len(names));
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i];
+-				}
+-				names = nnames;
+-			}
+-			names = names[0 : len(names)+1];
+-			names[len(names)-1] = name;
+-		}
+-	}
+-	return names, nil;
+-}
+diff --git a/src/pkg/os/dir_linux_386.go b/src/pkg/os/dir_nacl.go
+similarity index 91%
+rename from src/pkg/os/dir_linux_386.go
+rename to src/pkg/os/dir_nacl.go
+index 64db8827b3..d6e77016cc 100644
+--- a/src/pkg/os/dir_linux_386.go
++++ b/src/pkg/os/dir_nacl.go
+@@ -2,10 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be dir_linux.go (and similarly
+-// dir_darwin.go) instead of having one copy per architecture.
+-
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/dir_nacl_386.go b/src/pkg/os/dir_nacl_386.go
+deleted file mode 100644
+index 97767ddc02..0000000000
+--- a/src/pkg/os/dir_nacl_386.go
++++ /dev/null
+@@ -1,81 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be dir_nacl.go (and similarly
+-// dir_linux.go, dir_darwin.go) instead of having one copy per architecture.
+-
+-package os
+-
+-import (
+-	"syscall";
+-	"unsafe";
+-)
+-
+-const (
+-	blockSize = 4096;	// TODO(r): use statfs
+-)
+-
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i;
+-		}
+-	}
+-	return len(n);
+-}
+-
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo);
+-		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+-		file.dirinfo.buf = make([]byte, blockSize);
+-	}
+-	d := file.dirinfo;
+-	size := count;
+-	if size < 0 {
+-		size = 100;
+-	}
+-	names = make([]string, 0, size);	// Empty with room to grow.
+-	for count != 0 {
+-		// Refill the buffer if necessary
+-		if d.bufp >= d.nbuf {
+-			var errno int;
+-			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+-			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno);
+-			}
+-			if d.nbuf <= 0 {
+-				break;	// EOF
+-			}
+-			d.bufp = 0;
+-		}
+-		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+-			d.bufp += int(dirent.Reclen);
+-			if dirent.Ino == 0 {	// File absent in directory.
+-				continue;
+-			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0:clen(bytes)]);
+-			if name == "." || name == ".." {	// Useless names
+-				continue;
+-			}
+-			count--;
+-			if len(names) == cap(names) {
+-				nnames := make([]string, len(names), 2*len(names));
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i];
+-				}
+-				names = nnames;
+-			}
+-			names = names[0 : len(names)+1];
+-			names[len(names)-1] = name;
+-		}
+-	}
+-	return names, nil;
+-}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 2f77db20c9..ff45ab5787 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -5,25 +5,25 @@
+ package os_test
+ 
+ import (
+-		"bytes";
+-		"fmt";
+-		"io";
+-	.	"os";
+-		"strings";
+-		"testing";
++	"bytes";
++	"fmt";
++	"io";
++	. "os";
++	"strings";
++	"testing";
+ )
+ 
+ var dot = []string{
+-	"dir_darwin_amd64.go",
+-	"dir_linux_amd64.go",
++	"dir_darwin.go",
++	"dir_linux.go",
+ 	"env.go",
+ 	"error.go",
+ 	"file.go",
+ 	"os_test.go",
+ 	"time.go",
+ 	"types.go",
+-	"stat_darwin_amd64.go",
+-	"stat_linux_amd64.go",
++	"stat_darwin.go",
++	"stat_linux.go",
+ }
+ 
+ var etc = []string{
+diff --git a/src/pkg/os/stat_darwin_386.go b/src/pkg/os/stat_darwin.go
+similarity index 98%
+rename from src/pkg/os/stat_darwin_386.go
+rename to src/pkg/os/stat_darwin.go
+index b8b2fe3a2a..6ba402fa6c 100644
+--- a/src/pkg/os/stat_darwin_386.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// 386, Darwin
+-
+ package os
+ 
+ import "syscall"
+diff --git a/src/pkg/os/stat_darwin_amd64.go b/src/pkg/os/stat_darwin_amd64.go
+deleted file mode 100644
+index d7400b210d..0000000000
+--- a/src/pkg/os/stat_darwin_amd64.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// AMD64, Darwin
+-
+-package os
+-
+-import "syscall"
+-
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+-}
+-
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = uint64(stat.Dev);
+-	dir.Ino = stat.Ino;
+-	dir.Nlink = uint64(stat.Nlink);
+-	dir.Mode = uint32(stat.Mode);
+-	dir.Uid = stat.Uid;
+-	dir.Gid = stat.Gid;
+-	dir.Rdev = uint64(stat.Rdev);
+-	dir.Size = uint64(stat.Size);
+-	dir.Blksize = uint64(stat.Blksize);
+-	dir.Blocks = uint64(stat.Blocks);
+-	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
+-	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
+-	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
+-	for i := len(name)-1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1 : len(name)];
+-			break;
+-		}
+-	}
+-	dir.Name = name;
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true;
+-	}
+-	return dir;
+-}
+diff --git a/src/pkg/os/stat_linux_amd64.go b/src/pkg/os/stat_linux.go
+similarity index 93%
+rename from src/pkg/os/stat_linux_amd64.go
+rename to src/pkg/os/stat_linux.go
+index dcc29c04e0..fe4193a5b8 100644
+--- a/src/pkg/os/stat_linux_amd64.go
++++ b/src/pkg/os/stat_linux.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// AMD64, Linux
+-
+ package os
+ 
+ import "syscall"
+@@ -14,8 +12,8 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Dev = stat.Dev;
+-	dir.Ino = stat.Ino;
+-	dir.Nlink = stat.Nlink;
++	dir.Ino = uint64(stat.Ino);
++	dir.Nlink = uint64(stat.Nlink);
+ 	dir.Mode = stat.Mode;
+ 	dir.Uid = stat.Uid;
+ 	dir.Gid = stat.Gid;
+diff --git a/src/pkg/os/stat_linux_386.go b/src/pkg/os/stat_linux_386.go
+deleted file mode 100644
+index a1df330280..0000000000
+--- a/src/pkg/os/stat_linux_386.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be stat_linux.go (and similarly
+-// stat_darwin.go) instead of having one copy per architecture.
+-
+-// 386, Linux
+-
+-package os
+-
+-import "syscall"
+-
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+-}
+-
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = stat.Dev;
+-	dir.Ino = uint64(stat.Ino);
+-	dir.Nlink = uint64(stat.Nlink);
+-	dir.Mode = stat.Mode;
+-	dir.Uid = stat.Uid;
+-	dir.Gid = stat.Gid;
+-	dir.Rdev = stat.Rdev;
+-	dir.Size = uint64(stat.Size);
+-	dir.Blksize = uint64(stat.Blksize);
+-	dir.Blocks = uint64(stat.Blocks);
+-	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+-	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+-	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name)-1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1 : len(name)];
+-			break;
+-		}
+-	}
+-	dir.Name = name;
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true;
+-	}
+-	return dir;
+-}
+diff --git a/src/pkg/os/stat_linux_arm.go b/src/pkg/os/stat_linux_arm.go
+deleted file mode 100644
+index a1df330280..0000000000
+--- a/src/pkg/os/stat_linux_arm.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be stat_linux.go (and similarly
+-// stat_darwin.go) instead of having one copy per architecture.
+-
+-// 386, Linux
+-
+-package os
+-
+-import "syscall"
+-
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+-}
+-
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = stat.Dev;
+-	dir.Ino = uint64(stat.Ino);
+-	dir.Nlink = uint64(stat.Nlink);
+-	dir.Mode = stat.Mode;
+-	dir.Uid = stat.Uid;
+-	dir.Gid = stat.Gid;
+-	dir.Rdev = stat.Rdev;
+-	dir.Size = uint64(stat.Size);
+-	dir.Blksize = uint64(stat.Blksize);
+-	dir.Blocks = uint64(stat.Blocks);
+-	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+-	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+-	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name)-1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1 : len(name)];
+-			break;
+-		}
+-	}
+-	dir.Name = name;
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true;
+-	}
+-	return dir;
+-}
+diff --git a/src/pkg/os/stat_nacl_386.go b/src/pkg/os/stat_nacl.go
+similarity index 82%
+rename from src/pkg/os/stat_nacl_386.go
+rename to src/pkg/os/stat_nacl.go
+index e36d3f9a23..5295106df7 100644
+--- a/src/pkg/os/stat_nacl_386.go
++++ b/src/pkg/os/stat_nacl.go
+@@ -2,12 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Once the porting dust settles, consider
+-// whether this file should be stat_nacl.go (and similarly
+-// stat_linux.go, stat_darwin.go) instead of having one copy per architecture.
+-
+-// 386, Native Client
+-
+ package os
+ 
+ import "syscall"

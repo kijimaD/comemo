@@ -10,9 +10,99 @@ Date:   Tue May 31 13:41:32 2011 -0400
     R=rsc, lstoakes
     CC=golang-dev
     https://golang.org/cl/4530084
-
+---
  src/cmd/gc/dcl.c         | 24 ++++++++++++++++++++++++
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/go.y          |  1 +
  test/fixedbugs/bug342.go | 24 ++++++++++++++++++++++++
  4 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 99af18d9f1..dfdd11caeb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -523,6 +523,30 @@ colas(NodeList *left, NodeList *right)
+ 	return as;
+ }
+ 
++/*
++ * declare the arguments in an
++ * interface field declaration.
++ */
++void
++ifacedcl(Node *n)
++{
++	if(n->op != ODCLFIELD || n->right == N)
++		fatal("ifacedcl");
++
++	dclcontext = PAUTO;
++	markdcl();
++	funcdepth++;
++	n->outer = curfn;
++	curfn = n;
++	funcargs(n->right);
++
++	// funcbody is normally called after the parser has
++	// seen the body of a function but since an interface
++	// field declaration does not have a body, we must
++	// call it now to pop the current declaration context.
++	funcbody(n);
++}
++
+ /*
+  * declare the function proper
+  * and declare the arguments.
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 359881e11e..3f07befcbd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -870,6 +870,7 @@ void	funcbody(Node *n);
+ void	funccompile(Node *n, int isclosure);
+ void	funchdr(Node *n);
+ Type*	functype(Node *this, NodeList *in, NodeList *out);
++void	ifacedcl(Node *n);
+ int	isifacemethod(Type *f);
+ void	markdcl(void);
+ Node*	methodname(Node *n, Type *t);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7adfd002a3..fdaab4fa46 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1380,6 +1380,7 @@ interfacedcl:
+ 	new_name indcl
+ 	{
+ 		$$ = nod(ODCLFIELD, $1, $2);
++		ifacedcl($$);
+ 	}
+ |	packname
+ 	{
+diff --git a/test/fixedbugs/bug342.go b/test/fixedbugs/bug342.go
+new file mode 100644
+index 0000000000..0852cdd348
+--- /dev/null
++++ b/test/fixedbugs/bug342.go
+@@ -0,0 +1,24 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1871.
++
++package p
++
++type a interface {
++	foo(x int) (x int) // ERROR "redeclared|redefinition"
++}
++
++var b interface {
++	bar(y int) (y int) // ERROR "redeclared|redefinition"
++}
++
++/*
++Previously:
++
++bug.go:1 x redclared in this block
++    previous declaration at bug.go:1
++*/

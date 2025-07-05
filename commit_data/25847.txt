@@ -10,9 +10,149 @@ Date:   Mon Nov 2 14:53:31 2015 +0300
     Change-Id: Ic18453dcaa08d07bb217c0b95461584f007d518b
     Reviewed-on: https://go-review.googlesource.com/16479
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go  |  2 +-
  src/cmd/internal/obj/x86/a.out.go  |  8 ++++++++
  src/cmd/internal/obj/x86/anames.go |  6 ++++++
  src/cmd/internal/obj/x86/asm6.go   | 31 ++++++++++++++++++++++++++++---
  4 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index cc1aab6ad5..b6a51a837c 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -87,7 +87,7 @@ func Set(GOARCH string) *Arch {
+ }
+ 
+ func jumpX86(word string) bool {
+-	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP")
++	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+ }
+ 
+ func archX86(linkArch *obj.LinkArch) *Arch {
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 73abe3b705..5ea5c9d79e 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -768,6 +768,14 @@ const (
+ 	AFUCOMI
+ 	AFUCOMIP
+ 
++	// TSX
++	AXACQUIRE
++	AXRELEASE
++	AXBEGIN
++	AXEND
++	AXABORT
++	AXTEST
++
+ 	ALAST
+ )
+ 
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index d94d7eaff1..9eb57b04cd 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -706,5 +706,11 @@ var Anames = []string{
+ 	"FCOMIP",
+ 	"FUCOMI",
+ 	"FUCOMIP",
++	"XACQUIRE",
++	"XRELEASE",
++	"XBEGIN",
++	"XEND",
++	"XABORT",
++	"XTEST",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 19aee0df44..8bb4dff262 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -757,6 +757,14 @@ var yaes2 = []ytab{
+ 	{Yu8, Yxm, Yxr, Zibm_r, 2},
+ }
+ 
++var yxbegin = []ytab{
++	{Ynone, Ynone, Ybr, Zjmp, 1},
++}
++
++var yxabort = []ytab{
++	{Yu8, Ynone, Ynone, Zib_, 1},
++}
++
+ /*
+  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
+  * and p->from and p->to as operands (Addr*).  The linker scans optab to find
+@@ -1519,6 +1527,12 @@ var optab =
+ 	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
+ 	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
+ 	{AVPTEST, yml_xr_vex, Pvex3, [23]uint8{0x17, 0x17}},
++	{AXACQUIRE, ynone, Px, [23]uint8{0xf2}},
++	{AXRELEASE, ynone, Px, [23]uint8{0xf3}},
++	{AXBEGIN, yxbegin, Px, [23]uint8{0xc7, 0xf8}},
++	{AXABORT, yxabort, Px, [23]uint8{0xc6, 0xf8}},
++	{AXEND, ynone, Px, [23]uint8{0x0f, 01, 0xd5}},
++	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
+ 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+ 	{obj.ATYPE, nil, 0, [23]uint8{}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+@@ -1729,7 +1743,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 						q.Back ^= 2
+ 					}
+ 
+-					if q.As == AJCXZL {
++					if q.As == AJCXZL || q.As == AXBEGIN {
+ 						s.P[q.Pc+2] = byte(v)
+ 					} else {
+ 						s.P[q.Pc+1] = byte(v)
+@@ -3432,6 +3446,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				}
+ 				ctxt.Andptr[0] = byte(op)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
++				if p.As == AXABORT {
++					ctxt.Andptr[0] = byte(o.op[z+1])
++					ctxt.Andptr = ctxt.Andptr[1:]
++				}
+ 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, a, nil))
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+@@ -3653,6 +3671,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 			// TODO: jump across functions needs reloc
+ 			case Zbr, Zjmp, Zloop:
++				if p.As == AXBEGIN {
++					ctxt.Andptr[0] = byte(op)
++					ctxt.Andptr = ctxt.Andptr[1:]
++				}
+ 				if p.To.Sym != nil {
+ 					if yt.zcase != Zjmp {
+ 						ctxt.Diag("branch to ATEXT")
+@@ -3683,7 +3705,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 				if p.Back&1 != 0 {
+ 					v = q.Pc - (p.Pc + 2)
+-					if v >= -128 {
++					if v >= -128 && p.As != AXBEGIN {
+ 						if p.As == AJCXZL {
+ 							ctxt.Andptr[0] = 0x67
+ 							ctxt.Andptr = ctxt.Andptr[1:]
+@@ -3696,6 +3718,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 						ctxt.Diag("loop too far: %v", p)
+ 					} else {
+ 						v -= 5 - 2
++						if p.As == AXBEGIN {
++							v--
++						}
+ 						if yt.zcase == Zbr {
+ 							ctxt.Andptr[0] = 0x0f
+ 							ctxt.Andptr = ctxt.Andptr[1:]
+@@ -3721,7 +3746,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				p.Forwd = q.Rel
+ 
+ 				q.Rel = p
+-				if p.Back&2 != 0 { // short
++				if p.Back&2 != 0 && p.As != AXBEGIN { // short
+ 					if p.As == AJCXZL {
+ 						ctxt.Andptr[0] = 0x67
+ 						ctxt.Andptr = ctxt.Andptr[1:]

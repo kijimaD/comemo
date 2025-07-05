@@ -9,7 +9,7 @@ Date:   Sun Jun 20 12:16:25 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1680044
-
+---
  src/cmd/gc/reflect.c              |  32 ++--
  src/pkg/asn1/asn1.go              |  33 ++--
  src/pkg/asn1/common.go            |   6 +-
@@ -36,3 +36,2444 @@ Date:   Sun Jun 20 12:16:25 2010 -0700
  src/pkg/testing/quick/quick.go    |  65 +++----
  src/pkg/xml/read.go               |  63 +------
  25 files changed, 623 insertions(+), 937 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 3ac48fbee4..c78e4dd30b 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -390,6 +390,9 @@ enum {
+ 	KindFloat,
+ 	KindFloat32,
+ 	KindFloat64,
++	KindComplex,
++	KindComplex64,
++	KindComplex128,
+ 	KindArray,
+ 	KindChan,
+ 	KindFunc,
+@@ -431,6 +434,9 @@ kinds[] =
+ 	[TMAP]		= KindMap,
+ 	[TARRAY]		= KindArray,
+ 	[TFUNC]		= KindFunc,
++	[TCOMPLEX]	= KindComplex,
++	[TCOMPLEX64]	= KindComplex64,
++	[TCOMPLEX128]	= KindComplex128,
+ };
+ 
+ static char*
+@@ -438,21 +444,21 @@ structnames[] =
+ {
+ 	[TINT]		= "*runtime.IntType",
+ 	[TUINT]		= "*runtime.UintType",
+-	[TINT8]		= "*runtime.Int8Type",
+-	[TUINT8]	= "*runtime.Uint8Type",
+-	[TINT16]	= "*runtime.Int16Type",
+-	[TUINT16]	= "*runtime.Uint16Type",
+-	[TINT32]	= "*runtime.Int32Type",
+-	[TUINT32]	= "*runtime.Uint32Type",
+-	[TINT64]	= "*runtime.Int64Type",
+-	[TUINT64]	= "*runtime.Uint64Type",
+-	[TUINTPTR]	= "*runtime.UintptrType",
++	[TINT8]		= "*runtime.IntType",
++	[TUINT8]	= "*runtime.UintType",
++	[TINT16]	= "*runtime.IntType",
++	[TUINT16]	= "*runtime.UintType",
++	[TINT32]	= "*runtime.IntType",
++	[TUINT32]	= "*runtime.UintType",
++	[TINT64]	= "*runtime.IntType",
++	[TUINT64]	= "*runtime.UintType",
++	[TUINTPTR]	= "*runtime.UintType",
+ 	[TCOMPLEX]	= "*runtime.ComplexType",
+-	[TCOMPLEX64]	= "*runtime.Complex64Type",
+-	[TCOMPLEX128]	= "*runtime.Complex128Type",
++	[TCOMPLEX64]	= "*runtime.ComplexType",
++	[TCOMPLEX128]	= "*runtime.ComplexType",
+ 	[TFLOAT]	= "*runtime.FloatType",
+-	[TFLOAT32]	= "*runtime.Float32Type",
+-	[TFLOAT64]	= "*runtime.Float64Type",
++	[TFLOAT32]	= "*runtime.FloatType",
++	[TFLOAT64]	= "*runtime.FloatType",
+ 	[TBOOL]		= "*runtime.BoolType",
+ 	[TSTRING]	= "*runtime.StringType",
+ 
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index b8cea93592..bba8a0fe27 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -647,19 +647,22 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		err = err1
+ 		return
+ 	case *reflect.IntValue:
+-		parsedInt, err1 := parseInt(innerBytes)
+-		if err1 == nil {
+-			val.Set(parsedInt)
+-		}
+-		err = err1
+-		return
+-	case *reflect.Int64Value:
+-		parsedInt, err1 := parseInt64(innerBytes)
+-		if err1 == nil {
+-			val.Set(parsedInt)
++		switch val.Type().Kind() {
++		case reflect.Int:
++			parsedInt, err1 := parseInt(innerBytes)
++			if err1 == nil {
++				val.Set(int64(parsedInt))
++			}
++			err = err1
++			return
++		case reflect.Int64:
++			parsedInt, err1 := parseInt64(innerBytes)
++			if err1 == nil {
++				val.Set(parsedInt)
++			}
++			err = err1
++			return
+ 		}
+-		err = err1
+-		return
+ 	case *reflect.StructValue:
+ 		structType := fieldType.(*reflect.StructType)
+ 
+@@ -686,7 +689,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		return
+ 	case *reflect.SliceValue:
+ 		sliceType := fieldType.(*reflect.SliceType)
+-		if _, ok := sliceType.Elem().(*reflect.Uint8Type); ok {
++		if sliceType.Elem().Kind() == reflect.Uint8 {
+ 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
+ 			reflect.ArrayCopy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
+ 			return
+@@ -729,9 +732,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ 	}
+ 	switch val := v.(type) {
+ 	case *reflect.IntValue:
+-		val.Set(int(*params.defaultValue))
+-	case *reflect.Int64Value:
+-		val.Set(int64(*params.defaultValue))
++		val.Set(*params.defaultValue)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 87cb670ea2..894fc002ab 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -122,17 +122,15 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
+ 	case timeType:
+ 		return tagUTCTime, false, true
+ 	}
+-	switch i := t.(type) {
++	switch t := t.(type) {
+ 	case *reflect.BoolType:
+ 		return tagBoolean, false, true
+ 	case *reflect.IntType:
+ 		return tagInteger, false, true
+-	case *reflect.Int64Type:
+-		return tagInteger, false, true
+ 	case *reflect.StructType:
+ 		return tagSequence, true, true
+ 	case *reflect.SliceType:
+-		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
++		if t.Elem().Kind() == reflect.Uint8 {
+ 			return tagOctetString, false, true
+ 		}
+ 		if strings.HasSuffix(t.Name(), "SET") {
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 5704fafe13..d4f8f782d4 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -333,8 +333,6 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		}
+ 	case *reflect.IntValue:
+ 		return marshalInt64(out, int64(v.Get()))
+-	case *reflect.Int64Value:
+-		return marshalInt64(out, v.Get())
+ 	case *reflect.StructValue:
+ 		t := v.Type().(*reflect.StructType)
+ 
+@@ -347,7 +345,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 			if s.Len() > 0 {
+ 				bytes := make([]byte, s.Len())
+ 				for i := 0; i < s.Len(); i++ {
+-					bytes[i] = s.Elem(i).(*reflect.Uint8Value).Get()
++					bytes[i] = uint8(s.Elem(i).(*reflect.UintValue).Get())
+ 				}
+ 				/* The RawContents will contain the tag and
+ 				 * length fields but we'll also be writing
+@@ -371,10 +369,10 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		return
+ 	case *reflect.SliceValue:
+ 		sliceType := v.Type().(*reflect.SliceType)
+-		if _, ok := sliceType.Elem().(*reflect.Uint8Type); ok {
++		if sliceType.Elem().Kind() == reflect.Uint8 {
+ 			bytes := make([]byte, v.Len())
+ 			for i := 0; i < v.Len(); i++ {
+-				bytes[i] = v.Elem(i).(*reflect.Uint8Value).Get()
++				bytes[i] = uint8(v.Elem(i).(*reflect.UintValue).Get())
+ 			}
+ 			_, err = out.Write(bytes)
+ 			return
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index f1d375aead..5a92faa219 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -194,26 +194,8 @@ func sizeof(v reflect.Type) int {
+ 		}
+ 		return sum
+ 
+-	case *reflect.Uint8Type:
+-		return 1
+-	case *reflect.Uint16Type:
+-		return 2
+-	case *reflect.Uint32Type:
+-		return 4
+-	case *reflect.Uint64Type:
+-		return 8
+-	case *reflect.Int8Type:
+-		return 1
+-	case *reflect.Int16Type:
+-		return 2
+-	case *reflect.Int32Type:
+-		return 4
+-	case *reflect.Int64Type:
+-		return 8
+-	case *reflect.Float32Type:
+-		return 4
+-	case *reflect.Float64Type:
+-		return 8
++	case *reflect.UintType, *reflect.IntType, *reflect.FloatType:
++		return int(v.Size())
+ 	}
+ 	return -1
+ }
+@@ -307,26 +289,37 @@ func (d *decoder) value(v reflect.Value) {
+ 			d.value(v.Elem(i))
+ 		}
+ 
+-	case *reflect.Uint8Value:
+-		v.Set(d.uint8())
+-	case *reflect.Uint16Value:
+-		v.Set(d.uint16())
+-	case *reflect.Uint32Value:
+-		v.Set(d.uint32())
+-	case *reflect.Uint64Value:
+-		v.Set(d.uint64())
+-	case *reflect.Int8Value:
+-		v.Set(d.int8())
+-	case *reflect.Int16Value:
+-		v.Set(d.int16())
+-	case *reflect.Int32Value:
+-		v.Set(d.int32())
+-	case *reflect.Int64Value:
+-		v.Set(d.int64())
+-	case *reflect.Float32Value:
+-		v.Set(math.Float32frombits(d.uint32()))
+-	case *reflect.Float64Value:
+-		v.Set(math.Float64frombits(d.uint64()))
++	case *reflect.IntValue:
++		switch v.Type().Kind() {
++		case reflect.Int8:
++			v.Set(int64(d.int8()))
++		case reflect.Int16:
++			v.Set(int64(d.int16()))
++		case reflect.Int32:
++			v.Set(int64(d.int32()))
++		case reflect.Int64:
++			v.Set(d.int64())
++		}
++
++	case *reflect.UintValue:
++		switch v.Type().Kind() {
++		case reflect.Uint8:
++			v.Set(uint64(d.uint8()))
++		case reflect.Uint16:
++			v.Set(uint64(d.uint16()))
++		case reflect.Uint32:
++			v.Set(uint64(d.uint32()))
++		case reflect.Uint64:
++			v.Set(d.uint64())
++		}
++
++	case *reflect.FloatValue:
++		switch v.Type().Kind() {
++		case reflect.Float32:
++			v.Set(float64(math.Float32frombits(d.uint32())))
++		case reflect.Float64:
++			v.Set(math.Float64frombits(d.uint64()))
++		}
+ 	}
+ }
+ 
+@@ -348,25 +341,36 @@ func (e *encoder) value(v reflect.Value) {
+ 			e.value(v.Elem(i))
+ 		}
+ 
+-	case *reflect.Uint8Value:
+-		e.uint8(v.Get())
+-	case *reflect.Uint16Value:
+-		e.uint16(v.Get())
+-	case *reflect.Uint32Value:
+-		e.uint32(v.Get())
+-	case *reflect.Uint64Value:
+-		e.uint64(v.Get())
+-	case *reflect.Int8Value:
+-		e.int8(v.Get())
+-	case *reflect.Int16Value:
+-		e.int16(v.Get())
+-	case *reflect.Int32Value:
+-		e.int32(v.Get())
+-	case *reflect.Int64Value:
+-		e.int64(v.Get())
+-	case *reflect.Float32Value:
+-		e.uint32(math.Float32bits(v.Get()))
+-	case *reflect.Float64Value:
+-		e.uint64(math.Float64bits(v.Get()))
++	case *reflect.IntValue:
++		switch v.Type().Kind() {
++		case reflect.Int8:
++			e.int8(int8(v.Get()))
++		case reflect.Int16:
++			e.int16(int16(v.Get()))
++		case reflect.Int32:
++			e.int32(int32(v.Get()))
++		case reflect.Int64:
++			e.int64(v.Get())
++		}
++
++	case *reflect.UintValue:
++		switch v.Type().Kind() {
++		case reflect.Uint8:
++			e.uint8(uint8(v.Get()))
++		case reflect.Uint16:
++			e.uint16(uint16(v.Get()))
++		case reflect.Uint32:
++			e.uint32(uint32(v.Get()))
++		case reflect.Uint64:
++			e.uint64(v.Get())
++		}
++
++	case *reflect.FloatValue:
++		switch v.Type().Kind() {
++		case reflect.Float32:
++			e.uint32(math.Float32bits(float32(v.Get())))
++		case reflect.Float64:
++			e.uint64(math.Float64bits(v.Get()))
++		}
+ 	}
+ }
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index d494421a43..c53febc8a1 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -37,37 +37,45 @@ func TypeFromNative(t reflect.Type) Type {
+ 	switch t := t.(type) {
+ 	case *reflect.BoolType:
+ 		et = BoolType
+-	case *reflect.Float32Type:
+-		et = Float32Type
+-	case *reflect.Float64Type:
+-		et = Float64Type
+ 	case *reflect.FloatType:
+-		et = FloatType
+-	case *reflect.Int16Type:
+-		et = Int16Type
+-	case *reflect.Int32Type:
+-		et = Int32Type
+-	case *reflect.Int64Type:
+-		et = Int64Type
+-	case *reflect.Int8Type:
+-		et = Int8Type
++		switch t.Kind() {
++		case reflect.Float32:
++			et = Float32Type
++		case reflect.Float64:
++			et = Float64Type
++		case reflect.Float:
++			et = FloatType
++		}
+ 	case *reflect.IntType:
+-		et = IntType
++		switch t.Kind() {
++		case reflect.Int16:
++			et = Int16Type
++		case reflect.Int32:
++			et = Int32Type
++		case reflect.Int64:
++			et = Int64Type
++		case reflect.Int8:
++			et = Int8Type
++		case reflect.Int:
++			et = IntType
++		}
++	case *reflect.UintType:
++		switch t.Kind() {
++		case reflect.Uint16:
++			et = Uint16Type
++		case reflect.Uint32:
++			et = Uint32Type
++		case reflect.Uint64:
++			et = Uint64Type
++		case reflect.Uint8:
++			et = Uint8Type
++		case reflect.Uint:
++			et = UintType
++		case reflect.Uintptr:
++			et = UintptrType
++		}
+ 	case *reflect.StringType:
+ 		et = StringType
+-	case *reflect.Uint16Type:
+-		et = Uint16Type
+-	case *reflect.Uint32Type:
+-		et = Uint32Type
+-	case *reflect.Uint64Type:
+-		et = Uint64Type
+-	case *reflect.Uint8Type:
+-		et = Uint8Type
+-	case *reflect.UintType:
+-		et = UintType
+-	case *reflect.UintptrType:
+-		et = UintptrType
+-
+ 	case *reflect.ArrayType:
+ 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
+ 	case *reflect.ChanType:
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index 81e5c830de..970a7497ae 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -237,7 +237,7 @@ func (p *Process) bootstrap() {
+ 		if sym == nil {
+ 			continue
+ 		}
+-		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Value)
++		rtv.Field(i).(*reflect.UintValue).Set(sym.Value)
+ 	}
+ 
+ 	// Get runtime field indexes
+diff --git a/src/pkg/exp/ogle/rruntime.go b/src/pkg/exp/ogle/rruntime.go
+index 46c40e85f7..33f1935b89 100644
+--- a/src/pkg/exp/ogle/rruntime.go
++++ b/src/pkg/exp/ogle/rruntime.go
+@@ -265,7 +265,7 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
+ 		for j := 0; j < outStructt.NumField(); j++ {
+ 			f := outStructv.Field(j).(*reflect.IntValue)
+ 			name := outStructt.Field(j).Name
+-			f.Set(indexes[name])
++			f.Set(int64(indexes[name]))
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 16ab719523..6ae7e5c2c2 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -468,8 +468,6 @@ func (p *pp) fmtUint64(v uint64, verb int, sharp bool, value interface{}) {
+ 	}
+ }
+ 
+-var floatBits = reflect.Typeof(float(0)).Size() * 8
+-
+ func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
+ 	switch verb {
+ 	case 'b':
+@@ -508,8 +506,6 @@ func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
+ 	}
+ }
+ 
+-var complexBits = reflect.Typeof(complex(0i)).Size() * 8
+-
+ func (p *pp) fmtComplex64(v complex64, verb int, value interface{}) {
+ 	switch verb {
+ 	case 'e', 'E', 'f', 'F', 'g', 'G':
+@@ -615,6 +611,13 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int,
+ 	return true
+ }
+ 
++var (
++	intBits     = uintptr(reflect.Typeof(int(0)).Size() * 8)
++	floatBits   = uintptr(reflect.Typeof(float(0)).Size() * 8)
++	complexBits = uintptr(reflect.Typeof(complex(0+0i)).Size() * 8)
++	uintptrBits = uintptr(reflect.Typeof(uintptr(0)).Size() * 8)
++)
++
+ func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
+ 	if field != nil {
+ 		switch {
+@@ -724,47 +727,21 @@ BigSwitch:
+ 	case *reflect.BoolValue:
+ 		p.fmtBool(f.Get(), verb, field)
+ 	case *reflect.IntValue:
+-		p.fmtInt64(int64(f.Get()), verb, field)
+-	case *reflect.Int8Value:
+-		p.fmtInt64(int64(f.Get()), verb, field)
+-	case *reflect.Int16Value:
+-		p.fmtInt64(int64(f.Get()), verb, field)
+-	case *reflect.Int32Value:
+-		p.fmtInt64(int64(f.Get()), verb, field)
+-	case *reflect.Int64Value:
+ 		p.fmtInt64(f.Get(), verb, field)
+ 	case *reflect.UintValue:
+ 		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+-	case *reflect.Uint8Value:
+-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+-	case *reflect.Uint16Value:
+-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+-	case *reflect.Uint32Value:
+-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+-	case *reflect.Uint64Value:
+-		p.fmtUint64(f.Get(), verb, sharp, field)
+-	case *reflect.UintptrValue:
+-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
+ 	case *reflect.FloatValue:
+-		if floatBits == 32 {
++		if f.Type().Size() == 4 {
+ 			p.fmtFloat32(float32(f.Get()), verb, field)
+ 		} else {
+ 			p.fmtFloat64(float64(f.Get()), verb, field)
+ 		}
+-	case *reflect.Float32Value:
+-		p.fmtFloat64(float64(f.Get()), verb, field)
+-	case *reflect.Float64Value:
+-		p.fmtFloat64(f.Get(), verb, field)
+ 	case *reflect.ComplexValue:
+-		if complexBits == 64 {
++		if f.Type().Size() == 8 {
+ 			p.fmtComplex64(complex64(f.Get()), verb, field)
+ 		} else {
+ 			p.fmtComplex128(complex128(f.Get()), verb, field)
+ 		}
+-	case *reflect.Complex64Value:
+-		p.fmtComplex64(f.Get(), verb, field)
+-	case *reflect.Complex128Value:
+-		p.fmtComplex128(f.Get(), verb, field)
+ 	case *reflect.StringValue:
+ 		p.fmtString(f.Get(), verb, sharp, field)
+ 	case *reflect.MapValue:
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 87076e8fc9..94383807a5 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -353,8 +353,6 @@ func (s *ss) typeError(field interface{}, expected string) {
+ 	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.Typeof(field).String())
+ }
+ 
+-var intBits = uint(reflect.Typeof(int(0)).Size() * 8)
+-var uintptrBits = uint(reflect.Typeof(int(0)).Size() * 8)
+ var complexError = os.ErrorString("syntax error scanning complex number")
+ var boolError = os.ErrorString("syntax error scanning boolean")
+ 
+@@ -458,7 +456,7 @@ func (s *ss) scanNumber(digits string) string {
+ }
+ 
+ // scanRune returns the next rune value in the input.
+-func (s *ss) scanRune(bitSize uint) int64 {
++func (s *ss) scanRune(bitSize uintptr) int64 {
+ 	rune := int64(s.mustGetRune())
+ 	x := (rune << (64 - bitSize)) >> (64 - bitSize)
+ 	if x != rune {
+@@ -469,7 +467,7 @@ func (s *ss) scanRune(bitSize uint) int64 {
+ 
+ // scanInt returns the value of the integer represented by the next
+ // token, checking for overflow.  Any error is stored in s.err.
+-func (s *ss) scanInt(verb int, bitSize uint) int64 {
++func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
+ 	if verb == 'c' {
+ 		return s.scanRune(bitSize)
+ 	}
+@@ -490,7 +488,7 @@ func (s *ss) scanInt(verb int, bitSize uint) int64 {
+ 
+ // scanUint returns the value of the unsigned integer represented
+ // by the next token, checking for overflow.  Any error is stored in s.err.
+-func (s *ss) scanUint(verb int, bitSize uint) uint64 {
++func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
+ 	if verb == 'c' {
+ 		return uint64(s.scanRune(bitSize))
+ 	}
+@@ -559,27 +557,9 @@ func (s *ss) complexTokens() (real, imag string) {
+ 	return real, imagSign + imag
+ }
+ 
+-// convertFloat converts the string to a float value.
+-func (s *ss) convertFloat(str string) float64 {
+-	f, err := strconv.Atof(str)
+-	if err != nil {
+-		s.error(err)
+-	}
+-	return float64(f)
+-}
+-
+-// convertFloat32 converts the string to a float32 value.
+-func (s *ss) convertFloat32(str string) float64 {
+-	f, err := strconv.Atof32(str)
+-	if err != nil {
+-		s.error(err)
+-	}
+-	return float64(f)
+-}
+-
+-// convertFloat64 converts the string to a float64 value.
+-func (s *ss) convertFloat64(str string) float64 {
+-	f, err := strconv.Atof64(str)
++// convertFloat converts the string to a float64value.
++func (s *ss) convertFloat(str string, n int) float64 {
++	f, err := strconv.AtofN(str, n)
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+@@ -590,14 +570,14 @@ func (s *ss) convertFloat64(str string) float64 {
+ // The atof argument is a type-specific reader for the underlying type.
+ // If we're reading complex64, atof will parse float32s and convert them
+ // to float64's to avoid reproducing this code for each complex type.
+-func (s *ss) scanComplex(verb int, atof func(*ss, string) float64) complex128 {
++func (s *ss) scanComplex(verb int, n int) complex128 {
+ 	if !s.okVerb(verb, floatVerbs, "complex") {
+ 		return 0
+ 	}
+ 	s.skipSpace()
+ 	sreal, simag := s.complexTokens()
+-	real := atof(s, sreal)
+-	imag := atof(s, simag)
++	real := s.convertFloat(sreal, n/2)
++	imag := s.convertFloat(simag, n/2)
+ 	return cmplx(real, imag)
+ }
+ 
+@@ -725,11 +705,11 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 	case *bool:
+ 		*v = s.scanBool(verb)
+ 	case *complex:
+-		*v = complex(s.scanComplex(verb, (*ss).convertFloat))
++		*v = complex(s.scanComplex(verb, int(complexBits)))
+ 	case *complex64:
+-		*v = complex64(s.scanComplex(verb, (*ss).convertFloat32))
++		*v = complex64(s.scanComplex(verb, 64))
+ 	case *complex128:
+-		*v = s.scanComplex(verb, (*ss).convertFloat64)
++		*v = s.scanComplex(verb, 128)
+ 	case *int:
+ 		*v = int(s.scanInt(verb, intBits))
+ 	case *int8:
+@@ -757,17 +737,17 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 	case *float:
+ 		if s.okVerb(verb, floatVerbs, "float") {
+ 			s.skipSpace()
+-			*v = float(s.convertFloat(s.floatToken()))
++			*v = float(s.convertFloat(s.floatToken(), int(floatBits)))
+ 		}
+ 	case *float32:
+ 		if s.okVerb(verb, floatVerbs, "float32") {
+ 			s.skipSpace()
+-			*v = float32(s.convertFloat32(s.floatToken()))
++			*v = float32(s.convertFloat(s.floatToken(), 32))
+ 		}
+ 	case *float64:
+ 		if s.okVerb(verb, floatVerbs, "float64") {
+ 			s.skipSpace()
+-			*v = s.convertFloat64(s.floatToken())
++			*v = s.convertFloat(s.floatToken(), 64)
+ 		}
+ 	case *string:
+ 		*v = s.convertString(verb)
+@@ -786,55 +766,27 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		case *reflect.BoolValue:
+ 			v.Set(s.scanBool(verb))
+ 		case *reflect.IntValue:
+-			v.Set(int(s.scanInt(verb, intBits)))
+-		case *reflect.Int8Value:
+-			v.Set(int8(s.scanInt(verb, 8)))
+-		case *reflect.Int16Value:
+-			v.Set(int16(s.scanInt(verb, 16)))
+-		case *reflect.Int32Value:
+-			v.Set(int32(s.scanInt(verb, 32)))
+-		case *reflect.Int64Value:
+-			v.Set(s.scanInt(verb, 64))
++			v.Set(s.scanInt(verb, v.Type().Size()*8))
+ 		case *reflect.UintValue:
+-			v.Set(uint(s.scanUint(verb, intBits)))
+-		case *reflect.Uint8Value:
+-			v.Set(uint8(s.scanUint(verb, 8)))
+-		case *reflect.Uint16Value:
+-			v.Set(uint16(s.scanUint(verb, 16)))
+-		case *reflect.Uint32Value:
+-			v.Set(uint32(s.scanUint(verb, 32)))
+-		case *reflect.Uint64Value:
+-			v.Set(s.scanUint(verb, 64))
+-		case *reflect.UintptrValue:
+-			v.Set(uintptr(s.scanUint(verb, uintptrBits)))
++			v.Set(s.scanUint(verb, v.Type().Size()*8))
+ 		case *reflect.StringValue:
+ 			v.Set(s.convertString(verb))
+ 		case *reflect.SliceValue:
+ 			// For now, can only handle (renamed) []byte.
+ 			typ := v.Type().(*reflect.SliceType)
+-			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
++			if typ.Elem().Kind() != reflect.Uint8 {
+ 				goto CantHandle
+ 			}
+ 			str := s.convertString(verb)
+ 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
+ 			for i := 0; i < len(str); i++ {
+-				v.Elem(i).(*reflect.Uint8Value).Set(str[i])
++				v.Elem(i).(*reflect.UintValue).Set(uint64(str[i]))
+ 			}
+ 		case *reflect.FloatValue:
+ 			s.skipSpace()
+-			v.Set(float(s.convertFloat(s.floatToken())))
+-		case *reflect.Float32Value:
+-			s.skipSpace()
+-			v.Set(float32(s.convertFloat(s.floatToken())))
+-		case *reflect.Float64Value:
+-			s.skipSpace()
+-			v.Set(s.convertFloat(s.floatToken()))
++			v.Set(s.convertFloat(s.floatToken(), int(v.Type().Size()*8)))
+ 		case *reflect.ComplexValue:
+-			v.Set(complex(s.scanComplex(verb, (*ss).convertFloat)))
+-		case *reflect.Complex64Value:
+-			v.Set(complex64(s.scanComplex(verb, (*ss).convertFloat32)))
+-		case *reflect.Complex128Value:
+-			v.Set(s.scanComplex(verb, (*ss).convertFloat64))
++			v.Set(s.scanComplex(verb, int(v.Type().Size()*8)))
+ 		default:
+ 		CantHandle:
+ 			s.errorString("Scan: can't handle type: " + val.Type().String())
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 5d70dd6375..dad0ac48c1 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -360,7 +360,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data struct {
+ 			a int
+ 		}
+-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
++		instr := &decInstr{decOpMap[reflect.Int], 6, 0, 0, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+ 		execDec("int", instr, state, t, unsafe.Pointer(&data))
+ 		if data.a != 17 {
+@@ -373,7 +373,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data struct {
+ 			a uint
+ 		}
+-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
++		instr := &decInstr{decOpMap[reflect.Uint], 6, 0, 0, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+ 		execDec("uint", instr, state, t, unsafe.Pointer(&data))
+ 		if data.a != 17 {
+@@ -464,7 +464,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data struct {
+ 			a uintptr
+ 		}
+-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
++		instr := &decInstr{decOpMap[reflect.Uintptr], 6, 0, 0, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+ 		execDec("uintptr", instr, state, t, unsafe.Pointer(&data))
+ 		if data.a != 17 {
+@@ -503,7 +503,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data struct {
+ 			a float
+ 		}
+-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
++		instr := &decInstr{decOpMap[reflect.Float], 6, 0, 0, ovfl}
+ 		state := newDecodeStateFromData(floatResult)
+ 		execDec("float", instr, state, t, unsafe.Pointer(&data))
+ 		if data.a != 17 {
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 016134e64a..459acaf0b7 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -540,19 +540,19 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
+ 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
+ }
+ 
+-var decOpMap = map[reflect.Type]decOp{
+-	valueKind(false):      decBool,
+-	valueKind(int8(0)):    decInt8,
+-	valueKind(int16(0)):   decInt16,
+-	valueKind(int32(0)):   decInt32,
+-	valueKind(int64(0)):   decInt64,
+-	valueKind(uint8(0)):   decUint8,
+-	valueKind(uint16(0)):  decUint16,
+-	valueKind(uint32(0)):  decUint32,
+-	valueKind(uint64(0)):  decUint64,
+-	valueKind(float32(0)): decFloat32,
+-	valueKind(float64(0)): decFloat64,
+-	valueKind("x"):        decString,
++var decOpMap = map[reflect.Kind]decOp{
++	reflect.Bool:    decBool,
++	reflect.Int8:    decInt8,
++	reflect.Int16:   decInt16,
++	reflect.Int32:   decInt32,
++	reflect.Int64:   decInt64,
++	reflect.Uint8:   decUint8,
++	reflect.Uint16:  decUint16,
++	reflect.Uint32:  decUint32,
++	reflect.Uint64:  decUint64,
++	reflect.Float32: decFloat32,
++	reflect.Float64: decFloat64,
++	reflect.String:  decString,
+ }
+ 
+ var decIgnoreOpMap = map[typeId]decOp{
+@@ -568,7 +568,7 @@ var decIgnoreOpMap = map[typeId]decOp{
+ // the indirection count to reach it.
+ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error) {
+ 	typ, indir := indirect(rt)
+-	op, ok := decOpMap[reflect.Typeof(typ)]
++	op, ok := decOpMap[typ.Kind()]
+ 	if !ok {
+ 		// Special cases
+ 		switch t := typ.(type) {
+@@ -604,7 +604,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
+ 
+ 		case *reflect.SliceType:
+ 			name = "element of " + name
+-			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++			if t.Elem().Kind() == reflect.Uint8 {
+ 				op = decUint8Array
+ 				break
+ 			}
+@@ -718,11 +718,11 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 		return false
+ 	case *reflect.BoolType:
+ 		return fw == tBool
+-	case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
++	case *reflect.IntType:
+ 		return fw == tInt
+-	case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
++	case *reflect.UintType:
+ 		return fw == tUint
+-	case *reflect.FloatType, *reflect.Float32Type, *reflect.Float64Type:
++	case *reflect.FloatType:
+ 		return fw == tFloat
+ 	case *reflect.StringType:
+ 		return fw == tString
+@@ -742,8 +742,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 		return dec.compatibleType(t.Key(), mapType.Key) && dec.compatibleType(t.Elem(), mapType.Elem)
+ 	case *reflect.SliceType:
+ 		// Is it an array of bytes?
+-		et := t.Elem()
+-		if _, ok := et.(*reflect.Uint8Type); ok {
++		if t.Elem().Kind() == reflect.Uint8 {
+ 			return fw == tBytes
+ 		}
+ 		// Extract and compare element types.
+@@ -874,7 +873,7 @@ func init() {
+ 	default:
+ 		panic("gob: unknown size of float")
+ 	}
+-	decOpMap[valueKind(float(0))] = op
++	decOpMap[reflect.Float] = op
+ 
+ 	// A similar assumption about int and uint.  Also assume int and uint have the same size.
+ 	var uop decOp
+@@ -888,8 +887,8 @@ func init() {
+ 	default:
+ 		panic("gob: unknown size of int/uint")
+ 	}
+-	decOpMap[valueKind(int(0))] = op
+-	decOpMap[valueKind(uint(0))] = uop
++	decOpMap[reflect.Int] = op
++	decOpMap[reflect.Uint] = uop
+ 
+ 	// Finally uintptr
+ 	switch unsafe.Sizeof(uintptr(0)) {
+@@ -900,5 +899,5 @@ func init() {
+ 	default:
+ 		panic("gob: unknown size of uintptr")
+ 	}
+-	decOpMap[valueKind(uintptr(0))] = uop
++	decOpMap[reflect.Uintptr] = uop
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 7855aca14c..93f9e509b8 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -601,35 +601,35 @@ func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp,
+ 	return state.err
+ }
+ 
+-var encOpMap = map[reflect.Type]encOp{
+-	valueKind(false):      encBool,
+-	valueKind(int(0)):     encInt,
+-	valueKind(int8(0)):    encInt8,
+-	valueKind(int16(0)):   encInt16,
+-	valueKind(int32(0)):   encInt32,
+-	valueKind(int64(0)):   encInt64,
+-	valueKind(uint(0)):    encUint,
+-	valueKind(uint8(0)):   encUint8,
+-	valueKind(uint16(0)):  encUint16,
+-	valueKind(uint32(0)):  encUint32,
+-	valueKind(uint64(0)):  encUint64,
+-	valueKind(uintptr(0)): encUintptr,
+-	valueKind(float(0)):   encFloat,
+-	valueKind(float32(0)): encFloat32,
+-	valueKind(float64(0)): encFloat64,
+-	valueKind("x"):        encString,
++var encOpMap = map[reflect.Kind]encOp{
++	reflect.Bool:    encBool,
++	reflect.Int:     encInt,
++	reflect.Int8:    encInt8,
++	reflect.Int16:   encInt16,
++	reflect.Int32:   encInt32,
++	reflect.Int64:   encInt64,
++	reflect.Uint:    encUint,
++	reflect.Uint8:   encUint8,
++	reflect.Uint16:  encUint16,
++	reflect.Uint32:  encUint32,
++	reflect.Uint64:  encUint64,
++	reflect.Uintptr: encUintptr,
++	reflect.Float:   encFloat,
++	reflect.Float32: encFloat32,
++	reflect.Float64: encFloat64,
++	reflect.String:  encString,
+ }
+ 
+ // Return the encoding op for the base type under rt and
+ // the indirection count to reach it.
+ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 	typ, indir := indirect(rt)
+-	op, ok := encOpMap[reflect.Typeof(typ)]
++	op, ok := encOpMap[typ.Kind()]
+ 	if !ok {
+ 		// Special cases
+ 		switch t := typ.(type) {
+ 		case *reflect.SliceType:
+-			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++			if t.Elem().Kind() == reflect.Uint8 {
+ 				op = encUint8Array
+ 				break
+ 			}
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 3d217e2720..e24c18d206 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -78,7 +78,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 		return
+ 	case *reflect.SliceType:
+ 		// If it's []uint8, don't send; it's considered basic.
+-		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
++		if rt.Elem().Kind() == reflect.Uint8 {
+ 			return
+ 		}
+ 		// Otherwise we do send.
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 78793ba447..6a3e6ba658 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -11,8 +11,6 @@ import (
+ 	"sync"
+ )
+ 
+-type kind reflect.Type
+-
+ // Reflection types are themselves interface values holding structs
+ // describing the type.  Each type has a different struct so that struct can
+ // be the kind.  For example, if typ is the reflect type for an int8, typ is
+@@ -20,17 +18,6 @@ type kind reflect.Type
+ // function, typ is a pointer to a reflect.FuncType struct; we use the type
+ // of that pointer as the kind.
+ 
+-// typeKind returns a reflect.Type representing typ's kind.  The kind is the
+-// general kind of type:
+-//	int8, int16, int, uint, float, func, chan, struct, and so on.
+-// That is, all struct types have the same kind, all func types have the same
+-// kind, all int8 types have the same kind, and so on.
+-func typeKind(typ reflect.Type) kind { return kind(reflect.Typeof(typ)) }
+-
+-// valueKind returns the kind of the value type
+-// stored inside the interface v.
+-func valueKind(v interface{}) reflect.Type { return typeKind(reflect.Typeof(v)) }
+-
+ // A typeId represents a gob Type as an integer that can be passed on the wire.
+ // Internally, typeIds are used as keys to a map to recover the underlying type info.
+ type typeId int32
+@@ -245,13 +232,13 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 	case *reflect.BoolType:
+ 		return tBool.gobType(), nil
+ 
+-	case *reflect.IntType, *reflect.Int8Type, *reflect.Int16Type, *reflect.Int32Type, *reflect.Int64Type:
++	case *reflect.IntType:
+ 		return tInt.gobType(), nil
+ 
+-	case *reflect.UintType, *reflect.Uint8Type, *reflect.Uint16Type, *reflect.Uint32Type, *reflect.Uint64Type, *reflect.UintptrType:
++	case *reflect.UintType:
+ 		return tUint.gobType(), nil
+ 
+-	case *reflect.FloatType, *reflect.Float32Type, *reflect.Float64Type:
++	case *reflect.FloatType:
+ 		return tFloat.gobType(), nil
+ 
+ 	case *reflect.StringType:
+@@ -277,7 +264,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 
+ 	case *reflect.SliceType:
+ 		// []byte == []uint8 is a special case
+-		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++		if t.Elem().Kind() == reflect.Uint8 {
+ 			return tBytes.gobType(), nil
+ 		}
+ 		gt, err := getType(t.Elem().Name(), t.Elem())
+@@ -413,7 +400,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 			info.wire = &wireType{mapT: t.(*mapType)}
+ 		case *reflect.SliceType:
+ 			// []byte == []uint8 is a special case handled separately
+-			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
++			if typ.Elem().Kind() != reflect.Uint8 {
+ 				info.wire = &wireType{sliceT: t.(*sliceType)}
+ 			}
+ 		case *reflect.StructType:
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 9295bd2dc0..6f768d4b8c 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -572,101 +572,24 @@ func (d *decodeState) literal(v reflect.Value) {
+ 			v.Set(reflect.NewValue(n))
+ 
+ 		case *reflect.IntValue:
+-			n, err := strconv.Atoi(s)
+-			if err != nil {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(n)
+-		case *reflect.Int8Value:
+-			n, err := strconv.Atoi(s)
+-			if err != nil || int(int8(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(int8(n))
+-		case *reflect.Int16Value:
+-			n, err := strconv.Atoi(s)
+-			if err != nil || int(int16(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(int16(n))
+-		case *reflect.Int32Value:
+-			n, err := strconv.Atoi(s)
+-			if err != nil || int(int32(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(int32(n))
+-		case *reflect.Int64Value:
+ 			n, err := strconv.Atoi64(s)
+-			if err != nil {
++			if err != nil || v.Overflow(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+ 			v.Set(n)
+ 
+ 		case *reflect.UintValue:
+-			n, err := strconv.Atoui(s)
+-			if err != nil {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(n)
+-		case *reflect.Uint8Value:
+-			n, err := strconv.Atoui(s)
+-			if err != nil || uint(uint8(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(uint8(n))
+-		case *reflect.Uint16Value:
+-			n, err := strconv.Atoui(s)
+-			if err != nil || uint(uint16(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(uint16(n))
+-		case *reflect.Uint32Value:
+-			n, err := strconv.Atoui(s)
+-			if err != nil || uint(uint32(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(uint32(n))
+-		case *reflect.Uint64Value:
+ 			n, err := strconv.Atoui64(s)
+-			if err != nil {
++			if err != nil || v.Overflow(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+ 			v.Set(n)
+-		case *reflect.UintptrValue:
+-			n, err := strconv.Atoui64(s)
+-			if err != nil || uint64(uintptr(n)) != n {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(uintptr(n))
+ 
+ 		case *reflect.FloatValue:
+-			n, err := strconv.Atof(s)
+-			if err != nil {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(n)
+-		case *reflect.Float32Value:
+-			n, err := strconv.Atof32(s)
+-			if err != nil {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+-				break
+-			}
+-			v.Set(n)
+-		case *reflect.Float64Value:
+-			n, err := strconv.Atof64(s)
+-			if err != nil {
++			n, err := strconv.AtofN(s, int(v.Type().Size()*8))
++			if err != nil || v.Overflow(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 839657c361..8b0f784883 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -156,35 +156,13 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		}
+ 
+ 	case *reflect.IntValue:
+-		e.WriteString(strconv.Itoa(v.Get()))
+-	case *reflect.Int8Value:
+-		e.WriteString(strconv.Itoa(int(v.Get())))
+-	case *reflect.Int16Value:
+-		e.WriteString(strconv.Itoa(int(v.Get())))
+-	case *reflect.Int32Value:
+-		e.WriteString(strconv.Itoa(int(v.Get())))
+-	case *reflect.Int64Value:
+ 		e.WriteString(strconv.Itoa64(v.Get()))
+ 
+ 	case *reflect.UintValue:
+-		e.WriteString(strconv.Uitoa(v.Get()))
+-	case *reflect.Uint8Value:
+-		e.WriteString(strconv.Uitoa(uint(v.Get())))
+-	case *reflect.Uint16Value:
+-		e.WriteString(strconv.Uitoa(uint(v.Get())))
+-	case *reflect.Uint32Value:
+-		e.WriteString(strconv.Uitoa(uint(v.Get())))
+-	case *reflect.Uint64Value:
+ 		e.WriteString(strconv.Uitoa64(v.Get()))
+-	case *reflect.UintptrValue:
+-		e.WriteString(strconv.Uitoa64(uint64(v.Get())))
+ 
+ 	case *reflect.FloatValue:
+-		e.WriteString(strconv.Ftoa(v.Get(), 'g', -1))
+-	case *reflect.Float32Value:
+-		e.WriteString(strconv.Ftoa32(v.Get(), 'g', -1))
+-	case *reflect.Float64Value:
+-		e.WriteString(strconv.Ftoa64(v.Get(), 'g', -1))
++		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, int(v.Type().Size()*8)))
+ 
+ 	case *reflect.StringValue:
+ 		e.string(v.Get())
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 630dbd1e91..f136b8c086 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -369,28 +369,33 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 		f := val.Type().(*reflect.StructType).Field(i)
+ 		switch fv := val.Field(i).(type) {
+ 		default:
++		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+ 		case *reflect.StructValue:
+ 			off, ok = packStructValue(fv, msg, off)
+-		case *reflect.Uint16Value:
++		case *reflect.UintValue:
+ 			i := fv.Get()
+-			if off+2 > len(msg) {
+-				return len(msg), false
+-			}
+-			msg[off] = byte(i >> 8)
+-			msg[off+1] = byte(i)
+-			off += 2
+-		case *reflect.Uint32Value:
+-			i := fv.Get()
+-			if off+4 > len(msg) {
+-				return len(msg), false
++			switch fv.Type().Kind() {
++			default:
++				goto BadType
++			case reflect.Uint16:
++				if off+2 > len(msg) {
++					return len(msg), false
++				}
++				msg[off] = byte(i >> 8)
++				msg[off+1] = byte(i)
++				off += 2
++			case reflect.Uint32:
++				if off+4 > len(msg) {
++					return len(msg), false
++				}
++				msg[off] = byte(i >> 24)
++				msg[off+1] = byte(i >> 16)
++				msg[off+2] = byte(i >> 8)
++				msg[off+3] = byte(i)
++				off += 4
+ 			}
+-			msg[off] = byte(i >> 24)
+-			msg[off+1] = byte(i >> 16)
+-			msg[off+2] = byte(i >> 8)
+-			msg[off+3] = byte(i)
+-			off += 4
+ 		case *reflect.StringValue:
+ 			// There are multiple string encodings.
+ 			// The tag distinguishes ordinary strings from domain names.
+@@ -438,24 +443,30 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 		f := val.Type().(*reflect.StructType).Field(i)
+ 		switch fv := val.Field(i).(type) {
+ 		default:
++		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+ 		case *reflect.StructValue:
+ 			off, ok = unpackStructValue(fv, msg, off)
+-		case *reflect.Uint16Value:
+-			if off+2 > len(msg) {
+-				return len(msg), false
+-			}
+-			i := uint16(msg[off])<<8 | uint16(msg[off+1])
+-			fv.Set(i)
+-			off += 2
+-		case *reflect.Uint32Value:
+-			if off+4 > len(msg) {
+-				return len(msg), false
++		case *reflect.UintValue:
++			switch fv.Type().Kind() {
++			default:
++				goto BadType
++			case reflect.Uint16:
++				if off+2 > len(msg) {
++					return len(msg), false
++				}
++				i := uint16(msg[off])<<8 | uint16(msg[off+1])
++				fv.Set(uint64(i))
++				off += 2
++			case reflect.Uint32:
++				if off+4 > len(msg) {
++					return len(msg), false
++				}
++				i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
++				fv.Set(uint64(i))
++				off += 4
+ 			}
+-			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
+-			fv.Set(i)
+-			off += 4
+ 		case *reflect.StringValue:
+ 			var s string
+ 			switch f.Tag {
+@@ -508,7 +519,7 @@ func printStructValue(val *reflect.StructValue) string {
+ 		fval := val.Field(i)
+ 		if fv, ok := fval.(*reflect.StructValue); ok {
+ 			s += printStructValue(fv)
+-		} else if fv, ok := fval.(*reflect.Uint32Value); ok && f.Tag == "ipv4" {
++		} else if fv, ok := fval.(*reflect.UintValue); ok && f.Tag == "ipv4" {
+ 			i := fv.Get()
+ 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
+ 		} else {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 6b1fd32060..e2c57dadbf 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -164,8 +164,8 @@ var valueTests = []pair{
+ 	pair{(uint16)(0), "16"},
+ 	pair{(uint32)(0), "32"},
+ 	pair{(uint64)(0), "64"},
+-	pair{(float32)(0), "32.1"},
+-	pair{(float64)(0), "64.2"},
++	pair{(float32)(0), "256.25"},
++	pair{(float64)(0), "512.125"},
+ 	pair{(string)(""), "stringy cheese"},
+ 	pair{(bool)(false), "true"},
+ 	pair{(*int8)(nil), "*int8(0)"},
+@@ -219,31 +219,49 @@ func TestSet(t *testing.T) {
+ 		v := NewValue(tt.i)
+ 		switch v := v.(type) {
+ 		case *IntValue:
+-			v.Set(132)
+-		case *Int8Value:
+-			v.Set(8)
+-		case *Int16Value:
+-			v.Set(16)
+-		case *Int32Value:
+-			v.Set(32)
+-		case *Int64Value:
+-			v.Set(64)
++			switch v.Type().Kind() {
++			case Int:
++				v.Set(132)
++			case Int8:
++				v.Set(8)
++			case Int16:
++				v.Set(16)
++			case Int32:
++				v.Set(32)
++			case Int64:
++				v.Set(64)
++			}
+ 		case *UintValue:
+-			v.Set(132)
+-		case *Uint8Value:
+-			v.Set(8)
+-		case *Uint16Value:
+-			v.Set(16)
+-		case *Uint32Value:
+-			v.Set(32)
+-		case *Uint64Value:
+-			v.Set(64)
++			switch v.Type().Kind() {
++			case Uint:
++				v.Set(132)
++			case Uint8:
++				v.Set(8)
++			case Uint16:
++				v.Set(16)
++			case Uint32:
++				v.Set(32)
++			case Uint64:
++				v.Set(64)
++			}
+ 		case *FloatValue:
+-			v.Set(3200.0)
+-		case *Float32Value:
+-			v.Set(32.1)
+-		case *Float64Value:
+-			v.Set(64.2)
++			switch v.Type().Kind() {
++			case Float:
++				v.Set(128.5)
++			case Float32:
++				v.Set(256.25)
++			case Float64:
++				v.Set(512.125)
++			}
++		case *ComplexValue:
++			switch v.Type().Kind() {
++			case Complex:
++				v.Set(53200.0 + 100i)
++			case Complex64:
++				v.Set(532.125 + 10i)
++			case Complex128:
++				v.Set(564.25 + 1i)
++			}
+ 		case *StringValue:
+ 			v.Set("stringy cheese")
+ 		case *BoolValue:
+@@ -261,31 +279,50 @@ func TestSetValue(t *testing.T) {
+ 		v := NewValue(tt.i)
+ 		switch v := v.(type) {
+ 		case *IntValue:
+-			v.SetValue(NewValue(int(132)))
+-		case *Int8Value:
+-			v.SetValue(NewValue(int8(8)))
+-		case *Int16Value:
+-			v.SetValue(NewValue(int16(16)))
+-		case *Int32Value:
+-			v.SetValue(NewValue(int32(32)))
+-		case *Int64Value:
+-			v.SetValue(NewValue(int64(64)))
++			switch v.Type().Kind() {
++			case Int:
++				v.SetValue(NewValue(int(132)))
++			case Int8:
++				v.SetValue(NewValue(int8(8)))
++			case Int16:
++				v.SetValue(NewValue(int16(16)))
++			case Int32:
++				v.SetValue(NewValue(int32(32)))
++			case Int64:
++				v.SetValue(NewValue(int64(64)))
++			}
+ 		case *UintValue:
+-			v.SetValue(NewValue(uint(132)))
+-		case *Uint8Value:
+-			v.SetValue(NewValue(uint8(8)))
+-		case *Uint16Value:
+-			v.SetValue(NewValue(uint16(16)))
+-		case *Uint32Value:
+-			v.SetValue(NewValue(uint32(32)))
+-		case *Uint64Value:
+-			v.SetValue(NewValue(uint64(64)))
++			switch v.Type().Kind() {
++			case Uint:
++				v.SetValue(NewValue(uint(132)))
++			case Uint8:
++				v.SetValue(NewValue(uint8(8)))
++			case Uint16:
++				v.SetValue(NewValue(uint16(16)))
++			case Uint32:
++				v.SetValue(NewValue(uint32(32)))
++			case Uint64:
++				v.SetValue(NewValue(uint64(64)))
++			}
+ 		case *FloatValue:
+-			v.SetValue(NewValue(float(3200.0)))
+-		case *Float32Value:
+-			v.SetValue(NewValue(float32(32.1)))
+-		case *Float64Value:
+-			v.SetValue(NewValue(float64(64.2)))
++			switch v.Type().Kind() {
++			case Float:
++				v.SetValue(NewValue(float(128.5)))
++			case Float32:
++				v.SetValue(NewValue(float32(256.25)))
++			case Float64:
++				v.SetValue(NewValue(float64(512.125)))
++			}
++		case *ComplexValue:
++			switch v.Type().Kind() {
++			case Complex:
++				v.SetValue(NewValue(complex(53200.0 + 100i)))
++			case Complex64:
++				v.SetValue(NewValue(complex64(532.125 + 10i)))
++			case Complex128:
++				v.SetValue(NewValue(complex128(564.25 + 1i)))
++			}
++
+ 		case *StringValue:
+ 			v.SetValue(NewValue("stringy cheese"))
+ 		case *BoolValue:
+@@ -302,7 +339,7 @@ var _i = 7
+ 
+ var valueToStringTests = []pair{
+ 	pair{123, "123"},
+-	pair{123.4, "123.4"},
++	pair{123.5, "123.5"},
+ 	pair{byte(123), "123"},
+ 	pair{"abc", "abc"},
+ 	pair{T{123, 456.75, "hello", &_i}, "reflect_test.T{123, 456.75, hello, *int(&7)}"},
+@@ -606,9 +643,9 @@ func TestDeepEqualRecursiveStruct(t *testing.T) {
+ 	}
+ }
+ 
+-type Complex struct {
++type _Complex struct {
+ 	a int
+-	b [3]*Complex
++	b [3]*_Complex
+ 	c *string
+ 	d map[float]float
+ }
+@@ -616,9 +653,9 @@ type Complex struct {
+ func TestDeepEqualComplexStruct(t *testing.T) {
+ 	m := make(map[float]float)
+ 	stra, strb := "hello", "hello"
+-	a, b := new(Complex), new(Complex)
+-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
+-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
++	a, b := new(_Complex), new(_Complex)
++	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
++	*b = _Complex{5, [3]*_Complex{b, a, a}, &strb, m}
+ 	if !DeepEqual(a, b) {
+ 		t.Error("DeepEqual(complex same) = false, want true")
+ 	}
+@@ -627,9 +664,9 @@ func TestDeepEqualComplexStruct(t *testing.T) {
+ func TestDeepEqualComplexStructInequality(t *testing.T) {
+ 	m := make(map[float]float)
+ 	stra, strb := "hello", "helloo" // Difference is here
+-	a, b := new(Complex), new(Complex)
+-	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m}
+-	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m}
++	a, b := new(_Complex), new(_Complex)
++	*a = _Complex{5, [3]*_Complex{a, b, a}, &stra, m}
++	*b = _Complex{5, [3]*_Complex{b, a, a}, &strb, m}
+ 	if DeepEqual(a, b) {
+ 		t.Error("DeepEqual(complex different) = true, want false")
+ 	}
+@@ -830,7 +867,7 @@ func TestMap(t *testing.T) {
+ 
+ 		// Check that value lookup is correct.
+ 		vv := mv.Elem(NewValue(k))
+-		if vi := vv.(*IntValue).Get(); vi != v {
++		if vi := vv.(*IntValue).Get(); vi != int64(v) {
+ 			t.Errorf("Key %q: have value %d, want %d", vi, v)
+ 		}
+ 
+@@ -982,9 +1019,9 @@ func TestFunc(t *testing.T) {
+ 		t.Fatalf("Call returned %d values, want 3", len(ret))
+ 	}
+ 
+-	i := ret[0].(*Uint8Value).Get()
++	i := ret[0].(*UintValue).Get()
+ 	j := ret[1].(*IntValue).Get()
+-	k := ret[2].(*Uint8Value).Get()
++	k := ret[2].(*UintValue).Get()
+ 	if i != 10 || j != 20 || k != 30 {
+ 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
+ 	}
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index cced0580a4..a1487fdd2f 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -23,35 +23,14 @@ func valueToString(val Value) string {
+ 	typ := val.Type()
+ 	switch val := val.(type) {
+ 	case *IntValue:
+-		return strconv.Uitoa64(uint64(val.Get()))
+-	case *Int8Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Int16Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Int32Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Int64Value:
+-		return strconv.Itoa64(int64(val.Get()))
++		return strconv.Itoa64(val.Get())
+ 	case *UintValue:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Uint8Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Uint16Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Uint32Value:
+-		return strconv.Itoa64(int64(val.Get()))
+-	case *Uint64Value:
+-		return strconv.Uitoa64(uint64(val.Get()))
++		return strconv.Uitoa64(val.Get())
+ 	case *FloatValue:
+-		if strconv.FloatSize == 32 {
+-			return strconv.Ftoa32(float32(val.Get()), 'g', -1)
+-		} else {
+-			return strconv.Ftoa64(float64(val.Get()), 'g', -1)
+-		}
+-	case *Float32Value:
+-		return strconv.Ftoa32(val.Get(), 'g', -1)
+-	case *Float64Value:
+-		return strconv.Ftoa64(val.Get(), 'g', -1)
++		return strconv.Ftoa64(float64(val.Get()), 'g', -1)
++	case *ComplexValue:
++		c := val.Get()
++		return strconv.Ftoa64(float64(real(c)), 'g', -1) + "+" + strconv.Ftoa64(float64(imag(c)), 'g', -1) + "i"
+ 	case *StringValue:
+ 		return val.Get()
+ 	case *BoolValue:
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 6016b0dc0f..5fadcf2699 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -40,6 +40,7 @@ type commonType struct {
+ 	alg        uint8
+ 	align      uint8
+ 	fieldAlign uint8
++	kind       uint8
+ 	string     *string
+ 	*uncommonType
+ }
+@@ -64,81 +65,21 @@ type BoolType struct {
+ 	commonType
+ }
+ 
+-// Float32Type represents a float32 type.
+-type Float32Type struct {
+-	commonType
+-}
+-
+-// Float64Type represents a float64 type.
+-type Float64Type struct {
+-	commonType
+-}
+-
+ // FloatType represents a float type.
+ type FloatType struct {
+ 	commonType
+ }
+ 
+-// Complex64Type represents a complex64 type.
+-type Complex64Type struct {
+-	commonType
+-}
+-
+-// Complex128Type represents a complex128 type.
+-type Complex128Type struct {
+-	commonType
+-}
+-
+ // ComplexType represents a complex type.
+ type ComplexType struct {
+ 	commonType
+ }
+ 
+-// Int16Type represents an int16 type.
+-type Int16Type struct {
+-	commonType
+-}
+-
+-// Int32Type represents an int32 type.
+-type Int32Type struct {
+-	commonType
+-}
+-
+-// Int64Type represents an int64 type.
+-type Int64Type struct {
+-	commonType
+-}
+-
+-// Int8Type represents an int8 type.
+-type Int8Type struct {
+-	commonType
+-}
+-
+-// IntType represents an int type.
++// IntType represents a signed integer type.
+ type IntType struct {
+ 	commonType
+ }
+ 
+-// Uint16Type represents a uint16 type.
+-type Uint16Type struct {
+-	commonType
+-}
+-
+-// Uint32Type represents a uint32 type.
+-type Uint32Type struct {
+-	commonType
+-}
+-
+-// Uint64Type represents a uint64 type.
+-type Uint64Type struct {
+-	commonType
+-}
+-
+-// Uint8Type represents a uint8 type.
+-type Uint8Type struct {
+-	commonType
+-}
+-
+ // UintType represents a uint type.
+ type UintType struct {
+ 	commonType
+@@ -149,11 +90,6 @@ type StringType struct {
+ 	commonType
+ }
+ 
+-// UintptrType represents a uintptr type.
+-type UintptrType struct {
+-	commonType
+-}
+-
+ // UnsafePointerType represents an unsafe.Pointer type.
+ type UnsafePointerType struct {
+ 	commonType
+@@ -286,6 +222,9 @@ type Type interface {
+ 	// when used as a field in a struct.
+ 	FieldAlign() int
+ 
++	// Kind returns the specific kind of this type.
++	Kind() Kind
++
+ 	// For non-interface types, Method returns the i'th method with receiver T.
+ 	// For interface types, Method returns the i'th method in the interface.
+ 	// NumMethod returns the number of such methods.
+@@ -294,6 +233,84 @@ type Type interface {
+ 	uncommon() *uncommonType
+ }
+ 
++// A Kind represents the specific kind of type that a Type represents.
++// For numeric types, the Kind gives more information than the Type's
++// dynamic type.  For example, the Type of a float32 is FloatType, but
++// the Kind is Float32.
++//
++// The zero Kind is not a valid kind.
++type Kind uint8
++
++const (
++	Bool Kind = 1 + iota
++	Int
++	Int8
++	Int16
++	Int32
++	Int64
++	Uint
++	Uint8
++	Uint16
++	Uint32
++	Uint64
++	Uintptr
++	Float
++	Float32
++	Float64
++	Complex
++	Complex64
++	Complex128
++	Array
++	Chan
++	Func
++	Interface
++	Map
++	Ptr
++	Slice
++	String
++	Struct
++	UnsafePointer
++)
++
++// High bit says whether type has
++// embedded pointers,to help garbage collector.
++const kindMask = 0x7f
++
++func (k Kind) String() string {
++	if int(k) < len(kindNames) {
++		return kindNames[k]
++	}
++	return "kind" + strconv.Itoa(int(k))
++}
++
++var kindNames = []string{
++	Bool:          "bool",
++	Int:           "int",
++	Int8:          "int8",
++	Int16:         "int16",
++	Int32:         "int32",
++	Int64:         "int64",
++	Uint:          "uint",
++	Uint8:         "uint8",
++	Uint16:        "uint16",
++	Uint32:        "uint32",
++	Uint64:        "uint64",
++	Uintptr:       "uintptr",
++	Float:         "float",
++	Float32:       "float32",
++	Float64:       "float64",
++	Array:         "array",
++	Chan:          "chan",
++	Func:          "func",
++	Interface:     "interface",
++	Map:           "map",
++	Ptr:           "ptr",
++	Slice:         "slice",
++	String:        "string",
++	Struct:        "struct",
++	UnsafePointer: "unsafe.Pointer",
++}
++
+ func (t *uncommonType) uncommon() *uncommonType {
+ 	return t
+ }
+@@ -320,6 +337,8 @@ func (t *commonType) Align() int { return int(t.align) }
+ 
+ func (t *commonType) FieldAlign() int { return int(t.fieldAlign) }
+ 
++func (t *commonType) Kind() Kind { return Kind(t.kind & kindMask) }
++
+ func (t *uncommonType) Method(i int) (m Method) {
+ 	if t == nil || i < 0 || i >= len(t.methods) {
+ 		return
+@@ -603,40 +622,14 @@ func toType(i interface{}) Type {
+ 		return (*BoolType)(unsafe.Pointer(v))
+ 	case *runtime.FloatType:
+ 		return (*FloatType)(unsafe.Pointer(v))
+-	case *runtime.Float32Type:
+-		return (*Float32Type)(unsafe.Pointer(v))
+-	case *runtime.Float64Type:
+-		return (*Float64Type)(unsafe.Pointer(v))
+ 	case *runtime.ComplexType:
+ 		return (*ComplexType)(unsafe.Pointer(v))
+-	case *runtime.Complex64Type:
+-		return (*Complex64Type)(unsafe.Pointer(v))
+-	case *runtime.Complex128Type:
+-		return (*Complex128Type)(unsafe.Pointer(v))
+ 	case *runtime.IntType:
+ 		return (*IntType)(unsafe.Pointer(v))
+-	case *runtime.Int8Type:
+-		return (*Int8Type)(unsafe.Pointer(v))
+-	case *runtime.Int16Type:
+-		return (*Int16Type)(unsafe.Pointer(v))
+-	case *runtime.Int32Type:
+-		return (*Int32Type)(unsafe.Pointer(v))
+-	case *runtime.Int64Type:
+-		return (*Int64Type)(unsafe.Pointer(v))
+ 	case *runtime.StringType:
+ 		return (*StringType)(unsafe.Pointer(v))
+ 	case *runtime.UintType:
+ 		return (*UintType)(unsafe.Pointer(v))
+-	case *runtime.Uint8Type:
+-		return (*Uint8Type)(unsafe.Pointer(v))
+-	case *runtime.Uint16Type:
+-		return (*Uint16Type)(unsafe.Pointer(v))
+-	case *runtime.Uint32Type:
+-		return (*Uint32Type)(unsafe.Pointer(v))
+-	case *runtime.Uint64Type:
+-		return (*Uint64Type)(unsafe.Pointer(v))
+-	case *runtime.UintptrType:
+-		return (*UintptrType)(unsafe.Pointer(v))
+ 	case *runtime.UnsafePointerType:
+ 		return (*UnsafePointerType)(unsafe.Pointer(v))
+ 	case *runtime.ArrayType:
+@@ -656,6 +649,7 @@ func toType(i interface{}) Type {
+ 	case *runtime.StructType:
+ 		return (*StructType)(unsafe.Pointer(v))
+ 	}
++	println(i)
+ 	panic("toType")
+ }
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 7730fefc38..5505c46241 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -5,6 +5,7 @@
+ package reflect
+ 
+ import (
++	"math"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -134,57 +135,49 @@ type FloatValue struct {
+ 	value
+ }
+ 
+-// Get returns the underlying float value.
+-func (v *FloatValue) Get() float { return *(*float)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *FloatValue) Set(x float) {
+-	if !v.canSet {
+-		panic(cannotSet)
++// Get returns the underlying int value.
++func (v *FloatValue) Get() float64 {
++	switch v.typ.(*FloatType).Kind() {
++	case Float:
++		return float64(*(*float)(v.addr))
++	case Float32:
++		return float64(*(*float32)(v.addr))
++	case Float64:
++		return *(*float64)(v.addr)
+ 	}
+-	*(*float)(v.addr) = x
++	panic("reflect: invalid float kind")
+ }
+ 
+ // Set sets v to the value x.
+-func (v *FloatValue) SetValue(x Value) { v.Set(x.(*FloatValue).Get()) }
+-
+-// Float32Value represents a float32 value.
+-type Float32Value struct {
+-	value
+-}
+-
+-// Get returns the underlying float32 value.
+-func (v *Float32Value) Get() float32 { return *(*float32)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Float32Value) Set(x float32) {
++func (v *FloatValue) Set(x float64) {
+ 	if !v.canSet {
+ 		panic(cannotSet)
+ 	}
+-	*(*float32)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Float32Value) SetValue(x Value) { v.Set(x.(*Float32Value).Get()) }
+-
+-// Float64Value represents a float64 value.
+-type Float64Value struct {
+-	value
++	switch v.typ.(*FloatType).Kind() {
++	default:
++		panic("reflect: invalid float kind")
++	case Float:
++		*(*float)(v.addr) = float(x)
++	case Float32:
++		*(*float32)(v.addr) = float32(x)
++	case Float64:
++		*(*float64)(v.addr) = x
++	}
+ }
+ 
+-// Get returns the underlying float64 value.
+-func (v *Float64Value) Get() float64 { return *(*float64)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Float64Value) Set(x float64) {
+-	if !v.canSet {
+-		panic(cannotSet)
++// Overflow returns true if x cannot be represented by the type of v.
++func (v *FloatValue) Overflow(x float64) bool {
++	if v.typ.Size() == 8 {
++		return false
++	}
++	if x < 0 {
++		x = -x
+ 	}
+-	*(*float64)(v.addr) = x
++	return math.MaxFloat32 < x && x <= math.MaxFloat64
+ }
+ 
+ // Set sets v to the value x.
+-func (v *Float64Value) SetValue(x Value) { v.Set(x.(*Float64Value).Get()) }
++func (v *FloatValue) SetValue(x Value) { v.Set(x.(*FloatValue).Get()) }
+ 
+ // ComplexValue represents a complex value.
+ type ComplexValue struct {
+@@ -192,14 +185,33 @@ type ComplexValue struct {
+ }
+ 
+ // Get returns the underlying complex value.
+-func (v *ComplexValue) Get() complex { return *(*complex)(v.addr) }
++func (v *ComplexValue) Get() complex128 {
++	switch v.typ.(*ComplexType).Kind() {
++	case Complex:
++		return complex128(*(*complex)(v.addr))
++	case Complex64:
++		return complex128(*(*complex64)(v.addr))
++	case Complex128:
++		return *(*complex128)(v.addr)
++	}
++	panic("reflect: invalid complex kind")
++}
+ 
+ // Set sets v to the value x.
+-func (v *ComplexValue) Set(x complex) {
++func (v *ComplexValue) Set(x complex128) {
+ 	if !v.canSet {
+ 		panic(cannotSet)
+ 	}
+-	*(*complex)(v.addr) = x
++	switch v.typ.(*ComplexType).Kind() {
++	default:
++		panic("reflect: invalid complex kind")
++	case Complex:
++		*(*complex)(v.addr) = complex(x)
++	case Complex64:
++		*(*complex64)(v.addr) = complex64(x)
++	case Complex128:
++		*(*complex128)(v.addr) = x
++	}
+ }
+ 
+ // Set sets v to the value x.
+@@ -249,95 +261,53 @@ type IntValue struct {
+ }
+ 
+ // Get returns the underlying int value.
+-func (v *IntValue) Get() int { return *(*int)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *IntValue) Set(x int) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*int)(v.addr) = x
++func (v *IntValue) Get() int64 {
++	switch v.typ.(*IntType).Kind() {
++	case Int:
++		return int64(*(*int)(v.addr))
++	case Int8:
++		return int64(*(*int8)(v.addr))
++	case Int16:
++		return int64(*(*int16)(v.addr))
++	case Int32:
++		return int64(*(*int32)(v.addr))
++	case Int64:
++		return *(*int64)(v.addr)
++	}
++	panic("reflect: invalid int kind")
+ }
+ 
+ // Set sets v to the value x.
+-func (v *IntValue) SetValue(x Value) { v.Set(x.(*IntValue).Get()) }
+-
+-// Int8Value represents an int8 value.
+-type Int8Value struct {
+-	value
+-}
+-
+-// Get returns the underlying int8 value.
+-func (v *Int8Value) Get() int8 { return *(*int8)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Int8Value) Set(x int8) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*int8)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Int8Value) SetValue(x Value) { v.Set(x.(*Int8Value).Get()) }
+-
+-// Int16Value represents an int16 value.
+-type Int16Value struct {
+-	value
+-}
+-
+-// Get returns the underlying int16 value.
+-func (v *Int16Value) Get() int16 { return *(*int16)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Int16Value) Set(x int16) {
++func (v *IntValue) Set(x int64) {
+ 	if !v.canSet {
+ 		panic(cannotSet)
+ 	}
+-	*(*int16)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Int16Value) SetValue(x Value) { v.Set(x.(*Int16Value).Get()) }
+-
+-// Int32Value represents an int32 value.
+-type Int32Value struct {
+-	value
+-}
+-
+-// Get returns the underlying int32 value.
+-func (v *Int32Value) Get() int32 { return *(*int32)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Int32Value) Set(x int32) {
+-	if !v.canSet {
+-		panic(cannotSet)
++	switch v.typ.(*IntType).Kind() {
++	default:
++		panic("reflect: invalid int kind")
++	case Int:
++		*(*int)(v.addr) = int(x)
++	case Int8:
++		*(*int8)(v.addr) = int8(x)
++	case Int16:
++		*(*int16)(v.addr) = int16(x)
++	case Int32:
++		*(*int32)(v.addr) = int32(x)
++	case Int64:
++		*(*int64)(v.addr) = x
+ 	}
+-	*(*int32)(v.addr) = x
+ }
+ 
+ // Set sets v to the value x.
+-func (v *Int32Value) SetValue(x Value) { v.Set(x.(*Int32Value).Get()) }
+-
+-// Int64Value represents an int64 value.
+-type Int64Value struct {
+-	value
+-}
+-
+-// Get returns the underlying int64 value.
+-func (v *Int64Value) Get() int64 { return *(*int64)(v.addr) }
++func (v *IntValue) SetValue(x Value) { v.Set(x.(*IntValue).Get()) }
+ 
+-// Set sets v to the value x.
+-func (v *Int64Value) Set(x int64) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*int64)(v.addr) = x
++// Overflow returns true if x cannot be represented by the type of v.
++func (v *IntValue) Overflow(x int64) bool {
++	bitSize := v.typ.Size() * 8
++	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
++	return x != trunc
+ }
+ 
+-// Set sets v to the value x.
+-func (v *Int64Value) SetValue(x Value) { v.Set(x.(*Int64Value).Get()) }
+-
+ // StringHeader is the runtime representation of a string.
+ type StringHeader struct {
+ 	Data uintptr
+@@ -368,114 +338,57 @@ type UintValue struct {
+ 	value
+ }
+ 
+-// Get returns the underlying uint value.
+-func (v *UintValue) Get() uint { return *(*uint)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *UintValue) Set(x uint) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*uint)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *UintValue) SetValue(x Value) { v.Set(x.(*UintValue).Get()) }
+-
+-// Uint8Value represents a uint8 value.
+-type Uint8Value struct {
+-	value
+-}
+-
+-// Get returns the underlying uint8 value.
+-func (v *Uint8Value) Get() uint8 { return *(*uint8)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Uint8Value) Set(x uint8) {
+-	if !v.canSet {
+-		panic(cannotSet)
++// Get returns the underlying uuint value.
++func (v *UintValue) Get() uint64 {
++	switch v.typ.(*UintType).Kind() {
++	case Uint:
++		return uint64(*(*uint)(v.addr))
++	case Uint8:
++		return uint64(*(*uint8)(v.addr))
++	case Uint16:
++		return uint64(*(*uint16)(v.addr))
++	case Uint32:
++		return uint64(*(*uint32)(v.addr))
++	case Uint64:
++		return *(*uint64)(v.addr)
++	case Uintptr:
++		return uint64(*(*uintptr)(v.addr))
+ 	}
+-	*(*uint8)(v.addr) = x
++	panic("reflect: invalid uint kind")
+ }
+ 
+ // Set sets v to the value x.
+-func (v *Uint8Value) SetValue(x Value) { v.Set(x.(*Uint8Value).Get()) }
+-
+-// Uint16Value represents a uint16 value.
+-type Uint16Value struct {
+-	value
+-}
+-
+-// Get returns the underlying uint16 value.
+-func (v *Uint16Value) Get() uint16 { return *(*uint16)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Uint16Value) Set(x uint16) {
++func (v *UintValue) Set(x uint64) {
+ 	if !v.canSet {
+ 		panic(cannotSet)
+ 	}
+-	*(*uint16)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Uint16Value) SetValue(x Value) { v.Set(x.(*Uint16Value).Get()) }
+-
+-// Uint32Value represents a uint32 value.
+-type Uint32Value struct {
+-	value
+-}
+-
+-// Get returns the underlying uint32 value.
+-func (v *Uint32Value) Get() uint32 { return *(*uint32)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Uint32Value) Set(x uint32) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*uint32)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Uint32Value) SetValue(x Value) { v.Set(x.(*Uint32Value).Get()) }
+-
+-// Uint64Value represents a uint64 value.
+-type Uint64Value struct {
+-	value
+-}
+-
+-// Get returns the underlying uint64 value.
+-func (v *Uint64Value) Get() uint64 { return *(*uint64)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Uint64Value) Set(x uint64) {
+-	if !v.canSet {
+-		panic(cannotSet)
++	switch v.typ.(*UintType).Kind() {
++	default:
++		panic("reflect: invalid uint kind")
++	case Uint:
++		*(*uint)(v.addr) = uint(x)
++	case Uint8:
++		*(*uint8)(v.addr) = uint8(x)
++	case Uint16:
++		*(*uint16)(v.addr) = uint16(x)
++	case Uint32:
++		*(*uint32)(v.addr) = uint32(x)
++	case Uint64:
++		*(*uint64)(v.addr) = x
++	case Uintptr:
++		*(*uintptr)(v.addr) = uintptr(x)
+ 	}
+-	*(*uint64)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Uint64Value) SetValue(x Value) { v.Set(x.(*Uint64Value).Get()) }
+-
+-// UintptrValue represents a uintptr value.
+-type UintptrValue struct {
+-	value
+ }
+ 
+-// Get returns the underlying uintptr value.
+-func (v *UintptrValue) Get() uintptr { return *(*uintptr)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *UintptrValue) Set(x uintptr) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*uintptr)(v.addr) = x
++// Overflow returns true if x cannot be represented by the type of v.
++func (v *UintValue) Overflow(x uint64) bool {
++	bitSize := v.typ.Size() * 8
++	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
++	return x != trunc
+ }
+ 
+ // Set sets v to the value x.
+-func (v *UintptrValue) SetValue(x Value) { v.Set(x.(*UintptrValue).Get()) }
++func (v *UintValue) SetValue(x Value) { v.Set(x.(*UintValue).Get()) }
+ 
+ // UnsafePointerValue represents an unsafe.Pointer value.
+ type UnsafePointerValue struct {
+@@ -1329,26 +1242,10 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 		return (*ChanValue)(v)
+ 	case *FloatType:
+ 		return (*FloatValue)(v)
+-	case *Float32Type:
+-		return (*Float32Value)(v)
+-	case *Float64Type:
+-		return (*Float64Value)(v)
+ 	case *ComplexType:
+ 		return (*ComplexValue)(v)
+-	case *Complex64Type:
+-		return (*Complex64Value)(v)
+-	case *Complex128Type:
+-		return (*Complex128Value)(v)
+ 	case *IntType:
+ 		return (*IntValue)(v)
+-	case *Int8Type:
+-		return (*Int8Value)(v)
+-	case *Int16Type:
+-		return (*Int16Value)(v)
+-	case *Int32Type:
+-		return (*Int32Value)(v)
+-	case *Int64Type:
+-		return (*Int64Value)(v)
+ 	case *InterfaceType:
+ 		return (*InterfaceValue)(v)
+ 	case *MapType:
+@@ -1363,16 +1260,6 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 		return (*StructValue)(v)
+ 	case *UintType:
+ 		return (*UintValue)(v)
+-	case *Uint8Type:
+-		return (*Uint8Value)(v)
+-	case *Uint16Type:
+-		return (*Uint16Value)(v)
+-	case *Uint32Type:
+-		return (*Uint32Value)(v)
+-	case *Uint64Type:
+-		return (*Uint64Value)(v)
+-	case *UintptrType:
+-		return (*UintptrValue)(v)
+ 	case *UnsafePointerType:
+ 		return (*UnsafePointerValue)(v)
+ 	}
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 69036f112d..4b5bd7ac2e 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -44,6 +44,9 @@ enum {
+ 	KindFloat,
+ 	KindFloat32,
+ 	KindFloat64,
++	KindComplex,
++	KindComplex64,
++	KindComplex128,
+ 	KindArray,
+ 	KindChan,
+ 	KindFunc,
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index da35d64db5..0b1659725b 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -60,26 +60,41 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 	switch concrete := t.(type) {
+ 	case *reflect.BoolType:
+ 		return reflect.NewValue(rand.Int()&1 == 0), true
+-	case *reflect.Float32Type:
+-		return reflect.NewValue(randFloat32(rand)), true
+-	case *reflect.Float64Type:
+-		return reflect.NewValue(randFloat64(rand)), true
+-	case *reflect.FloatType:
+-		if t.Size() == 4 {
+-			return reflect.NewValue(float(randFloat32(rand))), true
+-		} else {
+-			return reflect.NewValue(float(randFloat64(rand))), true
++	case *reflect.FloatType, *reflect.IntType, *reflect.UintType:
++		switch t.Kind() {
++		case reflect.Float32:
++			return reflect.NewValue(randFloat32(rand)), true
++		case reflect.Float64:
++			return reflect.NewValue(randFloat64(rand)), true
++		case reflect.Float:
++			if t.Size() == 4 {
++				return reflect.NewValue(float(randFloat32(rand))), true
++			} else {
++				return reflect.NewValue(float(randFloat64(rand))), true
++			}
++		case reflect.Int16:
++			return reflect.NewValue(int16(randInt64(rand))), true
++		case reflect.Int32:
++			return reflect.NewValue(int32(randInt64(rand))), true
++		case reflect.Int64:
++			return reflect.NewValue(randInt64(rand)), true
++		case reflect.Int8:
++			return reflect.NewValue(int8(randInt64(rand))), true
++		case reflect.Int:
++			return reflect.NewValue(int(randInt64(rand))), true
++		case reflect.Uint16:
++			return reflect.NewValue(uint16(randInt64(rand))), true
++		case reflect.Uint32:
++			return reflect.NewValue(uint32(randInt64(rand))), true
++		case reflect.Uint64:
++			return reflect.NewValue(uint64(randInt64(rand))), true
++		case reflect.Uint8:
++			return reflect.NewValue(uint8(randInt64(rand))), true
++		case reflect.Uint:
++			return reflect.NewValue(uint(randInt64(rand))), true
++		case reflect.Uintptr:
++			return reflect.NewValue(uintptr(randInt64(rand))), true
+ 		}
+-	case *reflect.Int16Type:
+-		return reflect.NewValue(int16(randInt64(rand))), true
+-	case *reflect.Int32Type:
+-		return reflect.NewValue(int32(randInt64(rand))), true
+-	case *reflect.Int64Type:
+-		return reflect.NewValue(randInt64(rand)), true
+-	case *reflect.Int8Type:
+-		return reflect.NewValue(int8(randInt64(rand))), true
+-	case *reflect.IntType:
+-		return reflect.NewValue(int(randInt64(rand))), true
+ 	case *reflect.MapType:
+ 		numElems := rand.Intn(complexSize)
+ 		m := reflect.MakeMap(concrete)
+@@ -128,18 +143,6 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 			s.Field(i).SetValue(v)
+ 		}
+ 		return s, true
+-	case *reflect.Uint16Type:
+-		return reflect.NewValue(uint16(randInt64(rand))), true
+-	case *reflect.Uint32Type:
+-		return reflect.NewValue(uint32(randInt64(rand))), true
+-	case *reflect.Uint64Type:
+-		return reflect.NewValue(uint64(randInt64(rand))), true
+-	case *reflect.Uint8Type:
+-		return reflect.NewValue(uint8(randInt64(rand))), true
+-	case *reflect.UintType:
+-		return reflect.NewValue(uint(randInt64(rand))), true
+-	case *reflect.UintptrType:
+-		return reflect.NewValue(uintptr(randInt64(rand))), true
+ 	default:
+ 		return nil, false
+ 	}
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 9204660b37..bbceda6b49 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -218,7 +218,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 
+ 	case *reflect.SliceValue:
+ 		typ := v.Type().(*reflect.SliceType)
+-		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
++		if typ.Elem().Kind() == reflect.Uint8 {
+ 			// []byte
+ 			saveData = v
+ 			break
+@@ -245,11 +245,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		}
+ 		return nil
+ 
+-	case *reflect.StringValue,
+-		*reflect.IntValue, *reflect.UintValue, *reflect.UintptrValue,
+-		*reflect.Int8Value, *reflect.Int16Value, *reflect.Int32Value, *reflect.Int64Value,
+-		*reflect.Uint8Value, *reflect.Uint16Value, *reflect.Uint32Value, *reflect.Uint64Value,
+-		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value, *reflect.BoolValue:
++	case *reflect.BoolValue, *reflect.FloatValue, *reflect.IntValue, *reflect.UintValue, *reflect.StringValue:
+ 		saveData = v
+ 
+ 	case *reflect.StructValue:
+@@ -431,71 +427,16 @@ Loop:
+ 	default:
+ 		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
+ 	case *reflect.IntValue:
+-		if !getInt64() {
+-			return err
+-		}
+-		t.Set(int(itmp))
+-	case *reflect.Int8Value:
+-		if !getInt64() {
+-			return err
+-		}
+-		t.Set(int8(itmp))
+-	case *reflect.Int16Value:
+-		if !getInt64() {
+-			return err
+-		}
+-		t.Set(int16(itmp))
+-	case *reflect.Int32Value:
+-		if !getInt64() {
+-			return err
+-		}
+-		t.Set(int32(itmp))
+-	case *reflect.Int64Value:
+ 		if !getInt64() {
+ 			return err
+ 		}
+ 		t.Set(itmp)
+ 	case *reflect.UintValue:
+-		if !getUint64() {
+-			return err
+-		}
+-		t.Set(uint(utmp))
+-	case *reflect.Uint8Value:
+-		if !getUint64() {
+-			return err
+-		}
+-		t.Set(uint8(utmp))
+-	case *reflect.Uint16Value:
+-		if !getUint64() {
+-			return err
+-		}
+-		t.Set(uint16(utmp))
+-	case *reflect.Uint32Value:
+-		if !getUint64() {
+-			return err
+-		}
+-		t.Set(uint32(utmp))
+-	case *reflect.Uint64Value:
+ 		if !getUint64() {
+ 			return err
+ 		}
+ 		t.Set(utmp)
+-	case *reflect.UintptrValue:
+-		if !getUint64() {
+-			return err
+-		}
+-		t.Set(uintptr(utmp))
+ 	case *reflect.FloatValue:
+-		if !getFloat64() {
+-			return err
+-		}
+-		t.Set(float(ftmp))
+-	case *reflect.Float32Value:
+-		if !getFloat64() {
+-			return err
+-		}
+-		t.Set(float32(ftmp))
+-	case *reflect.Float64Value:
+ 		if !getFloat64() {
+ 			return err
+ 		}

@@ -25,6 +25,60 @@ Date:   Tue Dec 23 20:44:10 2014 +0100
     Reviewed-on: https://go-review.googlesource.com/2100
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sort/sort.go | 24 ++++++++----------------
  1 file changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 55134956c0..600a486a0e 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -381,7 +381,9 @@ func symMerge(data Interface, a, m, b int) {
+ 	}
+ 
+ 	end := n - start
+-	rotate(data, start, m, end)
++	if start < m && m < end {
++		rotate(data, start, m, end)
++	}
+ 	if a < start && start < mid {
+ 		symMerge(data, a, start, mid)
+ 	}
+@@ -393,32 +395,22 @@ func symMerge(data Interface, a, m, b int) {
+ // Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
+ // Data of the form 'x u v y' is changed to 'x v u y'.
+ // Rotate performs at most b-a many calls to data.Swap.
++// Rotate assumes non-degenerate arguments: a < m && m < b.
+ func rotate(data Interface, a, m, b int) {
+ 	i := m - a
+-	if i == 0 {
+-		return
+-	}
+ 	j := b - m
+-	if j == 0 {
+-		return
+-	}
+-
+-	if i == j {
+-		swapRange(data, a, m, i)
+-		return
+-	}
+ 
+-	p := a + i
+ 	for i != j {
+ 		if i > j {
+-			swapRange(data, p-i, p, j)
++			swapRange(data, m-i, m, j)
+ 			i -= j
+ 		} else {
+-			swapRange(data, p-i, p+j-i, i)
++			swapRange(data, m-i, m+j-i, i)
+ 			j -= i
+ 		}
+ 	}
+-	swapRange(data, p-i, p, i)
++	// i == j
++	swapRange(data, m-i, m, i)
+ }
+ 
+ /*

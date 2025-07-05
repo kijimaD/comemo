@@ -17,8 +17,70 @@ Date:   Mon Mar 20 17:30:49 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go    |  5 +++--
  src/cmd/go/internal/work/build.go |  1 +
  src/cmd/go/main.go                | 15 +++++++++++++++
  3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 2037e7cf06..ed7bb6c4bb 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -97,8 +97,9 @@ var (
+ 
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+-	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+-	DebugTrace       string // -debug-trace flag
++	DebugActiongraph  string // -debug-actiongraph flag (undocumented, unstable)
++	DebugTrace        string // -debug-trace flag
++	DebugRuntimeTrace string // -debug-runtime-trace flag (undocumented, unstable)
+ 
+ 	// GoPathError is set when GOPATH is not set. it contains an
+ 	// explanation why GOPATH is unset.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 5a1915afb5..ac9718bfb3 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -332,6 +332,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+ 	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
++	cmd.Flag.StringVar(&cfg.DebugRuntimeTrace, "debug-runtime-trace", "", "")
+ }
+ 
+ // AddCoverFlags adds coverage-related flags to "cmd". If the
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 8d1c3c0e8b..6d3d5d4059 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	rtrace "runtime/trace"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -220,6 +221,20 @@ func invoke(cmd *base.Command, args []string) {
+ 		cmd.Flag.Parse(args[1:])
+ 		args = cmd.Flag.Args()
+ 	}
++
++	if cfg.DebugRuntimeTrace != "" {
++		f, err := os.Create(cfg.DebugRuntimeTrace)
++		if err != nil {
++			base.Fatalf("creating trace file: %v", err)
++		}
++		if err := rtrace.Start(f); err != nil {
++			base.Fatalf("starting event trace: %v", err)
++		}
++		defer func() {
++			rtrace.Stop()
++		}()
++	}
++
+ 	ctx := maybeStartTrace(context.Background())
+ 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+ 	cmd.Run(ctx, cmd, args)

@@ -8,8 +8,66 @@ Date:   Tue Mar 4 08:56:52 2014 -0800
     R=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/70200052
-
+---
  src/pkg/net/http/header.go      |  2 ++
  src/pkg/net/http/header_test.go |  9 ++++++---
  src/pkg/net/http/race.go        | 11 +++++++++++
  3 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index de62bef552..153b94370f 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -13,6 +13,8 @@ import (
+ 	"time"
+ )
+ 
++var raceEnabled = false // set by race.go
++
+ // A Header represents the key-value pairs in an HTTP header.
+ type Header map[string][]string
+ 
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index 9fd9837a5b..9dcd591fa0 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -192,9 +192,12 @@ func BenchmarkHeaderWriteSubset(b *testing.B) {
+ 	}
+ }
+ 
+-func TestHeaderWriteSubsetMallocs(t *testing.T) {
++func TestHeaderWriteSubsetAllocs(t *testing.T) {
+ 	if testing.Short() {
+-		t.Skip("skipping malloc count in short mode")
++		t.Skip("skipping alloc test in short mode")
++	}
++	if raceEnabled {
++		t.Skip("skipping test under race detector")
+ 	}
+ 	if runtime.GOMAXPROCS(0) > 1 {
+ 		t.Skip("skipping; GOMAXPROCS>1")
+@@ -204,6 +207,6 @@ func TestHeaderWriteSubsetMallocs(t *testing.T) {
+ 		testHeader.WriteSubset(&buf, nil)
+ 	})
+ 	if n > 0 {
+-		t.Errorf("mallocs = %g; want 0", n)
++		t.Errorf("allocs = %g; want 0", n)
+ 	}
+ }
+diff --git a/src/pkg/net/http/race.go b/src/pkg/net/http/race.go
+new file mode 100644
+index 0000000000..766503967c
+--- /dev/null
++++ b/src/pkg/net/http/race.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package http
++
++func init() {
++	raceEnabled = true
++}

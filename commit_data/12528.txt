@@ -9,6 +9,20 @@ Date:   Thu Mar 8 12:49:23 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5784057
-
+---
  .hgignore | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.hgignore b/.hgignore
+index d6ba72c6bc..741d7c61b2 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -27,7 +27,7 @@ doc/tmpltohtml
+ doc/articles/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+-misc/cgo/testso/testso
++misc/cgo/testso/main
+ misc/dashboard/builder/builder
+ misc/goplay/goplay
+ misc/osx/*.pkg

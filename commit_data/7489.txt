@@ -7,7 +7,87 @@ Date:   Thu Feb 17 12:09:12 2011 +1100
     R=golang-dev, rsc, hector
     CC=golang-dev, mattn
     https://golang.org/cl/4180052
-
+---
  src/pkg/syscall/syscall_windows.go      | 39 +++++++++++++++------------------
  src/pkg/syscall/zsyscall_windows_386.go |  4 ++--
  2 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index e194feae30..9306b58235 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -154,7 +154,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	SetEnvironmentVariable(name *uint16, value *uint16) (errno int) = kernel32.SetEnvironmentVariableW
+ //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int)
+ //sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+-//sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.SetFileAttributesW
++//sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) = kernel32.SetFileAttributesW
+ //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
+ //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
+ //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
+@@ -471,6 +471,23 @@ func Fsync(fd int) (errno int) {
+ 	return FlushFileBuffers(int32(fd))
+ }
+ 
++func Chmod(path string, mode uint32) (errno int) {
++	if mode == 0 {
++		return EINVAL
++	}
++	p := StringToUTF16Ptr(path)
++	attrs, e := GetFileAttributes(p)
++	if e != 0 {
++		return e
++	}
++	if mode&S_IWRITE != 0 {
++		attrs &^= FILE_ATTRIBUTE_READONLY
++	} else {
++		attrs |= FILE_ATTRIBUTE_READONLY
++	}
++	return SetFileAttributes(p, attrs)
++}
++
+ // net api calls
+ 
+ //sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
+@@ -731,26 +748,6 @@ func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
+ func Symlink(path, link string) (errno int)               { return EWINDOWS }
+ func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
+ 
+-func Chmod(path string, mode uint32) (errno int) {
+-	attrs, errno := GetFileAttributes(StringToUTF16Ptr(path))
+-	if errno != 0 {
+-		return
+-	}
+-
+-	if mode == 0 {
+-		return EINVAL
+-	}
+-
+-	if mode&S_IWRITE != 0 {
+-		attrs &^= FILE_ATTRIBUTE_READONLY
+-	} else if attrs&FILE_ATTRIBUTE_READONLY == 0 {
+-		attrs |= FILE_ATTRIBUTE_READONLY
+-	}
+-
+-	errno = SetFileAttributes(StringToUTF16Ptr(path), attrs)
+-	return
+-}
+-
+ func Fchmod(fd int, mode uint32) (errno int)           { return EWINDOWS }
+ func Chown(path string, uid int, gid int) (errno int)  { return EWINDOWS }
+ func Lchown(path string, uid int, gid int) (errno int) { return EWINDOWS }
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 7a7239b92f..543992ea65 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -808,8 +808,8 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
+ }
+ 
+ func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
+-	r0, _, e1 := Syscall(procSetFileAttributesW, 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
+-	if int(r0) == 0 {
++	r1, _, e1 := Syscall(procSetFileAttributesW, 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
++	if int(r1) == 0 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+ 		} else {

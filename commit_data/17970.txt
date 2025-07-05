@@ -48,7 +48,50 @@ Date:   Thu Dec 12 11:26:36 2013 -0800
     R=golang-dev, r, hanwen
     CC=golang-dev, rsc
     https://golang.org/cl/19910043
-
+---
  src/pkg/crypto/sha1/sha1block_386.s   | 10 ++++------
  src/pkg/crypto/sha1/sha1block_amd64.s | 10 ++++------
  2 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/sha1/sha1block_386.s b/src/pkg/crypto/sha1/sha1block_386.s
+index 890b3ae818..688851c31e 100644
+--- a/src/pkg/crypto/sha1/sha1block_386.s
++++ b/src/pkg/crypto/sha1/sha1block_386.s
+@@ -46,12 +46,10 @@
+ 	ADDL	DI, e
+ 
+ #define FUNC1(a, b, c, d, e) \
+-	MOVL	b, SI; \
+-	ANDL	c, SI; \
+-	MOVL	b, DI; \
+-	NOTL	DI; \
+-	ANDL	d, DI; \
+-	ORL	SI, DI
++	MOVL	d, DI; \
++	XORL	c, DI; \
++	ANDL	b, DI; \
++	XORL	d, DI
+ 
+ #define FUNC2(a, b, c, d, e) \
+ 	MOVL	b, DI; \
+diff --git a/src/pkg/crypto/sha1/sha1block_amd64.s b/src/pkg/crypto/sha1/sha1block_amd64.s
+index 0bb6c204c5..8ffb9d5d68 100644
+--- a/src/pkg/crypto/sha1/sha1block_amd64.s
++++ b/src/pkg/crypto/sha1/sha1block_amd64.s
+@@ -34,12 +34,10 @@
+ 	MOVL	R10, (((index)&0xf)*4)(SP)
+ 
+ #define FUNC1(a, b, c, d, e) \
+-	MOVL	b, R8; \
+-	ANDL	c, R8; \
+-	MOVL	b, R9; \
+-	NOTL	R9; \
+-	ANDL	d, R9; \
+-	ORL	R8, R9
++	MOVL	d, R9; \
++	XORL	c, R9; \
++	ANDL	b, R9; \
++	XORL	d, R9
+ 
+ #define FUNC2(a, b, c, d, e) \
+ 	MOVL	b, R9; \

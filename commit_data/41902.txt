@@ -10,6 +10,27 @@ Date:   Thu Oct 31 17:19:28 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/devel/release.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index ffd0f4bd17..38fc8f66f6 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -54,6 +54,15 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.13.3">Go
+ 1.13.3 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.13.4 (released 2019/10/31) includes fixes to the <code>net/http</code> and
++<code>syscall</code> packages. It also fixes an issue on macOS 10.15 Catalina
++where the non-notarized installer and binaries were being
++<a href="https://golang.org/issue/34986">rejected by Gatekeeper</a>.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.13.4">Go
++1.13.4 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
+ 
+ <p>

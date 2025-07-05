@@ -13,7 +13,75 @@ Date:   Thu Jan 9 14:42:16 2025 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/base64/base64.go |  6 +++---
  src/go/build/deps_test.go     | 11 ++++++-----
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index f94bea132c..57aa1a697f 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -6,7 +6,7 @@
+ package base64
+ 
+ import (
+-	"encoding/binary"
++	"internal/byteorder"
+ 	"io"
+ 	"slices"
+ 	"strconv"
+@@ -538,7 +538,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ 			enc.decodeMap[src2[6]],
+ 			enc.decodeMap[src2[7]],
+ 		); ok {
+-			binary.BigEndian.PutUint64(dst[n:], dn)
++			byteorder.BEPutUint64(dst[n:], dn)
+ 			n += 6
+ 			si += 8
+ 		} else {
+@@ -559,7 +559,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ 			enc.decodeMap[src2[2]],
+ 			enc.decodeMap[src2[3]],
+ 		); ok {
+-			binary.BigEndian.PutUint32(dst[n:], dn)
++			byteorder.BEPutUint32(dst[n:], dn)
+ 			n += 3
+ 			si += 4
+ 		} else {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e96578f8d3..31ec9512c1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -244,17 +244,17 @@ var depsRules = `
+ 	# encodings
+ 	# core ones do not use fmt.
+ 	io, strconv, slices
+-	< encoding;
++	< encoding, encoding/base32, encoding/base64;
+ 
+ 	encoding, reflect
+-	< encoding/binary
+-	< encoding/base32, encoding/base64;
++	< encoding/binary;
+ 
+ 	FMT, encoding < flag;
+ 
+ 	fmt !< encoding/base32, encoding/base64;
+ 
+-	FMT, encoding/base32, encoding/base64, internal/saferio
++	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
++	internal/saferio
+ 	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
+ 	  encoding/json, encoding/pem, encoding/xml, mime;
+ 
+@@ -662,7 +662,8 @@ var depsRules = `
+ 	log/slog, testing
+ 	< testing/slogtest;
+ 
+-	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
++	FMT, crypto/sha256, encoding/binary, encoding/json,
++	go/ast, go/parser, go/token,
+ 	internal/godebug, math/rand, encoding/hex
+ 	< internal/fuzz;
+ 

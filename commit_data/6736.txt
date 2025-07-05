@@ -8,7 +8,63 @@ Date:   Mon Nov 8 15:33:00 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/2994041
-
+---
  src/pkg/json/decode.go      |  4 +++-
  src/pkg/json/decode_test.go | 22 ++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 71ebd6daf6..b6c575cc84 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -128,7 +128,9 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
+ 	}
+ 
+ 	d.scan.reset()
+-	d.value(pv.Elem())
++	// We decode rv not pv.Elem because the Unmarshaler interface
++	// test must be applied at the top level of the value.
++	d.value(rv)
+ 	return d.savedError
+ }
+ 
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index c7d176a581..b805d3d82f 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -23,6 +23,24 @@ type tx struct {
+ 
+ var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
+ 
++// A type that can unmarshal itself.
++
++type unmarshaler struct {
++	T bool
++}
++
++func (u *unmarshaler) UnmarshalJSON(b []byte) os.Error {
++	*u = unmarshaler{true} // All we need to see that UnmarshalJson is called.
++	return nil
++}
++
++var (
++	um0, um1 unmarshaler // target2 of unmarshaling
++	ump      = &um1
++	umtrue   = unmarshaler{true}
++)
++
++
+ type unmarshalTest struct {
+ 	in  string
+ 	ptr interface{}
+@@ -56,6 +74,10 @@ var unmarshalTests = []unmarshalTest{
+ 	{pallValueCompact, new(All), pallValue, nil},
+ 	{pallValueIndent, new(*All), &pallValue, nil},
+ 	{pallValueCompact, new(*All), &pallValue, nil},
++
++	// unmarshal interface test
++	{`{"T":false}`, &um0, umtrue, nil}, // use "false" so test will fail if custom unmarshaler is not called
++	{`{"T":false}`, &ump, &umtrue, nil},
+ }
+ 
+ func TestMarshal(t *testing.T) {

@@ -6,6 +6,38 @@ Date:   Tue Jun 24 12:54:26 2008 -0700
     add a boolean printer
     
     SVN=124362
-
+---
  src/lib/fmt.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index 8c4b249626..521e8ed02c 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -11,7 +11,7 @@ package fmt
+ 	f.ud(^0).putnl();  // print string with automatic newline
+ */
+ 
+-import sys "sys"
++// import sys "sys"
+ 
+ export Fmt, New;
+ 
+@@ -144,6 +144,17 @@ func putint(buf *[64]byte, i int, base, val uint64, digits *string) int {
+ 	return i-1;
+ }
+ 
++// boolean
++func (f *Fmt) boolean(a bool) *Fmt {
++	if a {
++		f.pad("true");
++	} else {
++		f.pad("false");
++	}
++	f.clearflags();
++	return f;
++}
++
+ // integer; interprets prec but not wid.
+ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string {
+ 	var buf [64]byte;

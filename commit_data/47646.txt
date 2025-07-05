@@ -16,6 +16,21 @@ Date:   Thu Apr 1 10:06:05 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/runtime/pprof/pprof_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 1b86dbff5b..e6b4d0044d 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -276,7 +276,8 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 
+ 	broken := false
+ 	switch runtime.GOOS {
+-	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
++	// See https://golang.org/issue/45170 for AIX.
++	case "ios", "dragonfly", "netbsd", "illumos", "solaris", "aix":
+ 		broken = true
+ 	case "openbsd":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {

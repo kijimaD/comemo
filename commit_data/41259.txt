@@ -18,7 +18,97 @@ Date:   Wed Aug 21 15:05:26 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/dwarf/entry.go      |  6 ++++++
  src/debug/dwarf/entry_test.go | 20 +++++++++++++++++---
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 43043f60dd..01f2190db7 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -11,6 +11,7 @@
+ package dwarf
+ 
+ import (
++	"encoding/binary"
+ 	"errors"
+ 	"strconv"
+ )
+@@ -735,6 +736,11 @@ func (r *Reader) AddressSize() int {
+ 	return r.d.unit[r.unit].asize
+ }
+ 
++// ByteOrder returns the byte order in the current compilation unit.
++func (r *Reader) ByteOrder() binary.ByteOrder {
++	return r.b.order
++}
++
+ // Seek positions the Reader at offset off in the encoded entry stream.
+ // Offset 0 can be used to denote the first entry.
+ func (r *Reader) Seek(off Offset) {
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 58f3023d29..4c9aad21f3 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -6,6 +6,7 @@ package dwarf_test
+ 
+ import (
+ 	. "debug/dwarf"
++	"encoding/binary"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -141,8 +142,10 @@ func Test64Bit(t *testing.T) {
+ 	// compilation unit except by using XCOFF, so this is
+ 	// hand-written.
+ 	tests := []struct {
+-		name string
+-		info []byte
++		name      string
++		info      []byte
++		addrSize  int
++		byteOrder binary.ByteOrder
+ 	}{
+ 		{
+ 			"32-bit little",
+@@ -157,6 +160,7 @@ func Test64Bit(t *testing.T) {
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 			},
++			8, binary.LittleEndian,
+ 		},
+ 		{
+ 			"64-bit little",
+@@ -171,6 +175,7 @@ func Test64Bit(t *testing.T) {
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 			},
++			8, binary.LittleEndian,
+ 		},
+ 		{
+ 			"64-bit big",
+@@ -185,13 +190,22 @@ func Test64Bit(t *testing.T) {
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 				0, 0, 0, 0, 0, 0, 0, 0,
+ 			},
++			8, binary.BigEndian,
+ 		},
+ 	}
+ 
+ 	for _, test := range tests {
+-		_, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
++		data, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: %v", test.name, err)
+ 		}
++
++		r := data.Reader()
++		if r.AddressSize() != test.addrSize {
++			t.Errorf("%s: got address size %d, want %d", test.name, r.AddressSize(), test.addrSize)
++		}
++		if r.ByteOrder() != test.byteOrder {
++			t.Errorf("%s: got byte order %s, want %s", test.name, r.ByteOrder(), test.byteOrder)
++		}
+ 	}
+ }

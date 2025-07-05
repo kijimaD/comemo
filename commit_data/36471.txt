@@ -12,7 +12,7 @@ Date:   Fri Apr 27 15:44:31 2018 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go        |  7 +++++
  src/cmd/asm/internal/asm/asm.go           |  9 ++++++
  src/cmd/asm/internal/asm/testdata/arm64.s | 22 ++++++++++++++
@@ -20,3 +20,188 @@ Date:   Fri Apr 27 15:44:31 2018 -0400
  src/cmd/internal/obj/arm64/anames.go      |  3 ++
  src/cmd/internal/obj/arm64/asm7.go        | 48 ++++++++++++++++++++++++++++++-
  6 files changed, 91 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 2aadda4b9b..4b30e40b55 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -132,6 +132,13 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
+ 	return 0, false
+ }
+ 
++// IsARM64TBL reports whether the op (as defined by an arm64.A*
++// constant) is one of the table lookup instructions that require special
++// handling.
++func IsARM64TBL(op obj.As) bool {
++	return op == arm64.AVTBL
++}
++
+ // ARM64RegisterExtension parses an ARM64 register with extension or arrangement.
+ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+ 	Rnum := (reg & 31) + int16(num<<5)
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index b2d5a75ac4..21dcd06c5c 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -576,6 +576,15 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.To = a[2]
+ 				break
+ 			}
++			if arch.IsARM64TBL(op) {
++				prog.From = a[0]
++				if a[1].Type != obj.TYPE_REGLIST {
++					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
++				}
++				prog.SetFrom3(a[1])
++				prog.To = a[2]
++				break
++			}
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.To = a[2]
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 9a2e20acc0..7463689a3c 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -107,6 +107,28 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VSRI	$8, V1.H8, V2.H8                // 2244186f
+ 	VSRI	$2, V1.B8, V2.B8                // 22440e2f
+ 	VSRI	$2, V1.B16, V2.B16              // 22440e6f
++	VTBL	V22.B16, [V28.B16, V29.B16], V11.B16                                    // 8b23164e
++	VTBL	V18.B8, [V17.B16, V18.B16, V19.B16], V22.B8                             // 3642120e
++	VTBL	V31.B8, [V14.B16, V15.B16, V16.B16, V17.B16], V15.B8                    // cf611f0e
++	VTBL	V14.B16, [V16.B16], V11.B16                                             // 0b020e4e
++	VTBL	V28.B16, [V25.B16, V26.B16], V5.B16                                     // 25231c4e
++	VTBL	V16.B8, [V4.B16, V5.B16, V6.B16], V12.B8                                // 8c40100e
++	VTBL	V4.B8, [V16.B16, V17.B16, V18.B16, V19.B16], V4.B8                      // 0462040e
++	VTBL	V15.B8, [V1.B16], V20.B8                                                // 34000f0e
++	VTBL	V26.B16, [V2.B16, V3.B16], V26.B16                                      // 5a201a4e
++	VTBL	V15.B8, [V6.B16, V7.B16, V8.B16], V2.B8                                 // c2400f0e
++	VTBL	V2.B16, [V27.B16, V28.B16, V29.B16, V30.B16], V18.B16                   // 7263024e
++	VTBL	V11.B16, [V13.B16], V27.B16                                             // bb010b4e
++	VTBL	V3.B8, [V7.B16, V8.B16], V25.B8                                         // f920030e
++	VTBL	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71400e4e
++	VTBL	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc630d4e
++	VTBL	V3.B8, [V27.B16], V8.B8                                                 // 6803030e
++	VZIP1	V16.H8, V3.H8, V19.H8           // 7338504e
++	VZIP2	V22.D2, V25.D2, V21.D2          // 357bd64e
++	VZIP1	V6.D2, V9.D2, V11.D2            // 2b39c64e
++	VZIP2	V10.D2, V13.D2, V3.D2           // a379ca4e
++	VZIP1	V17.S2, V4.S2, V26.S2           // 9a38910e
++	VZIP2	V25.S2, V14.S2, V25.S2          // d979990e
+ 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
+ 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
+ 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 1e92a7d5af..dc696f6898 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -897,6 +897,9 @@ const (
+ 	AVUSHR
+ 	AVSHL
+ 	AVSRI
++	AVTBL
++	AVZIP1
++	AVZIP2
+ 	ALAST
+ 	AB  = obj.AJMP
+ 	ABL = obj.ACALL
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index e3ba4a00b7..3d1a762e1d 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -399,5 +399,8 @@ var Anames = []string{
+ 	"VUSHR",
+ 	"VSHL",
+ 	"VSRI",
++	"VTBL",
++	"VZIP1",
++	"VZIP2",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 078b319a3d..80a1f0bd3a 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -359,7 +359,9 @@ var optab = []Optab{
+ 	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+ 	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+ 	{AVEXT, C_VCON, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
++	{AVTBL, C_ARNG, C_NONE, C_ARNG, 100, 4, 0, 0, 0},
+ 	{AVUSHR, C_VCON, C_ARNG, C_ARNG, 95, 4, 0, 0, 0},
++	{AVZIP1, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+ 
+ 	/* conditional operations */
+ 	{ACSEL, C_COND, C_REG, C_REG, 18, 4, 0, 0, 0}, /* from3 optional */
+@@ -2381,11 +2383,15 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AVRBIT, t)
+ 			oprangeset(AVREV64, t)
+ 
++		case AVZIP1:
++			oprangeset(AVZIP2, t)
++
+ 		case ASHA1H,
+ 			AVCNT,
+ 			AVMOV,
+ 			AVLD1,
+ 			AVST1,
++			AVTBL,
+ 			AVDUP,
+ 			AVMOVI,
+ 			APRFM,
+@@ -4507,6 +4513,40 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rf := int(p.From.Reg)
+ 		o1 |= uint32(rf & 31)
+ 
++	case 100: /* VTBL Vn.<T>, [Vt1.<T>, Vt2.<T>, ...], Vd.<T> */
++		af := int((p.From.Reg >> 5) & 15)
++		at := int((p.To.Reg >> 5) & 15)
++		if af != at {
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++		var q, len uint32
++		switch af {
++		case ARNG_8B:
++			q = 0
++		case ARNG_16B:
++			q = 1
++		default:
++			c.ctxt.Diag("invalid arrangement: %v", p)
++		}
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		offset := int(p.GetFrom3().Offset)
++		opcode := (offset >> 12) & 15
++		switch opcode {
++		case 0x7:
++			len = 0 // one register
++		case 0xa:
++			len = 1 // two register
++		case 0x6:
++			len = 2 // three registers
++		case 0x2:
++			len = 3 // four registers
++		default:
++			c.ctxt.Diag("invalid register numbers in ARM64 register list: %v", p)
++		}
++		o1 = q<<30 | 0xe<<24 | len<<13
++		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
++
+ 	}
+ 	out[0] = o1
+ 	out[1] = o2
+@@ -5071,7 +5111,13 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 		return 1<<29 | 0x71<<21 | 0x23<<10
+ 
+ 	case AVCNT:
+-		return 0<<31 | 0<<29 | 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
++		return 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
++
++	case AVZIP1:
++		return 0xE<<24 | 3<<12 | 2<<10
++
++	case AVZIP2:
++		return 0xE<<24 | 1<<14 | 3<<12 | 2<<10
+ 
+ 	case AVEOR:
+ 		return 1<<29 | 0x71<<21 | 7<<10

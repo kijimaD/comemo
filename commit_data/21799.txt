@@ -15,9 +15,273 @@ Date:   Sat Jan 24 17:51:42 2015 -0500
     Change-Id: I3c52b81b451f5862107d7c675f799fc85548486d
     Reviewed-on: https://go-review.googlesource.com/3350
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/defs_linux_arm.go       |  11 ++-
  src/runtime/print1_write_android.go | 143 +++++++++++++++++++++++++++++++-----
  src/runtime/stubs_android.go        |  10 +++
  src/runtime/sys_linux_arm.s         |  29 ++++++++
  4 files changed, 175 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index c3a6e2f019..3940240898 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -65,7 +65,7 @@ const (
+ 	_ITIMER_PROF    = 0x2
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_O_RDONLY       = 0
+-	_O_CLOEXEC      = 02000000
++	_O_CLOEXEC      = 0x80000
+ 
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+@@ -77,6 +77,10 @@ const (
+ 	_EPOLL_CTL_ADD = 0x1
+ 	_EPOLL_CTL_DEL = 0x2
+ 	_EPOLL_CTL_MOD = 0x3
++
++	_AF_UNIX    = 0x1
++	_F_SETFL    = 0x4
++	_SOCK_DGRAM = 0x2
+ )
+ 
+ type timespec struct {
+@@ -166,3 +170,8 @@ type epollevent struct {
+ 	_pad   uint32
+ 	data   [8]byte // to match amd64
+ }
++
++type sockaddr_un struct {
++	family uint16
++	path   [108]byte
++}
+diff --git a/src/runtime/print1_write_android.go b/src/runtime/print1_write_android.go
+index 31093de70f..1f4f0996fe 100644
+--- a/src/runtime/print1_write_android.go
++++ b/src/runtime/print1_write_android.go
+@@ -9,29 +9,60 @@ import "unsafe"
+ var (
+ 	writeHeader = []byte{6 /* ANDROID_LOG_ERROR */, 'G', 'o', 0}
+ 	writePath   = []byte("/dev/log/main\x00")
+-	writeFD     uintptr
+-	writeBuf    [1024]byte
+-	writePos    int
++	writeLogd   = []byte("/dev/socket/logdw\x00")
++
++	// guarded by printlock/printunlock.
++	writeFD  uintptr
++	writeBuf [1024]byte
++	writePos int
++)
++
++// Prior to Android-L, logging was done through writes to /dev/log files implemented
++// in kernel ring buffers. In Android-L, those /dev/log files are no longer
++// accessible and logging is done through a centralized user-mode logger, logd.
++//
++// https://android.googlesource.com/platform/system/core/+/master/liblog/logd_write.c
++type loggerType int32
++
++const (
++	unknown loggerType = iota
++	legacy
++	logd
++	// TODO(hakim): logging for emulator?
+ )
+ 
++var logger loggerType
++
+ func writeErr(b []byte) {
+-	// Log format: "<priority 1 byte><tag n bytes>\x00<message m bytes>\x00"
++	if logger == unknown {
++		// Use logd if /dev/socket/logdw is available.
++		if v := uintptr(access(&writeLogd[0], 0x02 /* W_OK */)); v == 0 {
++			logger = logd
++			initLogd()
++		} else {
++			logger = legacy
++			initLegacy()
++		}
++	}
++
++	// Log format: "<header>\x00<message m bytes>\x00"
++	//
++	// <header>
++	//   In legacy mode: "<priority 1 byte><tag n bytes>".
++	//   In logd mode: "<android_log_header_t 11 bytes><priority 1 byte><tag n bytes>"
++	//
+ 	// The entire log needs to be delivered in a single syscall (the NDK
+ 	// does this with writev). Each log is its own line, so we need to
+ 	// buffer writes until we see a newline.
+-	if writeFD == 0 {
+-		writeFD = uintptr(open(&writePath[0], 0x1 /* O_WRONLY */, 0))
+-		if writeFD == 0 {
+-			// It is hard to do anything here. Write to stderr just
+-			// in case user has root on device and has run
+-			//	adb shell setprop log.redirect-stdio true
+-			msg := []byte("runtime: cannot open /dev/log/main\x00")
+-			write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
+-			exit(2)
+-		}
+-		copy(writeBuf[:], writeHeader)
++	var hlen int
++	switch logger {
++	case logd:
++		hlen = writeLogdHeader()
++	case legacy:
++		hlen = len(writeHeader)
+ 	}
+-	dst := writeBuf[len(writeHeader):]
++
++	dst := writeBuf[hlen:]
+ 	for _, v := range b {
+ 		if v == 0 { // android logging won't print a zero byte
+ 			v = '0'
+@@ -40,9 +71,87 @@ func writeErr(b []byte) {
+ 		writePos++
+ 		if v == '\n' || writePos == len(dst)-1 {
+ 			dst[writePos] = 0
+-			write(writeFD, unsafe.Pointer(&writeBuf[0]), int32(len(writeHeader)+writePos))
++			write(writeFD, unsafe.Pointer(&writeBuf[0]), int32(hlen+writePos))
+ 			memclrBytes(dst)
+ 			writePos = 0
+ 		}
+ 	}
+ }
++
++func initLegacy() {
++	// In legacy mode, logs are written to /dev/log/main
++	writeFD = uintptr(open(&writePath[0], 0x1 /* O_WRONLY */, 0))
++	if writeFD == 0 {
++		// It is hard to do anything here. Write to stderr just
++		// in case user has root on device and has run
++		//	adb shell setprop log.redirect-stdio true
++		msg := []byte("runtime: cannot open /dev/log/main\x00")
++		write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
++		exit(2)
++	}
++
++	// Prepopulate the invariant header part.
++	copy(writeBuf[:len(writeHeader)], writeHeader)
++}
++
++// used in initLogdWrite but defined here to avoid heap allocation.
++var logdAddr sockaddr_un
++
++func initLogd() {
++	// In logd mode, logs are sent to the logd via a unix domain socket.
++	logdAddr.family = _AF_UNIX
++	copy(logdAddr.path[:], writeLogd)
++
++	// We are not using non-blocking I/O because writes taking this path
++	// are most likely triggered by panic, we cannot think of the advantage of
++	// non-blocking I/O for panic but see disadvantage (dropping panic message),
++	// and blocking I/O simplifies the code a lot.
++	fd := socket(_AF_UNIX, _SOCK_DGRAM|_O_CLOEXEC, 0)
++	if fd < 0 {
++		msg := []byte("runtime: cannot create a socket for logging\x00")
++		write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
++		exit(2)
++	}
++
++	errno := connect(uintptr(fd), unsafe.Pointer(&logdAddr), int32(unsafe.Sizeof(logdAddr)))
++	if errno < 0 {
++		msg := []byte("runtime: cannot connect to /dev/socket/logdw\x00")
++		write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
++		// TODO(hakim): or should we just close fd and hope for better luck next time?
++		exit(2)
++	}
++	writeFD = uintptr(fd)
++
++	// Prepopulate invariant part of the header.
++	// The first 11 bytes will be populated later in writeLogdHeader.
++	copy(writeBuf[11:11+len(writeHeader)], writeHeader)
++}
++
++// writeLogdHeader populates the header and returns the length of the payload.
++func writeLogdHeader() int {
++	hdr := writeBuf[:11]
++
++	// The first 11 bytes of the header corresponds to android_log_header_t
++	// as defined in system/core/include/private/android_logger.h
++	//   hdr[0] log type id (unsigned char), defined in <log/log.h>
++	//   hdr[1:2] tid (uint16_t)
++	//   hdr[3:11] log_time defined in <log/log_read.h>
++	//      hdr[3:7] sec unsigned uint32, little endian.
++	//      hdr[7:11] nsec unsigned uint32, little endian.
++	hdr[0] = 0 // LOG_ID_MAIN
++	sec, nsec := time_now()
++	packUint32(hdr[3:7], uint32(sec))
++	packUint32(hdr[7:11], uint32(nsec))
++
++	// TODO(hakim):  hdr[1:2] = gettid?
++
++	return 11 + len(writeHeader)
++}
++
++func packUint32(b []byte, v uint32) {
++	// little-endian.
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++}
+diff --git a/src/runtime/stubs_android.go b/src/runtime/stubs_android.go
+new file mode 100644
+index 0000000000..e3723778d9
+--- /dev/null
++++ b/src/runtime/stubs_android.go
+@@ -0,0 +1,10 @@
++package runtime
++
++import "unsafe"
++
++//go:noescape
++func access(name *byte, mode int32) int32
++
++func connect(fd uintptr, addr unsafe.Pointer, len int32) int32
++
++func socket(domain int32, typ int32, prot int32) int32
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index f7d08cae3c..bf0c810ad1 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -45,6 +45,9 @@
+ #define SYS_epoll_wait (SYS_BASE + 252)
+ #define SYS_epoll_create1 (SYS_BASE + 357)
+ #define SYS_fcntl (SYS_BASE + 55)
++#define SYS_access (SYS_BASE + 33)
++#define SYS_connect (SYS_BASE + 283)
++#define SYS_socket (SYS_BASE + 281)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ 
+@@ -471,3 +474,29 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	MOVW	$0xffff0fe0, R0
+ 	B	(R0)
++
++TEXT runtime·access(SB),NOSPLIT,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	$SYS_access, R7
++	SWI	$0
++	MOVW	R0, ret+8(FP)
++	RET
++
++TEXT runtime·connect(SB),NOSPLIT,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_connect, R7
++	SWI	$0
++	MOVW	R0, ret+12(FP)
++	RET
++
++TEXT runtime·socket(SB),NOSPLIT,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_socket, R7
++	SWI	$0
++	MOVW	R0, ret+12(FP)
++	RET

@@ -14,6 +14,28 @@ Date:   Wed Mar 25 11:47:02 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm_test.go b/src/cmd/internal/obj/arm64/asm_test.go
+index b91f2e91cc..1691828739 100644
+--- a/src/cmd/internal/obj/arm64/asm_test.go
++++ b/src/cmd/internal/obj/arm64/asm_test.go
+@@ -91,6 +91,7 @@ func TestPCALIGN(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 	tmpfile := filepath.Join(dir, "test.s")
++	tmpout := filepath.Join(dir, "test.o")
+ 
+ 	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n")
+ 	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n")
+@@ -111,7 +112,7 @@ func TestPCALIGN(t *testing.T) {
+ 		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", tmpfile)
++		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+ 		cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {

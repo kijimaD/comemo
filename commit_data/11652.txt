@@ -8,6 +8,45 @@ Date:   Mon Feb 6 12:40:59 2012 -0500
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/5624049
-
+---
  src/cmd/go/clean.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index 48ddc0ab60..1ea12b9624 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -112,6 +113,7 @@ func clean(p *Package) {
+ 	}
+ 
+ 	var b builder
++	b.print = fmt.Print
+ 
+ 	packageFile := map[string]bool{}
+ 	if p.Name != "main" {
+@@ -146,7 +148,7 @@ func clean(p *Package) {
+ 		}
+ 	}
+ 	if cleanN || cleanX {
+-		b.showcmd(p.Dir, "rm %s", strings.Join(allRemove, " "))
++		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
+ 	}
+ 
+ 	toRemove := map[string]bool{}
+@@ -180,7 +182,7 @@ func clean(p *Package) {
+ 
+ 	if cleanI && p.target != "" {
+ 		if cleanN || cleanX {
+-			b.showcmd("", "rm %s", p.target)
++			b.showcmd("", "rm -f %s", p.target)
+ 		}
+ 		if !cleanN {
+ 			os.Remove(p.target)

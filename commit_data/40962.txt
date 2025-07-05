@@ -21,6 +21,24 @@ Date:   Wed May 15 02:40:12 2019 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/html/template/js.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 7025c1cfaa..0e91458d19 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -383,11 +383,11 @@ func isJSType(mimeType string) bool {
+ 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
+ 	//   https://tools.ietf.org/html/rfc4329#section-3
+ 	//   https://www.ietf.org/rfc/rfc4627.txt
+-	mimeType = strings.ToLower(mimeType)
+ 	// discard parameters
+ 	if i := strings.Index(mimeType, ";"); i >= 0 {
+ 		mimeType = mimeType[:i]
+ 	}
++	mimeType = strings.ToLower(mimeType)
+ 	mimeType = strings.TrimSpace(mimeType)
+ 	switch mimeType {
+ 	case

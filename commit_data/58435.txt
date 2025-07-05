@@ -12,7 +12,7 @@ Date:   Sat Nov 4 15:44:55 2023 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/testing/benchmark.go              | 20 ++++++++++----------
  src/testing/fstest/mapfs.go           |  2 +-
  src/testing/fuzz.go                   |  4 ++--
@@ -23,3 +23,257 @@ Date:   Sat Nov 4 15:44:55 2023 +0800
  src/testing/slogtest/slogtest.go      |  4 ++--
  src/testing/testing.go                |  2 +-
  9 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 261d0b2a04..b197ea37bc 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -77,7 +77,7 @@ type InternalBenchmark struct {
+ 	F    func(b *B)
+ }
+ 
+-// B is a type passed to Benchmark functions to manage benchmark
++// B is a type passed to [Benchmark] functions to manage benchmark
+ // timing and to specify the number of iterations to run.
+ //
+ // A benchmark ends when its Benchmark function returns or calls any of the methods
+@@ -117,7 +117,7 @@ type B struct {
+ 
+ // StartTimer starts timing a test. This function is called automatically
+ // before a benchmark starts, but it can also be used to resume timing after
+-// a call to StopTimer.
++// a call to [B.StopTimer].
+ func (b *B) StartTimer() {
+ 	if !b.timerOn {
+ 		runtime.ReadMemStats(&memStats)
+@@ -321,7 +321,7 @@ func (b *B) launch() {
+ 
+ // Elapsed returns the measured elapsed time of the benchmark.
+ // The duration reported by Elapsed matches the one measured by
+-// StartTimer, StopTimer, and ResetTimer.
++// [B.StartTimer], [B.StopTimer], and [B.ResetTimer].
+ func (b *B) Elapsed() time.Duration {
+ 	d := b.duration
+ 	if b.timerOn {
+@@ -413,7 +413,7 @@ func (r BenchmarkResult) AllocedBytesPerOp() int64 {
+ // benchmark name.
+ // Extra metrics override built-in metrics of the same name.
+ // String does not include allocs/op or B/op, since those are reported
+-// by MemString.
++// by [BenchmarkResult.MemString].
+ func (r BenchmarkResult) String() string {
+ 	buf := new(strings.Builder)
+ 	fmt.Fprintf(buf, "%8d", r.N)
+@@ -752,13 +752,13 @@ func (pb *PB) Next() bool {
+ // RunParallel runs a benchmark in parallel.
+ // It creates multiple goroutines and distributes b.N iterations among them.
+ // The number of goroutines defaults to GOMAXPROCS. To increase parallelism for
+-// non-CPU-bound benchmarks, call SetParallelism before RunParallel.
++// non-CPU-bound benchmarks, call [B.SetParallelism] before RunParallel.
+ // RunParallel is usually used with the go test -cpu flag.
+ //
+ // The body function will be run in each goroutine. It should set up any
+ // goroutine-local state and then iterate until pb.Next returns false.
+-// It should not use the StartTimer, StopTimer, or ResetTimer functions,
+-// because they have global effect. It should also not call Run.
++// It should not use the [B.StartTimer], [B.StopTimer], or [B.ResetTimer] functions,
++// because they have global effect. It should also not call [B.Run].
+ //
+ // RunParallel reports ns/op values as wall time for the benchmark as a whole,
+ // not the sum of wall time or CPU time over each parallel goroutine.
+@@ -803,7 +803,7 @@ func (b *B) RunParallel(body func(*PB)) {
+ 	}
+ }
+ 
+-// SetParallelism sets the number of goroutines used by RunParallel to p*GOMAXPROCS.
++// SetParallelism sets the number of goroutines used by [B.RunParallel] to p*GOMAXPROCS.
+ // There is usually no need to call SetParallelism for CPU-bound benchmarks.
+ // If p is less than 1, this call will have no effect.
+ func (b *B) SetParallelism(p int) {
+@@ -815,8 +815,8 @@ func (b *B) SetParallelism(p int) {
+ // Benchmark benchmarks a single function. It is useful for creating
+ // custom benchmarks that do not use the "go test" command.
+ //
+-// If f depends on testing flags, then Init must be used to register
+-// those flags before calling Benchmark and before calling flag.Parse.
++// If f depends on testing flags, then [Init] must be used to register
++// those flags before calling Benchmark and before calling [flag.Parse].
+ //
+ // If f calls Run, the result will be an estimate of running all its
+ // subbenchmarks that don't call Run in sequence in a single benchmark.
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 8912e98930..1409d6202d 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -19,7 +19,7 @@ import (
+ //
+ // The map need not include parent directories for files contained
+ // in the map; those will be synthesized if needed.
+-// But a directory can still be included by setting the MapFile.Mode's [fs.ModeDir] bit;
++// But a directory can still be included by setting the [MapFile.Mode]'s [fs.ModeDir] bit;
+ // this may be necessary for detailed control over the directory's [fs.FileInfo]
+ // or to create an empty directory.
+ //
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 81ed1141df..d50ea793e0 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -59,7 +59,7 @@ type InternalFuzzTarget struct {
+ // by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
+ // any necessary setup and calls to (*F).Add, the fuzz test must then call
+ // (*F).Fuzz to provide the fuzz target. See the testing package documentation
+-// for an example, and see the F.Fuzz and F.Add method documentation for
++// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
+ // details.
+ //
+ // *F methods can only be called before (*F).Fuzz. Once the test is
+@@ -206,7 +206,7 @@ var supportedTypes = map[reflect.Type]bool{
+ //
+ // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
+ // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
+-// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
++// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
+ func (f *F) Fuzz(ff any) {
+ 	if f.fuzzCalled {
+ 		panic("testing: F.Fuzz called more than once")
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 2e85a41b07..868307550e 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -27,7 +27,7 @@ import (
+ )
+ 
+ // TestDeps is an implementation of the testing.testDeps interface,
+-// suitable for passing to testing.MainStart.
++// suitable for passing to [testing.MainStart].
+ type TestDeps struct{}
+ 
+ var matchPat string
+diff --git a/src/testing/iotest/logger.go b/src/testing/iotest/logger.go
+index 99548dcfed..10d0cb5bc8 100644
+--- a/src/testing/iotest/logger.go
++++ b/src/testing/iotest/logger.go
+@@ -25,7 +25,7 @@ func (l *writeLogger) Write(p []byte) (n int, err error) {
+ }
+ 
+ // NewWriteLogger returns a writer that behaves like w except
+-// that it logs (using log.Printf) each write to standard error,
++// that it logs (using [log.Printf]) each write to standard error,
+ // printing the prefix and the hexadecimal data written.
+ func NewWriteLogger(prefix string, w io.Writer) io.Writer {
+ 	return &writeLogger{prefix, w}
+@@ -47,7 +47,7 @@ func (l *readLogger) Read(p []byte) (n int, err error) {
+ }
+ 
+ // NewReadLogger returns a reader that behaves like r except
+-// that it logs (using log.Printf) each read to standard error,
++// that it logs (using [log.Printf]) each read to standard error,
+ // printing the prefix and the hexadecimal data read.
+ func NewReadLogger(prefix string, r io.Reader) io.Reader {
+ 	return &readLogger{prefix, r}
+diff --git a/src/testing/iotest/reader.go b/src/testing/iotest/reader.go
+index 770d87f26b..8529e1c627 100644
+--- a/src/testing/iotest/reader.go
++++ b/src/testing/iotest/reader.go
+@@ -73,7 +73,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err error) {
+ // ErrTimeout is a fake timeout error.
+ var ErrTimeout = errors.New("timeout")
+ 
+-// TimeoutReader returns ErrTimeout on the second read
++// TimeoutReader returns [ErrTimeout] on the second read
+ // with no data. Subsequent calls to read succeed.
+ func TimeoutReader(r io.Reader) io.Reader { return &timeoutReader{r, 0} }
+ 
+@@ -90,7 +90,7 @@ func (r *timeoutReader) Read(p []byte) (int, error) {
+ 	return r.r.Read(p)
+ }
+ 
+-// ErrReader returns an io.Reader that returns 0, err from all Read calls.
++// ErrReader returns an [io.Reader] that returns 0, err from all Read calls.
+ func ErrReader(err error) io.Reader {
+ 	return &errReader{err: err}
+ }
+@@ -128,7 +128,7 @@ func (r *smallByteReader) Read(p []byte) (int, error) {
+ 
+ // TestReader tests that reading from r returns the expected file content.
+ // It does reads of different sizes, until EOF.
+-// If r implements io.ReaderAt or io.Seeker, TestReader also checks
++// If r implements [io.ReaderAt] or [io.Seeker], TestReader also checks
+ // that those operations behave as they should.
+ //
+ // If TestReader finds any misbehaviors, it returns an error reporting them.
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index d7117420a3..8ef9cf7dda 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -54,7 +54,7 @@ func randInt64(rand *rand.Rand) int64 {
+ const complexSize = 50
+ 
+ // Value returns an arbitrary value of the given type.
+-// If the type implements the Generator interface, that will be used.
++// If the type implements the [Generator] interface, that will be used.
+ // Note: To create arbitrary values for structs, all the fields must be exported.
+ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 	return sizedValue(t, rand, complexSize)
+@@ -234,7 +234,7 @@ func (s *CheckError) Error() string {
+ 	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
+ }
+ 
+-// A CheckEqualError is the result CheckEqual finding an error.
++// A CheckEqualError is the result [CheckEqual] finding an error.
+ type CheckEqualError struct {
+ 	CheckError
+ 	Out1 []any
+@@ -248,7 +248,7 @@ func (s *CheckEqualError) Error() string {
+ // Check looks for an input to f, any function that returns bool,
+ // such that f returns false. It calls f repeatedly, with arbitrary
+ // values for each argument. If f returns false on a given input,
+-// Check returns that input as a *CheckError.
++// Check returns that input as a *[CheckError].
+ // For example:
+ //
+ //	func TestOddMultipleOfThree(t *testing.T) {
+@@ -297,7 +297,7 @@ func Check(f any, config *Config) error {
+ 
+ // CheckEqual looks for an input on which f and g return different results.
+ // It calls f and g repeatedly with arbitrary values for each argument.
+-// If f and g return different answers, CheckEqual returns a *CheckEqualError
++// If f and g return different answers, CheckEqual returns a *[CheckEqualError]
+ // describing the input and the outputs.
+ func CheckEqual(f, g any, config *Config) error {
+ 	if config == nil {
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index 6f08180df5..5c3aced65b 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -231,7 +231,7 @@ var cases = []testCase{
+ 
+ // TestHandler tests a [slog.Handler].
+ // If TestHandler finds any misbehaviors, it returns an error for each,
+-// combined into a single error with errors.Join.
++// combined into a single error with [errors.Join].
+ //
+ // TestHandler installs the given Handler in a [slog.Logger] and
+ // makes several calls to the Logger's output methods.
+@@ -241,7 +241,7 @@ var cases = []testCase{
+ // It should return a slice of map[string]any, one for each call to a Logger output method.
+ // The keys and values of the map should correspond to the keys and values of the Handler's
+ // output. Each group in the output should be represented as its own nested map[string]any.
+-// The standard keys slog.TimeKey, slog.LevelKey and slog.MessageKey should be used.
++// The standard keys [slog.TimeKey], [slog.LevelKey] and [slog.MessageKey] should be used.
+ //
+ // If the Handler outputs JSON, then calling [encoding/json.Unmarshal] with a `map[string]any`
+ // will create the right data structure.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a137fae890..ed8b3630f1 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1104,7 +1104,7 @@ func (c *common) Skipf(format string, args ...any) {
+ }
+ 
+ // SkipNow marks the test as having been skipped and stops its execution
+-// by calling runtime.Goexit.
++// by calling [runtime.Goexit].
+ // If a test fails (see Error, Errorf, Fail) and is then skipped,
+ // it is still considered to have failed.
+ // Execution will continue at the next test or benchmark. See also FailNow.

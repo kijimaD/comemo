@@ -10,6 +10,18 @@ Date:   Wed Apr 19 13:48:33 2017 -0400
     Change-Id: I54bcde71334202cf701662cdc2582c974ba8bf53
     Reviewed-on: https://go-review.googlesource.com/41074
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/extern.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2e67d4c3a9..1c5e884088 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -235,5 +235,5 @@ func Version() string {
+ const GOOS string = sys.GOOS
+ 
+ // GOARCH is the running program's architecture target:
+-// 386, amd64, arm, or s390x.
++// one of 386, amd64, arm, s390x, and so on.
+ const GOARCH string = sys.GOARCH

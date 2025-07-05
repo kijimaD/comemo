@@ -12,6 +12,23 @@ Date:   Tue Aug 13 15:12:21 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/sync/hashtriemap.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/internal/sync/hashtriemap.go b/src/internal/sync/hashtriemap.go
+index f2509d6920..6e66bc81d3 100644
+--- a/src/internal/sync/hashtriemap.go
++++ b/src/internal/sync/hashtriemap.go
+@@ -195,6 +195,11 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
+ 	return &top.node
+ }
+ 
++// Store sets the value for a key.
++func (ht *HashTrieMap[K, V]) Store(key K, old V) {
++	_, _ = ht.Swap(key, old)
++}
++
+ // Swap swaps the value for a key and returns the previous value if any.
+ // The loaded result reports whether the key was present.
+ func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {

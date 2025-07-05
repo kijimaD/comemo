@@ -13,6 +13,20 @@ Date:   Thu May 12 13:25:01 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/406054
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3376c47065..1caaba1ccb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1089,7 +1089,7 @@ of a struct except that they cannot be used as field names in
+ </p>
+ 
+ <p>
+-Given a struct type <code>S</code> and a <a href="#Type_definitions">defined type</a>
++Given a struct type <code>S</code> and a <a href="#Types">named type</a>
+ <code>T</code>, promoted methods are included in the method set of the struct as follows:
+ </p>
+ <ul>

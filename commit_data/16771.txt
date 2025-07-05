@@ -15,10 +15,160 @@ Date:   Mon Jul 15 18:40:55 2013 -0400
     R=golang-dev, dave, rsc, dvyukov, presotto+facebook, nick
     CC=golang-dev, veyron-team
     https://golang.org/cl/11130044
-
+---
  src/pkg/net/tcpsock_posix.go      |  8 ++++++++
  src/pkg/net/tcpsockopt_darwin.go  | 27 +++++++++++++++++++++++++++
  src/pkg/net/tcpsockopt_openbsd.go | 27 +++++++++++++++++++++++++++
  src/pkg/net/tcpsockopt_posix.go   | 31 +++++++++++++++++++++++++++++++
  src/pkg/net/tcpsockopt_windows.go | 21 +++++++++++++++++++++
  5 files changed, 114 insertions(+)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 876edb101c..befe6b6315 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -121,6 +121,14 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	return setKeepAlive(c.fd, keepalive)
+ }
+ 
++// SetKeepAliveIdlePeriod sets period between keep alives.
++func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setKeepAlivePeriod(c.fd, d)
++}
++
+ // SetNoDelay controls whether the operating system should delay
+ // packet transmission in hopes of sending fewer packets (Nagle's
+ // algorithm).  The default is true (no delay), meaning that data is
+diff --git a/src/pkg/net/tcpsockopt_darwin.go b/src/pkg/net/tcpsockopt_darwin.go
+new file mode 100644
+index 0000000000..d052a140d7
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_darwin.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP socket options for darwin
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(false); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects seconds so round to next highest second.
++	d += (time.Second - time.Nanosecond)
++	secs := int(d.Seconds())
++
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
++}
+diff --git a/src/pkg/net/tcpsockopt_openbsd.go b/src/pkg/net/tcpsockopt_openbsd.go
+new file mode 100644
+index 0000000000..25a826f18b
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_openbsd.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP socket options for openbsd
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(false); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects seconds so round to next highest second.
++	d += (time.Second - time.Nanosecond)
++	secs := int(d.Seconds())
++
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
++}
+diff --git a/src/pkg/net/tcpsockopt_posix.go b/src/pkg/net/tcpsockopt_posix.go
+new file mode 100644
+index 0000000000..dfc0452d29
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_posix.go
+@@ -0,0 +1,31 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux netbsd
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(false); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects seconds so round to next highest second.
++	d += (time.Second - time.Nanosecond)
++	secs := int(d.Seconds())
++
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
++	if err != nil {
++		return err
++	}
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
++}
+diff --git a/src/pkg/net/tcpsockopt_windows.go b/src/pkg/net/tcpsockopt_windows.go
+new file mode 100644
+index 0000000000..538366d909
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_windows.go
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP socket options for windows
++
++package net
++
++import (
++	"time"
++)
++
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(false); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// We can't actually set this per connection.  Act as a noop rather than an error.
++	return nil
++}

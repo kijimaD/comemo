@@ -8,10 +8,94 @@ Date:   Fri Aug 2 11:38:19 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/12305043
-
+---
  src/pkg/fmt/fmt_test.go  | 6 +++---
  src/pkg/fmt/format.go    | 2 --
  src/pkg/fmt/print.go     | 2 --
  src/pkg/fmt/scan.go      | 5 -----
  src/pkg/fmt/scan_test.go | 1 -
  5 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index fb326ed8e2..3b798af808 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -906,7 +906,7 @@ type Recur struct {
+ 	failed *bool
+ }
+ 
+-func (r Recur) String() string {
++func (r *Recur) String() string {
+ 	if recurCount++; recurCount > 10 {
+ 		*r.failed = true
+ 		return "FAIL"
+@@ -919,13 +919,13 @@ func (r Recur) String() string {
+ 
+ func TestBadVerbRecursion(t *testing.T) {
+ 	failed := false
+-	r := Recur{3, &failed}
++	r := &Recur{3, &failed}
+ 	Sprintf("recur@%p value: %d\n", &r, r.i)
+ 	if failed {
+ 		t.Error("fail with pointer")
+ 	}
+ 	failed = false
+-	r = Recur{4, &failed}
++	r = &Recur{4, &failed}
+ 	Sprintf("recur@%p, value: %d\n", r, r.i)
+ 	if failed {
+ 		t.Error("fail with value")
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 5665db12c5..c66a6c8806 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -24,8 +24,6 @@ const (
+ var padZeroBytes = make([]byte, nByte)
+ var padSpaceBytes = make([]byte, nByte)
+ 
+-var newline = []byte{'\n'}
+-
+ func init() {
+ 	for i := 0; i < nByte; i++ {
+ 		padZeroBytes[i] = '0'
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 1b0c207d3b..d6b7a4ba10 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -641,8 +641,6 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+ 
+ var (
+ 	intBits     = reflect.TypeOf(0).Bits()
+-	floatBits   = reflect.TypeOf(0.0).Bits()
+-	complexBits = reflect.TypeOf(1i).Bits()
+ 	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
+ )
+ 
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 93621e24c8..5b1be5891b 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -479,11 +479,6 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
+ 	return s.buf
+ }
+ 
+-// typeError indicates that the type of the operand did not match the format
+-func (s *ss) typeError(arg interface{}, expected string) {
+-	s.errorString("expected argument of type pointer to " + expected + "; found " + reflect.TypeOf(arg).String())
+-}
+-
+ var complexError = errors.New("syntax error scanning complex number")
+ var boolError = errors.New("syntax error scanning boolean")
+ 
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index e60cc347aa..d903f0c3ff 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -54,7 +54,6 @@ var (
+ 	float32Val           float32
+ 	float64Val           float64
+ 	stringVal            string
+-	stringVal1           string
+ 	bytesVal             []byte
+ 	runeVal              rune
+ 	complex64Val         complex64

@@ -12,6 +12,20 @@ Date:   Thu Aug 30 20:09:08 2018 -0700
     Change-Id: I4b35c2d892b48e60c3064489b035774792c19c30
     Reviewed-on: https://go-review.googlesource.com/132515
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 5d8e1163a0..2068ab8a3e 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -696,7 +696,7 @@ Don't use HTML, Markdown, or any other markup language.
+ <p>
+ Add any relevant information, such as benchmark data if the change
+ affects performance.
+-The <a href="https://godoc.org/golang.org/x/tools/cmd/benchcmp">benchcmp</a>
++The <a href="https://godoc.org/golang.org/x/perf/cmd/benchstat">benchstat</a>
+ tool is conventionally used to format
+ benchmark data for change descriptions.
+ </p>

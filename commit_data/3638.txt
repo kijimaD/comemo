@@ -9,7 +9,52 @@ Date:   Thu Oct 22 13:31:52 2009 -0700
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=36001
     CL=36004
-
+---
  src/cmd/5g/ggen.c         | 4 ++--
  src/pkg/runtime/arm/asm.s | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index f1829e5df7..6150a17d17 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -133,7 +133,7 @@ ginscall(Node *f, int proc)
+ 		p = gins(AMOVW, &r, N);
+ 		p->to.type = D_OREG;
+ 		p->to.reg = REGSP;
+-		p->to.offset = -8;
++		p->to.offset = -12;
+ 		p->scond |= C_WBIT;
+ 
+ 		memset(&n1, 0, sizeof n1);
+@@ -168,7 +168,7 @@ ginscall(Node *f, int proc)
+ 		p = gins(AMOVW, &r, N);
+ 		p->to.type = D_OREG;
+ 		p->to.reg = REGSP;
+-		p->to.offset = 8;
++		p->to.offset = 12;
+ 		p->scond |= C_WBIT;
+ 		regfree(&r);
+ 
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index d8b5a120cc..aa21ab8506 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -91,7 +91,7 @@ TEXT	breakpoint(SB),7,$0
+ 
+ // uintptr gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+-TEXT gosave(SB), 7, $0
++TEXT gosave(SB), 7, $-4
+ 	MOVW	0(FP), R0
+ 	MOVW	SP, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+@@ -101,7 +101,7 @@ TEXT gosave(SB), 7, $0
+ 
+ // void gogo(Gobuf*, uintptr)
+ // restore state from Gobuf; longjmp
+-TEXT	gogo(SB), 7, $0
++TEXT	gogo(SB), 7, $-4
+ 	MOVW	0(FP), R1			// gobuf
+ 	MOVW	4(FP), R0		// return 2nd arg
+ 	MOVW	gobuf_g(R1), g

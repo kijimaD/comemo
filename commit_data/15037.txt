@@ -9,7 +9,32 @@ Date:   Wed Jan 30 09:25:10 2013 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7237057
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 7c544cb84a..e054b41744 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -183,6 +183,7 @@ Michael Gehring <mg@ebfe.org>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Lewis <mikelikespie@gmail.com>
+ Michael Stapelberg <michael@stapelberg.de>
++Michael Teichgräber <mteichgraeber@gmx.de>
+ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl>
+ Mikael Tillenius <mikti42@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 956d3f3e10..3e3015f825 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -271,6 +271,7 @@ Michael Lewis <mikelikespie@gmail.com>
+ Michael Shields <mshields@google.com>
+ Michael Stapelberg <michael@stapelberg.de> <mstplbrg@googlemail.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
++Michael Teichgräber <mteichgraeber@gmx.de> <mt4swm@googlemail.com>
+ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>

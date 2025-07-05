@@ -8,6 +8,23 @@ Date:   Wed Oct 21 21:09:57 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264342
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/flagalloc.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index d50b615912..61c45a6be7 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -191,11 +191,6 @@ func flagalloc(f *Func) {
+ 		b.FlagsLiveAtEnd = end[b.ID] != nil
+ 	}
+ 
+-	const go115flagallocdeadcode = true
+-	if !go115flagallocdeadcode {
+-		return
+-	}
+-
+ 	// Remove any now-dead values.
+ 	// The number of values to remove is likely small,
+ 	// and removing them requires processing all values in a block,

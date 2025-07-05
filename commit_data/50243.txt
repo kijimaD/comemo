@@ -14,7 +14,7 @@ Date:   Sun Oct 10 10:53:06 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go                        | 10 ++++++----
  src/go/types/interface.go                   |  5 ++++-
  src/go/types/testdata/examples/typesets.go2 | 10 ++++++++++
@@ -22,3 +22,128 @@ Date:   Sun Oct 10 10:53:06 2021 -0400
  src/go/types/typestring.go                  |  9 +++++++++
  src/go/types/universe.go                    |  4 ++--
  6 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index c8cac0f148..f97fa252cb 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -715,11 +715,13 @@ func (check *Checker) bound(x ast.Expr) Type {
+ 		wrap = op.Op == token.OR
+ 	}
+ 	if wrap {
+-		// TODO(gri) Should mark this interface as "implicit" somehow
+-		//           (and propagate the info to types2.Interface) so
+-		//           that we can elide the interface again in error
+-		//           messages. Could use a sentinel name for the field.
+ 		x = &ast.InterfaceType{Methods: &ast.FieldList{List: []*ast.Field{{Type: x}}}}
++		t := check.typ(x)
++		// mark t as implicit interface if all went well
++		if t, _ := t.(*Interface); t != nil {
++			t.implicit = true
++		}
++		return t
+ 	}
+ 	return check.typ(x)
+ }
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 866a3427ca..2f4f10d45f 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -19,6 +19,7 @@ type Interface struct {
+ 	methods   []*Func      // ordered list of explicitly declared methods
+ 	embeddeds []Type       // ordered list of explicitly embedded elements
+ 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
++	implicit  bool         // interface is wrapper for type set literal (non-interface T, ~T, or A|B)
+ 	complete  bool         // indicates that obj, methods, and embeddeds are set and type set can be computed
+ 
+ 	tset *_TypeSet // type set described by this interface, computed lazily
+@@ -108,6 +109,9 @@ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ // set.
+ func (t *Interface) IsMethodSet() bool { return t.typeSet().IsMethodSet() }
+ 
++// IsImplicit reports whether the interface t is a wrapper for a type set literal.
++func (t *Interface) IsImplicit() bool { return t.implicit }
++
+ // Complete computes the interface's type set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+ // fully defined and before using the interface type in any way other than to
+@@ -143,7 +147,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	for _, f := range iface.Methods.List {
+ 		if len(f.Names) == 0 {
+-			// We have an embedded type; possibly a union of types.
+ 			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+ 			continue
+ 		}
+diff --git a/src/go/types/testdata/examples/typesets.go2 b/src/go/types/testdata/examples/typesets.go2
+index 0a1b0f5cfc..cf01072d8c 100644
+--- a/src/go/types/testdata/examples/typesets.go2
++++ b/src/go/types/testdata/examples/typesets.go2
+@@ -46,3 +46,13 @@ func _() *int {
+ // A type parameter may not be embedded in an interface;
+ // so it can also not be used as a constraint.
+ func _[A any, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
++
++// Error messages refer to the type constraint as it appears in the source.
++// (No implicit interface should be exposed.)
++func _[T string](x T) T {
++	return x /* ERROR constrained by string */ * x
++}
++
++func _[T int|string](x T) T {
++	return x /* ERROR constrained by int|string */ * x
++}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 51bedc2b7d..e2755cbbda 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -108,6 +108,7 @@ func (t *TypeParam) iface() *Interface {
+ 	// TODO(gri) mark it as implicit - see comment in Checker.bound
+ 	if ityp == nil {
+ 		ityp = NewInterfaceType(nil, []Type{bound})
++		ityp.implicit = true
+ 		t.bound = ityp // update t.bound for next time (optimization)
+ 	}
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 4a087c4ed1..a0c78e8cc3 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -191,6 +191,15 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Interface:
++		if t.implicit {
++			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
++				w.typ(t.embeddeds[0])
++				break
++			}
++			// Something's wrong with the implicit interface.
++			// Print it as such and continue.
++			w.string("/* implicit */ ")
++		}
+ 		w.string("interface{")
+ 		first := true
+ 		for _, m := range t.methods {
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 4d52242e61..519cf0b707 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -89,7 +89,7 @@ func defPredeclaredTypes() {
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+ 		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+-		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, true, nil}
++		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
+ 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+ 		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
+ 	{
+ 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+ 		obj.setColor(black)
+-		ityp := &Interface{nil, obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
++		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
+ 		NewNamed(obj, ityp, nil)
+ 		def(obj)
+ 	}

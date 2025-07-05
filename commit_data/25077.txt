@@ -7,6 +7,32 @@ Date:   Mon Sep 21 15:25:52 2015 -0700
     Change-Id: I2e74e39628285e2fecaab712be6cff230619a6c2
     Reviewed-on: https://go-review.googlesource.com/14778
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/floatconv_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index b755b98c3a..b19152662d 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -367,10 +367,20 @@ func TestFloatText(t *testing.T) {
+ 
+ 		// make sure "stupid" exponents don't stall the machine
+ 		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
++		{"1e646456992", 64, 'p', 0, "0x.e883a0c5c8c7c42ap+2147483644"},
++		{"1e646456993", 64, 'p', 0, "+Inf"},
+ 		{"1e1000000000", 64, 'p', 0, "+Inf"},
+ 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
++		{"1e-646456993", 64, 'p', 0, "0x.e17c8956983d9d59p-2147483647"},
++		{"1e-646456994", 64, 'p', 0, "0"},
+ 		{"1e-1000000000", 64, 'p', 0, "0"},
+ 
++		// minimum and maximum values
++		{"1p2147483646", 64, 'p', 0, "0x.8p+2147483647"},
++		{"0x.8p2147483647", 64, 'p', 0, "0x.8p+2147483647"},
++		{"0x.8p-2147483647", 64, 'p', 0, "0x.8p-2147483647"},
++		{"1p-2147483649", 64, 'p', 0, "0x.8p-2147483648"},
++
+ 		// TODO(gri) need tests for actual large Floats
+ 
+ 		{"0", 53, 'b', 0, "0"},

@@ -28,7 +28,43 @@ Date:   Tue Oct 25 15:43:05 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 7 ++++++-
  src/cmd/compile/internal/gc/subr.go  | 4 ++--
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3cfd1cad20..2fdea7cfc8 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1053,7 +1053,12 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
+ 	// These nodes do not carry line numbers.
+ 	// Introduce a wrapper node to give them the correct line.
+ 	switch x.Op {
+-	case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
++	case OTYPE, OLITERAL:
++		if x.Sym == nil {
++			break
++		}
++		fallthrough
++	case ONAME, ONONAME, OPACK:
+ 		x = p.nod(n, OPAREN, x, nil)
+ 		x.Implicit = true
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a73be08eba..555f27e2b0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -202,10 +202,10 @@ func setlineno(n *Node) int32 {
+ 	lno := lineno
+ 	if n != nil {
+ 		switch n.Op {
+-		case ONAME, OTYPE, OPACK:
++		case ONAME, OPACK:
+ 			break
+ 
+-		case OLITERAL:
++		case OLITERAL, OTYPE:
+ 			if n.Sym != nil {
+ 				break
+ 			}

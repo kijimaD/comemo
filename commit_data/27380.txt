@@ -11,7 +11,7 @@ Date:   Thu Mar 24 20:57:53 2016 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go      |  9 ++++-----
  src/cmd/compile/internal/gc/lex.go       |  2 +-
  src/cmd/compile/internal/gc/parser.go    | 11 +++--------
@@ -21,3 +21,263 @@ Date:   Thu Mar 24 20:57:53 2016 +1100
  src/cmd/compile/internal/ssa/layout.go   |  1 -
  src/cmd/compile/internal/ssa/regalloc.go |  3 +--
  8 files changed, 23 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index b22e82a347..f31bc60d01 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -110,22 +110,21 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			return
+ 		}
+ 
+-		var f int
+ 		if res.Ullman < UINF {
+ 			if Complexop(n, res) {
+ 				Complexgen(n, res)
+ 				return
+ 			}
+ 
+-			f = 1 // gen thru register
++			f := true // gen thru register
+ 			switch n.Op {
+ 			case OLITERAL:
+ 				if Smallintconst(n) {
+-					f = 0
++					f = false
+ 				}
+ 
+ 			case OREGISTER:
+-				f = 0
++				f = false
+ 			}
+ 
+ 			if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 && !wb {
+@@ -133,7 +132,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 				var addr obj.Addr
+ 				if Thearch.Sudoaddable(a, res, &addr) {
+ 					var p1 *obj.Prog
+-					if f != 0 {
++					if f {
+ 						var n2 Node
+ 						Regalloc(&n2, res.Type, nil)
+ 						Cgen(n, &n2)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 7405f3a159..6f1331ca89 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -599,7 +599,6 @@ var keywords = map[string]int32{
+ }
+ 
+ func (l *lexer) number(c rune) {
+-	var str string
+ 	cp := &lexbuf
+ 	cp.Reset()
+ 
+@@ -643,6 +642,7 @@ func (l *lexer) number(c rune) {
+ 	}
+ 
+ 	// unless we have a hex number, parse fractional part or exponent, if any
++	var str string
+ 	if !isInt {
+ 		isInt = true // assume int unless proven otherwise
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 7634e1c2b0..db9d4c9ee5 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3133,9 +3133,7 @@ func (p *parser) hidden_funarg() *Node {
+ 		s3 := p.hidden_type()
+ 		s4 := p.oliteral()
+ 
+-		var t *Type
+-
+-		t = typ(TARRAY)
++		t := typ(TARRAY)
+ 		t.Bound = -1
+ 		t.Type = s3
+ 
+@@ -3159,19 +3157,16 @@ func (p *parser) hidden_structdcl() *Node {
+ 	s2 := p.hidden_type()
+ 	s3 := p.oliteral()
+ 
+-	var s *Sym
+-	var pkg *Pkg
+-
+ 	var ss *Node
+ 	if s1 != nil && s1.Name != "?" {
+ 		ss = Nod(ODCLFIELD, newname(s1), typenod(s2))
+ 		ss.SetVal(s3)
+ 	} else {
+-		s = s2.Sym
++		s := s2.Sym
+ 		if s == nil && Isptr[s2.Etype] {
+ 			s = s2.Type.Sym
+ 		}
+-		pkg = importpkg
++		pkg := importpkg
+ 		if s1 != nil {
+ 			pkg = s1.Pkg
+ 		}
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 39eaa28667..26746a5bcf 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1286,7 +1286,6 @@ loop2:
+ 	}
+ 	nregion = 0
+ 	region = region[:0]
+-	var rgp *Rgn
+ 	for f := firstf; f != nil; f = f.Link {
+ 		r := f.Data.(*Reg)
+ 		for z := 0; z < BITS; z++ {
+@@ -1347,16 +1346,14 @@ loop2:
+ 	if Debug['R'] != 0 && Debug['v'] != 0 {
+ 		fmt.Printf("\nregisterizing\n")
+ 	}
+-	var usedreg uint64
+-	var vreg uint64
+ 	for i := 0; i < nregion; i++ {
+-		rgp = &region[i]
++		rgp := &region[i]
+ 		if Debug['R'] != 0 && Debug['v'] != 0 {
+ 			fmt.Printf("region %d: cost %d varno %d enter %d\n", i, rgp.cost, rgp.varno, rgp.enter.Prog.Pc)
+ 		}
+ 		bit = blsh(uint(rgp.varno))
+-		usedreg = paint2(rgp.enter, int(rgp.varno), 0)
+-		vreg = allreg(usedreg, rgp)
++		usedreg := paint2(rgp.enter, int(rgp.varno), 0)
++		vreg := allreg(usedreg, rgp)
+ 		if rgp.regno != 0 {
+ 			if Debug['R'] != 0 && Debug['v'] != 0 {
+ 				v := &vars[rgp.varno]
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3485ebfe5e..6476f94a15 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -568,16 +568,14 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		index := r.Left
+ 		value := r.Right
+ 
+-		var a *Node
+-
+ 		switch value.Op {
+ 		case OARRAYLIT:
+ 			if value.Type.Bound < 0 {
+ 				if pass == 1 && ctxt != 0 {
+-					a = NodSym(ODOT, var_, index.Sym)
++					a := NodSym(ODOT, var_, index.Sym)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 2 && ctxt == 0 {
+-					a = NodSym(ODOT, var_, index.Sym)
++					a := NodSym(ODOT, var_, index.Sym)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 3 {
+ 					break
+@@ -585,12 +583,12 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 				continue
+ 			}
+ 
+-			a = NodSym(ODOT, var_, index.Sym)
++			a := NodSym(ODOT, var_, index.Sym)
+ 			arraylit(ctxt, pass, value, a, init)
+ 			continue
+ 
+ 		case OSTRUCTLIT:
+-			a = NodSym(ODOT, var_, index.Sym)
++			a := NodSym(ODOT, var_, index.Sym)
+ 			structlit(ctxt, pass, value, a, init)
+ 			continue
+ 		}
+@@ -605,7 +603,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		// build list of var.field = expr
+ 		setlineno(value)
+-		a = NodSym(ODOT, var_, index.Sym)
++		a := NodSym(ODOT, var_, index.Sym)
+ 
+ 		a = Nod(OAS, a, value)
+ 		a = typecheck(a, Etop)
+@@ -632,16 +630,14 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		index := r.Left
+ 		value := r.Right
+ 
+-		var a *Node
+-
+ 		switch value.Op {
+ 		case OARRAYLIT:
+ 			if value.Type.Bound < 0 {
+ 				if pass == 1 && ctxt != 0 {
+-					a = Nod(OINDEX, var_, index)
++					a := Nod(OINDEX, var_, index)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 2 && ctxt == 0 {
+-					a = Nod(OINDEX, var_, index)
++					a := Nod(OINDEX, var_, index)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 3 {
+ 					break
+@@ -649,12 +645,12 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 				continue
+ 			}
+ 
+-			a = Nod(OINDEX, var_, index)
++			a := Nod(OINDEX, var_, index)
+ 			arraylit(ctxt, pass, value, a, init)
+ 			continue
+ 
+ 		case OSTRUCTLIT:
+-			a = Nod(OINDEX, var_, index)
++			a := Nod(OINDEX, var_, index)
+ 			structlit(ctxt, pass, value, a, init)
+ 			continue
+ 		}
+@@ -669,7 +665,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		// build list of var[index] = value
+ 		setlineno(value)
+-		a = Nod(OINDEX, var_, index)
++		a := Nod(OINDEX, var_, index)
+ 
+ 		a = Nod(OAS, a, value)
+ 		a = typecheck(a, Etop)
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index f090992b0d..934566af25 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -178,8 +178,7 @@ func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl
+ func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
+ 
+ func (c *Config) logDebugHashMatch(evname, name string) {
+-	var file *os.File
+-	file = c.logfiles[evname]
++	file := c.logfiles[evname]
+ 	if file == nil {
+ 		file = os.Stdout
+ 		tmpfile := os.Getenv("GSHS_LOGFILE")
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index 8dd4b65979..f784c45c18 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -96,7 +96,6 @@ blockloop:
+ 				continue blockloop
+ 			}
+ 		}
+-		b.Fatalf("no block available for layout")
+ 	}
+ 	f.Blocks = order
+ }
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index eb4401ced8..22b9d12c19 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -679,9 +679,8 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 				a := v.Args[idx]
+ 				m := s.values[a.ID].regs &^ phiUsed
+-				var r register
+ 				if m != 0 {
+-					r = pickReg(m)
++					r := pickReg(m)
+ 					s.freeReg(r)
+ 					phiUsed |= regMask(1) << r
+ 					phiRegs = append(phiRegs, r)

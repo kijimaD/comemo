@@ -12,10 +12,97 @@ Date:   Thu Sep 28 20:17:59 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/bexport.go            |  4 +---
  src/cmd/compile/internal/gc/sinit.go              |  1 -
  src/cmd/compile/internal/gc/typecheck.go          |  1 -
  src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 --
  src/cmd/compile/internal/ssa/regalloc.go          | 14 ++------------
  5 files changed, 3 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index e65e7f6280..a009f2b6bf 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -663,9 +663,7 @@ func (p *exporter) typ(t *types.Type) {
+ 		// TODO(gri) Determine if they are already sorted
+ 		// in which case we can drop this step.
+ 		var methods []*types.Field
+-		for _, m := range t.Methods().Slice() {
+-			methods = append(methods, m)
+-		}
++		methods = append(methods, t.Methods().Slice()...)
+ 		sort.Sort(methodbyname(methods))
+ 		p.int(len(methods))
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 10be25b126..3d3899d3c6 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -157,7 +157,6 @@ func init1(n *Node, out *[]*Node) {
+ 	initlist = initlist[:last]
+ 
+ 	n.SetInitorder(InitDone)
+-	return
+ }
+ 
+ // foundinitloop prints an init loop error and exits.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 3f14b9340c..523007f3b6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3789,7 +3789,6 @@ ret:
+ 
+ 	lineno = lno
+ 	n.SetWalkdef(1)
+-	return
+ }
+ 
+ func checkmake(t *types.Type, arg string, n *Node) bool {
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index e8168bdc2b..c9c04ef41c 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -267,8 +267,6 @@ func insertLoopReschedChecks(f *Func) {
+ 		sdom = newSparseTree(f, f.Idom())
+ 		fmt.Printf("after %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+ 	}
+-
+-	return
+ }
+ 
+ // newPhiFor inserts a new Phi function into b,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1420a564f1..25d8f484ab 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1715,14 +1715,10 @@ func (s *regAllocState) placeSpills() {
+ 		}
+ 		oldSched = append(oldSched[:0], b.Values[nphi:]...)
+ 		b.Values = b.Values[:nphi]
+-		for _, v := range start[b.ID] {
+-			b.Values = append(b.Values, v)
+-		}
++		b.Values = append(b.Values, start[b.ID]...)
+ 		for _, v := range oldSched {
+ 			b.Values = append(b.Values, v)
+-			for _, w := range after[v.ID] {
+-				b.Values = append(b.Values, w)
+-			}
++			b.Values = append(b.Values, after[v.ID]...)
+ 		}
+ 	}
+ }
+@@ -2211,12 +2207,6 @@ type liveInfo struct {
+ 	pos  src.XPos // source position of next use
+ }
+ 
+-// dblock contains information about desired & avoid registers at the end of a block.
+-type dblock struct {
+-	prefers []desiredStateEntry
+-	avoid   regMask
+-}
+-
+ // computeLive computes a map from block ID to a list of value IDs live at the end
+ // of that block. Together with the value ID is a count of how many instructions
+ // to the next use of that value. The resulting map is stored in s.live.

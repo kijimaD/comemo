@@ -14,6 +14,303 @@ Date:   Wed Aug 17 10:16:55 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 213 +++++++++++++++++++++++++---------------------------
  1 file changed, 104 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b5df9a22c4..75eaec21da 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3203,17 +3203,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	// cgo
+ 	// TODO: CGO_FLAGS?
+ 	gofiles := []string{obj + "_cgo_gotypes.go"}
+-	cfiles := []string{"_cgo_main.c", "_cgo_export.c"}
++	cfiles := []string{"_cgo_export.c"}
+ 	for _, fn := range cgofiles {
+ 		f := cgoRe.ReplaceAllString(fn[:len(fn)-2], "_")
+ 		gofiles = append(gofiles, obj+f+"cgo1.go")
+ 		cfiles = append(cfiles, f+"cgo2.c")
+ 	}
+-	defunC := obj + "_cgo_defun.c"
+ 
+-	cgoflags := []string{}
+ 	// TODO: make cgo not depend on $GOARCH?
+ 
++	cgoflags := []string{}
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
+ 	}
+@@ -3255,67 +3254,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	}
+ 	outGo = append(outGo, gofiles...)
+ 
+-	// cc _cgo_defun.c
+-	_, gccgo := buildToolchain.(gccgoToolchain)
+-	if gccgo {
+-		defunObj := obj + "_cgo_defun.o"
+-		if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
+-			return nil, nil, err
+-		}
+-		outObj = append(outObj, defunObj)
+-	}
+-
+ 	// gcc
+-	var linkobj []string
+-
+-	var bareLDFLAGS []string
+-	// When linking relocatable objects, various flags need to be
+-	// filtered out as they are inapplicable and can cause some linkers
+-	// to fail.
+-	for i := 0; i < len(cgoLDFLAGS); i++ {
+-		f := cgoLDFLAGS[i]
+-		switch {
+-		// skip "-lc" or "-l somelib"
+-		case strings.HasPrefix(f, "-l"):
+-			if f == "-l" {
+-				i++
+-			}
+-		// skip "-framework X" on Darwin
+-		case goos == "darwin" && f == "-framework":
+-			i++
+-		// skip "*.{dylib,so,dll}"
+-		case strings.HasSuffix(f, ".dylib"),
+-			strings.HasSuffix(f, ".so"),
+-			strings.HasSuffix(f, ".dll"):
+-		// Remove any -fsanitize=foo flags.
+-		// Otherwise the compiler driver thinks that we are doing final link
+-		// and links sanitizer runtime into the object file. But we are not doing
+-		// the final link, we will link the resulting object file again. And
+-		// so the program ends up with two copies of sanitizer runtime.
+-		// See issue 8788 for details.
+-		case strings.HasPrefix(f, "-fsanitize="):
+-			continue
+-		// runpath flags not applicable unless building a shared
+-		// object or executable; see issue 12115 for details. This
+-		// is necessary as Go currently does not offer a way to
+-		// specify the set of LDFLAGS that only apply to shared
+-		// objects.
+-		case strings.HasPrefix(f, "-Wl,-rpath"):
+-			if f == "-Wl,-rpath" || f == "-Wl,-rpath-link" {
+-				// Skip following argument to -rpath* too.
+-				i++
+-			}
+-		default:
+-			bareLDFLAGS = append(bareLDFLAGS, f)
+-		}
+-	}
+-
+-	var staticLibs []string
+-	if goos == "windows" {
+-		// libmingw32 and libmingwex have some inter-dependencies,
+-		// so must use linker groups.
+-		staticLibs = []string{"-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group"}
+-	}
+ 
+ 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
+ 	for _, cfile := range cfiles {
+@@ -3323,10 +3262,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		if err := b.gcc(p, ofile, cflags, obj+cfile); err != nil {
+ 			return nil, nil, err
+ 		}
+-		linkobj = append(linkobj, ofile)
+-		if !strings.HasSuffix(ofile, "_cgo_main.o") {
+-			outObj = append(outObj, ofile)
+-		}
++		outObj = append(outObj, ofile)
+ 	}
+ 
+ 	for _, file := range gccfiles {
+@@ -3334,7 +3270,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		if err := b.gcc(p, ofile, cflags, file); err != nil {
+ 			return nil, nil, err
+ 		}
+-		linkobj = append(linkobj, ofile)
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+@@ -3345,7 +3280,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		if err := b.gxx(p, ofile, cxxflags, file); err != nil {
+ 			return nil, nil, err
+ 		}
+-		linkobj = append(linkobj, ofile)
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+@@ -3355,7 +3289,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		if err := b.gcc(p, ofile, cflags, file); err != nil {
+ 			return nil, nil, err
+ 		}
+-		linkobj = append(linkobj, ofile)
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+@@ -3366,49 +3299,120 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		if err := b.gfortran(p, ofile, fflags, file); err != nil {
+ 			return nil, nil, err
+ 		}
+-		linkobj = append(linkobj, ofile)
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+-	linkobj = append(linkobj, p.SysoFiles...)
+-	dynobj := obj + "_cgo_.o"
+-	pie := (goarch == "arm" && goos == "linux") || goos == "android"
+-	if pie { // we need to use -pie for Linux/ARM to get accurate imported sym
+-		cgoLDFLAGS = append(cgoLDFLAGS, "-pie")
+-	}
+-	if err := b.gccld(p, dynobj, cgoLDFLAGS, linkobj); err != nil {
+-		return nil, nil, err
++	switch buildToolchain.(type) {
++	case gcToolchain:
++		importGo := obj + "_cgo_import.go"
++		if err := b.dynimport(p, obj, importGo, cgoExe, cflags, cgoLDFLAGS, outObj); err != nil {
++			return nil, nil, err
++		}
++		outGo = append(outGo, importGo)
++
++		ofile := obj + "_all.o"
++		if err := b.collect(p, obj, ofile, cgoLDFLAGS, outObj); err != nil {
++			return nil, nil, err
++		}
++		outObj = []string{ofile}
++
++	case gccgoToolchain:
++		defunC := obj + "_cgo_defun.c"
++		defunObj := obj + "_cgo_defun.o"
++		if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
++			return nil, nil, err
++		}
++		outObj = append(outObj, defunObj)
++
++	default:
++		noCompiler()
+ 	}
+-	if pie { // but we don't need -pie for normal cgo programs
+-		cgoLDFLAGS = cgoLDFLAGS[0 : len(cgoLDFLAGS)-1]
++
++	return outGo, outObj, nil
++}
++
++// dynimport creates a Go source file named importGo containing
++// //go:cgo_import_dynamic directives for each symbol or library
++// dynamically imported by the object files outObj.
++func (b *builder) dynimport(p *Package, obj, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
++	cfile := obj + "_cgo_main.c"
++	ofile := obj + "_cgo_main.o"
++	if err := b.gcc(p, ofile, cflags, cfile); err != nil {
++		return err
+ 	}
+ 
+-	if _, ok := buildToolchain.(gccgoToolchain); ok {
+-		// we don't use dynimport when using gccgo.
+-		return outGo, outObj, nil
++	linkobj := stringList(ofile, outObj, p.SysoFiles)
++	dynobj := obj + "_cgo_.o"
++
++	// we need to use -pie for Linux/ARM to get accurate imported sym
++	ldflags := cgoLDFLAGS
++	if (goarch == "arm" && goos == "linux") || goos == "android" {
++		ldflags = append(ldflags, "-pie")
++	}
++	if err := b.gccld(p, dynobj, ldflags, linkobj); err != nil {
++		return err
+ 	}
+ 
+ 	// cgo -dynimport
+-	importGo := obj + "_cgo_import.go"
+-	cgoflags = []string{}
++	var cgoflags []string
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+-		cgoflags = append(cgoflags, "-dynlinker") // record path to dynamic linker
+-	}
+-	if err := b.run(p.Dir, p.ImportPath, nil, buildToolExec, cgoExe, "-objdir", obj, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags); err != nil {
+-		return nil, nil, err
++		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
+ 	}
+-	outGo = append(outGo, importGo)
++	return b.run(p.Dir, p.ImportPath, nil, buildToolExec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
++}
+ 
+-	ofile := obj + "_all.o"
+-	var gccObjs, nonGccObjs []string
+-	for _, f := range outObj {
+-		if strings.HasSuffix(f, ".o") {
+-			gccObjs = append(gccObjs, f)
+-		} else {
+-			nonGccObjs = append(nonGccObjs, f)
++// collect partially links the object files outObj into a single
++// relocatable object file named ofile.
++func (b *builder) collect(p *Package, obj, ofile string, cgoLDFLAGS, outObj []string) error {
++	// When linking relocatable objects, various flags need to be
++	// filtered out as they are inapplicable and can cause some linkers
++	// to fail.
++	var ldflags []string
++	for i := 0; i < len(cgoLDFLAGS); i++ {
++		f := cgoLDFLAGS[i]
++		switch {
++		// skip "-lc" or "-l somelib"
++		case strings.HasPrefix(f, "-l"):
++			if f == "-l" {
++				i++
++			}
++		// skip "-framework X" on Darwin
++		case goos == "darwin" && f == "-framework":
++			i++
++		// skip "*.{dylib,so,dll}"
++		case strings.HasSuffix(f, ".dylib"),
++			strings.HasSuffix(f, ".so"),
++			strings.HasSuffix(f, ".dll"):
++		// Remove any -fsanitize=foo flags.
++		// Otherwise the compiler driver thinks that we are doing final link
++		// and links sanitizer runtime into the object file. But we are not doing
++		// the final link, we will link the resulting object file again. And
++		// so the program ends up with two copies of sanitizer runtime.
++		// See issue 8788 for details.
++		case strings.HasPrefix(f, "-fsanitize="):
++			continue
++		// runpath flags not applicable unless building a shared
++		// object or executable; see issue 12115 for details. This
++		// is necessary as Go currently does not offer a way to
++		// specify the set of LDFLAGS that only apply to shared
++		// objects.
++		case strings.HasPrefix(f, "-Wl,-rpath"):
++			if f == "-Wl,-rpath" || f == "-Wl,-rpath-link" {
++				// Skip following argument to -rpath* too.
++				i++
++			}
++		default:
++			ldflags = append(ldflags, f)
+ 		}
+ 	}
+-	ldflags := stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs)
++
++	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
++
++	if goos == "windows" {
++		// libmingw32 and libmingwex have some inter-dependencies,
++		// so must use linker groups.
++		ldflags = append(ldflags, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
++	}
+ 
+ 	if b.gccSupportsNoPie() {
+ 		ldflags = append(ldflags, "-no-pie")
+@@ -3417,16 +3421,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	// We are creating an object file, so we don't want a build ID.
+ 	ldflags = b.disableBuildID(ldflags)
+ 
+-	if err := b.gccld(p, ofile, ldflags, gccObjs); err != nil {
+-		return nil, nil, err
+-	}
+-
+-	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
+-	// must be processed before the gcc-generated objects.
+-	// Put it first.  https://golang.org/issue/2601
+-	outObj = stringList(nonGccObjs, ofile)
+-
+-	return outGo, outObj, nil
++	return b.gccld(p, ofile, ldflags, outObj)
+ }
+ 
+ // Run SWIG on all SWIG input files.

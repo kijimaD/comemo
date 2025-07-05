@@ -12,6 +12,28 @@ Date:   Fri Jun 23 13:23:01 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.21.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index cbba30975e..d3c1d13647 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -473,6 +473,16 @@ Do not send CLs removing the interior tags from such phrases.
+       The new <a href="/pkg/context/#AfterFunc"><code>AfterFunc</code></a>
+       function registers a function to run after a context has been cancelled.
+     </p>
++
++    <p><!-- CL 455455 -->
++      An optimization means that the results of calling
++      <a href="/pkg/context/#Background"><code>Background</code></a>
++      and <a href="/pkg/context/#TODO"><code>TODO</code></a> and
++      converting them to a shared type can be considered equal.
++      In previous releases they were always different.  Comparing
++      <a href="/pkg/context/#Context"><code>Context</code></a> values
++      for equality has never been well-defined, so this is not
++      considered to be an incompatible change.
+   </dd>
+ </dl>
+ 

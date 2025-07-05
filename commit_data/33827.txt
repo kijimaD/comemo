@@ -11,8 +11,90 @@ Date:   Sat Sep 9 21:38:51 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue21809.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/out.go          |  8 +++++++-
  3 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f6cf86befc..4d1bc378dc 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -82,5 +82,6 @@ func Test20266(t *testing.T)                 { test20266(t) }
+ func Test20129(t *testing.T)                 { test20129(t) }
+ func Test20910(t *testing.T)                 { test20910(t) }
+ func Test21708(t *testing.T)                 { test21708(t) }
++func Test21809(t *testing.T)                 { test21809(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue21809.go b/misc/cgo/test/issue21809.go
+new file mode 100644
+index 0000000000..fd01dd71c3
+--- /dev/null
++++ b/misc/cgo/test/issue21809.go
+@@ -0,0 +1,45 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Issue 21809.  Compile C `typedef` to go type aliases.
++
++// typedef long MySigned_t;
++// /* tests alias-to-alias */
++// typedef MySigned_t MySigned2_t;
++//
++// long takes_long(long x) { return x * x; }
++// MySigned_t takes_typedef(MySigned_t x) { return x * x; }
++import "C"
++
++import "testing"
++
++func test21809(t *testing.T) {
++    longVar := C.long(3)
++    typedefVar := C.MySigned_t(4)
++    typedefTypedefVar := C.MySigned2_t(5)
++
++    // all three should be considered identical to `long`
++    if ret := C.takes_long(longVar); ret != 9 {
++        t.Errorf("got %v but expected %v", ret, 9)
++    }
++    if ret := C.takes_long(typedefVar); ret != 16 {
++        t.Errorf("got %v but expected %v", ret, 16)
++    }
++    if ret := C.takes_long(typedefTypedefVar); ret != 25 {
++        t.Errorf("got %v but expected %v", ret, 25)
++    }
++
++    // They should also be identical to the typedef'd type
++    if ret := C.takes_typedef(longVar); ret != 9 {
++        t.Errorf("got %v but expected %v", ret, 9)
++    }
++    if ret := C.takes_typedef(typedefVar); ret != 16 {
++        t.Errorf("got %v but expected %v", ret, 16)
++    }
++    if ret := C.takes_typedef(typedefTypedefVar); ret != 25 {
++        t.Errorf("got %v but expected %v", ret, 25)
++    }
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index edbfc35b1d..6df400d96c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -110,7 +110,13 @@ func (p *Package) writeDefs() {
+ 		// Which is not useful. Moreover we never override source info,
+ 		// so subsequent source code uses the same source info.
+ 		// Moreover, empty file name makes compile emit no source debug info at all.
+-		noSourceConf.Fprint(fgo2, fset, def.Go)
++		var buf bytes.Buffer
++		noSourceConf.Fprint(&buf, fset, def.Go)
++		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
++			// This typedef is of the form `typedef a b` and should be an alias.
++			fmt.Fprintf(fgo2, "= ")
++		}
++		fmt.Fprintf(fgo2, "%s", buf.Bytes())
+ 		fmt.Fprintf(fgo2, "\n\n")
+ 	}
+ 	if *gccgo {

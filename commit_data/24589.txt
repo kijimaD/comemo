@@ -7,6 +7,20 @@ Date:   Fri Aug 7 04:16:43 2015 +0000
     Change-Id: I6bea045bb1cef15e6d9d3b4e6e6b4ae91f7bb941
     Reviewed-on: https://go-review.googlesource.com/13345
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 376eb933cc..39b5699942 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -815,7 +815,7 @@ method to discard data from the input.
+ </li>
+ 
+ <li>
+-Also in the <a href="/pkg/bytes/"><code>bytes</code></a> package,
++In the <a href="/pkg/bytes/"><code>bytes</code></a> package,
+ the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+ now has a <a href="/pkg/bytes/#Buffer.Cap"><code>Cap</code></a> method
+ that reports the number of bytes allocated within the buffer.

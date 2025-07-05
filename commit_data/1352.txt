@@ -9,6 +9,21 @@ Date:   Tue Dec 16 14:39:29 2008 -0800
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=21324
     CL=21328
-
+---
  src/lib/fmt/print.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 9ac241f8dc..426bca1861 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -386,7 +386,8 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 		p.add('{');
+ 		v := field.(reflect.StructValue);
+ 		t := v.Type().(reflect.StructType);
+-		donames := p.fmt.plus;	// first p.printField clears flag
++		donames := p.fmt.plus;
++		p.fmt.clearflags();	// clear flags for p.printField
+ 		for i := 0; i < v.Len();  i++ {
+ 			if i > 0 {
+ 				p.add(' ')

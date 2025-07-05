@@ -14,7 +14,40 @@ Date:   Fri Feb 18 11:31:10 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4175059
-
+---
  src/pkg/crypto/rsa/rsa.go      | 8 ++++++++
  src/pkg/crypto/rsa/rsa_test.go | 2 +-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index c7a8d2053d..faf914991d 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -274,6 +274,14 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
+ 	m.SetBytes(em)
+ 	c := encrypt(new(big.Int), pub, m)
+ 	out = c.Bytes()
++
++	if len(out) < k {
++		// If the output is too small, we need to left-pad with zeros.
++		t := make([]byte, k)
++		copy(t[k-len(out):], out)
++		out = t
++	}
++
+ 	return
+ }
+ 
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index df1f17f17c..22d4576e8d 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -66,7 +66,7 @@ func TestEncryptOAEP(t *testing.T) {
+ 				t.Errorf("#%d,%d error: %s", i, j, err)
+ 			}
+ 			if bytes.Compare(out, message.out) != 0 {
+-				t.Errorf("#%d,%d bad result: %s (want %s)", i, j, out, message.out)
++				t.Errorf("#%d,%d bad result: %x (want %x)", i, j, out, message.out)
+ 			}
+ 		}
+ 	}

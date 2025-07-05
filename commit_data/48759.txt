@@ -21,7 +21,34 @@ Date:   Fri Jun 11 17:38:23 2021 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/test.go              | 2 +-
  src/cmd/internal/sys/supported.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1ed2c0f631..f2c4cf0b43 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1057,7 +1057,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			"darwin-amd64", "darwin-arm64",
+ 			"freebsd-amd64",
+ 			"android-arm", "android-arm64", "android-386",
+-			"windows-amd64", "windows-386":
++			"windows-amd64", "windows-386", "windows-arm64":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index fa477b837f..0d2bad9612 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -74,7 +74,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
+-			"windows/amd64", "windows/386":
++			"windows/amd64", "windows/386", "windows/arm64":
+ 			return true
+ 		}
+ 		return false

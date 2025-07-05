@@ -16,8 +16,61 @@ Date:   Sun Mar 14 14:27:28 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go    |  3 +++
  src/go/types/conversions.go | 12 ++++++++++++
  src/go/types/stdlib_test.go |  4 ----
  3 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 6998fc0a0d..3438d79024 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1430,6 +1430,9 @@ func TestConvertibleTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{newDefined(Typ[Int]), new(Struct), false},
+ 		{Typ[UntypedInt], Typ[Int], true},
++		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
++		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
+ 		// Untyped string values are not permitted by the spec, so the below
+ 		// behavior is undefined.
+ 		{Typ[UntypedString], Typ[String], true},
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index d93ff465bb..e977d0db1f 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -133,6 +133,18 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 		return true
+ 	}
+ 
++	// "x is a slice, T is a pointer-to-array type,
++	// and the slice and array types have identical element types."
++	if s := asSlice(V); s != nil {
++		if p := asPointer(T); p != nil {
++			if a := asArray(p.Elem()); a != nil {
++				if check.identical(s.Elem(), a.Elem()) {
++					return true
++				}
++			}
++		}
++	}
++
+ 	return false
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 8f9218c864..29f71137df 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -163,10 +163,6 @@ func TestStdTest(t *testing.T) {
+ 		"embedfunc.go",   // tests //go:embed
+ 		"embedvers.go",   // tests //go:embed
+ 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
+-
+-		"convert2.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
+-		"convert4.go",     // temporary: go/types doesn't know yet about converting from slices to array pointers
+-		"escape_slice.go", // temporary: go/types doesn't know yet about converting from slices to array pointers
+ 	)
+ }
+ 

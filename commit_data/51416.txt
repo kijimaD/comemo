@@ -24,7 +24,72 @@ Date:   Wed Jan 26 09:18:14 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go                     | 16 ++++++++--------
  src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 17 +++++++++++++++++
  2 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ccd5aee221..48a74458bd 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -236,11 +236,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		}
+ 	} else if p.Goroot {
+ 		// The Go compiler always hides the exact value of $GOROOT
+-		// when building things in GOROOT, but the C compiler
+-		// merely rewrites GOROOT to GOROOT_FINAL.
+-		if len(p.CFiles) > 0 {
+-			fmt.Fprintf(h, "goroot %s\n", cfg.GOROOT_FINAL)
+-		}
++		// when building things in GOROOT.
++		//
++		// The C compiler does not, but for packages in GOROOT we rewrite the path
++		// as though -trimpath were set, so that we don't invalidate the build cache
++		// (and especially any precompiled C archive files) when changing
++		// GOROOT_FINAL. (See https://go.dev/issue/50183.)
++		//
+ 		// b.WorkDir is always either trimmed or rewritten to
+ 		// the literal string "/tmp/go-build".
+ 	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
+@@ -2337,7 +2339,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 	// directives pointing to the source directory. It should not generate those
+ 	// when -trimpath is enabled.
+ 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+-		if cfg.BuildTrimpath {
++		if cfg.BuildTrimpath || p.Goroot {
+ 			// Keep in sync with Action.trimpath.
+ 			// The trimmed paths are a little different, but we need to trim in the
+ 			// same situations.
+@@ -2359,8 +2361,6 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 				to = filepath.Join("/_", toPath)
+ 			}
+ 			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
+-		} else if p.Goroot && cfg.GOROOT_FINAL != cfg.GOROOT {
+-			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+cfg.GOROOT+"="+cfg.GOROOT_FINAL)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+new file mode 100644
+index 0000000000..cda804070a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+@@ -0,0 +1,17 @@
++# Regression test for https://go.dev/issue/47215 and https://go.dev/issue/50183:
++# A mismatched $GOROOT_FINAL or missing $CC caused the C dependencies of the net
++# package to appear stale, and it could not be rebuilt due to a missing $CC.
++
++[!cgo] skip
++
++# Control case: net must not already be stale.
++! stale net
++
++# https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net to be stale.
++[!plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
++[plan9] env path=''
++! stale net  # issue #47215
++
++# https://go.dev/issue/50183: a mismatched GOROOT_FINAL caused net to be stale.
++env GOROOT_FINAL=$WORK${/}goroot
++! stale net

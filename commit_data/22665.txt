@@ -20,7 +20,7 @@ Date:   Wed Apr 1 09:38:44 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/7593
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/gc/align.go       |  21 ++---
  src/cmd/internal/gc/cgen.go        |  11 +--
  src/cmd/internal/gc/closure.go     |   3 +-
@@ -67,3 +67,3476 @@ Date:   Wed Apr 1 09:38:44 2015 -0700
  src/cmd/internal/obj/x86/asm6.go   |  51 +++---------
  src/cmd/internal/obj/x86/obj6.go   |  22 ++---
  45 files changed, 358 insertions(+), 851 deletions(-)
+
+diff --git a/src/cmd/internal/gc/align.go b/src/cmd/internal/gc/align.go
+index 1171300641..9025b1a029 100644
+--- a/src/cmd/internal/gc/align.go
++++ b/src/cmd/internal/gc/align.go
+@@ -151,10 +151,7 @@ func dowidth(t *Type) {
+ 
+ 	et := int32(t.Etype)
+ 	switch et {
+-	case TFUNC,
+-		TCHAN,
+-		TMAP,
+-		TSTRING:
++	case TFUNC, TCHAN, TMAP, TSTRING:
+ 		break
+ 
+ 		/* simtype == 0 during bootstrap */
+@@ -170,25 +167,17 @@ func dowidth(t *Type) {
+ 		Fatal("dowidth: unknown type: %v", Tconv(t, 0))
+ 
+ 		/* compiler-specific stuff */
+-	case TINT8,
+-		TUINT8,
+-		TBOOL:
++	case TINT8, TUINT8, TBOOL:
+ 		// bool is int8
+ 		w = 1
+ 
+-	case TINT16,
+-		TUINT16:
++	case TINT16, TUINT16:
+ 		w = 2
+ 
+-	case TINT32,
+-		TUINT32,
+-		TFLOAT32:
++	case TINT32, TUINT32, TFLOAT32:
+ 		w = 4
+ 
+-	case TINT64,
+-		TUINT64,
+-		TFLOAT64,
+-		TCOMPLEX64:
++	case TINT64, TUINT64, TFLOAT64, TCOMPLEX64:
+ 		w = 8
+ 		t.Align = uint8(Widthreg)
+ 
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 7566dda5be..f92a98fb7b 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -172,8 +172,7 @@ func Cgen(n *Node, res *Node) {
+ 	// can't do in walk because n->left->addable
+ 	// changes if n->left is an escaping local variable.
+ 	switch n.Op {
+-	case OSPTR,
+-		OLEN:
++	case OSPTR, OLEN:
+ 		if Isslice(n.Left.Type) || Istype(n.Left.Type, TSTRING) {
+ 			n.Addable = n.Left.Addable
+ 		}
+@@ -665,9 +664,7 @@ func Cgen(n *Node, res *Node) {
+ 			}
+ 		}
+ 
+-	case OLSH,
+-		ORSH,
+-		OLROT:
++	case OLSH, ORSH, OLROT:
+ 		Thearch.Cgen_shift(int(n.Op), n.Bounded, nl, nr, res)
+ 	}
+ 
+@@ -1569,9 +1566,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		Fixlargeoffset(a)
+ 		return
+ 
+-	case OCALLFUNC,
+-		OCALLMETH,
+-		OCALLINTER:
++	case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		switch n.Op {
+ 		case OCALLFUNC:
+ 			cgen_call(n, 0)
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index df89544162..4b1e929642 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -486,8 +486,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 
+ func typecheckpartialcall(fn *Node, sym *Node) {
+ 	switch fn.Op {
+-	case ODOTINTER,
+-		ODOTMETH:
++	case ODOTINTER, ODOTMETH:
+ 		break
+ 
+ 	default:
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index ec84f65961..6842c84a6b 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -96,8 +96,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			return
+ 		}
+ 
+-	case OLSH,
+-		ORSH:
++	case OLSH, ORSH:
+ 		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
+ 		t = n.Left.Type
+ 		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
+@@ -199,25 +198,19 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			}
+ 		}
+ 
+-	case CTSTR,
+-		CTBOOL:
++	case CTSTR, CTBOOL:
+ 		if et != int(n.Type.Etype) {
+ 			goto bad
+ 		}
+ 
+-	case CTINT,
+-		CTRUNE,
+-		CTFLT,
+-		CTCPLX:
++	case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 		ct := int(n.Val.Ctype)
+ 		if Isint[et] {
+ 			switch ct {
+ 			default:
+ 				goto bad
+ 
+-			case CTCPLX,
+-				CTFLT,
+-				CTRUNE:
++			case CTCPLX, CTFLT, CTRUNE:
+ 				n.Val = toint(n.Val)
+ 				fallthrough
+ 
+@@ -230,9 +223,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			default:
+ 				goto bad
+ 
+-			case CTCPLX,
+-				CTINT,
+-				CTRUNE:
++			case CTCPLX, CTINT, CTRUNE:
+ 				n.Val = toflt(n.Val)
+ 				fallthrough
+ 
+@@ -245,9 +236,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			default:
+ 				goto bad
+ 
+-			case CTFLT,
+-				CTINT,
+-				CTRUNE:
++			case CTFLT, CTINT, CTRUNE:
+ 				n.Val = tocplx(n.Val)
+ 
+ 			case CTCPLX:
+@@ -281,8 +270,7 @@ bad:
+ 
+ func copyval(v Val) Val {
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		i := new(Mpint)
+ 		mpmovefixfix(i, v.U.Xval)
+ 		v.U.Xval = i
+@@ -304,8 +292,7 @@ func copyval(v Val) Val {
+ 
+ func tocplx(v Val) Val {
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		c := new(Mpcplx)
+ 		Mpmovefixflt(&c.Real, v.U.Xval)
+ 		Mpmovecflt(&c.Imag, 0.0)
+@@ -325,8 +312,7 @@ func tocplx(v Val) Val {
+ 
+ func toflt(v Val) Val {
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		f := new(Mpflt)
+ 		Mpmovefixflt(f, v.U.Xval)
+ 		v.Ctype = CTFLT
+@@ -375,8 +361,7 @@ func toint(v Val) Val {
+ 
+ func doesoverflow(v Val, t *Type) bool {
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		if !Isint[t.Etype] {
+ 			Fatal("overflow: %v integer constant", Tconv(t, 0))
+ 		}
+@@ -416,8 +401,7 @@ func overflow(v Val, t *Type) {
+ 	}
+ 
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		Yyerror("constant %v overflows %v", Bconv(v.U.Xval, 0), Tconv(t, 0))
+ 
+ 	case CTFLT:
+@@ -430,8 +414,7 @@ func overflow(v Val, t *Type) {
+ 
+ func tostr(v Val) Val {
+ 	switch v.Ctype {
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
+ 			Yyerror("overflow in int -> string")
+ 		}
+@@ -710,8 +693,7 @@ func evconst(n *Node) {
+ 
+ 		// right must be unsigned.
+ 	// left can be ideal.
+-	case OLSH,
+-		ORSH:
++	case OLSH, ORSH:
+ 		defaultlit(&nr, Types[TUINT])
+ 
+ 		n.Right = nr
+@@ -1089,10 +1071,7 @@ func nodlit(v Val) *Node {
+ 	case CTBOOL:
+ 		n.Type = idealbool
+ 
+-	case CTINT,
+-		CTRUNE,
+-		CTFLT,
+-		CTCPLX:
++	case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 		n.Type = Types[TIDEAL]
+ 
+ 	case CTNIL:
+@@ -1158,8 +1137,7 @@ func idealkind(n *Node) int {
+ 		}
+ 		fallthrough
+ 
+-	case OREAL,
+-		OIMAG:
++	case OREAL, OIMAG:
+ 		return CTFLT
+ 
+ 	case OCOMPLEX:
+@@ -1182,8 +1160,7 @@ func idealkind(n *Node) int {
+ 		return CTBOOL
+ 
+ 		// shifts (beware!).
+-	case OLSH,
+-		ORSH:
++	case OLSH, ORSH:
+ 		return idealkind(n.Left)
+ 	}
+ }
+@@ -1351,10 +1328,7 @@ func Smallintconst(n *Node) bool {
+ 			TPTR32:
+ 			return true
+ 
+-		case TIDEAL,
+-			TINT64,
+-			TUINT64,
+-			TPTR64:
++		case TIDEAL, TINT64, TUINT64, TPTR64:
+ 			if Mpcmpfixfix(n.Val.U.Xval, Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+@@ -1412,8 +1386,7 @@ func iconv(x int64, et int) int64 {
+ 	case TUINT32:
+ 		x = int64(uint32(x))
+ 
+-	case TINT64,
+-		TUINT64:
++	case TINT64, TUINT64:
+ 		break
+ 	}
+ 
+@@ -1441,8 +1414,7 @@ func Convconst(con *Node, t *Type, val *Val) {
+ 		default:
+ 			Fatal("convconst ctype=%d %v", val.Ctype, Tconv(t, obj.FmtLong))
+ 
+-		case CTINT,
+-			CTRUNE:
++		case CTINT, CTRUNE:
+ 			i = Mpgetfix(val.U.Xval)
+ 
+ 		case CTBOOL:
+@@ -1606,8 +1578,7 @@ func isgoconst(n *Node) bool {
+ 			return true
+ 		}
+ 
+-	case OLEN,
+-		OCAP:
++	case OLEN, OCAP:
+ 		l := n.Left
+ 		if isgoconst(l) {
+ 			return true
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/internal/gc/cplx.go
+index 7c0a1508c4..fe4c38c285 100644
+--- a/src/cmd/internal/gc/cplx.go
++++ b/src/cmd/internal/gc/cplx.go
+@@ -352,8 +352,7 @@ func Complexgen(n *Node, res *Node) {
+ 			return
+ 		}
+ 
+-	case OREAL,
+-		OIMAG:
++	case OREAL, OIMAG:
+ 		nl := n.Left
+ 		if nl.Addable == 0 {
+ 			var tmp Node
+@@ -475,8 +474,7 @@ func Complexgen(n *Node, res *Node) {
+ 	case OMINUS:
+ 		complexminus(nl, res)
+ 
+-	case OADD,
+-		OSUB:
++	case OADD, OSUB:
+ 		complexadd(int(n.Op), nl, nr, res)
+ 
+ 	case OMUL:
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 10c6b5ed88..2215045767 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -234,8 +234,7 @@ var tags [16]*string
+ // mktag returns the string representation for an escape analysis tag.
+ func mktag(mask int) *string {
+ 	switch mask & EscMask {
+-	case EscNone,
+-		EscReturn:
++	case EscNone, EscReturn:
+ 		break
+ 
+ 	default:
+@@ -538,8 +537,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// This assignment is a no-op for escape analysis,
+ 	// it does not store any new pointers into b that were not already there.
+ 	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+-	case OAS,
+-		OASOP:
++	case OAS, OASOP:
+ 		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
+ 			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
+ 			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
+@@ -604,9 +602,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			escassign(e, &e.theSink, ll.N)
+ 		}
+ 
+-	case OCALLMETH,
+-		OCALLFUNC,
+-		OCALLINTER:
++	case OCALLMETH, OCALLFUNC, OCALLINTER:
+ 		esccall(e, n, up)
+ 
+ 		// esccall already done on n->rlist->n. tie it's escretval to n->list
+@@ -653,8 +649,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			}
+ 		}
+ 
+-	case OCONV,
+-		OCONVNOP:
++	case OCONV, OCONVNOP:
+ 		escassign(e, n, n.Left)
+ 
+ 	case OCONVIFACE:
+@@ -780,8 +775,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// so that writing the address of one result
+ 			// to another (or the same) result makes the
+ 			// first result move to the heap.
+-			case PPARAM,
+-				PPARAMOUT:
++			case PPARAM, PPARAMOUT:
+ 				n.Escloopdepth = 1
+ 			}
+ 		}
+@@ -847,8 +841,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 
+ 		dst = &e.theSink // lose track of dereference
+ 
+-	case OIND,
+-		ODOTPTR:
++	case OIND, ODOTPTR:
+ 		dst = &e.theSink // lose track of dereference
+ 
+ 		// lose track of key and value
+@@ -889,9 +882,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 
+ 		// Flowing multiple returns to a single dst happens when
+ 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
+-	case OCALLMETH,
+-		OCALLFUNC,
+-		OCALLINTER:
++	case OCALLMETH, OCALLFUNC, OCALLINTER:
+ 		for ll := src.Escretval; ll != nil; ll = ll.Next {
+ 			escflows(e, dst, ll.N)
+ 		}
+@@ -1204,8 +1195,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
+ // escaping to the global scope.
+ func escflood(e *EscState, dst *Node) {
+ 	switch dst.Op {
+-	case ONAME,
+-		OCLOSURE:
++	case ONAME, OCLOSURE:
+ 		break
+ 
+ 	default:
+@@ -1311,8 +1301,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 			escwalk(e, level, dst, src.Closure)
+ 		}
+ 
+-	case OPTRLIT,
+-		OADDR:
++	case OPTRLIT, OADDR:
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			addrescapes(src.Left)
+@@ -1372,9 +1361,7 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 		fallthrough
+ 
+ 		// fall through
+-	case ODOTPTR,
+-		OINDEXMAP,
+-		OIND:
++	case ODOTPTR, OINDEXMAP, OIND:
+ 		newlevel := level
+ 
+ 		if level > MinLevel {
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 392ba9657e..e5b9e56cb8 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -540,8 +540,7 @@ func typefmt(t *Type, flag int) string {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR32,
+-		TPTR64:
++	case TPTR32, TPTR64:
+ 		if fmtmode == FTypeId && (flag&obj.FmtShort != 0 /*untyped*/) {
+ 			return fmt.Sprintf("*%v", Tconv(t.Type, obj.FmtShort))
+ 		}
+@@ -764,9 +763,7 @@ func typefmt(t *Type, flag int) string {
+ // Statements which may be rendered with a simplestmt as init.
+ func stmtwithinit(op int) bool {
+ 	switch op {
+-	case OIF,
+-		OFOR,
+-		OSWITCH:
++	case OIF, OFOR, OSWITCH:
+ 		return true
+ 	}
+ 
+@@ -802,9 +799,7 @@ func stmtfmt(n *Node) string {
+ 	case ODCL:
+ 		if fmtmode == FExp {
+ 			switch n.Left.Class &^ PHEAP {
+-			case PPARAM,
+-				PPARAMOUT,
+-				PAUTO:
++			case PPARAM, PPARAMOUT, PAUTO:
+ 				f += fmt.Sprintf("var %v %v", Nconv(n.Left, 0), Tconv(n.Left.Type, 0))
+ 				goto ret
+ 			}
+@@ -853,10 +848,7 @@ func stmtfmt(n *Node) string {
+ 		fallthrough
+ 
+ 		// fallthrough
+-	case OAS2DOTTYPE,
+-		OAS2FUNC,
+-		OAS2MAPR,
+-		OAS2RECV:
++	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+ 		f += fmt.Sprintf("%v = %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
+ 
+ 	case ORETURN:
+@@ -919,8 +911,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += fmt.Sprintf("for %v = range %v { %v }", Hconv(n.List, obj.FmtComma), Nconv(n.Right, 0), Hconv(n.Nbody, 0))
+ 
+-	case OSELECT,
+-		OSWITCH:
++	case OSELECT, OSWITCH:
+ 		if fmtmode == FErr {
+ 			f += fmt.Sprintf("%v statement", Oconv(int(n.Op), 0))
+ 			break
+@@ -936,8 +927,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += fmt.Sprintf(" { %v }", Hconv(n.List, 0))
+ 
+-	case OCASE,
+-		OXCASE:
++	case OCASE, OXCASE:
+ 		if n.List != nil {
+ 			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), Hconv(n.Nbody, 0))
+ 		} else {
+@@ -1158,8 +1148,7 @@ func exprfmt(n *Node, prec int) string {
+ 		fallthrough
+ 
+ 		//fallthrough
+-	case OPACK,
+-		ONONAME:
++	case OPACK, ONONAME:
+ 		return Sconv(n.Sym, 0)
+ 
+ 	case OTYPE:
+@@ -1270,8 +1259,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 		// fallthrough
+ 
+-	case OARRAYLIT,
+-		OMAPLIT:
++	case OARRAYLIT, OMAPLIT:
+ 		if fmtmode == FErr {
+ 			return fmt.Sprintf("%v literal", Tconv(n.Type, 0))
+ 		}
+@@ -1313,8 +1301,7 @@ func exprfmt(n *Node, prec int) string {
+ 		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
+ 		return f
+ 
+-	case ODOTTYPE,
+-		ODOTTYPE2:
++	case ODOTTYPE, ODOTTYPE2:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		if n.Right != nil {
+@@ -1336,8 +1323,7 @@ func exprfmt(n *Node, prec int) string {
+ 		f += fmt.Sprintf("[%v]", Nconv(n.Right, 0))
+ 		return f
+ 
+-	case OCOPY,
+-		OCOMPLEX:
++	case OCOPY, OCOMPLEX:
+ 		return fmt.Sprintf("%v(%v, %v)", Oconv(int(n.Op), obj.FmtSharp), Nconv(n.Left, 0), Nconv(n.Right, 0))
+ 
+ 	case OCONV,
+@@ -1377,10 +1363,7 @@ func exprfmt(n *Node, prec int) string {
+ 		}
+ 		return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
+ 
+-	case OCALL,
+-		OCALLFUNC,
+-		OCALLINTER,
+-		OCALLMETH:
++	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		if n.Isddd {
+@@ -1390,9 +1373,7 @@ func exprfmt(n *Node, prec int) string {
+ 		f += fmt.Sprintf("(%v)", Hconv(n.List, obj.FmtComma))
+ 		return f
+ 
+-	case OMAKEMAP,
+-		OMAKECHAN,
+-		OMAKESLICE:
++	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		if n.List != nil { // pre-typecheck
+ 			return fmt.Sprintf("make(%v, %v)", Tconv(n.Type, 0), Hconv(n.List, obj.FmtComma))
+ 		}
+@@ -1460,8 +1441,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 		return f
+ 
+-	case OCMPSTR,
+-		OCMPIFACE:
++	case OCMPSTR, OCMPIFACE:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		f += fmt.Sprintf(" %v ", Oconv(int(n.Etype), obj.FmtSharp))
+@@ -1533,15 +1513,13 @@ func nodedump(n *Node, flag int) string {
+ 	default:
+ 		fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
+ 
+-	case OREGISTER,
+-		OINDREG:
++	case OREGISTER, OINDREG:
+ 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
+ 
+ 	case OLITERAL:
+ 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))
+ 
+-	case ONAME,
+-		ONONAME:
++	case ONAME, ONONAME:
+ 		if n.Sym != nil {
+ 			fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Sconv(n.Sym, 0), Jconv(n, 0))
+ 		} else {
+@@ -1689,8 +1667,7 @@ func Nconv(n *Node, flag int) string {
+ 	_ = r
+ 	var str string
+ 	switch fmtmode {
+-	case FErr,
+-		FExp:
++	case FErr, FExp:
+ 		str = nodefmt(n, flag)
+ 
+ 	case FDbg:
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 1a7f76fd08..ef6377b06d 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -57,8 +57,7 @@ func addrescapes(n *Node) {
+ 		// so the param already has a valid xoffset.
+ 
+ 		// expression to refer to stack copy
+-		case PPARAM,
+-			PPARAMOUT:
++		case PPARAM, PPARAMOUT:
+ 			n.Stackparam = Nod(OPARAM, n, nil)
+ 
+ 			n.Stackparam.Type = n.Type
+@@ -93,8 +92,7 @@ func addrescapes(n *Node) {
+ 			Curfn = oldfn
+ 		}
+ 
+-	case OIND,
+-		ODOTPTR:
++	case OIND, ODOTPTR:
+ 		break
+ 
+ 		// ODOTPTR has already been introduced,
+@@ -102,8 +100,7 @@ func addrescapes(n *Node) {
+ 	// In &x[0], if x is a slice, then x does not
+ 	// escape--the pointer inside x does, but that
+ 	// is always a heap pointer anyway.
+-	case ODOT,
+-		OINDEX:
++	case ODOT, OINDEX:
+ 		if !Isslice(n.Left.Type) {
+ 			addrescapes(n.Left)
+ 		}
+@@ -338,23 +335,18 @@ func Clearslim(n *Node) {
+ 	z.Addable = 1
+ 
+ 	switch Simtype[n.Type.Etype] {
+-	case TCOMPLEX64,
+-		TCOMPLEX128:
++	case TCOMPLEX64, TCOMPLEX128:
+ 		z.Val.U.Cval = new(Mpcplx)
+ 		Mpmovecflt(&z.Val.U.Cval.Real, 0.0)
+ 		Mpmovecflt(&z.Val.U.Cval.Imag, 0.0)
+ 
+-	case TFLOAT32,
+-		TFLOAT64:
++	case TFLOAT32, TFLOAT64:
+ 		var zero Mpflt
+ 		Mpmovecflt(&zero, 0.0)
+ 		z.Val.Ctype = CTFLT
+ 		z.Val.U.Fval = &zero
+ 
+-	case TPTR32,
+-		TPTR64,
+-		TCHAN,
+-		TMAP:
++	case TPTR32, TPTR64, TCHAN, TMAP:
+ 		z.Val.Ctype = CTNIL
+ 
+ 	case TBOOL:
+@@ -833,9 +825,7 @@ func gen(n *Node) {
+ 		if n.Defn != nil {
+ 			switch n.Defn.Op {
+ 			// so stmtlabel can find the label
+-			case OFOR,
+-				OSWITCH,
+-				OSELECT:
++			case OFOR, OSWITCH, OSELECT:
+ 				n.Defn.Sym = lab.Sym
+ 			}
+ 		}
+@@ -1009,8 +999,7 @@ func gen(n *Node) {
+ 	case ODEFER:
+ 		cgen_proc(n, 2)
+ 
+-	case ORETURN,
+-		ORETJMP:
++	case ORETURN, ORETJMP:
+ 		cgen_ret(n)
+ 
+ 	case OCHECKNIL:
+@@ -1175,8 +1164,7 @@ func Componentgen(nr *Node, nl *Node) bool {
+ 			goto no
+ 		}
+ 
+-	case TSTRING,
+-		TINTER:
++	case TSTRING, TINTER:
+ 		break
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 4a9f895265..357bca1789 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -250,9 +250,7 @@ func gused(n *Node) {
+ func Isfat(t *Type) bool {
+ 	if t != nil {
+ 		switch t.Etype {
+-		case TSTRUCT,
+-			TARRAY,
+-			TSTRING,
++		case TSTRUCT, TARRAY, TSTRING,
+ 			TINTER: // maybe remove later
+ 			return true
+ 		}
+@@ -384,8 +382,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		case PAUTO:
+ 			a.Name = obj.NAME_AUTO
+ 
+-		case PPARAM,
+-			PPARAMOUT:
++		case PPARAM, PPARAMOUT:
+ 			a.Name = obj.NAME_PARAM
+ 
+ 		case PFUNC:
+@@ -409,8 +406,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			a.Type = obj.TYPE_FCONST
+ 			a.Val = mpgetflt(n.Val.U.Fval)
+ 
+-		case CTINT,
+-			CTRUNE:
++		case CTINT, CTRUNE:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+ 			a.Offset = Mpgetfix(n.Val.U.Xval)
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/internal/gc/init.go
+index 8aaed8c63c..b3a6a00d00 100644
+--- a/src/cmd/internal/gc/init.go
++++ b/src/cmd/internal/gc/init.go
+@@ -54,10 +54,7 @@ func anyinit(n *NodeList) bool {
+ 	// are there any interesting init statements
+ 	for l := n; l != nil; l = l.Next {
+ 		switch l.N.Op {
+-		case ODCLFUNC,
+-			ODCLCONST,
+-			ODCLTYPE,
+-			OEMPTY:
++		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
+ 			break
+ 
+ 		case OAS:
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index cdd709ed77..5e5cb6d3f0 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -200,10 +200,7 @@ func ishairy(n *Node, budget *int) bool {
+ 		}
+ 
+ 	// Things that are too hairy, irrespective of the budget
+-	case OCALL,
+-		OCALLINTER,
+-		OPANIC,
+-		ORECOVER:
++	case OCALL, OCALLINTER, OPANIC, ORECOVER:
+ 		if Debug['l'] < 4 {
+ 			return true
+ 		}
+@@ -244,9 +241,7 @@ func inlcopy(n *Node) *Node {
+ 	}
+ 
+ 	switch n.Op {
+-	case ONAME,
+-		OTYPE,
+-		OLITERAL:
++	case ONAME, OTYPE, OLITERAL:
+ 		return n
+ 	}
+ 
+@@ -338,11 +333,9 @@ func inlnode(np **Node) {
+ 
+ 	switch n.Op {
+ 	// inhibit inlining of their argument
+-	case ODEFER,
+-		OPROC:
++	case ODEFER, OPROC:
+ 		switch n.Left.Op {
+-		case OCALLFUNC,
+-			OCALLMETH:
++		case OCALLFUNC, OCALLMETH:
+ 			n.Left.Etype = n.Op
+ 		}
+ 		fallthrough
+@@ -453,8 +446,7 @@ func inlnode(np **Node) {
+ 	// transmogrify this node itself unless inhibited by the
+ 	// switch at the top of this function.
+ 	switch n.Op {
+-	case OCALLFUNC,
+-		OCALLMETH:
++	case OCALLFUNC, OCALLMETH:
+ 		if n.Etype == OPROC || n.Etype == ODEFER {
+ 			return
+ 		}
+@@ -647,10 +639,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	if n.List != nil && n.List.Next == nil {
+ 		switch n.List.N.Op {
+-		case OCALL,
+-			OCALLFUNC,
+-			OCALLINTER,
+-			OCALLMETH:
++		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
+ 			if n.List.N.Left.Type.Outtuple > 1 {
+ 				multiret = n.List.N.Left.Type.Outtuple - 1
+ 			}
+@@ -920,8 +909,7 @@ func inlsubst(n *Node) *Node {
+ 		}
+ 		return n
+ 
+-	case OLITERAL,
+-		OTYPE:
++	case OLITERAL, OTYPE:
+ 		return n
+ 
+ 		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
+@@ -950,8 +938,7 @@ func inlsubst(n *Node) *Node {
+ 		//		dump("Return after substitution", m);
+ 		return m
+ 
+-	case OGOTO,
+-		OLABEL:
++	case OGOTO, OLABEL:
+ 		m := Nod(OXXX, nil, nil)
+ 		*m = *n
+ 		m.Ninit = nil
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 0d715cf347..370722c502 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -1277,8 +1277,7 @@ l0:
+ 		 *
+ 		 * i said it was clumsy.
+ 		 */
+-	case '(',
+-		'[':
++	case '(', '[':
+ 		if loophack != 0 || _yylex_lstk != nil {
+ 			h = new(Loophack)
+ 			if h == nil {
+@@ -1295,8 +1294,7 @@ l0:
+ 
+ 		goto lx
+ 
+-	case ')',
+-		']':
++	case ')', ']':
+ 		if _yylex_lstk != nil {
+ 			h = _yylex_lstk
+ 			loophack = h.v
+@@ -1382,10 +1380,7 @@ talph:
+ 	case LIGNORE:
+ 		goto l0
+ 
+-	case LFOR,
+-		LIF,
+-		LSWITCH,
+-		LSELECT:
++	case LFOR, LIF, LSWITCH, LSELECT:
+ 		loophack = 1 // see comment about loophack above
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index b3435e54dd..51d888a5ab 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -340,8 +340,7 @@ func mpatoflt(a *Mpflt, as string) {
+ 		c := s[0]
+ 		s = s[1:]
+ 		switch c {
+-		case '-',
+-			'+':
++		case '-', '+':
+ 			break
+ 
+ 		case '0':
+@@ -411,9 +410,7 @@ func mpatoflt(a *Mpflt, as string) {
+ 			f = 1
+ 			fallthrough
+ 
+-		case ' ',
+-			'\t',
+-			'+':
++		case ' ', '\t', '+':
+ 			continue
+ 
+ 		case '.':
+@@ -442,13 +439,11 @@ func mpatoflt(a *Mpflt, as string) {
+ 			}
+ 			continue
+ 
+-		case 'P',
+-			'p':
++		case 'P', 'p':
+ 			eb = 1
+ 			fallthrough
+ 
+-		case 'E',
+-			'e':
++		case 'E', 'e':
+ 			ex = 0
+ 			ef = 0
+ 			for {
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 4092b32f2d..44aa8a755c 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -105,8 +105,7 @@ func ordercopyexpr(n *Node, t *Type, order *Order, clear int) *Node {
+ // and then returns tmp.
+ func ordercheapexpr(n *Node, order *Order) *Node {
+ 	switch n.Op {
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		return n
+ 	}
+ 
+@@ -122,8 +121,7 @@ func ordercheapexpr(n *Node, order *Order) *Node {
+ // The intended use is to apply to x when rewriting x += y into x = x + y.
+ func ordersafeexpr(n *Node, order *Order) *Node {
+ 	switch n.Op {
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		return n
+ 
+ 	case ODOT:
+@@ -138,8 +136,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		typecheck(&a, Erv)
+ 		return a
+ 
+-	case ODOTPTR,
+-		OIND:
++	case ODOTPTR, OIND:
+ 		l := ordercheapexpr(n.Left, order)
+ 		if l == n.Left {
+ 			return n
+@@ -151,8 +148,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		typecheck(&a, Erv)
+ 		return a
+ 
+-	case OINDEX,
+-		OINDEXMAP:
++	case OINDEX, OINDEXMAP:
+ 		var l *Node
+ 		if Isfixedarray(n.Left.Type) {
+ 			l = ordersafeexpr(n.Left, order)
+@@ -315,9 +311,7 @@ func ismulticall(l *NodeList) bool {
+ 	default:
+ 		return false
+ 
+-	case OCALLFUNC,
+-		OCALLMETH,
+-		OCALLINTER:
++	case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		break
+ 	}
+ 
+@@ -409,10 +403,7 @@ func ordermapassign(n *Node, order *Order) {
+ 			order.out = list(order.out, a)
+ 		}
+ 
+-	case OAS2,
+-		OAS2DOTTYPE,
+-		OAS2MAPR,
+-		OAS2FUNC:
++	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
+ 		var post *NodeList
+ 		var m *Node
+ 		var a *Node
+@@ -470,9 +461,7 @@ func orderstmt(n *Node, order *Order) {
+ 		orderexprlist(n.List, order)
+ 		orderexprlist(n.Rlist, order)
+ 		switch n.Op {
+-		case OAS,
+-			OAS2,
+-			OAS2DOTTYPE:
++		case OAS, OAS2, OAS2DOTTYPE:
+ 			ordermapassign(n, order)
+ 
+ 		default:
+@@ -579,8 +568,7 @@ func orderstmt(n *Node, order *Order) {
+ 		cleantemp(t, order)
+ 
+ 		// Special: does not save n onto out.
+-	case OBLOCK,
+-		OEMPTY:
++	case OBLOCK, OEMPTY:
+ 		orderstmtlist(n.List, order)
+ 
+ 		// Special: n->left is not an expression; save as is.
+@@ -597,9 +585,7 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = list(order.out, n)
+ 
+ 		// Special: handle call arguments.
+-	case OCALLFUNC,
+-		OCALLINTER,
+-		OCALLMETH:
++	case OCALLFUNC, OCALLINTER, OCALLMETH:
+ 		t := marktemp(order)
+ 
+ 		ordercall(n, order)
+@@ -607,8 +593,7 @@ func orderstmt(n *Node, order *Order) {
+ 		cleantemp(t, order)
+ 
+ 		// Special: order arguments to inner call but not call itself.
+-	case ODEFER,
+-		OPROC:
++	case ODEFER, OPROC:
+ 		t := marktemp(order)
+ 
+ 		switch n.Left.Op {
+@@ -713,8 +698,7 @@ func orderstmt(n *Node, order *Order) {
+ 			// chan, string, slice, array ranges use value multiple times.
+ 		// make copy.
+ 		// fall through
+-		case TCHAN,
+-			TSTRING:
++		case TCHAN, TSTRING:
+ 			r := n.Right
+ 
+ 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
+@@ -785,8 +769,7 @@ func orderstmt(n *Node, order *Order) {
+ 				// the ODCL nodes to declare x and y. We want to delay that
+ 				// declaration (and possible allocation) until inside the case body.
+ 				// Delete the ODCL nodes here and recreate them inside the body below.
+-				case OSELRECV,
+-					OSELRECV2:
++				case OSELRECV, OSELRECV2:
+ 					if r.Colas != 0 {
+ 						t = r.Ninit
+ 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
+@@ -1052,8 +1035,7 @@ func orderexpr(np **Node, order *Order) {
+ 			orderaddrtemp(&n.Left, order)
+ 		}
+ 
+-	case OANDAND,
+-		OOROR:
++	case OANDAND, OOROR:
+ 		mark := marktemp(order)
+ 		orderexpr(&n.Left, order)
+ 
+@@ -1089,8 +1071,7 @@ func orderexpr(np **Node, order *Order) {
+ 			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+ 		}
+ 
+-	case OARRAYLIT,
+-		OCALLPART:
++	case OARRAYLIT, OCALLPART:
+ 		orderexpr(&n.Left, order)
+ 		orderexpr(&n.Right, order)
+ 		orderexprlist(n.List, order)
+@@ -1121,8 +1102,7 @@ func orderexpr(np **Node, order *Order) {
+ 		orderexpr(&n.Left, order)
+ 		n = ordercopyexpr(n, n.Type, order, 1)
+ 
+-	case OEQ,
+-		ONE:
++	case OEQ, ONE:
+ 		orderexpr(&n.Left, order)
+ 		orderexpr(&n.Right, order)
+ 		t := n.Left.Type
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index de106adc13..e18f2d5419 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -93,9 +93,7 @@ func gvardefx(n *Node, as int) {
+ 	}
+ 
+ 	switch n.Class {
+-	case PAUTO,
+-		PPARAM,
+-		PPARAMOUT:
++	case PAUTO, PPARAM, PPARAMOUT:
+ 		Thearch.Gins(as, nil, n)
+ 	}
+ }
+@@ -473,9 +471,7 @@ func compile(fn *Node) {
+ 			continue
+ 		}
+ 		switch n.Class {
+-		case PAUTO,
+-			PPARAM,
+-			PPARAMOUT:
++		case PAUTO, PPARAM, PPARAMOUT:
+ 			Nodconst(&nod1, Types[TUINTPTR], l.N.Type.Width)
+ 			p = Thearch.Gins(obj.ATYPE, l.N, &nod1)
+ 			p.From.Gotype = Linksym(ngotype(l.N))
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 4cbeca0786..f322e843fb 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -243,8 +243,7 @@ func getvariables(fn *Node) []*Node {
+ 					result = append(result, ll.N)
+ 				}
+ 
+-			case PPARAM,
+-				PPARAMOUT:
++			case PPARAM, PPARAMOUT:
+ 				ll.N.Opt = int32(len(result))
+ 				result = append(result, ll.N)
+ 			}
+@@ -616,9 +615,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 		from := &prog.From
+ 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
+ 			switch ((from.Node).(*Node)).Class &^ PHEAP {
+-			case PAUTO,
+-				PPARAM,
+-				PPARAMOUT:
++			case PAUTO, PPARAM, PPARAMOUT:
+ 				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
+ 				if !ok {
+ 					goto Next
+@@ -647,9 +644,7 @@ Next:
+ 		to := &prog.To
+ 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
+ 			switch ((to.Node).(*Node)).Class &^ PHEAP {
+-			case PAUTO,
+-				PPARAM,
+-				PPARAMOUT:
++			case PAUTO, PPARAM, PPARAMOUT:
+ 				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
+ 				if !ok {
+ 					return
+@@ -1011,8 +1006,7 @@ func twobitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
+ 			xoffset = node.Xoffset + stkptrsize
+ 			twobitwalktype1(node.Type, &xoffset, locals)
+ 
+-		case PPARAM,
+-			PPARAMOUT:
++		case PPARAM, PPARAMOUT:
+ 			xoffset = node.Xoffset
+ 			twobitwalktype1(node.Type, &xoffset, args)
+ 		}
+@@ -1202,8 +1196,7 @@ func livenesssolve(lv *Liveness) {
+ // Check whether n is marked live in args/locals.
+ func islive(n *Node, args Bvec, locals Bvec) bool {
+ 	switch n.Class {
+-	case PPARAM,
+-		PPARAMOUT:
++	case PPARAM, PPARAMOUT:
+ 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr)*obj.BitsPerPointer; i++ {
+ 			if bvget(args, int32(n.Xoffset/int64(Widthptr)*obj.BitsPerPointer+int64(i))) != 0 {
+ 				return true
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/internal/gc/racewalk.go
+index 2b3fc306f9..bbbd167d81 100644
+--- a/src/cmd/internal/gc/racewalk.go
++++ b/src/cmd/internal/gc/racewalk.go
+@@ -137,15 +137,13 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 	default:
+ 		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
+ 
+-	case OAS,
+-		OAS2FUNC:
++	case OAS, OAS2FUNC:
+ 		racewalknode(&n.Left, init, 1, 0)
+ 		racewalknode(&n.Right, init, 0, 0)
+ 		goto ret
+ 
+ 		// can't matter
+-	case OCFUNC,
+-		OVARKILL:
++	case OCFUNC, OVARKILL:
+ 		goto ret
+ 
+ 	case OBLOCK:
+@@ -158,9 +156,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
+ 		// We don't want to instrument between the statements because it will
+ 		// smash the results.
+-		case OCALLFUNC,
+-			OCALLMETH,
+-			OCALLINTER:
++		case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
+ 
+ 			var fini *NodeList
+@@ -248,9 +244,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		callinstr(&n, init, wr, skip)
+ 		goto ret
+ 
+-	case OSPTR,
+-		OLEN,
+-		OCAP:
++	case OSPTR, OLEN, OCAP:
+ 		racewalknode(&n.Left, init, 0, 0)
+ 		if Istype(n.Left.Type, TMAP) {
+ 			n1 := Nod(OCONVNOP, n.Left, nil)
+@@ -284,8 +278,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		racewalknode(&n.Right, init, wr, 0)
+ 		goto ret
+ 
+-	case OANDAND,
+-		OOROR:
++	case OANDAND, OOROR:
+ 		racewalknode(&n.Left, init, wr, 0)
+ 
+ 		// walk has ensured the node has moved to a location where
+@@ -308,8 +301,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		racewalknode(&n.Left, init, wr, 0)
+ 		goto ret
+ 
+-	case ODIV,
+-		OMOD:
++	case ODIV, OMOD:
+ 		racewalknode(&n.Left, init, wr, 0)
+ 		racewalknode(&n.Right, init, wr, 0)
+ 		goto ret
+@@ -333,10 +325,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 
+ 		// Seems to only lead to double instrumentation.
+ 	//racewalknode(&n->left, init, 0, 0);
+-	case OSLICE,
+-		OSLICEARR,
+-		OSLICE3,
+-		OSLICE3ARR:
++	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
+ 		goto ret
+ 
+ 	case OADDR:
+@@ -399,8 +388,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		goto ret
+ 
+ 		// impossible nodes: only appear in backend.
+-	case ORROTC,
+-		OEXTEND:
++	case ORROTC, OEXTEND:
+ 		Yyerror("racewalk: %v cannot exist now", Oconv(int(n.Op), 0))
+ 
+ 		goto ret
+@@ -559,8 +547,7 @@ func makeaddable(n *Node) {
+ 		}
+ 
+ 		// Turn T(v).Field into v.Field
+-	case ODOT,
+-		OXDOT:
++	case ODOT, OXDOT:
+ 		if n.Left.Op == OCONVNOP {
+ 			n.Left = n.Left.Left
+ 		}
+@@ -621,10 +608,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
+ 
+ func hascallspred(n *Node, c interface{}) {
+ 	switch n.Op {
+-	case OCALL,
+-		OCALLFUNC,
+-		OCALLMETH,
+-		OCALLINTER:
++	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		(*c.(*int))++
+ 	}
+ }
+@@ -640,8 +624,7 @@ func appendinit(np **Node, init *NodeList) {
+ 	switch n.Op {
+ 	// There may be multiple refs to this node;
+ 	// introduce OCONVNOP to hold init list.
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		n = Nod(OCONVNOP, n, nil)
+ 
+ 		n.Type = n.Left.Type
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 35984f1046..bd5be0f19a 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1148,8 +1148,7 @@ ok:
+ 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
+ 		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
+ 
+-	case TPTR32,
+-		TPTR64:
++	case TPTR32, TPTR64:
+ 		if t.Type.Etype == TANY {
+ 			// ../../runtime/type.go:/UnsafePointerType
+ 			ot = dcommontype(s, ot, t)
+@@ -1213,9 +1212,7 @@ ok:
+ 	// we want be able to find.
+ 	if t.Sym == nil {
+ 		switch t.Etype {
+-		case TARRAY,
+-			TCHAN,
+-			TMAP:
++		case TARRAY, TCHAN, TMAP:
+ 			slink := typelinksym(t)
+ 			dsymptr(slink, 0, s, 0)
+ 			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index 5546960eaf..66982ef22b 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -390,8 +390,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 
+ 	switch et {
+-	case 0,
+-		TFUNC:
++	case 0, TFUNC:
+ 		return zbits
+ 	}
+ 
+@@ -678,8 +677,7 @@ func allreg(b uint64, r *Rgn) uint64 {
+ 			return Thearch.RtoB(i)
+ 		}
+ 
+-	case TFLOAT32,
+-		TFLOAT64:
++	case TFLOAT32, TFLOAT64:
+ 		i := Thearch.BtoF(^b)
+ 		if i != 0 && r.cost > 0 {
+ 			r.regno = int16(i)
+diff --git a/src/cmd/internal/gc/select.go b/src/cmd/internal/gc/select.go
+index e3c92947bc..3a28ea3c77 100644
+--- a/src/cmd/internal/gc/select.go
++++ b/src/cmd/internal/gc/select.go
+@@ -129,8 +129,7 @@ func walkselect(sel *Node) {
+ 			case OSEND:
+ 				ch = n.Left
+ 
+-			case OSELRECV,
+-				OSELRECV2:
++			case OSELRECV, OSELRECV2:
+ 				ch = n.Right.Left
+ 				if n.Op == OSELRECV || n.Ntest == nil {
+ 					if n.Left == nil {
+@@ -185,8 +184,7 @@ func walkselect(sel *Node) {
+ 			n.Right = Nod(OADDR, n.Right, nil)
+ 			typecheck(&n.Right, Erv)
+ 
+-		case OSELRECV,
+-			OSELRECV2:
++		case OSELRECV, OSELRECV2:
+ 			if n.Op == OSELRECV2 && n.Ntest == nil {
+ 				n.Op = OSELRECV
+ 			}
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index 2dec7572bd..f7167363c1 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -42,8 +42,7 @@ func init1(n *Node, out **NodeList) {
+ 		return
+ 	}
+ 	switch n.Class {
+-	case PEXTERN,
+-		PFUNC:
++	case PEXTERN, PFUNC:
+ 		break
+ 
+ 	default:
+@@ -172,10 +171,7 @@ func init1(n *Node, out **NodeList) {
+ 				*out = list(*out, n.Defn)
+ 			}
+ 
+-		case OAS2FUNC,
+-			OAS2MAPR,
+-			OAS2DOTTYPE,
+-			OAS2RECV:
++		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
+ 			if n.Defn.Initorder != InitNotStarted {
+ 				break
+ 			}
+@@ -244,9 +240,7 @@ func initreorder(l *NodeList, out **NodeList) {
+ 	for ; l != nil; l = l.Next {
+ 		n = l.N
+ 		switch n.Op {
+-		case ODCLFUNC,
+-			ODCLCONST,
+-			ODCLTYPE:
++		case ODCLFUNC, ODCLCONST, ODCLTYPE:
+ 			continue
+ 		}
+ 
+@@ -333,9 +327,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 			break
+ 
+ 			// copy pointer
+-		case OARRAYLIT,
+-			OSTRUCTLIT,
+-			OMAPLIT:
++		case OARRAYLIT, OSTRUCTLIT, OMAPLIT:
+ 			gdata(l, Nod(OADDR, r.Nname, nil), int(l.Type.Width))
+ 
+ 			return true
+@@ -430,9 +422,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 			break
+ 
+ 			// Init pointer.
+-		case OARRAYLIT,
+-			OMAPLIT,
+-			OSTRUCTLIT:
++		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
+ 			a := staticname(r.Left.Type, 1)
+ 
+ 			r.Nname = a
+@@ -1222,9 +1212,7 @@ func oaslit(n *Node, init **NodeList) bool {
+ 		// not a special composit literal assignment
+ 		return false
+ 
+-	case OSTRUCTLIT,
+-		OARRAYLIT,
+-		OMAPLIT:
++	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
+ 		if vmatch1(n.Left, n.Right) {
+ 			// not a special composit literal assignment
+ 			return false
+@@ -1377,8 +1365,7 @@ func iszero(n *Node) bool {
+ 		case CTBOOL:
+ 			return n.Val.U.Bval == 0
+ 
+-		case CTINT,
+-			CTRUNE:
++		case CTINT, CTRUNE:
+ 			return mpcmpfixc(n.Val.U.Xval, 0) == 0
+ 
+ 		case CTFLT:
+@@ -1522,8 +1509,7 @@ func gen_as_init(n *Node) bool {
+ 		TFLOAT64:
+ 		gdata(&nam, nr, int(nr.Type.Width))
+ 
+-	case TCOMPLEX64,
+-		TCOMPLEX128:
++	case TCOMPLEX64, TCOMPLEX128:
+ 		gdatacomplex(&nam, nr.Val.U.Cval)
+ 
+ 	case TSTRING:
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 32486c77bb..8d199a296d 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -257,10 +257,7 @@ func setlineno(n *Node) int32 {
+ 	lno := lineno
+ 	if n != nil {
+ 		switch n.Op {
+-		case ONAME,
+-			OTYPE,
+-			OPACK,
+-			OLITERAL:
++		case ONAME, OTYPE, OPACK, OLITERAL:
+ 			break
+ 
+ 		default:
+@@ -435,8 +432,7 @@ func algtype1(t *Type, bad **Type) int {
+ 
+ 	switch t.Etype {
+ 	// will be defined later.
+-	case TANY,
+-		TFORW:
++	case TANY, TFORW:
+ 		*bad = t
+ 
+ 		return -1
+@@ -459,8 +455,7 @@ func algtype1(t *Type, bad **Type) int {
+ 		TUNSAFEPTR:
+ 		return AMEM
+ 
+-	case TFUNC,
+-		TMAP:
++	case TFUNC, TMAP:
+ 		if bad != nil {
+ 			*bad = t
+ 		}
+@@ -741,8 +736,7 @@ func aindex(b *Node, t *Type) *Type {
+ 		default:
+ 			Yyerror("array bound must be an integer expression")
+ 
+-		case CTINT,
+-			CTRUNE:
++		case CTINT, CTRUNE:
+ 			bound = Mpgetfix(b.Val.U.Xval)
+ 			if bound < 0 {
+ 				Yyerror("array bound must be non negative")
+@@ -791,9 +785,7 @@ func treecopy(n *Node) *Node {
+ 		fallthrough
+ 
+ 		// fall through
+-	case ONAME,
+-		OLITERAL,
+-		OTYPE:
++	case ONAME, OLITERAL, OTYPE:
+ 		m = n
+ 	}
+ 
+@@ -875,8 +867,7 @@ func isideal(t *Type) bool {
+ 		return true
+ 	}
+ 	switch t.Etype {
+-	case TNIL,
+-		TIDEAL:
++	case TNIL, TIDEAL:
+ 		return true
+ 	}
+ 
+@@ -985,8 +976,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 				return true
+ 			}
+ 
+-		case TINT,
+-			TINT32:
++		case TINT, TINT32:
+ 			if (t1 == Types[runetype.Etype] || t1 == runetype) && (t2 == Types[runetype.Etype] || t2 == runetype) {
+ 				return true
+ 			}
+@@ -1004,8 +994,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 	l.t2 = t2
+ 
+ 	switch t1.Etype {
+-	case TINTER,
+-		TSTRUCT:
++	case TINTER, TSTRUCT:
+ 		t1 = t1.Type
+ 		t2 = t2.Type
+ 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+@@ -1430,9 +1419,7 @@ func Is64(t *Type) bool {
+ 		return false
+ 	}
+ 	switch Simtype[t.Etype] {
+-	case TINT64,
+-		TUINT64,
+-		TPTR64:
++	case TINT64, TUINT64, TPTR64:
+ 		return true
+ 	}
+ 
+@@ -1447,22 +1434,16 @@ func Noconv(t1 *Type, t2 *Type) bool {
+ 	e2 := int(Simtype[t2.Etype])
+ 
+ 	switch e1 {
+-	case TINT8,
+-		TUINT8:
++	case TINT8, TUINT8:
+ 		return e2 == TINT8 || e2 == TUINT8
+ 
+-	case TINT16,
+-		TUINT16:
++	case TINT16, TUINT16:
+ 		return e2 == TINT16 || e2 == TUINT16
+ 
+-	case TINT32,
+-		TUINT32,
+-		TPTR32:
++	case TINT32, TUINT32, TPTR32:
+ 		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32
+ 
+-	case TINT64,
+-		TUINT64,
+-		TPTR64:
++	case TINT64, TUINT64, TPTR64:
+ 		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64
+ 
+ 	case TFLOAT32:
+@@ -1501,10 +1482,7 @@ func deep(t *Type) *Type {
+ 		nt = shallow(t)
+ 		nt.Copyany = 1
+ 
+-	case TPTR32,
+-		TPTR64,
+-		TCHAN,
+-		TARRAY:
++	case TPTR32, TPTR64, TCHAN, TARRAY:
+ 		nt = shallow(t)
+ 		nt.Type = deep(t.Type)
+ 
+@@ -1642,25 +1620,19 @@ func ullmancalc(n *Node) {
+ 	}
+ 
+ 	switch n.Op {
+-	case OREGISTER,
+-		OLITERAL,
+-		ONAME:
++	case OREGISTER, OLITERAL, ONAME:
+ 		ul = 1
+ 		if n.Class == PPARAMREF || (n.Class&PHEAP != 0) {
+ 			ul++
+ 		}
+ 		goto out
+ 
+-	case OCALL,
+-		OCALLFUNC,
+-		OCALLMETH,
+-		OCALLINTER:
++	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		ul = UINF
+ 		goto out
+ 
+ 		// hard with race detector
+-	case OANDAND,
+-		OOROR:
++	case OANDAND, OOROR:
+ 		if flag_race != 0 {
+ 			ul = UINF
+ 			goto out
+@@ -1726,9 +1698,7 @@ func Structfirst(s *Iter, nn **Type) *Type {
+ 	default:
+ 		goto bad
+ 
+-	case TSTRUCT,
+-		TINTER,
+-		TFUNC:
++	case TSTRUCT, TINTER, TFUNC:
+ 		break
+ 	}
+ 
+@@ -1903,8 +1873,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
+ 	}
+ 
+ 	switch n.Op {
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		return n
+ 
+ 	case ODOT:
+@@ -1919,8 +1888,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
+ 		walkexpr(&r, init)
+ 		return r
+ 
+-	case ODOTPTR,
+-		OIND:
++	case ODOTPTR, OIND:
+ 		l := safeexpr(n.Left, init)
+ 		if l == n.Left {
+ 			return n
+@@ -1931,8 +1899,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
+ 		walkexpr(&a, init)
+ 		return a
+ 
+-	case OINDEX,
+-		OINDEXMAP:
++	case OINDEX, OINDEXMAP:
+ 		l := safeexpr(n.Left, init)
+ 		r := safeexpr(n.Right, init)
+ 		if l == n.Left && r == n.Right {
+@@ -1968,8 +1935,7 @@ func copyexpr(n *Node, t *Type, init **NodeList) *Node {
+  */
+ func cheapexpr(n *Node, init **NodeList) *Node {
+ 	switch n.Op {
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		return n
+ 	}
+ 
+@@ -3472,8 +3438,7 @@ func addinit(np **Node, init *NodeList) {
+ 	switch n.Op {
+ 	// There may be multiple refs to this node;
+ 	// introduce OCONVNOP to hold init list.
+-	case ONAME,
+-		OLITERAL:
++	case ONAME, OLITERAL:
+ 		n = Nod(OCONVNOP, n, nil)
+ 
+ 		n.Type = n.Left.Type
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 2db5bd67a1..93d2ea6bbe 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -146,10 +146,7 @@ func typecheck(np **Node, top int) *Node {
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+ 	if n.Typecheck == 1 {
+ 		switch n.Op {
+-		case ONAME,
+-			OTYPE,
+-			OLITERAL,
+-			OPACK:
++		case ONAME, OTYPE, OLITERAL, OPACK:
+ 			break
+ 
+ 		default:
+@@ -265,10 +262,7 @@ func indexlit(np **Node) {
+ 		return
+ 	}
+ 	switch consttype(n) {
+-	case CTINT,
+-		CTRUNE,
+-		CTFLT,
+-		CTCPLX:
++	case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 		defaultlit(np, Types[TINT])
+ 	}
+ 
+@@ -385,8 +379,7 @@ OpSwitch:
+ 			l := typecheck(&n.Left, Erv)
+ 			var v Val
+ 			switch consttype(l) {
+-			case CTINT,
+-				CTRUNE:
++			case CTINT, CTRUNE:
+ 				v = l.Val
+ 
+ 			case CTFLT:
+@@ -790,10 +783,7 @@ OpSwitch:
+ 		n.Type = t
+ 		break OpSwitch
+ 
+-	case OCOM,
+-		OMINUS,
+-		ONOT,
+-		OPLUS:
++	case OCOM, OMINUS, ONOT, OPLUS:
+ 		ok |= Erv
+ 		l := typecheck(&n.Left, Erv|top&Eiota)
+ 		t := l.Type
+@@ -939,8 +929,7 @@ OpSwitch:
+ 		}
+ 
+ 		switch n.Op {
+-		case ODOTINTER,
+-			ODOTMETH:
++		case ODOTINTER, ODOTMETH:
+ 			if top&Ecall != 0 {
+ 				ok |= Ecall
+ 			} else {
+@@ -1020,8 +1009,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return
+ 
+-		case TSTRING,
+-			TARRAY:
++		case TSTRING, TARRAY:
+ 			indexlit(&n.Right)
+ 			if t.Etype == TSTRING {
+ 				n.Type = Types[TUINT8]
+@@ -1390,10 +1378,7 @@ OpSwitch:
+ 		n.Type = getoutargx(l.Type)
+ 		break OpSwitch
+ 
+-	case OCAP,
+-		OLEN,
+-		OREAL,
+-		OIMAG:
++	case OCAP, OLEN, OREAL, OIMAG:
+ 		ok |= Erv
+ 		if onearg(n, "%v", Oconv(int(n.Op), 0)) < 0 {
+ 			n.Type = nil
+@@ -1419,8 +1404,7 @@ OpSwitch:
+ 				goto badcall1
+ 			}
+ 
+-		case OREAL,
+-			OIMAG:
++		case OREAL, OIMAG:
+ 			if !Iscomplex[t.Etype] {
+ 				goto badcall1
+ 			}
+@@ -1935,8 +1919,7 @@ OpSwitch:
+ 		n.Type = Ptrto(t)
+ 		break OpSwitch
+ 
+-	case OPRINT,
+-		OPRINTN:
++	case OPRINT, OPRINTN:
+ 		ok |= Etop
+ 		typechecklist(n.List, Erv|Eindir) // Eindir: address does not escape
+ 		for args := n.List; args != nil; args = args.Next {
+@@ -2801,8 +2784,7 @@ func keydup(n *Node, hash []*Node) {
+ 	default: // unknown, bool, nil
+ 		b = 23
+ 
+-	case CTINT,
+-		CTRUNE:
++	case CTINT, CTRUNE:
+ 		b = uint32(Mpgetfix(n.Val.U.Xval))
+ 
+ 	case CTFLT:
+@@ -2919,17 +2901,12 @@ func inithash(n *Node, autohash []*Node) []*Node {
+ 
+ func iscomptype(t *Type) bool {
+ 	switch t.Etype {
+-	case TARRAY,
+-		TSTRUCT,
+-		TMAP:
++	case TARRAY, TSTRUCT, TMAP:
+ 		return true
+ 
+-	case TPTR32,
+-		TPTR64:
++	case TPTR32, TPTR64:
+ 		switch t.Type.Etype {
+-		case TARRAY,
+-			TSTRUCT,
+-			TMAP:
++		case TARRAY, TSTRUCT, TMAP:
+ 			return true
+ 		}
+ 	}
+@@ -3225,10 +3202,7 @@ func islvalue(n *Node) bool {
+ 		fallthrough
+ 
+ 		// fall through
+-	case OIND,
+-		ODOTPTR,
+-		OCLOSUREVAR,
+-		OPARAM:
++	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
+ 		return true
+ 
+ 	case ODOT:
+@@ -3298,12 +3272,10 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 	}
+ 
+ 	switch l.Op {
+-	case ONAME,
+-		OCLOSUREVAR:
++	case ONAME, OCLOSUREVAR:
+ 		return l == r
+ 
+-	case ODOT,
+-		ODOTPTR:
++	case ODOT, ODOTPTR:
+ 		return l.Right != nil && r.Right != nil && l.Right.Sym == r.Right.Sym && samesafeexpr(l.Left, r.Left)
+ 
+ 	case OIND:
+@@ -3364,9 +3336,7 @@ func typecheckas(n *Node) {
+ 		switch n.Right.Op {
+ 		// For x = x[0:y], x can be updated in place, without touching pointer.
+ 		// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
+-		case OSLICE,
+-			OSLICE3,
+-			OSLICESTR:
++		case OSLICE, OSLICE3, OSLICESTR:
+ 			if false && samesafeexpr(n.Left, n.Right.Left) && (n.Right.Right.Left == nil || iszero(n.Right.Right.Left)) {
+ 				n.Right.Reslice = true
+ 			}
+@@ -3439,9 +3409,7 @@ func typecheckas2(n *Node) {
+ 			goto out
+ 		}
+ 		switch r.Op {
+-		case OCALLMETH,
+-			OCALLINTER,
+-			OCALLFUNC:
++		case OCALLMETH, OCALLINTER, OCALLFUNC:
+ 			if r.Type.Etype != TSTRUCT || r.Type.Funarg == 0 {
+ 				break
+ 			}
+@@ -3766,8 +3734,7 @@ func typecheckdef(n *Node) *Node {
+ 		Fatal("typecheckdef %v", Oconv(int(n.Op), 0))
+ 
+ 		// not really syms
+-	case OGOTO,
+-		OLABEL:
++	case OGOTO, OLABEL:
+ 		break
+ 
+ 	case OLITERAL:
+@@ -3901,10 +3868,7 @@ ret:
+ func checkmake(t *Type, arg string, n *Node) int {
+ 	if n.Op == OLITERAL {
+ 		switch n.Val.Ctype {
+-		case CTINT,
+-			CTRUNE,
+-			CTFLT,
+-			CTCPLX:
++		case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 			n.Val = toint(n.Val)
+ 			if mpcmpfixc(n.Val.U.Xval, 0) < 0 {
+ 				Yyerror("negative %s argument in make(%v)", arg, Tconv(t, 0))
+@@ -4054,9 +4018,7 @@ func isterminating(l *NodeList, top int) bool {
+ 	case OIF:
+ 		return isterminating(n.Nbody, 0) && isterminating(n.Nelse, 0)
+ 
+-	case OSWITCH,
+-		OTYPESW,
+-		OSELECT:
++	case OSWITCH, OTYPESW, OSELECT:
+ 		if n.Hasbreak {
+ 			return false
+ 		}
+diff --git a/src/cmd/internal/gc/unsafe.go b/src/cmd/internal/gc/unsafe.go
+index 6faed493b4..7bd35f8a7e 100644
+--- a/src/cmd/internal/gc/unsafe.go
++++ b/src/cmd/internal/gc/unsafe.go
+@@ -62,8 +62,7 @@ func unsafenmagic(nn *Node) *Node {
+ 		base := r.Left
+ 		typecheck(&r, Erv)
+ 		switch r.Op {
+-		case ODOT,
+-			ODOTPTR:
++		case ODOT, ODOTPTR:
+ 			break
+ 
+ 		case OCALLPART:
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index a2da8e72bb..422be57815 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -232,8 +232,7 @@ func walkstmt(np **Node) {
+ 	case ODEFER:
+ 		Hasdefer = 1
+ 		switch n.Left.Op {
+-		case OPRINT,
+-			OPRINTN:
++		case OPRINT, OPRINTN:
+ 			walkprintfunc(&n.Left, &n.Ninit)
+ 
+ 		case OCOPY:
+@@ -265,8 +264,7 @@ func walkstmt(np **Node) {
+ 
+ 	case OPROC:
+ 		switch n.Left.Op {
+-		case OPRINT,
+-			OPRINTN:
++		case OPRINT, OPRINTN:
+ 			walkprintfunc(&n.Left, &n.Ninit)
+ 
+ 		case OCOPY:
+@@ -466,13 +464,11 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkexpr(&n.Right, init)
+ 		goto ret
+ 
+-	case OSPTR,
+-		OITAB:
++	case OSPTR, OITAB:
+ 		walkexpr(&n.Left, init)
+ 		goto ret
+ 
+-	case OLEN,
+-		OCAP:
++	case OLEN, OCAP:
+ 		walkexpr(&n.Left, init)
+ 
+ 		// replace len(*[10]int) with 10.
+@@ -490,8 +486,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 
+ 		goto ret
+ 
+-	case OLSH,
+-		ORSH:
++	case OLSH, ORSH:
+ 		walkexpr(&n.Left, init)
+ 		walkexpr(&n.Right, init)
+ 		t := n.Left.Type
+@@ -521,15 +516,13 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkexpr(&n.Right, init)
+ 		goto ret
+ 
+-	case OOR,
+-		OXOR:
++	case OOR, OXOR:
+ 		walkexpr(&n.Left, init)
+ 		walkexpr(&n.Right, init)
+ 		walkrotate(&n)
+ 		goto ret
+ 
+-	case OEQ,
+-		ONE:
++	case OEQ, ONE:
+ 		walkexpr(&n.Left, init)
+ 		walkexpr(&n.Right, init)
+ 
+@@ -545,8 +538,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		safemode = old_safemode
+ 		goto ret
+ 
+-	case OANDAND,
+-		OOROR:
++	case OANDAND, OOROR:
+ 		walkexpr(&n.Left, init)
+ 
+ 		// cannot put side effects from n.Right on init,
+@@ -558,8 +550,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		addinit(&n.Right, ll)
+ 		goto ret
+ 
+-	case OPRINT,
+-		OPRINTN:
++	case OPRINT, OPRINTN:
+ 		walkexprlist(n.List, init)
+ 		n = walkprint(n, init)
+ 		goto ret
+@@ -576,8 +567,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		n.Addable = 1
+ 		goto ret
+ 
+-	case OCLOSUREVAR,
+-		OCFUNC:
++	case OCLOSUREVAR, OCFUNC:
+ 		n.Addable = 1
+ 		goto ret
+ 
+@@ -784,12 +774,10 @@ func walkexpr(np **Node, init **NodeList) {
+ 		p := ""
+ 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 			switch Simsimtype(t.Down) {
+-			case TINT32,
+-				TUINT32:
++			case TINT32, TUINT32:
+ 				p = "mapaccess2_fast32"
+ 
+-			case TINT64,
+-				TUINT64:
++			case TINT64, TUINT64:
+ 				p = "mapaccess2_fast64"
+ 
+ 			case TSTRING:
+@@ -1066,8 +1054,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkexpr(&n, init)
+ 		goto ret
+ 
+-	case OCONV,
+-		OCONVNOP:
++	case OCONV, OCONVNOP:
+ 		if Thearch.Thechar == '5' {
+ 			if Isfloat[n.Left.Type.Etype] {
+ 				if n.Type.Etype == TINT64 {
+@@ -1111,8 +1098,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkmul(&n, init)
+ 		goto ret
+ 
+-	case ODIV,
+-		OMOD:
++	case ODIV, OMOD:
+ 		walkexpr(&n.Left, init)
+ 		walkexpr(&n.Right, init)
+ 
+@@ -1141,8 +1127,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		 * on 32-bit architectures.
+ 		 */
+ 		switch n.Op {
+-		case OMOD,
+-			ODIV:
++		case OMOD, ODIV:
+ 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
+ 				goto ret
+ 			}
+@@ -1229,12 +1214,10 @@ func walkexpr(np **Node, init **NodeList) {
+ 		p := ""
+ 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 			switch Simsimtype(t.Down) {
+-			case TINT32,
+-				TUINT32:
++			case TINT32, TUINT32:
+ 				p = "mapaccess1_fast32"
+ 
+-			case TINT64,
+-				TUINT64:
++			case TINT64, TUINT64:
+ 				p = "mapaccess1_fast64"
+ 
+ 			case TSTRING:
+@@ -1277,8 +1260,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		fallthrough
+ 
+ 		// fallthrough
+-	case OSLICEARR,
+-		OSLICESTR:
++	case OSLICEARR, OSLICESTR:
+ 		if n.Right == nil { // already processed
+ 			goto ret
+ 		}
+@@ -1299,8 +1281,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		n = sliceany(n, init) // chops n.Right, sets n.List
+ 		goto ret
+ 
+-	case OSLICE3,
+-		OSLICE3ARR:
++	case OSLICE3, OSLICE3ARR:
+ 		if n.Right == nil { // already processed
+ 			goto ret
+ 		}
+@@ -1606,10 +1587,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		n = r
+ 		goto ret
+ 
+-	case OARRAYLIT,
+-		OMAPLIT,
+-		OSTRUCTLIT,
+-		OPTRLIT:
++	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+ 		var_ := temp(n.Type)
+ 		anylit(0, n, var_, init)
+ 		n = var_
+@@ -2125,9 +2103,7 @@ func isstack(n *Node) bool {
+ 
+ 	case ONAME:
+ 		switch n.Class {
+-		case PAUTO,
+-			PPARAM,
+-			PPARAMOUT:
++		case PAUTO, PPARAM, PPARAMOUT:
+ 			return true
+ 		}
+ 	}
+@@ -2207,10 +2183,7 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 	// small compared to the cost of the allocation.)
+ 	if r.Reslice {
+ 		switch r.Op {
+-		case OSLICE,
+-			OSLICE3,
+-			OSLICESTR,
+-			OAPPEND:
++		case OSLICE, OSLICE3, OSLICESTR, OAPPEND:
+ 			break
+ 
+ 		default:
+@@ -2449,16 +2422,14 @@ func reorder3(all *NodeList) *NodeList {
+ 		case ONAME:
+ 			break
+ 
+-		case OINDEX,
+-			OINDEXMAP:
++		case OINDEX, OINDEXMAP:
+ 			reorder3save(&l.Left, all, list, &early)
+ 			reorder3save(&l.Right, all, list, &early)
+ 			if l.Op == OINDEXMAP {
+ 				list.N = convas(list.N, &mapinit)
+ 			}
+ 
+-		case OIND,
+-			ODOTPTR:
++		case OIND, ODOTPTR:
+ 			reorder3save(&l.Left, all, list, &early)
+ 		}
+ 
+@@ -2544,9 +2515,7 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
+ 			varwrite = 1
+ 			continue
+ 
+-		case PAUTO,
+-			PPARAM,
+-			PPARAMOUT:
++		case PAUTO, PPARAM, PPARAMOUT:
+ 			if n.Addrtaken {
+ 				varwrite = 1
+ 				continue
+@@ -2596,9 +2565,7 @@ func varexpr(n *Node) bool {
+ 
+ 	case ONAME:
+ 		switch n.Class {
+-		case PAUTO,
+-			PPARAM,
+-			PPARAMOUT:
++		case PAUTO, PPARAM, PPARAMOUT:
+ 			if !n.Addrtaken {
+ 				return true
+ 			}
+@@ -2679,9 +2646,7 @@ func vmatch1(l *Node, r *Node) bool {
+ 	switch l.Op {
+ 	case ONAME:
+ 		switch l.Class {
+-		case PPARAM,
+-			PPARAMREF,
+-			PAUTO:
++		case PPARAM, PPARAMREF, PAUTO:
+ 			break
+ 
+ 			// assignment to non-stack variable
+@@ -3622,8 +3587,7 @@ func samecheap(a *Node, b *Node) bool {
+ 		case ONAME:
+ 			return a == b
+ 
+-		case ODOT,
+-			ODOTPTR:
++		case ODOT, ODOTPTR:
+ 			ar = a.Right
+ 			br = b.Right
+ 			if ar.Op != ONAME || br.Op != ONAME || ar.Sym != br.Sym {
+@@ -3845,9 +3809,7 @@ func walkdiv(np **Node, init **NodeList) {
+ 			return
+ 
+ 			// n1 = nl * magic >> w (HMUL)
+-		case TUINT8,
+-			TUINT16,
+-			TUINT32:
++		case TUINT8, TUINT16, TUINT32:
+ 			nc := Nod(OXXX, nil, nil)
+ 
+ 			Nodconst(nc, nl.Type, int64(m.Um))
+@@ -3861,15 +3823,13 @@ func walkdiv(np **Node, init **NodeList) {
+ 				default:
+ 					return
+ 
+-				case TUINT8,
+-					TUINT16:
++				case TUINT8, TUINT16:
+ 					twide = Types[TUINT32]
+ 
+ 				case TUINT32:
+ 					twide = Types[TUINT64]
+ 
+-				case TINT8,
+-					TINT16:
++				case TINT8, TINT16:
+ 					twide = Types[TINT32]
+ 
+ 				case TINT32:
+@@ -3894,9 +3854,7 @@ func walkdiv(np **Node, init **NodeList) {
+ 			}
+ 
+ 			// n1 = nl * magic >> w
+-		case TINT8,
+-			TINT16,
+-			TINT32:
++		case TINT8, TINT16, TINT32:
+ 			nc := Nod(OXXX, nil, nil)
+ 
+ 			Nodconst(nc, nl.Type, m.Sm)
+@@ -4111,8 +4069,7 @@ func usefield(n *Node) {
+ 	default:
+ 		Fatal("usefield %v", Oconv(int(n.Op), 0))
+ 
+-	case ODOT,
+-		ODOTPTR:
++	case ODOT, ODOTPTR:
+ 		break
+ 	}
+ 
+@@ -4220,8 +4177,7 @@ func candiscard(n *Node) bool {
+ 		break
+ 
+ 		// Discardable as long as we know it's not division by zero.
+-	case ODIV,
+-		OMOD:
++	case ODIV, OMOD:
+ 		if Isconst(n.Right, CTINT) && mpcmpfixc(n.Right.Val.U.Xval, 0) != 0 {
+ 			break
+ 		}
+@@ -4231,8 +4187,7 @@ func candiscard(n *Node) bool {
+ 		return false
+ 
+ 		// Discardable as long as we know it won't fail because of a bad size.
+-	case OMAKECHAN,
+-		OMAKEMAP:
++	case OMAKECHAN, OMAKEMAP:
+ 		if Isconst(n.Left, CTINT) && mpcmpfixc(n.Left.Val.U.Xval, 0) == 0 {
+ 			break
+ 		}
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index ea44ca95c1..bc2021aaf0 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -465,8 +465,7 @@ func relocsym(s *LSym) {
+ 			}
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+-		case R_CALL,
+-			R_PCREL:
++		case R_CALL, R_PCREL:
+ 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != SCONST && r.Sym.Sect != Ctxt.Cursym.Sect {
+ 				r.Done = 0
+ 
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index c103438892..37625f1912 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -1557,10 +1557,7 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype
+ 	default:
+ 		return
+ 
+-	case 'd',
+-		'b',
+-		'D',
+-		'B':
++	case 'd', 'b', 'D', 'B':
+ 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s)
+ 		newabslocexprattr(dv, v, sym)
+ 		if ver == 0 {
+@@ -1569,8 +1566,7 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype
+ 		fallthrough
+ 
+ 		// fallthrough
+-	case 'a',
+-		'p':
++	case 'a', 'p':
+ 		dt = defgotype(gotype)
+ 	}
+ 
+@@ -2054,8 +2050,7 @@ func writeinfo() {
+  */
+ func ispubname(die *DWDie) bool {
+ 	switch die.abbrev {
+-	case DW_ABRV_FUNCTION,
+-		DW_ABRV_VARIABLE:
++	case DW_ABRV_FUNCTION, DW_ABRV_VARIABLE:
+ 		a := getattr(die, DW_AT_external)
+ 		return a != nil && a.value != 0
+ 	}
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index b90cf126cc..f2d819de8c 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -2044,9 +2044,7 @@ func Asmbelf(symo int64) {
+ 		}
+ 
+ 		switch eh.machine {
+-		case EM_X86_64,
+-			EM_PPC64,
+-			EM_AARCH64:
++		case EM_X86_64, EM_PPC64, EM_AARCH64:
+ 			sh := elfshname(".rela.plt")
+ 			sh.type_ = SHT_RELA
+ 			sh.flags = SHF_ALLOC
+diff --git a/src/cmd/internal/ld/ldelf.go b/src/cmd/internal/ld/ldelf.go
+index 97944d7375..beb62b7c7c 100644
+--- a/src/cmd/internal/ld/ldelf.go
++++ b/src/cmd/internal/ld/ldelf.go
+@@ -885,9 +885,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+ 	case ElfSymTypeSection:
+ 		s = elfobj.sect[sym.shndx].sym
+ 
+-	case ElfSymTypeObject,
+-		ElfSymTypeFunc,
+-		ElfSymTypeNone:
++	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone:
+ 		switch sym.bind {
+ 		case ElfSymBindGlobal:
+ 			if needSym != 0 {
+diff --git a/src/cmd/internal/ld/ldpe.go b/src/cmd/internal/ld/ldpe.go
+index 18d39d4083..e124d8164e 100644
+--- a/src/cmd/internal/ld/ldpe.go
++++ b/src/cmd/internal/ld/ldpe.go
+@@ -312,16 +312,14 @@ func ldpe(f *Biobuf, pkg string, length int64, pn string) {
+ 				Diag("%s: unknown relocation type %d;", pn, type_)
+ 				fallthrough
+ 
+-			case IMAGE_REL_I386_REL32,
+-				IMAGE_REL_AMD64_REL32,
++			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
+ 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
+ 				IMAGE_REL_AMD64_ADDR32NB:
+ 				rp.Type = R_PCREL
+ 
+ 				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
+ 
+-			case IMAGE_REL_I386_DIR32NB,
+-				IMAGE_REL_I386_DIR32:
++			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
+ 				rp.Type = R_ADDR
+ 
+ 				// load addend from image
+@@ -510,15 +508,12 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
+ 		err = fmt.Errorf("%s: invalid symbol type %d", sym.name, sym.type_)
+ 		return err
+ 
+-	case IMAGE_SYM_DTYPE_FUNCTION,
+-		IMAGE_SYM_DTYPE_NULL:
++	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
+ 		switch sym.sclass {
+ 		case IMAGE_SYM_CLASS_EXTERNAL: //global
+ 			s = Linklookup(Ctxt, name, 0)
+ 
+-		case IMAGE_SYM_CLASS_NULL,
+-			IMAGE_SYM_CLASS_STATIC,
+-			IMAGE_SYM_CLASS_LABEL:
++		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
+ 			s = Linklookup(Ctxt, name, Ctxt.Version)
+ 			s.Dupok = 1
+ 
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index b3317d67e1..e4b1820ea9 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -706,8 +706,7 @@ func hostlink() {
+ 	case '8':
+ 		argv = append(argv, "-m32")
+ 
+-	case '6',
+-		'9':
++	case '6', '9':
+ 		argv = append(argv, "-m64")
+ 
+ 	case '5':
+@@ -1173,10 +1172,7 @@ func stkcheck(up *Chain, depth int) int {
+ 			r = &s.R[ri]
+ 			switch r.Type {
+ 			// Direct call.
+-			case R_CALL,
+-				R_CALLARM,
+-				R_CALLARM64,
+-				R_CALLPOWER:
++			case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER:
+ 				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
+ 
+ 				ch.sym = r.Sym
+@@ -1357,8 +1353,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			}
+ 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+ 
+-		case SBSS,
+-			SNOPTRBSS:
++		case SBSS, SNOPTRBSS:
+ 			if !s.Reachable {
+ 				continue
+ 			}
+diff --git a/src/cmd/internal/ld/macho.go b/src/cmd/internal/ld/macho.go
+index 66b5aeb338..bff7333910 100644
+--- a/src/cmd/internal/ld/macho.go
++++ b/src/cmd/internal/ld/macho.go
+@@ -125,8 +125,7 @@ var load_budget int = INITIAL_MACHO_HEADR - 2*1024
+ func Machoinit() {
+ 	switch Thearch.Thechar {
+ 	// 64-bit architectures
+-	case '6',
+-		'9':
++	case '6', '9':
+ 		macho64 = true
+ 
+ 		// 32-bit architectures
+@@ -565,9 +564,7 @@ func addsym(s *LSym, name string, type_ int, addr int64, size int64, ver int, go
+ 	default:
+ 		return
+ 
+-	case 'D',
+-		'B',
+-		'T':
++	case 'D', 'B', 'T':
+ 		break
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/internal/ld/pe.go
+index 8df5ca44cd..53bf0af387 100644
+--- a/src/cmd/internal/ld/pe.go
++++ b/src/cmd/internal/ld/pe.go
+@@ -948,10 +948,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int,
+ 	default:
+ 		return
+ 
+-	case 'D',
+-		'B',
+-		'T',
+-		'U':
++	case 'D', 'B', 'T', 'U':
+ 		break
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/sym.go b/src/cmd/internal/ld/sym.go
+index 054716f668..d0a80e6677 100644
+--- a/src/cmd/internal/ld/sym.go
++++ b/src/cmd/internal/ld/sym.go
+@@ -92,8 +92,7 @@ func linknew(arch *LinkArch) *Link {
+ 	default:
+ 		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
+ 
+-	case Hplan9,
+-		Hwindows:
++	case Hplan9, Hwindows:
+ 		break
+ 
+ 		/*
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 6001ace016..d667d1ccc4 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -57,9 +57,7 @@ func putelfstr(s string) int {
+ 
+ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
+ 	switch Thearch.Thechar {
+-	case '6',
+-		'7',
+-		'9':
++	case '6', '7', '9':
+ 		Thearch.Lput(uint32(off))
+ 		Cput(uint8(info))
+ 		Cput(uint8(other))
+@@ -197,10 +195,7 @@ func Asmelfsym() {
+ 
+ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
+ 	switch t {
+-	case 'T',
+-		'L',
+-		'D',
+-		'B':
++	case 'T', 'L', 'D', 'B':
+ 		if ver != 0 {
+ 			t += 'a' - 'A'
+ 		}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 942fc70ff7..527474f1f9 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -334,8 +334,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 			}
+ 		}
+ 
+-	case AB,
+-		ABL:
++	case AB, ABL:
+ 		if p.To.Type != obj.TYPE_MEM {
+ 			if out != nil {
+ 				asmout(ctxt, p, o, out)
+@@ -1265,8 +1264,7 @@ func cmp(a int, b int) bool {
+ 	case C_HFAUTO:
+ 		return b == C_HAUTO || b == C_FAUTO
+ 
+-	case C_FAUTO,
+-		C_HAUTO:
++	case C_FAUTO, C_HAUTO:
+ 		return b == C_HFAUTO
+ 
+ 	case C_SAUTO:
+@@ -1278,15 +1276,13 @@ func cmp(a int, b int) bool {
+ 	case C_HFOREG:
+ 		return b == C_HOREG || b == C_FOREG
+ 
+-	case C_FOREG,
+-		C_HOREG:
++	case C_FOREG, C_HOREG:
+ 		return b == C_HFOREG
+ 
+ 	case C_SROREG:
+ 		return cmp(C_SOREG, b) || cmp(C_ROREG, b)
+ 
+-	case C_SOREG,
+-		C_ROREG:
++	case C_SOREG, C_ROREG:
+ 		return b == C_SROREG || cmp(C_HFOREG, b)
+ 
+ 	case C_LOREG:
+@@ -1868,8 +1864,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(p.To.Reg) & 1) << 22
+ 		o1 |= (uint32(p.From.Reg) & 15) << 0
+ 
+-	case 38,
+-		39:
++	case 38, 39:
+ 		switch o.type_ {
+ 		case 38: /* movm $con,oreg -> stm */
+ 			o1 = 0x4 << 25
+@@ -2462,8 +2457,7 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
+ 		ctxt.Diag(".nil/.W on dp instruction")
+ 	}
+ 	switch a {
+-	case AMULU,
+-		AMUL:
++	case AMULU, AMUL:
+ 		return o | 0x0<<21 | 0x9<<4
+ 	case AMULA:
+ 		return o | 0x1<<21 | 0x9<<4
+@@ -2502,9 +2496,7 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
+ 	case AORR:
+ 		return o | 0xc<<21
+ 
+-	case AMOVB,
+-		AMOVH,
+-		AMOVW:
++	case AMOVB, AMOVH, AMOVW:
+ 		return o | 0xd<<21
+ 	case ABIC:
+ 		return o | 0xe<<21
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 6b6e46b6a6..793a2b65db 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -283,10 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		case obj.ARET:
+ 			break
+ 
+-		case ADIV,
+-			ADIVU,
+-			AMOD,
+-			AMODU:
++		case ADIV, ADIVU, AMOD, AMODU:
+ 			q = p
+ 			if ctxt.Sym_div == nil {
+ 				initdiv(ctxt)
+@@ -524,10 +521,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				p.Spadj = int32(p.From.Offset)
+ 			}
+ 
+-		case ADIV,
+-			ADIVU,
+-			AMOD,
+-			AMODU:
++		case ADIV, ADIVU, AMOD, AMODU:
+ 			if ctxt.Debugdivmod != 0 {
+ 				break
+ 			}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 05bf679778..e35a99efae 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1595,8 +1595,7 @@ func buildop(ctxt *obj.Link) {
+ 		case ATBZ:
+ 			oprange[ATBNZ] = t
+ 
+-		case AADR,
+-			AADRP:
++		case AADR, AADRP:
+ 			break
+ 
+ 		case ACLREX:
+@@ -1670,8 +1669,7 @@ func buildop(ctxt *obj.Link) {
+ 		case AFCSELD:
+ 			oprange[AFCSELS] = t
+ 
+-		case AFMOVS,
+-			AFMOVD:
++		case AFMOVS, AFMOVD:
+ 			break
+ 
+ 		case AFCVTZSD:
+@@ -1698,16 +1696,14 @@ func buildop(ctxt *obj.Link) {
+ 			oprange[AIC] = t
+ 			oprange[ATLBI] = t
+ 
+-		case ASYSL,
+-			AHINT:
++		case ASYSL, AHINT:
+ 			break
+ 
+ 		case ADMB:
+ 			oprange[ADSB] = t
+ 			oprange[AISB] = t
+ 
+-		case AMRS,
+-			AMSR:
++		case AMRS, AMSR:
+ 			break
+ 
+ 		case ALDAR:
+@@ -2518,24 +2514,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			as = AMOVWU /* clearer in disassembly */
+ 		}
+ 		switch as {
+-		case AMOVB,
+-			ASXTB:
++		case AMOVB, ASXTB:
+ 			o1 = opbfm(ctxt, ASBFM, 0, 7, rf, rt)
+ 
+-		case AMOVH,
+-			ASXTH:
++		case AMOVH, ASXTH:
+ 			o1 = opbfm(ctxt, ASBFM, 0, 15, rf, rt)
+ 
+-		case AMOVW,
+-			ASXTW:
++		case AMOVW, ASXTW:
+ 			o1 = opbfm(ctxt, ASBFM, 0, 31, rf, rt)
+ 
+-		case AMOVBU,
+-			AUXTB:
++		case AMOVBU, AUXTB:
+ 			o1 = opbfm(ctxt, AUBFM, 0, 7, rf, rt)
+ 
+-		case AMOVHU,
+-			AUXTH:
++		case AMOVHU, AUXTH:
+ 			o1 = opbfm(ctxt, AUBFM, 0, 15, rf, rt)
+ 
+ 		case AMOVWU:
+@@ -2814,20 +2805,16 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case AADCSW:
+ 		return S32 | 0<<30 | 1<<29 | 0xd0<<21 | 0<<10
+ 
+-	case ANGC,
+-		ASBC:
++	case ANGC, ASBC:
+ 		return S64 | 1<<30 | 0<<29 | 0xd0<<21 | 0<<10
+ 
+-	case ANGCS,
+-		ASBCS:
++	case ANGCS, ASBCS:
+ 		return S64 | 1<<30 | 1<<29 | 0xd0<<21 | 0<<10
+ 
+-	case ANGCW,
+-		ASBCW:
++	case ANGCW, ASBCW:
+ 		return S32 | 1<<30 | 0<<29 | 0xd0<<21 | 0<<10
+ 
+-	case ANGCSW,
+-		ASBCSW:
++	case ANGCSW, ASBCSW:
+ 		return S32 | 1<<30 | 1<<29 | 0xd0<<21 | 0<<10
+ 
+ 	case AADD:
+@@ -2836,12 +2823,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case AADDW:
+ 		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+-	case ACMN,
+-		AADDS:
++	case ACMN, AADDS:
+ 		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+-	case ACMNW,
+-		AADDSW:
++	case ACMNW, AADDSW:
+ 		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+ 	case ASUB:
+@@ -2850,12 +2835,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case ASUBW:
+ 		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+-	case ACMP,
+-		ASUBS:
++	case ACMP, ASUBS:
+ 		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+-	case ACMPW,
+-		ASUBSW:
++	case ACMPW, ASUBSW:
+ 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 0<<21 | 0<<10
+ 
+ 	case AAND:
+@@ -2864,13 +2847,11 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case AANDW:
+ 		return S32 | 0<<29 | 0xA<<24
+ 
+-	case AMOVD,
+-		AORR:
++	case AMOVD, AORR:
+ 		return S64 | 1<<29 | 0xA<<24
+ 
+ 		//	case AMOVW:
+-	case AMOVWU,
+-		AORRW:
++	case AMOVWU, AORRW:
+ 		return S32 | 1<<29 | 0xA<<24
+ 
+ 	case AEOR:
+@@ -2903,12 +2884,10 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case AEONW:
+ 		return S32 | 2<<29 | 0xA<<24 | 1<<21
+ 
+-	case AMVN,
+-		AORN:
++	case AMVN, AORN:
+ 		return S64 | 1<<29 | 0xA<<24 | 1<<21
+ 
+-	case AMVNW,
+-		AORNW:
++	case AMVNW, AORNW:
+ 		return S32 | 1<<29 | 0xA<<24 | 1<<21
+ 
+ 	case AASR:
+@@ -2989,44 +2968,34 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case ACSETMW:
+ 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
+ 
+-	case ACINC,
+-		ACSINC:
++	case ACINC, ACSINC:
+ 		return S64 | 0<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
+ 
+-	case ACINCW,
+-		ACSINCW:
++	case ACINCW, ACSINCW:
+ 		return S32 | 0<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
+ 
+-	case ACINV,
+-		ACSINV:
++	case ACINV, ACSINV:
+ 		return S64 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
+ 
+-	case ACINVW,
+-		ACSINVW:
++	case ACINVW, ACSINVW:
+ 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 0<<10
+ 
+-	case ACNEG,
+-		ACSNEG:
++	case ACNEG, ACSNEG:
+ 		return S64 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
+ 
+-	case ACNEGW,
+-		ACSNEGW:
++	case ACNEGW, ACSNEGW:
+ 		return S32 | 1<<30 | 0<<29 | 0xD4<<21 | 0<<11 | 1<<10
+ 
+-	case AMUL,
+-		AMADD:
++	case AMUL, AMADD:
+ 		return S64 | 0<<29 | 0x1B<<24 | 0<<21 | 0<<15
+ 
+-	case AMULW,
+-		AMADDW:
++	case AMULW, AMADDW:
+ 		return S32 | 0<<29 | 0x1B<<24 | 0<<21 | 0<<15
+ 
+-	case AMNEG,
+-		AMSUB:
++	case AMNEG, AMSUB:
+ 		return S64 | 0<<29 | 0x1B<<24 | 0<<21 | 1<<15
+ 
+-	case AMNEGW,
+-		AMSUBW:
++	case AMNEGW, AMSUBW:
+ 		return S32 | 0<<29 | 0x1B<<24 | 0<<21 | 1<<15
+ 
+ 	case AMRS:
+@@ -3047,42 +3016,34 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ 	case ANEGSW:
+ 		return S32 | 1<<30 | 1<<29 | 0xB<<24 | 0<<21
+ 
+-	case AREM,
+-		ASDIV:
++	case AREM, ASDIV:
+ 		return S64 | OPDP2(3)
+ 
+-	case AREMW,
+-		ASDIVW:
++	case AREMW, ASDIVW:
+ 		return S32 | OPDP2(3)
+ 
+-	case ASMULL,
+-		ASMADDL:
++	case ASMULL, ASMADDL:
+ 		return OPDP3(1, 0, 1, 0)
+ 
+-	case ASMNEGL,
+-		ASMSUBL:
++	case ASMNEGL, ASMSUBL:
+ 		return OPDP3(1, 0, 1, 1)
+ 
+ 	case ASMULH:
+ 		return OPDP3(1, 0, 2, 0)
+ 
+-	case AUMULL,
+-		AUMADDL:
++	case AUMULL, AUMADDL:
+ 		return OPDP3(1, 0, 5, 0)
+ 
+-	case AUMNEGL,
+-		AUMSUBL:
++	case AUMNEGL, AUMSUBL:
+ 		return OPDP3(1, 0, 5, 1)
+ 
+ 	case AUMULH:
+ 		return OPDP3(1, 0, 6, 0)
+ 
+-	case AUREM,
+-		AUDIV:
++	case AUREM, AUDIV:
+ 		return S64 | OPDP2(2)
+ 
+-	case AUREMW,
+-		AUDIVW:
++	case AUREMW, AUDIVW:
+ 		return S32 | OPDP2(2)
+ 
+ 	case AAESE:
+@@ -3356,34 +3317,28 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
+ func opirr(ctxt *obj.Link, a int) uint32 {
+ 	switch a {
+ 	/* op $addcon, Rn, Rd */
+-	case AMOVD,
+-		AADD:
++	case AMOVD, AADD:
+ 		return S64 | 0<<30 | 0<<29 | 0x11<<24
+ 
+-	case ACMN,
+-		AADDS:
++	case ACMN, AADDS:
+ 		return S64 | 0<<30 | 1<<29 | 0x11<<24
+ 
+-	case AMOVW,
+-		AADDW:
++	case AMOVW, AADDW:
+ 		return S32 | 0<<30 | 0<<29 | 0x11<<24
+ 
+-	case ACMNW,
+-		AADDSW:
++	case ACMNW, AADDSW:
+ 		return S32 | 0<<30 | 1<<29 | 0x11<<24
+ 
+ 	case ASUB:
+ 		return S64 | 1<<30 | 0<<29 | 0x11<<24
+ 
+-	case ACMP,
+-		ASUBS:
++	case ACMP, ASUBS:
+ 		return S64 | 1<<30 | 1<<29 | 0x11<<24
+ 
+ 	case ASUBW:
+ 		return S32 | 1<<30 | 0<<29 | 0x11<<24
+ 
+-	case ACMPW,
+-		ASUBSW:
++	case ACMPW, ASUBSW:
+ 		return S32 | 1<<30 | 1<<29 | 0x11<<24
+ 
+ 		/* op $imm(SB), Rd; op label, Rd */
+@@ -3594,12 +3549,10 @@ func opxrrr(ctxt *obj.Link, a int) uint32 {
+ 	case AADDW:
+ 		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+ 
+-	case ACMN,
+-		AADDS:
++	case ACMN, AADDS:
+ 		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+ 
+-	case ACMNW,
+-		AADDSW:
++	case ACMNW, AADDSW:
+ 		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+ 
+ 	case ASUB:
+@@ -3608,12 +3561,10 @@ func opxrrr(ctxt *obj.Link, a int) uint32 {
+ 	case ASUBW:
+ 		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+ 
+-	case ACMP,
+-		ASUBS:
++	case ACMP, ASUBS:
+ 		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
+ 
+-	case ACMPW,
+-		ASUBSW:
++	case ACMPW, ASUBSW:
+ 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+ 	}
+ 
+@@ -4109,9 +4060,7 @@ func omovlit(ctxt *obj.Link, as int, p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 				w = 2 /* sign extend */
+ 			}
+ 
+-		case AMOVB,
+-			AMOVH,
+-			AMOVW:
++		case AMOVB, AMOVH, AMOVW:
+ 			w = 2 /* 32 bit, sign-extended to 64 */
+ 			break
+ 		}
+@@ -4171,16 +4120,13 @@ func movesize(a int) int {
+ 	case AMOVD:
+ 		return 3
+ 
+-	case AMOVW,
+-		AMOVWU:
++	case AMOVW, AMOVWU:
+ 		return 2
+ 
+-	case AMOVH,
+-		AMOVHU:
++	case AMOVH, AMOVHU:
+ 		return 1
+ 
+-	case AMOVB,
+-		AMOVBU:
++	case AMOVB, AMOVBU:
+ 		return 0
+ 
+ 	case AFMOVS:
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index a9f8d47339..52eef3f545 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -787,8 +787,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.To.Reg = REGLINK
+ 			p.Spadj = +ctxt.Autosize
+ 
+-		case AADD,
+-			ASUB:
++		case AADD, ASUB:
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+ 				if p.As == AADD {
+ 					p.Spadj = int32(-p.From.Offset)
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 50dda94c8c..a74b35fb48 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -95,8 +95,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 		}
+ 		return
+ 
+-	case TYPE_FCONST,
+-		TYPE_SCONST:
++	case TYPE_FCONST, TYPE_SCONST:
+ 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Offset != 0 || a.Sym != nil {
+ 			break
+ 		}
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 470f6f9ff2..0a92a2958b 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1708,15 +1708,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		maskgen64(ctxt, p, mask[:], uint64(d))
+ 		var a int
+ 		switch p.As {
+-		case ARLDCL,
+-			ARLDCLCC:
++		case ARLDCL, ARLDCLCC:
+ 			a = int(mask[0]) /* MB */
+ 			if mask[1] != 63 {
+ 				ctxt.Diag("invalid mask for rotate: %x (end != bit 63)\n%v", uint64(d), p)
+ 			}
+ 
+-		case ARLDCR,
+-			ARLDCRCC:
++		case ARLDCR, ARLDCRCC:
+ 			a = int(mask[1]) /* ME */
+ 			if mask[0] != 0 {
+ 				ctxt.Diag("invalid mask for rotate: %x (start != 0)\n%v", uint64(d), p)
+@@ -1878,13 +1876,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		var a int
+ 		switch p.As {
+-		case ASLD,
+-			ASLDCC:
++		case ASLD, ASLDCC:
+ 			a = int(63 - v)
+ 			o1 = OP_RLDICR
+ 
+-		case ASRD,
+-			ASRDCC:
++		case ASRD, ASRDCC:
+ 			a = int(v)
+ 			v = 64 - v
+ 			o1 = OP_RLDICL
+@@ -1947,22 +1943,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		maskgen64(ctxt, p, mask[:], uint64(d))
+ 		var a int
+ 		switch p.As {
+-		case ARLDC,
+-			ARLDCCC:
++		case ARLDC, ARLDCCC:
+ 			a = int(mask[0]) /* MB */
+ 			if int32(mask[1]) != (63 - v) {
+ 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
+ 			}
+ 
+-		case ARLDCL,
+-			ARLDCLCC:
++		case ARLDCL, ARLDCLCC:
+ 			a = int(mask[0]) /* MB */
+ 			if mask[1] != 63 {
+ 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
+ 			}
+ 
+-		case ARLDCR,
+-			ARLDCRCC:
++		case ARLDCR, ARLDCRCC:
+ 			a = int(mask[1]) /* ME */
+ 			if mask[0] != 0 {
+ 				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
+@@ -2523,68 +2516,52 @@ func oprrr(ctxt *obj.Link, a int) int32 {
+ 	case ADCBZ:
+ 		return int32(OPVCC(31, 1014, 0, 0))
+ 
+-	case AREM,
+-		ADIVW:
++	case AREM, ADIVW:
+ 		return int32(OPVCC(31, 491, 0, 0))
+ 
+-	case AREMCC,
+-		ADIVWCC:
++	case AREMCC, ADIVWCC:
+ 		return int32(OPVCC(31, 491, 0, 1))
+ 
+-	case AREMV,
+-		ADIVWV:
++	case AREMV, ADIVWV:
+ 		return int32(OPVCC(31, 491, 1, 0))
+ 
+-	case AREMVCC,
+-		ADIVWVCC:
++	case AREMVCC, ADIVWVCC:
+ 		return int32(OPVCC(31, 491, 1, 1))
+ 
+-	case AREMU,
+-		ADIVWU:
++	case AREMU, ADIVWU:
+ 		return int32(OPVCC(31, 459, 0, 0))
+ 
+-	case AREMUCC,
+-		ADIVWUCC:
++	case AREMUCC, ADIVWUCC:
+ 		return int32(OPVCC(31, 459, 0, 1))
+ 
+-	case AREMUV,
+-		ADIVWUV:
++	case AREMUV, ADIVWUV:
+ 		return int32(OPVCC(31, 459, 1, 0))
+ 
+-	case AREMUVCC,
+-		ADIVWUVCC:
++	case AREMUVCC, ADIVWUVCC:
+ 		return int32(OPVCC(31, 459, 1, 1))
+ 
+-	case AREMD,
+-		ADIVD:
++	case AREMD, ADIVD:
+ 		return int32(OPVCC(31, 489, 0, 0))
+ 
+-	case AREMDCC,
+-		ADIVDCC:
++	case AREMDCC, ADIVDCC:
+ 		return int32(OPVCC(31, 489, 0, 1))
+ 
+-	case AREMDV,
+-		ADIVDV:
++	case AREMDV, ADIVDV:
+ 		return int32(OPVCC(31, 489, 1, 0))
+ 
+-	case AREMDVCC,
+-		ADIVDVCC:
++	case AREMDVCC, ADIVDVCC:
+ 		return int32(OPVCC(31, 489, 1, 1))
+ 
+-	case AREMDU,
+-		ADIVDU:
++	case AREMDU, ADIVDU:
+ 		return int32(OPVCC(31, 457, 0, 0))
+ 
+-	case AREMDUCC,
+-		ADIVDUCC:
++	case AREMDUCC, ADIVDUCC:
+ 		return int32(OPVCC(31, 457, 0, 1))
+ 
+-	case AREMDUV,
+-		ADIVDUV:
++	case AREMDUV, ADIVDUV:
+ 		return int32(OPVCC(31, 457, 1, 0))
+ 
+-	case AREMDUVCC,
+-		ADIVDUVCC:
++	case AREMDUVCC, ADIVDUVCC:
+ 		return int32(OPVCC(31, 457, 1, 1))
+ 
+ 	case AEIEIO:
+@@ -2661,8 +2638,7 @@ func oprrr(ctxt *obj.Link, a int) int32 {
+ 	case AFMADDSCC:
+ 		return int32(OPVCC(59, 29, 0, 1))
+ 
+-	case AFMOVS,
+-		AFMOVD:
++	case AFMOVS, AFMOVD:
+ 		return int32(OPVCC(63, 72, 0, 0)) /* load */
+ 	case AFMOVDCC:
+ 		return int32(OPVCC(63, 72, 0, 1))
+@@ -3082,13 +3058,11 @@ func opload(ctxt *obj.Link, a int) int32 {
+ 		return int32(OPVCC(58, 0, 0, 0) | 1<<1) /* lwa */
+ 
+ 		/* no AMOVWU */
+-	case AMOVB,
+-		AMOVBZ:
++	case AMOVB, AMOVBZ:
+ 		return int32(OPVCC(34, 0, 0, 0))
+ 		/* load */
+ 
+-	case AMOVBU,
+-		AMOVBZU:
++	case AMOVBU, AMOVBZU:
+ 		return int32(OPVCC(35, 0, 0, 0))
+ 	case AFMOVD:
+ 		return int32(OPVCC(50, 0, 0, 0))
+@@ -3128,12 +3102,10 @@ func oploadx(ctxt *obj.Link, a int) int32 {
+ 	case AMOVWU:
+ 		return int32(OPVCC(31, 373, 0, 0)) /* lwaux */
+ 
+-	case AMOVB,
+-		AMOVBZ:
++	case AMOVB, AMOVBZ:
+ 		return int32(OPVCC(31, 87, 0, 0)) /* lbzx */
+ 
+-	case AMOVBU,
+-		AMOVBZU:
++	case AMOVBU, AMOVBZU:
+ 		return int32(OPVCC(31, 119, 0, 0)) /* lbzux */
+ 	case AFMOVD:
+ 		return int32(OPVCC(31, 599, 0, 0)) /* lfdx */
+@@ -3178,12 +3150,10 @@ func oploadx(ctxt *obj.Link, a int) int32 {
+  */
+ func opstore(ctxt *obj.Link, a int) int32 {
+ 	switch a {
+-	case AMOVB,
+-		AMOVBZ:
++	case AMOVB, AMOVBZ:
+ 		return int32(OPVCC(38, 0, 0, 0)) /* stb */
+ 
+-	case AMOVBU,
+-		AMOVBZU:
++	case AMOVBU, AMOVBZU:
+ 		return int32(OPVCC(39, 0, 0, 0)) /* stbu */
+ 	case AFMOVD:
+ 		return int32(OPVCC(54, 0, 0, 0)) /* stfd */
+@@ -3194,24 +3164,20 @@ func opstore(ctxt *obj.Link, a int) int32 {
+ 	case AFMOVSU:
+ 		return int32(OPVCC(53, 0, 0, 0)) /* stfsu */
+ 
+-	case AMOVHZ,
+-		AMOVH:
++	case AMOVHZ, AMOVH:
+ 		return int32(OPVCC(44, 0, 0, 0)) /* sth */
+ 
+-	case AMOVHZU,
+-		AMOVHU:
++	case AMOVHZU, AMOVHU:
+ 		return int32(OPVCC(45, 0, 0, 0)) /* sthu */
+ 	case AMOVMW:
+ 		return int32(OPVCC(47, 0, 0, 0)) /* stmw */
+ 	case ASTSW:
+ 		return int32(OPVCC(31, 725, 0, 0)) /* stswi */
+ 
+-	case AMOVWZ,
+-		AMOVW:
++	case AMOVWZ, AMOVW:
+ 		return int32(OPVCC(36, 0, 0, 0)) /* stw */
+ 
+-	case AMOVWZU,
+-		AMOVWU:
++	case AMOVWZU, AMOVWU:
+ 		return int32(OPVCC(37, 0, 0, 0)) /* stwu */
+ 	case AMOVD:
+ 		return int32(OPVCC(62, 0, 0, 0)) /* std */
+@@ -3228,12 +3194,10 @@ func opstore(ctxt *obj.Link, a int) int32 {
+  */
+ func opstorex(ctxt *obj.Link, a int) int32 {
+ 	switch a {
+-	case AMOVB,
+-		AMOVBZ:
++	case AMOVB, AMOVBZ:
+ 		return int32(OPVCC(31, 215, 0, 0)) /* stbx */
+ 
+-	case AMOVBU,
+-		AMOVBZU:
++	case AMOVBU, AMOVBZU:
+ 		return int32(OPVCC(31, 247, 0, 0)) /* stbux */
+ 	case AFMOVD:
+ 		return int32(OPVCC(31, 727, 0, 0)) /* stfdx */
+@@ -3244,22 +3208,18 @@ func opstorex(ctxt *obj.Link, a int) int32 {
+ 	case AFMOVSU:
+ 		return int32(OPVCC(31, 695, 0, 0)) /* stfsux */
+ 
+-	case AMOVHZ,
+-		AMOVH:
++	case AMOVHZ, AMOVH:
+ 		return int32(OPVCC(31, 407, 0, 0)) /* sthx */
+ 	case AMOVHBR:
+ 		return int32(OPVCC(31, 918, 0, 0)) /* sthbrx */
+ 
+-	case AMOVHZU,
+-		AMOVHU:
++	case AMOVHZU, AMOVHU:
+ 		return int32(OPVCC(31, 439, 0, 0)) /* sthux */
+ 
+-	case AMOVWZ,
+-		AMOVW:
++	case AMOVWZ, AMOVW:
+ 		return int32(OPVCC(31, 151, 0, 0)) /* stwx */
+ 
+-	case AMOVWZU,
+-		AMOVWU:
++	case AMOVWZU, AMOVWU:
+ 		return int32(OPVCC(31, 183, 0, 0)) /* stwux */
+ 	case ASTSW:
+ 		return int32(OPVCC(31, 661, 0, 0)) /* stswx */
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 90fa725239..e05061fa83 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -198,9 +198,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.Mark |= LABEL | SYNC
+ 			continue
+ 
+-		case AMOVW,
+-			AMOVWZ,
+-			AMOVD:
++		case AMOVW, AMOVWZ, AMOVD:
+ 			q = p
+ 			if p.From.Reg >= REG_SPECIAL || p.To.Reg >= REG_SPECIAL {
+ 				p.Mark |= LABEL | SYNC
+@@ -285,8 +283,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 			continue
+ 
+-		case AFCMPO,
+-			AFCMPU:
++		case AFCMPO, AFCMPU:
+ 			q = p
+ 			p.Mark |= FCMP | FLOAT
+ 			continue
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index ca3ffc1300..3568a5c859 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -157,8 +157,7 @@ func Linknew(arch *LinkArch) *Link {
+ 	default:
+ 		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
+ 
+-	case Hplan9,
+-		Hwindows:
++	case Hplan9, Hwindows:
+ 		break
+ 
+ 		/*
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index feca2954e0..997e920b45 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2138,8 +2138,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	case REG_CX:
+ 		return Ycx
+ 
+-	case REG_DX,
+-		REG_BX:
++	case REG_DX, REG_BX:
+ 		return Yrx
+ 
+ 	case REG_R8, /* not really Yrl */
+@@ -2155,10 +2154,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		}
+ 		fallthrough
+ 
+-	case REG_SP,
+-		REG_BP,
+-		REG_SI,
+-		REG_DI:
++	case REG_SP, REG_BP, REG_SI, REG_DI:
+ 		if p.Mode == 32 {
+ 			return Yrl32
+ 		}
+@@ -2841,9 +2837,7 @@ var ymovtab = []Movtab{
+ 
+ func isax(a *obj.Addr) bool {
+ 	switch a.Reg {
+-	case REG_AX,
+-		REG_AL,
+-		REG_AH:
++	case REG_AX, REG_AL, REG_AH:
+ 		return true
+ 	}
+ 
+@@ -2885,10 +2879,7 @@ func subreg(p *obj.Prog, from int, to int) {
+ 
+ func mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) int {
+ 	switch op {
+-	case Pm,
+-		Pe,
+-		Pf2,
+-		Pf3:
++	case Pm, Pe, Pf2, Pf3:
+ 		if osize != 1 {
+ 			if op != Pm {
+ 				ctxt.Andptr[0] = byte(op)
+@@ -3255,8 +3246,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-			case Z_ib,
+-				Zib_:
++			case Z_ib, Zib_:
+ 				if yt.zcase == Zib_ {
+ 					a = &p.From
+ 				} else {
+@@ -3348,8 +3338,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-			case Z_il,
+-				Zil_:
++			case Z_il, Zil_:
+ 				if yt.zcase == Zil_ {
+ 					a = &p.From
+ 				} else {
+@@ -3367,8 +3356,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 					relput4(ctxt, p, a)
+ 				}
+ 
+-			case Zm_ilo,
+-				Zilo_m:
++			case Zm_ilo, Zilo_m:
+ 				ctxt.Andptr[0] = byte(op)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 				if yt.zcase == Zilo_m {
+@@ -3482,9 +3470,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				}
+ 
+ 			// TODO: jump across functions needs reloc
+-			case Zbr,
+-				Zjmp,
+-				Zloop:
++			case Zbr, Zjmp, Zloop:
+ 				if p.To.Sym != nil {
+ 					if yt.zcase != Zjmp {
+ 						ctxt.Diag("branch to ATEXT")
+@@ -4049,24 +4035,16 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
+ 			cand = 0
+ 			cana = cand
+ 
+-		case REG_AX,
+-			REG_AL,
+-			REG_AH:
++		case REG_AX, REG_AL, REG_AH:
+ 			cana = 0
+ 
+-		case REG_BX,
+-			REG_BL,
+-			REG_BH:
++		case REG_BX, REG_BL, REG_BH:
+ 			canb = 0
+ 
+-		case REG_CX,
+-			REG_CL,
+-			REG_CH:
++		case REG_CX, REG_CL, REG_CH:
+ 			canc = 0
+ 
+-		case REG_DX,
+-			REG_DL,
+-			REG_DH:
++		case REG_DX, REG_DL, REG_DH:
+ 			cand = 0
+ 		}
+ 	}
+@@ -4301,10 +4279,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 			copy(ctxt.Andptr, naclstos)
+ 			ctxt.Andptr = ctxt.Andptr[len(naclstos):]
+ 
+-		case AMOVSB,
+-			AMOVSW,
+-			AMOVSL,
+-			AMOVSQ:
++		case AMOVSB, AMOVSW, AMOVSL, AMOVSQ:
+ 			copy(ctxt.Andptr, naclmovs)
+ 			ctxt.Andptr = ctxt.Andptr[len(naclmovs):]
+ 		}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 58b1c30691..3d9a4beacd 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -317,9 +317,7 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
+ 		switch a.Reg {
+ 		// all ok
+-		case REG_BP,
+-			REG_SP,
+-			REG_R15:
++		case REG_BP, REG_SP, REG_R15:
+ 			break
+ 
+ 		default:
+@@ -641,38 +639,32 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		default:
+ 			continue
+ 
+-		case APUSHL,
+-			APUSHFL:
++		case APUSHL, APUSHFL:
+ 			deltasp += 4
+ 			p.Spadj = 4
+ 			continue
+ 
+-		case APUSHQ,
+-			APUSHFQ:
++		case APUSHQ, APUSHFQ:
+ 			deltasp += 8
+ 			p.Spadj = 8
+ 			continue
+ 
+-		case APUSHW,
+-			APUSHFW:
++		case APUSHW, APUSHFW:
+ 			deltasp += 2
+ 			p.Spadj = 2
+ 			continue
+ 
+-		case APOPL,
+-			APOPFL:
++		case APOPL, APOPFL:
+ 			deltasp -= 4
+ 			p.Spadj = -4
+ 			continue
+ 
+-		case APOPQ,
+-			APOPFQ:
++		case APOPQ, APOPFQ:
+ 			deltasp -= 8
+ 			p.Spadj = -8
+ 			continue
+ 
+-		case APOPW,
+-			APOPFW:
++		case APOPW, APOPFW:
+ 			deltasp -= 2
+ 			p.Spadj = -2
+ 			continue

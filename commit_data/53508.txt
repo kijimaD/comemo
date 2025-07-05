@@ -21,7 +21,7 @@ Date:   Wed Aug 17 18:09:55 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |  2 +-
  .../internal/types2/testdata/examples/functions.go |  2 +-
  .../internal/types2/testdata/examples/inference.go | 20 +++----
@@ -32,3 +32,378 @@ Date:   Wed Aug 17 18:09:55 2022 -0700
  src/go/types/testdata/examples/types.go            | 62 ++++++++++------------
  src/go/types/testdata/examples/typesets.go         | 15 +++---
  9 files changed, 67 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 845dcb6aa9..2b79f39d0a 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -299,7 +299,7 @@ func TestManual(t *testing.T) {
+ 
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+ func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", 0, false) }
+-func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
++func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 45, false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/functions.go b/src/cmd/compile/internal/types2/testdata/examples/functions.go
+index 0a30893628..244c9dd228 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/functions.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/functions.go
+@@ -211,7 +211,7 @@ func _() {
+ func h[] /* ERROR empty type parameter list */ () {}
+ 
+ func _() {
+-	h[ /* ERROR cannot index */ ] /* ERROR operand */ ()
++	h /* ERROR cannot index */ [] /* ERROR operand */ ()
+ }
+ 
+ // Parameterized functions must have a function body.
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/inference.go b/src/cmd/compile/internal/types2/testdata/examples/inference.go
+index e3d6bfb212..23a3d81f3d 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/inference.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/inference.go
+@@ -7,7 +7,7 @@
+ package p
+ 
+ type Ordered interface {
+-	~int|~float64|~string
++	~int | ~float64 | ~string
+ }
+ 
+ func min[T Ordered](x, y T) T { panic(0) }
+@@ -24,13 +24,13 @@ func _() {
+ 	_ = min(x, 1)
+ 	_ = min(x, 1.0)
+ 	_ = min(1, 2)
+-	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */ )
++	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */)
+ 
+ 	var y float64
+ 	_ = min(1, y)
+ 	_ = min(1.2, y)
+ 	_ = min(1.2, 3.4)
+-	_ = min(1.2, 3 /* ERROR default type int .* does not match */ )
++	_ = min(1.2, 3 /* ERROR default type int .* does not match */)
+ 
+ 	var s string
+ 	_ = min(s, "foo")
+@@ -51,10 +51,10 @@ func _() {
+ 
+ 	// Provided type arguments always take precedence over
+ 	// inferred types.
+-	mixed[int, string](1.1 /* ERROR cannot use 1.1 */ , "", false)
++	mixed[int, string](1.1 /* ERROR cannot use 1.1 */, "", false)
+ }
+ 
+-func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem) {}
++func related1[Slice interface{ ~[]Elem }, Elem any](s Slice, e Elem) {}
+ 
+ func _() {
+ 	// related1 can be called with explicit instantiation.
+@@ -69,16 +69,16 @@ func _() {
+ 
+ 	// A type argument inferred from another explicitly provided
+ 	// type argument overrides whatever value argument type is given.
+-	related1[[]string](ss, 0 /* ERROR cannot use 0 */ )
++	related1[[]string](ss, 0 /* ERROR cannot use 0 */)
+ 
+ 	// A type argument may be inferred from a value argument
+ 	// and then help infer another type argument via constraint
+ 	// type inference.
+ 	related1(si, 0)
+-	related1(si, "foo" /* ERROR cannot use "foo" */ )
++	related1(si, "foo" /* ERROR cannot use "foo" */)
+ }
+ 
+-func related2[Elem any, Slice interface{[]Elem}](e Elem, s Slice) {}
++func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}
+ 
+ func _() {
+ 	// related2 can be called with explicit instantiation.
+@@ -97,7 +97,7 @@ func _() {
+ 	// last.
+ 	related2(1.2, []float64{})
+ 	related2(1.0, []int{})
+-	related2( /* ERROR does not implement */ float64(1.0), []int{}) // TODO(gri) fix error position
++	related2 /* ERROR does not implement */ (float64(1.0), []int{}) // TODO(gri) fix error position
+ }
+ 
+ type List[P any] []P
+@@ -112,5 +112,5 @@ func _() {
+ 	// The 2nd type argument cannot be inferred from the first
+ 	// one because there's two possible choices: []Elem and
+ 	// List[Elem].
+-	related3[int]( /* ERROR cannot infer Slice */ )
++	related3 /* ERROR cannot infer Slice */ [int]()
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go b/src/cmd/compile/internal/types2/testdata/examples/types.go
+index ae9c0151d1..052d168fc6 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go
+@@ -106,7 +106,7 @@ var _ = T /* ERROR cannot use generic type T */ (0)
+ 
+ // In type context, generic (parameterized) types cannot be parenthesized before
+ // being instantiated. See also NOTES entry from 12/4/2019.
+-var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[ */ int]
++var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[|expected ';' */ int]
+ 
+ // All types may be parameterized, including interfaces.
+ type I1[T any] interface{
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/typesets.go b/src/cmd/compile/internal/types2/testdata/examples/typesets.go
+index 55ef02284b..a50beb9745 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/typesets.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/typesets.go
+@@ -9,13 +9,13 @@ package p
+ 
+ // Constraint type sets of the form T, ~T, or A|B may omit the interface.
+ type (
+-	_[T int] struct{}
+-	_[T ~int] struct{}
+-	_[T int|string] struct{}
+-	_[T ~int|~string] struct{}
++	_[T int]            struct{}
++	_[T ~int]           struct{}
++	_[T int | string]   struct{}
++	_[T ~int | ~string] struct{}
+ )
+ 
+-func min[T int|string](x, y T) T {
++func min[T int | string](x, y T) T {
+ 	if x < y {
+ 		return x
+ 	}
+@@ -45,9 +45,8 @@ func _() *int {
+ 
+ // A type parameter may not be embedded in an interface;
+ // so it can also not be used as a constraint.
+-func _[A any, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
+-func _[A any, B, C A /* ERROR cannot use a type parameter as constraint */ ]() {}
+-
++func _[A any, B A /* ERROR cannot use a type parameter as constraint */]()    {}
++func _[A any, B, C A /* ERROR cannot use a type parameter as constraint */]() {}
+ 
+ // Error messages refer to the type constraint as it appears in the source.
+ // (No implicit interface should be exposed.)
+@@ -55,6 +54,6 @@ func _[T string](x T) T {
+ 	return x /* ERROR constrained by string */ * x
+ }
+ 
+-func _[T int|string](x T) T {
++func _[T int | string](x T) T {
+ 	return x /* ERROR constrained by int|string */ * x
+ }
+diff --git a/src/go/types/testdata/examples/functions.go b/src/go/types/testdata/examples/functions.go
+index 1d30075c7c..244c9dd228 100644
+--- a/src/go/types/testdata/examples/functions.go
++++ b/src/go/types/testdata/examples/functions.go
+@@ -183,6 +183,7 @@ func _() {
+ 	var s1 string
+ 	g3(nil, "1", myString("2"), "3")
+ 	g3(& /* ERROR does not match */ s1, "1", myString("2"), "3")
++	_ = s1
+ 
+ 	type myStruct struct{x int}
+ 	var s2 myStruct
+diff --git a/src/go/types/testdata/examples/inference.go b/src/go/types/testdata/examples/inference.go
+index e59a544660..23a3d81f3d 100644
+--- a/src/go/types/testdata/examples/inference.go
++++ b/src/go/types/testdata/examples/inference.go
+@@ -7,7 +7,7 @@
+ package p
+ 
+ type Ordered interface {
+-	~int|~float64|~string
++	~int | ~float64 | ~string
+ }
+ 
+ func min[T Ordered](x, y T) T { panic(0) }
+@@ -24,13 +24,13 @@ func _() {
+ 	_ = min(x, 1)
+ 	_ = min(x, 1.0)
+ 	_ = min(1, 2)
+-	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */ )
++	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */)
+ 
+ 	var y float64
+ 	_ = min(1, y)
+ 	_ = min(1.2, y)
+ 	_ = min(1.2, 3.4)
+-	_ = min(1.2, 3 /* ERROR default type int .* does not match */ )
++	_ = min(1.2, 3 /* ERROR default type int .* does not match */)
+ 
+ 	var s string
+ 	_ = min(s, "foo")
+@@ -51,10 +51,10 @@ func _() {
+ 
+ 	// Provided type arguments always take precedence over
+ 	// inferred types.
+-	mixed[int, string](1.1 /* ERROR cannot use 1.1 */ , "", false)
++	mixed[int, string](1.1 /* ERROR cannot use 1.1 */, "", false)
+ }
+ 
+-func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem) {}
++func related1[Slice interface{ ~[]Elem }, Elem any](s Slice, e Elem) {}
+ 
+ func _() {
+ 	// related1 can be called with explicit instantiation.
+@@ -69,16 +69,16 @@ func _() {
+ 
+ 	// A type argument inferred from another explicitly provided
+ 	// type argument overrides whatever value argument type is given.
+-	related1[[]string](ss, 0 /* ERROR cannot use 0 */ )
++	related1[[]string](ss, 0 /* ERROR cannot use 0 */)
+ 
+ 	// A type argument may be inferred from a value argument
+ 	// and then help infer another type argument via constraint
+ 	// type inference.
+ 	related1(si, 0)
+-	related1(si, "foo" /* ERROR cannot use "foo" */ )
++	related1(si, "foo" /* ERROR cannot use "foo" */)
+ }
+ 
+-func related2[Elem any, Slice interface{[]Elem}](e Elem, s Slice) {}
++func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}
+ 
+ func _() {
+ 	// related2 can be called with explicit instantiation.
+diff --git a/src/go/types/testdata/examples/types.go b/src/go/types/testdata/examples/types.go
+index 1e83f89883..97e84993d5 100644
+--- a/src/go/types/testdata/examples/types.go
++++ b/src/go/types/testdata/examples/types.go
+@@ -106,7 +106,7 @@ var _ = T /* ERROR cannot use generic type T */ (0)
+ 
+ // In type context, generic (parameterized) types cannot be parenthesized before
+ // being instantiated. See also NOTES entry from 12/4/2019.
+-var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR expected ';' */ int]
++var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[|expected ';' */ int]
+ 
+ // All types may be parameterized, including interfaces.
+ type I1[T any] interface{
+@@ -145,21 +145,17 @@ func _() {
+ 	x.m("foo")
+ }
+ 
+-// We accept parenthesized embedded struct fields so we can distinguish between
+-// a named field with a parenthesized type foo (T) and an embedded parameterized
+-// type (foo(T)), similarly to interface embedding.
+-// They still need to be valid embedded types after the parentheses are stripped
+-// (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
+-// of the embedded field is derived as before, after stripping parentheses.
+-// (7/14/2020: See comment above. We probably will revert this generalized ability
+-// if we go with [] for type parameters.)
+ type _ struct {
++	// TODO(gri) The next 3 lines need to be adjusted to match
++	//           the corresponding types2 tests. This requires
++	//           a go/parser fix (issue #51655).
+ 	int8
+ 	*int16
+-	*List[int]
++	List[int]
+ 
+ 	int8 /* ERROR int8 redeclared */
+-	* /* ERROR List redeclared */ List[int]
++	* /* ERROR int16 redeclared */ int16
++	List /* ERROR List redeclared */ [int]
+ }
+ 
+ // Issue #45639: We don't allow this anymore. Keep this code
+@@ -169,27 +165,27 @@ type _ struct {
+ // are type parameters. As with ordinary type definitions, the
+ // types underlying properties are "inherited" but the methods
+ // are not.
+-//func _[T interface{ m(); ~int }]() {
+-//	type L T
+-//	var x L
+-//
+-//	// m is not defined on L (it is not "inherited" from
+-//	// its underlying type).
+-//	x.m /* ERROR x.m undefined */ ()
+-//
+-//	// But the properties of T, such that as that it supports
+-//	// the operations of the types given by its type bound,
+-//	// are also the properties of L.
+-//	x++
+-//	_ = x - x
+-//
+-//	// On the other hand, if we define a local alias for T,
+-//	// that alias stands for T as expected.
+-//	type A = T
+-//	var y A
+-//	y.m()
+-//	_ = y < 0
+-//}
++// func _[T interface{ m(); ~int }]() {
++// 	type L T
++// 	var x L
++// 
++// 	// m is not defined on L (it is not "inherited" from
++// 	// its underlying type).
++// 	x.m /* ERROR x.m undefined */ ()
++// 
++// 	// But the properties of T, such that as that it supports
++// 	// the operations of the types given by its type bound,
++// 	// are also the properties of L.
++// 	x++
++// 	_ = x - x
++// 
++// 	// On the other hand, if we define a local alias for T,
++// 	// that alias stands for T as expected.
++// 	type A = T
++// 	var y A
++// 	y.m()
++// 	_ = y < 0
++// }
+ 
+ // For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+ // // It is not permitted to declare a local type whose underlying
+@@ -285,7 +281,7 @@ func _() {
+ // (If a type set contains just a single const type, we could
+ // allow it, but such type sets don't make much sense in the
+ // first place.)
+-func _[T interface {~int|~float64}]() {
++func _[T interface{~int|~float64}]() {
+ 	// not valid
+ 	const _ = T /* ERROR not constant */ (0)
+ 	const _ T /* ERROR invalid constant type T */ = 1
+diff --git a/src/go/types/testdata/examples/typesets.go b/src/go/types/testdata/examples/typesets.go
+index fcddf1f1a5..a50beb9745 100644
+--- a/src/go/types/testdata/examples/typesets.go
++++ b/src/go/types/testdata/examples/typesets.go
+@@ -9,13 +9,13 @@ package p
+ 
+ // Constraint type sets of the form T, ~T, or A|B may omit the interface.
+ type (
+-	_[T int] struct{}
+-	_[T ~int] struct{}
+-	_[T int|string] struct{}
+-	_[T ~int|~string] struct{}
++	_[T int]            struct{}
++	_[T ~int]           struct{}
++	_[T int | string]   struct{}
++	_[T ~int | ~string] struct{}
+ )
+ 
+-func min[T int|string](x, y T) T {
++func min[T int | string](x, y T) T {
+ 	if x < y {
+ 		return x
+ 	}
+@@ -45,7 +45,8 @@ func _() *int {
+ 
+ // A type parameter may not be embedded in an interface;
+ // so it can also not be used as a constraint.
+-func _[A any, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
++func _[A any, B A /* ERROR cannot use a type parameter as constraint */]()    {}
++func _[A any, B, C A /* ERROR cannot use a type parameter as constraint */]() {}
+ 
+ // Error messages refer to the type constraint as it appears in the source.
+ // (No implicit interface should be exposed.)
+@@ -53,6 +54,6 @@ func _[T string](x T) T {
+ 	return x /* ERROR constrained by string */ * x
+ }
+ 
+-func _[T int|string](x T) T {
++func _[T int | string](x T) T {
+ 	return x /* ERROR constrained by int|string */ * x
+ }

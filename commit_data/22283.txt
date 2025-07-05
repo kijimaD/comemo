@@ -12,7 +12,7 @@ Date:   Mon Mar 2 17:07:11 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/6531
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  misc/cgo/errors/test.bash     |   2 +
  misc/cgo/testgodefs/test.bash |   2 +
  misc/cgo/testso/test.bat      |   2 +-
@@ -22,3 +22,1074 @@ Date:   Mon Mar 2 17:07:11 2015 -0800
  src/run.bat                   | 101 +-------
  src/run.rc                    |  58 +----
  8 files changed, 598 insertions(+), 392 deletions(-)
+
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index c96264389c..c880ad65c2 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -1,3 +1,5 @@
++#!/usr/bin/env bash
++
+ # Copyright 2013 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+index 5281b10568..14235c05cb 100755
+--- a/misc/cgo/testgodefs/test.bash
++++ b/misc/cgo/testgodefs/test.bash
+@@ -1,3 +1,5 @@
++#!/usr/bin/env bash
++
+ # Copyright 2014 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/misc/cgo/testso/test.bat b/misc/cgo/testso/test.bat
+index b8cc3842bf..dec654d9dc 100644
+--- a/misc/cgo/testso/test.bat
++++ b/misc/cgo/testso/test.bat
+@@ -13,6 +13,6 @@ main.exe
+ goto :end
+ 
+ :fail
+-set FAIL=1
++:: echo FAIL
+ :end
+ del /F cgoso_c.o libcgosotest.dll main.exe 2>NUL
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index a2ac65ee87..1f19a7ca18 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -21,6 +21,7 @@ var cmdtab = []struct {
+ 	{"clean", cmdclean},
+ 	{"env", cmdenv},
+ 	{"install", cmdinstall},
++	{"test", cmdtest},
+ 	{"version", cmdversion},
+ }
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+new file mode 100644
+index 0000000000..1817837587
+--- /dev/null
++++ b/src/cmd/dist/test.go
+@@ -0,0 +1,586 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"errors"
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strconv"
++	"strings"
++	"time"
++)
++
++func cmdtest() {
++	var t tester
++	flag.BoolVar(&t.listMode, "list", false, "list available tests")
++	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
++	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
++	flag.StringVar(&t.runRxStr, "run", "", "run only those tests matching the regular expression; empty means to run all")
++	xflagparse(0)
++	t.run()
++}
++
++// tester executes cmdtest.
++type tester struct {
++	listMode  bool
++	noRebuild bool
++	runRxStr  string
++	runRx     *regexp.Regexp
++	banner    string // prefix, or "" for none
++
++	goroot     string
++	goarch     string
++	gohostarch string
++	goos       string
++	gohostos   string
++	cgoEnabled bool
++	partial    bool
++	haveTime   bool // the 'time' binary is available
++
++	tests        []distTest
++	timeoutScale int
++}
++
++// A distTest is a test run by dist test.
++// Each test has a unique name and belongs to a group (heading)
++type distTest struct {
++	name    string // unique test name; may be filtered with -run flag
++	heading string // group section; this header is printed before the test is run.
++	fn      func() error
++}
++
++func mustEnv(k string) string {
++	v := os.Getenv(k)
++	if v == "" {
++		log.Fatalf("Unset environment variable %v", k)
++	}
++	return v
++}
++
++func (t *tester) run() {
++	t.goroot = mustEnv("GOROOT")
++	t.goos = mustEnv("GOOS")
++	t.gohostos = mustEnv("GOHOSTOS")
++	t.goarch = mustEnv("GOARCH")
++	t.gohostarch = mustEnv("GOHOSTARCH")
++	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
++	if err != nil {
++		log.Fatalf("Error running go env CGO_ENABLED: %v", err)
++	}
++	t.cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(slurp)))
++
++	if t.hasBash() {
++		if _, err := exec.LookPath("time"); err == nil {
++			t.haveTime = true
++		}
++	}
++
++	if !t.noRebuild {
++		t.out("Building packages and commands.")
++		cmd := exec.Command("go", "install", "-a", "-v", "std", "cmd")
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
++		if err := cmd.Run(); err != nil {
++			log.Fatalf("building packages and commands: %v", err)
++		}
++	}
++
++	t.timeoutScale = 1
++	if t.goarch == "arm" || t.goos == "windows" {
++		t.timeoutScale = 2
++	}
++
++	if t.runRxStr != "" {
++		t.runRx = regexp.MustCompile(t.runRxStr)
++	}
++
++	t.registerTests()
++	if t.listMode {
++		for _, tt := range t.tests {
++			fmt.Println(tt.name)
++		}
++		return
++	}
++
++	// we must unset GOROOT_FINAL before tests, because runtime/debug requires
++	// correct access to source code, so if we have GOROOT_FINAL in effect,
++	// at least runtime/debug test will fail.
++	os.Unsetenv("GOROOT_FINAL")
++
++	var lastHeading string
++	for _, dt := range t.tests {
++		if t.runRx != nil && !t.runRx.MatchString(dt.name) {
++			t.partial = true
++			continue
++		}
++		if dt.heading != "" && lastHeading != dt.heading {
++			lastHeading = dt.heading
++			t.out(dt.heading)
++		}
++		if vflag > 0 {
++			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
++		}
++		if err := dt.fn(); err != nil {
++			log.Fatalf("Failed: %v", err)
++		}
++	}
++	if t.partial {
++		fmt.Println("\nALL TESTS PASSED (some were excluded)")
++	} else {
++		fmt.Println("\nALL TESTS PASSED")
++	}
++}
++
++func (t *tester) timeout(sec int) string {
++	return "-timeout=" + fmt.Sprint(time.Duration(sec)*time.Second*time.Duration(t.timeoutScale))
++}
++
++func (t *tester) registerTests() {
++	// Register a separate logical test for each package in the standard library
++	// but actually group them together at execution time to share the cost of
++	// building packages shared between them.
++	all, err := exec.Command("go", "list", "std", "cmd").Output()
++	if err != nil {
++		log.Fatalf("Error running go list std cmd: %v", err)
++	}
++	// ranGoTest and stdMatches are state closed over by the
++	// stdlib testing func below. The tests are run sequentially,
++	// so there'no need for locks.
++	var (
++		ranGoTest  bool
++		stdMatches []string
++	)
++	for _, pkg := range strings.Fields(string(all)) {
++		testName := "go_test:" + pkg
++		if t.runRx == nil || t.runRx.MatchString(testName) {
++			stdMatches = append(stdMatches, pkg)
++		}
++		t.tests = append(t.tests, distTest{
++			name:    testName,
++			heading: "Testing packages.",
++			fn: func() error {
++				if ranGoTest {
++					return nil
++				}
++				ranGoTest = true
++				cmd := exec.Command("go", append([]string{
++					"test",
++					"-short",
++					t.timeout(120),
++					"-gcflags=" + os.Getenv("GO_GCFLAGS"),
++				}, stdMatches...)...)
++				cmd.Stdout = os.Stdout
++				cmd.Stderr = os.Stderr
++				return cmd.Run()
++			},
++		})
++	}
++
++	// Old hack for when Plan 9 on GCE was too slow.
++	// We're keeping this until test sharding (Issue 10029) is finished, though.
++	if os.Getenv("GOTESTONLY") == "std" {
++		t.partial = true
++		return
++	}
++
++	// Runtime CPU tests.
++	for _, cpu := range []string{"1", "2", "4"} {
++		cpu := cpu
++		testName := "runtime:cpu" + cpu
++		t.tests = append(t.tests, distTest{
++			name:    testName,
++			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
++			fn: func() error {
++				cmd := t.dirCmd(".", "go", "test", "-short", t.timeout(300), "runtime", "-cpu="+cpu)
++				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
++				// creation of first goroutines and first garbage collections in the parallel setting.
++				cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
++				return cmd.Run()
++			},
++		})
++	}
++
++	// sync tests
++	t.tests = append(t.tests, distTest{
++		name:    "sync_cpu",
++		heading: "sync -cpu=10",
++		fn: func() error {
++			return t.dirCmd(".", "go", "test", "sync", "-short", t.timeout(120), "-cpu=10").Run()
++		},
++	})
++
++	cgo := t.cgoEnabled
++	if t.goos == "android" {
++		// Disable cgo tests on android.
++		// They are not designed to run off the host.
++		// golang.org/issue/8345
++		cgo = false
++	}
++
++	if cgo {
++		t.tests = append(t.tests, distTest{
++			name:    "cgo_stdio",
++			heading: "../misc/cgo/stdio",
++			fn: func() error {
++				return t.dirCmd("misc/cgo/stdio",
++					"go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".").Run()
++			},
++		})
++		t.tests = append(t.tests, distTest{
++			name:    "cgo_life",
++			heading: "../misc/cgo/life",
++			fn: func() error {
++				return t.dirCmd("misc/cgo/life",
++					"go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".").Run()
++			},
++		})
++
++		t.tests = append(t.tests, distTest{
++			name:    "cgo_test",
++			heading: "../misc/cgo/test",
++			fn:      t.cgoTest,
++		})
++	}
++
++	if t.raceDetectorSupported() {
++		t.tests = append(t.tests, distTest{
++			name:    "race",
++			heading: "Testing race detector",
++			fn:      t.raceTest,
++		})
++	}
++
++	if t.hasBash() && cgo && t.goos != "darwin" {
++		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
++	}
++	if cgo {
++		if t.gohostos == "windows" {
++			t.tests = append(t.tests, distTest{
++				name:    "testso",
++				heading: "../misc/cgo/testso",
++				fn: func() error {
++					// TODO(brainman): finish this; https://golang.org/issue/10072
++					return nil
++
++					cmd := t.dirCmd("misc/cgo/testso", "./test.bat")
++					var buf bytes.Buffer
++					cmd.Stdout = &buf
++					cmd.Stderr = &buf
++					err := cmd.Run()
++					s := buf.String()
++					fmt.Println(s)
++					if err == nil && strings.Contains(s, "FAIL") {
++						return errors.New("test failed")
++					}
++					return err
++				},
++			})
++		} else if t.hasBash() {
++			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
++		}
++	}
++	if t.gohostos == "linux" && t.goarch == "amd64" {
++		t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
++	}
++	if t.hasBash() && cgo && t.gohostos != "windows" {
++		t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
++	}
++	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
++		t.registerTest("doc_progs", "../doc/progs", "time", "./run")
++	}
++	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
++		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
++	}
++	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
++		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
++	}
++	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
++		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
++	}
++	if t.goos != "android" {
++		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
++	}
++	if t.goos != "android" {
++		// TODO(bradfitz): shard down into these tests, as
++		// this is one of the slowest (and most shardable)
++		// tests.
++		t.tests = append(t.tests, distTest{
++			name:    "test",
++			heading: "../test",
++			fn:      t.testDirTest,
++		})
++	}
++	if t.goos != "nacl" && t.goos != "android" {
++		t.tests = append(t.tests, distTest{
++			name:    "api",
++			heading: "API check",
++			fn: func() error {
++				return t.dirCmd(".", "go", "run", filepath.Join(t.goroot, "src/cmd/api/run.go")).Run()
++			},
++		})
++	}
++
++}
++
++func (t *tester) registerTest(name, dirBanner, bin string, args ...string) {
++	if bin == "time" && !t.haveTime {
++		bin, args = args[0], args[1:]
++	}
++	t.tests = append(t.tests, distTest{
++		name:    name,
++		heading: dirBanner,
++		fn: func() error {
++			return t.dirCmd(filepath.Join(t.goroot, "src", dirBanner), bin, args...).Run()
++		},
++	})
++}
++
++func (t *tester) dirCmd(dir string, bin string, args ...string) *exec.Cmd {
++	cmd := exec.Command(bin, args...)
++	if filepath.IsAbs(dir) {
++		cmd.Dir = dir
++	} else {
++		cmd.Dir = filepath.Join(t.goroot, dir)
++	}
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	return cmd
++}
++
++func (t *tester) out(v string) {
++	if t.banner == "" {
++		return
++	}
++	fmt.Println("\n" + t.banner + v)
++}
++
++func (t *tester) extLink() bool {
++	pair := t.gohostos + "-" + t.goarch
++	switch pair {
++	case "android-arm",
++		"dragonfly-386", "dragonfly-amd64",
++		"freebsd-386", "freebsd-amd64", "freebsd-arm",
++		"linux-386", "linux-amd64", "linux-arm",
++		"netbsd-386", "netbsd-amd64",
++		"openbsd-386", "openbsd-amd64":
++		return true
++	case "darwin-386", "darwin-amd64":
++		// linkmode=external fails on OS X 10.6 and earlier == Darwin
++		// 10.8 and earlier.
++		unameR, err := exec.Command("uname", "-r").Output()
++		if err != nil {
++			log.Fatalf("uname -r: %v", err)
++		}
++		major, _ := strconv.Atoi(string(unameR[:bytes.IndexByte(unameR, '.')]))
++		return major > 10
++	}
++	return false
++}
++
++func (t *tester) cgoTest() error {
++	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
++
++	if t.gohostos == "windows" {
++		cmd := t.dirCmd("misc/cgo/test", "go", "test")
++		cmd.Env = env
++		return cmd.Run()
++	}
++
++	if t.gohostos != "dragonfly" {
++		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
++		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++	}
++
++	pair := t.gohostos + "-" + t.goarch
++	switch pair {
++	case "openbsd-386", "openbsd-amd64":
++		// test linkmode=external, but __thread not supported, so skip testtls.
++		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++	case "darwin-386", "darwin-amd64":
++		if t.extLink() {
++			cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
++			cmd.Env = env
++			if err := cmd.Run(); err != nil {
++				return err
++			}
++		}
++	case "android-arm",
++		"dragonfly-386", "dragonfly-amd64",
++		"freebsd-386", "freebsd-amd64", "freebsd-arm",
++		"linux-386", "linux-amd64", "linux-arm",
++		"netbsd-386", "netbsd-amd64":
++
++		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++		cmd = t.dirCmd("misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=auto")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++		cmd = t.dirCmd("misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=external")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++
++		switch pair {
++		case "netbsd-386", "netbsd-amd64":
++			// no static linking
++		case "freebsd-arm":
++			// -fPIC compiled tls code will use __tls_get_addr instead
++			// of __aeabi_read_tp, however, on FreeBSD/ARM, __tls_get_addr
++			// is implemented in rtld-elf, so -fPIC isn't compatible with
++			// static linking on FreeBSD/ARM with clang. (cgo depends on
++			// -fPIC fundamentally.)
++		default:
++			cc := mustEnv("CC")
++			cmd := t.dirCmd("misc/cgo/test",
++				cc, "-xc", "-o", "/dev/null", "-static", "-")
++			cmd.Env = env
++			cmd.Stdin = strings.NewReader("int main() {}")
++			if err := cmd.Run(); err != nil {
++				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
++			} else {
++				cmd = t.dirCmd("misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++				cmd.Env = env
++				if err := cmd.Run(); err != nil {
++					return err
++				}
++
++				cmd = t.dirCmd("misc/cgo/nocgo", "go", "test")
++				cmd.Env = env
++				if err := cmd.Run(); err != nil {
++					return err
++				}
++
++				cmd = t.dirCmd("misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
++				cmd.Env = env
++				if err := cmd.Run(); err != nil {
++					return err
++				}
++
++				cmd = t.dirCmd("misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++				cmd.Env = env
++				if err := cmd.Run(); err != nil {
++					return err
++				}
++			}
++
++			if pair != "freebsd-amd64" { // clang -pie fails to link misc/cgo/test
++				cmd := t.dirCmd("misc/cgo/test",
++					cc, "-xc", "-o", "/dev/null", "-pie", "-")
++				cmd.Env = env
++				cmd.Stdin = strings.NewReader("int main() {}")
++				if err := cmd.Run(); err != nil {
++					fmt.Println("No support for -pie found, skip cgo PIE test.")
++				} else {
++					cmd = t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
++					cmd.Env = env
++					if err := cmd.Run(); err != nil {
++						return fmt.Errorf("pie cgo/test: %v", err)
++					}
++					cmd = t.dirCmd("misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
++					cmd.Env = env
++					if err := cmd.Run(); err != nil {
++						return fmt.Errorf("pie cgo/testtls: %v", err)
++					}
++					cmd = t.dirCmd("misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
++					cmd.Env = env
++					if err := cmd.Run(); err != nil {
++						return fmt.Errorf("pie cgo/nocgo: %v", err)
++					}
++				}
++			}
++		}
++	}
++
++	return nil
++}
++
++func (t *tester) hasBash() bool {
++	switch t.gohostos {
++	case "windows", "plan9":
++		return false
++	}
++	return true
++}
++
++func (t *tester) raceDetectorSupported() bool {
++	switch t.gohostos {
++	case "linux", "darwin", "freebsd", "windows":
++		return t.cgoEnabled && t.goarch == "amd64" && t.gohostos == t.goos
++	}
++	return false
++}
++
++func (t *tester) raceTest() error {
++	if err := t.dirCmd(".", "go", "test", "-race", "-i", "runtime/race", "flag", "os/exec").Run(); err != nil {
++		return err
++	}
++	if err := t.dirCmd(".", "go", "test", "-race", "-run=Output", "runtime/race").Run(); err != nil {
++		return err
++	}
++	if err := t.dirCmd(".", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
++		return err
++	}
++	if t.extLink() {
++		// Test with external linking; see issue 9133.
++		if err := t.dirCmd(".", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func (t *tester) testDirTest() error {
++	const runExe = "runtest.exe" // named exe for Windows, but harmless elsewhere
++	cmd := t.dirCmd("test", "go", "build", "-o", runExe, "run.go")
++	cmd.Env = mergeEnvLists([]string{"GOOS=" + t.gohostos, "GOARCH=" + t.gohostarch, "GOMAXPROCS="}, os.Environ())
++	if err := cmd.Run(); err != nil {
++		return err
++	}
++	absExe := filepath.Join(cmd.Dir, runExe)
++	defer os.Remove(absExe)
++	if t.haveTime {
++		return t.dirCmd("test", "time", absExe).Run()
++	}
++	return t.dirCmd("test", absExe).Run()
++}
++
++// mergeEnvLists merges the two environment lists such that
++// variables with the same name in "in" replace those in "out".
++// out may be mutated.
++func mergeEnvLists(in, out []string) []string {
++NextVar:
++	for _, inkv := range in {
++		k := strings.SplitAfterN(inkv, "=", 2)[0]
++		for i, outkv := range out {
++			if strings.HasPrefix(outkv, k) {
++				out[i] = inkv
++				continue NextVar
++			}
++		}
++		out = append(out, inkv)
++	}
++	return out
++}
+diff --git a/src/run.bash b/src/run.bash
+index 15184fd875..6fc864dc0e 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -12,6 +12,9 @@ unset CDPATH	# in case user has it set
+ unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
+                 # to be under $GOPATH, then some tests below will fail
+ 
++export GOHOSTOS
++export CC
++
+ # no core files, please
+ ulimit -c 0
+ 
+@@ -32,237 +35,4 @@ if ulimit -T &> /dev/null; then
+ 	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
+-# allow all.bash to avoid double-build of everything
+-rebuild=true
+-if [ "$1" == "--no-rebuild" ]; then
+-	shift
+-else
+-	echo '##### Building packages and commands.'
+-	time go install -a -v std cmd
+-	echo
+-fi
+-
+-# we must unset GOROOT_FINAL before tests, because runtime/debug requires
+-# correct access to source code, so if we have GOROOT_FINAL in effect,
+-# at least runtime/debug test will fail.
+-unset GOROOT_FINAL
+-
+-# TODO(adg): create an environment variable and to permit the builders to
+-# specify the timeout scale.
+-timeout_scale=1
+-# the freebsd-* builders are slow, and there's no easy way to make them faster.
+-[ "$GOOS" == "freebsd" ] && timeout_scale=2
+-# increase timeout for ARM up to 3 times the normal value
+-[ "$GOARCH" == "arm" ] && timeout_scale=3
+-
+-echo '##### Testing packages.'
+-time go test std cmd -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
+-echo
+-
+-# We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+-# creation of first goroutines and first garbage collections in the parallel setting.
+-echo '##### GOMAXPROCS=2 runtime -cpu=1,2,4'
+-GOMAXPROCS=2 go test runtime -short -timeout=$(expr 300 \* $timeout_scale)s -cpu=1,2,4
+-echo
+-
+-echo '##### sync -cpu=10'
+-go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+-
+-xcd() {
+-	echo
+-	echo '#####' $1
+-	builtin cd "$GOROOT"/src/$1 || exit 1
+-}
+-
+-# NOTE: "set -e" cannot help us in subshells. It works until you test it with ||.
+-#
+-#	$ bash --version
+-#	GNU bash, version 3.2.48(1)-release (x86_64-apple-darwin12)
+-#	Copyright (C) 2007 Free Software Foundation, Inc.
+-#
+-#	$ set -e; (set -e; false; echo still here); echo subshell exit status $?
+-#	subshell exit status 1
+-#	# subshell stopped early, set exit status, but outer set -e didn't stop.
+-#
+-#	$ set -e; (set -e; false; echo still here) || echo stopped
+-#	still here
+-#	# somehow the '|| echo stopped' broke the inner set -e.
+-#	
+-# To avoid this bug, every command in a subshell should have '|| exit 1' on it.
+-# Strictly speaking, the test may be unnecessary on the final command of
+-# the subshell, but it aids later editing and may avoid future bash bugs.
+-
+-if [ "$GOOS" == "android" ]; then
+-	# Disable cgo tests on android.
+-	# They are not designed to run off the host.
+-	# golang.org/issue/8345
+-	CGO_ENABLED=0
+-fi
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS" == windows ] ||
+-(xcd ../misc/cgo/stdio
+-go run $GOROOT/test/run.go - . || exit 1
+-) || exit $?
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-(xcd ../misc/cgo/life
+-go run $GOROOT/test/run.go - . || exit 1
+-) || exit $?
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-(xcd ../misc/cgo/test
+-# cgo tests inspect the traceback for runtime functions
+-extlink=0
+-export GOTRACEBACK=2
+-go test -ldflags '-linkmode=auto' || exit 1
+-# linkmode=internal fails on dragonfly since errno is a TLS relocation.
+-[ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
+-# TODO(austin): Add linux-ppc64(le) once external linking works (issue #8912)
+-case "$GOHOSTOS-$GOARCH" in
+-openbsd-386 | openbsd-amd64)
+-	# test linkmode=external, but __thread not supported, so skip testtls.
+-	go test -ldflags '-linkmode=external' || exit 1
+-	extlink=1
+-	;;
+-darwin-386 | darwin-amd64)
+-	# linkmode=external fails on OS X 10.6 and earlier == Darwin
+-	# 10.8 and earlier.
+-	case $(uname -r) in
+-	[0-9].* | 10.*) ;;
+-	*)
+-		go test -ldflags '-linkmode=external'  || exit 1
+-		extlink=1
+-		;;
+-	esac
+-	;;
+-android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
+-	go test -ldflags '-linkmode=external' || exit 1
+-	go test -ldflags '-linkmode=auto' ../testtls || exit 1
+-	go test -ldflags '-linkmode=external' ../testtls || exit 1
+-	extlink=1
+-	
+-	case "$GOHOSTOS-$GOARCH" in
+-	netbsd-386 | netbsd-amd64) ;; # no static linking
+-	freebsd-arm) ;; # -fPIC compiled tls code will use __tls_get_addr instead
+-	                # of __aeabi_read_tp, however, on FreeBSD/ARM, __tls_get_addr
+-	                # is implemented in rtld-elf, so -fPIC isn't compatible with
+-	                # static linking on FreeBSD/ARM with clang. (cgo depends on
+-			# -fPIC fundamentally.)
+-	*)
+-		if ! $CC -xc -o /dev/null -static - 2>/dev/null <<<'int main() {}' ; then
+-			echo "No support for static linking found (lacks libc.a?), skip cgo static linking test."
+-		else
+-			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
+-			go test ../nocgo || exit 1
+-			go test -ldflags '-linkmode=external' ../nocgo || exit 1
+-			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../nocgo || exit 1
+-		fi
+-		case "$GOHOSTOS-$GOARCH" in
+-		freebsd-amd64) ;; # clang -pie fails to link misc/cgo/test
+-		*)
+-			if ! $CC -xc -o /dev/null -pie - 2>/dev/null <<<'int main() {}' ; then
+-				echo "No support for -pie found, skip cgo PIE test."
+-			else
+-				go test -ldflags '-linkmode=external -extldflags "-pie"' || exit 1
+-				go test -ldflags '-linkmode=external -extldflags "-pie"' ../testtls || exit 1
+-				go test -ldflags '-linkmode=external -extldflags "-pie"' ../nocgo || exit 1
+-			fi
+-			;;
+-		esac
+-		;;
+-	esac
+-	;;
+-esac
+-) || exit $?
+-
+-# Race detector only supported on Linux, FreeBSD and OS X,
+-# and only on amd64, and only when cgo is enabled.
+-# Delayed until here so we know whether to try external linking.
+-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+-linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
+-	echo
+-	echo '##### Testing race detector.'
+-	go test -race -i runtime/race flag os/exec
+-	go test -race -run=Output runtime/race
+-	go test -race -short flag os/exec
+-	
+-	# Test with external linking; see issue 9133.
+-	if [ "$extlink" = 1 ]; then
+-		go test -race -short -ldflags=-linkmode=external flag os/exec
+-	fi
+-esac
+-
+-[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+-(xcd ../misc/cgo/testgodefs
+-./test.bash || exit 1
+-) || exit $?
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS" == windows ] ||
+-(xcd ../misc/cgo/testso
+-./test.bash || exit 1
+-) || exit $?
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS-$GOARCH" != linux-amd64 ] ||
+-(xcd ../misc/cgo/testasan
+-go run main.go || exit 1
+-) || exit $?
+-
+-[ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS" == windows ] ||
+-(xcd ../misc/cgo/errors
+-./test.bash || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == nacl ] ||
+-[ "$GOOS" == android ] ||
+-(xcd ../doc/progs
+-time ./run || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == android ] ||
+-[ "$GOOS" == nacl ] ||
+-[ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+-(xcd ../doc/articles/wiki
+-./test.bash || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == android ] ||
+-[ "$GOOS" == nacl ] ||
+-(xcd ../doc/codewalk
+-time ./run || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == nacl ] ||
+-[ "$GOARCH" == arm ] ||
+-(xcd ../test/bench/shootout
+-time ./timing.sh -test || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == android ] || # TODO(crawshaw): get this working
+-[ "$GOOS" == openbsd ] || # golang.org/issue/5057
+-(
+-echo
+-echo '#####' ../test/bench/go1
+-go test ../test/bench/go1 || exit 1
+-) || exit $?
+-
+-[ "$GOOS" == android ] ||
+-(xcd ../test
+-unset GOMAXPROCS
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build -o runtest run.go || exit 1
+-time ./runtest || exit 1
+-rm -f runtest
+-) || exit $?
+-
+-[ "$GOOS" == android ] ||
+-[ "$GOOS" == nacl ] ||
+-(
+-echo
+-time go run $GOROOT/src/cmd/api/run.go || exit 1
+-) || exit $?
+-
+-echo
+-echo ALL TESTS PASSED
++exec go tool dist test $@
+diff --git a/src/run.bat b/src/run.bat
+index 57a8828ef9..495711102e 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -37,109 +37,10 @@ call env.bat
+ del env.bat
+ echo.
+ 
+-echo ##### Testing packages.
+-go test std cmd -short -timeout=240s
++go tool dist test --no-rebuild
+ if errorlevel 1 goto fail
+ echo.
+ 
+-set OLDGOMAXPROCS=%GOMAXPROCS%
+-
+-:: We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+-:: creation of first goroutines and first garbage collections in the parallel setting.
+-echo ##### GOMAXPROCS=2 runtime -cpu=1,2,4
+-set GOMAXPROCS=2
+-go test runtime -short -timeout=600s -cpu=1,2,4
+-if errorlevel 1 goto fail
+-echo.
+-
+-set GOMAXPROCS=%OLDGOMAXPROCS%
+-set OLDGOMAXPROCS=
+-
+-echo ##### sync -cpu=10
+-go test sync -short -timeout=240s -cpu=10
+-if errorlevel 1 goto fail
+-echo.
+-
+-:: Race detector only supported on Linux and OS X,
+-:: and only on amd64, and only when cgo is enabled.
+-if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+-echo ##### Testing race detector.
+-go test -race -i runtime/race flag
+-if errorlevel 1 goto fail
+-go test -race -run=Output runtime/race
+-if errorlevel 1 goto fail
+-go test -race -short flag
+-if errorlevel 1 goto fail
+-echo.
+-:norace
+-
+-echo ##### ..\test\bench\go1
+-go test ..\test\bench\go1
+-if errorlevel 1 goto fail
+-echo.
+-
+-:: cgo tests
+-if x%CGO_ENABLED% == x0 goto nocgo
+-echo ##### ..\misc\cgo\life
+-go run "%GOROOT%\test\run.go" - ..\misc\cgo\life
+-if errorlevel 1 goto fail
+-echo.
+-
+-echo ##### ..\misc\cgo\stdio
+-go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
+-if errorlevel 1 goto fail
+-echo.
+-
+-:: cgo tests inspect the traceback for runtime functions
+-set OLDGOTRACEBACK=%GOTRACEBACK%
+-set GOTRACEBACK=2
+-
+-echo ##### ..\misc\cgo\test
+-go test ..\misc\cgo\test
+-if errorlevel 1 goto fail
+-echo.
+-
+-set GOTRACEBACK=%OLDGOTRACEBACK%
+-set OLDGOTRACEBACK=
+-
+-echo ##### ..\misc\cgo\testso
+-cd ..\misc\cgo\testso
+-set FAIL=0
+-call test.bat
+-cd ..\..\..\src
+-if %FAIL%==1 goto fail
+-echo.
+-:nocgo
+-
+-echo ##### ..\doc\progs
+-go run "%GOROOT%\test\run.go" - ..\doc\progs
+-if errorlevel 1 goto fail
+-echo.
+-
+-:: TODO: The other tests in run.bash.
+-
+-
+-set OLDGOMAXPROCS=%GOMAXPROCS%
+-
+-echo ##### ..\test
+-cd ..\test
+-set FAIL=0
+-set GOMAXPROCS=
+-go run run.go
+-if errorlevel 1 set FAIL=1
+-cd ..\src
+-echo.
+-if %FAIL%==1 goto fail
+-
+-set GOMAXPROCS=%OLDGOMAXPROCS%
+-set OLDGOMAXPROCS=
+-
+-:: echo ##### Checking API compatibility.
+-go run "%GOROOT%\src\cmd\api\run.go"
+-if errorlevel 1 goto fail
+-echo.
+-
+-echo ALL TESTS PASSED
+ goto end
+ 
+ :fail
+diff --git a/src/run.rc b/src/run.rc
+index c28ba34498..d0ba866e7d 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -10,60 +10,4 @@ eval `{go env}
+ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+             # to be under $GOPATH, then some tests below will fail
+ 
+-# allow all.rc to avoid double-build of everything
+-rebuild = true
+-if(~ $1 --no-rebuild)
+-	shift
+-if not {
+-	# Run only one process at a time on 9vx.
+-	if(~ $sysname vx32)
+-		pflag = (-p 1)
+-	echo '# Building packages and commands.'
+-	time go install -a -v $pflag std cmd
+-	echo
+-}
+-
+-# we must unset GOROOT_FINAL before tests, because runtime/debug requires
+-# correct access to source code, so if we have GOROOT_FINAL in effect,
+-# at least runtime/debug test will fail.
+-GOROOT_FINAL = ()
+-
+-echo '# Testing packages.'
+-time go test std cmd -short -timeout 120s
+-echo
+-
+-# Temporary GCE builder hack until Plan 9 on GCE is fast enough.
+-# See https://golang.org/issue/9491
+-if(~ $GOTESTONLY std) {
+-	echo
+-	echo PARTIAL TESTS PASSED: std
+-	exit
+-}
+-
+-# We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+-# creation of first goroutines and first garbage collections in the parallel setting.
+-echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
+-GOMAXPROCS=2 go test runtime -short -timeout 240s -cpu 1,2,4
+-echo
+-
+-echo '# sync -cpu=10'
+-go test sync -short -timeout 120s -cpu 10
+-echo
+-
+-fn xcd {
+-	echo
+-	echo '#' $1
+-	cd $"GOROOT/src/$1
+-}
+-
+-echo
+-echo '#' ../test/bench/go1
+-go test ../test/bench/go1
+-
+-@{
+-	xcd ../test
+-	GOMAXPROCS='' time go run run.go -v
+-}
+-
+-echo
+-echo ALL TESTS PASSED
++exec go tool dist test $*

@@ -15,7 +15,66 @@ Date:   Thu Mar 18 11:18:44 2021 -0400
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/walk/stmt.go | 18 ++++++++++++++++++
  src/cmd/compile/internal/walk/walk.go | 18 ------------------
  2 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 0c851506cb..836ac6b6ab 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -233,6 +233,24 @@ func walkIf(n *ir.IfStmt) ir.Node {
+ 	return n
+ }
+ 
++// Rewrite
++//	go builtin(x, y, z)
++// into
++//	go func(a1, a2, a3) {
++//		builtin(a1, a2, a3)
++//	}(x, y, z)
++// for print, println, and delete.
++//
++// Rewrite
++//	go f(x, y, uintptr(unsafe.Pointer(z)))
++// into
++//	go func(a1, a2, a3) {
++//		f(a1, a2, uintptr(a3))
++//	}(x, y, unsafe.Pointer(z))
++// for function contains unsafe-uintptr arguments.
++
++var wrapCall_prgen int
++
+ // The result of wrapCall MUST be assigned back to n, e.g.
+ // 	n.Left = wrapCall(n.Left, init)
+ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index b47d96dc4c..d889786c72 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -237,24 +237,6 @@ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
+ 	}
+ }
+ 
+-// Rewrite
+-//	go builtin(x, y, z)
+-// into
+-//	go func(a1, a2, a3) {
+-//		builtin(a1, a2, a3)
+-//	}(x, y, z)
+-// for print, println, and delete.
+-//
+-// Rewrite
+-//	go f(x, y, uintptr(unsafe.Pointer(z)))
+-// into
+-//	go func(a1, a2, a3) {
+-//		builtin(a1, a2, uintptr(a3))
+-//	}(x, y, unsafe.Pointer(z))
+-// for function contains unsafe-uintptr arguments.
+-
+-var wrapCall_prgen int
+-
+ // appendWalkStmt typechecks and walks stmt and then appends it to init.
+ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+ 	op := stmt.Op()

@@ -11,9 +11,173 @@ Date:   Mon May 11 16:52:59 2009 -0700
     DELTA=84  (34 added, 40 deleted, 10 changed)
     OCL=28657
     CL=28657
-
+---
  src/lib/go/doc/doc.go           | 25 +++++++++++++++++--------
  usr/gri/pretty/godoc.go         | 30 ++++++++++++++++++++----------
  usr/gri/pretty/packagelist.html | 15 ---------------
  usr/gri/pretty/packagelist.txt  | 10 ----------
  4 files changed, 37 insertions(+), 43 deletions(-)
+
+diff --git a/src/lib/go/doc/doc.go b/src/lib/go/doc/doc.go
+index e20db694fe..25ac5bd920 100644
+--- a/src/lib/go/doc/doc.go
++++ b/src/lib/go/doc/doc.go
+@@ -523,11 +523,11 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
+ }
+ 
+ 
+-func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
++func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
+ 	w := 0;
+-	for i, td := range a {
+-		if matchDecl(td.Decl, names) {
+-			a[w] = td;
++	for i, fd := range a {
++		if match(fd.Name, names) {
++			a[w] = fd;
+ 			w++;
+ 		}
+ 	}
+@@ -535,11 +535,20 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
+ }
+ 
+ 
+-func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
++func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
+ 	w := 0;
+-	for i, fd := range a {
+-		if match(fd.Name, names) {
+-			a[w] = fd;
++	for i, td := range a {
++		match := false;
++		if matchDecl(td.Decl, names) {
++			match = true;
++		} else {
++			// type name doesn't match, but we may have matching factories or methods
++			td.Factories = filterFuncDocs(td.Factories, names);
++			td.Methods = filterFuncDocs(td.Methods, names);
++			match = len(td.Factories) > 0 || len(td.Methods) > 0;
++		}
++		if match {
++			a[w] = td;
+ 			w++;
+ 		}
+ 	}
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index a480a3df8f..4713c44417 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -424,6 +424,14 @@ type pakDesc struct {
+ }
+ 
+ 
++// TODO if we don't plan to use the directory information, simplify to []string
++type dirList []*os.Dir
++
++func (d dirList) Len() int  { return len(d) }
++func (d dirList) Less(i, j int) bool  { return d[i].Name < d[j].Name }
++func (d dirList) Swap(i, j int)  { d[i], d[j] = d[j], d[i] }
++
++
+ func isPackageFile(dirname, filename, pakname string) bool {
+ 	// ignore test files
+ 	if strings.HasSuffix(filename, "_test.go") {
+@@ -444,7 +452,7 @@ func isPackageFile(dirname, filename, pakname string) bool {
+ // sub-directories in the corresponding package directory.
+ // If there is no such package, the first result is nil. If
+ // there are no sub-directories, that list is nil.
+-func findPackage(importpath string) (*pakDesc, []os.Dir) {
++func findPackage(importpath string) (*pakDesc, dirList) {
+ 	// get directory contents, if possible
+ 	dirname := pathutil.Join(*pkgroot, importpath);
+ 	if !isDir(dirname) {
+@@ -475,7 +483,7 @@ func findPackage(importpath string) (*pakDesc, []os.Dir) {
+ 		case isGoFile(&entry) && isPackageFile(dirname, entry.Name, pakname):
+ 			// add file to package desc
+ 			if tmp, found := filenames[entry.Name]; found {
+-				panic("internal error: same file added more then once: " + entry.Name);
++				panic("internal error: same file added more than once: " + entry.Name);
+ 			}
+ 			filenames[entry.Name] = true;
+ 		case entry.IsDirectory():
+@@ -484,16 +492,21 @@ func findPackage(importpath string) (*pakDesc, []os.Dir) {
+ 	}
+ 
+ 	// make the list of sub-directories, if any
+-	var subdirs []os.Dir;
++	var subdirs dirList;
+ 	if nsub > 0 {
+-		subdirs = make([]os.Dir, nsub);
++		subdirs = make(dirList, nsub);
+ 		nsub = 0;
+ 		for i, entry := range list {
+ 			if entry.IsDirectory() {
+-				subdirs[nsub] = entry;
++				// make a copy here so sorting (and other code) doesn't
++				// have to make one every time an entry is moved
++				copy := new(os.Dir);
++				*copy = entry;
++				subdirs[nsub] = copy;
+ 				nsub++;
+ 			}
+ 		}
++		sort.Sort(subdirs);
+ 	}
+ 
+ 	// if there are no package files, then there is no package
+@@ -549,16 +562,13 @@ func servePackage(c *http.Conn, desc *pakDesc) {
+ }
+ 
+ 
+-// TODO like to use []*os.Dir instead of []os.Dir - template.go doesn't
+-//      automatically indirect pointers it seems, so this would require
+-//      custom formatters at the moment
+ type Dirs struct {
+ 	Path string;
+-	Dirs []os.Dir;
++	Dirs dirList;
+ }
+ 
+ 
+-func serveDirList(c *http.Conn, path string, dirs []os.Dir) {
++func serveDirList(c *http.Conn, path string, dirs dirList) {
+ 	var buf io.ByteBuffer;
+ 	err := dirlistHtml.Execute(Dirs{path, dirs}, &buf);
+ 	if err != nil {
+diff --git a/usr/gri/pretty/packagelist.html b/usr/gri/pretty/packagelist.html
+deleted file mode 100644
+index ffe95da7d7..0000000000
+--- a/usr/gri/pretty/packagelist.html
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{.section Packages}
+-<b>Packages</b><br />
+-{.repeated section @}
+-<a href="{pakname|html}">{importpath|html}</a><br />
+-{.end}
+-{.or}
+-No such package {Path|html}<br />
+-{.end}
+-{.section Subdirs}
+-<br />
+-<b>Directories</b><br />
+-{.repeated section @}
+-<a href="{Name|html}/">{Path|html}{Name|html}/</a><br />
+-{.end}
+-{.end}
+diff --git a/usr/gri/pretty/packagelist.txt b/usr/gri/pretty/packagelist.txt
+deleted file mode 100644
+index 57d9f73e0e..0000000000
+--- a/usr/gri/pretty/packagelist.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-{.repeated section Packages}
+-godoc {pakname}
+-{.or}
+-godoc: package not found: {Path}
+-{.end}
+-{.section Packages}
+-{.repeated section Subdirs}
+-godoc {Path}/{Name}/
+-{.end}
+-{.end}

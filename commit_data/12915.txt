@@ -7,7 +7,32 @@ Date:   Thu Apr 19 09:23:48 2012 -0700
     R=golang-dev, kevlar
     CC=golang-dev
     https://golang.org/cl/6075045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4b9ea30f86..8e3fea8ba2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -33,6 +33,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <berengar.lehr@gmx.de>
++Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d8420aebac..1cf4d1ed6c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -67,6 +67,7 @@ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
++Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>

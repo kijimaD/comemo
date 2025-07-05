@@ -13,7 +13,228 @@ Date:   Wed Nov 30 04:12:33 2016 +0000
     Change-Id: I1ba0649171d6f6a69646a90eb65db6674cb903af
     Reviewed-on: https://go-review.googlesource.com/33684
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 92 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
  doc/go1.8.txt  | 27 -----------------
  2 files changed, 89 insertions(+), 30 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index ec65e1ef8e..4163027a32 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -36,7 +36,8 @@ The release <a href="#ports">adds support for 32-bit MIPS</a>,
+ <a href="#gc">reduces GC pauses</a> by eliminating stop-the-world stack rescanning,
+ <a href="#h2push">adds HTTP/2 Push support</a>,
+ <a href="#http_shutdown">adds HTTP graceful shutdown</a>,
+-<a href="#more_context">more context support</a>,
++<a href="#more_context">adds more context support</a>,
++<a href="#mutex_prof">enables profiling mutexes</a>,
+ and <a href="#sort">simplifies sorting slices</a>.
+ </p>
+ 
+@@ -64,7 +65,7 @@ Go now supports 32-bit MIPS on Linux for both big-endian
+ </p>
+ 
+ <p>
+-Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491 -->
++Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491, CL 29971 -->
+ </p>
+ 
+ <p>
+@@ -223,6 +224,10 @@ It has moved to the “tools” repository and is and is available via
+ 
+ <p>
+   TODO: more. proto? standalone profiles with symbols?
++<pre>
++runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)
++runtime/pprof: write profiles in protobuf format. (CL 32257)
++</pre>
+ </p>
+ 
+ <h3 id="tool_trace">Trace</h3>
+@@ -233,6 +238,7 @@ cmd/trace: add option to output pprof files (CL 23324)
+ cmd/trace: fix a runnable goroutine count bug (CL 25552)
+ cmd/trace: move process-wide GC events to their own row (CL 30017)
+ internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
++cmd/trace: annotate different mark worker types (CL 30702)
+ </pre>
+ 
+ <h3 id="tool_vet">Vet</h3>
+@@ -543,6 +549,25 @@ now implements the new
+     take a context.</li>
+   </ul>
+ 
++<h3 id="mutex_prof">Mutex Contention Profiling</h3>
++
++<p>
++  The runtime and tools now support profiling contended mutexes.
++</p>
++
++<p>
++  Most users will want to use the new <code>-mutexprofile</code>
++  flag with <a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>,
++  and then use <a href="/cmd/pprof/">pprof</a> on the resultant file.
++</p>
++
++<p>
++  Lower-level support is also available via the new
++  <a href="/pkg/runtime/#MutexProfile"><code>MutexProfile</code></a>
++  and
++  <a href="/pkg/runtime/#SetMutexProfileFraction"><code>SetMutexProfileFraction</code></a>.
++</p>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>
+@@ -936,6 +961,20 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+   </dd>
+ </dl>
+ 
++<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
++  <dd>
++    <p><!-- CL 30611 -->
++      <a href="/pkg/fmt/#Scanf"><code>Scanf</code></a>,
++      <a href="/pkg/fmt/#Fscanf"><code>Fscanf</code></a>, and
++      <a href="/pkg/fmt/#Sscanf"><code>Sscanf</code></a> now
++      handle spaces differently and more consistently than
++      previous releases. See the
++      <a href="/pkg/fmt/#hdr-Scanning">scanning documentation</a>
++      for details.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="go_doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+   <dd>
+     <p><!-- CL 29870 -->
+@@ -945,6 +984,31 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+   </dd>
+ </dl>
+ 
++<dl id="go_types"><dt><a href="/pkg/go/types/">go/types</a></dt>
++  <dd>
++    <p><!-- CL 30715 -->
++      The new function
++      <a href="/pkg/go/types/#Default"><code>Default</code></a>
++      returns the default "typed" type for an "untyped" type.
++    </p>
++
++    <p><!-- CL 31939 -->
++      The alignment of <code>complex64</code> now matches
++      the <a href="/cmd/compile/">Go compiler</a>.
++    </p>
++  </dd>
++</dl>
++
++<dl id="html_template"><dt><a href="/pkg/html/template/">html/template</a></dt>
++  <dd>
++    <p><!-- CL 14336 -->
++      The package now validates
++      the <code>"type"</code> attribute on
++      a <code>&lt;script&gt;</code> tag.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="image_png"><dt><a href="/pkg/image/png/">image/png</a></dt>
+   <dd>
+     <p> <!-- CL 32143, CL 32140 -->
+@@ -1411,7 +1475,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+   </dd>
+ </dl>
+ 
+-
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p> <!-- CL 31210 -->
+@@ -1423,6 +1486,29 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+   </dd>
+ </dl>
+ 
++<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
++  <dd>
++    <p> <!-- CL 25050, CL 25022 -->
++      The <a href="/pkg/syscall/#Getpagesize"><code>Getpagesize</code></a>
++      now returns the system's size, rather than a constant value.
++      Previously it always returned 4KB.
++    </p>
++
++    <p> <!-- CL 31446 -->
++      The signature
++      of <a href="/pkg/syscall/#Utimes"><code>Utimes</code></a> has
++      changed on Solaris to match all the other Unix systems'
++      signature. Portable code should continue to use
++      <a href="/pkg/os/#Chtimes"><code>os.Chtimes</code></a> instead.
++    </p>
++
++    <p> <!-- CL 32319 -->
++      The <code>X__cmsg_data</code> field has been removed from
++      <a href="/pkg/syscall/#Cmsghdr"><code>Cmsghdr</code></a>.
++      </p>
++  </dd>
++</dl>
++
+ <dl id="text_template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+   <dd>
+     <p> <!-- CL 31462 -->
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index b03d820e09..49f29a399a 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -12,7 +12,6 @@ API additions and behavior changes:
+ 
+ cmd/compile, runtime, etc: get rid of constant FP registers (CL 28095)
+ cmd/compile, runtime: add go:yeswritebarrierrec pragma (CL 30938)
+-cmd/compile/internal/gc: add runtime/trace support (CL 25354)
+ cmd/compile/internal/gc: enable new parser by default (CL 27203)
+ cmd/compile/internal/syntax: fast Go syntax trees, initial commit (CL 27195)
+ cmd/compile: add compiler phase timing (CL 24462)
+@@ -37,28 +36,14 @@ cmd/link: split large elf text sections on ppc64x (CL 27790)
+ cmd/link: trampoline support for external linking on ARM (CL 31143)
+ cmd/objdump: implement objdump of .o files (CL 24818)
+ 
+-fmt: document and adjust Scanf space handling to eliminate a few paradoxes (CL 30611)
+-
+ go/build: allow % in ${SRCDIR} expansion for Jenkins (CL 31611)
+ go/build: do not record go:binary-only-package if build tags not satisfied (CL 31577)
+ go/build: implement default GOPATH (CL 32019)
+ 
+-go/printer: don't drop required semi/linebreak after /*-comment (CL 33016)
+-go/types: expose Default function, which converts untyped T to T (CL 30715)
+-go/types: match cmd/compile's alignment for complex64 (CL 31939)
+-
+-html/template: check "type" attribute in <script> (CL 14336)
+-
+-runtime, cmd/trace: annotate different mark worker types (CL 30702)
+-runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly (CL 29971)
+-runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)
+-runtime/pprof: write profiles in protobuf format. (CL 32257)
+ runtime/race: update race runtime (CL 32160)
+-runtime: Profile goroutines holding contended mutexes. (CL 29650)
+ runtime: assume 64kB physical pages on ARM (CL 25021)
+ runtime: disable stack rescanning by default (CL 31766)
+ runtime: don't call cgocallback from signal handler (CL 30218)
+-runtime: fetch physical page size from the OS (CL 25050)
+ runtime: fix check for vacuous page boundary rounding (CL 27230)
+ runtime: fix map iterator concurrent map check (CL 24749)
+ runtime: fix newextram PC passed to race detector (CL 29712)
+@@ -68,19 +53,7 @@ runtime: limit the number of map overflow buckets (CL 25049)
+ runtime: pass windows float syscall args via XMM (CL 32173)
+ runtime: print sigcode on signal crash (CL 32183)
+ runtime: record current PC for SIGPROF on non-Go thread (CL 30252)
+-runtime: report GCSys and OtherSys in heap profile (CL 29276)
+ runtime: sleep on CLOCK_MONOTONIC in futexsleep1 on freebsd (CL 30154)
+-runtime: use RtlGenRandom instead of CryptGenRandom (CL 29700)
+-runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x (CL 32177)
+-runtime: use correct system page size on all arches (CL 25022)
+-runtime: handle SIGPIPE in c-archive and c-shared programs (CL 32796)
+ 
+-syscall: Clearenv now unsets env vars on Windows (CL 33168)
+-syscall: add bounds checking and error returns to ParseNetlinkMessage (CL 26990)
+ syscall: fix Send{msg,msgN}, Recvmsg and control message handling on solaris (CL 30171)
+-syscall: make Getpagesize return system-reported page size (CL 25051)
+-syscall: make Utimes on Solaris match all the other geese (CL 31446)
+ syscall: remove X__cmsg_data from Cmsghdr (CL 32319)
+-syscall: unify NsecToTime{spec,val}, fix for times < 1970 (CL 30826)
+-syscall: validate ParseDirent inputs (CL 23780)
+-

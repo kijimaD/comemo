@@ -76,7 +76,7 @@ Date:   Tue Sep 13 16:57:39 2011 -0700
     R=nigeltao, r
     CC=golang-dev
     https://golang.org/cl/4969072
-
+---
  src/pkg/exp/template/html/Makefile       |   1 +
  src/pkg/exp/template/html/clone.go       |  90 +++++++++++++
  src/pkg/exp/template/html/clone_test.go  |  90 +++++++++++++
@@ -84,3 +84,768 @@ Date:   Tue Sep 13 16:57:39 2011 -0700
  src/pkg/exp/template/html/escape.go      | 213 +++++++++++++++++++++++++++----
  src/pkg/exp/template/html/escape_test.go | 163 ++++++++++++++++++++++-
  6 files changed, 550 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+index cc346179ef..e4fcee1ab9 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/exp/template/html/Makefile
+@@ -6,6 +6,7 @@ include ../../../../Make.inc
+ 
+ TARG=exp/template/html
+ GOFILES=\
++	clone.go\
+ 	context.go\
+ 	css.go\
+ 	escape.go\
+diff --git a/src/pkg/exp/template/html/clone.go b/src/pkg/exp/template/html/clone.go
+new file mode 100644
+index 0000000000..803a64de12
+--- /dev/null
++++ b/src/pkg/exp/template/html/clone.go
+@@ -0,0 +1,90 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"template/parse"
++)
++
++// clone clones a template Node.
++func clone(n parse.Node) parse.Node {
++	switch t := n.(type) {
++	case *parse.ActionNode:
++		return cloneAction(t)
++	case *parse.IfNode:
++		b := new(parse.IfNode)
++		copyBranch(&b.BranchNode, &t.BranchNode)
++		return b
++	case *parse.ListNode:
++		return cloneList(t)
++	case *parse.RangeNode:
++		b := new(parse.RangeNode)
++		copyBranch(&b.BranchNode, &t.BranchNode)
++		return b
++	case *parse.TemplateNode:
++		return cloneTemplate(t)
++	case *parse.TextNode:
++		return cloneText(t)
++	case *parse.WithNode:
++		b := new(parse.WithNode)
++		copyBranch(&b.BranchNode, &t.BranchNode)
++		return b
++	}
++	panic("cloning " + n.String() + " is unimplemented")
++}
++
++// cloneAction returns a deep clone of n.
++func cloneAction(n *parse.ActionNode) *parse.ActionNode {
++	// We use keyless fields because they won't compile if a field is added.
++	return &parse.ActionNode{n.NodeType, n.Line, clonePipe(n.Pipe)}
++}
++
++// cloneList returns a deep clone of n.
++func cloneList(n *parse.ListNode) *parse.ListNode {
++	if n == nil {
++		return nil
++	}
++	// We use keyless fields because they won't compile if a field is added.
++	c := parse.ListNode{n.NodeType, make([]parse.Node, len(n.Nodes))}
++	for i, child := range n.Nodes {
++		c.Nodes[i] = clone(child)
++	}
++	return &c
++}
++
++// clonePipe returns a shallow clone of n.
++// The escaper does not modify pipe descendants in place so there's no need to
++// clone deeply.
++func clonePipe(n *parse.PipeNode) *parse.PipeNode {
++	if n == nil {
++		return nil
++	}
++	// We use keyless fields because they won't compile if a field is added.
++	return &parse.PipeNode{n.NodeType, n.Line, n.Decl, n.Cmds}
++}
++
++// cloneTemplate returns a deep clone of n.
++func cloneTemplate(n *parse.TemplateNode) *parse.TemplateNode {
++	// We use keyless fields because they won't compile if a field is added.
++	return &parse.TemplateNode{n.NodeType, n.Line, n.Name, clonePipe(n.Pipe)}
++}
++
++// cloneText clones the given node sharing its []byte.
++func cloneText(n *parse.TextNode) *parse.TextNode {
++	// We use keyless fields because they won't compile if a field is added.
++	return &parse.TextNode{n.NodeType, n.Text}
++}
++
++// copyBranch clones src into dst.
++func copyBranch(dst, src *parse.BranchNode) {
++	// We use keyless fields because they won't compile if a field is added.
++	*dst = parse.BranchNode{
++		src.NodeType,
++		src.Line,
++		clonePipe(src.Pipe),
++		cloneList(src.List),
++		cloneList(src.ElseList),
++	}
++}
+diff --git a/src/pkg/exp/template/html/clone_test.go b/src/pkg/exp/template/html/clone_test.go
+new file mode 100644
+index 0000000000..d91542529b
+--- /dev/null
++++ b/src/pkg/exp/template/html/clone_test.go
+@@ -0,0 +1,90 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"template"
++	"template/parse"
++	"testing"
++)
++
++func TestClone(t *testing.T) {
++	tests := []struct {
++		input, want, wantClone string
++	}{
++		{
++			`Hello, {{if true}}{{"<World>"}}{{end}}!`,
++			"Hello, <World>!",
++			"Hello, &lt;World&gt;!",
++		},
++		{
++			`Hello, {{if false}}{{.X}}{{else}}{{"<World>"}}{{end}}!`,
++			"Hello, <World>!",
++			"Hello, &lt;World&gt;!",
++		},
++		{
++			`Hello, {{with "<World>"}}{{.}}{{end}}!`,
++			"Hello, <World>!",
++			"Hello, &lt;World&gt;!",
++		},
++		{
++			`{{range .}}<p>{{.}}</p>{{end}}`,
++			"<p>foo</p><p><bar></p><p>baz</p>",
++			"<p>foo</p><p>&lt;bar&gt;</p><p>baz</p>",
++		},
++		{
++			`Hello, {{"<World>" | html}}!`,
++			"Hello, &lt;World&gt;!",
++			"Hello, &lt;World&gt;!",
++		},
++		{
++			`Hello{{if 1}}, World{{else}}{{template "d"}}{{end}}!`,
++			"Hello, World!",
++			"Hello, World!",
++		},
++	}
++
++	for _, test := range tests {
++		s := template.Must(template.New("s").Parse(test.input))
++		d := template.New("d")
++		d.Tree = &parse.Tree{Name: d.Name(), Root: cloneList(s.Root)}
++
++		if want, got := s.Root.String(), d.Root.String(); want != got {
++			t.Errorf("want %q, got %q", want, got)
++		}
++
++		d, err := Escape(d)
++		if err != nil {
++			t.Errorf("%q: failed to escape: %s", test.input, err)
++			continue
++		}
++
++		if want, got := "s", s.Name(); want != got {
++			t.Errorf("want %q, got %q", want, got)
++			continue
++		}
++		if want, got := "d", d.Name(); want != got {
++			t.Errorf("want %q, got %q", want, got)
++			continue
++		}
++
++		data := []string{"foo", "<bar>", "baz"}
++
++		// Make sure escaping d did not affect s.
++		var b bytes.Buffer
++		s.Execute(&b, data)
++		if got := b.String(); got != test.want {
++			t.Errorf("%q: want %q, got %q", test.input, test.want, got)
++			continue
++		}
++
++		b.Reset()
++		d.Execute(&b, data)
++		if got := b.String(); got != test.wantClone {
++			t.Errorf("%q: want %q, got %q", test.input, test.wantClone, got)
++		}
++	}
++}
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index 19381d5d62..bfe168f646 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -36,6 +36,29 @@ func (c context) eq(d context) bool {
+ 		c.errStr == d.errStr
+ }
+ 
++// mangle produces an identifier that includes a suffix that distinguishes it
++// from template names mangled with different contexts.
++func (c context) mangle(templateName string) string {
++	// The mangled name for the default context is the input templateName.
++	if c.state == stateText {
++		return templateName
++	}
++	s := templateName + "$htmltemplate_" + c.state.String()
++	if c.delim != 0 {
++		s += "_" + c.delim.String()
++	}
++	if c.urlPart != 0 {
++		s += "_" + c.urlPart.String()
++	}
++	if c.jsCtx != 0 {
++		s += "_" + c.jsCtx.String()
++	}
++	if c.element != 0 {
++		s += "_" + c.element.String()
++	}
++	return s
++}
++
+ // state describes a high-level HTML parser state.
+ //
+ // It bounds the top of the element stack, and by extension the HTML insertion
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index c0a0a24dd2..a6385fe93d 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -18,19 +18,51 @@ import (
+ )
+ 
+ // Escape rewrites each action in the template to guarantee that the output is
+-// HTML-escaped.
++// properly escaped.
+ func Escape(t *template.Template) (*template.Template, os.Error) {
+-	c := escapeList(context{}, t.Tree.Root)
+-	if c.errStr != "" {
+-		return nil, fmt.Errorf("%s:%d: %s", t.Name(), c.errLine, c.errStr)
++	var s template.Set
++	s.Add(t)
++	if _, err := EscapeSet(&s, t.Name()); err != nil {
++		return nil, err
+ 	}
+-	if c.state != stateText {
+-		return nil, fmt.Errorf("%s ends in a non-text context: %v", t.Name(), c)
+-	}
+-	t.Funcs(funcMap)
++	// TODO: if s contains cloned dependencies due to self-recursion
++	// cross-context, error out.
+ 	return t, nil
+ }
+ 
++// EscapeSet rewrites the template set to guarantee that the output of any of
++// the named templates is properly escaped.
++// Names should include the names of all templates that might be called but
++// need not include helper templates only called by top-level templates.
++// If nil is returned, then the templates have been modified.  Otherwise no
++// changes were made.
++func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
++	if len(names) == 0 {
++		// TODO: Maybe add a method to Set to enumerate template names
++		// and use those instead.
++		return nil, os.NewError("must specify names of top level templates")
++	}
++	e := escaper{
++		s,
++		map[string]context{},
++		map[string]*template.Template{},
++		map[string]bool{},
++		map[*parse.ActionNode][]string{},
++		map[*parse.TemplateNode]string{},
++	}
++	for _, name := range names {
++		c, _ := e.escapeTree(context{}, name, 0)
++		if c.errStr != "" {
++			return nil, fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
++		}
++		if c.state != stateText {
++			return nil, fmt.Errorf("%s ends in a non-text context: %v", name, c)
++		}
++	}
++	e.commit()
++	return s, nil
++}
++
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+ 	"exp_template_html_cssescaper":      cssEscaper,
+@@ -44,6 +76,27 @@ var funcMap = template.FuncMap{
+ 	"exp_template_html_urlnormalizer":   urlNormalizer,
+ }
+ 
++// escaper collects type inferences about templates and changes needed to make
++// templates injection safe.
++type escaper struct {
++	// set is the template set being escaped.
++	set *template.Set
++	// output[templateName] is the output context for a templateName that
++	// has been mangled to include its input context.
++	output map[string]context
++	// derived[c.mangle(name)] maps to a template derived from the template
++	// named name templateName for the start context c.
++	derived map[string]*template.Template
++	// called[templateName] is a set of called mangled template names.
++	called map[string]bool
++	// actionNodeEdits and templateNodeEdits are the accumulated edits to
++	// apply during commit. Such edits are not applied immediately in case
++	// a template set executes a given template in different escaping
++	// contexts.
++	actionNodeEdits   map[*parse.ActionNode][]string
++	templateNodeEdits map[*parse.TemplateNode]string
++}
++
+ // filterFailsafe is an innocuous word that is emitted in place of unsafe values
+ // by sanitizer functions.  It is not a keyword in any programming language,
+ // contains no special characters, is not empty, and when it appears in output
+@@ -52,27 +105,28 @@ var funcMap = template.FuncMap{
+ const filterFailsafe = "ZgotmplZ"
+ 
+ // escape escapes a template node.
+-func escape(c context, n parse.Node) context {
++func (e *escaper) escape(c context, n parse.Node) context {
+ 	switch n := n.(type) {
+ 	case *parse.ActionNode:
+-		return escapeAction(c, n)
++		return e.escapeAction(c, n)
+ 	case *parse.IfNode:
+-		return escapeBranch(c, &n.BranchNode, "if")
++		return e.escapeBranch(c, &n.BranchNode, "if")
+ 	case *parse.ListNode:
+-		return escapeList(c, n)
++		return e.escapeList(c, n)
+ 	case *parse.RangeNode:
+-		return escapeBranch(c, &n.BranchNode, "range")
++		return e.escapeBranch(c, &n.BranchNode, "range")
++	case *parse.TemplateNode:
++		return e.escapeTemplate(c, n)
+ 	case *parse.TextNode:
+-		return escapeText(c, n.Text)
++		return e.escapeText(c, n.Text)
+ 	case *parse.WithNode:
+-		return escapeBranch(c, &n.BranchNode, "with")
++		return e.escapeBranch(c, &n.BranchNode, "with")
+ 	}
+-	// TODO: handle a *parse.TemplateNode. Should Escape take a *template.Set?
+ 	panic("escaping " + n.String() + " is unimplemented")
+ }
+ 
+ // escapeAction escapes an action template node.
+-func escapeAction(c context, n *parse.ActionNode) context {
++func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	s := make([]string, 0, 3)
+ 	switch c.state {
+ 	case stateURL, stateCSSDqStr, stateCSSSqStr, stateCSSDqURL, stateCSSSqURL, stateCSSURL:
+@@ -100,6 +154,8 @@ func escapeAction(c context, n *parse.ActionNode) context {
+ 		}
+ 	case stateJS:
+ 		s = append(s, "exp_template_html_jsvalescaper")
++		// A slash after a value starts a div operator.
++		c.jsCtx = jsCtxDivOp
+ 	case stateJSDqStr, stateJSSqStr:
+ 		s = append(s, "exp_template_html_jsstrescaper")
+ 	case stateJSRegexp:
+@@ -123,7 +179,7 @@ func escapeAction(c context, n *parse.ActionNode) context {
+ 	default:
+ 		s = append(s, "html")
+ 	}
+-	ensurePipelineContains(n.Pipe, s)
++	e.actionNodeEdits[n] = s
+ 	return c
+ }
+ 
+@@ -233,13 +289,13 @@ func join(a, b context, line int, nodeName string) context {
+ }
+ 
+ // escapeBranch escapes a branch template node: "if", "range" and "with".
+-func escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
+-	c0 := escapeList(c, n.List)
++func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
++	c0 := e.escapeList(c, n.List)
+ 	if nodeName == "range" && c0.state != stateError {
+ 		// The "true" branch of a "range" node can execute multiple times.
+ 		// We check that executing n.List once results in the same context
+ 		// as executing n.List twice.
+-		c0 = join(c0, escapeList(c0, n.List), n.Line, nodeName)
++		c0 = join(c0, e.escapeList(c0, n.List), n.Line, nodeName)
+ 		if c0.state == stateError {
+ 			// Make clear that this is a problem on loop re-entry
+ 			// since developers tend to overlook that branch when
+@@ -249,21 +305,100 @@ func escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
+ 			return c0
+ 		}
+ 	}
+-	c1 := escapeList(c, n.ElseList)
++	c1 := e.escapeList(c, n.ElseList)
+ 	return join(c0, c1, n.Line, nodeName)
+ }
+ 
+ // escapeList escapes a list template node.
+-func escapeList(c context, n *parse.ListNode) context {
++func (e *escaper) escapeList(c context, n *parse.ListNode) context {
+ 	if n == nil {
+ 		return c
+ 	}
+ 	for _, m := range n.Nodes {
+-		c = escape(c, m)
++		c = e.escape(c, m)
++	}
++	return c
++}
++
++// escapeTemplate escapes a {{template}} call node.
++func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
++	c, name := e.escapeTree(c, n.Name, n.Line)
++	if name != n.Name {
++		e.templateNodeEdits[n] = name
+ 	}
+ 	return c
+ }
+ 
++// escapeTree escapes the named template starting in the given context as
++// necessary and returns its output context.
++func (e *escaper) escapeTree(c context, name string, line int) (context, string) {
++	// Mangle the template name with the input context to produce a reliable
++	// identifier.
++	dname := c.mangle(name)
++	e.called[dname] = true
++	if out, ok := e.output[dname]; ok {
++		// Already escaped.
++		return out, dname
++	}
++	t := e.template(name)
++	if t == nil {
++		return context{
++			state:   stateError,
++			errStr:  fmt.Sprintf("no such template %s", name),
++			errLine: line,
++		}, dname
++	}
++	if dname != name {
++		// Use any template derived during an earlier call to EscapeSet
++		// with different top level templates, or clone if necessary.
++		dt := e.template(dname)
++		if dt == nil {
++			dt = template.New(dname)
++			dt.Tree = &parse.Tree{Name: dname, Root: cloneList(t.Root)}
++			e.derived[dname] = dt
++		}
++		t = dt
++	}
++	return e.computeOutCtx(c, t), dname
++}
++
++// computeOutCtx takes a template and its start context and computes the output
++// context while storing any inferences in e.
++func (e *escaper) computeOutCtx(c context, t *template.Template) context {
++	n := t.Name()
++	// We need to assume an output context so that recursive template calls
++	// do not infinitely recurse, but instead take the fast path out of
++	// escapeTree.
++	// Naively assume that the input context is the same as the output.
++	// This is true >90% of the time, and does not matter if the template
++	// is not reentrant.
++	e.output[n] = c
++	// Start with a fresh called map so e.called[n] below is true iff t is
++	// reentrant.
++	called := e.called
++	e.called = make(map[string]bool)
++	// Propagate context over the body.
++	d := e.escapeList(c, t.Tree.Root)
++	// If t was called, then our assumption above that e.output[n] = c
++	// was incorporated into d, so we have to check that assumption.
++	if e.called[n] && d.state != stateError && !c.eq(d) {
++		d = context{
++			state: stateError,
++			// TODO: Find the first node with a line in t.Tree.Root
++			errLine: 0,
++			errStr:  fmt.Sprintf("cannot compute output context for template %s", n),
++		}
++		// TODO: If necessary, compute a fixed point by assuming d
++		// as the input context, and recursing to escapeList with a 
++		// different escaper and seeing if starting at d ends in d.
++	}
++	for k, v := range e.called {
++		called[k] = v
++	}
++	e.called = called
++	return d
++}
++
+ // delimEnds maps each delim to a string of characters that terminate it.
+ var delimEnds = [...]string{
+ 	delimDoubleQuote: `"`,
+@@ -279,7 +414,7 @@ var delimEnds = [...]string{
+ }
+ 
+ // escapeText escapes a text template node.
+-func escapeText(c context, s []byte) context {
++func (e *escaper) escapeText(c context, s []byte) context {
+ 	for len(s) > 0 {
+ 		if c.delim == delimNone {
+ 			c, s = transitionFunc[c.state](c, s)
+@@ -294,7 +429,7 @@ func escapeText(c context, s []byte) context {
+ 			// without having to entity decode token boundaries.
+ 			d := c.delim
+ 			c.delim = delimNone
+-			c = escapeText(c, []byte(html.UnescapeString(string(s))))
++			c = e.escapeText(c, []byte(html.UnescapeString(string(s))))
+ 			if c.state != stateError {
+ 				c.delim = d
+ 			}
+@@ -311,6 +446,32 @@ func escapeText(c context, s []byte) context {
+ 	return c
+ }
+ 
++// commit applies changes to actions and template calls needed to contextually
++// autoescape content and adds any derived templates to the set.
++func (e *escaper) commit() {
++	for name, _ := range e.output {
++		e.template(name).Funcs(funcMap)
++	}
++	for _, t := range e.derived {
++		e.set.Add(t)
++	}
++	for n, s := range e.actionNodeEdits {
++		ensurePipelineContains(n.Pipe, s)
++	}
++	for n, name := range e.templateNodeEdits {
++		n.Name = name
++	}
++}
++
++// template returns the named template given a mangled template name.
++func (e *escaper) template(name string) *template.Template {
++	t := e.set.Template(name)
++	if t == nil {
++		t = e.derived[name]
++	}
++	return t
++}
++
+ // transitionFunc is the array of context transition functions for text nodes.
+ // A transition function takes a context and template text input, and returns
+ // the updated context and any unconsumed text.
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 5110b445ca..20bce7ae5c 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -6,6 +6,7 @@ package html
+ 
+ import (
+ 	"bytes"
++	"os"
+ 	"strings"
+ 	"template"
+ 	"template/parse"
+@@ -374,6 +375,128 @@ func TestEscape(t *testing.T) {
+ 	}
+ }
+ 
++func TestEscapeSet(t *testing.T) {
++	type dataItem struct {
++		Children []*dataItem
++		X        string
++	}
++
++	data := dataItem{
++		Children: []*dataItem{
++			&dataItem{X: "foo"},
++			&dataItem{X: "<bar>"},
++			&dataItem{
++				Children: []*dataItem{
++					&dataItem{X: "baz"},
++				},
++			},
++		},
++	}
++
++	tests := []struct {
++		inputs map[string]string
++		want   string
++	}{
++		// The trivial set.
++		{
++			map[string]string{
++				"main": ``,
++			},
++			``,
++		},
++		// A template called in the start context.
++		{
++			map[string]string{
++				"main": `Hello, {{template "helper"}}!`,
++				// Not a valid top level HTML template.
++				// "<b" is not a full tag.
++				"helper": `{{"<World>"}}`,
++			},
++			`Hello, &lt;World&gt;!`,
++		},
++		// A template called in a context other than the start.
++		{
++			map[string]string{
++				"main": `<a onclick='a = {{template "helper"}};'>`,
++				// Not a valid top level HTML template.
++				// "<b" is not a full tag.
++				"helper": `{{"<a>"}}<b`,
++			},
++			`<a onclick='a = &#34;\u003ca\u003e&#34;<b;'>`,
++		},
++		// A recursive template that ends in its start context.
++		{
++			map[string]string{
++				"main": `{{range .Children}}{{template "main" .}}{{else}}{{.X}} {{end}}`,
++			},
++			`foo &lt;bar&gt; baz `,
++		},
++		// A recursive helper template that ends in its start context.
++		{
++			map[string]string{
++				"main":   `{{template "helper" .}}`,
++				"helper": `{{if .Children}}<ul>{{range .Children}}<li>{{template "main" .}}</li>{{end}}</ul>{{else}}{{.X}}{{end}}`,
++			},
++			`<ul><li>foo</li><li>&lt;bar&gt;</li><li><ul><li>baz</li></ul></li></ul>`,
++		},
++		// Co-recursive templates that end in its start context.
++		{
++			map[string]string{
++				"main":   `<blockquote>{{range .Children}}{{template "helper" .}}{{end}}</blockquote>`,
++				"helper": `{{if .Children}}{{template "main" .}}{{else}}{{.X}}<br>{{end}}`,
++			},
++			`<blockquote>foo<br>&lt;bar&gt;<br><blockquote>baz<br></blockquote></blockquote>`,
++		},
++		// A template that is called in two different contexts.
++		{
++			map[string]string{
++				"main":   `<button onclick="title='{{template "helper"}}'; ...">{{template "helper"}}</button>`,
++				"helper": `{{11}} of {{"<100>"}}`,
++			},
++			`<button onclick="title='11 of \x3c100\x3e'; ...">11 of &lt;100&gt;</button>`,
++		},
++		// A non-recursive template that ends in a different context.
++		// helper starts in jsCtxRegexp and ends in jsCtxDivOp.
++		{
++			map[string]string{
++				"main":   `<script>var x={{template "helper"}}/{{"42"}};</script>`,
++				"helper": "{{126}}",
++			},
++			`<script>var x= 126 /"42";</script>`,
++		},
++		// A recursive template that ends in a different context.
++		/*
++			{
++				map[string]string{
++					"main":   `<a href="/foo{{template "helper" .}}">`,
++					"helper": `{{if .Children}}{{range .Children}}{{template "helper" .}}{{end}}{{else}}?x={{.X}}{{end}}`,
++				},
++				`<a href="/foo?x=foo?x=%3cbar%3e?x=baz">`,
++			},
++		*/
++	}
++	for _, test := range tests {
++		var s template.Set
++		for name, src := range test.inputs {
++			s.Add(template.Must(template.New(name).Parse(src)))
++		}
++		if _, err := EscapeSet(&s, "main"); err != nil {
++			t.Errorf("%s for input:\n%v", err, test.inputs)
++			continue
++		}
++		var b bytes.Buffer
++
++		if err := s.Execute(&b, "main", data); err != nil {
++			t.Errorf("%q executing %v", err.String(), s.Template("main"))
++			continue
++		}
++		if got := b.String(); test.want != got {
++			t.Errorf("want\n\t%q\ngot\n\t%q", test.want, got)
++		}
++	}
++
++}
++
+ func TestErrors(t *testing.T) {
+ 	tests := []struct {
+ 		input string
+@@ -496,12 +619,40 @@ func TestErrors(t *testing.T) {
+ 			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
+ 			`: '/' could start div or regexp: "/-"`,
+ 		},
++		{
++			`{{template "foo"}}`,
++			"z:1: no such template foo",
++		},
++		{
++			`{{define "z"}}<div{{template "y"}}>{{end}}` +
++				// Illegal starting in stateTag but not in stateText.
++				`{{define "y"}} foo<b{{end}}`,
++			`z:0: "<" in attribute name: " foo<b"`,
++		},
++		{
++			`{{define "z"}}<script>reverseList = [{{template "t"}}]</script>{{end}}` +
++				// Missing " after recursive call.
++				`{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}{{.Head}}",{{end}}`,
++			`: cannot compute output context for template t$htmltemplate_stateJS_elementScript`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+-		tmpl := template.Must(template.New("z").Parse(test.input))
++		var err os.Error
++		if strings.HasPrefix(test.input, "{{define") {
++			var s template.Set
++			_, err = s.Parse(test.input)
++			if err != nil {
++				t.Errorf("Failed to parse %q: %s", test.input, err)
++				continue
++			}
++			_, err = EscapeSet(&s, "z")
++		} else {
++			tmpl := template.Must(template.New("z").Parse(test.input))
++			_, err = Escape(tmpl)
++		}
+ 		var got string
+-		if _, err := Escape(tmpl); err != nil {
++		if err != nil {
+ 			got = err.String()
+ 		}
+ 		if test.err == "" {
+@@ -715,6 +866,10 @@ func TestEscapeText(t *testing.T) {
+ 			`<a onclick="/foo/`,
+ 			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+ 		},
++		{
++			`<script>/foo/ /=`,
++			context{state: stateJS, element: elementScript},
++		},
+ 		{
+ 			`<a onclick="1 /foo`,
+ 			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+@@ -914,8 +1069,8 @@ func TestEscapeText(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		b := []byte(test.input)
+-		c := escapeText(context{}, b)
++		b, e := []byte(test.input), escaper{}
++		c := e.escapeText(context{}, b)
+ 		if !test.output.eq(c) {
+ 			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
+ 			continue

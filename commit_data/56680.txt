@@ -18,8 +18,168 @@ Date:   Fri May 19 15:09:58 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/fd_unix.go        |  5 ++-
  src/net/file_unix_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
  src/os/file_unix.go       | 17 +++++++++
  3 files changed, 118 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index a400c6075e..198f606284 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -190,6 +190,9 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	return netfd, nil
+ }
+ 
++// Defined in os package.
++func newUnixFile(fd uintptr, name string) *os.File
++
+ func (fd *netFD) dup() (f *os.File, err error) {
+ 	ns, call, err := fd.pfd.Dup()
+ 	if err != nil {
+@@ -199,5 +202,5 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 		return nil, err
+ 	}
+ 
+-	return os.NewFile(uintptr(ns), fd.name()), nil
++	return newUnixFile(uintptr(ns), fd.name()), nil
+ }
+diff --git a/src/net/file_unix_test.go b/src/net/file_unix_test.go
+new file mode 100644
+index 0000000000..0a8badf23f
+--- /dev/null
++++ b/src/net/file_unix_test.go
+@@ -0,0 +1,97 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package net
++
++import (
++	"internal/syscall/unix"
++	"testing"
++)
++
++// For backward compatibility, opening a net.Conn, turning it into an os.File,
++// and calling the Fd method should return a blocking descriptor.
++func TestFileFdBlocks(t *testing.T) {
++	ls := newLocalServer(t, "unix")
++	defer ls.teardown()
++
++	errc := make(chan error, 1)
++	done := make(chan bool)
++	handler := func(ls *localServer, ln Listener) {
++		server, err := ln.Accept()
++		errc <- err
++		if err != nil {
++			return
++		}
++		defer server.Close()
++		<-done
++	}
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
++	defer close(done)
++
++	client, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer client.Close()
++
++	if err := <-errc; err != nil {
++		t.Fatalf("server error: %v", err)
++	}
++
++	// The socket should be non-blocking.
++	rawconn, err := client.(*UnixConn).SyscallConn()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = rawconn.Control(func(fd uintptr) {
++		nonblock, err := unix.IsNonblock(int(fd))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !nonblock {
++			t.Fatal("unix socket is in blocking mode")
++		}
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	file, err := client.(*UnixConn).File()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// At this point the descriptor should still be non-blocking.
++	rawconn, err = file.SyscallConn()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = rawconn.Control(func(fd uintptr) {
++		nonblock, err := unix.IsNonblock(int(fd))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !nonblock {
++			t.Fatal("unix socket as os.File is in blocking mode")
++		}
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	fd := file.Fd()
++
++	// Calling Fd should have put the descriptor into blocking mode.
++	nonblock, err := unix.IsNonblock(int(fd))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if nonblock {
++		t.Error("unix socket through os.File.Fd is non-blocking")
++	}
++}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index b8c27d8826..25ce83bf9d 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -12,6 +12,7 @@ import (
+ 	"io/fs"
+ 	"runtime"
+ 	"syscall"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ const _UTIME_OMIT = unix.UTIME_OMIT
+@@ -113,6 +114,22 @@ func NewFile(fd uintptr, name string) *File {
+ 	return f
+ }
+ 
++// net_newUnixFile is a hidden entry point called by net.conn.File.
++// This is used so that a nonblocking network connection will become
++// blocking if code calls the Fd method. We don't want that for direct
++// calls to NewFile: passing a nonblocking descriptor to NewFile should
++// remain nonblocking if you get it back using Fd. But for net.conn.File
++// the call to NewFile is hidden from the user. Historically in that case
++// the Fd method has returned a blocking descriptor, and we want to
++// retain that behavior because existing code expects it and depends on it.
++//
++//go:linkname net_newUnixFile net.newUnixFile
++func net_newUnixFile(fd uintptr, name string) *File {
++	f := newFile(fd, name, kindNonBlock)
++	f.nonblock = true // tell Fd to return blocking descriptor
++	return f
++}
++
+ // newFileKind describes the kind of file to newFile.
+ type newFileKind int
+ 

@@ -7,6 +7,20 @@ Date:   Tue Nov 8 06:56:35 2011 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5353045
-
+---
  src/pkg/net/sock_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+index c59802fecb..7025edf742 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd
++// +build darwin freebsd openbsd
+ 
+ // Sockets for BSD variants
+ 

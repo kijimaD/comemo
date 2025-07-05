@@ -13,7 +13,158 @@ Date:   Tue Sep 17 04:23:23 2019 +1000
     Change-Id: Ia7b6e60ae45416a82f240e7b7fc101a36ce18886
     Reviewed-on: https://go-review.googlesource.com/c/go/+/195917
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s | 50 +++++++++++++++++++++++---
  src/cmd/internal/obj/riscv/obj.go            | 53 ++++++++++++++++++++++++++++
  2 files changed, 99 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index c05a05ea33..2e4d464626 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -6,10 +6,6 @@
+ 
+ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 
+-	// Arbitrary bytes (entered in little-endian mode)
+-	WORD	$0x12345678	// WORD $305419896	// 78563412
+-	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
+-
+ 	// Unprivileged ISA
+ 
+ 	// 2.4: Integer Computational Instructions
+@@ -77,3 +73,49 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	SRA	X5, X6					// 33535340
+ 	SRA	$1, X5, X6				// 13d31240
+ 	SRA	$1, X5					// 93d21240
++
++	// 2.6: Load and Store Instructions
++	LW	$0, X5, X6				// 03a30200
++	LW	$4, X5, X6				// 03a34200
++	LWU	$0, X5, X6				// 03e30200
++	LWU	$4, X5, X6				// 03e34200
++	LH	$0, X5, X6				// 03930200
++	LH	$4, X5, X6				// 03934200
++	LHU	$0, X5, X6				// 03d30200
++	LHU	$4, X5, X6				// 03d34200
++	LB	$0, X5, X6				// 03830200
++	LB	$4, X5, X6				// 03834200
++	LBU	$0, X5, X6				// 03c30200
++	LBU	$4, X5, X6				// 03c34200
++
++	SW	$0, X5, X6				// 23205300
++	SW	$4, X5, X6				// 23225300
++	SH	$0, X5, X6				// 23105300
++	SH	$4, X5, X6				// 23125300
++	SB	$0, X5, X6				// 23005300
++	SB	$4, X5, X6				// 23025300
++
++	// 5.3: Load and Store Instructions (RV64I)
++	LD	$0, X5, X6				// 03b30200
++	LD	$4, X5, X6				// 03b34200
++	SD	$0, X5, X6				// 23305300
++	SD	$4, X5, X6				// 23325300
++
++	// 7.1: Multiplication Operations
++	MUL	X5, X6, X7				// b3035302
++	MULH	X5, X6, X7				// b3135302
++	MULHU	X5, X6, X7				// b3335302
++	MULHSU	X5, X6, X7				// b3235302
++	MULW	X5, X6, X7				// bb035302
++	DIV	X5, X6, X7				// b3435302
++	DIVU	X5, X6, X7				// b3535302
++	REM	X5, X6, X7				// b3635302
++	REMU	X5, X6, X7				// b3735302
++	DIVW	X5, X6, X7				// bb435302
++	DIVUW	X5, X6, X7				// bb535302
++	REMW	X5, X6, X7				// bb635302
++	REMUW	X5, X6, X7				// bb735302
++
++	// Arbitrary bytes (entered in little-endian mode)
++	WORD	$0x12345678	// WORD $305419896	// 78563412
++	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 3ce8cb8982..e97be4b69e 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -215,6 +215,12 @@ func validateII(p *obj.Prog) {
+ 	wantIntRegAddr(p, "to", &p.To)
+ }
+ 
++func validateSI(p *obj.Prog) {
++	wantImm(p, "from", p.From, 12)
++	wantIntReg(p, "reg", p.Reg)
++	wantIntRegAddr(p, "to", &p.To)
++}
++
+ func validateRaw(p *obj.Prog) {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+ 	// Nobody wants to enter negative machine code.
+@@ -263,6 +269,21 @@ func encodeII(p *obj.Prog) uint32 {
+ 	return encodeI(p, regIAddr(p.To))
+ }
+ 
++// encodeS encodes an S-type RISC-V instruction.
++func encodeS(p *obj.Prog, rs2 uint32) uint32 {
++	imm := immI(p.From, 12)
++	rs1 := regIAddr(p.To)
++	i := encode(p.As)
++	if i == nil {
++		panic("encodeS: could not encode instruction")
++	}
++	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | i.funct3<<12 | (imm&0x1f)<<7 | i.opcode
++}
++
++func encodeSI(p *obj.Prog) uint32 {
++	return encodeS(p, regI(p.Reg))
++}
++
+ // encodeRaw encodes a raw instruction value.
+ func encodeRaw(p *obj.Prog) uint32 {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+@@ -299,6 +320,8 @@ var (
+ 
+ 	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
+ 
++	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
++
+ 	// rawEncoding encodes a raw instruction byte sequence.
+ 	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
+ 
+@@ -338,6 +361,36 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
+ 	ASUB & obj.AMask:   rIIIEncoding,
+ 	ASRA & obj.AMask:   rIIIEncoding,
+ 
++	// 2.6: Load and Store Instructions
++	ALW & obj.AMask:  iIEncoding,
++	ALWU & obj.AMask: iIEncoding,
++	ALH & obj.AMask:  iIEncoding,
++	ALHU & obj.AMask: iIEncoding,
++	ALB & obj.AMask:  iIEncoding,
++	ALBU & obj.AMask: iIEncoding,
++	ASW & obj.AMask:  sIEncoding,
++	ASH & obj.AMask:  sIEncoding,
++	ASB & obj.AMask:  sIEncoding,
++
++	// 5.3: Load and Store Instructions (RV64I)
++	ALD & obj.AMask: iIEncoding,
++	ASD & obj.AMask: sIEncoding,
++
++	// 7.1: Multiplication Operations
++	AMUL & obj.AMask:    rIIIEncoding,
++	AMULH & obj.AMask:   rIIIEncoding,
++	AMULHU & obj.AMask:  rIIIEncoding,
++	AMULHSU & obj.AMask: rIIIEncoding,
++	AMULW & obj.AMask:   rIIIEncoding,
++	ADIV & obj.AMask:    rIIIEncoding,
++	ADIVU & obj.AMask:   rIIIEncoding,
++	AREM & obj.AMask:    rIIIEncoding,
++	AREMU & obj.AMask:   rIIIEncoding,
++	ADIVW & obj.AMask:   rIIIEncoding,
++	ADIVUW & obj.AMask:  rIIIEncoding,
++	AREMW & obj.AMask:   rIIIEncoding,
++	AREMUW & obj.AMask:  rIIIEncoding,
++
+ 	// Escape hatch
+ 	AWORD & obj.AMask: rawEncoding,
+ 

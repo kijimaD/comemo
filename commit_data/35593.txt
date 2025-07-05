@@ -7,10 +7,85 @@ Date:   Thu Feb 22 15:51:10 2018 -0800
     Change-Id: I07a1eb02ffc621c5696b49491181300bf411f822
     Reviewed-on: https://go-review.googlesource.com/96475
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mfixalloc.go | 2 +-
  src/runtime/mgclarge.go  | 2 +-
  src/runtime/mgcmark.go   | 2 +-
  src/runtime/mheap.go     | 4 ++--
  src/runtime/symtab.go    | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 7496671fbe..1febe782bb 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -11,7 +11,7 @@ package runtime
+ import "unsafe"
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+-// Malloc uses a FixAlloc wrapped around sysAlloc to manages its
++// Malloc uses a FixAlloc wrapped around sysAlloc to manage its
+ // MCache and MSpan objects.
+ //
+ // Memory returned by fixalloc.alloc is zeroed by default, but the
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index fe437bf5e8..cf9f80c2fa 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -43,7 +43,7 @@ type treapNode struct {
+ 	parent    *treapNode // direct parent of this node, nil if root
+ 	npagesKey uintptr    // number of pages in spanKey, used as primary sort key
+ 	spanKey   *mspan     // span of size npagesKey, used as secondary sort key
+-	priority  uint32     // random number used by treap algorithm keep tree probablistically balanced
++	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
+ }
+ 
+ func (t *treapNode) init() {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 46c92d1983..270fa6cd32 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -530,7 +530,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 		// store that clears it but an atomic check in every malloc
+ 		// would be a performance hit.
+ 		// Instead we recheck it here on the non-preemptable system
+-		// stack to determine if we should preform an assist.
++		// stack to determine if we should perform an assist.
+ 
+ 		// GC is done, so ignore any remaining debt.
+ 		gp.gcAssistBytes = 0
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 7bfb6f856f..b529f086f4 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -561,7 +561,7 @@ retry:
+ 			goto retry
+ 		}
+ 		if s.sweepgen == sg-1 {
+-			// the span is being sweept by background sweeper, skip
++			// the span is being swept by background sweeper, skip
+ 			continue
+ 		}
+ 		// already swept empty span,
+@@ -751,7 +751,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 		s.nelems = 0
+ 		s.elemsize = 0
+ 		s.limit = s.base() + s.npages<<_PageShift
+-		// Manually manged memory doesn't count toward heap_sys.
++		// Manually managed memory doesn't count toward heap_sys.
+ 		memstats.heap_sys -= uint64(s.npages << _PageShift)
+ 	}
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 23d2232db5..7d7c363b5b 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -339,7 +339,7 @@ func (f *Func) funcInfo() funcInfo {
+ 
+ // PCDATA and FUNCDATA table indexes.
+ //
+-// See funcdata.h and ../cmd/internal/obj/funcdata.go.
++// See funcdata.h and ../cmd/internal/objabi/funcdata.go.
+ const (
+ 	_PCDATA_StackMapIndex       = 0
+ 	_PCDATA_InlTreeIndex        = 1

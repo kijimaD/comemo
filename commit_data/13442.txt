@@ -17,6 +17,33 @@ Date:   Wed Jul 4 00:38:01 2012 +0200
     R=dave, golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/6348061
-
+---
  src/pkg/math/rand/rand_test.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/math/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+index bbd44e3f8b..4d3abdb606 100644
+--- a/src/pkg/math/rand/rand_test.go
++++ b/src/pkg/math/rand/rand_test.go
+@@ -57,16 +57,13 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) error
+ 
+ func getStatsResults(samples []float64) *statsResults {
+ 	res := new(statsResults)
+-	var sum float64
+-	for i := range samples {
+-		sum += samples[i]
++	var sum, squaresum float64
++	for _, s := range samples {
++		sum += s
++		squaresum += s * s
+ 	}
+ 	res.mean = sum / float64(len(samples))
+-	var devsum float64
+-	for i := range samples {
+-		devsum += math.Pow(samples[i]-res.mean, 2)
+-	}
+-	res.stddev = math.Sqrt(devsum / float64(len(samples)))
++	res.stddev = math.Sqrt(squaresum/float64(len(samples)) - res.mean*res.mean)
+ 	return res
+ }
+ 

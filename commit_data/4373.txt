@@ -6,6 +6,21 @@ Date:   Thu Dec 10 11:40:11 2009 -0800
     
     R=rsc
     https://golang.org/cl/165044
-
+---
  src/pkg/syscall/zerrors_linux_arm.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index 908cdd3e24..1d7ff44985 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -153,6 +153,9 @@ const (
+ 	SIGIO		= 0x1d;
+ 	SIGQUIT		= 0x3;
+ 	SIGCLD		= 0x11;
++	SHUT_RD		= 0;
++	SHUT_RDWR	= 0x2;
++	SHUT_WR		= 0x1;
+ 	SIGABRT		= 0x6;
+ 	SIGTRAP		= 0x5;
+ 	SIGVTALRM	= 0x1a;

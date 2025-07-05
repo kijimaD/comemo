@@ -14,7 +14,7 @@ Date:   Fri Aug 5 14:15:03 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                    |  9 +++
  src/cmd/go/internal/test/flagdefs.go     |  1 +
  src/cmd/go/internal/test/test.go         |  9 +++
@@ -28,3 +28,512 @@ Date:   Fri Aug 5 14:15:03 2022 -0400
  src/testing/sub_test.go                  |  6 +-
  src/testing/testing.go                   | 17 +++++-
  12 files changed, 177 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f8800eef73..f8cc52343a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2983,6 +2983,7 @@
+ //	    run too, so that -run=X/Y matches and runs and reports the result
+ //	    of all tests matching X, even those without sub-tests matching Y,
+ //	    because it must run them to look for those sub-tests.
++//	    See also -skip.
+ //
+ //	-short
+ //	    Tell long-running tests to shorten their run time.
+@@ -2997,6 +2998,14 @@
+ //	    integer N, then N will be used as the seed value. In both cases,
+ //	    the seed will be reported for reproducibility.
+ //
++//	-skip regexp
++//	    Run only those tests, examples, fuzz tests, and benchmarks that
++//	    do not match the regular expression. Like for -run and -bench,
++//	    for tests and benchmarks, the regular expression is split by unbracketed
++//	    slash (/) characters into a sequence of regular expressions, and each
++//	    part of a test's identifier must match the corresponding element in
++//	    the sequence, if any.
++//
+ //	-timeout d
+ //	    If a test binary runs longer than duration d, panic.
+ //	    If d is 0, the timeout is disabled.
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 1b79314eff..b91204ee93 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -32,6 +32,7 @@ var passFlagToTest = map[string]bool{
+ 	"run":                  true,
+ 	"short":                true,
+ 	"shuffle":              true,
++	"skip":                 true,
+ 	"timeout":              true,
+ 	"trace":                true,
+ 	"v":                    true,
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7e6747055e..7248445796 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -306,6 +306,7 @@ control the execution of any test:
+ 	    run too, so that -run=X/Y matches and runs and reports the result
+ 	    of all tests matching X, even those without sub-tests matching Y,
+ 	    because it must run them to look for those sub-tests.
++	    See also -skip.
+ 
+ 	-short
+ 	    Tell long-running tests to shorten their run time.
+@@ -320,6 +321,14 @@ control the execution of any test:
+ 	    integer N, then N will be used as the seed value. In both cases,
+ 	    the seed will be reported for reproducibility.
+ 
++	-skip regexp
++	    Run only those tests, examples, fuzz tests, and benchmarks that
++	    do not match the regular expression. Like for -run and -bench,
++	    for tests and benchmarks, the regular expression is split by unbracketed
++	    slash (/) characters into a sequence of regular expressions, and each
++	    part of a test's identifier must match the corresponding element in
++	    the sequence, if any.
++
+ 	-timeout d
+ 	    If a test binary runs longer than duration d, panic.
+ 	    If d is 0, the timeout is disabled.
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index f3cd0b1392..8f5ab38d9d 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -66,6 +66,7 @@ func init() {
+ 	cf.Int("parallel", 0, "")
+ 	cf.String("run", "", "")
+ 	cf.Bool("short", false, "")
++	cf.String("skip", "", "")
+ 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+ 	cf.String("fuzztime", "", "")
+ 	cf.String("fuzzminimizetime", "", "")
+diff --git a/src/cmd/go/testdata/script/test_skip.txt b/src/cmd/go/testdata/script/test_skip.txt
+new file mode 100644
+index 0000000000..94d20b9644
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_skip.txt
+@@ -0,0 +1,34 @@
++go test -v -run Test -skip T skip_test.go
++! stdout RUN
++stdout '^ok.*\[no tests to run\]'
++
++go test -v -skip T skip_test.go
++! stdout RUN
++
++go test -v -skip 1 skip_test.go
++! stdout Test1
++stdout RUN.*Test2
++stdout RUN.*Test2/3
++
++go test -v -skip 2/3 skip_test.go
++stdout RUN.*Test1
++stdout RUN.*Test2
++! stdout Test2/3
++
++go test -v -skip 2/4 skip_test.go
++stdout RUN.*Test1
++stdout RUN.*Test2
++stdout RUN.*Test2/3
++
++
++-- skip_test.go --
++package skip_test
++
++import "testing"
++
++func Test1(t *testing.T) {
++}
++
++func Test2(t *testing.T) {
++	t.Run("3", func(t *testing.T) {})
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 2f7936611f..7ee517604b 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -536,7 +536,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ 		}
+ 	}
+ 	ctx := &benchContext{
+-		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench"),
++		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench", *skip),
+ 		extLen: len(benchmarkName("", maxprocs)),
+ 	}
+ 	var bs []InternalBenchmark
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 87b60fc1bb..d885f44b32 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -471,12 +471,12 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 	if len(fuzzTests) == 0 || *isFuzzWorker {
+ 		return ran, ok
+ 	}
+-	m := newMatcher(deps.MatchString, *match, "-test.run")
++	m := newMatcher(deps.MatchString, *match, "-test.run", *skip)
+ 	tctx := newTestContext(*parallel, m)
+ 	tctx.deadline = deadline
+ 	var mFuzz *matcher
+ 	if *matchFuzz != "" {
+-		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
++		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
+ 	}
+ 	fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
+ 	root := common{w: os.Stdout} // gather output in one place
+@@ -532,7 +532,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 	if len(fuzzTests) == 0 || *matchFuzz == "" {
+ 		return true
+ 	}
+-	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
++	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
+ 	tctx := newTestContext(1, m)
+ 	tctx.isFuzzing = true
+ 	fctx := &fuzzContext{
+diff --git a/src/testing/helper_test.go b/src/testing/helper_test.go
+index fa1d2b6082..6e8986a2ab 100644
+--- a/src/testing/helper_test.go
++++ b/src/testing/helper_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func TestTBHelper(t *T) {
+ 	var buf strings.Builder
+-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	ctx := newTestContext(1, allMatcher())
+ 	t1 := &T{
+ 		common: common{
+ 			signal: make(chan bool),
+@@ -55,7 +55,7 @@ helperfuncs_test.go:67: 10
+ 
+ func TestTBHelperParallel(t *T) {
+ 	var buf strings.Builder
+-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", "", ""))
+ 	t1 := &T{
+ 		common: common{
+ 			signal: make(chan bool),
+@@ -81,7 +81,7 @@ func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
+ 
+ func BenchmarkTBHelper(b *B) {
+ 	w := noopWriter(0)
+-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	ctx := newTestContext(1, allMatcher())
+ 	t1 := &T{
+ 		common: common{
+ 			signal: make(chan bool),
+diff --git a/src/testing/match.go b/src/testing/match.go
+index d530f70c26..92b7dc622d 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -15,6 +15,7 @@ import (
+ // matcher sanitizes, uniques, and filters names of subtests and subbenchmarks.
+ type matcher struct {
+ 	filter    filterMatch
++	skip      filterMatch
+ 	matchFunc func(pat, str string) (bool, error)
+ 
+ 	mu sync.Mutex
+@@ -47,17 +48,33 @@ type alternationMatch []filterMatch
+ // eliminate this Mutex.
+ var matchMutex sync.Mutex
+ 
+-func newMatcher(matchString func(pat, str string) (bool, error), patterns, name string) *matcher {
+-	var impl filterMatch
+-	if patterns != "" {
+-		impl = splitRegexp(patterns)
+-		if err := impl.verify(name, matchString); err != nil {
++func allMatcher() *matcher {
++	return newMatcher(nil, "", "", "")
++}
++
++func newMatcher(matchString func(pat, str string) (bool, error), patterns, name, skips string) *matcher {
++	var filter, skip filterMatch
++	if patterns == "" {
++		filter = simpleMatch{} // always partial true
++	} else {
++		filter = splitRegexp(patterns)
++		if err := filter.verify(name, matchString); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: invalid regexp for %s\n", err)
+ 			os.Exit(1)
+ 		}
+ 	}
++	if skips == "" {
++		skip = alternationMatch{} // always false
++	} else {
++		skip = splitRegexp(skips)
++		if err := skip.verify("-test.skip", matchString); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: invalid regexp for %v\n", err)
++			os.Exit(1)
++		}
++	}
+ 	return &matcher{
+-		filter:    impl,
++		filter:    filter,
++		skip:      skip,
+ 		matchFunc: matchString,
+ 		subNames:  map[string]int32{},
+ 	}
+@@ -76,14 +93,23 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial
+ 	matchMutex.Lock()
+ 	defer matchMutex.Unlock()
+ 
+-	if m.filter == nil {
+-		return name, true, false
+-	}
+-
+-	// We check the full array of paths each time to allow for the case that
+-	// a pattern contains a '/'.
++	// We check the full array of paths each time to allow for the case that a pattern contains a '/'.
+ 	elem := strings.Split(name, "/")
++
++	// filter must match.
++	// accept partial match that may produce full match later.
+ 	ok, partial = m.filter.matches(elem, m.matchFunc)
++	if !ok {
++		return name, false, false
++	}
++
++	// skip must not match.
++	// ignore partial match so we can get to more precise match later.
++	skip, partialSkip := m.skip.matches(elem, m.matchFunc)
++	if skip && !partialSkip {
++		return name, false, false
++	}
++
+ 	return name, ok, partial
+ }
+ 
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+index 206ac0b651..d31efbc95e 100644
+--- a/src/testing/match_test.go
++++ b/src/testing/match_test.go
+@@ -12,6 +12,10 @@ import (
+ 	"unicode"
+ )
+ 
++func init() {
++	testingTesting = true
++}
++
+ // Verify that our IsSpace agrees with unicode.IsSpace.
+ func TestIsSpace(t *T) {
+ 	n := 0
+@@ -89,54 +93,75 @@ func TestSplitRegexp(t *T) {
+ func TestMatcher(t *T) {
+ 	testCases := []struct {
+ 		pattern     string
++		skip        string
+ 		parent, sub string
+ 		ok          bool
+ 		partial     bool
+ 	}{
+ 		// Behavior without subtests.
+-		{"", "", "TestFoo", true, false},
+-		{"TestFoo", "", "TestFoo", true, false},
+-		{"TestFoo/", "", "TestFoo", true, true},
+-		{"TestFoo/bar/baz", "", "TestFoo", true, true},
+-		{"TestFoo", "", "TestBar", false, false},
+-		{"TestFoo/", "", "TestBar", false, false},
+-		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false, false},
++		{"", "", "", "TestFoo", true, false},
++		{"TestFoo", "", "", "TestFoo", true, false},
++		{"TestFoo/", "", "", "TestFoo", true, true},
++		{"TestFoo/bar/baz", "", "", "TestFoo", true, true},
++		{"TestFoo", "", "", "TestBar", false, false},
++		{"TestFoo/", "", "", "TestBar", false, false},
++		{"TestFoo/bar/baz", "", "", "TestBar/bar/baz", false, false},
++		{"", "TestBar", "", "TestFoo", true, false},
++		{"", "TestBar", "", "TestBar", false, false},
++
++		// Skipping a non-existent test doesn't change anything.
++		{"", "TestFoo/skipped", "", "TestFoo", true, false},
++		{"TestFoo", "TestFoo/skipped", "", "TestFoo", true, false},
++		{"TestFoo/", "TestFoo/skipped", "", "TestFoo", true, true},
++		{"TestFoo/bar/baz", "TestFoo/skipped", "", "TestFoo", true, true},
++		{"TestFoo", "TestFoo/skipped", "", "TestBar", false, false},
++		{"TestFoo/", "TestFoo/skipped", "", "TestBar", false, false},
++		{"TestFoo/bar/baz", "TestFoo/skipped", "", "TestBar/bar/baz", false, false},
+ 
+ 		// with subtests
+-		{"", "TestFoo", "x", true, false},
+-		{"TestFoo", "TestFoo", "x", true, false},
+-		{"TestFoo/", "TestFoo", "x", true, false},
+-		{"TestFoo/bar/baz", "TestFoo", "bar", true, true},
++		{"", "", "TestFoo", "x", true, false},
++		{"TestFoo", "", "TestFoo", "x", true, false},
++		{"TestFoo/", "", "TestFoo", "x", true, false},
++		{"TestFoo/bar/baz", "", "TestFoo", "bar", true, true},
++
++		{"", "TestFoo/skipped", "TestFoo", "x", true, false},
++		{"TestFoo", "TestFoo/skipped", "TestFoo", "x", true, false},
++		{"TestFoo", "TestFoo/skipped", "TestFoo", "skipped", false, false},
++		{"TestFoo/", "TestFoo/skipped", "TestFoo", "x", true, false},
++		{"TestFoo/bar/baz", "TestFoo/skipped", "TestFoo", "bar", true, true},
++
+ 		// Subtest with a '/' in its name still allows for copy and pasted names
+ 		// to match.
+-		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true, false},
+-		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true, false},
+-		{"TestFoo/bar/baz", "TestFoo", "x", false, false},
+-		{"TestFoo", "TestBar", "x", false, false},
+-		{"TestFoo/", "TestBar", "x", false, false},
+-		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false, false},
++		{"TestFoo/bar/baz", "", "TestFoo", "bar/baz", true, false},
++		{"TestFoo/bar/baz", "TestFoo/bar/baz", "TestFoo", "bar/baz", false, false},
++		{"TestFoo/bar/baz", "TestFoo/bar/baz/skip", "TestFoo", "bar/baz", true, false},
++		{"TestFoo/bar/baz", "", "TestFoo/bar", "baz", true, false},
++		{"TestFoo/bar/baz", "", "TestFoo", "x", false, false},
++		{"TestFoo", "", "TestBar", "x", false, false},
++		{"TestFoo/", "", "TestBar", "x", false, false},
++		{"TestFoo/bar/baz", "", "TestBar", "x/bar/baz", false, false},
+ 
+-		{"A/B|C/D", "TestA", "B", true, false},
+-		{"A/B|C/D", "TestC", "D", true, false},
+-		{"A/B|C/D", "TestA", "C", false, false},
++		{"A/B|C/D", "", "TestA", "B", true, false},
++		{"A/B|C/D", "", "TestC", "D", true, false},
++		{"A/B|C/D", "", "TestA", "C", false, false},
+ 
+ 		// subtests only
+-		{"", "TestFoo", "x", true, false},
+-		{"/", "TestFoo", "x", true, false},
+-		{"./", "TestFoo", "x", true, false},
+-		{"./.", "TestFoo", "x", true, false},
+-		{"/bar/baz", "TestFoo", "bar", true, true},
+-		{"/bar/baz", "TestFoo", "bar/baz", true, false},
+-		{"//baz", "TestFoo", "bar/baz", true, false},
+-		{"//", "TestFoo", "bar/baz", true, false},
+-		{"/bar/baz", "TestFoo/bar", "baz", true, false},
+-		{"//foo", "TestFoo", "bar/baz", false, false},
+-		{"/bar/baz", "TestFoo", "x", false, false},
+-		{"/bar/baz", "TestBar", "x/bar/baz", false, false},
++		{"", "", "TestFoo", "x", true, false},
++		{"/", "", "TestFoo", "x", true, false},
++		{"./", "", "TestFoo", "x", true, false},
++		{"./.", "", "TestFoo", "x", true, false},
++		{"/bar/baz", "", "TestFoo", "bar", true, true},
++		{"/bar/baz", "", "TestFoo", "bar/baz", true, false},
++		{"//baz", "", "TestFoo", "bar/baz", true, false},
++		{"//", "", "TestFoo", "bar/baz", true, false},
++		{"/bar/baz", "", "TestFoo/bar", "baz", true, false},
++		{"//foo", "", "TestFoo", "bar/baz", false, false},
++		{"/bar/baz", "", "TestFoo", "x", false, false},
++		{"/bar/baz", "", "TestBar", "x/bar/baz", false, false},
+ 	}
+ 
+ 	for _, tc := range testCases {
+-		m := newMatcher(regexp.MatchString, tc.pattern, "-test.run")
++		m := newMatcher(regexp.MatchString, tc.pattern, "-test.run", tc.skip)
+ 
+ 		parent := &common{name: tc.parent}
+ 		if tc.parent != "" {
+@@ -184,7 +209,7 @@ var namingTestCases = []struct{ name, want string }{
+ }
+ 
+ func TestNaming(t *T) {
+-	m := newMatcher(regexp.MatchString, "", "")
++	m := newMatcher(regexp.MatchString, "", "", "")
+ 	parent := &common{name: "x", level: 1} // top-level test.
+ 
+ 	for i, tc := range namingTestCases {
+@@ -202,7 +227,7 @@ func FuzzNaming(f *F) {
+ 	var m *matcher
+ 	var seen map[string]string
+ 	reset := func() {
+-		m = newMatcher(regexp.MatchString, "", "")
++		m = allMatcher()
+ 		seen = make(map[string]string)
+ 	}
+ 	reset()
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 6d8badfbf8..7d6b97b66e 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -476,7 +476,7 @@ func TestTRun(t *T) {
+ 	}}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *T) {
+-			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
++			ctx := newTestContext(tc.maxPar, allMatcher())
+ 			buf := &strings.Builder{}
+ 			root := &T{
+ 				common: common{
+@@ -775,7 +775,7 @@ func TestRacyOutput(t *T) {
+ 	var wg sync.WaitGroup
+ 	root := &T{
+ 		common:  common{w: &funcWriter{raceDetector}},
+-		context: newTestContext(1, newMatcher(regexp.MatchString, "", "")),
++		context: newTestContext(1, allMatcher()),
+ 	}
+ 	root.chatty = newChattyPrinter(root.w)
+ 	root.Run("", func(t *T) {
+@@ -798,7 +798,7 @@ func TestRacyOutput(t *T) {
+ 
+ // The late log message did not include the test name.  Issue 29388.
+ func TestLogAfterComplete(t *T) {
+-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	ctx := newTestContext(1, allMatcher())
+ 	var buf bytes.Buffer
+ 	t1 := &T{
+ 		common: common{
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 0228d2904b..e3460e049d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -422,6 +422,7 @@ func Init() {
+ 	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+ 	matchList = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+ 	match = flag.String("test.run", "", "run only tests and examples matching `regexp`")
++	skip = flag.String("test.skip", "", "do not list or run tests matching `regexp`")
+ 	memProfile = flag.String("test.memprofile", "", "write an allocation profile to `file`")
+ 	memProfileRate = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
+ 	cpuProfile = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+@@ -451,6 +452,7 @@ var (
+ 	coverProfile         *string
+ 	matchList            *string
+ 	match                *string
++	skip                 *string
+ 	memProfile           *string
+ 	memProfileRate       *int
+ 	cpuProfile           *string
+@@ -1690,6 +1692,8 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
+ 	}
+ }
+ 
++var testingTesting bool
++
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
+ func (m *M) Run() (code int) {
+ 	defer func() {
+@@ -1720,7 +1724,7 @@ func (m *M) Run() (code int) {
+ 		return
+ 	}
+ 
+-	if len(*matchList) != 0 {
++	if *matchList != "" {
+ 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.fuzzTargets, m.examples)
+ 		m.exitCode = 0
+ 		return
+@@ -1762,6 +1766,15 @@ func (m *M) Run() (code int) {
+ 		m.stopAlarm()
+ 		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
+ 			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
++			if testingTesting {
++				// If this happens during testing of package testing it could be that
++				// package testing's own logic for when to run a test is broken,
++				// in which case every test will run nothing and succeed,
++				// with no obvious way to detect this problem (since no tests are running).
++				// So make 'no tests to run' a hard failure when testing package testing itself.
++				fmt.Println("FAIL: package testing must run tests")
++				testOk = false
++			}
+ 		}
+ 		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+ 			fmt.Println("FAIL")
+@@ -1861,7 +1874,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				// to keep trying.
+ 				break
+ 			}
+-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
++			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+ 			ctx.deadline = deadline
+ 			t := &T{
+ 				common: common{

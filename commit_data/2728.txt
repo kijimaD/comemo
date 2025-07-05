@@ -8,7 +8,93 @@ Date:   Thu Jul 16 13:05:46 2009 -0700
     DELTA=15  (8 added, 2 deleted, 5 changed)
     OCL=31738
     CL=31738
-
+---
  src/pkg/gob/decoder.go      | 14 ++++++++++----
  src/pkg/gob/encoder_test.go |  6 +++---
  2 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index e824ac754c..9257f7c23a 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -19,6 +19,7 @@ type Decoder struct {
+ 	seen	map[TypeId] *wireType;	// which types we've already seen described
+ 	state	*decodeState;	// reads data from in-memory buffer
+ 	countState	*decodeState;	// reads counts from wire
++	buf	[]byte;
+ 	oneByte	[]byte;
+ }
+ 
+@@ -63,10 +64,15 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 			return err;
+ 		}
+ 
++		// Allocate the buffer.
++		if nbytes > uint64(len(dec.buf)) {
++			dec.buf = make([]byte, nbytes + 1000);
++		}
++		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
++
+ 		// Read the data
+-		buf := make([]byte, nbytes);	// TODO(r): avoid repeated allocation
+ 		var n int;
+-		n, err = dec.r.Read(buf);
++		n, err = dec.r.Read(dec.buf[0:nbytes]);
+ 		if err != nil {
+ 			return err;
+ 		}
+@@ -74,13 +80,13 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 			return os.ErrorString("gob decode: short read");
+ 		}
+ 
+-		dec.state.b = bytes.NewBuffer(buf);	// TODO(r): avoid repeated allocation
+ 		// Receive a type id.
+ 		id := TypeId(decodeInt(dec.state));
+ 		if dec.state.err != nil {
+ 			return dec.state.err
+ 		}
+ 
++		// Is it a type?
+ 		if id < 0 {	// 0 is the error state, handled above
+ 			// If the id is negative, we have a type.
+ 			dec.recvType(-id);
+@@ -90,7 +96,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 			continue;
+ 		}
+ 
+-		// we have a value
++		// No, it's a value.
+ 		info := getTypeInfo(rt);
+ 
+ 		// Check type compatibility.
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index b4e9f5b553..6a4a537341 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -171,7 +171,7 @@ func TestEncoderDecoder(t *testing.T) {
+ 	newEt1 := new(ET1);
+ 	dec.Decode(newEt1);
+ 	if dec.state.err != nil {
+-		t.Fatalf("error decoding ET1:", dec.state.err);
++		t.Fatal("error decoding ET1:", dec.state.err);
+ 	}
+ 
+ 	if !reflect.DeepEqual(et1, newEt1) {
+@@ -185,7 +185,7 @@ func TestEncoderDecoder(t *testing.T) {
+ 	newEt1 = new(ET1);
+ 	dec.Decode(newEt1);
+ 	if dec.state.err != nil {
+-		t.Fatalf("round 2: error decoding ET1:", dec.state.err);
++		t.Fatal("round 2: error decoding ET1:", dec.state.err);
+ 	}
+ 	if !reflect.DeepEqual(et1, newEt1) {
+ 		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
+@@ -202,7 +202,7 @@ func TestEncoderDecoder(t *testing.T) {
+ 	newEt2 := new(ET2);
+ 	dec.Decode(newEt2);
+ 	if dec.state.err == nil {
+-		t.Fatalf("round 3: expected `bad type' error decoding ET2");
++		t.Fatal("round 3: expected `bad type' error decoding ET2");
+ 	}
+ }
+ 

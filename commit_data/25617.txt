@@ -11,6 +11,20 @@ Date:   Wed Nov 11 20:49:37 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/runtime/lfstack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index de3999a5fb..ea640eb12f 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -16,7 +16,7 @@ func lfstackpush(head *uint64, node *lfnode) {
+ 	node.pushcnt++
+ 	new := lfstackPack(node, node.pushcnt)
+ 	if node1, _ := lfstackUnpack(new); node1 != node {
+-		println("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
++		print("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+ 		throw("lfstackpush")
+ 	}
+ 	for {

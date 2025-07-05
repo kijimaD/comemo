@@ -26,7 +26,7 @@ Date:   Tue Sep 11 15:14:28 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/c/134637
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/objabi/funcid.go |  2 +-
  src/cmd/link/internal/ld/pcln.go  | 97 +++++++++++++++++++++++----------------
  src/runtime/runtime2.go           |  8 ++--
@@ -35,3 +35,334 @@ Date:   Tue Sep 11 15:14:28 2018 -0700
  test/fixedbugs/issue27518a.go     | 45 ++++++++++++++++++
  test/fixedbugs/issue27518b.go     | 72 +++++++++++++++++++++++++++++
  7 files changed, 188 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 15a63ab8b3..92799107da 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -9,7 +9,7 @@ package objabi
+ // Note that in some situations involving plugins, there may be multiple
+ // copies of a particular special runtime function.
+ // Note: this list must match the list in runtime/symtab.go.
+-type FuncID uint32
++type FuncID uint8
+ 
+ const (
+ 	FuncID_normal FuncID = iota // not a special function
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 7b7f7068e7..24398fcc87 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -312,45 +312,19 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
+ 
+-		// funcID uint32
+-		funcID := objabi.FuncID_normal
+-		switch s.Name {
+-		case "runtime.main":
+-			funcID = objabi.FuncID_runtime_main
+-		case "runtime.goexit":
+-			funcID = objabi.FuncID_goexit
+-		case "runtime.jmpdefer":
+-			funcID = objabi.FuncID_jmpdefer
+-		case "runtime.mcall":
+-			funcID = objabi.FuncID_mcall
+-		case "runtime.morestack":
+-			funcID = objabi.FuncID_morestack
+-		case "runtime.mstart":
+-			funcID = objabi.FuncID_mstart
+-		case "runtime.rt0_go":
+-			funcID = objabi.FuncID_rt0_go
+-		case "runtime.asmcgocall":
+-			funcID = objabi.FuncID_asmcgocall
+-		case "runtime.sigpanic":
+-			funcID = objabi.FuncID_sigpanic
+-		case "runtime.runfinq":
+-			funcID = objabi.FuncID_runfinq
+-		case "runtime.gcBgMarkWorker":
+-			funcID = objabi.FuncID_gcBgMarkWorker
+-		case "runtime.systemstack_switch":
+-			funcID = objabi.FuncID_systemstack_switch
+-		case "runtime.systemstack":
+-			funcID = objabi.FuncID_systemstack
+-		case "runtime.cgocallback_gofunc":
+-			funcID = objabi.FuncID_cgocallback_gofunc
+-		case "runtime.gogo":
+-			funcID = objabi.FuncID_gogo
+-		case "runtime.externalthreadhandler":
+-			funcID = objabi.FuncID_externalthreadhandler
+-		case "runtime.debugCallV1":
+-			funcID = objabi.FuncID_debugCallV1
++		// deferreturn
++		deferreturn := uint32(0)
++		for _, r := range s.R {
++			if r.Sym != nil && r.Sym.Name == "runtime.deferreturn" && r.Add == 0 {
++				// Note: the relocation target is in the call instruction, but
++				// is not necessarily the whole instruction (for instance, on
++				// x86 the relocation applies to bytes [1:5] of the 5 byte call
++				// instruction).
++				deferreturn = uint32(r.Off)
++				break // only need one
++			}
+ 		}
+-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
++		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
+ 
+ 		if pcln != &pclntabZpcln {
+ 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
+@@ -396,7 +370,52 @@ func (ctxt *Link) pclntab() {
+ 		off = addpctab(ctxt, ftab, off, &pcln.Pcfile)
+ 		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
+-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
++
++		// funcID uint8
++		funcID := objabi.FuncID_normal
++		switch s.Name {
++		case "runtime.main":
++			funcID = objabi.FuncID_runtime_main
++		case "runtime.goexit":
++			funcID = objabi.FuncID_goexit
++		case "runtime.jmpdefer":
++			funcID = objabi.FuncID_jmpdefer
++		case "runtime.mcall":
++			funcID = objabi.FuncID_mcall
++		case "runtime.morestack":
++			funcID = objabi.FuncID_morestack
++		case "runtime.mstart":
++			funcID = objabi.FuncID_mstart
++		case "runtime.rt0_go":
++			funcID = objabi.FuncID_rt0_go
++		case "runtime.asmcgocall":
++			funcID = objabi.FuncID_asmcgocall
++		case "runtime.sigpanic":
++			funcID = objabi.FuncID_sigpanic
++		case "runtime.runfinq":
++			funcID = objabi.FuncID_runfinq
++		case "runtime.gcBgMarkWorker":
++			funcID = objabi.FuncID_gcBgMarkWorker
++		case "runtime.systemstack_switch":
++			funcID = objabi.FuncID_systemstack_switch
++		case "runtime.systemstack":
++			funcID = objabi.FuncID_systemstack
++		case "runtime.cgocallback_gofunc":
++			funcID = objabi.FuncID_cgocallback_gofunc
++		case "runtime.gogo":
++			funcID = objabi.FuncID_gogo
++		case "runtime.externalthreadhandler":
++			funcID = objabi.FuncID_externalthreadhandler
++		case "runtime.debugCallV1":
++			funcID = objabi.FuncID_debugCallV1
++		}
++		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
++
++		// unused
++		off += 2
++
++		// nfuncdata must be the final entry.
++		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(pcln.Funcdata))))
+ 		for i := range pcln.Pcdata {
+ 			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
+ 		}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2f009abdbb..bbb66bb8fa 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -650,14 +650,16 @@ type _func struct {
+ 	entry   uintptr // start pc
+ 	nameoff int32   // function name
+ 
+-	args   int32  // in/out args size
+-	funcID funcID // set for certain special runtime functions
++	args        int32  // in/out args size
++	deferreturn uint32 // offset of a deferreturn block from entry, if any.
+ 
+ 	pcsp      int32
+ 	pcfile    int32
+ 	pcln      int32
+ 	npcdata   int32
+-	nfuncdata int32
++	funcID    funcID  // set for certain special runtime functions
++	_         [2]int8 // unused
++	nfuncdata uint8   // must be last
+ }
+ 
+ // layout of Itab known to compilers
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 452e9d06ae..1dc7ab740e 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -357,7 +357,7 @@ const (
+ // Note that in some situations involving plugins, there may be multiple
+ // copies of a particular special runtime function.
+ // Note: this list must match the list in cmd/internal/objabi/funcid.go.
+-type funcID uint32
++type funcID uint8
+ 
+ const (
+ 	funcID_normal funcID = iota // not a special function
+@@ -856,7 +856,7 @@ func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache)
+ 	return pcvalue(f, off, targetpc, cache, true)
+ }
+ 
+-func funcdata(f funcInfo, i int32) unsafe.Pointer {
++func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 	if i < 0 || i >= f.nfuncdata {
+ 		return nil
+ 	}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 69d5764c8f..d7265b2bb9 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -312,8 +312,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// the function either doesn't return at all (if it has no defers or if the
+ 		// defers do not recover) or it returns from one of the calls to
+ 		// deferproc a second time (if the corresponding deferred func recovers).
+-		// It suffices to assume that the most recent deferproc is the one that
+-		// returns; everything live at earlier deferprocs is still live at that one.
++		// In the latter case, use a deferreturn call site as the continuation pc.
+ 		frame.continpc = frame.pc
+ 		if waspanic {
+ 			// We match up defers with frames using the SP.
+@@ -324,7 +323,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// can't push a defer, the defer can't belong
+ 			// to that frame.
+ 			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
+-				frame.continpc = _defer.pc
++				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
++				// Note: the +1 is to offset the -1 that
++				// stack.go:getStackMap does to back up a return
++				// address make sure the pc is in the CALL instruction.
+ 			} else {
+ 				frame.continpc = 0
+ 			}
+diff --git a/test/fixedbugs/issue27518a.go b/test/fixedbugs/issue27518a.go
+new file mode 100644
+index 0000000000..d6224df017
+--- /dev/null
++++ b/test/fixedbugs/issue27518a.go
+@@ -0,0 +1,45 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++)
++
++var nilp *int
++var forceHeap interface{}
++
++func main() {
++	// x is a pointer on the stack to heap-allocated memory.
++	x := new([32]*int)
++	forceHeap = x
++	forceHeap = nil
++
++	// Push a defer to be run when we panic below.
++	defer func() {
++		// Ignore the panic.
++		recover()
++		// Force a stack walk. Go 1.11 will fail because x is now
++		// considered live again.
++		runtime.GC()
++	}()
++	// Make x live at the defer's PC.
++	runtime.KeepAlive(x)
++
++	// x is no longer live. Garbage collect the [32]*int on the
++	// heap.
++	runtime.GC()
++	// At this point x's dead stack slot points to dead memory.
++
++	// Trigger a sigpanic. Since this is an implicit panic, we
++	// don't have an explicit liveness map here.
++	// Traceback used to use the liveness map of the most recent defer,
++	// but in that liveness map, x will be live again even though
++	// it points to dead memory. The fix is to use the liveness
++	// map of a deferreturn call instead.
++	*nilp = 0
++}
+diff --git a/test/fixedbugs/issue27518b.go b/test/fixedbugs/issue27518b.go
+new file mode 100644
+index 0000000000..ea72a30885
+--- /dev/null
++++ b/test/fixedbugs/issue27518b.go
+@@ -0,0 +1,72 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++var finalized bool
++var err string
++
++type HeapObj [8]int64
++
++const filler int64 = 0x123456789abcdef0
++
++func (h *HeapObj) init() {
++	for i := 0; i < len(*h); i++ {
++		h[i] = filler
++	}
++}
++func (h *HeapObj) check() {
++	for i := 0; i < len(*h); i++ {
++		if h[i] != filler {
++			err = "filler overwritten"
++		}
++	}
++}
++
++type StackObj struct {
++	h *HeapObj
++}
++
++func gc(shouldFinalize bool) {
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++	if shouldFinalize != finalized {
++		err = "heap object finalized at the wrong time"
++	}
++}
++
++func main() {
++	var s StackObj
++	s.h = new(HeapObj)
++	s.h.init()
++	runtime.SetFinalizer(s.h, func(h *HeapObj) {
++		finalized = true
++	})
++	gc(false)
++	h := g(&s)
++	gc(false)
++	h.check()
++	gc(true) // finalize here, after return value's last use. (Go1.11 never runs the finalizer.)
++	if err != "" {
++		panic(err)
++	}
++}
++
++func g(p *StackObj) (v *HeapObj) {
++	gc(false)
++	v = p.h // last use of the stack object. the only reference to the heap object is in the return slot.
++	gc(false)
++	defer func() {
++		gc(false)
++		recover()
++		gc(false)
++	}()
++	*(*int)(nil) = 0
++	return
++}

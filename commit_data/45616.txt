@@ -10,6 +10,27 @@ Date:   Fri Oct 30 17:16:51 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/266777
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/race_arm64.s | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 59373a9f3f..5b1a1cb89a 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -25,12 +25,15 @@
+ 
+ // The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
+ 
++// Darwin may return unaligned thread pointer. Align it. (See tls_arm64.s)
++// No-op on other OSes.
+ #ifdef TLS_darwin
+ #define TP_ALIGN	AND	$~7, R0
+ #else
+ #define TP_ALIGN
+ #endif
+ 
++// Load g from TLS. (See tls_arm64.s)
+ #define load_g \
+ 	MRS_TPIDR_R0 \
+ 	TP_ALIGN \

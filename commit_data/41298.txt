@@ -15,6 +15,22 @@ Date:   Mon Sep 23 19:10:05 2019 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index dd599c7c1c..e85605fa2f 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -193,7 +193,9 @@ func TestLookupGmailNS(t *testing.T) {
+ 			t.Error("got no record")
+ 		}
+ 		for _, ns := range nss {
+-			if !strings.HasSuffix(ns.Host, tt.host) {
++			// Some nameservers alter the case of NS records. See #34446.
++			host := strings.ToLower(ns.Host)
++			if !strings.HasSuffix(host, tt.host) {
+ 				t.Errorf("got %v; want a record containing %s", ns, tt.host)
+ 			}
+ 		}

@@ -7,7 +7,58 @@ Date:   Wed Nov 10 14:22:40 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/3022041
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 30 ++++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index 01c0d62b92..c58cfa1a9c 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -37,4 +37,3 @@ ca4f9687cec0b9c4732afd57b8c2786c7fe242de release.2010-10-13.1
+ 79997f0e5823ee9d13a34ca9971a9d8811df1c4a release.2010-10-20
+ 4d5b0816392116d3a3452bb275b6dab6c6456278 release.2010-10-27
+ c627e23260c7ddf4a1fcda6ef3197c98fa22551d release.2010-11-02
+-c627e23260c7ddf4a1fcda6ef3197c98fa22551d release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 321f290a46..34887b49e7 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,36 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-11-10">2010-11-10</h3>
++
++<pre>
++The birthday release includes a new Search capability inside the sort package.
++It takes an unusual but very general and easy-to-use approach to searching
++arbitrary indexable sorted data.  See the documentation for details:
++    http://golang.org/pkg/sort/#Search
++
++The ARM port now uses the hardware floating point unit (VFP).  It still has a
++few bugs, mostly around conversions between unsigned integer and floating-point
++values, but it's stabilizing.
++
++In addition, there have been many smaller fixes and updates: 
++
++* 6l: generate dwarf variable names with disambiguating suffix.
++* container/list: make Remove return Value of removed element.
++    makes it easier to remove first or last item.
++* crypto: add cast5 (default PGP cipher),
++    switch block cipher methods to be destination first.
++* crypto/tls: use pool building for certificate checking
++* go/ast: change embedded token.Position fields to named fields
++    (preparation for a different position representation)
++* net: provide public access to file descriptors (thanks Keith Rarick)
++* os: add Expand function to evaluate environment variables.
++* path: add Glob (thanks Benny Siegert)
++* runtime: memequal optimization (thanks Graham Miller)
++    prefix all external symbols with "runtime·" to avoid
++    conflicts linking with external C libraries.
++</pre>
++
+ <h3 id="2010-11-02">2010-11-02</h3>
+ 
+ <pre>

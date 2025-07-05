@@ -13,7 +13,58 @@ Date:   Fri Dec 26 01:22:41 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2126
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/build.go |  2 +-
  src/cmd/dist/util.go  | 12 +++++++++++-
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e36df51f5d..a302787c3d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -617,7 +617,7 @@ func install(dir string) {
+ 		}
+ 		// disable word wrapping in error messages
+ 		gccargs = append(gccargs, "-fmessage-length=0")
+-		if gohostos == "darwin" {
++		if gohostos == "darwin" && gohostarch != "arm" {
+ 			// golang.org/issue/5261
+ 			gccargs = append(gccargs, "-mmacosx-version-min=10.6")
+ 		}
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 9ce0749ff3..5cdd01b334 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -376,7 +376,7 @@ func main() {
+ 
+ 	if gohostarch == "" {
+ 		// Default Unix system.
+-		out := run("", CheckExit, "uname", "-m")
++		out := run("", CheckExit, "uname", "-m", "-v")
+ 		switch {
+ 		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
+ 			gohostarch = "amd64"
+@@ -388,6 +388,10 @@ func main() {
+ 			gohostarch = "ppc64le"
+ 		case strings.Contains(out, "ppc64"):
+ 			gohostarch = "ppc64"
++		case gohostos == "darwin":
++			if strings.Contains(out, "RELEASE_ARM_") {
++				gohostarch = "arm"
++			}
+ 		default:
+ 			fatal("unknown architecture: %s", out)
+ 		}
+@@ -453,6 +457,12 @@ func xgetgoarm() string {
+ 		// NaCl guarantees VFPv3 and is always cross-compiled.
+ 		return "7"
+ 	}
++	if goos == "darwin" {
++		// Assume all darwin/arm devices are have VFPv3. This
++		// port is also mostly cross-compiled, so it makes little
++		// sense to auto-detect the setting.
++		return "7"
++	}
+ 	if gohostarch != "arm" || goos != gohostos {
+ 		// Conservative default for cross-compilation.
+ 		return "5"

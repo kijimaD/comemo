@@ -9,6 +9,47 @@ Date:   Fri Sep 1 12:43:04 2017 -0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 22 +++++++++-------------
  1 file changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 0e69c75a87..347d02d07f 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -230,14 +230,6 @@ var dosstub = []uint8{
+ 	0x00,
+ }
+ 
+-var rsrcsym *Symbol
+-
+-var PESECTHEADR int32
+-
+-var PEFILEHEADR int32
+-
+-var pe64 int
+-
+ type Imp struct {
+ 	s       *Symbol
+ 	off     uint64
+@@ -253,11 +245,15 @@ type Dll struct {
+ 	next     *Dll
+ }
+ 
+-var dr *Dll
+-
+-var dexport [1024]*Symbol
+-
+-var nexport int
++var (
++	rsrcsym     *Symbol
++	PESECTHEADR int32
++	PEFILEHEADR int32
++	pe64        int
++	dr          *Dll
++	dexport     [1024]*Symbol
++	nexport     int
++)
+ 
+ // peStringTable is a COFF string table.
+ type peStringTable struct {

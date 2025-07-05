@@ -9,6 +9,28 @@ Date:   Sat Jul 15 14:32:15 2017 -0600
     Change-Id: I103cf39327c1868fb249538d9e22b11865ba4b70
     Reviewed-on: https://go-review.googlesource.com/49011
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/strings/example_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index d9e31ea770..473b8c3833 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -23,6 +23,16 @@ func ExampleFieldsFunc() {
+ 	// Output: Fields are: ["foo1" "bar2" "baz3"]
+ }
+ 
++func ExampleCompare() {
++	fmt.Println(strings.Compare("a", "b"))
++	fmt.Println(strings.Compare("a", "a"))
++	fmt.Println(strings.Compare("b", "a"))
++	// Output:
++	// -1
++	// 0
++	// 1
++}
++
+ func ExampleContains() {
+ 	fmt.Println(strings.Contains("seafood", "foo"))
+ 	fmt.Println(strings.Contains("seafood", "bar"))

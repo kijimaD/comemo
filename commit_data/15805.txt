@@ -7,6 +7,20 @@ Date:   Fri Mar 15 15:55:31 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/7716049
-
+---
  src/pkg/go/doc/filter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/filter.go b/src/pkg/go/doc/filter.go
+index 02b66ccefa..a6f243f33e 100644
+--- a/src/pkg/go/doc/filter.go
++++ b/src/pkg/go/doc/filter.go
+@@ -94,7 +94,7 @@ func filterTypes(a []*Type, f Filter) []*Type {
+ }
+ 
+ // Filter eliminates documentation for names that don't pass through the filter f.
+-// TODO: Recognize "Type.Method" as a name.
++// TODO(gri): Recognize "Type.Method" as a name.
+ //
+ func (p *Package) Filter(f Filter) {
+ 	p.Consts = filterValues(p.Consts, f)

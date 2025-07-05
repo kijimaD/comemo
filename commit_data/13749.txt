@@ -7,6 +7,18 @@ Date:   Tue Sep 4 16:35:05 2012 -0400
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6490076
-
+---
  src/pkg/runtime/thread_openbsd.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index c55f25278f..f479e2c3e9 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -240,5 +240,5 @@ runtime·badsignal(int32 sig)
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	runtime.exit(1)
++	runtime·exit(1);
+ }

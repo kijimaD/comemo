@@ -7,6 +7,19 @@ Date:   Wed Jun 3 16:28:45 2015 -0400
     Change-Id: I6476284a2cf80d50bd0a57fd9a0de9bc74273c7e
     Reviewed-on: https://go-review.googlesource.com/10680
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index fc410c9001..450efa7912 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -3,6 +3,7 @@ Overall:
+ - new GC
+ - go tool asm, go tool compile, go tool link
+ - default output files changed: now file.o and a.out
++- internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
+ 
+ Language:
+ - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)

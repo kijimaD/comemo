@@ -7,6 +7,20 @@ Date:   Thu Jul 31 15:35:25 2008 -0700
     R=r
     OCL=13695
     CL=13695
-
+---
  usr/gri/gosrc/utils.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+index e780e9618f..bbf5039d0a 100644
+--- a/usr/gri/gosrc/utils.go
++++ b/usr/gri/gosrc/utils.go
+@@ -22,7 +22,7 @@ func BaseName(s string) string {
+ export FixExt
+ func FixExt(s string) string {
+ 	i := len(s) - 3;  // 3 == len(".go");
+-	if s[i : len(s)] == ".go" {
++	if i >= 0 && s[i : len(s)] == ".go" {
+ 		s = s[0 : i];
+ 	}
+ 	return s + ".7";

@@ -14,7 +14,66 @@ Date:   Fri Sep 7 09:54:38 2018 -0400
     Change-Id: I5f774c0690074059553cdb38c0f681f5aafc8da1
     Reviewed-on: https://go-review.googlesource.com/134075
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/token/position.go      | 17 ++++++++++++++++-
  src/go/token/position_test.go | 15 +++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 241133fe26..3f5a390078 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -146,7 +146,7 @@ func (f *File) AddLine(offset int) {
+ // MergeLine will panic if given an invalid line number.
+ //
+ func (f *File) MergeLine(line int) {
+-	if line <= 0 {
++	if line < 1 {
+ 		panic("illegal line number (line numbering starts at 1)")
+ 	}
+ 	f.mutex.Lock()
+@@ -209,6 +209,21 @@ func (f *File) SetLinesForContent(content []byte) {
+ 	f.mutex.Unlock()
+ }
+ 
++// LineStart returns the Pos value of the start of the specified line.
++// It ignores any alternative positions set using AddLineColumnInfo.
++// LineStart panics if the 1-based line number is invalid.
++func (f *File) LineStart(line int) Pos {
++	if line < 1 {
++		panic("illegal line number (line numbering starts at 1)")
++	}
++	f.mutex.Lock()
++	defer f.mutex.Unlock()
++	if line > len(f.lines) {
++		panic("illegal line number")
++	}
++	return Pos(f.base + f.lines[line-1])
++}
++
+ // A lineInfo object describes alternative file, line, and column
+ // number information (such as provided via a //line directive)
+ // for a given file offset.
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 63984bc872..7d465dffa6 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -324,3 +324,18 @@ done
+ 		checkPos(t, "3. Position", got3, want)
+ 	}
+ }
++
++func TestLineStart(t *testing.T) {
++	const src = "one\ntwo\nthree\n"
++	fset := NewFileSet()
++	f := fset.AddFile("input", -1, len(src))
++	f.SetLinesForContent([]byte(src))
++
++	for line := 1; line <= 3; line++ {
++		pos := f.LineStart(line)
++		position := fset.Position(pos)
++		if position.Line != line || position.Column != 1 {
++			t.Errorf("LineStart(%d) returned wrong pos %d: %s", line, pos, position)
++		}
++	}
++}

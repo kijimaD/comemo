@@ -14,6 +14,25 @@ Date:   Tue Nov 8 22:18:38 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9912cf5aa0..7095782411 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -268,7 +268,12 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 		*budget -= 2
+ 	}
+ 
+-	return *budget < 0 || ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
++	if *budget < 0 {
++		*reason = "function too complex"
++		return true
++	}
++
++	return ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
+ 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
+ 		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)
+ }

@@ -7,8 +7,461 @@ Date:   Tue Apr 6 17:56:48 2010 -0700
     TBR=kaib
     CC=golang-dev
     https://golang.org/cl/883046
-
+---
  test/arm-pass.txt   |  89 ++++++++++++++++++++++++++++++++--------
  test/golden-arm.out | 116 ++++++++++++++++++++++++++--------------------------
  test/run-arm        |   2 +-
  3 files changed, 133 insertions(+), 74 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index a6f4dba4db..ce3897dd22 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,6 @@
+-./235.go
+-./64bit.go
++./235.go  # slow
++./64bit.go  # slow
++# ./args.go  # android runner doesn't pass args through
+ ./assign.go
+ ./bigalg.go
+ ./blank.go
+@@ -9,6 +10,10 @@
+ ./closedchan.go
+ ./closure.go
+ ./cmp1.go
++./cmp2.go
++./cmp3.go
++./cmp4.go
++./cmp5.go
+ ./complit.go
+ ./compos.go
+ ./const.go
+@@ -19,7 +24,7 @@
+ ./convert3.go
+ ./convlit.go
+ ./convlit1.go
+-./copy.go
++# ./copy.go  # slow
+ ./ddd.go
+ ./ddd1.go
+ ./ddd2.go
+@@ -27,18 +32,24 @@
+ ./decl.go
+ ./declbad.go
+ ./defer.go
++# ./deferprint.go  # need floating point
+ ./empty.go
++./env.go
+ ./escape.go
++./float_lit.go
++# ./floatcmp.go  # need floating point
+ ./for.go
++# ./func.go
+ ./func1.go
+ ./func2.go
+ ./func3.go
+ ./func4.go
+ ./func5.go
+-./gc.go
+-./gc1.go
++# ./gc.go
++# ./gc1.go
+ ./hashmap.go
+ ./hilbert.go
++./helloworld.go
+ ./if.go
+ ./if1.go
+ ./import.go
+@@ -49,16 +60,18 @@
+ ./indirect.go
+ ./indirect1.go
+ ./initcomma.go
++# ./initialize.go  # need floating point
+ ./initializerr.go
+ ./initsyscall.go
+ ./int_lit.go
+ ./intcvt.go
+ ./iota.go
+ ./literal.go
+-./malloc1.go
+-./mallocrand.go
+-./mallocrep.go
+-./mallocrep1.go
++# ./malloc1.go
++# ./mallocfin.go
++# ./mallocrand.go
++# ./mallocrep.go
++# ./mallocrep1.go
+ ./map.go
+ ./method.go
+ ./method1.go
+@@ -67,13 +80,19 @@
+ ./named.go
+ ./named1.go
+ ./nil.go
++./nul1.go
+ ./parentype.go
++# ./peano.go  # foo
++./printbig.go
+ ./range.go
++./recover.go
+ ./recover1.go
++./recover2.go
+ ./rename.go
+ ./rename1.go
+ ./runtime.go
+ ./sieve.go
++# ./sigchld.go  # fail - does not survive signal
+ ./simassign.go
+ ./stack.go
+ ./string_lit.go
+@@ -81,38 +100,58 @@
+ ./switch.go
+ ./switch1.go
+ ./test0.go
++./turing.go
+ ./typeswitch.go
++# ./typeswitch1.go
+ ./typeswitch2.go
+ ./utf.go
+ ./varinit.go
+-./vectors.go
++# ./vectors.go
+ ken/array.go
+-ken/chan.go
+-ken/chan1.go
++# ken/chan.go  # slow
++# ken/chan1.go  # slow
+ ken/complit.go
+-ken/divconst.go
++# ken/cplx0.go  # need floating point
++# ken/cplx1.go  # need floating point
++# ken/cplx2.go  # need floating point
++# ken/cplx3.go  # need floating point
++# ken/cplx4.go  # need floating point
++# ken/cplx5.go  # need floating point
++# ken/divconst.go  # slow
+ ken/divmod.go
+ ken/embed.go
+ ken/for.go
+ ken/interbasic.go
+ ken/interfun.go
++ken/intervar.go
++ken/label.go
+ ken/litfun.go
+ ken/mfunc.go
+-ken/modconst.go
++# ken/modconst.go  # slow
+ ken/ptrfun.go
+ ken/ptrvar.go
+ ken/range.go
++ken/rob1.go
++ken/rob2.go
+ ken/robfor.go
++# ken/robfunc.go  # fail
+ ken/robif.go
+ ken/shift.go
++ken/simparray.go
+ ken/simpbool.go
++ken/simpconv.go
+ ken/simpfun.go
++ken/simpprint.go
++ken/simpswitch.go
+ ken/simpvar.go
+ ken/slicearray.go
+ ken/sliceslice.go
++ken/string.go
+ ken/strvar.go
++# chan/doubleselect.go  # slow
+ chan/fifo.go
+ chan/goroutines.go
++chan/nonblock.go
+ chan/perm.go
+ chan/powser1.go
+ chan/powser2.go
+@@ -128,10 +167,13 @@ interface/embed.go
+ interface/embed0.go
+ interface/embed1.go
+ interface/explicit.go
++# interface/fake.go  # fails - panic: assert
++interface/fail.go
+ interface/pointer.go
+ interface/receiver.go
+ interface/receiver1.go
+ interface/recursive.go
++interface/returntype.go
+ interface/struct.go
+ nilptr/arrayindex.go
+ nilptr/arrayindex1.go
+@@ -172,6 +214,7 @@ fixedbugs/bug012.go
+ fixedbugs/bug013.go
+ fixedbugs/bug014.go
+ fixedbugs/bug015.go
++fixedbugs/bug016.go
+ fixedbugs/bug017.go
+ fixedbugs/bug020.go
+ fixedbugs/bug021.go
+@@ -179,6 +222,7 @@ fixedbugs/bug022.go
+ fixedbugs/bug023.go
+ fixedbugs/bug024.go
+ fixedbugs/bug026.go
++fixedbugs/bug027.go
+ fixedbugs/bug028.go
+ fixedbugs/bug030.go
+ fixedbugs/bug031.go
+@@ -210,8 +254,10 @@ fixedbugs/bug063.go
+ fixedbugs/bug064.go
+ fixedbugs/bug065.go
+ fixedbugs/bug066.go
++fixedbugs/bug067.go
+ fixedbugs/bug068.go
+ fixedbugs/bug069.go
++fixedbugs/bug070.go
+ fixedbugs/bug071.go
+ fixedbugs/bug072.go
+ fixedbugs/bug073.go
+@@ -221,6 +267,7 @@ fixedbugs/bug076.go
+ fixedbugs/bug077.go
+ fixedbugs/bug078.go
+ fixedbugs/bug080.go
++fixedbugs/bug081.go
+ fixedbugs/bug082.go
+ fixedbugs/bug083.go
+ fixedbugs/bug084.go
+@@ -232,6 +279,7 @@ fixedbugs/bug089.go
+ fixedbugs/bug090.go
+ fixedbugs/bug091.go
+ fixedbugs/bug092.go
++fixedbugs/bug093.go
+ fixedbugs/bug094.go
+ fixedbugs/bug096.go
+ fixedbugs/bug097.go
+@@ -248,12 +296,14 @@ fixedbugs/bug109.go
+ fixedbugs/bug110.go
+ fixedbugs/bug111.go
+ fixedbugs/bug112.go
++fixedbugs/bug113.go
+ fixedbugs/bug114.go
+ fixedbugs/bug115.go
+ fixedbugs/bug116.go
+ fixedbugs/bug117.go
+ fixedbugs/bug118.go
+ fixedbugs/bug119.go
++# fixedbugs/bug120.go  # needs floating point
+ fixedbugs/bug121.go
+ fixedbugs/bug122.go
+ fixedbugs/bug123.go
+@@ -277,11 +327,13 @@ fixedbugs/bug144.go
+ fixedbugs/bug145.go
+ fixedbugs/bug146.go
+ fixedbugs/bug147.go
++fixedbugs/bug148.go
+ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
+ fixedbugs/bug152.go
+ fixedbugs/bug153.go
++# fixedbugs/bug154.go  # needs floating point
+ fixedbugs/bug155.go
+ fixedbugs/bug156.go
+ fixedbugs/bug157.go
+@@ -345,6 +397,7 @@ fixedbugs/bug217.go
+ fixedbugs/bug218.go
+ fixedbugs/bug219.go
+ fixedbugs/bug220.go
++# fixedbugs/bug221.go  # slow
+ fixedbugs/bug222.go
+ fixedbugs/bug223.go
+ fixedbugs/bug224.go
+@@ -359,13 +412,14 @@ fixedbugs/bug232.go
+ fixedbugs/bug233.go
+ fixedbugs/bug234.go
+ fixedbugs/bug235.go
+-fixedbugs/bug236.go
++# fixedbugs/bug236.go  # slow
+ fixedbugs/bug237.go
+ fixedbugs/bug238.go
+ fixedbugs/bug239.go
+ fixedbugs/bug240.go
+ fixedbugs/bug241.go
+ fixedbugs/bug242.go
++# fixedbugs/bug243.go  # fail
+ fixedbugs/bug244.go
+ fixedbugs/bug245.go
+ fixedbugs/bug246.go
+@@ -379,9 +433,12 @@ fixedbugs/bug253.go
+ fixedbugs/bug254.go
+ fixedbugs/bug255.go
+ fixedbugs/bug256.go
+-fixedbugs/bug257.go
++# fixedbugs/bug257.go  # slow
++# fixedbugs/bug258.go  # needs floating point
+ fixedbugs/bug259.go
+ fixedbugs/bug261.go
+ fixedbugs/bug262.go
+ fixedbugs/bug263.go
+ fixedbugs/bug265.go
++bugs/bug260.go
++bugs/bug264.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index f1c72913db..c648023698 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -1,27 +1,68 @@
+ 
+-=========== chan/nonblock.go
+-PASS
+-
+-=========== cmp2.go
++=========== ./cmp2.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+ 
+-=========== cmp3.go
++=========== ./cmp3.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+ 
+-=========== cmp4.go
++=========== ./cmp4.go
+ panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+ 
+-=========== cmp5.go
++=========== ./cmp5.go
+ panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+ 
++=========== ./helloworld.go
++hello, world
++
++=========== ./printbig.go
++-9223372036854775808
++9223372036854775807
++
++=========== ./turing.go
++Hello World!
++
++=========== ken/intervar.go
++ print 1 bio 2 file 3 -- abc
++
++=========== ken/label.go
++100
++
++=========== ken/rob1.go
++9876543210
++
++=========== ken/rob2.go
++(defn foo (add 12 34))
++
++=========== ken/simpprint.go
++hello world
++
++=========== ken/simpswitch.go
++0out01out12out2aout34out4fiveout56out6aout78out89out9
++
++=========== ken/string.go
++abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
++
++=========== chan/nonblock.go
++PASS
++
++=========== interface/fail.go
++panic: interface conversion: *main.S is not main.I: missing method Foo
++
++panic PC=xxx
++
++=========== interface/returntype.go
++panic: interface conversion: *main.S is not main.I2: missing method Name
++
++panic PC=xxx
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:11: constant -3 overflows uint
+ 
+@@ -64,56 +105,17 @@ panic: interface conversion: interface is main.T, not main.T
+ 
+ panic PC=xxx
+ 
+-=========== fixedbugs/bug154.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-PC=0x255b4
++=========== bugs/bug260.go
++FAIL
++BUG: bug260 failed
+ 
+-BUG: should not panic
+-
+-=========== fixedbugs/bug206.go
+-BUG: bug206
+-
+-=========== helloworld.go
+-hello, world
+-
+-=========== interface/fail.go
+-panic: interface conversion: *main.S is not main.I: missing method Foo
++=========== bugs/bug264.go
++foo
++bar
++bar
++bal
++bal
++panic: barCount != 1
+ 
+ panic PC=xxx
+-
+-=========== interface/returntype.go
+-panic: interface conversion: *main.S is not main.I2: missing method Name
+-
+-panic PC=xxx
+-
+-=========== ken/intervar.go
+- print 1 bio 2 file 3 -- abc
+-
+-=========== ken/label.go
+-100
+-
+-=========== ken/rob1.go
+-9876543210
+-
+-=========== ken/rob2.go
+-(defn foo (add 12 34))
+-
+-=========== ken/simpprint.go
+-hello world
+-
+-=========== ken/simpswitch.go
+-0out01out12out2aout34out4fiveout56out6aout78out89out9
+-
+-=========== ken/string.go
+-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+-
+-=========== printbig.go
+--9223372036854775808
+-9223372036854775807
+-
+-=========== sigchld.go
+-survived SIGCHLD
+-
+-=========== turing.go
+-Hello World!
++BUG
+diff --git a/test/run-arm b/test/run-arm
+index 86f2bd2d61..d6d257adc6 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -36,7 +36,7 @@ FAILEDFILE=/tmp/gotest3-$$-$USER
+ ulimit -v 4000000
+ 
+ 
+-for i in $(cat arm-pass.txt)
++for i in $(cat arm-pass.txt | sed 's/#.*//')
+ do
+ 	export F=$(basename $i .go)
+ 	dir=$(dirname $i)

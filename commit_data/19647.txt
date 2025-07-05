@@ -8,7 +8,7 @@ Date:   Tue Jul 1 10:28:10 2014 -0700
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/111770043
-
+---
  src/pkg/crypto/tls/handshake_server_test.go |  2 +-
  src/pkg/crypto/x509/x509_test.go            |  8 ++++----
  src/pkg/mime/multipart/example_test.go      |  2 +-
@@ -19,3 +19,157 @@ Date:   Tue Jul 1 10:28:10 2014 -0700
  src/pkg/runtime/race/testdata/mop_test.go   |  2 +-
  src/pkg/runtime/string_test.go              |  2 +-
  9 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index c3e36785b5..50eb8842c2 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -525,7 +525,7 @@ func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
+ 	config = *testConfig
+ 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
+ 	config.Certificates = []Certificate{
+-		Certificate{
++		{
+ 			Certificate: [][]byte{testECDSACertificate},
+ 			PrivateKey:  testECDSAPrivateKey,
+ 		},
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 2fd54c78f7..bac3b6c7dc 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -850,7 +850,7 @@ func TestCertificateRequestOverrides(t *testing.T) {
+ 		// An explicit extension should override the DNSNames from the
+ 		// template.
+ 		ExtraExtensions: []pkix.Extension{
+-			pkix.Extension{
++			{
+ 				Id:    oidExtensionSubjectAltName,
+ 				Value: sanContents,
+ 			},
+@@ -868,11 +868,11 @@ func TestCertificateRequestOverrides(t *testing.T) {
+ 	// with two extension attributes.
+ 
+ 	template.Attributes = []pkix.AttributeTypeAndValueSET{
+-		pkix.AttributeTypeAndValueSET{
++		{
+ 			Type: oidExtensionRequest,
+ 			Value: [][]pkix.AttributeTypeAndValue{
+-				[]pkix.AttributeTypeAndValue{
+-					pkix.AttributeTypeAndValue{
++				{
++					{
+ 						Type:  oidExtensionAuthorityInfoAccess,
+ 						Value: []byte("foo"),
+ 					},
+diff --git a/src/pkg/mime/multipart/example_test.go b/src/pkg/mime/multipart/example_test.go
+index 26135b7858..6d6ba81d5e 100644
+--- a/src/pkg/mime/multipart/example_test.go
++++ b/src/pkg/mime/multipart/example_test.go
+@@ -18,7 +18,7 @@ import (
+ func ExampleNewReader() {
+ 	msg := &mail.Message{
+ 		Header: map[string][]string{
+-			"Content-Type": []string{"multipart/mixed; boundary=foo"},
++			"Content-Type": {"multipart/mixed; boundary=foo"},
+ 		},
+ 		Body: strings.NewReader(
+ 			"--foo\r\nFoo: one\r\n\r\nA section\r\n" +
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 8af357e2bb..2a3fc307be 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2404,13 +2404,13 @@ func TestServerConnState(t *testing.T) {
+ 	}
+ 
+ 	want := map[int][]ConnState{
+-		1: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
+-		2: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
+-		3: []ConnState{StateNew, StateActive, StateHijacked},
+-		4: []ConnState{StateNew, StateActive, StateHijacked},
+-		5: []ConnState{StateNew, StateClosed},
+-		6: []ConnState{StateNew, StateActive, StateClosed},
+-		7: []ConnState{StateNew, StateActive, StateIdle, StateClosed},
++		1: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
++		2: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
++		3: {StateNew, StateActive, StateHijacked},
++		4: {StateNew, StateActive, StateHijacked},
++		5: {StateNew, StateClosed},
++		6: {StateNew, StateActive, StateClosed},
++		7: {StateNew, StateActive, StateIdle, StateClosed},
+ 	}
+ 	logString := func(m map[int][]ConnState) string {
+ 		var b bytes.Buffer
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index e9949012c4..f122711731 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -679,7 +679,7 @@ var deepEqualTests = []DeepEqualTest{
+ 	{1, nil, false},
+ 	{fn1, fn3, false},
+ 	{fn3, fn3, false},
+-	{[][]int{[]int{1}}, [][]int{[]int{2}}, false},
++	{[][]int{{1}}, [][]int{{2}}, false},
+ 
+ 	// Nil vs empty: not the same.
+ 	{[]int{}, []int(nil), false},
+diff --git a/src/pkg/regexp/onepass.go b/src/pkg/regexp/onepass.go
+index 501fb28af6..7666a80ee5 100644
+--- a/src/pkg/regexp/onepass.go
++++ b/src/pkg/regexp/onepass.go
+@@ -484,7 +484,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 		}
+ 	}
+ 	if p != notOnePass {
+-		for i, _ := range p.Inst {
++		for i := range p.Inst {
+ 			p.Inst[i].Rune = onePassRunes[i]
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index da45ea11e4..e44db5f101 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -241,7 +241,7 @@ func BenchmarkMapIter(b *testing.B) {
+ 	}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		for _, _ = range m {
++		for _ = range m {
+ 		}
+ 	}
+ }
+@@ -250,7 +250,7 @@ func BenchmarkMapIterEmpty(b *testing.B) {
+ 	m := make(map[int]bool)
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		for _, _ = range m {
++		for _ = range m {
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 14591b1845..cb17a27d37 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -233,7 +233,7 @@ func TestRaceCaseFallthrough(t *testing.T) {
+ 
+ func TestRaceCaseIssue6418(t *testing.T) {
+ 	m := map[string]map[string]string{
+-		"a": map[string]string{
++		"a": {
+ 			"b": "c",
+ 		},
+ 	}
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index 9ed579235d..b05e0c7dd0 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -96,7 +96,7 @@ func BenchmarkRuneIterate2(b *testing.B) {
+ 	}
+ 	s := string(bytes)
+ 	for i := 0; i < b.N; i++ {
+-		for _, _ = range s {
++		for _ = range s {
+ 		}
+ 	}
+ }

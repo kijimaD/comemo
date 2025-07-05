@@ -28,6 +28,23 @@ Date:   Mon Aug 24 22:57:01 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c8fb013ad0..104dd403ea 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -295,7 +295,10 @@ func (s *state) emitOpenDeferInfo() {
+ // worker indicates which of the backend workers is doing the processing.
+ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	name := fn.funcname()
+-	printssa := name == ssaDump
++	printssa := false
++	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", or a package.name e.g. "compress/gzip.(*Reader).Reset"
++		printssa = name == ssaDump || myimportpath+"."+name == ssaDump
++	}
+ 	var astBuf *bytes.Buffer
+ 	if printssa {
+ 		astBuf = &bytes.Buffer{}

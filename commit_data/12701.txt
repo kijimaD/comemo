@@ -12,6 +12,28 @@ Date:   Tue Mar 20 11:40:41 2012 -0700
     R=golang-dev, gri, trolleriprofessorn
     CC=golang-dev
     https://golang.org/cl/5855044
-
+---
  src/pkg/sort/sort.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 31da3c83d0..60f2d9ab40 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -183,6 +183,8 @@ func quickSort(data Interface, a, b, maxDepth int) {
+ 	}
+ }
+ 
++// Sort sorts data.
++// The algorithm used is not guaranteed to be a stable sort.
+ func Sort(data Interface) {
+ 	// Switch to heapsort if depth of 2*ceil(lg(n)) is reached.
+ 	n := data.Len()
+@@ -194,6 +196,7 @@ func Sort(data Interface) {
+ 	quickSort(data, 0, n, maxDepth)
+ }
+ 
++// IsSorted reports whether data is sorted.
+ func IsSorted(data Interface) bool {
+ 	n := data.Len()
+ 	for i := n - 1; i > 0; i-- {

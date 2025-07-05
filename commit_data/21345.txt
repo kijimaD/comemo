@@ -26,7 +26,7 @@ Date:   Fri Dec 19 16:16:17 2014 -0500
     Change-Id: I6cf5f5c2d3aa48998d632f61f1ddc2778dcfd300
     Reviewed-on: https://go-review.googlesource.com/1887
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_linux_test.go      |  1 +
  misc/cgo/test/issue9400/asm_386.s    | 20 +++++++++++++
  misc/cgo/test/issue9400/asm_amd64x.s | 22 ++++++++++++++
@@ -45,3 +45,377 @@ Date:   Fri Dec 19 16:16:17 2014 -0500
  src/runtime/signal1_unix.go          |  5 ++++
  src/runtime/signal_linux.go          |  4 +--
  17 files changed, 217 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 4fe0db1b2b..6e1d1065f6 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -9,3 +9,4 @@ import "testing"
+ func TestSetgid(t *testing.T)  { testSetgid(t) }
+ func Test6997(t *testing.T)    { test6997(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }
++func Test9400(t *testing.T)    { test9400(t) }
+diff --git a/misc/cgo/test/issue9400/asm_386.s b/misc/cgo/test/issue9400/asm_386.s
+new file mode 100644
+index 0000000000..b277fa1c1b
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_386.s
+@@ -0,0 +1,20 @@
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$0-0
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADDL	$(1024 * 8), SP
++
++	// Ask signaller to setgid
++	MOVL	$1, ·Baton(SB)
++
++	// Wait for setgid completion
++loop:
++	PAUSE
++	MOVL	·Baton(SB), AX
++	CMPL	AX, $0
++	JNE	loop
++
++	// Restore stack
++	SUBL	$(1024 * 8), SP
++	RET
+diff --git a/misc/cgo/test/issue9400/asm_amd64x.s b/misc/cgo/test/issue9400/asm_amd64x.s
+new file mode 100644
+index 0000000000..2c97e1375d
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_amd64x.s
+@@ -0,0 +1,22 @@
++// +build amd64 amd64p32
++
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$0-0
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADDQ	$(1024 * 8), SP
++
++	// Ask signaller to setgid
++	MOVL	$1, ·Baton(SB)
++
++	// Wait for setgid completion
++loop:
++	PAUSE
++	MOVL	·Baton(SB), AX
++	CMPL	AX, $0
++	JNE	loop
++
++	// Restore stack
++	SUBQ	$(1024 * 8), SP
++	RET
+diff --git a/misc/cgo/test/issue9400/asm_arm.s b/misc/cgo/test/issue9400/asm_arm.s
+new file mode 100644
+index 0000000000..68e3a3b94f
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_arm.s
+@@ -0,0 +1,33 @@
++#include "textflag.h"
++
++TEXT cas<>(SB),NOSPLIT,$0
++	MOVW	$0xffff0fc0, PC
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$-4-0
++	// Save link register
++	MOVW	R14, R4
++
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADD	$(1024 * 8), R13
++
++	// Ask signaller to setgid
++	MOVW	$·Baton(SB), R2
++storeloop:
++	MOVW	0(R2), R0
++	MOVW	$1, R1
++	BL	cas<>(SB)
++	BCC	storeloop
++
++	// Wait for setgid completion
++loop:
++	MOVW	$0, R0
++	MOVW	$0, R1
++	BL	cas<>(SB)
++	BCC	loop
++
++	// Restore stack
++	SUB	$(1024 * 8), R13
++
++	MOVW	R4, R14
++	RET
+diff --git a/misc/cgo/test/issue9400/asm_ppc64x.s b/misc/cgo/test/issue9400/asm_ppc64x.s
+new file mode 100644
+index 0000000000..0aaa10cdd0
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_ppc64x.s
+@@ -0,0 +1,27 @@
++// +build ppc64 ppc64le
++
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$-8-0
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADD	$(1024 * 8), R1
++
++	// Ask signaller to setgid
++	MOVW	$1, R3
++	SYNC
++	MOVW	R3, ·Baton(SB)
++
++	// Wait for setgid completion
++loop:
++	SYNC
++	MOVW	·Baton(SB), R3
++	CMP	R3, $0
++	// Hint that we're in a spin loop
++	OR	R1, R1, R1
++	BNE	loop
++	ISYNC
++
++	// Restore stack
++	SUB	$(1024 * 8), R1
++	RET
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+new file mode 100644
+index 0000000000..1dd8ccd333
+--- /dev/null
++++ b/misc/cgo/test/issue9400/stubs.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue9400
++
++var Baton int32
++
++func RewindAndSetgid()
+diff --git a/misc/cgo/test/issue9400_linux.go b/misc/cgo/test/issue9400_linux.go
+new file mode 100644
+index 0000000000..d2386b80fc
+--- /dev/null
++++ b/misc/cgo/test/issue9400_linux.go
+@@ -0,0 +1,58 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that SIGSETXID runs on signal stack, since it's likely to
++// overflow if it runs on the Go stack.
++
++package cgotest
++
++/*
++#include <sys/types.h>
++#include <unistd.h>
++*/
++import "C"
++
++import (
++	"runtime"
++	"sync/atomic"
++	"testing"
++
++	"./issue9400"
++)
++
++func test9400(t *testing.T) {
++	// We synchronize through a shared variable, so we need two procs
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++
++	// Start signaller
++	atomic.StoreInt32(&issue9400.Baton, 0)
++	go func() {
++		// Wait for RewindAndSetgid
++		for atomic.LoadInt32(&issue9400.Baton) == 0 {
++			runtime.Gosched()
++		}
++		// Broadcast SIGSETXID
++		runtime.LockOSThread()
++		C.setgid(0)
++		// Indicate that signalling is done
++		atomic.StoreInt32(&issue9400.Baton, 0)
++	}()
++
++	// Grow the stack and put down a test pattern
++	const pattern = 0x123456789abcdef
++	var big [1024]uint64 // len must match assmebly
++	for i := range big {
++		big[i] = pattern
++	}
++
++	// Temporarily rewind the stack and trigger SIGSETXID
++	issue9400.RewindAndSetgid()
++
++	// Check test pattern
++	for i := range big {
++		if big[i] != pattern {
++			t.Fatalf("entry %d of test pattern is wrong; %#x != %#x", i, big[i], pattern)
++		}
++	}
++}
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 12642aa121..984b88161c 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -394,6 +394,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(uint32(i), &sa, nil)
+ }
+ 
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index d02e925ec5..0d241bde79 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -189,6 +189,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 80e4532439..83e98f45e4 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -190,6 +190,11 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sa.sa_handler = fn
+ 	sigaction(i, &sa, nil)
+ }
++
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 2e12d74f44..0174856914 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -246,6 +246,20 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	}
+ }
+ 
++func setsigstack(i int32) {
++	var sa sigactiont
++	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
++		gothrow("rt_sigaction failure")
++	}
++	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
++		return
++	}
++	sa.sa_flags |= _SA_ONSTACK
++	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
++		gothrow("rt_sigaction failure")
++	}
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index b5068629ba..f4de988707 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -233,6 +233,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index b1a16d582b..07a9751fe0 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -203,6 +203,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 6ccbbe29ee..72db958f99 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -252,6 +252,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	sigaction(i, &sa, nil)
+ }
+ 
++func setsigstack(i int32) {
++	gothrow("setsigstack")
++}
++
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4d42153abb..3b7db1e412 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -372,6 +372,7 @@ const (
+ 	_SigHandling = 1 << 5 // our signal handler is registered
+ 	_SigIgnored  = 1 << 6 // the signal was ignored before we registered for it
+ 	_SigGoExit   = 1 << 7 // cause all runtime procs to exit (only used on Plan 9).
++	_SigSetStack = 1 << 8 // add SA_ONSTACK to libc handler
+ )
+ 
+ // Layout of in-memory per-function information prepared by linker
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 25f01e056e..9613e0ae33 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -37,6 +37,11 @@ func initsig() {
+ 			}
+ 		}
+ 
++		if t.flags&_SigSetStack != 0 {
++			setsigstack(i)
++			continue
++		}
++
+ 		t.flags |= _SigHandling
+ 		setsig(i, funcPC(sighandler), true)
+ 	}
+diff --git a/src/runtime/signal_linux.go b/src/runtime/signal_linux.go
+index 1c3d6872b3..c71e619b1e 100644
+--- a/src/runtime/signal_linux.go
++++ b/src/runtime/signal_linux.go
+@@ -42,8 +42,8 @@ var sigtable = [...]sigTabT{
+ 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
+ 	/* 31 */ {_SigNotify, "SIGSYS: bad system call"},
+-	/* 32 */ {0, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+-	/* 33 */ {0, "signal 33"}, /* SIGSETXID; see issue 3871 */
++	/* 32 */ {_SigSetStack, "signal 32"}, /* SIGCANCEL; see issue 6997 */
++	/* 33 */ {_SigSetStack, "signal 33"}, /* SIGSETXID; see issue 3871, 9400 */
+ 	/* 34 */ {_SigNotify, "signal 34"},
+ 	/* 35 */ {_SigNotify, "signal 35"},
+ 	/* 36 */ {_SigNotify, "signal 36"},

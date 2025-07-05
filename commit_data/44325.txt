@@ -13,6 +13,20 @@ Date:   Wed Jun 10 20:31:57 2020 +0000
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/objabi/util.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 2f94ec6a67..f7873a42b9 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -134,7 +134,7 @@ func init() {
+ }
+ 
+ func Framepointer_enabled(goos, goarch string) bool {
+-	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && goos == "linux")
++	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && (goos == "linux" || goos == "darwin"))
+ }
+ 
+ func addexp(s string) {

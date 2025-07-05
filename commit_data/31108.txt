@@ -7,7 +7,34 @@ Date:   Thu Jan 26 13:41:56 2017 -0800
     Change-Id: I67db3b342929a7bd11f01bf3b9afb49f4da69a0a
     Reviewed-on: https://go-review.googlesource.com/35841
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go      | 2 +-
  src/database/sql/sql_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index feb91223a9..0dbce6bde3 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2348,7 +2348,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
+ }
+ 
+ // rowsCloseHook returns a function so tests may install the
+-// hook throug a test only mutex.
++// hook through a test only mutex.
+ var rowsCloseHook = func() func(*Rows, *error) { return nil }
+ 
+ func (rs *Rows) isClosed() bool {
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 898df3b455..2c0417dc78 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2664,7 +2664,7 @@ func TestIssue18429(t *testing.T) {
+ 			if err != nil {
+ 				return
+ 			}
+-			// This is expected to give a cancel error many, but not all the time.
++			// This is expected to give a cancel error most, but not all the time.
+ 			// Test failure will happen with a panic or other race condition being
+ 			// reported.
+ 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")

@@ -10,7 +10,56 @@ Date:   Fri Mar 17 18:42:58 2017 +0100
     Change-Id: I078a171f1633ff81d7e3f981dc9a398309ecb2c0
     Reviewed-on: https://go-review.googlesource.com/38269
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/encode.go      | 16 ++++++++--------
  src/encoding/gob/timing_test.go |  2 +-
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 50cd6adb46..d67153da90 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -8,7 +8,9 @@ package gob
+ 
+ import (
+ 	"encoding"
++	"encoding/binary"
+ 	"math"
++	"math/bits"
+ 	"reflect"
+ 	"sync"
+ )
+@@ -107,14 +109,12 @@ func (state *encoderState) encodeUint(x uint64) {
+ 		state.b.WriteByte(uint8(x))
+ 		return
+ 	}
+-	i := uint64Size
+-	for x > 0 {
+-		state.buf[i] = uint8(x)
+-		x >>= 8
+-		i--
+-	}
+-	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
+-	state.b.Write(state.buf[i : uint64Size+1])
++
++	binary.BigEndian.PutUint64(state.buf[1:], x)
++	bc := bits.LeadingZeros64(x) >> 3      // 8 - bytelen(x)
++	state.buf[bc] = uint8(bc - uint64Size) // and then we subtract 8 to get -bytelen(x)
++
++	state.b.Write(state.buf[bc : uint64Size+1])
+ }
+ 
+ // encodeInt writes an encoded signed integer to state.w.
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index 424b7e6ea8..a7e7e683cc 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -171,7 +171,7 @@ func BenchmarkEncodeInt32Slice(b *testing.B) {
+ 	enc := NewEncoder(&buf)
+ 	a := make([]int32, 1000)
+ 	for i := range a {
+-		a[i] = 1234
++		a[i] = int32(i * 100)
+ 	}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {

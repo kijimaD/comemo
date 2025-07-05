@@ -47,7 +47,178 @@ Date:   Sun Jul 12 16:20:02 2020 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/errors.go | 39 +++++++++++++++++++++++++++++++++------
  src/go/types/expr.go   | 36 ++++++++++++++++++++++++------------
  2 files changed, 57 insertions(+), 18 deletions(-)
+
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 91b077163c..88e41c5713 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -7,6 +7,7 @@
+ package types
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+@@ -72,22 +73,33 @@ func (check *Checker) dump(format string, args ...interface{}) {
+ 	fmt.Println(check.sprintf(format, args...))
+ }
+ 
+-func (check *Checker) err(pos token.Pos, msg string, soft bool) {
++func (check *Checker) err(err error) {
++	if err == nil {
++		return
++	}
++	var e Error
++	isInternal := errors.As(err, &e)
+ 	// Cheap trick: Don't report errors with messages containing
+ 	// "invalid operand" or "invalid type" as those tend to be
+ 	// follow-on errors which don't add useful information. Only
+ 	// exclude them if these strings are not at the beginning,
+ 	// and only if we have at least one error already reported.
+-	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
++	isInvalidErr := isInternal && (strings.Index(e.Msg, "invalid operand") > 0 || strings.Index(e.Msg, "invalid type") > 0)
++	if check.firstErr != nil && isInvalidErr {
+ 		return
+ 	}
+ 
+-	err := Error{check.fset, pos, msg, soft}
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+ 	}
+ 
+ 	if trace {
++		pos := e.Pos
++		msg := e.Msg
++		if !isInternal {
++			msg = err.Error()
++			pos = token.NoPos
++		}
+ 		check.trace(pos, "ERROR: %s", msg)
+ 	}
+ 
+@@ -99,15 +111,30 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
+ }
+ 
+ func (check *Checker) error(pos token.Pos, msg string) {
+-	check.err(pos, msg, false)
++	check.err(Error{Fset: check.fset, Pos: pos, Msg: msg})
++}
++
++// newErrorf creates a new Error, but does not handle it.
++func (check *Checker) newErrorf(pos token.Pos, format string, args ...interface{}) error {
++	return Error{
++		Fset: check.fset,
++		Pos:  pos,
++		Msg:  check.sprintf(format, args...),
++		Soft: false,
++	}
+ }
+ 
+ func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) {
+-	check.err(pos, check.sprintf(format, args...), false)
++	check.error(pos, check.sprintf(format, args...))
+ }
+ 
+ func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
+-	check.err(pos, check.sprintf(format, args...), true)
++	check.err(Error{
++		Fset: check.fset,
++		Pos:  pos,
++		Msg:  check.sprintf(format, args...),
++		Soft: true,
++	})
+ }
+ 
+ func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index d1e892a9b7..8503a521f6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -329,8 +329,16 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 	return false
+ }
+ 
+-// representable checks that a constant operand is representable in the given basic type.
++// representable checks that a constant operand is representable in the given
++// basic type.
+ func (check *Checker) representable(x *operand, typ *Basic) {
++	if err := check.isRepresentable(x, typ); err != nil {
++		x.mode = invalid
++		check.err(err)
++	}
++}
++
++func (check *Checker) isRepresentable(x *operand, typ *Basic) error {
+ 	assert(x.mode == constant_)
+ 	if !representableConst(x.val, check, typ, &x.val) {
+ 		var msg string
+@@ -350,9 +358,9 @@ func (check *Checker) representable(x *operand, typ *Basic) {
+ 		} else {
+ 			msg = "cannot convert %s to %s"
+ 		}
+-		check.errorf(x.pos(), msg, x, typ)
+-		x.mode = invalid
++		return check.newErrorf(x.pos(), msg, x, typ)
+ 	}
++	return nil
+ }
+ 
+ // updateExprType updates the type of x to typ and invokes itself
+@@ -488,10 +496,16 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
+ 
+ // convertUntyped attempts to set the type of an untyped value to the target type.
+ func (check *Checker) convertUntyped(x *operand, target Type) {
+-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+-		return
++	if err := check.canConvertUntyped(x, target); err != nil {
++		x.mode = invalid
++		check.err(err)
+ 	}
++}
+ 
++func (check *Checker) canConvertUntyped(x *operand, target Type) error {
++	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
++		return nil
++	}
+ 	// TODO(gri) Sloppy code - clean up. This function is central
+ 	//           to assignment and expression checking.
+ 
+@@ -507,16 +521,15 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 		} else if xkind != tkind {
+ 			goto Error
+ 		}
+-		return
++		return nil
+ 	}
+ 
+ 	// typed target
+ 	switch t := target.Underlying().(type) {
+ 	case *Basic:
+ 		if x.mode == constant_ {
+-			check.representable(x, t)
+-			if x.mode == invalid {
+-				return
++			if err := check.isRepresentable(x, t); err != nil {
++				return err
+ 			}
+ 			// expression value may have been rounded - update if needed
+ 			check.updateExprVal(x.expr, x.val)
+@@ -576,11 +589,10 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 
+ 	x.typ = target
+ 	check.updateExprType(x.expr, target, true) // UntypedNils are final
+-	return
++	return nil
+ 
+ Error:
+-	check.errorf(x.pos(), "cannot convert %s to %s", x, target)
+-	x.mode = invalid
++	return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
+ }
+ 
+ func (check *Checker) comparison(x, y *operand, op token.Token) {

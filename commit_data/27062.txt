@@ -52,7 +52,7 @@ Date:   Tue Mar 8 23:16:16 2016 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go  | 434 +++++++++++++------------
  src/cmd/compile/internal/arm/prog.go    | 154 +++++----
  src/cmd/compile/internal/arm64/prog.go  | 156 ++++-----
@@ -61,3 +61,2609 @@ Date:   Tue Mar 8 23:16:16 2016 +0000
  src/cmd/compile/internal/x86/prog.go    | 416 ++++++++++++------------
  src/cmd/internal/obj/arm64/asm7.go      | 540 ++++++++++++++++----------------
  7 files changed, 1103 insertions(+), 1091 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 759757eb55..55ea7ee82a 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -22,9 +22,7 @@ const (
+ // Instructions not generated need not be listed.
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+-//
+-// The table is formatted for 8-space tabs.
+-var progtable = [x86.ALAST]obj.ProgInfo{
++var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -38,223 +36,223 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP:       {Flags: gc.LeftRead | gc.RightWrite},
+-	x86.AADCL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.AADCQ:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.AADCW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.AADDB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDQ:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDSD:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.AADDSS:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.AANDB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AANDL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AANDQ:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AANDW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	obj.ACALL:      {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
+-	x86.ACDQ:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACQO:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACWD:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACLD:       {Flags: gc.OK},
+-	x86.ASTD:       {Flags: gc.OK},
+-	x86.ACMPB:      {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACMPL:      {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACMPQ:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACMPW:      {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACOMISD:    {Flags: gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACOMISS:    {Flags: gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACVTSD2SL:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSD2SQ:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSD2SS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSL2SD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSL2SS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSQ2SD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSQ2SS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSS2SD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSS2SL:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSS2SQ:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSD2SL: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSD2SQ: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSS2SL: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSS2SQ: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ADECB:      {Flags: gc.SizeB | RightRdwr},
+-	x86.ADECL:      {Flags: gc.SizeL | RightRdwr},
+-	x86.ADECQ:      {Flags: gc.SizeQ | RightRdwr},
+-	x86.ADECW:      {Flags: gc.SizeW | RightRdwr},
+-	x86.ADIVB:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.ADIVL:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVQ:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVW:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVSD:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ADIVSS:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.AIDIVB:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIDIVL:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVQ:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVW:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIMULB:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIMULL:     {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+-	x86.AIMULQ:     {Flags: gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+-	x86.AIMULW:     {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+-	x86.AINCB:      {Flags: gc.SizeB | RightRdwr},
+-	x86.AINCL:      {Flags: gc.SizeL | RightRdwr},
+-	x86.AINCQ:      {Flags: gc.SizeQ | RightRdwr},
+-	x86.AINCW:      {Flags: gc.SizeW | RightRdwr},
+-	x86.AJCC:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJCS:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJEQ:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJGE:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJGT:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJHI:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLE:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLS:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLT:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJMI:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJNE:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJOC:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJOS:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPC:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPL:       {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPS:       {Flags: gc.Cjmp | gc.UseCarry},
+-	obj.AJMP:       {Flags: gc.Jump | gc.Break | gc.KillCarry},
+-	x86.ALEAW:      {Flags: gc.LeftAddr | gc.RightWrite},
+-	x86.ALEAL:      {Flags: gc.LeftAddr | gc.RightWrite},
+-	x86.ALEAQ:      {Flags: gc.LeftAddr | gc.RightWrite},
+-	x86.AMOVBLSX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBLZX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBQSX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBQZX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBWSX:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBWZX:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVLQSX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVLQZX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWLSX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWLZX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWQSX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWQZX:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVQL:     {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVB:      {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVL:      {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVQ:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVW:      {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVUPS:    {Flags: gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSB:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSL:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSQ:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSW:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	obj.ADUFFCOPY:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
+-	x86.AMOVSD:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSS:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
++	obj.ANOP:                   {Flags: gc.LeftRead | gc.RightWrite},
++	x86.AADCL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.AADCQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.AADCW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.AADDB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.AADDSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.AANDB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AANDL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AANDQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AANDW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	obj.ACALL & obj.AMask:      {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
++	x86.ACDQ & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACQO & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACWD & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACLD & obj.AMask:       {Flags: gc.OK},
++	x86.ASTD & obj.AMask:       {Flags: gc.OK},
++	x86.ACMPB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACOMISD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACOMISS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACVTSD2SL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSD2SQ & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSD2SS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSL2SD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSL2SS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSQ2SD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSQ2SS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSS2SD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSS2SL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSS2SQ & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSD2SL & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSD2SQ & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSS2SL & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSS2SQ & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ADECB & obj.AMask:      {Flags: gc.SizeB | RightRdwr},
++	x86.ADECL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
++	x86.ADECQ & obj.AMask:      {Flags: gc.SizeQ | RightRdwr},
++	x86.ADECW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
++	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ADIVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.AIDIVB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIDIVL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.AIDIVQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.AIDIVW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.AIMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
++	x86.AIMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
++	x86.AIMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
++	x86.AINCB & obj.AMask:      {Flags: gc.SizeB | RightRdwr},
++	x86.AINCL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
++	x86.AINCQ & obj.AMask:      {Flags: gc.SizeQ | RightRdwr},
++	x86.AINCW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
++	x86.AJCC & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJCS & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJEQ & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJGE & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJGT & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJHI & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLE & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLS & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLT & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJMI & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJNE & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJOC & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJOS & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPC & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPL & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPS & obj.AMask:       {Flags: gc.Cjmp | gc.UseCarry},
++	obj.AJMP & obj.AMask:       {Flags: gc.Jump | gc.Break | gc.KillCarry},
++	x86.ALEAW & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.ALEAL & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.ALEAQ & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.AMOVBLSX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBLZX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBQSX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBQZX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBWSX & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBWZX & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVLQSX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVLQZX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWLSX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWLZX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWQSX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWQZX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVQL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVUPS & obj.AMask:    {Flags: gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVSB & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	x86.AMOVSL & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	x86.AMOVSQ & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	x86.AMOVSW & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	obj.ADUFFCOPY & obj.AMask:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
++	x86.AMOVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+-	// We use MOVAPD as a faster synonym for MOVSD.
+-	x86.AMOVAPD:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMULB:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AMULL:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULQ:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULW:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULSD:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.AMULSS:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.ANEGB:     {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
+-	x86.ANEGL:     {Flags: gc.SizeL | RightRdwr | gc.SetCarry},
+-	x86.ANEGQ:     {Flags: gc.SizeQ | RightRdwr | gc.SetCarry},
+-	x86.ANEGW:     {Flags: gc.SizeW | RightRdwr | gc.SetCarry},
+-	x86.ANOTB:     {Flags: gc.SizeB | RightRdwr},
+-	x86.ANOTL:     {Flags: gc.SizeL | RightRdwr},
+-	x86.ANOTQ:     {Flags: gc.SizeQ | RightRdwr},
+-	x86.ANOTW:     {Flags: gc.SizeW | RightRdwr},
+-	x86.AORB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AORL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AORQ:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AORW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.APOPQ:     {Flags: gc.SizeQ | gc.RightWrite},
+-	x86.APUSHQ:    {Flags: gc.SizeQ | gc.LeftRead},
+-	x86.APXOR:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ARCLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCLQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.AREP:      {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	x86.AREPN:     {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	obj.ARET:      {Flags: gc.Break | gc.KillCarry},
+-	x86.AROLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.AROLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.AROLQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.AROLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASBBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASBBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASBBQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASBBW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASETCC:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETCS:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETEQ:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETGE:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETGT:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETHI:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETLE:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETLS:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETLT:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETMI:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETNE:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETOC:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETOS:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETPC:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETPL:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASETPS:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
+-	x86.ASHLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHLQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASQRTSD:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ASTOSB:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSL:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSQ:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSW:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	obj.ADUFFZERO: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
+-	x86.ASUBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBSD:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ASUBSS:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.ATESTB:    {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ATESTL:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ATESTQ:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ATESTW:    {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.AUCOMISD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	x86.AUCOMISS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
+-	x86.AXCHGB:    {Flags: gc.SizeB | LeftRdwr | RightRdwr},
+-	x86.AXCHGL:    {Flags: gc.SizeL | LeftRdwr | RightRdwr},
+-	x86.AXCHGQ:    {Flags: gc.SizeQ | LeftRdwr | RightRdwr},
+-	x86.AXCHGW:    {Flags: gc.SizeW | LeftRdwr | RightRdwr},
+-	x86.AXORB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORPS:    {Flags: gc.LeftRead | RightRdwr},
++	// We use&obj.AMask MOVAPD as a faster synonym for MOVSD.
++	x86.AMOVAPD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULSD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.AMULSS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.ANEGB & obj.AMask:     {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
++	x86.ANEGL & obj.AMask:     {Flags: gc.SizeL | RightRdwr | gc.SetCarry},
++	x86.ANEGQ & obj.AMask:     {Flags: gc.SizeQ | RightRdwr | gc.SetCarry},
++	x86.ANEGW & obj.AMask:     {Flags: gc.SizeW | RightRdwr | gc.SetCarry},
++	x86.ANOTB & obj.AMask:     {Flags: gc.SizeB | RightRdwr},
++	x86.ANOTL & obj.AMask:     {Flags: gc.SizeL | RightRdwr},
++	x86.ANOTQ & obj.AMask:     {Flags: gc.SizeQ | RightRdwr},
++	x86.ANOTW & obj.AMask:     {Flags: gc.SizeW | RightRdwr},
++	x86.AORB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AORL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AORQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AORW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.APOPQ & obj.AMask:     {Flags: gc.SizeQ | gc.RightWrite},
++	x86.APUSHQ & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead},
++	x86.APXOR & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ARCLB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCLL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCLQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCLW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.AREP & obj.AMask:      {Flags: gc.OK, Reguse: CX, Regset: CX},
++	x86.AREPN & obj.AMask:     {Flags: gc.OK, Reguse: CX, Regset: CX},
++	obj.ARET & obj.AMask:      {Flags: gc.Break | gc.KillCarry},
++	x86.AROLB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.AROLL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.AROLQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.AROLW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASBBB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASBBL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASBBQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASBBW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASETCC & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETCS & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETEQ & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETGE & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETGT & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETHI & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETLE & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETLS & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETLT & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETMI & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETNE & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETOC & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETOS & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETPC & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETPL & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASETPS & obj.AMask:    {Flags: gc.SizeB | gc.RightWrite | gc.UseCarry},
++	x86.ASHLB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHLL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHLQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHLW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASQRTSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ASTOSB & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSL & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSQ & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSW & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	obj.ADUFFZERO & obj.AMask: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
++	x86.ASUBB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBSD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ASUBSS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.ATESTB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ATESTL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ATESTQ & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ATESTW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.AUCOMISD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AUCOMISS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
++	x86.AXCHGB & obj.AMask:    {Flags: gc.SizeB | LeftRdwr | RightRdwr},
++	x86.AXCHGL & obj.AMask:    {Flags: gc.SizeL | LeftRdwr | RightRdwr},
++	x86.AXCHGQ & obj.AMask:    {Flags: gc.SizeQ | LeftRdwr | RightRdwr},
++	x86.AXCHGW & obj.AMask:    {Flags: gc.SizeW | LeftRdwr | RightRdwr},
++	x86.AXORB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORPS & obj.AMask:    {Flags: gc.LeftRead | RightRdwr},
+ }
+ 
+ func progflags(p *obj.Prog) uint32 {
+-	flags := progtable[p.As].Flags
++	flags := progtable[p.As&obj.AMask].Flags
+ 	if flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
+ 		flags |= RightRdwr
+ 	}
+@@ -262,12 +260,12 @@ func progflags(p *obj.Prog) uint32 {
+ }
+ 
+ func progcarryflags(p *obj.Prog) uint32 {
+-	return progtable[p.As].Flags
++	return progtable[p.As&obj.AMask].Flags
+ }
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index d8708e6af5..f69548a30f 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -21,9 +21,7 @@ const (
+ // Instructions not generated need not be listed.
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+-//
+-// The table is formatted for 8-space tabs.
+-var progtable = [arm.ALAST]obj.ProgInfo{
++var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -40,63 +38,63 @@ var progtable = [arm.ALAST]obj.ProgInfo{
+ 	obj.ANOP: {Flags: gc.LeftRead | gc.RightWrite},
+ 
+ 	// Integer.
+-	arm.AADC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AADD:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AAND:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ABIC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ACMN:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+-	arm.ACMP:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+-	arm.ADIVU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ADIV:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AEOR:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMODU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMOD:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMULALU: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+-	arm.AMULAL:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+-	arm.AMULA:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+-	arm.AMULU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMUL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMULL:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMULLU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.AMVN:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+-	arm.AORR:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ARSB:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ARSC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ASBC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ASLL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ASRA:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ASRL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ASUB:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm.ATEQ:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+-	arm.ATST:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
++	arm.AADC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AADD & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AAND & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ABIC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ACMN & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
++	arm.ACMP & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
++	arm.ADIVU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ADIV & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AEOR & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMODU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMOD & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMULALU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
++	arm.AMULAL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
++	arm.AMULA & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
++	arm.AMULU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMUL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMULL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMULLU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.AMVN & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
++	arm.AORR & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ARSB & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ARSC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ASBC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ASLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ASRA & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ASRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ASUB & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ATEQ & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
++	arm.ATST & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+ 
+ 	// Floating point.
+-	arm.AADDD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	arm.AADDF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	arm.ACMPD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	arm.ACMPF:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
+-	arm.ADIVD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	arm.ADIVF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	arm.AMULD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	arm.AMULF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	arm.ASUBD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	arm.ASUBF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	arm.ASQRTD: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.AADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.AADDF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	arm.ACMPD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	arm.ACMPF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
++	arm.ADIVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.ADIVF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	arm.AMULD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.AMULF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	arm.ASUBD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.ASUBF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	arm.ASQRTD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 
+ 	// Conversions.
+-	arm.AMOVWD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVWF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVDF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVDW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVFD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVFW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVWD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVWF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVDF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVDW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVFD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVFW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Moves.
+-	arm.AMOVB: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm.AMOVD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm.AMOVF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm.AMOVH: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm.AMOVW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm.AMOVB & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm.AMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm.AMOVF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm.AMOVH & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm.AMOVW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// In addition, duffzero reads R0,R1 and writes R1.  This fact is
+ 	// encoded in peep.c
+@@ -108,36 +106,36 @@ var progtable = [arm.ALAST]obj.ProgInfo{
+ 
+ 	// These should be split into the two different conversions instead
+ 	// of overloading the one.
+-	arm.AMOVBS: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVBU: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVHS: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm.AMOVHU: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVBS & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVHS & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Jumps.
+-	arm.AB:   {Flags: gc.Jump | gc.Break},
+-	arm.ABL:  {Flags: gc.Call},
+-	arm.ABEQ: {Flags: gc.Cjmp},
+-	arm.ABNE: {Flags: gc.Cjmp},
+-	arm.ABCS: {Flags: gc.Cjmp},
+-	arm.ABHS: {Flags: gc.Cjmp},
+-	arm.ABCC: {Flags: gc.Cjmp},
+-	arm.ABLO: {Flags: gc.Cjmp},
+-	arm.ABMI: {Flags: gc.Cjmp},
+-	arm.ABPL: {Flags: gc.Cjmp},
+-	arm.ABVS: {Flags: gc.Cjmp},
+-	arm.ABVC: {Flags: gc.Cjmp},
+-	arm.ABHI: {Flags: gc.Cjmp},
+-	arm.ABLS: {Flags: gc.Cjmp},
+-	arm.ABGE: {Flags: gc.Cjmp},
+-	arm.ABLT: {Flags: gc.Cjmp},
+-	arm.ABGT: {Flags: gc.Cjmp},
+-	arm.ABLE: {Flags: gc.Cjmp},
+-	obj.ARET: {Flags: gc.Break},
++	arm.AB & obj.AMask:   {Flags: gc.Jump | gc.Break},
++	arm.ABL & obj.AMask:  {Flags: gc.Call},
++	arm.ABEQ & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABNE & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABCS & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABHS & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABCC & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABLO & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABMI & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABPL & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABVS & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABVC & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABHI & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABLS & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABGE & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABLT & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABGT & obj.AMask: {Flags: gc.Cjmp},
++	arm.ABLE & obj.AMask: {Flags: gc.Cjmp},
++	obj.ARET:             {Flags: gc.Break},
+ }
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index c9bd91b087..3091c4a840 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [arm64.ALAST]obj.ProgInfo{
++var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -38,101 +38,101 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+-	obj.ANOP:    {Flags: gc.LeftRead | gc.RightWrite},
+-	arm64.AHINT: {Flags: gc.OK},
++	obj.ANOP:                {Flags: gc.LeftRead | gc.RightWrite},
++	arm64.AHINT & obj.AMask: {Flags: gc.OK},
+ 
+ 	// Integer
+-	arm64.AADD:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ASUB:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ANEG:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AAND:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AORR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AEOR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AMUL:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ASMULL: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AUMULL: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ASMULH: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AUMULH: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ASDIV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AUDIV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ALSL:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ALSR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AASR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ACMP:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	arm64.AADD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ASUB & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ANEG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AAND & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AORR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AEOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AMUL & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ASMULL & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AUMULL & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ASMULH & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AUMULH & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ASDIV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AUDIV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ALSL & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ALSR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AASR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.ACMP & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+ 
+ 	// Floating point.
+-	arm64.AFADDD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFADDS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFSUBD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFSUBS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFNEGD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+-	arm64.AFNEGS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
+-	arm64.AFSQRTD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+-	arm64.AFMULD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFMULS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFDIVD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFDIVS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.AFCMPD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
+-	arm64.AFCMPS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
++	arm64.AFADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFADDS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFSUBD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFSUBS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFNEGD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
++	arm64.AFNEGS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
++	arm64.AFSQRTD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
++	arm64.AFMULD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFMULS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFDIVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AFCMPD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
++	arm64.AFCMPS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
+ 
+ 	// float -> integer
+-	arm64.AFCVTZSD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZSS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZSDW: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZSSW: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZUD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZUS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZUDW: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTZUSW: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZSD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZSS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZSDW & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZSSW & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZUD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZUS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZUDW & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTZUSW & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// float -> float
+-	arm64.AFCVTSD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AFCVTDS: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTSD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AFCVTDS & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// integer -> float
+-	arm64.ASCVTFD:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.ASCVTFS:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.ASCVTFWD: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.ASCVTFWS: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AUCVTFD:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AUCVTFS:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AUCVTFWD: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	arm64.AUCVTFWS: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.ASCVTFD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.ASCVTFS & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.ASCVTFWD & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.ASCVTFWS & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AUCVTFD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AUCVTFS & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AUCVTFWD & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	arm64.AUCVTFWS & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Moves
+-	arm64.AMOVB:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVBU: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVH:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVHU: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVW:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVWU: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVD:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm64.AFMOVS: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AFMOVD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVWU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.AFMOVS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AFMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+-	arm64.AB:      {Flags: gc.Jump | gc.Break},
+-	arm64.ABL:     {Flags: gc.Call},
+-	arm64.ABEQ:    {Flags: gc.Cjmp},
+-	arm64.ABNE:    {Flags: gc.Cjmp},
+-	arm64.ABGE:    {Flags: gc.Cjmp},
+-	arm64.ABLT:    {Flags: gc.Cjmp},
+-	arm64.ABGT:    {Flags: gc.Cjmp},
+-	arm64.ABLE:    {Flags: gc.Cjmp},
+-	arm64.ABLO:    {Flags: gc.Cjmp},
+-	arm64.ABLS:    {Flags: gc.Cjmp},
+-	arm64.ABHI:    {Flags: gc.Cjmp},
+-	arm64.ABHS:    {Flags: gc.Cjmp},
+-	arm64.ACBZ:    {Flags: gc.Cjmp},
+-	arm64.ACBNZ:   {Flags: gc.Cjmp},
+-	obj.ARET:      {Flags: gc.Break},
+-	obj.ADUFFZERO: {Flags: gc.Call},
+-	obj.ADUFFCOPY: {Flags: gc.Call},
++	arm64.AB & obj.AMask:    {Flags: gc.Jump | gc.Break},
++	arm64.ABL & obj.AMask:   {Flags: gc.Call},
++	arm64.ABEQ & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABNE & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABGE & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABLT & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABGT & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABLE & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABLO & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABLS & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABHI & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ABHS & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ACBZ & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ACBNZ & obj.AMask: {Flags: gc.Cjmp},
++	obj.ARET:                {Flags: gc.Break},
++	obj.ADUFFZERO:           {Flags: gc.Call},
++	obj.ADUFFCOPY:           {Flags: gc.Call},
+ }
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index b872b8e2d6..caf848286d 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [mips.ALAST]obj.ProgInfo{
++var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -41,103 +41,103 @@ var progtable = [mips.ALAST]obj.ProgInfo{
+ 	obj.ANOP: {Flags: gc.LeftRead | gc.RightWrite},
+ 
+ 	// Integer
+-	mips.AADD:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AADDU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AADDV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AADDVU: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUB:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUBU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUBV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUBVU: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AAND:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AOR:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AXOR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ANOR:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AMUL:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.AMULU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.AMULV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.AMULVU: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.ADIV:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.ADIVU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.ADIVV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.ADIVVU: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.AREM:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.AREMU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
+-	mips.AREMV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.AREMVU: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+-	mips.ASLL:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASLLV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASRA:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASRAV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASRL:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASRLV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASGT:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASGTU:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AADD & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AADDU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AADDV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AADDVU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUB & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUBU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUBV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUBVU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AAND & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AXOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ANOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AMUL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.AMULU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.AMULV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.AMULVU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.ADIV & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.ADIVU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.ADIVV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.ADIVVU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.AREM & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.AREMU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead},
++	mips.AREMV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.AREMVU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	mips.ASLL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASLLV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASRA & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASRAV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASRL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASRLV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASGT & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASGTU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 
+ 	// Floating point.
+-	mips.AADDF:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AADDD:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUBF:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ASUBD:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AMULF:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AMULD:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ADIVF:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.ADIVD:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	mips.AABSF:    {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
+-	mips.AABSD:    {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+-	mips.ANEGF:    {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
+-	mips.ANEGD:    {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+-	mips.ACMPEQF:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
+-	mips.ACMPEQD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
+-	mips.ACMPGTF:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
+-	mips.ACMPGTD:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
+-	mips.ACMPGEF:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
+-	mips.ACMPGED:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
+-	mips.AMOVFD:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVDF:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVFW:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVWF:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVDW:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVWD:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVFV:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVVF:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVDV:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.AMOVVD:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.ATRUNCFW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.ATRUNCDW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.ATRUNCFV: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	mips.ATRUNCDV: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AADDF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AADDD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUBF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ASUBD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AMULF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AMULD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ADIVF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.ADIVD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	mips.AABSF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
++	mips.AABSD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
++	mips.ANEGF & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite},
++	mips.ANEGD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
++	mips.ACMPEQF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
++	mips.ACMPEQD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
++	mips.ACMPGTF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
++	mips.ACMPGTD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
++	mips.ACMPGEF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead},
++	mips.ACMPGED & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead},
++	mips.AMOVFD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVDF & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVFW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVWF & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVDW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVWD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVFV & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVVF & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVDV & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.AMOVVD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.ATRUNCFW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.ATRUNCDW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.ATRUNCFV & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	mips.ATRUNCDV & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Moves
+-	mips.AMOVB:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVBU: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVH:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVHU: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVW:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVWU: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVV:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+-	mips.AMOVF:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	mips.AMOVD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	mips.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVWU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVV & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	mips.AMOVF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	mips.AMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+-	mips.AJMP:     {Flags: gc.Jump | gc.Break},
+-	mips.AJAL:     {Flags: gc.Call},
+-	mips.ABEQ:     {Flags: gc.Cjmp},
+-	mips.ABNE:     {Flags: gc.Cjmp},
+-	mips.ABGEZ:    {Flags: gc.Cjmp},
+-	mips.ABLTZ:    {Flags: gc.Cjmp},
+-	mips.ABGTZ:    {Flags: gc.Cjmp},
+-	mips.ABLEZ:    {Flags: gc.Cjmp},
+-	mips.ABFPF:    {Flags: gc.Cjmp},
+-	mips.ABFPT:    {Flags: gc.Cjmp},
+-	mips.ARET:     {Flags: gc.Break},
+-	obj.ADUFFZERO: {Flags: gc.Call},
+-	obj.ADUFFCOPY: {Flags: gc.Call},
++	mips.AJMP & obj.AMask:  {Flags: gc.Jump | gc.Break},
++	mips.AJAL & obj.AMask:  {Flags: gc.Call},
++	mips.ABEQ & obj.AMask:  {Flags: gc.Cjmp},
++	mips.ABNE & obj.AMask:  {Flags: gc.Cjmp},
++	mips.ABGEZ & obj.AMask: {Flags: gc.Cjmp},
++	mips.ABLTZ & obj.AMask: {Flags: gc.Cjmp},
++	mips.ABGTZ & obj.AMask: {Flags: gc.Cjmp},
++	mips.ABLEZ & obj.AMask: {Flags: gc.Cjmp},
++	mips.ABFPF & obj.AMask: {Flags: gc.Cjmp},
++	mips.ABFPT & obj.AMask: {Flags: gc.Cjmp},
++	mips.ARET & obj.AMask:  {Flags: gc.Break},
++	obj.ADUFFZERO:          {Flags: gc.Call},
++	obj.ADUFFCOPY:          {Flags: gc.Call},
+ }
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 6dde051d67..bdd0d4a179 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [ppc64.ALAST]obj.ProgInfo{
++var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -41,68 +41,68 @@ var progtable = [ppc64.ALAST]obj.ProgInfo{
+ 	obj.ANOP: {Flags: gc.LeftRead | gc.RightWrite},
+ 
+ 	// Integer
+-	ppc64.AADD:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ASUB:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ANEG:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AAND:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AOR:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AXOR:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULLD:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULLW:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULHD:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULHDU: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ADIVD:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ADIVDU:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ASLD:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ASRD:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ASRAD:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.ACMP:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
+-	ppc64.ACMPU:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
+-	ppc64.ATD:     {Flags: gc.SizeQ | gc.RightRead},
++	ppc64.AADD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ASUB & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ANEG & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AAND & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AOR & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AXOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHD & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHDU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ADIVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ADIVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ASLD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ASRD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.ACMP & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
++	ppc64.ACMPU & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
++	ppc64.ATD & obj.AMask:     {Flags: gc.SizeQ | gc.RightRead},
+ 
+ 	// Floating point.
+-	ppc64.AFADD:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFADDS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFSUB:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFSUBS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFMUL:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFMULS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFDIV:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFDIVS:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFCTIDZ: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFCFID:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AFCMPU:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	ppc64.AFRSP:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	ppc64.AFADD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFADDS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFSUB & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFSUBS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMUL & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMULS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFDIV & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Moves
+-	ppc64.AMOVB:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVBU: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
+-	ppc64.AMOVBZ: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVH:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVHU: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
+-	ppc64.AMOVHZ: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVW:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
++	ppc64.AMOVBZ & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
++	ppc64.AMOVHZ & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+ 
+ 	// there is no AMOVWU.
+-	ppc64.AMOVWZU: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
+-	ppc64.AMOVWZ:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVD:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+-	ppc64.AMOVDU:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc},
+-	ppc64.AFMOVS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AFMOVD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.AMOVWZU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
++	ppc64.AMOVWZ & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.AMOVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc},
++	ppc64.AFMOVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+-	ppc64.ABR:     {Flags: gc.Jump | gc.Break},
+-	ppc64.ABL:     {Flags: gc.Call},
+-	ppc64.ABEQ:    {Flags: gc.Cjmp},
+-	ppc64.ABNE:    {Flags: gc.Cjmp},
+-	ppc64.ABGE:    {Flags: gc.Cjmp},
+-	ppc64.ABLT:    {Flags: gc.Cjmp},
+-	ppc64.ABGT:    {Flags: gc.Cjmp},
+-	ppc64.ABLE:    {Flags: gc.Cjmp},
+-	obj.ARET:      {Flags: gc.Break},
+-	obj.ADUFFZERO: {Flags: gc.Call},
+-	obj.ADUFFCOPY: {Flags: gc.Call},
++	ppc64.ABR & obj.AMask:  {Flags: gc.Jump | gc.Break},
++	ppc64.ABL & obj.AMask:  {Flags: gc.Call},
++	ppc64.ABEQ & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABNE & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABGE & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABLT & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABGT & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABLE & obj.AMask: {Flags: gc.Cjmp},
++	obj.ARET:               {Flags: gc.Break},
++	obj.ADUFFZERO:          {Flags: gc.Call},
++	obj.ADUFFCOPY:          {Flags: gc.Call},
+ }
+ 
+ func initproginfo() {
+@@ -118,8 +118,8 @@ func initproginfo() {
+ 		variant := as2variant(as)
+ 		for i := range addvariant {
+ 			as2 := variant2as(as, variant|addvariant[i])
+-			if as2 != 0 && progtable[as2].Flags == 0 {
+-				progtable[as2] = progtable[as]
++			if as2 != 0 && progtable[as2&obj.AMask].Flags == 0 {
++				progtable[as2&obj.AMask] = progtable[as]
+ 			}
+ 		}
+ 	}
+@@ -127,7 +127,7 @@ func initproginfo() {
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+@@ -169,107 +169,119 @@ func proginfo(p *obj.Prog) {
+ 	}
+ }
+ 
+-// Instruction variants table. Initially this contains entries only
+-// for the "base" form of each instruction.
+-// This table is completed by calling initvariants in Main.
+-var varianttable = [ppc64.ALAST][4]obj.As{
+-	ppc64.AADD:     {ppc64.AADD, ppc64.AADDCC, ppc64.AADDV, ppc64.AADDVCC},
+-	ppc64.AADDC:    {ppc64.AADDC, ppc64.AADDCCC, ppc64.AADDCV, ppc64.AADDCVCC},
+-	ppc64.AADDE:    {ppc64.AADDE, ppc64.AADDECC, ppc64.AADDEV, ppc64.AADDEVCC},
+-	ppc64.AADDME:   {ppc64.AADDME, ppc64.AADDMECC, ppc64.AADDMEV, ppc64.AADDMEVCC},
+-	ppc64.AADDZE:   {ppc64.AADDZE, ppc64.AADDZECC, ppc64.AADDZEV, ppc64.AADDZEVCC},
+-	ppc64.AAND:     {ppc64.AAND, ppc64.AANDCC, 0, 0},
+-	ppc64.AANDN:    {ppc64.AANDN, ppc64.AANDNCC, 0, 0},
+-	ppc64.ACNTLZD:  {ppc64.ACNTLZD, ppc64.ACNTLZDCC, 0, 0},
+-	ppc64.ACNTLZW:  {ppc64.ACNTLZW, ppc64.ACNTLZWCC, 0, 0},
+-	ppc64.ADIVD:    {ppc64.ADIVD, ppc64.ADIVDCC, ppc64.ADIVDV, ppc64.ADIVDVCC},
+-	ppc64.ADIVDU:   {ppc64.ADIVDU, ppc64.ADIVDUCC, ppc64.ADIVDUV, ppc64.ADIVDUVCC},
+-	ppc64.ADIVW:    {ppc64.ADIVW, ppc64.ADIVWCC, ppc64.ADIVWV, ppc64.ADIVWVCC},
+-	ppc64.ADIVWU:   {ppc64.ADIVWU, ppc64.ADIVWUCC, ppc64.ADIVWUV, ppc64.ADIVWUVCC},
+-	ppc64.AEQV:     {ppc64.AEQV, ppc64.AEQVCC, 0, 0},
+-	ppc64.AEXTSB:   {ppc64.AEXTSB, ppc64.AEXTSBCC, 0, 0},
+-	ppc64.AEXTSH:   {ppc64.AEXTSH, ppc64.AEXTSHCC, 0, 0},
+-	ppc64.AEXTSW:   {ppc64.AEXTSW, ppc64.AEXTSWCC, 0, 0},
+-	ppc64.AFABS:    {ppc64.AFABS, ppc64.AFABSCC, 0, 0},
+-	ppc64.AFADD:    {ppc64.AFADD, ppc64.AFADDCC, 0, 0},
+-	ppc64.AFADDS:   {ppc64.AFADDS, ppc64.AFADDSCC, 0, 0},
+-	ppc64.AFCFID:   {ppc64.AFCFID, ppc64.AFCFIDCC, 0, 0},
+-	ppc64.AFCTID:   {ppc64.AFCTID, ppc64.AFCTIDCC, 0, 0},
+-	ppc64.AFCTIDZ:  {ppc64.AFCTIDZ, ppc64.AFCTIDZCC, 0, 0},
+-	ppc64.AFCTIW:   {ppc64.AFCTIW, ppc64.AFCTIWCC, 0, 0},
+-	ppc64.AFCTIWZ:  {ppc64.AFCTIWZ, ppc64.AFCTIWZCC, 0, 0},
+-	ppc64.AFDIV:    {ppc64.AFDIV, ppc64.AFDIVCC, 0, 0},
+-	ppc64.AFDIVS:   {ppc64.AFDIVS, ppc64.AFDIVSCC, 0, 0},
+-	ppc64.AFMADD:   {ppc64.AFMADD, ppc64.AFMADDCC, 0, 0},
+-	ppc64.AFMADDS:  {ppc64.AFMADDS, ppc64.AFMADDSCC, 0, 0},
+-	ppc64.AFMOVD:   {ppc64.AFMOVD, ppc64.AFMOVDCC, 0, 0},
+-	ppc64.AFMSUB:   {ppc64.AFMSUB, ppc64.AFMSUBCC, 0, 0},
+-	ppc64.AFMSUBS:  {ppc64.AFMSUBS, ppc64.AFMSUBSCC, 0, 0},
+-	ppc64.AFMUL:    {ppc64.AFMUL, ppc64.AFMULCC, 0, 0},
+-	ppc64.AFMULS:   {ppc64.AFMULS, ppc64.AFMULSCC, 0, 0},
+-	ppc64.AFNABS:   {ppc64.AFNABS, ppc64.AFNABSCC, 0, 0},
+-	ppc64.AFNEG:    {ppc64.AFNEG, ppc64.AFNEGCC, 0, 0},
+-	ppc64.AFNMADD:  {ppc64.AFNMADD, ppc64.AFNMADDCC, 0, 0},
+-	ppc64.AFNMADDS: {ppc64.AFNMADDS, ppc64.AFNMADDSCC, 0, 0},
+-	ppc64.AFNMSUB:  {ppc64.AFNMSUB, ppc64.AFNMSUBCC, 0, 0},
+-	ppc64.AFNMSUBS: {ppc64.AFNMSUBS, ppc64.AFNMSUBSCC, 0, 0},
+-	ppc64.AFRES:    {ppc64.AFRES, ppc64.AFRESCC, 0, 0},
+-	ppc64.AFRSP:    {ppc64.AFRSP, ppc64.AFRSPCC, 0, 0},
+-	ppc64.AFRSQRTE: {ppc64.AFRSQRTE, ppc64.AFRSQRTECC, 0, 0},
+-	ppc64.AFSEL:    {ppc64.AFSEL, ppc64.AFSELCC, 0, 0},
+-	ppc64.AFSQRT:   {ppc64.AFSQRT, ppc64.AFSQRTCC, 0, 0},
+-	ppc64.AFSQRTS:  {ppc64.AFSQRTS, ppc64.AFSQRTSCC, 0, 0},
+-	ppc64.AFSUB:    {ppc64.AFSUB, ppc64.AFSUBCC, 0, 0},
+-	ppc64.AFSUBS:   {ppc64.AFSUBS, ppc64.AFSUBSCC, 0, 0},
+-	ppc64.AMTFSB0:  {ppc64.AMTFSB0, ppc64.AMTFSB0CC, 0, 0},
+-	ppc64.AMTFSB1:  {ppc64.AMTFSB1, ppc64.AMTFSB1CC, 0, 0},
+-	ppc64.AMULHD:   {ppc64.AMULHD, ppc64.AMULHDCC, 0, 0},
+-	ppc64.AMULHDU:  {ppc64.AMULHDU, ppc64.AMULHDUCC, 0, 0},
+-	ppc64.AMULHW:   {ppc64.AMULHW, ppc64.AMULHWCC, 0, 0},
+-	ppc64.AMULHWU:  {ppc64.AMULHWU, ppc64.AMULHWUCC, 0, 0},
+-	ppc64.AMULLD:   {ppc64.AMULLD, ppc64.AMULLDCC, ppc64.AMULLDV, ppc64.AMULLDVCC},
+-	ppc64.AMULLW:   {ppc64.AMULLW, ppc64.AMULLWCC, ppc64.AMULLWV, ppc64.AMULLWVCC},
+-	ppc64.ANAND:    {ppc64.ANAND, ppc64.ANANDCC, 0, 0},
+-	ppc64.ANEG:     {ppc64.ANEG, ppc64.ANEGCC, ppc64.ANEGV, ppc64.ANEGVCC},
+-	ppc64.ANOR:     {ppc64.ANOR, ppc64.ANORCC, 0, 0},
+-	ppc64.AOR:      {ppc64.AOR, ppc64.AORCC, 0, 0},
+-	ppc64.AORN:     {ppc64.AORN, ppc64.AORNCC, 0, 0},
+-	ppc64.AREM:     {ppc64.AREM, ppc64.AREMCC, ppc64.AREMV, ppc64.AREMVCC},
+-	ppc64.AREMD:    {ppc64.AREMD, ppc64.AREMDCC, ppc64.AREMDV, ppc64.AREMDVCC},
+-	ppc64.AREMDU:   {ppc64.AREMDU, ppc64.AREMDUCC, ppc64.AREMDUV, ppc64.AREMDUVCC},
+-	ppc64.AREMU:    {ppc64.AREMU, ppc64.AREMUCC, ppc64.AREMUV, ppc64.AREMUVCC},
+-	ppc64.ARLDC:    {ppc64.ARLDC, ppc64.ARLDCCC, 0, 0},
+-	ppc64.ARLDCL:   {ppc64.ARLDCL, ppc64.ARLDCLCC, 0, 0},
+-	ppc64.ARLDCR:   {ppc64.ARLDCR, ppc64.ARLDCRCC, 0, 0},
+-	ppc64.ARLDMI:   {ppc64.ARLDMI, ppc64.ARLDMICC, 0, 0},
+-	ppc64.ARLWMI:   {ppc64.ARLWMI, ppc64.ARLWMICC, 0, 0},
+-	ppc64.ARLWNM:   {ppc64.ARLWNM, ppc64.ARLWNMCC, 0, 0},
+-	ppc64.ASLD:     {ppc64.ASLD, ppc64.ASLDCC, 0, 0},
+-	ppc64.ASLW:     {ppc64.ASLW, ppc64.ASLWCC, 0, 0},
+-	ppc64.ASRAD:    {ppc64.ASRAD, ppc64.ASRADCC, 0, 0},
+-	ppc64.ASRAW:    {ppc64.ASRAW, ppc64.ASRAWCC, 0, 0},
+-	ppc64.ASRD:     {ppc64.ASRD, ppc64.ASRDCC, 0, 0},
+-	ppc64.ASRW:     {ppc64.ASRW, ppc64.ASRWCC, 0, 0},
+-	ppc64.ASUB:     {ppc64.ASUB, ppc64.ASUBCC, ppc64.ASUBV, ppc64.ASUBVCC},
+-	ppc64.ASUBC:    {ppc64.ASUBC, ppc64.ASUBCCC, ppc64.ASUBCV, ppc64.ASUBCVCC},
+-	ppc64.ASUBE:    {ppc64.ASUBE, ppc64.ASUBECC, ppc64.ASUBEV, ppc64.ASUBEVCC},
+-	ppc64.ASUBME:   {ppc64.ASUBME, ppc64.ASUBMECC, ppc64.ASUBMEV, ppc64.ASUBMEVCC},
+-	ppc64.ASUBZE:   {ppc64.ASUBZE, ppc64.ASUBZECC, ppc64.ASUBZEV, ppc64.ASUBZEVCC},
+-	ppc64.AXOR:     {ppc64.AXOR, ppc64.AXORCC, 0, 0},
++// Instruction variants table, populated by initvariants via Main.
++// The index is the base form of the instruction, masked by obj.AMask.
++// The 4 values are the unmasked base form, then the unmasked CC, V,
++// and VCC variants, respectively.
++var varianttable = [ppc64.ALAST & obj.AMask][4]obj.As{}
++
++func initvariant(as obj.As, variants ...obj.As) {
++	vv := &varianttable[as&obj.AMask]
++	vv[0] = as
++	for i, v := range variants {
++		vv[i+1] = v
++	}
+ }
+ 
+ func initvariants() {
++	initvariant(ppc64.AADD, ppc64.AADDCC, ppc64.AADDV, ppc64.AADDVCC)
++	initvariant(ppc64.AADDC, ppc64.AADDCCC, ppc64.AADDCV, ppc64.AADDCVCC)
++	initvariant(ppc64.AADDE, ppc64.AADDECC, ppc64.AADDEV, ppc64.AADDEVCC)
++	initvariant(ppc64.AADDME, ppc64.AADDMECC, ppc64.AADDMEV, ppc64.AADDMEVCC)
++	initvariant(ppc64.AADDZE, ppc64.AADDZECC, ppc64.AADDZEV, ppc64.AADDZEVCC)
++	initvariant(ppc64.AAND, ppc64.AANDCC)
++	initvariant(ppc64.AANDN, ppc64.AANDNCC)
++	initvariant(ppc64.ACNTLZD, ppc64.ACNTLZDCC)
++	initvariant(ppc64.ACNTLZW, ppc64.ACNTLZWCC)
++	initvariant(ppc64.ADIVD, ppc64.ADIVDCC, ppc64.ADIVDV, ppc64.ADIVDVCC)
++	initvariant(ppc64.ADIVDU, ppc64.ADIVDUCC, ppc64.ADIVDUV, ppc64.ADIVDUVCC)
++	initvariant(ppc64.ADIVW, ppc64.ADIVWCC, ppc64.ADIVWV, ppc64.ADIVWVCC)
++	initvariant(ppc64.ADIVWU, ppc64.ADIVWUCC, ppc64.ADIVWUV, ppc64.ADIVWUVCC)
++	initvariant(ppc64.AEQV, ppc64.AEQVCC)
++	initvariant(ppc64.AEXTSB, ppc64.AEXTSBCC)
++	initvariant(ppc64.AEXTSH, ppc64.AEXTSHCC)
++	initvariant(ppc64.AEXTSW, ppc64.AEXTSWCC)
++	initvariant(ppc64.AFABS, ppc64.AFABSCC)
++	initvariant(ppc64.AFADD, ppc64.AFADDCC)
++	initvariant(ppc64.AFADDS, ppc64.AFADDSCC)
++	initvariant(ppc64.AFCFID, ppc64.AFCFIDCC)
++	initvariant(ppc64.AFCTID, ppc64.AFCTIDCC)
++	initvariant(ppc64.AFCTIDZ, ppc64.AFCTIDZCC)
++	initvariant(ppc64.AFCTIW, ppc64.AFCTIWCC)
++	initvariant(ppc64.AFCTIWZ, ppc64.AFCTIWZCC)
++	initvariant(ppc64.AFDIV, ppc64.AFDIVCC)
++	initvariant(ppc64.AFDIVS, ppc64.AFDIVSCC)
++	initvariant(ppc64.AFMADD, ppc64.AFMADDCC)
++	initvariant(ppc64.AFMADDS, ppc64.AFMADDSCC)
++	initvariant(ppc64.AFMOVD, ppc64.AFMOVDCC)
++	initvariant(ppc64.AFMSUB, ppc64.AFMSUBCC)
++	initvariant(ppc64.AFMSUBS, ppc64.AFMSUBSCC)
++	initvariant(ppc64.AFMUL, ppc64.AFMULCC)
++	initvariant(ppc64.AFMULS, ppc64.AFMULSCC)
++	initvariant(ppc64.AFNABS, ppc64.AFNABSCC)
++	initvariant(ppc64.AFNEG, ppc64.AFNEGCC)
++	initvariant(ppc64.AFNMADD, ppc64.AFNMADDCC)
++	initvariant(ppc64.AFNMADDS, ppc64.AFNMADDSCC)
++	initvariant(ppc64.AFNMSUB, ppc64.AFNMSUBCC)
++	initvariant(ppc64.AFNMSUBS, ppc64.AFNMSUBSCC)
++	initvariant(ppc64.AFRES, ppc64.AFRESCC)
++	initvariant(ppc64.AFRSP, ppc64.AFRSPCC)
++	initvariant(ppc64.AFRSQRTE, ppc64.AFRSQRTECC)
++	initvariant(ppc64.AFSEL, ppc64.AFSELCC)
++	initvariant(ppc64.AFSQRT, ppc64.AFSQRTCC)
++	initvariant(ppc64.AFSQRTS, ppc64.AFSQRTSCC)
++	initvariant(ppc64.AFSUB, ppc64.AFSUBCC)
++	initvariant(ppc64.AFSUBS, ppc64.AFSUBSCC)
++	initvariant(ppc64.AMTFSB0, ppc64.AMTFSB0CC)
++	initvariant(ppc64.AMTFSB1, ppc64.AMTFSB1CC)
++	initvariant(ppc64.AMULHD, ppc64.AMULHDCC)
++	initvariant(ppc64.AMULHDU, ppc64.AMULHDUCC)
++	initvariant(ppc64.AMULHW, ppc64.AMULHWCC)
++	initvariant(ppc64.AMULHWU, ppc64.AMULHWUCC)
++	initvariant(ppc64.AMULLD, ppc64.AMULLDCC, ppc64.AMULLDV, ppc64.AMULLDVCC)
++	initvariant(ppc64.AMULLW, ppc64.AMULLWCC, ppc64.AMULLWV, ppc64.AMULLWVCC)
++	initvariant(ppc64.ANAND, ppc64.ANANDCC)
++	initvariant(ppc64.ANEG, ppc64.ANEGCC, ppc64.ANEGV, ppc64.ANEGVCC)
++	initvariant(ppc64.ANOR, ppc64.ANORCC)
++	initvariant(ppc64.AOR, ppc64.AORCC)
++	initvariant(ppc64.AORN, ppc64.AORNCC)
++	initvariant(ppc64.AREM, ppc64.AREMCC, ppc64.AREMV, ppc64.AREMVCC)
++	initvariant(ppc64.AREMD, ppc64.AREMDCC, ppc64.AREMDV, ppc64.AREMDVCC)
++	initvariant(ppc64.AREMDU, ppc64.AREMDUCC, ppc64.AREMDUV, ppc64.AREMDUVCC)
++	initvariant(ppc64.AREMU, ppc64.AREMUCC, ppc64.AREMUV, ppc64.AREMUVCC)
++	initvariant(ppc64.ARLDC, ppc64.ARLDCCC)
++	initvariant(ppc64.ARLDCL, ppc64.ARLDCLCC)
++	initvariant(ppc64.ARLDCR, ppc64.ARLDCRCC)
++	initvariant(ppc64.ARLDMI, ppc64.ARLDMICC)
++	initvariant(ppc64.ARLWMI, ppc64.ARLWMICC)
++	initvariant(ppc64.ARLWNM, ppc64.ARLWNMCC)
++	initvariant(ppc64.ASLD, ppc64.ASLDCC)
++	initvariant(ppc64.ASLW, ppc64.ASLWCC)
++	initvariant(ppc64.ASRAD, ppc64.ASRADCC)
++	initvariant(ppc64.ASRAW, ppc64.ASRAWCC)
++	initvariant(ppc64.ASRD, ppc64.ASRDCC)
++	initvariant(ppc64.ASRW, ppc64.ASRWCC)
++	initvariant(ppc64.ASUB, ppc64.ASUBCC, ppc64.ASUBV, ppc64.ASUBVCC)
++	initvariant(ppc64.ASUBC, ppc64.ASUBCCC, ppc64.ASUBCV, ppc64.ASUBCVCC)
++	initvariant(ppc64.ASUBE, ppc64.ASUBECC, ppc64.ASUBEV, ppc64.ASUBEVCC)
++	initvariant(ppc64.ASUBME, ppc64.ASUBMECC, ppc64.ASUBMEV, ppc64.ASUBMEVCC)
++	initvariant(ppc64.ASUBZE, ppc64.ASUBZECC, ppc64.ASUBZEV, ppc64.ASUBZEVCC)
++	initvariant(ppc64.AXOR, ppc64.AXORCC)
++
+ 	for i := range varianttable {
+-		if varianttable[i][0] == 0 {
++		vv := &varianttable[i]
++		if vv[0] == 0 {
+ 			// Instruction has no variants
+ 			varianttable[i][0] = obj.As(i)
+ 			continue
+ 		}
+ 
+ 		// Copy base form to other variants
+-		if varianttable[i][0] == obj.As(i) {
+-			for j := range varianttable[i] {
+-				varianttable[varianttable[i][j]] = varianttable[i]
++		if vv[0]&obj.AMask == obj.As(i) {
++			for _, v := range vv {
++				if v != 0 {
++					varianttable[v&obj.AMask] = varianttable[i]
++				}
+ 			}
+ 		}
+ 	}
+@@ -277,17 +289,17 @@ func initvariants() {
+ 
+ // as2variant returns the variant (V_*) flags of instruction as.
+ func as2variant(as obj.As) int {
+-	for i := range varianttable[as] {
+-		if varianttable[as][i] == as {
++	for i, v := range varianttable[as&obj.AMask] {
++		if v&obj.AMask == as&obj.AMask {
+ 			return i
+ 		}
+ 	}
+-	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
++	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as&obj.AMask))
+ 	return 0
+ }
+ 
+ // variant2as returns the instruction as with the given variant (V_*) flags.
+ // If no such variant exists, this returns 0.
+ func variant2as(as obj.As, flags int) obj.As {
+-	return varianttable[as][flags]
++	return varianttable[as&obj.AMask][flags]
+ }
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index ab061335ea..f2b4a65ebf 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -30,7 +30,7 @@ var (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [x86.ALAST]obj.ProgInfo{
++var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -44,228 +44,228 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP:       {Flags: gc.LeftRead | gc.RightWrite},
+-	x86.AADCL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.AADCW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.AADDB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AADDSD:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.AADDSS:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.AANDB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AANDL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AANDW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	obj.ACALL:      {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
+-	x86.ACDQ:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACWD:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACLD:       {Flags: gc.OK},
+-	x86.ASTD:       {Flags: gc.OK},
+-	x86.ACMPB:      {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACMPL:      {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACMPW:      {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACOMISD:    {Flags: gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACOMISS:    {Flags: gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ACVTSD2SL:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSD2SS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSL2SD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSL2SS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSS2SD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTSS2SL:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSD2SL: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ACVTTSS2SL: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.ADECB:      {Flags: gc.SizeB | RightRdwr},
+-	x86.ADECL:      {Flags: gc.SizeL | RightRdwr},
+-	x86.ADECW:      {Flags: gc.SizeW | RightRdwr},
+-	x86.ADIVB:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.ADIVL:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVW:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVSD:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ADIVSS:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.AFLDCW:     {Flags: gc.SizeW | gc.LeftAddr},
+-	x86.AFSTCW:     {Flags: gc.SizeW | gc.RightAddr},
+-	x86.AFSTSW:     {Flags: gc.SizeW | gc.RightAddr | gc.RightWrite},
+-	x86.AFADDD:     {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFADDDP:    {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFADDF:     {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AFCOMD:     {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
+-	x86.AFCOMDP:    {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
+-	x86.AFCOMDPP:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
+-	x86.AFCOMF:     {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+-	x86.AFCOMFP:    {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
++	obj.ANOP:                   {Flags: gc.LeftRead | gc.RightWrite},
++	x86.AADCL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.AADCW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.AADDB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AADDSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.AADDSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.AANDB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AANDL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AANDW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	obj.ACALL:                  {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
++	x86.ACDQ & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACWD & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACLD & obj.AMask:       {Flags: gc.OK},
++	x86.ASTD & obj.AMask:       {Flags: gc.OK},
++	x86.ACMPB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACOMISD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACOMISS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACVTSD2SL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSD2SS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSL2SD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSL2SS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSS2SD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTSS2SL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSD2SL & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ACVTTSS2SL & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.ADECB & obj.AMask:      {Flags: gc.SizeB | RightRdwr},
++	x86.ADECL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
++	x86.ADECW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
++	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ADIVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.AFLDCW & obj.AMask:     {Flags: gc.SizeW | gc.LeftAddr},
++	x86.AFSTCW & obj.AMask:     {Flags: gc.SizeW | gc.RightAddr},
++	x86.AFSTSW & obj.AMask:     {Flags: gc.SizeW | gc.RightAddr | gc.RightWrite},
++	x86.AFADDD & obj.AMask:     {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFADDDP & obj.AMask:    {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFADDF & obj.AMask:     {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AFCOMD & obj.AMask:     {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
++	x86.AFCOMDP & obj.AMask:    {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
++	x86.AFCOMDPP & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
++	x86.AFCOMF & obj.AMask:     {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
++	x86.AFCOMFP & obj.AMask:    {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+ 	// NOTE(khr): don't use FUCOMI* instructions, not available
+ 	// on Pentium MMX.  See issue 13923.
+-	//x86.AFUCOMIP:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+-	x86.AFUCOMP:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	x86.AFUCOMPP: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	x86.AFCHS:    {Flags: gc.SizeD | RightRdwr}, // also SizeF
++	//x86.AFUCOMIP&obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
++	x86.AFUCOMP & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AFUCOMPP & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AFCHS & obj.AMask:    {Flags: gc.SizeD | RightRdwr}, // also SizeF
+ 
+-	x86.AFDIVDP:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFDIVF:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AFDIVD:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFDIVRDP: {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFDIVRF:  {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AFDIVRD:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFXCHD:   {Flags: gc.SizeD | LeftRdwr | RightRdwr},
+-	x86.AFSUBD:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFSUBDP:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFSUBF:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AFSUBRD:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFSUBRDP: {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFSUBRF:  {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AFMOVD:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightWrite},
+-	x86.AFMOVF:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightWrite},
+-	x86.AFMOVL:   {Flags: gc.SizeL | gc.LeftAddr | gc.RightWrite},
+-	x86.AFMOVW:   {Flags: gc.SizeW | gc.LeftAddr | gc.RightWrite},
+-	x86.AFMOVV:   {Flags: gc.SizeQ | gc.LeftAddr | gc.RightWrite},
++	x86.AFDIVDP & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFDIVF & obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AFDIVD & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFDIVRDP & obj.AMask: {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFDIVRF & obj.AMask:  {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AFDIVRD & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFXCHD & obj.AMask:   {Flags: gc.SizeD | LeftRdwr | RightRdwr},
++	x86.AFSUBD & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFSUBDP & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFSUBF & obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AFSUBRD & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFSUBRDP & obj.AMask: {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFSUBRF & obj.AMask:  {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AFMOVD & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightWrite},
++	x86.AFMOVF & obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightWrite},
++	x86.AFMOVL & obj.AMask:   {Flags: gc.SizeL | gc.LeftAddr | gc.RightWrite},
++	x86.AFMOVW & obj.AMask:   {Flags: gc.SizeW | gc.LeftAddr | gc.RightWrite},
++	x86.AFMOVV & obj.AMask:   {Flags: gc.SizeQ | gc.LeftAddr | gc.RightWrite},
+ 
+ 	// These instructions are marked as RightAddr
+ 	// so that the register optimizer does not try to replace the
+ 	// memory references with integer register references.
+ 	// But they do not use the previous value at the address, so
+ 	// we also mark them RightWrite.
+-	x86.AFMOVDP:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr},
+-	x86.AFMOVFP:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr},
+-	x86.AFMOVLP:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr},
+-	x86.AFMOVWP:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr},
+-	x86.AFMOVVP:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr},
+-	x86.AFMULD:    {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFMULDP:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+-	x86.AFMULF:    {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AIDIVB:    {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIDIVL:    {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVW:    {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIMULB:    {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIMULL:    {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+-	x86.AIMULW:    {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+-	x86.AINCB:     {Flags: gc.SizeB | RightRdwr},
+-	x86.AINCL:     {Flags: gc.SizeL | RightRdwr},
+-	x86.AINCW:     {Flags: gc.SizeW | RightRdwr},
+-	x86.AJCC:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJCS:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJEQ:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJGE:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJGT:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJHI:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLE:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLS:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJLT:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJMI:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJNE:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJOC:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJOS:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPC:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPL:      {Flags: gc.Cjmp | gc.UseCarry},
+-	x86.AJPS:      {Flags: gc.Cjmp | gc.UseCarry},
+-	obj.AJMP:      {Flags: gc.Jump | gc.Break | gc.KillCarry},
+-	x86.ALEAW:     {Flags: gc.LeftAddr | gc.RightWrite},
+-	x86.ALEAL:     {Flags: gc.LeftAddr | gc.RightWrite},
+-	x86.AMOVBLSX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBLZX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBWSX:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVBWZX:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWLSX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVWLZX:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+-	x86.AMOVB:     {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVL:     {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVW:     {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSB:    {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSL:    {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSW:    {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	obj.ADUFFCOPY: {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | CX},
+-	x86.AMOVSD:    {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSS:    {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AFMOVDP & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr},
++	x86.AFMOVFP & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr},
++	x86.AFMOVLP & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr},
++	x86.AFMOVWP & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr},
++	x86.AFMOVVP & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr},
++	x86.AFMULD & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFMULDP & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
++	x86.AFMULF & obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
++	x86.AIDIVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIDIVL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.AIDIVW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.AIMULB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIMULL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
++	x86.AIMULW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
++	x86.AINCB & obj.AMask:    {Flags: gc.SizeB | RightRdwr},
++	x86.AINCL & obj.AMask:    {Flags: gc.SizeL | RightRdwr},
++	x86.AINCW & obj.AMask:    {Flags: gc.SizeW | RightRdwr},
++	x86.AJCC & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJCS & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJEQ & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJGE & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJGT & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJHI & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLE & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLS & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJLT & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJMI & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJNE & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJOC & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJOS & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPC & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPL & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	x86.AJPS & obj.AMask:     {Flags: gc.Cjmp | gc.UseCarry},
++	obj.AJMP:                 {Flags: gc.Jump | gc.Break | gc.KillCarry},
++	x86.ALEAW & obj.AMask:    {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.ALEAL & obj.AMask:    {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.AMOVBLSX & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBLZX & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBWSX & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVBWZX & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWLSX & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVWLZX & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	x86.AMOVB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVSB & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	x86.AMOVSL & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	x86.AMOVSW & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
++	obj.ADUFFCOPY:            {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | CX},
++	x86.AMOVSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMOVSS & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// We use MOVAPD as a faster synonym for MOVSD.
+-	x86.AMOVAPD:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMULB:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AMULL:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULW:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULSD:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.AMULSS:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.ANEGB:     {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
+-	x86.ANEGL:     {Flags: gc.SizeL | RightRdwr | gc.SetCarry},
+-	x86.ANEGW:     {Flags: gc.SizeW | RightRdwr | gc.SetCarry},
+-	x86.ANOTB:     {Flags: gc.SizeB | RightRdwr},
+-	x86.ANOTL:     {Flags: gc.SizeL | RightRdwr},
+-	x86.ANOTW:     {Flags: gc.SizeW | RightRdwr},
+-	x86.AORB:      {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AORL:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AORW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.APOPL:     {Flags: gc.SizeL | gc.RightWrite},
+-	x86.APUSHL:    {Flags: gc.SizeL | gc.LeftRead},
+-	x86.APXOR:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ARCLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.ARCRW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.AREP:      {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	x86.AREPN:     {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	obj.ARET:      {Flags: gc.Break | gc.KillCarry},
+-	x86.AROLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.AROLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.AROLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ARORW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASAHF:     {Flags: gc.OK, Reguse: AX, Regset: AX},
+-	x86.ASALB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASALW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASARW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASBBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASBBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASBBW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
+-	x86.ASETCC:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETCS:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETEQ:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETGE:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETGT:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETHI:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETLE:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETLS:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETLT:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETMI:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETNE:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETOC:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETOS:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETPC:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETPL:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASETPS:    {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
+-	x86.ASHLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASHRW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASTOSB:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSL:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSW:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	obj.ADUFFZERO: {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASUBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.ASUBSD:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ASUBSS:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.ATESTB:    {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ATESTL:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.ATESTW:    {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
+-	x86.AUCOMISD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+-	x86.AUCOMISS:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
+-	x86.AXCHGB:    {Flags: gc.SizeB | LeftRdwr | RightRdwr},
+-	x86.AXCHGL:    {Flags: gc.SizeL | LeftRdwr | RightRdwr},
+-	x86.AXCHGW:    {Flags: gc.SizeW | LeftRdwr | RightRdwr},
+-	x86.AXORB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+-	x86.AXORW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AMOVAPD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	x86.AMULB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AMULL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.AMULSS & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.ANEGB & obj.AMask:    {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
++	x86.ANEGL & obj.AMask:    {Flags: gc.SizeL | RightRdwr | gc.SetCarry},
++	x86.ANEGW & obj.AMask:    {Flags: gc.SizeW | RightRdwr | gc.SetCarry},
++	x86.ANOTB & obj.AMask:    {Flags: gc.SizeB | RightRdwr},
++	x86.ANOTL & obj.AMask:    {Flags: gc.SizeL | RightRdwr},
++	x86.ANOTW & obj.AMask:    {Flags: gc.SizeW | RightRdwr},
++	x86.AORB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AORL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AORW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.APOPL & obj.AMask:    {Flags: gc.SizeL | gc.RightWrite},
++	x86.APUSHL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead},
++	x86.APXOR & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ARCLB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCLW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.ARCRW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
++	x86.AREP & obj.AMask:     {Flags: gc.OK, Reguse: CX, Regset: CX},
++	x86.AREPN & obj.AMask:    {Flags: gc.OK, Reguse: CX, Regset: CX},
++	obj.ARET:                 {Flags: gc.Break | gc.KillCarry},
++	x86.AROLB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.AROLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.AROLW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ARORW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASAHF & obj.AMask:    {Flags: gc.OK, Reguse: AX, Regset: AX},
++	x86.ASALB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASALW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASARW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASBBB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASBBL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASBBW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry},
++	x86.ASETCC & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETCS & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETEQ & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETGE & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETGT & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETHI & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETLE & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETLS & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETLT & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETMI & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETNE & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETOC & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETOS & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETPC & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETPL & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASETPS & obj.AMask:   {Flags: gc.SizeB | RightRdwr | gc.UseCarry},
++	x86.ASHLB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHLW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASHRW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
++	x86.ASTOSB & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSL & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSW & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	obj.ADUFFZERO:            {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASUBB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.ASUBSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	x86.ASUBSS & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	x86.ATESTB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ATESTL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ATESTW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.AUCOMISD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AUCOMISS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
++	x86.AXCHGB & obj.AMask:   {Flags: gc.SizeB | LeftRdwr | RightRdwr},
++	x86.AXCHGL & obj.AMask:   {Flags: gc.SizeL | LeftRdwr | RightRdwr},
++	x86.AXCHGW & obj.AMask:   {Flags: gc.SizeW | LeftRdwr | RightRdwr},
++	x86.AXORB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
++	x86.AXORW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+ }
+ 
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+-	*info = progtable[p.As]
++	*info = progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 5f07ebe5bb..fd337eab73 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -58,7 +58,7 @@ type Optab struct {
+ 	scond uint16
+ }
+ 
+-var oprange [ALAST][]Optab
++var oprange [ALAST & obj.AMask][]Optab
+ 
+ var xcmp [C_NCLASS][C_NCLASS]bool
+ 
+@@ -527,7 +527,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 	ctxt.Cursym = cursym
+ 	ctxt.Autosize = int32(p.To.Offset&0xffffffff) + 8
+ 
+-	if oprange[AAND] == nil {
++	if oprange[AAND&obj.AMask] == nil {
+ 		buildop(ctxt)
+ 	}
+ 
+@@ -1113,7 +1113,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
+ 	}
+ 
+-	ops := oprange[p.As]
++	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]
+ 	c2 := &xcmp[a2]
+ 	c3 := &xcmp[a3]
+@@ -1308,6 +1308,10 @@ func (x ocmp) Less(i, j int) bool {
+ 	return false
+ }
+ 
++func oprangeset(a obj.As, t []Optab) {
++	oprange[a&obj.AMask] = t
++}
++
+ func buildop(ctxt *obj.Link) {
+ 	var n int
+ 	for i := 0; i < C_GOK; i++ {
+@@ -1328,229 +1332,229 @@ func buildop(ctxt *obj.Link) {
+ 		}
+ 		t := optab[start:i]
+ 		i--
+-		oprange[r] = t
++		oprangeset(r, t)
+ 		switch r {
+ 		default:
+ 			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+-			oprange[AADDS] = t
+-			oprange[ASUB] = t
+-			oprange[ASUBS] = t
+-			oprange[AADDW] = t
+-			oprange[AADDSW] = t
+-			oprange[ASUBW] = t
+-			oprange[ASUBSW] = t
++			oprangeset(AADDS, t)
++			oprangeset(ASUB, t)
++			oprangeset(ASUBS, t)
++			oprangeset(AADDW, t)
++			oprangeset(AADDSW, t)
++			oprangeset(ASUBW, t)
++			oprangeset(ASUBSW, t)
+ 
+ 		case AAND: /* logical immediate, logical shifted register */
+-			oprange[AANDS] = t
++			oprangeset(AANDS, t)
+ 
+-			oprange[AANDSW] = t
+-			oprange[AANDW] = t
+-			oprange[AEOR] = t
+-			oprange[AEORW] = t
+-			oprange[AORR] = t
+-			oprange[AORRW] = t
++			oprangeset(AANDSW, t)
++			oprangeset(AANDW, t)
++			oprangeset(AEOR, t)
++			oprangeset(AEORW, t)
++			oprangeset(AORR, t)
++			oprangeset(AORRW, t)
+ 
+ 		case ABIC: /* only logical shifted register */
+-			oprange[ABICS] = t
++			oprangeset(ABICS, t)
+ 
+-			oprange[ABICSW] = t
+-			oprange[ABICW] = t
+-			oprange[AEON] = t
+-			oprange[AEONW] = t
+-			oprange[AORN] = t
+-			oprange[AORNW] = t
++			oprangeset(ABICSW, t)
++			oprangeset(ABICW, t)
++			oprangeset(AEON, t)
++			oprangeset(AEONW, t)
++			oprangeset(AORN, t)
++			oprangeset(AORNW, t)
+ 
+ 		case ANEG:
+-			oprange[ANEGS] = t
+-			oprange[ANEGSW] = t
+-			oprange[ANEGW] = t
++			oprangeset(ANEGS, t)
++			oprangeset(ANEGSW, t)
++			oprangeset(ANEGW, t)
+ 
+ 		case AADC: /* rn=Rd */
+-			oprange[AADCW] = t
++			oprangeset(AADCW, t)
+ 
+-			oprange[AADCS] = t
+-			oprange[AADCSW] = t
+-			oprange[ASBC] = t
+-			oprange[ASBCW] = t
+-			oprange[ASBCS] = t
+-			oprange[ASBCSW] = t
++			oprangeset(AADCS, t)
++			oprangeset(AADCSW, t)
++			oprangeset(ASBC, t)
++			oprangeset(ASBCW, t)
++			oprangeset(ASBCS, t)
++			oprangeset(ASBCSW, t)
+ 
+ 		case ANGC: /* rn=REGZERO */
+-			oprange[ANGCW] = t
++			oprangeset(ANGCW, t)
+ 
+-			oprange[ANGCS] = t
+-			oprange[ANGCSW] = t
++			oprangeset(ANGCS, t)
++			oprangeset(ANGCSW, t)
+ 
+ 		case ACMP:
+-			oprange[ACMPW] = t
+-			oprange[ACMN] = t
+-			oprange[ACMNW] = t
++			oprangeset(ACMPW, t)
++			oprangeset(ACMN, t)
++			oprangeset(ACMNW, t)
+ 
+ 		case ATST:
+-			oprange[ATSTW] = t
++			oprangeset(ATSTW, t)
+ 
+ 			/* register/register, and shifted */
+ 		case AMVN:
+-			oprange[AMVNW] = t
++			oprangeset(AMVNW, t)
+ 
+ 		case AMOVK:
+-			oprange[AMOVKW] = t
+-			oprange[AMOVN] = t
+-			oprange[AMOVNW] = t
+-			oprange[AMOVZ] = t
+-			oprange[AMOVZW] = t
++			oprangeset(AMOVKW, t)
++			oprangeset(AMOVN, t)
++			oprangeset(AMOVNW, t)
++			oprangeset(AMOVZ, t)
++			oprangeset(AMOVZW, t)
+ 
+ 		case ABEQ:
+-			oprange[ABNE] = t
+-			oprange[ABCS] = t
+-			oprange[ABHS] = t
+-			oprange[ABCC] = t
+-			oprange[ABLO] = t
+-			oprange[ABMI] = t
+-			oprange[ABPL] = t
+-			oprange[ABVS] = t
+-			oprange[ABVC] = t
+-			oprange[ABHI] = t
+-			oprange[ABLS] = t
+-			oprange[ABGE] = t
+-			oprange[ABLT] = t
+-			oprange[ABGT] = t
+-			oprange[ABLE] = t
++			oprangeset(ABNE, t)
++			oprangeset(ABCS, t)
++			oprangeset(ABHS, t)
++			oprangeset(ABCC, t)
++			oprangeset(ABLO, t)
++			oprangeset(ABMI, t)
++			oprangeset(ABPL, t)
++			oprangeset(ABVS, t)
++			oprangeset(ABVC, t)
++			oprangeset(ABHI, t)
++			oprangeset(ABLS, t)
++			oprangeset(ABGE, t)
++			oprangeset(ABLT, t)
++			oprangeset(ABGT, t)
++			oprangeset(ABLE, t)
+ 
+ 		case ALSL:
+-			oprange[ALSLW] = t
+-			oprange[ALSR] = t
+-			oprange[ALSRW] = t
+-			oprange[AASR] = t
+-			oprange[AASRW] = t
+-			oprange[AROR] = t
+-			oprange[ARORW] = t
++			oprangeset(ALSLW, t)
++			oprangeset(ALSR, t)
++			oprangeset(ALSRW, t)
++			oprangeset(AASR, t)
++			oprangeset(AASRW, t)
++			oprangeset(AROR, t)
++			oprangeset(ARORW, t)
+ 
+ 		case ACLS:
+-			oprange[ACLSW] = t
+-			oprange[ACLZ] = t
+-			oprange[ACLZW] = t
+-			oprange[ARBIT] = t
+-			oprange[ARBITW] = t
+-			oprange[AREV] = t
+-			oprange[AREVW] = t
+-			oprange[AREV16] = t
+-			oprange[AREV16W] = t
+-			oprange[AREV32] = t
++			oprangeset(ACLSW, t)
++			oprangeset(ACLZ, t)
++			oprangeset(ACLZW, t)
++			oprangeset(ARBIT, t)
++			oprangeset(ARBITW, t)
++			oprangeset(AREV, t)
++			oprangeset(AREVW, t)
++			oprangeset(AREV16, t)
++			oprangeset(AREV16W, t)
++			oprangeset(AREV32, t)
+ 
+ 		case ASDIV:
+-			oprange[ASDIVW] = t
+-			oprange[AUDIV] = t
+-			oprange[AUDIVW] = t
+-			oprange[ACRC32B] = t
+-			oprange[ACRC32CB] = t
+-			oprange[ACRC32CH] = t
+-			oprange[ACRC32CW] = t
+-			oprange[ACRC32CX] = t
+-			oprange[ACRC32H] = t
+-			oprange[ACRC32W] = t
+-			oprange[ACRC32X] = t
++			oprangeset(ASDIVW, t)
++			oprangeset(AUDIV, t)
++			oprangeset(AUDIVW, t)
++			oprangeset(ACRC32B, t)
++			oprangeset(ACRC32CB, t)
++			oprangeset(ACRC32CH, t)
++			oprangeset(ACRC32CW, t)
++			oprangeset(ACRC32CX, t)
++			oprangeset(ACRC32H, t)
++			oprangeset(ACRC32W, t)
++			oprangeset(ACRC32X, t)
+ 
+ 		case AMADD:
+-			oprange[AMADDW] = t
+-			oprange[AMSUB] = t
+-			oprange[AMSUBW] = t
+-			oprange[ASMADDL] = t
+-			oprange[ASMSUBL] = t
+-			oprange[AUMADDL] = t
+-			oprange[AUMSUBL] = t
++			oprangeset(AMADDW, t)
++			oprangeset(AMSUB, t)
++			oprangeset(AMSUBW, t)
++			oprangeset(ASMADDL, t)
++			oprangeset(ASMSUBL, t)
++			oprangeset(AUMADDL, t)
++			oprangeset(AUMSUBL, t)
+ 
+ 		case AREM:
+-			oprange[AREMW] = t
+-			oprange[AUREM] = t
+-			oprange[AUREMW] = t
++			oprangeset(AREMW, t)
++			oprangeset(AUREM, t)
++			oprangeset(AUREMW, t)
+ 
+ 		case AMUL:
+-			oprange[AMULW] = t
+-			oprange[AMNEG] = t
+-			oprange[AMNEGW] = t
+-			oprange[ASMNEGL] = t
+-			oprange[ASMULL] = t
+-			oprange[ASMULH] = t
+-			oprange[AUMNEGL] = t
+-			oprange[AUMULH] = t
+-			oprange[AUMULL] = t
++			oprangeset(AMULW, t)
++			oprangeset(AMNEG, t)
++			oprangeset(AMNEGW, t)
++			oprangeset(ASMNEGL, t)
++			oprangeset(ASMULL, t)
++			oprangeset(ASMULH, t)
++			oprangeset(AUMNEGL, t)
++			oprangeset(AUMULH, t)
++			oprangeset(AUMULL, t)
+ 
+ 		case AMOVB:
+-			oprange[AMOVBU] = t
++			oprangeset(AMOVBU, t)
+ 
+ 		case AMOVH:
+-			oprange[AMOVHU] = t
++			oprangeset(AMOVHU, t)
+ 
+ 		case AMOVW:
+-			oprange[AMOVWU] = t
++			oprangeset(AMOVWU, t)
+ 
+ 		case ABFM:
+-			oprange[ABFMW] = t
+-			oprange[ASBFM] = t
+-			oprange[ASBFMW] = t
+-			oprange[AUBFM] = t
+-			oprange[AUBFMW] = t
++			oprangeset(ABFMW, t)
++			oprangeset(ASBFM, t)
++			oprangeset(ASBFMW, t)
++			oprangeset(AUBFM, t)
++			oprangeset(AUBFMW, t)
+ 
+ 		case ABFI:
+-			oprange[ABFIW] = t
+-			oprange[ABFXIL] = t
+-			oprange[ABFXILW] = t
+-			oprange[ASBFIZ] = t
+-			oprange[ASBFIZW] = t
+-			oprange[ASBFX] = t
+-			oprange[ASBFXW] = t
+-			oprange[AUBFIZ] = t
+-			oprange[AUBFIZW] = t
+-			oprange[AUBFX] = t
+-			oprange[AUBFXW] = t
++			oprangeset(ABFIW, t)
++			oprangeset(ABFXIL, t)
++			oprangeset(ABFXILW, t)
++			oprangeset(ASBFIZ, t)
++			oprangeset(ASBFIZW, t)
++			oprangeset(ASBFX, t)
++			oprangeset(ASBFXW, t)
++			oprangeset(AUBFIZ, t)
++			oprangeset(AUBFIZW, t)
++			oprangeset(AUBFX, t)
++			oprangeset(AUBFXW, t)
+ 
+ 		case AEXTR:
+-			oprange[AEXTRW] = t
++			oprangeset(AEXTRW, t)
+ 
+ 		case ASXTB:
+-			oprange[ASXTBW] = t
+-			oprange[ASXTH] = t
+-			oprange[ASXTHW] = t
+-			oprange[ASXTW] = t
+-			oprange[AUXTB] = t
+-			oprange[AUXTH] = t
+-			oprange[AUXTW] = t
+-			oprange[AUXTBW] = t
+-			oprange[AUXTHW] = t
++			oprangeset(ASXTBW, t)
++			oprangeset(ASXTH, t)
++			oprangeset(ASXTHW, t)
++			oprangeset(ASXTW, t)
++			oprangeset(AUXTB, t)
++			oprangeset(AUXTH, t)
++			oprangeset(AUXTW, t)
++			oprangeset(AUXTBW, t)
++			oprangeset(AUXTHW, t)
+ 
+ 		case ACCMN:
+-			oprange[ACCMNW] = t
+-			oprange[ACCMP] = t
+-			oprange[ACCMPW] = t
++			oprangeset(ACCMNW, t)
++			oprangeset(ACCMP, t)
++			oprangeset(ACCMPW, t)
+ 
+ 		case ACSEL:
+-			oprange[ACSELW] = t
+-			oprange[ACSINC] = t
+-			oprange[ACSINCW] = t
+-			oprange[ACSINV] = t
+-			oprange[ACSINVW] = t
+-			oprange[ACSNEG] = t
+-			oprange[ACSNEGW] = t
++			oprangeset(ACSELW, t)
++			oprangeset(ACSINC, t)
++			oprangeset(ACSINCW, t)
++			oprangeset(ACSINV, t)
++			oprangeset(ACSINVW, t)
++			oprangeset(ACSNEG, t)
++			oprangeset(ACSNEGW, t)
+ 
+ 			// aliases Rm=Rn, !cond
+-			oprange[ACINC] = t
++			oprangeset(ACINC, t)
+ 
+-			oprange[ACINCW] = t
+-			oprange[ACINV] = t
+-			oprange[ACINVW] = t
+-			oprange[ACNEG] = t
+-			oprange[ACNEGW] = t
++			oprangeset(ACINCW, t)
++			oprangeset(ACINV, t)
++			oprangeset(ACINVW, t)
++			oprangeset(ACNEG, t)
++			oprangeset(ACNEGW, t)
+ 
+ 			// aliases, Rm=Rn=REGZERO, !cond
+ 		case ACSET:
+-			oprange[ACSETW] = t
++			oprangeset(ACSETW, t)
+ 
+-			oprange[ACSETM] = t
+-			oprange[ACSETMW] = t
++			oprangeset(ACSETM, t)
++			oprangeset(ACSETMW, t)
+ 
+ 		case AMOVD,
+ 			AMOVBU,
+@@ -1565,20 +1569,20 @@ func buildop(ctxt *obj.Link) {
+ 			break
+ 
+ 		case AERET:
+-			oprange[AWFE] = t
+-			oprange[AWFI] = t
+-			oprange[AYIELD] = t
+-			oprange[ASEV] = t
+-			oprange[ASEVL] = t
+-			oprange[ADRPS] = t
++			oprangeset(AWFE, t)
++			oprangeset(AWFI, t)
++			oprangeset(AYIELD, t)
++			oprangeset(ASEV, t)
++			oprangeset(ASEVL, t)
++			oprangeset(ADRPS, t)
+ 
+ 		case ACBZ:
+-			oprange[ACBZW] = t
+-			oprange[ACBNZ] = t
+-			oprange[ACBNZW] = t
++			oprangeset(ACBZW, t)
++			oprangeset(ACBNZ, t)
++			oprangeset(ACBNZW, t)
+ 
+ 		case ATBZ:
+-			oprange[ATBNZ] = t
++			oprangeset(ATBNZ, t)
+ 
+ 		case AADR, AADRP:
+ 			break
+@@ -1587,154 +1591,154 @@ func buildop(ctxt *obj.Link) {
+ 			break
+ 
+ 		case ASVC:
+-			oprange[AHLT] = t
+-			oprange[AHVC] = t
+-			oprange[ASMC] = t
+-			oprange[ABRK] = t
+-			oprange[ADCPS1] = t
+-			oprange[ADCPS2] = t
+-			oprange[ADCPS3] = t
++			oprangeset(AHLT, t)
++			oprangeset(AHVC, t)
++			oprangeset(ASMC, t)
++			oprangeset(ABRK, t)
++			oprangeset(ADCPS1, t)
++			oprangeset(ADCPS2, t)
++			oprangeset(ADCPS3, t)
+ 
+ 		case AFADDS:
+-			oprange[AFADDD] = t
+-			oprange[AFSUBS] = t
+-			oprange[AFSUBD] = t
+-			oprange[AFMULS] = t
+-			oprange[AFMULD] = t
+-			oprange[AFNMULS] = t
+-			oprange[AFNMULD] = t
+-			oprange[AFDIVS] = t
+-			oprange[AFMAXD] = t
+-			oprange[AFMAXS] = t
+-			oprange[AFMIND] = t
+-			oprange[AFMINS] = t
+-			oprange[AFMAXNMD] = t
+-			oprange[AFMAXNMS] = t
+-			oprange[AFMINNMD] = t
+-			oprange[AFMINNMS] = t
+-			oprange[AFDIVD] = t
++			oprangeset(AFADDD, t)
++			oprangeset(AFSUBS, t)
++			oprangeset(AFSUBD, t)
++			oprangeset(AFMULS, t)
++			oprangeset(AFMULD, t)
++			oprangeset(AFNMULS, t)
++			oprangeset(AFNMULD, t)
++			oprangeset(AFDIVS, t)
++			oprangeset(AFMAXD, t)
++			oprangeset(AFMAXS, t)
++			oprangeset(AFMIND, t)
++			oprangeset(AFMINS, t)
++			oprangeset(AFMAXNMD, t)
++			oprangeset(AFMAXNMS, t)
++			oprangeset(AFMINNMD, t)
++			oprangeset(AFMINNMS, t)
++			oprangeset(AFDIVD, t)
+ 
+ 		case AFCVTSD:
+-			oprange[AFCVTDS] = t
+-			oprange[AFABSD] = t
+-			oprange[AFABSS] = t
+-			oprange[AFNEGD] = t
+-			oprange[AFNEGS] = t
+-			oprange[AFSQRTD] = t
+-			oprange[AFSQRTS] = t
+-			oprange[AFRINTNS] = t
+-			oprange[AFRINTND] = t
+-			oprange[AFRINTPS] = t
+-			oprange[AFRINTPD] = t
+-			oprange[AFRINTMS] = t
+-			oprange[AFRINTMD] = t
+-			oprange[AFRINTZS] = t
+-			oprange[AFRINTZD] = t
+-			oprange[AFRINTAS] = t
+-			oprange[AFRINTAD] = t
+-			oprange[AFRINTXS] = t
+-			oprange[AFRINTXD] = t
+-			oprange[AFRINTIS] = t
+-			oprange[AFRINTID] = t
+-			oprange[AFCVTDH] = t
+-			oprange[AFCVTHS] = t
+-			oprange[AFCVTHD] = t
+-			oprange[AFCVTSH] = t
++			oprangeset(AFCVTDS, t)
++			oprangeset(AFABSD, t)
++			oprangeset(AFABSS, t)
++			oprangeset(AFNEGD, t)
++			oprangeset(AFNEGS, t)
++			oprangeset(AFSQRTD, t)
++			oprangeset(AFSQRTS, t)
++			oprangeset(AFRINTNS, t)
++			oprangeset(AFRINTND, t)
++			oprangeset(AFRINTPS, t)
++			oprangeset(AFRINTPD, t)
++			oprangeset(AFRINTMS, t)
++			oprangeset(AFRINTMD, t)
++			oprangeset(AFRINTZS, t)
++			oprangeset(AFRINTZD, t)
++			oprangeset(AFRINTAS, t)
++			oprangeset(AFRINTAD, t)
++			oprangeset(AFRINTXS, t)
++			oprangeset(AFRINTXD, t)
++			oprangeset(AFRINTIS, t)
++			oprangeset(AFRINTID, t)
++			oprangeset(AFCVTDH, t)
++			oprangeset(AFCVTHS, t)
++			oprangeset(AFCVTHD, t)
++			oprangeset(AFCVTSH, t)
+ 
+ 		case AFCMPS:
+-			oprange[AFCMPD] = t
+-			oprange[AFCMPES] = t
+-			oprange[AFCMPED] = t
++			oprangeset(AFCMPD, t)
++			oprangeset(AFCMPES, t)
++			oprangeset(AFCMPED, t)
+ 
+ 		case AFCCMPS:
+-			oprange[AFCCMPD] = t
+-			oprange[AFCCMPES] = t
+-			oprange[AFCCMPED] = t
++			oprangeset(AFCCMPD, t)
++			oprangeset(AFCCMPES, t)
++			oprangeset(AFCCMPED, t)
+ 
+ 		case AFCSELD:
+-			oprange[AFCSELS] = t
++			oprangeset(AFCSELS, t)
+ 
+ 		case AFMOVS, AFMOVD:
+ 			break
+ 
+ 		case AFCVTZSD:
+-			oprange[AFCVTZSDW] = t
+-			oprange[AFCVTZSS] = t
+-			oprange[AFCVTZSSW] = t
+-			oprange[AFCVTZUD] = t
+-			oprange[AFCVTZUDW] = t
+-			oprange[AFCVTZUS] = t
+-			oprange[AFCVTZUSW] = t
++			oprangeset(AFCVTZSDW, t)
++			oprangeset(AFCVTZSS, t)
++			oprangeset(AFCVTZSSW, t)
++			oprangeset(AFCVTZUD, t)
++			oprangeset(AFCVTZUDW, t)
++			oprangeset(AFCVTZUS, t)
++			oprangeset(AFCVTZUSW, t)
+ 
+ 		case ASCVTFD:
+-			oprange[ASCVTFS] = t
+-			oprange[ASCVTFWD] = t
+-			oprange[ASCVTFWS] = t
+-			oprange[AUCVTFD] = t
+-			oprange[AUCVTFS] = t
+-			oprange[AUCVTFWD] = t
+-			oprange[AUCVTFWS] = t
++			oprangeset(ASCVTFS, t)
++			oprangeset(ASCVTFWD, t)
++			oprangeset(ASCVTFWS, t)
++			oprangeset(AUCVTFD, t)
++			oprangeset(AUCVTFS, t)
++			oprangeset(AUCVTFWD, t)
++			oprangeset(AUCVTFWS, t)
+ 
+ 		case ASYS:
+-			oprange[AAT] = t
+-			oprange[ADC] = t
+-			oprange[AIC] = t
+-			oprange[ATLBI] = t
++			oprangeset(AAT, t)
++			oprangeset(ADC, t)
++			oprangeset(AIC, t)
++			oprangeset(ATLBI, t)
+ 
+ 		case ASYSL, AHINT:
+ 			break
+ 
+ 		case ADMB:
+-			oprange[ADSB] = t
+-			oprange[AISB] = t
++			oprangeset(ADSB, t)
++			oprangeset(AISB, t)
+ 
+ 		case AMRS, AMSR:
+ 			break
+ 
+ 		case ALDAR:
+-			oprange[ALDARW] = t
++			oprangeset(ALDARW, t)
+ 			fallthrough
+ 
+ 		case ALDXR:
+-			oprange[ALDXRB] = t
+-			oprange[ALDXRH] = t
+-			oprange[ALDXRW] = t
++			oprangeset(ALDXRB, t)
++			oprangeset(ALDXRH, t)
++			oprangeset(ALDXRW, t)
+ 
+ 		case ALDAXR:
+-			oprange[ALDAXRW] = t
++			oprangeset(ALDAXRW, t)
+ 
+ 		case ALDXP:
+-			oprange[ALDXPW] = t
++			oprangeset(ALDXPW, t)
+ 
+ 		case ASTLR:
+-			oprange[ASTLRW] = t
++			oprangeset(ASTLRW, t)
+ 
+ 		case ASTXR:
+-			oprange[ASTXRB] = t
+-			oprange[ASTXRH] = t
+-			oprange[ASTXRW] = t
++			oprangeset(ASTXRB, t)
++			oprangeset(ASTXRH, t)
++			oprangeset(ASTXRW, t)
+ 
+ 		case ASTLXR:
+-			oprange[ASTLXRW] = t
++			oprangeset(ASTLXRW, t)
+ 
+ 		case ASTXP:
+-			oprange[ASTXPW] = t
++			oprangeset(ASTXPW, t)
+ 
+ 		case AAESD:
+-			oprange[AAESE] = t
+-			oprange[AAESMC] = t
+-			oprange[AAESIMC] = t
+-			oprange[ASHA1H] = t
+-			oprange[ASHA1SU1] = t
+-			oprange[ASHA256SU0] = t
++			oprangeset(AAESE, t)
++			oprangeset(AAESMC, t)
++			oprangeset(AAESIMC, t)
++			oprangeset(ASHA1H, t)
++			oprangeset(ASHA1SU1, t)
++			oprangeset(ASHA256SU0, t)
+ 
+ 		case ASHA1C:
+-			oprange[ASHA1P] = t
+-			oprange[ASHA1M] = t
+-			oprange[ASHA1SU0] = t
+-			oprange[ASHA256H] = t
+-			oprange[ASHA256H2] = t
+-			oprange[ASHA256SU1] = t
++			oprangeset(ASHA1P, t)
++			oprangeset(ASHA1M, t)
++			oprangeset(ASHA1SU0, t)
++			oprangeset(ASHA256H, t)
++			oprangeset(ASHA256H2, t)
++			oprangeset(ASHA256SU1, t)
+ 
+ 		case obj.ANOP,
+ 			obj.AUNDEF,

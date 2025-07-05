@@ -16,7 +16,103 @@ Date:   Tue Aug 6 18:37:34 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12435043
-
+---
  src/pkg/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/server.go     |  8 ++++--
  2 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index c187b1cd07..5b394660a3 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1757,6 +1757,64 @@ func TestWriteAfterHijack(t *testing.T) {
+ 	}
+ }
+ 
++// http://code.google.com/p/go/issues/detail?id=5955
++// Note that this does not test the "request too large"
++// exit path from the http server. This is intentional;
++// not sending Connection: close is just a minor wire
++// optimization and is pointless if dealing with a
++// badly behaved client.
++func TestHTTP10ConnectionHeader(t *testing.T) {
++	defer afterTest(t)
++
++	mux := NewServeMux()
++	mux.Handle("/", HandlerFunc(func(resp ResponseWriter, req *Request) {}))
++	ts := httptest.NewServer(mux)
++	defer ts.Close()
++
++	// net/http uses HTTP/1.1 for requests, so write requests manually
++	tests := []struct {
++		req    string   // raw http request
++		expect []string // expected Connection header(s)
++	}{
++		{
++			req:    "GET / HTTP/1.0\r\n\r\n",
++			expect: nil,
++		},
++		{
++			req:    "OPTIONS * HTTP/1.0\r\n\r\n",
++			expect: nil,
++		},
++		{
++			req:    "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n",
++			expect: []string{"keep-alive"},
++		},
++	}
++
++	for _, tt := range tests {
++		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++		if err != nil {
++			t.Fatal("dial err:", err)
++		}
++
++		_, err = fmt.Fprint(conn, tt.req)
++		if err != nil {
++			t.Fatal("conn write err:", err)
++		}
++
++		resp, err := ReadResponse(bufio.NewReader(conn), &Request{Method: "GET"})
++		if err != nil {
++			t.Fatal("ReadResponse err:", err)
++		}
++		conn.Close()
++		resp.Body.Close()
++
++		got := resp.Header["Connection"]
++		if !reflect.DeepEqual(got, tt.expect) {
++			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", got, tt.expect)
++		}
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 5b93a61125..9294705292 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -850,7 +850,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 
+ 	if w.closeAfterReply && !hasToken(cw.header.get("Connection"), "close") {
+ 		delHeader("Connection")
+-		setHeader.connection = "close"
++		if w.req.ProtoAtLeast(1, 1) {
++			setHeader.connection = "close"
++		}
+ 	}
+ 
+ 	w.conn.buf.WriteString(statusLine(w.req, code))
+@@ -1458,7 +1460,9 @@ func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
+ // pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+ 	if r.RequestURI == "*" {
+-		w.Header().Set("Connection", "close")
++		if r.ProtoAtLeast(1, 1) {
++			w.Header().Set("Connection", "close")
++		}
+ 		w.WriteHeader(StatusBadRequest)
+ 		return
+ 	}

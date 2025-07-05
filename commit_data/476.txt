@@ -8,6 +8,43 @@ Date:   Mon Aug 4 13:18:59 2008 -0700
     DELTA=16  (10 added, 4 deleted, 2 changed)
     OCL=13815
     CL=13815
-
+---
  src/cmd/gc/go.y | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 558d16bcbc..3fd75b1b57 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -135,21 +135,27 @@ import_there:
+  */
+ xdcl:
+ 	common_dcl
+-|	LEXPORT { exportadj = 1; } common_dcl
++|	xfndcl
+ 	{
+-		$$ = $3;
+-		exportadj = 0;
++		$$ = N;
+ 	}
+ |	LEXPORT export_list_r
+ 	{
+ 		$$ = N;
+ 	}
++|	LEXPORT { exportadj = 1; } common_dcl
++	{
++		$$ = $3;
++		exportadj = 0;
++	}
+ |	LEXPORT '(' export_list_r ')'
+ 	{
+ 		$$ = N;
+ 	}
+-|	xfndcl
++|	LEXPORT xfndcl
+ 	{
++		if($2 != N && $2->nname != N)
++			exportsym($2->nname->sym);
+ 		$$ = N;
+ 	}
+ |	';'

@@ -13,7 +13,92 @@ Date:   Fri Jan 10 11:27:08 2020 -0500
     Change-Id: Ie8b54b272e8a04720e437a37a5e5b0afd73481b4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214285
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                       | 48 -----------------------------
  src/cmd/go/testdata/script/test_profile.txt | 19 ++++++++++++
  2 files changed, 19 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d944ff7daf..fed6487357 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1527,54 +1527,6 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
+ 	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
+ }
+ 
+-func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.makeTempdir()
+-	tg.cd(tg.path("."))
+-	tg.run("test", "-cpuprofile", "errors.prof", "errors")
+-	tg.wantExecutable("errors.test"+exeSuffix, "go test -cpuprofile did not create errors.test")
+-}
+-
+-func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.makeTempdir()
+-	tg.cd(tg.path("."))
+-	tg.run("test", "-cpuprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
+-	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -cpuprofile -o myerrors.test did not create myerrors.test")
+-}
+-
+-func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.makeTempdir()
+-	tg.cd(tg.path("."))
+-	tg.run("test", "-mutexprofile", "errors.prof", "errors")
+-	tg.wantExecutable("errors.test"+exeSuffix, "go test -mutexprofile did not create errors.test")
+-}
+-
+-func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.makeTempdir()
+-	tg.cd(tg.path("."))
+-	tg.run("test", "-mutexprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
+-	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
+-}
+-
+ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no standard packages")
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/test_profile.txt b/src/cmd/go/testdata/script/test_profile.txt
+new file mode 100644
+index 0000000000..4bfa2cc493
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_profile.txt
+@@ -0,0 +1,19 @@
++[gccgo] skip 'gccgo has no standard packages'
++[short] skip
++
++# Check go test -cpuprofile creates errors.test
++go test -cpuprofile errors.prof errors
++exists -exec errors.test$GOEXE
++
++# Check go test -cpuprofile -o myerrors.test creates errors.test
++go test -cpuprofile errors.prof -o myerrors.test$GOEXE errors
++exists -exec myerrors.test$GOEXE
++
++# Check go test -mutexprofile creates errors.test
++go test -mutexprofile errors.prof errors
++exists -exec errors.test$GOEXE
++
++# Check go test -mutexprofile -o myerrors.test creates errors.test
++go test -mutexprofile errors.prof -o myerrors.test$GOEXE errors
++exists -exec myerrors.test$GOEXE
++

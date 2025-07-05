@@ -17,6 +17,34 @@ Date:   Mon Jul 31 19:40:37 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/os/exec/exec.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index a23d1c4a2d..2881345fb3 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -1096,7 +1096,7 @@ func (w *prefixSuffixSaver) Write(p []byte) (n int, err error) {
+ // grow larger than w.N. It returns the un-appended suffix of p.
+ func (w *prefixSuffixSaver) fill(dst *[]byte, p []byte) (pRemain []byte) {
+ 	if remain := w.N - len(*dst); remain > 0 {
+-		add := minInt(len(p), remain)
++		add := min(len(p), remain)
+ 		*dst = append(*dst, p[:add]...)
+ 		p = p[add:]
+ 	}
+@@ -1121,13 +1121,6 @@ func (w *prefixSuffixSaver) Bytes() []byte {
+ 	return buf.Bytes()
+ }
+ 
+-func minInt(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // environ returns a best-effort copy of the environment in which the command
+ // would be run as it is currently configured. If an error occurs in computing
+ // the environment, it is returned alongside the best-effort copy.

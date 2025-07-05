@@ -19,7 +19,7 @@ Date:   Tue May 30 13:28:56 2023 -0400
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/toolchain/path_none.go      | 21 +++++++
  src/cmd/go/internal/toolchain/path_plan9.go     | 29 +++++++++
  src/cmd/go/internal/toolchain/path_unix.go      | 46 +++++++++++++++
@@ -27,3 +27,361 @@ Date:   Tue May 30 13:28:56 2023 -0400
  src/cmd/go/internal/toolchain/toolchain.go      | 53 ++++++++++++++++-
  src/cmd/go/testdata/script/gotoolchain_path.txt | 51 +++++++++++-----
  6 files changed, 261 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/toolchain/path_none.go b/src/cmd/go/internal/toolchain/path_none.go
+new file mode 100644
+index 0000000000..8fdf71a6e6
+--- /dev/null
++++ b/src/cmd/go/internal/toolchain/path_none.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !unix && !plan9 && !windows
++
++package toolchain
++
++import "io/fs"
++
++// pathDirs returns the directories in the system search path.
++func pathDirs() []string {
++	return nil
++}
++
++// pathVersion returns the Go version implemented by the file
++// described by de and info in directory dir.
++// The analysis only uses the name itself; it does not run the program.
++func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
++	return "", false
++}
+diff --git a/src/cmd/go/internal/toolchain/path_plan9.go b/src/cmd/go/internal/toolchain/path_plan9.go
+new file mode 100644
+index 0000000000..3f836a07b1
+--- /dev/null
++++ b/src/cmd/go/internal/toolchain/path_plan9.go
+@@ -0,0 +1,29 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package toolchain
++
++import (
++	"io/fs"
++	"os"
++	"path/filepath"
++
++	"cmd/go/internal/gover"
++)
++
++// pathDirs returns the directories in the system search path.
++func pathDirs() []string {
++	return filepath.SplitList(os.Getenv("path"))
++}
++
++// pathVersion returns the Go version implemented by the file
++// described by de and info in directory dir.
++// The analysis only uses the name itself; it does not run the program.
++func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
++	v := gover.FromToolchain(de.Name())
++	if v == "" || info.Mode()&0111 == 0 {
++		return "", false
++	}
++	return v, true
++}
+diff --git a/src/cmd/go/internal/toolchain/path_unix.go b/src/cmd/go/internal/toolchain/path_unix.go
+new file mode 100644
+index 0000000000..519c53ec30
+--- /dev/null
++++ b/src/cmd/go/internal/toolchain/path_unix.go
+@@ -0,0 +1,46 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package toolchain
++
++import (
++	"internal/syscall/unix"
++	"io/fs"
++	"os"
++	"path/filepath"
++	"syscall"
++
++	"cmd/go/internal/gover"
++)
++
++// pathDirs returns the directories in the system search path.
++func pathDirs() []string {
++	return filepath.SplitList(os.Getenv("PATH"))
++}
++
++// pathVersion returns the Go version implemented by the file
++// described by de and info in directory dir.
++// The analysis only uses the name itself; it does not run the program.
++func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
++	v := gover.FromToolchain(de.Name())
++	if v == "" {
++		return "", false
++	}
++
++	// Mimicking exec.findExecutable here.
++	// ENOSYS means Eaccess is not available or not implemented.
++	// EPERM can be returned by Linux containers employing seccomp.
++	// In both cases, fall back to checking the permission bits.
++	err := unix.Eaccess(filepath.Join(dir, de.Name()), unix.X_OK)
++	if (err == syscall.ENOSYS || err == syscall.EPERM) && info.Mode()&0111 != 0 {
++		err = nil
++	}
++	if err != nil {
++		return "", false
++	}
++
++	return v, true
++}
+diff --git a/src/cmd/go/internal/toolchain/path_windows.go b/src/cmd/go/internal/toolchain/path_windows.go
+new file mode 100644
+index 0000000000..086c591e05
+--- /dev/null
++++ b/src/cmd/go/internal/toolchain/path_windows.go
+@@ -0,0 +1,78 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package toolchain
++
++import (
++	"io/fs"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync"
++
++	"cmd/go/internal/gover"
++)
++
++// pathExts is a cached PATHEXT list.
++var pathExts struct {
++	once sync.Once
++	list []string
++}
++
++func initPathExts() {
++	var exts []string
++	x := os.Getenv(`PATHEXT`)
++	if x != "" {
++		for _, e := range strings.Split(strings.ToLower(x), `;`) {
++			if e == "" {
++				continue
++			}
++			if e[0] != '.' {
++				e = "." + e
++			}
++			exts = append(exts, e)
++		}
++	} else {
++		exts = []string{".com", ".exe", ".bat", ".cmd"}
++	}
++	pathExts.list = exts
++}
++
++// pathDirs returns the directories in the system search path.
++func pathDirs() []string {
++	return filepath.SplitList(os.Getenv("PATH"))
++}
++
++// pathVersion returns the Go version implemented by the file
++// described by de and info in directory dir.
++// The analysis only uses the name itself; it does not run the program.
++func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
++	pathExts.once.Do(initPathExts)
++	name, _, ok := cutExt(de.Name(), pathExts.list)
++	if !ok {
++		return "", false
++	}
++	v := gover.FromToolchain(name)
++	if v == "" {
++		return "", false
++	}
++	return v, true
++}
++
++// cutExt looks for any of the known extensions at the end of file.
++// If one is found, cutExt returns the file name with the extension trimmed,
++// the extension itself, and true to signal that an extension was found.
++// Otherwise cutExt returns file, "", false.
++func cutExt(file string, exts []string) (name, ext string, found bool) {
++	i := strings.LastIndex(file, ".")
++	if i < 0 {
++		return file, "", false
++	}
++	for _, x := range exts {
++		if strings.EqualFold(file[i:], x) {
++			return file[:i], file[i:], true
++		}
++	}
++	return file, "", false
++}
+diff --git a/src/cmd/go/internal/toolchain/toolchain.go b/src/cmd/go/internal/toolchain/toolchain.go
+index 3d565021e7..3a8d348abb 100644
+--- a/src/cmd/go/internal/toolchain/toolchain.go
++++ b/src/cmd/go/internal/toolchain/toolchain.go
+@@ -15,6 +15,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -175,6 +176,19 @@ func Switch() {
+ // Otherwise we use the latest 1.N if that's allowed.
+ // Otherwise we use the latest release.
+ func NewerToolchain(ctx context.Context, version string) (string, error) {
++	fetch := autoToolchains
++	if !HasAuto() {
++		fetch = pathToolchains
++	}
++	list, err := fetch(ctx)
++	if err != nil {
++		return "", err
++	}
++	return newerToolchain(version, list)
++}
++
++// autoToolchains returns the list of toolchain versions available to GOTOOLCHAIN=auto or =min+auto mode.
++func autoToolchains(ctx context.Context) ([]string, error) {
+ 	var versions *modfetch.Versions
+ 	err := modfetch.TryProxies(func(proxy string) error {
+ 		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
+@@ -185,9 +199,44 @@ func NewerToolchain(ctx context.Context, version string) (string, error) {
+ 		return nil
+ 	})
+ 	if err != nil {
+-		return "", err
++		return nil, err
+ 	}
+-	return newerToolchain(version, versions.List)
++	return versions.List, nil
++}
++
++// pathToolchains returns the list of toolchain versions available to GOTOOLCHAIN=path or =min+path mode.
++func pathToolchains(ctx context.Context) ([]string, error) {
++	have := make(map[string]bool)
++	var list []string
++	for _, dir := range pathDirs() {
++		if dir == "" || !filepath.IsAbs(dir) {
++			// Refuse to use local directories in $PATH (hard-coding exec.ErrDot).
++			continue
++		}
++		entries, err := os.ReadDir(dir)
++		if err != nil {
++			continue
++		}
++		for _, de := range entries {
++			if de.IsDir() || !strings.HasPrefix(de.Name(), "go1.") {
++				continue
++			}
++			info, err := de.Info()
++			if err != nil {
++				continue
++			}
++			v, ok := pathVersion(dir, de, info)
++			if !ok || !strings.HasPrefix(v, "1.") || have[v] {
++				continue
++			}
++			have[v] = true
++			list = append(list, v)
++		}
++	}
++	sort.Slice(list, func(i, j int) bool {
++		return gover.Compare(list[i], list[j]) < 0
++	})
++	return list, nil
+ }
+ 
+ // newerToolchain implements NewerToolchain where the list of choices is known.
+diff --git a/src/cmd/go/testdata/script/gotoolchain_path.txt b/src/cmd/go/testdata/script/gotoolchain_path.txt
+index f0e7ab9123..2549fa4753 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_path.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_path.txt
+@@ -18,33 +18,53 @@ stdout go1.21pre3
+ 
+ # GOTOOLCHAIN=go1.50.0
+ env GOTOOLCHAIN=go1.50.0
+-go version
+-stdout 'running go1.50.0 from PATH'
++! go version
++stderr 'running go1.50.0 from PATH'
+ 
+ # GOTOOLCHAIN=path with toolchain line
+-env GOTOOLCHAIN=path
++env GOTOOLCHAIN=local
+ go mod init m
+ go mod edit -toolchain=go1.50.0
+-go version
+-stdout 'running go1.50.0 from PATH'
++grep go1.50.0 go.mod
++env GOTOOLCHAIN=path
++! go version
++stderr 'running go1.50.0 from PATH'
+ 
+ # GOTOOLCHAIN=path with go line
++env GOTOOLCHAIN=local
++go mod edit -toolchain=none -go=1.50.0
++grep 'go 1.50.0' go.mod
++! grep toolchain go.mod
+ env GOTOOLCHAIN=path
+-go mod edit -toolchain=none -go=go1.50.0
+-go version
+-stdout 'running go1.50.0 from PATH'
++! go version
++stderr 'running go1.50.0 from PATH'
+ 
+ # GOTOOLCHAIN=auto with toolchain line
+-env GOTOOLCHAIN=auto
++env GOTOOLCHAIN=local
+ go mod edit -toolchain=go1.50.0 -go=1.21
+-go version
+-stdout 'running go1.50.0 from PATH'
++grep 'go 1.21$' go.mod
++grep 'toolchain go1.50.0' go.mod
++env GOTOOLCHAIN=auto
++! go version
++stderr 'running go1.50.0 from PATH'
+ 
+ # GOTOOLCHAIN=auto with go line
++env GOTOOLCHAIN=local
++go mod edit -toolchain=none -go=1.50.0
++grep 'go 1.50.0$' go.mod
++! grep toolchain go.mod
+ env GOTOOLCHAIN=auto
+-go mod edit -toolchain=none -go=go1.50.0
+-go version
+-stdout 'running go1.50.0 from PATH'
++! go version
++stderr 'running go1.50.0 from PATH'
++
++# NewerToolchain should find Go 1.50.0.
++env GOTOOLCHAIN=local
++go mod edit -toolchain=none -go=1.22
++grep 'go 1.22$' go.mod
++! grep toolchain go.mod
++env GOTOOLCHAIN=path
++! go run rsc.io/fortune@v0.0.1
++stderr 'running go1.50.0 from PATH'
+ 
+ -- fakego.go --
+ package main
+@@ -60,5 +80,6 @@ func main() {
+ 	exe, _ := os.Executable()
+ 	name := filepath.Base(exe)
+ 	name = strings.TrimSuffix(name, ".exe")
+-	fmt.Printf("running %s from PATH\n", name)
++	fmt.Fprintf(os.Stderr, "running %s from PATH\n", name)
++	os.Exit(1) // fail in case we are running this accidentally (like in "go mod edit")
+ }

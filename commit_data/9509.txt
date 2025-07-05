@@ -7,6 +7,20 @@ Date:   Fri Aug 26 15:38:42 2011 -0400
     R=mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/4954047
-
+---
  src/pkg/syscall/netlink_linux.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/netlink_linux.go b/src/pkg/syscall/netlink_linux.go
+index 681027ab98..be80d268fb 100644
+--- a/src/pkg/syscall/netlink_linux.go
++++ b/src/pkg/syscall/netlink_linux.go
+@@ -199,6 +199,8 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, int) {
+ 		buf = msg.Data[SizeofIfInfomsg:]
+ 	case RTM_NEWADDR:
+ 		buf = msg.Data[SizeofIfAddrmsg:]
++	case RTM_NEWROUTE:
++		buf = msg.Data[SizeofRtmsg:]
+ 	default:
+ 		return nil, EINVAL
+ 	}

@@ -12,8 +12,145 @@ Date:   Tue May 3 13:17:08 2022 -0400
     Reviewed-by: Peter Weinberger <pjw@google.com>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go  |  2 +-
  src/cmd/go/internal/modindex/scan.go  |  7 ++--
  src/cmd/go/internal/modload/search.go | 63 +++++++++++++++++++++++++++++++++++
  3 files changed, 68 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 4f02ca5d10..f259a8dbe3 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -210,7 +210,7 @@ func (mi *ModuleIndex) Packages() []string {
+ 
+ // RelPath returns the path relative to the module's root.
+ func (mi *ModuleIndex) RelPath(path string) string {
+-	return filepath.Clean(str.TrimFilePathPrefix(path, mi.modroot))
++	return str.TrimFilePathPrefix(path, mi.modroot)
+ }
+ 
+ // ImportPackage is the equivalent of build.Import given the information in ModuleIndex.
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index e40d3e0f53..d1f73dbb53 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -4,6 +4,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/str"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -54,10 +55,10 @@ func indexModule(modroot string) ([]byte, error) {
+ 		if !info.IsDir() {
+ 			return nil
+ 		}
+-		rel, err := filepath.Rel(modroot, path)
+-		if err != nil {
+-			panic(err)
++		if !str.HasFilePathPrefix(path, modroot) {
++			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix:", path, modroot))
+ 		}
++		rel := str.TrimFilePathPrefix(path, modroot)
+ 		packages = append(packages, importRaw(modroot, rel))
+ 		return nil
+ 	})
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index cddb9f8067..60c68860ed 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -6,15 +6,18 @@ package modload
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"fmt"
+ 	"io/fs"
+ 	"os"
++	"path"
+ 	"path/filepath"
+ 	"strings"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
++	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/search"
+ 
+ 	"golang.org/x/mod/module"
+@@ -165,6 +168,12 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			}
+ 			modPrefix = mod.Path
+ 		}
++		if mi, err := modindex.Get(root); err == nil {
++			walkFromIndex(ctx, m, tags, root, mi, have, modPrefix)
++			continue
++		} else if !errors.Is(err, modindex.ErrNotIndexed) {
++			m.AddError(err)
++		}
+ 
+ 		prune := pruneVendor
+ 		if isLocal {
+@@ -176,6 +185,60 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	return
+ }
+ 
++// walkFromIndex matches packages in a module using the module index. modroot
++// is the module's root directory on disk, index is the ModuleIndex for the
++// module, and importPathRoot is the module's path prefix.
++func walkFromIndex(ctx context.Context, m *search.Match, tags map[string]bool, modroot string, index *modindex.ModuleIndex, have map[string]bool, importPathRoot string) {
++	isMatch := func(string) bool { return true }
++	treeCanMatch := func(string) bool { return true }
++	if !m.IsMeta() {
++		isMatch = search.MatchPattern(m.Pattern())
++		treeCanMatch = search.TreeCanMatchPattern(m.Pattern())
++	}
++loopPackages:
++	for _, reldir := range index.Packages() {
++		// Avoid .foo, _foo, and testdata subdirectory trees.
++		p := reldir
++		for {
++			elem, rest, found := strings.Cut(p, string(filepath.Separator))
++			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
++				continue loopPackages
++			}
++			if found && elem == "vendor" {
++				// Ignore this path if it contains the element "vendor" anywhere
++				// except for the last element (packages named vendor are allowed
++				// for historical reasons). Note that found is true when this
++				// isn't the last path element.
++				continue loopPackages
++			}
++			if !found {
++				// Didn't find the separator, so we're considering the last element.
++				break
++			}
++			p = rest
++		}
++
++		// Don't use GOROOT/src.
++		if reldir == "" && importPathRoot == "" {
++			continue
++		}
++
++		name := path.Join(importPathRoot, filepath.ToSlash(reldir))
++		if !treeCanMatch(name) {
++			continue
++		}
++
++		if !have[name] {
++			have[name] = true
++			if isMatch(name) {
++				if _, _, err := index.ScanDir(reldir, tags); err != imports.ErrNoGo {
++					m.Pkgs = append(m.Pkgs, name)
++				}
++			}
++		}
++	}
++}
++
+ // MatchInModule identifies the packages matching the given pattern within the
+ // given module version, which does not need to be in the build list or module
+ // requirement graph.

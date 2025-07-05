@@ -9,7 +9,36 @@ Date:   Wed Jul 10 12:01:07 2013 -0700
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/10826044
-
+---
  src/pkg/go/parser/parser.go     | 5 +++--
  src/pkg/go/parser/short_test.go | 1 -
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index ded733489b..42a1c5e57c 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2180,8 +2180,9 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
+ 	idents := p.parseIdentList()
+ 	typ := p.tryType()
+ 	var values []ast.Expr
+-	if p.tok == token.ASSIGN || keyword == token.CONST && (typ != nil || iota == 0) || keyword == token.VAR && typ == nil {
+-		p.expect(token.ASSIGN)
++	// always permit optional initialization for more tolerant parsing
++	if p.tok == token.ASSIGN {
++		p.next()
+ 		values = p.parseRhsList()
+ 	}
+ 	p.expectSemi() // call before accessing p.linecomment
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index a15b3ed35c..a581319e05 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -47,7 +47,6 @@ var invalids = []string{
+ 	`package p; func f() { if { /* ERROR "expected operand" */ } };`,
+ 	`package p; func f() { if ; { /* ERROR "expected operand" */ } };`,
+ 	`package p; func f() { if f(); { /* ERROR "expected operand" */ } };`,
+-	`package p; const c; /* ERROR "expected '='" */`,
+ 	`package p; func f() { if _ /* ERROR "expected condition" */ = range x; true {} };`,
+ 	`package p; func f() { switch _ /* ERROR "expected condition" */ = range x; true {} };`,
+ 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,

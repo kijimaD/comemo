@@ -9,10 +9,178 @@ Date:   Wed Apr 29 22:22:33 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   | 36 +++++++++++++++++++-----------------
  src/cmd/link/internal/ld/lib.go    |  5 ++++-
  src/cmd/link/internal/ld/main.go   |  2 +-
  src/cmd/link/internal/s390x/asm.go | 25 +++++++------------------
  src/cmd/link/internal/s390x/obj.go | 20 ++++++++++----------
  5 files changed, 41 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3083669465..3336bfac70 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -239,18 +239,21 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			rr.Idx = ri
+ 		}
+ 
++		var rv sym.RelocVariant
++		if target.IsPPC64() || target.IsS390X() {
++			rv = ldr.RelocVariant(s, ri)
++		}
++
+ 		// TODO(mundaym): remove this special case - see issue 14218.
+-		//if target.IsS390X() {
+-		//	switch r.Type {
+-		//	case objabi.R_PCRELDBL:
+-		//		r.InitExt()
+-		//		r.Type = objabi.R_PCREL
+-		//		r.Variant = sym.RV_390_DBL
+-		//	case objabi.R_CALL:
+-		//		r.InitExt()
+-		//		r.Variant = sym.RV_390_DBL
+-		//	}
+-		//}
++		if target.IsS390X() {
++			switch rt {
++			case objabi.R_PCRELDBL:
++				rt = objabi.R_PCREL
++				rv = sym.RV_390_DBL
++			case objabi.R_CALL:
++				rv = sym.RV_390_DBL
++			}
++		}
+ 
+ 		var o int64
+ 		switch rt {
+@@ -556,12 +559,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT2)
+ 		}
+ 
+-		//if target.IsPPC64() || target.IsS390X() {
+-		//	r.InitExt()
+-		//	if r.Variant != sym.RV_NONE {
+-		//		o = thearch.Archrelocvariant(ldr, target, syms, &r, s, o)
+-		//	}
+-		//}
++		if target.IsPPC64() || target.IsS390X() {
++			if rv != sym.RV_NONE {
++				o = thearch.Archrelocvariant2(target, ldr, r, rv, s, o)
++			}
++		}
+ 
+ 		switch siz {
+ 		default:
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3c60901124..c5c38d4b47 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -246,7 +246,8 @@ type Arch struct {
+ 	// indicates a fatal error).
+ 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
+ 		offset int64) (relocatedOffset int64, success bool)
+-	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
++	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc,
++		loader.Sym, int64) (relocatedOffset int64, needExtReloc bool, ok bool)
+ 	// Archrelocvariant is a second arch-specific hook used for
+ 	// relocation processing; it handles relocations where r.Type is
+ 	// insufficient to describe the relocation (r.Variant !=
+@@ -257,6 +258,8 @@ type Arch struct {
+ 	// offset value.
+ 	Archrelocvariant func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
+ 		offset int64) (relocatedOffset int64)
++	Archrelocvariant2 func(target *Target, ldr *loader.Loader, rel loader.Reloc2,
++		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
+ 
+ 	// Generate a trampoline for a call from s to rs if necessary. ri is
+ 	// index of the relocation.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b95bab3d89..fe1dbd2136 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -319,7 +319,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.loader.InitOutData()
+ 	thearch.Asmb(ctxt, ctxt.loader)
+ 
+-	newreloc := ctxt.IsAMD64() || ctxt.Is386() || ctxt.IsWasm()
++	newreloc := ctxt.IsAMD64() || ctxt.Is386() || ctxt.IsWasm() || ctxt.IsS390X()
+ 	if newreloc {
+ 		bench.Start("reloc")
+ 		ctxt.reloc()
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index bec7705be5..91455cc6c2 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -367,33 +367,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
+ 	return false
+ }
+ 
+-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+-	if target.IsExternal() {
+-		return val, false
+-	}
+-
+-	switch r.Type {
+-	case objabi.R_CONST:
+-		return r.Add, true
+-	case objabi.R_GOTOFF:
+-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
+-	}
+-
+-	return val, false
++func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
++	return val, false, false
+ }
+ 
+-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+-	switch r.Variant & sym.RV_TYPE_MASK {
++func archrelocvariant2(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
++	switch rv & sym.RV_TYPE_MASK {
+ 	default:
+-		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
++		ldr.Errorf(s, "unexpected relocation variant %d", rv)
+ 		return t
+ 
+ 	case sym.RV_NONE:
+ 		return t
+ 
+ 	case sym.RV_390_DBL:
+-		if (t & 1) != 0 {
+-			ld.Errorf(s, "%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
++		if t&1 != 0 {
++			ldr.Errorf(s, "%s+%v is not 2-byte aligned", ldr.SymName(r.Sym()), ldr.SymValue(r.Sym()))
+ 		}
+ 		return t >> 1
+ 	}
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 129c6a7ee4..8c4180501a 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -46,16 +46,16 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
+-		Archinit:         archinit,
+-		Archreloc:        archreloc,
+-		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,  // in asm.go
+-		Asmb2:            asmb2, // in asm.go
+-		Elfreloc1:        elfreloc1,
+-		Elfsetupplt:      elfsetupplt,
+-		Gentext2:         gentext2,
+-		Machoreloc1:      machoreloc1,
++		Adddynrel2:        adddynrel2,
++		Archinit:          archinit,
++		Archreloc2:        archreloc2,
++		Archrelocvariant2: archrelocvariant2,
++		Asmb:              asmb,
++		Asmb2:             asmb2,
++		Elfreloc1:         elfreloc1,
++		Elfsetupplt:       elfsetupplt,
++		Gentext2:          gentext2,
++		Machoreloc1:       machoreloc1,
+ 
+ 		Linuxdynld: "/lib64/ld64.so.1",
+ 

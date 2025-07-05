@@ -20,10 +20,106 @@ Date:   Mon Dec 30 17:51:16 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                 | 19 -------------------
  .../script/test_match_no_tests_build_failure.txt      | 15 +++++++++++++++
  .../testdata/script/test_syntax_error_says_fail.txt   | 14 ++++++++++++++
  src/cmd/go/testdata/src/syntaxerror/x.go              |  1 -
  src/cmd/go/testdata/src/syntaxerror/x_test.go         |  4 ----
  5 files changed, 29 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e45e258846..5e332ae2ac 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1217,15 +1217,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
+ 	}
+ }
+ 
+-func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("test", "syntaxerror")
+-	tg.grepStderr("x_test.go:", "did not diagnose error")
+-	tg.grepStdout("FAIL", "go test did not say FAIL")
+-}
+-
+ func TestWildcardsDoNotLookInUselessDirectories(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3812,16 +3803,6 @@ func TestMatchesNoTests(t *testing.T) {
+ 	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+ }
+ 
+-func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("test", "-run", "ThisWillNotMatch", "syntaxerror")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth("FAIL", "go test did not say FAIL")
+-}
+-
+ func TestMatchesNoBenchmarksIsOK(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt b/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt
+new file mode 100644
+index 0000000000..92cb690dcc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt
+@@ -0,0 +1,15 @@
++# Test that when there's a build failure and a -run flag that doesn't match,
++# that the error for not matching tests does not override the error for
++# the build failure.
++
++! go test -run ThisWillNotMatch syntaxerror
++! stderr '(?m)^ok.*\[no tests to run\]'
++stdout 'FAIL'
++
++-- syntaxerror/x.go --
++package p
++-- syntaxerror/x_test.go --
++package p
++
++func f() (x.y, z int) {
++}
+diff --git a/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt b/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt
+new file mode 100644
+index 0000000000..29fa805b43
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt
+@@ -0,0 +1,14 @@
++# Test that the error message for a syntax error in a test go file
++# says FAIL.
++
++! go test syntaxerror
++stderr 'x_test.go:' # check that the error is diagnosed
++stdout 'FAIL' # check that go test says FAIL
++
++-- syntaxerror/x.go --
++package p
++-- syntaxerror/x_test.go --
++package p
++
++func f() (x.y, z int) {
++}
+diff --git a/src/cmd/go/testdata/src/syntaxerror/x.go b/src/cmd/go/testdata/src/syntaxerror/x.go
+deleted file mode 100644
+index c89cd18d0f..0000000000
+--- a/src/cmd/go/testdata/src/syntaxerror/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p
+diff --git a/src/cmd/go/testdata/src/syntaxerror/x_test.go b/src/cmd/go/testdata/src/syntaxerror/x_test.go
+deleted file mode 100644
+index 2460743e50..0000000000
+--- a/src/cmd/go/testdata/src/syntaxerror/x_test.go
++++ /dev/null
+@@ -1,4 +0,0 @@
+-package p
+-
+-func f() (x.y, z int) {
+-}

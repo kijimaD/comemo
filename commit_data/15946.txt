@@ -9,7 +9,60 @@ Date:   Tue Mar 26 08:20:10 2013 +0100
     R=golang-dev, dvyukov, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7838050
-
+---
  src/cmd/gc/dcl.c  | 8 ++++----
  src/cmd/gc/subr.c | 8 +++++++-
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 429f212e7f..d3759efde3 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1339,6 +1339,8 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ 	f = methtype(pa, 1);
+ 	if(f == T) {
+ 		t = pa;
++		if(t == T) // rely on typecheck having complained before
++			return;
+ 		if(t != T) {
+ 			if(isptr[t->etype]) {
+ 				if(t->sym != S) {
+@@ -1347,10 +1349,8 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ 				}
+ 				t = t->type;
+ 			}
+-		}
+-		if(t->broke) // rely on typecheck having complained before
+-			return;
+-		if(t != T) {
++			if(t->broke) // rely on typecheck having complained before
++				return;
+ 			if(t->sym == S) {
+ 				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
+ 				return;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index de3b92d13c..255f4c73ad 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -714,6 +714,12 @@ methcmp(const void *va, const void *vb)
+ 	
+ 	a = *(Type**)va;
+ 	b = *(Type**)vb;
++	if(a->sym == S && b->sym == S)
++		return 0;
++	if(a->sym == S)
++		return -1;
++	if(b->sym == S)
++		return 1;
+ 	i = strcmp(a->sym->name, b->sym->name);
+ 	if(i != 0)
+ 		return i;
+@@ -1393,7 +1399,7 @@ assignconv(Node *n, Type *t, char *context)
+ 	Node *r, *old;
+ 	char *why;
+ 	
+-	if(n == N || n->type == T)
++	if(n == N || n->type == T || n->type->broke)
+ 		return n;
+ 
+ 	old = n;

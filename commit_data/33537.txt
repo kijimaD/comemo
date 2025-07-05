@@ -24,10 +24,222 @@ Date:   Thu Aug 10 18:39:18 2017 -0400
     Change-Id: I9a1a689933e13c6b8eb80b74ceec85bd4cab236d
     Reviewed-on: https://go-review.googlesource.com/54971
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/reader.go                    |  8 +++++-
  src/go/doc/testdata/issue18063.0.golden | 45 +++++++++++++++++++++++++++++++++
  src/go/doc/testdata/issue18063.1.golden | 45 +++++++++++++++++++++++++++++++++
  src/go/doc/testdata/issue18063.2.golden | 45 +++++++++++++++++++++++++++++++++
  src/go/doc/testdata/issue18063.go       | 33 ++++++++++++++++++++++++
  5 files changed, 175 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 8e82353868..17635f0561 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -391,7 +391,13 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 			// exactly one (named or anonymous) result associated
+ 			// with the first type in result signature (there may
+ 			// be more than one result)
+-			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
++			factoryType := res.Type
++			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
++				// We consider functions that return slices of type T (or
++				// pointers to T) as factory functions of T.
++				factoryType = t.Elt
++			}
++			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
+ 				if typ := r.lookupType(n); typ != nil {
+ 					// associate function with typ
+ 					typ.funcs.set(fun)
+diff --git a/src/go/doc/testdata/issue18063.0.golden b/src/go/doc/testdata/issue18063.0.golden
+new file mode 100644
+index 0000000000..0afbc169c2
+--- /dev/null
++++ b/src/go/doc/testdata/issue18063.0.golden
+@@ -0,0 +1,45 @@
++// 
++PACKAGE issue18063
++
++IMPORTPATH
++	testdata/issue18063
++
++FILENAMES
++	testdata/issue18063.go
++
++FUNCTIONS
++	// NewArray is not a factory function because arrays of type T are ...
++	func NewArray() [1]T
++
++	// NewPointerArray is not a factory function because arrays of ...
++	func NewPointerArray() [1]*T
++
++	// NewPointerSliceOfSlice is not a factory function because slices ...
++	func NewPointerSliceOfSlice() [][]*T
++
++	// NewSlice3 is not a factory function because 3 nested slices of ...
++	func NewSlice3() [][][]T
++
++	// NewSliceOfSlice is not a factory function because slices of a ...
++	func NewSliceOfSlice() [][]T
++
++
++TYPES
++	// 
++	type T struct{}
++
++	// 
++	func New() T
++
++	// 
++	func NewPointer() *T
++
++	// 
++	func NewPointerOfPointer() **T
++
++	// 
++	func NewPointerSlice() []*T
++
++	// 
++	func NewSlice() []T
++
+diff --git a/src/go/doc/testdata/issue18063.1.golden b/src/go/doc/testdata/issue18063.1.golden
+new file mode 100644
+index 0000000000..0afbc169c2
+--- /dev/null
++++ b/src/go/doc/testdata/issue18063.1.golden
+@@ -0,0 +1,45 @@
++// 
++PACKAGE issue18063
++
++IMPORTPATH
++	testdata/issue18063
++
++FILENAMES
++	testdata/issue18063.go
++
++FUNCTIONS
++	// NewArray is not a factory function because arrays of type T are ...
++	func NewArray() [1]T
++
++	// NewPointerArray is not a factory function because arrays of ...
++	func NewPointerArray() [1]*T
++
++	// NewPointerSliceOfSlice is not a factory function because slices ...
++	func NewPointerSliceOfSlice() [][]*T
++
++	// NewSlice3 is not a factory function because 3 nested slices of ...
++	func NewSlice3() [][][]T
++
++	// NewSliceOfSlice is not a factory function because slices of a ...
++	func NewSliceOfSlice() [][]T
++
++
++TYPES
++	// 
++	type T struct{}
++
++	// 
++	func New() T
++
++	// 
++	func NewPointer() *T
++
++	// 
++	func NewPointerOfPointer() **T
++
++	// 
++	func NewPointerSlice() []*T
++
++	// 
++	func NewSlice() []T
++
+diff --git a/src/go/doc/testdata/issue18063.2.golden b/src/go/doc/testdata/issue18063.2.golden
+new file mode 100644
+index 0000000000..0afbc169c2
+--- /dev/null
++++ b/src/go/doc/testdata/issue18063.2.golden
+@@ -0,0 +1,45 @@
++// 
++PACKAGE issue18063
++
++IMPORTPATH
++	testdata/issue18063
++
++FILENAMES
++	testdata/issue18063.go
++
++FUNCTIONS
++	// NewArray is not a factory function because arrays of type T are ...
++	func NewArray() [1]T
++
++	// NewPointerArray is not a factory function because arrays of ...
++	func NewPointerArray() [1]*T
++
++	// NewPointerSliceOfSlice is not a factory function because slices ...
++	func NewPointerSliceOfSlice() [][]*T
++
++	// NewSlice3 is not a factory function because 3 nested slices of ...
++	func NewSlice3() [][][]T
++
++	// NewSliceOfSlice is not a factory function because slices of a ...
++	func NewSliceOfSlice() [][]T
++
++
++TYPES
++	// 
++	type T struct{}
++
++	// 
++	func New() T
++
++	// 
++	func NewPointer() *T
++
++	// 
++	func NewPointerOfPointer() **T
++
++	// 
++	func NewPointerSlice() []*T
++
++	// 
++	func NewSlice() []T
++
+diff --git a/src/go/doc/testdata/issue18063.go b/src/go/doc/testdata/issue18063.go
+new file mode 100644
+index 0000000000..1193af51e7
+--- /dev/null
++++ b/src/go/doc/testdata/issue18063.go
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue18063
++
++type T struct{}
++
++func New() T                   { return T{} }
++func NewPointer() *T           { return &T{} }
++func NewPointerSlice() []*T    { return []*T{&T{}} }
++func NewSlice() []T            { return []T{T{}} }
++func NewPointerOfPointer() **T { x := &T{}; return &x }
++
++// NewArray is not a factory function because arrays of type T are not
++// factory functions of type T.
++func NewArray() [1]T { return [1]T{T{}} }
++
++// NewPointerArray is not a factory function because arrays of type *T are not
++// factory functions of type T.
++func NewPointerArray() [1]*T { return [1]*T{&T{}} }
++
++// NewSliceOfSlice is not a factory function because slices of a slice of
++// type *T are not factory functions of type T.
++func NewSliceOfSlice() [][]T { return []T{[]T{}} }
++
++// NewPointerSliceOfSlice is not a factory function because slices of a
++// slice of type *T are not factory functions of type T.
++func NewPointerSliceOfSlice() [][]*T { return []*T{[]*T{}} }
++
++// NewSlice3 is not a factory function because 3 nested slices of type T
++// are not factory functions of type T.
++func NewSlice3() [][][]T { return []T{[]T{[]T{}}} }

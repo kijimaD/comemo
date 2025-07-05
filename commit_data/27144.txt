@@ -11,7 +11,237 @@ Date:   Sat Mar 12 13:40:30 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 31 ++++++++-------------
  src/cmd/internal/obj/objfile.go      | 52 +++++++++++++++---------------------
  2 files changed, 32 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 2d1e75d614..9584176d9d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -37,11 +37,11 @@ import (
+ 	"strings"
+ )
+ 
+-var ddumped int
+-
+-var dfirst *obj.Prog
+-
+-var dpc *obj.Prog
++var (
++	ddumped bool
++	dfirst  *obj.Prog
++	dpc     *obj.Prog
++)
+ 
+ // Is this node a memory operand?
+ func Ismem(n *Node) bool {
+@@ -101,7 +101,7 @@ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+ 
+ 	if as == obj.ADATA || as == obj.AGLOBL {
+-		if ddumped != 0 {
++		if ddumped {
+ 			Fatalf("already dumped data")
+ 		}
+ 		if dpc == nil {
+@@ -119,10 +119,8 @@ func Prog(as obj.As) *obj.Prog {
+ 		p.Link = Pc
+ 	}
+ 
+-	if lineno == 0 {
+-		if Debug['K'] != 0 {
+-			Warn("prog: line 0")
+-		}
++	if lineno == 0 && Debug['K'] != 0 {
++		Warn("prog: line 0")
+ 	}
+ 
+ 	p.As = as
+@@ -163,7 +161,7 @@ func Clearp(p *obj.Prog) {
+ }
+ 
+ func dumpdata() {
+-	ddumped = 1
++	ddumped = true
+ 	if dfirst == nil {
+ 		return
+ 	}
+@@ -383,14 +381,8 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if s == nil {
+ 			s = Lookup(".noname")
+ 		}
+-		if n.Name.Method {
+-			if n.Type != nil {
+-				if n.Type.Sym != nil {
+-					if n.Type.Sym.Pkg != nil {
+-						s = Pkglookup(s.Name, n.Type.Sym.Pkg)
+-					}
+-				}
+-			}
++		if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
++			s = Pkglookup(s.Name, n.Type.Sym.Pkg)
+ 		}
+ 
+ 		a.Type = obj.TYPE_MEM
+@@ -517,7 +509,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			a.Width = int64(Widthint)
+ 		}
+ 	}
+-	return
+ }
+ 
+ func newplist() *obj.Plist {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c2a55aa2b0..9b00c9af2a 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -123,32 +123,25 @@ func FlushplistNoFree(ctxt *Link) {
+ 	flushplist(ctxt, false)
+ }
+ func flushplist(ctxt *Link, freeProgs bool) {
+-	var flag int
+-	var s *LSym
+-	var p *Prog
+-	var plink *Prog
+-	var a *Auto
+-
+ 	// Build list of symbols, and assign instructions to lists.
+ 	// Ignore ctxt->plist boundaries. There are no guarantees there,
+ 	// and the assemblers just use one big list.
+-	var curtext *LSym
+-	var text *LSym
+-	var etext *LSym
++	var curtext, text, etext *LSym
+ 
+ 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
+-		for p = pl.Firstpc; p != nil; p = plink {
++		var plink *Prog
++		for p := pl.Firstpc; p != nil; p = plink {
+ 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
+ 				fmt.Printf("obj: %v\n", p)
+ 			}
+ 			plink = p.Link
+ 			p.Link = nil
+ 
+-			if p.As == AEND {
++			switch p.As {
++			case AEND:
+ 				continue
+-			}
+ 
+-			if p.As == ATYPE {
++			case ATYPE:
+ 				// Assume each TYPE instruction describes
+ 				// a different local variable or parameter,
+ 				// so no dedup.
+@@ -163,7 +156,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				if curtext == nil {
+ 					continue
+ 				}
+-				a = new(Auto)
++				a := new(Auto)
+ 				a.Asym = p.From.Sym
+ 				a.Aoffset = int32(p.From.Offset)
+ 				a.Name = int16(p.From.Name)
+@@ -171,10 +164,9 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				a.Link = curtext.Autom
+ 				curtext.Autom = a
+ 				continue
+-			}
+ 
+-			if p.As == AGLOBL {
+-				s = p.From.Sym
++			case AGLOBL:
++				s := p.From.Sym
+ 				tmp6 := s.Seenglobl
+ 				s.Seenglobl++
+ 				if tmp6 != 0 {
+@@ -194,7 +186,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				if s.Type == 0 || s.Type == SXREF {
+ 					s.Type = SBSS
+ 				}
+-				flag = int(p.From3.Offset)
++				flag := int(p.From3.Offset)
+ 				if flag&DUPOK != 0 {
+ 					s.Dupok = 1
+ 				}
+@@ -207,15 +199,13 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				}
+ 				ctxt.Edata = s
+ 				continue
+-			}
+ 
+-			if p.As == ADATA {
++			case ADATA:
+ 				savedata(ctxt, p.From.Sym, p, "<input>")
+ 				continue
+-			}
+ 
+-			if p.As == ATEXT {
+-				s = p.From.Sym
++			case ATEXT:
++				s := p.From.Sym
+ 				if s == nil {
+ 					// func _() { }
+ 					curtext = nil
+@@ -236,7 +226,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 					etext.Next = s
+ 				}
+ 				etext = s
+-				flag = int(p.From3Offset())
++				flag := int(p.From3Offset())
+ 				if flag&DUPOK != 0 {
+ 					s.Dupok = 1
+ 				}
+@@ -252,9 +242,8 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				s.Etext = p
+ 				curtext = s
+ 				continue
+-			}
+ 
+-			if p.As == AFUNCDATA {
++			case AFUNCDATA:
+ 				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+ 				if curtext == nil { // func _() {}
+ 					continue
+@@ -265,32 +254,33 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 					}
+ 					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
+ 				}
++
+ 			}
+ 
+ 			if curtext == nil {
+ 				continue
+ 			}
+-			s = curtext
++			s := curtext
+ 			s.Etext.Link = p
+ 			s.Etext = p
+ 		}
+ 	}
+ 
+ 	// Add reference to Go arguments for C or assembly functions without them.
+-	var found int
+ 	for s := text; s != nil; s = s.Next {
+ 		if !strings.HasPrefix(s.Name, "\"\".") {
+ 			continue
+ 		}
+-		found = 0
++		found := false
++		var p *Prog
+ 		for p = s.Text; p != nil; p = p.Link {
+ 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+-				found = 1
++				found = true
+ 				break
+ 			}
+ 		}
+ 
+-		if found == 0 {
++		if !found {
+ 			p = Appendp(ctxt, s.Text)
+ 			p.As = AFUNCDATA
+ 			p.From.Type = TYPE_CONST

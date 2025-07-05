@@ -14,9 +14,280 @@ Date:   Wed Apr 8 15:00:41 2020 -0400
     Change-Id: Ie6f556d86bdff750c47fe65398cbafd834152b47
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227645
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/go1.15.html             | 13 +++++++--
  src/net/url/example_test.go | 24 ++++++++++++++--
  src/net/url/url.go          | 69 ++++++++++++++++++++++++++++++++++-----------
  src/net/url/url_test.go     | 32 ++++++++++++++++++---
  4 files changed, 112 insertions(+), 26 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 166b53338a..7da012f46c 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -138,9 +138,9 @@ TODO
+     <p><!-- CL 221427 -->
+       When the flag package sees <code>-h</code> or <code>-help</code>, and
+       those flags are not defined, the flag package prints a usage message.
+-      If the <a href=/pkg/flag/#FlagSet><code>FlagSet</code></a> was created with
+-      <a href=/pkg/flag/#ExitOnError><code>ExitOnError</code></a>,
+-      <a href=/pkg/flag/#FlagSet.Parse><code>FlagSet.Parse</code></a> would then
++      If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
++      <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
++      <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
+       exit with a status of 2. In this release, the exit status for <code>-h</code>
+       or <code>-help</code> has been changed to 0. In particular, this applies to
+       the default handling of command line flags.
+@@ -150,6 +150,13 @@ TODO
+ 
+ <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+   <dd>
++    <p><!-- CL 227645 -->
++      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
++      <code>RawFragment</code> and method <a href="/pkg/net/url/#URL.EscapedFragment"><code>EscapedFragment</code></a>
++      provide detail about and control over the exact encoding of a particular fragment.
++      These are analogous to
++      <code>RawPath</code> and <a href="/pkg/net/url/#URL.EscapedPath"><code>EscapedPath</code></a>.
++    </p>
+     <p><!-- CL 207082 -->
+       The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
+       method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index f0d3d2bf45..cb9e8922a2 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -82,13 +82,31 @@ func ExampleParseQuery() {
+ }
+ 
+ func ExampleURL_EscapedPath() {
+-	u, err := url.Parse("http://example.com/path with spaces")
++	u, err := url.Parse("http://example.com/x/y%2Fz")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	fmt.Println(u.EscapedPath())
++	fmt.Println("Path:", u.Path)
++	fmt.Println("RawPath:", u.RawPath)
++	fmt.Println("EscapedPath:", u.EscapedPath())
+ 	// Output:
+-	// /path%20with%20spaces
++	// Path: /x/y/z
++	// RawPath: /x/y%2Fz
++	// EscapedPath: /x/y%2Fz
++}
++
++func ExampleURL_EscapedFragment() {
++	u, err := url.Parse("http://example.com/#x/y%2Fz")
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println("Fragment:", u.Fragment)
++	fmt.Println("RawFragment:", u.RawFragment)
++	fmt.Println("EscapedFragment:", u.EscapedFragment())
++	// Output:
++	// Fragment: x/y/z
++	// RawFragment: x/y%2Fz
++	// EscapedFragment: x/y%2Fz
+ }
+ 
+ func ExampleURL_Hostname() {
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d811016f26..c93def0bd7 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -356,15 +356,16 @@ func escape(s string, mode encoding) string {
+ // URL's String method uses the EscapedPath method to obtain the path. See the
+ // EscapedPath method for more details.
+ type URL struct {
+-	Scheme     string
+-	Opaque     string    // encoded opaque data
+-	User       *Userinfo // username and password information
+-	Host       string    // host or host:port
+-	Path       string    // path (relative paths may omit leading slash)
+-	RawPath    string    // encoded path hint (see EscapedPath method)
+-	ForceQuery bool      // append a query ('?') even if RawQuery is empty
+-	RawQuery   string    // encoded query values, without '?'
+-	Fragment   string    // fragment for references, without '#'
++	Scheme      string
++	Opaque      string    // encoded opaque data
++	User        *Userinfo // username and password information
++	Host        string    // host or host:port
++	Path        string    // path (relative paths may omit leading slash)
++	RawPath     string    // encoded path hint (see EscapedPath method)
++	ForceQuery  bool      // append a query ('?') even if RawQuery is empty
++	RawQuery    string    // encoded query values, without '?'
++	Fragment    string    // fragment for references, without '#'
++	RawFragment string    // encoded fragment hint (see EscapedFragment method)
+ }
+ 
+ // User returns a Userinfo containing the provided username
+@@ -481,7 +482,7 @@ func Parse(rawurl string) (*URL, error) {
+ 	if frag == "" {
+ 		return url, nil
+ 	}
+-	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
++	if err = url.setFragment(frag); err != nil {
+ 		return nil, &Error{"parse", rawurl, err}
+ 	}
+ 	return url, nil
+@@ -697,7 +698,7 @@ func (u *URL) setPath(p string) error {
+ // In general, code should call EscapedPath instead of
+ // reading u.RawPath directly.
+ func (u *URL) EscapedPath() string {
+-	if u.RawPath != "" && validEncodedPath(u.RawPath) {
++	if u.RawPath != "" && validEncoded(u.RawPath, encodePath) {
+ 		p, err := unescape(u.RawPath, encodePath)
+ 		if err == nil && p == u.Path {
+ 			return u.RawPath
+@@ -709,9 +710,10 @@ func (u *URL) EscapedPath() string {
+ 	return escape(u.Path, encodePath)
+ }
+ 
+-// validEncodedPath reports whether s is a valid encoded path.
+-// It must not contain any bytes that require escaping during path encoding.
+-func validEncodedPath(s string) bool {
++// validEncoded reports whether s is a valid encoded path or fragment,
++// according to mode.
++// It must not contain any bytes that require escaping during encoding.
++func validEncoded(s string, mode encoding) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		// RFC 3986, Appendix A.
+ 		// pchar = unreserved / pct-encoded / sub-delims / ":" / "@".
+@@ -726,7 +728,7 @@ func validEncodedPath(s string) bool {
+ 		case '%':
+ 			// ok - percent encoded, will decode
+ 		default:
+-			if shouldEscape(s[i], encodePath) {
++			if shouldEscape(s[i], mode) {
+ 				return false
+ 			}
+ 		}
+@@ -734,6 +736,40 @@ func validEncodedPath(s string) bool {
+ 	return true
+ }
+ 
++// setFragment is like setPath but for Fragment/RawFragment.
++func (u *URL) setFragment(f string) error {
++	frag, err := unescape(f, encodeFragment)
++	if err != nil {
++		return err
++	}
++	u.Fragment = frag
++	if escf := escape(frag, encodeFragment); f == escf {
++		// Default encoding is fine.
++		u.RawFragment = ""
++	} else {
++		u.RawFragment = f
++	}
++	return nil
++}
++
++// EscapedFragment returns the escaped form of u.Fragment.
++// In general there are multiple possible escaped forms of any fragment.
++// EscapedFragment returns u.RawFragment when it is a valid escaping of u.Fragment.
++// Otherwise EscapedFragment ignores u.RawFragment and computes an escaped
++// form on its own.
++// The String method uses EscapedFragment to construct its result.
++// In general, code should call EscapedFragment instead of
++// reading u.RawFragment directly.
++func (u *URL) EscapedFragment() string {
++	if u.RawFragment != "" && validEncoded(u.RawFragment, encodeFragment) {
++		f, err := unescape(u.RawFragment, encodeFragment)
++		if err == nil && f == u.Fragment {
++			return u.RawFragment
++		}
++	}
++	return escape(u.Fragment, encodeFragment)
++}
++
+ // validOptionalPort reports whether port is either an empty string
+ // or matches /^:\d*$/
+ func validOptionalPort(port string) bool {
+@@ -816,7 +852,7 @@ func (u *URL) String() string {
+ 	}
+ 	if u.Fragment != "" {
+ 		buf.WriteByte('#')
+-		buf.WriteString(escape(u.Fragment, encodeFragment))
++		buf.WriteString(u.EscapedFragment())
+ 	}
+ 	return buf.String()
+ }
+@@ -1030,6 +1066,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 		url.RawQuery = u.RawQuery
+ 		if ref.Fragment == "" {
+ 			url.Fragment = u.Fragment
++			url.RawFragment = u.RawFragment
+ 		}
+ 	}
+ 	// The "abs_path" or "rel_path" cases.
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index c9f8a03f75..92b15afad4 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -19,7 +19,7 @@ import (
+ 
+ type URLTest struct {
+ 	in        string
+-	out       *URL   // expected parse; RawPath="" means same as Path
++	out       *URL   // expected parse
+ 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
+ }
+ 
+@@ -54,6 +54,18 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// fragment with hex escaping
++	{
++		"http://www.google.com/#file%20one%26two",
++		&URL{
++			Scheme:      "http",
++			Host:        "www.google.com",
++			Path:        "/",
++			Fragment:    "file one&two",
++			RawFragment: "file%20one%26two",
++		},
++		"",
++	},
+ 	// user
+ 	{
+ 		"ftp://webmaster@www.google.com/",
+@@ -261,7 +273,7 @@ var urltests = []URLTest{
+ 		"",
+ 	},
+ 	{
+-		"http://www.google.com/?q=go+language#foo%26bar",
++		"http://www.google.com/?q=go+language#foo&bar",
+ 		&URL{
+ 			Scheme:   "http",
+ 			Host:     "www.google.com",
+@@ -271,6 +283,18 @@ var urltests = []URLTest{
+ 		},
+ 		"http://www.google.com/?q=go+language#foo&bar",
+ 	},
++	{
++		"http://www.google.com/?q=go+language#foo%26bar",
++		&URL{
++			Scheme:      "http",
++			Host:        "www.google.com",
++			Path:        "/",
++			RawQuery:    "q=go+language",
++			Fragment:    "foo&bar",
++			RawFragment: "foo%26bar",
++		},
++		"http://www.google.com/?q=go+language#foo%26bar",
++	},
+ 	{
+ 		"file:///home/adg/rabbits",
+ 		&URL{
+@@ -601,8 +625,8 @@ func ufmt(u *URL) string {
+ 			pass = p
+ 		}
+ 	}
+-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
+-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
++	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v",
++		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery)
+ }
+ 
+ func BenchmarkString(b *testing.B) {

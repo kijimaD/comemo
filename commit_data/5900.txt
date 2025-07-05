@@ -7,7 +7,59 @@ Date:   Wed Jul 28 16:33:52 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1907041
-
+---
  test/arm-pass.txt   |  6 +++---
  test/golden-arm.out | 20 --------------------
  2 files changed, 3 insertions(+), 23 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 39db7c6a25..476c3bddc6 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -121,12 +121,12 @@ ken/array.go
+ ken/chan.go
+ ken/chan1.go
+ ken/complit.go
+-ken/cplx0.go
++# ken/cplx0.go	# output fail
+ # ken/cplx1.go	# fail
+ # ken/cplx2.go	# fail
+-ken/cplx3.go
++# ken/cplx3.go	# output fail
+ # ken/cplx4.go	# fail, BUG
+-ken/cplx5.go
++# ken/cplx5.go	# output fail
+ ken/divconst.go
+ ken/divmod.go
+ ken/embed.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index a0c7a9a8b4..83f199e941 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -75,26 +75,6 @@ uint32 1/0: expected "divide"; got no error
+ uint64 1/0: expected "divide"; got no error
+ uintptr 1/0: expected "divide"; got no error
+ 
+-=========== ken/cplx0.go
+-(+1.112538e-308+1.278303e-308i)
+-(+1.112538e-308+1.112538e-308i)
+-(+1.112538e-308+1.278303e-308i)
+-(+1.112538e-308+1.112538e-308i)
+-
+-=========== ken/cplx3.go
+-(+1.436040e-308+2.250626e+000i)
+-(+1.436040e-308+2.250626e+000i)
+-64
+-
+-=========== ken/cplx5.go
+-(+0.000000e+000+0.000000e+000i)
+-(+1.112550e-308+1.112550e-308i)
+-(+1.112537e-308+2.382812e+000i)
+-(+2.250015e+000+2.382812e+000i)
+-(+2.250015e+000+2.382812e+000i)
+-(+1.251430e-308+0.000000e+000i)
+-(+1.251430e-308+0.000000e+000i)
+-
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 

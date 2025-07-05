@@ -9,6 +9,20 @@ Date:   Tue Nov 15 14:54:00 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5374091
-
+---
  src/pkg/os/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index 0ef6e411c3..61545f4456 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -8,7 +8,7 @@ package os
+ 
+ import "syscall"
+ 
+-// Args is the command-line arguments, starting with the program name.
++// Args hold the command-line arguments, starting with the program name.
+ var Args []string
+ 
+ // Getuid returns the numeric user id of the caller.

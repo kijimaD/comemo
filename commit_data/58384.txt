@@ -34,7 +34,88 @@ Date:   Thu Nov 2 05:51:20 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/539117
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/export_test.go | 20 +++++++++++++-------
  src/runtime/metrics.go     | 20 ++++++++++++++------
  2 files changed, 27 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1d4a974871..96b3a8dd93 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -423,21 +423,27 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int)
+ 	// allocate and skew the stats.
+ 	metricsLock()
+ 	initMetrics()
+-	metricsUnlock()
+ 
+ 	systemstack(func() {
++		// Read the metrics once before in case it allocates and skews the metrics.
++		// readMetricsLocked is designed to only allocate the first time it is called
++		// with a given slice of samples. In effect, this extra read tests that this
++		// remains true, since otherwise the second readMetricsLocked below could
++		// allocate before it returns.
++		readMetricsLocked(samplesp, len, cap)
++
+ 		// Read memstats first. It's going to flush
+ 		// the mcaches which readMetrics does not do, so
+ 		// going the other way around may result in
+ 		// inconsistent statistics.
+ 		readmemstats_m(memStats)
+-	})
+ 
+-	// Read metrics off the system stack.
+-	//
+-	// The only part of readMetrics that could allocate
+-	// and skew the stats is initMetrics.
+-	readMetrics(samplesp, len, cap)
++		// Read metrics again. We need to be sure we're on the
++		// system stack with readmemstats_m so that we don't call into
++		// the stack allocator and adjust metrics between there and here.
++		readMetricsLocked(samplesp, len, cap)
++	})
++	metricsUnlock()
+ 
+ 	startTheWorld()
+ }
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 86e0af4dea..58acf32caf 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -823,15 +823,25 @@ func readMetricNames() []string {
+ //
+ //go:linkname readMetrics runtime/metrics.runtime_readMetrics
+ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
+-	// Construct a slice from the args.
+-	sl := slice{samplesp, len, cap}
+-	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
+-
+ 	metricsLock()
+ 
+ 	// Ensure the map is initialized.
+ 	initMetrics()
+ 
++	// Read the metrics.
++	readMetricsLocked(samplesp, len, cap)
++	metricsUnlock()
++}
++
++// readMetricsLocked is the internal, locked portion of readMetrics.
++//
++// Broken out for more robust testing. metricsLock must be held and
++// initMetrics must have been called already.
++func readMetricsLocked(samplesp unsafe.Pointer, len int, cap int) {
++	// Construct a slice from the args.
++	sl := slice{samplesp, len, cap}
++	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
++
+ 	// Clear agg defensively.
+ 	agg = statAggregate{}
+ 
+@@ -850,6 +860,4 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
+ 		// Compute the value based on the stats we have.
+ 		data.compute(&agg, &sample.value)
+ 	}
+-
+-	metricsUnlock()
+ }

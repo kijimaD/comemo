@@ -13,6 +13,20 @@ Date:   Fri Jun 26 11:57:08 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/signal_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ba3e21ae2e..dd6d79f8ec 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -536,7 +536,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		return
+ 	}
+ 
+-	if sig == sigPreempt {
++	if sig == sigPreempt && debug.asyncpreemptoff == 0 {
+ 		// Might be a preemption signal.
+ 		doSigPreempt(gp, c)
+ 		// Even if this was definitely a preemption signal, it

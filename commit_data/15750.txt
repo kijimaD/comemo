@@ -9,7 +9,45 @@ Date:   Wed Mar 13 14:49:24 2013 -0400
     R=dave, mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/7511043
-
+---
  src/pkg/net/ipraw_test.go | 16 ++++++++++++++++
  src/pkg/net/sock_posix.go |  3 +++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 3cf8297e43..fa1a535b7f 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -337,3 +337,19 @@ func TestIPConnLocalName(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIPConnRemoteName(t *testing.T) {
++	if os.Getuid() != 0 {
++		t.Skip("skipping test; must be root")
++	}
++
++	raddr := &IPAddr{IP: IPv4(127, 0, 0, 10).To4()}
++	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
++	if err != nil {
++		t.Fatalf("DialIP failed: %v", err)
++	}
++	defer c.Close()
++	if !reflect.DeepEqual(raddr, c.RemoteAddr()) {
++		t.Fatalf("got %#v, expected %#v", c.RemoteAddr(), raddr)
++	}
++}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 74b671c895..2ebde87998 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -67,5 +67,8 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 	rsa, _ := syscall.Getpeername(s)
+ 	raddr := toAddr(rsa)
+ 	fd.setAddr(laddr, raddr)
++	if fd.raddr == nil {
++		fd.raddr = toAddr(ursa)
++	}
+ 	return fd, nil
+ }

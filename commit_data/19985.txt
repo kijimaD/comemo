@@ -10,8 +10,48 @@ Date:   Fri Aug 8 20:15:52 2014 +0400
     R=golang-codereviews, minux, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/122250043
-
+---
  src/pkg/runtime/cpuprof.goc | 2 +-
  src/pkg/runtime/mheap.c     | 2 +-
  src/pkg/runtime/proc.c      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.goc b/src/pkg/runtime/cpuprof.goc
+index faaea29435..cd4b210e23 100644
+--- a/src/pkg/runtime/cpuprof.goc
++++ b/src/pkg/runtime/cpuprof.goc
+@@ -314,7 +314,7 @@ flushlog(Profile *p)
+ 
+ // getprofile blocks until the next block of profiling data is available
+ // and returns it as a []byte.  It is called from the writing goroutine.
+-Slice
++static Slice
+ getprofile(Profile *p)
+ {
+ 	uint32 i, j, n;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 908d668462..186fd48d47 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -211,7 +211,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
+ 	return s;
+ }
+ 
+-void
++static void
+ mheap_alloc_m(G *gp)
+ {
+ 	MHeap *h;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cef41d95f2..443bdda100 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1384,7 +1384,7 @@ top:
+ // appropriate time. After calling dropg and arranging for gp to be
+ // readied later, the caller can do other work but eventually should
+ // call schedule to restart the scheduling of goroutines on this m.
+-void
++static void
+ dropg(void)
+ {
+ 	if(g->m->lockedg == nil) {

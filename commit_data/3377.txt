@@ -7,6 +7,21 @@ Date:   Fri Sep 25 15:43:43 2009 -0700
     TBR=r
     OCL=35015
     CL=35015
-
+---
  usr/gri/pretty/symboltable.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/usr/gri/pretty/symboltable.go b/usr/gri/pretty/symboltable.go
+index 11960250e9..3f707198a0 100644
+--- a/usr/gri/pretty/symboltable.go
++++ b/usr/gri/pretty/symboltable.go
+@@ -11,9 +11,6 @@ import (
+ )
+ 
+ 
+-type Type struct;
+-
+-
+ // ----------------------------------------------------------------------------
+ // Support
+ 

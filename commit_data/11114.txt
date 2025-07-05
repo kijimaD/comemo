@@ -7,6 +7,20 @@ Date:   Wed Jan 11 13:23:33 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5534074
-
+---
  misc/dashboard/builder/http.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index d4a4d7eea6..b25b417e1e 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -145,7 +145,7 @@ func packages() (pkgs []string, err error) {
+ 	*/
+ }
+ 
+-// updatePackage sends package build results and info dashboard
++// updatePackage sends package build results and info to the dashboard
+ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
+ 	return nil
+ 	/* TODO(adg): un-stub this once the new package builder design is done

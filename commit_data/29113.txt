@@ -14,7 +14,72 @@ Date:   Fri Aug 26 12:15:00 2016 +1200
     Change-Id: I1162a066971df1a067b50afa1cfa0819a6913574
     Reviewed-on: https://go-review.googlesource.com/27830
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go   |  4 ++--
  src/cmd/link/internal/ld/symtab.go | 24 ++++++++++++++++++++----
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 469db4af51..c413a6f1ec 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1225,7 +1225,7 @@ func (ctxt *Link) dodata() {
+ 			for _, s := range data[symnro] {
+ 				isRelro := len(s.R) > 0
+ 				switch s.Type {
+-				case obj.STYPE, obj.SGOSTRINGHDR, obj.STYPERELRO, obj.SGOSTRINGHDRRELRO:
++				case obj.STYPE, obj.SGOSTRINGHDR, obj.STYPERELRO, obj.SGOSTRINGHDRRELRO, obj.SGOFUNCRELRO:
+ 					// Symbols are not sorted yet, so it is possible
+ 					// that an Outer symbol has been changed to a
+ 					// relro Type before it reaches here.
+@@ -1567,7 +1567,7 @@ func (ctxt *Link) dodata() {
+ 			for _, s := range data[symn] {
+ 				datsize = aligndatsize(datsize, s)
+ 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+-					ctxt.Diag("s.Outer (%s) in different section from s (%s)", s.Outer.Name, s.Name)
++					ctxt.Diag("s.Outer (%s) in different section from s (%s), %s != %s", s.Outer.Name, s.Name, s.Outer.Sect.Name, sect.Name)
+ 				}
+ 				s.Sect = sect
+ 				s.Type = obj.SRODATA
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 36fa2f543b..6ff16aba6e 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -400,6 +400,15 @@ func (ctxt *Link) symtab() {
+ 		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
+ 	)
+ 
++	var symgofuncrel *Symbol
++	if !DynlinkingGo() {
++		if UseRelro() {
++			symgofuncrel = groupSym("go.funcrel.*", obj.SGOFUNCRELRO)
++		} else {
++			symgofuncrel = symgofunc
++		}
++	}
++
+ 	symtypelink := Linklookup(ctxt, "runtime.typelink", 0)
+ 	symtypelink.Type = obj.STYPELINK
+ 
+@@ -468,10 +477,17 @@ func (ctxt *Link) symtab() {
+ 			s.Attr |= AttrHidden
+ 			s.Outer = symgcbits
+ 
+-		case strings.HasPrefix(s.Name, "go.func."):
+-			s.Type = obj.SGOFUNC
+-			s.Attr |= AttrHidden
+-			s.Outer = symgofunc
++		case strings.HasSuffix(s.Name, "·f"):
++			if !DynlinkingGo() {
++				s.Attr |= AttrHidden
++			}
++			if UseRelro() {
++				s.Type = obj.SGOFUNCRELRO
++				s.Outer = symgofuncrel
++			} else {
++				s.Type = obj.SGOFUNC
++				s.Outer = symgofunc
++			}
+ 
+ 		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
+ 			s.Type = obj.SGOFUNC

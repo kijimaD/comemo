@@ -17,6 +17,24 @@ Date:   Tue Feb 26 11:56:19 2019 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9bfdaffa62..57bf8a1e0e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3342,12 +3342,6 @@ func walkcompareInterface(n *Node, init *Nodes) *Node {
+ }
+ 
+ func walkcompareString(n *Node, init *Nodes) *Node {
+-	// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-	if (n.Op == OEQ || n.Op == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
+-		r := nod(n.Op, nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
+-		return finishcompare(n, r, init)
+-	}
+-
+ 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
+ 	var cs, ncs *Node // const string, non-const string
+ 	switch {

@@ -20,7 +20,7 @@ Date:   Mon Oct 16 20:28:29 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_mmap.c        |  6 +++---
  src/runtime/cgo_mmap.go           | 10 ++++++----
  src/runtime/mem_bsd.go            | 22 ++++++++++----------
@@ -57,3 +57,883 @@ Date:   Mon Oct 16 20:28:29 2017 -0400
  src/runtime/sys_openbsd_amd64.s   |  9 ++++++++-
  src/runtime/sys_openbsd_arm.s     |  6 +++++-
  35 files changed, 237 insertions(+), 103 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 29acd3c185..5cf6bdf8cf 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -11,7 +11,7 @@
+ 
+ #include "libcgo.h"
+ 
+-void *
++uintptr_t
+ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd, uint32_t offset) {
+ 	void *p;
+ 
+@@ -20,9 +20,9 @@ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd
+ 	_cgo_tsan_release();
+ 	if (p == MAP_FAILED) {
+ 		/* This is what the Go code expects on failure.  */
+-		p = (void *) (uintptr_t) errno;
++		return (uintptr_t)errno;
+ 	}
+-	return p;
++	return (uintptr_t)p;
+ }
+ 
+ void
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index aa531b9020..b7c70c6fff 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -20,19 +20,21 @@ var _cgo_mmap unsafe.Pointer
+ //go:linkname _cgo_munmap _cgo_munmap
+ var _cgo_munmap unsafe.Pointer
+ 
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	if _cgo_mmap != nil {
+ 		// Make ret a uintptr so that writing to it in the
+ 		// function literal does not trigger a write barrier.
+ 		// A write barrier here could break because of the way
+ 		// that mmap uses the same value both as a pointer and
+ 		// an errno value.
+-		// TODO: Fix mmap to return two values.
+ 		var ret uintptr
+ 		systemstack(func() {
+ 			ret = callCgoMmap(addr, n, prot, flags, fd, off)
+ 		})
+-		return unsafe.Pointer(ret)
++		if ret < 4096 {
++			return nil, int(ret)
++		}
++		return unsafe.Pointer(ret), 0
+ 	}
+ 	return sysMmap(addr, n, prot, flags, fd, off)
+ }
+@@ -46,7 +48,7 @@ func munmap(addr unsafe.Pointer, n uintptr) {
+ }
+ 
+ // sysMmap calls the mmap system call. It is implemented in assembly.
+-func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+ 
+ // callCgoMmap calls the mmap function in the runtime/cgo package
+ // using the GCC calling convention. It is implemented in assembly.
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index e0d234715f..23872b9a63 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -15,8 +15,8 @@ import (
+ // which prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	v := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(v) < 4096 {
++	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
+ 		return nil
+ 	}
+ 	mSysStatInc(sysStat, n)
+@@ -51,8 +51,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 		return v
+ 	}
+ 
+-	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) < 4096 {
++	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
+ 		return nil
+ 	}
+ 	*reserved = true
+@@ -76,22 +76,22 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 			// to do this - we do not on other platforms.
+ 			flags |= _MAP_FIXED
+ 		}
+-		p := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
+-		if uintptr(p) == _ENOMEM || (GOOS == "solaris" && uintptr(p) == _sunosEAGAIN) {
++		p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
++		if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+ 			throw("runtime: out of memory")
+ 		}
+-		if p != v {
+-			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
++		if p != v || err != 0 {
++			print("runtime: address space conflict: map(", v, ") = ", p, "(err ", err, ")\n")
+ 			throw("runtime: address space conflict")
+ 		}
+ 		return
+ 	}
+ 
+-	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) == _ENOMEM || (GOOS == "solaris" && uintptr(p) == _sunosEAGAIN) {
++	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+ 		throw("runtime: out of memory")
+ 	}
+-	if p != v {
++	if p != v || err != 0 {
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 3f1c4d76f3..e41452a2c0 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -10,8 +10,8 @@ import "unsafe"
+ // which prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	v := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(v) < 4096 {
++	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
+ 		return nil
+ 	}
+ 	mSysStatInc(sysStat, n)
+@@ -40,8 +40,8 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 
+ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	*reserved = true
+-	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) < 4096 {
++	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
+ 		return nil
+ 	}
+ 	return p
+@@ -53,11 +53,11 @@ const (
+ 
+ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+-	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) == _ENOMEM {
++	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+ 	}
+-	if p != v {
++	if p != v || err != 0 {
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 094658de51..16f44439f1 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -41,30 +41,30 @@ func addrspace_free(v unsafe.Pointer, n uintptr) bool {
+ 	return true
+ }
+ 
+-func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) unsafe.Pointer {
+-	p := mmap(v, n, prot, flags, fd, offset)
++func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) (unsafe.Pointer, int) {
++	p, err := mmap(v, n, prot, flags, fd, offset)
+ 	// On some systems, mmap ignores v without
+ 	// MAP_FIXED, so retry if the address space is free.
+ 	if p != v && addrspace_free(v, n) {
+-		if uintptr(p) > 4096 {
++		if err == 0 {
+ 			munmap(p, n)
+ 		}
+-		p = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
++		p, err = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
+ 	}
+-	return p
++	return p, err
+ }
+ 
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) < 4096 {
+-		if uintptr(p) == _EACCES {
++	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
++		if err == _EACCES {
+ 			print("runtime: mmap: access denied\n")
+ 			exit(2)
+ 		}
+-		if uintptr(p) == _EAGAIN {
++		if err == _EAGAIN {
+ 			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+ 			exit(2)
+ 		}
+@@ -186,9 +186,9 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	// if we can reserve at least 64K and check the assumption in SysMap.
+ 	// Only user-mode Linux (UML) rejects these requests.
+ 	if sys.PtrSize == 8 && uint64(n) > 1<<32 {
+-		p := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-		if p != v {
+-			if uintptr(p) >= 4096 {
++		p, err := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++		if p != v || err != 0 {
++			if err == 0 {
+ 				munmap(p, 64<<10)
+ 			}
+ 			return nil
+@@ -198,8 +198,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 		return v
+ 	}
+ 
+-	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) < 4096 {
++	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
+ 		return nil
+ 	}
+ 	*reserved = true
+@@ -211,22 +211,22 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if !reserved {
+-		p := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-		if uintptr(p) == _ENOMEM {
++		p, err := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++		if err == _ENOMEM {
+ 			throw("runtime: out of memory")
+ 		}
+-		if p != v {
+-			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
++		if p != v || err != 0 {
++			print("runtime: address space conflict: map(", v, ") = ", p, " (err ", err, ")\n")
+ 			throw("runtime: address space conflict")
+ 		}
+ 		return
+ 	}
+ 
+-	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+-	if uintptr(p) == _ENOMEM {
++	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+ 	}
+-	if p != v {
++	if p != v || err != 0 {
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 62f3780db8..e1333c62fe 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -16,7 +16,8 @@ import "unsafe"
+ // We only pass the lower 32 bits of file offset to the
+ // assembly routine; the higher bits (if required), should be provided
+ // by the assembly routine as 0.
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++// The err result is an OS error code such as ENOMEM.
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+ 
+ // munmap calls the munmap system call. It is implemented in assembly.
+ func munmap(addr unsafe.Pointer, n uintptr)
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index ec75e14971..c53f6132ee 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -402,12 +402,12 @@ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
+ }
+ 
+ //go:nosplit
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	p, err := doMmap(uintptr(addr), n, uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
+ 	if p == ^uintptr(0) {
+-		return unsafe.Pointer(err)
++		return nil, int(err)
+ 	}
+-	return unsafe.Pointer(p)
++	return unsafe.Pointer(p), 0
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 83e35f4e27..3157b21371 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -220,8 +220,8 @@ func sysargs(argc int32, argv **byte) {
+ 		// try using mincore to detect the physical page size.
+ 		// mincore should return EINVAL when address is not a multiple of system page size.
+ 		const size = 256 << 10 // size of memory region to allocate
+-		p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-		if uintptr(p) < 4096 {
++		p, err := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++		if err != 0 {
+ 			return
+ 		}
+ 		var n uintptr
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index e007e2a4ff..3a99ddc409 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -33,7 +33,7 @@ func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
+ //go:noescape
+ func nacl_nanosleep(ts, extra *timespec) int32
+ func nanotime() int64
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+ func exit(code int32)
+ func osyield()
+ 
+diff --git a/src/runtime/runtime_mmap_test.go b/src/runtime/runtime_mmap_test.go
+index 2eca6b9e88..57c38bc5dc 100644
+--- a/src/runtime/runtime_mmap_test.go
++++ b/src/runtime/runtime_mmap_test.go
+@@ -16,16 +16,10 @@ import (
+ // what the code in mem_bsd.go, mem_darwin.go, and mem_linux.go expects.
+ // See the uses of ENOMEM in sysMap in those files.
+ func TestMmapErrorSign(t *testing.T) {
+-	p := runtime.Mmap(nil, ^uintptr(0)&^(runtime.GetPhysPageSize()-1), 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
++	p, err := runtime.Mmap(nil, ^uintptr(0)&^(runtime.GetPhysPageSize()-1), 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
+ 
+-	// The runtime.mmap function is nosplit, but t.Errorf is not.
+-	// Reset the pointer so that we don't get an "invalid stack
+-	// pointer" error from t.Errorf if we call it.
+-	v := uintptr(p)
+-	p = nil
+-
+-	if v != runtime.ENOMEM {
+-		t.Errorf("mmap = %v, want %v", v, runtime.ENOMEM)
++	if p != nil || err != runtime.ENOMEM {
++		t.Errorf("mmap = %v, %v, want nil, %v", p, err, runtime.ENOMEM)
+ 	}
+ }
+ 
+@@ -35,20 +29,20 @@ func TestPhysPageSize(t *testing.T) {
+ 	ps := runtime.GetPhysPageSize()
+ 
+ 	// Get a region of memory to play with. This should be page-aligned.
+-	b := uintptr(runtime.Mmap(nil, 2*ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0))
+-	if b < 4096 {
+-		t.Fatalf("Mmap: %v", b)
++	b, err := runtime.Mmap(nil, 2*ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
++	if err != 0 {
++		t.Fatalf("Mmap: %v", err)
+ 	}
+ 
+ 	// Mmap should fail at a half page into the buffer.
+-	err := uintptr(runtime.Mmap(unsafe.Pointer(uintptr(b)+ps/2), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0))
+-	if err >= 4096 {
++	_, err = runtime.Mmap(unsafe.Pointer(uintptr(b)+ps/2), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0)
++	if err == 0 {
+ 		t.Errorf("Mmap should have failed with half-page alignment %d, but succeeded: %v", ps/2, err)
+ 	}
+ 
+ 	// Mmap should succeed at a full page into the buffer.
+-	err = uintptr(runtime.Mmap(unsafe.Pointer(uintptr(b)+ps), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0))
+-	if err < 4096 {
++	_, err = runtime.Mmap(unsafe.Pointer(uintptr(b)+ps), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0)
++	if err != 0 {
+ 		t.Errorf("Mmap at full-page alignment %d failed: %v", ps, err)
+ 	}
+ }
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 276553803c..ccd901ada5 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -103,7 +103,13 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
+-	MOVL	AX, ret+24(FP)
++	JAE	ok
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 88f509352e..f549efdbf6 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -374,7 +374,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	off+28(FP), R9		// arg 6 offset
+ 	MOVL	$(0x2000000+197), AX	// syscall entry
+ 	SYSCALL
+-	MOVQ	AX, ret+32(FP)
++	JCC	ok
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 8a7de43ea3..1ad904f833 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -140,7 +140,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	$0, R6 // off_t is uint64_t
+ 	MOVW	$SYS_mmap, R12
+ 	SWI	$0x80
+-	MOVW	R0, ret+24(FP)
++	MOVW	$0, R1
++	BCC     ok
++	MOVW	R1, p+24(FP)
++	MOVW	R0, err+28(FP)
++	RET
++ok:
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index f1407ba6ad..5663af512d 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -135,7 +135,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	off+28(FP), R5
+ 	MOVW	$SYS_mmap, R16
+ 	SVC	$0x80
+-	MOVD	R0, ret+32(FP)
++	BCC	ok
++	MOVD	$0, p+32(FP)
++	MOVD	R0, err+40(FP)
++	RET
++ok:
++	MOVD	R0, p+32(FP)
++	MOVD	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index ce4a9f40a6..813f1f4b69 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -242,8 +242,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX
+ 	SYSCALL
++	JCC	ok
+ 	ADDQ	$16, SP
+-	MOVQ	AX, ret+32(FP)
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	ADDQ	$16, SP
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 8e74ccff7e..bef8e3257a 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -149,7 +149,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	STOSL
+ 	MOVL	$477, AX
+ 	INT	$0x80
+-	MOVL	AX, ret+24(FP)
++	JAE	ok
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 2a026958b4..7499931ca1 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -233,7 +233,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	off+28(FP), R9		// arg 6 offset
+ 	MOVL	$477, AX
+ 	SYSCALL
+-	MOVQ	AX, ret+32(FP)
++	JCC	ok
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 7bc4fea124..3f52864305 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -258,8 +258,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 	MOVW $SYS_mmap, R7
+ 	SWI $0
+ 	SUB $4, R13
+-	// TODO(dfc) error checking ?
+-	MOVW	R0, ret+24(FP)
++	MOVW $0, R1
++	MOVW.CS R0, R1		// if failed, put in R1
++	MOVW.CS $0, R0
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 722d2ab2d3..abed125f14 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -359,10 +359,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	SHRL	$12, BP
+ 	INVOKE_SYSCALL
+ 	CMPL	AX, $0xfffff001
+-	JLS	3(PC)
++	JLS	ok
+ 	NOTL	AX
+ 	INCL	AX
+-	MOVL	AX, ret+24(FP)
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index b4b2a903b3..1b6a9920fd 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -411,10 +411,15 @@ TEXT runtime·sysMmap(SB),NOSPLIT,$0
+ 	MOVL	$SYS_mmap, AX
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+-	JLS	3(PC)
++	JLS	ok
+ 	NOTQ	AX
+ 	INCQ	AX
+-	MOVQ	AX, ret+32(FP)
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ // Call the function stored in _cgo_mmap using the GCC calling convention.
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index b4a1de96b6..794f9b39a6 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -173,8 +173,12 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+ 	CMP		R6, R0
++	MOVW	$0, R1
+ 	RSB.HI	$0, R0
+-	MOVW	R0, ret+24(FP)
++	MOVW.HI	R0, R1		// if error, put in R1
++	MOVW.HI	$0, R0
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 79c39d98e3..758e68575b 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -278,9 +278,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVD	$SYS_mmap, R8
+ 	SVC
+ 	CMN	$4095, R0
+-	BCC	2(PC)
++	BCC	ok
+ 	NEG	R0,R0
+-	MOVD	R0, ret+32(FP)
++	MOVD	$0, p+32(FP)
++	MOVD	R0, err+40(FP)
++	RET
++ok:
++	MOVD	R0, p+32(FP)
++	MOVD	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-8
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 79813f0095..7402ae21d4 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -269,7 +269,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 
+ 	MOVV	$SYS_mmap, R2
+ 	SYSCALL
+-	MOVV	R2, ret+32(FP)
++	BEQ	R7, ok
++	MOVV	$0, p+32(FP)
++	MOVV	R2, err+40(FP)
++	RET
++ok:
++	MOVV	R2, p+32(FP)
++	MOVV	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-8
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index a3604f57e3..6bd0267ea2 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -279,7 +279,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	JMP	runtime·sigtramp(SB)
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$20-28
++TEXT runtime·mmap(SB),NOSPLIT,$20-32
+ 	MOVW	addr+0(FP), R4
+ 	MOVW	n+4(FP), R5
+ 	MOVW	prot+8(FP), R6
+@@ -291,7 +291,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$20-28
+ 
+ 	MOVW	$SYS_mmap, R2
+ 	SYSCALL
+-	MOVW	R2, ret+24(FP)
++	BEQ	R7, ok
++	MOVW	$0, p+24(FP)
++	MOVW	R2, err+28(FP)
++	RET
++ok:
++	MOVW	R2, p+24(FP)
++	MOVW	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0-8
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index e48c3a6813..100e410eec 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -272,7 +272,13 @@ TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	off+28(FP), R8
+ 
+ 	SYSCALL	$SYS_mmap
+-	MOVD	R3, ret+32(FP)
++	BVC	ok
++	MOVD	$0, p+32(FP)
++	MOVD	R3, err+40(FP)
++	RET
++ok:
++	MOVD	R3, p+32(FP)
++	MOVD	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index ed2077bfe4..72b024434f 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -251,7 +251,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	BR	runtime·sigtramp(SB)
+ 
+ // func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+-TEXT runtime·mmap(SB),NOSPLIT,$48-40
++TEXT runtime·mmap(SB),NOSPLIT,$48-48
+ 	MOVD	addr+0(FP), R2
+ 	MOVD	n+8(FP), R3
+ 	MOVW	prot+16(FP), R4
+@@ -272,9 +272,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$48-40
+ 	MOVW	$SYS_mmap, R1
+ 	SYSCALL
+ 	MOVD	$-4095, R3
+-	CMPUBLT	R2, R3, 2(PC)
++	CMPUBLT	R2, R3, ok
+ 	NEG	R2
+-	MOVD	R2, ret+32(FP)
++	MOVD	$0, p+32(FP)
++	MOVD	R2, err+40(FP)
++	RET
++ok:
++	MOVD	R2, p+32(FP)
++	MOVD	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index c60ef38062..cdc8ff1a02 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -230,9 +230,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	MOVL	AX, 20(SP)
+ 	NACL_SYSCALL(SYS_mmap)
+ 	CMPL	AX, $-4095
+-	JNA	2(PC)
++	JNA	ok
+ 	NEGL	AX
+-	MOVL	AX, ret+24(FP)
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·walltime(SB),NOSPLIT,$20
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index a42a74c228..ff4c2e7bb5 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -239,9 +239,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
+ 	MOVL SP, R9
+ 	NACL_SYSCALL(SYS_mmap)
+ 	CMPL AX, $-4095
+-	JNA 2(PC)
++	JNA ok
+ 	NEGL AX
+-	MOVL	AX, ret+24(FP)
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·walltime(SB),NOSPLIT,$16
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index b65616ee92..6e01fe42e8 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -194,8 +194,12 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
+ 	NACL_SYSCALL(SYS_mmap)
+ 	MOVM.IA.W (R13), [R4, R5]
+ 	CMP	$-4095, R0
++	MOVW	$0, R1
+ 	RSB.HI	$0, R0
+-	MOVW	R0, ret+24(FP)
++	MOVW.HI	R0, R1		// if error, put in R1
++	MOVW.HI	$0, R0
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·walltime(SB),NOSPLIT,$16
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 56ddbd8ebc..af8c3aa485 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -116,7 +116,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
+-	MOVL	AX, ret+24(FP)
++	JAE	ok
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 205b13f18e..7235fb1d0d 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -290,8 +290,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX		// sys_mmap
+ 	SYSCALL
++	JCC	ok
+ 	ADDQ	$16, SP
+-	MOVQ	AX, ret+32(FP)
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	ADDQ	$16, SP
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index b346a7f9b1..47a3009a62 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -264,7 +264,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
+ 	ADD $4, R13 // pass arg 5 and arg 6 on stack
+ 	SWI $0xa000c5	// sys_mmap
+ 	SUB $4, R13
+-	MOVW	R0, ret+24(FP)
++	MOVW	$0, R1
++	MOVW.CS R0, R1	// if error, move to R1
++	MOVW.CS $0, R0
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 16c6d99629..475a937798 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -125,7 +125,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
+-	MOVL	AX, ret+24(FP)
++	JAE	ok
++	MOVL	$0, p+24(FP)
++	MOVL	AX, err+28(FP)
++	RET
++ok:
++	MOVL	AX, p+24(FP)
++	MOVL	$0, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index fbc9e62458..658f2c49dc 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -282,8 +282,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX
+ 	SYSCALL
++	JCC	ok
+ 	ADDQ	$16, SP
+-	MOVQ	AX, ret+32(FP)
++	MOVQ	$0, p+32(FP)
++	MOVQ	AX, err+40(FP)
++	RET
++ok:
++	ADDQ	$16, SP
++	MOVQ	AX, p+32(FP)
++	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 0b77d121f4..ea7538630d 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -129,7 +129,11 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 	MOVW	$197, R12		// sys_mmap
+ 	SWI	$0
+ 	SUB	$4, R13
+-	MOVW	R0, ret+24(FP)
++	MOVW	$0, R1
++	MOVW.CS	R0, R1			// if error, move to R1
++	MOVW.CS $0, R0
++	MOVW	R0, p+24(FP)
++	MOVW	R1, err+28(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0

@@ -10,7 +10,47 @@ Date:   Tue Sep 20 13:59:40 2016 -0700
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go      | 2 +-
  src/cmd/compile/internal/gc/ssa_test.go | 8 +-------
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 44be52b937..e0f6079837 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1690,7 +1690,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			op := s.ssaOp(OEQ, pt)
+ 			r := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
+ 			i := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
+-			c := s.newValue2(ssa.OpAnd8, Types[TBOOL], r, i)
++			c := s.newValue2(ssa.OpAndB, Types[TBOOL], r, i)
+ 			switch n.Op {
+ 			case OEQ:
+ 				return c
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index b54ada9544..debdc4386b 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"internal/testenv"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -49,12 +48,7 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break.go") }
+ func TestTypeAssertion(t *testing.T) { runTest(t, "assert.go") }
+ 
+ // TestArithmetic tests that both backends have the same result for arithmetic expressions.
+-func TestArithmetic(t *testing.T) {
+-	if runtime.GOARCH == "386" {
+-		t.Skip("legacy 386 compiler can't handle this test")
+-	}
+-	runTest(t, "arith.go")
+-}
++func TestArithmetic(t *testing.T) { runTest(t, "arith.go") }
+ 
+ // TestFP tests that both backends have the same result for floating point expressions.
+ func TestFP(t *testing.T) { runTest(t, "fp.go") }

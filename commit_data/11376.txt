@@ -7,7 +7,36 @@ Date:   Wed Jan 25 14:13:11 2012 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5574060
-
+---
  src/pkg/runtime/debug.go  | 3 +++
  src/pkg/runtime/extern.go | 3 ---
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index c2b90566a9..4f09146fac 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -23,6 +23,9 @@ func UnlockOSThread()
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int
+ 
++// NumCPU returns the number of logical CPUs on the local machine.
++func NumCPU() int
++
+ // Cgocalls returns the number of cgo calls made by the current process.
+ func Cgocalls() int64
+ 
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 88598cb7d4..eafa2f19f1 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -68,9 +68,6 @@ func funcline_go(*Func, uintptr) (string, int)
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+ 
+-// NumCPU returns the number of logical CPUs on the local machine.
+-func NumCPU() int
+-
+ // Semacquire waits until *s > 0 and then atomically decrements it.
+ // It is intended as a simple sleep primitive for use by the synchronization
+ // library and should not be used directly.

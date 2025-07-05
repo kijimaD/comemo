@@ -14,9 +14,1227 @@ Date:   Mon Jan 6 13:15:49 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213698
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go  |   3 +-
  src/cmd/compile/internal/ssa/rewrite386.go   | 270 --------------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 270 --------------------
  src/cmd/compile/internal/ssa/rewriteS390X.go | 355 +++------------------------
  4 files changed, 32 insertions(+), 866 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 2fca70f40b..110c9323a6 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1381,9 +1381,10 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
+ 		if idx1 == 0 {
+ 			log.Fatalf("couldn't find first two args of commutative op %q", s[0])
+ 		}
+-		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
++		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] {
+ 			// When we have (Add x y) with no other uses of x and y in the matching rule,
+ 			// then we can skip the commutative match (Add y x).
++			// Same for (Add x x), for any x.
+ 			commutative = false
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index a12977bc8b..2282d4840a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -22356,42 +22356,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
+-		// result: (LT cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETL {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETL || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386LT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+-		// result: (LE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETLE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETLE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386LE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+ 		// result: (LE cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22428,24 +22392,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
+-		// result: (GT cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETG {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETG || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386GT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+ 		// result: (GE cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22464,42 +22410,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+-		// result: (GE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETGE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETGE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386GE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+-		// result: (EQ cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETEQ {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETEQ || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386EQ)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+ 		// result: (EQ cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22536,24 +22446,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
+-		// result: (NE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETNE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETNE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386NE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
+ 		// result: (ULT cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22572,42 +22464,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
+-		// result: (ULT cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETB {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETB || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386ULT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+-		// result: (ULE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETBE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETBE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386ULE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+ 		// result: (ULE cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22644,42 +22500,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
+-		// result: (UGT cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETA {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETA || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386UGT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+-		// result: (UGE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETAE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETAE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386UGE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+ 		// result: (UGE cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22716,24 +22536,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+-		// result: (OS cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETO {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETO || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386OS)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
+ 		// result: (UGT cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22752,42 +22554,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
+-		// result: (UGT cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETGF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETGF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386UGT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+-		// result: (UGE cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETGEF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETGEF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386UGE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+ 		// result: (UGE cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+@@ -22824,42 +22590,6 @@ func rewriteBlock386(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
+-		// result: (EQF cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETEQF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETEQF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386EQF)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+-		// result: (NEF cmp yes no)
+-		for b.Controls[0].Op == Op386TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != Op386SETNEF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != Op386SETNEF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(Block386NEF)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+ 		// result: (NEF cmp yes no)
+ 		for b.Controls[0].Op == Op386TESTB {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c104157cec..b29b1cc0d4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -58511,42 +58511,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
+-		// result: (LT cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETL {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETL || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64LT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+-		// result: (LE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETLE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETLE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64LE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+ 		// result: (LE cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58583,24 +58547,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
+-		// result: (GT cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETG {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETG || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64GT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+ 		// result: (GE cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58619,42 +58565,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+-		// result: (GE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETGE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETGE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64GE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+-		// result: (EQ cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETEQ {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETEQ || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64EQ)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+ 		// result: (EQ cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58691,24 +58601,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
+-		// result: (NE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETNE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETNE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64NE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
+ 		// result: (ULT cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58727,42 +58619,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
+-		// result: (ULT cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETB {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETB || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64ULT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+-		// result: (ULE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETBE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETBE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64ULE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+ 		// result: (ULE cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58799,42 +58655,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
+-		// result: (UGT cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETA {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETA || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64UGT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+-		// result: (UGE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETAE {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETAE || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64UGE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+ 		// result: (UGE cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -58871,24 +58691,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
+-		// result: (OS cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETO {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETO || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64OS)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTL (SHLL (MOVLconst [1]) x) y))
+ 		// result: (ULT (BTL x y))
+ 		for b.Controls[0].Op == OpAMD64TESTL {
+@@ -59360,42 +59162,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
+-		// result: (UGT cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETGF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETGF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64UGT)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+-		// result: (UGE cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETGEF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETGEF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64UGE)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+ 		// result: (UGE cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+@@ -59432,42 +59198,6 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.AddControl(cmp)
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
+-		// result: (EQF cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETEQF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETEQF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64EQF)
+-			b.AddControl(cmp)
+-			return true
+-		}
+-		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+-		// result: (NEF cmp yes no)
+-		for b.Controls[0].Op == OpAMD64TESTB {
+-			v_0 := b.Controls[0]
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAMD64SETNEF {
+-				break
+-			}
+-			cmp := v_0_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			if v_0_1.Op != OpAMD64SETNEF || cmp != v_0_1.Args[0] {
+-				break
+-			}
+-			b.Reset(BlockAMD64NEF)
+-			b.AddControl(cmp)
+-			return true
+-		}
+ 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+ 		// result: (NEF cmp yes no)
+ 		for b.Controls[0].Op == OpAMD64TESTB {
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index c85ffdecce..e97b66ccb6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -635,7 +635,7 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpS390XMOVWloadidx:
+ 		return rewriteValueS390X_OpS390XMOVWloadidx_0(v)
+ 	case OpS390XMOVWreg:
+-		return rewriteValueS390X_OpS390XMOVWreg_0(v) || rewriteValueS390X_OpS390XMOVWreg_10(v) || rewriteValueS390X_OpS390XMOVWreg_20(v)
++		return rewriteValueS390X_OpS390XMOVWreg_0(v) || rewriteValueS390X_OpS390XMOVWreg_10(v)
+ 	case OpS390XMOVWstore:
+ 		return rewriteValueS390X_OpS390XMOVWstore_0(v) || rewriteValueS390X_OpS390XMOVWstore_10(v)
+ 	case OpS390XMOVWstoreconst:
+@@ -6962,43 +6962,6 @@ func rewriteValueS390X_OpS390XADDE_0(v *Value) bool {
+ 		v.AddArg(c)
+ 		return true
+ 	}
+-	// match: (ADDE x y (Select1 (ADDCconst [-1] (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) c)))))
+-	// result: (ADDE x y c)
+-	for {
+-		_ = v.Args[2]
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v_2 := v.Args[2]
+-		if v_2.Op != OpSelect1 {
+-			break
+-		}
+-		v_2_0 := v_2.Args[0]
+-		if v_2_0.Op != OpS390XADDCconst || v_2_0.AuxInt != -1 {
+-			break
+-		}
+-		v_2_0_0 := v_2_0.Args[0]
+-		if v_2_0_0.Op != OpSelect0 {
+-			break
+-		}
+-		v_2_0_0_0 := v_2_0_0.Args[0]
+-		if v_2_0_0_0.Op != OpS390XADDE {
+-			break
+-		}
+-		c := v_2_0_0_0.Args[2]
+-		v_2_0_0_0_0 := v_2_0_0_0.Args[0]
+-		if v_2_0_0_0_0.Op != OpS390XMOVDconst || v_2_0_0_0_0.AuxInt != 0 {
+-			break
+-		}
+-		v_2_0_0_0_1 := v_2_0_0_0.Args[1]
+-		if v_2_0_0_0_1.Op != OpS390XMOVDconst || v_2_0_0_0_1.AuxInt != 0 {
+-			break
+-		}
+-		v.reset(OpS390XADDE)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		v.AddArg(c)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XADDW_0(v *Value) bool {
+@@ -11085,23 +11048,6 @@ func rewriteValueS390X_OpS390XMOVBZreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVBZreg x:(MOVBZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVBZreg <t> x:(MOVBload [o] {s} p mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBZload <t> [o] {s} p mem)
+@@ -11128,11 +11074,6 @@ func rewriteValueS390X_OpS390XMOVBZreg_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVBZreg_10(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (MOVBZreg <t> x:(MOVBloadidx [o] {s} p i mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBZloadidx <t> [o] {s} p i mem)
+@@ -11161,6 +11102,11 @@ func rewriteValueS390X_OpS390XMOVBZreg_10(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVBZreg_10(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVBZreg x:(Arg <t>))
+ 	// cond: !t.IsSigned() && t.Size() == 1
+ 	// result: x
+@@ -11592,23 +11538,6 @@ func rewriteValueS390X_OpS390XMOVBreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVBreg x:(MOVBloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVBreg <t> x:(MOVBZload [o] {s} p mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBload <t> [o] {s} p mem)
+@@ -11635,11 +11564,6 @@ func rewriteValueS390X_OpS390XMOVBreg_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVBreg_10(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (MOVBreg <t> x:(MOVBZloadidx [o] {s} p i mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBloadidx <t> [o] {s} p i mem)
+@@ -11668,6 +11592,11 @@ func rewriteValueS390X_OpS390XMOVBreg_10(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVBreg_10(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVBreg x:(Arg <t>))
+ 	// cond: t.IsSigned() && t.Size() == 1
+ 	// result: x
+@@ -15049,6 +14978,7 @@ func rewriteValueS390X_OpS390XMOVHZloadidx_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVHZreg_0(v *Value) bool {
++	b := v.Block
+ 	// match: (MOVHZreg e:(MOVBZreg x))
+ 	// cond: clobberIfDead(e)
+ 	// result: (MOVBZreg x)
+@@ -15163,23 +15093,6 @@ func rewriteValueS390X_OpS390XMOVHZreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVHZreg x:(MOVBZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHZreg x:(MOVHZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+ 	// result: x
+@@ -15214,28 +15127,6 @@ func rewriteValueS390X_OpS390XMOVHZreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVHZreg_10(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (MOVHZreg x:(MOVHZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVHZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 2) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHZreg <t> x:(MOVHload [o] {s} p mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVHZload <t> [o] {s} p mem)
+@@ -15262,6 +15153,11 @@ func rewriteValueS390X_OpS390XMOVHZreg_10(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVHZreg_10(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVHZreg <t> x:(MOVHloadidx [o] {s} p i mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVHZloadidx <t> [o] {s} p i mem)
+@@ -15678,23 +15574,6 @@ func rewriteValueS390X_OpS390XMOVHreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVHreg x:(MOVBloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHreg x:(MOVHload _ _))
+ 	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+ 	// result: x
+@@ -15729,28 +15608,6 @@ func rewriteValueS390X_OpS390XMOVHreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVHreg_10(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (MOVHreg x:(MOVHloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVHloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHreg x:(MOVBZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+ 	// result: x
+@@ -15768,23 +15625,11 @@ func rewriteValueS390X_OpS390XMOVHreg_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVHreg x:(MOVBZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVHreg_10(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVHreg x:(MOVBZloadidx _ _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+ 	// result: x
+@@ -17602,23 +17447,6 @@ func rewriteValueS390X_OpS390XMOVWZreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWZreg x:(MOVBZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWZreg x:(MOVHZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+ 	// result: x
+@@ -17653,27 +17481,6 @@ func rewriteValueS390X_OpS390XMOVWZreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWZreg x:(MOVHZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVHZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 2) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVWZreg_10(v *Value) bool {
+-	b := v.Block
+ 	// match: (MOVWZreg x:(MOVWZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 4)
+ 	// result: x
+@@ -17708,23 +17515,10 @@ func rewriteValueS390X_OpS390XMOVWZreg_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWZreg x:(MOVWZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 4)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVWZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 4) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVWZreg_10(v *Value) bool {
++	b := v.Block
+ 	// match: (MOVWZreg <t> x:(MOVWload [o] {s} p mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWZload <t> [o] {s} p mem)
+@@ -18135,23 +17929,6 @@ func rewriteValueS390X_OpS390XMOVWreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWreg x:(MOVBloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWreg x:(MOVHload _ _))
+ 	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+ 	// result: x
+@@ -18186,27 +17963,6 @@ func rewriteValueS390X_OpS390XMOVWreg_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWreg x:(MOVHloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVHloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
+-	b := v.Block
+ 	// match: (MOVWreg x:(MOVWload _ _))
+ 	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+ 	// result: x
+@@ -18241,23 +17997,10 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWreg x:(MOVWloadidx _ _ _))
+-	// cond: (x.Type.IsSigned() || x.Type.Size() == 8)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVWloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(x.Type.IsSigned() || x.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
++	return false
++}
++func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
++	b := v.Block
+ 	// match: (MOVWreg x:(MOVBZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+ 	// result: x
+@@ -18292,23 +18035,6 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWreg x:(MOVBZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 1)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVBZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWreg x:(MOVHZload _ _))
+ 	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+ 	// result: x
+@@ -18343,23 +18069,6 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (MOVWreg x:(MOVHZloadidx _ _ _))
+-	// cond: (!x.Type.IsSigned() || x.Type.Size() > 2)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		if x.Op != OpS390XMOVHZloadidx {
+-			break
+-		}
+-		_ = x.Args[2]
+-		if !(!x.Type.IsSigned() || x.Type.Size() > 2) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWreg <t> x:(MOVWZload [o] {s} p mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWload <t> [o] {s} p mem)
+@@ -18386,10 +18095,6 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XMOVWreg_20(v *Value) bool {
+-	b := v.Block
+ 	// match: (MOVWreg <t> x:(MOVWZloadidx [o] {s} p i mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWloadidx <t> [o] {s} p i mem)

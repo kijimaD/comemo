@@ -16,6 +16,22 @@ Date:   Wed Apr 26 08:18:10 2023 -0700
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 483ff64686..25a6ba7c88 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -237,10 +237,6 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmimport importmodule importname"})
+ 			break
+ 		}
+-		if !base.Flag.CompilingRuntime && base.Ctxt.Pkgpath != "syscall/js" && base.Ctxt.Pkgpath != "syscall/js_test" && base.Ctxt.Pkgpath != "syscall" {
+-			p.error(syntax.Error{Pos: pos, Msg: "//go:wasmimport directive cannot be used outside of runtime or syscall/js"})
+-			break
+-		}
+ 
+ 		if buildcfg.GOARCH == "wasm" {
+ 			// Only actually use them if we're compiling to WASM though.

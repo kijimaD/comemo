@@ -14,6 +14,23 @@ Date:   Sun Jan 24 23:31:25 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/object.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 9567042156..c740285ca2 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -79,7 +79,10 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
+ 			}
+ 			typ = g.typ(sig)
+ 		} else {
+-			sym = ir.MethodSym(g.typ(recv.Type()), g.selector(obj))
++			sym = g.selector(obj)
++			if !sym.IsBlank() {
++				sym = ir.MethodSym(g.typ(recv.Type()), sym)
++			}
+ 			typ = g.signature(g.param(recv), sig)
+ 		}
+ 		name = g.objCommon(pos, ir.ONAME, sym, ir.PFUNC, typ)

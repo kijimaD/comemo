@@ -15,7 +15,3149 @@ Date:   Wed Oct 3 11:06:55 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 1744 --------------------------------
  src/cmd/compile/internal/gc/bimport.go | 1323 ------------------------
  2 files changed, 3067 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index d0b1804eb6..3ef1e6af4d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -2,444 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Binary package export.
+-
+-/*
+-1) Export data encoding principles:
+-
+-The export data is a serialized description of the graph of exported
+-"objects": constants, types, variables, and functions. Aliases may be
+-directly reexported, and unaliased types may be indirectly reexported
+-(as part of the type of a directly exported object). More generally,
+-objects referred to from inlined function bodies can be reexported.
+-We need to know which package declares these reexported objects, and
+-therefore packages are also part of the export graph.
+-
+-The roots of the graph are two lists of objects. The 1st list (phase 1,
+-see Export) contains all objects that are exported at the package level.
+-These objects are the full representation of the package's API, and they
+-are the only information a platform-independent tool (e.g., go/types)
+-needs to know to type-check against a package.
+-
+-The 2nd list of objects contains all objects referred to from exported
+-inlined function bodies. These objects are needed by the compiler to
+-make sense of the function bodies; the exact list contents are compiler-
+-specific.
+-
+-Finally, the export data contains a list of representations for inlined
+-function bodies. The format of this representation is compiler specific.
+-
+-The graph is serialized in in-order fashion, starting with the roots.
+-Each object in the graph is serialized by writing its fields sequentially.
+-If the field is a pointer to another object, that object is serialized in
+-place, recursively. Otherwise the field is written in place. Non-pointer
+-fields are all encoded as integer or string values.
+-
+-Some objects (packages, types) may be referred to more than once. When
+-reaching an object that was not serialized before, an integer _index_
+-is assigned to it, starting at 0. In this case, the encoding starts
+-with an integer _tag_ < 0. The tag value indicates the kind of object
+-that follows and that this is the first time that we see this object.
+-If the object was already serialized, the encoding is simply the object
+-index >= 0. An importer can trivially determine if an object needs to
+-be read in for the first time (tag < 0) and entered into the respective
+-object table, or if the object was seen already (index >= 0), in which
+-case the index is used to look up the object in the respective table.
+-
+-Before exporting or importing, the type tables are populated with the
+-predeclared types (int, string, error, unsafe.Pointer, etc.). This way
+-they are automatically encoded with a known and fixed type index.
+-
+-2) Encoding format:
+-
+-The export data starts with two newline-terminated strings: a version
+-string and either an empty string, or "debug", when emitting the debug
+-format. These strings are followed by version-specific encoding options.
+-
+-(The Go1.7 version starts with a couple of bytes specifying the format.
+-That format encoding is no longer used but is supported to avoid spurious
+-errors when importing old installed package files.)
+-
+-This header is followed by the package object for the exported package,
+-two lists of objects, and the list of inlined function bodies.
+-
+-The encoding of objects is straight-forward: Constants, variables, and
+-functions start with their name, type, and possibly a value. Named types
+-record their name and package so that they can be canonicalized: If the
+-same type was imported before via another import, the importer must use
+-the previously imported type pointer so that we have exactly one version
+-(i.e., one pointer) for each named type (and read but discard the current
+-type encoding). Unnamed types simply encode their respective fields.
+-Aliases are encoded starting with their name followed by the qualified
+-identifier denoting the original (aliased) object, which was exported
+-earlier.
+-
+-In the encoding, some lists start with the list length. Some lists are
+-terminated with an end marker (usually for lists where we may not know
+-the length a priori).
+-
+-Integers use variable-length encoding for compact representation.
+-
+-Strings are canonicalized similar to objects that may occur multiple times:
+-If the string was exported already, it is represented by its index only.
+-Otherwise, the export data starts with the negative string length (negative,
+-so we can distinguish from string index), followed by the string bytes.
+-The empty string is mapped to index 0. (The initial format string is an
+-exception; it is encoded as the string bytes followed by a newline).
+-
+-The exporter and importer are completely symmetric in implementation: For
+-each encoding routine there is a matching and symmetric decoding routine.
+-This symmetry makes it very easy to change or extend the format: If a new
+-field needs to be encoded, a symmetric change can be made to exporter and
+-importer.
+-
+-3) Making changes to the encoding format:
+-
+-Any change to the encoding format requires a respective change in the
+-exporter below and a corresponding symmetric change to the importer in
+-bimport.go.
+-
+-Furthermore, it requires a corresponding change to go/internal/gcimporter
+-and golang.org/x/tools/go/gcimporter15. Changes to the latter must preserve
+-compatibility with both the last release of the compiler, and with the
+-corresponding compiler at tip. That change is necessarily more involved,
+-as it must switch based on the version number in the export data file.
+-
+-It is recommended to turn on debugFormat temporarily when working on format
+-changes as it will help finding encoding/decoding inconsistencies quickly.
+-*/
+-
+ package gc
+ 
+ import (
+-	"bufio"
+-	"bytes"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+-	"encoding/binary"
+-	"fmt"
+-	"math/big"
+-	"sort"
+-	"strings"
+ )
+ 
+-// If debugFormat is set, each integer and string value is preceded by a marker
+-// and position information in the encoding. This mechanism permits an importer
+-// to recognize immediately when it is out of sync. The importer recognizes this
+-// mode automatically (i.e., it can import export data produced with debugging
+-// support even if debugFormat is not set at the time of import). This mode will
+-// lead to massively larger export data (by a factor of 2 to 3) and should only
+-// be enabled during development and debugging.
+-//
+-// NOTE: This flag is the first flag to enable if importing dies because of
+-// (suspected) format errors, and whenever a change is made to the format.
+-const debugFormat = false // default: false
+-
+-// Current export format version. Increase with each format change.
+-// 6: package height (CL 105038)
+-// 5: improved position encoding efficiency (issue 20080, CL 41619)
+-// 4: type name objects support type aliases, uses aliasTag
+-// 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
+-// 2: removed unused bool in ODCL export (compiler only)
+-// 1: header format change (more regular), export package for _ struct fields
+-// 0: Go1.7 encoding
+-const exportVersion = 6
+-
+-// exportInlined enables the export of inlined function bodies and related
+-// dependencies. The compiler should work w/o any loss of functionality with
+-// the flag disabled, but the generated code will lose access to inlined
+-// function bodies across packages, leading to performance bugs.
+-// Leave for debugging.
+-const exportInlined = true // default: true
+-
+-// trackAllTypes enables cycle tracking for all types, not just named
+-// types. The existing compiler invariants assume that unnamed types
+-// that are not completely set up are not used, or else there are spurious
+-// errors.
+-// If disabled, only named types are tracked, possibly leading to slightly
+-// less efficient encoding in rare cases. It also prevents the export of
+-// some corner-case type declarations (but those were not handled correctly
+-// with the former textual export format either).
+-// Note that when a type is only seen once, as many unnamed types are,
+-// it is less efficient to track it, since we then also record an index for it.
+-// See CLs 41622 and 41623 for some data and discussion.
+-// TODO(gri) enable selectively and remove once issues caused by it are fixed
+-const trackAllTypes = false
+-
+ type exporter struct {
+-	out *bufio.Writer
+-
+-	// object -> index maps, indexed in order of serialization
+-	strIndex  map[string]int
+-	pathIndex map[string]int
+-	pkgIndex  map[*types.Pkg]int
+-	typIndex  map[*types.Type]int
+-	funcList  []*Func
+-
+ 	marked map[*types.Type]bool // types already seen by markType
+-
+-	// position encoding
+-	posInfoFormat bool
+-	prevFile      string
+-	prevLine      int
+-
+-	// debugging support
+-	written int // bytes written
+-	indent  int // for p.trace
+-	trace   bool
+-}
+-
+-// export writes the exportlist for localpkg to out and returns the number of bytes written.
+-func export(out *bufio.Writer, trace bool) int {
+-	p := exporter{
+-		out:           out,
+-		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
+-		pathIndex:     map[string]int{"": 0}, // empty path is mapped to 0
+-		pkgIndex:      make(map[*types.Pkg]int),
+-		typIndex:      make(map[*types.Type]int),
+-		posInfoFormat: true,
+-		trace:         trace,
+-	}
+-
+-	// write version info
+-	// The version string must start with "version %d" where %d is the version
+-	// number. Additional debugging information may follow after a blank; that
+-	// text is ignored by the importer.
+-	p.rawStringln(fmt.Sprintf("version %d", exportVersion))
+-	var debug string
+-	if debugFormat {
+-		debug = "debug"
+-	}
+-	p.rawStringln(debug) // cannot use p.bool since it's affected by debugFormat; also want to see this clearly
+-	p.bool(trackAllTypes)
+-	p.bool(p.posInfoFormat)
+-
+-	// --- generic export data ---
+-
+-	// populate type map with predeclared "known" types
+-	predecl := predeclared()
+-	for index, typ := range predecl {
+-		p.typIndex[typ] = index
+-	}
+-	if len(p.typIndex) != len(predecl) {
+-		Fatalf("exporter: duplicate entries in type map?")
+-	}
+-
+-	// write package data
+-	if localpkg.Path != "" {
+-		Fatalf("exporter: local package path not empty: %q", localpkg.Path)
+-	}
+-	p.pkg(localpkg)
+-	if p.trace {
+-		p.tracef("\n")
+-	}
+-
+-	// export objects
+-	//
+-	// We've already added all exported (package-level) objects to
+-	// exportlist. These objects represent all information
+-	// required to import this package and type-check against it;
+-	// i.e., this is the platform-independent export data. The
+-	// format is generic in the sense that different compilers can
+-	// use the same representation.
+-	//
+-	// However, due to inlineable function and their dependencies,
+-	// we may need to export (or possibly reexport) additional
+-	// objects. We handle these objects separately. This data is
+-	// platform-specific as it depends on the inlining decisions
+-	// of the compiler and the representation of the inlined
+-	// function bodies.
+-
+-	// Remember initial exportlist length.
+-	numglobals := len(exportlist)
+-
+-	// Phase 0: Mark all inlineable functions that an importing
+-	// package could call. This is done by tracking down all
+-	// inlineable methods reachable from exported declarations.
+-	//
+-	// Along the way, we add to exportlist any function and
+-	// variable declarations needed by the inline bodies.
+-	if exportInlined {
+-		p.marked = make(map[*types.Type]bool)
+-		for _, n := range exportlist {
+-			sym := n.Sym
+-			p.markType(asNode(sym.Def).Type)
+-		}
+-		p.marked = nil
+-	}
+-
+-	// Phase 1: Export package-level objects.
+-	objcount := 0
+-	for _, n := range exportlist[:numglobals] {
+-		sym := n.Sym
+-
+-		// TODO(gri) Closures have dots in their names;
+-		// e.g., TestFloatZeroValue.func1 in math/big tests.
+-		if strings.Contains(sym.Name, ".") {
+-			Fatalf("exporter: unexpected symbol: %v", sym)
+-		}
+-
+-		if sym.Def == nil {
+-			Fatalf("exporter: unknown export symbol: %v", sym)
+-		}
+-
+-		// TODO(gri) Optimization: Probably worthwhile collecting
+-		// long runs of constants and export them "in bulk" (saving
+-		// tags and types, and making import faster).
+-
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.obj(sym)
+-		objcount++
+-	}
+-
+-	// indicate end of list
+-	if p.trace {
+-		p.tracef("\n")
+-	}
+-	p.tag(endTag)
+-
+-	// for self-verification only (redundant)
+-	p.int(objcount)
+-
+-	// --- compiler-specific export data ---
+-
+-	if p.trace {
+-		p.tracef("\n--- compiler-specific export data ---\n[ ")
+-		if p.indent != 0 {
+-			Fatalf("exporter: incorrect indentation")
+-		}
+-	}
+-
+-	// write compiler-specific flags
+-	if p.trace {
+-		p.tracef("\n")
+-	}
+-
+-	// Phase 2: Export objects added to exportlist during phase 0.
+-	objcount = 0
+-	for _, n := range exportlist[numglobals:] {
+-		sym := n.Sym
+-
+-		// TODO(gri) The rest of this loop body is identical with
+-		// the loop body above. Leave alone for now since there
+-		// are different optimization opportunities, but factor
+-		// eventually.
+-
+-		// TODO(gri) Closures have dots in their names;
+-		// e.g., TestFloatZeroValue.func1 in math/big tests.
+-		if strings.Contains(sym.Name, ".") {
+-			Fatalf("exporter: unexpected symbol: %v", sym)
+-		}
+-
+-		if sym.Def == nil {
+-			Fatalf("exporter: unknown export symbol: %v", sym)
+-		}
+-
+-		// TODO(gri) Optimization: Probably worthwhile collecting
+-		// long runs of constants and export them "in bulk" (saving
+-		// tags and types, and making import faster).
+-
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-
+-		if IsAlias(sym) {
+-			Fatalf("exporter: unexpected type alias %v in inlined function body", sym)
+-		}
+-
+-		p.obj(sym)
+-		objcount++
+-	}
+-
+-	// indicate end of list
+-	if p.trace {
+-		p.tracef("\n")
+-	}
+-	p.tag(endTag)
+-
+-	// for self-verification only (redundant)
+-	p.int(objcount)
+-
+-	// --- inlined function bodies ---
+-
+-	if p.trace {
+-		p.tracef("\n--- inlined function bodies ---\n")
+-		if p.indent != 0 {
+-			Fatalf("exporter: incorrect indentation")
+-		}
+-	}
+-
+-	// write inlineable function bodies
+-	// Don't use range since funcList may grow.
+-	objcount = 0
+-	for i := 0; i < len(p.funcList); i++ {
+-		if f := p.funcList[i]; f.ExportInline() {
+-			// function has inlineable body:
+-			// write index and body
+-			if p.trace {
+-				p.tracef("\n----\nfunc { %#v }\n", asNodes(f.Inl.Body))
+-			}
+-			p.int(i)
+-			p.int(int(f.Inl.Cost))
+-			p.stmtList(asNodes(f.Inl.Body))
+-			if p.trace {
+-				p.tracef("\n")
+-			}
+-			objcount++
+-		}
+-	}
+-
+-	// indicate end of list
+-	if p.trace {
+-		p.tracef("\n")
+-	}
+-	p.int(-1) // invalid index terminates list
+-
+-	// for self-verification only (redundant)
+-	p.int(objcount)
+-
+-	if p.trace {
+-		p.tracef("\n--- end ---\n")
+-	}
+-
+-	// --- end of export data ---
+-
+-	return p.written
+-}
+-
+-func (p *exporter) pkg(pkg *types.Pkg) {
+-	if pkg == nil {
+-		Fatalf("exporter: unexpected nil pkg")
+-	}
+-
+-	// if we saw the package before, write its index (>= 0)
+-	if i, ok := p.pkgIndex[pkg]; ok {
+-		p.index('P', i)
+-		return
+-	}
+-
+-	// otherwise, remember the package, write the package tag (< 0) and package data
+-	if p.trace {
+-		p.tracef("P%d = { ", len(p.pkgIndex))
+-		defer p.tracef("} ")
+-	}
+-	p.pkgIndex[pkg] = len(p.pkgIndex)
+-
+-	p.tag(packageTag)
+-	p.string(pkg.Name)
+-	p.path(pkg.Path)
+-	p.int(pkg.Height)
+-}
+-
+-func unidealType(typ *types.Type, val Val) *types.Type {
+-	// Untyped (ideal) constants get their own type. This decouples
+-	// the constant type from the encoding of the constant value.
+-	if typ == nil || typ.IsUntyped() {
+-		typ = untype(val.Ctype())
+-	}
+-	return typ
+ }
+ 
+ // markType recursively visits types reachable from t to identify
+@@ -508,1287 +78,11 @@ func (p *exporter) markType(t *types.Type) {
+ 	}
+ }
+ 
+-func (p *exporter) obj(sym *types.Sym) {
+-	// Exported objects may be from different packages because they
+-	// may be re-exported via an exported alias or as dependencies in
+-	// exported inlined function bodies. Thus, exported object names
+-	// must be fully qualified.
+-	//
+-	// (This can only happen for aliased objects or during phase 2
+-	// (exportInlined enabled) of object export. Unaliased Objects
+-	// exported in phase 1 (compiler-indendepent objects) are by
+-	// definition only the objects from the current package and not
+-	// pulled in via inlined function bodies. In that case the package
+-	// qualifier is not needed. Possible space optimization.)
+-
+-	n := asNode(sym.Def)
+-	switch n.Op {
+-	case OLITERAL:
+-		// constant
+-		// TODO(gri) determine if we need the typecheck call here
+-		n = typecheck(n, Erv)
+-		if n == nil || n.Op != OLITERAL {
+-			Fatalf("exporter: dumpexportconst: oconst nil: %v", sym)
+-		}
+-
+-		p.tag(constTag)
+-		p.pos(n.Pos)
+-		// TODO(gri) In inlined functions, constants are used directly
+-		// so they should never occur as re-exported objects. We may
+-		// not need the qualified name here. See also comment above.
+-		// Possible space optimization.
+-		p.qualifiedName(sym)
+-		p.typ(unidealType(n.Type, n.Val()))
+-		p.value(n.Val())
+-
+-	case OTYPE:
+-		// named type
+-		t := n.Type
+-		if t.Etype == TFORW {
+-			Fatalf("exporter: export of incomplete type %v", sym)
+-		}
+-
+-		if IsAlias(sym) {
+-			p.tag(aliasTag)
+-			p.pos(n.Pos)
+-			p.qualifiedName(sym)
+-		} else {
+-			p.tag(typeTag)
+-		}
+-		p.typ(t)
+-
+-	case ONAME:
+-		// variable or function
+-		n = typecheck(n, Erv|Ecall)
+-		if n == nil || n.Type == nil {
+-			Fatalf("exporter: variable/function exported but not defined: %v", sym)
+-		}
+-
+-		if n.Type.Etype == TFUNC && n.Class() == PFUNC {
+-			// function
+-			p.tag(funcTag)
+-			p.pos(n.Pos)
+-			p.qualifiedName(sym)
+-
+-			sig := asNode(sym.Def).Type
+-
+-			// Theoretically, we only need numbered
+-			// parameters if we're supplying an inline
+-			// function body. However, it's possible to
+-			// import a function from a package that
+-			// didn't supply the inline body, and then
+-			// another that did. In this case, we would
+-			// need to rename the parameters during
+-			// import, which is a little sketchy.
+-			//
+-			// For simplicity, just always number
+-			// parameters.
+-			p.paramList(sig.Params(), true)
+-			p.paramList(sig.Results(), true)
+-
+-			p.funcList = append(p.funcList, asNode(sym.Def).Func)
+-		} else {
+-			// variable
+-			p.tag(varTag)
+-			p.pos(n.Pos)
+-			p.qualifiedName(sym)
+-			p.typ(asNode(sym.Def).Type)
+-		}
+-
+-	default:
+-		Fatalf("exporter: unexpected export symbol: %v %v", n.Op, sym)
+-	}
+-}
+-
+ // deltaNewFile is a magic line delta offset indicating a new file.
+ // We use -64 because it is rare; see issue 20080 and CL 41619.
+ // -64 is the smallest int that fits in a single byte as a varint.
+ const deltaNewFile = -64
+ 
+-func (p *exporter) pos(pos src.XPos) {
+-	if !p.posInfoFormat {
+-		return
+-	}
+-
+-	file, line := fileLine(pos)
+-	if file == p.prevFile {
+-		// common case: write line delta
+-		// delta == deltaNewFile means different file
+-		// if the actual line delta is deltaNewFile,
+-		// follow up with a negative int to indicate that.
+-		// only non-negative ints can follow deltaNewFile
+-		// when writing a new file.
+-		delta := line - p.prevLine
+-		p.int(delta)
+-		if delta == deltaNewFile {
+-			p.int(-1) // -1 means no file change
+-		}
+-	} else {
+-		// different file
+-		p.int(deltaNewFile)
+-		p.int(line) // line >= 0
+-		p.path(file)
+-		p.prevFile = file
+-	}
+-	p.prevLine = line
+-}
+-
+-func (p *exporter) path(s string) {
+-	if i, ok := p.pathIndex[s]; ok {
+-		// Note: Using p.index(i) here requires the use of p.tag(-len(c)) below
+-		//       to get matching debug markers ('t'). But in trace mode p.tag
+-		//       assumes that the tag argument is a valid tag that can be looked
+-		//       up in the tagString list, rather then some arbitrary slice length.
+-		//       Use p.int instead.
+-		p.int(i) // i >= 0
+-		return
+-	}
+-	p.pathIndex[s] = len(p.pathIndex)
+-	c := strings.Split(s, "/")
+-	p.int(-len(c)) // -len(c) < 0
+-	for _, x := range c {
+-		p.string(x)
+-	}
+-}
+-
+-func fileLine(pos0 src.XPos) (file string, line int) {
+-	pos := Ctxt.PosTable.Pos(pos0)
+-	file = pos.Base().AbsFilename()
+-	line = int(pos.RelLine())
+-	return
+-}
+-
+-func (p *exporter) typ(t *types.Type) {
+-	if t == nil {
+-		Fatalf("exporter: nil type")
+-	}
+-
+-	// Possible optimization: Anonymous pointer types *T where
+-	// T is a named type are common. We could canonicalize all
+-	// such types *T to a single type PT = *T. This would lead
+-	// to at most one *T entry in typIndex, and all future *T's
+-	// would be encoded as the respective index directly. Would
+-	// save 1 byte (pointerTag) per *T and reduce the typIndex
+-	// size (at the cost of a canonicalization map). We can do
+-	// this later, without encoding format change.
+-
+-	// if we saw the type before, write its index (>= 0)
+-	if i, ok := p.typIndex[t]; ok {
+-		p.index('T', i)
+-		return
+-	}
+-
+-	// otherwise, remember the type, write the type tag (< 0) and type data
+-	if trackAllTypes {
+-		if p.trace {
+-			p.tracef("T%d = {>\n", len(p.typIndex))
+-			defer p.tracef("<\n} ")
+-		}
+-		p.typIndex[t] = len(p.typIndex)
+-	}
+-
+-	// pick off named types
+-	if tsym := t.Sym; tsym != nil {
+-		if !trackAllTypes {
+-			// if we don't track all types, track named types now
+-			p.typIndex[t] = len(p.typIndex)
+-		}
+-
+-		// Predeclared types should have been found in the type map.
+-		if t.Orig == t {
+-			Fatalf("exporter: predeclared type missing from type map?")
+-		}
+-
+-		n := typenod(t)
+-		if n.Type != t {
+-			Fatalf("exporter: named type definition incorrectly set up")
+-		}
+-
+-		p.tag(namedTag)
+-		p.pos(n.Pos)
+-		p.qualifiedName(tsym)
+-
+-		// write underlying type
+-		p.typ(t.Orig)
+-
+-		// interfaces don't have associated methods
+-		if t.Orig.IsInterface() {
+-			return
+-		}
+-
+-		// sort methods for reproducible export format
+-		// TODO(gri) Determine if they are already sorted
+-		// in which case we can drop this step.
+-		var methods []*types.Field
+-		methods = append(methods, t.Methods().Slice()...)
+-		sort.Sort(methodbyname(methods))
+-		p.int(len(methods))
+-
+-		if p.trace && len(methods) > 0 {
+-			p.tracef("associated methods {>")
+-		}
+-
+-		for _, m := range methods {
+-			if p.trace {
+-				p.tracef("\n")
+-			}
+-			if strings.Contains(m.Sym.Name, ".") {
+-				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
+-			}
+-
+-			p.pos(m.Pos)
+-			p.fieldSym(m.Sym, false)
+-
+-			sig := m.Type
+-			mfn := asNode(sig.FuncType().Nname)
+-
+-			// See comment in (*exporter).obj about
+-			// numbered parameters.
+-			p.paramList(sig.Recvs(), true)
+-			p.paramList(sig.Params(), true)
+-			p.paramList(sig.Results(), true)
+-			p.bool(m.Nointerface()) // record go:nointerface pragma value (see also #16243)
+-
+-			p.funcList = append(p.funcList, mfn.Func)
+-		}
+-
+-		if p.trace && len(methods) > 0 {
+-			p.tracef("<\n} ")
+-		}
+-
+-		return
+-	}
+-
+-	// otherwise we have a type literal
+-	switch t.Etype {
+-	case TARRAY:
+-		if t.IsDDDArray() {
+-			Fatalf("array bounds should be known at export time: %v", t)
+-		}
+-		p.tag(arrayTag)
+-		p.int64(t.NumElem())
+-		p.typ(t.Elem())
+-
+-	case TSLICE:
+-		p.tag(sliceTag)
+-		p.typ(t.Elem())
+-
+-	case TDDDFIELD:
+-		// see p.param use of TDDDFIELD
+-		p.tag(dddTag)
+-		p.typ(t.DDDField())
+-
+-	case TSTRUCT:
+-		p.tag(structTag)
+-		p.fieldList(t)
+-
+-	case TPTR32, TPTR64: // could use Tptr but these are constants
+-		p.tag(pointerTag)
+-		p.typ(t.Elem())
+-
+-	case TFUNC:
+-		p.tag(signatureTag)
+-		p.paramList(t.Params(), false)
+-		p.paramList(t.Results(), false)
+-
+-	case TINTER:
+-		p.tag(interfaceTag)
+-		p.methodList(t)
+-
+-	case TMAP:
+-		p.tag(mapTag)
+-		p.typ(t.Key())
+-		p.typ(t.Elem())
+-
+-	case TCHAN:
+-		p.tag(chanTag)
+-		p.int(int(t.ChanDir()))
+-		p.typ(t.Elem())
+-
+-	default:
+-		Fatalf("exporter: unexpected type: %v (Etype = %d)", t, t.Etype)
+-	}
+-}
+-
+-func (p *exporter) qualifiedName(sym *types.Sym) {
+-	p.string(sym.Name)
+-	p.pkg(sym.Pkg)
+-}
+-
+-func (p *exporter) fieldList(t *types.Type) {
+-	if p.trace && t.NumFields() > 0 {
+-		p.tracef("fields {>")
+-		defer p.tracef("<\n} ")
+-	}
+-
+-	p.int(t.NumFields())
+-	for _, f := range t.Fields().Slice() {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.field(f)
+-	}
+-}
+-
+-func (p *exporter) field(f *types.Field) {
+-	p.pos(f.Pos)
+-	p.fieldName(f)
+-	p.typ(f.Type)
+-	p.string(f.Note)
+-}
+-
+-func (p *exporter) methodList(t *types.Type) {
+-	var embeddeds, methods []*types.Field
+-
+-	for _, m := range t.Methods().Slice() {
+-		if m.Sym != nil {
+-			methods = append(methods, m)
+-		} else {
+-			embeddeds = append(embeddeds, m)
+-		}
+-	}
+-
+-	if p.trace && len(embeddeds) > 0 {
+-		p.tracef("embeddeds {>")
+-	}
+-	p.int(len(embeddeds))
+-	for _, m := range embeddeds {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.pos(m.Pos)
+-		p.typ(m.Type)
+-	}
+-	if p.trace && len(embeddeds) > 0 {
+-		p.tracef("<\n} ")
+-	}
+-
+-	if p.trace && len(methods) > 0 {
+-		p.tracef("methods {>")
+-	}
+-	p.int(len(methods))
+-	for _, m := range methods {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.method(m)
+-	}
+-	if p.trace && len(methods) > 0 {
+-		p.tracef("<\n} ")
+-	}
+-}
+-
+-func (p *exporter) method(m *types.Field) {
+-	p.pos(m.Pos)
+-	p.methodName(m.Sym)
+-	p.paramList(m.Type.Params(), false)
+-	p.paramList(m.Type.Results(), false)
+-}
+-
+-func (p *exporter) fieldName(t *types.Field) {
+-	name := t.Sym.Name
+-	if t.Embedded != 0 {
+-		// anonymous field - we distinguish between 3 cases:
+-		// 1) field name matches base type name and is exported
+-		// 2) field name matches base type name and is not exported
+-		// 3) field name doesn't match base type name (alias name)
+-		bname := basetypeName(t.Type)
+-		if name == bname {
+-			if types.IsExported(name) {
+-				name = "" // 1) we don't need to know the field name or package
+-			} else {
+-				name = "?" // 2) use unexported name "?" to force package export
+-			}
+-		} else {
+-			// 3) indicate alias and export name as is
+-			// (this requires an extra "@" but this is a rare case)
+-			p.string("@")
+-		}
+-	}
+-	p.string(name)
+-	if name != "" && !types.IsExported(name) {
+-		p.pkg(t.Sym.Pkg)
+-	}
+-}
+-
+-// methodName is like qualifiedName but it doesn't record the package for exported names.
+-func (p *exporter) methodName(sym *types.Sym) {
+-	p.string(sym.Name)
+-	if !types.IsExported(sym.Name) {
+-		p.pkg(sym.Pkg)
+-	}
+-}
+-
+-func basetypeName(t *types.Type) string {
+-	s := t.Sym
+-	if s == nil && t.IsPtr() {
+-		s = t.Elem().Sym // deref
+-	}
+-	if s != nil {
+-		return s.Name
+-	}
+-	return "" // unnamed type
+-}
+-
+-func (p *exporter) paramList(params *types.Type, numbered bool) {
+-	if !params.IsFuncArgStruct() {
+-		Fatalf("exporter: parameter list expected")
+-	}
+-
+-	// use negative length to indicate unnamed parameters
+-	// (look at the first parameter only since either all
+-	// names are present or all are absent)
+-	//
+-	// TODO(gri) If we don't have an exported function
+-	// body, the parameter names are irrelevant for the
+-	// compiler (though they may be of use for other tools).
+-	// Possible space optimization.
+-	n := params.NumFields()
+-	if n > 0 && parName(params.Field(0), numbered) == "" {
+-		n = -n
+-	}
+-	p.int(n)
+-	for _, q := range params.Fields().Slice() {
+-		p.param(q, n, numbered)
+-	}
+-}
+-
+-func (p *exporter) param(q *types.Field, n int, numbered bool) {
+-	t := q.Type
+-	if q.Isddd() {
+-		// create a fake type to encode ... just for the p.typ call
+-		t = types.NewDDDField(t.Elem())
+-	}
+-	p.typ(t)
+-	if n > 0 {
+-		name := parName(q, numbered)
+-		if name == "" {
+-			// Sometimes we see an empty name even for n > 0.
+-			// This appears to happen for interface methods
+-			// with _ (blank) parameter names. Make sure we
+-			// have a proper name and package so we don't crash
+-			// during import (see also issue #15470).
+-			// (parName uses "" instead of "?" as in fmt.go)
+-			// TODO(gri) review parameter name encoding
+-			name = "_"
+-		}
+-		p.string(name)
+-		if name != "_" {
+-			// Because of (re-)exported inlined functions
+-			// the importpkg may not be the package to which this
+-			// function (and thus its parameter) belongs. We need to
+-			// supply the parameter package here. We need the package
+-			// when the function is inlined so we can properly resolve
+-			// the name. The _ (blank) parameter cannot be accessed, so
+-			// we don't need to export a package.
+-			//
+-			// TODO(gri) This is compiler-specific. Try using importpkg
+-			// here and then update the symbols if we find an inlined
+-			// body only. Otherwise, the parameter name is ignored and
+-			// the package doesn't matter. This would remove an int
+-			// (likely 1 byte) for each named parameter.
+-			p.pkg(q.Sym.Pkg)
+-		}
+-	}
+-	// TODO(gri) This is compiler-specific (escape info).
+-	// Move into compiler-specific section eventually?
+-	// (Not having escape info causes tests to fail, e.g. runtime GCInfoTest)
+-	p.string(q.Note)
+-}
+-
+-func parName(f *types.Field, numbered bool) string {
+-	s := origSym(f.Sym)
+-	if s == nil {
+-		return ""
+-	}
+-
+-	if s.Name == "_" {
+-		return "_"
+-	}
+-
+-	// print symbol with Vargen number or not as desired
+-	name := s.Name
+-	if strings.Contains(name, ".") {
+-		Fatalf("invalid symbol name: %s", name)
+-	}
+-
+-	// Functions that can be inlined use numbered parameters so we can distinguish them
+-	// from other names in their context after inlining (i.e., the parameter numbering
+-	// is a form of parameter rewriting). See issue 4326 for an example and test case.
+-	if numbered {
+-		if n := asNode(f.Nname); !strings.Contains(name, "·") && n != nil && n.Name.Vargen > 0 {
+-			name = fmt.Sprintf("%s·%d", name, n.Name.Vargen) // append Vargen
+-		}
+-	} else {
+-		if i := strings.Index(name, "·"); i > 0 {
+-			name = name[:i] // cut off Vargen
+-		}
+-	}
+-	return name
+-}
+-
+-func (p *exporter) value(x Val) {
+-	if p.trace {
+-		p.tracef("= ")
+-	}
+-
+-	switch x := x.U.(type) {
+-	case bool:
+-		tag := falseTag
+-		if x {
+-			tag = trueTag
+-		}
+-		p.tag(tag)
+-
+-	case *Mpint:
+-		if minintval[TINT64].Cmp(x) <= 0 && x.Cmp(maxintval[TINT64]) <= 0 {
+-			// common case: x fits into an int64 - use compact encoding
+-			p.tag(int64Tag)
+-			p.int64(x.Int64())
+-			return
+-		}
+-		// uncommon case: large x - use float encoding
+-		// (powers of 2 will be encoded efficiently with exponent)
+-		f := newMpflt()
+-		f.SetInt(x)
+-		p.tag(floatTag)
+-		p.float(f)
+-
+-	case *Mpflt:
+-		p.tag(floatTag)
+-		p.float(x)
+-
+-	case *Mpcplx:
+-		p.tag(complexTag)
+-		p.float(&x.Real)
+-		p.float(&x.Imag)
+-
+-	case string:
+-		p.tag(stringTag)
+-		p.string(x)
+-
+-	case *NilVal:
+-		// not a constant but used in exported function bodies
+-		p.tag(nilTag)
+-
+-	default:
+-		Fatalf("exporter: unexpected value %v (%T)", x, x)
+-	}
+-}
+-
+-func (p *exporter) float(x *Mpflt) {
+-	// extract sign (there is no -0)
+-	f := &x.Val
+-	sign := f.Sign()
+-	if sign == 0 {
+-		// x == 0
+-		p.int(0)
+-		return
+-	}
+-	// x != 0
+-
+-	// extract exponent such that 0.5 <= m < 1.0
+-	var m big.Float
+-	exp := f.MantExp(&m)
+-
+-	// extract mantissa as *big.Int
+-	// - set exponent large enough so mant satisfies mant.IsInt()
+-	// - get *big.Int from mant
+-	m.SetMantExp(&m, int(m.MinPrec()))
+-	mant, acc := m.Int(nil)
+-	if acc != big.Exact {
+-		Fatalf("exporter: internal error")
+-	}
+-
+-	p.int(sign)
+-	p.int(exp)
+-	p.string(string(mant.Bytes()))
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Inlined function bodies
+-
+-// Approach: More or less closely follow what fmt.go is doing for FExp mode
+-// but instead of emitting the information textually, emit the node tree in
+-// binary form.
+-
+-// TODO(gri) Improve tracing output. The current format is difficult to read.
+-
+-// stmtList may emit more (or fewer) than len(list) nodes.
+-func (p *exporter) stmtList(list Nodes) {
+-	if p.trace {
+-		if list.Len() == 0 {
+-			p.tracef("{}")
+-		} else {
+-			p.tracef("{>")
+-			defer p.tracef("<\n}")
+-		}
+-	}
+-
+-	for _, n := range list.Slice() {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		// TODO inlining produces expressions with ninits. we can't export these yet.
+-		// (from fmt.go:1461ff)
+-		p.node(n)
+-	}
+-
+-	p.op(OEND)
+-}
+-
+-func (p *exporter) node(n *Node) {
+-	if opprec[n.Op] < 0 {
+-		p.stmt(n)
+-	} else {
+-		p.expr(n)
+-	}
+-}
+-
+-func (p *exporter) exprList(list Nodes) {
+-	if p.trace {
+-		if list.Len() == 0 {
+-			p.tracef("{}")
+-		} else {
+-			p.tracef("{>")
+-			defer p.tracef("<\n}")
+-		}
+-	}
+-
+-	for _, n := range list.Slice() {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.expr(n)
+-	}
+-
+-	p.op(OEND)
+-}
+-
+-func (p *exporter) elemList(list Nodes) {
+-	if p.trace {
+-		p.tracef("[ ")
+-	}
+-	p.int(list.Len())
+-	if p.trace {
+-		if list.Len() == 0 {
+-			p.tracef("] {}")
+-		} else {
+-			p.tracef("] {>")
+-			defer p.tracef("<\n}")
+-		}
+-	}
+-
+-	for _, n := range list.Slice() {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.fieldSym(n.Sym, false)
+-		p.expr(n.Left)
+-	}
+-}
+-
+-func (p *exporter) expr(n *Node) {
+-	if p.trace {
+-		p.tracef("( ")
+-		defer p.tracef(") ")
+-	}
+-
+-	// from nodefmt (fmt.go)
+-	//
+-	// nodefmt reverts nodes back to their original - we don't need to do
+-	// it because we are not bound to produce valid Go syntax when exporting
+-	//
+-	// if (fmtmode != FExp || n.Op != OLITERAL) && n.Orig != nil {
+-	// 	n = n.Orig
+-	// }
+-
+-	// from exprfmt (fmt.go)
+-	for n != nil && n.Implicit() && (n.Op == OIND || n.Op == OADDR) {
+-		n = n.Left
+-	}
+-
+-	switch op := n.Op; op {
+-	// expressions
+-	// (somewhat closely following the structure of exprfmt in fmt.go)
+-	case OPAREN:
+-		p.expr(n.Left) // unparen
+-
+-	// case ODDDARG:
+-	//	unimplemented - handled by default case
+-
+-	case OLITERAL:
+-		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+-			p.expr(n.Orig)
+-			break
+-		}
+-		p.op(OLITERAL)
+-		p.pos(n.Pos)
+-		p.typ(unidealType(n.Type, n.Val()))
+-		p.value(n.Val())
+-
+-	case ONAME:
+-		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+-		// but for export, this should be rendered as (*pkg.T).meth.
+-		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+-		if n.isMethodExpression() {
+-			p.op(OXDOT)
+-			p.pos(n.Pos)
+-			p.expr(n.Left) // n.Left.Op == OTYPE
+-			p.fieldSym(n.Right.Sym, true)
+-			break
+-		}
+-
+-		p.op(ONAME)
+-		p.pos(n.Pos)
+-		p.sym(n)
+-
+-	// case OPACK, ONONAME:
+-	// 	should have been resolved by typechecking - handled by default case
+-
+-	case OTYPE:
+-		p.op(OTYPE)
+-		p.pos(n.Pos)
+-		p.typ(n.Type)
+-
+-	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+-	// 	should have been resolved by typechecking - handled by default case
+-
+-	// case OCLOSURE:
+-	//	unimplemented - handled by default case
+-
+-	// case OCOMPLIT:
+-	// 	should have been resolved by typechecking - handled by default case
+-
+-	case OPTRLIT:
+-		p.op(OPTRLIT)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.bool(n.Implicit())
+-
+-	case OSTRUCTLIT:
+-		p.op(OSTRUCTLIT)
+-		p.pos(n.Pos)
+-		p.typ(n.Type)
+-		p.elemList(n.List) // special handling of field names
+-
+-	case OARRAYLIT, OSLICELIT, OMAPLIT:
+-		p.op(OCOMPLIT)
+-		p.pos(n.Pos)
+-		p.typ(n.Type)
+-		p.exprList(n.List)
+-
+-	case OKEY:
+-		p.op(OKEY)
+-		p.pos(n.Pos)
+-		p.exprsOrNil(n.Left, n.Right)
+-
+-	// case OSTRUCTKEY:
+-	//	unreachable - handled in case OSTRUCTLIT by elemList
+-
+-	// case OCALLPART:
+-	//	unimplemented - handled by default case
+-
+-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+-		p.op(OXDOT)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.fieldSym(n.Sym, true)
+-
+-	case ODOTTYPE, ODOTTYPE2:
+-		p.op(ODOTTYPE)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.typ(n.Type)
+-
+-	case OINDEX, OINDEXMAP:
+-		p.op(OINDEX)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.expr(n.Right)
+-
+-	case OSLICE, OSLICESTR, OSLICEARR:
+-		p.op(OSLICE)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		low, high, _ := n.SliceBounds()
+-		p.exprsOrNil(low, high)
+-
+-	case OSLICE3, OSLICE3ARR:
+-		p.op(OSLICE3)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		low, high, max := n.SliceBounds()
+-		p.exprsOrNil(low, high)
+-		p.expr(max)
+-
+-	case OCOPY, OCOMPLEX:
+-		// treated like other builtin calls (see e.g., OREAL)
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.expr(n.Right)
+-		p.op(OEND)
+-
+-	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+-		p.op(OCONV)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.typ(n.Type)
+-
+-	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		if n.Left != nil {
+-			p.expr(n.Left)
+-			p.op(OEND)
+-		} else {
+-			p.exprList(n.List) // emits terminating OEND
+-		}
+-		// only append() calls may contain '...' arguments
+-		if op == OAPPEND {
+-			p.bool(n.Isddd())
+-		} else if n.Isddd() {
+-			Fatalf("exporter: unexpected '...' with %v call", op)
+-		}
+-
+-	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+-		p.op(OCALL)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.exprList(n.List)
+-		p.bool(n.Isddd())
+-
+-	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		p.op(op) // must keep separate from OMAKE for importer
+-		p.pos(n.Pos)
+-		p.typ(n.Type)
+-		switch {
+-		default:
+-			// empty list
+-			p.op(OEND)
+-		case n.List.Len() != 0: // pre-typecheck
+-			p.exprList(n.List) // emits terminating OEND
+-		case n.Right != nil:
+-			p.expr(n.Left)
+-			p.expr(n.Right)
+-			p.op(OEND)
+-		case n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()):
+-			p.expr(n.Left)
+-			p.op(OEND)
+-		}
+-
+-	// unary expressions
+-	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-
+-	// binary expressions
+-	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
+-		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.expr(n.Right)
+-
+-	case OADDSTR:
+-		p.op(OADDSTR)
+-		p.pos(n.Pos)
+-		p.exprList(n.List)
+-
+-	case OCMPSTR, OCMPIFACE:
+-		p.op(n.SubOp())
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-		p.expr(n.Right)
+-
+-	case ODCLCONST:
+-		// if exporting, DCLCONST should just be removed as its usage
+-		// has already been replaced with literals
+-		// TODO(gri) these should not be exported in the first place
+-		// TODO(gri) why is this considered an expression in fmt.go?
+-		p.op(ODCLCONST)
+-		p.pos(n.Pos)
+-
+-	default:
+-		Fatalf("cannot export %v (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
+-	}
+-}
+-
+-// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
+-// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
+-func (p *exporter) stmt(n *Node) {
+-	if p.trace {
+-		p.tracef("( ")
+-		defer p.tracef(") ")
+-	}
+-
+-	if n.Ninit.Len() > 0 && !stmtwithinit(n.Op) {
+-		if p.trace {
+-			p.tracef("( /* Ninits */ ")
+-		}
+-
+-		// can't use stmtList here since we don't want the final OEND
+-		for _, n := range n.Ninit.Slice() {
+-			p.stmt(n)
+-		}
+-
+-		if p.trace {
+-			p.tracef(") ")
+-		}
+-	}
+-
+-	switch op := n.Op; op {
+-	case ODCL:
+-		p.op(ODCL)
+-		p.pos(n.Left.Pos) // use declared variable's pos
+-		p.sym(n.Left)
+-		p.typ(n.Left.Type)
+-
+-	// case ODCLFIELD:
+-	//	unimplemented - handled by default case
+-
+-	case OAS:
+-		// Don't export "v = <N>" initializing statements, hope they're always
+-		// preceded by the DCL which will be re-parsed and typecheck to reproduce
+-		// the "v = <N>" again.
+-		if n.Right != nil {
+-			p.op(OAS)
+-			p.pos(n.Pos)
+-			p.expr(n.Left)
+-			p.expr(n.Right)
+-		}
+-
+-	case OASOP:
+-		p.op(OASOP)
+-		p.pos(n.Pos)
+-		p.op(n.SubOp())
+-		p.expr(n.Left)
+-		if p.bool(!n.Implicit()) {
+-			p.expr(n.Right)
+-		}
+-
+-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		p.op(OAS2)
+-		p.pos(n.Pos)
+-		p.exprList(n.List)
+-		p.exprList(n.Rlist)
+-
+-	case ORETURN:
+-		p.op(ORETURN)
+-		p.pos(n.Pos)
+-		p.exprList(n.List)
+-
+-	// case ORETJMP:
+-	// 	unreachable - generated by compiler for trampolin routines
+-
+-	case OPROC, ODEFER:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-
+-	case OIF:
+-		p.op(OIF)
+-		p.pos(n.Pos)
+-		p.stmtList(n.Ninit)
+-		p.expr(n.Left)
+-		p.stmtList(n.Nbody)
+-		p.stmtList(n.Rlist)
+-
+-	case OFOR:
+-		p.op(OFOR)
+-		p.pos(n.Pos)
+-		p.stmtList(n.Ninit)
+-		p.exprsOrNil(n.Left, n.Right)
+-		p.stmtList(n.Nbody)
+-
+-	case ORANGE:
+-		p.op(ORANGE)
+-		p.pos(n.Pos)
+-		p.stmtList(n.List)
+-		p.expr(n.Right)
+-		p.stmtList(n.Nbody)
+-
+-	case OSELECT, OSWITCH:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.stmtList(n.Ninit)
+-		p.exprsOrNil(n.Left, nil)
+-		p.stmtList(n.List)
+-
+-	case OCASE, OXCASE:
+-		p.op(OXCASE)
+-		p.pos(n.Pos)
+-		p.stmtList(n.List)
+-		p.stmtList(n.Nbody)
+-
+-	case OFALL:
+-		p.op(OFALL)
+-		p.pos(n.Pos)
+-
+-	case OBREAK, OCONTINUE:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.exprsOrNil(n.Left, nil)
+-
+-	case OEMPTY:
+-		// nothing to emit
+-
+-	case OGOTO, OLABEL:
+-		p.op(op)
+-		p.pos(n.Pos)
+-		p.expr(n.Left)
+-
+-	default:
+-		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
+-	}
+-}
+-
+-func (p *exporter) exprsOrNil(a, b *Node) {
+-	ab := 0
+-	if a != nil {
+-		ab |= 1
+-	}
+-	if b != nil {
+-		ab |= 2
+-	}
+-	p.int(ab)
+-	if ab&1 != 0 {
+-		p.expr(a)
+-	}
+-	if ab&2 != 0 {
+-		p.node(b)
+-	}
+-}
+-
+-func (p *exporter) fieldSym(s *types.Sym, short bool) {
+-	name := s.Name
+-
+-	// remove leading "type." in method names ("(T).m" -> "m")
+-	if short {
+-		if i := strings.LastIndex(name, "."); i >= 0 {
+-			name = name[i+1:]
+-		}
+-	}
+-
+-	// we should never see a _ (blank) here - these are accessible ("read") fields
+-	// TODO(gri) can we assert this with an explicit check?
+-	p.string(name)
+-	if !types.IsExported(name) {
+-		p.pkg(s.Pkg)
+-	}
+-}
+-
+-// sym must encode the _ (blank) identifier as a single string "_" since
+-// encoding for some nodes is based on this assumption (e.g. ONAME nodes).
+-func (p *exporter) sym(n *Node) {
+-	s := n.Sym
+-	if s.Pkg != nil {
+-		if len(s.Name) > 0 && s.Name[0] == '.' {
+-			Fatalf("exporter: exporting synthetic symbol %s", s.Name)
+-		}
+-	}
+-
+-	if p.trace {
+-		p.tracef("{ SYM ")
+-		defer p.tracef("} ")
+-	}
+-
+-	name := s.Name
+-
+-	// remove leading "type." in method names ("(T).m" -> "m")
+-	if i := strings.LastIndex(name, "."); i >= 0 {
+-		name = name[i+1:]
+-	}
+-
+-	if strings.Contains(name, "·") && n.Name.Vargen > 0 {
+-		Fatalf("exporter: unexpected · in symbol name")
+-	}
+-
+-	if i := n.Name.Vargen; i > 0 {
+-		name = fmt.Sprintf("%s·%d", name, i)
+-	}
+-
+-	p.string(name)
+-	if name != "_" {
+-		p.pkg(s.Pkg)
+-	}
+-	// Fixes issue #18167.
+-	p.string(s.Linkname)
+-}
+-
+-func (p *exporter) bool(b bool) bool {
+-	if p.trace {
+-		p.tracef("[")
+-		defer p.tracef("= %v] ", b)
+-	}
+-
+-	x := 0
+-	if b {
+-		x = 1
+-	}
+-	p.int(x)
+-	return b
+-}
+-
+-func (p *exporter) op(op Op) {
+-	if p.trace {
+-		p.tracef("[")
+-		defer p.tracef("= %v] ", op)
+-	}
+-
+-	p.int(int(op))
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Low-level encoders
+-
+-func (p *exporter) index(marker byte, index int) {
+-	if index < 0 {
+-		Fatalf("exporter: invalid index < 0")
+-	}
+-	if debugFormat {
+-		p.marker('t')
+-	}
+-	if p.trace {
+-		p.tracef("%c%d ", marker, index)
+-	}
+-	p.rawInt64(int64(index))
+-}
+-
+-func (p *exporter) tag(tag int) {
+-	if tag >= 0 {
+-		Fatalf("exporter: invalid tag >= 0")
+-	}
+-	if debugFormat {
+-		p.marker('t')
+-	}
+-	if p.trace {
+-		p.tracef("%s ", tagString[-tag])
+-	}
+-	p.rawInt64(int64(tag))
+-}
+-
+-func (p *exporter) int(x int) {
+-	p.int64(int64(x))
+-}
+-
+-func (p *exporter) int64(x int64) {
+-	if debugFormat {
+-		p.marker('i')
+-	}
+-	if p.trace {
+-		p.tracef("%d ", x)
+-	}
+-	p.rawInt64(x)
+-}
+-
+-func (p *exporter) string(s string) {
+-	if debugFormat {
+-		p.marker('s')
+-	}
+-	if p.trace {
+-		p.tracef("%q ", s)
+-	}
+-	// if we saw the string before, write its index (>= 0)
+-	// (the empty string is mapped to 0)
+-	if i, ok := p.strIndex[s]; ok {
+-		p.rawInt64(int64(i))
+-		return
+-	}
+-	// otherwise, remember string and write its negative length and bytes
+-	p.strIndex[s] = len(p.strIndex)
+-	p.rawInt64(-int64(len(s)))
+-	for i := 0; i < len(s); i++ {
+-		p.rawByte(s[i])
+-	}
+-}
+-
+-// marker emits a marker byte and position information which makes
+-// it easy for a reader to detect if it is "out of sync". Used only
+-// if debugFormat is set.
+-func (p *exporter) marker(m byte) {
+-	p.rawByte(m)
+-	// Uncomment this for help tracking down the location
+-	// of an incorrect marker when running in debugFormat.
+-	// if p.trace {
+-	// 	p.tracef("#%d ", p.written)
+-	// }
+-	p.rawInt64(int64(p.written))
+-}
+-
+-// rawInt64 should only be used by low-level encoders.
+-func (p *exporter) rawInt64(x int64) {
+-	var tmp [binary.MaxVarintLen64]byte
+-	n := binary.PutVarint(tmp[:], x)
+-	for i := 0; i < n; i++ {
+-		p.rawByte(tmp[i])
+-	}
+-}
+-
+-// rawStringln should only be used to emit the initial version string.
+-func (p *exporter) rawStringln(s string) {
+-	for i := 0; i < len(s); i++ {
+-		p.rawByte(s[i])
+-	}
+-	p.rawByte('\n')
+-}
+-
+-// rawByte is the bottleneck interface to write to p.out.
+-// rawByte escapes b as follows (any encoding does that
+-// hides '$'):
+-//
+-//	'$'  => '|' 'S'
+-//	'|'  => '|' '|'
+-//
+-// Necessary so other tools can find the end of the
+-// export data by searching for "$$".
+-// rawByte should only be used by low-level encoders.
+-func (p *exporter) rawByte(b byte) {
+-	switch b {
+-	case '$':
+-		// write '$' as '|' 'S'
+-		b = 'S'
+-		fallthrough
+-	case '|':
+-		// write '|' as '|' '|'
+-		p.out.WriteByte('|')
+-		p.written++
+-	}
+-	p.out.WriteByte(b)
+-	p.written++
+-}
+-
+-// tracef is like fmt.Printf but it rewrites the format string
+-// to take care of indentation.
+-func (p *exporter) tracef(format string, args ...interface{}) {
+-	if strings.ContainsAny(format, "<>\n") {
+-		var buf bytes.Buffer
+-		for i := 0; i < len(format); i++ {
+-			// no need to deal with runes
+-			ch := format[i]
+-			switch ch {
+-			case '>':
+-				p.indent++
+-				continue
+-			case '<':
+-				p.indent--
+-				continue
+-			}
+-			buf.WriteByte(ch)
+-			if ch == '\n' {
+-				for j := p.indent; j > 0; j-- {
+-					buf.WriteString(".  ")
+-				}
+-			}
+-		}
+-		format = buf.String()
+-	}
+-	fmt.Printf(format, args...)
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Export format
+ 
+@@ -1829,44 +123,6 @@ const (
+ 	aliasTag
+ )
+ 
+-// Debugging support.
+-// (tagString is only used when tracing is enabled)
+-var tagString = [...]string{
+-	// Objects
+-	-packageTag: "package",
+-	-constTag:   "const",
+-	-typeTag:    "type",
+-	-varTag:     "var",
+-	-funcTag:    "func",
+-	-endTag:     "end",
+-
+-	// Types
+-	-namedTag:     "named type",
+-	-arrayTag:     "array",
+-	-sliceTag:     "slice",
+-	-dddTag:       "ddd",
+-	-structTag:    "struct",
+-	-pointerTag:   "pointer",
+-	-signatureTag: "signature",
+-	-interfaceTag: "interface",
+-	-mapTag:       "map",
+-	-chanTag:      "chan",
+-
+-	// Values
+-	-falseTag:    "false",
+-	-trueTag:     "true",
+-	-int64Tag:    "int64",
+-	-floatTag:    "float",
+-	-fractionTag: "fraction",
+-	-complexTag:  "complex",
+-	-stringTag:   "string",
+-	-nilTag:      "nil",
+-	-unknownTag:  "unknown",
+-
+-	// Type aliases
+-	-aliasTag: "alias",
+-}
+-
+ // untype returns the "pseudo" untyped type for a Ctype (import/export use only).
+ // (we can't use an pre-initialized array because we must be sure all types are
+ // set up)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index c19f548e18..7aabae764e 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -2,340 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Binary package import.
+-// See bexport.go for the export data format and how
+-// to make a format change.
+-
+ package gc
+ 
+ import (
+-	"bufio"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"encoding/binary"
+-	"fmt"
+-	"math/big"
+-	"strconv"
+-	"strings"
+ )
+ 
+-// The overall structure of Import is symmetric to Export: For each
+-// export method in bexport.go there is a matching and symmetric method
+-// in bimport.go. Changing the export format requires making symmetric
+-// changes to bimport.go and bexport.go.
+-
+-type importer struct {
+-	in      *bufio.Reader
+-	imp     *types.Pkg // imported package
+-	buf     []byte     // reused for reading strings
+-	version int        // export format version
+-
+-	// object lists, in order of deserialization
+-	strList       []string
+-	pathList      []string
+-	pkgList       []*types.Pkg
+-	typList       []*types.Type
+-	funcList      []*Node // nil entry means already declared
+-	trackAllTypes bool
+-
+-	// for delayed type verification
+-	cmpList []struct{ pt, t *types.Type }
+-
+-	// position encoding
+-	posInfoFormat bool
+-	prevFile      string
+-	prevLine      int
+-	posBase       *src.PosBase
+-
+-	// debugging support
+-	debugFormat bool
+-	read        int // bytes read
+-}
+-
+-// Import populates imp from the serialized package data read from in.
+-func Import(imp *types.Pkg, in *bufio.Reader) {
+-	inimport = true
+-	defer func() { inimport = false }()
+-
+-	p := importer{
+-		in:       in,
+-		imp:      imp,
+-		version:  -1,           // unknown version
+-		strList:  []string{""}, // empty string is mapped to 0
+-		pathList: []string{""}, // empty path is mapped to 0
+-	}
+-
+-	// read version info
+-	var versionstr string
+-	if b := p.rawByte(); b == 'c' || b == 'd' {
+-		// Go1.7 encoding; first byte encodes low-level
+-		// encoding format (compact vs debug).
+-		// For backward-compatibility only (avoid problems with
+-		// old installed packages). Newly compiled packages use
+-		// the extensible format string.
+-		// TODO(gri) Remove this support eventually; after Go1.8.
+-		if b == 'd' {
+-			p.debugFormat = true
+-		}
+-		p.trackAllTypes = p.rawByte() == 'a'
+-		p.posInfoFormat = p.bool()
+-		versionstr = p.string()
+-		if versionstr == "v1" {
+-			p.version = 0
+-		}
+-	} else {
+-		// Go1.8 extensible encoding
+-		// read version string and extract version number (ignore anything after the version number)
+-		versionstr = p.rawStringln(b)
+-		if s := strings.SplitN(versionstr, " ", 3); len(s) >= 2 && s[0] == "version" {
+-			if v, err := strconv.Atoi(s[1]); err == nil && v > 0 {
+-				p.version = v
+-			}
+-		}
+-	}
+-
+-	// read version specific flags - extend as necessary
+-	switch p.version {
+-	// case 7:
+-	// 	...
+-	//	fallthrough
+-	case 6, 5, 4, 3, 2, 1:
+-		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+-		p.trackAllTypes = p.bool()
+-		p.posInfoFormat = p.bool()
+-	case 0:
+-		// Go1.7 encoding format - nothing to do here
+-	default:
+-		p.formatErrorf("unknown export format version %d (%q)", p.version, versionstr)
+-	}
+-
+-	// --- generic export data ---
+-
+-	// populate typList with predeclared "known" types
+-	p.typList = append(p.typList, predeclared()...)
+-
+-	// read package data
+-	p.pkg()
+-
+-	// defer some type-checking until all types are read in completely
+-	tcok := typecheckok
+-	typecheckok = true
+-	defercheckwidth()
+-
+-	// read objects
+-
+-	// phase 1
+-	objcount := 0
+-	for {
+-		tag := p.tagOrIndex()
+-		if tag == endTag {
+-			break
+-		}
+-		p.obj(tag)
+-		objcount++
+-	}
+-
+-	// self-verification
+-	if count := p.int(); count != objcount {
+-		p.formatErrorf("got %d objects; want %d", objcount, count)
+-	}
+-
+-	// --- compiler-specific export data ---
+-
+-	// read compiler-specific flags
+-
+-	// phase 2
+-	objcount = 0
+-	for {
+-		tag := p.tagOrIndex()
+-		if tag == endTag {
+-			break
+-		}
+-		p.obj(tag)
+-		objcount++
+-	}
+-
+-	// self-verification
+-	if count := p.int(); count != objcount {
+-		p.formatErrorf("got %d objects; want %d", objcount, count)
+-	}
+-
+-	// read inlineable functions bodies
+-	if dclcontext != PEXTERN {
+-		p.formatErrorf("unexpected context %d", dclcontext)
+-	}
+-
+-	objcount = 0
+-	for i0 := -1; ; {
+-		i := p.int() // index of function with inlineable body
+-		if i < 0 {
+-			break
+-		}
+-
+-		// don't process the same function twice
+-		if i <= i0 {
+-			p.formatErrorf("index not increasing: %d <= %d", i, i0)
+-		}
+-		i0 = i
+-
+-		if Curfn != nil {
+-			p.formatErrorf("unexpected Curfn %v", Curfn)
+-		}
+-
+-		// Note: In the original code, funchdr and funcbody are called for
+-		// all functions (that were not yet imported). Now, we are calling
+-		// them only for functions with inlineable bodies. funchdr does
+-		// parameter renaming which doesn't matter if we don't have a body.
+-
+-		inlCost := p.int()
+-		if f := p.funcList[i]; f != nil && f.Func.Inl == nil {
+-			// function not yet imported - read body and set it
+-			funchdr(f)
+-			body := p.stmtList()
+-			funcbody()
+-			f.Func.Inl = &Inline{
+-				Cost: int32(inlCost),
+-				Body: body,
+-			}
+-			importlist = append(importlist, f)
+-			if Debug['E'] > 0 && Debug['m'] > 2 {
+-				if Debug['m'] > 3 {
+-					fmt.Printf("inl body for %v: %+v\n", f, asNodes(body))
+-				} else {
+-					fmt.Printf("inl body for %v: %v\n", f, asNodes(body))
+-				}
+-			}
+-		} else {
+-			// function already imported - read body but discard declarations
+-			dclcontext = PDISCARD // throw away any declarations
+-			p.stmtList()
+-			dclcontext = PEXTERN
+-		}
+-
+-		objcount++
+-	}
+-
+-	// self-verification
+-	if count := p.int(); count != objcount {
+-		p.formatErrorf("got %d functions; want %d", objcount, count)
+-	}
+-
+-	if dclcontext != PEXTERN {
+-		p.formatErrorf("unexpected context %d", dclcontext)
+-	}
+-
+-	p.verifyTypes()
+-
+-	// --- end of export data ---
+-
+-	typecheckok = tcok
+-	resumecheckwidth()
+-
+-	if debug_dclstack != 0 {
+-		testdclstack()
+-	}
+-}
+-
+-func (p *importer) formatErrorf(format string, args ...interface{}) {
+-	if debugFormat {
+-		Fatalf(format, args...)
+-	}
+-
+-	yyerror("cannot import %q due to version skew - reinstall package (%s)",
+-		p.imp.Path, fmt.Sprintf(format, args...))
+-	errorexit()
+-}
+-
+-func (p *importer) verifyTypes() {
+-	for _, pair := range p.cmpList {
+-		pt := pair.pt
+-		t := pair.t
+-		if !eqtype(pt.Orig, t) {
+-			p.formatErrorf("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, p.imp.Path)
+-		}
+-	}
+-}
+-
+ // numImport tracks how often a package with a given name is imported.
+ // It is used to provide a better error message (by using the package
+ // path to disambiguate) if a package that appears multiple times with
+ // the same name appears in an error message.
+ var numImport = make(map[string]int)
+ 
+-func (p *importer) pkg() *types.Pkg {
+-	// if the package was seen before, i is its index (>= 0)
+-	i := p.tagOrIndex()
+-	if i >= 0 {
+-		return p.pkgList[i]
+-	}
+-
+-	// otherwise, i is the package tag (< 0)
+-	if i != packageTag {
+-		p.formatErrorf("expected package tag, found tag = %d", i)
+-	}
+-
+-	// read package data
+-	name := p.string()
+-	var path string
+-	if p.version >= 5 {
+-		path = p.path()
+-	} else {
+-		path = p.string()
+-	}
+-	var height int
+-	if p.version >= 6 {
+-		height = p.int()
+-	}
+-
+-	// we should never see an empty package name
+-	if name == "" {
+-		p.formatErrorf("empty package name for path %q", path)
+-	}
+-
+-	// we should never see a bad import path
+-	if isbadimport(path, true) {
+-		p.formatErrorf("bad package path %q for package %s", path, name)
+-	}
+-
+-	// an empty path denotes the package we are currently importing;
+-	// it must be the first package we see
+-	if (path == "") != (len(p.pkgList) == 0) {
+-		p.formatErrorf("package path %q for pkg index %d", path, len(p.pkgList))
+-	}
+-
+-	if p.version >= 6 {
+-		if height < 0 || height >= types.MaxPkgHeight {
+-			p.formatErrorf("bad package height %v for package %s", height, name)
+-		}
+-
+-		// reexported packages should always have a lower height than
+-		// the main package
+-		if len(p.pkgList) != 0 && height >= p.imp.Height {
+-			p.formatErrorf("package %q (height %d) reexports package %q (height %d)", p.imp.Path, p.imp.Height, path, height)
+-		}
+-	}
+-
+-	// add package to pkgList
+-	pkg := p.imp
+-	if path != "" {
+-		pkg = types.NewPkg(path, "")
+-	}
+-	if pkg.Name == "" {
+-		pkg.Name = name
+-		numImport[name]++
+-	} else if pkg.Name != name {
+-		yyerror("conflicting package names %s and %s for path %q", pkg.Name, name, path)
+-	}
+-	if myimportpath != "" && path == myimportpath {
+-		yyerror("import %q: package depends on %q (import cycle)", p.imp.Path, path)
+-		errorexit()
+-	}
+-	pkg.Height = height
+-	p.pkgList = append(p.pkgList, pkg)
+-
+-	return pkg
+-}
+-
+ func idealType(typ *types.Type) *types.Type {
+ 	switch typ {
+ 	case types.Idealint, types.Idealrune, types.Idealfloat, types.Idealcomplex:
+@@ -345,1013 +24,11 @@ func idealType(typ *types.Type) *types.Type {
+ 	return typ
+ }
+ 
+-func (p *importer) obj(tag int) {
+-	switch tag {
+-	case constTag:
+-		pos := p.pos()
+-		sym := p.qualifiedName()
+-		typ := p.typ()
+-		val := p.value(typ)
+-		importconst(p.imp, pos, sym, idealType(typ), val)
+-
+-	case aliasTag:
+-		pos := p.pos()
+-		sym := p.qualifiedName()
+-		typ := p.typ()
+-		importalias(p.imp, pos, sym, typ)
+-
+-	case typeTag:
+-		p.typ()
+-
+-	case varTag:
+-		pos := p.pos()
+-		sym := p.qualifiedName()
+-		typ := p.typ()
+-		importvar(p.imp, pos, sym, typ)
+-
+-	case funcTag:
+-		pos := p.pos()
+-		sym := p.qualifiedName()
+-		params := p.paramList()
+-		result := p.paramList()
+-
+-		sig := functypefield(nil, params, result)
+-		importfunc(p.imp, pos, sym, sig)
+-		p.funcList = append(p.funcList, asNode(sym.Def))
+-
+-	default:
+-		p.formatErrorf("unexpected object (tag = %d)", tag)
+-	}
+-}
+-
+-func (p *importer) pos() src.XPos {
+-	if !p.posInfoFormat {
+-		return src.NoXPos
+-	}
+-
+-	file := p.prevFile
+-	line := p.prevLine
+-	delta := p.int()
+-	line += delta
+-	if p.version >= 5 {
+-		if delta == deltaNewFile {
+-			if n := p.int(); n >= 0 {
+-				// file changed
+-				file = p.path()
+-				line = n
+-			}
+-		}
+-	} else {
+-		if delta == 0 {
+-			if n := p.int(); n >= 0 {
+-				// file changed
+-				file = p.prevFile[:n] + p.string()
+-				line = p.int()
+-			}
+-		}
+-	}
+-	if file != p.prevFile {
+-		p.prevFile = file
+-		p.posBase = src.NewFileBase(file, file)
+-	}
+-	p.prevLine = line
+-
+-	pos := src.MakePos(p.posBase, uint(line), 0)
+-	xpos := Ctxt.PosTable.XPos(pos)
+-	return xpos
+-}
+-
+-func (p *importer) path() string {
+-	// if the path was seen before, i is its index (>= 0)
+-	// (the empty string is at index 0)
+-	i := p.int()
+-	if i >= 0 {
+-		return p.pathList[i]
+-	}
+-	// otherwise, i is the negative path length (< 0)
+-	a := make([]string, -i)
+-	for n := range a {
+-		a[n] = p.string()
+-	}
+-	s := strings.Join(a, "/")
+-	p.pathList = append(p.pathList, s)
+-	return s
+-}
+-
+-func (p *importer) newtyp(etype types.EType) *types.Type {
+-	t := types.New(etype)
+-	if p.trackAllTypes {
+-		p.typList = append(p.typList, t)
+-	}
+-	return t
+-}
+-
+-// importtype declares that pt, an imported named type, has underlying type t.
+-func (p *importer) importtype(pt, t *types.Type) {
+-	if pt.Etype == TFORW {
+-		copytype(typenod(pt), t)
+-		checkwidth(pt)
+-	} else {
+-		// pt.Orig and t must be identical.
+-		if p.trackAllTypes {
+-			// If we track all types, t may not be fully set up yet.
+-			// Collect the types and verify identity later.
+-			p.cmpList = append(p.cmpList, struct{ pt, t *types.Type }{pt, t})
+-		} else if !eqtype(pt.Orig, t) {
+-			yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, p.imp.Path)
+-		}
+-	}
+-
+-	if Debug['E'] != 0 {
+-		fmt.Printf("import type %v %L\n", pt, t)
+-	}
+-}
+-
+-func (p *importer) typ() *types.Type {
+-	// if the type was seen before, i is its index (>= 0)
+-	i := p.tagOrIndex()
+-	if i >= 0 {
+-		return p.typList[i]
+-	}
+-
+-	// otherwise, i is the type tag (< 0)
+-	var t *types.Type
+-	switch i {
+-	case namedTag:
+-		pos := p.pos()
+-		tsym := p.qualifiedName()
+-
+-		t = importtype(p.imp, pos, tsym)
+-		p.typList = append(p.typList, t)
+-		dup := !t.IsKind(types.TFORW) // type already imported
+-
+-		// read underlying type
+-		t0 := p.typ()
+-		p.importtype(t, t0)
+-
+-		// interfaces don't have associated methods
+-		if t0.IsInterface() {
+-			break
+-		}
+-
+-		// set correct import context (since p.typ() may be called
+-		// while importing the body of an inlined function)
+-		savedContext := dclcontext
+-		dclcontext = PEXTERN
+-
+-		// read associated methods
+-		for i := p.int(); i > 0; i-- {
+-			mpos := p.pos()
+-			sym := p.fieldSym()
+-
+-			// during import unexported method names should be in the type's package
+-			if !types.IsExported(sym.Name) && sym.Pkg != tsym.Pkg {
+-				Fatalf("imported method name %+v in wrong package %s\n", sym, tsym.Pkg.Name)
+-			}
+-
+-			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
+-			params := p.paramList()
+-			result := p.paramList()
+-			nointerface := p.bool()
+-
+-			mt := functypefield(recv[0], params, result)
+-			oldm := addmethod(sym, mt, false, nointerface)
+-
+-			if dup {
+-				// An earlier import already declared this type and its methods.
+-				// Discard the duplicate method declaration.
+-				n := asNode(oldm.Type.Nname())
+-				p.funcList = append(p.funcList, n)
+-				continue
+-			}
+-
+-			n := newfuncnamel(mpos, methodSym(recv[0].Type, sym))
+-			n.Type = mt
+-			n.SetClass(PFUNC)
+-			checkwidth(n.Type)
+-			p.funcList = append(p.funcList, n)
+-
+-			// (comment from parser.go)
+-			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+-			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
+-			// out by typecheck's lookdot as this $$.ttype. So by providing
+-			// this back link here we avoid special casing there.
+-			mt.SetNname(asTypesNode(n))
+-
+-			if Debug['E'] > 0 {
+-				fmt.Printf("import [%q] meth %v \n", p.imp.Path, n)
+-			}
+-		}
+-
+-		dclcontext = savedContext
+-
+-	case arrayTag:
+-		t = p.newtyp(TARRAY)
+-		bound := p.int64()
+-		elem := p.typ()
+-		t.Extra = &types.Array{Elem: elem, Bound: bound}
+-
+-	case sliceTag:
+-		t = p.newtyp(TSLICE)
+-		elem := p.typ()
+-		t.Extra = types.Slice{Elem: elem}
+-
+-	case dddTag:
+-		t = p.newtyp(TDDDFIELD)
+-		t.Extra = types.DDDField{T: p.typ()}
+-
+-	case structTag:
+-		t = p.newtyp(TSTRUCT)
+-		t.SetFields(p.fieldList())
+-		checkwidth(t)
+-
+-	case pointerTag:
+-		t = p.newtyp(types.Tptr)
+-		t.Extra = types.Ptr{Elem: p.typ()}
+-
+-	case signatureTag:
+-		t = p.newtyp(TFUNC)
+-		params := p.paramList()
+-		result := p.paramList()
+-		functypefield0(t, nil, params, result)
+-
+-	case interfaceTag:
+-		if ml := p.methodList(); len(ml) == 0 {
+-			t = types.Types[TINTER]
+-		} else {
+-			t = p.newtyp(TINTER)
+-			t.SetInterface(ml)
+-		}
+-
+-	case mapTag:
+-		t = p.newtyp(TMAP)
+-		mt := t.MapType()
+-		mt.Key = p.typ()
+-		mt.Elem = p.typ()
+-
+-	case chanTag:
+-		t = p.newtyp(TCHAN)
+-		ct := t.ChanType()
+-		ct.Dir = types.ChanDir(p.int())
+-		ct.Elem = p.typ()
+-
+-	default:
+-		p.formatErrorf("unexpected type (tag = %d)", i)
+-	}
+-
+-	if t == nil {
+-		p.formatErrorf("nil type (type tag = %d)", i)
+-	}
+-
+-	return t
+-}
+-
+-func (p *importer) qualifiedName() *types.Sym {
+-	name := p.string()
+-	pkg := p.pkg()
+-	return pkg.Lookup(name)
+-}
+-
+-func (p *importer) fieldList() (fields []*types.Field) {
+-	if n := p.int(); n > 0 {
+-		fields = make([]*types.Field, n)
+-		for i := range fields {
+-			fields[i] = p.field()
+-		}
+-	}
+-	return
+-}
+-
+-func (p *importer) field() *types.Field {
+-	pos := p.pos()
+-	sym, alias := p.fieldName()
+-	typ := p.typ()
+-	note := p.string()
+-
+-	f := types.NewField()
+-	if sym.Name == "" {
+-		// anonymous field: typ must be T or *T and T must be a type name
+-		s := typ.Sym
+-		if s == nil && typ.IsPtr() {
+-			s = typ.Elem().Sym // deref
+-		}
+-		sym = sym.Pkg.Lookup(s.Name)
+-		f.Embedded = 1
+-	} else if alias {
+-		// anonymous field: we have an explicit name because it's a type alias
+-		f.Embedded = 1
+-	}
+-
+-	f.Pos = pos
+-	f.Sym = sym
+-	f.Type = typ
+-	f.Note = note
+-
+-	return f
+-}
+-
+-func (p *importer) methodList() (methods []*types.Field) {
+-	for n := p.int(); n > 0; n-- {
+-		f := types.NewField()
+-		f.Pos = p.pos()
+-		f.Type = p.typ()
+-		methods = append(methods, f)
+-	}
+-
+-	for n := p.int(); n > 0; n-- {
+-		methods = append(methods, p.method())
+-	}
+-
+-	return
+-}
+-
+-func (p *importer) method() *types.Field {
+-	pos := p.pos()
+-	sym := p.methodName()
+-	params := p.paramList()
+-	result := p.paramList()
+-
+-	f := types.NewField()
+-	f.Pos = pos
+-	f.Sym = sym
+-	f.Type = functypefield(fakeRecvField(), params, result)
+-	return f
+-}
+-
+-func (p *importer) fieldName() (*types.Sym, bool) {
+-	name := p.string()
+-	if p.version == 0 && name == "_" {
+-		// version 0 didn't export a package for _ field names
+-		// but used the builtin package instead
+-		return builtinpkg.Lookup(name), false
+-	}
+-	pkg := localpkg
+-	alias := false
+-	switch name {
+-	case "":
+-		// 1) field name matches base type name and is exported: nothing to do
+-	case "?":
+-		// 2) field name matches base type name and is not exported: need package
+-		name = ""
+-		pkg = p.pkg()
+-	case "@":
+-		// 3) field name doesn't match base type name (alias name): need name and possibly package
+-		name = p.string()
+-		alias = true
+-		fallthrough
+-	default:
+-		if !types.IsExported(name) {
+-			pkg = p.pkg()
+-		}
+-	}
+-	return pkg.Lookup(name), alias
+-}
+-
+-func (p *importer) methodName() *types.Sym {
+-	name := p.string()
+-	if p.version == 0 && name == "_" {
+-		// version 0 didn't export a package for _ method names
+-		// but used the builtin package instead
+-		return builtinpkg.Lookup(name)
+-	}
+-	pkg := localpkg
+-	if !types.IsExported(name) {
+-		pkg = p.pkg()
+-	}
+-	return pkg.Lookup(name)
+-}
+-
+-func (p *importer) paramList() []*types.Field {
+-	i := p.int()
+-	if i == 0 {
+-		return nil
+-	}
+-	// negative length indicates unnamed parameters
+-	named := true
+-	if i < 0 {
+-		i = -i
+-		named = false
+-	}
+-	// i > 0
+-	fs := make([]*types.Field, i)
+-	for i := range fs {
+-		fs[i] = p.param(named)
+-	}
+-	return fs
+-}
+-
+-func (p *importer) param(named bool) *types.Field {
+-	f := types.NewField()
+-	// TODO(mdempsky): Need param position.
+-	f.Pos = lineno
+-	f.Type = p.typ()
+-	if f.Type.Etype == TDDDFIELD {
+-		// TDDDFIELD indicates wrapped ... slice type
+-		f.Type = types.NewSlice(f.Type.DDDField())
+-		f.SetIsddd(true)
+-	}
+-
+-	if named {
+-		name := p.string()
+-		if name == "" {
+-			p.formatErrorf("expected named parameter")
+-		}
+-		// TODO(gri) Supply function/method package rather than
+-		// encoding the package for each parameter repeatedly.
+-		pkg := localpkg
+-		if name != "_" {
+-			pkg = p.pkg()
+-		}
+-		f.Sym = pkg.Lookup(name)
+-	}
+-
+-	// TODO(gri) This is compiler-specific (escape info).
+-	// Move into compiler-specific section eventually?
+-	f.Note = p.string()
+-
+-	return f
+-}
+-
+-func (p *importer) value(typ *types.Type) (x Val) {
+-	switch tag := p.tagOrIndex(); tag {
+-	case falseTag:
+-		x.U = false
+-
+-	case trueTag:
+-		x.U = true
+-
+-	case int64Tag:
+-		u := new(Mpint)
+-		u.SetInt64(p.int64())
+-		u.Rune = typ == types.Idealrune
+-		x.U = u
+-
+-	case floatTag:
+-		f := newMpflt()
+-		p.float(f)
+-		if typ == types.Idealint || typ.IsInteger() || typ.IsPtr() || typ.IsUnsafePtr() {
+-			// uncommon case: large int encoded as float
+-			//
+-			// This happens for unsigned typed integers
+-			// and (on 64-bit platforms) pointers because
+-			// of values in the range [2^63, 2^64).
+-			u := new(Mpint)
+-			u.SetFloat(f)
+-			x.U = u
+-			break
+-		}
+-		x.U = f
+-
+-	case complexTag:
+-		u := new(Mpcplx)
+-		p.float(&u.Real)
+-		p.float(&u.Imag)
+-		x.U = u
+-
+-	case stringTag:
+-		x.U = p.string()
+-
+-	case unknownTag:
+-		p.formatErrorf("unknown constant (importing package with errors)")
+-
+-	case nilTag:
+-		x.U = new(NilVal)
+-
+-	default:
+-		p.formatErrorf("unexpected value tag %d", tag)
+-	}
+-
+-	// verify ideal type
+-	if typ.IsUntyped() && untype(x.Ctype()) != typ {
+-		p.formatErrorf("value %v and type %v don't match", x, typ)
+-	}
+-
+-	return
+-}
+-
+-func (p *importer) float(x *Mpflt) {
+-	sign := p.int()
+-	if sign == 0 {
+-		x.SetFloat64(0)
+-		return
+-	}
+-
+-	exp := p.int()
+-	mant := new(big.Int).SetBytes([]byte(p.string()))
+-
+-	m := x.Val.SetInt(mant)
+-	m.SetMantExp(m, exp-mant.BitLen())
+-	if sign < 0 {
+-		m.Neg(m)
+-	}
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Inlined function bodies
+-
+-// Approach: Read nodes and use them to create/declare the same data structures
+-// as done originally by the (hidden) parser by closely following the parser's
+-// original code. In other words, "parsing" the import data (which happens to
+-// be encoded in binary rather textual form) is the best way at the moment to
+-// re-establish the syntax tree's invariants. At some future point we might be
+-// able to avoid this round-about way and create the rewritten nodes directly,
+-// possibly avoiding a lot of duplicate work (name resolution, type checking).
+-//
+-// Refined nodes (e.g., ODOTPTR as a refinement of OXDOT) are exported as their
+-// unrefined nodes (since this is what the importer uses). The respective case
+-// entries are unreachable in the importer.
+-
+-func (p *importer) stmtList() []*Node {
+-	var list []*Node
+-	for {
+-		n := p.node()
+-		if n == nil {
+-			break
+-		}
+-		// OBLOCK nodes may be created when importing ODCL nodes - unpack them
+-		if n.Op == OBLOCK {
+-			list = append(list, n.List.Slice()...)
+-		} else {
+-			list = append(list, n)
+-		}
+-	}
+-	return list
+-}
+-
+-func (p *importer) exprList() []*Node {
+-	var list []*Node
+-	for {
+-		n := p.expr()
+-		if n == nil {
+-			break
+-		}
+-		list = append(list, n)
+-	}
+-	return list
+-}
+-
+-func (p *importer) elemList() []*Node {
+-	c := p.int()
+-	list := make([]*Node, c)
+-	for i := range list {
+-		s := p.fieldSym()
+-		list[i] = nodSym(OSTRUCTKEY, p.expr(), s)
+-	}
+-	return list
+-}
+-
+-func (p *importer) expr() *Node {
+-	n := p.node()
+-	if n != nil && n.Op == OBLOCK {
+-		Fatalf("unexpected block node: %v", n)
+-	}
+-	return n
+-}
+-
+ func npos(pos src.XPos, n *Node) *Node {
+ 	n.Pos = pos
+ 	return n
+ }
+ 
+-// TODO(gri) split into expr and stmt
+-func (p *importer) node() *Node {
+-	switch op := p.op(); op {
+-	// expressions
+-	// case OPAREN:
+-	// 	unreachable - unpacked by exporter
+-
+-	// case ODDDARG:
+-	//	unimplemented
+-
+-	case OLITERAL:
+-		pos := p.pos()
+-		typ := p.typ()
+-		n := npos(pos, nodlit(p.value(typ)))
+-		n.Type = idealType(typ)
+-		return n
+-
+-	case ONAME:
+-		return npos(p.pos(), mkname(p.sym()))
+-
+-	// case OPACK, ONONAME:
+-	// 	unreachable - should have been resolved by typechecking
+-
+-	case OTYPE:
+-		return npos(p.pos(), typenod(p.typ()))
+-
+-	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+-	//      unreachable - should have been resolved by typechecking
+-
+-	// case OCLOSURE:
+-	//	unimplemented
+-
+-	case OPTRLIT:
+-		pos := p.pos()
+-		n := npos(pos, p.expr())
+-		if !p.bool() /* !implicit, i.e. '&' operator */ {
+-			if n.Op == OCOMPLIT {
+-				// Special case for &T{...}: turn into (*T){...}.
+-				n.Right = nodl(pos, OIND, n.Right, nil)
+-				n.Right.SetImplicit(true)
+-			} else {
+-				n = nodl(pos, OADDR, n, nil)
+-			}
+-		}
+-		return n
+-
+-	case OSTRUCTLIT:
+-		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
+-		savedlineno := lineno
+-		lineno = p.pos()
+-		n := nodl(lineno, OCOMPLIT, nil, typenod(p.typ()))
+-		n.List.Set(p.elemList()) // special handling of field names
+-		lineno = savedlineno
+-		return n
+-
+-	// case OARRAYLIT, OSLICELIT, OMAPLIT:
+-	// 	unreachable - mapped to case OCOMPLIT below by exporter
+-
+-	case OCOMPLIT:
+-		n := nodl(p.pos(), OCOMPLIT, nil, typenod(p.typ()))
+-		n.List.Set(p.exprList())
+-		return n
+-
+-	case OKEY:
+-		pos := p.pos()
+-		left, right := p.exprsOrNil()
+-		return nodl(pos, OKEY, left, right)
+-
+-	// case OSTRUCTKEY:
+-	//	unreachable - handled in case OSTRUCTLIT by elemList
+-
+-	// case OCALLPART:
+-	//	unimplemented
+-
+-	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+-	// 	unreachable - mapped to case OXDOT below by exporter
+-
+-	case OXDOT:
+-		// see parser.new_dotname
+-		return npos(p.pos(), nodSym(OXDOT, p.expr(), p.fieldSym()))
+-
+-	// case ODOTTYPE, ODOTTYPE2:
+-	// 	unreachable - mapped to case ODOTTYPE below by exporter
+-
+-	case ODOTTYPE:
+-		n := nodl(p.pos(), ODOTTYPE, p.expr(), nil)
+-		n.Type = p.typ()
+-		return n
+-
+-	// case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
+-	// 	unreachable - mapped to cases below by exporter
+-
+-	case OINDEX:
+-		return nodl(p.pos(), op, p.expr(), p.expr())
+-
+-	case OSLICE, OSLICE3:
+-		n := nodl(p.pos(), op, p.expr(), nil)
+-		low, high := p.exprsOrNil()
+-		var max *Node
+-		if n.Op.IsSlice3() {
+-			max = p.expr()
+-		}
+-		n.SetSliceBounds(low, high, max)
+-		return n
+-
+-	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+-	// 	unreachable - mapped to OCONV case below by exporter
+-
+-	case OCONV:
+-		n := nodl(p.pos(), OCONV, p.expr(), nil)
+-		n.Type = p.typ()
+-		return n
+-
+-	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+-		n := npos(p.pos(), builtinCall(op))
+-		n.List.Set(p.exprList())
+-		if op == OAPPEND {
+-			n.SetIsddd(p.bool())
+-		}
+-		return n
+-
+-	// case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+-	// 	unreachable - mapped to OCALL case below by exporter
+-
+-	case OCALL:
+-		n := nodl(p.pos(), OCALL, p.expr(), nil)
+-		n.List.Set(p.exprList())
+-		n.SetIsddd(p.bool())
+-		return n
+-
+-	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		n := npos(p.pos(), builtinCall(OMAKE))
+-		n.List.Append(typenod(p.typ()))
+-		n.List.Append(p.exprList()...)
+-		return n
+-
+-	// unary expressions
+-	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+-		return nodl(p.pos(), op, p.expr(), nil)
+-
+-	// binary expressions
+-	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
+-		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
+-		return nodl(p.pos(), op, p.expr(), p.expr())
+-
+-	case OADDSTR:
+-		pos := p.pos()
+-		list := p.exprList()
+-		x := npos(pos, list[0])
+-		for _, y := range list[1:] {
+-			x = nodl(pos, OADD, x, y)
+-		}
+-		return x
+-
+-	// case OCMPSTR, OCMPIFACE:
+-	// 	unreachable - mapped to std comparison operators by exporter
+-
+-	case ODCLCONST:
+-		// TODO(gri) these should not be exported in the first place
+-		return nodl(p.pos(), OEMPTY, nil, nil)
+-
+-	// --------------------------------------------------------------------
+-	// statements
+-	case ODCL:
+-		if p.version < 2 {
+-			// versions 0 and 1 exported a bool here but it
+-			// was always false - simply ignore in this case
+-			p.bool()
+-		}
+-		pos := p.pos()
+-		lhs := npos(pos, dclname(p.sym()))
+-		typ := typenod(p.typ())
+-		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+-
+-	// case ODCLFIELD:
+-	//	unimplemented
+-
+-	// case OAS, OASWB:
+-	// 	unreachable - mapped to OAS case below by exporter
+-
+-	case OAS:
+-		return nodl(p.pos(), OAS, p.expr(), p.expr())
+-
+-	case OASOP:
+-		n := nodl(p.pos(), OASOP, nil, nil)
+-		n.SetSubOp(p.op())
+-		n.Left = p.expr()
+-		if !p.bool() {
+-			n.Right = nodintconst(1)
+-			n.SetImplicit(true)
+-		} else {
+-			n.Right = p.expr()
+-		}
+-		return n
+-
+-	// case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-	// 	unreachable - mapped to OAS2 case below by exporter
+-
+-	case OAS2:
+-		n := nodl(p.pos(), OAS2, nil, nil)
+-		n.List.Set(p.exprList())
+-		n.Rlist.Set(p.exprList())
+-		return n
+-
+-	case ORETURN:
+-		n := nodl(p.pos(), ORETURN, nil, nil)
+-		n.List.Set(p.exprList())
+-		return n
+-
+-	// case ORETJMP:
+-	// 	unreachable - generated by compiler for trampolin routines (not exported)
+-
+-	case OPROC, ODEFER:
+-		return nodl(p.pos(), op, p.expr(), nil)
+-
+-	case OIF:
+-		n := nodl(p.pos(), OIF, nil, nil)
+-		n.Ninit.Set(p.stmtList())
+-		n.Left = p.expr()
+-		n.Nbody.Set(p.stmtList())
+-		n.Rlist.Set(p.stmtList())
+-		return n
+-
+-	case OFOR:
+-		n := nodl(p.pos(), OFOR, nil, nil)
+-		n.Ninit.Set(p.stmtList())
+-		n.Left, n.Right = p.exprsOrNil()
+-		n.Nbody.Set(p.stmtList())
+-		return n
+-
+-	case ORANGE:
+-		n := nodl(p.pos(), ORANGE, nil, nil)
+-		n.List.Set(p.stmtList())
+-		n.Right = p.expr()
+-		n.Nbody.Set(p.stmtList())
+-		return n
+-
+-	case OSELECT, OSWITCH:
+-		n := nodl(p.pos(), op, nil, nil)
+-		n.Ninit.Set(p.stmtList())
+-		n.Left, _ = p.exprsOrNil()
+-		n.List.Set(p.stmtList())
+-		return n
+-
+-	// case OCASE, OXCASE:
+-	// 	unreachable - mapped to OXCASE case below by exporter
+-
+-	case OXCASE:
+-		n := nodl(p.pos(), OXCASE, nil, nil)
+-		n.List.Set(p.exprList())
+-		// TODO(gri) eventually we must declare variables for type switch
+-		// statements (type switch statements are not yet exported)
+-		n.Nbody.Set(p.stmtList())
+-		return n
+-
+-	// case OFALL:
+-	// 	unreachable - mapped to OXFALL case below by exporter
+-
+-	case OFALL:
+-		n := nodl(p.pos(), OFALL, nil, nil)
+-		return n
+-
+-	case OBREAK, OCONTINUE:
+-		pos := p.pos()
+-		left, _ := p.exprsOrNil()
+-		if left != nil {
+-			left = newname(left.Sym)
+-		}
+-		return nodl(pos, op, left, nil)
+-
+-	// case OEMPTY:
+-	// 	unreachable - not emitted by exporter
+-
+-	case OGOTO, OLABEL:
+-		return nodl(p.pos(), op, newname(p.expr().Sym), nil)
+-
+-	case OEND:
+-		return nil
+-
+-	default:
+-		Fatalf("cannot import %v (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", op, int(op))
+-		panic("unreachable") // satisfy compiler
+-	}
+-}
+-
+ func builtinCall(op Op) *Node {
+ 	return nod(OCALL, mkname(builtinpkg.Lookup(goopnames[op])), nil)
+ }
+-
+-func (p *importer) exprsOrNil() (a, b *Node) {
+-	ab := p.int()
+-	if ab&1 != 0 {
+-		a = p.expr()
+-	}
+-	if ab&2 != 0 {
+-		b = p.node()
+-	}
+-	return
+-}
+-
+-func (p *importer) fieldSym() *types.Sym {
+-	name := p.string()
+-	pkg := localpkg
+-	if !types.IsExported(name) {
+-		pkg = p.pkg()
+-	}
+-	return pkg.Lookup(name)
+-}
+-
+-func (p *importer) sym() *types.Sym {
+-	name := p.string()
+-	pkg := localpkg
+-	if name != "_" {
+-		pkg = p.pkg()
+-	}
+-	linkname := p.string()
+-	sym := pkg.Lookup(name)
+-	sym.Linkname = linkname
+-	return sym
+-}
+-
+-func (p *importer) bool() bool {
+-	return p.int() != 0
+-}
+-
+-func (p *importer) op() Op {
+-	return Op(p.int())
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Low-level decoders
+-
+-func (p *importer) tagOrIndex() int {
+-	if p.debugFormat {
+-		p.marker('t')
+-	}
+-
+-	return int(p.rawInt64())
+-}
+-
+-func (p *importer) int() int {
+-	x := p.int64()
+-	if int64(int(x)) != x {
+-		p.formatErrorf("exported integer too large")
+-	}
+-	return int(x)
+-}
+-
+-func (p *importer) int64() int64 {
+-	if p.debugFormat {
+-		p.marker('i')
+-	}
+-
+-	return p.rawInt64()
+-}
+-
+-func (p *importer) string() string {
+-	if p.debugFormat {
+-		p.marker('s')
+-	}
+-	// if the string was seen before, i is its index (>= 0)
+-	// (the empty string is at index 0)
+-	i := p.rawInt64()
+-	if i >= 0 {
+-		return p.strList[i]
+-	}
+-	// otherwise, i is the negative string length (< 0)
+-	if n := int(-i); n <= cap(p.buf) {
+-		p.buf = p.buf[:n]
+-	} else {
+-		p.buf = make([]byte, n)
+-	}
+-	for i := range p.buf {
+-		p.buf[i] = p.rawByte()
+-	}
+-	s := string(p.buf)
+-	p.strList = append(p.strList, s)
+-	return s
+-}
+-
+-func (p *importer) marker(want byte) {
+-	if got := p.rawByte(); got != want {
+-		p.formatErrorf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read)
+-	}
+-
+-	pos := p.read
+-	if n := int(p.rawInt64()); n != pos {
+-		p.formatErrorf("incorrect position: got %d; want %d", n, pos)
+-	}
+-}
+-
+-// rawInt64 should only be used by low-level decoders.
+-func (p *importer) rawInt64() int64 {
+-	i, err := binary.ReadVarint(p)
+-	if err != nil {
+-		p.formatErrorf("read error: %v", err)
+-	}
+-	return i
+-}
+-
+-// rawStringln should only be used to read the initial version string.
+-func (p *importer) rawStringln(b byte) string {
+-	p.buf = p.buf[:0]
+-	for b != '\n' {
+-		p.buf = append(p.buf, b)
+-		b = p.rawByte()
+-	}
+-	return string(p.buf)
+-}
+-
+-// needed for binary.ReadVarint in rawInt64
+-func (p *importer) ReadByte() (byte, error) {
+-	return p.rawByte(), nil
+-}
+-
+-// rawByte is the bottleneck interface for reading from p.in.
+-// It unescapes '|' 'S' to '$' and '|' '|' to '|'.
+-// rawByte should only be used by low-level decoders.
+-func (p *importer) rawByte() byte {
+-	c, err := p.in.ReadByte()
+-	p.read++
+-	if err != nil {
+-		p.formatErrorf("read error: %v", err)
+-	}
+-	if c == '|' {
+-		c, err = p.in.ReadByte()
+-		p.read++
+-		if err != nil {
+-			p.formatErrorf("read error: %v", err)
+-		}
+-		switch c {
+-		case 'S':
+-			c = '$'
+-		case '|':
+-			// nothing to do
+-		default:
+-			p.formatErrorf("unexpected escape sequence in export data")
+-		}
+-	}
+-	return c
+-}

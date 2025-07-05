@@ -18,10 +18,116 @@ Date:   Tue Oct 14 23:24:32 2014 -0400
     R=r
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/158890046
-
+---
  src/cmd/gc/builtin.c  |  6 +++---
  src/cmd/gc/racewalk.c |  7 +------
  src/cmd/gc/runtime.go | 10 +++++++---
  src/cmd/gc/walk.c     |  6 +++---
  src/runtime/mgc0.go   |  6 +++---
  5 files changed, 17 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 17f80ebba4..5fbb4f0cf3 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -87,9 +87,9 @@ char *runtimeimport =
+ 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+ 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+ 	"func @\"\".writebarrieriface (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+-	"func @\"\".writebarrierfat2 (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+-	"func @\"\".writebarrierfat3 (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+-	"func @\"\".writebarrierfat4 (@\"\".dst·1 *any, @\"\".src·2 any)\n"
++	"func @\"\".writebarrierfat2 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat3 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat4 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
+ 	"func @\"\".writebarrierfat (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n"
+ 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n"
+ 	"func @\"\".selectnbrecv (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".hchan·4 <-chan any) (? bool)\n"
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index cb98ca2471..c9e27fe560 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -210,12 +210,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCALLFUNC:
+ 		// Instrument dst argument of runtime.writebarrier* calls
+ 		// as we do not instrument runtime code.
+-		if(n->left->sym != S && n->left->sym->pkg == runtimepkg &&
+-			(strcmp(n->left->sym->name, "writebarrierptr") == 0 ||
+-			strcmp(n->left->sym->name, "writebarrierstring") == 0 ||
+-			strcmp(n->left->sym->name, "writebarrierslice") == 0 ||
+-			strcmp(n->left->sym->name, "writebarrieriface") == 0 ||
+-			strcmp(n->left->sym->name, "writebarrierfat") == 0)) {
++		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && strncmp(n->left->sym->name, "writebarrier", 12) == 0) {
+ 			// Find the dst argument.
+ 			// The list can be reordered, so it's not necessary just the first or the second element.
+ 			for(l = n->list; l; l = l->next) {
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 6ee5e2e364..86afe67f17 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -112,9 +112,13 @@ func writebarrierptr(dst *any, src any)
+ func writebarrierstring(dst *any, src any)
+ func writebarrierslice(dst *any, src any)
+ func writebarrieriface(dst *any, src any)
+-func writebarrierfat2(dst *any, src any)
+-func writebarrierfat3(dst *any, src any)
+-func writebarrierfat4(dst *any, src any)
++
++// The unused *byte argument makes sure that src is 2-pointer-aligned,
++// which is the maximum alignment on NaCl amd64p32
++// (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
++func writebarrierfat2(dst *any, _ *byte, src any)
++func writebarrierfat3(dst *any, _ *byte, src any)
++func writebarrierfat4(dst *any, _ *byte, src any)
+ func writebarrierfat(typ *byte, dst *any, src *any)
+ 
+ func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5b5385d50c..241d7d74ad 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2060,13 +2060,13 @@ applywritebarrier(Node *n, NodeList **init)
+ 				l, n->right);
+ 		} else if(t->width == 2*widthptr) {
+ 			n = mkcall1(writebarrierfn("writebarrierfat2", t, n->right->type), T, init,
+-				l, n->right);
++				l, nodnil(), n->right);
+ 		} else if(t->width == 3*widthptr) {
+ 			n = mkcall1(writebarrierfn("writebarrierfat3", t, n->right->type), T, init,
+-				l, n->right);
++				l, nodnil(), n->right);
+ 		} else if(t->width == 4*widthptr) {
+ 			n = mkcall1(writebarrierfn("writebarrierfat4", t, n->right->type), T, init,
+-				l, n->right);
++				l, nodnil(), n->right);
+ 		} else {
+ 			r = n->right;
+ 			while(r->op == OCONVNOP)
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 3152b1fe1a..3a7204b54f 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -110,20 +110,20 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+ }
+ 
+ //go:nosplit
+-func writebarrierfat2(dst *[2]uintptr, src [2]uintptr) {
++func writebarrierfat2(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+ 	dst[0] = src[0]
+ 	dst[1] = src[1]
+ }
+ 
+ //go:nosplit
+-func writebarrierfat3(dst *[3]uintptr, src [3]uintptr) {
++func writebarrierfat3(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+ 	dst[0] = src[0]
+ 	dst[1] = src[1]
+ 	dst[2] = src[2]
+ }
+ 
+ //go:nosplit
+-func writebarrierfat4(dst *[4]uintptr, src [4]uintptr) {
++func writebarrierfat4(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+ 	dst[0] = src[0]
+ 	dst[1] = src[1]
+ 	dst[2] = src[2]

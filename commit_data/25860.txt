@@ -9,6 +9,20 @@ Date:   Fri Nov 27 23:10:29 2015 -0500
     Change-Id: I530d0b714ea0743c72eacd07b390c3f8cc556e21
     Reviewed-on: https://go-review.googlesource.com/17239
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/path/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/path.go b/src/path/path.go
+index 77f2185eae..01071a9a82 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -136,7 +136,7 @@ func Clean(path string) string {
+ 
+ // Split splits path immediately following the final slash,
+ // separating it into a directory and file name component.
+-// If there is no slash path, Split returns an empty dir and
++// If there is no slash in path, Split returns an empty dir and
+ // file set to path.
+ // The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {

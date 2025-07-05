@@ -9,6 +9,19 @@ Date:   Wed Oct 14 21:46:50 2009 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=35753
     CL=35755
-
+---
  test/arm-pass.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 15c7be6e41..b64ab71203 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -242,7 +242,6 @@ interface/recursive.go
+ interface/returntype.go
+ interface/struct.go
+ iota.go
+-ken/complit.go
+ ken/divmod.go
+ ken/embed.go
+ ken/for.go

@@ -17,8 +17,199 @@ Date:   Wed Oct 28 14:20:31 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/mvs.go                |   6 +-
  src/cmd/go/testdata/script/mod_get_replaced.txt   |   4 +-
  src/cmd/go/testdata/script/mod_lazy_downgrade.txt | 145 ++++++++++++++++++++++
  3 files changed, 152 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 76a1d8a12a..79ef2475b6 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -74,7 +74,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string,
+ 	// so there's no need for us to add extra caching here.
+ 	var versions []string
+ 	err := modfetch.TryProxies(func(proxy string) error {
+-		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
++		repo, err := lookupRepo(proxy, path)
++		if err != nil {
++			return err
++		}
++		allVersions, err := repo.Versions("")
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index ea4c603795..f838605900 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -48,7 +48,7 @@ go list -m example.com/x
+ stdout '^example.com/x v0.1.0 '
+ 
+ 
+-# Replacements should not be listed as known versions, but 'go get' should sort
++# Replacements should also be listed as known versions, and 'go get' should sort
+ # them in with ordinary versions.
+ 
+ env GOPROXY=$oldGOPROXY
+@@ -64,7 +64,7 @@ stdout '^rsc.io/quote v1.3.0'
+ go mod edit -replace rsc.io/quote@v1.3.1=rsc.io/quote@v1.4.0
+ 
+ go list -versions -m rsc.io/quote
+-stdout 'v1.3.0 v1.4.0'
++stdout 'v1.3.0 v1.3.1 v1.4.0'
+ 
+ go get -d rsc.io/quote@v1.3
+ go list -m rsc.io/quote
+diff --git a/src/cmd/go/testdata/script/mod_lazy_downgrade.txt b/src/cmd/go/testdata/script/mod_lazy_downgrade.txt
+new file mode 100644
+index 0000000000..1e84820f81
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_downgrade.txt
+@@ -0,0 +1,145 @@
++# This test illustrates the interaction between lazy loading and downgrading in
++# 'go get.
++
++# The package import graph used in this test looks like:
++#
++# lazy ---- a
++#           |
++#           a_test ---- b
++#                       b_test ---- c
++#
++# The module dependency graph initially looks like:
++#
++# lazy ---- a.1 ---- b.1 ---- c.1
++#      \                     /
++#        b.3 ---- c.2    b.2
++#
++# (Note that lazy loading will prune out the dependency from b.1 on c.1.)
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod.orig go.mod
++
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.3.0 '
++stdout '^example.com/c v0.2.0 '
++
++# Downgrading c should also downgrade the b that requires it.
++
++go get -d example.com/c@v0.1.0
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.2.0 '
++stdout '^example.com/c v0.1.0 '
++
++# Removing c entirely should also remove the a and b that require it.
++
++go get -d example.com/c@none
++go list -m all
++! stdout '^example.com/a '
++! stdout '^example.com/b '
++! stdout '^example.com/c '
++
++
++# With lazy loading, downgrading c should work the same way, but dependencies
++# outside of the deepening scan should not affect the downgrade.
++
++cp go.mod.orig go.mod
++go mod edit -go=1.16
++
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.3.0 '
++stdout '^example.com/c v0.2.0 '
++
++go get -d example.com/c@v0.1.0
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.2.0 '
++stdout '^example.com/c v0.1.0 '
++
++go get -d example.com/c@none
++go list -m all
++! stdout '^example.com/a '  # TODO(#36460): example.com/a v0.1.0
++! stdout '^example.com/b '  # TODO(#36460): example.com/b v0.1.0
++! stdout '^example.com/c '
++
++-- go.mod --
++module example.com/lazy
++
++go 1.15
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.3.0 // indirect
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/b v0.3.0 => ./b3
++	example.com/c v0.1.0 => ./c
++	example.com/c v0.2.0 => ./c
++)
++-- lazy.go --
++package lazy
++
++import _ "example.com/a"
++
++-- a/go.mod --
++module example.com/a
++
++go 1.15
++
++require example.com/b v0.1.0
++-- a/a.go --
++package a
++-- a/a_test.go --
++package a_test
++
++import _ "example.com/b"
++
++-- b1/go.mod --
++module example.com/b
++
++go 1.15
++
++require example.com/c v0.1.0
++-- b1/b.go --
++package b
++-- b1/b_test.go --
++package b_test
++import _ "example.com/c"
++
++-- b2/go.mod --
++module example.com/b
++
++go 1.15
++
++require example.com/c v0.1.0
++-- b2/b.go --
++package b
++-- b2/b_test.go --
++package b_test
++import _ "example.com/c"
++
++-- b3/go.mod --
++module example.com/b
++
++go 1.15
++
++require example.com/c v0.2.0
++-- b3/b.go --
++package b
++-- b3/b_test.go --
++package b_test
++import _ "example.com/c"
++
++-- c/go.mod --
++module example.com/c
++
++go 1.15
++-- c/c.go --
++package c

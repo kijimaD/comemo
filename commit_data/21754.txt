@@ -12,7 +12,60 @@ Date:   Wed Jan 28 12:28:59 2015 -0600
     Change-Id: If129a247683263b11e2dd42473cf9b31280543d5
     Reviewed-on: https://go-review.googlesource.com/3450
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/extern.go   |  4 ++++
  src/runtime/runtime1.go | 19 +++++++++++++++----
  2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 58acbb3788..7141cd8a7a 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -45,6 +45,10 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	This should only be used as a temporary workaround to diagnose buggy code.
+ 	The real fix is to not store integers in pointer-typed locations.
+ 
++	memprofrate: setting memprofrate=X will update the value of runtime.MemProfileRate.
++	When set to 0 memory profiling is disabled.  Refer to the description of
++	MemProfileRate for the default value.
++
+ 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5dcc83d2e5..337a44f553 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -308,7 +308,10 @@ type dbgVar struct {
+ 
+ // TODO(rsc): Make GC respect debug.invalidptr.
+ 
+-// Holds variables parsed from GODEBUG env var.
++// Holds variables parsed from GODEBUG env var,
++// except for "memprofrate" since there is an
++// existing int var for that value, which may
++// already have an initial value.
+ var debug struct {
+ 	allocfreetrace int32
+ 	efence         int32
+@@ -352,9 +355,17 @@ func parsedebugvars() {
+ 			continue
+ 		}
+ 		key, value := field[:i], field[i+1:]
+-		for _, v := range dbgvars {
+-			if v.name == key {
+-				*v.value = int32(atoi(value))
++
++		// Update MemProfileRate directly here since it
++		// int, not int32, and should only be updated
++		// if specified in GODEBUG.
++		if key == "memprofrate" {
++			MemProfileRate = atoi(value)
++		} else {
++			for _, v := range dbgvars {
++				if v.name == key {
++					*v.value = int32(atoi(value))
++				}
+ 			}
+ 		}
+ 	}

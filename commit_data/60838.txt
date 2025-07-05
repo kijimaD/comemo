@@ -15,7 +15,7 @@ Date:   Tue Sep 3 13:29:42 2024 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/abt/avlint32.go      |  7 -------
  src/cmd/compile/internal/ssa/_gen/S390X.rules |  4 ++--
  src/cmd/compile/internal/ssa/likelyadjust.go  | 20 +++-----------------
@@ -26,3 +26,302 @@ Date:   Tue Sep 3 13:29:42 2024 -0700
  src/cmd/compile/internal/ssagen/ssa.go        | 18 ++----------------
  src/cmd/dist/util.go                          |  7 -------
  9 files changed, 18 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abt/avlint32.go b/src/cmd/compile/internal/abt/avlint32.go
+index 28c1642c6e..ddfca346a2 100644
+--- a/src/cmd/compile/internal/abt/avlint32.go
++++ b/src/cmd/compile/internal/abt/avlint32.go
+@@ -819,13 +819,6 @@ func (t *node32) leftToRoot() *node32 {
+ 	return left
+ }
+ 
+-func max(a, b int8) int8 {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ func (t *node32) copy() *node32 {
+ 	u := *t
+ 	return &u
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index 2a6d7e737c..bda94004a4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -703,10 +703,10 @@
+ (CMP(W|WU) (MOVDconst [c]) x) => (InvertFlags (CMP(W|WU)const x [int32(c)]))
+ 
+ // Match (x >> c) << d to 'rotate then insert selected bits [into zero]'.
+-(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
++(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
+ 
+ // Match (x << c) >> d to 'rotate then insert selected bits [into zero]'.
+-(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63))})
++(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63))})
+ 
+ // Absorb input zero extension into 'rotate then insert selected bits [into zero]'.
+ (RISBGZ (MOVWZreg x) {r}) && r.InMerge(0xffffffff) != nil => (RISBGZ x {*r.InMerge(0xffffffff)})
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 1d0e53cf5b..1dfb53d355 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -73,20 +73,6 @@ type loopnest struct {
+ 	initializedChildren, initializedDepth, initializedExits bool
+ }
+ 
+-func min8(a, b int8) int8 {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+-func max8(a, b int8) int8 {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ const (
+ 	blDEFAULT = 0
+ 	blMin     = blDEFAULT
+@@ -143,7 +129,7 @@ func likelyadjust(f *Func) {
+ 			// and less influential than inferences from loop structure.
+ 		case BlockDefer:
+ 			local[b.ID] = blCALL
+-			certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
++			certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
+ 
+ 		default:
+ 			if len(b.Succs) == 1 {
+@@ -157,7 +143,7 @@ func likelyadjust(f *Func) {
+ 				// tagged with call cost. Net effect is that loop entry is favored.
+ 				b0 := b.Succs[0].b.ID
+ 				b1 := b.Succs[1].b.ID
+-				certain[b.ID] = min8(certain[b0], certain[b1])
++				certain[b.ID] = min(certain[b0], certain[b1])
+ 
+ 				l := b2l[b.ID]
+ 				l0 := b2l[b0]
+@@ -223,7 +209,7 @@ func likelyadjust(f *Func) {
+ 			for _, v := range b.Values {
+ 				if opcodeTable[v.Op].call {
+ 					local[b.ID] = blCALL
+-					certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
++					certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
+ 					break
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 415d627784..e955dc5f0f 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1737,13 +1737,13 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		// AND can only make the value smaller.
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+-		return ft.unsignedMax(v, minU(a.umax, b.umax))
++		return ft.unsignedMax(v, min(a.umax, b.umax))
+ 	case OpOr64, OpOr32, OpOr16, OpOr8:
+ 		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+ 		return ft.unsignedMinMax(v,
+-			maxU(a.umin, b.umin),
++			max(a.umin, b.umin),
+ 			1<<bits.Len64(a.umax|b.umax)-1)
+ 	case OpXor64, OpXor32, OpXor16, OpXor8:
+ 		// XOR can't flip bits that are proved to be zero in both inputs.
+@@ -1835,7 +1835,7 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+ 		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
+-		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
++		return ft.unsignedMax(v, min(a.umax, b.umax-1))
+ 	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+@@ -1871,8 +1871,8 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 			l2 := ft.limits[a.ID]
+ 			l.min = min(l.min, l2.min)
+ 			l.max = max(l.max, l2.max)
+-			l.umin = minU(l.umin, l2.umin)
+-			l.umax = maxU(l.umax, l2.umax)
++			l.umin = min(l.umin, l2.umin)
++			l.umax = max(l.umax, l2.umax)
+ 		}
+ 		return ft.newLimit(v, l)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2771f3b9dd..1fe95fe978 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -511,8 +511,8 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
+ 	vi := &s.values[v.ID]
+ 	if vi.spill != nil {
+ 		// Final block not known - keep track of subtree where restores reside.
+-		vi.restoreMin = min32(vi.restoreMin, s.sdom[b.ID].entry)
+-		vi.restoreMax = max32(vi.restoreMax, s.sdom[b.ID].exit)
++		vi.restoreMin = min(vi.restoreMin, s.sdom[b.ID].entry)
++		vi.restoreMax = max(vi.restoreMax, s.sdom[b.ID].exit)
+ 		return vi.spill
+ 	}
+ 	// Make a spill for v. We don't know where we want
+@@ -2987,16 +2987,3 @@ func (d *desiredState) merge(x *desiredState) {
+ 		d.addList(e.ID, e.regs)
+ 	}
+ }
+-
+-func min32(x, y int32) int32 {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-func max32(x, y int32) int32 {
+-	if x > y {
+-		return x
+-	}
+-	return y
+-}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 1f81217fc8..b95afd9f2d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1188,33 +1188,6 @@ func logRule(s string) {
+ 
+ var ruleFile io.Writer
+ 
+-// TODO: replace these with the built-in min/max once they are available
+-// during bootstrap (when bootstrapping with 1.21 or later).
+-func min(x, y int64) int64 {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-func max(x, y int64) int64 {
+-	if x > y {
+-		return x
+-	}
+-	return y
+-}
+-func minU(x, y uint64) uint64 {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-func maxU(x, y uint64) uint64 {
+-	if x > y {
+-		return x
+-	}
+-	return y
+-}
+-
+ func isConstZero(v *Value) bool {
+ 	switch v.Op {
+ 	case OpConstNil:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index c2342c944d..2f38289ab9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -12118,7 +12118,7 @@ func rewriteValueS390X_OpS390XSLD(v *Value) bool {
+ func rewriteValueS390X_OpS390XSLDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (SLDconst (SRDconst x [c]) [d])
+-	// result: (RISBGZ x {s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
++	// result: (RISBGZ x {s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
+ 	for {
+ 		d := auxIntToUint8(v.AuxInt)
+ 		if v_0.Op != OpS390XSRDconst {
+@@ -12127,7 +12127,7 @@ func rewriteValueS390X_OpS390XSLDconst(v *Value) bool {
+ 		c := auxIntToUint8(v_0.AuxInt)
+ 		x := v_0.Args[0]
+ 		v.reset(OpS390XRISBGZ)
+-		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63)))
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63)))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -12874,7 +12874,7 @@ func rewriteValueS390X_OpS390XSRD(v *Value) bool {
+ func rewriteValueS390X_OpS390XSRDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (SRDconst (SLDconst x [c]) [d])
+-	// result: (RISBGZ x {s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63))})
++	// result: (RISBGZ x {s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63))})
+ 	for {
+ 		d := auxIntToUint8(v.AuxInt)
+ 		if v_0.Op != OpS390XSLDconst {
+@@ -12883,7 +12883,7 @@ func rewriteValueS390X_OpS390XSRDconst(v *Value) bool {
+ 		c := auxIntToUint8(v_0.AuxInt)
+ 		x := v_0.Args[0]
+ 		v.reset(OpS390XRISBGZ)
+-		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63)))
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63)))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c05b5a6241..da755f5a76 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3863,7 +3863,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
+ 		cond := cond.(*ir.LogicalExpr)
+ 		mid := s.f.NewBlock(ssa.BlockPlain)
+ 		s.stmtList(cond.Init())
+-		s.condBranch(cond.X, mid, no, max8(likely, 0))
++		s.condBranch(cond.X, mid, no, max(likely, 0))
+ 		s.startBlock(mid)
+ 		s.condBranch(cond.Y, yes, no, likely)
+ 		return
+@@ -3877,7 +3877,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
+ 		cond := cond.(*ir.LogicalExpr)
+ 		mid := s.f.NewBlock(ssa.BlockPlain)
+ 		s.stmtList(cond.Init())
+-		s.condBranch(cond.X, yes, mid, min8(likely, 0))
++		s.condBranch(cond.X, yes, mid, min(likely, 0))
+ 		s.startBlock(mid)
+ 		s.condBranch(cond.Y, yes, no, likely)
+ 		return
+@@ -7401,20 +7401,6 @@ func callTargetLSym(callee *ir.Name) *obj.LSym {
+ 	return callee.LinksymABI(callee.Func.ABI)
+ }
+ 
+-func min8(a, b int8) int8 {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+-func max8(a, b int8) int8 {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // deferStructFnField is the field index of _defer.fn.
+ const deferStructFnField = 4
+ 
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 2eeab18a93..4d5e3589dc 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -405,13 +405,6 @@ func xgetgoarm() string {
+ 	return "7"
+ }
+ 
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // elfIsLittleEndian detects if the ELF file is little endian.
+ func elfIsLittleEndian(fn string) bool {
+ 	// read the ELF file header to determine the endianness without using the

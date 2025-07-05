@@ -21,8 +21,68 @@ Date:   Mon May 3 02:19:10 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go |  5 +++++
  test/ddd1.go                                    |  2 +-
  test/fixedbugs/issue45913.go                    | 17 +++++++++++++++++
  3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 1650144375..4c5472137a 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1330,6 +1330,9 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 	n1 := tstruct.NumFields()
+ 	n2 := len(nl)
+ 	if !hasddd(tstruct) {
++		if isddd {
++			goto invalidddd
++		}
+ 		if n2 > n1 {
+ 			goto toomany
+ 		}
+@@ -1395,6 +1398,8 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 	if i < len(nl) {
+ 		goto toomany
+ 	}
++
++invalidddd:
+ 	if isddd {
+ 		if call != nil {
+ 			base.Errorf("invalid use of ... in call to %v", call)
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 01b9c0eadb..ad49b347f4 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -29,7 +29,7 @@ var (
+ 	_ = sum(tuple())
+ 	_ = sum(tuple()...) // ERROR "multiple-value"
+ 	_ = sum3(tuple())
+-	_ = sum3(tuple()...) // ERROR "multiple-value"
++	_ = sum3(tuple()...) // ERROR "multiple-value" ERROR "invalid use of .*[.][.][.]"
+ )
+ 
+ type T []T
+diff --git a/test/fixedbugs/issue45913.go b/test/fixedbugs/issue45913.go
+new file mode 100644
+index 0000000000..aa86028c51
+--- /dev/null
++++ b/test/fixedbugs/issue45913.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++func f(s1, s2 string) { fmt.Printf("%s %s", s1, s2) }
++
++func main() {
++	f([2]string{"a", "b"}...) // ERROR "invalid use of .*[.][.][.]|cannot use [.][.][.] in call to non-variadic"
++}

@@ -12,6 +12,22 @@ Date:   Fri Oct 21 11:16:46 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5298052
-
+---
  src/cmd/gotest/flag.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+index f8c2061ec6..0df9e24f13 100644
+--- a/src/cmd/gotest/flag.go
++++ b/src/cmd/gotest/flag.go
+@@ -107,6 +107,10 @@ func flag(i int) (f *flagSpec, value string, extra bool) {
+ 	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
+ 		arg = arg[1:]
+ 	}
++	switch arg {
++	case "-?", "-h", "-help":
++		usage()
++	}
+ 	if arg == "" || arg[0] != '-' {
+ 		return
+ 	}

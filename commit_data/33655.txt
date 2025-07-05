@@ -29,10 +29,182 @@ Date:   Sun Aug 27 14:05:11 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/alg.go         |  9 +++------
  src/runtime/export_test.go | 19 +++++++++++++------
  src/runtime/hash32.go      | 26 ++++++++++++++++++++++++++
  src/runtime/hash64.go      | 22 ++++++++++++++++++++++
  src/runtime/hash_test.go   | 34 ++++++++++++++++++++++++++++++++++
  5 files changed, 98 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index b90142814f..89125f48ba 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -47,18 +47,15 @@ type typeAlg struct {
+ func memhash0(p unsafe.Pointer, h uintptr) uintptr {
+ 	return h
+ }
++
+ func memhash8(p unsafe.Pointer, h uintptr) uintptr {
+ 	return memhash(p, h, 1)
+ }
++
+ func memhash16(p unsafe.Pointer, h uintptr) uintptr {
+ 	return memhash(p, h, 2)
+ }
+-func memhash32(p unsafe.Pointer, h uintptr) uintptr {
+-	return memhash(p, h, 4)
+-}
+-func memhash64(p unsafe.Pointer, h uintptr) uintptr {
+-	return memhash(p, h, 8)
+-}
++
+ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
+ 	return memhash(p, h, 16)
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index c929bd4618..b99ee83e3e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -152,12 +152,19 @@ func RunSchedLocalQueueEmptyTest(iters int) {
+ 	}
+ }
+ 
+-var StringHash = stringHash
+-var BytesHash = bytesHash
+-var Int32Hash = int32Hash
+-var Int64Hash = int64Hash
+-var EfaceHash = efaceHash
+-var IfaceHash = ifaceHash
++var (
++	StringHash = stringHash
++	BytesHash  = bytesHash
++	Int32Hash  = int32Hash
++	Int64Hash  = int64Hash
++	MemHash    = memhash
++	MemHash32  = memhash32
++	MemHash64  = memhash64
++	EfaceHash  = efaceHash
++	IfaceHash  = ifaceHash
++)
++
++var UseAeshash = &useAeshash
+ 
+ func MemclrBytes(b []byte) {
+ 	s := (*slice)(unsafe.Pointer(&b))
+diff --git a/src/runtime/hash32.go b/src/runtime/hash32.go
+index be59076635..5574923911 100644
+--- a/src/runtime/hash32.go
++++ b/src/runtime/hash32.go
+@@ -81,6 +81,32 @@ tail:
+ 	return uintptr(h)
+ }
+ 
++func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
++	h := uint32(seed + 4*hashkey[0])
++	h ^= readUnaligned32(p)
++	h = rotl_15(h*m1) * m2
++	h ^= h >> 17
++	h *= m3
++	h ^= h >> 13
++	h *= m4
++	h ^= h >> 16
++	return uintptr(h)
++}
++
++func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
++	h := uint32(seed + 8*hashkey[0])
++	h ^= readUnaligned32(p)
++	h = rotl_15(h*m1) * m2
++	h ^= readUnaligned32(add(p, 4))
++	h = rotl_15(h*m1) * m2
++	h ^= h >> 17
++	h *= m3
++	h ^= h >> 13
++	h *= m4
++	h ^= h >> 16
++	return uintptr(h)
++}
++
+ // Note: in order to get the compiler to issue rotl instructions, we
+ // need to constant fold the shift amount by hand.
+ // TODO: convince the compiler to issue rotl instructions after inlining.
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index d61f114475..22085d3df0 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -81,6 +81,28 @@ tail:
+ 	return uintptr(h)
+ }
+ 
++func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
++	h := uint64(seed + 4*hashkey[0])
++	v := uint64(readUnaligned32(p))
++	h ^= v
++	h ^= v << 32
++	h = rotl_31(h*m1) * m2
++	h ^= h >> 29
++	h *= m3
++	h ^= h >> 32
++	return uintptr(h)
++}
++
++func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
++	h := uint64(seed + 8*hashkey[0])
++	h ^= readUnaligned64(p)
++	h = rotl_31(h*m1) * m2
++	h ^= h >> 29
++	h *= m3
++	h ^= h >> 32
++	return uintptr(h)
++}
++
+ // Note: in order to get the compiler to issue rotl instructions, we
+ // need to constant fold the shift amount by hand.
+ // TODO: convince the compiler to issue rotl instructions after inlining.
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index a6f3cdbdbe..1400579cda 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -14,6 +14,40 @@ import (
+ 	"unsafe"
+ )
+ 
++func TestMemHash32Equality(t *testing.T) {
++	if *UseAeshash {
++		t.Skip("skipping since AES hash implementation is used")
++	}
++	var b [4]byte
++	r := rand.New(rand.NewSource(1234))
++	seed := uintptr(r.Uint64())
++	for i := 0; i < 100; i++ {
++		randBytes(r, b[:])
++		got := MemHash32(unsafe.Pointer(&b), seed)
++		want := MemHash(unsafe.Pointer(&b), seed, 4)
++		if got != want {
++			t.Errorf("MemHash32(%x, %v) = %v; want %v", b, seed, got, want)
++		}
++	}
++}
++
++func TestMemHash64Equality(t *testing.T) {
++	if *UseAeshash {
++		t.Skip("skipping since AES hash implementation is used")
++	}
++	var b [8]byte
++	r := rand.New(rand.NewSource(1234))
++	seed := uintptr(r.Uint64())
++	for i := 0; i < 100; i++ {
++		randBytes(r, b[:])
++		got := MemHash64(unsafe.Pointer(&b), seed)
++		want := MemHash(unsafe.Pointer(&b), seed, 8)
++		if got != want {
++			t.Errorf("MemHash64(%x, %v) = %v; want %v", b, seed, got, want)
++		}
++	}
++}
++
+ // Smhasher is a torture test for hash functions.
+ // https://code.google.com/p/smhasher/
+ // This code is a port of some of the Smhasher tests to Go.

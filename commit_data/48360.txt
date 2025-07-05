@@ -13,8 +13,51 @@ Date:   Tue May 11 22:40:41 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go   | 5 ++++-
  src/cmd/link/internal/ld/main.go   | 2 +-
  src/cmd/link/internal/ld/outbuf.go | 2 +-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index 3754669555..d6ecb2895b 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -167,7 +167,10 @@ func sizeExtRelocs(ctxt *Link, relsize uint32) {
+ 		}
+ 	}
+ 	filesz := ctxt.Out.Offset() + sz
+-	ctxt.Out.Mmap(uint64(filesz))
++	err := ctxt.Out.Mmap(uint64(filesz))
++	if err != nil {
++		Exitf("mapping output file failed: %v", err)
++	}
+ }
+ 
+ // relocSectFn wraps the function writing relocations of a section
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index adb39d0607..cba0e3d81f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -334,7 +334,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		// Don't mmap if we're building for Wasm. Wasm file
+ 		// layout is very different so filesize is meaningless.
+ 		if err := ctxt.Out.Mmap(filesize); err != nil {
+-			panic(err)
++			Exitf("mapping output file failed: %v", err)
+ 		}
+ 	}
+ 	// asmb will redirect symbols to the output file mmap, and relocations
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 530836ef7c..9d5e8854fe 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -160,7 +160,7 @@ func (out *OutBuf) copyHeap() bool {
+ 	total := uint64(bufLen + heapLen)
+ 	if heapLen != 0 {
+ 		if err := out.Mmap(total); err != nil { // Mmap will copy out.heap over to out.buf
+-			panic(err)
++			Exitf("mapping output file failed: %v", err)
+ 		}
+ 	}
+ 	return true

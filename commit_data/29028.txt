@@ -8,8 +8,50 @@ Date:   Thu Jul 21 15:25:22 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27494
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/dll_windows.go  | 1 -
  src/syscall/exec_plan9.go   | 5 -----
  src/syscall/exec_windows.go | 2 --
  3 files changed, 8 deletions(-)
+
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index e5638480b7..864473b43b 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -176,7 +176,6 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	default:
+ 		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
+ 	}
+-	return
+ }
+ 
+ // A LazyDLL implements access to a single DLL.
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 6551bcb1c1..47ccbdc384 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -298,11 +298,6 @@ childerror1:
+ 	for {
+ 		RawSyscall(SYS_EXITS, 0, 0, 0)
+ 	}
+-
+-	// Calling panic is not actually safe,
+-	// but the for loop above won't break
+-	// and this shuts up the compiler.
+-	panic("unreached")
+ }
+ 
+ // close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 5a01843d2b..cafce1eff6 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -209,8 +209,6 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
+ 			return FullPath(d + "\\" + p)
+ 		}
+ 	}
+-	// we shouldn't be here
+-	return "", EINVAL
+ }
+ 
+ type ProcAttr struct {

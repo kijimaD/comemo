@@ -9,8 +9,66 @@ Date:   Tue Feb 6 17:39:50 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/vet/asmdecl.go          |  4 ++--
  src/cmd/vet/testdata/asm/asm.go |  3 +++
  src/cmd/vet/testdata/asm/asm3.s | 14 ++++++++++++++
  3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+index b01d23d342..d3335c69f5 100644
+--- a/src/cmd/vet/asmdecl.go
++++ b/src/cmd/vet/asmdecl.go
+@@ -240,17 +240,17 @@ Files:
+ 						continue
+ 					}
+ 				}
++				flag := m[3]
+ 				fn = knownFunc[fnName][arch]
+ 				if fn != nil {
+ 					size, _ := strconv.Atoi(m[5])
+-					flag := m[3]
+ 					if size != fn.size && (flag != "7" && !strings.Contains(flag, "NOSPLIT") || size != 0) {
+ 						badf("wrong argument size %d; expected $...-%d", size, fn.size)
+ 					}
+ 				}
+ 				localSize, _ = strconv.Atoi(m[4])
+ 				localSize += archDef.intSize
+-				if archDef.lr {
++				if archDef.lr && !strings.Contains(flag, "NOFRAME") {
+ 					// Account for caller's saved LR
+ 					localSize += archDef.intSize
+ 				}
+diff --git a/src/cmd/vet/testdata/asm/asm.go b/src/cmd/vet/testdata/asm/asm.go
+index e6d6d03106..2237ddc3b0 100644
+--- a/src/cmd/vet/testdata/asm/asm.go
++++ b/src/cmd/vet/testdata/asm/asm.go
+@@ -43,3 +43,6 @@ func wrapper(x int)
+ 
+ func f15271() (x uint32)
+ func f17584(x float32, y complex64)
++
++func noframe1(x int32)
++func noframe2(x int32)
+diff --git a/src/cmd/vet/testdata/asm/asm3.s b/src/cmd/vet/testdata/asm/asm3.s
+index 3d69356a0f..83e53862d7 100644
+--- a/src/cmd/vet/testdata/asm/asm3.s
++++ b/src/cmd/vet/testdata/asm/asm3.s
+@@ -176,3 +176,17 @@ TEXT ·leaf(SB),0,$-4-12
+ 	MOVW	y+4(FP), AX
+ 	MOVW	AX, ret+8(FP)
+ 	RET
++
++TEXT ·noframe1(SB),0,$0-4
++	MOVW	0(R13), AX // Okay; our saved LR
++	MOVW	4(R13), AX // Okay; caller's saved LR
++	MOVW	x+8(R13), AX // Okay; x argument
++	MOVW	12(R13), AX // ERROR "use of 12\(R13\) points beyond argument frame"
++	RET
++
++TEXT ·noframe2(SB),NOFRAME,$0-4
++	MOVW	0(R13), AX // Okay; caller's saved LR
++	MOVW	x+4(R13), AX // Okay; x argument
++	MOVW	8(R13), AX // ERROR "use of 8\(R13\) points beyond argument frame"
++	MOVW	12(R13), AX // ERROR "use of 12\(R13\) points beyond argument frame"
++	RET

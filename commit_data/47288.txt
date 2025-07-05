@@ -20,7 +20,7 @@ Date:   Tue Jan 5 16:44:43 2021 -0600
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
     Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
-
+---
  src/cmd/asm/internal/asm/asm.go           | 14 +++-----------
  src/cmd/asm/internal/asm/testdata/ppc64.s |  6 ++++++
  src/cmd/compile/internal/ppc64/ssa.go     |  8 ++++----
@@ -28,3 +28,237 @@ Date:   Tue Jan 5 16:44:43 2021 -0600
  test/codegen/rotate.go                    | 32 +++++++++++++++----------------
  test/codegen/shift.go                     | 32 +++++++++++++++----------------
  6 files changed, 58 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 06867cd507..340f188924 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -799,19 +799,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		p.errorf("can't handle %s instruction with 4 operands", op)
+ 		return
+ 	case 5:
+-		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
+-			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
++		if p.arch.Family == sys.PPC64 {
+ 			prog.From = a[0]
++			// Second arg is always a register type on ppc64.
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+-			mask1 := p.getConstant(prog, op, &a[2])
+-			mask2 := p.getConstant(prog, op, &a[3])
+-			var mask uint32
+-			if mask1 < mask2 {
+-				mask = (^uint32(0) >> uint(mask1)) & (^uint32(0) << uint(31-mask2))
+-			} else {
+-				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
+-			}
+-			prog.SetFrom3Const(int64(mask))
++			prog.SetRestArgs([]obj.Addr{a[2], a[3]})
+ 			prog.To = a[4]
+ 			break
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 8f6eb14f73..a818c0e789 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -280,11 +280,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ROTLW R3, R4, R5                // 5c85183e
+ 	EXTSWSLI $3, R4, R5             // 7c851ef4
+ 	RLWMI $7, R3, $65535, R6        // 50663c3e
++	RLWMI $7, R3, $16, $31, R6      // 50663c3e
+ 	RLWMICC $7, R3, $65535, R6      // 50663c3f
++	RLWMICC $7, R3, $16, $31, R6    // 50663c3f
+ 	RLWNM $3, R4, $7, R6            // 54861f7e
++	RLWNM $3, R4, $29, $31, R6      // 54861f7e
+ 	RLWNM R3, R4, $7, R6            // 5c861f7e
++	RLWNM R3, R4, $29, $31, R6      // 5c861f7e
+ 	RLWNMCC $3, R4, $7, R6          // 54861f7f
++	RLWNMCC $3, R4, $29, $31, R6    // 54861f7f
+ 	RLWNMCC R3, R4, $7, R6          // 5c861f7f
++	RLWNMCC R3, R4, $29, $31, R6    // 5c861f7f
+ 	RLDMI $0, R4, $7, R6            // 7886076c
+ 	RLDMICC $0, R4, $7, R6          // 7886076d
+ 	RLDIMI $0, R4, $7, R6           // 788601cc
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index f984079c4b..2bae35bf44 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -653,21 +653,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 		// Auxint holds encoded rotate + mask
+ 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
+-		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
++		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
+-		p.SetFrom3Const(int64(mask))
++		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
+ 
+ 		// Auxint holds mask
+ 	case ssa.OpPPC64RLWNM:
+-		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
++		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
+-		p.SetFrom3Const(int64(mask))
++		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
+ 
+ 	case ssa.OpPPC64MADDLD:
+ 		r := v.Reg()
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 7985f050de..648a41b5c7 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -181,7 +181,9 @@ var optab = []Optab{
+ 	{as: ASRAD, a1: C_SCON, a2: C_REG, a6: C_REG, type_: 56, size: 4},
+ 	{as: ASRAD, a1: C_SCON, a6: C_REG, type_: 56, size: 4},
+ 	{as: ARLWMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
++	{as: ARLWMI, a1: C_SCON, a2: C_REG, a3: C_SCON, a4: C_SCON, a6: C_REG, type_: 102, size: 4},
+ 	{as: ARLWMI, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 63, size: 4},
++	{as: ARLWMI, a1: C_REG, a2: C_REG, a3: C_SCON, a4: C_SCON, a6: C_REG, type_: 103, size: 4},
+ 	{as: ACLRLSLWI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
+ 	{as: ARLDMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 30, size: 4},
+ 	{as: ARLDC, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
+@@ -3861,6 +3863,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 	case 101:
+ 		o1 = AOP_XX2(c.oprrr(p.As), uint32(p.To.Reg), uint32(0), uint32(p.From.Reg))
++
++	case 102: /* RLWMI $sh,rs,$mb,$me,rt (M-form opcode)*/
++		mb := uint32(c.regoff(&p.RestArgs[0].Addr))
++		me := uint32(c.regoff(&p.RestArgs[1].Addr))
++		sh := uint32(c.regoff(&p.From))
++		o1 = OP_RLW(c.opirr(p.As), uint32(p.To.Reg), uint32(p.Reg), sh, mb, me)
++
++	case 103: /* RLWMI rb,rs,$mb,$me,rt (M-form opcode)*/
++		mb := uint32(c.regoff(&p.RestArgs[0].Addr))
++		me := uint32(c.regoff(&p.RestArgs[1].Addr))
++		o1 = OP_RLW(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), mb, me)
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index e0bcd0abbc..bf4bcc4fc3 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -176,38 +176,38 @@ func f32(x uint32) uint32 {
+ func checkMaskedRotate32(a []uint32, r int) {
+ 	i := 0
+ 
+-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[i], 16) & 0xFF0000
+ 	i++
+-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[i]&0xFF, 16)
+ 	i++
+-	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]27, R[0-9]+"
++	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]27, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[i], 4) & 0xFF0
+ 	i++
+-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]24, [$]31, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]24, [$]31, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[i]&0xFF0000, 16)
+ 	i++
+ 
+-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
+-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]8, [$]15, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]8, [$]15, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[i], r) & 0xFF0000
+ 	i++
+-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
+-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
+ 	i++
+ 
+-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
+-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
+ 	i++
+-	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
++	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
+ 	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
+ 	i++
+ }
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index d19a1984c1..ab0ffc2e13 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -240,12 +240,12 @@ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
+ func checkShiftAndMask32(v []uint32) {
+ 	i := 0
+ 
+-	// ppc64le: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]24, R[0-9]+, [$]12, [$]19, R[0-9]+"
++	// ppc64: "RLWNM\t[$]24, R[0-9]+, [$]12, [$]19, R[0-9]+"
+ 	v[i] = (v[i] & 0xFF00000) >> 8
+ 	i++
+-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]22, [$]29, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]22, [$]29, R[0-9]+"
+ 	v[i] = (v[i] & 0xFF00) >> 6
+ 	i++
+ 	// ppc64le: "MOVW\tR0"
+@@ -256,12 +256,12 @@ func checkShiftAndMask32(v []uint32) {
+ 	// ppc64: "MOVW\tR0"
+ 	v[i] = (v[i] & 0xF000000) >> 28
+ 	i++
+-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]24, [$]31, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]24, [$]31, R[0-9]+"
+ 	v[i] = (v[i] >> 6) & 0xFF
+ 	i++
+-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
+-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]12, [$]19, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]12, [$]19, R[0-9]+"
+ 	v[i] = (v[i] >> 6) & 0xFF000
+ 	i++
+ 	// ppc64le: "MOVW\tR0"
+@@ -275,16 +275,16 @@ func checkShiftAndMask32(v []uint32) {
+ }
+ 
+ func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
+-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
+-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+ 	a[0] = a[uint8(v>>24)]
+-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
+-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
+ 	b[0] = b[uint8(v>>24)]
+-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
+-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+ 	b[1] = b[(v>>20)&0xFF]
+-	//ppc64le: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
+-	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
++	//ppc64le: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
++	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
+ 	b[2] = b[v>>25]
+ }

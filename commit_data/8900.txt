@@ -7,7 +7,7 @@ Date:   Wed Jun 29 17:37:56 2011 +1000
     R=rsc, alex.brainman, hectorchu, r
     CC=golang-dev
     https://golang.org/cl/3759042
-
+---
  src/pkg/runtime/cgo/windows_amd64.c    |  18 ++++-
  src/pkg/runtime/mkasmh.sh              |  25 +++++--
  src/pkg/runtime/proc.c                 |   2 +-
@@ -18,3 +18,335 @@ Date:   Wed Jun 29 17:37:56 2011 +1000
  src/pkg/runtime/windows/amd64/sys.s    | 129 +++++++++++++++++++++++++++++++++
  src/pkg/runtime/windows/thread.c       |   2 +-
  9 files changed, 237 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+index dafe8cd9d4..fd5b397ab5 100755
+--- a/src/pkg/runtime/cgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -37,11 +37,21 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	* libcgo_sys_thread_start set stackguard to stack size;
+-	* change to actual guard pointer.
+-	*/
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+ 
+-	crosscall_386(ts.fn);
++	/*
++	 * Set specific keys in thread local storage.
++	 */
++	asm volatile (
++	  "movq %%gs:0x58, %%rax\n" // MOVQ 0x58(GS), tmp
++	  "movq %0, 0(%%rax)\n" // MOVQ g, 0(GS)
++	  "movq %1, 8(%%rax)\n" // MOVQ m, 8(GS)
++	  :: "r"(ts.g), "r"(ts.m) : "%rax"
++	);
++
++	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 00b5b3c89d..328e2d5ba4 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -61,14 +61,23 @@ case "$GOARCH" in
+ 	esac
+ 	;;
+ amd64)
+-	# The offsets 0 and 8 are known to:
+-	#	../../cmd/6l/pass.c:/D_GS
+-	#	../../libcgo/linux_amd64.c:/^threadentry
+-	#	../../libcgo/darwin_amd64.c:/^threadentry
+-	#
+-	echo '#define	get_tls(r)'
+-	echo '#define	g(r) 0(GS)'
+-	echo '#define	m(r) 8(GS)'
++	case "$GOOS" in
++	windows)
++		echo '#define	get_tls(r) MOVQ 0x58(GS), r'
++		echo '#define	g(r) 0(r)'
++		echo '#define	m(r) 8(r)'
++		;;
++	*)
++		# The offsets 0 and 8 are known to:
++		#	../../cmd/6l/pass.c:/D_GS
++		#	../../libcgo/linux_amd64.c:/^threadentry
++		#	../../libcgo/darwin_amd64.c:/^threadentry
++		#
++		echo '#define	get_tls(r)'
++		echo '#define	g(r) 0(GS)'
++		echo '#define	m(r) 8(GS)'
++		;;
++	esac
+ 	;;
+ arm)
+ 	echo '#define	g	R10'
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c5af8b754a..a8f3a796ac 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -77,7 +77,7 @@ struct Sched {
+ };
+ 
+ Sched runtime·sched;
+-int32 gomaxprocs;
++int32 runtime·gomaxprocs;
+ 
+ // An m that is waiting for notewakeup(&m->havenextg).  This may be
+ // only be accessed while the scheduler lock is held.  This is used to
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 7bc0962ba9..ad5da0a962 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -242,6 +242,11 @@ struct	M
+ 	uint32	fflag;		// floating point compare flags
+ #ifdef __WINDOWS__
+ 	void*	sehframe;
++
++#ifdef _64BIT	
++	void*	gostack;
++#endif
++
+ #endif
+ };
+ 
+diff --git a/src/pkg/runtime/windows/amd64/defs.h b/src/pkg/runtime/windows/amd64/defs.h
+new file mode 100644
+index 0000000000..830c6a8559
+--- /dev/null
++++ b/src/pkg/runtime/windows/amd64/defs.h
+@@ -0,0 +1,40 @@
++// g:\opensource\go\bin\godefs.exe -f -m64 defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x1,
++	MAP_PRIVATE = 0x2,
++	SIGINT = 0x2,
++	CTRL_C_EVENT = 0,
++	CTRL_BREAK_EVENT = 0x1,
++	EXCEPTION_ACCESS_VIOLATION = 0xc0000005,
++	EXCEPTION_BREAKPOINT = 0x80000003,
++	EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d,
++	EXCEPTION_FLT_DIVIDE_BY_ZERO = 0xc000008e,
++	EXCEPTION_FLT_INEXACT_RESULT = 0xc000008f,
++	EXCEPTION_FLT_OVERFLOW = 0xc0000091,
++	EXCEPTION_FLT_UNDERFLOW = 0xc0000093,
++	EXCEPTION_INT_DIVIDE_BY_ZERO = 0xc0000094,
++	EXCEPTION_INT_OVERFLOW = 0xc0000095,
++};
++
++// Types
++#pragma pack on
++
++typedef struct ExceptionRecord ExceptionRecord;
++struct ExceptionRecord {
++	uint32 ExceptionCode;
++	uint32 ExceptionFlags;
++	ExceptionRecord *ExceptionRecord;
++	void *ExceptionAddress;
++	uint32 NumberParameters;
++	byte pad_godefs_0[4];
++	uint64 ExceptionInformation[15];
++};
++#pragma pack off
+diff --git a/src/pkg/runtime/windows/amd64/rt0.s b/src/pkg/runtime/windows/amd64/rt0.s
+new file mode 100644
+index 0000000000..e54e7edeb9
+--- /dev/null
++++ b/src/pkg/runtime/windows/amd64/rt0.s
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "amd64/asm.h"
++
++TEXT	_rt0_amd64_windows(SB),7,$-8
++	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	SP, DI
++	JMP	AX
+diff --git a/src/pkg/runtime/windows/amd64/signal.c b/src/pkg/runtime/windows/amd64/signal.c
+new file mode 100644
+index 0000000000..1fc3eb0606
+--- /dev/null
++++ b/src/pkg/runtime/windows/amd64/signal.c
+@@ -0,0 +1,20 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++
++void
++runtime·initsig(int32 queue)
++{
++}
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	// TODO: Enable profiling interrupts.
++	
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+new file mode 100644
+index 0000000000..b1eacfc82b
+--- /dev/null
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -0,0 +1,129 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "amd64/asm.h"
++
++// void *stdcall_raw(void *fn, uintptr nargs, void *args)
++TEXT runtime·stdcall_raw(SB),7,$8
++	MOVQ	fn+0(FP), AX
++	MOVQ	nargs+8(FP), CX
++	MOVQ	args+16(FP), R11
++
++	// Switch to m->g0 if needed.
++	get_tls(DI)
++	MOVQ	m(DI), DX
++	MOVQ	g(DI), SI
++	MOVQ	SI, 0(SP)		// save g
++	MOVQ	SP, m_gostack(DX)	// save SP
++	MOVQ	m_g0(DX), SI
++	CMPQ	g(DI), SI
++	JEQ 3(PC)
++	MOVQ	(g_sched+gobuf_sp)(SI), SP
++	MOVQ	SI, g(DI)
++	
++	SUBQ	$0x60, SP
++	
++	// Copy args to new stack.
++	MOVQ	SP, DI
++	MOVQ	R11, SI
++	CLD
++	REP; MOVSQ
++	MOVQ	0(R11), CX
++	MOVQ	8(R11), DX
++	MOVQ	16(R11), R8
++	MOVQ	24(R11), R9
++
++	// Call stdcall function.
++	CALL	AX
++	
++	// Restore original SP, g.
++	get_tls(DI)
++	MOVQ	m(DI), DX
++	MOVQ	m_gostack(DX), SP	// restore SP
++	MOVQ	0(SP), SI		// restore g
++	MOVQ	SI, g(DI)
++
++	RET
++
++// faster get/set last error
++TEXT runtime·getlasterror(SB),7,$0
++	MOVQ	0x30(GS), AX
++	MOVL	0x68(AX), AX
++	RET
++
++TEXT runtime·setlasterror(SB),7,$0
++	MOVL	err+0(FP), AX
++	MOVQ	0x30(GS),	CX
++	MOVL	AX, 0x68(CX)
++	RET
++
++// Windows runs the ctrl handler in a new thread.
++TEXT runtime·ctrlhandler(SB),7,$0
++	// TODO
++	RET
++	
++TEXT runtime·callbackasm(SB),7,$0
++	// TODO
++	RET
++
++// void tstart(M *newm);
++TEXT runtime·tstart(SB),7,$0
++	MOVQ	newm+8(SP), CX		// m
++	MOVQ	m_g0(CX), DX		// g
++
++	MOVQ	SP, DI			// remember stack
++
++	// Layout new m scheduler stack on os stack.
++	MOVQ	SP, AX
++	MOVQ	AX, g_stackbase(DX)
++	SUBQ	$(64*1024), AX	// stack size
++	MOVQ	AX, g_stackguard(DX)
++
++	// Set up tls.
++	LEAQ	m_tls(CX), SI
++	MOVQ	SI, 0x58(GS)
++	MOVQ	CX, m(SI)
++	MOVQ	DX, g(SI)
++
++	// Someday the convention will be D is always cleared.
++	CLD
++
++	PUSHQ	DI			// original stack
++
++	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
++
++	CALL	runtime·mstart(SB)
++
++	POPQ	DI			// original stack
++	MOVQ	DI, SP
++	
++	RET
++
++// uint32 tstart_stdcall(M *newm);
++TEXT runtime·tstart_stdcall(SB),7,$0
++	MOVQ CX, BX // stdcall first arg in RCX
++
++	PUSHQ	BX
++	CALL	runtime·tstart+0(SB)
++	POPQ	BX
++
++	// Adjust stack for stdcall to return properly.
++	MOVQ	(SP), AX		// save return address
++	ADDQ	$8, SP			// remove single parameter
++	MOVQ	AX, (SP)		// restore return address
++
++	XORL	AX, AX			// return 0 == success
++
++	RET
++
++TEXT runtime·notok(SB),7,$0
++	MOVQ	$0xf1, BP
++	MOVQ	BP, (BP)
++	RET
++
++// set tls base to DI
++TEXT runtime·settls(SB),7,$0
++	MOVQ	DI, 0x58(GS)
++	RET
++
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 0c362d42c6..5644fd5dd7 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -219,7 +219,7 @@ runtime·gettime(int64 *sec, int32 *usec)
+ void *
+ runtime·stdcall(void *fn, int32 count, ...)
+ {
+-	return runtime·stdcall_raw(fn, count, (uintptr*)(&count + 1));
++	return runtime·stdcall_raw(fn, count, (uintptr*)&count + 1);
+ }
+ 
+ uintptr

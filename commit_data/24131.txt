@@ -11,7 +11,7 @@ Date:   Fri Jul 10 12:58:53 2015 -0600
     Change-Id: Iff8826fde475691fb72a3eea7396a640b6274af9
     Reviewed-on: https://go-review.googlesource.com/12041
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 40 +++++++++++++++
  src/cmd/compile/internal/gc/ssa_test.go           | 30 ++++++++++++
  src/cmd/compile/internal/gc/testdata/short_ssa.go | 60 +++++++++++++++++++++++
@@ -19,3 +19,220 @@ Date:   Fri Jul 10 12:58:53 2015 -0600
  src/cmd/compile/internal/ssa/print.go             |  9 +++-
  src/cmd/compile/internal/ssa/rewriteAMD64.go      | 20 ++++++++
  6 files changed, 159 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d47680bf8a..c4bfb2e731 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -500,6 +500,46 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
++	case OANDAND, OOROR:
++		// To implement OANDAND (and OOROR), we introduce a
++		// new temporary variable to hold the result. The
++		// variable is associated with the OANDAND node in the
++		// s.vars table (normally variables are only
++		// associated with ONAME nodes). We convert
++		//     A && B
++		// to
++		//     var = A
++		//     if var {
++		//         var = B
++		//     }
++		// Using var in the subsequent block introduces the
++		// necessary phi variable.
++		el := s.expr(n.Left)
++		s.vars[n] = el
++
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Control = el
++
++		bRight := s.f.NewBlock(ssa.BlockPlain)
++		bResult := s.f.NewBlock(ssa.BlockPlain)
++		if n.Op == OANDAND {
++			addEdge(b, bRight)
++			addEdge(b, bResult)
++		} else if n.Op == OOROR {
++			addEdge(b, bResult)
++			addEdge(b, bRight)
++		}
++
++		s.startBlock(bRight)
++		er := s.expr(n.Right)
++		s.vars[n] = er
++
++		b = s.endBlock()
++		addEdge(b, bResult)
++
++		s.startBlock(bResult)
++		return s.variable(n, n.Type)
+ 
+ 	// unary ops
+ 	case ONOT:
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+new file mode 100644
+index 0000000000..bcc77255dc
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"bytes"
++	"internal/testenv"
++	"os/exec"
++	"strings"
++	"testing"
++)
++
++func TestShortCircuit(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	var stdout, stderr bytes.Buffer
++	cmd := exec.Command("go", "run", "testdata/short_ssa.go")
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++	if err := cmd.Run(); err != nil {
++		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
++	}
++	if s := stdout.String(); s != "" {
++		t.Errorf("Stdout = %s\nWant empty", s)
++	}
++	if s := stderr.String(); strings.Contains(s, "SSA unimplemented") {
++		t.Errorf("Unimplemented message found in stderr:\n%s", s)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/testdata/short_ssa.go b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+new file mode 100644
+index 0000000000..9427423ff3
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+@@ -0,0 +1,60 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests short circuiting.
++
++package main
++
++func and_ssa(arg1, arg2 bool) bool {
++	return arg1 && rightCall(arg2)
++}
++
++func or_ssa(arg1, arg2 bool) bool {
++	return arg1 || rightCall(arg2)
++}
++
++var rightCalled bool
++
++func rightCall(v bool) bool {
++	rightCalled = true
++	return v
++	select {} // hack to prevent inlining
++	panic("unreached")
++}
++
++func testAnd(arg1, arg2, wantRes bool) { testShortCircuit("AND", arg1, arg2, and_ssa, arg1, wantRes) }
++func testOr(arg1, arg2, wantRes bool)  { testShortCircuit("OR", arg1, arg2, or_ssa, !arg1, wantRes) }
++
++func testShortCircuit(opName string, arg1, arg2 bool, fn func(bool, bool) bool, wantRightCall, wantRes bool) {
++	rightCalled = false
++	got := fn(arg1, arg2)
++	if rightCalled != wantRightCall {
++		println("failed for", arg1, opName, arg2, "; rightCalled=", rightCalled, "want=", wantRightCall)
++		failed = true
++	}
++	if wantRes != got {
++		println("failed for", arg1, opName, arg2, "; res=", got, "want=", wantRes)
++		failed = true
++	}
++}
++
++var failed = false
++
++func main() {
++	testAnd(false, false, false)
++	testAnd(false, true, false)
++	testAnd(true, false, false)
++	testAnd(true, true, true)
++
++	testOr(false, false, false)
++	testOr(false, true, true)
++	testOr(true, false, true)
++	testOr(true, true, true)
++
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 02b68b2e3c..aa0f6a7943 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -28,6 +28,7 @@
+ (MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
+ 
+ (Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
++(ConvNop <t> x) && t == x.Type -> (Copy x)
+ 
+ // Lowering shifts
+ // Note: unsigned shifts need to return 0 if shift amount is >= 64.
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 14d88dccd5..c8b90c6f93 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -26,7 +26,14 @@ func fprintFunc(w io.Writer, f *Func) {
+ 	fmt.Fprintln(w, f.Type)
+ 	printed := make([]bool, f.NumValues())
+ 	for _, b := range f.Blocks {
+-		fmt.Fprintf(w, "  b%d:\n", b.ID)
++		fmt.Fprintf(w, "  b%d:", b.ID)
++		if len(b.Preds) > 0 {
++			io.WriteString(w, " <-")
++			for _, pred := range b.Preds {
++				fmt.Fprintf(w, " b%d", pred.ID)
++			}
++		}
++		io.WriteString(w, "\n")
+ 		n := 0
+ 
+ 		// print phis first since all value cycles contain a phi
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 95964d10bb..d4447ea49a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -499,6 +499,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end4c8bfe9df26fc5aa2bd76b211792732a
+ 	end4c8bfe9df26fc5aa2bd76b211792732a:
+ 		;
++	case OpConvNop:
++		// match: (ConvNop <t> x)
++		// cond: t == x.Type
++		// result: (Copy x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			if !(t == x.Type) {
++				goto end6c588ed8aedc7dca8c06b4ada77e3ddd
++			}
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end6c588ed8aedc7dca8c06b4ada77e3ddd
++	end6c588ed8aedc7dca8c06b4ada77e3ddd:
++		;
+ 	case OpConvert:
+ 		// match: (Convert <t> x)
+ 		// cond: t.IsInteger() && x.Type.IsInteger()

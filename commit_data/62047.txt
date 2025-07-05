@@ -17,7 +17,7 @@ Date:   Wed Jan 22 10:43:44 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go      | 10 ++++++++--
  src/go/types/check_test.go    |  3 +--
  src/go/types/eval_test.go     |  5 ++---
@@ -29,3 +29,320 @@ Date:   Wed Jan 22 10:43:44 2025 -0500
  src/go/types/self_test.go     |  5 ++---
  src/go/types/sizes_test.go    | 14 ++++++++++----
  10 files changed, 36 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index b686578b38..27b4ab8ea0 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -19,11 +19,16 @@ import (
+ 	"testing"
+ 
+ 	. "go/types"
++	"runtime"
+ )
+ 
+ // nopos indicates an unknown position
+ var nopos token.Pos
+ 
++func defaultImporter(fset *token.FileSet) Importer {
++	return importer.ForCompiler(fset, runtime.Compiler, nil)
++}
++
+ func mustParse(fset *token.FileSet, src string) *ast.File {
+ 	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments)
+ 	if err != nil {
+@@ -33,12 +38,13 @@ func mustParse(fset *token.FileSet, src string) *ast.File {
+ }
+ 
+ func typecheck(src string, conf *Config, info *Info) (*Package, error) {
++	// TODO(adonovan): plumb this from caller.
+ 	fset := token.NewFileSet()
+ 	f := mustParse(fset, src)
+ 	if conf == nil {
+ 		conf = &Config{
+ 			Error:    func(err error) {}, // collect all errors
+-			Importer: importer.Default(),
++			Importer: defaultImporter(fset),
+ 		}
+ 	}
+ 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+@@ -1128,7 +1134,7 @@ var (
+ 		Implicits: make(map[ast.Node]Object),
+ 	}
+ 	var conf Config
+-	conf.Importer = importer.Default()
++	conf.Importer = defaultImporter(fset)
+ 	_, err := conf.Check("p", fset, []*ast.File{f}, &info)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index a10d0147da..823525828a 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -34,7 +34,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+-	"go/importer"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+@@ -164,7 +163,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
+ 	// set up typechecker
+ 	var conf Config
+ 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
+-	conf.Importer = importer.Default()
++	conf.Importer = defaultImporter(fset)
+ 	conf.Error = func(err error) {
+ 		if *haltOnError {
+ 			defer panic(err)
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index b9afb9117f..49d901f692 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -9,7 +9,6 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
+@@ -188,7 +187,7 @@ func TestEvalPos(t *testing.T) {
+ 		files = append(files, file)
+ 	}
+ 
+-	conf := Config{Importer: importer.Default()}
++	conf := Config{Importer: defaultImporter(fset)}
+ 	pkg, err := conf.Check("p", fset, files, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -257,7 +256,7 @@ func f(a int, s string) S {
+ 		t.Fatal(err)
+ 	}
+ 
+-	conf := Config{Importer: importer.Default()}
++	conf := Config{Importer: defaultImporter(fset)}
+ 	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 279771121a..d8e5de7476 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -19,7 +19,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/format"
+-	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
+@@ -57,7 +56,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 	// Type-check a package consisting of these files.
+ 	// Type information for the imported "fmt" package
+ 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
+-	conf := types.Config{Importer: importer.Default()}
++	conf := types.Config{Importer: defaultImporter(fset)}
+ 	pkg, err := conf.Check("temperature", fset, files, nil)
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -126,7 +125,7 @@ type I interface { m() byte }
+ 	// Type-check a package consisting of this file.
+ 	// Type information for the imported packages
+ 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
+-	conf := types.Config{Importer: importer.Default()}
++	conf := types.Config{Importer: defaultImporter(fset)}
+ 	pkg, err := conf.Check("temperature", fset, []*ast.File{f}, nil)
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 3eb34cf2d0..f2c63f16f9 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -9,7 +9,6 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
+@@ -291,7 +290,7 @@ func TestIssue25627(t *testing.T) {
+ 	} {
+ 		f := mustParse(fset, prefix+src)
+ 
+-		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
++		cfg := Config{Importer: defaultImporter(fset), Error: func(err error) {}}
+ 		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+ 		_, err := cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ 		if err != nil {
+@@ -595,7 +594,11 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
+ 	)
+ 
+ 	a := mustTypecheck(asrc, nil, nil)
+-	imp := importHelper{pkg: a, fallback: importer.Default()}
++	imp := importHelper{
++		pkg: a,
++		// TODO(adonovan): use same FileSet as mustTypecheck.
++		fallback: defaultImporter(token.NewFileSet()),
++	}
+ 
+ 	withImporter := func(cfg *Config) {
+ 		cfg.Importer = imp
+diff --git a/src/go/types/lookup_test.go b/src/go/types/lookup_test.go
+index d3ca58b9fa..e90a2ec89a 100644
+--- a/src/go/types/lookup_test.go
++++ b/src/go/types/lookup_test.go
+@@ -5,7 +5,6 @@
+ package types_test
+ 
+ import (
+-	"go/importer"
+ 	"go/token"
+ 	"path/filepath"
+ 	"runtime"
+@@ -28,7 +27,7 @@ func BenchmarkLookupFieldOrMethod(b *testing.B) {
+ 	}
+ 
+ 	conf := Config{
+-		Importer: importer.Default(),
++		Importer: defaultImporter(fset),
+ 	}
+ 
+ 	pkg, err := conf.Check("http", fset, files, nil)
+diff --git a/src/go/types/mono_test.go b/src/go/types/mono_test.go
+index ccab846c6d..d1f19ac558 100644
+--- a/src/go/types/mono_test.go
++++ b/src/go/types/mono_test.go
+@@ -7,7 +7,6 @@ package types_test
+ import (
+ 	"errors"
+ 	"fmt"
+-	"go/importer"
+ 	"go/types"
+ 	"strings"
+ 	"testing"
+@@ -19,7 +18,7 @@ func checkMono(t *testing.T, body string) error {
+ 	var buf strings.Builder
+ 	conf := types.Config{
+ 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
+-		Importer: importer.Default(),
++		Importer: defaultImporter(fset), // TODO(adonovan): use same FileSet as typecheck
+ 	}
+ 	typecheck(src, &conf, nil)
+ 	if buf.Len() == 0 {
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index a83f1344de..680ee69c97 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -7,7 +7,6 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/importer"
+ 	"go/token"
+ 	"internal/testenv"
+ 	"slices"
+@@ -17,6 +16,7 @@ import (
+ )
+ 
+ type resolveTestImporter struct {
++	fset     *token.FileSet
+ 	importer ImporterFrom
+ 	imported map[string]bool
+ }
+@@ -30,7 +30,7 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
+ 		panic("mode must be 0")
+ 	}
+ 	if imp.importer == nil {
+-		imp.importer = importer.Default().(ImporterFrom)
++		imp.importer = defaultImporter(fset).(ImporterFrom)
+ 		imp.imported = make(map[string]bool)
+ 	}
+ 	pkg, err := imp.importer.ImportFrom(path, srcDir, mode)
+@@ -124,7 +124,7 @@ func TestResolveIdents(t *testing.T) {
+ 	}
+ 
+ 	// resolve and type-check package AST
+-	importer := new(resolveTestImporter)
++	importer := &resolveTestImporter{fset: fset}
+ 	conf := Config{Importer: importer}
+ 	uses := make(map[*ast.Ident]Object)
+ 	defs := make(map[*ast.Ident]Object)
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index 27fa75652a..b4cc6286a1 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -6,7 +6,6 @@ package types_test
+ 
+ import (
+ 	"go/ast"
+-	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
+@@ -27,7 +26,7 @@ func TestSelf(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	conf := Config{Importer: importer.Default()}
++	conf := Config{Importer: defaultImporter(fset)}
+ 	_, err = conf.Check("go/types", fset, files, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -82,7 +81,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
+ 	for i := 0; i < b.N; i++ {
+ 		conf := Config{
+ 			IgnoreFuncBodies: ignoreFuncBodies,
+-			Importer:         importer.Default(),
++			Importer:         defaultImporter(fset),
+ 		}
+ 		var info *Info
+ 		if writeInfo {
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 825bc1f9f5..157faf87d4 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -8,7 +8,7 @@ package types_test
+ 
+ import (
+ 	"go/ast"
+-	"go/importer"
++	"go/token"
+ 	"go/types"
+ 	"internal/testenv"
+ 	"testing"
+@@ -87,7 +87,8 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ `
+ 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+ 	conf := types.Config{
+-		Importer: importer.Default(),
++		// TODO(adonovan): use same FileSet as mustTypecheck.
++		Importer: defaultImporter(token.NewFileSet()),
+ 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
+ 	}
+ 	mustTypecheck(src, &conf, &info)
+@@ -117,7 +118,8 @@ var s struct {
+ 	for _, arch := range []string{"386", "amd64"} {
+ 		t.Run(arch, func(t *testing.T) {
+ 			conf := types.Config{
+-				Importer: importer.Default(),
++				// TODO(adonovan): use same FileSet as findStructTypeConfig.
++				Importer: defaultImporter(token.NewFileSet()),
+ 				Sizes:    types.SizesFor("gc", arch),
+ 			}
+ 			ts := findStructTypeConfig(t, src, &conf)
+@@ -188,7 +190,11 @@ func TestGCSizes(t *testing.T) {
+ 		tc := tc
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			t.Parallel()
+-			conf := types.Config{Importer: importer.Default(), Sizes: types.SizesFor("gc", "amd64")}
++			conf := types.Config{
++				// TODO(adonovan): use same FileSet as mustTypecheck.
++				Importer: defaultImporter(token.NewFileSet()),
++				Sizes:    types.SizesFor("gc", "amd64"),
++			}
+ 			mustTypecheck(tc.src, &conf, nil)
+ 		})
+ 	}

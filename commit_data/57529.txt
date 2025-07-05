@@ -17,6 +17,19 @@ Date:   Tue Aug 15 15:32:42 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/testdata/script/test_skip.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/test_skip.txt b/src/cmd/go/testdata/script/test_skip.txt
+index 73e4195f78..2e5f4d65d7 100644
+--- a/src/cmd/go/testdata/script/test_skip.txt
++++ b/src/cmd/go/testdata/script/test_skip.txt
+@@ -26,6 +26,7 @@ go test -v -skip Example skip_test.go
+ stdout RUN.*Test1
+ stdout RUN.*Test2
+ stdout RUN.*Test2/3
++! stdout ExampleTest1
+ 
+ -- skip_test.go --
+ package skip_test

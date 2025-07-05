@@ -14,8 +14,67 @@ Date:   Thu Feb 7 22:45:12 2013 -0500
     R=golang-dev, dave, iant, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7309050
-
+---
  src/pkg/net/fd_unix.go      | 3 +++
  src/pkg/net/sock_cloexec.go | 6 +++---
  src/pkg/net/sys_cloexec.go  | 6 +++---
  3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index a97674267c..9f710e2376 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -661,6 +661,9 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 	syscall.ForkLock.RUnlock()
+ 
+ 	// We want blocking mode for the new fd, hence the double negative.
++	// This also puts the old fd into blocking mode, meaning that
++	// I/O will block the thread instead of letting us use the epoll server.
++	// Everything will still work, just with more threads.
+ 	if err = syscall.SetNonblock(ns, false); err != nil {
+ 		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
+ 	}
+diff --git a/src/pkg/net/sock_cloexec.go b/src/pkg/net/sock_cloexec.go
+index e2a5ef7160..12d0f34887 100644
+--- a/src/pkg/net/sock_cloexec.go
++++ b/src/pkg/net/sock_cloexec.go
+@@ -50,14 +50,14 @@ func accept(fd int) (int, syscall.Sockaddr, error) {
+ 	}
+ 
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+-	// It is okay to hold the lock across syscall.Accept
++	// It is probably okay to hold the lock across syscall.Accept
+ 	// because we have put fd.sysfd into non-blocking mode.
+-	syscall.ForkLock.RLock()
++	// However, a call to the File method will put it back into
++	// blocking mode. We can't take that risk, so no use of ForkLock here.
+ 	nfd, sa, err = syscall.Accept(fd)
+ 	if err == nil {
+ 		syscall.CloseOnExec(nfd)
+ 	}
+-	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+ 		return -1, nil, err
+ 	}
+diff --git a/src/pkg/net/sys_cloexec.go b/src/pkg/net/sys_cloexec.go
+index 75d5688a16..17e8749087 100644
+--- a/src/pkg/net/sys_cloexec.go
++++ b/src/pkg/net/sys_cloexec.go
+@@ -35,14 +35,14 @@ func sysSocket(f, t, p int) (int, error) {
+ // descriptor as nonblocking and close-on-exec.
+ func accept(fd int) (int, syscall.Sockaddr, error) {
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+-	// It is okay to hold the lock across syscall.Accept
++	// It is probably okay to hold the lock across syscall.Accept
+ 	// because we have put fd.sysfd into non-blocking mode.
+-	syscall.ForkLock.RLock()
++	// However, a call to the File method will put it back into
++	// blocking mode. We can't take that risk, so no use of ForkLock here.
+ 	nfd, sa, err := syscall.Accept(fd)
+ 	if err == nil {
+ 		syscall.CloseOnExec(nfd)
+ 	}
+-	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+ 		return -1, nil, err
+ 	}

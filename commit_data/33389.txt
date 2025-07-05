@@ -11,6 +11,28 @@ Date:   Tue Aug 15 20:53:49 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 9e682a2fb5..97cdc80af8 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"debug/elf"
+ 	"encoding/binary"
+ 	"errors"
++	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"io"
+@@ -161,6 +162,8 @@ func testMain(m *testing.M) (int, error) {
+ }
+ 
+ func TestMain(m *testing.M) {
++	flag.Parse()
++
+ 	// Some of the tests install binaries into a custom GOPATH.
+ 	// That won't work if GOBIN is set.
+ 	os.Unsetenv("GOBIN")

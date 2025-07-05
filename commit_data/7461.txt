@@ -7,9 +7,102 @@ Date:   Mon Feb 14 14:51:08 2011 -0800
     R=r, rsc, r2
     CC=golang-dev
     https://golang.org/cl/4171050
-
+---
  src/pkg/rpc/client.go         | 7 ++++---
  src/pkg/rpc/jsonrpc/client.go | 3 +++
  src/pkg/rpc/jsonrpc/server.go | 3 +++
  src/pkg/rpc/server.go         | 7 ++++---
  4 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index cb21cf907a..6de6d1325b 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -53,7 +53,9 @@ type Client struct {
+ // The client calls WriteRequest to write a request to the connection
+ // and calls ReadResponseHeader and ReadResponseBody in pairs
+ // to read responses.  The client calls Close when finished with the
+-// connection.
++// connection. ReadResponseBody may be called with a nil
++// argument to force the body of the response to be read and then
++// discarded.
+ type ClientCodec interface {
+ 	WriteRequest(*Request, interface{}) os.Error
+ 	ReadResponseHeader(*Response) os.Error
+@@ -89,7 +91,6 @@ func (client *Client) send(c *Call) {
+ 
+ func (client *Client) input() {
+ 	var err os.Error
+-	var marker struct{}
+ 	for err == nil {
+ 		response := new(Response)
+ 		err = client.codec.ReadResponseHeader(response)
+@@ -115,7 +116,7 @@ func (client *Client) input() {
+ 			// any subsequent requests will get the ReadResponseBody
+ 			// error if there is one.
+ 			c.Error = ServerError(response.Error)
+-			err = client.codec.ReadResponseBody(&marker)
++			err = client.codec.ReadResponseBody(nil)
+ 			if err != nil {
+ 				err = os.ErrorString("reading error body: " + err.String())
+ 			}
+diff --git a/src/pkg/rpc/jsonrpc/client.go b/src/pkg/rpc/jsonrpc/client.go
+index dcaa69f9df..5b806bd6e2 100644
+--- a/src/pkg/rpc/jsonrpc/client.go
++++ b/src/pkg/rpc/jsonrpc/client.go
+@@ -98,6 +98,9 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+ }
+ 
+ func (c *clientCodec) ReadResponseBody(x interface{}) os.Error {
++	if x == nil {
++		return nil
++	}
+ 	return json.Unmarshal(*c.resp.Result, x)
+ }
+ 
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index bf53bda8da..9c6b8b40d6 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -85,6 +85,9 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
+ }
+ 
+ func (c *serverCodec) ReadRequestBody(x interface{}) os.Error {
++	if x == nil {
++		return nil
++	}
+ 	// JSON params is array value.
+ 	// RPC params is struct.
+ 	// Unmarshal into array containing struct for now.
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 4b622d4e5b..9dcda41480 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -302,7 +302,7 @@ type InvalidRequest struct {
+ 	Marker int
+ }
+ 
+-var invalidRequest = InvalidRequest{1}
++var invalidRequest = InvalidRequest{}
+ 
+ func _new(t *reflect.PtrType) *reflect.PtrValue {
+ 	v := reflect.MakeZero(t).(*reflect.PtrValue)
+@@ -399,7 +399,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
+ 				break
+ 			}
+ 			// discard body
+-			codec.ReadRequestBody(new(interface{}))
++			codec.ReadRequestBody(nil)
+ 
+ 			// send a response if we actually managed to read a header.
+ 			if req != nil {
+@@ -486,7 +486,8 @@ func RegisterName(name string, rcvr interface{}) os.Error {
+ // The server calls ReadRequestHeader and ReadRequestBody in pairs
+ // to read requests from the connection, and it calls WriteResponse to
+ // write a response back.  The server calls Close when finished with the
+-// connection.
++// connection. ReadRequestBody may be called with a nil
++// argument to force the body of the request to be read and discarded.
+ type ServerCodec interface {
+ 	ReadRequestHeader(*Request) os.Error
+ 	ReadRequestBody(interface{}) os.Error

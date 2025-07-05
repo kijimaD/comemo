@@ -10,6 +10,24 @@ Date:   Tue Aug 24 12:23:28 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index c477ddd45d..fd97279f9d 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1840,7 +1840,11 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
+ 	}
+ 
+ 	f := new(Field)
+-	f.pos = p.pos()
++	if name != nil {
++		f.pos = name.pos
++	} else {
++		f.pos = p.pos()
++	}
+ 
+ 	if p.tok == _Name || name != nil {
+ 		if name == nil {

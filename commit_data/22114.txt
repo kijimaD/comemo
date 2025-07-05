@@ -7,7 +7,77 @@ Date:   Tue Feb 24 11:24:27 2015 -0800
     Change-Id: If840e647376a2141f8c17729f7ef251bfff13f5f
     Reviewed-on: https://go-review.googlesource.com/5810
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/big/float.go      | 12 +++++++-----
  src/math/big/float_test.go | 14 ++++++++++++--
  2 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index a89ef1021a..015f1645b6 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -219,22 +219,24 @@ func (x *Float) MantExp() (mant *Float, exp int) {
+ 	return
+ }
+ 
+-// SetMantExp is the inverse of MantExp. It sets z to mant × 2**exp and
+-// and returns z. The result z has the same precision and rounding mode
+-// as mant.
++// SetMantExp sets z to mant × 2**exp and and returns z.
++// The result z has the same precision and rounding mode
++// as mant. SetMantExp is an inverse of MantExp but does
++// not require 0.5 <= |mant| < 1.0. Specifically:
++//
++//	new(Float).SetMantExp(x.MantExp()).Cmp(x) == 0
+ //
+ // Special cases are:
+ //
+ //	z.SetMantExp(  ±0, exp) =   ±0
+ //	z.SetMantExp(±Inf, exp) = ±Inf
+ //
+-// The result is ±Inf if the magnitude of exp is > MaxExp.
+ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ 	z.Copy(mant)
+ 	if len(z.mant) == 0 || z.exp == infExp {
+ 		return z
+ 	}
+-	z.setExp(int64(exp))
++	z.setExp(int64(z.exp) + int64(exp))
+ 	return z
+ }
+ 
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 2789cfb9f3..6714a92bf0 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -167,11 +167,17 @@ func TestFloatSetMantExp(t *testing.T) {
+ 		{"+Inf", -1234, "+Inf"},
+ 		{"-Inf", -1234, "-Inf"},
+ 		{"0", -MaxExp - 1, "0"},
+-		{"1", -MaxExp - 1, "+Inf"},  // exponent magnitude too large
+-		{"-1", -MaxExp - 1, "-Inf"}, // exponent magnitude too large
++		{"0.5", -MaxExp - 1, "+Inf"},  // exponent overflow
++		{"-0.5", -MaxExp - 1, "-Inf"}, // exponent overflow
++		{"0.5", MaxExp + 1, "+Inf"},   // exponent overflow
++		{"-0.5", MaxExp + 1, "-Inf"},  // exponent overflow
++		{"1", MaxExp, "+Inf"},         // exponent overflow
++		{"2", MaxExp - 1, "+Inf"},     // exponent overflow
+ 		{"0.75", 1, "1.5"},
+ 		{"0.5", 11, "1024"},
+ 		{"-0.5", -2, "-0.125"},
++		{"32", 5, "1024"},
++		{"1024", -10, "1"},
+ 	} {
+ 		frac := makeFloat(test.frac)
+ 		want := makeFloat(test.z)
+@@ -180,6 +186,10 @@ func TestFloatSetMantExp(t *testing.T) {
+ 		if !feq(&z, want) {
+ 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+ 		}
++		// test inverse property
++		if z.SetMantExp(want.MantExp()).Cmp(want) != 0 {
++			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
++		}
+ 	}
+ }
+ 

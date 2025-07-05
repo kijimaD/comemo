@@ -7,7 +7,35 @@ Date:   Mon Sep 6 08:04:53 2010 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/2144043
-
+---
  src/pkg/fmt/scan.go      | 2 +-
  src/pkg/fmt/scan_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index afbbeb3948..bd8af50069 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -740,7 +740,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 	case *int32:
+ 		*v = int32(s.scanInt(verb, 32))
+ 	case *int64:
+-		*v = s.scanInt(verb, intBits)
++		*v = s.scanInt(verb, 64)
+ 	case *uint:
+ 		*v = uint(s.scanUint(verb, intBits))
+ 	case *uint8:
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 9092789897..569d2f55f3 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -183,6 +183,9 @@ var scanTests = []ScanTest{
+ 
+ 	// Custom scanner.
+ 	ScanTest{"  vvv ", &xVal, Xs("vvv")},
++
++	// Fixed bugs
++	ScanTest{"2147483648\n", &int64Val, int64(2147483648)}, // was: integer overflow
+ }
+ 
+ var scanfTests = []ScanfTest{

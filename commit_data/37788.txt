@@ -9,9 +9,80 @@ Date:   Mon Aug 27 11:49:38 2018 -0400
     Change-Id: I6c915f183025587fc479d14f5d2c885767348b1b
     Reviewed-on: https://go-review.googlesource.com/131615
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go    | 2 +-
  src/cmd/link/internal/ld/data.go  | 2 +-
  src/cmd/link/internal/ld/dwarf.go | 6 +++---
  src/cmd/link/internal/ld/lib.go   | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 779f3565f9..f41e30d6e7 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -106,7 +106,7 @@ func hostArchive(ctxt *Link, name string) {
+ 		var load []uint64
+ 		for _, s := range ctxt.Syms.Allsym {
+ 			for i := range s.R {
+-				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
++				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF {
+ 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
+ 						load = append(load, off)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 730e9a0bf7..4b7680d1da 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -777,7 +777,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
+ 			continue
+ 		}
+ 		for i := range sym.R {
+-			r := &sym.R[i] // Copying sym.Reloc has measurable impact on peformance
++			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
+ 			rsname := ""
+ 			if r.Sym != nil {
+ 				rsname = r.Sym.Name
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c803180cad..4cb9295f43 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1062,7 +1062,7 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
+ 	dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
+ 	dsym.Type = sym.SDWARFINFO
+ 	for i := range dsym.R {
+-		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
++		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on performance
+ 		if r.Type == objabi.R_DWARFSECREF && r.Sym.Size == 0 {
+ 			if ctxt.BuildMode == BuildModeShared {
+ 				// These type symbols may not be present in BuildModeShared. Skip.
+@@ -1092,7 +1092,7 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
+ 	// Walk the relocations on the primary subprogram DIE and look for
+ 	// references to abstract funcs.
+ 	for i := range dsym.R {
+-		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
++		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on performance
+ 		candsym := reloc.Sym
+ 		if reloc.Type != objabi.R_DWARFSECREF {
+ 			continue
+@@ -1804,7 +1804,7 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
+ 	for _, u := range units {
+ 		for _, fn := range u.funcDIEs {
+ 			for i := range fn.R {
+-				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on peformance
++				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on performance
+ 				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
+ 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+ 					syms = append(syms, reloc.Sym)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9be9f5f916..6b578d7096 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -504,7 +504,7 @@ func (ctxt *Link) loadlib() {
+ 		any := false
+ 		for _, s := range ctxt.Syms.Allsym {
+ 			for i := range s.R {
+-				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
++				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+ 					any = true
+ 					break

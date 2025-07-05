@@ -9,6 +9,34 @@ Date:   Fri Jan 16 16:53:13 2015 -0800
     Change-Id: Iafafa4c1362bbd1940f8e4fb979f72feae3ec3ad
     Reviewed-on: https://go-review.googlesource.com/3000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 101c059893..49dd78446f 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"math/big"
++	"os"
+ 	"os/exec"
+ 	"regexp"
+ 	"runtime"
+@@ -186,6 +187,14 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
+ 			return
+ 		}
++		// Ignore the failure if the tests are running in a QEMU-based emulator,
++		// QEMU is not perfect at emulating everything.
++		// IN_QEMU environmental variable is set by some of the Go builders.
++		// IN_QEMU=1 indicates that the tests are running in QEMU. See issue 9605.
++		if os.Getenv("IN_QEMU") == "1" {
++			t.Skip("ignore the failure in QEMU; see golang.org/issue/9605")
++			return
++		}
+ 		t.FailNow()
+ 	}
+ }

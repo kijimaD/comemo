@@ -13,7 +13,7 @@ Date:   Wed Jun 10 10:39:57 2015 -0700
     Change-Id: I0ae9e522c83df9205bbe4ab94bc0e43d16dace58
     Reviewed-on: https://go-review.googlesource.com/10891
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go       |   2 +
  src/cmd/compile/internal/gc/ssa.go           | 140 ++++++++++++
  src/cmd/compile/internal/gc/type.go          |   5 +
@@ -27,3 +27,1119 @@ Date:   Wed Jun 10 10:39:57 2015 -0700
  src/cmd/compile/internal/ssa/stackalloc.go   |  17 +-
  src/cmd/compile/internal/ssa/type.go         |  47 +++--
  12 files changed, 720 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 00918c8691..97f7241fbd 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -57,6 +57,8 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.ACWD:       {gc.OK, AX, AX | DX, 0},
+ 	x86.ACLD:       {gc.OK, 0, 0, 0},
+ 	x86.ASTD:       {gc.OK, 0, 0, 0},
++	x86.ACMOVQCC:   {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.RightWrite | gc.UseCarry, 0, 0, 0},
++	x86.ACMOVQCS:   {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.RightWrite | gc.UseCarry, 0, 0, 0},
+ 	x86.ACMPB:      {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+ 	x86.ACMPL:      {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+ 	x86.ACMPQ:      {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fd47c54ad0..fcef7d3b81 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -755,6 +755,63 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpAMD64SHLQ:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			if r == x86.REG_CX {
++				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
++			}
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASHLQ)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[1]) // should be CX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64SHRQ:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			if r == x86.REG_CX {
++				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
++			}
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASHRQ)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[1]) // should be CX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64SARQ:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			if r == x86.REG_CX {
++				log.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
++			}
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASARQ)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[1]) // should be CX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpAMD64SHLQconst:
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+@@ -771,6 +828,89 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpAMD64SHRQconst:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASHRQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.Aux.(int64)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64SARQconst:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASARQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.Aux.(int64)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64SBBQcarrymask:
++		r := regnum(v)
++		p := Prog(x86.ASBBQ)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64CMOVQCC:
++		r := regnum(v)
++		x := regnum(v.Args[1])
++		y := regnum(v.Args[2])
++		if x != r && y != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		var p *obj.Prog
++		if x == r {
++			p = Prog(x86.ACMOVQCS)
++			p.From.Reg = y
++		} else {
++			p = Prog(x86.ACMOVQCC)
++			p.From.Reg = x
++		}
++		p.From.Type = obj.TYPE_REG
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpAMD64ANDQ:
++		r := regnum(v)
++		x := regnum(v.Args[0])
++		y := regnum(v.Args[1])
++		if x != r && y != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.AANDQ)
++		p.From.Type = obj.TYPE_REG
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		if x == r {
++			p.From.Reg = y
++		} else {
++			p.From.Reg = x
++		}
+ 	case ssa.OpAMD64LEAQ:
+ 		p := Prog(x86.ALEAQ)
+ 		p.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 0ed07ee90a..1417bfc196 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -18,6 +18,11 @@ func (t *Type) Size() int64 {
+ 	return t.Width
+ }
+ 
++func (t *Type) Alignment() int64 {
++	dowidth(t)
++	return int64(t.Align)
++}
++
+ func (t *Type) IsBoolean() bool {
+ 	return t.Etype == TBOOL
+ }
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index d5e8788e36..e9b7553534 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -20,14 +20,6 @@ Values
+    If not that, then cache the interfaces that wrap int64s.
+  - OpStore uses 3 args.  Increase the size of argstorage to 3?
+ 
+-Opcodes
+- - Rename ops to prevent cross-arch conflicts.  MOVQ -> MOVQamd64 (or
+-   MOVQ6?).  Other option: build opcode table in Config instead of globally.
+- - It's annoying to list the opcode both in the opcode list and an
+-   opInfo map entry.  Specify it one place and use go:generate to
+-   produce both?
+- - Write barriers
+-
+ Regalloc
+  - Make less arch-dependent
+  - Don't spill everything at every basic block boundary.
+@@ -38,7 +30,6 @@ Regalloc
+ 
+ Rewrites
+  - Strength reduction (both arch-indep and arch-dependent?)
+- - Code sequence for shifts >= wordsize
+  - Start another architecture (arm?)
+  - 64-bit ops on 32-bit machines
+  - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
+@@ -51,6 +42,9 @@ Common-Subexpression Elimination
+  - Can we move control values out of their basic block?
+ 
+ Other
+- - Make go:generate less painful.  Have a subpackage that just has the
+-   generate commands in it?
+  - Use gc.Fatal for errors.  Add a callback to Frontend?
++ - Write barriers
++ - For testing, do something more sophisticated than
++   checkOpcodeCounts.  Michael Matloob suggests using a similar
++   pattern matcher to the rewrite engine to check for certain
++   expression subtrees in the output.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 15cd79a3f5..e9744aed9c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -5,19 +5,37 @@
+ // x86 register conventions:
+ //  - Integer types live in the low portion of registers.
+ //    Upper portions are correctly extended.
++//    TODO: reconsider?  The current choice means we need no extension for indexing,
++//    but we do need extension for e.g. 32-bit signed adds.
+ //  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
+ //  - We do not use AH,BH,CH,DH registers.
+ //  - Floating-point types will live in the low natural slot of an sse2 register.
+ //    Unused portions are junk.
+ 
+-// These are the lowerings themselves
++// Lowering arithmetic
+ (Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
+ (Add <t> x y) && is32BitInt(t) -> (ADDL x y)
+-
+ (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+-
+ (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+-(Lsh <t> x y) && is64BitInt(t) -> (SHLQ x y) // TODO: check y>63
++
++// Lowering shifts
++// Note: unsigned shifts need to return 0 if shift amount is >= 64.
++//   mask = shift >= 64 ? 0 : 0xffffffffffffffff
++//   result = mask & arg << shift
++(Lsh <t> x y) && is64BitInt(t) ->
++	(ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
++(Rsh <t> x y) && is64BitInt(t) && !t.IsSigned() ->
++	(ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
++
++// Note: signed right shift needs to return 0/-1 if shift amount is >= 64.
++//   if shift > 63 { shift = 63 }
++//   result = arg >> shift
++(Rsh <t> x y) && is64BitInt(t) && t.IsSigned() ->
++	(SARQ <t> x (CMOVQCC <t>
++			(CMPQconst <TypeFlags> [int64(64)] y)
++			(Const <t> [int64(63)])
++			y))
++
+ (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+ 
+ (Load <t> ptr mem) && t.IsBoolean() -> (MOVBload [int64(0)] ptr mem)
+@@ -56,7 +74,11 @@
+ (SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
+ (MULQ x (MOVQconst [c])) && c.(int64) == int64(int32(c.(int64))) -> (MULQconst [c] x)
+ (MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
++(ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
++(ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
+ (SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
++(SHRQ x (MOVQconst [c])) -> (SHRQconst [c] x)
++(SARQ x (MOVQconst [c])) -> (SARQconst [c] x)
+ (CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
+ (CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
+ 
+@@ -101,3 +123,11 @@
+ (UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
+ (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+ (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
++
++// get rid of >=64 code for constant shifts
++(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d.(int64), c.(int64)) -> (Const [int64(-1)])
++(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d.(int64), c.(int64)) -> (Const [int64(0)])
++(ANDQconst [c] _) && c.(int64) == 0 -> (MOVQconst [int64(0)])
++(ANDQconst [c] x) && c.(int64) == -1 -> (Copy x)
++(CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d.(int64), c.(int64)) -> (Copy x)
++(CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _) && !inBounds(d.(int64), c.(int64)) -> (Copy x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index b3b2e3b5e2..8bb22d270d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -72,17 +72,20 @@ func init() {
+ 
+ 	gp := buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+ 	gpsp := gp | buildReg("SP FP")
++	flags := buildReg("FLAGS")
+ 	gp01 := regInfo{[]regMask{}, 0, []regMask{gp}}
+ 	gp11 := regInfo{[]regMask{gpsp}, 0, []regMask{gp}}
+ 	gp21 := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{gp}}
+ 	gp21shift := regInfo{[]regMask{gpsp, buildReg("CX")}, 0, []regMask{gp}}
+-	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{buildReg("FLAGS")}}
+-	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{buildReg("FLAGS")}}
++	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{flags}}
++	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{flags}}
++	flagsgp1 := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+ 	gpload := regInfo{[]regMask{gpsp, 0}, 0, []regMask{gp}}
+ 	gploadidx := regInfo{[]regMask{gpsp, gpsp, 0}, 0, []regMask{gp}}
+ 	gpstore := regInfo{[]regMask{gpsp, gpsp, 0}, 0, nil}
+ 	gpstoreidx := regInfo{[]regMask{gpsp, gpsp, gpsp, 0}, 0, nil}
+-	flagsgp := regInfo{[]regMask{buildReg("FLAGS")}, 0, []regMask{gp}}
++	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
++	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
+ 
+ 	// Suffixes encode the bit width of various instructions.
+ 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
+@@ -95,15 +98,24 @@ func init() {
+ 		{name: "SUBQconst", reg: gp11}, // arg0 - aux.(int64)
+ 		{name: "MULQ", reg: gp21},      // arg0 * arg1
+ 		{name: "MULQconst", reg: gp11}, // arg0 * aux.(int64)
++		{name: "ANDQ", reg: gp21},      // arg0 & arg1
++		{name: "ANDQconst", reg: gp11}, // arg0 & aux.(int64)
+ 		{name: "SHLQ", reg: gp21shift}, // arg0 << arg1, shift amount is mod 64
+ 		{name: "SHLQconst", reg: gp11}, // arg0 << aux.(int64), shift amount 0-63
+-		{name: "NEGQ", reg: gp11},      // -arg0
++		{name: "SHRQ", reg: gp21shift}, // unsigned arg0 >> arg1, shift amount is mod 64
++		{name: "SHRQconst", reg: gp11}, // unsigned arg0 >> aux.(int64), shift amount 0-63
++		{name: "SARQ", reg: gp21shift}, // signed arg0 >> arg1, shift amount is mod 64
++		{name: "SARQconst", reg: gp11}, // signed arg0 >> aux.(int64), shift amount 0-63
++
++		{name: "NEGQ", reg: gp11}, // -arg0
+ 
+ 		{name: "CMPQ", reg: gp2flags},      // arg0 compare to arg1
+ 		{name: "CMPQconst", reg: gp1flags}, // arg0 compare to aux.(int64)
+ 		{name: "TESTQ", reg: gp2flags},     // (arg0 & arg1) compare to 0
+ 		{name: "TESTB", reg: gp2flags},     // (arg0 & arg1) compare to 0
+ 
++		{name: "SBBQcarrymask", reg: flagsgp1}, // (int64)(-1) if carry is set, 0 if carry is clear.
++
+ 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
+ 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
+ 		{name: "SETL", reg: flagsgp},  // extract signed < condition from arg0
+@@ -111,6 +123,8 @@ func init() {
+ 		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
+ 		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0
+ 
++		{name: "CMOVQCC", reg: cmov}, // carry clear
++
+ 		{name: "MOVQconst", reg: gp01},  // aux.(int64)
+ 		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + aux.(int64)
+ 		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + aux.(int64)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 441e08ab5d..4f689199a0 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -57,6 +57,7 @@ func genRules(arch arch) {
+ 
+ 	// read rule file
+ 	scanner := bufio.NewScanner(text)
++	rule := ""
+ 	for scanner.Scan() {
+ 		line := scanner.Text()
+ 		if i := strings.Index(line, "//"); i >= 0 {
+@@ -64,16 +65,27 @@ func genRules(arch arch) {
+ 			// it will truncate lines with // inside strings.  Oh well.
+ 			line = line[:i]
+ 		}
+-		line = strings.TrimSpace(line)
+-		if line == "" {
++		rule += " " + line
++		rule = strings.TrimSpace(rule)
++		if rule == "" {
+ 			continue
+ 		}
+-		op := strings.Split(line, " ")[0][1:]
++		if !strings.Contains(rule, "->") {
++			continue
++		}
++		if strings.HasSuffix(rule, "->") {
++			continue
++		}
++		if unbalanced(rule) {
++			continue
++		}
++		op := strings.Split(rule, " ")[0][1:]
+ 		if isBlock(op, arch) {
+-			blockrules[op] = append(blockrules[op], line)
++			blockrules[op] = append(blockrules[op], rule)
+ 		} else {
+-			oprules[op] = append(oprules[op], line)
++			oprules[op] = append(oprules[op], rule)
+ 		}
++		rule = ""
+ 	}
+ 	if err := scanner.Err(); err != nil {
+ 		log.Fatalf("scanner failed: %v\n", err)
+@@ -105,7 +117,7 @@ func genRules(arch arch) {
+ 			// split at ->
+ 			s := strings.Split(rule, "->")
+ 			if len(s) != 2 {
+-				log.Fatalf("no arrow in rule %s", rule)
++				log.Fatalf("rule must contain exactly one arrow: %s", rule)
+ 			}
+ 			lhs := strings.TrimSpace(s[0])
+ 			result := strings.TrimSpace(s[1])
+@@ -478,3 +490,17 @@ func blockName(name string, arch arch) string {
+ 	}
+ 	return "Block" + arch.name + name
+ }
++
++// unbalanced returns true if there aren't the same number of ( and ) in the string.
++func unbalanced(s string) bool {
++	var left, right int
++	for _, c := range s {
++		if c == '(' {
++			left++
++		}
++		if c == ')' {
++			right++
++		}
++	}
++	return left != right
++}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 550f641c14..a18f0c748b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -53,19 +53,27 @@ const (
+ 	OpAMD64SUBQconst
+ 	OpAMD64MULQ
+ 	OpAMD64MULQconst
++	OpAMD64ANDQ
++	OpAMD64ANDQconst
+ 	OpAMD64SHLQ
+ 	OpAMD64SHLQconst
++	OpAMD64SHRQ
++	OpAMD64SHRQconst
++	OpAMD64SARQ
++	OpAMD64SARQconst
+ 	OpAMD64NEGQ
+ 	OpAMD64CMPQ
+ 	OpAMD64CMPQconst
+ 	OpAMD64TESTQ
+ 	OpAMD64TESTB
++	OpAMD64SBBQcarrymask
+ 	OpAMD64SETEQ
+ 	OpAMD64SETNE
+ 	OpAMD64SETL
+ 	OpAMD64SETG
+ 	OpAMD64SETGE
+ 	OpAMD64SETB
++	OpAMD64CMOVQCC
+ 	OpAMD64MOVQconst
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAQ2
+@@ -204,6 +212,31 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "ANDQ",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++				4295032831,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
++	{
++		name: "ANDQconst",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
+ 	{
+ 		name: "SHLQ",
+ 		reg: regInfo{
+@@ -229,6 +262,56 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "SHRQ",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++				2,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
++	{
++		name: "SHRQconst",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
++	{
++		name: "SARQ",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++				2,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
++	{
++		name: "SARQconst",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
+ 	{
+ 		name: "NEGQ",
+ 		reg: regInfo{
+@@ -292,6 +375,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "SBBQcarrymask",
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
+ 	{
+ 		name: "SETEQ",
+ 		reg: regInfo{
+@@ -364,6 +459,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "CMOVQCC",
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592,
++				65519,
++				65519,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519,
++			},
++		},
++	},
+ 	{
+ 		name: "MOVQconst",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 542dad4500..f57cf7f333 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -108,6 +108,81 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endfa1c7cc5ac4716697e891376787f86ce
+ 	endfa1c7cc5ac4716697e891376787f86ce:
+ 		;
++	case OpAMD64ANDQ:
++		// match: (ANDQ x (MOVQconst [c]))
++		// cond:
++		// result: (ANDQconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVQconst {
++				goto endb98096e3bbb90933e39c88bf41c688a9
++			}
++			c := v.Args[1].Aux
++			v.Op = OpAMD64ANDQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endb98096e3bbb90933e39c88bf41c688a9
++	endb98096e3bbb90933e39c88bf41c688a9:
++		;
++		// match: (ANDQ (MOVQconst [c]) x)
++		// cond:
++		// result: (ANDQconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVQconst {
++				goto endd313fd1897a0d2bc79eff70159a81b6b
++			}
++			c := v.Args[0].Aux
++			x := v.Args[1]
++			v.Op = OpAMD64ANDQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endd313fd1897a0d2bc79eff70159a81b6b
++	endd313fd1897a0d2bc79eff70159a81b6b:
++		;
++	case OpAMD64ANDQconst:
++		// match: (ANDQconst [c] _)
++		// cond: c.(int64) == 0
++		// result: (MOVQconst [int64(0)])
++		{
++			c := v.Aux
++			if !(c.(int64) == 0) {
++				goto end383ada81cd8ffa88918387cd221acf5c
++			}
++			v.Op = OpAMD64MOVQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(0)
++			return true
++		}
++		goto end383ada81cd8ffa88918387cd221acf5c
++	end383ada81cd8ffa88918387cd221acf5c:
++		;
++		// match: (ANDQconst [c] x)
++		// cond: c.(int64) == -1
++		// result: (Copy x)
++		{
++			c := v.Aux
++			x := v.Args[0]
++			if !(c.(int64) == -1) {
++				goto end90aef368f20963a6ba27b3e9317ccf03
++			}
++			v.Op = OpCopy
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end90aef368f20963a6ba27b3e9317ccf03
++	end90aef368f20963a6ba27b3e9317ccf03:
++		;
+ 	case OpAdd:
+ 		// match: (Add <t> x y)
+ 		// cond: (is64BitInt(t) || isPtr(t))
+@@ -149,6 +224,57 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end35a02a1587264e40cf1055856ff8445a
+ 	end35a02a1587264e40cf1055856ff8445a:
+ 		;
++	case OpAMD64CMOVQCC:
++		// match: (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x)
++		// cond: inBounds(d.(int64), c.(int64))
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpAMD64CMPQconst {
++				goto endb8f4f98b06c41e559bf0323e798c147a
++			}
++			c := v.Args[0].Aux
++			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
++				goto endb8f4f98b06c41e559bf0323e798c147a
++			}
++			d := v.Args[0].Args[0].Aux
++			x := v.Args[2]
++			if !(inBounds(d.(int64), c.(int64))) {
++				goto endb8f4f98b06c41e559bf0323e798c147a
++			}
++			v.Op = OpCopy
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endb8f4f98b06c41e559bf0323e798c147a
++	endb8f4f98b06c41e559bf0323e798c147a:
++		;
++		// match: (CMOVQCC (CMPQconst [c] (MOVQconst [d])) x _)
++		// cond: !inBounds(d.(int64), c.(int64))
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpAMD64CMPQconst {
++				goto end29407b5c4731ac24b4c25600752cb895
++			}
++			c := v.Args[0].Aux
++			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
++				goto end29407b5c4731ac24b4c25600752cb895
++			}
++			d := v.Args[0].Args[0].Aux
++			x := v.Args[1]
++			if !(!inBounds(d.(int64), c.(int64))) {
++				goto end29407b5c4731ac24b4c25600752cb895
++			}
++			v.Op = OpCopy
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end29407b5c4731ac24b4c25600752cb895
++	end29407b5c4731ac24b4c25600752cb895:
++		;
+ 	case OpAMD64CMPQ:
+ 		// match: (CMPQ x (MOVQconst [c]))
+ 		// cond:
+@@ -352,23 +478,34 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpLsh:
+ 		// match: (Lsh <t> x y)
+ 		// cond: is64BitInt(t)
+-		// result: (SHLQ x y)
++		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
+ 		{
+ 			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+ 			if !(is64BitInt(t)) {
+-				goto end9f05c9539e51db6ad557989e0c822e9b
++				goto end7002b6d4becf7d1247e3756641ccb0c2
+ 			}
+-			v.Op = OpAMD64SHLQ
++			v.Op = OpAMD64ANDQ
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AddArg(x)
+-			v.AddArg(y)
++			v0 := v.Block.NewValue(v.Line, OpAMD64SHLQ, TypeInvalid, nil)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue(v.Line, OpAMD64SBBQcarrymask, TypeInvalid, nil)
++			v1.Type = t
++			v2 := v.Block.NewValue(v.Line, OpAMD64CMPQconst, TypeInvalid, nil)
++			v2.Type = TypeFlags
++			v2.Aux = int64(64)
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end9f05c9539e51db6ad557989e0c822e9b
+-	end9f05c9539e51db6ad557989e0c822e9b:
++		goto end7002b6d4becf7d1247e3756641ccb0c2
++	end7002b6d4becf7d1247e3756641ccb0c2:
+ 		;
+ 	case OpAMD64MOVQload:
+ 		// match: (MOVQload [off1] (ADDQconst [off2] ptr) mem)
+@@ -663,6 +800,140 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end0429f947ee7ac49ff45a243e461a5290
+ 	end0429f947ee7ac49ff45a243e461a5290:
+ 		;
++	case OpRsh:
++		// match: (Rsh <t> x y)
++		// cond: is64BitInt(t) && !t.IsSigned()
++		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [int64(64)] y)))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t) && !t.IsSigned()) {
++				goto end9463ddaa21c75f8e15cb9f31472a2e23
++			}
++			v.Op = OpAMD64ANDQ
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(v.Line, OpAMD64SHRQ, TypeInvalid, nil)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue(v.Line, OpAMD64SBBQcarrymask, TypeInvalid, nil)
++			v1.Type = t
++			v2 := v.Block.NewValue(v.Line, OpAMD64CMPQconst, TypeInvalid, nil)
++			v2.Type = TypeFlags
++			v2.Aux = int64(64)
++			v2.AddArg(y)
++			v1.AddArg(v2)
++			v.AddArg(v1)
++			return true
++		}
++		goto end9463ddaa21c75f8e15cb9f31472a2e23
++	end9463ddaa21c75f8e15cb9f31472a2e23:
++		;
++		// match: (Rsh <t> x y)
++		// cond: is64BitInt(t) && t.IsSigned()
++		// result: (SARQ <t> x (CMOVQCC <t> 			(CMPQconst <TypeFlags> [int64(64)] y) 			(Const <t> [int64(63)]) 			y))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t) && t.IsSigned()) {
++				goto endd297b9e569ac90bf815bd4c425d3b770
++			}
++			v.Op = OpAMD64SARQ
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AddArg(x)
++			v0 := v.Block.NewValue(v.Line, OpAMD64CMOVQCC, TypeInvalid, nil)
++			v0.Type = t
++			v1 := v.Block.NewValue(v.Line, OpAMD64CMPQconst, TypeInvalid, nil)
++			v1.Type = TypeFlags
++			v1.Aux = int64(64)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			v2 := v.Block.NewValue(v.Line, OpConst, TypeInvalid, nil)
++			v2.Type = t
++			v2.Aux = int64(63)
++			v0.AddArg(v2)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto endd297b9e569ac90bf815bd4c425d3b770
++	endd297b9e569ac90bf815bd4c425d3b770:
++		;
++	case OpAMD64SARQ:
++		// match: (SARQ x (MOVQconst [c]))
++		// cond:
++		// result: (SARQconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVQconst {
++				goto end031712b4008075e25a5827dcb8dd3ebb
++			}
++			c := v.Args[1].Aux
++			v.Op = OpAMD64SARQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto end031712b4008075e25a5827dcb8dd3ebb
++	end031712b4008075e25a5827dcb8dd3ebb:
++		;
++	case OpAMD64SBBQcarrymask:
++		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
++		// cond: inBounds(d.(int64), c.(int64))
++		// result: (Const [int64(-1)])
++		{
++			if v.Args[0].Op != OpAMD64CMPQconst {
++				goto end35e369f67ebb9423a1d36a808a16777c
++			}
++			c := v.Args[0].Aux
++			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
++				goto end35e369f67ebb9423a1d36a808a16777c
++			}
++			d := v.Args[0].Args[0].Aux
++			if !(inBounds(d.(int64), c.(int64))) {
++				goto end35e369f67ebb9423a1d36a808a16777c
++			}
++			v.Op = OpConst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(-1)
++			return true
++		}
++		goto end35e369f67ebb9423a1d36a808a16777c
++	end35e369f67ebb9423a1d36a808a16777c:
++		;
++		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
++		// cond: !inBounds(d.(int64), c.(int64))
++		// result: (Const [int64(0)])
++		{
++			if v.Args[0].Op != OpAMD64CMPQconst {
++				goto end5c767fada028c1cc96210af2cf098aff
++			}
++			c := v.Args[0].Aux
++			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
++				goto end5c767fada028c1cc96210af2cf098aff
++			}
++			d := v.Args[0].Args[0].Aux
++			if !(!inBounds(d.(int64), c.(int64))) {
++				goto end5c767fada028c1cc96210af2cf098aff
++			}
++			v.Op = OpConst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(0)
++			return true
++		}
++		goto end5c767fada028c1cc96210af2cf098aff
++	end5c767fada028c1cc96210af2cf098aff:
++		;
+ 	case OpAMD64SETG:
+ 		// match: (SETG (InvertFlags x))
+ 		// cond:
+@@ -719,6 +990,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endcca412bead06dc3d56ef034a82d184d6
+ 	endcca412bead06dc3d56ef034a82d184d6:
+ 		;
++	case OpAMD64SHRQ:
++		// match: (SHRQ x (MOVQconst [c]))
++		// cond:
++		// result: (SHRQconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVQconst {
++				goto endbb0d3a04dd2b810cb3dbdf7ef665f22b
++			}
++			c := v.Args[1].Aux
++			v.Op = OpAMD64SHRQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endbb0d3a04dd2b810cb3dbdf7ef665f22b
++	endbb0d3a04dd2b810cb3dbdf7ef665f22b:
++		;
+ 	case OpAMD64SUBQ:
+ 		// match: (SUBQ x (MOVQconst [c]))
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+new file mode 100644
+index 0000000000..bba4f782dc
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"testing"
++)
++
++func TestShiftConstAMD64(t *testing.T) {
++	c := NewConfig("amd64", DummyFrontend{})
++	fun := makeConstShiftFunc(c, 18, OpLsh, TypeUInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun = makeConstShiftFunc(c, 66, OpLsh, TypeUInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun = makeConstShiftFunc(c, 18, OpRsh, TypeUInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun = makeConstShiftFunc(c, 66, OpRsh, TypeUInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun = makeConstShiftFunc(c, 18, OpRsh, TypeInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
++	fun = makeConstShiftFunc(c, 66, OpRsh, TypeInt64)
++	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
++}
++
++func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
++	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, ".mem"),
++			Valu("FP", OpFP, TypeUInt64, nil),
++			Valu("argptr", OpOffPtr, ptyp, int64(8), "FP"),
++			Valu("resptr", OpOffPtr, ptyp, int64(16), "FP"),
++			Valu("load", OpLoad, typ, nil, "argptr", "mem"),
++			Valu("c", OpConst, TypeUInt64, amount),
++			Valu("shift", op, typ, nil, "load", "c"),
++			Valu("store", OpStore, TypeMem, nil, "resptr", "shift", "mem"),
++			Exit("store")))
++	Compile(fun.f)
++	return fun
++}
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index a4ce343b5d..d47c8c7b02 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -33,10 +33,9 @@ func stackalloc(f *Func) {
+ 			if v.Type.IsMemory() { // TODO: only "regallocable" types
+ 				continue
+ 			}
+-			n += v.Type.Size()
+-			// a := v.Type.Align()
+-			// n = (n + a - 1) / a * a  TODO
++			n = align(n, v.Type.Alignment())
+ 			loc := &LocalSlot{n}
++			n += v.Type.Size()
+ 			home = setloc(home, v, loc)
+ 			for _, w := range v.Args {
+ 				home = setloc(home, w, loc)
+@@ -60,15 +59,14 @@ func stackalloc(f *Func) {
+ 			if len(v.Args) == 1 && (v.Args[0].Op == OpFP || v.Args[0].Op == OpSP || v.Args[0].Op == OpGlobal) {
+ 				continue
+ 			}
+-			// a := v.Type.Align()
+-			// n = (n + a - 1) / a * a  TODO
+-			n += v.Type.Size()
++			n = align(n, v.Type.Alignment())
+ 			loc := &LocalSlot{n}
++			n += v.Type.Size()
+ 			home = setloc(home, v, loc)
+ 		}
+ 	}
+ 
+-	// TODO: align n
++	n = align(n, f.Config.ptrSize)
+ 	n += f.Config.ptrSize // space for return address.  TODO: arch-dependent
+ 	f.RegAlloc = home
+ 	f.FrameSize = n
+@@ -114,3 +112,8 @@ func stackalloc(f *Func) {
+ 		home[fp.ID] = &registers[4] // TODO: arch-dependent
+ 	}
+ }
++
++// align increases n to the next multiple of a.  a must be a power of 2.
++func align(n int64, a int64) int64 {
++	return (n + a - 1) &^ (a - 1)
++}
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 1a61c75afa..e271131a40 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -10,6 +10,7 @@ package ssa
+ // Type instances are not guaranteed to be canonical.
+ type Type interface {
+ 	Size() int64 // return the size in bytes
++	Alignment() int64
+ 
+ 	IsBoolean() bool // is a named or unnamed boolean type
+ 	IsInteger() bool //  ... ditto for the others
+@@ -30,6 +31,7 @@ type Type interface {
+ // Stub implementation for now, until we are completely using ../gc:Type
+ type TypeImpl struct {
+ 	Size_   int64
++	Align   int64
+ 	Boolean bool
+ 	Integer bool
+ 	Signed  bool
+@@ -43,32 +45,33 @@ type TypeImpl struct {
+ 	Name string
+ }
+ 
+-func (t *TypeImpl) Size() int64     { return t.Size_ }
+-func (t *TypeImpl) IsBoolean() bool { return t.Boolean }
+-func (t *TypeImpl) IsInteger() bool { return t.Integer }
+-func (t *TypeImpl) IsSigned() bool  { return t.Signed }
+-func (t *TypeImpl) IsFloat() bool   { return t.Float }
+-func (t *TypeImpl) IsPtr() bool     { return t.Ptr }
+-func (t *TypeImpl) IsString() bool  { return t.string }
+-func (t *TypeImpl) IsMemory() bool  { return t.Memory }
+-func (t *TypeImpl) IsFlags() bool   { return t.Flags }
+-func (t *TypeImpl) String() string  { return t.Name }
+-func (t *TypeImpl) Elem() Type      { panic("not implemented"); return nil }
+-func (t *TypeImpl) PtrTo() Type     { panic("not implemented"); return nil }
++func (t *TypeImpl) Size() int64      { return t.Size_ }
++func (t *TypeImpl) Alignment() int64 { return t.Align }
++func (t *TypeImpl) IsBoolean() bool  { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool  { return t.Integer }
++func (t *TypeImpl) IsSigned() bool   { return t.Signed }
++func (t *TypeImpl) IsFloat() bool    { return t.Float }
++func (t *TypeImpl) IsPtr() bool      { return t.Ptr }
++func (t *TypeImpl) IsString() bool   { return t.string }
++func (t *TypeImpl) IsMemory() bool   { return t.Memory }
++func (t *TypeImpl) IsFlags() bool    { return t.Flags }
++func (t *TypeImpl) String() string   { return t.Name }
++func (t *TypeImpl) Elem() Type       { panic("not implemented"); return nil }
++func (t *TypeImpl) PtrTo() Type      { panic("not implemented"); return nil }
+ 
+ var (
+ 	// shortcuts for commonly used basic types
+-	TypeInt8   = &TypeImpl{Size_: 1, Integer: true, Signed: true, Name: "int8"}
+-	TypeInt16  = &TypeImpl{Size_: 2, Integer: true, Signed: true, Name: "int16"}
+-	TypeInt32  = &TypeImpl{Size_: 4, Integer: true, Signed: true, Name: "int32"}
+-	TypeInt64  = &TypeImpl{Size_: 8, Integer: true, Signed: true, Name: "int64"}
+-	TypeUInt8  = &TypeImpl{Size_: 1, Integer: true, Name: "uint8"}
+-	TypeUInt16 = &TypeImpl{Size_: 2, Integer: true, Name: "uint16"}
+-	TypeUInt32 = &TypeImpl{Size_: 4, Integer: true, Name: "uint32"}
+-	TypeUInt64 = &TypeImpl{Size_: 8, Integer: true, Name: "uint64"}
+-	TypeBool   = &TypeImpl{Size_: 1, Boolean: true, Name: "bool"}
++	TypeInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
++	TypeInt16  = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
++	TypeInt32  = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
++	TypeInt64  = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
++	TypeUInt8  = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
++	TypeUInt16 = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
++	TypeUInt32 = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
++	TypeUInt64 = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
++	TypeBool   = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
+ 	//TypeString = types.Typ[types.String]
+-	TypeBytePtr = &TypeImpl{Size_: 8, Ptr: true, Name: "*byte"}
++	TypeBytePtr = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
+ 
+ 	TypeInvalid = &TypeImpl{Name: "invalid"}
+ 

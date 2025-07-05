@@ -14,6 +14,23 @@ Date:   Wed Feb 22 15:48:38 2017 -0800
     Change-Id: I3926b3e1042393939b2ec6aacd9b63ac8192df3b
     Reviewed-on: https://go-review.googlesource.com/37390
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/browser/browser.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/browser/browser.go b/src/cmd/internal/browser/browser.go
+index 897086f471..33b7bb9040 100644
+--- a/src/cmd/internal/browser/browser.go
++++ b/src/cmd/internal/browser/browser.go
+@@ -23,7 +23,10 @@ func Commands() [][]string {
+ 	case "windows":
+ 		cmds = append(cmds, []string{"cmd", "/c", "start"})
+ 	default:
+-		cmds = append(cmds, []string{"xdg-open"})
++		if os.Getenv("DISPLAY") != "" {
++			// xdg-open is only for use in a desktop environment.
++			cmds = append(cmds, []string{"xdg-open"})
++		}
+ 	}
+ 	cmds = append(cmds,
+ 		[]string{"chrome"},

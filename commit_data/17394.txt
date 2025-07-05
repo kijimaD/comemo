@@ -11,8 +11,170 @@ Date:   Tue Aug 27 13:29:07 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/13257043
-
+---
  src/pkg/text/template/exec.go      | 17 ++++++++++++----
  src/pkg/text/template/exec_test.go | 12 ++++++++---
  src/pkg/text/template/funcs.go     | 41 +++++++++++++++++++-------------------
  3 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index b227a3534f..43b0b266ec 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -755,12 +755,21 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+ // the template.
+ func (s *state) printValue(n parse.Node, v reflect.Value) {
+ 	s.at(n)
++	iface, ok := printableValue(v)
++	if !ok {
++		s.errorf("can't print %s of type %s", n, v.Type())
++	}
++	fmt.Fprint(s.wr, iface)
++}
++
++// printableValue returns the, possibly indirected, interface value inside v that
++// is best for a call to formatted printer.
++func printableValue(v reflect.Value) (interface{}, bool) {
+ 	if v.Kind() == reflect.Ptr {
+ 		v, _ = indirect(v) // fmt.Fprint handles nil.
+ 	}
+ 	if !v.IsValid() {
+-		fmt.Fprint(s.wr, "<no value>")
+-		return
++		return "<no value>", true
+ 	}
+ 
+ 	if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
+@@ -769,11 +778,11 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
+ 		} else {
+ 			switch v.Kind() {
+ 			case reflect.Chan, reflect.Func:
+-				s.errorf("can't print %s of type %s", n, v.Type())
++				return nil, false
+ 			}
+ 		}
+ 	}
+-	fmt.Fprint(s.wr, v.Interface())
++	return v.Interface(), true
+ }
+ 
+ // Types to help sort the keys in a map for reproducible output.
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 341c502173..be1a2d23d8 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -57,6 +57,7 @@ type T struct {
+ 	Err error
+ 	// Pointers
+ 	PI  *int
++	PS  *string
+ 	PSI *[]int
+ 	NIL *int
+ 	// Function (not method)
+@@ -125,6 +126,7 @@ var tVal = &T{
+ 	Str:               bytes.NewBuffer([]byte("foozle")),
+ 	Err:               errors.New("erroozle"),
+ 	PI:                newInt(23),
++	PS:                newString("a string"),
+ 	PSI:               newIntSlice(21, 22, 23),
+ 	BinaryFunc:        func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
+ 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+@@ -143,9 +145,11 @@ var iVal I = tVal
+ 
+ // Helpers for creation.
+ func newInt(n int) *int {
+-	p := new(int)
+-	*p = n
+-	return p
++	return &n
++}
++
++func newString(s string) *string {
++	return &s
+ }
+ 
+ func newIntSlice(n ...int) *[]int {
+@@ -282,6 +286,7 @@ var execTests = []execTest{
+ 
+ 	// Pointers.
+ 	{"*int", "{{.PI}}", "23", tVal, true},
++	{"*string", "{{.PS}}", "a string", tVal, true},
+ 	{"*[]int", "{{.PSI}}", "[21 22 23]", tVal, true},
+ 	{"*[]int[1]", "{{index .PSI 1}}", "22", tVal, true},
+ 	{"NIL", "{{.NIL}}", "<nil>", tVal, true},
+@@ -391,6 +396,7 @@ var execTests = []execTest{
+ 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
+ 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
+ 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
++	{"html", `{{html .PS}}`, "a string", tVal, true},
+ 
+ 	// JavaScript.
+ 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 9402170bd0..63287085aa 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -452,15 +452,7 @@ func HTMLEscapeString(s string) string {
+ // HTMLEscaper returns the escaped HTML equivalent of the textual
+ // representation of its arguments.
+ func HTMLEscaper(args ...interface{}) string {
+-	ok := false
+-	var s string
+-	if len(args) == 1 {
+-		s, ok = args[0].(string)
+-	}
+-	if !ok {
+-		s = fmt.Sprint(args...)
+-	}
+-	return HTMLEscapeString(s)
++	return HTMLEscapeString(evalArgs(args))
+ }
+ 
+ // JavaScript escaping.
+@@ -545,26 +537,35 @@ func jsIsSpecial(r rune) bool {
+ // JSEscaper returns the escaped JavaScript equivalent of the textual
+ // representation of its arguments.
+ func JSEscaper(args ...interface{}) string {
+-	ok := false
+-	var s string
+-	if len(args) == 1 {
+-		s, ok = args[0].(string)
+-	}
+-	if !ok {
+-		s = fmt.Sprint(args...)
+-	}
+-	return JSEscapeString(s)
++	return JSEscapeString(evalArgs(args))
+ }
+ 
+ // URLQueryEscaper returns the escaped value of the textual representation of
+ // its arguments in a form suitable for embedding in a URL query.
+ func URLQueryEscaper(args ...interface{}) string {
+-	s, ok := "", false
++	return url.QueryEscape(evalArgs(args))
++}
++
++// evalArgs formats the list of arguments into a string. It is therefore equivalent to
++//	fmt.Sprint(args...)
++// except that each argument is indirected (if a pointer), as required,
++// using the same rules as the default string evaluation during template
++// execution.
++func evalArgs(args []interface{}) string {
++	ok := false
++	var s string
++	// Fast path for simple common case.
+ 	if len(args) == 1 {
+ 		s, ok = args[0].(string)
+ 	}
+ 	if !ok {
++		for i, arg := range args {
++			a, ok := printableValue(reflect.ValueOf(arg))
++			if ok {
++				args[i] = a
++			} // else left fmt do its thing
++		}
+ 		s = fmt.Sprint(args...)
+ 	}
+-	return url.QueryEscape(s)
++	return s
+ }

@@ -7,6 +7,37 @@ Date:   Fri Sep 16 15:25:07 2016 -0700
     Change-Id: Ie1b08215c02ce3ec72a4752f4b800f23345ff99d
     Reviewed-on: https://go-review.googlesource.com/29362
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index fb00f714ff..39c38bd8dd 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -571,8 +571,8 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
+ // Post is a wrapper around DefaultClient.Post.
+ //
+ // To set custom headers, use NewRequest and DefaultClient.Do.
+-func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
+-	return DefaultClient.Post(url, bodyType, body)
++func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
++	return DefaultClient.Post(url, contentType, body)
+ }
+ 
+ // Post issues a POST to the specified URL.
+@@ -583,12 +583,12 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
+ // request.
+ //
+ // To set custom headers, use NewRequest and Client.Do.
+-func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
++func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+ 	req, err := NewRequest("POST", url, body)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	req.Header.Set("Content-Type", bodyType)
++	req.Header.Set("Content-Type", contentType)
+ 	return c.doFollowingRedirects(req, shouldRedirectPost)
+ }
+ 

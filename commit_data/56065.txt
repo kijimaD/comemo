@@ -13,7 +13,34 @@ Date:   Wed Apr 5 13:07:14 2023 +0300
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7ce8a071ad..4314d771fb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2804,7 +2804,7 @@
+ //
+ // Many commands apply to a set of packages:
+ //
+-//	go action [packages]
++//	go <action> [packages]
+ //
+ // Usually, [packages] is a list of import paths.
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 199d8af1b4..cf932136b3 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -34,7 +34,7 @@ var HelpPackages = &base.Command{
+ 	Long: `
+ Many commands apply to a set of packages:
+ 
+-	go action [packages]
++	go <action> [packages]
+ 
+ Usually, [packages] is a list of import paths.
+ 

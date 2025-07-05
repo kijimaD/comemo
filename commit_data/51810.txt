@@ -26,6 +26,24 @@ Date:   Thu Mar 10 22:56:00 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/internal/srcimporter/srcimporter.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index e4225eb4d7..d7ec6691bc 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -205,7 +205,11 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	args := []string{"go", "tool", "cgo", "-objdir", tmpdir}
++	goCmd := "go"
++	if p.ctxt.GOROOT != "" {
++		goCmd = filepath.Join(p.ctxt.GOROOT, "bin", "go")
++	}
++	args := []string{goCmd, "tool", "cgo", "-objdir", tmpdir}
+ 	if bp.Goroot {
+ 		switch bp.ImportPath {
+ 		case "runtime/cgo":

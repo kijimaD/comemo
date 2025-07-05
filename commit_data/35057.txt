@@ -7,6 +7,20 @@ Date:   Fri Dec 8 14:43:40 2017 +0100
     Change-Id: I33f14ea1d58e18081bae3f16c87d11312249c842
     Reviewed-on: https://go-review.googlesource.com/82835
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 6dcbffa490..1644f3cdb2 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -150,7 +150,7 @@ For more details, see <a href="TODO"><code>go</code> <code>help</code> <code>cac
+ </p>
+ 
+ <p>
+-The <code>go</code>&nbsp;</code>install</code> command now installs only the
++The <code>go</code>&nbsp;<code>install</code> command now installs only the
+ packages and commands listed directly on the command line.
+ For example, <code>go</code> <code>install</code> <code>cmd/gofmt</code>
+ installs the gofmt program but not any of the packages on which it depends.

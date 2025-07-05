@@ -7,9 +7,65 @@ Date:   Thu Sep 4 13:09:49 2008 -0700
     R=ken
     OCL=14811
     CL=14811
-
+---
  src/lib/clean.bash      | 4 ++++
  src/lib/make.bash       | 7 +++++++
  src/lib/math/clean.bash | 7 +++++++
  src/lib/math/make.bash  | 9 +++++++++
  4 files changed, 27 insertions(+)
+
+diff --git a/src/lib/clean.bash b/src/lib/clean.bash
+index 13af347a7d..c6e388e6be 100755
+--- a/src/lib/clean.bash
++++ b/src/lib/clean.bash
+@@ -5,3 +5,7 @@
+ #!/bin/bash
+ 
+ rm -f $GOROOT/pkg/*
++
++cd math
++bash clean.bash
++cd ..
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index be62e0a5cb..f0f545f251 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -13,3 +13,10 @@ do
+ 	echo 6g -o $GOROOT/pkg/$base.6 $i
+ 	6g -o $GOROOT/pkg/$base.6 $i
+ done
++
++echo; echo; echo %%%% making lib/math %%%%; echo
++
++cd math
++bash make.bash
++cd ..
++
+diff --git a/src/lib/math/clean.bash b/src/lib/math/clean.bash
+new file mode 100644
+index 0000000000..2cafa206d4
+--- /dev/null
++++ b/src/lib/math/clean.bash
+@@ -0,0 +1,7 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++rm -f 6.out *.6 math.a
+diff --git a/src/lib/math/make.bash b/src/lib/math/make.bash
+new file mode 100644
+index 0000000000..52d0727ad3
+--- /dev/null
++++ b/src/lib/math/make.bash
+@@ -0,0 +1,9 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++# should probably just be a makefile
++
++bash g1 && cp math.a $GOROOT/pkg/math.a

@@ -11,7 +11,7 @@ Date:   Fri Oct 28 18:40:38 2016 +0000
     Change-Id: I766179ab9225109d9232f783326e4d3843254980
     Reviewed-on: https://go-review.googlesource.com/32256
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/deps_test.go                          |  14 +-
  src/runtime/crash_cgo_test.go                      |   3 +-
  src/runtime/pprof/decoder_for_test.go              | 807 ---------------------
@@ -24,3 +24,2857 @@ Date:   Fri Oct 28 18:40:38 2016 +0000
  src/runtime/pprof/pprof.go                         | 382 +++++-----
  src/runtime/pprof/pprof_test.go                    | 227 ++++--
  11 files changed, 409 insertions(+), 2140 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 47f1be2c60..cbdcca4ac8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -170,14 +170,12 @@ var pkgDeps = map[string][]string{
+ 	"log": {"L1", "os", "fmt", "time"},
+ 
+ 	// Packages used by testing must be low-level (L2+fmt).
+-	"regexp":                            {"L2", "regexp/syntax"},
+-	"regexp/syntax":                     {"L2"},
+-	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
+-	"runtime/pprof/internal/profile":    {"L2"},
+-	"runtime/pprof/internal/protopprof": {"L2", "fmt", "runtime/pprof/internal/profile", "os", "time"},
+-	"runtime/pprof":                     {"L2", "fmt", "runtime/pprof/internal/profile", "runtime/pprof/internal/protopprof", "time"},
+-	"runtime/trace":                     {"L0"},
+-	"text/tabwriter":                    {"L2"},
++	"regexp":         {"L2", "regexp/syntax"},
++	"regexp/syntax":  {"L2"},
++	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
++	"runtime/pprof":  {"L2", "fmt", "os", "text/tabwriter"},
++	"runtime/trace":  {"L0"},
++	"text/tabwriter": {"L2"},
+ 
+ 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 472afcb38b..34d1f0594a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -271,11 +271,10 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+ 	fn := strings.TrimSpace(string(got))
+ 	defer os.Remove(fn)
+ 
+-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", "-symbolize=force", exe, fn))
++	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", exe, fn))
+ 
+ 	found := false
+ 	for i, e := range cmd.Env {
+diff --git a/src/runtime/pprof/decoder_for_test.go b/src/runtime/pprof/decoder_for_test.go
+deleted file mode 100644
+index 81cd7c2ee0..0000000000
+--- a/src/runtime/pprof/decoder_for_test.go
++++ /dev/null
+@@ -1,807 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains a decoder to test proto profiles
+-
+-package pprof_test
+-
+-import (
+-	"bytes"
+-	"compress/gzip"
+-	"errors"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"strings"
+-	"time"
+-)
+-
+-type buffer struct {
+-	field int
+-	typ   int
+-	u64   uint64
+-	data  []byte
+-	tmp   [16]byte
+-}
+-
+-type decoder func(*buffer, message) error
+-
+-type message interface {
+-	decoder() []decoder
+-}
+-
+-func unmarshal(data []byte, m message) (err error) {
+-	b := buffer{data: data, typ: 2}
+-	return decodeMessage(&b, m)
+-}
+-
+-func le64(p []byte) uint64 {
+-	return uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 | uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
+-}
+-
+-func le32(p []byte) uint32 {
+-	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+-}
+-
+-func decodeVarint(data []byte) (uint64, []byte, error) {
+-	var i int
+-	var u uint64
+-	for i = 0; ; i++ {
+-		if i >= 10 || i >= len(data) {
+-			return 0, nil, errors.New("bad varint")
+-		}
+-		u |= uint64(data[i]&0x7F) << uint(7*i)
+-		if data[i]&0x80 == 0 {
+-			return u, data[i+1:], nil
+-		}
+-	}
+-}
+-
+-func decodeField(b *buffer, data []byte) ([]byte, error) {
+-	x, data, err := decodeVarint(data)
+-	if err != nil {
+-		return nil, err
+-	}
+-	b.field = int(x >> 3)
+-	b.typ = int(x & 7)
+-	b.data = nil
+-	b.u64 = 0
+-	switch b.typ {
+-	case 0:
+-		b.u64, data, err = decodeVarint(data)
+-		if err != nil {
+-			return nil, err
+-		}
+-	case 1:
+-		if len(data) < 8 {
+-			return nil, errors.New("not enough data")
+-		}
+-		b.u64 = le64(data[:8])
+-		data = data[8:]
+-	case 2:
+-		var n uint64
+-		n, data, err = decodeVarint(data)
+-		if err != nil {
+-			return nil, err
+-		}
+-		if n > uint64(len(data)) {
+-			return nil, errors.New("too much data")
+-		}
+-		b.data = data[:n]
+-		data = data[n:]
+-	case 5:
+-		if len(data) < 4 {
+-			return nil, errors.New("not enough data")
+-		}
+-		b.u64 = uint64(le32(data[:4]))
+-		data = data[4:]
+-	default:
+-		return nil, errors.New("unknown type: " + string(b.typ))
+-	}
+-
+-	return data, nil
+-}
+-
+-func checkType(b *buffer, typ int) error {
+-	if b.typ != typ {
+-		return errors.New("type mismatch")
+-	}
+-	return nil
+-}
+-
+-func decodeMessage(b *buffer, m message) error {
+-	if err := checkType(b, 2); err != nil {
+-		return err
+-	}
+-	dec := m.decoder()
+-	data := b.data
+-	for len(data) > 0 {
+-		// pull varint field# + type
+-		var err error
+-		data, err = decodeField(b, data)
+-		if err != nil {
+-			return err
+-		}
+-		if b.field >= len(dec) || dec[b.field] == nil {
+-			continue
+-		}
+-		if err := dec[b.field](b, m); err != nil {
+-			return err
+-		}
+-	}
+-	return nil
+-}
+-
+-func decodeInt64(b *buffer, x *int64) error {
+-	if err := checkType(b, 0); err != nil {
+-		return err
+-	}
+-	*x = int64(b.u64)
+-	return nil
+-}
+-
+-func decodeInt64s(b *buffer, x *[]int64) error {
+-	if b.typ == 2 {
+-		// Packed encoding
+-		data := b.data
+-		for len(data) > 0 {
+-			var u uint64
+-			var err error
+-
+-			if u, data, err = decodeVarint(data); err != nil {
+-				return err
+-			}
+-			*x = append(*x, int64(u))
+-		}
+-		return nil
+-	}
+-	var i int64
+-	if err := decodeInt64(b, &i); err != nil {
+-		return err
+-	}
+-	*x = append(*x, i)
+-	return nil
+-}
+-
+-func decodeUint64(b *buffer, x *uint64) error {
+-	if err := checkType(b, 0); err != nil {
+-		return err
+-	}
+-	*x = b.u64
+-	return nil
+-}
+-
+-func decodeUint64s(b *buffer, x *[]uint64) error {
+-	if b.typ == 2 {
+-		data := b.data
+-		// Packed encoding
+-		for len(data) > 0 {
+-			var u uint64
+-			var err error
+-
+-			if u, data, err = decodeVarint(data); err != nil {
+-				return err
+-			}
+-			*x = append(*x, u)
+-		}
+-		return nil
+-	}
+-	var u uint64
+-	if err := decodeUint64(b, &u); err != nil {
+-		return err
+-	}
+-	*x = append(*x, u)
+-	return nil
+-}
+-
+-func decodeString(b *buffer, x *string) error {
+-	if err := checkType(b, 2); err != nil {
+-		return err
+-	}
+-	*x = string(b.data)
+-	return nil
+-}
+-
+-func decodeStrings(b *buffer, x *[]string) error {
+-	var s string
+-	if err := decodeString(b, &s); err != nil {
+-		return err
+-	}
+-	*x = append(*x, s)
+-	return nil
+-}
+-
+-func decodeBool(b *buffer, x *bool) error {
+-	if err := checkType(b, 0); err != nil {
+-		return err
+-	}
+-	if int64(b.u64) == 0 {
+-		*x = false
+-	} else {
+-		*x = true
+-	}
+-	return nil
+-}
+-
+-func (p *ProfileTest) decoder() []decoder {
+-	return profileDecoder
+-}
+-
+-var profileDecoder = []decoder{
+-	nil, // 0
+-	// repeated ValueType sample_type = 1
+-	func(b *buffer, m message) error {
+-		x := new(ValueType)
+-		pp := m.(*ProfileTest)
+-		pp.SampleType = append(pp.SampleType, x)
+-		return decodeMessage(b, x)
+-	},
+-	// repeated Sample sample = 2
+-	func(b *buffer, m message) error {
+-		x := new(Sample)
+-		pp := m.(*ProfileTest)
+-		pp.Sample = append(pp.Sample, x)
+-		return decodeMessage(b, x)
+-	},
+-	// repeated Mapping mapping = 3
+-	func(b *buffer, m message) error {
+-		x := new(Mapping)
+-		pp := m.(*ProfileTest)
+-		pp.Mapping = append(pp.Mapping, x)
+-		return decodeMessage(b, x)
+-	},
+-	// repeated Location location = 4
+-	func(b *buffer, m message) error {
+-		x := new(Location)
+-		pp := m.(*ProfileTest)
+-		pp.Location = append(pp.Location, x)
+-		return decodeMessage(b, x)
+-	},
+-	// repeated Function function = 5
+-	func(b *buffer, m message) error {
+-		x := new(Function)
+-		pp := m.(*ProfileTest)
+-		pp.Function = append(pp.Function, x)
+-		return decodeMessage(b, x)
+-	},
+-	// repeated string string_table = 6
+-	func(b *buffer, m message) error {
+-		err := decodeStrings(b, &m.(*ProfileTest).stringTable)
+-		if err != nil {
+-			return err
+-		}
+-		if *&m.(*ProfileTest).stringTable[0] != "" {
+-			return errors.New("string_table[0] must be ''")
+-		}
+-		return nil
+-	},
+-	// repeated int64 drop_frames = 7
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ProfileTest).dropFramesX) },
+-	// repeated int64 keep_frames = 8
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ProfileTest).keepFramesX) },
+-	// repeated int64 time_nanos = 9
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ProfileTest).TimeNanos) },
+-	// repeated int64 duration_nanos = 10
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ProfileTest).DurationNanos) },
+-	// optional string period_type = 11
+-	func(b *buffer, m message) error {
+-		x := new(ValueType)
+-		pp := m.(*ProfileTest)
+-		pp.PeriodType = x
+-		return decodeMessage(b, x)
+-	},
+-	// repeated int64 period = 12
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ProfileTest).Period) },
+-}
+-
+-// postDecode takes the unexported fields populated by decode (with
+-// suffix X) and populates the corresponding exported fields.
+-// The unexported fields are cleared up to facilitate testing.
+-func (p *ProfileTest) postDecode() error {
+-	var err error
+-
+-	mappings := make(map[uint64]*Mapping)
+-	for _, m := range p.Mapping {
+-		m.File, err = getString(p.stringTable, &m.fileX, err)
+-		m.BuildID, err = getString(p.stringTable, &m.buildIDX, err)
+-		mappings[m.ID] = m
+-	}
+-
+-	functions := make(map[uint64]*Function)
+-	for _, f := range p.Function {
+-		f.Name, err = getString(p.stringTable, &f.nameX, err)
+-		f.SystemName, err = getString(p.stringTable, &f.systemNameX, err)
+-		f.Filename, err = getString(p.stringTable, &f.filenameX, err)
+-		functions[f.ID] = f
+-	}
+-
+-	locations := make(map[uint64]*Location)
+-	for _, l := range p.Location {
+-		l.Mapping = mappings[l.mappingIDX]
+-		l.mappingIDX = 0
+-		for i, ln := range l.Line {
+-			if id := ln.functionIDX; id != 0 {
+-				l.Line[i].Function = functions[id]
+-				if l.Line[i].Function == nil {
+-					return fmt.Errorf("Function ID %d not found", id)
+-				}
+-				l.Line[i].functionIDX = 0
+-			}
+-		}
+-		locations[l.ID] = l
+-	}
+-
+-	for _, st := range p.SampleType {
+-		st.Type, err = getString(p.stringTable, &st.typeX, err)
+-		st.Unit, err = getString(p.stringTable, &st.unitX, err)
+-	}
+-
+-	for _, s := range p.Sample {
+-		labels := make(map[string][]string)
+-		numLabels := make(map[string][]int64)
+-		for _, l := range s.labelX {
+-			var key, value string
+-			key, err = getString(p.stringTable, &l.keyX, err)
+-			if l.strX != 0 {
+-				value, err = getString(p.stringTable, &l.strX, err)
+-				labels[key] = append(labels[key], value)
+-			} else {
+-				numLabels[key] = append(numLabels[key], l.numX)
+-			}
+-		}
+-		if len(labels) > 0 {
+-			s.Label = labels
+-		}
+-		if len(numLabels) > 0 {
+-			s.NumLabel = numLabels
+-		}
+-		s.Location = nil
+-		for _, lid := range s.locationIDX {
+-			s.Location = append(s.Location, locations[lid])
+-		}
+-		s.locationIDX = nil
+-	}
+-
+-	p.DropFrames, err = getString(p.stringTable, &p.dropFramesX, err)
+-	p.KeepFrames, err = getString(p.stringTable, &p.keepFramesX, err)
+-
+-	if pt := p.PeriodType; pt == nil {
+-		p.PeriodType = &ValueType{}
+-	}
+-
+-	if pt := p.PeriodType; pt != nil {
+-		pt.Type, err = getString(p.stringTable, &pt.typeX, err)
+-		pt.Unit, err = getString(p.stringTable, &pt.unitX, err)
+-	}
+-	p.stringTable = nil
+-	return nil
+-}
+-
+-func (p *ValueType) decoder() []decoder {
+-	return valueTypeDecoder
+-}
+-
+-var valueTypeDecoder = []decoder{
+-	nil, // 0
+-	// optional int64 type = 1
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ValueType).typeX) },
+-	// optional int64 unit = 2
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*ValueType).unitX) },
+-}
+-
+-func (p *Sample) decoder() []decoder {
+-	return sampleDecoder
+-}
+-
+-var sampleDecoder = []decoder{
+-	nil, // 0
+-	// repeated uint64 location = 1
+-	func(b *buffer, m message) error { return decodeUint64s(b, &m.(*Sample).locationIDX) },
+-	// repeated int64 value = 2
+-	func(b *buffer, m message) error { return decodeInt64s(b, &m.(*Sample).Value) },
+-	// repeated Label label = 3
+-	func(b *buffer, m message) error {
+-		s := m.(*Sample)
+-		n := len(s.labelX)
+-		s.labelX = append(s.labelX, Label{})
+-		return decodeMessage(b, &s.labelX[n])
+-	},
+-}
+-
+-func (p Label) decoder() []decoder {
+-	return labelDecoder
+-}
+-
+-var labelDecoder = []decoder{
+-	nil, // 0
+-	// optional int64 key = 1
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Label).keyX) },
+-	// optional int64 str = 2
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Label).strX) },
+-	// optional int64 num = 3
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Label).numX) },
+-}
+-
+-func (p *Mapping) decoder() []decoder {
+-	return mappingDecoder
+-}
+-
+-var mappingDecoder = []decoder{
+-	nil, // 0
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Mapping).ID) },            // optional uint64 id = 1
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Mapping).Start) },         // optional uint64 memory_offset = 2
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Mapping).Limit) },         // optional uint64 memory_limit = 3
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Mapping).Offset) },        // optional uint64 file_offset = 4
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Mapping).fileX) },          // optional int64 filename = 5
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Mapping).buildIDX) },       // optional int64 build_id = 6
+-	func(b *buffer, m message) error { return decodeBool(b, &m.(*Mapping).HasFunctions) },    // optional bool has_functions = 7
+-	func(b *buffer, m message) error { return decodeBool(b, &m.(*Mapping).HasFilenames) },    // optional bool has_filenames = 8
+-	func(b *buffer, m message) error { return decodeBool(b, &m.(*Mapping).HasLineNumbers) },  // optional bool has_line_numbers = 9
+-	func(b *buffer, m message) error { return decodeBool(b, &m.(*Mapping).HasInlineFrames) }, // optional bool has_inline_frames = 10
+-}
+-
+-func (p *Location) decoder() []decoder {
+-	return locationDecoder
+-}
+-
+-var locationDecoder = []decoder{
+-	nil, // 0
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Location).ID) },         // optional uint64 id = 1;
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Location).mappingIDX) }, // optional uint64 mapping_id = 2;
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Location).Address) },    // optional uint64 address = 3;
+-	func(b *buffer, m message) error { // repeated Line line = 4
+-		pp := m.(*Location)
+-		n := len(pp.Line)
+-		pp.Line = append(pp.Line, Line{})
+-		return decodeMessage(b, &pp.Line[n])
+-	},
+-}
+-
+-func (p *Line) decoder() []decoder {
+-	return lineDecoder
+-}
+-
+-var lineDecoder = []decoder{
+-	nil, // 0
+-	// optional uint64 function_id = 1
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Line).functionIDX) },
+-	// optional int64 line = 2
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Line) },
+-}
+-
+-func (p *Function) decoder() []decoder {
+-	return functionDecoder
+-}
+-
+-var functionDecoder = []decoder{
+-	nil, // 0
+-	// optional uint64 id = 1
+-	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Function).ID) },
+-	// optional int64 function_name = 2
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Function).nameX) },
+-	// optional int64 function_system_name = 3
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Function).systemNameX) },
+-	// repeated int64 filename = 4
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Function).filenameX) },
+-	// optional int64 start_line = 5
+-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Function).StartLine) },
+-}
+-
+-func getString(strings []string, strng *int64, err error) (string, error) {
+-	if err != nil {
+-		return "", err
+-	}
+-	s := int(*strng)
+-	if s < 0 || s >= len(strings) {
+-		return "", fmt.Errorf("malformed profile format")
+-	}
+-	*strng = 0
+-	return strings[s], nil
+-}
+-
+-// Profile is an in-memory representation of ProfileTest.proto.
+-type ProfileTest struct {
+-	SampleType []*ValueType
+-	Sample     []*Sample
+-	Mapping    []*Mapping
+-	Location   []*Location
+-	Function   []*Function
+-
+-	DropFrames string
+-	KeepFrames string
+-
+-	TimeNanos     int64
+-	DurationNanos int64
+-	PeriodType    *ValueType
+-	Period        int64
+-
+-	dropFramesX int64
+-	keepFramesX int64
+-	stringTable []string
+-}
+-
+-// ValueType corresponds to Profile.ValueType
+-type ValueType struct {
+-	Type string // cpu, wall, inuse_space, etc
+-	Unit string // seconds, nanoseconds, bytes, etc
+-
+-	typeX int64
+-	unitX int64
+-}
+-
+-// Sample corresponds to Profile.Sample
+-type Sample struct {
+-	Location []*Location
+-	Value    []int64
+-	Label    map[string][]string
+-	NumLabel map[string][]int64
+-
+-	locationIDX []uint64
+-	labelX      []Label
+-}
+-
+-// Label corresponds to Profile.Label
+-type Label struct {
+-	keyX int64
+-	// Exactly one of the two following values must be set
+-	strX int64
+-	numX int64 // Integer value for this label
+-}
+-
+-// Mapping corresponds to Profile.Mapping
+-type Mapping struct {
+-	ID              uint64
+-	Start           uint64
+-	Limit           uint64
+-	Offset          uint64
+-	File            string
+-	BuildID         string
+-	HasFunctions    bool
+-	HasFilenames    bool
+-	HasLineNumbers  bool
+-	HasInlineFrames bool
+-
+-	fileX    int64
+-	buildIDX int64
+-}
+-
+-// Location corresponds to Profile.Location
+-type Location struct {
+-	ID      uint64
+-	Mapping *Mapping
+-	Address uint64
+-	Line    []Line
+-
+-	mappingIDX uint64
+-}
+-
+-// Line corresponds to Profile.Line
+-type Line struct {
+-	Function *Function
+-	Line     int64
+-
+-	functionIDX uint64
+-}
+-
+-// Function corresponds to Profile.Function
+-type Function struct {
+-	ID         uint64
+-	Name       string
+-	SystemName string
+-	Filename   string
+-	StartLine  int64
+-
+-	nameX       int64
+-	systemNameX int64
+-	filenameX   int64
+-}
+-
+-// Parse parses a profile and checks for its validity. The input
+-// may be a gzip-compressed encoded protobuf or one of many legacy
+-// profile formats which may be unsupported in the future.
+-func Parse(r io.Reader) (*ProfileTest, error) {
+-	orig, err := ioutil.ReadAll(r)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	var p *ProfileTest
+-	if len(orig) >= 2 && orig[0] == 0x1f && orig[1] == 0x8b {
+-		gz, err := gzip.NewReader(bytes.NewBuffer(orig))
+-		if err != nil {
+-			return nil, fmt.Errorf("decompressing profile: %v", err)
+-		}
+-		data, err := ioutil.ReadAll(gz)
+-		if err != nil {
+-			return nil, fmt.Errorf("decompressing profile: %v", err)
+-		}
+-		orig = data
+-	}
+-	if p, err = parseUncompressed(orig); err != nil {
+-		return nil, fmt.Errorf("parsing profile: %v", err)
+-	}
+-
+-	if err := p.CheckValid(); err != nil {
+-		return nil, fmt.Errorf("malformed profile: %v", err)
+-	}
+-	return p, nil
+-}
+-
+-func parseUncompressed(data []byte) (*ProfileTest, error) {
+-	p := &ProfileTest{}
+-	if err := unmarshal(data, p); err != nil {
+-		return nil, err
+-	}
+-
+-	if err := p.postDecode(); err != nil {
+-		return nil, err
+-	}
+-
+-	return p, nil
+-}
+-
+-// CheckValid tests whether the profile is valid. Checks include, but are
+-// not limited to:
+-//   - len(Profile.Sample[n].value) == len(Profile.value_unit)
+-//   - Sample.id has a corresponding Profile.Location
+-func (p *ProfileTest) CheckValid() error {
+-	// Check that sample values are consistent
+-	sampleLen := len(p.SampleType)
+-	if sampleLen == 0 && len(p.Sample) != 0 {
+-		return fmt.Errorf("missing sample type information")
+-	}
+-	for _, s := range p.Sample {
+-		if len(s.Value) != sampleLen {
+-			return fmt.Errorf("mismatch: sample has: %d values vs. %d types", len(s.Value), len(p.SampleType))
+-		}
+-	}
+-
+-	// Check that all mappings/locations/functions are in the tables
+-	// Check that there are no duplicate ids
+-	mappings := make(map[uint64]*Mapping, len(p.Mapping))
+-	for _, m := range p.Mapping {
+-		if m.ID == 0 {
+-			return fmt.Errorf("found mapping with reserved ID=0")
+-		}
+-		if mappings[m.ID] != nil {
+-			return fmt.Errorf("multiple mappings with same id: %d", m.ID)
+-		}
+-		mappings[m.ID] = m
+-	}
+-	functions := make(map[uint64]*Function, len(p.Function))
+-	for _, f := range p.Function {
+-		if f.ID == 0 {
+-			return fmt.Errorf("found function with reserved ID=0")
+-		}
+-		if functions[f.ID] != nil {
+-			return fmt.Errorf("multiple functions with same id: %d", f.ID)
+-		}
+-		functions[f.ID] = f
+-	}
+-	locations := make(map[uint64]*Location, len(p.Location))
+-	for _, l := range p.Location {
+-		if l.ID == 0 {
+-			return fmt.Errorf("found location with reserved id=0")
+-		}
+-		if locations[l.ID] != nil {
+-			return fmt.Errorf("multiple locations with same id: %d", l.ID)
+-		}
+-		locations[l.ID] = l
+-		if m := l.Mapping; m != nil {
+-			if m.ID == 0 || mappings[m.ID] != m {
+-				return fmt.Errorf("inconsistent mapping %p: %d", m, m.ID)
+-			}
+-		}
+-		for _, ln := range l.Line {
+-			if f := ln.Function; f != nil {
+-				if f.ID == 0 || functions[f.ID] != f {
+-					return fmt.Errorf("inconsistent function %p: %d", f, f.ID)
+-				}
+-			}
+-		}
+-	}
+-	return nil
+-}
+-
+-// Print dumps a text representation of a profile. Intended mainly
+-// for debugging purposes.
+-func (p *ProfileTest) String() string {
+-
+-	ss := make([]string, 0, len(p.Sample)+len(p.Mapping)+len(p.Location))
+-	if pt := p.PeriodType; pt != nil {
+-		ss = append(ss, fmt.Sprintf("PeriodType: %s %s", pt.Type, pt.Unit))
+-	}
+-	ss = append(ss, fmt.Sprintf("Period: %d", p.Period))
+-	if p.TimeNanos != 0 {
+-		ss = append(ss, fmt.Sprintf("Time: %v", time.Unix(0, p.TimeNanos)))
+-	}
+-	if p.DurationNanos != 0 {
+-		ss = append(ss, fmt.Sprintf("Duration: %v", time.Duration(p.DurationNanos)))
+-	}
+-
+-	ss = append(ss, "Samples:")
+-	var sh1 string
+-	for _, s := range p.SampleType {
+-		sh1 = sh1 + fmt.Sprintf("%s/%s ", s.Type, s.Unit)
+-	}
+-	ss = append(ss, strings.TrimSpace(sh1))
+-	for _, s := range p.Sample {
+-		var sv string
+-		for _, v := range s.Value {
+-			sv = fmt.Sprintf("%s %10d", sv, v)
+-		}
+-		sv = sv + ": "
+-		for _, l := range s.Location {
+-			sv = sv + fmt.Sprintf("%d ", l.ID)
+-		}
+-		ss = append(ss, sv)
+-		const labelHeader = "                "
+-		if len(s.Label) > 0 {
+-			ls := labelHeader
+-			for k, v := range s.Label {
+-				ls = ls + fmt.Sprintf("%s:%v ", k, v)
+-			}
+-			ss = append(ss, ls)
+-		}
+-		if len(s.NumLabel) > 0 {
+-			ls := labelHeader
+-			for k, v := range s.NumLabel {
+-				ls = ls + fmt.Sprintf("%s:%v ", k, v)
+-			}
+-			ss = append(ss, ls)
+-		}
+-	}
+-
+-	ss = append(ss, "Locations")
+-	for _, l := range p.Location {
+-		locStr := fmt.Sprintf("%6d: %#x ", l.ID, l.Address)
+-		if m := l.Mapping; m != nil {
+-			locStr = locStr + fmt.Sprintf("M=%d ", m.ID)
+-		}
+-		if len(l.Line) == 0 {
+-			ss = append(ss, locStr)
+-		}
+-		for li := range l.Line {
+-			lnStr := "??"
+-			if fn := l.Line[li].Function; fn != nil {
+-				lnStr = fmt.Sprintf("%s %s:%d s=%d",
+-					fn.Name,
+-					fn.Filename,
+-					l.Line[li].Line,
+-					fn.StartLine)
+-				if fn.Name != fn.SystemName {
+-					lnStr = lnStr + "(" + fn.SystemName + ")"
+-				}
+-			}
+-			ss = append(ss, locStr+lnStr)
+-			// Do not print location details past the first line
+-			locStr = "             "
+-		}
+-	}
+-
+-	ss = append(ss, "Mappings")
+-	for _, m := range p.Mapping {
+-		bits := ""
+-		if m.HasFunctions {
+-			bits = bits + "[FN]"
+-		}
+-		if m.HasFilenames {
+-			bits = bits + "[FL]"
+-		}
+-		if m.HasLineNumbers {
+-			bits = bits + "[LN]"
+-		}
+-		if m.HasInlineFrames {
+-			bits = bits + "[IN]"
+-		}
+-		ss = append(ss, fmt.Sprintf("%d: %#x/%#x/%#x %s %s %s",
+-			m.ID,
+-			m.Start, m.Limit, m.Offset,
+-			m.File,
+-			m.BuildID,
+-			bits))
+-	}
+-
+-	return strings.Join(ss, "\n") + "\n"
+-}
+diff --git a/src/runtime/pprof/internal/profile/encode.go b/src/runtime/pprof/internal/profile/encode.go
+deleted file mode 100644
+index bf8893136a..0000000000
+--- a/src/runtime/pprof/internal/profile/encode.go
++++ /dev/null
+@@ -1,187 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package profile
+-
+-import (
+-	"sort"
+-)
+-
+-// preEncode populates the unexported fields to be used by encode
+-// (with suffix X) from the corresponding exported fields. The
+-// exported fields are cleared up to facilitate testing.
+-func (p *Profile) preEncode() {
+-	strings := make(map[string]int)
+-	addString(strings, "")
+-
+-	for _, st := range p.SampleType {
+-		st.typeX = addString(strings, st.Type)
+-		st.unitX = addString(strings, st.Unit)
+-	}
+-
+-	for _, s := range p.Sample {
+-		s.labelX = nil
+-		var keys []string
+-		for k := range s.Label {
+-			keys = append(keys, k)
+-		}
+-		sort.Strings(keys)
+-		for _, k := range keys {
+-			vs := s.Label[k]
+-			for _, v := range vs {
+-				s.labelX = append(s.labelX,
+-					Label{
+-						keyX: addString(strings, k),
+-						strX: addString(strings, v),
+-					},
+-				)
+-			}
+-		}
+-		var numKeys []string
+-		for k := range s.NumLabel {
+-			numKeys = append(numKeys, k)
+-		}
+-		sort.Strings(numKeys)
+-		for _, k := range numKeys {
+-			vs := s.NumLabel[k]
+-			for _, v := range vs {
+-				s.labelX = append(s.labelX,
+-					Label{
+-						keyX: addString(strings, k),
+-						numX: v,
+-					},
+-				)
+-			}
+-		}
+-		s.locationIDX = nil
+-		for _, l := range s.Location {
+-			s.locationIDX = append(s.locationIDX, l.ID)
+-		}
+-	}
+-
+-	for _, m := range p.Mapping {
+-		m.fileX = addString(strings, m.File)
+-		m.buildIDX = addString(strings, m.BuildID)
+-	}
+-
+-	for _, l := range p.Location {
+-		for i, ln := range l.Line {
+-			if ln.Function != nil {
+-				l.Line[i].functionIDX = ln.Function.ID
+-			} else {
+-				l.Line[i].functionIDX = 0
+-			}
+-		}
+-		if l.Mapping != nil {
+-			l.mappingIDX = l.Mapping.ID
+-		} else {
+-			l.mappingIDX = 0
+-		}
+-	}
+-	for _, f := range p.Function {
+-		f.nameX = addString(strings, f.Name)
+-		f.systemNameX = addString(strings, f.SystemName)
+-		f.filenameX = addString(strings, f.Filename)
+-	}
+-
+-	if pt := p.PeriodType; pt != nil {
+-		pt.typeX = addString(strings, pt.Type)
+-		pt.unitX = addString(strings, pt.Unit)
+-	}
+-
+-	p.stringTable = make([]string, len(strings))
+-	for s, i := range strings {
+-		p.stringTable[i] = s
+-	}
+-}
+-
+-func (p *Profile) encode(b *buffer) {
+-	for _, x := range p.SampleType {
+-		encodeMessage(b, 1, x)
+-	}
+-	for _, x := range p.Sample {
+-		encodeMessage(b, 2, x)
+-	}
+-	for _, x := range p.Mapping {
+-		encodeMessage(b, 3, x)
+-	}
+-	for _, x := range p.Location {
+-		encodeMessage(b, 4, x)
+-	}
+-	for _, x := range p.Function {
+-		encodeMessage(b, 5, x)
+-	}
+-	encodeStrings(b, 6, p.stringTable)
+-	encodeInt64Opt(b, 9, p.TimeNanos)
+-	encodeInt64Opt(b, 10, p.DurationNanos)
+-	if pt := p.PeriodType; pt != nil && (pt.typeX != 0 || pt.unitX != 0) {
+-		encodeMessage(b, 11, p.PeriodType)
+-	}
+-	encodeInt64Opt(b, 12, p.Period)
+-}
+-
+-func (p *ValueType) encode(b *buffer) {
+-	encodeInt64Opt(b, 1, p.typeX)
+-	encodeInt64Opt(b, 2, p.unitX)
+-}
+-
+-func (p *Sample) encode(b *buffer) {
+-	encodeUint64s(b, 1, p.locationIDX)
+-	for _, x := range p.Value {
+-		encodeInt64(b, 2, x)
+-	}
+-	for _, x := range p.labelX {
+-		encodeMessage(b, 3, x)
+-	}
+-}
+-
+-func (p Label) encode(b *buffer) {
+-	encodeInt64Opt(b, 1, p.keyX)
+-	encodeInt64Opt(b, 2, p.strX)
+-	encodeInt64Opt(b, 3, p.numX)
+-}
+-
+-func (p *Mapping) encode(b *buffer) {
+-	encodeUint64Opt(b, 1, p.ID)
+-	encodeUint64Opt(b, 2, p.Start)
+-	encodeUint64Opt(b, 3, p.Limit)
+-	encodeUint64Opt(b, 4, p.Offset)
+-	encodeInt64Opt(b, 5, p.fileX)
+-	encodeInt64Opt(b, 6, p.buildIDX)
+-	encodeBoolOpt(b, 7, p.HasFunctions)
+-	encodeBoolOpt(b, 8, p.HasFilenames)
+-	encodeBoolOpt(b, 9, p.HasLineNumbers)
+-	encodeBoolOpt(b, 10, p.HasInlineFrames)
+-}
+-
+-func (p *Location) encode(b *buffer) {
+-	encodeUint64Opt(b, 1, p.ID)
+-	encodeUint64Opt(b, 2, p.mappingIDX)
+-	encodeUint64Opt(b, 3, p.Address)
+-	for i := range p.Line {
+-		encodeMessage(b, 4, &p.Line[i])
+-	}
+-}
+-
+-func (p *Line) encode(b *buffer) {
+-	encodeUint64Opt(b, 1, p.functionIDX)
+-	encodeInt64Opt(b, 2, p.Line)
+-}
+-
+-func (p *Function) encode(b *buffer) {
+-	encodeUint64Opt(b, 1, p.ID)
+-	encodeInt64Opt(b, 2, p.nameX)
+-	encodeInt64Opt(b, 3, p.systemNameX)
+-	encodeInt64Opt(b, 4, p.filenameX)
+-	encodeInt64Opt(b, 5, p.StartLine)
+-}
+-
+-func addString(strings map[string]int, s string) int64 {
+-	i, ok := strings[s]
+-	if !ok {
+-		i = len(strings)
+-		strings[s] = i
+-	}
+-	return int64(i)
+-}
+diff --git a/src/runtime/pprof/internal/profile/profile.go b/src/runtime/pprof/internal/profile/profile.go
+deleted file mode 100644
+index ef6ae39b65..0000000000
+--- a/src/runtime/pprof/internal/profile/profile.go
++++ /dev/null
+@@ -1,112 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-// Package profile provides a representation of profile.proto and
+-// methods to encode/decode profiles in this format.
+-package profile
+-
+-import (
+-	"io"
+-)
+-
+-// Profile is an in-memory representation of profile.proto.
+-type Profile struct {
+-	SampleType []*ValueType
+-	Sample     []*Sample
+-	Mapping    []*Mapping
+-	Location   []*Location
+-	Function   []*Function
+-
+-	TimeNanos     int64
+-	DurationNanos int64
+-	PeriodType    *ValueType
+-	Period        int64
+-
+-	stringTable []string
+-}
+-
+-// ValueType corresponds to Profile.ValueType
+-type ValueType struct {
+-	Type string // cpu, wall, inuse_space, etc
+-	Unit string // seconds, nanoseconds, bytes, etc
+-
+-	typeX int64
+-	unitX int64
+-}
+-
+-// Sample corresponds to Profile.Sample
+-type Sample struct {
+-	Location []*Location
+-	Value    []int64
+-	Label    map[string][]string
+-	NumLabel map[string][]int64
+-
+-	locationIDX []uint64
+-	labelX      []Label
+-}
+-
+-// Label corresponds to Profile.Label
+-type Label struct {
+-	keyX int64
+-	// Exactly one of the two following values must be set
+-	strX int64
+-	numX int64 // Integer value for this label
+-}
+-
+-// Mapping corresponds to Profile.Mapping
+-type Mapping struct {
+-	ID              uint64
+-	Start           uint64
+-	Limit           uint64
+-	Offset          uint64
+-	File            string
+-	BuildID         string
+-	HasFunctions    bool
+-	HasFilenames    bool
+-	HasLineNumbers  bool
+-	HasInlineFrames bool
+-
+-	fileX    int64
+-	buildIDX int64
+-}
+-
+-// Location corresponds to Profile.Location
+-type Location struct {
+-	ID      uint64
+-	Mapping *Mapping
+-	Address uint64
+-	Line    []Line
+-
+-	mappingIDX uint64
+-}
+-
+-// Line corresponds to Profile.Line
+-type Line struct {
+-	Function *Function
+-	Line     int64
+-
+-	functionIDX uint64
+-}
+-
+-// Function corresponds to Profile.Function
+-type Function struct {
+-	ID         uint64
+-	Name       string
+-	SystemName string
+-	Filename   string
+-	StartLine  int64
+-
+-	nameX       int64
+-	systemNameX int64
+-	filenameX   int64
+-}
+-
+-// Write writes the profile as a gzip-compressed marshaled protobuf.
+-func (p *Profile) Write(w io.Writer) error {
+-	p.preEncode()
+-	var b buffer
+-	p.encode(&b)
+-	_, err := w.Write(b.data)
+-	return err
+-}
+diff --git a/src/runtime/pprof/internal/profile/profile_memmap.go b/src/runtime/pprof/internal/profile/profile_memmap.go
+deleted file mode 100644
+index bb6cff60e0..0000000000
+--- a/src/runtime/pprof/internal/profile/profile_memmap.go
++++ /dev/null
+@@ -1,302 +0,0 @@
+-package profile
+-
+-import (
+-	"bufio"
+-	"errors"
+-	"io"
+-	"strconv"
+-	"strings"
+-)
+-
+-var errUnrecognized = errors.New("unrecognized profile format")
+-
+-func hasLibFile(file string) string {
+-	ix := strings.Index(file, "so")
+-	if ix < 1 {
+-		return ""
+-	}
+-	start := ix - 1
+-	end := ix + 2
+-	s := file[start:end]
+-	if end < len(file) {
+-		endalt := end
+-		if file[endalt] != '.' && file[endalt] != '_' {
+-			return s
+-		}
+-		endalt++
+-		for file[endalt] >= '0' && file[endalt] <= '9' {
+-			endalt++
+-		}
+-		if endalt < end+2 {
+-			return s
+-		}
+-		return s[start:endalt]
+-	}
+-	return s
+-}
+-
+-// massageMappings applies heuristic-based changes to the profile
+-// mappings to account for quirks of some environments.
+-func (p *Profile) massageMappings() {
+-	// Merge adjacent regions with matching names, checking that the offsets match
+-	if len(p.Mapping) > 1 {
+-		mappings := []*Mapping{p.Mapping[0]}
+-		for _, m := range p.Mapping[1:] {
+-			lm := mappings[len(mappings)-1]
+-			if offset := lm.Offset + (lm.Limit - lm.Start); lm.Limit == m.Start &&
+-				offset == m.Offset &&
+-				(lm.File == m.File || lm.File == "") {
+-				lm.File = m.File
+-				lm.Limit = m.Limit
+-				if lm.BuildID == "" {
+-					lm.BuildID = m.BuildID
+-				}
+-				p.updateLocationMapping(m, lm)
+-				continue
+-			}
+-			mappings = append(mappings, m)
+-		}
+-		p.Mapping = mappings
+-	}
+-
+-	// Use heuristics to identify main binary and move it to the top of the list of mappings
+-	for i, m := range p.Mapping {
+-		file := strings.TrimSpace(strings.Replace(m.File, "(deleted)", "", -1))
+-		if len(file) == 0 {
+-			continue
+-		}
+-		if len(hasLibFile(file)) > 0 {
+-			continue
+-		}
+-		if strings.HasPrefix(file, "[") {
+-			continue
+-		}
+-		// Swap what we guess is main to position 0.
+-		p.Mapping[0], p.Mapping[i] = p.Mapping[i], p.Mapping[0]
+-		break
+-	}
+-
+-	// Keep the mapping IDs neatly sorted
+-	for i, m := range p.Mapping {
+-		m.ID = uint64(i + 1)
+-	}
+-}
+-
+-func (p *Profile) updateLocationMapping(from, to *Mapping) {
+-	for _, l := range p.Location {
+-		if l.Mapping == from {
+-			l.Mapping = to
+-		}
+-	}
+-}
+-
+-// remapLocationIDs ensures there is a location for each address
+-// referenced by a sample, and remaps the samples to point to the new
+-// location ids.
+-func (p *Profile) remapLocationIDs() {
+-	seen := make(map[*Location]bool, len(p.Location))
+-	var locs []*Location
+-
+-	for _, s := range p.Sample {
+-		for _, l := range s.Location {
+-			if seen[l] {
+-				continue
+-			}
+-			l.ID = uint64(len(locs) + 1)
+-			locs = append(locs, l)
+-			seen[l] = true
+-		}
+-	}
+-	p.Location = locs
+-}
+-
+-func (p *Profile) remapFunctionIDs() {
+-	seen := make(map[*Function]bool, len(p.Function))
+-	var fns []*Function
+-
+-	for _, l := range p.Location {
+-		for _, ln := range l.Line {
+-			fn := ln.Function
+-			if fn == nil || seen[fn] {
+-				continue
+-			}
+-			fn.ID = uint64(len(fns) + 1)
+-			fns = append(fns, fn)
+-			seen[fn] = true
+-		}
+-	}
+-	p.Function = fns
+-}
+-
+-// remapMappingIDs matches location addresses with existing mappings
+-// and updates them appropriately. This is O(N*M), if this ever shows
+-// up as a bottleneck, evaluate sorting the mappings and doing a
+-// binary search, which would make it O(N*log(M)).
+-func (p *Profile) remapMappingIDs() {
+-	// Some profile handlers will incorrectly set regions for the main
+-	// executable if its section is remapped. Fix them through heuristics.
+-
+-	if len(p.Mapping) > 0 {
+-		// Remove the initial mapping if named '/anon_hugepage' and has a
+-		// consecutive adjacent mapping.
+-		if m := p.Mapping[0]; strings.HasPrefix(m.File, "/anon_hugepage") {
+-			if len(p.Mapping) > 1 && m.Limit == p.Mapping[1].Start {
+-				p.Mapping = p.Mapping[1:]
+-			}
+-		}
+-	}
+-
+-	// Subtract the offset from the start of the main mapping if it
+-	// ends up at a recognizable start address.
+-	if len(p.Mapping) > 0 {
+-		const expectedStart = 0x400000
+-		if m := p.Mapping[0]; m.Start-m.Offset == expectedStart {
+-			m.Start = expectedStart
+-			m.Offset = 0
+-		}
+-	}
+-
+-	// Associate each location with an address to the corresponding
+-	// mapping. Create fake mapping if a suitable one isn't found.
+-	var fake *Mapping
+-nextLocation:
+-	for _, l := range p.Location {
+-		a := l.Address
+-		if l.Mapping != nil || a == 0 {
+-			continue
+-		}
+-		for _, m := range p.Mapping {
+-			if m.Start <= a && a < m.Limit {
+-				l.Mapping = m
+-				continue nextLocation
+-			}
+-		}
+-		// Work around legacy handlers failing to encode the first
+-		// part of mappings split into adjacent ranges.
+-		for _, m := range p.Mapping {
+-			if m.Offset != 0 && m.Start-m.Offset <= a && a < m.Start {
+-				m.Start -= m.Offset
+-				m.Offset = 0
+-				l.Mapping = m
+-				continue nextLocation
+-			}
+-		}
+-		// If there is still no mapping, create a fake one.
+-		// This is important for the Go legacy handler, which produced
+-		// no mappings.
+-		if fake == nil {
+-			fake = &Mapping{
+-				ID:    1,
+-				Limit: ^uint64(0),
+-			}
+-			p.Mapping = append(p.Mapping, fake)
+-		}
+-		l.Mapping = fake
+-	}
+-
+-	// Reset all mapping IDs.
+-	for i, m := range p.Mapping {
+-		m.ID = uint64(i + 1)
+-	}
+-}
+-
+-func (p *Profile) RemapAll() {
+-	p.remapLocationIDs()
+-	p.remapFunctionIDs()
+-	p.remapMappingIDs()
+-}
+-
+-// ParseProcMaps parses a memory map in the format of /proc/self/maps.
+-// ParseMemoryMap should be called after setting on a profile to
+-// associate locations to the corresponding mapping based on their
+-// address.
+-func ParseProcMaps(rd io.Reader) ([]*Mapping, error) {
+-	var mapping []*Mapping
+-
+-	b := bufio.NewReader(rd)
+-
+-	var attrs []string
+-	var r *strings.Replacer
+-	const delimiter = "="
+-	for {
+-		l, err := b.ReadString('\n')
+-		if err != nil {
+-			if err != io.EOF {
+-				return nil, err
+-			}
+-			if l == "" {
+-				break
+-			}
+-		}
+-		if l = strings.TrimSpace(l); l == "" {
+-			continue
+-		}
+-
+-		if r != nil {
+-			l = r.Replace(l)
+-		}
+-		m, err := parseMappingEntry(l)
+-		if err != nil {
+-			if err == errUnrecognized {
+-				// Recognize assignments of the form: attr=value, and replace
+-				// $attr with value on subsequent mappings.
+-				if attr := strings.SplitN(l, delimiter, 2); len(attr) == 2 {
+-					attrs = append(attrs, "$"+strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1]))
+-					r = strings.NewReplacer(attrs...)
+-				}
+-				// Ignore any unrecognized entries
+-				continue
+-			}
+-			return nil, err
+-		}
+-		if m == nil {
+-			continue
+-		}
+-		mapping = append(mapping, m)
+-	}
+-	return mapping, nil
+-}
+-
+-// ParseMemoryMap parses a memory map in the format of
+-// /proc/self/maps, and overrides the mappings in the current profile.
+-// It renumbers the samples and locations in the profile correspondingly.
+-func (p *Profile) ParseMemoryMap(rd io.Reader) error {
+-	mapping, err := ParseProcMaps(rd)
+-	if err != nil {
+-		return err
+-	}
+-	p.Mapping = append(p.Mapping, mapping...)
+-	p.massageMappings()
+-	p.RemapAll()
+-	return nil
+-}
+-
+-func parseMappingEntry(l string) (*Mapping, error) {
+-	mapping := &Mapping{}
+-	var err error
+-	fields := strings.Fields(l)
+-	// fmt.Println(len(me), me)
+-	if len(fields) == 6 {
+-		if !strings.Contains(fields[1], "x") {
+-			// Skip non-executable entries.
+-			return nil, nil
+-		}
+-		addrRange := strings.Split(fields[0], "-")
+-		if mapping.Start, err = strconv.ParseUint(addrRange[0], 16, 64); err != nil {
+-			return nil, errUnrecognized
+-		}
+-		if mapping.Limit, err = strconv.ParseUint(addrRange[1], 16, 64); err != nil {
+-			return nil, errUnrecognized
+-		}
+-		offset := fields[2]
+-		if offset != "" {
+-			if mapping.Offset, err = strconv.ParseUint(offset, 16, 64); err != nil {
+-				return nil, errUnrecognized
+-			}
+-		}
+-		mapping.File = fields[5]
+-		return mapping, nil
+-	}
+-
+-	return nil, errUnrecognized
+-}
+diff --git a/src/runtime/pprof/internal/profile/proto.go b/src/runtime/pprof/internal/profile/proto.go
+deleted file mode 100644
+index ce1074ba4c..0000000000
+--- a/src/runtime/pprof/internal/profile/proto.go
++++ /dev/null
+@@ -1,156 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-// This file is a simple protocol buffer encoder and decoder.
+-//
+-// A protocol message must implement the message interface:
+-//   decoder() []decoder
+-//   encode(*buffer)
+-//
+-// The decode method returns a slice indexed by field number that gives the
+-// function to decode that field.
+-// The encode method encodes its receiver into the given buffer.
+-//
+-// The two methods are simple enough to be implemented by hand rather than
+-// by using a protocol compiler.
+-//
+-// See profile.go for examples of messages implementing this interface.
+-//
+-// There is no support for groups, message sets, or "has" bits.
+-
+-package profile
+-
+-type buffer struct {
+-	field int
+-	typ   int
+-	u64   uint64
+-	data  []byte
+-	tmp   [16]byte
+-}
+-
+-type message interface {
+-	encode(*buffer)
+-}
+-
+-func encodeVarint(b *buffer, x uint64) {
+-	for x >= 128 {
+-		b.data = append(b.data, byte(x)|0x80)
+-		x >>= 7
+-	}
+-	b.data = append(b.data, byte(x))
+-}
+-
+-func encodeLength(b *buffer, tag int, len int) {
+-	encodeVarint(b, uint64(tag)<<3|2)
+-	encodeVarint(b, uint64(len))
+-}
+-
+-func encodeUint64(b *buffer, tag int, x uint64) {
+-	// append varint to b.data
+-	encodeVarint(b, uint64(tag)<<3|0)
+-	encodeVarint(b, x)
+-}
+-
+-func encodeUint64s(b *buffer, tag int, x []uint64) {
+-	if len(x) > 2 {
+-		// Use packed encoding
+-		n1 := len(b.data)
+-		for _, u := range x {
+-			encodeVarint(b, u)
+-		}
+-		n2 := len(b.data)
+-		encodeLength(b, tag, n2-n1)
+-		n3 := len(b.data)
+-		copy(b.tmp[:], b.data[n2:n3])
+-		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
+-		copy(b.data[n1:], b.tmp[:n3-n2])
+-		return
+-	}
+-	for _, u := range x {
+-		encodeUint64(b, tag, u)
+-	}
+-}
+-
+-func encodeUint64Opt(b *buffer, tag int, x uint64) {
+-	if x == 0 {
+-		return
+-	}
+-	encodeUint64(b, tag, x)
+-}
+-
+-func encodeInt64(b *buffer, tag int, x int64) {
+-	u := uint64(x)
+-	encodeUint64(b, tag, u)
+-}
+-
+-func encodeInt64Opt(b *buffer, tag int, x int64) {
+-	if x == 0 {
+-		return
+-	}
+-	encodeInt64(b, tag, x)
+-}
+-
+-func encodeInt64s(b *buffer, tag int, x []int64) {
+-	if len(x) > 2 {
+-		// Use packed encoding
+-		n1 := len(b.data)
+-		for _, u := range x {
+-			encodeVarint(b, uint64(u))
+-		}
+-		n2 := len(b.data)
+-		encodeLength(b, tag, n2-n1)
+-		n3 := len(b.data)
+-		copy(b.tmp[:], b.data[n2:n3])
+-		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
+-		copy(b.data[n1:], b.tmp[:n3-n2])
+-		return
+-	}
+-	for _, u := range x {
+-		encodeInt64(b, tag, u)
+-	}
+-}
+-
+-func encodeString(b *buffer, tag int, x string) {
+-	encodeLength(b, tag, len(x))
+-	b.data = append(b.data, x...)
+-}
+-
+-func encodeStrings(b *buffer, tag int, x []string) {
+-	for _, s := range x {
+-		encodeString(b, tag, s)
+-	}
+-}
+-
+-func encodeStringOpt(b *buffer, tag int, x string) {
+-	if x == "" {
+-		return
+-	}
+-	encodeString(b, tag, x)
+-}
+-
+-func encodeBool(b *buffer, tag int, x bool) {
+-	if x {
+-		encodeUint64(b, tag, 1)
+-	} else {
+-		encodeUint64(b, tag, 0)
+-	}
+-}
+-
+-func encodeBoolOpt(b *buffer, tag int, x bool) {
+-	if x == false {
+-		return
+-	}
+-	encodeBool(b, tag, x)
+-}
+-
+-func encodeMessage(b *buffer, tag int, m message) {
+-	n1 := len(b.data)
+-	m.encode(b)
+-	n2 := len(b.data)
+-	encodeLength(b, tag, n2-n1)
+-	n3 := len(b.data)
+-	copy(b.tmp[:], b.data[n2:n3])
+-	copy(b.data[n1+(n3-n2):], b.data[n1:n2])
+-	copy(b.data[n1:], b.tmp[:n3-n2])
+-}
+diff --git a/src/runtime/pprof/internal/protopprof/protopprof.go b/src/runtime/pprof/internal/protopprof/protopprof.go
+deleted file mode 100644
+index ac28ec2109..0000000000
+--- a/src/runtime/pprof/internal/protopprof/protopprof.go
++++ /dev/null
+@@ -1,295 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-package protopprof
+-
+-import (
+-	"fmt"
+-	"os"
+-	"runtime"
+-	"strings"
+-	"time"
+-
+-	"runtime/pprof/internal/profile"
+-)
+-
+-// Copied from encoding/binary package, which can't be imported due to
+-// dependency cycles
+-
+-// LittleEndian is the little-endian implementation of ByteOrder.
+-var lEndian littleEndian
+-
+-// BigEndian is the big-endian implementation of ByteOrder.
+-var bEndian bigEndian
+-
+-type littleEndian struct{}
+-type bigEndian struct{}
+-
+-func (bigEndian) uint32(b []byte) uint32 {
+-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+-}
+-
+-func (bigEndian) uint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+-}
+-
+-func (littleEndian) uint32(b []byte) uint32 {
+-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+-}
+-
+-func (littleEndian) uint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+-}
+-
+-func big32(b []byte) (uint64, []byte) {
+-	if len(b) < 4 {
+-		return 0, nil
+-	}
+-	return uint64(bEndian.uint32(b)), b[4:]
+-}
+-
+-func little32(b []byte) (uint64, []byte) {
+-	if len(b) < 4 {
+-		return 0, nil
+-	}
+-	return uint64(lEndian.uint32(b)), b[4:]
+-}
+-
+-func big64(b []byte) (uint64, []byte) {
+-	if len(b) < 8 {
+-		return 0, nil
+-	}
+-	return bEndian.uint64(b), b[8:]
+-}
+-
+-func little64(b []byte) (uint64, []byte) {
+-	if len(b) < 8 {
+-		return 0, nil
+-	}
+-	return lEndian.uint64(b), b[8:]
+-}
+-
+-// End of copy from encoding/binary package
+-
+-type parser func([]byte) (uint64, []byte)
+-
+-var parsers = []parser{
+-	big32,
+-	big64,
+-	little32,
+-	little64,
+-}
+-
+-// parse returns a parsing function to parse native integers from a buffer.
+-func findParser(b []byte) parser {
+-	for _, p := range parsers {
+-		// If the second word decodes as 3, we have the right parser.
+-		_, rest := p(b) // first word
+-		n, _ := p(rest) // second word
+-		if n == 3 {
+-			return p
+-		}
+-	}
+-	return nil
+-}
+-
+-// decodeHeader parses binary CPU profiling stack trace data
+-// generated by runtime.CPUProfile() and returns the sample period,
+-// the rest of the profile and a parse function for parsing the profile. The
+-// function detects whether the legacy profile format is in little or big
+-// endian and whether it was generated by a 32-bit or 64-bit machine.
+-func decodeHeader(b []byte) (period uint64, parse parser, rest []byte, err error) {
+-	const minRawProfile = 12 // Need a minimum of 3 words, at least 32-bit each.
+-	if len(b) < minRawProfile {
+-		return 0, nil, nil, fmt.Errorf("truncated raw profile: len %d", len(b))
+-	}
+-	if parse = findParser(b); parse == nil {
+-		return 0, nil, nil, fmt.Errorf("cannot parse raw profile: header %v", b[:minRawProfile])
+-	}
+-	// skip 5-word header; 4th word is period
+-	_, rest = parse(b)
+-	_, rest = parse(rest)
+-	_, rest = parse(rest)
+-	period, rest = parse(rest)
+-	_, rest = parse(rest)
+-	if rest == nil {
+-		return 0, nil, nil, fmt.Errorf("profile too short")
+-	}
+-	return period, parse, rest, nil
+-}
+-
+-// translateCPUProfile parses binary CPU profiling stack trace data
+-// generated by runtime.CPUProfile() into a profile struct.
+-func TranslateCPUProfile(b []byte, startTime time.Time) (*profile.Profile, error) {
+-	// Get the sample period from the header.
+-	var n4 uint64
+-	var getInt parser
+-	var err error
+-	n4, getInt, b, err = decodeHeader(b)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	// profile initialization taken from pprof tool
+-	p := &profile.Profile{
+-		Period:     int64(n4) * 1000,
+-		PeriodType: &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
+-		SampleType: []*profile.ValueType{
+-			{Type: "samples", Unit: "count"},
+-			{Type: "cpu", Unit: "nanoseconds"},
+-		},
+-		TimeNanos:     int64(startTime.UnixNano()),
+-		DurationNanos: time.Since(startTime).Nanoseconds(),
+-	}
+-	// Parse CPU samples from the profile.
+-	locs := make(map[uint64]*profile.Location)
+-	for len(b) > 0 {
+-		var count, nstk uint64
+-		count, b = getInt(b)
+-		nstk, b = getInt(b)
+-		if b == nil {
+-			return nil, fmt.Errorf("unrecognized profile format")
+-		}
+-		var sloc []*profile.Location
+-		addrs := make([]uint64, nstk)
+-
+-		for i := 0; i < int(nstk); i++ {
+-			if b == nil {
+-				return nil, fmt.Errorf("unrecognized profile format")
+-			}
+-			addrs[i], b = getInt(b)
+-		}
+-		// End of data marker, can return
+-		if count == 0 && nstk == 1 && addrs[0] == 0 {
+-			if runtime.GOOS == "linux" {
+-				if err := addMappings(p); err != nil {
+-					return nil, err
+-				}
+-			}
+-			return p, nil
+-		}
+-		for i, addr := range addrs {
+-			// Addresses from stack traces point to the next instruction after
+-			// each call.  Adjust by -1 to land somewhere on the actual call
+-			// (except for the leaf, which is not a call).
+-			if i > 0 {
+-				addr--
+-			}
+-			loc := locs[addr]
+-			if loc == nil {
+-				loc = &profile.Location{
+-					ID:      uint64(len(p.Location) + 1),
+-					Address: addr,
+-				}
+-				locs[addr] = loc
+-				p.Location = append(p.Location, loc)
+-			}
+-			sloc = append(sloc, loc)
+-		}
+-		p.Sample = append(p.Sample, &profile.Sample{
+-			Value:    []int64{int64(count), int64(count) * int64(p.Period)},
+-			Location: sloc,
+-		})
+-	}
+-
+-	return nil, fmt.Errorf("unrecognized profile format")
+-}
+-
+-func addMappings(p *profile.Profile) error {
+-	// Parse memory map from /proc/self/maps
+-	f, err := os.Open("/proc/self/maps")
+-	if err != nil {
+-		return err
+-	}
+-	defer f.Close()
+-	return p.ParseMemoryMap(f)
+-}
+-
+-// Symbolization enables adding names to locations.
+-func Symbolize(p *profile.Profile) {
+-	fns := profileFunctionMap{}
+-	for _, l := range p.Location {
+-		pc := uintptr(l.Address)
+-		f := runtime.FuncForPC(pc)
+-		if f == nil {
+-			continue
+-		}
+-		file, lineno := f.FileLine(pc)
+-		if l.Mapping != nil {
+-			if f.Name() != "" {
+-				l.Mapping.HasFunctions = true
+-			}
+-			if file != "" {
+-				l.Mapping.HasFilenames = true
+-			}
+-			if lineno != 0 {
+-				l.Mapping.HasLineNumbers = true
+-			}
+-		}
+-		l.Line = []profile.Line{
+-			{
+-				Function: fns.findOrAddFunction(f.Name(), file, p),
+-				Line:     int64(lineno),
+-			},
+-		}
+-	}
+-
+-	// Trim runtime functions. Always hide runtime.goexit. Other runtime
+-	// functions are only hidden for heapz when they appear at the beginning.
+-	isHeapz := p.PeriodType != nil && p.PeriodType.Type == "space"
+-	for _, s := range p.Sample {
+-		show := !isHeapz
+-		var i int
+-		for _, l := range s.Location {
+-			if (len(l.Line) > 0) && (l.Line[0].Function != nil) {
+-				name := l.Line[0].Function.Name
+-				if (name == "runtime.goexit") || (!show && strings.HasPrefix(name, "runtime.")) {
+-					continue
+-				}
+-			}
+-			show = true
+-			s.Location[i] = l
+-			i++
+-		}
+-		s.Location = s.Location[:i]
+-	}
+-}
+-
+-type profileFunctionMap map[profile.Function]*profile.Function
+-
+-func (fns profileFunctionMap) findOrAddFunction(name, filename string, p *profile.Profile) *profile.Function {
+-	f := profile.Function{
+-		Name:       name,
+-		SystemName: name,
+-		Filename:   filename,
+-	}
+-	if fp := fns[f]; fp != nil {
+-		return fp
+-	}
+-	fp := new(profile.Function)
+-	fns[f] = fp
+-
+-	*fp = f
+-	fp.ID = uint64(len(p.Function) + 1)
+-	p.Function = append(p.Function, fp)
+-	return fp
+-}
+-
+-func CleanupDuplicateLocations(p *profile.Profile) {
+-	// The profile handler may duplicate the leaf frame, because it gets
+-	// its address both from stack unwinding and from the signal
+-	// context. Detect this and delete the duplicate, which has been
+-	// adjusted by -1. The leaf address should not be adjusted as it is
+-	// not a call.
+-	for _, s := range p.Sample {
+-		if len(s.Location) > 1 && s.Location[0].Address == s.Location[1].Address+1 {
+-			s.Location = append(s.Location[:1], s.Location[2:]...)
+-		}
+-	}
+-}
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index 547baada4a..0fff9d46d9 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -6,8 +6,8 @@ package pprof_test
+ 
+ import (
+ 	"bytes"
+-	"math"
+-	"reflect"
++	"fmt"
++	"regexp"
+ 	"runtime"
+ 	. "runtime/pprof"
+ 	"testing"
+@@ -71,48 +71,26 @@ func TestMemoryProfiler(t *testing.T) {
+ 
+ 	memoryProfilerRun++
+ 
+-	r := bytes.NewReader(buf.Bytes())
+-	p, err := Parse(r)
+-	if err != nil {
+-		t.Fatalf("can't parse pprof profile: %v", err)
++	tests := []string{
++		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:63
++`, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
++
++		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
++`, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
++
++		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
++`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+ 	}
+-	if len(p.Sample) < 3 {
+-		t.Fatalf("few samples, got: %d", len(p.Sample))
+-	}
+-	testSample := make(map[int][]int64)
+-	testSample[0] = scaleHeapSample((int64)(32*memoryProfilerRun), (int64)(1024*memoryProfilerRun), p.Period)
+-	testSample[0] = append(testSample[0], testSample[0][0], testSample[0][1])
+-	testSample[1] = scaleHeapSample((int64)((1<<10)*memoryProfilerRun), (int64)((1<<20)*memoryProfilerRun), p.Period)
+-	testSample[1] = append([]int64{0, 0}, testSample[1][0], testSample[1][1])
+-	testSample[2] = scaleHeapSample((int64)(memoryProfilerRun), (int64)((2<<20)*memoryProfilerRun), p.Period)
+-	testSample[2] = append([]int64{0, 0}, testSample[2][0], testSample[2][1])
+-	for _, value := range testSample {
+-		found := false
+-		for i := range p.Sample {
+-			if reflect.DeepEqual(p.Sample[i].Value, value) {
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
+-			t.Fatalf("the entry did not match any sample:\n%v\n", value)
+-		}
+-	}
+-}
+ 
+-func scaleHeapSample(count, size, rate int64) []int64 {
+-	if count == 0 || size == 0 {
+-		return []int64{0, 0}
+-	}
+-
+-	if rate <= 1 {
+-		// if rate==1 all samples were collected so no adjustment is needed.
+-		// if rate<1 treat as unknown and skip scaling.
+-		return []int64{count, size}
++	for _, test := range tests {
++		if !regexp.MustCompile(test).Match(buf.Bytes()) {
++			t.Fatalf("The entry did not match:\n%v\n\nProfile:\n%v\n", test, buf.String())
++		}
+ 	}
+-
+-	avgSize := float64(size) / float64(count)
+-	scale := 1 / (1 - math.Exp(-avgSize/float64(rate)))
+-
+-	return []int64{int64(float64(count) * scale), int64(float64(size) * scale)}
+ }
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index f8fd926cd4..20ccb51b00 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -70,17 +70,16 @@
+ package pprof
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"math"
++	"os"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 	"sync"
+-	"time"
+-
+-	"runtime/pprof/internal/profile"
+-	"runtime/pprof/internal/protopprof"
++	"text/tabwriter"
+ )
+ 
+ // BUG(rsc): Profiles are only as good as the kernel support used to generate them.
+@@ -280,14 +279,19 @@ func (p *Profile) Remove(value interface{}) {
+ 	delete(p.m, value)
+ }
+ 
+-// WriteTo writes a protobuf-formatted snapshot of the profile to w.
++// WriteTo writes a pprof-formatted snapshot of the profile to w.
+ // If a write to w returns an error, WriteTo returns that error.
+ // Otherwise, WriteTo returns nil.
+ //
+-// The debug parameter enables adding names to locations.
+-// Passing debug=0 prints bare locations.
+-// Passing debug=1 adds translating addresses to function names
+-// and line numbers.
++// The debug parameter enables additional output.
++// Passing debug=0 prints only the hexadecimal addresses that pprof needs.
++// Passing debug=1 adds comments translating addresses to function names
++// and line numbers, so that a programmer can read the profile without tools.
++//
++// The predefined profiles may assign meaning to other debug values;
++// for example, when printing the "goroutine" profile, debug=2 means to
++// print the goroutine stacks in the same form that a Go program uses
++// when dying due to an unrecovered panic.
+ func (p *Profile) WriteTo(w io.Writer, debug int) error {
+ 	if p.name == "" {
+ 		panic("pprof: use of zero Profile")
+@@ -334,31 +338,34 @@ type countProfile interface {
+ 	Stack(i int) []uintptr
+ }
+ 
+-// Build count of stack.
+-func makeKey(stk []uintptr) string {
+-	var buf bytes.Buffer
+-	fmt.Fprintf(&buf, "@")
+-	for _, pc := range stk {
+-		fmt.Fprintf(&buf, " %#x", pc)
+-	}
+-	return buf.String()
+-}
+-
+ // printCountProfile prints a countProfile at the specified debug level.
+ func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
+-	prof := &profile.Profile{
+-		PeriodType: &profile.ValueType{Type: name, Unit: "count"},
+-		Period:     1,
+-		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
++	b := bufio.NewWriter(w)
++	var tw *tabwriter.Writer
++	w = b
++	if debug > 0 {
++		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
++		w = tw
+ 	}
+-	locations := make(map[uint64]*profile.Location)
+ 
++	fmt.Fprintf(w, "%s profile: total %d\n", name, p.Len())
++
++	// Build count of each stack.
++	var buf bytes.Buffer
++	key := func(stk []uintptr) string {
++		buf.Reset()
++		fmt.Fprintf(&buf, "@")
++		for _, pc := range stk {
++			fmt.Fprintf(&buf, " %#x", pc)
++		}
++		return buf.String()
++	}
+ 	count := map[string]int{}
+ 	index := map[string]int{}
+ 	var keys []string
+ 	n := p.Len()
+ 	for i := 0; i < n; i++ {
+-		k := makeKey(p.Stack(i))
++		k := key(p.Stack(i))
+ 		if count[k] == 0 {
+ 			index[k] = i
+ 			keys = append(keys, k)
+@@ -368,36 +375,17 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 
+ 	sort.Sort(&keysByCount{keys, count})
+ 
+-	// Print stacks, listing count on first occurrence of a unique stack.
+ 	for _, k := range keys {
+-		stk := p.Stack(index[k])
+-		if c := count[k]; c != 0 {
+-			locs := make([]*profile.Location, 0, len(stk))
+-			for _, addr := range stk {
+-				addr := uint64(addr)
+-				// Adjust all frames by -1 to land on the call instruction.
+-				addr--
+-				loc := locations[addr]
+-				if loc == nil {
+-					loc = &profile.Location{
+-						Address: addr,
+-					}
+-					locations[addr] = loc
+-					prof.Location = append(prof.Location, loc)
+-				}
+-				locs = append(locs, loc)
+-			}
+-			prof.Sample = append(prof.Sample, &profile.Sample{
+-				Location: locs,
+-				Value:    []int64{int64(c)},
+-			})
+-			delete(count, k)
++		fmt.Fprintf(w, "%d %s\n", count[k], k)
++		if debug > 0 {
++			printStackRecord(w, p.Stack(index[k]), false)
+ 		}
+ 	}
+ 
+-	prof.RemapAll()
+-	protopprof.Symbolize(prof)
+-	return prof.Write(w)
++	if tw != nil {
++		tw.Flush()
++	}
++	return b.Flush()
+ }
+ 
+ // keysByCount sorts keys with higher counts first, breaking ties by key string order.
+@@ -417,6 +405,38 @@ func (x *keysByCount) Less(i, j int) bool {
+ 	return ki < kj
+ }
+ 
++// printStackRecord prints the function + source line information
++// for a single stack trace.
++func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
++	show := allFrames
++	frames := runtime.CallersFrames(stk)
++	for {
++		frame, more := frames.Next()
++		name := frame.Function
++		if name == "" {
++			show = true
++			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
++		} else if name != "runtime.goexit" && (show || !strings.HasPrefix(name, "runtime.")) {
++			// Hide runtime.goexit and any runtime functions at the beginning.
++			// This is useful mainly for allocation traces.
++			show = true
++			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
++		}
++		if !more {
++			break
++		}
++	}
++	if !show {
++		// We didn't print anything; do it again,
++		// and this time include runtime functions.
++		printStackRecord(w, stk, true)
++		return
++	}
++	fmt.Fprintf(w, "\n")
++}
++
++// Interface to system profiles.
++
+ // WriteHeapProfile is shorthand for Lookup("heap").WriteTo(w, 0).
+ // It is preserved for backwards compatibility.
+ func WriteHeapProfile(w io.Writer) error {
+@@ -440,16 +460,28 @@ func writeHeap(w io.Writer, debug int) error {
+ 	var p []runtime.MemProfileRecord
+ 	n, ok := runtime.MemProfile(nil, true)
+ 	for {
++		// Allocate room for a slightly bigger profile,
++		// in case a few more entries have been added
++		// since the call to MemProfile.
+ 		p = make([]runtime.MemProfileRecord, n+50)
+ 		n, ok = runtime.MemProfile(p, true)
+ 		if ok {
+ 			p = p[0:n]
+ 			break
+ 		}
++		// Profile grew; try again.
+ 	}
+ 
+ 	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
+ 
++	b := bufio.NewWriter(w)
++	var tw *tabwriter.Writer
++	w = b
++	if debug > 0 {
++		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
++		w = tw
++	}
++
+ 	var total runtime.MemProfileRecord
+ 	for i := range p {
+ 		r := &p[i]
+@@ -459,81 +491,63 @@ func writeHeap(w io.Writer, debug int) error {
+ 		total.FreeObjects += r.FreeObjects
+ 	}
+ 
+-	prof := &profile.Profile{
+-		PeriodType: &profile.ValueType{Type: "space", Unit: "bytes"},
+-		SampleType: []*profile.ValueType{
+-			{Type: "alloc_objects", Unit: "count"},
+-			{Type: "alloc_space", Unit: "bytes"},
+-			{Type: "inuse_objects", Unit: "count"},
+-			{Type: "inuse_space", Unit: "bytes"},
+-		},
+-		Period: int64(runtime.MemProfileRate),
+-	}
++	// Technically the rate is MemProfileRate not 2*MemProfileRate,
++	// but early versions of the C++ heap profiler reported 2*MemProfileRate,
++	// so that's what pprof has come to expect.
++	fmt.Fprintf(w, "heap profile: %d: %d [%d: %d] @ heap/%d\n",
++		total.InUseObjects(), total.InUseBytes(),
++		total.AllocObjects, total.AllocBytes,
++		2*runtime.MemProfileRate)
+ 
+-	locs := make(map[uint64]*(profile.Location))
+ 	for i := range p {
+-		var v1, v2, v3, v4, blocksize int64
+ 		r := &p[i]
+-		v1, v2 = int64(r.InUseObjects()), int64(r.InUseBytes())
+-		v3, v4 = int64(r.AllocObjects), int64(r.AllocBytes)
+-		if (v1 == 0 && v2 != 0) || (v3 == 0 && v4 != 0) {
+-			return fmt.Errorf("error writing memory profile: inuse object count was 0 but inuse bytes was %d", v2)
+-		} else {
+-			if v1 != 0 {
+-				blocksize = v2 / v1
+-				v1, v2 = scaleHeapSample(v1, v2, prof.Period)
+-			}
+-			if v3 != 0 {
+-				v3, v4 = scaleHeapSample(v3, v4, prof.Period)
+-			}
+-		}
+-		value := []int64{v1, v2, v3, v4}
+-		var sloc []*profile.Location
++		fmt.Fprintf(w, "%d: %d [%d: %d] @",
++			r.InUseObjects(), r.InUseBytes(),
++			r.AllocObjects, r.AllocBytes)
+ 		for _, pc := range r.Stack() {
+-			addr := uint64(pc)
+-			addr--
+-			loc := locs[addr]
+-			if locs[addr] == nil {
+-				loc = &(profile.Location{
+-					Address: addr,
+-				})
+-				prof.Location = append(prof.Location, loc)
+-				locs[addr] = loc
+-			}
+-			sloc = append(sloc, loc)
++			fmt.Fprintf(w, " %#x", pc)
++		}
++		fmt.Fprintf(w, "\n")
++		if debug > 0 {
++			printStackRecord(w, r.Stack(), false)
+ 		}
+-		prof.Sample = append(prof.Sample, &profile.Sample{
+-			Value:    value,
+-			Location: sloc,
+-			NumLabel: map[string][]int64{"bytes": {blocksize}},
+-		})
+ 	}
+-	prof.RemapAll()
+-	protopprof.Symbolize(prof)
+-	return prof.Write(w)
+-}
+ 
+-// scaleHeapSample adjusts the data to account for its
+-// probability of appearing in the collected data.
+-func scaleHeapSample(count, size, rate int64) (int64, int64) {
+-	if count == 0 || size == 0 {
+-		return 0, 0
+-	}
++	// Print memstats information too.
++	// Pprof will ignore, but useful for people
++	s := new(runtime.MemStats)
++	runtime.ReadMemStats(s)
++	fmt.Fprintf(w, "\n# runtime.MemStats\n")
++	fmt.Fprintf(w, "# Alloc = %d\n", s.Alloc)
++	fmt.Fprintf(w, "# TotalAlloc = %d\n", s.TotalAlloc)
++	fmt.Fprintf(w, "# Sys = %d\n", s.Sys)
++	fmt.Fprintf(w, "# Lookups = %d\n", s.Lookups)
++	fmt.Fprintf(w, "# Mallocs = %d\n", s.Mallocs)
++	fmt.Fprintf(w, "# Frees = %d\n", s.Frees)
++
++	fmt.Fprintf(w, "# HeapAlloc = %d\n", s.HeapAlloc)
++	fmt.Fprintf(w, "# HeapSys = %d\n", s.HeapSys)
++	fmt.Fprintf(w, "# HeapIdle = %d\n", s.HeapIdle)
++	fmt.Fprintf(w, "# HeapInuse = %d\n", s.HeapInuse)
++	fmt.Fprintf(w, "# HeapReleased = %d\n", s.HeapReleased)
++	fmt.Fprintf(w, "# HeapObjects = %d\n", s.HeapObjects)
++
++	fmt.Fprintf(w, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
++	fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
++	fmt.Fprintf(w, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
++	fmt.Fprintf(w, "# BuckHashSys = %d\n", s.BuckHashSys)
++	fmt.Fprintf(w, "# GCSys = %d\n", s.GCSys)
++	fmt.Fprintf(w, "# OtherSys = %d\n", s.OtherSys)
++
++	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
++	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
++	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
++	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
+ 
+-	if rate <= 1 {
+-		// if rate==1 all samples were collected so no adjustment is needed.
+-		// if rate<1 treat as unknown and skip scaling.
+-		return count, size
++	if tw != nil {
++		tw.Flush()
+ 	}
+-
+-	// heap profiles rely on a poisson process to determine
+-	// which samples to collect, based on the desired average collection
+-	// rate R. The probability of a sample of size S to appear in that
+-	// profile is 1-exp(-S/R).
+-	avgSize := float64(size) / float64(count)
+-	scale := 1 / (1 - math.Exp(-avgSize/float64(rate)))
+-
+-	return int64(float64(count) * scale), int64(float64(size) * scale)
++	return b.Flush()
+ }
+ 
+ // countThreadCreate returns the size of the current ThreadCreateProfile.
+@@ -554,9 +568,33 @@ func countGoroutine() int {
+ 
+ // writeGoroutine writes the current runtime GoroutineProfile to w.
+ func writeGoroutine(w io.Writer, debug int) error {
++	if debug >= 2 {
++		return writeGoroutineStacks(w)
++	}
+ 	return writeRuntimeProfile(w, debug, "goroutine", runtime.GoroutineProfile)
+ }
+ 
++func writeGoroutineStacks(w io.Writer) error {
++	// We don't know how big the buffer needs to be to collect
++	// all the goroutines. Start with 1 MB and try a few times, doubling each time.
++	// Give up and use a truncated trace if 64 MB is not enough.
++	buf := make([]byte, 1<<20)
++	for i := 0; ; i++ {
++		n := runtime.Stack(buf, true)
++		if n < len(buf) {
++			buf = buf[:n]
++			break
++		}
++		if len(buf) >= 64<<20 {
++			// Filled 64 MB - stop there.
++			break
++		}
++		buf = make([]byte, 2*len(buf))
++	}
++	_, err := w.Write(buf)
++	return err
++}
++
+ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord) (int, bool)) error {
+ 	// Find out how many records there are (fetch(nil)),
+ 	// allocate that many records, and get the data.
+@@ -589,7 +627,6 @@ func (p runtimeProfile) Stack(i int) []uintptr { return p[i].Stack() }
+ 
+ var cpu struct {
+ 	sync.Mutex
+-	startTime time.Time
+ 	profiling bool
+ 	done      chan bool
+ }
+@@ -633,22 +670,49 @@ func StartCPUProfile(w io.Writer) error {
+ }
+ 
+ func profileWriter(w io.Writer) {
+-	var buf bytes.Buffer
+ 	for {
+ 		data := runtime.CPUProfile()
+-		buf.Write(data)
+ 		if data == nil {
+ 			break
+ 		}
++		w.Write(data)
++	}
++
++	// We are emitting the legacy profiling format, which permits
++	// a memory map following the CPU samples. The memory map is
++	// simply a copy of the GNU/Linux /proc/self/maps file. The
++	// profiler uses the memory map to map PC values in shared
++	// libraries to a shared library in the filesystem, in order
++	// to report the correct function and, if the shared library
++	// has debug info, file/line. This is particularly useful for
++	// PIE (position independent executables) as on ELF systems a
++	// PIE is simply an executable shared library.
++	//
++	// Because the profiling format expects the memory map in
++	// GNU/Linux format, we only do this on GNU/Linux for now. To
++	// add support for profiling PIE on other ELF-based systems,
++	// it may be necessary to map the system-specific mapping
++	// information to the GNU/Linux format. For a reasonably
++	// portable C++ version, see the FillProcSelfMaps function in
++	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
++	//
++	// The code that parses this mapping for the pprof tool is
++	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
++	// don't change that code, as similar code exists in other
++	// (non-Go) pprof readers. Change this code so that that code works.
++	//
++	// We ignore errors reading or copying the memory map; the
++	// profile is likely usable without it, and we have no good way
++	// to report errors.
++	if runtime.GOOS == "linux" {
++		f, err := os.Open("/proc/self/maps")
++		if err == nil {
++			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
++			io.Copy(w, f)
++			f.Close()
++		}
+ 	}
+-	p, err := protopprof.TranslateCPUProfile(buf.Bytes(), cpu.startTime)
+-	if err != nil {
+-		panic(err)
+-	}
+-	p.RemapAll()
+-	protopprof.CleanupDuplicateLocations(p)
+-	protopprof.Symbolize(p)
+-	p.Write(w)
++
+ 	cpu.done <- true
+ }
+ 
+@@ -684,7 +748,6 @@ func writeBlock(w io.Writer, debug int) error {
+ 	var p []runtime.BlockProfileRecord
+ 	n, ok := runtime.BlockProfile(nil)
+ 	for {
+-		// Code by analogy with writeBlock func
+ 		p = make([]runtime.BlockProfileRecord, n+50)
+ 		n, ok = runtime.BlockProfile(p)
+ 		if ok {
+@@ -695,55 +758,32 @@ func writeBlock(w io.Writer, debug int) error {
+ 
+ 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
+ 
+-	prof := &profile.Profile{
+-		PeriodType: &profile.ValueType{Type: "contentions", Unit: "count"},
+-		Period:     1,
+-		SampleType: []*profile.ValueType{
+-			{Type: "contentions", Unit: "count"},
+-			{Type: "delay", Unit: "nanoseconds"},
+-		},
++	b := bufio.NewWriter(w)
++	var tw *tabwriter.Writer
++	w = b
++	if debug > 0 {
++		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
++		w = tw
+ 	}
+ 
+-	cpuHz := runtime_cyclesPerSecond()
+-	locs := make(map[uint64]*profile.Location)
++	fmt.Fprintf(w, "--- contention:\n")
++	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
+ 	for i := range p {
+ 		r := &p[i]
+-		var v1, v2 int64
+-		v1 = r.Cycles
+-		v2 = r.Count
+-		if prof.Period > 0 {
+-			if cpuHz > 0 {
+-				cpuGHz := float64(cpuHz) / 1e9
+-				v1 = int64(float64(v1) * float64(prof.Period) / cpuGHz)
+-			}
+-			v2 = v2 * prof.Period
+-		}
+-
+-		value := []int64{v2, v1}
+-		var sloc []*profile.Location
+-
++		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)
+ 		for _, pc := range r.Stack() {
+-			addr := uint64(pc)
+-			addr--
+-			loc := locs[addr]
+-			if locs[addr] == nil {
+-				loc = &profile.Location{
+-					Address: addr,
+-				}
+-				prof.Location = append(prof.Location, loc)
+-				locs[addr] = loc
+-			}
+-			sloc = append(sloc, loc)
++			fmt.Fprintf(w, " %#x", pc)
++		}
++		fmt.Fprint(w, "\n")
++		if debug > 0 {
++			printStackRecord(w, r.Stack(), true)
+ 		}
+-		prof.Sample = append(prof.Sample, &profile.Sample{
+-			Value:    value,
+-			Location: sloc,
+-		})
+ 	}
+ 
+-	prof.RemapAll()
+-	protopprof.Symbolize(prof)
+-	return prof.Write(w)
++	if tw != nil {
++		tw.Flush()
++	}
++	return b.Flush()
+ }
+ 
+ // writeMutex writes the current mutex profile to w.
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 9f488afa1a..a683a03211 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -8,6 +8,7 @@ package pprof_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"internal/testenv"
+ 	"math/big"
+ 	"os"
+@@ -19,6 +20,7 @@ import (
+ 	"sync"
+ 	"testing"
+ 	"time"
++	"unsafe"
+ )
+ 
+ func cpuHogger(f func(), dur time.Duration) {
+@@ -84,14 +86,42 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
+-func parseProfile(t *testing.T, prof bytes.Buffer, f func(*ProfileTest)) {
+-	//parse proto to profile struct
+-	r := bytes.NewReader(prof.Bytes())
+-	p, err := Parse(r)
+-	if err != nil {
+-		t.Fatalf("can't parse pprof profile: %v", err)
++func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
++	// Convert []byte to []uintptr.
++	l := len(valBytes)
++	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
++		l = i
++	}
++	l /= int(unsafe.Sizeof(uintptr(0)))
++	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
++	val = val[:l]
++
++	// 5 for the header, 3 for the trailer.
++	if l < 5+3 {
++		t.Logf("profile too short: %#x", val)
++		if badOS[runtime.GOOS] {
++			t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
++			return
++		}
++		t.FailNow()
++	}
++
++	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
++	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
++		t.Fatalf("unexpected header %#x", hd)
++	}
++
++	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
++		t.Fatalf("malformed end-of-data marker %#x", tl)
++	}
++
++	for len(val) > 0 {
++		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
++			t.Fatalf("malformed profile.  leftover: %#x", val)
++		}
++		f(val[0], val[2:2+val[1]])
++		val = val[2+val[1]:]
+ 	}
+-	f(p)
+ }
+ 
+ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
+@@ -163,23 +193,21 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
+ 	ok = true
+ 
+ 	// Check that profile is well formed and contains need.
+-	var have []string
++	have := make([]uintptr, len(need))
+ 	var samples uintptr
+-	parseProfile(t, prof, func(p *ProfileTest) {
+-		for s := range p.Sample {
+-			samples += (uintptr)(p.Sample[s].Value[0])
+-		}
+-		for i := range p.Function {
+-			f := p.Function[i]
++	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
++		samples += count
++		for _, pc := range stk {
++			f := runtime.FuncForPC(pc)
+ 			if f == nil {
+ 				continue
+ 			}
+ 			for i, name := range need {
+-				if strings.Contains(f.Name, name) {
+-					have = append(have, need[i])
++				if strings.Contains(f.Name(), name) {
++					have[i] += count
+ 				}
+ 			}
+-			if strings.Contains(f.Name, "stackBarrier") {
++			if strings.Contains(f.Name(), "stackBarrier") {
+ 				// The runtime should have unwound this.
+ 				t.Fatalf("profile includes stackBarrier")
+ 			}
+@@ -204,8 +232,26 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
+ 	if len(need) == 0 {
+ 		return ok
+ 	}
+-	if len(have) != len(need) {
+-		return !ok
++
++	var total uintptr
++	for i, name := range need {
++		total += have[i]
++		t.Logf("%s: %d\n", name, have[i])
++	}
++	if total == 0 {
++		t.Logf("no samples in expected functions")
++		ok = false
++	}
++	// We'd like to check a reasonable minimum, like
++	// total / len(have) / smallconstant, but this test is
++	// pretty flaky (see bug 7095).  So we'll just test to
++	// make sure we got at least one sample.
++	min := uintptr(1)
++	for i, name := range need {
++		if have[i] < min {
++			t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
++			ok = false
++		}
+ 	}
+ 	return ok
+ }
+@@ -270,7 +316,33 @@ func TestGoroutineSwitch(t *testing.T) {
+ 
+ 		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
+ 		// The special entry
+-		parseProfile(t, prof, func(p *ProfileTest) {})
++		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
++			// An entry with two frames with 'System' in its top frame
++			// exists to record a PC without a traceback. Those are okay.
++			if len(stk) == 2 {
++				f := runtime.FuncForPC(stk[1])
++				if f != nil && (f.Name() == "runtime._System" || f.Name() == "runtime._ExternalCode" || f.Name() == "runtime._GC") {
++					return
++				}
++			}
++
++			// Otherwise, should not see runtime.gogo.
++			// The place we'd see it would be the inner most frame.
++			f := runtime.FuncForPC(stk[0])
++			if f != nil && f.Name() == "runtime.gogo" {
++				var buf bytes.Buffer
++				for _, pc := range stk {
++					f := runtime.FuncForPC(pc)
++					if f == nil {
++						fmt.Fprintf(&buf, "%#x ?:0\n", pc)
++					} else {
++						file, line := f.FileLine(pc)
++						fmt.Fprintf(&buf, "%#x %s:%d\n", pc, file, line)
++					}
++				}
++				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
++			}
++		})
+ 	}
+ }
+ 
+@@ -365,41 +437,74 @@ func TestBlockProfile(t *testing.T) {
+ 	type TestCase struct {
+ 		name string
+ 		f    func()
+-		re   []string
++		re   string
+ 	}
+ 	tests := [...]TestCase{
+-		{"chan recv", blockChanRecv, []string{`runtime\.chanrecv1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanRecv`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"chan send", blockChanSend, []string{`runtime\.chansend1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanSend`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"chan close", blockChanClose, []string{`runtime\.chanrecv1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanClose`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"select recv async", blockSelectRecvAsync, []string{`runtime\.selectgo`, `.*/src/runtime/select.go`, `runtime/pprof_test\.blockSelectRecvAsync`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"select send sync", blockSelectSendSync, []string{`runtime\.selectgo`, `.*/src/runtime/select.go`, `runtime/pprof_test\.blockSelectSendSync`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"mutex", blockMutex, []string{`sync\.\(\*Mutex\)\.Lock`, `.*/src/sync/mutex\.go`, `runtime/pprof_test\.blockMutex`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+-		{"cond", blockCond, []string{`sync\.\(\*Cond\)\.Wait`, `.*/src/sync/cond\.go`, `runtime/pprof_test\.blockCond`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
++		{"chan recv", blockChanRecv, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"chan send", blockChanSend, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"chan close", blockChanClose, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"select recv async", blockSelectRecvAsync, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"select send sync", blockSelectSendSync, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"mutex", blockMutex, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/sync/mutex\.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"cond", blockCond, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/sync/cond\.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++`},
+ 	}
+ 
+ 	runtime.SetBlockProfileRate(1)
+ 	defer runtime.SetBlockProfileRate(0)
+ 	for _, test := range tests {
+ 		test.f()
+-		var prof bytes.Buffer
+-		Lookup("block").WriteTo(&prof, 1)
+-
+-		parseProfile(t, prof, func(p *ProfileTest) {
+-			for n := 0; n < len(test.re); n += 2 {
+-				found := false
+-				for i := range p.Function {
+-					f := p.Function[i]
+-					t.Log(f.Name, f.Filename)
+-					if !regexp.MustCompile(strings.Replace(test.re[n], "\t", "\t+", -1)).MatchString(f.Name) || !regexp.MustCompile(strings.Replace(test.re[n+1], "\t", "\t+", -1)).MatchString(f.Filename) {
+-						found = true
+-						break
+-					}
+-				}
+-				if !found {
+-					t.Fatalf("have not found expected function %s from file %s", test.re[n], test.re[n+1])
+-				}
+-			}
+-		})
++	}
++	var w bytes.Buffer
++	Lookup("block").WriteTo(&w, 1)
++	prof := w.String()
++
++	if !strings.HasPrefix(prof, "--- contention:\ncycles/second=") {
++		t.Fatalf("Bad profile header:\n%v", prof)
++	}
++
++	if strings.HasSuffix(prof, "#\t0x0\n\n") {
++		t.Errorf("Useless 0 suffix:\n%v", prof)
++	}
++
++	for _, test := range tests {
++		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
++			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
++		}
+ 	}
+ }
+ 
+@@ -546,18 +651,26 @@ func TestGoroutineCounts(t *testing.T) {
+ 	}
+ 	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
+ 
+-	var prof bytes.Buffer
+-	Lookup("goroutine").WriteTo(&prof, 1)
++	var w bytes.Buffer
++	Lookup("goroutine").WriteTo(&w, 1)
++	prof := w.String()
++
++	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
++		t.Errorf("expected sorted goroutine counts:\n%s", prof)
++	}
+ 
+-	parseProfile(t, prof, func(p *ProfileTest) {
+-		if len(p.Sample) < 4 {
+-			t.Errorf("few samples, got %v", len(p.Sample))
+-		}
+-		if p.Sample[0].Value[0] != 50 || p.Sample[1].Value[0] != 40 || p.Sample[2].Value[0] != 10 || p.Sample[3].Value[0] != 1 {
+-			t.Errorf("expected sorted goroutine counts:\n 50, 40, 10, 1\ngot:\n", p.Sample[0].Value[0], p.Sample[1].Value[0], p.Sample[2].Value[0], p.Sample[3].Value[0])
+-		}
+-	})
+ 	close(c)
+ 
+ 	time.Sleep(10 * time.Millisecond) // let goroutines exit
+ }
++
++func containsInOrder(s string, all ...string) bool {
++	for _, t := range all {
++		i := strings.Index(s, t)
++		if i < 0 {
++			return false
++		}
++		s = s[i+len(t):]
++	}
++	return true
++}

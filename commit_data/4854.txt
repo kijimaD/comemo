@@ -8,8 +8,56 @@ Date:   Tue Feb 16 10:19:51 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/207108
-
+---
  src/pkg/go/printer/nodes.go                   | 3 ++-
  src/pkg/go/printer/testdata/statements.golden | 3 +++
  src/pkg/go/printer/testdata/statements.input  | 1 +
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 65b19e9f5d..218ad765d8 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -671,6 +671,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 			// no parenthesis needed
+ 			p.print(x.Op)
+ 			if x.Op == token.RANGE {
++				// TODO(gri) Remove this code if it cannot be reached.
+ 				p.print(blank)
+ 			}
+ 			p.expr1(x.X, prec, depth, 0, multiLine)
+@@ -1075,7 +1076,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
+ 			p.expr(s.Value, multiLine)
+ 		}
+ 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
+-		p.expr(s.X, multiLine)
++		p.expr(stripParens(s.X), multiLine)
+ 		p.print(blank)
+ 		p.block(s.Body, 1, true)
+ 		*multiLine = true
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index b7d8ad2ea1..86d8282cd7 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -144,6 +144,9 @@ func _() {
+ 	for x := range []int{} {
+ 		use(x)
+ 	}
++	for x := range []int{} {
++		use(x)
++	}	// no parens printed
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index a6efba7c64..061f7f3205 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -107,6 +107,7 @@ func _() {
+ 	}
+ 	for x := expr;expr;expr = false { use(x) }
+ 	for x := range []int{} { use(x) }
++	for x := range (([]int{})) { use(x) }  // no parens printed
+ }
+ 
+ 

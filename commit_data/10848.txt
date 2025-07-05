@@ -7,8 +7,88 @@ Date:   Fri Dec 16 15:46:25 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5493061
-
+---
  src/Make.pkg                                           |  2 +-
  src/pkg/runtime/Makefile                               | 12 ++++++++----
  src/pkg/runtime/{traceback_amd64.c => traceback_x86.c} |  2 ++
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index de4c769e5b..c6c47ffd0a 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -245,5 +245,5 @@ endif
+ %.$O: _obj/%.c $(HFILES)
+ 	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
+ 
+-%.$O: %.s
++%.$O: %.s $(HFILES)
+ 	$(AS) $*.s
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 9fb3a2bbe7..651fa02d0b 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -51,6 +51,11 @@ OFILES_windows=\
+ OFILES_386=\
+ 	vlop_386.$O\
+ 	vlrt_386.$O\
++	traceback_x86.$O\
++
++# amd64-specific object files
++OFILES_amd64=\
++	traceback_x86.$O\
+ 
+ # arm-specific object files
+ OFILES_arm=\
+@@ -58,6 +63,7 @@ OFILES_arm=\
+ 	softfloat_arm.$O\
+ 	vlop_arm.$O\
+ 	vlrt_arm.$O\
++	traceback_x86.$O\
+ 
+ OFILES=\
+ 	alg.$O\
+@@ -97,7 +103,6 @@ OFILES=\
+ 	sys_$(GOOS)_$(GOARCH).$O\
+ 	thread_$(GOOS).$O\
+ 	time.$O\
+-	traceback_$(GOARCH).$O\
+ 	$(OFILES_$(GOARCH))\
+ 	$(OFILES_$(GOOS))\
+ 
+@@ -113,6 +118,7 @@ HFILES=\
+ 	hashmap.h\
+ 	malloc.h\
+ 	stack.h\
++	asm_$(GOARCH).h\
+ 	$(AUTOHFILES)\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+@@ -157,10 +163,8 @@ version_$(GOOS).go:
+ 	./goc2c "`pwd`/$<" > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+-%.$O: asm_$(GOARCH).h
+-
+ # for discovering offsets inside structs when debugging
+-runtime.acid.$(GOARCH): runtime.h proc.c
++runtime.acid.$(GOARCH): runtime.h proc.c $(AUTOHFILES)
+ 	$(CC) $(CFLAGS) -a proc.c >$@
+ 
+ # 386 traceback is really amd64 traceback
+diff --git a/src/pkg/runtime/traceback_amd64.c b/src/pkg/runtime/traceback_x86.c
+similarity index 99%
+rename from src/pkg/runtime/traceback_amd64.c
+rename to src/pkg/runtime/traceback_x86.c
+index fedda797c2..be35bab002 100644
+--- a/src/pkg/runtime/traceback_amd64.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build amd64 386
++
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"

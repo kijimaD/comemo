@@ -9,7 +9,7 @@ Date:   Tue Oct 25 22:23:15 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5310045
-
+---
  src/pkg/unicode/digit.go        |   8 +--
  src/pkg/unicode/digit_test.go   |   6 +-
  src/pkg/unicode/graphic.go      |  70 +++++++++---------
@@ -25,3 +25,1864 @@ Date:   Tue Oct 25 22:23:15 2011 -0700
  src/pkg/utf8/utf8.go            |  98 +++++++++++++------------
  src/pkg/utf8/utf8_test.go       |  88 +++++++++++------------
  14 files changed, 351 insertions(+), 367 deletions(-)
+
+diff --git a/src/pkg/unicode/digit.go b/src/pkg/unicode/digit.go
+index 6793fd7e5f..4800bd6ea8 100644
+--- a/src/pkg/unicode/digit.go
++++ b/src/pkg/unicode/digit.go
+@@ -5,9 +5,9 @@
+ package unicode
+ 
+ // IsDigit reports whether the rune is a decimal digit.
+-func IsDigit(rune int) bool {
+-	if rune <= MaxLatin1 {
+-		return '0' <= rune && rune <= '9'
++func IsDigit(r rune) bool {
++	if r <= MaxLatin1 {
++		return '0' <= r && r <= '9'
+ 	}
+-	return Is(Digit, rune)
++	return Is(Digit, r)
+ }
+diff --git a/src/pkg/unicode/digit_test.go b/src/pkg/unicode/digit_test.go
+index ae3c0ece93..551c42a24e 100644
+--- a/src/pkg/unicode/digit_test.go
++++ b/src/pkg/unicode/digit_test.go
+@@ -9,7 +9,7 @@ import (
+ 	. "unicode"
+ )
+ 
+-var testDigit = []int{
++var testDigit = []rune{
+ 	0x0030,
+ 	0x0039,
+ 	0x0661,
+@@ -68,7 +68,7 @@ var testDigit = []int{
+ 	0x1D7CE,
+ }
+ 
+-var testLetter = []int{
++var testLetter = []rune{
+ 	0x0041,
+ 	0x0061,
+ 	0x00AA,
+@@ -118,7 +118,7 @@ func TestDigit(t *testing.T) {
+ 
+ // Test that the special case in IsDigit agrees with the table
+ func TestDigitOptimization(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		if Is(Digit, i) != IsDigit(i) {
+ 			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
+ 		}
+diff --git a/src/pkg/unicode/graphic.go b/src/pkg/unicode/graphic.go
+index d482aace26..9343bc9b0a 100644
+--- a/src/pkg/unicode/graphic.go
++++ b/src/pkg/unicode/graphic.go
+@@ -31,13 +31,13 @@ var PrintRanges = []*RangeTable{
+ // IsGraphic reports whether the rune is defined as a Graphic by Unicode.
+ // Such characters include letters, marks, numbers, punctuation, symbols, and
+ // spaces, from categories L, M, N, P, S, Zs.
+-func IsGraphic(rune int) bool {
++func IsGraphic(r rune) bool {
+ 	// We cast to uint32 to avoid the extra test for negative,
+ 	// and in the index we cast to uint8 to avoid the range check.
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pg != 0
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pg != 0
+ 	}
+-	return IsOneOf(GraphicRanges, rune)
++	return IsOneOf(GraphicRanges, r)
+ }
+ 
+ // IsPrint reports whether the rune is defined as printable by Go. Such
+@@ -45,18 +45,18 @@ func IsGraphic(rune int) bool {
+ // ASCII space character, from categories L, M, N, P, S and the ASCII space
+ // character.  This categorization is the same as IsGraphic except that the
+ // only spacing character is ASCII space, U+0020.
+-func IsPrint(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pp != 0
++func IsPrint(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pp != 0
+ 	}
+-	return IsOneOf(PrintRanges, rune)
++	return IsOneOf(PrintRanges, r)
+ }
+ 
+ // IsOneOf reports whether the rune is a member of one of the ranges.
+ // The rune is known to be above Latin-1.
+-func IsOneOf(set []*RangeTable, rune int) bool {
++func IsOneOf(set []*RangeTable, r rune) bool {
+ 	for _, inside := range set {
+-		if Is(inside, rune) {
++		if Is(inside, r) {
+ 			return true
+ 		}
+ 	}
+@@ -66,43 +66,43 @@ func IsOneOf(set []*RangeTable, rune int) bool {
+ // IsControl reports whether the rune is a control character.
+ // The C (Other) Unicode category includes more code points
+ // such as surrogates; use Is(C, rune) to test for them.
+-func IsControl(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pC != 0
++func IsControl(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pC != 0
+ 	}
+ 	// All control characters are < Latin1Max.
+ 	return false
+ }
+ 
+ // IsLetter reports whether the rune is a letter (category L).
+-func IsLetter(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&(pLu|pLl) != 0
++func IsLetter(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&(pLu|pLl) != 0
+ 	}
+-	return Is(Letter, rune)
++	return Is(Letter, r)
+ }
+ 
+ // IsMark reports whether the rune is a mark character (category M).
+-func IsMark(rune int) bool {
++func IsMark(r rune) bool {
+ 	// There are no mark characters in Latin-1.
+-	return Is(Mark, rune)
++	return Is(Mark, r)
+ }
+ 
+ // IsNumber reports whether the rune is a number (category N).
+-func IsNumber(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pN != 0
++func IsNumber(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pN != 0
+ 	}
+-	return Is(Number, rune)
++	return Is(Number, r)
+ }
+ 
+ // IsPunct reports whether the rune is a Unicode punctuation character
+ // (category P).
+-func IsPunct(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pP != 0
++func IsPunct(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pP != 0
+ 	}
+-	return Is(Punct, rune)
++	return Is(Punct, r)
+ }
+ 
+ // IsSpace reports whether the rune is a space character as defined
+@@ -111,22 +111,22 @@ func IsPunct(rune int) bool {
+ //	'\t', '\n', '\v', '\f', '\r', ' ', U+0085 (NEL), U+00A0 (NBSP).
+ // Other definitions of spacing characters are set by category
+ // Z and property Pattern_White_Space.
+-func IsSpace(rune int) bool {
++func IsSpace(r rune) bool {
+ 	// This property isn't the same as Z; special-case it.
+-	if uint32(rune) <= MaxLatin1 {
+-		switch rune {
++	if uint32(r) <= MaxLatin1 {
++		switch r {
+ 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
+ 			return true
+ 		}
+ 		return false
+ 	}
+-	return Is(White_Space, rune)
++	return Is(White_Space, r)
+ }
+ 
+ // IsSymbol reports whether the rune is a symbolic character.
+-func IsSymbol(rune int) bool {
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pS != 0
++func IsSymbol(r rune) bool {
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pS != 0
+ 	}
+-	return Is(Symbol, rune)
++	return Is(Symbol, r)
+ }
+diff --git a/src/pkg/unicode/graphic_test.go b/src/pkg/unicode/graphic_test.go
+index 77c679f7ce..7b1f6209e8 100644
+--- a/src/pkg/unicode/graphic_test.go
++++ b/src/pkg/unicode/graphic_test.go
+@@ -13,7 +13,7 @@ import (
+ // in the Latin-1 range through the property table.
+ 
+ func TestIsControlLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsControl(i)
+ 		want := false
+ 		switch {
+@@ -29,7 +29,7 @@ func TestIsControlLatin1(t *testing.T) {
+ }
+ 
+ func TestIsLetterLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsLetter(i)
+ 		want := Is(Letter, i)
+ 		if got != want {
+@@ -39,7 +39,7 @@ func TestIsLetterLatin1(t *testing.T) {
+ }
+ 
+ func TestIsUpperLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsUpper(i)
+ 		want := Is(Upper, i)
+ 		if got != want {
+@@ -49,7 +49,7 @@ func TestIsUpperLatin1(t *testing.T) {
+ }
+ 
+ func TestIsLowerLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsLower(i)
+ 		want := Is(Lower, i)
+ 		if got != want {
+@@ -59,7 +59,7 @@ func TestIsLowerLatin1(t *testing.T) {
+ }
+ 
+ func TestNumberLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsNumber(i)
+ 		want := Is(Number, i)
+ 		if got != want {
+@@ -69,7 +69,7 @@ func TestNumberLatin1(t *testing.T) {
+ }
+ 
+ func TestIsPrintLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsPrint(i)
+ 		want := IsOneOf(PrintRanges, i)
+ 		if i == ' ' {
+@@ -82,7 +82,7 @@ func TestIsPrintLatin1(t *testing.T) {
+ }
+ 
+ func TestIsGraphicLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsGraphic(i)
+ 		want := IsOneOf(GraphicRanges, i)
+ 		if got != want {
+@@ -92,7 +92,7 @@ func TestIsGraphicLatin1(t *testing.T) {
+ }
+ 
+ func TestIsPunctLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsPunct(i)
+ 		want := Is(Punct, i)
+ 		if got != want {
+@@ -102,7 +102,7 @@ func TestIsPunctLatin1(t *testing.T) {
+ }
+ 
+ func TestIsSpaceLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsSpace(i)
+ 		want := Is(White_Space, i)
+ 		if got != want {
+@@ -112,7 +112,7 @@ func TestIsSpaceLatin1(t *testing.T) {
+ }
+ 
+ func TestIsSymbolLatin1(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsSymbol(i)
+ 		want := Is(Symbol, i)
+ 		if got != want {
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 38a11c42bf..01c485b693 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -71,7 +71,7 @@ const (
+ 	MaxCase
+ )
+ 
+-type d [MaxCase]int32 // to make the CaseRanges text shorter
++type d [MaxCase]rune // to make the CaseRanges text shorter
+ 
+ // If the Delta field of a CaseRange is UpperLower or LowerUpper, it means
+ // this CaseRange represents a sequence of the form (say)
+@@ -81,17 +81,17 @@ const (
+ )
+ 
+ // is16 uses binary search to test whether rune is in the specified slice of 16-bit ranges.
+-func is16(ranges []Range16, rune uint16) bool {
++func is16(ranges []Range16, r uint16) bool {
+ 	// binary search over ranges
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		r := ranges[m]
+-		if r.Lo <= rune && rune <= r.Hi {
+-			return (rune-r.Lo)%r.Stride == 0
++		range_ := ranges[m]
++		if range_.Lo <= r && r <= range_.Hi {
++			return (r-range_.Lo)%range_.Stride == 0
+ 		}
+-		if rune < r.Lo {
++		if r < range_.Lo {
+ 			hi = m
+ 		} else {
+ 			lo = m + 1
+@@ -101,17 +101,17 @@ func is16(ranges []Range16, rune uint16) bool {
+ }
+ 
+ // is32 uses binary search to test whether rune is in the specified slice of 32-bit ranges.
+-func is32(ranges []Range32, rune uint32) bool {
++func is32(ranges []Range32, r uint32) bool {
+ 	// binary search over ranges
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		r := ranges[m]
+-		if r.Lo <= rune && rune <= r.Hi {
+-			return (rune-r.Lo)%r.Stride == 0
++		range_ := ranges[m]
++		if range_.Lo <= r && r <= range_.Hi {
++			return (r-range_.Lo)%range_.Stride == 0
+ 		}
+-		if rune < r.Lo {
++		if r < range_.Lo {
+ 			hi = m
+ 		} else {
+ 			lo = m + 1
+@@ -121,11 +121,11 @@ func is32(ranges []Range32, rune uint32) bool {
+ }
+ 
+ // Is tests whether rune is in the specified table of ranges.
+-func Is(rangeTab *RangeTable, rune int) bool {
++func Is(rangeTab *RangeTable, r rune) bool {
+ 	// common case: rune is ASCII or Latin-1.
+-	if uint32(rune) <= MaxLatin1 {
++	if uint32(r) <= MaxLatin1 {
+ 		// Only need to check R16, since R32 is always >= 1<<16.
+-		r16 := uint16(rune)
++		r16 := uint16(r)
+ 		for _, r := range rangeTab.R16 {
+ 			if r16 > r.Hi {
+ 				continue
+@@ -138,44 +138,44 @@ func Is(rangeTab *RangeTable, rune int) bool {
+ 		return false
+ 	}
+ 	r16 := rangeTab.R16
+-	if len(r16) > 0 && rune <= int(r16[len(r16)-1].Hi) {
+-		return is16(r16, uint16(rune))
++	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
++		return is16(r16, uint16(r))
+ 	}
+ 	r32 := rangeTab.R32
+-	if len(r32) > 0 && rune >= int(r32[0].Lo) {
+-		return is32(r32, uint32(rune))
++	if len(r32) > 0 && r >= rune(r32[0].Lo) {
++		return is32(r32, uint32(r))
+ 	}
+ 	return false
+ }
+ 
+ // IsUpper reports whether the rune is an upper case letter.
+-func IsUpper(rune int) bool {
++func IsUpper(r rune) bool {
+ 	// See comment in IsGraphic.
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pLu != 0
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pLu != 0
+ 	}
+-	return Is(Upper, rune)
++	return Is(Upper, r)
+ }
+ 
+ // IsLower reports whether the rune is a lower case letter.
+-func IsLower(rune int) bool {
++func IsLower(r rune) bool {
+ 	// See comment in IsGraphic.
+-	if uint32(rune) <= MaxLatin1 {
+-		return properties[uint8(rune)]&pLl != 0
++	if uint32(r) <= MaxLatin1 {
++		return properties[uint8(r)]&pLl != 0
+ 	}
+-	return Is(Lower, rune)
++	return Is(Lower, r)
+ }
+ 
+ // IsTitle reports whether the rune is a title case letter.
+-func IsTitle(rune int) bool {
+-	if rune <= MaxLatin1 {
++func IsTitle(r rune) bool {
++	if r <= MaxLatin1 {
+ 		return false
+ 	}
+-	return Is(Title, rune)
++	return Is(Title, r)
+ }
+ 
+ // to maps the rune using the specified case mapping.
+-func to(_case int, rune int, caseRange []CaseRange) int {
++func to(_case int, r rune, caseRange []CaseRange) rune {
+ 	if _case < 0 || MaxCase <= _case {
+ 		return ReplacementChar // as reasonable an error as any
+ 	}
+@@ -184,9 +184,9 @@ func to(_case int, rune int, caseRange []CaseRange) int {
+ 	hi := len(caseRange)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		r := caseRange[m]
+-		if int(r.Lo) <= rune && rune <= int(r.Hi) {
+-			delta := int(r.Delta[_case])
++		cr := caseRange[m]
++		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
++			delta := rune(cr.Delta[_case])
+ 			if delta > MaxRune {
+ 				// In an Upper-Lower sequence, which always starts with
+ 				// an UpperCase letter, the real deltas always look like:
+@@ -198,82 +198,82 @@ func to(_case int, rune int, caseRange []CaseRange) int {
+ 				// bit in the sequence offset.
+ 				// The constants UpperCase and TitleCase are even while LowerCase
+ 				// is odd so we take the low bit from _case.
+-				return int(r.Lo) + ((rune-int(r.Lo))&^1 | _case&1)
++				return rune(cr.Lo) + ((r-rune(cr.Lo))&^1 | rune(_case&1))
+ 			}
+-			return rune + delta
++			return r + delta
+ 		}
+-		if rune < int(r.Lo) {
++		if r < rune(cr.Lo) {
+ 			hi = m
+ 		} else {
+ 			lo = m + 1
+ 		}
+ 	}
+-	return rune
++	return r
+ }
+ 
+ // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
+-func To(_case int, rune int) int {
+-	return to(_case, rune, CaseRanges)
++func To(_case int, r rune) rune {
++	return to(_case, r, CaseRanges)
+ }
+ 
+ // ToUpper maps the rune to upper case.
+-func ToUpper(rune int) int {
+-	if rune <= MaxASCII {
+-		if 'a' <= rune && rune <= 'z' {
+-			rune -= 'a' - 'A'
++func ToUpper(r rune) rune {
++	if r <= MaxASCII {
++		if 'a' <= r && r <= 'z' {
++			r -= 'a' - 'A'
+ 		}
+-		return rune
++		return r
+ 	}
+-	return To(UpperCase, rune)
++	return To(UpperCase, r)
+ }
+ 
+ // ToLower maps the rune to lower case.
+-func ToLower(rune int) int {
+-	if rune <= MaxASCII {
+-		if 'A' <= rune && rune <= 'Z' {
+-			rune += 'a' - 'A'
++func ToLower(r rune) rune {
++	if r <= MaxASCII {
++		if 'A' <= r && r <= 'Z' {
++			r += 'a' - 'A'
+ 		}
+-		return rune
++		return r
+ 	}
+-	return To(LowerCase, rune)
++	return To(LowerCase, r)
+ }
+ 
+ // ToTitle maps the rune to title case.
+-func ToTitle(rune int) int {
+-	if rune <= MaxASCII {
+-		if 'a' <= rune && rune <= 'z' { // title case is upper case for ASCII
+-			rune -= 'a' - 'A'
++func ToTitle(r rune) rune {
++	if r <= MaxASCII {
++		if 'a' <= r && r <= 'z' { // title case is upper case for ASCII
++			r -= 'a' - 'A'
+ 		}
+-		return rune
++		return r
+ 	}
+-	return To(TitleCase, rune)
++	return To(TitleCase, r)
+ }
+ 
+ // ToUpper maps the rune to upper case giving priority to the special mapping.
+-func (special SpecialCase) ToUpper(rune int) int {
+-	r := to(UpperCase, rune, []CaseRange(special))
+-	if r == rune {
+-		r = ToUpper(rune)
++func (special SpecialCase) ToUpper(r rune) rune {
++	r1 := to(UpperCase, r, []CaseRange(special))
++	if r1 == r {
++		r1 = ToUpper(r)
+ 	}
+-	return r
++	return r1
+ }
+ 
+ // ToTitle maps the rune to title case giving priority to the special mapping.
+-func (special SpecialCase) ToTitle(rune int) int {
+-	r := to(TitleCase, rune, []CaseRange(special))
+-	if r == rune {
+-		r = ToTitle(rune)
++func (special SpecialCase) ToTitle(r rune) rune {
++	r1 := to(TitleCase, r, []CaseRange(special))
++	if r1 == r {
++		r1 = ToTitle(r)
+ 	}
+-	return r
++	return r1
+ }
+ 
+ // ToLower maps the rune to lower case giving priority to the special mapping.
+-func (special SpecialCase) ToLower(rune int) int {
+-	r := to(LowerCase, rune, []CaseRange(special))
+-	if r == rune {
+-		r = ToLower(rune)
++func (special SpecialCase) ToLower(r rune) rune {
++	r1 := to(LowerCase, r, []CaseRange(special))
++	if r1 == r {
++		r1 = ToLower(r)
+ 	}
+-	return r
++	return r1
+ }
+ 
+ // caseOrbit is defined in tables.go as []foldPair.  Right now all the
+@@ -300,27 +300,27 @@ type foldPair struct {
+ //
+ //	SimpleFold('1') = '1'
+ //
+-func SimpleFold(rune int) int {
++func SimpleFold(r rune) rune {
+ 	// Consult caseOrbit table for special cases.
+ 	lo := 0
+ 	hi := len(caseOrbit)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		if int(caseOrbit[m].From) < rune {
++		if rune(caseOrbit[m].From) < r {
+ 			lo = m + 1
+ 		} else {
+ 			hi = m
+ 		}
+ 	}
+-	if lo < len(caseOrbit) && int(caseOrbit[lo].From) == rune {
+-		return int(caseOrbit[lo].To)
++	if lo < len(caseOrbit) && rune(caseOrbit[lo].From) == r {
++		return rune(caseOrbit[lo].To)
+ 	}
+ 
+ 	// No folding specified.  This is a one- or two-element
+ 	// equivalence class containing rune and ToLower(rune)
+ 	// and ToUpper(rune) if they are different from rune.
+-	if l := ToLower(rune); l != rune {
++	if l := ToLower(r); l != r {
+ 		return l
+ 	}
+-	return ToUpper(rune)
++	return ToUpper(r)
+ }
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 8d2665a44f..2d80562182 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -9,7 +9,7 @@ import (
+ 	. "unicode"
+ )
+ 
+-var upperTest = []int{
++var upperTest = []rune{
+ 	0x41,
+ 	0xc0,
+ 	0xd8,
+@@ -33,7 +33,7 @@ var upperTest = []int{
+ 	0x1d7ca,
+ }
+ 
+-var notupperTest = []int{
++var notupperTest = []rune{
+ 	0x40,
+ 	0x5b,
+ 	0x61,
+@@ -46,7 +46,7 @@ var notupperTest = []int{
+ 	0x10000,
+ }
+ 
+-var letterTest = []int{
++var letterTest = []rune{
+ 	0x41,
+ 	0x61,
+ 	0xaa,
+@@ -82,7 +82,7 @@ var letterTest = []int{
+ 	0x2fa1d,
+ }
+ 
+-var notletterTest = []int{
++var notletterTest = []rune{
+ 	0x20,
+ 	0x35,
+ 	0x375,
+@@ -94,7 +94,7 @@ var notletterTest = []int{
+ }
+ 
+ // Contains all the special cased Latin-1 chars.
+-var spaceTest = []int{
++var spaceTest = []rune{
+ 	0x09,
+ 	0x0a,
+ 	0x0b,
+@@ -108,7 +108,8 @@ var spaceTest = []int{
+ }
+ 
+ type caseT struct {
+-	cas, in, out int
++	cas     int
++	in, out rune
+ }
+ 
+ var caseTest = []caseT{
+@@ -327,7 +328,7 @@ func TestIsSpace(t *testing.T) {
+ // Check that the optimizations for IsLetter etc. agree with the tables.
+ // We only need to check the Latin-1 range.
+ func TestLetterOptimizations(t *testing.T) {
+-	for i := 0; i <= MaxLatin1; i++ {
++	for i := rune(0); i <= MaxLatin1; i++ {
+ 		if Is(Letter, i) != IsLetter(i) {
+ 			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
+ 		}
+@@ -356,8 +357,8 @@ func TestLetterOptimizations(t *testing.T) {
+ }
+ 
+ func TestTurkishCase(t *testing.T) {
+-	lower := []int("abcçdefgğhıijklmnoöprsştuüvyz")
+-	upper := []int("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
++	lower := []rune("abcçdefgğhıijklmnoöprsştuüvyz")
++	upper := []rune("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
+ 	for i, l := range lower {
+ 		u := upper[i]
+ 		if TurkishCase.ToLower(l) != l {
+@@ -416,13 +417,13 @@ var simpleFoldTests = []string{
+ 
+ func TestSimpleFold(t *testing.T) {
+ 	for _, tt := range simpleFoldTests {
+-		cycle := []int(tt)
+-		rune := cycle[len(cycle)-1]
++		cycle := []rune(tt)
++		r := cycle[len(cycle)-1]
+ 		for _, out := range cycle {
+-			if r := SimpleFold(rune); r != out {
+-				t.Errorf("SimpleFold(%#U) = %#U, want %#U", rune, r, out)
++			if r := SimpleFold(r); r != out {
++				t.Errorf("SimpleFold(%#U) = %#U, want %#U", r, r, out)
+ 			}
+-			rune = out
++			r = out
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 8c5f885f63..7c7afc28bd 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -155,13 +155,13 @@ var fieldName = []string{
+ // This contains only the properties we're interested in.
+ type Char struct {
+ 	field     []string // debugging only; could be deleted if we take out char.dump()
+-	codePoint uint32   // if zero, this index is not a valid code point.
++	codePoint rune     // if zero, this index is not a valid code point.
+ 	category  string
+-	upperCase int
+-	lowerCase int
+-	titleCase int
+-	foldCase  int // simple case folding
+-	caseOrbit int // next in simple case folding orbit
++	upperCase rune
++	lowerCase rune
++	titleCase rune
++	foldCase  rune // simple case folding
++	caseOrbit rune // next in simple case folding orbit
+ }
+ 
+ // Scripts.txt has form:
+@@ -178,7 +178,7 @@ var chars = make([]Char, MaxChar+1)
+ var scripts = make(map[string][]Script)
+ var props = make(map[string][]Script) // a property looks like a script; can share the format
+ 
+-var lastChar uint32 = 0
++var lastChar rune = 0
+ 
+ // In UnicodeData.txt, some ranges are marked like this:
+ //	3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
+@@ -202,7 +202,7 @@ func parseCategory(line string) (state State) {
+ 	if err != nil {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+-	lastChar = uint32(point)
++	lastChar = rune(point)
+ 	if point == 0 {
+ 		return // not interesting and we use 0 as unset
+ 	}
+@@ -256,7 +256,7 @@ func (char *Char) letter(u, l, t string) {
+ 	char.titleCase = char.letterValue(t, "T")
+ }
+ 
+-func (char *Char) letterValue(s string, cas string) int {
++func (char *Char) letterValue(s string, cas string) rune {
+ 	if s == "" {
+ 		return 0
+ 	}
+@@ -265,7 +265,7 @@ func (char *Char) letterValue(s string, cas string) int {
+ 		char.dump(cas)
+ 		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
+ 	}
+-	return int(v)
++	return rune(v)
+ }
+ 
+ func allCategories() []string {
+@@ -286,7 +286,7 @@ func all(scripts map[string][]Script) []string {
+ 	return a
+ }
+ 
+-func allCatFold(m map[string]map[int]bool) []string {
++func allCatFold(m map[string]map[rune]bool) []string {
+ 	a := make([]string, 0, len(m))
+ 	for k := range m {
+ 		a = append(a, k)
+@@ -308,7 +308,7 @@ func version() string {
+ 	return "Unknown"
+ }
+ 
+-func categoryOp(code int, class uint8) bool {
++func categoryOp(code rune, class uint8) bool {
+ 	category := chars[code].category
+ 	return len(category) > 0 && category[0] == class
+ }
+@@ -318,7 +318,7 @@ func loadChars() {
+ 		flag.Set("data", *url+"UnicodeData.txt")
+ 	}
+ 	input := open(*dataURL)
+-	var first uint32 = 0
++	var first rune = 0
+ 	for {
+ 		line, err := input.ReadString('\n')
+ 		if err != nil {
+@@ -384,7 +384,7 @@ func loadCasefold() {
+ 		if err != nil {
+ 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
+ 		}
+-		chars[p1].foldCase = int(p2)
++		chars[p1].foldCase = rune(p2)
+ 	}
+ 	input.close()
+ }
+@@ -477,12 +477,12 @@ func printCategories() {
+ 			decl := fmt.Sprintf("var _%s = &RangeTable{\n", name)
+ 			dumpRange(
+ 				decl,
+-				func(code int) bool { return categoryOp(code, name[0]) })
++				func(code rune) bool { return categoryOp(code, name[0]) })
+ 			continue
+ 		}
+ 		dumpRange(
+ 			fmt.Sprintf("var _%s = &RangeTable{\n", name),
+-			func(code int) bool { return chars[code].category == name })
++			func(code rune) bool { return chars[code].category == name })
+ 	}
+ 	decl.Sort()
+ 	fmt.Println("var (")
+@@ -492,23 +492,23 @@ func printCategories() {
+ 	fmt.Print(")\n\n")
+ }
+ 
+-type Op func(code int) bool
++type Op func(code rune) bool
+ 
+ const format = "\t\t{0x%04x, 0x%04x, %d},\n"
+ 
+ func dumpRange(header string, inCategory Op) {
+ 	fmt.Print(header)
+-	next := 0
++	next := rune(0)
+ 	fmt.Print("\tR16: []Range16{\n")
+ 	// one Range for each iteration
+ 	count := &range16Count
+ 	size := 16
+ 	for {
+ 		// look for start of range
+-		for next < len(chars) && !inCategory(next) {
++		for next < rune(len(chars)) && !inCategory(next) {
+ 			next++
+ 		}
+-		if next >= len(chars) {
++		if next >= rune(len(chars)) {
+ 			// no characters remain
+ 			break
+ 		}
+@@ -516,14 +516,14 @@ func dumpRange(header string, inCategory Op) {
+ 		// start of range
+ 		lo := next
+ 		hi := next
+-		stride := 1
++		stride := rune(1)
+ 		// accept lo
+ 		next++
+ 		// look for another character to set the stride
+-		for next < len(chars) && !inCategory(next) {
++		for next < rune(len(chars)) && !inCategory(next) {
+ 			next++
+ 		}
+-		if next >= len(chars) {
++		if next >= rune(len(chars)) {
+ 			// no more characters
+ 			fmt.Printf(format, lo, hi, stride)
+ 			break
+@@ -531,7 +531,7 @@ func dumpRange(header string, inCategory Op) {
+ 		// set stride
+ 		stride = next - lo
+ 		// check for length of run. next points to first jump in stride
+-		for i := next; i < len(chars); i++ {
++		for i := next; i < rune(len(chars)); i++ {
+ 			if inCategory(i) == (((i - lo) % stride) == 0) {
+ 				// accept
+ 				if inCategory(i) {
+@@ -584,11 +584,11 @@ func fullCategoryTest(list []string) {
+ 			logger.Fatalf("unknown table %q", name)
+ 		}
+ 		if len(name) == 1 {
+-			verifyRange(name, func(code int) bool { return categoryOp(code, name[0]) }, r)
++			verifyRange(name, func(code rune) bool { return categoryOp(code, name[0]) }, r)
+ 		} else {
+ 			verifyRange(
+ 				name,
+-				func(code int) bool { return chars[code].category == name },
++				func(code rune) bool { return chars[code].category == name },
+ 				r)
+ 		}
+ 	}
+@@ -596,7 +596,8 @@ func fullCategoryTest(list []string) {
+ 
+ func verifyRange(name string, inCategory Op, table *unicode.RangeTable) {
+ 	count := 0
+-	for i := range chars {
++	for j := range chars {
++		i := rune(j)
+ 		web := inCategory(i)
+ 		pkg := unicode.Is(table, i)
+ 		if web != pkg {
+@@ -668,7 +669,7 @@ func fullScriptTest(list []string, installed map[string]*unicode.RangeTable, scr
+ 		}
+ 		for _, script := range scripts[name] {
+ 			for r := script.lo; r <= script.hi; r++ {
+-				if !unicode.Is(installed[name], int(r)) {
++				if !unicode.Is(installed[name], rune(r)) {
+ 					fmt.Fprintf(os.Stderr, "%U: not in script %s\n", r, name)
+ 				}
+ 			}
+@@ -778,11 +779,11 @@ const (
+ )
+ 
+ type caseState struct {
+-	point        int
++	point        rune
+ 	_case        int
+-	deltaToUpper int
+-	deltaToLower int
+-	deltaToTitle int
++	deltaToUpper rune
++	deltaToLower rune
++	deltaToTitle rune
+ }
+ 
+ // Is d a continuation of the state of c?
+@@ -873,10 +874,10 @@ func (c *caseState) isLowerUpper() bool {
+ 	return true
+ }
+ 
+-func getCaseState(i int) (c *caseState) {
++func getCaseState(i rune) (c *caseState) {
+ 	c = &caseState{point: i, _case: CaseNone}
+ 	ch := &chars[i]
+-	switch int(ch.codePoint) {
++	switch ch.codePoint {
+ 	case 0:
+ 		c._case = CaseMissing // Will get NUL wrong but that doesn't matter
+ 		return
+@@ -930,7 +931,7 @@ func printCases() {
+ 	var startState *caseState    // the start of a run; nil for not active
+ 	var prevState = &caseState{} // the state of the previous character
+ 	for i := range chars {
+-		state := getCaseState(i)
++		state := getCaseState(rune(i))
+ 		if state.adjacent(prevState) {
+ 			prevState = state
+ 			continue
+@@ -970,15 +971,16 @@ func printCaseRange(lo, hi *caseState) {
+ }
+ 
+ // If the cased value in the Char is 0, it means use the rune itself.
+-func caseIt(rune, cased int) int {
++func caseIt(r, cased rune) rune {
+ 	if cased == 0 {
+-		return rune
++		return r
+ 	}
+ 	return cased
+ }
+ 
+ func fullCaseTest() {
+-	for i, c := range chars {
++	for j, c := range chars {
++		i := rune(j)
+ 		lower := unicode.ToLower(i)
+ 		want := caseIt(i, c.lowerCase)
+ 		if lower != want {
+@@ -1033,10 +1035,17 @@ func printLatinProperties() {
+ 	fmt.Printf("}\n\n")
+ }
+ 
++type runeSlice []rune
++
++func (p runeSlice) Len() int           { return len(p) }
++func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++
+ func printCasefold() {
+ 	// Build list of case-folding groups attached to each canonical folded char (typically lower case).
+-	var caseOrbit = make([][]int, MaxChar+1)
+-	for i := range chars {
++	var caseOrbit = make([][]rune, MaxChar+1)
++	for j := range chars {
++		i := rune(j)
+ 		c := &chars[i]
+ 		if c.foldCase == 0 {
+ 			continue
+@@ -1049,7 +1058,8 @@ func printCasefold() {
+ 	}
+ 
+ 	// Insert explicit 1-element groups when assuming [lower, upper] would be wrong.
+-	for i := range chars {
++	for j := range chars {
++		i := rune(j)
+ 		c := &chars[i]
+ 		f := c.foldCase
+ 		if f == 0 {
+@@ -1058,7 +1068,7 @@ func printCasefold() {
+ 		orb := caseOrbit[f]
+ 		if orb == nil && (c.upperCase != 0 && c.upperCase != i || c.lowerCase != 0 && c.lowerCase != i) {
+ 			// Default assumption of [upper, lower] is wrong.
+-			caseOrbit[i] = []int{i}
++			caseOrbit[i] = []rune{i}
+ 		}
+ 	}
+ 
+@@ -1074,7 +1084,7 @@ func printCasefold() {
+ 		if orb == nil {
+ 			continue
+ 		}
+-		sort.Ints(orb)
++		sort.Sort(runeSlice(orb))
+ 		c := orb[len(orb)-1]
+ 		for _, d := range orb {
+ 			chars[c].caseOrbit = d
+@@ -1087,14 +1097,14 @@ func printCasefold() {
+ 	// Tables of category and script folding exceptions: code points
+ 	// that must be added when interpreting a particular category/script
+ 	// in a case-folding context.
+-	cat := make(map[string]map[int]bool)
++	cat := make(map[string]map[rune]bool)
+ 	for name := range category {
+ 		if x := foldExceptions(inCategory(name)); len(x) > 0 {
+ 			cat[name] = x
+ 		}
+ 	}
+ 
+-	scr := make(map[string]map[int]bool)
++	scr := make(map[string]map[rune]bool)
+ 	for name := range scripts {
+ 		if x := foldExceptions(inScript(name)); len(x) > 0 {
+ 			cat[name] = x
+@@ -1106,9 +1116,10 @@ func printCasefold() {
+ }
+ 
+ // inCategory returns a list of all the runes in the category.
+-func inCategory(name string) []int {
+-	var x []int
+-	for i := range chars {
++func inCategory(name string) []rune {
++	var x []rune
++	for j := range chars {
++		i := rune(j)
+ 		c := &chars[i]
+ 		if c.category == name || len(name) == 1 && len(c.category) > 1 && c.category[0] == name[0] {
+ 			x = append(x, i)
+@@ -1118,11 +1129,11 @@ func inCategory(name string) []int {
+ }
+ 
+ // inScript returns a list of all the runes in the script.
+-func inScript(name string) []int {
+-	var x []int
++func inScript(name string) []rune {
++	var x []rune
+ 	for _, s := range scripts[name] {
+ 		for c := s.lo; c <= s.hi; c++ {
+-			x = append(x, int(c))
++			x = append(x, rune(c))
+ 		}
+ 	}
+ 	return x
+@@ -1130,9 +1141,9 @@ func inScript(name string) []int {
+ 
+ // foldExceptions returns a list of all the runes fold-equivalent
+ // to runes in class but not in class themselves.
+-func foldExceptions(class []int) map[int]bool {
++func foldExceptions(class []rune) map[rune]bool {
+ 	// Create map containing class and all fold-equivalent chars.
+-	m := make(map[int]bool)
++	m := make(map[rune]bool)
+ 	for _, r := range class {
+ 		c := &chars[r]
+ 		if c.caseOrbit == 0 {
+@@ -1180,7 +1191,8 @@ var comment = map[string]string{
+ 
+ func printCaseOrbit() {
+ 	if *test {
+-		for i := range chars {
++		for j := range chars {
++			i := rune(j)
+ 			c := &chars[i]
+ 			f := c.caseOrbit
+ 			if f == 0 {
+@@ -1210,7 +1222,7 @@ func printCaseOrbit() {
+ 	fmt.Printf("}\n\n")
+ }
+ 
+-func printCatFold(name string, m map[string]map[int]bool) {
++func printCatFold(name string, m map[string]map[rune]bool) {
+ 	if *test {
+ 		var pkgMap map[string]*unicode.RangeTable
+ 		if name == "FoldCategory" {
+@@ -1230,7 +1242,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
+ 			}
+ 			n := 0
+ 			for _, r := range t.R16 {
+-				for c := int(r.Lo); c <= int(r.Hi); c += int(r.Stride) {
++				for c := rune(r.Lo); c <= rune(r.Hi); c += rune(r.Stride) {
+ 					if !v[c] {
+ 						fmt.Fprintf(os.Stderr, "unicode.%s[%q] contains %#U, should not\n", name, k, c)
+ 					}
+@@ -1238,7 +1250,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
+ 				}
+ 			}
+ 			for _, r := range t.R32 {
+-				for c := int(r.Lo); c <= int(r.Hi); c += int(r.Stride) {
++				for c := rune(r.Lo); c <= rune(r.Hi); c += rune(r.Stride) {
+ 					if !v[c] {
+ 						fmt.Fprintf(os.Stderr, "unicode.%s[%q] contains %#U, should not\n", name, k, c)
+ 					}
+@@ -1262,7 +1274,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
+ 		class := m[name]
+ 		dumpRange(
+ 			fmt.Sprintf("var fold%s = &RangeTable{\n", name),
+-			func(code int) bool { return class[code] })
++			func(code rune) bool { return class[code] })
+ 	}
+ }
+ 
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index dfd636d839..1c5b801426 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ type T struct {
+-	rune   int
++	rune   rune
+ 	script string
+ }
+ 
+diff --git a/src/pkg/utf16/utf16.go b/src/pkg/utf16/utf16.go
+index 372e38a718..2b2eb28f2d 100644
+--- a/src/pkg/utf16/utf16.go
++++ b/src/pkg/utf16/utf16.go
+@@ -20,16 +20,16 @@ const (
+ 
+ // IsSurrogate returns true if the specified Unicode code point
+ // can appear in a surrogate pair.
+-func IsSurrogate(rune int) bool {
+-	return surr1 <= rune && rune < surr3
++func IsSurrogate(r rune) bool {
++	return surr1 <= r && r < surr3
+ }
+ 
+ // DecodeRune returns the UTF-16 decoding of a surrogate pair.
+ // If the pair is not a valid UTF-16 surrogate pair, DecodeRune returns
+ // the Unicode replacement code point U+FFFD.
+-func DecodeRune(r1, r2 int) int {
++func DecodeRune(r1, r2 rune) rune {
+ 	if surr1 <= r1 && r1 < surr2 && surr2 <= r2 && r2 < surr3 {
+-		return (int(r1)-surr1)<<10 | (int(r2) - surr2) + 0x10000
++		return (rune(r1)-surr1)<<10 | (rune(r2) - surr2) + 0x10000
+ 	}
+ 	return unicode.ReplacementChar
+ }
+@@ -37,16 +37,16 @@ func DecodeRune(r1, r2 int) int {
+ // EncodeRune returns the UTF-16 surrogate pair r1, r2 for the given rune.
+ // If the rune is not a valid Unicode code point or does not need encoding,
+ // EncodeRune returns U+FFFD, U+FFFD.
+-func EncodeRune(rune int) (r1, r2 int) {
+-	if rune < surrSelf || rune > unicode.MaxRune || IsSurrogate(rune) {
++func EncodeRune(r rune) (r1, r2 rune) {
++	if r < surrSelf || r > unicode.MaxRune || IsSurrogate(r) {
+ 		return unicode.ReplacementChar, unicode.ReplacementChar
+ 	}
+-	rune -= surrSelf
+-	return surr1 + (rune>>10)&0x3ff, surr2 + rune&0x3ff
++	r -= surrSelf
++	return surr1 + (r>>10)&0x3ff, surr2 + r&0x3ff
+ }
+ 
+ // Encode returns the UTF-16 encoding of the Unicode code point sequence s.
+-func Encode(s []int) []uint16 {
++func Encode(s []rune) []uint16 {
+ 	n := len(s)
+ 	for _, v := range s {
+ 		if v >= surrSelf {
+@@ -76,15 +76,15 @@ func Encode(s []int) []uint16 {
+ 
+ // Decode returns the Unicode code point sequence represented
+ // by the UTF-16 encoding s.
+-func Decode(s []uint16) []int {
+-	a := make([]int, len(s))
++func Decode(s []uint16) []rune {
++	a := make([]rune, len(s))
+ 	n := 0
+ 	for i := 0; i < len(s); i++ {
+ 		switch r := s[i]; {
+ 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
+ 			surr2 <= s[i+1] && s[i+1] < surr3:
+ 			// valid surrogate sequence
+-			a[n] = DecodeRune(int(r), int(s[i+1]))
++			a[n] = DecodeRune(rune(r), rune(s[i+1]))
+ 			i++
+ 			n++
+ 		case surr1 <= r && r < surr3:
+@@ -93,7 +93,7 @@ func Decode(s []uint16) []int {
+ 			n++
+ 		default:
+ 			// normal rune
+-			a[n] = int(r)
++			a[n] = rune(r)
+ 			n++
+ 		}
+ 	}
+diff --git a/src/pkg/utf16/utf16_test.go b/src/pkg/utf16/utf16_test.go
+index 2b9fb3d87d..7ea290a529 100644
+--- a/src/pkg/utf16/utf16_test.go
++++ b/src/pkg/utf16/utf16_test.go
+@@ -5,7 +5,6 @@
+ package utf16_test
+ 
+ import (
+-	"fmt"
+ 	"reflect"
+ 	"testing"
+ 	"unicode"
+@@ -13,15 +12,15 @@ import (
+ )
+ 
+ type encodeTest struct {
+-	in  []int
++	in  []rune
+ 	out []uint16
+ }
+ 
+ var encodeTests = []encodeTest{
+-	{[]int{1, 2, 3, 4}, []uint16{1, 2, 3, 4}},
+-	{[]int{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff},
++	{[]rune{1, 2, 3, 4}, []uint16{1, 2, 3, 4}},
++	{[]rune{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff},
+ 		[]uint16{0xffff, 0xd800, 0xdc00, 0xd800, 0xdc01, 0xd808, 0xdf45, 0xdbff, 0xdfff}},
+-	{[]int{'a', 'b', 0xd7ff, 0xd800, 0xdfff, 0xe000, 0x110000, -1},
++	{[]rune{'a', 'b', 0xd7ff, 0xd800, 0xdfff, 0xe000, 0x110000, -1},
+ 		[]uint16{'a', 'b', 0xd7ff, 0xfffd, 0xfffd, 0xe000, 0xfffd, 0xfffd}},
+ }
+ 
+@@ -29,7 +28,7 @@ func TestEncode(t *testing.T) {
+ 	for _, tt := range encodeTests {
+ 		out := Encode(tt.in)
+ 		if !reflect.DeepEqual(out, tt.out) {
+-			t.Errorf("Encode(%v) = %v; want %v", hex(tt.in), hex16(out), hex16(tt.out))
++			t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
+ 		}
+ 	}
+ }
+@@ -53,7 +52,7 @@ func TestEncodeRune(t *testing.T) {
+ 					t.Errorf("#%d: ran out of tt.out", i)
+ 					break
+ 				}
+-				if r1 != int(tt.out[j]) || r2 != int(tt.out[j+1]) {
++				if r1 != rune(tt.out[j]) || r2 != rune(tt.out[j+1]) {
+ 					t.Errorf("EncodeRune(%#x) = %#x, %#x; want %#x, %#x", r, r1, r2, tt.out[j], tt.out[j+1])
+ 				}
+ 				j += 2
+@@ -71,48 +70,22 @@ func TestEncodeRune(t *testing.T) {
+ 
+ type decodeTest struct {
+ 	in  []uint16
+-	out []int
++	out []rune
+ }
+ 
+ var decodeTests = []decodeTest{
+-	{[]uint16{1, 2, 3, 4}, []int{1, 2, 3, 4}},
++	{[]uint16{1, 2, 3, 4}, []rune{1, 2, 3, 4}},
+ 	{[]uint16{0xffff, 0xd800, 0xdc00, 0xd800, 0xdc01, 0xd808, 0xdf45, 0xdbff, 0xdfff},
+-		[]int{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff}},
+-	{[]uint16{0xd800, 'a'}, []int{0xfffd, 'a'}},
+-	{[]uint16{0xdfff}, []int{0xfffd}},
++		[]rune{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff}},
++	{[]uint16{0xd800, 'a'}, []rune{0xfffd, 'a'}},
++	{[]uint16{0xdfff}, []rune{0xfffd}},
+ }
+ 
+ func TestDecode(t *testing.T) {
+ 	for _, tt := range decodeTests {
+ 		out := Decode(tt.in)
+ 		if !reflect.DeepEqual(out, tt.out) {
+-			t.Errorf("Decode(%v) = %v; want %v", hex16(tt.in), hex(out), hex(tt.out))
++			t.Errorf("Decode(%x) = %x; want %x", tt.in, out, tt.out)
+ 		}
+ 	}
+ }
+-
+-type hex []int
+-
+-func (h hex) Format(f fmt.State, c int) {
+-	fmt.Fprint(f, "[")
+-	for i, v := range h {
+-		if i > 0 {
+-			fmt.Fprint(f, " ")
+-		}
+-		fmt.Fprintf(f, "%x", v)
+-	}
+-	fmt.Fprint(f, "]")
+-}
+-
+-type hex16 []uint16
+-
+-func (h hex16) Format(f fmt.State, c int) {
+-	fmt.Fprint(f, "[")
+-	for i, v := range h {
+-		if i > 0 {
+-			fmt.Fprint(f, " ")
+-		}
+-		fmt.Fprintf(f, "%x", v)
+-	}
+-	fmt.Fprint(f, "]")
+-}
+diff --git a/src/pkg/utf8/string.go b/src/pkg/utf8/string.go
+index 83b56b9448..b33347950f 100644
+--- a/src/pkg/utf8/string.go
++++ b/src/pkg/utf8/string.go
+@@ -101,10 +101,10 @@ func (s *String) Slice(i, j int) string {
+ 
+ // At returns the rune with index i in the String.  The sequence of runes is the same
+ // as iterating over the contents with a "for range" clause.
+-func (s *String) At(i int) int {
++func (s *String) At(i int) rune {
+ 	// ASCII is easy.  Let the compiler catch the indexing error if there is one.
+ 	if i < s.nonASCII {
+-		return int(s.str[i])
++		return rune(s.str[i])
+ 	}
+ 
+ 	// Now we do need to know the index is valid.
+@@ -112,35 +112,35 @@ func (s *String) At(i int) int {
+ 		panic(outOfRange)
+ 	}
+ 
+-	var rune int
++	var r rune
+ 
+ 	// Five easy common cases: within 1 spot of bytePos/runePos, or the beginning, or the end.
+ 	// With these cases, all scans from beginning or end work in O(1) time per rune.
+ 	switch {
+ 
+ 	case i == s.runePos-1: // backing up one rune
+-		rune, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
++		r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+ 		s.runePos = i
+ 		s.bytePos -= s.width
+-		return rune
++		return r
+ 	case i == s.runePos+1: // moving ahead one rune
+ 		s.runePos = i
+ 		s.bytePos += s.width
+ 		fallthrough
+ 	case i == s.runePos:
+-		rune, s.width = DecodeRuneInString(s.str[s.bytePos:])
+-		return rune
++		r, s.width = DecodeRuneInString(s.str[s.bytePos:])
++		return r
+ 	case i == 0: // start of string
+-		rune, s.width = DecodeRuneInString(s.str)
++		r, s.width = DecodeRuneInString(s.str)
+ 		s.runePos = 0
+ 		s.bytePos = 0
+-		return rune
++		return r
+ 
+ 	case i == s.numRunes-1: // last rune in string
+-		rune, s.width = DecodeLastRuneInString(s.str)
++		r, s.width = DecodeLastRuneInString(s.str)
+ 		s.runePos = i
+ 		s.bytePos = len(s.str) - s.width
+-		return rune
++		return r
+ 	}
+ 
+ 	// We need to do a linear scan.  There are three places to start from:
+@@ -173,7 +173,7 @@ func (s *String) At(i int) int {
+ 	if forward {
+ 		// TODO: Is it much faster to use a range loop for this scan?
+ 		for {
+-			rune, s.width = DecodeRuneInString(s.str[s.bytePos:])
++			r, s.width = DecodeRuneInString(s.str[s.bytePos:])
+ 			if s.runePos == i {
+ 				break
+ 			}
+@@ -182,7 +182,7 @@ func (s *String) At(i int) int {
+ 		}
+ 	} else {
+ 		for {
+-			rune, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
++			r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+ 			s.runePos--
+ 			s.bytePos -= s.width
+ 			if s.runePos == i {
+@@ -190,7 +190,7 @@ func (s *String) At(i int) int {
+ 			}
+ 		}
+ 	}
+-	return rune
++	return r
+ }
+ 
+ // We want the panic in At(i) to satisfy os.Error, because that's what
+diff --git a/src/pkg/utf8/string_test.go b/src/pkg/utf8/string_test.go
+index f376b628c7..920d2a0ea3 100644
+--- a/src/pkg/utf8/string_test.go
++++ b/src/pkg/utf8/string_test.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func TestScanForwards(t *testing.T) {
+ 	for _, s := range testStrings {
+-		runes := []int(s)
++		runes := []rune(s)
+ 		str := NewString(s)
+ 		if str.RuneCount() != len(runes) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+@@ -29,7 +29,7 @@ func TestScanForwards(t *testing.T) {
+ 
+ func TestScanBackwards(t *testing.T) {
+ 	for _, s := range testStrings {
+-		runes := []int(s)
++		runes := []rune(s)
+ 		str := NewString(s)
+ 		if str.RuneCount() != len(runes) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+@@ -57,7 +57,7 @@ func TestRandomAccess(t *testing.T) {
+ 		if len(s) == 0 {
+ 			continue
+ 		}
+-		runes := []int(s)
++		runes := []rune(s)
+ 		str := NewString(s)
+ 		if str.RuneCount() != len(runes) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+@@ -79,7 +79,7 @@ func TestRandomSliceAccess(t *testing.T) {
+ 		if len(s) == 0 || s[0] == '\x80' { // the bad-UTF-8 string fools this simple test
+ 			continue
+ 		}
+-		runes := []int(s)
++		runes := []rune(s)
+ 		str := NewString(s)
+ 		if str.RuneCount() != len(runes) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 3cd919d1d9..a5f9983b33 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -34,7 +34,7 @@ const (
+ 	rune4Max = 1<<21 - 1
+ )
+ 
+-func decodeRuneInternal(p []byte) (rune, size int, short bool) {
++func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
+ 	n := len(p)
+ 	if n < 1 {
+ 		return RuneError, 0, true
+@@ -43,7 +43,7 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 
+ 	// 1-byte, 7-bit sequence?
+ 	if c0 < tx {
+-		return int(c0), 1, false
++		return rune(c0), 1, false
+ 	}
+ 
+ 	// unexpected continuation byte?
+@@ -62,11 +62,11 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 
+ 	// 2-byte, 11-bit sequence?
+ 	if c0 < t3 {
+-		rune = int(c0&mask2)<<6 | int(c1&maskx)
+-		if rune <= rune1Max {
++		r = rune(c0&mask2)<<6 | rune(c1&maskx)
++		if r <= rune1Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 2, false
++		return r, 2, false
+ 	}
+ 
+ 	// need second continuation byte
+@@ -80,11 +80,11 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 
+ 	// 3-byte, 16-bit sequence?
+ 	if c0 < t4 {
+-		rune = int(c0&mask3)<<12 | int(c1&maskx)<<6 | int(c2&maskx)
+-		if rune <= rune2Max {
++		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
++		if r <= rune2Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 3, false
++		return r, 3, false
+ 	}
+ 
+ 	// need third continuation byte
+@@ -98,18 +98,18 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 
+ 	// 4-byte, 21-bit sequence?
+ 	if c0 < t5 {
+-		rune = int(c0&mask4)<<18 | int(c1&maskx)<<12 | int(c2&maskx)<<6 | int(c3&maskx)
+-		if rune <= rune3Max {
++		r = rune(c0&mask4)<<18 | rune(c1&maskx)<<12 | rune(c2&maskx)<<6 | rune(c3&maskx)
++		if r <= rune3Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 4, false
++		return r, 4, false
+ 	}
+ 
+ 	// error
+ 	return RuneError, 1, false
+ }
+ 
+-func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
++func decodeRuneInStringInternal(s string) (r rune, size int, short bool) {
+ 	n := len(s)
+ 	if n < 1 {
+ 		return RuneError, 0, true
+@@ -118,7 +118,7 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+ 
+ 	// 1-byte, 7-bit sequence?
+ 	if c0 < tx {
+-		return int(c0), 1, false
++		return rune(c0), 1, false
+ 	}
+ 
+ 	// unexpected continuation byte?
+@@ -137,11 +137,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+ 
+ 	// 2-byte, 11-bit sequence?
+ 	if c0 < t3 {
+-		rune = int(c0&mask2)<<6 | int(c1&maskx)
+-		if rune <= rune1Max {
++		r = rune(c0&mask2)<<6 | rune(c1&maskx)
++		if r <= rune1Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 2, false
++		return r, 2, false
+ 	}
+ 
+ 	// need second continuation byte
+@@ -155,11 +155,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+ 
+ 	// 3-byte, 16-bit sequence?
+ 	if c0 < t4 {
+-		rune = int(c0&mask3)<<12 | int(c1&maskx)<<6 | int(c2&maskx)
+-		if rune <= rune2Max {
++		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
++		if r <= rune2Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 3, false
++		return r, 3, false
+ 	}
+ 
+ 	// need third continuation byte
+@@ -173,11 +173,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+ 
+ 	// 4-byte, 21-bit sequence?
+ 	if c0 < t5 {
+-		rune = int(c0&mask4)<<18 | int(c1&maskx)<<12 | int(c2&maskx)<<6 | int(c3&maskx)
+-		if rune <= rune3Max {
++		r = rune(c0&mask4)<<18 | rune(c1&maskx)<<12 | rune(c2&maskx)<<6 | rune(c3&maskx)
++		if r <= rune3Max {
+ 			return RuneError, 1, false
+ 		}
+-		return rune, 4, false
++		return r, 4, false
+ 	}
+ 
+ 	// error
+@@ -198,28 +198,28 @@ func FullRuneInString(s string) bool {
+ }
+ 
+ // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
+-func DecodeRune(p []byte) (rune, size int) {
+-	rune, size, _ = decodeRuneInternal(p)
++func DecodeRune(p []byte) (r rune, size int) {
++	r, size, _ = decodeRuneInternal(p)
+ 	return
+ }
+ 
+ // DecodeRuneInString is like DecodeRune but its input is a string.
+-func DecodeRuneInString(s string) (rune, size int) {
+-	rune, size, _ = decodeRuneInStringInternal(s)
++func DecodeRuneInString(s string) (r rune, size int) {
++	r, size, _ = decodeRuneInStringInternal(s)
+ 	return
+ }
+ 
+ // DecodeLastRune unpacks the last UTF-8 encoding in p
+ // and returns the rune and its width in bytes.
+-func DecodeLastRune(p []byte) (rune, size int) {
++func DecodeLastRune(p []byte) (r rune, size int) {
+ 	end := len(p)
+ 	if end == 0 {
+ 		return RuneError, 0
+ 	}
+ 	start := end - 1
+-	rune = int(p[start])
+-	if rune < RuneSelf {
+-		return rune, 1
++	r = rune(p[start])
++	if r < RuneSelf {
++		return r, 1
+ 	}
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+@@ -236,23 +236,23 @@ func DecodeLastRune(p []byte) (rune, size int) {
+ 	if start < 0 {
+ 		start = 0
+ 	}
+-	rune, size = DecodeRune(p[start:end])
++	r, size = DecodeRune(p[start:end])
+ 	if start+size != end {
+ 		return RuneError, 1
+ 	}
+-	return rune, size
++	return r, size
+ }
+ 
+ // DecodeLastRuneInString is like DecodeLastRune but its input is a string.
+-func DecodeLastRuneInString(s string) (rune, size int) {
++func DecodeLastRuneInString(s string) (r rune, size int) {
+ 	end := len(s)
+ 	if end == 0 {
+ 		return RuneError, 0
+ 	}
+ 	start := end - 1
+-	rune = int(s[start])
+-	if rune < RuneSelf {
+-		return rune, 1
++	r = rune(s[start])
++	if r < RuneSelf {
++		return r, 1
+ 	}
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+@@ -269,23 +269,23 @@ func DecodeLastRuneInString(s string) (rune, size int) {
+ 	if start < 0 {
+ 		start = 0
+ 	}
+-	rune, size = DecodeRuneInString(s[start:end])
++	r, size = DecodeRuneInString(s[start:end])
+ 	if start+size != end {
+ 		return RuneError, 1
+ 	}
+-	return rune, size
++	return r, size
+ }
+ 
+ // RuneLen returns the number of bytes required to encode the rune.
+-func RuneLen(rune int) int {
++func RuneLen(r rune) int {
+ 	switch {
+-	case rune <= rune1Max:
++	case r <= rune1Max:
+ 		return 1
+-	case rune <= rune2Max:
++	case r <= rune2Max:
+ 		return 2
+-	case rune <= rune3Max:
++	case r <= rune3Max:
+ 		return 3
+-	case rune <= rune4Max:
++	case r <= rune4Max:
+ 		return 4
+ 	}
+ 	return -1
+@@ -293,26 +293,24 @@ func RuneLen(rune int) int {
+ 
+ // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+ // It returns the number of bytes written.
+-func EncodeRune(p []byte, rune int) int {
++func EncodeRune(p []byte, r rune) int {
+ 	// Negative values are erroneous.  Making it unsigned addresses the problem.
+-	r := uint(rune)
+-
+-	if r <= rune1Max {
++	if uint32(r) <= rune1Max {
+ 		p[0] = byte(r)
+ 		return 1
+ 	}
+ 
+-	if r <= rune2Max {
++	if uint32(r) <= rune2Max {
+ 		p[0] = t2 | byte(r>>6)
+ 		p[1] = tx | byte(r)&maskx
+ 		return 2
+ 	}
+ 
+-	if r > unicode.MaxRune {
++	if uint32(r) > unicode.MaxRune {
+ 		r = RuneError
+ 	}
+ 
+-	if r <= rune3Max {
++	if uint32(r) <= rune3Max {
+ 		p[0] = t3 | byte(r>>12)
+ 		p[1] = tx | byte(r>>6)&maskx
+ 		p[2] = tx | byte(r)&maskx
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 6cbbebc1a3..857bcf6e1a 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -11,8 +11,8 @@ import (
+ )
+ 
+ type Utf8Map struct {
+-	rune int
+-	str  string
++	r   rune
++	str string
+ }
+ 
+ var utf8map = []Utf8Map{
+@@ -58,11 +58,11 @@ func TestFullRune(t *testing.T) {
+ 		m := utf8map[i]
+ 		b := []byte(m.str)
+ 		if !FullRune(b) {
+-			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.rune)
++			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.r)
+ 		}
+ 		s := m.str
+ 		if !FullRuneInString(s) {
+-			t.Errorf("FullRuneInString(%q) (%U) = false, want true", s, m.rune)
++			t.Errorf("FullRuneInString(%q) (%U) = false, want true", s, m.r)
+ 		}
+ 		b1 := b[0 : len(b)-1]
+ 		if FullRune(b1) {
+@@ -80,10 +80,10 @@ func TestEncodeRune(t *testing.T) {
+ 		m := utf8map[i]
+ 		b := []byte(m.str)
+ 		var buf [10]byte
+-		n := EncodeRune(buf[0:], m.rune)
++		n := EncodeRune(buf[0:], m.r)
+ 		b1 := buf[0:n]
+ 		if !bytes.Equal(b, b1) {
+-			t.Errorf("EncodeRune(%#04x) = %q want %q", m.rune, b1, b)
++			t.Errorf("EncodeRune(%#04x) = %q want %q", m.r, b1, b)
+ 		}
+ 	}
+ }
+@@ -92,25 +92,25 @@ func TestDecodeRune(t *testing.T) {
+ 	for i := 0; i < len(utf8map); i++ {
+ 		m := utf8map[i]
+ 		b := []byte(m.str)
+-		rune, size := DecodeRune(b)
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, m.rune, len(b))
++		r, size := DecodeRune(b)
++		if r != m.r || size != len(b) {
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, r, size, m.r, len(b))
+ 		}
+ 		s := m.str
+-		rune, size = DecodeRuneInString(s)
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", s, rune, size, m.rune, len(b))
++		r, size = DecodeRuneInString(s)
++		if r != m.r || size != len(b) {
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", s, r, size, m.r, len(b))
+ 		}
+ 
+ 		// there's an extra byte that bytes left behind - make sure trailing byte works
+-		rune, size = DecodeRune(b[0:cap(b)])
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, m.rune, len(b))
++		r, size = DecodeRune(b[0:cap(b)])
++		if r != m.r || size != len(b) {
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, r, size, m.r, len(b))
+ 		}
+ 		s = m.str + "\x00"
+-		rune, size = DecodeRuneInString(s)
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, m.rune, len(b))
++		r, size = DecodeRuneInString(s)
++		if r != m.r || size != len(b) {
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, m.r, len(b))
+ 		}
+ 
+ 		// make sure missing bytes fail
+@@ -118,14 +118,14 @@ func TestDecodeRune(t *testing.T) {
+ 		if wantsize >= len(b) {
+ 			wantsize = 0
+ 		}
+-		rune, size = DecodeRune(b[0 : len(b)-1])
+-		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize)
++		r, size = DecodeRune(b[0 : len(b)-1])
++		if r != RuneError || size != wantsize {
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[0:len(b)-1], r, size, RuneError, wantsize)
+ 		}
+ 		s = m.str[0 : len(m.str)-1]
+-		rune, size = DecodeRuneInString(s)
+-		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, RuneError, wantsize)
++		r, size = DecodeRuneInString(s)
++		if r != RuneError || size != wantsize {
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, RuneError, wantsize)
+ 		}
+ 
+ 		// make sure bad sequences fail
+@@ -134,14 +134,14 @@ func TestDecodeRune(t *testing.T) {
+ 		} else {
+ 			b[len(b)-1] = 0x7F
+ 		}
+-		rune, size = DecodeRune(b)
+-		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, RuneError, 1)
++		r, size = DecodeRune(b)
++		if r != RuneError || size != 1 {
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, r, size, RuneError, 1)
+ 		}
+ 		s = string(b)
+-		rune, size = DecodeRune(b)
+-		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, RuneError, 1)
++		r, size = DecodeRune(b)
++		if r != RuneError || size != 1 {
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, RuneError, 1)
+ 		}
+ 
+ 	}
+@@ -164,7 +164,7 @@ func TestSequencing(t *testing.T) {
+ // it's good to verify
+ func TestIntConversion(t *testing.T) {
+ 	for _, ts := range testStrings {
+-		runes := []int(ts)
++		runes := []rune(ts)
+ 		if RuneCountInString(ts) != len(runes) {
+ 			t.Errorf("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
+ 			break
+@@ -182,7 +182,7 @@ func TestIntConversion(t *testing.T) {
+ func testSequence(t *testing.T, s string) {
+ 	type info struct {
+ 		index int
+-		rune  int
++		r     rune
+ 	}
+ 	index := make([]info, len(s))
+ 	b := []byte(s)
+@@ -195,14 +195,14 @@ func testSequence(t *testing.T, s string) {
+ 		}
+ 		index[j] = info{i, r}
+ 		j++
+-		rune1, size1 := DecodeRune(b[i:])
+-		if r != rune1 {
+-			t.Errorf("DecodeRune(%q) = %#04x, want %#04x", s[i:], rune1, r)
++		r1, size1 := DecodeRune(b[i:])
++		if r != r1 {
++			t.Errorf("DecodeRune(%q) = %#04x, want %#04x", s[i:], r1, r)
+ 			return
+ 		}
+-		rune2, size2 := DecodeRuneInString(s[i:])
+-		if r != rune2 {
+-			t.Errorf("DecodeRuneInString(%q) = %#04x, want %#04x", s[i:], rune2, r)
++		r2, size2 := DecodeRuneInString(s[i:])
++		if r != r2 {
++			t.Errorf("DecodeRuneInString(%q) = %#04x, want %#04x", s[i:], r2, r)
+ 			return
+ 		}
+ 		if size1 != size2 {
+@@ -213,18 +213,18 @@ func testSequence(t *testing.T, s string) {
+ 	}
+ 	j--
+ 	for si = len(s); si > 0; {
+-		rune1, size1 := DecodeLastRune(b[0:si])
+-		rune2, size2 := DecodeLastRuneInString(s[0:si])
++		r1, size1 := DecodeLastRune(b[0:si])
++		r2, size2 := DecodeLastRuneInString(s[0:si])
+ 		if size1 != size2 {
+ 			t.Errorf("DecodeLastRune/DecodeLastRuneInString(%q, %d) size mismatch %d/%d", s, si, size1, size2)
+ 			return
+ 		}
+-		if rune1 != index[j].rune {
+-			t.Errorf("DecodeLastRune(%q, %d) = %#04x, want %#04x", s, si, rune1, index[j].rune)
++		if r1 != index[j].r {
++			t.Errorf("DecodeLastRune(%q, %d) = %#04x, want %#04x", s, si, r1, index[j].r)
+ 			return
+ 		}
+-		if rune2 != index[j].rune {
+-			t.Errorf("DecodeLastRuneInString(%q, %d) = %#04x, want %#04x", s, si, rune2, index[j].rune)
++		if r2 != index[j].r {
++			t.Errorf("DecodeLastRuneInString(%q, %d) = %#04x, want %#04x", s, si, r2, index[j].r)
+ 			return
+ 		}
+ 		si -= size1

@@ -12,7 +12,58 @@ Date:   Tue Oct 15 14:34:46 2013 -0400
     R=golang-dev, iant, minux.ma
     CC=golang-dev
     https://golang.org/cl/14702043
-
+---
  misc/cgo/test/issue6128.go | 20 ++++++++++++++++++++
  src/cmd/cgo/gcc.go         | 13 +++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/misc/cgo/test/issue6128.go b/misc/cgo/test/issue6128.go
+new file mode 100644
+index 0000000000..4afba244fd
+--- /dev/null
++++ b/misc/cgo/test/issue6128.go
+@@ -0,0 +1,20 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Test handling of #defined names in clang.
++// golang.org/issue/6128.
++
++/*
++// NOTE: Must use hex, or else a shortcut for decimals
++// in cgo avoids trying to pass this to clang.
++#define X 0x1
++*/
++import "C"
++
++func test6128() {
++	// nothing to run, just make sure this compiles.
++	_ = C.X
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 1cd938ba2c..40e9c70a17 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -304,6 +304,19 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	b.WriteString(builtinProlog)
+ 	b.WriteString(f.Preamble)
+ 	b.WriteString("void __cgo__f__(void) {\n")
++
++	// For a #defined expression, clang silences the warning about "unused expression".
++	// http://llvm.org/viewvc/llvm-project?view=revision&revision=172696
++	// Silencing the warning is not a big deal, because our default assumption is that
++	// (in the absence of other evidence) names are expressions.
++	// However, if all the C names we are investigating are #defined expressions,
++	// clang will print no warnings at all and then exit successfully.
++	// We want clang to print warnings, so seed the code with a function
++	// that is guaranteed to provoke a warning (that we will ignore).
++	// This way, if clang becomes even more broken, we'll find out.
++	// See golang.org/issue/6128.
++	fmt.Fprintf(&b, "1;\n")
++
+ 	b.WriteString("#line 1 \"cgo-test\"\n")
+ 	for i, n := range toSniff {
+ 		fmt.Fprintf(&b, "%s; /* #%d */\nenum { _cgo_enum_%d = %s }; /* #%d */\n", n.C, i, i, n.C, i)

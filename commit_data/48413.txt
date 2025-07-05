@@ -16,7 +16,7 @@ Date:   Mon May 17 11:41:20 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/fixedbugs/bug248.dir/bug2.go |  4 ++--
  test/fixedbugs/bug345.dir/main.go |  4 ++--
  test/fixedbugs/bug460.dir/b.go    | 10 +++++-----
@@ -24,3 +24,110 @@ Date:   Mon May 17 11:41:20 2021 -0700
  test/fixedbugs/issue4909b.go      |  2 +-
  test/run.go                       |  5 -----
  6 files changed, 12 insertions(+), 17 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index c0fdecfdb7..92a7974679 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -50,8 +50,8 @@ var p0i2 p1.I = t0(0) // ERROR "does not implement|incompatible"
+ func foobar() {
+ 	// check that cannot assign one to the other,
+ 	// but can convert.
+-	v0 = v1 // ERROR "assign"
+-	v1 = v0 // ERROR "assign"
++	v0 = v1 // ERROR "assign|cannot use"
++	v1 = v0 // ERROR "assign|cannot use"
+ 
+ 	v0 = p0.T(v1)
+ 	v1 = p1.T(v0)
+diff --git a/test/fixedbugs/bug345.dir/main.go b/test/fixedbugs/bug345.dir/main.go
+index b77a2fad5f..a53d3e8586 100644
+--- a/test/fixedbugs/bug345.dir/main.go
++++ b/test/fixedbugs/bug345.dir/main.go
+@@ -23,7 +23,7 @@ func main() {
+ 	// main.go:27: cannot use &x (type *"io".SectionReader) as type *"/Users/rsc/g/go/test/fixedbugs/bug345.dir/io".SectionReader in function argument
+ 
+ 	var w io.Writer
+-	bufio.NewWriter(w) // ERROR "[\w.]+[^.]/io|has incompatible type"
++	bufio.NewWriter(w) // ERROR "[\w.]+[^.]/io|has incompatible type|cannot use"
+ 	var x goio.SectionReader
+-	io.SR(&x) // ERROR "[\w.]+[^.]/io|has incompatible type"
++	io.SR(&x) // ERROR "[\w.]+[^.]/io|has incompatible type|cannot use"
+ }
+diff --git a/test/fixedbugs/bug460.dir/b.go b/test/fixedbugs/bug460.dir/b.go
+index ef646946cf..5d388fc413 100644
+--- a/test/fixedbugs/bug460.dir/b.go
++++ b/test/fixedbugs/bug460.dir/b.go
+@@ -9,9 +9,9 @@ import "./a"
+ var x a.Foo
+ 
+ func main() {
+-	x.int = 20    // ERROR "unexported field"
+-	x.int8 = 20   // ERROR "unexported field"
+-	x.error = nil // ERROR "unexported field"
+-	x.rune = 'a'  // ERROR "unexported field"
+-	x.byte = 20   // ERROR "unexported field"
++	x.int = 20    // ERROR "unexported field|undefined"
++	x.int8 = 20   // ERROR "unexported field|undefined"
++	x.error = nil // ERROR "unexported field|undefined"
++	x.rune = 'a'  // ERROR "unexported field|undefined"
++	x.byte = 20   // ERROR "unexported field|undefined"
+ }
+diff --git a/test/fixedbugs/issue44432.go b/test/fixedbugs/issue44432.go
+index c5fb67e0d7..eec53f3000 100644
+--- a/test/fixedbugs/issue44432.go
++++ b/test/fixedbugs/issue44432.go
+@@ -8,6 +8,6 @@ package p
+ 
+ var m = map[string]int{
+ 	"a": 1,
+-	1:   1, // ERROR "cannot use 1.*as type string in map key"
+-	2:   2, // ERROR "cannot use 2.*as type string in map key"
++	1:   1, // ERROR "cannot use 1.*as.*string.*in map"
++	2:   2, // ERROR "cannot use 2.*as.*string.*in map"
+ }
+diff --git a/test/fixedbugs/issue4909b.go b/test/fixedbugs/issue4909b.go
+index 0f594e3db6..7d7922701a 100644
+--- a/test/fixedbugs/issue4909b.go
++++ b/test/fixedbugs/issue4909b.go
+@@ -73,7 +73,7 @@ func writeDot(ns ...int) {
+ 		}
+ 		fmt.Print(")")
+ 		if isIndirect {
+-			fmt.Print(` // ERROR "indirection"`)
++			fmt.Print(` // ERROR "indirection|embedded via a pointer"`)
+ 		}
+ 		fmt.Print("\n")
+ 	}
+diff --git a/test/run.go b/test/run.go
+index fc4e89fc64..d64affb772 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2051,16 +2051,13 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+ 	"fixedbugs/bug228.go":    true, // types2 doesn't run when there are syntax errors
+ 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+-	"fixedbugs/bug248.go":    true, // types2 reports different (but ok) error message
+ 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+-	"fixedbugs/bug345.go":    true, // types2 reports different (but ok) error message
+ 	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+ 	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+ 	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+ 	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+ 	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+ 	"fixedbugs/bug420.go":    true, // ICE in irgen
+-	"fixedbugs/bug460.go":    true, // types2 reports different (but probably ok) error message
+ 
+ 	"fixedbugs/issue10700.go":  true, // types2 reports ok hint, but does not match regexp
+ 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+@@ -2095,10 +2092,8 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
+ 	"fixedbugs/issue43962.go":  true, // types2 panics when importing package named "init"
+-	"fixedbugs/issue44432.go":  true, // types2 reports different (but ok) error message
+ 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue4909b.go":  true, // types2 reports different (but ok) error message
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

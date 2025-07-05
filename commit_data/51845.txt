@@ -23,7 +23,7 @@ Date:   Sat Jan 29 16:13:12 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
     Trust: Peter Weinberger <pjw@google.com>
-
+---
  src/cmd/fix/main.go                   |  10 +-
  src/cmd/fix/main_test.go              |  18 +--
  src/cmd/gofmt/gofmt.go                |  49 +------
@@ -46,3 +46,1163 @@ Date:   Sat Jan 29 16:13:12 2022 -0500
  src/internal/diff/testdata/start.txt  |  34 +++++
  src/internal/diff/testdata/triv.txt   |  40 ++++++
  21 files changed, 652 insertions(+), 247 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 3229b71ec4..4e5c08731b 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/diff"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -20,8 +21,6 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+-
+-	"cmd/internal/diff"
+ )
+ 
+ var (
+@@ -228,12 +227,7 @@ func processFile(filename string, useStdin bool) error {
+ 	}
+ 
+ 	if *doDiff {
+-		data, err := diff.Diff("go-fix", src, newSrc)
+-		if err != nil {
+-			return fmt.Errorf("computing diff: %s", err)
+-		}
+-		fmt.Printf("diff %s fixed/%s\n", filename, filename)
+-		os.Stdout.Write(data)
++		os.Stdout.Write(diff.Diff(filename, src, "fixed/"+filename, newSrc))
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index 1baa95c545..755007bc0d 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -7,10 +7,9 @@ package main
+ import (
+ 	"go/ast"
+ 	"go/parser"
++	"internal/diff"
+ 	"strings"
+ 	"testing"
+-
+-	"cmd/internal/diff"
+ )
+ 
+ type testCase struct {
+@@ -52,7 +51,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
+ 	if s := string(outb); in != s && mustBeGofmt {
+ 		t.Errorf("not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
+ 			desc, in, desc, s)
+-		tdiff(t, in, s)
++		tdiff(t, "want", in, "have", s)
+ 		return
+ 	}
+ 
+@@ -109,7 +108,7 @@ func TestRewrite(t *testing.T) {
+ 				if !strings.HasPrefix(tt.Name, "testdata/") {
+ 					t.Errorf("--- have\n%s\n--- want\n%s", out, tt.Out)
+ 				}
+-				tdiff(t, out, tt.Out)
++				tdiff(t, "have", out, "want", tt.Out)
+ 				return
+ 			}
+ 
+@@ -132,17 +131,12 @@ func TestRewrite(t *testing.T) {
+ 			if out2 != out {
+ 				t.Errorf("changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
+ 					out, out2)
+-				tdiff(t, out, out2)
++				tdiff(t, "first", out, "second", out2)
+ 			}
+ 		})
+ 	}
+ }
+ 
+-func tdiff(t *testing.T, a, b string) {
+-	data, err := diff.Diff("go-fix-test", []byte(a), []byte(b))
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	t.Error(string(data))
++func tdiff(t *testing.T, aname, a, bname, b string) {
++	t.Errorf("%s", diff.Diff(aname, []byte(a), bname, []byte(b)))
+ }
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 4280ed4459..8efc88df88 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/printer"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/diff"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -22,8 +23,6 @@ import (
+ 	"runtime/pprof"
+ 	"strings"
+ 
+-	"cmd/internal/diff"
+-
+ 	"golang.org/x/sync/semaphore"
+ )
+ 
+@@ -287,12 +286,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
+ 			}
+ 		}
+ 		if *doDiff {
+-			data, err := diffWithReplaceTempFile(src, res, filename)
+-			if err != nil {
+-				return fmt.Errorf("computing diff: %s", err)
+-			}
+-			fmt.Fprintf(r, "diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
+-			r.Write(data)
++			newName := filepath.ToSlash(filename)
++			oldName := newName + ".orig"
++			r.Write(diff.Diff(oldName, src, newName, res))
+ 		}
+ 	}
+ 
+@@ -464,43 +460,6 @@ func fileWeight(path string, info fs.FileInfo) int64 {
+ 	return info.Size()
+ }
+ 
+-func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
+-	data, err := diff.Diff("gofmt", b1, b2)
+-	if len(data) > 0 {
+-		return replaceTempFilename(data, filename)
+-	}
+-	return data, err
+-}
+-
+-// replaceTempFilename replaces temporary filenames in diff with actual one.
+-//
+-// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
+-// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
+-// ...
+-// ->
+-// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
+-// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
+-// ...
+-func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
+-	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
+-	if len(bs) < 3 {
+-		return nil, fmt.Errorf("got unexpected diff for %s", filename)
+-	}
+-	// Preserve timestamps.
+-	var t0, t1 []byte
+-	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
+-		t0 = bs[0][i:]
+-	}
+-	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
+-		t1 = bs[1][i:]
+-	}
+-	// Always print filepath with slash separator.
+-	f := filepath.ToSlash(filename)
+-	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
+-	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
+-	return bytes.Join(bs, []byte{'\n'}), nil
+-}
+-
+ const chmodSupported = runtime.GOOS != "windows"
+ 
+ // backupFile writes data to a new file named filename<number> with permissions perm,
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 676c5b43ed..641e0ea415 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -7,10 +7,9 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	"internal/diff"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"text/scanner"
+@@ -119,11 +118,8 @@ func runTest(t *testing.T, in, out string) {
+ 			t.Errorf("WARNING: -update did not rewrite input file %s", in)
+ 		}
+ 
+-		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
+-		d, err := diffWithReplaceTempFile(expected, got, in)
+-		if err == nil {
+-			t.Errorf("%s", d)
+-		}
++		t.Errorf("(gofmt %s) != %s (see %s.gofmt)\n%s", in, out, in,
++			diff.Diff("expected", expected, "got", got))
+ 		if err := os.WriteFile(in+".gofmt", got, 0666); err != nil {
+ 			t.Error(err)
+ 		}
+@@ -194,69 +190,3 @@ func TestBackupFile(t *testing.T) {
+ 	}
+ 	t.Logf("Created: %s", name)
+ }
+-
+-func TestDiff(t *testing.T) {
+-	if _, err := exec.LookPath("diff"); err != nil {
+-		t.Skipf("skip test on %s: diff command is required", runtime.GOOS)
+-	}
+-	in := []byte("first\nsecond\n")
+-	out := []byte("first\nthird\n")
+-	filename := "difftest.txt"
+-	b, err := diffWithReplaceTempFile(in, out, filename)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	if runtime.GOOS == "windows" {
+-		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
+-	}
+-
+-	bs := bytes.SplitN(b, []byte{'\n'}, 3)
+-	line0, line1 := bs[0], bs[1]
+-
+-	if prefix := "--- difftest.txt.orig"; !bytes.HasPrefix(line0, []byte(prefix)) {
+-		t.Errorf("diff: first line should start with `%s`\ngot: %s", prefix, line0)
+-	}
+-
+-	if prefix := "+++ difftest.txt"; !bytes.HasPrefix(line1, []byte(prefix)) {
+-		t.Errorf("diff: second line should start with `%s`\ngot: %s", prefix, line1)
+-	}
+-
+-	want := `@@ -1,2 +1,2 @@
+- first
+--second
+-+third
+-`
+-
+-	if got := string(bs[2]); got != want {
+-		t.Errorf("diff: got:\n%s\nwant:\n%s", got, want)
+-	}
+-}
+-
+-func TestReplaceTempFilename(t *testing.T) {
+-	diff := []byte(`--- /tmp/tmpfile1	2017-02-08 00:53:26.175105619 +0900
+-+++ /tmp/tmpfile2	2017-02-08 00:53:38.415151275 +0900
+-@@ -1,2 +1,2 @@
+- first
+--second
+-+third
+-`)
+-	want := []byte(`--- path/to/file.go.orig	2017-02-08 00:53:26.175105619 +0900
+-+++ path/to/file.go	2017-02-08 00:53:38.415151275 +0900
+-@@ -1,2 +1,2 @@
+- first
+--second
+-+third
+-`)
+-	// Check path in diff output is always slash regardless of the
+-	// os.PathSeparator (`/` or `\`).
+-	sep := string(os.PathSeparator)
+-	filename := strings.Join([]string{"path", "to", "file.go"}, sep)
+-	got, err := replaceTempFilename(diff, filename)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if !bytes.Equal(got, want) {
+-		t.Errorf("os.PathSeparator='%s': replacedDiff:\ngot:\n%s\nwant:\n%s", sep, got, want)
+-	}
+-}
+diff --git a/src/cmd/internal/diff/diff.go b/src/cmd/internal/diff/diff.go
+deleted file mode 100644
+index 0ec2d7f8f9..0000000000
+--- a/src/cmd/internal/diff/diff.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package diff implements a Diff function that compare two inputs
+-// using the 'diff' tool.
+-package diff
+-
+-import (
+-	"bytes"
+-	exec "internal/execabs"
+-	"io/ioutil"
+-	"os"
+-	"runtime"
+-)
+-
+-// Returns diff of two arrays of bytes in diff tool format.
+-func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
+-	f1, err := writeTempFile(prefix, b1)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer os.Remove(f1)
+-
+-	f2, err := writeTempFile(prefix, b2)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer os.Remove(f2)
+-
+-	cmd := "diff"
+-	if runtime.GOOS == "plan9" {
+-		cmd = "/bin/ape/diff"
+-	}
+-
+-	data, err := exec.Command(cmd, "-u", f1, f2).CombinedOutput()
+-	if len(data) > 0 {
+-		// diff exits with a non-zero status when the files don't match.
+-		// Ignore that failure as long as we get output.
+-		err = nil
+-	}
+-
+-	// If we are on Windows and the diff is Cygwin diff,
+-	// machines can get into a state where every Cygwin
+-	// command works fine but prints a useless message like:
+-	//
+-	//	Cygwin WARNING:
+-	//	  Couldn't compute FAST_CWD pointer.  This typically occurs if you're using
+-	//	  an older Cygwin version on a newer Windows.  Please update to the latest
+-	//	  available Cygwin version from https://cygwin.com/.  If the problem persists,
+-	//	  please see https://cygwin.com/problems.html
+-	//
+-	// Skip over that message and just return the actual diff.
+-	if len(data) > 0 && !bytes.HasPrefix(data, []byte("--- ")) {
+-		i := bytes.Index(data, []byte("\n--- "))
+-		if i >= 0 && i < 80*10 && bytes.Contains(data[:i], []byte("://cygwin.com/")) {
+-			data = data[i+1:]
+-		}
+-	}
+-
+-	return data, err
+-}
+-
+-func writeTempFile(prefix string, data []byte) (string, error) {
+-	file, err := ioutil.TempFile("", prefix)
+-	if err != nil {
+-		return "", err
+-	}
+-	_, err = file.Write(data)
+-	if err1 := file.Close(); err == nil {
+-		err = err1
+-	}
+-	if err != nil {
+-		os.Remove(file.Name())
+-		return "", err
+-	}
+-	return file.Name(), nil
+-}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ed40f43c9d..7b9826e0f2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -555,7 +555,7 @@ var depsRules = `
+ 	< internal/trace;
+ 
+ 	FMT
+-	< internal/txtar;
++	< internal/diff, internal/txtar;
+ `
+ 
+ // listStdPkgs returns the same list of packages as "go list std".
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index ff8be4ae97..2071aa8aa6 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -6,12 +6,12 @@ package printer
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"internal/diff"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -87,37 +87,13 @@ func lineAt(text []byte, offs int) []byte {
+ 	return text[offs:i]
+ }
+ 
+-// diff compares a and b.
+-func diff(aname, bname string, a, b []byte) error {
++// checkEqual compares a and b.
++func checkEqual(aname, bname string, a, b []byte) error {
+ 	if bytes.Equal(a, b) {
+ 		return nil
+ 	}
+ 
+-	var buf bytes.Buffer // holding long error message
+-	// compare lengths
+-	if len(a) != len(b) {
+-		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
+-	}
+-
+-	// compare contents
+-	line := 1
+-	offs := 0
+-	for i := 0; i < len(a) && i < len(b); i++ {
+-		ch := a[i]
+-		if ch != b[i] {
+-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", aname, line, i-offs+1, lineAt(a, offs))
+-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", bname, line, i-offs+1, lineAt(b, offs))
+-			fmt.Fprintf(&buf, "\n\n")
+-			break
+-		}
+-		if ch == '\n' {
+-			line++
+-			offs = i + 1
+-		}
+-	}
+-
+-	fmt.Fprintf(&buf, "\n%s:\n%s\n%s:\n%s", aname, a, bname, b)
+-	return errors.New(buf.String())
++	return fmt.Errorf("diff %s %s\n%s", aname, bname, diff.Diff(aname, a, bname, b))
+ }
+ 
+ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+@@ -149,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 	}
+ 
+ 	// formatted source and golden must be the same
+-	if err := diff(source, golden, res, gld); err != nil {
++	if err := checkEqual(source, golden, res, gld); err != nil {
+ 		t.Error(err)
+ 		return
+ 	}
+@@ -163,7 +139,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 			t.Error(err)
+ 			return
+ 		}
+-		if err := diff(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
++		if err := checkEqual(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
+ 			t.Errorf("golden is not idempotent: %s", err)
+ 		}
+ 	}
+diff --git a/src/internal/diff/diff.go b/src/internal/diff/diff.go
+new file mode 100644
+index 0000000000..e2c9e4dc65
+--- /dev/null
++++ b/src/internal/diff/diff.go
+@@ -0,0 +1,262 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package diff
++
++import (
++	"bytes"
++	"fmt"
++	"sort"
++	"strings"
++)
++
++// A pair is a pair of values tracked for both the x and y side of a diff.
++// It is typically a pair of line indexes.
++type pair struct{ x, y int }
++
++// Diff returns an anchored diff of the two texts old and new
++// in the “unified diff” format. If old and new are identical,
++// Diff returns a nil slice (no output).
++//
++// Unix diff implementations typically look for a diff with
++// the smallest number of lines inserted and removed,
++// which can in the worst case take time quadratic in the
++// number of lines in the texts. As a result, many implementations
++// either can be made to run for a long time or cut off the search
++// after a predetermined amount of work.
++//
++// In contrast, this implementation looks for a diff with the
++// smallest number of “unique” lines inserted and removed,
++// where unique means a line that appears just once in both old and new.
++// We call this an “anchored diff” because the unique lines anchor
++// the chosen matching regions. An anchored diff is usually clearer
++// than a standard diff, because the algorithm does not try to
++// reuse unrelated blank lines or closing braces.
++// The algorithm also guarantees to run in O(n log n) time
++// instead of the standard O(n²) time.
++//
++// Some systems call this approach a “patience diff,” named for
++// the “patience sorting” algorithm, itself named for a solitaire card game.
++// We avoid that name for two reasons. First, the name has been used
++// for a few different variants of the algorithm, so it is imprecise.
++// Second, the name is frequently interpreted as meaning that you have
++// to wait longer (to be patient) for the diff, meaning that it is a slower algorithm,
++// when in fact the algorithm is faster than the standard one.
++//
++func Diff(oldName string, old []byte, newName string, new []byte) []byte {
++	if bytes.Equal(old, new) {
++		return nil
++	}
++	x := lines(old)
++	y := lines(new)
++
++	// Print diff header.
++	var out bytes.Buffer
++	fmt.Fprintf(&out, "diff %s %s\n", oldName, newName)
++	fmt.Fprintf(&out, "--- %s\n", oldName)
++	fmt.Fprintf(&out, "+++ %s\n", newName)
++
++	// Loop over matches to consider,
++	// expanding each match to include surrounding lines,
++	// and then printing diff chunks.
++	// To avoid setup/teardown cases outside the loop,
++	// tgs returns a leading {0,0} and trailing {len(x), len(y)} pair
++	// in the sequence of matches.
++	var (
++		done  pair     // printed up to x[:done.x] and y[:done.y]
++		chunk pair     // start lines of current chunk
++		count pair     // number of lines from each side in current chunk
++		ctext []string // lines for current chunk
++	)
++	for _, m := range tgs(x, y) {
++		if m.x < done.x {
++			// Already handled scanning forward from earlier match.
++			continue
++		}
++
++		// Expand matching lines as far possible,
++		// establishing that x[start.x:end.x] == y[start.y:end.y].
++		// Note that on the first (or last) iteration we may (or definitey do)
++		// have an empty match: start.x==end.x and start.y==end.y.
++		start := m
++		for start.x > done.x && start.y > done.y && x[start.x-1] == y[start.y-1] {
++			start.x--
++			start.y--
++		}
++		end := m
++		for end.x < len(x) && end.y < len(y) && x[end.x] == y[end.y] {
++			end.x++
++			end.y++
++		}
++
++		// Emit the mismatched lines before start into this chunk.
++		// (No effect on first sentinel iteration, when start = {0,0}.)
++		for _, s := range x[done.x:start.x] {
++			ctext = append(ctext, "-"+s)
++			count.x++
++		}
++		for _, s := range y[done.y:start.y] {
++			ctext = append(ctext, "+"+s)
++			count.y++
++		}
++
++		// If we're not at EOF and have too few common lines,
++		// the chunk includes all the common lines and continues.
++		const C = 3 // number of context lines
++		if (end.x < len(x) || end.y < len(y)) &&
++			(end.x-start.x < C || (len(ctext) > 0 && end.x-start.x < 2*C)) {
++			for _, s := range x[start.x:end.x] {
++				ctext = append(ctext, " "+s)
++				count.x++
++				count.y++
++			}
++			done = end
++			continue
++		}
++
++		// End chunk with common lines for context.
++		if len(ctext) > 0 {
++			n := end.x - start.x
++			if n > C {
++				n = C
++			}
++			for _, s := range x[start.x : start.x+n] {
++				ctext = append(ctext, " "+s)
++				count.x++
++				count.y++
++			}
++			done = pair{start.x + n, start.y + n}
++
++			// Format and emit chunk.
++			// Convert line numbers to 1-indexed.
++			// Special case: empty file shows up as 0,0 not 1,0.
++			if count.x > 0 {
++				chunk.x++
++			}
++			if count.y > 0 {
++				chunk.y++
++			}
++			fmt.Fprintf(&out, "@@ -%d,%d +%d,%d @@\n", chunk.x, count.x, chunk.y, count.y)
++			for _, s := range ctext {
++				out.WriteString(s)
++			}
++			count.x = 0
++			count.y = 0
++			ctext = ctext[:0]
++		}
++
++		// If we reached EOF, we're done.
++		if end.x >= len(x) && end.y >= len(y) {
++			break
++		}
++
++		// Otherwise start a new chunk.
++		chunk = pair{end.x - C, end.y - C}
++		for _, s := range x[chunk.x:end.x] {
++			ctext = append(ctext, " "+s)
++			count.x++
++			count.y++
++		}
++		done = end
++	}
++
++	return out.Bytes()
++}
++
++// lines returns the lines in the file x, including newlines.
++// If the file does not end in a newline, one is supplied
++// along with a warning about the missing newline.
++func lines(x []byte) []string {
++	l := strings.SplitAfter(string(x), "\n")
++	if l[len(l)-1] == "" {
++		l = l[:len(l)-1]
++	} else {
++		// Treat last line as having a message about the missing newline attached,
++		// using the same text as BSD/GNU diff (including the leading backslash).
++		l[len(l)-1] += "\n\\ No newline at end of file\n"
++	}
++	return l
++}
++
++// tgs returns the pairs of indexes of the longest common subsequence
++// of unique lines in x and y, where a unique line is one that appears
++// once in x and once in y.
++//
++// The longest common subsequence algorithm is as described in
++// Thomas G. Szymanski, “A Special Case of the Maximal Common
++// Subsequence Problem,” Princeton TR #170 (January 1975),
++// available at https://research.swtch.com/tgs170.pdf.
++func tgs(x, y []string) []pair {
++	// Count the number of times each string appears in a and b.
++	// We only care about 0, 1, many, counted as 0, -1, -2
++	// for the x side and 0, -4, -8 for the y side.
++	// Using negative numbers now lets us distinguish positive line numbers later.
++	m := make(map[string]int)
++	for _, s := range x {
++		if c := m[s]; c > -2 {
++			m[s] = c - 1
++		}
++	}
++	for _, s := range y {
++		if c := m[s]; c > -8 {
++			m[s] = c - 4
++		}
++	}
++
++	// Now unique strings can be identified by m[s] = -1+-4.
++	//
++	// Gather the indexes of those strings in x and y, building:
++	//	xi[i] = increasing indexes of unique strings in x.
++	//	yi[i] = increasing indexes of unique strings in y.
++	//	inv[i] = index j such that x[xi[i]] = y[yi[j]].
++	var xi, yi, inv []int
++	for i, s := range y {
++		if m[s] == -1+-4 {
++			m[s] = len(yi)
++			yi = append(yi, i)
++		}
++	}
++	for i, s := range x {
++		if j, ok := m[s]; ok && j >= 0 {
++			xi = append(xi, i)
++			inv = append(inv, j)
++		}
++	}
++
++	// Apply Algorithm A from Szymanski's paper.
++	// In those terms, A = J = inv and B = [0, n).
++	// We add sentinel pairs {0,0}, and {len(x),len(y)}
++	// to the returned sequence, to help the processing loop.
++	J := inv
++	n := len(xi)
++	T := make([]int, n)
++	L := make([]int, n)
++	for i := range T {
++		T[i] = n + 1
++	}
++	for i := 0; i < n; i++ {
++		k := sort.Search(n, func(k int) bool {
++			return T[k] >= J[i]
++		})
++		T[k] = J[i]
++		L[i] = k + 1
++	}
++	k := 0
++	for _, v := range L {
++		if k < v {
++			k = v
++		}
++	}
++	seq := make([]pair, 2+k)
++	seq[1+k] = pair{len(x), len(y)} // sentinel at end
++	lastj := n
++	for i := n - 1; i >= 0; i-- {
++		if L[i] == k && J[i] < lastj {
++			seq[k] = pair{xi[i], yi[J[i]]}
++			k--
++		}
++	}
++	seq[0] = pair{0, 0} // sentinel at start
++	return seq
++}
+diff --git a/src/internal/diff/diff_test.go b/src/internal/diff/diff_test.go
+new file mode 100644
+index 0000000000..37281c529b
+--- /dev/null
++++ b/src/internal/diff/diff_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package diff
++
++import (
++	"bytes"
++	"internal/txtar"
++	"path/filepath"
++	"testing"
++)
++
++func clean(text []byte) []byte {
++	text = bytes.ReplaceAll(text, []byte("$\n"), []byte("\n"))
++	text = bytes.TrimSuffix(text, []byte("^D\n"))
++	return text
++}
++
++func Test(t *testing.T) {
++	files, _ := filepath.Glob("testdata/*.txt")
++	if len(files) == 0 {
++		t.Fatalf("no testdata")
++	}
++
++	for _, file := range files {
++		t.Run(filepath.Base(file), func(t *testing.T) {
++			a, err := txtar.ParseFile(file)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if len(a.Files) != 3 || a.Files[2].Name != "diff" {
++				t.Fatalf("%s: want three files, third named \"diff\"", file)
++			}
++			diffs := Diff(a.Files[0].Name, clean(a.Files[0].Data), a.Files[1].Name, clean(a.Files[1].Data))
++			want := clean(a.Files[2].Data)
++			if !bytes.Equal(diffs, want) {
++				t.Fatalf("%s: have:\n%s\nwant:\n%s\n%s", file,
++					diffs, want, Diff("have", diffs, "want", want))
++			}
++		})
++	}
++}
+diff --git a/src/internal/diff/testdata/allnew.txt b/src/internal/diff/testdata/allnew.txt
+new file mode 100644
+index 0000000000..887564927a
+--- /dev/null
++++ b/src/internal/diff/testdata/allnew.txt
+@@ -0,0 +1,13 @@
++-- old --
++-- new --
++a
++b
++c
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -0,0 +1,3 @@
+++a
+++b
+++c
+diff --git a/src/internal/diff/testdata/allold.txt b/src/internal/diff/testdata/allold.txt
+new file mode 100644
+index 0000000000..bcc9ac0ee0
+--- /dev/null
++++ b/src/internal/diff/testdata/allold.txt
+@@ -0,0 +1,13 @@
++-- old --
++a
++b
++c
++-- new --
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,3 +0,0 @@
++-a
++-b
++-c
+diff --git a/src/internal/diff/testdata/basic.txt b/src/internal/diff/testdata/basic.txt
+new file mode 100644
+index 0000000000..d2565b5d6e
+--- /dev/null
++++ b/src/internal/diff/testdata/basic.txt
+@@ -0,0 +1,35 @@
++Example from Hunt and McIlroy, “An Algorithm for Differential File Comparison.”
++https://www.cs.dartmouth.edu/~doug/diff.pdf
++
++-- old --
++a
++b
++c
++d
++e
++f
++g
++-- new --
++w
++a
++b
++x
++y
++z
++e
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,7 +1,7 @@
+++w
++ a
++ b
++-c
++-d
+++x
+++y
+++z
++ e
++-f
++-g
+diff --git a/src/internal/diff/testdata/dups.txt b/src/internal/diff/testdata/dups.txt
+new file mode 100644
+index 0000000000..d10524d0d8
+--- /dev/null
++++ b/src/internal/diff/testdata/dups.txt
+@@ -0,0 +1,40 @@
++-- old --
++a
++
++b
++
++c
++
++d
++
++e
++
++f
++-- new --
++a
++
++B
++
++C
++
++d
++
++e
++
++f
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,8 +1,8 @@
++ a
++ $
++-b
++-
++-c
+++B
+++
+++C
++ $
++ d
++ $
+diff --git a/src/internal/diff/testdata/end.txt b/src/internal/diff/testdata/end.txt
+new file mode 100644
+index 0000000000..158637c135
+--- /dev/null
++++ b/src/internal/diff/testdata/end.txt
+@@ -0,0 +1,38 @@
++-- old --
++1
++2
++3
++4
++5
++6
++7
++eight
++nine
++ten
++eleven
++-- new --
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -5,7 +5,6 @@
++ 5
++ 6
++ 7
++-eight
++-nine
++-ten
++-eleven
+++8
+++9
+++10
+diff --git a/src/internal/diff/testdata/eof.txt b/src/internal/diff/testdata/eof.txt
+new file mode 100644
+index 0000000000..5dc145c4de
+--- /dev/null
++++ b/src/internal/diff/testdata/eof.txt
+@@ -0,0 +1,9 @@
++-- old --
++a
++b
++c^D
++-- new --
++a
++b
++c^D
++-- diff --
+diff --git a/src/internal/diff/testdata/eof1.txt b/src/internal/diff/testdata/eof1.txt
+new file mode 100644
+index 0000000000..1ebf621e92
+--- /dev/null
++++ b/src/internal/diff/testdata/eof1.txt
+@@ -0,0 +1,18 @@
++-- old --
++a
++b
++c
++-- new --
++a
++b
++c^D
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,3 +1,3 @@
++ a
++ b
++-c
+++c
++\ No newline at end of file
+diff --git a/src/internal/diff/testdata/eof2.txt b/src/internal/diff/testdata/eof2.txt
+new file mode 100644
+index 0000000000..047705e686
+--- /dev/null
++++ b/src/internal/diff/testdata/eof2.txt
+@@ -0,0 +1,18 @@
++-- old --
++a
++b
++c^D
++-- new --
++a
++b
++c
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,3 +1,3 @@
++ a
++ b
++-c
++\ No newline at end of file
+++c
+diff --git a/src/internal/diff/testdata/long.txt b/src/internal/diff/testdata/long.txt
+new file mode 100644
+index 0000000000..3fc99f71d5
+--- /dev/null
++++ b/src/internal/diff/testdata/long.txt
+@@ -0,0 +1,62 @@
++-- old --
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++11
++12
++13
++14
++14½
++15
++16
++17
++18
++19
++20
++-- new --
++1
++2
++3
++4
++5
++6
++8
++9
++10
++11
++12
++13
++14
++17
++18
++19
++20
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -4,7 +4,6 @@
++ 4
++ 5
++ 6
++-7
++ 8
++ 9
++ 10
++@@ -12,9 +11,6 @@
++ 12
++ 13
++ 14
++-14½
++-15
++-16
++ 17
++ 18
++ 19
+diff --git a/src/internal/diff/testdata/same.txt b/src/internal/diff/testdata/same.txt
+new file mode 100644
+index 0000000000..86b1100d81
+--- /dev/null
++++ b/src/internal/diff/testdata/same.txt
+@@ -0,0 +1,5 @@
++-- old --
++hello world
++-- new --
++hello world
++-- diff --
+diff --git a/src/internal/diff/testdata/start.txt b/src/internal/diff/testdata/start.txt
+new file mode 100644
+index 0000000000..217b2fdc9f
+--- /dev/null
++++ b/src/internal/diff/testdata/start.txt
+@@ -0,0 +1,34 @@
++-- old --
++e
++pi
++4
++5
++6
++7
++8
++9
++10
++-- new --
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,5 +1,6 @@
++-e
++-pi
+++1
+++2
+++3
++ 4
++ 5
++ 6
+diff --git a/src/internal/diff/testdata/triv.txt b/src/internal/diff/testdata/triv.txt
+new file mode 100644
+index 0000000000..ab5759fcb2
+--- /dev/null
++++ b/src/internal/diff/testdata/triv.txt
+@@ -0,0 +1,40 @@
++Another example from Hunt and McIlroy,
++“An Algorithm for Differential File Comparison.”
++https://www.cs.dartmouth.edu/~doug/diff.pdf
++
++Anchored diff gives up on finding anything,
++since there are no unique lines.
++
++-- old --
++a
++b
++c
++a
++b
++b
++a
++-- new --
++c
++a
++b
++a
++b
++c
++-- diff --
++diff old new
++--- old
+++++ new
++@@ -1,7 +1,6 @@
++-a
++-b
++-c
++-a
++-b
++-b
++-a
+++c
+++a
+++b
+++a
+++b
+++c

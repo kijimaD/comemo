@@ -12,6 +12,39 @@ Date:   Fri Nov 2 03:30:49 2012 +1100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6818076
-
+---
  doc/style.css | 24 ------------------------
  1 file changed, 24 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index f4087a7d81..4dae3fd641 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -519,27 +519,3 @@ div#playground .code {
+ div#playground .output {
+ 	height: 100px;
+ }
+-
+-/* always show topbar for large screens */
+-@media screen and (min-width: 130ex) and (min-height: 300px) {
+-       /* 130ex -> wide enough so that title isn't below buttons */
+-
+-	div#topbar.wide {
+-		position: fixed;
+-		z-index: 1;
+-		top: 0;
+-		width: 100%;
+-		height: 63px;
+-		border-bottom: 1px solid #B0BBC5;
+-	}
+-
+-	div#page.wide {
+-		position: fixed;
+-		top: 64px; /* to match topbar */
+-		bottom: 0px;
+-		overflow: auto;
+-		margin-left: auto;
+-		margin-right: auto;
+-	}
+-}
+-

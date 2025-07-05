@@ -12,6 +12,49 @@ Date:   Wed Jul 3 17:12:32 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/query.go | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 031e45938a..cf0dd3ff6e 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -445,7 +445,11 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
+ 		candidateModules = modulePrefixesExcludingTarget(base)
+ 	)
+ 	if len(candidateModules) == 0 {
+-		return nil, fmt.Errorf("package %s is not in the main module (%s)", pattern, Target.Path)
++		return nil, &PackageNotInModuleError{
++			Mod:     Target,
++			Query:   query,
++			Pattern: pattern,
++		}
+ 	}
+ 
+ 	err := modfetch.TryProxies(func(proxy string) error {
+@@ -541,7 +545,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
+ 		case nil:
+ 			found = append(found, r.QueryResult)
+ 		case *PackageNotInModuleError:
+-			if noPackage == nil {
++			// Given the option, prefer to attribute “package not in module”
++			// to modules other than the main one.
++			if noPackage == nil || noPackage.Mod == Target {
+ 				noPackage = rErr
+ 			}
+ 		case *NoMatchingVersionError:
+@@ -626,6 +632,13 @@ type PackageNotInModuleError struct {
+ }
+ 
+ func (e *PackageNotInModuleError) Error() string {
++	if e.Mod == Target {
++		if strings.Contains(e.Pattern, "...") {
++			return fmt.Sprintf("main module (%s) does not contain packages matching %s", Target.Path, e.Pattern)
++		}
++		return fmt.Sprintf("main module (%s) does not contain package %s", Target.Path, e.Pattern)
++	}
++
+ 	found := ""
+ 	if r := e.Replacement; r.Path != "" {
+ 		replacement := r.Path

@@ -8,6 +8,19 @@ Date:   Fri Sep 22 13:17:14 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/65430
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.9.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/go1.9.txt b/api/go1.9.txt
+index c23a17ea1a..c7a4968aaf 100644
+--- a/api/go1.9.txt
++++ b/api/go1.9.txt
+@@ -7,6 +7,7 @@ pkg crypto, const BLAKE2b_512 Hash
+ pkg crypto, const BLAKE2s_256 = 16
+ pkg crypto, const BLAKE2s_256 Hash
+ pkg crypto/x509, type Certificate struct, ExcludedDNSDomains []string
++pkg crypto/x509, type VerifyOptions struct, IsBoring func(*Certificate) bool
+ pkg database/sql, method (*Conn) BeginTx(context.Context, *TxOptions) (*Tx, error)
+ pkg database/sql, method (*Conn) Close() error
+ pkg database/sql, method (*Conn) ExecContext(context.Context, string, ...interface{}) (Result, error)

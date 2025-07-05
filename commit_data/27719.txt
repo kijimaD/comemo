@@ -9,7 +9,75 @@ Date:   Fri Apr 8 14:43:35 2016 +1000
     Change-Id: I4214b841d63bb7e9c3c5ede2abe21a8a68f06c41
     Reviewed-on: https://go-review.googlesource.com/21701
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 22 ----------------------
  src/cmd/go/pkg.go     |  9 +--------
  2 files changed, 1 insertion(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8a0416089c..411fd1e322 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1377,28 +1377,6 @@ func TestInstallToGOBINCommandLinePackage(t *testing.T) {
+ 	tg.wantExecutable("testdata/bin1/helloworld"+exeSuffix, "go install testdata/src/go-cmd-test/helloworld.go did not write testdata/bin1/helloworld")
+ }
+ 
+-func TestGodocInstalls(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	// godoc installs into GOBIN
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempDir("gobin")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GOBIN", tg.path("gobin"))
+-	tg.run("get", "golang.org/x/tools/cmd/godoc")
+-	tg.wantExecutable(tg.path("gobin/godoc"), "did not install godoc to $GOBIN")
+-	tg.unsetenv("GOBIN")
+-
+-	// godoc installs into GOROOT
+-	goroot := runtime.GOROOT()
+-	tg.setenv("GOROOT", goroot)
+-	tg.check(os.RemoveAll(filepath.Join(goroot, "bin", "godoc")))
+-	tg.run("install", "golang.org/x/tools/cmd/godoc")
+-	tg.wantExecutable(filepath.Join(goroot, "bin", "godoc"), "did not install godoc to $GOROOT/bin")
+-}
+-
+ func TestGoGetNonPkg(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index f330b4db43..ef7fd124a9 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -682,7 +682,6 @@ type targetDir int
+ const (
+ 	toRoot    targetDir = iota // to bin dir inside package root (default)
+ 	toTool                     // GOROOT/pkg/tool
+-	toBin                      // GOROOT/bin
+ 	stalePath                  // the old import path; fail to build
+ )
+ 
+@@ -706,7 +705,6 @@ var goTools = map[string]targetDir{
+ 	"cmd/trace":                            toTool,
+ 	"cmd/vet":                              toTool,
+ 	"cmd/yacc":                             toTool,
+-	"golang.org/x/tools/cmd/godoc":         toBin,
+ 	"code.google.com/p/go.tools/cmd/cover": stalePath,
+ 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
+ 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
+@@ -793,12 +791,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+ 		}
+-		if p.build.BinDir != gobin && goTools[p.ImportPath] == toBin {
+-			// Override BinDir.
+-			// This is from a subrepo but installs to $GOROOT/bin
+-			// by default anyway (like godoc).
+-			p.target = filepath.Join(gorootBin, elem)
+-		} else if p.build.BinDir != "" {
++		if p.build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+ 			p.target = filepath.Join(p.build.BinDir, elem)
+ 			if !p.Goroot && strings.Contains(elem, "/") && gobin != "" {

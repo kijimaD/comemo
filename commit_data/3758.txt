@@ -6,6 +6,29 @@ Date:   Wed Nov 4 08:34:31 2009 -0800
     
     TBR=r
     http://go/go-review/1016037
-
+---
  src/pkg/net/net_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 8377201e5f..cd888679fa 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -27,7 +27,7 @@ var dialErrorTests = []DialErrorTest {
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name.google.com.:80",
+-		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no such host",
++		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
+@@ -35,7 +35,7 @@ var dialErrorTests = []DialErrorTest {
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name:80",
+-		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no such host`,
++		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no (.*)`,
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "mh/astro/r70:http",

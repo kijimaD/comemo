@@ -7,7 +7,7 @@ Date:   Mon Jun 29 17:46:22 2009 -0700
     R=ken
     OCL=30889
     CL=30889
-
+---
  src/cmd/gc/go.y                    |  3 ++-
  src/cmd/gc/lex.c                   | 11 +++++++----
  src/pkg/http/request.go            |  2 +-
@@ -16,3 +16,108 @@ Date:   Mon Jun 29 17:46:22 2009 -0700
  test/{bugs => fixedbugs}/bug166.go |  0
  test/golden.out                    |  9 ---------
  7 files changed, 12 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8e844e342d..fa6e1c752f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -344,7 +344,8 @@ common_dcl:
+ 
+ varoptsemi:
+ 	{
+-		yyoptsemi('=');
++		if(yylast == LSEMIBRACE)
++			yyoptsemi('=');
+ 	}
+ 
+ vardcl:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 05671cc386..586dc47d56 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -811,10 +811,13 @@ talph:
+ 				cp[c1++] = c;
+ 				if(fullrune(cp, c1)) {
+ 					chartorune(&rune, cp);
+-					 if(isfrog(rune)) {
+-					 	yyerror("illegal character 0x%ux", rune);
+-					 	goto l0;
+-					 }
++					if(isfrog(rune)) {
++						yyerror("illegal character 0x%ux", rune);
++						goto l0;
++					}
++					// 0xb7 · is used for internal names
++					if(!isalpharune(c) && !isdigitrune(c) && c != 0xb7)
++						yyerror("invalid identifier character 0x%ux", rune);
+ 					break;
+ 				}
+ 				c = getc();
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 59801e1eb3..0cc83a8b89 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -173,7 +173,7 @@ func (req *Request) write(w io.Writer) os.Error {
+ 	Loop:
+ 		for {
+ 			var nr, nw int;
+-			var er, ew os.Error
++			var er, ew os.Error;
+ 			if nr, er = req.Body.Read(buf); nr > 0 {
+ 				if er == nil || er == os.EOF {
+ 					fmt.Fprintf(w, "%x\r\n", nr);
+diff --git a/test/bugs/bug163.go b/test/fixedbugs/bug163.go
+similarity index 80%
+rename from test/bugs/bug163.go
+rename to test/fixedbugs/bug163.go
+index 30d2cab5d4..c1eec4cdbd 100644
+--- a/test/bugs/bug163.go
++++ b/test/fixedbugs/bug163.go
+@@ -9,5 +9,5 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	日本語 := 1;	// Japanese ideographs are not letters
++	日本語 := 1;	// ERROR "identifier"
+ }
+diff --git a/test/bugs/bug164.go b/test/fixedbugs/bug164.go
+similarity index 62%
+rename from test/bugs/bug164.go
+rename to test/fixedbugs/bug164.go
+index 7a78c86f2b..746f631aeb 100644
+--- a/test/bugs/bug164.go
++++ b/test/fixedbugs/bug164.go
+@@ -6,8 +6,7 @@
+ 
+ package main
+ 
+-// Multi-line string literal do not allow newline chars according to spec
+-// but 6g accepts this code with the newlines interpreted as newlines.
++// Multi-line string literal now allowed.
+ 
+ const s = `
+ Hello, World!
+diff --git a/test/bugs/bug166.go b/test/fixedbugs/bug166.go
+similarity index 100%
+rename from test/bugs/bug166.go
+rename to test/fixedbugs/bug166.go
+diff --git a/test/golden.out b/test/golden.out
+index d83fd0cf88..3f15f48395 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -105,15 +105,6 @@ BUG: bug159
+ 123
+ BUG: should fail
+ 
+-=========== bugs/bug163.go
+-BUG: should not compile
+-
+-=========== bugs/bug164.go
+-BUG: should not compile
+-
+-=========== bugs/bug166.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug166.go
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

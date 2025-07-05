@@ -17,6 +17,20 @@ Date:   Fri Nov 1 09:13:40 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7fb4a51817..7b851d3d08 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2809,7 +2809,7 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 		n.Right = nil
+ 
+ 	case TSLICE:
+-		length := typecheckarraylit(t.Elem(), -2, n.List.Slice(), "slice literal")
++		length := typecheckarraylit(t.Elem(), -1, n.List.Slice(), "slice literal")
+ 		n.Op = OSLICELIT
+ 		n.Right = nodintconst(length)
+ 

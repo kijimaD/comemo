@@ -13,6 +13,21 @@ Date:   Mon Apr 27 16:06:22 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9347
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  test/run.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 75eccb1dfd..83afce4282 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -51,8 +51,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	// TODO(rsc): Put syntax back. See issue 9968.
+-	dirs = []string{".", "ken", "chan", "interface", "dwarf", "fixedbugs", "bugs"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "bugs"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool

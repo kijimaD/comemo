@@ -9,6 +9,20 @@ Date:   Sun Jul 12 22:12:19 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31487
     CL=31500
-
+---
  src/pkg/runtime/arm/asm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index eaddb0b293..c43b6eed57 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -168,7 +168,7 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
+ 	MOVW	R0, (m_morebuf+gobuf_r0)(m)
+-	MOVQ	g, (m_morebuf+gobuf_g)(m)
++	MOVW	g,  (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+ 	// We set f's frame size to zero, meaning

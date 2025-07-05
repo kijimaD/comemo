@@ -7,10 +7,231 @@ Date:   Wed Oct 20 17:43:57 2010 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/2631041
-
+---
  test/bench/fannkuch-parallel.go     |  2 +-
  test/bench/fasta.c                  |  4 +-
  test/bench/k-nucleotide-parallel.go |  2 +
  test/bench/timing.log               | 92 +++++++++++++++++++++++++++++++++++--
  test/bench/timing.sh                | 10 ++--
  5 files changed, 100 insertions(+), 10 deletions(-)
+
+diff --git a/test/bench/fannkuch-parallel.go b/test/bench/fannkuch-parallel.go
+index 7897eac052..7e9b98d505 100644
+--- a/test/bench/fannkuch-parallel.go
++++ b/test/bench/fannkuch-parallel.go
+@@ -44,7 +44,7 @@ import (
+ )
+ 
+ var n = flag.Int("n", 7, "count")
+-var nCPU = flag.Int("ncpu", 2, "number of cpus")
++var nCPU = flag.Int("ncpu", 4, "number of cpus")
+ 
+ type Job struct {
+ 	start []int
+diff --git a/test/bench/fasta.c b/test/bench/fasta.c
+index 78a8490d71..64c1c52058 100644
+--- a/test/bench/fasta.c
++++ b/test/bench/fasta.c
+@@ -41,10 +41,12 @@ POSSIBILITY OF SUCH DAMAGE.
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#ifndef fwrite_unlocked
+ // not available on OS X 
+ #define fwrite_unlocked fwrite
+ #define fputc_unlocked fputc
+ #define fputs_unlocked fputs
++#endif
+ 
+ #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+ #define unlikely(x) __builtin_expect((x), 0)
+@@ -214,4 +216,4 @@ main(int argc, const char **argv) {
+             ">THREE Homo sapiens frequency\n", n*5, &rand);
+ 
+     return 0;
+-}
+\ No newline at end of file
++}
+diff --git a/test/bench/k-nucleotide-parallel.go b/test/bench/k-nucleotide-parallel.go
+index 0234f33d11..96c80d8f0c 100644
+--- a/test/bench/k-nucleotide-parallel.go
++++ b/test/bench/k-nucleotide-parallel.go
+@@ -41,6 +41,7 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
++	"runtime"
+ 	"sort"
+ )
+ 
+@@ -97,6 +98,7 @@ func printKnucs(a kNucArray) {
+ }
+ 
+ func main() {
++	runtime.GOMAXPROCS(4)
+ 	in := bufio.NewReader(os.Stdin)
+ 	three := []byte(">THREE ")
+ 	for {
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index e7b0b48c11..ebc11e5985 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -414,7 +414,7 @@ chameneos 6000000
+ 	gcc -O2 chameneosredux.c -lpthread	18.00u 303.29s 83.64r
+ 	gc chameneosredux	12.10u 0.00s 12.10r  # 2.22X faster
+ 
+-Jan 6, 2009
++Jan 6, 2010
+ 
+ # Long-overdue update.  All numbers included in this complete run.
+ # Some programs (e.g. reverse-complement) rewritten for speed.
+@@ -429,7 +429,7 @@ fasta -n 25000000
+ 
+ reverse-complement < output-of-fasta-25000000
+ 	gcc -O2 reverse-complement.c	2.00u 0.80s 9.54r
+-	gccgo -O2 reverse-complement.go	4.57u 0.35s 4.94r	# 33% faster
++#	gccgo -O2 reverse-complement.go	4.57u 0.35s 4.94r	# 33% faster
+ 	gc reverse-complement	2.01u 0.38s 2.40r	# 3.3X faster
+ 	gc_B reverse-complement	1.88u 0.36s 2.24r	# 3.2X faster
+ GOGC=off
+@@ -445,7 +445,6 @@ nbody -n 50000000
+ binary-tree 15 # too slow to use 20
+ 	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.87r
+ 	gccgo -O2 binary-tree.go	4.82u 0.41s 5.24r	# 2.5X slower
+-	gccgo -O2 binary-tree-freelist.go	0.00u 0.00s 0.00r
+ 	gc binary-tree	7.23u 0.01s 7.25r	# # -19%
+ 	gc binary-tree-freelist	0.43u 0.00s 0.44r	# -9%
+ 
+@@ -498,3 +497,90 @@ chameneos 6000000
+ 	gcc -O2 chameneosredux.c -lpthread	19.02u 331.08s 90.79r
+ 	gc chameneosredux	12.54u 0.00s 12.55r
+ 
++Oct 19, 2010
++
++# Another long-overdue update. Some of the code is new; parallel versions
++# of some are added.  A few significant improvements.
++
++fasta -n 25000000
++	gcc -O2 fasta.c	4.92u 0.00s 4.93r
++	gccgo -O2 fasta.go	3.31u 0.00s 3.34r  # new code
++	gc fasta	3.68u 0.00s 3.69r  # 2.5X faster with no code
++	gc_B fasta	3.68u 0.00s 3.69r  # 2.3X faster with no code
++
++reverse-complement < output-of-fasta-25000000
++	gcc -O2 reverse-complement.c	1.93u 0.81s 11.24r
++	gccgo -O2 reverse-complement.go	1.58u 0.43s 2.04r  # first run with new code?
++	gc reverse-complement	1.84u 0.34s 2.20r  # 10% faster
++	gc_B reverse-complement	1.85u 0.32s 2.18r
++
++nbody -n 50000000
++	gcc -O2 nbody.c	21.35u 0.00s 21.36r
++	gccgo -O2 nbody.go	21.62u 0.00s 21.66r  # 3.7X faster - why??
++	gc nbody	29.78u 0.00s 29.79r
++	gc_B nbody	29.72u 0.00s 29.72r
++
++binary-tree 15 # too slow to use 20
++	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.88r
++	gccgo -O2 binary-tree.go	4.05u 0.02s 4.08r  # 28% faster
++	gccgo -O2 binary-tree-freelist	0.34u 0.08s 0.34r
++	gc binary-tree	5.94u 0.00s 5.95r  # 20% faster
++	gc binary-tree-freelist	0.50u 0.01s 0.54r
++
++fannkuch 12
++	gcc -O2 fannkuch.c	60.45u 0.00s 60.45r
++	gccgo -O2 fannkuch.go	64.64u 0.00s 64.64r
++	gccgo -O2 fannkuch-parallel.go	115.63u 0.00s 31.58r
++	gc fannkuch	126.52u 0.04s 126.68r
++	gc fannkuch-parallel	238.82u 0.10s 65.93r  # GOMAXPROCS=4
++	gc_B fannkuch	88.99u 0.00s 89.02r
++
++regex-dna 100000
++	gcc -O2 regex-dna.c -lpcre	0.89u 0.00s 0.89r
++	gc regex-dna	8.99u 0.02s 9.03r
++	gc regex-dna-parallel	8.94u 0.02s 3.68r  # GOMAXPROCS=4
++	gc_B regex-dna	9.12u 0.00s 9.14r
++
++spectral-norm 5500
++	gcc -O2 spectral-norm.c -lm	11.55u 0.00s 11.57r
++	gccgo -O2 spectral-norm.go	11.73u 0.00s 11.75r
++	gc spectral-norm	23.74u 0.00s 23.79r
++	gc_B spectral-norm	24.49u 0.02s 24.54r
++
++k-nucleotide 1000000
++	gcc -O2 k-nucleotide.c	11.44u 0.06s 11.50r
++	gccgo -O2 k-nucleotide.go	8.65u 0.04s 8.71r
++	gccgo -O2 k-nucleotide-parallel.go	8.75u 0.03s 2.97r # set GOMAXPROCS=4
++	gc k-nucleotide	14.92u 0.05s 15.01r
++	gc k-nucleotide-parallel	16.96u 0.06s 6.53r  # set GOMAXPROCS=4
++	gc_B k-nucleotide	15.97u 0.03s 16.08r
++
++mandelbrot 16000
++	gcc -O2 mandelbrot.c	56.32u 0.00s 56.35r
++	gccgo -O2 mandelbrot.go	55.62u 0.02s 55.77r
++	gc mandelbrot	64.85u 0.01s 64.94r
++	gc_B mandelbrot	65.02u 0.01s 65.14r
++
++meteor 16000
++	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
++	gccgo -O2 meteor-contest.go	0.10u 0.00s 0.11r
++	gc meteor-contest	0.17u 0.00s 0.18r
++	gc_B meteor-contest	0.16u 0.00s 0.16r
++
++pidigits 10000
++	gcc -O2 pidigits.c -lgmp	2.58u 0.00s 2.59r
++	gccgo -O2 pidigits.go	14.06u 0.01s 14.09r # first run?
++	gc pidigits	8.47u 0.05s 8.55r # 4.5X faster due to package big
++	gc_B pidigits	8.33u 0.01s 8.36r # 4.5X faster due to package big
++
++threadring 50000000
++	gcc -O2 threadring.c	28.18u 153.19s 186.47r
++	gccgo -O2 threadring.go	110.10u 516.48s 515.25r
++	gc threadring	40.39u 0.00s 40.40r
++
++
++chameneos 6000000
++	gcc -O2 chameneosredux.c -lpthread	18.20u 301.55s 83.10r
++	gccgo -O2 chameneosredux.go	52.22u 324.54s 201.21r
++	gc chameneosredux	13.52u 0.00s 13.54r
++
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index c52c0af94a..f94dc88df3 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -67,7 +67,7 @@ run() {
+ fasta() {
+ 	runonly echo 'fasta -n 25000000'
+ 	run 'gcc -O2 fasta.c' a.out 25000000
+-	#run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
++	run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
+ 	run 'gc fasta' $O.out -n 25000000
+ 	run 'gc_B fasta' $O.out -n 25000000
+ }
+@@ -115,7 +115,7 @@ regexdna() {
+ 	runonly a.out 100000 > x
+ 	runonly echo 'regex-dna 100000'
+ 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
+-#	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
++#	run 'gccgo -O2 regex-dna.go' a.out <x	# restore after regexp.FindIndex is in library
+ 	run 'gc regex-dna' $O.out <x
+ 	run 'gc regex-dna-parallel' $O.out <x
+ 	run 'gc_B regex-dna' $O.out <x
+@@ -135,8 +135,8 @@ knucleotide() {
+ 	runonly a.out 1000000 > x  # should be using 25000000
+ 	runonly echo 'k-nucleotide 1000000'
+ 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
+-	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
+-	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x	# warning: pages badly!
++	run 'gccgo -O2 k-nucleotide.go' a.out <x
++	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x
+ 	run 'gc k-nucleotide' $O.out <x
+ 	run 'gc k-nucleotide-parallel' $O.out <x
+ 	run 'gc_B k-nucleotide' $O.out <x
+@@ -162,7 +162,7 @@ meteor() {
+ pidigits() {
+ 	runonly echo 'pidigits 10000'
+ 	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+-#	run 'gccgo -O2 pidigits.go' a.out -n 10000  # uncomment when gccgo library updated
++	run 'gccgo -O2 pidigits.go' a.out -n 10000
+ 	run 'gc pidigits' $O.out -n 10000
+ 	run 'gc_B  pidigits' $O.out -n 10000
+ }

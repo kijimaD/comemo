@@ -9,7 +9,7 @@ Date:   Fri Aug 3 17:44:00 2018 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/file.go      | 2 +-
  src/net/interface.go | 2 +-
  src/net/iprawsock.go | 4 ++--
@@ -18,3 +18,103 @@ Date:   Fri Aug 3 17:44:00 2018 +0900
  src/net/udpsock.go   | 3 +++
  src/net/unixsock.go  | 3 +++
  7 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/file.go b/src/net/file.go
+index 07099851cb..81a44e1f3f 100644
+--- a/src/net/file.go
++++ b/src/net/file.go
+@@ -6,7 +6,7 @@ package net
+ 
+ import "os"
+ 
+-// BUG(mikio): On NaCl and Windows, the FileConn, FileListener and
++// BUG(mikio): On JS, NaCl and Windows, the FileConn, FileListener and
+ // FilePacketConn functions are not implemented.
+ 
+ type fileAddr string
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 4036a7f475..375a4568e3 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -10,7 +10,7 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On NaCl, methods and functions related to
++// BUG(mikio): On JS and NaCl, methods and functions related to
+ // Interface are not implemented.
+ 
+ // BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 95bab50e4e..8a9c26559b 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -21,8 +21,8 @@ import (
+ // change the behavior of these methods; use Read or ReadMsgIP
+ // instead.
+ 
+-// BUG(mikio): On NaCl and Plan 9, the ReadMsgIP and
+-// WriteMsgIP methods of IPConn are not implemented.
++// BUG(mikio): On JS, NaCl and Plan 9, methods and functions related
++// to IPConn are not implemented.
+ 
+ // BUG(mikio): On Windows, the File method of IPConn is not
+ // implemented.
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index e652816739..c40ea4a2e1 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -15,8 +15,8 @@ import (
+ // deadlines. If the user-provided callback returns false, the Write
+ // method will fail immediately.
+ 
+-// BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
+-// of syscall.RawConn are not implemented.
++// BUG(mikio): On JS, NaCl and Plan 9, the Control, Read and Write
++// methods of syscall.RawConn are not implemented.
+ 
+ type rawConn struct {
+ 	fd *netFD
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 6e628f667f..db5d1f8482 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -12,8 +12,8 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On Windows, the File method of TCPListener is not
+-// implemented.
++// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
++// TCPListener is not implemented.
+ 
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 937b9270bd..b234ed89ab 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -18,6 +18,9 @@ import (
+ // BUG(mikio): On NaCl, the ListenMulticastUDP function is not
+ // implemented.
+ 
++// BUG(mikio): On JS, methods and functions related to UDPConn are not
++// implemented.
++
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {
+ 	IP   IP
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 06beaecc28..3ae62f6a8b 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -12,6 +12,9 @@ import (
+ 	"time"
+ )
+ 
++// BUG(mikio): On JS, NaCl, Plan 9 and Windows, methods and functions
++// related to UnixConn and UnixListener are not implemented.
++
+ // UnixAddr represents the address of a Unix domain socket end point.
+ type UnixAddr struct {
+ 	Name string

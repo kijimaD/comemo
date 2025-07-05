@@ -13,6 +13,20 @@ Date:   Mon Feb 22 13:30:03 2021 +0000
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: zhengjianxun <zhuimengshaonian04@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/fixedbugs/issue16760.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue16760.go b/test/fixedbugs/issue16760.go
+index d0e08b5ead..a7eede4d10 100644
+--- a/test/fixedbugs/issue16760.go
++++ b/test/fixedbugs/issue16760.go
+@@ -6,7 +6,7 @@
+ 
+ // Make sure we don't start marshaling (writing to the stack)
+ // arguments until those arguments are evaluated and known
+-// not to unconditinally panic. If they unconditionally panic,
++// not to unconditionally panic. If they unconditionally panic,
+ // we write some args but never do the call. That messes up
+ // the logic which decides how big the argout section needs to be.
+ 

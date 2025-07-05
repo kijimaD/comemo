@@ -16,7 +16,44 @@ Date:   Fri Nov 4 09:29:06 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5297079
-
+---
  src/pkg/html/parse.go      | 5 ++++-
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 38f8ba481a..0204b7c281 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -427,6 +427,7 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
+ 	}
+ 	if add || implied {
+ 		p.addElement("head", attr)
++		p.head = p.top()
+ 	}
+ 	return inHeadIM, !implied
+ }
+@@ -511,7 +512,9 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
+ 		case "frameset":
+ 			// TODO.
+ 		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "title":
+-			// TODO.
++			p.oe = append(p.oe, p.head)
++			defer p.oe.pop()
++			return useTheRulesFor(p, afterHeadIM, inHeadIM)
+ 		case "head":
+ 			// TODO.
+ 		default:
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3194a3fa47..8dc00ba484 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 85; i++ {
++		for i := 0; i < 86; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

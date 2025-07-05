@@ -11,7 +11,34 @@ Date:   Tue Nov 1 15:33:40 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go  | 3 ---
  src/cmd/compile/internal/gc/syntax.go | 1 -
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index d1c012baed..1e8636347a 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -136,9 +136,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 	if s == nil {
+ 		Fatalf("naddr: nil sym %v", n)
+ 	}
+-	if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
+-		Fatalf("naddr: weird method %v", n)
+-	}
+ 
+ 	a.Type = obj.TYPE_MEM
+ 	switch n.Class {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 804204589b..8b06d3aba8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -191,7 +191,6 @@ type Name struct {
+ 	Decldepth int32  // declaration loop depth, increased for every loop or label
+ 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+ 	Funcdepth int32
+-	Method    bool // OCALLMETH name
+ 	Readonly  bool
+ 	Captured  bool // is the variable captured by a closure
+ 	Byval     bool // is the variable captured by value or by reference

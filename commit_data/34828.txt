@@ -14,7 +14,103 @@ Date:   Fri Oct 13 15:36:01 2017 -0700
     Change-Id: Idfe1592411573f6e871b5fb997e7d545597a0937
     Reviewed-on: https://go-review.googlesource.com/70852
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/x509.go      | 12 ++++++++++--
  src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 5e43a1a915..0b8652209f 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1708,7 +1708,7 @@ func isIA5String(s string) error {
+ 	return nil
+ }
+ 
+-func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.Extension, err error) {
++func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte) (ret []pkix.Extension, err error) {
+ 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+ 	n := 0
+ 
+@@ -1817,6 +1817,10 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
+ 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
+ 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionSubjectAltName
++		// https://tools.ietf.org/html/rfc5280#section-4.2.1.6
++		// “If the subject field contains an empty sequence ... then
++		// subjectAltName extension ... is marked as critical”
++		ret[n].Critical = subjectIsEmpty
+ 		ret[n].Value, err = marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
+ 		if err != nil {
+ 			return
+@@ -2042,6 +2046,10 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
+ 	return
+ }
+ 
++// emptyASN1Subject is the ASN.1 DER encoding of an empty Subject, which is
++// just an empty SEQUENCE.
++var emptyASN1Subject = []byte{0x30, 0}
++
+ // CreateCertificate creates a new certificate based on a template.
+ // The following members of template are used: AuthorityKeyId,
+ // BasicConstraintsValid, DNSNames, ExcludedDNSDomains, ExtKeyUsage,
+@@ -2096,7 +2104,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		authorityKeyId = parent.SubjectKeyId
+ 	}
+ 
+-	extensions, err := buildExtensions(template, authorityKeyId)
++	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 399023160a..a43faa1820 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -524,6 +524,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: ExtraNames didn't override Country", test.name)
+ 		}
+ 
++		for _, ext := range cert.Extensions {
++			if ext.Id.Equal(oidExtensionSubjectAltName) {
++				if ext.Critical {
++					t.Fatal("SAN extension is marked critical")
++				}
++			}
++		}
++
+ 		found := false
+ 		for _, atv := range cert.Subject.Names {
+ 			if atv.Type.Equal([]int{2, 5, 4, 42}) {
+@@ -1736,3 +1744,31 @@ func TestAdditionFieldsInGeneralSubtree(t *testing.T) {
+ 		t.Fatalf("failed to parse certificate: %s", err)
+ 	}
+ }
++
++func TestEmptySubject(t *testing.T) {
++	template := Certificate{
++		SerialNumber: big.NewInt(1),
++		DNSNames:     []string{"example.com"},
++	}
++
++	derBytes, err := CreateCertificate(rand.Reader, &template, &template, &testPrivateKey.PublicKey, testPrivateKey)
++	if err != nil {
++		t.Fatalf("failed to create certificate: %s", err)
++	}
++
++	cert, err := ParseCertificate(derBytes)
++	if err != nil {
++		t.Fatalf("failed to parse certificate: %s", err)
++	}
++
++	for _, ext := range cert.Extensions {
++		if ext.Id.Equal(oidExtensionSubjectAltName) {
++			if !ext.Critical {
++				t.Fatal("SAN extension is not critical")
++			}
++			return
++		}
++	}
++
++	t.Fatal("SAN extension is missing")
++}

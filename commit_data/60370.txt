@@ -18,7 +18,34 @@ Date:   Mon Jun 24 16:14:03 2024 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/alldocs.go              | 2 +-
  src/cmd/go/internal/clean/clean.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e87e6ebe46..2840ba6ea9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -276,7 +276,7 @@
+ //
+ // Usage:
+ //
+-//	go clean [clean flags] [build flags] [packages]
++//	go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]
+ //
+ // Clean removes object files from package source directories.
+ // The go command builds most objects in a temporary directory,
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index de2ef9dcb9..3b5924fe13 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -28,7 +28,7 @@ import (
+ )
+ 
+ var CmdClean = &base.Command{
+-	UsageLine: "go clean [clean flags] [build flags] [packages]",
++	UsageLine: "go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]",
+ 	Short:     "remove object files and cached files",
+ 	Long: `
+ Clean removes object files from package source directories.

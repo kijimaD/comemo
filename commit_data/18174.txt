@@ -7,6 +7,21 @@ Date:   Mon Jan 6 10:34:24 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/47570043
-
+---
  src/pkg/hash/fnv/fnv.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/hash/fnv/fnv.go b/src/pkg/hash/fnv/fnv.go
+index b5ecd4a7c6..c0206613ac 100644
+--- a/src/pkg/hash/fnv/fnv.go
++++ b/src/pkg/hash/fnv/fnv.go
+@@ -4,7 +4,8 @@
+ 
+ // Package fnv implements FNV-1 and FNV-1a, non-cryptographic hash functions
+ // created by Glenn Fowler, Landon Curt Noll, and Phong Vo.
+-// See http://isthe.com/chongo/tech/comp/fnv/.
++// See
++// http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function.
+ package fnv
+ 
+ import (

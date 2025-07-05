@@ -7,6 +7,17 @@ Date:   Sat Jun 21 20:19:49 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/103520044
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 5127709d60..dc9b416bdf 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -5,4 +5,5 @@ Please keep the descriptions to a single line, starting with the
+ package or cmd/xxx directory name, and ending in a CL number.
+ Please keep the list sorted (as in sort.Strings of the lines).
+ 
++runtime/race: freebsd is supported (CL 107270043)
+ time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)

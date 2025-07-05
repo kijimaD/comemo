@@ -15,9 +15,191 @@ Date:   Thu Aug 6 19:04:46 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics.go             | 52 ++++++++++++++++++++++++++++++++++++++
  src/runtime/metrics/description.go | 10 ++++++++
  src/runtime/metrics/doc.go         |  6 +++++
  src/runtime/metrics_test.go        | 36 ++++++++++++++++++++++++++
  4 files changed, 104 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 6595a4342c..32d8ab461c 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -18,6 +18,8 @@ var (
+ 	metricsSema uint32 = 1
+ 	metricsInit bool
+ 	metrics     map[string]metricData
++
++	sizeClassBuckets []float64
+ )
+ 
+ type metricData struct {
+@@ -38,6 +40,10 @@ func initMetrics() {
+ 	if metricsInit {
+ 		return
+ 	}
++	sizeClassBuckets = make([]float64, _NumSizeClasses)
++	for i := range sizeClassBuckets {
++		sizeClassBuckets[i] = float64(class_to_size[i])
++	}
+ 	metrics = map[string]metricData{
+ 		"/gc/cycles/automatic:gc-cycles": {
+ 			deps: makeStatDepSet(sysStatsDep),
+@@ -60,6 +66,26 @@ func initMetrics() {
+ 				out.scalar = in.sysStats.gcCyclesDone
+ 			},
+ 		},
++		"/gc/heap/allocs-by-size:objects": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				hist := out.float64HistOrInit(sizeClassBuckets)
++				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
++				for i := range hist.buckets {
++					hist.counts[i] = uint64(in.heapStats.smallAllocCount[i])
++				}
++			},
++		},
++		"/gc/heap/frees-by-size:objects": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				hist := out.float64HistOrInit(sizeClassBuckets)
++				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
++				for i := range hist.buckets {
++					hist.counts[i] = uint64(in.heapStats.smallFreeCount[i])
++				}
++			},
++		},
+ 		"/gc/heap/goal:bytes": {
+ 			deps: makeStatDepSet(sysStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+@@ -370,6 +396,32 @@ type metricValue struct {
+ 	pointer unsafe.Pointer // contains non-scalar values.
+ }
+ 
++// float64HistOrInit tries to pull out an existing float64Histogram
++// from the value, but if none exists, then it allocates one with
++// the given buckets.
++func (v *metricValue) float64HistOrInit(buckets []float64) *metricFloat64Histogram {
++	var hist *metricFloat64Histogram
++	if v.kind == metricKindFloat64Histogram && v.pointer != nil {
++		hist = (*metricFloat64Histogram)(v.pointer)
++	} else {
++		v.kind = metricKindFloat64Histogram
++		hist = new(metricFloat64Histogram)
++		v.pointer = unsafe.Pointer(hist)
++	}
++	hist.buckets = buckets
++	if len(hist.counts) != len(hist.buckets)+1 {
++		hist.counts = make([]uint64, len(buckets)+1)
++	}
++	return hist
++}
++
++// metricFloat64Histogram is a runtime copy of runtime/metrics.Float64Histogram
++// and must be kept structurally identical to that type.
++type metricFloat64Histogram struct {
++	counts  []uint64
++	buckets []float64
++}
++
+ // agg is used by readMetrics, and is protected by metricsSema.
+ //
+ // Managed as a global variable because its pointer will be
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 66d229c270..e43904fc7d 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -68,6 +68,16 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name:        "/gc/heap/allocs-by-size:objects",
++		Description: "Distribution of all objects allocated by approximate size.",
++		Kind:        KindFloat64Histogram,
++	},
++	{
++		Name:        "/gc/heap/frees-by-size:objects",
++		Description: "Distribution of all objects freed by approximate size.",
++		Kind:        KindFloat64Histogram,
++	},
+ 	{
+ 		Name:        "/gc/heap/goal:bytes",
+ 		Description: "Heap size target for the end of the GC cycle.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 9b44e73ee6..5045a5b4c1 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -53,6 +53,12 @@ Supported metrics
+ 	/gc/cycles/total:gc-cycles
+ 		Count of all completed GC cycles.
+ 
++	/gc/heap/allocs-by-size:objects
++		Distribution of all objects allocated by approximate size.
++
++	/gc/heap/frees-by-size:objects
++		Distribution of all objects freed by approximate size.
++
+ 	/gc/heap/goal:bytes
+ 		Heap size target for the end of the GC cycle.
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 3724760294..1a30810544 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -98,6 +98,10 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 	var totalVirtual struct {
+ 		got, want uint64
+ 	}
++	var objects struct {
++		alloc, free *metrics.Float64Histogram
++		total       uint64
++	}
+ 	for i := range samples {
+ 		kind := samples[i].Value.Kind()
+ 		if want := descs[samples[i].Name].Kind; kind != want {
+@@ -118,11 +122,43 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		switch samples[i].Name {
+ 		case "/memory/classes/total:bytes":
+ 			totalVirtual.got = samples[i].Value.Uint64()
++		case "/gc/heap/objects:objects":
++			objects.total = samples[i].Value.Uint64()
++		case "/gc/heap/allocs-by-size:objects":
++			objects.alloc = samples[i].Value.Float64Histogram()
++		case "/gc/heap/frees-by-size:objects":
++			objects.free = samples[i].Value.Float64Histogram()
+ 		}
+ 	}
+ 	if totalVirtual.got != totalVirtual.want {
+ 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
+ 	}
++	if len(objects.alloc.Buckets) != len(objects.free.Buckets) {
++		t.Error("allocs-by-size and frees-by-size buckets don't match in length")
++	} else if len(objects.alloc.Counts) != len(objects.free.Counts) {
++		t.Error("allocs-by-size and frees-by-size counts don't match in length")
++	} else {
++		for i := range objects.alloc.Buckets {
++			ba := objects.alloc.Buckets[i]
++			bf := objects.free.Buckets[i]
++			if ba != bf {
++				t.Errorf("bucket %d is different for alloc and free hists: %f != %f", i, ba, bf)
++			}
++		}
++		if !t.Failed() {
++			got, want := uint64(0), objects.total
++			for i := range objects.alloc.Counts {
++				if objects.alloc.Counts[i] < objects.free.Counts[i] {
++					t.Errorf("found more allocs than frees in object dist bucket %d", i)
++					continue
++				}
++				got += objects.alloc.Counts[i] - objects.free.Counts[i]
++			}
++			if got != want {
++				t.Errorf("object distribution counts don't match count of live objects: got %d, want %d", got, want)
++			}
++		}
++	}
+ }
+ 
+ func BenchmarkReadMetricsLatency(b *testing.B) {

@@ -10,6 +10,26 @@ Date:   Wed Jan 24 22:15:19 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/netip/netip.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 5c0c7afd97..1494fb2413 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -773,13 +773,7 @@ func (ip Addr) AppendTo(b []byte) []byte {
+ 		return ip.appendTo4(b)
+ 	default:
+ 		if ip.Is4In6() {
+-			b = append(b, "::ffff:"...)
+-			b = ip.Unmap().appendTo4(b)
+-			if z := ip.Zone(); z != "" {
+-				b = append(b, '%')
+-				b = append(b, z...)
+-			}
+-			return b
++			return ip.appendTo4In6(b)
+ 		}
+ 		return ip.appendTo6(b)
+ 	}

@@ -24,8 +24,54 @@ Date:   Fri Nov 10 21:23:38 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
-
+---
  src/runtime/malloc.go     | 4 ++++
  src/runtime/mgc.go        | 4 +++-
  src/runtime/mpagealloc.go | 4 ++++
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d9b4112ded..398eaf5d52 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -872,6 +872,10 @@ retry:
+ //
+ // The heap lock must not be held over this operation, since it will briefly acquire
+ // the heap lock.
++//
++// Must be called on the system stack because it acquires the heap lock.
++//
++//go:systemstack
+ func (h *mheap) enableMetadataHugePages() {
+ 	// Enable huge pages for page structure.
+ 	h.pages.enableChunkHugePages()
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b791acd163..c8a58de969 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1190,7 +1190,9 @@ func gcMarkTermination() {
+ 
+ 	// Enable huge pages on some metadata if we cross a heap threshold.
+ 	if gcController.heapGoal() > minHeapForMetadataHugePages {
+-		mheap_.enableMetadataHugePages()
++		systemstack(func() {
++			mheap_.enableMetadataHugePages()
++		})
+ 	}
+ 
+ 	semrelease(&worldsema)
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index f87565417f..d533f84180 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -437,6 +437,10 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ //
+ // The heap lock must not be held over this operation, since it will briefly acquire
+ // the heap lock.
++//
++// Must be called on the system stack because it acquires the heap lock.
++//
++//go:systemstack
+ func (p *pageAlloc) enableChunkHugePages() {
+ 	// Grab the heap lock to turn on huge pages for new chunks and clone the current
+ 	// heap address space ranges.

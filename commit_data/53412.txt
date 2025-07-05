@@ -14,6 +14,27 @@ Date:   Mon Aug 15 11:13:06 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/net/udpsock_test.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 4ceacde10e..0ed2ff98c1 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -464,12 +464,9 @@ func TestAllocs(t *testing.T) {
+ 		// Plan9 wasn't optimized.
+ 		t.Skipf("skipping on %v", runtime.GOOS)
+ 	}
+-	builder := os.Getenv("GO_BUILDER_NAME")
+-	switch builder {
+-	case "linux-amd64-noopt":
+-		// Optimizations are required to remove the allocs.
+-		t.Skipf("skipping on %v", builder)
+-	}
++	// Optimizations are required to remove the allocs.
++	testenv.SkipIfOptimizationOff(t)
++
+ 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+ 	if err != nil {
+ 		t.Fatal(err)

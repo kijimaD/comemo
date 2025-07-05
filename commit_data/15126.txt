@@ -11,7 +11,45 @@ Date:   Mon Feb 4 00:00:36 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7277050
-
+---
  src/pkg/time/format.go    | 4 ++--
  src/pkg/time/time_test.go | 5 +++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index d9e27c1be7..817c79a801 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -611,14 +611,14 @@ func skip(value, prefix string) (string, error) {
+ 	for len(prefix) > 0 {
+ 		if prefix[0] == ' ' {
+ 			if len(value) > 0 && value[0] != ' ' {
+-				return "", errBad
++				return value, errBad
+ 			}
+ 			prefix = cutspace(prefix)
+ 			value = cutspace(value)
+ 			continue
+ 		}
+ 		if len(value) == 0 || value[0] != prefix[0] {
+-			return "", errBad
++			return value, errBad
+ 		}
+ 		prefix = prefix[1:]
+ 		value = value[1:]
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 583b248faa..4b268f73d9 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -676,6 +676,11 @@ var parseErrorTests = []ParseErrorTest{
+ 	// issue 4502. StampNano requires exactly 9 digits of precision.
+ 	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
+ 	{StampNano, "Dec  7 11:22:01.0000000000", "extra text: 0"},
++	// issue 4493. Helpful errors.
++	{RFC3339, "2006-01-02T15:04:05Z07:00", `parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00`},
++	{RFC3339, "2006-01-02T15:04_abc", `parsing time "2006-01-02T15:04_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as ":"`},
++	{RFC3339, "2006-01-02T15:04:05_abc", `parsing time "2006-01-02T15:04:05_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as "Z07:00"`},
++	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
+ }
+ 
+ func TestParseErrors(t *testing.T) {

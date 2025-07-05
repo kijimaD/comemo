@@ -10,7 +10,75 @@ Date:   Thu Aug 12 00:03:01 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1856047
-
+---
  src/pkg/net/ip.go      |  5 +++++
  src/pkg/net/ip_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index bd0c75de69..e82224a283 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -222,6 +222,11 @@ func (ip IP) String() string {
+ 			e1 = j
+ 		}
+ 	}
++	// The symbol "::" MUST NOT be used to shorten just one 16 bit 0 field.
++	if e1-e0 <= 2 {
++		e0 = -1
++		e1 = -1
++	}
+ 
+ 	// Print with possible :: in place of run of zeros
+ 	var s string
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 0ea1d92605..9f30f14767 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -50,3 +50,46 @@ func TestParseIP(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type ipStringTest struct {
++	in  IP
++	out string
++}
++
++var ipstringtests = []ipStringTest{
++	// cf. draft-ietf-6man-text-addr-representation-07
++	// (A Recommendation for IPv6 Address Text Representation)
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
++		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
++		"2001:db8::123:12:1"},
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
++		0, 0, 0, 0, 0, 0, 0, 0x1},
++		"2001:db8::1"},
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1,
++		0, 0, 0, 0x1, 0, 0, 0, 0x1},
++		"2001:db8:0:1:0:1:0:1"},
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0,
++		0, 0x1, 0, 0, 0, 0x1, 0, 0},
++		"2001:db8:1:0:1:0:1:0"},
++	ipStringTest{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0,
++		0, 0x1, 0, 0, 0, 0, 0, 0x1},
++		"2001::1:0:0:1"},
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
++		0, 0x1, 0, 0, 0, 0, 0, 0},
++		"2001:db8:0:0:1::"},
++	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
++		0, 0x1, 0, 0, 0, 0, 0, 0x1},
++		"2001:db8::1:0:0:1"},
++	ipStringTest{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0,
++		0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
++		"2001:db8::a:b:c:d"},
++}
++
++func TestIPString(t *testing.T) {
++	for i := 0; i < len(ipstringtests); i++ {
++		tt := ipstringtests[i]
++		if out := tt.in.String(); out != tt.out {
++			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
++		}
++	}
++}

@@ -8,6 +8,19 @@ Date:   Tue Feb 18 13:04:59 2014 +1100
     R=dsymonds
     CC=golang-codereviews
     https://golang.org/cl/64100045
-
+---
  src/cmd/link/pclntab.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/link/pclntab.go
+index 76675c9ab2..f3b6ceb403 100644
+--- a/src/cmd/link/pclntab.go
++++ b/src/cmd/link/pclntab.go
+@@ -379,7 +379,6 @@ func (b *SymBuffer) Addr(off int, sym goobj.SymID, symoff int64) int {
+ // A PCIter implements iteration over PC-data tables.
+ //
+ //	var it PCIter
+-//	it.Init(p, data)
+ //	for it.Init(p, data); !it.Done; it.Next() {
+ //		it.Value holds from it.PC up to (but not including) it.NextPC
+ //	}

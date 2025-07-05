@@ -12,6 +12,44 @@ Date:   Thu Nov 9 20:38:11 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76870
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  .../github.com/google/pprof/internal/driver/webui_test.go   | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+index 76565eb8ee..96380a01b3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+@@ -25,13 +25,22 @@ import (
+ 	"regexp"
+ 	"sync"
+ 	"testing"
++	"time"
++
++	"runtime"
+ 
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/profile"
+-	"runtime"
+ )
+ 
+ func TestWebInterface(t *testing.T) {
++	// This test starts a web browser in a background goroutine
++	// after a 500ms delay. Sometimes the test exits before it
++	// can run the browser, but sometimes the browser does open.
++	// That's obviously unacceptable.
++	defer time.Sleep(2 * time.Second) // to see the browser open
++	t.Skip("golang.org/issue/22651")
++
+ 	if runtime.GOOS == "nacl" {
+ 		t.Skip("test assumes tcp available")
+ 	}
+@@ -124,6 +133,8 @@ func TestWebInterface(t *testing.T) {
+ 		}
+ 	}
+ 	wg.Wait()
++
++	time.Sleep(5 * time.Second)
+ }
+ 
+ // Implement fake object file support.

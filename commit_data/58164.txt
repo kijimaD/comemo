@@ -23,8 +23,77 @@ Date:   Thu Oct 5 11:11:51 2023 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/helpers.go | 9 +++++----
  src/cmd/compile/internal/noder/reader.go  | 7 +++++++
  test/range3.go                            | 9 +++++++++
  3 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 117abe603d..1f7b497599 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -87,13 +87,14 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
+ 			// ok; can appear in type switch case clauses
+ 			// TODO(mdempsky): Handle as part of type switches instead?
+ 		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
+-			// Untyped rhs of non-constant shift, e.g. x << 1.0.
+-			// If we have a constant value, it must be an int >= 0.
++			typ = types2.Typ[types2.Uint]
+ 			if tv.Value != nil {
+ 				s := constant.ToInt(tv.Value)
+-				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
++				assert(s.Kind() == constant.Int)
++				if constant.Sign(s) < 0 {
++					typ = types2.Typ[types2.Int]
++				}
+ 			}
+-			typ = types2.Typ[types2.Uint]
+ 		case types2.UntypedBool:
+ 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+ 		case types2.UntypedString:
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 1c0d0a9acc..3cd7b7c683 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2233,6 +2233,13 @@ func (r *reader) expr() (res ir.Node) {
+ 		switch op {
+ 		case ir.OANDAND, ir.OOROR:
+ 			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
++		case ir.OLSH, ir.ORSH:
++			// Untyped rhs of non-constant shift, e.g. x << 1.0.
++			// If we have a constant value, it must be an int >= 0.
++			if ir.IsConstNode(y) {
++				val := constant.ToInt(y.Val())
++				assert(val.Kind() == constant.Int && constant.Sign(val) >= 0)
++			}
+ 		}
+ 		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+ 
+diff --git a/test/range3.go b/test/range3.go
+index 613d7a53f6..51ed2eeb78 100644
+--- a/test/range3.go
++++ b/test/range3.go
+@@ -68,6 +68,14 @@ func testint3() {
+ 	}
+ }
+ 
++// Issue #63378.
++func testint4() {
++	for i := range -1 {
++		_ = i
++		panic("must not be executed")
++	}
++}
++
+ // test range over functions
+ 
+ var gj int
+@@ -377,6 +385,7 @@ func main() {
+ 	testint1()
+ 	testint2()
+ 	testint3()
++	testint4()
+ 	testfunc0()
+ 	testfunc1()
+ 	testfunc2()

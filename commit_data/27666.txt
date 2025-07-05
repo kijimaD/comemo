@@ -13,7 +13,7 @@ Date:   Wed Apr 6 21:45:29 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |   5 +-
  src/cmd/asm/main.go                       |   5 +-
  src/cmd/compile/internal/gc/bexport.go    |  10 +-
@@ -36,3 +36,1333 @@ Date:   Wed Apr 6 21:45:29 2016 -0700
  src/cmd/link/internal/ld/objfile.go       |   9 +-
  src/cmd/link/internal/ld/pobj.go          |   3 +-
  21 files changed, 291 insertions(+), 267 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 1307c4243f..8986281f10 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"testing"
+ 
+ 	"cmd/asm/internal/lex"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ )
+ 
+@@ -33,7 +34,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+-	ctxt.Bso = obj.Binitw(os.Stdout)
++	ctxt.Bso = bio.BufWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 	failed := false
+ 	ctxt.DiagFunc = func(format string, args ...interface{}) {
+@@ -271,7 +272,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+-	ctxt.Bso = obj.Binitw(os.Stdout)
++	ctxt.Bso = bio.BufWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 	failed := false
+ 	var errBuf bytes.Buffer
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 4e450bec98..75cb8f75d3 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ )
+ 
+@@ -45,9 +46,9 @@ func main() {
+ 	if *flags.Shared || *flags.Dynlink {
+ 		ctxt.Flag_shared = 1
+ 	}
+-	ctxt.Bso = obj.Binitw(os.Stdout)
++	ctxt.Bso = bio.BufWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+-	output := obj.Binitw(fd)
++	output := bio.BufWriter(fd)
+ 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
+ 	fmt.Fprintf(output, "!\n")
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 092cdac2f6..702090280f 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -92,7 +92,7 @@ package gc
+ import (
+ 	"bytes"
+ 	"cmd/compile/internal/big"
+-	"cmd/internal/obj"
++	"cmd/internal/bio"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"sort"
+@@ -124,7 +124,7 @@ const exportVersion = "v0"
+ const exportInlined = true // default: true
+ 
+ type exporter struct {
+-	out      *obj.Biobuf
++	out      *bio.Buf
+ 	pkgIndex map[*Pkg]int
+ 	typIndex map[*Type]int
+ 	inlined  []*Func
+@@ -136,7 +136,7 @@ type exporter struct {
+ }
+ 
+ // Export writes the exportlist for localpkg to out and returns the number of bytes written.
+-func Export(out *obj.Biobuf, trace bool) int {
++func Export(out *bio.Buf, trace bool) int {
+ 	p := exporter{
+ 		out:      out,
+ 		pkgIndex: make(map[*Pkg]int),
+@@ -1531,10 +1531,10 @@ func (p *exporter) byte(b byte) {
+ 		fallthrough
+ 	case '|':
+ 		// write '|' as '|' '|'
+-		obj.Bputc(p.out, '|')
++		p.out.WriteByte('|')
+ 		p.written++
+ 	}
+-	obj.Bputc(p.out, b)
++	p.out.WriteByte(b)
+ 	p.written++
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 17311cf6af..5d4add8ff4 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -7,7 +7,7 @@ package gc
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"cmd/internal/obj"
++	"cmd/internal/bio"
+ 	"fmt"
+ 	"sort"
+ 	"unicode"
+@@ -384,7 +384,7 @@ func dumpexport() {
+ 		if debugFormat {
+ 			// save a copy of the export data
+ 			var copy bytes.Buffer
+-			bcopy := obj.Binitw(&copy)
++			bcopy := bio.BufWriter(&copy)
+ 			size = Export(bcopy, Debug_export != 0)
+ 			bcopy.Flush() // flushing to bytes.Buffer cannot fail
+ 			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
+@@ -577,7 +577,7 @@ func importtype(pt *Type, t *Type) {
+ }
+ 
+ func dumpasmhdr() {
+-	b, err := obj.Bopenw(asmhdr)
++	b, err := bio.Create(asmhdr)
+ 	if err != nil {
+ 		Fatalf("%v", err)
+ 	}
+@@ -604,5 +604,5 @@ func dumpasmhdr() {
+ 		}
+ 	}
+ 
+-	obj.Bterm(b)
++	b.Close()
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ef8b516ea5..cd9db38fb4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ )
+ 
+@@ -132,7 +133,7 @@ var infile string
+ 
+ var outfile string
+ 
+-var bout *obj.Biobuf
++var bout *bio.Buf
+ 
+ var nerrors int
+ 
+@@ -287,7 +288,7 @@ var Ctxt *obj.Link
+ 
+ var writearchive int
+ 
+-var bstdout obj.Biobuf
++var bstdout *bio.Buf
+ 
+ var Nacl bool
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 079f4916c7..c8a778c34a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -9,6 +9,7 @@ package gc
+ import (
+ 	"bufio"
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"flag"
+@@ -97,8 +98,8 @@ func Main() {
+ 
+ 	Ctxt = obj.Linknew(Thearch.LinkArch)
+ 	Ctxt.DiagFunc = Yyerror
+-	Ctxt.Bso = &bstdout
+-	bstdout = *obj.Binitw(os.Stdout)
++	bstdout = bio.BufWriter(os.Stdout)
++	Ctxt.Bso = bstdout
+ 
+ 	localpkg = mkpkg("")
+ 	localpkg.Prefix = "\"\""
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 99eb73bd94..3920e25224 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -5,6 +5,7 @@
+ package gc
+ 
+ import (
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"crypto/sha256"
+ 	"fmt"
+@@ -23,7 +24,7 @@ func formathdr(arhdr []byte, name string, size int64) {
+ 
+ func dumpobj() {
+ 	var err error
+-	bout, err = obj.Bopenw(outfile)
++	bout, err = bio.Create(outfile)
+ 	if err != nil {
+ 		Flusherrors()
+ 		fmt.Printf("can't create %s: %v\n", outfile, err)
+@@ -33,10 +34,10 @@ func dumpobj() {
+ 	startobj := int64(0)
+ 	var arhdr [ArhdrSize]byte
+ 	if writearchive != 0 {
+-		obj.Bwritestring(bout, "!<arch>\n")
++		bout.WriteString("!<arch>\n")
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+-		startobj = obj.Boffset(bout)
++		startobj = bio.Boffset(bout)
+ 	}
+ 
+ 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+@@ -44,19 +45,19 @@ func dumpobj() {
+ 
+ 	if writearchive != 0 {
+ 		bout.Flush()
+-		size := obj.Boffset(bout) - startobj
++		size := bio.Boffset(bout) - startobj
+ 		if size&1 != 0 {
+-			obj.Bputc(bout, 0)
++			bout.WriteByte(0)
+ 		}
+-		obj.Bseek(bout, startobj-ArhdrSize, 0)
++		bio.Bseek(bout, startobj-ArhdrSize, 0)
+ 		formathdr(arhdr[:], "__.PKGDEF", size)
+ 		bout.Write(arhdr[:])
+ 		bout.Flush()
+ 
+-		obj.Bseek(bout, startobj+size+(size&1), 0)
++		bio.Bseek(bout, startobj+size+(size&1), 0)
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+-		startobj = obj.Boffset(bout)
++		startobj = bio.Boffset(bout)
+ 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+ 	}
+ 
+@@ -91,16 +92,16 @@ func dumpobj() {
+ 
+ 	if writearchive != 0 {
+ 		bout.Flush()
+-		size := obj.Boffset(bout) - startobj
++		size := bio.Boffset(bout) - startobj
+ 		if size&1 != 0 {
+-			obj.Bputc(bout, 0)
++			bout.WriteByte(0)
+ 		}
+-		obj.Bseek(bout, startobj-ArhdrSize, 0)
++		bio.Bseek(bout, startobj-ArhdrSize, 0)
+ 		formathdr(arhdr[:], "_go_.o", size)
+ 		bout.Write(arhdr[:])
+ 	}
+ 
+-	obj.Bterm(bout)
++	bout.Close()
+ }
+ 
+ func dumpglobls() {
+@@ -132,9 +133,9 @@ func dumpglobls() {
+ 	funcsyms = nil
+ }
+ 
+-func Bputname(b *obj.Biobuf, s *obj.LSym) {
+-	obj.Bwritestring(b, s.Name)
+-	obj.Bputc(b, 0)
++func Bputname(b *bio.Buf, s *obj.LSym) {
++	b.WriteString(s.Name)
++	b.WriteByte(0)
+ }
+ 
+ func Linksym(s *Sym) *obj.LSym {
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 123d5ccf82..777c92c726 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -38,6 +38,7 @@ var bootstrapDirs = []string{
+ 	"compile/internal/ppc64",
+ 	"compile/internal/ssa",
+ 	"compile/internal/x86",
++	"internal/bio",
+ 	"internal/gcprog",
+ 	"internal/obj",
+ 	"internal/obj/arm",
+diff --git a/src/cmd/internal/bio/buf.go b/src/cmd/internal/bio/buf.go
+new file mode 100644
+index 0000000000..a1df26ca9c
+--- /dev/null
++++ b/src/cmd/internal/bio/buf.go
+@@ -0,0 +1,150 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package bio implements seekable buffered I/O.
++package bio
++
++import (
++	"bufio"
++	"io"
++	"log"
++	"os"
++)
++
++const EOF = -1
++
++// Buf implements a seekable buffered I/O abstraction.
++type Buf struct {
++	f *os.File
++	r *bufio.Reader
++	w *bufio.Writer
++}
++
++func (b *Buf) Reader() *bufio.Reader { return b.r }
++func (b *Buf) Writer() *bufio.Writer { return b.w }
++
++func Create(name string) (*Buf, error) {
++	f, err := os.Create(name)
++	if err != nil {
++		return nil, err
++	}
++	return &Buf{f: f, w: bufio.NewWriter(f)}, nil
++}
++
++func Open(name string) (*Buf, error) {
++	f, err := os.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	return &Buf{f: f, r: bufio.NewReader(f)}, nil
++}
++
++func BufWriter(w io.Writer) *Buf {
++	return &Buf{w: bufio.NewWriter(w)}
++}
++
++func BufReader(r io.Reader) *Buf {
++	return &Buf{r: bufio.NewReader(r)}
++}
++
++func (b *Buf) Write(p []byte) (int, error) {
++	return b.w.Write(p)
++}
++
++func (b *Buf) WriteString(p string) (int, error) {
++	return b.w.WriteString(p)
++}
++
++func Bseek(b *Buf, offset int64, whence int) int64 {
++	if b.w != nil {
++		if err := b.w.Flush(); err != nil {
++			log.Fatalf("writing output: %v", err)
++		}
++	} else if b.r != nil {
++		if whence == 1 {
++			offset -= int64(b.r.Buffered())
++		}
++	}
++	off, err := b.f.Seek(offset, whence)
++	if err != nil {
++		log.Fatalf("seeking in output: %v", err)
++	}
++	if b.r != nil {
++		b.r.Reset(b.f)
++	}
++	return off
++}
++
++func Boffset(b *Buf) int64 {
++	if b.w != nil {
++		if err := b.w.Flush(); err != nil {
++			log.Fatalf("writing output: %v", err)
++		}
++	}
++	off, err := b.f.Seek(0, 1)
++	if err != nil {
++		log.Fatalf("seeking in output [0, 1]: %v", err)
++	}
++	if b.r != nil {
++		off -= int64(b.r.Buffered())
++	}
++	return off
++}
++
++func (b *Buf) Flush() error {
++	return b.w.Flush()
++}
++
++func (b *Buf) WriteByte(c byte) error {
++	return b.w.WriteByte(c)
++}
++
++func Bread(b *Buf, p []byte) int {
++	n, err := io.ReadFull(b.r, p)
++	if n == 0 {
++		if err != nil && err != io.EOF {
++			n = -1
++		}
++	}
++	return n
++}
++
++func Bgetc(b *Buf) int {
++	c, err := b.r.ReadByte()
++	if err != nil {
++		if err != io.EOF {
++			log.Fatalf("reading input: %v", err)
++		}
++		return EOF
++	}
++	return int(c)
++}
++
++func (b *Buf) Read(p []byte) (int, error) {
++	return b.r.Read(p)
++}
++
++func (b *Buf) Peek(n int) ([]byte, error) {
++	return b.r.Peek(n)
++}
++
++func Brdline(b *Buf, delim int) string {
++	s, err := b.r.ReadBytes(byte(delim))
++	if err != nil {
++		log.Fatalf("reading input: %v", err)
++	}
++	return string(s)
++}
++
++func (b *Buf) Close() error {
++	var err error
++	if b.w != nil {
++		err = b.w.Flush()
++	}
++	err1 := b.f.Close()
++	if err == nil {
++		err = err1
++	}
++	return err
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 81a5689aef..2c81ca2f08 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -30,7 +30,10 @@
+ 
+ package obj
+ 
+-import "cmd/internal/sys"
++import (
++	"cmd/internal/bio"
++	"cmd/internal/sys"
++)
+ 
+ // An Addr is an argument to an instruction.
+ // The general forms and their encodings are:
+@@ -626,7 +629,7 @@ type Link struct {
+ 	Flag_shared   int32
+ 	Flag_dynlink  bool
+ 	Flag_optimize bool
+-	Bso           *Biobuf
++	Bso           *bio.Buf
+ 	Pathname      string
+ 	Goroot        string
+ 	Goroot_final  string
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index bdd3bfc826..405cbf446a 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -109,6 +109,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/bio"
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"log"
+@@ -120,7 +121,7 @@ import (
+ // The Go and C compilers, and the assembler, call writeobj to write
+ // out a Go object file. The linker does not call this; the linker
+ // does not write out object files.
+-func Writeobjdirect(ctxt *Link, b *Biobuf) {
++func Writeobjdirect(ctxt *Link, b *bio.Buf) {
+ 	Flushplist(ctxt)
+ 	WriteObjFile(ctxt, b)
+ }
+@@ -373,16 +374,16 @@ func (w *objWriter) writeLengths() {
+ 	w.writeInt(int64(w.nFile))
+ }
+ 
+-func newObjWriter(ctxt *Link, b *Biobuf) *objWriter {
++func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
+ 	return &objWriter{
+ 		ctxt:    ctxt,
+-		wr:      b.w,
++		wr:      b.Writer(),
+ 		vrefIdx: make(map[string]int),
+ 		refIdx:  make(map[string]int),
+ 	}
+ }
+ 
+-func WriteObjFile(ctxt *Link, b *Biobuf) {
++func WriteObjFile(ctxt *Link, b *bio.Buf) {
+ 	w := newObjWriter(ctxt, b)
+ 
+ 	// Magic header
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 245fab9690..04e6a76e1a 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -5,10 +5,8 @@
+ package obj
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"io"
+ 	"log"
+ 	"os"
+ 	"strings"
+@@ -26,144 +24,6 @@ func Cputime() float64 {
+ 	return time.Since(start).Seconds()
+ }
+ 
+-type Biobuf struct {
+-	f       *os.File
+-	r       *bufio.Reader
+-	w       *bufio.Writer
+-	linelen int
+-}
+-
+-func (b *Biobuf) Reader() *bufio.Reader { return b.r }
+-
+-func Bopenw(name string) (*Biobuf, error) {
+-	f, err := os.Create(name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &Biobuf{f: f, w: bufio.NewWriter(f)}, nil
+-}
+-
+-func Bopenr(name string) (*Biobuf, error) {
+-	f, err := os.Open(name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &Biobuf{f: f, r: bufio.NewReader(f)}, nil
+-}
+-
+-func Binitw(w io.Writer) *Biobuf {
+-	return &Biobuf{w: bufio.NewWriter(w)}
+-}
+-
+-func Binitr(r io.Reader) *Biobuf {
+-	return &Biobuf{r: bufio.NewReader(r)}
+-}
+-
+-func (b *Biobuf) Write(p []byte) (int, error) {
+-	return b.w.Write(p)
+-}
+-
+-func Bwritestring(b *Biobuf, p string) (int, error) {
+-	return b.w.WriteString(p)
+-}
+-
+-func Bseek(b *Biobuf, offset int64, whence int) int64 {
+-	if b.w != nil {
+-		if err := b.w.Flush(); err != nil {
+-			log.Fatalf("writing output: %v", err)
+-		}
+-	} else if b.r != nil {
+-		if whence == 1 {
+-			offset -= int64(b.r.Buffered())
+-		}
+-	}
+-	off, err := b.f.Seek(offset, whence)
+-	if err != nil {
+-		log.Fatalf("seeking in output: %v", err)
+-	}
+-	if b.r != nil {
+-		b.r.Reset(b.f)
+-	}
+-	return off
+-}
+-
+-func Boffset(b *Biobuf) int64 {
+-	if b.w != nil {
+-		if err := b.w.Flush(); err != nil {
+-			log.Fatalf("writing output: %v", err)
+-		}
+-	}
+-	off, err := b.f.Seek(0, 1)
+-	if err != nil {
+-		log.Fatalf("seeking in output [0, 1]: %v", err)
+-	}
+-	if b.r != nil {
+-		off -= int64(b.r.Buffered())
+-	}
+-	return off
+-}
+-
+-func (b *Biobuf) Flush() error {
+-	return b.w.Flush()
+-}
+-
+-func Bputc(b *Biobuf, c byte) {
+-	b.w.WriteByte(c)
+-}
+-
+-const Beof = -1
+-
+-func Bread(b *Biobuf, p []byte) int {
+-	n, err := io.ReadFull(b.r, p)
+-	if n == 0 {
+-		if err != nil && err != io.EOF {
+-			n = -1
+-		}
+-	}
+-	return n
+-}
+-
+-func Bgetc(b *Biobuf) int {
+-	c, err := b.r.ReadByte()
+-	if err != nil {
+-		return -1
+-	}
+-	return int(c)
+-}
+-
+-func (b *Biobuf) Read(p []byte) (int, error) {
+-	return b.r.Read(p)
+-}
+-
+-func (b *Biobuf) Peek(n int) ([]byte, error) {
+-	return b.r.Peek(n)
+-}
+-
+-func Brdline(b *Biobuf, delim int) string {
+-	s, err := b.r.ReadBytes(byte(delim))
+-	if err != nil {
+-		log.Fatalf("reading input: %v", err)
+-	}
+-	b.linelen = len(s)
+-	return string(s)
+-}
+-
+-func Blinelen(b *Biobuf) int {
+-	return b.linelen
+-}
+-
+-func Bterm(b *Biobuf) error {
+-	var err error
+-	if b.w != nil {
+-		err = b.w.Flush()
+-	}
+-	err1 := b.f.Close()
+-	if err == nil {
+-		err = err1
+-	}
+-	return err
+-}
+-
+ func envOr(key, value string) string {
+ 	if x := os.Getenv(key); x != "" {
+ 		return x
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index d07756071d..205773c7f8 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -31,6 +31,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -62,7 +63,7 @@ type ArHdr struct {
+ // define them. This is used for the compiler support library
+ // libgcc.a.
+ func hostArchive(name string) {
+-	f, err := obj.Bopenr(name)
++	f, err := bio.Open(name)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			// It's OK if we don't have a libgcc file at all.
+@@ -73,15 +74,15 @@ func hostArchive(name string) {
+ 		}
+ 		Exitf("cannot open file %s: %v", name, err)
+ 	}
+-	defer obj.Bterm(f)
++	defer f.Close()
+ 
+ 	magbuf := make([]byte, len(ARMAG))
+-	if obj.Bread(f, magbuf) != len(magbuf) {
++	if bio.Bread(f, magbuf) != len(magbuf) {
+ 		Exitf("file %s too short", name)
+ 	}
+ 
+ 	var arhdr ArHdr
+-	l := nextar(f, obj.Boffset(f), &arhdr)
++	l := nextar(f, bio.Boffset(f), &arhdr)
+ 	if l <= 0 {
+ 		Exitf("%s missing armap", name)
+ 	}
+@@ -117,7 +118,7 @@ func hostArchive(name string) {
+ 			l = atolwhex(arhdr.size)
+ 
+ 			h := ldobj(f, "libgcc", l, pname, name, ArchiveObj)
+-			obj.Bseek(f, h.off, 0)
++			bio.Bseek(f, h.off, 0)
+ 			h.ld(f, h.pkg, h.length, h.pn)
+ 		}
+ 
+@@ -130,7 +131,7 @@ func hostArchive(name string) {
+ type archiveMap map[string]uint64
+ 
+ // readArmap reads the archive symbol map.
+-func readArmap(filename string, f *obj.Biobuf, arhdr ArHdr) archiveMap {
++func readArmap(filename string, f *bio.Buf, arhdr ArHdr) archiveMap {
+ 	is64 := arhdr.name == "/SYM64/"
+ 	wordSize := 4
+ 	if is64 {
+@@ -139,7 +140,7 @@ func readArmap(filename string, f *obj.Biobuf, arhdr ArHdr) archiveMap {
+ 
+ 	l := atolwhex(arhdr.size)
+ 	contents := make([]byte, l)
+-	if obj.Bread(f, contents) != int(l) {
++	if bio.Bread(f, contents) != int(l) {
+ 		Exitf("short read from %s", filename)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 027e05d845..8bafaffd7c 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -8,6 +8,7 @@ package ld
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"os"
+@@ -26,7 +27,7 @@ func expandpkg(t0 string, pkg string) string {
+ //	once the dust settles, try to move some code to
+ //		libmach, so that other linkers and ar can share.
+ 
+-func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int) {
++func ldpkg(f *bio.Buf, pkg string, length int64, filename string, whence int) {
+ 	var p0, p1 int
+ 
+ 	if Debug['g'] != 0 {
+@@ -48,7 +49,7 @@ func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int)
+ 	}
+ 
+ 	bdata := make([]byte, length)
+-	if int64(obj.Bread(f, bdata)) != length {
++	if int64(bio.Bread(f, bdata)) != length {
+ 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
+ 		if Debug['u'] != 0 {
+ 			errorexit()
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 485599be62..eafc6930d5 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -2,6 +2,7 @@ package ld
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+@@ -267,7 +268,7 @@ type ElfSect struct {
+ }
+ 
+ type ElfObj struct {
+-	f         *obj.Biobuf
++	f         *bio.Buf
+ 	base      int64 // offset in f where ELF begins
+ 	length    int64 // length of ELF
+ 	is64      int
+@@ -446,13 +447,13 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
+ 	}
+ }
+ 
+-func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
++func ldelf(f *bio.Buf, pkg string, length int64, pn string) {
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+ 	}
+ 
+ 	Ctxt.IncVersion()
+-	base := int32(obj.Boffset(f))
++	base := int32(bio.Boffset(f))
+ 
+ 	var add uint64
+ 	var e binary.ByteOrder
+@@ -475,7 +476,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	var sect *ElfSect
+ 	var sym ElfSym
+ 	var symbols []*LSym
+-	if obj.Bread(f, hdrbuf[:]) != len(hdrbuf) {
++	if bio.Bread(f, hdrbuf[:]) != len(hdrbuf) {
+ 		goto bad
+ 	}
+ 	hdr = new(ElfHdrBytes)
+@@ -600,7 +601,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 
+ 	elfobj.nsect = uint(elfobj.shnum)
+ 	for i := 0; uint(i) < elfobj.nsect; i++ {
+-		if obj.Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
++		if bio.Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
+ 			goto bad
+ 		}
+ 		sect = &elfobj.sect[i]
+@@ -986,7 +987,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
+ 
+ 	sect.base = make([]byte, sect.size)
+ 	err = fmt.Errorf("short read")
+-	if obj.Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || obj.Bread(elfobj.f, sect.base) != len(sect.base) {
++	if bio.Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || bio.Bread(elfobj.f, sect.base) != len(sect.base) {
+ 		return err
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 9fbb2123af..6376116d04 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -1,6 +1,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+@@ -42,7 +43,7 @@ const (
+ )
+ 
+ type LdMachoObj struct {
+-	f          *obj.Biobuf
++	f          *bio.Buf
+ 	base       int64 // off in f where Mach-O begins
+ 	length     int64 // length of Mach-O
+ 	is64       bool
+@@ -298,7 +299,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
+ 	rel := make([]LdMachoRel, sect.nreloc)
+ 	n := int(sect.nreloc * 8)
+ 	buf := make([]byte, n)
+-	if obj.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || obj.Bread(m.f, buf) != n {
++	if bio.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
+ 		return -1
+ 	}
+ 	var p []byte
+@@ -344,7 +345,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
+ 	n := int(d.nindirectsyms)
+ 
+ 	p := make([]byte, n*4)
+-	if obj.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || obj.Bread(m.f, p) != len(p) {
++	if bio.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
+ 		return -1
+ 	}
+ 
+@@ -361,7 +362,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	}
+ 
+ 	strbuf := make([]byte, symtab.strsize)
+-	if obj.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || obj.Bread(m.f, strbuf) != len(strbuf) {
++	if bio.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
+ 		return -1
+ 	}
+ 
+@@ -371,7 +372,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	}
+ 	n := int(symtab.nsym * uint32(symsize))
+ 	symbuf := make([]byte, n)
+-	if obj.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || obj.Bread(m.f, symbuf) != len(symbuf) {
++	if bio.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
+ 		return -1
+ 	}
+ 	sym := make([]LdMachoSym, symtab.nsym)
+@@ -401,7 +402,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	return 0
+ }
+ 
+-func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
++func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
+ 	var err error
+ 	var j int
+ 	var is64 bool
+@@ -431,8 +432,8 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	var name string
+ 
+ 	Ctxt.IncVersion()
+-	base := obj.Boffset(f)
+-	if obj.Bread(f, hdr[:]) != len(hdr) {
++	base := bio.Boffset(f)
++	if bio.Bread(f, hdr[:]) != len(hdr) {
+ 		goto bad
+ 	}
+ 
+@@ -455,7 +456,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 
+ 	if is64 {
+ 		var tmp [4]uint8
+-		obj.Bread(f, tmp[:4]) // skip reserved word in header
++		bio.Bread(f, tmp[:4]) // skip reserved word in header
+ 	}
+ 
+ 	m = new(LdMachoObj)
+@@ -493,7 +494,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	m.cmd = make([]LdMachoCmd, ncmd)
+ 	off = uint32(len(hdr))
+ 	cmdp = make([]byte, cmdsz)
+-	if obj.Bread(f, cmdp) != len(cmdp) {
++	if bio.Bread(f, cmdp) != len(cmdp) {
+ 		err = fmt.Errorf("reading cmds: %v", err)
+ 		goto bad
+ 	}
+@@ -556,7 +557,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	dat = make([]byte, c.seg.filesz)
+-	if obj.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || obj.Bread(f, dat) != len(dat) {
++	if bio.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
+ 		err = fmt.Errorf("cannot load object data: %v", err)
+ 		goto bad
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index ea0c482838..e97e842e7f 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+@@ -117,7 +118,7 @@ type PeSect struct {
+ }
+ 
+ type PeObj struct {
+-	f      *obj.Biobuf
++	f      *bio.Buf
+ 	name   string
+ 	base   uint32
+ 	sect   []PeSect
+@@ -128,14 +129,14 @@ type PeObj struct {
+ 	snames []byte
+ }
+ 
+-func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
++func ldpe(f *bio.Buf, pkg string, length int64, pn string) {
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
+ 	}
+ 
+ 	var sect *PeSect
+ 	Ctxt.IncVersion()
+-	base := int32(obj.Boffset(f))
++	base := int32(bio.Boffset(f))
+ 
+ 	peobj := new(PeObj)
+ 	peobj.f = f
+@@ -173,15 +174,15 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	// TODO return error if found .cormeta
+ 
+ 	// load string table
+-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+ 
+-	if obj.Bread(f, symbuf[:4]) != 4 {
++	if bio.Bread(f, symbuf[:4]) != 4 {
+ 		goto bad
+ 	}
+ 	l = Le32(symbuf[:])
+ 	peobj.snames = make([]byte, l)
+-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+-	if obj.Bread(f, peobj.snames) != len(peobj.snames) {
++	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	if bio.Bread(f, peobj.snames) != len(peobj.snames) {
+ 		goto bad
+ 	}
+ 
+@@ -201,10 +202,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
+ 
+ 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
+-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
++	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
+ 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
+-		obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+-		if obj.Bread(f, symbuf[:]) != len(symbuf) {
++		bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
++		if bio.Bread(f, symbuf[:]) != len(symbuf) {
+ 			goto bad
+ 		}
+ 
+@@ -289,10 +290,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		r = make([]Reloc, rsect.sh.NumberOfRelocations)
+-		obj.Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
++		bio.Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
+ 		for j = 0; j < int(rsect.sh.NumberOfRelocations); j++ {
+ 			rp = &r[j]
+-			if obj.Bread(f, symbuf[:10]) != 10 {
++			if bio.Bread(f, symbuf[:10]) != 10 {
+ 				goto bad
+ 			}
+ 			rva := Le32(symbuf[0:])
+@@ -465,7 +466,7 @@ func pemap(peobj *PeObj, sect *PeSect) int {
+ 	if sect.sh.PointerToRawData == 0 { // .bss doesn't have data in object file
+ 		return 0
+ 	}
+-	if obj.Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || obj.Bread(peobj.f, sect.base) != len(sect.base) {
++	if bio.Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || bio.Bread(peobj.f, sect.base) != len(sect.base) {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 305a3bc0db..789eaef1a5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -33,6 +33,7 @@ package ld
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"crypto/sha1"
+@@ -240,7 +241,7 @@ const (
+ var (
+ 	headstring string
+ 	// buffered output
+-	Bso obj.Biobuf
++	Bso bio.Buf
+ )
+ 
+ type outBuf struct {
+@@ -738,13 +739,13 @@ func loadlib() {
+  * look for the next file in an archive.
+  * adapted from libmach.
+  */
+-func nextar(bp *obj.Biobuf, off int64, a *ArHdr) int64 {
++func nextar(bp *bio.Buf, off int64, a *ArHdr) int64 {
+ 	if off&1 != 0 {
+ 		off++
+ 	}
+-	obj.Bseek(bp, off, 0)
++	bio.Bseek(bp, off, 0)
+ 	buf := make([]byte, SAR_HDR)
+-	if n := obj.Bread(bp, buf); n < len(buf) {
++	if n := bio.Bread(bp, buf); n < len(buf) {
+ 		if n >= 0 {
+ 			return 0
+ 		}
+@@ -773,25 +774,25 @@ func objfile(lib *Library) {
+ 		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
+ 	}
+ 	Bso.Flush()
+-	f, err := obj.Bopenr(lib.File)
++	f, err := bio.Open(lib.File)
+ 	if err != nil {
+ 		Exitf("cannot open file %s: %v", lib.File, err)
+ 	}
+ 
+ 	magbuf := make([]byte, len(ARMAG))
+-	if obj.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
++	if bio.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
+ 		/* load it as a regular file */
+-		l := obj.Bseek(f, 0, 2)
++		l := bio.Bseek(f, 0, 2)
+ 
+-		obj.Bseek(f, 0, 0)
++		bio.Bseek(f, 0, 0)
+ 		ldobj(f, pkg, l, lib.File, lib.File, FileObj)
+-		obj.Bterm(f)
++		f.Close()
+ 
+ 		return
+ 	}
+ 
+ 	/* process __.PKGDEF */
+-	off := obj.Boffset(f)
++	off := bio.Boffset(f)
+ 
+ 	var arhdr ArHdr
+ 	l := nextar(f, off, &arhdr)
+@@ -807,12 +808,12 @@ func objfile(lib *Library) {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		before := obj.Boffset(f)
++		before := bio.Boffset(f)
+ 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
+-		obj.Bread(f, pkgdefBytes)
++		bio.Bread(f, pkgdefBytes)
+ 		hash := sha1.Sum(pkgdefBytes)
+ 		lib.hash = hash[:]
+-		obj.Bseek(f, before, 0)
++		bio.Bseek(f, before, 0)
+ 	}
+ 
+ 	off += l
+@@ -848,11 +849,11 @@ func objfile(lib *Library) {
+ 	}
+ 
+ out:
+-	obj.Bterm(f)
++	f.Close()
+ }
+ 
+ type Hostobj struct {
+-	ld     func(*obj.Biobuf, string, int64, string)
++	ld     func(*bio.Buf, string, int64, string)
+ 	pkg    string
+ 	pn     string
+ 	file   string
+@@ -873,7 +874,7 @@ var internalpkg = []string{
+ 	"runtime/msan",
+ }
+ 
+-func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) *Hostobj {
++func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string, length int64, pn string, file string) *Hostobj {
+ 	isinternal := false
+ 	for i := 0; i < len(internalpkg); i++ {
+ 		if pkg == internalpkg[i] {
+@@ -904,26 +905,26 @@ func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg s
+ 	h.pkg = pkg
+ 	h.pn = pn
+ 	h.file = file
+-	h.off = obj.Boffset(f)
++	h.off = bio.Boffset(f)
+ 	h.length = length
+ 	return h
+ }
+ 
+ func hostobjs() {
+-	var f *obj.Biobuf
++	var f *bio.Buf
+ 	var h *Hostobj
+ 
+ 	for i := 0; i < len(hostobj); i++ {
+ 		h = &hostobj[i]
+ 		var err error
+-		f, err = obj.Bopenr(h.file)
++		f, err = bio.Open(h.file)
+ 		if f == nil {
+ 			Exitf("cannot reopen %s: %v", h.pn, err)
+ 		}
+ 
+-		obj.Bseek(f, h.off, 0)
++		bio.Bseek(f, h.off, 0)
+ 		h.ld(f, h.pkg, h.length, h.pn)
+-		obj.Bterm(f)
++		f.Close()
+ 	}
+ }
+ 
+@@ -1265,15 +1266,15 @@ func hostlinkArchArgs() []string {
+ // ldobj loads an input object. If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer. If
+ // it is a Go object, it returns nil.
+-func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+-	eof := obj.Boffset(f) + length
++func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
++	eof := bio.Boffset(f) + length
+ 
+-	start := obj.Boffset(f)
+-	c1 := obj.Bgetc(f)
+-	c2 := obj.Bgetc(f)
+-	c3 := obj.Bgetc(f)
+-	c4 := obj.Bgetc(f)
+-	obj.Bseek(f, start, 0)
++	start := bio.Boffset(f)
++	c1 := bio.Bgetc(f)
++	c2 := bio.Bgetc(f)
++	c3 := bio.Bgetc(f)
++	c4 := bio.Bgetc(f)
++	bio.Bseek(f, start, 0)
+ 
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+@@ -1289,12 +1290,8 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	}
+ 
+ 	/* check the header */
+-	line := obj.Brdline(f, '\n')
++	line := bio.Brdline(f, '\n')
+ 	if line == "" {
+-		if obj.Blinelen(f) > 0 {
+-			Diag("%s: not an object file", pn)
+-			return nil
+-		}
+ 		Diag("truncated object file: %s", pn)
+ 		return nil
+ 	}
+@@ -1337,28 +1334,28 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	}
+ 
+ 	/* skip over exports and other info -- ends with \n!\n */
+-	import0 := obj.Boffset(f)
++	import0 := bio.Boffset(f)
+ 
+ 	c1 = '\n' // the last line ended in \n
+-	c2 = obj.Bgetc(f)
+-	c3 = obj.Bgetc(f)
++	c2 = bio.Bgetc(f)
++	c3 = bio.Bgetc(f)
+ 	for c1 != '\n' || c2 != '!' || c3 != '\n' {
+ 		c1 = c2
+ 		c2 = c3
+-		c3 = obj.Bgetc(f)
+-		if c3 == obj.Beof {
++		c3 = bio.Bgetc(f)
++		if c3 == bio.EOF {
+ 			Diag("truncated object file: %s", pn)
+ 			return nil
+ 		}
+ 	}
+ 
+-	import1 := obj.Boffset(f)
++	import1 := bio.Boffset(f)
+ 
+-	obj.Bseek(f, import0, 0)
++	bio.Bseek(f, import0, 0)
+ 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+-	obj.Bseek(f, import1, 0)
++	bio.Bseek(f, import1, 0)
+ 
+-	LoadObjFile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
++	LoadObjFile(Ctxt, f, pkg, eof-bio.Boffset(f), pn)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f0811389d2..d3f9ed3703 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -31,7 +31,7 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/obj"
++	"cmd/internal/bio"
+ 	"cmd/internal/sys"
+ 	"debug/elf"
+ 	"fmt"
+@@ -165,7 +165,7 @@ type Link struct {
+ 	Headtype  int
+ 	Arch      *sys.Arch
+ 	Debugvlog int32
+-	Bso       *obj.Biobuf
++	Bso       *bio.Buf
+ 	Windows   int32
+ 	Goroot    string
+ 
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 8a406d17a6..6f177861f0 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -110,6 +110,7 @@ package ld
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"io"
+ 	"log"
+@@ -146,8 +147,8 @@ type objReader struct {
+ 	file        []*LSym
+ }
+ 
+-func LoadObjFile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
+-	start := obj.Boffset(f)
++func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
++	start := bio.Boffset(f)
+ 	r := &objReader{
+ 		rd:     f.Reader(),
+ 		pkg:    pkg,
+@@ -156,8 +157,8 @@ func LoadObjFile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string)
+ 		dupSym: &LSym{Name: ".dup"},
+ 	}
+ 	r.loadObjFile()
+-	if obj.Boffset(f) != start+length {
+-		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(obj.Boffset(f)), int64(start+length))
++	if bio.Boffset(f) != start+length {
++		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(bio.Boffset(f)), int64(start+length))
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index b9902a5e5e..bb48f13185 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -31,6 +31,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"flag"
+@@ -49,7 +50,7 @@ func Ldmain() {
+ 	Ctxt.Diag = Diag
+ 	Ctxt.Bso = &Bso
+ 
+-	Bso = *obj.Binitw(os.Stdout)
++	Bso = *bio.BufWriter(os.Stdout)
+ 	Debug = [128]int{}
+ 	nerrors = 0
+ 	outfile = ""

@@ -12,7 +12,76 @@ Date:   Wed Feb 18 10:07:46 2009 -0800
     R=ken
     OCL=25151
     CL=25151
-
+---
  src/cmd/gc/go.y   | 13 ++++++++++++-
  test/parentype.go | 17 +++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d685764282..320c9c6849 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1004,6 +1004,10 @@ convtype:
+ 		$$->type = $5;
+ 	}
+ |	structtype
++|	'(' type ')'
++	{
++		$$ = $2;
++	}
+ 
+ /*
+  * to avoid parsing conflicts, type is split into
+@@ -1031,6 +1035,10 @@ Btype:
+ |	Bchantype
+ |	Bfntype
+ |	Bothertype
++|	'(' type ')'
++	{
++		$$ = $2;
++	}
+ 
+ non_name_type:
+ 	chantype
+@@ -1052,6 +1060,10 @@ Bnon_chan_type:
+ 	nametype
+ |	Bfntype
+ |	Bothertype
++|	'(' Btype ')'
++	{
++		$$ = $2;
++	}
+ 
+ Anon_fn_type:
+ 	Achantype
+@@ -1062,7 +1074,6 @@ Bnon_fn_type:
+ |	Bchantype
+ |	Bothertype
+ 
+-
+ nametype:
+ 	LATYPE
+ 	{
+diff --git a/test/parentype.go b/test/parentype.go
+new file mode 100644
+index 0000000000..f163f55d61
+--- /dev/null
++++ b/test/parentype.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(interface{})
++func g() {}
++func main() {
++	f(map[string]string("a":"b","c":"d"));
++	f((map[string]string)("a":"b","c":"d"));
++	f((map[string]func())("a":g,"c":g));
++	f(make(chan(<-chan int)));
++	f(make(chan<-(chan int)));
++}

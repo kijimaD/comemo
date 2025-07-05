@@ -11,6 +11,29 @@ Date:   Wed Jul 24 11:20:53 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/11457044
-
+---
  misc/emacs/go-mode.el | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index aac179150b..63f8ee2fa1 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -5,7 +5,9 @@
+ ;; license that can be found in the LICENSE file.
+ 
+ (require 'cl)
++(require 'etags)
+ (require 'ffap)
++(require 'ring)
+ (require 'url)
+ 
+ ;; XEmacs compatibility guidelines
+@@ -925,6 +927,7 @@ description at POINT."
+           (message "%s" file))
+          (t
+           (push-mark)
++          (ring-insert find-tag-marker-ring (point-marker))
+           (godef--find-file-line-column file other-window))))
+     (file-error (message "Could not run godef binary"))))
+ 

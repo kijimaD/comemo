@@ -12,6 +12,20 @@ Date:   Wed May 9 16:16:02 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6201065
-
+---
  src/cmd/go/help.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 47ea0c7110..0907c5afb4 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -61,7 +61,7 @@ var helpRemote = &Command{
+ 	Short:     "remote import path syntax",
+ 	Long: `
+ 
+-An import path (see 'go help importpath') denotes a package
++An import path (see 'go help packages') denotes a package
+ stored in the local file system.  Certain import paths also
+ describe how to obtain the source code for the package using
+ a revision control system.

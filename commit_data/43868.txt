@@ -14,7 +14,34 @@ Date:   Mon Apr 27 16:01:24 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/xcoff.go  | 2 +-
  src/cmd/link/internal/ld/xcoff2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index f156cbf439..c9c6507f1c 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1141,7 +1141,7 @@ func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loade
+ 					break
+ 				}
+ 			}
+-		} else if ldr.SymType(s) == sym.SDATA {
++		} else if t := ldr.SymType(s); t == sym.SDATA || t == sym.SNOPTRDATA || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+ 			switch ldr.SymSect(targ).Seg {
+ 			default:
+ 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
+diff --git a/src/cmd/link/internal/ld/xcoff2.go b/src/cmd/link/internal/ld/xcoff2.go
+index a8c2268fb7..27edbcb22d 100644
+--- a/src/cmd/link/internal/ld/xcoff2.go
++++ b/src/cmd/link/internal/ld/xcoff2.go
+@@ -84,7 +84,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, s *sym.Symbol, r *sym.Re
+ 					break
+ 				}
+ 			}
+-		} else if s.Type == sym.SDATA {
++		} else if s.Type == sym.SDATA || s.Type == sym.SNOPTRDATA || s.Type == sym.SBUILDINFO || s.Type == sym.SXCOFFTOC {
+ 			switch r.Sym.Sect.Seg {
+ 			default:
+ 				Errorf(s, "unknown segment for .loader relocation with symbol %s", r.Sym.Name)

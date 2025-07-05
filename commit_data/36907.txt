@@ -35,6 +35,29 @@ Date:   Wed Jun 6 12:05:36 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/proc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1267899b83..e3549d367a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3699,7 +3699,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// As a workaround, create a counter of SIGPROFs while in critical section
+ 	// to store the count, and pass it to sigprof.add() later when SIGPROF is
+ 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+-	if GOARCH == "mips" || GOARCH == "mipsle" {
++	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
+ 		if f := findfunc(pc); f.valid() {
+ 			if hasprefix(funcname(f), "runtime/internal/atomic") {
+ 				lostAtomic64Count++
+@@ -3839,7 +3839,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	}
+ 
+ 	if prof.hz != 0 {
+-		if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
++		if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm") && lostAtomic64Count > 0 {
+ 			cpuprof.addLostAtomic64(lostAtomic64Count)
+ 			lostAtomic64Count = 0
+ 		}

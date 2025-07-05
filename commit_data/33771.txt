@@ -9,8 +9,48 @@ Date:   Wed Sep 6 21:13:06 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go | 2 +-
  src/testing/example.go   | 2 +-
  src/testing/testing.go   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index d592afbf87..2d0de180d7 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -86,7 +86,7 @@ func (b *B) StartTimer() {
+ // want to measure.
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+-		b.duration += time.Now().Sub(b.start)
++		b.duration += time.Since(b.start)
+ 		runtime.ReadMemStats(&memStats)
+ 		b.netAllocs += memStats.Mallocs - b.startAllocs
+ 		b.netBytes += memStats.TotalAlloc - b.startBytes
+diff --git a/src/testing/example.go b/src/testing/example.go
+index e5bce7af4e..b9955500e6 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -87,7 +87,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 
+ 	// Clean up in a deferred call so we can recover if the example panics.
+ 	defer func() {
+-		dstr := fmtDuration(time.Now().Sub(start))
++		dstr := fmtDuration(time.Since(start))
+ 
+ 		// Close pipe, restore stdout, get output.
+ 		w.Close()
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8b4bfc31a8..a170cd0fd9 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -701,7 +701,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			t.Errorf("race detected during execution of test")
+ 		}
+ 
+-		t.duration += time.Now().Sub(t.start)
++		t.duration += time.Since(t.start)
+ 		// If the test panicked, print any test output before dying.
+ 		err := recover()
+ 		if !t.finished && err == nil {

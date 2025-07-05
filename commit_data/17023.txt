@@ -9,6 +9,20 @@ Date:   Mon Aug 5 11:24:27 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12387045
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 1ca9bd58d5..8c66fa246f 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2560,7 +2560,7 @@ One place this situation arises is when it is necessary to guarantee within the
+ it actually satisfies the interface.
+ If a type—for example,
+ <code><a href="/pkg/encoding/json/#RawMessage">json.RawMessage</a></code>—needs
+-a custom its JSON representation, it should implement
++a custom JSON representation, it should implement
+ <code>json.Marshaler</code>, but there are no static conversions that would
+ cause the compiler to verify this automatically.
+ If the type inadvertently fails to satisfy the interface, the JSON encoder will still work,

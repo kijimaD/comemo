@@ -14,7 +14,68 @@ Date:   Tue Jul 21 19:43:27 2009 -0700
     DELTA=32  (32 added, 0 deleted, 0 changed)
     OCL=31982
     CL=31982
-
+---
  src/pkg/runtime/proc.c |  8 ++++++++
  test/initsyscall.go    | 28 ++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cffdf1b893..3c8ef54fe7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -478,6 +478,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 	USED(callerpc, trap);
+ 
+ 	lock(&sched);
++	if(sched.predawn) {
++		unlock(&sched);
++		return;
++	}
+ 	g->status = Gsyscall;
+ 	// Leave SP around for gc and traceback.
+ 	// Do before notewakeup so that gc
+@@ -502,6 +506,10 @@ void
+ sys·exitsyscall(void)
+ {
+ 	lock(&sched);
++	if(sched.predawn) {
++		unlock(&sched);
++		return;
++	}
+ 	g->status = Grunning;
+ 	sched.msyscall--;
+ 	sched.mcpu++;
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+new file mode 100644
+index 0000000000..7765de84db
+--- /dev/null
++++ b/test/initsyscall.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This used to crash because the scheduler
++// tried to kick off a new scheduling thread for f
++// when time.Nanoseconds went into the system call.
++// It's not okay to schedule new goroutines
++// until main has started.
++
++package main
++
++import "log"
++import "time"
++
++func f() {
++}
++
++func init() {
++	go f();
++	time.Nanoseconds();
++}
++
++func main() {
++}
++

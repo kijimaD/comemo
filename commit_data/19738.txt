@@ -11,6 +11,22 @@ Date:   Tue Jul 15 10:30:12 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rlh, rsc
     https://golang.org/cl/116790043
-
+---
  src/pkg/runtime/proc_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 5be3551950..1f597f58e4 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -101,6 +101,10 @@ func TestGoroutineParallelism(t *testing.T) {
+ 		N = 3
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
++	// If runtime triggers a forced GC during this test then it will deadlock,
++	// since the goroutines can't be stopped/preempted.
++	// So give this test as much time as possible.
++	runtime.GC()
+ 	for try := 0; try < N; try++ {
+ 		done := make(chan bool)
+ 		x := uint32(0)

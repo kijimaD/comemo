@@ -15,6 +15,31 @@ Date:   Tue Dec 20 15:24:06 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_unix.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 5b0df56eae..6a2c369c66 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -383,8 +383,9 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
+ 	s := _C_CString(hostname)
+ 	defer _C_FreeCString(s)
+ 
++	var size int
+ 	for {
+-		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
++		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+ 		if size <= 0 || size > 0xffff {
+ 			return nil, errors.New("res_nsearch failure")
+ 		}
+@@ -399,7 +400,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
+ 	}
+ 
+ 	var p dnsmessage.Parser
+-	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), bufSize)); err != nil {
++	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
+ 		return nil, err
+ 	}
+ 	p.SkipAllQuestions()

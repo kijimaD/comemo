@@ -8,6 +8,27 @@ Date:   Thu Jul 14 10:38:15 2011 +1000
     R=rsc, dsymonds, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/4695059
-
+---
  src/pkg/reflect/value.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index bfeb3267c7..82985c5751 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1025,6 +1025,15 @@ func (v Value) Method(i int) Value {
+ 	return Value{v.Internal, i + 1}
+ }
+ 
++// NumMethod returns the number of methods in the value's method set.
++func (v Value) NumMethod() int {
++	iv := v.internal()
++	if iv.kind == Invalid {
++		panic(&ValueError{"reflect.Value.NumMethod", Invalid})
++	}
++	return iv.typ.NumMethod()
++}
++
+ // MethodByName returns a function value corresponding to the method
+ // of v with the given name.
+ // The arguments to a Call on the returned function should not include

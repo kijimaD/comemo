@@ -7,6 +7,36 @@ Date:   Sun Aug 14 14:02:48 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4895042
-
+---
  src/pkg/exp/norm/maketables.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index a6e3aa5e1a..e3e5700a64 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -116,7 +116,6 @@ const (
+ 	MNumberOfModes
+ )
+ 
+-
+ // This contains only the properties we're interested in.
+ type Char struct {
+ 	name          string
+@@ -267,7 +266,7 @@ func parseCharacter(line string) {
+ 	}
+ 	x, err = strconv.Atoui64(field[FCanonicalCombiningClass])
+ 	if err != nil {
+-		logger.Fatal("%U: bad ccc field: %s", int(x), err)
++		logger.Fatalf("%U: bad ccc field: %s", int(x), err)
+ 	}
+ 	ccc := uint8(x)
+ 	decmap := field[FDecompMapping]
+@@ -438,7 +437,6 @@ func decomposeRecursive(form int, rune int, d Decomposition) Decomposition {
+ 	return d
+ }
+ 
+-
+ func completeCharFields(form int) {
+ 	// Phase 0: pre-expand decomposition.
+ 	for i := range chars {

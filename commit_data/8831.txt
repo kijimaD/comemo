@@ -7,6 +7,20 @@ Date:   Thu Jun 23 10:56:53 2011 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4632055
-
+---
  src/pkg/exec/lp_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 5a74c8ee5b..47763458f8 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -56,7 +56,7 @@ func LookPath(file string) (f string, err os.Error) {
+ 		}
+ 		exts = append(exts, e)
+ 	}
+-	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
++	if strings.IndexAny(file, `:\/`) != -1 {
+ 		if f, err = findExecutable(file, exts); err == nil {
+ 			return
+ 		}

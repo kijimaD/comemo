@@ -19,10 +19,172 @@ Date:   Mon Apr 29 20:58:39 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go |  1 +
  src/runtime/mgclarge.go    |  6 ++++-
  src/runtime/mheap.go       | 60 +++++++++++++++++++++++++++++++---------------
  src/runtime/os_linux.go    |  7 ++++--
  src/runtime/treap_test.go  |  8 ++++---
  5 files changed, 57 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e6b82bd728..852f37409e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -550,6 +550,7 @@ type TreapIterType treapIterType
+ 
+ const (
+ 	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
++	TreapIterHuge               = TreapIterType(treapIterHuge)
+ 	TreapIterBits               = treapIterBits
+ )
+ 
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index 7c3f4fe4f7..b1e7c23e25 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -273,7 +273,8 @@ type treapIterType uint8
+ 
+ const (
+ 	treapIterScav treapIterType = 1 << iota // scavenged spans
+-	treapIterBits               = iota
++	treapIterHuge                           // spans containing at least one huge page
++	treapIterBits = iota
+ )
+ 
+ // treapIterFilter is a bitwise filter of different spans by binary
+@@ -318,6 +319,9 @@ func (s *mspan) treapFilter() treapIterFilter {
+ 	if s.scavenged {
+ 		have |= treapIterScav
+ 	}
++	if s.hugePages() > 0 {
++		have |= treapIterHuge
++	}
+ 	return treapIterFilter(uint32(1) << (0x1f & have))
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0d7f5eab2a..b14a28fc13 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -521,6 +521,25 @@ func (h *mheap) coalesce(s *mspan) {
+ 	}
+ }
+ 
++// hugePages returns the number of aligned physical huge pages in the memory
++// regioned owned by this mspan.
++func (s *mspan) hugePages() uintptr {
++	if physHugePageSize == 0 || s.npages < physHugePageSize/pageSize {
++		return 0
++	}
++	start := s.base()
++	end := start + s.npages*pageSize
++	if physHugePageSize > pageSize {
++		// Round start and end in.
++		start = (start + physHugePageSize - 1) &^ (physHugePageSize - 1)
++		end &^= physHugePageSize - 1
++	}
++	if start < end {
++		return (end - start) / physHugePageSize
++	}
++	return 0
++}
++
+ func (s *mspan) scavenge() uintptr {
+ 	// start and end must be rounded in, otherwise madvise
+ 	// will round them *out* and release more memory
+@@ -1324,27 +1343,30 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
+ 		h.scavengeCredit -= nbytes
+ 		return
+ 	}
+-	// Iterate over the unscavenged spans in the treap backwards (from highest
+-	// address to lowest address) scavenging spans until we've reached our
+-	// quota of nbytes.
+ 	released := uintptr(0)
+-	for t := h.free.end(treapIterScav, 0); released < nbytes && t.valid(); {
+-		s := t.span()
+-		start, end := s.physPageBounds()
+-		if start >= end {
+-			// This span doesn't cover at least one physical page, so skip it.
+-			t = t.prev()
+-			continue
++	// Iterate over spans with huge pages first, then spans without.
++	const mask = treapIterScav | treapIterHuge
++	for _, match := range []treapIterType{treapIterHuge, 0} {
++		// Iterate over the treap backwards (from highest address to lowest address)
++		// scavenging spans until we've reached our quota of nbytes.
++		for t := h.free.end(mask, match); released < nbytes && t.valid(); {
++			s := t.span()
++			start, end := s.physPageBounds()
++			if start >= end {
++				// This span doesn't cover at least one physical page, so skip it.
++				t = t.prev()
++				continue
++			}
++			n := t.prev()
++			h.free.erase(t)
++			released += s.scavenge()
++			// Now that s is scavenged, we must eagerly coalesce it
++			// with its neighbors to prevent having two spans with
++			// the same scavenged state adjacent to each other.
++			h.coalesce(s)
++			t = n
++			h.free.insert(s)
+ 		}
+-		n := t.prev()
+-		h.free.erase(t)
+-		released += s.scavenge()
+-		// Now that s is scavenged, we must eagerly coalesce it
+-		// with its neighbors to prevent having two spans with
+-		// the same scavenged state adjacent to each other.
+-		h.coalesce(s)
+-		t = n
+-		h.free.insert(s)
+ 	}
+ 	// If we over-scavenged, turn that extra amount into credit.
+ 	if released > nbytes {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index ad35b97251..d4a9bd4ff5 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -270,8 +270,8 @@ func getHugePageSize() uintptr {
+ 		return 0
+ 	}
+ 	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
++	closefd(fd)
+ 	if n <= 0 {
+-		closefd(fd)
+ 		return 0
+ 	}
+ 	l := n - 1 // remove trailing newline
+@@ -279,7 +279,10 @@ func getHugePageSize() uintptr {
+ 	if !ok || v < 0 {
+ 		v = 0
+ 	}
+-	closefd(fd)
++	if v&(v-1) != 0 {
++		// v is not a power of 2
++		return 0
++	}
+ 	return uintptr(v)
+ }
+ 
+diff --git a/src/runtime/treap_test.go b/src/runtime/treap_test.go
+index e711f3ee0d..110f51c811 100644
+--- a/src/runtime/treap_test.go
++++ b/src/runtime/treap_test.go
+@@ -41,9 +41,11 @@ func TestTreapFilter(t *testing.T) {
+ 		mask, match runtime.TreapIterType
+ 		filter      runtime.TreapIterFilter // expected filter
+ 	}{
+-		{0, 0, 0x3},
+-		{runtime.TreapIterScav, 0, 0x1},
+-		{runtime.TreapIterScav, runtime.TreapIterScav, 0x2},
++		{0, 0, 0xf},
++		{runtime.TreapIterScav, 0, 0x5},
++		{runtime.TreapIterScav, runtime.TreapIterScav, 0xa},
++		{runtime.TreapIterScav | runtime.TreapIterHuge, runtime.TreapIterHuge, 0x4},
++		{runtime.TreapIterScav | runtime.TreapIterHuge, 0, 0x1},
+ 		{0, runtime.TreapIterScav, 0x0},
+ 	}
+ 	for _, it := range iterTypes {

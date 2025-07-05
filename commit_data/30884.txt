@@ -9,7 +9,7 @@ Date:   Tue Dec 13 21:56:58 2016 +0100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_mipsx.s           | 206 ++++++++++++++++++++++++++++++++++----
  src/runtime/cgo/asm_mipsx.s       |  67 +++++++++++++
  src/runtime/cgo/gcc_linux_mipsx.c |  80 +++++++++++++++
@@ -18,3 +18,570 @@ Date:   Tue Dec 13 21:56:58 2016 +0100
  src/runtime/rt0_linux_mipsx.s     |   9 +-
  src/runtime/tls_mipsx.s           |  10 +-
  7 files changed, 422 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index cd855c7d34..ad1d1a7716 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -12,11 +12,11 @@
+ #define	REGCTXT	R22
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+-	// R29 = stack; R1 = argc; R2 = argv
++	// R29 = stack; R4 = argc; R5 = argv
+ 
+ 	ADDU	$-12, R29
+-	MOVW	R1, 4(R29)	// argc
+-	MOVW	R2, 8(R29)	// argv
++	MOVW	R4, 4(R29)	// argc
++	MOVW	R5, 8(R29)	// argv
+ 
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+@@ -28,7 +28,16 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVW	R1, (g_stack+stack_lo)(g)
+ 	MOVW	R29, (g_stack+stack_hi)(g)
+ 
+-// TODO(mips32): cgo
++	// if there is a _cgo_init, call it using the gcc ABI.
++	MOVW	_cgo_init(SB), R25
++	BEQ	R25, nocgo
++	ADDU	$-16, R29
++	MOVW	R0, R7	// arg 3: not used
++	MOVW	R0, R6	// arg 2: not used
++	MOVW	$setg_gcc<>(SB), R5	// arg 1: setg
++	MOVW	g, R4	// arg 0: G
++	JAL	(R25)
++	ADDU	$16, R29
+ 
+ nocgo:
+ 	// update stackguard after _cgo_init
+@@ -434,7 +443,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	JMP	(R4)
+ 
+ // Save state of caller into g->sched. Smashes R1.
+-TEXT gosave<>(SB),NOSPLIT,$0
++TEXT gosave<>(SB),NOSPLIT,$-4
+ 	MOVW	R31, (g_sched+gobuf_pc)(g)
+ 	MOVW	R29, (g_sched+gobuf_sp)(g)
+ 	MOVW	R0, (g_sched+gobuf_lr)(g)
+@@ -449,22 +458,168 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.go for more details.
+-// Not implemented.
+ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+-	UNDEF
++	MOVW	fn+0(FP), R25
++	MOVW	arg+4(FP), R4
++
++	MOVW	R29, R3	// save original stack pointer
++	MOVW	g, R2
++
++	// Figure out if we need to switch to m->g0 stack.
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	MOVW	g_m(g), R5
++	MOVW	m_g0(R5), R6
++	BEQ	R6, g, g0
++
++	JAL	gosave<>(SB)
++	MOVW	R6, g
++	JAL	runtime·save_g(SB)
++	MOVW	(g_sched+gobuf_sp)(g), R29
++
++	// Now on a scheduling stack (a pthread-created stack).
++g0:
++	// Save room for two of our pointers and O32 frame.
++	ADDU	$-24, R29
++	AND	$^7, R29	// O32 ABI expects 8-byte aligned stack on function entry
++	MOVW	R2, 16(R29)	// save old g on stack
++	MOVW	(g_stack+stack_hi)(R2), R2
++	SUBU	R3, R2
++	MOVW	R2, 20(R29)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
++	JAL	(R25)
++
++	// Restore g, stack pointer. R2 is return value.
++	MOVW	16(R29), g
++	JAL	runtime·save_g(SB)
++	MOVW	(g_stack+stack_hi)(g), R5
++	MOVW	20(R29), R6
++	SUBU	R6, R5
++	MOVW	R5, R29
++
++	MOVW	R2, ret+8(FP)
++	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-// Not implemented.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$0-16
+-	UNDEF
++TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
++	MOVW	$fn+0(FP), R1
++	MOVW	R1, 4(R29)
++	MOVW	frame+4(FP), R1
++	MOVW	R1, 8(R29)
++	MOVW	framesize+8(FP), R1
++	MOVW	R1, 12(R29)
++	MOVW	ctxt+12(FP), R1
++	MOVW	R1, 16(R29)
++	MOVW	$runtime·cgocallback_gofunc(SB), R1
++	JAL	(R1)
++	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-// Not implemented.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-16
+-	UNDEF
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-16
++	NO_LOCAL_POINTERS
++
++	// Load m and g from thread-local storage.
++	MOVB	runtime·iscgo(SB), R1
++	BEQ	R1, nocgo
++	JAL	runtime·load_g(SB)
++nocgo:
++
++	// If g is nil, Go did not create the current thread.
++	// Call needm to obtain one for temporary use.
++	// In this case, we're running on the thread stack, so there's
++	// lots of space, but the linker doesn't know. Hide the call from
++	// the linker analysis by using an indirect call.
++	BEQ	g, needm
++
++	MOVW	g_m(g), R3
++	MOVW	R3, savedm-4(SP)
++	JMP	havem
++
++needm:
++	MOVW	g, savedm-4(SP) // g is zero, so is m.
++	MOVW	$runtime·needm(SB), R4
++	JAL	(R4)
++
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then systemstack will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVW	g_m(g), R3
++	MOVW	m_g0(R3), R1
++	MOVW	R29, (g_sched+gobuf_sp)(R1)
++
++havem:
++	// Now there's a valid m, and we're running on its m->g0.
++	// Save current m->g0->sched.sp on stack and then set it to SP.
++	// Save current sp in m->g0->sched.sp in preparation for
++	// switch back to m->curg stack.
++	// NOTE: unwindm knows that the saved g->sched.sp is at 4(R29) aka savedsp-8(SP).
++	MOVW	m_g0(R3), R1
++	MOVW	(g_sched+gobuf_sp)(R1), R2
++	MOVW	R2, savedsp-8(SP)
++	MOVW	R29, (g_sched+gobuf_sp)(R1)
++
++	// Switch to m->curg stack and call runtime.cgocallbackg.
++	// Because we are taking over the execution of m->curg
++	// but *not* resuming what had been running, we need to
++	// save that information (m->curg->sched) so we can restore it.
++	// We can restore m->curg->sched.sp easily, because calling
++	// runtime.cgocallbackg leaves SP unchanged upon return.
++	// To save m->curg->sched.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallbackg is going to return to that
++	// PC (because the frame we allocate below has the same
++	// size as cgocallback_gofunc's frame declared above)
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	//
++	// In the new goroutine, -4(SP) is unused (where SP refers to
++	// m->curg's SP while we're setting it up, before we've adjusted it).
++	MOVW	m_curg(R3), g
++	JAL	runtime·save_g(SB)
++	MOVW	(g_sched+gobuf_sp)(g), R2 // prepare stack as R2
++	MOVW	(g_sched+gobuf_pc)(g), R4
++	MOVW	R4, -12(R2)
++	MOVW    ctxt+12(FP), R1
++	MOVW    R1, -8(R2)
++	MOVW	$-12(R2), R29
++	JAL	runtime·cgocallbackg(SB)
++
++	// Restore g->sched (== m->curg->sched) from saved values.
++	MOVW	0(R29), R4
++	MOVW	R4, (g_sched+gobuf_pc)(g)
++	MOVW	$12(R29), R2
++	MOVW	R2, (g_sched+gobuf_sp)(g)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVW	g_m(g), R3
++	MOVW	m_g0(R3), g
++	JAL	runtime·save_g(SB)
++	MOVW	(g_sched+gobuf_sp)(g), R29
++	MOVW	savedsp-8(SP), R2
++	MOVW	R2, (g_sched+gobuf_sp)(g)
++
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
++	MOVW	savedm-4(SP), R3
++	BNE	R3, droppedm
++	MOVW	$runtime·dropm(SB), R4
++	JAL	(R4)
++droppedm:
++
++	// Done!
++	RET
+ 
+ // void setg(G*); set g. for use by needm.
+ // This only happens if iscgo, so jump straight to save_g
+@@ -475,9 +630,10 @@ TEXT runtime·setg(SB),NOSPLIT,$0-4
+ 
+ // void setg_gcc(G*); set g in C TLS.
+ // Must obey the gcc calling convention.
+-// Not implemented.
+ TEXT setg_gcc<>(SB),NOSPLIT,$0
+-	UNDEF
++	MOVW	R4, g
++	JAL	runtime·save_g(SB)
++	RET
+ 
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ 	MOVW	8(R29), R1	// LR saved by caller
+@@ -764,9 +920,23 @@ TEXT runtime·return0(SB),NOSPLIT,$0
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-// Not implemented.
+ TEXT _cgo_topofstack(SB),NOSPLIT,$-4
+-	UNDEF
++	// g (R30), R3 and REGTMP (R23) might be clobbered by load_g. R30 and R23
++	// are callee-save in the gcc calling convention, so save them.
++	MOVW	R23, R8
++	MOVW	g, R9
++	MOVW	R31, R10 // this call frame does not save LR
++
++	JAL	runtime·load_g(SB)
++	MOVW	g_m(g), R1
++	MOVW	m_curg(R1), R1
++	MOVW	(g_stack+stack_hi)(R1), R2 // return value in R2
++
++	MOVW	R8, R23
++	MOVW	R9, g
++	MOVW	R10, R31
++
++	RET
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+new file mode 100644
+index 0000000000..dd16af6fbe
+--- /dev/null
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -0,0 +1,67 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++#include "textflag.h"
++
++/*
++ * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),NOSPLIT,$-4
++	/*
++	 * We still need to save all callee save register as before, and then
++	 *  push 3 args for fn (R5, R6, R7).
++	 * Also note that at procedure entry in gc world, 4(R29) will be the
++	 *  first arg.
++	 */
++
++	// Space for 9 caller-saved GPR + LR + 6 caller-saved FPR.
++	// O32 ABI allows us to smash 16 bytes argument area of caller frame.
++	SUBU	$(4*14+8*6-16), R29
++	MOVW	R5, (4*1)(R29)
++	MOVW	R6, (4*2)(R29)
++	MOVW	R7, (4*3)(R29)
++	MOVW	R16, (4*4)(R29)
++	MOVW	R17, (4*5)(R29)
++	MOVW	R18, (4*6)(R29)
++	MOVW	R19, (4*7)(R29)
++	MOVW	R20, (4*8)(R29)
++	MOVW	R21, (4*9)(R29)
++	MOVW	R22, (4*10)(R29)
++	MOVW	R23, (4*11)(R29)
++	MOVW	g, (4*12)(R29)
++	MOVW	R31, (4*13)(R29)
++
++	MOVD	F20, (4*14)(R29)
++	MOVD	F22, (4*14+8*1)(R29)
++	MOVD	F24, (4*14+8*2)(R29)
++	MOVD	F26, (4*14+8*3)(R29)
++	MOVD	F28, (4*14+8*4)(R29)
++	MOVD	F30, (4*14+8*5)(R29)
++
++	JAL	runtime·load_g(SB)
++	JAL	(R4)
++
++	MOVW	(4*4)(R29), R16
++	MOVW	(4*5)(R29), R17
++	MOVW	(4*6)(R29), R18
++	MOVW	(4*7)(R29), R19
++	MOVW	(4*8)(R29), R20
++	MOVW	(4*9)(R29), R21
++	MOVW	(4*10)(R29), R22
++	MOVW	(4*11)(R29), R23
++	MOVW	(4*12)(R29), g
++	MOVW	(4*13)(R29), R31
++
++	MOVD	(4*14)(R29), F20
++	MOVD	(4*14+8*1)(R29), F22
++	MOVD	(4*14+8*2)(R29), F24
++	MOVD	(4*14+8*3)(R29), F26
++	MOVD	(4*14+8*4)(R29), F28
++	MOVD	(4*14+8*5)(R29), F30
++
++	ADDU	$(4*14+8*6-16), R29
++	RET
+diff --git a/src/runtime/cgo/gcc_linux_mipsx.c b/src/runtime/cgo/gcc_linux_mipsx.c
+new file mode 100644
+index 0000000000..7ed9d87575
+--- /dev/null
++++ b/src/runtime/cgo/gcc_linux_mipsx.c
+@@ -0,0 +1,80 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++// +build linux
++// +build mips mipsle
++
++#include <pthread.h>
++#include <string.h>
++#include <signal.h>
++#include "libcgo.h"
++#include "libcgo_unix.h"
++
++static void *threadentry(void*);
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
++void (*setg_gcc)(void*);
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	// Not sure why the memset is necessary here,
++	// but without it, we get a bogus stack size
++	// out of pthread_attr_getstacksize.  C'est la Linux.
++	memset(&attr, 0, sizeof attr);
++	pthread_attr_init(&attr);
++	size = 0;
++	pthread_attr_getstacksize(&attr, &size);
++	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	ts->g->stackhi = size;
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fatalf("pthread_create failed: %s", strerror(err));
++	}
++}
++
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
++	return nil;
++}
++
++void
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++
++	memset(&attr, 0, sizeof attr);
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++
++	if (x_cgo_inittls) {
++		x_cgo_inittls(tlsg, tlsbase);
++	}
++}
+diff --git a/src/runtime/cgo/gcc_mipsx.S b/src/runtime/cgo/gcc_mipsx.S
+new file mode 100644
+index 0000000000..c51c36a9b7
+--- /dev/null
++++ b/src/runtime/cgo/gcc_mipsx.S
+@@ -0,0 +1,68 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++/*
++ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
++ *
++ * Calling into the gc tool chain, where all registers are caller save.
++ * Called from standard MIPS O32 ABI, where $16-$23, $30, and $f20-$f31
++ * are callee-save, so they must be saved explicitly, along with $31 (LR).
++ */
++.globl crosscall1
++.set noat
++crosscall1:
++	addiu	$29, $29, -88
++
++	sw	$31, 0($29)
++	sw	$16, 4($29)
++	sw	$17, 8($29)
++	sw	$18, 12($29)
++	sw	$19, 16($29)
++	sw	$20, 20($29)
++	sw	$21, 24($29)
++	sw	$22, 28($29)
++	sw	$23, 32($29)
++	sw	$30, 36($29)
++
++	sdc1	$f20, 40($29)
++	sdc1	$f22, 48($29)
++	sdc1	$f24, 56($29)
++	sdc1	$f26, 64($29)
++	sdc1	$f28, 72($29)
++	sdc1	$f30, 80($29)
++
++
++	move	$20, $4 // save R4
++	move	$4, $6
++	jalr	$5	// call setg_gcc
++	jalr	$20	// call fn
++
++	lw	$16, 4($29)
++	lw	$17, 8($29)
++	lw	$18, 12($29)
++	lw	$19, 16($29)
++	lw	$20, 20($29)
++	lw	$21, 24($29)
++	lw	$22, 28($29)
++	lw	$23, 32($29)
++	lw	$30, 36($29)
++	ldc1	$f20, 40($29)
++	ldc1	$f22, 48($29)
++	ldc1	$f24, 56($29)
++	ldc1	$f26, 64($29)
++	ldc1	$f28, 72($29)
++	ldc1	$f30, 80($29)
++
++	lw	$31, 0($29)
++
++	addiu	$29, $29, 88
++	jr	$31
++
++.set at
++
++#ifdef __ELF__
++.section .note.GNU-stack,"",%progbits
++#endif
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 007406b426..69e29ef976 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -286,6 +286,10 @@ func cgocallbackg1(ctxt uintptr) {
+ 		// On mips64x, stack frame is two words and there's a saved LR between
+ 		// SP and the stack frame and between the stack frame and the arguments.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
++	case "mips", "mipsle":
++		// On mipsx, stack frame is two words and there's a saved LR between
++		// SP and the stack frame and between the stack frame and the arguments.
++		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+ 	}
+ 
+ 	// Invoke callback.
+@@ -323,7 +327,7 @@ func unwindm(restore *bool) {
+ 	switch GOARCH {
+ 	default:
+ 		throw("unwindm not implemented")
+-	case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x":
++	case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x", "mips", "mipsle":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
+ 	case "arm64":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
+diff --git a/src/runtime/rt0_linux_mipsx.s b/src/runtime/rt0_linux_mipsx.s
+index 5e8c5c3161..9a2e561246 100644
+--- a/src/runtime/rt0_linux_mipsx.s
++++ b/src/runtime/rt0_linux_mipsx.s
+@@ -18,10 +18,11 @@ TEXT _main<>(SB),NOSPLIT,$-4
+ 	// argv as argc string pointers followed by a NULL, envv as a
+ 	// sequence of string pointers followed by a NULL, and auxv.
+ 	// There is no TLS base pointer.
+-	MOVW	0(R29), R1	// argc
+-	ADD	$4, R29, R2	// argv
++	MOVW	0(R29), R4 // argc
++	ADD	$4, R29, R5 // argv
+ 	JMP	main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$-4
+-	MOVW	$runtime·rt0_go(SB), R4
+-	JMP	(R4)
++        // In external linking, libc jumps to main with argc in R4, argv in R5
++	MOVW	$runtime·rt0_go(SB), R1
++	JMP	(R1)
+diff --git a/src/runtime/tls_mipsx.s b/src/runtime/tls_mipsx.s
+index 95fbc32a7c..a2c01d2167 100644
+--- a/src/runtime/tls_mipsx.s
++++ b/src/runtime/tls_mipsx.s
+@@ -10,12 +10,20 @@
+ #include "textflag.h"
+ 
+ // If !iscgo, this is a no-op.
++// NOTE: gogo asumes load_g only clobers g (R30) and REGTMP (R23)
+ TEXT runtime·save_g(SB),NOSPLIT,$-4-0
+ 	MOVB	runtime·iscgo(SB), R23
+ 	BEQ	R23, nocgo
+-	UNDEF
++
++	MOVW	R3, R23
++	MOVW	g, runtime·tls_g(SB) // TLS relocation clobbers R3
++	MOVW	R23, R3
++
+ nocgo:
+ 	RET
+ 
+ TEXT runtime·load_g(SB),NOSPLIT,$-4-0
++	MOVW	runtime·tls_g(SB), g // TLS relocation clobbers R3
+ 	RET
++
++GLOBL runtime·tls_g(SB), TLSBSS, $4

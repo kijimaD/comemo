@@ -17,7 +17,38 @@ Date:   Tue Nov 22 10:24:11 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  api/next/56906.txt   | 2 ++
  src/reflect/value.go | 4 ++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/56906.txt b/api/next/56906.txt
+new file mode 100644
+index 0000000000..aa4424af11
+--- /dev/null
++++ b/api/next/56906.txt
+@@ -0,0 +1,2 @@
++pkg reflect, type SliceHeader //deprecated #56906
++pkg reflect, type StringHeader //deprecated #56906
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 5feca61434..22f3eb02cd 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2743,7 +2743,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
+ //
+-// In new code, use unsafe.String or unsafe.StringData instead.
++// Deprecated: Use unsafe.String or unsafe.StringData instead.
+ type StringHeader struct {
+ 	Data uintptr
+ 	Len  int
+@@ -2756,7 +2756,7 @@ type StringHeader struct {
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
+ //
+-// In new code, use unsafe.Slice or unsafe.SliceData instead.
++// Deprecated: Use unsafe.Slice or unsafe.SliceData instead.
+ type SliceHeader struct {
+ 	Data uintptr
+ 	Len  int

@@ -7,6 +7,24 @@ Date:   Thu Jun 27 09:20:02 2013 -0700
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/10631043
-
+---
  doc/go1.2.txt | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 37172db0bb..1db0d763bf 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -10,7 +10,12 @@ Please keep the list sorted (as in sort.Strings of the lines).
+ 
+ cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
+ cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
++cmd/go: test coverage (CL 10413044).
+ 
++crypto/md5: Sum function to simplify hashing (CL10624044).
++crypto/sha1: Sum function to simplify hashing (CL 10571043).
++crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
++crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
+ crypto/tls: add support for TLS 1.1. (CL 7872043).
+ fmt: indexed access to arguments in Printf etc. (CL 9680043).
+ go/build: support including C++ code with cgo (CL 8248043).

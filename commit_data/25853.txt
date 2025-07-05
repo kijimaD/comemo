@@ -16,7 +16,91 @@ Date:   Sat Nov 7 12:18:36 2015 +0000
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/tls/handshake_client.go      |  4 +--
  src/crypto/tls/handshake_client_test.go | 51 +++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 462acfd1a1..3c996acf87 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -165,10 +165,10 @@ NextCipherSuite:
+ 	c.vers = vers
+ 	c.haveVers = true
+ 
+-	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
++	suite := mutualCipherSuite(hello.cipherSuites, serverHello.cipherSuite)
+ 	if suite == nil {
+ 		c.sendAlert(alertHandshakeFailure)
+-		return fmt.Errorf("tls: server selected an unsupported cipher suite")
++		return errors.New("tls: server chose an unconfigured cipher suite")
+ 	}
+ 
+ 	hs := &clientHandshakeState{
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 31ddac6192..f78cc46935 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strconv"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -643,3 +644,53 @@ func TestNoIPAddressesInSNI(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
++	// This checks that the server can't select a cipher suite that the
++	// client didn't offer. See #13174.
++
++	c, s := net.Pipe()
++	errChan := make(chan error, 1)
++
++	go func() {
++		client := Client(c, &Config{
++			ServerName:   "foo",
++			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
++		})
++		errChan <- client.Handshake()
++	}()
++
++	var header [5]byte
++	if _, err := io.ReadFull(s, header[:]); err != nil {
++		t.Fatal(err)
++	}
++	recordLen := int(header[3])<<8 | int(header[4])
++
++	record := make([]byte, recordLen)
++	if _, err := io.ReadFull(s, record); err != nil {
++		t.Fatal(err)
++	}
++
++	// Create a ServerHello that selects a different cipher suite than the
++	// sole one that the client offered.
++	serverHello := &serverHelloMsg{
++		vers:        VersionTLS12,
++		random:      make([]byte, 32),
++		cipherSuite: TLS_RSA_WITH_AES_256_GCM_SHA384,
++	}
++	serverHelloBytes := serverHello.marshal()
++
++	s.Write([]byte{
++		byte(recordTypeHandshake),
++		byte(VersionTLS12 >> 8),
++		byte(VersionTLS12 & 0xff),
++		byte(len(serverHelloBytes) >> 8),
++		byte(len(serverHelloBytes)),
++	})
++	s.Write(serverHelloBytes)
++	s.Close()
++
++	if err := <-errChan; !strings.Contains(err.Error(), "unconfigured cipher") {
++		t.Fatalf("Expected error about unconfigured cipher suite but got %q", err)
++	}
++}

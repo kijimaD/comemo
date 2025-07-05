@@ -14,7 +14,34 @@ Date:   Sat Apr 14 10:50:52 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/internal_test.go | 5 +++++
  src/time/time_test.go     | 2 ++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 76d5524124..336deb9211 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -76,3 +76,8 @@ func CheckRuntimeTimerOverflow() {
+ 	// So we fall back to hope: We hope we don't hang here.
+ 	<-t.C
+ }
++
++var (
++	MinMonoTime = Time{wall: 1 << 63, ext: -1 << 63, loc: UTC}
++	MaxMonoTime = Time{wall: 1 << 63, ext: 1<<63 - 1, loc: UTC}
++)
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index cde99e2622..7778bf1f83 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -978,6 +978,8 @@ var subTests = []struct {
+ 	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
+ 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
+ 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
++	{MinMonoTime, MaxMonoTime, minDuration},
++	{MaxMonoTime, MinMonoTime, maxDuration},
+ }
+ 
+ func TestSub(t *testing.T) {

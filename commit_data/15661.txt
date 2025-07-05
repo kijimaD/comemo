@@ -7,10 +7,103 @@ Date:   Sun Mar 10 12:50:44 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7497044
-
+---
  src/cmd/5l/obj.c |  1 +
  src/cmd/6l/obj.c |  3 ++-
  src/cmd/8l/obj.c |  1 +
  src/cmd/ld/lib.c | 11 +++++------
  src/cmd/ld/lib.h |  4 ++--
  5 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 58ac77052d..d25fefebba 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -123,6 +123,7 @@ main(int argc, char *argv[])
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
++	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index cf54b2b4f5..3a1f862eda 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -117,10 +117,11 @@ main(int argc, char *argv[])
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
++	flagcount("shared", "generate shared object", &flag_shared);
++	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
+-	flagcount("shared", "generate shared object", &flag_shared);
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 	
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c0c4795599..f926652a6e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -123,6 +123,7 @@ main(int argc, char *argv[])
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
+ 	flagcount("n", "dump symbol table", &debug['n']);
++	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 2ca1d3e0da..5a5cbd0a15 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -557,8 +557,6 @@ hostobjs(void)
+ 	}
+ }
+ 
+-static char *tmpdir;
+-
+ static void
+ rmtemp(void)
+ {
+@@ -574,10 +572,11 @@ hostlinksetup(void)
+ 		return;
+ 
+ 	// create temporary directory and arrange cleanup
+-	// TODO: Add flag to specify tempdir, which is then not cleaned up.
+-	tmpdir = mktempdir();
+-	atexit(rmtemp);
+-	
++	if(tmpdir == nil) {
++		tmpdir = mktempdir();
++		atexit(rmtemp);
++	}
++
+ 	// change our output to temporary object file
+ 	close(cout);
+ 	p = smprint("%s/go.o", tmpdir);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 4cb52c6ba4..6b4f4d7044 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -148,6 +148,7 @@ EXTERN	int	flag_race;
+ EXTERN	int flag_shared;
+ EXTERN	char*	tracksym;
+ EXTERN	char*	interpreter;
++EXTERN	char*	tmpdir;
+ 
+ enum
+ {
+@@ -166,8 +167,7 @@ enum
+ 
+ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;
+-EXTERN	Segment	segsym;
+-EXTERN	Segment segdwarf;
++EXTERN	Segment	segdwarf;
+ 
+ void	addlib(char *src, char *obj);
+ void	addlibpath(char *srcref, char *objref, char *file, char *pkg);

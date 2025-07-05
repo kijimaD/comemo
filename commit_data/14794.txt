@@ -7,10 +7,140 @@ Date:   Fri Jan 4 10:59:10 2013 -0500
     R=golang-dev, dsymonds, minux.ma, iant, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7035055
-
+---
  src/cmd/dist/a.h       |  1 +
  src/cmd/dist/build.c   |  8 ++++++--
  src/cmd/dist/plan9.c   |  8 ++++++++
  src/cmd/dist/unix.c    | 23 +++++++++++++++++++++++
  src/cmd/dist/windows.c | 25 +++++++++++++++++++++++++
  5 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index f6d90df638..7c6516dab6 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -123,6 +123,7 @@ void	runv(Buf *b, char *dir, int mode, Vec *argv);
+ void	bgrunv(char *dir, int mode, Vec *argv);
+ void	bgwait(void);
+ bool	streq(char*, char*);
++bool	cansse(void);
+ void	writefile(Buf*, char*, int);
+ void	xatexit(void (*f)(void));
+ void	xexit(int);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 4749a16157..2dc3b9ba4e 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -104,8 +104,12 @@ init(void)
+ 	goarm = btake(&b);
+ 
+ 	xgetenv(&b, "GO386");
+-	if(b.len == 0)
+-		bwritestr(&b, "387");
++	if(b.len == 0) {
++		if(cansse())
++			bwritestr(&b, "sse");
++		else
++			bwritestr(&b, "387");
++	}
+ 	go386 = btake(&b);
+ 
+ 	p = bpathf(&b, "%s/include/u.h", goroot);
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index 5bf2c3736d..8fef74f95d 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -758,4 +758,12 @@ xtryexecfunc(void (*f)(void))
+ 	return 0; // suffice for now
+ }
+ 
++bool
++cansse(void)
++{
++	// if we had access to cpuid, could answer this question
++	// less conservatively.
++	return 0;
++}
++
+ #endif // PLAN9
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index b82bf1ddbd..a99e5bfc46 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -741,6 +741,7 @@ xsamefile(char *f1, char *f2)
+ 
+ sigjmp_buf sigill_jmpbuf;
+ static void sigillhand(int);
++
+ // xtryexecfunc tries to execute function f, if any illegal instruction
+ // signal received in the course of executing that function, it will
+ // return 0, otherwise it will return 1.
+@@ -757,6 +758,7 @@ xtryexecfunc(void (*f)(void))
+ 	signal(SIGILL, SIG_DFL);
+ 	return r;
+ }
++
+ // SIGILL handler helper
+ static void
+ sigillhand(int signum)
+@@ -765,5 +767,26 @@ sigillhand(int signum)
+ 	siglongjmp(sigill_jmpbuf, 1);
+ }
+ 
++static void
++__cpuid(int dst[4], int ax)
++{
++#if defined(__i386__) || defined(__x86_64__)
++	asm volatile("cpuid"
++		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
++		: "0" (ax));
++#else
++	dst[0] = dst[1] = dst[2] = dst[3] = 0;
++#endif
++}
++
++bool
++cansse(void)
++{
++	int info[4];
++	
++	__cpuid(info, 1);
++	return (info[3] & (1<<26)) != 0;	// SSE2
++}
++
+ #endif // PLAN9
+ #endif // __WINDOWS__
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 37f8ea02ec..4edb39cb58 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -971,4 +971,29 @@ xtryexecfunc(void (*f)(void))
+ 	return 0; // suffice for now
+ }
+ 
++static void
++cpuid(int dst[4], int ax)
++{
++	// NOTE: This asm statement is for mingw.
++	// If we ever support MSVC, use __cpuid(dst, ax)
++	// to use the built-in.
++#if defined(__i386__) || defined(__x86_64__)
++	asm volatile("cpuid"
++		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
++		: "0" (ax));
++#else
++	dst[0] = dst[1] = dst[2] = dst[3] = 0;
++#endif
++}
++
++bool
++cansse(void)
++{
++	int info[4];
++	
++	cpuid(info, 1);
++	return (info[3] & (1<<26)) != 0;	// SSE2
++}
++
++
+ #endif // __WINDOWS__

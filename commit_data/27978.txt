@@ -10,6 +10,30 @@ Date:   Thu Apr 21 20:58:35 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3cd769fd2d..49d55091ff 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -686,7 +686,7 @@ var kinds = []int{
+ 	TCHAN:       obj.KindChan,
+ 	TMAP:        obj.KindMap,
+ 	TARRAY:      obj.KindArray,
+-	TSLICE:      obj.KindArray,
++	TSLICE:      obj.KindSlice,
+ 	TFUNC:       obj.KindFunc,
+ 	TCOMPLEX64:  obj.KindComplex64,
+ 	TCOMPLEX128: obj.KindComplex128,
+@@ -887,9 +887,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot = duint8(s, ot, t.Align) // fieldAlign
+ 
+ 	i = kinds[t.Etype]
+-	if t.IsSlice() {
+-		i = obj.KindSlice
+-	}
+ 	if !haspointers(t) {
+ 		i |= obj.KindNoPointers
+ 	}

@@ -13,6 +13,20 @@ Date:   Fri Feb 7 17:36:26 2020 +0700
     Change-Id: If861c3e3700957fc9ac3d5313351c57d399d3f58
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218417
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/ioutil/ioutil.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index b1cb841468..acc6ec3a40 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -75,7 +75,7 @@ func ReadFile(filename string) ([]byte, error) {
+ 
+ // WriteFile writes data to a file named by filename.
+ // If the file does not exist, WriteFile creates it with permissions perm
+-// (before umask); otherwise WriteFile truncates it before writing.
++// (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
+ func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {

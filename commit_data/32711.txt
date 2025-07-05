@@ -14,6 +14,31 @@ Date:   Fri May 19 02:13:50 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/43670
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/scope_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index 5833b1e649..f08e900193 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -182,6 +183,11 @@ const detailOutput = false
+ // corresponds to what we expect it to be.
+ func TestScopeRanges(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
+ 	dir, err := ioutil.TempDir("", "TestScopeRanges")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)

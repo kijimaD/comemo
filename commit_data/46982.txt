@@ -27,7 +27,7 @@ Date:   Wed Jan 27 11:39:48 2021 -0500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/syscall/syscall_windows.go       | 27 +++++++++++++++------------
  src/syscall/syscall_windows_386.go   |  5 -----
  src/syscall/syscall_windows_amd64.go |  5 -----
@@ -36,3 +36,105 @@ Date:   Wed Jan 27 11:39:48 2021 -0500
  src/syscall/zsysnum_windows_386.go   |  3 ---
  src/syscall/zsysnum_windows_amd64.go |  3 ---
  7 files changed, 15 insertions(+), 38 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index ba69133d81..4a576486d1 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -414,19 +414,22 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
+ // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
+ func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
+ 	var e1 Errno
+-	switch runtime.GOARCH {
+-	default:
+-		panic("unsupported architecture")
+-	case "amd64":
++	if unsafe.Sizeof(uintptr(0)) == 8 {
+ 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
+-	case "386":
+-		// distToMove is a LARGE_INTEGER:
+-		// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
+-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+-	case "arm":
+-		// distToMove must be 8-byte aligned per ARM calling convention
+-		// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
+-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
++	} else {
++		// Different 32-bit systems disgaree about whether distToMove starts 8-byte aligned.
++		switch runtime.GOARCH {
++		default:
++			panic("unsupported 32-bit architecture")
++		case "386":
++			// distToMove is a LARGE_INTEGER:
++			// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
++			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
++		case "arm":
++			// distToMove must be 8-byte aligned per ARM calling convention
++			// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
++			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
++		}
+ 	}
+ 	if e1 != 0 {
+ 		return errnoErr(e1)
+diff --git a/src/syscall/syscall_windows_386.go b/src/syscall/syscall_windows_386.go
+deleted file mode 100644
+index e82b540b4b..0000000000
+--- a/src/syscall/syscall_windows_386.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+diff --git a/src/syscall/syscall_windows_amd64.go b/src/syscall/syscall_windows_amd64.go
+deleted file mode 100644
+index e82b540b4b..0000000000
+--- a/src/syscall/syscall_windows_amd64.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+diff --git a/src/syscall/zerrors_windows_386.go b/src/syscall/zerrors_windows_386.go
+deleted file mode 100644
+index 8bc5b6b194..0000000000
+--- a/src/syscall/zerrors_windows_386.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+diff --git a/src/syscall/zerrors_windows_amd64.go b/src/syscall/zerrors_windows_amd64.go
+deleted file mode 100644
+index 8bc5b6b194..0000000000
+--- a/src/syscall/zerrors_windows_amd64.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+diff --git a/src/syscall/zsysnum_windows_386.go b/src/syscall/zsysnum_windows_386.go
+deleted file mode 100644
+index 36bf065d1f..0000000000
+--- a/src/syscall/zsysnum_windows_386.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// nothing to see here
+-
+-package syscall
+diff --git a/src/syscall/zsysnum_windows_amd64.go b/src/syscall/zsysnum_windows_amd64.go
+deleted file mode 100644
+index 36bf065d1f..0000000000
+--- a/src/syscall/zsysnum_windows_amd64.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// nothing to see here
+-
+-package syscall

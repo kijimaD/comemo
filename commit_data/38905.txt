@@ -15,6 +15,22 @@ Date:   Fri Dec 7 07:25:50 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/s390x/asmz.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 4e43d27790..7d49103be6 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -2618,6 +2618,10 @@ func (c *ctxtz) branchMask(p *obj.Prog) uint32 {
+ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 	o := c.oplook(p)
+ 
++	if o == nil {
++		return
++	}
++
+ 	switch o.type_ {
+ 	default:
+ 		c.ctxt.Diag("unknown type %d", o.type_)

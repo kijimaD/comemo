@@ -7,6 +7,19 @@ Date:   Thu Dec 26 11:52:04 2013 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/45830043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7e622b1642..ed6ec7f6c6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -270,6 +270,7 @@ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
++John Newlin <jnewlin@google.com>
+ John Shahid <jvshahid@gmail.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Feinberg <feinberg@google.com>

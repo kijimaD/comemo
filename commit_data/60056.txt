@@ -14,6 +14,20 @@ Date:   Sat May 18 01:37:36 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/telemetry/telemetry.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+index 221b6a007d..f11d80d19f 100644
+--- a/src/cmd/internal/telemetry/telemetry.go
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -48,7 +48,7 @@ func NewCounter(name string) *counter.Counter {
+ 	return counter.New(name)
+ }
+ 
+-// NewStack returns a new stack counter with the given name and depth.
++// NewStackCounter returns a new stack counter with the given name and depth.
+ func NewStackCounter(name string, depth int) *counter.StackCounter {
+ 	return counter.NewStack(name, depth)
+ }

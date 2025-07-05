@@ -9,7 +9,7 @@ Date:   Thu Sep 23 13:48:56 2010 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/2225046
-
+---
  src/pkg/asn1/asn1_test.go       |   2 +-
  src/pkg/big/int_test.go         |  10 +-
  src/pkg/big/nat_test.go         |   4 +-
@@ -37,3 +37,2044 @@ Date:   Thu Sep 23 13:48:56 2010 +1000
  src/pkg/unicode/letter_test.go  |  20 ++--
  src/pkg/unicode/script_test.go  |   8 +-
  26 files changed, 262 insertions(+), 262 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index ee90048c77..74150d7471 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -367,7 +367,7 @@ func TestCertificate(t *testing.T) {
+ 		t.Errorf("Unmarshal failed: %v", err)
+ 	}
+ 	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
+-		t.Errorf("Bad result:\ngot: %+v\nwant: %+v\n", cert, derEncodedSelfSignedCert)
++		t.Errorf("Bad result:\ngot: %+v\nwant: %+v", cert, derEncodedSelfSignedCert)
+ 	}
+ }
+ 
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 117852a90b..184bce5bfd 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -310,13 +310,13 @@ func TestGetString(t *testing.T) {
+ 		if test.base == 10 {
+ 			s := z.String()
+ 			if s != test.out {
+-				t.Errorf("#%da got %s; want %s\n", i, s, test.out)
++				t.Errorf("#%da got %s; want %s", i, s, test.out)
+ 			}
+ 		}
+ 
+ 		s := fmt.Sprintf(format(test.base), z)
+ 		if s != test.out {
+-			t.Errorf("#%db got %s; want %s\n", i, s, test.out)
++			t.Errorf("#%db got %s; want %s", i, s, test.out)
+ 		}
+ 	}
+ }
+@@ -344,10 +344,10 @@ func TestSetString(t *testing.T) {
+ 		}
+ 
+ 		if n1.Cmp(expected) != 0 {
+-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.val)
++			t.Errorf("#%d (input '%s') got: %s want: %d", i, test.in, n1, test.val)
+ 		}
+ 		if n2.Cmp(expected) != 0 {
+-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.val)
++			t.Errorf("#%d (input '%s') got: %s want: %d", i, test.in, n2, test.val)
+ 		}
+ 	}
+ }
+@@ -582,7 +582,7 @@ func TestBitLen(t *testing.T) {
+ 		}
+ 
+ 		if n := x.BitLen(); n != test.out {
+-			t.Errorf("#%d got %d want %d\n", i, n, test.out)
++			t.Errorf("#%d got %d want %d", i, n, test.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 8545981c03..440ad7c70a 100755
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -301,7 +301,7 @@ func runModWTests(t *testing.T, tests []modWTest) {
+ 
+ 		r := in.abs.modW(d.abs[0])
+ 		if r != out.abs[0] {
+-			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
++			t.Errorf("#%d failed: got %s want %s", i, r, out)
+ 		}
+ 	}
+ }
+@@ -322,7 +322,7 @@ func TestTrailingZeroBits(t *testing.T) {
+ 	x--
+ 	for i := 0; i < _W; i++ {
+ 		if trailingZeroBits(x) != i {
+-			t.Errorf("Failed at step %d: x: %x got: %d\n", i, x, trailingZeroBits(x))
++			t.Errorf("Failed at step %d: x: %x got: %d", i, x, trailingZeroBits(x))
+ 		}
+ 		x <<= 1
+ 	}
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 10c14ecd0f..5df97bd245 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -69,7 +69,7 @@ func TestReaderSimple(t *testing.T) {
+ 
+ 	b = NewReader(newRot13Reader(bytes.NewBufferString(data)))
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+-		t.Error("rot13 hello world test failed: got %q", s)
++		t.Errorf("rot13 hello world test failed: got %q", s)
+ 	}
+ }
+ 
+@@ -250,7 +250,7 @@ func TestUnreadRune(t *testing.T) {
+ 			t.Error("unexpected error reading after unreading:", err)
+ 		}
+ 		if rune != rune1 {
+-			t.Error("incorrect rune after unread: got %c wanted %c", rune1, rune)
++			t.Errorf("incorrect rune after unread: got %c wanted %c", rune1, rune)
+ 		}
+ 	}
+ 	if got != data {
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index bc696f4b5e..53086a4df7 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -30,19 +30,19 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
+ 	bytes := buf.Bytes()
+ 	str := buf.String()
+ 	if buf.Len() != len(bytes) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
++		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d", testname, buf.Len(), len(bytes))
+ 	}
+ 
+ 	if buf.Len() != len(str) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
++		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d", testname, buf.Len(), len(str))
+ 	}
+ 
+ 	if buf.Len() != len(s) {
+-		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
++		t.Errorf("%s: buf.Len() == %d, len(s) == %d", testname, buf.Len(), len(s))
+ 	}
+ 
+ 	if string(bytes) != s {
+-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
++		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q", testname, string(bytes), s)
+ 	}
+ }
+ 
+@@ -55,10 +55,10 @@ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus
+ 	for ; n > 0; n-- {
+ 		m, err := buf.WriteString(fus)
+ 		if m != len(fus) {
+-			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fus))
++			t.Errorf(testname+" (fill 2): m == %d, expected %d", m, len(fus))
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s", err)
+ 		}
+ 		s += fus
+ 		check(t, testname+" (fill 4)", buf, s)
+@@ -75,10 +75,10 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub
+ 	for ; n > 0; n-- {
+ 		m, err := buf.Write(fub)
+ 		if m != len(fub) {
+-			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fub))
++			t.Errorf(testname+" (fill 2): m == %d, expected %d", m, len(fub))
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s", err)
+ 		}
+ 		s += string(fub)
+ 		check(t, testname+" (fill 4)", buf, s)
+@@ -110,7 +110,7 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+ 			break
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname+" (empty 2): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (empty 2): err should always be nil, found err == %s", err)
+ 		}
+ 		s = s[n:]
+ 		check(t, testname+" (empty 3)", buf, s)
+@@ -134,10 +134,10 @@ func TestBasicOperations(t *testing.T) {
+ 
+ 		n, err := buf.Write(Bytes(data[0:1]))
+ 		if n != 1 {
+-			t.Errorf("wrote 1 byte, but n == %d\n", n)
++			t.Errorf("wrote 1 byte, but n == %d", n)
+ 		}
+ 		if err != nil {
+-			t.Errorf("err should always be nil, but err == %s\n", err)
++			t.Errorf("err should always be nil, but err == %s", err)
+ 		}
+ 		check(t, "TestBasicOperations (4)", &buf, "a")
+ 
+@@ -146,7 +146,7 @@ func TestBasicOperations(t *testing.T) {
+ 
+ 		n, err = buf.Write(Bytes(data[2:26]))
+ 		if n != 24 {
+-			t.Errorf("wrote 25 bytes, but n == %d\n", n)
++			t.Errorf("wrote 25 bytes, but n == %d", n)
+ 		}
+ 		check(t, "TestBasicOperations (6)", &buf, string(data[0:26]))
+ 
+@@ -162,14 +162,14 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.WriteByte(data[1])
+ 		c, err := buf.ReadByte()
+ 		if err != nil {
+-			t.Errorf("ReadByte unexpected eof\n")
++			t.Error("ReadByte unexpected eof")
+ 		}
+ 		if c != data[1] {
+-			t.Errorf("ReadByte wrong value c=%v\n", c)
++			t.Error("ReadByte wrong value c=%v", c)
+ 		}
+ 		c, err = buf.ReadByte()
+ 		if err == nil {
+-			t.Errorf("ReadByte unexpected not eof\n")
++			t.Error("ReadByte unexpected not eof")
+ 		}
+ 	}
+ }
+@@ -238,7 +238,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ func TestNil(t *testing.T) {
+ 	var b *Buffer
+ 	if b.String() != "<nil>" {
+-		t.Error("expcted <nil>; got %q", b.String())
++		t.Errorf("expcted <nil>; got %q", b.String())
+ 	}
+ }
+ 
+diff --git a/src/pkg/cmath/cmath_test.go b/src/pkg/cmath/cmath_test.go
+index 25e4f22543..48aa5b2586 100644
+--- a/src/pkg/cmath/cmath_test.go
++++ b/src/pkg/cmath/cmath_test.go
+@@ -483,175 +483,175 @@ func cAlike(a, b complex128) bool {
+ func TestAbs(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Abs(vc[i]); !veryclose(abs[i], f) {
+-			t.Errorf("Abs(%g) = %g, want %g\n", vc[i], f, abs[i])
++			t.Errorf("Abs(%g) = %g, want %g", vc[i], f, abs[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAbsSC); i++ {
+ 		if f := Abs(vcAbsSC[i]); !alike(absSC[i], f) {
+-			t.Errorf("Abs(%g) = %g, want %g\n", vcAbsSC[i], f, absSC[i])
++			t.Errorf("Abs(%g) = %g, want %g", vcAbsSC[i], f, absSC[i])
+ 		}
+ 	}
+ }
+ func TestAcos(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Acos(vc[i]); !cSoclose(acos[i], f, 1e-14) {
+-			t.Errorf("Acos(%g) = %g, want %g\n", vc[i], f, acos[i])
++			t.Errorf("Acos(%g) = %g, want %g", vc[i], f, acos[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAcosSC); i++ {
+ 		if f := Acos(vcAcosSC[i]); !cAlike(acosSC[i], f) {
+-			t.Errorf("Acos(%g) = %g, want %g\n", vcAcosSC[i], f, acosSC[i])
++			t.Errorf("Acos(%g) = %g, want %g", vcAcosSC[i], f, acosSC[i])
+ 		}
+ 	}
+ }
+ func TestAcosh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Acosh(vc[i]); !cSoclose(acosh[i], f, 1e-14) {
+-			t.Errorf("Acosh(%g) = %g, want %g\n", vc[i], f, acosh[i])
++			t.Errorf("Acosh(%g) = %g, want %g", vc[i], f, acosh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAcoshSC); i++ {
+ 		if f := Acosh(vcAcoshSC[i]); !cAlike(acoshSC[i], f) {
+-			t.Errorf("Acosh(%g) = %g, want %g\n", vcAcoshSC[i], f, acoshSC[i])
++			t.Errorf("Acosh(%g) = %g, want %g", vcAcoshSC[i], f, acoshSC[i])
+ 		}
+ 	}
+ }
+ func TestAsin(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Asin(vc[i]); !cSoclose(asin[i], f, 1e-14) {
+-			t.Errorf("Asin(%g) = %g, want %g\n", vc[i], f, asin[i])
++			t.Errorf("Asin(%g) = %g, want %g", vc[i], f, asin[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAsinSC); i++ {
+ 		if f := Asin(vcAsinSC[i]); !cAlike(asinSC[i], f) {
+-			t.Errorf("Asin(%g) = %g, want %g\n", vcAsinSC[i], f, asinSC[i])
++			t.Errorf("Asin(%g) = %g, want %g", vcAsinSC[i], f, asinSC[i])
+ 		}
+ 	}
+ }
+ func TestAsinh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Asinh(vc[i]); !cSoclose(asinh[i], f, 4e-15) {
+-			t.Errorf("Asinh(%g) = %g, want %g\n", vc[i], f, asinh[i])
++			t.Errorf("Asinh(%g) = %g, want %g", vc[i], f, asinh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAsinhSC); i++ {
+ 		if f := Asinh(vcAsinhSC[i]); !cAlike(asinhSC[i], f) {
+-			t.Errorf("Asinh(%g) = %g, want %g\n", vcAsinhSC[i], f, asinhSC[i])
++			t.Errorf("Asinh(%g) = %g, want %g", vcAsinhSC[i], f, asinhSC[i])
+ 		}
+ 	}
+ }
+ func TestAtan(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Atan(vc[i]); !cVeryclose(atan[i], f) {
+-			t.Errorf("Atan(%g) = %g, want %g\n", vc[i], f, atan[i])
++			t.Errorf("Atan(%g) = %g, want %g", vc[i], f, atan[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAtanSC); i++ {
+ 		if f := Atan(vcAtanSC[i]); !cAlike(atanSC[i], f) {
+-			t.Errorf("Atan(%g) = %g, want %g\n", vcAtanSC[i], f, atanSC[i])
++			t.Errorf("Atan(%g) = %g, want %g", vcAtanSC[i], f, atanSC[i])
+ 		}
+ 	}
+ }
+ func TestAtanh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Atanh(vc[i]); !cVeryclose(atanh[i], f) {
+-			t.Errorf("Atanh(%g) = %g, want %g\n", vc[i], f, atanh[i])
++			t.Errorf("Atanh(%g) = %g, want %g", vc[i], f, atanh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcAtanhSC); i++ {
+ 		if f := Atanh(vcAtanhSC[i]); !cAlike(atanhSC[i], f) {
+-			t.Errorf("Atanh(%g) = %g, want %g\n", vcAtanhSC[i], f, atanhSC[i])
++			t.Errorf("Atanh(%g) = %g, want %g", vcAtanhSC[i], f, atanhSC[i])
+ 		}
+ 	}
+ }
+ func TestConj(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Conj(vc[i]); !cVeryclose(conj[i], f) {
+-			t.Errorf("Conj(%g) = %g, want %g\n", vc[i], f, conj[i])
++			t.Errorf("Conj(%g) = %g, want %g", vc[i], f, conj[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcConjSC); i++ {
+ 		if f := Conj(vcConjSC[i]); !cAlike(conjSC[i], f) {
+-			t.Errorf("Conj(%g) = %g, want %g\n", vcConjSC[i], f, conjSC[i])
++			t.Errorf("Conj(%g) = %g, want %g", vcConjSC[i], f, conjSC[i])
+ 		}
+ 	}
+ }
+ func TestCos(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Cos(vc[i]); !cSoclose(cos[i], f, 3e-15) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vc[i], f, cos[i])
++			t.Errorf("Cos(%g) = %g, want %g", vc[i], f, cos[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcCosSC); i++ {
+ 		if f := Cos(vcCosSC[i]); !cAlike(cosSC[i], f) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vcCosSC[i], f, cosSC[i])
++			t.Errorf("Cos(%g) = %g, want %g", vcCosSC[i], f, cosSC[i])
+ 		}
+ 	}
+ }
+ func TestCosh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Cosh(vc[i]); !cSoclose(cosh[i], f, 2e-15) {
+-			t.Errorf("Cosh(%g) = %g, want %g\n", vc[i], f, cosh[i])
++			t.Errorf("Cosh(%g) = %g, want %g", vc[i], f, cosh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcCoshSC); i++ {
+ 		if f := Cosh(vcCoshSC[i]); !cAlike(coshSC[i], f) {
+-			t.Errorf("Cosh(%g) = %g, want %g\n", vcCoshSC[i], f, coshSC[i])
++			t.Errorf("Cosh(%g) = %g, want %g", vcCoshSC[i], f, coshSC[i])
+ 		}
+ 	}
+ }
+ func TestExp(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Exp(vc[i]); !cSoclose(exp[i], f, 1e-15) {
+-			t.Errorf("Exp(%g) = %g, want %g\n", vc[i], f, exp[i])
++			t.Errorf("Exp(%g) = %g, want %g", vc[i], f, exp[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcExpSC); i++ {
+ 		if f := Exp(vcExpSC[i]); !cAlike(expSC[i], f) {
+-			t.Errorf("Exp(%g) = %g, want %g\n", vcExpSC[i], f, expSC[i])
++			t.Errorf("Exp(%g) = %g, want %g", vcExpSC[i], f, expSC[i])
+ 		}
+ 	}
+ }
+ func TestIsNaN(t *testing.T) {
+ 	for i := 0; i < len(vcIsNaNSC); i++ {
+ 		if f := IsNaN(vcIsNaNSC[i]); isNaNSC[i] != f {
+-			t.Errorf("IsNaN(%g) = %g, want %g\n", vcIsNaNSC[i], f, isNaNSC[i])
++			t.Errorf("IsNaN(%g) = %g, want %g", vcIsNaNSC[i], f, isNaNSC[i])
+ 		}
+ 	}
+ }
+ func TestLog(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Log(vc[i]); !cVeryclose(log[i], f) {
+-			t.Errorf("Log(%g) = %g, want %g\n", vc[i], f, log[i])
++			t.Errorf("Log(%g) = %g, want %g", vc[i], f, log[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcLogSC); i++ {
+ 		if f := Log(vcLogSC[i]); !cAlike(logSC[i], f) {
+-			t.Errorf("Log(%g) = %g, want %g\n", vcLogSC[i], f, logSC[i])
++			t.Errorf("Log(%g) = %g, want %g", vcLogSC[i], f, logSC[i])
+ 		}
+ 	}
+ }
+ func TestLog10(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Log10(vc[i]); !cVeryclose(log10[i], f) {
+-			t.Errorf("Log10(%g) = %g, want %g\n", vc[i], f, log10[i])
++			t.Errorf("Log10(%g) = %g, want %g", vc[i], f, log10[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcLog10SC); i++ {
+ 		if f := Log10(vcLog10SC[i]); !cAlike(log10SC[i], f) {
+-			t.Errorf("Log10(%g) = %g, want %g\n", vcLog10SC[i], f, log10SC[i])
++			t.Errorf("Log10(%g) = %g, want %g", vcLog10SC[i], f, log10SC[i])
+ 		}
+ 	}
+ }
+ func TestPolar(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if r, theta := Polar(vc[i]); !veryclose(polar[i].r, r) && !veryclose(polar[i].theta, theta) {
+-			t.Errorf("Polar(%g) = %g, %g want %g, %g\n", vc[i], r, theta, polar[i].r, polar[i].theta)
++			t.Errorf("Polar(%g) = %g, %g want %g, %g", vc[i], r, theta, polar[i].r, polar[i].theta)
+ 		}
+ 	}
+ 	for i := 0; i < len(vcPolarSC); i++ {
+ 		if r, theta := Polar(vcPolarSC[i]); !alike(polarSC[i].r, r) && !alike(polarSC[i].theta, theta) {
+-			t.Errorf("Polar(%g) = %g, %g, want %g, %g\n", vcPolarSC[i], r, theta, polarSC[i].r, polarSC[i].theta)
++			t.Errorf("Polar(%g) = %g, %g, want %g, %g", vcPolarSC[i], r, theta, polarSC[i].r, polarSC[i].theta)
+ 		}
+ 	}
+ }
+@@ -659,84 +659,84 @@ func TestPow(t *testing.T) {
+ 	var a = cmplx(float64(3), float64(3))
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Pow(a, vc[i]); !cSoclose(pow[i], f, 4e-15) {
+-			t.Errorf("Pow(%g, %g) = %g, want %g\n", a, vc[i], f, pow[i])
++			t.Errorf("Pow(%g, %g) = %g, want %g", a, vc[i], f, pow[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcPowSC); i++ {
+ 		if f := Pow(vcPowSC[i][0], vcPowSC[i][0]); !cAlike(powSC[i], f) {
+-			t.Errorf("Pow(%g, %g) = %g, want %g\n", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
++			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
+ 		}
+ 	}
+ }
+ func TestRect(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Rect(polar[i].r, polar[i].theta); !cVeryclose(vc[i], f) {
+-			t.Errorf("Rect(%g, %g) = %g want %g\n", polar[i].r, polar[i].theta, f, vc[i])
++			t.Errorf("Rect(%g, %g) = %g want %g", polar[i].r, polar[i].theta, f, vc[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcPolarSC); i++ {
+ 		if f := Rect(polarSC[i].r, polarSC[i].theta); !cAlike(vcPolarSC[i], f) {
+-			t.Errorf("Rect(%g, %g) = %g, want %g\n", polarSC[i].r, polarSC[i].theta, f, vcPolarSC[i])
++			t.Errorf("Rect(%g, %g) = %g, want %g", polarSC[i].r, polarSC[i].theta, f, vcPolarSC[i])
+ 		}
+ 	}
+ }
+ func TestSin(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Sin(vc[i]); !cSoclose(sin[i], f, 2e-15) {
+-			t.Errorf("Sin(%g) = %g, want %g\n", vc[i], f, sin[i])
++			t.Errorf("Sin(%g) = %g, want %g", vc[i], f, sin[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcSinSC); i++ {
+ 		if f := Sin(vcSinSC[i]); !cAlike(sinSC[i], f) {
+-			t.Errorf("Sin(%g) = %g, want %g\n", vcSinSC[i], f, sinSC[i])
++			t.Errorf("Sin(%g) = %g, want %g", vcSinSC[i], f, sinSC[i])
+ 		}
+ 	}
+ }
+ func TestSinh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Sinh(vc[i]); !cSoclose(sinh[i], f, 2e-15) {
+-			t.Errorf("Sinh(%g) = %g, want %g\n", vc[i], f, sinh[i])
++			t.Errorf("Sinh(%g) = %g, want %g", vc[i], f, sinh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcSinhSC); i++ {
+ 		if f := Sinh(vcSinhSC[i]); !cAlike(sinhSC[i], f) {
+-			t.Errorf("Sinh(%g) = %g, want %g\n", vcSinhSC[i], f, sinhSC[i])
++			t.Errorf("Sinh(%g) = %g, want %g", vcSinhSC[i], f, sinhSC[i])
+ 		}
+ 	}
+ }
+ func TestSqrt(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Sqrt(vc[i]); !cVeryclose(sqrt[i], f) {
+-			t.Errorf("Sqrt(%g) = %g, want %g\n", vc[i], f, sqrt[i])
++			t.Errorf("Sqrt(%g) = %g, want %g", vc[i], f, sqrt[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcSqrtSC); i++ {
+ 		if f := Sqrt(vcSqrtSC[i]); !cAlike(sqrtSC[i], f) {
+-			t.Errorf("Sqrt(%g) = %g, want %g\n", vcSqrtSC[i], f, sqrtSC[i])
++			t.Errorf("Sqrt(%g) = %g, want %g", vcSqrtSC[i], f, sqrtSC[i])
+ 		}
+ 	}
+ }
+ func TestTan(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Tan(vc[i]); !cSoclose(tan[i], f, 3e-15) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", vc[i], f, tan[i])
++			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcTanSC); i++ {
+ 		if f := Tan(vcTanSC[i]); !cAlike(tanSC[i], f) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", vcTanSC[i], f, tanSC[i])
++			t.Errorf("Tan(%g) = %g, want %g", vcTanSC[i], f, tanSC[i])
+ 		}
+ 	}
+ }
+ func TestTanh(t *testing.T) {
+ 	for i := 0; i < len(vc); i++ {
+ 		if f := Tanh(vc[i]); !cSoclose(tanh[i], f, 2e-15) {
+-			t.Errorf("Tanh(%g) = %g, want %g\n", vc[i], f, tanh[i])
++			t.Errorf("Tanh(%g) = %g, want %g", vc[i], f, tanh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vcTanhSC); i++ {
+ 		if f := Tanh(vcTanhSC[i]); !cAlike(tanhSC[i], f) {
+-			t.Errorf("Tanh(%g) = %g, want %g\n", vcTanhSC[i], f, tanhSC[i])
++			t.Errorf("Tanh(%g) = %g, want %g", vcTanhSC[i], f, tanhSC[i])
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 98cd9c2ea0..dc173b9a6b 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -76,7 +76,7 @@ func TestMapCounter(t *testing.T) {
+ 		t.Error("red.Kind() is not a number.")
+ 	}
+ 	if x != 3 {
+-		t.Error("red = %v, want 3", x)
++		t.Errorf("red = %v, want 3", x)
+ 	}
+ }
+ 
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b98f28b1ed..b8d15a7dc7 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -594,15 +594,15 @@ func TestFormatterPrintln(t *testing.T) {
+ 	expect := "<v=F(1)>\n"
+ 	s := Sprint(f, "\n")
+ 	if s != expect {
+-		t.Errorf("Sprint wrong with Formatter: expected %q got %q\n", expect, s)
++		t.Errorf("Sprint wrong with Formatter: expected %q got %q", expect, s)
+ 	}
+ 	s = Sprintln(f)
+ 	if s != expect {
+-		t.Errorf("Sprintln wrong with Formatter: expected %q got %q\n", expect, s)
++		t.Errorf("Sprintln wrong with Formatter: expected %q got %q", expect, s)
+ 	}
+ 	s = Sprintf("%v\n", f)
+ 	if s != expect {
+-		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
++		t.Errorf("Sprintf wrong with Formatter: expected %q got %q", expect, s)
+ 	}
+ }
+ 
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 2caaaa43f8..47c6a6698f 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -64,7 +64,7 @@ func TestUintCodec(t *testing.T) {
+ 			t.Error("DecodeUint:", u, decState.err)
+ 		}
+ 		if u != v {
+-			t.Errorf("Encode/Decode: sent %#x received %#x\n", u, v)
++			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
+ 		}
+ 		if u&(1<<63) != 0 {
+ 			break
+@@ -87,7 +87,7 @@ func verifyInt(i int64, t *testing.T) {
+ 		t.Error("DecodeInt:", i, decState.err)
+ 	}
+ 	if i != j {
+-		t.Errorf("Encode/Decode: sent %#x received %#x\n", uint64(i), uint64(j))
++		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
+ 	}
+ }
+ 
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 87627fa283..ea1d2c8681 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -55,7 +55,7 @@ func TestEncoderDecoder(t *testing.T) {
+ 	}
+ 
+ 	if !reflect.DeepEqual(et1, newEt1) {
+-		t.Fatalf("invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1)
++		t.Fatalf("invalid data for et1: expected %+v; got %+v", *et1, *newEt1)
+ 	}
+ 	if b.Len() != 0 {
+ 		t.Error("not at eof;", b.Len(), "bytes left")
+@@ -68,7 +68,7 @@ func TestEncoderDecoder(t *testing.T) {
+ 		t.Fatal("round 2: error decoding ET1:", dec.state.err)
+ 	}
+ 	if !reflect.DeepEqual(et1, newEt1) {
+-		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1)
++		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v", *et1, *newEt1)
+ 	}
+ 	if b.Len() != 0 {
+ 		t.Error("round 2: not at eof;", b.Len(), "bytes left")
+diff --git a/src/pkg/io/multi_test.go b/src/pkg/io/multi_test.go
+index f5d2fadfbb..3ecb7c75d9 100644
+--- a/src/pkg/io/multi_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -83,6 +83,6 @@ func TestMultiWriter(t *testing.T) {
+ 	}
+ 
+ 	if sink.String() != sourceString {
+-		t.Error("expected %q; got %q", sourceString, sink.String())
++		t.Errorf("expected %q; got %q", sourceString, sink.String())
+ 	}
+ }
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 54c0cfa925..485f6e54c8 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -1472,12 +1472,12 @@ func TestAcos(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+ 		if f := Acos(a); !close(acos[i], f) {
+-			t.Errorf("Acos(%g) = %g, want %g\n", a, f, acos[i])
++			t.Errorf("Acos(%g) = %g, want %g", a, f, acos[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfacosSC); i++ {
+ 		if f := Acos(vfacosSC[i]); !alike(acosSC[i], f) {
+-			t.Errorf("Acos(%g) = %g, want %g\n", vfacosSC[i], f, acosSC[i])
++			t.Errorf("Acos(%g) = %g, want %g", vfacosSC[i], f, acosSC[i])
+ 		}
+ 	}
+ }
+@@ -1486,12 +1486,12 @@ func TestAcosh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := 1 + Fabs(vf[i])
+ 		if f := Acosh(a); !veryclose(acosh[i], f) {
+-			t.Errorf("Acosh(%g) = %g, want %g\n", a, f, acosh[i])
++			t.Errorf("Acosh(%g) = %g, want %g", a, f, acosh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfacoshSC); i++ {
+ 		if f := Acosh(vfacoshSC[i]); !alike(acoshSC[i], f) {
+-			t.Errorf("Acosh(%g) = %g, want %g\n", vfacoshSC[i], f, acoshSC[i])
++			t.Errorf("Acosh(%g) = %g, want %g", vfacoshSC[i], f, acoshSC[i])
+ 		}
+ 	}
+ }
+@@ -1500,12 +1500,12 @@ func TestAsin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+ 		if f := Asin(a); !veryclose(asin[i], f) {
+-			t.Errorf("Asin(%g) = %g, want %g\n", a, f, asin[i])
++			t.Errorf("Asin(%g) = %g, want %g", a, f, asin[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfasinSC); i++ {
+ 		if f := Asin(vfasinSC[i]); !alike(asinSC[i], f) {
+-			t.Errorf("Asin(%g) = %g, want %g\n", vfasinSC[i], f, asinSC[i])
++			t.Errorf("Asin(%g) = %g, want %g", vfasinSC[i], f, asinSC[i])
+ 		}
+ 	}
+ }
+@@ -1513,12 +1513,12 @@ func TestAsin(t *testing.T) {
+ func TestAsinh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Asinh(vf[i]); !veryclose(asinh[i], f) {
+-			t.Errorf("Asinh(%g) = %g, want %g\n", vf[i], f, asinh[i])
++			t.Errorf("Asinh(%g) = %g, want %g", vf[i], f, asinh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfasinhSC); i++ {
+ 		if f := Asinh(vfasinhSC[i]); !alike(asinhSC[i], f) {
+-			t.Errorf("Asinh(%g) = %g, want %g\n", vfasinhSC[i], f, asinhSC[i])
++			t.Errorf("Asinh(%g) = %g, want %g", vfasinhSC[i], f, asinhSC[i])
+ 		}
+ 	}
+ }
+@@ -1526,12 +1526,12 @@ func TestAsinh(t *testing.T) {
+ func TestAtan(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Atan(vf[i]); !veryclose(atan[i], f) {
+-			t.Errorf("Atan(%g) = %g, want %g\n", vf[i], f, atan[i])
++			t.Errorf("Atan(%g) = %g, want %g", vf[i], f, atan[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfatanSC); i++ {
+ 		if f := Atan(vfatanSC[i]); !alike(atanSC[i], f) {
+-			t.Errorf("Atan(%g) = %g, want %g\n", vfatanSC[i], f, atanSC[i])
++			t.Errorf("Atan(%g) = %g, want %g", vfatanSC[i], f, atanSC[i])
+ 		}
+ 	}
+ }
+@@ -1540,12 +1540,12 @@ func TestAtanh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+ 		if f := Atanh(a); !veryclose(atanh[i], f) {
+-			t.Errorf("Atanh(%g) = %g, want %g\n", a, f, atanh[i])
++			t.Errorf("Atanh(%g) = %g, want %g", a, f, atanh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfatanhSC); i++ {
+ 		if f := Atanh(vfatanhSC[i]); !alike(atanhSC[i], f) {
+-			t.Errorf("Atanh(%g) = %g, want %g\n", vfatanhSC[i], f, atanhSC[i])
++			t.Errorf("Atanh(%g) = %g, want %g", vfatanhSC[i], f, atanhSC[i])
+ 		}
+ 	}
+ }
+@@ -1553,12 +1553,12 @@ func TestAtanh(t *testing.T) {
+ func TestAtan2(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Atan2(10, vf[i]); !veryclose(atan2[i], f) {
+-			t.Errorf("Atan2(10, %g) = %g, want %g\n", vf[i], f, atan2[i])
++			t.Errorf("Atan2(10, %g) = %g, want %g", vf[i], f, atan2[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfatan2SC); i++ {
+ 		if f := Atan2(vfatan2SC[i][0], vfatan2SC[i][1]); !alike(atan2SC[i], f) {
+-			t.Errorf("Atan2(%g, %g) = %g, want %g\n", vfatan2SC[i][0], vfatan2SC[i][1], f, atan2SC[i])
++			t.Errorf("Atan2(%g, %g) = %g, want %g", vfatan2SC[i][0], vfatan2SC[i][1], f, atan2SC[i])
+ 		}
+ 	}
+ }
+@@ -1566,12 +1566,12 @@ func TestAtan2(t *testing.T) {
+ func TestCbrt(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Cbrt(vf[i]); !veryclose(cbrt[i], f) {
+-			t.Errorf("Cbrt(%g) = %g, want %g\n", vf[i], f, cbrt[i])
++			t.Errorf("Cbrt(%g) = %g, want %g", vf[i], f, cbrt[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfcbrtSC); i++ {
+ 		if f := Cbrt(vfcbrtSC[i]); !alike(cbrtSC[i], f) {
+-			t.Errorf("Cbrt(%g) = %g, want %g\n", vfcbrtSC[i], f, cbrtSC[i])
++			t.Errorf("Cbrt(%g) = %g, want %g", vfcbrtSC[i], f, cbrtSC[i])
+ 		}
+ 	}
+ }
+@@ -1579,12 +1579,12 @@ func TestCbrt(t *testing.T) {
+ func TestCeil(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Ceil(vf[i]); ceil[i] != f {
+-			t.Errorf("Ceil(%g) = %g, want %g\n", vf[i], f, ceil[i])
++			t.Errorf("Ceil(%g) = %g, want %g", vf[i], f, ceil[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfceilSC); i++ {
+ 		if f := Ceil(vfceilSC[i]); !alike(ceilSC[i], f) {
+-			t.Errorf("Ceil(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
++			t.Errorf("Ceil(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+ 		}
+ 	}
+ }
+@@ -1592,17 +1592,17 @@ func TestCeil(t *testing.T) {
+ func TestCopysign(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Copysign(vf[i], -1); copysign[i] != f {
+-			t.Errorf("Copysign(%g, -1) = %g, want %g\n", vf[i], f, copysign[i])
++			t.Errorf("Copysign(%g, -1) = %g, want %g", vf[i], f, copysign[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Copysign(vf[i], 1); -copysign[i] != f {
+-			t.Errorf("Copysign(%g, 1) = %g, want %g\n", vf[i], f, -copysign[i])
++			t.Errorf("Copysign(%g, 1) = %g, want %g", vf[i], f, -copysign[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfcopysignSC); i++ {
+ 		if f := Copysign(vfcopysignSC[i], -1); !alike(copysignSC[i], f) {
+-			t.Errorf("Copysign(%g, -1) = %g, want %g\n", vfcopysignSC[i], f, copysignSC[i])
++			t.Errorf("Copysign(%g, -1) = %g, want %g", vfcopysignSC[i], f, copysignSC[i])
+ 		}
+ 	}
+ }
+@@ -1610,12 +1610,12 @@ func TestCopysign(t *testing.T) {
+ func TestCos(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Cos(vf[i]); !close(cos[i], f) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vf[i], f, cos[i])
++			t.Errorf("Cos(%g) = %g, want %g", vf[i], f, cos[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfcosSC); i++ {
+ 		if f := Cos(vfcosSC[i]); !alike(cosSC[i], f) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vfcosSC[i], f, cosSC[i])
++			t.Errorf("Cos(%g) = %g, want %g", vfcosSC[i], f, cosSC[i])
+ 		}
+ 	}
+ }
+@@ -1623,12 +1623,12 @@ func TestCos(t *testing.T) {
+ func TestCosh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Cosh(vf[i]); !close(cosh[i], f) {
+-			t.Errorf("Cosh(%g) = %g, want %g\n", vf[i], f, cosh[i])
++			t.Errorf("Cosh(%g) = %g, want %g", vf[i], f, cosh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfcoshSC); i++ {
+ 		if f := Cosh(vfcoshSC[i]); !alike(coshSC[i], f) {
+-			t.Errorf("Cosh(%g) = %g, want %g\n", vfcoshSC[i], f, coshSC[i])
++			t.Errorf("Cosh(%g) = %g, want %g", vfcoshSC[i], f, coshSC[i])
+ 		}
+ 	}
+ }
+@@ -1637,12 +1637,12 @@ func TestErf(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+ 		if f := Erf(a); !veryclose(erf[i], f) {
+-			t.Errorf("Erf(%g) = %g, want %g\n", a, f, erf[i])
++			t.Errorf("Erf(%g) = %g, want %g", a, f, erf[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vferfSC); i++ {
+ 		if f := Erf(vferfSC[i]); !alike(erfSC[i], f) {
+-			t.Errorf("Erf(%g) = %g, want %g\n", vferfSC[i], f, erfSC[i])
++			t.Errorf("Erf(%g) = %g, want %g", vferfSC[i], f, erfSC[i])
+ 		}
+ 	}
+ }
+@@ -1651,12 +1651,12 @@ func TestErfc(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+ 		if f := Erfc(a); !veryclose(erfc[i], f) {
+-			t.Errorf("Erfc(%g) = %g, want %g\n", a, f, erfc[i])
++			t.Errorf("Erfc(%g) = %g, want %g", a, f, erfc[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vferfcSC); i++ {
+ 		if f := Erfc(vferfcSC[i]); !alike(erfcSC[i], f) {
+-			t.Errorf("Erfc(%g) = %g, want %g\n", vferfcSC[i], f, erfcSC[i])
++			t.Errorf("Erfc(%g) = %g, want %g", vferfcSC[i], f, erfcSC[i])
+ 		}
+ 	}
+ }
+@@ -1664,12 +1664,12 @@ func TestErfc(t *testing.T) {
+ func TestExp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Exp(vf[i]); !close(exp[i], f) {
+-			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i])
++			t.Errorf("Exp(%g) = %g, want %g", vf[i], f, exp[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfexpSC); i++ {
+ 		if f := Exp(vfexpSC[i]); !alike(expSC[i], f) {
+-			t.Errorf("Exp(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
++			t.Errorf("Exp(%g) = %g, want %g", vfexpSC[i], f, expSC[i])
+ 		}
+ 	}
+ }
+@@ -1678,12 +1678,12 @@ func TestExpm1(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 100
+ 		if f := Expm1(a); !veryclose(expm1[i], f) {
+-			t.Errorf("Expm1(%g) = %g, want %g\n", a, f, expm1[i])
++			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfexpm1SC); i++ {
+ 		if f := Expm1(vfexpm1SC[i]); !alike(expm1SC[i], f) {
+-			t.Errorf("Expm1(%g) = %g, want %g\n", vfexpm1SC[i], f, expm1SC[i])
++			t.Errorf("Expm1(%g) = %g, want %g", vfexpm1SC[i], f, expm1SC[i])
+ 		}
+ 	}
+ }
+@@ -1691,12 +1691,12 @@ func TestExpm1(t *testing.T) {
+ func TestExp2(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Exp2(vf[i]); !close(exp2[i], f) {
+-			t.Errorf("Exp2(%g) = %g, want %g\n", vf[i], f, exp2[i])
++			t.Errorf("Exp2(%g) = %g, want %g", vf[i], f, exp2[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfexpSC); i++ {
+ 		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
+-			t.Errorf("Exp2(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
++			t.Errorf("Exp2(%g) = %g, want %g", vfexpSC[i], f, expSC[i])
+ 		}
+ 	}
+ }
+@@ -1704,12 +1704,12 @@ func TestExp2(t *testing.T) {
+ func TestFabs(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fabs(vf[i]); fabs[i] != f {
+-			t.Errorf("Fabs(%g) = %g, want %g\n", vf[i], f, fabs[i])
++			t.Errorf("Fabs(%g) = %g, want %g", vf[i], f, fabs[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffabsSC); i++ {
+ 		if f := Fabs(vffabsSC[i]); !alike(fabsSC[i], f) {
+-			t.Errorf("Fabs(%g) = %g, want %g\n", vffabsSC[i], f, fabsSC[i])
++			t.Errorf("Fabs(%g) = %g, want %g", vffabsSC[i], f, fabsSC[i])
+ 		}
+ 	}
+ }
+@@ -1717,7 +1717,7 @@ func TestFabs(t *testing.T) {
+ func TestFdim(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fdim(vf[i], 0); fdim[i] != f {
+-			t.Errorf("Fdim(%g, %g) = %g, want %g\n", vf[i], 0.0, f, fdim[i])
++			t.Errorf("Fdim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
+ 		}
+ 	}
+ }
+@@ -1725,12 +1725,12 @@ func TestFdim(t *testing.T) {
+ func TestFloor(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Floor(vf[i]); floor[i] != f {
+-			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i])
++			t.Errorf("Floor(%g) = %g, want %g", vf[i], f, floor[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfceilSC); i++ {
+ 		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
+-			t.Errorf("Floor(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
++			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+ 		}
+ 	}
+ }
+@@ -1738,7 +1738,7 @@ func TestFloor(t *testing.T) {
+ func TestFmax(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmax(vf[i], ceil[i]); ceil[i] != f {
+-			t.Errorf("Fmax(%g, %g) = %g, want %g\n", vf[i], ceil[i], f, ceil[i])
++			t.Errorf("Fmax(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
+ 		}
+ 	}
+ }
+@@ -1746,7 +1746,7 @@ func TestFmax(t *testing.T) {
+ func TestFmin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmin(vf[i], floor[i]); floor[i] != f {
+-			t.Errorf("Fmin(%g, %g) = %g, want %g\n", vf[i], floor[i], f, floor[i])
++			t.Errorf("Fmin(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
+ 		}
+ 	}
+ }
+@@ -1754,12 +1754,12 @@ func TestFmin(t *testing.T) {
+ func TestFmod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmod(10, vf[i]); fmod[i] != f {
+-			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
++			t.Errorf("Fmod(10, %g) = %g, want %g", vf[i], f, fmod[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffmodSC); i++ {
+ 		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+-			t.Errorf("Fmod(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++			t.Errorf("Fmod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+ 		}
+ 	}
+ }
+@@ -1767,12 +1767,12 @@ func TestFmod(t *testing.T) {
+ func TestFrexp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f, j := Frexp(vf[i]); !veryclose(frexp[i].f, f) || frexp[i].i != j {
+-			t.Errorf("Frexp(%g) = %g, %d, want %g, %d\n", vf[i], f, j, frexp[i].f, frexp[i].i)
++			t.Errorf("Frexp(%g) = %g, %d, want %g, %d", vf[i], f, j, frexp[i].f, frexp[i].i)
+ 		}
+ 	}
+ 	for i := 0; i < len(vffrexpSC); i++ {
+ 		if f, j := Frexp(vffrexpSC[i]); !alike(frexpSC[i].f, f) || frexpSC[i].i != j {
+-			t.Errorf("Frexp(%g) = %g, %d, want %g, %d\n", vffrexpSC[i], f, j, frexpSC[i].f, frexpSC[i].i)
++			t.Errorf("Frexp(%g) = %g, %d, want %g, %d", vffrexpSC[i], f, j, frexpSC[i].f, frexpSC[i].i)
+ 		}
+ 	}
+ }
+@@ -1780,12 +1780,12 @@ func TestFrexp(t *testing.T) {
+ func TestGamma(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Gamma(vf[i]); !close(gamma[i], f) {
+-			t.Errorf("Gamma(%g) = %g, want %g\n", vf[i], f, gamma[i])
++			t.Errorf("Gamma(%g) = %g, want %g", vf[i], f, gamma[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfgammaSC); i++ {
+ 		if f := Gamma(vfgammaSC[i]); !alike(gammaSC[i], f) {
+-			t.Errorf("Gamma(%g) = %g, want %g\n", vfgammaSC[i], f, gammaSC[i])
++			t.Errorf("Gamma(%g) = %g, want %g", vfgammaSC[i], f, gammaSC[i])
+ 		}
+ 	}
+ }
+@@ -1794,12 +1794,12 @@ func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(1e200 * tanh[i] * Sqrt(2))
+ 		if f := Hypot(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
+-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", 1e200*tanh[i], 1e200*tanh[i], f, a)
++			t.Errorf("Hypot(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
+ 		}
+ 	}
+ 	for i := 0; i < len(vfhypotSC); i++ {
+ 		if f := Hypot(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
+-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
++			t.Errorf("Hypot(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
+ 		}
+ 	}
+ }
+@@ -1807,12 +1807,12 @@ func TestHypot(t *testing.T) {
+ func TestIlogb(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if e := Ilogb(vf[i]); frexp[i].i != e {
+-			t.Errorf("Ilogb(%g) = %d, want %d\n", vf[i], e, frexp[i].i)
++			t.Errorf("Ilogb(%g) = %d, want %d", vf[i], e, frexp[i].i)
+ 		}
+ 	}
+ 	for i := 0; i < len(vflogbSC); i++ {
+ 		if e := Ilogb(vflogbSC[i]); ilogbSC[i] != e {
+-			t.Errorf("Ilogb(%g) = %d, want %d\n", vflogbSC[i], e, ilogbSC[i])
++			t.Errorf("Ilogb(%g) = %d, want %d", vflogbSC[i], e, ilogbSC[i])
+ 		}
+ 	}
+ }
+@@ -1820,12 +1820,12 @@ func TestIlogb(t *testing.T) {
+ func TestJ0(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := J0(vf[i]); !soclose(j0[i], f, 4e-14) {
+-			t.Errorf("J0(%g) = %g, want %g\n", vf[i], f, j0[i])
++			t.Errorf("J0(%g) = %g, want %g", vf[i], f, j0[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfj0SC); i++ {
+ 		if f := J0(vfj0SC[i]); !alike(j0SC[i], f) {
+-			t.Errorf("J0(%g) = %g, want %g\n", vfj0SC[i], f, j0SC[i])
++			t.Errorf("J0(%g) = %g, want %g", vfj0SC[i], f, j0SC[i])
+ 		}
+ 	}
+ }
+@@ -1833,12 +1833,12 @@ func TestJ0(t *testing.T) {
+ func TestJ1(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := J1(vf[i]); !close(j1[i], f) {
+-			t.Errorf("J1(%g) = %g, want %g\n", vf[i], f, j1[i])
++			t.Errorf("J1(%g) = %g, want %g", vf[i], f, j1[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfj0SC); i++ {
+ 		if f := J1(vfj0SC[i]); !alike(j1SC[i], f) {
+-			t.Errorf("J1(%g) = %g, want %g\n", vfj0SC[i], f, j1SC[i])
++			t.Errorf("J1(%g) = %g, want %g", vfj0SC[i], f, j1SC[i])
+ 		}
+ 	}
+ }
+@@ -1846,18 +1846,18 @@ func TestJ1(t *testing.T) {
+ func TestJn(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Jn(2, vf[i]); !close(j2[i], f) {
+-			t.Errorf("Jn(2, %g) = %g, want %g\n", vf[i], f, j2[i])
++			t.Errorf("Jn(2, %g) = %g, want %g", vf[i], f, j2[i])
+ 		}
+ 		if f := Jn(-3, vf[i]); !close(jM3[i], f) {
+-			t.Errorf("Jn(-3, %g) = %g, want %g\n", vf[i], f, jM3[i])
++			t.Errorf("Jn(-3, %g) = %g, want %g", vf[i], f, jM3[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfj0SC); i++ {
+ 		if f := Jn(2, vfj0SC[i]); !alike(j2SC[i], f) {
+-			t.Errorf("Jn(2, %g) = %g, want %g\n", vfj0SC[i], f, j2SC[i])
++			t.Errorf("Jn(2, %g) = %g, want %g", vfj0SC[i], f, j2SC[i])
+ 		}
+ 		if f := Jn(-3, vfj0SC[i]); !alike(jM3SC[i], f) {
+-			t.Errorf("Jn(-3, %g) = %g, want %g\n", vfj0SC[i], f, jM3SC[i])
++			t.Errorf("Jn(-3, %g) = %g, want %g", vfj0SC[i], f, jM3SC[i])
+ 		}
+ 	}
+ }
+@@ -1865,12 +1865,12 @@ func TestJn(t *testing.T) {
+ func TestLdexp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Ldexp(frexp[i].f, frexp[i].i); !veryclose(vf[i], f) {
+-			t.Errorf("Ldexp(%g, %d) = %g, want %g\n", frexp[i].f, frexp[i].i, f, vf[i])
++			t.Errorf("Ldexp(%g, %d) = %g, want %g", frexp[i].f, frexp[i].i, f, vf[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffrexpSC); i++ {
+ 		if f := Ldexp(frexpSC[i].f, frexpSC[i].i); !alike(vffrexpSC[i], f) {
+-			t.Errorf("Ldexp(%g, %d) = %g, want %g\n", frexpSC[i].f, frexpSC[i].i, f, vffrexpSC[i])
++			t.Errorf("Ldexp(%g, %d) = %g, want %g", frexpSC[i].f, frexpSC[i].i, f, vffrexpSC[i])
+ 		}
+ 	}
+ }
+@@ -1878,12 +1878,12 @@ func TestLdexp(t *testing.T) {
+ func TestLgamma(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f, s := Lgamma(vf[i]); !close(lgamma[i].f, f) || lgamma[i].i != s {
+-			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d\n", vf[i], f, s, lgamma[i].f, lgamma[i].i)
++			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d", vf[i], f, s, lgamma[i].f, lgamma[i].i)
+ 		}
+ 	}
+ 	for i := 0; i < len(vflgammaSC); i++ {
+ 		if f, s := Lgamma(vflgammaSC[i]); !alike(lgammaSC[i].f, f) || lgammaSC[i].i != s {
+-			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d\n", vflgammaSC[i], f, s, lgammaSC[i].f, lgammaSC[i].i)
++			t.Errorf("Lgamma(%g) = %g, %d, want %g, %d", vflgammaSC[i], f, s, lgammaSC[i].f, lgammaSC[i].i)
+ 		}
+ 	}
+ }
+@@ -1892,15 +1892,15 @@ func TestLog(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Log(a); log[i] != f {
+-			t.Errorf("Log(%g) = %g, want %g\n", a, f, log[i])
++			t.Errorf("Log(%g) = %g, want %g", a, f, log[i])
+ 		}
+ 	}
+ 	if f := Log(10); f != Ln10 {
+-		t.Errorf("Log(%g) = %g, want %g\n", 10.0, f, Ln10)
++		t.Errorf("Log(%g) = %g, want %g", 10.0, f, Ln10)
+ 	}
+ 	for i := 0; i < len(vflogSC); i++ {
+ 		if f := Log(vflogSC[i]); !alike(logSC[i], f) {
+-			t.Errorf("Log(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++			t.Errorf("Log(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+ 		}
+ 	}
+ }
+@@ -1908,12 +1908,12 @@ func TestLog(t *testing.T) {
+ func TestLogb(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Logb(vf[i]); logb[i] != f {
+-			t.Errorf("Logb(%g) = %g, want %g\n", vf[i], f, logb[i])
++			t.Errorf("Logb(%g) = %g, want %g", vf[i], f, logb[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vflogbSC); i++ {
+ 		if f := Logb(vflogbSC[i]); !alike(logbSC[i], f) {
+-			t.Errorf("Logb(%g) = %g, want %g\n", vflogbSC[i], f, logbSC[i])
++			t.Errorf("Logb(%g) = %g, want %g", vflogbSC[i], f, logbSC[i])
+ 		}
+ 	}
+ }
+@@ -1922,15 +1922,15 @@ func TestLog10(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Log10(a); !veryclose(log10[i], f) {
+-			t.Errorf("Log10(%g) = %g, want %g\n", a, f, log10[i])
++			t.Errorf("Log10(%g) = %g, want %g", a, f, log10[i])
+ 		}
+ 	}
+ 	if f := Log10(E); f != Log10E {
+-		t.Errorf("Log10(%g) = %g, want %g\n", E, f, Log10E)
++		t.Errorf("Log10(%g) = %g, want %g", E, f, Log10E)
+ 	}
+ 	for i := 0; i < len(vflogSC); i++ {
+ 		if f := Log10(vflogSC[i]); !alike(logSC[i], f) {
+-			t.Errorf("Log10(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++			t.Errorf("Log10(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+ 		}
+ 	}
+ }
+@@ -1939,16 +1939,16 @@ func TestLog1p(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 100
+ 		if f := Log1p(a); !veryclose(log1p[i], f) {
+-			t.Errorf("Log1p(%g) = %g, want %g\n", a, f, log1p[i])
++			t.Errorf("Log1p(%g) = %g, want %g", a, f, log1p[i])
+ 		}
+ 	}
+ 	a := float64(9)
+ 	if f := Log1p(a); f != Ln10 {
+-		t.Errorf("Log1p(%g) = %g, want %g\n", a, f, Ln10)
++		t.Errorf("Log1p(%g) = %g, want %g", a, f, Ln10)
+ 	}
+ 	for i := 0; i < len(vflogSC); i++ {
+ 		if f := Log1p(vflog1pSC[i]); !alike(log1pSC[i], f) {
+-			t.Errorf("Log1p(%g) = %g, want %g\n", vflog1pSC[i], f, log1pSC[i])
++			t.Errorf("Log1p(%g) = %g, want %g", vflog1pSC[i], f, log1pSC[i])
+ 		}
+ 	}
+ }
+@@ -1957,15 +1957,15 @@ func TestLog2(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Log2(a); !veryclose(log2[i], f) {
+-			t.Errorf("Log2(%g) = %g, want %g\n", a, f, log2[i])
++			t.Errorf("Log2(%g) = %g, want %g", a, f, log2[i])
+ 		}
+ 	}
+ 	if f := Log2(E); f != Log2E {
+-		t.Errorf("Log2(%g) = %g, want %g\n", E, f, Log2E)
++		t.Errorf("Log2(%g) = %g, want %g", E, f, Log2E)
+ 	}
+ 	for i := 0; i < len(vflogSC); i++ {
+ 		if f := Log2(vflogSC[i]); !alike(logSC[i], f) {
+-			t.Errorf("Log2(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+ 		}
+ 	}
+ }
+@@ -1973,12 +1973,12 @@ func TestLog2(t *testing.T) {
+ func TestModf(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f, g := Modf(vf[i]); !veryclose(modf[i][0], f) || !veryclose(modf[i][1], g) {
+-			t.Errorf("Modf(%g) = %g, %g, want %g, %g\n", vf[i], f, g, modf[i][0], modf[i][1])
++			t.Errorf("Modf(%g) = %g, %g, want %g, %g", vf[i], f, g, modf[i][0], modf[i][1])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfmodfSC); i++ {
+ 		if f, g := Modf(vfmodfSC[i]); !alike(modfSC[i][0], f) || !alike(modfSC[i][1], g) {
+-			t.Errorf("Modf(%g) = %g, %g, want %g, %g\n", vfmodfSC[i], f, g, modfSC[i][0], modfSC[i][1])
++			t.Errorf("Modf(%g) = %g, %g, want %g, %g", vfmodfSC[i], f, g, modfSC[i][0], modfSC[i][1])
+ 		}
+ 	}
+ }
+@@ -1986,12 +1986,12 @@ func TestModf(t *testing.T) {
+ func TestNextafter(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Nextafter(vf[i], 10); nextafter[i] != f {
+-			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vf[i], 10.0, f, nextafter[i])
++			t.Errorf("Nextafter(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfmodfSC); i++ {
+ 		if f := Nextafter(vfnextafterSC[i][0], vfnextafterSC[i][1]); !alike(nextafterSC[i], f) {
+-			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
++			t.Errorf("Nextafter(%g, %g) = %g want %g", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
+ 		}
+ 	}
+ }
+@@ -1999,12 +1999,12 @@ func TestNextafter(t *testing.T) {
+ func TestPow(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Pow(10, vf[i]); !close(pow[i], f) {
+-			t.Errorf("Pow(10, %g) = %g, want %g\n", vf[i], f, pow[i])
++			t.Errorf("Pow(10, %g) = %g, want %g", vf[i], f, pow[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfpowSC); i++ {
+ 		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
+-			t.Errorf("Pow(%g, %g) = %g, want %g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
++			t.Errorf("Pow(%g, %g) = %g, want %g", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
+ 		}
+ 	}
+ }
+@@ -2012,12 +2012,12 @@ func TestPow(t *testing.T) {
+ func TestRemainder(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Remainder(10, vf[i]); remainder[i] != f {
+-			t.Errorf("Remainder(10, %g) = %g, want %g\n", vf[i], f, remainder[i])
++			t.Errorf("Remainder(10, %g) = %g, want %g", vf[i], f, remainder[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffmodSC); i++ {
+ 		if f := Remainder(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+-			t.Errorf("Remainder(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++			t.Errorf("Remainder(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+ 		}
+ 	}
+ }
+@@ -2025,24 +2025,24 @@ func TestRemainder(t *testing.T) {
+ func TestSignbit(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Signbit(vf[i]); signbit[i] != f {
+-			t.Errorf("Signbit(%g) = %t, want %t\n", vf[i], f, signbit[i])
++			t.Errorf("Signbit(%g) = %t, want %t", vf[i], f, signbit[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfsignbitSC); i++ {
+ 		if f := Signbit(vfsignbitSC[i]); signbitSC[i] != f {
+-			t.Errorf("Signbit(%g) = %t, want %t\n", vfsignbitSC[i], f, signbitSC[i])
++			t.Errorf("Signbit(%g) = %t, want %t", vfsignbitSC[i], f, signbitSC[i])
+ 		}
+ 	}
+ }
+ func TestSin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Sin(vf[i]); !close(sin[i], f) {
+-			t.Errorf("Sin(%g) = %g, want %g\n", vf[i], f, sin[i])
++			t.Errorf("Sin(%g) = %g, want %g", vf[i], f, sin[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfsinSC); i++ {
+ 		if f := Sin(vfsinSC[i]); !alike(sinSC[i], f) {
+-			t.Errorf("Sin(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
++			t.Errorf("Sin(%g) = %g, want %g", vfsinSC[i], f, sinSC[i])
+ 		}
+ 	}
+ }
+@@ -2050,7 +2050,7 @@ func TestSin(t *testing.T) {
+ func TestSincos(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if s, c := Sincos(vf[i]); !close(sin[i], s) || !close(cos[i], c) {
+-			t.Errorf("Sincos(%g) = %g, %g want %g, %g\n", vf[i], s, c, sin[i], cos[i])
++			t.Errorf("Sincos(%g) = %g, %g want %g, %g", vf[i], s, c, sin[i], cos[i])
+ 		}
+ 	}
+ }
+@@ -2058,12 +2058,12 @@ func TestSincos(t *testing.T) {
+ func TestSinh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Sinh(vf[i]); !close(sinh[i], f) {
+-			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i])
++			t.Errorf("Sinh(%g) = %g, want %g", vf[i], f, sinh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfsinhSC); i++ {
+ 		if f := Sinh(vfsinhSC[i]); !alike(sinhSC[i], f) {
+-			t.Errorf("Sinh(%g) = %g, want %g\n", vfsinhSC[i], f, sinhSC[i])
++			t.Errorf("Sinh(%g) = %g, want %g", vfsinhSC[i], f, sinhSC[i])
+ 		}
+ 	}
+ }
+@@ -2072,19 +2072,19 @@ func TestSqrt(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := SqrtGo(a); sqrt[i] != f {
+-			t.Errorf("SqrtGo(%g) = %g, want %g\n", a, f, sqrt[i])
++			t.Errorf("SqrtGo(%g) = %g, want %g", a, f, sqrt[i])
+ 		}
+ 		a = Fabs(vf[i])
+ 		if f := Sqrt(a); sqrt[i] != f {
+-			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, sqrt[i])
++			t.Errorf("Sqrt(%g) = %g, want %g", a, f, sqrt[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfsqrtSC); i++ {
+ 		if f := SqrtGo(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
+-			t.Errorf("SqrtGo(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
++			t.Errorf("SqrtGo(%g) = %g, want %g", vfsqrtSC[i], f, sqrtSC[i])
+ 		}
+ 		if f := Sqrt(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
+-			t.Errorf("Sqrt(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
++			t.Errorf("Sqrt(%g) = %g, want %g", vfsqrtSC[i], f, sqrtSC[i])
+ 		}
+ 	}
+ }
+@@ -2092,13 +2092,13 @@ func TestSqrt(t *testing.T) {
+ func TestTan(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Tan(vf[i]); !close(tan[i], f) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", vf[i], f, tan[i])
++			t.Errorf("Tan(%g) = %g, want %g", vf[i], f, tan[i])
+ 		}
+ 	}
+ 	// same special cases as Sin
+ 	for i := 0; i < len(vfsinSC); i++ {
+ 		if f := Tan(vfsinSC[i]); !alike(sinSC[i], f) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
++			t.Errorf("Tan(%g) = %g, want %g", vfsinSC[i], f, sinSC[i])
+ 		}
+ 	}
+ 
+@@ -2108,7 +2108,7 @@ func TestTan(t *testing.T) {
+ 	// because Pi/2 is not exactly representable.
+ 	if runtime.GOARCH != "386" {
+ 		if f := Tan(Pi / 2); !alike(f, NaN()) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", Pi/2, f, NaN())
++			t.Errorf("Tan(%g) = %g, want %g", Pi/2, f, NaN())
+ 		}
+ 	}
+ }
+@@ -2116,12 +2116,12 @@ func TestTan(t *testing.T) {
+ func TestTanh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
+-			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i])
++			t.Errorf("Tanh(%g) = %g, want %g", vf[i], f, tanh[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vftanhSC); i++ {
+ 		if f := Tanh(vftanhSC[i]); !alike(tanhSC[i], f) {
+-			t.Errorf("Tanh(%g) = %g, want %g\n", vftanhSC[i], f, tanhSC[i])
++			t.Errorf("Tanh(%g) = %g, want %g", vftanhSC[i], f, tanhSC[i])
+ 		}
+ 	}
+ }
+@@ -2129,12 +2129,12 @@ func TestTanh(t *testing.T) {
+ func TestTrunc(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Trunc(vf[i]); trunc[i] != f {
+-			t.Errorf("Trunc(%g) = %g, want %g\n", vf[i], f, trunc[i])
++			t.Errorf("Trunc(%g) = %g, want %g", vf[i], f, trunc[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfceilSC); i++ {
+ 		if f := Trunc(vfceilSC[i]); !alike(ceilSC[i], f) {
+-			t.Errorf("Trunc(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
++			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+ 		}
+ 	}
+ }
+@@ -2143,12 +2143,12 @@ func TestY0(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Y0(a); !close(y0[i], f) {
+-			t.Errorf("Y0(%g) = %g, want %g\n", a, f, y0[i])
++			t.Errorf("Y0(%g) = %g, want %g", a, f, y0[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfy0SC); i++ {
+ 		if f := Y0(vfy0SC[i]); !alike(y0SC[i], f) {
+-			t.Errorf("Y0(%g) = %g, want %g\n", vfy0SC[i], f, y0SC[i])
++			t.Errorf("Y0(%g) = %g, want %g", vfy0SC[i], f, y0SC[i])
+ 		}
+ 	}
+ }
+@@ -2157,12 +2157,12 @@ func TestY1(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Y1(a); !soclose(y1[i], f, 2e-14) {
+-			t.Errorf("Y1(%g) = %g, want %g\n", a, f, y1[i])
++			t.Errorf("Y1(%g) = %g, want %g", a, f, y1[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfy0SC); i++ {
+ 		if f := Y1(vfy0SC[i]); !alike(y1SC[i], f) {
+-			t.Errorf("Y1(%g) = %g, want %g\n", vfy0SC[i], f, y1SC[i])
++			t.Errorf("Y1(%g) = %g, want %g", vfy0SC[i], f, y1SC[i])
+ 		}
+ 	}
+ }
+@@ -2171,18 +2171,18 @@ func TestYn(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+ 		if f := Yn(2, a); !close(y2[i], f) {
+-			t.Errorf("Yn(2, %g) = %g, want %g\n", a, f, y2[i])
++			t.Errorf("Yn(2, %g) = %g, want %g", a, f, y2[i])
+ 		}
+ 		if f := Yn(-3, a); !close(yM3[i], f) {
+-			t.Errorf("Yn(-3, %g) = %g, want %g\n", a, f, yM3[i])
++			t.Errorf("Yn(-3, %g) = %g, want %g", a, f, yM3[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfy0SC); i++ {
+ 		if f := Yn(2, vfy0SC[i]); !alike(y2SC[i], f) {
+-			t.Errorf("Yn(2, %g) = %g, want %g\n", vfy0SC[i], f, y2SC[i])
++			t.Errorf("Yn(2, %g) = %g, want %g", vfy0SC[i], f, y2SC[i])
+ 		}
+ 		if f := Yn(-3, vfy0SC[i]); !alike(yM3SC[i], f) {
+-			t.Errorf("Yn(-3, %g) = %g, want %g\n", vfy0SC[i], f, yM3SC[i])
++			t.Errorf("Yn(-3, %g) = %g, want %g", vfy0SC[i], f, yM3SC[i])
+ 		}
+ 	}
+ }
+@@ -2195,7 +2195,7 @@ func TestLargeCos(t *testing.T) {
+ 		f1 := Cos(vf[i])
+ 		f2 := Cos(vf[i] + large)
+ 		if !kindaclose(f1, f2) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
++			t.Errorf("Cos(%g) = %g, want %g", vf[i]+large, f2, f1)
+ 		}
+ 	}
+ }
+@@ -2206,7 +2206,7 @@ func TestLargeSin(t *testing.T) {
+ 		f1 := Sin(vf[i])
+ 		f2 := Sin(vf[i] + large)
+ 		if !kindaclose(f1, f2) {
+-			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f2, f1)
++			t.Errorf("Sin(%g) = %g, want %g", vf[i]+large, f2, f1)
+ 		}
+ 	}
+ }
+@@ -2217,7 +2217,7 @@ func TestLargeSincos(t *testing.T) {
+ 		f1, g1 := Sincos(vf[i])
+ 		f2, g2 := Sincos(vf[i] + large)
+ 		if !kindaclose(f1, f2) || !kindaclose(g1, g2) {
+-			t.Errorf("Sincos(%g) = %g, %g, want %g, %g\n", vf[i]+large, f2, g2, f1, g1)
++			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", vf[i]+large, f2, g2, f1, g1)
+ 		}
+ 	}
+ }
+@@ -2228,7 +2228,7 @@ func TestLargeTan(t *testing.T) {
+ 		f1 := Tan(vf[i])
+ 		f2 := Tan(vf[i] + large)
+ 		if !kindaclose(f1, f2) {
+-			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f2, f1)
++			t.Errorf("Tan(%g) = %g, want %g", vf[i]+large, f2, f1)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index c695db6ad8..357d72c49c 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -39,7 +39,7 @@ func exportReceive(exp *Exporter, t *testing.T) {
+ 		v := <-ch
+ 		if closed(ch) {
+ 			if i != closeCount {
+-				t.Errorf("exportReceive expected close at %d; got one at %d\n", closeCount, i)
++				t.Errorf("exportReceive expected close at %d; got one at %d", closeCount, i)
+ 			}
+ 			break
+ 		}
+@@ -73,7 +73,7 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
+ 		v := <-ch
+ 		if closed(ch) {
+ 			if i != closeCount {
+-				t.Errorf("importReceive expected close at %d; got one at %d\n", closeCount, i)
++				t.Errorf("importReceive expected close at %d; got one at %d", closeCount, i)
+ 			}
+ 			break
+ 		}
+diff --git a/src/pkg/nntp/nntp_test.go b/src/pkg/nntp/nntp_test.go
+index 8f5032c6a0..0944efff34 100644
+--- a/src/pkg/nntp/nntp_test.go
++++ b/src/pkg/nntp/nntp_test.go
+@@ -144,7 +144,7 @@ Body.
+ 	// Just the body?
+ 	r, err := conn.Body(fmt.Sprintf("%d", l))
+ 	if err != nil {
+-		t.Fatal("should be able to fetch the low article body\n" + err.String())
++		t.Fatal("should be able to fetch the low article body" + err.String())
+ 	}
+ 	if _, err = ioutil.ReadAll(r); err != nil {
+ 		t.Fatal("error reading reader: " + err.String())
+diff --git a/src/pkg/path/match_test.go b/src/pkg/path/match_test.go
+index c02384f927..97bfc57332 100644
+--- a/src/pkg/path/match_test.go
++++ b/src/pkg/path/match_test.go
+@@ -71,7 +71,7 @@ func TestMatch(t *testing.T) {
+ 	for _, tt := range matchTests {
+ 		ok, err := Match(tt.pattern, tt.s)
+ 		if ok != tt.match || err != tt.err {
+-			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil\n", tt.pattern, tt.s, ok, err, tt.match)
++			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 7ce3894db1..b9bf43208a 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -290,26 +290,26 @@ func compareFloat32Slices(s1, s2 []float32) int {
+ func TestNormTables(t *testing.T) {
+ 	testKn, testWn, testFn := initNorm()
+ 	if i := compareUint32Slices(kn[0:], testKn); i >= 0 {
+-		t.Errorf("kn disagrees at index %v; %v != %v\n", i, kn[i], testKn[i])
++		t.Errorf("kn disagrees at index %v; %v != %v", i, kn[i], testKn[i])
+ 	}
+ 	if i := compareFloat32Slices(wn[0:], testWn); i >= 0 {
+-		t.Errorf("wn disagrees at index %v; %v != %v\n", i, wn[i], testWn[i])
++		t.Errorf("wn disagrees at index %v; %v != %v", i, wn[i], testWn[i])
+ 	}
+ 	if i := compareFloat32Slices(fn[0:], testFn); i >= 0 {
+-		t.Errorf("fn disagrees at index %v; %v != %v\n", i, fn[i], testFn[i])
++		t.Errorf("fn disagrees at index %v; %v != %v", i, fn[i], testFn[i])
+ 	}
+ }
+ 
+ func TestExpTables(t *testing.T) {
+ 	testKe, testWe, testFe := initExp()
+ 	if i := compareUint32Slices(ke[0:], testKe); i >= 0 {
+-		t.Errorf("ke disagrees at index %v; %v != %v\n", i, ke[i], testKe[i])
++		t.Errorf("ke disagrees at index %v; %v != %v", i, ke[i], testKe[i])
+ 	}
+ 	if i := compareFloat32Slices(we[0:], testWe); i >= 0 {
+-		t.Errorf("we disagrees at index %v; %v != %v\n", i, we[i], testWe[i])
++		t.Errorf("we disagrees at index %v; %v != %v", i, we[i], testWe[i])
+ 	}
+ 	if i := compareFloat32Slices(fe[0:], testFe); i >= 0 {
+-		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i])
++		t.Errorf("fe disagrees at index %v; %v != %v", i, fe[i], testFe[i])
+ 	}
+ }
+ 
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 0039a6e440..d59fc0d7b9 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -112,14 +112,14 @@ func testAtof(t *testing.T, opt bool) {
+ 		out, err := Atof64(test.in)
+ 		outs := Ftoa64(out, 'g', -1)
+ 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-			t.Errorf("Atof64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("Atof64(%v) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 
+ 		out, err = AtofN(test.in, 64)
+ 		outs = FtoaN(out, 'g', -1, 64)
+ 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v\n",
++			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 
+@@ -127,7 +127,7 @@ func testAtof(t *testing.T, opt bool) {
+ 			out32, err := Atof32(test.in)
+ 			outs := Ftoa32(out32, 'g', -1)
+ 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v\n",
++				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v",
+ 					test.in, out32, err, test.out, test.err, out)
+ 			}
+ 
+@@ -135,7 +135,7 @@ func testAtof(t *testing.T, opt bool) {
+ 			out32 = float32(out)
+ 			outs = FtoaN(float64(out32), 'g', -1, 32)
+ 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v\n",
++				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v",
+ 					test.in, out32, err, test.out, test.err, out)
+ 			}
+ 		}
+@@ -144,7 +144,7 @@ func testAtof(t *testing.T, opt bool) {
+ 			outf, err := Atof(test.in)
+ 			outs := Ftoa(outf, 'g', -1)
+ 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v\n",
++				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v",
+ 					test.in, outf, err, test.out, test.err, out)
+ 			}
+ 		}
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index 7df9303424..a914d70ddf 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -193,7 +193,7 @@ func TestAtoui64(t *testing.T) {
+ 		test := &atoui64tests[i]
+ 		out, err := Atoui64(test.in)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Atoui64(%q) = %v, %v want %v, %v\n",
++			t.Errorf("Atoui64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+@@ -204,7 +204,7 @@ func TestBtoui64(t *testing.T) {
+ 		test := &btoui64tests[i]
+ 		out, err := Btoui64(test.in, 0)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Btoui64(%q) = %v, %v want %v, %v\n",
++			t.Errorf("Btoui64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+@@ -215,7 +215,7 @@ func TestAtoi64(t *testing.T) {
+ 		test := &atoi64tests[i]
+ 		out, err := Atoi64(test.in)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Atoi64(%q) = %v, %v want %v, %v\n",
++			t.Errorf("Atoi64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+@@ -226,7 +226,7 @@ func TestBtoi64(t *testing.T) {
+ 		test := &btoi64tests[i]
+ 		out, err := Btoi64(test.in, 0)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Btoi64(%q) = %v, %v want %v, %v\n",
++			t.Errorf("Btoi64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+@@ -239,7 +239,7 @@ func TestAtoui(t *testing.T) {
+ 			test := &atoui32tests[i]
+ 			out, err := Atoui(test.in)
+ 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
++				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+ 			}
+ 		}
+@@ -248,7 +248,7 @@ func TestAtoui(t *testing.T) {
+ 			test := &atoui64tests[i]
+ 			out, err := Atoui(test.in)
+ 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
++				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+ 			}
+ 		}
+@@ -262,7 +262,7 @@ func TestAtoi(t *testing.T) {
+ 			test := &atoi32tests[i]
+ 			out, err := Atoi(test.in)
+ 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
++				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+ 			}
+ 		}
+@@ -271,7 +271,7 @@ func TestAtoi(t *testing.T) {
+ 			test := &atoi64tests[i]
+ 			out, err := Atoi(test.in)
+ 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
++				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+ 			}
+ 		}
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index 5f73450cde..41d33f5950 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -34,7 +34,7 @@ func TestDecimalShift(t *testing.T) {
+ 		test := &shifttests[i]
+ 		s := NewDecimal(test.i).Shift(test.shift).String()
+ 		if s != test.out {
+-			t.Errorf("Decimal %v << %v = %v, want %v\n",
++			t.Errorf("Decimal %v << %v = %v, want %v",
+ 				test.i, test.shift, s, test.out)
+ 		}
+ 	}
+@@ -70,17 +70,17 @@ func TestDecimalRound(t *testing.T) {
+ 		test := &roundtests[i]
+ 		s := NewDecimal(test.i).RoundDown(test.nd).String()
+ 		if s != test.down {
+-			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
++			t.Errorf("Decimal %v RoundDown %d = %v, want %v",
+ 				test.i, test.nd, s, test.down)
+ 		}
+ 		s = NewDecimal(test.i).Round(test.nd).String()
+ 		if s != test.round {
+-			t.Errorf("Decimal %v Round %d = %v, want %v\n",
++			t.Errorf("Decimal %v Round %d = %v, want %v",
+ 				test.i, test.nd, s, test.down)
+ 		}
+ 		s = NewDecimal(test.i).RoundUp(test.nd).String()
+ 		if s != test.up {
+-			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
++			t.Errorf("Decimal %v RoundUp %d = %v, want %v",
+ 				test.i, test.nd, s, test.up)
+ 		}
+ 	}
+@@ -110,7 +110,7 @@ func TestDecimalRoundedInteger(t *testing.T) {
+ 		test := roundinttests[i]
+ 		int := NewDecimal(test.i).Shift(test.shift).RoundedInteger()
+ 		if int != test.int {
+-			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
++			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v",
+ 				test.i, test.shift, int, test.int)
+ 		}
+ 	}
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 4cbadf316b..305adcc0c4 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -118,7 +118,7 @@ func TestFp(t *testing.T) {
+ 		}
+ 		a := strings.Split(line, " ", -1)
+ 		if len(a) != 4 {
+-			t.Error("testfp.txt:", lineno, ": wrong field count\n")
++			t.Error("testfp.txt:", lineno, ": wrong field count")
+ 			continue
+ 		}
+ 		var s string
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index 039ef44468..8333e6c00d 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -62,14 +62,14 @@ func TestItoa(t *testing.T) {
+ 	for _, test := range itob64tests {
+ 		s := Itob64(test.in, test.base)
+ 		if s != test.out {
+-			t.Errorf("Itob64(%v, %v) = %v want %v\n",
++			t.Errorf("Itob64(%v, %v) = %v want %v",
+ 				test.in, test.base, s, test.out)
+ 		}
+ 
+ 		if test.in >= 0 {
+ 			s := Uitob64(uint64(test.in), test.base)
+ 			if s != test.out {
+-				t.Errorf("Uitob64(%v, %v) = %v want %v\n",
++				t.Errorf("Uitob64(%v, %v) = %v want %v",
+ 					test.in, test.base, s, test.out)
+ 			}
+ 		}
+@@ -77,14 +77,14 @@ func TestItoa(t *testing.T) {
+ 		if int64(int(test.in)) == test.in {
+ 			s := Itob(int(test.in), test.base)
+ 			if s != test.out {
+-				t.Errorf("Itob(%v, %v) = %v want %v\n",
++				t.Errorf("Itob(%v, %v) = %v want %v",
+ 					test.in, test.base, s, test.out)
+ 			}
+ 
+ 			if test.in >= 0 {
+ 				s := Uitob(uint(test.in), test.base)
+ 				if s != test.out {
+-					t.Errorf("Uitob(%v, %v) = %v want %v\n",
++					t.Errorf("Uitob(%v, %v) = %v want %v",
+ 						test.in, test.base, s, test.out)
+ 				}
+ 			}
+@@ -93,14 +93,14 @@ func TestItoa(t *testing.T) {
+ 		if test.base == 10 {
+ 			s := Itoa64(test.in)
+ 			if s != test.out {
+-				t.Errorf("Itoa64(%v) = %v want %v\n",
++				t.Errorf("Itoa64(%v) = %v want %v",
+ 					test.in, s, test.out)
+ 			}
+ 
+ 			if test.in >= 0 {
+ 				s := Uitob64(uint64(test.in), test.base)
+ 				if s != test.out {
+-					t.Errorf("Uitob64(%v, %v) = %v want %v\n",
++					t.Errorf("Uitob64(%v, %v) = %v want %v",
+ 						test.in, test.base, s, test.out)
+ 				}
+ 			}
+@@ -108,14 +108,14 @@ func TestItoa(t *testing.T) {
+ 			if int64(int(test.in)) == test.in {
+ 				s := Itoa(int(test.in))
+ 				if s != test.out {
+-					t.Errorf("Itoa(%v) = %v want %v\n",
++					t.Errorf("Itoa(%v) = %v want %v",
+ 						test.in, s, test.out)
+ 				}
+ 
+ 				if test.in >= 0 {
+ 					s := Uitoa(uint(test.in))
+ 					if s != test.out {
+-						t.Errorf("Uitoa(%v) = %v want %v\n",
++						t.Errorf("Uitoa(%v) = %v want %v",
+ 							test.in, s, test.out)
+ 					}
+ 				}
+@@ -143,14 +143,14 @@ func TestUitoa(t *testing.T) {
+ 	for _, test := range uitob64tests {
+ 		s := Uitob64(test.in, test.base)
+ 		if s != test.out {
+-			t.Errorf("Uitob64(%v, %v) = %v want %v\n",
++			t.Errorf("Uitob64(%v, %v) = %v want %v",
+ 				test.in, test.base, s, test.out)
+ 		}
+ 
+ 		if uint64(uint(test.in)) == test.in {
+ 			s := Uitob(uint(test.in), test.base)
+ 			if s != test.out {
+-				t.Errorf("Uitob(%v, %v) = %v want %v\n",
++				t.Errorf("Uitob(%v, %v) = %v want %v",
+ 					test.in, test.base, s, test.out)
+ 			}
+ 		}
+@@ -158,14 +158,14 @@ func TestUitoa(t *testing.T) {
+ 		if test.base == 10 {
+ 			s := Uitoa64(test.in)
+ 			if s != test.out {
+-				t.Errorf("Uitoa64(%v) = %v want %v\n",
++				t.Errorf("Uitoa64(%v) = %v want %v",
+ 					test.in, s, test.out)
+ 			}
+ 
+ 			if uint64(uint(test.in)) == test.in {
+ 				s := Uitoa(uint(test.in))
+ 				if s != test.out {
+-					t.Errorf("Uitoa(%v) = %v want %v\n",
++					t.Errorf("Uitoa(%v) = %v want %v",
+ 						test.in, s, test.out)
+ 				}
+ 			}
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index 7fc90678c0..eeae1022ce 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -47,7 +47,7 @@ func TestNew(t *testing.T) {
+ func TestNewLogger(t *testing.T) {
+ 	f := NewLogger(LOG_INFO, 0)
+ 	if f == nil {
+-		t.Errorf("NewLogger() failed\n")
++		t.Errorf("NewLogger() failed")
+ 	}
+ }
+ 
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 1574b0834f..a3e4fac948 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -209,28 +209,28 @@ func TestRubyParse(t *testing.T) {
+ func checkTime(time *Time, test *ParseTest, t *testing.T) {
+ 	// The time should be Thu Feb  4 21:00:57 PST 2010
+ 	if test.yearSign*time.Year != 2010 {
+-		t.Errorf("%s: bad year: %d not %d\n", test.name, time.Year, 2010)
++		t.Errorf("%s: bad year: %d not %d", test.name, time.Year, 2010)
+ 	}
+ 	if time.Month != 2 {
+-		t.Errorf("%s: bad month: %d not %d\n", test.name, time.Month, 2)
++		t.Errorf("%s: bad month: %d not %d", test.name, time.Month, 2)
+ 	}
+ 	if time.Day != 4 {
+-		t.Errorf("%s: bad day: %d not %d\n", test.name, time.Day, 4)
++		t.Errorf("%s: bad day: %d not %d", test.name, time.Day, 4)
+ 	}
+ 	if time.Hour != 21 {
+-		t.Errorf("%s: bad hour: %d not %d\n", test.name, time.Hour, 21)
++		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour, 21)
+ 	}
+ 	if time.Minute != 0 {
+-		t.Errorf("%s: bad minute: %d not %d\n", test.name, time.Minute, 0)
++		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute, 0)
+ 	}
+ 	if time.Second != 57 {
+-		t.Errorf("%s: bad second: %d not %d\n", test.name, time.Second, 57)
++		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
+ 	}
+ 	if test.hasTZ && time.ZoneOffset != -28800 {
+-		t.Errorf("%s: bad tz offset: %d not %d\n", test.name, time.ZoneOffset, -28800)
++		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
+ 	}
+ 	if test.hasWD && time.Weekday != 4 {
+-		t.Errorf("%s: bad weekday: %d not %d\n", test.name, time.Weekday, 4)
++		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday, 4)
+ 	}
+ }
+ 
+@@ -283,9 +283,9 @@ func TestParseErrors(t *testing.T) {
+ 	for _, test := range parseErrorTests {
+ 		_, err := Parse(test.format, test.value)
+ 		if err == nil {
+-			t.Errorf("expected error for %q %q\n", test.format, test.value)
++			t.Errorf("expected error for %q %q", test.format, test.value)
+ 		} else if strings.Index(err.String(), test.expect) < 0 {
+-			t.Errorf("expected error with %q for %q %q; got %s\n", test.expect, test.format, test.value, err)
++			t.Errorf("expected error with %q for %q %q; got %s", test.expect, test.format, test.value, err)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/digit_test.go b/src/pkg/unicode/digit_test.go
+index 57a625b022..9bbccde92a 100644
+--- a/src/pkg/unicode/digit_test.go
++++ b/src/pkg/unicode/digit_test.go
+@@ -106,12 +106,12 @@ var testLetter = []int{
+ func TestDigit(t *testing.T) {
+ 	for _, r := range testDigit {
+ 		if !IsDigit(r) {
+-			t.Errorf("IsDigit(U+%04X) = false, want true\n", r)
++			t.Errorf("IsDigit(U+%04X) = false, want true", r)
+ 		}
+ 	}
+ 	for _, r := range testLetter {
+ 		if IsDigit(r) {
+-			t.Errorf("IsDigit(U+%04X) = true, want false\n", r)
++			t.Errorf("IsDigit(U+%04X) = true, want false", r)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 294e79aa57..c303d48795 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -216,17 +216,17 @@ var caseTest = []caseT{
+ func TestIsLetter(t *testing.T) {
+ 	for _, r := range upperTest {
+ 		if !IsLetter(r) {
+-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
++			t.Errorf("IsLetter(U+%04X) = false, want true", r)
+ 		}
+ 	}
+ 	for _, r := range letterTest {
+ 		if !IsLetter(r) {
+-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
++			t.Errorf("IsLetter(U+%04X) = false, want true", r)
+ 		}
+ 	}
+ 	for _, r := range notletterTest {
+ 		if IsLetter(r) {
+-			t.Errorf("IsLetter(U+%04X) = true, want false\n", r)
++			t.Errorf("IsLetter(U+%04X) = true, want false", r)
+ 		}
+ 	}
+ }
+@@ -234,17 +234,17 @@ func TestIsLetter(t *testing.T) {
+ func TestIsUpper(t *testing.T) {
+ 	for _, r := range upperTest {
+ 		if !IsUpper(r) {
+-			t.Errorf("IsUpper(U+%04X) = false, want true\n", r)
++			t.Errorf("IsUpper(U+%04X) = false, want true", r)
+ 		}
+ 	}
+ 	for _, r := range notupperTest {
+ 		if IsUpper(r) {
+-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
++			t.Errorf("IsUpper(U+%04X) = true, want false", r)
+ 		}
+ 	}
+ 	for _, r := range notletterTest {
+ 		if IsUpper(r) {
+-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
++			t.Errorf("IsUpper(U+%04X) = true, want false", r)
+ 		}
+ 	}
+ }
+@@ -265,7 +265,7 @@ func TestTo(t *testing.T) {
+ 	for _, c := range caseTest {
+ 		r := To(c.cas, c.in)
+ 		if c.out != r {
+-			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out)
++			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X", c.in, caseString(c.cas), r, c.out)
+ 		}
+ 	}
+ }
+@@ -277,7 +277,7 @@ func TestToUpperCase(t *testing.T) {
+ 		}
+ 		r := ToUpper(c.in)
+ 		if c.out != r {
+-			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
++			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
+ 		}
+ 	}
+ }
+@@ -289,7 +289,7 @@ func TestToLowerCase(t *testing.T) {
+ 		}
+ 		r := ToLower(c.in)
+ 		if c.out != r {
+-			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
++			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
+ 		}
+ 	}
+ }
+@@ -301,7 +301,7 @@ func TestToTitleCase(t *testing.T) {
+ 		}
+ 		r := ToTitle(c.in)
+ 		if c.out != r {
+-			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
++			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X", c.in, r, c.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index b3e980b1c9..f36adbe1c2 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -194,13 +194,13 @@ func TestScripts(t *testing.T) {
+ 			t.Fatal(test.script, "not a known script")
+ 		}
+ 		if !Is(Scripts[test.script], test.rune) {
+-			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script)
++			t.Errorf("IsScript(%#x, %s) = false, want true", test.rune, test.script)
+ 		}
+ 		notTested[test.script] = false, false
+ 	}
+ 	for _, test := range outTest {
+ 		if Is(Scripts[test.script], test.rune) {
+-			t.Errorf("IsScript(%#x, %s) = true, want false\n", test.rune, test.script)
++			t.Errorf("IsScript(%#x, %s) = true, want false", test.rune, test.script)
+ 		}
+ 	}
+ 	for k := range notTested {
+@@ -218,7 +218,7 @@ func TestCategories(t *testing.T) {
+ 			t.Fatal(test.script, "not a known category")
+ 		}
+ 		if !Is(Categories[test.script], test.rune) {
+-			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
++			t.Errorf("IsCategory(%#x, %s) = false, want true", test.rune, test.script)
+ 		}
+ 		notTested[test.script] = false, false
+ 	}
+@@ -237,7 +237,7 @@ func TestProperties(t *testing.T) {
+ 			t.Fatal(test.script, "not a known prop")
+ 		}
+ 		if !Is(Properties[test.script], test.rune) {
+-			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
++			t.Errorf("IsCategory(%#x, %s) = false, want true", test.rune, test.script)
+ 		}
+ 		notTested[test.script] = false, false
+ 	}

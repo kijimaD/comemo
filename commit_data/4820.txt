@@ -7,7 +7,7 @@ Date:   Tue Feb 9 13:33:00 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/207043
-
+---
  src/clean.bash         |   2 +-
  src/pkg/Makefile       |   2 +-
  test/garbage/Makefile  |  27 ++++++++++
@@ -15,3 +15,384 @@ Date:   Tue Feb 9 13:33:00 2010 -0800
  test/garbage/peano.go  | 137 +++++++++++++++++++++++++++++++++++++++++++++++++
  test/garbage/tree.go   | 104 +++++++++++++++++++++++++++++++++++++
  6 files changed, 293 insertions(+), 15 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 90bad1f5ff..567e6e3196 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -16,7 +16,7 @@ rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+ rm -f "$GOROOT"/lib/*.a
+ for i in lib9 libbio libcgo libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+-	../test/bench
++	../test/bench ../test/garbage
+ do(
+ 	cd "$GOROOT"/src/$i || exit 1
+ 	if test -f clean.bash; then
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index f057769ec4..7130c66e64 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -169,7 +169,7 @@ install: install.dirs
+ 
+ test:	test.dirs
+ 
+-bench:	bench.dirs
++bench:	bench.dirs ../../test/garbage.bench
+ 
+ nuke: nuke.dirs
+ 	rm -rf "$(GOROOT)"/pkg/*
+diff --git a/test/garbage/Makefile b/test/garbage/Makefile
+new file mode 100644
+index 0000000000..0574a6f493
+--- /dev/null
++++ b/test/garbage/Makefile
+@@ -0,0 +1,27 @@
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../src/Make.$(GOARCH)
++
++ALL=\
++	parser\
++	peano\
++	tree\
++
++all: $(ALL)
++
++%.$O: %.go
++	$(GC) $*.go
++
++%: %.$O
++	$(LD) -o $@ $*.$O
++
++%.bench: %
++	./$*
++
++bench: $(addsuffix .bench, $(ALL))
++
++clean:
++	rm -f *.[$(OS)] $(ALL)
++
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index 3a21f97a85..adb90e4681 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -15,6 +15,7 @@ import (
+ 	"path"
+ 	"runtime"
+ 	"strings"
++	"time"
+ )
+ 
+ func isGoFile(dir *os.Dir) bool {
+@@ -66,26 +67,31 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ 
+ func main() {
+ 	st := &runtime.MemStats
+-	n := flag.Int("n", 10, "iterations")
++	n := flag.Int("n", 4, "iterations")
+ 	p := flag.Int("p", len(packages), "# of packages to keep in memory")
+ 	flag.BoolVar(&st.DebugGC, "d", st.DebugGC, "print GC debugging info (pause times)")
+ 	flag.Parse()
+ 
++	var t0 int64
+ 	pkgroot := os.Getenv("GOROOT") + "/src/pkg/"
+-	for i := -1; i < *n; i++ {
+-		parsed := make([]map[string]*ast.Package, *p)
+-		for j := range parsed {
+-			parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
+-		}
+-		if i == -1 {
+-			// Now that heap is grown to full size, reset counters.
+-			// This hides the start-up pauses, which are much smaller
+-			// than the normal pauses and would otherwise make
+-			// the average look much better than it actually is.
+-			st.NumGC = 0
+-			st.PauseNs = 0
++	for pass := 0; pass < 2; pass++ {
++		// Once the heap is grown to full size, reset counters.
++		// This hides the start-up pauses, which are much smaller
++		// than the normal pauses and would otherwise make
++		// the average look much better than it actually is.
++		st.NumGC = 0
++		st.PauseNs = 0
++		t0 = time.Nanoseconds()
++
++		for i := 0; i < *n; i++ {
++			parsed := make([]map[string]*ast.Package, *p)
++			for j := range parsed {
++				parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
++			}
+ 		}
++		runtime.GC()
+ 	}
++	t1 := time.Nanoseconds()
+ 
+ 	fmt.Printf("Alloc=%d/%d Heap=%d/%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
+ 		st.Alloc, st.TotalAlloc,
+@@ -97,6 +103,10 @@ func main() {
+ 	for _, s := range st.BySize {
+ 		fmt.Printf("%10d %10d %10d\n", s.Size, s.Mallocs, s.Frees)
+ 	}
++
++	// Standard gotest benchmark output, collected by build dashboard.
++	fmt.Printf("garbage.BenchmarkParser %d %d ns/op\n", *n, (t1-t0)/int64(*n))
++	fmt.Printf("garbage.BenchmarkParserPause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
+ }
+ 
+ 
+diff --git a/test/garbage/peano.go b/test/garbage/peano.go
+new file mode 100644
+index 0000000000..36ddbe8f57
+--- /dev/null
++++ b/test/garbage/peano.go
+@@ -0,0 +1,137 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"time"
++)
++
++
++type Number struct {
++	next *Number
++}
++
++
++// -------------------------------------
++// Peano primitives
++
++func zero() *Number { return nil }
++
++
++func is_zero(x *Number) bool { return x == nil }
++
++
++func add1(x *Number) *Number {
++	e := new(Number)
++	e.next = x
++	return e
++}
++
++
++func sub1(x *Number) *Number { return x.next }
++
++
++func add(x, y *Number) *Number {
++	if is_zero(y) {
++		return x
++	}
++
++	return add(add1(x), sub1(y))
++}
++
++
++func mul(x, y *Number) *Number {
++	if is_zero(x) || is_zero(y) {
++		return zero()
++	}
++
++	return add(mul(x, sub1(y)), x)
++}
++
++
++func fact(n *Number) *Number {
++	if is_zero(n) {
++		return add1(zero())
++	}
++
++	return mul(fact(sub1(n)), n)
++}
++
++
++// -------------------------------------
++// Helpers to generate/count Peano integers
++
++func gen(n int) *Number {
++	if n > 0 {
++		return add1(gen(n - 1))
++	}
++
++	return zero()
++}
++
++
++func count(x *Number) int {
++	if is_zero(x) {
++		return 0
++	}
++
++	return count(sub1(x)) + 1
++}
++
++
++func check(x *Number, expected int) {
++	var c = count(x)
++	if c != expected {
++		panic("error: found ", c, "; expected ", expected, "\n")
++	}
++}
++
++
++// -------------------------------------
++// Test basic functionality
++
++func verify() {
++	check(zero(), 0)
++	check(add1(zero()), 1)
++	check(gen(10), 10)
++
++	check(add(gen(3), zero()), 3)
++	check(add(zero(), gen(4)), 4)
++	check(add(gen(3), gen(4)), 7)
++
++	check(mul(zero(), zero()), 0)
++	check(mul(gen(3), zero()), 0)
++	check(mul(zero(), gen(4)), 0)
++	check(mul(gen(3), add1(zero())), 3)
++	check(mul(add1(zero()), gen(4)), 4)
++	check(mul(gen(3), gen(4)), 12)
++
++	check(fact(zero()), 1)
++	check(fact(add1(zero())), 1)
++	check(fact(gen(5)), 120)
++}
++
++
++// -------------------------------------
++// Factorial
++
++
++func main() {
++	st := &runtime.MemStats
++	t0 := time.Nanoseconds()
++	verify()
++	for i := 0; i <= 9; i++ {
++		print(i, "! = ", count(fact(gen(i))), "\n")
++	}
++	runtime.GC()
++	t1 := time.Nanoseconds()
++
++	fmt.Printf("garbage.BenchmarkPeano 1 %d ns/op\n", t1-t0)
++	fmt.Printf("garbage.BenchmarkPeanoPause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
++}
+diff --git a/test/garbage/tree.go b/test/garbage/tree.go
+new file mode 100644
+index 0000000000..816693fbeb
+--- /dev/null
++++ b/test/garbage/tree.go
+@@ -0,0 +1,104 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * based on C program by Kevin Carson
++ */
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"runtime"
++	"time"
++)
++
++var n = flag.Int("n", 16, "depth")
++
++type Node struct {
++	item        int
++	left, right *Node
++}
++
++func bottomUpTree(item, depth int) *Node {
++	if depth <= 0 {
++		return &Node{item: item}
++	}
++	return &Node{item, bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1)}
++}
++
++func (n *Node) itemCheck() int {
++	if n.left == nil {
++		return n.item
++	}
++	return n.item + n.left.itemCheck() - n.right.itemCheck()
++}
++
++const minDepth = 4
++
++func main() {
++	flag.Parse()
++
++	t0 := time.Nanoseconds()
++
++	maxDepth := *n
++	if minDepth+2 > *n {
++		maxDepth = minDepth + 2
++	}
++	stretchDepth := maxDepth + 1
++
++	check := bottomUpTree(0, stretchDepth).itemCheck()
++	fmt.Printf("stretch tree of depth %d\t check: %d\n", stretchDepth, check)
++
++	longLivedTree := bottomUpTree(0, maxDepth)
++
++	for depth := minDepth; depth <= maxDepth; depth += 2 {
++		iterations := 1 << uint(maxDepth-depth+minDepth)
++		check = 0
++
++		for i := 1; i <= iterations; i++ {
++			check += bottomUpTree(i, depth).itemCheck()
++			check += bottomUpTree(-i, depth).itemCheck()
++		}
++		fmt.Printf("%d\t trees of depth %d\t check: %d\n", iterations*2, depth, check)
++	}
++	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck())
++
++	t1 := time.Nanoseconds()
++	st := &runtime.MemStats
++
++	// Standard gotest benchmark output, collected by build dashboard.
++	fmt.Printf("garbage.BenchmarkTree %d %d ns/op\n", *n, (t1-t0)/int64(*n))
++	fmt.Printf("garbage.BenchmarkTreePause %d %d ns/op\n", st.NumGC, int64(st.PauseNs)/int64(st.NumGC))
++
++}

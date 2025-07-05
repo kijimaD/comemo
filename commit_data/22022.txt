@@ -9,6 +9,38 @@ Date:   Wed Feb 18 20:02:16 2015 -0800
     Change-Id: I3f06b99cc48cbd4ccd6f23f2e4b0830af40f7f3d
     Reviewed-on: https://go-review.googlesource.com/5281
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/atomic_ppc64x.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/atomic_ppc64x.s b/src/runtime/atomic_ppc64x.s
+index 7ee08213d4..993b279524 100644
+--- a/src/runtime/atomic_ppc64x.s
++++ b/src/runtime/atomic_ppc64x.s
+@@ -8,7 +8,7 @@
+ 
+ // uint32 runtime·atomicload(uint32 volatile* addr)
+ TEXT ·atomicload(SB),NOSPLIT,$-8-12
+-	MOVD	0(FP), R3
++	MOVD	addr+0(FP), R3
+ 	SYNC
+ 	MOVWZ	0(R3), R3
+ 	CMPW	R3, R3, CR7
+@@ -19,7 +19,7 @@ TEXT ·atomicload(SB),NOSPLIT,$-8-12
+ 
+ // uint64 runtime·atomicload64(uint64 volatile* addr)
+ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
+-	MOVD	0(FP), R3
++	MOVD	addr+0(FP), R3
+ 	SYNC
+ 	MOVD	0(R3), R3
+ 	CMP	R3, R3, CR7
+@@ -30,7 +30,7 @@ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
+ 
+ // void *runtime·atomicloadp(void *volatile *addr)
+ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
+-	MOVD	0(FP), R3
++	MOVD	addr+0(FP), R3
+ 	SYNC
+ 	MOVD	0(R3), R3
+ 	CMP	R3, R3, CR7

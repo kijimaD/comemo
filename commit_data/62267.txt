@@ -17,8 +17,259 @@ Date:   Wed Nov 27 20:47:58 2024 +0300
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/rttype/rttype.go    | 58 ++++++++++++++---------
  src/cmd/compile/internal/ssa/rewrite.go      | 39 ++++++++++++++++
  src/cmd/compile/internal/ssa/rewrite_test.go | 69 +++++++++++++++++++++++++++-
  3 files changed, 144 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/rttype/rttype.go b/src/cmd/compile/internal/rttype/rttype.go
+index a5aecb2535..aaf98dda15 100644
+--- a/src/cmd/compile/internal/rttype/rttype.go
++++ b/src/cmd/compile/internal/rttype/rttype.go
+@@ -50,26 +50,26 @@ func Init() {
+ 	// Note: this has to be called explicitly instead of being
+ 	// an init function so it runs after the types package has
+ 	// been properly initialized.
+-	Type = fromReflect(reflect.TypeOf(abi.Type{}))
+-	ArrayType = fromReflect(reflect.TypeOf(abi.ArrayType{}))
+-	ChanType = fromReflect(reflect.TypeOf(abi.ChanType{}))
+-	FuncType = fromReflect(reflect.TypeOf(abi.FuncType{}))
+-	InterfaceType = fromReflect(reflect.TypeOf(abi.InterfaceType{}))
+-	OldMapType = fromReflect(reflect.TypeOf(abi.OldMapType{}))
+-	SwissMapType = fromReflect(reflect.TypeOf(abi.SwissMapType{}))
+-	PtrType = fromReflect(reflect.TypeOf(abi.PtrType{}))
+-	SliceType = fromReflect(reflect.TypeOf(abi.SliceType{}))
+-	StructType = fromReflect(reflect.TypeOf(abi.StructType{}))
++	Type = FromReflect(reflect.TypeOf(abi.Type{}))
++	ArrayType = FromReflect(reflect.TypeOf(abi.ArrayType{}))
++	ChanType = FromReflect(reflect.TypeOf(abi.ChanType{}))
++	FuncType = FromReflect(reflect.TypeOf(abi.FuncType{}))
++	InterfaceType = FromReflect(reflect.TypeOf(abi.InterfaceType{}))
++	OldMapType = FromReflect(reflect.TypeOf(abi.OldMapType{}))
++	SwissMapType = FromReflect(reflect.TypeOf(abi.SwissMapType{}))
++	PtrType = FromReflect(reflect.TypeOf(abi.PtrType{}))
++	SliceType = FromReflect(reflect.TypeOf(abi.SliceType{}))
++	StructType = FromReflect(reflect.TypeOf(abi.StructType{}))
+ 
+-	IMethod = fromReflect(reflect.TypeOf(abi.Imethod{}))
+-	Method = fromReflect(reflect.TypeOf(abi.Method{}))
+-	StructField = fromReflect(reflect.TypeOf(abi.StructField{}))
+-	UncommonType = fromReflect(reflect.TypeOf(abi.UncommonType{}))
++	IMethod = FromReflect(reflect.TypeOf(abi.Imethod{}))
++	Method = FromReflect(reflect.TypeOf(abi.Method{}))
++	StructField = FromReflect(reflect.TypeOf(abi.StructField{}))
++	UncommonType = FromReflect(reflect.TypeOf(abi.UncommonType{}))
+ 
+-	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
+-	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
++	InterfaceSwitch = FromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
++	TypeAssert = FromReflect(reflect.TypeOf(abi.TypeAssert{}))
+ 
+-	ITab = fromReflect(reflect.TypeOf(abi.ITab{}))
++	ITab = FromReflect(reflect.TypeOf(abi.ITab{}))
+ 
+ 	// Make sure abi functions are correct. These functions are used
+ 	// by the linker which doesn't have the ability to do type layout,
+@@ -92,8 +92,8 @@ func Init() {
+ 	}
+ }
+ 
+-// fromReflect translates from a host type to the equivalent target type.
+-func fromReflect(rt reflect.Type) *types.Type {
++// FromReflect translates from a host type to the equivalent target type.
++func FromReflect(rt reflect.Type) *types.Type {
+ 	t := reflectToType(rt)
+ 	types.CalcSize(t)
+ 	return t
+@@ -108,6 +108,10 @@ func reflectToType(rt reflect.Type) *types.Type {
+ 		return types.Types[types.TBOOL]
+ 	case reflect.Int:
+ 		return types.Types[types.TINT]
++	case reflect.Int8:
++		return types.Types[types.TINT8]
++	case reflect.Int16:
++		return types.Types[types.TINT16]
+ 	case reflect.Int32:
+ 		return types.Types[types.TINT32]
+ 	case reflect.Uint8:
+@@ -116,9 +120,15 @@ func reflectToType(rt reflect.Type) *types.Type {
+ 		return types.Types[types.TUINT16]
+ 	case reflect.Uint32:
+ 		return types.Types[types.TUINT32]
++	case reflect.Float32:
++		return types.Types[types.TFLOAT32]
++	case reflect.Float64:
++		return types.Types[types.TFLOAT64]
+ 	case reflect.Uintptr:
+ 		return types.Types[types.TUINTPTR]
+-	case reflect.Ptr, reflect.Func, reflect.UnsafePointer:
++	case reflect.Ptr:
++		return types.NewPtr(reflectToType(rt.Elem()))
++	case reflect.Func, reflect.UnsafePointer:
+ 		// TODO: there's no mechanism to distinguish different pointer types,
+ 		// so we treat them all as unsafe.Pointer.
+ 		return types.Types[types.TUNSAFEPTR]
+@@ -134,6 +144,12 @@ func reflectToType(rt reflect.Type) *types.Type {
+ 			fields[i] = &types.Field{Sym: &types.Sym{Name: f.Name}, Type: ft}
+ 		}
+ 		return types.NewStruct(fields)
++	case reflect.Chan:
++		return types.NewChan(reflectToType(rt.Elem()), types.ChanDir(rt.ChanDir()))
++	case reflect.String:
++		return types.Types[types.TSTRING]
++	case reflect.Complex128:
++		return types.Types[types.TCOMPLEX128]
+ 	default:
+ 		base.Fatalf("unhandled kind %s", rt.Kind())
+ 		return nil
+@@ -155,7 +171,7 @@ func NewCursor(lsym *obj.LSym, off int64, t *types.Type) Cursor {
+ 
+ // WritePtr writes a pointer "target" to the component at the location specified by c.
+ func (c Cursor) WritePtr(target *obj.LSym) {
+-	if c.typ.Kind() != types.TUNSAFEPTR {
++	if c.typ.Kind() != types.TUNSAFEPTR && c.typ.Kind() != types.TPTR {
+ 		base.Fatalf("can't write ptr, it has kind %s", c.typ.Kind())
+ 	}
+ 	if target == nil {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 71f8e9045c..eb523675b1 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -863,6 +863,12 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+ 		}
+ 		return base, offset
+ 	}
++
++	// Run types-based analysis
++	if disjointTypes(p1.Type, p2.Type) {
++		return true
++	}
++
+ 	p1, off1 := baseAndOffset(p1)
+ 	p2, off2 := baseAndOffset(p2)
+ 	if isSamePtr(p1, p2) {
+@@ -888,6 +894,39 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+ 	return false
+ }
+ 
++// disjointTypes reports whether a memory region pointed to by a pointer of type
++// t1 does not overlap with a memory region pointed to by a pointer of type t2 --
++// based on type aliasing rules.
++func disjointTypes(t1 *types.Type, t2 *types.Type) bool {
++	// Unsafe pointer can alias with anything.
++	if t1.IsUnsafePtr() || t2.IsUnsafePtr() {
++		return false
++	}
++
++	if !t1.IsPtr() || !t2.IsPtr() {
++		panic("disjointTypes: one of arguments is not a pointer")
++	}
++
++	t1 = t1.Elem()
++	t2 = t2.Elem()
++
++	// Not-in-heap types are not supported -- they are rare and non-important; also,
++	// type.HasPointers check doesn't work for them correctly.
++	if t1.NotInHeap() || t2.NotInHeap() {
++		return false
++	}
++
++	isPtrShaped := func(t *types.Type) bool { return int(t.Size()) == types.PtrSize && t.HasPointers() }
++
++	// Pointers and non-pointers are disjoint (https://pkg.go.dev/unsafe#Pointer).
++	if (isPtrShaped(t1) && !t2.HasPointers()) ||
++		(isPtrShaped(t2) && !t1.HasPointers()) {
++		return true
++	}
++
++	return false
++}
++
+ // moveSize returns the number of bytes an aligned MOV instruction moves.
+ func moveSize(align int64, c *Config) int64 {
+ 	switch {
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+index 357fe1183f..92e9d3fd5b 100644
+--- a/src/cmd/compile/internal/ssa/rewrite_test.go
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -4,7 +4,12 @@
+ 
+ package ssa
+ 
+-import "testing"
++import (
++	"cmd/compile/internal/rttype"
++	"reflect"
++	"testing"
++	"unsafe"
++)
+ 
+ // We generate memmove for copy(x[1:], x[:]), however we may change it to OpMove,
+ // because size is known. Check that OpMove is alias-safe, or we did call memmove.
+@@ -218,3 +223,65 @@ func TestMergePPC64AndSrwi(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDisjointTypes(t *testing.T) {
++	tests := []struct {
++		v1, v2   any // two pointers to some types
++		expected bool
++	}{
++		{new(int8), new(int8), false},
++		{new(int8), new(float32), false},
++		{new(int8), new(*int8), true},
++		{new(*int8), new(*float32), false},
++		{new(*int8), new(chan<- int8), false},
++		{new(**int8), new(*int8), false},
++		{new(***int8), new(**int8), false},
++		{new(int8), new(chan<- int8), true},
++		{new(int), unsafe.Pointer(nil), false},
++		{new(byte), new(string), false},
++		{new(int), new(string), false},
++		{new(*int8), new(struct{ a, b int }), true},
++		{new(*int8), new(struct {
++			a *int
++			b int
++		}), false},
++		{new(*int8), new(struct {
++			a int
++			b *int
++		}), false}, // with more precise analysis it should be true
++		{new(*byte), new(string), false},
++		{new(int), new(struct {
++			a int
++			b *int
++		}), false},
++		{new(float64), new(complex128), false},
++		{new(*byte), new([]byte), false},
++		{new(int), new([]byte), false},
++		{new(int), new([2]*byte), false}, // with more recise analysis it should be true
++		{new([2]int), new(*byte), true},
++	}
++	for _, tst := range tests {
++		t1 := rttype.FromReflect(reflect.TypeOf(tst.v1))
++		t2 := rttype.FromReflect(reflect.TypeOf(tst.v2))
++		result := disjointTypes(t1, t2)
++		if result != tst.expected {
++			t.Errorf("disjointTypes(%s, %s) got %t expected %t", t1.String(), t2.String(), result, tst.expected)
++		}
++	}
++}
++
++//go:noinline
++func foo(p1 *int64, p2 *float64) int64 {
++	*p1 = 10
++	*p2 = 0 // disjointTypes shouldn't consider this and preceding stores as non-aliasing
++	return *p1
++}
++
++func TestDisjointTypesRun(t *testing.T) {
++	f := float64(0)
++	i := (*int64)(unsafe.Pointer(&f))
++	r := foo(i, &f)
++	if r != 0 {
++		t.Errorf("disjointTypes gives an incorrect answer that leads to an incorrect optimization.")
++	}
++}

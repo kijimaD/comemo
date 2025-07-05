@@ -14,6 +14,21 @@ Date:   Wed Dec 9 12:53:57 2015 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/symlink.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index 546f93b237..dc7e9eb9bf 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -59,8 +59,7 @@ func walkLinks(path string, linksWalked *int) (string, error) {
+ 		return newpath, err
+ 	case file == "":
+ 		if isDriveLetter(dir) {
+-			// appending "." to avoid bug in Join (see issue 11551)
+-			return dir + ".", nil
++			return dir, nil
+ 		}
+ 		if os.IsPathSeparator(dir[len(dir)-1]) {
+ 			if isRoot(dir) {

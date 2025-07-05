@@ -58,9 +58,174 @@ Date:   Thu Feb 16 17:37:30 2017 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/gob/decode.go    |  6 ++---
  src/encoding/gob/encode.go    |  6 ++---
  src/encoding/gob/type.go      | 56 ++++++++++++++++++-------------------------
  src/encoding/gob/type_test.go |  6 ++---
  4 files changed, 31 insertions(+), 43 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 645aa71c38..013f71ccdb 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -655,12 +655,12 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
+ 		errorf("name too long (%d bytes): %.20q...", len(name), name)
+ 	}
+ 	// The concrete type must be registered.
+-	registerLock.RLock()
+-	typ, ok := nameToConcreteType[string(name)]
+-	registerLock.RUnlock()
++	typi, ok := nameToConcreteType.Load(string(name))
+ 	if !ok {
+ 		errorf("name not registered for interface: %q", name)
+ 	}
++	typ := typi.(reflect.Type)
++
+ 	// Read the type id of the concrete value.
+ 	concreteId := dec.decodeTypeSequence(true)
+ 	if concreteId < 0 {
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index edf204f47d..5371e7245f 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -398,12 +398,12 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
+ 	}
+ 
+ 	ut := userType(iv.Elem().Type())
+-	registerLock.RLock()
+-	name, ok := concreteTypeToName[ut.base]
+-	registerLock.RUnlock()
++	namei, ok := concreteTypeToName.Load(ut.base)
+ 	if !ok {
+ 		errorf("type not registered for interface: %s", ut.base)
+ 	}
++	name := namei.(string)
++
+ 	// Send the name.
+ 	state.encodeUint(uint64(len(name)))
+ 	state.b.WriteString(name)
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index c27f7e9707..31c0ef7af1 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -36,31 +36,21 @@ const (
+ 	xText              // encoding.TextMarshaler or encoding.TextUnmarshaler
+ )
+ 
+-var (
+-	// Protected by an RWMutex because we read it a lot and write
+-	// it only when we see a new type, typically when compiling.
+-	userTypeLock  sync.RWMutex
+-	userTypeCache = make(map[reflect.Type]*userTypeInfo)
+-)
++var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo
+ 
+ // validType returns, and saves, the information associated with user-provided type rt.
+ // If the user type is not valid, err will be non-nil. To be used when the error handler
+ // is not set up.
+-func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
+-	userTypeLock.RLock()
+-	ut = userTypeCache[rt]
+-	userTypeLock.RUnlock()
+-	if ut != nil {
+-		return
+-	}
+-	// Now set the value under the write lock.
+-	userTypeLock.Lock()
+-	defer userTypeLock.Unlock()
+-	if ut = userTypeCache[rt]; ut != nil {
+-		// Lost the race; not a problem.
+-		return
++func validUserType(rt reflect.Type) (*userTypeInfo, error) {
++	if ui, ok := userTypeCache.Load(rt); ok {
++		return ui.(*userTypeInfo), nil
+ 	}
+-	ut = new(userTypeInfo)
++
++	// Construct a new userTypeInfo and atomically add it to the userTypeCache.
++	// If we lose the race, we'll waste a little CPU and create a little garbage
++	// but return the existing value anyway.
++
++	ut := new(userTypeInfo)
+ 	ut.base = rt
+ 	ut.user = rt
+ 	// A type that is just a cycle of pointers (such as type T *T) cannot
+@@ -108,8 +98,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
+ 	// 	ut.externalDec, ut.decIndir = xText, indir
+ 	// }
+ 
+-	userTypeCache[rt] = ut
+-	return
++	ui, _ := userTypeCache.LoadOrStore(rt, ut)
++	return ui.(*userTypeInfo), nil
+ }
+ 
+ var (
+@@ -808,9 +798,8 @@ type GobDecoder interface {
+ }
+ 
+ var (
+-	registerLock       sync.RWMutex
+-	nameToConcreteType = make(map[string]reflect.Type)
+-	concreteTypeToName = make(map[reflect.Type]string)
++	nameToConcreteType sync.Map // map[string]reflect.Type
++	concreteTypeToName sync.Map // map[reflect.Type]string
+ )
+ 
+ // RegisterName is like Register but uses the provided name rather than the
+@@ -820,21 +809,22 @@ func RegisterName(name string, value interface{}) {
+ 		// reserved for nil
+ 		panic("attempt to register empty name")
+ 	}
+-	registerLock.Lock()
+-	defer registerLock.Unlock()
++
+ 	ut := userType(reflect.TypeOf(value))
++
+ 	// Check for incompatible duplicates. The name must refer to the
+ 	// same user type, and vice versa.
+-	if t, ok := nameToConcreteType[name]; ok && t != ut.user {
++
++	// Store the name and type provided by the user....
++	if t, dup := nameToConcreteType.LoadOrStore(name, reflect.TypeOf(value)); dup && t != ut.user {
+ 		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
+ 	}
+-	if n, ok := concreteTypeToName[ut.base]; ok && n != name {
++
++	// but the flattened type in the type table, since that's what decode needs.
++	if n, dup := concreteTypeToName.LoadOrStore(ut.base, name); dup && n != name {
++		nameToConcreteType.Delete(name)
+ 		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
+ 	}
+-	// Store the name and type provided by the user....
+-	nameToConcreteType[name] = reflect.TypeOf(value)
+-	// but the flattened type in the type table, since that's what decode needs.
+-	concreteTypeToName[ut.base] = name
+ }
+ 
+ // Register records a type, identified by a value for that type, under its
+diff --git a/src/encoding/gob/type_test.go b/src/encoding/gob/type_test.go
+index e230d22d43..14f25d8ac4 100644
+--- a/src/encoding/gob/type_test.go
++++ b/src/encoding/gob/type_test.go
+@@ -178,9 +178,7 @@ func TestRegistrationNaming(t *testing.T) {
+ 		Register(tc.t)
+ 
+ 		tct := reflect.TypeOf(tc.t)
+-		registerLock.RLock()
+-		ct := nameToConcreteType[tc.name]
+-		registerLock.RUnlock()
++		ct, _ := nameToConcreteType.Load(tc.name)
+ 		if ct != tct {
+ 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
+ 		}
+@@ -188,7 +186,7 @@ func TestRegistrationNaming(t *testing.T) {
+ 		if tct.Kind() == reflect.Ptr {
+ 			tct = tct.Elem()
+ 		}
+-		if n := concreteTypeToName[tct]; n != tc.name {
++		if n, _ := concreteTypeToName.Load(tct); n != tc.name {
+ 			t.Errorf("concreteTypeToName[%v] got %v, want %v", tct, n, tc.name)
+ 		}
+ 	}

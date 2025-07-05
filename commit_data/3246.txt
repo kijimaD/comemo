@@ -8,7 +8,77 @@ Date:   Thu Sep 10 10:30:36 2009 -0700
     DELTA=51  (51 added, 0 deleted, 0 changed)
     OCL=34516
     CL=34516
-
+---
  test/bugs/bug206.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  test/golden.out     |  7 +++++++
  2 files changed, 55 insertions(+)
+
+diff --git a/test/bugs/bug206.go b/test/bugs/bug206.go
+new file mode 100644
+index 0000000000..3879e8cbd5
+--- /dev/null
++++ b/test/bugs/bug206.go
+@@ -0,0 +1,48 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out >/dev/null 2>&1 || echo BUG: bug206
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast";
++
++func g(list []ast.Expr) {
++	n := len(list)-1;
++	println(list[n].Pos().Line);
++}
++
++
++// f is the same as g except that the expression assigned to n is inlined.
++func f(list []ast.Expr) {
++	// n := len(list)-1;
++	println(list[len(list)-1 /* n */].Pos().Line);
++}
++
++
++func main() {
++	list := []ast.Expr{&ast.Ident{}};
++	g(list);  // this works
++	f(list);  // this doesn't
++}
++
++
++/*
++0
++throw: index out of range
++
++panic PC=0x2bcf10
++throw+0x33 /home/gri/go/src/pkg/runtime/runtime.c:71
++	throw(0x470f8, 0x0)
++sys·throwindex+0x1c /home/gri/go/src/pkg/runtime/runtime.c:45
++	sys·throwindex()
++main·f+0x26 /home/gri/go/test/bugs/bug206.go:16
++	main·f(0x2b9560, 0x0)
++main·main+0xc3 /home/gri/go/test/bugs/bug206.go:23
++	main·main()
++mainstart+0xf /home/gri/go/src/pkg/runtime/amd64/asm.s:55
++	mainstart()
++goexit /home/gri/go/src/pkg/runtime/proc.c:133
++	goexit()
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 148471660a..b6aef14204 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -174,3 +174,10 @@ bugs/bug198.go:8: T is not a type
+ bugs/bug198.go:8: too many arguments to return
+ bugs/bug198.go:10: too many arguments to CALL
+ BUG: errchk: compiler crashed
++
++=========== bugs/bug206.go
++0
++throw: index out of range
++
++panic PC=xxx
++BUG: bug206

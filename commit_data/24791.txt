@@ -12,6 +12,21 @@ Date:   Fri Jul 24 14:21:11 2015 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 8c0e3ffe1b..69338ce09a 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -93,9 +93,6 @@ func (f *File) Read(b []byte) (n int, err error) {
+ 		return 0, ErrInvalid
+ 	}
+ 	n, e := f.read(b)
+-	if n < 0 {
+-		n = 0
+-	}
+ 	if n == 0 && len(b) > 0 && e == nil {
+ 		return 0, io.EOF
+ 	}

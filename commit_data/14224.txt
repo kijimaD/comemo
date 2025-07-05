@@ -20,6 +20,32 @@ Date:   Fri Oct 26 10:31:03 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6776053
-
+---
  src/pkg/syscall/creds_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/creds_test.go b/src/pkg/syscall/creds_test.go
+index 6eaa97e57b..b1894c66b0 100644
+--- a/src/pkg/syscall/creds_test.go
++++ b/src/pkg/syscall/creds_test.go
+@@ -31,14 +31,18 @@ func TestSCMCredentials(t *testing.T) {
+ 		t.Fatalf("SetsockoptInt: %v", err)
+ 	}
+ 
+-	srv, err := net.FileConn(os.NewFile(uintptr(fds[0]), ""))
++	srvFile := os.NewFile(uintptr(fds[0]), "server")
++	defer srvFile.Close()
++	srv, err := net.FileConn(srvFile)
+ 	if err != nil {
+ 		t.Errorf("FileConn: %v", err)
+ 		return
+ 	}
+ 	defer srv.Close()
+ 
+-	cli, err := net.FileConn(os.NewFile(uintptr(fds[1]), ""))
++	cliFile := os.NewFile(uintptr(fds[1]), "client")
++	defer cliFile.Close()
++	cli, err := net.FileConn(cliFile)
+ 	if err != nil {
+ 		t.Errorf("FileConn: %v", err)
+ 		return

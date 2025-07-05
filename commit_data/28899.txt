@@ -14,8 +14,67 @@ Date:   Tue Aug 16 09:19:05 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 ++++-
  test/fixedbugs/issue16733.go                 | 16 ++++++++++++++++
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index aa81ca7aa8..f676608c27 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -522,7 +522,7 @@
+ (XORQconst [c] (XORQconst [d] x)) -> (XORQconst [c ^ d] x)
+ 
+ (MULLconst [c] (MULLconst [d] x)) -> (MULLconst [int64(int32(c * d))] x)
+-(MULQconst [c] (MULQconst [d] x)) -> (MULQconst [c * d] x)
++(MULQconst [c] (MULQconst [d] x)) && is32Bit(c*d) -> (MULQconst [c * d] x)
+ 
+ (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
+ (ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d09e706fdd..7d07c66ec0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9753,7 +9753,7 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MULQconst [c] (MULQconst [d] x))
+-	// cond:
++	// cond: is32Bit(c*d)
+ 	// result: (MULQconst [c * d] x)
+ 	for {
+ 		c := v.AuxInt
+@@ -9763,6 +9763,9 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		x := v_0.Args[0]
++		if !(is32Bit(c * d)) {
++			break
++		}
+ 		v.reset(OpAMD64MULQconst)
+ 		v.AuxInt = c * d
+ 		v.AddArg(x)
+diff --git a/test/fixedbugs/issue16733.go b/test/fixedbugs/issue16733.go
+new file mode 100644
+index 0000000000..850b042b62
+--- /dev/null
++++ b/test/fixedbugs/issue16733.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 16733: don't fold constant factors into a multiply
++// beyond the capacity of a MULQ instruction (32 bits).
++
++package p
++
++func f(n int64) int64 {
++	n *= 1000000
++	n *= 1000000
++	return n
++}

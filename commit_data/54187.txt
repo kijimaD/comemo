@@ -15,7 +15,7 @@ Date:   Wed Sep 28 13:20:40 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 12 ++----------
  src/go/types/assignments.go                    | 12 ++----------
  src/internal/types/testdata/check/decls1.go    |  2 +-
@@ -23,3 +23,216 @@ Date:   Wed Sep 28 13:20:40 2022 -0700
  src/internal/types/testdata/check/stmt0.go     | 20 ++++++++++----------
  src/internal/types/testdata/check/vardecl.go   | 18 +++++++++---------
  6 files changed, 26 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 10e3575b4d..2eca8238f9 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -353,11 +353,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 			check.report(&err)
+ 			return
+ 		}
+-		if check.conf.CompilerErrorMessages {
+-			check.assignError(orig_rhs, len(lhs), len(rhs))
+-		} else {
+-			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+-		}
++		check.assignError(orig_rhs, len(lhs), len(rhs))
+ 		return
+ 	}
+ 
+@@ -401,11 +397,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 				return
+ 			}
+ 		}
+-		if check.conf.CompilerErrorMessages {
+-			check.assignError(orig_rhs, len(lhs), len(rhs))
+-		} else {
+-			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
+-		}
++		check.assignError(orig_rhs, len(lhs), len(rhs))
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 89b3e1b93f..958d966e92 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -346,11 +346,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 			check.report(err)
+ 			return
+ 		}
+-		if compilerErrorMessages {
+-			check.assignError(origRHS, len(lhs), len(rhs))
+-		} else {
+-			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+-		}
++		check.assignError(origRHS, len(lhs), len(rhs))
+ 		return
+ 	}
+ 
+@@ -384,11 +380,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+ 				return
+ 			}
+ 		}
+-		if compilerErrorMessages {
+-			check.assignError(origRHS, len(lhs), len(rhs))
+-		} else {
+-			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
+-		}
++		check.assignError(origRHS, len(lhs), len(rhs))
+ 		return
+ 	}
+ 
+diff --git a/src/internal/types/testdata/check/decls1.go b/src/internal/types/testdata/check/decls1.go
+index c1bdf3cf91..b232fc8ba7 100644
+--- a/src/internal/types/testdata/check/decls1.go
++++ b/src/internal/types/testdata/check/decls1.go
+@@ -78,7 +78,7 @@ var (
+ 	u2 = iface.([]int)
+ 	u3 = iface.(a /* ERROR "not a type" */ )
+ 	u4, ok = iface.(int)
+-	u5, ok2, ok3 = iface /* ERROR "cannot initialize" */ .(int)
++	u5, ok2, ok3 = iface /* ERROR "assignment mismatch" */ .(int)
+ )
+ 
+ // Constant expression initializations
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 7581ec92bd..0cea36c01f 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -105,8 +105,8 @@ func issue10979() {
+ // issue11347
+ // These should not crash.
+ var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
+-var a2, b2 /* ERROR cycle */ = 0 /* ERROR cannot initialize */ /* ERROR cannot initialize */ > 0<<""[b2]
+-var a3, b3 /* ERROR cycle */ = int /* ERROR cannot initialize */ /* ERROR cannot initialize */ (1<<""[b3])
++var a2, b2 /* ERROR cycle */ = 0 /* ERROR assignment mismatch */ /* ERROR assignment mismatch */ > 0<<""[b2]
++var a3, b3 /* ERROR cycle */ = int /* ERROR assignment mismatch */ /* ERROR assignment mismatch */ (1<<""[b3])
+ 
+ // issue10260
+ // Check that error messages explain reason for interface assignment failures.
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index 7eabbef8ad..c456aace7c 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -15,19 +15,19 @@ func assignments0() (int, int) {
+ 	f3 := func() (int, int, int) { return 1, 2, 3 }
+ 
+ 	a, b, c = 1, 2, 3
+-	a, b, c = 1 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ , 2
+-	a, b, c = 1 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ , 2, 3, 4
++	a, b, c = 1 /* ERROR "assignment mismatch: 3 variables but 2 values" */ , 2
++	a, b, c = 1 /* ERROR "assignment mismatch: 3 variables but 4 values" */ , 2, 3, 4
+ 	_, _, _ = a, b, c
+ 
+ 	a = f0 /* ERROR "used as value" */ ()
+ 	a = f1()
+-	a = f2 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
++	a = f2 /* ERROR "assignment mismatch: 1 variable but f2 returns 2 values" */ ()
+ 	a, b = f2()
+-	a, b, c = f2 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
++	a, b, c = f2 /* ERROR "assignment mismatch: 3 variables but f2 returns 2 values" */ ()
+ 	a, b, c = f3()
+-	a, b = f3 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
++	a, b = f3 /* ERROR "assignment mismatch: 2 variables but f3 returns 3 values" */ ()
+ 
+-	a, b, c = <- /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ch
++	a, b, c = <- /* ERROR "assignment mismatch: 3 variables but 1 value" */ ch
+ 
+ 	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
+ 	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
+@@ -43,7 +43,7 @@ func assignments1() {
+ 	c = s /* ERROR "cannot use .* in assignment" */
+ 	s = b /* ERROR "cannot use .* in assignment" */
+ 
+-	v0, v1, v2 := 1 /* ERROR "cannot initialize" */ , 2, 3, 4
++	v0, v1, v2 := 1 /* ERROR "assignment mismatch" */ , 2, 3, 4
+ 	_, _, _ = v0, v1, v2
+ 
+ 	b = true
+@@ -108,7 +108,7 @@ func assignments2() {
+ 	s, b = m["foo"]
+ 	_, d = m["bar"]
+ 	m["foo"] = nil
+-	m["foo"] = nil /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
++	m["foo"] = nil /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+ 	_ = append(m["foo"])
+ 	_ = append(m["foo"], true)
+ 
+@@ -116,12 +116,12 @@ func assignments2() {
+ 	_, b = <-c
+ 	_, d = <-c
+ 	<- /* ERROR cannot assign */ c = 0
+-	<-c = 0 /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
++	<-c = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+ 
+ 	var x interface{}
+ 	_, b = x.(int)
+ 	x /* ERROR cannot assign */ .(int) = 0
+-	x.(int) = 0 /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
++	x.(int) = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+ 
+ 	assignments2 /* ERROR used as value */ () = nil
+ 	int /* ERROR not an expression */ = 0
+diff --git a/src/internal/types/testdata/check/vardecl.go b/src/internal/types/testdata/check/vardecl.go
+index 732225d926..5b68adb323 100644
+--- a/src/internal/types/testdata/check/vardecl.go
++++ b/src/internal/types/testdata/check/vardecl.go
+@@ -25,39 +25,39 @@ var _ = f /* ERROR "used as value" */ ()
+ // Identifier and expression arity must match.
+ var _, _ = 1, 2
+ var _ = 1, 2 /* ERROR "extra init expr 2" */
+-var _, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
++var _, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+ var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+ var _ = g /* ERROR "multiple-value g" */ ()
+ var _, _ = g()
+-var _, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
++var _, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
+ 
+ var _ = m["foo"]
+ var _, _ = m["foo"]
+-var _, _, _ = m  /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
++var _, _, _ = m  /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
+ 
+ var _, _ int = 1, 2
+ var _ int = 1, 2 /* ERROR "extra init expr 2" */
+-var _, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
++var _, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+ var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+ 
+ var (
+ 	_, _ = 1, 2
+ 	_ = 1, 2 /* ERROR "extra init expr 2" */
+-	_, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
++	_, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+ 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+ 	_ = g /* ERROR "multiple-value g" */ ()
+ 	_, _ = g()
+-	_, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
++	_, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
+ 
+ 	_ = m["foo"]
+ 	_, _ = m["foo"]
+-	_, _, _ = m /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
++	_, _, _ = m /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
+ 
+ 	_, _ int = 1, 2
+ 	_ int = 1, 2 /* ERROR "extra init expr 2" */
+-	_, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
++	_, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+ 	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+ )
+ 
+@@ -171,7 +171,7 @@ func _() {
+ func _() {
+ 	var a, b, c int
+ 	var x, y int
+-	x, y = a /* ERROR cannot assign [0-9]+ values to [0-9]+ variables */ , b, c
++	x, y = a /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ , b, c
+ 	_ = x
+ 	_ = y
+ }

@@ -8,8 +8,84 @@ Date:   Sun Nov 18 02:06:08 2012 +0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6843061
-
+---
  src/cmd/ld/pe.c                         | 2 +-
  src/pkg/runtime/cgo/gcc_windows_386.c   | 6 +++---
  src/pkg/runtime/cgo/gcc_windows_amd64.c | 6 +++---
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index e69f34783d..d263562aec 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -659,7 +659,7 @@ asmbpe(void)
+ 	// for other threads we specify stack size in runtime explicitly
+ 	// (runtime knows whether cgo is enabled or not).
+ 	// If you change stack reserve sizes here,
+-	// change them in runtime/cgo/windows_386/amd64.c as well.
++	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
+ 	if(!iscgo) {
+ 		set(SizeOfStackReserve, 0x00010000);
+ 		set(SizeOfStackCommit, 0x0000ffff);
+diff --git a/src/pkg/runtime/cgo/gcc_windows_386.c b/src/pkg/runtime/cgo/gcc_windows_386.c
+index 2b940d3622..38ca730675 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_386.c
++++ b/src/pkg/runtime/cgo/gcc_windows_386.c
+@@ -4,9 +4,10 @@
+ 
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
++#include <process.h>
+ #include "libcgo.h"
+ 
+-static void *threadentry(void*);
++static void threadentry(void*);
+ 
+ /* 1MB is default stack size for 32-bit Windows.
+    Allocation granularity on Windows is typically 64 KB.
+@@ -28,7 +29,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	_beginthread(threadentry, 0, ts);
+ }
+ 
+-static void*
++static void
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+@@ -55,5 +56,4 @@ threadentry(void *v)
+ 	crosscall_386(ts.fn);
+ 	
+ 	LocalFree(tls0);
+-	return nil;
+ }
+diff --git a/src/pkg/runtime/cgo/gcc_windows_amd64.c b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+index 0d2f5d233b..cf1895cfbc 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+@@ -4,9 +4,10 @@
+ 
+ #define WIN64_LEAN_AND_MEAN
+ #include <windows.h>
++#include <process.h>
+ #include "libcgo.h"
+ 
+-static void *threadentry(void*);
++static void threadentry(void*);
+ 
+ /* 2MB is default stack size for 64-bit Windows.
+    Allocation granularity on Windows is typically 64 KB.
+@@ -28,7 +29,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	_beginthread(threadentry, 0, ts);
+ }
+ 
+-static void*
++static void
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+@@ -53,5 +54,4 @@ threadentry(void *v)
+ 	);
+ 
+ 	crosscall_amd64(ts.fn);
+-	return nil;
+ }

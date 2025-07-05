@@ -11,9 +11,62 @@ Date:   Mon Apr 6 21:14:38 2009 -0700
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=27082
     CL=27140
-
+---
  src/lib/bufio_test.go            | 2 +-
  src/lib/fmt/format.go            | 2 +-
  src/lib/syscall/errstr_darwin.go | 2 +-
  src/lib/syscall/errstr_linux.go  | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index 4afad83404..ef97bc46ec 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -135,7 +135,7 @@ func readBytes(buf *BufRead) string {
+ 		nb++;
+ 	}
+ 	// BUG return string(b[0:nb]) ?
+-	return string(b)[0:nb]
++	return string(b[0:nb])
+ }
+ 
+ // Call Read to accumulate the text of a file
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 14c5043ac7..ce5050371f 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -222,7 +222,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
+ 		buf[i] = ' ';
+ 		i--;
+ 	}
+-	return string(buf)[i+1:nByte];
++	return string(buf[i+1:nByte]);
+ }
+ 
+ // Fmt_d64 formats an int64 in decimal.
+diff --git a/src/lib/syscall/errstr_darwin.go b/src/lib/syscall/errstr_darwin.go
+index 1ea3576019..abb79b8842 100644
+--- a/src/lib/syscall/errstr_darwin.go
++++ b/src/lib/syscall/errstr_darwin.go
+@@ -231,7 +231,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 		val /= 10;
+ 	}
+ 	buf[i] = byte(val + '0');
+-	return string(buf)[i:len(buf)];
++	return string(buf[i:len(buf)]);
+ }
+ 
+ func Errstr(errno int64) string {
+diff --git a/src/lib/syscall/errstr_linux.go b/src/lib/syscall/errstr_linux.go
+index 61ac4b56e1..47b5c6462f 100644
+--- a/src/lib/syscall/errstr_linux.go
++++ b/src/lib/syscall/errstr_linux.go
+@@ -281,7 +281,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 		val /= 10;
+ 	}
+ 	buf[i] = byte(val + '0');
+-	return string(buf)[i:len(buf)];
++	return string(buf[i:len(buf)]);
+ }
+ 
+ func Errstr(errno int64) string {

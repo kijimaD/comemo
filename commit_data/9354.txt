@@ -7,6 +7,22 @@ Date:   Sun Aug 14 08:56:47 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4898042
-
+---
  lib/godoc/godoc.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 91e521258d..671160d5a8 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -23,10 +23,8 @@
+       </ul>
+       <div class="quickref">
+         <form method="GET" action="/search">
+-        {{with .PkgRoots}}
+         {{range .PkgRoots}}
+         <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
+-        {{end}}
+         {{else}}
+         References:
+         {{end}}

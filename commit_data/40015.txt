@@ -18,7 +18,72 @@ Date:   Tue Apr 2 04:35:50 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/dwarf_test.go        | 20 ++++++++++++++++++++
  src/cmd/link/internal/ld/macho.go |  8 ++------
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index ecc96019be..235db39dda 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	cmddwarf "cmd/internal/dwarf"
+ 	"cmd/internal/objfile"
+ 	"debug/dwarf"
+@@ -86,6 +87,22 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 				}
+ 				exe = filepath.Join(tmpDir, "go.o")
+ 			}
++
++			if runtime.GOOS == "darwin" {
++				if _, err = exec.LookPath("symbols"); err == nil {
++					// Ensure Apple's tooling can parse our object for symbols.
++					out, err = exec.Command("symbols", exe).CombinedOutput()
++					if err != nil {
++						t.Fatal(err)
++					} else {
++						if bytes.HasPrefix(out, []byte("Unable to find file")) {
++							// This failure will cause the App Store to reject our binaries.
++							t.Fatalf("/usr/bin/symbols %v: failed to parse file", filepath.Base(exe))
++						}
++					}
++				}
++			}
++
+ 			f, err := objfile.Open(exe)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -148,6 +165,9 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 
+ func TestDWARF(t *testing.T) {
+ 	testDWARF(t, "", true)
++	if runtime.GOOS == "darwin" {
++		testDWARF(t, "c-archive", true)
++	}
+ }
+ 
+ func TestDWARFiOS(t *testing.T) {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index d13857081a..6ebae160b1 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -560,12 +560,8 @@ func Asmbmacho(ctxt *Link) {
+ 		ms = newMachoSeg("", 40)
+ 
+ 		ms.fileoffset = Segtext.Fileoff
+-		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
+-			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
+-		} else {
+-			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+-			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
+-		}
++		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
++		ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
+ 	}
+ 
+ 	/* segment for zero page */

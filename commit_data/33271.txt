@@ -12,9 +12,65 @@ Date:   Wed Jul 5 09:55:33 2017 +0900
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/internal/poll/sockoptip.go                    | 2 +-
  src/net/{sockoptip_bsd.go => sockoptip_bsdvar.go} | 2 +-
  src/net/sockoptip_posix.go                        | 2 +-
  src/net/sockoptip_stub.go                         | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/sockoptip.go b/src/internal/poll/sockoptip.go
+index 5d5dff6ebc..1ee490c257 100644
+--- a/src/internal/poll/sockoptip.go
++++ b/src/internal/poll/sockoptip.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package poll
+ 
+diff --git a/src/net/sockoptip_bsd.go b/src/net/sockoptip_bsdvar.go
+similarity index 93%
+rename from src/net/sockoptip_bsd.go
+rename to src/net/sockoptip_bsdvar.go
+index b11f3a4edb..9560101398 100644
+--- a/src/net/sockoptip_bsd.go
++++ b/src/net/sockoptip_bsdvar.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_posix.go b/src/net/sockoptip_posix.go
+index 4e10f2a6a5..5d3077e552 100644
+--- a/src/net/sockoptip_posix.go
++++ b/src/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_stub.go b/src/net/sockoptip_stub.go
+index f698687514..fc20a9fc33 100644
+--- a/src/net/sockoptip_stub.go
++++ b/src/net/sockoptip_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl solaris
++// +build nacl
+ 
+ package net
+ 

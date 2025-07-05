@@ -18,7 +18,7 @@ Date:   Fri Apr 1 13:36:24 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21424
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  2 +-
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
  src/cmd/compile/internal/gc/bimport.go   |  4 ++--
@@ -37,3 +37,567 @@ Date:   Fri Apr 1 13:36:24 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++--------
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  17 files changed, 72 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 448986203d..e9b5afe838 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -122,7 +122,7 @@ func algtype1(t *Type) (AlgKind, *Type) {
+ 		return ASTRING, nil
+ 
+ 	case TINTER:
+-		if isnilinter(t) {
++		if t.IsEmptyInterface() {
+ 			return ANILINTER, nil
+ 		}
+ 		return AINTER, nil
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 15b3118f16..bfa5a501a0 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -356,7 +356,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ func unidealType(typ *Type, val Val) *Type {
+ 	// Untyped (ideal) constants get their own type. This decouples
+ 	// the constant type from the encoding of the constant value.
+-	if typ == nil || isideal(typ) {
++	if typ == nil || typ.IsUntyped() {
+ 		typ = untype(val.Ctype())
+ 	}
+ 	return typ
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index f0953966d3..0a51ab037f 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -131,7 +131,7 @@ func Import(in *bufio.Reader) {
+ }
+ 
+ func idealType(typ *Type) *Type {
+-	if isideal(typ) {
++	if typ.IsUntyped() {
+ 		// canonicalize ideal types
+ 		typ = Types[TIDEAL]
+ 	}
+@@ -519,7 +519,7 @@ func (p *importer) value(typ *Type) (x Val) {
+ 	}
+ 
+ 	// verify ideal type
+-	if isideal(typ) && untype(x.Ctype()) != typ {
++	if typ.IsUntyped() && untype(x.Ctype()) != typ {
+ 		Fatalf("importer: value %v and type %v don't match", x, typ)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 22cd87b294..5cab13bc4e 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -174,7 +174,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	// changes if n->left is an escaping local variable.
+ 	switch n.Op {
+ 	case OSPTR, OLEN:
+-		if n.Left.Type.IsSlice() || Istype(n.Left.Type, TSTRING) {
++		if n.Left.Type.IsSlice() || n.Left.Type.IsString() {
+ 			n.Addable = n.Left.Addable
+ 		}
+ 
+@@ -554,7 +554,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		Regfree(&n1)
+ 
+ 	case OLEN:
+-		if Istype(nl.Type, TMAP) || Istype(nl.Type, TCHAN) {
++		if nl.Type.IsMap() || nl.Type.IsChan() {
+ 			// map and chan have len in the first int-sized word.
+ 			// a zero pointer means zero length
+ 			var n1 Node
+@@ -578,7 +578,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		if Istype(nl.Type, TSTRING) || nl.Type.IsSlice() {
++		if nl.Type.IsString() || nl.Type.IsSlice() {
+ 			// both slice and string have len one pointer into the struct.
+ 			// a zero pointer means zero length
+ 			var n1 Node
+@@ -594,7 +594,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, FmtLong))
+ 
+ 	case OCAP:
+-		if Istype(nl.Type, TCHAN) {
++		if nl.Type.IsChan() {
+ 			// chan has cap in the second int-sized word.
+ 			// a zero pointer means zero length
+ 			var n1 Node
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a9ca129fd9..160eb66d5e 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -117,10 +117,10 @@ func convlit(n *Node, t *Type) *Node {
+ // The result of convlit1 MUST be assigned back to n, e.g.
+ // 	n.Left = convlit1(n.Left, t, explicit, reuse)
+ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+-	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
++	if n == nil || t == nil || n.Type == nil || t.IsUntyped() || n.Type == t {
+ 		return n
+ 	}
+-	if !explicit && !isideal(n.Type) {
++	if !explicit && !n.Type.IsUntyped() {
+ 		return n
+ 	}
+ 
+@@ -157,7 +157,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 		}
+ 
+ 	case OLSH, ORSH:
+-		n.Left = convlit1(n.Left, t, explicit && isideal(n.Left.Type), noReuse)
++		n.Left = convlit1(n.Left, t, explicit && n.Left.Type.IsUntyped(), noReuse)
+ 		t = n.Left.Type
+ 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
+ 			n.SetVal(toint(n.Val()))
+@@ -319,7 +319,7 @@ bad:
+ 		n.Diag = 1
+ 	}
+ 
+-	if isideal(n.Type) {
++	if n.Type.IsUntyped() {
+ 		n = defaultlitreuse(n, nil, reuse)
+ 	}
+ 	return n
+@@ -1189,7 +1189,7 @@ func nodcplxlit(r Val, i Val) *Node {
+ // idealkind returns a constant kind like consttype
+ // but for an arbitrary "ideal" (untyped constant) expression.
+ func idealkind(n *Node) Ctype {
+-	if n == nil || !isideal(n.Type) {
++	if n == nil || !n.Type.IsUntyped() {
+ 		return CTxxx
+ 	}
+ 
+@@ -1259,7 +1259,7 @@ func defaultlit(n *Node, t *Type) *Node {
+ // The result of defaultlitreuse MUST be assigned back to n, e.g.
+ // 	n.Left = defaultlitreuse(n.Left, t, reuse)
+ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
+-	if n == nil || !isideal(n.Type) {
++	if n == nil || !n.Type.IsUntyped() {
+ 		return n
+ 	}
+ 
+@@ -1365,12 +1365,12 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 	if l.Type == nil || r.Type == nil {
+ 		return l, r
+ 	}
+-	if !isideal(l.Type) {
++	if !l.Type.IsUntyped() {
+ 		r = convlit(r, l.Type)
+ 		return l, r
+ 	}
+ 
+-	if !isideal(r.Type) {
++	if !r.Type.IsUntyped() {
+ 		l = convlit(l, r.Type)
+ 		return l, r
+ 	}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index e6f543f05d..0346cd41fd 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1337,7 +1337,7 @@ func (e *EscState) addDereference(n *Node) *Node {
+ 	e.nodeEscState(ind).Escloopdepth = e.nodeEscState(n).Escloopdepth
+ 	ind.Lineno = n.Lineno
+ 	t := n.Type
+-	if Istype(t, Tptr) {
++	if t.IsKind(Tptr) {
+ 		// This should model our own sloppy use of OIND to encode
+ 		// decreasing levels of indirection; i.e., "indirecting" an array
+ 		// might yield the type of an element. To be enhanced...
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 09f048b758..0a0906c5d1 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -233,7 +233,7 @@ func dumpexportconst(s *Sym) {
+ 	t := n.Type // may or may not be specified
+ 	dumpexporttype(t)
+ 
+-	if t != nil && !isideal(t) {
++	if t != nil && !t.IsUntyped() {
+ 		exportf("\tconst %v %v = %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp), Vconv(n.Val(), FmtSharp))
+ 	} else {
+ 		exportf("\tconst %v = %v\n", Sconv(s, FmtSharp), Vconv(n.Val(), FmtSharp))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b9a0a61638..7ed08516a0 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1366,7 +1366,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Right != nil {
+ 			return fmt.Sprintf("make(%v, %v, %v)", n.Type, n.Left, n.Right)
+ 		}
+-		if n.Left != nil && (n.Op == OMAKESLICE || !isideal(n.Left.Type)) {
++		if n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()) {
+ 			return fmt.Sprintf("make(%v, %v)", n.Type, n.Left)
+ 		}
+ 		return fmt.Sprintf("make(%v)", n.Type)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index f99e8d4a09..4a98f41bcb 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -403,7 +403,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 	Regalloc(&r1, byteptr, nil)
+ 	iface.Type = byteptr
+ 	Cgen(&iface, &r1)
+-	if !isnilinter(n.Left.Type) {
++	if !n.Left.Type.IsEmptyInterface() {
+ 		// Holding itab, want concrete type in second word.
+ 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
+ 		r2 = r1
+@@ -492,7 +492,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	Regalloc(&r1, byteptr, res)
+ 	iface.Type = byteptr
+ 	Cgen(&iface, &r1)
+-	if !isnilinter(n.Left.Type) {
++	if !n.Left.Type.IsEmptyInterface() {
+ 		// Holding itab, want concrete type in second word.
+ 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
+ 		r2 = r1
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 6ef6d47b8f..09889a40f3 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -222,7 +222,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 
+ 	case OSPTR, OLEN, OCAP:
+ 		instrumentnode(&n.Left, init, 0, 0)
+-		if Istype(n.Left.Type, TMAP) {
++		if n.Left.Type.IsMap() {
+ 			n1 := Nod(OCONVNOP, n.Left, nil)
+ 			n1.Type = Ptrto(Types[TUINT8])
+ 			n1 = Nod(OIND, n1, nil)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 7d07b4b064..95e5214a43 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -918,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
+ }
+ 
+ func typenamesym(t *Type) *Sym {
+-	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
++	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+ 		Fatalf("typename %v", t)
+ 	}
+ 	s := typesym(t)
+@@ -946,7 +946,7 @@ func typename(t *Type) *Node {
+ }
+ 
+ func itabname(t, itype *Type) *Node {
+-	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
++	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+ 		Fatalf("itabname %v", t)
+ 	}
+ 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+@@ -1076,7 +1076,7 @@ func dtypesym(t *Type) *Sym {
+ 		t = Types[t.Etype]
+ 	}
+ 
+-	if isideal(t) {
++	if t.IsUntyped() {
+ 		Fatalf("dtypesym %v", t)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 193ee07903..0f696c2f9a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3475,7 +3475,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
+ 	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+ 
+-	if isnilinter(n.Type) {
++	if n.Type.IsEmptyInterface() {
+ 		// Have *eface. The type is the first word in the struct.
+ 		return s.newValue1(ssa.OpITab, byteptr, v)
+ 	}
+@@ -4189,7 +4189,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
+ 	if n.Class == PAUTO && !n.Addrtaken {
+ 		// Split this interface up into two separate variables.
+ 		f := ".itab"
+-		if isnilinter(n.Type) {
++		if n.Type.IsEmptyInterface() {
+ 			f = ".type"
+ 		}
+ 		c := e.namedAuto(n.Sym.Name+f, t)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 3e224c483a..f1f6c98ceb 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -569,10 +569,6 @@ func isptrto(t *Type, et EType) bool {
+ 	return true
+ }
+ 
+-func Istype(t *Type, et EType) bool {
+-	return t != nil && t.Etype == et
+-}
+-
+ func isblank(n *Node) bool {
+ 	if n == nil {
+ 		return false
+@@ -584,25 +580,6 @@ func isblanksym(s *Sym) bool {
+ 	return s != nil && s.Name == "_"
+ }
+ 
+-func isnilinter(t *Type) bool {
+-	return t.IsInterface() && t.NumFields() == 0
+-}
+-
+-func isideal(t *Type) bool {
+-	if t == nil {
+-		return false
+-	}
+-	if t == idealstring || t == idealbool {
+-		return true
+-	}
+-	switch t.Etype {
+-	case TNIL, TIDEAL:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+ // given receiver of type t (t == r or t == *r)
+ // return type to hang methods off (r).
+ func methtype(t *Type, mustname int) *Type {
+@@ -812,7 +789,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// both are empty interface types.
+ 	// For assignable but different non-empty interface types,
+ 	// we want to recompute the itab.
+-	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || isnilinter(src)) {
++	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
+ 		return OCONVNOP
+ 	}
+ 
+@@ -2269,7 +2246,7 @@ func isdirectiface(t *Type) bool {
+ // 'I' if t is an interface type, and 'E' if t is an empty interface type.
+ // It is used to build calls to the conv* and assert* runtime routines.
+ func (t *Type) iet() byte {
+-	if isnilinter(t) {
++	if t.IsEmptyInterface() {
+ 		return 'E'
+ 	}
+ 	if t.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 996bd69113..cbf284c8f1 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -149,7 +149,7 @@ func typecheckswitch(n *Node) {
+ 					var missing, have *Field
+ 					var ptr int
+ 					switch {
+-					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
++					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
+ 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
+ 						Yyerror("%v is not a type", Nconv(n1, FmtLong))
+ 						// reset to original type
+@@ -170,7 +170,7 @@ func typecheckswitch(n *Node) {
+ 			ll := ncase.List
+ 			if ncase.Rlist.Len() != 0 {
+ 				nvar := ncase.Rlist.First()
+-				if ll.Len() == 1 && ll.First().Type != nil && !Istype(ll.First().Type, TNIL) {
++				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
+ 					// single entry type switch
+ 					nvar.Name.Param.Ntype = typenod(ll.First().Type)
+ 				} else {
+@@ -449,7 +449,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
+ 			switch {
+ 			case n.Left.Op == OLITERAL:
+ 				c.typ = caseKindTypeNil
+-			case Istype(n.Left.Type, TINTER):
++			case n.Left.Type.IsInterface():
+ 				c.typ = caseKindTypeVar
+ 			default:
+ 				c.typ = caseKindTypeConst
+@@ -528,7 +528,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	}
+ 
+ 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
+-	if !Istype(cond.Right.Type, TINTER) {
++	if !cond.Right.Type.IsInterface() {
+ 		Yyerror("type switch must be on an interface")
+ 		return
+ 	}
+@@ -594,7 +594,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	i.Left = typecheck(i.Left, Erv)
+ 	cas = append(cas, i)
+ 
+-	if !isnilinter(cond.Right.Type) {
++	if !cond.Right.Type.IsEmptyInterface() {
+ 		// Load type from itab.
+ 		typ = NodSym(ODOTPTR, typ, nil)
+ 		typ.Type = Ptrto(Types[TUINT8])
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 9d2da7f14b..1aefc9cf24 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -830,6 +830,11 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 	return t.Elem().cmp(x.Elem())
+ }
+ 
++// IsKind reports whether t is a Type of the specified kind.
++func (t *Type) IsKind(et EType) bool {
++	return t != nil && t.Etype == et
++}
++
+ func (t *Type) IsBoolean() bool {
+ 	return t.Etype == TBOOL
+ }
+@@ -911,6 +916,11 @@ func (t *Type) IsInterface() bool {
+ 	return t.Etype == TINTER
+ }
+ 
++// IsEmptyInterface reports whether t is an empty interface type.
++func (t *Type) IsEmptyInterface() bool {
++	return t.IsInterface() && t.NumFields() == 0
++}
++
+ func (t *Type) ElemType() ssa.Type {
+ 	// TODO(josharian): If Type ever moves to a shared
+ 	// internal package, remove this silly wrapper.
+@@ -948,3 +958,18 @@ func (t *Type) SetNumElem(n int64) {
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
++
++// IsUntyped reports whether t is an untyped type.
++func (t *Type) IsUntyped() bool {
++	if t == nil {
++		return false
++	}
++	if t == idealstring || t == idealbool {
++		return true
++	}
++	switch t.Etype {
++	case TNIL, TIDEAL:
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 47c79b81d1..636691ebbb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -226,7 +226,7 @@ func callrecvlist(l Nodes) bool {
+ // The result of indexlit MUST be assigned back to n, e.g.
+ // 	n.Left = indexlit(n.Left)
+ func indexlit(n *Node) *Node {
+-	if n == nil || !isideal(n.Type) {
++	if n == nil || !n.Type.IsUntyped() {
+ 		return n
+ 	}
+ 	switch consttype(n) {
+@@ -885,7 +885,7 @@ OpSwitch:
+ 		if lookdot(n, t, 0) == nil {
+ 			// Legitimate field or method lookup failed, try to explain the error
+ 			switch {
+-			case isnilinter(t):
++			case t.IsEmptyInterface():
+ 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
+ 
+ 			case t.IsPtr() && t.Elem().IsInterface():
+@@ -1123,7 +1123,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 		var tp *Type
+-		if Istype(t, TSTRING) {
++		if t.IsString() {
+ 			n.Type = t
+ 			n.Op = OSLICESTR
+ 		} else if t.IsPtr() && t.Elem().IsArray() {
+@@ -1184,7 +1184,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if Istype(t, TSTRING) {
++		if t.IsString() {
+ 			Yyerror("invalid operation %v (3-index slice of string)", n)
+ 			n.Type = nil
+ 			return n
+@@ -1593,7 +1593,7 @@ OpSwitch:
+ 
+ 		// Unpack multiple-return result before type-checking.
+ 		var funarg *Type
+-		if Istype(t, TSTRUCT) && t.Funarg {
++		if t.IsStruct() && t.Funarg {
+ 			funarg = t
+ 			t = t.Field(0).Type
+ 		}
+@@ -1624,7 +1624,7 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			if Istype(t.Elem(), TUINT8) && Istype(args.Second().Type, TSTRING) {
++			if t.Elem().IsKind(TUINT8) && args.Second().Type.IsString() {
+ 				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
+ 				break OpSwitch
+ 			}
+@@ -3704,7 +3704,7 @@ func typecheckdef(n *Node) *Node {
+ 				goto ret
+ 			}
+ 
+-			if !isideal(e.Type) && !Eqtype(t, e.Type) {
++			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
+ 				Yyerror("cannot use %v as type %v in const initializer", Nconv(e, FmtLong), t)
+ 				goto ret
+ 			}
+@@ -3776,7 +3776,7 @@ func typecheckdef(n *Node) *Node {
+ 	}
+ 
+ ret:
+-	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
++	if n.Op != OLITERAL && n.Type != nil && n.Type.IsUntyped() {
+ 		Fatalf("got %v for %v", n.Type, n)
+ 	}
+ 	last := len(typecheckdefstack) - 1
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9f241ff10c..2715dc03c8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -990,7 +990,7 @@ opswitch:
+ 		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
+ 		if isdirectiface(n.Left.Type) {
+ 			var t *Node
+-			if isnilinter(n.Type) {
++			if n.Type.IsEmptyInterface() {
+ 				t = typename(n.Left.Type)
+ 			} else {
+ 				t = itabname(n.Left.Type, n.Type)
+@@ -1003,7 +1003,7 @@ opswitch:
+ 		}
+ 
+ 		var ll []*Node
+-		if isnilinter(n.Type) {
++		if n.Type.IsEmptyInterface() {
+ 			if !n.Left.Type.IsInterface() {
+ 				ll = append(ll, typename(n.Left.Type))
+ 			}
+@@ -1504,7 +1504,7 @@ opswitch:
+ 			Fatalf("ifaceeq %v %v %v", Oconv(n.Op, 0), n.Left.Type, n.Right.Type)
+ 		}
+ 		var fn *Node
+-		if isnilinter(n.Left.Type) {
++		if n.Left.Type.IsEmptyInterface() {
+ 			fn = syslook("efaceeq")
+ 		} else {
+ 			fn = syslook("ifaceeq")
+@@ -1924,7 +1924,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		t = n.Type
+ 		et = n.Type.Etype
+ 		if n.Type.IsInterface() {
+-			if isnilinter(n.Type) {
++			if n.Type.IsEmptyInterface() {
+ 				on = syslook("printeface")
+ 			} else {
+ 				on = syslook("printiface")
+@@ -2894,7 +2894,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	nsrc := n.List.First()
+ 
+ 	// Resolve slice type of multi-valued return.
+-	if Istype(nsrc.Type, TSTRUCT) {
++	if nsrc.Type.IsStruct() {
+ 		nsrc.Type = nsrc.Type.Elem().Elem()
+ 	}
+ 	argc := n.List.Len() - 1

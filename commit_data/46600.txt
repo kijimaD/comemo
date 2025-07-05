@@ -14,8 +14,53 @@ Date:   Wed Jan 13 17:00:11 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/283475
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/examples/types.go2 | 3 +++
  src/cmd/compile/internal/types2/expr.go            | 2 +-
  src/cmd/compile/internal/types2/typexpr.go         | 6 ++++++
  3 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/examples/types.go2 b/src/cmd/compile/internal/types2/examples/types.go2
+index be8d44e599..f094880c49 100644
+--- a/src/cmd/compile/internal/types2/examples/types.go2
++++ b/src/cmd/compile/internal/types2/examples/types.go2
+@@ -113,6 +113,9 @@ type I1[T any] interface{
+ 	m1(T)
+ }
+ 
++// There is no such thing as a variadic generic type.
++type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
++
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {
+ 	I1(int)     // method!
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 34cbefc864..a3778129ff 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1181,7 +1181,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		check.ident(x, e, nil, false)
+ 
+ 	case *syntax.DotsType:
+-		// ellipses are handled explicitly where they are legal
++		// dots are handled explicitly where they are legal
+ 		// (array composite literals and parameter lists)
+ 		check.error(e, "invalid use of '...'")
+ 		goto Error
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 32377ed3f4..d30f2fef26 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -521,6 +521,12 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		typ.elem = check.varType(e.Elem)
+ 		return typ
+ 
++	case *syntax.DotsType:
++		// dots are handled explicitly where they are legal
++		// (array composite literals and parameter lists)
++		check.error(e, "invalid use of '...'")
++		check.use(e.Elem)
++
+ 	case *syntax.StructType:
+ 		typ := new(Struct)
+ 		def.setUnderlying(typ)

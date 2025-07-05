@@ -8,6 +8,19 @@ Date:   Tue May 6 22:08:46 2014 -0400
     R=dsymonds, iant
     CC=golang-codereviews, pfr
     https://golang.org/cl/98970045
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index bb70e164c9..60dc553d93 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -436,6 +436,7 @@ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
+ Patrick Mézard <patrick@mezard.eu>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
++Patrick Riley <pfr@google.com>
+ Patrick Smith <pat42smith@gmail.com>
+ Paul A Querna <paul.querna@gmail.com>
+ Paul Borman <borman@google.com>

@@ -11,6 +11,55 @@ Date:   Wed Oct 25 10:20:29 2023 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/go_test.go | 23 -----------------------
  1 file changed, 23 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1e28bec92d..bae83eb92f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -391,7 +391,6 @@ type testgoData struct {
+ 	tempdir        string
+ 	ran            bool
+ 	inParallel     bool
+-	hasNet         bool
+ 	stdout, stderr bytes.Buffer
+ 	execDir        string // dir for tg.run
+ }
+@@ -434,9 +433,6 @@ func (tg *testgoData) parallel() {
+ 	if tg.ran {
+ 		tg.t.Fatal("internal testsuite error: call to parallel after run")
+ 	}
+-	if tg.hasNet {
+-		tg.t.Fatal("internal testsuite error: call to parallel after acquireNet")
+-	}
+ 	for _, e := range tg.env {
+ 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
+ 			val := e[strings.Index(e, "=")+1:]
+@@ -449,25 +445,6 @@ func (tg *testgoData) parallel() {
+ 	tg.t.Parallel()
+ }
+ 
+-// acquireNet skips t if the network is unavailable, and otherwise acquires a
+-// netTestSem token for t to be released at the end of the test.
+-//
+-// t.Parallel must not be called after acquireNet.
+-func (tg *testgoData) acquireNet() {
+-	tg.t.Helper()
+-	if tg.hasNet {
+-		return
+-	}
+-
+-	testenv.MustHaveExternalNetwork(tg.t)
+-	if netTestSem != nil {
+-		netTestSem <- struct{}{}
+-		tg.t.Cleanup(func() { <-netTestSem })
+-	}
+-	tg.setenv("TESTGONETWORK", "")
+-	tg.hasNet = true
+-}
+-
+ // pwd returns the current directory.
+ func (tg *testgoData) pwd() string {
+ 	tg.t.Helper()

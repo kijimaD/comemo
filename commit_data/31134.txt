@@ -15,6 +15,49 @@ Date:   Sat Jan 21 16:58:01 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue18661.go | 25 +++++++++++++++++++++++--
  1 file changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/issue18661.go b/test/fixedbugs/issue18661.go
+index 8c83775200..e64a771a83 100644
+--- a/test/fixedbugs/issue18661.go
++++ b/test/fixedbugs/issue18661.go
+@@ -1,10 +1,15 @@
+-// compile
++// run
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
++package main
++
++import (
++	"fmt"
++	"os"
++)
+ 
+ var (
+ 	e interface{}
+@@ -16,3 +21,19 @@ func test(obj interface{}) {
+ 	if obj != struct{ a *string }{} {
+ 	}
+ }
++
++var x int
++
++func f() [2]string {
++	x++
++	return [2]string{"abc", "def"}
++}
++
++func main() {
++	var e interface{} = [2]string{"abc", "def"}
++	_ = e == f()
++	if x != 1 {
++		fmt.Println("x=", x)
++		os.Exit(1)
++	}
++}

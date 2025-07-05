@@ -15,7 +15,7 @@ Date:   Mon Oct 3 12:26:25 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go       | 24 +-------
  src/cmd/compile/internal/arm/ssa.go         | 24 +-------
  src/cmd/compile/internal/arm64/ssa.go       | 24 +-------
@@ -34,3 +34,900 @@ Date:   Mon Oct 3 12:26:25 2016 -0700
  src/cmd/compile/internal/x86/387.go         | 57 +++++------------
  src/cmd/compile/internal/x86/ssa.go         | 24 +-------
  17 files changed, 157 insertions(+), 316 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 25894d1722..ebeff445d6 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -669,17 +669,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			return
+ 		}
+ 		p := gc.Prog(loadByType(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -691,17 +681,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
+ 	case ssa.OpInitMem:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 8fc4fb28d2..5a69ed3c3b 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -162,17 +162,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			return
+ 		}
+ 		p := gc.Prog(loadByType(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpPhi:
+@@ -185,17 +175,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpARMUDIVrtcall:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 1278fddc96..984c1a934a 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -136,17 +136,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			return
+ 		}
+ 		p := gc.Prog(loadByType(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpPhi:
+@@ -159,17 +149,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpARM64ADD,
+ 		ssa.OpARM64SUB,
+ 		ssa.OpARM64AND,
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index b4051fa52d..469080d5a8 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -75,40 +75,6 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
+ 	return q
+ }
+ 
+-// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+-func fixautoused(p *obj.Prog) {
+-	for lp := &p; ; {
+-		p = *lp
+-		if p == nil {
+-			break
+-		}
+-		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && !((p.From.Node).(*Node)).Used {
+-			*lp = p.Link
+-			continue
+-		}
+-
+-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL || p.As == obj.AVARLIVE) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
+-			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+-			// VARDEFs are interspersed with other code, and a jump might be using the
+-			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+-			// the no-ops.
+-			obj.Nopout(p)
+-
+-			continue
+-		}
+-
+-		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
+-			p.From.Offset += p.From.Node.(*Node).Xoffset
+-		}
+-
+-		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
+-			p.To.Offset += p.To.Node.(*Node).Xoffset
+-		}
+-
+-		lp = &p.Link
+-	}
+-}
+-
+ func ggloblnod(nam *Node) {
+ 	s := Linksym(nam.Sym)
+ 	s.Gotype = Linksym(ngotype(nam))
+@@ -153,23 +119,6 @@ func isfat(t *Type) bool {
+ 	return false
+ }
+ 
+-// Sweep the prog list to mark any used nodes.
+-func markautoused(p *obj.Prog) {
+-	for ; p != nil; p = p.Link {
+-		if p.As == obj.ATYPE || p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+-			continue
+-		}
+-
+-		if p.From.Node != nil {
+-			((p.From.Node).(*Node)).Used = true
+-		}
+-
+-		if p.To.Node != nil {
+-			((p.To.Node).(*Node)).Used = true
+-		}
+-	}
+-}
+-
+ // Naddr rewrites a to refer to n.
+ // It assumes that a is zeroed on entry.
+ func Naddr(a *obj.Addr, n *Node) {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9d977e2fc5..e1e36f67de 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -5,6 +5,7 @@
+ package gc
+ 
+ import (
++	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"fmt"
+@@ -93,6 +94,11 @@ func gvardefx(n *Node, as obj.As) {
+ 
+ 	switch n.Class {
+ 	case PAUTO, PPARAM, PPARAMOUT:
++		if !n.Used {
++			Prog(obj.ANOP)
++			return
++		}
++
+ 		if as == obj.AVARLIVE {
+ 			Gins(as, n, nil)
+ 		} else {
+@@ -214,15 +220,12 @@ func (s byStackVar) Len() int           { return len(s) }
+ func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
+ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+-// TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
+-func allocauto(ptxt *obj.Prog) {
++var scratchFpMem *Node
++
++func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 	Stksize = 0
+ 	stkptrsize = 0
+ 
+-	if len(Curfn.Func.Dcl) == 0 {
+-		return
+-	}
+-
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range Curfn.Func.Dcl {
+ 		if ln.Class == PAUTO {
+@@ -230,37 +233,60 @@ func allocauto(ptxt *obj.Prog) {
+ 		}
+ 	}
+ 
+-	markautoused(ptxt)
++	for _, l := range f.RegAlloc {
++		if ls, ok := l.(ssa.LocalSlot); ok {
++			ls.N.(*Node).Used = true
++		}
+ 
+-	sort.Sort(byStackVar(Curfn.Func.Dcl))
++	}
+ 
+-	// Unused autos are at the end, chop 'em off.
+-	n := Curfn.Func.Dcl[0]
+-	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
+-		// No locals used at all
+-		Curfn.Func.Dcl = nil
++	scratchUsed := false
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			switch a := v.Aux.(type) {
++			case *ssa.ArgSymbol:
++				a.Node.(*Node).Used = true
++			case *ssa.AutoSymbol:
++				a.Node.(*Node).Used = true
++			}
+ 
+-		fixautoused(ptxt)
+-		return
++			// TODO(mdempsky): Encode in opcodeTable
++			// whether an Op requires scratch memory.
++			switch v.Op {
++			case ssa.Op386UCOMISS, ssa.Op386UCOMISD,
++				ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS,
++				ssa.Op386CVTSD2SS, ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD, ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL,
++				ssa.OpPPC64Xf2i64, ssa.OpPPC64Xi2f64:
++				scratchUsed = true
++			}
++		}
+ 	}
+ 
+-	for i := 1; i < len(Curfn.Func.Dcl); i++ {
+-		n = Curfn.Func.Dcl[i]
+-		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
+-			Curfn.Func.Dcl = Curfn.Func.Dcl[:i]
+-			break
+-		}
++	// To satisfy toolstash -cmp, preserve the unsorted
++	// declaration order so we can emit the ATYPE instructions in
++	// the same order.
++	// TODO(mdempsky): Remove in followup CL.
++	Curfn.Func.UnsortedDcls = append([]*Node(nil), Curfn.Func.Dcl...)
++
++	if f.Config.NeedsFpScratch {
++		scratchFpMem = temp(Types[TUINT64])
++		scratchFpMem.Used = scratchUsed
+ 	}
+ 
+-	// Reassign stack offsets of the locals that are still there.
+-	var w int64
+-	for _, n := range Curfn.Func.Dcl {
+-		if n.Class != PAUTO || n.Op != ONAME {
++	sort.Sort(byStackVar(Curfn.Func.Dcl))
++
++	// Reassign stack offsets of the locals that are used.
++	for i, n := range Curfn.Func.Dcl {
++		if n.Op != ONAME || n.Class != PAUTO {
+ 			continue
+ 		}
++		if !n.Used {
++			Curfn.Func.Dcl = Curfn.Func.Dcl[:i]
++			break
++		}
+ 
+ 		dowidth(n.Type)
+-		w = n.Type.Width
++		w := n.Type.Width
+ 		if w >= Thearch.MAXWIDTH || w < 0 {
+ 			Fatalf("bad width")
+ 		}
+@@ -282,8 +308,6 @@ func allocauto(ptxt *obj.Prog) {
+ 
+ 	Stksize = Rnd(Stksize, int64(Widthreg))
+ 	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
+-
+-	fixautoused(ptxt)
+ }
+ 
+ func compile(fn *Node) {
+@@ -408,12 +432,22 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	for _, n := range fn.Func.Dcl {
++	for _, n := range fn.Func.UnsortedDcls {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
+ 		switch n.Class {
+-		case PAUTO, PPARAM, PPARAMOUT:
++		case PAUTO:
++			if !n.Used {
++				// Hacks to appease toolstash -cmp.
++				// TODO(mdempsky): Remove in followup CL.
++				pcloc++
++				Pc.Pc++
++				Linksym(ngotype(n))
++				continue
++			}
++			fallthrough
++		case PPARAM, PPARAMOUT:
+ 			p := Gins(obj.ATYPE, n, nil)
+ 			p.From.Gotype = Linksym(ngotype(n))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 1a0e53057c..eeddea37f2 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 96, 168},
++		{Func{}, 108, 192}, // TODO(mdempsky): Change back to 96, 168 in followup CL.
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6ad25c4315..9758209db0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4083,9 +4083,9 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	if Thearch.Use387 {
+ 		s.SSEto387 = map[int16]int16{}
+ 	}
+-	if f.Config.NeedsFpScratch {
+-		s.ScratchFpMem = temp(Types[TUINT64])
+-	}
++
++	s.ScratchFpMem = scratchFpMem
++	scratchFpMem = nil
+ 
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+@@ -4171,9 +4171,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		}
+ 	}
+ 
+-	// Allocate stack frame
+-	allocauto(ptxt)
+-
+ 	// Generate gc bitmaps.
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+ 
+@@ -4287,7 +4284,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		a.Name = obj.NAME_AUTO
+ 		a.Node = n
+ 		a.Sym = Linksym(n.Sym)
+-		// TODO: a.Offset += n.Xoffset once frame offsets for autos are computed during SSA
++		a.Offset += n.Xoffset
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+ 	}
+@@ -4409,6 +4406,28 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
+ 	return loc.N.(*Node), loc.Off
+ }
+ 
++func AddrAuto(a *obj.Addr, v *ssa.Value) {
++	n, off := AutoVar(v)
++	a.Type = obj.TYPE_MEM
++	a.Node = n
++	a.Sym = Linksym(n.Sym)
++	a.Offset = n.Xoffset + off
++	if n.Class == PPARAM || n.Class == PPARAMOUT {
++		a.Name = obj.NAME_PARAM
++	} else {
++		a.Name = obj.NAME_AUTO
++	}
++}
++
++func (s *SSAGenState) AddrScratch(a *obj.Addr) {
++	a.Type = obj.TYPE_MEM
++	a.Name = obj.NAME_AUTO
++	a.Node = s.ScratchFpMem
++	a.Sym = Linksym(s.ScratchFpMem.Sym)
++	a.Reg = int16(Thearch.REGSP)
++	a.Offset = s.ScratchFpMem.Xoffset
++}
++
+ // fieldIdx finds the index of the field referred to by the ODOT node n.
+ func fieldIdx(n *Node) int {
+ 	t := n.Left.Type
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7a230c0b74..547188b354 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -271,20 +271,21 @@ type Param struct {
+ 
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+-	Shortname  *Node
+-	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
+-	Exit       Nodes
+-	Cvars      Nodes   // closure params
+-	Dcl        []*Node // autodcl for this func/closure
+-	Inldcl     Nodes   // copy of dcl for use in inlining
+-	Closgen    int
+-	Outerfunc  *Node // outer function (for closure)
+-	FieldTrack map[*Sym]struct{}
+-	Ntype      *Node // signature
+-	Top        int   // top context (Ecall, Eproc, etc)
+-	Closure    *Node // OCLOSURE <-> ODCLFUNC
+-	FCurfn     *Node
+-	Nname      *Node
++	Shortname    *Node
++	Enter        Nodes // for example, allocate and initialize memory for escaping parameters
++	Exit         Nodes
++	Cvars        Nodes   // closure params
++	Dcl          []*Node // autodcl for this func/closure
++	UnsortedDcls []*Node // autodcl for this func/closure
++	Inldcl       Nodes   // copy of dcl for use in inlining
++	Closgen      int
++	Outerfunc    *Node // outer function (for closure)
++	FieldTrack   map[*Sym]struct{}
++	Ntype        *Node // signature
++	Top          int   // top context (Ecall, Eproc, etc)
++	Closure      *Node // OCLOSURE <-> ODCLFUNC
++	FCurfn       *Node
++	Nname        *Node
+ 
+ 	Inl     Nodes // copy of the body for use in inlining
+ 	InlCost int32
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index f91af48510..1432c6ceea 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -129,17 +129,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		r := v.Reg()
+ 		p := gc.Prog(loadByType(v.Type, r))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 		if isHILO(r) {
+@@ -171,17 +161,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type, r))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = r
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpMIPS64ADDV,
+ 		ssa.OpMIPS64SUBV,
+ 		ssa.OpMIPS64AND,
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 67fab94bb0..966ee39118 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -131,17 +131,6 @@ func storeByType(t ssa.Type) obj.As {
+ 	panic("bad store type")
+ }
+ 
+-// scratchFpMem initializes an Addr (field of a Prog)
+-// to reference the scratchpad memory for movement between
+-// F and G registers for FP conversions.
+-func scratchFpMem(s *gc.SSAGenState, a *obj.Addr) {
+-	a.Type = obj.TYPE_MEM
+-	a.Name = obj.NAME_AUTO
+-	a.Node = s.ScratchFpMem
+-	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
+-	a.Reg = ppc64.REGSP
+-}
+-
+ func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
+ 	r := v.Reg()
+ 	p := gc.Prog(ppc64.AISEL)
+@@ -191,11 +180,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p := gc.Prog(ppc64.AFMOVD)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+-			scratchFpMem(s, &p.To)
++			s.AddrScratch(&p.To)
+ 			p = gc.Prog(ppc64.AMOVD)
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = y
+-			scratchFpMem(s, &p.From)
++			s.AddrScratch(&p.From)
+ 		}
+ 	case ssa.OpPPC64Xi2f64:
+ 		{
+@@ -204,11 +193,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p := gc.Prog(ppc64.AMOVD)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+-			scratchFpMem(s, &p.To)
++			s.AddrScratch(&p.To)
+ 			p = gc.Prog(ppc64.AFMOVD)
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = y
+-			scratchFpMem(s, &p.From)
++			s.AddrScratch(&p.From)
+ 		}
+ 
+ 	case ssa.OpPPC64LoweredGetClosurePtr:
+@@ -217,37 +206,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpLoadReg:
+ 		loadOp := loadByType(v.Type)
+-		n, off := gc.AutoVar(v.Args[0])
+ 		p := gc.Prog(loadOp)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+ 	case ssa.OpStoreReg:
+ 		storeOp := storeByType(v.Type)
+-		n, off := gc.AutoVar(v)
+ 		p := gc.Prog(storeOp)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 
+ 	case ssa.OpPPC64DIVD:
+ 		// For now,
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 7fe764fb2a..4c9d88fd27 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -430,17 +430,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			return
+ 		}
+ 		p := gc.Prog(loadByType(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpStoreReg:
+@@ -451,17 +441,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
+ 	case ssa.OpInitMem:
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index e0a04c35ad..f13d3ae291 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -278,7 +278,8 @@ var passes = [...]pass{
+ 	{name: "late nilcheck", fn: nilcheckelim2},
+ 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
+ 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+-	{name: "trim", fn: trim},                           // remove empty blocks
++	{name: "stackframe", fn: stackframe, required: true},
++	{name: "trim", fn: trim}, // remove empty blocks
+ }
+ 
+ // Double-check phase ordering constraints.
+@@ -329,6 +330,8 @@ var passOrder = [...]constraint{
+ 	{"schedule", "flagalloc"},
+ 	// regalloc needs flags to be allocated first.
+ 	{"flagalloc", "regalloc"},
++	// stackframe needs to know about spilled registers.
++	{"regalloc", "stackframe"},
+ 	// trim needs regalloc to be done first.
+ 	{"regalloc", "trim"},
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 201dcd4a38..9ce8f6922f 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -117,6 +117,9 @@ type Frontend interface {
+ 
+ 	// Line returns a string describing the given line number.
+ 	Line(int32) string
++
++	// AllocFrame assigns frame offsets to all live auto variables.
++	AllocFrame(f *Func)
+ }
+ 
+ // interface used to hold *gc.Node. We'd use *gc.Node directly but
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index e6ccca60cb..069641cd33 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -61,6 +61,8 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+ func (DummyFrontend) Line(line int32) string {
+ 	return "unknown.go:0"
+ }
++func (DummyFrontend) AllocFrame(f *Func) {
++}
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+diff --git a/src/cmd/compile/internal/ssa/stackframe.go b/src/cmd/compile/internal/ssa/stackframe.go
+new file mode 100644
+index 0000000000..de32c60eda
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/stackframe.go
+@@ -0,0 +1,10 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// stackframe calls back into the frontend to assign frame offsets.
++func stackframe(f *Func) {
++	f.Config.fe.AllocFrame(f)
++}
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 2e614e46bb..248fec68ce 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -120,7 +120,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		switch v.Op {
+ 		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
+ 			p := gc.Prog(x86.AFSTCW)
+-			scratch387(s, &p.To)
++			s.AddrScratch(&p.To)
+ 			p = gc.Prog(x86.AFLDCW)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+@@ -148,7 +148,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		switch v.Op {
+ 		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
+ 			p := gc.Prog(x86.AFLDCW)
+-			scratch387(s, &p.From)
++			s.AddrScratch(&p.From)
+ 		}
+ 
+ 		return true
+@@ -167,7 +167,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p = gc.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x86.REG_AX
+-		scratch387(s, &p.To)
++		s.AddrScratch(&p.To)
+ 
+ 		// Move status word into AX.
+ 		p = gc.Prog(x86.AFSTSW)
+@@ -179,7 +179,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 
+ 		// Restore AX.
+ 		p = gc.Prog(x86.AMOVL)
+-		scratch387(s, &p.From)
++		s.AddrScratch(&p.From)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_AX
+ 
+@@ -201,9 +201,9 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p := gc.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		scratch387(s, &p.To)
++		s.AddrScratch(&p.To)
+ 		p = gc.Prog(x86.AFMOVL)
+-		scratch387(s, &p.From)
++		s.AddrScratch(&p.From)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+@@ -214,7 +214,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 
+ 		// Save control word.
+ 		p := gc.Prog(x86.AFSTCW)
+-		scratch387(s, &p.To)
++		s.AddrScratch(&p.To)
+ 		p.To.Offset += 4
+ 
+ 		// Load control word which truncates (rounds towards zero).
+@@ -227,15 +227,15 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p = gc.Prog(x86.AFMOVLP)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x86.REG_F0
+-		scratch387(s, &p.To)
++		s.AddrScratch(&p.To)
+ 		p = gc.Prog(x86.AMOVL)
+-		scratch387(s, &p.From)
++		s.AddrScratch(&p.From)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+ 		// Restore control word.
+ 		p = gc.Prog(x86.AFLDCW)
+-		scratch387(s, &p.From)
++		s.AddrScratch(&p.From)
+ 		p.From.Offset += 4
+ 		return true
+ 
+@@ -251,9 +251,9 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p := gc.Prog(x86.AFMOVFP)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x86.REG_F0
+-		scratch387(s, &p.To)
++		s.AddrScratch(&p.To)
+ 		p = gc.Prog(x86.AFMOVF)
+-		scratch387(s, &p.From)
++		s.AddrScratch(&p.From)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+@@ -265,17 +265,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		}
+ 		// Load+push the value we need.
+ 		p := gc.Prog(loadPush(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		// Move the value to its assigned register.
+@@ -297,17 +287,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p := gc.Prog(op)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x86.REG_F0
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 		return true
+ 
+ 	case ssa.OpCopy:
+@@ -375,12 +355,3 @@ func flush387(s *gc.SSAGenState) {
+ 		delete(s.SSEto387, k)
+ 	}
+ }
+-
+-// scratch387 initializes a to the scratch location used by some 387 rewrites.
+-func scratch387(s *gc.SSAGenState, a *obj.Addr) {
+-	a.Type = obj.TYPE_MEM
+-	a.Name = obj.NAME_AUTO
+-	a.Node = s.ScratchFpMem
+-	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
+-	a.Reg = x86.REG_SP
+-}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 301223682b..61701d4ffa 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -610,17 +610,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			return
+ 		}
+ 		p := gc.Prog(loadByType(v.Type))
+-		n, off := gc.AutoVar(v.Args[0])
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Node = n
+-		p.From.Sym = gc.Linksym(n.Sym)
+-		p.From.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.From.Name = obj.NAME_PARAM
+-			p.From.Offset += n.Xoffset
+-		} else {
+-			p.From.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -632,17 +622,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(storeByType(v.Type))
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+-		n, off := gc.AutoVar(v)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Node = n
+-		p.To.Sym = gc.Linksym(n.Sym)
+-		p.To.Offset = off
+-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
+-			p.To.Name = obj.NAME_PARAM
+-			p.To.Offset += n.Xoffset
+-		} else {
+-			p.To.Name = obj.NAME_AUTO
+-		}
++		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
+ 	case ssa.OpInitMem:

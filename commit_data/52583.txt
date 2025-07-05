@@ -24,10 +24,110 @@ Date:   Thu May 5 17:45:27 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/flags/flags.go |  3 ++-
  src/cmd/internal/goobj/objfile.go   | 10 +++++-----
  src/cmd/internal/obj/objfile.go     |  2 +-
  src/cmd/link/link_test.go           |  4 ++--
  test/run.go                         |  4 ++--
  5 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 273d422370..1c8b908860 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -6,6 +6,7 @@
+ package flags
+ 
+ import (
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"flag"
+ 	"fmt"
+@@ -23,7 +24,7 @@ var (
+ 	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+ 	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
+ 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+-	Importpath       = flag.String("p", "", "set expected package import to path")
++	Importpath       = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
+ 	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+ 	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
+ )
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 665fa41475..34c5bb97f8 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -281,10 +281,10 @@ const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
+ const SymABIstatic = ^uint16(0)
+ 
+ const (
+-	ObjFlagShared            = 1 << iota // this object is built with -shared
+-	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
+-	ObjFlagFromAssembly                  // object is from asm src, not go
+-	ObjFlagUnlinkable                    // unlinkable package (linker will emit an error)
++	ObjFlagShared       = 1 << iota // this object is built with -shared
++	_                               // was ObjFlagNeedNameExpansion
++	ObjFlagFromAssembly             // object is from asm src, not go
++	ObjFlagUnlinkable               // unlinkable package (linker will emit an error)
+ )
+ 
+ // Sym.Flag
+@@ -873,6 +873,6 @@ func (r *Reader) Flags() uint32 {
+ }
+ 
+ func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
+-func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
++func (r *Reader) NeedNameExpansion() bool { return false } // TODO: delete
+ func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }
+ func (r *Reader) Unlinkable() bool        { return r.Flags()&ObjFlagUnlinkable != 0 }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index d31afda703..89339b0147 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -51,7 +51,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 		flags |= goobj.ObjFlagUnlinkable
+ 	}
+ 	if w.pkgpath == "" {
+-		flags |= goobj.ObjFlagNeedNameExpansion
++		log.Fatal("empty package path")
+ 	}
+ 	if ctxt.IsAsm {
+ 		flags |= goobj.ObjFlagFromAssembly
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index ac68008d8d..d86f81fac8 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -235,9 +235,9 @@ void foo() {
+ 	cflags := strings.Fields(runGo("env", "GOGCCFLAGS"))
+ 
+ 	// Compile, assemble and pack the Go and C code.
+-	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
++	runGo("tool", "asm", "-p=main", "-gensymabis", "-o", "symabis", "x.s")
+ 	runGo("tool", "compile", "-symabis", "symabis", "-p=main", "-o", "x1.o", "main.go")
+-	runGo("tool", "asm", "-o", "x2.o", "x.s")
++	runGo("tool", "asm", "-p=main", "-o", "x2.o", "x.s")
+ 	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
+ 	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
+ 
+diff --git a/test/run.go b/test/run.go
+index 27e16f6892..00f869bc2b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1024,7 +1024,7 @@ func (t *test) run() {
+ 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+ 				return
+ 			}
+-			cmd := []string{goTool(), "tool", "asm", "-gensymabis", "-o", "symabis"}
++			cmd := []string{goTool(), "tool", "asm", "-p=main", "-gensymabis", "-o", "symabis"}
+ 			cmd = append(cmd, asms...)
+ 			_, err = runcmd(cmd...)
+ 			if err != nil {
+@@ -1045,7 +1045,7 @@ func (t *test) run() {
+ 		}
+ 		objs = append(objs, "go.o")
+ 		if len(asms) > 0 {
+-			cmd = []string{goTool(), "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
++			cmd = []string{goTool(), "tool", "asm", "-p=main", "-e", "-I", ".", "-o", "asm.o"}
+ 			cmd = append(cmd, asms...)
+ 			_, err = runcmd(cmd...)
+ 			if err != nil {

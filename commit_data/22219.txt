@@ -10,6 +10,20 @@ Date:   Sat Feb 28 22:35:51 2015 -0500
     Change-Id: I0ada4969e9ea374f08c84ab736aab2097ac73dd8
     Reviewed-on: https://go-review.googlesource.com/6369
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 1e8bc2d637..09177496e2 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -59,7 +59,7 @@ var sysdir = func() *sysDir {
+ 				wd = err.Error()
+ 			}
+ 			return &sysDir{
+-				wd,
++				filepath.Join(wd, "..", ".."),
+ 				[]string{
+ 					"ResourceRules.plist",
+ 					"Info.plist",

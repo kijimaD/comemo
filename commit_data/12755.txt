@@ -20,10 +20,433 @@ Date:   Mon Mar 26 11:26:05 2012 -0700
     R=golang-dev, lvd, rsc
     CC=golang-dev
     https://golang.org/cl/5574069
-
+---
  src/pkg/exp/gotype/gotype.go         |   2 +-
  src/pkg/exp/types/check_test.go      |   2 +-
  src/pkg/exp/types/exportdata.go      |  52 ++++--------
  src/pkg/exp/types/gcimporter.go      | 157 ++++++++++++++++++++++-------------
  src/pkg/exp/types/gcimporter_test.go |  18 ++--
  5 files changed, 124 insertions(+), 107 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index 30eaf22fca..3aca40e8e7 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -171,7 +171,7 @@ func processFiles(filenames []string, allFiles bool) {
+ 
+ func processPackage(fset *token.FileSet, files map[string]*ast.File) {
+ 	// make a package (resolve all identifiers)
+-	pkg, err := ast.NewPackage(fset, files, types.GcImporter, types.Universe)
++	pkg, err := ast.NewPackage(fset, files, types.GcImport, types.Universe)
+ 	if err != nil {
+ 		report(err)
+ 		return
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 0e20646a00..34c26c9908 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -184,7 +184,7 @@ func check(t *testing.T, testname string, testfiles []string) {
+ 	eliminate(t, errors, err)
+ 
+ 	// verify errors returned after resolving identifiers
+-	pkg, err := ast.NewPackage(fset, files, GcImporter, Universe)
++	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
+ 	eliminate(t, errors, err)
+ 
+ 	// verify errors returned by the typechecker
+diff --git a/src/pkg/exp/types/exportdata.go b/src/pkg/exp/types/exportdata.go
+index fa5b6a37fe..bca2038804 100644
+--- a/src/pkg/exp/types/exportdata.go
++++ b/src/pkg/exp/types/exportdata.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements ExportData.
++// This file implements FindGcExportData.
+ 
+ package types
+ 
+@@ -11,15 +11,14 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+-func readGopackHeader(buf *bufio.Reader) (name string, size int, err error) {
++func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+ 	// See $GOROOT/include/ar.h.
+ 	hdr := make([]byte, 16+12+6+6+8+10+2)
+-	_, err = io.ReadFull(buf, hdr)
++	_, err = io.ReadFull(r, hdr)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -36,33 +35,14 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err error) {
+ 	return
+ }
+ 
+-type dataReader struct {
+-	*bufio.Reader
+-	io.Closer
+-}
+-
+-// ExportData returns a readCloser positioned at the beginning of the
+-// export data section of the given object/archive file, or an error.
+-// It is the caller's responsibility to close the readCloser.
++// FindGcExportData positions the reader r at the beginning of the
++// export data section of an underlying GC-created object/archive
++// file by reading from it. The reader must be positioned at the
++// start of the file before calling this function.
+ //
+-func ExportData(filename string) (rc io.ReadCloser, err error) {
+-	file, err := os.Open(filename)
+-	if err != nil {
+-		return
+-	}
+-
+-	defer func() {
+-		if err != nil {
+-			file.Close()
+-			// Add file name to error.
+-			err = fmt.Errorf("reading export data: %s: %v", filename, err)
+-		}
+-	}()
+-
+-	buf := bufio.NewReader(file)
+-
++func FindGcExportData(r *bufio.Reader) (err error) {
+ 	// Read first line to make sure this is an object file.
+-	line, err := buf.ReadSlice('\n')
++	line, err := r.ReadSlice('\n')
+ 	if err != nil {
+ 		return
+ 	}
+@@ -74,7 +54,7 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
+ 
+ 		// First entry should be __.SYMDEF.
+ 		// Read and discard.
+-		if name, size, err = readGopackHeader(buf); err != nil {
++		if name, size, err = readGopackHeader(r); err != nil {
+ 			return
+ 		}
+ 		if name != "__.SYMDEF" {
+@@ -88,15 +68,14 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
+ 			if n > block {
+ 				n = block
+ 			}
+-			_, err = io.ReadFull(buf, tmp[:n])
+-			if err != nil {
++			if _, err = io.ReadFull(r, tmp[:n]); err != nil {
+ 				return
+ 			}
+ 			size -= n
+ 		}
+ 
+ 		// Second entry should be __.PKGDEF.
+-		if name, size, err = readGopackHeader(buf); err != nil {
++		if name, size, err = readGopackHeader(r); err != nil {
+ 			return
+ 		}
+ 		if name != "__.PKGDEF" {
+@@ -106,8 +85,7 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
+ 
+ 		// Read first line of __.PKGDEF data, so that line
+ 		// is once again the first line of the input.
+-		line, err = buf.ReadSlice('\n')
+-		if err != nil {
++		if line, err = r.ReadSlice('\n'); err != nil {
+ 			return
+ 		}
+ 	}
+@@ -122,12 +100,10 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
+ 	// Skip over object header to export data.
+ 	// Begins after first line with $$.
+ 	for line[0] != '$' {
+-		line, err = buf.ReadSlice('\n')
+-		if err != nil {
++		if line, err = r.ReadSlice('\n'); err != nil {
+ 			return
+ 		}
+ 	}
+ 
+-	rc = &dataReader{buf, file}
+ 	return
+ }
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index cb996f2805..07ab087abf 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements an ast.Importer for gc generated object files.
++// This file implements an ast.Importer for gc-generated object files.
+ // TODO(gri) Eventually move this into a separate package outside types.
+ 
+ package types
+ 
+ import (
++	"bufio"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -24,41 +25,40 @@ import (
+ 
+ const trace = false // set to true for debugging
+ 
+-var (
+-	pkgExts = [...]string{".a", ".5", ".6", ".8"}
+-)
++var pkgExts = [...]string{".a", ".5", ".6", ".8"}
+ 
+-// findPkg returns the filename and package id for an import path.
++// FindPkg returns the filename and unique package id for an import
++// path based on package information provided by build.Import (using
++// the build.Default build.Context).
+ // If no file was found, an empty filename is returned.
+-func findPkg(path string) (filename, id string) {
++//
++func FindPkg(path, srcDir string) (filename, id string) {
+ 	if len(path) == 0 {
+ 		return
+ 	}
+ 
+ 	id = path
+ 	var noext string
+-	switch path[0] {
++	switch {
+ 	default:
+ 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
+-		bp, _ := build.Import(path, "", build.FindOnly)
++		bp, _ := build.Import(path, srcDir, build.FindOnly)
+ 		if bp.PkgObj == "" {
+ 			return
+ 		}
+ 		noext = bp.PkgObj
+ 		if strings.HasSuffix(noext, ".a") {
+-			noext = noext[:len(noext)-2]
++			noext = noext[:len(noext)-len(".a")]
+ 		}
+ 
+-	case '.':
++	case build.IsLocalImport(path):
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+-		cwd, err := os.Getwd()
+-		if err != nil {
+-			return
+-		}
+-		noext = filepath.Join(cwd, path)
++		noext = filepath.Join(srcDir, path)
+ 		id = noext
+ 
+-	case '/':
++	case filepath.IsAbs(path):
++		// for completeness only - go/build.Import
++		// does not support absolute imports
+ 		// "/x" -> "/x.ext", "/x"
+ 		noext = path
+ 	}
+@@ -75,6 +75,89 @@ func findPkg(path string) (filename, id string) {
+ 	return
+ }
+ 
++// GcImportData imports a package by reading the gc-generated export data,
++// adds the corresponding package object to the imports map indexed by id,
++// and returns the object.
++//
++// The imports map must contains all packages already imported, and no map
++// entry with id as the key must be present. The data reader position must
++// be the beginning of the export data section. The filename is only used
++// in error messages.
++//
++func GcImportData(imports map[string]*ast.Object, filename, id string, data *bufio.Reader) (pkg *ast.Object, err error) {
++	if trace {
++		fmt.Printf("importing %s (%s)\n", id, filename)
++	}
++
++	if imports[id] != nil {
++		panic(fmt.Sprintf("package %s already imported", id))
++	}
++
++	// support for gcParser error handling
++	defer func() {
++		if r := recover(); r != nil {
++			err = r.(importError) // will re-panic if r is not an importError
++		}
++	}()
++
++	var p gcParser
++	p.init(filename, id, data, imports)
++	pkg = p.parseExport()
++
++	return
++}
++
++// GcImport imports a gc-generated package given its import path, adds the
++// corresponding package object to the imports map, and returns the object.
++// Local import paths are interpreted relative to the current working directory.
++// The imports map must contains all packages already imported.
++// GcImport satisfies the ast.Importer signature.
++//
++func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
++	if path == "unsafe" {
++		return Unsafe, nil
++	}
++
++	srcDir, err := os.Getwd()
++	if err != nil {
++		return
++	}
++	filename, id := FindPkg(path, srcDir)
++	if filename == "" {
++		err = errors.New("can't find import: " + id)
++		return
++	}
++
++	if pkg = imports[id]; pkg != nil {
++		return // package was imported before
++	}
++
++	// open file
++	f, err := os.Open(filename)
++	if err != nil {
++		return
++	}
++	defer func() {
++		f.Close()
++		if err != nil {
++			// Add file name to error.
++			err = fmt.Errorf("reading export data: %s: %v", filename, err)
++		}
++	}()
++
++	buf := bufio.NewReader(f)
++	if err = FindGcExportData(buf); err != nil {
++		return
++	}
++
++	pkg, err = GcImportData(imports, filename, id, buf)
++
++	return
++}
++
++// ----------------------------------------------------------------------------
++// gcParser
++
+ // gcParser parses the exports inside a gc compiler-produced
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
+@@ -109,47 +192,6 @@ func (p *gcParser) next() {
+ 	}
+ }
+ 
+-// GcImporter implements the ast.Importer signature.
+-func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
+-	if path == "unsafe" {
+-		return Unsafe, nil
+-	}
+-
+-	defer func() {
+-		if r := recover(); r != nil {
+-			err = r.(importError) // will re-panic if r is not an importError
+-			if trace {
+-				panic(err) // force a stack trace
+-			}
+-		}
+-	}()
+-
+-	filename, id := findPkg(path)
+-	if filename == "" {
+-		err = errors.New("can't find import: " + id)
+-		return
+-	}
+-
+-	if pkg = imports[id]; pkg != nil {
+-		return // package was imported before
+-	}
+-
+-	buf, err := ExportData(filename)
+-	if err != nil {
+-		return
+-	}
+-	defer buf.Close()
+-
+-	if trace {
+-		fmt.Printf("importing %s (%s)\n", id, filename)
+-	}
+-
+-	var p gcParser
+-	p.init(filename, id, buf, imports)
+-	pkg = p.parseExport()
+-	return
+-}
+-
+ // Declare inserts a named object of the given kind in scope.
+ func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
+ 	// the object may have been imported before - if it exists
+@@ -707,7 +749,6 @@ func (p *gcParser) parseConstDecl() {
+ 		p.next()
+ 		typ = String.Underlying
+ 	default:
+-		println(p.tok)
+ 		p.errorf("expected literal got %s", scanner.TokenString(p.tok))
+ 	}
+ 	if obj.Type == nil {
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index c229b50113..20247b0dc4 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -17,23 +17,23 @@ import (
+ 	"time"
+ )
+ 
+-var gcName, gcPath string // compiler name and path
++var gcPath string // Go compiler path
+ 
+ func init() {
+ 	// determine compiler
++	var gc string
+ 	switch runtime.GOARCH {
+ 	case "386":
+-		gcName = "8g"
++		gc = "8g"
+ 	case "amd64":
+-		gcName = "6g"
++		gc = "6g"
+ 	case "arm":
+-		gcName = "5g"
++		gc = "5g"
+ 	default:
+-		gcName = "unknown-GOARCH-compiler"
+-		gcPath = gcName
++		gcPath = "unknown-GOARCH-compiler"
+ 		return
+ 	}
+-	gcPath = filepath.Join(build.ToolDir, gcName)
++	gcPath = filepath.Join(build.ToolDir, gc)
+ }
+ 
+ func compile(t *testing.T, dirname, filename string) {
+@@ -41,7 +41,7 @@ func compile(t *testing.T, dirname, filename string) {
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Errorf("%s %s failed: %s", gcName, filename, err)
++		t.Errorf("%s %s failed: %s", gcPath, filename, err)
+ 		return
+ 	}
+ 	t.Logf("%s", string(out))
+@@ -52,7 +52,7 @@ func compile(t *testing.T, dirname, filename string) {
+ var imports = make(map[string]*ast.Object)
+ 
+ func testPath(t *testing.T, path string) bool {
+-	_, err := GcImporter(imports, path)
++	_, err := GcImport(imports, path)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+ 		return false

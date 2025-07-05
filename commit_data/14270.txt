@@ -7,6 +7,20 @@ Date:   Thu Nov 1 13:04:08 2012 +1100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6811059
-
+---
  src/run.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 67762e1df0..78c9858be5 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -87,7 +87,7 @@ echo.
+ 
+ :: TODO: The other tests in run.bash.
+ 
+-echo # test
++echo # ..\test
+ cd ..\test
+ set FAIL=0
+ go run run.go

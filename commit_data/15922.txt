@@ -9,6 +9,35 @@ Date:   Mon Mar 25 13:25:28 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/8008043
-
+---
  src/pkg/net/interface_unix_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/interface_unix_test.go b/src/pkg/net/interface_unix_test.go
+index 6dbd6e6e7b..0a453c0955 100644
+--- a/src/pkg/net/interface_unix_test.go
++++ b/src/pkg/net/interface_unix_test.go
+@@ -41,8 +41,11 @@ func (ti *testInterface) teardown() error {
+ }
+ 
+ func TestPointToPointInterface(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "darwin":
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++	switch {
++	case runtime.GOOS == "darwin":
+ 		t.Skipf("skipping read test on %q", runtime.GOOS)
+ 	}
+ 	if os.Getuid() != 0 {
+@@ -90,6 +93,9 @@ func TestPointToPointInterface(t *testing.T) {
+ }
+ 
+ func TestInterfaceArrivalAndDeparture(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
+ 	if os.Getuid() != 0 {
+ 		t.Skip("skipping test; must be root")
+ 	}

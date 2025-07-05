@@ -18,6 +18,22 @@ Date:   Tue Jun 21 21:45:13 2011 -0400
     R=golang-dev, gri, robert.hencke, r
     CC=golang-dev
     https://golang.org/cl/4638053
-
+---
  src/run.bash | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 4c9d2ec38b..bb3d06c45c 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -49,10 +49,6 @@ GOMAXPROCS=10 gomake testshort
+ time gomake test
+ ) || exit $?
+ 
+-(xcd cmd/godefs
+-gomake test
+-) || exit $?
+-
+ [ "$GOARCH" == arm ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio

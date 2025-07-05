@@ -16,8 +16,122 @@ Date:   Tue Aug 16 17:32:54 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27205
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 17 +++--------------
  src/cmd/compile/internal/gc/bimport.go | 16 +++++-----------
  src/go/internal/gcimporter/bimport.go  | 11 +++--------
  3 files changed, 11 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 8dafd51eb3..7915bce8c6 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -153,13 +153,9 @@ const debugFormat = false // default: false
+ // TODO(gri) disable and remove once there is only one export format again
+ const forceObjFileStability = true
+ 
+-// Supported export format versions.
++// Current export format version.
+ // TODO(gri) Make this more systematic (issue #16244).
+-const (
+-	exportVersion0 = "v0"
+-	exportVersion1 = "v1"
+-	exportVersion  = exportVersion1
+-)
++const exportVersion = "v1"
+ 
+ // exportInlined enables the export of inlined function bodies and related
+ // dependencies. The compiler should work w/o any loss of functionality with
+@@ -734,14 +730,7 @@ func (p *exporter) typ(t *Type) {
+ 			p.paramList(sig.Recvs(), inlineable)
+ 			p.paramList(sig.Params(), inlineable)
+ 			p.paramList(sig.Results(), inlineable)
+-
+-			// for issue #16243
+-			// We make this conditional for 1.7 to avoid consistency problems
+-			// with installed packages compiled with an older version.
+-			// TODO(gri) Clean up after 1.7 is out (issue #16244)
+-			if exportVersion == exportVersion1 {
+-				p.bool(m.Nointerface)
+-			}
++			p.bool(m.Nointerface) // record go:nointerface pragma value (see also #16243)
+ 
+ 			var f *Func
+ 			if inlineable {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 463178eafb..b0c1f5c698 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -21,9 +21,8 @@ import (
+ // changes to bimport.go and bexport.go.
+ 
+ type importer struct {
+-	in      *bufio.Reader
+-	buf     []byte // reused for reading strings
+-	version string
++	in  *bufio.Reader
++	buf []byte // reused for reading strings
+ 
+ 	// object lists, in order of deserialization
+ 	strList       []string
+@@ -68,9 +67,8 @@ func Import(in *bufio.Reader) {
+ 
+ 	// --- generic export data ---
+ 
+-	p.version = p.string()
+-	if p.version != exportVersion0 && p.version != exportVersion1 {
+-		Fatalf("importer: unknown export data version: %s", p.version)
++	if v := p.string(); v != exportVersion {
++		Fatalf("importer: unknown export data version: %s", v)
+ 	}
+ 
+ 	// populate typList with predeclared "known" types
+@@ -429,11 +427,7 @@ func (p *importer) typ() *Type {
+ 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
+ 			params := p.paramList()
+ 			result := p.paramList()
+-
+-			nointerface := false
+-			if p.version == exportVersion1 {
+-				nointerface = p.bool()
+-			}
++			nointerface := p.bool()
+ 
+ 			n := methodname1(newname(sym), recv[0].Right)
+ 			n.Type = functype(recv[0], params, result)
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 75c2d9123e..dc09e65746 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -21,7 +21,6 @@ type importer struct {
+ 	data    []byte
+ 	path    string
+ 	buf     []byte // for reading strings
+-	version string
+ 
+ 	// object lists
+ 	strList       []string         // in order of appearance
+@@ -67,9 +66,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 
+ 	// --- generic export data ---
+ 
+-	p.version = p.string()
+-	if p.version != "v0" && p.version != "v1" {
+-		return p.read, nil, fmt.Errorf("unknown export data version: %s", p.version)
++	if v := p.string(); v != "v1" {
++		return p.read, nil, fmt.Errorf("unknown export data version: %s", v)
+ 	}
+ 
+ 	// populate typList with predeclared "known" types
+@@ -305,10 +303,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
+ 			recv, _ := p.paramList() // TODO(gri) do we need a full param list for the receiver?
+ 			params, isddd := p.paramList()
+ 			result, _ := p.paramList()
+-
+-			if p.version == "v1" {
+-				p.int() // nointerface flag - discarded
+-			}
++			p.int() // go:nointerface pragma - discarded
+ 
+ 			sig := types.NewSignature(recv.At(0), params, result, isddd)
+ 			t0.AddMethod(types.NewFunc(token.NoPos, parent, name, sig))

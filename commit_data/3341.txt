@@ -9,7 +9,7 @@ Date:   Tue Sep 22 07:49:31 2009 -0700
     DELTA=861  (855 added, 4 deleted, 2 changed)
     OCL=34877
     CL=34890
-
+---
  src/pkg/debug/proc/proc_nacl.go     |  20 +++
  src/pkg/debug/proc/regs_nacl_386.go |   6 +
  src/pkg/net/fd_nacl.go              |  37 ++++
@@ -26,3 +26,981 @@ Date:   Tue Sep 22 07:49:31 2009 -0700
  src/pkg/syscall/syscall_nacl_386.go |  15 ++
  src/pkg/syscall/types_nacl.c        | 115 +++++++++++++
  15 files changed, 857 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_nacl.go b/src/pkg/debug/proc/proc_nacl.go
+new file mode 100644
+index 0000000000..c4f6067393
+--- /dev/null
++++ b/src/pkg/debug/proc/proc_nacl.go
+@@ -0,0 +1,20 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
++
++import (
++	"os";
++	"syscall";
++)
++
++// Process tracing is not supported on Native Client.
++
++func Attach(pid int) (Process, os.Error) {
++	return nil, os.NewSyscallError("ptrace", syscall.ENACL)
++}
++
++func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++	return nil, os.NewSyscallError("fork/exec", syscall.ENACL)
++}
+diff --git a/src/pkg/debug/proc/regs_nacl_386.go b/src/pkg/debug/proc/regs_nacl_386.go
+new file mode 100644
+index 0000000000..e171f72a95
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_nacl_386.go
+@@ -0,0 +1,6 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
++
+diff --git a/src/pkg/net/fd_nacl.go b/src/pkg/net/fd_nacl.go
+new file mode 100644
+index 0000000000..45d63c15b0
+--- /dev/null
++++ b/src/pkg/net/fd_nacl.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os";
++	"syscall";
++)
++
++type pollster struct {
++}
++
++func newpollster() (p *pollster, err os.Error) {
++	return nil, os.NewSyscallError("networking", syscall.ENACL)
++}
++
++func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
++	_, err := newpollster();
++	return err;
++}
++
++func (p *pollster) StopWaiting(fd int, bits uint) {
++}
++
++func (p *pollster) DelFD(fd int, mode int) {
++}
++
++func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
++	_, err = newpollster();
++	return;
++}
++
++func (p *pollster) Close() os.Error {
++	return nil;
++}
+diff --git a/src/pkg/os/dir_nacl_386.go b/src/pkg/os/dir_nacl_386.go
+new file mode 100644
+index 0000000000..90072d54d3
+--- /dev/null
++++ b/src/pkg/os/dir_nacl_386.go
+@@ -0,0 +1,81 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Once the porting dust settles, consider
++// whether this file should be dir_nacl.go (and similarly
++// dir_linux.go, dir_darwin.go) instead of having one copy per architecture.
++
++package os
++
++import (
++	"syscall";
++	"unsafe";
++)
++
++const (
++	blockSize = 4096	// TODO(r): use statfs
++)
++
++func clen(n []byte) int {
++	for i := 0; i < len(n); i++ {
++		if n[i] == 0 {
++			return i
++		}
++	}
++	return len(n)
++}
++
++func (file *File) Readdirnames(count int) (names []string, err Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = new(dirInfo);
++		// The buffer must be at least a block long.
++		// TODO(r): use fstatfs to find fs block size.
++		file.dirinfo.buf = make([]byte, blockSize);
++	}
++	d := file.dirinfo;
++	size := count;
++	if size < 0 {
++		size = 100
++	}
++	names = make([]string, 0, size);	// Empty with room to grow.
++	for count != 0 {
++		// Refill the buffer if necessary
++		if d.bufp >= d.nbuf {
++			var errno int;
++			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
++			if errno != 0 {
++				return names, NewSyscallError("getdents", errno)
++			}
++			if d.nbuf <= 0 {
++				break	// EOF
++			}
++			d.bufp = 0;
++		}
++		// Drain the buffer
++		for count != 0 && d.bufp < d.nbuf {
++			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
++			d.bufp += int(dirent.Reclen);
++			if dirent.Ino == 0 {	// File absent in directory.
++				continue
++			}
++			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
++			var name = string(bytes[0:clen(bytes)]);
++			if name == "." || name == ".." {	// Useless names
++				continue
++			}
++			count--;
++			if len(names) == cap(names) {
++				nnames := make([]string, len(names), 2*len(names));
++				for i := 0; i < len(names); i++ {
++					nnames[i] = names[i]
++				}
++				names = nnames;
++			}
++			names = names[0:len(names)+1];
++			names[len(names)-1] = name;
++		}
++	}
++	return names, nil;
++}
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 531de8cc8f..5430a4b301 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -46,7 +46,6 @@ var (
+ 	ENOMEM Error = Errno(syscall.ENOMEM);
+ 	EACCES Error = Errno(syscall.EACCES);
+ 	EFAULT Error = Errno(syscall.EFAULT);
+-	ENOTBLK Error = Errno(syscall.ENOTBLK);
+ 	EBUSY Error = Errno(syscall.EBUSY);
+ 	EEXIST Error = Errno(syscall.EEXIST);
+ 	EXDEV Error = Errno(syscall.EXDEV);
+@@ -57,7 +56,6 @@ var (
+ 	ENFILE Error = Errno(syscall.ENFILE);
+ 	EMFILE Error = Errno(syscall.EMFILE);
+ 	ENOTTY Error = Errno(syscall.ENOTTY);
+-	ETXTBSY Error = Errno(syscall.ETXTBSY);
+ 	EFBIG Error = Errno(syscall.EFBIG);
+ 	ENOSPC Error = Errno(syscall.ENOSPC);
+ 	ESPIPE Error = Errno(syscall.ESPIPE);
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index d183e0a16c..c80ef43cb6 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -148,12 +148,10 @@ func (w Waitmsg) String() string {
+ 
+ // Getpid returns the process id of the caller.
+ func Getpid() int {
+-	p, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
+-	return int(p)
++	return syscall.Getpid();
+ }
+ 
+ // Getppid returns the process id of the caller's parent.
+ func Getppid() int {
+-	p, _, _ := syscall.Syscall(syscall.SYS_GETPPID, 0, 0, 0);
+-	return int(p)
++	return syscall.Getppid();
+ }
+diff --git a/src/pkg/os/stat_nacl_386.go b/src/pkg/os/stat_nacl_386.go
+new file mode 100644
+index 0000000000..83b0d6c38c
+--- /dev/null
++++ b/src/pkg/os/stat_nacl_386.go
+@@ -0,0 +1,44 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Once the porting dust settles, consider
++// whether this file should be stat_nacl.go (and similarly
++// stat_linux.go, stat_darwin.go) instead of having one copy per architecture.
++
++// 386, Native Client
++
++package os
++
++import "syscall"
++
++func isSymlink(stat *syscall.Stat_t) bool {
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
++	dir.Dev = uint64(stat.Dev);
++	dir.Ino = uint64(stat.Ino);
++	dir.Nlink = uint64(stat.Nlink);
++	dir.Mode = stat.Mode;
++	dir.Uid = stat.Uid;
++	dir.Gid = stat.Gid;
++	dir.Rdev = uint64(stat.Rdev);
++	dir.Size = uint64(stat.Size);
++	dir.Blksize = uint64(stat.Blksize);
++	dir.Blocks = uint64(stat.Blocks);
++	dir.Atime_ns = uint64(stat.Atime)*1e9;
++	dir.Mtime_ns = uint64(stat.Mtime)*1e9;
++	dir.Ctime_ns = uint64(stat.Ctime)*1e9;
++	for i := len(name) - 1; i >= 0; i-- {
++		if name[i] == '/' {
++			name = name[i+1:len(name)];
++			break;
++		}
++	}
++	dir.Name = name;
++	if isSymlink(lstat) && !isSymlink(stat) {
++		dir.FollowedSymlink = true;
++	}
++	return dir;
++}
+diff --git a/src/pkg/os/sys_nacl.go b/src/pkg/os/sys_nacl.go
+new file mode 100644
+index 0000000000..0bea280959
+--- /dev/null
++++ b/src/pkg/os/sys_nacl.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++func Hostname() (name string, err Error) {
++	return "nacl", nil;
++}
+diff --git a/src/pkg/syscall/PORT.sh b/src/pkg/syscall/PORT.sh
+index 3e165f87ba..acc0760b9f 100755
+--- a/src/pkg/syscall/PORT.sh
++++ b/src/pkg/syscall/PORT.sh
+@@ -103,6 +103,15 @@ linux_amd64)
+ 	mksysnum="mksysnum_linux.sh /usr/include/asm/unistd_64.h"
+ 	mktypes="godefs -gsyscall -f-m64"
+ 	;;
++nacl_386)
++	NACL="/home/rsc/pub/nacl/native_client"
++	NACLRUN="$NACL/src/trusted/service_runtime"
++	NACLSDK="$NACL/src/third_party/nacl_sdk/linux/sdk/nacl-sdk/nacl"
++	mksyscall="mksyscall.sh -l32"
++	mksysnum="mksysnum_nacl.sh $NACLRUN/include/bits/nacl_syscalls.h"
++	mktypes="godefs -gsyscall -f-m32 -f-I$NACLSDK/include -f-I$NACL"
++	mkerrors="mkerrors_nacl.sh $NACLRUN/include/sys/errno.h"
++	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+ 	exit 1
+diff --git a/src/pkg/syscall/asm_nacl_386.s b/src/pkg/syscall/asm_nacl_386.s
+new file mode 100644
+index 0000000000..0e993ef300
+--- /dev/null
++++ b/src/pkg/syscall/asm_nacl_386.s
+@@ -0,0 +1,120 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for 386, Native Client
++//
++
++#define SYSCALL(x)	$(0x10000+x * 32)
++
++// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
++// Trap # in AX, args in BX CX DX SI DI, return in AX
++
++TEXT	syscall·Syscall(SB),7,$20
++	CALL	sys·entersyscall(SB)
++	MOVL	trap+0(FP), AX	// syscall entry
++	MOVL	a1+4(FP), BX
++	MOVL	a2+8(FP), CX
++	MOVL	a3+12(FP), DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)
++	MOVL	DI, 16(SP)
++
++	// Call $(0x10000+32*AX)
++	SHLL	$5, AX
++	ADDL	$0x10000, AX
++	CALL	AX
++
++	CMPL	AX, $0xfffff001
++	JLS	ok
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$0, 24(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 28(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++// func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
++// Actually Syscall5 but the rest of the code expects it to be named Syscall6.
++TEXT	syscall·Syscall6(SB),7,$20
++	CALL	sys·entersyscall(SB)
++	MOVL	trap+0(FP), AX	// syscall entry
++	MOVL	a1+4(FP), BX
++	MOVL	a2+8(FP), CX
++	MOVL	a3+12(FP), DX
++	MOVL	a4+16(FP), SI
++	MOVL	a5+20(FP), DI
++	// a6+24(FP) is ignored
++
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)
++	MOVL	DI, 16(SP)
++
++	// Call $(0x10000+32*AX)
++	SHLL	$5, AX
++	ADDL	$0x10000, AX
++	CALL	AX
++
++	CMPL	AX, $0xfffff001
++	JLS	ok6
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$0, 36(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 40(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok6:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
++TEXT syscall·RawSyscall(SB),7,$0
++TEXT	syscall·Syscall(SB),7,$20
++	MOVL	trap+0(FP), AX	// syscall entry
++	MOVL	a1+4(FP), BX
++	MOVL	a2+8(FP), CX
++	MOVL	a3+12(FP), DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)
++	MOVL	DI, 16(SP)
++
++	// Call $(0x10000+32*AX)
++	SHLL	$5, AX
++	ADDL	$0x10000, AX
++	CALL	AX
++
++	CMPL	AX, $0xfffff001
++	JLS	ok1
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$0, 24(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 28(SP)  // errno
++	RET
++ok1:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	RET
++
+diff --git a/src/pkg/syscall/mkerrors_nacl.sh b/src/pkg/syscall/mkerrors_nacl.sh
+new file mode 100755
+index 0000000000..f8abff9c27
+--- /dev/null
++++ b/src/pkg/syscall/mkerrors_nacl.sh
+@@ -0,0 +1,41 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Generate Go code listing error values (ENAMETOOLONG etc)
++# for Native Client.
++
++echo '// mkerrors_nacl.sh' "$@"
++echo '// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT'
++echo
++echo 'package syscall'
++echo
++echo 'const ('
++perl -n -e '
++	if(/#define\s+NACL_ABI_(\S*)\s+([0-9]+)/) {
++		print "\t$1 = $2;\n"
++	}
++' $1
++echo '	ENACL = 99;	/* otherwise unused */'
++echo ')'
++echo
++echo
++echo '// Error table'
++echo 'var errors = [...]string {'
++perl -n -e '
++	if(/#define\s+NACL_ABI_(\S*)\s+([0-9]+)\s+\/\* (.*) \*\//) {
++		$err = $1;
++		$text = $3;
++		if($text =~ /^[A-Z][a-z]/) {
++			# lowercase first letter: Bad -> bad, but STREAM -> STREAM.
++			$l = substr($text, 0, 1);
++			$rest = substr($text, 1);
++			$l =~ y/A-Z/a-z/;
++			$text = $l . $rest;
++		}
++		print "\t$err: \"$text\",\n";
++	}
++' $1
++echo '	ENACL: "not supported by native client",'
++echo '}'
+diff --git a/src/pkg/syscall/mksysnum_nacl.sh b/src/pkg/syscall/mksysnum_nacl.sh
+new file mode 100644
+index 0000000000..f42f450560
+--- /dev/null
++++ b/src/pkg/syscall/mksysnum_nacl.sh
+@@ -0,0 +1,29 @@
++#!/usr/bin/perl
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++my $command = "mksysnum_nacl.sh ". join(' ', @ARGV);
++
++print <<EOF;
++// $command
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const(
++EOF
++
++while(<>){
++	if(/^#define NACL_sys_(\w+)\s+([0-9]+)/){
++		my $name = "SYS_$1";
++		my $num = $2;
++		$name =~ y/a-z/A-Z/;
++		print "	$name = $num;\n";
++	}
++}
++
++print <<EOF;
++)
++
++EOF
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+new file mode 100644
+index 0000000000..4466f028a1
+--- /dev/null
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -0,0 +1,329 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Native Client system calls.
++
++package syscall
++
++const OS = "nacl"
++
++// Auto-generated
++
++//sys	Chmod(path string, mode int) (errno int)
++//sys	Clock() (clock int)
++//sys	Close(fd int) (errno int)
++//sys	Exit(code int)
++//sys	Fstat(fd int, stat *Stat_t) (errno int)
++//sys	Getdents(fd int, buf []byte) (n int, errno int)
++//sys	Getpid() (pid int)
++//sys	Gettimeofday(tv *Timeval) (errno int)
++//sys	Open(path string, mode int, perm int) (fd int, errno int)
++//sys	Read(fd int, p []byte) (n int, errno int)
++//sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
++//sys	Stat(path string, stat *Stat_t) (errno int)
++//sys	Write(fd int, p []byte) (n int, errno int)
++
++// Hand-written
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	// Offset passed to system call is 32 bits.  Failure of vision by NaCl.
++	if int64(int32(offset)) != offset {
++		return 0, ERANGE
++	}
++	o, _, e := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
++	return int64(o), int(e);
++}
++
++// Implemented in NaCl but not here:
++//	SYS_IOCTL
++//	SYS_SYSBRK
++//	SYS_MMAP
++//	SYS_MUNMAP
++//	SYS_MULTIMEDIA_*
++//	SYS_VIDEO_*
++//	SYS_AUDIO_*
++//	SYS_IMC_*
++//	SYS_MUTEX_*
++//	SYS_COND_*
++//	SYS_THREAD_*
++//	SYS_TLS_*
++//	SYS_SRPC_*
++//	SYS_SEM_*
++//	SYS_SCHED_YIELD
++//	SYS_SYSCONF
++
++// Not implemented in NaCl but needed to compile other packages.
++
++const (
++	SIGTRAP = 5;
++)
++
++func Pipe(p []int) (errno int) {
++	return ENACL;
++}
++
++func fcntl(fd, cmd, arg int) (val int, errno int) {
++	return 0, ENACL;
++}
++
++func Pread(fd int, p []byte, offset int64) (n int, errno int) {
++	return 0, ENACL;
++}
++
++func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
++	return 0, ENACL;
++}
++
++func Mkdir(path string, mode int) (errno int) {
++	return ENACL;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	return ENACL;
++}
++
++func Chdir(path string) (errno int) {
++	return ENACL;
++}
++
++func Fchdir(fd int) (errno int) {
++	return ENACL;
++}
++
++func Unlink(path string) (errno int) {
++	return ENACL;
++}
++
++func Rmdir(path string) (errno int) {
++	return ENACL;
++}
++
++func Link(oldpath, newpath string) (errno int) {
++	return ENACL;
++}
++
++func Symlink(path, link string) (errno int) {
++	return ENACL;
++}
++
++func Readlink(path string, buf []byte) (n int, errno int) {
++	return 0, ENACL;
++}
++
++func Fchmod(fd int, mode int) (errno int) {
++	return ENACL;
++}
++
++func Chown(path string, uid int, gid int) (errno int) {
++	return ENACL;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	return ENACL;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	return ENACL;
++}
++
++func Truncate(name string, size int64) (errno int) {
++	return ENACL;
++}
++
++func Ftruncate(fd int, length int64) (errno int) {
++	return ENACL;
++}
++
++// TODO(rsc): There must be a way to sleep, perhaps
++// via the multimedia system calls.
++
++func Sleep(ns int64) (errno int) {
++	return ENACL;
++}
++
++// NaCL doesn't actually implement Getwd, but it also
++// don't implement Chdir, so the fallback algorithm
++// fails worse than calling Getwd does.
++
++const ImplementsGetwd = true;
++
++func Getwd() (wd string, errno int) {
++	return "", ENACL;
++}
++
++func Getuid() (uid int) {
++	return -1
++}
++
++func Geteuid() (euid int) {
++	return -1
++}
++
++func Getgid() (gid int) {
++	return -1
++}
++
++func Getegid() (egid int) {
++	return -1
++}
++
++func Getppid() (ppid int) {
++	return -1
++}
++
++func Getgroups() (gids []int, errno int) {
++	return nil, ENACL
++}
++
++type Sockaddr interface {
++	sockaddr()
++}
++
++type SockaddrInet4 struct {
++	Port int;
++	Addr [4]byte;
++}
++
++func (*SockaddrInet4) sockaddr() {
++}
++
++type SockaddrInet6 struct {
++	Port int;
++	Addr [16]byte;
++}
++
++func (*SockaddrInet6) sockaddr() {
++}
++
++type SockaddrUnix struct {
++	Name string;
++}
++
++func (*SockaddrUnix) sockaddr() {
++}
++
++const (
++	AF_INET = 1+iota;
++	AF_INET6;
++	AF_UNIX;
++	IPPROTO_TCP;
++	SOCK_DGRAM;
++	SOCK_STREAM;
++	SOL_SOCKET;
++	SOMAXCONN;
++	SO_DONTROUTE;
++	SO_KEEPALIVE;
++	SO_LINGER;
++	SO_RCVBUF;
++	SO_REUSEADDR;
++	SO_SNDBUF;
++	TCP_NODELAY;
++	_PTRACE_TRACEME;
++)
++
++func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
++	return 0, nil, ENACL;
++}
++
++func Getsockname(fd int) (sa Sockaddr, errno int) {
++	return nil, ENACL;
++}
++
++func Getpeername(fd int) (sa Sockaddr, errno int) {
++	return nil, ENACL;
++}
++
++func Bind(fd int, sa Sockaddr) (errno int) {
++	return ENACL;
++}
++
++func Connect(fd int, sa Sockaddr) (errno int) {
++	return ENACL;
++}
++
++func Socket(domain, typ, proto int) (fd, errno int) {
++	return 0, ENACL;
++}
++
++func SetsockoptInt(fd, level, opt int, value int) (errno int) {
++	return ENACL;
++}
++
++func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
++	return ENACL;
++}
++
++type Linger struct {
++	Onoff int32;
++	Linger int32;
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
++	return ENACL;
++}
++
++func Listen(s int, n int) (errno int) {
++	return ENACL;
++}
++
++type Rusage struct {
++	Utime Timeval;
++	Stime Timeval;
++	Maxrss int32;
++	Ixrss int32;
++	Idrss int32;
++	Isrss int32;
++	Minflt int32;
++	Majflt int32;
++	Nswap int32;
++	Inblock int32;
++	Oublock int32;
++	Msgsnd int32;
++	Msgrcv int32;
++	Nsignals int32;
++	Nvcsw int32;
++	Nivcsw int32;
++}
++
++func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
++	return 0, ENACL;
++}
++
++type WaitStatus uint32
++
++func (WaitStatus) Exited() bool {
++	return false
++}
++
++func (WaitStatus) ExitStatus() int {
++	return -1
++}
++
++func (WaitStatus) Signal() int {
++	return -1
++}
++
++func (WaitStatus) CoreDump() bool {
++	return false
++}
++
++func (WaitStatus) Stopped() bool {
++	return false
++}
++
++func (WaitStatus) Continued() bool {
++	return false
++}
++
++func (WaitStatus) StopSignal() int {
++	return -1
++}
++
++func (WaitStatus) Signaled() bool {
++	return false
++}
++
++func (WaitStatus) TrapCause() int {
++	return -1
++}
+diff --git a/src/pkg/syscall/syscall_nacl_386.go b/src/pkg/syscall/syscall_nacl_386.go
+new file mode 100644
+index 0000000000..e0a7acb6ca
+--- /dev/null
++++ b/src/pkg/syscall/syscall_nacl_386.go
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Getpagesize() int {
++	return 4096
++}
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	tv.Sec = int32(nsec/1e9);
++	tv.Usec = int32(nsec%1e9);
++	return;
++}
+diff --git a/src/pkg/syscall/types_nacl.c b/src/pkg/syscall/types_nacl.c
+new file mode 100644
+index 0000000000..f594061a2f
+--- /dev/null
++++ b/src/pkg/syscall/types_nacl.c
+@@ -0,0 +1,115 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Input to godefs.  See PORT.sh
++ */
++
++#define _LARGEFILE_SOURCE
++#define _LARGEFILE64_SOURCE
++#define _FILE_OFFSET_BITS 64
++#define _GNU_SOURCE
++
++#define __native_client__ 1
++
++#define suseconds_t nacl_suseconds_t_1
++#include <sys/types.h>
++#undef suseconds_t
++
++#include <sys/dirent.h>
++#include <sys/mman.h>
++#include <sys/fcntl.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include <sys/unistd.h>
++
++// Machine characteristics; for internal use.
++
++enum
++{
++	$sizeofPtr = sizeof(void*),
++	$sizeofShort = sizeof(short),
++	$sizeofInt = sizeof(int),
++	$sizeofLong = sizeof(long),
++	$sizeofLongLong = sizeof(long long),
++};
++
++
++// Unimplemented system calls
++enum {
++	$SYS_FORK = 0,
++	$SYS_PTRACE = 0,
++	$SYS_CHDIR = 0,
++	$SYS_DUP2 = 0,
++	$SYS_FCNTL = 0,
++	$SYS_EXECVE = 0
++};
++
++// Basic types
++
++typedef short $_C_short;
++typedef int $_C_int;
++typedef long $_C_long;
++typedef long long $_C_long_long;
++typedef off_t $_C_off_t;
++
++// Time
++
++typedef struct timespec $Timespec;
++typedef struct timeval $Timeval;
++typedef time_t $Time_t;
++
++// Processes
++
++//typedef struct rusage $Rusage;
++//typedef struct rlimit $Rlimit;
++
++typedef gid_t $_Gid_t;
++
++// Files
++
++enum
++{
++	$O_RDONLY = O_RDONLY,
++	$O_WRONLY = O_WRONLY,
++	$O_RDWR = O_RDWR,
++	$O_APPEND = O_APPEND,
++	$O_ASYNC = O_ASYNC,
++	$O_CREAT = O_CREAT,
++	$O_NOCTTY = 0,	// not supported
++	$O_NONBLOCK = O_NONBLOCK,
++	$O_SYNC = O_SYNC,
++	$O_TRUNC = O_TRUNC,
++	$O_CLOEXEC = 0,	// not supported
++
++	$F_GETFD = F_GETFD,
++	$F_SETFD = F_SETFD,
++
++	$F_GETFL = F_GETFL,
++	$F_SETFL = F_SETFL,
++
++	$FD_CLOEXEC = 0,	// not supported
++};
++
++enum
++{	// Directory mode bits
++	$S_IFMT = S_IFMT,
++	$S_IFIFO = S_IFIFO,
++	$S_IFCHR = S_IFCHR,
++	$S_IFDIR = S_IFDIR,
++	$S_IFBLK = S_IFBLK,
++	$S_IFREG = S_IFREG,
++	$S_IFLNK = S_IFLNK,
++	$S_IFSOCK = S_IFSOCK,
++	$S_ISUID = S_ISUID,
++	$S_ISGID = S_ISGID,
++	$S_ISVTX = S_ISVTX,
++	$S_IRUSR = S_IRUSR,
++	$S_IWUSR = S_IWUSR,
++	$S_IXUSR = S_IXUSR,
++};
++
++typedef struct stat $Stat_t;
++
++typedef struct dirent $Dirent;

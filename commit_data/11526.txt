@@ -15,6 +15,19 @@ Date:   Tue Jan 31 18:38:33 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5611043
-
+---
  src/pkg/fmt/scan.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 281525112e..36c6aebad0 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -366,6 +366,7 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+ 	s.fieldLimit = hugeWid
+ 	s.maxWid = hugeWid
+ 	s.validSave = true
++	s.count = 0
+ 	return
+ }
+ 

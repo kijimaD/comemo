@@ -12,7 +12,42 @@ Date:   Mon Oct 30 23:14:21 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/whitelist/all.txt | 3 ---
  src/fmt/fmt_test.go               | 4 +++-
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 5467db9880..98415ef056 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -13,9 +13,6 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ 
+ // False positives.
+ 
+-// Test of how fmt handles nil.
+-fmt/fmt_test.go: arg nil for printf verb %s of wrong type: untyped nil
+-
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 0e09f16dbf..08e46b4e93 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1733,12 +1733,14 @@ func TestIsSpace(t *testing.T) {
+ 	}
+ }
+ 
++func hideFromVet(s string) string { return s }
++
+ func TestNilDoesNotBecomeTyped(t *testing.T) {
+ 	type A struct{}
+ 	type B struct{}
+ 	var a *A = nil
+ 	var b B = B{}
+-	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil) // go vet should complain about this line.
++	got := Sprintf(hideFromVet("%s %s %s %s %s"), nil, a, nil, b, nil)
+ 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
+ 	if got != expect {
+ 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)

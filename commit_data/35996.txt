@@ -16,10 +16,618 @@ Date:   Sat Mar 10 15:39:02 2018 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  84 ++++++++++--
  src/cmd/internal/obj/arm64/a.out.go       |   7 +-
  src/cmd/internal/obj/arm64/anames.go      |   3 +
  src/cmd/internal/obj/arm64/anames7.go     |   2 +
  src/cmd/internal/obj/arm64/asm7.go        | 215 ++++++++++++++++++------------
  5 files changed, 219 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 570efd83d2..65ebdb9417 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -458,18 +458,86 @@ again:
+ 	CALL	foo(SB)
+ 
+ // LDP/STP
+-	LDP	(R0), (R1, R2)
+-	LDP	8(R0), (R1, R2)
+-	LDP.W	8(R0), (R1, R2)
+-	LDP.P	8(R0), (R1, R2)
++	LDP	(R0), (R1, R2)      // 010840a9
++	LDP	8(R0), (R1, R2)     // 018840a9
++	LDP	-8(R0), (R1, R2)    // 01887fa9
++	LDP	11(R0), (R1, R2)    // 1b2c0091610b40a9
++	LDP	1024(R0), (R1, R2)  // 1b001091610b40a9
++	LDP.W	8(R0), (R1, R2)     // 0188c0a9
++	LDP.P	8(R0), (R1, R2)     // 0188c0a8
++	LDP	(RSP), (R1, R2)     // e10b40a9
++	LDP	8(RSP), (R1, R2)    // e18b40a9
++	LDP	-8(RSP), (R1, R2)   // e18b7fa9
++	LDP	11(RSP), (R1, R2)   // fb2f0091610b40a9
++	LDP	1024(RSP), (R1, R2) // fb031091610b40a9
++	LDP.W	8(RSP), (R1, R2)    // e18bc0a9
++	LDP.P	8(RSP), (R1, R2)    // e18bc0a8
+ 	LDP	x(SB), (R1, R2)
+ 	LDP	x+8(SB), (R1, R2)
+-	STP	(R3, R4), (R5)
+-	STP	(R3, R4), 8(R5)
+-	STP.W	(R3, R4), 8(R5)
+-	STP.P	(R3, R4), 8(R5)
++	LDPW	(R0), (R1, R2)      // 01084029
++	LDPW	4(R0), (R1, R2)     // 01884029
++	LDPW	-4(R0), (R1, R2)    // 01887f29
++	LDPW.W	4(R0), (R1, R2)     // 0188c029
++	LDPW.P	4(R0), (R1, R2)     // 0188c028
++	LDPW	11(R0), (R1, R2)    // 1b2c0091610b4029
++	LDPW	1024(R0), (R1, R2)  // 1b001091610b4029
++	LDPW	(RSP), (R1, R2)     // e10b4029
++	LDPW	4(RSP), (R1, R2)    // e18b4029
++	LDPW	-4(RSP), (R1, R2)   // e18b7f29
++	LDPW.W	4(RSP), (R1, R2)    // e18bc029
++	LDPW.P	4(RSP), (R1, R2)    // e18bc028
++	LDPW	11(RSP), (R1, R2)   // fb2f0091610b4029
++	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
++	LDPW	x(SB), (R1, R2)
++	LDPW	x+8(SB), (R1, R2)
++	LDPSW	(R0), (R1, R2)      // 01084069
++	LDPSW	4(R0), (R1, R2)     // 01884069
++	LDPSW	-4(R0), (R1, R2)    // 01887f69
++	LDPSW.W	4(R0), (R1, R2)     // 0188c069
++	LDPSW.P	4(R0), (R1, R2)     // 0188c068
++	LDPSW	11(R0), (R1, R2)    // 1b2c0091610b4069
++	LDPSW	1024(R0), (R1, R2)  // 1b001091610b4069
++	LDPSW	(RSP), (R1, R2)     // e10b4069
++	LDPSW	4(RSP), (R1, R2)    // e18b4069
++	LDPSW	-4(RSP), (R1, R2)   // e18b7f69
++	LDPSW.W	4(RSP), (R1, R2)    // e18bc069
++	LDPSW.P	4(RSP), (R1, R2)    // e18bc068
++	LDPSW	11(RSP), (R1, R2)   // fb2f0091610b4069
++	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
++	LDPSW	x(SB), (R1, R2)
++	LDPSW	x+8(SB), (R1, R2)
++	STP	(R3, R4), (R5)      // a31000a9
++	STP	(R3, R4), 8(R5)     // a39000a9
++	STP.W	(R3, R4), 8(R5)     // a39080a9
++	STP.P	(R3, R4), 8(R5)     // a39080a8
++	STP	(R3, R4), -8(R5)    // a3903fa9
++	STP	(R3, R4), 11(R0)    // 1b2c0091631300a9
++	STP	(R3, R4), 1024(R0)  // 1b001091631300a9
++	STP	(R3, R4), (RSP)     // e31300a9
++	STP	(R3, R4), 8(RSP)    // e39300a9
++	STP.W	(R3, R4), 8(RSP)    // e39380a9
++	STP.P	(R3, R4), 8(RSP)    // e39380a8
++	STP	(R3, R4), -8(RSP)   // e3933fa9
++	STP	(R3, R4), 11(RSP)   // fb2f0091631300a9
++	STP	(R3, R4), 1024(RSP) // fb031091631300a9
+ 	STP	(R3, R4), x(SB)
+ 	STP	(R3, R4), x+8(SB)
++	STPW	(R3, R4), (R5)      // a3100029
++	STPW	(R3, R4), 4(R5)     // a3900029
++	STPW.W	(R3, R4), 4(R5)     // a3908029
++	STPW.P	(R3, R4), 4(R5)     // a3908028
++	STPW	(R3, R4), -4(R5)    // a3903f29
++	STPW	(R3, R4), 11(R0)    // 1b2c009163130029
++	STPW	(R3, R4), 1024(R0)  // 1b00109163130029
++	STPW	(R3, R4), (RSP)     // e3130029
++	STPW	(R3, R4), 4(RSP)    // e3930029
++	STPW.W	(R3, R4), 4(RSP)    // e3938029
++	STPW.P	(R3, R4), 4(RSP)    // e3938028
++	STPW	(R3, R4), -4(RSP)   // e3933f29
++	STPW	(R3, R4), 11(RSP)   // fb2f009163130029
++	STPW	(R3, R4), 1024(RSP) // fb03109163130029
++	STPW	(R3, R4), x(SB)
++	STPW	(R3, R4), x+8(SB)
+ 
+ // END
+ //
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 1a2313f61e..5a6c4dc5f1 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -425,6 +425,7 @@ const (
+ 	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+ 	C_NSAUTO     // -256 <= x < 0
+ 	C_PSAUTO_8   // 0 to 255, 0 mod 8
++	C_PSAUTO_4   // 0 to 255, 0 mod 4
+ 	C_PSAUTO     // 0 to 255
+ 	C_PPAUTO     // 0 to 504, 0 mod 8
+ 	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
+@@ -450,6 +451,7 @@ const (
+ 	C_NPOREG // must mirror NPAUTO, etc
+ 	C_NSOREG
+ 	C_PSOREG_8
++	C_PSOREG_4
+ 	C_PSOREG
+ 	C_PPOREG
+ 	C_UOREG4K_8
+@@ -594,6 +596,8 @@ const (
+ 	ALDAXRH
+ 	ALDAXRW
+ 	ALDP
++	ALDPW
++	ALDPSW
+ 	ALDXR
+ 	ALDXRB
+ 	ALDXRH
+@@ -686,6 +690,7 @@ const (
+ 	ASTLXRH
+ 	ASTLXRW
+ 	ASTP
++	ASTPW
+ 	ASUB
+ 	ASUBS
+ 	ASUBSW
+@@ -899,4 +904,4 @@ const (
+ 	ARNG_H
+ 	ARNG_S
+ 	ARNG_D
+-)
++)
+\ No newline at end of file
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index c369b66198..77cd27c212 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -107,6 +107,8 @@ var Anames = []string{
+ 	"LDAXRH",
+ 	"LDAXRW",
+ 	"LDP",
++	"LDPW",
++	"LDPSW",
+ 	"LDXR",
+ 	"LDXRB",
+ 	"LDXRH",
+@@ -199,6 +201,7 @@ var Anames = []string{
+ 	"STLXRH",
+ 	"STLXRW",
+ 	"STP",
++	"STPW",
+ 	"SUB",
+ 	"SUBS",
+ 	"SUBSW",
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index cb4b13934d..ef4f30c2d7 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -39,6 +39,7 @@ var cnames7 = []string{
+ 	"NPAUTO",
+ 	"NSAUTO",
+ 	"PSAUTO_8",
++	"PSAUTO_4",
+ 	"PSAUTO",
+ 	"PPAUTO",
+ 	"UAUTO4K_8",
+@@ -62,6 +63,7 @@ var cnames7 = []string{
+ 	"NPOREG",
+ 	"NSOREG",
+ 	"PSOREG_8",
++	"PSOREG_4",
+ 	"PSOREG",
+ 	"PPOREG",
+ 	"UOREG4K_8",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 22fd4d61bd..baf0df0408 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -499,6 +499,59 @@ var optab = []Optab{
+ 	{ASTP, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
+ 	{ASTP, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
+ 
++	// differ from LDP/STP for C_NSAUTO_4/C_PSAUTO_4/C_NSOREG_4/C_PSOREG_4
++	{ALDPW, C_NSAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
++	{ALDPW, C_NSAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
++	{ALDPW, C_NSAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
++	{ALDPW, C_PSAUTO_4, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
++	{ALDPW, C_PSAUTO_4, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
++	{ALDPW, C_PSAUTO_4, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
++	{ALDPW, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
++	{ALDPW, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPRE},
++	{ALDPW, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPOST},
++	{ALDPW, C_LAUTO, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
++	{ALDPW, C_LAUTO, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, C_XPRE},
++	{ALDPW, C_LAUTO, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, C_XPOST},
++	{ALDPW, C_NSOREG, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
++	{ALDPW, C_NSOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
++	{ALDPW, C_NSOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
++	{ALDPW, C_PSOREG_4, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
++	{ALDPW, C_PSOREG_4, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
++	{ALDPW, C_PSOREG_4, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
++	{ALDPW, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, 0},
++	{ALDPW, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPRE},
++	{ALDPW, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPOST},
++	{ALDPW, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, 0},
++	{ALDPW, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPRE},
++	{ALDPW, C_LOREG, C_NONE, C_PAIR, 75, 12, 0, LFROM, C_XPOST},
++	{ALDPW, C_ADDR, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
++
++	{ASTPW, C_PAIR, C_NONE, C_NSAUTO, 67, 4, REGSP, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_NSAUTO, 67, 4, REGSP, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_NSAUTO, 67, 4, REGSP, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
++	{ASTPW, C_PAIR, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_NSOREG, 67, 4, 0, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_NSOREG, 67, 4, 0, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_NSOREG, 67, 4, 0, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_PSOREG_4, 67, 4, 0, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_PSOREG_4, 67, 4, 0, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_PSOREG_4, 67, 4, 0, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, 0},
++	{ASTPW, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, 0},
++	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPRE},
++	{ASTPW, C_PAIR, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
++	{ASTPW, C_PAIR, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
++
+ 	/* special */
+ 	{AMOVD, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+ 	{AMRS, C_SPR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+@@ -893,6 +946,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 
+ 	case C_PSAUTO,
+ 		C_PSAUTO_8,
++		C_PSAUTO_4,
+ 		C_PPAUTO,
+ 		C_UAUTO4K_8,
+ 		C_UAUTO4K_4,
+@@ -909,6 +963,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 		C_LAUTO,
+ 		C_PPOREG,
+ 		C_PSOREG,
++		C_PSOREG_4,
+ 		C_PSOREG_8,
+ 		C_UOREG4K_8,
+ 		C_UOREG4K_4,
+@@ -1133,6 +1188,9 @@ func autoclass(l int64) int {
+ 		if (l & 7) == 0 {
+ 			return C_PSAUTO_8
+ 		}
++		if (l & 3) == 0 {
++			return C_PSAUTO_4
++		}
+ 		return C_PSAUTO
+ 	}
+ 	if l <= 504 && l&7 == 0 {
+@@ -1545,11 +1603,16 @@ func cmp(a int, b int) bool {
+ 			return true
+ 		}
+ 
+-	case C_PSAUTO:
++	case C_PSAUTO_4:
+ 		if b == C_PSAUTO_8 {
+ 			return true
+ 		}
+ 
++	case C_PSAUTO:
++		if b == C_PSAUTO_8 || b == C_PSAUTO_4 {
++			return true
++		}
++
+ 	case C_PPAUTO:
+ 		if b == C_PSAUTO_8 {
+ 			return true
+@@ -1557,25 +1620,25 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_UAUTO4K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
++		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO8K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
++		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO16K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
++		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO32K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
++		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
+ 			return true
+ 		}
+ 
+@@ -1584,7 +1647,7 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_LAUTO:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO,
++		case C_PSAUTO, C_PSAUTO_4, C_PSAUTO_8, C_PPAUTO,
+ 			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
+ 			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
+ 			C_UAUTO16K, C_UAUTO16K_8,
+@@ -1593,8 +1656,15 @@ func cmp(a int, b int) bool {
+ 		}
+ 		return cmp(C_NPAUTO, b)
+ 
++	case C_PSOREG_4:
++		switch b {
++		case  C_ZOREG, C_PSOREG_8:
++			return true
++		}
++
+ 	case C_PSOREG:
+-		if b == C_ZOREG || b == C_PSOREG_8 {
++		switch b {
++		case  C_ZOREG, C_PSOREG_8, C_PSOREG_4:
+ 			return true
+ 		}
+ 
+@@ -1606,25 +1676,25 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_UOREG4K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
++		case C_ZOREG, C_PSOREG_4, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG8K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
++		case C_ZOREG, C_PSOREG_4, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG16K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
++		case C_ZOREG, C_PSOREG_4, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG32K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
++		case C_ZOREG, C_PSOREG_4, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
+ 			return true
+ 		}
+ 
+@@ -1633,7 +1703,7 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_LOREG:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG,
++		case C_ZOREG, C_PSOREG_4, C_PSOREG_8, C_PSOREG, C_PPOREG,
+ 			C_UOREG4K, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8,
+ 			C_UOREG8K, C_UOREG8K_4, C_UOREG8K_8,
+ 			C_UOREG16K, C_UOREG16K_8,
+@@ -1945,9 +2015,13 @@ func buildop(ctxt *obj.Link) {
+ 			obj.ARET,
+ 			obj.ATEXT,
+ 			ASTP,
++			ASTPW,
+ 			ALDP:
+ 			break
+ 
++		case ALDPW:
++			oprangeset(ALDPSW, t)
++
+ 		case AERET:
+ 			oprangeset(AWFE, t)
+ 			oprangeset(AWFI, t)
+@@ -3275,19 +3349,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid ldp source: %v\n", p)
+ 		}
+-
+-		if v < -512 || v > 504 || v%8 != 0 {
+-			c.ctxt.Diag("invalid offset %v\n", p)
+-		}
+-		if o.scond == C_XPOST {
+-			o1 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o1 |= 3 << 23
+-		} else {
+-			o1 |= 2 << 23
+-		}
+-		o1 |= 1 << 22
+-		o1 |= uint32(int64(2<<30|5<<27|((uint32(v)/8)&0x7f)<<15) | (p.To.Offset&31)<<10 | int64(uint32(r&31)<<5) | int64(p.To.Reg&31))
++		o1 |= c.opldpstp(p, o, v, uint32(r), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+ 
+ 	case 67: /* stp (r1, r2), O(R)!; stp (r1, r2), (R)O! */
+ 		r := int(p.To.Reg)
+@@ -3297,20 +3359,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid stp destination: %v\n", p)
+ 		}
+-
+ 		v := int32(c.regoff(&p.To))
+-		if v < -512 || v > 504 || v%8 != 0 {
+-			c.ctxt.Diag("invalid offset %v\n", p)
+-		}
+-
+-		if o.scond == C_XPOST {
+-			o1 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o1 |= 3 << 23
+-		} else {
+-			o1 |= 2 << 23
+-		}
+-		o1 |= uint32(int64(2<<30|5<<27|((uint32(v)/8)&0x7f)<<15) | (p.From.Offset&31)<<10 | int64(uint32(r&31)<<5) | int64(p.From.Reg&31))
++		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+ 
+ 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
+ 		if p.As == AMOVW {
+@@ -3460,23 +3510,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid ldp source: %v\n", p)
+ 		}
+-
+ 		v := int32(c.regoff(&p.From))
+ 		if v < 0 || v > 4095 {
+ 			c.ctxt.Diag("offset out of range%v\n", p)
+ 		}
+-
+-		if o.scond == C_XPOST {
+-			o2 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o2 |= 3 << 23
+-		} else {
+-			o2 |= 2 << 23
+-		}
+-
+ 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), v, r, REGTMP)
+-		o2 |= 1 << 22
+-		o2 |= uint32(int64(2<<30|5<<27) | (p.To.Offset&31)<<10 | int64(uint32(REGTMP&31)<<5) | int64(p.To.Reg&31))
++		o2 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+ 
+ 	case 75:
+ 		//	mov $L, Rtmp (from constant pool)
+@@ -3489,22 +3528,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid ldp source: %v\n", p)
+ 		}
+-
+-		if o.scond == C_XPOST {
+-			o3 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o3 |= 3 << 23
+-		} else {
+-			o3 |= 2 << 23
+-		}
+-
+ 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
+ 		o2 = c.opxrrr(p, AADD, false)
+ 		o2 |= (REGTMP & 31) << 16
+ 		o2 |= uint32(r&31) << 5
+ 		o2 |= uint32(REGTMP & 31)
+-		o3 |= 1 << 22
+-		o3 |= uint32(int64(2<<30|5<<27) | (p.To.Offset&31)<<10 | int64(uint32(REGTMP&31)<<5) | int64(p.To.Reg&31))
++		o3 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+ 
+ 	case 76:
+ 		//	add $O, R, Rtmp
+@@ -3516,21 +3545,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid stp destination: %v\n", p)
+ 		}
+-
+ 		v := int32(c.regoff(&p.To))
+ 		if v < 0 || v > 4095 {
+ 			c.ctxt.Diag("offset out of range%v\n", p)
+ 		}
+-		if o.scond == C_XPOST {
+-			o2 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o2 |= 3 << 23
+-		} else {
+-			o2 |= 2 << 23
+-		}
+-
+ 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), v, r, REGTMP)
+-		o2 |= uint32(int64(2<<30|5<<27) | (p.From.Offset&31)<<10 | int64(uint32(REGTMP&31)<<5) | int64(p.From.Reg&31))
++		o2 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+ 
+ 	case 77:
+ 		//	mov $L, Rtmp (from constant pool)
+@@ -3543,20 +3563,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == obj.REG_NONE {
+ 			c.ctxt.Diag("invalid stp destination: %v\n", p)
+ 		}
+-
+-		if o.scond == C_XPOST {
+-			o3 |= 1 << 23
+-		} else if o.scond == C_XPRE {
+-			o3 |= 3 << 23
+-		} else {
+-			o3 |= 2 << 23
+-		}
+ 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
+ 		o2 = c.opxrrr(p, AADD, false)
+ 		o2 |= REGTMP & 31 << 16
+ 		o2 |= uint32(r&31) << 5
+ 		o2 |= uint32(REGTMP & 31)
+-		o3 |= uint32(int64(2<<30|5<<27) | (p.From.Offset&31)<<10 | int64(uint32(REGTMP&31)<<5) | int64(p.From.Reg&31))
++		o3 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+ 
+ 	case 78: /* vmov R, V.<T>[index] */
+ 		rf := int(p.From.Reg)
+@@ -3829,7 +3841,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Sym = p.To.Sym
+ 		rel.Add = p.To.Offset
+ 		rel.Type = objabi.R_ADDRARM64
+-		o3 |= 2<<30 | 5<<27 | 2<<23 | uint32(p.From.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.From.Reg&31)
++		o3 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+ 
+ 	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
+ 		o1 = ADR(1, 0, REGTMP)
+@@ -3840,7 +3852,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Sym = p.From.Sym
+ 		rel.Add = p.From.Offset
+ 		rel.Type = objabi.R_ADDRARM64
+-		o3 |= 2<<30 | 5<<27 | 2<<23 | 1<<22 | uint32(p.To.Offset&31)<<10 | (REGTMP&31)<<5 | uint32(p.To.Reg&31)
++		o3 |= c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+ 
+ 	case 89: /* vadd/vsub Vm, Vn, Vd */
+ 		switch p.As {
+@@ -5447,6 +5459,43 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
+ 	return o
+ }
+ 
++/* genrate instruction encoding for LDP/LDPW/LDPSW/STP/STPW */
++func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
++	var ret uint32
++	switch p.As {
++	case ALDP, ASTP:
++		if vo < -512 || vo > 504 || vo%8 != 0 {
++			c.ctxt.Diag("invalid offset %v\n", p)
++		}
++		vo /= 8
++		ret = 2 << 30
++	case ALDPW, ASTPW:
++		if vo < -256 || vo > 252 || vo%4 != 0 {
++			c.ctxt.Diag("invalid offset %v\n", p)
++		}
++		vo /= 4
++		ret = 0
++	case ALDPSW:
++		if vo < -256 || vo > 252 || vo%4 != 0 {
++			c.ctxt.Diag("invalid offset %v\n", p)
++		}
++		vo /= 4
++		ret = 1 << 30
++	default:
++		c.ctxt.Diag("invalid instruction %v\n", p)
++	}
++	switch o.scond {
++	case C_XPOST:
++		ret |= 1 << 23
++	case C_XPRE:
++		ret |= 3 << 23
++	default:
++		ret |= 2 << 23
++	}
++	ret |= 5<<27 | (ldp&1)<<22 | uint32(vo&0x7f)<<15 | (rh&31)<<10 | (rbase&31)<<5 | (rl & 31)
++	return ret
++}
++
+ /*
+  * size in log2(bytes)
+  */
+@@ -5473,4 +5522,4 @@ func movesize(a obj.As) int {
+ 	default:
+ 		return -1
+ 	}
+-}
++}
+\ No newline at end of file

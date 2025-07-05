@@ -8,7 +8,68 @@ Date:   Wed Jul 6 16:40:46 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4677041
-
+---
  src/pkg/exp/template/exec.go      |  4 ++++
  src/pkg/exp/template/exec_test.go | 20 ++++++++++++--------
  2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 87219e5e6c..b8cfb54806 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -183,6 +183,10 @@ func (s *state) evalPipeline(data reflect.Value, pipe []*commandNode) reflect.Va
+ 	value := reflect.Value{}
+ 	for _, cmd := range pipe {
+ 		value = s.evalCommand(data, cmd, value) // previous value is this one's final arg.
++		// If the object has type interface{}, dig down one level to the thing inside.
++		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
++			value = reflect.ValueOf(value.Interface()) // lovely!
++		}
+ 	}
+ 	return value
+ }
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 534690a6a3..5be82dd6ef 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -31,6 +31,8 @@ type T struct {
+ 	MSI      map[string]int
+ 	MSIone   map[string]int // one element, for deterministic output
+ 	MSIEmpty map[string]int
++	// Empty interface; used to see if we can dig inside one.
++	EmptyInterface interface{}
+ }
+ 
+ // Simple methods with and without arguments.
+@@ -79,14 +81,15 @@ type U struct {
+ }
+ 
+ var tVal = &T{
+-	I:      17,
+-	U16:    16,
+-	X:      "x",
+-	U:      &U{"v"},
+-	SI:     []int{3, 4, 5},
+-	SB:     []bool{true, false},
+-	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+-	MSIone: map[string]int{"one": 1},
++	I:              17,
++	U16:            16,
++	X:              "x",
++	U:              &U{"v"},
++	SI:             []int{3, 4, 5},
++	SB:             []bool{true, false},
++	MSI:            map[string]int{"one": 1, "two": 2, "three": 3},
++	MSIone:         map[string]int{"one": 1},
++	EmptyInterface: []int{7, 8},
+ }
+ 
+ type execTest struct {
+@@ -187,6 +190,7 @@ var execTests = []execTest{
+ 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
+ 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
+ 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"range empty interface", "{{range .EmptyInterface}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+ 	// Error handling.
+ 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
+ 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},

@@ -9,6 +9,32 @@ Date:   Fri Jan 5 21:31:57 2018 +0000
     Change-Id: I8a85324e9d53dd4d279ed05cdb93f50d55cf767b
     Reviewed-on: https://go-review.googlesource.com/86415
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ceb1a047cf..35adb87c63 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2394,9 +2394,17 @@ func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string) error {
+ // A Server defines parameters for running an HTTP server.
+ // The zero value for Server is a valid configuration.
+ type Server struct {
+-	Addr      string      // TCP address to listen on, ":http" if empty
+-	Handler   Handler     // handler to invoke, http.DefaultServeMux if nil
+-	TLSConfig *tls.Config // optional TLS config, used by ServeTLS and ListenAndServeTLS
++	Addr    string  // TCP address to listen on, ":http" if empty
++	Handler Handler // handler to invoke, http.DefaultServeMux if nil
++
++	// TLSConfig optionally provides a TLS configuration for use
++	// by ServeTLS and ListenAndServeTLS. Note that this value is
++	// cloned by ServeTLS and ListenAndServeTLS, so it's not
++	// possible to modify the configuration with methods like
++	// tls.Config.SetSessionTicketKeys. To use
++	// SetSessionTicketKeys, use Server.Serve with a TLS Listener
++	// instead.
++	TLSConfig *tls.Config
+ 
+ 	// ReadTimeout is the maximum duration for reading the entire
+ 	// request, including the body.

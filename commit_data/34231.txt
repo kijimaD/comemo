@@ -19,7 +19,7 @@ Date:   Tue Oct 10 17:43:41 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/69810
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  3 ++-
  src/cmd/compile/internal/gc/pgen.go | 14 +++++++-------
  src/cmd/compile/internal/gc/ssa.go  |  6 +-----
@@ -33,3 +33,272 @@ Date:   Tue Oct 10 17:43:41 2017 -0700
  test/fixedbugs/issue22200.go        | 20 ++++++++++++++++++++
  test/fixedbugs/issue22200b.go       | 28 ++++++++++++++++++++++++++++
  12 files changed, 79 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6968d044a4..2dbb8155f5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -139,6 +139,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	Ctxt = obj.Linknew(thearch.LinkArch)
+ 	Ctxt.DiagFunc = yyerror
++	Ctxt.DiagFlush = flusherrors
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+ 	localpkg = types.NewPkg("", "")
+@@ -616,7 +617,7 @@ func Main(archInit func(*Arch)) {
+ 			return largeStackFrames[i].Before(largeStackFrames[j])
+ 		})
+ 		for _, largePos := range largeStackFrames {
+-			yyerrorl(largePos, "stack frame too large (>2GB)")
++			yyerrorl(largePos, "stack frame too large (>1GB)")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 0db5f369ad..84d06a00e7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -228,23 +228,23 @@ func compilenow() bool {
+ 	return nBackendWorkers == 1 && Debug_compilelater == 0
+ }
+ 
+-const maxStackSize = 1 << 31
++const maxStackSize = 1 << 30
+ 
+ // compileSSA builds an SSA backend function,
+ // uses it to generate a plist,
+ // and flushes that plist to machine code.
+ // worker indicates which of the backend workers is doing the processing.
+ func compileSSA(fn *Node, worker int) {
+-	ssafn := buildssa(fn, worker)
+-	pp := newProgs(fn, worker)
+-	genssa(ssafn, pp)
+-	if pp.Text.To.Offset < maxStackSize {
+-		pp.Flush()
+-	} else {
++	f := buildssa(fn, worker)
++	if f.Frontend().(*ssafn).stksize >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+ 		largeStackFrames = append(largeStackFrames, fn.Pos)
+ 		largeStackFramesMu.Unlock()
++		return
+ 	}
++	pp := newProgs(fn, worker)
++	genssa(f, pp)
++	pp.Flush()
+ 	// fieldtrack must be called after pp.Flush. See issue 20014.
+ 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+ 	pp.Free()
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 69c56a86ee..c633ee4c93 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4443,11 +4443,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+-	// Generate GC bitmaps, except if the stack is too large,
+-	// in which compilation will fail later anyway (issue 20529).
+-	if e.stksize < maxStackSize {
+-		s.stackMapIndex = liveness(e, f)
+-	}
++	s.stackMapIndex = liveness(e, f)
+ 
+ 	// Remember where each block starts.
+ 	s.bstart = make([]*obj.Prog, f.NumBlocks())
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 78f3978265..8318966501 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1577,6 +1577,7 @@ func buildop(ctxt *obj.Link) {
+ 		switch r {
+ 		default:
+ 			ctxt.Diag("unknown op in build: %v", r)
++			ctxt.DiagFlush()
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b5bc858d7e..a7f4b010ee 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1618,6 +1618,7 @@ func buildop(ctxt *obj.Link) {
+ 		switch r {
+ 		default:
+ 			ctxt.Diag("unknown op in build: %v", r)
++			ctxt.DiagFlush()
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index abd90e34d2..00453f2d3a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -527,6 +527,7 @@ type Link struct {
+ 	InlTree            InlTree // global inlining tree used by gc/inl.go
+ 	Imports            []string
+ 	DiagFunc           func(string, ...interface{})
++	DiagFlush          func()
+ 	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
+ 	Errors             int
+ 
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 6257e5b83d..2dcfa97bf7 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -893,6 +893,7 @@ func buildop(ctxt *obj.Link) {
+ 		switch r {
+ 		default:
+ 			ctxt.Diag("unknown op in build: %v", r)
++			ctxt.DiagFlush()
+ 			log.Fatalf("bad code")
+ 
+ 		case AABSF:
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index b85bb8aca2..d1d36cf685 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -223,6 +223,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
+ 	}
+ 	if oldval+p.Spadj < -10000 || oldval+p.Spadj > 1100000000 {
+ 		ctxt.Diag("overflow in spadj: %d + %d = %d", oldval, p.Spadj, oldval+p.Spadj)
++		ctxt.DiagFlush()
+ 		log.Fatalf("bad code")
+ 	}
+ 
+@@ -240,6 +241,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
+ 	}
+ 	if int64(int32(p.To.Offset)) != p.To.Offset {
+ 		ctxt.Diag("overflow in PCDATA instruction: %v", p)
++		ctxt.DiagFlush()
+ 		log.Fatalf("bad code")
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 53bef1cf78..6044a9d24d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3892,6 +3892,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			case Zcall, Zcallduff:
+ 				if p.To.Sym == nil {
+ 					ctxt.Diag("call without target")
++					ctxt.DiagFlush()
+ 					log.Fatalf("bad code")
+ 				}
+ 
+@@ -3932,6 +3933,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				if p.To.Sym != nil {
+ 					if yt.zcase != Zjmp {
+ 						ctxt.Diag("branch to ATEXT")
++						ctxt.DiagFlush()
+ 						log.Fatalf("bad code")
+ 					}
+ 
+@@ -3953,6 +3955,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 
+ 				if q == nil {
+ 					ctxt.Diag("jmp/branch/loop without target")
++					ctxt.DiagFlush()
+ 					log.Fatalf("bad code")
+ 				}
+ 
+@@ -4450,6 +4453,7 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
+ 		return REG_DX
+ 	default:
+ 		ctxt.Diag("impossible byte register")
++		ctxt.DiagFlush()
+ 		log.Fatalf("bad code")
+ 		return 0
+ 	}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 34029b8681..ad4c51f74d 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -163,15 +163,17 @@ func TestStdFixed(t *testing.T) {
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+-		"issue6889.go",  // gc-specific test
+-		"issue7746.go",  // large constants - consumes too much memory
+-		"issue11362.go", // canonical import path check
+-		"issue15002.go", // uses Mmap; testTestDir should consult build tags
+-		"issue16369.go", // go/types handles this correctly - not an issue
+-		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
+-		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
+-		"issue20232.go", // go/types handles larger constants than gc
+-		"issue20529.go", // go/types does not have constraints on stack size
++		"issue6889.go",   // gc-specific test
++		"issue7746.go",   // large constants - consumes too much memory
++		"issue11362.go",  // canonical import path check
++		"issue15002.go",  // uses Mmap; testTestDir should consult build tags
++		"issue16369.go",  // go/types handles this correctly - not an issue
++		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
++		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
++		"issue20232.go",  // go/types handles larger constants than gc
++		"issue20529.go",  // go/types does not have constraints on stack size
++		"issue22200.go",  // go/types does not have constraints on stack size
++		"issue22200b.go", // go/types does not have constraints on stack size
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue22200.go b/test/fixedbugs/issue22200.go
+new file mode 100644
+index 0000000000..66b9538e03
+--- /dev/null
++++ b/test/fixedbugs/issue22200.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f1(x *[1<<30 - 1e6]byte) byte {
++	for _, b := range *x {
++		return b
++	}
++	return 0
++}
++func f2(x *[1<<30 + 1e6]byte) byte { // ERROR "stack frame too large"
++	for _, b := range *x {
++		return b
++	}
++	return 0
++}
+diff --git a/test/fixedbugs/issue22200b.go b/test/fixedbugs/issue22200b.go
+new file mode 100644
+index 0000000000..ceaae753f3
+--- /dev/null
++++ b/test/fixedbugs/issue22200b.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !386,!amd64p32,!arm,!mips
++
++package p
++
++func f3(x *[1 << 31]byte) byte { // ERROR "stack frame too large"
++	for _, b := range *x {
++		return b
++	}
++	return 0
++}
++func f4(x *[1 << 32]byte) byte { // ERROR "stack frame too large"
++	for _, b := range *x {
++		return b
++	}
++	return 0
++}
++func f5(x *[1 << 33]byte) byte { // ERROR "stack frame too large"
++	for _, b := range *x {
++		return b
++	}
++	return 0
++}

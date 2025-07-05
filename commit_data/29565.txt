@@ -9,6 +9,21 @@ Date:   Mon Sep 19 14:14:58 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4587143b1e..a65d003fa3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -749,7 +749,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm":
++		case "linux-386", "linux-amd64", "linux-arm",
++			"darwin-amd64":
+ 			return true
+ 		}
+ 		return false

@@ -34,7 +34,7 @@ Date:   Mon May 12 11:01:44 2025 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go            | 18 ++++++++++++
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules    | 16 +++++++++++
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  9 ++++++
@@ -43,3 +43,210 @@ Date:   Mon May 12 11:01:44 2025 +0800
  src/cmd/compile/internal/ssagen/intrinsics.go      |  4 +--
  src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
  7 files changed, 105 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 60516d6618..d60aef165c 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -948,6 +948,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
++	case ssa.OpLOONG64PRELD:
++		// PRELD (Rarg0), hint
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.AddRestSourceConst(v.AuxInt & 0x1f)
++
++	case ssa.OpLOONG64PRELDX:
++		// PRELDX (Rarg0), $n, $hint
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.AddRestSourceArgs([]obj.Addr{
++			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 5) & 0x1fffffffff)},
++			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 0) & 0x1f)},
++		})
++
+ 	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 100bb232d4..bec8493b99 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -840,6 +840,22 @@
+ 
+ (MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
+ 
++// Prefetch instructions (hint specified using aux field)
++// For PRELD{,X} A value of hint indicates:
++//    hint=0 is defined as load prefetch to L1-cache
++//    hint=2 is defined as load prefetch to L3-cache
++// The PrefetchCacheStreamed implementation prefetches 512 bytes of data
++// into L3. The aux field are defined as follows:
++//    bit[4:0]:
++//       $hint parameter of PRELDX instruction
++//    bit[41:5]:
++//       $n parameter of PRELDX instruction, bit[0] of $n is the address
++//       sequence, bits[11:1] is the block size, bits[20:12] is the block
++//       num, bits[36:21] is the stride, for more details about $n, refer
++//       to src/cmd/internal/obj/loong64/doc.go
++(PrefetchCache addr mem)         => (PRELD  addr mem [0])
++(PrefetchCacheStreamed addr mem) => (PRELDX addr mem [(((512 << 1) + (1 << 12)) << 5) + 2])
++
+ // constant comparisons
+ (SGTconst [c] (MOVVconst [d])) && c>d => (MOVVconst [1])
+ (SGTconst [c] (MOVVconst [d])) && c<=d => (MOVVconst [0])
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index c68a24ca97..dbfbcf1fd0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -148,6 +148,7 @@ func init() {
+ 		gpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+ 		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+ 		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
++		preldreg  = regInfo{inputs: []regMask{gpspg}}
+ 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+ 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+@@ -566,6 +567,14 @@ func init() {
+ 		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+ 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
++
++		// Prefetch instruction
++		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
++		// Note:
++		//   The aux of PRELDX is actually composed of two values: $hint and $n. bit[4:0]
++		//   is $hint and bit[41:5] is $n.
++		{name: "PRELD", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELD", hasSideEffects: true},
++		{name: "PRELDX", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELDX", hasSideEffects: true},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7b36344f07..615aca3ba6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1962,6 +1962,8 @@ const (
+ 	OpLOONG64LoweredPanicBoundsA
+ 	OpLOONG64LoweredPanicBoundsB
+ 	OpLOONG64LoweredPanicBoundsC
++	OpLOONG64PRELD
++	OpLOONG64PRELDX
+ 
+ 	OpMIPSADD
+ 	OpMIPSADDconst
+@@ -26452,6 +26454,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "PRELD",
++		auxType:        auxInt64,
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            loong64.APRELD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741820}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:           "PRELDX",
++		auxType:        auxInt64,
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            loong64.APRELDX,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741820}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index fcff307c65..f6575a8181 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -674,6 +674,10 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpPopCount32(v)
+ 	case OpPopCount64:
+ 		return rewriteValueLOONG64_OpPopCount64(v)
++	case OpPrefetchCache:
++		return rewriteValueLOONG64_OpPrefetchCache(v)
++	case OpPrefetchCacheStreamed:
++		return rewriteValueLOONG64_OpPrefetchCacheStreamed(v)
+ 	case OpPubBarrier:
+ 		v.Op = OpLOONG64LoweredPubBarrier
+ 		return true
+@@ -9078,6 +9082,34 @@ func rewriteValueLOONG64_OpPopCount64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpPrefetchCache(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCache addr mem)
++	// result: (PRELD addr mem [0])
++	for {
++		addr := v_0
++		mem := v_1
++		v.reset(OpLOONG64PRELD)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(addr, mem)
++		return true
++	}
++}
++func rewriteValueLOONG64_OpPrefetchCacheStreamed(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCacheStreamed addr mem)
++	// result: (PRELDX addr mem [(((512 << 1) + (1 << 12)) << 5) + 2])
++	for {
++		addr := v_0
++		mem := v_1
++		v.reset(OpLOONG64PRELDX)
++		v.AuxInt = int64ToAuxInt((((512 << 1) + (1 << 12)) << 5) + 2)
++		v.AddArg2(addr, mem)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 78350723da..97798f5bcc 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -234,9 +234,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	// Make Prefetch intrinsics for supported platforms
+ 	// On the unsupported platforms stub function will be eliminated
+ 	addF("internal/runtime/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
+-		sys.AMD64, sys.ARM64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64)
+ 	addF("internal/runtime/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
+-		sys.AMD64, sys.ARM64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64)
+ 
+ 	/******** internal/runtime/atomic ********/
+ 	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool)
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 5d3b0519b7..6757e1e802 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -418,6 +418,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/sys", "Len64"}:                       struct{}{},
+ 	{"loong64", "internal/runtime/sys", "Len8"}:                        struct{}{},
+ 	{"loong64", "internal/runtime/sys", "OnesCount64"}:                 struct{}{},
++	{"loong64", "internal/runtime/sys", "Prefetch"}:                    struct{}{},
++	{"loong64", "internal/runtime/sys", "PrefetchStreamed"}:            struct{}{},
+ 	{"loong64", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
+ 	{"loong64", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
+ 	{"loong64", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},

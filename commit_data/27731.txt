@@ -10,10 +10,85 @@ Date:   Fri Apr 1 07:34:18 2016 +0200
     Change-Id: I333467036e355f999a6a493e8de87e084f374e26
     Reviewed-on: https://go-review.googlesource.com/21378
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go          | 4 ++--
  src/html/template/url.go       | 2 +-
  src/net/http/serve_test.go     | 2 +-
  src/path/filepath/path_test.go | 2 +-
  src/runtime/gcinfo_test.go     | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 411fd1e322..42efa9f312 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1466,7 +1466,7 @@ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 	tg.run("test", "errors", "errors", "errors", "errors", "errors")
+-	if strings.Index(strings.TrimSpace(tg.getStdout()), "\n") != -1 {
++	if strings.Contains(strings.TrimSpace(tg.getStdout()), "\n") {
+ 		t.Error("go test errors errors errors errors errors tested the same package multiple times")
+ 	}
+ }
+@@ -1495,7 +1495,7 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
+ 	tg.run("list", "cmd")
+ 	out := strings.TrimSpace(tg.getStdout())
+ 	for _, line := range strings.Split(out, "\n") {
+-		if strings.Index(line, "cmd/") == -1 {
++		if !strings.Contains(line, "cmd/") {
+ 			t.Error("go list cmd shows non-commands")
+ 			break
+ 		}
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index 2ca76bf389..246bfd32cd 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -17,7 +17,7 @@ func urlFilter(args ...interface{}) string {
+ 	if t == contentTypeURL {
+ 		return s
+ 	}
+-	if i := strings.IndexRune(s, ':'); i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
++	if i := strings.IndexRune(s, ':'); i >= 0 && !strings.ContainsRune(s[:i], '/') {
+ 		protocol := strings.ToLower(s[:i])
+ 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
+ 			return "#" + filterFailsafe
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 4cd6ed077f..e0094234de 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4267,7 +4267,7 @@ func BenchmarkClient(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatalf("ReadAll: %v", err)
+ 		}
+-		if bytes.Compare(body, data) != 0 {
++		if !bytes.Equal(body, data) {
+ 			b.Fatalf("Got body: %q", body)
+ 		}
+ 	}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 3622f9178e..1a4a9d2a1a 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1015,7 +1015,7 @@ func TestAbs(t *testing.T) {
+ 		vol := filepath.VolumeName(root)
+ 		var extra []string
+ 		for _, path := range absTests {
+-			if strings.Index(path, "$") != -1 {
++			if strings.Contains(path, "$") {
+ 				continue
+ 			}
+ 			path = vol + path
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index c1c2354bf9..9a61b4f2b2 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -59,7 +59,7 @@ func TestGCInfo(t *testing.T) {
+ 
+ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
+ 	mask := runtime.GCMask(p)
+-	if bytes.Compare(mask, mask0) != 0 {
++	if !bytes.Equal(mask, mask0) {
+ 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
+ 		return
+ 	}

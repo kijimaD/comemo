@@ -10,7 +10,50 @@ Date:   Fri Apr 25 15:19:32 2014 -0700
     R=golang-codereviews
     CC=adg, dsymonds, golang-codereviews, rsc
     https://golang.org/cl/91770048
-
+---
  src/pkg/net/http/httputil/dump.go      | 1 +
  src/pkg/net/http/httputil/dump_test.go | 5 +++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index acd5618454..2a7a413d01 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -107,6 +107,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
+ 		},
+ 	}
++	defer t.CloseIdleConnections()
+ 
+ 	_, err := t.RoundTrip(reqSend)
+ 
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index c2902c8ec5..e1ffb3935a 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -113,6 +114,7 @@ var dumpTests = []dumpTest{
+ }
+ 
+ func TestDumpRequest(t *testing.T) {
++	numg0 := runtime.NumGoroutine()
+ 	for i, tt := range dumpTests {
+ 		setBody := func() {
+ 			if tt.Body == nil {
+@@ -156,6 +158,9 @@ func TestDumpRequest(t *testing.T) {
+ 			}
+ 		}
+ 	}
++	if dg := runtime.NumGoroutine() - numg0; dg > 4 {
++		t.Errorf("Unexpectedly large number of new goroutines: %d new", dg)
++	}
+ }
+ 
+ func chunk(s string) string {

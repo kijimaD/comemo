@@ -9,6 +9,20 @@ Date:   Mon Nov 27 23:58:29 2017 +0530
     Change-Id: Ib8ff35b9f71b54ff99d2d6e0534c7128e1f4345a
     Reviewed-on: https://go-review.googlesource.com/80035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index a5596879ac..0522c43495 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package json implements encoding and decoding of JSON text as defined in
++// Package json implements encoding and decoding of JSON as defined in
+ // RFC 7159. The mapping between JSON and Go values is described
+ // in the documentation for the Marshal and Unmarshal functions.
+ //

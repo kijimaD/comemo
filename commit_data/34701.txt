@@ -18,9 +18,121 @@ Date:   Wed Nov 8 09:43:56 2017 +0100
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go  | 19 ++++++++++++++-----
  src/cmd/compile/internal/gc/ssa.go  |  2 +-
  src/cmd/compile/internal/gc/walk.go |  2 +-
  src/cmd/link/internal/ld/data.go    |  6 ++++--
  4 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index fdde0ce35b..874c59cb44 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"io"
+@@ -330,7 +331,7 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
+ 	return off
+ }
+ 
+-func stringsym(s string) (data *obj.LSym) {
++func stringsym(pos src.XPos, s string) (data *obj.LSym) {
+ 	var symname string
+ 	if len(s) > 100 {
+ 		// Huge strings are hashed to avoid long names in object files.
+@@ -351,7 +352,7 @@ func stringsym(s string) (data *obj.LSym) {
+ 
+ 	if !symdata.SeenGlobl() {
+ 		// string data
+-		off := dsname(symdata, 0, s)
++		off := dsname(symdata, 0, s, pos, "string")
+ 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 	}
+ 
+@@ -367,7 +368,7 @@ func slicebytes(nam *Node, s string, len int) {
+ 	sym.Def = asTypesNode(newname(sym))
+ 
+ 	lsym := sym.Linksym()
+-	off := dsname(lsym, 0, s)
++	off := dsname(lsym, 0, s, nam.Pos, "slice")
+ 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+ 	if nam.Op != ONAME {
+@@ -380,7 +381,15 @@ func slicebytes(nam *Node, s string, len int) {
+ 	duintptr(nsym, off, uint64(len))
+ }
+ 
+-func dsname(s *obj.LSym, off int, t string) int {
++func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
++	// Objects that are too large will cause the data section to overflow right away,
++	// causing a cryptic error message by the linker. Check for oversize objects here
++	// and provide a useful error message instead.
++	if int64(len(t)) > 2e9 {
++		yyerrorl(pos, "%v with length %v is too big", what, len(t))
++		return 0
++	}
++
+ 	s.WriteString(Ctxt, int64(off), len(t), t)
+ 	return off + len(t)
+ }
+@@ -445,7 +454,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 			}
+ 
+ 		case string:
+-			symdata := stringsym(u)
++			symdata := stringsym(nam.Pos, u)
+ 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
+ 			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7780953e90..f30016b8a9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5067,7 +5067,7 @@ func (e *ssafn) StringData(s string) interface{} {
+ 	if e.strings == nil {
+ 		e.strings = make(map[string]interface{})
+ 	}
+-	data := stringsym(s)
++	data := stringsym(e.curfn.Pos, s)
+ 	e.strings[s] = data
+ 	return data
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 847f6991ee..7e47c286e2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1744,7 +1744,7 @@ opswitch:
+ 		// Emit string symbol now to avoid emitting
+ 		// any concurrently during the backend.
+ 		if s, ok := n.Val().U.(string); ok {
+-			_ = stringsym(s)
++			_ = stringsym(n.Pos, s)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a6e03baafa..e8e7a53bdb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1008,11 +1008,13 @@ func (d bySizeAndName) Less(i, j int) bool {
+ 	return s1.name < s2.name
+ }
+ 
+-const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
++// cutoff is the maximum data section size permitted by the linker
++// (see issue #9862).
++const cutoff = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+ 
+ func checkdatsize(ctxt *Link, datsize int64, symn sym.SymKind) {
+ 	if datsize > cutoff {
+-		Errorf(nil, "too much data in section %v (over %d bytes)", symn, cutoff)
++		Errorf(nil, "too much data in section %v (over %v bytes)", symn, cutoff)
+ 	}
+ }
+ 

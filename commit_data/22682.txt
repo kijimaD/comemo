@@ -11,6 +11,34 @@ Date:   Thu Apr 2 13:15:08 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 61453c7e2b..bdc350161a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2645,16 +2645,20 @@ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx b
+ 		args = append(args, "-c++")
+ 	}
+ 
+-	if out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file); err != nil {
++	out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file)
++	if err != nil {
+ 		if len(out) > 0 {
+ 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
+ 				return "", "", errors.New("must have SWIG version >= 3.0.6")
+ 			}
+-			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out))
++			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out)) // swig error
+ 			return "", "", errPrintedOutput
+ 		}
+ 		return "", "", err
+ 	}
++	if len(out) > 0 {
++		b.showOutput(p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
++	}
+ 
+ 	return obj + goFile, obj + gccBase + gccExt, nil
+ }

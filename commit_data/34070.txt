@@ -13,7 +13,7 @@ Date:   Sun Oct 1 14:39:04 2017 +1100
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go    | 30 ++++++----------
  src/cmd/link/internal/ld/elf.go     | 31 +++++------------
  src/cmd/link/internal/ld/go.go      | 19 +++++-----
@@ -21,3 +21,561 @@ Date:   Sun Oct 1 14:39:04 2017 +1100
  src/cmd/link/internal/ld/ldmacho.go | 21 +++++------
  src/cmd/link/internal/ld/macho.go   | 14 +++-----
  6 files changed, 67 insertions(+), 117 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 5dfd10fa92..495c8b72e8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -381,20 +381,11 @@ func trampoline(ctxt *Link, s *Symbol) {
+ 
+ // resolve relocations in s.
+ func relocsym(ctxt *Link, s *Symbol) {
+-	var r *Reloc
+-	var rs *Symbol
+-	var i16 int16
+-	var off int32
+-	var siz int32
+-	var fl int32
+-	var o int64
+-
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+-		r = &s.R[ri]
+-
++		r := &s.R[ri]
+ 		r.Done = true
+-		off = r.Off
+-		siz = int32(r.Siz)
++		off := r.Off
++		siz := int32(r.Siz)
+ 		if off < 0 || off+siz > int32(len(s.P)) {
+ 			rname := ""
+ 			if r.Sym != nil {
+@@ -450,6 +441,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			}
+ 		}
+ 
++		var o int64
+ 		switch r.Type {
+ 		default:
+ 			switch siz {
+@@ -535,7 +527,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Done = false
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+-				rs = r.Sym
++				rs := r.Sym
+ 
+ 				r.Xadd = r.Add
+ 				for rs.Outer != nil {
+@@ -607,7 +599,6 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+ 
+ 				o = r.Xadd
+-				rs = r.Xsym
+ 				if Iself && SysArch.Family == sys.AMD64 {
+ 					o = 0
+ 				}
+@@ -647,7 +638,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Done = false
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+-				rs = r.Sym
++				rs := r.Sym
+ 
+ 				r.Xadd = r.Add
+ 				for rs.Outer != nil {
+@@ -722,7 +713,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			if o != int64(int16(o)) {
+ 				Errorf(s, "relocation address for %s is too big: %#x", r.Sym.Name, o)
+ 			}
+-			i16 = int16(o)
++			i16 := int16(o)
+ 			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
+ 		case 4:
+ 			if r.Type == objabi.R_PCREL || r.Type == objabi.R_CALL {
+@@ -735,7 +726,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				}
+ 			}
+ 
+-			fl = int32(o)
++			fl := int32(o)
+ 			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(fl))
+ 		case 8:
+ 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
+@@ -2233,12 +2224,11 @@ func (ctxt *Link) address() {
+ 	var noptr *Section
+ 	var bss *Section
+ 	var noptrbss *Section
+-	var vlen int64
+ 	for i, s := range Segdata.Sections {
+ 		if Iself && s.Name == ".tbss" {
+ 			continue
+ 		}
+-		vlen = int64(s.Length)
++		vlen := int64(s.Length)
+ 		if i+1 < len(Segdata.Sections) && !(Iself && Segdata.Sections[i+1].Name == ".tbss") {
+ 			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
+ 		}
+@@ -2270,7 +2260,7 @@ func (ctxt *Link) address() {
+ 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+ 	}
+ 	for i, s := range Segdwarf.Sections {
+-		vlen = int64(s.Length)
++		vlen := int64(s.Length)
+ 		if i+1 < len(Segdwarf.Sections) {
+ 			vlen = int64(Segdwarf.Sections[i+1].Vaddr - s.Vaddr)
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 0edf76ec5a..b998533b7a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1462,7 +1462,6 @@ func elfdynhash(ctxt *Link) {
+ 	chain := make([]uint32, nsym)
+ 	buckets := make([]uint32, nbucket)
+ 
+-	var b int
+ 	for _, sy := range ctxt.Syms.Allsym {
+ 		if sy.Dynid <= 0 {
+ 			continue
+@@ -1475,7 +1474,7 @@ func elfdynhash(ctxt *Link) {
+ 		name := sy.Extname
+ 		hc := elfhash(name)
+ 
+-		b = int(hc % uint32(nbucket))
++		b := hc % uint32(nbucket)
+ 		chain[sy.Dynid] = buckets[b]
+ 		buckets[b] = uint32(sy.Dynid)
+ 	}
+@@ -1507,15 +1506,13 @@ func elfdynhash(ctxt *Link) {
+ 	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
+ 	i = 2
+ 	nfile := 0
+-	var j int
+-	var x *Elfaux
+ 	for l := needlib; l != nil; l = l.next {
+ 		nfile++
+ 
+ 		// header
+ 		Adduint16(ctxt, s, 1) // table version
+-		j = 0
+-		for x = l.aux; x != nil; x = x.next {
++		j := 0
++		for x := l.aux; x != nil; x = x.next {
+ 			j++
+ 		}
+ 		Adduint16(ctxt, s, uint16(j))                         // aux count
+@@ -1527,7 +1524,7 @@ func elfdynhash(ctxt *Link) {
+ 			Adduint32(ctxt, s, 0)
+ 		}
+ 
+-		for x = l.aux; x != nil; x = x.next {
++		for x := l.aux; x != nil; x = x.next {
+ 			x.num = i
+ 			i++
+ 
+@@ -1613,24 +1610,18 @@ func elfphrelro(seg *Segment) {
+ }
+ 
+ func elfshname(name string) *ElfShdr {
+-	var off int
+-	var sh *ElfShdr
+-
+ 	for i := 0; i < nelfstr; i++ {
+ 		if name == elfstr[i].s {
+-			off = elfstr[i].off
++			off := elfstr[i].off
+ 			for i = 0; i < int(ehdr.shnum); i++ {
+-				sh = shdr[i]
++				sh := shdr[i]
+ 				if sh.name == uint32(off) {
+ 					return sh
+ 				}
+ 			}
+-
+-			sh = newElfShdr(int64(off))
+-			return sh
++			return newElfShdr(int64(off))
+ 		}
+ 	}
+-
+ 	Exitf("cannot find elf name %s", name)
+ 	return nil
+ }
+@@ -1638,14 +1629,10 @@ func elfshname(name string) *ElfShdr {
+ // Create an ElfShdr for the section with name.
+ // Create a duplicate if one already exists with that name
+ func elfshnamedup(name string) *ElfShdr {
+-	var off int
+-	var sh *ElfShdr
+-
+ 	for i := 0; i < nelfstr; i++ {
+ 		if name == elfstr[i].s {
+-			off = elfstr[i].off
+-			sh = newElfShdr(int64(off))
+-			return sh
++			off := elfstr[i].off
++			return newElfShdr(int64(off))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 1494ca87eb..491b4e70f8 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -29,8 +29,6 @@ func expandpkg(t0 string, pkg string) string {
+ //		libmach, so that other linkers and ar can share.
+ 
+ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
+-	var p0, p1 int
+-
+ 	if *flagG {
+ 		return
+ 	}
+@@ -95,7 +93,8 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 	}
+ 
+ 	// look for cgo section
+-	p0 = strings.Index(data, "\n$$  // cgo")
++	p0 := strings.Index(data, "\n$$  // cgo")
++	var p1 int
+ 	if p0 >= 0 {
+ 		p0 += p1
+ 		i := strings.IndexByte(data[p0+1:], '\n')
+@@ -128,9 +127,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 	var next string
+ 	var q string
+-	var f []string
+-	var local string
+-	var remote string
+ 	var lib string
+ 	var s *Symbol
+ 
+@@ -143,7 +139,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 		}
+ 
+ 		p0 = p // save for error message
+-		f = tokenize(p)
++		f := tokenize(p)
+ 		if len(f) == 0 {
+ 			continue
+ 		}
+@@ -153,8 +149,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				goto err
+ 			}
+ 
+-			local = f[1]
+-			remote = local
++			local := f[1]
++			remote := local
+ 			if len(f) > 2 {
+ 				remote = f[2]
+ 			}
+@@ -205,7 +201,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			if len(f) != 2 {
+ 				goto err
+ 			}
+-			local = f[1]
++			local := f[1]
+ 			s = ctxt.Syms.Lookup(local, 0)
+ 			s.Type = SHOSTOBJ
+ 			s.Size = 0
+@@ -216,7 +212,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			if len(f) < 2 || len(f) > 3 {
+ 				goto err
+ 			}
+-			local = f[1]
++			local := f[1]
++			var remote string
+ 			if len(f) > 2 {
+ 				remote = f[2]
+ 			} else {
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 340d9b2253..419113f76d 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -450,36 +450,18 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	localSymVersion := ctxt.Syms.IncVersion()
+ 	base := f.Offset()
+ 
+-	var add uint64
+-	var e binary.ByteOrder
+-	var elfobj *ElfObj
+-	var flag int
+-	var hdr *ElfHdrBytes
+ 	var hdrbuf [64]uint8
+-	var info uint64
+-	var is64 int
+-	var j int
+-	var n int
+-	var name string
+-	var p []byte
+-	var r []Reloc
+-	var rela int
+-	var rp *Reloc
+-	var rsect *ElfSect
+-	var s *Symbol
+-	var sect *ElfSect
+-	var sym ElfSym
+-	var symbols []*Symbol
+ 	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
+ 		Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ 		return
+ 	}
+-	hdr = new(ElfHdrBytes)
++	hdr := new(ElfHdrBytes)
+ 	binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
+ 	if string(hdr.Ident[:4]) != "\x7FELF" {
+ 		Errorf(nil, "%s: malformed elf file", pn)
+ 		return
+ 	}
++	var e binary.ByteOrder
+ 	switch hdr.Ident[5] {
+ 	case ElfDataLsb:
+ 		e = binary.LittleEndian
+@@ -493,7 +475,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	// read header
+-	elfobj = new(ElfObj)
++	elfobj := new(ElfObj)
+ 
+ 	elfobj.e = e
+ 	elfobj.f = f
+@@ -501,7 +483,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	elfobj.length = length
+ 	elfobj.name = pn
+ 
+-	is64 = 0
++	is64 := 0
+ 	if hdr.Ident[4] == ElfClass64 {
+ 		is64 = 1
+ 		hdr := new(ElfHdrBytes64)
+@@ -609,7 +591,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			Errorf(nil, "%s: malformed elf file", pn)
+ 			return
+ 		}
+-		sect = &elfobj.sect[i]
++		sect := &elfobj.sect[i]
+ 		if is64 != 0 {
+ 			var b ElfSectBytes64
+ 
+@@ -655,7 +637,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		return
+ 	}
+ 
+-	sect = &elfobj.sect[elfobj.shstrndx]
++	sect := &elfobj.sect[elfobj.shstrndx]
+ 	if err := elfmap(elfobj, sect); err != nil {
+ 		Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ 		return
+@@ -720,8 +702,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			}
+ 		}
+ 
+-		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
+-		s = ctxt.Syms.Lookup(name, localSymVersion)
++		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
++		s := ctxt.Syms.Lookup(name, localSymVersion)
+ 
+ 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
+ 		default:
+@@ -757,9 +739,10 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 	// enter sub-symbols into symbol table.
+ 	// symbol 0 is the null symbol.
+-	symbols = make([]*Symbol, elfobj.nsymtab)
++	symbols := make([]*Symbol, elfobj.nsymtab)
+ 
+ 	for i := 1; i < elfobj.nsymtab; i++ {
++		var sym ElfSym
+ 		if err := readelfsym(ctxt, elfobj, i, &sym, 1, localSymVersion); err != nil {
+ 			Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ 			return
+@@ -769,7 +752,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		if sym.shndx == ElfSymShnCommon || sym.type_ == ElfSymTypeCommon {
+-			s = sym.sym
++			s := sym.sym
+ 			if uint64(s.Size) < sym.size {
+ 				s.Size = int64(sym.size)
+ 			}
+@@ -806,7 +789,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 
+-		s = sym.sym
++		s := sym.sym
+ 		if s.Outer != nil {
+ 			if s.Attr.DuplicateOK() {
+ 				continue
+@@ -831,7 +814,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		if elfobj.machine == ElfMachPower64 {
+-			flag = int(sym.other) >> 5
++			flag := int(sym.other) >> 5
+ 			if 2 <= flag && flag <= 6 {
+ 				s.Localentry = 1 << uint(flag-2)
+ 			} else if flag == 7 {
+@@ -842,8 +825,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 	// Sort outer lists by address, adding to textp.
+ 	// This keeps textp in increasing address order.
+-	for i := 0; uint(i) < elfobj.nsect; i++ {
+-		s = elfobj.sect[i].sym
++	for i := uint(0); i < elfobj.nsect; i++ {
++		s := elfobj.sect[i].sym
+ 		if s == nil {
+ 			continue
+ 		}
+@@ -867,8 +850,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	// load relocations
+-	for i := 0; uint(i) < elfobj.nsect; i++ {
+-		rsect = &elfobj.sect[i]
++	for i := uint(0); i < elfobj.nsect; i++ {
++		rsect := &elfobj.sect[i]
+ 		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
+ 			continue
+ 		}
+@@ -880,16 +863,17 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ 			return
+ 		}
+-		rela = 0
++		rela := 0
+ 		if rsect.type_ == ElfSectRela {
+ 			rela = 1
+ 		}
+-		n = int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
+-		r = make([]Reloc, n)
+-		p = rsect.base
+-		for j = 0; j < n; j++ {
+-			add = 0
+-			rp = &r[j]
++		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
++		r := make([]Reloc, n)
++		p := rsect.base
++		for j := 0; j < n; j++ {
++			var add uint64
++			rp := &r[j]
++			var info uint64
+ 			if is64 != 0 {
+ 				// 64-bit rel/rela
+ 				rp.Off = int32(e.Uint64(p))
+@@ -924,6 +908,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
+ 				rp.Sym = nil
+ 			} else {
++				var sym ElfSym
+ 				if err := readelfsym(ctxt, elfobj, int(info>>32), &sym, 0, 0); err != nil {
+ 					Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ 					return
+@@ -964,7 +949,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		sort.Sort(rbyoff(r[:n]))
+ 		// just in case
+ 
+-		s = sect.sym
++		s := sect.sym
+ 		s.R = r
+ 		s.R = s.R[:n]
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 7fc452dffe..89556c6b1f 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -306,12 +306,9 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
+ 	if _, err := io.ReadFull(m.f, buf); err != nil {
+ 		return -1
+ 	}
+-	var p []byte
+-	var r *ldMachoRel
+-	var v uint32
+-	for i := 0; uint32(i) < sect.nreloc; i++ {
+-		r = &rel[i]
+-		p = buf[i*8:]
++	for i := uint32(0); i < sect.nreloc; i++ {
++		r := &rel[i]
++		p := buf[i*8:]
+ 		r.addr = m.e.Uint32(p)
+ 
+ 		// TODO(rsc): Wrong interpretation for big-endian bitfields?
+@@ -319,7 +316,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
+ 			// scatterbrained relocation
+ 			r.scattered = 1
+ 
+-			v = r.addr >> 24
++			v := r.addr >> 24
+ 			r.addr &= 0xFFFFFF
+ 			r.type_ = uint8(v & 0xF)
+ 			v >>= 4
+@@ -328,7 +325,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
+ 			r.pcrel = uint8(v & 1)
+ 			r.value = m.e.Uint32(p[4:])
+ 		} else {
+-			v = m.e.Uint32(p[4:])
++			v := m.e.Uint32(p[4:])
+ 			r.symnum = v & 0xFFFFFF
+ 			v >>= 24
+ 			r.pcrel = uint8(v & 1)
+@@ -390,11 +387,9 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 	}
+ 	sym := make([]ldMachoSym, symtab.nsym)
+ 	p := symbuf
+-	var s *ldMachoSym
+-	var v uint32
+-	for i := 0; uint32(i) < symtab.nsym; i++ {
+-		s = &sym[i]
+-		v = m.e.Uint32(p)
++	for i := uint32(0); i < symtab.nsym; i++ {
++		s := &sym[i]
++		v := m.e.Uint32(p)
+ 		if v >= symtab.strsize {
+ 			return -1
+ 		}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 0d9b824638..f06cf9c617 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -273,11 +273,8 @@ func machowrite() int {
+ 		Thearch.Lput(0) /* reserved */
+ 	}
+ 
+-	var j int
+-	var s *MachoSeg
+-	var t *MachoSect
+ 	for i := 0; i < nseg; i++ {
+-		s = &seg[i]
++		s := &seg[i]
+ 		if macho64 {
+ 			Thearch.Lput(LC_SEGMENT_64)
+ 			Thearch.Lput(72 + 80*s.nsect)
+@@ -304,8 +301,8 @@ func machowrite() int {
+ 			Thearch.Lput(s.flag)
+ 		}
+ 
+-		for j = 0; uint32(j) < s.nsect; j++ {
+-			t = &s.sect[j]
++		for j := uint32(0); j < s.nsect; j++ {
++			t := &s.sect[j]
+ 			if macho64 {
+ 				strnput(t.name, 16)
+ 				strnput(t.segname, 16)
+@@ -335,12 +332,11 @@ func machowrite() int {
+ 		}
+ 	}
+ 
+-	var l *MachoLoad
+ 	for i := 0; i < len(load); i++ {
+-		l = &load[i]
++		l := &load[i]
+ 		Thearch.Lput(l.type_)
+ 		Thearch.Lput(4 * (uint32(len(l.data)) + 2))
+-		for j = 0; j < len(l.data); j++ {
++		for j := 0; j < len(l.data); j++ {
+ 			Thearch.Lput(l.data[j])
+ 		}
+ 	}

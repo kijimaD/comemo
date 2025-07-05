@@ -23,7 +23,7 @@ Date:   Wed Dec 30 12:05:57 2020 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules   |  2 +-
@@ -40,3 +40,449 @@ Date:   Wed Dec 30 12:05:57 2020 -0500
  test/codegen/condmove.go                     |  6 +++---
  test/codegen/spectre.go                      |  4 ++--
  15 files changed, 59 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index fbc12fd672..df03cb71a6 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -475,7 +475,7 @@
+ (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-(CMP(L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(L|W|B) y x))
++(CMP(L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(L|W|B) y x))
+ 
+ // strength reduction
+ // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a866a967b9..7d46266411 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -916,7 +916,7 @@
+ (CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-(CMP(Q|L|W|B) x y) && x.ID > y.ID => (InvertFlags (CMP(Q|L|W|B) y x))
++(CMP(Q|L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(Q|L|W|B) y x))
+ 
+ // Using MOVZX instead of AND is cheaper.
+ (AND(Q|L)const [  0xFF] x) => (MOVBQZX x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 11c36b5da3..de0df363e4 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -507,7 +507,7 @@
+ (TEQ x (MOVWconst [c])) => (TEQconst [c] x)
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-(CMP x y) && x.ID > y.ID => (InvertFlags (CMP y x))
++(CMP x y) && canonLessThan(x,y) => (InvertFlags (CMP y x))
+ 
+ // don't extend after proper load
+ // MOVWreg instruction is not emitted if src and dst registers are same, but it ensures the type.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 3f4d0c1c52..a0e2a0d5e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1151,7 +1151,7 @@
+ (CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-((CMP|CMPW) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW) y x))
++((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
+ 
+ // mul-neg => mneg
+ (NEG (MUL x y)) => (MNEG x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index c064046172..a762be65d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1088,7 +1088,7 @@
+ (CMPWU (MOVDconst [c]) y) && isU16Bit(c) => (InvertFlags (CMPWUconst y [int32(c)]))
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
++((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+ 
+ // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+ // ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 384f2e807e..c3421da0a2 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -785,7 +785,7 @@
+   => (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
+ 
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
++((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+ 
+ // Use sign/zero extend instead of RISBGZ.
+ (RISBGZ x {r}) && r == s390x.NewRotateParams(56, 63, 0) => (MOVBZreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9abfe0938b..e0a20668e2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -521,6 +521,18 @@ func shiftIsBounded(v *Value) bool {
+ 	return v.AuxInt != 0
+ }
+ 
++// canonLessThan returns whether x is "ordered" less than y, for purposes of normalizing
++// generated code as much as possible.
++func canonLessThan(x, y *Value) bool {
++	if x.Op != y.Op {
++		return x.Op < y.Op
++	}
++	if !x.Pos.SameFileAndLine(y.Pos) {
++		return x.Pos.Before(y.Pos)
++	}
++	return x.ID < y.ID
++}
++
+ // truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
+ // of the mantissa. It will panic if the truncation results in lost information.
+ func truncate64Fto32F(f float64) float32 {
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 2acdccd568..4e7fdb9e63 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -1785,12 +1785,12 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPB x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPB y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(Op386InvertFlags)
+@@ -2078,12 +2078,12 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPL x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPL y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(Op386InvertFlags)
+@@ -2386,12 +2386,12 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPW x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPW y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(Op386InvertFlags)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 75d4ff7357..db2dc7a004 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6749,12 +6749,12 @@ func rewriteValueAMD64_OpAMD64CMPB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPB x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPB y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64InvertFlags)
+@@ -7135,12 +7135,12 @@ func rewriteValueAMD64_OpAMD64CMPL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPL x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPL y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64InvertFlags)
+@@ -7544,12 +7544,12 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPQ x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPQ y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64InvertFlags)
+@@ -8106,12 +8106,12 @@ func rewriteValueAMD64_OpAMD64CMPW(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPW x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPW y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64InvertFlags)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index d9d439fa63..c958aae2c4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3728,12 +3728,12 @@ func rewriteValueARM_OpARMCMP(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMP x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMP y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpARMInvertFlags)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 5d5e526add..ff1156d901 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -2772,12 +2772,12 @@ func rewriteValueARM64_OpARM64CMP(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMP x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMP y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64InvertFlags)
+@@ -2941,12 +2941,12 @@ func rewriteValueARM64_OpARM64CMPW(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPW x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPW y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64InvertFlags)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 455f9b1388..98f748e5fa 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4777,12 +4777,12 @@ func rewriteValuePPC64_OpPPC64CMP(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMP x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMP y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64InvertFlags)
+@@ -4834,12 +4834,12 @@ func rewriteValuePPC64_OpPPC64CMPU(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPU x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPU y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64InvertFlags)
+@@ -4964,12 +4964,12 @@ func rewriteValuePPC64_OpPPC64CMPW(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPW x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPW y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64InvertFlags)
+@@ -5045,12 +5045,12 @@ func rewriteValuePPC64_OpPPC64CMPWU(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPWU x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPWU y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64InvertFlags)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index a9722b820c..b52a1b6745 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -6332,12 +6332,12 @@ func rewriteValueS390X_OpS390XCMP(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMP x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMP y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XInvertFlags)
+@@ -6389,12 +6389,12 @@ func rewriteValueS390X_OpS390XCMPU(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPU x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPU y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XInvertFlags)
+@@ -6624,12 +6624,12 @@ func rewriteValueS390X_OpS390XCMPW(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPW x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPW y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XInvertFlags)
+@@ -6721,12 +6721,12 @@ func rewriteValueS390X_OpS390XCMPWU(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPWU x y)
+-	// cond: x.ID > y.ID
++	// cond: canonLessThan(x,y)
+ 	// result: (InvertFlags (CMPWU y x))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(x.ID > y.ID) {
++		if !(canonLessThan(x, y)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XInvertFlags)
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index f86da3459a..7579dd1890 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -31,7 +31,7 @@ func cmovuintptr(x, y uintptr) uintptr {
+ 	if x < y {
+ 		x = -y
+ 	}
+-	// amd64:"CMOVQCS"
++	// amd64:"CMOVQ(HI|CS)"
+ 	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+@@ -41,7 +41,7 @@ func cmov32bit(x, y uint32) uint32 {
+ 	if x < y {
+ 		x = -y
+ 	}
+-	// amd64:"CMOVLCS"
++	// amd64:"CMOVL(HI|CS)"
+ 	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+@@ -51,7 +51,7 @@ func cmov16bit(x, y uint16) uint16 {
+ 	if x < y {
+ 		x = -y
+ 	}
+-	// amd64:"CMOVWCS"
++	// amd64:"CMOVW(HI|CS)"
+ 	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+diff --git a/test/codegen/spectre.go b/test/codegen/spectre.go
+index 3753498d09..d845da35ce 100644
+--- a/test/codegen/spectre.go
++++ b/test/codegen/spectre.go
+@@ -13,12 +13,12 @@ func IndexArray(x *[10]int, i int) int {
+ }
+ 
+ func IndexString(x string, i int) byte {
+-	// amd64:`CMOVQCC`
++	// amd64:`CMOVQLS`
+ 	return x[i]
+ }
+ 
+ func IndexSlice(x []float64, i int) float64 {
+-	// amd64:`CMOVQCC`
++	// amd64:`CMOVQLS`
+ 	return x[i]
+ }
+ 

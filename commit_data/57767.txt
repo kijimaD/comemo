@@ -13,9 +13,225 @@ Date:   Sat Aug 26 19:44:21 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/operand_test.go | 36 +++++++++++++++++---------------
  src/cmd/asm/internal/asm/parse.go        | 20 +++++++++++++++++-
  src/cmd/asm/internal/lex/lex.go          |  8 ++-----
  src/internal/abi/abi_test.go             |  2 +-
  4 files changed, 41 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index fca2234165..579f533223 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -23,7 +23,9 @@ func setArch(goarch string) (*arch.Arch, *obj.Link) {
+ 	if architecture == nil {
+ 		panic("asm: unrecognized architecture " + goarch)
+ 	}
+-	return architecture, obj.Linknew(architecture.LinkArch)
++	ctxt := obj.Linknew(architecture.LinkArch)
++	ctxt.Pkgpath = "pkg"
++	return architecture, ctxt
+ }
+ 
+ func newParser(goarch string) *Parser {
+@@ -304,8 +306,8 @@ var amd64OperandTests = []operandTest{
+ 	{"x·y+8(SB)", "x.y+8(SB)"},
+ 	{"x·y+8(SP)", "x.y+8(SP)"},
+ 	{"y+56(FP)", "y+56(FP)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·callReflect(SB)", "\"\".callReflect(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·callReflect(SB)", "pkg.callReflect(SB)"},
+ 	{"[X0-X0]", "[X0-X0]"},
+ 	{"[ Z9 - Z12 ]", "[Z9-Z12]"},
+ 	{"[X0-AX]", "[X0-AX]"},
+@@ -391,8 +393,8 @@ var x86OperandTests = []operandTest{
+ 	{"sec+4(FP)", "sec+4(FP)"},
+ 	{"shifts<>(SB)(CX*8)", "shifts<>(SB)(CX*8)"},
+ 	{"x+4(FP)", "x+4(FP)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·reflectcall(SB)", "\"\".reflectcall(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·reflectcall(SB)", "pkg.reflectcall(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
+@@ -440,7 +442,7 @@ var armOperandTests = []operandTest{
+ 	{"gosave<>(SB)", "gosave<>(SB)"},
+ 	{"retlo+12(FP)", "retlo+12(FP)"},
+ 	{"runtime·gogo(SB)", "runtime.gogo(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
+ 	{"(R1, R3)", "(R1, R3)"},
+ 	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
+ 	{"[):[o-FP", ""},     // Issue 12469 - there was no infinite loop for ARM; these are just sanity checks.
+@@ -629,8 +631,8 @@ var ppc64OperandTests = []operandTest{
+ 	{"g", "g"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·trunc(SB)", "pkg.trunc(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
+@@ -662,7 +664,7 @@ var arm64OperandTests = []operandTest{
+ 	{"$(8-1)", "$7"},
+ 	{"a+0(FP)", "a(FP)"},
+ 	{"a1+8(FP)", "a1+8(FP)"},
+-	{"·AddInt32(SB)", `"".AddInt32(SB)`},
++	{"·AddInt32(SB)", `pkg.AddInt32(SB)`},
+ 	{"runtime·divWVW(SB)", "runtime.divWVW(SB)"},
+ 	{"$argframe+0(FP)", "$argframe(FP)"},
+ 	{"$asmcgocall<>(SB)", "$asmcgocall<>(SB)"},
+@@ -763,8 +765,8 @@ var mips64OperandTests = []operandTest{
+ 	{"RSB", "R28"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·trunc(SB)", "pkg.trunc(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
+@@ -846,8 +848,8 @@ var mipsOperandTests = []operandTest{
+ 	{"g", "g"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·trunc(SB)", "pkg.trunc(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
+@@ -928,8 +930,8 @@ var loong64OperandTests = []operandTest{
+ 	{"g", "g"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·trunc(SB)", "pkg.trunc(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
+@@ -1026,7 +1028,7 @@ var s390xOperandTests = []operandTest{
+ 	{"g", "g"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+-	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"·AddUint32(SB)", "pkg.AddUint32(SB)"},
++	{"·trunc(SB)", "pkg.trunc(SB)"},
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 8c6642d810..ef6c840dc2 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -12,6 +12,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 	"text/scanner"
+ 	"unicode/utf8"
+ 
+@@ -46,6 +47,7 @@ type Parser struct {
+ 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+ 	isJump        bool             // Instruction being assembled is a jump.
+ 	allowABI      bool             // Whether ABI selectors are allowed.
++	pkgPrefix     string           // Prefix to add to local symbols.
+ 	errorWriter   io.Writer
+ }
+ 
+@@ -55,6 +57,10 @@ type Patch struct {
+ }
+ 
+ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
++	pkgPrefix := obj.UnlinkablePkg
++	if ctxt != nil {
++		pkgPrefix = objabi.PathToPrefix(ctxt.Pkgpath)
++	}
+ 	return &Parser{
+ 		ctxt:        ctxt,
+ 		arch:        ar,
+@@ -63,6 +69,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+ 		dataAddr:    make(map[string]int64),
+ 		errorWriter: os.Stderr,
+ 		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
++		pkgPrefix:   pkgPrefix,
+ 	}
+ }
+ 
+@@ -402,7 +409,7 @@ func (p *Parser) operand(a *obj.Addr) {
+ 			fallthrough
+ 		default:
+ 			// We have a symbol. Parse $sym±offset(symkind)
+-			p.symbolReference(a, name, prefix)
++			p.symbolReference(a, p.qualifySymbol(name), prefix)
+ 		}
+ 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
+ 		if p.peek() == scanner.EOF {
+@@ -770,6 +777,16 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
+ 	}
+ }
+ 
++// qualifySymbol returns name as a package-qualified symbol name. If
++// name starts with a period, qualifySymbol prepends the package
++// prefix. Otherwise it returns name unchanged.
++func (p *Parser) qualifySymbol(name string) string {
++	if strings.HasPrefix(name, ".") {
++		name = p.pkgPrefix + name
++	}
++	return name
++}
++
+ // symbolReference parses a symbol that is known not to be a register.
+ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	// Identifier is a name.
+@@ -902,6 +919,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
+ 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
+ 		return "", obj.ABI0, false
+ 	}
++	name = p.qualifySymbol(name)
+ 	// Parse optional <> (indicates a static symbol) or
+ 	// <ABIxxx> (selecting text symbol with specific ABI).
+ 	noErrMsg := false
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 7cd41a55a9..f1923bee05 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -105,13 +105,9 @@ type Token struct {
+ 
+ // Make returns a Token with the given rune (ScanToken) and text representation.
+ func Make(token ScanToken, text string) Token {
+-	// If the symbol starts with center dot, as in ·x, rewrite it as ""·x
+-	if token == scanner.Ident && strings.HasPrefix(text, "\u00B7") {
+-		text = `""` + text
+-	}
+ 	// Substitute the substitutes for . and /.
+-	text = strings.Replace(text, "\u00B7", ".", -1)
+-	text = strings.Replace(text, "\u2215", "/", -1)
++	text = strings.ReplaceAll(text, "\u00B7", ".")
++	text = strings.ReplaceAll(text, "\u2215", "/")
+ 	return Token{ScanToken: token, text: text}
+ }
+ 
+diff --git a/src/internal/abi/abi_test.go b/src/internal/abi/abi_test.go
+index 44b9e78a30..e230c88ff4 100644
+--- a/src/internal/abi/abi_test.go
++++ b/src/internal/abi/abi_test.go
+@@ -46,7 +46,7 @@ func TestFuncPCCompileError(t *testing.T) {
+ 	testenv.WriteImportcfg(t, importcfgfile, nil, "internal/abi")
+ 
+ 	// parse assembly code for symabi.
+-	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-gensymabis", "-o", symabi, asmSrc)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-p=p", "-gensymabis", "-o", symabi, asmSrc)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go tool asm -gensymabis failed: %v\n%s", err, out)

@@ -22,7 +22,7 @@ Date:   Tue Sep 16 17:26:16 2014 -0700
     R=golang-codereviews, dvyukov, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/144940043
-
+---
  src/runtime/debug.go   | 30 ++++++++++++++-----
  src/runtime/heapdump.c | 25 +---------------
  src/runtime/mem.go     | 37 ++++++++++++++++++++++-
@@ -33,3 +33,420 @@ Date:   Tue Sep 16 17:26:16 2014 -0700
  src/runtime/stubs.go   |  2 ++
  src/runtime/thunk.s    |  3 ++
  9 files changed, 114 insertions(+), 132 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index bb4bd60ed4..4414dd55d2 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -24,15 +24,29 @@ func UnlockOSThread()
+ // The number of logical CPUs on the local machine can be queried with NumCPU.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int {
+-	g := getg()
+-	g.m.scalararg[0] = uintptr(n)
+-	onM(gomaxprocs_m)
+-	n = int(g.m.scalararg[0])
+-	g.m.scalararg[0] = 0
+-	return n
+-}
++	if n > _MaxGomaxprocs {
++		n = _MaxGomaxprocs
++	}
++	lock(&sched.lock)
++	ret := int(gomaxprocs)
++	unlock(&sched.lock)
++	if n <= 0 || n == ret {
++		return ret
++	}
+ 
+-func gomaxprocs_m() // proc.c
++	semacquire(&worldsema, false)
++	gp := getg()
++	gp.m.gcing = 1
++	onM(stoptheworld)
++
++	// newprocs will be processed by starttheworld
++	newprocs = int32(n)
++
++	gp.m.gcing = 0
++	semrelease(&worldsema)
++	onM(starttheworld)
++	return ret
++}
+ 
+ // NumCPU returns the number of logical CPUs on the local machine.
+ func NumCPU() int {
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index 8bbc7d8a56..75897c3d35 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -737,33 +737,16 @@ mdump(void)
+ 	flush();
+ }
+ 
+-static void writeheapdump_m(void);
+-
+-#pragma textflag NOSPLIT
+ void
+-runtime∕debug·WriteHeapDump(uintptr fd)
+-{
+-	void (*fn)(void);
+-	
+-	g->m->scalararg[0] = fd;
+-	fn = writeheapdump_m;
+-	runtime·onM(&fn);
+-}
+-
+-static void
+-writeheapdump_m(void)
++runtime·writeheapdump_m(void)
+ {
+ 	uintptr fd;
+ 	
+ 	fd = g->m->scalararg[0];
+ 	g->m->scalararg[0] = 0;
+ 
+-	// Stop the world.
+ 	runtime·casgstatus(g->m->curg, Grunning, Gwaiting);
+ 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+-	runtime·semacquire(&runtime·worldsema, false);
+-	g->m->gcing = 1;
+-	runtime·stoptheworld();
+ 
+ 	// Update stats so we can dump them.
+ 	// As a side effect, flushes all the MCaches so the MSpan.freelist
+@@ -784,13 +767,7 @@ writeheapdump_m(void)
+ 		tmpbufsize = 0;
+ 	}
+ 
+-	// Start up the world again.
+-	g->m->gcing = 0;
+-	g->m->locks++;
+-	runtime·semrelease(&runtime·worldsema);
+-	runtime·starttheworld();
+ 	runtime·casgstatus(g->m->curg, Gwaiting, Grunning);
+-	g->m->locks--;
+ }
+ 
+ // dumpint() the kind & offset of each field in an object.
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 34391b2eb2..99bb928511 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -69,4 +69,39 @@ func init() {
+ }
+ 
+ // ReadMemStats populates m with memory allocator statistics.
+-func ReadMemStats(m *MemStats)
++func ReadMemStats(m *MemStats) {
++	// Have to acquire worldsema to stop the world,
++	// because stoptheworld can only be used by
++	// one goroutine at a time, and there might be
++	// a pending garbage collection already calling it.
++	semacquire(&worldsema, false)
++	gp := getg()
++	gp.m.gcing = 1
++	onM(stoptheworld)
++
++	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
++	onM(readmemstats_m)
++
++	gp.m.gcing = 0
++	gp.m.locks++
++	semrelease(&worldsema)
++	onM(starttheworld)
++	gp.m.locks--
++}
++
++// Implementation of runtime/debug.WriteHeapDump
++func writeHeapDump(fd uintptr) {
++	semacquire(&worldsema, false)
++	gp := getg()
++	gp.m.gcing = 1
++	onM(stoptheworld)
++
++	gp.m.scalararg[0] = fd
++	onM(writeheapdump_m)
++
++	gp.m.gcing = 0
++	gp.m.locks++
++	semrelease(&worldsema)
++	onM(starttheworld)
++	gp.m.locks--
++}
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index fda3efcc18..35aed78a53 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1451,32 +1451,14 @@ extern uintptr runtime·sizeof_C_MStats;
+ 
+ static void readmemstats_m(void);
+ 
+-#pragma textflag NOSPLIT
+ void
+-runtime·ReadMemStats(MStats *stats)
+-{
+-	void (*fn)(void);
+-	
+-	g->m->ptrarg[0] = stats;
+-	fn = readmemstats_m;
+-	runtime·onM(&fn);
+-}
+-
+-static void
+-readmemstats_m(void)
++runtime·readmemstats_m(void)
+ {
+ 	MStats *stats;
+ 	
+ 	stats = g->m->ptrarg[0];
+ 	g->m->ptrarg[0] = nil;
+ 
+-	// Have to acquire worldsema to stop the world,
+-	// because stoptheworld can only be used by
+-	// one goroutine at a time, and there might be
+-	// a pending garbage collection already calling it.
+-	runtime·semacquire(&runtime·worldsema, false);
+-	g->m->gcing = 1;
+-	runtime·stoptheworld();
+ 	runtime·updatememstats(nil);
+ 	// Size of the trailing by_size array differs between Go and C,
+ 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+@@ -1486,12 +1468,6 @@ readmemstats_m(void)
+ 	stats->stacks_sys = stats->stacks_inuse;
+ 	stats->heap_inuse -= stats->stacks_inuse;
+ 	stats->heap_sys -= stats->stacks_inuse;
+-	
+-	g->m->gcing = 0;
+-	g->m->locks++;
+-	runtime·semrelease(&runtime·worldsema);
+-	runtime·starttheworld();
+-	g->m->locks--;
+ }
+ 
+ static void readgcstats_m(void);
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 25f9166403..0e677a9d28 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -24,42 +24,6 @@
+ //
+ // Design doc at http://golang.org/s/go11sched.
+ 
+-typedef struct Sched Sched;
+-struct Sched {
+-	Mutex	lock;
+-
+-	uint64	goidgen;
+-
+-	M*	midle;	 // idle m's waiting for work
+-	int32	nmidle;	 // number of idle m's waiting for work
+-	int32	nmidlelocked; // number of locked m's waiting for work
+-	int32	mcount;	 // number of m's that have been created
+-	int32	maxmcount;	// maximum number of m's allowed (or die)
+-
+-	P*	pidle;  // idle P's
+-	uint32	npidle;
+-	uint32	nmspinning;
+-
+-	// Global runnable queue.
+-	G*	runqhead;
+-	G*	runqtail;
+-	int32	runqsize;
+-
+-	// Global cache of dead G's.
+-	Mutex	gflock;
+-	G*	gfree;
+-	int32	ngfree;
+-
+-	uint32	gcwaiting;	// gc is waiting to run
+-	int32	stopwait;
+-	Note	stopnote;
+-	uint32	sysmonwait;
+-	Note	sysmonnote;
+-	uint64	lastpoll;
+-
+-	int32	profilehz;	// cpu profiling rate
+-};
+-
+ enum
+ {
+ 	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
+@@ -67,7 +31,7 @@ enum
+ 	GoidCacheBatch = 16,
+ };
+ 
+-Sched	runtime·sched;
++SchedType	runtime·sched;
+ int32	runtime·gomaxprocs;
+ uint32	runtime·needextram;
+ bool	runtime·iscgo;
+@@ -79,7 +43,7 @@ M*	runtime·extram;
+ P*	runtime·allp[MaxGomaxprocs+1];
+ int8*	runtime·goos;
+ int32	runtime·ncpu;
+-static int32	newprocs;
++int32	runtime·newprocs;
+ 
+ Mutex runtime·allglock;	// the following vars are protected by this lock or by stoptheworld
+ G**	runtime·allg;
+@@ -763,9 +727,9 @@ runtime·starttheworld(void)
+ 	injectglist(gp);
+ 	add = needaddgcproc();
+ 	runtime·lock(&runtime·sched.lock);
+-	if(newprocs) {
+-		procresize(newprocs);
+-		newprocs = 0;
++	if(runtime·newprocs) {
++		procresize(runtime·newprocs);
++		runtime·newprocs = 0;
+ 	} else
+ 		procresize(runtime·gomaxprocs);
+ 	runtime·sched.gcwaiting = 0;
+@@ -2364,39 +2328,6 @@ runtime·Breakpoint(void)
+ 	runtime·breakpoint();
+ }
+ 
+-// Implementation of runtime.GOMAXPROCS.
+-// delete when scheduler is even stronger
+-void
+-runtime·gomaxprocs_m(void)
+-{
+-	int32 n, ret;
+-	
+-	n = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-
+-	if(n > MaxGomaxprocs)
+-		n = MaxGomaxprocs;
+-	runtime·lock(&runtime·sched.lock);
+-	ret = runtime·gomaxprocs;
+-	if(n <= 0 || n == ret) {
+-		runtime·unlock(&runtime·sched.lock);
+-		g->m->scalararg[0] = ret;
+-		return;
+-	}
+-	runtime·unlock(&runtime·sched.lock);
+-
+-	runtime·semacquire(&runtime·worldsema, false);
+-	g->m->gcing = 1;
+-	runtime·stoptheworld();
+-	newprocs = n;
+-	g->m->gcing = 0;
+-	runtime·semrelease(&runtime·worldsema);
+-	runtime·starttheworld();
+-
+-	g->m->scalararg[0] = ret;
+-	return;
+-}
+-
+ // lockOSThread is called by runtime.LockOSThread and runtime.lockOSThread below
+ // after they modify m->locked. Do not allow preemption during this call,
+ // or else the m might be different in this function than in the caller.
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index adc74cf417..c034f3aa97 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -60,6 +60,7 @@ typedef	struct	SudoG		SudoG;
+ typedef	struct	Mutex		Mutex;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
++typedef struct	SchedType	SchedType;
+ typedef	struct	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	String		String;
+@@ -433,6 +434,42 @@ enum {
+ 	MaxGomaxprocs = 1<<8,
+ };
+ 
++struct	SchedType
++{
++	Mutex	lock;
++
++	uint64	goidgen;
++
++	M*	midle;	 // idle m's waiting for work
++	int32	nmidle;	 // number of idle m's waiting for work
++	int32	nmidlelocked; // number of locked m's waiting for work
++	int32	mcount;	 // number of m's that have been created
++	int32	maxmcount;	// maximum number of m's allowed (or die)
++
++	P*	pidle;  // idle P's
++	uint32	npidle;
++	uint32	nmspinning;
++
++	// Global runnable queue.
++	G*	runqhead;
++	G*	runqtail;
++	int32	runqsize;
++
++	// Global cache of dead G's.
++	Mutex	gflock;
++	G*	gfree;
++	int32	ngfree;
++
++	uint32	gcwaiting;	// gc is waiting to run
++	int32	stopwait;
++	Note	stopnote;
++	uint32	sysmonwait;
++	Note	sysmonnote;
++	uint64	lastpoll;
++
++	int32	profilehz;	// cpu profiling rate
++};
++
+ // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
+ // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
+ // External locks are not recursive; a second lock is silently ignored.
+@@ -716,6 +753,8 @@ extern	DebugVars	runtime·debug;
+ extern	uintptr	runtime·maxstacksize;
+ extern	Note	runtime·signote;
+ extern	ForceGCState	runtime·forcegc;
++extern	SchedType	runtime·sched;
++extern	int32		runtime·newprocs;
+ 
+ /*
+  * common functions and data
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index beacd67162..504462de33 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -49,6 +49,11 @@ func asyncsemrelease(addr *uint32) {
+ 
+ // Called from runtime.
+ func semacquire(addr *uint32, profile bool) {
++	gp := getg()
++	if gp != gp.m.curg {
++		gothrow("semacquire not on the G stack")
++	}
++
+ 	// Easy case.
+ 	if cansemacquire(addr) {
+ 		return
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ff443c4cd4..2e6aadca7a 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -119,6 +119,8 @@ func deferproc_m()
+ func goexit_m()
+ func startpanic_m()
+ func dopanic_m()
++func readmemstats_m()
++func writeheapdump_m()
+ 
+ // memclr clears n bytes starting at ptr.
+ // in memclr_*.s
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 3b66cf47d3..3dd86e9919 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -80,6 +80,9 @@ TEXT reflect·memmove(SB), NOSPLIT, $0-0
+ TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+ 	JMP	runtime·freeOSMemory(SB)
+ 
++TEXT runtime∕debug·WriteHeapDump(SB), NOSPLIT, $0-0
++	JMP	runtime·writeHeapDump(SB)
++
+ TEXT net·runtime_pollServerInit(SB),NOSPLIT,$0-0
+ 	JMP	runtime·netpollServerInit(SB)
+ 

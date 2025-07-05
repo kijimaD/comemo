@@ -11,7 +11,7 @@ Date:   Wed Apr 12 12:40:07 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_plan9.go        |  2 ++
  src/internal/poll/fd_unix.go         |  6 +++---
  src/internal/poll/fd_windows.go      | 15 ++++++++++++++-
@@ -21,3 +21,234 @@ Date:   Wed Apr 12 12:40:07 2017 +0900
  src/net/fd_unix.go                   |  2 +-
  src/net/fd_windows.go                |  2 +-
  8 files changed, 26 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index a8c4b1c201..574036e0bf 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -50,6 +50,7 @@ func (fd *FD) Close() error {
+ 	return nil
+ }
+ 
++// Read implements io.Reader.
+ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	if fd.rtimedout.isSet() {
+ 		return 0, ErrTimeout
+@@ -73,6 +74,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	return n, err
+ }
+ 
++// Write implements io.Writer.
+ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	if fd.wtimedout.isSet() {
+ 		return 0, ErrTimeout
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 8aaec14cc4..f3e3c53d65 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -69,7 +69,7 @@ func (fd *FD) Close() error {
+ 	return fd.decref()
+ }
+ 
+-// Shutdown wraps the shutdown call.
++// Shutdown wraps the shutdown network call.
+ func (fd *FD) Shutdown(how int) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+@@ -147,8 +147,8 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
+ 	}
+ }
+ 
+-// RecvFrom wraps the recvfrom network call.
+-func (fd *FD) RecvFrom(p []byte) (int, syscall.Sockaddr, error) {
++// ReadFrom wraps the recvfrom network call.
++func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, nil, err
+ 	}
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index a5a1c0c966..89a4ea904c 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -376,6 +376,8 @@ func (fd *FD) destroy() error {
+ 	return err
+ }
+ 
++// Close closes the FD. The underlying file descriptor is closed by
++// the destroy method when there are no remaining references.
+ func (fd *FD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+ 		return ErrClosing
+@@ -385,6 +387,7 @@ func (fd *FD) Close() error {
+ 	return fd.decref()
+ }
+ 
++// Shutdown wraps the shutdown network call.
+ func (fd *FD) Shutdown(how int) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+@@ -393,6 +396,7 @@ func (fd *FD) Shutdown(how int) error {
+ 	return syscall.Shutdown(fd.Sysfd, how)
+ }
+ 
++// Read implements io.Reader.
+ func (fd *FD) Read(buf []byte) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, err
+@@ -503,6 +507,7 @@ func (fd *FD) readConsole(b []byte) (int, error) {
+ 	return i, nil
+ }
+ 
++// Pread emulates the Unix pread system call.
+ func (fd *FD) Pread(b []byte, off int64) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, err
+@@ -534,7 +539,8 @@ func (fd *FD) Pread(b []byte, off int64) (int, error) {
+ 	return int(done), e
+ }
+ 
+-func (fd *FD) RecvFrom(buf []byte) (int, syscall.Sockaddr, error) {
++// ReadFrom wraps the recvfrom network call.
++func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil, nil
+ 	}
+@@ -559,6 +565,7 @@ func (fd *FD) RecvFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 	return n, sa, nil
+ }
+ 
++// Write implements io.Writer.
+ func (fd *FD) Write(buf []byte) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+@@ -634,6 +641,7 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
+ 	return n, nil
+ }
+ 
++// Pwrite emulates the Unix pwrite system call.
+ func (fd *FD) Pwrite(b []byte, off int64) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+@@ -659,6 +667,7 @@ func (fd *FD) Pwrite(b []byte, off int64) (int, error) {
+ 	return int(done), nil
+ }
+ 
++// Writev emulates the Unix writev system call.
+ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
+ 	if len(*buf) == 0 {
+ 		return 0, nil
+@@ -681,6 +690,7 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
+ 	return int64(n), err
+ }
+ 
++// WriteTo wraps the sendto network call.
+ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil
+@@ -771,6 +781,7 @@ func (fd *FD) Accept(sysSocket func() (syscall.Handle, error)) (syscall.Handle,
+ 	}
+ }
+ 
++// Seek wraps syscall.Seek.
+ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
+ 	if err := fd.incref(); err != nil {
+ 		return 0, err
+@@ -801,6 +812,7 @@ func (fd *FD) Fchdir() error {
+ 	return syscall.Fchdir(fd.Sysfd)
+ }
+ 
++// GetFileType wraps syscall.GetFileType.
+ func (fd *FD) GetFileType() (uint32, error) {
+ 	if err := fd.incref(); err != nil {
+ 		return 0, err
+@@ -809,6 +821,7 @@ func (fd *FD) GetFileType() (uint32, error) {
+ 	return syscall.GetFileType(fd.Sysfd)
+ }
+ 
++// GetFileInformationByHandle wraps GetFileInformationByHandle.
+ func (fd *FD) GetFileInformationByHandle(data *syscall.ByHandleFileInformation) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+diff --git a/src/internal/poll/sockopt_linux.go b/src/internal/poll/sockopt_linux.go
+index acd75f68f4..bc79c350ac 100644
+--- a/src/internal/poll/sockopt_linux.go
++++ b/src/internal/poll/sockopt_linux.go
+@@ -6,7 +6,7 @@ package poll
+ 
+ import "syscall"
+ 
+-// SetsockoptIPMreqn wraps the setsockopt network call with a IPMreqn argument.
++// SetsockoptIPMreqn wraps the setsockopt network call with an IPMreqn argument.
+ func (fd *FD) SetsockoptIPMreqn(level, name int, mreq *syscall.IPMreqn) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+diff --git a/src/internal/poll/sockopt_windows.go b/src/internal/poll/sockopt_windows.go
+index 7d63fc362c..dd5fb70bab 100644
+--- a/src/internal/poll/sockopt_windows.go
++++ b/src/internal/poll/sockopt_windows.go
+@@ -6,7 +6,7 @@ package poll
+ 
+ import "syscall"
+ 
+-// Setsockopt wraps the Windows setsockopt network call.
++// Setsockopt wraps the setsockopt network call.
+ func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+@@ -15,7 +15,7 @@ func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error
+ 	return syscall.Setsockopt(fd.Sysfd, level, optname, optval, optlen)
+ }
+ 
+-// WSAIoctl wraps the Windows WSAIoctl call.
++// WSAIoctl wraps the WSAIoctl network call.
+ func (fd *FD) WSAIoctl(iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *syscall.Overlapped, completionRoutine uintptr) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+diff --git a/src/internal/poll/sockoptip.go b/src/internal/poll/sockoptip.go
+index 28900eb7e3..5d5dff6ebc 100644
+--- a/src/internal/poll/sockoptip.go
++++ b/src/internal/poll/sockoptip.go
+@@ -8,7 +8,7 @@ package poll
+ 
+ import "syscall"
+ 
+-// SetsockoptIPMreq wraps the setsockopt network call with a IPMreq argument.
++// SetsockoptIPMreq wraps the setsockopt network call with an IPMreq argument.
+ func (fd *FD) SetsockoptIPMreq(level, name int, mreq *syscall.IPMreq) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+@@ -17,7 +17,7 @@ func (fd *FD) SetsockoptIPMreq(level, name int, mreq *syscall.IPMreq) error {
+ 	return syscall.SetsockoptIPMreq(fd.Sysfd, level, name, mreq)
+ }
+ 
+-// SetsockoptIPv6Mreq wraps the setsockopt network call with a IPv6Mreq argument.
++// SetsockoptIPv6Mreq wraps the setsockopt network call with an IPv6Mreq argument.
+ func (fd *FD) SetsockoptIPv6Mreq(level, name int, mreq *syscall.IPv6Mreq) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 9f36069bf3..5363ab5057 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -210,7 +210,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ }
+ 
+ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+-	n, sa, err = fd.pfd.RecvFrom(p)
++	n, sa, err = fd.pfd.ReadFrom(p)
+ 	runtime.KeepAlive(fd)
+ 	return n, sa, wrapSyscallError("recvfrom", err)
+ }
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 2182b730f9..19ebd60ecd 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -156,7 +156,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ }
+ 
+ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+-	n, sa, err := fd.pfd.RecvFrom(buf)
++	n, sa, err := fd.pfd.ReadFrom(buf)
+ 	runtime.KeepAlive(fd)
+ 	return n, sa, wrapSyscallError("wsarecvfrom", err)
+ }

@@ -24,7 +24,79 @@ Date:   Mon Oct 29 18:27:51 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go |  4 ----
  src/cmd/internal/obj/objfile.go    | 24 ++----------------------
  2 files changed, 2 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e3c8e07ffa..5630e12ace 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -273,10 +273,6 @@ func dumpglobls() {
+ }
+ 
+ // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+-// It takes care not to add any duplicates.
+-// Though the object file format handles duplicates efficiently,
+-// storing only a single copy of the data,
+-// failure to remove these duplicates adds a few percent to object file size.
+ //
+ // This is done during the sequential phase after compilation, since
+ // global symbols can't be declared during parallel compilation.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index b6cfec3b3e..3c72f543cc 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -25,12 +25,6 @@ type objWriter struct {
+ 	// Temporary buffer for zigzag int writing.
+ 	varintbuf [10]uint8
+ 
+-	// Provide the index of a symbol reference by symbol name.
+-	// One map for versioned symbols and one for unversioned symbols.
+-	// Used for deduplicating the symbol reference list.
+-	refIdx  map[string]int
+-	vrefIdx map[string]int
+-
+ 	// Number of objects written of each type.
+ 	nRefs     int
+ 	nData     int
+@@ -79,10 +73,8 @@ func (w *objWriter) writeLengths() {
+ 
+ func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
+ 	return &objWriter{
+-		ctxt:    ctxt,
+-		wr:      b,
+-		vrefIdx: make(map[string]int),
+-		refIdx:  make(map[string]int),
++		ctxt: ctxt,
++		wr:   b,
+ 	}
+ }
+ 
+@@ -157,17 +149,6 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
+ 	if s == nil || s.RefIdx != 0 {
+ 		return
+ 	}
+-	var m map[string]int
+-	if !s.Static() {
+-		m = w.refIdx
+-	} else {
+-		m = w.vrefIdx
+-	}
+-
+-	if idx := m[s.Name]; idx != 0 {
+-		s.RefIdx = idx
+-		return
+-	}
+ 	w.wr.WriteByte(symPrefix)
+ 	if isPath {
+ 		w.writeString(filepath.ToSlash(s.Name))
+@@ -178,7 +159,6 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
+ 	w.writeBool(s.Static())
+ 	w.nRefs++
+ 	s.RefIdx = w.nRefs
+-	m[s.Name] = w.nRefs
+ }
+ 
+ func (w *objWriter) writeRefs(s *LSym) {

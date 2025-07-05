@@ -10,7 +10,7 @@ Date:   Sun Jun 15 20:24:30 2008 -0700
     'any' demoted from reserved word to type
     
     SVN=122808
-
+---
  src/cmd/6g/cgen.c      |  12 +-
  src/cmd/6g/gen.c       |   2 +-
  src/cmd/gc/const.c     |  22 ++-
@@ -27,3 +27,1887 @@ Date:   Sun Jun 15 20:24:30 2008 -0700
  src/runtime/runtime.h  |   3 +
  test/switch.go         |   8 +
  15 files changed, 708 insertions(+), 247 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 94d6f57a82..d42fb76cdd 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -331,15 +331,9 @@ agen(Node *n, Node *res)
+ 		regfree(&n2);
+ 		break;
+ 
+-//	case OIND:
+-//		nl = n->left;
+-//		if(nl->addable) {
+-//			gopcode(P_LOAD, T_ADDR, nl);
+-//			break;
+-//		}
+-//		cgen(nl);
+-//		gconv(T_ADDR, nl->type->etype);
+-//		break;
++	case OIND:
++		cgen(nl, res);
++		break;
+ 		
+ 	case ODOT:
+ 		t = nl->type;
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 4712b0c28c..ca67d73750 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -497,7 +497,7 @@ swgen(Node *n)
+ 		n1.op = OEQ;
+ 		n1.left = &tmp;
+ 		n1.right = s->scase;
+-		walktype(&n1, 0);
++		walktype(&n1, Erv);
+ 		bgen(&n1, 1, s->sprog);
+ 	}
+ 	if(dflt != P) {
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cc8e7321a0..0a530b47d4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -10,14 +10,15 @@ convlit(Node *n, Type *t)
+ {
+ 	int et;
+ 
+-	if(n->op != OLITERAL)
++	if(n == N || n->op != OLITERAL || t == T)
+ 		return;
+-	if(t == T)
++
++	if(t->etype == TANY || isptrto(t, TANY)) {
++		defaultlit(n);
+ 		return;
++	}
+ 
+-	n->type = t;
+ 	et = t->etype;
+-
+ 	switch(whatis(n)) {
+ 	case Wlitint:
+ 		if(isptrto(t, TSTRING)) {
+@@ -72,6 +73,7 @@ convlit(Node *n, Type *t)
+ 		}
+ 		goto bad1;
+ 	}
++	n->type = t;
+ 	return;
+ 
+ bad1:
+@@ -122,9 +124,17 @@ evconst(Node *n)
+ 	case Wlitstr:
+ 		break;
+ 	}
++
+ 	if(wl != wr) {
+-		yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
+-		return;
++		if(wl == Wlitfloat && wr == Wlitint)
++			convlit(n->right, n->left->type);
++		else
++		if(wl == Wlitint && wr == Wlitfloat)
++			convlit(n->left, n->right->type);
++		else {
++			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
++			return;
++		}
+ 	}
+ 
+ 	switch(TUP(n->op, wl)) {
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 95a2ff8c88..183da44704 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -37,9 +37,17 @@ loop:
+ void
+ dodcltype(Type *n, Type *t)
+ {
++	Type *nt;
+ 
+ 	if(n == T)
+ 		return;
++	if(t->sym != S) {
++		// botch -- should be a complete deep copy
++		nt = typ(Txxx);
++		*nt = *t;
++		t = nt;
++		t->sym = S;
++	}
+ 	addtyp(n, t, dclcontext);
+ }
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index f36b66d12e..21ed985e03 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -217,6 +217,17 @@ dumpexporttype(Sym *s)
+ 		}
+ 		Bprint(bout, "%c\n", (et==TSTRUCT)? '}': '>');
+ 		break;
++
++	case TMAP:
++		reexport(t->type);
++		reexport(t->down);
++
++		/* type 6 */
++		Bprint(bout, "\ttype ");
++		if(s->export != 0)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS [%lS] %lS\n", s, t->down->sym, t->type->sym);
++		break;
+ 	}
+ }
+ 
+@@ -481,9 +492,18 @@ doimportv1(Node *ss, Node *st)
+  * array type
+  */
+ void
+-doimport1(Node *ss, Node *ss1, Node *s)
++doimport1(Node *ss, Node *si, Node *st)
+ {
+-	fatal("doimport1");
++	Type *t;
++	Sym *s;
++
++	t = typ(TMAP);
++	s = pkglookup(si->sym->name, si->psym->name);
++	t->down = s->otype;
++	s = pkglookup(st->sym->name, st->psym->name);
++	t->type = s->otype;
++
++	importaddtyp(ss, t);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0ce1e6a9ce..c4153ee424 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -320,6 +320,15 @@ enum
+ 	PSTATIC,
+ };
+ 
++enum
++{
++	Exxx,
++	Eyyy,
++	Etop,		// evaluated at statement level
++	Elv,		// evaluated in lvalue context
++	Erv,		// evaluated in rvalue context
++};
++
+ typedef	struct	Io	Io;
+ struct	Io
+ {
+@@ -359,6 +368,7 @@ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isint[NTYPE];
+ EXTERN	uchar	isfloat[NTYPE];
+ EXTERN	uchar	issigned[NTYPE];
++EXTERN	uchar	issimple[NTYPE];
+ EXTERN	uchar	okforeq[NTYPE];
+ EXTERN	uchar	okforadd[NTYPE];
+ EXTERN	uchar	okforand[NTYPE];
+@@ -447,6 +457,7 @@ int	isptrto(Type*, int);
+ int	isinter(Type*);
+ int	isbytearray(Type*);
+ int	eqtype(Type*, Type*, int);
++void	argtype(Node*, Type*);
+ int	eqargs(Type*, Type*);
+ ulong	typehash(Type*, int);
+ void	frame(int);
+@@ -457,6 +468,7 @@ void	ullmancalc(Node*);
+ void	badtype(int, Type*, Type*);
+ Type*	ptrto(Type*);
+ Node*	cleanidlist(Node*);
++Node*	syslook(char*, int);
+ 
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+@@ -541,10 +553,10 @@ void	doimport7(Node*, Node*);
+  */
+ void	walk(Node*);
+ void	walktype(Node*, int);
+-Type*	walkswitch(Node*, Node*, Type*(*)(Node*, Type*));
++Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
+ int	whatis(Node*);
+-void	walkdot(Node*);
++void	walkdot(Node*, int);
+ Node*	ascompatee(int, Node**, Node**);
+ Node*	ascompatet(int, Node**, Type**, int);
+ Node*	ascompatte(int, Type**, Node**, int);
+@@ -552,7 +564,8 @@ int	ascompat(Type*, Type*);
+ Node*	prcompat(Node*);
+ Node*	nodpanic(long);
+ Node*	newcompat(Node*);
+-Node*	stringop(Node*);
++Node*	stringop(Node*, int);
++Node*	mapop(Node*, int);
+ Node*	convas(Node*);
+ void	arrayconv(Type*, Node*);
+ Node*	reorder1(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c206063009..519e3a9a68 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -12,7 +12,7 @@
+ 	struct	Val	val;
+ 	int		lint;
+ }
+-%token	<sym>		LNAME LBASETYPE LATYPE LANY LPACK LACONST
++%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+ %token	<val>		LLITERAL LASOP
+ %token			LPACKAGE LIMPORT LEXPORT
+ %token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+@@ -191,7 +191,7 @@ vardcl:
+ 	}
+ |	new_name '=' expr
+ 	{
+-		walktype($3, 0);	// this is a little harry
++		walktype($3, Erv);	// this is a little harry
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+ 
+@@ -201,13 +201,13 @@ vardcl:
+ constdcl:
+ 	new_name '=' expr
+ 	{
+-		walktype($3, 0);
++		walktype($3, Erv);
+ 		dodclconst($1, $3);
+ 		iota += 1;
+ 	}
+ |	new_name type '=' expr
+ 	{
+-		walktype($4, 0);
++		walktype($4, Erv);
+ 		convlit($4, $2);
+ 		dodclconst($1, $4);
+ 		iota += 1;
+@@ -257,7 +257,7 @@ simple_stmt:
+ 	}
+ |	new_name LCOLAS expr
+ 	{
+-		walktype($3, 0);	// this is a little harry
++		walktype($3, Erv);	// this is a little harry
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+ 
+@@ -278,17 +278,23 @@ complex_stmt:
+ 			yyerror("switch statement must have case labels");
+ 		$$ = $2;
+ 		$$->op = OSWITCH;
++		//if($$->ninit != N && $$->ntest == N)
++		//	yyerror("switch expression should not be missing");
+ 	}
+ |	LIF if_stmt
+ 	{
+ 		popdcl("if/switch");
+ 		$$ = $2;
++		//if($$->ninit != N && $$->ntest == N)
++		//	yyerror("if conditional should not be missing");
+ 	}
+ |	LIF if_stmt LELSE else_stmt1
+ 	{
+ 		popdcl("if/switch");
+ 		$$ = $2;
+ 		$$->nelse = $4;
++		//if($$->ninit != N && $$->ntest == N)
++		//	yyerror("if conditional should not be missing");
+ 	}
+ |	LRANGE range_stmt
+ 	{
+@@ -352,6 +358,8 @@ semi_stmt:
+ 		popdcl("if/switch");
+ 		$$ = $2;
+ 		$$->nelse = $4;
++		//if($$->ninit != N && $$->ntest == N)
++		//	yyerror("if conditional should not be missing");
+ 	}
+ 
+ compound_stmt:
+@@ -756,10 +764,6 @@ typeconv:
+ 		$$->down = $3;
+ 		$$->type = $5;
+ 	}
+-|	LANY
+-	{
+-		$$ = typ(TANY);
+-	}
+ 
+ type:
+ 	latype
+@@ -799,10 +803,6 @@ type:
+ 	{
+ 		$$ = dostruct(N, TINTER);
+ 	}
+-|	LANY
+-	{
+-		$$ = typ(TANY);
+-	}
+ |	fntypeh
+ |	'*' type
+ 	{
+@@ -1284,8 +1284,10 @@ oarg_type_list:
+  * an output package
+  */
+ hidden_import:
++	/* leftover import ignored */
++	LPACKAGE sym
+ 	/* variables */
+-	LVAR hidden_importsym hidden_importsym
++|	LVAR hidden_importsym hidden_importsym
+ 	{
+ 		// var
+ 		doimportv1($2, $3);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 91c35a126b..fbba021a1c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -845,8 +845,10 @@ static	struct
+ 	"char",		LBASETYPE,	TUINT8,		// temp??
+ 	"string",	LBASETYPE,	TSTRING,
+ 
++	"any",		LBASETYPE,	TANY,
++
+ /* keywords */
+-	"any",		LANY,		Txxx,
++//	"any",		LANY,		Txxx,
+ 	"break",	LBREAK,		Txxx,
+ 	"case",		LCASE,		Txxx,
+ 	"chan",		LCHAN,		Txxx,
+@@ -918,13 +920,17 @@ lexinit(void)
+ 			okforeq[i] = 1;
+ 			okforadd[i] = 1;
+ 			okforand[i] = 1;
++			issimple[i] = 1;
+ 		}
+ 		if(isfloat[i]) {
+ 			okforeq[i] = 1;
+ 			okforadd[i] = 1;
++			issimple[i] = 1;
+ 		}
+ 		switch(i) {
+ 		case TBOOL:
++			issimple[i] = 1;
++
+ 		case TPTR32:
+ 		case TPTR64:
+ 			okforeq[i] = 1;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 37375342c0..8d24915359 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -36,7 +36,7 @@ warn(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L warning: ");
++	print("%L: ");
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+@@ -50,7 +50,7 @@ fatal(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L fatal error: ");
++	print("%L: fatal error: ");
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+@@ -344,7 +344,7 @@ aindex(Node *b, Type *t)
+ 	if(t->etype == TDARRAY)
+ 		yyerror("dynamic array type cannot be a dynamic array");
+ 
+-	walktype(b, 0);
++	walktype(b, Erv);
+ 	switch(whatis(b)) {
+ 	default:
+ 		yyerror("array bound must be a constant integer expression");
+@@ -754,6 +754,7 @@ etnames[] =
+ 	[TFIELD]	= "FIELD",
+ 	[TSTRING]	= "STRING",
+ 	[TCHAN]		= "CHAN",
++	[TANY]		= "ANY",
+ };
+ 
+ int
+@@ -884,6 +885,7 @@ Tconv(Fmt *fp)
+ 
+ 	strcpy(buf, "");
+ 	if(t->sym != S) {
++		if(t->sym->name[0] != '_')
+ 		snprint(buf, sizeof(buf), "<%S>", t->sym);
+ 	}
+ 	if(t->trecur > 5) {
+@@ -908,13 +910,13 @@ Tconv(Fmt *fp)
+ 
+ 	case TFUNC:
+ 		if(fp->flags & FmtLong)
+-			snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT,%lT)",
+-				t->thistuple, t->outtuple, t->intuple,
+-				t->type, t->type->down, t->type->down->down);
++			snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT)%lT",
++				t->thistuple, t->intuple, t->outtuple,
++				t->type, t->type->down->down, t->type->down);
+ 		else
+-			snprint(buf1, sizeof(buf1), "%d%d%d(%T,%T,%T)",
+-				t->thistuple, t->outtuple, t->intuple,
+-				t->type, t->type->down, t->type->down->down);
++			snprint(buf1, sizeof(buf1), "%d%d%d(%T,%T)%T",
++				t->thistuple, t->intuple, t->outtuple,
++				t->type, t->type->down->down, t->type->down);
+ 		strncat(buf, buf1, sizeof(buf));
+ 		break;
+ 
+@@ -1205,6 +1207,141 @@ eqtype(Type *t1, Type *t2, int d)
+ 	return eqtype(t1->type, t2->type, d+1);
+ }
+ 
++static int
++subtype(Type **stp, Type *t)
++{
++	Type *st;
++
++loop:
++	st = *stp;
++	if(st == T)
++		return 0;
++	switch(st->etype) {
++	default:
++		return 0;
++
++	case TPTR32:
++	case TPTR64:
++		stp = &st->type;
++		goto loop;
++
++	case TANY:
++		*stp = t;
++		break;
++
++	case TMAP:
++		if(subtype(&st->down, t))
++			break;
++		stp = &st->type;
++		goto loop;
++
++	case TFUNC:
++		for(;;) {
++			if(subtype(&st->type, t))
++				break;
++			if(subtype(&st->type->down->down, t))
++				break;
++			if(subtype(&st->type->down, t))
++				break;
++			return 0;
++		}
++		break;
++
++	case TSTRUCT:
++		for(st=st->type; st!=T; st=st->down)
++			if(subtype(&st->type, t))
++				return 1;
++		return 0;
++	}
++	return 1;
++}
++
++void
++argtype(Node *on, Type *t)
++{
++	if(!subtype(&on->type, t))
++		fatal("argtype: failed %N %T\n", on, t);
++}
++
++Type*
++shallow(Type *t)
++{
++	Type *nt;
++
++	if(t == T)
++		return T;
++	nt = typ(0);
++	*nt = *t;
++	return nt;
++}
++
++Type*
++deep(Type *t)
++{
++	Type *nt, *xt;
++
++	if(t == T)
++		return T;
++
++	switch(t->etype) {
++	default:
++		nt = t;	// share from here down
++		break;
++
++	case TPTR32:
++	case TPTR64:
++		nt = shallow(t);
++		nt->type = deep(t->type);
++		break;
++
++	case TMAP:
++		nt = shallow(t);
++		nt->down = deep(t->down);
++		nt->type = deep(t->type);
++		break;
++
++	case TFUNC:
++		nt = shallow(t);
++		nt->type = deep(t->type);
++		nt->type->down = deep(t->type->down);
++		nt->type->down->down = deep(t->type->down->down);
++		break;
++
++	case TSTRUCT:
++		nt = shallow(t);
++		nt->type = shallow(t->type);
++		xt = nt->type;
++
++		for(t=t->type; t!=T; t=t->down) {
++			xt->type = deep(t->type);
++			xt->down = shallow(t->down);
++			xt = xt->down;
++		}
++		break;
++	}
++	return nt;
++}
++
++Node*
++syslook(char *name, int copy)
++{
++	Sym *s;
++	Node *n;
++
++	s = pkglookup(name, "sys");
++	if(s == S || s->oname == N)
++		fatal("looksys: cant find sys.%s", name);
++
++	if(!copy)
++		return s->oname;
++
++	n = nod(0, N, N);
++	*n = *s->oname;
++	n->type = deep(s->oname->type);
++
++	return n;
++}
++
+ /*
+  * are the arg names of two
+  * functions the same. we know
+@@ -1386,13 +1523,27 @@ out:
+ void
+ badtype(int o, Type *tl, Type *tr)
+ {
+-	yyerror("illegal types for operand");
++
++loop:
++	switch(o) {
++	case OCALL:
++		if(tl == T || tr == T)
++			break;
++		if(isptr[tl->etype] && isptr[tr->etype]) {
++			tl = tl->type;
++			tr = tr->type;
++			goto loop;
++		}
++		if(tl->etype != TFUNC || tr->etype != TFUNC)
++			break;
++//		if(eqtype(t1, t2, 0))
++	}
++
++	yyerror("illegal types for operand: %O", o);
+ 	if(tl != T)
+-		print("	(%T)", tl);
+-	print(" %O ", o);
++		print("	(%lT)\n", tl);
+ 	if(tr != T)
+-		print("(%T)", tr);
+-	print("\n");
++		print("	(%lT)\n", tr);
+ }
+ 
+ /*
+@@ -1605,6 +1756,11 @@ listnext(Iter *s)
+ 
+ 	n = s->n;
+ 	r = n->right;
++	if(r == N) {
++		s->an = &s->n;
++		s->n = N;
++		return N;
++	}
+ 	if(r->op == OLIST) {
+ 		s->n = r;
+ 		s->an = &r->left;
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 89da8919fb..7e8fd5f03e 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -5,7 +5,7 @@
+ 
+ package foop	// rename to avoid redeclaration
+ 
+-func	mal(uint32) *byte;
++func	mal(uint32) *any;
+ func	breakpoint();
+ func	panicl(int32);
+ 
+@@ -27,17 +27,27 @@ func	frexp(float64) (int32, float64);	// break fp into exp,fract
+ func	ldexp(int32, float64) float64;		// make fp from exp,fract
+ func	modf(float64) (float64, float64);	// break fp into double.double
+ 
++func	newmap(keysize uint32, valsize uint32,
++		keyalg uint32, valalg uint32,
++		hint uint32) (hmap *map[any]any);
++func	mapaccess1(hmap *map[any]any, key any) (val any);
++func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
++func	mapdelete(hmap *map[any]any, key any);
++func	mapassign(hmap *map[any]any, any);
++
+ export
+ 	mal
+ 	breakpoint
+-	panicl
+ 
++	// print panic
++	panicl
+ 	printbool
+ 	printfloat
+ 	printint
+ 	printstring
+ 	printpointer
+ 
++	// op string
+ 	catstring
+ 	cmpstring
+ 	slicestring
+@@ -49,4 +59,12 @@ export
+ 	frexp
+ 	ldexp
+ 	modf
++
++	// op map
++	newmap
++	mapaccess1
++	mapaccess2
++	mapdelete
++	mapassign
++
+ 	;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 776d5a76bb..439c311eca 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,11 +1,12 @@
+ char*	sysimport =
++	"package sys\n"
+ 	"type sys._e002 {}\n"
+-	"type sys.uint8 2\n"
+-	"type sys._e003 *sys.uint8\n"
+-	"type sys._o137 {_e135 sys._e003}\n"
++	"type sys.any 24\n"
++	"type sys._e003 *sys.any\n"
++	"type sys._o172 {_e170 sys._e003}\n"
+ 	"type sys.uint32 6\n"
+-	"type sys._i139 {_e136 sys.uint32}\n"
+-	"type sys._e001 (sys._e002 sys._o137 sys._i139)\n"
++	"type sys._i174 {_e171 sys.uint32}\n"
++	"type sys._e001 (sys._e002 sys._o172 sys._i174)\n"
+ 	"var !sys.mal sys._e001\n"
+ 	"type sys._e005 {}\n"
+ 	"type sys._e006 {}\n"
+@@ -15,95 +16,131 @@ char*	sysimport =
+ 	"type sys._e009 {}\n"
+ 	"type sys._e010 {}\n"
+ 	"type sys.int32 5\n"
+-	"type sys._i145 {_e144 sys.int32}\n"
+-	"type sys._e008 (sys._e009 sys._e010 sys._i145)\n"
++	"type sys._i180 {_e179 sys.int32}\n"
++	"type sys._e008 (sys._e009 sys._e010 sys._i180)\n"
+ 	"var !sys.panicl sys._e008\n"
+ 	"type sys._e012 {}\n"
+ 	"type sys._e013 {}\n"
+ 	"type sys.bool 12\n"
+-	"type sys._i150 {_e149 sys.bool}\n"
+-	"type sys._e011 (sys._e012 sys._e013 sys._i150)\n"
++	"type sys._i185 {_e184 sys.bool}\n"
++	"type sys._e011 (sys._e012 sys._e013 sys._i185)\n"
+ 	"var !sys.printbool sys._e011\n"
+ 	"type sys._e015 {}\n"
+ 	"type sys._e016 {}\n"
+ 	"type sys.float64 10\n"
+-	"type sys._i155 {_e154 sys.float64}\n"
+-	"type sys._e014 (sys._e015 sys._e016 sys._i155)\n"
++	"type sys._i190 {_e189 sys.float64}\n"
++	"type sys._e014 (sys._e015 sys._e016 sys._i190)\n"
+ 	"var !sys.printfloat sys._e014\n"
+ 	"type sys._e018 {}\n"
+ 	"type sys._e019 {}\n"
+ 	"type sys.int64 7\n"
+-	"type sys._i160 {_e159 sys.int64}\n"
+-	"type sys._e017 (sys._e018 sys._e019 sys._i160)\n"
++	"type sys._i195 {_e194 sys.int64}\n"
++	"type sys._e017 (sys._e018 sys._e019 sys._i195)\n"
+ 	"var !sys.printint sys._e017\n"
+ 	"type sys._e021 {}\n"
+ 	"type sys._e022 {}\n"
+ 	"type sys._e023 25\n"
+ 	"type sys.string *sys._e023\n"
+-	"type sys._i165 {_e164 sys.string}\n"
+-	"type sys._e020 (sys._e021 sys._e022 sys._i165)\n"
++	"type sys._i200 {_e199 sys.string}\n"
++	"type sys._e020 (sys._e021 sys._e022 sys._i200)\n"
+ 	"var !sys.printstring sys._e020\n"
+ 	"type sys._e025 {}\n"
+ 	"type sys._e026 {}\n"
++	"type sys.uint8 2\n"
+ 	"type sys._e027 *sys.uint8\n"
+-	"type sys._i170 {_e169 sys._e027}\n"
+-	"type sys._e024 (sys._e025 sys._e026 sys._i170)\n"
++	"type sys._i205 {_e204 sys._e027}\n"
++	"type sys._e024 (sys._e025 sys._e026 sys._i205)\n"
+ 	"var !sys.printpointer sys._e024\n"
+ 	"type sys._e029 {}\n"
+-	"type sys._o177 {_e174 sys.string}\n"
+-	"type sys._i179 {_e175 sys.string _e176 sys.string}\n"
+-	"type sys._e028 (sys._e029 sys._o177 sys._i179)\n"
++	"type sys._o212 {_e209 sys.string}\n"
++	"type sys._i214 {_e210 sys.string _e211 sys.string}\n"
++	"type sys._e028 (sys._e029 sys._o212 sys._i214)\n"
+ 	"var !sys.catstring sys._e028\n"
+ 	"type sys._e031 {}\n"
+-	"type sys._o187 {_e184 sys.int32}\n"
+-	"type sys._i189 {_e185 sys.string _e186 sys.string}\n"
+-	"type sys._e030 (sys._e031 sys._o187 sys._i189)\n"
++	"type sys._o222 {_e219 sys.int32}\n"
++	"type sys._i224 {_e220 sys.string _e221 sys.string}\n"
++	"type sys._e030 (sys._e031 sys._o222 sys._i224)\n"
+ 	"var !sys.cmpstring sys._e030\n"
+ 	"type sys._e033 {}\n"
+-	"type sys._o198 {_e194 sys.string}\n"
+-	"type sys._i200 {_e195 sys.string _e196 sys.int32 _e197 sys.int32}\n"
+-	"type sys._e032 (sys._e033 sys._o198 sys._i200)\n"
++	"type sys._o233 {_e229 sys.string}\n"
++	"type sys._i235 {_e230 sys.string _e231 sys.int32 _e232 sys.int32}\n"
++	"type sys._e032 (sys._e033 sys._o233 sys._i235)\n"
+ 	"var !sys.slicestring sys._e032\n"
+ 	"type sys._e035 {}\n"
+-	"type sys._o209 {_e206 sys.uint8}\n"
+-	"type sys._i211 {_e207 sys.string _e208 sys.int32}\n"
+-	"type sys._e034 (sys._e035 sys._o209 sys._i211)\n"
++	"type sys._o244 {_e241 sys.uint8}\n"
++	"type sys._i246 {_e242 sys.string _e243 sys.int32}\n"
++	"type sys._e034 (sys._e035 sys._o244 sys._i246)\n"
+ 	"var !sys.indexstring sys._e034\n"
+ 	"type sys._e037 {}\n"
+-	"type sys._o218 {_e216 sys.string}\n"
+-	"type sys._i220 {_e217 sys.int64}\n"
+-	"type sys._e036 (sys._e037 sys._o218 sys._i220)\n"
++	"type sys._o253 {_e251 sys.string}\n"
++	"type sys._i255 {_e252 sys.int64}\n"
++	"type sys._e036 (sys._e037 sys._o253 sys._i255)\n"
+ 	"var !sys.intstring sys._e036\n"
+ 	"type sys._e039 {}\n"
+-	"type sys._o227 {_e224 sys.string}\n"
++	"type sys._o262 {_e259 sys.string}\n"
+ 	"type sys._e040 *sys.uint8\n"
+-	"type sys._i229 {_e225 sys._e040 _e226 sys.int32}\n"
+-	"type sys._e038 (sys._e039 sys._o227 sys._i229)\n"
++	"type sys._i264 {_e260 sys._e040 _e261 sys.int32}\n"
++	"type sys._e038 (sys._e039 sys._o262 sys._i264)\n"
+ 	"var !sys.byteastring sys._e038\n"
+ 	"type sys._e042 {}\n"
+ 	"type sys._e043 <>\n"
+-	"type sys._o238 {_e234 sys._e043}\n"
++	"type sys._o273 {_e269 sys._e043}\n"
+ 	"type sys._e044 *sys.uint8\n"
+ 	"type sys._e045 *sys.uint8\n"
+-	"type sys._s245 {}\n"
+-	"type sys._e046 *sys._s245\n"
+-	"type sys._i240 {_e235 sys._e044 _e236 sys._e045 _e237 sys._e046}\n"
+-	"type sys._e041 (sys._e042 sys._o238 sys._i240)\n"
++	"type sys._s280 {}\n"
++	"type sys._e046 *sys._s280\n"
++	"type sys._i275 {_e270 sys._e044 _e271 sys._e045 _e272 sys._e046}\n"
++	"type sys._e041 (sys._e042 sys._o273 sys._i275)\n"
+ 	"var !sys.mkiface sys._e041\n"
+ 	"type sys._e048 {}\n"
+-	"type sys._o251 {_e248 sys.int32 _e249 sys.float64}\n"
+-	"type sys._i253 {_e250 sys.float64}\n"
+-	"type sys._e047 (sys._e048 sys._o251 sys._i253)\n"
++	"type sys._o286 {_e283 sys.int32 _e284 sys.float64}\n"
++	"type sys._i288 {_e285 sys.float64}\n"
++	"type sys._e047 (sys._e048 sys._o286 sys._i288)\n"
+ 	"var !sys.frexp sys._e047\n"
+ 	"type sys._e050 {}\n"
+-	"type sys._o260 {_e257 sys.float64}\n"
+-	"type sys._i262 {_e258 sys.int32 _e259 sys.float64}\n"
+-	"type sys._e049 (sys._e050 sys._o260 sys._i262)\n"
++	"type sys._o295 {_e292 sys.float64}\n"
++	"type sys._i297 {_e293 sys.int32 _e294 sys.float64}\n"
++	"type sys._e049 (sys._e050 sys._o295 sys._i297)\n"
+ 	"var !sys.ldexp sys._e049\n"
+ 	"type sys._e052 {}\n"
+-	"type sys._o270 {_e267 sys.float64 _e268 sys.float64}\n"
+-	"type sys._i272 {_e269 sys.float64}\n"
+-	"type sys._e051 (sys._e052 sys._o270 sys._i272)\n"
++	"type sys._o305 {_e302 sys.float64 _e303 sys.float64}\n"
++	"type sys._i307 {_e304 sys.float64}\n"
++	"type sys._e051 (sys._e052 sys._o305 sys._i307)\n"
+ 	"var !sys.modf sys._e051\n"
++	"type sys._e054 {}\n"
++	"type sys._e056 [sys.any] sys.any\n"
++	"type sys._e055 *sys._e056\n"
++	"type sys._o311 {hmap sys._e055}\n"
++	"type sys._i313 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
++	"type sys._e053 (sys._e054 sys._o311 sys._i313)\n"
++	"var !sys.newmap sys._e053\n"
++	"type sys._e058 {}\n"
++	"type sys._o321 {val sys.any}\n"
++	"type sys._e060 [sys.any] sys.any\n"
++	"type sys._e059 *sys._e060\n"
++	"type sys._i323 {hmap sys._e059 key sys.any}\n"
++	"type sys._e057 (sys._e058 sys._o321 sys._i323)\n"
++	"var !sys.mapaccess1 sys._e057\n"
++	"type sys._e062 {}\n"
++	"type sys._o328 {val sys.any pres sys.bool}\n"
++	"type sys._e064 [sys.any] sys.any\n"
++	"type sys._e063 *sys._e064\n"
++	"type sys._i330 {hmap sys._e063 key sys.any}\n"
++	"type sys._e061 (sys._e062 sys._o328 sys._i330)\n"
++	"var !sys.mapaccess2 sys._e061\n"
++	"type sys._e066 {}\n"
++	"type sys._e067 {}\n"
++	"type sys._e069 [sys.any] sys.any\n"
++	"type sys._e068 *sys._e069\n"
++	"type sys._i335 {hmap sys._e068 key sys.any}\n"
++	"type sys._e065 (sys._e066 sys._e067 sys._i335)\n"
++	"var !sys.mapdelete sys._e065\n"
++	"type sys._e071 {}\n"
++	"type sys._e072 {}\n"
++	"type sys._e074 [sys.any] sys.any\n"
++	"type sys._e073 *sys._e074\n"
++	"type sys._i341 {hmap sys._e073 _e340 sys.any}\n"
++	"type sys._e070 (sys._e071 sys._e072 sys._i341)\n"
++	"var !sys.mapassign sys._e070\n"
+ 	"))\n"
+ ;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3952ad2e60..d2bcb05ae4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -13,7 +13,7 @@ void
+ walk(Node *fn)
+ {
+ 	curfn = fn;
+-	walktype(fn->nbody, 1);
++	walktype(fn->nbody, Etop);
+ }
+ 
+ void
+@@ -32,6 +32,10 @@ walktype(Node *n, int top)
+ 	 */
+ 
+ 	lno = dynlineno;
++	if(top == Exxx || top == Eyyy) {
++		dump("", n);
++		fatal("walktype: top=%d", top);
++	}
+ 
+ loop:
+ 	if(n == N)
+@@ -39,6 +43,9 @@ loop:
+ 	if(n->op != ONAME)
+ 		dynlineno = n->lineno;	// for diagnostics
+ 
++if(debug['T'])
++print("%L walktype %O %d\n", n->op, top);
++
+ 	t = T;
+ 	et = Txxx;
+ 
+@@ -48,21 +55,29 @@ loop:
+ 		goto ret;
+ 
+ 	case OPRINT:
+-		walktype(n->left, 0);
++		if(top != Etop)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		*n = *prcompat(n->left);
+ 		goto ret;
+ 
+ 	case OPANIC:
+-		walktype(n->left, 0);
++		if(top != Etop)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		*n = *nod(OLIST, prcompat(n->left), nodpanic(n->lineno));
+ 		goto ret;
+ 
+ 	case OLITERAL:
++		if(top != Erv)
++			goto nottop;
+ 		n->addable = 1;
+ 		ullmancalc(n);
+ 		goto ret;
+ 
+ 	case ONAME:
++		if(top == Etop)
++			goto nottop;
+ 		n->addable = 1;
+ 		ullmancalc(n);
+ 		if(n->type == T) {
+@@ -80,63 +95,65 @@ loop:
+ 		goto loop;
+ 
+ 	case OFOR:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
+-		walktype(n->ninit, 1);
+-		walktype(n->ntest, 1);
+-		walktype(n->nincr, 1);
++		walktype(n->ninit, Etop);
++		walktype(n->ntest, Erv);
++		walktype(n->nincr, Etop);
+ 		n = n->nbody;
+ 		goto loop;
+ 
+ 	case OSWITCH:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
+ 
+ 		if(n->ntest == N)
+ 			n->ntest = booltrue;
+-		walktype(n->ninit, 1);
+-		walktype(n->ntest, 1);
+-		walktype(n->nbody, 1);
+-
++		walktype(n->ninit, Etop);
++		walktype(n->ntest, Erv);
++		walktype(n->nbody, Etop);
+ 		// find common type
+ 		if(n->ntest->type == T)
+-			n->ntest->type = walkswitch(n->ntest, n->nbody, sw1);
++			n->ntest->type = walkswitch(n, sw1);
+ 
+ 		// if that fails pick a type
+ 		if(n->ntest->type == T)
+-			n->ntest->type = walkswitch(n->ntest, n->nbody, sw2);
++			n->ntest->type = walkswitch(n, sw2);
+ 
+ 		// set the type on all literals
+ 		if(n->ntest->type != T)
+-			walkswitch(n->ntest, n->nbody, sw3);
++			walkswitch(n, sw3);
+ 
+-		walktype(n->ntest, 1);
++		walktype(n->ntest, Erv);
+ 
+ 		n = n->nincr;
+ 		goto loop;
+ 
+ 	case OEMPTY:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
+ 		goto ret;
+ 
+ 	case OIF:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
+-		walktype(n->ninit, 1);
+-		walktype(n->ntest, 1);
+-		walktype(n->nelse, 1);
++		walktype(n->ninit, Etop);
++		walktype(n->ntest, Erv);
++		walktype(n->nelse, Etop);
+ 		n = n->nbody;
+ 		goto loop;
+ 
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 	case OCALL:
++		if(top == Elv)
++			goto nottop;
++
+ 		n->ullman = UINF;
+ 		if(n->type != T)
+ 			goto ret;
+ 
+-		walktype(n->left, 0);
++		walktype(n->left, Erv);
+ 		if(n->left == N)
+ 			goto ret;
+ 
+@@ -162,7 +179,7 @@ loop:
+ 		if(t->outtuple == 1)
+ 			n->type = n->type->type->type;
+ 
+-		walktype(n->right, 0);
++		walktype(n->right, Erv);
+ 
+ 		switch(n->op) {
+ 		default:
+@@ -190,19 +207,26 @@ loop:
+ 		goto ret;
+ 
+ 	case OAS:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
+ 
+-		r = n->right;
+-		if(r == N)
+-			goto ret;
+ 		l = n->left;
++		r = n->right;
+ 		if(l == N)
+ 			goto ret;
+ 
++		walktype(l, Elv);
++		walktype(r, Erv);
++
++		if(l == N || l->type == T)
++			goto ret;
++
++		convlit(r, l->type);
++		if(r == N || r->type == T)
++			goto ret;
++
++
+ 		if(r->op == OCALL && l->op == OLIST) {
+-			walktype(l, 0);
+-			walktype(r, 0);
+ 			l = ascompatet(n->op, &n->left, &r->type, 0);
+ 			if(l != N) {
+ 				*n = *nod(OLIST, r, reorder2(l));
+@@ -210,8 +234,6 @@ loop:
+ 			goto ret;
+ 		}
+ 
+-		walktype(l, 0);
+-		walktype(r, 0);
+ 		l = ascompatee(n->op, &n->left, &n->right);
+ 		if(l != N)
+ 			*n = *reorder3(l);
+@@ -221,17 +243,26 @@ loop:
+ 	case OCONTINUE:
+ 	case OGOTO:
+ 	case OLABEL:
++		if(top != Etop)
++			goto nottop;
+ 		goto ret;
+ 
+ 	case OXCASE:
++		if(top != Etop)
++			goto nottop;
+ 		yyerror("case statement out of place");
+ 		n->op = OCASE;
+ 
+ 	case OCASE:
+-		n = n->left;
++		if(top != Etop)
++			goto nottop;
++		walktype(n->left, Erv);
++		n = n->right;
+ 		goto loop;
+ 
+ 	case OXFALL:
++		if(top != Etop)
++			goto nottop;
+ 		yyerror("fallthrough statement out of place");
+ 		n->op = OFALL;
+ 
+@@ -242,12 +273,16 @@ loop:
+ 	case OS2I:
+ 	case OI2S:
+ 	case OI2I:
++		if(top != Erv)
++			goto nottop;
+ 		n->addable = 0;
+-		walktype(n->left, 0);
++		walktype(n->left, Erv);
+ 		goto ret;
+ 
+ 	case OCONV:
+-		walktype(n->left, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		if(n->left == N)
+ 			goto ret;
+ 
+@@ -271,12 +306,12 @@ loop:
+ 		// to string
+ 		if(isptrto(n->type, TSTRING)) {
+ 			if(isint[n->left->type->etype]) {
+-				*n = *stringop(n);
++				*n = *stringop(n, top);
+ 				goto ret;
+ 			}
+ 			if(isbytearray(n->left->type) != 0) {
+ 				n->op = OARRAY;
+-				*n = *stringop(n);
++				*n = *stringop(n, top);
+ 				goto ret;
+ 			}
+ 		}
+@@ -290,22 +325,28 @@ loop:
+ 		goto ret;
+ 
+ 	case ORETURN:
+-		walktype(n->left, 0);
++		if(top != Etop)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		l = ascompatte(n->op, getoutarg(curfn->type), &n->left, 1);
+ 		if(l != N)
+ 			n->left = reorder4(l);
+ 		goto ret;
+ 
+ 	case ONOT:
+-		walktype(n->left, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		if(n->left == N || n->left->type == T)
+ 			goto ret;
+ 		et = n->left->type->etype;
+ 		break;
+ 
+ 	case OASOP:
+-		if(!top)
++		if(top != Etop)
+ 			goto nottop;
++		walktype(n->left, Elv);
++		goto com;
+ 
+ 	case OLSH:
+ 	case ORSH:
+@@ -325,8 +366,12 @@ loop:
+ 	case OSUB:
+ 	case OMUL:
+ 	case ODIV:
+-		walktype(n->left, 0);
+-		walktype(n->right, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
++
++	com:
++		walktype(n->right, Erv);
+ 		if(n->left == N || n->right == N)
+ 			goto ret;
+ 		convlit(n->left, n->right->type);
+@@ -349,7 +394,7 @@ loop:
+ 		case OADD:
+ 		case OASOP:
+ 			if(isptrto(n->left->type, TSTRING)) {
+-				*n = *stringop(n);
++				*n = *stringop(n, top);
+ 				goto ret;
+ 			}
+ 		}
+@@ -358,7 +403,9 @@ loop:
+ 	case OMINUS:
+ 	case OPLUS:
+ 	case OCOM:
+-		walktype(n->left, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		if(n->left == N)
+ 			goto ret;
+ 		evconst(n);
+@@ -368,7 +415,9 @@ loop:
+ 		break;
+ 
+ 	case OLEN:
+-		walktype(n->left, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
+ 		evconst(n);
+ 		ullmancalc(n);
+ 		t = n->left->type;
+@@ -387,8 +436,12 @@ loop:
+ 
+ 	case OINDEX:
+ 	case OINDEXPTR:
+-		walktype(n->left, 0);
+-		walktype(n->right, 0);
++		if(top == Etop)
++			goto nottop;
++
++		walktype(n->left, top);
++		walktype(n->right, Erv);
++
+ 		ullmancalc(n);
+ 		if(n->left == N || n->right == N)
+ 			goto ret;
+@@ -398,7 +451,7 @@ loop:
+ 
+ 		// map
+ 		if(isptrto(t, TMAP)) {
+-			fatal("index map");
++			*n = *mapop(n, top);
+ 			goto ret;
+ 		}
+ 
+@@ -412,7 +465,7 @@ loop:
+ 
+ 		// left side is string
+ 		if(isptrto(t, TSTRING)) {
+-			*n = *stringop(n);
++			*n = *stringop(n, top);
+ 			goto ret;
+ 		}
+ 
+@@ -427,12 +480,15 @@ loop:
+ 		goto ret;
+ 
+ 	case OSLICE:
+-		walktype(n->left, 0);
+-		walktype(n->right, 0);
++		if(top == Etop)
++			goto nottop;
++
++		walktype(n->left, top);
++		walktype(n->right, Erv);
+ 		if(n->left == N || n->right == N)
+ 			goto ret;
+ 		if(isptrto(n->left->type, TSTRING)) {
+-			*n = *stringop(n);
++			*n = *stringop(n, top);
+ 			goto ret;
+ 		}
+ 		badtype(OSLICE, n->left->type, T);
+@@ -442,11 +498,15 @@ loop:
+ 	case ODOTPTR:
+ 	case ODOTMETH:
+ 	case ODOTINTER:
+-		walkdot(n);
++		if(top == Etop)
++			goto nottop;
++		walkdot(n, top);
+ 		goto ret;
+ 
+ 	case OADDR:
+-		walktype(n->left, 0);
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Elv);
+ 		if(n->left == N)
+ 			goto ret;
+ 		t = n->left->type;
+@@ -456,7 +516,9 @@ loop:
+ 		goto ret;
+ 
+ 	case OIND:
+-		walktype(n->left, 0);
++		if(top == Etop)
++			goto nottop;
++		walktype(n->left, top);
+ 		if(n->left == N)
+ 			goto ret;
+ 		t = n->left->type;
+@@ -468,6 +530,8 @@ loop:
+ 		goto ret;
+ 
+ 	case ONEW:
++		if(top != Erv)
++			goto nottop;
+ 		*n = *newcompat(n);
+ 		goto ret;
+ 	}
+@@ -535,7 +599,7 @@ loop:
+ 
+ 		l = nod(OSUB, l, n->left);
+ 		*n = *l;
+-		walktype(n, 0);
++		walktype(n, Erv);
+ 		goto ret;
+ 
+ 	case OLSH:
+@@ -557,7 +621,8 @@ loop:
+ 	goto ret;
+ 
+ nottop:
+-	fatal("walktype: not top %O", n->op);
++	dump("bad top", n);
++	fatal("walktype: top=%d %O", top, n->op);
+ 	goto ret;
+ 
+ badt:
+@@ -615,16 +680,18 @@ sw3(Node *c, Type *place)
+ }
+ 
+ Type*
+-walkswitch(Node *test, Node *body, Type*(*call)(Node*, Type*))
++walkswitch(Node *sw, Type*(*call)(Node*, Type*))
+ {
+ 	Node *n, *c;
+ 	Type *place;
+ 
+-	place = call(test, T);
++	place = call(sw->ntest, T);
+ 
+-	n = body;
++	n = sw->nbody;
+ 	if(n->op == OLIST)
+ 		n = n->left;
++	if(n->op == OEMPTY)
++		return;
+ 
+ 	for(; n!=N; n=n->right) {
+ 		if(n->op != OCASE)
+@@ -656,14 +723,11 @@ casebody(Node *n)
+ 
+ 	oc = N;		// last case statement
+ 	ot = N;		// last statement (look for XFALL)
+-
+ 	t = listfirst(&save, &n);
+ 
+-	if(t->op != OXCASE)
+-		return 0;
+-
+ loop:
+ 	if(t == N) {
++		/* empty switch */
+ 		if(oc == N)
+ 			return 0;
+ 		return 1;
+@@ -680,7 +744,7 @@ loop:
+ 			ot->op = OFALL;
+ 	}
+ 
+-	/* if first statement is not case then return 0 */
++	/* if first statement is not case */
+ 	if(oc == N)
+ 		return 0;
+ 
+@@ -740,16 +804,19 @@ deep:
+ }
+ 
+ void
+-walkdot(Node *n)
++walkdot(Node *n, int top)
+ {
+ 	Node *mn;
+ 	Type *t, *f;
+ 	int i;
+ 
++if(debug['T'])
++print("%L walkdot %O %d\n", n->op, top);
++
+ 	if(n->left == N || n->right == N)
+ 		return;
+ 
+-	walktype(n->left, 0);
++	walktype(n->left, Erv);
+ 	if(n->right->op != ONAME) {
+ 		yyerror("rhs of . must be a name");
+ 		return;
+@@ -918,7 +985,6 @@ loop:
+ 			yyerror("error in shape across assignment");
+ 		return rev(nn);
+ 	}
+-
+ 	convlit(r, l->type);
+ 	if(!ascompat(l->type, r->type)) {
+ 		badtype(op, l->type, r->type);
+@@ -971,14 +1037,14 @@ prcompat(Node *n)
+ 	Iter save;
+ 	int w;
+ 	char *name;
+-	Sym *s;
++	Node *on;
+ 
+ 	r = N;
+ 	l = listfirst(&save, &n);
+ 
+ loop:
+ 	if(l == N) {
+-		walktype(r, 1);
++		walktype(r, Etop);
+ 		return r;
+ 	}
+ 
+@@ -1006,11 +1072,8 @@ loop:
+ 		break;
+ 	}
+ 
+-	s = pkglookup(name, "sys");
+-	if(s == S || s->oname == N)
+-		fatal("prcompat: cant find sys_%s", name);
+-
+-	t = *getinarg(s->oname->type);
++	on = syslook(name, 0);
++	t = *getinarg(on->type);
+ 	if(t != nil)
+ 		t = t->type;
+ 	if(t != nil)
+@@ -1022,9 +1085,9 @@ loop:
+ 	}
+ 
+ 	if(r == N)
+-		r = nod(OCALL, s->oname, l);
++		r = nod(OCALL, on, l);
+ 	else
+-		r = nod(OLIST, r, nod(OCALL, s->oname, l));
++		r = nod(OLIST, r, nod(OCALL, on, l));
+ 
+ 	l = listnext(&save);
+ 	goto loop;
+@@ -1033,57 +1096,55 @@ loop:
+ Node*
+ nodpanic(long lineno)
+ {
+-	Sym *s;
+-	char *name;
+-	Node *n;
+-
+-	name = "panicl";
+-	s = pkglookup(name, "sys");
+-	if(s == S || s->oname == N)
+-		fatal("prcompat: cant find sys_%s", name);
++	Node *n, *on;
+ 
++	on = syslook("panicl", 0);
+ 	n = nodintconst(lineno);
+-	n = nod(OCALL, s->oname, n);
+-	walktype(n, 1);
++	n = nod(OCALL, on, n);
++	walktype(n, Etop);
+ 	return n;
+ }
+ 
+ Node*
+ newcompat(Node *n)
+ {
+-	Node *r;
++	Node *r, *on;
+ 	Type *t;
+-	Sym *s;
++
++	t = n->type;
++	if(t == T || !isptr[t->etype] || t->type == T)
++		fatal("newcompat: type should be pointer %lT", t);
++
++	t = t->type;
++	if(t->etype == TMAP) {
++		r = mapop(n, Erv);
++		return r;
++	}
+ 
+ 	if(n->left != N)
+ 		yyerror("dont know what new(,e) means");
+-	t = n->type;
+-	if(t == T || !isptr[t->etype])
+-		fatal("NEW sb pointer %lT", t);
+ 
+-	dowidth(t->type);
++	dowidth(t);
++
++	on = syslook("mal", 1);
+ 
+-	s = pkglookup("mal", "sys");
+-	if(s == S || s->oname == N)
+-		fatal("newcompat: cant find sys_mal");
++	argtype(on, t);
+ 
+-	r = nodintconst(t->type->width);
+-	r = nod(OCALL, s->oname, r);
+-	walktype(r, 0);
++	r = nodintconst(t->width);
++	r = nod(OCALL, on, r);
++	walktype(r, Erv);
+ 
+ //	r = nod(OCONV, r, N);
+-	r->type = t;
++	r->type = n->type;
+ 
+ 	return r;
+ }
+ 
+ Node*
+-stringop(Node *n)
++stringop(Node *n, int top)
+ {
+-	Node *r, *c;
+-	Sym *s;
+-	long lno;
+-	long l;
++	Node *r, *c, *on;
++	long lno, l;
+ 
+ 	lno = dynlineno;
+ 	dynlineno = n->lineno;
+@@ -1099,23 +1160,18 @@ stringop(Node *n)
+ 	case OLE:
+ 	case OLT:
+ 		// sys_cmpstring(s1, s2) :: 0
+-		s = pkglookup("cmpstring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_cmpstring");
+-
++		on = syslook("cmpstring", 0);
+ 		r = nod(OLIST, n->left, n->right);
+-		r = nod(OCALL, s->oname, r);
++		r = nod(OCALL, on, r);
+ 		c = nodintconst(0);
+ 		r = nod(n->op, r, c);
+ 		break;
+ 
+ 	case OADD:
+ 		// sys_catstring(s1, s2)
+-		s = pkglookup("catstring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_catstring");
++		on = syslook("catstring", 0);
+ 		r = nod(OLIST, n->left, n->right);
+-		r = nod(OCALL, s->oname, r);
++		r = nod(OCALL, on, r);
+ 		break;
+ 
+ 	case OASOP:
+@@ -1126,11 +1182,11 @@ stringop(Node *n)
+ 
+ 		case OADD:
+ 			// s1 = sys_catstring(s1, s2)
+-			s = pkglookup("catstring", "sys");
+-			if(s == S || s->oname == N || n->etype != OADD)
+-				fatal("stringop: cant find sys_catstring");
++			if(n->etype != OADD)
++				fatal("stringop: not cat");
+ 			r = nod(OLIST, n->left, n->right);
+-			r = nod(OCALL, s->oname, r);
++			on = syslook("catstring", 0);
++			r = nod(OCALL, on, r);
+ 			r = nod(OAS, n->left, r);
+ 			break;
+ 		}
+@@ -1138,10 +1194,6 @@ stringop(Node *n)
+ 
+ 	case OSLICE:
+ 		// sys_slicestring(s, lb, hb)
+-		s = pkglookup("slicestring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_slicestring");
+-
+ 		r = nod(OCONV, n->right->left, N);
+ 		r->type = types[TINT32];
+ 
+@@ -1149,43 +1201,30 @@ stringop(Node *n)
+ 		c->type = types[TINT32];
+ 
+ 		r = nod(OLIST, r, c);
+-
+ 		r = nod(OLIST, n->left, r);
+-
+-		r = nod(OCALL, s->oname, r);
++		on = syslook("slicestring", 0);
++		r = nod(OCALL, on, r);
+ 		break;
+ 
+ 	case OINDEX:
+ 		// sys_indexstring(s, i)
+-		s = pkglookup("indexstring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_indexstring");
+-
+ 		r = nod(OCONV, n->right, N);
+ 		r->type = types[TINT32];
+-
+ 		r = nod(OLIST, n->left, r);
+-		r = nod(OCALL, s->oname, r);
++		on = syslook("indexstring", 0);
++		r = nod(OCALL, on, r);
+ 		break;
+ 
+ 	case OCONV:
+ 		// sys_intstring(v)
+-		s = pkglookup("intstring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_intstring");
+-
+ 		r = nod(OCONV, n->left, N);
+ 		r->type = types[TINT64];
+-
+-		r = nod(OCALL, s->oname, r);
++		on = syslook("intstring", 0);
++		r = nod(OCALL, on, r);
+ 		break;
+ 
+ 	case OARRAY:
+ 		// byteastring(a, l)
+-		s = pkglookup("byteastring", "sys");
+-		if(s == S || s->oname == N)
+-			fatal("stringop: cant find sys_byteastring");
+-
+ 		c = nodintconst(0);
+ 		r = nod(OINDEX, n->left, c);
+ 		r = nod(OADDR, r, N);
+@@ -1194,11 +1233,158 @@ stringop(Node *n)
+ 		c = nodintconst(l-1);
+ 
+ 		r = nod(OLIST, r, c);
+-		r = nod(OCALL, s->oname, r);
++		on = syslook("byteastring", 0);
++		r = nod(OCALL, on, r);
++		break;
++	}
++
++	walktype(r, top);
++	dynlineno = lno;
++	return r;
++}
++
++Type*
++fixmap(Type *tm)
++{
++	Type *t;
++
++	t = tm->type;
++	if(t == T) {
++		fatal("fixmap: t nil");
++		return T;
++	}
++
++	if(t->etype != TMAP) {
++		fatal("fixmap: %O not map");
++		return T;
++	}
++
++	if(t->down == T || t->type == T) {
++		fatal("fixmap: map key/value types are nil");
++		return T;
++	}
++
++	dowidth(t->down);
++	dowidth(t->type);
++
++	return t;
++}
++
++static int
++algtype(Type *t)
++{
++	int a;
++
++	a = 0;
++	if(issimple[t->etype])
++		a = 1;		// simple mem
++	else
++	if(isptrto(t, TSTRING))
++		a = 2;		// string
++	else
++	if(isptr[t->etype])
++		a = 3;		// pointer
++	else
++	if(isinter(t))
++		a = 4;		// interface
++	else
++		fatal("algtype: cant find type %T", t);
++	return a;
++}
++
++Node*
++mapop(Node *n, int top)
++{
++	long lno;
++	Node *r, *a;
++	Type *t;
++	Node *on;
++	int alg1, alg2;
++
++	lno = dynlineno;
++	dynlineno = n->lineno;
++
++print("mapop %O\n", n->op);
++	r = n;
++	switch(n->op) {
++	default:
++		fatal("stringop: unknown op %E", n->op);
++
++	case ONEW:
++		// newmap(keysize uint32, valsize uint32,
++		//	keyalg uint32, valalg uint32,
++		//	hint uint32) (hmap *map[any]any);
++
++		t = fixmap(n->type);
++		if(t == T)
++			break;
++
++		a = n->left;				// hint
++		if(n->left == N)
++			a = nodintconst(0);
++		r = a;
++		a = nodintconst(algtype(t->type));	// val algorithm
++		r = nod(OLIST, a, r);
++		a = nodintconst(algtype(t->down));	// key algorithm
++		r = nod(OLIST, a, r);
++		a = nodintconst(t->type->width);	// val width
++		r = nod(OLIST, a, r);
++		a = nodintconst(t->down->width);	// key width
++		r = nod(OLIST, a, r);
++
++		on = syslook("newmap", 1);
++
++print("type1=%lT\n", on->type);
++		argtype(on, t->down);	// any-1
++		argtype(on, t->type);	// any-2
++print("type5=%lT\n", on->type);
++
++		r = nod(OCALL, on, r);
++		walktype(r, top);
++		r->type = n->type;
++		break;
++
++	case OINDEX:
++	case OINDEXPTR:
++		// mapaccess1(hmap *map[any]any, key any) (val any);
++
++		t = fixmap(n->left->type);
++		if(t == T)
++			break;
++
++		convlit(n->right, t->down);
++
++		if(!eqtype(n->right->type, t->down, 0)) {
++			badtype(n->op, n->right->type, t->down);
++			break;
++		}
++
++		a = n->right;				// key
++		if(!isptr[t->down->etype]) {
++			a = nod(OADDR, a, N);
++			a->type = ptrto(t);
++		}
++		r = a;
++		a = n->left;				// map
++		r = nod(OLIST, a, r);
++
++		on = syslook("mapaccess1", 1);
++
++print("type1=%lT\n", on->type);
++		argtype(on, t->down);	// any-1
++		argtype(on, t->type);	// any-2
++		argtype(on, t->down);	// any-3
++		argtype(on, t->type);	// any-4
++print("type5=%lT\n", on->type);
++
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		r->type = ptrto(t->type);
++		r = nod(OIND, r, N);
++		r->type = t->type;
+ 		break;
+ 	}
+ 
+-	walktype(r, 1);
+ 	dynlineno = lno;
+ 	return r;
+ }
+@@ -1265,7 +1451,7 @@ ret:
+ 
+ 	n->right = nod(o, r, N);
+ 	n->right->type = l->type;
+-	walktype(n, 1);
++	walktype(n, Etop);
+ 	return n;
+ }
+ 
+@@ -1289,7 +1475,7 @@ loop:
+ 	}
+ 
+ 	c++;
+-	walktype(l, 0);
++	walktype(l, Erv);
+ 	convlit(l, t->type);
+ 	if(!ascompat(l->type, t->type))
+ 		badtype(OARRAY, l->type, t->type);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index b4c4a6ce30..724254a116 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -147,7 +147,7 @@ throw(int8 *s)
+ 	sys_exit(1);
+ }
+ 
+-static void
++void
+ mcpy(byte *t, byte *f, uint32 n)
+ {
+ 	while(n > 0) {
+@@ -169,7 +169,7 @@ brk(uint32 n)
+ 	return v;
+ }
+ 
+-static void*
++void*
+ mal(uint32 n)
+ {
+ 	byte* v;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 65c3278e59..a12ac29f55 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -84,6 +84,8 @@ enum
+  */
+ void	FLUSH(void*);
+ void	prints(int8*);
++void	mcpy(byte*, byte*, uint32);
++void*	mal(uint32);
+ void	sys_exit(int32);
+ void	sys_write(int32, void*, int32);
+ void	sys_breakpoint(void);
+@@ -97,6 +99,7 @@ void	sys_printbool(bool);
+ void	sys_printfloat(float64);
+ void	sys_printint(int64);
+ void	sys_printstring(string);
++void	sys_printpointer(void*);
+ void	sys_catstring(string, string, string);
+ void	sys_cmpstring(string, string, int32);
+ void	sys_slicestring(string, int32, int32, string);
+diff --git a/test/switch.go b/test/switch.go
+index 602265631e..5fb80c4971 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -16,6 +16,7 @@ func assert(cond bool, msg string) {
+ func main() {
+ 	i5 := 5;
+ 	i7 := 7;
++	hello := "hello";
+ 
+ 	switch true {
+ 	case i5 < 5: assert(false, "<");
+@@ -122,6 +123,13 @@ func main() {
+ 	}
+ 	assert(fired > 0, "fired");
+ 
++	switch hello {
++	case "wowie": assert(false, "wowie");
++	case "hello": assert(true, "hello");
++	case "jumpn": assert(false, "jumpn");
++	default: assert(false, "default");
++	}
++
+ 	fired = 0;
+ 	switch i := i5 + 2; i {
+ 	case i7: fired = 1;

@@ -12,6 +12,20 @@ Date:   Thu Mar 7 01:38:48 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/trace/v2/gstate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/v2/gstate.go b/src/cmd/trace/v2/gstate.go
+index aeba7ecbc1..d4e7042c98 100644
+--- a/src/cmd/trace/v2/gstate.go
++++ b/src/cmd/trace/v2/gstate.go
+@@ -60,7 +60,7 @@ type gState[R resource] struct {
+ 	}
+ 
+ 	// startBlockReason is the StateTransition.Reason of the most recent
+-	// event that caused a gorotuine to transition to GoWaiting.
++	// event that caused a goroutine to transition to GoWaiting.
+ 	startBlockReason string
+ 
+ 	// startCause is the event that allowed this goroutine to start running.

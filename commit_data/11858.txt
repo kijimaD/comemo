@@ -11,6 +11,33 @@ Date:   Mon Feb 13 16:02:13 2012 -0500
     R=golang-dev, iant, gri
     CC=golang-dev
     https://golang.org/cl/5655068
-
+---
  src/cmd/cgo/main.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index f582912371..fb5074e814 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -15,6 +15,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/printer"
+ 	"go/token"
+ 	"io"
+ 	"os"
+@@ -158,6 +159,13 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
++	if *godefs || *cdefs {
++		// Generating definitions pulled from header files,
++		// to be checked into Go repositories.
++		// Line numbers are just noise.
++		conf.Mode &^= printer.SourcePos
++	}
++
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+ 		usage()

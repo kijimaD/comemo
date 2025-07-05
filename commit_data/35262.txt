@@ -20,6 +20,20 @@ Date:   Wed Jan 24 16:17:05 2018 +0000
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/getwd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 87ad8eb137..6d25466bb4 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -24,7 +24,7 @@ var useSyscallwd = func(error) bool { return true }
+ // reached via multiple paths (due to symbolic links),
+ // Getwd may return any one of them.
+ func Getwd() (dir string, err error) {
+-	if runtime.GOOS == "windows" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return syscall.Getwd()
+ 	}
+ 

@@ -15,7 +15,50 @@ Date:   Wed Dec 21 09:50:48 2022 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/archive/tar/reader.go |  9 ---------
  src/archive/zip/reader.go | 11 -----------
  2 files changed, 20 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 52a3150fc4..82a5a5a293 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -45,15 +45,6 @@ func NewReader(r io.Reader) *Reader {
+ // Any remaining data in the current file is automatically discarded.
+ //
+ // io.EOF is returned at the end of the input.
+-//
+-// ErrInsecurePath and a valid *Header are returned if the next file's name is:
+-//
+-//   - absolute;
+-//   - a relative path escaping the current directory, such as "../a"; or
+-//   - on Windows, a reserved file name such as "NUL".
+-//
+-// The caller may ignore the ErrInsecurePath error,
+-// but is then responsible for sanitizing paths as appropriate.
+ func (tr *Reader) Next() (*Header, error) {
+ 	if tr.err != nil {
+ 		return nil, tr.err
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 10e835fe86..a2ae74e541 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -87,17 +87,6 @@ func OpenReader(name string) (*ReadCloser, error) {
+ 
+ // NewReader returns a new Reader reading from r, which is assumed to
+ // have the given size in bytes.
+-//
+-// ErrInsecurePath and a valid *Reader are returned if the names of any
+-// files in the archive:
+-//
+-//   - are absolute;
+-//   - are a relative path escaping the current directory, such as "../a";
+-//   - contain a backslash (\) character; or
+-//   - on Windows, are a reserved file name such as "NUL".
+-//
+-// The caller may ignore the ErrInsecurePath error,
+-// but is then responsible for sanitizing paths as appropriate.
+ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ 	if size < 0 {
+ 		return nil, errors.New("zip: size cannot be negative")

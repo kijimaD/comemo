@@ -17,6 +17,39 @@ Date:   Mon Nov 21 19:09:42 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/zip_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index e1e67e5357..8801e90413 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
++	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -296,6 +297,9 @@ func TestZip64EdgeCase(t *testing.T) {
+ // Tests that we generate a zip64 file if the the directory at offset
+ // 0xFFFFFFFF, but not before.
+ func TestZip64DirectoryOffset(t *testing.T) {
++	if testing.Short() && race.Enabled {
++		t.Skip("skipping in short mode")
++	}
+ 	t.Parallel()
+ 	const filename = "huge.txt"
+ 	gen := func(wantOff uint64) func(*Writer) {
+@@ -338,6 +342,9 @@ func TestZip64DirectoryOffset(t *testing.T) {
+ 
+ // At 16k records, we need to generate a zip64 file.
+ func TestZip64ManyRecords(t *testing.T) {
++	if testing.Short() && race.Enabled {
++		t.Skip("skipping in short mode")
++	}
+ 	t.Parallel()
+ 	gen := func(numRec int) func(*Writer) {
+ 		return func(w *Writer) {

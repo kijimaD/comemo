@@ -11,8 +11,81 @@ Date:   Tue Mar 3 13:55:22 2015 -0500
     Change-Id: I7d2a905115c667ea6e73f349f3784a1d3e8f810d
     Reviewed-on: https://go-review.googlesource.com/6611
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/env_test.go    | 41 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/export_test.go |  3 +++
  src/runtime/runtime.go     |  4 ++--
  3 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/env_test.go b/src/runtime/env_test.go
+new file mode 100644
+index 0000000000..203f38065d
+--- /dev/null
++++ b/src/runtime/env_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestFixedGOROOT(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skipf("skipping plan9, it is inconsistent by allowing GOROOT to be updated by Setenv")
++	}
++
++	envs := runtime.Envs()
++	oldenvs := append([]string{}, envs...)
++	defer runtime.SetEnvs(oldenvs)
++
++	// attempt to reuse existing envs backing array.
++	want := runtime.GOROOT()
++	runtime.SetEnvs(append(envs[:0], "GOROOT="+want))
++
++	if got := runtime.GOROOT(); got != want {
++		t.Errorf(`initial runtime.GOROOT()=%q, want %q`, got, want)
++	}
++	if err := syscall.Setenv("GOROOT", "/os"); err != nil {
++		t.Fatal(err)
++	}
++	if got := runtime.GOROOT(); got != want {
++		t.Errorf(`after setenv runtime.GOROOT()=%q, want %q`, got, want)
++	}
++	if err := syscall.Unsetenv("GOROOT"); err != nil {
++		t.Fatal(err)
++	}
++	if got := runtime.GOROOT(); got != want {
++		t.Errorf(`after unsetenv runtime.GOROOT()=%q, want %q`, got, want)
++	}
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d5068ba81d..71fbcdeabd 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -122,3 +122,6 @@ var Open = open
+ var Close = close
+ var Read = read
+ var Write = write
++
++func Envs() []string     { return envs }
++func SetEnvs(e []string) { envs = e }
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 6d32de2a4f..5f0ca02c0f 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -47,7 +47,7 @@ var envs []string
+ var argslice []string
+ 
+ //go:linkname syscall_runtime_envs syscall.runtime_envs
+-func syscall_runtime_envs() []string { return envs }
++func syscall_runtime_envs() []string { return append([]string{}, envs...) }
+ 
+ //go:linkname os_runtime_args os.runtime_args
+-func os_runtime_args() []string { return argslice }
++func os_runtime_args() []string { return append([]string{}, argslice...) }

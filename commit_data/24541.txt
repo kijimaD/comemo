@@ -9,6 +9,20 @@ Date:   Tue Aug 4 13:44:01 2015 -0700
     Change-Id: I3dfcf9d0b62cae02eca1973383f0aad286a6ef4d
     Reviewed-on: https://go-review.googlesource.com/13136
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 91c38c9ffc..001d0274ec 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -281,7 +281,7 @@ func (v Value) CanAddr() bool {
+ // A Value can be changed only if it is addressable and was not
+ // obtained by the use of unexported struct fields.
+ // If CanSet returns false, calling Set or any type-specific
+-// setter (e.g., SetBool, SetInt64) will panic.
++// setter (e.g., SetBool, SetInt) will panic.
+ func (v Value) CanSet() bool {
+ 	return v.flag&(flagAddr|flagRO) == flagAddr
+ }

@@ -14,7 +14,7 @@ Date:   Wed Mar 6 15:03:04 2013 -0500
     R=golang-dev, devon.odell, minux.ma
     CC=golang-dev
     https://golang.org/cl/7525043
-
+---
  src/pkg/runtime/asm_amd64.s         |  4 ++--
  src/pkg/runtime/rt0_darwin_amd64.s  |  9 ++++++---
  src/pkg/runtime/rt0_freebsd_amd64.s | 12 ++++++++----
@@ -24,3 +24,158 @@ Date:   Wed Mar 6 15:03:04 2013 -0500
  src/pkg/runtime/rt0_plan9_amd64.s   |  5 +++--
  src/pkg/runtime/rt0_windows_amd64.s |  9 +++++++--
  8 files changed, 49 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 696befd6e4..a671f39925 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -6,8 +6,8 @@
+ 
+ TEXT _rt0_amd64(SB),7,$-8
+ 	// copy arguments forward on an even stack
+-	MOVQ	0(DI), AX		// argc
+-	LEAQ	8(DI), BX		// argv
++	MOVQ	DI, AX		// argc
++	MOVQ	SI, BX		// argv
+ 	SUBQ	$(4*8+7), SP		// 2args 2auto
+ 	ANDQ	$~15, SP
+ 	MOVQ	AX, 16(SP)
+diff --git a/src/pkg/runtime/rt0_darwin_amd64.s b/src/pkg/runtime/rt0_darwin_amd64.s
+index 4cfab58764..45e69a0159 100644
+--- a/src/pkg/runtime/rt0_darwin_amd64.s
++++ b/src/pkg/runtime/rt0_darwin_amd64.s
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
+-
+ TEXT _rt0_amd64_darwin(SB),7,$-8
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+-	MOVQ	SP, DI
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_amd64.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+index 5d2eeeefff..e6c6fb9cac 100644
+--- a/src/pkg/runtime/rt0_freebsd_amd64.s
++++ b/src/pkg/runtime/rt0_freebsd_amd64.s
+@@ -2,8 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
+-
+ TEXT _rt0_amd64_freebsd(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), DX
+-	JMP	DX
++	LEAQ	8(DI), SI // argv
++	MOVQ	0(DI), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
++	MOVQ	$_rt0_amd64(SB), AX
++	JMP	AX
+diff --git a/src/pkg/runtime/rt0_linux_amd64.s b/src/pkg/runtime/rt0_linux_amd64.s
+index dac9ae181b..dfc9c0421b 100644
+--- a/src/pkg/runtime/rt0_linux_amd64.s
++++ b/src/pkg/runtime/rt0_linux_amd64.s
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
+-
+ TEXT _rt0_amd64_linux(SB),7,$-8
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+-	MOVQ	SP, DI
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index 85482b98db..245a4c0f9b 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -2,7 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_netbsd(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), DX
+-	MOVQ	SP, DI
+-	JMP	DX
++TEXT _rt0_amd64_openbsd(SB),7,$-8
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
++	MOVQ	$_rt0_amd64(SB), AX
++	JMP	AX
+diff --git a/src/pkg/runtime/rt0_openbsd_amd64.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+index e7fce59696..245a4c0f9b 100644
+--- a/src/pkg/runtime/rt0_openbsd_amd64.s
++++ b/src/pkg/runtime/rt0_openbsd_amd64.s
+@@ -3,6 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_amd64_openbsd(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), DX
+-	MOVQ	SP, DI
+-	JMP	DX
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
++	MOVQ	$_rt0_amd64(SB), AX
++	JMP	AX
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 2b1fa2ae1d..16e5e82b75 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_plan9(SB),7, $0
++TEXT _rt0_amd64_plan9(SB),7,$-8
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
+ 	MOVQ	$_rt0_amd64(SB), AX
+-	MOVQ	SP, DI
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index dc1408adc3..4fc61dc687 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -4,9 +4,14 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-TEXT	_rt0_amd64_windows(SB),7,$-8
++TEXT _rt0_amd64_darwin(SB),7,$-8
++	LEAQ	8(SP), SI // argv
++	MOVQ	0(SP), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+-	MOVQ	SP, DI
+ 	JMP	AX
+ 
+ DATA  runtime·iswindows(SB)/4, $1

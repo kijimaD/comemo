@@ -13,7 +13,7 @@ Date:   Mon May 12 12:21:03 2025 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Mark Freeman <mark@golang.org>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 32 ++++++++++----------
  src/cmd/compile/internal/noder/doc.go        | 45 ++++++++++++++--------------
  src/cmd/compile/internal/noder/linker.go     | 28 ++++++++---------
@@ -26,3 +26,968 @@ Date:   Mon May 12 12:21:03 2025 -0400
  src/internal/pkgbits/pkgbits_test.go         |  4 +--
  src/internal/pkgbits/reloc.go                | 22 +++++++-------
  11 files changed, 143 insertions(+), 144 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index bb74d4b84d..6012d283ac 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -33,12 +33,12 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 		imports:     imports,
+ 		enableAlias: true,
+ 
+-		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
+-		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
+-		typs:     make([]types2.Type, input.NumElems(pkgbits.RelocType)),
++		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.SectionPosBase)),
++		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.SectionPkg)),
++		typs:     make([]types2.Type, input.NumElems(pkgbits.SectionType)),
+ 	}
+ 
+-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++	r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+ 
+ 	if r.Version().Has(pkgbits.HasInit) {
+@@ -52,7 +52,7 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 		if r.Version().Has(pkgbits.DerivedFuncInstance) {
+ 			assert(!r.Bool())
+ 		}
+-		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
++		r.p.objIdx(r.Reloc(pkgbits.SectionObj))
+ 		assert(r.Len() == 0)
+ 	}
+ 
+@@ -118,7 +118,7 @@ func (r *reader) pos() syntax.Pos {
+ }
+ 
+ func (r *reader) posBase() *syntax.PosBase {
+-	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
++	return r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase))
+ }
+ 
+ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
+@@ -127,7 +127,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
+ 	}
+ 	var b *syntax.PosBase
+ 	{
+-		r := pr.tempReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
++		r := pr.tempReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
+ 
+ 		filename := r.String()
+ 
+@@ -150,7 +150,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
+ 
+ func (r *reader) pkg() *types2.Package {
+ 	r.Sync(pkgbits.SyncPkg)
+-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
++	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
+ }
+ 
+ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types2.Package {
+@@ -160,7 +160,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types2.Package {
+ 		return pkg
+ 	}
+ 
+-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
++	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
+ 	pr.pkgs[idx] = pkg
+ 	return pkg
+ }
+@@ -206,7 +206,7 @@ func (r *reader) typInfo() typeInfo {
+ 	if r.Bool() {
+ 		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
+ 	}
+-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
++	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
+ }
+ 
+ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types2.Type {
+@@ -225,7 +225,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types2.Type {
+ 
+ 	var typ types2.Type
+ 	{
+-		r := pr.tempReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
++		r := pr.tempReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
+ 		r.dict = dict
+ 
+ 		typ = r.doTyp()
+@@ -376,7 +376,7 @@ func (r *reader) obj() (types2.Object, []types2.Type) {
+ 		assert(!r.Bool())
+ 	}
+ 
+-	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
++	pkg, name := r.p.objIdx(r.Reloc(pkgbits.SectionObj))
+ 	obj := pkg.Scope().Lookup(name)
+ 
+ 	targs := make([]types2.Type, r.Len())
+@@ -392,7 +392,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ 	var objName string
+ 	var tag pkgbits.CodeObj
+ 	{
+-		rname := pr.tempReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
++		rname := pr.tempReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
+ 
+ 		objPkg, objName = rname.qualifiedIdent()
+ 		assert(objName != "")
+@@ -409,7 +409,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+ 		dict := pr.objDictIdx(idx)
+ 
+-		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
++		r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
+ 		r.dict = dict
+ 
+ 		switch tag {
+@@ -470,7 +470,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 	var dict readerDict
+ 	{
+-		r := pr.tempReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
++		r := pr.tempReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
+ 
+ 		if implicits := r.Len(); implicits != 0 {
+ 			base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
+@@ -484,7 +484,7 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 		dict.derived = make([]derivedInfo, r.Len())
+ 		dict.derivedTypes = make([]types2.Type, len(dict.derived))
+ 		for i := range dict.derived {
+-			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
+ 			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+ 				assert(!r.Bool())
+ 			}
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index 96ef8c8c77..5509b0001a 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -20,17 +20,16 @@ The payload is a series of sections. Each section has a kind which determines
+ its index in the series.
+ 
+ SectionKind = Uint64 .
+-TODO(markfreeman): Update when we rename RelocFoo to SectionFoo.
+-Payload     = RelocString  // TODO(markfreeman) Define.
+-              RelocMeta
+-              RelocPosBase // TODO(markfreeman) Define.
+-              RelocPkg     // TODO(markfreeman) Define.
+-              RelocName    // TODO(markfreeman) Define.
+-              RelocType    // TODO(markfreeman) Define.
+-              RelocObj     // TODO(markfreeman) Define.
+-              RelocObjExt  // TODO(markfreeman) Define.
+-              RelocObjDict // TODO(markfreeman) Define.
+-              RelocBody    // TODO(markfreeman) Define.
++Payload     = SectionString  // TODO(markfreeman) Define.
++              SectionMeta
++              SectionPosBase // TODO(markfreeman) Define.
++              SectionPkg     // TODO(markfreeman) Define.
++              SectionName    // TODO(markfreeman) Define.
++              SectionType    // TODO(markfreeman) Define.
++              SectionObj     // TODO(markfreeman) Define.
++              SectionObjExt  // TODO(markfreeman) Define.
++              SectionObjDict // TODO(markfreeman) Define.
++              SectionBody    // TODO(markfreeman) Define.
+               .
+ 
+ # Sections
+@@ -45,22 +44,22 @@ RelIndex = Uint64 .
+ The meta section provides fundamental information for a package. It contains
+ exactly two elements — a public root and a private root.
+ 
+-RelocMeta  = PublicRoot
+-             PrivateRoot     // TODO(markfreeman): Define.
+-             .
++SectionMeta = PublicRoot
++              PrivateRoot     // TODO(markfreeman): Define.
++              .
+ 
+ The public root element identifies the package and provides references for all
+ exported objects it contains.
+ 
+-PublicRoot = Relocs
+-             [ SyncPublic ] // TODO(markfreeman): Define.
+-             PackageRef     // TODO(markfreeman): Define.
+-             [ HasInit ]
+-             ObjectRefCount // TODO(markfreeman): Define.
+-             { ObjectRef }  // TODO(markfreeman): Define.
+-             .
+-HasInit    = Bool .         // Whether the package uses any initialization
+-                            // functions.
++PublicRoot  = Relocs
++              [ SyncPublic ]  // TODO(markfreeman): Define.
++              PackageRef      // TODO(markfreeman): Define.
++              [ HasInit ]
++              ObjectRefCount  // TODO(markfreeman): Define.
++              { ObjectRef }   // TODO(markfreeman): Define.
++              .
++HasInit     = Bool .          // Whether the package uses any initialization
++                              // functions.
+ 
+ # References
+ A reference table precedes every element. Each entry in the table contains a
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 1a64e075a1..3e60e99850 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -69,11 +69,11 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index
+ 
+ 	var newidx index
+ 	switch k {
+-	case pkgbits.RelocString:
++	case pkgbits.SectionString:
+ 		newidx = l.relocString(pr, idx)
+-	case pkgbits.RelocPkg:
++	case pkgbits.SectionPkg:
+ 		newidx = l.relocPkg(pr, idx)
+-	case pkgbits.RelocObj:
++	case pkgbits.SectionObj:
+ 		newidx = l.relocObj(pr, idx)
+ 
+ 	default:
+@@ -113,8 +113,8 @@ func (l *linker) relocPkg(pr *pkgReader, idx index) index {
+ 		return newidx
+ 	}
+ 
+-	r := pr.NewDecoder(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef)
+-	w := l.pw.NewEncoder(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
++	r := pr.NewDecoder(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef)
++	w := l.pw.NewEncoder(pkgbits.SectionPkg, pkgbits.SyncPkgDef)
+ 	l.pkgs[path] = w.Idx
+ 
+ 	// TODO(mdempsky): We end up leaving an empty string reference here
+@@ -158,19 +158,19 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
+ 		assert(tag2 != pkgbits.ObjStub)
+ 	}
+ 
+-	w := l.pw.NewEncoderRaw(pkgbits.RelocObj)
+-	wext := l.pw.NewEncoderRaw(pkgbits.RelocObjExt)
+-	wname := l.pw.NewEncoderRaw(pkgbits.RelocName)
+-	wdict := l.pw.NewEncoderRaw(pkgbits.RelocObjDict)
++	w := l.pw.NewEncoderRaw(pkgbits.SectionObj)
++	wext := l.pw.NewEncoderRaw(pkgbits.SectionObjExt)
++	wname := l.pw.NewEncoderRaw(pkgbits.SectionName)
++	wdict := l.pw.NewEncoderRaw(pkgbits.SectionObjDict)
+ 
+ 	l.decls[sym] = w.Idx
+ 	assert(wext.Idx == w.Idx)
+ 	assert(wname.Idx == w.Idx)
+ 	assert(wdict.Idx == w.Idx)
+ 
+-	l.relocCommon(pr, &w, pkgbits.RelocObj, idx)
+-	l.relocCommon(pr, &wname, pkgbits.RelocName, idx)
+-	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
++	l.relocCommon(pr, &w, pkgbits.SectionObj, idx)
++	l.relocCommon(pr, &wname, pkgbits.SectionName, idx)
++	l.relocCommon(pr, &wdict, pkgbits.SectionObjDict, idx)
+ 
+ 	// Generic types and functions won't have definitions, and imported
+ 	// objects may not either.
+@@ -189,7 +189,7 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
+ 		}
+ 		wext.Flush()
+ 	} else {
+-		l.relocCommon(pr, &wext, pkgbits.RelocObjExt, idx)
++		l.relocCommon(pr, &wext, pkgbits.SectionObjExt, idx)
+ 	}
+ 
+ 	// Check if we need to export the inline bodies for functions and
+@@ -247,7 +247,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
+ 
+ 	pri, ok := bodyReaderFor(fn)
+ 	assert(ok)
+-	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx)
++	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.SectionBody, pri.idx)
+ }
+ 
+ // relocCommon copies the specified element from pr into w,
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 43163e16e5..05052651c6 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -55,9 +55,9 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
+ 	return &pkgReader{
+ 		PkgDecoder: pr,
+ 
+-		posBases: make([]*src.PosBase, pr.NumElems(pkgbits.RelocPosBase)),
+-		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.RelocPkg)),
+-		typs:     make([]*types.Type, pr.NumElems(pkgbits.RelocType)),
++		posBases: make([]*src.PosBase, pr.NumElems(pkgbits.SectionPosBase)),
++		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.SectionPkg)),
++		typs:     make([]*types.Type, pr.NumElems(pkgbits.SectionType)),
+ 
+ 		newindex: make([]index, pr.TotalElems()),
+ 	}
+@@ -255,7 +255,7 @@ func (r *reader) pos0() src.Pos {
+ 
+ // posBase reads a position base from the bitstream.
+ func (r *reader) posBase() *src.PosBase {
+-	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
++	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase)))
+ }
+ 
+ // posBaseIdx returns the specified position base, reading it first if
+@@ -265,7 +265,7 @@ func (pr *pkgReader) posBaseIdx(idx index) *src.PosBase {
+ 		return b
+ 	}
+ 
+-	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
++	r := pr.newReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
+ 	var b *src.PosBase
+ 
+ 	absFilename := r.String()
+@@ -336,7 +336,7 @@ func (r *reader) inlPos(xpos src.XPos) src.XPos {
+ // pkg reads a package reference from the bitstream.
+ func (r *reader) pkg() *types.Pkg {
+ 	r.Sync(pkgbits.SyncPkg)
+-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
++	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
+ }
+ 
+ // pkgIdx returns the specified package from the export data, reading
+@@ -346,7 +346,7 @@ func (pr *pkgReader) pkgIdx(idx index) *types.Pkg {
+ 		return pkg
+ 	}
+ 
+-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
++	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
+ 	pr.pkgs[idx] = pkg
+ 	return pkg
+ }
+@@ -393,7 +393,7 @@ func (r *reader) typInfo() typeInfo {
+ 	if r.Bool() {
+ 		return typeInfo{idx: index(r.Len()), derived: true}
+ 	}
+-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
++	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
+ }
+ 
+ // typListIdx returns a list of the specified types, resolving derived
+@@ -423,7 +423,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
+ 		return typ
+ 	}
+ 
+-	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
++	r := pr.newReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
+ 	r.dict = dict
+ 
+ 	typ := r.doTyp()
+@@ -643,7 +643,7 @@ func (r *reader) objInfo() objInfo {
+ 	if r.Version().Has(pkgbits.DerivedFuncInstance) {
+ 		assert(!r.Bool())
+ 	}
+-	idx := r.Reloc(pkgbits.RelocObj)
++	idx := r.Reloc(pkgbits.SectionObj)
+ 
+ 	explicits := make([]typeInfo, r.Len())
+ 	for i := range explicits {
+@@ -685,7 +685,7 @@ func (pr *pkgReader) objIdx(idx index, implicits, explicits []*types.Type, shape
+ // Other sources of internal failure (such as duplicate definitions) still fail
+ // the build.
+ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
+-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
++	rname := pr.newReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
+ 	_, sym := rname.qualifiedIdent()
+ 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+ 
+@@ -714,8 +714,8 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
+ 		return sym.Def.(*ir.Name), nil
+ 	}
+ 
+-	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+-	rext := pr.newReader(pkgbits.RelocObjExt, idx, pkgbits.SyncObject1)
++	r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
++	rext := pr.newReader(pkgbits.SectionObjExt, idx, pkgbits.SyncObject1)
+ 
+ 	r.dict = dict
+ 	rext.dict = dict
+@@ -959,7 +959,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
+ 
+ // objDictIdx reads and returns the specified object dictionary.
+ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
+-	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
++	r := pr.newReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
+ 
+ 	dict := readerDict{
+ 		shaped: shaped,
+@@ -984,7 +984,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits
+ 	dict.derived = make([]derivedInfo, r.Len())
+ 	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+ 	for i := range dict.derived {
+-		dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++		dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
+ 		if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+ 			assert(!r.Bool())
+ 		}
+@@ -1278,7 +1278,7 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
+ 	// generic functions; see comment in funcExt.
+ 	assert(fn.Nname.Defn != nil)
+ 
+-	idx := r.Reloc(pkgbits.RelocBody)
++	idx := r.Reloc(pkgbits.SectionBody)
+ 
+ 	pri := pkgReaderIndex{r.p, idx, r.dict, method, nil}
+ 	bodyReader[fn] = pri
+@@ -1292,7 +1292,7 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
+ }
+ 
+ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
+-	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
++	r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
+ 	r.funcBody(fn)
+ }
+ 
+@@ -2591,7 +2591,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
+ }
+ 
+ func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {
+-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
++	rname := pr.newReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
+ 	_, sym := rname.qualifiedIdent()
+ 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+ 
+@@ -3437,7 +3437,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 		expandInline(fn, pri)
+ 	}
+ 
+-	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
++	r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
+ 
+ 	tmpfn := ir.NewFunc(fn.Pos(), fn.Nname.Pos(), callerfn.Sym(), fn.Type())
+ 
+@@ -3626,7 +3626,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	tmpfn.ClosureVars = fn.ClosureVars
+ 
+ 	{
+-		r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
++		r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
+ 
+ 		// Don't change parameter's Sym/Nname fields.
+ 		r.funarghack = true
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 59e8c1013f..85982d7c18 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -199,7 +199,7 @@ func unified(m posMap, noders []*noder) {
+ 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
+ 	readPackage(localPkgReader, types.LocalPkg, true)
+ 
+-	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
++	r := localPkgReader.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 	r.pkgInit(types.LocalPkg, target)
+ 
+ 	readBodies(target, false)
+@@ -322,8 +322,8 @@ func writePkgStub(m posMap, noders []*noder) string {
+ 
+ 	pw.collectDecls(noders)
+ 
+-	publicRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPublic)
+-	privateRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPrivate)
++	publicRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPublic)
++	privateRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPrivate)
+ 
+ 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
+ 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
+@@ -406,7 +406,7 @@ func freePackage(pkg *types2.Package) {
+ // import.
+ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 	{
+-		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+ 		pkg := r.pkg()
+ 		// This error can happen if "go tool compile" is called with wrong "-p" flag, see issue #54542.
+@@ -424,7 +424,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 			if r.Version().Has(pkgbits.DerivedFuncInstance) {
+ 				assert(!r.Bool())
+ 			}
+-			idx := r.Reloc(pkgbits.RelocObj)
++			idx := r.Reloc(pkgbits.SectionObj)
+ 			assert(r.Len() == 0)
+ 
+ 			path, name, code := r.p.PeekObj(idx)
+@@ -437,7 +437,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 	}
+ 
+ 	if !localStub {
+-		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
++		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 
+ 		if r.Bool() {
+ 			sym := importpkg.Lookup(".inittask")
+@@ -449,7 +449,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			path := r.String()
+ 			name := r.String()
+-			idx := r.Reloc(pkgbits.RelocBody)
++			idx := r.Reloc(pkgbits.SectionBody)
+ 
+ 			sym := types.NewPkg(path, "").Lookup(name)
+ 			if _, ok := importBodyReader[sym]; !ok {
+@@ -477,8 +477,8 @@ func writeUnifiedExport(out io.Writer) {
+ 		bodies: make(map[*types.Sym]index),
+ 	}
+ 
+-	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+-	privateRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPrivate)
++	publicRootWriter := l.pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPublic)
++	privateRootWriter := l.pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPrivate)
+ 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
+ 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
+ 
+@@ -486,10 +486,10 @@ func writeUnifiedExport(out io.Writer) {
+ 
+ 	{
+ 		pr := localPkgReader
+-		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++		r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+ 		r.Sync(pkgbits.SyncPkg)
+-		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
++		selfPkgIdx = l.relocIdx(pr, pkgbits.SectionPkg, r.Reloc(pkgbits.SectionPkg))
+ 
+ 		if r.Version().Has(pkgbits.HasInit) {
+ 			r.Bool()
+@@ -500,7 +500,7 @@ func writeUnifiedExport(out io.Writer) {
+ 			if r.Version().Has(pkgbits.DerivedFuncInstance) {
+ 				assert(!r.Bool())
+ 			}
+-			idx := r.Reloc(pkgbits.RelocObj)
++			idx := r.Reloc(pkgbits.SectionObj)
+ 			assert(r.Len() == 0)
+ 
+ 			xpath, xname, xtag := pr.PeekObj(idx)
+@@ -508,7 +508,7 @@ func writeUnifiedExport(out io.Writer) {
+ 			assert(xtag != pkgbits.ObjStub)
+ 
+ 			if types.IsExported(xname) {
+-				l.relocIdx(pr, pkgbits.RelocObj, idx)
++				l.relocIdx(pr, pkgbits.SectionObj, idx)
+ 			}
+ 		}
+ 
+@@ -525,7 +525,7 @@ func writeUnifiedExport(out io.Writer) {
+ 		w := publicRootWriter
+ 
+ 		w.Sync(pkgbits.SyncPkg)
+-		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
++		w.Reloc(pkgbits.SectionPkg, selfPkgIdx)
+ 
+ 		if w.Version().Has(pkgbits.HasInit) {
+ 			w.Bool(false)
+@@ -537,7 +537,7 @@ func writeUnifiedExport(out io.Writer) {
+ 			if w.Version().Has(pkgbits.DerivedFuncInstance) {
+ 				w.Bool(false)
+ 			}
+-			w.Reloc(pkgbits.RelocObj, idx)
++			w.Reloc(pkgbits.SectionObj, idx)
+ 			w.Len(0)
+ 		}
+ 
+@@ -564,7 +564,7 @@ func writeUnifiedExport(out io.Writer) {
+ 		for _, body := range bodies {
+ 			w.String(body.sym.Pkg.Path)
+ 			w.String(body.sym.Name)
+-			w.Reloc(pkgbits.RelocBody, body.idx)
++			w.Reloc(pkgbits.SectionBody, body.idx)
+ 		}
+ 
+ 		w.Sync(pkgbits.SyncEOF)
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 6e557d12d0..60a13108bc 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -395,7 +395,7 @@ func (w *writer) pos(p poser) {
+ // posBase writes a reference to the given PosBase into the element
+ // bitstream.
+ func (w *writer) posBase(b *syntax.PosBase) {
+-	w.Reloc(pkgbits.RelocPosBase, w.p.posBaseIdx(b))
++	w.Reloc(pkgbits.SectionPosBase, w.p.posBaseIdx(b))
+ }
+ 
+ // posBaseIdx returns the index for the given PosBase.
+@@ -404,7 +404,7 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) index {
+ 		return idx
+ 	}
+ 
+-	w := pw.newWriter(pkgbits.RelocPosBase, pkgbits.SyncPosBase)
++	w := pw.newWriter(pkgbits.SectionPosBase, pkgbits.SyncPosBase)
+ 	w.p.posBasesIdx[b] = w.Idx
+ 
+ 	w.String(trimFilename(b))
+@@ -427,7 +427,7 @@ func (w *writer) pkg(pkg *types2.Package) {
+ 
+ func (w *writer) pkgRef(idx index) {
+ 	w.Sync(pkgbits.SyncPkg)
+-	w.Reloc(pkgbits.RelocPkg, idx)
++	w.Reloc(pkgbits.SectionPkg, idx)
+ }
+ 
+ // pkgIdx returns the index for the given package, adding it to the
+@@ -437,7 +437,7 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) index {
+ 		return idx
+ 	}
+ 
+-	w := pw.newWriter(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
++	w := pw.newWriter(pkgbits.SectionPkg, pkgbits.SyncPkgDef)
+ 	pw.pkgsIdx[pkg] = w.Idx
+ 
+ 	// The universe and package unsafe need to be handled specially by
+@@ -489,7 +489,7 @@ func (w *writer) typInfo(info typeInfo) {
+ 		w.Len(int(info.idx))
+ 		w.derived = true
+ 	} else {
+-		w.Reloc(pkgbits.RelocType, info.idx)
++		w.Reloc(pkgbits.SectionType, info.idx)
+ 	}
+ }
+ 
+@@ -520,7 +520,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		}
+ 	}
+ 
+-	w := pw.newWriter(pkgbits.RelocType, pkgbits.SyncTypeIdx)
++	w := pw.newWriter(pkgbits.SectionType, pkgbits.SyncTypeIdx)
+ 	w.dict = dict
+ 
+ 	switch typ := typ.(type) {
+@@ -737,7 +737,7 @@ func (w *writer) objInfo(info objInfo) {
+ 	if w.Version().Has(pkgbits.DerivedFuncInstance) {
+ 		w.Bool(false)
+ 	}
+-	w.Reloc(pkgbits.RelocObj, info.idx)
++	w.Reloc(pkgbits.SectionObj, info.idx)
+ 
+ 	w.Len(len(info.explicits))
+ 	for _, info := range info.explicits {
+@@ -799,10 +799,10 @@ func (pw *pkgWriter) objIdx(obj types2.Object) index {
+ 	// TODO(mdempsky): Re-evaluate whether RelocName still makes sense
+ 	// to keep separate from RelocObj.
+ 
+-	w := pw.newWriter(pkgbits.RelocObj, pkgbits.SyncObject1)
+-	wext := pw.newWriter(pkgbits.RelocObjExt, pkgbits.SyncObject1)
+-	wname := pw.newWriter(pkgbits.RelocName, pkgbits.SyncObject1)
+-	wdict := pw.newWriter(pkgbits.RelocObjDict, pkgbits.SyncObject1)
++	w := pw.newWriter(pkgbits.SectionObj, pkgbits.SyncObject1)
++	wext := pw.newWriter(pkgbits.SectionObjExt, pkgbits.SyncObject1)
++	wname := pw.newWriter(pkgbits.SectionName, pkgbits.SyncObject1)
++	wdict := pw.newWriter(pkgbits.SectionObjDict, pkgbits.SyncObject1)
+ 
+ 	pw.objsIdx[obj] = w.Idx // break cycles
+ 	assert(wext.Idx == w.Idx)
+@@ -917,7 +917,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	nderived := len(dict.derived)
+ 	w.Len(nderived)
+ 	for _, typ := range dict.derived {
+-		w.Reloc(pkgbits.RelocType, typ.idx)
++		w.Reloc(pkgbits.SectionType, typ.idx)
+ 		if w.Version().Has(pkgbits.DerivedInfoNeeded) {
+ 			w.Bool(false)
+ 		}
+@@ -1132,7 +1132,7 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 	}
+ 
+ 	w.Bool(false) // stub extension
+-	w.Reloc(pkgbits.RelocBody, body)
++	w.Reloc(pkgbits.SectionBody, body)
+ 	w.Sync(pkgbits.SyncEOF)
+ }
+ 
+@@ -1170,7 +1170,7 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
+ // bodyIdx returns the index for the given function body (specified by
+ // block), adding it to the export data
+ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx index, closureVars []posVar) {
+-	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
++	w := pw.newWriter(pkgbits.SectionBody, pkgbits.SyncFuncBody)
+ 	w.sig = sig
+ 	w.dict = dict
+ 
+@@ -2401,7 +2401,7 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 		w.useLocal(cv.pos, cv.var_)
+ 	}
+ 
+-	w.Reloc(pkgbits.RelocBody, body)
++	w.Reloc(pkgbits.SectionBody, body)
+ }
+ 
+ type posVar struct {
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index def11a7474..5ce97aad3a 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -57,13 +57,13 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
+ 		ctxt:    ctxt,
+ 		imports: imports,
+ 
+-		posBases: make([]string, input.NumElems(pkgbits.RelocPosBase)),
+-		pkgs:     make([]*types.Package, input.NumElems(pkgbits.RelocPkg)),
+-		typs:     make([]types.Type, input.NumElems(pkgbits.RelocType)),
++		posBases: make([]string, input.NumElems(pkgbits.SectionPosBase)),
++		pkgs:     make([]*types.Package, input.NumElems(pkgbits.SectionPkg)),
++		typs:     make([]types.Type, input.NumElems(pkgbits.SectionType)),
+ 	}
+ 	defer pr.fake.setLines()
+ 
+-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++	r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+ 	if r.Version().Has(pkgbits.HasInit) {
+ 		r.Bool()
+@@ -76,7 +76,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
+ 		if r.Version().Has(pkgbits.DerivedFuncInstance) {
+ 			assert(!r.Bool())
+ 		}
+-		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
++		r.p.objIdx(r.Reloc(pkgbits.SectionObj))
+ 		assert(r.Len() == 0)
+ 	}
+ 
+@@ -166,7 +166,7 @@ func (r *reader) pos() token.Pos {
+ }
+ 
+ func (r *reader) posBase() string {
+-	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
++	return r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase))
+ }
+ 
+ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
+@@ -176,7 +176,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
+ 
+ 	var filename string
+ 	{
+-		r := pr.tempReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
++		r := pr.tempReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
+ 
+ 		// Within types2, position bases have a lot more details (e.g.,
+ 		// keeping track of where //line directives appeared exactly).
+@@ -206,7 +206,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
+ 
+ func (r *reader) pkg() *types.Package {
+ 	r.Sync(pkgbits.SyncPkg)
+-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
++	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
+ }
+ 
+ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
+@@ -216,7 +216,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
+ 		return pkg
+ 	}
+ 
+-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
++	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
+ 	pr.pkgs[idx] = pkg
+ 	return pkg
+ }
+@@ -255,7 +255,7 @@ func (r *reader) typInfo() typeInfo {
+ 	if r.Bool() {
+ 		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
+ 	}
+-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
++	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
+ }
+ 
+ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types.Type {
+@@ -274,7 +274,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types.Type {
+ 
+ 	var typ types.Type
+ 	{
+-		r := pr.tempReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
++		r := pr.tempReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
+ 		r.dict = dict
+ 
+ 		typ = r.doTyp()
+@@ -438,7 +438,7 @@ func (r *reader) obj() (types.Object, []types.Type) {
+ 		assert(!r.Bool())
+ 	}
+ 
+-	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
++	pkg, name := r.p.objIdx(r.Reloc(pkgbits.SectionObj))
+ 	obj := pkgScope(pkg).Lookup(name)
+ 
+ 	targs := make([]types.Type, r.Len())
+@@ -455,7 +455,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 	var objName string
+ 	var tag pkgbits.CodeObj
+ 	{
+-		rname := pr.tempReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
++		rname := pr.tempReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
+ 
+ 		objPkg, objName = rname.qualifiedIdent()
+ 		assert(objName != "")
+@@ -477,7 +477,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 	if objPkg.Scope().Lookup(objName) == nil {
+ 		dict := pr.objDictIdx(idx)
+ 
+-		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
++		r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
+ 		r.dict = dict
+ 
+ 		declare := func(obj types.Object) {
+@@ -565,7 +565,7 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 	var dict readerDict
+ 
+ 	{
+-		r := pr.tempReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
++		r := pr.tempReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
+ 		if implicits := r.Len(); implicits != 0 {
+ 			errorf("unexpected object with %v implicit type parameter(s)", implicits)
+ 		}
+@@ -578,7 +578,7 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 		dict.derived = make([]derivedInfo, r.Len())
+ 		dict.derivedTypes = make([]types.Type, len(dict.derived))
+ 		for i := range dict.derived {
+-			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
+ 			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+ 				assert(!r.Bool())
+ 			}
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 9a8a3da240..9ff6f5c76c 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -158,7 +158,7 @@ func (pr *PkgDecoder) DataIdx(k SectionKind, idx RelIndex) string {
+ 
+ // StringIdx returns the string value for the given string index.
+ func (pr *PkgDecoder) StringIdx(idx RelIndex) string {
+-	return pr.DataIdx(RelocString, idx)
++	return pr.DataIdx(SectionString, idx)
+ }
+ 
+ // NewDecoder returns a Decoder for the given (section, index) pair,
+@@ -341,7 +341,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
+ 		fmt.Printf("\t[stack trace unavailable; recompile package %q with -d=syncframes]\n", r.common.pkgPath)
+ 	}
+ 	for _, pc := range writerPCs {
+-		fmt.Printf("\t%s\n", r.common.StringIdx(r.rawReloc(RelocString, pc)))
++		fmt.Printf("\t%s\n", r.common.StringIdx(r.rawReloc(SectionString, pc)))
+ 	}
+ 
+ 	fmt.Printf("\nexpected %v, reading at:\n", mWant)
+@@ -410,7 +410,7 @@ func (r *Decoder) Reloc(k SectionKind) RelIndex {
+ // bitstream.
+ func (r *Decoder) String() string {
+ 	r.Sync(SyncString)
+-	return r.common.StringIdx(r.Reloc(RelocString))
++	return r.common.StringIdx(r.Reloc(SectionString))
+ }
+ 
+ // Strings decodes and returns a variable-length slice of strings from
+@@ -481,7 +481,7 @@ func (r *Decoder) bigFloat() *big.Float {
+ func (pr *PkgDecoder) PeekPkgPath(idx RelIndex) string {
+ 	var path string
+ 	{
+-		r := pr.TempDecoder(RelocPkg, idx, SyncPkgDef)
++		r := pr.TempDecoder(SectionPkg, idx, SyncPkgDef)
+ 		path = r.String()
+ 		pr.RetireDecoder(&r)
+ 	}
+@@ -498,10 +498,10 @@ func (pr *PkgDecoder) PeekObj(idx RelIndex) (string, string, CodeObj) {
+ 	var name string
+ 	var rcode int
+ 	{
+-		r := pr.TempDecoder(RelocName, idx, SyncObject1)
++		r := pr.TempDecoder(SectionName, idx, SyncObject1)
+ 		r.Sync(SyncSym)
+ 		r.Sync(SyncPkg)
+-		ridx = r.Reloc(RelocPkg)
++		ridx = r.Reloc(SectionPkg)
+ 		name = r.String()
+ 		rcode = r.Code(SyncCodeObj)
+ 		pr.RetireDecoder(&r)
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index c6d5eb46ec..1b38469097 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -108,12 +108,12 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ // already present, and returns its index.
+ func (pw *PkgEncoder) StringIdx(s string) RelIndex {
+ 	if idx, ok := pw.stringsIdx[s]; ok {
+-		assert(pw.elems[RelocString][idx] == s)
++		assert(pw.elems[SectionString][idx] == s)
+ 		return idx
+ 	}
+ 
+-	idx := RelIndex(len(pw.elems[RelocString]))
+-	pw.elems[RelocString] = append(pw.elems[RelocString], s)
++	idx := RelIndex(len(pw.elems[SectionString]))
++	pw.elems[SectionString] = append(pw.elems[SectionString], s)
+ 	pw.stringsIdx[s] = idx
+ 	return idx
+ }
+@@ -247,7 +247,7 @@ func (w *Encoder) Sync(m SyncMarker) {
+ 	w.rawUvarint(uint64(m))
+ 	w.rawUvarint(uint64(len(frames)))
+ 	for _, frame := range frames {
+-		w.rawUvarint(uint64(w.rawReloc(RelocString, w.p.StringIdx(frame))))
++		w.rawUvarint(uint64(w.rawReloc(SectionString, w.p.StringIdx(frame))))
+ 	}
+ }
+ 
+@@ -327,7 +327,7 @@ func (w *Encoder) String(s string) {
+ // previously encoded string value.
+ func (w *Encoder) StringRef(idx RelIndex) {
+ 	w.Sync(SyncString)
+-	w.Reloc(RelocString, idx)
++	w.Reloc(SectionString, idx)
+ }
+ 
+ // Strings encodes and writes a variable-length slice of strings into
+diff --git a/src/internal/pkgbits/pkgbits_test.go b/src/internal/pkgbits/pkgbits_test.go
+index 6f4004741b..a4755bd35a 100644
+--- a/src/internal/pkgbits/pkgbits_test.go
++++ b/src/internal/pkgbits/pkgbits_test.go
+@@ -17,7 +17,7 @@ func TestRoundTrip(t *testing.T) {
+ 		pkgbits.V2,
+ 	} {
+ 		pw := pkgbits.NewPkgEncoder(version, -1)
+-		w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
++		w := pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPublic)
+ 		w.Flush()
+ 
+ 		var b strings.Builder
+@@ -25,7 +25,7 @@ func TestRoundTrip(t *testing.T) {
+ 		input := b.String()
+ 
+ 		pr := pkgbits.NewPkgDecoder("package_id", input)
+-		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++		r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+ 		if r.Version() != w.Version() {
+ 			t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index e29150c3e3..d3b897757f 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -10,16 +10,16 @@ package pkgbits
+ type SectionKind int32 // TODO(markfreeman): Replace with uint8.
+ 
+ const (
+-	RelocString SectionKind = iota
+-	RelocMeta
+-	RelocPosBase
+-	RelocPkg
+-	RelocName
+-	RelocType
+-	RelocObj
+-	RelocObjExt
+-	RelocObjDict
+-	RelocBody
++	SectionString SectionKind = iota
++	SectionMeta
++	SectionPosBase
++	SectionPkg
++	SectionName
++	SectionType
++	SectionObj
++	SectionObjExt
++	SectionObjDict
++	SectionBody
+ 
+ 	numRelocs = iota
+ )
+@@ -40,7 +40,7 @@ type RelocEnt struct {
+ 	Idx  RelIndex
+ }
+ 
+-// Reserved indices within the [RelocMeta] section.
++// Reserved indices within the [SectionMeta] section.
+ const (
+ 	PublicRootIdx  RelIndex = 0
+ 	PrivateRootIdx RelIndex = 1

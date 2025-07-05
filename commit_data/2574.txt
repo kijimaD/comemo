@@ -10,6 +10,20 @@ Date:   Thu Jul 2 15:55:17 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31082
     CL=31089
-
+---
  test/fixedbugs/bug022.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug022.go b/test/fixedbugs/bug022.go
+index 6ea233d05d..7964148707 100644
+--- a/test/fixedbugs/bug022.go
++++ b/test/fixedbugs/bug022.go
+@@ -9,7 +9,7 @@ package main
+ func putint(digits *string) {
+ 	var i byte;
+ 	i = (*digits)[7];  // compiles
+-	i = digits[7];  // ERROR "illegal"
++	i = digits[7];  // ERROR "illegal|is not"
+ }
+ 
+ func main() {

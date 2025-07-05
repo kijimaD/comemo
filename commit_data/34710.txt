@@ -7,6 +7,20 @@ Date:   Sat Sep 23 21:45:35 2017 +0100
     Change-Id: Id7f0d978ce5b0471a404d6e6673b789e7db04650
     Reviewed-on: https://go-review.googlesource.com/65653
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b59179fb3c..453024f4db 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2349,7 +2349,7 @@ func Serve(l net.Listener, handler Handler) error {
+ 	return srv.Serve(l)
+ }
+ 
+-// Serve accepts incoming HTTPS connections on the listener l,
++// ServeTLS accepts incoming HTTPS connections on the listener l,
+ // creating a new service goroutine for each. The service goroutines
+ // read requests and then call handler to reply to them.
+ //

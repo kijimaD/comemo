@@ -73,7 +73,7 @@ Date:   Tue Mar 26 20:23:42 2024 +0100
     Auto-Submit: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/label.go        | 81 ++++++++++++++++++++++++++++++---------
  src/runtime/pprof/label_test.go   | 14 ++++---
  src/runtime/pprof/pprof.go        |  4 +-
@@ -81,3 +81,238 @@ Date:   Tue Mar 26 20:23:42 2024 +0100
  src/runtime/pprof/proto.go        |  4 +-
  src/runtime/pprof/runtime_test.go |  6 ++-
  6 files changed, 82 insertions(+), 33 deletions(-)
+
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 41eece2f74..4c1d8d38ce 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -27,7 +27,7 @@ type labelContextKey struct{}
+ func labelValue(ctx context.Context) labelMap {
+ 	labels, _ := ctx.Value(labelContextKey{}).(*labelMap)
+ 	if labels == nil {
+-		return labelMap(nil)
++		return labelMap{}
+ 	}
+ 	return *labels
+ }
+@@ -35,7 +35,9 @@ func labelValue(ctx context.Context) labelMap {
+ // labelMap is the representation of the label set held in the context type.
+ // This is an initial implementation, but it will be replaced with something
+ // that admits incremental immutable modification more efficiently.
+-type labelMap map[string]string
++type labelMap struct {
++	LabelSet
++}
+ 
+ // String satisfies Stringer and returns key, value pairs in a consistent
+ // order.
+@@ -43,14 +45,13 @@ func (l *labelMap) String() string {
+ 	if l == nil {
+ 		return ""
+ 	}
+-	keyVals := make([]string, 0, len(*l))
++	keyVals := make([]string, 0, len(l.list))
+ 
+-	for k, v := range *l {
+-		keyVals = append(keyVals, fmt.Sprintf("%q:%q", k, v))
++	for _, lbl := range l.list {
++		keyVals = append(keyVals, fmt.Sprintf("%q:%q", lbl.key, lbl.value))
+ 	}
+ 
+ 	slices.Sort(keyVals)
+-
+ 	return "{" + strings.Join(keyVals, ", ") + "}"
+ }
+ 
+@@ -58,17 +59,38 @@ func (l *labelMap) String() string {
+ // A label overwrites a prior label with the same key.
+ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ 	parentLabels := labelValue(ctx)
+-	childLabels := make(labelMap, len(parentLabels))
+-	// TODO(matloob): replace the map implementation with something
+-	// more efficient so creating a child context WithLabels doesn't need
+-	// to clone the map.
+-	for k, v := range parentLabels {
+-		childLabels[k] = v
++	return context.WithValue(ctx, labelContextKey{}, &labelMap{mergeLabelSets(parentLabels.LabelSet, labels)})
++}
++
++func mergeLabelSets(left, right LabelSet) LabelSet {
++	if len(left.list) == 0 {
++		return right
++	} else if len(right.list) == 0 {
++		return left
+ 	}
+-	for _, label := range labels.list {
+-		childLabels[label.key] = label.value
++
++	l, r := 0, 0
++	result := make([]label, 0, len(right.list))
++	for l < len(left.list) && r < len(right.list) {
++		switch strings.Compare(left.list[l].key, right.list[r].key) {
++		case -1: // left key < right key
++			result = append(result, left.list[l])
++			l++
++		case 1: // right key < left key
++			result = append(result, right.list[r])
++			r++
++		case 0: // keys are equal, right value overwrites left value
++			result = append(result, right.list[r])
++			l++
++			r++
++		}
+ 	}
+-	return context.WithValue(ctx, labelContextKey{}, &childLabels)
++
++	// Append the remaining elements
++	result = append(result, left.list[l:]...)
++	result = append(result, right.list[r:]...)
++
++	return LabelSet{list: result}
+ }
+ 
+ // Labels takes an even number of strings representing key-value pairs
+@@ -82,8 +104,25 @@ func Labels(args ...string) LabelSet {
+ 		panic("uneven number of arguments to pprof.Labels")
+ 	}
+ 	list := make([]label, 0, len(args)/2)
++	sortedNoDupes := true
+ 	for i := 0; i+1 < len(args); i += 2 {
+ 		list = append(list, label{key: args[i], value: args[i+1]})
++		sortedNoDupes = sortedNoDupes && (i < 2 || args[i] > args[i-2])
++	}
++	if !sortedNoDupes {
++		// slow path: keys are unsorted, contain duplicates, or both
++		slices.SortStableFunc(list, func(a, b label) int {
++			return strings.Compare(a.key, b.key)
++		})
++		deduped := make([]label, 0, len(list))
++		for i, lbl := range list {
++			if i == 0 || lbl.key != list[i-1].key {
++				deduped = append(deduped, lbl)
++			} else {
++				deduped[len(deduped)-1] = lbl
++			}
++		}
++		list = deduped
+ 	}
+ 	return LabelSet{list: list}
+ }
+@@ -92,16 +131,20 @@ func Labels(args ...string) LabelSet {
+ // whether that label exists.
+ func Label(ctx context.Context, key string) (string, bool) {
+ 	ctxLabels := labelValue(ctx)
+-	v, ok := ctxLabels[key]
+-	return v, ok
++	for _, lbl := range ctxLabels.list {
++		if lbl.key == key {
++			return lbl.value, true
++		}
++	}
++	return "", false
+ }
+ 
+ // ForLabels invokes f with each label set on the context.
+ // The function f should return true to continue iteration or false to stop iteration early.
+ func ForLabels(ctx context.Context, f func(key, value string) bool) {
+ 	ctxLabels := labelValue(ctx)
+-	for k, v := range ctxLabels {
+-		if !f(k, v) {
++	for _, lbl := range ctxLabels.list {
++		if !f(lbl.key, lbl.value) {
+ 			break
+ 		}
+ 	}
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index 5cab9f21a5..3018693c24 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -93,16 +93,18 @@ func TestLabelMapStringer(t *testing.T) {
+ 			expected: "{}",
+ 		}, {
+ 			m: labelMap{
+-				"foo": "bar",
++				Labels("foo", "bar"),
+ 			},
+ 			expected: `{"foo":"bar"}`,
+ 		}, {
+ 			m: labelMap{
+-				"foo":             "bar",
+-				"key1":            "value1",
+-				"key2":            "value2",
+-				"key3":            "value3",
+-				"key4WithNewline": "\nvalue4",
++				Labels(
++					"foo", "bar",
++					"key1", "value1",
++					"key2", "value2",
++					"key3", "value3",
++					"key4WithNewline", "\nvalue4",
++				),
+ 			},
+ 			expected: `{"foo":"bar", "key1":"value1", "key2":"value2", "key3":"value3", "key4WithNewline":"\nvalue4"}`,
+ 		},
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b8458367f8..f6b4a5c367 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -516,8 +516,8 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 		var labels func()
+ 		if p.Label(idx) != nil {
+ 			labels = func() {
+-				for k, v := range *p.Label(idx) {
+-					b.pbLabel(tagSample_Label, k, v, 0)
++				for _, lbl := range p.Label(idx).list {
++					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+ 				}
+ 			}
+ 		}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 64ca9957d2..78138b2f62 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1482,11 +1482,11 @@ func TestGoroutineCounts(t *testing.T) {
+ 	goroutineProf.WriteTo(&w, 1)
+ 	prof := w.String()
+ 
+-	labels := labelMap{"label": "value"}
++	labels := labelMap{Labels("label", "value")}
+ 	labelStr := "\n# labels: " + labels.String()
+-	selfLabel := labelMap{"self-label": "self-value"}
++	selfLabel := labelMap{Labels("self-label", "self-value")}
+ 	selfLabelStr := "\n# labels: " + selfLabel.String()
+-	fingLabel := labelMap{"fing-label": "fing-value"}
++	fingLabel := labelMap{Labels("fing-label", "fing-value")}
+ 	fingLabelStr := "\n# labels: " + fingLabel.String()
+ 	orderedPrefix := []string{
+ 		"\n50 @ ",
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index b01f541375..a664fdc6ed 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -367,8 +367,8 @@ func (b *profileBuilder) build() {
+ 		var labels func()
+ 		if e.tag != nil {
+ 			labels = func() {
+-				for k, v := range *(*labelMap)(e.tag) {
+-					b.pbLabel(tagSample_Label, k, v, 0)
++				for _, lbl := range (*labelMap)(e.tag).list {
++					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+ 				}
+ 			}
+ 		}
+diff --git a/src/runtime/pprof/runtime_test.go b/src/runtime/pprof/runtime_test.go
+index e77c7f2bc9..353ed8a3f1 100644
+--- a/src/runtime/pprof/runtime_test.go
++++ b/src/runtime/pprof/runtime_test.go
+@@ -92,5 +92,9 @@ func getProfLabel() map[string]string {
+ 	if l == nil {
+ 		return map[string]string{}
+ 	}
+-	return *l
++	m := make(map[string]string, len(l.list))
++	for _, lbl := range l.list {
++		m[lbl.key] = lbl.value
++	}
++	return m
+ }

@@ -19,6 +19,22 @@ Date:   Mon Jul 20 19:03:33 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/245717
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/obj/objfile2.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 6a5f3726f8..6cf82779e4 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -373,7 +373,9 @@ func contentHash64(s *LSym) goobj2.Hash64Type {
+ // hashed symbols.
+ func (w *writer) contentHash(s *LSym) goobj2.HashType {
+ 	h := sha1.New()
+-	h.Write(s.P)
++	// The compiler trims trailing zeros _sometimes_. We just do
++	// it always.
++	h.Write(bytes.TrimRight(s.P, "\x00"))
+ 	var tmp [14]byte
+ 	for i := range s.R {
+ 		r := &s.R[i]

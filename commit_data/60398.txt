@@ -14,6 +14,28 @@ Date:   Wed Jul 10 23:20:11 2024 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/os_unix_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 6cbeae1b78..fcc75e5ee6 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -376,14 +376,14 @@ func TestIssue60181(t *testing.T) {
+ 
+ 	want := "hello gopher"
+ 
+-	a, err := CreateTemp("", "a")
++	a, err := CreateTemp(".", "a")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	a.WriteString(want[:5])
+ 	a.Close()
+ 
+-	b, err := CreateTemp("", "b")
++	b, err := CreateTemp(".", "b")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -12,8 +12,150 @@ Date:   Fri Aug 16 22:25:26 2013 -0400
     R=golang-dev, r, dvyukov
     CC=golang-dev
     https://golang.org/cl/13037043
-
+---
  src/pkg/runtime/crash_test.go    | 30 ++++++++++++++++++++++++++++++
  src/pkg/runtime/debug/garbage.go | 19 +++++++++++++++++++
  src/pkg/runtime/proc.c           | 26 +++++++++++++++++++++++++-
  3 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 7ea1b6b61a..e07810bb1d 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -125,6 +125,14 @@ func TestStackOverflow(t *testing.T) {
+ 	}
+ }
+ 
++func TestThreadExhaustion(t *testing.T) {
++	output := executeTest(t, threadExhaustionSource, nil)
++	want := "runtime: program exceeds 10-thread limit\nfatal error: thread exhaustion"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -243,3 +251,25 @@ func f(x []byte) byte {
+ 	return x[0] + f(buf[:])
+ }
+ `
++
++const threadExhaustionSource = `
++package main
++
++import (
++	"runtime"
++	"runtime/debug"
++)
++
++func main() {
++	debug.SetMaxThreads(10)
++	c := make(chan int)
++	for i := 0; i < 100; i++ {
++		go func() {
++			runtime.LockOSThread()
++			c <- 0
++			select{}
++		}()
++		<-c
++	}
++}
++`
+diff --git a/src/pkg/runtime/debug/garbage.go b/src/pkg/runtime/debug/garbage.go
+index 3658feaaf8..8337d5d5b3 100644
+--- a/src/pkg/runtime/debug/garbage.go
++++ b/src/pkg/runtime/debug/garbage.go
+@@ -25,6 +25,7 @@ func enableGC(bool) bool
+ func setGCPercent(int) int
+ func freeOSMemory()
+ func setMaxStack(int) int
++func setMaxThreads(int) int
+ 
+ // ReadGCStats reads statistics about garbage collection into stats.
+ // The number of entries in the pause history is system-dependent;
+@@ -114,3 +115,21 @@ func FreeOSMemory() {
+ func SetMaxStack(bytes int) int {
+ 	return setMaxStack(bytes)
+ }
++
++// SetMaxThreads sets the maximum number of operating system
++// threads that the Go program can use. If it attempts to use more than
++// this many, the program crashes.
++// SetMaxThreads returns the previous setting.
++// The initial setting is 10,000 threads.
++//
++// The limit controls the number of operating system threads, not the number
++// of goroutines. A Go program creates a new thread only when a goroutine
++// is ready to run but all the existing threads are blocked in system calls, cgo calls,
++// or are locked to other goroutines due to use of runtime.LockOSThread.
++//
++// SetMaxThreads is useful mainly for limiting the damage done by
++// programs that create an unbounded number of threads. The idea is
++// to take down the program before it takes down the operating system.
++func SetMaxThreads(threads int) int {
++	return setMaxThreads(threads)
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6950f4b179..dab62ad69b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -32,6 +32,7 @@ struct Sched {
+ 	int32	nmidle;	 // number of idle m's waiting for work
+ 	int32	nmidlelocked; // number of locked m's waiting for work
+ 	int32	mcount;	 // number of m's that have been created
++	int32	maxmcount;	// maximum number of m's allowed (or die)
+ 
+ 	P*	pidle;  // idle P's
+ 	uint32	npidle;
+@@ -126,6 +127,8 @@ runtime·schedinit(void)
+ 	int32 n, procs;
+ 	byte *p;
+ 
++	runtime·sched.maxmcount = 10000;
++
+ 	m->nomemprof++;
+ 	runtime·mprofinit();
+ 	runtime·mallocinit();
+@@ -283,6 +286,16 @@ runtime·tracebackothers(G *me)
+ 	}
+ }
+ 
++static void
++checkmcount(void)
++{
++	// sched lock is held
++	if(runtime·sched.mcount > runtime·sched.maxmcount) {
++		runtime·printf("runtime: program exceeds %d-thread limit\n", runtime·sched.maxmcount);
++		runtime·throw("thread exhaustion");
++	}
++}
++
+ static void
+ mcommoninit(M *mp)
+ {
+@@ -295,7 +308,7 @@ mcommoninit(M *mp)
+ 
+ 	runtime·lock(&runtime·sched);
+ 	mp->id = runtime·sched.mcount++;
+-
++	checkmcount();
+ 	runtime·mpreinit(mp);
+ 
+ 	// Add to runtime·allm so garbage collector doesn't free m
+@@ -2821,3 +2834,14 @@ runtime·topofstack(Func *f)
+ 		f->entry == (uintptr)runtime·lessstack ||
+ 		f->entry == (uintptr)_rt0_go;
+ }
++
++void
++runtime∕debug·setMaxThreads(intgo in, intgo out)
++{
++	runtime·lock(&runtime·sched);
++	out = runtime·sched.maxmcount;
++	runtime·sched.maxmcount = in;
++	checkmcount();
++	runtime·unlock(&runtime·sched);
++	FLUSH(&out);
++}

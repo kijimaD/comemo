@@ -62,8 +62,156 @@ Date:   Wed Sep 6 15:58:13 2023 +0300
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 10 ------
  src/reflect/type.go                   | 62 +++++++----------------------------
  src/reflect/type_test.go              | 24 ++++++++++++++
  3 files changed, 35 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index d3557d2f94..f033d66884 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -968,16 +968,6 @@ func usemethod(n *ir.CallExpr) {
+ 			return
+ 		case fn == "Value.Method", fn == "Value.MethodByName":
+ 			return
+-		// StructOf defines closures that look up methods. They only look up methods
+-		// reachable via interfaces. The DCE does not remove such methods. It is ok
+-		// to not flag closures in StructOf as ReflectMethods and let the DCE run
+-		// even if StructOf is reachable.
+-		//
+-		// (*rtype).MethodByName calls into StructOf so flagging StructOf as
+-		// ReflectMethod would disable the DCE even when the name of a method
+-		// to look up is a compile-time constant.
+-		case strings.HasPrefix(fn, "StructOf.func"):
+-			return
+ 		}
+ 	}
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 4254c657d2..d6744c2898 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2156,9 +2156,8 @@ func isValidFieldName(fieldName string) bool {
+ // The Offset and Index fields are ignored and computed as they would be
+ // by the compiler.
+ //
+-// StructOf currently does not generate wrapper methods for embedded
+-// fields and panics if passed unexported StructFields.
+-// These limitations may be lifted in a future version.
++// StructOf currently does not support promoted methods of embedded fields
++// and panics if passed unexported StructFields.
+ func StructOf(fields []StructField) Type {
+ 	var (
+ 		hash       = fnv1(0, []byte("struct {")...)
+@@ -2217,61 +2216,18 @@ func StructOf(fields []StructField) Type {
+ 			switch Kind(f.Typ.Kind()) {
+ 			case Interface:
+ 				ift := (*interfaceType)(unsafe.Pointer(ft))
+-				for im, m := range ift.Methods {
++				for _, m := range ift.Methods {
+ 					if pkgPath(ift.nameOff(m.Name)) != "" {
+ 						// TODO(sbinet).  Issue 15924.
+ 						panic("reflect: embedded interface with unexported method(s) not implemented")
+ 					}
+ 
+-					var (
+-						mtyp    = ift.typeOff(m.Typ)
+-						ifield  = i
+-						imethod = im
+-						ifn     Value
+-						tfn     Value
+-					)
+-
+-					if ft.Kind_&kindDirectIface != 0 {
+-						tfn = MakeFunc(toRType(mtyp), func(in []Value) []Value {
+-							var args []Value
+-							var recv = in[0]
+-							if len(in) > 1 {
+-								args = in[1:]
+-							}
+-							return recv.Field(ifield).Method(imethod).Call(args)
+-						})
+-						ifn = MakeFunc(toRType(mtyp), func(in []Value) []Value {
+-							var args []Value
+-							var recv = in[0]
+-							if len(in) > 1 {
+-								args = in[1:]
+-							}
+-							return recv.Field(ifield).Method(imethod).Call(args)
+-						})
+-					} else {
+-						tfn = MakeFunc(toRType(mtyp), func(in []Value) []Value {
+-							var args []Value
+-							var recv = in[0]
+-							if len(in) > 1 {
+-								args = in[1:]
+-							}
+-							return recv.Field(ifield).Method(imethod).Call(args)
+-						})
+-						ifn = MakeFunc(toRType(mtyp), func(in []Value) []Value {
+-							var args []Value
+-							var recv = Indirect(in[0])
+-							if len(in) > 1 {
+-								args = in[1:]
+-							}
+-							return recv.Field(ifield).Method(imethod).Call(args)
+-						})
+-					}
+-
++					fnStub := resolveReflectText(unsafe.Pointer(abi.FuncPCABIInternal(embeddedIfaceMethStub)))
+ 					methods = append(methods, abi.Method{
+ 						Name: resolveReflectName(ift.nameOff(m.Name)),
+-						Mtyp: resolveReflectType(mtyp),
+-						Ifn:  resolveReflectText(unsafe.Pointer(&ifn)),
+-						Tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
++						Mtyp: resolveReflectType(ift.typeOff(m.Typ)),
++						Ifn:  fnStub,
++						Tfn:  fnStub,
+ 					})
+ 				}
+ 			case Pointer:
+@@ -2570,6 +2526,10 @@ func StructOf(fields []StructField) Type {
+ 	return addToCache(toType(&typ.Type))
+ }
+ 
++func embeddedIfaceMethStub() {
++	panic("reflect: StructOf does not support methods of embedded interfaces")
++}
++
+ // runtimeStructField takes a StructField value passed to StructOf and
+ // returns both the corresponding internal representation, of type
+ // structField, and the pkgpath value to use for this field.
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+index 75784f9666..9e124273a2 100644
+--- a/src/reflect/type_test.go
++++ b/src/reflect/type_test.go
+@@ -33,3 +33,27 @@ func TestTypeFor(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStructOfEmbeddedIfaceMethodCall(t *testing.T) {
++	type Named interface {
++		Name() string
++	}
++
++	typ := reflect.StructOf([]reflect.StructField{
++		{
++			Anonymous: true,
++			Name:      "Named",
++			Type:      reflect.TypeFor[Named](),
++		},
++	})
++
++	v := reflect.New(typ).Elem()
++	v.Field(0).Set(
++		reflect.ValueOf(reflect.TypeFor[string]()),
++	)
++
++	x := v.Interface().(Named)
++	shouldPanic("StructOf does not support methods of embedded interfaces", func() {
++		_ = x.Name()
++	})
++}

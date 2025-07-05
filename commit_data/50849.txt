@@ -13,6 +13,20 @@ Date:   Wed Nov 10 15:50:35 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/typeparam.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index e430319476..5499d975a1 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -10,7 +10,7 @@ import "sync/atomic"
+ // is the underlying type of its type constraint, i.e.,
+ // an interface. With that, a type parameter satisfies
+ // isInterface.
+-const tparamIsIface = false
++const tparamIsIface = true
+ 
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available

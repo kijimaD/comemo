@@ -18,7 +18,7 @@ Date:   Tue Mar 6 21:28:24 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/chan.go        |  8 ++---
  src/runtime/heapdump.go    |  4 +--
  src/runtime/mfinal.go      |  2 +-
@@ -35,3 +35,471 @@ Date:   Tue Mar 6 21:28:24 2018 -0800
  src/runtime/trace.go       |  2 +-
  src/runtime/traceback.go   |  4 +--
  15 files changed, 114 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 10ee97d924..ce71cee4c5 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -142,7 +142,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 		if !block {
+ 			return false
+ 		}
+-		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop, 2)
++		gopark(nil, nil, waitReasonChanSendNilChan, traceEvGoStop, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -231,7 +231,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	gp.waiting = mysg
+ 	gp.param = nil
+ 	c.sendq.enqueue(mysg)
+-	goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
++	goparkunlock(&c.lock, waitReasonChanSend, traceEvGoBlockSend, 3)
+ 
+ 	// someone woke us up.
+ 	if mysg != gp.waiting {
+@@ -426,7 +426,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		if !block {
+ 			return
+ 		}
+-		gopark(nil, nil, "chan receive (nil chan)", traceEvGoStop, 2)
++		gopark(nil, nil, waitReasonChanReceiveNilChan, traceEvGoStop, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -517,7 +517,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	mysg.c = c
+ 	gp.param = nil
+ 	c.recvq.enqueue(mysg)
+-	goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
++	goparkunlock(&c.lock, waitReasonChanReceive, traceEvGoBlockRecv, 3)
+ 
+ 	// someone woke us up
+ 	if mysg != gp.waiting {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index b255cbbae3..2d2734a064 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -349,7 +349,7 @@ func dumpgoroutine(gp *g) {
+ 	dumpbool(isSystemGoroutine(gp))
+ 	dumpbool(false) // isbackground
+ 	dumpint(uint64(gp.waitsince))
+-	dumpstr(gp.waitreason)
++	dumpstr(gp.waitreason.String())
+ 	dumpint(uint64(uintptr(gp.sched.ctxt)))
+ 	dumpint(uint64(uintptr(unsafe.Pointer(gp.m))))
+ 	dumpint(uint64(uintptr(unsafe.Pointer(gp._defer))))
+@@ -658,7 +658,7 @@ func mdump() {
+ func writeheapdump_m(fd uintptr) {
+ 	_g_ := getg()
+ 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
+-	_g_.waitreason = "dumping heap"
++	_g_.waitreason = waitReasonDumpingHeap
+ 
+ 	// Update stats so we can dump them.
+ 	// As a side effect, flushes all the MCaches so the MSpan.freelist
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 4ded18a345..6ce0312712 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -172,7 +172,7 @@ func runfinq() {
+ 			gp := getg()
+ 			fing = gp
+ 			fingwait = true
+-			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock, 1)
++			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
+ 			continue
+ 		}
+ 		unlock(&finlock)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ab90c289a5..f40bdbd278 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -241,7 +241,7 @@ func setGCPercent(in int32) (out int32) {
+ 			gp := getg()
+ 			gp.schedlink = work.sweepWaiters.head
+ 			work.sweepWaiters.head.set(gp)
+-			goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
++			goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
+ 		} else {
+ 			// GC isn't active.
+ 			unlock(&work.sweepWaiters.lock)
+@@ -1100,7 +1100,7 @@ func GC() {
+ 		// termination of cycle N complete.
+ 		gp.schedlink = work.sweepWaiters.head
+ 		work.sweepWaiters.head.set(gp)
+-		goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
++		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
+ 	} else {
+ 		// We're in sweep N already.
+ 		unlock(&work.sweepWaiters.lock)
+@@ -1116,7 +1116,7 @@ func GC() {
+ 	if gcphase == _GCmark && atomic.Load(&work.cycles) == n+1 {
+ 		gp.schedlink = work.sweepWaiters.head
+ 		work.sweepWaiters.head.set(gp)
+-		goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
++		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
+ 	} else {
+ 		unlock(&work.sweepWaiters.lock)
+ 	}
+@@ -1530,7 +1530,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	_g_.m.traceback = 2
+ 	gp := _g_.m.curg
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+-	gp.waitreason = "garbage collection"
++	gp.waitreason = waitReasonGarbageCollection
+ 
+ 	// Run gc on the g0 stack. We do this so that the g stack
+ 	// we're currently running on will no longer change. Cuts
+@@ -1799,7 +1799,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 				}
+ 			}
+ 			return true
+-		}, unsafe.Pointer(park), "GC worker (idle)", traceEvGoBlock, 0)
++		}, unsafe.Pointer(park), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
+ 
+ 		// Loop until the P dies and disassociates this
+ 		// worker (the P may later be reused, in which case
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 270fa6cd32..06a2853741 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -251,7 +251,7 @@ func markroot(gcw *gcWork, i uint32) {
+ 			selfScan := gp == userG && readgstatus(userG) == _Grunning
+ 			if selfScan {
+ 				casgstatus(userG, _Grunning, _Gwaiting)
+-				userG.waitreason = "garbage collection scan"
++				userG.waitreason = waitReasonGarbageCollectionScan
+ 			}
+ 
+ 			// TODO: scang blocks until gp's stack has
+@@ -549,7 +549,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 
+ 	// gcDrainN requires the caller to be preemptible.
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+-	gp.waitreason = "GC assist marking"
++	gp.waitreason = waitReasonGCAssistMarking
+ 
+ 	// drain own cached work first in the hopes that it
+ 	// will be more cache friendly.
+@@ -648,7 +648,7 @@ func gcParkAssist() bool {
+ 		return false
+ 	}
+ 	// Park.
+-	goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlockGC, 2)
++	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
+ 	return true
+ }
+ 
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 1bb19ec689..c7baa455fe 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -49,7 +49,7 @@ func bgsweep(c chan int) {
+ 	lock(&sweep.lock)
+ 	sweep.parked = true
+ 	c <- 1
+-	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
++	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+ 
+ 	for {
+ 		for gosweepone() != ^uintptr(0) {
+@@ -68,7 +68,7 @@ func bgsweep(c chan int) {
+ 			continue
+ 		}
+ 		sweep.parked = true
+-		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
++		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+ 	}
+ }
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 8dd4fb6319..efcd2b855c 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -363,7 +363,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+ 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
+ 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
+ 	if waitio || netpollcheckerr(pd, mode) == 0 {
+-		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
++		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceEvGoBlockNet, 5)
+ 	}
+ 	// be careful to not lose concurrent READY notification
+ 	old := atomic.Xchguintptr(gpp, 0)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 008bd244e0..3efb0bd8c2 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -214,7 +214,7 @@ func main() {
+ 		}
+ 	}
+ 	if atomic.Load(&panicking) != 0 {
+-		gopark(nil, nil, "panicwait", traceEvGoStop, 1)
++		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
+ 	}
+ 
+ 	exit(0)
+@@ -245,7 +245,7 @@ func forcegchelper() {
+ 			throw("forcegc: phase error")
+ 		}
+ 		atomic.Store(&forcegc.idle, 1)
+-		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock, 1)
++		goparkunlock(&forcegc.lock, waitReasonForceGGIdle, traceEvGoBlock, 1)
+ 		// this goroutine is explicitly resumed by sysmon
+ 		if debug.gctrace > 0 {
+ 			println("GC forced")
+@@ -274,7 +274,11 @@ func goschedguarded() {
+ // If unlockf returns false, the goroutine is resumed.
+ // unlockf must not access this G's stack, as it may be moved between
+ // the call to gopark and the call to unlockf.
+-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
++// Reason explains why the goroutine has been parked.
++// It is displayed in stack traces and heap dumps.
++// Reasons should be unique and descriptive.
++// Do not re-use reasons, add new ones.
++func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
+ 	mp := acquirem()
+ 	gp := mp.curg
+ 	status := readgstatus(gp)
+@@ -293,7 +297,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
+ 
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+ // The goroutine can be made runnable again by calling goready(gp).
+-func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
++func goparkunlock(lock *mutex, reason waitReason, traceEv byte, traceskip int) {
+ 	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
+ }
+ 
+@@ -2667,7 +2671,7 @@ func goexit0(gp *g) {
+ 	gp._defer = nil // should be true already but just in case.
+ 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
+ 	gp.writebuf = nil
+-	gp.waitreason = ""
++	gp.waitreason = 0
+ 	gp.param = nil
+ 	gp.labels = nil
+ 	gp.timer = nil
+@@ -4493,7 +4497,7 @@ func schedtrace(detailed bool) {
+ 		if lockedm != nil {
+ 			id2 = lockedm.id
+ 		}
+-		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason, ") m=", id1, " lockedm=", id2, "\n")
++		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason.String(), ") m=", id1, " lockedm=", id2, "\n")
+ 	}
+ 	unlock(&allglock)
+ 	unlock(&sched.lock)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e6808ac023..42def4a826 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -358,20 +358,20 @@ type g struct {
+ 	atomicstatus   uint32
+ 	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+ 	goid           int64
+-	waitsince      int64  // approx time when the g become blocked
+-	waitreason     string // if status==Gwaiting
+ 	schedlink      guintptr
+-	preempt        bool     // preemption signal, duplicates stackguard0 = stackpreempt
+-	paniconfault   bool     // panic (instead of crash) on unexpected fault address
+-	preemptscan    bool     // preempted g does scan for gc
+-	gcscandone     bool     // g has scanned stack; protected by _Gscan bit in status
+-	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
+-	throwsplit     bool     // must not split stack
+-	raceignore     int8     // ignore race detection events
+-	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+-	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
+-	traceseq       uint64   // trace event sequencer
+-	tracelastp     puintptr // last P emitted an event for this goroutine
++	waitsince      int64      // approx time when the g become blocked
++	waitreason     waitReason // if status==Gwaiting
++	preempt        bool       // preemption signal, duplicates stackguard0 = stackpreempt
++	paniconfault   bool       // panic (instead of crash) on unexpected fault address
++	preemptscan    bool       // preempted g does scan for gc
++	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
++	gcscanvalid    bool       // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
++	throwsplit     bool       // must not split stack
++	raceignore     int8       // ignore race detection events
++	sysblocktraced bool       // StartTrace has emitted EvGoInSyscall about this goroutine
++	sysexitticks   int64      // cputicks when syscall has returned (for tracing)
++	traceseq       uint64     // trace event sequencer
++	tracelastp     puintptr   // last P emitted an event for this goroutine
+ 	lockedm        muintptr
+ 	sig            uint32
+ 	writebuf       []byte
+@@ -752,6 +752,69 @@ const (
+ // The maximum number of frames we print for a traceback
+ const _TracebackMaxFrames = 100
+ 
++// A waitReason explains why a goroutine has been stopped.
++// See gopark. Do not re-use waitReasons, add new ones.
++type waitReason uint8
++
++const (
++	waitReasonZero                  waitReason = iota // ""
++	waitReasonGCAssistMarking                         // "GC assist marking"
++	waitReasonIOWait                                  // "IO wait"
++	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
++	waitReasonChanSendNilChan                         // "chan send (nil chan)"
++	waitReasonDumpingHeap                             // "dumping heap"
++	waitReasonGarbageCollection                       // "garbage collection"
++	waitReasonGarbageCollectionScan                   // "garbage collection scan"
++	waitReasonPanicWait                               // "panicwait"
++	waitReasonSelect                                  // "select"
++	waitReasonSelectNoCases                           // "select (no cases)"
++	waitReasonGCAssistWait                            // "GC assist wait"
++	waitReasonGCSweepWait                             // "GC sweep wait"
++	waitReasonChanReceive                             // "chan receive"
++	waitReasonChanSend                                // "chan send"
++	waitReasonFinalizerWait                           // "finalizer wait"
++	waitReasonForceGGIdle                             // "force gc (idle)"
++	waitReasonSemacquire                              // "semacquire"
++	waitReasonSleep                                   // "sleep"
++	waitReasonTimerGoroutineIdle                      // "timer goroutine (idle)"
++	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
++	waitReasonWaitForGCCycle                          // "wait for GC cycle"
++	waitReasonGCWorkerIdle                            // "GC worker (idle)"
++)
++
++var waitReasonStrings = [...]string{
++	waitReasonZero:                  "",
++	waitReasonGCAssistMarking:       "GC assist marking",
++	waitReasonIOWait:                "IO wait",
++	waitReasonChanReceiveNilChan:    "chan receive (nil chan)",
++	waitReasonChanSendNilChan:       "chan send (nil chan)",
++	waitReasonDumpingHeap:           "dumping heap",
++	waitReasonGarbageCollection:     "garbage collection",
++	waitReasonGarbageCollectionScan: "garbage collection scan",
++	waitReasonPanicWait:             "panicwait",
++	waitReasonSelect:                "select",
++	waitReasonSelectNoCases:         "select (no cases)",
++	waitReasonGCAssistWait:          "GC assist wait",
++	waitReasonGCSweepWait:           "GC sweep wait",
++	waitReasonChanReceive:           "chan receive",
++	waitReasonChanSend:              "chan send",
++	waitReasonFinalizerWait:         "finalizer wait",
++	waitReasonForceGGIdle:           "force gc (idle)",
++	waitReasonSemacquire:            "semacquire",
++	waitReasonSleep:                 "sleep",
++	waitReasonTimerGoroutineIdle:    "timer goroutine (idle)",
++	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
++	waitReasonWaitForGCCycle:        "wait for GC cycle",
++	waitReasonGCWorkerIdle:          "GC worker (idle)",
++}
++
++func (w waitReason) String() string {
++	if w < 0 || w >= waitReason(len(waitReasonStrings)) {
++		return "unknown wait reason"
++	}
++	return waitReasonStrings[w]
++}
++
+ var (
+ 	allglen    uintptr
+ 	allm       *m
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index b59c096928..c48aee0642 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -189,7 +189,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
+ }
+ 
+ func block() {
+-	gopark(nil, nil, "select (no cases)", traceEvGoStop, 1) // forever
++	gopark(nil, nil, waitReasonSelectNoCases, traceEvGoStop, 1) // forever
+ }
+ 
+ // selectgo implements the select statement.
+@@ -389,7 +389,7 @@ loop:
+ 
+ 	// wait for someone to wake us up
+ 	gp.param = nil
+-	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 1)
++	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
+ 
+ 	sellock(scases, lockorder)
+ 
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index d5ea14d46d..7052d4f69d 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -141,7 +141,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		root.queue(addr, s, lifo)
+-		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
++		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
+ 		if s.ticket != 0 || cansemacquire(addr) {
+ 			break
+ 		}
+@@ -507,7 +507,7 @@ func notifyListWait(l *notifyList, t uint32) {
+ 		l.tail.next = s
+ 	}
+ 	l.tail = s
+-	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
++	goparkunlock(&l.lock, waitReasonSemacquire, traceEvGoBlockCond, 3)
+ 	if t0 != 0 {
+ 		blockevent(s.releasetime-t0, 2)
+ 	}
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 830055e2aa..f8f4d563df 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 216, 376}, // g, but exported for testing
++		{runtime.G{}, 212, 368}, // g, but exported for testing
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 3ac60f3aec..4308cc0f0b 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -99,7 +99,7 @@ func timeSleep(ns int64) {
+ 	tb := t.assignBucket()
+ 	lock(&tb.lock)
+ 	tb.addtimerLocked(t)
+-	goparkunlock(&tb.lock, "sleep", traceEvGoSleep, 2)
++	goparkunlock(&tb.lock, waitReasonSleep, traceEvGoSleep, 2)
+ }
+ 
+ // startTimer adds t to the timer heap.
+@@ -250,7 +250,7 @@ func timerproc(tb *timersBucket) {
+ 		if delta < 0 || faketime > 0 {
+ 			// No timers left - put goroutine to sleep.
+ 			tb.rescheduling = true
+-			goparkunlock(&tb.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
++			goparkunlock(&tb.lock, waitReasonTimerGoroutineIdle, traceEvGoBlock, 1)
+ 			continue
+ 		}
+ 		// At least one timer pending. Sleep until then.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index c4090ff29a..250f19228c 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -392,7 +392,7 @@ func ReadTrace() []byte {
+ 	// Wait for new data.
+ 	if trace.fullHead == 0 && !trace.shutdown {
+ 		trace.reader.set(getg())
+-		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
++		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
+ 		lock(&trace.lock)
+ 	}
+ 	// Write a buffer.
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2261942ab4..3c572a7b28 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -827,8 +827,8 @@ func goroutineheader(gp *g) {
+ 	}
+ 
+ 	// Override.
+-	if gpstatus == _Gwaiting && gp.waitreason != "" {
+-		status = gp.waitreason
++	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
++		status = gp.waitreason.String()
+ 	}
+ 
+ 	// approx time the G is blocked, in minutes

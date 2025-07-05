@@ -17,6 +17,33 @@ Date:   Mon Aug 5 14:39:48 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/get/discovery.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/discovery.go b/src/cmd/go/internal/get/discovery.go
+index aa2a24d12f..afa6ef455f 100644
+--- a/src/cmd/go/internal/get/discovery.go
++++ b/src/cmd/go/internal/get/discovery.go
+@@ -28,16 +28,16 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
+ 
+ // parseMetaGoImports returns meta imports from the HTML in r.
+ // Parsing ends at the end of the <head> section or the beginning of the <body>.
+-func parseMetaGoImports(r io.Reader, mod ModuleMode) (imports []metaImport, err error) {
++func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
+ 	d := xml.NewDecoder(r)
+ 	d.CharsetReader = charsetReader
+ 	d.Strict = false
+-	var t xml.Token
++	var imports []metaImport
+ 	for {
+-		t, err = d.RawToken()
++		t, err := d.RawToken()
+ 		if err != nil {
+-			if err == io.EOF || len(imports) > 0 {
+-				err = nil
++			if err != io.EOF && len(imports) == 0 {
++				return nil, err
+ 			}
+ 			break
+ 		}

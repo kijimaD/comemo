@@ -17,6 +17,20 @@ Date:   Thu Apr 27 15:56:34 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/conf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 2540ac5261..6386078132 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -230,7 +230,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		// For testing purposes only, recheck the GOOS.
+ 		// This lets TestConfHostLookupOrder test different
+ 		// GOOS values.
+-		if c.goos != runtime.GOOS && goosPrefersCgo(c.goos) {
++		if goosPrefersCgo(c.goos) {
+ 			return hostLookupCgo, nil
+ 		}
+ 

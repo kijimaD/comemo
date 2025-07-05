@@ -13,7 +13,7 @@ Date:   Wed Sep 27 13:27:22 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go   | 2 --
  src/cmd/compile/internal/gc/dcl.go       | 2 +-
  src/cmd/compile/internal/gc/noder.go     | 1 -
@@ -23,3 +23,166 @@ Date:   Wed Sep 27 13:27:22 2017 -0700
  src/cmd/compile/internal/gc/typecheck.go | 1 -
  src/cmd/compile/internal/types/type.go   | 5 +----
  8 files changed, 3 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 93997b069a..d3af16e176 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -495,7 +495,6 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 	}
+ 	typ := tostruct(fields)
+ 	typ.SetNoalg(true)
+-	typ.SetLocal(true)
+ 
+ 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+ 	clos.Esc = func_.Esc
+@@ -689,7 +688,6 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 		namedfield("R", n.Left.Type),
+ 	})
+ 	typ.SetNoalg(true)
+-	typ.SetLocal(true)
+ 
+ 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+ 	clos.Esc = n.Esc
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 37d281d106..2351f931f3 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -975,7 +975,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 		return
+ 	}
+ 
+-	if local && !mt.Local() {
++	if local && mt.Sym.Pkg != localpkg {
+ 		yyerror("cannot define new methods on non-local type %v", mt)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 17b826bf38..4db50117c4 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -322,7 +322,6 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 	n := p.declName(decl.Name)
+ 	n.Op = OTYPE
+ 	declare(n, dclcontext)
+-	n.SetLocal(true)
+ 
+ 	// decl.Type may be nil but in that case we got a syntax error during parsing
+ 	typ := p.typeExprOrNil(decl.Type)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 0023f65a10..e45e5e9a44 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -166,7 +166,6 @@ func bmap(t *types.Type) *types.Type {
+ 
+ 	// link up fields
+ 	bucket.SetNoalg(true)
+-	bucket.SetLocal(t.Local())
+ 	bucket.SetFields(field[:])
+ 	dowidth(bucket)
+ 
+@@ -262,7 +261,6 @@ func hmap(t *types.Type) *types.Type {
+ 
+ 	hmap := types.New(TSTRUCT)
+ 	hmap.SetNoalg(true)
+-	hmap.SetLocal(t.Local())
+ 	hmap.SetFields(fields)
+ 	dowidth(hmap)
+ 
+@@ -1167,7 +1165,7 @@ func dtypesym(t *types.Type) *types.Sym {
+ 
+ 	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
+ 		// named types from other files are defined only by those files
+-		if tbase.Sym != nil && !tbase.Local() {
++		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
+ 			return s
+ 		}
+ 		// TODO(mdempsky): Investigate whether this can happen.
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 320cd9a47e..319d32b256 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -342,7 +342,6 @@ func selecttype(size int64) *types.Type {
+ 		namedfield("releasetime", types.Types[TUINT64]),
+ 	})
+ 	scase.SetNoalg(true)
+-	scase.SetLocal(true)
+ 
+ 	sel := tostruct([]*Node{
+ 		namedfield("tcase", types.Types[TUINT16]),
+@@ -354,7 +353,6 @@ func selecttype(size int64) *types.Type {
+ 		namedfield("pollorderarr", types.NewArray(types.Types[TUINT16], size)),
+ 	})
+ 	sel.SetNoalg(true)
+-	sel.SetLocal(true)
+ 
+ 	return sel
+ }
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index db8597e223..2fc63edd25 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -86,7 +86,6 @@ const (
+ 	_, nodeAddrtaken // address taken, even if not moved to heap
+ 	_, nodeImplicit
+ 	_, nodeIsddd    // is the argument variadic
+-	_, nodeLocal    // type created in this file (see also Type.Local)
+ 	_, nodeDiag     // already printed error about this
+ 	_, nodeColas    // OAS resulting from :=
+ 	_, nodeNonNil   // guaranteed to be non-nil
+@@ -113,7 +112,6 @@ func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
+ func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
+ func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
+ func (n *Node) Isddd() bool                 { return n.flags&nodeIsddd != 0 }
+-func (n *Node) Local() bool                 { return n.flags&nodeLocal != 0 }
+ func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
+ func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
+ func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
+@@ -139,7 +137,6 @@ func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
+ func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
+ func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
+ func (n *Node) SetIsddd(b bool)                 { n.flags.set(nodeIsddd, b) }
+-func (n *Node) SetLocal(b bool)                 { n.flags.set(nodeLocal, b) }
+ func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
+ func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
+ func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 523007f3b6..39570f1cf4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3524,7 +3524,6 @@ func copytype(n *Node, t *types.Type) {
+ 
+ 	t = n.Type
+ 	t.Sym = n.Sym
+-	t.SetLocal(n.Local())
+ 	if n.Name != nil {
+ 		t.Vargen = n.Name.Vargen
+ 	}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 92b5d2da95..fbf0d88fb4 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -162,22 +162,19 @@ type Type struct {
+ }
+ 
+ const (
+-	typeLocal     = 1 << iota // created in this file
+-	typeNotInHeap             // type cannot be heap allocated
++	typeNotInHeap = 1 << iota // type cannot be heap allocated
+ 	typeBroke                 // broken type definition
+ 	typeNoalg                 // suppress hash and eq algorithm generation
+ 	typeDeferwidth
+ 	typeRecur
+ )
+ 
+-func (t *Type) Local() bool      { return t.flags&typeLocal != 0 }
+ func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
+ func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
+ func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
+ func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
+ func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
+ 
+-func (t *Type) SetLocal(b bool)      { t.flags.set(typeLocal, b) }
+ func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
+ func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
+ func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }

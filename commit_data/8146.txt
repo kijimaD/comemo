@@ -10,6 +10,29 @@ Date:   Mon Apr 18 16:03:24 2011 -0400
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4430055
-
+---
  src/pkg/http/serve_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 4dce3781de..c3c7b8d330 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -247,7 +247,7 @@ func TestServerTimeouts(t *testing.T) {
+ 	server := &Server{Handler: handler, ReadTimeout: 0.25 * second, WriteTimeout: 0.25 * second}
+ 	go server.Serve(l)
+ 
+-	url := fmt.Sprintf("http://localhost:%d/", addr.Port)
++	url := fmt.Sprintf("http://%s/", addr)
+ 
+ 	// Hit the HTTP server successfully.
+ 	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
+@@ -265,7 +265,7 @@ func TestServerTimeouts(t *testing.T) {
+ 
+ 	// Slow client that should timeout.
+ 	t1 := time.Nanoseconds()
+-	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", addr.Port))
++	conn, err := net.Dial("tcp", addr.String())
+ 	if err != nil {
+ 		t.Fatalf("Dial: %v", err)
+ 	}

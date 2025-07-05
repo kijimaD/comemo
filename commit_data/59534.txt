@@ -24,7 +24,7 @@ Date:   Thu Mar 21 20:39:28 2024 +0000
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/http/client.go             |  4 ++--
  src/net/http/export_test.go        |  8 ++++----
  src/net/http/header.go             | 12 +++---------
@@ -34,3 +34,267 @@ Date:   Thu Mar 21 20:39:28 2024 +0000
  src/net/http/server.go             | 17 ++++-------------
  src/net/http/transfer.go           |  4 ++--
  8 files changed, 21 insertions(+), 38 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 0f29dbb2c5..b29910ca43 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -20,7 +20,7 @@ import (
+ 	"net/http/internal/ascii"
+ 	"net/url"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -787,7 +787,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
+ 						ss = append(ss, c.Name+"="+c.Value)
+ 					}
+ 				}
+-				sort.Strings(ss) // Ensure deterministic headers
++				slices.Sort(ss) // Ensure deterministic headers
+ 				ireqhdr.Set("Cookie", strings.Join(ss, "; "))
+ 			}
+ 		}
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 7e6d3d8e30..8a6f4f192f 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"net/url"
+-	"sort"
++	"slices"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -111,7 +111,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
+ 	for key := range t.idleConn {
+ 		keys = append(keys, key.String())
+ 	}
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 	return
+ }
+ 
+@@ -130,7 +130,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
+ 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
+ 		}
+ 	}
+-	sort.Strings(ret)
++	slices.Sort(ret)
+ 	return ret
+ }
+ 
+@@ -150,7 +150,7 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
+ 		}
+ 	}
+ 
+-	sort.Strings(ret)
++	slices.Sort(ret)
+ 	return ret
+ }
+ 
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 9d0f3a125d..b8b080bece 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -9,7 +9,7 @@ import (
+ 	"net/http/httptrace"
+ 	"net/http/internal/ascii"
+ 	"net/textproto"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -152,17 +152,11 @@ type keyValues struct {
+ 	values []string
+ }
+ 
+-// A headerSorter implements sort.Interface by sorting a []keyValues
+-// by key. It's used as a pointer, so it can fit in a sort.Interface
+-// interface value without allocation.
++// headerSorter contains a slice of keyValues sorted by keyValues.key.
+ type headerSorter struct {
+ 	kvs []keyValues
+ }
+ 
+-func (s *headerSorter) Len() int           { return len(s.kvs) }
+-func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
+-func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
+-
+ var headerSorterPool = sync.Pool{
+ 	New: func() any { return new(headerSorter) },
+ }
+@@ -182,7 +176,7 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
+ 		}
+ 	}
+ 	hs.kvs = kvs
+-	sort.Sort(hs)
++	slices.SortFunc(hs.kvs, func(a, b keyValues) int { return strings.Compare(a.key, b.key) })
+ 	return kvs, hs
+ }
+ 
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index ff56ef883d..9022d4f124 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -50,7 +50,7 @@ func interestingGoroutines() (gs []string) {
+ 		}
+ 		gs = append(gs, stack)
+ 	}
+-	sort.Strings(gs)
++	slices.Sort(gs)
+ 	return
+ }
+ 
+diff --git a/src/net/http/routing_index_test.go b/src/net/http/routing_index_test.go
+index 1ffb9272c6..d480cba021 100644
+--- a/src/net/http/routing_index_test.go
++++ b/src/net/http/routing_index_test.go
+@@ -7,7 +7,6 @@ package http
+ import (
+ 	"fmt"
+ 	"slices"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ )
+@@ -35,7 +34,7 @@ func trueConflicts(pat *pattern, pats []*pattern) []string {
+ 			s = append(s, p.String())
+ 		}
+ 	}
+-	sort.Strings(s)
++	slices.Sort(s)
+ 	return s
+ }
+ 
+@@ -47,7 +46,7 @@ func indexConflicts(pat *pattern, idx *routingIndex) []string {
+ 		}
+ 		return nil
+ 	})
+-	sort.Strings(s)
++	slices.Sort(s)
+ 	return slices.Compact(s)
+ }
+ 
+diff --git a/src/net/http/routing_tree_test.go b/src/net/http/routing_tree_test.go
+index 2aac8b6cdf..3c27308a63 100644
+--- a/src/net/http/routing_tree_test.go
++++ b/src/net/http/routing_tree_test.go
+@@ -7,7 +7,6 @@ package http
+ import (
+ 	"fmt"
+ 	"io"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ 
+@@ -261,7 +260,7 @@ func TestMatchingMethods(t *testing.T) {
+ 			ms := map[string]bool{}
+ 			test.tree.matchingMethods(test.host, test.path, ms)
+ 			keys := mapKeys(ms)
+-			sort.Strings(keys)
++			slices.Sort(keys)
+ 			got := strings.Join(keys, ",")
+ 			if got != test.want {
+ 				t.Errorf("got %s, want %s", got, test.want)
+@@ -285,7 +284,7 @@ func (n *routingNode) print(w io.Writer, level int) {
+ 		keys = append(keys, k)
+ 		return true
+ 	})
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 
+ 	for _, k := range keys {
+ 		fmt.Fprintf(w, "%s%q:\n", indent, k)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 31b43606f5..18efbb2ce1 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -23,7 +23,7 @@ import (
+ 	urlpkg "net/url"
+ 	"path"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -2652,7 +2652,7 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
+ 	// matchOrRedirect will try appending a trailing slash if there is no match.
+ 	mux.tree.matchingMethods(host, path+"/", ms)
+ 	methods := mapKeys(ms)
+-	sort.Strings(methods)
++	slices.Sort(methods)
+ 	return methods
+ }
+ 
+@@ -3206,7 +3206,7 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+ 	// passed this tls.Config to tls.NewListener. And if they did,
+ 	// it's too late anyway to fix it. It would only be potentially racy.
+ 	// See Issue 15908.
+-	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
++	return slices.Contains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+ }
+ 
+ // ErrServerClosed is returned by the [Server.Serve], [ServeTLS], [ListenAndServe],
+@@ -3308,7 +3308,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
+ 	}
+ 
+ 	config := cloneTLSConfig(srv.TLSConfig)
+-	if !strSliceContains(config.NextProtos, "http/1.1") {
++	if !slices.Contains(config.NextProtos, "http/1.1") {
+ 		config.NextProtos = append(config.NextProtos, "http/1.1")
+ 	}
+ 
+@@ -3815,15 +3815,6 @@ func numLeadingCRorLF(v []byte) (n int) {
+ 	return
+ }
+ 
+-func strSliceContains(ss []string, s string) bool {
+-	for _, v := range ss {
+-		if v == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // tlsRecordHeaderLooksLikeHTTP reports whether a TLS record header
+ // looks like it might've been a misdirected plaintext HTTP request.
+ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index ee2107c418..5a3c6ceff5 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -16,7 +16,7 @@ import (
+ 	"net/http/internal/ascii"
+ 	"net/textproto"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -318,7 +318,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace)
+ 			keys = append(keys, k)
+ 		}
+ 		if len(keys) > 0 {
+-			sort.Strings(keys)
++			slices.Sort(keys)
+ 			// TODO: could do better allocation-wise here, but trailers are rare,
+ 			// so being lazy for now.
+ 			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {

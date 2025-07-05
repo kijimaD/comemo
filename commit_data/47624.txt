@@ -12,6 +12,24 @@ Date:   Fri Apr 2 06:58:13 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3c3f0e5b85..2f19c3eaa2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2290,12 +2290,6 @@ func getDwsectCUSize(sname string, pkgname string) uint64 {
+ 	return dwsectCUSize[sname+"."+pkgname]
+ }
+ 
+-func saveDwsectCUSize(sname string, pkgname string, size uint64) {
+-	dwsectCUSizeMu.Lock()
+-	defer dwsectCUSizeMu.Unlock()
+-	dwsectCUSize[sname+"."+pkgname] = size
+-}
+-
+ func addDwsectCUSize(sname string, pkgname string, size uint64) {
+ 	dwsectCUSizeMu.Lock()
+ 	defer dwsectCUSizeMu.Unlock()

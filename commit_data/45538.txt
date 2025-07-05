@@ -17,7 +17,7 @@ Date:   Sat Oct 24 20:58:38 2020 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go    | 4 ----
  src/cmd/internal/sys/supported.go  | 2 +-
  src/cmd/link/internal/ld/config.go | 4 +---
@@ -26,3 +26,113 @@ Date:   Sat Oct 24 20:58:38 2020 -0400
  test/fixedbugs/bug429_run.go       | 4 ----
  test/fixedbugs/issue21576.go       | 4 ----
  7 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4c541b9017..ff744ee9fa 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1964,10 +1964,6 @@ func externalLinkingForced(p *Package) bool {
+ 		}
+ 	case "ios":
+ 		return true
+-	case "darwin":
+-		if cfg.BuildContext.GOARCH == "arm64" {
+-			return true
+-		}
+ 	}
+ 
+ 	// Currently build modes c-shared, pie (on systems that do not
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 1d813bbb47..afc81381fd 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -39,7 +39,7 @@ func MustLinkExternal(goos, goarch string) bool {
+ 		if goarch != "arm64" {
+ 			return true
+ 		}
+-	case "darwin", "ios":
++	case "ios":
+ 		if goarch == "arm64" {
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 54a94cebba..0cb3cc25c0 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -185,7 +185,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		}()
+ 	}
+ 
+-	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) && !(objabi.GOOS == "darwin" && objabi.GOARCH == "arm64") { // XXX allow internal linking for darwin/arm64 but not change the default
++	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
+ 		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
+ 	}
+ 
+@@ -261,8 +261,6 @@ func determineLinkMode(ctxt *Link) {
+ 		default:
+ 			if extNeeded || (iscgo && externalobj) {
+ 				ctxt.LinkMode = LinkExternal
+-			} else if ctxt.IsDarwin() && ctxt.IsARM64() {
+-				ctxt.LinkMode = LinkExternal // default to external linking for now
+ 			} else {
+ 				ctxt.LinkMode = LinkInternal
+ 			}
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 58f2c24908..9a257e0ed2 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -15,11 +15,6 @@ func canInternalLink() bool {
+ 	switch runtime.GOOS {
+ 	case "aix":
+ 		return false
+-	case "darwin":
+-		switch runtime.GOARCH {
+-		case "arm64":
+-			return false
+-		}
+ 	case "dragonfly":
+ 		return false
+ 	case "freebsd":
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 0ee6355ee3..dff68869bd 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -201,7 +201,7 @@ func CanInternalLink() bool {
+ 		if runtime.GOARCH != "arm64" {
+ 			return false
+ 		}
+-	case "darwin", "ios":
++	case "ios":
+ 		if runtime.GOARCH == "arm64" {
+ 			return false
+ 		}
+diff --git a/test/fixedbugs/bug429_run.go b/test/fixedbugs/bug429_run.go
+index 60cc5b62de..c2bb1b85cb 100644
+--- a/test/fixedbugs/bug429_run.go
++++ b/test/fixedbugs/bug429_run.go
+@@ -1,10 +1,6 @@
+ // run
+ 
+ // +build !nacl,!js
+-// +build !darwin !arm64
+-
+-// Skip on darwin/arm64 as it requires external linking, which brings in
+-// cgo, causing deadlock detection not working.
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue21576.go b/test/fixedbugs/issue21576.go
+index 3797a8c9ba..ae6161ccf5 100644
+--- a/test/fixedbugs/issue21576.go
++++ b/test/fixedbugs/issue21576.go
+@@ -1,10 +1,6 @@
+ // run
+ 
+ // +build !nacl,!js
+-// +build !darwin !arm64
+-
+-// Skip on darwin/arm64 as it requires external linking, which brings in
+-// cgo, causing deadlock detection not working.
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

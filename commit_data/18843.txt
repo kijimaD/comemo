@@ -8,6 +8,20 @@ Date:   Wed Mar 12 16:32:35 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/74800043
-
+---
  doc/go1.3.txt | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index 7828ea17f5..f66d2d2680 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -27,3 +27,8 @@ syscall: add support for FreeBSD 10 (CL 56770044, 56980043)
+ testing: add b.RunParallel function (CL 57270043)
+ testing: diagnose buggy tests that panic(nil) (CL 55780043)
+ unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)
++
++Additional notes:
++- support for Windows 2000 removed (CL 74790043)
++- copying stack support; initial stack size 4kB again.
++- liveness analysis in garbage collector

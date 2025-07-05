@@ -9,6 +9,34 @@ Date:   Mon Dec 8 20:50:17 2008 -0800
     R=r
     OCL=20795
     CL=20795
-
+---
  src/cmd/gc/walk.c | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 067aed49d4..37a690302a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -622,6 +622,22 @@ loop:
+ 			goto ret;
+ 		}
+ 
++		// convert to unsafe.pointer
++		if(isptrto(n->type, TANY)) {
++			if(isptr[l->type->etype])
++				goto ret;
++			if(l->type->etype == TUINTPTR)
++				goto ret;
++		}
++
++		// convert from unsafe.pointer
++		if(isptrto(l->type, TANY)) {
++			if(isptr[n->type->etype])
++				goto ret;
++			if(n->type->etype == TUINTPTR)
++				goto ret;
++		}
++
+ 		if(l->type != T)
+ 			yyerror("cannot convert %T to %T", l->type, t);
+ 		goto ret;

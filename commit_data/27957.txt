@@ -13,7 +13,34 @@ Date:   Thu Apr 21 14:53:19 2016 -0700
     Change-Id: Id1f8f3c77088224d9f7cd643778713d5cc3be5d9
     Reviewed-on: https://go-review.googlesource.com/22357
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/time/time.go      | 2 +-
  src/time/time_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 92d635eec5..d9dbd3449a 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -476,7 +476,7 @@ func (d Duration) String() string {
+ 		w--
+ 		switch {
+ 		case u == 0:
+-			return "0"
++			return "0s"
+ 		case u < uint64(Microsecond):
+ 			// print nanoseconds
+ 			prec = 0
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 5a5451b5b8..b7ebb37296 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -533,7 +533,7 @@ var durationTests = []struct {
+ 	str string
+ 	d   Duration
+ }{
+-	{"0", 0},
++	{"0s", 0},
+ 	{"1ns", 1 * Nanosecond},
+ 	{"1.1µs", 1100 * Nanosecond},
+ 	{"2.2ms", 2200 * Microsecond},

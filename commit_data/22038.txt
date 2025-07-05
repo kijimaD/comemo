@@ -10,6 +10,44 @@ Date:   Thu Feb 19 16:21:42 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5330
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 17 ++++++++---------
  1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 70661e46d0..75d6b9158e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -616,24 +616,23 @@ func gc(start_time int64, eagersweep bool) {
+ 		sweep.npausesweep = 0
+ 	}
+ 
+-	// See the comment in the beginning of this function as to why we need the following.
+-	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+-	lock(&mheap_.lock)
+-	// Free the old cached mark array if necessary.
+-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+-	}
+-
+ 	if debug.gccheckmark > 0 {
+ 		if !checkmarkphase {
+ 			// first half of two-pass; don't set up sweep
+-			unlock(&mheap_.lock)
+ 			return
+ 		}
+ 		checkmarkphase = false // done checking marks
+ 		clearCheckmarks()
+ 	}
+ 
++	// See the comment in the beginning of this function as to why we need the following.
++	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
++	lock(&mheap_.lock)
++	// Free the old cached mark array if necessary.
++	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
++		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
++	}
++
+ 	// Cache the current array for sweeping.
+ 	mheap_.gcspans = mheap_.allspans
+ 	mheap_.sweepgen += 2

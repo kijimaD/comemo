@@ -11,7 +11,41 @@ Date:   Tue Jan 9 15:52:01 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/87021
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html     | 3 ++-
  src/reflect/type.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 6c0ce989d2..05e7ee2670 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -295,11 +295,12 @@ Because of this change, values of the affected types need to be
+ zero-initialized with the constant <code>0</code> instead of the
+ constant <code>nil</code>. Go 1.10 provides <code>gofix</code>
+ modules to help with that rewrite:
++</p>
++
+ <pre>
+ go tool fix -r cftype &lt;pkg&gt;
+ go tool fix -r jni &lt;pkg&gt;
+ </pre>
+-</p>
+ 
+ <p>
+ For more details, see the <a href="/cmd/cgo/">cgo documentation</a>.
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 9c967de45c..171fc07bfe 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -32,8 +32,8 @@ import (
+ // calling kind-specific methods. Calling a method
+ // inappropriate to the kind of type causes a run-time panic.
+ //
+-// Type values are comparable, such as with the == operator, and Type can be
+-// used as a map key type.
++// Type values are comparable, such as with the == operator,
++// so they can be used as map keys.
+ // Two Type values are equal if they represent identical types.
+ type Type interface {
+ 	// Methods applicable to all types.

@@ -7,6 +7,20 @@ Date:   Mon Jun 3 11:47:42 2013 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/9819044
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index b667819429..eff2b30fff 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -108,7 +108,7 @@ For example:
+ </p>
+ 
+ <pre>
+-tar -C /usr/local -xzf go1.0.3.linux-amd64.tar.gz
++tar -C /usr/local -xzf go1.1.linux-amd64.tar.gz
+ </pre>
+ 
+ <p>

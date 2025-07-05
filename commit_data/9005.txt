@@ -11,6 +11,26 @@ Date:   Mon Jul 11 15:40:41 2011 +1000
     R=golang-dev, mattn.jp, adg, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4626087
-
+---
  src/pkg/go/build/build.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d83a6666e8..12a9c20d99 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -213,6 +213,14 @@ func (c *Cmd) String() string {
+ 
+ // Run executes the Cmd.
+ func (c *Cmd) Run() os.Error {
++	if c.Args[0] == "mkdir" {
++		for _, p := range c.Output {
++			if err := os.MkdirAll(p, 0777); err != nil {
++				return fmt.Errorf("command %q: %v", c, err)
++			}
++		}
++		return nil
++	}
+ 	out := new(bytes.Buffer)
+ 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
+ 	cmd.Dir = c.Dir

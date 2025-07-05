@@ -20,8 +20,59 @@ Date:   Mon May 16 17:03:59 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  3 +++
  test/run.go                                     |  5 ++++-
  test/typeparam/issue52937.go                    | 14 ++++++++++++++
  3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 5b44b7098d..d9f2708712 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1726,6 +1726,9 @@ func CollectPTabs() {
+ 		if s.Pkg.Name != "main" {
+ 			continue
+ 		}
++		if n.Type().HasTParam() {
++			continue // skip generic functions (#52937)
++		}
+ 		ptabs = append(ptabs, n)
+ 	}
+ }
+diff --git a/test/run.go b/test/run.go
+index 00f869bc2b..7553302a76 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -993,7 +993,10 @@ func (t *test) run() {
+ 
+ 	case "build":
+ 		// Build Go file.
+-		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
++		cmd := []string{goTool(), "build", t.goGcflags()}
++		cmd = append(cmd, flags...)
++		cmd = append(cmd, "-o", "a.exe", long)
++		_, err := runcmd(cmd...)
+ 		if err != nil {
+ 			t.err = err
+ 		}
+diff --git a/test/typeparam/issue52937.go b/test/typeparam/issue52937.go
+new file mode 100644
+index 0000000000..efcb69a2c1
+--- /dev/null
++++ b/test/typeparam/issue52937.go
+@@ -0,0 +1,14 @@
++// build -buildmode=plugin
++
++//go:build !js
++// +build !js
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()      {}
++func F[T any]()  {}
++func G[T any](T) {}

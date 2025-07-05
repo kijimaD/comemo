@@ -7,6 +7,19 @@ Date:   Wed Apr 8 22:24:40 2009 -0700
     R=rsc
     OCL=27243
     CL=27243
-
+---
  src/lib/bignum_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib/bignum_test.go b/src/lib/bignum_test.go
+index 02ff4f50f0..d8d214dd78 100644
+--- a/src/lib/bignum_test.go
++++ b/src/lib/bignum_test.go
+@@ -6,7 +6,6 @@ package bignum_test
+ 
+ import (
+ 	bignum "bignum";
+-	flag "flag";	// BUG: should not be necessary
+ 	fmt "fmt";
+ 	testing "testing";
+ )

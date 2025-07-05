@@ -15,7 +15,74 @@ Date:   Fri Aug 16 11:42:25 2024 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
-
+---
  src/os/readfrom_unix_test.go | 21 ++++++++++++++++-----
  src/os/zero_copy_solaris.go  |  4 ++--
  2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/readfrom_unix_test.go b/src/os/readfrom_unix_test.go
+index 35e3ab43b8..dbe2b683a7 100644
+--- a/src/os/readfrom_unix_test.go
++++ b/src/os/readfrom_unix_test.go
+@@ -198,14 +198,16 @@ func TestCopyFile(t *testing.T) {
+ 				}
+ 				switch runtime.GOOS {
+ 				case "illumos", "solaris":
+-					// On SunOS, We rely on File.Stat to get the size of the source file,
++					// On solaris, We rely on File.Stat to get the size of the source file,
+ 					// which doesn't work for pipe.
++					// On illumos, We skip anything other than regular files conservatively
++					// for the target file, therefore the hook shouldn't have been called.
+ 					if hook.called {
+-						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
++						t.Fatalf("%s: shouldn't have called the hook with a source or a destination of pipe", testName)
+ 					}
+ 				default:
+ 					if !hook.called {
+-						t.Fatalf("%s: should have called the hook with a source of pipe", testName)
++						t.Fatalf("%s: should have called the hook with both source and destination of pipe", testName)
+ 					}
+ 				}
+ 				pw2.Close()
+@@ -231,8 +233,17 @@ func TestCopyFile(t *testing.T) {
+ 				if n != int64(len(data)) {
+ 					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
+ 				}
+-				if !hook.called {
+-					t.Fatalf("%s: should have called the hook", testName)
++				switch runtime.GOOS {
++				case "illumos":
++					// On illumos, We skip anything other than regular files conservatively
++					// for the target file, therefore the hook shouldn't have been called.
++					if hook.called {
++						t.Fatalf("%s: shouldn't have called the hook with a destination of pipe", testName)
++					}
++				default:
++					if !hook.called {
++						t.Fatalf("%s: should have called the hook with a destination of pipe", testName)
++					}
+ 				}
+ 				pw.Close()
+ 				mustContainData(t, pr, data)
+diff --git a/src/os/zero_copy_solaris.go b/src/os/zero_copy_solaris.go
+index 9fb659024e..697a368d21 100644
+--- a/src/os/zero_copy_solaris.go
++++ b/src/os/zero_copy_solaris.go
+@@ -58,7 +58,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 
+ 	// sendfile() on illumos seems to incur intermittent failures when the
+ 	// target file is a standard stream (stdout/stderr), we hereby skip any
+-	// character devices conservatively and leave them to generic copy.
++	// anything other than regular files conservatively and leave them to generic copy.
+ 	// Check out https://go.dev/issue/68863 for more details.
+ 	if runtime.GOOS == "illumos" {
+ 		fi, err := f.Stat()
+@@ -69,7 +69,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 		if !ok {
+ 			return 0, false, nil
+ 		}
+-		if typ := st.Mode & syscall.S_IFMT; typ == syscall.S_IFCHR || typ == syscall.S_IFBLK {
++		if typ := st.Mode & syscall.S_IFMT; typ != syscall.S_IFREG {
+ 			return 0, false, nil
+ 		}
+ 	}

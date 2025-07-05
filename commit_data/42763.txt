@@ -13,7 +13,57 @@ Date:   Wed Jan 8 14:45:04 2020 -0500
     Change-Id: Ieaddc20aebd0b71189f2ebc8f8e2758f1117bbed
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213826
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                      | 17 -----------------
  src/cmd/go/testdata/script/get_non_pkg.txt | 14 ++++++++++++++
  2 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index fa7a6af464..f34a5c80a7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1204,23 +1204,6 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+ 	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+ }
+ 
+-func TestGoGetNonPkg(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveExecPath(t, "git")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempDir("gobin")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GOBIN", tg.path("gobin"))
+-	tg.runFail("get", "-d", "golang.org/x/tools")
+-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
+-	tg.runFail("get", "-d", "-u", "golang.org/x/tools")
+-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
+-	tg.runFail("get", "-d", "golang.org/x/tools")
+-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
+-}
+-
+ func TestGoGetTestOnlyPkg(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
+diff --git a/src/cmd/go/testdata/script/get_non_pkg.txt b/src/cmd/go/testdata/script/get_non_pkg.txt
+new file mode 100644
+index 0000000000..a87853052d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_non_pkg.txt
+@@ -0,0 +1,14 @@
++[!net] skip
++[!exec:git] skip
++
++env GOBIN=$WORK/tmp/gobin
++env GO111MODULE=off
++
++! go get -d golang.org/x/tools
++stderr 'golang.org/x/tools: no Go files'
++
++! go get -d -u golang.org/x/tools
++stderr 'golang.org/x/tools: no Go files'
++
++! go get -d golang.org/x/tools
++stderr 'golang.org/x/tools: no Go files'
+\ No newline at end of file

@@ -18,9 +18,479 @@ Date:   Wed Mar 30 21:14:49 2011 -0700
     R=rsc, niemeyer, rog, r2
     CC=golang-dev
     https://golang.org/cl/4307049
-
+---
  src/cmd/gotest/Makefile  |   1 +
  src/cmd/gotest/doc.go    |  86 ++++++++++++++------------
  src/cmd/gotest/flag.go   | 153 +++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gotest/gotest.go |  94 ++++++++---------------------
  4 files changed, 228 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index 131ac36717..5c11545379 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.inc
+ 
+ TARG=gotest
+ GOFILES=\
++	flag.go\
+ 	gotest.go\
+ 
+ include ../../Make.cmd
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 81b920ddc9..ad4a8a48c0 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -6,22 +6,22 @@
+ 
+ Gotest is an automated testing tool for Go packages.
+ 
+-Normally a Go package is compiled without its test files.  Gotest
+-is a simple script that recompiles the package along with any files
+-named *_test.go.  Functions in the test sources named TestXXX
+-(where XXX is any alphanumeric string starting with an upper case
+-letter) will be run when the binary is executed.  Gotest requires
+-that the package have a standard package Makefile, one that
+-includes go/src/Make.pkg.
++Normally a Go package is compiled without its test files.  Gotest is a
++tool that recompiles the package whose source in the current
++directory, along with any files named *_test.go.  Functions in the
++test source named TestXXX (where XXX is any alphanumeric string not
++starting with a lower case letter) will be run when the binary is
++executed.  Gotest requires that the package have a standard package
++Makefile, one that includes go/src/Make.pkg.
+ 
+ The test functions are run in the order they appear in the source.
+-They should have signature
++They should have the signature,
+ 
+ 	func TestXXX(t *testing.T) { ... }
+ 
+-Benchmark functions can be written as well; they will be run only
+-when the -test.bench flag is provided.  Benchmarks should have
+-signature
++Benchmark functions can be written as well; they will be run only when
++the -test.bench flag is provided.  Benchmarks should have the
++signature,
+ 
+ 	func BenchmarkXXX(b *testing.B) { ... }
+ 
+@@ -29,39 +29,47 @@ See the documentation of the testing package for more information.
+ 
+ By default, gotest needs no arguments.  It compiles all the .go files
+ in the directory, including tests, and runs the tests.  If file names
+-are given, only those test files are added to the package.
+-(The non-test files are always compiled.)
++are given (with flag -file=test.go, one per extra test source file),
++only those test files are added to the package.  (The non-test files
++are always compiled.)
+ 
+ The package is built in a special subdirectory so it does not
+ interfere with the non-test installation.
+ 
+ Usage:
+-	gotest [-c] [-x] [testflags...] [pkg_test.go...]
++	gotest [-file a.go -file b.go ...] [-c] [-x] [args for test binary]
+ 
+-The flags specific to gotest include -x, which prints each subcommand
+-gotest executes, and -c, which causes gotest to compile the test
+-binary but not run it.  The testflags are passed to the test binary
+-and are documented below.
++The flags specific to gotest are:
++	-c         Compile the test binary but do not run it.
++	-file a.go Use the tests in the source file a.go instead of *_test.go.
++	-x         Print each subcommand gotest executes.
++
++Everything else on the command line is passed to the test binary.
+ 
+ The resulting test binary, called (for amd64) 6.out, has several flags.
+ 
+ Usage:
+ 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
+-		[-test.memprofile=prof.out] [-test.memprofilerate=1]
++		[-test.cpuprofile=cpu.out] \
++		[-test.memprofile=mem.out] [-test.memprofilerate=1]
+ 
+ The -test.v flag causes the tests to be logged as they run.  The
+ -test.run flag causes only those tests whose names match the regular
+-expression pattern to be run. By default all tests are run silently.
+-If all the specified test pass, 6.out prints PASS and exits with a 0
+-exit code.  If any tests fail, it prints FAIL and exits with a
+-non-zero code.  The -test.bench flag is analogous to the -test.run
+-flag, but applies to benchmarks.  No benchmarks run by default.
++expression pattern to be run.  By default all tests are run silently.
++
++If all specified tests pass, 6.out prints the word PASS and exits with
++a 0 exit code.  If any tests fail, it prints error details, the word
++FAIL, and exits with a non-zero code.  The -test.bench flag is
++analogous to the -test.run flag, but applies to benchmarks.  No
++benchmarks run by default.
++
++The -test.cpuprofile flag causes the testing software to write a CPU
++profile to the specified file before exiting.
+ 
+ The -test.memprofile flag causes the testing software to write a
+-memory profile to the specified file when all tests are complete.  Use
+--test.run or -test.bench to limit the profile to a particular test or
+-benchmark.  The -test.memprofilerate flag enables more precise (and
+-expensive) profiles by setting runtime.MemProfileRate;
++memory profile to the specified file when all tests are complete.  The
++-test.memprofilerate flag enables more precise (and expensive)
++profiles by setting runtime.MemProfileRate; run
+ 	godoc runtime MemProfileRate
+ for details.  The defaults are no memory profile and the standard
+ setting of MemProfileRate.  The memory profile records a sampling of
+@@ -71,16 +79,20 @@ the environment variable GOGC=off to disable the garbage collector,
+ provided the test can run in the available memory without garbage
+ collection.
+ 
+-The -test.short package tells long-running tests to shorten their
+-run time. It is off by default but set by all.bash so installations
+-of the Go tree can do a sanity check but not spend time running the
+-full test suite.
++Use -test.run or -test.bench to limit profiling to a particular test
++or benchmark.
++
++The -test.short package tells long-running tests to shorten their run
++time.  It is off by default but set by all.bash so installations of
++the Go tree can do a sanity check but not spend time running
++exhaustive tests.
+ 
+-For convenience, each -test.X flag of the test binary is also
+-available as the flag -X in gotest itself.  For instance, the command
+-	gotest -v -test.cpuprofile=prof.out
+-will compile the test binary and then run it as
+-	6.out -test.v -cpuprofile=prof.out
++For convenience, each of these -test.X flags of the test binary is
++also available as the flag -X in gotest itself.  Flags not listed here
++are unaffected.  For instance, the command
++	gotest -x -v -cpuprofile=prof.out -dir=testdata -update -file x_test.go
++will compile the test binary using x_test.go and then run it as
++	6.out -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 
+ */
+ package documentation
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+new file mode 100644
+index 0000000000..8e3f680f46
+--- /dev/null
++++ b/src/cmd/gotest/flag.go
+@@ -0,0 +1,153 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"strconv"
++	"strings"
++)
++
++// The flag handling part of gotest is large and distracting.
++// We can't use the flag package because some of the flags from
++// our command line are for us, and some are for 6.out, and
++// some are for both.
++
++var usageMessage = `Usage of %s:
++  -c=false: compile but do not run the test binary
++  -file=file:
++  -x=false: print command lines as they are executed
++
++  // These flags can be passed with or without a "test." prefix: -v or -test.v.
++  -bench="": passes -test.bench to test
++  -cpuprofile="": passes -test.cpuprofile to test
++  -memprofile="": passes -test.memprofile to test
++  -memprofilerate=0: passes -test.memprofilerate to test
++  -run="": passes -test.run to test
++  -short=false: passes -test.short to test
++  -v=false: passes -test.v to test
++`
++
++// usage prints a usage message and exits.
++func usage() {
++	fmt.Fprintf(os.Stdout, usageMessage, os.Args[0])
++	os.Exit(2)
++}
++
++// flagSpec defines a flag we know about.
++type flagSpec struct {
++	name       string
++	isBool     bool
++	passToTest bool // pass to Test
++	multiOK    bool // OK to have multiple instances
++	present    bool // flag has been seen
++}
++
++// flagDefn is the set of flags we process.
++var flagDefn = []*flagSpec{
++	// gotest-local.
++	&flagSpec{name: "c", isBool: true},
++	&flagSpec{name: "file", multiOK: true},
++	&flagSpec{name: "x", isBool: true},
++
++	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
++	&flagSpec{name: "bench", passToTest: true},
++	&flagSpec{name: "cpuprofile", passToTest: true},
++	&flagSpec{name: "memprofile", passToTest: true},
++	&flagSpec{name: "memprofilerate", passToTest: true},
++	&flagSpec{name: "run", passToTest: true},
++	&flagSpec{name: "short", isBool: true, passToTest: true},
++	&flagSpec{name: "v", isBool: true, passToTest: true},
++}
++
++// flags processes the command line, grabbing -x and -c, rewriting known flags
++// to have "test" before them, and reading the command line for the 6.out.
++// Unfortunately for us, we need to do our own flag processing because gotest
++// grabs some flags but otherwise its command line is just a holding place for
++// 6.out's arguments.
++func flags() {
++	for i := 1; i < len(os.Args); i++ {
++		arg := os.Args[i]
++		f, value, extraWord := flag(i)
++		if f == nil {
++			args = append(args, arg)
++			continue
++		}
++		switch f.name {
++		case "c":
++			setBoolFlag(&cFlag, value)
++		case "x":
++			setBoolFlag(&xFlag, value)
++		case "file":
++			fileNames = append(fileNames, value)
++		}
++		if extraWord {
++			i++
++		}
++		if f.passToTest {
++			args = append(args, "-test."+f.name+"="+value)
++		}
++	}
++}
++
++// flag sees if argument i is a known flag and returns its definition, value, and whether it consumed an extra word.
++func flag(i int) (f *flagSpec, value string, extra bool) {
++	arg := os.Args[i]
++	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
++		arg = arg[1:]
++	}
++	if arg == "" || arg[0] != '-' {
++		return
++	}
++	name := arg[1:]
++	// If there's already "test.", drop it for now.
++	if strings.HasPrefix(name, "test.") {
++		name = name[5:]
++	}
++	equals := strings.Index(name, "=")
++	if equals >= 0 {
++		value = name[equals+1:]
++		name = name[:equals]
++	}
++	for _, f = range flagDefn {
++		if name == f.name {
++			// Booleans are special because they have modes -x, -x=true, -x=false.
++			if f.isBool {
++				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
++					value = "true"
++				} else {
++					// verify it parses
++					setBoolFlag(new(bool), value)
++				}
++			} else { // Non-booleans must have a value.
++				extra = equals < 0
++				if extra {
++					if i+1 >= len(os.Args) {
++						usage()
++					}
++					value = os.Args[i+1]
++				}
++			}
++			if f.present && !f.multiOK {
++				usage()
++			}
++			f.present = true
++			return
++		}
++	}
++	f = nil
++	return
++}
++
++// setBoolFlag sets the addressed boolean to the value.
++func setBoolFlag(flag *bool, value string) {
++	x, err := strconv.Atob(value)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "gotest: illegal bool flag value %s\n", value)
++		usage()
++	}
++	*flag = x
++}
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 08f9ed4ee9..9dc10fd5db 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"bufio"
+ 	"exec"
+-	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+@@ -23,14 +22,16 @@ import (
+ 
+ // Environment for commands.
+ var (
+-	XGC    []string // 6g -I _test -o _xtest_.6
+-	GC     []string // 6g -I _test _testmain.go
+-	GL     []string // 6l -L _test _testmain.6
+-	GOARCH string
+-	GOROOT string
+-	GORUN  string
+-	O      string
+-	env    = os.Environ()
++	XGC       []string // 6g -I _test -o _xtest_.6
++	GC        []string // 6g -I _test _testmain.go
++	GL        []string // 6l -L _test _testmain.6
++	GOARCH    string
++	GOROOT    string
++	GORUN     string
++	O         string
++	args      []string // arguments passed to gotest; also passed to the binary
++	fileNames []string
++	env       = os.Environ()
+ )
+ 
+ // These strings are created by getTestNames.
+@@ -44,21 +45,10 @@ var (
+ 	importPath string
+ )
+ 
+-// Flags from package "testing" we will forward to 6.out.  See documentation there
+-// or by running "godoc gotest" - details are in ./doc.go.
++// Flags for our own purposes. We do our own flag processing.
+ var (
+-	test_short          bool
+-	test_v              bool
+-	test_run            string
+-	test_memprofile     string
+-	test_memprofilerate int
+-	test_cpuprofile     string
+-)
+-
+-// Flags for our own purposes
+-var (
+-	xFlag = flag.Bool("x", false, "print command lines as they are executed")
+-	cFlag = flag.Bool("c", false, "compile but do not run the test binary")
++	cFlag bool
++	xFlag bool
+ )
+ 
+ // File represents a file that contains tests.
+@@ -72,7 +62,7 @@ type File struct {
+ }
+ 
+ func main() {
+-	flag.Parse()
++	flags()
+ 	needMakefile()
+ 	setEnvironment()
+ 	getTestFileNames()
+@@ -87,29 +77,11 @@ func main() {
+ 	writeTestmainGo()
+ 	run(GC...)
+ 	run(GL...)
+-	if !*cFlag {
+-		runWithTestFlags("./" + O + ".out")
++	if !cFlag {
++		runTestWithArgs("./" + O + ".out")
+ 	}
+ }
+ 
+-// init sets up pairs of flags.  Each pair contains a flag defined as in testing, and one with
+-// the "test." prefix missing, for ease of use.
+-func init() {
+-	flag.BoolVar(&test_short, "test.short", false, "run smaller test suite to save time")
+-	flag.BoolVar(&test_v, "test.v", false, "verbose: print additional output")
+-	flag.StringVar(&test_run, "test.run", "", "regular expression to select tests to run")
+-	flag.StringVar(&test_memprofile, "test.memprofile", "", "write a memory profile to the named file after execution")
+-	flag.IntVar(&test_memprofilerate, "test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+-	flag.StringVar(&test_cpuprofile, "test.cpuprofile", "", "write a cpu profile to the named file during execution")
+-	// Now the same flags again, but with shorter names that are forwarded.
+-	flag.BoolVar(&test_short, "short", false, "passes -test.short to test")
+-	flag.BoolVar(&test_v, "v", false, "passes -test.v to test")
+-	flag.StringVar(&test_run, "run", "", "passes -test.run to test")
+-	flag.StringVar(&test_memprofile, "memprofile", "", "passes -test.memprofile to test")
+-	flag.IntVar(&test_memprofilerate, "memprofilerate", 0, "passes -test.memprofilerate to test")
+-	flag.StringVar(&test_cpuprofile, "cpuprofile", "", "passes -test.cpuprofile to test")
+-}
+-
+ // needMakefile tests that we have a Makefile in this directory.
+ func needMakefile() {
+ 	if _, err := os.Stat("Makefile"); err != nil {
+@@ -175,7 +147,7 @@ func setEnvironment() {
+ // getTestFileNames gets the set of files we're looking at.
+ // If gotest has no arguments, it scans the current directory for _test.go files.
+ func getTestFileNames() {
+-	names := flag.Args()
++	names := fileNames
+ 	if len(names) == 0 {
+ 		names = filepath.Glob("[^.]*_test.go")
+ 		if len(names) == 0 {
+@@ -241,9 +213,12 @@ func getTestNames() {
+ // It is a Test (say) if there is a character after Test that is not a lower-case letter.
+ // We don't want TesticularCancer.
+ func isTest(name, prefix string) bool {
+-	if !strings.HasPrefix(name, prefix) || len(name) == len(prefix) {
++	if !strings.HasPrefix(name, prefix) {
+ 		return false
+ 	}
++	if len(name) == len(prefix) { // "Test" is ok
++		return true
++	}
+ 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
+ 	return !unicode.IsLower(rune)
+ }
+@@ -264,34 +239,15 @@ func runWithStdout(argv ...string) string {
+ 	return s
+ }
+ 
+-// runWithTestFlags appends any flag settings to the command line before running it.
+-func runWithTestFlags(argv ...string) {
+-	if test_short {
+-		argv = append(argv, "-test.short")
+-	}
+-
+-	if test_v {
+-		argv = append(argv, "-test.v")
+-	}
+-	if test_run != "" {
+-		argv = append(argv, fmt.Sprintf("-test.run=%s", test_run))
+-	}
+-	if test_memprofile != "" {
+-		argv = append(argv, fmt.Sprintf("-test.memprofile=%s", test_memprofile))
+-	}
+-	if test_memprofilerate > 0 {
+-		argv = append(argv, fmt.Sprintf("-test.memprofilerate=%d", test_memprofilerate))
+-	}
+-	if test_cpuprofile != "" {
+-		argv = append(argv, fmt.Sprintf("-test.cpuprofile=%s", test_cpuprofile))
+-	}
+-	doRun(argv, false)
++// runTestWithArgs appends gotest's runs the provided binary with the args passed on the command line.
++func runTestWithArgs(binary string) {
++	doRun(append([]string{binary}, args...), false)
+ }
+ 
+ // doRun is the general command runner.  The flag says whether we want to
+ // retrieve standard output.
+ func doRun(argv []string, returnStdout bool) string {
+-	if *xFlag {
++	if xFlag {
+ 		fmt.Printf("gotest: %s\n", strings.Join(argv, " "))
+ 	}
+ 	var err os.Error

@@ -24,8 +24,1027 @@ Date:   Tue Sep 22 14:32:05 2015 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/cgen.go |  14 +-
  src/runtime/duff_amd64.s               | 958 +++++++++++----------------------
  src/runtime/mkduff.go                  |  10 +-
  3 files changed, 336 insertions(+), 646 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/cgen.go b/src/cmd/compile/internal/amd64/cgen.go
+index 71f8f88322..dc1a9f3beb 100644
+--- a/src/cmd/compile/internal/amd64/cgen.go
++++ b/src/cmd/compile/internal/amd64/cgen.go
+@@ -85,12 +85,22 @@ func blockcopy(n, ns *gc.Node, osrc, odst, w int64) {
+ 			gins(x86.AREP, nil, nil)   // repeat
+ 			gins(x86.AMOVSQ, nil, nil) // MOVQ *(SI)+,*(DI)+
+ 		} else if q >= 4 {
++			var oldx0 gc.Node
++			var x0 gc.Node
++			savex(x86.REG_X0, &x0, &oldx0, nil, gc.Types[gc.TFLOAT64])
++
+ 			p := gins(obj.ADUFFCOPY, nil, nil)
+ 			p.To.Type = obj.TYPE_ADDR
+ 			p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
+ 
+-			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
+-			p.To.Offset = 14 * (128 - q)
++			// 64 blocks taking 14 bytes each
++			// see ../../../../runtime/mkduff.go
++			p.To.Offset = 14 * (64 - q/2)
++			restx(&x0, &oldx0)
++
++			if q%2 != 0 {
++				gins(x86.AMOVSQ, nil, nil) // MOVQ *(SI)+,*(DI)+
++			}
+ 		} else if !gc.Nacl && c == 0 {
+ 			// We don't need the MOVSQ side-effect of updating SI and DI,
+ 			// and issuing a sequence of MOVQs directly is faster.
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index e20ab96b60..6ed7f65a77 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -104,644 +104,324 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
+-
+-	MOVQ	(SI), CX
+-	ADDQ	$8, SI
+-	MOVQ	CX, (DI)
+-	ADDQ	$8, DI
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
++
++	MOVUPS	(SI), X0
++	ADDQ	$16, SI
++	MOVUPS	X0, (DI)
++	ADDQ	$16, DI
+ 
+ 	RET
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 41caa72d6d..918766650f 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -84,11 +84,11 @@ func copyAMD64(w io.Writer) {
+ 	// for some reason that is 3.5x slower than this code.
+ 	// The STOSQ in duffzero seem fine, though.
+ 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
+-	for i := 0; i < 128; i++ {
+-		fmt.Fprintln(w, "\tMOVQ\t(SI), CX")
+-		fmt.Fprintln(w, "\tADDQ\t$8, SI")
+-		fmt.Fprintln(w, "\tMOVQ\tCX, (DI)")
+-		fmt.Fprintln(w, "\tADDQ\t$8, DI")
++	for i := 0; i < 64; i++ {
++		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
++		fmt.Fprintln(w, "\tADDQ\t$16, SI")
++		fmt.Fprintln(w, "\tMOVUPS\tX0, (DI)")
++		fmt.Fprintln(w, "\tADDQ\t$16, DI")
+ 		fmt.Fprintln(w)
+ 	}
+ 	fmt.Fprintln(w, "\tRET")

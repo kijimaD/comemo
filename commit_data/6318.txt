@@ -15,9 +15,97 @@ Date:   Mon Sep 20 10:32:08 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2216043
-
+---
  src/pkg/asn1/asn1.go       | 12 ++++++++++++
  src/pkg/asn1/common.go     |  1 +
  src/pkg/crypto/tls/conn.go | 10 +++++++++-
  src/pkg/crypto/tls/tls.go  |  8 +++++++-
  4 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 3e3bb105b6..cd23fd7645 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -290,6 +290,14 @@ func parseIA5String(bytes []byte) (ret string, err os.Error) {
+ 	return
+ }
+ 
++// T61String
++
++// parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
++// byte array and returns it.
++func parseT61String(bytes []byte) (ret string, err os.Error) {
++	return string(bytes), nil
++}
++
+ // A RawValue represents an undecoded ASN.1 object.
+ type RawValue struct {
+ 	Class, Tag int
+@@ -472,6 +480,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 				result, err = parsePrintableString(innerBytes)
+ 			case tagIA5String:
+ 				result, err = parseIA5String(innerBytes)
++			case tagT61String:
++				result, err = parseT61String(innerBytes)
+ 			case tagInteger:
+ 				result, err = parseInt64(innerBytes)
+ 			case tagBitString:
+@@ -689,6 +699,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			v, err = parsePrintableString(innerBytes)
+ 		case tagIA5String:
+ 			v, err = parseIA5String(innerBytes)
++		case tagT61String:
++			v, err = parseT61String(innerBytes)
+ 		default:
+ 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
+ 		}
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 3ea0f09b12..4a5eca1450 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -28,6 +28,7 @@ const (
+ 	tagSequence        = 16
+ 	tagSet             = 17
+ 	tagPrintableString = 19
++	tagT61String       = 20
+ 	tagIA5String       = 22
+ 	tagUTCTime         = 23
+ 	tagGeneralizedTime = 24
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 78566fa8c5..9bf9f21851 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -675,5 +675,13 @@ func (c *Conn) PeerCertificates() []*x509.Certificate {
+ // connecting to host.  If so, it returns nil; if not, it returns an os.Error
+ // describing the problem.
+ func (c *Conn) VerifyHostname(host string) os.Error {
+-	return c.PeerCertificates()[0].VerifyHostname(host)
++	c.handshakeMutex.Lock()
++	defer c.handshakeMutex.Unlock()
++	if !c.isClient {
++		return os.ErrorString("VerifyHostname called on TLS server connection")
++	}
++	if !c.handshakeComplete {
++		return os.ErrorString("TLS handshake has not yet been performed")
++	}
++	return c.peerCertificates[0].VerifyHostname(host)
+ }
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 27e32cc2f2..2aec160a1e 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -67,7 +67,13 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return Client(c, nil), nil
++	conn := Client(c, nil)
++	err = conn.Handshake()
++	if err == nil {
++		return conn, nil
++	}
++	c.Close()
++	return nil, err
+ }
+ 
+ // LoadX509KeyPair

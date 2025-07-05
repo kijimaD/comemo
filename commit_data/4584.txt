@@ -8,6 +8,29 @@ Date:   Tue Jan 12 09:45:11 2010 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/186095
-
+---
  src/cmd/gofmt/test.sh | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index d76d89becc..59d5117b24 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -129,7 +129,7 @@ runtest() {
+ 
+ 
+ runtests() {
+-	if [ "$@" = "" ]; then
++	if [ $# = 0 ]; then
+ 		runtest apply
+ 		# verify the pretty-printed files can be compiled with $GC again
+ 		# do it in local directory only because of the prerequisites required
+@@ -146,7 +146,7 @@ runtests() {
+ 
+ 
+ # run over all .go files
+-runtests "$*"
++runtests "$@"
+ cleanup
+ 
+ # done

@@ -7,6 +7,123 @@ Date:   Thu Apr 14 17:16:26 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4404048
-
+---
  src/pkg/gob/gobencdec_test.go | 84 +++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 84 insertions(+)
+
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index 012b099566..e94534f4c3 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -24,6 +24,10 @@ type StringStruct struct {
+ 	s string // not an exported field
+ }
+ 
++type ArrayStruct struct {
++	a [8192]byte // not an exported field
++}
++
+ type Gobber int
+ 
+ type ValueGobber string // encodes with a value, decodes with a pointer.
+@@ -74,6 +78,18 @@ func (g *StringStruct) GobDecode(data []byte) os.Error {
+ 	return nil
+ }
+ 
++func (a *ArrayStruct) GobEncode() ([]byte, os.Error) {
++	return a.a[:], nil
++}
++
++func (a *ArrayStruct) GobDecode(data []byte) os.Error {
++	if len(data) != len(a.a) {
++		return os.ErrorString("wrong length in array decode")
++	}
++	copy(a.a[:], data)
++	return nil
++}
++
+ func (g *Gobber) GobEncode() ([]byte, os.Error) {
+ 	return []byte(fmt.Sprintf("VALUE=%d", *g)), nil
+ }
+@@ -138,6 +154,16 @@ type GobTestIndirectEncDec struct {
+ 	G ***StringStruct // indirections to the receiver.
+ }
+ 
++type GobTestArrayEncDec struct {
++	X int         // guarantee we have  something in common with GobTest*
++	A ArrayStruct // not a pointer.
++}
++
++type GobTestIndirectArrayEncDec struct {
++	X int            // guarantee we have  something in common with GobTest*
++	A ***ArrayStruct // indirections to a large receiver.
++}
++
+ func TestGobEncoderField(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	// First a field that's a structure.
+@@ -216,6 +242,64 @@ func TestGobEncoderIndirectField(t *testing.T) {
+ 	}
+ }
+ 
++// Test with a large field with methods.
++func TestGobEncoderArrayField(t *testing.T) {
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	var a GobTestArrayEncDec
++	a.X = 17
++	for i := range a.A.a {
++		a.A.a[i] = byte(i)
++	}
++	err := enc.Encode(a)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	x := new(GobTestArrayEncDec)
++	err = dec.Decode(x)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++	for i, v := range x.A.a {
++		if v != byte(i) {
++			t.Errorf("expected %x got %x", byte(i), v)
++			break
++		}
++	}
++}
++
++// Test an indirection to a large field with methods.
++func TestGobEncoderIndirectArrayField(t *testing.T) {
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	var a GobTestIndirectArrayEncDec
++	a.X = 17
++	var array ArrayStruct
++	ap := &array
++	app := &ap
++	a.A = &app
++	for i := range array.a {
++		array.a[i] = byte(i)
++	}
++	err := enc.Encode(a)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	x := new(GobTestIndirectArrayEncDec)
++	err = dec.Decode(x)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++	for i, v := range (***x.A).a {
++		if v != byte(i) {
++			t.Errorf("expected %x got %x", byte(i), v)
++			break
++		}
++	}
++}
++
+ // As long as the fields have the same name and implement the
+ // interface, we can cross-connect them.  Not sure it's useful
+ // and may even be bad but it works and it's hard to prevent

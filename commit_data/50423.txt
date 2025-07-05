@@ -15,7 +15,60 @@ Date:   Tue Oct 26 01:45:44 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/container/list/list.go      | 13 +++++--------
  src/container/list/list_test.go |  1 -
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/container/list/list.go b/src/container/list/list.go
+index 210424ceed..aa89b7f599 100644
+--- a/src/container/list/list.go
++++ b/src/container/list/list.go
+@@ -104,21 +104,20 @@ func (l *List) insertValue(v interface{}, at *Element) *Element {
+ 	return l.insert(&Element{Value: v}, at)
+ }
+ 
+-// remove removes e from its list, decrements l.len, and returns e.
+-func (l *List) remove(e *Element) *Element {
++// remove removes e from its list, decrements l.len
++func (l *List) remove(e *Element) {
+ 	e.prev.next = e.next
+ 	e.next.prev = e.prev
+ 	e.next = nil // avoid memory leaks
+ 	e.prev = nil // avoid memory leaks
+ 	e.list = nil
+ 	l.len--
+-	return e
+ }
+ 
+-// move moves e to next to at and returns e.
+-func (l *List) move(e, at *Element) *Element {
++// move moves e to next to at.
++func (l *List) move(e, at *Element) {
+ 	if e == at {
+-		return e
++		return
+ 	}
+ 	e.prev.next = e.next
+ 	e.next.prev = e.prev
+@@ -127,8 +126,6 @@ func (l *List) move(e, at *Element) *Element {
+ 	e.next = at.next
+ 	e.prev.next = e
+ 	e.next.prev = e
+-
+-	return e
+ }
+ 
+ // Remove removes e from l if e is an element of list l.
+diff --git a/src/container/list/list_test.go b/src/container/list/list_test.go
+index 99e006f39f..c74724b398 100644
+--- a/src/container/list/list_test.go
++++ b/src/container/list/list_test.go
+@@ -283,7 +283,6 @@ func TestMove(t *testing.T) {
+ 
+ 	l.MoveAfter(e2, e3)
+ 	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
+-	e2, e3 = e3, e2
+ }
+ 
+ // Test PushFront, PushBack, PushFrontList, PushBackList with uninitialized List

@@ -13,8 +13,72 @@ Date:   Wed Feb 26 10:19:51 2014 +0900
     R=golang-codereviews, minux.ma, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68690043
-
+---
  src/pkg/runtime/sys_freebsd_386.s   | 6 ++++--
  src/pkg/runtime/sys_freebsd_amd64.s | 6 ++++--
  src/pkg/runtime/sys_freebsd_arm.s   | 4 +++-
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 8b4d2317dc..71245a1562 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -135,7 +135,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
+ TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	$0, 4(SP)
++	MOVL	$0, 4(SP)	// CLOCK_REALTIME
+ 	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX	// sec
+@@ -152,7 +152,9 @@ TEXT time·now(SB), NOSPLIT, $32
+ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	$0, 4(SP)
++	// We can use CLOCK_MONOTONIC_FAST here when we drop
++	// support for FreeBSD 8-STABLE.
++	MOVL	$4, 4(SP)	// CLOCK_MONOTONIC
+ 	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX	// sec
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 63cd3ac074..4c5b325043 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -144,7 +144,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+-	MOVQ	$0, DI
++	MOVQ	$0, DI		// CLOCK_REALTIME
+ 	LEAQ	8(SP), SI
+ 	SYSCALL
+ 	MOVQ	8(SP), AX	// sec
+@@ -157,7 +157,9 @@ TEXT time·now(SB), NOSPLIT, $32
+ 
+ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+-	MOVQ	$0, DI
++	// We can use CLOCK_MONOTONIC_FAST here when we drop
++	// support for FreeBSD 8-STABLE.
++	MOVQ	$4, DI		// CLOCK_MONOTONIC
+ 	LEAQ	8(SP), SI
+ 	SYSCALL
+ 	MOVQ	8(SP), AX	// sec
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 106d727990..31711de206 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -162,7 +162,9 @@ TEXT time·now(SB), NOSPLIT, $32
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), NOSPLIT, $32
+-	MOVW $0, R0 // CLOCK_REALTIME
++	// We can use CLOCK_MONOTONIC_FAST here when we drop
++	// support for FreeBSD 8-STABLE.
++	MOVW $4, R0 // CLOCK_MONOTONIC
+ 	MOVW $8(R13), R1
+ 	MOVW $SYS_clock_gettime, R7
+ 	SWI $0

@@ -8,7 +8,7 @@ Date:   Sat Nov 22 16:05:31 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/169620043
-
+---
  src/runtime/defs1_netbsd_amd64.go  |  20 +-
  src/runtime/os1_netbsd.go          | 265 ++++++++++++++++++++++++++
  src/runtime/os1_netbsd_amd64.go    |  16 ++
@@ -22,3 +22,1057 @@ Date:   Sat Nov 22 16:05:31 2014 +1100
  src/runtime/signal_netbsd_amd64.h  |  31 ----
  src/runtime/signals_netbsd.h       |  54 ------
  12 files changed, 436 insertions(+), 511 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index cca701e5bc..c2bde4dabe 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -84,8 +84,8 @@ const (
+ )
+ 
+ type sigaltstackt struct {
+-	ss_sp     *byte
+-	ss_size   uint64
++	ss_sp     uintptr
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+@@ -103,8 +103,8 @@ type siginfo struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp     *byte
+-	ss_size   uint64
++	ss_sp     uintptr
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+@@ -114,12 +114,24 @@ type timespec struct {
+ 	tv_nsec int64
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = int64(x)
++}
++
+ type timeval struct {
+ 	tv_sec    int64
+ 	tv_usec   int32
+ 	pad_cgo_0 [4]byte
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+new file mode 100644
+index 0000000000..493be30fa5
+--- /dev/null
++++ b/src/runtime/os1_netbsd.go
+@@ -0,0 +1,265 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++const (
++	_ESRCH   = 3
++	_ENOTSUP = 91
++
++	// From NetBSD's <sys/time.h>
++	_CLOCK_REALTIME  = 0
++	_CLOCK_VIRTUAL   = 1
++	_CLOCK_PROF      = 2
++	_CLOCK_MONOTONIC = 3
++)
++
++var sigset_none = sigset{}
++var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
++
++// From NetBSD's <sys/sysctl.h>
++const (
++	_CTL_HW  = 6
++	_HW_NCPU = 3
++)
++
++func getncpu() int32 {
++	mib := [2]uint32{_CTL_HW, _HW_NCPU}
++	out := uint32(0)
++	nout := unsafe.Sizeof(out)
++	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
++	if ret >= 0 {
++		return int32(out)
++	}
++	return 1
++}
++
++//go:nosplit
++func semacreate() uintptr {
++	return 1
++}
++
++//go:nosplit
++func semasleep(ns int64) int32 {
++	_g_ := getg()
++
++	// spin-mutex lock
++	for {
++		if xchg(&_g_.m.waitsemalock, 1) == 0 {
++			break
++		}
++		osyield()
++	}
++
++	for {
++		// lock held
++		if _g_.m.waitsemacount == 0 {
++			// sleep until semaphore != 0 or timeout.
++			// thrsleep unlocks m.waitsemalock.
++			if ns < 0 {
++				// TODO(jsing) - potential deadlock!
++				//
++				// There is a potential deadlock here since we
++				// have to release the waitsemalock mutex
++				// before we call lwp_park() to suspend the
++				// thread. This allows another thread to
++				// release the lock and call lwp_unpark()
++				// before the thread is actually suspended.
++				// If this occurs the current thread will end
++				// up sleeping indefinitely. Unfortunately
++				// the NetBSD kernel does not appear to provide
++				// a mechanism for unlocking the userspace
++				// mutex once the thread is actually parked.
++				atomicstore(&_g_.m.waitsemalock, 0)
++				lwp_park(nil, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
++			} else {
++				var ts timespec
++				var nsec int32
++				ns += nanotime()
++				ts.set_sec(timediv(ns, 1000000000, &nsec))
++				ts.set_nsec(nsec)
++				// TODO(jsing) - potential deadlock!
++				// See above for details.
++				atomicstore(&_g_.m.waitsemalock, 0)
++				lwp_park(&ts, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
++			}
++			// reacquire lock
++			for {
++				if xchg(&_g_.m.waitsemalock, 1) == 0 {
++					break
++				}
++				osyield()
++			}
++		}
++
++		// lock held (again)
++		if _g_.m.waitsemacount != 0 {
++			// semaphore is available.
++			_g_.m.waitsemacount--
++			// spin-mutex unlock
++			atomicstore(&_g_.m.waitsemalock, 0)
++			return 0
++		}
++
++		// semaphore not available.
++		// if there is a timeout, stop now.
++		// otherwise keep trying.
++		if ns >= 0 {
++			break
++		}
++	}
++
++	// lock held but giving up
++	// spin-mutex unlock
++	atomicstore(&_g_.m.waitsemalock, 0)
++	return -1
++}
++
++//go:nosplit
++func semawakeup(mp *m) {
++	// spin-mutex lock
++	for {
++		if xchg(&mp.waitsemalock, 1) == 0 {
++			break
++		}
++		osyield()
++	}
++
++	mp.waitsemacount++
++	// TODO(jsing) - potential deadlock, see semasleep() for details.
++	// Confirm that LWP is parked before unparking...
++	ret := lwp_unpark(int32(mp.procid), unsafe.Pointer(&mp.waitsemacount))
++	if ret != 0 && ret != _ESRCH {
++		// semawakeup can be called on signal stack.
++		systemstack(func() {
++			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
++		})
++	}
++
++	// spin-mutex unlock
++	atomicstore(&mp.waitsemalock, 0)
++}
++
++func newosproc(mp *m, stk unsafe.Pointer) {
++	if false {
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
++	}
++
++	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
++
++	var uc ucontextt
++	getcontext(unsafe.Pointer(&uc))
++
++	uc.uc_flags = _UC_SIGMASK | _UC_CPU
++	uc.uc_link = nil
++	uc.uc_sigmask = sigset_all
++
++	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(mstart))
++
++	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
++	if ret < 0 {
++		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
++		gothrow("runtime.newosproc")
++	}
++}
++
++func osinit() {
++	ncpu = getncpu()
++}
++
++var urandom_data [_HashRandomBytes]byte
++var urandom_dev = []byte("/dev/urandom\x00")
++
++//go:nosplit
++func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
++	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
++		*rnd = unsafe.Pointer(&urandom_data[0])
++		*rnd_len = _HashRandomBytes
++	} else {
++		*rnd = nil
++		*rnd_len = 0
++	}
++	close(fd)
++}
++
++func goenvs() {
++	goenvs_unix()
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++func mpreinit(mp *m) {
++	mp.gsignal = malg(32 * 1024)
++	mp.gsignal.m = mp
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++func minit() {
++	_g_ := getg()
++	_g_.m.procid = uint64(lwp_self())
++
++	// Initialize signal handling
++	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
++	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++}
++
++// Called from dropm to undo the effect of an minit.
++func unminit() {
++	signalstack(nil, 0)
++}
++
++func memlimit() uintptr {
++	return 0
++}
++
++func sigtramp()
++
++type sigactiont struct {
++	sa_sigaction uintptr
++	sa_mask      sigset
++	sa_flags     int32
++}
++
++func setsig(i int32, fn uintptr, restart bool) {
++	var sa sigactiont
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
++	if restart {
++		sa.sa_flags |= _SA_RESTART
++	}
++	sa.sa_mask = sigset_all
++	if fn == funcPC(sighandler) {
++		fn = funcPC(sigtramp)
++	}
++	sa.sa_sigaction = fn
++	sigaction(i, &sa, nil)
++}
++
++func getsig(i int32) uintptr {
++	var sa sigactiont
++	sigaction(i, nil, &sa)
++	if sa.sa_sigaction == funcPC(sigtramp) {
++		return funcPC(sighandler)
++	}
++	return sa.sa_sigaction
++}
++
++func signalstack(p *byte, n int32) {
++	var st sigaltstackt
++
++	st.ss_sp = uintptr(unsafe.Pointer(p))
++	st.ss_size = uintptr(n)
++	st.ss_flags = 0
++	if p == nil {
++		st.ss_flags = _SS_DISABLE
++	}
++	sigaltstack(&st, nil)
++}
++
++func unblocksignals() {
++	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
++}
+diff --git a/src/runtime/os1_netbsd_amd64.go b/src/runtime/os1_netbsd_amd64.go
+new file mode 100644
+index 0000000000..5118b0c4ff
+--- /dev/null
++++ b/src/runtime/os1_netbsd_amd64.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
++	// Machine dependent mcontext initialisation for LWP.
++	mc.__gregs[_REG_RIP] = uint64(funcPC(lwp_tramp))
++	mc.__gregs[_REG_RSP] = uint64(uintptr(stk))
++	mc.__gregs[_REG_R8] = uint64(uintptr(unsafe.Pointer(mp)))
++	mc.__gregs[_REG_R9] = uint64(uintptr(unsafe.Pointer(gp)))
++	mc.__gregs[_REG_R12] = uint64(fn)
++}
+diff --git a/src/runtime/os2_netbsd.go b/src/runtime/os2_netbsd.go
+new file mode 100644
+index 0000000000..46576b9bc3
+--- /dev/null
++++ b/src/runtime/os2_netbsd.go
+@@ -0,0 +1,18 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_SS_DISABLE  = 4
++	_SIG_BLOCK   = 1
++	_SIG_UNBLOCK = 2
++	_SIG_SETMASK = 3
++	_NSIG        = 33
++	_SI_USER     = 0
++
++	// From NetBSD's <sys/ucontext.h>
++	_UC_SIGMASK = 0x01
++	_UC_CPU     = 0x04
++)
+diff --git a/src/runtime/os_netbsd.c b/src/runtime/os_netbsd.c
+deleted file mode 100644
+index 58e5bedf2f..0000000000
+--- a/src/runtime/os_netbsd.c
++++ /dev/null
+@@ -1,368 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_unix.h"
+-#include "stack.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	ESRCH = 3,
+-	ENOTSUP = 91,
+-
+-	// From NetBSD's <sys/time.h>
+-	CLOCK_REALTIME = 0,
+-	CLOCK_VIRTUAL = 1,
+-	CLOCK_PROF = 2,
+-	CLOCK_MONOTONIC = 3
+-};
+-
+-extern SigTab runtime·sigtab[];
+-
+-static Sigset sigset_none;
+-static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
+-
+-extern void runtime·getcontext(UcontextT *context);
+-extern int32 runtime·lwp_create(UcontextT *context, uintptr flags, void *lwpid);
+-extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *mp, G *gp, void (*fn)(void));
+-extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
+-extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
+-extern int32 runtime·lwp_self(void);
+-
+-// From NetBSD's <sys/sysctl.h>
+-#define	CTL_HW	6
+-#define	HW_NCPU	3
+-
+-static int32
+-getncpu(void)
+-{
+-	uint32 mib[2];
+-	uint32 out;
+-	int32 ret;
+-	uintptr nout;
+-
+-	// Fetch hw.ncpu via sysctl.
+-	mib[0] = CTL_HW;
+-	mib[1] = HW_NCPU;
+-	nout = sizeof out;
+-	out = 0;
+-	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
+-	if(ret >= 0)
+-		return out;
+-	else
+-		return 1;
+-}
+-
+-#pragma textflag NOSPLIT
+-uintptr
+-runtime·semacreate(void)
+-{
+-	return 1;
+-}
+-
+-static void
+-semasleep(void)
+-{
+-	int64 ns;
+-	Timespec ts;
+-
+-	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
+-	g->m->scalararg[0] = 0;
+-	g->m->scalararg[1] = 0;
+-
+-	// spin-mutex lock
+-	while(runtime·xchg(&g->m->waitsemalock, 1))
+-		runtime·osyield();
+-
+-	for(;;) {
+-		// lock held
+-		if(g->m->waitsemacount == 0) {
+-			// sleep until semaphore != 0 or timeout.
+-			// thrsleep unlocks m->waitsemalock.
+-			if(ns < 0) {
+-				// TODO(jsing) - potential deadlock!
+-				//
+-				// There is a potential deadlock here since we
+-				// have to release the waitsemalock mutex
+-				// before we call lwp_park() to suspend the
+-				// thread. This allows another thread to
+-				// release the lock and call lwp_unpark()
+-				// before the thread is actually suspended.
+-				// If this occurs the current thread will end
+-				// up sleeping indefinitely. Unfortunately
+-				// the NetBSD kernel does not appear to provide
+-				// a mechanism for unlocking the userspace
+-				// mutex once the thread is actually parked.
+-				runtime·atomicstore(&g->m->waitsemalock, 0);
+-				runtime·lwp_park(nil, 0, &g->m->waitsemacount, nil);
+-			} else {
+-				ns = ns + runtime·nanotime();
+-				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+-				ts.tv_nsec = 0;
+-				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+-				// TODO(jsing) - potential deadlock!
+-				// See above for details.
+-				runtime·atomicstore(&g->m->waitsemalock, 0);
+-				runtime·lwp_park(&ts, 0, &g->m->waitsemacount, nil);
+-			}
+-			// reacquire lock
+-			while(runtime·xchg(&g->m->waitsemalock, 1))
+-				runtime·osyield();
+-		}
+-
+-		// lock held (again)
+-		if(g->m->waitsemacount != 0) {
+-			// semaphore is available.
+-			g->m->waitsemacount--;
+-			// spin-mutex unlock
+-			runtime·atomicstore(&g->m->waitsemalock, 0);
+-			g->m->scalararg[0] = 0; // semaphore acquired
+-			return;
+-		}
+-
+-		// semaphore not available.
+-		// if there is a timeout, stop now.
+-		// otherwise keep trying.
+-		if(ns >= 0)
+-			break;
+-	}
+-
+-	// lock held but giving up
+-	// spin-mutex unlock
+-	runtime·atomicstore(&g->m->waitsemalock, 0);
+-	g->m->scalararg[0] = -1;
+-	return;
+-}
+-
+-#pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
+-{
+-	int32 r;
+-	void (*fn)(void);
+-
+-	g->m->scalararg[0] = (uint32)ns;
+-	g->m->scalararg[1] = (uint32)(ns>>32);
+-	fn = semasleep;
+-	runtime·onM(&fn);
+-	r = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-	return r;
+-}
+-
+-static void badsemawakeup(void);
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·semawakeup(M *mp)
+-{
+-	uint32 ret;
+-	void (*fn)(void);
+-	void *oldptr;
+-	uintptr oldscalar;
+-
+-	// spin-mutex lock
+-	while(runtime·xchg(&mp->waitsemalock, 1))
+-		runtime·osyield();
+-	mp->waitsemacount++;
+-	// TODO(jsing) - potential deadlock, see semasleep() for details.
+-	// Confirm that LWP is parked before unparking...
+-	ret = runtime·lwp_unpark(mp->procid, &mp->waitsemacount);
+-	if(ret != 0 && ret != ESRCH) {
+-		// semawakeup can be called on signal stack.
+-		// Save old ptrarg/scalararg so we can restore them.
+-		oldptr = g->m->ptrarg[0];
+-		oldscalar = g->m->scalararg[0];
+-		g->m->ptrarg[0] = mp;
+-		g->m->scalararg[0] = ret;
+-		fn = badsemawakeup;
+-		if(g == g->m->gsignal)
+-			fn();
+-		else
+-			runtime·onM(&fn);
+-		g->m->ptrarg[0] = oldptr;
+-		g->m->scalararg[0] = oldscalar;
+-	}
+-	// spin-mutex unlock
+-	runtime·atomicstore(&mp->waitsemalock, 0);
+-}
+-
+-static void
+-badsemawakeup(void)
+-{
+-	M *mp;
+-	int32 ret;
+-
+-	mp = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	ret = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-
+-	runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
+-}
+-
+-void
+-runtime·newosproc(M *mp, void *stk)
+-{
+-	UcontextT uc;
+-	int32 ret;
+-
+-	if(0) {
+-		runtime·printf(
+-			"newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+-			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
+-	}
+-
+-	mp->tls[0] = mp->id;	// so 386 asm can find it
+-
+-	runtime·getcontext(&uc);
+-	
+-	uc.uc_flags = _UC_SIGMASK | _UC_CPU;
+-	uc.uc_link = nil;
+-	uc.uc_sigmask = sigset_all;
+-
+-	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp->g0, runtime·mstart);
+-
+-	ret = runtime·lwp_create(&uc, 0, &mp->procid);
+-
+-	if(ret < 0) {
+-		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
+-		runtime·throw("runtime.newosproc");
+-	}
+-}
+-
+-void
+-runtime·osinit(void)
+-{
+-	runtime·ncpu = getncpu();
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·get_random_data(byte **rnd, int32 *rnd_len)
+-{
+-	#pragma dataflag NOPTR
+-	static byte urandom_data[HashRandomBytes];
+-	int32 fd;
+-	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+-	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
+-		*rnd = urandom_data;
+-		*rnd_len = HashRandomBytes;
+-	} else {
+-		*rnd = nil;
+-		*rnd_len = 0;
+-	}
+-	runtime·close(fd);
+-}
+-
+-void
+-runtime·goenvs(void)
+-{
+-	runtime·goenvs_unix();
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+-void
+-runtime·mpreinit(M *mp)
+-{
+-	mp->gsignal = runtime·malg(32*1024);
+-	mp->gsignal->m = mp;
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
+-void
+-runtime·minit(void)
+-{
+-	g->m->procid = runtime·lwp_self();
+-
+-	// Initialize signal handling
+-	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
+-	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+-}
+-
+-// Called from dropm to undo the effect of an minit.
+-void
+-runtime·unminit(void)
+-{
+-	runtime·signalstack(nil, 0);
+-}
+-
+-uintptr
+-runtime·memlimit(void)
+-{
+-	return 0;
+-}
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*_sa_handler)(int32);
+-		void    (*_sa_sigaction)(int32, Siginfo*, void *);
+-	} _sa_u;			/* signal handler */
+-	uint32	sa_mask[4];		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} SigactionT;
+-
+-void
+-runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+-{
+-	SigactionT sa;
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask[0] = ~0U;
+-	sa.sa_mask[1] = ~0U;
+-	sa.sa_mask[2] = ~0U;
+-	sa.sa_mask[3] = ~0U;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa._sa_u._sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-GoSighandler*
+-runtime·getsig(int32 i)
+-{
+-	SigactionT sa;
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	runtime·sigaction(i, nil, &sa);
+-	if((void*)sa._sa_u._sa_sigaction == runtime·sigtramp)
+-		return runtime·sighandler;
+-	return (void*)sa._sa_u._sa_sigaction;
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	StackT st;
+-
+-	st.ss_sp = (void*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·unblocksignals(void)
+-{
+-	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+-}
+-
+-#pragma textflag NOSPLIT
+-int8*
+-runtime·signame(int32 sig)
+-{
+-	return runtime·sigtab[sig].name;
+-}
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index f000c5e9f6..a153bf2ebc 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -6,15 +6,37 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func setitimer(mode int32, new, old unsafe.Pointer)
+-func sigaction(sig int32, new, old unsafe.Pointer)
+-func sigaltstack(new, old unsafe.Pointer)
+-func sigprocmask(mode int32, new, old unsafe.Pointer)
++//go:noescape
++func setitimer(mode int32, new, old *itimerval)
++
++//go:noescape
++func sigaction(sig int32, new, old *sigactiont)
++
++//go:noescape
++func sigaltstack(new, old *sigaltstackt)
++
++//go:noescape
++func sigprocmask(mode int32, new, old *sigset)
++
++//go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++
+ func lwp_tramp()
++
+ func raise(sig int32)
++
++//go:noescape
+ func getcontext(ctxt unsafe.Pointer)
++
++//go:noescape
+ func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
+-func lwp_park(abstime unsafe.Pointer, unpark int32, hint, unparkhint unsafe.Pointer) int32
++
++//go:noescape
++func lwp_park(abstime *timespec, unpark int32, hint, unparkhint unsafe.Pointer) int32
++
++//go:noescape
+ func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
++
+ func lwp_self() int32
++
++func osyield()
+diff --git a/src/runtime/os_netbsd.h b/src/runtime/os_netbsd.h
+deleted file mode 100644
+index f95db325f0..0000000000
+--- a/src/runtime/os_netbsd.h
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-
+-typedef uintptr kevent_udata;
+-
+-struct sigaction;
+-
+-void	runtime·sigpanic(void);
+-
+-void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+-void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+-void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+-void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+-void	runtime·unblocksignals(void);
+-int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+-extern void runtime·lwp_tramp(void);
+-
+-enum {
+-	SS_DISABLE = 4,
+-	SIG_BLOCK = 1,
+-	SIG_UNBLOCK = 2,
+-	SIG_SETMASK = 3,
+-	NSIG = 33,
+-	SI_USER = 0,
+-
+-	// From NetBSD's <sys/ucontext.h>
+-	_UC_SIGMASK = 0x01,
+-	_UC_CPU = 0x04,
+-};
+diff --git a/src/runtime/os_netbsd_amd64.c b/src/runtime/os_netbsd_amd64.c
+deleted file mode 100644
+index 226846cbb0..0000000000
+--- a/src/runtime/os_netbsd_amd64.c
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-
+-void
+-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+-{
+-	// Machine dependent mcontext initialisation for LWP.
+-	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
+-	mc->__gregs[REG_RSP] = (uint64)stack;
+-	mc->__gregs[REG_R8] = (uint64)mp;
+-	mc->__gregs[REG_R9] = (uint64)gp;
+-	mc->__gregs[REG_R12] = (uint64)fn;
+-}
+diff --git a/src/runtime/signal_netbsd.go b/src/runtime/signal_netbsd.go
+new file mode 100644
+index 0000000000..78afc59efa
+--- /dev/null
++++ b/src/runtime/signal_netbsd.go
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
++var sigtable = [...]sigTabT{
++	/*  0 */ {0, "SIGNONE: no trap"},
++	/*  1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
++	/*  2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
++	/*  3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
++	/*  4 */ {_SigThrow, "SIGILL: illegal instruction"},
++	/*  5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/*  6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
++	/*  7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
++	/*  8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/*  9 */ {0, "SIGKILL: kill"},
++	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
++	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
++	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
++	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
++	/* 16 */ {_SigNotify, "SIGURG: urgent condition on socket"},
++	/* 17 */ {0, "SIGSTOP: stop"},
++	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
++	/* 19 */ {0, "SIGCONT: continue after stop"},
++	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
++	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
++	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
++	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
++	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
++	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
++	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
++	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
++	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
++	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
++	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
++}
+diff --git a/src/runtime/signal_netbsd_amd64.go b/src/runtime/signal_netbsd_amd64.go
+new file mode 100644
+index 0000000000..e22f4a724a
+--- /dev/null
++++ b/src/runtime/signal_netbsd_amd64.go
+@@ -0,0 +1,48 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontextt {
++	return (*mcontextt)(unsafe.Pointer(&(*ucontextt)(c.ctxt).uc_mcontext))
++}
++func (c *sigctxt) rax() uint64     { return c.regs().__gregs[_REG_RAX] }
++func (c *sigctxt) rbx() uint64     { return c.regs().__gregs[_REG_RBX] }
++func (c *sigctxt) rcx() uint64     { return c.regs().__gregs[_REG_RCX] }
++func (c *sigctxt) rdx() uint64     { return c.regs().__gregs[_REG_RDX] }
++func (c *sigctxt) rdi() uint64     { return c.regs().__gregs[_REG_RDI] }
++func (c *sigctxt) rsi() uint64     { return c.regs().__gregs[_REG_RSI] }
++func (c *sigctxt) rbp() uint64     { return c.regs().__gregs[_REG_RBP] }
++func (c *sigctxt) rsp() uint64     { return c.regs().__gregs[_REG_RSP] }
++func (c *sigctxt) r8() uint64      { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r9() uint64      { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r10() uint64     { return c.regs().__gregs[_REG_R10] }
++func (c *sigctxt) r11() uint64     { return c.regs().__gregs[_REG_R11] }
++func (c *sigctxt) r12() uint64     { return c.regs().__gregs[_REG_R12] }
++func (c *sigctxt) r13() uint64     { return c.regs().__gregs[_REG_R13] }
++func (c *sigctxt) r14() uint64     { return c.regs().__gregs[_REG_R14] }
++func (c *sigctxt) r15() uint64     { return c.regs().__gregs[_REG_R15] }
++func (c *sigctxt) rip() uint64     { return c.regs().__gregs[_REG_RIP] }
++func (c *sigctxt) rflags() uint64  { return c.regs().__gregs[_REG_RFLAGS] }
++func (c *sigctxt) cs() uint64      { return c.regs().__gregs[_REG_CS] }
++func (c *sigctxt) fs() uint64      { return c.regs().__gregs[_REG_FS] }
++func (c *sigctxt) gs() uint64      { return c.regs().__gregs[_REG_GS] }
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info._code) }
++func (c *sigctxt) sigaddr() uint64 {
++	return uint64(*(*uint64)(unsafe.Pointer(&c.info._reason[0])))
++}
++
++func (c *sigctxt) set_rip(x uint64)     { c.regs().__gregs[_REG_RIP] = x }
++func (c *sigctxt) set_rsp(x uint64)     { c.regs().__gregs[_REG_RSP] = x }
++func (c *sigctxt) set_sigcode(x uint64) { c.info._code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) {
++	*(*uint64)(unsafe.Pointer(&c.info._reason[0])) = x
++}
+diff --git a/src/runtime/signal_netbsd_amd64.h b/src/runtime/signal_netbsd_amd64.h
+deleted file mode 100644
+index 7ec4cd98cd..0000000000
+--- a/src/runtime/signal_netbsd_amd64.h
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+-
+-#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RAX])
+-#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBX])
+-#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RCX])
+-#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RDX])
+-#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RDI])
+-#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RSI])
+-#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBP])
+-#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RSP])
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R8])
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R9])
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R10])
+-#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R11])
+-#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R12])
+-#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R13])
+-#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R14])
+-#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R15])
+-#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RIP])
+-#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RFLAGS])
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_GS])
+-
+-#define SIG_CODE0(info, ctxt) ((info)->_code)
+-#define SIG_CODE1(info, ctxt) (*(uintptr*)&(info)->_reason[0])
+diff --git a/src/runtime/signals_netbsd.h b/src/runtime/signals_netbsd.h
+deleted file mode 100644
+index 950a2fe62c..0000000000
+--- a/src/runtime/signals_netbsd.h
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define D SigDefault
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
+-	/*  0 */	0, "SIGNONE: no trap",
+-	/*  1 */	N+K, "SIGHUP: terminal line hangup",
+-	/*  2 */	N+K, "SIGINT: interrupt",
+-	/*  3 */	N+T, "SIGQUIT: quit",
+-	/*  4 */	T, "SIGILL: illegal instruction",
+-	/*  5 */	T, "SIGTRAP: trace trap",
+-	/*  6 */	N+T, "SIGABRT: abort",
+-	/*  7 */	T, "SIGEMT: emulate instruction executed",
+-	/*  8 */	P, "SIGFPE: floating-point exception",
+-	/*  9 */	0, "SIGKILL: kill",
+-	/* 10 */	P, "SIGBUS: bus error",
+-	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	T, "SIGSYS: bad system call",
+-	/* 13 */	N, "SIGPIPE: write to broken pipe",
+-	/* 14 */	N, "SIGALRM: alarm clock",
+-	/* 15 */	N+K, "SIGTERM: termination",
+-	/* 16 */	N, "SIGURG: urgent condition on socket",
+-	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+-	/* 19 */	0, "SIGCONT: continue after stop",
+-	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N+D, "SIGTTIN: background read from tty",
+-	/* 22 */	N+D, "SIGTTOU: background write to tty",
+-	/* 23 */	N, "SIGIO: i/o now possible",
+-	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	N, "SIGPROF: profiling alarm clock",
+-	/* 28 */	N, "SIGWINCH: window size change",
+-	/* 29 */	N, "SIGINFO: status request from keyboard",
+-	/* 30 */	N, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	N, "SIGUSR2: user-defined signal 2",
+-	/* 32 */	N, "SIGTHR: reserved",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef D

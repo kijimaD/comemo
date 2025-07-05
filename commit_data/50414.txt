@@ -21,7 +21,7 @@ Date:   Thu Oct 21 18:04:55 2021 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 28 ++++++++-
  src/cmd/compile/internal/walk/expr.go           | 12 +---
  src/cmd/internal/objabi/reloctype.go            |  5 ++
@@ -29,3 +29,279 @@ Date:   Thu Oct 21 18:04:55 2021 -0700
  src/cmd/link/internal/ld/deadcode.go            | 24 ++++++--
  test/typeparam/issue49049.go                    | 27 +++++++++
  6 files changed, 119 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 27e6188ab7..369ee75422 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -18,6 +18,7 @@ import (
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typebits"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -1995,8 +1996,33 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
+ 	dot := n.X.(*ir.SelectorExpr)
+ 	ityp := dot.X.Type()
+ 	if ityp.HasShape() {
+-		base.Fatalf("marking method of shape type used %+v %s", ityp, dot.Sel.Name)
++		// Here we're calling a method on a generic interface. Something like:
++		//
++		// type I[T any] interface { foo() T }
++		// func f[T any](x I[T]) {
++		//     ... = x.foo()
++		// }
++		// f[int](...)
++		// f[string](...)
++		//
++		// In this case, in f we're calling foo on a generic interface.
++		// Which method could that be? Normally we could match the method
++		// both by name and by type. But in this case we don't really know
++		// the type of the method we're calling. It could be func()int
++		// or func()string. So we match on just the function name, instead
++		// of both the name and the type used for the non-generic case below.
++		// TODO: instantiations at least know the shape of the instantiated
++		// type, and the linker could do more complicated matching using
++		// some sort of fuzzy shape matching. For now, only use the name
++		// of the method for matching.
++		r := obj.Addrel(ir.CurFunc.LSym)
++		// We use a separate symbol just to tell the linker the method name.
++		// (The symbol itself is not needed in the final binary.)
++		r.Sym = staticdata.StringSym(src.NoXPos, dot.Sel.Name)
++		r.Type = objabi.R_USEGENERICIFACEMETHOD
++		return
+ 	}
++
+ 	tsym := TypeLinksym(ityp)
+ 	r := obj.Addrel(ir.CurFunc.LSym)
+ 	r.Sym = tsym
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index c452cecbed..e5bf6cf0b5 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -506,17 +506,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		usemethod(n)
+ 	}
+ 	if n.Op() == ir.OCALLINTER {
+-		if n.X.(*ir.SelectorExpr).X.Type().HasShape() {
+-			// There should be an entry in n.KeepAlive to keep the
+-			// dictionary alive (added in ../noder/transformCall).
+-			// The dictionary in turn marks the method as used.
+-			if len(n.KeepAlive) == 0 {
+-				// TODO(khr): this fails for issue44688.go.
+-				//base.Fatalf("KeepAlive of dictionary arg missing")
+-			}
+-		} else {
+-			reflectdata.MarkUsedIfaceMethod(n)
+-		}
++		reflectdata.MarkUsedIfaceMethod(n)
+ 	}
+ 
+ 	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 0cc60fbe3b..a9c3030181 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -93,6 +93,11 @@ const (
+ 	// This is a marker relocation (0-sized), for the linker's reachabililty
+ 	// analysis.
+ 	R_USEIFACEMETHOD
++	// Similar to R_USEIFACEMETHOD, except instead of indicating a type +
++	// method offset with Sym+Add, Sym points to a symbol containing the name
++	// of the method being called. See the description in
++	// cmd/compile/internal/reflectdata/reflect.go:MarkUsedIfaceMethod for details.
++	R_USEGENERICIFACEMETHOD
+ 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
+ 	// holding the data being relocated to the referenced symbol.
+ 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index f2e06a5b21..d1b15b5a19 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -32,48 +32,49 @@ func _() {
+ 	_ = x[R_USETYPE-22]
+ 	_ = x[R_USEIFACE-23]
+ 	_ = x[R_USEIFACEMETHOD-24]
+-	_ = x[R_METHODOFF-25]
+-	_ = x[R_KEEP-26]
+-	_ = x[R_POWER_TOC-27]
+-	_ = x[R_GOTPCREL-28]
+-	_ = x[R_JMPMIPS-29]
+-	_ = x[R_DWARFSECREF-30]
+-	_ = x[R_DWARFFILEREF-31]
+-	_ = x[R_ARM64_TLS_LE-32]
+-	_ = x[R_ARM64_TLS_IE-33]
+-	_ = x[R_ARM64_GOTPCREL-34]
+-	_ = x[R_ARM64_GOT-35]
+-	_ = x[R_ARM64_PCREL-36]
+-	_ = x[R_ARM64_LDST8-37]
+-	_ = x[R_ARM64_LDST16-38]
+-	_ = x[R_ARM64_LDST32-39]
+-	_ = x[R_ARM64_LDST64-40]
+-	_ = x[R_ARM64_LDST128-41]
+-	_ = x[R_POWER_TLS_LE-42]
+-	_ = x[R_POWER_TLS_IE-43]
+-	_ = x[R_POWER_TLS-44]
+-	_ = x[R_ADDRPOWER_DS-45]
+-	_ = x[R_ADDRPOWER_GOT-46]
+-	_ = x[R_ADDRPOWER_PCREL-47]
+-	_ = x[R_ADDRPOWER_TOCREL-48]
+-	_ = x[R_ADDRPOWER_TOCREL_DS-49]
+-	_ = x[R_RISCV_CALL-50]
+-	_ = x[R_RISCV_CALL_TRAMP-51]
+-	_ = x[R_RISCV_PCREL_ITYPE-52]
+-	_ = x[R_RISCV_PCREL_STYPE-53]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-54]
+-	_ = x[R_RISCV_TLS_IE_STYPE-55]
+-	_ = x[R_PCRELDBL-56]
+-	_ = x[R_ADDRMIPSU-57]
+-	_ = x[R_ADDRMIPSTLS-58]
+-	_ = x[R_ADDRCUOFF-59]
+-	_ = x[R_WASMIMPORT-60]
+-	_ = x[R_XCOFFREF-61]
++	_ = x[R_USEGENERICIFACEMETHOD-25]
++	_ = x[R_METHODOFF-26]
++	_ = x[R_KEEP-27]
++	_ = x[R_POWER_TOC-28]
++	_ = x[R_GOTPCREL-29]
++	_ = x[R_JMPMIPS-30]
++	_ = x[R_DWARFSECREF-31]
++	_ = x[R_DWARFFILEREF-32]
++	_ = x[R_ARM64_TLS_LE-33]
++	_ = x[R_ARM64_TLS_IE-34]
++	_ = x[R_ARM64_GOTPCREL-35]
++	_ = x[R_ARM64_GOT-36]
++	_ = x[R_ARM64_PCREL-37]
++	_ = x[R_ARM64_LDST8-38]
++	_ = x[R_ARM64_LDST16-39]
++	_ = x[R_ARM64_LDST32-40]
++	_ = x[R_ARM64_LDST64-41]
++	_ = x[R_ARM64_LDST128-42]
++	_ = x[R_POWER_TLS_LE-43]
++	_ = x[R_POWER_TLS_IE-44]
++	_ = x[R_POWER_TLS-45]
++	_ = x[R_ADDRPOWER_DS-46]
++	_ = x[R_ADDRPOWER_GOT-47]
++	_ = x[R_ADDRPOWER_PCREL-48]
++	_ = x[R_ADDRPOWER_TOCREL-49]
++	_ = x[R_ADDRPOWER_TOCREL_DS-50]
++	_ = x[R_RISCV_CALL-51]
++	_ = x[R_RISCV_CALL_TRAMP-52]
++	_ = x[R_RISCV_PCREL_ITYPE-53]
++	_ = x[R_RISCV_PCREL_STYPE-54]
++	_ = x[R_RISCV_TLS_IE_ITYPE-55]
++	_ = x[R_RISCV_TLS_IE_STYPE-56]
++	_ = x[R_PCRELDBL-57]
++	_ = x[R_ADDRMIPSU-58]
++	_ = x[R_ADDRMIPSTLS-59]
++	_ = x[R_ADDRCUOFF-60]
++	_ = x[R_WASMIMPORT-61]
++	_ = x[R_XCOFFREF-62]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 221, 227, 238, 248, 257, 270, 284, 298, 312, 328, 339, 352, 365, 379, 393, 407, 422, 436, 450, 461, 475, 490, 507, 525, 546, 558, 576, 595, 614, 634, 654, 664, 675, 688, 699, 711, 721}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 388, 402, 416, 430, 445, 459, 473, 484, 498, 513, 530, 548, 569, 581, 599, 618, 637, 657, 677, 687, 698, 711, 722, 734, 744}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 79acd73387..7b57a85cde 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -22,10 +22,11 @@ type deadcodePass struct {
+ 	ldr  *loader.Loader
+ 	wq   heap // work queue, using min-heap for better locality
+ 
+-	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+-	markableMethods []methodref        // methods of reached types
+-	reflectSeen     bool               // whether we have seen a reflect method call
+-	dynlink         bool
++	ifaceMethod        map[methodsig]bool // methods called from reached interface call sites
++	genericIfaceMethod map[string]bool    // names of methods called from reached generic interface call sites
++	markableMethods    []methodref        // methods of reached types
++	reflectSeen        bool               // whether we have seen a reflect method call
++	dynlink            bool
+ 
+ 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
+ }
+@@ -33,6 +34,7 @@ type deadcodePass struct {
+ func (d *deadcodePass) init() {
+ 	d.ldr.InitReachable()
+ 	d.ifaceMethod = make(map[methodsig]bool)
++	d.genericIfaceMethod = make(map[string]bool)
+ 	if buildcfg.Experiment.FieldTrack {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
+@@ -197,6 +199,13 @@ func (d *deadcodePass) flood() {
+ 				}
+ 				d.ifaceMethod[m] = true
+ 				continue
++			case objabi.R_USEGENERICIFACEMETHOD:
++				name := d.decodeGenericIfaceMethod(d.ldr, r.Sym())
++				if d.ctxt.Debugvlog > 1 {
++					d.ctxt.Logf("reached generic iface method: %s\n", name)
++				}
++				d.genericIfaceMethod[name] = true
++				continue // don't mark referenced symbol - it is not needed in the final binary.
+ 			}
+ 			rs := r.Sym()
+ 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
+@@ -352,7 +361,7 @@ func deadcode(ctxt *Link) {
+ 		// in the last pass.
+ 		rem := d.markableMethods[:0]
+ 		for _, m := range d.markableMethods {
+-			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
++			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
+ 				d.markMethod(m)
+ 			} else {
+ 				rem = append(rem, m)
+@@ -425,6 +434,11 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
+ 	return m
+ }
+ 
++// Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
++func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
++	return string(ldr.Data(symIdx))
++}
++
+ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
+ 	p := ldr.Data(symIdx)
+ 	if !decodetypeHasUncommon(arch, p) {
+diff --git a/test/typeparam/issue49049.go b/test/typeparam/issue49049.go
+new file mode 100644
+index 0000000000..f4fdd05d85
+--- /dev/null
++++ b/test/typeparam/issue49049.go
+@@ -0,0 +1,27 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type A[T any] interface {
++	m()
++}
++
++type Z struct {
++	a,b int
++}
++
++func (z *Z) m() {
++}
++
++func test[T any]() {
++	var a A[T] = &Z{}
++	f := a.m
++	f()
++}
++func main() {
++	test[string]()
++}

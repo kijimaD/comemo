@@ -21,7 +21,321 @@ Date:   Thu Aug 28 12:16:06 2014 -0700
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/135110044
-
+---
  src/pkg/go/token/position.go      |  51 +++++++++++++------
  src/pkg/go/token/position_test.go | 101 ++++++++++++++++++++++++++++++--------
  2 files changed, 116 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index e6f0ae6a67..82d90eeb72 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(gri) consider making this a separate package outside the go directory.
+-
+ package token
+ 
+ import (
+@@ -184,6 +182,7 @@ func (f *File) SetLines(lines []int) bool {
+ }
+ 
+ // SetLinesForContent sets the line offsets for the given file content.
++// It ignores position-altering //line comments.
+ func (f *File) SetLinesForContent(content []byte) {
+ 	var lines []int
+ 	line := 0
+@@ -255,7 +254,6 @@ func (f *File) Offset(p Pos) int {
+ // p must be a Pos value in that file or NoPos.
+ //
+ func (f *File) Line(p Pos) int {
+-	// TODO(gri) this can be implemented much more efficiently
+ 	return f.Position(p).Line
+ }
+ 
+@@ -263,13 +261,16 @@ func searchLineInfos(a []lineInfo, x int) int {
+ 	return sort.Search(len(a), func(i int) bool { return a[i].Offset > x }) - 1
+ }
+ 
+-// info returns the file name, line, and column number for a file offset.
+-func (f *File) info(offset int) (filename string, line, column int) {
++// unpack returns the filename and line and column number for a file offset.
++// If adjusted is set, unpack will return the filename and line information
++// possibly adjusted by //line comments; otherwise those comments are ignored.
++//
++func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
+ 	filename = f.name
+ 	if i := searchInts(f.lines, offset); i >= 0 {
+ 		line, column = i+1, offset-f.lines[i]+1
+ 	}
+-	if len(f.infos) > 0 {
++	if adjusted && len(f.infos) > 0 {
+ 		// almost no files have extra line infos
+ 		if i := searchLineInfos(f.infos, offset); i >= 0 {
+ 			alt := &f.infos[i]
+@@ -282,26 +283,35 @@ func (f *File) info(offset int) (filename string, line, column int) {
+ 	return
+ }
+ 
+-func (f *File) position(p Pos) (pos Position) {
++func (f *File) position(p Pos, adjusted bool) (pos Position) {
+ 	offset := int(p) - f.base
+ 	pos.Offset = offset
+-	pos.Filename, pos.Line, pos.Column = f.info(offset)
++	pos.Filename, pos.Line, pos.Column = f.unpack(offset, adjusted)
+ 	return
+ }
+ 
+-// Position returns the Position value for the given file position p;
+-// p must be a Pos value in that file or NoPos.
++// PositionFor returns the Position value for the given file position p.
++// If adjusted is set, the position may be adjusted by position-altering
++// //line comments; otherwise those comments are ignored.
++// p must be a Pos value in f or NoPos.
+ //
+-func (f *File) Position(p Pos) (pos Position) {
++func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 	if p != NoPos {
+ 		if int(p) < f.base || int(p) > f.base+f.size {
+ 			panic("illegal Pos value")
+ 		}
+-		pos = f.position(p)
++		pos = f.position(p, adjusted)
+ 	}
+ 	return
+ }
+ 
++// Position returns the Position value for the given file position p.
++// Calling f.Position(p) is equivalent to calling f.PositionFor(p, true).
++//
++func (f *File) Position(p Pos) (pos Position) {
++	return f.PositionFor(p, true)
++}
++
+ // -----------------------------------------------------------------------------
+ // FileSet
+ 
+@@ -427,16 +437,27 @@ func (s *FileSet) File(p Pos) (f *File) {
+ 	return
+ }
+ 
+-// Position converts a Pos in the fileset into a general Position.
+-func (s *FileSet) Position(p Pos) (pos Position) {
++// PositionFor converts a Pos p in the fileset into a Position value.
++// If adjusted is set, the position may be adjusted by position-altering
++// //line comments; otherwise those comments are ignored.
++// p must be a Pos value in s or NoPos.
++//
++func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 	if p != NoPos {
+ 		if f := s.file(p); f != nil {
+-			pos = f.position(p)
++			pos = f.position(p, adjusted)
+ 		}
+ 	}
+ 	return
+ }
+ 
++// Position converts a Pos p in the fileset into a Position value.
++// Calling s.Position(p) is equivalent to calling s.PositionFor(p, true).
++//
++func (s *FileSet) Position(p Pos) (pos Position) {
++	return s.PositionFor(p, true)
++}
++
+ // -----------------------------------------------------------------------------
+ // Helper functions
+ 
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index ef6cfd93c2..d26939ce27 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -11,18 +11,18 @@ import (
+ 	"testing"
+ )
+ 
+-func checkPos(t *testing.T, msg string, p, q Position) {
+-	if p.Filename != q.Filename {
+-		t.Errorf("%s: expected filename = %q; got %q", msg, q.Filename, p.Filename)
++func checkPos(t *testing.T, msg string, got, want Position) {
++	if got.Filename != want.Filename {
++		t.Errorf("%s: got filename = %q; want %q", msg, got.Filename, want.Filename)
+ 	}
+-	if p.Offset != q.Offset {
+-		t.Errorf("%s: expected offset = %d; got %d", msg, q.Offset, p.Offset)
++	if got.Offset != want.Offset {
++		t.Errorf("%s: got offset = %d; want %d", msg, got.Offset, want.Offset)
+ 	}
+-	if p.Line != q.Line {
+-		t.Errorf("%s: expected line = %d; got %d", msg, q.Line, p.Line)
++	if got.Line != want.Line {
++		t.Errorf("%s: got line = %d; want %d", msg, got.Line, want.Line)
+ 	}
+-	if p.Column != q.Column {
+-		t.Errorf("%s: expected column = %d; got %d", msg, q.Column, p.Column)
++	if got.Column != want.Column {
++		t.Errorf("%s: got column = %d; want %d", msg, got.Column, want.Column)
+ 	}
+ }
+ 
+@@ -68,7 +68,7 @@ func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
+ 		p := f.Pos(offs)
+ 		offs2 := f.Offset(p)
+ 		if offs2 != offs {
+-			t.Errorf("%s, Offset: expected offset %d; got %d", f.Name(), offs, offs2)
++			t.Errorf("%s, Offset: got offset %d; want %d", f.Name(), offs2, offs)
+ 		}
+ 		line, col := linecol(lines, offs)
+ 		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
+@@ -93,16 +93,16 @@ func TestPositions(t *testing.T) {
+ 	for _, test := range tests {
+ 		// verify consistency of test case
+ 		if test.source != nil && len(test.source) != test.size {
+-			t.Errorf("%s: inconsistent test case: expected file size %d; got %d", test.filename, test.size, len(test.source))
++			t.Errorf("%s: inconsistent test case: got file size %d; want %d", test.filename, len(test.source), test.size)
+ 		}
+ 
+ 		// add file and verify name and size
+ 		f := fset.AddFile(test.filename, fset.Base()+delta, test.size)
+ 		if f.Name() != test.filename {
+-			t.Errorf("expected filename %q; got %q", test.filename, f.Name())
++			t.Errorf("got filename %q; want %q", f.Name(), test.filename)
+ 		}
+ 		if f.Size() != test.size {
+-			t.Errorf("%s: expected file size %d; got %d", f.Name(), test.size, f.Size())
++			t.Errorf("%s: got file size %d; want %d", f.Name(), f.Size(), test.size)
+ 		}
+ 		if fset.File(f.Pos(0)) != f {
+ 			t.Errorf("%s: f.Pos(0) was not found in f", f.Name())
+@@ -112,12 +112,12 @@ func TestPositions(t *testing.T) {
+ 		for i, offset := range test.lines {
+ 			f.AddLine(offset)
+ 			if f.LineCount() != i+1 {
+-				t.Errorf("%s, AddLine: expected line count %d; got %d", f.Name(), i+1, f.LineCount())
++				t.Errorf("%s, AddLine: got line count %d; want %d", f.Name(), f.LineCount(), i+1)
+ 			}
+ 			// adding the same offset again should be ignored
+ 			f.AddLine(offset)
+ 			if f.LineCount() != i+1 {
+-				t.Errorf("%s, AddLine: expected unchanged line count %d; got %d", f.Name(), i+1, f.LineCount())
++				t.Errorf("%s, AddLine: got unchanged line count %d; want %d", f.Name(), f.LineCount(), i+1)
+ 			}
+ 			verifyPositions(t, fset, f, test.lines[0:i+1])
+ 		}
+@@ -127,7 +127,7 @@ func TestPositions(t *testing.T) {
+ 			t.Errorf("%s: SetLines failed", f.Name())
+ 		}
+ 		if f.LineCount() != len(test.lines) {
+-			t.Errorf("%s, SetLines: expected line count %d; got %d", f.Name(), len(test.lines), f.LineCount())
++			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
+ 		}
+ 		verifyPositions(t, fset, f, test.lines)
+ 
+@@ -139,7 +139,7 @@ func TestPositions(t *testing.T) {
+ 		}
+ 		f.SetLinesForContent(src)
+ 		if f.LineCount() != len(test.lines) {
+-			t.Errorf("%s, SetLinesForContent: expected line count %d; got %d", f.Name(), len(test.lines), f.LineCount())
++			t.Errorf("%s, SetLinesForContent: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
+ 		}
+ 		verifyPositions(t, fset, f, test.lines)
+ 	}
+@@ -177,13 +177,13 @@ func TestFiles(t *testing.T) {
+ 		j := 0
+ 		fset.Iterate(func(f *File) bool {
+ 			if f.Name() != tests[j].filename {
+-				t.Errorf("expected filename = %s; got %s", tests[j].filename, f.Name())
++				t.Errorf("got filename = %s; want %s", f.Name(), tests[j].filename)
+ 			}
+ 			j++
+ 			return true
+ 		})
+ 		if j != i+1 {
+-			t.Errorf("expected %d files; got %d", i+1, j)
++			t.Errorf("got %d files; want %d", j, i+1)
+ 		}
+ 	}
+ }
+@@ -195,7 +195,7 @@ func TestFileSetPastEnd(t *testing.T) {
+ 		fset.AddFile(test.filename, fset.Base(), test.size)
+ 	}
+ 	if f := fset.File(Pos(fset.Base())); f != nil {
+-		t.Errorf("expected nil, got %v", f)
++		t.Errorf("got %v, want nil", f)
+ 	}
+ }
+ 
+@@ -209,7 +209,7 @@ func TestFileSetCacheUnlikely(t *testing.T) {
+ 	for file, pos := range offsets {
+ 		f := fset.File(Pos(pos))
+ 		if f.Name() != file {
+-			t.Errorf("expecting %q at position %d, got %q", file, pos, f.Name())
++			t.Errorf("got %q at position %d, want %q", f.Name(), pos, file)
+ 		}
+ 	}
+ }
+@@ -236,3 +236,62 @@ func TestFileSetRace(t *testing.T) {
+ 	}
+ 	stop.Wait()
+ }
++
++func TestPositionFor(t *testing.T) {
++	src := []byte(`
++foo
++b
++ar
++//line :100
++foobar
++//line bar:3
++done
++`)
++
++	const filename = "foo"
++	fset := NewFileSet()
++	f := fset.AddFile(filename, fset.Base(), len(src))
++	f.SetLinesForContent(src)
++
++	// verify position info
++	for i, offs := range f.lines {
++		got1 := f.PositionFor(f.Pos(offs), false)
++		got2 := f.PositionFor(f.Pos(offs), true)
++		got3 := f.Position(f.Pos(offs))
++		want := Position{filename, offs, i + 1, 1}
++		checkPos(t, "1. PositionFor unadjusted", got1, want)
++		checkPos(t, "1. PositionFor adjusted", got2, want)
++		checkPos(t, "1. Position", got3, want)
++	}
++
++	// manually add //line info on lines l1, l2
++	const l1, l2 = 5, 7
++	f.AddLineInfo(f.lines[l1-1], "", 100)
++	f.AddLineInfo(f.lines[l2-1], "bar", 3)
++
++	// unadjusted position info must remain unchanged
++	for i, offs := range f.lines {
++		got1 := f.PositionFor(f.Pos(offs), false)
++		want := Position{filename, offs, i + 1, 1}
++		checkPos(t, "2. PositionFor unadjusted", got1, want)
++	}
++
++	// adjusted position info should have changed
++	for i, offs := range f.lines {
++		got2 := f.PositionFor(f.Pos(offs), true)
++		got3 := f.Position(f.Pos(offs))
++		want := Position{filename, offs, i + 1, 1}
++		// manually compute wanted filename and line
++		line := want.Line
++		if i+1 >= l1 {
++			want.Filename = ""
++			want.Line = line - l1 + 100
++		}
++		if i+1 >= l2 {
++			want.Filename = "bar"
++			want.Line = line - l2 + 3
++		}
++		checkPos(t, "3. PositionFor adjusted", got2, want)
++		checkPos(t, "3. Position", got3, want)
++	}
++}

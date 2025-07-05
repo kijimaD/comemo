@@ -17,9 +17,133 @@ Date:   Thu Jan 26 14:37:14 2012 -0800
     R=golang-dev, rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/5580044
-
+---
  src/pkg/net/http/client.go           |  4 ++++
  src/pkg/net/http/client_test.go      | 12 ++++++++++++
  src/pkg/net/http/readrequest_test.go |  7 +++++++
  src/pkg/net/http/request.go          | 10 ++++++++--
  4 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 1d70672695..c9f0240175 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -116,6 +116,10 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 		return nil, errors.New("http: nil Request.URL")
+ 	}
+ 
++	if req.RequestURI != "" {
++		return nil, errors.New("http: Request.RequestURI can't be set in client requests.")
++	}
++
+ 	// Most the callers of send (Get, Post, et al) don't need
+ 	// Headers, leaving it uninitialized.  We guarantee to the
+ 	// Transport that this has been initialized, though.
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index c74611011a..aa0bf4be67 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -428,3 +428,15 @@ func TestClientInsecureTransport(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestClientErrorWithRequestURI(t *testing.T) {
++	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
++	req.RequestURI = "/this/field/is/illegal/and/should/error/"
++	_, err := DefaultClient.Do(req)
++	if err == nil {
++		t.Fatalf("expected an error")
++	}
++	if !strings.Contains(err.Error(), "RequestURI") {
++		t.Errorf("wanted error mentioning RequestURI; got error: %v", err)
++	}
++}
+diff --git a/src/pkg/net/http/readrequest_test.go b/src/pkg/net/http/readrequest_test.go
+index df2f5aba99..2e03c658aa 100644
+--- a/src/pkg/net/http/readrequest_test.go
++++ b/src/pkg/net/http/readrequest_test.go
+@@ -64,6 +64,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 7,
+ 			Host:          "www.techcrunch.com",
++			RequestURI:    "http://www.techcrunch.com/",
+ 		},
+ 
+ 		"abcdef\n",
+@@ -89,6 +90,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "foo.com",
++			RequestURI:    "/",
+ 		},
+ 
+ 		noBody,
+@@ -114,6 +116,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "test",
++			RequestURI:    "//user@host/is/actually/a/path/",
+ 		},
+ 
+ 		noBody,
+@@ -163,6 +166,7 @@ var reqTests = []reqTest{
+ 			Header:           Header{},
+ 			ContentLength:    -1,
+ 			Host:             "foo.com",
++			RequestURI:       "/",
+ 		},
+ 
+ 		"foobar",
+@@ -188,6 +192,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "www.google.com:443",
++			RequestURI:    "www.google.com:443",
+ 		},
+ 
+ 		noBody,
+@@ -211,6 +216,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "127.0.0.1:6060",
++			RequestURI:    "127.0.0.1:6060",
+ 		},
+ 
+ 		noBody,
+@@ -234,6 +240,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "",
++			RequestURI:    "/_goRPC_",
+ 		},
+ 
+ 		noBody,
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 59fe0bf9ed..5f8c00086b 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -153,6 +153,12 @@ type Request struct {
+ 	// This field is ignored by the HTTP client.
+ 	RemoteAddr string
+ 
++	// RequestURI is the unmodified Request-URI of the
++	// Request-Line (RFC 2616, Section 5.1) as sent by the client
++	// to a server. Usually the URL field should be used instead.
++	// It is an error to set this field in an HTTP client request.
++	RequestURI string
++
+ 	// TLS allows HTTP servers and other software to record
+ 	// information about the TLS connection on which the request
+ 	// was received. This field is not filled in by ReadRequest.
+@@ -459,8 +465,8 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
+ 		return nil, &badStringError{"malformed HTTP request", s}
+ 	}
+-	var rawurl string
+-	req.Method, rawurl, req.Proto = f[0], f[1], f[2]
++	req.Method, req.RequestURI, req.Proto = f[0], f[1], f[2]
++	rawurl := req.RequestURI
+ 	var ok bool
+ 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
+ 		return nil, &badStringError{"malformed HTTP version", req.Proto}

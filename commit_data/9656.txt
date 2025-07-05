@@ -7,7 +7,7 @@ Date:   Mon Sep 12 12:20:48 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4983058
-
+---
  src/cmd/godoc/codewalk.go                     | 2 +-
  src/cmd/godoc/format.go                       | 2 +-
  src/cmd/godoc/godoc.go                        | 2 +-
@@ -16,3 +16,95 @@ Date:   Mon Sep 12 12:20:48 2011 -0700
  src/pkg/index/suffixarray/suffixarray.go      | 2 +-
  src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 602aa43a80..214fc5644e 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -18,7 +18,7 @@ import (
+ 	"io"
+ 	"log"
+ 	"os"
+-	"regexp"
++	"exp/regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 78dde4166f..91b7460349 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -15,7 +15,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"io"
+-	"regexp"
++	"exp/regexp"
+ 	"strconv"
+ 	"template"
+ )
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c98dca4199..b000d5420c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -19,7 +19,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"regexp"
++	"exp/regexp"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 83e090ffe5..fa2dbf1261 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -48,7 +48,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"regexp"
++	"exp/regexp"
+ 	"sort"
+ 	"strings"
+ )
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 74d3111ffd..8585895f5e 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -40,7 +40,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"regexp"
++	"exp/regexp"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index 82e98d2ef5..c78de854de 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -18,7 +18,7 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
+-	"regexp"
++	"exp/regexp"
+ 	"sort"
+ )
+ 
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index 0237485005..d292356db1 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -6,7 +6,7 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
+-	"regexp"
++	"exp/regexp"
+ 	"sort"
+ 	"strings"
+ 	"testing"

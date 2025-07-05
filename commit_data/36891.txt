@@ -10,7 +10,58 @@ Date:   Thu Apr 19 10:54:12 2018 -0400
     Change-Id: I8ccdfb5d8691960f244941036d33fb5a5a3f0c9a
     Reviewed-on: https://go-review.googlesource.com/117015
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 7 +++----
  src/cmd/go/internal/list/list.go | 7 +++----
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e1cdbe3fa3..3494601e69 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -579,7 +579,7 @@
+ //
+ // Usage:
+ //
+-// 	go list [-cgo] [-deps] [-e] [-f format] [-json] [-list] [-test] [build flags] [packages]
++// 	go list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-list] [-test] [build flags] [packages]
+ //
+ // List lists the packages named by the import paths, one per line.
+ //
+@@ -706,9 +706,8 @@
+ // a non-nil Error field; other information may or may not be missing
+ // (zeroed).
+ //
+-// The -export flag causes list to set the package's Export field to
+-// the name of a file containing up-to-date export information for
+-// the given package.
++// The -export flag causes list to set the Export field to the name of a
++// file containing up-to-date export information for the given package.
+ //
+ // The -test flag causes list to report not only the named packages
+ // but also their test binaries (for packages with tests), to convey to
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 06a7cf126d..7261d24839 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ var CmdList = &base.Command{
+-	UsageLine: "list [-cgo] [-deps] [-e] [-f format] [-json] [-list] [-test] [build flags] [packages]",
++	UsageLine: "list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-list] [-test] [build flags] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+@@ -151,9 +151,8 @@ printing. Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+-The -export flag causes list to set the package's Export field to
+-the name of a file containing up-to-date export information for
+-the given package.
++The -export flag causes list to set the Export field to the name of a
++file containing up-to-date export information for the given package.
+ 
+ The -test flag causes list to report not only the named packages
+ but also their test binaries (for packages with tests), to convey to

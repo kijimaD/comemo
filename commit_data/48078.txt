@@ -12,7 +12,60 @@ Date:   Mon Apr 26 12:50:44 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go | 26 ++++++++++++++------------
  src/cmd/compile/internal/types2/stmt.go |  4 ++++
  2 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 76c6e7a3b3..8dbe6ea537 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1132,18 +1132,20 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.FuncLit:
+ 		if sig, ok := check.typ(e.Type).(*Signature); ok {
+-			// Anonymous functions are considered part of the
+-			// init expression/func declaration which contains
+-			// them: use existing package-level declaration info.
+-			decl := check.decl // capture for use in closure below
+-			iota := check.iota // capture for use in closure below (#22345)
+-			// Don't type-check right away because the function may
+-			// be part of a type definition to which the function
+-			// body refers. Instead, type-check as soon as possible,
+-			// but before the enclosing scope contents changes (#22992).
+-			check.later(func() {
+-				check.funcBody(decl, "<function literal>", sig, e.Body, iota)
+-			})
++			if !check.conf.IgnoreFuncBodies && e.Body != nil {
++				// Anonymous functions are considered part of the
++				// init expression/func declaration which contains
++				// them: use existing package-level declaration info.
++				decl := check.decl // capture for use in closure below
++				iota := check.iota // capture for use in closure below (#22345)
++				// Don't type-check right away because the function may
++				// be part of a type definition to which the function
++				// body refers. Instead, type-check as soon as possible,
++				// but before the enclosing scope contents changes (#22992).
++				check.later(func() {
++					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
++				})
++			}
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 9e3a45b6a8..c3e646c80c 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -13,6 +13,10 @@ import (
+ )
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *syntax.BlockStmt, iota constant.Value) {
++	if check.conf.IgnoreFuncBodies {
++		panic("internal error: function body not ignored")
++	}
++
+ 	if check.conf.Trace {
+ 		check.trace(body.Pos(), "--- %s: %s", name, sig)
+ 		defer func() {

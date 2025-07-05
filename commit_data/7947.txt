@@ -9,7 +9,72 @@ Date:   Thu Mar 31 14:56:01 2011 -0700
     R=rsc, bradfitzgo, r2, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4280086
-
+---
  src/pkg/fmt/fmt_test.go | 10 ++++++++++
  src/pkg/fmt/format.go   | 22 +++++++++++++++++-----
  2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 4d308ac342..3766c838a9 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -139,7 +139,17 @@ var fmttests = []struct {
+ 	{"%5s", "abc", "  abc"},
+ 	{"%2s", "\u263a", " \u263a"},
+ 	{"%-5s", "abc", "abc  "},
++	{"%-8q", "abc", `"abc"   `},
+ 	{"%05s", "abc", "00abc"},
++	{"%08q", "abc", `000"abc"`},
++	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
++	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
++	{"%.5s", "日本語日本語", "日本語日本"},
++	{"%.5s", []byte("日本語日本語"), "日本語日本"},
++	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
++	{"%.3q", "日本語日本語", `"\u65e5\u672c\u8a9e"`},
++	{"%.3q", []byte("日本語日本語"), `"\u65e5\u672c\u8a9e"`},
++	{"%10.1q", "日本語日本語", `  "\u65e5"`},
+ 
+ 	// integers
+ 	{"%d", 12345, "12345"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index caaa7ac1a8..f9d2b4fcaf 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -235,13 +235,24 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	f.pad(buf[i:])
+ }
+ 
+-// fmt_s formats a string.
+-func (f *fmt) fmt_s(s string) {
+-	if f.precPresent {
+-		if f.prec < len(s) {
+-			s = s[0:f.prec]
++// truncate truncates the string to the specified precision, if present.
++func (f *fmt) truncate(s string) string {
++	if f.precPresent && f.prec < utf8.RuneCountInString(s) {
++		n := f.prec
++		for i := range s {
++			if n == 0 {
++				s = s[:i]
++				break
++			}
++			n--
+ 		}
+ 	}
++	return s
++}
++
++// fmt_s formats a string.
++func (f *fmt) fmt_s(s string) {
++	s = f.truncate(s)
+ 	f.padString(s)
+ }
+ 
+@@ -275,6 +286,7 @@ func (f *fmt) fmt_sX(s string) {
+ 
+ // fmt_q formats a string as a double-quoted, escaped Go string constant.
+ func (f *fmt) fmt_q(s string) {
++	s = f.truncate(s)
+ 	var quoted string
+ 	if f.sharp && strconv.CanBackquote(s) {
+ 		quoted = "`" + s + "`"

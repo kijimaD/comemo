@@ -7,6 +7,20 @@ Date:   Wed Feb 11 22:39:21 2015 -0500
     Change-Id: I2db4db852492eaddaf09dd7bae2fbd49f916e78a
     Reviewed-on: https://go-review.googlesource.com/4648
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/buildgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildgc.go b/src/cmd/dist/buildgc.go
+index bc1898e04e..b59aa5b5a4 100644
+--- a/src/cmd/dist/buildgc.go
++++ b/src/cmd/dist/buildgc.go
+@@ -87,7 +87,7 @@ func mkanames(dir, file string) {
+ 				line = line[:i]
+ 			}
+ 			line = line[2:]
+-			fmt.Fprintf(&out, "\t\"%s\",\n", line)
++			fmt.Fprintf(&out, "\t\"%s\",\n", strings.TrimSpace(line))
+ 		}
+ 	}
+ 	fmt.Fprintf(&out, "};\n")

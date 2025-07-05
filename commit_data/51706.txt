@@ -21,7 +21,7 @@ Date:   Sun Mar 6 23:47:27 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go        | 89 ++++++++++++++++++++-----
  src/cmd/compile/internal/noder/writer.go        | 45 +++++++++++--
  src/cmd/compile/internal/reflectdata/reflect.go |  9 +--
@@ -30,3 +30,405 @@ Date:   Sun Mar 6 23:47:27 2022 -0800
  src/internal/pkgbits/syncmarker_string.go       | 61 ++++++++---------
  test/run.go                                     |  5 --
  7 files changed, 155 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 3207e3f85b..5191dbe177 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1407,25 +1407,22 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 	init := r.stmt()
+ 
+ 	var tag ir.Node
++	var ident *ir.Ident
++	var iface *types.Type
+ 	if r.Bool() {
+ 		pos := r.pos()
+-		var ident *ir.Ident
+ 		if r.Bool() {
+ 			pos := r.pos()
+ 			sym := typecheck.Lookup(r.String())
+ 			ident = ir.NewIdent(pos, sym)
+ 		}
+ 		x := r.expr()
++		iface = x.Type()
+ 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
+ 	} else {
+ 		tag = r.expr()
+ 	}
+ 
+-	tswitch, ok := tag.(*ir.TypeSwitchGuard)
+-	if ok && tswitch.Tag == nil {
+-		tswitch = nil
+-	}
+-
+ 	clauses := make([]*ir.CaseClause, r.Len())
+ 	for i := range clauses {
+ 		if i > 0 {
+@@ -1434,18 +1431,30 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 		r.openScope()
+ 
+ 		pos := r.pos()
+-		cases := r.exprList()
++		var cases []ir.Node
++		if iface != nil {
++			cases = make([]ir.Node, r.Len())
++			if len(cases) == 0 {
++				cases = nil // TODO(mdempsky): Unclear if this matters.
++			}
++			for i := range cases {
++				cases[i] = r.exprType(iface, true)
++			}
++		} else {
++			cases = r.exprList()
++		}
+ 
+ 		clause := ir.NewCaseStmt(pos, cases, nil)
+-		if tswitch != nil {
++
++		if ident != nil {
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 
+-			name := ir.NewNameAt(pos, tswitch.Tag.Sym())
++			name := ir.NewNameAt(pos, ident.Sym())
+ 			setType(name, typ)
+ 			r.addLocal(name, ir.PAUTO)
+ 			clause.Var = name
+-			name.Defn = tswitch
++			name.Defn = tag
+ 		}
+ 
+ 		clause.Body = r.stmts()
+@@ -1529,10 +1538,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		return typecheck.Callee(r.obj())
+ 
+ 	case exprType:
+-		// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+-		n := ir.TypeNode(r.typ())
+-		n.SetTypecheck(1)
+-		return n
++		return r.exprType(nil, false)
+ 
+ 	case exprConst:
+ 		pos := r.pos()
+@@ -1552,6 +1558,15 @@ func (r *reader) expr() (res ir.Node) {
+ 		x := r.expr()
+ 		pos := r.pos()
+ 		_, sym := r.selector()
++
++		// Method expression with derived receiver type.
++		if x.Op() == ir.ODYNAMICTYPE {
++			// TODO(mdempsky): Handle with runtime dictionary lookup.
++			n := ir.TypeNode(x.Type())
++			n.SetTypecheck(1)
++			x = n
++		}
++
+ 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+ 		if n.Op() == ir.OMETHVALUE {
+ 			wrapper := methodValueWrapper{
+@@ -1588,8 +1603,12 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprAssert:
+ 		x := r.expr()
+ 		pos := r.pos()
+-		typ := r.expr().(ir.Ntype)
+-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ))
++		typ := r.exprType(x.Type(), false)
++
++		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
++			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
++		}
++		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
+ 
+ 	case exprUnaryOp:
+ 		op := r.op()
+@@ -1734,6 +1753,44 @@ func (r *reader) exprs() []ir.Node {
+ 	return nodes
+ }
+ 
++func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
++	if iface != nil {
++		base.Assertf(iface.IsInterface(), "%L must be an interface type", iface)
++	}
++
++	r.Sync(pkgbits.SyncExprType)
++
++	if nilOK && r.Bool() {
++		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
++	}
++
++	pos := r.pos()
++	info := r.typInfo()
++	typ := r.p.typIdx(info, r.dict, true)
++
++	if info.derived {
++		// TODO(mdempsky): Handle with runtime dictionary lookup.
++
++		var lsym *obj.LSym
++
++		// For assertions from non-empty interfaces to non-interfaces,
++		// we need the ITab instead.
++		if iface != nil && !iface.IsEmptyInterface() && !typ.IsInterface() {
++			lsym = reflectdata.ITabLsym(typ, iface)
++		} else {
++			lsym = reflectdata.TypeLinksym(typ)
++		}
++
++		ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
++		return typed(typ, ir.NewDynamicType(pos, ptr))
++	}
++
++	// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
++	n := ir.TypeNode(typ)
++	n.SetTypecheck(1)
++	return n
++}
++
+ func (r *reader) op() ir.Op {
+ 	r.Sync(pkgbits.SyncOp)
+ 	return ir.Op(r.Len())
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 59bce0730d..821fae59e0 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1073,7 +1073,12 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 	w.pos(stmt)
+ 	w.stmt(stmt.Init)
+ 
++	var iface types2.Type
+ 	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
++		tv, ok := w.p.info.Types[guard.X]
++		assert(ok && tv.IsValue())
++		iface = tv.Type
++
+ 		w.pos(guard)
+ 		if tag := guard.Lhs; w.Bool(tag != nil) {
+ 			w.pos(tag)
+@@ -1092,7 +1097,16 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 		w.openScope(clause.Pos())
+ 
+ 		w.pos(clause)
+-		w.exprList(clause.Cases)
++
++		if iface != nil {
++			cases := unpackListExpr(clause.Cases)
++			w.Len(len(cases))
++			for _, cas := range cases {
++				w.exprType(iface, cas, true)
++			}
++		} else {
++			w.exprList(clause.Cases)
++		}
+ 
+ 		if obj, ok := w.p.info.Implicits[clause]; ok {
+ 			// TODO(mdempsky): These pos details are quirkish, but also
+@@ -1152,13 +1166,13 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 		if tv.IsType() {
+ 			w.Code(exprType)
+-			w.typ(tv.Type)
++			w.exprType(nil, expr, false)
+ 			return
+ 		}
+ 
+ 		if tv.Value != nil {
+ 			w.Code(exprConst)
+-			w.pos(expr.Pos())
++			w.pos(expr)
+ 			w.typ(tv.Type)
+ 			w.Value(tv.Value)
+ 
+@@ -1232,10 +1246,13 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 	case *syntax.AssertExpr:
++		tv, ok := w.p.info.Types[expr.X]
++		assert(ok && tv.IsValue())
++
+ 		w.Code(exprAssert)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+-		w.expr(expr.Type)
++		w.exprType(tv.Type, expr.Type, false)
+ 
+ 	case *syntax.Operation:
+ 		if expr.Y == nil {
+@@ -1370,6 +1387,26 @@ func (w *writer) exprs(exprs []syntax.Expr) {
+ 	}
+ }
+ 
++func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
++	if iface != nil {
++		_, ok := iface.Underlying().(*types2.Interface)
++		base.Assertf(ok, "%v must be an interface type", iface)
++	}
++
++	tv, ok := w.p.info.Types[typ]
++	assert(ok)
++
++	w.Sync(pkgbits.SyncExprType)
++
++	if nilOK && w.Bool(tv.IsNil()) {
++		return
++	}
++
++	assert(tv.IsType())
++	w.pos(typ)
++	w.typ(tv.Type)
++}
++
+ func (w *writer) op(op ir.Op) {
+ 	// TODO(mdempsky): Remove in favor of explicit codes? Would make
+ 	// export data more stable against internal refactorings, but low
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index ec217be4c3..896bbf660e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1819,16 +1819,17 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 
+ 	newnam := ir.MethodSym(rcvr, method.Sym)
+ 	lsym := newnam.Linksym()
+-	if newnam.Siggen() {
+-		return lsym
+-	}
+-	newnam.SetSiggen(true)
+ 
+ 	// Unified IR creates its own wrappers.
+ 	if base.Debug.Unified != 0 {
+ 		return lsym
+ 	}
+ 
++	if newnam.Siggen() {
++		return lsym
++	}
++	newnam.SetSiggen(true)
++
+ 	methodrcvr := method.Type.Recv().Type
+ 	// For generic methods, we need to generate the wrapper even if the receiver
+ 	// types are identical, because we want to add the dictionary.
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 9a02c1752c..f266007507 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -615,6 +615,9 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				}
+ 				continue
+ 			}
++			if n1.Op() == ir.ODYNAMICTYPE {
++				continue
++			}
+ 			if n1.Op() != ir.OTYPE {
+ 				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
+ 				continue
+@@ -640,7 +643,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			// Assign the clause variable's type.
+ 			vt := t
+ 			if len(ls) == 1 {
+-				if ls[0].Op() == ir.OTYPE {
++				if ls[0].Op() == ir.OTYPE || ls[0].Op() == ir.ODYNAMICTYPE {
+ 					vt = ls[0].Type()
+ 				} else if !ir.IsNil(ls[0]) {
+ 					// Invalid single-type case;
+diff --git a/src/internal/pkgbits/sync.go b/src/internal/pkgbits/sync.go
+index b2c9139ce6..6eae306b22 100644
+--- a/src/internal/pkgbits/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -92,6 +92,7 @@ const (
+ 	SyncExprList
+ 	SyncExprs
+ 	SyncExpr
++	SyncExprType
+ 	SyncOp
+ 	SyncFuncLit
+ 	SyncCompLit
+diff --git a/src/internal/pkgbits/syncmarker_string.go b/src/internal/pkgbits/syncmarker_string.go
+index 91154a001d..39db9eddad 100644
+--- a/src/internal/pkgbits/syncmarker_string.go
++++ b/src/internal/pkgbits/syncmarker_string.go
+@@ -44,39 +44,40 @@ func _() {
+ 	_ = x[SyncExprList-34]
+ 	_ = x[SyncExprs-35]
+ 	_ = x[SyncExpr-36]
+-	_ = x[SyncOp-37]
+-	_ = x[SyncFuncLit-38]
+-	_ = x[SyncCompLit-39]
+-	_ = x[SyncDecl-40]
+-	_ = x[SyncFuncBody-41]
+-	_ = x[SyncOpenScope-42]
+-	_ = x[SyncCloseScope-43]
+-	_ = x[SyncCloseAnotherScope-44]
+-	_ = x[SyncDeclNames-45]
+-	_ = x[SyncDeclName-46]
+-	_ = x[SyncStmts-47]
+-	_ = x[SyncBlockStmt-48]
+-	_ = x[SyncIfStmt-49]
+-	_ = x[SyncForStmt-50]
+-	_ = x[SyncSwitchStmt-51]
+-	_ = x[SyncRangeStmt-52]
+-	_ = x[SyncCaseClause-53]
+-	_ = x[SyncCommClause-54]
+-	_ = x[SyncSelectStmt-55]
+-	_ = x[SyncDecls-56]
+-	_ = x[SyncLabeledStmt-57]
+-	_ = x[SyncUseObjLocal-58]
+-	_ = x[SyncAddLocal-59]
+-	_ = x[SyncLinkname-60]
+-	_ = x[SyncStmt1-61]
+-	_ = x[SyncStmtsEnd-62]
+-	_ = x[SyncLabel-63]
+-	_ = x[SyncOptLabel-64]
++	_ = x[SyncExprType-37]
++	_ = x[SyncOp-38]
++	_ = x[SyncFuncLit-39]
++	_ = x[SyncCompLit-40]
++	_ = x[SyncDecl-41]
++	_ = x[SyncFuncBody-42]
++	_ = x[SyncOpenScope-43]
++	_ = x[SyncCloseScope-44]
++	_ = x[SyncCloseAnotherScope-45]
++	_ = x[SyncDeclNames-46]
++	_ = x[SyncDeclName-47]
++	_ = x[SyncStmts-48]
++	_ = x[SyncBlockStmt-49]
++	_ = x[SyncIfStmt-50]
++	_ = x[SyncForStmt-51]
++	_ = x[SyncSwitchStmt-52]
++	_ = x[SyncRangeStmt-53]
++	_ = x[SyncCaseClause-54]
++	_ = x[SyncCommClause-55]
++	_ = x[SyncSelectStmt-56]
++	_ = x[SyncDecls-57]
++	_ = x[SyncLabeledStmt-58]
++	_ = x[SyncUseObjLocal-59]
++	_ = x[SyncAddLocal-60]
++	_ = x[SyncLinkname-61]
++	_ = x[SyncStmt1-62]
++	_ = x[SyncStmtsEnd-63]
++	_ = x[SyncLabel-64]
++	_ = x[SyncOptLabel-65]
+ }
+ 
+-const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
++const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprAssertTypeOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
+ 
+-var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 220, 227, 234, 238, 246, 255, 265, 282, 291, 299, 304, 313, 319, 326, 336, 345, 355, 365, 375, 380, 391, 402, 410, 418, 423, 431, 436, 444}
++var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 228, 230, 237, 244, 248, 256, 265, 275, 292, 301, 309, 314, 323, 329, 336, 346, 355, 365, 375, 385, 390, 401, 412, 420, 428, 433, 441, 446, 454}
+ 
+ func (i SyncMarker) String() string {
+ 	i -= 1
+diff --git a/test/run.go b/test/run.go
+index e22efe49e5..6339095d95 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2038,11 +2038,6 @@ var unifiedFailures = setOf(
+ 	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
+-	"typeparam/issue50002.go",  // pure stenciling leads to a static type assertion error
+-	"typeparam/typeswitch1.go", // duplicate case failure due to stenciling
+-	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
+-	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
+-	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
+ )
+ 
+ func setOf(keys ...string) map[string]bool {

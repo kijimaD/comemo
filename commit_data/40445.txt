@@ -24,7 +24,77 @@ Date:   Mon May 13 11:22:32 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/query.go      | 24 +++++++++++++++---------
  src/cmd/go/internal/modload/query_test.go |  5 ++++-
  2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index cd0d9b17c5..f0f67c193c 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -31,7 +31,7 @@ import (
+ //	- <v1.2.3, <=v1.2.3, >v1.2.3, >=v1.2.3,
+ //	   denoting the version closest to the target and satisfying the given operator,
+ //	   with non-prereleases preferred over prereleases.
+-//	- a repository commit identifier, denoting that commit.
++//	- a repository commit identifier or tag, denoting that commit.
+ //
+ // If the allowed function is non-nil, Query excludes any versions for which allowed returns false.
+ //
+@@ -106,18 +106,24 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		}
+ 		prefix = query + "."
+ 
+-	case semver.IsValid(query):
+-		vers := module.CanonicalVersion(query)
+-		if !allowed(module.Version{Path: path, Version: vers}) {
+-			return nil, fmt.Errorf("%s@%s excluded", path, vers)
+-		}
+-		return modfetch.Stat(path, vers)
+-
+ 	default:
+ 		// Direct lookup of semantic version or commit identifier.
++		//
++		// If the identifier is not a canonical semver tag — including if it's a
++		// semver tag with a +metadata suffix — then modfetch.Stat will populate
++		// info.Version with a suitable pseudo-version.
+ 		info, err := modfetch.Stat(path, query)
+ 		if err != nil {
+-			return nil, err
++			queryErr := err
++			// The full query doesn't correspond to a tag. If it is a semantic version
++			// with a +metadata suffix, see if there is a tag without that suffix:
++			// semantic versioning defines them to be equivalent.
++			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
++				info, err = modfetch.Stat(path, vers)
++			}
++			if err != nil {
++				return nil, queryErr
++			}
+ 		}
+ 		if !allowed(module.Version{Path: path, Version: info.Version}) {
+ 			return nil, fmt.Errorf("%s@%s excluded", path, info.Version)
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 17e23ad12a..d2b9baa4d5 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -62,7 +62,7 @@ var queryTests = []struct {
+ 		git add go.mod
+ 		git commit -m v1 go.mod
+ 		git tag start
+-		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1; do
++		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1 v1.9.10-pre2+metadata; do
+ 			echo before $i >status
+ 			git add status
+ 			git commit -m "before $i" status
+@@ -104,6 +104,9 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "v0.1", vers: "v0.1.2"},
+ 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
+ 	{path: queryRepo, query: "v0.0", vers: "v0.0.3"},
++	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
++	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
++	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
+ 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "latest", allow: "NOMATCH", err: `no matching versions for query "latest"`},
+ 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},

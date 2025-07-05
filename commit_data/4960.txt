@@ -7,7 +7,50 @@ Date:   Fri Feb 26 13:15:29 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/223069
-
+---
  src/cmd/8g/cgen.c        |  9 ++++++++-
  test/fixedbugs/bug259.go | 16 ++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 5712fc28e1..f932f99185 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -215,7 +215,14 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 		mgen(nl, &n1, res);
+-		gmove(&n1, res);
++		if(n->type->width > widthptr)
++			tempname(&n2, n->type);
++		else
++			regalloc(&n2, n->type, res);
++		gmove(&n1, &n2);
++		gmove(&n2, res);
++		if(n2.op == OREGISTER)
++			regfree(&n2);
+ 		mfree(&n1);
+ 		break;
+ 
+diff --git a/test/fixedbugs/bug259.go b/test/fixedbugs/bug259.go
+new file mode 100644
+index 0000000000..d148fb3a0c
+--- /dev/null
++++ b/test/fixedbugs/bug259.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++var x = uint32(0x01020304)
++var y = [...]uint32{1,2,3,4,5}
++
++func main() {
++	fmt.Sprint(y[byte(x)])
++}

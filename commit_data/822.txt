@@ -7,7 +7,65 @@ Date:   Tue Oct 7 13:00:10 2008 -0700
     R=ken
     OCL=16651
     CL=16653
-
+---
  src/cmd/gc/dcl.c | 20 +++-----------------
  src/cmd/gc/go.y  |  8 --------
  2 files changed, 3 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7776816a40..5ba7408444 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -872,21 +872,6 @@ oldtype(Sym *s)
+ 	return t;
+ }
+ 
+-Type*
+-forwdcl(Sym *s)
+-{
+-	Type *t;
+-
+-	// this type has no meaning and
+-	// will cause an error if referenced.
+-	// it will be patched when/if the
+-	// type is ever assigned.
+-
+-	t = typ(TFORW);
+-	t = ptrto(t);
+-	return t;
+-}
+-
+ /*
+  * n is a node with a name (or a reversed list of them).
+  * make it an anonymous declaration of that name's type.
+@@ -1120,8 +1105,9 @@ checkwidth(Type *t)
+ void
+ defercheckwidth(void)
+ {
+-	if(defercalc)
+-		fatal("defercheckwidth");
++	// we get out of sync on syntax errors, so don't be pedantic.
++	// if(defercalc)
++	//	fatal("defercheckwidth");
+ 	defercalc = 1;
+ }
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d0177cb9ed..cdf84e8e26 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1078,14 +1078,6 @@ Bothertype:
+ 	{
+ 		$$ = oldtype($1);
+ 	}
+-|	'*' lname	/* TODO(rsc): yank */
+-	{
+-		Type *t;
+-
+-		t = dodcltype(newtype($2));
+-		updatetype(t, typ(TFORWSTRUCT));
+-		$$ = ptrto(t);
+-	}
+ |	'[' oexpr ']' Btype
+ 	{
+ 		$$ = aindex($2, $4);

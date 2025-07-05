@@ -26,7 +26,7 @@ Date:   Sun Sep 8 18:50:24 2019 -0400
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s    |  1 +
  src/cmd/compile/internal/gc/ssa.go           |  4 ++--
  src/cmd/compile/internal/s390x/ssa.go        | 13 +++++++++++++
@@ -39,3 +39,224 @@ Date:   Sun Sep 8 18:50:24 2019 -0400
  src/cmd/internal/obj/s390x/asmz.go           |  4 ++++
  test/codegen/mathbits.go                     |  2 ++
  11 files changed, 69 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 9952c5207f..62563d885e 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -109,6 +109,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	MULHD	R7, R2, R1            // b90400b2b98600a7ebb7003f000ab98000b2b90900abebb2003f000ab98000b7b9e9b01a
+ 	MULHDU	R3, R4                // b90400b4b98600a3b904004a
+ 	MULHDU	R5, R6, R7            // b90400b6b98600a5b904007a
++	MLGR	R1, R2                // b9860021
+ 	DIVD	R1, R2                // b90400b2b90d00a1b904002b
+ 	DIVD	R1, R2, R3            // b90400b2b90d00a1b904003b
+ 	DIVW	R4, R5                // b90400b5b91d00a4b904005b
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5e8033ac34..97d9b0f912 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3600,8 +3600,8 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64)
+-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
++	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X)
+ 	addF("math/bits", "Add64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index fc828946b9..5acb391dcd 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -225,6 +225,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+ 		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++	case ssa.OpS390XMLGR:
++		// MLGR Rx R3 -> R2:R3
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		if r1 != s390x.REG_R3 {
++			v.Fatalf("We require the multiplcand to be stored in R3 for MLGR %s", v.LongString())
++		}
++		p := s.Prog(s390x.AMLGR)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r0
++		p.To.Reg = s390x.REG_R2
++		p.To.Type = obj.TYPE_REG
++
+ 	case ssa.OpS390XFMADD, ssa.OpS390XFMADDS,
+ 		ssa.OpS390XFMSUB, ssa.OpS390XFMSUBS:
+ 		r := v.Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 91f88a1d63..98bf875f80 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -17,6 +17,7 @@
+ (Mul(32|16|8)  x y) -> (MULLW  x y)
+ (Mul32F x y) -> (FMULS x y)
+ (Mul64F x y) -> (FMUL x y)
++(Mul64uhilo x y) -> (MLGR x y)
+ 
+ (Div32F x y) -> (FDIVS x y)
+ (Div64F x y) -> (FDIV x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index d8d7fd1ef6..b064e46377 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -568,6 +568,19 @@ func init() {
+ 			clobberFlags: true,
+ 		},
+ 
++		// unsigned multiplication (64x64 → 128)
++		//
++		// Multiply the two 64-bit input operands together and place the 128-bit result into
++		// an even-odd register pair. The second register in the target pair also contains
++		// one of the input operands. Since we don't currently have a way to specify an
++		// even-odd register pair we hardcode this register pair as R2:R3.
++		{
++			name:      "MLGR",
++			argLength: 2,
++			reg:       regInfo{inputs: []regMask{gp, r3}, outputs: []regMask{r2, r3}},
++			asm:       "MLGR",
++		},
++
+ 		// pseudo operations to sum the output of the POPCNT instruction
+ 		{name: "SumBytes2", argLength: 1, typ: "UInt8"}, // sum the rightmost 2 bytes in arg0 ignoring overflow
+ 		{name: "SumBytes4", argLength: 1, typ: "UInt8"}, // sum the rightmost 4 bytes in arg0 ignoring overflow
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 959f1defa8..ab3ffcbe19 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2071,6 +2071,7 @@ const (
+ 	OpS390XLoweredAtomicExchange64
+ 	OpS390XFLOGR
+ 	OpS390XPOPCNT
++	OpS390XMLGR
+ 	OpS390XSumBytes2
+ 	OpS390XSumBytes4
+ 	OpS390XSumBytes8
+@@ -27878,6 +27879,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MLGR",
++		argLen: 2,
++		asm:    s390x.AMLGR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 8},     // R3
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 4}, // R2
++				{1, 8}, // R3
++			},
++		},
++	},
+ 	{
+ 		name:   "SumBytes2",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 20276ed647..264bf255ce 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -335,6 +335,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpMul64_0(v)
+ 	case OpMul64F:
+ 		return rewriteValueS390X_OpMul64F_0(v)
++	case OpMul64uhilo:
++		return rewriteValueS390X_OpMul64uhilo_0(v)
+ 	case OpMul8:
+ 		return rewriteValueS390X_OpMul8_0(v)
+ 	case OpNeg16:
+@@ -4609,6 +4611,19 @@ func rewriteValueS390X_OpMul64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpMul64uhilo_0(v *Value) bool {
++	// match: (Mul64uhilo x y)
++	// cond:
++	// result: (MLGR x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		v.reset(OpS390XMLGR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueS390X_OpMul8_0(v *Value) bool {
+ 	// match: (Mul8 x y)
+ 	// cond:
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 08ead40f53..cc0bfab26b 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -240,6 +240,7 @@ const (
+ 	AMULLD
+ 	AMULHD
+ 	AMULHDU
++	AMLGR
+ 	ASUB
+ 	ASUBC
+ 	ASUBV
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 2deae18b3c..c9e44e3f7a 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -21,6 +21,7 @@ var Anames = []string{
+ 	"MULLD",
+ 	"MULHD",
+ 	"MULHDU",
++	"MLGR",
+ 	"SUB",
+ 	"SUBC",
+ 	"SUBV",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index b6024ae481..2ba3d12969 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -174,6 +174,7 @@ var optab = []Optab{
+ 	{i: 12, as: ASUB, a1: C_LAUTO, a6: C_REG},
+ 	{i: 4, as: AMULHD, a1: C_REG, a6: C_REG},
+ 	{i: 4, as: AMULHD, a1: C_REG, a2: C_REG, a6: C_REG},
++	{i: 62, as: AMLGR, a1: C_REG, a6: C_REG},
+ 	{i: 2, as: ADIVW, a1: C_REG, a2: C_REG, a6: C_REG},
+ 	{i: 2, as: ADIVW, a1: C_REG, a6: C_REG},
+ 	{i: 10, as: ASUB, a1: C_REG, a2: C_REG, a6: C_REG},
+@@ -3407,6 +3408,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		d2 := c.regoff(&p.To)
+ 		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
+ 
++	case 62: // equivalent of Mul64 in math/bits
++		zRRE(op_MLGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++
+ 	case 66:
+ 		zRR(op_BCR, 0, 0, asm)
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 9cdfe0b06a..5adf7f5fcd 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -557,6 +557,7 @@ func Mul(x, y uint) (hi, lo uint) {
+ 	// arm64:"UMULH","MUL"
+ 	// ppc64:"MULHDU","MULLD"
+ 	// ppc64le:"MULHDU","MULLD"
++	// s390x:"MLGR"
+ 	return bits.Mul(x, y)
+ }
+ 
+@@ -565,6 +566,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	// arm64:"UMULH","MUL"
+ 	// ppc64:"MULHDU","MULLD"
+ 	// ppc64le:"MULHDU","MULLD"
++	// s390x:"MLGR"
+ 	return bits.Mul64(x, y)
+ }
+ 

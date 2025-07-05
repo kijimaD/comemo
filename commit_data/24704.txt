@@ -11,6 +11,24 @@ Date:   Tue Aug 25 08:53:42 2015 +1000
     Change-Id: I1c21073d8bd54b49dd6b0bad86ef088d6d8e7a5f
     Reviewed-on: https://go-review.googlesource.com/13883
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/signal_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index a71633c890..7942e78752 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -255,6 +255,12 @@ func TestNohup(t *testing.T) {
+ 
+ 	Stop(c)
+ 
++	// Skip the nohup test below when running in tmux on darwin, since nohup
++	// doesn't work correctly there. See issue #5135.
++	if runtime.GOOS == "darwin" && os.Getenv("TMUX") != "" {
++		t.Skip("Skipping nohup test due to running in tmux on darwin")
++	}
++
+ 	// Again, this time with nohup, assuming we can find it.
+ 	_, err := os.Stat("/usr/bin/nohup")
+ 	if err != nil {

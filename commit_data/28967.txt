@@ -12,7 +12,60 @@ Date:   Wed Aug 17 17:38:06 2016 -0700
     Change-Id: I5d6cc81fc3e5de4dfa15eb614d102fb886150d1b
     Reviewed-on: https://go-review.googlesource.com/27317
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/common.go                |  2 +-
  src/crypto/tls/handshake_client_test.go | 17 ++++++++++++++---
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 9fc7420082..3e24c82cbe 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -450,7 +450,7 @@ func (c *Config) clone() *Config {
+ }
+ 
+ func (c *Config) serverInit() {
+-	if c.SessionTicketsDisabled {
++	if c.SessionTicketsDisabled || len(c.ticketKeys()) != 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 62751b8b7c..f7e0dce2c4 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -648,13 +648,14 @@ func TestClientResumption(t *testing.T) {
+ 		t.Fatal("first ticket doesn't match ticket after resumption")
+ 	}
+ 
+-	key2 := randomKey()
+-	serverConfig.SetSessionTicketKeys([][32]byte{key2})
++	key1 := randomKey()
++	serverConfig.SetSessionTicketKeys([][32]byte{key1})
+ 
+ 	testResumeState("InvalidSessionTicketKey", false)
+ 	testResumeState("ResumeAfterInvalidSessionTicketKey", true)
+ 
+-	serverConfig.SetSessionTicketKeys([][32]byte{randomKey(), key2})
++	key2 := randomKey()
++	serverConfig.SetSessionTicketKeys([][32]byte{key2, key1})
+ 	ticket = getTicket()
+ 	testResumeState("KeyChange", true)
+ 	if bytes.Equal(ticket, getTicket()) {
+@@ -662,6 +663,16 @@ func TestClientResumption(t *testing.T) {
+ 	}
+ 	testResumeState("KeyChangeFinish", true)
+ 
++	// Reset serverConfig to ensure that calling SetSessionTicketKeys
++	// before the serverConfig is used works.
++	serverConfig = &Config{
++		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
++		Certificates: testConfig.Certificates,
++	}
++	serverConfig.SetSessionTicketKeys([][32]byte{key2})
++
++	testResumeState("FreshConfig", true)
++
+ 	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+ 	testResumeState("DifferentCipherSuite", false)
+ 	testResumeState("DifferentCipherSuiteRecovers", true)

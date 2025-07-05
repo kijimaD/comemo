@@ -18,8 +18,48 @@ Date:   Fri May 14 10:05:16 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/types_test.go      | 3 +++
  src/cmd/compile/internal/types2/typestring.go      | 2 +-
  src/cmd/compile/internal/types2/typestring_test.go | 4 ++++
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/types_test.go b/src/cmd/compile/internal/types2/types_test.go
+index 11dca0b53d..1525844f2d 100644
+--- a/src/cmd/compile/internal/types2/types_test.go
++++ b/src/cmd/compile/internal/types2/types_test.go
+@@ -7,3 +7,6 @@ package types2
+ func init() {
+ 	acceptMethodTypeParams = true
+ }
++
++// Debug is set if types2 is built with debug mode enabled.
++const Debug = debug
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 40016697b7..e85cc8ed35 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -226,7 +226,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				empty = false
+ 			}
+ 		}
+-		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
++		if debug && (t.allMethods == nil || len(t.methods) > len(t.allMethods)) {
+ 			if !empty {
+ 				buf.WriteByte(' ')
+ 			}
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index d98e9a5ade..618fdc0757 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -138,6 +138,10 @@ func TestTypeString(t *testing.T) {
+ var nopos syntax.Pos
+ 
+ func TestIncompleteInterfaces(t *testing.T) {
++	if !Debug {
++		t.Skip("requires type checker to be compiled with debug = true")
++	}
++
+ 	sig := NewSignature(nil, nil, nil, false)
+ 	m := NewFunc(nopos, nil, "m", sig)
+ 	for _, test := range []struct {

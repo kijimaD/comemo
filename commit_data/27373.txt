@@ -10,8 +10,298 @@ Date:   Wed Mar 23 16:25:27 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/21016
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/httptest/httptest.go      |  88 ++++++++++++++++
  src/net/http/httptest/httptest_test.go | 177 +++++++++++++++++++++++++++++++++
  src/net/http/httptest/recorder.go      |   1 -
  3 files changed, 265 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptest/httptest.go b/src/net/http/httptest/httptest.go
+new file mode 100644
+index 0000000000..e2148a659c
+--- /dev/null
++++ b/src/net/http/httptest/httptest.go
+@@ -0,0 +1,88 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package httptest provides utilities for HTTP testing.
++package httptest
++
++import (
++	"bufio"
++	"bytes"
++	"crypto/tls"
++	"io"
++	"io/ioutil"
++	"net/http"
++	"strings"
++)
++
++// NewRequest returns a new incoming server Request, suitable
++// for passing to an http.Handler for testing.
++//
++// The target is the RFC 7230 "request-target": it may be either a
++// path or an absolute URL. If target is an absolute URL, the host name
++// from the URL is used. Otherwise, "example.com" is used.
++//
++// The TLS field is set to a non-nil dummy value if target has scheme
++// "https".
++//
++// The Request.Proto is always HTTP/1.1.
++//
++// An empty method means "GET".
++//
++// The provided body may be nil. If the body is of type *bytes.Reader,
++// *strings.Reader, or *bytes.Buffer, the Request.ContentLength is
++// set.
++//
++// NewRequest panics on error for ease of use in testing, where a
++// panic is acceptable.
++func NewRequest(method, target string, body io.Reader) *http.Request {
++	if method == "" {
++		method = "GET"
++	}
++	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(method + " " + target + " HTTP/1.0\r\n\r\n")))
++	if err != nil {
++		panic("invalid NewRequest arguments; " + err.Error())
++	}
++
++	// HTTP/1.0 was used above to avoid needing a Host field. Change it to 1.1 here.
++	req.Proto = "HTTP/1.1"
++	req.ProtoMinor = 1
++	req.Close = false
++
++	if body != nil {
++		switch v := body.(type) {
++		case *bytes.Buffer:
++			req.ContentLength = int64(v.Len())
++		case *bytes.Reader:
++			req.ContentLength = int64(v.Len())
++		case *strings.Reader:
++			req.ContentLength = int64(v.Len())
++		default:
++			req.ContentLength = -1
++		}
++		if rc, ok := body.(io.ReadCloser); ok {
++			req.Body = rc
++		} else {
++			req.Body = ioutil.NopCloser(body)
++		}
++	}
++
++	// 192.0.2.0/24 is "TEST-NET" in RFC 5737 for use solely in
++	// documentation and example source code and should not be
++	// used publicly.
++	req.RemoteAddr = "192.0.2.1:1234"
++
++	if req.Host == "" {
++		req.Host = "example.com"
++	}
++
++	if strings.HasPrefix(target, "https://") {
++		req.TLS = &tls.ConnectionState{
++			Version:           tls.VersionTLS12,
++			HandshakeComplete: true,
++			ServerName:        req.Host,
++		}
++	}
++
++	return req
++}
+diff --git a/src/net/http/httptest/httptest_test.go b/src/net/http/httptest/httptest_test.go
+new file mode 100644
+index 0000000000..18ba73880e
+--- /dev/null
++++ b/src/net/http/httptest/httptest_test.go
+@@ -0,0 +1,177 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package httptest
++
++import (
++	"crypto/tls"
++	"io"
++	"io/ioutil"
++	"net/http"
++	"net/url"
++	"reflect"
++	"strings"
++	"testing"
++)
++
++func TestNewRequest(t *testing.T) {
++	tests := [...]struct {
++		method, uri string
++		body        io.Reader
++
++		want     *http.Request
++		wantBody string
++	}{
++		// Empty method means GET:
++		0: {
++			method: "",
++			uri:    "/",
++			body:   nil,
++			want: &http.Request{
++				Method:     "GET",
++				Host:       "example.com",
++				URL:        &url.URL{Path: "/"},
++				Header:     http.Header{},
++				Proto:      "HTTP/1.1",
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				RemoteAddr: "192.0.2.1:1234",
++				RequestURI: "/",
++			},
++			wantBody: "",
++		},
++
++		// GET with full URL:
++		1: {
++			method: "GET",
++			uri:    "http://foo.com/path/%2f/bar/",
++			body:   nil,
++			want: &http.Request{
++				Method: "GET",
++				Host:   "foo.com",
++				URL: &url.URL{
++					Scheme:  "http",
++					Path:    "/path///bar/",
++					RawPath: "/path/%2f/bar/",
++					Host:    "foo.com",
++				},
++				Header:     http.Header{},
++				Proto:      "HTTP/1.1",
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				RemoteAddr: "192.0.2.1:1234",
++				RequestURI: "http://foo.com/path/%2f/bar/",
++			},
++			wantBody: "",
++		},
++
++		// GET with full https URL:
++		2: {
++			method: "GET",
++			uri:    "https://foo.com/path/",
++			body:   nil,
++			want: &http.Request{
++				Method: "GET",
++				Host:   "foo.com",
++				URL: &url.URL{
++					Scheme: "https",
++					Path:   "/path/",
++					Host:   "foo.com",
++				},
++				Header:     http.Header{},
++				Proto:      "HTTP/1.1",
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				RemoteAddr: "192.0.2.1:1234",
++				RequestURI: "https://foo.com/path/",
++				TLS: &tls.ConnectionState{
++					Version:           tls.VersionTLS12,
++					HandshakeComplete: true,
++					ServerName:        "foo.com",
++				},
++			},
++			wantBody: "",
++		},
++
++		// Post with known length
++		3: {
++			method: "POST",
++			uri:    "/",
++			body:   strings.NewReader("foo"),
++			want: &http.Request{
++				Method:        "POST",
++				Host:          "example.com",
++				URL:           &url.URL{Path: "/"},
++				Header:        http.Header{},
++				Proto:         "HTTP/1.1",
++				ContentLength: 3,
++				ProtoMajor:    1,
++				ProtoMinor:    1,
++				RemoteAddr:    "192.0.2.1:1234",
++				RequestURI:    "/",
++			},
++			wantBody: "foo",
++		},
++
++		// Post with unknown length
++		4: {
++			method: "POST",
++			uri:    "/",
++			body:   struct{ io.Reader }{strings.NewReader("foo")},
++			want: &http.Request{
++				Method:        "POST",
++				Host:          "example.com",
++				URL:           &url.URL{Path: "/"},
++				Header:        http.Header{},
++				Proto:         "HTTP/1.1",
++				ContentLength: -1,
++				ProtoMajor:    1,
++				ProtoMinor:    1,
++				RemoteAddr:    "192.0.2.1:1234",
++				RequestURI:    "/",
++			},
++			wantBody: "foo",
++		},
++
++		// OPTIONS *
++		5: {
++			method: "OPTIONS",
++			uri:    "*",
++			want: &http.Request{
++				Method:     "OPTIONS",
++				Host:       "example.com",
++				URL:        &url.URL{Path: "*"},
++				Header:     http.Header{},
++				Proto:      "HTTP/1.1",
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				RemoteAddr: "192.0.2.1:1234",
++				RequestURI: "*",
++			},
++		},
++	}
++	for i, tt := range tests {
++		got := NewRequest(tt.method, tt.uri, tt.body)
++		slurp, err := ioutil.ReadAll(got.Body)
++		if err != nil {
++			t.Errorf("%i. ReadAll: %v", i, err)
++		}
++		if string(slurp) != tt.wantBody {
++			t.Errorf("%i. Body = %q; want %q", i, slurp, tt.wantBody)
++		}
++		got.Body = nil // before DeepEqual
++		if !reflect.DeepEqual(got.URL, tt.want.URL) {
++			t.Errorf("%d. Request.URL mismatch:\n got: %#v\nwant: %#v", i, got.URL, tt.want.URL)
++		}
++		if !reflect.DeepEqual(got.Header, tt.want.Header) {
++			t.Errorf("%d. Request.Header mismatch:\n got: %#v\nwant: %#v", i, got.Header, tt.want.Header)
++		}
++		if !reflect.DeepEqual(got.TLS, tt.want.TLS) {
++			t.Errorf("%d. Request.TLS mismatch:\n got: %#v\nwant: %#v", i, got.TLS, tt.want.TLS)
++		}
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("%d. Request mismatch:\n got: %#v\nwant: %#v", i, got, tt.want)
++		}
++	}
++}
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 4e3948dd91..b1f49541d5 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package httptest provides utilities for HTTP testing.
+ package httptest
+ 
+ import (

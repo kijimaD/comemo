@@ -10,6 +10,39 @@ Date:   Mon Nov 16 17:40:03 2009 -0800
     
     R=iant
     https://golang.org/cl/154145
-
+---
  src/cmd/6l/asm.c | 17 ++++++++++++-----
  1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index e5aa42c71b..146245c7bd 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -320,15 +320,22 @@ doelf(void)
+ 		addstring(lookup(".interp", 0), linuxdynld);
+ 
+ 		/*
+-		 * hash table - empty for now.
+-		 * we should have to fill it out with an entry for every
+-		 * symbol in .dynsym, but it seems to work not to,
+-		 * which is fine with me.
++		 * hash table.
++		 * only entries that other objects need to find when
++		 * linking us need to be in the table.  right now that is
++		 * no entries.
++		 *
++		 * must have at least 1 bucket, though, to avoid
++		 * a divide by zero bug in some copies of the glibc
++		 * dynamic loader.
+ 		 */
+ 		s = lookup(".hash", 0);
+ 		s->type = SDATA;	// TODO: rodata
+ 		s->reachable = 1;
+-		s->value += 8;	// two leading zeros
++		adduint32(s, 1);	// nbucket
++		adduint32(s, 1);	// nchain
++		adduint32(s, 0);	// bucket 0
++		adduint32(s, 0);	// chain 0
+ 
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);

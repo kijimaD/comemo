@@ -23,7 +23,7 @@ Date:   Wed Mar 10 15:10:05 2021 -0600
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  2 +-
  src/cmd/link/internal/arm/asm.go     |  2 +-
  src/cmd/link/internal/arm64/asm.go   |  2 +-
@@ -36,3 +36,184 @@ Date:   Wed Mar 10 15:10:05 2021 -0600
  src/cmd/link/internal/s390x/asm.go   |  2 +-
  src/cmd/link/internal/x86/asm.go     |  2 +-
  11 files changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 2d09a6160a..fb960491de 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -548,7 +548,7 @@ func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sy
+ 	return -1, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	log.Fatalf("unexpected relocation variant")
+ 	return -1
+ }
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 03caeae7be..efdaff198d 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -565,7 +565,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	log.Fatalf("unexpected relocation variant")
+ 	return -1
+ }
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 72093268c2..90ae38594e 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -865,7 +865,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	log.Fatalf("unexpected relocation variant")
+ 	return -1
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a9d17c806e..6de2d893ae 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -507,7 +507,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 
+ 		if target.IsPPC64() || target.IsS390X() {
+ 			if rv != sym.RV_NONE {
+-				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o)
++				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o, P)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c96a9be355..d136cbad80 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -223,7 +223,7 @@ type Arch struct {
+ 	// to-be-relocated data item (from sym.P). Return is an updated
+ 	// offset value.
+ 	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc,
+-		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
++		rv sym.RelocVariant, sym loader.Sym, offset int64, data []byte) (relocatedOffset int64)
+ 
+ 	// Generate a trampoline for a call from s to rs if necessary. ri is
+ 	// index of the relocation.
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 17b1b20aff..8505dc6109 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -140,7 +140,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	return -1
+ }
+ 
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 4789b411eb..55b4ba2fc8 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -138,7 +138,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	return -1
+ }
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 83df8a7a13..aa2532ad37 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -859,7 +859,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, nExtReloc, false
+ }
+ 
+-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
++func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) (relocatedOffset int64) {
+ 	rs := ldr.ResolveABIAlias(r.Sym())
+ 	switch rv & sym.RV_TYPE_MASK {
+ 	default:
+@@ -875,9 +875,10 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv
+ 			// overflow depends on the instruction
+ 			var o1 uint32
+ 			if target.IsBigEndian() {
+-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
++				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
++
+ 			} else {
+-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
++				o1 = binary.LittleEndian.Uint32(p[r.Off():])
+ 			}
+ 			switch o1 >> 26 {
+ 			case 24, // ori
+@@ -909,9 +910,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv
+ 			// overflow depends on the instruction
+ 			var o1 uint32
+ 			if target.IsBigEndian() {
+-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
++				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
+ 			} else {
+-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
++				o1 = binary.LittleEndian.Uint32(p[r.Off():])
+ 			}
+ 			switch o1 >> 26 {
+ 			case 25, // oris
+@@ -933,9 +934,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv
+ 	case sym.RV_POWER_DS:
+ 		var o1 uint32
+ 		if target.IsBigEndian() {
+-			o1 = uint32(binary.BigEndian.Uint16(ldr.Data(s)[r.Off():]))
++			o1 = uint32(binary.BigEndian.Uint16(p[r.Off():]))
+ 		} else {
+-			o1 = uint32(binary.LittleEndian.Uint16(ldr.Data(s)[r.Off():]))
++			o1 = uint32(binary.LittleEndian.Uint16(p[r.Off():]))
+ 		}
+ 		if t&3 != 0 {
+ 			ldr.Errorf(s, "relocation for %s+%d is not aligned: %d", ldr.SymName(rs), r.Off(), t)
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index c18e0540d8..6eace617dc 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -230,7 +230,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	log.Fatalf("archrelocvariant")
+ 	return -1
+ }
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 78d2cc81e4..1952971dcb 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -371,7 +371,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	return val, 0, false
+ }
+ 
+-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
++func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) int64 {
+ 	switch rv & sym.RV_TYPE_MASK {
+ 	default:
+ 		ldr.Errorf(s, "unexpected relocation variant %d", rv)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index af0ce11255..5f6bcfb8b1 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -415,7 +415,7 @@ func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sy
+ 	return -1, 0, false
+ }
+ 
+-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
++func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
+ 	log.Fatalf("unexpected relocation variant")
+ 	return -1
+ }

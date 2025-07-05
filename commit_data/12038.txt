@@ -7,7 +7,74 @@ Date:   Sat Feb 18 20:33:58 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5674104
-
+---
  lib/time/README      |  9 +++++++++
  lib/time/update.bash | 45 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+)
+
+diff --git a/lib/time/README b/lib/time/README
+new file mode 100644
+index 0000000000..be519febf7
+--- /dev/null
++++ b/lib/time/README
+@@ -0,0 +1,9 @@
++The zoneinfo directory contains time zone files compiled using
++the code and data maintained as part of the IANA Time Zone Database.
++The IANA asserts that the database is in the public domain.
++
++For more information, see
++http://www.iana.org/time-zones
++ftp://ftp.iana.org/tz/code/tz-link.htm
++http://tools.ietf.org/html/draft-lear-iana-timezone-database-05
++
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+new file mode 100755
+index 0000000000..30ca2c7011
+--- /dev/null
++++ b/lib/time/update.bash
+@@ -0,0 +1,45 @@
++#!/bin/sh
++# Copyright 2012 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This script rebuilds the time zone files using files
++# downloaded from the ICANN/IANA distribution.
++
++# Versions to use.
++CODE=2011i
++DATA=2011n
++
++set -e
++rm -rf zoneinfo work
++mkdir zoneinfo work
++cd work
++curl -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
++curl -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
++tar xzf tzcode$CODE.tar.gz
++tar xzf tzdata$DATA.tar.gz
++
++# Turn off 64-bit output in time zone files.
++# We don't need those until 2037.
++perl -p -i -e 's/pass <= 2/pass <= 1/' zic.c
++
++make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=../zoneinfo posix_only
++
++# America/Los_Angeles should not be bigger than 1100 bytes.
++# If it is, we probably failed to disable the 64-bit output, which
++# triples the size of the files.
++size=$(ls -l ../zoneinfo/America/Los_Angeles | awk '{print $5}')
++if [ $size -gt 1200 ]; then
++	echo 'zone file too large; 64-bit edit failed?' >&2
++	exit 2
++fi
++
++cd ..
++hg addremove zoneinfo
++echo
++if [ "$1" == "-work" ]; then 
++	echo Left workspace behind in work/.
++else
++	rm -rf work
++fi
++echo New time zone files in zoneinfo/.

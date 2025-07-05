@@ -14,6 +14,20 @@ Date:   Sat Nov 27 05:20:05 2021 +0000
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_lazy_new_import.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_lazy_new_import.txt b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+index 4272a52de1..520d8459cc 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_new_import.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+@@ -7,7 +7,7 @@
+ #     \
+ #      ---- a/y (new) ---- c
+ #
+-# Where a/x and x/y are disjoint packages, but both contained in module a.
++# Where a/x and a/y are disjoint packages, but both contained in module a.
+ #
+ # The module dependency graph initially looks like:
+ #

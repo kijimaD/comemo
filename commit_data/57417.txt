@@ -20,9 +20,151 @@ Date:   Wed Aug 2 08:32:07 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/rand/rand_getentropy.go             |  2 +-
  src/crypto/rand/rand_getrandom.go              |  4 +-
  src/internal/syscall/unix/getentropy_netbsd.go | 38 +++++++++++++++++
  src/internal/syscall/unix/getrandom_netbsd.go  | 56 --------------------------
  4 files changed, 41 insertions(+), 59 deletions(-)
+
+diff --git a/src/crypto/rand/rand_getentropy.go b/src/crypto/rand/rand_getentropy.go
+index 68f921b0fc..210250411e 100644
+--- a/src/crypto/rand/rand_getentropy.go
++++ b/src/crypto/rand/rand_getentropy.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (darwin && !ios) || openbsd
++//go:build (darwin && !ios) || openbsd || netbsd
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/rand/rand_getrandom.go
+index 46c4133a73..09e9ae82b0 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || solaris
++//go:build dragonfly || freebsd || linux || solaris
+ 
+ package rand
+ 
+@@ -21,7 +21,7 @@ func init() {
+ 		//     is returned by a single call to getrandom() on systems where int
+ 		//     has a size of 32 bits.
+ 		maxGetRandomRead = (1 << 25) - 1
+-	case "dragonfly", "freebsd", "illumos", "netbsd", "solaris":
++	case "dragonfly", "freebsd", "illumos", "solaris":
+ 		maxGetRandomRead = 1 << 8
+ 	default:
+ 		panic("no maximum specified for GetRandom")
+diff --git a/src/internal/syscall/unix/getentropy_netbsd.go b/src/internal/syscall/unix/getentropy_netbsd.go
+new file mode 100644
+index 0000000000..7e8382331c
+--- /dev/null
++++ b/src/internal/syscall/unix/getentropy_netbsd.go
+@@ -0,0 +1,38 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netbsd
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const (
++	_CTL_KERN = 1
++
++	_KERN_ARND = 81
++)
++
++func GetEntropy(p []byte) error {
++	mib := [2]uint32{_CTL_KERN, _KERN_ARND}
++	n := uintptr(len(p))
++	_, _, errno := syscall.Syscall6(
++		syscall.SYS___SYSCTL,
++		uintptr(unsafe.Pointer(&mib[0])),
++		uintptr(len(mib)),
++		uintptr(unsafe.Pointer(&p[0])), // olddata
++		uintptr(unsafe.Pointer(&n)),	// &oldlen
++		uintptr(unsafe.Pointer(nil)),	// newdata
++		0)				// newlen
++	if errno != 0 {
++		return syscall.Errno(errno)
++	}
++	if n != uintptr(len(p)) {
++		return syscall.EINVAL
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/getrandom_netbsd.go b/src/internal/syscall/unix/getrandom_netbsd.go
+deleted file mode 100644
+index c83e3b21a5..0000000000
+--- a/src/internal/syscall/unix/getrandom_netbsd.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import (
+-	"sync"
+-	"sync/atomic"
+-	"syscall"
+-	"unsafe"
+-)
+-
+-// NetBSD getrandom system call number.
+-const getrandomTrap uintptr = 91
+-
+-var getrandomUnsupported atomic.Bool
+-
+-// GetRandomFlag is a flag supported by the getrandom system call.
+-type GetRandomFlag uintptr
+-
+-// GetRandom calls the getrandom system call.
+-func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+-	if len(p) == 0 {
+-		return 0, nil
+-	}
+-	if getrandomUnsupported.Load() {
+-		return 0, syscall.ENOSYS
+-	}
+-	// getrandom(2) was added in NetBSD 10.0
+-	if getOSRevision() < 1000000000 {
+-		getrandomUnsupported.Store(true)
+-		return 0, syscall.ENOSYS
+-	}
+-	r1, _, errno := syscall.Syscall(getrandomTrap,
+-		uintptr(unsafe.Pointer(&p[0])),
+-		uintptr(len(p)),
+-		uintptr(flags))
+-	if errno != 0 {
+-		if errno == syscall.ENOSYS {
+-			getrandomUnsupported.Store(true)
+-		}
+-		return 0, errno
+-	}
+-	return int(r1), nil
+-}
+-
+-var (
+-	osrevisionOnce sync.Once
+-	osrevision     uint32
+-)
+-
+-func getOSRevision() uint32 {
+-	osrevisionOnce.Do(func() { osrevision, _ = syscall.SysctlUint32("kern.osrevision") })
+-	return osrevision
+-}

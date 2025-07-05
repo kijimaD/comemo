@@ -9,7 +9,82 @@ Date:   Tue Jan 14 09:50:43 2020 -0800
     Change-Id: Ibf4f86fb3a25fa30e0cd54e2dd2e12c60ee75ddb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214679
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 14 ++++++++++----
  test/fixedbugs/issue36516.go        | 27 +++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ef88db4742..b8b954c4fc 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1705,7 +1705,6 @@ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node
+ 	if ddd != nil {
+ 		esc = ddd.Esc
+ 	}
+-
+ 	if len(args) == 0 {
+ 		n := nodnil()
+ 		n.Type = typ
+@@ -1740,6 +1739,9 @@ func walkCall(n *Node, init *Nodes) {
+ 	// then assign the remaining arguments as a slice.
+ 	if nf := params.NumFields(); nf > 0 {
+ 		if last := params.Field(nf - 1); last.IsDDD() && !n.IsDDD() {
++			// The callsite does not use a ..., but the called function is declared
++			// with a final argument that has a ... . Build the slice that we will
++			// pass as the ... argument.
+ 			tail := args[nf-1:]
+ 			slice := mkdotargslice(last.Type, tail, init, n.Right)
+ 			// Allow immediate GC.
+@@ -4067,11 +4069,15 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 
+ 	n = cheapexpr(n, init)
+ 
+-	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, nil)
+-	slice.Esc = EscNone
+-	slice.SetTransient(true)
++	ddd := nodl(n.Pos, ODDDARG, nil, nil)
++	ddd.Type = types.NewPtr(types.NewArray(types.Types[TUNSAFEPTR], int64(len(originals))))
++	ddd.Esc = EscNone
++	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, ddd)
+ 
+ 	init.Append(mkcall("checkptrArithmetic", nil, init, convnop(n, types.Types[TUNSAFEPTR]), slice))
++	// TODO(khr): Mark backing store of slice as dead. This will allow us to reuse
++	// the backing store for multiple calls to checkptrArithmetic.
++
+ 	return n
+ }
+ 
+diff --git a/test/fixedbugs/issue36516.go b/test/fixedbugs/issue36516.go
+new file mode 100644
+index 0000000000..1472d4c222
+--- /dev/null
++++ b/test/fixedbugs/issue36516.go
+@@ -0,0 +1,27 @@
++// +build linux,amd64
++// run -race
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"testing"
++	"unsafe"
++)
++
++var buf [2]byte
++var x unsafe.Pointer = unsafe.Pointer(&buf[0])
++
++func main() {
++	n := testing.AllocsPerRun(1000, func() {
++		x = unsafe.Pointer(uintptr(x) + 1)
++		x = unsafe.Pointer(uintptr(x) - 1)
++	})
++	if n > 0 {
++		panic(fmt.Sprintf("too many allocations; want 0 got %f", n))
++	}
++}

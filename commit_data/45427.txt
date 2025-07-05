@@ -17,6 +17,20 @@ Date:   Tue Sep 29 09:34:08 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/257517
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/handshake_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index 224edcd5c7..605be587b5 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -86,7 +86,7 @@ func checkOpenSSLVersion() error {
+ 	println("to update the test data.")
+ 	println("")
+ 	println("Configure it with:")
+-	println("./Configure enable-weak-ssl-ciphers")
++	println("./Configure enable-weak-ssl-ciphers no-shared")
+ 	println("and then add the apps/ directory at the front of your PATH.")
+ 	println("***********************************************")
+ 

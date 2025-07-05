@@ -14,7 +14,81 @@ Date:   Wed Mar 24 13:16:42 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue36705.go |  2 +-
  test/run.go                  | 23 +++++++++++++++++------
  2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/test/fixedbugs/issue36705.go b/test/fixedbugs/issue36705.go
+index 83e4136845..d5a0e7fade 100644
+--- a/test/fixedbugs/issue36705.go
++++ b/test/fixedbugs/issue36705.go
+@@ -1,5 +1,5 @@
+ // +build cgo
+-// run
++// run fake-arg-to-force-use-of-go-run
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index cc2fcf3518..48115ed18d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -56,6 +56,7 @@ func defaultAllCodeGen() bool {
+ 
+ var (
+ 	goos, goarch string
++	cgoEnabled   bool
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+@@ -82,6 +83,10 @@ func main() {
+ 
+ 	goos = getenv("GOOS", runtime.GOOS)
+ 	goarch = getenv("GOARCH", runtime.GOARCH)
++	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
++	if err == nil {
++		cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
++	}
+ 
+ 	findExecCmd()
+ 
+@@ -367,9 +372,10 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
+ }
+ 
+ type context struct {
+-	GOOS     string
+-	GOARCH   string
+-	noOptEnv bool
++	GOOS       string
++	GOARCH     string
++	cgoEnabled bool
++	noOptEnv   bool
+ }
+ 
+ // shouldTest looks for build tags in a source file and returns
+@@ -391,9 +397,10 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
+ 		}
+ 		gcFlags := os.Getenv("GO_GCFLAGS")
+ 		ctxt := &context{
+-			GOOS:     goos,
+-			GOARCH:   goarch,
+-			noOptEnv: strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
++			GOOS:       goos,
++			GOARCH:     goarch,
++			cgoEnabled: cgoEnabled,
++			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+ 		}
+ 
+ 		words := strings.Fields(line)
+@@ -448,6 +455,10 @@ func (ctxt *context) match(name string) bool {
+ 		}
+ 	}
+ 
++	if name == "cgo" && ctxt.cgoEnabled {
++		return true
++	}
++
+ 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
+ 		return true
+ 	}

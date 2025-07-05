@@ -11,6 +11,71 @@ Date:   Mon Feb 24 18:12:46 2014 +0400
     R=golang-codereviews, khr, dave
     CC=golang-codereviews
     https://golang.org/cl/56970043
-
+---
  src/pkg/runtime/race/testdata/finalizer_test.go | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/race/testdata/finalizer_test.go b/src/pkg/runtime/race/testdata/finalizer_test.go
+index 2b2607689a..222cbf67a8 100644
+--- a/src/pkg/runtime/race/testdata/finalizer_test.go
++++ b/src/pkg/runtime/race/testdata/finalizer_test.go
+@@ -14,16 +14,16 @@ import (
+ func TestNoRaceFin(t *testing.T) {
+ 	c := make(chan bool)
+ 	go func() {
+-		x := new(int)
+-		runtime.SetFinalizer(x, func(x *int) {
+-			*x = 42
++		x := new(string)
++		runtime.SetFinalizer(x, func(x *string) {
++			*x = "foo"
+ 		})
+-		*x = 66
++		*x = "bar"
+ 		c <- true
+ 	}()
+ 	<-c
+ 	runtime.GC()
+-	time.Sleep(1e8)
++	time.Sleep(100 * time.Millisecond)
+ }
+ 
+ var finVar struct {
+@@ -34,8 +34,8 @@ var finVar struct {
+ func TestNoRaceFinGlobal(t *testing.T) {
+ 	c := make(chan bool)
+ 	go func() {
+-		x := new(int)
+-		runtime.SetFinalizer(x, func(x *int) {
++		x := new(string)
++		runtime.SetFinalizer(x, func(x *string) {
+ 			finVar.Lock()
+ 			finVar.cnt++
+ 			finVar.Unlock()
+@@ -44,7 +44,7 @@ func TestNoRaceFinGlobal(t *testing.T) {
+ 	}()
+ 	<-c
+ 	runtime.GC()
+-	time.Sleep(1e8)
++	time.Sleep(100 * time.Millisecond)
+ 	finVar.Lock()
+ 	finVar.cnt++
+ 	finVar.Unlock()
+@@ -54,14 +54,14 @@ func TestRaceFin(t *testing.T) {
+ 	c := make(chan bool)
+ 	y := 0
+ 	go func() {
+-		x := new(int)
+-		runtime.SetFinalizer(x, func(x *int) {
++		x := new(string)
++		runtime.SetFinalizer(x, func(x *string) {
+ 			y = 42
+ 		})
+ 		c <- true
+ 	}()
+ 	<-c
+ 	runtime.GC()
+-	time.Sleep(1e8)
++	time.Sleep(100 * time.Millisecond)
+ 	y = 66
+ }

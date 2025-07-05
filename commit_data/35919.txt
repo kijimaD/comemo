@@ -10,7 +10,33 @@ Date:   Mon Mar 19 07:36:43 2018 +0000
     Change-Id: I949166e6dfd63fb0a9365f183b6c50d452614f9d
     Reviewed-on: https://go-review.googlesource.com/101335
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
  src/cmd/internal/obj/arm64/asm7.go        | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 4b364c458b..570efd83d2 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -239,6 +239,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VMOV	V10.S[0], V12.S[1]    // 4c050c6e
+ 	VMOV	V9.H[0], V12.H[1]     // 2c05066e
+ 	VMOV	V8.B[0], V12.B[1]     // 0c05036e
++	VMOV	V8.B[7], V4.B[8]      // 043d116e
+ 	VREV32	V5.B16, V5.B16        // a508206e
+ 	VDUP	V19.S[0], V17.S4      // 7106044e
+ //
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index a948d1243d..22fd4d61bd 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3910,7 +3910,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		default:
+ 			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+-		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
++		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
+ 
+ 		break
+ 

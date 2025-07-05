@@ -19,7 +19,100 @@ Date:   Thu Feb 28 09:29:50 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7407046
-
+---
  src/pkg/net/http/response_test.go | 33 +++++++++++++++++++++++++--------
  src/pkg/net/http/transfer.go      |  8 ++++++--
  2 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index a00a4ae0a9..8411964dc8 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -157,7 +157,7 @@ var respTests = []respTest{
+ 			"Content-Length: 10\r\n" +
+ 			"\r\n" +
+ 			"0a\r\n" +
+-			"Body here\n" +
++			"Body here\n\r\n" +
+ 			"0\r\n" +
+ 			"\r\n",
+ 
+@@ -327,13 +327,10 @@ var respTests = []respTest{
+ }
+ 
+ func TestReadResponse(t *testing.T) {
+-	for i := range respTests {
+-		tt := &respTests[i]
+-		var braw bytes.Buffer
+-		braw.WriteString(tt.Raw)
+-		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.Request)
++	for i, tt := range respTests {
++		resp, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.Raw)), tt.Resp.Request)
+ 		if err != nil {
+-			t.Errorf("#%d: %s", i, err)
++			t.Errorf("#%d: %v", i, err)
+ 			continue
+ 		}
+ 		rbody := resp.Body
+@@ -341,7 +338,11 @@ func TestReadResponse(t *testing.T) {
+ 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
+ 		var bout bytes.Buffer
+ 		if rbody != nil {
+-			io.Copy(&bout, rbody)
++			_, err = io.Copy(&bout, rbody)
++			if err != nil {
++				t.Errorf("#%d: %v", i, err)
++				continue
++			}
+ 			rbody.Close()
+ 		}
+ 		body := bout.String()
+@@ -351,6 +352,22 @@ func TestReadResponse(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteResponse(t *testing.T) {
++	for i, tt := range respTests {
++		resp, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.Raw)), tt.Resp.Request)
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++		bout := bytes.NewBuffer(nil)
++		err = resp.Write(bout)
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++	}
++}
++
+ var readResponseCloseInMiddleTests = []struct {
+ 	chunked, compressed bool
+ }{
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 83b7ee7cb4..3b473ad75b 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -209,7 +209,7 @@ func (t *transferWriter) WriteBody(w io.Writer) (err error) {
+ 		}
+ 	}
+ 
+-	if t.ContentLength != -1 && t.ContentLength != ncopy {
++	if !t.ResponseToHEAD && t.ContentLength != -1 && t.ContentLength != ncopy {
+ 		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
+ 			t.ContentLength, ncopy)
+ 	}
+@@ -327,7 +327,11 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {
+ 	case chunked(t.TransferEncoding):
+-		t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
++		if noBodyExpected(t.RequestMethod) {
++			t.Body = &body{Reader: io.LimitReader(r, 0), closing: t.Close}
++		} else {
++			t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
++		}
+ 	case realLength >= 0:
+ 		// TODO: limit the Content-Length. This is an easy DoS vector.
+ 		t.Body = &body{Reader: io.LimitReader(r, realLength), closing: t.Close}

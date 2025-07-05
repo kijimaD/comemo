@@ -31,7 +31,7 @@ Date:   Sat Sep 1 20:16:39 2018 -0700
     Change-Id: Ide19f1f71a5b6ec8c4d54f8f66f0e9a98344772f
     Reviewed-on: https://go-review.googlesource.com/c/134155
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go  |   5 +-
  src/cmd/compile/internal/gc/pgen.go |  20 +++
  src/cmd/compile/internal/gc/ssa.go  |  48 +++++-
@@ -46,3 +46,900 @@ Date:   Sat Sep 1 20:16:39 2018 -0700
  src/runtime/stack.go                |  68 +++++++-
  src/runtime/symtab.go               |   1 +
  13 files changed, 607 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index fb749d171f..19862c03aa 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -281,7 +281,7 @@ func dumpglobls() {
+ 	funcsyms = nil
+ }
+ 
+-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
++// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+ // It takes care not to add any duplicates.
+ // Though the object file format handles duplicates efficiently,
+ // storing only a single copy of the data,
+@@ -299,6 +299,9 @@ func addGCLocals() {
+ 			Ctxt.Data = append(Ctxt.Data, gcsym)
+ 			seen[gcsym.Name] = true
+ 		}
++		if x := s.Func.StackObjects; x != nil {
++			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 563eb9e966..e6bbf04400 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -233,6 +233,26 @@ func compile(fn *Node) {
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+ 	fn.Func.initLSym()
+ 
++	// Make sure type syms are declared for all types that might
++	// be types of stack objects. We need to do this here
++	// because symbols must be allocated before the parallel
++	// phase of the compiler.
++	if fn.Func.lsym != nil { // not func _(){}
++		for _, n := range fn.Func.Dcl {
++			switch n.Class() {
++			case PPARAM, PPARAMOUT, PAUTO:
++				if livenessShouldTrack(n) && n.Addrtaken() {
++					dtypesym(n.Type)
++					// Also make sure we allocate a linker symbol
++					// for the stack object data, for the same reason.
++					if fn.Func.lsym.Func.StackObjects == nil {
++						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
++					}
++				}
++			}
++		}
++	}
++
+ 	if compilenow() {
+ 		compileSSA(fn, 0)
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index eee3a71ba3..663042754e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+@@ -4933,6 +4934,51 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
+ 	}
+ }
+ 
++// byXoffset implements sort.Interface for []*Node using Xoffset as the ordering.
++type byXoffset []*Node
++
++func (s byXoffset) Len() int           { return len(s) }
++func (s byXoffset) Less(i, j int) bool { return s[i].Xoffset < s[j].Xoffset }
++func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++
++func emitStackObjects(e *ssafn, pp *Progs) {
++	var vars []*Node
++	for _, n := range e.curfn.Func.Dcl {
++		if livenessShouldTrack(n) && n.Addrtaken() {
++			vars = append(vars, n)
++		}
++	}
++	if len(vars) == 0 {
++		return
++	}
++
++	// Sort variables from lowest to highest address.
++	sort.Sort(byXoffset(vars))
++
++	// Populate the stack object data.
++	// Format must match runtime/stack.go:stackObjectRecord.
++	x := e.curfn.Func.lsym.Func.StackObjects
++	off := 0
++	off = duintptr(x, off, uint64(len(vars)))
++	for _, v := range vars {
++		// Note: arguments and return values have non-negative Xoffset,
++		// in which case the offset is relative to argp.
++		// Locals have a negative Xoffset, in which case the offset is relative to varp.
++		off = duintptr(x, off, uint64(v.Xoffset))
++		if !typesym(v.Type).Siggen() {
++			Fatalf("stack object's type symbol not generated for type %s", v.Type)
++		}
++		off = dsymptr(x, off, dtypesym(v.Type), 0)
++	}
++
++	// Emit a funcdata pointing at the stack object data.
++	p := pp.Prog(obj.AFUNCDATA)
++	Addrconst(&p.From, objabi.FUNCDATA_StackObjects)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = x
++}
++
+ // genssa appends entries to pp for each instruction in f.
+ func genssa(f *ssa.Func, pp *Progs) {
+ 	var s SSAGenState
+@@ -4940,6 +4986,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	e := f.Frontend().(*ssafn)
+ 
+ 	s.livenessMap = liveness(e, f)
++	emitStackObjects(e, pp)
+ 
+ 	// Remember where each block starts.
+ 	s.bstart = make([]*obj.Prog, f.NumBlocks())
+@@ -5054,7 +5101,6 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			}
+ 		}
+-
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+ 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 132f7836ef..354bda5e48 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -402,9 +402,10 @@ type FuncInfo struct {
+ 	dwarfAbsFnSym  *LSym
+ 	dwarfIsStmtSym *LSym
+ 
+-	GCArgs   LSym
+-	GCLocals LSym
+-	GCRegs   LSym
++	GCArgs       LSym
++	GCLocals     LSym
++	GCRegs       LSym
++	StackObjects *LSym
+ }
+ 
+ // Attribute is a set of symbol attributes.
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index a7827125bf..231d11b185 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -18,6 +18,7 @@ const (
+ 	FUNCDATA_LocalsPointerMaps = 1
+ 	FUNCDATA_InlTree           = 2
+ 	FUNCDATA_RegPointerMaps    = 3
++	FUNCDATA_StackObjects      = 4
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5b8bbad383..c463b61c57 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5988,7 +5988,8 @@ func TestFuncLayout(t *testing.T) {
+ func verifyGCBits(t *testing.T, typ Type, bits []byte) {
+ 	heapBits := GCBits(New(typ).Interface())
+ 	if !bytes.Equal(heapBits, bits) {
+-		t.Errorf("heapBits incorrect for %v\nhave %v\nwant %v", typ, heapBits, bits)
++		_, _, line, _ := runtime.Caller(1)
++		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
+ 	}
+ }
+ 
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index e6e0306e65..1ee67c8683 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -16,6 +16,7 @@
+ #define FUNCDATA_LocalsPointerMaps 1
+ #define FUNCDATA_InlTree 2
+ #define FUNCDATA_RegPointerMaps 3
++#define FUNCDATA_StackObjects 4
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 553d83f7f2..5301e692e0 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1911,6 +1911,20 @@ Run:
+ 	return totalBits
+ }
+ 
++// materializeGCProg allocates space for the (1-bit) pointer bitmask
++// for an object of size ptrdata.  Then it fills that space with the
++// pointer bitmask specified by the program prog.
++// The bitmask starts at s.startAddr.
++// The result must be deallocated with dematerializeGCProg.
++func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
++	s := mheap_.allocManual((ptrdata/(8*sys.PtrSize)+pageSize-1)/pageSize, &memstats.gc_sys)
++	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
++	return s
++}
++func dematerializeGCProg(s *mspan) {
++	mheap_.freeManual(s, &memstats.gc_sys)
++}
++
+ func dumpGCProg(p *byte) {
+ 	nptr := 0
+ 	for {
+@@ -2037,7 +2051,12 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 		_g_ := getg()
+ 		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+ 		if frame.fn.valid() {
+-			locals, _ := getStackMap(&frame, nil, false)
++			// TODO: once stack objects are enabled (and their pointers
++			// are no longer described by the stack pointermap directly),
++			// tests using this will probably need fixing. We might need
++			// to loop through the stackobjects and if we're inside one,
++			// use the pointermap from that object.
++			locals, _, _ := getStackMap(&frame, nil, false)
+ 			if locals.n == 0 {
+ 				return
+ 			}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 34e9776d27..d4dcfb6cb9 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -169,7 +169,7 @@ func markroot(gcw *gcWork, i uint32) {
+ 	case i == fixedRootFinalizers:
+ 		for fb := allfin; fb != nil; fb = fb.alllink {
+ 			cnt := uintptr(atomic.Load(&fb.cnt))
+-			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
++			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
+ 		}
+ 
+ 	case i == fixedRootFreeGStacks:
+@@ -248,7 +248,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+ 	}
+ 
+ 	// Scan this shard.
+-	scanblock(b, n, ptrmask, gcw)
++	scanblock(b, n, ptrmask, gcw, nil)
+ }
+ 
+ // markrootFreeGStacks frees stacks of dead Gs.
+@@ -349,7 +349,7 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 			scanobject(p, gcw)
+ 
+ 			// The special itself is a root.
+-			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw)
++			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+ 		}
+ 
+ 		unlock(&s.speciallock)
+@@ -689,42 +689,136 @@ func scanstack(gp *g, gcw *gcWork) {
+ 	// Shrink the stack if not much of it is being used.
+ 	shrinkstack(gp)
+ 
++	var state stackScanState
++	state.stack = gp.stack
++
++	if stackTraceDebug {
++		println("stack trace goroutine", gp.goid)
++	}
++
+ 	// Scan the saved context register. This is effectively a live
+ 	// register that gets moved back and forth between the
+ 	// register and sched.ctxt without a write barrier.
+ 	if gp.sched.ctxt != nil {
+-		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw)
++		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+ 	}
+ 
+-	// Scan the stack.
+-	var cache pcvalueCache
++	// Scan the stack. Accumulate a list of stack objects.
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+-		scanframeworker(frame, &cache, gcw)
++		scanframeworker(frame, &state, gcw)
+ 		return true
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
++
++	// Find and scan all reachable stack objects.
++	state.buildIndex()
++	for {
++		p := state.getPtr()
++		if p == 0 {
++			break
++		}
++		obj := state.findObject(p)
++		if obj == nil {
++			continue
++		}
++		t := obj.typ
++		if t == nil {
++			// We've already scanned this object.
++			continue
++		}
++		obj.setType(nil) // Don't scan it again.
++		if stackTraceDebug {
++			println("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
++		}
++		gcdata := t.gcdata
++		var s *mspan
++		if t.kind&kindGCProg != 0 {
++			// This path is pretty unlikely, an object large enough
++			// to have a GC program allocated on the stack.
++			// We need some space to unpack the program into a straight
++			// bitmask, which we allocate/free here.
++			// TODO: it would be nice if there were a way to run a GC
++			// program without having to store all its bits. We'd have
++			// to change from a Lempel-Ziv style program to something else.
++			// Or we can forbid putting objects on stacks if they require
++			// a gc program (see issue 27447).
++			s = materializeGCProg(t.ptrdata, gcdata)
++			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
++		}
++
++		scanblock(state.stack.lo+uintptr(obj.off), t.ptrdata, gcdata, gcw, &state)
++
++		if s != nil {
++			dematerializeGCProg(s)
++		}
++	}
++
++	// Deallocate object buffers.
++	// (Pointer buffers were all deallocated in the loop above.)
++	for state.head != nil {
++		x := state.head
++		state.head = x.next
++		if stackTraceDebug {
++			for _, obj := range x.obj[:x.nobj] {
++				if obj.typ == nil { // reachable
++					continue
++				}
++				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of type", obj.typ.string())
++				// Note: not necessarily really dead - only reachable-from-ptr dead.
++			}
++		}
++		x.nobj = 0
++		putempty((*workbuf)(unsafe.Pointer(x)))
++	}
++	if state.buf != nil || state.freeBuf != nil {
++		throw("remaining pointer buffers")
++	}
++
+ 	gp.gcscanvalid = true
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+ //go:nowritebarrier
+-func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
++func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 	if _DebugGC > 1 && frame.continpc != 0 {
+ 		print("scanframe ", funcname(frame.fn), "\n")
+ 	}
+ 
+-	locals, args := getStackMap(frame, cache, false)
++	locals, args, objs := getStackMap(frame, &state.cache, false)
+ 
+ 	// Scan local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+ 		size := uintptr(locals.n) * sys.PtrSize
+-		scanblock(frame.varp-size, size, locals.bytedata, gcw)
++		scanblock(frame.varp-size, size, locals.bytedata, gcw, state)
+ 	}
+ 
+ 	// Scan arguments.
+ 	if args.n > 0 {
+-		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw)
++		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw, state)
++	}
++
++	// Add all stack objects to the stack object list.
++	if frame.varp != 0 {
++		// varp is 0 for defers, where there are no locals.
++		// In that case, there can't be a pointer to its args, either.
++		// (And all args would be scanned above anyway.)
++		for _, obj := range objs {
++			off := obj.off
++			base := frame.varp // locals base pointer
++			if off >= 0 {
++				base = frame.argp // arguments and return values base pointer
++			}
++			ptr := base + uintptr(off)
++			if ptr < frame.sp {
++				// object hasn't been allocated in the frame yet.
++				continue
++			}
++			if stackTraceDebug {
++				println("stkobj at", hex(ptr), "of type", obj.typ.string())
++			}
++			state.addObject(ptr, obj.typ)
++		}
+ 	}
+ }
+ 
+@@ -939,8 +1033,9 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ // This is used to scan non-heap roots, so it does not update
+ // gcw.bytesMarked or gcw.scanWork.
+ //
++// If stk != nil, possible stack pointers are also reported to stk.putPtr.
+ //go:nowritebarrier
+-func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
++func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState) {
+ 	// Use local copies of original parameters, so that a stack trace
+ 	// due to one of the throws below shows the original block
+ 	// base and extent.
+@@ -957,10 +1052,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 		for j := 0; j < 8 && i < n; j++ {
+ 			if bits&1 != 0 {
+ 				// Same work as in scanobject; see comments there.
+-				obj := *(*uintptr)(unsafe.Pointer(b + i))
+-				if obj != 0 {
+-					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
++				p := *(*uintptr)(unsafe.Pointer(b + i))
++				if p != 0 {
++					if obj, span, objIndex := findObject(p, b, i); obj != 0 {
+ 						greyobject(obj, b, i, span, gcw, objIndex)
++					} else if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
++						stk.putPtr(p)
+ 					}
+ 				}
+ 			}
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+new file mode 100644
+index 0000000000..86e60d4381
+--- /dev/null
++++ b/src/runtime/mgcstack.go
+@@ -0,0 +1,330 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Garbage collector: stack objects and stack tracing
++// See the design doc at https://docs.google.com/document/d/1un-Jn47yByHL7I0aVIP_uVCMxjdM5mpelJhiKlIqxkE/edit?usp=sharing
++// Also see issue 22350.
++
++// Stack tracing solves the problem of determining which parts of the
++// stack are live and should be scanned. It runs as part of scanning
++// a single goroutine stack.
++//
++// Normally determining which parts of the stack are live is easy to
++// do statically, as user code has explicit references (reads and
++// writes) to stack variables. The compiler can do a simple dataflow
++// analysis to determine liveness of stack variables at every point in
++// the code. See cmd/compile/internal/gc/plive.go for that analysis.
++//
++// However, when we take the address of a stack variable, determining
++// whether that variable is still live is less clear. We can still
++// look for static accesses, but accesses through a pointer to the
++// variable are difficult in general to track statically. That pointer
++// can be passed among functions on the stack, conditionally retained,
++// etc.
++//
++// Instead, we will track pointers to stack variables dynamically.
++// All pointers to stack-allocated variables will themselves be on the
++// stack somewhere (or in associated locations, like defer records), so
++// we can find them all efficiently.
++//
++// Stack tracing is organized as a mini garbage collection tracing
++// pass. The objects in this garbage collection are all the variables
++// on the stack whose address is taken, and which themselves contain a
++// pointer. We call these variables "stack objects".
++//
++// We begin by determining all the stack objects on the stack and all
++// the statically live pointers that may point into the stack. We then
++// process each pointer to see if it points to a stack object. If it
++// does, we scan that stack object. It may contain pointers into the
++// heap, in which case those pointers are passed to the main garbage
++// collection. It may also contain pointers into the stack, in which
++// case we add them to our set of stack pointers.
++//
++// Once we're done processing all the pointers (including the ones we
++// added during processing), we've found all the stack objects that
++// are live. Any dead stack objects are not scanned and their contents
++// will not keep heap objects live. Unlike the main garbage
++// collection, we can't sweep the dead stack objects; they live on in
++// a moribund state until the stack frame that contains them is
++// popped.
++//
++// A stack can look like this:
++//
++// +----------+
++// | foo()    |
++// | +------+ |
++// | |  A   | | <---\
++// | +------+ |     |
++// |          |     |
++// | +------+ |     |
++// | |  B   | |     |
++// | +------+ |     |
++// |          |     |
++// +----------+     |
++// | bar()    |     |
++// | +------+ |     |
++// | |  C   | | <-\ |
++// | +----|-+ |   | |
++// |      |   |   | |
++// | +----v-+ |   | |
++// | |  D  ---------/
++// | +------+ |   |
++// |          |   |
++// +----------+   |
++// | baz()    |   |
++// | +------+ |   |
++// | |  E  -------/
++// | +------+ |
++// |      ^   |
++// | F: --/   |
++// |          |
++// +----------+
++//
++// foo() calls bar() calls baz(). Each has a frame on the stack.
++// foo() has stack objects A and B.
++// bar() has stack objects C and D, with C pointing to D and D pointing to A.
++// baz() has a stack object E pointing to C, and a local variable F pointing to E.
++//
++// Starting from the pointer in local variable F, we will eventually
++// scan all of E, C, D, and A (in that order). B is never scanned
++// because there is no live pointer to it. If B is also statically
++// dead (meaning that foo() never accesses B again after it calls
++// bar()), then B's pointers into the heap are not considered live.
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++const stackTraceDebug = false
++
++// Buffer for pointers found during stack tracing.
++// Must be smaller than or equal to workbuf.
++//
++//go:notinheap
++type stackWorkBuf struct {
++	stackWorkBufHdr
++	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / sys.PtrSize]uintptr
++}
++
++// Header declaration must come after the buf declaration above, because of issue #14620.
++//
++//go:notinheap
++type stackWorkBufHdr struct {
++	workbufhdr
++	next *stackWorkBuf // linked list of workbufs
++	// Note: we could theoretically repurpose lfnode.next as this next pointer.
++	// It would save 1 word, but that probably isn't worth busting open
++	// the lfnode API.
++}
++
++// Buffer for stack objects found on a goroutine stack.
++// Must be smaller than or equal to workbuf.
++//
++//go:notinheap
++type stackObjectBuf struct {
++	stackObjectBufHdr
++	obj [(_WorkbufSize - unsafe.Sizeof(stackObjectBufHdr{})) / unsafe.Sizeof(stackObject{})]stackObject
++}
++
++//go:notinheap
++type stackObjectBufHdr struct {
++	workbufhdr
++	next *stackObjectBuf
++}
++
++func init() {
++	if unsafe.Sizeof(stackWorkBuf{}) > unsafe.Sizeof(workbuf{}) {
++		panic("stackWorkBuf too big")
++	}
++	if unsafe.Sizeof(stackObjectBuf{}) > unsafe.Sizeof(workbuf{}) {
++		panic("stackObjectBuf too big")
++	}
++}
++
++// A stackObject represents a variable on the stack that has had
++// its address taken.
++//
++//go:notinheap
++type stackObject struct {
++	off   uint32       // offset above stack.lo
++	size  uint32       // size of object
++	typ   *_type       // type info (for ptr/nonptr bits). nil if object has been scanned.
++	left  *stackObject // objects with lower addresses
++	right *stackObject // objects with higher addresses
++}
++
++// obj.typ = typ, but with no write barrier.
++//go:nowritebarrier
++func (obj *stackObject) setType(typ *_type) {
++	// Types of stack objects are always in read-only memory, not the heap.
++	// So not using a write barrier is ok.
++	*(*uintptr)(unsafe.Pointer(&obj.typ)) = uintptr(unsafe.Pointer(typ))
++}
++
++// A stackScanState keeps track of the state used during the GC walk
++// of a goroutine.
++//
++//go:notinheap
++type stackScanState struct {
++	cache pcvalueCache
++
++	// stack limits
++	stack stack
++
++	// buf contains the set of possible pointers to stack objects.
++	// Organized as a LIFO linked list of buffers.
++	// All buffers except possibly the head buffer are full.
++	buf     *stackWorkBuf
++	freeBuf *stackWorkBuf // keep around one free buffer for allocation hysteresis
++
++	// list of stack objects
++	// Objects are in increasing address order.
++	head  *stackObjectBuf
++	tail  *stackObjectBuf
++	nobjs int
++
++	// root of binary tree for fast object lookup by address
++	// Initialized by buildIndex.
++	root *stackObject
++}
++
++// Add p as a potential pointer to a stack object.
++// p must be a stack address.
++func (s *stackScanState) putPtr(p uintptr) {
++	if p < s.stack.lo || p >= s.stack.hi {
++		throw("address not a stack address")
++	}
++	buf := s.buf
++	if buf == nil {
++		// Initial setup.
++		buf = (*stackWorkBuf)(unsafe.Pointer(getempty()))
++		buf.nobj = 0
++		buf.next = nil
++		s.buf = buf
++	} else if buf.nobj == len(buf.obj) {
++		if s.freeBuf != nil {
++			buf = s.freeBuf
++			s.freeBuf = nil
++		} else {
++			buf = (*stackWorkBuf)(unsafe.Pointer(getempty()))
++		}
++		buf.nobj = 0
++		buf.next = s.buf
++		s.buf = buf
++	}
++	buf.obj[buf.nobj] = p
++	buf.nobj++
++}
++
++// Remove and return a potential pointer to a stack object.
++// Returns 0 if there are no more pointers available.
++func (s *stackScanState) getPtr() uintptr {
++	buf := s.buf
++	if buf == nil {
++		// Never had any data.
++		return 0
++	}
++	if buf.nobj == 0 {
++		if s.freeBuf != nil {
++			// Free old freeBuf.
++			putempty((*workbuf)(unsafe.Pointer(s.freeBuf)))
++		}
++		// Move buf to the freeBuf.
++		s.freeBuf = buf
++		buf = buf.next
++		s.buf = buf
++		if buf == nil {
++			// No more data.
++			putempty((*workbuf)(unsafe.Pointer(s.freeBuf)))
++			s.freeBuf = nil
++			return 0
++		}
++	}
++	buf.nobj--
++	return buf.obj[buf.nobj]
++}
++
++// addObject adds a stack object at addr of type typ to the set of stack objects.
++func (s *stackScanState) addObject(addr uintptr, typ *_type) {
++	x := s.tail
++	if x == nil {
++		// initial setup
++		x = (*stackObjectBuf)(unsafe.Pointer(getempty()))
++		x.next = nil
++		s.head = x
++		s.tail = x
++	}
++	if x.nobj > 0 && uint32(addr-s.stack.lo) < x.obj[x.nobj-1].off+x.obj[x.nobj-1].size {
++		throw("objects added out of order or overlapping")
++	}
++	if x.nobj == len(x.obj) {
++		// full buffer - allocate a new buffer, add to end of linked list
++		y := (*stackObjectBuf)(unsafe.Pointer(getempty()))
++		y.next = nil
++		x.next = y
++		s.tail = y
++		x = y
++	}
++	obj := &x.obj[x.nobj]
++	x.nobj++
++	obj.off = uint32(addr - s.stack.lo)
++	obj.size = uint32(typ.size)
++	obj.setType(typ)
++	// obj.left and obj.right will be initalized by buildIndex before use.
++	s.nobjs++
++}
++
++// buildIndex initializes s.root to a binary search tree.
++// It should be called after all addObject calls but before
++// any call of findObject.
++func (s *stackScanState) buildIndex() {
++	s.root, _, _ = binarySearchTree(s.head, 0, s.nobjs)
++}
++
++// Build a binary search tree with the n objects in the list
++// x.obj[idx], x.obj[idx+1], ..., x.next.obj[0], ...
++// Returns the root of that tree, and the buf+idx of the nth object after x.obj[idx].
++// (The first object that was not included in the binary search tree.)
++// If n == 0, returns nil, x.
++func binarySearchTree(x *stackObjectBuf, idx int, n int) (root *stackObject, restBuf *stackObjectBuf, restIdx int) {
++	if n == 0 {
++		return nil, x, idx
++	}
++	var left, right *stackObject
++	left, x, idx = binarySearchTree(x, idx, n/2)
++	root = &x.obj[idx]
++	idx++
++	if idx == len(x.obj) {
++		x = x.next
++		idx = 0
++	}
++	right, x, idx = binarySearchTree(x, idx, n-n/2-1)
++	root.left = left
++	root.right = right
++	return root, x, idx
++}
++
++// findObject returns the stack object containing address a, if any.
++// Must have called buildIndex previously.
++func (s *stackScanState) findObject(a uintptr) *stackObject {
++	off := uint32(a - s.stack.lo)
++	obj := s.root
++	for {
++		if obj == nil {
++			return nil
++		}
++		if off < obj.off {
++			obj = obj.left
++			continue
++		}
++		if off >= obj.off+obj.size {
++			obj = obj.right
++			continue
++		}
++		return obj
++	}
++}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index e29af677a2..7a11bdc058 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1437,7 +1437,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 			scanobject(base, gcw)
+ 			// Mark the finalizer itself, since the
+ 			// special isn't part of the GC'd heap.
+-			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)
++			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+ 			releasem(mp)
+ 		}
+ 		return true
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 582e94e9d0..b815aa859e 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -625,7 +625,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
+-	locals, args := getStackMap(frame, &adjinfo.cache, true)
++	locals, args, objs := getStackMap(frame, &adjinfo.cache, true)
+ 
+ 	// Adjust local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+@@ -663,6 +663,42 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		}
+ 		adjustpointers(unsafe.Pointer(frame.argp), &args, adjinfo, funcInfo{})
+ 	}
++
++	// Adjust pointers in all stack objects (whether they are live or not).
++	// See comments in mgcmark.go:scanframeworker.
++	if frame.varp != 0 {
++		for _, obj := range objs {
++			off := obj.off
++			base := frame.varp // locals base pointer
++			if off >= 0 {
++				base = frame.argp // arguments and return values base pointer
++			}
++			p := base + uintptr(off)
++			if p < frame.sp {
++				// Object hasn't been allocated in the frame yet.
++				// (Happens when the stack bounds check fails and
++				// we call into morestack.)
++				continue
++			}
++			t := obj.typ
++			gcdata := t.gcdata
++			var s *mspan
++			if t.kind&kindGCProg != 0 {
++				// See comments in mgcmark.go:scanstack
++				s = materializeGCProg(t.ptrdata, gcdata)
++				gcdata = (*byte)(unsafe.Pointer(s.startAddr))
++			}
++			for i := uintptr(0); i < t.ptrdata; i += sys.PtrSize {
++				if *addb(gcdata, i/(8*sys.PtrSize))>>(i/sys.PtrSize&7)&1 != 0 {
++					adjustpointer(adjinfo, unsafe.Pointer(p+i))
++				}
++			}
++			if s != nil {
++				dematerializeGCProg(s)
++			}
++		}
++	}
++
+ 	return true
+ }
+ 
+@@ -1136,9 +1172,9 @@ func freeStackSpans() {
+ 	unlock(&stackLarge.lock)
+ }
+ 
+-// getStackMap returns the locals and arguments live pointer maps for
+-// frame.
+-func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector) {
++// getStackMap returns the locals and arguments live pointer maps, and
++// stack object list for frame.
++func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+ 	targetpc := frame.continpc
+ 	if targetpc == 0 {
+ 		// Frame is dead. Return empty bitvectors.
+@@ -1235,9 +1271,33 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 			}
+ 		}
+ 	}
++
++	// stack objects.
++	p := funcdata(f, _FUNCDATA_StackObjects)
++	if p != nil {
++		n := *(*uintptr)(p)
++		p = add(p, sys.PtrSize)
++		*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
++		// Note: the noescape above is needed to keep
++		// getStackMap from from "leaking param content:
++		// frame".  That leak propagates up to getgcmask, then
++		// GCMask, then verifyGCInfo, which converts the stack
++		// gcinfo tests into heap gcinfo tests :(
++	}
++
+ 	return
+ }
+ 
++// A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
++// This record must match the generator code in cmd/compile/internal/gc/ssa.go:emitStackObjects.
++type stackObjectRecord struct {
++	// offset in frame
++	// if negative, offset from varp
++	// if non-negative, offset from argp
++	off int
++	typ *_type
++}
++
+ //go:nosplit
+ func morestackc() {
+ 	throw("attempt to execute system stack code on user stack")
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index d90ab86ffa..452e9d06ae 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -348,6 +348,7 @@ const (
+ 	_FUNCDATA_LocalsPointerMaps = 1
+ 	_FUNCDATA_InlTree           = 2
+ 	_FUNCDATA_RegPointerMaps    = 3
++	_FUNCDATA_StackObjects      = 4
+ 	_ArgsSizeUnknown            = -0x80000000
+ )
+ 

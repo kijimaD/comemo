@@ -9,6 +9,20 @@ Date:   Fri Jun 24 11:23:49 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4645058
-
+---
  src/pkg/os/file_posix.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index f1191d61fe..05db6bc300 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The os package provides a platform-independent interface to operating
+-// system functionality.  The design is Unix-like.
+ package os
+ 
+ import (

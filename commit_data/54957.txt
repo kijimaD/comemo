@@ -14,6 +14,31 @@ Date:   Wed Nov 23 16:13:34 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/rsa/rsa.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 88a5e28e62..11f87e8e49 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -204,8 +204,8 @@ type PrecomputedValues struct {
+ 	// differently in PKCS #1 and interoperability is sufficiently
+ 	// important that we mirror this.
+ 	//
+-	// Deprecated: these values are still filled in by Precompute for
+-	// backwards compatibility, but are not used. Multi-prime RSA is very rare,
++	// Note: these values are still filled in by Precompute for
++	// backwards compatibility but are not used. Multi-prime RSA is very rare,
+ 	// and is implemented by this package without CRT optimizations to limit
+ 	// complexity.
+ 	CRTValues []CRTValue
+@@ -278,7 +278,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ // This package does not implement CRT optimizations for multi-prime RSA, so the
+ // keys with more than two primes will have worse performance.
+ //
+-// Deprecated: The use of this function with a number of primes different from
++// Note: The use of this function with a number of primes different from
+ // two is not recommended for the above security, compatibility, and performance
+ // reasons. Use GenerateKey instead.
+ //

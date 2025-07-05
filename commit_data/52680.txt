@@ -15,10 +15,83 @@ Date:   Tue May 17 19:33:28 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go.mod                        | 2 +-
  src/go.sum                        | 2 ++
  src/net/http/clientserver_test.go | 3 ---
  src/net/http/h2_bundle.go         | 8 ++++++++
  src/vendor/modules.txt            | 2 +-
  5 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 3a6cf56286..2b4d8b4b75 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.19
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8
+-	golang.org/x/net v0.0.0-20220516155154-20f960328961
++	golang.org/x/net v0.0.0-20220517181318-183a9ca12b87
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 82985861b0..0620cb5a09 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,6 +2,8 @@ golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 h1:y+mHpWoQJNAHt26Nhh6JP7
+ golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+ golang.org/x/net v0.0.0-20220516155154-20f960328961 h1:+W/iTMPG0EL7aW+/atntZwZrvSRIj3m3yX414dSULUU=
+ golang.org/x/net v0.0.0-20220516155154-20f960328961/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
++golang.org/x/net v0.0.0-20220517181318-183a9ca12b87 h1:cCR+9mKLOGyX4Zx+uBZDXEDAQsvKQ/XbW4vreG5v1jU=
++golang.org/x/net v0.0.0-20220517181318-183a9ca12b87/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.8-0.20220509174342-b4bca84b0361 h1:h+pU/hCb7sEApigI6eII3/Emx5ZHaFWS+nulUp0Az/k=
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 3fc9fcf19d..b472ca4b78 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1624,9 +1624,6 @@ func TestEarlyHintsRequest_h1(t *testing.T) { testEarlyHintsRequest(t, h1Mode) }
+ func TestEarlyHintsRequest_h2(t *testing.T) { testEarlyHintsRequest(t, h2Mode) }
+ func testEarlyHintsRequest(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+-	if h2 {
+-		t.Skip("Waiting for H2 support to be merged: https://go-review.googlesource.com/c/net/+/406494")
+-	}
+ 
+ 	var wg sync.WaitGroup
+ 	wg.Add(1)
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index dfb1adbf30..53fbe9352a 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -6401,6 +6401,14 @@ func (rws *http2responseWriterState) writeHeader(code int) {
+ 		// Per RFC 8297 we must not clear the current header map
+ 		h := rws.handlerHeader
+ 
++		_, cl := h["Content-Length"]
++		_, te := h["Transfer-Encoding"]
++		if cl || te {
++			h = h.Clone()
++			h.Del("Content-Length")
++			h.Del("Transfer-Encoding")
++		}
++
+ 		if rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+ 			streamID:    rws.stream.id,
+ 			httpResCode: code,
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 5cb80bfbd5..d0fe779a5c 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -9,7 +9,7 @@ golang.org/x/crypto/curve25519/internal/field
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/internal/subtle
+-# golang.org/x/net v0.0.0-20220516155154-20f960328961
++# golang.org/x/net v0.0.0-20220517181318-183a9ca12b87
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

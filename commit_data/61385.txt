@@ -14,9 +14,268 @@ Date:   Mon Nov 4 13:32:36 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/625036
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/go_test.go                          | 10 ++--
  src/cmd/go/internal/vcweb/vcstest/vcstest.go   | 12 ++---
  src/cmd/go/internal/web/http.go                | 67 ++----------------------
  src/cmd/go/internal/web/intercept/intercept.go | 72 ++++++++++++++++++++++++++
  4 files changed, 88 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c24ab2a794..1df7cf8faa 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -39,7 +39,7 @@ import (
+ 	"cmd/go/internal/toolchain"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb/vcstest"
+-	"cmd/go/internal/web"
++	"cmd/go/internal/web/intercept"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/robustio"
+ 	"cmd/internal/sys"
+@@ -145,13 +145,13 @@ func TestMain(m *testing.M) {
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "loading certificates from $TESTGO_VCSTEST_CERT: %v", err)
+ 			}
+-			var interceptors []web.Interceptor
++			var interceptors []intercept.Interceptor
+ 			for _, host := range vcstest.Hosts {
+ 				interceptors = append(interceptors,
+-					web.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
+-					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
++					intercept.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
++					intercept.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
+ 			}
+-			web.EnableTestHooks(interceptors)
++			intercept.EnableTestHooks(interceptors)
+ 		}
+ 
+ 		cmdgo.Main()
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest.go b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+index fcbf27ddae..6827851292 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+@@ -9,7 +9,7 @@ package vcstest
+ import (
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb"
+-	"cmd/go/internal/web"
++	"cmd/go/internal/web/intercept"
+ 	"crypto/tls"
+ 	"crypto/x509"
+ 	"encoding/pem"
+@@ -101,13 +101,13 @@ func NewServer() (srv *Server, err error) {
+ 	vcs.VCSTestRepoURL = srv.HTTP.URL
+ 	vcs.VCSTestHosts = Hosts
+ 
+-	interceptors := make([]web.Interceptor, 0, 2*len(Hosts))
++	interceptors := make([]intercept.Interceptor, 0, 2*len(Hosts))
+ 	for _, host := range Hosts {
+ 		interceptors = append(interceptors,
+-			web.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
+-			web.Interceptor{Scheme: "https", FromHost: host, ToHost: httpsURL.Host, Client: srv.HTTPS.Client()})
++			intercept.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
++			intercept.Interceptor{Scheme: "https", FromHost: host, ToHost: httpsURL.Host, Client: srv.HTTPS.Client()})
+ 	}
+-	web.EnableTestHooks(interceptors)
++	intercept.EnableTestHooks(interceptors)
+ 
+ 	fmt.Fprintln(os.Stderr, "vcs-test.golang.org rerouted to "+srv.HTTP.URL)
+ 	fmt.Fprintln(os.Stderr, "https://vcs-test.golang.org rerouted to "+srv.HTTPS.URL)
+@@ -121,7 +121,7 @@ func (srv *Server) Close() error {
+ 	}
+ 	vcs.VCSTestRepoURL = ""
+ 	vcs.VCSTestHosts = nil
+-	web.DisableTestHooks()
++	intercept.DisableTestHooks()
+ 
+ 	srv.HTTP.Close()
+ 	srv.HTTPS.Close()
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index bd5f82856a..71eb8b3b28 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/auth"
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/web/intercept"
+ 	"cmd/internal/browser"
+ )
+ 
+@@ -68,68 +69,10 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
+ 		return errors.New("stopped after 10 redirects")
+ 	}
+ 
+-	interceptRequest(req)
++	intercept.Request(req)
+ 	return nil
+ }
+ 
+-type Interceptor struct {
+-	Scheme   string
+-	FromHost string
+-	ToHost   string
+-	Client   *http.Client
+-}
+-
+-func EnableTestHooks(interceptors []Interceptor) error {
+-	if enableTestHooks {
+-		return errors.New("web: test hooks already enabled")
+-	}
+-
+-	for _, t := range interceptors {
+-		if t.FromHost == "" {
+-			panic("EnableTestHooks: missing FromHost")
+-		}
+-		if t.ToHost == "" {
+-			panic("EnableTestHooks: missing ToHost")
+-		}
+-	}
+-
+-	testInterceptors = interceptors
+-	enableTestHooks = true
+-	return nil
+-}
+-
+-func DisableTestHooks() {
+-	if !enableTestHooks {
+-		panic("web: test hooks not enabled")
+-	}
+-	enableTestHooks = false
+-	testInterceptors = nil
+-}
+-
+-var (
+-	enableTestHooks  = false
+-	testInterceptors []Interceptor
+-)
+-
+-func interceptURL(u *urlpkg.URL) (*Interceptor, bool) {
+-	if !enableTestHooks {
+-		return nil, false
+-	}
+-	for i, t := range testInterceptors {
+-		if u.Host == t.FromHost && (u.Scheme == "" || u.Scheme == t.Scheme) {
+-			return &testInterceptors[i], true
+-		}
+-	}
+-	return nil, false
+-}
+-
+-func interceptRequest(req *http.Request) {
+-	if t, ok := interceptURL(req.URL); ok {
+-		req.Host = req.URL.Host
+-		req.URL.Host = t.ToHost
+-	}
+-}
+-
+ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 	start := time.Now()
+ 
+@@ -137,7 +80,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		return getFile(url)
+ 	}
+ 
+-	if enableTestHooks {
++	if intercept.TestHooksEnabled {
+ 		switch url.Host {
+ 		case "proxy.golang.org":
+ 			if os.Getenv("TESTGOPROXY404") == "1" {
+@@ -159,7 +102,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 
+ 		default:
+ 			if os.Getenv("TESTGONETWORK") == "panic" {
+-				if _, ok := interceptURL(url); !ok {
++				if _, ok := intercept.URL(url); !ok {
+ 					host := url.Host
+ 					if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
+ 						host = h
+@@ -189,7 +132,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		if url.Scheme == "https" {
+ 			auth.AddCredentials(req)
+ 		}
+-		t, intercepted := interceptURL(req.URL)
++		t, intercepted := intercept.URL(req.URL)
+ 		if intercepted {
+ 			req.Host = req.URL.Host
+ 			req.URL.Host = t.ToHost
+diff --git a/src/cmd/go/internal/web/intercept/intercept.go b/src/cmd/go/internal/web/intercept/intercept.go
+new file mode 100644
+index 0000000000..51c23c0130
+--- /dev/null
++++ b/src/cmd/go/internal/web/intercept/intercept.go
+@@ -0,0 +1,72 @@
++package intercept
++
++import (
++	"errors"
++	"net/http"
++	"net/url"
++)
++
++// Interceptor is used to change the host, and maybe the client,
++// for a request to point to a test host.
++type Interceptor struct {
++	Scheme   string
++	FromHost string
++	ToHost   string
++	Client   *http.Client
++}
++
++// EnableTestHooks installs the given interceptors to be used by URL and Request.
++func EnableTestHooks(interceptors []Interceptor) error {
++	if TestHooksEnabled {
++		return errors.New("web: test hooks already enabled")
++	}
++
++	for _, t := range interceptors {
++		if t.FromHost == "" {
++			panic("EnableTestHooks: missing FromHost")
++		}
++		if t.ToHost == "" {
++			panic("EnableTestHooks: missing ToHost")
++		}
++	}
++
++	testInterceptors = interceptors
++	TestHooksEnabled = true
++	return nil
++}
++
++// DisableTestHooks disables the installed interceptors.
++func DisableTestHooks() {
++	if !TestHooksEnabled {
++		panic("web: test hooks not enabled")
++	}
++	TestHooksEnabled = false
++	testInterceptors = nil
++}
++
++var (
++	// TestHooksEnabled is true if interceptors are installed
++	TestHooksEnabled = false
++	testInterceptors []Interceptor
++)
++
++// URL returns the Interceptor to be used for a given URL.
++func URL(u *url.URL) (*Interceptor, bool) {
++	if !TestHooksEnabled {
++		return nil, false
++	}
++	for i, t := range testInterceptors {
++		if u.Host == t.FromHost && (u.Scheme == "" || u.Scheme == t.Scheme) {
++			return &testInterceptors[i], true
++		}
++	}
++	return nil, false
++}
++
++// Request updates the host to actually use for the request, if it is to be intercepted.
++func Request(req *http.Request) {
++	if t, ok := URL(req.URL); ok {
++		req.Host = req.URL.Host
++		req.URL.Host = t.ToHost
++	}
++}

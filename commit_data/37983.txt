@@ -14,7 +14,71 @@ Date:   Wed Sep 19 03:39:46 2018 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go             | 14 ++++++++++----
  src/cmd/go/testdata/script/mod_clean_cache.txt | 23 +++++++++++++++++++++++
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index d023592eed..b12bd981a7 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -112,9 +112,10 @@ func runClean(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
++	var b work.Builder
++	b.Print = fmt.Print
++
+ 	if cleanCache {
+-		var b work.Builder
+-		b.Print = fmt.Print
+ 		dir := cache.DefaultDir()
+ 		if dir != "off" {
+ 			// Remove the cache subdirectories but not the top cache directory.
+@@ -156,8 +157,13 @@ func runClean(cmd *base.Command, args []string) {
+ 		if modfetch.PkgMod == "" {
+ 			base.Fatalf("go clean -modcache: no module cache")
+ 		}
+-		if err := removeAll(modfetch.PkgMod); err != nil {
+-			base.Errorf("go clean -modcache: %v", err)
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
++		}
++		if !cfg.BuildN {
++			if err := removeAll(modfetch.PkgMod); err != nil {
++				base.Errorf("go clean -modcache: %v", err)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/mod_clean_cache.txt b/src/cmd/go/testdata/script/mod_clean_cache.txt
+new file mode 100644
+index 0000000000..66a0e9ea7e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_clean_cache.txt
+@@ -0,0 +1,23 @@
++env GO111MODULE=on
++
++go mod download rsc.io/quote@v1.5.0
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
++
++go clean -modcache -n
++stdout '^rm -rf .*pkg.mod$'
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
++
++go clean -modcache
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
++
++-- go.mod --
++module m
++
++-- m.go --
++package m
+\ No newline at end of file

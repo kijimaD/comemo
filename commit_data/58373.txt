@@ -15,6 +15,35 @@ Date:   Thu Nov 2 10:29:29 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/os_openbsd.go | 10 +---------
  1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index c3204ec381..f0d453b34f 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -32,8 +32,7 @@ var sigset_all = ^sigset(0)
+ 
+ // From OpenBSD's <sys/sysctl.h>
+ const (
+-	_CTL_KERN   = 1
+-	_KERN_OSREV = 3
++	_CTL_KERN = 1
+ 
+ 	_CTL_HW        = 6
+ 	_HW_NCPU       = 3
+@@ -86,13 +85,6 @@ func getPageSize() uintptr {
+ 	return 0
+ }
+ 
+-func getOSRev() int {
+-	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
+-		return int(osrev)
+-	}
+-	return 0
+-}
+-
+ //go:nosplit
+ func semacreate(mp *m) {
+ }

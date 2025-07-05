@@ -26,7 +26,45 @@ Date:   Wed May 4 12:39:49 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/cookie.go      | 2 ++
  src/net/http/cookie_test.go | 6 ++++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 9cb0804f8f..e9fd599392 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -73,6 +73,7 @@ func readSetCookies(h Header) []*Cookie {
+ 		if !ok {
+ 			continue
+ 		}
++		name = textproto.TrimString(name)
+ 		if !isCookieNameValid(name) {
+ 			continue
+ 		}
+@@ -291,6 +292,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 				continue
+ 			}
+ 			name, val, _ := strings.Cut(part, "=")
++			name = textproto.TrimString(name)
+ 			if !isCookieNameValid(name) {
+ 				continue
+ 			}
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index ccc5f98091..0db138e4f1 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -352,6 +352,12 @@ var readSetCookiesTests = []struct {
+ 		Header{"Set-Cookie": {`special-8=","`}},
+ 		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
+ 	},
++	// Make sure we can properly read back the Set-Cookie headers
++	// for names containing spaces:
++	{
++		Header{"Set-Cookie": {`special-9 =","`}},
++		[]*Cookie{{Name: "special-9", Value: ",", Raw: `special-9 =","`}},
++	},
+ 
+ 	// TODO(bradfitz): users have reported seeing this in the
+ 	// wild, but do browsers handle it? RFC 6265 just says "don't

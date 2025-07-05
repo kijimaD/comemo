@@ -16,7 +16,142 @@ Date:   Mon Nov 14 15:51:30 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/errors/ptr.go | 21 +++++++++++++++++++
  src/cmd/cgo/gcc.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+)
+
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr.go
+index e39f0413e4..4dafbdf3c0 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr.go
+@@ -322,6 +322,27 @@ var ptrTests = []ptrTest{
+ 		body: `p := &C.s{}; defer C.f(p); p.p = new(C.int)`,
+ 		fail: true,
+ 	},
++	{
++		// Check a pointer to a union if the union has any
++		// pointer fields.
++		name:    "union1",
++		c:       `typedef union { char **p; unsigned long i; } u; void f(u *pu) {}`,
++		imports: []string{"unsafe"},
++		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
++		fail:    true,
++	},
++	{
++		// Don't check a pointer to a union if the union does
++		// not have any pointer fields.
++		// Like ptrdata1 above, the uintptr represents an
++		// integer that happens to have the same
++		// representation as a pointer.
++		name:    "union2",
++		c:       `typedef union { unsigned long i; } u; void f(u *pu) {}`,
++		imports: []string{"unsafe"},
++		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
++		fail:    false,
++	},
+ }
+ 
+ func main() {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 812e315eaf..d88c41d50a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -802,6 +802,11 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
+ 		if !top {
+ 			return true
+ 		}
++		// Check whether this is a pointer to a C union (or class)
++		// type that contains a pointer.
++		if unionWithPointer[t.X] {
++			return true
++		}
+ 		return p.hasPointer(f, t.X, false)
+ 	case *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+ 		return true
+@@ -1418,6 +1423,10 @@ var tagGen int
+ var typedef = make(map[string]*Type)
+ var goIdent = make(map[string]*ast.Ident)
+ 
++// unionWithPointer is true for a Go type that represents a C union (or class)
++// that may contain a pointer. This is used for cgo pointer checking
++var unionWithPointer = make(map[ast.Expr]bool)
++
+ func (c *typeConv) Init(ptrSize, intSize int64) {
+ 	c.ptrSize = ptrSize
+ 	c.intSize = intSize
+@@ -1706,6 +1715,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		t.Size = t1.Size
+ 		t.Align = t1.Align
+ 		t.Go = t1.Go
++		if unionWithPointer[t1.Go] {
++			unionWithPointer[t.Go] = true
++		}
+ 		t.EnumValues = nil
+ 		t.Typedef = ""
+ 		t.C.Set("%s "+dt.Qual, t1.C)
+@@ -1740,6 +1752,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		switch dt.Kind {
+ 		case "class", "union":
+ 			t.Go = c.Opaque(t.Size)
++			if c.dwarfHasPointer(dt, pos) {
++				unionWithPointer[t.Go] = true
++			}
+ 			if t.C.Empty() {
+ 				t.C.Set("__typeof__(unsigned char[%d])", t.Size)
+ 			}
+@@ -1782,6 +1797,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		goIdent[name.Name] = name
+ 		sub := c.Type(dt.Type, pos)
+ 		t.Go = name
++		if unionWithPointer[sub.Go] {
++			unionWithPointer[t.Go] = true
++		}
+ 		t.Size = sub.Size
+ 		t.Align = sub.Align
+ 		oldType := typedef[name.Name]
+@@ -2163,6 +2181,44 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	return
+ }
+ 
++// dwarfHasPointer returns whether the DWARF type dt contains a pointer.
++func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
++	switch dt := dt.(type) {
++	default:
++		fatalf("%s: unexpected type: %s", lineno(pos), dt)
++		return false
++
++	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.EnumType,
++		*dwarf.FloatType, *dwarf.ComplexType, *dwarf.FuncType,
++		*dwarf.IntType, *dwarf.UcharType, *dwarf.UintType, *dwarf.VoidType:
++
++		return false
++
++	case *dwarf.ArrayType:
++		return c.dwarfHasPointer(dt.Type, pos)
++
++	case *dwarf.PtrType:
++		return true
++
++	case *dwarf.QualType:
++		return c.dwarfHasPointer(dt.Type, pos)
++
++	case *dwarf.StructType:
++		for _, f := range dt.Field {
++			if c.dwarfHasPointer(f.Type, pos) {
++				return true
++			}
++		}
++		return false
++
++	case *dwarf.TypedefType:
++		if dt.Name == "_GoString_" || dt.Name == "_GoBytes_" {
++			return true
++		}
++		return c.dwarfHasPointer(dt.Type, pos)
++	}
++}
++
+ func upper(s string) string {
+ 	if s == "" {
+ 		return ""

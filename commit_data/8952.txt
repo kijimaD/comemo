@@ -7,6 +7,20 @@ Date:   Wed Jul 6 15:14:10 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4672044
-
+---
  src/pkg/exp/template/exec.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index befb2ded9a..1857e403ff 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -447,6 +447,8 @@ func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node)
+ 	switch n := n.(type) {
+ 	case *boolNode:
+ 		return reflect.ValueOf(n.true)
++	case *dotNode:
++		return data
+ 	case *fieldNode:
+ 		return s.evalFieldNode(data, n, nil, reflect.Value{})
+ 	case *identifierNode:

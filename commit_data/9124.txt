@@ -7,6 +7,29 @@ Date:   Tue Jul 19 13:18:21 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4770041
-
+---
  src/pkg/exp/wingui/winapi.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/wingui/winapi.go b/src/pkg/exp/wingui/winapi.go
+index fb0d610097..fdf9d9ee0b 100644
+--- a/src/pkg/exp/wingui/winapi.go
++++ b/src/pkg/exp/wingui/winapi.go
+@@ -9,7 +9,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-func loadDll(fname string) uint32 {
++func loadDll(fname string) syscall.Handle {
+ 	h, e := syscall.LoadLibrary(fname)
+ 	if e != 0 {
+ 		abortf("LoadLibrary(%s) failed with err=%d.\n", fname, e)
+@@ -17,7 +17,7 @@ func loadDll(fname string) uint32 {
+ 	return h
+ }
+ 
+-func getSysProcAddr(m uint32, pname string) uintptr {
++func getSysProcAddr(m syscall.Handle, pname string) uintptr {
+ 	p, e := syscall.GetProcAddress(m, pname)
+ 	if e != 0 {
+ 		abortf("GetProcAddress(%s) failed with err=%d.\n", pname, e)

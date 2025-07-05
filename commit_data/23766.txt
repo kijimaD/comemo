@@ -9,6 +9,28 @@ Date:   Thu Jun 11 13:21:46 2015 -0700
     Change-Id: I1ab28febe19b7a092029499015073ce8749b4d99
     Reviewed-on: https://go-review.googlesource.com/10960
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b5f18f3a02..4b8d60b8e4 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 26, 2015",
++	"Subtitle": "Version of June 11, 2015",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4388,7 +4388,7 @@ a[i] = 23
+ An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
+ <code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
+ to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
+-<code>y</code> but evaluates <code>x</code>
++<code>(y)</code> but evaluates <code>x</code>
+ only once.  The <i>op</i><code>=</code> construct is a single token.
+ In assignment operations, both the left- and right-hand expression lists
+ must contain exactly one single-valued expression, and the left-hand

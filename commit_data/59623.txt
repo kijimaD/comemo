@@ -13,7 +13,57 @@ Date:   Sat Mar 30 17:35:46 2024 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/staticinit/sched.go |  8 +++++++-
  test/codegen/issue66585.go                   | 24 ++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 4191f6997e..1f119920e9 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -881,7 +881,13 @@ func mayModifyPkgVar(n ir.Node) bool {
+ 	// safeLHS reports whether the assigned-to variable lhs is either a
+ 	// local variable or a global from another package.
+ 	safeLHS := func(lhs ir.Node) bool {
+-		v, ok := ir.OuterValue(lhs).(*ir.Name)
++		outer := ir.OuterValue(lhs)
++		// "*p = ..." should be safe if p is a local variable.
++		// TODO: Should ir.OuterValue handle this?
++		for outer.Op() == ir.ODEREF {
++			outer = outer.(*ir.StarExpr).X
++		}
++		v, ok := outer.(*ir.Name)
+ 		return ok && v.Op() == ir.ONAME && !(v.Class == ir.PEXTERN && v.Sym().Pkg == types.LocalPkg)
+ 	}
+ 
+diff --git a/test/codegen/issue66585.go b/test/codegen/issue66585.go
+new file mode 100644
+index 0000000000..32a180be0e
+--- /dev/null
++++ b/test/codegen/issue66585.go
+@@ -0,0 +1,24 @@
++// asmcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var x = func() int {
++	n := 0
++	f(&n)
++	return n
++}()
++
++func f(p *int) {
++	*p = 1
++}
++
++var y = 1
++
++// z can be static initialized.
++//
++// amd64:-"MOVQ"
++var z = y

@@ -14,10 +14,106 @@ Date:   Fri Mar 7 15:33:44 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/71330045
-
+---
  src/cmd/5g/galign.c |  5 +++++
  src/cmd/6g/galign.c |  7 +++++++
  src/cmd/8g/galign.c |  5 +++++
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/lex.c    | 14 +++++++-------
  5 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 14d323fa7e..a62102ef84 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -10,6 +10,11 @@ int	thechar	= '5';
+ char*	thestring	= "arm";
+ LinkArch*	thelinkarch = &linkarm;
+ 
++void
++linkarchinit(void)
++{
++}
++
+ vlong MAXWIDTH = (1LL<<32) - 1;
+ 
+ /*
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index ec37ceb233..d0727fe57c 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -10,6 +10,13 @@ int	thechar	= '6';
+ char*	thestring	= "amd64";
+ LinkArch*	thelinkarch = &linkamd64;
+ 
++void
++linkarchinit(void)
++{
++	if(strcmp(getgoarch(), "amd64p32") == 0)
++		thelinkarch = &linkamd64p32;
++}
++
+ vlong MAXWIDTH = 1LL<<50;
+ 
+ int	addptr = AADDQ;
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 439e741553..fbd2e9ad35 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -10,6 +10,11 @@ int	thechar	= '8';
+ char*	thestring	= "386";
+ LinkArch*	thelinkarch = &link386;
+ 
++void
++linkarchinit(void)
++{
++}
++
+ vlong MAXWIDTH = (1LL<<32) - 1;
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3750413a81..151032eb90 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1505,6 +1505,7 @@ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+ void	movelarge(NodeList*);
+ int	isfat(Type*);
++void	linkarchinit(void);
+ void	liveness(Node*, Prog*, Sym*, Sym*, Sym*);
+ void	markautoused(Prog*);
+ Plist*	newplist(void);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 430abae5b1..aeeac68a15 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -212,7 +212,14 @@ main(int argc, char *argv[])
+ #ifdef	PLAN9
+ 	notify(catcher);
+ #endif
++	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// but not other values.	
++	p = getgoarch();
++	if(strncmp(p, thestring, strlen(thestring)) != 0)
++		fatal("cannot use %cg with GOARCH=%s", thechar, p);
++	goarch = p;
+ 
++	linkarchinit();
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;
+@@ -259,13 +266,6 @@ main(int argc, char *argv[])
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+ 
+-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+-	// but not other values.	
+-	p = getgoarch();
+-	if(strncmp(p, thestring, strlen(thestring)) != 0)
+-		fatal("cannot use %cg with GOARCH=%s", thechar, p);
+-	goarch = p;
+-	
+ 	nacl = strcmp(goos, "nacl") == 0;
+ 	if(nacl)
+ 		flag_largemodel = 1;

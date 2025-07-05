@@ -10,6 +10,20 @@ Date:   Thu Jul 2 14:35:23 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/11861
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/trace/parser.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 1117b18e47..ece5bc188d 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -254,6 +254,8 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 	}
+ 
+ 	// Sort by time and translate cpu ticks to real time.
++	// Use stable sort because adjacent events in a batch can have the same timestamp
++	// (this was observed on some VMs).
+ 	sort.Stable(eventList(events))
+ 	if ticksPerSec == 0 {
+ 		err = fmt.Errorf("no EvFrequency event")

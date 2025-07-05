@@ -11,6 +11,20 @@ Date:   Fri Feb 22 16:50:54 2019 +0000
     GitHub-Pull-Request: golang/go#30353
     Reviewed-on: https://go-review.googlesource.com/c/163437
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index db44d6b029..41d46dced2 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -63,6 +63,8 @@ func mapDirOpenError(originalErr error, name string) error {
+ 	return originalErr
+ }
+ 
++// Open implements FileSystem using os.Open, opening files for reading rooted
++// and relative to the directory d.
+ func (d Dir) Open(name string) (File, error) {
+ 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
+ 		return nil, errors.New("http: invalid character in file path")

@@ -7,6 +7,33 @@ Date:   Wed Sep 8 10:12:56 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2121045
-
+---
  src/cmd/gc/print.c | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index fc5be984f3..7c65d5a7a1 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -119,6 +119,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case OLITERAL:
++		if(n->sym != S) {
++			fmtprint(f, "%S", n->sym);
++			break;
++		}
+ 		switch(n->val.ctype) {
+ 		default:
+ 			goto bad;
+@@ -259,6 +263,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		exprfmt(f, n->left, 0);
+ 		break;
+ 
++	case OCLOSURE:
++		fmtprint(f, "func literal");
++		break;
++
+ 	case OCOMPLIT:
+ 		fmtprint(f, "composite literal");
+ 		break;

@@ -17,7 +17,59 @@ Date:   Wed Sep 1 14:57:18 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/pipe_linux.go      | 15 +--------------
  src/syscall/exec_linux.go | 14 +-------------
  2 files changed, 2 insertions(+), 27 deletions(-)
+
+diff --git a/src/os/pipe_linux.go b/src/os/pipe_linux.go
+index acd7b88e1d..52f4e21e7c 100644
+--- a/src/os/pipe_linux.go
++++ b/src/os/pipe_linux.go
+@@ -12,20 +12,7 @@ func Pipe() (r *File, w *File, err error) {
+ 	var p [2]int
+ 
+ 	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
+-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
+-	// might not be implemented.
+-	if e == syscall.ENOSYS {
+-		// See ../syscall/exec.go for description of lock.
+-		syscall.ForkLock.RLock()
+-		e = syscall.Pipe(p[0:])
+-		if e != nil {
+-			syscall.ForkLock.RUnlock()
+-			return nil, nil, NewSyscallError("pipe", e)
+-		}
+-		syscall.CloseOnExec(p[0])
+-		syscall.CloseOnExec(p[1])
+-		syscall.ForkLock.RUnlock()
+-	} else if e != nil {
++	if e != nil {
+ 		return nil, nil, NewSyscallError("pipe2", e)
+ 	}
+ 
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index ccc0e39e30..68bce7559b 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -553,19 +553,7 @@ childerror:
+ 
+ // Try to open a pipe with O_CLOEXEC set on both file descriptors.
+ func forkExecPipe(p []int) (err error) {
+-	err = Pipe2(p, O_CLOEXEC)
+-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
+-	// might not be implemented.
+-	if err == ENOSYS {
+-		if err = Pipe(p); err != nil {
+-			return
+-		}
+-		if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
+-			return
+-		}
+-		_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
+-	}
+-	return
++	return Pipe2(p, O_CLOEXEC)
+ }
+ 
+ func formatIDMappings(idMap []SysProcIDMap) []byte {

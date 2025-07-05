@@ -15,6 +15,23 @@ Date:   Thu Jan 12 23:21:53 2017 +0900
     Change-Id: I10fc3e31cfbf7b303eec44150df917f6eb285f90
     Reviewed-on: https://go-review.googlesource.com/35075
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/scope.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/go/ast/scope.go b/src/go/ast/scope.go
+index 1ce5e2e84b..a400c7152a 100644
+--- a/src/go/ast/scope.go
++++ b/src/go/ast/scope.go
+@@ -70,10 +70,8 @@ func (s *Scope) String() string {
+ // The Data fields contains object-specific data:
+ //
+ //	Kind    Data type         Data value
+-//	Pkg	*types.Package    package scope
++//	Pkg     *Scope            package scope
+ //	Con     int               iota for the respective declaration
+-//	Con     != nil            constant value
+-//	Typ     *Scope            (used as method scope during type checking - transient)
+ //
+ type Object struct {
+ 	Kind ObjKind

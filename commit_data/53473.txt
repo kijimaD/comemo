@@ -12,6 +12,20 @@ Date:   Wed Aug 17 21:57:59 2022 +0930
     Run-TryBot: hopehook <hopehook@qq.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcpacer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index f73a3a8277..633d181a9d 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -684,7 +684,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ 	//
+ 	//    assistDuration * procs * (utilization + idleUtilization)
+ 	//
+-	// In this case, we *include* idle utilization, because that is additional CPU time that the
++	// In this case, we *include* idle utilization, because that is additional CPU time that
+ 	// the GC had available to it.
+ 	//
+ 	// In effect, idle GC time is sort of double-counted here, but it's very weird compared

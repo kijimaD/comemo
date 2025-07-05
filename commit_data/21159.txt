@@ -8,6 +8,30 @@ Date:   Fri Nov 21 15:59:22 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/175480043
-
+---
  src/runtime/proc.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 50920afe8b..295190cb4e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -63,11 +63,13 @@ func main() {
+ 		if _cgo_free == nil {
+ 			gothrow("_cgo_free missing")
+ 		}
+-		if _cgo_setenv == nil {
+-			gothrow("_cgo_setenv missing")
+-		}
+-		if _cgo_unsetenv == nil {
+-			gothrow("_cgo_unsetenv missing")
++		if GOOS != "windows" {
++			if _cgo_setenv == nil {
++				gothrow("_cgo_setenv missing")
++			}
++			if _cgo_unsetenv == nil {
++				gothrow("_cgo_unsetenv missing")
++			}
+ 		}
+ 	}
+ 

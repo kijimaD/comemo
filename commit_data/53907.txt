@@ -11,6 +11,20 @@ Date:   Sun Jun 5 18:28:51 2022 +0100
     Reviewed-by: Jamal Carvalho <jamal@golang.org>
     Run-TryBot: Jamal Carvalho <jamal@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .github/ISSUE_TEMPLATE/02-pkgsite-removal.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.md b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.md
+index 5c1eb94be6..97fe317f5b 100644
+--- a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.md
++++ b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.md
+@@ -2,7 +2,7 @@
+ name: Pkg.go.dev package removal request
+ about: Request a package be removed from the documentation site (pkg.go.dev)
+ title: "x/pkgsite: package removal request for [type path here]"
+-labels: pkgsite
++labels: pkgsite/package-removal
+ ---
+ 
+ <!--

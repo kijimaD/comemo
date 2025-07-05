@@ -19,7 +19,67 @@ Date:   Wed May 3 14:53:03 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++--
  test/fixedbugs/issue59338.go             | 16 +++++++---------
  2 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 72c7a1fc86..178c3eb1a9 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -123,14 +123,25 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
+ }
+ 
+ func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
+-	tv := x.GetTypeInfo()
+-	if tv.Type == nil {
++	tv, ok := pw.maybeTypeAndValue(x)
++	if !ok {
+ 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
+ 	}
+ 	return tv
+ }
++
+ func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
+ 	tv := x.GetTypeInfo()
++
++	// If x is a generic function whose type arguments are inferred
++	// from assignment context, then we need to find its inferred type
++	// in Info.Instances instead.
++	if name, ok := x.(*syntax.Name); ok {
++		if inst, ok := pw.info.Instances[name]; ok {
++			tv.Type = inst.Type
++		}
++	}
++
+ 	return tv, tv.Type != nil
+ }
+ 
+diff --git a/test/fixedbugs/issue59338.go b/test/fixedbugs/issue59338.go
+index dc8604f319..8ba3fd2b3b 100644
+--- a/test/fixedbugs/issue59338.go
++++ b/test/fixedbugs/issue59338.go
+@@ -21,15 +21,13 @@ func main() {
+ 		panic(2)
+ 	}
+ 
+-	// Disabled for now - requires some noder work
+-	// TODO fix this
+-	// if g3(g1, 3) != g1(3) {
+-	// 	panic(3)
+-	// }
+-
+-	// if g4(g2, 4) != "" {
+-	// 	panic(4)
+-	// }
++	if g3(g1, 3) != g1(3) {
++		panic(3)
++	}
++
++	if g4(g2, 4) != "" {
++		panic(4)
++	}
+ }
+ 
+ func g1[P any](x P) P    { return x }

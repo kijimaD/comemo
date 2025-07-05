@@ -11,7 +11,7 @@ Date:   Mon Feb 13 21:22:36 2012 +1100
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5571061
-
+---
  doc/all.css              | 222 --------------------------------
  doc/community.html       |  55 --------
  doc/contrib.html         |  63 +++++-----
@@ -28,3 +28,1703 @@ Date:   Mon Feb 13 21:22:36 2012 +1100
  lib/godoc/package.html   |  54 ++++----
  src/cmd/godoc/godoc.go   |   2 +-
  15 files changed, 676 insertions(+), 800 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+deleted file mode 100644
+index 8caab97206..0000000000
+--- a/doc/all.css
++++ /dev/null
+@@ -1,222 +0,0 @@
+-/* General Styles */
+-body {
+-  font-family: "Bitstream Vera Sans", Verdana, sans-serif;
+-  font-size: 81.25%;
+-  line-height: 1.23em;
+-  padding: 0;
+-  margin: 1.23em;
+-  background: white;
+-  color: black;
+-}
+-a {
+-  color: #04a;
+-  text-decoration: none;
+-}
+-a:visited {
+-  color: #04a;
+-}
+-a:hover {
+-  color: #a40;
+-  text-decoration: underline;
+-}
+-a:active {
+-  color: #c00;
+-}
+-code, pre {
+-  font-size: 1.2em; 
+-}
+-pre {
+-  background: #F0F0F0;
+-  padding: 0.5em 1em;
+-}
+-h3 {
+-  font-size: 100%;
+-}
+-
+-/* Top bar */
+-#container {
+-  width: 100%;
+-  margin: auto;
+-}
+-#topnav {
+-  height: 55px;
+-  background: url(/doc/logo.png) no-repeat top left;
+-}
+-a#logo-box {
+-  display: block;
+-  height: 55px;
+-}
+-h1#title {
+-  display: none;
+-}
+-#nav-main {
+-  float: right;
+-  width: 500px;
+-  margin-top: -5px;
+-  text-align: center;
+-}
+-#nav-main ul {
+-  padding-left: 0;
+-  margin-left: 0;
+-  margin-bottom: 0.5em;
+-}
+-#nav-main li a {
+-  display: inline;
+-  display: inline-block;
+-  padding: .46em .62em .38em .62em;
+-}
+-#nav-main li a:link,
+-#nav-main li a:visited {
+-  color: #000;
+-}
+-#nav-main li {
+-  display: inline;
+-  display: inline-block;
+-  background: #e6e6e6 url(/doc/button_background.png) repeat-x;
+-  border: solid 1px #999;
+-  margin-left: -1px;
+-  text-shadow: #fff 0 1px 0;
+-  box-shadow: 0 1px 1px #ccc;
+-  -moz-box-shadow: 0 1px 1px #ccc;
+-  -webkit-box-shadow: 0 1px 1px #ccc;
+-}
+-#nav-main li:first-child {
+-  -moz-border-radius-topleft: 4px;
+-  border-top-left-radius: 4px;
+-  -moz-border-radius-bottomleft: 4px;
+-  border-bottom-left-radius: 4px;
+-}
+-#nav-main li:last-child {
+-  -moz-border-radius-topright: 4px;
+-  border-top-right-radius: 4px;
+-  -moz-border-radius-bottomright: 4px;
+-  border-bottom-right-radius: 4px;
+-}
+-#nav-main .quickref {
+-  color: #444;
+-}
+-#nav-main .quickref .sep {
+-  color: #999;
+-}
+-#search {
+-  width: 120px;
+-  margin-left: 0.5em;
+-}
+-#search.inactive {
+-  text-align: center;
+-  color: #444;
+-}
+-
+-/* Footer */
+-#site-info {
+-  position: relative;
+-  text-align: center;
+-}
+-#site-info, #site-info a:link, #site-info a:visited {
+-  color: #aaa;
+-}
+-
+-/* Content */
+-#content {
+-  clear: both;
+-  padding: 0;
+-  position: relative;
+-  margin-top: 1.5em;
+-  margin-bottom: 1.5em;
+-  border-top: solid 1px #aaa;
+-  border-bottom: solid 1px #aaa;
+-}
+-.left-column {
+-  width: 49%;
+-  float: left;
+-}
+-.right-column {
+-  width: 49%;
+-  float: right;
+-}
+-.end-columns {
+-  clear: both;
+-}
+-#content h1 {
+-  padding: 0;
+-}
+-#content h2 {
+-  border-top: 2px solid #ddd;
+-  padding: 8px 0;
+-  margin: 1.5em 0 0;
+-}
+-#content .subtitle {
+-  margin-top: 1em;
+-  display: block;
+-}
+-.navtop a {
+-  font-weight: normal; font-size: 7pt; 
+-  float: right; color: #999;
+-}
+-
+-/* Content and Code Highlighting */
+-pre.ebnf, pre.grammar {
+-  background: #FFFFE0;
+-}
+-span.ln {
+-  font-size: 80%;
+-  color: #777777;
+-}
+-span.comment {
+-  color: #002090;
+-}
+-span.highlight {
+-  background: #FF9900;
+-  font-weight: bold;
+-}
+-span.highlight-comment {
+-  background: #FF9900;
+-  font-weight: bold;
+-  color: #002090;
+-}
+-span.selection {
+-  background: #FFFF00
+-}
+-span.selection-comment {
+-  color: #002090;
+-  background: #FFFF00
+-}
+-span.selection-highlight {
+-  background: #FF9900;
+-  font-weight: bold;
+-}
+-span.selection-highlight-comment {
+-  background: #FF9900;
+-  font-weight: bold;
+-  color: #002090;
+-}
+-span.alert {
+-  color: #D00000;
+-}
+-#nav table {
+-  width: 100%;
+-}
+-.detail {
+-  padding: 0.25em 1em;
+-  background: #F4F4F4;
+-}
+-sup.new {
+-  color: red;
+-  font-size: 8px;
+-  line-height: 0;
+-}
+-.example .expanded {
+-  display: none;
+-}
+-.exampleVisible .collapsed {
+-  display: none;
+-}
+-.exampleHeading {
+-  cursor: pointer;
+-}
+-
+-/* Table of code entries; used by go1.html */
+-.codetable td {
+-   font-family: monospace;
+-   font-size: 120%;
+-}
+diff --git a/doc/community.html b/doc/community.html
+deleted file mode 100644
+index aee731e3c0..0000000000
+--- a/doc/community.html
++++ /dev/null
+@@ -1,55 +0,0 @@
+-<!--{
+-	"Title": "Community"
+-}-->
+-
+-<div class="left-column">
+-
+-<h2 id="developer_info">The Go Community</h2>
+-
+-<h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+-<p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
+-mailing list is for general Go discussion.</p>
+-
+-<h3 id=""><a href="http://godashboard.appspot.com/package">Go Packages Dashboard</a></h3>
+-<p>A list of the most popular <a href="/cmd/goinstall/">goinstall</a>'d
+-Go libraries.</p>
+-
+-<h3 id=""><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
+-<p>A list of external Go projects including programs and libraries.</p>
+-
+-<h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+-<p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
+-
+-<h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
+-<p>The Go project's official Twitter account.</p>
+-
+-</div>
+-
+-<div class="right-column">
+-
+-<h2 id="blogs">Blogs</h2>
+-
+-<h3 id="blog_go"><a href="http://blog.golang.org/">The Go Blog</a></h3>
+-<p>
+-The Go project's official blog, maintained by the core Go developers.
+-</p>
+-
+-<h3 id="blog_rsc"><a href="http://research.swtch.com/search/label/Go">research!rsc</a></h3>
+-<p>
+-Posts labelled 'Go' by Russ Cox, one of the core Go developers.
+-</p>
+-
+-<h3 id="blog_iant"><a href="http://www.airs.com/blog/archives/category/programming">Airs</a></h3>
+-<p>
+-Posts labelled 'Programming' by Ian Lance Taylor, one of the core Go developers.
+-</p>
+-
+-<h3 id="blog_adg"><a href="http://nf.id.au/tag/go">nf.id.au</a></h3>
+-<p>
+-Posts labelled 'Go' by Andrew Gerrand, one of the core Go developers.
+-</p>
+-
+-</div>
+-
+-<div class="end-columns"></div>
+-
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 3ef7d5695a..7ab7eee863 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -1,8 +1,34 @@
+ <!--{
+-	"Title": "Contributing"
++	"Title": "The Go Project",
++	"Path": "/project/"
+ }-->
+ 
+-<div class="left-column">
++<h2 id="the_go_project">The Go Project</h2>
++
++<h3 id="source"><a href="https://code.google.com/p/go/source">Source Code</a></h3>
++<p>Check out the Go source code.</p>
++
++<h3 id="build_status"><a href="http://build.golang.org/">Build Status</a></h3>
++<p>View the status of Go builds across the supported operating
++systems and architectures.</p>
++
++<h3 id="roadmap"><a href="devel/roadmap.html">Roadmap</a></h3>
++<p>Features and ideas being developed or discussed by the Go team.</p>
++
++<h3 id="release"><a href="devel/release.html">Release History</a></h3>
++<p>A summary of the changes between Go releases.</p>
++
++<h3 id="release"><a href="devel/weekly.html">Weekly Snapshot History</a></h3>
++<p>A summary of the changes between weekly snapshots of Go.</p>
++
++<h3 id="golang-dev"><a href="http://groups.google.com/group/golang-dev">Developer Mailing List</a></h3>
++<p>The <a href="http://groups.google.com/group/golang-dev">golang-dev</a>
++mailing list is for discussing and reviewing code for the Go project.</p>
++<p>For general discussion of Go programming, see <a
++href="http://groups.google.com/group/golang-nuts">golang-nuts</a>.</p>
++
++<h3 id="golang-checkins"><a href="http://groups.google.com/group/golang-checkins">Checkins Mailing List</a></h3>
++<p>A mailing list that receives a message summarizing each checkin to the Go repository.</p>
+ 
+ <h2 id="howto">How you can help</h2>
+ 
+@@ -36,36 +62,3 @@ open issues that interest you. Those labeled
+ <a href="http://code.google.com/p/go/issues/list?q=status=HelpWanted">HelpWanted</a>
+ are particularly in need of outside help.
+ </p>
+-
+-</div>
+-
+-<div class="right-column">
+-
+-<h2 id="the_go_project">The Go Project</h2>
+-
+-<h3 id="build_status"><a href="http://build.golang.org/">Build Status</a></h3>
+-<p>View the status of Go builds across the supported operating
+-systems and architectures.</p>
+-
+-<h3 id="roadmap"><a href="devel/roadmap.html">Roadmap</a></h3>
+-<p>Features and ideas being developed or discussed by the Go team.</p>
+-
+-<h3 id="release"><a href="devel/release.html">Release History</a></h3>
+-<p>A summary of the changes between Go releases.</p>
+-
+-<h3 id="release"><a href="devel/weekly.html">Weekly Snapshot History</a></h3>
+-<p>A summary of the changes between weekly snapshots of Go.</p>
+-
+-<h3 id="golang-dev"><a href="http://groups.google.com/group/golang-dev">Developer Mailing List</a></h3>
+-<p>The <a href="http://groups.google.com/group/golang-dev">golang-dev</a>
+-mailing list is for discussing and reviewing code for the Go project.</p>
+-<p>For general discussion of Go programming, see <a
+-href="http://groups.google.com/group/golang-nuts">golang-nuts</a>.</p>
+-
+-<h3 id="golang-checkins"><a href="http://groups.google.com/group/golang-checkins">Checkins Mailing List</a></h3>
+-<p>A mailing list that receives a message summarizing each checkin to the Go repository.</p>
+-
+-</div>
+-
+-<div class="end-columns"></div>
+-
+diff --git a/doc/docs.html b/doc/docs.html
+index e99017fca0..169b7c14f9 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -3,22 +3,25 @@
+ 	"Path": "/doc/"
+ }-->
+ 
+-<div class="left-column">
+-
+-<h2 id="learning">Learning Go</h2>
+-
+ <p>
+-If you're new to Go, we recommend you work through the 
+-<a href="go_tutorial.html">tutorial</a>. The 
+-<a href="go_spec.html">language specification</a> has all the details should
+-you want to explore.
++The Go programming language is an open source project to make programmers more
++productive.
+ </p>
++
+ <p>
+-Once you've learned a little about the language, 
+-<a href="effective_go.html">Effective Go</a> will help you learn the style and
+-idioms of programming in Go.
++Go is expressive, concise, clean, and efficient. Its concurrency
++mechanisms make it easy to write programs that get the most out of multicore
++and networked machines, while its novel type system enables flexible and
++modular program construction. Go compiles quickly to machine code yet has the
++convenience of garbage collection and the power of run-time reflection. It's a
++fast, statically typed, compiled language that feels like a dynamically typed,
++interpreted language.
+ </p>
+ 
++<div id="manual-nav"></div>
++
++<h2 id="learning">Learning Go</h2>
++
+ <h3 id="go_tour"><a href="http://tour.golang.org/">A Tour of Go</a></h3>
+ <p>
+ An interactive introduction to Go in three sections.
+@@ -43,24 +46,27 @@ A must read for any new Go programmer. It augments the tutorial and
+ the language specification, both of which should be read first.
+ </p>
+ 
+-<h3 id="go_faq"><a href="go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
+-<p>
+-Answers to common questions about Go.
+-</p>
+-
+ <h3 id="code"><a href="code.html">How to write Go code</a></h3>
+ <p>
+ How to write a new package and how to test code.
+ </p>
+ 
+-<h3 id="codelab_wiki"><a href="codelab/wiki/">Codelab: Writing Web Applications</a></h3>
++<h3 id="go_faq"><a href="go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
+ <p>
+-This codelab takes the reader through the creation of a simple wiki web 
+-application. It touches on structs, methods, file I/O, http, regular expressions,
+-and closures.
++Answers to common questions about Go.
+ </p>
+ 
+-<h3 id="codewalks"><a href="codewalk/">Codewalks</a></h3>
++<h3>Other introductory articles</h3>
++
++<ul>
++<li><a href="codelab/wiki/">Writing Web Applications</a> - 
++	building a simple web application.</li>
++<li><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
++</ul>
++
++<h2 id="articles">Go Articles</h2>
++
++<h3>Codewalks</h3>
+ <p>
+ Guided tours of Go programs. 
+ </p>
+@@ -70,17 +76,6 @@ Guided tours of Go programs.
+ <li><a href="/doc/codewalk/sharemem">Share Memory by Communicating</a></li>
+ </ul>
+ 
+-<h3 id="go_for_cpp_programmers"><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></h3>
+-<p>
+-An introduction to Go for C++ programmers.
+-</p>
+-
+-<h2 id="articles">Go Articles</h2>
+-
+-<p>
+-Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+-</p>
+-
+ <h3>Language</h3>
+ 
+ <ul>
+@@ -111,94 +106,6 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
+ </ul>
+ 
+-<h2 id="tutorials_nonenglish">Non-English Documentation</h2>
+-
+-<h3 id="docs_be">Belarusian &mdash; Беларуская</h3>
+-
+-<ul>
+-<li><a href="http://www.designcontest.com/show/faq-be">faq-be</a> - Frequently Asked Questions.</li>
+-</ul>
+-
+-<h3 id="docs_cn">Chinese &mdash; 中文</h3>
+-
+-<ul>
+-<li><a href="http://go-tour-zh.appspot.com/">A Tour of Go</a></li>
+-<li><a href="http://code.google.com/p/golang-china/">golang-china</a> - a broad range of Go documentation.</li>
+-<li><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and Tutorial</a></li>
+-</ul>
+-
+-<h3 id="docs_cz">Czech &mdash; Čeština</h3>
+-
+-<ul>
+-<li><a href="http://www.abclinuxu.cz/clanky/google-go-pravidla-reflexe">Pravidla reflexe</a> - a translation of <a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a>.</li>
+-</ul>
+-
+-<h3 id="docs_fr">French &mdash; Français</h3>
+-
+-<ul>
+-<li>
+-<a href="http://code.google.com/p/golang-france/">golang-france</a> - Go documentation.
+-</ul>
+-
+-<h3 id="docs_de">German &mdash; Deutsch</h3>
+-
+-<ul>
+-<li><a href="http://bitloeffel.de/DOC/golang/go_tutorial_de.html">Eine Anleitung zum Programmieren in Go</a> - the Go Tutorial.</li>
+-<li><a href="http://bitloeffel.de/DOC/golang/effective_go_de.html">Wirkungsvoll Go programmieren</a> - Effective Go.</li>
+-<li><a href="http://bitloeffel.de/DOC/golang/code_de.html">Wie man Go-Kode schreibt</a> - How to Write Go Code.</li>
+-</ul>
+-
+-<h3 id="docs_jp">Japanese &mdash; 日本語</h3>
+-<ul>
+-<li><a href="http://go-tour-jp.appspot.com/">A Tour of Go</a></li>
+-<li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.</li>
+-</ul>
+-
+-<h3 id="docs_kr">Korean &mdash; 한국어</h3>
+-<ul>
+-<li><a href="http://go-tour-kr.appspot.com">A Tour of Go</a></li>
+-<li><a href="http://code.google.com/p/golang-korea">golang-korea</a> - Go documentation and news.</li>
+-</ul>
+-
+-</div>
+-
+-
+-<div class="right-column">
+-
+-<h2 id="References">References</h2>
+-
+-<p>Keep these under your pillow.</p>
+-
+-<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
+-<p>
+-The built-in documentation for the Go standard library.
+-</p>
+-
+-<h3 id="cmd"><a href="/cmd/">Command Documentation</a></h3>
+-<p>
+-The built-in documentation for the Go tools.
+-</p>
+-
+-<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
+-<p>
+-The official Go Language specification. 
+-</p>
+-
+-<h3 id="release"><a href="devel/release.html">Release History</a></h3>
+-<p>A summary of the changes between Go releases.</p>
+-
+-<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
+-<p>
+-A document that specifies the conditions under which reads of a variable in
+-one goroutine can be guaranteed to observe values produced by writes to the
+-same variable in a different goroutine.
+-</p>
+-
+-<h3 id="debugging_with_gdb"><a href="debugging_with_gdb.html">Debugging Go Code with GDB</a></h3>
+-<p>
+-Using GDB to debug Go programs.
+-</p>
+-
+ <h2 id="videos_talks">Videos and Talks</h2>
+ 
+ <h3 id="writing_web_apps"><a href="http://www.youtube.com/watch?v=-i0hat7pdpk">Writing Web Apps in Go</a></h3>
+@@ -225,7 +132,7 @@ examples demonstrating features particular to Go.  These include concurrency,
+ embedded types, methods on any type, and program construction using interfaces. 
+ </p>
+ 
+-<h3 id="practical_go_programming"><a href="http://osdc.blip.tv/file/4432146/">Practical Go Programming</a></h3>
++<h3 id="practical_go_programming"><a href="http://www.youtube.com/watch?v=2-pPAvqyluI">Practical Go Programming</a></h3>
+ <p>
+ This talk presents the development of a complete web application in Go.
+ It looks at design, storage, concurrency, and scaling issues in detail, using
+@@ -240,15 +147,6 @@ The language's first public introduction. (See the <a href="talks/go_talk-200910
+ but it's still a good introduction.
+ </p>
+ 
+-<h3 id="gocoding_channel"><a href="http://www.youtube.com/gocoding">gocoding YouTube Channel</a></h3>
+-<p>
+-A YouTube channel that includes screencasts and other Go-related videos:
+-</p>
+-<ul>
+-<li><a href="http://www.youtube.com/gocoding#p/u/0/jDWBJOXs_iI">Screencast: Writing Go Packages</a> - writing, building, and distributing Go packages.</li>
+-<li><a href="http://www.youtube.com/watch?v=3brH0zOqm0w">Screencast: Testing Go Packages</a> - writing unit tests and benchmarking Go packages.</li>
+-</ul>
+-
+ <h3 id="jaoo_go"><a href="/doc/ExpressivenessOfGo.pdf">The Expressiveness Of Go</a></h3>
+ <p>
+ A discussion of the qualities that make Go an expressive and comprehensible
+@@ -290,6 +188,71 @@ Ian Lance Taylor's paper delivered at the GCC Summit 2010.
+ A short promotional video featuring Russ Cox demonstrating Go's fast compiler.
+ </p>
+ 
+-</div>
++<h2 id="developer_info">The Go Community</h2>
++
++<h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
++<p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
++mailing list is for general Go discussion.</p>
++
++<h3 id=""><a href="http://godashboard.appspot.com/package">Go Packages Dashboard</a></h3>
++<p>A list of the most popular <a href="/cmd/goinstall/">goinstall</a>'d
++Go libraries.</p>
++
++<h3 id=""><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
++<p>A list of external Go projects including programs and libraries.</p>
++
++<h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
++<p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
++
++<h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
++<p>The Go project's official Twitter account.</p>
++
++<h2 id="tutorials_nonenglish">Non-English Documentation</h2>
++
++<h4 id="docs_be">Belarusian &mdash; Беларуская</h4>
++
++<ul>
++<li><a href="http://www.designcontest.com/show/faq-be">faq-be</a> - Frequently Asked Questions.</li>
++</ul>
++
++<h4 id="docs_cn">Chinese &mdash; 中文</h4>
++
++<ul>
++<li><a href="http://go-tour-zh.appspot.com/">A Tour of Go</a></li>
++<li><a href="http://code.google.com/p/golang-china/">golang-china</a> - a broad range of Go documentation.</li>
++<li><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and Tutorial</a></li>
++</ul>
++
++<h4 id="docs_cz">Czech &mdash; Čeština</h4>
++
++<ul>
++<li><a href="http://www.abclinuxu.cz/clanky/google-go-pravidla-reflexe">Pravidla reflexe</a> - a translation of <a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a>.</li>
++</ul>
++
++<h4 id="docs_fr">French &mdash; Français</h4>
++
++<ul>
++<li>
++<a href="http://code.google.com/p/golang-france/">golang-france</a> - Go documentation.
++</ul>
++
++<h4 id="docs_de">German &mdash; Deutsch</h4>
++
++<ul>
++<li><a href="http://bitloeffel.de/DOC/golang/go_tutorial_de.html">Eine Anleitung zum Programmieren in Go</a> - the Go Tutorial.</li>
++<li><a href="http://bitloeffel.de/DOC/golang/effective_go_de.html">Wirkungsvoll Go programmieren</a> - Effective Go.</li>
++<li><a href="http://bitloeffel.de/DOC/golang/code_de.html">Wie man Go-Kode schreibt</a> - How to Write Go Code.</li>
++</ul>
++
++<h4 id="docs_jp">Japanese &mdash; 日本語</h4>
++<ul>
++<li><a href="http://go-tour-jp.appspot.com/">A Tour of Go</a></li>
++<li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.</li>
++</ul>
++
++<h4 id="docs_kr">Korean &mdash; 한국어</h4>
++<ul>
++<li><a href="http://go-tour-kr.appspot.com">A Tour of Go</a></li>
++<li><a href="http://code.google.com/p/golang-korea">golang-korea</a> - Go documentation and news.</li>
++</ul>
+ 
+-<div class="end-columns"></div>
+diff --git a/doc/frontpage.css b/doc/frontpage.css
+deleted file mode 100644
+index 299855ce9a..0000000000
+--- a/doc/frontpage.css
++++ /dev/null
+@@ -1,143 +0,0 @@
+-/* Overloads to all.css */
+-#container { width: 76em }
+-.left-column { width: 48%; }
+-.right-column { width: 48%; }
+-
+-/* Frontpage styles */
+-#content-introductory code {
+-  font-family: "Bitstream Vera Sans Mono", "Andale Mono", monospace;
+-}
+-#content-introductory input, select, textarea {
+-  font-family: "Bitstream Vera Sans", Verdana, sans-serif;
+-  font-size: 1em;
+-}
+-span.keyword {
+-  font-family: Cambria, Georgia, Times, "Times New Roman", serif;
+-  font-size: 1.15em;
+-  font-style: italic;
+-}
+-#content h3, #content h2 {
+-  margin: 0;
+-  font-size: 1em;
+-  background: none;
+-  border: none;
+-  padding: 0;
+-}
+-#content .more {
+- color: #999;
+- font-weight: normal;
+-}
+-#frontpage h2#branding-tagline {
+-	font-weight: normal;
+-	font-style: italic;
+-}
+-#resources {
+-  position: relative;
+-  margin-top: 1em;
+-}
+-#resources h3 {
+-  margin-top: 0; 
+-  margin-bottom: -.5em;
+-  font-size: 1em;
+-  font-weight: normal;
+-}
+-#resources-users {
+-  float: left;
+-  width: 48%;
+-}
+-#resources-contributors {
+-  float: right;
+-  width: 50%;
+-}
+-#resources ul {
+-  padding-left: 2em;
+-}
+-#resources li {
+-  margin-bottom: 0.5em;
+-}
+-#content-rotating {
+-  height: 200px;
+-}
+-#content-videos {
+-  float: left;
+-  width: 170px;
+-}
+-#content-videos .thumbnail {
+-  width: 150px;
+-  height: 103px;
+-  background-repeat: no-repeat;
+-  border: none;
+-}
+-#content-videos .thumbnail._001 {
+-  background: url(/doc/video-001.png);
+-}
+-#content-videos .thumbnail._002 {
+-  background: url(/doc/video-002.png);
+-}
+-#content-videos .thumbnail._003 {
+-  background: url(/doc/video-003.png);
+-}
+-#content-videos .thumbnail._004 {
+-  background: url(/doc/video-004.png);
+-}
+-#content-videos .thumbnail._005 {
+-  background: url(/doc/video-005.jpg);
+-}
+-#content-videos a.video {
+-  display: inline-block;
+-  width: 150px;
+-  margin-right: .30em;
+-  margin-top: 1.2em;
+-}                        
+-#content-videos a.video .caption {
+-  display: block;
+-  text-align: center;
+-}
+-#content-videos a.video .caption.title {
+-  margin-top: .31em;
+-  font-weight: bold;
+-}
+-#content-blog ul {
+-  margin-top: 1em;
+-  margin-left: 0;
+-  padding-left: 0;
+-}
+-#content-blog li {
+-  list-style: none;
+-  margin-bottom: 1em;
+-}
+-#content-blog li a {
+-  color: #999;
+-  text-decoration: none;
+-}
+-#content-blog .date {
+-  color: #999;
+-  font-size: 0.8em;
+-  display: inline-block;
+-  margin-left: 0.5em;
+-}
+-#content-blog li a:link .title {
+-  color: #04a;
+-}
+-#content-blog li a:visited .title {
+-  color: #04a;
+-}
+-#content-blog li a:hover .title {
+-  color: #a40;
+-  text-decoration: underline;
+-}
+-#content-blog li a:active .title {
+-  color: #c00;
+-}
+-.navtop {
+-  display: none !important;
+-}
+-.how {
+-  float: right;
+-  font-size: 75%;
+-}
+-.unsupported {
+-  font-weight: bold;
+-  color: red;
+-}
+-
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 3b8625a58d..5320de6bcc 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -23,7 +23,6 @@ bindEvent(window, 'load', godocs_onload);
+ function godocs_onload() {
+   godocs_bindSearchEvents();
+   godocs_generateTOC();
+-  godocs_addTopLinks();
+   godocs_bindExampleToggles();
+ }
+ 
+@@ -64,8 +63,15 @@ function godocs_generateTOC() {
+   var toc_items = [];
+ 
+   var i;
++  var seenNav = false;
+   for (i = 0; i < navbar.parentNode.childNodes.length; i++) {
+     var node = navbar.parentNode.childNodes[i];
++    if (!seenNav) { 
++      if (node.id == 'nav') {
++        seenNav = true;
++      }
++      continue;
++    }
+     if ((node.tagName != 'h2') && (node.tagName != 'H2') &&
+         (node.tagName != 'h3') && (node.tagName != 'H3')) {
+       continue;
+@@ -152,33 +158,6 @@ function godocs_nodeToText(node) {
+   return text;
+ }
+ 
+-/* For each H2 heading, add a link up to the #top of the document.
+- * (As part of this: ensure existence of 'top' named anchor link
+- * (theoretically at doc's top).)
+- */
+-function godocs_addTopLinks() {
+-  /* Make sure there's a "top" to link to. */
+-  var top = document.getElementById('top');
+-  if (!top) {
+-    document.body.id = 'top';
+-  }
+-
+-  if (!document.getElementsByTagName) return; // no browser support
+-
+-  var headers = document.getElementsByTagName('h2');
+-
+-  for (var i = 0; i < headers.length; i++) {
+-    var span = document.createElement('span');
+-    span.className = 'navtop';
+-    var link = document.createElement('a');
+-    span.appendChild(link);
+-    link.href = '#top';
+-    var textNode = document.createTextNode('[Top]');
+-    link.appendChild(textNode);
+-    headers[i].appendChild(span);
+-  }
+-}
+-
+ function godocs_bindExampleToggles() {
+   var examples = document.getElementsByClassName("example");
+   for (var i = 0; i < examples.length; i++) {
+diff --git a/doc/gopher/frontpage.png b/doc/gopher/frontpage.png
+new file mode 100644
+index 0000000000..ed1f49b059
+Binary files /dev/null and b/doc/gopher/frontpage.png differ
+diff --git a/doc/gopher/ref.png b/doc/gopher/ref.png
+new file mode 100644
+index 0000000000..26530a3a0a
+Binary files /dev/null and b/doc/gopher/ref.png differ
+diff --git a/doc/install.html b/doc/install.html
+index e462f1cce7..b3d48e379a 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -1,5 +1,6 @@
+ <!--{
+-	"Title": "Getting Started"
++	"Title": "Getting Started",
++	"Path":  "/install/"
+ }-->
+ 
+ <h2 id="introduction">Introduction</h2>
+diff --git a/doc/reference.html b/doc/reference.html
+new file mode 100644
+index 0000000000..278b4bba23
+--- /dev/null
++++ b/doc/reference.html
+@@ -0,0 +1,40 @@
++<!--{
++	"Title": "References"
++}-->
++
++<img src="/doc/gopher/ref.png" align="right"/>
++<p>Keep these under your pillow.</p>
++
++<div>
++
++<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
++<p>
++The built-in documentation for the Go standard library.
++</p>
++
++<h3 id="cmd"><a href="/cmd/">Command Documentation</a></h3>
++<p>
++The built-in documentation for the Go tools.
++</p>
++
++<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
++<p>
++The official Go Language specification. 
++</p>
++
++<h3 id="release"><a href="devel/release.html">Release History</a></h3>
++<p>A summary of the changes between Go releases.</p>
++
++<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
++<p>
++A document that specifies the conditions under which reads of a variable in
++one goroutine can be guaranteed to observe values produced by writes to the
++same variable in a different goroutine.
++</p>
++
++<h3 id="debugging_with_gdb"><a href="debugging_with_gdb.html">Debugging Go Code with GDB</a></h3>
++<p>
++Using GDB to debug Go programs.
++</p>
++
++</div>
+diff --git a/doc/root.html b/doc/root.html
+index 23a35eb844..7007dceb4b 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -2,105 +2,112 @@
+ 	"Path": "/"
+ }-->
+ 
+-<link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
+-
+-<script src="http://www.google.com/jsapi" type="text/javascript"></script>
+-<script type="text/javascript">
+-function loadFeed() {
+-        var url = "http://blog.golang.org/feeds/posts/default";
+-        var divId = "blogFeed";
+-        var feed = new google.feeds.Feed(url);
+-        feed.setNumEntries(4)
+-        feed.load(function (result) {
+-                var container = document.getElementById(divId)
+-                if (result.error) {
+-                        container.innerHTML = "Error loading feed.";
+-                        return;
+-                }
+-                container.innerHTML = "";
+-                var entries = result.feed.entries;
+-                for (var i=0; i<entries.length; i++) {
+-                        var li = document.createElement("li");
+-                        var a = document.createElement("a");
+-                        a.setAttribute("href", entries[i].link);
+-                        var span_title = document.createElement("span"); 
+-                        span_title.appendChild(document.createTextNode(entries[i].title));
+-                        span_title.className = "title";
+-                        a.appendChild(span_title);
+-                        li.appendChild(a);
+-                        var span_date = document.createElement("span"); 
+-                        span_date.appendChild(document.createTextNode(entries[i].publishedDate.substr(0, 11)));
+-                        span_date.className = "date";
+-                        a.appendChild(span_date);
+-                        container.appendChild(li);
+-                }
+-        });
+-}
++<div id="left" class="aboutcol">
++
++<div id="about">
++Go is an open source programming environment that makes it easy to build
++simple, reliable, and efficient software.
++</div>
++
++<div id="gopher"></div>
++
++<a href="/install/" id="start">
++<div class="big">Download Go</div>
++<div class="desc">
++Binary distributions available for<br>
++Linux, Mac OS X, Windows, and more.
++</div>
++</a>
++
++</div>
++
++<div id="right" class="learncol">
++
++<div id="learn">
++<div class="rootHeading">Try Go</div>
++<div class="input">
++<textarea spellcheck="false">// You can edit this code!
++// Click here and start typing.
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("Hello, 世界")
++}</textarea>
++</div>
++<div class="output">
++<pre>
++Hello, 世界
++</pre>
++</div>
++<div class="buttons">
++<a href="#">Run</a>
++<a href="#">Share</a>
++</div>
++</div>
++
++</div>
++
++<div style="clear: both"></div>
++
++<div id="left">
++
++<div id="video">
++<div class="rootHeading">Featured video</div>
++<a class="title" href="http://www.youtube.com/watch?v=Mo1YKpIF1PQ">Building integrated apps on Google's cloud platform with Go</a>
++<iframe width="415" height="241" src="http://www.youtube.com/embed/Mo1YKpIF1PQ" frameborder="0" allowfullscreen></iframe>
++</div>
++
++</div>
++
++<div id="right">
++
++<div id="blog">
++<div class="rootHeading">Featured articles</div>
++<div class="read"><a href="http://blog.golang.org/">Read more</a></div>
++</div>
++
++</div>
++
++<div style="clear: both;"></div>
++
++<div id="plusoneRoot"><g:plusone annotation="none"></g:plusone></div>
++
++<script type="text/javascript" src="https://www.google.com/jsapi"></script>
++<script>
+ google.load("feeds", "1");
+-google.setOnLoadCallback(loadFeed);
+-</script>
+ 
+-  <div id="frontpage">
+-    <div class="left-column">
+-      <p style="margin-top: 0;">
+-        The Go programming language is an open source project to make
+-        programmers more productive.  Go is expressive, concise, clean,
+-        and efficient.  Its concurrency mechanisms make it easy to write
+-        programs that get the most out of multicore and networked machines,
+-        while its novel type system enables flexible and modular program
+-        construction.  Go compiles quickly to machine code yet has the
+-        convenience of garbage collection and the power of run-time reflection.
+-        It's a fast, statically typed, compiled language that feels like a 
+-        dynamically typed, interpreted language.
+-      </p>
+-      <h2>
+-        Get started now with
+-	<a target="_blank" href="http://tour.golang.org/">A Tour of Go</a>
+-        in your browser.
+-      </h2>
+-      <p>
+-      <div class="how">[<a href="/doc/playground.html">How does this work?</a>]</div>
+-      Or try Go right here:</p>
+-      <div id="playground" class="small"></div>
+-      <script src="/doc/play/playground.js"></script>
+-    </div>
+-    <div class="right-column">
+-      <div id="content-rotating">
+-      <div id="content-videos">
+-        <h2>Go Videos <span class="more">| <a href="/doc/docs.html#videos_talks">More...</a></span></h2>
+-        <a class="video" href="http://www.youtube.com/watch?v=-i0hat7pdpk"><img src="/doc/play_overlay.png" class="thumbnail _005" /> <span class="caption title">&ldquo;Writing Web Apps in Go&rdquo;</span> <span class="caption description">Google I/O 2011</span></a>
+-      </div>
+-      <h2>Go Blog <span class="more">| <a href="http://blog.golang.org/">More...</a></span></h2>
+-      <div id="content-blog">
+-        <ul id="blogFeed">
+-        </ul>
+-      </div>
+-      </div>
+-      <h2>Quick Links</h2>
+-      <div id="resources">
+-        <div id="resources-users">
+-          <h3>For newcomers:</h3>
+-          <ul>
+-            <li><a href="/doc/install.html">Getting Started</a></li>
+-            <li><a href="/doc/go_tutorial.html">Tutorial</a></li>
+-            <li><a href="/doc/effective_go.html">Effective Go</a></li>
+-            <li><a href="/doc/go_faq.html">Go FAQ</a></li>
+-            <li><a href="/doc/docs.html">Other Documentation</a></li>
+-            <li><a href="http://code.google.com/appengine/docs/go/">Go for Google App Engine</a> <sup class="new">New!</sup></li>
+-          </ul>
+-        </div>
+-        <div id="resources-contributors" >
+-          <h3>For developers:</h3>
+-          <ul>
+-            <li><a href="http://godashboard.appspot.com/package">Package Dashboard</a></li>
+-            <li><a href="http://code.google.com/p/go/issues">Issue Tracker</a></li>
+-            <li><a href="http://build.golang.org/">Build Status</a></li>
+-            <li><a href="http://code.google.com/p/go/source/browse/">Go Source</a> [<a href="http://code.google.com/p/go/source/list">changes</a>]</li>
+-            <li><a href="/pkg/">Package Reference</a></li>
+-            <li><a href="/doc/go_spec.html">Language Specification</a></li>
+-          </ul>
+-        </div>
+-      </div>  
+-    </div>
+-    <div class="end-columns"></div>
+-  </div>
++function feedLoaded(result) {
++  if (result.error) {
++    console.log(result.error);
++    return;
++  }
++  var blog = document.getElementById("blog");
++  var read = blog.getElementsByClassName("read")[0];
++  for (var i = 0; i < result.feed.entries.length && i < 2; i++) {
++    var entry = result.feed.entries[i];
++    var title = document.createElement("a");
++    title.className = "title";
++    title.href = entry.link;
++    title.innerHTML = entry.title;
++    blog.insertBefore(title, read);
++    var extract = document.createElement("div");
++    extract.className = "extract";
++    extract.innerHTML = entry.contentSnippet;
++    blog.insertBefore(extract, read);
++    var when = document.createElement("div");
++    when.className = "when";
++    var pub = entry.publishedDate.split(" ").slice(1,3).join(" ");
++    when.innerHTML = "Published " + pub
++    blog.insertBefore(when, read);
++  }
++}
++
++function fetchFeeds() {
++  var feed = new google.feeds.Feed("http://blog.golang.org/feeds/posts/default");
++  feed.load(feedLoaded);
++}
++
++google.setOnLoadCallback(fetchFeeds);
++</script>
+diff --git a/doc/style.css b/doc/style.css
+new file mode 100644
+index 0000000000..cf1f4145fd
+--- /dev/null
++++ b/doc/style.css
+@@ -0,0 +1,320 @@
++body {
++	margin: 0;
++	font-family: Helvetica, Arial, sans-serif;
++	font-size: 16px;
++}
++pre, code {
++	font-family: Menlo, monospace;
++	font-size: 14px;
++}
++body {
++	color: #222;
++}
++a {
++	color: #375EAB;
++	text-decoration: none;
++}
++p, pre, ul, ol {
++	margin: 20px;
++}
++pre {
++	background: #e9e9e9;
++	padding: 10px;
++
++	-webkit-border-radius: 5px;
++	-moz-border-radius: 5px;
++	border-radius: 5px;
++}
++
++h1, h2, h3, h4, .rootHeading {
++	margin: 20px 0;
++	padding: 0;
++	color: #375EAB;
++	font-weight: bold;
++}
++h1 {
++	font-size: 24px;
++}
++h2 {
++	font-size: 20px;
++	background: #E0EBF5;
++	padding: 2px 5px;
++}
++h3 {
++	font-size: 18px;
++}
++h3, h4 {
++	margin: 20px 5px;
++}
++h4 {
++	font-size: 16px;
++}
++.rootHeading {
++	font-size: 20px;
++	margin: 0;
++}
++
++h1 a, h2 a, h3 a, h4 a {
++	text-decoration: underline;
++}
++
++dl {
++	margin: 20px;
++}
++dd {
++	margin: 2px 20px;
++}
++dl, dd {
++	font-size: 14px;
++}
++#nav table td {
++	vertical-align: top;
++}
++
++table.dir th {
++	text-align: left;
++}
++table.dir td {
++	word-wrap: break-word;
++	vertical-align: top;
++}
++
++#heading {
++	float: left;
++	margin: 0 0 10px 0;
++	padding: 16px 0;
++	font-size: 26px;
++	font-weight: normal;
++}
++#heading a {
++	color: #222;
++	text-decoration: none;
++}
++
++#topbar {
++	background: #E0EBF5;
++}
++
++body {
++	text-align: center;
++}
++#page,
++#topbar .container {
++	clear: both;
++	text-align: left;
++	margin-left: auto;
++	margin-right: auto;
++	width: 900px;
++}
++#plusone {
++	float: right;
++}
++#plusoneRoot {
++	float: right;
++}
++
++#copyright {
++	color: #666;
++	font-size: 14px;
++	margin: 40px 0;
++}
++
++#menu > a,
++#menu > input,
++#learn .buttons a,
++#blog .read a {
++	padding: 10px;
++
++	text-decoration: none;
++	font-size: 16px;
++
++	-webkit-border-radius: 5px;
++	-moz-border-radius: 5px;
++	border-radius: 5px;
++}
++#menu > a,
++#menu > input {
++	border: 1px solid #375EAB;
++}
++#menu > a {
++	color: white;
++	background: #375EAB;
++}
++#start,
++#learn .buttons a,
++#blog .read a {
++	color: #222;
++	border: 1px solid #375EAB;
++	background: #E0EBF5;
++}
++
++#menu {
++	padding: 10px 0;
++	text-align: right;
++}
++#menu > a {
++	margin-right: 5px;
++	margin-bottom: 10px;
++
++	padding: 10px;
++}
++#menu > input {
++	position: relative;
++	top: 1px;
++	width: 100px;
++	background: white;
++	color: #222;
++}
++#menu > input.inactive {
++	color: #999;
++}
++
++#left {
++	float: left;
++}
++#right {
++	float: right;
++}
++#left, #right {
++	width: 415px;
++}
++
++#learn,
++#about {
++	padding-top: 20px;
++}
++#learn h2,
++#about {
++	margin: 0;
++}
++#about {
++	font-size: 20px;
++}
++
++#about {
++	height: 96px;
++}
++#gopher {
++	background: url(/doc/gopher/frontpage.png) no-repeat;
++	background-position: center top;
++	height: 155px;
++}
++#start {
++	display: block;
++	padding: 10px;
++
++	text-align: center;
++	text-decoration: none;
++
++	-webkit-border-radius: 5px;
++	-moz-border-radius: 5px;
++	border-radius: 5px;
++}
++#start .big {
++	font-weight: bold;
++	font-size: 20px;
++}
++#start .desc {
++	font-size: 14px;
++	font-weight: normal;
++	margin-top: 5px;
++}
++
++#learn pre, #learn textarea {
++	margin: 0;
++	font-family: Menlo, monospace;
++	font-size: 14px;
++}
++#learn .input {
++	padding: 10px;
++	margin-top: 10px;
++	height: 150px;
++
++	-webkit-border-top-left-radius: 5px;
++	-webkit-border-top-right-radius: 5px;
++	-moz-border-radius-topleft: 5px;
++	-moz-border-radius-topright: 5px;
++	border-top-left-radius: 5px;
++	border-top-right-radius: 5px;
++}
++#learn .input textarea {
++	width: 100%;
++	height: 100%;
++	border: none;
++	outline: none;
++	resize: none;
++}
++#learn .output {
++	border-top: none !important;
++
++	padding: 10px;
++	height: 59px;
++	overflow: auto;
++
++	-webkit-border-bottom-right-radius: 5px;
++	-webkit-border-bottom-left-radius: 5px;
++	-moz-border-radius-bottomright: 5px;
++	-moz-border-radius-bottomleft: 5px;
++	border-bottom-right-radius: 5px;
++	border-bottom-left-radius: 5px;
++}
++#learn .output pre {
++	padding: 0;
++
++	-webkit-border-radius: 0;
++	-moz-border-radius: 0;
++	border-radius: 0;
++}
++#learn .input,
++#learn .input textarea,
++#learn .output,
++#learn .output pre {
++	background: #FFFFD8;
++}
++#learn .input,
++#learn .output {
++	border: 1px solid #375EAB;
++}
++#learn .buttons {
++	padding: 20px 0 10px 0;
++	text-align: right;
++}
++#learn .buttons a {
++	height: 16px;
++	margin-left: 5px;
++
++	padding: 10px;
++}
++#learn .buttons .tour {
++	float: right;
++}
++#learn .buttons .tour a {
++	margin-right: 0;
++	font-weight: bold;
++}
++
++#blog, #video {
++	margin-top: 40px;
++}
++#blog > div, #blog > a, #video > div, #video > a, #blog > h2, #video > h2 {
++	margin-bottom: 10px;
++}
++#blog .title, #video .title {
++	color: #222;
++	text-decoration: none;
++	display: block;
++	font-size: 20px;
++}
++#blog .when {
++	color: #666;
++	font-size: 14px;
++}
++#blog .read {
++	text-align: right;
++}
++
++.exampleHeading { cursor: pointer; }
++.example .collapsed { display: block; }
++.example .expanded { display: none; }
++.exampleVisible .collapsed { display: none; }
++.exampleVisible .expanded { display: block; }
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index e99b758586..380a3910d9 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -1,72 +1,73 @@
+ <!DOCTYPE html>
+ <html>
+ <head>
+-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
++<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ {{with .Title}}
+   <title>{{html .}} - The Go Programming Language</title>
+ {{else}}
+   <title>The Go Programming Language</title>
+ {{end}}
+-<link rel="stylesheet" href="/doc/all.css" type="text/css" media="all" charset="utf-8">
+-<!--[if lt IE 8]>
+-<link rel="stylesheet" href="/doc/ie.css" type="text/css">
+-<![endif]-->
++<link type="text/css" rel="stylesheet" href="/doc/style.css">
+ <script type="text/javascript" src="/doc/godocs.js"></script>
+ {{if .SearchBox}}
+ <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
+ {{end}}
+ </head>
+ <body>
+-<div id="container">
+-  <div id="topnav">
+-    <h1 id="title">The Go Programming Language</h1>
+-    <div id="nav-main">
+-      <ul>
+-      <li><a href="/">Home</a></li><li><a href="/doc/install.html">Getting Started</a></li><li><a href="/doc/docs.html">Documentation</a></li><li><a href="/doc/contrib.html">Contributing</a></li><li><a href="/doc/community.html">Community</a></li>
+-      </ul>
+-      <div class="quickref">
+-        <form method="GET" action="/search">
+-        {{range .PkgRoots}}
+-        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
+-        {{else}}
+-        References:
+-        {{end}}
+-        <a href="/pkg/">Packages</a> <span class="sep">|</span>
+-        <a href="/cmd/">Commands</a> <span class="sep">|</span>
+-        <a href="/doc/go_spec.html">Specification</a>
+-	{{if .SearchBox}}
+-        <input id="search" type="search" name="q" value="{{with .Query}}{{html .}}{{end}}" class="{{if not .Query}}inactive{{end}}" placeholder="code search" results="0" />
+-	{{end}}
+-        </form>
+-      </div>
+-    </div>
+-    <a id="logo-box" href="/"></a>
+-  </div>
+-  <div id="content">
+-  <!-- Menu is HTML-escaped elsewhere -->
+-  {{with .Menu}}
+-    <div id="menu">
+-      {{printf "%s" .}}
+-    </div>
+-  {{end}}
+ 
+-  {{with .Title}}
+-    <h1 id="generatedHeader">{{html .}}</h1>
+-  {{end}}
+-  {{with .Subtitle}}
+-    <span class="subtitle">{{html .}}</span>
+-  {{end}}
++<div id="topbar"><div class="container">
+ 
+-  <!-- The Table of Contents is automatically inserted in this <div>.
+-       Do not delete this <div>. -->
+-  <div id="nav"></div>
++<form method="GET" action="/search">
++<div id="heading"><a href="/">The Go Programming Language</a></div>
++<div id="menu">
++<a href="/doc/">Learn</a>
++<a href="/install/">Install</a>
++<a href="/project/">Project</a>
++<a href="/doc/reference.html">Reference</a>
++<input type="text" id="search" name="q" class="inactive" value="Search">
++</div>
++</form>
++
++</div></div>
++
++<div id="page">
++
++<div id="content">
++
++{{with .Title}}
++  <div id="plusone"><g:plusone size="small" annotation="none"></g:plusone></div>
++  <h1>{{html .}}</h1>
++{{end}}
++{{with .Subtitle}}
++  <h2>{{html .}}</h2>
++{{end}}
++
++{{/* The Table of Contents is automatically inserted in this <div>.
++     Do not delete this <div>. */}}
++<div id="nav"></div>
++
++{{/* Content is HTML-escaped elsewhere */}}
++{{printf "%s" .Content}}
++
++</div>
+ 
+-  <!-- Content is HTML-escaped elsewhere -->
+-  {{printf "%s" .Content}}
+-  </div>
+-  <div id="site-info">
+-    <p>Build version {{html .Version}}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
+-  </div>
+ </div>
++
++<div id="copyright">
++Build version {{html .Version}}.
++Except as noted, this content is licensed under a
++Creative Commons Attribution 3.0 License.
++</div>
++
+ </body>
++<!--
++<script type="text/javascript">
++  (function() {
++    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
++    po.src = 'https://apis.google.com/js/plusone.js';
++    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
++  })();
++</script>
++-->
+ </html>
++
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index afb0d4ae1f..f4b6a0b7e3 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -50,19 +50,18 @@
+ 			{{if .Bugs}}
+ 				<dd><a href="#Bugs">Bugs</a></dd>
+ 			{{end}}
+-			<dd>
+-			{{with .Filenames}}
+-				<h4>Package files</h4>
+-				<p>
+-				<span style="font-size:90%">
+-				{{range .}}
+-					<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+-				{{end}}
+-				</span>
+-				</p>
+-			{{end}}
+-			</dd>
+ 		</dl>
++
++		{{with .Filenames}}
++			<h4>Package files</h4>
++			<p>
++			<span style="font-size:90%">
++			{{range .}}
++				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
++			{{end}}
++			</span>
++			</p>
++		{{end}}
+ 	
+ 		{{with .Consts}}
+ 			<h2 id="constants">Constants</h2>
+@@ -147,30 +146,23 @@
+ 	{{/* DirList entries are numbers and strings - no need for FSet */}}
+ 	<h2 id="subdirectories">Subdirectories</h2>
+ 	<p>
+-	<table class="layout">
++	<table class="dir">
+ 	<tr>
+-	{{if $.DirFlat}}
+-		<th align="left">Name</th>
+-	{{else}}
+-		<th align="left" colspan="{{html .MaxHeight}}">Name</th>
+-	{{end}}
+-	<th width="25"></th>
+-	<th align="left">Synopsis</th>
++	<th>Name</th>
++	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
++	<th style="text-align: left; width: auto">Synopsis</th>
+ 	</tr>
+ 	<tr>
+-	<td align="left"><a href="..">..</a></td>
++	<td><a href="..">..</a></td>
+ 	</tr>
+ 	{{range .List}}
+-		<tr>
+-		{{if $.DirFlat}}
+-			<td align="left"><a href="{{html .Path}}">{{html .Path}}</a></td>
+-		{{else}}
+-			{{repeat `<td width="20"></td>` .Depth}}
+-			<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
+-		{{end}}
+-		<td></td>
+-		<td align="left">{{html .Synopsis}}</td>
+-		</tr>
++	<tr>
++		<td>
++		{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
++		</td>
++		<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++		<td style="width: auto">{{html .Synopsis}}</td>
++	</tr>
+ 	{{end}}
+ 	</table>
+ 	</p>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5745b28ba6..613475a592 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -63,7 +63,7 @@ var (
+ 
+ 	// layout control
+ 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
+-	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
++	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
+ 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+ 
+ 	// search index

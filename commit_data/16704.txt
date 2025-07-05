@@ -9,7 +9,32 @@ Date:   Tue Jul 2 20:35:44 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/10840044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e9190e2aad..8728255287 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -52,6 +52,7 @@ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
++Brian Gitonga Marete <marete@toshnix.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4faedfe4d0..275be608d1 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -92,6 +92,7 @@ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
++Brian Gitonga Marete <marete@toshnix.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
+ Caine Tighe <arctanofyourface@gmail.com>

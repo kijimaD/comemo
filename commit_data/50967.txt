@@ -12,7 +12,7 @@ Date:   Sun Nov 21 21:06:27 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go                 |  1 +
  src/cmd/compile/internal/types2/expr.go                       |  2 +-
  .../compile/internal/types2/testdata/fixedbugs/issue49705.go2 | 11 +++++++++++
@@ -20,3 +20,88 @@ Date:   Sun Nov 21 21:06:27 2021 +0800
  src/go/types/expr.go                                          |  2 +-
  src/go/types/testdata/fixedbugs/issue49705.go2                | 11 +++++++++++
  6 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index a5ecdf8b81..f13679d1e3 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -99,6 +99,7 @@ func asGoVersion(s string) string {
+ // TODO(gri) enable as soon as the unified build supports this.
+ var excludedForUnifiedBuild = map[string]bool{
+ 	"issue47818.go2": true,
++	"issue49705.go2": true,
+ }
+ 
+ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index b700716b0c..5961f32f37 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -625,7 +625,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 		// If x is the lhs of a shift, its final type must be integer.
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+-		if !isInteger(typ) {
++		if !allInteger(typ) {
+ 			check.errorf(x, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2
+new file mode 100644
+index 0000000000..2b991b8722
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "constraints"
++
++func shl[I constraints.Integer](n int) I {
++	return 1 << n
++}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 2f80d9b7b6..a3be47e371 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -205,6 +205,7 @@ func asGoVersion(s string) string {
+ // TODO(gri) enable as soon as the unified build supports this.
+ var excludedForUnifiedBuild = map[string]bool{
+ 	"issue47818.go2": true,
++	"issue49705.go2": true,
+ }
+ 
+ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e93a2bc7c8..c49865aec6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -565,7 +565,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		// If x is the lhs of a shift, its final type must be integer.
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+-		if !isInteger(typ) {
++		if !allInteger(typ) {
+ 			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue49705.go2 b/src/go/types/testdata/fixedbugs/issue49705.go2
+new file mode 100644
+index 0000000000..2b991b8722
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49705.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "constraints"
++
++func shl[I constraints.Integer](n int) I {
++	return 1 << n
++}

@@ -15,6 +15,20 @@ Date:   Sun Apr 6 09:15:51 2025 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  src/time/zoneinfo.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index aee0e5408b..f0444a5d9d 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -593,7 +593,7 @@ func tzruleTime(year int, r rule, off int) int {
+ 			}
+ 			d += 7
+ 		}
+-		d += int(daysBefore(Month(r.mon)))
++		d += daysBefore(Month(r.mon))
+ 		if isLeap(year) && r.mon > 2 {
+ 			d++
+ 		}

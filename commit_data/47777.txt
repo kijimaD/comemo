@@ -15,9 +15,96 @@ Date:   Fri Apr 9 06:30:20 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go    | 10 ++++++++--
  src/cmd/compile/internal/noder/expr.go    |  2 --
  src/cmd/compile/internal/noder/object.go  |  3 ---
  src/cmd/compile/internal/noder/stencil.go |  6 +-----
  4 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1d049298d7..1941dc44bc 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -506,7 +506,10 @@ func inlcopy(n ir.Node) ir.Node {
+ 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
+ 			// XXX OK to share fn.Type() ??
+ 			newfn.Nname.SetType(oldfn.Nname.Type())
+-			newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
++			// Ntype can be nil for -G=3 mode.
++			if oldfn.Nname.Ntype != nil {
++				newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
++			}
+ 			newfn.Body = inlcopylist(oldfn.Body)
+ 			// Make shallow copy of the Dcl and ClosureVar slices
+ 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
+@@ -1213,7 +1216,10 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 	newfn.SetIsHiddenClosure(true)
+ 	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
+ 	newfn.Nname.Func = newfn
+-	newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
++	// Ntype can be nil for -G=3 mode.
++	if oldfn.Nname.Ntype != nil {
++		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
++	}
+ 	newfn.Nname.Defn = newfn
+ 
+ 	m.(*ir.ClosureExpr).Func = newfn
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index fc97df7197..b2c2616b35 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -360,8 +360,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
+ 	typ := g.typ(typ2)
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+-	// Set Ntype for now to be compatible with later parts of compile, remove later.
+-	fn.Nname.Ntype = ir.TypeNode(typ)
+ 	typed(typ, fn.Nname)
+ 	fn.SetTypecheck(1)
+ 
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 6c8ed4af97..82cce1ace0 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -147,9 +147,6 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
+ 		sym.SetFunc(true)
+ 	}
+ 
+-	// We already know name's type, but typecheck is really eager to try
+-	// recomputing it later. This appears to prevent that at least.
+-	name.Ntype = ir.TypeNode(typ)
+ 	name.SetTypecheck(1)
+ 	name.SetWalkdef(1)
+ 
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 0d84db9993..329c80098a 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -298,7 +298,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 		subst.fields(ir.PPARAM, append(oldt.Recvs().FieldSlice(), oldt.Params().FieldSlice()...), newf.Dcl),
+ 		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), newf.Dcl))
+ 
+-	newf.Nname.Ntype = ir.TypeNode(newt)
+ 	newf.Nname.SetType(newt)
+ 	ir.MarkFunc(newf.Nname)
+ 	newf.SetTypecheck(1)
+@@ -497,8 +496,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 
+ 		case ir.OCLOSURE:
+ 			x := x.(*ir.ClosureExpr)
+-			// Need to save/duplicate x.Func.Nname,
+-			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
++			// Need to duplicate x.Func.Nname, x.Func.Dcl, x.Func.ClosureVars, and
+ 			// x.Func.Body.
+ 			oldfn := x.Func
+ 			newfn := ir.NewFunc(oldfn.Pos())
+@@ -522,8 +520,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			newfn.Dcl = subst.namelist(oldfn.Dcl)
+ 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
+ 
+-			// Set Ntype for now to be compatible with later parts of compiler
+-			newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+ 			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
+ 			typed(newfn.Nname.Type(), m)
+ 			newfn.SetTypecheck(1)

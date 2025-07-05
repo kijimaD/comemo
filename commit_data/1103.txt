@@ -11,9 +11,119 @@ Date:   Tue Nov 11 13:46:55 2008 -0800
     R=ken
     OCL=19005
     CL=19005
-
+---
  src/cmd/6g/align.c |  2 ++
  src/cmd/6g/gsubr.c |  2 ++
  src/cmd/gc/dcl.c   | 22 ++++++++++++++++++----
  src/cmd/gc/go.h    |  3 +++
  4 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 28516df387..163bd800cc 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -154,6 +154,8 @@ dowidth(Type *t)
+ 		break;
+ 
+ 	case TSTRUCT:
++		if(t->funarg)
++			fatal("dowidth fn struct %T", t);
+ 		w = widstruct(t, 0, 1);
+ 		offmod(t);
+ 		break;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e21e8838f8..e3e62e947a 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -243,6 +243,8 @@ nodarg(Type *t, int fp)
+ 	n = nod(ONAME, N, N);
+ 	n->type = t->type;
+ 	n->sym = t->sym;
++	if(t->width == BADWIDTH)
++		fatal("nodarg: offset not computed for %T", t);
+ 	n->xoffset = t->width;
+ 	n->addable = 1;
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index effb957858..ef1ddbc717 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -161,9 +161,9 @@ functype(Node *this, Node *in, Node *out)
+ 
+ 	t = typ(TFUNC);
+ 
+-	t->type = dostruct(this, TSTRUCT);
+-	t->type->down = dostruct(out, TSTRUCT);
+-	t->type->down->down = dostruct(in, TSTRUCT);
++	t->type = dostruct(this, TFUNC);
++	t->type->down = dostruct(out, TFUNC);
++	t->type->down->down = dostruct(in, TFUNC);
+ 
+ 	t->thistuple = listcount(this);
+ 	t->outtuple = listcount(out);
+@@ -498,6 +498,7 @@ loop:
+ 	f = typ(TFIELD);
+ 	f->type = n->type;
+ 	f->note = note;
++	f->width = BADWIDTH;
+ 
+ 	if(n->left != N && n->left->op == ONAME) {
+ 		f->nname = n->left;
+@@ -517,15 +518,23 @@ Type*
+ dostruct(Node *n, int et)
+ {
+ 	Type *t;
++	int funarg;
+ 
+ 	/*
+ 	 * convert a parsed id/type list into
+ 	 * a type for struct/interface/arglist
+ 	 */
+ 
++	funarg = 0;
++	if(et == TFUNC) {
++		funarg = 1;
++		et = TSTRUCT;
++	}
+ 	t = typ(et);
++	t->funarg = funarg;
+ 	stotype(n, &t->type);
+-	checkwidth(t);
++	if(!funarg)
++		checkwidth(t);
+ 	return t;
+ }
+ 
+@@ -1130,6 +1139,11 @@ checkwidth(Type *t)
+ {
+ 	TypeList *l;
+ 
++	// function arg structs should not be checked
++	// outside of the enclosing function.
++	if(t->funarg)
++		fatal("checkwidth %T", t);
++
+ 	if(!defercalc) {
+ 		dowidth(t);
+ 		return;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index acb311b4e7..c76adf6925 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -41,6 +41,8 @@ enum
+ 	ASTRING,
+ 	APTR,
+ 	AINTER,
++	
++	BADWIDTH	= -1000000000
+ };
+ 
+ /*
+@@ -126,6 +128,7 @@ struct	Type
+ 	uchar	printed;
+ 	uchar	embedded;	// TFIELD embedded type
+ 	uchar	siggen;
++	uchar	funarg;
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;

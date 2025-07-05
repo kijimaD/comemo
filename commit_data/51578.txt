@@ -52,7 +52,7 @@ Date:   Fri Feb 4 17:15:28 2022 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/defs_linux.go            |   2 +
  src/runtime/defs_linux_386.go        |   2 +
  src/runtime/defs_linux_amd64.go      |   2 +
@@ -89,3 +89,1436 @@ Date:   Fri Feb 4 17:15:28 2022 -0500
  src/syscall/syscall_linux_s390x.go   |   6 -
  src/syscall/syscall_linux_test.go    |  71 ++++++++
  35 files changed, 429 insertions(+), 428 deletions(-)
+
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index fa94e388f4..95f807b502 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -91,6 +91,8 @@ const (
+ 	SIGPWR    = C.SIGPWR
+ 	SIGSYS    = C.SIGSYS
+ 
++	SIGRTMIN  = C.SIGRTMIN
++
+ 	FPE_INTDIV = C.FPE_INTDIV
+ 	FPE_INTOVF = C.FPE_INTOVF
+ 	FPE_FLTDIV = C.FPE_FLTDIV
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index 24fb58bbf8..d24d00febb 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -64,6 +64,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 36da22f8ce..47fb468621 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -64,6 +64,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index 13d06969e3..ed387e6eff 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -63,6 +63,7 @@ const (
+ 	_SIGIO          = 0x1d
+ 	_SIGPWR         = 0x1e
+ 	_SIGSYS         = 0x1f
++	_SIGRTMIN       = 0x20
+ 	_FPE_INTDIV     = 0x1
+ 	_FPE_INTOVF     = 0x2
+ 	_FPE_FLTDIV     = 0x3
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index f9ee9cbc35..97b3a9600f 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -64,6 +64,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index 2601082ee1..67f28ddc2b 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -66,6 +66,8 @@ const (
+ 	_SIGXCPU   = 0x1e
+ 	_SIGXFSZ   = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index 37651ef7e4..b5c0d7f568 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -66,6 +66,8 @@ const (
+ 	_SIGXCPU   = 0x1e
+ 	_SIGXFSZ   = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index c7aa7234c1..c077868cf8 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -63,6 +63,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index c7aa7234c1..c077868cf8 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -63,6 +63,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_riscv64.go b/src/runtime/defs_linux_riscv64.go
+index 747e26bc4b..30bf1770d7 100644
+--- a/src/runtime/defs_linux_riscv64.go
++++ b/src/runtime/defs_linux_riscv64.go
+@@ -65,6 +65,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index 740d8100c5..224136a463 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -64,6 +64,8 @@ const (
+ 	_SIGPWR    = 0x1e
+ 	_SIGSYS    = 0x1f
+ 
++	_SIGRTMIN = 0x20
++
+ 	_FPE_INTDIV = 0x1
+ 	_FPE_INTOVF = 0x2
+ 	_FPE_FLTDIV = 0x3
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 2e946656d0..4aba0ff64b 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -634,3 +634,12 @@ func sysauxv(auxv []uintptr) {
+ 		}
+ 	}
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index aeff593d50..292ff94795 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -373,3 +373,12 @@ func setNonblock(fd int32) {
+ 	flags := fcntl(fd, _F_GETFL, 0)
+ 	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 0f0eb6c6fd..9065b76375 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -459,3 +459,12 @@ func sysargs(argc int32, argv **byte) {
+ func signalM(mp *m, sig int) {
+ 	pthread_kill(pthread(mp.procid), uint32(sig))
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index cba2e42ab0..152d94cf43 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -324,3 +324,12 @@ func raise(sig uint32) {
+ func signalM(mp *m, sig int) {
+ 	lwp_kill(-1, int32(mp.procid), sig)
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index c63b0e3d69..d908a80cd1 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -460,3 +460,12 @@ func raise(sig uint32) {
+ func signalM(mp *m, sig int) {
+ 	thr_kill(thread(mp.procid), sig)
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 2a826963dd..eb8aa076e9 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -8,9 +8,15 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/syscall"
+ 	"unsafe"
+ )
+ 
++// sigPerThreadSyscall is the same signal (SIGSETXID) used by glibc for
++// per-thread syscalls on Linux. We use it for the same purpose in non-cgo
++// binaries.
++const sigPerThreadSyscall = _SIGRTMIN + 1
++
+ type mOS struct {
+ 	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
+ 	// usage on this thread.
+@@ -21,6 +27,10 @@ type mOS struct {
+ 	// are in signal handling code, access to that field uses atomic operations.
+ 	profileTimer      int32
+ 	profileTimerValid uint32
++
++	// needPerThreadSyscall indicates that a per-thread syscall is required
++	// for doAllThreadsSyscall.
++	needPerThreadSyscall atomic.Uint8
+ }
+ 
+ //go:noescape
+@@ -665,141 +675,204 @@ func setThreadCPUProfiler(hz int32) {
+ 	atomic.Store(&mp.profileTimerValid, 1)
+ }
+ 
+-// syscall_runtime_doAllThreadsSyscall serializes Go execution and
+-// executes a specified fn() call on all m's.
++// perThreadSyscallArgs contains the system call number, arguments, and
++// expected return values for a system call to be executed on all threads.
++type perThreadSyscallArgs struct {
++	trap uintptr
++	a1   uintptr
++	a2   uintptr
++	a3   uintptr
++	a4   uintptr
++	a5   uintptr
++	a6   uintptr
++	r1   uintptr
++	r2   uintptr
++}
++
++// perThreadSyscall is the system call to execute for the ongoing
++// doAllThreadsSyscall.
+ //
+-// The boolean argument to fn() indicates whether the function's
+-// return value will be consulted or not. That is, fn(true) should
+-// return true if fn() succeeds, and fn(true) should return false if
+-// it failed. When fn(false) is called, its return status will be
+-// ignored.
++// perThreadSyscall may only be written while mp.needPerThreadSyscall == 0 on
++// all Ms.
++var perThreadSyscall perThreadSyscallArgs
++
++// syscall_runtime_doAllThreadsSyscall and executes a specified system call on
++// all Ms.
+ //
+-// syscall_runtime_doAllThreadsSyscall first invokes fn(true) on a
+-// single, coordinating, m, and only if it returns true does it go on
+-// to invoke fn(false) on all of the other m's known to the process.
++// The system call is expected to succeed and return the same value on every
++// thread. If any threads do not match, the runtime throws.
+ //
+ //go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+-func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
++//go:uintptrescapes
++func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	if iscgo {
++		// In cgo, we are not aware of threads created in C, so this approach will not work.
+ 		panic("doAllThreadsSyscall not supported with cgo enabled")
+ 	}
+-	if fn == nil {
+-		return
+-	}
+-	for atomic.Load(&sched.sysmonStarting) != 0 {
+-		osyield()
+-	}
+-
+-	// We don't want this thread to handle signals for the
+-	// duration of this critical section. The underlying issue
+-	// being that this locked coordinating m is the one monitoring
+-	// for fn() execution by all the other m's of the runtime,
+-	// while no regular go code execution is permitted (the world
+-	// is stopped). If this present m were to get distracted to
+-	// run signal handling code, and find itself waiting for a
+-	// second thread to execute go code before being able to
+-	// return from that signal handling, a deadlock will result.
+-	// (See golang.org/issue/44193.)
+-	lockOSThread()
+-	var sigmask sigset
+-	sigsave(&sigmask)
+-	sigblock(false)
+-
+-	stopTheWorldGC("doAllThreadsSyscall")
+-	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
+-		// Ensure that there are no in-flight thread
+-		// creations: don't want to race with allm.
+-		lock(&newmHandoff.lock)
+-		for !newmHandoff.waiting {
+-			unlock(&newmHandoff.lock)
++
++	// STW to guarantee that user goroutines see an atomic change to thread
++	// state. Without STW, goroutines could migrate Ms while change is in
++	// progress and e.g., see state old -> new -> old -> new.
++	//
++	// N.B. Internally, this function does not depend on STW to
++	// successfully change every thread. It is only needed for user
++	// expectations, per above.
++	stopTheWorld("doAllThreadsSyscall")
++
++	// This function depends on several properties:
++	//
++	// 1. All OS threads that already exist are associated with an M in
++	//    allm. i.e., we won't miss any pre-existing threads.
++	// 2. All Ms listed in allm will eventually have an OS thread exist.
++	//    i.e., they will set procid and be able to receive signals.
++	// 3. OS threads created after we read allm will clone from a thread
++	//    that has executed the system call. i.e., they inherit the
++	//    modified state.
++	//
++	// We achieve these through different mechanisms:
++	//
++	// 1. Addition of new Ms to allm in allocm happens before clone of its
++	//    OS thread later in newm.
++	// 2. newm does acquirem to avoid being preempted, ensuring that new Ms
++	//    created in allocm will eventually reach OS thread clone later in
++	//    newm.
++	// 3. We take allocmLock for write here to prevent allocation of new Ms
++	//    while this function runs. Per (1), this prevents clone of OS
++	//    threads that are not yet in allm.
++	allocmLock.lock()
++
++	// Disable preemption, preventing us from changing Ms, as we handle
++	// this M specially.
++	//
++	// N.B. STW and lock() above do this as well, this is added for extra
++	// clarity.
++	acquirem()
++
++	// N.B. allocmLock also prevents concurrent execution of this function,
++	// serializing use of perThreadSyscall, mp.needPerThreadSyscall, and
++	// ensuring all threads execute system calls from multiple calls in the
++	// same order.
++
++	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
++	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
++		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
++		r2 = 0
++	}
++	if errno != 0 {
++		releasem(getg().m)
++		allocmLock.unlock()
++		startTheWorld()
++		return r1, r2, errno
++	}
++
++	perThreadSyscall = perThreadSyscallArgs{
++		trap: trap,
++		a1:   a1,
++		a2:   a2,
++		a3:   a3,
++		a4:   a4,
++		a5:   a5,
++		a6:   a6,
++		r1:   r1,
++		r2:   r2,
++	}
++
++	// Wait for all threads to start.
++	//
++	// As described above, some Ms have been added to allm prior to
++	// allocmLock, but not yet completed OS clone and set procid.
++	//
++	// At minimum we must wait for a thread to set procid before we can
++	// send it a signal.
++	//
++	// We take this one step further and wait for all threads to start
++	// before sending any signals. This prevents system calls from getting
++	// applied twice: once in the parent and once in the child, like so:
++	//
++	//          A                     B                  C
++	//                         add C to allm
++	// doAllThreadsSyscall
++	//   allocmLock.lock()
++	//   signal B
++	//                         <receive signal>
++	//                         execute syscall
++	//                         <signal return>
++	//                         clone C
++	//                                             <thread start>
++	//                                             set procid
++	//   signal C
++	//                                             <receive signal>
++	//                                             execute syscall
++	//                                             <signal return>
++	//
++	// In this case, thread C inherited the syscall-modified state from
++	// thread B and did not need to execute the syscall, but did anyway
++	// because doAllThreadsSyscall could not be sure whether it was
++	// required.
++	//
++	// Some system calls may not be idempotent, so we ensure each thread
++	// executes the system call exactly once.
++	for mp := allm; mp != nil; mp = mp.alllink {
++		for atomic.Load64(&mp.procid) == 0 {
++			// Thread is starting.
+ 			osyield()
+-			lock(&newmHandoff.lock)
+ 		}
+-		unlock(&newmHandoff.lock)
+-	}
+-	if netpollinited() {
+-		netpollBreak()
+-	}
+-	sigRecvPrepareForFixup()
+-	_g_ := getg()
+-	if raceenabled {
+-		// For m's running without racectx, we loan out the
+-		// racectx of this call.
+-		lock(&mFixupRace.lock)
+-		mFixupRace.ctx = _g_.racectx
+-		unlock(&mFixupRace.lock)
+-	}
+-	if ok := fn(true); ok {
+-		tid := _g_.m.procid
+-		for mp := allm; mp != nil; mp = mp.alllink {
+-			if mp.procid == tid {
+-				// This m has already completed fn()
+-				// call.
+-				continue
+-			}
+-			// Be wary of mp's without procid values if
+-			// they are known not to park. If they are
+-			// marked as parking with a zero procid, then
+-			// they will be racing with this code to be
+-			// allocated a procid and we will annotate
+-			// them with the need to execute the fn when
+-			// they acquire a procid to run it.
+-			if mp.procid == 0 && !mp.doesPark {
+-				// Reaching here, we are either
+-				// running Windows, or cgo linked
+-				// code. Neither of which are
+-				// currently supported by this API.
+-				throw("unsupported runtime environment")
+-			}
+-			// stopTheWorldGC() doesn't guarantee stopping
+-			// all the threads, so we lock here to avoid
+-			// the possibility of racing with mp.
+-			lock(&mp.mFixup.lock)
+-			mp.mFixup.fn = fn
+-			atomic.Store(&mp.mFixup.used, 1)
+-			if mp.doesPark {
+-				// For non-service threads this will
+-				// cause the wakeup to be short lived
+-				// (once the mutex is unlocked). The
+-				// next real wakeup will occur after
+-				// startTheWorldGC() is called.
+-				notewakeup(&mp.park)
+-			}
+-			unlock(&mp.mFixup.lock)
++	}
++
++	// Signal every other thread, where they will execute perThreadSyscall
++	// from the signal handler.
++	gp := getg()
++	tid := gp.m.procid
++	for mp := allm; mp != nil; mp = mp.alllink {
++		if atomic.Load64(&mp.procid) == tid {
++			// Our thread already performed the syscall.
++			continue
+ 		}
+-		for {
+-			done := true
+-			for mp := allm; done && mp != nil; mp = mp.alllink {
+-				if mp.procid == tid {
+-					continue
+-				}
+-				done = atomic.Load(&mp.mFixup.used) == 0
+-			}
+-			if done {
+-				break
+-			}
+-			// if needed force sysmon and/or newmHandoff to wakeup.
+-			lock(&sched.lock)
+-			if atomic.Load(&sched.sysmonwait) != 0 {
+-				atomic.Store(&sched.sysmonwait, 0)
+-				notewakeup(&sched.sysmonnote)
+-			}
+-			unlock(&sched.lock)
+-			lock(&newmHandoff.lock)
+-			if newmHandoff.waiting {
+-				newmHandoff.waiting = false
+-				notewakeup(&newmHandoff.wake)
+-			}
+-			unlock(&newmHandoff.lock)
++		mp.needPerThreadSyscall.Store(1)
++		signalM(mp, sigPerThreadSyscall)
++	}
++
++	// Wait for all threads to complete.
++	for mp := allm; mp != nil; mp = mp.alllink {
++		if mp.procid == tid {
++			continue
++		}
++		for mp.needPerThreadSyscall.Load() != 0 {
+ 			osyield()
+ 		}
+ 	}
+-	if raceenabled {
+-		lock(&mFixupRace.lock)
+-		mFixupRace.ctx = 0
+-		unlock(&mFixupRace.lock)
++
++	perThreadSyscall = perThreadSyscallArgs{}
++
++	releasem(getg().m)
++	allocmLock.unlock()
++	startTheWorld()
++
++	return r1, r2, errno
++}
++
++// runPerThreadSyscall runs perThreadSyscall for this M if required.
++//
++// This function throws if the system call returns with anything other than the
++// expected values.
++//go:nosplit
++func runPerThreadSyscall() {
++	gp := getg()
++	if gp.m.needPerThreadSyscall.Load() == 0 {
++		return
++	}
++
++	args := perThreadSyscall
++	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
++	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
++		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
++		r2 = 0
+ 	}
+-	startTheWorldGC()
+-	msigrestore(sigmask)
+-	unlockOSThread()
++	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
++		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
++		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
++		throw("AllThreadsSyscall6 results differ between threads; runtime corrupted")
++	}
++
++	gp.m.needPerThreadSyscall.Store(0)
+ }
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index cd9508c706..c4e69fb189 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -428,3 +428,12 @@ func raise(sig uint32) {
+ func signalM(mp *m, sig int) {
+ 	lwp_kill(int32(mp.procid), sig)
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 2d0e71de53..1a00b890db 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -286,3 +286,12 @@ func raise(sig uint32) {
+ func signalM(mp *m, sig int) {
+ 	thrkill(int32(mp.procid), sig)
+ }
++
++// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
++// number.
++const sigPerThreadSyscall = 1 << 31
++
++//go:nosplit
++func runPerThreadSyscall() {
++	throw("runPerThreadSyscall only valid on linux")
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 728b3bcd23..b997a467ba 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -167,10 +167,6 @@ func main() {
+ 	mainStarted = true
+ 
+ 	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+-		// For runtime_syscall_doAllThreadsSyscall, we
+-		// register sysmon is not ready for the world to be
+-		// stopped.
+-		atomic.Store(&sched.sysmonStarting, 1)
+ 		systemstack(func() {
+ 			newm(sysmon, nil, -1)
+ 		})
+@@ -187,7 +183,6 @@ func main() {
+ 	if g.m != &m0 {
+ 		throw("runtime.main not on m0")
+ 	}
+-	m0.doesPark = true
+ 
+ 	// Record when the world started.
+ 	// Must be before doInit for tracing init.
+@@ -1447,22 +1442,12 @@ func mstartm0() {
+ 	initsig(false)
+ }
+ 
+-// mPark causes a thread to park itself - temporarily waking for
+-// fixups but otherwise waiting to be fully woken. This is the
+-// only way that m's should park themselves.
++// mPark causes a thread to park itself, returning once woken.
+ //go:nosplit
+ func mPark() {
+-	g := getg()
+-	for {
+-		notesleep(&g.m.park)
+-		// Note, because of signal handling by this parked m,
+-		// a preemptive mDoFixup() may actually occur via
+-		// mDoFixupAndOSYield(). (See golang.org/issue/44193)
+-		noteclear(&g.m.park)
+-		if !mDoFixup() {
+-			return
+-		}
+-	}
++	gp := getg()
++	notesleep(&gp.m.park)
++	noteclear(&gp.m.park)
+ }
+ 
+ // mexit tears down and exits the current thread.
+@@ -1718,8 +1703,14 @@ type cgothreadstart struct {
+ //
+ //go:yeswritebarrierrec
+ func allocm(_p_ *p, fn func(), id int64) *m {
++	allocmLock.rlock()
++
++	// The caller owns _p_, but we may borrow (i.e., acquirep) it. We must
++	// disable preemption to ensure it is not stolen, which would make the
++	// caller lose ownership.
++	acquirem()
++
+ 	_g_ := getg()
+-	acquirem() // disable GC because it can be called from sysmon
+ 	if _g_.m.p == 0 {
+ 		acquirep(_p_) // temporarily borrow p for mallocs in this function
+ 	}
+@@ -1765,8 +1756,9 @@ func allocm(_p_ *p, fn func(), id int64) *m {
+ 	if _p_ == _g_.m.p.ptr() {
+ 		releasep()
+ 	}
+-	releasem(_g_.m)
+ 
++	releasem(_g_.m)
++	allocmLock.runlock()
+ 	return mp
+ }
+ 
+@@ -2043,9 +2035,17 @@ func unlockextra(mp *m) {
+ 	atomic.Storeuintptr(&extram, uintptr(unsafe.Pointer(mp)))
+ }
+ 
+-// execLock serializes exec and clone to avoid bugs or unspecified behaviour
+-// around exec'ing while creating/destroying threads.  See issue #19546.
+-var execLock rwmutex
++var (
++	// allocmLock is locked for read when creating new Ms in allocm and their
++	// addition to allm. Thus acquiring this lock for write blocks the
++	// creation of new Ms.
++	allocmLock rwmutex
++
++	// execLock serializes exec and clone to avoid bugs or unspecified
++	// behaviour around exec'ing while creating/destroying threads. See
++	// issue #19546.
++	execLock rwmutex
++)
+ 
+ // newmHandoff contains a list of m structures that need new OS threads.
+ // This is used by newm in situations where newm itself can't safely
+@@ -2075,8 +2075,19 @@ var newmHandoff struct {
+ // id is optional pre-allocated m ID. Omit by passing -1.
+ //go:nowritebarrierrec
+ func newm(fn func(), _p_ *p, id int64) {
++	// allocm adds a new M to allm, but they do not start until created by
++	// the OS in newm1 or the template thread.
++	//
++	// doAllThreadsSyscall requires that every M in allm will eventually
++	// start and be signal-able, even with a STW.
++	//
++	// Disable preemption here until we start the thread to ensure that
++	// newm is not preempted between allocm and starting the new thread,
++	// ensuring that anything added to allm is guaranteed to eventually
++	// start.
++	acquirem()
++
+ 	mp := allocm(_p_, fn, id)
+-	mp.doesPark = (_p_ != nil)
+ 	mp.nextp.set(_p_)
+ 	mp.sigmask = initSigmask
+ 	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
+@@ -2102,9 +2113,14 @@ func newm(fn func(), _p_ *p, id int64) {
+ 			notewakeup(&newmHandoff.wake)
+ 		}
+ 		unlock(&newmHandoff.lock)
++		// The M has not started yet, but the template thread does not
++		// participate in STW, so it will always process queued Ms and
++		// it is safe to releasem.
++		releasem(getg().m)
+ 		return
+ 	}
+ 	newm1(mp)
++	releasem(getg().m)
+ }
+ 
+ func newm1(mp *m) {
+@@ -2152,81 +2168,6 @@ func startTemplateThread() {
+ 	releasem(mp)
+ }
+ 
+-// mFixupRace is used to temporarily borrow the race context from the
+-// coordinating m during a syscall_runtime_doAllThreadsSyscall and
+-// loan it out to each of the m's of the runtime so they can execute a
+-// mFixup.fn in that context.
+-var mFixupRace struct {
+-	lock mutex
+-	ctx  uintptr
+-}
+-
+-// mDoFixup runs any outstanding fixup function for the running m.
+-// Returns true if a fixup was outstanding and actually executed.
+-//
+-// Note: to avoid deadlocks, and the need for the fixup function
+-// itself to be async safe, signals are blocked for the working m
+-// while it holds the mFixup lock. (See golang.org/issue/44193)
+-//
+-//go:nosplit
+-func mDoFixup() bool {
+-	_g_ := getg()
+-	if used := atomic.Load(&_g_.m.mFixup.used); used == 0 {
+-		return false
+-	}
+-
+-	// slow path - if fixup fn is used, block signals and lock.
+-	var sigmask sigset
+-	sigsave(&sigmask)
+-	sigblock(false)
+-	lock(&_g_.m.mFixup.lock)
+-	fn := _g_.m.mFixup.fn
+-	if fn != nil {
+-		if gcphase != _GCoff {
+-			// We can't have a write barrier in this
+-			// context since we may not have a P, but we
+-			// clear fn to signal that we've executed the
+-			// fixup. As long as fn is kept alive
+-			// elsewhere, technically we should have no
+-			// issues with the GC, but fn is likely
+-			// generated in a different package altogether
+-			// that may change independently. Just assert
+-			// the GC is off so this lack of write barrier
+-			// is more obviously safe.
+-			throw("GC must be disabled to protect validity of fn value")
+-		}
+-		if _g_.racectx != 0 || !raceenabled {
+-			fn(false)
+-		} else {
+-			// temporarily acquire the context of the
+-			// originator of the
+-			// syscall_runtime_doAllThreadsSyscall and
+-			// block others from using it for the duration
+-			// of the fixup call.
+-			lock(&mFixupRace.lock)
+-			_g_.racectx = mFixupRace.ctx
+-			fn(false)
+-			_g_.racectx = 0
+-			unlock(&mFixupRace.lock)
+-		}
+-		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
+-		atomic.Store(&_g_.m.mFixup.used, 0)
+-	}
+-	unlock(&_g_.m.mFixup.lock)
+-	msigrestore(sigmask)
+-	return fn != nil
+-}
+-
+-// mDoFixupAndOSYield is called when an m is unable to send a signal
+-// because the allThreadsSyscall mechanism is in progress. That is, an
+-// mPark() has been interrupted with this signal handler so we need to
+-// ensure the fixup is executed from this context.
+-//go:nosplit
+-func mDoFixupAndOSYield() {
+-	mDoFixup()
+-	osyield()
+-}
+-
+ // templateThread is a thread in a known-good state that exists solely
+ // to start new threads in known-good states when the calling thread
+ // may not be in a good state.
+@@ -2263,7 +2204,6 @@ func templateThread() {
+ 		noteclear(&newmHandoff.wake)
+ 		unlock(&newmHandoff.lock)
+ 		notesleep(&newmHandoff.wake)
+-		mDoFixup()
+ 	}
+ }
+ 
+@@ -5110,10 +5050,6 @@ func sysmon() {
+ 	checkdead()
+ 	unlock(&sched.lock)
+ 
+-	// For syscall_runtime_doAllThreadsSyscall, sysmon is
+-	// sufficiently up to participate in fixups.
+-	atomic.Store(&sched.sysmonStarting, 0)
+-
+ 	lasttrace := int64(0)
+ 	idle := 0 // how many cycles in succession we had not wokeup somebody
+ 	delay := uint32(0)
+@@ -5128,7 +5064,6 @@ func sysmon() {
+ 			delay = 10 * 1000
+ 		}
+ 		usleep(delay)
+-		mDoFixup()
+ 
+ 		// sysmon should not enter deep sleep if schedtrace is enabled so that
+ 		// it can print that information at the right time.
+@@ -5165,7 +5100,6 @@ func sysmon() {
+ 						osRelax(true)
+ 					}
+ 					syscallWake = notetsleep(&sched.sysmonnote, sleep)
+-					mDoFixup()
+ 					if shouldRelax {
+ 						osRelax(false)
+ 					}
+@@ -5208,7 +5142,6 @@ func sysmon() {
+ 				incidlelocked(1)
+ 			}
+ 		}
+-		mDoFixup()
+ 		if GOOS == "netbsd" && needSysmonWorkaround {
+ 			// netpoll is responsible for waiting for timer
+ 			// expiration, so we typically don't have to worry
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3eada37840..3d01ac5171 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -547,7 +547,6 @@ type m struct {
+ 	ncgo          int32       // number of cgo calls currently in progress
+ 	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
+ 	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
+-	doesPark      bool        // non-P running threads: sysmon and newmHandoff never use .park
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     muintptr
+@@ -564,16 +563,6 @@ type m struct {
+ 	syscalltick   uint32
+ 	freelink      *m // on sched.freem
+ 
+-	// mFixup is used to synchronize OS related m state
+-	// (credentials etc) use mutex to access. To avoid deadlocks
+-	// an atomic.Load() of used being zero in mDoFixupFn()
+-	// guarantees fn is nil.
+-	mFixup struct {
+-		lock mutex
+-		used uint32
+-		fn   func(bool) bool
+-	}
+-
+ 	// these are here because they are too large to be on the stack
+ 	// of low-level NOSPLIT functions.
+ 	libcall   libcall
+@@ -817,10 +806,6 @@ type schedt struct {
+ 	sysmonwait uint32
+ 	sysmonnote note
+ 
+-	// While true, sysmon not ready for mFixup calls.
+-	// Accessed atomically.
+-	sysmonStarting uint32
+-
+ 	// safepointFn should be called on each P at the next GC
+ 	// safepoint if p.runSafePointFn is set.
+ 	safePointFn   func(*p)
+@@ -838,8 +823,6 @@ type schedt struct {
+ 	// with the rest of the runtime.
+ 	sysmonlock mutex
+ 
+-	_ uint32 // ensure timeToRun has 8-byte alignment
+-
+ 	// timeToRun is a distribution of scheduling latencies, defined
+ 	// as the sum of time a G spends in the _Grunnable state before
+ 	// it transitions to _Grunning.
+@@ -856,7 +839,7 @@ const (
+ 	_SigPanic                // if the signal is from the kernel, panic
+ 	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
+ 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
+-	_SigSetStack             // add SA_ONSTACK to libc handler
++	_SigSetStack             // Don't explicitly install handler, but add SA_ONSTACK to existing libc handler
+ 	_SigUnblock              // always unblock; see blockableSig
+ 	_SigIgn                  // _SIG_DFL action is to ignore the signal
+ )
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 08f266cc67..6f25fc91fa 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -161,6 +161,13 @@ func sigInstallGoHandler(sig uint32) bool {
+ 		}
+ 	}
+ 
++	if GOOS == "linux" && !iscgo && sig == sigPerThreadSyscall {
++		// sigPerThreadSyscall is the same signal used by glibc for
++		// per-thread syscalls on Linux. We use it for the same purpose
++		// in non-cgo binaries.
++		return true
++	}
++
+ 	t := &sigtable[sig]
+ 	if t.flags&_SigSetStack != 0 {
+ 		return false
+@@ -616,6 +623,15 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		return
+ 	}
+ 
++	if GOOS == "linux" && sig == sigPerThreadSyscall {
++		// sigPerThreadSyscall is the same signal used by glibc for
++		// per-thread syscalls on Linux. We use it for the same purpose
++		// in non-cgo binaries. Since this signal is not _SigNotify,
++		// there is nothing more to do once we run the syscall.
++		runPerThreadSyscall()
++		return
++	}
++
+ 	if sig == sigPreempt && debug.asyncpreemptoff == 0 {
+ 		// Might be a preemption signal.
+ 		doSigPreempt(gp, c)
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 7b84a0ef65..fdf99d94a2 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -11,18 +11,18 @@
+ //
+ // sigsend is called by the signal handler to queue a new signal.
+ // signal_recv is called by the Go program to receive a newly queued signal.
++//
+ // Synchronization between sigsend and signal_recv is based on the sig.state
+-// variable. It can be in 4 states: sigIdle, sigReceiving, sigSending and sigFixup.
+-// sigReceiving means that signal_recv is blocked on sig.Note and there are no
+-// new pending signals.
+-// sigSending means that sig.mask *may* contain new pending signals,
+-// signal_recv can't be blocked in this state.
+-// sigIdle means that there are no new pending signals and signal_recv is not blocked.
+-// sigFixup is a transient state that can only exist as a short
+-// transition from sigReceiving and then on to sigIdle: it is
+-// used to ensure the AllThreadsSyscall()'s mDoFixup() operation
+-// occurs on the sleeping m, waiting to receive a signal.
++// variable. It can be in three states:
++// * sigReceiving means that signal_recv is blocked on sig.Note and there are
++//   no new pending signals.
++// * sigSending means that sig.mask *may* contain new pending signals,
++//   signal_recv can't be blocked in this state.
++// * sigIdle means that there are no new pending signals and signal_recv is not
++//   blocked.
++//
+ // Transitions between states are done atomically with CAS.
++//
+ // When signal_recv is unblocked, it resets sig.Note and rechecks sig.mask.
+ // If several sigsends and signal_recv execute concurrently, it can lead to
+ // unnecessary rechecks of sig.mask, but it cannot lead to missed signals
+@@ -63,7 +63,6 @@ const (
+ 	sigIdle = iota
+ 	sigReceiving
+ 	sigSending
+-	sigFixup
+ )
+ 
+ // sigsend delivers a signal from sighandler to the internal signal delivery queue.
+@@ -117,9 +116,6 @@ Send:
+ 				notewakeup(&sig.note)
+ 				break Send
+ 			}
+-		case sigFixup:
+-			// nothing to do - we need to wait for sigIdle.
+-			mDoFixupAndOSYield()
+ 		}
+ 	}
+ 
+@@ -127,19 +123,6 @@ Send:
+ 	return true
+ }
+ 
+-// sigRecvPrepareForFixup is used to temporarily wake up the
+-// signal_recv() running thread while it is blocked waiting for the
+-// arrival of a signal. If it causes the thread to wake up, the
+-// sig.state travels through this sequence: sigReceiving -> sigFixup
+-// -> sigIdle -> sigReceiving and resumes. (This is only called while
+-// GC is disabled.)
+-//go:nosplit
+-func sigRecvPrepareForFixup() {
+-	if atomic.Cas(&sig.state, sigReceiving, sigFixup) {
+-		notewakeup(&sig.note)
+-	}
+-}
+-
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
+ //go:linkname signal_recv os/signal.signal_recv
+@@ -167,16 +150,7 @@ func signal_recv() uint32 {
+ 					}
+ 					notetsleepg(&sig.note, -1)
+ 					noteclear(&sig.note)
+-					if !atomic.Cas(&sig.state, sigFixup, sigIdle) {
+-						break Receive
+-					}
+-					// Getting here, the code will
+-					// loop around again to sleep
+-					// in state sigReceiving. This
+-					// path is taken when
+-					// sigRecvPrepareForFixup()
+-					// has been called by another
+-					// thread.
++					break Receive
+ 				}
+ 			case sigSending:
+ 				if atomic.Cas(&sig.state, sigSending, sigIdle) {
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index aebd2060e7..d5fe8f8b35 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -92,13 +92,6 @@ func sendNote(s *byte) bool {
+ 	return true
+ }
+ 
+-// sigRecvPrepareForFixup is a no-op on plan9. (This would only be
+-// called while GC is disabled.)
+-//
+-//go:nosplit
+-func sigRecvPrepareForFixup() {
+-}
+-
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
+ //go:linkname signal_recv os/signal.signal_recv
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index abcf1d5dfe..e3891b0855 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -958,62 +958,11 @@ func Getpgrp() (pid int) {
+ //sysnb	Setsid() (pid int, err error)
+ //sysnb	Settimeofday(tv *Timeval) (err error)
+ 
+-// allThreadsCaller holds the input and output state for performing a
+-// allThreadsSyscall that needs to synchronize all OS thread state. Linux
+-// generally does not always support this natively, so we have to
+-// manipulate the runtime to fix things up.
+-type allThreadsCaller struct {
+-	// arguments
+-	trap, a1, a2, a3, a4, a5, a6 uintptr
+-
+-	// return values (only set by 0th invocation)
+-	r1, r2 uintptr
+-
+-	// err is the error code
+-	err Errno
+-}
+-
+-// doSyscall is a callback for executing a syscall on the current m
+-// (OS thread).
+-//go:nosplit
+-//go:norace
+-func (pc *allThreadsCaller) doSyscall(initial bool) bool {
+-	r1, r2, err := RawSyscall(pc.trap, pc.a1, pc.a2, pc.a3)
+-	if initial {
+-		pc.r1 = r1
+-		pc.r2 = r2
+-		pc.err = err
+-	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+-		print("trap:", pc.trap, ", a123=[", pc.a1, ",", pc.a2, ",", pc.a3, "]\n")
+-		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+-		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
+-	}
+-	return err == 0
+-}
+-
+-// doSyscall6 is a callback for executing a syscall6 on the current m
+-// (OS thread).
+-//go:nosplit
+-//go:norace
+-func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
+-	r1, r2, err := RawSyscall6(pc.trap, pc.a1, pc.a2, pc.a3, pc.a4, pc.a5, pc.a6)
+-	if initial {
+-		pc.r1 = r1
+-		pc.r2 = r2
+-		pc.err = err
+-	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+-		print("trap:", pc.trap, ", a123456=[", pc.a1, ",", pc.a2, ",", pc.a3, ",", pc.a4, ",", pc.a5, ",", pc.a6, "]\n")
+-		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+-		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+-	}
+-	return err == 0
+-}
+-
+-// Provided by runtime.syscall_runtime_doAllThreadsSyscall which
+-// serializes the world and invokes the fn on each OS thread (what the
+-// runtime refers to as m's). Once this function returns, all threads
+-// are in sync.
+-func runtime_doAllThreadsSyscall(fn func(bool) bool)
++// Provided by runtime.syscall_runtime_doAllThreadsSyscall which stops the
++// world and invokes the syscall on each OS thread. Once this function returns,
++// all threads are in sync.
++//go:uintptrescapes
++func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+ // AllThreadsSyscall performs a syscall on each OS thread of the Go
+ // runtime. It first invokes the syscall on one thread. Should that
+@@ -1035,17 +984,8 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+ 	if cgo_libc_setegid != nil {
+ 		return minus1, minus1, ENOTSUP
+ 	}
+-	pc := &allThreadsCaller{
+-		trap: trap,
+-		a1:   a1,
+-		a2:   a2,
+-		a3:   a3,
+-	}
+-	runtime_doAllThreadsSyscall(pc.doSyscall)
+-	r1 = pc.r1
+-	r2 = pc.r2
+-	err = pc.err
+-	return
++	r1, r2, errno := runtime_doAllThreadsSyscall(trap, a1, a2, a3, 0, 0, 0)
++	return r1, r2, Errno(errno)
+ }
+ 
+ // AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+@@ -1055,20 +995,8 @@ func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
+ 	if cgo_libc_setegid != nil {
+ 		return minus1, minus1, ENOTSUP
+ 	}
+-	pc := &allThreadsCaller{
+-		trap: trap,
+-		a1:   a1,
+-		a2:   a2,
+-		a3:   a3,
+-		a4:   a4,
+-		a5:   a5,
+-		a6:   a6,
+-	}
+-	runtime_doAllThreadsSyscall(pc.doSyscall6)
+-	r1 = pc.r1
+-	r2 = pc.r2
+-	err = pc.err
+-	return
++	r1, r2, errno := runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6)
++	return r1, r2, Errno(errno)
+ }
+ 
+ // linked by runtime.cgocall.go
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 98442055d8..a3a5870a17 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -6,12 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 04acd063fa..26b40ffe9b 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,12 +4,6 @@
+ 
+ package syscall
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index f2f342e7ed..58f376f350 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,12 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall". [EABI assumed.]
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 990e732f35..f3c6c48d06 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -6,12 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 7c9dd80614..7be1664637 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -6,12 +6,6 @@
+ 
+ package syscall
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 741eeb14bb..97188d3895 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -8,12 +8,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index cc1b72e0e7..ac42b20598 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -6,12 +6,6 @@
+ 
+ package syscall
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = false
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index bcb89c6e9a..4331a19e8d 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -6,12 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 123664f5b2..ff99024788 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -6,12 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// archHonorsR2 captures the fact that r2 is honored by the
+-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
+-// syscall(trap, ...).  Not all architectures define r2 in their
+-// ABI. See "man syscall".
+-const archHonorsR2 = true
+-
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 8d828be015..0444b64266 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"syscall"
+ 	"testing"
+ 	"unsafe"
+@@ -565,3 +566,73 @@ func TestSetuidEtc(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestAllThreadsSyscallError verifies that errors are properly returned when
++// the syscall fails on the original thread.
++func TestAllThreadsSyscallError(t *testing.T) {
++	// SYS_CAPGET takes pointers as the first two arguments. Since we pass
++	// 0, we expect to get EFAULT back.
++	r1, r2, err := syscall.AllThreadsSyscall(syscall.SYS_CAPGET, 0, 0, 0)
++	if err == syscall.ENOTSUP {
++		t.Skip("AllThreadsSyscall disabled with cgo")
++	}
++	if err != syscall.EFAULT {
++		t.Errorf("AllThreadSyscall(SYS_CAPGET) got %d, %d, %v, want err %v", r1, r2, err, syscall.EFAULT)
++	}
++}
++
++// TestAllThreadsSyscallBlockedSyscall confirms that AllThreadsSyscall
++// can interrupt threads in long-running system calls. This test will
++// deadlock if this doesn't work correctly.
++func TestAllThreadsSyscallBlockedSyscall(t *testing.T) {
++	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
++		t.Skip("AllThreadsSyscall disabled with cgo")
++	}
++
++	rd, wr, err := os.Pipe()
++	if err != nil {
++		t.Fatalf("unable to obtain a pipe: %v", err)
++	}
++
++	// Perform a blocking read on the pipe.
++	var wg sync.WaitGroup
++	ready := make(chan bool)
++	wg.Add(1)
++	go func() {
++		data := make([]byte, 1)
++
++		// To narrow the window we have to wait for this
++		// goroutine to block in read, synchronize just before
++		// calling read.
++		ready <- true
++
++		// We use syscall.Read directly to avoid the poller.
++		// This will return when the write side is closed.
++		n, err := syscall.Read(int(rd.Fd()), data)
++		if !(n == 0 && err == nil) {
++			t.Errorf("expected read to return 0, got %d, %s", n, err)
++		}
++
++		// Clean up rd and also ensure rd stays reachable so
++		// it doesn't get closed by GC.
++		rd.Close()
++		wg.Done()
++	}()
++	<-ready
++
++	// Loop here to give the goroutine more time to block in read.
++	// Generally this will trigger on the first iteration anyway.
++	pid := syscall.Getpid()
++	for i := 0; i < 100; i++ {
++		if id, _, e := syscall.AllThreadsSyscall(syscall.SYS_GETPID, 0, 0, 0); e != 0 {
++			t.Errorf("[%d] getpid failed: %v", i, e)
++		} else if int(id) != pid {
++			t.Errorf("[%d] getpid got=%d, want=%d", i, id, pid)
++		}
++		// Provide an explicit opportunity for this goroutine
++		// to change Ms.
++		runtime.Gosched()
++	}
++	wr.Close()
++	wg.Wait()
++}

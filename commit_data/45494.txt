@@ -12,6 +12,21 @@ Date:   Tue Oct 27 10:41:25 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 3275c3faf7..5a8b36e2bc 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -378,7 +378,8 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ 		// But it's okay if the file is a symlink pointing to a regular
+ 		// file, so use os.Stat to follow symlinks and check that.
+ 		actualFilePath, _ := OverlayPath(filepath.Join(dir, fi.Name()))
+-		if fi, err := os.Stat(actualFilePath); err == nil && fi.Mode().IsRegular() {
++		fi, err := os.Stat(actualFilePath)
++		if err == nil && fi.Mode().IsRegular() {
+ 			return true, nil
+ 		}
+ 		if err != nil && firstErr == nil {

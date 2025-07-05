@@ -9,6 +9,22 @@ Date:   Sat Jun 4 07:33:28 2016 +0900
     Change-Id: Ief2f317ffc175f7e6002d0c39694876f46788c69
     Reviewed-on: https://go-review.googlesource.com/23744
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/cmd/go/go_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 55074f8694..1bee5e6609 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2778,6 +2778,10 @@ func TestCgoConsistentResults(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
++	if runtime.GOOS == "solaris" {
++		// See https://golang.org/issue/13247
++		t.Skip("skipping because Solaris builds are known to be inconsistent; see #13247")
++	}
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

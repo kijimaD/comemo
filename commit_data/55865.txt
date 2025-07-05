@@ -13,6 +13,20 @@ Date:   Tue Mar 21 17:44:29 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/signal_netbsd_amd64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_netbsd_amd64.go b/src/runtime/signal_netbsd_amd64.go
+index 67fe4377fd..2112efea22 100644
+--- a/src/runtime/signal_netbsd_amd64.go
++++ b/src/runtime/signal_netbsd_amd64.go
+@@ -26,7 +26,7 @@ func (c *sigctxt) rsi() uint64 { return c.regs().__gregs[_REG_RSI] }
+ func (c *sigctxt) rbp() uint64 { return c.regs().__gregs[_REG_RBP] }
+ func (c *sigctxt) rsp() uint64 { return c.regs().__gregs[_REG_RSP] }
+ func (c *sigctxt) r8() uint64  { return c.regs().__gregs[_REG_R8] }
+-func (c *sigctxt) r9() uint64  { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r9() uint64  { return c.regs().__gregs[_REG_R9] }
+ func (c *sigctxt) r10() uint64 { return c.regs().__gregs[_REG_R10] }
+ func (c *sigctxt) r11() uint64 { return c.regs().__gregs[_REG_R11] }
+ func (c *sigctxt) r12() uint64 { return c.regs().__gregs[_REG_R12] }

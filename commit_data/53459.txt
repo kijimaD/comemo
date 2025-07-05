@@ -13,7 +13,51 @@ Date:   Wed Aug 17 17:25:33 2022 +0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/trace/annotation.go | 3 +--
  src/runtime/trace/trace.go      | 8 ++++----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index 9171633b07..d47cb8573c 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -178,8 +178,7 @@ func (r *Region) End() {
+ // The information is advisory only. The tracing status
+ // may have changed by the time this function returns.
+ func IsEnabled() bool {
+-	enabled := atomic.LoadInt32(&tracing.enabled)
+-	return enabled == 1
++	return tracing.enabled.Load()
+ }
+ 
+ //
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index cf2b6440b2..86c97e2a11 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -134,7 +134,7 @@ func Start(w io.Writer) error {
+ 			w.Write(data)
+ 		}
+ 	}()
+-	atomic.StoreInt32(&tracing.enabled, 1)
++	tracing.enabled.Store(true)
+ 	return nil
+ }
+ 
+@@ -143,12 +143,12 @@ func Start(w io.Writer) error {
+ func Stop() {
+ 	tracing.Lock()
+ 	defer tracing.Unlock()
+-	atomic.StoreInt32(&tracing.enabled, 0)
++	tracing.enabled.Store(false)
+ 
+ 	runtime.StopTrace()
+ }
+ 
+ var tracing struct {
+-	sync.Mutex       // gate mutators (Start, Stop)
+-	enabled    int32 // accessed via atomic
++	sync.Mutex // gate mutators (Start, Stop)
++	enabled    atomic.Bool
+ }

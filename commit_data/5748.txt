@@ -9,8 +9,66 @@ Date:   Wed Jun 30 20:45:50 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1695049
-
+---
  src/cmd/8g/ggen.c        |  4 +++-
  test/fixedbugs/bug287.go | 11 +++++++++++
  test/fixedbugs/bug288.go | 18 ++++++++++++++++++
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 110446a0d7..8a55ffd598 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -672,8 +672,10 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	a = optoas(op, nl->type);
+ 
+ 	if(nr->op == OLITERAL) {
++		tempname(&n2, nl->type);
++		cgen(nl, &n2);
+ 		regalloc(&n1, nl->type, res);
+-		cgen(nl, &n1);
++		gmove(&n2, &n1);
+ 		sc = mpgetfix(nr->val.u.xval);
+ 		if(sc >= nl->type->width*8) {
+ 			// large shift gets 2 shifts by width
+diff --git a/test/fixedbugs/bug287.go b/test/fixedbugs/bug287.go
+new file mode 100644
+index 0000000000..a4a08eedc4
+--- /dev/null
++++ b/test/fixedbugs/bug287.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to die dividing by zero; issue 879.
++
++package main
++
++var mult [3][...]byte = [3][5]byte{}	// ERROR "\.\.\."
+diff --git a/test/fixedbugs/bug288.go b/test/fixedbugs/bug288.go
+new file mode 100644
+index 0000000000..0105159d13
+--- /dev/null
++++ b/test/fixedbugs/bug288.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to run out of registers on 8g.  Issue 868.
++
++package main
++
++func main() {
++	var r uint32
++	var buf [4]byte
++	a := buf[0:4]
++	r = (((((uint32(a[3]) << 8) | uint32(a[2])) << 8) |
++		uint32(a[1])) << 8) | uint32(a[0])
++	_ = r
++}

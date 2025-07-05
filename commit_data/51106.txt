@@ -10,6 +10,20 @@ Date:   Mon Dec 6 11:43:48 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369616
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 35b3d744ec..e4e0d2300d 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -282,7 +282,7 @@ Do not send CLs removing the interior tags from such phrases.
+   <code>GOGC</code> where necessary.
+ </p>
+ 
+-<p>
++<p><!-- CL 358675, CL 353975, CL 353974 -->
+   The runtime now returns memory to the operating system more efficiently and has
+   been tuned to work more aggressively as a result.
+ </p>

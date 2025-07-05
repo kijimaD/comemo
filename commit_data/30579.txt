@@ -15,7 +15,60 @@ Date:   Sun Nov 13 13:29:19 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/33168
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/env_test.go         | 28 ++++++++++++++++++++++++++++
  src/syscall/env_windows.go |  2 +-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index d1074cdc60..e5749f0e89 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -95,6 +95,34 @@ func TestUnsetenv(t *testing.T) {
+ 	}
+ }
+ 
++func TestClearenv(t *testing.T) {
++	const testKey = "GO_TEST_CLEARENV"
++	const testValue = "1"
++
++	// reset env
++	defer func(origEnv []string) {
++		for _, pair := range origEnv {
++			// Environment variables on Windows can begin with =
++			// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
++			i := strings.Index(pair[1:], "=") + 1
++			if err := Setenv(pair[:i], pair[i+1:]); err != nil {
++				t.Errorf("Setenv(%q, %q) failed during reset: %v", pair[:i], pair[i+1:], err)
++			}
++		}
++	}(Environ())
++
++	if err := Setenv(testKey, testValue); err != nil {
++		t.Fatalf("Setenv(%q, %q) failed: %v", testKey, testValue, err)
++	}
++	if _, ok := LookupEnv(testKey); !ok {
++		t.Errorf("Setenv(%q, %q) didn't set $%s", testKey, testValue, testKey)
++	}
++	Clearenv()
++	if val, ok := LookupEnv(testKey); ok {
++		t.Errorf("Clearenv() didn't clear $%s, remained with value %q", testKey, val)
++	}
++}
++
+ func TestLookupEnv(t *testing.T) {
+ 	const smallpox = "SMALLPOX"      // No one has smallpox.
+ 	value, ok := LookupEnv(smallpox) // Should not exist.
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index 3f751678cc..1606b424ca 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -60,7 +60,7 @@ func Clearenv() {
+ 		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+ 		for j := 1; j < len(s); j++ {
+ 			if s[j] == '=' {
+-				Setenv(s[0:j], "")
++				Unsetenv(s[0:j])
+ 				break
+ 			}
+ 		}

@@ -9,6 +9,20 @@ Date:   Wed Feb 28 10:30:16 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index 838c5575b0..38975c8a2b 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -26,7 +26,7 @@ go mod vendor
+ ! grep 1.17 vendor/modules.txt
+ ! go build example.net/need117
+ stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
+-stderr 'conversion of slices to array pointers requires go1\.17 or later'
++stderr 'conversion of slice to array pointer requires go1\.17 or later'
+ 
+ ! grep 1.13 vendor/modules.txt
+ go build example.net/bad114

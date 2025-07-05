@@ -10,7 +10,35 @@ Date:   Thu Jun 17 19:13:55 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/export_test.go         | 2 --
  src/runtime/internal/sys/consts.go | 3 ---
  2 files changed, 5 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index de3d5b709d..f3118472fd 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -215,8 +215,6 @@ var Write = write
+ func Envs() []string     { return envs }
+ func SetEnvs(e []string) { envs = e }
+ 
+-var BigEndian = goarch.BigEndian
+-
+ // For benchmarking.
+ 
+ func BenchSetType(n int, x interface{}) {
+diff --git a/src/runtime/internal/sys/consts.go b/src/runtime/internal/sys/consts.go
+index 4d45f9d0d0..dcba7a6e0d 100644
+--- a/src/runtime/internal/sys/consts.go
++++ b/src/runtime/internal/sys/consts.go
+@@ -30,9 +30,6 @@ const ArchFamily ArchFamilyType = goarch.ArchFamily
+ // AIX requires a larger stack for syscalls.
+ const StackGuardMultiplier = StackGuardMultiplierDefault*(1-goos.GoosAix) + 2*goos.GoosAix
+ 
+-// BigEndian reports whether the architecture is big-endian.
+-const BigEndian = goarch.BigEndian
+-
+ // DefaultPhysPageSize is the default physical page size.
+ const DefaultPhysPageSize = goarch.DefaultPhysPageSize
+ 

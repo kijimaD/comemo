@@ -15,8 +15,148 @@ Date:   Thu Jun 18 11:58:46 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/trace/trace.go | 51 +++++++++++++++++++++++++++++++++++---
  src/cmd/go/internal/work/action.go | 10 +++++---
  src/cmd/go/internal/work/exec.go   |  4 +++
  3 files changed, 58 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/trace/trace.go b/src/cmd/go/internal/trace/trace.go
+index 24130d9d72..f108a2b6ca 100644
+--- a/src/cmd/go/internal/trace/trace.go
++++ b/src/cmd/go/internal/trace/trace.go
+@@ -15,6 +15,18 @@ import (
+ 	"time"
+ )
+ 
++// Constants used in event fields.
++// See https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU
++// for more details.
++const (
++	phaseDurationBegin = "B"
++	phaseDurationEnd   = "E"
++	phaseFlowStart     = "s"
++	phaseFlowEnd       = "f"
++
++	bindEnclosingSlice = "e"
++)
++
+ var traceStarted int32
+ 
+ func getTraceContext(ctx context.Context) (traceContext, bool) {
+@@ -39,7 +51,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
+ 		Name:  childSpan.name,
+ 		Time:  float64(childSpan.start.UnixNano()) / float64(time.Microsecond),
+ 		TID:   childSpan.tid,
+-		Phase: "B",
++		Phase: phaseDurationBegin,
+ 	})
+ 	ctx = context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.tid})
+ 	return ctx, childSpan
+@@ -56,6 +68,34 @@ func StartGoroutine(ctx context.Context) context.Context {
+ 	return context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.t.getNextTID()})
+ }
+ 
++// Flow marks a flow indicating that the 'to' span depends on the 'from' span.
++// Flow should be called while the 'to' span is in progress.
++func Flow(ctx context.Context, from *Span, to *Span) {
++	tc, ok := getTraceContext(ctx)
++	if !ok || from == nil || to == nil {
++		return
++	}
++
++	id := tc.t.getNextFlowID()
++	tc.t.writeEvent(&traceviewer.Event{
++		Name:     from.name + " -> " + to.name,
++		Category: "flow",
++		ID:       id,
++		Time:     float64(from.end.UnixNano()) / float64(time.Microsecond),
++		Phase:    phaseFlowStart,
++		TID:      from.tid,
++	})
++	tc.t.writeEvent(&traceviewer.Event{
++		Name:      from.name + " -> " + to.name,
++		Category:  "flow", // TODO(matloob): Add Category to Flow?
++		ID:        id,
++		Time:      float64(to.start.UnixNano()) / float64(time.Microsecond),
++		Phase:     phaseFlowEnd,
++		TID:       to.tid,
++		BindPoint: bindEnclosingSlice,
++	})
++}
++
+ type Span struct {
+ 	t *tracer
+ 
+@@ -74,14 +114,15 @@ func (s *Span) Done() {
+ 		Name:  s.name,
+ 		Time:  float64(s.end.UnixNano()) / float64(time.Microsecond),
+ 		TID:   s.tid,
+-		Phase: "E",
++		Phase: phaseDurationEnd,
+ 	})
+ }
+ 
+ type tracer struct {
+ 	file chan traceFile // 1-buffered
+ 
+-	nextTID uint64
++	nextTID    uint64
++	nextFlowID uint64
+ }
+ 
+ func (t *tracer) writeEvent(ev *traceviewer.Event) error {
+@@ -123,6 +164,10 @@ func (t *tracer) getNextTID() uint64 {
+ 	return atomic.AddUint64(&t.nextTID, 1)
+ }
+ 
++func (t *tracer) getNextFlowID() uint64 {
++	return atomic.AddUint64(&t.nextFlowID, 1)
++}
++
+ // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in
+ // other packages.
+ type traceKey struct{}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index a37a5e618d..825e763c03 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/trace"
+ 	"cmd/internal/buildid"
+ )
+ 
+@@ -92,10 +93,11 @@ type Action struct {
+ 	output    []byte     // output redirect buffer (nil means use b.Print)
+ 
+ 	// Execution state.
+-	pending  int         // number of deps yet to complete
+-	priority int         // relative execution priority
+-	Failed   bool        // whether the action failed
+-	json     *actionJSON // action graph information
++	pending   int         // number of deps yet to complete
++	priority  int         // relative execution priority
++	Failed    bool        // whether the action failed
++	json      *actionJSON // action graph information
++	traceSpan *trace.Span
+ }
+ 
+ // BuildActionID returns the action ID section of a's build ID.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 3903502a67..681ecd7646 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -127,6 +127,10 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+ 			}
+ 			ctx, span := trace.StartSpan(ctx, desc)
++			a.traceSpan = span
++			for _, d := range a.Deps {
++				trace.Flow(ctx, d.traceSpan, a.traceSpan)
++			}
+ 			err = a.Func(b, ctx, a)
+ 			span.Done()
+ 		}

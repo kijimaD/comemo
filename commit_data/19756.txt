@@ -16,7 +16,7 @@ Date:   Thu Jul 17 17:02:46 2014 +1000
     R=golang-codereviews, alex.brainman, gobot, rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/86160044
-
+---
  src/pkg/os/file_posix.go                   | 20 ------
  src/pkg/os/file_unix.go                    | 20 ++++++
  src/pkg/os/file_windows.go                 | 98 ++++++++++++++++++++++++++++++
@@ -36,3 +36,835 @@ Date:   Thu Jul 17 17:02:46 2014 +1000
  src/pkg/syscall/zsyscall_windows_amd64.go  | 39 ++++++++++++
  src/pkg/syscall/ztypes_windows.go          | 46 ++++++++++----
  18 files changed, 404 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index b3466b15cc..9cff7e5bcc 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -13,26 +13,6 @@ import (
+ 
+ func sigpipe() // implemented in package runtime
+ 
+-// Link creates newname as a hard link to the oldname file.
+-// If there is an error, it will be of type *LinkError.
+-func Link(oldname, newname string) error {
+-	e := syscall.Link(oldname, newname)
+-	if e != nil {
+-		return &LinkError{"link", oldname, newname, e}
+-	}
+-	return nil
+-}
+-
+-// Symlink creates newname as a symbolic link to oldname.
+-// If there is an error, it will be of type *LinkError.
+-func Symlink(oldname, newname string) error {
+-	e := syscall.Symlink(oldname, newname)
+-	if e != nil {
+-		return &LinkError{"symlink", oldname, newname, e}
+-	}
+-	return nil
+-}
+-
+ // Readlink returns the destination of the named symbolic link.
+ // If there is an error, it will be of type *PathError.
+ func Readlink(name string) (string, error) {
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 23d5f65360..bba0d9c0f6 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -316,3 +316,23 @@ func TempDir() string {
+ 	}
+ 	return dir
+ }
++
++// Link creates newname as a hard link to the oldname file.
++// If there is an error, it will be of type *LinkError.
++func Link(oldname, newname string) error {
++	e := syscall.Link(oldname, newname)
++	if e != nil {
++		return &LinkError{"link", oldname, newname, e}
++	}
++	return nil
++}
++
++// Symlink creates newname as a symbolic link to oldname.
++// If there is an error, it will be of type *LinkError.
++func Symlink(oldname, newname string) error {
++	e := syscall.Symlink(oldname, newname)
++	if e != nil {
++		return &LinkError{"symlink", oldname, newname, e}
++	}
++	return nil
++}
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index efe8bc03fc..d3aa03b2fb 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -493,3 +493,101 @@ func TempDir() string {
+ 	}
+ 	return string(utf16.Decode(dirw[0:n]))
+ }
++
++// Link creates newname as a hard link to the oldname file.
++// If there is an error, it will be of type *LinkError.
++func Link(oldname, newname string) error {
++	n, err := syscall.UTF16PtrFromString(newname)
++	if err != nil {
++		return &LinkError{"link", oldname, newname, err}
++	}
++	o, err := syscall.UTF16PtrFromString(oldname)
++	if err != nil {
++		return &LinkError{"link", oldname, newname, err}
++	}
++
++	e := syscall.CreateHardLink(n, o, 0)
++	if e != nil {
++		return &LinkError{"link", oldname, newname, err}
++	}
++	return nil
++}
++
++// Symlink creates newname as a symbolic link to oldname.
++// If there is an error, it will be of type *LinkError.
++func Symlink(oldname, newname string) error {
++	// CreateSymbolicLink is not supported before Windows Vista
++	if syscall.LoadCreateSymbolicLink() != nil {
++		return &LinkError{"symlink", oldname, newname, syscall.EWINDOWS}
++	}
++
++	// '/' does not work in link's content
++	oldname = fromSlash(oldname)
++
++	// need the exact location of the oldname when its relative to determine if its a directory
++	destpath := oldname
++	if !isAbs(oldname) {
++		destpath = dirname(newname) + `\` + oldname
++	}
++
++	fi, err := Lstat(destpath)
++	isdir := err == nil && fi.IsDir()
++
++	n, err := syscall.UTF16PtrFromString(newname)
++	if err != nil {
++		return &LinkError{"symlink", oldname, newname, err}
++	}
++	o, err := syscall.UTF16PtrFromString(oldname)
++	if err != nil {
++		return &LinkError{"symlink", oldname, newname, err}
++	}
++
++	var flags uint32
++	if isdir {
++		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
++	}
++	err = syscall.CreateSymbolicLink(n, o, flags)
++	if err != nil {
++		return &LinkError{"symlink", oldname, newname, err}
++	}
++	return nil
++}
++
++func fromSlash(path string) string {
++	// Replace each '/' with '\\' if present
++	var pathbuf []byte
++	var lastSlash int
++	for i, b := range path {
++		if b == '/' {
++			if pathbuf == nil {
++				pathbuf = make([]byte, len(path))
++			}
++			copy(pathbuf[lastSlash:], path[lastSlash:i])
++			pathbuf[i] = '\\'
++			lastSlash = i + 1
++		}
++	}
++	if pathbuf == nil {
++		return path
++	}
++
++	copy(pathbuf[lastSlash:], path[lastSlash:])
++	return string(pathbuf)
++}
++
++func dirname(path string) string {
++	vol := volumeName(path)
++	i := len(path) - 1
++	for i >= len(vol) && !IsPathSeparator(path[i]) {
++		i--
++	}
++	dir := path[len(vol) : i+1]
++	last := len(dir) - 1
++	if last > 0 && IsPathSeparator(dir[last]) {
++		dir = dir[:last]
++	}
++	if dir == "" {
++		dir = "."
++	}
++	return vol + dir
++}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 02010000a6..2811f29f34 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -24,6 +24,8 @@ import (
+ 	"time"
+ )
+ 
++var supportsSymlinks = true
++
+ var dot = []string{
+ 	"dir_unix.go",
+ 	"env.go",
+@@ -475,7 +477,7 @@ func TestReaddirStatFailures(t *testing.T) {
+ 
+ func TestHardLink(t *testing.T) {
+ 	// Hardlinks are not supported under windows or Plan 9.
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	if runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+@@ -508,8 +510,12 @@ func TestHardLink(t *testing.T) {
+ 
+ func TestSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "android", "nacl", "plan9", "windows":
++	case "android", "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "windows":
++		if !supportsSymlinks {
++			t.Skipf("skipping on %s", runtime.GOOS)
++		}
+ 	}
+ 	from, to := "symlinktestfrom", "symlinktestto"
+ 	Remove(from) // Just in case.
+@@ -570,8 +576,12 @@ func TestSymlink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "windows", "plan9", "nacl":
++	case "plan9", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "windows":
++		if !supportsSymlinks {
++			t.Skipf("skipping on %s", runtime.GOOS)
++		}
+ 	}
+ 	s := "0123456789abcdef"
+ 	// Long, but not too long: a common limit is 255.
+diff --git a/src/pkg/os/os_windows_test.go b/src/pkg/os/os_windows_test.go
+new file mode 100644
+index 0000000000..af7332f0f2
+--- /dev/null
++++ b/src/pkg/os/os_windows_test.go
+@@ -0,0 +1,27 @@
++package os_test
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"syscall"
++)
++
++func init() {
++	tmpdir, err := ioutil.TempDir("", "symtest")
++	if err != nil {
++		panic("failed to create temp directory: " + err.Error())
++	}
++	defer os.RemoveAll(tmpdir)
++
++	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
++	if err == nil {
++		return
++	}
++
++	err = err.(*os.LinkError).Err
++	switch err {
++	case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
++		supportsSymlinks = false
++	}
++}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 62cfc084c8..6f24a43132 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -168,8 +168,12 @@ func TestRemoveAll(t *testing.T) {
+ 
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9", "windows":
++	case "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "windows":
++		if !supportsSymlinks {
++			t.Skipf("skipping on %s", runtime.GOOS)
++		}
+ 	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 6dc3866859..3222060448 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -49,8 +49,29 @@ func (file *File) Stat() (fi FileInfo, err error) {
+ // Stat returns a FileInfo structure describing the named file.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (fi FileInfo, err error) {
++	for {
++		fi, err = Lstat(name)
++		if err != nil {
++			return
++		}
++		if fi.Mode()&ModeSymlink == 0 {
++			return
++		}
++		name, err = Readlink(name)
++		if err != nil {
++			return
++		}
++	}
++	return fi, err
++}
++
++// Lstat returns the FileInfo structure describing the named file.
++// If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
++// If there is an error, it will be of type *PathError.
++func Lstat(name string) (fi FileInfo, err error) {
+ 	if len(name) == 0 {
+-		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
++		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+ 	if name == DevNull {
+ 		return &devNullStat, nil
+@@ -58,7 +79,7 @@ func Stat(name string) (fi FileInfo, err error) {
+ 	fs := &fileStat{name: basename(name)}
+ 	namep, e := syscall.UTF16PtrFromString(name)
+ 	if e != nil {
+-		return nil, &PathError{"Stat", name, e}
++		return nil, &PathError{"Lstat", name, e}
+ 	}
+ 	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
+ 	if e != nil {
+@@ -72,15 +93,6 @@ func Stat(name string) (fi FileInfo, err error) {
+ 	return fs, nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file.
+-// If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+-// If there is an error, it will be of type *PathError.
+-func Lstat(name string) (fi FileInfo, err error) {
+-	// No links on Windows
+-	return Stat(name)
+-}
+-
+ // basename removes trailing slashes and the leading
+ // directory name and drive letter from path name.
+ func basename(name string) string {
+@@ -105,10 +117,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-func isSlash(c uint8) bool {
+-	return c == '\\' || c == '/'
+-}
+-
+ func isAbs(path string) (b bool) {
+ 	v := volumeName(path)
+ 	if v == "" {
+@@ -118,7 +126,7 @@ func isAbs(path string) (b bool) {
+ 	if path == "" {
+ 		return false
+ 	}
+-	return isSlash(path[0])
++	return IsPathSeparator(path[0])
+ }
+ 
+ func volumeName(path string) (v string) {
+@@ -133,20 +141,20 @@ func volumeName(path string) (v string) {
+ 		return path[:2]
+ 	}
+ 	// is it UNC
+-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
+-		!isSlash(path[2]) && path[2] != '.' {
++	if l := len(path); l >= 5 && IsPathSeparator(path[0]) && IsPathSeparator(path[1]) &&
++		!IsPathSeparator(path[2]) && path[2] != '.' {
+ 		// first, leading `\\` and next shouldn't be `\`. its server name.
+ 		for n := 3; n < l-1; n++ {
+ 			// second, next '\' shouldn't be repeated.
+-			if isSlash(path[n]) {
++			if IsPathSeparator(path[n]) {
+ 				n++
+ 				// third, following something characters. its share name.
+-				if !isSlash(path[n]) {
++				if !IsPathSeparator(path[n]) {
+ 					if path[n] == '.' {
+ 						break
+ 					}
+ 					for ; n < l; n++ {
+-						if isSlash(path[n]) {
++						if IsPathSeparator(path[n]) {
+ 							break
+ 						}
+ 					}
+diff --git a/src/pkg/os/types_windows.go b/src/pkg/os/types_windows.go
+index 38901681e6..7b2e54698c 100644
+--- a/src/pkg/os/types_windows.go
++++ b/src/pkg/os/types_windows.go
+@@ -39,6 +39,9 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	} else {
+ 		m |= 0666
+ 	}
++	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
++		m |= ModeSymlink
++	}
+ 	return m
+ }
+ 
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 382692eaa4..20ec5aa2a1 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -167,8 +167,13 @@ var globSymlinkTests = []struct {
+ 
+ func TestGlobSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9", "windows":
++	case "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "windows":
++		if !supportsSymlinks {
++			t.Skipf("skipping on %s", runtime.GOOS)
++		}
++
+ 	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "globsymlink")
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 819bd217cc..17b53bdf92 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -15,6 +15,8 @@ import (
+ 	"testing"
+ )
+ 
++var supportsSymlinks = true
++
+ type PathTest struct {
+ 	path, result string
+ }
+@@ -716,7 +718,7 @@ func TestEvalSymlinks(t *testing.T) {
+ 		if d.dest == "" {
+ 			err = os.Mkdir(path, 0755)
+ 		} else {
+-			if runtime.GOOS != "windows" {
++			if supportsSymlinks {
+ 				err = os.Symlink(d.dest, path)
+ 			}
+ 		}
+@@ -726,7 +728,9 @@ func TestEvalSymlinks(t *testing.T) {
+ 	}
+ 
+ 	var tests []EvalSymlinksTest
+-	if runtime.GOOS == "windows" {
++	if supportsSymlinks {
++		tests = EvalSymlinksTests
++	} else {
+ 		for _, d := range EvalSymlinksTests {
+ 			if d.path == d.dest {
+ 				// will test only real files and directories
+@@ -739,15 +743,13 @@ func TestEvalSymlinks(t *testing.T) {
+ 				tests = append(tests, d2)
+ 			}
+ 		}
+-	} else {
+-		tests = EvalSymlinksTests
+ 	}
+ 
+ 	// Evaluate the symlink farm.
+ 	for _, d := range tests {
+ 		path := simpleJoin(tmpDir, d.path)
+ 		dest := simpleJoin(tmpDir, d.dest)
+-		if filepath.IsAbs(d.dest) {
++		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
+ 			dest = d.dest
+ 		}
+ 		if p, err := filepath.EvalSymlinks(path); err != nil {
+diff --git a/src/pkg/path/filepath/path_windows_test.go b/src/pkg/path/filepath/path_windows_test.go
+index 8a9be8e896..100cf30a45 100644
+--- a/src/pkg/path/filepath/path_windows_test.go
++++ b/src/pkg/path/filepath/path_windows_test.go
+@@ -10,9 +10,29 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
++	"syscall"
+ 	"testing"
+ )
+ 
++func init() {
++	tmpdir, err := ioutil.TempDir("", "symtest")
++	if err != nil {
++		panic("failed to create temp directory: " + err.Error())
++	}
++	defer os.RemoveAll(tmpdir)
++
++	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
++	if err == nil {
++		return
++	}
++
++	err = err.(*os.LinkError).Err
++	switch err {
++	case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
++		supportsSymlinks = false
++	}
++}
++
+ func TestWinSplitListTestsAreValid(t *testing.T) {
+ 	comspec := os.Getenv("ComSpec")
+ 	if comspec == "" {
+diff --git a/src/pkg/path/filepath/symlink.go b/src/pkg/path/filepath/symlink.go
+index 307dd0f8fe..df0a9e0c2b 100644
+--- a/src/pkg/path/filepath/symlink.go
++++ b/src/pkg/path/filepath/symlink.go
+@@ -2,18 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
+-
+ package filepath
+ 
+ import (
+ 	"bytes"
+ 	"errors"
+ 	"os"
+-	"strings"
+ )
+ 
+-func evalSymlinks(path string) (string, error) {
++const utf8RuneSelf = 0x80
++
++func walkSymlinks(path string) (string, error) {
+ 	const maxIter = 255
+ 	originalPath := path
+ 	// consume path by taking each frontmost path element,
+@@ -25,7 +24,13 @@ func evalSymlinks(path string) (string, error) {
+ 		}
+ 
+ 		// find next path component, p
+-		i := strings.IndexRune(path, Separator)
++		var i = -1
++		for j, c := range path {
++			if c < utf8RuneSelf && os.IsPathSeparator(uint8(c)) {
++				i = j
++				break
++			}
++		}
+ 		var p string
+ 		if i == -1 {
+ 			p, path = path, ""
+@@ -47,7 +52,7 @@ func evalSymlinks(path string) (string, error) {
+ 		}
+ 		if fi.Mode()&os.ModeSymlink == 0 {
+ 			b.WriteString(p)
+-			if path != "" {
++			if path != "" || (b.Len() == 2 && len(p) == 2 && p[1] == ':') {
+ 				b.WriteRune(Separator)
+ 			}
+ 			continue
+@@ -58,7 +63,7 @@ func evalSymlinks(path string) (string, error) {
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		if IsAbs(dest) {
++		if IsAbs(dest) || os.IsPathSeparator(dest[0]) {
+ 			b.Reset()
+ 		}
+ 		path = dest + string(Separator) + path
+diff --git a/src/pkg/path/filepath/symlink_unix.go b/src/pkg/path/filepath/symlink_unix.go
+new file mode 100644
+index 0000000000..d20e63a987
+--- /dev/null
++++ b/src/pkg/path/filepath/symlink_unix.go
+@@ -0,0 +1,7 @@
++// +build !windows
++
++package filepath
++
++func evalSymlinks(path string) (string, error) {
++	return walkSymlinks(path)
++}
+diff --git a/src/pkg/path/filepath/symlink_windows.go b/src/pkg/path/filepath/symlink_windows.go
+index 9adc8a48af..327c2c89a3 100644
+--- a/src/pkg/path/filepath/symlink_windows.go
++++ b/src/pkg/path/filepath/symlink_windows.go
+@@ -50,6 +50,11 @@ func toLong(path string) (string, error) {
+ }
+ 
+ func evalSymlinks(path string) (string, error) {
++	path, err := walkSymlinks(path)
++	if err != nil {
++		return "", err
++	}
++
+ 	p, err := toShort(path)
+ 	if err != nil {
+ 		return "", err
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 79db1d1f6e..1fe1ae0fab 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -207,6 +207,10 @@ func NewCallbackCDecl(fn interface{}) uintptr
+ //sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
+ //sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
+ //sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
++//sys	DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error)
++// This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
++//sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
++//sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -936,10 +940,9 @@ func Getppid() (ppid int) {
+ }
+ 
+ // TODO(brainman): fix all needed for os
+-func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
+-func Link(oldpath, newpath string) (err error)            { return EWINDOWS }
+-func Symlink(path, link string) (err error)               { return EWINDOWS }
+-func Readlink(path string, buf []byte) (n int, err error) { return 0, EWINDOWS }
++func Fchdir(fd Handle) (err error)             { return EWINDOWS }
++func Link(oldpath, newpath string) (err error) { return EWINDOWS }
++func Symlink(path, link string) (err error)    { return EWINDOWS }
+ 
+ func Fchmod(fd Handle, mode uint32) (err error)        { return EWINDOWS }
+ func Chown(path string, uid int, gid int) (err error)  { return EWINDOWS }
+@@ -965,3 +968,35 @@ func (s Signal) String() string {
+ 	}
+ 	return "signal " + itoa(int(s))
+ }
++
++func LoadCreateSymbolicLink() error {
++	return procCreateSymbolicLinkW.Find()
++}
++
++// Readlink returns the destination of the named symbolic link.
++func Readlink(path string, buf []byte) (n int, err error) {
++	fd, err := CreateFile(StringToUTF16Ptr(path), GENERIC_READ, 0, nil, OPEN_EXISTING,
++		FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_BACKUP_SEMANTICS, 0)
++	if err != nil {
++		return -1, err
++	}
++	defer CloseHandle(fd)
++
++	rdbbuf := make([]byte, MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
++	var bytesReturned uint32
++	err = DeviceIoControl(fd, FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
++	if err != nil {
++		return -1, err
++	}
++
++	rdb := (*reparseDataBuffer)(unsafe.Pointer(&rdbbuf[0]))
++	if uintptr(bytesReturned) < unsafe.Sizeof(*rdb) ||
++		rdb.ReparseTag != IO_REPARSE_TAG_SYMLINK {
++		// the path is not a symlink but another type of reparse point
++		return -1, ENOENT
++	}
++
++	s := UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(&rdb.PathBuffer[0]))[:rdb.PrintNameLength/2])
++	n = copy(buf, []byte(s))
++	return n, nil
++}
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 23bb448df6..d55211ee75 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -111,6 +111,9 @@ var (
+ 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
+ 	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
+ 	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
++	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
++	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
++	procCreateHardLinkW                    = modkernel32.NewProc("CreateHardLinkW")
+ 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
+@@ -1294,6 +1297,42 @@ func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
+ 	return
+ }
+ 
++func DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error) {
++	r1, _, e1 := Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), uintptr(ioControlCode), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferSize), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferSize), uintptr(unsafe.Pointer(bytesReturned)), uintptr(unsafe.Pointer(overlapped)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) {
++	r1, _, e1 := Syscall(procCreateSymbolicLinkW.Addr(), 3, uintptr(unsafe.Pointer(symlinkfilename)), uintptr(unsafe.Pointer(targetfilename)), uintptr(flags))
++	if r1&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) {
++	r1, _, e1 := Syscall(procCreateHardLinkW.Addr(), 3, uintptr(unsafe.Pointer(filename)), uintptr(unsafe.Pointer(existingfilename)), uintptr(reserved))
++	if r1&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 2ddf81b97c..47affab73d 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -111,6 +111,9 @@ var (
+ 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
+ 	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
+ 	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
++	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
++	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
++	procCreateHardLinkW                    = modkernel32.NewProc("CreateHardLinkW")
+ 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
+@@ -1294,6 +1297,42 @@ func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
+ 	return
+ }
+ 
++func DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error) {
++	r1, _, e1 := Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), uintptr(ioControlCode), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferSize), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferSize), uintptr(unsafe.Pointer(bytesReturned)), uintptr(unsafe.Pointer(overlapped)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) {
++	r1, _, e1 := Syscall(procCreateSymbolicLinkW.Addr(), 3, uintptr(unsafe.Pointer(symlinkfilename)), uintptr(unsafe.Pointer(targetfilename)), uintptr(flags))
++	if r1&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) {
++	r1, _, e1 := Syscall(procCreateHardLinkW.Addr(), 3, uintptr(unsafe.Pointer(filename)), uintptr(unsafe.Pointer(existingfilename)), uintptr(reserved))
++	if r1&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index dacb2a3dc0..8b3625f146 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -24,6 +24,7 @@ const (
+ 	ERROR_OPERATION_ABORTED   Errno = 995
+ 	ERROR_IO_PENDING          Errno = 997
+ 	ERROR_NOT_FOUND           Errno = 1168
++	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
+ 	WSAEACCES                 Errno = 10013
+ 	WSAECONNRESET             Errno = 10054
+ )
+@@ -89,15 +90,16 @@ const (
+ 	FILE_APPEND_DATA      = 0x00000004
+ 	FILE_WRITE_ATTRIBUTES = 0x00000100
+ 
+-	FILE_SHARE_READ          = 0x00000001
+-	FILE_SHARE_WRITE         = 0x00000002
+-	FILE_SHARE_DELETE        = 0x00000004
+-	FILE_ATTRIBUTE_READONLY  = 0x00000001
+-	FILE_ATTRIBUTE_HIDDEN    = 0x00000002
+-	FILE_ATTRIBUTE_SYSTEM    = 0x00000004
+-	FILE_ATTRIBUTE_DIRECTORY = 0x00000010
+-	FILE_ATTRIBUTE_ARCHIVE   = 0x00000020
+-	FILE_ATTRIBUTE_NORMAL    = 0x00000080
++	FILE_SHARE_READ              = 0x00000001
++	FILE_SHARE_WRITE             = 0x00000002
++	FILE_SHARE_DELETE            = 0x00000004
++	FILE_ATTRIBUTE_READONLY      = 0x00000001
++	FILE_ATTRIBUTE_HIDDEN        = 0x00000002
++	FILE_ATTRIBUTE_SYSTEM        = 0x00000004
++	FILE_ATTRIBUTE_DIRECTORY     = 0x00000010
++	FILE_ATTRIBUTE_ARCHIVE       = 0x00000020
++	FILE_ATTRIBUTE_NORMAL        = 0x00000080
++	FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+ 
+ 	INVALID_FILE_ATTRIBUTES = 0xffffffff
+ 
+@@ -107,8 +109,9 @@ const (
+ 	OPEN_ALWAYS       = 4
+ 	TRUNCATE_EXISTING = 5
+ 
+-	FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+-	FILE_FLAG_OVERLAPPED       = 0x40000000
++	FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
++	FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
++	FILE_FLAG_OVERLAPPED         = 0x40000000
+ 
+ 	HANDLE_FLAG_INHERIT    = 0x00000001
+ 	STARTF_USESTDHANDLES   = 0x00000100
+@@ -1066,3 +1069,24 @@ type TCPKeepalive struct {
+ 	Time     uint32
+ 	Interval uint32
+ }
++
++type reparseDataBuffer struct {
++	ReparseTag        uint32
++	ReparseDataLength uint16
++	Reserved          uint16
++
++	// SymbolicLinkReparseBuffer
++	SubstituteNameOffset uint16
++	SubstituteNameLength uint16
++	PrintNameOffset      uint16
++	PrintNameLength      uint16
++	Flags                uint32
++	PathBuffer           [1]uint16
++}
++
++const (
++	FSCTL_GET_REPARSE_POINT          = 0x900A8
++	MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16 * 1024
++	IO_REPARSE_TAG_SYMLINK           = 0xA000000C
++	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
++)

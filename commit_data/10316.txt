@@ -11,7 +11,7 @@ Date:   Wed Nov 9 23:11:48 2011 +0300
     R=golang-dev, rogpeppe, rsc
     CC=golang-dev, mpimenov
     https://golang.org/cl/5371042
-
+---
  misc/cgo/test/callback_c.c          |  5 +++++
  src/pkg/runtime/386/asm.s           | 12 ++++++++++--
  src/pkg/runtime/amd64/asm.s         |  6 ++++++
@@ -25,3 +25,301 @@ Date:   Wed Nov 9 23:11:48 2011 +0300
  src/pkg/runtime/cgo/windows_386.c   |  6 ++++--
  src/pkg/runtime/cgo/windows_amd64.c |  6 ++++--
  12 files changed, 89 insertions(+), 20 deletions(-)
+
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 5983a5e115..c296d70e05 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -8,5 +8,10 @@
+ void
+ callback(void *f)
+ {
++	// use some stack space
++	volatile char data[64*1024];
++
++	data[0] = 0;
+ 	goCallback(f);
++        data[sizeof(data)-1] = 0;
+ }
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index bafef01c7e..470463925e 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -26,12 +26,14 @@ TEXT _rt0_386(SB),7,$0
+ 	// we set up GS ourselves.
+ 	MOVL	initcgo(SB), AX
+ 	TESTL	AX, AX
+-	JZ	4(PC)
++	JZ	needtls
++	PUSHL	$runtime·g0(SB)
+ 	CALL	AX
++	POPL	AX
+ 	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
+ 	CMPL runtime·iswindows(SB), $0
+ 	JEQ ok
+-
++needtls:
+ 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+ 	CMPL	runtime·isplan9(SB), $1
+ 	JEQ	ok
+@@ -58,9 +60,15 @@ ok:
+ 	MOVL	CX, m_g0(AX)
+ 
+ 	// create istack out of the OS stack
++	// if there is an initcgo, it had setup stackguard for us
++	MOVL	initcgo(SB), AX
++	TESTL	AX, AX
++	JNZ	stackok
+ 	LEAL	(-64*1024+104)(SP), AX	// TODO: 104?
+ 	MOVL	AX, g_stackguard(CX)
++stackok:
+ 	MOVL	SP, g_stackbase(CX)
++
+ 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
+ 	// convention is D is always cleared
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 866e083106..109b95eba8 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -17,6 +17,7 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	MOVQ	initcgo(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	needtls
++	LEAQ	runtime·g0(SB), DI
+ 	CALL	AX
+ 	CMPL	runtime·iswindows(SB), $0
+ 	JEQ ok
+@@ -44,8 +45,13 @@ ok:
+ 	MOVQ	CX, m_g0(AX)
+ 
+ 	// create istack out of the given (operating system) stack
++	// if there is an initcgo, it had setup stackguard for us
++	MOVQ	initcgo(SB), AX
++	TESTQ	AX, AX
++	JNZ	stackok
+ 	LEAQ	(-8192+104)(SP), AX
+ 	MOVQ	AX, g_stackguard(CX)
++stackok:
+ 	MOVQ	SP, g_stackbase(CX)
+ 
+ 	CLD				// convention is D is always left cleared
+diff --git a/src/pkg/runtime/cgo/darwin_386.c b/src/pkg/runtime/cgo/darwin_386.c
+index 6d4e259be0..dbc3d31f9c 100644
+--- a/src/pkg/runtime/cgo/darwin_386.c
++++ b/src/pkg/runtime/cgo/darwin_386.c
+@@ -100,12 +100,20 @@ inittls(void)
+ }
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++
+ 	inittls();
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/darwin_amd64.c b/src/pkg/runtime/cgo/darwin_amd64.c
+index 3471044c01..48ee83bc8b 100644
+--- a/src/pkg/runtime/cgo/darwin_amd64.c
++++ b/src/pkg/runtime/cgo/darwin_amd64.c
+@@ -70,12 +70,20 @@ inittls(void)
+ }
+ 
+ void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++
+ 	inittls();
+ }
+ 
+-void (*initcgo) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/freebsd_386.c b/src/pkg/runtime/cgo/freebsd_386.c
+index ae53201b41..ad94687307 100644
+--- a/src/pkg/runtime/cgo/freebsd_386.c
++++ b/src/pkg/runtime/cgo/freebsd_386.c
+@@ -8,11 +8,18 @@
+ static void* threadentry(void*);
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+index 5afc1dfeaf..b18d1bc67d 100644
+--- a/src/pkg/runtime/cgo/freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/freebsd_amd64.c
+@@ -8,11 +8,18 @@
+ static void* threadentry(void*);
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/linux_386.c b/src/pkg/runtime/cgo/linux_386.c
+index e9df5ffdcc..8401a75caa 100644
+--- a/src/pkg/runtime/cgo/linux_386.c
++++ b/src/pkg/runtime/cgo/linux_386.c
+@@ -9,11 +9,18 @@
+ static void *threadentry(void*);
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/linux_amd64.c b/src/pkg/runtime/cgo/linux_amd64.c
+index d9b8b37061..6ce3333a85 100644
+--- a/src/pkg/runtime/cgo/linux_amd64.c
++++ b/src/pkg/runtime/cgo/linux_amd64.c
+@@ -3,16 +3,24 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <pthread.h>
++#include <string.h> // strerror
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+ 
+ void
+-xinitcgo(void)
++xinitcgo(G* g)
+ {
++	pthread_attr_t attr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/linux_arm.c b/src/pkg/runtime/cgo/linux_arm.c
+index e556c433ce..8397c75bb8 100644
+--- a/src/pkg/runtime/cgo/linux_arm.c
++++ b/src/pkg/runtime/cgo/linux_arm.c
+@@ -5,11 +5,12 @@
+ #include "libcgo.h"
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	// unimplemented
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/windows_386.c b/src/pkg/runtime/cgo/windows_386.c
+index f39309cb1b..96aea07128 100644
+--- a/src/pkg/runtime/cgo/windows_386.c
++++ b/src/pkg/runtime/cgo/windows_386.c
+@@ -13,11 +13,13 @@ static void *threadentry(void*);
+ #define STACKSIZE (1*1024*1024)
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	int tmp;
++	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+index e8313e250a..6d31845ce6 100644
+--- a/src/pkg/runtime/cgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -13,11 +13,13 @@ static void *threadentry(void*);
+ #define STACKSIZE (2*1024*1024)
+ 
+ static void
+-xinitcgo(void)
++xinitcgo(G *g)
+ {
++	int tmp;
++	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
+ }
+ 
+-void (*initcgo)(void) = xinitcgo;
++void (*initcgo)(G*) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)

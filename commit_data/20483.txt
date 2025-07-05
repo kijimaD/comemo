@@ -10,6 +10,20 @@ Date:   Thu Sep 11 16:33:01 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/142000043
-
+---
  src/runtime/proc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 27e84230a1..4e3d2855f6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -104,6 +104,8 @@ func forcegchelper() {
+ 	}
+ }
+ 
++//go:nosplit
++
+ // Gosched yields the processor, allowing other goroutines to run.  It does not
+ // suspend the current goroutine, so execution resumes automatically.
+ func Gosched() {

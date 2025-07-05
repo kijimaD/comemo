@@ -15,7 +15,32 @@ Date:   Tue Dec 22 17:22:17 2020 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go              | 1 +
  src/cmd/go/internal/modcmd/edit.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c4913ce695..78f114f6af 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1192,6 +1192,7 @@
+ // 		Require []Require
+ // 		Exclude []Module
+ // 		Replace []Replace
++// 		Retract []Retract
+ // 	}
+ //
+ // 	type Require struct {
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index b203a8a2b0..3a406b91fa 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -95,6 +95,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Require []Require
+ 		Exclude []Module
+ 		Replace []Replace
++		Retract []Retract
+ 	}
+ 
+ 	type Require struct {

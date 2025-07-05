@@ -17,7 +17,7 @@ Date:   Thu Mar 23 17:39:28 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   | 17 ++++++++------
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/export.go    | 37 ++++++++++++++++--------------
@@ -27,3 +27,367 @@ Date:   Thu Mar 23 17:39:28 2017 -0700
  src/cmd/compile/internal/gc/subr.go      |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  4 ++--
  8 files changed, 54 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 9ee56ec784..fd87ddd857 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -50,8 +50,11 @@ type importer struct {
+ 	read        int // bytes read
+ }
+ 
+-// Import populates imp from the serialized package data.
+-func Import(in *bufio.Reader, imp *Pkg) {
++// Import populates imp from the serialized package data read from in.
++func Import(imp *Pkg, in *bufio.Reader) {
++	inimport = true
++	defer func() { inimport = false }()
++
+ 	p := importer{
+ 		in:      in,
+ 		imp:     imp,
+@@ -319,13 +322,13 @@ func (p *importer) obj(tag int) {
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		val := p.value(typ)
+-		importconst(sym, idealType(typ), nodlit(val))
++		importconst(p.imp, sym, idealType(typ), nodlit(val))
+ 
+ 	case aliasTag:
+ 		p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importalias(sym, typ)
++		importalias(p.imp, sym, typ)
+ 
+ 	case typeTag:
+ 		p.typ()
+@@ -334,7 +337,7 @@ func (p *importer) obj(tag int) {
+ 		p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importvar(sym, typ)
++		importvar(p.imp, sym, typ)
+ 
+ 	case funcTag:
+ 		p.pos()
+@@ -343,7 +346,7 @@ func (p *importer) obj(tag int) {
+ 		result := p.paramList()
+ 
+ 		sig := functypefield(nil, params, result)
+-		importsym(sym, ONAME)
++		importsym(p.imp, sym, ONAME)
+ 		if sym.Def != nil && sym.Def.Op == ONAME {
+ 			// function was imported before (via another import)
+ 			if !eqtype(sig, sym.Def.Type) {
+@@ -441,7 +444,7 @@ func (p *importer) typ() *Type {
+ 		p.pos()
+ 		tsym := p.qualifiedName()
+ 
+-		t = pkgtype(tsym)
++		t = pkgtype(p.imp, tsym)
+ 		p.typList = append(p.typList, t)
+ 
+ 		// read underlying type
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 21a2b21325..77c6759fbb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -165,7 +165,7 @@ func declare(n *Node, ctxt Class) {
+ 	s := n.Sym
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+-	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
++	if !inimport && !typecheckok && s.Pkg != localpkg {
+ 		yyerror("cannot declare name %v", s)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 15def93ef5..10e21838f5 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -176,9 +176,7 @@ func dumpexport() {
+ 		savedPkgs := pkgs
+ 		pkgMap = make(map[string]*Pkg)
+ 		pkgs = nil
+-		importpkg = mkpkg("")
+-		Import(bufio.NewReader(&copy), importpkg) // must not die
+-		importpkg = nil
++		Import(mkpkg(""), bufio.NewReader(&copy)) // must not die
+ 		pkgs = savedPkgs
+ 		pkgMap = savedPkgMap
+ 	} else {
+@@ -192,9 +190,10 @@ func dumpexport() {
+ }
+ 
+ // importsym declares symbol s as an imported object representable by op.
+-func importsym(s *Sym, op Op) {
++// pkg is the package being imported
++func importsym(pkg *Pkg, s *Sym, op Op) {
+ 	if s.Def != nil && s.Def.Op != op {
+-		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
++		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
+ 		redeclare(s, pkgstr)
+ 	}
+ 
+@@ -210,8 +209,9 @@ func importsym(s *Sym, op Op) {
+ 
+ // pkgtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+-func pkgtype(s *Sym) *Type {
+-	importsym(s, OTYPE)
++// pkg is the package being imported
++func pkgtype(pkg *Pkg, s *Sym) *Type {
++	importsym(pkg, s, OTYPE)
+ 	if s.Def == nil || s.Def.Op != OTYPE {
+ 		t := typ(TFORW)
+ 		t.Sym = s
+@@ -226,8 +226,9 @@ func pkgtype(s *Sym) *Type {
+ }
+ 
+ // importconst declares symbol s as an imported constant with type t and value n.
+-func importconst(s *Sym, t *Type, n *Node) {
+-	importsym(s, OLITERAL)
++// pkg is the package being imported
++func importconst(pkg *Pkg, s *Sym, t *Type, n *Node) {
++	importsym(pkg, s, OLITERAL)
+ 	n = convlit(n, t)
+ 
+ 	if s.Def != nil { // TODO: check if already the same.
+@@ -254,17 +255,18 @@ func importconst(s *Sym, t *Type, n *Node) {
+ }
+ 
+ // importvar declares symbol s as an imported variable with type t.
+-func importvar(s *Sym, t *Type) {
+-	importsym(s, ONAME)
++// pkg is the package being imported
++func importvar(pkg *Pkg, s *Sym, t *Type) {
++	importsym(pkg, s, ONAME)
+ 	if s.Def != nil && s.Def.Op == ONAME {
+ 		if eqtype(t, s.Def.Type) {
+ 			return
+ 		}
+-		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
++		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, pkg.Path)
+ 	}
+ 
+ 	n := newname(s)
+-	s.Importdef = importpkg
++	s.Importdef = pkg
+ 	n.Type = t
+ 	declare(n, PEXTERN)
+ 
+@@ -274,18 +276,19 @@ func importvar(s *Sym, t *Type) {
+ }
+ 
+ // importalias declares symbol s as an imported type alias with type t.
+-func importalias(s *Sym, t *Type) {
+-	importsym(s, OTYPE)
++// pkg is the package being imported
++func importalias(pkg *Pkg, s *Sym, t *Type) {
++	importsym(pkg, s, OTYPE)
+ 	if s.Def != nil && s.Def.Op == OTYPE {
+ 		if eqtype(t, s.Def.Type) {
+ 			return
+ 		}
+-		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
++		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, pkg.Path)
+ 	}
+ 
+ 	n := newname(s)
+ 	n.Op = OTYPE
+-	s.Importdef = importpkg
++	s.Importdef = pkg
+ 	n.Type = t
+ 	declare(n, PEXTERN)
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 2c83d7689c..12076fc94a 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -168,7 +168,7 @@ var Debug_typeassert int
+ 
+ var localpkg *Pkg // package being compiled
+ 
+-var importpkg *Pkg // package being imported
++var inimport bool // set during import
+ 
+ var itabpkg *Pkg // fake pkg for itab entries
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2ceb8d4bbb..884790da1e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -719,22 +719,22 @@ func findpkg(name string) (file string, ok bool) {
+ func loadsys() {
+ 	block = 1
+ 
+-	importpkg = Runtimepkg
++	inimport = true
+ 	typecheckok = true
+ 	defercheckwidth()
+ 
+ 	typs := runtimeTypes()
+ 	for _, d := range runtimeDecls {
+-		sym := Pkglookup(d.name, importpkg)
++		sym := Pkglookup(d.name, Runtimepkg)
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+ 		case funcTag:
+-			importsym(sym, ONAME)
++			importsym(Runtimepkg, sym, ONAME)
+ 			n := newfuncname(sym)
+ 			n.Type = typ
+ 			declare(n, PFUNC)
+ 		case varTag:
+-			importvar(sym, typ)
++			importvar(Runtimepkg, sym, typ)
+ 		default:
+ 			Fatalf("unhandled declaration tag %v", d.tag)
+ 		}
+@@ -742,27 +742,23 @@ func loadsys() {
+ 
+ 	typecheckok = false
+ 	resumecheckwidth()
+-	importpkg = nil
++	inimport = false
+ }
+ 
+-func importfile(f *Val, indent []byte) {
+-	if importpkg != nil {
+-		Fatalf("importpkg not nil")
+-	}
+-
++func importfile(f *Val, indent []byte) *Pkg {
+ 	path_, ok := f.U.(string)
+ 	if !ok {
+ 		yyerror("import statement not a string")
+-		return
++		return nil
+ 	}
+ 
+ 	if len(path_) == 0 {
+ 		yyerror("import path is empty")
+-		return
++		return nil
+ 	}
+ 
+ 	if isbadimport(path_) {
+-		return
++		return nil
+ 	}
+ 
+ 	// The package name main is no longer reserved,
+@@ -789,15 +785,14 @@ func importfile(f *Val, indent []byte) {
+ 			errorexit()
+ 		}
+ 
+-		importpkg = unsafepkg
+ 		imported_unsafe = true
+-		return
++		return unsafepkg
+ 	}
+ 
+ 	if islocalname(path_) {
+ 		if path_[0] == '/' {
+ 			yyerror("import path cannot be absolute path")
+-			return
++			return nil
+ 		}
+ 
+ 		prefix := Ctxt.Pathname
+@@ -807,7 +802,7 @@ func importfile(f *Val, indent []byte) {
+ 		path_ = path.Join(prefix, path_)
+ 
+ 		if isbadimport(path_) {
+-			return
++			return nil
+ 		}
+ 	}
+ 
+@@ -817,10 +812,9 @@ func importfile(f *Val, indent []byte) {
+ 		errorexit()
+ 	}
+ 
+-	importpkg = mkpkg(path_)
+-
++	importpkg := mkpkg(path_)
+ 	if importpkg.Imported {
+-		return
++		return importpkg
+ 	}
+ 
+ 	importpkg.Imported = true
+@@ -913,18 +907,21 @@ func importfile(f *Val, indent []byte) {
+ 	switch c {
+ 	case '\n':
+ 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
++		return nil
+ 
+ 	case 'B':
+ 		if Debug_export != 0 {
+ 			fmt.Printf("importing %s (%s)\n", path_, file)
+ 		}
+ 		imp.ReadByte() // skip \n after $$B
+-		Import(imp, importpkg)
++		Import(importpkg, imp)
+ 
+ 	default:
+ 		yyerror("no import in %q", path_)
+ 		errorexit()
+ 	}
++
++	return importpkg
+ }
+ 
+ func pkgnotused(lineno src.XPos, path string, name string) {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 0bddd6af39..8b38606d33 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -136,9 +136,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 
+ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	val := p.basicLit(imp.Path)
+-	importfile(&val, nil)
+-	ipkg := importpkg
+-	importpkg = nil
++	ipkg := importfile(&val, nil)
+ 
+ 	if ipkg == nil {
+ 		if nerrors == 0 {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6b18cd2f6e..d486bd9775 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -718,7 +718,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
+ 	// https://golang.org/issue/2795
+-	if safemode && importpkg == nil && src != nil && src.Etype == TUNSAFEPTR {
++	if safemode && !inimport && src != nil && src.Etype == TUNSAFEPTR {
+ 		yyerror("cannot use unsafe.Pointer")
+ 		errorexit()
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 353380a0d9..00045930eb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2143,7 +2143,7 @@ OpSwitch:
+ 		}
+ 	}
+ 
+-	if safemode && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
++	if safemode && !inimport && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+ 		yyerror("cannot use unsafe.Pointer")
+ 	}
+ 
+@@ -3472,7 +3472,7 @@ func typecheckfunc(n *Node) {
+ 		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+ 	}
+ 
+-	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
++	if Ctxt.Flag_dynlink && !inimport && n.Func.Nname != nil {
+ 		makefuncsym(n.Func.Nname.Sym)
+ 	}
+ }

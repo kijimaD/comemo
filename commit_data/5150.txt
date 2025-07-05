@@ -7,6 +7,17 @@ Date:   Fri Mar 26 15:01:29 2010 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/785041
-
+---
  src/cmd/prof/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index d993690404..602c07da6a 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -36,4 +36,4 @@ install-default: $(TARG)
+ $(OFILES): $(HFILES)
+ 
+ install-pprof: gopprof
+-	cp $(TARG) "$(GOBIN)"/gopprof
++	cp gopprof "$(GOBIN)"/gopprof

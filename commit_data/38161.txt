@@ -16,6 +16,49 @@ Date:   Fri Oct 5 18:22:06 2018 +0000
     Change-Id: Ibbcb7bf7cd2136e0851ebd097a2bc4dec9f0ee18
     Reviewed-on: https://go-review.googlesource.com/c/140217
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime-lldb_test.go | 23 -----------------------
  1 file changed, 23 deletions(-)
+
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index c74e6ef029..fe3a0eb90d 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -10,9 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"regexp"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -27,27 +25,6 @@ func checkLldbPython(t *testing.T) {
+ 	}
+ 	lldbPath = strings.TrimSpace(string(out))
+ 
+-	// Check lldb version. The test is known to fail with 3.8 or older
+-	// (see Issue #22299).
+-	cmd = exec.Command("lldb", "--version")
+-	out, err = cmd.CombinedOutput()
+-
+-	// lldb --version should print "lldb version a.b.c"
+-	re := regexp.MustCompile(` ([[:digit:]]+)\.([[:digit:]]+)`)
+-	lldbVersion := re.FindStringSubmatch(string(out))
+-	if len(lldbVersion) != 3 {
+-		t.Errorf("bad lldb --version output: %s", out)
+-	}
+-	major, err1 := strconv.Atoi(lldbVersion[1])
+-	minor, err2 := strconv.Atoi(lldbVersion[2])
+-	if err1 != nil || err2 != nil {
+-		t.Errorf("bad lldb --version output: %s", out)
+-	}
+-
+-	if (major < 3) || (major == 3 && minor < 9) {
+-		t.Skipf("skipping because lldb version %v.%v is too old (need >= 3.9)", major, minor)
+-	}
+-
+ 	cmd = exec.Command("/usr/bin/python2.7", "-c", "import sys;sys.path.append(sys.argv[1]);import lldb; print('go lldb python support')", lldbPath)
+ 	out, err = cmd.CombinedOutput()
+ 

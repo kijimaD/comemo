@@ -13,7 +13,54 @@ Date:   Sat Jul 9 14:51:00 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27122
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/crypto/cipher/example_test.go | 4 ++--
  src/math/big/floatexample_test.go | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/cipher/example_test.go b/src/crypto/cipher/example_test.go
+index 9abe782bca..956cc2eaca 100644
+--- a/src/crypto/cipher/example_test.go
++++ b/src/crypto/cipher/example_test.go
+@@ -14,7 +14,7 @@ import (
+ 	"os"
+ )
+ 
+-func ExampleNewGCMEncrypter() {
++func ExampleNewGCM_encrypt() {
+ 	// The key argument should be the AES key, either 16 or 32 bytes
+ 	// to select AES-128 or AES-256.
+ 	key := []byte("AES256Key-32Characters1234567890")
+@@ -40,7 +40,7 @@ func ExampleNewGCMEncrypter() {
+ 	fmt.Printf("%x\n", ciphertext)
+ }
+ 
+-func ExampleNewGCMDecrypter() {
++func ExampleNewGCM_decrypt() {
+ 	// The key argument should be the AES key, either 16 or 32 bytes
+ 	// to select AES-128 or AES-256.
+ 	key := []byte("AES256Key-32Characters1234567890")
+diff --git a/src/math/big/floatexample_test.go b/src/math/big/floatexample_test.go
+index fb799d5a1f..0c6668c93b 100644
+--- a/src/math/big/floatexample_test.go
++++ b/src/math/big/floatexample_test.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func ExampleFloat_Add() {
+-	// Operating on numbers of different precision.
++	// Operate on numbers of different precision.
+ 	var x, y, z big.Float
+ 	x.SetInt64(1000)          // x is automatically set to 64bit precision
+ 	y.SetFloat64(2.718281828) // y is automatically set to 53bit precision
+@@ -26,8 +26,8 @@ func ExampleFloat_Add() {
+ 	// z = 1002.718282 (0x.faadf854p+10, prec = 32, acc = Below)
+ }
+ 
+-func Example_Shift() {
+-	// Implementing Float "shift" by modifying the (binary) exponents directly.
++func ExampleFloat_shift() {
++	// Implement Float "shift" by modifying the (binary) exponents directly.
+ 	for s := -5; s <= 5; s++ {
+ 		x := big.NewFloat(0.5)
+ 		x.SetMantExp(x, x.MantExp(nil)+s) // shift x by s

@@ -9,8 +9,82 @@ Date:   Mon Jun 22 10:59:24 2015 -0700
     Change-Id: Ic1610e124b2d8b2b12310fc9538d5078cc7302a0
     Reviewed-on: https://go-review.googlesource.com/11316
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/main.go        | 22 ++++++++++++++++++++++
  src/cmd/go/pkg.go         |  2 +-
  src/cmd/go/vendor_test.go | 16 ++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 1bd75401cb..659484b76a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -474,6 +474,28 @@ func hasPathPrefix(s, prefix string) bool {
+ 	}
+ }
+ 
++// hasFilePathPrefix reports whether the filesystem path s begins with the
++// elements in prefix.
++func hasFilePathPrefix(s, prefix string) bool {
++	sv := strings.ToUpper(filepath.VolumeName(s))
++	pv := strings.ToUpper(filepath.VolumeName(prefix))
++	s = s[len(sv):]
++	prefix = prefix[len(pv):]
++	switch {
++	default:
++		return false
++	case sv != pv:
++		return false
++	case len(s) == len(prefix):
++		return s == prefix
++	case len(s) > len(prefix):
++		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
++			return strings.HasPrefix(s, prefix)
++		}
++		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
++	}
++}
++
+ // treeCanMatchPattern(pattern)(name) reports whether
+ // name or children of name can possibly match pattern.
+ // Pattern is the same limited glob accepted by matchPattern.
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0990c4563b..51567b5afb 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -360,7 +360,7 @@ func vendoredImportPath(parent *Package, path string) (found string, searched []
+ 	}
+ 	dir := filepath.Clean(parent.Dir)
+ 	root := filepath.Clean(parent.Root)
+-	if !strings.HasPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
++	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
+ 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
+ 	}
+ 	vpath := "vendor/" + path
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 3b99a29d98..389fd5efb0 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -54,6 +54,22 @@ func TestVendorRun(t *testing.T) {
+ 	tg.grepStdout("hello, world", "missing hello world output")
+ }
+ 
++func TestVendorGOPATH(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	changeVolume := func(s string, f func(s string) string) string {
++		vol := filepath.VolumeName(s)
++		return f(vol) + s[len(vol):]
++	}
++	gopath := changeVolume(filepath.Join(tg.pwd(), "testdata"), strings.ToLower)
++	tg.setenv("GOPATH", gopath)
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	cd := changeVolume(filepath.Join(tg.pwd(), "testdata/src/vend/hello"), strings.ToUpper)
++	tg.cd(cd)
++	tg.run("run", "hello.go")
++	tg.grepStdout("hello, world", "missing hello world output")
++}
++
+ func TestVendorTest(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

@@ -83,9 +83,447 @@ Date:   Sun Apr 19 15:22:20 2015 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      |  26 +++++++---
  src/runtime/mgcmark.go  |  60 ++++++++---------------
  src/runtime/mgcwork.go  | 128 +++++-------------------------------------------
  src/runtime/runtime2.go |   6 ++-
  4 files changed, 58 insertions(+), 162 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 353610d50c..943a7233ae 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -501,7 +501,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
+ 		// else for a while, so kick everything out of its run
+ 		// queue.
+ 	} else {
+-		if _p_.m.ptr().currentwbuf == 0 && work.full == 0 && work.partial == 0 {
++		if _p_.gcw.wbuf == 0 && work.full == 0 && work.partial == 0 {
+ 			// No work to be done right now. This can
+ 			// happen at the end of the mark phase when
+ 			// there are still assists tapering off. Don't
+@@ -1026,7 +1026,6 @@ func gcBgMarkWorker(p *p) {
+ 	// is set, this puts itself into _Gwaiting to be woken up by
+ 	// gcController.findRunnable at the appropriate time.
+ 	notewakeup(&work.bgMarkReady)
+-	var gcw gcWork
+ 	for {
+ 		// Go to sleep until woken by gcContoller.findRunnable.
+ 		// We can't releasem yet since even the call to gopark
+@@ -1055,18 +1054,19 @@ func gcBgMarkWorker(p *p) {
+ 		done := false
+ 		switch p.gcMarkWorkerMode {
+ 		case gcMarkWorkerDedicatedMode:
+-			gcDrain(&gcw, gcBgCreditSlack)
++			gcDrain(&p.gcw, gcBgCreditSlack)
+ 			// gcDrain did the xadd(&work.nwait +1) to
+ 			// match the decrement above. It only returns
+ 			// at a mark completion point.
+ 			done = true
+ 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
+-			gcDrainUntilPreempt(&gcw, gcBgCreditSlack)
++			gcDrainUntilPreempt(&p.gcw, gcBgCreditSlack)
+ 			// Was this the last worker and did we run out
+ 			// of work?
+ 			done = xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0
+ 		}
+-		gcw.dispose()
++		// We're not in mark termination, so there's no need
++		// to dispose p.gcw.
+ 
+ 		// If this worker reached a background mark completion
+ 		// point, signal the main GC goroutine.
+@@ -1121,6 +1121,14 @@ func gcMark(start_time int64) {
+ 
+ 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
+ 
++	// Gather all cached GC work. All other Ps are stopped, so
++	// it's safe to manipulate their GC work caches. During mark
++	// termination, these caches can still be used temporarily,
++	// but must be disposed to the global lists immediately.
++	for i := 0; i < int(gomaxprocs); i++ {
++		allp[i].gcw.dispose()
++	}
++
+ 	work.nwait = 0
+ 	work.ndone = 0
+ 	work.nproc = uint32(gcprocs())
+@@ -1135,9 +1143,9 @@ func gcMark(start_time int64) {
+ 		helpgc(int32(work.nproc))
+ 	}
+ 
+-	harvestwbufs() // move local workbufs onto global queues where the GC can find them
+ 	gchelperstart()
+ 	parfordo(work.markfor)
++
+ 	var gcw gcWork
+ 	gcDrain(&gcw, -1)
+ 	gcw.dispose()
+@@ -1153,6 +1161,12 @@ func gcMark(start_time int64) {
+ 		notesleep(&work.alldone)
+ 	}
+ 
++	for i := 0; i < int(gomaxprocs); i++ {
++		if allp[i].gcw.wbuf != 0 {
++			throw("P has cached GC work at end of mark termination")
++		}
++	}
++
+ 	if trace.enabled {
+ 		traceGCScanDone()
+ 	}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5d5a0dab75..2b6e9a37d3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -55,6 +55,7 @@ var oneptr = [...]uint8{typePointer}
+ 
+ //go:nowritebarrier
+ func markroot(desc *parfor, i uint32) {
++	// TODO: Consider using getg().m.p.ptr().gcw.
+ 	var gcw gcWork
+ 
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+@@ -172,6 +173,8 @@ func markroot(desc *parfor, i uint32) {
+ // allocations performed by this mutator since the last assist.
+ //
+ // It should only be called during gcphase == _GCmark.
++//
++// This must be called with preemption disabled.
+ //go:nowritebarrier
+ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 	// Find the G responsible for this assist.
+@@ -228,19 +231,14 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 
+ 		xadd(&work.nwait, -1)
+ 
+-		// drain own current wbuf first in the hopes that it
++		// drain own cached work first in the hopes that it
+ 		// will be more cache friendly.
+-		var gcw gcWork
+-		gcw.initFromCache()
++		gcw := &getg().m.p.ptr().gcw
+ 		startScanWork := gcw.scanWork
+-		gcDrainN(&gcw, scanWork)
++		gcDrainN(gcw, scanWork)
+ 		// Record that we did this much scan work.
+ 		gp.gcscanwork += gcw.scanWork - startScanWork
+-		// TODO(austin): This is the vast majority of our
+-		// disposes. Instead of constantly disposing, keep a
+-		// per-P gcWork cache (probably combined with the
+-		// write barrier wbuf cache).
+-		gcw.dispose()
++		// No need to dispose since we're not in mark termination.
+ 
+ 		// If this is the last worker and we ran out of work,
+ 		// signal a completion point.
+@@ -315,21 +313,24 @@ func scanstack(gp *g) {
+ 		throw("can't scan gchelper stack")
+ 	}
+ 
+-	var gcw gcWork
+-	gcw.initFromCache()
++	gcw := &getg().m.p.ptr().gcw
++	origBytesMarked := gcw.bytesMarked
++	origScanWork := gcw.scanWork
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+ 		// Pick up gcw as free variable so gentraceback and friends can
+ 		// keep the same signature.
+-		scanframeworker(frame, unused, &gcw)
++		scanframeworker(frame, unused, gcw)
+ 		return true
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
+ 	// Stacks aren't part of the heap, so don't count them toward
+ 	// marked heap bytes.
+-	gcw.bytesMarked = 0
+-	gcw.scanWork = 0
+-	gcw.disposeToCache()
++	gcw.bytesMarked = origBytesMarked
++	gcw.scanWork = origScanWork
++	if gcphase == _GCmarktermination {
++		gcw.dispose()
++	}
+ 	gp.gcscanvalid = true
+ }
+ 
+@@ -462,7 +463,6 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
+ 		credit := gcw.scanWork - lastScanFlush
+ 		xaddint64(&gcController.bgScanCredit, credit)
+ 	}
+-	checknocurrentwbuf()
+ }
+ 
+ // gcDrainUntilPreempt blackens grey objects until g.preempt is set.
+@@ -524,7 +524,6 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
+ // scanning is always done in whole object increments.
+ //go:nowritebarrier
+ func gcDrainN(gcw *gcWork, scanWork int64) {
+-	checknocurrentwbuf()
+ 	targetScanWork := gcw.scanWork + scanWork
+ 	for gcw.scanWork < targetScanWork {
+ 		// This might be a good place to add prefetch code...
+@@ -646,33 +645,16 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 
+ // Shade the object if it isn't already.
+ // The object is not nil and known to be in the heap.
++// Preemption must be disabled.
+ //go:nowritebarrier
+ func shade(b uintptr) {
+ 	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
+-		// TODO: this would be a great place to put a check to see
+-		// if we are harvesting and if we are then we should
+-		// figure out why there is a call to shade when the
+-		// harvester thinks we are in a STW.
+-		// if atomicload(&harvestingwbufs) == uint32(1) {
+-		//	// Throw here to discover write barriers
+-		//	// being executed during a STW.
+-		//	throw("shade during harvest")
+-		// }
+-
+-		var gcw gcWork
+-		greyobject(obj, 0, 0, hbits, span, &gcw)
+-		// This is part of the write barrier so put the wbuf back.
++		gcw := &getg().m.p.ptr().gcw
++		greyobject(obj, 0, 0, hbits, span, gcw)
+ 		if gcphase == _GCmarktermination {
++			// Ps aren't allowed to cache work during mark
++			// termination.
+ 			gcw.dispose()
+-		} else {
+-			// If we added any pointers to the gcw, then
+-			// currentwbuf must be nil because 1)
+-			// greyobject got its wbuf from currentwbuf
+-			// and 2) shade runs on the systemstack, so
+-			// we're still on the same M.  If either of
+-			// these becomes no longer true, we need to
+-			// rethink this.
+-			gcw.disposeToCache()
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index fbe4d03adf..e7d1a104b8 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -38,7 +38,7 @@ func (wp wbufptr) ptr() *workbuf {
+ // A gcWork provides the interface to produce and consume work for the
+ // garbage collector.
+ //
+-// The usual pattern for using gcWork is:
++// A gcWork can be used on the stack as follows:
+ //
+ //     var gcw gcWork
+ //     disable preemption
+@@ -46,6 +46,15 @@ func (wp wbufptr) ptr() *workbuf {
+ //     gcw.dispose()
+ //     enable preemption
+ //
++// Or from the per-P gcWork cache:
++//
++//     (preemption must be disabled)
++//     gcw := &getg().m.p.ptr().gcw
++//     .. call gcw.put() to produce and gcw.get() to consume ..
++//     if gcphase == _GCmarktermination {
++//         gcw.dispose()
++//     }
++//
+ // It's important that any use of gcWork during the mark phase prevent
+ // the garbage collector from transitioning to mark termination since
+ // gcWork may locally hold GC work buffers. This can be done by
+@@ -63,17 +72,6 @@ type gcWork struct {
+ 	scanWork int64
+ }
+ 
+-// initFromCache fetches work from this M's currentwbuf cache.
+-//go:nowritebarrier
+-func (w *gcWork) initFromCache() {
+-	// TODO: Instead of making gcWork pull from the currentwbuf
+-	// cache, use a gcWork as the cache and make shade pass around
+-	// that gcWork.
+-	if w.wbuf == 0 {
+-		w.wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, 0))
+-	}
+-}
+-
+ // put enqueues a pointer for the garbage collector to trace.
+ //go:nowritebarrier
+ func (ww *gcWork) put(obj uintptr) {
+@@ -174,27 +172,6 @@ func (w *gcWork) dispose() {
+ 	}
+ }
+ 
+-// disposeToCache returns any cached pointers to this M's currentwbuf.
+-// It calls throw if currentwbuf is non-nil.
+-//go:nowritebarrier
+-func (w *gcWork) disposeToCache() {
+-	if wbuf := w.wbuf; wbuf != 0 {
+-		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
+-		if wbuf != 0 {
+-			throw("m.currentwbuf non-nil in disposeToCache")
+-		}
+-		w.wbuf = 0
+-	}
+-	if w.bytesMarked != 0 {
+-		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+-		w.bytesMarked = 0
+-	}
+-	if w.scanWork != 0 {
+-		xaddint64(&gcController.scanWork, w.scanWork)
+-		w.scanWork = 0
+-	}
+-}
+-
+ // balance moves some work that's cached in this gcWork back on the
+ // global queue.
+ //go:nowritebarrier
+@@ -222,7 +199,7 @@ type workbuf struct {
+ }
+ 
+ // workbuf factory routines. These funcs are used to manage the
+-// workbufs. They cache workbuf in the m struct field currentwbuf.
++// workbufs.
+ // If the GC asks for some work these are the only routines that
+ // make partially full wbufs available to the GC.
+ // Each of the gets and puts also take an distinct integer that is used
+@@ -283,13 +260,6 @@ func (b *workbuf) checkempty() {
+ 	}
+ }
+ 
+-// checknocurrentwbuf checks that the m's currentwbuf field is empty
+-func checknocurrentwbuf() {
+-	if getg().m.currentwbuf != 0 {
+-		throw("unexpected currentwbuf")
+-	}
+-}
+-
+ // getempty pops an empty work buffer off the work.empty list,
+ // allocating new buffers if none are available.
+ // entry is used to record a brief history of ownership.
+@@ -335,21 +305,7 @@ func putfull(b *workbuf, entry int) {
+ // indicating that two line numbers in the call chain.
+ //go:nowritebarrier
+ func getpartialorempty(entry int) *workbuf {
+-	var b *workbuf
+-	// If this m has a buf in currentwbuf then as an optimization
+-	// simply return that buffer. If it turns out currentwbuf
+-	// is full, put it on the work.full queue and get another
+-	// workbuf off the partial or empty queue.
+-	if getg().m.currentwbuf != 0 {
+-		b = (*workbuf)(unsafe.Pointer(xchguintptr(&getg().m.currentwbuf, 0)))
+-		if b != nil {
+-			if b.nobj <= len(b.obj) {
+-				return b
+-			}
+-			putfull(b, entry+80100000)
+-		}
+-	}
+-	b = (*workbuf)(lfstackpop(&work.partial))
++	b := (*workbuf)(lfstackpop(&work.partial))
+ 	if b != nil {
+ 		b.logget(entry)
+ 		return b
+@@ -395,21 +351,6 @@ func trygetfull(entry int) *workbuf {
+ 		b.checknonempty()
+ 		return b
+ 	}
+-	// full and partial are both empty so see if there
+-	// is an work available on currentwbuf.
+-	// This is an optimization to shift
+-	// processing from the STW marktermination phase into
+-	// the concurrent mark phase.
+-	if getg().m.currentwbuf != 0 {
+-		b = (*workbuf)(unsafe.Pointer(xchguintptr(&getg().m.currentwbuf, 0)))
+-		if b != nil {
+-			if b.nobj != 0 {
+-				return b
+-			}
+-			putempty(b, 839)
+-			b = nil
+-		}
+-	}
+ 	return b
+ }
+ 
+@@ -438,19 +379,6 @@ func getfull(entry int) *workbuf {
+ 		b.logget(entry)
+ 		return b
+ 	}
+-	// Make sure that currentwbuf is also not a source for pointers to be
+-	// processed. This is an optimization that shifts processing
+-	// from the mark termination STW phase to the concurrent mark phase.
+-	if getg().m.currentwbuf != 0 {
+-		b = (*workbuf)(unsafe.Pointer(xchguintptr(&getg().m.currentwbuf, 0)))
+-		if b != nil {
+-			if b.nobj != 0 {
+-				return b
+-			}
+-			putempty(b, 877)
+-			b = nil
+-		}
+-	}
+ 
+ 	xadd(&work.nwait, +1)
+ 	for i := 0; ; i++ {
+@@ -500,35 +428,3 @@ func handoff(b *workbuf) *workbuf {
+ 	putfull(b, 942)
+ 	return b1
+ }
+-
+-// 1 when you are harvesting so that the write buffer code shade can
+-// detect calls during a presumable STW write barrier.
+-var harvestingwbufs uint32
+-
+-// harvestwbufs moves non-empty workbufs to work.full from  m.currentwuf
+-// Must be in a STW phase.
+-// xchguintptr is used since there are write barrier calls from the GC helper
+-// routines even during a STW phase.
+-// TODO: chase down write barrier calls in STW phase and understand and eliminate
+-// them.
+-//go:nowritebarrier
+-func harvestwbufs() {
+-	// announce to write buffer that you are harvesting the currentwbufs
+-	atomicstore(&harvestingwbufs, 1)
+-
+-	for mp := allm; mp != nil; mp = mp.alllink {
+-		wbuf := (*workbuf)(unsafe.Pointer(xchguintptr(&mp.currentwbuf, 0)))
+-		// TODO: beat write barriers out of the mark termination and eliminate xchg
+-		//		tempwbuf := (*workbuf)(unsafe.Pointer(tempm.currentwbuf))
+-		//		tempm.currentwbuf = 0
+-		if wbuf != nil {
+-			if wbuf.nobj == 0 {
+-				putempty(wbuf, 945)
+-			} else {
+-				putfull(wbuf, 947) //use full instead of partial so GC doesn't compete to get wbuf
+-			}
+-		}
+-	}
+-
+-	atomicstore(&harvestingwbufs, 0)
+-}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 476108e36c..998a159887 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -304,7 +304,6 @@ type m struct {
+ 	waitsemacount uint32
+ 	waitsemalock  uint32
+ 	gcstats       gcstats
+-	currentwbuf   uintptr // use locks or atomic operations such as xchguinptr to access.
+ 	needextram    bool
+ 	traceback     uint8
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+@@ -384,6 +383,11 @@ type p struct {
+ 	gcBgMarkWorker   *g
+ 	gcMarkWorkerMode gcMarkWorkerMode
+ 
++	// gcw is this P's GC work buffer cache. The work buffer is
++	// filled by write barriers, drained by mutator assists, and
++	// disposed on certain GC state transitions.
++	gcw gcWork
++
+ 	pad [64]byte
+ }
+ 

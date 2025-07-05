@@ -9,7 +9,7 @@ Date:   Mon Mar 22 19:58:55 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/692041
-
+---
  src/cmd/5c/swt.c   | 11 +++++++++++
  src/cmd/5l/asm.c   | 10 +++++-----
  src/cmd/5l/l.h     |  4 ++--
@@ -27,3 +27,503 @@ Date:   Mon Mar 22 19:58:55 2010 -0700
  src/cmd/ld/go.c    | 24 ++++++++++++------------
  src/cmd/ld/macho.c | 10 +++++-----
  16 files changed, 77 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 4c2a81cbff..3aaf748a45 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -374,6 +374,17 @@ outcode(void)
+ 	}
+ 
+ 	Bprint(&outbuf, "%s\n", thestring);
++	if(ndynimp > 0) {
++		int i;
++
++		Bprint(&outbuf, "\n");
++		Bprint(&outbuf, "$$  // exports\n\n");
++		Bprint(&outbuf, "$$  // local types\n\n");
++		Bprint(&outbuf, "$$  // dynimport\n", thestring);
++		for(i=0; i<ndynimp; i++)
++			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
++		Bprint(&outbuf, "$$\n\n");
++	}
+ 	Bprint(&outbuf, "!\n");
+ 
+ 	outhist(&outbuf);
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index cba5c376c4..306d828b24 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -260,12 +260,12 @@ doelf(void)
+ 		dynamic = s;
+ 
+ 		/*
+-		 * relocation entries for dynld symbols
++		 * relocation entries for dynimp symbols
+ 		 */
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+ 			#if 0
+ 				d = lookup(".rel", 0);
+@@ -274,7 +274,7 @@ doelf(void)
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
++				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
+ 				adduint32(d, 0);	/* value */
+ 				adduint32(d, 0);	/* size of object */
+ 				t = STB_GLOBAL << 4;
+@@ -283,8 +283,8 @@ doelf(void)
+ 				adduint8(d, 0);	/* reserved */
+ 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+ 
+-				if(needlib(s->dynldlib))
+-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
++				if(needlib(s->dynimplib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+ 			#endif
+ 			}
+ 		}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index ac627e456b..45ddd616f1 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -138,8 +138,8 @@ struct	Sym
+ 	Prog*	data;
+ 	Sym*	gotype;
+ 	char*	file;
+-	char*	dynldname;
+-	char*	dynldlib;
++	char*	dynimpname;
++	char*	dynimplib;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 15c2a5c2c1..cdb948f890 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -232,15 +232,15 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
+-	if(ndynld > 0) {
++	if(ndynimp > 0) {
+ 		int i;
+ 
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynld\n", thestring);
+-		for(i=0; i<ndynld; i++)
+-			Bprint(&b, "dynld %s %s %s\n", dynld[i].local, dynld[i].remote, dynld[i].path);
++		Bprint(&b, "$$  // dynimport\n", thestring);
++		for(i=0; i<ndynimp; i++)
++			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+ 		Bprint(&b, "$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d55c0cee4d..1fc3db98de 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -346,12 +346,12 @@ doelf(void)
+ 		dynamic = s;
+ 
+ 		/*
+-		 * relocation entries for dynld symbols
++		 * relocation entries for dynimport symbols
+ 		 */
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+ 
+ 				d = lookup(".rela", 0);
+@@ -361,7 +361,7 @@ doelf(void)
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
++				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
+ 				t = STB_GLOBAL << 4;
+ 				t |= STT_OBJECT;	// works for func too, empirically
+ 				adduint8(d, t);
+@@ -370,8 +370,8 @@ doelf(void)
+ 				adduint64(d, 0);	/* value */
+ 				adduint64(d, 0);	/* size of object */
+ 
+-				if(needlib(s->dynldlib))
+-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
++				if(needlib(s->dynimplib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 87b81d7f6d..4b911ff698 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -131,8 +131,8 @@ struct	Sym
+ 	Prog*	data;
+ 	Sym*	gotype;
+ 	char*	file;
+-	char*	dynldname;
+-	char*	dynldlib;
++	char*	dynimpname;
++	char*	dynimplib;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 76dc199472..035b8e9c3e 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -231,15 +231,15 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
+-	if(ndynld > 0) {
++	if(ndynimp > 0) {
+ 		int i;
+ 
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynld\n", thestring);
+-		for(i=0; i<ndynld; i++)
+-			Bprint(&b, "dynld %s %s %s\n", dynld[i].local, dynld[i].remote, dynld[i].path);
++		Bprint(&b, "$$  // dynimport\n", thestring);
++		for(i=0; i<ndynimp; i++)
++			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+ 		Bprint(&b, "$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index a1de5fc0e3..a4d8adc312 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -337,12 +337,12 @@ doelf(void)
+ 		dynamic = s;
+ 
+ 		/*
+-		 * relocation entries for dynld symbols
++		 * relocation entries for dynimport symbols
+ 		 */
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+ 
+ 				d = lookup(".rel", 0);
+@@ -351,7 +351,7 @@ doelf(void)
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+-				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
++				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
+ 				adduint32(d, 0);	/* value */
+ 				adduint32(d, 0);	/* size of object */
+ 				t = STB_GLOBAL << 4;
+@@ -360,8 +360,8 @@ doelf(void)
+ 				adduint8(d, 0);	/* reserved */
+ 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+ 
+-				if(needlib(s->dynldlib))
+-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
++				if(needlib(s->dynimplib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 5940c4a733..04f6c0e270 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -131,8 +131,8 @@ struct	Sym
+ 	Prog*	data;
+ 	Sym*	gotype;
+ 	char*	file;
+-	char*	dynldname;
+-	char*	dynldlib;
++	char*	dynimpname;
++	char*	dynimplib;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 6098bc53ac..4241c18f73 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -56,7 +56,7 @@ typedef	struct	Hist	Hist;
+ typedef	struct	Term	Term;
+ typedef	struct	Init	Init;
+ typedef	struct	Bits	Bits;
+-typedef	struct	Dynld	Dynld;
++typedef	struct	Dynimp	Dynimp;
+ 
+ #define	NHUNK		50000L
+ #define	BUFSIZ		8192
+@@ -444,15 +444,15 @@ struct	Funct
+ 	Sym*	castfr[NTYPE];
+ };
+ 
+-struct	Dynld
++struct	Dynimp
+ {
+ 	char*	local;
+ 	char*	remote;
+ 	char*	path;
+ };
+ 
+-EXTERN	Dynld	*dynld;
+-EXTERN	int	ndynld;
++EXTERN	Dynimp	*dynimp;
++EXTERN	int	ndynimp;
+ 
+ EXTERN struct
+ {
+@@ -760,7 +760,7 @@ void	pragpack(void);
+ void	pragfpround(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+-void	pragdynld(void);
++void	pragdynimport(void);
+ 
+ /*
+  * calls to machine depend part
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 452f39f09b..99d8c05f15 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -533,11 +533,11 @@ out:
+ }
+ 
+ void
+-pragdynld(void)
++pragdynimport(void)
+ {
+ 	Sym *local, *remote;
+ 	char *path;
+-	Dynld *f;
++	Dynimp *f;
+ 
+ 	local = getsym();
+ 	if(local == nil)
+@@ -551,16 +551,16 @@ pragdynld(void)
+ 	if(path == nil)
+ 		goto err;
+ 
+-	if(ndynld%32 == 0)
+-		dynld = realloc(dynld, (ndynld+32)*sizeof dynld[0]);
+-	f = &dynld[ndynld++];
++	if(ndynimp%32 == 0)
++		dynimp = realloc(dynimp, (ndynimp+32)*sizeof dynimp[0]);
++	f = &dynimp[ndynimp++];
+ 	f->local = local->name;
+ 	f->remote = remote->name;
+ 	f->path = path;
+ 	goto out;
+ 
+ err:
+-	yyerror("usage: #pragma dynld local remote \"path\"");
++	yyerror("usage: #pragma dynimport local remote \"path\"");
+ 
+ out:
+ 	while(getnsc() != '\n')
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index c026a8d239..743e6e52dc 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -47,7 +47,7 @@ pragvararg(void)
+ }
+ 
+ void
+-pragdynld(void)
++pragdynimport(void)
+ {
+ 	while(getnsc() != '\n')
+ 		;
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 7d3acaa8e0..37ddc81c93 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -739,8 +739,8 @@ macprag(void)
+ 		pragincomplete();
+ 		return;
+ 	}
+-	if(s && strcmp(s->name, "dynld") == 0) {
+-		pragdynld();
++	if(s && strcmp(s->name, "dynimport") == 0) {
++		pragdynimport();
+ 		return;
+ 	}
+ 	while(getnsc() != '\n')
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8d6a449807..31df5a0c45 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -50,7 +50,7 @@ func (p *Prog) writeDefs() {
+ 	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot)
+ 
+ 	for name, def := range p.Vardef {
+-		fmt.Fprintf(fc, "#pragma dynld ·_C_%s %s \"%s.so\"\n", name, name, path)
++		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s.so\"\n", name, name, path)
+ 		fmt.Fprintf(fgo2, "var _C_%s ", name)
+ 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+@@ -129,7 +129,7 @@ func (p *Prog) writeDefs() {
+ 
+ 		// C wrapper calls into gcc, passing a pointer to the argument frame.
+ 		// Also emit #pragma to get a pointer to the gcc wrapper.
+-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
++		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
+ 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
+ 		fmt.Fprintf(fc, "\n")
+ 		fmt.Fprintf(fc, "void\n")
+@@ -273,10 +273,10 @@ const cProlog = `
+ #include "runtime.h"
+ #include "cgocall.h"
+ 
+-#pragma dynld initcgo initcgo "%s/libcgo.so"
+-#pragma dynld libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
+-#pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
+-#pragma dynld _cgo_free free "%s/libcgo.so"
++#pragma dynimport initcgo initcgo "%s/libcgo.so"
++#pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
++#pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
++#pragma dynimport _cgo_free free "%s/libcgo.so"
+ 
+ void
+ ·_C_GoString(int8 *p, String s)
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index e5bf8ed66a..4a3b4725be 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -66,7 +66,7 @@ ilookup(char *name)
+ }
+ 
+ static void loadpkgdata(char*, char*, char*, int);
+-static void loaddynld(char*, char*, int);
++static void loaddynimport(char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+ static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+ 
+@@ -141,22 +141,22 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 
+ 	loadpkgdata(filename, pkg, p0, p1 - p0);
+ 
+-	// look for dynld section
+-	p0 = strstr(p1, "\n$$  // dynld");
++	// look for dynimport section
++	p0 = strstr(p1, "\n$$  // dynimport");
+ 	if(p0 != nil) {
+ 		p0 = strchr(p0+1, '\n');
+ 		if(p0 == nil) {
+-			fprint(2, "%s: found $$ // dynld but no newline in %s\n", argv0, filename);
++			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
+ 			return;
+ 		}
+ 		p1 = strstr(p0, "\n$$");
+ 		if(p1 == nil)
+ 			p1 = strstr(p0, "\n!\n");
+ 		if(p1 == nil) {
+-			fprint(2, "%s: cannot find end of // dynld section in %s\n", argv0, filename);
++			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
+ 			return;
+ 		}
+-		loaddynld(filename, p0 + 1, p1 - p0);
++		loaddynimport(filename, p0 + 1, p1 - p0);
+ 	}
+ }
+ 
+@@ -337,7 +337,7 @@ parsemethod(char **pp, char *ep, char **methp)
+ }
+ 
+ static void
+-loaddynld(char *file, char *p, int n)
++loaddynimport(char *file, char *p, int n)
+ {
+ 	char *next, *name, *def, *p0, *lib;
+ 	Sym *s;
+@@ -352,9 +352,9 @@ loaddynld(char *file, char *p, int n)
+ 		else
+ 			*next++ = '\0';
+ 		p0 = p;
+-		if(strncmp(p, "dynld ", 6) != 0)
++		if(strncmp(p, "dynimport ", 10) != 0)
+ 			goto err;
+-		p += 6;
++		p += 10;
+ 		name = p;
+ 		p = strchr(name, ' ');
+ 		if(p == nil)
+@@ -374,13 +374,13 @@ loaddynld(char *file, char *p, int n)
+ 		*strchr(def, ' ') = 0;
+ 
+ 		s = lookup(name, 0);
+-		s->dynldlib = lib;
+-		s->dynldname = def;
++		s->dynimplib = lib;
++		s->dynimpname = def;
+ 	}
+ 	return;
+ 
+ err:
+-	fprint(2, "%s: invalid dynld line: %s\n", argv0, p0);
++	fprint(2, "%s: invalid dynimport line: %s\n", argv0, p0);
+ 	nerrors++;
+ }
+ 
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 88798dad73..7a0be67119 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -281,7 +281,7 @@ domacho(void)
+ 	nsym = 0;
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->link) {
+-			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 				continue;
+ 			if(debug['d']) {
+ 				diag("cannot use dynamic loading and -d");
+@@ -292,9 +292,9 @@ domacho(void)
+ 
+ 			/* symbol table entry - darwin still puts _ prefixes on all C symbols */
+ 			x = nstrtab;
+-			p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynldname)+1);
++			p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynimpname)+1);
+ 			*p++ = '_';
+-			strcpy(p, s->dynldname);
++			strcpy(p, s->dynimpname);
+ 
+ 			dat = grow(&linkdata, &nlinkdata, &mlinkdata, 8+ptrsize);
+ 			dat[0] = x;
+@@ -303,7 +303,7 @@ domacho(void)
+ 			dat[3] = x>>24;
+ 			dat[4] = 0x01;	// type: N_EXT - external symbol
+ 
+-			if(needlib(s->dynldlib)) {
++			if(needlib(s->dynimplib)) {
+ 				if(ndylib%32 == 0) {
+ 					dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
+ 					if(dylib == nil) {
+@@ -311,7 +311,7 @@ domacho(void)
+ 						errorexit();
+ 					}
+ 				}
+-				dylib[ndylib++] = s->dynldlib;
++				dylib[ndylib++] = s->dynimplib;
+ 			}
+ 			nsym++;
+ 		}

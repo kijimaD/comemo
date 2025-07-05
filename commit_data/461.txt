@@ -11,10 +11,289 @@ Date:   Fri Aug 1 13:33:31 2008 -0700
     R=r
     OCL=13728
     CL=13730
-
+---
  usr/gri/gosrc/export.go   | 25 +++++++++++--------------
  usr/gri/gosrc/globals.go  |  8 +++-----
  usr/gri/gosrc/import.go   | 36 +++++++++++++++---------------------
  usr/gri/gosrc/parser.go   | 11 ++++++++---
  usr/gri/gosrc/universe.go | 20 ++++++++++----------
  5 files changed, 47 insertions(+), 53 deletions(-)
+
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 9d480fc50c..466296030e 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -94,23 +94,23 @@ func (E *Exporter) WritePackageTag(tag int) {
+ 		if tag >= 0 {
+ 			print " [P", tag, "]";  // package ref
+ 		} else {
+-			print "\nP", E.pkg_ref, ": ", -tag;  // package no
++			print "\nP", E.pkg_ref, ":";
+ 		}
+ 	}
+ }
+ 
+ 
+-func (E *Exporter) WriteScope(scope *Globals.Scope) {
++func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
+ 	if E.debug {
+ 		print " {";
+ 	}
+ 
+ 	for p := scope.entries.first; p != nil; p = p.next {
+-		if p.obj.exported {
++		if export_all || p.obj.exported {
+ 			E.WriteObject(p.obj);
+ 		}
+ 	}
+-	E.WriteObjectTag(Object.EOS);
++	E.WriteObject(nil);
+ 	
+ 	if E.debug {
+ 		print " }";
+@@ -119,8 +119,9 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 
+ 
+ func (E *Exporter) WriteObject(obj *Globals.Object) {
+-	if !obj.exported {
+-		panic "!obj.exported";
++	if obj == nil {
++		E.WriteObjectTag(Object.EOS);
++		return;
+ 	}
+ 
+ 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
+@@ -196,10 +197,10 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 
+ 	case Type.FUNCTION:
+ 		E.WriteInt(typ.flags);
+-		E.WriteScope(typ.scope);
++		E.WriteScope(typ.scope, true);
+ 		
+ 	case Type.STRUCT, Type.INTERFACE:
+-		E.WriteScope(typ.scope);
++		E.WriteScope(typ.scope, true);  // for now
+ 
+ 	case Type.POINTER, Type.REFERENCE:
+ 		E.WriteType(typ.elt);
+@@ -220,11 +221,7 @@ func (E *Exporter) WritePackage(pno int) {
+ 		return;
+ 	}
+ 
+-	if -Object.PACKAGE >= 0 {
+-		panic "-Object.PACKAGE >= 0";  // conflict with ref numbers
+-	}
+-	
+-	E.WritePackageTag(-Object.PACKAGE);
++	E.WritePackageTag(-1);
+ 	pkg.ref = E.pkg_ref;
+ 	E.pkg_ref++;
+ 
+@@ -259,7 +256,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	
+ 	pkg := comp.pkgs[0];
+ 	E.WritePackage(0);
+-	E.WriteScope(pkg.scope);
++	E.WriteScope(pkg.scope, false);
+ 	
+ 	if E.debug {
+ 		print "\n(", E.buf_pos, " bytes)\n";
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 5b3d6c1d90..90214d6d10 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -16,7 +16,7 @@ package Globals
+ export Object
+ type Object struct {
+ 	exported bool;
+-	pos int;  // source position
++	pos int;  // source position (< 0 if unknown position)
+ 	kind int;
+ 	ident string;
+ 	typ *Type;
+@@ -270,8 +270,7 @@ func (L *List) AddTyp(typ *Type) {
+ // Scope methods
+ 
+ func (scope *Scope) Lookup(ident string) *Object {
+-	var p *Elem;
+-	for p = scope.entries.first; p != nil; p = p.next {
++	for p := scope.entries.first; p != nil; p = p.next {
+ 		if p.obj.ident == ident {
+ 			if p.obj.scope != scope {
+ 				panic "incorrect scope for object";
+@@ -307,8 +306,7 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
+ 
+ func (scope *Scope) Print() {
+ 	print "scope {";
+-	var p* Elem;
+-	for p = scope.entries.first; p != nil; p = p.next {
++	for p := scope.entries.first; p != nil; p = p.next {
+ 		print "\n  ", p.obj.ident;
+ 	}
+ 	print "\n}\n";
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 79ffec1022..5f086fdcf6 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -24,7 +24,7 @@ type Importer struct {
+ 
+ 
+ func (I *Importer) ReadType() *Globals.Type;
+-func (I *Importer) ReadObject(tag int) *Globals.Object;
++func (I *Importer) ReadObject() *Globals.Object;
+ func (I *Importer) ReadPackage() *Globals.Package;
+ 
+ 
+@@ -105,7 +105,7 @@ func (I *Importer) ReadPackageTag() int {
+ 		if tag >= 0 {
+ 			print " [P", tag, "]";  // package ref
+ 		} else {
+-			print "\nP", I.pkg_ref, ": ", -tag;  // package tag
++			print "\nP", I.pkg_ref, ":";
+ 		}
+ 	}
+ 	return tag;
+@@ -118,14 +118,12 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ 	}
+ 
+ 	scope := Globals.NewScope(nil);
+-	for {
+-		tag := I.ReadObjectTag();
+-		if tag == Object.EOS {  // terminator
+-			break;
+-		}
++	obj := I.ReadObject();
++	for obj != nil {
+ 		// InsertImport only needed for package scopes
+ 		// but ok to use always
+-		scope.InsertImport(I.ReadObject(tag));
++		scope.InsertImport(obj);
++		obj = I.ReadObject();
+ 	}
+ 	
+ 	if I.debug {
+@@ -136,7 +134,12 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ }
+ 
+ 
+-func (I *Importer) ReadObject(tag int) *Globals.Object {
++func (I *Importer) ReadObject() *Globals.Object {
++	tag := I.ReadObjectTag();
++	if tag == Object.EOS {
++		return nil;
++	}
++	
+ 	if tag == Object.PTYPE {
+ 		// primary type object - handled entirely by ReadType()
+ 		typ := I.ReadType();
+@@ -175,7 +178,6 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
+ 
+ func (I *Importer) ReadType() *Globals.Type {
+ 	tag := I.ReadTypeTag();
+-
+ 	if tag >= 0 {
+ 		return I.types[tag];  // type already imported
+ 	}
+@@ -235,15 +237,10 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ func (I *Importer) ReadPackage() *Globals.Package {
+ 	tag := I.ReadPackageTag();
+-
+ 	if tag >= 0 {
+ 		return I.pkgs[tag];  // package already imported
+ 	}
+ 
+-	if -tag != Object.PACKAGE {
+-		panic "incorrect package tag";
+-	}
+-	
+ 	ident := I.ReadString();
+ 	file_name := I.ReadString();
+ 	key := I.ReadString();
+@@ -295,14 +292,11 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 	}
+ 
+ 	pkg := I.ReadPackage();
+-	for {
+-		tag := I.ReadObjectTag();
+-		if tag == Object.EOS {
+-			break;
+-		}
+-		obj := I.ReadObject(tag);
++	obj := I.ReadObject();
++	for obj != nil {
+ 		obj.pnolev = pkg.obj.pnolev;
+ 		pkg.scope.InsertImport(obj);
++		obj = I.ReadObject();
+ 	}
+ 
+ 	if I.debug {
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 77062a9125..02081d3a44 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -595,7 +595,7 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
+ }
+ 
+ 
+-func (P *Parser) ParseMethodDecl() {
++func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
+ 	P.Trace("MethodDecl");
+ 	
+ 	pos := P.pos;
+@@ -603,9 +603,14 @@ func (P *Parser) ParseMethodDecl() {
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
++	
+ 	// dummy receiver (give it a name so it won't conflict with unnamed result)
+-	sig.Insert(Globals.NewObject(pos, Object.VAR, ".recv"));
++	recv := Globals.NewObject(pos, Object.VAR, ".recv");
++	recv.typ = recv_typ;
++	sig.Insert(recv);
++	
+ 	P.ParseParameters();
++	
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.level++;
+@@ -630,7 +635,7 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 	typ := Globals.NewType(Type.INTERFACE);
+ 	typ.scope = P.top_scope;
+ 	for P.tok == Scanner.IDENT {
+-		P.ParseMethodDecl();
++		P.ParseMethodDecl(typ);
+ 	}
+ 	P.level++;
+ 	P.CloseScope();
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 4ed0277488..101c42a351 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -130,16 +130,16 @@ func init() {
+ 	any_t = Register(DeclType(Type.ANY, "any", 8));
+ 
+ 	// All but 'byte' should be platform-dependent, eventually.
+-	byte_t = DeclAlias("byte", uint8_t);
+-	ushort_t = DeclAlias("ushort", uint16_t);
+-	uint_t = DeclAlias("uint", uint32_t);
+-	ulong_t = DeclAlias("ulong", uint32_t);
+-	short_t = DeclAlias("short", int16_t);
+-	int_t = DeclAlias("int", int32_t);
+-	long_t = DeclAlias("long", int32_t);
+-	float_t = DeclAlias("float", float32_t);
+-	double_t = DeclAlias("double", float64_t);
+-	ptrint_t = DeclAlias("ptrint", uint64_t);
++	byte_t = Register(DeclAlias("byte", uint8_t));
++	ushort_t = Register(DeclAlias("ushort", uint16_t));
++	uint_t = Register(DeclAlias("uint", uint32_t));
++	ulong_t = Register(DeclAlias("ulong", uint32_t));
++	short_t = Register(DeclAlias("short", int16_t));
++	int_t = Register(DeclAlias("int", int32_t));
++	long_t = Register(DeclAlias("long", int32_t));
++	float_t = Register(DeclAlias("float", float32_t));
++	double_t = Register(DeclAlias("double", float64_t));
++	ptrint_t = Register(DeclAlias("ptrint", uint64_t));
+ 
+ 	// Predeclared constants
+ 	true_ = DeclObj(Object.CONST, "true", bool_t);

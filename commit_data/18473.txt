@@ -10,8 +10,83 @@ Date:   Wed Feb 12 11:27:36 2014 -0800
     R=golang-codereviews, agl
     CC=golang-codereviews
     https://golang.org/cl/62270043
-
+---
  src/pkg/crypto/sha1/sha1_test.go         | 13 +++++++++++++
  src/pkg/crypto/sha1/sha1block.go         | 10 +++-------
  src/pkg/crypto/sha1/sha1block_generic.go |  9 +++++++++
  3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index 6d2a9f24dc..4a629518b7 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -7,6 +7,7 @@
+ package sha1
+ 
+ import (
++	"crypto/rand"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -90,6 +91,18 @@ func TestBlockSize(t *testing.T) {
+ 	}
+ }
+ 
++// Tests that blockGeneric (pure Go) and block (in assembly for amd64, 386, arm) match.
++func TestBlockGeneric(t *testing.T) {
++	gen, asm := New().(*digest), New().(*digest)
++	buf := make([]byte, BlockSize*20) // arbitrary factor
++	rand.Read(buf)
++	blockGeneric(gen, buf)
++	block(asm, buf)
++	if *gen != *asm {
++		t.Error("block and blockGeneric resulted in different states")
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/pkg/crypto/sha1/sha1block.go b/src/pkg/crypto/sha1/sha1block.go
+index 1c264e5771..fde3c981c0 100644
+--- a/src/pkg/crypto/sha1/sha1block.go
++++ b/src/pkg/crypto/sha1/sha1block.go
+@@ -2,12 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!386,!arm
+-
+-// SHA1 block step.
+-// In its own file so that a faster assembly or C version
+-// can be substituted easily.
+-
+ package sha1
+ 
+ const (
+@@ -17,7 +11,9 @@ const (
+ 	_K3 = 0xCA62C1D6
+ )
+ 
+-func block(dig *digest, p []byte) {
++// blockGeneric is a portable, pure Go version of the SHA1 block step.
++// It's used by sha1block_generic.go and tests.
++func blockGeneric(dig *digest, p []byte) {
+ 	var w [16]uint32
+ 
+ 	h0, h1, h2, h3, h4 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4]
+diff --git a/src/pkg/crypto/sha1/sha1block_generic.go b/src/pkg/crypto/sha1/sha1block_generic.go
+new file mode 100644
+index 0000000000..2c78683aa4
+--- /dev/null
++++ b/src/pkg/crypto/sha1/sha1block_generic.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64,!386,!arm
++
++package sha1
++
++var block = blockGeneric

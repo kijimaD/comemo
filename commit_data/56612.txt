@@ -14,6 +14,33 @@ Date:   Thu May 18 00:13:11 2023 -0400
     Auto-Submit: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.21.html | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 66bf5470ba..7cbd31d025 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -43,16 +43,17 @@ Do not send CLs removing the interior tags from such phrases.
+   As a result of the addition of the new <code>GOOS</code> value
+   "<code>wasip1</code>", Go files named <code>*_wasip1.go</code>
+   will now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored
+-  by Go tools</a> except when that GOOS value is being used. If you
+-  have existing filenames matching that pattern, you will need to
+-  rename them.
++  by Go tools</a> except when that <code>GOOS</code> value is being
++  used.
++  If you have existing filenames matching that pattern, you will
++  need to rename them.
+ </p>
+ 
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<p><-- https://go.dev/issue/58099, CL 474236 -->
++<p><!-- https://go.dev/issue/58099, CL 474236 -->
+   The <code>-pgo</code> build flag now defaults to <code>-pgo=auto</code>,
+   and the restriction of specifying a single main package on the command
+   line is now removed. If a file named <code>default.pgo</code> is present

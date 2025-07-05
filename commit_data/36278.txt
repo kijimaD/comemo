@@ -32,8 +32,2092 @@ Date:   Thu Apr 12 15:24:08 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   32 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 1500 ++++++++++++++++--------
  test/codegen/{movesmall.go => copy.go}         |   28 +-
  3 files changed, 1089 insertions(+), 471 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 06f32490d2..b554e99a4c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -528,11 +528,6 @@
+ (Phi (Const32 [c]) (Const32 [c])) -> (Const32 [c])
+ (Phi (Const64 [c]) (Const64 [c])) -> (Const64 [c])
+ 
+-// user nil checks
+-(NeqPtr p (ConstNil)) -> (IsNonNil p)
+-(EqPtr p (ConstNil)) -> (Not (IsNonNil p))
+-(IsNonNil (ConstNil)) -> (ConstBool [0])
+-
+ // slice and interface comparisons
+ // The frontend ensures that we can only compare against nil,
+ // so we need only compare the first word (interface type or slice ptr).
+@@ -1241,11 +1236,30 @@
+ 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)
+ 
+-// Address comparison shows up in type assertions.
+-(EqPtr x x) -> (ConstBool [1])
+-(EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
++// Evaluate constant address comparisons.
++(EqPtr  x x) -> (ConstBool [1])
+ (NeqPtr x x) -> (ConstBool [0])
+-(NeqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a != b)])
++(EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
++(NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
++(EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
++(NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
++(EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
++(NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != o2)])
++(EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c == d)])
++(NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
++
++// Simplify address comparisons.
++(EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
++(NeqPtr (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (IsNonNil o1)
++(EqPtr  (Const(32|64) [0]) p) -> (Not (IsNonNil p))
++(NeqPtr (Const(32|64) [0]) p) -> (IsNonNil p)
++(EqPtr  (ConstNil) p) -> (Not (IsNonNil p))
++(NeqPtr (ConstNil) p) -> (IsNonNil p)
++
++// Evaluate constant user nil checks.
++(IsNonNil (ConstNil)) -> (ConstBool [0])
++(IsNonNil (Const(32|64) [c])) -> (ConstBool [b2i(c != 0)])
++(IsNonNil (Addr _)) -> (ConstBool [1])
+ 
+ // Inline small runtime.memmove calls with constant length.
+ (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index add2f0d97b..1d89ec6872 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -114,7 +114,7 @@ func rewriteValuegeneric(v *Value) bool {
+ 	case OpEqInter:
+ 		return rewriteValuegeneric_OpEqInter_0(v)
+ 	case OpEqPtr:
+-		return rewriteValuegeneric_OpEqPtr_0(v)
++		return rewriteValuegeneric_OpEqPtr_0(v) || rewriteValuegeneric_OpEqPtr_10(v)
+ 	case OpEqSlice:
+ 		return rewriteValuegeneric_OpEqSlice_0(v)
+ 	case OpGeq16:
+@@ -298,7 +298,7 @@ func rewriteValuegeneric(v *Value) bool {
+ 	case OpNeqInter:
+ 		return rewriteValuegeneric_OpNeqInter_0(v)
+ 	case OpNeqPtr:
+-		return rewriteValuegeneric_OpNeqPtr_0(v)
++		return rewriteValuegeneric_OpNeqPtr_0(v) || rewriteValuegeneric_OpNeqPtr_10(v)
+ 	case OpNeqSlice:
+ 		return rewriteValuegeneric_OpNeqSlice_0(v)
+ 	case OpNilCheck:
+@@ -10221,42 +10221,6 @@ func rewriteValuegeneric_OpEqInter_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+-	// match: (EqPtr p (ConstNil))
+-	// cond:
+-	// result: (Not (IsNonNil p))
+-	for {
+-		_ = v.Args[1]
+-		p := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConstNil {
+-			break
+-		}
+-		v.reset(OpNot)
+-		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
+-		v0.AddArg(p)
+-		v.AddArg(v0)
+-		return true
+-	}
+-	// match: (EqPtr (ConstNil) p)
+-	// cond:
+-	// result: (Not (IsNonNil p))
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstNil {
+-			break
+-		}
+-		p := v.Args[1]
+-		v.reset(OpNot)
+-		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
+-		v0.AddArg(p)
+-		v.AddArg(v0)
+-		return true
+-	}
+ 	// match: (EqPtr x x)
+ 	// cond:
+ 	// result: (ConstBool [1])
+@@ -10270,7 +10234,7 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
+-	// match: (EqPtr (Addr {a} x) (Addr {b} x))
++	// match: (EqPtr (Addr {a} _) (Addr {b} _))
+ 	// cond:
+ 	// result: (ConstBool [b2i(a == b)])
+ 	for {
+@@ -10280,20 +10244,16 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
+ 			break
+ 		}
+ 		a := v_0.Aux
+-		x := v_0.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpAddr {
+ 			break
+ 		}
+ 		b := v_1.Aux
+-		if x != v_1.Args[0] {
+-			break
+-		}
+ 		v.reset(OpConstBool)
+ 		v.AuxInt = b2i(a == b)
+ 		return true
+ 	}
+-	// match: (EqPtr (Addr {b} x) (Addr {a} x))
++	// match: (EqPtr (Addr {b} _) (Addr {a} _))
+ 	// cond:
+ 	// result: (ConstBool [b2i(a == b)])
+ 	for {
+@@ -10303,135 +10263,104 @@ func rewriteValuegeneric_OpEqPtr_0(v *Value) bool {
+ 			break
+ 		}
+ 		b := v_0.Aux
+-		x := v_0.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpAddr {
+ 			break
+ 		}
+ 		a := v_1.Aux
+-		if x != v_1.Args[0] {
+-			break
+-		}
+ 		v.reset(OpConstBool)
+ 		v.AuxInt = b2i(a == b)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpEqSlice_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+-	// match: (EqSlice x y)
+-	// cond:
+-	// result: (EqPtr (SlicePtr x) (SlicePtr y))
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpEqPtr)
+-		v0 := b.NewValue0(v.Pos, OpSlicePtr, typ.BytePtr)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpSlicePtr, typ.BytePtr)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
+-		return true
+-	}
+-}
+-func rewriteValuegeneric_OpGeq16_0(v *Value) bool {
+-	// match: (Geq16 (Const16 [c]) (Const16 [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(c >= d)])
++	// match: (EqPtr (OffPtr [o1] p1) p2)
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 == 0)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst16 {
++		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst16 {
++		o1 := v_0.AuxInt
++		p1 := v_0.Args[0]
++		p2 := v.Args[1]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c >= d)
++		v.AuxInt = b2i(o1 == 0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq16U_0(v *Value) bool {
+-	// match: (Geq16U (Const16 [c]) (Const16 [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(uint16(c) >= uint16(d))])
++	// match: (EqPtr p2 (OffPtr [o1] p1))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 == 0)])
+ 	for {
+ 		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConst16 {
++		p2 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst16 {
++		o1 := v_1.AuxInt
++		p1 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint16(c) >= uint16(d))
++		v.AuxInt = b2i(o1 == 0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq32_0(v *Value) bool {
+-	// match: (Geq32 (Const32 [c]) (Const32 [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(c >= d)])
++	// match: (EqPtr (OffPtr [o1] p1) (OffPtr [o2] p2))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 == o2)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst32 {
++		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
++		o1 := v_0.AuxInt
++		p1 := v_0.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst32 {
++		if v_1.Op != OpOffPtr {
++			break
++		}
++		o2 := v_1.AuxInt
++		p2 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c >= d)
++		v.AuxInt = b2i(o1 == o2)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq32F_0(v *Value) bool {
+-	// match: (Geq32F (Const32F [c]) (Const32F [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(i2f(c) >= i2f(d))])
++	// match: (EqPtr (OffPtr [o2] p2) (OffPtr [o1] p1))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 == o2)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst32F {
++		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
++		o2 := v_0.AuxInt
++		p2 := v_0.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst32F {
++		if v_1.Op != OpOffPtr {
++			break
++		}
++		o1 := v_1.AuxInt
++		p1 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(i2f(c) >= i2f(d))
++		v.AuxInt = b2i(o1 == o2)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq32U_0(v *Value) bool {
+-	// match: (Geq32U (Const32 [c]) (Const32 [d]))
++	// match: (EqPtr (Const32 [c]) (Const32 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint32(c) >= uint32(d))])
++	// result: (ConstBool [b2i(c == d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10445,169 +10374,297 @@ func rewriteValuegeneric_OpGeq32U_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint32(c) >= uint32(d))
++		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
+-	// match: (Geq64 (Const64 [c]) (Const64 [d]))
++	// match: (EqPtr (Const32 [d]) (Const32 [c]))
+ 	// cond:
+-	// result: (ConstBool [b2i(c >= d)])
++	// result: (ConstBool [b2i(c == d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst64 {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+-		c := v_0.AuxInt
++		d := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst64 {
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+-		d := v_1.AuxInt
++		c := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c >= d)
++		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {
+-	// match: (Geq64F (Const64F [c]) (Const64F [d]))
++	// match: (EqPtr (Const64 [c]) (Const64 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(i2f(c) >= i2f(d))])
++	// result: (ConstBool [b2i(c == d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst64F {
++		if v_0.Op != OpConst64 {
+ 			break
+ 		}
+ 		c := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst64F {
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(i2f(c) >= i2f(d))
++		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGeq64U_0(v *Value) bool {
+-	// match: (Geq64U (Const64 [c]) (Const64 [d]))
++func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (EqPtr (Const64 [d]) (Const64 [c]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint64(c) >= uint64(d))])
++	// result: (ConstBool [b2i(c == d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpConst64 {
+ 			break
+ 		}
+-		c := v_0.AuxInt
++		d := v_0.AuxInt
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+-		d := v_1.AuxInt
++		c := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint64(c) >= uint64(d))
++		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq8_0(v *Value) bool {
+-	// match: (Geq8 (Const8 [c]) (Const8 [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(c >= d)])
++	// match: (EqPtr (AddPtr p1 o1) p2)
++	// cond: isSamePtr(p1, p2)
++	// result: (Not (IsNonNil o1))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst8 {
++		if v_0.Op != OpAddPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		_ = v_0.Args[1]
++		p1 := v_0.Args[0]
++		o1 := v_0.Args[1]
++		p2 := v.Args[1]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c >= d)
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(o1)
++		v.AddArg(v0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGeq8U_0(v *Value) bool {
+-	// match: (Geq8U (Const8 [c]) (Const8 [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(uint8(c) >= uint8(d))])
++	// match: (EqPtr p2 (AddPtr p1 o1))
++	// cond: isSamePtr(p1, p2)
++	// result: (Not (IsNonNil o1))
+ 	for {
+ 		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConst8 {
++		p2 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddPtr {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		_ = v_1.Args[1]
++		p1 := v_1.Args[0]
++		o1 := v_1.Args[1]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint8(c) >= uint8(d))
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(o1)
++		v.AddArg(v0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGreater16_0(v *Value) bool {
+-	// match: (Greater16 (Const16 [c]) (Const16 [d]))
++	// match: (EqPtr (Const32 [0]) p)
+ 	// cond:
+-	// result: (ConstBool [b2i(c > d)])
++	// result: (Not (IsNonNil p))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst16 {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst16 {
++		if v_0.AuxInt != 0 {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c > d)
++		p := v.Args[1]
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpGreater16U_0(v *Value) bool {
+-	// match: (Greater16U (Const16 [c]) (Const16 [d]))
++	// match: (EqPtr p (Const32 [0]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint16(c) > uint16(d))])
++	// result: (Not (IsNonNil p))
+ 	for {
+ 		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConst16 {
++		p := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst16 {
++		if v_1.AuxInt != 0 {
+ 			break
+ 		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint16(c) > uint16(d))
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
+ 		return true
+ 	}
+-	return false
++	// match: (EqPtr (Const64 [0]) p)
++	// cond:
++	// result: (Not (IsNonNil p))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		p := v.Args[1]
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (EqPtr p (Const64 [0]))
++	// cond:
++	// result: (Not (IsNonNil p))
++	for {
++		_ = v.Args[1]
++		p := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (EqPtr (ConstNil) p)
++	// cond:
++	// result: (Not (IsNonNil p))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstNil {
++			break
++		}
++		p := v.Args[1]
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (EqPtr p (ConstNil))
++	// cond:
++	// result: (Not (IsNonNil p))
++	for {
++		_ = v.Args[1]
++		p := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstNil {
++			break
++		}
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpIsNonNil, typ.Bool)
++		v0.AddArg(p)
++		v.AddArg(v0)
++		return true
++	}
++	return false
+ }
+-func rewriteValuegeneric_OpGreater32_0(v *Value) bool {
+-	// match: (Greater32 (Const32 [c]) (Const32 [d]))
++func rewriteValuegeneric_OpEqSlice_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (EqSlice x y)
+ 	// cond:
+-	// result: (ConstBool [b2i(c > d)])
++	// result: (EqPtr (SlicePtr x) (SlicePtr y))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpEqPtr)
++		v0 := b.NewValue0(v.Pos, OpSlicePtr, typ.BytePtr)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpSlicePtr, typ.BytePtr)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuegeneric_OpGeq16_0(v *Value) bool {
++	// match: (Geq16 (Const16 [c]) (Const16 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c >= d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c >= d)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGeq16U_0(v *Value) bool {
++	// match: (Geq16U (Const16 [c]) (Const16 [d]))
++	// cond:
++	// result: (ConstBool [b2i(uint16(c) >= uint16(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(uint16(c) >= uint16(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGeq32_0(v *Value) bool {
++	// match: (Geq32 (Const32 [c]) (Const32 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c >= d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10621,15 +10678,15 @@ func rewriteValuegeneric_OpGreater32_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c > d)
++		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater32F_0(v *Value) bool {
+-	// match: (Greater32F (Const32F [c]) (Const32F [d]))
++func rewriteValuegeneric_OpGeq32F_0(v *Value) bool {
++	// match: (Geq32F (Const32F [c]) (Const32F [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(i2f(c) > i2f(d))])
++	// result: (ConstBool [b2i(i2f(c) >= i2f(d))])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10643,15 +10700,15 @@ func rewriteValuegeneric_OpGreater32F_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(i2f(c) > i2f(d))
++		v.AuxInt = b2i(i2f(c) >= i2f(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater32U_0(v *Value) bool {
+-	// match: (Greater32U (Const32 [c]) (Const32 [d]))
++func rewriteValuegeneric_OpGeq32U_0(v *Value) bool {
++	// match: (Geq32U (Const32 [c]) (Const32 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint32(c) > uint32(d))])
++	// result: (ConstBool [b2i(uint32(c) >= uint32(d))])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10665,15 +10722,15 @@ func rewriteValuegeneric_OpGreater32U_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint32(c) > uint32(d))
++		v.AuxInt = b2i(uint32(c) >= uint32(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater64_0(v *Value) bool {
+-	// match: (Greater64 (Const64 [c]) (Const64 [d]))
++func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
++	// match: (Geq64 (Const64 [c]) (Const64 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(c > d)])
++	// result: (ConstBool [b2i(c >= d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10687,15 +10744,15 @@ func rewriteValuegeneric_OpGreater64_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c > d)
++		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater64F_0(v *Value) bool {
+-	// match: (Greater64F (Const64F [c]) (Const64F [d]))
++func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {
++	// match: (Geq64F (Const64F [c]) (Const64F [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(i2f(c) > i2f(d))])
++	// result: (ConstBool [b2i(i2f(c) >= i2f(d))])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10709,15 +10766,15 @@ func rewriteValuegeneric_OpGreater64F_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(i2f(c) > i2f(d))
++		v.AuxInt = b2i(i2f(c) >= i2f(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater64U_0(v *Value) bool {
+-	// match: (Greater64U (Const64 [c]) (Const64 [d]))
++func rewriteValuegeneric_OpGeq64U_0(v *Value) bool {
++	// match: (Geq64U (Const64 [c]) (Const64 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint64(c) > uint64(d))])
++	// result: (ConstBool [b2i(uint64(c) >= uint64(d))])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10731,15 +10788,15 @@ func rewriteValuegeneric_OpGreater64U_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint64(c) > uint64(d))
++		v.AuxInt = b2i(uint64(c) >= uint64(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater8_0(v *Value) bool {
+-	// match: (Greater8 (Const8 [c]) (Const8 [d]))
++func rewriteValuegeneric_OpGeq8_0(v *Value) bool {
++	// match: (Geq8 (Const8 [c]) (Const8 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(c > d)])
++	// result: (ConstBool [b2i(c >= d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10753,15 +10810,15 @@ func rewriteValuegeneric_OpGreater8_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c > d)
++		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpGreater8U_0(v *Value) bool {
+-	// match: (Greater8U (Const8 [c]) (Const8 [d]))
++func rewriteValuegeneric_OpGeq8U_0(v *Value) bool {
++	// match: (Geq8U (Const8 [c]) (Const8 [d]))
+ 	// cond:
+-	// result: (ConstBool [b2i(uint8(c) > uint8(d))])
++	// result: (ConstBool [b2i(uint8(c) >= uint8(d))])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -10775,60 +10832,280 @@ func rewriteValuegeneric_OpGreater8U_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpConstBool)
+-		v.AuxInt = b2i(uint8(c) > uint8(d))
++		v.AuxInt = b2i(uint8(c) >= uint8(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpIMake_0(v *Value) bool {
+-	// match: (IMake typ (StructMake1 val))
++func rewriteValuegeneric_OpGreater16_0(v *Value) bool {
++	// match: (Greater16 (Const16 [c]) (Const16 [d]))
+ 	// cond:
+-	// result: (IMake typ val)
++	// result: (ConstBool [b2i(c > d)])
+ 	for {
+ 		_ = v.Args[1]
+-		typ := v.Args[0]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpStructMake1 {
++		if v_1.Op != OpConst16 {
+ 			break
+ 		}
+-		val := v_1.Args[0]
+-		v.reset(OpIMake)
+-		v.AddArg(typ)
+-		v.AddArg(val)
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c > d)
+ 		return true
+ 	}
+-	// match: (IMake typ (ArrayMake1 val))
++	return false
++}
++func rewriteValuegeneric_OpGreater16U_0(v *Value) bool {
++	// match: (Greater16U (Const16 [c]) (Const16 [d]))
+ 	// cond:
+-	// result: (IMake typ val)
++	// result: (ConstBool [b2i(uint16(c) > uint16(d))])
+ 	for {
+ 		_ = v.Args[1]
+-		typ := v.Args[0]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpArrayMake1 {
++		if v_1.Op != OpConst16 {
+ 			break
+ 		}
+-		val := v_1.Args[0]
+-		v.reset(OpIMake)
+-		v.AddArg(typ)
+-		v.AddArg(val)
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(uint16(c) > uint16(d))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpInterCall_0(v *Value) bool {
+-	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
+-	// cond: devirt(v, itab, off) != nil
+-	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
++func rewriteValuegeneric_OpGreater32_0(v *Value) bool {
++	// match: (Greater32 (Const32 [c]) (Const32 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c > d)])
+ 	for {
+-		argsize := v.AuxInt
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpLoad {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+-		_ = v_0.Args[1]
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpOffPtr {
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c > d)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater32F_0(v *Value) bool {
++	// match: (Greater32F (Const32F [c]) (Const32F [d]))
++	// cond:
++	// result: (ConstBool [b2i(i2f(c) > i2f(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32F {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(i2f(c) > i2f(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater32U_0(v *Value) bool {
++	// match: (Greater32U (Const32 [c]) (Const32 [d]))
++	// cond:
++	// result: (ConstBool [b2i(uint32(c) > uint32(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(uint32(c) > uint32(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater64_0(v *Value) bool {
++	// match: (Greater64 (Const64 [c]) (Const64 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c > d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c > d)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater64F_0(v *Value) bool {
++	// match: (Greater64F (Const64F [c]) (Const64F [d]))
++	// cond:
++	// result: (ConstBool [b2i(i2f(c) > i2f(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(i2f(c) > i2f(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater64U_0(v *Value) bool {
++	// match: (Greater64U (Const64 [c]) (Const64 [d]))
++	// cond:
++	// result: (ConstBool [b2i(uint64(c) > uint64(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(uint64(c) > uint64(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater8_0(v *Value) bool {
++	// match: (Greater8 (Const8 [c]) (Const8 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c > d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c > d)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpGreater8U_0(v *Value) bool {
++	// match: (Greater8U (Const8 [c]) (Const8 [d]))
++	// cond:
++	// result: (ConstBool [b2i(uint8(c) > uint8(d))])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(uint8(c) > uint8(d))
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpIMake_0(v *Value) bool {
++	// match: (IMake typ (StructMake1 val))
++	// cond:
++	// result: (IMake typ val)
++	for {
++		_ = v.Args[1]
++		typ := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpStructMake1 {
++			break
++		}
++		val := v_1.Args[0]
++		v.reset(OpIMake)
++		v.AddArg(typ)
++		v.AddArg(val)
++		return true
++	}
++	// match: (IMake typ (ArrayMake1 val))
++	// cond:
++	// result: (IMake typ val)
++	for {
++		_ = v.Args[1]
++		typ := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpArrayMake1 {
++			break
++		}
++		val := v_1.Args[0]
++		v.reset(OpIMake)
++		v.AddArg(typ)
++		v.AddArg(val)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpInterCall_0(v *Value) bool {
++	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
++	// cond: devirt(v, itab, off) != nil
++	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
++	for {
++		argsize := v.AuxInt
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpLoad {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+ 		off := v_0_0.AuxInt
+@@ -11940,6 +12217,44 @@ func rewriteValuegeneric_OpIsNonNil_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (IsNonNil (Const32 [c]))
++	// cond:
++	// result: (ConstBool [b2i(c != 0)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != 0)
++		return true
++	}
++	// match: (IsNonNil (Const64 [c]))
++	// cond:
++	// result: (ConstBool [b2i(c != 0)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != 0)
++		return true
++	}
++	// match: (IsNonNil (Addr _))
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpIsSliceInBounds_0(v *Value) bool {
+@@ -17731,93 +18046,444 @@ func rewriteValuegeneric_OpNeq8_0(v *Value) bool {
+ 		if v_1_1.Op != OpConst8 {
+ 			break
+ 		}
+-		if v_1_1.Type != t {
++		if v_1_1.Type != t {
++			break
++		}
++		d := v_1_1.AuxInt
++		v.reset(OpNeq8)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = int64(int8(c - d))
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Neq8 (Add8 (Const8 <t> [d]) x) (Const8 <t> [c]))
++	// cond:
++	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd8 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst8 {
++			break
++		}
++		t := v_0_0.Type
++		d := v_0_0.AuxInt
++		x := v_0.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.Type != t {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpNeq8)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = int64(int8(c - d))
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Neq8 (Add8 x (Const8 <t> [d])) (Const8 <t> [c]))
++	// cond:
++	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd8 {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst8 {
++			break
++		}
++		t := v_0_1.Type
++		d := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.Type != t {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpNeq8)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = int64(int8(c - d))
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Neq8 (Const8 [c]) (Const8 [d]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
++	// match: (Neq8 (Const8 [d]) (Const8 [c]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		d := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
++	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
++	// match: (NeqB (ConstBool [d]) (ConstBool [c]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		d := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
++	// match: (NeqB (ConstBool [0]) x)
++	// cond:
++	// result: x
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (NeqB x (ConstBool [0]))
++	// cond:
++	// result: x
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (NeqB (ConstBool [1]) x)
++	// cond:
++	// result: (Not x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
++	// match: (NeqB x (ConstBool [1]))
++	// cond:
++	// result: (Not x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		if v_1.AuxInt != 1 {
++			break
++		}
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
++	// match: (NeqB (Not x) (Not y))
++	// cond:
++	// result: (NeqB x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpNot {
++			break
++		}
++		x := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpNot {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpNeqB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (NeqB (Not y) (Not x))
++	// cond:
++	// result: (NeqB x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpNot {
++			break
++		}
++		y := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpNot {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpNeqB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (NeqInter x y)
++	// cond:
++	// result: (NeqPtr (ITab x) (ITab y))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpNeqPtr)
++		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
++	// match: (NeqPtr x x)
++	// cond:
++	// result: (ConstBool [0])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		if x != v.Args[1] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (NeqPtr (Addr {a} _) (Addr {b} _))
++	// cond:
++	// result: (ConstBool [b2i(a != b)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		a := v_0.Aux
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		b := v_1.Aux
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(a != b)
++		return true
++	}
++	// match: (NeqPtr (Addr {b} _) (Addr {a} _))
++	// cond:
++	// result: (ConstBool [b2i(a != b)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		b := v_0.Aux
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		a := v_1.Aux
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(a != b)
++		return true
++	}
++	// match: (NeqPtr (OffPtr [o1] p1) p2)
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 != 0)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpOffPtr {
++			break
++		}
++		o1 := v_0.AuxInt
++		p1 := v_0.Args[0]
++		p2 := v.Args[1]
++		if !(isSamePtr(p1, p2)) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(o1 != 0)
++		return true
++	}
++	// match: (NeqPtr p2 (OffPtr [o1] p1))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 != 0)])
++	for {
++		_ = v.Args[1]
++		p2 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpOffPtr {
++			break
++		}
++		o1 := v_1.AuxInt
++		p1 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		d := v_1_1.AuxInt
+-		v.reset(OpNeq8)
+-		v0 := b.NewValue0(v.Pos, OpConst8, t)
+-		v0.AuxInt = int64(int8(c - d))
+-		v.AddArg(v0)
+-		v.AddArg(x)
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(o1 != 0)
+ 		return true
+ 	}
+-	// match: (Neq8 (Add8 (Const8 <t> [d]) x) (Const8 <t> [c]))
+-	// cond:
+-	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
++	// match: (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 != o2)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpAdd8 {
+-			break
+-		}
+-		_ = v_0.Args[1]
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpConst8 {
++		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		t := v_0_0.Type
+-		d := v_0_0.AuxInt
+-		x := v_0.Args[1]
++		o1 := v_0.AuxInt
++		p1 := v_0.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		if v_1.Op != OpOffPtr {
+ 			break
+ 		}
+-		if v_1.Type != t {
++		o2 := v_1.AuxInt
++		p2 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		c := v_1.AuxInt
+-		v.reset(OpNeq8)
+-		v0 := b.NewValue0(v.Pos, OpConst8, t)
+-		v0.AuxInt = int64(int8(c - d))
+-		v.AddArg(v0)
+-		v.AddArg(x)
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(o1 != o2)
+ 		return true
+ 	}
+-	// match: (Neq8 (Add8 x (Const8 <t> [d])) (Const8 <t> [c]))
+-	// cond:
+-	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
++	// match: (NeqPtr (OffPtr [o2] p2) (OffPtr [o1] p1))
++	// cond: isSamePtr(p1, p2)
++	// result: (ConstBool [b2i(o1 != o2)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpAdd8 {
+-			break
+-		}
+-		_ = v_0.Args[1]
+-		x := v_0.Args[0]
+-		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpConst8 {
++		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		t := v_0_1.Type
+-		d := v_0_1.AuxInt
++		o2 := v_0.AuxInt
++		p2 := v_0.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		if v_1.Op != OpOffPtr {
+ 			break
+ 		}
+-		if v_1.Type != t {
++		o1 := v_1.AuxInt
++		p1 := v_1.Args[0]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		c := v_1.AuxInt
+-		v.reset(OpNeq8)
+-		v0 := b.NewValue0(v.Pos, OpConst8, t)
+-		v0.AuxInt = int64(int8(c - d))
+-		v.AddArg(v0)
+-		v.AddArg(x)
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(o1 != o2)
+ 		return true
+ 	}
+-	// match: (Neq8 (Const8 [c]) (Const8 [d]))
++	// match: (NeqPtr (Const32 [c]) (Const32 [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c != d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst8 {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+ 		c := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+ 		d := v_1.AuxInt
+@@ -17825,18 +18491,18 @@ func rewriteValuegeneric_OpNeq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
+-	// match: (Neq8 (Const8 [d]) (Const8 [c]))
++	// match: (NeqPtr (Const32 [d]) (Const32 [c]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c != d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConst8 {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConst8 {
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+@@ -17844,21 +18510,18 @@ func rewriteValuegeneric_OpNeq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+-	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
++	// match: (NeqPtr (Const64 [c]) (Const64 [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c != d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
++		if v_0.Op != OpConst64 {
+ 			break
+ 		}
+ 		c := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+ 		d := v_1.AuxInt
+@@ -17866,18 +18529,21 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
+-	// match: (NeqB (ConstBool [d]) (ConstBool [c]))
++	return false
++}
++func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
++	// match: (NeqPtr (Const64 [d]) (Const64 [c]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c != d)])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
++		if v_0.Op != OpConst64 {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+@@ -17885,149 +18551,108 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
+-	// match: (NeqB (ConstBool [0]) x)
+-	// cond:
+-	// result: x
++	// match: (NeqPtr (AddPtr p1 o1) p2)
++	// cond: isSamePtr(p1, p2)
++	// result: (IsNonNil o1)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
++		if v_0.Op != OpAddPtr {
+ 			break
+ 		}
+-		if v_0.AuxInt != 0 {
++		_ = v_0.Args[1]
++		p1 := v_0.Args[0]
++		o1 := v_0.Args[1]
++		p2 := v.Args[1]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		x := v.Args[1]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
++		v.reset(OpIsNonNil)
++		v.AddArg(o1)
+ 		return true
+ 	}
+-	// match: (NeqB x (ConstBool [0]))
+-	// cond:
+-	// result: x
++	// match: (NeqPtr p2 (AddPtr p1 o1))
++	// cond: isSamePtr(p1, p2)
++	// result: (IsNonNil o1)
+ 	for {
+ 		_ = v.Args[1]
+-		x := v.Args[0]
++		p2 := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
++		if v_1.Op != OpAddPtr {
+ 			break
+ 		}
+-		if v_1.AuxInt != 0 {
++		_ = v_1.Args[1]
++		p1 := v_1.Args[0]
++		o1 := v_1.Args[1]
++		if !(isSamePtr(p1, p2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
++		v.reset(OpIsNonNil)
++		v.AddArg(o1)
+ 		return true
+ 	}
+-	// match: (NeqB (ConstBool [1]) x)
++	// match: (NeqPtr (Const32 [0]) p)
+ 	// cond:
+-	// result: (Not x)
++	// result: (IsNonNil p)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
++		if v_0.Op != OpConst32 {
+ 			break
+ 		}
+-		if v_0.AuxInt != 1 {
++		if v_0.AuxInt != 0 {
+ 			break
+ 		}
+-		x := v.Args[1]
+-		v.reset(OpNot)
+-		v.AddArg(x)
++		p := v.Args[1]
++		v.reset(OpIsNonNil)
++		v.AddArg(p)
+ 		return true
+ 	}
+-	// match: (NeqB x (ConstBool [1]))
++	// match: (NeqPtr p (Const32 [0]))
+ 	// cond:
+-	// result: (Not x)
++	// result: (IsNonNil p)
+ 	for {
+ 		_ = v.Args[1]
+-		x := v.Args[0]
++		p := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
+-			break
+-		}
+-		if v_1.AuxInt != 1 {
+-			break
+-		}
+-		v.reset(OpNot)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (NeqB (Not x) (Not y))
+-	// cond:
+-	// result: (NeqB x y)
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpNot {
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+-		x := v_0.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpNot {
++		if v_1.AuxInt != 0 {
+ 			break
+ 		}
+-		y := v_1.Args[0]
+-		v.reset(OpNeqB)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpIsNonNil)
++		v.AddArg(p)
+ 		return true
+ 	}
+-	// match: (NeqB (Not y) (Not x))
++	// match: (NeqPtr (Const64 [0]) p)
+ 	// cond:
+-	// result: (NeqB x y)
++	// result: (IsNonNil p)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpNot {
++		if v_0.Op != OpConst64 {
+ 			break
+ 		}
+-		y := v_0.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpNot {
++		if v_0.AuxInt != 0 {
+ 			break
+ 		}
+-		x := v_1.Args[0]
+-		v.reset(OpNeqB)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+-	// match: (NeqInter x y)
+-	// cond:
+-	// result: (NeqPtr (ITab x) (ITab y))
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpNeqPtr)
+-		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		p := v.Args[1]
++		v.reset(OpIsNonNil)
++		v.AddArg(p)
+ 		return true
+ 	}
+-}
+-func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
+-	// match: (NeqPtr p (ConstNil))
++	// match: (NeqPtr p (Const64 [0]))
+ 	// cond:
+ 	// result: (IsNonNil p)
+ 	for {
+ 		_ = v.Args[1]
+ 		p := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpConstNil {
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
+ 			break
+ 		}
+ 		v.reset(OpIsNonNil)
+@@ -18048,63 +18673,18 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
+ 		v.AddArg(p)
+ 		return true
+ 	}
+-	// match: (NeqPtr x x)
+-	// cond:
+-	// result: (ConstBool [0])
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		if x != v.Args[1] {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (NeqPtr (Addr {a} x) (Addr {b} x))
+-	// cond:
+-	// result: (ConstBool [b2i(a != b)])
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpAddr {
+-			break
+-		}
+-		a := v_0.Aux
+-		x := v_0.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAddr {
+-			break
+-		}
+-		b := v_1.Aux
+-		if x != v_1.Args[0] {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(a != b)
+-		return true
+-	}
+-	// match: (NeqPtr (Addr {b} x) (Addr {a} x))
++	// match: (NeqPtr p (ConstNil))
+ 	// cond:
+-	// result: (ConstBool [b2i(a != b)])
++	// result: (IsNonNil p)
+ 	for {
+ 		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpAddr {
+-			break
+-		}
+-		b := v_0.Aux
+-		x := v_0.Args[0]
++		p := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpAddr {
+-			break
+-		}
+-		a := v_1.Aux
+-		if x != v_1.Args[0] {
++		if v_1.Op != OpConstNil {
+ 			break
+ 		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(a != b)
++		v.reset(OpIsNonNil)
++		v.AddArg(p)
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/codegen/movesmall.go b/test/codegen/copy.go
+similarity index 56%
+rename from test/codegen/movesmall.go
+rename to test/codegen/copy.go
+index e22c85948d..70a4f86ae8 100644
+--- a/test/codegen/movesmall.go
++++ b/test/codegen/copy.go
+@@ -6,8 +6,7 @@
+ 
+ package codegen
+ 
+-// These tests check that memmoves calls on small data are replaced
+-// with MOVs
++// Check small copies are replaced with moves.
+ 
+ func movesmall4() {
+ 	x := [...]byte{1, 2, 3, 4}
+@@ -31,3 +30,28 @@ func movesmall16() {
+ 	// amd64:-".*memmove"
+ 	copy(x[1:], x[:])
+ }
++
++// Check that no branches are generated when the pointers are [not] equal.
++
++var x [256]byte
++
++func ptrEqual() {
++	// amd64:-"JEQ",-"JNE"
++	// ppc64le:-"BEQ",-"BNE"
++	// s390x:-"BEQ",-"BNE"
++	copy(x[:], x[:])
++}
++
++func ptrOneOffset() {
++	// amd64:-"JEQ",-"JNE"
++	// ppc64le:-"BEQ",-"BNE"
++	// s390x:-"BEQ",-"BNE"
++	copy(x[1:], x[:])
++}
++
++func ptrBothOffset() {
++	// amd64:-"JEQ",-"JNE"
++	// ppc64le:-"BEQ",-"BNE"
++	// s390x:-"BEQ",-"BNE"
++	copy(x[1:], x[2:])
++}

@@ -9,7 +9,7 @@ Date:   Tue Jun 16 16:47:45 2015 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                          |  5 +-
  src/go/internal/gccgoimporter/gccgoinstallation.go |  5 +-
  .../gccgoimporter/gccgoinstallation_test.go        |  7 ++-
@@ -18,3 +18,322 @@ Date:   Tue Jun 16 16:47:45 2015 -0700
  src/go/internal/gccgoimporter/parser.go            | 21 ++++----
  src/go/internal/gccgoimporter/parser_test.go       |  3 +-
  7 files changed, 64 insertions(+), 48 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 187e9d1bb5..de29b56f6d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -126,7 +126,7 @@ var pkgDeps = map[string][]string{
+ 	// Operating system access.
+ 	"syscall":       {"L0", "unicode/utf16"},
+ 	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
+-	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
++	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows", "C"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+ 	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+@@ -343,8 +343,9 @@ var pkgDeps = map[string][]string{
+ 	"debug/plan9obj":                    {"encoding/binary", "errors", "fmt", "io", "os"},
+ 	"go/constant":                       {"fmt", "go/token", "math/big", "strconv"},
+ 	"go/format":                         {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
+-	"go/importer":                       {"go/internal/gcimporter", "go/types", "io", "runtime"},
++	"go/importer":                       {"go/internal/gcimporter", "go/internal/gccgoimporter", "go/types", "io", "runtime"},
+ 	"go/internal/gcimporter":            {"bufio", "errors", "fmt", "go/build", "go/constant", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
++	"go/internal/gccgoimporter":         {"bufio", "bytes", "debug/elf", "errors", "fmt", "go/constant", "go/token", "go/types", "io", "os", "os/exec", "path/filepath", "strconv", "strings", "text/scanner"},
+ 	"go/types":                          {"bytes", "container/heap", "fmt", "go/ast", "go/constant", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
+ 	"image/internal/imageutil":          {"image"},
+ 	"internal/format":                   {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation.go b/src/go/internal/gccgoimporter/gccgoinstallation.go
+index 1c56cf5a5b..622dfc8b69 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation.go
+@@ -6,12 +6,11 @@ package gccgoimporter
+ 
+ import (
+ 	"bufio"
++	"go/types"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+-
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ // Information about a specific installation of gccgo.
+@@ -90,6 +89,6 @@ func (inst *GccgoInstallation) SearchPaths() (paths []string) {
+ 
+ // Return an importer that searches incpaths followed by the gcc installation's
+ // built-in search paths and the current directory.
+-func (inst *GccgoInstallation) GetImporter(incpaths []string, initmap map[*types.Package]InitData) types.Importer {
++func (inst *GccgoInstallation) GetImporter(incpaths []string, initmap map[*types.Package]InitData) Importer {
+ 	return GetImporter(append(append(incpaths, inst.SearchPaths()...), "."), initmap)
+ }
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+index 9ab928dce3..d9adcecab7 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation_test.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -2,13 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Exclude plan9 for now due to test failure with TestGoxImporter.
++// TODO(gri) eliminate this build tag
++// +build !plan9
++
+ package gccgoimporter
+ 
+ import (
++	"go/types"
+ 	"runtime"
+ 	"testing"
+-
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ var importablePackages = [...]string{
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index 59576cad29..feb9849eef 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -3,21 +3,18 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package gccgoimporter implements Import for gccgo-generated object files.
+-package gccgoimporter // import "golang.org/x/tools/go/gccgoimporter"
++package gccgoimporter // import "go/internal/gccgoimporter"
+ 
+ import (
+ 	"bytes"
+ 	"debug/elf"
+ 	"fmt"
++	"go/types"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+-
+-	"golang.org/x/tools/go/importer"
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ // A PackageInit describes an imported package that needs initialization.
+@@ -132,7 +129,16 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 	return
+ }
+ 
+-func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) types.Importer {
++// An Importer resolves import paths to Packages. The imports map records
++// packages already known, indexed by package path.
++// An importer must determine the canonical package path and check imports
++// to see if it is already present in the map. If so, the Importer can return
++// the map entry. Otherwise, the importer must load the package data for the
++// given path into a new *Package, record it in imports map, and return the
++// package.
++type Importer func(imports map[string]*types.Package, path string) (*types.Package, error)
++
++func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Importer {
+ 	return func(imports map[string]*types.Package, pkgpath string) (pkg *types.Package, err error) {
+ 		if pkgpath == "unsafe" {
+ 			return types.Unsafe, nil
+@@ -170,25 +176,26 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) type
+ 				initmap[pkg] = p.initdata
+ 			}
+ 
+-		case goimporterMagic:
+-			var data []byte
+-			data, err = ioutil.ReadAll(reader)
+-			if err != nil {
+-				return
+-			}
+-			var n int
+-			n, pkg, err = importer.ImportData(imports, data)
+-			if err != nil {
+-				return
+-			}
+-
+-			if initmap != nil {
+-				suffixreader := bytes.NewReader(data[n:])
+-				var p parser
+-				p.init(fpath, suffixreader, nil)
+-				p.parseInitData()
+-				initmap[pkg] = p.initdata
+-			}
++		// Excluded for now: Standard gccgo doesn't support this import format currently.
++		// case goimporterMagic:
++		// 	var data []byte
++		// 	data, err = ioutil.ReadAll(reader)
++		// 	if err != nil {
++		// 		return
++		// 	}
++		// 	var n int
++		// 	n, pkg, err = importer.ImportData(imports, data)
++		// 	if err != nil {
++		// 		return
++		// 	}
++
++		// 	if initmap != nil {
++		// 		suffixreader := bytes.NewReader(data[n:])
++		// 		var p parser
++		// 		p.init(fpath, suffixreader, nil)
++		// 		p.parseInitData()
++		// 		initmap[pkg] = p.initdata
++		// 	}
+ 
+ 		default:
+ 			err = fmt.Errorf("unrecognized magic string: %q", string(magic[:]))
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index c7adb459b8..ce0dfb99ef 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -2,17 +2,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Exclude plan9 for now due to test failure with TestGoxImporter.
++// TODO(gri) eliminate this build tag
++// +build !plan9
++
+ package gccgoimporter
+ 
+ import (
++	"go/types"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"testing"
+-
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ type importerTest struct {
+@@ -20,7 +24,7 @@ type importerTest struct {
+ 	wantinits                    []string
+ }
+ 
+-func runImporterTest(t *testing.T, imp types.Importer, initmap map[*types.Package]InitData, test *importerTest) {
++func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]InitData, test *importerTest) {
+ 	pkg, err := imp(make(map[string]*types.Package), test.pkgpath)
+ 	if err != nil {
+ 		t.Error(err)
+@@ -100,6 +104,8 @@ var importerTests = [...]importerTest{
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
+ 	initmap := make(map[*types.Package]InitData)
+ 	imp := GetImporter([]string{"testdata"}, initmap)
+ 
+@@ -109,6 +115,8 @@ func TestGoxImporter(t *testing.T) {
+ }
+ 
+ func TestObjImporter(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
+ 	// This test relies on gccgo being around, which it most likely will be if we
+ 	// were compiled with gccgo.
+ 	if runtime.Compiler != "gccgo" {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 5bd1858fb3..e985de5a67 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -8,14 +8,13 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"go/constant"
+ 	"go/token"
++	"go/types"
+ 	"io"
+ 	"strconv"
+ 	"strings"
+ 	"text/scanner"
+-
+-	"golang.org/x/tools/go/exact"
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ type parser struct {
+@@ -248,11 +247,11 @@ func (p *parser) parseVar(pkg *types.Package) *types.Var {
+ 
+ // ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) .
+ // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
+-func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
++func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
+ 	switch p.tok {
+ 	case scanner.String:
+ 		str := p.parseString()
+-		val = exact.MakeString(str)
++		val = constant.MakeString(str)
+ 		typ = types.Typ[types.UntypedString]
+ 		return
+ 
+@@ -268,7 +267,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
+ 		}
+ 
+ 		p.next()
+-		val = exact.MakeBool(b)
++		val = constant.MakeBool(b)
+ 		typ = types.Typ[types.UntypedBool]
+ 		return
+ 	}
+@@ -281,7 +280,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
+ 
+ 	switch p.tok {
+ 	case scanner.Int:
+-		val = exact.MakeFromLiteral(sign+p.lit, token.INT)
++		val = constant.MakeFromLiteral(sign+p.lit, token.INT, 0)
+ 		if val == nil {
+ 			p.error("could not parse integer literal")
+ 		}
+@@ -314,7 +313,7 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
+ 			re = "0"
+ 
+ 		default:
+-			val = exact.MakeFromLiteral(re, token.FLOAT)
++			val = constant.MakeFromLiteral(re, token.FLOAT, 0)
+ 			if val == nil {
+ 				p.error("could not parse float literal")
+ 			}
+@@ -323,15 +322,15 @@ func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
+ 		}
+ 
+ 		p.expectKeyword("i")
+-		reval := exact.MakeFromLiteral(re, token.FLOAT)
++		reval := constant.MakeFromLiteral(re, token.FLOAT, 0)
+ 		if reval == nil {
+ 			p.error("could not parse real component of complex literal")
+ 		}
+-		imval := exact.MakeFromLiteral(im+"i", token.IMAG)
++		imval := constant.MakeFromLiteral(im+"i", token.IMAG, 0)
+ 		if imval == nil {
+ 			p.error("could not parse imag component of complex literal")
+ 		}
+-		val = exact.BinaryOp(reval, token.ADD, imval)
++		val = constant.BinaryOp(reval, token.ADD, imval)
+ 		typ = types.Typ[types.UntypedComplex]
+ 
+ 	default:
+diff --git a/src/go/internal/gccgoimporter/parser_test.go b/src/go/internal/gccgoimporter/parser_test.go
+index 1f0f12a2f8..b96486f20a 100644
+--- a/src/go/internal/gccgoimporter/parser_test.go
++++ b/src/go/internal/gccgoimporter/parser_test.go
+@@ -6,11 +6,10 @@ package gccgoimporter
+ 
+ import (
+ 	"bytes"
++	"go/types"
+ 	"strings"
+ 	"testing"
+ 	"text/scanner"
+-
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ var typeParserTests = []struct {

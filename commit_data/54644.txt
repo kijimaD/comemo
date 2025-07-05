@@ -25,6 +25,29 @@ Date:   Thu Nov 3 10:02:04 2022 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/bytealg/index_ppc64x.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/index_ppc64x.s b/src/internal/bytealg/index_ppc64x.s
+index 735159cd8e..26205cebaf 100644
+--- a/src/internal/bytealg/index_ppc64x.s
++++ b/src/internal/bytealg/index_ppc64x.s
+@@ -660,7 +660,7 @@ index2to16:
+ 	BGT index2to16tail
+ 
+ 	MOVD     $3, R17            // Number of bytes beyond 16
+-
++	PCALIGN  $32
+ index2to16loop:
+ 	LXVB16X  (R7)(R0), V1       // Load next 16 bytes of string into V1 from R7
+ 	LXVB16X  (R7)(R17), V5      // Load next 16 bytes of string into V5 from R7+3
+@@ -738,7 +738,7 @@ short:
+ 	MTVSRD   R10, V8           // Set up shift
+ 	VSLDOI   $8, V8, V8, V8
+ 	VSLO     V1, V8, V1        // Shift by start byte
+-
++	PCALIGN  $32
+ index2to16next:
+ 	VAND       V1, SEPMASK, V2 // Just compare size of sep
+ 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string

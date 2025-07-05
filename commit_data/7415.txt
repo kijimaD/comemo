@@ -8,6 +8,20 @@ Date:   Wed Feb 9 12:46:49 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4168041
-
+---
  src/run.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 36508c6b51..f8f662b95f 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -102,6 +102,8 @@ time ./run
+ 
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../doc/codelab/wiki
++gomake clean
++gomake
+ gomake test
+ ) || exit $?
+ 

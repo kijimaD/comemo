@@ -23,9 +23,134 @@ Date:   Wed May 11 12:11:32 2011 -0700
     R=rsc, bradfitzgoog
     CC=golang-dev
     https://golang.org/cl/4529050
-
+---
  src/pkg/http/serve_test.go               | 44 ++++++++++++++++++++++++++++++++
  src/pkg/http/transport.go                | 11 ++++++++
  src/pkg/io/multi_test.go                 |  5 ++--
  src/pkg/mime/multipart/multipart_test.go | 23 +++++++++++++++++
  4 files changed, 81 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index f2fb98e3e2..c9305682d2 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -710,3 +710,47 @@ func TestRedirectMunging(t *testing.T) {
+ 		t.Errorf("Location header was %q; want %q", g, e)
+ 	}
+ }
++
++// TestZeroLengthPostAndResponse exercises an optimization done by the Transport:
++// when there is no body (either because the method doesn't permit a body, or an
++// explicit Content-Length of zero is present), then the transport can re-use the
++// connection immediately. But when it re-uses the connection, it typically closes
++// the previous request's body, which is not optimal for zero-lengthed bodies,
++// as the client would then see http.ErrBodyReadAfterClose and not 0, os.EOF.
++func TestZeroLengthPostAndResponse(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
++		all, err := ioutil.ReadAll(r.Body)
++		if err != nil {
++			t.Fatalf("handler ReadAll: %v", err)
++		}
++		if len(all) != 0 {
++			t.Errorf("handler got %d bytes; expected 0", len(all))
++		}
++		rw.Header().Set("Content-Length", "0")
++	}))
++	defer ts.Close()
++
++	req, err := NewRequest("POST", ts.URL, strings.NewReader(""))
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.ContentLength = 0
++
++	var resp [5]*Response
++	for i := range resp {
++		resp[i], err = DefaultClient.Do(req)
++		if err != nil {
++			t.Fatalf("client post #%d: %v", i, err)
++		}
++	}
++
++	for i := range resp {
++		all, err := ioutil.ReadAll(resp[i].Body)
++		if err != nil {
++			t.Fatalf("req #%d: client ReadAll: %v", i, err)
++		}
++		if len(all) != 0 {
++			t.Errorf("req #%d: client got %d bytes; expected 0", i, len(all))
++		}
++	}
++}
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 73a2c2191e..a7b1b20e63 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -469,6 +469,17 @@ func (pc *persistConn) readLoop() {
+ 					waitForBodyRead <- true
+ 				}
+ 			} else {
++				// When there's no response body, we immediately
++				// reuse the TCP connection (putIdleConn), but
++				// we need to prevent ClientConn.Read from
++				// closing the Response.Body on the next
++				// loop, otherwise it might close the body
++				// before the client code has had a chance to
++				// read it (even though it'll just be 0, EOF).
++				pc.cc.lk.Lock()
++				pc.cc.lastbody = nil
++				pc.cc.lk.Unlock()
++
+ 				pc.t.putIdleConn(pc)
+ 			}
+ 		}
+diff --git a/src/pkg/io/multi_test.go b/src/pkg/io/multi_test.go
+index 3ecb7c75d9..1b3589ddeb 100644
+--- a/src/pkg/io/multi_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -20,8 +20,9 @@ func TestMultiReader(t *testing.T) {
+ 	nread := 0
+ 	withFooBar := func(tests func()) {
+ 		r1 := strings.NewReader("foo ")
+-		r2 := strings.NewReader("bar")
+-		mr = MultiReader(r1, r2)
++		r2 := strings.NewReader("")
++		r3 := strings.NewReader("bar")
++		mr = MultiReader(r1, r2, r3)
+ 		buf = make([]byte, 20)
+ 		tests()
+ 	}
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index 8222fbd8a4..a7efc20f25 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -307,6 +307,29 @@ Oh no, premature EOF!
+ 	}
+ }
+ 
++func TestZeroLengthBody(t *testing.T) {
++	testBody := strings.Replace(`
++This is a multi-part message.  This line is ignored.
++--MyBoundary
++foo: bar
++
++
++--MyBoundary--
++`,"\n", "\r\n", -1)
++	r := NewReader(strings.NewReader(testBody), "MyBoundary")
++	part, err := r.NextPart()
++	if err != nil {
++		t.Fatalf("didn't get a part")
++	}
++	n, err := io.Copy(ioutil.Discard, part)
++	if err != nil {
++		t.Errorf("error reading part: %v", err)
++	}
++	if n != 0 {
++		t.Errorf("read %d bytes; expected 0", n)
++	}
++}
++
+ type slowReader struct {
+ 	r io.Reader
+ }

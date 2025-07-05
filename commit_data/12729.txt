@@ -7,6 +7,20 @@ Date:   Fri Mar 23 12:44:33 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5877062
-
+---
  misc/dist/windows/installer.wxs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dist/windows/installer.wxs b/misc/dist/windows/installer.wxs
+index 805237bcf5..20f261f9d0 100644
+--- a/misc/dist/windows/installer.wxs
++++ b/misc/dist/windows/installer.wxs
+@@ -78,7 +78,7 @@
+         Name="GoDocServer"
+         Description="Starts the Go documentation server (http://localhost:6060)"
+         Show="minimized"
+-        Arguments='/c start "Godoc Server http://localhost:6060" /d"[INSTALLDIR]bin" godoc.exe -http=:6060 -goroot="[INSTALLDIR]" -path="%GOPATH%" &amp;&amp; start http://localhost:6060'
++        Arguments='/c start "Godoc Server http://localhost:6060" "[INSTALLDIR]bin\godoc.exe" -http=localhost:6060 -goroot="[INSTALLDIR]." &amp;&amp; start http://localhost:6060'
+         Icon="gopher.ico"
+         Target="[%ComSpec]" />
+     <Shortcut

@@ -12,6 +12,20 @@ Date:   Thu Mar 10 15:12:19 2016 -0800
     Change-Id: I5fd725c3fc8b08fd978ab694a3e2d6d2a495918b
     Reviewed-on: https://go-review.googlesource.com/20548
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 341a460200..d8470bb1d0 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -126,7 +126,7 @@ type certificate struct {
+ 
+ type tbsCertificate struct {
+ 	Raw                asn1.RawContent
+-	Version            int `asn1:"optional,explicit,default:1,tag:0"`
++	Version            int `asn1:"optional,explicit,default:0,tag:0"`
+ 	SerialNumber       *big.Int
+ 	SignatureAlgorithm pkix.AlgorithmIdentifier
+ 	Issuer             asn1.RawValue

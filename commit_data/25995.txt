@@ -8,6 +8,41 @@ Date:   Tue Dec 8 20:17:02 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/17596
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 4d5bcd0208..b1a0948201 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2181,20 +2181,24 @@ func TestServerGracefulClose(t *testing.T) {
+ 	<-writeErr
+ }
+ 
+-func TestCaseSensitiveMethod(t *testing.T) {
++func TestCaseSensitiveMethod_h1(t *testing.T) { testCaseSensitiveMethod(t, false) }
++func TestCaseSensitiveMethod_h2(t *testing.T) { testCaseSensitiveMethod(t, true) }
++
++func testCaseSensitiveMethod(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.Method != "get" {
+ 			t.Errorf(`Got method %q; want "get"`, r.Method)
+ 		}
+ 	}))
+-	defer ts.Close()
+-	req, _ := NewRequest("get", ts.URL, nil)
+-	res, err := DefaultClient.Do(req)
++	defer cst.close()
++	req, _ := NewRequest("get", cst.ts.URL, nil)
++	res, err := cst.c.Do(req)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+ 	}
++
+ 	res.Body.Close()
+ }
+ 

@@ -14,7 +14,7 @@ Date:   Mon Aug 10 12:15:52 2015 -0700
     Change-Id: I1d6fd5a343063b5200623bceef2c2cfcc885794e
     Reviewed-on: https://go-review.googlesource.com/13472
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go       |  40 +++
  src/cmd/compile/internal/ssa/compile.go  |   3 +
  src/cmd/compile/internal/ssa/config.go   |  16 +-
@@ -23,3 +23,841 @@ Date:   Mon Aug 10 12:15:52 2015 -0700
  src/cmd/compile/internal/ssa/print.go    |  90 ++++--
  src/cmd/internal/obj/obj.go              |  25 +-
  7 files changed, 607 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c8ec01f5b6..882efc0dae 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5,7 +5,9 @@
+ package gc
+ 
+ import (
++	"bytes"
+ 	"fmt"
++	"html"
+ 	"os"
+ 	"strings"
+ 
+@@ -40,6 +42,18 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.f = s.config.NewFunc()
+ 	s.f.Name = name
+ 
++	if name == os.Getenv("GOSSAFUNC") {
++		// TODO: tempfile? it is handy to have the location
++		// of this file be stable, so you can just reload in the browser.
++		s.config.HTML = ssa.NewHTMLWriter("ssa.html", &s, name)
++		// TODO: generate and print a mapping from nodes to values and blocks
++	}
++	defer func() {
++		if !usessa {
++			s.config.HTML.Close()
++		}
++	}()
++
+ 	// If SSA support for the function is incomplete,
+ 	// assume that any panics are due to violated
+ 	// invariants. Swallow them silently.
+@@ -1811,6 +1825,30 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			}
+ 			f.Logf("%s\t%s\n", s, p)
+ 		}
++		if f.Config.HTML != nil {
++			saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
++			ptxt.Ctxt.LineHist.PrintFilenameOnly = true
++			var buf bytes.Buffer
++			buf.WriteString("<code>")
++			buf.WriteString("<dl class=\"ssa-gen\">")
++			for p := ptxt; p != nil; p = p.Link {
++				buf.WriteString("<dt class=\"ssa-prog-src\">")
++				if v, ok := valueProgs[p]; ok {
++					buf.WriteString(v.HTML())
++				} else if b, ok := blockProgs[p]; ok {
++					buf.WriteString(b.HTML())
++				}
++				buf.WriteString("</dt>")
++				buf.WriteString("<dd class=\"ssa-prog\">")
++				buf.WriteString(html.EscapeString(p.String()))
++				buf.WriteString("</dd>")
++				buf.WriteString("</li>")
++			}
++			buf.WriteString("</dl>")
++			buf.WriteString("</code>")
++			f.Config.HTML.WriteColumn("genssa", buf.String())
++			ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
++		}
+ 	}
+ 
+ 	// Emit static data
+@@ -1834,6 +1872,8 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	ggloblsym(gcargs, 4, obj.RODATA|obj.DUPOK)
+ 	duint32(gclocals, 0, 0)
+ 	ggloblsym(gclocals, 4, obj.RODATA|obj.DUPOK)
++
++	f.Config.HTML.Close()
+ }
+ 
+ func genValue(v *ssa.Value) {
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 7ab8ddf3dc..e85fb10e00 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -34,13 +34,16 @@ func Compile(f *Func) {
+ 
+ 	// Run all the passes
+ 	printFunc(f)
++	f.Config.HTML.WriteFunc("start", f)
+ 	checkFunc(f)
+ 	for _, p := range passes {
+ 		phaseName = p.name
+ 		f.Logf("  pass %s begin\n", p.name)
++		// TODO: capture logging during this pass, add it to the HTML
+ 		p.fn(f)
+ 		f.Logf("  pass %s end\n", p.name)
+ 		printFunc(f)
++		f.Config.HTML.WriteFunc("after "+phaseName, f)
+ 		checkFunc(f)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 8aea59d13c..ad6441117c 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -11,6 +11,7 @@ type Config struct {
+ 	lowerBlock func(*Block) bool          // lowering function
+ 	lowerValue func(*Value, *Config) bool // lowering function
+ 	fe         Frontend                   // callbacks into compiler frontend
++	HTML       *HTMLWriter                // html writer, for debugging
+ 
+ 	// TODO: more stuff.  Compiler flags of interest, ...
+ }
+@@ -31,12 +32,7 @@ type TypeSource interface {
+ 	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
+ }
+ 
+-type Frontend interface {
+-	TypeSource
+-
+-	// StringData returns a symbol pointing to the given string's contents.
+-	StringData(string) interface{} // returns *gc.Sym
+-
++type Logger interface {
+ 	// Log logs a message from the compiler.
+ 	Logf(string, ...interface{})
+ 
+@@ -48,6 +44,14 @@ type Frontend interface {
+ 	Unimplementedf(msg string, args ...interface{})
+ }
+ 
++type Frontend interface {
++	TypeSource
++	Logger
++
++	// StringData returns a symbol pointing to the given string's contents.
++	StringData(string) interface{} // returns *gc.Sym
++}
++
+ // NewConfig returns a new configuration object for the given architecture.
+ func NewConfig(arch string, fe Frontend) *Config {
+ 	c := &Config{arch: arch, fe: fe}
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 426e6865c0..109b3dd09f 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -4,10 +4,10 @@
+ 
+ package ssa
+ 
+-// deadcode removes dead code from f.
+-func deadcode(f *Func) {
++// findlive returns the reachable blocks and live values in f.
++func findlive(f *Func) (reachable []bool, live []bool) {
+ 	// Find all reachable basic blocks.
+-	reachable := make([]bool, f.NumBlocks())
++	reachable = make([]bool, f.NumBlocks())
+ 	reachable[f.Entry.ID] = true
+ 	p := []*Block{f.Entry} // stack-like worklist
+ 	for len(p) > 0 {
+@@ -24,8 +24,8 @@ func deadcode(f *Func) {
+ 	}
+ 
+ 	// Find all live values
+-	live := make([]bool, f.NumValues()) // flag to set for each live value
+-	var q []*Value                      // stack-like worklist of unscanned values
++	live = make([]bool, f.NumValues()) // flag to set for each live value
++	var q []*Value                     // stack-like worklist of unscanned values
+ 
+ 	// Starting set: all control values of reachable blocks are live.
+ 	for _, b := range f.Blocks {
+@@ -54,6 +54,13 @@ func deadcode(f *Func) {
+ 		}
+ 	}
+ 
++	return reachable, live
++}
++
++// deadcode removes dead code from f.
++func deadcode(f *Func) {
++	reachable, live := findlive(f)
++
+ 	// Remove dead values from blocks' value list.  Return dead
+ 	// value ids to the allocator.
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+new file mode 100644
+index 0000000000..581331a215
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -0,0 +1,461 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"bytes"
++	"fmt"
++	"html"
++	"io"
++	"os"
++)
++
++type HTMLWriter struct {
++	Logger
++	*os.File
++}
++
++func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
++	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
++	if err != nil {
++		logger.Fatalf("%v", err)
++	}
++	html := HTMLWriter{File: out, Logger: logger}
++	html.start(funcname)
++	return &html
++}
++
++func (w *HTMLWriter) start(name string) {
++	if w == nil {
++		return
++	}
++	w.WriteString("<html>")
++	w.WriteString(`<head>
++<style>
++
++#helplink {
++    margin-bottom: 15px;
++    display: block;
++    margin-top: -15px;
++}
++
++#help {
++    display: none;
++}
++
++table {
++    border: 1px solid black;
++    table-layout: fixed;
++    width: 300px;
++}
++
++th, td {
++    border: 1px solid black;
++    overflow: hidden;
++    width: 400px;
++    vertical-align: top;
++    padding: 5px;
++}
++
++li {
++    list-style-type: none;
++}
++
++li.ssa-long-value {
++    text-indent: -2em;  /* indent wrapped lines */
++}
++
++li.ssa-value-list {
++    display: inline;
++}
++
++li.ssa-start-block {
++    padding: 0;
++    margin: 0;
++}
++
++li.ssa-end-block {
++    padding: 0;
++    margin: 0;
++}
++
++ul.ssa-print-func {
++    padding-left: 0;
++}
++
++dl.ssa-gen {
++    padding-left: 0;
++}
++
++dt.ssa-prog-src {
++    padding: 0;
++    margin: 0;
++    float: left;
++    width: 4em;
++}
++
++dd.ssa-prog {
++    padding: 0;
++    margin-right: 0;
++    margin-left: 4em;
++}
++
++.dead-value {
++    color: gray;
++}
++
++.dead-block {
++    opacity: 0.5;
++}
++
++.depcycle {
++    font-style: italic;
++}
++
++.highlight-yellow         { background-color: yellow; }
++.highlight-aquamarine     { background-color: aquamarine; }
++.highlight-coral          { background-color: coral; }
++.highlight-lightpink      { background-color: lightpink; }
++.highlight-lightsteelblue { background-color: lightsteelblue; }
++.highlight-palegreen      { background-color: palegreen; }
++.highlight-powderblue     { background-color: powderblue; }
++.highlight-lightgray      { background-color: lightgray; }
++
++.outline-blue           { outline: blue solid 2px; }
++.outline-red            { outline: red solid 2px; }
++.outline-blueviolet     { outline: blueviolet solid 2px; }
++.outline-darkolivegreen { outline: darkolivegreen solid 2px; }
++.outline-fuchsia        { outline: fuchsia solid 2px; }
++.outline-sienna         { outline: sienna solid 2px; }
++.outline-gold           { outline: gold solid 2px; }
++
++</style>
++
++<script type="text/javascript">
++// ordered list of all available highlight colors
++var highlights = [
++    "highlight-yellow",
++    "highlight-aquamarine",
++    "highlight-coral",
++    "highlight-lightpink",
++    "highlight-lightsteelblue",
++    "highlight-palegreen",
++    "highlight-lightgray"
++];
++
++// state: which value is highlighted this color?
++var highlighted = {};
++for (var i = 0; i < highlights.length; i++) {
++    highlighted[highlights[i]] = "";
++}
++
++// ordered list of all available outline colors
++var outlines = [
++    "outline-blue",
++    "outline-red",
++    "outline-blueviolet",
++    "outline-darkolivegreen",
++    "outline-fuchsia",
++    "outline-sienna",
++    "outline-gold"
++];
++
++// state: which value is outlined this color?
++var outlined = {};
++for (var i = 0; i < outlines.length; i++) {
++    outlined[outlines[i]] = "";
++}
++
++window.onload = function() {
++    var ssaElemClicked = function(elem, event, selections, selected) {
++        event.stopPropagation()
++
++        // TODO: pushState with updated state and read it on page load,
++        // so that state can survive across reloads
++
++        // find all values with the same name
++        var c = elem.classList.item(0);
++        var x = document.getElementsByClassName(c);
++
++        // if selected, remove selections from all of them
++        // otherwise, attempt to add
++
++        var remove = "";
++        for (var i = 0; i < selections.length; i++) {
++            var color = selections[i];
++            if (selected[color] == c) {
++                remove = color;
++                break;
++            }
++        }
++
++        if (remove != "") {
++            for (var i = 0; i < x.length; i++) {
++                x[i].classList.remove(remove);
++            }
++            selected[remove] = "";
++            return;
++        }
++
++        // we're adding a selection
++        // find first available color
++        var avail = "";
++        for (var i = 0; i < selections.length; i++) {
++            var color = selections[i];
++            if (selected[color] == "") {
++                avail = color;
++                break;
++            }
++        }
++        if (avail == "") {
++            alert("out of selection colors; go add more");
++            return;
++        }
++
++        // set that as the selection
++        for (var i = 0; i < x.length; i++) {
++            x[i].classList.add(avail);
++        }
++        selected[avail] = c;
++    };
++
++    var ssaValueClicked = function(event) {
++        ssaElemClicked(this, event, highlights, highlighted);
++    }
++
++    var ssaBlockClicked = function(event) {
++        ssaElemClicked(this, event, outlines, outlined);
++    }
++
++    var ssavalues = document.getElementsByClassName("ssa-value");
++    for (var i = 0; i < ssavalues.length; i++) {
++        ssavalues[i].addEventListener('click', ssaValueClicked);
++    }
++
++    var ssalongvalues = document.getElementsByClassName("ssa-long-value");
++    for (var i = 0; i < ssalongvalues.length; i++) {
++        // don't attach listeners to li nodes, just the spans they contain
++        if (ssalongvalues[i].nodeName == "SPAN") {
++            ssalongvalues[i].addEventListener('click', ssaValueClicked);
++        }
++    }
++
++    var ssablocks = document.getElementsByClassName("ssa-block");
++    for (var i = 0; i < ssablocks.length; i++) {
++        ssablocks[i].addEventListener('click', ssaBlockClicked);
++    }
++};
++
++function toggle_visibility(id) {
++   var e = document.getElementById(id);
++   if(e.style.display == 'block')
++      e.style.display = 'none';
++   else
++      e.style.display = 'block';
++}
++</script>
++
++</head>`)
++	// TODO: Add javascript click handlers for blocks
++	// to outline that block across all phases
++	w.WriteString("<body>")
++	w.WriteString("<h1>")
++	w.WriteString(html.EscapeString(name))
++	w.WriteString("</h1>")
++	w.WriteString(`
++<a href="#" onclick="toggle_visibility('help');" id="helplink">help</a>
++<div id="help">
++
++<p>
++Click on a value or block to toggle highlighting of that value/block and its uses.
++Values and blocks are highlighted by ID, which may vary across passes.
++(TODO: Fix this.)
++</p>
++
++<p>
++Faded out values and blocks are dead code that has not been eliminated.
++</p>
++
++<p>
++Values printed in italics have a dependency cycle.
++</p>
++
++</div>
++`)
++	w.WriteString("<table>")
++	w.WriteString("<tr>")
++}
++
++func (w *HTMLWriter) Close() {
++	if w == nil {
++		return
++	}
++	w.WriteString("</tr>")
++	w.WriteString("</table>")
++	w.WriteString("</body>")
++	w.WriteString("</html>")
++	w.File.Close()
++}
++
++// WriteFunc writes f in a column headed by title.
++func (w *HTMLWriter) WriteFunc(title string, f *Func) {
++	if w == nil {
++		return // avoid generating HTML just to discard it
++	}
++	w.WriteColumn(title, f.HTML())
++	// TODO: Add visual representation of f's CFG.
++}
++
++// WriteColumn writes raw HTML in a column headed by title.
++// It is intended for pre- and post-compilation log output.
++func (w *HTMLWriter) WriteColumn(title string, html string) {
++	if w == nil {
++		return
++	}
++	w.WriteString("<td>")
++	w.WriteString("<h2>" + title + "</h2>")
++	w.WriteString(html)
++	w.WriteString("</td>")
++}
++
++func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
++	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
++		w.Fatalf("%v", err)
++	}
++}
++
++func (w *HTMLWriter) WriteString(s string) {
++	if _, err := w.File.WriteString(s); err != nil {
++		w.Fatalf("%v", err)
++	}
++}
++
++func (v *Value) HTML() string {
++	// TODO: Using the value ID as the class ignores the fact
++	// that value IDs get recycled and that some values
++	// are transmuted into other values.
++	return fmt.Sprintf("<span class=\"%[1]s ssa-value\">%[1]s</span>", v.String())
++}
++
++func (v *Value) LongHTML() string {
++	// TODO: Any intra-value formatting?
++	// I'm wary of adding too much visual noise,
++	// but a little bit might be valuable.
++	// We already have visual noise in the form of punctuation
++	// maybe we could replace some of that with formatting.
++	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
++	s += fmt.Sprintf("%s = %s", v.HTML(), v.Op.String())
++	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
++	if v.AuxInt != 0 {
++		s += fmt.Sprintf(" [%d]", v.AuxInt)
++	}
++	if v.Aux != nil {
++		if _, ok := v.Aux.(string); ok {
++			s += html.EscapeString(fmt.Sprintf(" {%q}", v.Aux))
++		} else {
++			s += html.EscapeString(fmt.Sprintf(" {%v}", v.Aux))
++		}
++	}
++	for _, a := range v.Args {
++		s += fmt.Sprintf(" %s", a.HTML())
++	}
++	r := v.Block.Func.RegAlloc
++	if r != nil && r[v.ID] != nil {
++		s += " : " + r[v.ID].Name()
++	}
++
++	s += "</span>"
++	return s
++}
++
++func (b *Block) HTML() string {
++	// TODO: Using the value ID as the class ignores the fact
++	// that value IDs get recycled and that some values
++	// are transmuted into other values.
++	return fmt.Sprintf("<span class=\"%[1]s ssa-block\">%[1]s</span>", html.EscapeString(b.String()))
++}
++
++func (b *Block) LongHTML() string {
++	// TODO: improve this for HTML?
++	s := b.Kind.String()
++	if b.Control != nil {
++		s += fmt.Sprintf(" %s", b.Control.HTML())
++	}
++	if len(b.Succs) > 0 {
++		s += " &#8594;" // right arrow
++		for _, c := range b.Succs {
++			s += " " + c.HTML()
++		}
++	}
++	return s
++}
++
++func (f *Func) HTML() string {
++	var buf bytes.Buffer
++	fmt.Fprint(&buf, "<code>")
++	p := htmlFuncPrinter{w: &buf}
++	fprintFunc(p, f)
++
++	// fprintFunc(&buf, f) // TODO: HTML, not text, <br /> for line breaks, etc.
++	fmt.Fprint(&buf, "</code>")
++	return buf.String()
++}
++
++type htmlFuncPrinter struct {
++	w io.Writer
++}
++
++func (p htmlFuncPrinter) header(f *Func) {}
++
++func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
++	// TODO: Make blocks collapsable?
++	var dead string
++	if !reachable {
++		dead = "dead-block"
++	}
++	fmt.Fprintf(p.w, "<ul class=\"%s ssa-print-func %s\">", b, dead)
++	fmt.Fprintf(p.w, "<li class=\"ssa-start-block\">%s:", b.HTML())
++	if len(b.Preds) > 0 {
++		io.WriteString(p.w, " &#8592;") // left arrow
++		for _, pred := range b.Preds {
++			fmt.Fprintf(p.w, " %s", pred.HTML())
++		}
++	}
++	io.WriteString(p.w, "</li>")
++	if len(b.Values) > 0 { // start list of values
++		io.WriteString(p.w, "<li class=\"ssa-value-list\">")
++		io.WriteString(p.w, "<ul>")
++	}
++}
++
++func (p htmlFuncPrinter) endBlock(b *Block) {
++	if len(b.Values) > 0 { // end list of values
++		io.WriteString(p.w, "</ul>")
++		io.WriteString(p.w, "</li>")
++	}
++	io.WriteString(p.w, "<li class=\"ssa-end-block\">")
++	fmt.Fprint(p.w, b.LongHTML())
++	io.WriteString(p.w, "</li>")
++	io.WriteString(p.w, "</ul>")
++	// io.WriteString(p.w, "</span>")
++}
++
++func (p htmlFuncPrinter) value(v *Value, live bool) {
++	var dead string
++	if !live {
++		dead = "dead-value"
++	}
++	fmt.Fprintf(p.w, "<li class=\"ssa-long-value %s\">", dead)
++	fmt.Fprint(p.w, v.LongHTML())
++	io.WriteString(p.w, "</li>")
++}
++
++func (p htmlFuncPrinter) startDepCycle() {
++	fmt.Fprintln(p.w, "<span class=\"depcycle\">")
++}
++
++func (p htmlFuncPrinter) endDepCycle() {
++	fmt.Fprintln(p.w, "</span>")
++}
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 2f9db4438f..192dc83b39 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -16,33 +16,77 @@ func printFunc(f *Func) {
+ 
+ func (f *Func) String() string {
+ 	var buf bytes.Buffer
+-	fprintFunc(&buf, f)
++	p := stringFuncPrinter{w: &buf}
++	fprintFunc(p, f)
+ 	return buf.String()
+ }
+ 
+-func fprintFunc(w io.Writer, f *Func) {
+-	fmt.Fprint(w, f.Name)
+-	fmt.Fprint(w, " ")
+-	fmt.Fprintln(w, f.Type)
++type funcPrinter interface {
++	header(f *Func)
++	startBlock(b *Block, reachable bool)
++	endBlock(b *Block)
++	value(v *Value, live bool)
++	startDepCycle()
++	endDepCycle()
++}
++
++type stringFuncPrinter struct {
++	w io.Writer
++}
++
++func (p stringFuncPrinter) header(f *Func) {
++	fmt.Fprint(p.w, f.Name)
++	fmt.Fprint(p.w, " ")
++	fmt.Fprintln(p.w, f.Type)
++}
++
++func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
++	fmt.Fprintf(p.w, "  b%d:", b.ID)
++	if len(b.Preds) > 0 {
++		io.WriteString(p.w, " <-")
++		for _, pred := range b.Preds {
++			fmt.Fprintf(p.w, " b%d", pred.ID)
++		}
++	}
++	if !reachable {
++		fmt.Fprint(p.w, " DEAD")
++	}
++	io.WriteString(p.w, "\n")
++}
++
++func (p stringFuncPrinter) endBlock(b *Block) {
++	fmt.Fprintln(p.w, "    "+b.LongString())
++}
++
++func (p stringFuncPrinter) value(v *Value, live bool) {
++	fmt.Fprint(p.w, "    ")
++	fmt.Fprint(p.w, v.LongString())
++	if !live {
++		fmt.Fprint(p.w, " DEAD")
++	}
++	fmt.Fprintln(p.w)
++}
++
++func (p stringFuncPrinter) startDepCycle() {
++	fmt.Fprintln(p.w, "dependency cycle!")
++}
++
++func (p stringFuncPrinter) endDepCycle() {}
++
++func fprintFunc(p funcPrinter, f *Func) {
++	reachable, live := findlive(f)
++	p.header(f)
+ 	printed := make([]bool, f.NumValues())
+ 	for _, b := range f.Blocks {
+-		fmt.Fprintf(w, "  b%d:", b.ID)
+-		if len(b.Preds) > 0 {
+-			io.WriteString(w, " <-")
+-			for _, pred := range b.Preds {
+-				fmt.Fprintf(w, " b%d", pred.ID)
+-			}
+-		}
+-		io.WriteString(w, "\n")
++		p.startBlock(b, reachable[b.ID])
+ 
+ 		if f.scheduled {
+ 			// Order of Values has been decided - print in that order.
+ 			for _, v := range b.Values {
+-				fmt.Fprint(w, "    ")
+-				fmt.Fprintln(w, v.LongString())
++				p.value(v, live[v.ID])
+ 				printed[v.ID] = true
+ 			}
+-			fmt.Fprintln(w, "    "+b.LongString())
++			p.endBlock(b)
+ 			continue
+ 		}
+ 
+@@ -52,8 +96,7 @@ func fprintFunc(w io.Writer, f *Func) {
+ 			if v.Op != OpPhi {
+ 				continue
+ 			}
+-			fmt.Fprint(w, "    ")
+-			fmt.Fprintln(w, v.LongString())
++			p.value(v, live[v.ID])
+ 			printed[v.ID] = true
+ 			n++
+ 		}
+@@ -73,25 +116,24 @@ func fprintFunc(w io.Writer, f *Func) {
+ 						continue outer
+ 					}
+ 				}
+-				fmt.Fprint(w, "    ")
+-				fmt.Fprintln(w, v.LongString())
++				p.value(v, live[v.ID])
+ 				printed[v.ID] = true
+ 				n++
+ 			}
+ 			if m == n {
+-				fmt.Fprintln(w, "dependency cycle!")
++				p.startDepCycle()
+ 				for _, v := range b.Values {
+ 					if printed[v.ID] {
+ 						continue
+ 					}
+-					fmt.Fprint(w, "    ")
+-					fmt.Fprintln(w, v.LongString())
++					p.value(v, live[v.ID])
+ 					printed[v.ID] = true
+ 					n++
+ 				}
++				p.endDepCycle()
+ 			}
+ 		}
+ 
+-		fmt.Fprintln(w, "    "+b.LongString())
++		p.endBlock(b)
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index af3290d3a5..6229bbb288 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -25,12 +25,13 @@ import (
+ //	  together, so that given (only) calls Push(10, "x.go", 1) and Pop(15),
+ //	  virtual line 12 corresponds to x.go line 3.
+ type LineHist struct {
+-	Top            *LineStack  // current top of stack
+-	Ranges         []LineRange // ranges for lookup
+-	Dir            string      // directory to qualify relative paths
+-	TrimPathPrefix string      // remove leading TrimPath from recorded file names
+-	GOROOT         string      // current GOROOT
+-	GOROOT_FINAL   string      // target GOROOT
++	Top               *LineStack  // current top of stack
++	Ranges            []LineRange // ranges for lookup
++	Dir               string      // directory to qualify relative paths
++	TrimPathPrefix    string      // remove leading TrimPath from recorded file names
++	PrintFilenameOnly bool        // ignore path when pretty-printing a line; internal use only
++	GOROOT            string      // current GOROOT
++	GOROOT_FINAL      string      // target GOROOT
+ }
+ 
+ // A LineStack is an entry in the recorded line history.
+@@ -221,20 +222,24 @@ func (h *LineHist) LineString(lineno int) string {
+ 		return "<unknown line number>"
+ 	}
+ 
+-	text := fmt.Sprintf("%s:%d", stk.File, stk.fileLineAt(lineno))
++	filename := stk.File
++	if h.PrintFilenameOnly {
++		filename = filepath.Base(filename)
++	}
++	text := fmt.Sprintf("%s:%d", filename, stk.fileLineAt(lineno))
+ 	if stk.Directive && stk.Parent != nil {
+ 		stk = stk.Parent
+-		text += fmt.Sprintf("[%s:%d]", stk.File, stk.fileLineAt(lineno))
++		text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
+ 	}
+ 	const showFullStack = false // was used by old C compilers
+ 	if showFullStack {
+ 		for stk.Parent != nil {
+ 			lineno = stk.Lineno - 1
+ 			stk = stk.Parent
+-			text += fmt.Sprintf(" %s:%d", stk.File, stk.fileLineAt(lineno))
++			text += fmt.Sprintf(" %s:%d", filename, stk.fileLineAt(lineno))
+ 			if stk.Directive && stk.Parent != nil {
+ 				stk = stk.Parent
+-				text += fmt.Sprintf("[%s:%d]", stk.File, stk.fileLineAt(lineno))
++				text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
+ 			}
+ 		}
+ 	}

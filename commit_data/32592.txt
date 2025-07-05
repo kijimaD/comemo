@@ -20,9 +20,95 @@ Date:   Thu May 4 13:58:27 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  7 +++++++
  src/cmd/go/go_test.go               | 11 +++++++++++
  src/cmd/go/internal/work/build.go   |  5 +++++
  src/cmd/go/internal/work/testgo.go  | 17 +++++++++++++++++
  4 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 495baebcc4..ce84024174 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -222,6 +222,8 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+ 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+ 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
++	var goversion string
++	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
+ 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+@@ -242,6 +244,11 @@ func Main(archInit func(*Arch)) {
+ 		usage()
+ 	}
+ 
++	if goversion != "" && goversion != runtime.Version() {
++		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
++		Exit(2)
++	}
++
+ 	thearch.LinkArch.Init(Ctxt)
+ 
+ 	if outfile == "" {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 49614a9bef..930df005df 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4013,3 +4013,14 @@ func TestExecutableGOROOT(t *testing.T) {
+ 		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
+ 	}
+ }
++
++func TestNeedVersion(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("goversion.go", `package main; func main() {}`)
++	path := tg.path("goversion.go")
++	tg.setenv("TESTGO_VERSION", "go1.testgo")
++	tg.runFail("run", path)
++	tg.grepStderr("compile", "does not match go tool version")
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2f903adf3e..4e181933a7 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -392,8 +392,13 @@ func BuildModeInit() {
+ 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
+ 		}
+ 	}
++	if strings.HasPrefix(runtimeVersion, "go1") {
++		buildGcflags = append(buildGcflags, "-goversion", runtimeVersion)
++	}
+ }
+ 
++var runtimeVersion = runtime.Version()
++
+ func runBuild(cmd *base.Command, args []string) {
+ 	InstrumentInit()
+ 	BuildModeInit()
+diff --git a/src/cmd/go/internal/work/testgo.go b/src/cmd/go/internal/work/testgo.go
+new file mode 100644
+index 0000000000..3e623c6621
+--- /dev/null
++++ b/src/cmd/go/internal/work/testgo.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains extra hooks for testing the go command.
++
++// +build testgo
++
++package work
++
++import "os"
++
++func init() {
++	if v := os.Getenv("TESTGO_VERSION"); v != "" {
++		runtimeVersion = v
++	}
++}

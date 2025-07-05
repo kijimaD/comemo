@@ -9,7 +9,7 @@ Date:   Mon Jan 30 11:58:49 2012 -0800
     R=golang-dev, dsymonds, r, rsc
     CC=golang-dev
     https://golang.org/cl/5576056
-
+---
  src/pkg/archive/zip/struct.go       |  4 ++--
  src/pkg/encoding/xml/read.go        |  6 +++---
  src/pkg/mime/multipart/multipart.go | 42 ++++++++++++++++++-------------------
@@ -18,3 +18,343 @@ Date:   Mon Jan 30 11:58:49 2012 -0800
  src/pkg/net/http/server.go          |  6 +++---
  src/pkg/net/url/url.go              | 32 ++++++++++++++--------------
  7 files changed, 65 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 67e9658629..3da84357e1 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -57,8 +57,8 @@ type FileHeader struct {
+ }
+ 
+ // FileInfo returns an os.FileInfo for the FileHeader.
+-func (fh *FileHeader) FileInfo() os.FileInfo {
+-	return headerFileInfo{fh}
++func (h *FileHeader) FileInfo() os.FileInfo {
++	return headerFileInfo{h}
+ }
+ 
+ // headerFileInfo implements os.FileInfo.
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 3193cda792..6a8f5afee7 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -546,15 +546,15 @@ Loop:
+ // Read tokens until we find the end element.
+ // Token is taking care of making sure the
+ // end element matches the start element we saw.
+-func (p *Decoder) Skip() error {
++func (d *Decoder) Skip() error {
+ 	for {
+-		tok, err := p.Token()
++		tok, err := d.Token()
+ 		if err != nil {
+ 			return err
+ 		}
+ 		switch tok.(type) {
+ 		case StartElement:
+-			if err := p.Skip(); err != nil {
++			if err := d.Skip(); err != nil {
+ 				return err
+ 			}
+ 		case EndElement:
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 64a11e6d9d..d733130abb 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -112,13 +112,13 @@ func (bp *Part) populateHeaders() error {
+ 
+ // Read reads the body of a part, after its headers and before the
+ // next part (if any) begins.
+-func (bp *Part) Read(p []byte) (n int, err error) {
+-	if bp.buffer.Len() >= len(p) {
++func (p *Part) Read(d []byte) (n int, err error) {
++	if p.buffer.Len() >= len(d) {
+ 		// Internal buffer of unconsumed data is large enough for
+ 		// the read request.  No need to parse more at the moment.
+-		return bp.buffer.Read(p)
++		return p.buffer.Read(d)
+ 	}
+-	peek, err := bp.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
++	peek, err := p.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
+ 	unexpectedEof := err == io.EOF
+ 	if err != nil && !unexpectedEof {
+ 		return 0, fmt.Errorf("multipart: Part Read: %v", err)
+@@ -133,10 +133,10 @@ func (bp *Part) Read(p []byte) (n int, err error) {
+ 	// string.
+ 	nCopy := 0
+ 	foundBoundary := false
+-	if idx := bytes.Index(peek, bp.mr.nlDashBoundary); idx != -1 {
++	if idx := bytes.Index(peek, p.mr.nlDashBoundary); idx != -1 {
+ 		nCopy = idx
+ 		foundBoundary = true
+-	} else if safeCount := len(peek) - len(bp.mr.nlDashBoundary); safeCount > 0 {
++	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
+ 		nCopy = safeCount
+ 	} else if unexpectedEof {
+ 		// If we've run out of peek buffer and the boundary
+@@ -145,11 +145,11 @@ func (bp *Part) Read(p []byte) (n int, err error) {
+ 		return 0, io.ErrUnexpectedEOF
+ 	}
+ 	if nCopy > 0 {
+-		if _, err := io.CopyN(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
++		if _, err := io.CopyN(p.buffer, p.mr.bufReader, int64(nCopy)); err != nil {
+ 			return 0, err
+ 		}
+ 	}
+-	n, err = bp.buffer.Read(p)
++	n, err = p.buffer.Read(d)
+ 	if err == io.EOF && !foundBoundary {
+ 		// If the boundary hasn't been reached there's more to
+ 		// read, so don't pass through an EOF from the buffer
+@@ -158,8 +158,8 @@ func (bp *Part) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-func (bp *Part) Close() error {
+-	io.Copy(ioutil.Discard, bp)
++func (p *Part) Close() error {
++	io.Copy(ioutil.Discard, p)
+ 	return nil
+ }
+ 
+@@ -177,29 +177,29 @@ type Reader struct {
+ 
+ // NextPart returns the next part in the multipart or an error.
+ // When there are no more parts, the error io.EOF is returned.
+-func (mr *Reader) NextPart() (*Part, error) {
+-	if mr.currentPart != nil {
+-		mr.currentPart.Close()
++func (r *Reader) NextPart() (*Part, error) {
++	if r.currentPart != nil {
++		r.currentPart.Close()
+ 	}
+ 
+ 	expectNewPart := false
+ 	for {
+-		line, err := mr.bufReader.ReadSlice('\n')
++		line, err := r.bufReader.ReadSlice('\n')
+ 		if err != nil {
+ 			return nil, fmt.Errorf("multipart: NextPart: %v", err)
+ 		}
+ 
+-		if mr.isBoundaryDelimiterLine(line) {
+-			mr.partsRead++
+-			bp, err := newPart(mr)
++		if r.isBoundaryDelimiterLine(line) {
++			r.partsRead++
++			bp, err := newPart(r)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			mr.currentPart = bp
++			r.currentPart = bp
+ 			return bp, nil
+ 		}
+ 
+-		if hasPrefixThenNewline(line, mr.dashBoundaryDash) {
++		if hasPrefixThenNewline(line, r.dashBoundaryDash) {
+ 			// Expected EOF
+ 			return nil, io.EOF
+ 		}
+@@ -208,7 +208,7 @@ func (mr *Reader) NextPart() (*Part, error) {
+ 			return nil, fmt.Errorf("multipart: expecting a new Part; got line %q", string(line))
+ 		}
+ 
+-		if mr.partsRead == 0 {
++		if r.partsRead == 0 {
+ 			// skip line
+ 			continue
+ 		}
+@@ -217,7 +217,7 @@ func (mr *Reader) NextPart() (*Part, error) {
+ 		// body of the previous part and the boundary line we
+ 		// now expect will follow. (either a new part or the
+ 		// end boundary)
+-		if bytes.Equal(line, mr.nl) {
++		if bytes.Equal(line, r.nl) {
+ 			expectNewPart = true
+ 			continue
+ 		}
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 5f8c00086b..0bbec53be7 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -272,7 +272,7 @@ func valueOrDefault(value, def string) string {
+ const defaultUserAgent = "Go http package"
+ 
+ // Write writes an HTTP/1.1 request -- header and body -- in wire format.
+-// This method consults the following fields of req:
++// This method consults the following fields of the request:
+ //	Host
+ //	URL
+ //	Method (defaults to "GET")
+@@ -284,18 +284,18 @@ const defaultUserAgent = "Go http package"
+ // If Body is present, Content-Length is <= 0 and TransferEncoding
+ // hasn't been set to "identity", Write adds "Transfer-Encoding:
+ // chunked" to the header. Body is closed after it is sent.
+-func (req *Request) Write(w io.Writer) error {
+-	return req.write(w, false, nil)
++func (r *Request) Write(w io.Writer) error {
++	return r.write(w, false, nil)
+ }
+ 
+ // WriteProxy is like Write but writes the request in the form
+ // expected by an HTTP proxy.  In particular, WriteProxy writes the
+ // initial Request-URI line of the request with an absolute URI, per
+-// section 5.1.2 of RFC 2616, including the scheme and host. In
+-// either case, WriteProxy also writes a Host header, using either
+-// req.Host or req.URL.Host.
+-func (req *Request) WriteProxy(w io.Writer) error {
+-	return req.write(w, true, nil)
++// section 5.1.2 of RFC 2616, including the scheme and host.
++// In either case, WriteProxy also writes a Host header, using
++// either r.Host or r.URL.Host.
++func (r *Request) WriteProxy(w io.Writer) error {
++	return r.write(w, true, nil)
+ }
+ 
+ // extraHeaders may be nil
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index ae314b5ac9..b790220978 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -174,7 +174,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ }
+ 
+ // Writes the response (header, body and trailer) in wire format. This method
+-// consults the following fields of resp:
++// consults the following fields of the response:
+ //
+ //  StatusCode
+ //  ProtoMajor
+@@ -186,28 +186,28 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ //  ContentLength
+ //  Header, values for non-canonical keys will have unpredictable behavior
+ //
+-func (resp *Response) Write(w io.Writer) error {
++func (r *Response) Write(w io.Writer) error {
+ 
+ 	// RequestMethod should be upper-case
+-	if resp.Request != nil {
+-		resp.Request.Method = strings.ToUpper(resp.Request.Method)
++	if r.Request != nil {
++		r.Request.Method = strings.ToUpper(r.Request.Method)
+ 	}
+ 
+ 	// Status line
+-	text := resp.Status
++	text := r.Status
+ 	if text == "" {
+ 		var ok bool
+-		text, ok = statusText[resp.StatusCode]
++		text, ok = statusText[r.StatusCode]
+ 		if !ok {
+-			text = "status code " + strconv.Itoa(resp.StatusCode)
++			text = "status code " + strconv.Itoa(r.StatusCode)
+ 		}
+ 	}
+-	io.WriteString(w, "HTTP/"+strconv.Itoa(resp.ProtoMajor)+".")
+-	io.WriteString(w, strconv.Itoa(resp.ProtoMinor)+" ")
+-	io.WriteString(w, strconv.Itoa(resp.StatusCode)+" "+text+"\r\n")
++	io.WriteString(w, "HTTP/"+strconv.Itoa(r.ProtoMajor)+".")
++	io.WriteString(w, strconv.Itoa(r.ProtoMinor)+" ")
++	io.WriteString(w, strconv.Itoa(r.StatusCode)+" "+text+"\r\n")
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+-	tw, err := newTransferWriter(resp)
++	tw, err := newTransferWriter(r)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -217,7 +217,7 @@ func (resp *Response) Write(w io.Writer) error {
+ 	}
+ 
+ 	// Rest of header
+-	err = resp.Header.WriteSubset(w, respExcludeHeader)
++	err = r.Header.WriteSubset(w, respExcludeHeader)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index bad3bcb289..dea75b1dfd 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1078,8 +1078,8 @@ func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Han
+ // of the server's certificate followed by the CA's certificate.
+ //
+ // If srv.Addr is blank, ":https" is used.
+-func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
+-	addr := s.Addr
++func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
++	addr := srv.Addr
+ 	if addr == "" {
+ 		addr = ":https"
+ 	}
+@@ -1101,7 +1101,7 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	}
+ 
+ 	tlsListener := tls.NewListener(conn, config)
+-	return s.Serve(tlsListener)
++	return srv.Serve(tlsListener)
+ }
+ 
+ // TimeoutHandler returns a Handler that runs h with the given time limit.
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 0068e98aff..a9ce3b31e2 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -431,30 +431,30 @@ func ParseWithReference(rawurlref string) (url *URL, err error) {
+ 	return url, nil
+ }
+ 
+-// String reassembles url into a valid URL string.
+-func (url *URL) String() string {
++// String reassembles the URL into a valid URL string.
++func (u *URL) String() string {
+ 	// TODO: Rewrite to use bytes.Buffer
+ 	result := ""
+-	if url.Scheme != "" {
+-		result += url.Scheme + ":"
++	if u.Scheme != "" {
++		result += u.Scheme + ":"
+ 	}
+-	if url.Opaque != "" {
+-		result += url.Opaque
++	if u.Opaque != "" {
++		result += u.Opaque
+ 	} else {
+-		if url.Host != "" || url.User != nil {
++		if u.Host != "" || u.User != nil {
+ 			result += "//"
+-			if u := url.User; u != nil {
++			if u := u.User; u != nil {
+ 				result += u.String() + "@"
+ 			}
+-			result += url.Host
++			result += u.Host
+ 		}
+-		result += escape(url.Path, encodePath)
++		result += escape(u.Path, encodePath)
+ 	}
+-	if url.RawQuery != "" {
+-		result += "?" + url.RawQuery
++	if u.RawQuery != "" {
++		result += "?" + u.RawQuery
+ 	}
+-	if url.Fragment != "" {
+-		result += "#" + escape(url.Fragment, encodeFragment)
++	if u.Fragment != "" {
++		result += "#" + escape(u.Fragment, encodeFragment)
+ 	}
+ 	return result
+ }
+@@ -585,8 +585,8 @@ func resolvePath(basepath string, refpath string) string {
+ }
+ 
+ // IsAbs returns true if the URL is absolute.
+-func (url *URL) IsAbs() bool {
+-	return url.Scheme != ""
++func (u *URL) IsAbs() bool {
++	return u.Scheme != ""
+ }
+ 
+ // Parse parses a URL in the context of a base URL.  The URL in ref

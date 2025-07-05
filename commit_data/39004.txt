@@ -16,7 +16,121 @@ Date:   Fri Dec 14 16:59:04 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/go/internal/cache/default.go         | 53 ++++++++++++++++------------
  src/cmd/go/testdata/script/build_nocache.txt | 24 ++++++++++---
  2 files changed, 50 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 52a1fc8c7a..f545c14700 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -37,8 +37,11 @@ See golang.org to learn more about Go.
+ // the first time Default is called.
+ func initDefaultCache() {
+ 	dir := DefaultDir()
+-	if dir == "off" {
+-		die()
++	if dir == "off" || dir == "" {
++		if defaultDirErr != nil {
++			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
++		}
++		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
+ 	}
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
+@@ -55,29 +58,35 @@ func initDefaultCache() {
+ 	defaultCache = c
+ }
+ 
++var (
++	defaultDirOnce sync.Once
++	defaultDir     string
++	defaultDirErr  error
++)
++
+ // DefaultDir returns the effective GOCACHE setting.
+ // It returns "off" if the cache is disabled.
+ func DefaultDir() string {
+-	dir := os.Getenv("GOCACHE")
+-	if dir != "" {
+-		return dir
+-	}
++	// Save the result of the first call to DefaultDir for later use in
++	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
++	// subprocesses will inherit it, but that means initDefaultCache can't
++	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
+ 
+-	// Compute default location.
+-	dir, err := os.UserCacheDir()
+-	if err != nil {
+-		return "off"
+-	}
+-	return filepath.Join(dir, "go-build")
+-}
++	defaultDirOnce.Do(func() {
++		defaultDir = os.Getenv("GOCACHE")
++		if defaultDir != "" {
++			return
++		}
+ 
+-// die calls base.Fatalf with a message explaining why DefaultDir was "off".
+-func die() {
+-	if os.Getenv("GOCACHE") == "off" {
+-		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
+-	}
+-	if _, err := os.UserCacheDir(); err != nil {
+-		base.Fatalf("build cache is required, but could not be located: %v", err)
+-	}
+-	panic(fmt.Sprintf("cache.die called unexpectedly with cache.DefaultDir() = %s", DefaultDir()))
++		// Compute default location.
++		dir, err := os.UserCacheDir()
++		if err != nil {
++			defaultDir = "off"
++			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
++			return
++		}
++		defaultDir = filepath.Join(dir, "go-build")
++	})
++
++	return defaultDir
+ }
+diff --git a/src/cmd/go/testdata/script/build_nocache.txt b/src/cmd/go/testdata/script/build_nocache.txt
+index 61ea5c5dbd..5aa46e0b77 100644
+--- a/src/cmd/go/testdata/script/build_nocache.txt
++++ b/src/cmd/go/testdata/script/build_nocache.txt
+@@ -1,5 +1,22 @@
+-# Set GOCACHE to a directory that doesn't allow writes.
+-[windows] skip # Does not support unwritable directories.
++# As of Go 1.12, the module cache is required.
++
++# If none of the variables we use to locate GOCACHE are set, the cache is off
++# and we cannot build.
++env GOCACHE=
++env XDG_CACHE_HOME=
++env HOME=
++[plan9] env home=
++[windows] env LocalAppData=
++! go build -o triv triv.go
++stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
++
++# An explicit GOCACHE=off also disables builds.
++env GOCACHE=off
++! go build -o triv triv.go
++stderr 'build cache is disabled by GOCACHE=off'
++
++# If GOCACHE is set to an unwritable directory, we should diagnose it as such.
++[windows] stop # Does not support unwritable directories.
+ [root] skip # Can write to unwritable directories.
+ 
+ mkdir $WORK/unwritable/home
+@@ -8,9 +25,6 @@ chmod 0555 $WORK/unwritable/home
+ [plan9] env home=$WORK/unwritable/home
+ 
+ env GOCACHE=$WORK/unwritable/home
+-
+-# As of Go 1.12, the module cache is required:
+-# failure to write to it should cause builds to fail.
+ ! go build -o triv triv.go
+ stderr 'failed to initialize build cache.* permission denied'
+ 

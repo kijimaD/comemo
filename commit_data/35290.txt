@@ -11,6 +11,20 @@ Date:   Fri Feb 2 04:25:44 2018 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/sock_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/sock_bsd.go b/src/net/sock_bsd.go
+index dfb0920550..516e557cfd 100644
+--- a/src/net/sock_bsd.go
++++ b/src/net/sock_bsd.go
+@@ -20,7 +20,7 @@ func maxListenerBacklog() int {
+ 	case "darwin":
+ 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
+ 	case "freebsd":
+-		n, err = syscall.SysctlUint32("kern.ipc.acceptqueue")
++		n, err = syscall.SysctlUint32("kern.ipc.soacceptqueue")
+ 	case "netbsd":
+ 		// NOTE: NetBSD has no somaxconn-like kernel state so far
+ 	case "openbsd":

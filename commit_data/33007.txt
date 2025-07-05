@@ -15,7 +15,91 @@ Date:   Thu Jun 22 16:52:26 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go              | 25 +++++++++++++++++++++++++
  src/cmd/go/internal/load/search.go | 20 +++++++++++++++++---
  2 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 436a9560ab..50760b966c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2070,6 +2070,31 @@ func TestCaseCollisions(t *testing.T) {
+ 	tg.grepStderr("case-insensitive import collision", "go build example/a/pkg example/a/Pkg did not report import collision")
+ }
+ 
++// Issue 17451, 17662.
++func TestSymlinkWarning(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	tg.tempDir("src/example/xx")
++	tg.tempDir("yy/zz")
++	tg.tempFile("yy/zz/zz.go", "package zz\n")
++	if err := os.Symlink(tg.path("yy"), tg.path("src/example/xx/yy")); err != nil {
++		t.Skip("symlink failed: %v", err)
++	}
++	tg.run("list", "example/xx/z...")
++	tg.grepStdoutNot(".", "list should not have matched anything")
++	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
++	tg.grepStderrNot("symlink", "list should not have reported symlink")
++
++	tg.run("list", "example/xx/...")
++	tg.grepStdoutNot(".", "list should not have matched anything")
++	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
++	tg.grepStderr("ignoring symlink", "list should have reported symlink")
++}
++
+ // Issue 8181.
+ func TestGoGetDashTIssue8181(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index 4f6292c99a..0c7d9ce0e6 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -67,25 +67,39 @@ func MatchPackages(pattern string) []string {
+ 			root += "cmd" + string(filepath.Separator)
+ 		}
+ 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+-			if err != nil || !fi.IsDir() || path == src {
++			if err != nil || path == src {
+ 				return nil
+ 			}
+ 
++			want := true
+ 			// Avoid .foo, _foo, and testdata directory trees.
+ 			_, elem := filepath.Split(path)
+ 			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+-				return filepath.SkipDir
++				want = false
+ 			}
+ 
+ 			name := filepath.ToSlash(path[len(src):])
+ 			if pattern == "std" && (!isStandardImportPath(name) || name == "cmd") {
+ 				// The name "std" is only the standard library.
+ 				// If the name is cmd, it's the root of the command tree.
+-				return filepath.SkipDir
++				want = false
+ 			}
+ 			if !treeCanMatch(name) {
++				want = false
++			}
++
++			if !fi.IsDir() {
++				if fi.Mode()&os.ModeSymlink != 0 && want {
++					if target, err := os.Stat(path); err == nil && target.IsDir() {
++						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
++					}
++				}
++				return nil
++			}
++			if !want {
+ 				return filepath.SkipDir
+ 			}
++
+ 			if have[name] {
+ 				return nil
+ 			}

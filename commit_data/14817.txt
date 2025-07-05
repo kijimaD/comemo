@@ -9,6 +9,18 @@ Date:   Mon Jan 7 14:46:41 2013 +1100
     R=dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/7065048
-
+---
  src/pkg/os/proc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index 61545f4456..38c436ec54 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -31,4 +31,6 @@ func Getgroups() ([]int, error) {
+ 
+ // Exit causes the current program to exit with the given status code.
+ // Conventionally, code zero indicates success, non-zero an error.
++// The program terminates immediately; deferred functions are
++// not run.
+ func Exit(code int) { syscall.Exit(code) }

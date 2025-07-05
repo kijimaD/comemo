@@ -10,6 +10,30 @@ Date:   Sat Dec 29 14:34:06 2012 -0500
     R=minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6997049
-
+---
  src/pkg/runtime/mem_linux.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index b3e79cc412..db1975f4ca 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -10,6 +10,7 @@
+ 
+ enum
+ {
++	EAGAIN = 11,
+ 	ENOMEM = 12,
+ 	_PAGE_SIZE = 4096,
+ };
+@@ -63,6 +64,10 @@ runtime·SysAlloc(uintptr n)
+ 			runtime·printf("if you're running SELinux, enable execmem for this process.\n");
+ 			runtime·exit(2);
+ 		}
++		if(p == (void*)EAGAIN) {
++			runtime·printf("runtime: mmap: too much locked memory (check 'ulimit -l').\n");
++			runtime·exit(2);
++		}
+ 		return nil;
+ 	}
+ 	return p;

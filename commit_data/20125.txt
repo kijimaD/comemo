@@ -7,6 +7,21 @@ Date:   Mon Aug 18 22:12:51 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/131900043
-
+---
  src/pkg/runtime/sys_windows_amd64.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 6dc13e293d..73b1ba6d8c 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -228,7 +228,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	ADDQ	$8, SP
+ 
+ 	// determine index into runtime·cbctxts table
+-	SUBQ	$runtime·callbackasm(SB), AX
++	MOVQ	$runtime·callbackasm(SB), DX
++	SUBQ	DX, AX
+ 	MOVQ	$0, DX
+ 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+ 	DIVL	CX,

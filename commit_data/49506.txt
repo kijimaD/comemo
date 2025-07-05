@@ -13,7 +13,42 @@ Date:   Tue Aug 24 10:21:16 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/walk/walk.go |  2 +-
  test/typeparam/issue47924.go          | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 6551fe7a64..a9bbc9a54f 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -312,7 +312,7 @@ func mayCall(n ir.Node) bool {
+ 			return true
+ 
+ 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
+-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
++			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
+ 			// These ops might panic, make sure they are done
+ 			// before we start marshaling args for a call. See issue 16760.
+ 			return true
+diff --git a/test/typeparam/issue47924.go b/test/typeparam/issue47924.go
+new file mode 100644
+index 0000000000..1d1bab3bf9
+--- /dev/null
++++ b/test/typeparam/issue47924.go
+@@ -0,0 +1,15 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Cache[K any] struct{}
++
++func (c Cache[K]) foo(x interface{}, f func(K) bool) {
++	f(x.(K))
++}
++
++var _ Cache[int]

@@ -17,7 +17,7 @@ Date:   Tue Nov 1 14:18:09 2022 -0700
     TryBot-Bypass: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ir/symtab.go        |   3 +-
  src/cmd/compile/internal/liveness/plive.go   |   4 +-
  src/cmd/compile/internal/ssa/writebarrier.go | 254 +++++++++++++--------------
@@ -35,3 +35,586 @@ Date:   Tue Nov 1 14:18:09 2022 -0700
  src/runtime/asm_wasm.s                       |   3 -
  src/runtime/mbarrier.go                      |  18 ++
  16 files changed, 149 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index d8759d169e..ebcdc0775b 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -44,10 +44,11 @@ var Syms struct {
+ 	Racereadrange     *obj.LSym
+ 	Racewrite         *obj.LSym
+ 	Racewriterange    *obj.LSym
++	WBZero            *obj.LSym
++	WBMove            *obj.LSym
+ 	// Wasm
+ 	SigPanic        *obj.LSym
+ 	Staticuint64s   *obj.LSym
+-	Typedmemclr     *obj.LSym
+ 	Typedmemmove    *obj.LSym
+ 	Udiv            *obj.LSym
+ 	WriteBarrier    *obj.LSym
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 9d20199a40..a479badfd0 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -660,10 +660,10 @@ func (lv *liveness) hasStackMap(v *ssa.Value) bool {
+ 	if !v.Op.IsCall() {
+ 		return false
+ 	}
+-	// typedmemclr and typedmemmove are write barriers and
++	// wbZero and wbCopy are write barriers and
+ 	// deeply non-preemptible. They are unsafe points and
+ 	// hence should not have liveness maps.
+-	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
++	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 861c09b96b..b42caec24b 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -132,7 +132,8 @@ func writebarrier(f *Func) {
+ 	}
+ 
+ 	var sb, sp, wbaddr, const0 *Value
+-	var typedmemmove, typedmemclr, gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
++	var gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
++	var wbZero, wbMove *obj.LSym
+ 	var stores, after []*Value
+ 	var sset *sparseSet
+ 	var storeNumber []int32
+@@ -185,8 +186,8 @@ func writebarrier(f *Func) {
+ 			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+ 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+-			typedmemmove = f.fe.Syslook("typedmemmove")
+-			typedmemclr = f.fe.Syslook("typedmemclr")
++			wbZero = f.fe.Syslook("wbZero")
++			wbMove = f.fe.Syslook("wbMove")
+ 			if buildcfg.Experiment.CgoCheck2 {
+ 				cgoCheckPtrWrite = f.fe.Syslook("cgoCheckPtrWrite")
+ 				cgoCheckMemmove = f.fe.Syslook("cgoCheckMemmove")
+@@ -235,6 +236,51 @@ func writebarrier(f *Func) {
+ 		// find the memory before the WB stores
+ 		mem := stores[0].MemoryArg()
+ 		pos := stores[0].Pos
++
++		// If the source of a MoveWB is volatile (will be clobbered by a
++		// function call), we need to copy it to a temporary location, as
++		// marshaling the args of wbMove might clobber the value we're
++		// trying to move.
++		// Look for volatile source, copy it to temporary before we check
++		// the write barrier flag.
++		// It is unlikely to have more than one of them. Just do a linear
++		// search instead of using a map.
++		// See issue 15854.
++		type volatileCopy struct {
++			src *Value // address of original volatile value
++			tmp *Value // address of temporary we've copied the volatile value into
++		}
++		var volatiles []volatileCopy
++
++		if !(f.ABIDefault == f.ABI1 && len(f.Config.intParamRegs) >= 3) {
++			// We don't need to do this if the calls we're going to do take
++			// all their arguments in registers.
++			// 3 is the magic number because it covers wbZero, wbMove, cgoCheckMemmove.
++		copyLoop:
++			for _, w := range stores {
++				if w.Op == OpMoveWB {
++					val := w.Args[1]
++					if isVolatile(val) {
++						for _, c := range volatiles {
++							if val == c.src {
++								continue copyLoop // already copied
++							}
++						}
++
++						t := val.Type.Elem()
++						tmp := f.fe.Auto(w.Pos, t)
++						mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
++						tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
++						siz := t.Size()
++						mem = b.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
++						mem.Aux = t
++						volatiles = append(volatiles, volatileCopy{val, tmpaddr})
++					}
++				}
++			}
++		}
++
++		// Build branch point.
+ 		bThen := f.NewBlock(BlockPlain)
+ 		bElse := f.NewBlock(BlockPlain)
+ 		bEnd := f.NewBlock(b.Kind)
+@@ -274,123 +320,86 @@ func writebarrier(f *Func) {
+ 		bThen.AddEdgeTo(bEnd)
+ 		bElse.AddEdgeTo(bEnd)
+ 
+-		// for each write barrier store, append write barrier version to bThen
+-		// and simple store version to bElse
++		// then block: emit write barrier calls
+ 		memThen := mem
+-		memElse := mem
+-
+-		// If the source of a MoveWB is volatile (will be clobbered by a
+-		// function call), we need to copy it to a temporary location, as
+-		// marshaling the args of typedmemmove might clobber the value we're
+-		// trying to move.
+-		// Look for volatile source, copy it to temporary before we emit any
+-		// call.
+-		// It is unlikely to have more than one of them. Just do a linear
+-		// search instead of using a map.
+-		type volatileCopy struct {
+-			src *Value // address of original volatile value
+-			tmp *Value // address of temporary we've copied the volatile value into
+-		}
+-		var volatiles []volatileCopy
+-	copyLoop:
+-		for _, w := range stores {
+-			if w.Op == OpMoveWB {
+-				val := w.Args[1]
+-				if isVolatile(val) {
+-					for _, c := range volatiles {
+-						if val == c.src {
+-							continue copyLoop // already copied
+-						}
+-					}
+-
+-					t := val.Type.Elem()
+-					tmp := f.fe.Auto(w.Pos, t)
+-					memThen = bThen.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, memThen)
+-					tmpaddr := bThen.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, memThen)
+-					siz := t.Size()
+-					memThen = bThen.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, memThen)
+-					memThen.Aux = t
+-					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
+-				}
+-			}
+-		}
+-
+ 		for _, w := range stores {
+-			ptr := w.Args[0]
+ 			pos := w.Pos
+-
+-			var fn *obj.LSym
+-			var typ *obj.LSym
+-			var val *Value
+ 			switch w.Op {
+ 			case OpStoreWB:
+-				val = w.Args[1]
+-				nWBops--
+-			case OpMoveWB:
+-				fn = typedmemmove
+-				val = w.Args[1]
+-				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
++				ptr := w.Args[0]
++				val := w.Args[1]
++				memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
++				f.fe.SetWBPos(pos)
+ 				nWBops--
+ 			case OpZeroWB:
+-				fn = typedmemclr
+-				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
++				dst := w.Args[0]
++				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
++				// zeroWB(&typ, dst)
++				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
++				memThen = wbcall(pos, bThen, wbZero, sp, memThen, taddr, dst)
++				f.fe.SetWBPos(pos)
+ 				nWBops--
+-			case OpVarDef, OpVarLive:
+-			}
+-
+-			// then block: emit write barrier call
+-			switch w.Op {
+-			case OpStoreWB, OpMoveWB, OpZeroWB:
+-				if w.Op == OpStoreWB {
+-					if buildcfg.Experiment.CgoCheck2 {
+-						// Issue cgo checking code.
+-						memThen = wbcall(pos, bThen, cgoCheckPtrWrite, nil, ptr, val, memThen, sp, sb)
+-					}
+-
+-					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+-				} else {
+-					srcval := val
+-					if w.Op == OpMoveWB && isVolatile(srcval) {
+-						for _, c := range volatiles {
+-							if srcval == c.src {
+-								srcval = c.tmp
+-								break
+-							}
++			case OpMoveWB:
++				dst := w.Args[0]
++				src := w.Args[1]
++				if isVolatile(src) {
++					for _, c := range volatiles {
++						if src == c.src {
++							src = c.tmp
++							break
+ 						}
+ 					}
+-					memThen = wbcall(pos, bThen, fn, typ, ptr, srcval, memThen, sp, sb)
+ 				}
+-				// Note that we set up a writebarrier function call.
++				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
++				// moveWB(&typ, dst, src)
++				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
++				memThen = wbcall(pos, bThen, wbMove, sp, memThen, taddr, dst, src)
+ 				f.fe.SetWBPos(pos)
+-			case OpVarDef, OpVarLive:
+-				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
++				nWBops--
+ 			}
++		}
++		// merge memory
++		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, mem)
+ 
+-			// else block: normal store
++		// Do raw stores after merge point.
++		for _, w := range stores {
+ 			switch w.Op {
+ 			case OpStoreWB:
++				ptr := w.Args[0]
++				val := w.Args[1]
+ 				if buildcfg.Experiment.CgoCheck2 {
+ 					// Issue cgo checking code.
+-					memElse = wbcall(pos, bElse, cgoCheckPtrWrite, nil, ptr, val, memElse, sp, sb)
++					mem = wbcall(pos, bEnd, cgoCheckPtrWrite, sp, mem, ptr, val)
+ 				}
+-				memElse = bElse.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, memElse)
++				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, mem)
++			case OpZeroWB:
++				dst := w.Args[0]
++				mem = bEnd.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, dst, mem)
++				mem.Aux = w.Aux
+ 			case OpMoveWB:
++				dst := w.Args[0]
++				src := w.Args[1]
++				if isVolatile(src) {
++					for _, c := range volatiles {
++						if src == c.src {
++							src = c.tmp
++							break
++						}
++					}
++				}
+ 				if buildcfg.Experiment.CgoCheck2 {
+ 					// Issue cgo checking code.
+-					memElse = wbcall(pos, bElse, cgoCheckMemmove, reflectdata.TypeLinksym(w.Aux.(*types.Type)), ptr, val, memElse, sp, sb)
++					typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
++					taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
++					mem = wbcall(pos, bEnd, cgoCheckMemmove, sp, mem, taddr, dst, src)
+ 				}
+-				memElse = bElse.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, ptr, val, memElse)
+-				memElse.Aux = w.Aux
+-			case OpZeroWB:
+-				memElse = bElse.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, ptr, memElse)
+-				memElse.Aux = w.Aux
++				mem = bEnd.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, dst, src, mem)
++				mem.Aux = w.Aux
+ 			case OpVarDef, OpVarLive:
+-				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
++				mem = bEnd.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, mem)
+ 			}
+ 		}
+ 
+-		// merge memory
+-		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, memElse)
+ 		// The last store becomes the WBend marker. This marker is used by the liveness
+ 		// pass to determine what parts of the code are preemption-unsafe.
+ 		// All subsequent memory operations use this memory, so we have to sacrifice the
+@@ -535,58 +544,35 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
+ }
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+-func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
++func wbcall(pos src.XPos, b *Block, fn *obj.LSym, sp, mem *Value, args ...*Value) *Value {
+ 	config := b.Func.Config
++	typ := config.Types.Uintptr // type of all argument values
++	nargs := len(args)
+ 
+-	var wbargs []*Value
+ 	// TODO (register args) this is a bit of a hack.
+ 	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
+ 
+-	// put arguments on stack
+-	off := config.ctxt.Arch.FixedFrameSize
+-
+-	var argTypes []*types.Type
+-	if typ != nil { // for typedmemmove/cgoCheckMemmove
+-		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+-		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
+-		off = round(off, taddr.Type.Alignment())
+-		if inRegs {
+-			wbargs = append(wbargs, taddr)
+-		} else {
+-			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+-			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
++	if !inRegs {
++		// Store arguments to the appropriate stack slot.
++		off := config.ctxt.Arch.FixedFrameSize
++		for _, arg := range args {
++			stkaddr := b.NewValue1I(pos, OpOffPtr, typ.PtrTo(), off, sp)
++			mem = b.NewValue3A(pos, OpStore, types.TypeMem, typ, stkaddr, arg, mem)
++			off += typ.Size()
+ 		}
+-		off += taddr.Type.Size()
++		args = args[:0]
+ 	}
+ 
+-	argTypes = append(argTypes, ptr.Type)
+-	off = round(off, ptr.Type.Alignment())
+-	if inRegs {
+-		wbargs = append(wbargs, ptr)
+-	} else {
+-		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+-	}
+-	off += ptr.Type.Size()
+-
+-	if val != nil {
+-		argTypes = append(argTypes, val.Type)
+-		off = round(off, val.Type.Alignment())
+-		if inRegs {
+-			wbargs = append(wbargs, val)
+-		} else {
+-			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+-			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+-		}
+-		off += val.Type.Size()
+-	}
+-	off = round(off, config.PtrSize)
+-	wbargs = append(wbargs, mem)
++	args = append(args, mem)
+ 
+ 	// issue call
++	argTypes := make([]*types.Type, nargs, 3) // at most 3 args; allows stack allocation
++	for i := 0; i < nargs; i++ {
++		argTypes[i] = typ
++	}
+ 	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+-	call.AddArgs(wbargs...)
+-	call.AuxInt = off - config.ctxt.Arch.FixedFrameSize
++	call.AddArgs(args...)
++	call.AuxInt = int64(nargs) * typ.Size()
+ 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b374c3af3d..e483c3da41 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -125,13 +125,14 @@ func InitConfig() {
+ 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
+ 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
+ 	ir.Syms.Racewriterange = typecheck.LookupRuntimeFunc("racewriterange")
++	ir.Syms.WBZero = typecheck.LookupRuntimeFunc("wbZero")
++	ir.Syms.WBMove = typecheck.LookupRuntimeFunc("wbMove")
+ 	ir.Syms.X86HasPOPCNT = typecheck.LookupRuntimeVar("x86HasPOPCNT")       // bool
+ 	ir.Syms.X86HasSSE41 = typecheck.LookupRuntimeVar("x86HasSSE41")         // bool
+ 	ir.Syms.X86HasFMA = typecheck.LookupRuntimeVar("x86HasFMA")             // bool
+ 	ir.Syms.ARMHasVFPv4 = typecheck.LookupRuntimeVar("armHasVFPv4")         // bool
+ 	ir.Syms.ARM64HasATOMICS = typecheck.LookupRuntimeVar("arm64HasATOMICS") // bool
+ 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
+-	ir.Syms.Typedmemclr = typecheck.LookupRuntimeFunc("typedmemclr")
+ 	ir.Syms.Typedmemmove = typecheck.LookupRuntimeFunc("typedmemmove")
+ 	ir.Syms.Udiv = typecheck.LookupRuntimeVar("udiv")                 // asm func with special ABI
+ 	ir.Syms.WriteBarrier = typecheck.LookupRuntimeVar("writeBarrier") // struct { bool; ... }
+@@ -7761,7 +7762,7 @@ func (s *State) PrepareCall(v *ssa.Value) {
+ 	idx := s.livenessMap.Get(v)
+ 	if !idx.StackMapValid() {
+ 		// See Liveness.hasStackMap.
+-		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
++		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
+ 			base.Fatalf("missing stack map index for %v", v.LongString())
+ 		}
+ 	}
+@@ -7915,10 +7916,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 		return ir.Syms.WriteBarrier
+ 	case "gcWriteBarrier":
+ 		return ir.Syms.GCWriteBarrier
+-	case "typedmemmove":
+-		return ir.Syms.Typedmemmove
+-	case "typedmemclr":
+-		return ir.Syms.Typedmemclr
++	case "wbZero":
++		return ir.Syms.WBZero
++	case "wbMove":
++		return ir.Syms.WBMove
+ 	case "cgoCheckMemmove":
+ 		return ir.Syms.CgoCheckMemmove
+ 	case "cgoCheckPtrWrite":
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index a03e5b0fe0..8865f5502e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1398,8 +1398,6 @@ retry:
+ 	MOVL	BX, -4(CX)	// Record *slot
+ 	MOVL	20(SP), CX
+ 	MOVL	24(SP), BX
+-	// Do the write.
+-	MOVL	AX, (DI)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6acb7ddaef..69a363320d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1660,8 +1660,6 @@ retry:
+ 	MOVQ	R13, -8(R12)	// Record *slot
+ 	MOVQ	96(SP), R12
+ 	MOVQ	104(SP), R13
+-	// Do the write.
+-	MOVQ	AX, (DI)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 40a6e47792..3cabe748cd 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -899,8 +899,6 @@ retry:
+ 	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
+ 	MOVW	R0, -4(R1)	// Record *slot
+ 	MOVM.IA.W	(R13), [R0,R1]
+-	// Do the write.
+-	MOVW	R3, (R2)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index bc9e73ffd6..e8399712de 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1220,8 +1220,6 @@ retry:
+ 	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
+ 	MOVD	R0, -8(R1)	// Record *slot
+ 	LDP	184(RSP), (R0, R1)
+-	// Do the write.
+-	MOVD	R3, (R2)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 09a2964511..dfa3497b69 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -645,8 +645,6 @@ retry:
+ 	MOVV	R19, -8(R13)	// Record *slot
+ 	MOVV	208(R3), R19
+ 	MOVV	216(R3), R13
+-	// Do the write.
+-	MOVV	R28, (R27)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 6f413db84b..c6677d0014 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -662,8 +662,6 @@ retry:
+ 	MOVV	R1, -8(R2)	// Record *slot
+ 	MOVV	184(R29), R1
+ 	MOVV	192(R29), R2
+-	// Do the write.
+-	MOVV	R21, (R20)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 2fbbf13672..a43177ec13 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -655,8 +655,6 @@ retry:
+ 	MOVW	R1, -4(R2)	// Record *slot
+ 	MOVW	100(R29), R1
+ 	MOVW	104(R29), R2
+-	// Do the write.
+-	MOVW	R21, (R20)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 4a30f38fc9..0f6421f6f5 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -955,8 +955,6 @@ retry:
+ 	MOVD	R21, -16(R19)	// Record value
+ 	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
+ 	MOVD	R18, -8(R19)	// Record *slot
+-	// Do the write.
+-	MOVD	R21, (R20)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 4c434ea551..4fd9c427e3 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -742,8 +742,6 @@ retry:
+ 	MOV	A0, -8(A1)	// Record *slot
+ 	MOV	24*8(X2), A0
+ 	MOV	25*8(X2), A1
+-	// Do the write.
+-	MOV	T1, (T0)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 5332c9b234..094e25c40f 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -806,8 +806,6 @@ retry:
+ 	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
+ 	MOVD	R10, -8(R4) // Record *slot
+ 	MOVD	96(R15), R4
+-	// Do the write.
+-	MOVD	R3, (R2)
+ 	RET
+ 
+ flush:
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 6666b554d6..e108bb4362 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -443,9 +443,6 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+ 			// Record *slot
+ 			MOVD (R0), 8(R5)
+ 
+-			// Do the write
+-			MOVD R1, (R0)
+-
+ 			RET
+ 		End
+ 
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 0e49794854..c9e06d443d 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -175,6 +175,24 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	}
+ }
+ 
++// wbZero performs the write barrier operations necessary before
++// zeroing a region of memory at address dst of type typ.
++// Does not actually do the zeroing.
++//go:nowritebarrierrec
++//go:nosplit
++func wbZero(typ *_type, dst unsafe.Pointer) {
++	bulkBarrierPreWrite(uintptr(dst), 0, typ.ptrdata)
++}
++
++// wbMove performs the write barrier operations necessary before
++// copying a region of memory from src to dst of type typ.
++// Does not actually do the copying.
++//go:nowritebarrierrec
++//go:nosplit
++func wbMove(typ *_type, dst, src unsafe.Pointer) {
++	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
++}
++
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if raceenabled {

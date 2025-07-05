@@ -13,10 +13,251 @@ Date:   Tue Dec 27 13:46:23 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testsanitizers/cc_test.go             | 30 ++++++++-
  misc/cgo/testsanitizers/libfuzzer_test.go      | 90 ++++++++++++++++++++++++++
  misc/cgo/testsanitizers/testdata/libfuzzer1.go | 16 +++++
  misc/cgo/testsanitizers/testdata/libfuzzer2.c  | 11 ++++
  misc/cgo/testsanitizers/testdata/libfuzzer2.go | 16 +++++
  5 files changed, 160 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index af85f99325..8eda1372f6 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -353,6 +353,9 @@ func configure(sanitizer string) *config {
+ 		// Set the debug mode to print the C stack trace.
+ 		c.cFlags = append(c.cFlags, "-g")
+ 
++	case "fuzzer":
++		c.goFlags = append(c.goFlags, "-tags=libfuzzer", "-gcflags=-d=libfuzzer")
++
+ 	default:
+ 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
+ 	}
+@@ -405,6 +408,13 @@ int main() {
+ }
+ `)
+ 
++var cLibFuzzerInput = []byte(`
++#include <stddef.h>
++int LLVMFuzzerTestOneInput(char *data, size_t size) {
++	return 0;
++}
++`)
++
+ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 	dir, err := os.MkdirTemp("", c.sanitizer)
+ 	if err != nil {
+@@ -413,7 +423,12 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 	defer os.RemoveAll(dir)
+ 
+ 	src := filepath.Join(dir, "return0.c")
+-	if err := os.WriteFile(src, cMain, 0600); err != nil {
++	cInput := cMain
++	if c.sanitizer == "fuzzer" {
++		// libFuzzer generates the main function itself, and uses a different input.
++		cInput = cLibFuzzerInput
++	}
++	if err := os.WriteFile(src, cInput, 0600); err != nil {
+ 		return false, fmt.Errorf("failed to write C source file: %v", err)
+ 	}
+ 
+@@ -434,6 +449,11 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+ 	}
+ 
++	if c.sanitizer == "fuzzer" {
++		// For fuzzer, don't try running the test binary. It never finishes.
++		return false, nil
++	}
++
+ 	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
+ 		if os.IsNotExist(err) {
+ 			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
+@@ -505,6 +525,10 @@ func (d *tempDir) RemoveAll(t *testing.T) {
+ 	}
+ }
+ 
++func (d *tempDir) Base() string {
++	return d.base
++}
++
+ func (d *tempDir) Join(name string) string {
+ 	return filepath.Join(d.base, name)
+ }
+@@ -535,7 +559,7 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
+ }
+ 
+ // mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+-// because the internal pacakage can't be used here.
++// because the internal package can't be used here.
+ func mSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+@@ -548,7 +572,7 @@ func mSanSupported(goos, goarch string) bool {
+ }
+ 
+ // aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
+-// because the internal pacakage can't be used here.
++// because the internal package can't be used here.
+ func aSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+diff --git a/misc/cgo/testsanitizers/libfuzzer_test.go b/misc/cgo/testsanitizers/libfuzzer_test.go
+new file mode 100644
+index 0000000000..6eebb17abf
+--- /dev/null
++++ b/misc/cgo/testsanitizers/libfuzzer_test.go
+@@ -0,0 +1,90 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sanitizers_test
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestLibFuzzer(t *testing.T) {
++	goos, err := goEnv("GOOS")
++	if err != nil {
++		t.Fatal(err)
++	}
++	goarch, err := goEnv("GOARCH")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !libFuzzerSupported(goos, goarch) {
++		t.Skipf("skipping on %s/%s; libfuzzer option is not supported.", goos, goarch)
++	}
++	config := configure("fuzzer")
++	config.skipIfCSanitizerBroken(t)
++
++	cases := []struct {
++		goSrc         string
++		cSrc          string
++		expectedError string
++	}{
++		{goSrc: "libfuzzer1.go", expectedError: "panic: found it"},
++		{goSrc: "libfuzzer2.go", cSrc: "libfuzzer2.c", expectedError: "panic: found it"},
++	}
++	for _, tc := range cases {
++		tc := tc
++		name := strings.TrimSuffix(tc.goSrc, ".go")
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++
++			dir := newTempDir(t)
++			defer dir.RemoveAll(t)
++
++			// build Go code in libfuzzer mode to a c-archive
++			outPath := dir.Join(name)
++			archivePath := dir.Join(name + ".a")
++			mustRun(t, config.goCmd("build", "-buildmode=c-archive", "-o", archivePath, srcPath(tc.goSrc)))
++
++			// build C code (if any) and link with Go code
++			cmd, err := cc(config.cFlags...)
++			if err != nil {
++				t.Fatalf("error running cc: %v", err)
++			}
++			cmd.Args = append(cmd.Args, config.ldFlags...)
++			cmd.Args = append(cmd.Args, "-o", outPath, "-I", dir.Base())
++			if tc.cSrc != "" {
++				cmd.Args = append(cmd.Args, srcPath(tc.cSrc))
++			}
++			cmd.Args = append(cmd.Args, archivePath)
++			mustRun(t, cmd)
++
++			cmd = hangProneCmd(outPath)
++			outb, err := cmd.CombinedOutput()
++			out := string(outb)
++			if err == nil {
++				t.Fatalf("fuzzing succeeded unexpectedly; output:\n%s", out)
++			}
++			if !strings.Contains(out, tc.expectedError) {
++				t.Errorf("exited without expected error %q; got\n%s", tc.expectedError, out)
++			}
++		})
++	}
++}
++
++// libFuzzerSupported is a copy of the function internal/platform.FuzzInstrumented,
++// because the internal package can't be used here.
++func libFuzzerSupported(goos, goarch string) bool {
++	switch goarch {
++	case "amd64", "arm64":
++		// TODO(#14565): support more architectures.
++		switch goos {
++		case "darwin", "freebsd", "linux", "windows":
++			return true
++		default:
++			return false
++		}
++	default:
++		return false
++	}
++}
+diff --git a/misc/cgo/testsanitizers/testdata/libfuzzer1.go b/misc/cgo/testsanitizers/testdata/libfuzzer1.go
+new file mode 100644
+index 0000000000..d178fb1ca0
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/libfuzzer1.go
+@@ -0,0 +1,16 @@
++package main
++
++import "C"
++
++import "unsafe"
++
++//export LLVMFuzzerTestOneInput
++func LLVMFuzzerTestOneInput(p unsafe.Pointer, sz C.int) C.int {
++	b := C.GoBytes(p, sz)
++	if len(b) >= 6 && b[0] == 'F' && b[1] == 'u' && b[2] == 'z' && b[3] == 'z' && b[4] == 'M' && b[5] == 'e' {
++		panic("found it")
++	}
++	return 0
++}
++
++func main() {}
+diff --git a/misc/cgo/testsanitizers/testdata/libfuzzer2.c b/misc/cgo/testsanitizers/testdata/libfuzzer2.c
+new file mode 100644
+index 0000000000..567ff5a1cc
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/libfuzzer2.c
+@@ -0,0 +1,11 @@
++#include <stddef.h>
++
++#include "libfuzzer2.h"
++
++int LLVMFuzzerTestOneInput(char *data, size_t size) {
++ 	if (size > 0 && data[0] == 'H')
++		if (size > 1 && data[1] == 'I')
++			if (size > 2 && data[2] == '!')
++				FuzzMe(data, size);
++	return 0;
++}
+diff --git a/misc/cgo/testsanitizers/testdata/libfuzzer2.go b/misc/cgo/testsanitizers/testdata/libfuzzer2.go
+new file mode 100644
+index 0000000000..c7a4325976
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/libfuzzer2.go
+@@ -0,0 +1,16 @@
++package main
++
++import "C"
++
++import "unsafe"
++
++//export FuzzMe
++func FuzzMe(p unsafe.Pointer, sz C.int) {
++	b := C.GoBytes(p, sz)
++	b = b[3:]
++	if len(b) >= 4 && b[0] == 'f' && b[1] == 'u' && b[2] == 'z' && b[3] == 'z' {
++		panic("found it")
++	}
++}
++
++func main() {}

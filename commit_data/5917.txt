@@ -7,7 +7,7 @@ Date:   Fri Jul 30 14:00:59 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1784042
-
+---
  README                              |  35 +++++
  misc/dashboard/README               |  14 +-
  misc/dashboard/buildcontrol.py      |  41 +++++-
@@ -17,3 +17,507 @@ Date:   Fri Jul 30 14:00:59 2010 +1000
  src/clean.bash                      |   4 +-
  src/lib9/Makefile                   |   4 +-
  8 files changed, 355 insertions(+), 10 deletions(-)
+
+diff --git a/README b/README
+index e25bbdb8d2..aa71c49e94 100644
+--- a/README
++++ b/README
+@@ -9,3 +9,38 @@ and then visiting http://localhost:6060/doc/install.html.
+ 
+ Unless otherwise noted, the Go source files are distributed
+ under the BSD-style license found in the LICENSE file.
++
++--
++
++Binary Distribution Notes
++
++If you have just untarred a binary Go distribution, then there are some
++environment variables you'll need to set in your .profile (or equivalent):
++
++    GOOS should be set to your operating system (eg, linux),
++    GOARCH should be your processor architecture (eg, amd64),
++    GOROOT should be the directory you extracted the tarball to,
++    GOBIN should point to $GOROOT/bin.
++
++For example, if you downloaded the tarball 
++
++    go.release.YYYY-MM-DD.linux-amd64.tar.gz 
++
++and extracted it to 
++
++    /home/username/go
++
++you would set the following variables:
++
++    export GOOS=linux
++    export GOARCH=amd64
++    export GOROOT=/home/username/go
++    export GOBIN=$GOROOT/bin
++
++See doc/install.html for more detail about these flags.
++
++Additionally, $GOROOT should be in your $PATH:
++    
++    export PATH=PATH:$GOROOT
++    
++
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+index b2bc3c2d37..72d5546a4f 100644
+--- a/misc/dashboard/README
++++ b/misc/dashboard/README
+@@ -24,11 +24,19 @@ export GOARCH=XXX
+ export GOOS=XXX
+ export GOBIN=/gobuild/bin
+ export PATH=$PATH:/gobuild/bin
+-export BUILDER=XXX
++export BUILDER=$GOOS-$GOARCH
+ export BUILDHOST=godashboard.appspot.com
+ 
+-* Write the key ~gobuild/.gobuildkey (you need to get it from someone who knows
+-                                      the key)
++* Write the key ~gobuild/.gobuildkey 
++  You need to get it from someone who knows the key.
++  You may also use a filename of the form .gobuildkey-$BUILDER if you
++  wish to run builders for multiple targets.
++
++* Append your username and password googlecode.com credentials from
++    https://code.google.com/hosting/settings
++  to the buildkey file in the format "Username\nPassword\n".
++  (This is for uploading tarballs to the project downloads section,
++   and is an optional step.)
+ 
+ * sudo apt-get install bison gcc libc6-dev ed make
+ * cd ~gobuild
+diff --git a/misc/dashboard/buildcontrol.py b/misc/dashboard/buildcontrol.py
+index 91b684f799..ec503e7ffe 100644
+--- a/misc/dashboard/buildcontrol.py
++++ b/misc/dashboard/buildcontrol.py
+@@ -18,6 +18,8 @@ buildhost = ''
+ buildport = -1
+ buildkey = ''
+ 
++upload_project = "go"
++
+ def main(args):
+     global buildport, buildhost, buildkey
+ 
+@@ -35,14 +37,23 @@ def main(args):
+         buildport = int(os.environ['BUILDPORT'])
+ 
+     try:
+-        buildkey = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r').read().strip()
++        buildkeyfile = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r')
++        buildkey = buildkeyfile.readline().strip()
+     except IOError:
+         try:
+-            buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
++            buildkeyfile = file('%s/.gobuildkey' % os.environ['HOME'], 'r')
++            buildkey = buildkeyfile.readline().strip()
+         except IOError:
+             print >>sys.stderr, "Need key in ~/.gobuildkey-%s or ~/.gobuildkey" % os.environ['BUILDER']
+             return
+ 
++    # get upload credentials
++    try:
++        username = buildkeyfile.readline().strip()
++        password = buildkeyfile.readline().strip()
++    except:
++        username, password = None, None
++
+     if args[1] == 'init':
+         return doInit(args)
+     elif args[1] == 'hwget':
+@@ -55,6 +66,8 @@ def main(args):
+         return doRecord(args)
+     elif args[1] == 'benchmarks':
+         return doBenchmarks(args)
++    elif args[1] == 'upload':
++        return doUpload(args, username, password)
+     else:
+         return usage(args[0])
+ 
+@@ -68,6 +81,7 @@ Commands:
+   next <builder>: get the next revision number to by built by the given builder
+   record <builder> <rev> <ok|log file>: record a build result
+   benchmarks <builder> <rev> <log file>: record benchmark numbers
++  upload <builder> <summary> <tar file>: upload tarball to googlecode
+ ''' % name)
+     return 1
+ 
+@@ -165,6 +179,29 @@ def doBenchmarks(args):
+         e.append(b)
+     return command('benchmarks', {'node': c.node, 'builder': builder, 'benchmarkdata': binascii.b2a_base64(''.join(e))})
+ 
++def doUpload(args, username, password):
++    # fail gracefully if no username or password set
++    if not username or not password:
++        return
++
++    if len(args) != 5:
++        return usage(args[0])
++    builder = args[2]
++    summary = args[3]
++    filename = args[4]
++
++    from googlecode_upload import upload
++    code, msg, url = upload(
++        filename, # filename
++        upload_project, # 'go'
++        username,
++        password,
++        summary,
++        builder.split('-'), # labels
++    )
++    if code != 201:
++        raise Failed('Upload returned code %s msg "%s".' % (code, msg))
++
+ def encodeMultipartFormdata(fields, files):
+     """fields is a sequence of (name, value) elements for regular form fields.
+     files is a sequence of (name, filename, value) elements for data to be uploaded as files"""
+diff --git a/misc/dashboard/buildcron.sh b/misc/dashboard/buildcron.sh
+index 5f43007964..7aa70ce571 100644
+--- a/misc/dashboard/buildcron.sh
++++ b/misc/dashboard/buildcron.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ # Copyright 2010 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -48,7 +48,7 @@ fi
+ mkdir -p $GOROOT/bin
+ 
+ cd $GOROOT/..
+-cp go/misc/dashboard/builder.sh go/misc/dashboard/buildcontrol.py .
++cp go/misc/dashboard/{builder.sh,buildcontrol.py,googlecode_upload.py} .
+ chmod a+x builder.sh buildcontrol.py
+ cd go
+ ../buildcontrol.py next $BUILDER
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+index b302acec28..a73924c7b9 100644
+--- a/misc/dashboard/builder.sh
++++ b/misc/dashboard/builder.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+@@ -31,6 +31,7 @@ fi
+ 
+ export PATH=$PATH:`pwd`/candidate/bin
+ export GOBIN=`pwd`/candidate/bin
++export BAKED_GOROOT=/usr/local/go
+ 
+ while true ; do
+     cd go || fatal "Cannot cd into 'go'"
+@@ -72,6 +73,18 @@ while true ; do
+             python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
+             cd .. || fatal "failed to cd out of pkg"
+         fi
++        # check if we're at a release (via the hg summary)
++        #  if so, package the tar.gz and upload to googlecode
++        SUMMARY=$(hg log -l 1 | grep summary\: | awk '{print $2}')
++        if [[ "x${SUMMARY:0:7}" == "xrelease" ]]; then
++            echo "Uploading binary to googlecode"
++            TARBALL="go.$SUMMARY.$BUILDER.tar.gz"
++            ./clean.bash --nopkg
++            cd .. || fatal "Cannot cd up"
++            tar czf ../$TARBALL . || fatal "Cannot create tarball"
++            ../buildcontrol.py upload $BUILDER $SUMMARY ../$TARBALL || fatal "Cannot upload tarball"
++            cd src || fatal "Cannot cd src"
++        fi
+     fi
+     cd ../.. || fatal "Cannot cd up"
+     sleep 10
+diff --git a/misc/dashboard/googlecode_upload.py b/misc/dashboard/googlecode_upload.py
+new file mode 100644
+index 0000000000..d2d5f974ce
+--- /dev/null
++++ b/misc/dashboard/googlecode_upload.py
+@@ -0,0 +1,248 @@
++#!/usr/bin/env python
++#
++# Copyright 2006, 2007 Google Inc. All Rights Reserved.
++# Author: danderson@google.com (David Anderson)
++#
++# Script for uploading files to a Google Code project.
++#
++# This is intended to be both a useful script for people who want to
++# streamline project uploads and a reference implementation for
++# uploading files to Google Code projects.
++#
++# To upload a file to Google Code, you need to provide a path to the
++# file on your local machine, a small summary of what the file is, a
++# project name, and a valid account that is a member or owner of that
++# project.  You can optionally provide a list of labels that apply to
++# the file.  The file will be uploaded under the same name that it has
++# in your local filesystem (that is, the "basename" or last path
++# component).  Run the script with '--help' to get the exact syntax
++# and available options.
++#
++# Note that the upload script requests that you enter your
++# googlecode.com password.  This is NOT your Gmail account password!
++# This is the password you use on googlecode.com for committing to
++# Subversion and uploading files.  You can find your password by going
++# to http://code.google.com/hosting/settings when logged in with your
++# Gmail account. If you have already committed to your project's
++# Subversion repository, the script will automatically retrieve your
++# credentials from there (unless disabled, see the output of '--help'
++# for details).
++#
++# If you are looking at this script as a reference for implementing
++# your own Google Code file uploader, then you should take a look at
++# the upload() function, which is the meat of the uploader.  You
++# basically need to build a multipart/form-data POST request with the
++# right fields and send it to https://PROJECT.googlecode.com/files .
++# Authenticate the request using HTTP Basic authentication, as is
++# shown below.
++#
++# Licensed under the terms of the Apache Software License 2.0:
++#  http://www.apache.org/licenses/LICENSE-2.0
++#
++# Questions, comments, feature requests and patches are most welcome.
++# Please direct all of these to the Google Code users group:
++#  http://groups.google.com/group/google-code-hosting
++
++"""Google Code file uploader script.
++"""
++
++__author__ = 'danderson@google.com (David Anderson)'
++
++import httplib
++import os.path
++import optparse
++import getpass
++import base64
++import sys
++
++
++def upload(file, project_name, user_name, password, summary, labels=None):
++  """Upload a file to a Google Code project's file server.
++
++  Args:
++    file: The local path to the file.
++    project_name: The name of your project on Google Code.
++    user_name: Your Google account name.
++    password: The googlecode.com password for your account.
++              Note that this is NOT your global Google Account password!
++    summary: A small description for the file.
++    labels: an optional list of label strings with which to tag the file.
++
++  Returns: a tuple:
++    http_status: 201 if the upload succeeded, something else if an
++                 error occured.
++    http_reason: The human-readable string associated with http_status
++    file_url: If the upload succeeded, the URL of the file on Google
++              Code, None otherwise.
++  """
++  # The login is the user part of user@gmail.com. If the login provided
++  # is in the full user@domain form, strip it down.
++  if user_name.endswith('@gmail.com'):
++    user_name = user_name[:user_name.index('@gmail.com')]
++
++  form_fields = [('summary', summary)]
++  if labels is not None:
++    form_fields.extend([('label', l.strip()) for l in labels])
++
++  content_type, body = encode_upload_request(form_fields, file)
++
++  upload_host = '%s.googlecode.com' % project_name
++  upload_uri = '/files'
++  auth_token = base64.b64encode('%s:%s'% (user_name, password))
++  headers = {
++    'Authorization': 'Basic %s' % auth_token,
++    'User-Agent': 'Googlecode.com uploader v0.9.4',
++    'Content-Type': content_type,
++    }
++
++  server = httplib.HTTPSConnection(upload_host)
++  server.request('POST', upload_uri, body, headers)
++  resp = server.getresponse()
++  server.close()
++
++  if resp.status == 201:
++    location = resp.getheader('Location', None)
++  else:
++    location = None
++  return resp.status, resp.reason, location
++
++
++def encode_upload_request(fields, file_path):
++  """Encode the given fields and file into a multipart form body.
++
++  fields is a sequence of (name, value) pairs. file is the path of
++  the file to upload. The file will be uploaded to Google Code with
++  the same file name.
++
++  Returns: (content_type, body) ready for httplib.HTTP instance
++  """
++  BOUNDARY = '----------Googlecode_boundary_reindeer_flotilla'
++  CRLF = '\r\n'
++
++  body = []
++
++  # Add the metadata about the upload first
++  for key, value in fields:
++    body.extend(
++      ['--' + BOUNDARY,
++       'Content-Disposition: form-data; name="%s"' % key,
++       '',
++       value,
++       ])
++
++  # Now add the file itself
++  file_name = os.path.basename(file_path)
++  f = open(file_path, 'rb')
++  file_content = f.read()
++  f.close()
++
++  body.extend(
++    ['--' + BOUNDARY,
++     'Content-Disposition: form-data; name="filename"; filename="%s"'
++     % file_name,
++     # The upload server determines the mime-type, no need to set it.
++     'Content-Type: application/octet-stream',
++     '',
++     file_content,
++     ])
++
++  # Finalize the form body
++  body.extend(['--' + BOUNDARY + '--', ''])
++
++  return 'multipart/form-data; boundary=%s' % BOUNDARY, CRLF.join(body)
++
++
++def upload_find_auth(file_path, project_name, summary, labels=None,
++                     user_name=None, password=None, tries=3):
++  """Find credentials and upload a file to a Google Code project's file server.
++
++  file_path, project_name, summary, and labels are passed as-is to upload.
++
++  Args:
++    file_path: The local path to the file.
++    project_name: The name of your project on Google Code.
++    summary: A small description for the file.
++    labels: an optional list of label strings with which to tag the file.
++    config_dir: Path to Subversion configuration directory, 'none', or None.
++    user_name: Your Google account name.
++    tries: How many attempts to make.
++  """
++
++  while tries > 0:
++    if user_name is None:
++      # Read username if not specified or loaded from svn config, or on
++      # subsequent tries.
++      sys.stdout.write('Please enter your googlecode.com username: ')
++      sys.stdout.flush()
++      user_name = sys.stdin.readline().rstrip()
++    if password is None:
++      # Read password if not loaded from svn config, or on subsequent tries.
++      print 'Please enter your googlecode.com password.'
++      print '** Note that this is NOT your Gmail account password! **'
++      print 'It is the password you use to access Subversion repositories,'
++      print 'and can be found here: http://code.google.com/hosting/settings'
++      password = getpass.getpass()
++
++    status, reason, url = upload(file_path, project_name, user_name, password,
++                                 summary, labels)
++    # Returns 403 Forbidden instead of 401 Unauthorized for bad
++    # credentials as of 2007-07-17.
++    if status in [httplib.FORBIDDEN, httplib.UNAUTHORIZED]:
++      # Rest for another try.
++      user_name = password = None
++      tries = tries - 1
++    else:
++      # We're done.
++      break
++
++  return status, reason, url
++
++
++def main():
++  parser = optparse.OptionParser(usage='googlecode-upload.py -s SUMMARY '
++                                 '-p PROJECT [options] FILE')
++  parser.add_option('-s', '--summary', dest='summary',
++                    help='Short description of the file')
++  parser.add_option('-p', '--project', dest='project',
++                    help='Google Code project name')
++  parser.add_option('-u', '--user', dest='user',
++                    help='Your Google Code username')
++  parser.add_option('-w', '--password', dest='password',
++                    help='Your Google Code password')
++  parser.add_option('-l', '--labels', dest='labels',
++                    help='An optional list of comma-separated labels to attach '
++                    'to the file')
++
++  options, args = parser.parse_args()
++
++  if not options.summary:
++    parser.error('File summary is missing.')
++  elif not options.project:
++    parser.error('Project name is missing.')
++  elif len(args) < 1:
++    parser.error('File to upload not provided.')
++  elif len(args) > 1:
++    parser.error('Only one file may be specified.')
++
++  file_path = args[0]
++
++  if options.labels:
++    labels = options.labels.split(',')
++  else:
++    labels = None
++
++  status, reason, url = upload_find_auth(file_path, options.project,
++                                         options.summary, labels,
++                                         options.user, options.password)
++  if url:
++    print 'The file was uploaded successfully.'
++    print 'URL: %s' % url
++    return 0
++  else:
++    print 'An error occurred. Your file was not uploaded.'
++    print 'Google Code upload server said: %s (%s)' % (reason, status)
++    return 1
++
++
++if __name__ == '__main__':
++  sys.exit(main())
+diff --git a/src/clean.bash b/src/clean.bash
+index db4cf40101..53fddd6c29 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -20,7 +20,9 @@ fi
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
++if [ "$1" != "--nopkg" ]; then
++	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
++fi
+ rm -f "$GOROOT"/lib/*.a
+ for i in lib9 libbio libcgo libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index ccaf41a0fe..10c4b1640a 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -104,6 +104,8 @@ HFILES=\
+ 	"$(GOROOT)"/include/u.h\
+ 	"$(GOROOT)"/include/libc.h\
+ 
++BAKED_GOROOT?=$(GOROOT)
++
+ install: $(LIB)
+ 	cp $(LIB) "$(GOROOT)/lib"
+ 
+@@ -117,7 +119,7 @@ $(LIB): $(OFILES)
+ 	$(CC) -c $(CFLAGS) $<
+ 
+ goos.$O: goos.c
+-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
++	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(BAKED_GOROOT)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
+ 
+ clean:
+ 	rm -f *.$O *.6 6.out $(LIB)

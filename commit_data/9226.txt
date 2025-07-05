@@ -7,7 +7,32 @@ Date:   Wed Jul 27 15:23:14 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4827045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e64d98ce90..b507252bf2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -81,6 +81,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
++John Asmuth <jasmuth@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2f1ea356ed..bbf5e60414 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -127,6 +127,7 @@ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Johan Euphrosine <proppy@google.com>
++John Asmuth <jasmuth@gmail.com>
+ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>

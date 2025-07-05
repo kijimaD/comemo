@@ -7,7 +7,42 @@ Date:   Tue Mar 27 09:27:43 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5913044
-
+---
  doc/tos.html         | 11 +++++++++++
  lib/godoc/godoc.html |  5 +++--
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/doc/tos.html b/doc/tos.html
+new file mode 100644
+index 0000000000..67b107dcab
+--- /dev/null
++++ b/doc/tos.html
+@@ -0,0 +1,11 @@
++<!--{
++	"Title": "Terms of service"
++}-->
++
++<p>
++The Go website (the "Website") is hosted by Google.
++By using and/or visiting the Website, you consent to be bound by Google's general
++<a href="http://www.google.com/intl/en/policies/terms/">Terms of Service</a>
++and Google's general
++<a href="http://www.google.com/intl/en/privacy/privacy-policy.html">Privacy Policy</a>.
++</p>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index d970778c46..627db079b6 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -51,9 +51,10 @@
+ </div>
+ 
+ <div id="footer">
+-Build version {{html .Version}}.
++Build version {{html .Version}}.<br>
+ Except as noted, this content is licensed under a
+-Creative Commons Attribution 3.0 License.
++Creative Commons Attribution 3.0 License.<br>
++<a href="/doc/tos.html">Terms of Service</a>
+ </div>
+ 
+ </body>

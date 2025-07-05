@@ -10,6 +10,24 @@ Date:   Thu Jan 6 16:37:05 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3885041
-
+---
  src/cmd/ld/ldelf.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index ccf6a412f7..44bbe68ee0 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -641,8 +641,10 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		s->sub = sect->sym->sub;
+ 		sect->sym->sub = s;
+ 		s->type = sect->sym->type | SSUB;
+-		s->dynimplib = nil;  // satisfy dynimport
+-		s->dynimpname = nil;  // satisfy dynimport
++		if(!s->dynexport) {
++			s->dynimplib = nil;  // satisfy dynimport
++			s->dynimpname = nil;  // satisfy dynimport
++		}
+ 		s->value = sym.value;
+ 		s->size = sym.size;
+ 		s->outer = sect->sym;

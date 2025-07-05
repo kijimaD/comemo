@@ -12,7 +12,34 @@ Date:   Sat May 29 13:49:51 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go          | 2 +-
  src/cmd/go/internal/doc/doc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index bad2b7f16e..ab61017c4e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -293,7 +293,7 @@
+ //
+ // Usage:
+ //
+-// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
++// 	go doc [doc flags] [package|[package.]symbol[.methodOrField]]
+ //
+ // Doc prints the documentation comments associated with the item identified by its
+ // arguments (a package, const, func, type, var, method, or struct field)
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 67f76e2256..8580a5dc4d 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -13,7 +13,7 @@ import (
+ 
+ var CmdDoc = &base.Command{
+ 	Run:         runDoc,
+-	UsageLine:   "go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
++	UsageLine:   "go doc [doc flags] [package|[package.]symbol[.methodOrField]]",
+ 	CustomFlags: true,
+ 	Short:       "show documentation for package or symbol",
+ 	Long: `

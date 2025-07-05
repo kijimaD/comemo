@@ -22,8 +22,253 @@ Date:   Tue Jan 29 22:12:13 2019 -0800
     Change-Id: I9c6ebed2ffa0a6a001c59412a73382090955f5a9
     Reviewed-on: https://go-review.googlesource.com/c/160184
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go                   | 47 +++++++++++++++++++
  src/cmd/gofmt/testdata/go2numbers.golden | 80 ++++++++++++++++----------------
  src/cmd/gofmt/testdata/go2numbers.input  |  2 +
  3 files changed, 90 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index ac6852f2e4..ce4613fb60 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -112,6 +112,8 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		simplify(file)
+ 	}
+ 
++	ast.Inspect(file, normalizeNumbers)
++
+ 	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
+ 	if err != nil {
+ 		return err
+@@ -326,3 +328,48 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error)
+ 
+ 	return bakname, err
+ }
++
++// normalizeNumbers rewrites base prefixes and exponents to
++// use lower-case letters. It leaves hexadecimal digits alone.
++func normalizeNumbers(n ast.Node) bool {
++	lit, _ := n.(*ast.BasicLit)
++	if lit == nil {
++		return true
++	}
++	if len(lit.Value) < 2 {
++		return false // only one digit - nothing to do
++	}
++	// lit.Value >= 2
++
++	switch lit.Kind {
++	case token.INT:
++		switch lit.Value[:2] {
++		case "0X":
++			lit.Value = "0x" + lit.Value[2:]
++		case "0O":
++			lit.Value = "0o" + lit.Value[2:]
++		case "0B":
++			lit.Value = "0b" + lit.Value[2:]
++		}
++
++	case token.FLOAT:
++		switch lit.Value[:2] {
++		default:
++			if i := strings.LastIndexByte(lit.Value, 'E'); i >= 0 {
++				lit.Value = lit.Value[:i] + "e" + lit.Value[i+1:]
++			}
++		case "0x":
++			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
++				lit.Value = lit.Value[:i] + "p" + lit.Value[i+1:]
++			}
++		case "0X":
++			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
++				lit.Value = "0x" + lit.Value[2:i] + "p" + lit.Value[i+1:]
++			} else {
++				lit.Value = "0x" + lit.Value[2:]
++			}
++		}
++	}
++
++	return false
++}
+diff --git a/src/cmd/gofmt/testdata/go2numbers.golden b/src/cmd/gofmt/testdata/go2numbers.golden
+index a227a58362..2fab834bcd 100644
+--- a/src/cmd/gofmt/testdata/go2numbers.golden
++++ b/src/cmd/gofmt/testdata/go2numbers.golden
+@@ -1,6 +1,7 @@
+ package p
+ 
+ const (
++	// 0-octals
+ 	_ = 0
+ 	_ = 0123
+ 	_ = 0123456
+@@ -21,39 +22,39 @@ const (
+ 	_ = 0x1234
+ 	_ = 0xcafef00d
+ 
+-	_ = 0X0
+-	_ = 0X1234
+-	_ = 0XCAFEf00d
++	_ = 0x0
++	_ = 0x1234
++	_ = 0xCAFEf00d
+ 
+-	_ = 0X_0
+-	_ = 0X_1234
+-	_ = 0X_CAFE_f00d
++	_ = 0x_0
++	_ = 0x_1234
++	_ = 0x_CAFE_f00d
+ 
+ 	// octals
+ 	_ = 0o0
+ 	_ = 0o1234
+ 	_ = 0o01234567
+ 
+-	_ = 0O0
+-	_ = 0O1234
+-	_ = 0O01234567
++	_ = 0o0
++	_ = 0o1234
++	_ = 0o01234567
+ 
+ 	_ = 0o_0
+ 	_ = 0o_1234
+ 	_ = 0o0123_4567
+ 
+-	_ = 0O_0
+-	_ = 0O_1234
+-	_ = 0O0123_4567
++	_ = 0o_0
++	_ = 0o_1234
++	_ = 0o0123_4567
+ 
+ 	// binaries
+ 	_ = 0b0
+ 	_ = 0b1011
+ 	_ = 0b00101101
+ 
+-	_ = 0B0
+-	_ = 0B1011
+-	_ = 0B00101101
++	_ = 0b0
++	_ = 0b1011
++	_ = 0b00101101
+ 
+ 	_ = 0b_0
+ 	_ = 0b10_11
+@@ -70,26 +71,26 @@ const (
+ 
+ 	_ = 0e0
+ 	_ = 123e+0
+-	_ = 0123E-1
++	_ = 0123e-1
+ 
+ 	_ = 0e-0
+-	_ = 123E+0
+-	_ = 0123E123
++	_ = 123e+0
++	_ = 0123e123
+ 
+ 	_ = 0.e+1
+-	_ = 123.E-10
++	_ = 123.e-10
+ 	_ = 0123.e123
+ 
+ 	_ = .0e-1
+-	_ = .123E+10
+-	_ = .0123E123
++	_ = .123e+10
++	_ = .0123e123
+ 
+ 	_ = 0.0
+ 	_ = 123.123
+ 	_ = 0123.0123
+ 
+ 	_ = 0.0e1
+-	_ = 123.123E-10
++	_ = 123.123e-10
+ 	_ = 0123.0123e+456
+ 
+ 	_ = 1_2_3.
+@@ -100,42 +101,43 @@ const (
+ 	_ = 0_123e0
+ 
+ 	_ = 0e-0_0
+-	_ = 1_2_3E+0
+-	_ = 0123E1_2_3
++	_ = 1_2_3e+0
++	_ = 0123e1_2_3
+ 
+ 	_ = 0.e+1
+-	_ = 123.E-1_0
++	_ = 123.e-1_0
+ 	_ = 01_23.e123
+ 
+ 	_ = .0e-1
+-	_ = .123E+10
+-	_ = .0123E123
++	_ = .123e+10
++	_ = .0123e123
+ 
+ 	_ = 1_2_3.123
+ 	_ = 0123.01_23
+ 
+ 	// hexadecimal floats
+ 	_ = 0x0.p+0
+-	_ = 0Xdeadcafe.p-10
+-	_ = 0x1234.P123
++	_ = 0xdeadcafe.p-10
++	_ = 0x1234.p123
+ 
+ 	_ = 0x.1p-0
+-	_ = 0X.deadcafep2
+-	_ = 0x.1234P+10
++	_ = 0x.deadcafep2
++	_ = 0x.1234p+10
+ 
+ 	_ = 0x0p0
+-	_ = 0Xdeadcafep+1
+-	_ = 0x1234P-10
++	_ = 0xdeadcafep+1
++	_ = 0x1234p-10
+ 
+ 	_ = 0x0.0p0
+-	_ = 0Xdead.cafep+1
+-	_ = 0x12.34P-10
++	_ = 0xdead.cafep+1
++	_ = 0x12.34p-10
+ 
+-	_ = 0Xdead_cafep+1
+-	_ = 0x_1234P-10
++	_ = 0xdead_cafep+1
++	_ = 0x_1234p-10
+ 
+-	_ = 0X_dead_cafe.p-10
+-	_ = 0x12_34.P1_2_3
++	_ = 0x_dead_cafe.p-10
++	_ = 0x12_34.p1_2_3
++	_ = 0x1_2_3_4.p-1_2_3
+ 
+ 	// imaginaries
+ 	_ = 0i
+diff --git a/src/cmd/gofmt/testdata/go2numbers.input b/src/cmd/gofmt/testdata/go2numbers.input
+index a227a58362..7b3fd391da 100644
+--- a/src/cmd/gofmt/testdata/go2numbers.input
++++ b/src/cmd/gofmt/testdata/go2numbers.input
+@@ -1,6 +1,7 @@
+ package p
+ 
+ const (
++	// 0-octals
+ 	_ = 0
+ 	_ = 0123
+ 	_ = 0123456
+@@ -136,6 +137,7 @@ const (
+ 
+ 	_ = 0X_dead_cafe.p-10
+ 	_ = 0x12_34.P1_2_3
++	_ = 0X1_2_3_4.P-1_2_3
+ 
+ 	// imaginaries
+ 	_ = 0i

@@ -9,7 +9,49 @@ Date:   Tue Mar 2 17:44:22 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/298029
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/list/list.go                |  4 ++++
  src/cmd/go/testdata/script/list_json_with_f.txt | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index bb48d2d2ea..1e1c6495bf 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -335,6 +335,10 @@ var (
+ var nl = []byte{'\n'}
+ 
+ func runList(ctx context.Context, cmd *base.Command, args []string) {
++	if *listFmt != "" && *listJson == true {
++		base.Fatalf("go list -f cannot be used with -json")
++	}
++
+ 	load.ModResolveTests = *listTest
+ 	work.BuildInit()
+ 	out := newTrackingWriter(os.Stdout)
+diff --git a/src/cmd/go/testdata/script/list_json_with_f.txt b/src/cmd/go/testdata/script/list_json_with_f.txt
+new file mode 100644
+index 0000000000..2011a6e808
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_json_with_f.txt
+@@ -0,0 +1,20 @@
++[short] skip
++
++# list -json should generate output on stdout
++go list -json ./...
++stdout .
++# list -f should generate output on stdout
++go list -f '{{.}}' ./...
++stdout .
++
++# test passing first -json then -f
++! go list -json -f '{{.}}' ./...
++stderr '^go list -f cannot be used with -json$'
++
++# test passing first -f then -json
++! go list -f '{{.}}' -json ./...
++stderr '^go list -f cannot be used with -json$'
++-- go.mod --
++module m
++-- list_test.go --
++package list_test

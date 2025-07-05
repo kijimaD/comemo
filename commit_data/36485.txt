@@ -19,7 +19,7 @@ Date:   Sun Apr 29 22:17:23 2018 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 15 ++++-----------
  src/cmd/compile/internal/gc/walk.go  |  5 ++---
  src/cmd/internal/obj/arm64/asm7.go   | 10 ++++------
@@ -28,3 +28,246 @@ Date:   Sun Apr 29 22:17:23 2018 +0900
  src/cmd/internal/obj/ppc64/asm9.go   | 10 ++++------
  src/cmd/internal/obj/s390x/asmz.go   |  9 ++++-----
  7 files changed, 25 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index cbb9c2ee08..8d841b94dd 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1344,6 +1344,8 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 		default:
+ 			yyerror("defaultlit: unknown literal: %v", n)
+ 		}
++		lineno = lno
++		return n
+ 
+ 	case CTxxx:
+ 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
+@@ -1354,28 +1356,19 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 			t1 = t
+ 		}
+ 		n = convlit1(n, t1, false, reuse)
++		lineno = lno
++		return n
+ 
+ 	case CTINT:
+ 		t1 = types.Types[TINT]
+-		goto num
+-
+ 	case CTRUNE:
+ 		t1 = types.Runetype
+-		goto num
+-
+ 	case CTFLT:
+ 		t1 = types.Types[TFLOAT64]
+-		goto num
+-
+ 	case CTCPLX:
+ 		t1 = types.Types[TCOMPLEX128]
+-		goto num
+ 	}
+ 
+-	lineno = lno
+-	return n
+-
+-num:
+ 	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
+ 	// in the case of an untyped non-constant value, like 1<<i.
+ 	v1 := n.Val()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ca6c95382f..a264bf340d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1008,7 +1008,8 @@ opswitch:
+ 	case OCONV, OCONVNOP:
+ 		if thearch.SoftFloat {
+ 			// For the soft-float case, ssa.go handles these conversions.
+-			goto oconv_walkexpr
++			n.Left = walkexpr(n.Left, init)
++			break
+ 		}
+ 		switch thearch.LinkArch.Family {
+ 		case sys.ARM, sys.MIPS:
+@@ -1062,8 +1063,6 @@ opswitch:
+ 				}
+ 			}
+ 		}
+-
+-	oconv_walkexpr:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OANDNOT:
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 80a1f0bd3a..dd0e420e2f 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1470,7 +1470,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 		case obj.NAME_NONE:
+ 			c.instoffset = a.Offset
+ 			if a.Reg != 0 && a.Reg != REGZERO {
+-				goto aconsize
++				break
+ 			}
+ 			v := c.instoffset
+ 			if v == 0 {
+@@ -1516,7 +1516,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 			if a.Sym == nil {
+-				break
++				return C_GOK
+ 			}
+ 			if a.Sym.Type == objabi.STLSBSS {
+ 				c.ctxt.Diag("taking address of TLS variable is not supported")
+@@ -1531,7 +1531,6 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 				a.Reg = obj.REG_NONE
+ 			}
+ 			c.instoffset = int64(c.autosize) + a.Offset
+-			goto aconsize
+ 
+ 		case obj.NAME_PARAM:
+ 			if a.Reg == REGSP {
+@@ -1540,11 +1539,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 				a.Reg = obj.REG_NONE
+ 			}
+ 			c.instoffset = int64(c.autosize) + a.Offset + 8
+-			goto aconsize
++		default:
++			return C_GOK
+ 		}
+-		return C_GOK
+ 
+-	aconsize:
+ 		if isaddcon(c.instoffset) {
+ 			return C_AACON
+ 		}
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 0a391b978b..e4004be98d 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -612,13 +612,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 				return C_DACON
+ 			}
+ 
+-			goto consize
+-
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+ 			s := a.Sym
+ 			if s == nil {
+-				break
++				return C_GOK
+ 			}
+ 
+ 			c.instoffset = a.Offset
+@@ -650,11 +648,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 				return C_SACON
+ 			}
+ 			return C_LACON
+-		}
+ 
+-		return C_GOK
++		default:
++			return C_GOK
++		}
+ 
+-	consize:
+ 		if c.instoffset >= 0 {
+ 			if c.instoffset == 0 {
+ 				return C_ZCON
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 73026b46ea..697b2b7acb 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -878,21 +878,20 @@ func (c *ctxt0) sched(p0, pe *obj.Prog) {
+ 			t = sch[j:]
+ 			if t[0].comp {
+ 				if s[0].p.Mark&BRANCH != 0 {
+-					goto no2
++					continue
+ 				}
+ 			}
+ 			if t[0].p.Mark&DELAY != 0 {
+ 				if -cap(s) >= -cap(se) || conflict(&t[0], &s[1]) {
+-					goto no2
++					continue
+ 				}
+ 			}
+ 			for u := t[1:]; -cap(u) <= -cap(s); u = u[1:] {
+ 				if c.depend(&u[0], &t[0]) {
+-					goto no2
++					continue
+ 				}
+ 			}
+ 			goto out2
+-		no2:
+ 		}
+ 
+ 		if s[0].p.Mark&BRANCH != 0 {
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 72738f1967..cf27a49cd0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -844,13 +844,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 				return C_DACON
+ 			}
+ 
+-			goto consize
+-
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+ 			s := a.Sym
+ 			if s == nil {
+-				break
++				return C_GOK
+ 			}
+ 
+ 			c.instoffset = a.Offset
+@@ -871,11 +869,11 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 				return C_SACON
+ 			}
+ 			return C_LACON
+-		}
+ 
+-		return C_GOK
++		default:
++			return C_GOK
++		}
+ 
+-	consize:
+ 		if c.instoffset >= 0 {
+ 			if c.instoffset == 0 {
+ 				return C_ZCON
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 761cdc5637..52cfc0e1e6 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -570,13 +570,12 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 				}
+ 				return C_DACON
+ 			}
+-			goto consize
+ 
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+ 			s := a.Sym
+ 			if s == nil {
+-				break
++				return C_GOK
+ 			}
+ 			c.instoffset = a.Offset
+ 
+@@ -605,11 +604,11 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 				return C_SACON
+ 			}
+ 			return C_LACON
+-		}
+ 
+-		return C_GOK
++		default:
++			return C_GOK
++		}
+ 
+-	consize:
+ 		if c.instoffset == 0 {
+ 			return C_ZCON
+ 		}

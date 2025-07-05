@@ -9,8 +9,77 @@ Date:   Thu Oct 25 06:23:54 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 10 +++++++---
  src/cmd/compile/internal/gc/pgen.go |  5 +++--
  src/cmd/compile/internal/gc/subr.go | 10 +++++++++-
  3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 3d7011aafd..339e8e08cd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -689,10 +689,14 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// Check whether any of the functions we have compiled have gigantic stack frames.
+ 	obj.SortSlice(largeStackFrames, func(i, j int) bool {
+-		return largeStackFrames[i].Before(largeStackFrames[j])
++		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
+ 	})
+-	for _, largePos := range largeStackFrames {
+-		yyerrorl(largePos, "stack frame too large (>1GB)")
++	for _, large := range largeStackFrames {
++		if large.callee != 0 {
++			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
++		} else {
++			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
++		}
+ 	}
+ 
+ 	if len(compilequeue) != 0 {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index e6bbf04400..01dacb783b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -279,7 +279,7 @@ func compileSSA(fn *Node, worker int) {
+ 	// Note: check arg size to fix issue 25507.
+ 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+-		largeStackFrames = append(largeStackFrames, fn.Pos)
++		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: fn.Type.ArgWidth(), pos: fn.Pos})
+ 		largeStackFramesMu.Unlock()
+ 		return
+ 	}
+@@ -294,7 +294,8 @@ func compileSSA(fn *Node, worker int) {
+ 	// the assembler may emit inscrutable complaints about invalid instructions.
+ 	if pp.Text.To.Offset >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+-		largeStackFrames = append(largeStackFrames, fn.Pos)
++		locals := f.Frontend().(*ssafn).stksize
++		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: fn.Type.ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos})
+ 		largeStackFramesMu.Unlock()
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c92ad14475..df3bde86ea 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -28,9 +28,17 @@ type Error struct {
+ 
+ var errors []Error
+ 
++// largeStack is info about a function whose stack frame is too large (rare).
++type largeStack struct {
++	locals int64
++	args   int64
++	callee int64
++	pos    src.XPos
++}
++
+ var (
+ 	largeStackFramesMu sync.Mutex // protects largeStackFrames
+-	largeStackFrames   []src.XPos // positions of functions whose stack frames are too large (rare)
++	largeStackFrames   []largeStack
+ )
+ 
+ func errorexit() {

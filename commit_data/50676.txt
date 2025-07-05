@@ -14,7 +14,105 @@ Date:   Thu Nov 4 21:35:55 2021 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/netip/netip.go      |  6 ++++++
  src/net/netip/netip_test.go | 32 +++++++++++++++++++++-----------
  2 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 02a4aa0452..b0c13b81fc 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -155,9 +155,14 @@ func (err parseAddrError) Error() string {
+ func parseIPv4(s string) (ip Addr, err error) {
+ 	var fields [4]uint8
+ 	var val, pos int
++	var digLen int // number of digits in current octet
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] >= '0' && s[i] <= '9' {
++			if digLen == 1 && val == 0 {
++				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
++			}
+ 			val = val*10 + int(s[i]) - '0'
++			digLen++
+ 			if val > 255 {
+ 				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
+ 			}
+@@ -175,6 +180,7 @@ func parseIPv4(s string) (ip Addr, err error) {
+ 			fields[pos] = uint8(val)
+ 			pos++
+ 			val = 0
++			digLen = 0
+ 		} else {
+ 			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
+ 		}
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 5d935c8fd3..241a71bb83 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -29,9 +29,10 @@ var (
+ 
+ func TestParseAddr(t *testing.T) {
+ 	var validIPs = []struct {
+-		in  string
+-		ip  Addr   // output of ParseAddr()
+-		str string // output of String(). If "", use in.
++		in      string
++		ip      Addr   // output of ParseAddr()
++		str     string // output of String(). If "", use in.
++		wantErr string
+ 	}{
+ 		// Basic zero IPv4 address.
+ 		{
+@@ -45,15 +46,18 @@ func TestParseAddr(t *testing.T) {
+ 		},
+ 		// IPv4 address in windows-style "print all the digits" form.
+ 		{
+-			in:  "010.000.015.001",
+-			ip:  MkAddr(Mk128(0, 0xffff0a000f01), Z4),
+-			str: "10.0.15.1",
++			in:      "010.000.015.001",
++			wantErr: `ParseAddr("010.000.015.001"): IPv4 field has octet with leading zero`,
+ 		},
+ 		// IPv4 address with a silly amount of leading zeros.
+ 		{
+-			in:  "000001.00000002.00000003.000000004",
+-			ip:  MkAddr(Mk128(0, 0xffff01020304), Z4),
+-			str: "1.2.3.4",
++			in:      "000001.00000002.00000003.000000004",
++			wantErr: `ParseAddr("000001.00000002.00000003.000000004"): IPv4 field has octet with leading zero`,
++		},
++		// 4-in-6 with octet with leading zero
++		{
++			in:      "::ffff:1.2.03.4",
++			wantErr: `ParseAddr("::ffff:1.2.03.4"): ParseAddr("1.2.03.4"): IPv4 field has octet with leading zero (at "1.2.03.4")`,
+ 		},
+ 		// Basic zero IPv6 address.
+ 		{
+@@ -121,10 +125,16 @@ func TestParseAddr(t *testing.T) {
+ 		t.Run(test.in, func(t *testing.T) {
+ 			got, err := ParseAddr(test.in)
+ 			if err != nil {
++				if err.Error() == test.wantErr {
++					return
++				}
+ 				t.Fatal(err)
+ 			}
++			if test.wantErr != "" {
++				t.Fatalf("wanted error %q; got none", test.wantErr)
++			}
+ 			if got != test.ip {
+-				t.Errorf("ParseAddr(%q) got %#v, want %#v", test.in, got, test.ip)
++				t.Errorf("got %#v, want %#v", got, test.ip)
+ 			}
+ 
+ 			// Check that ParseAddr is a pure function.
+@@ -963,7 +973,7 @@ func TestIs4In6(t *testing.T) {
+ 		{mustIP("::ffff:192.0.2.128"), true, mustIP("192.0.2.128")},
+ 		{mustIP("::ffff:192.0.2.128%eth0"), true, mustIP("192.0.2.128")},
+ 		{mustIP("::fffe:c000:0280"), false, mustIP("::fffe:c000:0280")},
+-		{mustIP("::ffff:127.001.002.003"), true, mustIP("127.1.2.3")},
++		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+ 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
+ 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+ 		{mustIP("0:0:0:0:000000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},

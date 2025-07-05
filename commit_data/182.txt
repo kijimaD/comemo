@@ -5,7 +5,7 @@ Date:   Mon Jun 16 22:34:50 2008 -0700
     maps
     
     SVN=123089
-
+---
  src/cmd/6g/gen.c       |  20 ++---
  src/cmd/gc/sys.go      |   8 +-
  src/cmd/gc/sysimport.c | 124 +++++++++++++-------------
@@ -13,3 +13,773 @@ Date:   Mon Jun 16 22:34:50 2008 -0700
  src/runtime/runtime.c  |  56 ++++++------
  src/runtime/runtime.h  |  10 ++-
  6 files changed, 293 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index ca67d73750..e1b596f1ab 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -21,28 +21,22 @@ compile(Node *fn)
+ 	Plist *pl;
+ 	Node nod1;
+ 	Prog *ptxt;
++	long lno;
++
+ 
+ 	if(fn->nbody == N)
+ 		return;
++	lno = dynlineno;
++
+ 
+ 	curfn = fn;
++	dynlineno = curfn->lineno;	// for diagnostics
+ 	dowidth(curfn->type);
+ 
+-	if(nerrors != 0) {
+-		walk(curfn);
+-		return;
+-	}
+-
+-	if(debug['w'])
+-		dump("--- pre walk ---", curfn->nbody);
+-
+ 	walk(curfn);
+ 	if(nerrors != 0)
+ 		return;
+ 
+-	if(debug['w'])
+-		dump("--- post walk ---", curfn->nbody);
+-
+ 	allocparams();
+ 
+ 	continpc = P;
+@@ -71,6 +65,8 @@ compile(Node *fn)
+ 
+ 	if(debug['f'])
+ 		frame(0);
++
++	dynlineno = lno;;
+ }
+ 
+ void
+@@ -692,7 +688,7 @@ cgen_asop(Node *n)
+ 	nr = n->right;
+ 
+ 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+-		fatal("cgen_asop both sides call");
++		fatal("cgen_asop: both sides call");
+ 	}
+ 
+ 	if(nr->ullman > nl->ullman) {
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 7e8fd5f03e..629446e262 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -32,8 +32,8 @@ func	newmap(keysize uint32, valsize uint32,
+ 		hint uint32) (hmap *map[any]any);
+ func	mapaccess1(hmap *map[any]any, key any) (val any);
+ func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+-func	mapdelete(hmap *map[any]any, key any);
+-func	mapassign(hmap *map[any]any, any);
++func	mapassign1(hmap *map[any]any, key any, val any);
++func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ 
+ export
+ 	mal
+@@ -64,7 +64,7 @@ export
+ 	newmap
+ 	mapaccess1
+ 	mapaccess2
+-	mapdelete
+-	mapassign
++	mapassign1
++	mapassign2
+ 
+ 	;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 439c311eca..352fc5dd89 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -3,10 +3,10 @@ char*	sysimport =
+ 	"type sys._e002 {}\n"
+ 	"type sys.any 24\n"
+ 	"type sys._e003 *sys.any\n"
+-	"type sys._o172 {_e170 sys._e003}\n"
++	"type sys._o181 {_e179 sys._e003}\n"
+ 	"type sys.uint32 6\n"
+-	"type sys._i174 {_e171 sys.uint32}\n"
+-	"type sys._e001 (sys._e002 sys._o172 sys._i174)\n"
++	"type sys._i183 {_e180 sys.uint32}\n"
++	"type sys._e001 (sys._e002 sys._o181 sys._i183)\n"
+ 	"var !sys.mal sys._e001\n"
+ 	"type sys._e005 {}\n"
+ 	"type sys._e006 {}\n"
+@@ -16,131 +16,131 @@ char*	sysimport =
+ 	"type sys._e009 {}\n"
+ 	"type sys._e010 {}\n"
+ 	"type sys.int32 5\n"
+-	"type sys._i180 {_e179 sys.int32}\n"
+-	"type sys._e008 (sys._e009 sys._e010 sys._i180)\n"
++	"type sys._i189 {_e188 sys.int32}\n"
++	"type sys._e008 (sys._e009 sys._e010 sys._i189)\n"
+ 	"var !sys.panicl sys._e008\n"
+ 	"type sys._e012 {}\n"
+ 	"type sys._e013 {}\n"
+ 	"type sys.bool 12\n"
+-	"type sys._i185 {_e184 sys.bool}\n"
+-	"type sys._e011 (sys._e012 sys._e013 sys._i185)\n"
++	"type sys._i194 {_e193 sys.bool}\n"
++	"type sys._e011 (sys._e012 sys._e013 sys._i194)\n"
+ 	"var !sys.printbool sys._e011\n"
+ 	"type sys._e015 {}\n"
+ 	"type sys._e016 {}\n"
+ 	"type sys.float64 10\n"
+-	"type sys._i190 {_e189 sys.float64}\n"
+-	"type sys._e014 (sys._e015 sys._e016 sys._i190)\n"
++	"type sys._i199 {_e198 sys.float64}\n"
++	"type sys._e014 (sys._e015 sys._e016 sys._i199)\n"
+ 	"var !sys.printfloat sys._e014\n"
+ 	"type sys._e018 {}\n"
+ 	"type sys._e019 {}\n"
+ 	"type sys.int64 7\n"
+-	"type sys._i195 {_e194 sys.int64}\n"
+-	"type sys._e017 (sys._e018 sys._e019 sys._i195)\n"
++	"type sys._i204 {_e203 sys.int64}\n"
++	"type sys._e017 (sys._e018 sys._e019 sys._i204)\n"
+ 	"var !sys.printint sys._e017\n"
+ 	"type sys._e021 {}\n"
+ 	"type sys._e022 {}\n"
+ 	"type sys._e023 25\n"
+ 	"type sys.string *sys._e023\n"
+-	"type sys._i200 {_e199 sys.string}\n"
+-	"type sys._e020 (sys._e021 sys._e022 sys._i200)\n"
++	"type sys._i209 {_e208 sys.string}\n"
++	"type sys._e020 (sys._e021 sys._e022 sys._i209)\n"
+ 	"var !sys.printstring sys._e020\n"
+ 	"type sys._e025 {}\n"
+ 	"type sys._e026 {}\n"
+ 	"type sys.uint8 2\n"
+ 	"type sys._e027 *sys.uint8\n"
+-	"type sys._i205 {_e204 sys._e027}\n"
+-	"type sys._e024 (sys._e025 sys._e026 sys._i205)\n"
++	"type sys._i214 {_e213 sys._e027}\n"
++	"type sys._e024 (sys._e025 sys._e026 sys._i214)\n"
+ 	"var !sys.printpointer sys._e024\n"
+ 	"type sys._e029 {}\n"
+-	"type sys._o212 {_e209 sys.string}\n"
+-	"type sys._i214 {_e210 sys.string _e211 sys.string}\n"
+-	"type sys._e028 (sys._e029 sys._o212 sys._i214)\n"
++	"type sys._o221 {_e218 sys.string}\n"
++	"type sys._i223 {_e219 sys.string _e220 sys.string}\n"
++	"type sys._e028 (sys._e029 sys._o221 sys._i223)\n"
+ 	"var !sys.catstring sys._e028\n"
+ 	"type sys._e031 {}\n"
+-	"type sys._o222 {_e219 sys.int32}\n"
+-	"type sys._i224 {_e220 sys.string _e221 sys.string}\n"
+-	"type sys._e030 (sys._e031 sys._o222 sys._i224)\n"
++	"type sys._o231 {_e228 sys.int32}\n"
++	"type sys._i233 {_e229 sys.string _e230 sys.string}\n"
++	"type sys._e030 (sys._e031 sys._o231 sys._i233)\n"
+ 	"var !sys.cmpstring sys._e030\n"
+ 	"type sys._e033 {}\n"
+-	"type sys._o233 {_e229 sys.string}\n"
+-	"type sys._i235 {_e230 sys.string _e231 sys.int32 _e232 sys.int32}\n"
+-	"type sys._e032 (sys._e033 sys._o233 sys._i235)\n"
++	"type sys._o242 {_e238 sys.string}\n"
++	"type sys._i244 {_e239 sys.string _e240 sys.int32 _e241 sys.int32}\n"
++	"type sys._e032 (sys._e033 sys._o242 sys._i244)\n"
+ 	"var !sys.slicestring sys._e032\n"
+ 	"type sys._e035 {}\n"
+-	"type sys._o244 {_e241 sys.uint8}\n"
+-	"type sys._i246 {_e242 sys.string _e243 sys.int32}\n"
+-	"type sys._e034 (sys._e035 sys._o244 sys._i246)\n"
++	"type sys._o253 {_e250 sys.uint8}\n"
++	"type sys._i255 {_e251 sys.string _e252 sys.int32}\n"
++	"type sys._e034 (sys._e035 sys._o253 sys._i255)\n"
+ 	"var !sys.indexstring sys._e034\n"
+ 	"type sys._e037 {}\n"
+-	"type sys._o253 {_e251 sys.string}\n"
+-	"type sys._i255 {_e252 sys.int64}\n"
+-	"type sys._e036 (sys._e037 sys._o253 sys._i255)\n"
++	"type sys._o262 {_e260 sys.string}\n"
++	"type sys._i264 {_e261 sys.int64}\n"
++	"type sys._e036 (sys._e037 sys._o262 sys._i264)\n"
+ 	"var !sys.intstring sys._e036\n"
+ 	"type sys._e039 {}\n"
+-	"type sys._o262 {_e259 sys.string}\n"
++	"type sys._o271 {_e268 sys.string}\n"
+ 	"type sys._e040 *sys.uint8\n"
+-	"type sys._i264 {_e260 sys._e040 _e261 sys.int32}\n"
+-	"type sys._e038 (sys._e039 sys._o262 sys._i264)\n"
++	"type sys._i273 {_e269 sys._e040 _e270 sys.int32}\n"
++	"type sys._e038 (sys._e039 sys._o271 sys._i273)\n"
+ 	"var !sys.byteastring sys._e038\n"
+ 	"type sys._e042 {}\n"
+ 	"type sys._e043 <>\n"
+-	"type sys._o273 {_e269 sys._e043}\n"
++	"type sys._o282 {_e278 sys._e043}\n"
+ 	"type sys._e044 *sys.uint8\n"
+ 	"type sys._e045 *sys.uint8\n"
+-	"type sys._s280 {}\n"
+-	"type sys._e046 *sys._s280\n"
+-	"type sys._i275 {_e270 sys._e044 _e271 sys._e045 _e272 sys._e046}\n"
+-	"type sys._e041 (sys._e042 sys._o273 sys._i275)\n"
++	"type sys._s289 {}\n"
++	"type sys._e046 *sys._s289\n"
++	"type sys._i284 {_e279 sys._e044 _e280 sys._e045 _e281 sys._e046}\n"
++	"type sys._e041 (sys._e042 sys._o282 sys._i284)\n"
+ 	"var !sys.mkiface sys._e041\n"
+ 	"type sys._e048 {}\n"
+-	"type sys._o286 {_e283 sys.int32 _e284 sys.float64}\n"
+-	"type sys._i288 {_e285 sys.float64}\n"
+-	"type sys._e047 (sys._e048 sys._o286 sys._i288)\n"
++	"type sys._o295 {_e292 sys.int32 _e293 sys.float64}\n"
++	"type sys._i297 {_e294 sys.float64}\n"
++	"type sys._e047 (sys._e048 sys._o295 sys._i297)\n"
+ 	"var !sys.frexp sys._e047\n"
+ 	"type sys._e050 {}\n"
+-	"type sys._o295 {_e292 sys.float64}\n"
+-	"type sys._i297 {_e293 sys.int32 _e294 sys.float64}\n"
+-	"type sys._e049 (sys._e050 sys._o295 sys._i297)\n"
++	"type sys._o304 {_e301 sys.float64}\n"
++	"type sys._i306 {_e302 sys.int32 _e303 sys.float64}\n"
++	"type sys._e049 (sys._e050 sys._o304 sys._i306)\n"
+ 	"var !sys.ldexp sys._e049\n"
+ 	"type sys._e052 {}\n"
+-	"type sys._o305 {_e302 sys.float64 _e303 sys.float64}\n"
+-	"type sys._i307 {_e304 sys.float64}\n"
+-	"type sys._e051 (sys._e052 sys._o305 sys._i307)\n"
++	"type sys._o314 {_e311 sys.float64 _e312 sys.float64}\n"
++	"type sys._i316 {_e313 sys.float64}\n"
++	"type sys._e051 (sys._e052 sys._o314 sys._i316)\n"
+ 	"var !sys.modf sys._e051\n"
+ 	"type sys._e054 {}\n"
+ 	"type sys._e056 [sys.any] sys.any\n"
+ 	"type sys._e055 *sys._e056\n"
+-	"type sys._o311 {hmap sys._e055}\n"
+-	"type sys._i313 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._e053 (sys._e054 sys._o311 sys._i313)\n"
++	"type sys._o320 {hmap sys._e055}\n"
++	"type sys._i322 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
++	"type sys._e053 (sys._e054 sys._o320 sys._i322)\n"
+ 	"var !sys.newmap sys._e053\n"
+ 	"type sys._e058 {}\n"
+-	"type sys._o321 {val sys.any}\n"
++	"type sys._o330 {val sys.any}\n"
+ 	"type sys._e060 [sys.any] sys.any\n"
+ 	"type sys._e059 *sys._e060\n"
+-	"type sys._i323 {hmap sys._e059 key sys.any}\n"
+-	"type sys._e057 (sys._e058 sys._o321 sys._i323)\n"
++	"type sys._i332 {hmap sys._e059 key sys.any}\n"
++	"type sys._e057 (sys._e058 sys._o330 sys._i332)\n"
+ 	"var !sys.mapaccess1 sys._e057\n"
+ 	"type sys._e062 {}\n"
+-	"type sys._o328 {val sys.any pres sys.bool}\n"
++	"type sys._o337 {val sys.any pres sys.bool}\n"
+ 	"type sys._e064 [sys.any] sys.any\n"
+ 	"type sys._e063 *sys._e064\n"
+-	"type sys._i330 {hmap sys._e063 key sys.any}\n"
+-	"type sys._e061 (sys._e062 sys._o328 sys._i330)\n"
++	"type sys._i339 {hmap sys._e063 key sys.any}\n"
++	"type sys._e061 (sys._e062 sys._o337 sys._i339)\n"
+ 	"var !sys.mapaccess2 sys._e061\n"
+ 	"type sys._e066 {}\n"
+ 	"type sys._e067 {}\n"
+ 	"type sys._e069 [sys.any] sys.any\n"
+ 	"type sys._e068 *sys._e069\n"
+-	"type sys._i335 {hmap sys._e068 key sys.any}\n"
+-	"type sys._e065 (sys._e066 sys._e067 sys._i335)\n"
+-	"var !sys.mapdelete sys._e065\n"
++	"type sys._i344 {hmap sys._e068 key sys.any val sys.any}\n"
++	"type sys._e065 (sys._e066 sys._e067 sys._i344)\n"
++	"var !sys.mapassign1 sys._e065\n"
+ 	"type sys._e071 {}\n"
+ 	"type sys._e072 {}\n"
+ 	"type sys._e074 [sys.any] sys.any\n"
+ 	"type sys._e073 *sys._e074\n"
+-	"type sys._i341 {hmap sys._e073 _e340 sys.any}\n"
+-	"type sys._e070 (sys._e071 sys._e072 sys._i341)\n"
+-	"var !sys.mapassign sys._e070\n"
++	"type sys._i350 {hmap sys._e073 key sys.any val sys.any pres sys.bool}\n"
++	"type sys._e070 (sys._e071 sys._e072 sys._i350)\n"
++	"var !sys.mapassign2 sys._e070\n"
+ 	"))\n"
+ ;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d2bcb05ae4..c40cabd8f4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -43,8 +43,9 @@ loop:
+ 	if(n->op != ONAME)
+ 		dynlineno = n->lineno;	// for diagnostics
+ 
+-if(debug['T'])
+-print("%L walktype %O %d\n", n->op, top);
++	if(debug['w'] > 1 && top == Etop)
++		if(n->op != OLIST)
++			dump("walk-before", n);
+ 
+ 	t = T;
+ 	et = Txxx;
+@@ -225,7 +226,6 @@ print("%L walktype %O %d\n", n->op, top);
+ 		if(r == N || r->type == T)
+ 			goto ret;
+ 
+-
+ 		if(r->op == OCALL && l->op == OLIST) {
+ 			l = ascompatet(n->op, &n->left, &r->type, 0);
+ 			if(l != N) {
+@@ -233,7 +233,6 @@ print("%L walktype %O %d\n", n->op, top);
+ 			}
+ 			goto ret;
+ 		}
+-
+ 		l = ascompatee(n->op, &n->left, &n->right);
+ 		if(l != N)
+ 			*n = *reorder3(l);
+@@ -419,7 +418,6 @@ print("%L walktype %O %d\n", n->op, top);
+ 			goto nottop;
+ 		walktype(n->left, Erv);
+ 		evconst(n);
+-		ullmancalc(n);
+ 		t = n->left->type;
+ 		if(t != T && isptr[t->etype])
+ 			t = t->type;
+@@ -442,41 +440,67 @@ print("%L walktype %O %d\n", n->op, top);
+ 		walktype(n->left, top);
+ 		walktype(n->right, Erv);
+ 
+-		ullmancalc(n);
+ 		if(n->left == N || n->right == N)
+ 			goto ret;
++
++		defaultlit(n->left);
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+ 
+-		// map
+-		if(isptrto(t, TMAP)) {
+-			*n = *mapop(n, top);
+-			goto ret;
++		// left side is indirect
++		if(isptr[t->etype]) {
++			t = t->type;
++			n->op = OINDEXPTR;
+ 		}
+ 
+-		// right side must be an int
+-		if(n->right->type == T)
+-			convlit(n->right, types[TINT32]);
+-		if(n->left->type == T || n->right->type == T)
+-			goto ret;
+-		if(!isint[n->right->type->etype])
++		switch(t->etype) {
++		default:
+ 			goto badt;
+ 
+-		// left side is string
+-		if(isptrto(t, TSTRING)) {
++		case TMAP:
++			// right side must map type
++			if(n->right->type == T) {
++				convlit(n->right, t->down);
++				if(n->right->type == T)
++					break;
++			}
++			if(!eqtype(n->right->type, t->down, 0))
++				goto badt;
++			if(n->op != OINDEXPTR)
++				goto badt;
++			n->op = OINDEX;
++			n->type = t->type;
++			break;
++
++		case TSTRING:
++			// right side must be an int
++			if(top != Erv)
++				goto nottop;
++			if(n->right->type == T) {
++				convlit(n->right, types[TINT32]);
++				if(n->right->type == T)
++					break;
++			}
++			if(!isint[n->right->type->etype])
++				goto badt;
+ 			*n = *stringop(n, top);
+-			goto ret;
+-		}
++			break;
++			
++		case TARRAY:
++		case TDARRAY:
++			// right side must be an int
++			if(n->right->type == T) {
++				convlit(n->right, types[TINT32]);
++				if(n->right->type == T)
++					break;
++			}
++			if(!isint[n->right->type->etype])
++				goto badt;
+ 
+-		// left side is array
+-		if(isptr[t->etype]) {
+-			t = t->type;
+-			n->op = OINDEXPTR;
++			n->type = t->type;
++			break;
+ 		}
+-		if(t->etype != TARRAY && t->etype != TDARRAY)
+-			goto badt;
+-		n->type = t->type;
+ 		goto ret;
+ 
+ 	case OSLICE:
+@@ -638,6 +662,9 @@ badt:
+ 	goto ret;
+ 
+ ret:
++	if(debug['w'] && top == Etop)
++		dump("walk-after", n);
++
+ 	ullmancalc(n);
+ 	dynlineno = lno;
+ }
+@@ -1206,7 +1233,7 @@ stringop(Node *n, int top)
+ 		r = nod(OCALL, on, r);
+ 		break;
+ 
+-	case OINDEX:
++	case OINDEXPTR:
+ 		// sys_indexstring(s, i)
+ 		r = nod(OCONV, n->right, N);
+ 		r->type = types[TINT32];
+@@ -1275,18 +1302,18 @@ algtype(Type *t)
+ {
+ 	int a;
+ 
+-	a = 0;
++	a = 100;
+ 	if(issimple[t->etype])
+-		a = 1;		// simple mem
++		a = 0;		// simple mem
+ 	else
+ 	if(isptrto(t, TSTRING))
+-		a = 2;		// string
++		a = 1;		// string
+ 	else
+ 	if(isptr[t->etype])
+-		a = 3;		// pointer
++		a = 2;		// pointer
+ 	else
+ 	if(isinter(t))
+-		a = 4;		// interface
++		a = 3;		// interface
+ 	else
+ 		fatal("algtype: cant find type %T", t);
+ 	return a;
+@@ -1304,16 +1331,20 @@ mapop(Node *n, int top)
+ 	lno = dynlineno;
+ 	dynlineno = n->lineno;
+ 
+-print("mapop %O\n", n->op);
++//dump("mapop", n);
++
+ 	r = n;
+ 	switch(n->op) {
+ 	default:
+-		fatal("stringop: unknown op %E", n->op);
++		fatal("mapop: unknown op %E", n->op);
+ 
+ 	case ONEW:
++		if(top != Erv)
++			goto nottop;
++
+ 		// newmap(keysize uint32, valsize uint32,
+ 		//	keyalg uint32, valalg uint32,
+-		//	hint uint32) (hmap *map[any]any);
++		//	hint uint32) (hmap *map[any-1]any-2);
+ 
+ 		t = fixmap(n->type);
+ 		if(t == T)
+@@ -1334,18 +1365,18 @@ print("mapop %O\n", n->op);
+ 
+ 		on = syslook("newmap", 1);
+ 
+-print("type1=%lT\n", on->type);
+ 		argtype(on, t->down);	// any-1
+ 		argtype(on, t->type);	// any-2
+-print("type5=%lT\n", on->type);
+ 
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, top);
+ 		r->type = n->type;
+ 		break;
+ 
+-	case OINDEX:
+ 	case OINDEXPTR:
++		if(top != Erv)
++			goto nottop;
++
+ 		// mapaccess1(hmap *map[any]any, key any) (val any);
+ 
+ 		t = fixmap(n->left->type);
+@@ -1370,23 +1401,121 @@ print("type5=%lT\n", on->type);
+ 
+ 		on = syslook("mapaccess1", 1);
+ 
+-print("type1=%lT\n", on->type);
+ 		argtype(on, t->down);	// any-1
+ 		argtype(on, t->type);	// any-2
+ 		argtype(on, t->down);	// any-3
+ 		argtype(on, t->type);	// any-4
+-print("type5=%lT\n", on->type);
+ 
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, Erv);
+-		r->type = ptrto(t->type);
+-		r = nod(OIND, r, N);
+ 		r->type = t->type;
+ 		break;
+-	}
+ 
++		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
++
++		t = fixmap(n->left->type);
++		if(t == T)
++			break;
++
++		convlit(n->right, t->down);
++
++		if(!eqtype(n->right->type, t->down, 0)) {
++			badtype(n->op, n->right->type, t->down);
++			break;
++		}
++
++		a = n->right;				// key
++		if(!isptr[t->down->etype]) {
++			a = nod(OADDR, a, N);
++			a->type = ptrto(t);
++		}
++		r = a;
++		a = n->left;				// map
++		r = nod(OLIST, a, r);
++
++		on = syslook("mapaccess2", 1);
++
++		argtype(on, t->down);	// any-1
++		argtype(on, t->type);	// any-2
++		argtype(on, t->down);	// any-3
++		argtype(on, t->type);	// any-4
++
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		r->type = t->type;
++		break;
++
++	case OAS:
++		if(top != Elv)
++			goto nottop;
++		if(n->left->op != OINDEX)
++			fatal("mapos: AS left not OINDEX");
++
++		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
++
++		t = fixmap(n->left->left->type);
++		if(t == T)
++			break;
++
++		a = n->right;				// val
++		r = a;
++		a = n->left->right;			// key
++		r = nod(OLIST, a, r);
++		a = n->left->left;			// map
++		r = nod(OLIST, a, r);
++
++		on = syslook("mapassign1", 1);
++
++		argtype(on, t->down);	// any-1
++		argtype(on, t->type);	// any-2
++		argtype(on, t->down);	// any-3
++		argtype(on, t->type);	// any-4
++
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		break;
++
++/* BOTCH get 2nd version attached */
++		if(top != Elv)
++			goto nottop;
++		if(n->left->op != OINDEX)
++			fatal("mapos: AS left not OINDEX");
++
++		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
++
++		t = fixmap(n->left->left->type);
++		if(t == T)
++			break;
++
++		a = n->right;				// pres
++		r = a;
++		a = n->right;				// val
++		r =nod(OLIST, a, r);
++		a = n->left->right;			// key
++		r = nod(OLIST, a, r);
++		a = n->left->left;			// map
++		r = nod(OLIST, a, r);
++
++		on = syslook("mapassign2", 1);
++
++		argtype(on, t->down);	// any-1
++		argtype(on, t->type);	// any-2
++		argtype(on, t->down);	// any-3
++		argtype(on, t->type);	// any-4
++
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		break;
++
++	}
++//dump("mapop return", r);
+ 	dynlineno = lno;
+ 	return r;
++
++nottop:
++	dump("bad top", n);
++	fatal("mapop: top=%d %O", top, n->op);
++	return N;
+ }
+ 
+ void
+@@ -1421,6 +1550,18 @@ convas(Node *n)
+ 	if(lt == T || rt == T)
+ 		return n;
+ 
++	if(n->left->op == OINDEX)
++	if(isptrto(n->left->left->type, TMAP)) {
++		*n = *mapop(n, Elv);
++		return n;
++	}
++
++	if(n->left->op == OINDEXPTR)
++	if(n->left->left->type->etype == TMAP) {
++		*n = *mapop(n, Elv);
++		return n;
++	}
++
+ 	if(eqtype(lt, rt, 0))
+ 		return n;
+ 
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 9a7efc55b7..ee6f75f09c 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -147,7 +147,7 @@ enum
+ 	MAP_ANON	= 0x1000,
+ };
+ 
+-static void
++void
+ throw(int8 *s)
+ {
+ 	prints("throw: ");
+@@ -208,6 +208,30 @@ mal(uint32 n)
+ 	return v;
+ }
+ 
++uint32
++cmpstring(string s1, string s2)
++{
++	uint32 i, l;
++	byte c1, c2;
++
++	l = s1->len;
++	if(s2->len < l)
++		l = s2->len;
++	for(i=0; i<l; i++) {
++		c1 = s1->str[i];
++		c2 = s2->str[i];
++		if(c1 < c2)
++			return -1;
++		if(c1 > c2)
++			return +1;
++	}
++	if(s1->len < s2->len)
++		return -1;
++	if(s1->len > s2->len)
++		return +1;
++	return 0;
++}
++
+ void
+ sys_mal(uint32 n, uint8 *ret)
+ {
+@@ -243,35 +267,7 @@ out:
+ void
+ sys_cmpstring(string s1, string s2, int32 v)
+ {
+-	uint32 i, l;
+-	byte c1, c2;
+-
+-	l = s1->len;
+-	if(s2->len < l)
+-		l = s2->len;
+-	for(i=0; i<l; i++) {
+-		c1 = s1->str[i];
+-		c2 = s2->str[i];
+-		if(c1 < c2) {
+-			v = -1;
+-			goto out;
+-		}
+-		if(c1 > c2) {
+-			v = +1;
+-			goto out;
+-		}
+-	}
+-	if(s1->len < s2->len) {
+-		v = -1;
+-		goto out;
+-	}
+-	if(s1->len > s2->len) {
+-		v = +1;
+-		goto out;
+-	}
+-	v = 0;
+-
+-out:
++	v = cmpstring(s1, s2);
+ 	FLUSH(&v);
+ }
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index d006915730..898c7b4083 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -80,12 +80,18 @@ enum
+ #define	nil		((void*)0)
+ 
+ /*
+- * very low level
++ * very low level c-called
+  */
+ void	FLUSH(void*);
++void	throw(int8*);
+ void	prints(int8*);
+ void	mcpy(byte*, byte*, uint32);
+ void*	mal(uint32);
++uint32	cmpstring(string, string);
++
++/*
++ * low level go -called
++ */
+ void	sys_exit(int32);
+ void	sys_write(int32, void*, int32);
+ void	sys_breakpoint(void);
+@@ -94,7 +100,7 @@ void	sys_memclr(byte*, uint32);
+ void* sys_getcallerpc(void*);
+ 
+ /*
+- * runtime
++ * runtime go-called
+  */
+ void	sys_printbool(bool);
+ void	sys_printfloat(float64);

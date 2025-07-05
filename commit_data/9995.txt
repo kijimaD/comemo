@@ -24,7 +24,7 @@ Date:   Sat Oct 15 17:29:25 2011 +1100
     R=golang-dev, jp, rsc
     CC=golang-dev
     https://golang.org/cl/5272042
-
+---
  src/pkg/runtime/syscall_windows_test.go |  93 +++++-------
  src/pkg/runtime/windows/os.h            |   2 +-
  src/pkg/runtime/windows/syscall.goc     |  19 ++-
@@ -33,3 +33,595 @@ Date:   Sat Oct 15 17:29:25 2011 +1100
  src/pkg/syscall/dll_windows.go          | 252 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go      |  71 ---------
  7 files changed, 305 insertions(+), 137 deletions(-)
+
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index 32eb0533ff..c99756efa4 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -10,24 +10,34 @@ import (
+ 	"testing"
+ )
+ 
+-func TestStdCall(t *testing.T) {
+-	type Rect struct {
+-		left, top, right, bottom int32
+-	}
++type DLL struct {
++	*syscall.DLL
++	t *testing.T
++}
+ 
+-	h, e := syscall.LoadLibrary("user32.dll")
+-	if e != 0 {
+-		t.Fatal("LoadLibrary(USER32)")
++func GetDLL(t *testing.T, name string) *DLL {
++	d, e := syscall.LoadDLL(name)
++	if e != nil {
++		t.Fatal(e)
+ 	}
+-	p, e := syscall.GetProcAddress(h, "UnionRect")
+-	if e != 0 {
+-		t.Fatal("GetProcAddress(USER32.UnionRect)")
++	return &DLL{DLL: d, t: t}
++}
++
++func (d *DLL) Proc(name string) *syscall.Proc {
++	p, e := d.FindProc(name)
++	if e != nil {
++		d.t.Fatal(e)
+ 	}
++	return p
++}
+ 
++func TestStdCall(t *testing.T) {
++	type Rect struct {
++		left, top, right, bottom int32
++	}
+ 	res := Rect{}
+ 	expected := Rect{1, 1, 40, 60}
+-	a, _, _ := syscall.Syscall(uintptr(p),
+-		3,
++	a, _, _ := GetDLL(t, "user32.dll").Proc("UnionRect").Call(
+ 		uintptr(unsafe.Pointer(&res)),
+ 		uintptr(unsafe.Pointer(&Rect{10, 1, 14, 60})),
+ 		uintptr(unsafe.Pointer(&Rect{1, 2, 40, 50})))
+@@ -74,24 +84,14 @@ func Test64BitReturnStdCall(t *testing.T) {
+ 		Reserve           byte
+ 	}
+ 
+-	kernel32, e := syscall.LoadLibrary("kernel32.dll")
+-	if e != 0 {
+-		t.Fatalf("LoadLibrary(kernel32.dll) failed: %s", syscall.Errstr(e))
+-	}
+-	setMask, e := syscall.GetProcAddress(kernel32, "VerSetConditionMask")
+-	if e != 0 {
+-		t.Fatalf("GetProcAddress(kernel32.dll, VerSetConditionMask) failed: %s", syscall.Errstr(e))
+-	}
+-	verifyVersion, e := syscall.GetProcAddress(kernel32, "VerifyVersionInfoW")
+-	if e != 0 {
+-		t.Fatalf("GetProcAddress(kernel32.dll, VerifyVersionInfoW) failed: %s", syscall.Errstr(e))
+-	}
++	d := GetDLL(t, "kernel32.dll")
+ 
+ 	var m1, m2 uintptr
+-	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_MAJORVERSION, VER_GREATER_EQUAL, 0, 0)
+-	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_MINORVERSION, VER_GREATER_EQUAL, 0, 0)
+-	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL, 0, 0)
+-	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_SERVICEPACKMINOR, VER_GREATER_EQUAL, 0, 0)
++	VerSetConditionMask := d.Proc("VerSetConditionMask")
++	m1, m2, _ = VerSetConditionMask.Call(m1, m2, VER_MAJORVERSION, VER_GREATER_EQUAL)
++	m1, m2, _ = VerSetConditionMask.Call(m1, m2, VER_MINORVERSION, VER_GREATER_EQUAL)
++	m1, m2, _ = VerSetConditionMask.Call(m1, m2, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL)
++	m1, m2, _ = VerSetConditionMask.Call(m1, m2, VER_SERVICEPACKMINOR, VER_GREATER_EQUAL)
+ 
+ 	vi := OSVersionInfoEx{
+ 		MajorVersion:     5,
+@@ -100,63 +100,42 @@ func Test64BitReturnStdCall(t *testing.T) {
+ 		ServicePackMinor: 0,
+ 	}
+ 	vi.OSVersionInfoSize = uint32(unsafe.Sizeof(vi))
+-	r, _, e2 := syscall.Syscall6(verifyVersion,
+-		4,
++	r, _, e2 := d.Proc("VerifyVersionInfoW").Call(
+ 		uintptr(unsafe.Pointer(&vi)),
+ 		VER_MAJORVERSION|VER_MINORVERSION|VER_SERVICEPACKMAJOR|VER_SERVICEPACKMINOR,
+-		m1, m2, 0, 0)
++		m1, m2)
+ 	if r == 0 && e2 != ERROR_OLD_WIN_VERSION {
+ 		t.Errorf("VerifyVersionInfo failed: (%d) %s", e2, syscall.Errstr(int(e2)))
+ 	}
+ }
+ 
+ func TestCDecl(t *testing.T) {
+-	h, e := syscall.LoadLibrary("user32.dll")
+-	if e != 0 {
+-		t.Fatal("LoadLibrary(USER32)")
+-	}
+-	p, e := syscall.GetProcAddress(h, "wsprintfA")
+-	if e != 0 {
+-		t.Fatal("GetProcAddress(USER32.wsprintfA)")
+-	}
+-
+ 	var buf [50]byte
+-	a, _, _ := syscall.Syscall6(uintptr(p),
+-		5,
++	a, _, _ := GetDLL(t, "user32.dll").Proc("wsprintfA").Call(
+ 		uintptr(unsafe.Pointer(&buf[0])),
+ 		uintptr(unsafe.Pointer(syscall.StringBytePtr("%d %d %d"))),
+-		1000, 2000, 3000, 0)
++		1000, 2000, 3000)
+ 	if string(buf[:a]) != "1000 2000 3000" {
+ 		t.Error("cdecl USER32.wsprintfA returns", a, "buf=", buf[:a])
+ 	}
+ }
+ 
+ func TestCallback(t *testing.T) {
+-	h, e := syscall.LoadLibrary("user32.dll")
+-	if e != 0 {
+-		t.Fatal("LoadLibrary(USER32)")
+-	}
+-	pEnumWindows, e := syscall.GetProcAddress(h, "EnumWindows")
+-	if e != 0 {
+-		t.Fatal("GetProcAddress(USER32.EnumWindows)")
+-	}
+-	pIsWindow, e := syscall.GetProcAddress(h, "IsWindow")
+-	if e != 0 {
+-		t.Fatal("GetProcAddress(USER32.IsWindow)")
+-	}
++	d := GetDLL(t, "user32.dll")
++	isWindows := d.Proc("IsWindow")
+ 	counter := 0
+ 	cb := syscall.NewCallback(func(hwnd syscall.Handle, lparam uintptr) uintptr {
+ 		if lparam != 888 {
+ 			t.Error("lparam was not passed to callback")
+ 		}
+-		b, _, _ := syscall.Syscall(uintptr(pIsWindow), 1, uintptr(hwnd), 0, 0)
++		b, _, _ := isWindows.Call(uintptr(hwnd))
+ 		if b == 0 {
+ 			t.Error("USER32.IsWindow returns FALSE")
+ 		}
+ 		counter++
+ 		return 1 // continue enumeration
+ 	})
+-	a, _, _ := syscall.Syscall(uintptr(pEnumWindows), 2, cb, 888, 0)
++	a, _, _ := d.Proc("EnumWindows").Call(cb, 888)
+ 	if a == 0 {
+ 		t.Error("USER32.EnumWindows returns FALSE")
+ 	}
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 21277c64bc..2ad95d9585 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-extern void *runtime·LoadLibraryEx;
++extern void *runtime·LoadLibrary;
+ extern void *runtime·GetProcAddress;
+ 
+ // Call a Windows function with stdcall conventions,
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+index 68c3a4dfab..8997fd3a44 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/windows/syscall.goc
+@@ -7,18 +7,21 @@ package syscall
+ #include "os.h"
+ #include "cgocall.h"
+ 
+-func loadlibraryex(filename uintptr) (handle uintptr) {
+-	uintptr args[3] = { filename };
++func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
+ 	WinCall c;
+ 
+-	c.fn = runtime·LoadLibraryEx;
+-	c.n = 3;
+-	c.args = &args[0];
++	c.fn = runtime·LoadLibrary;
++	c.n = 1;
++	c.args = &filename;
+ 	runtime·cgocall(runtime·asmstdcall, &c);
+ 	handle = c.r1;
++	if(handle == 0)
++		err = c.err;
++	else
++		err = 0;
+ }
+ 
+-func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
++func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr) {
+ 	WinCall c;
+ 
+ 	USED(procname);
+@@ -27,6 +30,10 @@ func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
+ 	c.args = &handle;
+ 	runtime·cgocall(runtime·asmstdcall, &c);
+ 	proc = c.r1;
++	if(proc == 0)
++		err = c.err;
++	else
++		err = 0;
+ }
+ 
+ func NewCallback(fn Eface) (code uintptr) {
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index ff075b77dc..946dea38af 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -19,7 +19,7 @@
+ #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+ #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
+ #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
+-#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
++#pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
+ #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
+ #pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
+ #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
+@@ -45,7 +45,7 @@ extern void *runtime·GetProcAddress;
+ extern void *runtime·GetStdHandle;
+ extern void *runtime·GetSystemInfo;
+ extern void *runtime·GetThreadContext;
+-extern void *runtime·LoadLibraryEx;
++extern void *runtime·LoadLibrary;
+ extern void *runtime·QueryPerformanceCounter;
+ extern void *runtime·QueryPerformanceFrequency;
+ extern void *runtime·ResumeThread;
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index d4dbc3891e..2c4579ff08 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -53,6 +53,7 @@ GOFILES_openbsd=\
+ 
+ GOFILES_windows=\
+ 	exec_windows.go\
++	dll_windows.go\
+ 	zerrors_windows.go\
+ 	ztypes_windows.go\
+ 
+diff --git a/src/pkg/syscall/dll_windows.go b/src/pkg/syscall/dll_windows.go
+new file mode 100644
+index 0000000000..f305bba3df
+--- /dev/null
++++ b/src/pkg/syscall/dll_windows.go
+@@ -0,0 +1,252 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"sync"
++)
++
++// An Error can represent any printable error condition.
++type Error interface {
++	String() string
++}
++
++// Errno is the Windows error number.
++type Errno uint64
++
++func (e Errno) String() string { return Errstr(int(e)) }
++
++// DLLError describes reasons for DLL load failures.
++type DLLError struct {
++	Errno   Errno
++	ObjName string
++	Msg     string
++}
++
++func (e *DLLError) String() string { return e.Msg }
++
++// Implemented in ../runtime/windows/syscall.goc.
++func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
++func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
++func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr)
++func loadlibrary(filename *uint16) (handle, err uintptr)
++func getprocaddress(handle uintptr, procname *uint8) (proc, err uintptr)
++
++// A DLL implements access to a single DLL.
++type DLL struct {
++	Name   string
++	Handle Handle
++}
++
++// LoadDLL loads DLL file into memory.
++func LoadDLL(name string) (dll *DLL, err Error) {
++	h, e := loadlibrary(StringToUTF16Ptr(name))
++	if e != 0 {
++		return nil, &DLLError{
++			Errno:   Errno(e),
++			ObjName: name,
++			Msg:     "Failed to load " + name + ": " + Errstr(int(e)),
++		}
++	}
++	d := &DLL{
++		Name:   name,
++		Handle: Handle(h),
++	}
++	return d, nil
++}
++
++// MustLoadDLL is like LoadDLL but panics if load operation failes.
++func MustLoadDLL(name string) *DLL {
++	d, e := LoadDLL(name)
++	if e != nil {
++		panic(e)
++	}
++	return d
++}
++
++// FindProc searches DLL d for procedure named name and returns *Proc
++// if found. It returns an error if search fails.
++func (d *DLL) FindProc(name string) (proc *Proc, err Error) {
++	a, e := getprocaddress(uintptr(d.Handle), StringBytePtr(name))
++	if e != 0 {
++		return nil, &DLLError{
++			Errno:   Errno(e),
++			ObjName: name,
++			Msg:     "Failed to find " + name + " procedure in " + d.Name + ": " + Errstr(int(e)),
++		}
++	}
++	p := &Proc{
++		Dll:  d,
++		Name: name,
++		addr: a,
++	}
++	return p, nil
++}
++
++// MustFindProc is like FindProc but panics if search fails.
++func (d *DLL) MustFindProc(name string) *Proc {
++	p, e := d.FindProc(name)
++	if e != nil {
++		panic(e)
++	}
++	return p
++}
++
++// Release unloads DLL d from memory.
++func (d *DLL) Release() (err Errno) {
++	return Errno(FreeLibrary(d.Handle))
++}
++
++// A Proc implements access to a procedure inside a DLL.
++type Proc struct {
++	Dll  *DLL
++	Name string
++	addr uintptr
++}
++
++// Addr returns the address of the procedure represented by p.
++// The return value can be passed to Syscall to run the procedure.
++func (p *Proc) Addr() uintptr {
++	return p.addr
++}
++
++// Call executes procedure p with arguments a.
++func (p *Proc) Call(a ...uintptr) (r1, r2, err uintptr) {
++	switch len(a) {
++	case 0:
++		return Syscall(p.Addr(), uintptr(len(a)), 0, 0, 0)
++	case 1:
++		return Syscall(p.Addr(), uintptr(len(a)), a[0], 0, 0)
++	case 2:
++		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], 0)
++	case 3:
++		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], a[2])
++	case 4:
++		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], 0, 0)
++	case 5:
++		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], 0)
++	case 6:
++		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5])
++	case 7:
++		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], 0, 0)
++	case 8:
++		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], 0)
++	case 9:
++		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
++	case 10:
++		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], 0, 0)
++	case 11:
++		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], 0)
++	case 12:
++		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11])
++	default:
++		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
++	}
++	return
++}
++
++// A LazyDLL implements access to a single DLL.
++// It will delay the load of the DLL until the first
++// call to its Handle method or to one of its
++// LazyProc's Addr method.
++type LazyDLL struct {
++	mu   sync.Mutex
++	dll  *DLL // non nil once DLL is loaded
++	Name string
++}
++
++// Load loads DLL file d.Name into memory. It returns an error if fails.
++// Load will not try to load DLL, if it is already loaded into memory.
++func (d *LazyDLL) Load() Error {
++	if d.dll == nil {
++		d.mu.Lock()
++		defer d.mu.Unlock()
++		if d.dll == nil {
++			dll, e := LoadDLL(d.Name)
++			if e != nil {
++				return e
++			}
++			d.dll = dll
++		}
++	}
++	return nil
++}
++
++// mustLoad is like Load but panics if search fails.
++func (d *LazyDLL) mustLoad() {
++	e := d.Load()
++	if e != nil {
++		panic(e)
++	}
++}
++
++// Handle returns d's module handle.
++func (d *LazyDLL) Handle() uintptr {
++	d.mustLoad()
++	return uintptr(d.dll.Handle)
++}
++
++// NewProc returns a LazyProc for accessing the named procedure in the DLL d.
++func (d *LazyDLL) NewProc(name string) *LazyProc {
++	return &LazyProc{l: d, Name: name}
++}
++
++// NewLazyDLL creates new LazyDLL associated with DLL file.
++func NewLazyDLL(name string) *LazyDLL {
++	return &LazyDLL{Name: name}
++}
++
++// A LazyProc implements access to a procedure inside a LazyDLL.
++// It delays the lookup until the Addr method is called.
++type LazyProc struct {
++	mu   sync.Mutex
++	Name string
++	l    *LazyDLL
++	proc *Proc
++}
++
++// Find searches DLL for procedure named p.Name. It returns
++// an error if search fails. Find will not search procedure,
++// if it is already found and loaded into memory.
++func (p *LazyProc) Find() Error {
++	if p.proc == nil {
++		p.mu.Lock()
++		defer p.mu.Unlock()
++		if p.proc == nil {
++			e := p.l.Load()
++			if e != nil {
++				return e
++			}
++			proc, e := p.l.dll.FindProc(p.Name)
++			if e != nil {
++				return e
++			}
++			p.proc = proc
++		}
++	}
++	return nil
++}
++
++// mustFind is like Find but panics if search fails.
++func (p *LazyProc) mustFind() {
++	e := p.Find()
++	if e != nil {
++		panic(e)
++	}
++}
++
++// Addr returns the address of the procedure represented by p.
++// The return value can be passed to Syscall to run the procedure.
++func (p *LazyProc) Addr() uintptr {
++	p.mustFind()
++	return p.proc.Addr()
++}
++
++// Call executes procedure p with arguments a.
++func (p *LazyProc) Call(a ...uintptr) (r1, r2, err uintptr) {
++	p.mustFind()
++	return p.proc.Call(a...)
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 7e23381edd..77634bf535 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -7,7 +7,6 @@
+ package syscall
+ 
+ import (
+-	"sync"
+ 	"unsafe"
+ 	"utf16"
+ )
+@@ -75,76 +74,6 @@ func UTF16ToString(s []uint16) string {
+ // the UTF-8 string s, with a terminating NUL added.
+ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+-// dll helpers
+-
+-// Implemented in ../runtime/windows/syscall.goc
+-func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+-func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
+-func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr)
+-func loadlibraryex(filename uintptr) (handle uintptr)
+-func getprocaddress(handle uintptr, procname uintptr) (proc uintptr)
+-
+-// A LazyDLL implements access to a single DLL.
+-// It will delay the load of the DLL until the first
+-// call to its Handle method or to one of its
+-// LazyProc's Addr method.
+-type LazyDLL struct {
+-	mu   sync.Mutex
+-	Name string
+-	h    uintptr // module handle once dll is loaded
+-}
+-
+-// Handle returns d's module handle.
+-func (d *LazyDLL) Handle() uintptr {
+-	if d.h == 0 {
+-		d.mu.Lock()
+-		defer d.mu.Unlock()
+-		if d.h == 0 {
+-			d.h = loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(d.Name))))
+-			if d.h == 0 {
+-				panic("syscall: could not LoadLibraryEx " + d.Name)
+-			}
+-		}
+-	}
+-	return d.h
+-}
+-
+-// NewProc returns a LazyProc for accessing the named procedure in the DLL d.
+-func (d *LazyDLL) NewProc(name string) *LazyProc {
+-	return &LazyProc{dll: d, Name: name}
+-}
+-
+-// NewLazyDLL creates new LazyDLL associated with dll file.
+-func NewLazyDLL(name string) *LazyDLL {
+-	return &LazyDLL{Name: name}
+-}
+-
+-// A LazyProc implements access to a procedure inside a LazyDLL.
+-// It delays the lookup until the Addr method is called.
+-type LazyProc struct {
+-	mu   sync.Mutex
+-	Name string
+-	dll  *LazyDLL
+-	addr uintptr
+-}
+-
+-// Addr returns the address of the procedure represented by s.
+-// The return value can be passed to Syscall to run the procedure.
+-func (s *LazyProc) Addr() uintptr {
+-	if s.addr == 0 {
+-		s.mu.Lock()
+-		defer s.mu.Unlock()
+-		if s.addr == 0 {
+-			s.addr = getprocaddress(s.dll.Handle(), uintptr(unsafe.Pointer(StringBytePtr(s.Name))))
+-			if s.addr == 0 {
+-				panic("syscall: could not GetProcAddress for " + s.Name)
+-			}
+-		}
+-	}
+-	return s.addr
+-}
+-
+ func Getpagesize() int { return 4096 }
+ 
+ // Converts a Go function to a function pointer conforming

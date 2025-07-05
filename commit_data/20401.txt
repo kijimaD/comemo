@@ -10,6 +10,20 @@ Date:   Fri Sep 5 08:48:21 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/138120043
-
+---
  src/pkg/net/net_windows_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/net_windows_test.go b/src/pkg/net/net_windows_test.go
+index 2f57745e3c..750a4304b2 100644
+--- a/src/pkg/net/net_windows_test.go
++++ b/src/pkg/net/net_windows_test.go
+@@ -16,6 +16,8 @@ import (
+ )
+ 
+ func TestAcceptIgnoreSomeErrors(t *testing.T) {
++	t.Skip("skipping temporarily, see issue 8662")
++
+ 	recv := func(ln Listener) (string, error) {
+ 		c, err := ln.Accept()
+ 		if err != nil {

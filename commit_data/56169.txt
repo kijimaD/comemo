@@ -18,6 +18,20 @@ Date:   Thu Apr 13 21:34:31 2023 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9f685d1f1f..51af33c175 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2647,7 +2647,7 @@ TypeParamDecl   = IdentifierList TypeConstraint .
+ <p>
+ All non-blank names in the list must be unique.
+ Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
+-that acts as a place holder for an (as of yet) unknown type in the declaration.
++that acts as a placeholder for an (as of yet) unknown type in the declaration.
+ The type parameter is replaced with a <i>type argument</i> upon
+ <a href="#Instantiations">instantiation</a> of the generic function or type.
+ </p>

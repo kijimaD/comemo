@@ -7,7 +7,7 @@ Date:   Sat Jun 21 15:36:23 2008 -0700
     ditto for the OS dependence.
     
     SVN=124020
-
+---
  src/cmd/6l/obj.c               |  7 ++++
  src/runtime/make.bash          |  9 +++++
  src/runtime/rt0_amd64_linux.s  | 19 +++++++++++
@@ -18,3 +18,411 @@ Date:   Sat Jun 21 15:36:23 2008 -0700
  src/runtime/runtime.h          |  8 +++++
  src/runtime/signals.h          | 40 ++++++++++++++++++++++
  9 files changed, 241 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 83fae2e5a0..dd7ede6b56 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -364,9 +364,16 @@ main(int argc, char *argv[])
+ 
+ 	if(!debug['l']) {
+ 		loadlib();
++		/* BUG: these should be an archive or pulled via pragmas in rt0_*.6 */
+ 		a = mal(strlen(goroot)+strlen(goarch)+20);
+ 		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
+ 		objfile(a);
++		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
++		sprint(a, "%s/lib/rt1_%s_%s.6", goroot, goarch, goos);
++		objfile(a);
++		a = mal(strlen(goroot)+strlen(goarch)+20);
++		sprint(a, "%s/lib/rt2_%s.6", goroot, goarch);
++		objfile(a);
+ 	}
+ 
+ 	firstp = firstp->link;
+diff --git a/src/runtime/make.bash b/src/runtime/make.bash
+index 46a920b731..9a6d42e26a 100644
+--- a/src/runtime/make.bash
++++ b/src/runtime/make.bash
+@@ -10,5 +10,14 @@ mv rt0_amd64_darwin.6 ../../lib/rt0_amd64_darwin.6
+ $HOME/bin/6a rt0_amd64_linux.s
+ mv rt0_amd64_linux.6 ../../lib/rt0_amd64_linux.6
+ 
++$HOME/bin/6c rt1_amd64_linux.c
++mv rt1_amd64_linux.6 ../../lib/rt1_amd64_linux.6
++
++$HOME/bin/6c rt1_amd64_darwin.c
++mv rt1_amd64_darwin.6 ../../lib/rt1_amd64_darwin.6
++
++$HOME/bin/6c rt2_amd64.c
++mv rt2_amd64.6 ../../lib/rt2_amd64.6
++
+ $HOME/bin/6c runtime.c
+ mv runtime.6 ../../lib/rt_amd64.6
+diff --git a/src/runtime/rt0_amd64_linux.s b/src/runtime/rt0_amd64_linux.s
+index 6ad8b33d55..27064a48bc 100644
+--- a/src/runtime/rt0_amd64_linux.s
++++ b/src/runtime/rt0_amd64_linux.s
+@@ -52,6 +52,25 @@ TEXT	sys_write(SB),1,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT	sys_rt_sigaction(SB),1,$-8
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVQ	32(SP), CX
++	MOVL	CX, R10
++	MOVL	$13, AX			// syscall entry
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sigtramp(SB),1,$24
++	MOVQ	DI,0(SP)
++	MOVQ	SI,8(SP)
++	MOVQ	DX,16(SP)
++	CALL	sighandler(SB)
++	RET
++
+ TEXT	sys_breakpoint(SB),1,$-8
+ 	BYTE	$0xcc
+ 	RET
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+new file mode 100644
+index 0000000000..fe92d0b292
+--- /dev/null
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++void
++initsig(void)
++{
++	/* no signal handler on mac yet */
++}
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+new file mode 100644
+index 0000000000..de6ac7f044
+--- /dev/null
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "signals.h"
++
++/*
++ * This assembler routine takes the args from registers, puts them on the stack,
++ * and calls sighandler().
++ */
++extern void sigtramp();
++
++/*
++ * Rudimentary reverse-engineered definition of signal interface.
++ * You'd think it would be documented.
++ */
++typedef struct siginfo {
++	int32	si_signo;		/* signal number */
++	int32	si_errno;		/* errno association */
++	int32	si_code;		/* signal code */
++	int32	si_status;		/* exit value */
++	void	*si_addr;		/* faulting address */
++	/* more stuff here */
++} siginfo;
++
++typedef struct  sigaction {
++ 	union {
++		void    (*sa_handler)(int32);
++		void    (*sa_sigaction)(int32, siginfo *, void *);
++	} u;		     /* signal handler */
++	int32     sa_flags;		     /* see signal options below */
++	uint8 sa_mask[2];		     /* signal mask to apply. BUG: 2 is a guess */
++} sigaction;
++
++void
++sighandler(int32 sig, siginfo* info, void** context) {
++	int32 i;
++
++	if(sig < 0 || sig >= NSIG){
++		prints("Signal ");
++		sys_printint(sig);
++	}else{
++		prints(sigtab[sig].name);
++	}
++	prints("\nFaulting address: 0x");
++	sys_printpointer(info->si_addr);
++	prints("\nPC: 0x");
++	sys_printpointer(context[21]);
++	prints("\nSP: 0x");
++	sys_printpointer(context[20]);
++	prints("\n");
++	traceback(context[21], context[20]);	/* empirically discovered locations */
++	sys_breakpoint();
++	sys_exit(2);
++}
++
++sigaction a;
++
++void
++initsig(void)
++{
++	int32 i;
++	a.u.sa_sigaction = (void*)sigtramp;
++	a.sa_flags = 1|2|4|0x10000000|0x20000000|0x40000000|0x80000000;
++	//a.sa_flags |= SA_SIGINFO;
++	a.sa_flags = ~0;	/* BUG: why is this needed? */
++	for(i=0; i<sizeof(a.sa_mask); i++)
++		a.sa_mask[i] = 0xFF;
++	//a.sa_mask[1] = (1 << (11-1));
++	for(i = 0; i <NSIG; i++)
++		if(sigtab[i].catch){
++			sys_rt_sigaction(i, &a, (void*)0, 8);
++		}
++}
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+new file mode 100644
+index 0000000000..1145ff72f8
+--- /dev/null
++++ b/src/runtime/rt2_amd64.c
+@@ -0,0 +1,68 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++extern int32	debug;
++
++static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
++
++void
++traceback(uint8 *pc, uint8 *sp)
++{
++	int32 spoff;
++	int8* spp;
++	int32 counter;
++	int32 i;
++	int8* name;
++
++
++	counter = 0;
++	name = "panic";
++	for(;;){
++		prints("0x");
++		sys_printpointer(pc);
++		prints("?zi\n");
++		/* find SP offset by stepping back through instructions to SP offset marker */
++		while(pc > (uint8*)0x1000+sizeof spmark-1) {
++			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
++				;
++			if(*spp == '\0'){
++				spoff = *pc++;
++				spoff += *pc++ << 8;
++				spoff += *pc++ << 16;
++				name = (int8*)pc;
++				sp += spoff + 8;
++				break;
++			}
++		}
++		if(counter++ > 100){
++			prints("stack trace terminated\n");
++			break;
++		}
++		if((pc = ((uint8**)sp)[-1]) <= (uint8*)0x1000)
++			break;
++		/* print args for this frame */
++		prints("\t");
++		prints(name);
++		prints("(");
++		for(i = 0; i < 3; i++){
++			if(i != 0)
++				prints(", ");
++			sys_printint(((uint32*)sp)[i]);
++		}
++		prints(", ...)\n");
++		prints("\t");
++		prints(name);
++		prints("(");
++		for(i = 0; i < 3; i++){
++			if(i != 0)
++				prints(", ");
++			prints("0x");
++			sys_printpointer(((void**)sp)[i]);
++		}
++		prints(", ...)\n");
++		/* print pc for next frame */
++	}
++}
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 0e62dbdb0a..e8c1838592 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -103,15 +103,7 @@ sys_printpc(void *p)
+ void
+ sys_panicl(int32 lno)
+ {
+-	uint8 *pc;
+ 	uint8 *sp;
+-	uint8 *retpc;
+-	int32 spoff;
+-	static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+-	int8* spp;
+-	int32 counter;
+-	int32 i;
+-	int8* name;
+ 
+ 	prints("\npanic on line ");
+ 	sys_printint(lno);
+@@ -119,55 +111,9 @@ sys_panicl(int32 lno)
+ 	sys_printpc(&lno);
+ 	prints("\n");
+ 	sp = (uint8*)&lno;
+-	pc = (uint8*)sys_panicl;
+-	counter = 0;
+-	name = "panic";
+-	while((pc = ((uint8**)sp)[-1]) > (uint8*)0x1000) {
+-		/* print args for this frame */
+-		prints("\t");
+-		prints(name);
+-		prints("(");
+-		for(i = 0; i < 3; i++){
+-			if(i != 0)
+-				prints(", ");
+-			sys_printint(((uint32*)sp)[i]);
+-		}
+-		prints(", ...)\n");
+-		prints("\t");
+-		prints(name);
+-		prints("(");
+-		for(i = 0; i < 3; i++){
+-			if(i != 0)
+-				prints(", ");
+-			prints("0x");
+-			sys_printpointer(((void**)sp)[i]);
+-		}
+-		prints(", ...)\n");
+-		/* print pc for next frame */
+-		prints("0x");
+-		sys_printpointer(pc);
+-		prints("?zi\n");
+-		/* next word down on stack is PC */
+-		retpc = pc;
+-		/* find SP offset by stepping back through instructions to SP offset marker */
+-		while(pc > (uint8*)0x1000+11) {
+-			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
+-				;
+-			if(*spp == '\0'){
+-				spoff = *pc++;
+-				spoff += *pc++ << 8;
+-				spoff += *pc++ << 16;
+-				name = (int8*)pc;
+-				sp += spoff + 8;
+-				break;
+-			}
+-		}
+-		if(counter++ > 100){
+-			prints("stack trace terminated\n");
+-			break;
+-		}
+-	}
+-	*(int32*)0 = 0;
++	traceback(sys_getcallerpc(&lno), sp);
++	sys_breakpoint();
++	sys_exit(2);
+ }
+ 
+ dump(byte *p, int32 n)
+@@ -788,7 +734,6 @@ sys_modf(float64 din, float64 dou1, float64 dou2)
+ 	FLUSH(&dou2);
+ }
+ 
+-void
+ check(void)
+ {
+ 	int8 a;
+@@ -817,4 +762,5 @@ check(void)
+ 	if(sizeof(k) != 8) throw("bad k");
+ 	if(sizeof(l) != 8) throw("bad l");
+ //	prints(1"check ok\n");
++	initsig();
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 898c7b4083..fa9395f1be 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -88,6 +88,12 @@ void	prints(int8*);
+ void	mcpy(byte*, byte*, uint32);
+ void*	mal(uint32);
+ uint32	cmpstring(string, string);
++void	initsig(void);
++void	traceback(uint8 *pc, uint8 *sp);
++struct SigTab {
++	int32	catch;
++	int8	*name;
++};
+ 
+ /*
+  * low level go -called
+@@ -98,6 +104,8 @@ void	sys_breakpoint(void);
+ uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys_memclr(byte*, uint32);
+ void* sys_getcallerpc(void*);
++void	sys_sigaction(int64, void*, void*);
++void	sys_rt_sigaction(int64, void*, void*, uint64);
+ 
+ /*
+  * runtime go-called
+diff --git a/src/runtime/signals.h b/src/runtime/signals.h
+new file mode 100644
+index 0000000000..5b2776a438
+--- /dev/null
++++ b/src/runtime/signals.h
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++static struct SigTab sigtab[] = {
++	/* 0 */	0, "SIGNONE: no trap",
++	/* 1 */	0, "SIGHUP: terminal line hangup",
++	/* 2 */	0, "SIGINT: interrupt program",
++	/* 3 */	1, "SIGQUIT: quit program",
++	/* 4 */	1, "SIGILL: illegal instruction",
++	/* 5 */	0, "SIGTRAP: trace trap",	/* uncaught; used by panic and signal handler */
++	/* 6 */	1, "SIGABRT: abort program",
++	/* 7 */	1, "SIGEMT: emulate instruction executed",
++	/* 8 */	1, "SIGFPE: floating-point exception",
++	/* 9 */	0, "SIGKILL: kill program",
++	/* 10 */	1, "SIGBUS: bus error",
++	/* 11 */	1, "SIGSEGV: segmentation violation",
++	/* 12 */	1, "SIGSYS: non-existent system call invoked",
++	/* 13 */	0, "SIGPIPE: write on a pipe with no reader",
++	/* 14 */	0, "SIGALRM: real-time timer expired",
++	/* 15 */	0, "SIGTERM: software termination signal",
++	/* 16 */	0, "SIGURG: urgent condition present on socket",
++	/* 17 */	0, "SIGSTOP: stop",
++	/* 18 */	0, "SIGTSTP: stop signal generated from keyboard",
++	/* 19 */	0, "SIGCONT: continue after stop",
++	/* 20 */	0, "SIGCHLD: child status has changed",
++	/* 21 */	0, "SIGTTIN: background read attempted from control terminal",
++	/* 22 */	0, "SIGTTOU: background write attempted to control terminal",
++	/* 23 */	0, "SIGIO: I/O is possible on a descriptor",
++	/* 24 */	0, "SIGXCPU: cpu time limit exceeded",
++	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	0, "SIGVTALRM: virtual time alarm",
++	/* 27 */	0, "SIGPROF: profiling timer alarm",
++	/* 28 */	0, "SIGWINCH: Window size change",
++	/* 29 */	0, "SIGINFO: status request from keyboard",
++	/* 30 */	0, "SIGUSR1: User defined signal 1",
++	/* 31 */	0, "SIGUSR2: User defined signal 2",
++};
++#define	NSIG 32

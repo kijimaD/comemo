@@ -10,6 +10,23 @@ Date:   Thu Feb 18 14:18:53 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/dist/build.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c02b92818c..07ede42574 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -982,6 +982,11 @@ func matchtag(tag string) bool {
+ 		}
+ 		return !matchtag(tag[1:])
+ 	}
++	if os.Getenv("GOEXPERIMENT") == "regabi" && tag == "goexperiment.regabi" {
++		// TODO: maybe we can handle GOEXPERIMENT more generally.
++		// Or remove once we commit to regabi (#40724).
++		return true
++	}
+ 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+ 		(goos == "android" && tag == "linux") ||
+ 		(goos == "illumos" && tag == "solaris") ||

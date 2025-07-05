@@ -7,6 +7,20 @@ Date:   Thu Feb 13 01:16:20 2014 -0500
     TBR=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/62960043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index ce4eaf5518..0063c35e86 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -218,7 +218,7 @@ func TestGoroutineSwitch(t *testing.T) {
+ 			// exists to record a PC without a traceback. Those are okay.
+ 			if len(stk) == 2 {
+ 				f := runtime.FuncForPC(stk[1])
+-				if f != nil && f.Name() == "System" {
++				if f != nil && (f.Name() == "System" || f.Name() == "ExternalCode") {
+ 					return
+ 				}
+ 			}

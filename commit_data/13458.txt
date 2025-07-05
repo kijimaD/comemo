@@ -7,6 +7,28 @@ Date:   Wed Jul 11 20:26:51 2012 +0200
     R=golang-dev, dave, r
     CC=golang-dev, remy
     https://golang.org/cl/6378046
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0f5e803da2..94ab9bbe7f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of June 27, 2012",
++	"Subtitle": "Version of July 11, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3516,7 +3516,7 @@ the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
+ 
+ <pre>
+ string('a')       // "a"
+-string(-1)        // "\ufffd" == "\xef\xbf\xbd "
++string(-1)        // "\ufffd" == "\xef\xbf\xbd"
+ string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
+ type MyString string
+ MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"

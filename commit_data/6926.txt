@@ -7,9 +7,114 @@ Date:   Mon Dec 13 16:41:02 2010 +1100
     R=brainman, rsc
     CC=golang-dev
     https://golang.org/cl/3533041
-
+---
  src/cmd/ld/data.c                |  3 ++-
  src/pkg/Makefile                 |  4 ++++
  src/pkg/runtime/windows/mem.c    |  4 ++--
  src/pkg/runtime/windows/thread.c | 36 ++++++++++++++++++------------------
  4 files changed, 26 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 3ca7f0941c..eedfd7930e 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -166,7 +166,8 @@ relocsym(Sym *s)
+ 			continue;
+ 
+ 		if(r->sym != S && (r->sym->type == SDYNIMPORT || r->sym->dynimpname != nil))
+-			diag("unhandled relocation for %s (rtype %d)", r->sym->name, r->type);
++			if (thechar != '8' || HEADTYPE != 10) // Windows PE supports relocation references to dynamic import symbols
++				diag("unhandled relocation for %s (rtype %d)", r->sym->name, r->type);
+ 
+ 		if(r->sym != S && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 0481ff1e65..1e3f7e0622 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -147,6 +147,10 @@ DIRS+=\
+ 
+ endif
+ 
++ifeq ($(GOOS),windows)
++DIRS:=$(filter-out runtime/cgo,$(DIRS))
++endif
++
+ NOTEST=\
+ 	debug/proc\
+ 	exp/draw/x11\
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 15ccd9551d..ba89887ea9 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -27,8 +27,8 @@ abort(int8 *name)
+ 
+ #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
+ #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
+-void *runtime·VirtualAlloc;
+-void *runtime·VirtualFree;
++extern void *runtime·VirtualAlloc;
++extern void *runtime·VirtualFree;
+ 
+ void*
+ runtime·SysAlloc(uintptr n)
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 9a6f121aba..5623efdae5 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -16,25 +16,25 @@
+ #pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
+ 
+ // Also referenced by external packages
+-void *runtime·CloseHandle;
+-void *runtime·ExitProcess;
+-void *runtime·GetStdHandle;
+-void *runtime·SetEvent;
+-void *runtime·WriteFile;
+-void *runtime·LoadLibraryEx;
+-void *runtime·GetProcAddress;
+-void *runtime·GetLastError;
+-void *runtime·SetLastError;
++extern void *runtime·CloseHandle;
++extern void *runtime·ExitProcess;
++extern void *runtime·GetStdHandle;
++extern void *runtime·SetEvent;
++extern void *runtime·WriteFile;
++extern void *runtime·LoadLibraryEx;
++extern void *runtime·GetProcAddress;
++extern void *runtime·GetLastError;
++extern void *runtime·SetLastError;
+ 
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+ #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+ #pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
+ #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ 
+-void *runtime·CreateEvent;
+-void *runtime·CreateThread;
+-void *runtime·GetModuleHandle;
+-void *runtime·WaitForSingleObject;
++extern void *runtime·CreateEvent;
++extern void *runtime·CreateThread;
++extern void *runtime·GetModuleHandle;
++extern void *runtime·WaitForSingleObject;
+ 
+ void
+ runtime·osinit(void)
+@@ -47,11 +47,11 @@ runtime·osinit(void)
+ #pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
+ #pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
+ 
+-void *runtime·GetCommandLine;
+-void *runtime·CommandLineToArgv;
+-void *runtime·GetEnvironmentStrings;
+-void *runtime·FreeEnvironmentStrings;
+-void *runtime·LocalFree;
++extern void *runtime·GetCommandLine;
++extern void *runtime·CommandLineToArgv;
++extern void *runtime·GetEnvironmentStrings;
++extern void *runtime·FreeEnvironmentStrings;
++extern void *runtime·LocalFree;
+ 
+ void
+ runtime·windows_goargs(void)

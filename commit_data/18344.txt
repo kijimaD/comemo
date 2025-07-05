@@ -9,8 +9,79 @@ Date:   Thu Jan 23 12:47:30 2014 -0800
     R=golang-codereviews, dvyukov
     CC=golang-codereviews, gri
     https://golang.org/cl/55810044
-
+---
  src/pkg/runtime/runtime.h       | 5 +++++
  src/pkg/runtime/traceback_arm.c | 9 +++++++--
  src/pkg/runtime/traceback_x86.c | 9 +++++++--
  3 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c4c47964b9..13fb554547 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -716,6 +716,11 @@ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+ bool	runtime·topofstack(Func*);
++enum
++{
++	// The maximum number of frames we print for a traceback
++	TracebackMaxFrames = 100,
++};
+ 
+ /*
+  * external data
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 8a3685e76c..3c23cd9fcd 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -231,6 +231,8 @@ runtime·printcreatedby(G *gp)
+ void
+ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ {
++	int32 n;
++
+ 	if(gp->status == Gsyscall) {
+ 		// Override signal registers if blocked in system call.
+ 		pc = gp->syscallpc;
+@@ -240,8 +242,11 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 
+ 	// Print traceback. By default, omits runtime frames.
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+-	if(runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, false) == 0)
+-		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, true);
++	n = runtime·gentraceback(pc, sp, lr, gp, 0, nil, TracebackMaxFrames, nil, nil, false);
++	if(n == 0)
++		runtime·gentraceback(pc, sp, lr, gp, 0, nil, TracebackMaxFrames, nil, nil, true);
++	if(n == TracebackMaxFrames)
++		runtime·printf("...additional frames elided...\n");
+ 	runtime·printcreatedby(gp);
+ }
+ 
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 8e3063f43a..fa46d547a8 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -232,6 +232,8 @@ runtime·printcreatedby(G *gp)
+ void
+ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ {
++	int32 n;
++
+ 	USED(lr);
+ 
+ 	if(gp->status == Gsyscall) {
+@@ -242,8 +244,11 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 	
+ 	// Print traceback. By default, omits runtime frames.
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+-	if(runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, false) == 0)
+-		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, true);
++	n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, false);
++	if(n == 0)
++		n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, true);
++	if(n == TracebackMaxFrames)
++		runtime·printf("...additional frames elided...\n");
+ 	runtime·printcreatedby(gp);
+ }
+ 

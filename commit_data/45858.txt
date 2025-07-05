@@ -44,7 +44,7 @@ Date:   Mon Nov 16 17:00:10 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go     | 155 ++++++++++++++---------------
  src/cmd/compile/internal/gc/dcl.go         |  20 ++--
  src/cmd/compile/internal/gc/esc.go         |   5 +-
@@ -65,3 +65,954 @@ Date:   Mon Nov 16 17:00:10 2020 -0500
  src/cmd/compile/internal/gc/syntax.go      |  86 ++++++++--------
  src/cmd/compile/internal/gc/walk.go        |   7 +-
  19 files changed, 210 insertions(+), 181 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index dd6640667d..577d6565f5 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -15,25 +15,25 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 	xtype := p.typeExpr(expr.Type)
+ 	ntype := p.typeExpr(expr.Type)
+ 
+-	xfunc := p.nod(expr, ODCLFUNC, nil, nil)
+-	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
+-	xfunc.Func.Nname = newfuncnamel(p.pos(expr), nblank.Sym) // filled in by typecheckclosure
+-	xfunc.Func.Nname.Name.Param.Ntype = xtype
+-	xfunc.Func.Nname.Name.Defn = xfunc
++	dcl := p.nod(expr, ODCLFUNC, nil, nil)
++	fn := dcl.Func
++	fn.SetIsHiddenClosure(Curfn != nil)
++	fn.Nname = newfuncnamel(p.pos(expr), nblank.Sym, fn) // filled in by typecheckclosure
++	fn.Nname.Name.Param.Ntype = xtype
++	fn.Nname.Name.Defn = dcl
+ 
+ 	clo := p.nod(expr, OCLOSURE, nil, nil)
+-	clo.Func.Ntype = ntype
++	clo.Func = fn
++	fn.ClosureType = ntype
++	fn.OClosure = clo
+ 
+-	xfunc.Func.Closure = clo
+-	clo.Func.Closure = xfunc
+-
+-	p.funcBody(xfunc, expr.Body)
++	p.funcBody(dcl, expr.Body)
+ 
+ 	// closure-specific variables are hanging off the
+ 	// ordinary ones in the symbol table; see oldname.
+ 	// unhook them.
+ 	// make the list of pointers for the closure call.
+-	for _, v := range xfunc.Func.Cvars.Slice() {
++	for _, v := range fn.ClosureVars.Slice() {
+ 		// Unlink from v1; see comment in syntax.go type Param for these fields.
+ 		v1 := v.Name.Defn
+ 		v1.Name.Param.Innermost = v.Name.Param.Outer
+@@ -77,25 +77,26 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ // TODO: This creation of the named function should probably really be done in a
+ // separate pass from type-checking.
+ func typecheckclosure(clo *Node, top int) {
+-	xfunc := clo.Func.Closure
++	fn := clo.Func
++	dcl := fn.Decl
+ 	// Set current associated iota value, so iota can be used inside
+ 	// function in ConstSpec, see issue #22344
+ 	if x := getIotaValue(); x >= 0 {
+-		xfunc.SetIota(x)
++		dcl.SetIota(x)
+ 	}
+ 
+-	clo.Func.Ntype = typecheck(clo.Func.Ntype, ctxType)
+-	clo.Type = clo.Func.Ntype.Type
+-	clo.Func.Top = top
++	fn.ClosureType = typecheck(fn.ClosureType, ctxType)
++	clo.Type = fn.ClosureType.Type
++	fn.ClosureCalled = top&ctxCallee != 0
+ 
+-	// Do not typecheck xfunc twice, otherwise, we will end up pushing
+-	// xfunc to xtop multiple times, causing initLSym called twice.
++	// Do not typecheck dcl twice, otherwise, we will end up pushing
++	// dcl to xtop multiple times, causing initLSym called twice.
+ 	// See #30709
+-	if xfunc.Typecheck() == 1 {
++	if dcl.Typecheck() == 1 {
+ 		return
+ 	}
+ 
+-	for _, ln := range xfunc.Func.Cvars.Slice() {
++	for _, ln := range fn.ClosureVars.Slice() {
+ 		n := ln.Name.Defn
+ 		if !n.Name.Captured() {
+ 			n.Name.SetCaptured(true)
+@@ -111,9 +112,9 @@ func typecheckclosure(clo *Node, top int) {
+ 		}
+ 	}
+ 
+-	xfunc.Func.Nname.Sym = closurename(Curfn)
+-	setNodeNameFunc(xfunc.Func.Nname)
+-	xfunc = typecheck(xfunc, ctxStmt)
++	fn.Nname.Sym = closurename(Curfn)
++	setNodeNameFunc(fn.Nname)
++	dcl = typecheck(dcl, ctxStmt)
+ 
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+@@ -121,15 +122,15 @@ func typecheckclosure(clo *Node, top int) {
+ 	// underlying closure function we create is added to xtop.
+ 	if Curfn != nil && clo.Type != nil {
+ 		oldfn := Curfn
+-		Curfn = xfunc
++		Curfn = dcl
+ 		olddd := decldepth
+ 		decldepth = 1
+-		typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
++		typecheckslice(dcl.Nbody.Slice(), ctxStmt)
+ 		decldepth = olddd
+ 		Curfn = oldfn
+ 	}
+ 
+-	xtop = append(xtop, xfunc)
++	xtop = append(xtop, dcl)
+ }
+ 
+ // globClosgen is like Func.Closgen, but for the global scope.
+@@ -143,7 +144,7 @@ func closurename(outerfunc *Node) *types.Sym {
+ 	gen := &globClosgen
+ 
+ 	if outerfunc != nil {
+-		if outerfunc.Func.Closure != nil {
++		if outerfunc.Func.OClosure != nil {
+ 			prefix = ""
+ 		}
+ 
+@@ -169,12 +170,11 @@ var capturevarscomplete bool
+ // by value or by reference.
+ // We use value capturing for values <= 128 bytes that are never reassigned
+ // after capturing (effectively constant).
+-func capturevars(xfunc *Node) {
++func capturevars(dcl *Node) {
+ 	lno := lineno
+-	lineno = xfunc.Pos
+-
+-	clo := xfunc.Func.Closure
+-	cvars := xfunc.Func.Cvars.Slice()
++	lineno = dcl.Pos
++	fn := dcl.Func
++	cvars := fn.ClosureVars.Slice()
+ 	out := cvars[:0]
+ 	for _, v := range cvars {
+ 		if v.Type == nil {
+@@ -216,21 +216,21 @@ func capturevars(xfunc *Node) {
+ 		}
+ 
+ 		outer = typecheck(outer, ctxExpr)
+-		clo.Func.Enter.Append(outer)
++		fn.ClosureEnter.Append(outer)
+ 	}
+ 
+-	xfunc.Func.Cvars.Set(out)
++	fn.ClosureVars.Set(out)
+ 	lineno = lno
+ }
+ 
+ // transformclosure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+-func transformclosure(xfunc *Node) {
++func transformclosure(dcl *Node) {
+ 	lno := lineno
+-	lineno = xfunc.Pos
+-	clo := xfunc.Func.Closure
++	lineno = dcl.Pos
++	fn := dcl.Func
+ 
+-	if clo.Func.Top&ctxCallee != 0 {
++	if fn.ClosureCalled {
+ 		// If the closure is directly called, we transform it to a plain function call
+ 		// with variables passed as args. This avoids allocation of a closure object.
+ 		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+@@ -247,12 +247,12 @@ func transformclosure(xfunc *Node) {
+ 		//	}(byval, &byref, 42)
+ 
+ 		// f is ONAME of the actual function.
+-		f := xfunc.Func.Nname
++		f := fn.Nname
+ 
+ 		// We are going to insert captured variables before input args.
+ 		var params []*types.Field
+ 		var decls []*Node
+-		for _, v := range xfunc.Func.Cvars.Slice() {
++		for _, v := range fn.ClosureVars.Slice() {
+ 			if !v.Name.Byval() {
+ 				// If v of type T is captured by reference,
+ 				// we introduce function param &v *T
+@@ -275,16 +275,16 @@ func transformclosure(xfunc *Node) {
+ 		if len(params) > 0 {
+ 			// Prepend params and decls.
+ 			f.Type.Params().SetFields(append(params, f.Type.Params().FieldSlice()...))
+-			xfunc.Func.Dcl = append(decls, xfunc.Func.Dcl...)
++			fn.Dcl = append(decls, fn.Dcl...)
+ 		}
+ 
+ 		dowidth(f.Type)
+-		xfunc.Type = f.Type // update type of ODCLFUNC
++		dcl.Type = f.Type // update type of ODCLFUNC
+ 	} else {
+ 		// The closure is not called, so it is going to stay as closure.
+ 		var body []*Node
+ 		offset := int64(Widthptr)
+-		for _, v := range xfunc.Func.Cvars.Slice() {
++		for _, v := range fn.ClosureVars.Slice() {
+ 			// cv refers to the field inside of closure OSTRUCTLIT.
+ 			cv := nod(OCLOSUREVAR, nil, nil)
+ 
+@@ -299,7 +299,7 @@ func transformclosure(xfunc *Node) {
+ 			if v.Name.Byval() && v.Type.Width <= int64(2*Widthptr) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+ 				v.SetClass(PAUTO)
+-				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
++				fn.Dcl = append(fn.Dcl, v)
+ 				body = append(body, nod(OAS, v, cv))
+ 			} else {
+ 				// Declare variable holding addresses taken from closure
+@@ -308,8 +308,8 @@ func transformclosure(xfunc *Node) {
+ 				addr.Type = types.NewPtr(v.Type)
+ 				addr.SetClass(PAUTO)
+ 				addr.Name.SetUsed(true)
+-				addr.Name.Curfn = xfunc
+-				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
++				addr.Name.Curfn = dcl
++				fn.Dcl = append(fn.Dcl, addr)
+ 				v.Name.Param.Heapaddr = addr
+ 				if v.Name.Byval() {
+ 					cv = nod(OADDR, cv, nil)
+@@ -320,8 +320,8 @@ func transformclosure(xfunc *Node) {
+ 
+ 		if len(body) > 0 {
+ 			typecheckslice(body, ctxStmt)
+-			xfunc.Func.Enter.Set(body)
+-			xfunc.Func.SetNeedctxt(true)
++			fn.Enter.Set(body)
++			fn.SetNeedctxt(true)
+ 		}
+ 	}
+ 
+@@ -331,19 +331,17 @@ func transformclosure(xfunc *Node) {
+ // hasemptycvars reports whether closure clo has an
+ // empty list of captured vars.
+ func hasemptycvars(clo *Node) bool {
+-	xfunc := clo.Func.Closure
+-	return xfunc.Func.Cvars.Len() == 0
++	return clo.Func.ClosureVars.Len() == 0
+ }
+ 
+ // closuredebugruntimecheck applies boilerplate checks for debug flags
+ // and compiling runtime
+ func closuredebugruntimecheck(clo *Node) {
+ 	if Debug_closure > 0 {
+-		xfunc := clo.Func.Closure
+ 		if clo.Esc == EscHeap {
+-			Warnl(clo.Pos, "heap closure, captured vars = %v", xfunc.Func.Cvars)
++			Warnl(clo.Pos, "heap closure, captured vars = %v", clo.Func.ClosureVars)
+ 		} else {
+-			Warnl(clo.Pos, "stack closure, captured vars = %v", xfunc.Func.Cvars)
++			Warnl(clo.Pos, "stack closure, captured vars = %v", clo.Func.ClosureVars)
+ 		}
+ 	}
+ 	if compiling_runtime && clo.Esc == EscHeap {
+@@ -371,7 +369,7 @@ func closureType(clo *Node) *types.Type {
+ 	fields := []*Node{
+ 		namedfield(".F", types.Types[TUINTPTR]),
+ 	}
+-	for _, v := range clo.Func.Closure.Func.Cvars.Slice() {
++	for _, v := range clo.Func.ClosureVars.Slice() {
+ 		typ := v.Type
+ 		if !v.Name.Byval() {
+ 			typ = types.NewPtr(typ)
+@@ -384,14 +382,14 @@ func closureType(clo *Node) *types.Type {
+ }
+ 
+ func walkclosure(clo *Node, init *Nodes) *Node {
+-	xfunc := clo.Func.Closure
++	fn := clo.Func
+ 
+ 	// If no closure vars, don't bother wrapping.
+ 	if hasemptycvars(clo) {
+ 		if Debug_closure > 0 {
+ 			Warnl(clo.Pos, "closure converted to global")
+ 		}
+-		return xfunc.Func.Nname
++		return fn.Nname
+ 	}
+ 	closuredebugruntimecheck(clo)
+ 
+@@ -399,7 +397,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 
+ 	clos := nod(OCOMPLIT, nil, typenod(typ))
+ 	clos.Esc = clo.Esc
+-	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
++	clos.List.Set(append([]*Node{nod(OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
+ 
+ 	clos = nod(OADDR, clos, nil)
+ 	clos.Esc = clo.Esc
+@@ -419,8 +417,8 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 	return walkexpr(clos, init)
+ }
+ 
+-func typecheckpartialcall(fn *Node, sym *types.Sym) {
+-	switch fn.Op {
++func typecheckpartialcall(dot *Node, sym *types.Sym) {
++	switch dot.Op {
+ 	case ODOTINTER, ODOTMETH:
+ 		break
+ 
+@@ -429,19 +427,19 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
+ 	}
+ 
+ 	// Create top-level function.
+-	xfunc := makepartialcall(fn, fn.Type, sym)
+-	fn.Func = xfunc.Func
+-	fn.Func.SetWrapper(true)
+-	fn.Right = newname(sym)
+-	fn.Op = OCALLPART
+-	fn.Type = xfunc.Type
+-	fn.SetOpt(nil) // clear types.Field from ODOTMETH
++	dcl := makepartialcall(dot, dot.Type, sym)
++	dcl.Func.SetWrapper(true)
++	dot.Op = OCALLPART
++	dot.Right = newname(sym)
++	dot.Type = dcl.Type
++	dot.Func = dcl.Func
++	dot.SetOpt(nil) // clear types.Field from ODOTMETH
+ }
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+ // for partial calls.
+-func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+-	rcvrtype := fn.Left.Type
++func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
++	rcvrtype := dot.Left.Type
+ 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+ 
+ 	if sym.Uniq() {
+@@ -468,9 +466,10 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	tfn.List.Set(structargs(t0.Params(), true))
+ 	tfn.Rlist.Set(structargs(t0.Results(), false))
+ 
+-	xfunc := dclfunc(sym, tfn)
+-	xfunc.Func.SetDupok(true)
+-	xfunc.Func.SetNeedctxt(true)
++	dcl := dclfunc(sym, tfn)
++	fn := dcl.Func
++	fn.SetDupok(true)
++	fn.SetNeedctxt(true)
+ 
+ 	tfn.Type.SetPkg(t0.Pkg())
+ 
+@@ -502,20 +501,20 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	}
+ 	body = append(body, call)
+ 
+-	xfunc.Nbody.Set(body)
++	dcl.Nbody.Set(body)
+ 	funcbody()
+ 
+-	xfunc = typecheck(xfunc, ctxStmt)
++	dcl = typecheck(dcl, ctxStmt)
+ 	// Need to typecheck the body of the just-generated wrapper.
+ 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+-	Curfn = xfunc
+-	typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
+-	sym.Def = asTypesNode(xfunc)
+-	xtop = append(xtop, xfunc)
++	Curfn = dcl
++	typecheckslice(dcl.Nbody.Slice(), ctxStmt)
++	sym.Def = asTypesNode(dcl)
++	xtop = append(xtop, dcl)
+ 	Curfn = savecurfn
+ 	lineno = saveLineNo
+ 
+-	return xfunc
++	return dcl
+ }
+ 
+ // partialCallType returns the struct type used to hold all the information
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e0a6f6ac92..59888cce7e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -206,11 +206,13 @@ func newnoname(s *types.Sym) *Node {
+ }
+ 
+ // newfuncnamel generates a new name node for a function or method.
+-// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
+-func newfuncnamel(pos src.XPos, s *types.Sym) *Node {
++func newfuncnamel(pos src.XPos, s *types.Sym, fn *Func) *Node {
++	if fn.Nname != nil {
++		Fatalf("newfuncnamel - already have name")
++	}
+ 	n := newnamel(pos, s)
+-	n.Func = new(Func)
+-	n.Func.SetIsHiddenClosure(Curfn != nil)
++	n.Func = fn
++	fn.Nname = n
+ 	return n
+ }
+ 
+@@ -287,7 +289,7 @@ func oldname(s *types.Sym) *Node {
+ 			c.Name.Param.Outer = n.Name.Param.Innermost
+ 			n.Name.Param.Innermost = c
+ 
+-			Curfn.Func.Cvars.Append(c)
++			Curfn.Func.ClosureVars.Append(c)
+ 		}
+ 
+ 		// return ref to closure var, not original
+@@ -388,10 +390,8 @@ func funchdr(n *Node) {
+ 
+ 	types.Markdcl()
+ 
+-	if n.Func.Nname != nil {
++	if n.Func.Nname != nil && n.Func.Nname.Name.Param.Ntype != nil {
+ 		funcargs(n.Func.Nname.Name.Param.Ntype)
+-	} else if n.Func.Ntype != nil {
+-		funcargs(n.Func.Ntype)
+ 	} else {
+ 		funcargs2(n.Type)
+ 	}
+@@ -973,7 +973,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
+ 	}
+ 
+ 	fn := nod(ODCLFUNC, nil, nil)
+-	fn.Func.Nname = newfuncnamel(lineno, sym)
++	fn.Func.Nname = newfuncnamel(lineno, sym, fn.Func)
+ 	fn.Func.Nname.Name.Defn = fn
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 	setNodeNameFunc(fn.Func.Nname)
+@@ -1043,7 +1043,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n *Node) bool {
+ 	case ONAME:
+ 		callee = arg.Name.Defn
+ 	case OCLOSURE:
+-		callee = arg.Func.Closure
++		callee = arg.Func.Decl
+ 	default:
+ 		Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index b7d1dfc92a..c4159101f2 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -259,8 +259,9 @@ func addrescapes(n *Node) {
+ 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
+ 		oldfn := Curfn
+ 		Curfn = n.Name.Curfn
+-		if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+-			Curfn = Curfn.Func.Closure
++		if Curfn.Op == OCLOSURE {
++			Curfn = Curfn.Func.Decl
++			panic("can't happen")
+ 		}
+ 		ln := lineno
+ 		lineno = Curfn.Pos
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index bc0eb98d76..07cc549825 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -623,7 +623,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		k = e.spill(k, n)
+ 
+ 		// Link addresses of captured variables to closure.
+-		for _, v := range n.Func.Closure.Func.Cvars.Slice() {
++		for _, v := range n.Func.ClosureVars.Slice() {
+ 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
+ 				continue
+ 			}
+@@ -810,7 +810,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
+ 			case v.Op == ONAME && v.Class() == PFUNC:
+ 				fn = v
+ 			case v.Op == OCLOSURE:
+-				fn = v.Func.Closure.Func.Nname
++				fn = v.Func.Nname
+ 			}
+ 		case OCALLMETH:
+ 			fn = call.Left.MethodName()
+@@ -1358,7 +1358,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
+ 		//
+ 		//    var u int  // okay to stack allocate
+ 		//    *(func() *int { return &u }()) = 42
+-		if containsClosure(other.curfn, l.curfn) && l.curfn.Func.Closure.Func.Top&ctxCallee != 0 {
++		if containsClosure(other.curfn, l.curfn) && l.curfn.Func.ClosureCalled {
+ 			return false
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 650fb9681e..e62a526eeb 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1417,7 +1417,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			mode.Fprintf(s, "%v { %v }", n.Type, n.Nbody)
+ 			return
+ 		}
+-		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
++		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Decl.Nbody)
+ 
+ 	case OCOMPLIT:
+ 		if mode == FErr {
+@@ -1717,8 +1717,8 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 		}
+ 	}
+ 
+-	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
+-		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
++	if n.Op == OCLOSURE && n.Func.Decl != nil && n.Func.Nname.Sym != nil {
++		mode.Fprintf(s, " fnName %v", n.Func.Nname.Sym)
+ 	}
+ 	if n.Sym != nil && n.Op != ONAME {
+ 		mode.Fprintf(s, " %v", n.Sym)
+@@ -1735,12 +1735,12 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 		if n.Right != nil {
+ 			mode.Fprintf(s, "%v", n.Right)
+ 		}
+-		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
++		if n.Op == OCLOSURE && n.Func != nil && n.Func.Decl != nil && n.Func.Decl.Nbody.Len() != 0 {
+ 			indent(s)
+ 			// The function associated with a closure
+-			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
++			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Decl)
+ 		}
+-		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
++		if n.Op == ODCLFUNC && n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
+ 			indent(s)
+ 			// The dcls for a func or closure
+ 			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 929653ebbd..d882d6d672 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -54,7 +54,7 @@ func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
+ 	if curfn == nil {
+ 		Fatalf("no curfn for tempAt")
+ 	}
+-	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
++	if curfn.Op == OCLOSURE {
+ 		Dump("tempAt", curfn)
+ 		Fatalf("adding tempAt to wrong closure function")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 0fa11c5f59..a3a01e59cd 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -329,7 +329,7 @@ func (r *importReader) doDecl(n *Node) {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
++			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(Func))
+ 			m.Type = mtyp
+ 			m.SetClass(PFUNC)
+ 			// methodSym already marked m.Sym as a function.
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 102cb769db..f82df04b73 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -285,7 +285,7 @@ func (d *initDeps) visit(n *Node) bool {
+ 		}
+ 
+ 	case OCLOSURE:
+-		d.inspectList(n.Func.Closure.Nbody)
++		d.inspectList(n.Func.Decl.Nbody)
+ 
+ 	case ODOTMETH, OCALLPART:
+ 		d.foundDep(n.MethodName())
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6d07e156ea..db53b2aae1 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -722,7 +722,7 @@ func inlCallee(fn *Node) *Node {
+ 		}
+ 		return fn
+ 	case fn.Op == OCLOSURE:
+-		c := fn.Func.Closure
++		c := fn.Func.Decl
+ 		caninl(c)
+ 		return c.Func.Nname
+ 	}
+@@ -806,7 +806,7 @@ func reassigned(n *Node) (bool, *Node) {
+ 	// We need to walk the function body to check for reassignments so we follow the
+ 	// linkage to the ODCLFUNC node as that is where body is held.
+ 	if f.Op == OCLOSURE {
+-		f = f.Func.Closure
++		f = f.Func.Decl
+ 	}
+ 	v := reassignVisitor{name: n}
+ 	a := v.visitList(f.Nbody)
+@@ -976,8 +976,8 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 
+ 	// Handle captured variables when inlining closures.
+ 	if fn.Name.Defn != nil {
+-		if c := fn.Name.Defn.Func.Closure; c != nil {
+-			for _, v := range c.Func.Closure.Func.Cvars.Slice() {
++		if c := fn.Name.Defn.Func.OClosure; c != nil {
++			for _, v := range c.Func.ClosureVars.Slice() {
+ 				if v.Op == OXXX {
+ 					continue
+ 				}
+@@ -987,7 +987,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 				// NB: if we enabled inlining of functions containing OCLOSURE or refined
+ 				// the reassigned check via some sort of copy propagation this would most
+ 				// likely need to be changed to a loop to walk up to the correct Param
+-				if o == nil || (o.Name.Curfn != Curfn && o.Name.Curfn.Func.Closure != Curfn) {
++				if o == nil || (o.Name.Curfn != Curfn && o.Name.Curfn.Func.OClosure != Curfn) {
+ 					Fatalf("%v: unresolvable capture %v %v\n", n.Line(), fn, v)
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 89dbca0cf1..cf4ec039f1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -651,7 +651,7 @@ func Main(archInit func(*Arch)) {
+ 	// because variables captured by value do not escape.
+ 	timings.Start("fe", "capturevars")
+ 	for _, n := range xtop {
+-		if n.Op == ODCLFUNC && n.Func.Closure != nil {
++		if n.Op == ODCLFUNC && n.Func.OClosure != nil {
+ 			Curfn = n
+ 			capturevars(n)
+ 		}
+@@ -724,7 +724,7 @@ func Main(archInit func(*Arch)) {
+ 	// before walk reaches a call of a closure.
+ 	timings.Start("fe", "xclosures")
+ 	for _, n := range xtop {
+-		if n.Op == ODCLFUNC && n.Func.Closure != nil {
++		if n.Op == ODCLFUNC && n.Func.OClosure != nil {
+ 			Curfn = n
+ 			transformclosure(n)
+ 		}
+@@ -829,7 +829,7 @@ func Main(archInit func(*Arch)) {
+ func numNonClosures(list []*Node) int {
+ 	count := 0
+ 	for _, n := range list {
+-		if n.Func.Closure == nil {
++		if n.Func.OClosure == nil {
+ 			count++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3ef8583f6d..f8c84a75bf 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -537,7 +537,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		name = nblank.Sym // filled in by typecheckfunc
+ 	}
+ 
+-	f.Func.Nname = newfuncnamel(p.pos(fun.Name), name)
++	f.Func.Nname = newfuncnamel(p.pos(fun.Name), name, f.Func)
+ 	f.Func.Nname.Name.Defn = f
+ 	f.Func.Nname.Name.Param.Ntype = t
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 11c8b1fa25..a62d468c9c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1256,7 +1256,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		}
+ 
+ 	case OCLOSURE:
+-		if n.Transient() && n.Func.Closure.Func.Cvars.Len() > 0 {
++		if n.Transient() && n.Func.ClosureVars.Len() > 0 {
+ 			prealloc[n] = o.newTemp(closureType(n), false)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9c1bd285ae..0f0f6b7107 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -404,30 +404,59 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 		}
+ 	}
+ 
++	// Back when there were two different *Funcs for a function, this code
++	// was not consistent about whether a particular *Node being processed
++	// was an ODCLFUNC or ONAME node. Partly this is because inlined function
++	// bodies have no ODCLFUNC node, which was it's own inconsistency.
++	// In any event, the handling of the two different nodes for DWARF purposes
++	// was subtly different, likely in unintended ways. CL 272253 merged the
++	// two nodes' Func fields, so that code sees the same *Func whether it is
++	// holding the ODCLFUNC or the ONAME. This resulted in changes in the
++	// DWARF output. To preserve the existing DWARF output and leave an
++	// intentional change for a future CL, this code does the following when
++	// fn.Op == ONAME:
++	//
++	// 1. Disallow use of createComplexVars in createDwarfVars.
++	//    It was not possible to reach that code for an ONAME before,
++	//    because the DebugInfo was set only on the ODCLFUNC Func.
++	//    Calling into it in the ONAME case causes an index out of bounds panic.
++	//
++	// 2. Do not populate apdecls. fn.Func.Dcl was in the ODCLFUNC Func,
++	//    not the ONAME Func. Populating apdecls for the ONAME case results
++	//    in selected being populated after createSimpleVars is called in
++	//    createDwarfVars, and then that causes the loop to skip all the entries
++	//    in dcl, meaning that the RecordAutoType calls don't happen.
++	//
++	// These two adjustments keep toolstash -cmp working for now.
++	// Deciding the right answer is, as they say, future work.
++	isODCLFUNC := fn.Op == ODCLFUNC
++
+ 	var apdecls []*Node
+ 	// Populate decls for fn.
+-	for _, n := range fn.Func.Dcl {
+-		if n.Op != ONAME { // might be OTYPE or OLITERAL
+-			continue
+-		}
+-		switch n.Class() {
+-		case PAUTO:
+-			if !n.Name.Used() {
+-				// Text == nil -> generating abstract function
+-				if fnsym.Func().Text != nil {
+-					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
++	if isODCLFUNC {
++		for _, n := range fn.Func.Dcl {
++			if n.Op != ONAME { // might be OTYPE or OLITERAL
++				continue
++			}
++			switch n.Class() {
++			case PAUTO:
++				if !n.Name.Used() {
++					// Text == nil -> generating abstract function
++					if fnsym.Func().Text != nil {
++						Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
++					}
++					continue
+ 				}
++			case PPARAM, PPARAMOUT:
++			default:
+ 				continue
+ 			}
+-		case PPARAM, PPARAMOUT:
+-		default:
+-			continue
++			apdecls = append(apdecls, n)
++			fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+ 		}
+-		apdecls = append(apdecls, n)
+-		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+ 	}
+ 
+-	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
++	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func, apdecls)
+ 
+ 	// For each type referenced by the functions auto vars but not
+ 	// already referenced by a dwarf var, attach a dummy relocation to
+@@ -575,12 +604,12 @@ func createComplexVars(fnsym *obj.LSym, fn *Func) ([]*Node, []*dwarf.Var, map[*N
+ 
+ // createDwarfVars process fn, returning a list of DWARF variables and the
+ // Nodes they represent.
+-func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dwarf.Var) {
++func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *Func, apDecls []*Node) ([]*Node, []*dwarf.Var) {
+ 	// Collect a raw list of DWARF vars.
+ 	var vars []*dwarf.Var
+ 	var decls []*Node
+ 	var selected map[*Node]bool
+-	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
++	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
+ 		decls, vars, selected = createComplexVars(fnsym, fn)
+ 	} else {
+ 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 14f77d613a..8e41ebac29 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -101,7 +101,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 				}
+ 			}
+ 		case OCLOSURE:
+-			if m := v.visit(n.Func.Closure); m < min {
++			if m := v.visit(n.Func.Decl); m < min {
+ 				min = m
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index c199ff6317..5727245562 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -261,7 +261,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			}
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+-			pfuncsym(l, r.Func.Closure.Func.Nname)
++			pfuncsym(l, r.Func.Nname)
+ 			return true
+ 		}
+ 		closuredebugruntimecheck(r)
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index ce4a216c2e..2f2eba4c67 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 124, 224},
++		{Func{}, 132, 240},
+ 		{Name{}, 32, 56},
+ 		{Param{}, 24, 48},
+ 		{Node{}, 76, 128},
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7c13aef214..1aa3af929c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -139,13 +139,14 @@ func nod(op Op, nleft, nright *Node) *Node {
+ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
+ 	var n *Node
+ 	switch op {
+-	case OCLOSURE, ODCLFUNC:
++	case ODCLFUNC:
+ 		var x struct {
+ 			n Node
+ 			f Func
+ 		}
+ 		n = &x.n
+ 		n.Func = &x.f
++		n.Func.Decl = n
+ 	case ONAME:
+ 		Fatalf("use newname instead")
+ 	case OLABEL, OPACK:
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index de516dec69..435fd78fce 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -578,62 +578,66 @@ func (p *Param) SetEmbedFiles(list []string) {
+ 	*(*p.Extra).(*embedFileList) = list
+ }
+ 
+-// Functions
++// A Func corresponds to a single function in a Go program
++// (and vice versa: each function is denoted by exactly one *Func).
+ //
+-// A simple function declaration is represented as an ODCLFUNC node f
+-// and an ONAME node n. They're linked to one another through
+-// f.Func.Nname == n and n.Name.Defn == f. When functions are
+-// referenced by name in an expression, the function's ONAME node is
+-// used directly.
++// There are multiple nodes that represent a Func in the IR.
+ //
+-// Function names have n.Class() == PFUNC. This distinguishes them
+-// from variables of function type.
++// The ONAME node (Func.Name) is used for plain references to it.
++// The ODCLFUNC node (Func.Decl) is used for its declaration code.
++// The OCLOSURE node (Func.Closure) is used for a reference to a
++// function literal.
+ //
+-// Confusingly, n.Func and f.Func both exist, but commonly point to
+-// different Funcs. (Exception: an OCALLPART's Func does point to its
+-// ODCLFUNC's Func.)
++// A Func for an imported function will have only an ONAME node.
++// A declared function or method has an ONAME and an ODCLFUNC.
++// A function literal is represented directly by an OCLOSURE, but it also
++// has an ODCLFUNC (and a matching ONAME) representing the compiled
++// underlying form of the closure, which accesses the captured variables
++// using a special data structure passed in a register.
+ //
+-// A method declaration is represented like functions, except n.Sym
++// A method declaration is represented like functions, except f.Sym
+ // will be the qualified method name (e.g., "T.m") and
+ // f.Func.Shortname is the bare method name (e.g., "m").
+ //
+-// Method expressions are represented as ONAME/PFUNC nodes like
+-// function names, but their Left and Right fields still point to the
+-// type and method, respectively. They can be distinguished from
+-// normal functions with isMethodExpression. Also, unlike function
+-// name nodes, method expression nodes exist for each method
+-// expression. The declaration ONAME can be accessed with
+-// x.Type.Nname(), where x is the method expression ONAME node.
++// A method expression (T.M) is represented as an ONAME node
++// like a function name would be, but n.Left and n.Right point to
++// the type and method, respectively. A method expression can
++// be distinguished from a normal function ONAME by checking
++// n.IsMethodExpression. Unlike ordinary ONAME nodes, each
++// distinct mention of a method expression in the source code
++// constructs a fresh ONAME node.
++// TODO(rsc): Method expressions deserve their own opcode
++// instead of violating invariants of ONAME.
+ //
+-// Method values are represented by ODOTMETH/ODOTINTER when called
+-// immediately, and OCALLPART otherwise. They are like method
+-// expressions, except that for ODOTMETH/ODOTINTER the method name is
+-// stored in Sym instead of Right.
+-//
+-// Closures are represented by OCLOSURE node c. They link back and
+-// forth with the ODCLFUNC via Func.Closure; that is, c.Func.Closure
+-// == f and f.Func.Closure == c.
+-//
+-// Function bodies are stored in f.Nbody, and inline function bodies
+-// are stored in n.Func.Inl. Pragmas are stored in f.Func.Pragma.
+-//
+-// Imported functions skip the ODCLFUNC, so n.Name.Defn is nil. They
+-// also use Dcl instead of Inldcl.
+-
+-// Func holds Node fields used only with function-like nodes.
++// A method value (t.M) is represented by ODOTMETH/ODOTINTER
++// when it is called directly and by OCALLPART otherwise.
++// These are like method expressions, except that for ODOTMETH/ODOTINTER,
++// the method name is stored in Sym instead of Right.
++// Each OCALLPART ends up being implemented as a new
++// function, a bit like a closure, with its own ODCLFUNC.
++// The OCALLPART has uses n.Func to record the linkage to
++// the generated ODCLFUNC (as n.Func.Decl), but there is no
++// pointer from the Func back to the OCALLPART.
+ type Func struct {
++	Nname    *Node // ONAME node
++	Decl     *Node // ODCLFUNC node
++	OClosure *Node // OCLOSURE node
++
+ 	Shortname *types.Sym
++
+ 	// Extra entry code for the function. For example, allocate and initialize
+-	// memory for escaping parameters. However, just for OCLOSURE, Enter is a
+-	// list of ONAME nodes of captured variables
++	// memory for escaping parameters.
+ 	Enter Nodes
+ 	Exit  Nodes
+-	// ONAME nodes for closure params, each should have closurevar set
+-	Cvars Nodes
+ 	// ONAME nodes for all params/locals for this func/closure, does NOT
+ 	// include closurevars until transformclosure runs.
+ 	Dcl []*Node
+ 
++	ClosureEnter  Nodes // list of ONAME nodes of captured variables
++	ClosureType   *Node // closure representation type
++	ClosureCalled bool  // closure is only immediately called
++	ClosureVars   Nodes // closure params; each has closurevar set
++
+ 	// Parents records the parent scope of each scope within a
+ 	// function. The root scope (0) has no parent, so the i'th
+ 	// scope's parent is stored at Parents[i-1].
+@@ -649,10 +653,6 @@ type Func struct {
+ 
+ 	FieldTrack map[*types.Sym]struct{}
+ 	DebugInfo  *ssa.FuncDebug
+-	Ntype      *Node // signature
+-	Top        int   // top context (ctxCallee, etc)
+-	Closure    *Node // OCLOSURE <-> ODCLFUNC (see header comment above)
+-	Nname      *Node // The ONAME node associated with an ODCLFUNC (both have same Type)
+ 	lsym       *obj.LSym
+ 
+ 	Inl *Inline
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4bbc58ce13..ae344fc8e1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -562,12 +562,11 @@ opswitch:
+ 			// transformclosure already did all preparation work.
+ 
+ 			// Prepend captured variables to argument list.
+-			n.List.Prepend(n.Left.Func.Enter.Slice()...)
+-
+-			n.Left.Func.Enter.Set(nil)
++			n.List.Prepend(n.Left.Func.ClosureEnter.Slice()...)
++			n.Left.Func.ClosureEnter.Set(nil)
+ 
+ 			// Replace OCLOSURE with ONAME/PFUNC.
+-			n.Left = n.Left.Func.Closure.Func.Nname
++			n.Left = n.Left.Func.Nname
+ 
+ 			// Update type of OCALLFUNC node.
+ 			// Output arguments had not changed, but their offsets could.

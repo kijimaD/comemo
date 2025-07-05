@@ -13,6 +13,32 @@ Date:   Tue Mar 8 22:10:28 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 27394e6d81..1a33658a1e 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -188,11 +188,18 @@ func TestDialTimeout(t *testing.T) {
+ 		t.Fatal("DialWithTimeout completed successfully")
+ 	}
+ 
+-	if !strings.Contains(err.Error(), "timed out") {
+-		t.Errorf("resulting error not a timeout: %s", err)
++	if !isTimeoutError(err) {
++		t.Errorf("resulting error not a timeout: %v\nType %T: %#v", err, err, err)
+ 	}
+ }
+ 
++func isTimeoutError(err error) bool {
++	if ne, ok := err.(net.Error); ok {
++		return ne.Timeout()
++	}
++	return false
++}
++
+ // tests that Conn.Read returns (non-zero, io.EOF) instead of
+ // (non-zero, nil) when a Close (alertCloseNotify) is sitting right
+ // behind the application data in the buffer.

@@ -14,6 +14,22 @@ Date:   Mon Nov 12 11:36:12 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/bufio/bufio.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index e498dfea1e..46df619228 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -186,9 +186,8 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
+ // It returns the number of bytes read into p.
+ // The bytes are taken from at most one Read on the underlying Reader,
+ // hence n may be less than len(p).
+-// At EOF, the count will be zero and err will be io.EOF.
+-//
+ // To read exactly len(p) bytes, use io.ReadFull(b, p).
++// At EOF, the count will be zero and err will be io.EOF.
+ func (b *Reader) Read(p []byte) (n int, err error) {
+ 	n = len(p)
+ 	if n == 0 {

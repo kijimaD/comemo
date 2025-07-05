@@ -11,6 +11,20 @@ Date:   Tue Oct 23 23:59:07 2018 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/bits/bits_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index bd6b618f35..ede7c05d41 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -918,7 +918,7 @@ func BenchmarkSub32(b *testing.B) {
+ func BenchmarkSub64(b *testing.B) {
+ 	var z, c uint64
+ 	for i := 0; i < b.N; i++ {
+-		z, c = Add64(uint64(Input), uint64(i), c)
++		z, c = Sub64(uint64(Input), uint64(i), c)
+ 	}
+ 	Output = int(z + c)
+ }

@@ -13,7 +13,7 @@ Date:   Wed May 21 16:36:53 2025 +0800
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/mips/ssa.go               | 3 +++
  src/cmd/compile/internal/ssa/_gen/MIPS.rules       | 3 +++
  src/cmd/compile/internal/ssa/_gen/MIPSOps.go       | 3 +++
@@ -22,3 +22,119 @@ Date:   Wed May 21 16:36:53 2025 +0800
  src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
  src/cmd/compile/internal/ssagen/intrinsics_test.go | 2 ++
  7 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 4c7c8eafcd..9762554829 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -804,6 +804,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpMIPSLoweredPubBarrier:
++		// SYNC
++		s.Prog(v.Op.Asm())
+ 	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+index a4899ac24d..a9bac5fabe 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+@@ -420,6 +420,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier as intrinsic
++(PubBarrier ...) => (LoweredPubBarrier ...)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index 48e06a4189..62c35ed49f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -408,6 +408,9 @@ func init() {
+ 		// Returns a pointer to a write barrier buffer in R25.
+ 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+ 
++		// Do data barrier. arg0=memorys
++		{name: "LoweredPubBarrier", argLength: 1, asm: "SYNC", hasSideEffects: true},
++
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b5eb747422..90a38c783a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2076,6 +2076,7 @@ const (
+ 	OpMIPSLoweredGetCallerSP
+ 	OpMIPSLoweredGetCallerPC
+ 	OpMIPSLoweredWB
++	OpMIPSLoweredPubBarrier
+ 	OpMIPSLoweredPanicBoundsA
+ 	OpMIPSLoweredPanicBoundsB
+ 	OpMIPSLoweredPanicBoundsC
+@@ -27990,6 +27991,13 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredPubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            mips.ASYNC,
++		reg:            regInfo{},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index fe24f0fd0f..4c5edb8694 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -450,6 +450,9 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpPanicBounds(v)
+ 	case OpPanicExtend:
+ 		return rewriteValueMIPS_OpPanicExtend(v)
++	case OpPubBarrier:
++		v.Op = OpMIPSLoweredPubBarrier
++		return true
+ 	case OpRotateLeft16:
+ 		return rewriteValueMIPS_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 5ad528cc62..6b58e7e591 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -163,7 +163,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+ 			return nil
+ 		},
+-		sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64)
++		sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64)
+ 
+ 	/******** internal/runtime/sys ********/
+ 	add("internal/runtime/sys", "GetCallerPC",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 127f26acbf..0623c5f209 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -554,6 +554,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips", "math/bits", "TrailingZeros64"}:                           struct{}{},
+ 	{"mips", "math/bits", "TrailingZeros8"}:                            struct{}{},
+ 	{"mips", "runtime", "KeepAlive"}:                                   struct{}{},
++	{"mips", "runtime", "publicationBarrier"}:                          struct{}{},
+ 	{"mips", "runtime", "slicebytetostringtmp"}:                        struct{}{},
+ 	{"mips", "sync", "runtime_LoadAcquintptr"}:                         struct{}{},
+ 	{"mips", "sync", "runtime_StoreReluintptr"}:                        struct{}{},
+@@ -799,6 +800,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mipsle", "math/bits", "TrailingZeros64"}:                         struct{}{},
+ 	{"mipsle", "math/bits", "TrailingZeros8"}:                          struct{}{},
+ 	{"mipsle", "runtime", "KeepAlive"}:                                 struct{}{},
++	{"mipsle", "runtime", "publicationBarrier"}:                        struct{}{},
+ 	{"mipsle", "runtime", "slicebytetostringtmp"}:                      struct{}{},
+ 	{"mipsle", "sync", "runtime_LoadAcquintptr"}:                       struct{}{},
+ 	{"mipsle", "sync", "runtime_StoreReluintptr"}:                      struct{}{},

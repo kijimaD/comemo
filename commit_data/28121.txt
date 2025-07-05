@@ -17,6 +17,29 @@ Date:   Fri Apr 29 10:57:06 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22596
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcsweep.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 82537edaaa..b8e33897c1 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -296,7 +296,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	// But we need to set it before we make the span available for allocation
+ 	// (return it to heap or mcentral), because allocation code assumes that a
+ 	// span is already swept if available for allocation.
+-	if freeToHeap || nfree == 0 {
++	if freeToHeap || nfreed == 0 {
+ 		// The span must be in our exclusive ownership until we update sweepgen,
+ 		// check for potential races.
+ 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+@@ -309,7 +309,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		atomic.Store(&s.sweepgen, sweepgen)
+ 	}
+ 
+-	if nfree > 0 && cl != 0 {
++	if nfreed > 0 && cl != 0 {
+ 		c.local_nsmallfree[cl] += uintptr(nfreed)
+ 		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
+ 		// MCentral_FreeSpan updates sweepgen

@@ -11,8 +11,83 @@ Date:   Wed Mar 30 10:52:13 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21330
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/export.go |  4 ++--
  src/cmd/compile/internal/gc/subr.go   | 19 ++++++++-----------
  src/cmd/compile/internal/gc/type.go   |  8 ++++++++
  3 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5c54edf12a..d17368a19a 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -301,8 +301,8 @@ func dumpexporttype(t *Type) {
+ 		dumpexporttype(t.Results())
+ 		dumpexporttype(t.Params())
+ 	case TMAP:
+-		dumpexporttype(t.Type)
+-		dumpexporttype(t.Down) // key
++		dumpexporttype(t.Val())
++		dumpexporttype(t.Key())
+ 	case TARRAY, TCHAN, TPTR32, TPTR64:
+ 		dumpexporttype(t.Type)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6262910634..31c5ec876b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -382,27 +382,24 @@ func maptype(key *Type, val *Type) *Type {
+ 				Yyerror("invalid map key type %v", key)
+ 			}
+ 
+-			// will be resolved later.
+ 		case TANY:
++			// will be resolved later.
+ 			break
+ 
+-			// map[key] used during definition of key.
+-		// postpone check until key is fully defined.
+-		// if there are multiple uses of map[key]
+-		// before key is fully defined, the error
+-		// will only be printed for the first one.
+-		// good enough.
+ 		case TFORW:
++			// map[key] used during definition of key.
++			// postpone check until key is fully defined.
++			// if there are multiple uses of map[key]
++			// before key is fully defined, the error
++			// will only be printed for the first one.
++			// good enough.
+ 			if key.Maplineno == 0 {
+ 				key.Maplineno = lineno
+ 			}
+ 		}
+ 	}
+ 
+-	t := typ(TMAP)
+-	t.Down = key
+-	t.Type = val
+-	return t
++	return typMap(key, val)
+ }
+ 
+ // methcmp sorts by symbol, then by package path for unexported symbols.
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index ca8e2a030b..f7bd270e40 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -267,6 +267,14 @@ func typeChan(elem *Type, dir uint8) *Type {
+ 	return t
+ }
+ 
++// typMap returns a new map Type with key type k and element (aka value) type v.
++func typMap(k, v *Type) *Type {
++	t := typ(TMAP)
++	t.Down = k
++	t.Type = v
++	return t
++}
++
+ // typPtr returns a new pointer type pointing to t.
+ func typPtr(elem *Type) *Type {
+ 	t := typ(Tptr)

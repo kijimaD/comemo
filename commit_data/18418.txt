@@ -11,6 +11,43 @@ Date:   Thu Feb 6 14:44:30 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/55470046
-
+---
  src/pkg/math/big/arith.go | 14 ++++++--------
  1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/math/big/arith.go b/src/pkg/math/big/arith.go
+index f316806d7c..3d5a8682d9 100644
+--- a/src/pkg/math/big/arith.go
++++ b/src/pkg/math/big/arith.go
+@@ -131,12 +131,11 @@ func divWW_g(u1, u0, v Word) (q, r Word) {
+ 	q1 := un32 / vn1
+ 	rhat := un32 - q1*vn1
+ 
+-again1:
+-	if q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
++	for q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
+ 		q1--
+ 		rhat += vn1
+-		if rhat < _B2 {
+-			goto again1
++		if rhat >= _B2 {
++			break
+ 		}
+ 	}
+ 
+@@ -144,12 +143,11 @@ again1:
+ 	q0 := un21 / vn1
+ 	rhat = un21 - q0*vn1
+ 
+-again2:
+-	if q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
++	for q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
+ 		q0--
+ 		rhat += vn1
+-		if rhat < _B2 {
+-			goto again2
++		if rhat >= _B2 {
++			break
+ 		}
+ 	}
+ 

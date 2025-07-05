@@ -20,7 +20,7 @@ Date:   Fri Aug 20 16:15:53 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/transform.go |  6 +-----
  src/cmd/compile/internal/typecheck/dcl.go   |  6 ++++++
  test/typeparam/issue47775.dir/b.go          | 19 +++++++++++++++++++
@@ -28,3 +28,127 @@ Date:   Fri Aug 20 16:15:53 2021 -0700
  test/typeparam/issue47775.go                |  7 +++++++
  test/typeparam/issue47775b.go               | 28 ++++++++++++++++++++++++++++
  6 files changed, 72 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index e1eeb8e739..140bb33234 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -578,11 +578,7 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
+ 
+ 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
+ 		n.SetOp(ir.OMETHVALUE)
+-		if len(n.X.Type().RParams()) > 0 || n.X.Type().IsPtr() && len(n.X.Type().Elem().RParams()) > 0 {
+-			// TODO: MethodValueWrapper needed for generics?
+-			// Or did we successfully desugar all that at stencil time?
+-			return n
+-		}
++		// This converts a method type to a function type. See issue 47775.
+ 		n.SetType(typecheck.NewMethodType(n.Type(), nil))
+ 	}
+ 	return n
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 11e20f0f07..472d8d2b8a 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -479,6 +479,12 @@ func autotmpname(n int) string {
+ // f is method type, with receiver.
+ // return function type, receiver as first argument (or not).
+ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
++	if sig.HasTParam() {
++		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
++	}
++	if recv != nil && recv.HasTParam() {
++		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
++	}
+ 	nrecvs := 0
+ 	if recv != nil {
+ 		nrecvs++
+diff --git a/test/typeparam/issue47775.dir/b.go b/test/typeparam/issue47775.dir/b.go
+new file mode 100644
+index 0000000000..b6d7ba97c5
+--- /dev/null
++++ b/test/typeparam/issue47775.dir/b.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++type C[T any] struct {
++}
++
++func (c *C[T]) reset() {
++}
++
++func New[T any]() {
++	c := &C[T]{}
++	z(c.reset)
++}
++
++func z(interface{}) {
++}
+diff --git a/test/typeparam/issue47775.dir/main.go b/test/typeparam/issue47775.dir/main.go
+new file mode 100644
+index 0000000000..ed284ddfc6
+--- /dev/null
++++ b/test/typeparam/issue47775.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "b"
++
++func main() {
++	b.New[int]()
++}
+diff --git a/test/typeparam/issue47775.go b/test/typeparam/issue47775.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue47775.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/issue47775b.go b/test/typeparam/issue47775b.go
+new file mode 100644
+index 0000000000..6d3fc8df97
+--- /dev/null
++++ b/test/typeparam/issue47775b.go
+@@ -0,0 +1,28 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type C[T any] struct {
++}
++
++func (c *C[T]) reset() {
++}
++
++func New[T any]() {
++	c := &C[T]{}
++	i = c.reset
++	z(c.reset)
++}
++
++var i interface{}
++
++func z(interface{}) {
++}
++
++func main() {
++	New[int]()
++}

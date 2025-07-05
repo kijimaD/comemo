@@ -16,7 +16,54 @@ Date:   Mon Feb 6 21:21:52 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
  test/codegen/mathbits.go               | 3 +++
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f31cf29925..2e2a6b411b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4000,10 +4000,10 @@ func InitTables() {
+ 		},
+ 		sys.ARM64, sys.PPC64)
+ 
+-	/* Use only on Power10 as the new byte reverse instructions that Power10 provide
+-	   make it worthwhile as an intrinsic */
+-	brev_arch := []sys.ArchFamily{sys.AMD64, sys.ARM64, sys.ARM, sys.S390X}
++	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
+ 	if buildcfg.GOPPC64 >= 10 {
++		// Use only on Power10 as the new byte reverse instructions that Power10 provide
++		// make it worthwhile as an intrinsic
+ 		brev_arch = append(brev_arch, sys.PPC64)
+ 	}
+ 	/******** runtime/internal/sys ********/
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 0eed27a619..86a44d7c93 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -189,6 +189,7 @@ func OnesCount8(n uint8) int {
+ 
+ func ReverseBytes(n uint) uint {
+ 	// amd64:"BSWAPQ"
++	// 386:"BSWAPL"
+ 	// s390x:"MOVDBR"
+ 	// arm64:"REV"
+ 	return bits.ReverseBytes(n)
+@@ -196,6 +197,7 @@ func ReverseBytes(n uint) uint {
+ 
+ func ReverseBytes64(n uint64) uint64 {
+ 	// amd64:"BSWAPQ"
++	// 386:"BSWAPL"
+ 	// s390x:"MOVDBR"
+ 	// arm64:"REV"
+ 	// ppc64x/power10: "BRD"
+@@ -204,6 +206,7 @@ func ReverseBytes64(n uint64) uint64 {
+ 
+ func ReverseBytes32(n uint32) uint32 {
+ 	// amd64:"BSWAPL"
++	// 386:"BSWAPL"
+ 	// s390x:"MOVWBR"
+ 	// arm64:"REVW"
+ 	// ppc64x/power10: "BRW"

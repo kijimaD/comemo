@@ -11,7 +11,38 @@ Date:   Mon Jun 4 17:17:16 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  2 +-
  test/fixedbugs/issue23094.go       | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 4e92f5421b..598930bf15 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1268,7 +1268,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 
+ 	case OTARRAY:
+ 		if n.Left != nil {
+-			mode.Fprintf(s, "[]%v", n.Left)
++			mode.Fprintf(s, "[%v]%v", n.Left, n.Right)
+ 			return
+ 		}
+ 		mode.Fprintf(s, "[]%v", n.Right) // happens before typecheck
+diff --git a/test/fixedbugs/issue23094.go b/test/fixedbugs/issue23094.go
+new file mode 100644
+index 0000000000..415556f300
+--- /dev/null
++++ b/test/fixedbugs/issue23094.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that the array is reported in correct notation.
++
++package p
++
++var a [len(a)]int // ERROR "\[len\(a\)\]int"

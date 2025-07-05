@@ -13,7 +13,48 @@ Date:   Fri Aug 2 10:36:03 2019 -0700
     Change-Id: Ic8fa89646d6968e2cc4e27da0ad9286662f8bc49
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188760
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go |  4 ++++
  test/fixedbugs/issue33438.go                 | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 3c64da20a7..8bc807c493 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -520,6 +520,10 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
+ 	if !IsGlobalAddr(v) {
+ 		return false
+ 	}
++	if v.Op == OpConst64 || v.Op == OpConst32 {
++		// Nil pointers are read only. See issue 33438.
++		return true
++	}
+ 	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
+ 	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `""..stmp_`)
+ }
+diff --git a/test/fixedbugs/issue33438.go b/test/fixedbugs/issue33438.go
+new file mode 100644
+index 0000000000..e4206d7bcf
+--- /dev/null
++++ b/test/fixedbugs/issue33438.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type hasPtrs struct {
++        x [2]*int
++	// Note: array size needs to be >1 to force this type to be not SSAable.
++	// The bug triggers only for OpMove, which is only used for unSSAable types.
++}
++
++func main() {
++        var x *hasPtrs       // Can be local, global, or arg; nil or non-nil.
++        var y *hasPtrs = nil // Must initialize to nil.
++        *x = *y
++}

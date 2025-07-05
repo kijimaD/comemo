@@ -24,7 +24,7 @@ Date:   Tue Aug 16 10:38:02 2022 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/boring/boring_test.go                   |   2 +-
  src/crypto/internal/boring/Dockerfile              |  85 +++++---
  src/crypto/internal/boring/README.md               |  19 ++
@@ -44,3 +44,889 @@ Date:   Tue Aug 16 10:38:02 2022 -0400
  .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 10864368 -> 2555552 bytes
  .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 0 -> 1980184 bytes
  18 files changed, 477 insertions(+), 237 deletions(-)
+
+diff --git a/src/crypto/boring/boring_test.go b/src/crypto/boring/boring_test.go
+index 9e8fd353b7..33e5f1b37e 100644
+--- a/src/crypto/boring/boring_test.go
++++ b/src/crypto/boring/boring_test.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ func TestEnabled(t *testing.T) {
+-	supportedPlatform := runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
++	supportedPlatform := runtime.GOOS == "linux" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64")
+ 	if supportedPlatform && !boring.Enabled() {
+ 		t.Error("Enabled returned false on a supported platform")
+ 	} else if !supportedPlatform && boring.Enabled() {
+diff --git a/src/crypto/internal/boring/Dockerfile b/src/crypto/internal/boring/Dockerfile
+index 5bd7438f69..58eb028e8a 100644
+--- a/src/crypto/internal/boring/Dockerfile
++++ b/src/crypto/internal/boring/Dockerfile
+@@ -2,43 +2,62 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# This Docker image builds goboringcrypto_linux_amd64.syso according to the
+-# Security Policy. To use it, build the image, run it, and then extract
+-# /boring/godriver/goboringcrypto_linux_amd64.syso.
+-#
+-#   $ podman build -t goboring:140sp3678 .
+-#   $ podman run -it --name goboring-140sp3678 goboring:140sp3678
+-#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso syso
+-#   $ sha256sum syso/goboringcrypto_linux_amd64.syso # compare to docker output
+-#
+-# The podman commands may need to run under sudo to work around a subuid/subgid bug.
+-
+-FROM ubuntu:focal
++# Run this using build.sh.
++
++ARG ubuntu=ubuntu
++FROM $ubuntu:focal
+ 
+ RUN mkdir /boring
+ WORKDIR /boring
+ 
+-# Following 140sp3678.pdf [0] page 19, install clang 7.0.1, Go 1.12.7, and
+-# Ninja 1.9.0, then download and verify BoringSSL.
+-#
+-# [0]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
++ENV LANG=C
++ENV LANGUAGE=
+ 
++# Following NIST submission draft dated July 3, 2021.
++# This corresponds to boringssl.googlesource.com/boringssl tag fips-20210429.
++ENV ClangV=12
+ RUN apt-get update && \
+-        apt-get install --no-install-recommends -y cmake xz-utils wget unzip ca-certificates clang-7
+-RUN wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip && \
+-        unzip ninja-linux.zip && \
+-        rm ninja-linux.zip && \
+-        mv ninja /usr/local/bin/
+-RUN wget https://golang.org/dl/go1.12.7.linux-amd64.tar.gz && \
+-        tar -C /usr/local -xzf go1.12.7.linux-amd64.tar.gz && \
+-        rm go1.12.7.linux-amd64.tar.gz && \
+-        ln -s /usr/local/go/bin/go /usr/local/bin/
+-
+-RUN wget https://commondatastorage.googleapis.com/chromium-boringssl-fips/boringssl-ae223d6138807a13006342edfeef32e813246b39.tar.xz
+-RUN [ "$(sha256sum boringssl-ae223d6138807a13006342edfeef32e813246b39.tar.xz | awk '{print $1}')" = \
+-        3b5fdf23274d4179c2077b5e8fa625d9debd7a390aac1d165b7e47234f648bb8 ]
+-
++        apt-get install --no-install-recommends -y cmake xz-utils wget unzip ca-certificates clang-$ClangV python
++
++# Download, validate, unpack, build, and install Ninja.
++ENV NinjaV=1.10.2
++ENV NinjaH=ce35865411f0490368a8fc383f29071de6690cbadc27704734978221f25e2bed
++RUN \
++	wget https://github.com/ninja-build/ninja/archive/refs/tags/v$NinjaV.tar.gz && \
++	echo "$NinjaH v$NinjaV.tar.gz" >sha && sha256sum -c sha && \
++	tar -xzf v$NinjaV.tar.gz && \
++	rm v$NinjaV.tar.gz && \
++	cd ninja-$NinjaV && \
++	CC=clang-$ClangV CXX=clang++-$ClangV ./configure.py --bootstrap && \
++	mv ninja /usr/local/bin/
++
++# Download, validate, unpack, and install Go.
++ARG GOARCH
++ENV GoV=1.16.5
++ENV GoHamd64=b12c23023b68de22f74c0524f10b753e7b08b1504cb7e417eccebdd3fae49061
++ENV GoHarm64=d5446b46ef6f36fdffa852f73dfbbe78c1ddf010b99fa4964944b9ae8b4d6799
++RUN \
++	eval GoH=\${GoH$GOARCH} && \
++	wget https://golang.org/dl/go$GoV.linux-$GOARCH.tar.gz && \
++	echo "$GoH go$GoV.linux-$GOARCH.tar.gz" >sha && sha256sum -c sha && \
++	tar -C /usr/local -xzf go$GoV.linux-$GOARCH.tar.gz && \
++	rm go$GoV.linux-$GOARCH.tar.gz && \
++	ln -s /usr/local/go/bin/go /usr/local/bin/
++
++# Download, validate, and unpack BoringCrypto.
++ENV BoringV=853ca1ea1168dff08011e5d42d94609cc0ca2e27
++ENV BoringH=a4d069ccef6f3c7bc0c68de82b91414f05cb817494cd1ab483dcf3368883c7c2
++RUN \
++	wget https://commondatastorage.googleapis.com/chromium-boringssl-fips/boringssl-$BoringV.tar.xz && \
++	echo "$BoringH boringssl-$BoringV.tar.xz" >sha && sha256sum -c sha && \
++	tar xJf boringssl-$BoringV.tar.xz
++
++# Build BoringCrypto.
++ADD build-boring.sh /boring/build-boring.sh
++RUN /boring/build-boring.sh
++
++# Build Go BoringCrypto syso.
++# build.sh copies it back out of the Docker image.
+ ADD goboringcrypto.h /boring/godriver/goboringcrypto.h
+-ADD build.sh /boring/build.sh
+-
+-ENTRYPOINT ["/boring/build.sh"]
++ADD build-goboring.sh /boring/build-goboring.sh
++RUN /boring/build-goboring.sh
+diff --git a/src/crypto/internal/boring/README.md b/src/crypto/internal/boring/README.md
+new file mode 100644
+index 0000000000..ffacd341c8
+--- /dev/null
++++ b/src/crypto/internal/boring/README.md
+@@ -0,0 +1,19 @@
++This directory holds the core of the BoringCrypto implementation
++as well as the build scripts for the module itself: syso/*.syso.
++
++syso/goboringcrypto_linux_amd64.syso is built with:
++
++	GOARCH=amd64 ./build.sh
++
++syso/goboringcrypto_linux_arm64.syso is built with:
++
++	GOARCH=arm64 ./build.sh
++
++Both run on an x86 Debian Linux system using Docker.
++For the arm64 build to run on an x86 system, you need
++
++	apt-get install qemu-user-static qemu-binfmt-support
++
++to allow the x86 kernel to run arm64 binaries via QEMU.
++
++See build.sh for more details.
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index eaa1adc892..f52dc68b46 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index c560679192..d6b8e37b72 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/build-boring.sh b/src/crypto/internal/boring/build-boring.sh
+new file mode 100755
+index 0000000000..db49852a63
+--- /dev/null
++++ b/src/crypto/internal/boring/build-boring.sh
+@@ -0,0 +1,44 @@
++#!/bin/bash
++# Copyright 2020 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Do not run directly; run build.sh, which runs this in Docker.
++# This script builds boringssl, which has already been unpacked in /boring/boringssl.
++
++set -e
++id
++date
++cd /boring
++
++# Go requires -fPIC for linux/amd64 cgo builds.
++# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
++# because the FIPS module itself is already built with -fPIC.
++echo '#!/bin/bash
++exec clang-'$ClangV' -DGOBORING -fPIC "$@"
++' >/usr/local/bin/clang
++echo '#!/bin/bash
++exec clang++-'$ClangV' -DGOBORING -fPIC "$@"
++' >/usr/local/bin/clang++
++chmod +x /usr/local/bin/clang /usr/local/bin/clang++
++
++# The BoringSSL tests use Go, and cgo would look for gcc.
++export CGO_ENABLED=0
++
++# Modify the support code crypto/mem.c (outside the FIPS module)
++# to not try to use weak symbols, because they don't work with some
++# Go toolchain / clang toolchain combinations.
++perl -p -i -e 's/defined.*ELF.*defined.*GNUC.*/$0 \&\& !defined(GOBORING)/' boringssl/crypto/mem.c
++
++# Verbatim instructions from BoringCrypto build docs.
++printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
++cd boringssl
++mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
++ninja
++./crypto/crypto_test
++cd ../..
++
++if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
++	echo "NOT FIPS"
++	exit 2
++fi
+diff --git a/src/crypto/internal/boring/build-goboring.sh b/src/crypto/internal/boring/build-goboring.sh
+new file mode 100755
+index 0000000000..5c0b74e074
+--- /dev/null
++++ b/src/crypto/internal/boring/build-goboring.sh
+@@ -0,0 +1,233 @@
++#!/bin/bash
++# Copyright 2020 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Do not run directly; run build.sh, which runs this in Docker.
++# This script builds goboringcrypto's syso, after boringssl has been built.
++
++export TERM=dumb
++
++set -e
++set -x
++id
++date
++export LANG=C
++unset LANGUAGE
++
++case $(uname -m) in
++x86_64)  export GOARCH=amd64 ;;
++aarch64) export GOARCH=arm64 ;;
++*)
++	echo 'unknown uname -m:' $(uname -m) >&2
++	exit 2
++esac
++
++export CGO_ENABLED=0
++
++# Build and run test C++ program to make sure goboringcrypto.h matches openssl/*.h.
++# Also collect list of checked symbols in syms.txt
++set -e
++cd /boring/godriver
++cat >goboringcrypto.cc <<'EOF'
++#include <cassert>
++#include "goboringcrypto0.h"
++#include "goboringcrypto1.h"
++#define check_size(t) if(sizeof(t) != sizeof(GO_ ## t)) {printf("sizeof(" #t ")=%d, but sizeof(GO_" #t ")=%d\n", (int)sizeof(t), (int)sizeof(GO_ ## t)); ret=1;}
++#define check_func(f) { auto x = f; x = _goboringcrypto_ ## f ; }
++#define check_value(n, v) if(n != v) {printf(#n "=%d, but goboringcrypto.h defines it as %d\n", (int)n, (int)v); ret=1;}
++int main() {
++int ret = 0;
++#include "goboringcrypto.x"
++return ret;
++}
++EOF
++
++cat >boringx.awk <<'EOF'
++BEGIN {
++	exitcode = 0
++}
++
++# Ignore comments, #includes, blank lines.
++/^\/\// || /^#/ || NF == 0 { next }
++
++# Ignore unchecked declarations.
++/\/\*unchecked/ { next }
++
++# Check enum values.
++!enum && $1 == "enum" && $NF == "{" {
++	enum = 1
++	next
++}
++enum && $1 == "};" {
++	enum = 0
++	next
++}
++enum && NF == 3 && $2 == "=" {
++	name = $1
++	sub(/^GO_/, "", name)
++	val = $3
++	sub(/,$/, "", val)
++	print "check_value(" name ", " val ")" > "goboringcrypto.x"
++	next
++}
++enum {
++	print FILENAME ":" NR ": unexpected line in enum: " $0 > "/dev/stderr"
++	exitcode = 1
++	next
++}
++
++# Check struct sizes.
++/^typedef struct / && $NF ~ /^GO_/ {
++	name = $NF
++	sub(/^GO_/, "", name)
++	sub(/;$/, "", name)
++	print "check_size(" name ")" > "goboringcrypto.x"
++	next
++}
++
++# Check function prototypes.
++/^(const )?[^ ]+ \**_goboringcrypto_.*\(/ {
++	name = $2
++	if($1 == "const")
++		name = $3
++	sub(/^\**_goboringcrypto_/, "", name)
++	sub(/\(.*/, "", name)
++	print "check_func(" name ")" > "goboringcrypto.x"
++	print name > "syms.txt"
++	next
++}
++
++{
++	print FILENAME ":" NR ": unexpected line: " $0 > "/dev/stderr"
++	exitcode = 1
++}
++
++END {
++	exit exitcode
++}
++EOF
++
++cat >boringh.awk <<'EOF'
++/^\/\/ #include/ {sub(/\/\//, ""); print > "goboringcrypto0.h"; next}
++/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print >"goboringcrypto1.h";next}
++{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print >"goboringcrypto1.h"}
++EOF
++
++awk -f boringx.awk goboringcrypto.h # writes goboringcrypto.x
++awk -f boringh.awk goboringcrypto.h # writes goboringcrypto[01].h
++
++ls -l ../boringssl/include
++clang++ -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
++./a.out || exit 2
++
++# clang implements u128 % u128 -> u128 by calling __umodti3,
++# which is in libgcc. To make the result self-contained even if linking
++# against a different compiler version, link our own __umodti3 into the syso.
++# This one is specialized so it only expects divisors below 2^64,
++# which is all BoringCrypto uses. (Otherwise it will seg fault.)
++cat >umod-amd64.s <<'EOF'
++# tu_int __umodti3(tu_int x, tu_int y)
++# x is rsi:rdi, y is rcx:rdx, return result is rdx:rax.
++.globl __umodti3
++__umodti3:
++	# specialized to u128 % u64, so verify that
++	test %rcx,%rcx
++	jne 1f
++
++	# save divisor
++	movq %rdx, %r8
++
++	# reduce top 64 bits mod divisor
++	movq %rsi, %rax
++	xorl %edx, %edx
++	divq %r8
++
++	# reduce full 128-bit mod divisor
++	# quotient fits in 64 bits because top 64 bits have been reduced < divisor.
++	# (even though we only care about the remainder, divq also computes
++	# the quotient, and it will trap if the quotient is too large.)
++	movq %rdi, %rax
++	divq %r8
++
++	# expand remainder to 128 for return
++	movq %rdx, %rax
++	xorl %edx, %edx
++	ret
++
++1:
++	# crash - only want 64-bit divisor
++	xorl %ecx, %ecx
++	movl %ecx, 0(%ecx)
++	jmp 1b
++
++.section .note.GNU-stack,"",@progbits
++EOF
++
++cat >umod-arm64.c <<'EOF'
++typedef unsigned int u128 __attribute__((mode(TI)));
++
++static u128 div(u128 x, u128 y, u128 *rp) {
++	int n = 0;
++	while((y>>(128-1)) != 1 && y < x) {
++		y<<=1;
++		n++;
++	}
++	u128 q = 0;
++	for(;; n--, y>>=1, q<<=1) {
++		if(x>=y) {
++			x -= y;
++			q |= 1;
++		}
++		if(n == 0)
++			break;
++	}
++	if(rp)
++		*rp = x;
++	return q;
++}
++
++u128 __umodti3(u128 x, u128 y) {
++	u128 r;
++	div(x, y, &r);
++	return r;
++}
++
++u128 __udivti3(u128 x, u128 y) {
++	return div(x, y, 0);
++}
++EOF
++
++extra=""
++case $GOARCH in
++amd64)
++	cp umod-amd64.s umod.s
++	clang -c -o umod.o umod.s
++	extra=umod.o
++	;;
++arm64)
++	cp umod-arm64.c umod.c
++	clang -c -o umod.o umod.c
++	extra=umod.o
++	;;
++esac
++
++# Prepare copy of libcrypto.a with only the checked functions renamed and exported.
++# All other symbols are left alone and hidden.
++echo BORINGSSL_bcm_power_on_self_test >>syms.txt
++awk '{print "_goboringcrypto_" $0 }' syms.txt >globals.txt
++awk '{print $0 " _goboringcrypto_" $0 }' syms.txt >renames.txt
++objcopy --globalize-symbol=BORINGSSL_bcm_power_on_self_test \
++	../boringssl/build/crypto/libcrypto.a libcrypto.a
++
++# Link together bcm.o and libcrypto.a into a single object.
++ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a $extra
++
++echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
++echo __udivti3 _goboringcrypto___udivti3 >>renames.txt
++objcopy --remove-section=.llvm_addrsig goboringcrypto.o goboringcrypto1.o # b/179161016
++objcopy --redefine-syms=renames.txt goboringcrypto1.o goboringcrypto2.o
++objcopy --keep-global-symbols=globals.txt --strip-unneeded goboringcrypto2.o goboringcrypto_linux_$GOARCH.syso
++
++# Done!
++ls -l goboringcrypto_linux_$GOARCH.syso
+diff --git a/src/crypto/internal/boring/build.sh b/src/crypto/internal/boring/build.sh
+index 31e98cb6ef..ec960d729d 100755
+--- a/src/crypto/internal/boring/build.sh
++++ b/src/crypto/internal/boring/build.sh
+@@ -1,196 +1,46 @@
+ #!/bin/bash
+-# Copyright 2020 The Go Authors. All rights reserved.
++# Copyright 2022 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-set -e
+-id
+-date
+-export LANG=C
+-unset LANGUAGE
+-
+-# Build BoringCrypto libcrypto.a.
+-# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf page 19.
+-
+-tar xJf boringssl-*z
+-
+-# Go requires -fPIC for linux/amd64 cgo builds.
+-# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
+-# because the FIPS module itself is already built with -fPIC.
+-echo '#!/bin/bash
+-exec clang-7 -fPIC "$@"
+-' >/usr/local/bin/clang
+-echo '#!/bin/bash
+-exec clang++-7 -fPIC "$@"
+-' >/usr/local/bin/clang++
+-chmod +x /usr/local/bin/clang /usr/local/bin/clang++
+-
+-# The BoringSSL tests use Go, and cgo would look for gcc.
+-export CGO_ENABLED=0
+-
+-# Verbatim instructions from BoringCrypto build docs.
+-printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
+-cd boringssl
+-mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+-ninja
+-ninja run_tests
+-
+-cd ../..
++# This shell script uses Docker to run build-boring.sh and build-goboring.sh,
++# which build goboringcrypto_linux_$GOARCH.syso according to the Security Policy.
++# Currently, amd64 and arm64 are permitted.
+ 
+-if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
+-	echo "NOT FIPS"
+-	exit 2
+-fi
+-
+-# Build and run test C++ program to make sure goboringcrypto.h matches openssl/*.h.
+-# Also collect list of checked symbols in syms.txt
+-set -x
+ set -e
+-cd godriver
+-cat >goboringcrypto.cc <<'EOF'
+-#include <cassert>
+-#include "goboringcrypto0.h"
+-#include "goboringcrypto1.h"
+-#define check_size(t) if(sizeof(t) != sizeof(GO_ ## t)) {printf("sizeof(" #t ")=%d, but sizeof(GO_" #t ")=%d\n", (int)sizeof(t), (int)sizeof(GO_ ## t)); ret=1;}
+-#define check_func(f) { auto x = f; x = _goboringcrypto_ ## f ; }
+-#define check_value(n, v) if(n != v) {printf(#n "=%d, but goboringcrypto.h defines it as %d\n", (int)n, (int)v); ret=1;}
+-int main() {
+-int ret = 0;
+-#include "goboringcrypto.x"
+-return ret;
+-}
+-EOF
+-
+-awk '
+-BEGIN {
+-	exitcode = 0
+-}
+-
+-# Ignore comments, #includes, blank lines.
+-/^\/\// || /^#/ || NF == 0 { next }
+-
+-# Ignore unchecked declarations.
+-/\/\*unchecked/ { next }
+-
+-# Check enum values.
+-!enum && $1 == "enum" && $NF == "{" {
+-	enum = 1
+-	next
+-}
+-enum && $1 == "};" {
+-	enum = 0
+-	next
+-}
+-enum && NF == 3 && $2 == "=" {
+-	name = $1
+-	sub(/^GO_/, "", name)
+-	val = $3
+-	sub(/,$/, "", val)
+-	print "check_value(" name ", " val ")" > "goboringcrypto.x"
+-	next
+-}
+-enum {
+-	print FILENAME ":" NR ": unexpected line in enum: " $0 > "/dev/stderr"
+-	exitcode = 1
+-	next
+-}
++set -o pipefail
+ 
+-# Check struct sizes.
+-/^typedef struct / && $NF ~ /^GO_/ {
+-	name = $NF
+-	sub(/^GO_/, "", name)
+-	sub(/;$/, "", name)
+-	print "check_size(" name ")" > "goboringcrypto.x"
+-	next
+-}
++GOARCH=${GOARCH:-$(go env GOARCH)}
++echo "# Building goboringcrypto_linux_$GOARCH.syso. Set GOARCH to override." >&2
+ 
+-# Check function prototypes.
+-/^(const )?[^ ]+ \**_goboringcrypto_.*\(/ {
+-	name = $2
+-	if($1 == "const")
+-		name = $3
+-	sub(/^\**_goboringcrypto_/, "", name)
+-	sub(/\(.*/, "", name)
+-	print "check_func(" name ")" > "goboringcrypto.x"
+-	print name > "syms.txt"
+-	next
+-}
+-
+-{
+-	print FILENAME ":" NR ": unexpected line: " $0 > "/dev/stderr"
+-	exitcode = 1
+-}
+-
+-END {
+-	exit exitcode
+-}
+-' goboringcrypto.h
+-
+-cat goboringcrypto.h | awk '
+-	/^\/\/ #include/ {sub(/\/\//, ""); print > "goboringcrypto0.h"; next}
+-	/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print;next}
+-	{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print}
+-' >goboringcrypto1.h
+-clang++ -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+-./a.out || exit 2
+-
+-# Prepare copy of libcrypto.a with only the checked functions renamed and exported.
+-# All other symbols are left alone and hidden.
+-echo BORINGSSL_bcm_power_on_self_test >>syms.txt
+-awk '{print "_goboringcrypto_" $0 }' syms.txt >globals.txt
+-awk '{print $0 " _goboringcrypto_" $0 }' syms.txt >renames.txt
+-objcopy --globalize-symbol=BORINGSSL_bcm_power_on_self_test ../boringssl/build/crypto/libcrypto.a libcrypto.a
+-
+-# clang implements u128 % u128 -> u128 by calling __umodti3,
+-# which is in libgcc. To make the result self-contained even if linking
+-# against a different compiler version, link our own __umodti3 into the syso.
+-# This one is specialized so it only expects divisors below 2^64,
+-# which is all BoringCrypto uses. (Otherwise it will seg fault.)
+-cat >umod.s <<'EOF'
+-# tu_int __umodti3(tu_int x, tu_int y)
+-# x is rsi:rdi, y is rcx:rdx, return result is rdx:rax.
+-.globl __umodti3
+-__umodti3:
+-	# specialized to u128 % u64, so verify that
+-	test %rcx,%rcx
+-	jne 1f
+-
+-	# save divisor
+-	movq %rdx, %r8
+-
+-	# reduce top 64 bits mod divisor
+-	movq %rsi, %rax
+-	xorl %edx, %edx
+-	divq %r8
+-
+-	# reduce full 128-bit mod divisor
+-	# quotient fits in 64 bits because top 64 bits have been reduced < divisor.
+-	# (even though we only care about the remainder, divq also computes
+-	# the quotient, and it will trap if the quotient is too large.)
+-	movq %rdi, %rax
+-	divq %r8
+-
+-	# expand remainder to 128 for return
+-	movq %rdx, %rax
+-	xorl %edx, %edx
+-	ret
+-
+-1:
+-	# crash - only want 64-bit divisor
+-	xorl %ecx, %ecx
+-	movl %ecx, 0(%ecx)
+-	jmp 1b
+-
+-.section .note.GNU-stack,"",@progbits
+-EOF
+-clang -c -o umod.o umod.s
++if ! which docker >/dev/null; then
++	echo "# Docker not found. Inside Google, see go/installdocker." >&2
++	exit 1
++fi
+ 
+-ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
+-echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
+-objcopy --remove-section=.llvm_addrsig goboringcrypto.o goboringcrypto1.o # b/179161016
+-objcopy --redefine-syms=renames.txt goboringcrypto1.o goboringcrypto2.o
+-objcopy --keep-global-symbols=globals.txt goboringcrypto2.o goboringcrypto_linux_amd64.syso
++platform=""
++buildargs=""
++case "$GOARCH" in
++amd64)
++	;;
++arm64)
++	if ! docker run --rm -t arm64v8/ubuntu:focal uname -m >/dev/null 2>&1; then
++		echo "# Docker cannot run arm64 binaries. Try:"
++		echo "	sudo apt-get install qemu binfmt-support qemu-user-static"
++		echo "	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
++		echo "	docker run --rm -t arm64v8/ubuntu:focal uname -m"
++		exit 1
++	fi
++	platform="--platform linux/arm64/v8"
++	buildargs="--build-arg ubuntu=arm64v8/ubuntu"
++	;;
++*)
++	echo unknown GOARCH $GOARCH >&2
++	exit 2
++esac
+ 
+-# Done!
+-ls -l goboringcrypto_linux_amd64.syso
+-sha256sum goboringcrypto_linux_amd64.syso
++docker build $platform $buildargs --build-arg GOARCH=$GOARCH -t goboring:$GOARCH .
++id=$(docker create $platform goboring:$GOARCH)
++docker cp $id:/boring/godriver/goboringcrypto_linux_$GOARCH.syso ./syso
++docker rm $id
++ls -l ./syso/goboringcrypto_linux_$GOARCH.syso
+diff --git a/src/crypto/internal/boring/div_test.c b/src/crypto/internal/boring/div_test.c
+new file mode 100644
+index 0000000000..f909cc93f4
+--- /dev/null
++++ b/src/crypto/internal/boring/div_test.c
+@@ -0,0 +1,83 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is a self-contained test for a copy of
++// the division algorithm in build-goboring.sh,
++// to verify that is correct. The real algorithm uses u128
++// but this copy uses u32 for easier testing.
++// s/32/128/g should be the only difference between the two.
++//
++// This is the dumbest possible division algorithm,
++// but any crypto code that depends on the speed of
++// division is equally dumb.
++
++//go:build ignore
++
++#include <stdio.h>
++#include <stdint.h>
++
++#define nelem(x) (sizeof(x)/sizeof((x)[0]))
++
++typedef uint32_t u32;
++
++static u32 div(u32 x, u32 y, u32 *rp) {
++	int n = 0;
++	while((y>>(32-1)) != 1 && y < x) {
++		y<<=1;
++		n++;
++	}
++	u32 q = 0;
++	for(;; n--, y>>=1, q<<=1) {
++		if(x>=y) {
++			x -= y;
++			q |= 1;
++		}
++		if(n == 0)
++			break;
++	}
++	if(rp)
++		*rp = x;
++	return q;
++}
++
++u32 tests[] = {
++	0,
++	1,
++	2,
++	3,
++	4,
++	5,
++	6,
++	7,
++	8,
++	9,
++	10,
++	11,
++	31,
++	0xFFF,
++	0x1000,
++	0x1001,
++	0xF0F0F0,
++	0xFFFFFF,
++	0x1000000,
++	0xF0F0F0F0,
++	0xFFFFFFFF,
++};
++
++int
++main(void)
++{
++	for(int i=0; i<nelem(tests); i++)
++	for(int j=0; j<nelem(tests); j++) {
++		u32 n = tests[i];
++		u32 d = tests[j];
++		if(d == 0)
++			continue;
++		u32 r;
++		u32 q = div(n, d, &r);
++		if(q != n/d || r != n%d)
++			printf("div(%x, %x) = %x, %x, want %x, %x\n", n, d, q, r, n/d, n%d);
++	}
++	return 0;
++}
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index 884c4b746d..284e7e9b69 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index d6d99b1dcd..a5f4e0aac2 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -183,7 +183,7 @@ int _goboringcrypto_ECDSA_verify(int, const uint8_t*, size_t, const uint8_t*, si
+ // #include <openssl/rsa.h>
+ 
+ // Note: order of struct fields here is unchecked.
+-typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[160]; } GO_RSA;
++typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[168]; } GO_RSA;
+ /*unchecked (opaque)*/ typedef struct GO_BN_GENCB { char data[1]; } GO_BN_GENCB;
+ GO_RSA* _goboringcrypto_RSA_new(void);
+ void _goboringcrypto_RSA_free(GO_RSA*);
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index c36fe6b26c..7833bc1938 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 53096a68d1..e8eb76e1bb 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !boringcrypto || !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
+-// +build !boringcrypto !linux !amd64 !cgo android cmd_go_bootstrap msan
++//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan && cgo)
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+index d2e432e7b7..7639c01909 100644
+--- a/src/crypto/internal/boring/rand.go
++++ b/src/crypto/internal/boring/rand.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 64c83c21c5..f4c4193c00 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index 15b50c90d3..cf82f3f64f 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+index 72e6c1783e..fd982bff9d 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso
+new file mode 100644
+index 0000000000..46520b7592
+Binary files /dev/null and b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso differ

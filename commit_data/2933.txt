@@ -10,7 +10,353 @@ Date:   Mon Aug 10 16:27:54 2009 -0700
     DELTA=241  (202 added, 15 deleted, 24 changed)
     OCL=32790
     CL=32995
-
+---
  usr/austin/eval/expr.go |  73 ++++++++++++-------
  usr/austin/eval/stmt.go | 184 +++++++++++++++++++++++++++++++++++++++++++++---
  2 files changed, 222 insertions(+), 35 deletions(-)
+
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 4988224739..6168dfc417 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -546,6 +546,10 @@ func (a *exprCompiler) DoFloatLit(x *ast.FloatLit) {
+ }
+ 
+ func (a *exprCompiler) doString(s string) {
++	// Ideal strings don't have a named type but they are
++	// compatible with type string.
++
++	// TODO(austin) Use unnamed string type.
+ 	a.t = StringType;
+ 	a.evalString = func(*Frame) string { return s };
+ }
+@@ -678,7 +682,10 @@ func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
+ 		// If it's a struct type, check fields and embedded types
+ 		var builder func(*exprCompiler);
+ 		if t, ok := t.(*StructType); ok {
+-			for i, f := range t.Elems {
++			// TODO(austin) Work around := range bug
++			var i int;
++			var f StructField;
++			for i, f = range t.Elems {
+ 				var this *exprCompiler;
+ 				var sub func(*exprCompiler);
+ 				switch {
+@@ -1465,31 +1472,47 @@ func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprComp
+ // extractEffect separates out any effects that the expression may
+ // have, returning a function that will perform those effects and a
+ // new exprCompiler that is guaranteed to be side-effect free.  These
+-// are the moral equivalents of "temp := &expr" and "*temp".  Because
+-// this creates a temporary variable, the caller should create a
+-// temporary block for the compilation of this expression and the
+-// evaluation of the results.
+-//
+-// Implementation limit: The expression must be addressable.
+-func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
+-	if a.evalAddr == nil {
+-		// This is a much easier case, but the code is
+-		// completely different.
+-		log.Crash("extractEffect only implemented for addressable expressions");
+-	}
+-
+-	// Create temporary
++// are the moral equivalents of "temp := expr" and "temp" (or "temp :=
++// &expr" and "*temp" for addressable exprs).  Because this creates a
++// temporary variable, the caller should create a temporary block for
++// the compilation of this expression and the evaluation of the
++// results.
++func (a *exprCompiler) extractEffect(errOp string) (func(f *Frame), *exprCompiler) {
++	// Create "&a" if a is addressable
++	rhs := a;
++	if a.evalAddr != nil {
++		rhs = a.copy();
++		rhs.t = NewPtrType(a.t);
++		rhs.genUnaryAddrOf(a);
++	}
++
++	// Create temp
+ 	tempBlock := a.block;
+-	tempType := NewPtrType(a.t);
++	ac, ok := a.checkAssign(a.pos, []*exprCompiler{rhs}, errOp, "");
++	if !ok {
++		return nil, nil;
++	}
++	if len(ac.rmt.Elems) != 1 {
++		a.diag("multi-valued expression not allowed in %s", errOp);
++		return nil, nil;
++	}
++	tempType := ac.rmt.Elems[0];
++	if tempType.isIdeal() {
++		// It's too bad we have to duplicate this rule.
++		switch {
++		case tempType.isInteger():
++			tempType = IntType;
++		case tempType.isFloat():
++			tempType = FloatType;
++		default:
++			log.Crashf("unexpected ideal type %v", tempType);
++		}
++	}
+ 	temp := tempBlock.DefineSlot(tempType);
+ 	tempIdx := temp.Index;
+ 
+-	// Generate "temp := &e"
+-	addr := a.copy();
+-	addr.t = tempType;
+-	addr.genUnaryAddrOf(a);
+-
+-	assign := a.compileAssign(a.pos, tempType, []*exprCompiler{addr}, "", "");
++	// Create "temp := rhs"
++	assign := ac.compile(tempType);
+ 	if assign == nil {
+ 		log.Crashf("compileAssign type check failed");
+ 	}
+@@ -1500,15 +1523,17 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
+ 		assign(tempVal, f);
+ 	};
+ 
+-	// Generate "*temp"
++	// Generate "temp" or "*temp"
+ 	getTemp := a.copy();
+ 	getTemp.t = tempType;
+ 	getTemp.genIdentOp(0, tempIdx);
++	if a.evalAddr == nil {
++		return effect, getTemp;
++	}
+ 
+ 	deref := a.copy();
+ 	deref.t = a.t;
+ 	deref.genStarOp(getTemp);
+-
+ 	return effect, deref;
+ }
+ 
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 2bd7f8574e..2b401a1ba5 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -394,23 +394,26 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
+ 		return;
+ 	}
+ 
+-	effect, l := l.extractEffect();
+-
+-	one := l.copy();
+-	one.pos = s.Pos();
+-	one.t = IdealIntType;
+-	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
+-
+ 	var op token.Token;
++	var desc string;
+ 	switch s.Tok {
+ 	case token.INC:
+ 		op = token.ADD;
++		desc = "increment statement";
+ 	case token.DEC:
+ 		op = token.SUB;
++		desc = "decrement statement";
+ 	default:
+ 		log.Crashf("Unexpected IncDec token %v", s.Tok);
+ 	}
+ 
++	effect, l := l.extractEffect(desc);
++
++	one := l.copy();
++	one.pos = s.Pos();
++	one.t = IdealIntType;
++	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
++
+ 	binop := l.copy();
+ 	binop.pos = s.Pos();
+ 	binop.doBinaryExpr(op, l, one);
+@@ -673,7 +676,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
+ 		return;
+ 	}
+ 
+-	effect, l := l.extractEffect();
++	effect, l := l.extractEffect("operator-assignment");
+ 
+ 	binop := r.copy();
+ 	binop.pos = s.TokPos;
+@@ -822,7 +825,8 @@ func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
+ 		a.flow.putGoto(s.Pos(), l.name, a.block);
+ 
+ 	case token.FALLTHROUGH:
+-		log.Crash("fallthrough not implemented");
++		a.diag("fallthrough outside switch");
++		return;
+ 
+ 	default:
+ 		log.Crash("Unexpected branch token %v", s.Tok);
+@@ -910,11 +914,169 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
+ }
+ 
+ func (a *stmtCompiler) DoCaseClause(s *ast.CaseClause) {
+-	log.Crash("Not implemented");
++	a.diag("case clause outside switch");
+ }
+ 
+ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
+-	log.Crash("Not implemented");
++	// Create implicit scope around switch
++	bc := a.enterChild();
++	defer bc.exit();
++
++	// Compile init statement, if any
++	if s.Init != nil {
++		bc.compileStmt(s.Init);
++	}
++
++	// Compile condition, if any, and extract its effects
++	var cond *exprCompiler;
++	condbc := bc.enterChild();
++	bad := false;
++	if s.Tag != nil {
++		e := condbc.compileExpr(condbc.block, s.Tag, false);
++		if e == nil {
++			bad = true;
++		} else {
++			var effect func(f *Frame);
++			effect, cond = e.extractEffect("switch");
++			if effect == nil {
++				bad = true;
++			}
++			a.push(func(v *vm) { effect(v.f) });
++		}
++	}
++
++	// Count cases
++	ncases := 0;
++	hasDefault := false;
++	for i, c := range s.Body.List {
++		clause, ok := c.(*ast.CaseClause);
++		if !ok {
++			a.diagAt(clause, "switch statement must contain case clauses");
++			bad = true;
++			continue;
++		}
++		if clause.Values == nil {
++			if hasDefault {
++				a.diagAt(clause, "switch statement contains more than one default case");
++				bad = true;
++			}
++			hasDefault = true;
++		} else {
++			ncases += len(clause.Values);
++		}
++	}
++
++	// Compile case expressions
++	cases := make([]func(f *Frame) bool, ncases);
++	i := 0;
++	for _, c := range s.Body.List {
++		clause, ok := c.(*ast.CaseClause);
++		if !ok {
++			continue;
++		}
++		for _, v := range clause.Values {
++			e := condbc.compileExpr(condbc.block, v, false);
++			switch {
++			case e == nil:
++				bad = true;
++			case cond == nil && !e.t.isBoolean():
++				a.diagAt(v, "'case' condition must be boolean");
++				bad = true;
++			case cond == nil:
++				cases[i] = e.asBool();
++			case cond != nil:
++				// Create comparison
++				compare := e.copy();
++				// TOOD(austin) This produces bad error messages
++				compare.doBinaryExpr(token.EQL, cond, e);
++				if compare.t == nil {
++					bad = true;
++				} else {
++					cases[i] = compare.asBool();
++				}
++			}
++			i++;
++		}
++	}
++
++	// Emit condition
++	casePCs := make([]*uint, ncases+1);
++	endPC := badPC;
++
++	if !bad {
++		a.flow.put(false, false, casePCs);
++		a.push(func(v *vm) {
++			for i, c := range cases {
++				if c(v.f) {
++					v.pc = *casePCs[i];
++					return;
++				}
++			}
++			v.pc = *casePCs[ncases];
++		});
++	}
++	condbc.exit();
++
++	// Compile cases
++	i = 0;
++	for _, c := range s.Body.List {
++		clause, ok := c.(*ast.CaseClause);
++		if !ok {
++			continue;
++		}
++
++		// Save jump PC's
++		pc := a.nextPC();
++		if clause.Values != nil {
++			for _, v := range clause.Values {
++				casePCs[i] = &pc;
++				i++;
++			}
++		} else {
++			// Default clause
++			casePCs[ncases] = &pc;
++		}
++
++		// Compile body
++		fall := false;
++		for j, s := range clause.Body {
++			if br, ok := s.(*ast.BranchStmt); ok && br.Tok == token.FALLTHROUGH {
++				println("Found fallthrough");
++				// It may be used only as the final
++				// non-empty statement in a case or
++				// default clause in an expression
++				// "switch" statement.
++				for _, s2 := range clause.Body[j+1:len(clause.Body)] {
++					// XXX(Spec) 6g also considers
++					// empty blocks to be empty
++					// statements.
++					if _, ok := s2.(*ast.EmptyStmt); !ok {
++						a.diagAt(s, "fallthrough statement must be final statement in case");
++						bad = true;
++						break;
++					}
++				}
++				fall = true;
++			} else {
++				bc.compileStmt(s);
++			}
++		}
++		// Jump out of switch, unless there was a fallthrough
++		if !fall {
++			a.flow.put1(false, &endPC);
++			a.push(func(v *vm) { v.pc = endPC });
++		}
++	}
++
++	// Get end PC
++	endPC = a.nextPC();
++	if !hasDefault {
++		casePCs[ncases] = &endPC;
++	}
++
++	if !bad {
++		a.err = false;
++	}
+ }
+ 
+ func (a *stmtCompiler) DoTypeCaseClause(s *ast.TypeCaseClause) {

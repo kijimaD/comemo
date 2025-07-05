@@ -18,9 +18,149 @@ Date:   Fri Jun 10 15:58:22 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/alldocs.go               | 22 +++++++++++-----------
  src/cmd/go/internal/help/helpdoc.go | 13 +++++++------
  src/cmd/go/internal/work/build.go   |  9 ++++-----
  src/go/build/doc.go                 |  7 ++++---
  4 files changed, 26 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fdb7a085b0..78128dcf23 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -195,11 +195,10 @@
+ //		For example, when building with a non-standard configuration,
+ //		use -pkgdir to keep generated packages in a separate location.
+ //	-tags tag,list
+-//		a comma-separated list of build tags to consider satisfied during the
+-//		build. For more information about build tags, see the description of
+-//		build constraints in the documentation for the go/build package.
+-//		(Earlier versions of Go used a space-separated list, and that form
+-//		is deprecated but still recognized.)
++//		a comma-separated list of additional build tags to consider satisfied
++//		during the build. For more information about build tags, see
++//		'go help buildconstraint'. (Earlier versions of Go used a
++//		space-separated list, and that form is deprecated but still recognized.)
+ //	-trimpath
+ //		remove all file system paths from the resulting executable.
+ //		Instead of absolute file system paths, the recorded file names
+@@ -1797,11 +1796,12 @@
+ //
+ // # Build constraints
+ //
+-// A build constraint, also known as a build tag, is a line comment that begins
++// A build constraint, also known as a build tag, is a condition under which a
++// file should be included in the package. Build constraints are given by a
++// line comment that begins
+ //
+ //	//go:build
+ //
+-// that lists the conditions under which a file should be included in the package.
+ // Constraints may appear in any kind of source file (not just Go), but
+ // they must appear near the top of the file, preceded
+ // only by blank lines and other line comments. These rules mean that in Go
+@@ -1810,9 +1810,9 @@
+ // To distinguish build constraints from package documentation,
+ // a build constraint should be followed by a blank line.
+ //
+-// A build constraint is evaluated as an expression containing options
+-// combined by ||, &&, and ! operators and parentheses. Operators have
+-// the same meaning as in Go.
++// A build constraint comment is evaluated as an expression containing
++// build tags combined by ||, &&, and ! operators and parentheses.
++// Operators have the same meaning as in Go.
+ //
+ // For example, the following build constraint constrains a file to
+ // build when the "linux" and "386" constraints are satisfied, or when
+@@ -1822,7 +1822,7 @@
+ //
+ // It is an error for a file to have more than one //go:build line.
+ //
+-// During a particular build, the following words are satisfied:
++// During a particular build, the following build tags are satisfied:
+ //
+ //   - the target operating system, as spelled by runtime.GOOS, set with the
+ //     GOOS environment variable.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 36bc4f28b7..c38c403006 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -812,11 +812,12 @@ var HelpBuildConstraint = &base.Command{
+ 	UsageLine: "buildconstraint",
+ 	Short:     "build constraints",
+ 	Long: `
+-A build constraint, also known as a build tag, is a line comment that begins
++A build constraint, also known as a build tag, is a condition under which a
++file should be included in the package. Build constraints are given by a
++line comment that begins
+ 
+ 	//go:build
+ 
+-that lists the conditions under which a file should be included in the package.
+ Constraints may appear in any kind of source file (not just Go), but
+ they must appear near the top of the file, preceded
+ only by blank lines and other line comments. These rules mean that in Go
+@@ -825,9 +826,9 @@ files a build constraint must appear before the package clause.
+ To distinguish build constraints from package documentation,
+ a build constraint should be followed by a blank line.
+ 
+-A build constraint is evaluated as an expression containing options
+-combined by ||, &&, and ! operators and parentheses. Operators have
+-the same meaning as in Go.
++A build constraint comment is evaluated as an expression containing
++build tags combined by ||, &&, and ! operators and parentheses.
++Operators have the same meaning as in Go.
+ 
+ For example, the following build constraint constrains a file to
+ build when the "linux" and "386" constraints are satisfied, or when
+@@ -837,7 +838,7 @@ build when the "linux" and "386" constraints are satisfied, or when
+ 
+ It is an error for a file to have more than one //go:build line.
+ 
+-During a particular build, the following words are satisfied:
++During a particular build, the following build tags are satisfied:
+ 
+ 	- the target operating system, as spelled by runtime.GOOS, set with the
+ 	  GOOS environment variable.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index feb82d8d38..42745d9928 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -151,11 +151,10 @@ and test commands:
+ 		For example, when building with a non-standard configuration,
+ 		use -pkgdir to keep generated packages in a separate location.
+ 	-tags tag,list
+-		a comma-separated list of build tags to consider satisfied during the
+-		build. For more information about build tags, see the description of
+-		build constraints in the documentation for the go/build package.
+-		(Earlier versions of Go used a space-separated list, and that form
+-		is deprecated but still recognized.)
++		a comma-separated list of additional build tags to consider satisfied
++		during the build. For more information about build tags, see
++		'go help buildconstraint'. (Earlier versions of Go used a
++		space-separated list, and that form is deprecated but still recognized.)
+ 	-trimpath
+ 		remove all file system paths from the resulting executable.
+ 		Instead of absolute file system paths, the recorded file names
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 262f6709af..cd1d3fd33e 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -57,12 +57,13 @@
+ //
+ // # Build Constraints
+ //
+-// A build constraint, also known as a build tag, is a line comment that begins
++// A build constraint, also known as a build tag, is a condition under which a
++// file should be included in the package. Build constraints are given by a
++// line comment that begins
+ //
+ //	//go:build
+ //
+-// that lists the conditions under which a file should be included in the
+-// package. Build constraints may also be part of a file's name
++// Build constraints may also be part of a file's name
+ // (for example, source_windows.go will only be included if the target
+ // operating system is windows).
+ //

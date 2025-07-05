@@ -17,7 +17,270 @@ Date:   Tue Mar 24 09:05:19 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go | 112 +++++++++++++++++++++++++++++++++++-----
  src/cmd/link/internal/ld/go.go  |  58 +++++++++++++++------
  2 files changed, 143 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 28802f1bd8..c5c07d63f7 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -776,13 +776,13 @@ func elfWriteDynEntSymSize(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol
+ }
+ 
+ // temporary
+-func Elfwritedynent2(ctxt *Link, s *loader.SymbolBuilder, tag int, val uint64) {
++func Elfwritedynent2(arch *sys.Arch, s *loader.SymbolBuilder, tag int, val uint64) {
+ 	if elf64 {
+-		s.AddUint64(ctxt.Arch, uint64(tag))
+-		s.AddUint64(ctxt.Arch, val)
++		s.AddUint64(arch, uint64(tag))
++		s.AddUint64(arch, val)
+ 	} else {
+-		s.AddUint32(ctxt.Arch, uint32(tag))
+-		s.AddUint32(ctxt.Arch, uint32(val))
++		s.AddUint32(arch, uint32(tag))
++		s.AddUint32(arch, uint32(val))
+ 	}
+ }
+ 
+@@ -1658,9 +1658,9 @@ func (ctxt *Link) doelf() {
+ 
+ 		elfwritedynentsym2(ctxt, dynamic, DT_SYMTAB, dynsym.Sym())
+ 		if elf64 {
+-			Elfwritedynent2(ctxt, dynamic, DT_SYMENT, ELF64SYMSIZE)
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_SYMENT, ELF64SYMSIZE)
+ 		} else {
+-			Elfwritedynent2(ctxt, dynamic, DT_SYMENT, ELF32SYMSIZE)
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_SYMENT, ELF32SYMSIZE)
+ 		}
+ 		elfwritedynentsym2(ctxt, dynamic, DT_STRTAB, dynstr.Sym())
+ 		elfwritedynentsymsize2(ctxt, dynamic, DT_STRSZ, dynstr.Sym())
+@@ -1668,16 +1668,16 @@ func (ctxt *Link) doelf() {
+ 			rela := ldr.LookupOrCreateSym(".rela", 0)
+ 			elfwritedynentsym2(ctxt, dynamic, DT_RELA, rela)
+ 			elfwritedynentsymsize2(ctxt, dynamic, DT_RELASZ, rela)
+-			Elfwritedynent2(ctxt, dynamic, DT_RELAENT, ELF64RELASIZE)
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_RELAENT, ELF64RELASIZE)
+ 		} else {
+ 			rel := ldr.LookupOrCreateSym(".rel", 0)
+ 			elfwritedynentsym2(ctxt, dynamic, DT_REL, rel)
+ 			elfwritedynentsymsize2(ctxt, dynamic, DT_RELSZ, rel)
+-			Elfwritedynent2(ctxt, dynamic, DT_RELENT, ELF32RELSIZE)
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_RELENT, ELF32RELSIZE)
+ 		}
+ 
+ 		if rpath.val != "" {
+-			Elfwritedynent2(ctxt, dynamic, DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
+ 		}
+ 
+ 		if ctxt.IsPPC64() {
+@@ -1687,14 +1687,14 @@ func (ctxt *Link) doelf() {
+ 		}
+ 
+ 		if ctxt.IsPPC64() {
+-			Elfwritedynent2(ctxt, dynamic, DT_PPC64_OPT, 0)
++			Elfwritedynent2(ctxt.Arch, dynamic, DT_PPC64_OPT, 0)
+ 		}
+ 
+ 		// Solaris dynamic linker can't handle an empty .rela.plt if
+ 		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
+ 		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
+ 		// size of .rel(a).plt section.
+-		Elfwritedynent2(ctxt, dynamic, DT_DEBUG, 0)
++		Elfwritedynent2(ctxt.Arch, dynamic, DT_DEBUG, 0)
+ 	}
+ 
+ 	if ctxt.IsShared() {
+@@ -2391,6 +2391,94 @@ func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+ 	}
+ }
+ 
++func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
++	ldr.SetSymDynid(s, int32(Nelfsym))
++	// temporary until wafefront moves past addexport
++	ldr.Syms[s].Dynid = ldr.SymDynid(s)
++	Nelfsym++
++	d := ldr.MakeSymbolUpdater(syms.DynSym2)
++	name := ldr.SymExtname(s)
++	dstru := ldr.MakeSymbolUpdater(syms.DynStr2)
++	st := ldr.SymType(s)
++	cgoeStatic := ldr.AttrCgoExportStatic(s)
++	cgoeDynamic := ldr.AttrCgoExportDynamic(s)
++	cgoexp := (cgoeStatic || cgoeDynamic)
++
++	d.AddUint32(target.Arch, uint32(dstru.Addstring(name)))
++
++	if elf64 {
++
++		/* type */
++		t := STB_GLOBAL << 4
++
++		if cgoexp && st == sym.STEXT {
++			t |= STT_FUNC
++		} else {
++			t |= STT_OBJECT
++		}
++		d.AddUint8(uint8(t))
++
++		/* reserved */
++		d.AddUint8(0)
++
++		/* section where symbol is defined */
++		if st == sym.SDYNIMPORT {
++			d.AddUint16(target.Arch, SHN_UNDEF)
++		} else {
++			d.AddUint16(target.Arch, 1)
++		}
++
++		/* value */
++		if st == sym.SDYNIMPORT {
++			d.AddUint64(target.Arch, 0)
++		} else {
++			d.AddAddrPlus(target.Arch, s, 0)
++		}
++
++		/* size of object */
++		d.AddUint64(target.Arch, uint64(len(ldr.Data(s))))
++
++		dil := ldr.SymDynimplib(s)
++
++		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
++			du := ldr.MakeSymbolUpdater(syms.Dynamic2)
++			Elfwritedynent2(target.Arch, du, DT_NEEDED, uint64(dstru.Addstring(dil)))
++		}
++	} else {
++
++		/* value */
++		if st == sym.SDYNIMPORT {
++			d.AddUint32(target.Arch, 0)
++		} else {
++			d.AddAddrPlus(target.Arch, s, 0)
++		}
++
++		/* size of object */
++		d.AddUint32(target.Arch, uint32(len(ldr.Data(s))))
++
++		/* type */
++		t := STB_GLOBAL << 4
++
++		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
++		if target.Arch.Family == sys.I386 && cgoexp && st == sym.STEXT {
++			t |= STT_FUNC
++		} else if target.Arch.Family == sys.ARM && cgoeDynamic && st == sym.STEXT {
++			t |= STT_FUNC
++		} else {
++			t |= STT_OBJECT
++		}
++		d.AddUint8(uint8(t))
++		d.AddUint8(0)
++
++		/* shndx */
++		if st == sym.SDYNIMPORT {
++			d.AddUint16(target.Arch, SHN_UNDEF)
++		} else {
++			d.AddUint16(target.Arch, 1)
++		}
++	}
++}
++
+ func ELF32_R_SYM(info uint32) uint32 {
+ 	return info >> 8
+ }
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 55d8265577..575ca6febe 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -320,16 +320,33 @@ func adddynlib(ctxt *Link, lib string) {
+ 	seenlib[lib] = true
+ 
+ 	if ctxt.IsELF {
+-		s := ctxt.DynStr
+-		if s.Size == 0 {
+-			Addstring(s, "")
++		dsu := ctxt.loader.MakeSymbolUpdater(ctxt.DynStr2)
++		if dsu.Size() == 0 {
++			dsu.Addstring("")
+ 		}
+-		elfWriteDynEnt(ctxt.Arch, ctxt.Dynamic, DT_NEEDED, uint64(Addstring(s, lib)))
++		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic2)
++		Elfwritedynent2(ctxt.Arch, du, DT_NEEDED, uint64(dsu.Addstring(lib)))
+ 	} else {
+ 		Errorf(nil, "adddynlib: unsupported binary format")
+ 	}
+ }
+ 
++func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, syms *ArchSyms, s loader.Sym) {
++	if ldr.SymDynid(s) >= 0 || target.LinkMode == LinkExternal {
++		return
++	}
++
++	if target.IsELF {
++		elfadddynsym2(ldr, target, syms, s)
++	} else if target.HeadType == objabi.Hdarwin {
++		reporter.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
++	} else if target.HeadType == objabi.Hwindows {
++		// already taken care of
++	} else {
++		reporter.Errorf(s, "adddynsym: unsupported binary format")
++	}
++}
++
+ func Adddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+ 	if s.Dynid >= 0 || target.LinkMode == LinkExternal {
+ 		return
+@@ -381,17 +398,23 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ func (ctxt *Link) addexport() {
+ 	// Track undefined external symbols during external link.
+ 	if ctxt.LinkMode == LinkExternal {
+-		for _, s := range ctxt.Syms.Allsym {
+-			if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
++		for _, s := range ctxt.Textp2 {
++			if ctxt.loader.AttrSpecial(s) || ctxt.loader.AttrSubSymbol(s) {
+ 				continue
+ 			}
+-			if s.Type != sym.STEXT {
+-				continue
+-			}
+-			for i := range s.R {
+-				r := &s.R[i]
+-				if r.Sym != nil && r.Sym.Type == sym.Sxxx {
+-					r.Sym.Type = sym.SUNDEFEXT
++			relocs := ctxt.loader.Relocs(s)
++			for i := 0; i < relocs.Count; i++ {
++				if rs := relocs.At2(i).Sym(); rs != 0 {
++					if ctxt.loader.SymType(rs) == sym.Sxxx && !ctxt.loader.AttrLocal(rs) {
++						// sanity check
++						if len(ctxt.loader.Data(rs)) != 0 {
++							panic("expected no data on undef symbol")
++						}
++						su := ctxt.loader.MakeSymbolUpdater(rs)
++						su.SetType(sym.SUNDEFEXT)
++						// temporary until the wavefront moves past addexport
++						ctxt.loader.Syms[rs].Type = sym.SUNDEFEXT
++					}
+ 				}
+ 			}
+ 		}
+@@ -402,12 +425,17 @@ func (ctxt *Link) addexport() {
+ 		return
+ 	}
+ 
+-	for _, exp := range dynexp {
+-		Adddynsym(&ctxt.Target, &ctxt.ArchSyms, exp)
++	for _, exp := range ctxt.dynexp2 {
++		Adddynsym2(ctxt.loader, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, exp)
+ 	}
+ 	for _, lib := range dynlib {
+ 		adddynlib(ctxt, lib)
+ 	}
++
++	// temporary until the wavefront moves past addexport:
++	// copy any changes to loader.Sym symbols back into the sym.Symbol world.
++	modified := []loader.Sym{ctxt.DynSym2, ctxt.Dynamic2, ctxt.DynStr2}
++	ctxt.loader.PropagateLoaderChangesToSymbols(modified, 0)
+ }
+ 
+ type Pkg struct {

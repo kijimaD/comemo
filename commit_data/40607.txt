@@ -17,7 +17,7 @@ Date:   Fri May 31 17:22:13 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/renameio/error.go          |  12 ---
  src/cmd/go/internal/renameio/error_windows.go  |  23 -----
  src/cmd/go/internal/renameio/rename.go         |  24 +++++
@@ -26,3 +26,450 @@ Date:   Fri May 31 17:22:13 2019 -0400
  src/cmd/go/internal/renameio/renameio_test.go  | 135 +++++++++++++++++++++----
  src/cmd/go/internal/renameio/umask_test.go     |  42 ++++++++
  7 files changed, 297 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/go/internal/renameio/error.go b/src/cmd/go/internal/renameio/error.go
+deleted file mode 100644
+index 14943e3e6e..0000000000
+--- a/src/cmd/go/internal/renameio/error.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !windows
+-
+-package renameio
+-
+-// isAccessDeniedError always returns false on non-windows.
+-func isAccessDeniedError(err error) bool {
+-	return false
+-}
+diff --git a/src/cmd/go/internal/renameio/error_windows.go b/src/cmd/go/internal/renameio/error_windows.go
+deleted file mode 100644
+index 30d0879e7f..0000000000
+--- a/src/cmd/go/internal/renameio/error_windows.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package renameio
+-
+-import (
+-	"os"
+-	"syscall"
+-)
+-
+-// isAccessDeniedError returns true if err was caused by ERROR_ACCESS_DENIED.
+-func isAccessDeniedError(err error) bool {
+-	linkerr, ok := err.(*os.LinkError)
+-	if !ok {
+-		return false
+-	}
+-	errno, ok := linkerr.Err.(syscall.Errno)
+-	if !ok {
+-		return false
+-	}
+-	return errno == syscall.ERROR_ACCESS_DENIED
+-}
+diff --git a/src/cmd/go/internal/renameio/rename.go b/src/cmd/go/internal/renameio/rename.go
+new file mode 100644
+index 0000000000..9862ebd862
+--- /dev/null
++++ b/src/cmd/go/internal/renameio/rename.go
+@@ -0,0 +1,24 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//+build !windows
++
++package renameio
++
++import (
++	"io/ioutil"
++	"os"
++)
++
++func rename(oldpath, newpath string) error {
++	return os.Rename(oldpath, newpath)
++}
++
++func readFile(filename string) ([]byte, error) {
++	return ioutil.ReadFile(filename)
++}
++
++func isEphemeralError(err error) bool {
++	return false
++}
+diff --git a/src/cmd/go/internal/renameio/rename_windows.go b/src/cmd/go/internal/renameio/rename_windows.go
+new file mode 100644
+index 0000000000..7da8c9c2b5
+--- /dev/null
++++ b/src/cmd/go/internal/renameio/rename_windows.go
+@@ -0,0 +1,101 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package renameio
++
++import (
++	"errors"
++	"internal/syscall/windows"
++	"io/ioutil"
++	"math/rand"
++	"os"
++	"syscall"
++	"time"
++)
++
++// retry retries ephemeral errors from f up to an arbitrary timeout
++// to work around spurious filesystem errors on Windows
++// (see golang.org/issue/31247 and golang.org/issue/32188).
++func retry(f func() (err error, mayRetry bool)) error {
++	var (
++		bestErr     error
++		lowestErrno syscall.Errno
++		start       time.Time
++		nextSleep   time.Duration = 1 * time.Millisecond
++	)
++	for {
++		err, mayRetry := f()
++		if err == nil || !mayRetry {
++			return err
++		}
++
++		var errno syscall.Errno
++		if errors.As(err, &errno) && (lowestErrno == 0 || errno < lowestErrno) {
++			bestErr = err
++			lowestErrno = errno
++		} else if bestErr == nil {
++			bestErr = err
++		}
++
++		if start.IsZero() {
++			start = time.Now()
++		} else if d := time.Since(start) + nextSleep; d >= 500*time.Millisecond {
++			break
++		}
++		time.Sleep(nextSleep)
++		nextSleep += time.Duration(rand.Int63n(int64(nextSleep)))
++	}
++
++	return bestErr
++}
++
++// rename is like os.Rename, but retries ephemeral errors.
++//
++// It wraps os.Rename, which (as of 2019-06-04) uses MoveFileEx with
++// MOVEFILE_REPLACE_EXISTING.
++//
++// Windows also provides a different system call, ReplaceFile,
++// that provides similar semantics, but perhaps preserves more metadata. (The
++// documentation on the differences between the two is very sparse.)
++//
++// Empirical error rates with MoveFileEx are lower under modest concurrency, so
++// for now we're sticking with what the os package already provides.
++//
++// TODO(bcmills): For Go 1.14, should we try changing os.Rename itself to do this?
++func rename(oldpath, newpath string) (err error) {
++	return retry(func() (err error, mayRetry bool) {
++		err = os.Rename(oldpath, newpath)
++		return err, isEphemeralError(err)
++	})
++}
++
++// readFile is like ioutil.ReadFile, but retries ephemeral errors.
++//
++// TODO(bcmills): For Go 1.14, should we try changing ioutil.ReadFile itself to do this?
++func readFile(filename string) ([]byte, error) {
++	var b []byte
++	err := retry(func() (err error, mayRetry bool) {
++		b, err = ioutil.ReadFile(filename)
++
++		// Unlike in rename, we do not retry ERROR_FILE_NOT_FOUND here: it can occur
++		// as a spurious error, but the file may also genuinely not exist, so the
++		// increase in robustness is probably not worth the extra latency.
++		return err, isEphemeralError(err) && !errors.Is(err, syscall.ERROR_FILE_NOT_FOUND)
++	})
++	return b, err
++}
++
++// isEphemeralError returns true if err may be resolved by waiting.
++func isEphemeralError(err error) bool {
++	var errno syscall.Errno
++	if errors.As(err, &errno) {
++		switch errno {
++		case syscall.ERROR_ACCESS_DENIED,
++			syscall.ERROR_FILE_NOT_FOUND,
++			windows.ERROR_SHARING_VIOLATION:
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/renameio/renameio.go b/src/cmd/go/internal/renameio/renameio.go
+index 5fe5bb7dd4..a34ce59b59 100644
+--- a/src/cmd/go/internal/renameio/renameio.go
++++ b/src/cmd/go/internal/renameio/renameio.go
+@@ -12,7 +12,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+-	"time"
+ )
+ 
+ const patternSuffix = ".tmp"
+@@ -62,23 +61,20 @@ func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error)
+ 		return err
+ 	}
+ 
+-	var start time.Time
+-	for {
+-		err := os.Rename(f.Name(), filename)
+-		if err == nil || !isAccessDeniedError(err) {
+-			return err
+-		}
++	return rename(f.Name(), filename)
++}
+ 
+-		// Windows seems to occasionally trigger spurious "Access is denied" errors
+-		// here (see golang.org/issue/31247). We're not sure why. It's probably
+-		// worth a little extra latency to avoid propagating the spurious errors.
+-		if start.IsZero() {
+-			start = time.Now()
+-		} else if time.Since(start) >= 500*time.Millisecond {
+-			return err
+-		}
+-		time.Sleep(5 * time.Millisecond)
+-	}
++// ReadFile is like ioutil.ReadFile, but on Windows retries spurious errors that
++// may occur if the file is concurrently replaced.
++//
++// Errors are classified heuristically and retries are bounded, so even this
++// function may occasionally return a spurious error on Windows.
++// If so, the error will likely wrap one of:
++// 	- syscall.ERROR_ACCESS_DENIED
++// 	- syscall.ERROR_FILE_NOT_FOUND
++// 	- internal/syscall/windows.ERROR_SHARING_VIOLATION
++func ReadFile(filename string) ([]byte, error) {
++	return readFile(filename)
+ }
+ 
+ // tempFile creates a new temporary file with given permission bits.
+diff --git a/src/cmd/go/internal/renameio/renameio_test.go b/src/cmd/go/internal/renameio/renameio_test.go
+index 53f879803e..e06dee3057 100644
+--- a/src/cmd/go/internal/renameio/renameio_test.go
++++ b/src/cmd/go/internal/renameio/renameio_test.go
+@@ -2,43 +2,142 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package renameio writes files atomically by renaming temporary files.
+-
+-//+build !nacl,!plan9,!windows,!js
++//+build !plan9
+ 
+ package renameio
+ 
+ import (
++	"encoding/binary"
++	"errors"
+ 	"io/ioutil"
++	"math/rand"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
++	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+-func TestWriteFileModeAppliesUmask(t *testing.T) {
++func TestConcurrentReadsAndWrites(t *testing.T) {
+ 	dir, err := ioutil.TempDir("", "renameio")
+ 	if err != nil {
+-		t.Fatalf("Failed to create temporary directory: %v", err)
++		t.Fatal(err)
+ 	}
++	defer os.RemoveAll(dir)
++	path := filepath.Join(dir, "blob.bin")
+ 
+-	const mode = 0644
+-	const umask = 0007
+-	defer syscall.Umask(syscall.Umask(umask))
++	const chunkWords = 8 << 10
++	buf := make([]byte, 2*chunkWords*8)
++	for i := uint64(0); i < 2*chunkWords; i++ {
++		binary.LittleEndian.PutUint64(buf[i*8:], i)
++	}
+ 
+-	file := filepath.Join(dir, "testWrite")
+-	err = WriteFile(file, []byte("go-build"), mode)
+-	if err != nil {
+-		t.Fatalf("Failed to write file: %v", err)
++	var attempts int64 = 128
++	if !testing.Short() {
++		attempts *= 16
+ 	}
+-	defer os.RemoveAll(dir)
++	const parallel = 32
+ 
+-	fi, err := os.Stat(file)
+-	if err != nil {
+-		t.Fatalf("Stat %q (looking for mode %#o): %s", file, mode, err)
++	var sem = make(chan bool, parallel)
++
++	var (
++		writeSuccesses, readSuccesses int64 // atomic
++		writeErrnoSeen, readErrnoSeen sync.Map
++	)
++
++	for n := attempts; n > 0; n-- {
++		sem <- true
++		go func() {
++			defer func() { <-sem }()
++
++			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
++			offset := rand.Intn(chunkWords)
++			chunk := buf[offset*8 : (offset+chunkWords)*8]
++			if err := WriteFile(path, chunk, 0666); err == nil {
++				atomic.AddInt64(&writeSuccesses, 1)
++			} else if isEphemeralError(err) {
++				var (
++					errno syscall.Errno
++					dup   bool
++				)
++				if errors.As(err, &errno) {
++					_, dup = writeErrnoSeen.LoadOrStore(errno, true)
++				}
++				if !dup {
++					t.Logf("ephemeral error: %v", err)
++				}
++			} else {
++				t.Errorf("unexpected error: %v", err)
++			}
++
++			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
++			data, err := ioutil.ReadFile(path)
++			if err == nil {
++				atomic.AddInt64(&readSuccesses, 1)
++			} else if isEphemeralError(err) {
++				var (
++					errno syscall.Errno
++					dup   bool
++				)
++				if errors.As(err, &errno) {
++					_, dup = readErrnoSeen.LoadOrStore(errno, true)
++				}
++				if !dup {
++					t.Logf("ephemeral error: %v", err)
++				}
++				return
++			} else {
++				t.Errorf("unexpected error: %v", err)
++				return
++			}
++
++			if len(data) != 8*chunkWords {
++				t.Errorf("read %d bytes, but each write is a %d-byte file", len(data), 8*chunkWords)
++				return
++			}
++
++			u := binary.LittleEndian.Uint64(data)
++			for i := 1; i < chunkWords; i++ {
++				next := binary.LittleEndian.Uint64(data[i*8:])
++				if next != u+1 {
++					t.Errorf("wrote sequential integers, but read integer out of sequence at offset %d", i)
++					return
++				}
++				u = next
++			}
++		}()
++	}
++
++	for n := parallel; n > 0; n-- {
++		sem <- true
++	}
++
++	var minWriteSuccesses int64 = attempts
++	if runtime.GOOS == "windows" {
++		// Windows produces frequent "Access is denied" errors under heavy rename load.
++		// As long as those are the only errors and *some* of the writes succeed, we're happy.
++		minWriteSuccesses = attempts / 4
++	}
++
++	if writeSuccesses < minWriteSuccesses {
++		t.Errorf("%d (of %d) writes succeeded; want ≥ %d", writeSuccesses, attempts, minWriteSuccesses)
++	} else {
++		t.Logf("%d (of %d) writes succeeded (ok: ≥ %d)", writeSuccesses, attempts, minWriteSuccesses)
++	}
++
++	var minReadSuccesses int64 = attempts
++	if runtime.GOOS == "windows" {
++		// Windows produces frequent "Access is denied" errors under heavy rename load.
++		// As long as those are the only errors and *some* of the writes succeed, we're happy.
++		minReadSuccesses = attempts / 4
+ 	}
+ 
+-	if fi.Mode()&os.ModePerm != 0640 {
+-		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&os.ModePerm, 0640)
++	if readSuccesses < minReadSuccesses {
++		t.Errorf("%d (of %d) reads succeeded; want ≥ %d", readSuccesses, attempts, minReadSuccesses)
++	} else {
++		t.Logf("%d (of %d) reads succeeded (ok: ≥ %d)", readSuccesses, attempts, minReadSuccesses)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/renameio/umask_test.go b/src/cmd/go/internal/renameio/umask_test.go
+new file mode 100644
+index 0000000000..1a471c9e4e
+--- /dev/null
++++ b/src/cmd/go/internal/renameio/umask_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//+build !nacl,!plan9,!windows,!js
++
++package renameio
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"syscall"
++	"testing"
++)
++
++func TestWriteFileModeAppliesUmask(t *testing.T) {
++	dir, err := ioutil.TempDir("", "renameio")
++	if err != nil {
++		t.Fatalf("Failed to create temporary directory: %v", err)
++	}
++
++	const mode = 0644
++	const umask = 0007
++	defer syscall.Umask(syscall.Umask(umask))
++
++	file := filepath.Join(dir, "testWrite")
++	err = WriteFile(file, []byte("go-build"), mode)
++	if err != nil {
++		t.Fatalf("Failed to write file: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	fi, err := os.Stat(file)
++	if err != nil {
++		t.Fatalf("Stat %q (looking for mode %#o): %s", file, mode, err)
++	}
++
++	if fi.Mode()&os.ModePerm != 0640 {
++		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&os.ModePerm, 0640)
++	}
++}

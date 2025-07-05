@@ -12,7 +12,54 @@ Date:   Thu Nov 16 14:56:12 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78395
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go  |  3 ---
  src/cmd/go/internal/work/exec.go | 21 ++++-----------------
  2 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 27684fa1f3..15ef95312b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -406,9 +406,6 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 		// Load package.
+ 		// Import always returns bp != nil, even if an error occurs,
+ 		// in order to return partial information.
+-		//
+-		// TODO: After Go 1, decide when to pass build.AllowBinary here.
+-		// See issue 3268 for mistakes to avoid.
+ 		buildMode := build.ImportComment
+ 		if mode&UseVendor == 0 || path != origPath {
+ 			// Not vendoring, or we already found the vendored path.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2e8c103c50..4d6b8a1b90 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -502,23 +502,10 @@ func (b *Builder) build(a *Action) (err error) {
+ 
+ 	// Prepare Go import config.
+ 	var icfg bytes.Buffer
+-	for _, a1 := range a.Deps {
+-		p1 := a1.Package
+-		if p1 == nil || p1.ImportPath == "" {
+-			continue
+-		}
+-		path := p1.ImportPath
+-		i := strings.LastIndex(path, "/vendor/")
+-		if i >= 0 {
+-			i += len("/vendor/")
+-		} else if strings.HasPrefix(path, "vendor/") {
+-			i = len("vendor/")
+-		} else {
+-			continue
+-		}
+-		fmt.Fprintf(&icfg, "importmap %s=%s\n", path[i:], path)
+-		if vcfg != nil {
+-			vcfg.ImportMap[path[i:]] = path
++	for i, raw := range a.Package.Internal.RawImports {
++		final := a.Package.Imports[i]
++		if final != raw {
++			fmt.Fprintf(&icfg, "importmap %s=%s\n", raw, final)
+ 		}
+ 	}
+ 

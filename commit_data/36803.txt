@@ -14,8 +14,132 @@ Date:   Tue May 29 13:13:24 2018 -0700
     Change-Id: I2414b1f432ce139b3cd2776ff0d46d8dcf38b650
     Reviewed-on: https://go-review.googlesource.com/115115
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/issues_test.go      | 41 ++++++++++++++++++++++++++++++++++++++++
  src/go/types/testdata/decls3.src |  4 ++--
  src/go/types/typexpr.go          | 17 +++++++++++++++++
  3 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 02af0cf51b..8560bb9b7d 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -314,3 +314,44 @@ func TestIssue22525(t *testing.T) {
+ 		t.Errorf("got: %swant: %s", got, want)
+ 	}
+ }
++
++func TestIssue25627(t *testing.T) {
++	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
++	// The src strings (without prefix) are constructed such that the number of semicolons
++	// plus one corresponds to the number of fields expected in the respective struct.
++	for _, src := range []string{
++		`struct { x Missing }`,
++		`struct { Missing }`,
++		`struct { *Missing }`,
++		`struct { unsafe.Pointer }`,
++		`struct { P }`,
++		`struct { *I }`,
++		`struct { a int; b Missing; *Missing }`,
++	} {
++		f, err := parser.ParseFile(fset, "", prefix+src, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
++		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
++		_, err = cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
++		if err != nil {
++			if _, ok := err.(Error); !ok {
++				t.Fatal(err)
++			}
++		}
++
++		ast.Inspect(f, func(n ast.Node) bool {
++			if spec, _ := n.(*ast.TypeSpec); spec != nil {
++				if tv, ok := info.Types[spec.Type]; ok && spec.Name.Name == "T" {
++					want := strings.Count(src, ";") + 1
++					if got := tv.Type.(*Struct).NumFields(); got != want {
++						t.Errorf("%s: got %d fields; want %d", src, got, want)
++					}
++				}
++			}
++			return true
++		})
++	}
++}
+diff --git a/src/go/types/testdata/decls3.src b/src/go/types/testdata/decls3.src
+index 3071fdae5e..18ddf5859c 100644
+--- a/src/go/types/testdata/decls3.src
++++ b/src/go/types/testdata/decls3.src
+@@ -99,9 +99,9 @@ func _() {
+ 	// unsafe.Pointers are treated like regular pointers when embedded
+ 	type T2 struct {
+ 		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
+-		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer
++		*/* ERROR "cannot be unsafe.Pointer" */ /* ERROR "Pointer redeclared" */ unsafe.Pointer
+ 		UP /* ERROR "cannot be unsafe.Pointer" */
+-		* /* ERROR "cannot be unsafe.Pointer" */ UP
++		* /* ERROR "cannot be unsafe.Pointer" */  /* ERROR "UP redeclared" */ UP
+ 	}
+ }
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 999383ed27..d3841c9367 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -677,6 +677,16 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 		}
+ 	}
+ 
++	// addInvalid adds an embedded field of invalid type to the struct for
++	// fields with errors; this keeps the number of struct fields in sync
++	// with the source as long as the fields are _ or have different names
++	// (issue #25627).
++	addInvalid := func(ident *ast.Ident, pos token.Pos) {
++		typ = Typ[Invalid]
++		tag = ""
++		add(ident, true, pos)
++	}
++
+ 	for _, f := range list.List {
+ 		typ = check.typExpr(f.Type, nil, path)
+ 		tag = check.tag(f.Tag)
+@@ -693,6 +703,9 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+ 				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
++				name = ast.NewIdent("_")
++				name.NamePos = pos
++				addInvalid(name, pos)
+ 				continue
+ 			}
+ 			t, isPtr := deref(typ)
+@@ -702,22 +715,26 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 			case *Basic:
+ 				if t == Typ[Invalid] {
+ 					// error was reported before
++					addInvalid(name, pos)
+ 					continue
+ 				}
+ 
+ 				// unsafe.Pointer is treated like a regular pointer
+ 				if t.kind == UnsafePointer {
+ 					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
++					addInvalid(name, pos)
+ 					continue
+ 				}
+ 
+ 			case *Pointer:
+ 				check.errorf(pos, "embedded field type cannot be a pointer")
++				addInvalid(name, pos)
+ 				continue
+ 
+ 			case *Interface:
+ 				if isPtr {
+ 					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
++					addInvalid(name, pos)
+ 					continue
+ 				}
+ 			}

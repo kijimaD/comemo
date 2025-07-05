@@ -9,10 +9,203 @@ Date:   Fri Jan 27 01:31:42 2012 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5571056
-
+---
  src/pkg/net/fd.go            | 19 +++++-----
  src/pkg/net/fd_windows.go    | 17 +++++----
  src/pkg/net/sock.go          |  1 +
  src/pkg/net/udp_test.go      | 87 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/udpsock_posix.go |  6 +++
  5 files changed, 113 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 7ecd135d20..495ef007fe 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -22,15 +22,16 @@ type netFD struct {
+ 	closing bool
+ 
+ 	// immutable until Close
+-	sysfd   int
+-	family  int
+-	sotype  int
+-	sysfile *os.File
+-	cr      chan bool
+-	cw      chan bool
+-	net     string
+-	laddr   Addr
+-	raddr   Addr
++	sysfd       int
++	family      int
++	sotype      int
++	isConnected bool
++	sysfile     *os.File
++	cr          chan bool
++	cw          chan bool
++	net         string
++	laddr       Addr
++	raddr       Addr
+ 
+ 	// owned by client
+ 	rdeadline int64
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 6e37b4eb6f..f00459f0ba 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -228,14 +228,15 @@ type netFD struct {
+ 	closing bool
+ 
+ 	// immutable until Close
+-	sysfd   syscall.Handle
+-	family  int
+-	sotype  int
+-	net     string
+-	laddr   Addr
+-	raddr   Addr
+-	resultc [2]chan ioResult // read/write completion results
+-	errnoc  [2]chan error    // read/write submit or cancel operation errors
++	sysfd       syscall.Handle
++	family      int
++	sotype      int
++	isConnected bool
++	net         string
++	laddr       Addr
++	raddr       Addr
++	resultc     [2]chan ioResult // read/write completion results
++	errnoc      [2]chan error    // read/write submit or cancel operation errors
+ 
+ 	// owned by client
+ 	rdeadline int64
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 2f3210b428..867e328f12 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -49,6 +49,7 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 			fd.Close()
+ 			return nil, err
+ 		}
++		fd.isConnected = true
+ 	}
+ 
+ 	sa, _ := syscall.Getsockname(s)
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+new file mode 100644
+index 0000000000..6ba762b1f7
+--- /dev/null
++++ b/src/pkg/net/udp_test.go
+@@ -0,0 +1,87 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"runtime"
++	"testing"
++)
++
++func TestWriteToUDP(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
++
++	l, err := ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	defer l.Close()
++
++	testWriteToConn(t, l.LocalAddr().String())
++	testWriteToPacketConn(t, l.LocalAddr().String())
++}
++
++func testWriteToConn(t *testing.T, raddr string) {
++	c, err := Dial("udp", raddr)
++	if err != nil {
++		t.Fatalf("Dial failed: %v", err)
++	}
++	defer c.Close()
++
++	ra, err := ResolveUDPAddr("udp", raddr)
++	if err != nil {
++		t.Fatalf("ResolveUDPAddr failed: %v", err)
++	}
++
++	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-oriented mode socket"), ra)
++	if err == nil {
++		t.Fatal("WriteToUDP should be failed")
++	}
++	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
++		t.Fatalf("WriteToUDP should be failed as ErrWriteToConnected: %v", err)
++	}
++
++	_, err = c.(*UDPConn).WriteTo([]byte("Connection-oriented mode socket"), ra)
++	if err == nil {
++		t.Fatal("WriteTo should be failed")
++	}
++	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
++		t.Fatalf("WriteTo should be failed as ErrWriteToConnected: %v", err)
++	}
++
++	_, err = c.Write([]byte("Connection-oriented mode socket"))
++	if err != nil {
++		t.Fatalf("Write failed: %v", err)
++	}
++}
++
++func testWriteToPacketConn(t *testing.T, raddr string) {
++	c, err := ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("ListenPacket failed: %v", err)
++	}
++	defer c.Close()
++
++	ra, err := ResolveUDPAddr("udp", raddr)
++	if err != nil {
++		t.Fatalf("ResolveUDPAddr failed: %v", err)
++	}
++
++	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-less mode socket"), ra)
++	if err != nil {
++		t.Fatalf("WriteToUDP failed: %v", err)
++	}
++
++	_, err = c.WriteTo([]byte("Connection-less mode socket"), ra)
++	if err != nil {
++		t.Fatalf("WriteTo failed: %v", err)
++	}
++
++	_, err = c.(*UDPConn).Write([]byte("Connection-less mode socket"))
++	if err == nil {
++		t.Fatal("Write should be failed")
++	}
++}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index b3a07619e1..fa3d29adfa 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -9,11 +9,14 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"os"
+ 	"syscall"
+ 	"time"
+ )
+ 
++var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
++
+ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+@@ -182,6 +185,9 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+ 	}
++	if c.fd.isConnected {
++		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
++	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+ 		return 0, &OpError{"write", c.fd.net, addr, err}

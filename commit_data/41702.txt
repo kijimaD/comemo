@@ -12,10 +12,71 @@ Date:   Mon Oct 21 21:49:31 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 1 -
  src/cmd/compile/internal/ssa/rewriteARM.go   | 1 -
  src/cmd/compile/internal/ssa/rewriteARM64.go | 1 -
  src/cmd/compile/internal/ssa/rewritePPC64.go | 1 -
  src/cmd/compile/internal/ssa/rewriteS390X.go | 1 -
  5 files changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 845e581364..f1aa3f2bd3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -52335,7 +52335,6 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpFma_0(v *Value) bool {
+ 	// match: (Fma x y z)
+-	// cond:
+ 	// result: (VFMADD231SD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 24064bdefb..8cb534d8f6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -17163,7 +17163,6 @@ func rewriteValueARM_OpEqPtr_0(v *Value) bool {
+ }
+ func rewriteValueARM_OpFma_0(v *Value) bool {
+ 	// match: (Fma x y z)
+-	// cond:
+ 	// result: (FMULAD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 2aa38f574f..a5f74fab51 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -28569,7 +28569,6 @@ func rewriteValueARM64_OpFloor_0(v *Value) bool {
+ }
+ func rewriteValueARM64_OpFma_0(v *Value) bool {
+ 	// match: (Fma x y z)
+-	// cond:
+ 	// result: (FMADDD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index b09bd85ca1..1b462b28bb 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1992,7 +1992,6 @@ func rewriteValuePPC64_OpFloor_0(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpFma_0(v *Value) bool {
+ 	// match: (Fma x y z)
+-	// cond:
+ 	// result: (FMADD x y z)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 0c03fa2080..343a7381ea 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -1922,7 +1922,6 @@ func rewriteValueS390X_OpFloor_0(v *Value) bool {
+ }
+ func rewriteValueS390X_OpFma_0(v *Value) bool {
+ 	// match: (Fma x y z)
+-	// cond:
+ 	// result: (FMADD z x y)
+ 	for {
+ 		z := v.Args[2]

@@ -10,7 +10,43 @@ Date:   Thu Mar 27 18:47:00 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/81340044
-
+---
  src/cmd/gc/const.c          |  5 ++++-
  test/fixedbugs/issue6402.go | 13 +++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cfb1f0adef..a725ea971c 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1144,7 +1144,10 @@ defaultlit(Node **np, Type *t)
+ 		}
+ 		if(n->val.ctype == CTNIL) {
+ 			lineno = lno;
+-			yyerror("use of untyped nil");
++			if(!n->diag) {
++				yyerror("use of untyped nil");
++				n->diag = 1;
++			}
+ 			n->type = T;
+ 			break;
+ 		}
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+new file mode 100644
+index 0000000000..da5980c9ab
+--- /dev/null
++++ b/test/fixedbugs/issue6402.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6402: spurious 'use of untyped nil' error
++
++package p
++
++func f() uintptr {
++	return nil // ERROR "cannot use nil as type uintptr in return argument"
++}

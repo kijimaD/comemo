@@ -17,10 +17,184 @@ Date:   Thu Aug 15 13:57:53 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 13 +++++++++---
  src/cmd/compile/internal/noder/reader.go     |  4 +++-
  src/cmd/compile/internal/noder/unified.go    | 30 +++++++++++++++++++++-------
  src/cmd/compile/internal/noder/writer.go     |  4 +++-
  src/go/internal/gcimporter/ureader.go        | 12 ++++++++---
  5 files changed, 48 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index e0405b9afb..467b1d418f 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -39,13 +39,18 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+-	r.Bool() // TODO(mdempsky): Remove; was "has init"
++
++	if r.Version().Has(pkgbits.HasInit) {
++		r.Bool()
++	}
+ 
+ 	for i, n := 0, r.Len(); i < n; i++ {
+ 		// As if r.obj(), but avoiding the Scope.Lookup call,
+ 		// to avoid eager loading of imports.
+ 		r.Sync(pkgbits.SyncObject)
+-		assert(!r.Bool())
++		if r.Version().Has(pkgbits.DerivedFuncInstance) {
++			assert(!r.Bool())
++		}
+ 		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+ 		assert(r.Len() == 0)
+ 	}
+@@ -366,7 +371,9 @@ func (r *reader) param() *types2.Var {
+ func (r *reader) obj() (types2.Object, []types2.Type) {
+ 	r.Sync(pkgbits.SyncObject)
+ 
+-	assert(!r.Bool())
++	if r.Version().Has(pkgbits.DerivedFuncInstance) {
++		assert(!r.Bool())
++	}
+ 
+ 	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+ 	obj := pkg.Scope().Lookup(name)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index dcb4e3d1d9..a825d60f7e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -640,7 +640,9 @@ func (r *reader) obj() ir.Node {
+ // and returns the encoded reference to it, without instantiating it.
+ func (r *reader) objInfo() objInfo {
+ 	r.Sync(pkgbits.SyncObject)
+-	assert(!r.Bool()) // TODO(mdempsky): Remove; was derived func inst.
++	if r.Version().Has(pkgbits.DerivedFuncInstance) {
++		assert(!r.Bool())
++	}
+ 	idx := r.Reloc(pkgbits.RelocObj)
+ 
+ 	explicits := make([]typeInfo, r.Len())
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 4577ff6663..ead348f0c1 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -329,7 +329,10 @@ func writePkgStub(m posMap, noders []*noder) string {
+ 	{
+ 		w := publicRootWriter
+ 		w.pkg(pkg)
+-		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
++
++		if w.Version().Has(pkgbits.HasInit) {
++			w.Bool(false)
++		}
+ 
+ 		scope := pkg.Scope()
+ 		names := scope.Names()
+@@ -410,11 +413,15 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 			base.ErrorExit()
+ 		}
+ 
+-		r.Bool() // TODO(mdempsky): Remove; was "has init"
++		if r.Version().Has(pkgbits.HasInit) {
++			r.Bool()
++		}
+ 
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			r.Sync(pkgbits.SyncObject)
+-			assert(!r.Bool())
++			if r.Version().Has(pkgbits.DerivedFuncInstance) {
++				assert(!r.Bool())
++			}
+ 			idx := r.Reloc(pkgbits.RelocObj)
+ 			assert(r.Len() == 0)
+ 
+@@ -477,11 +484,15 @@ func writeUnifiedExport(out io.Writer) {
+ 		r.Sync(pkgbits.SyncPkg)
+ 		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
+ 
+-		r.Bool() // TODO(mdempsky): Remove; was "has init"
++		if r.Version().Has(pkgbits.HasInit) {
++			r.Bool()
++		}
+ 
+ 		for i, n := 0, r.Len(); i < n; i++ {
+ 			r.Sync(pkgbits.SyncObject)
+-			assert(!r.Bool())
++			if r.Version().Has(pkgbits.DerivedFuncInstance) {
++				assert(!r.Bool())
++			}
+ 			idx := r.Reloc(pkgbits.RelocObj)
+ 			assert(r.Len() == 0)
+ 
+@@ -508,12 +519,17 @@ func writeUnifiedExport(out io.Writer) {
+ 
+ 		w.Sync(pkgbits.SyncPkg)
+ 		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
+-		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
++
++		if w.Version().Has(pkgbits.HasInit) {
++			w.Bool(false)
++		}
+ 
+ 		w.Len(len(idxs))
+ 		for _, idx := range idxs {
+ 			w.Sync(pkgbits.SyncObject)
+-			w.Bool(false)
++			if w.Version().Has(pkgbits.DerivedFuncInstance) {
++				w.Bool(false)
++			}
+ 			w.Reloc(pkgbits.RelocObj, idx)
+ 			w.Len(0)
+ 		}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 0d59d84b61..c3ca408790 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -730,7 +730,9 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ // bitstream.
+ func (w *writer) objInfo(info objInfo) {
+ 	w.Sync(pkgbits.SyncObject)
+-	w.Bool(false) // TODO(mdempsky): Remove; was derived func inst.
++	if w.Version().Has(pkgbits.DerivedFuncInstance) {
++		w.Bool(false)
++	}
+ 	w.Reloc(pkgbits.RelocObj, info.idx)
+ 
+ 	w.Len(len(info.explicits))
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 68d50626c5..e4b4e17749 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -65,13 +65,17 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
+ 
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+-	r.Bool() // TODO(mdempsky): Remove; was "has init"
++	if r.Version().Has(pkgbits.HasInit) {
++		r.Bool()
++	}
+ 
+ 	for i, n := 0, r.Len(); i < n; i++ {
+ 		// As if r.obj(), but avoiding the Scope.Lookup call,
+ 		// to avoid eager loading of imports.
+ 		r.Sync(pkgbits.SyncObject)
+-		assert(!r.Bool())
++		if r.Version().Has(pkgbits.DerivedFuncInstance) {
++			assert(!r.Bool())
++		}
+ 		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+ 		assert(r.Len() == 0)
+ 	}
+@@ -428,7 +432,9 @@ func (r *reader) param() *types.Var {
+ func (r *reader) obj() (types.Object, []types.Type) {
+ 	r.Sync(pkgbits.SyncObject)
+ 
+-	assert(!r.Bool())
++	if r.Version().Has(pkgbits.DerivedFuncInstance) {
++		assert(!r.Bool())
++	}
+ 
+ 	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+ 	obj := pkgScope(pkg).Lookup(name)

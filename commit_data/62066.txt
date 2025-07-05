@@ -17,8 +17,35 @@ Date:   Wed Jan 29 03:49:06 2025 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  lib/fips140/Makefile    |   2 +-
  lib/fips140/fips140.sum |   1 +
  lib/fips140/v1.0.0.zip  | Bin 0 -> 650281 bytes
  3 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/fips140/Makefile b/lib/fips140/Makefile
+index cd657ae72f..8dcb8fbebe 100644
+--- a/lib/fips140/Makefile
++++ b/lib/fips140/Makefile
+@@ -27,7 +27,7 @@ default:
+ # copy and edit the 'go run' command by hand to use a different branch.
+ v%.zip:
+ 	git fetch origin master
+-	go run ../../src/cmd/go/internal/fips140/mkzip.go -b master v$*
++	go run ../../src/cmd/go/internal/fips140/mkzip.go v$*
+ 
+ # normally mkzip refuses to overwrite an existing zip file.
+ # make v1.2.3.rm removes the zip file and and unpacked
+diff --git a/lib/fips140/fips140.sum b/lib/fips140/fips140.sum
+index 013112d9e5..66b1e23dfe 100644
+--- a/lib/fips140/fips140.sum
++++ b/lib/fips140/fips140.sum
+@@ -9,3 +9,4 @@
+ #
+ #	go test cmd/go/internal/fips140 -update
+ #
++v1.0.0.zip b50508feaeff05d22516b21e1fd210bbf5d6a1e422eaf2cfa23fe379342713b8
+diff --git a/lib/fips140/v1.0.0.zip b/lib/fips140/v1.0.0.zip
+new file mode 100644
+index 0000000000..bd9d3c19d0
+Binary files /dev/null and b/lib/fips140/v1.0.0.zip differ

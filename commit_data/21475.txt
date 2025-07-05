@@ -16,7 +16,56 @@ Date:   Mon Dec 22 11:33:47 2014 -0800
     Change-Id: I21346cc195cb3c62e041af8b18770c0940358695
     Reviewed-on: https://go-review.googlesource.com/1975
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/walk.c | 17 +++++++++++------
  test/nilcheck.go  |  5 +++++
  2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f54302dc28..48dd17a6af 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -794,8 +794,6 @@ walkexpr(Node **np, NodeList **init)
+ 		//   var,b = mapaccess2*(t, m, i)
+ 		//   a = *var
+ 		a = n->list->n;
+-		var = temp(ptrto(t->type));
+-		var->typecheck = 1;
+ 		fn = mapfn(p, t);
+ 		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, key);
+ 
+@@ -806,10 +804,17 @@ walkexpr(Node **np, NodeList **init)
+ 			r->type->type->down->type = n->list->next->n->type;
+ 		n->rlist = list1(r);
+ 		n->op = OAS2FUNC;
+-		n->list->n = var;
+-		walkexpr(&n, init);
+-		*init = list(*init, n);
+-		n = nod(OAS, a, nod(OIND, var, N));
++
++		// don't generate a = *var if a is _
++		if(!isblank(a)) {
++			var = temp(ptrto(t->type));
++			var->typecheck = 1;
++			n->list->n = var;
++			walkexpr(&n, init);
++			*init = list(*init, n);
++			n = nod(OAS, a, nod(OIND, var, N));
++		}
++
+ 		typecheck(&n, Etop);
+ 		walkexpr(&n, init);
+ 		// mapaccess needs a zero value to be at least this big.
+diff --git a/test/nilcheck.go b/test/nilcheck.go
+index fe05d05c92..99c3c5fdb6 100644
+--- a/test/nilcheck.go
++++ b/test/nilcheck.go
+@@ -182,3 +182,8 @@ func f4(x *[10]int) {
+ 	_ = &x[9] // ERROR "nil check"
+ }
+ 
++func f5(m map[string]struct{}) bool {
++	// Existence-only map lookups should not generate a nil check
++	_, ok := m[""]
++	return ok
++}

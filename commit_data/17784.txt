@@ -7,6 +7,21 @@ Date:   Fri Oct 11 08:55:13 2013 -0700
     R=golang-dev, jsing, r
     CC=golang-dev
     https://golang.org/cl/14523056
-
+---
  doc/progs/run | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 71759c565e..6e680b83bf 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -50,6 +50,9 @@ fi
+ if [ "$goos" == "openbsd" ]; then
+ 	c_go_cgo="cgo1 cgo2"
+ fi
++if [ "$CGO_ENABLED" != 1 ]; then
++	c_go_cgo=""
++fi
+ 
+ timeout="
+ 	timeout1

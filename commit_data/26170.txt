@@ -7,6 +7,20 @@ Date:   Thu Dec 24 14:26:02 2015 -0400
     Change-Id: I9485ecbd9d546893e4f0db846b08d835fa7515d7
     Reviewed-on: https://go-review.googlesource.com/18140
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/sigaltstack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 54faa2a489..787653c482 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -56,7 +56,7 @@ import (
+ func testSigaltstack(t *testing.T) {
+ 	switch {
+ 	case runtime.GOOS == "solaris", runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64"):
+-		t.Skipf("switching signal stack not implemented on %s/s", runtime.GOOS, runtime.GOARCH)
++		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	C.changeSignalStack()

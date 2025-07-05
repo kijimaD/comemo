@@ -16,6 +16,20 @@ Date:   Fri Mar 7 16:08:12 2014 -0500
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/72630043
-
+---
  src/pkg/sync/pool_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/pool_test.go b/src/pkg/sync/pool_test.go
+index a34719ab2c..e444e50e5e 100644
+--- a/src/pkg/sync/pool_test.go
++++ b/src/pkg/sync/pool_test.go
+@@ -87,7 +87,7 @@ func TestPoolGC(t *testing.T) {
+ 	}
+ 	for i := 0; i < 5; i++ {
+ 		runtime.GC()
+-		time.Sleep(time.Millisecond)
++		time.Sleep(time.Duration(i*100+10) * time.Millisecond)
+ 		// 1 pointer can remain on stack or elsewhere
+ 		if atomic.LoadUint32(&fin) >= N-1 {
+ 			return

@@ -27,8 +27,93 @@ Date:   Thu Feb 20 21:55:28 2025 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/internal/bytealg/count_generic.go |  2 +-
  src/internal/bytealg/count_mips64x.s  | 52 +++++++++++++++++++++++++++++++++++
  src/internal/bytealg/count_native.go  |  2 +-
  3 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/count_generic.go b/src/internal/bytealg/count_generic.go
+index 932a7c584c..54bb100cbf 100644
+--- a/src/internal/bytealg/count_generic.go
++++ b/src/internal/bytealg/count_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !amd64 && !arm && !arm64 && !ppc64le && !ppc64 && !riscv64 && !s390x
++//go:build !amd64 && !arm && !arm64 && !mips64le && !mips64 && !ppc64le && !ppc64 && !riscv64 && !s390x
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/count_mips64x.s b/src/internal/bytealg/count_mips64x.s
+new file mode 100644
+index 0000000000..247d0b35f4
+--- /dev/null
++++ b/src/internal/bytealg/count_mips64x.s
+@@ -0,0 +1,52 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build mips64 || mips64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Count(SB),NOSPLIT,$0-40
++	// R1 = b_base
++	// R2 = b_len
++	// R3 = byte to count
++	MOVV	b_base+0(FP), R1
++	MOVV	b_len+8(FP), R2
++	MOVBU	c+24(FP), R3
++	MOVV	R0, R5	// count
++	ADDV	R1, R2	// end
++
++loop:
++	BEQ	R1, R2, done
++	MOVBU	(R1), R6
++	ADDV	$1, R1
++	BNE	R3, R6, loop
++	ADDV	$1, R5
++	JMP	loop
++
++done:
++	MOVV	R5, ret+32(FP)
++	RET
++
++TEXT ·CountString(SB),NOSPLIT,$0-32
++	// R1 = s_base
++	// R2 = s_len
++	// R3 = byte to count
++	MOVV	s_base+0(FP), R1
++	MOVV	s_len+8(FP), R2
++	MOVBU	c+16(FP), R3
++	MOVV	R0, R5	// count
++	ADDV	R1, R2	// end
++
++loop:
++	BEQ	R1, R2, done
++	MOVBU	(R1), R6
++	ADDV	$1, R1
++	BNE	R3, R6, loop
++	ADDV	$1, R5
++	JMP	loop
++
++done:
++	MOVV	R5, ret+24(FP)
++	RET
+diff --git a/src/internal/bytealg/count_native.go b/src/internal/bytealg/count_native.go
+index 90189c9fe0..0a8caee87e 100644
+--- a/src/internal/bytealg/count_native.go
++++ b/src/internal/bytealg/count_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || arm || arm64 || ppc64le || ppc64 || riscv64 || s390x
++//go:build amd64 || arm || arm64 || mips64le || mips64 || ppc64le || ppc64 || riscv64 || s390x
+ 
+ package bytealg
+ 

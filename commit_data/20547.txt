@@ -16,7 +16,61 @@ Date:   Wed Sep 17 08:32:15 2014 -0700
     R=golang-codereviews, dvyukov, khr, aram
     CC=golang-codereviews
     https://golang.org/cl/145790043
-
+---
  src/runtime/proc.c  |  8 ++++----
  src/runtime/stack.h | 21 ++++++++++++---------
  2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 0e677a9d28..4282a145e1 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -2162,11 +2162,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	siz = narg + nret;
+ 	siz = (siz+7) & ~7;
+ 
+-	// We could instead create a secondary stack frame
+-	// and make it look like goexit was on the original but
+-	// the call to the actual goroutine function was split.
++	// We could allocate a larger initial stack if necessary.
+ 	// Not worth it: this is almost always an error.
+-	if(siz > StackMin - 1024)
++	// 4*sizeof(uintreg): extra space added below
++	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
++	if(siz >= StackMin - 4*sizeof(uintreg) - sizeof(uintreg))
+ 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+ 
+ 	p = g->m->p;
+diff --git a/src/runtime/stack.h b/src/runtime/stack.h
+index b30e322166..f97dc4ed8d 100644
+--- a/src/runtime/stack.h
++++ b/src/runtime/stack.h
+@@ -69,16 +69,19 @@ enum {
+ #endif	// Plan 9
+ #endif	// Windows
+ 
+-	// The amount of extra stack to allocate beyond the size
+-	// needed for the single frame that triggered the split.
+-	StackExtra = 2048,
++	// The minimum size of stack used by Go code
++	StackMin = 2048,
+ 
+-	// The minimum stack segment size to allocate.
+-	// If the amount needed for the splitting frame + StackExtra
+-	// is less than this number, the stack will have this size instead.
+-	StackMin = 8192,
+-	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
+-	FixedStack = StackMin + StackSystemRounded,
++	// The minimum stack size to allocate.
++	// The hackery here rounds FixedStack0 up to a power of 2.
++	FixedStack0 = StackMin + StackSystem,
++	FixedStack1 = FixedStack0 - 1,
++	FixedStack2 = FixedStack1 | (FixedStack1 >> 1),
++	FixedStack3 = FixedStack2 | (FixedStack2 >> 2),
++	FixedStack4 = FixedStack3 | (FixedStack3 >> 4),
++	FixedStack5 = FixedStack4 | (FixedStack4 >> 8),
++	FixedStack6 = FixedStack5 | (FixedStack5 >> 16),
++	FixedStack = FixedStack6 + 1,
+ 
+ 	// Functions that need frames bigger than this use an extra
+ 	// instruction to do the stack split check, to avoid overflow

@@ -12,6 +12,38 @@ Date:   Sun Jan 28 14:08:14 2018 +0200
     Change-Id: If4c684a3d135f3c2782a720374dc4c07ea66dcbb
     Reviewed-on: https://go-review.googlesource.com/90415
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 8375d94c4b..332b5670cc 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -223,6 +223,26 @@ C compilers are aware of this calling convention and adjust
+ the call accordingly, but Go cannot. In Go, you must pass
+ the pointer to the first element explicitly: C.f(&C.x[0]).
+ 
++Calling variadic C functions is not supported. It is possible to
++circumvent this by using a C function wrapper. For example:
++
++	package main
++
++	// #include <stdio.h>
++	// #include <stdlib.h>
++	//
++	// static void myprint(char* s) {
++	//   printf("%s\n", s);
++	// }
++	import "C"
++	import "unsafe"
++
++	func main() {
++		cs := C.CString("Hello from stdio")
++		C.myprint(cs)
++		C.free(unsafe.Pointer(cs))
++	}
++
+ A few special functions convert between Go and C types
+ by making copies of the data. In pseudo-Go definitions:
+ 

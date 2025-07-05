@@ -9,7 +9,25 @@ Date:   Wed May 20 11:12:05 2009 -0700
     DELTA=5  (2 added, 2 deleted, 1 changed)
     OCL=29093
     CL=29097
-
+---
  pkg/{place-holder => ~place-holder~} | 0
  src/clean.bash                       | 2 +-
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pkg/place-holder b/pkg/~place-holder~
+similarity index 100%
+rename from pkg/place-holder
+rename to pkg/~place-holder~
+diff --git a/src/clean.bash b/src/clean.bash
+index 4b6c6d73dc..c4c74dde7a 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-rm -f $GOROOT/pkg/*.[6a]
++rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
+ rm -f $GOROOT/lib/*.[6a]
+ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+ do

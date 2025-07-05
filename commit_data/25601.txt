@@ -11,7 +11,57 @@ Date:   Thu Sep 24 08:50:13 2015 -0400
     Change-Id: Ief83845a2779f7fe048d236d3c7da52b627ab533
     Reviewed-on: https://go-review.googlesource.com/14992
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/{os2_linux.go => os2_linux_generic.go} |  4 ++++
  src/runtime/os2_linux_mips64x.go                   | 25 ++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/runtime/os2_linux.go b/src/runtime/os2_linux_generic.go
+similarity index 90%
+rename from src/runtime/os2_linux.go
+rename to src/runtime/os2_linux_generic.go
+index 71f36ebeff..01e6c8a5ec 100644
+--- a/src/runtime/os2_linux.go
++++ b/src/runtime/os2_linux_generic.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !mips64
++// +build !mips64le
++// +build linux
++
+ package runtime
+ 
+ const (
+diff --git a/src/runtime/os2_linux_mips64x.go b/src/runtime/os2_linux_mips64x.go
+new file mode 100644
+index 0000000000..9a6a92a87d
+--- /dev/null
++++ b/src/runtime/os2_linux_mips64x.go
+@@ -0,0 +1,25 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build mips64 mips64le
++
++package runtime
++
++const (
++	_SS_DISABLE  = 2
++	_NSIG        = 65
++	_SI_USER     = 0
++	_SIG_BLOCK   = 1
++	_SIG_UNBLOCK = 2
++	_SIG_SETMASK = 3
++	_RLIMIT_AS   = 6
++)
++
++type sigset [2]uint64
++
++type rlimit struct {
++	rlim_cur uintptr
++	rlim_max uintptr
++}

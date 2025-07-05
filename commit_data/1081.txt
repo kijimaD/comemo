@@ -8,8 +8,63 @@ Date:   Thu Nov 6 15:48:36 2008 -0800
     DELTA=21  (21 added, 0 deleted, 0 changed)
     OCL=18709
     CL=18718
-
+---
  src/cmd/gc/sys.go      |  2 ++
  src/cmd/gc/sysimport.c |  2 ++
  src/runtime/runtime.c  | 17 +++++++++++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 0ee9deb51b..72e36a0c75 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -49,6 +49,8 @@ export func	isInf(float64, int) bool;		// test for infinity
+ export func	isNaN(float64) bool;			// test for not-a-number
+ export func	Inf(int) float64;			// return signed Inf
+ export func	NaN() float64;				// return a NaN
++export func	float32bits(float32) uint32;		// raw bits
++export func	float64bits(float64) uint64;		// raw bits
+ 
+ export func	newmap(keysize int, valsize int,
+ 			keyalg int, valalg int,
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 02b5a86e81..9ee99a1892 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -39,6 +39,8 @@ char *sysimport =
+ 	"export func sys.isNaN (? float64) (? bool)\n"
+ 	"export func sys.Inf (? int) (? float64)\n"
+ 	"export func sys.NaN () (? float64)\n"
++	"export func sys.float32bits (? float32) (? uint32)\n"
++	"export func sys.float64bits (? float64) (? uint64)\n"
+ 	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap *map[any] any)\n"
+ 	"export func sys.mapaccess1 (hmap *map[any] any, key any) (val any)\n"
+ 	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index db31b77df3..a0d97dcda9 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -347,6 +347,23 @@ sys·NaN(float64 out)
+ 	FLUSH(&out);
+ }
+ 
++// func float32bits(float32) uint32; // raw bits of float32
++void
++sys·float32bits(float32 din, uint32 iou)
++{
++	iou = *(uint32*)&din;
++	FLUSH(&iou);
++}
++
++// func float64bits(float64) uint64; // raw bits of float64
++void
++sys·float64bits(float64 din, uint64 iou)
++{
++	iou = *(uint64*)&din;
++	FLUSH(&iou);
++}
++
++
+ static int32	argc;
+ static uint8**	argv;
+ static int32	envc;

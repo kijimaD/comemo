@@ -9,8 +9,66 @@ Date:   Thu Jan 21 16:45:36 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/mips/a.out.go | 6 ++++--
  src/cmd/internal/obj/mips/list0.go | 2 +-
  src/cmd/internal/obj/util.go       | 2 +-
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index f271a87609..282cb79e31 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -114,7 +114,7 @@ const (
+ 	REG_LO
+ 
+ 	// co-processor 0 control registers
+-	REG_M0 = obj.RBaseMIPS64 + 1024 + iota
++	REG_M0
+ 	REG_M1
+ 	REG_M2
+ 	REG_M3
+@@ -148,7 +148,7 @@ const (
+ 	REG_M31
+ 
+ 	// FPU control registers
+-	REG_FCR0 = obj.RBaseMIPS64 + 2048 + iota
++	REG_FCR0
+ 	REG_FCR1
+ 	REG_FCR2
+ 	REG_FCR3
+@@ -181,6 +181,8 @@ const (
+ 	REG_FCR30
+ 	REG_FCR31
+ 
++	REG_LAST = REG_FCR31 // the last defined register
++
+ 	REG_SPECIAL = REG_M0
+ 
+ 	REGZERO  = REG_R0 /* set to zero */
+diff --git a/src/cmd/internal/obj/mips/list0.go b/src/cmd/internal/obj/mips/list0.go
+index 0807a62a8d..40dc4605c9 100644
+--- a/src/cmd/internal/obj/mips/list0.go
++++ b/src/cmd/internal/obj/mips/list0.go
+@@ -35,7 +35,7 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseMIPS64, REG_FCR0+1024, Rconv)
++	obj.RegisterRegister(obj.RBaseMIPS64, REG_LAST&^1023+1024, Rconv)
+ 	obj.RegisterOpcode(obj.ABaseMIPS64, Anames)
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 51101c5ce0..5103299526 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -529,7 +529,7 @@ const (
+ 	RBaseARM    = 3 * 1024
+ 	RBasePPC64  = 4 * 1024  // range [4k, 8k)
+ 	RBaseARM64  = 8 * 1024  // range [8k, 13k)
+-	RBaseMIPS64 = 13 * 1024 // range [13k, 16k)
++	RBaseMIPS64 = 13 * 1024 // range [13k, 14k)
+ )
+ 
+ // RegisterRegister binds a pretty-printer (Rconv) for register

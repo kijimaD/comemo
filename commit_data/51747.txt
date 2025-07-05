@@ -16,7 +16,34 @@ Date:   Sun Feb 27 23:22:22 2022 +1030
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/vcs/vcs.go                      | 2 +-
  src/cmd/go/testdata/script/version_buildvcs_git.txt | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index fd521b2eb1..2acabf7aaf 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -312,7 +312,7 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+ 	// uncommitted files and skip tagging revision / committime.
+ 	var rev string
+ 	var commitTime time.Time
+-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --no-show-signature --format=%H:%ct")
++	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false show -s --format=%H:%ct")
+ 	if err != nil && !uncommitted {
+ 		return Status{}, err
+ 	} else if err == nil {
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+index 86d1de06df..44706870e2 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -111,7 +111,7 @@ rm $GOBIN/d$GOEXE
+ go list -x ./...
+ stdout -count=3 '^example.com'
+ stderr -count=1 '^git status'
+-stderr -count=1 '^git show'
++stderr -count=1 '^git -c log.showsignature=false show'
+ 
+ -- $WORK/fakebin/git --
+ #!/bin/sh

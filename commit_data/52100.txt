@@ -10,6 +10,22 @@ Date:   Wed Mar 30 00:18:48 2022 +0200
     Trust: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/elliptic/elliptic_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 5481929db1..eb5f0546c4 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -364,8 +364,8 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
+ 		b.Run("Compressed", func(b *testing.B) {
+ 			b.ReportAllocs()
+ 			for i := 0; i < b.N; i++ {
+-				buf := Marshal(curve, x, y)
+-				xx, yy := Unmarshal(curve, buf)
++				buf := MarshalCompressed(curve, x, y)
++				xx, yy := UnmarshalCompressed(curve, buf)
+ 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+ 					b.Error("Unmarshal output different from Marshal input")
+ 				}

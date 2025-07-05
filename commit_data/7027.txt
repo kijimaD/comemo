@@ -9,7 +9,53 @@ Date:   Tue Jan 4 13:14:17 2011 -0500
     R=rsc, ejsherry
     CC=golang-dev
     https://golang.org/cl/3811042
-
+---
  src/cmd/gc/walk.c        |  4 +++-
  test/fixedbugs/bug315.go | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6e238f6616..536c37701d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -975,13 +975,15 @@ walkexpr(Node **np, NodeList **init)
+ 		 * on 386, rewrite float ops into l = l op r.
+ 		 * everywhere, rewrite map ops into l = l op r.
+ 		 * everywhere, rewrite string += into l = l op r.
++		 * everywhere, rewrite complex /= into l = l op r.
+ 		 * TODO(rsc): Maybe this rewrite should be done always?
+ 		 */
+ 		et = n->left->type->etype;
+ 		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
+ 		   (thechar == '8' && isfloat[et]) ||
+ 		   l->op == OINDEXMAP ||
+-		   et == TSTRING) {
++		   et == TSTRING ||
++		   (iscomplex[et] && n->etype == ODIV)) {
+ 			l = safeexpr(n->left, init);
+ 			a = l;
+ 			if(a->op == OINDEXMAP) {
+diff --git a/test/fixedbugs/bug315.go b/test/fixedbugs/bug315.go
+new file mode 100644
+index 0000000000..198bae77ab
+--- /dev/null
++++ b/test/fixedbugs/bug315.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go || echo BUG: bug315
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1368.
++
++package main
++
++func main() {
++	a := cmplx(2, 2)
++	a /= 2
++}
++
++/*
++bug315.go:13: internal compiler error: optoas: no entry DIV-complex
++*/

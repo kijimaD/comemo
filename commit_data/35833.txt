@@ -11,6 +11,35 @@ Date:   Sun Mar 11 04:07:58 2018 +0900
     Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index a94ff73130..d5b4051794 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -265,17 +265,17 @@ func (ip IP) Mask(mask IPMask) IP {
+ // that dst has sufficient length.
+ func ubtoa(dst []byte, start int, v byte) int {
+ 	if v < 10 {
+-		dst[start] = byte(v + '0')
++		dst[start] = v + '0'
+ 		return 1
+ 	} else if v < 100 {
+-		dst[start+1] = byte(v%10 + '0')
+-		dst[start] = byte(v/10 + '0')
++		dst[start+1] = v%10 + '0'
++		dst[start] = v/10 + '0'
+ 		return 2
+ 	}
+ 
+-	dst[start+2] = byte(v%10 + '0')
+-	dst[start+1] = byte((v/10)%10 + '0')
+-	dst[start] = byte(v/100 + '0')
++	dst[start+2] = v%10 + '0'
++	dst[start+1] = (v/10)%10 + '0'
++	dst[start] = v/100 + '0'
+ 	return 3
+ }
+ 

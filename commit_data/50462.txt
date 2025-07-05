@@ -40,7 +40,7 @@ Date:   Fri Sep 24 16:46:05 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/352057
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/bitvec/bv.go      |  11 +
  src/cmd/compile/internal/gc/obj.go         |   7 +-
  src/cmd/compile/internal/liveness/arg.go   | 339 +++++++++++++++++++++++++++++
@@ -57,3 +57,848 @@ Date:   Fri Sep 24 16:46:05 2021 -0400
  src/runtime/traceback.go                   |  33 ++-
  src/runtime/traceback_test.go              | 113 ++++++++++
  15 files changed, 538 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/bitvec/bv.go b/src/cmd/compile/internal/bitvec/bv.go
+index bcac1fe351..ad7ed0a196 100644
+--- a/src/cmd/compile/internal/bitvec/bv.go
++++ b/src/cmd/compile/internal/bitvec/bv.go
+@@ -128,10 +128,21 @@ func (bv BitVec) IsEmpty() bool {
+ 	return true
+ }
+ 
++func (bv BitVec) Count() int {
++	n := 0
++	for _, x := range bv.B {
++		n += bits.OnesCount32(x)
++	}
++	return n
++}
++
+ func (bv BitVec) Not() {
+ 	for i, x := range bv.B {
+ 		bv.B[i] = ^x
+ 	}
++	if bv.N%wordBits != 0 {
++		bv.B[len(bv.B)-1] &= 1<<uint(bv.N%wordBits) - 1 // clear bits past N in the last word
++	}
+ }
+ 
+ // union
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 432c003b9a..dcb54047f1 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -249,8 +249,7 @@ func addGCLocals() {
+ 			}
+ 		}
+ 		if x := fn.StackObjects; x != nil {
+-			attr := int16(obj.RODATA)
+-			objw.Global(x, int32(len(x.P)), attr)
++			objw.Global(x, int32(len(x.P)), obj.RODATA)
+ 			x.Set(obj.AttrStatic, true)
+ 		}
+ 		if x := fn.OpenCodedDeferInfo; x != nil {
+@@ -260,6 +259,10 @@ func addGCLocals() {
+ 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 			x.Set(obj.AttrStatic, true)
+ 		}
++		if x := fn.ArgLiveInfo; x != nil {
++			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
++			x.Set(obj.AttrStatic, true)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/liveness/arg.go b/src/cmd/compile/internal/liveness/arg.go
+new file mode 100644
+index 0000000000..2ca5d095aa
+--- /dev/null
++++ b/src/cmd/compile/internal/liveness/arg.go
+@@ -0,0 +1,339 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package liveness
++
++import (
++	"fmt"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/bitvec"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/objw"
++	"cmd/compile/internal/ssa"
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
++)
++
++// Argument liveness tracking.
++//
++// For arguments passed in registers, this file tracks if their spill slots
++// are live for runtime traceback. An argument spill slot is live at a PC
++// if we know that an actual value has stored into it at or before this point.
++//
++// Stack args are always live and not tracked in this code. Stack args are
++// laid out before register spill slots, so we emit the smallest offset that
++// needs tracking. Slots before that offset are always live. That offset is
++// usually the offset of the first spill slot. But if the first spill slot is
++// always live (e.g. if it is address-taken), it will be the offset of a later
++// one.
++//
++// The liveness information is emitted as a FUNCDATA and a PCDATA.
++//
++// FUNCDATA format:
++// - start (smallest) offset that needs tracking (1 byte)
++// - a list of bitmaps.
++//   In a bitmap bit i is set if the i-th spill slot is live.
++//
++// At a PC where the liveness info changes, a PCDATA indicates the
++// byte offset of the liveness map in the FUNCDATA. PCDATA -1 is a
++// special case indicating all slots are live (for binary size
++// saving).
++
++const allLiveIdx = -1
++
++// name and offset
++type nameOff struct {
++	n   *ir.Name
++	off int64
++}
++
++func (a nameOff) FrameOffset() int64 { return a.n.FrameOffset() + a.off }
++func (a nameOff) String() string     { return fmt.Sprintf("%v+%d", a.n, a.off) }
++
++type blockArgEffects struct {
++	livein  bitvec.BitVec // variables live at block entry
++	liveout bitvec.BitVec // variables live at block exit
++}
++
++type argLiveness struct {
++	fn   *ir.Func
++	f    *ssa.Func
++	args []nameOff         // name and offset of spill slots
++	idx  map[nameOff]int32 // index in args
++
++	be []blockArgEffects // indexed by block ID
++
++	bvset bvecSet // Set of liveness bitmaps, used for uniquifying.
++
++	// Liveness map indices at each Value (where it changes) and Block entry.
++	// During the computation the indices are temporarily index to bvset.
++	// At the end they will be index (offset) to the output funcdata (changed
++	// in (*argLiveness).emit).
++	blockIdx map[ssa.ID]int
++	valueIdx map[ssa.ID]int
++}
++
++// ArgLiveness computes the liveness information of register argument spill slots.
++// An argument's spill slot is "live" if we know it contains a meaningful value,
++// that is, we have stored the register value to it.
++// Returns the liveness map indices at each Block entry and at each Value (where
++// it changes).
++func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx map[ssa.ID]int) {
++	if f.OwnAux.ABIInfo().InRegistersUsed() == 0 || base.Flag.N != 0 {
++		// No register args. Nothing to emit.
++		// Or if -N is used we spill everything upfront so it is always live.
++		return nil, nil
++	}
++
++	lv := &argLiveness{
++		fn:       fn,
++		f:        f,
++		idx:      make(map[nameOff]int32),
++		be:       make([]blockArgEffects, f.NumBlocks()),
++		blockIdx: make(map[ssa.ID]int),
++		valueIdx: make(map[ssa.ID]int),
++	}
++	// Gather all register arg spill slots.
++	for _, a := range f.OwnAux.ABIInfo().InParams() {
++		n, ok := a.Name.(*ir.Name)
++		if !ok || len(a.Registers) == 0 {
++			continue
++		}
++		_, offs := a.RegisterTypesAndOffsets()
++		for _, off := range offs {
++			if n.FrameOffset()+off > 0xff {
++				// We only print a limited number of args, with stack
++				// offsets no larger than 255.
++				continue
++			}
++			lv.args = append(lv.args, nameOff{n, off})
++		}
++	}
++	if len(lv.args) > 10 {
++		lv.args = lv.args[:10] // We print no more than 10 args.
++	}
++
++	// We spill address-taken or non-SSA-able value upfront, so they are always live.
++	alwaysLive := func(n *ir.Name) bool { return n.Addrtaken() || !f.Frontend().CanSSA(n.Type()) }
++
++	// We'll emit the smallest offset for the slots that need liveness info.
++	// No need to include a slot with a lower offset if it is always live.
++	for len(lv.args) > 0 && alwaysLive(lv.args[0].n) {
++		lv.args = lv.args[1:]
++	}
++	if len(lv.args) == 0 {
++		return // everything is always live
++	}
++
++	for i, a := range lv.args {
++		lv.idx[a] = int32(i)
++	}
++
++	nargs := int32(len(lv.args))
++	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2))
++	for _, b := range f.Blocks {
++		be := &lv.be[b.ID]
++		be.livein = bulk.Next()
++		be.liveout = bulk.Next()
++
++		// initialize to all 1s, so we can AND them
++		be.livein.Not()
++		be.liveout.Not()
++	}
++
++	entrybe := &lv.be[f.Entry.ID]
++	entrybe.livein.Clear()
++	for i, a := range lv.args {
++		if alwaysLive(a.n) {
++			entrybe.livein.Set(int32(i))
++		}
++	}
++
++	// Visit blocks in reverse-postorder, compute block effects.
++	po := f.Postorder()
++	for i := len(po) - 1; i >= 0; i-- {
++		b := po[i]
++		be := &lv.be[b.ID]
++
++		// A slot is live at block entry if it is live in all predecessors.
++		for _, pred := range b.Preds {
++			pb := pred.Block()
++			be.livein.And(be.livein, lv.be[pb.ID].liveout)
++		}
++
++		be.liveout.Copy(be.livein)
++		for _, v := range b.Values {
++			lv.valueEffect(v, be.liveout)
++		}
++	}
++
++	// Coalesce identical live vectors. Compute liveness indices at each PC
++	// where it changes.
++	live := bitvec.New(nargs)
++	addToSet := func(bv bitvec.BitVec) (int, bool) {
++		if bv.Count() == int(nargs) { // special case for all live
++			return allLiveIdx, false
++		}
++		return lv.bvset.add(bv)
++	}
++	for _, b := range lv.f.Blocks {
++		be := &lv.be[b.ID]
++		lv.blockIdx[b.ID], _ = addToSet(be.livein)
++
++		live.Copy(be.livein)
++		var lastv *ssa.Value
++		for i, v := range b.Values {
++			if lv.valueEffect(v, live) {
++				// Record that liveness changes but not emit a map now.
++				// For a sequence of StoreRegs we only need to emit one
++				// at last.
++				lastv = v
++			}
++			if lastv != nil && (mayFault(v) || i == len(b.Values)-1) {
++				// Emit the liveness map if it may fault or at the end of
++				// the block. We may need a traceback if the instruction
++				// may cause a panic.
++				var added bool
++				lv.valueIdx[lastv.ID], added = addToSet(live)
++				if added {
++					// live is added to bvset and we cannot modify it now.
++					// Make a copy.
++					t := live
++					live = bitvec.New(nargs)
++					live.Copy(t)
++				}
++				lastv = nil
++			}
++		}
++
++		// Sanity check.
++		if !live.Eq(be.liveout) {
++			panic("wrong arg liveness map at block end")
++		}
++	}
++
++	// Emit funcdata symbol, update indices to offsets in the symbol data.
++	lsym := lv.emit()
++	fn.LSym.Func().ArgLiveInfo = lsym
++
++	//lv.print()
++
++	p := pp.Prog(obj.AFUNCDATA)
++	p.From.SetConst(objabi.FUNCDATA_ArgLiveInfo)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = lsym
++
++	return lv.blockIdx, lv.valueIdx
++}
++
++// valueEffect applies the effect of v to live, return whether it is changed.
++func (lv *argLiveness) valueEffect(v *ssa.Value, live bitvec.BitVec) bool {
++	if v.Op != ssa.OpStoreReg { // TODO: include other store instructions?
++		return false
++	}
++	n, off := ssa.AutoVar(v)
++	if n.Class != ir.PPARAM {
++		return false
++	}
++	i, ok := lv.idx[nameOff{n, off}]
++	if !ok || live.Get(i) {
++		return false
++	}
++	live.Set(i)
++	return true
++}
++
++func mayFault(v *ssa.Value) bool {
++	switch v.Op {
++	case ssa.OpLoadReg, ssa.OpStoreReg, ssa.OpCopy, ssa.OpPhi,
++		ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive,
++		ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult,
++		ssa.OpConvert, ssa.OpInlMark, ssa.OpGetG:
++		return false
++	}
++	if len(v.Args) == 0 {
++		return false // assume constant op cannot fault
++	}
++	return true // conservatively assume all other ops could fault
++}
++
++func (lv *argLiveness) print() {
++	fmt.Println("argument liveness:", lv.f.Name)
++	live := bitvec.New(int32(len(lv.args)))
++	for _, b := range lv.f.Blocks {
++		be := &lv.be[b.ID]
++
++		fmt.Printf("%v: live in: ", b)
++		lv.printLivenessVec(be.livein)
++		if idx, ok := lv.blockIdx[b.ID]; ok {
++			fmt.Printf("   #%d", idx)
++		}
++		fmt.Println()
++
++		for _, v := range b.Values {
++			if lv.valueEffect(v, live) {
++				fmt.Printf("  %v: ", v)
++				lv.printLivenessVec(live)
++				if idx, ok := lv.valueIdx[v.ID]; ok {
++					fmt.Printf("   #%d", idx)
++				}
++				fmt.Println()
++			}
++		}
++
++		fmt.Printf("%v: live out: ", b)
++		lv.printLivenessVec(be.liveout)
++		fmt.Println()
++	}
++	fmt.Println("liveness maps data:", lv.fn.LSym.Func().ArgLiveInfo.P)
++}
++
++func (lv *argLiveness) printLivenessVec(bv bitvec.BitVec) {
++	for i, a := range lv.args {
++		if bv.Get(int32(i)) {
++			fmt.Printf("%v ", a)
++		}
++	}
++}
++
++func (lv *argLiveness) emit() *obj.LSym {
++	livenessMaps := lv.bvset.extractUnique()
++
++	// stack offsets of register arg spill slots
++	argOffsets := make([]uint8, len(lv.args))
++	for i, a := range lv.args {
++		off := a.FrameOffset()
++		if off > 0xff {
++			panic("offset too large")
++		}
++		argOffsets[i] = uint8(off)
++	}
++
++	idx2off := make([]int, len(livenessMaps))
++
++	lsym := base.Ctxt.Lookup(lv.fn.LSym.Name + ".argliveinfo")
++	lsym.Set(obj.AttrContentAddressable, true)
++
++	off := objw.Uint8(lsym, 0, argOffsets[0]) // smallest offset that needs liveness info.
++	for idx, live := range livenessMaps {
++		idx2off[idx] = off
++		off = objw.BitVec(lsym, off, live)
++	}
++
++	// Update liveness indices to offsets.
++	for i, x := range lv.blockIdx {
++		if x != allLiveIdx {
++			lv.blockIdx[i] = idx2off[x]
++		}
++	}
++	for i, x := range lv.valueIdx {
++		if x != allLiveIdx {
++			lv.valueIdx[i] = idx2off[x]
++		}
++	}
++
++	return lsym
++}
+diff --git a/src/cmd/compile/internal/liveness/bvset.go b/src/cmd/compile/internal/liveness/bvset.go
+index 3431f54ede..60b2593867 100644
+--- a/src/cmd/compile/internal/liveness/bvset.go
++++ b/src/cmd/compile/internal/liveness/bvset.go
+@@ -47,9 +47,10 @@ func (m *bvecSet) grow() {
+ 	m.index = newIndex
+ }
+ 
+-// add adds bv to the set and returns its index in m.extractUnique.
+-// The caller must not modify bv after this.
+-func (m *bvecSet) add(bv bitvec.BitVec) int {
++// add adds bv to the set and returns its index in m.extractUnique,
++// and whether it is newly added.
++// If it is newly added, the caller must not modify bv after this.
++func (m *bvecSet) add(bv bitvec.BitVec) (int, bool) {
+ 	if len(m.uniq)*4 >= len(m.index) {
+ 		m.grow()
+ 	}
+@@ -62,12 +63,12 @@ func (m *bvecSet) add(bv bitvec.BitVec) int {
+ 			// New bvec.
+ 			index[h] = len(m.uniq)
+ 			m.uniq = append(m.uniq, bv)
+-			return len(m.uniq) - 1
++			return len(m.uniq) - 1, true
+ 		}
+ 		jlive := m.uniq[j]
+ 		if bv.Eq(jlive) {
+ 			// Existing bvec.
+-			return j
++			return j, false
+ 		}
+ 
+ 		h++
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 56580d11b5..3202e506c8 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -854,8 +854,9 @@ func (lv *liveness) epilogue() {
+ 	if lv.fn.OpenCodedDeferDisallowed() {
+ 		lv.livenessMap.DeferReturn = objw.LivenessDontCare
+ 	} else {
++		idx, _ := lv.stackMapSet.add(livedefer)
+ 		lv.livenessMap.DeferReturn = objw.LivenessIndex{
+-			StackMapIndex: lv.stackMapSet.add(livedefer),
++			StackMapIndex: idx,
+ 			IsUnsafePoint: false,
+ 		}
+ 	}
+@@ -902,7 +903,7 @@ func (lv *liveness) compact(b *ssa.Block) {
+ 		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
+ 		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
+ 		if hasStackMap {
+-			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
++			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
+ 			pos++
+ 		}
+ 		if hasStackMap || isUnsafePoint {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 421d856a4f..a1835dcd30 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -103,6 +103,10 @@ func (a *AuxNameOffset) String() string {
+ 	return fmt.Sprintf("%s+%d", a.Name.Sym().Name, a.Offset)
+ }
+ 
++func (a *AuxNameOffset) FrameOffset() int64 {
++	return a.Name.FrameOffset() + a.Offset
++}
++
+ type AuxCall struct {
+ 	Fn      *obj.LSym
+ 	reg     *regInfo // regInfo for this call
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6b595ea75d..b84199790f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6729,6 +6729,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
+ 	emitArgInfo(e, f, pp)
++	argLiveBlockMap, argLiveValueMap := liveness.ArgLiveness(e.curfn, f, pp)
+ 
+ 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
+ 	if openDeferInfo != nil {
+@@ -6786,6 +6787,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	// Progs that are in the set above and have that source position.
+ 	var inlMarksByPos map[src.XPos][]*obj.Prog
+ 
++	var argLiveIdx int = -1 // argument liveness info index
++
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.Next
+@@ -6799,6 +6802,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// preemptible, unless this function is "all unsafe".
+ 		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
+ 
++		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
++			argLiveIdx = idx
++			p := s.pp.Prog(obj.APCDATA)
++			p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
++			p.To.SetConst(int64(idx))
++		}
++
+ 		// Emit values in block
+ 		Arch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+@@ -6855,6 +6865,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				Arch.SSAGenValue(&s, v)
+ 			}
+ 
++			if idx, ok := argLiveValueMap[v.ID]; ok && idx != argLiveIdx {
++				argLiveIdx = idx
++				p := s.pp.Prog(obj.APCDATA)
++				p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
++				p.To.SetConst(int64(idx))
++			}
++
+ 			if base.Ctxt.Flag_locationlists {
+ 				valueToProgAfter[v.ID] = s.pp.Next
+ 			}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index abb37416cc..4bcfb05a5e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -486,6 +486,7 @@ type FuncInfo struct {
+ 	StackObjects       *LSym
+ 	OpenCodedDeferInfo *LSym
+ 	ArgInfo            *LSym // argument info for traceback
++	ArgLiveInfo        *LSym // argument liveness info for traceback
+ 
+ 	FuncInfoSym *LSym
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a590549f52..fa616691eb 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -347,7 +347,8 @@ func (w *writer) Sym(s *LSym) {
+ 			strings.HasPrefix(name, "runtime.gcbits."),
+ 			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+-			strings.HasSuffix(name, ".arginfo1"):
++			strings.HasSuffix(name, ".arginfo1"),
++			strings.HasSuffix(name, ".argliveinfo"):
+ 			// These are just bytes, or varints.
+ 			align = 1
+ 		case strings.HasPrefix(name, "gclocals·"):
+@@ -415,6 +416,7 @@ func contentHashSection(s *LSym) byte {
+ 		strings.HasSuffix(name, ".opendefer") ||
+ 		strings.HasSuffix(name, ".arginfo0") ||
+ 		strings.HasSuffix(name, ".arginfo1") ||
++		strings.HasSuffix(name, ".argliveinfo") ||
+ 		strings.HasSuffix(name, ".args_stackmap") ||
+ 		strings.HasSuffix(name, ".stkobj") {
+ 		return 'F' // go.func.* or go.funcrel.*
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 4ff0ebe13d..4d49a8d548 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -14,6 +14,7 @@ const (
+ 	PCDATA_UnsafePoint   = 0
+ 	PCDATA_StackMapIndex = 1
+ 	PCDATA_InlTreeIndex  = 2
++	PCDATA_ArgLiveIndex  = 3
+ 
+ 	FUNCDATA_ArgsPointerMaps    = 0
+ 	FUNCDATA_LocalsPointerMaps  = 1
+@@ -21,6 +22,7 @@ const (
+ 	FUNCDATA_InlTree            = 3
+ 	FUNCDATA_OpenCodedDeferInfo = 4
+ 	FUNCDATA_ArgInfo            = 5
++	FUNCDATA_ArgLiveInfo        = 6
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 7b1a0b7d1a..720c03afd2 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -566,6 +566,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+ 			strings.HasSuffix(name, ".arginfo1"),
++			strings.HasSuffix(name, ".argliveinfo"),
+ 			strings.HasSuffix(name, ".args_stackmap"),
+ 			strings.HasSuffix(name, ".stkobj"):
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 15f1b5c9a1..a454dcaa69 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -11,6 +11,7 @@
+ #define PCDATA_UnsafePoint 0
+ #define PCDATA_StackMapIndex 1
+ #define PCDATA_InlTreeIndex 2
++#define PCDATA_ArgLiveIndex 3
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
+@@ -18,6 +19,7 @@
+ #define FUNCDATA_InlTree 3
+ #define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
+ #define FUNCDATA_ArgInfo 5
++#define FUNCDATA_ArgLiveInfo 6
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ced39026c9..41161d6f90 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -301,6 +301,7 @@ const (
+ 	_PCDATA_UnsafePoint   = 0
+ 	_PCDATA_StackMapIndex = 1
+ 	_PCDATA_InlTreeIndex  = 2
++	_PCDATA_ArgLiveIndex  = 3
+ 
+ 	_FUNCDATA_ArgsPointerMaps    = 0
+ 	_FUNCDATA_LocalsPointerMaps  = 1
+@@ -308,6 +309,7 @@ const (
+ 	_FUNCDATA_InlTree            = 3
+ 	_FUNCDATA_OpenCodedDeferInfo = 4
+ 	_FUNCDATA_ArgInfo            = 5
++	_FUNCDATA_ArgLiveInfo        = 6
+ 
+ 	_ArgsSizeUnknown = -0x80000000
+ )
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 7e1b14ccf2..5de1abce9a 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -427,7 +427,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				}
+ 				print(name, "(")
+ 				argp := unsafe.Pointer(frame.argp)
+-				printArgs(f, argp)
++				printArgs(f, argp, tracepc)
+ 				print(")\n")
+ 				print("\t", file, ":", line)
+ 				if frame.pc > f.entry() {
+@@ -540,7 +540,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ }
+ 
+ // printArgs prints function arguments in traceback.
+-func printArgs(f funcInfo, argp unsafe.Pointer) {
++func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
+ 	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
+ 	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
+ 	// encoding.
+@@ -564,7 +564,25 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
+ 		return
+ 	}
+ 
+-	print1 := func(off, sz uint8) {
++	liveInfo := funcdata(f, _FUNCDATA_ArgLiveInfo)
++	liveIdx := pcdatavalue(f, _PCDATA_ArgLiveIndex, pc, nil)
++	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
++	if liveInfo != nil {
++		startOffset = *(*uint8)(liveInfo)
++	}
++
++	isLive := func(off, slotIdx uint8) bool {
++		if liveInfo == nil || liveIdx <= 0 {
++			return true // no liveness info, always live
++		}
++		if off < startOffset {
++			return true
++		}
++		bits := *(*uint8)(add(liveInfo, uintptr(liveIdx)+uintptr(slotIdx/8)))
++		return bits&(1<<(slotIdx%8)) != 0
++	}
++
++	print1 := func(off, sz, slotIdx uint8) {
+ 		x := readUnaligned64(add(argp, uintptr(off)))
+ 		// mask out irrelevant bits
+ 		if sz < 8 {
+@@ -576,6 +594,9 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
+ 			}
+ 		}
+ 		print(hex(x))
++		if !isLive(off, slotIdx) {
++			print("?")
++		}
+ 	}
+ 
+ 	start := true
+@@ -585,6 +606,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
+ 		}
+ 	}
+ 	pi := 0
++	slotIdx := uint8(0) // register arg spill slot index
+ printloop:
+ 	for {
+ 		o := p[pi]
+@@ -609,7 +631,10 @@ printloop:
+ 			printcomma()
+ 			sz := p[pi]
+ 			pi++
+-			print1(o, sz)
++			print1(o, sz, slotIdx)
++			if o >= startOffset {
++				slotIdx++
++			}
+ 		}
+ 		start = false
+ 	}
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 83b86a7e90..de9580ae53 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"internal/goexperiment"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -13,6 +14,13 @@ import (
+ var testTracebackArgsBuf [1000]byte
+ 
+ func TestTracebackArgs(t *testing.T) {
++	abiSel := func(x, y string) string { // select expected output based on ABI
++		if goexperiment.RegabiArgs {
++			return x
++		}
++		return y
++	}
++
+ 	tests := []struct {
+ 		fn     func() int
+ 		expect string
+@@ -105,6 +113,52 @@ func TestTracebackArgs(t *testing.T) {
+ 			func() int { return testTracebackArgs8d(testArgsType8d{1, 2, 3, 4, 5, 6, 7, 8, [3]int{9, 10, 11}, 12}) },
+ 			"testTracebackArgs8d({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa, ...}, ...})",
+ 		},
++
++		// Register argument liveness.
++		// 1, 3 are used and live, 2, 4 are dead (in register ABI).
++		// Address-taken (7) and stack ({5, 6}) args are always live.
++		{
++			func() int {
++				poisonStack() // poison arg area to make output deterministic
++				return testTracebackArgs9(1, 2, 3, 4, [2]int{5, 6}, 7)
++			},
++			abiSel(
++				"testTracebackArgs9(0x1, 0xffffffff?, 0x3, 0xff?, {0x5, 0x6}, 0x7)",
++				"testTracebackArgs9(0x1, 0x2, 0x3, 0x4, {0x5, 0x6}, 0x7)"),
++		},
++		// No live.
++		// (Note: this assume at least 5 int registers if register ABI is used.)
++		{
++			func() int {
++				poisonStack() // poison arg area to make output deterministic
++				return testTracebackArgs10(1, 2, 3, 4, 5)
++			},
++			abiSel(
++				"testTracebackArgs10(0xffffffff?, 0xffffffff?, 0xffffffff?, 0xffffffff?, 0xffffffff?)",
++				"testTracebackArgs10(0x1, 0x2, 0x3, 0x4, 0x5)"),
++		},
++		// Conditional spills.
++		// Spill in conditional, not executed.
++		{
++			func() int {
++				poisonStack() // poison arg area to make output deterministic
++				return testTracebackArgs11a(1, 2, 3)
++			},
++			abiSel(
++				"testTracebackArgs11a(0xffffffff?, 0xffffffff?, 0xffffffff?)",
++				"testTracebackArgs11a(0x1, 0x2, 0x3)"),
++		},
++		// 2 spills in conditional, not executed; 3 spills in conditional, executed, but not statically known.
++		// So print 0x3?.
++		{
++			func() int {
++				poisonStack() // poison arg area to make output deterministic
++				return testTracebackArgs11b(1, 2, 3, 4)
++			},
++			abiSel(
++				"testTracebackArgs11b(0xffffffff?, 0xffffffff?, 0x3?, 0x4)",
++				"testTracebackArgs11b(0x1, 0x2, 0x3, 0x4)"),
++		},
+ 	}
+ 	for _, test := range tests {
+ 		n := test.fn()
+@@ -290,3 +344,62 @@ func testTracebackArgs8d(a testArgsType8d) int {
+ 	}
+ 	return n
+ }
++
++//go:noinline
++func testTracebackArgs9(a int64, b int32, c int16, d int8, x [2]int, y int) int {
++	if a < 0 {
++		println(&y) // take address, make y live, even if no longer used at traceback
++	}
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a < 0 {
++		// use half of in-reg args to keep them alive, the other half are dead
++		return int(a) + int(c)
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs10(a, b, c, d, e int32) int {
++	// no use of any args
++	return runtime.Stack(testTracebackArgsBuf[:], false)
++}
++
++// norace to avoid race instrumentation changing spill locations.
++//
++//go:norace
++//go:noinline
++func testTracebackArgs11a(a, b, c int32) int {
++	if a < 0 {
++		println(a, b, c) // spill in a conditional, may not execute
++	}
++	if b < 0 {
++		return int(a + b + c)
++	}
++	return runtime.Stack(testTracebackArgsBuf[:], false)
++}
++
++// norace to avoid race instrumentation changing spill locations.
++//
++//go:norace
++//go:noinline
++func testTracebackArgs11b(a, b, c, d int32) int {
++	var x int32
++	if a < 0 {
++		print() // spill b in a conditional
++		x = b
++	} else {
++		print() // spill c in a conditional
++		x = c
++	}
++	if d < 0 { // d is always needed
++		return int(x + d)
++	}
++	return runtime.Stack(testTracebackArgsBuf[:], false)
++}
++
++// Poison the arg area with deterministic values.
++//
++//go:noinline
++func poisonStack() [20]int {
++	return [20]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
++}

@@ -7,6 +7,35 @@ Date:   Tue May 15 13:29:46 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6198075
-
+---
  test/fixedbugs/bug439.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/test/fixedbugs/bug439.go b/test/fixedbugs/bug439.go
+new file mode 100644
+index 0000000000..87d4ae0373
+--- /dev/null
++++ b/test/fixedbugs/bug439.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo used to crash compiling this.
++
++package p
++
++type E int
++
++func (e E) P() *E { return &e }
++
++const (
++	C1 E = 0
++	C2 = C1
++)
++
++func F() *E {
++	return C2.P()
++}

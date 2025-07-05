@@ -12,6 +12,19 @@ Date:   Wed Mar 8 14:48:43 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index f16e7d07bd..069a5996a4 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -140,6 +140,7 @@ func (f *Func) freeValue(v *Value) {
+ 		for i, cv := range vv {
+ 			if v == cv {
+ 				vv[i] = vv[len(vv)-1]
++				vv[len(vv)-1] = nil
+ 				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
+ 				break
+ 			}

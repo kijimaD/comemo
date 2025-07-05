@@ -7,7 +7,7 @@ Date:   Mon Mar 5 15:30:27 2012 +1100
     R=golang-dev, kyle, r
     CC=golang-dev
     https://golang.org/cl/5728055
-
+---
  doc/debugging_with_gdb.html |  3 +-
  doc/effective_go.html       |  2 +-
  doc/effective_go.tmpl       |  2 +-
@@ -17,3 +17,261 @@ Date:   Mon Mar 5 15:30:27 2012 +1100
  doc/reference-cmd.html      | 84 +++++++++++++++++++++++++++++++++++++++++++++
  doc/reference.html          | 34 ++++++++++++------
  8 files changed, 118 insertions(+), 19 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index d5c1a884c0..43977b7772 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -1,5 +1,6 @@
+ <!--{
+-	"Title": "Debugging Go Code with GDB"
++	"Title": "Debugging Go Code with GDB",
++	"Path": "/ref/gdb"
+ }-->
+ 
+ <p><i>
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 939d05a7d7..b9e62b6db4 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -31,7 +31,7 @@ will be easy for other Go programmers to understand.
+ 
+ <p>
+ This document gives tips for writing clear, idiomatic Go code.
+-It augments the <a href="go_spec.html">language specification</a>,
++It augments the <a href="/ref/spec">language specification</a>,
+ the <a href="http://tour.golang.org/">Tour of Go</a>,
+ and <a href="/doc/code.html">How to Write Go Code</a>,
+ all of which you
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index d953989316..9a0333dbaf 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -27,7 +27,7 @@ will be easy for other Go programmers to understand.
+ 
+ <p>
+ This document gives tips for writing clear, idiomatic Go code.
+-It augments the <a href="go_spec.html">language specification</a>,
++It augments the <a href="/ref/spec">language specification</a>,
+ the <a href="http://tour.golang.org/">Tour of Go</a>,
+ and <a href="/doc/code.html">How to Write Go Code</a>,
+ all of which you
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index eff7534263..d95da0f6fa 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1060,7 +1060,7 @@ What operations are atomic? What about mutexes?</h3>
+ 
+ <p>
+ We haven't fully defined it all yet, but some details about atomicity are
+-available in the <a href="go_mem.html">Go Memory Model specification</a>.
++available in the <a href="/ref/mem">Go Memory Model specification</a>.
+ </p>
+ 
+ <p>
+@@ -1113,7 +1113,7 @@ will experience performance degradation when using
+ multiple OS threads.
+ This is because sending data between threads involves switching
+ contexts, which has significant cost.
+-For instance, the <a href="/doc/go_spec.html#An_example_package">prime sieve example</a>
++For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
+ from the Go specification has no significant parallelism although it launches many
+ goroutines; increasing <code>GOMAXPROCS</code> is more likely to slow it down than
+ to speed it up.
+@@ -1131,7 +1131,7 @@ should recognize such cases and optimize its use of OS threads. For now,
+ Why do T and *T have different method sets?</h3>
+ 
+ <p>
+-From the <a href="http://golang.org/doc/go_spec.html#Types">Go Spec</a>:
++From the <a href="/ref/spec#Types">Go Spec</a>:
+ </p>
+ 
+ <blockquote>
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 2e341771fb..a003241581 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,6 +1,7 @@
+ <!--{
+ 	"Title": "The Go Memory Model",
+-	"Subtitle": "Version of June 10, 2011"
++	"Subtitle": "Version of June 10, 2011",
++	"Path": "/ref/mem"
+ }-->
+ 
+ <style>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index adc8a62c9a..ebd79bb809 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,7 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of March 1, 2012"
++	"Subtitle": "Version of March 1, 2012",
++	"Path": "/ref/spec"
+ }-->
+ 
+ <!--
+diff --git a/doc/reference-cmd.html b/doc/reference-cmd.html
+new file mode 100644
+index 0000000000..3665e3cbaf
+--- /dev/null
++++ b/doc/reference-cmd.html
+@@ -0,0 +1,84 @@
++<!--{
++	"Title": "Command Documentation",
++	"Path":  "/ref/cmd"
++}-->
++
++<p>
++Click on the links for more documentation and usage messages.
++</p>
++
++<table class="dir">
++<tr>
++<th>Name</th>
++<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
++<th>Synopsis</th>
++</tr>
++
++<tr>
++<td><a href="/cmd/go/">go</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>
++Go is a tool for managing Go source code.
++<br>
++Besides compiling and running Go programs, the go command is also used to
++invoke the other commands listed below. See the command docs for usage
++details.
++<br><br>
++</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/cgo/">cgo</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Cgo enables the creation of Go packages that call C code.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/cov/">cov</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Cov is a rudimentary code coverage tool.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/fix/">fix</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Fix finds Go programs that use old features of the language and libraries
++and rewrites them to use newer ones.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/godoc/">godoc</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Godoc extracts and generates documentation for Go programs.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/gofmt/">gofmt</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Gofmt formats Go programs.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/prof/">prof</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Prof is a rudimentary real-time profiler.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/vet/">vet</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string.</td>
++</tr>
++
++<tr>
++<td><a href="/cmd/yacc/">yacc</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Yacc is a version of yacc for Go.</td>
++</tr>
++
++</table>
++
++<p>
++This is an abridged list. See the <a href="/cmd/">full command reference</a>
++for documentation of the compilers and more.
++</p>
+diff --git a/doc/reference.html b/doc/reference.html
+index 5d8180846e..12a6ef96da 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -1,24 +1,25 @@
+ <!--{
+-	"Title": "References"
++	"Title": "References",
++	"Path":  "/ref/"
+ }-->
+ 
+ <img src="/doc/gopher/ref.png" align="right"/>
+ 
+-<p>Good bathroom reading.</p>
++<p>Good bedtime reading.</p>
+ 
+ <div>
+ 
+ <h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
+ <p>
+-The built-in documentation for the Go standard library.
++The documentation for the Go standard library.
+ </p>
+ 
+-<h3 id="cmd"><a href="/cmd/">Command Documentation</a></h3>
++<h3 id="cmd"><a href="/ref/cmd">Command Documentation</a></h3>
+ <p>
+-The built-in documentation for the Go tools.
++The documentation for the Go tools.
+ </p>
+ 
+-<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
++<h3 id="spec"><a href="/ref/spec">Language Specification</a></h3>
+ <p>
+ The official Go Language specification. 
+ </p>
+@@ -29,19 +30,30 @@ The documentation for
+ <a href="http://code.google.com/appengine/">Google App Engine</a>'s Go runtime.
+ </p>
+ 
+-<h3 id="release"><a href="devel/release.html">Release History</a></h3>
+-<p>A summary of the changes between Go releases.</p>
+-
+-<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
++<h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
+ <p>
+ A document that specifies the conditions under which reads of a variable in
+ one goroutine can be guaranteed to observe values produced by writes to the
+ same variable in a different goroutine.
+ </p>
+ 
+-<h3 id="debugging_with_gdb"><a href="debugging_with_gdb.html">Debugging Go Code with GDB</a></h3>
++<h3 id="debugging_with_gdb"><a href="/ref/gdb">Debugging Go Code with GDB</a></h3>
+ <p>
+ Using GDB to debug Go programs.
+ </p>
+ 
++<h3 id="articles">Articles</h2>
++
++<ul>
++<li><a href="http://blog.golang.org/2011/03/c-go-cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
++<li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
++<li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
++<li><a href="http://blog.golang.org/2011/03/godoc-documenting-go-code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
++<li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
++</ul>
++
++<p>
++See the <a href=/doc/#articles">documentation page</a> for more articles.
++</p>
++
+ </div>

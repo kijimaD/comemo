@@ -16,9 +16,107 @@ Date:   Tue May 23 10:39:43 2023 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/escape_iface.go         | 10 ++++++++++
  test/escape_iface_unified.go | 22 ----------------------
  test/inline.go               | 12 ++++++++++++
  test/inline_unified.go       | 19 -------------------
  4 files changed, 22 insertions(+), 41 deletions(-)
+
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index 986228129a..d822cca2f8 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -234,6 +234,16 @@ func dotTypeEscape2() { // #13805, #15796
+ 		*(&v) = x.(int)
+ 		*(&v), *(&ok) = y.(int)
+ 	}
++	{ // #13805, #15796
++		i := 0
++		j := 0
++		var ok bool
++		var x interface{} = i // ERROR "i does not escape"
++		var y interface{} = j // ERROR "j does not escape"
++
++		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
++		sink, *(&ok) = y.(int) // ERROR "autotmp_.* escapes to heap"
++	}
+ 	{
+ 		i := 0 // ERROR "moved to heap: i"
+ 		j := 0 // ERROR "moved to heap: j"
+diff --git a/test/escape_iface_unified.go b/test/escape_iface_unified.go
+deleted file mode 100644
+index 80dc80ca7b..0000000000
+--- a/test/escape_iface_unified.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// errorcheck -0 -m -l
+-
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package escape
+-
+-var sink interface{}
+-
+-func dotTypeEscape2() { // #13805, #15796
+-	{
+-		i := 0
+-		j := 0
+-		var ok bool
+-		var x interface{} = i // ERROR "i does not escape"
+-		var y interface{} = j // ERROR "j does not escape"
+-
+-		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
+-		sink, *(&ok) = y.(int) // ERROR "autotmp_.* escapes to heap"
+-	}
+-}
+diff --git a/test/inline.go b/test/inline.go
+index af39ad8cb5..3a9cd5c20c 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -110,6 +110,18 @@ func q(x int) int { // ERROR "can inline q"
+ 	return foo()                       // ERROR "inlining call to q.func1"
+ }
+ 
++func r(z int) int {
++	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
++		return x + z
++	}
++	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
++		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.r.func2.func3"
++			return 2*y + x*z
++		}(x) // ERROR "inlining call to r.func2.1"
++	}
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
++}
++
+ func s0(x int) int { // ERROR "can inline s0"
+ 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
+ 		x = x + 1
+diff --git a/test/inline_unified.go b/test/inline_unified.go
+deleted file mode 100644
+index c1b248e091..0000000000
+--- a/test/inline_unified.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+-
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package foo
+-
+-func r(z int) int {
+-	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
+-		return x + z
+-	}
+-	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.r.func2.func3"
+-			return 2*y + x*z
+-		}(x) // ERROR "inlining call to r.func2.1"
+-	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
+-}

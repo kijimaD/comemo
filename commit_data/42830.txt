@@ -11,7 +11,34 @@ Date:   Thu Feb 20 17:25:33 2020 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/pprof/pprof.go      | 3 +++
  src/net/http/pprof/pprof_test.go | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index a237f58609..5c33916fba 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -273,6 +273,9 @@ func Index(w http.ResponseWriter, r *http.Request) {
+ 		}
+ 	}
+ 
++	w.Header().Set("X-Content-Type-Options", "nosniff")
++	w.Header().Set("Content-Type", "text/html; charset=utf-8")
++
+ 	type profile struct {
+ 		Name  string
+ 		Href  string
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index dbb6fef159..61f39b7782 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -40,6 +40,7 @@ func TestHandlers(t *testing.T) {
+ 		{"/debug/pprof/profile?seconds=1", Profile, http.StatusOK, "application/octet-stream", `attachment; filename="profile"`, nil},
+ 		{"/debug/pprof/symbol", Symbol, http.StatusOK, "text/plain; charset=utf-8", "", nil},
+ 		{"/debug/pprof/trace", Trace, http.StatusOK, "application/octet-stream", `attachment; filename="trace"`, nil},
++		{"/debug/pprof/", Index, http.StatusOK, "text/html; charset=utf-8", "", []byte("Types of profiles available:")},
+ 	}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.path, func(t *testing.T) {

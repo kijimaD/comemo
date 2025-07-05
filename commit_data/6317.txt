@@ -7,6 +7,20 @@ Date:   Mon Sep 20 17:24:40 2010 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/2211044
-
+---
  src/pkg/netchan/netchan_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 4240b07869..c695db6ad8 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -170,7 +170,7 @@ func TestErrorForIllegalChannel(t *testing.T) {
+ 	select {
+ 	case err = <-imp.Errors():
+ 		if strings.Index(err.String(), "no such channel") < 0 {
+-			t.Errorf("wrong error for nonexistent channel:", err)
++			t.Error("wrong error for nonexistent channel:", err)
+ 		}
+ 	case <-timeout:
+ 		t.Error("import of nonexistent channel did not receive an error")

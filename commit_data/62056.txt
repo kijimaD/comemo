@@ -12,6 +12,20 @@ Date:   Mon Jan 27 20:41:55 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/goexperiment/flags.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 31b3d0315b..948ed5c802 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -51,7 +51,7 @@ package goexperiment
+ // tags, experiments use the strings.ToLower of their field name.
+ //
+ // For the baseline experimental configuration, see
+-// objabi.experimentBaseline.
++// [internal/buildcfg.ParseGOEXPERIMENT].
+ //
+ // If you change this struct definition, run "go generate".
+ type Flags struct {

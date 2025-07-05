@@ -7,9 +7,105 @@ Date:   Fri Sep 23 23:38:52 2011 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5039042
-
+---
  src/pkg/syscall/types_linux.c         | 2 ++
  src/pkg/syscall/ztypes_linux_386.go   | 7 +++++++
  src/pkg/syscall/ztypes_linux_amd64.go | 7 +++++++
  src/pkg/syscall/ztypes_linux_arm.go   | 7 +++++++
  4 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 68d64a3a3b..d8ba389b5a 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -117,6 +117,7 @@ typedef struct ip_mreq $IPMreq;
+ typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
++typedef struct in_pktinfo $Inet4Pktinfo;
+ typedef struct in6_pktinfo $Inet6Pktinfo;
+ typedef struct ucred $Ucred;
+ 
+@@ -132,6 +133,7 @@ enum {
+ 	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
++	$SizeofInet4Pktinfo = sizeof(struct in_pktinfo),
+ 	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
+ 	$SizeofUcred = sizeof(struct ucred),
+ };
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 0335eb5ee2..46c92b4169 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -23,6 +23,7 @@ const (
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
++	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+@@ -328,6 +329,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet4Pktinfo struct {
++	Ifindex  int32
++	Spec_dst [4]byte /* in_addr */
++	Addr     [4]byte /* in_addr */
++}
++
+ type Inet6Pktinfo struct {
+ 	Addr    [16]byte /* in6_addr */
+ 	Ifindex uint32
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index c97b7f6fa9..793c2b0702 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -23,6 +23,7 @@ const (
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x38
+ 	SizeofCmsghdr           = 0x10
++	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+@@ -330,6 +331,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet4Pktinfo struct {
++	Ifindex  int32
++	Spec_dst [4]byte /* in_addr */
++	Addr     [4]byte /* in_addr */
++}
++
+ type Inet6Pktinfo struct {
+ 	Addr    [16]byte /* in6_addr */
+ 	Ifindex uint32
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 3d4aded9ca..c56afbe5dc 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -28,6 +28,7 @@ const (
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
++	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+@@ -335,6 +336,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet4Pktinfo struct {
++	Ifindex  int32
++	Spec_dst [4]byte /* in_addr */
++	Addr     [4]byte /* in_addr */
++}
++
+ type Inet6Pktinfo struct {
+ 	Addr    [16]byte /* in6_addr */
+ 	Ifindex uint32

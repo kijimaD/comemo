@@ -6,6 +6,21 @@ Date:   Thu Dec 10 13:14:44 2009 -0800
     
     R=rsc, ken2
     https://golang.org/cl/174047
-
+---
  test/ken/chan1.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index 0008e314b6..d4c4f460f3 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -22,8 +22,7 @@ r(c chan int, m int) {
+ 				panicln("r",
+ 					"m=", m,
+ 					"r=", r,
+-					"h=", h[r],
+-				);
++					"h=", h[r]);
+ 			}
+ 			h[r] = 2;
+ 		}

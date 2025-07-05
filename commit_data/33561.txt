@@ -19,8 +19,64 @@ Date:   Tue Jun 13 12:24:19 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go           |  4 +++-
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 16 ++++++++--------
  src/cmd/internal/obj/arm64/asm7.go           |  2 +-
  3 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index b46ae9d5f8..4320a299ff 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -56,7 +56,9 @@ func jumpArm64(word string) bool {
+ func IsARM64CMP(op obj.As) bool {
+ 	switch op {
+ 	case arm64.ACMN, arm64.ACMP, arm64.ATST,
+-		arm64.ACMNW, arm64.ACMPW, arm64.ATSTW:
++		arm64.ACMNW, arm64.ACMPW, arm64.ATSTW,
++		arm64.AFCMPS, arm64.AFCMPD,
++		arm64.AFCMPES, arm64.AFCMPED:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 5c218b50a2..686ae0fa42 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -398,14 +398,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    FCCMPD HI, F11, F15, $15                   // ef856b1e
+    FCCMPES HS, F28, F13, $13                  // bd253c1e
+    FCCMPED LT, F20, F4, $9                    // 99b4741e
+-   // FCMPS F3, F17                           // 2022231e
+-   // FCMPS $(0.0), F8                        // 0821201e
+-   // FCMPD F11, F27                          // 60236b1e
+-   // FCMPD $(0.0), F25                       // 2823601e
+-   // FCMPES F16, F30                         // d023301e
+-   // FCMPES $(0.0), F29                      // b823201e
+-   // FCMPED F13, F10                         // 50216d1e
+-   // FCMPED $(0.0), F25                      // 3823601e
++   FCMPS F3, F17                              // 2022231e
++   FCMPS $(0.0), F8                           // 0821201e
++   FCMPD F11, F27                             // 60236b1e
++   FCMPD $(0.0), F25                          // 2823601e
++   FCMPES F16, F30                            // d023301e
++   FCMPES $(0.0), F29                         // b823201e
++   FCMPED F13, F10                            // 50216d1e
++   FCMPED $(0.0), F25                         // 3823601e
+    // FCSELS EQ, F26, F27, F25                // 590f3b1e
+    // FCSELD PL, F8, F22, F7                  // 075d761e
+    //TODO FCVTASW F21, R15                    // af02241e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index f05150c87a..8b976cae31 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2882,7 +2882,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.oprrr(p, p.As)
+ 
+ 		var rf int
+-		if p.From.Type == obj.TYPE_CONST {
++		if p.From.Type == obj.TYPE_FCONST {
+ 			o1 |= 8 /* zero */
+ 			rf = 0
+ 		} else {

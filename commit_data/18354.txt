@@ -15,10 +15,208 @@ Date:   Mon Jan 27 15:11:12 2014 +0400
     R=khr
     CC=golang-codereviews, iant, rsc
     https://golang.org/cl/53340044
-
+---
  src/pkg/runtime/append_test.go | 19 +++++++++++++++++
  src/pkg/runtime/malloc.h       |  1 +
  src/pkg/runtime/msize.c        | 15 ++++++++++++++
  src/pkg/runtime/slice.c        | 46 +++++++++++++++++++++++++++++++++---------
  src/pkg/runtime/string.goc     | 18 +++++++++++++----
  5 files changed, 86 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+index 937c8259fd..a67dc9b494 100644
+--- a/src/pkg/runtime/append_test.go
++++ b/src/pkg/runtime/append_test.go
+@@ -19,6 +19,25 @@ func BenchmarkAppend(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkAppendGrowByte(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x []byte
++		for j := 0; j < 1<<20; j++ {
++			x = append(x, byte(j))
++		}
++	}
++}
++
++func BenchmarkAppendGrowString(b *testing.B) {
++	var s string
++	for i := 0; i < b.N; i++ {
++		var x []string
++		for j := 0; j < 1<<20; j++ {
++			x = append(x, s)
++		}
++	}
++}
++
+ func benchmarkAppendBytes(b *testing.B, length int) {
+ 	b.StopTimer()
+ 	x := make([]byte, 0, N)
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 8122b4b0b8..4146299223 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -273,6 +273,7 @@ extern MStats mstats;
+ //	making new objects in class i
+ 
+ int32	runtime·SizeToClass(int32);
++uintptr	runtime·roundupsize(uintptr);
+ extern	int32	runtime·class_to_size[NumSizeClasses];
+ extern	int32	runtime·class_to_allocnpages[NumSizeClasses];
+ extern	int8	runtime·size_to_class8[1024/8 + 1];
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 85088fdf46..63d5ef490e 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -162,3 +162,18 @@ dump:
+ 	}
+ 	runtime·throw("InitSizes failed");
+ }
++
++// Returns size of the memory block that mallocgc will allocate if you ask for the size.
++uintptr
++runtime·roundupsize(uintptr size)
++{
++	if(size < MaxSmallSize) {
++		if(size <= 1024-8)
++			return runtime·class_to_size[runtime·size_to_class8[(size+7)>>3]];
++		else
++			return runtime·class_to_size[runtime·size_to_class128[(size-1024+127) >> 7]];
++	}
++	if(size + PageSize < size)
++		return size;
++	return ROUND(size, PageSize);
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index ef8ab7fe0a..c3b240bc83 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -8,6 +8,7 @@
+ #include "typekind.h"
+ #include "malloc.h"
+ #include "race.h"
++#include "stack.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+ enum
+@@ -92,26 +93,53 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ static void
+ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+ {
+-	intgo m;
++	intgo newcap1;
++	uintptr capmem, lenmem;
++	int32 flag;
++	Type *typ;
++
++	typ = t->elem;
++	if(typ->size == 0) {
++		*ret = x;
++		ret->cap = newcap;
++		return;
++	}
+ 
+-	m = x.cap;
++	newcap1 = x.cap;
+ 	
+ 	// Using newcap directly for m+m < newcap handles
+ 	// both the case where m == 0 and also the case where
+ 	// m+m/4 wraps around, in which case the loop
+ 	// below might never terminate.
+-	if(m+m < newcap)
+-		m = newcap;
++	if(newcap1+newcap1 < newcap)
++		newcap1 = newcap;
+ 	else {
+ 		do {
+ 			if(x.len < 1024)
+-				m += m;
++				newcap1 += newcap1;
+ 			else
+-				m += m/4;
+-		} while(m < newcap);
++				newcap1 += newcap1/4;
++		} while(newcap1 < newcap);
+ 	}
+-	makeslice1(t, x.len, m, ret);
+-	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
++
++	if(newcap1 > MaxMem/typ->size)
++		runtime·panicstring("growslice: cap out of range");
++	capmem = runtime·roundupsize(newcap1*typ->size);
++	flag = FlagNoZero;
++	if(typ->kind&KindNoPointers)
++		flag |= FlagNoScan;
++	// Here we allocate with FlagNoZero but potentially w/o FlagNoScan,
++	// GC must not see this blocks until memclr below.
++	m->locks++;
++	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
++	ret->len = x.len;
++	ret->cap = capmem/typ->size;
++	lenmem = x.len*typ->size;
++	runtime·memmove(ret->array, x.array, lenmem);
++	runtime·memclr(ret->array+lenmem, capmem-lenmem);
++	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ // copy(to any, fr any, wid uintptr) int
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 8eff05a843..407188cfe6 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -78,6 +78,7 @@ runtime·gostringn(byte *str, intgo l)
+ 	return s;
+ }
+ 
++// used by cmd/cgo
+ Slice
+ runtime·gobytes(byte *p, intgo n)
+ {
+@@ -278,10 +279,15 @@ func slicebytetostring(b Slice) (s String) {
+ }
+ 
+ func stringtoslicebyte(s String) (b Slice) {
+-	b.array = runtime·mallocgc(s.len, 0, FlagNoScan|FlagNoZero);
++	uintptr cap;
++
++	cap = runtime·roundupsize(s.len);
++	b.array = runtime·mallocgc(cap, 0, FlagNoScan|FlagNoZero);
+ 	b.len = s.len;
+-	b.cap = s.len;
++	b.cap = cap;
+ 	runtime·memmove(b.array, s.str, s.len);
++	if(cap != b.len)
++		runtime·memclr(b.array+b.len, cap-b.len);
+ }
+ 
+ func slicerunetostring(b Slice) (s String) {
+@@ -316,6 +322,7 @@ func stringtoslicerune(s String) (b Slice) {
+ 	intgo n;
+ 	int32 dum, *r;
+ 	uint8 *p, *ep;
++	uintptr mem;
+ 
+ 	// two passes.
+ 	// unlike slicerunetostring, no race because strings are immutable.
+@@ -327,13 +334,16 @@ func stringtoslicerune(s String) (b Slice) {
+ 		n++;
+ 	}
+ 
+-	b.array = runtime·mallocgc(n*sizeof(r[0]), 0, FlagNoScan|FlagNoZero);
++	mem = runtime·roundupsize(n*sizeof(r[0]));
++	b.array = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
+ 	b.len = n;
+-	b.cap = n;
++	b.cap = mem/sizeof(r[0]);
+ 	p = s.str;
+ 	r = (int32*)b.array;
+ 	while(p < ep)
+ 		p += runtime·charntorune(r++, p, ep-p);
++	if(b.cap > b.len)
++		runtime·memclr(b.array+b.len*sizeof(r[0]), (b.cap-b.len)*sizeof(r[0]));
+ }
+ 
+ enum

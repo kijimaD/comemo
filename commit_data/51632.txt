@@ -19,7 +19,61 @@ Date:   Mon Feb 28 16:39:28 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/go/testdata/script/work.txt      | 4 ++--
  src/cmd/go/testdata/script/work_edit.txt | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index a10bf5a1c3..fa1558f9e6 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -4,7 +4,7 @@ go env GOWORK
+ ! stdout .
+ 
+ go work init ./a ./b
+-cmp go.work go.work.want
++cmpenv go.work go.work.want
+ go env GOWORK
+ stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
+ 
+@@ -69,7 +69,7 @@ use (
+   ../src/a
+ )
+ -- go.work.want --
+-go 1.18
++go $goversion
+ 
+ use (
+ 	./a
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index 71959ca0dd..278afb7f61 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -1,10 +1,10 @@
+ # Test editing go.work files.
+ 
+ go work init m
+-cmp go.work go.work.want_initial
++cmpenv go.work go.work.want_initial
+ 
+ go work edit -use n
+-cmp go.work go.work.want_use_n
++cmpenv go.work go.work.want_use_n
+ 
+ go work edit -go 1.18
+ cmp go.work go.work.want_go_118
+@@ -39,11 +39,11 @@ module m
+ 
+ go 1.18
+ -- go.work.want_initial --
+-go 1.18
++go $goversion
+ 
+ use ./m
+ -- go.work.want_use_n --
+-go 1.18
++go $goversion
+ 
+ use (
+ 	./m

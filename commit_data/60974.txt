@@ -15,10 +15,133 @@ Date:   Fri Sep 13 13:48:33 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/cgo/main.go                       | 9 +++------
  src/cmd/compile/internal/pgoir/irgraph.go | 6 ++----
  src/cmd/fix/typecheck.go                  | 7 ++++---
  src/cmd/go/internal/load/godebug.go       | 5 ++---
  src/cmd/go/internal/load/test.go          | 5 ++---
  5 files changed, 13 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 7a78cd270d..44252d9144 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -18,6 +18,7 @@ import (
+ 	"go/token"
+ 	"internal/buildcfg"
+ 	"io"
++	"maps"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -598,12 +599,8 @@ func (p *Package) Record(f *File) {
+ 	}
+ 
+ 	// merge nocallback & noescape
+-	for k, v := range f.NoCallbacks {
+-		p.noCallbacks[k] = v
+-	}
+-	for k, v := range f.NoEscapes {
+-		p.noEscapes[k] = v
+-	}
++	maps.Copy(p.noCallbacks, f.NoCallbacks)
++	maps.Copy(p.noEscapes, f.NoEscapes)
+ 
+ 	if f.ExpFunc != nil {
+ 		p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
+diff --git a/src/cmd/compile/internal/pgoir/irgraph.go b/src/cmd/compile/internal/pgoir/irgraph.go
+index 044c18da65..914a4da8b5 100644
+--- a/src/cmd/compile/internal/pgoir/irgraph.go
++++ b/src/cmd/compile/internal/pgoir/irgraph.go
+@@ -50,6 +50,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/pgo"
+ 	"fmt"
++	"maps"
+ 	"os"
+ )
+ 
+@@ -296,10 +297,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
+ 	// package build by VisitIR. We want to filter for local functions
+ 	// below, but we also add unknown callees to IRNodes as we go. So make
+ 	// an initial copy of IRNodes to recall just the local functions.
+-	localNodes := make(map[string]*IRNode, len(g.IRNodes))
+-	for k, v := range g.IRNodes {
+-		localNodes[k] = v
+-	}
++	localNodes := maps.Clone(g.IRNodes)
+ 
+ 	// N.B. We must consider edges in a stable order because export data
+ 	// lookup order (LookupMethodFunc, below) can impact the export data of
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index b115987390..be21582fce 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"maps"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -272,9 +273,9 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[
+ 					if !copied {
+ 						copied = true
+ 						// Copy map lazily: it's time.
+-						cfg1.Type = make(map[string]*Type)
+-						for k, v := range cfg.Type {
+-							cfg1.Type[k] = v
++						cfg1.Type = maps.Clone(cfg.Type)
++						if cfg1.Type == nil {
++							cfg1.Type = make(map[string]*Type)
+ 						}
+ 					}
+ 					t := &Type{Field: map[string]string{}}
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+index 4bb734ce64..301090670c 100644
+--- a/src/cmd/go/internal/load/godebug.go
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/godebugs"
++	"maps"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -89,9 +90,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
+ 	defaults := godebugForGoVersion(goVersion)
+ 	if defaults != nil {
+ 		// Apply m on top of defaults.
+-		for k, v := range m {
+-			defaults[k] = v
+-		}
++		maps.Copy(defaults, m)
+ 		m = defaults
+ 	}
+ 
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 0a9ddeede1..31fe23a61c 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/lazytemplate"
++	"maps"
+ 	"path/filepath"
+ 	"slices"
+ 	"sort"
+@@ -212,9 +213,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 		if testEmbed == nil && len(p.Internal.Embed) > 0 {
+ 			testEmbed = map[string][]string{}
+ 		}
+-		for k, v := range p.Internal.Embed {
+-			testEmbed[k] = v
+-		}
++		maps.Copy(testEmbed, p.Internal.Embed)
+ 		ptest.Internal.Embed = testEmbed
+ 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
+ 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath

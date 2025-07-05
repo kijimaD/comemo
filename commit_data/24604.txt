@@ -10,7 +10,7 @@ Date:   Wed Aug 5 22:11:14 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13257
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 24 ++++++-
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 52 +++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules      |  5 ++
@@ -19,3 +19,393 @@ Date:   Wed Aug 5 22:11:14 2015 -0400
  src/cmd/compile/internal/ssa/opGen.go             | 72 ++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go      | 80 +++++++++++++++++++++++
  7 files changed, 262 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 041e321717..13a6d6c009 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -843,6 +843,11 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OGE, TUINT32}: ssa.OpGeq32U,
+ 	opAndType{OGE, TINT64}:  ssa.OpGeq64,
+ 	opAndType{OGE, TUINT64}: ssa.OpGeq64U,
++
++	opAndType{OLROT, TUINT8}:  ssa.OpLrot8,
++	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
++	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
++	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
+ }
+ 
+ func (s *state) concreteEtype(t *Type) uint8 {
+@@ -967,6 +972,15 @@ func (s *state) ssaShiftOp(op uint8, t *Type, u *Type) ssa.Op {
+ 	return x
+ }
+ 
++func (s *state) ssaRotateOp(op uint8, t *Type) ssa.Op {
++	etype1 := s.concreteEtype(t)
++	x, ok := opToSSA[opAndType{op, etype1}]
++	if !ok {
++		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(int(etype1), 0))
++	}
++	return x
++}
++
+ // expr converts the expression n to ssa, adds it to s and returns the ssa result.
+ func (s *state) expr(n *Node) *ssa.Value {
+ 	s.pushLine(n.Lineno)
+@@ -1140,6 +1154,13 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
++	case OLROT:
++		a := s.expr(n.Left)
++		i := n.Right.Int()
++		if i <= 0 || i >= n.Type.Size()*8 {
++			s.Fatalf("Wrong rotate distance for LROT, expected 1 through %d, saw %d", n.Type.Size()*8-1, i)
++		}
++		return s.newValue1I(s.ssaRotateOp(n.Op, n.Type), a.Type, i, a)
+ 	case OANDAND, OOROR:
+ 		// To implement OANDAND (and OOROR), we introduce a
+ 		// new temporary variable to hold the result. The
+@@ -1936,7 +1957,8 @@ func genValue(v *ssa.Value) {
+ 		ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
+ 		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
+ 		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
+-		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst:
++		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
++		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
+ 		// This code compensates for the fact that the register allocator
+ 		// doesn't understand 2-address instructions yet.  TODO: fix that.
+ 		x := regnum(v.Args[0])
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 6341e9b90d..0dbf9451ab 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -171,6 +171,57 @@ func testOcom_ssa(a, b int32) (int32, int32) {
+ 	return ^^^^a, ^^^^^b
+ }
+ 
++func lrot1_ssa(w uint8, x uint16, y uint32, z uint64) (a uint8, b uint16, c uint32, d uint64) {
++	a = (w << 5) | (w >> 3)
++	b = (x << 13) | (x >> 3)
++	c = (y << 29) | (y >> 3)
++	d = (z << 61) | (z >> 3)
++	return
++}
++
++func lrot2_ssa(w, n uint32) uint32 {
++	// Want to be sure that a "rotate by 32" which
++	// is really 0 | (w >> 0) == w
++	// is correctly compiled.
++	switch { // prevents inlining
++	}
++	return (w << n) | (w >> (32 - n))
++}
++
++func lrot3_ssa(w uint32) uint32 {
++	// Want to be sure that a "rotate by 32" which
++	// is really 0 | (w >> 0) == w
++	// is correctly compiled.
++	switch { // prevents inlining
++	}
++	return (w << 32) | (w >> (32 - 32))
++}
++
++func testLrot() {
++	wantA, wantB, wantC, wantD := uint8(0xe1), uint16(0xe001),
++		uint32(0xe0000001), uint64(0xe000000000000001)
++	a, b, c, d := lrot1_ssa(0xf, 0xf, 0xf, 0xf)
++	if a != wantA || b != wantB || c != wantC || d != wantD {
++		println("lrot1_ssa(0xf, 0xf, 0xf, 0xf)=",
++			wantA, wantB, wantC, wantD, ", got", a, b, c, d)
++		failed = true
++	}
++	x := lrot2_ssa(0xb0000001, 32)
++	wantX := uint32(0xb0000001)
++	if x != wantX {
++		println("lrot2_ssa(0xb0000001, 32)=",
++			wantX, ", got", x)
++		failed = true
++	}
++	x = lrot3_ssa(0xb0000001)
++	if x != wantX {
++		println("lrot3_ssa(0xb0000001)=",
++			wantX, ", got", x)
++		failed = true
++	}
++
++}
++
+ var failed = false
+ 
+ func main() {
+@@ -181,6 +232,7 @@ func main() {
+ 	testSubqToNegq()
+ 	testBitwiseLogic()
+ 	testOcom()
++	testLrot()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f4a26c8c64..42b3cf2777 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -102,6 +102,11 @@
+ (Lsh8x16 <t> x y)  -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+ (Lsh8x8 <t> x y)   -> (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+ 
++(Lrot64 <t> x [c]) -> (ROLQconst <t> [c&63] x)
++(Lrot32 <t> x [c]) -> (ROLLconst <t> [c&31] x)
++(Lrot16 <t> x [c]) -> (ROLWconst <t> [c&15] x)
++(Lrot8 <t> x [c])  -> (ROLBconst <t> [c&7] x)
++
+ (Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+ (Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+ (Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 0c306cbbcb..65fc5c60e1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -209,6 +209,11 @@ func init() {
+ 		{name: "SARWconst", reg: gp11, asm: "SARW"}, // signed arg0 >> auxint, shift amount 0-31
+ 		{name: "SARBconst", reg: gp11, asm: "SARB"}, // signed arg0 >> auxint, shift amount 0-31
+ 
++		{name: "ROLQconst", reg: gp11, asm: "ROLQ"}, // arg0 rotate left auxint, rotate amount 0-63
++		{name: "ROLLconst", reg: gp11, asm: "ROLL"}, // arg0 rotate left auxint, rotate amount 0-31
++		{name: "ROLWconst", reg: gp11, asm: "ROLW"}, // arg0 rotate left auxint, rotate amount 0-15
++		{name: "ROLBconst", reg: gp11, asm: "ROLB"}, // arg0 rotate left auxint, rotate amount 0-7
++
+ 		// unary ops
+ 		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
+ 		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 657973e333..4aa6af5c9e 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -94,6 +94,31 @@ var genericOps = []opData{
+ 	{name: "Rsh64Ux32"},
+ 	{name: "Rsh64Ux64"},
+ 
++	// (Left) rotates replace pattern matches in the front end
++	// of (arg0 << arg1) ^ (arg0 >> (A-arg1))
++	// where A is the bit width of arg0 and result.
++	// Note that because rotates are pattern-matched from
++	// shifts, that a rotate of arg1=A+k (k > 0) bits originated from
++	//    (arg0 << A+k) ^ (arg0 >> -k) =
++	//    0 ^ arg0>>huge_unsigned =
++	//    0 ^ 0 = 0
++	// which is not the same as a rotation by A+k
++	//
++	// However, in the specific case of k = 0, the result of
++	// the shift idiom is the same as the result for the
++	// rotate idiom, i.e., result=arg0.
++	// This is different from shifts, where
++	// arg0 << A is defined to be zero.
++	//
++	// Because of this, and also because the primary use case
++	// for rotates is hashing and crypto code with constant
++	// distance, rotate instructions are only substituted
++	// when arg1 is a constant between 1 and A-1, inclusive.
++	{name: "Lrot8"},
++	{name: "Lrot16"},
++	{name: "Lrot32"},
++	{name: "Lrot64"},
++
+ 	// 2-input comparisons
+ 	{name: "Eq8"}, // arg0 == arg1
+ 	{name: "Eq16"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e77df40ebd..427fb33f57 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -137,6 +137,10 @@ const (
+ 	OpAMD64SARLconst
+ 	OpAMD64SARWconst
+ 	OpAMD64SARBconst
++	OpAMD64ROLQconst
++	OpAMD64ROLLconst
++	OpAMD64ROLWconst
++	OpAMD64ROLBconst
+ 	OpAMD64NEGQ
+ 	OpAMD64NEGL
+ 	OpAMD64NEGW
+@@ -265,6 +269,10 @@ const (
+ 	OpRsh64Ux16
+ 	OpRsh64Ux32
+ 	OpRsh64Ux64
++	OpLrot8
++	OpLrot16
++	OpLrot32
++	OpLrot64
+ 	OpEq8
+ 	OpEq16
+ 	OpEq32
+@@ -1454,6 +1462,54 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "ROLQconst",
++		asm:  x86.AROLQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ROLLconst",
++		asm:  x86.AROLL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ROLWconst",
++		asm:  x86.AROLW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ROLBconst",
++		asm:  x86.AROLB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "NEGQ",
+ 		asm:  x86.ANEGQ,
+@@ -2354,6 +2410,22 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Rsh64Ux64",
+ 		generic: true,
+ 	},
++	{
++		name:    "Lrot8",
++		generic: true,
++	},
++	{
++		name:    "Lrot16",
++		generic: true,
++	},
++	{
++		name:    "Lrot32",
++		generic: true,
++	},
++	{
++		name:    "Lrot64",
++		generic: true,
++	},
+ 	{
+ 		name:    "Eq8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 867d62b1bc..4a9fa71bdb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2544,6 +2544,86 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end8f83bf72293670e75b22d6627bd13f0b
+ 	end8f83bf72293670e75b22d6627bd13f0b:
+ 		;
++	case OpLrot16:
++		// match: (Lrot16 <t> x [c])
++		// cond:
++		// result: (ROLWconst <t> [c&15] x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			c := v.AuxInt
++			v.Op = OpAMD64ROLWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AuxInt = c & 15
++			v.AddArg(x)
++			return true
++		}
++		goto endb23dfa24c619d0068f925899d53ee7fd
++	endb23dfa24c619d0068f925899d53ee7fd:
++		;
++	case OpLrot32:
++		// match: (Lrot32 <t> x [c])
++		// cond:
++		// result: (ROLLconst <t> [c&31] x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			c := v.AuxInt
++			v.Op = OpAMD64ROLLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AuxInt = c & 31
++			v.AddArg(x)
++			return true
++		}
++		goto end38b2215c011896c36845f72ecb72b1b0
++	end38b2215c011896c36845f72ecb72b1b0:
++		;
++	case OpLrot64:
++		// match: (Lrot64 <t> x [c])
++		// cond:
++		// result: (ROLQconst <t> [c&63] x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			c := v.AuxInt
++			v.Op = OpAMD64ROLQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AuxInt = c & 63
++			v.AddArg(x)
++			return true
++		}
++		goto end5cb355e4f3ca387f252ef4f6a55f9f68
++	end5cb355e4f3ca387f252ef4f6a55f9f68:
++		;
++	case OpLrot8:
++		// match: (Lrot8 <t> x [c])
++		// cond:
++		// result: (ROLBconst <t> [c&7] x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			c := v.AuxInt
++			v.Op = OpAMD64ROLBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AuxInt = c & 7
++			v.AddArg(x)
++			return true
++		}
++		goto end26bfb3dd5b537cf13ac9f2978d94ed71
++	end26bfb3dd5b537cf13ac9f2978d94ed71:
++		;
+ 	case OpLsh16x16:
+ 		// match: (Lsh16x16 <t> x y)
+ 		// cond:

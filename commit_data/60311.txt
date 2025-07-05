@@ -19,7 +19,48 @@ Date:   Wed Jun 12 19:58:36 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/592201
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/cover.go           |  3 +++
  src/cmd/go/testdata/script/list_n_cover.txt | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index c0acc61987..3b732569a8 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -44,6 +44,9 @@ func BuildActionCoverMetaFile(runAct *Action) (string, error) {
+ 		}
+ 		if pred.Package.ImportPath == p.ImportPath {
+ 			metaFile := pred.Objdir + covcmd.MetaFileForPackage(p.ImportPath)
++			if cfg.BuildN {
++				return metaFile, nil
++			}
+ 			f, err := os.Open(metaFile)
+ 			if err != nil {
+ 				return "", err
+diff --git a/src/cmd/go/testdata/script/list_n_cover.txt b/src/cmd/go/testdata/script/list_n_cover.txt
+new file mode 100644
+index 0000000000..a85f62f522
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_n_cover.txt
+@@ -0,0 +1,20 @@
++# Adding -cover to "go test -n" should not cause failures,
++# see issue 67952. In the regular (no "-n") case for an
++# empty package test action for the package will look for
++# a static meta-data file produced by the cover tool
++# during the build action; when "-n" is in effect that
++# meta-data file doesn't exist, so the code that reads
++# the meta-data file has to be stubbed out.
++
++go test -vet=off -n -cover ./f
++
++-- go.mod --
++module M
++
++go 1.21
++-- f/f.go --
++package f
++
++func Id() int {
++     return 42
++}

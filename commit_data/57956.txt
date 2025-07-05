@@ -18,8 +18,57 @@ Date:   Sat Sep 9 00:20:40 2023 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/zstd/xxhash_test.go | 6 +++++-
  src/internal/zstd/zstd.go        | 1 +
  src/internal/zstd/zstd_test.go   | 5 ++++-
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/zstd/xxhash_test.go b/src/internal/zstd/xxhash_test.go
+index 646cee888a..032739fbc0 100644
+--- a/src/internal/zstd/xxhash_test.go
++++ b/src/internal/zstd/xxhash_test.go
+@@ -42,7 +42,11 @@ func TestLargeXXHash(t *testing.T) {
+ 		t.Skip("skipping expensive test in short mode")
+ 	}
+ 
+-	data := bigData(t)
++	data, err := os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++
+ 	var xh xxhash64
+ 	xh.reset()
+ 	i := 0
+diff --git a/src/internal/zstd/zstd.go b/src/internal/zstd/zstd.go
+index a8607893cd..25a731c164 100644
+--- a/src/internal/zstd/zstd.go
++++ b/src/internal/zstd/zstd.go
+@@ -466,6 +466,7 @@ func (r *Reader) saveWindow(buf []byte) {
+ 	if keep < len(r.window) {
+ 		remove := len(r.window) - keep
+ 		copy(r.window[:], r.window[remove:])
++		r.window = r.window[:keep]
+ 	}
+ 
+ 	r.window = append(r.window, buf...)
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index bc75e0fb03..33f3def878 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -115,10 +115,13 @@ var (
+ 	bigDataErr   error
+ )
+ 
+-// bigData returns the contents of our large test file.
++// bigData returns the contents of our large test file repeated multiple times.
+ func bigData(t testing.TB) []byte {
+ 	bigDataOnce.Do(func() {
+ 		bigDataBytes, bigDataErr = os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
++		if bigDataErr == nil {
++			bigDataBytes = bytes.Repeat(bigDataBytes, 3)
++		}
+ 	})
+ 	if bigDataErr != nil {
+ 		t.Fatal(bigDataErr)

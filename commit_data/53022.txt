@@ -28,7 +28,87 @@ Date:   Fri May 27 15:54:44 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                     | 21 +++++++++++++++++++--
  .../go/testdata/script/version_build_settings.txt   | 17 ++++++++++++++++-
  2 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 95a06a325d..fcb72b07b2 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2347,7 +2347,17 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 		appendSetting("-gcflags", gcflags)
+ 	}
+ 	if ldflags := BuildLdflags.String(); ldflags != "" {
+-		appendSetting("-ldflags", ldflags)
++		// https://go.dev/issue/52372: only include ldflags if -trimpath is not set,
++		// since it can include system paths through various linker flags (notably
++		// -extar, -extld, and -extldflags).
++		//
++		// TODO: since we control cmd/link, in theory we can parse ldflags to
++		// determine whether they may refer to system paths. If we do that, we can
++		// redact only those paths from the recorded -ldflags setting and still
++		// record the system-independent parts of the flags.
++		if !cfg.BuildTrimpath {
++			appendSetting("-ldflags", ldflags)
++		}
+ 	}
+ 	if cfg.BuildMSan {
+ 		appendSetting("-msan", "true")
+@@ -2366,7 +2376,14 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 		cgo = "1"
+ 	}
+ 	appendSetting("CGO_ENABLED", cgo)
+-	if cfg.BuildContext.CgoEnabled {
++	// https://go.dev/issue/52372: only include CGO flags if -trimpath is not set.
++	// (If -trimpath is set, it is possible that these flags include system paths.)
++	// If cgo is involved, reproducibility is already pretty well ruined anyway,
++	// given that we aren't stamping header or library versions.
++	//
++	// TODO(bcmills): perhaps we could at least parse the flags and stamp the
++	// subset of flags that are known not to be paths?
++	if cfg.BuildContext.CgoEnabled && !cfg.BuildTrimpath {
+ 		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+ 			appendSetting(name, cfg.Getenv(name))
+ 		}
+diff --git a/src/cmd/go/testdata/script/version_build_settings.txt b/src/cmd/go/testdata/script/version_build_settings.txt
+index 90c7253764..bfa7f5fbbe 100644
+--- a/src/cmd/go/testdata/script/version_build_settings.txt
++++ b/src/cmd/go/testdata/script/version_build_settings.txt
+@@ -51,19 +51,34 @@ go build
+ go version -m m$GOEXE
+ stdout '^\tbuild\tCGO_ENABLED=0$'
+ ! stdout CGO_CPPFLAGS|CGO_CFLAGS|CGO_CXXFLAGS|CGO_LDFLAGS
++
+ [cgo] env CGO_ENABLED=1
+ [cgo] env CGO_CPPFLAGS=-DFROM_CPPFLAGS=1
+ [cgo] env CGO_CFLAGS=-DFROM_CFLAGS=1
+ [cgo] env CGO_CXXFLAGS=-DFROM_CXXFLAGS=1
+ [cgo] env CGO_LDFLAGS=-L/extra/dir/does/not/exist
+-[cgo] go build
++[cgo] go build '-ldflags=all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist'
+ [cgo] go version -m m$GOEXE
++[cgo] stdout '^\tbuild\t-ldflags="all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist"$'
+ [cgo] stdout '^\tbuild\tCGO_ENABLED=1$'
+ [cgo] stdout '^\tbuild\tCGO_CPPFLAGS=-DFROM_CPPFLAGS=1$'
+ [cgo] stdout '^\tbuild\tCGO_CFLAGS=-DFROM_CFLAGS=1$'
+ [cgo] stdout '^\tbuild\tCGO_CXXFLAGS=-DFROM_CXXFLAGS=1$'
+ [cgo] stdout '^\tbuild\tCGO_LDFLAGS=-L/extra/dir/does/not/exist$'
+ 
++# https://go.dev/issue/52372: a cgo-enabled binary should not be stamped with
++# CGO_ flags that contain paths.
++[cgo] env CGO_ENABLED=1
++[cgo] env CGO_CPPFLAGS=-DFROM_CPPFLAGS=1
++[cgo] env CGO_CFLAGS=-DFROM_CFLAGS=1
++[cgo] env CGO_CXXFLAGS=-DFROM_CXXFLAGS=1
++[cgo] env CGO_LDFLAGS=-L/extra/dir/does/not/exist
++[cgo] go build -trimpath '-ldflags=all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist'
++[cgo] go version -m m$GOEXE
++[cgo] ! stdout '/extra/dir/does/not/exist'
++[cgo] ! stdout '/bonus/dir/does/not/exist'
++[cgo] stdout '^\tbuild\tCGO_ENABLED=1$'
++
+ -- go.mod --
+ module example.com/m
+ 

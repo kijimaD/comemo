@@ -7,7 +7,87 @@ Date:   Tue Oct 14 17:10:39 2008 -0700
     R=ken
     OCL=17141
     CL=17143
-
+---
  src/cmd/gc/go.y   | 31 ++++++++++++++++++++++++++++---
  test/initcomma.go | 17 +++++++++++++++++
  2 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index b7eba4a470..25df8d3050 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -60,7 +60,7 @@
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+-%type	<node>		keyexpr_list keyval_list_r keyval
++%type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
+ 
+ %type	<type>		typedclname new_type
+ %type	<type>		type Atype Btype
+@@ -871,7 +871,7 @@ pexpr:
+ 		$$ = nod(OCONV, $3, N);
+ 		$$->type = oldtype($1);
+ 	}
+-|	convtype '{' keyexpr_list '}'
++|	convtype '{' braced_keyexpr_list '}'
+ 	{
+ 		// composite literal
+ 		$$ = rev($3);
+@@ -1598,7 +1598,32 @@ keyexpr_list:
+ 	{
+ 		$$ = rev($1);
+ 	}
+-|	oexpr_list
++|	expr_list
++
++/*
++ * have to spell this out using _r lists to avoid yacc conflict
++ */
++braced_keyexpr_list:
++	{
++		$$ = N;
++	}
++|	keyval_list_r
++	{
++		$$ = rev($1);
++	}
++|	keyval_list_r ','
++	{
++		$$ = rev($1);
++	}
++|	expr_list_r
++	{
++		$$ = rev($1);
++	}
++|	expr_list_r ','
++	{
++		$$ = rev($1);
++	}
++
+ 
+ /*
+  * the one compromise of a
+diff --git a/test/initcomma.go b/test/initcomma.go
+new file mode 100644
+index 0000000000..d4bff2a888
+--- /dev/null
++++ b/test/initcomma.go
+@@ -0,0 +1,17 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a = []int { 1, 2, }
++var b = [5]int { }
++var c = []int { 1 }
++
++func main() {
++	if len(a) != 2 { panicln("len a", len(a)) }
++	if len(b) != 5 { panicln("len b", len(b)) }
++	if len(c) != 1 { panicln("len a", len(a)) }
++}

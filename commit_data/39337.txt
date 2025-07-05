@@ -13,6 +13,20 @@ Date:   Tue Feb 5 13:29:29 2019 +0300
     Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/net/rpc/client_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index d116d2acc9..03225e3d01 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -57,7 +57,7 @@ func TestGobError(t *testing.T) {
+ 		if err == nil {
+ 			t.Fatal("no error")
+ 		}
+-		if !strings.Contains("reading body EOF", err.(error).Error()) {
++		if !strings.Contains(err.(error).Error(), "reading body EOF") {
+ 			t.Fatal("expected `reading body EOF', got", err)
+ 		}
+ 	}()

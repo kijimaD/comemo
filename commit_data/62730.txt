@@ -21,6 +21,33 @@ Date:   Fri Feb 28 10:05:52 2025 +0100
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/make.bat | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 6c683230ce..d9f686452e 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -60,14 +60,13 @@ if not exist ..\bin\tool mkdir ..\bin\tool
+ :: Calculating GOROOT_BOOTSTRAP
+ if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
+ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+-	if "x%GOROOT_BOOTSTRAP%"=="x" (
+-		setlocal
+-		call :nogoenv
+-		for /f "tokens=*" %%i in ('"%%g" env GOROOT 2^>nul') do (
+-			endlocal
+-			if /I not "%%i"=="%GOROOT_TEMP%" (
+-				set GOROOT_BOOTSTRAP=%%i
+-			)
++	setlocal
++	call :nogoenv
++	for /f "tokens=*" %%i in ('"%%g" env GOROOT 2^>nul') do (
++		endlocal
++		if /I not "%%i"=="%GOROOT_TEMP%" (
++			set GOROOT_BOOTSTRAP=%%i
++			goto bootstrapset
+ 		)
+ 	)
+ )

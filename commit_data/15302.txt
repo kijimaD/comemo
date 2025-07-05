@@ -7,6 +7,20 @@ Date:   Tue Feb 19 19:02:18 2013 +0800
     R=minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7307120
-
+---
  src/run.rc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.rc b/src/run.rc
+index e70f5c6966..7e5d8ce379 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-eval `{go env -9}
++eval `{go tool dist env -9}
+ 
+ # allow all.rc to avoid double-build of everything
+ rebuild = true

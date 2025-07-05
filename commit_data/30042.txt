@@ -26,7 +26,7 @@ Date:   Wed Oct 19 18:27:39 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s      |  4 +++-
  src/runtime/asm_amd64.s    |  4 +++-
  src/runtime/asm_amd64p32.s |  4 +++-
@@ -37,3 +37,260 @@ Date:   Wed Oct 19 18:27:39 2016 -0400
  src/runtime/asm_s390x.s    |  6 +++++-
  src/runtime/stack.go       | 21 ++++++++++-----------
  9 files changed, 39 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 4ef738eacb..67b4cab77e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -381,7 +381,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	SI, (g_sched+gobuf_g)(SI)
+ 	LEAL	4(SP), AX	// f's SP
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+-	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BP
+@@ -389,8 +389,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	(g_sched+gobuf_sp)(BP), AX
+ 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
+ 	MOVL	AX, SP
++	PUSHL	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVL	$0, 0x1003	// crash if newstack returns
++	POPL	DX	// keep balance check happy
+ 	RET
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 34da3bda9f..398b14888f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -358,15 +358,17 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVQ	SI, (g_sched+gobuf_g)(SI)
+ 	LEAQ	8(SP), AX // f's SP
+ 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+ 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BX
+ 	MOVQ	BX, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(BX), SP
++	PUSHQ	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
++	POPQ	DX	// keep balance check happy
+ 	RET
+ 
+ // morestack but not preserving ctxt.
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 4e3c0cd2b6..fab6c0db5d 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -276,14 +276,16 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	SI, (g_sched+gobuf_g)(SI)
+ 	LEAL	8(SP), AX // f's SP
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+-	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BX
+ 	MOVL	BX, g(CX)
+ 	MOVL	(g_sched+gobuf_sp)(BX), SP
++	PUSHQ	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVL	$0, 0x1003	// crash if newstack returns
++	POPQ	DX	// keep balance check happy
+ 	RET
+ 
+ // morestack trampolines
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 0c7d580163..3bfa250c99 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -294,10 +294,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 
+ 	// Called from f.
+ 	// Set g->sched to context in f.
+-	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+ 	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+ 	MOVW	R3, (g_sched+gobuf_lr)(g)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -310,6 +310,9 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	MOVW	m_g0(R8), R0
+ 	BL	setg<>(SB)
+ 	MOVW	(g_sched+gobuf_sp)(g), R13
++	MOVW	$0, R0
++	MOVW.W	R0, -8(R13)	// create a call frame on g0
++	MOVW	R7, 4(R13)	// ctxt argument
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index bd2b18385e..2d73052c23 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -269,11 +269,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 
+ 	// Called from f.
+ 	// Set g->sched to context in f
+-	MOVD	R26, (g_sched+gobuf_ctxt)(g)
+ 	MOVD	RSP, R0
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, (g_sched+gobuf_pc)(g)
+ 	MOVD	R3, (g_sched+gobuf_lr)(g)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's callers.
+@@ -287,6 +287,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R0
+ 	MOVD	R0, RSP
++	MOVD.W	$0, -16(RSP)	// create a call frame on g0
++	MOVD	R26, 8(RSP)	// ctxt argument
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index e29522367d..79378df22c 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -243,10 +243,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 
+ 	// Called from f.
+ 	// Set g->sched to context in f.
+-	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R31, (g_sched+gobuf_pc)(g)
+ 	MOVV	R3, (g_sched+gobuf_lr)(g)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -258,6 +258,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	MOVV	m_g0(R7), g
+ 	JAL	runtime·save_g(SB)
+ 	MOVV	(g_sched+gobuf_sp)(g), R29
++	// Create a stack frame on g0 to call newstack.
++	MOVV	R0, -16(R29)	// Zero saved LR in frame
++	ADDV	$-16, R29
++	MOVV	REGCTXT, 8(R29)	// ctxt argument
+ 	JAL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 85f73a88b4..1ce7b2d903 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -297,11 +297,11 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 
+ 	// Called from f.
+ 	// Set g->sched to context in f.
+-	MOVD	R11, (g_sched+gobuf_ctxt)(g)
+ 	MOVD	R1, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, R8
+ 	MOVD	R8, (g_sched+gobuf_pc)(g)
+ 	MOVD	R5, (g_sched+gobuf_lr)(g)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -313,6 +313,8 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	m_g0(R7), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R1
++	MOVDU   R0, -(FIXED_FRAME+8)(R1)	// create a call frame on g0
++	MOVD	R11, FIXED_FRAME+0(R1)	// ctxt argument
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index d8f529ef90..198c565b79 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -254,11 +254,11 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 
+ 	// Called from f.
+ 	// Set g->sched to context in f.
+-	MOVD	R12, (g_sched+gobuf_ctxt)(g)
+ 	MOVD	R15, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, R8
+ 	MOVD	R8, (g_sched+gobuf_pc)(g)
+ 	MOVD	R5, (g_sched+gobuf_lr)(g)
++	// newstack will fill gobuf.ctxt.
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -270,6 +270,10 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	m_g0(R7), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R15
++	// Create a stack frame on g0 to call newstack.
++	MOVD	$0, -16(R15)	// Zero saved LR in frame
++	SUB	$16, R15
++	MOVD	R12, 8(R15)	// ctxt argument
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 90db4204a9..49499d4433 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -925,7 +925,10 @@ func round2(x int32) int32 {
+ //
+ // g->atomicstatus will be Grunning or Gscanrunning upon entry.
+ // If the GC is trying to stop this g then it will set preemptscan to true.
+-func newstack() {
++//
++// ctxt is the value of the context register on morestack. newstack
++// will write it to g.sched.ctxt.
++func newstack(ctxt unsafe.Pointer) {
+ 	thisg := getg()
+ 	// TODO: double check all gp. shouldn't be getg().
+ 	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
+@@ -937,8 +940,13 @@ func newstack() {
+ 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g.ptr())
+ 		throw("runtime: wrong goroutine in newstack")
+ 	}
++
++	gp := thisg.m.curg
++	// Write ctxt to gp.sched. We do this here instead of in
++	// morestack so it has the necessary write barrier.
++	gp.sched.ctxt = ctxt
++
+ 	if thisg.m.curg.throwsplit {
+-		gp := thisg.m.curg
+ 		// Update syscallsp, syscallpc in case traceback uses them.
+ 		morebuf := thisg.m.morebuf
+ 		gp.syscallsp = morebuf.sp
+@@ -951,7 +959,6 @@ func newstack() {
+ 		throw("runtime: stack split at bad time")
+ 	}
+ 
+-	gp := thisg.m.curg
+ 	morebuf := thisg.m.morebuf
+ 	thisg.m.morebuf.pc = 0
+ 	thisg.m.morebuf.lr = 0
+@@ -1003,14 +1010,6 @@ func newstack() {
+ 		throw("runtime: split stack overflow")
+ 	}
+ 
+-	if gp.sched.ctxt != nil {
+-		// morestack wrote sched.ctxt on its way in here,
+-		// without a write barrier. Run the write barrier now.
+-		// It is not possible to be preempted between then
+-		// and now, so it's okay.
+-		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
+-	}
+-
+ 	if preempt {
+ 		if gp == thisg.m.g0 {
+ 			throw("runtime: preempt g0")

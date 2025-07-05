@@ -15,6 +15,21 @@ Date:   Tue Aug 15 15:22:28 2017 -0400
     Change-Id: I7c740d492b70628b5d9f9e1622014995a3f6f8ec
     Reviewed-on: https://go-review.googlesource.com/55871
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .gitignore | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index c56cad7f2d..a2c389f033 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -44,5 +44,7 @@ _testmain.go
+ /test/run.out
+ /test/times.out
+ 
+-# IntelliJ-based editors
+-/.idea/
++# This file includes artifacts of Go build that should not be checked in.
++# For files created by specific development environment (e.g. editor),
++# use alternative ways to exclude files from git.
++# For example, set up .git/info/exclude or use a global .gitignore.

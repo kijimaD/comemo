@@ -9,6 +9,20 @@ Date:   Tue Feb 23 18:19:52 2016 -0800
     Change-Id: Iafc21641cca7d35b7a5631cfc94742ee8e7d5042
     Reviewed-on: https://go-review.googlesource.com/19861
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/csv/reader.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index a6bb780bf2..816ed26754 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -99,6 +99,8 @@ var (
+ // non-doubled quote may appear in a quoted field.
+ //
+ // If TrimLeadingSpace is true, leading white space in a field is ignored.
++// If the field delimiter is white space, TrimLeadingSpace will trim the
++// delimiter.
+ type Reader struct {
+ 	Comma            rune // field delimiter (set to ',' by NewReader)
+ 	Comment          rune // comment character for start of line

@@ -12,7 +12,74 @@ Date:   Tue Jan 9 14:45:30 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/fmt_test.go           |  1 +
  src/cmd/compile/internal/ssa/prove.go | 36 +++++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 03e6e2ee4c..578a0bfb20 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -707,6 +707,7 @@ var knownFormats = map[string]string{
+ 	"uint %04x":        "",
+ 	"uint %5d":         "",
+ 	"uint %d":          "",
++	"uint %x":          "",
+ 	"uint16 %d":        "",
+ 	"uint16 %v":        "",
+ 	"uint16 %x":        "",
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index ecf0412377..448a92ae57 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -45,6 +45,18 @@ const (
+ 	gt
+ )
+ 
++var relationStrings = [...]string{
++	0: "none", lt: "<", eq: "==", lt | eq: "<=",
++	gt: ">", gt | lt: "!=", gt | eq: ">=", gt | eq | lt: "any",
++}
++
++func (r relation) String() string {
++	if r < relation(len(relationStrings)) {
++		return relationStrings[r]
++	}
++	return fmt.Sprintf("relation(%d)", uint(r))
++}
++
+ // domain represents the domain of a variable pair in which a set
+ // of relations is known.  For example, relations learned for unsigned
+ // pairs cannot be transferred to signed pairs because the same bit
+@@ -58,6 +70,30 @@ const (
+ 	boolean
+ )
+ 
++var domainStrings = [...]string{
++	"signed", "unsigned", "pointer", "boolean",
++}
++
++func (d domain) String() string {
++	s := ""
++	for i, ds := range domainStrings {
++		if d&(1<<uint(i)) != 0 {
++			if len(s) != 0 {
++				s += "|"
++			}
++			s += ds
++			d &^= 1 << uint(i)
++		}
++	}
++	if d != 0 {
++		if len(s) != 0 {
++			s += "|"
++		}
++		s += fmt.Sprintf("0x%x", uint(d))
++	}
++	return s
++}
++
+ type pair struct {
+ 	v, w *Value // a pair of values, ordered by ID.
+ 	// v can be nil, to mean the zero value.

@@ -19,7 +19,7 @@ Date:   Thu Apr 16 11:40:09 2020 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/block.go        |   4 +-
  src/cmd/compile/internal/ssa/check.go        |  13 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules | 163 +++---
@@ -32,3 +32,2446 @@ Date:   Thu Apr 16 11:40:09 2020 +0100
  src/cmd/compile/internal/ssa/rewriteS390X.go | 794 +++++++++++++--------------
  src/cmd/compile/internal/ssa/value.go        |   4 +-
  11 files changed, 630 insertions(+), 534 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index fedbc7af0e..56babf418f 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -336,9 +336,9 @@ func (b *Block) LackingPos() bool {
+ 
+ func (b *Block) AuxIntString() string {
+ 	switch b.Kind.AuxIntType() {
+-	case "Int8":
++	case "int8":
+ 		return fmt.Sprintf("%v", int8(b.AuxInt))
+-	case "UInt8":
++	case "uint8":
+ 		return fmt.Sprintf("%v", uint8(b.AuxInt))
+ 	default: // type specified but not implemented - print as int64
+ 		return fmt.Sprintf("%v", b.AuxInt)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index b246bd9c7d..20ca28a54b 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/obj/s390x"
+ 	"math"
+ 	"math/bits"
+ )
+@@ -164,7 +165,7 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
+ 				}
+ 				canHaveAux = true
+-			case auxSym, auxTyp, auxArchSpecific:
++			case auxSym, auxTyp:
+ 				canHaveAux = true
+ 			case auxSymOff, auxSymValAndOff, auxTypSize:
+ 				canHaveAuxInt = true
+@@ -174,6 +175,16 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+ 				}
+ 				canHaveAux = true
++			case auxS390XCCMask:
++				if _, ok := v.Aux.(s390x.CCMask); !ok {
++					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
++				}
++				canHaveAux = true
++			case auxS390XRotateParams:
++				if _, ok := v.Aux.(s390x.RotateParams); !ok {
++					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
++				}
++				canHaveAux = true
+ 			default:
+ 				f.Fatalf("unknown aux type for %s", v.Op)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 72dbb5f87b..2e5b0d385d 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -573,62 +573,61 @@
+   && int64(uint8(c)) == c
+   && int64(uint8(d)) == d
+   && (!x.Type.IsSigned() || x.Type.Size() > 1)
+-  -> x
++  => x
+ 
+ // Fold boolean tests into blocks.
+ // Note: this must match If statement lowering.
+ (CLIJ {s390x.LessOrGreater} (LOCGR {d} (MOVDconst [0]) (MOVDconst [x]) cmp) [0] yes no)
+   && int32(x) != 0
+-  -> (BRC {d} cmp yes no)
++  => (BRC {d} cmp yes no)
+ 
+ // Compare-and-branch.
+ // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
+-(BRC {c} (CMP   x y) yes no) -> (CGRJ  {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
+-(BRC {c} (CMPW  x y) yes no) -> (CRJ   {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
+-(BRC {c} (CMPU  x y) yes no) -> (CLGRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
+-(BRC {c} (CMPWU x y) yes no) -> (CLRJ  {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
++(BRC {c} (CMP   x y) yes no) => (CGRJ  {c&^s390x.Unordered} x y yes no)
++(BRC {c} (CMPW  x y) yes no) => (CRJ   {c&^s390x.Unordered} x y yes no)
++(BRC {c} (CMPU  x y) yes no) => (CLGRJ {c&^s390x.Unordered} x y yes no)
++(BRC {c} (CMPWU x y) yes no) => (CLRJ  {c&^s390x.Unordered} x y yes no)
+ 
+ // Compare-and-branch (immediate).
+ // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
+-(BRC {c} (CMPconst   x [y]) yes no) && is8Bit(y)  -> (CGIJ  {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
+-(BRC {c} (CMPWconst  x [y]) yes no) && is8Bit(y)  -> (CIJ   {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
+-(BRC {c} (CMPUconst  x [y]) yes no) && isU8Bit(y) -> (CLGIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
+-(BRC {c} (CMPWUconst x [y]) yes no) && isU8Bit(y) -> (CLIJ  {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
++(BRC {c} (CMPconst   x [y]) yes no) && y == int32( int8(y)) => (CGIJ  {c&^s390x.Unordered} x [ int8(y)] yes no)
++(BRC {c} (CMPWconst  x [y]) yes no) && y == int32( int8(y)) => (CIJ   {c&^s390x.Unordered} x [ int8(y)] yes no)
++(BRC {c} (CMPUconst  x [y]) yes no) && y == int32(uint8(y)) => (CLGIJ {c&^s390x.Unordered} x [uint8(y)] yes no)
++(BRC {c} (CMPWUconst x [y]) yes no) && y == int32(uint8(y)) => (CLIJ  {c&^s390x.Unordered} x [uint8(y)] yes no)
+ 
+ // Absorb immediate into compare-and-branch.
+-(C(R|GR)J  {c} x (MOVDconst [y]) yes no) && is8Bit(y)  -> (C(I|GI)J  {c} x [int64(int8(y))] yes no)
+-(CL(R|GR)J {c} x (MOVDconst [y]) yes no) && isU8Bit(y) -> (CL(I|GI)J {c} x [int64(int8(y))] yes no)
+-(C(R|GR)J  {c} (MOVDconst [x]) y yes no) && is8Bit(x)  -> (C(I|GI)J  {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
+-(CL(R|GR)J {c} (MOVDconst [x]) y yes no) && isU8Bit(x) -> (CL(I|GI)J {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
++(C(R|GR)J  {c} x (MOVDconst [y]) yes no) && is8Bit(y)  => (C(I|GI)J  {c} x [ int8(y)] yes no)
++(CL(R|GR)J {c} x (MOVDconst [y]) yes no) && isU8Bit(y) => (CL(I|GI)J {c} x [uint8(y)] yes no)
++(C(R|GR)J  {c} (MOVDconst [x]) y yes no) && is8Bit(x)  => (C(I|GI)J  {c.ReverseComparison()} y [ int8(x)] yes no)
++(CL(R|GR)J {c} (MOVDconst [x]) y yes no) && isU8Bit(x) => (CL(I|GI)J {c.ReverseComparison()} y [uint8(x)] yes no)
+ 
+ // Prefer comparison with immediate to compare-and-branch.
+-(CGRJ  {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  -> (BRC {c} (CMPconst   x [int64(int32(y))]) yes no)
+-(CRJ   {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  -> (BRC {c} (CMPWconst  x [int64(int32(y))]) yes no)
+-(CLGRJ {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) -> (BRC {c} (CMPUconst  x [int64(int32(y))]) yes no)
+-(CLRJ  {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) -> (BRC {c} (CMPWUconst x [int64(int32(y))]) yes no)
+-(CGRJ  {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPconst   y [int64(int32(x))]) yes no)
+-(CRJ   {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWconst  y [int64(int32(x))]) yes no)
+-(CLGRJ {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPUconst  y [int64(int32(x))]) yes no)
+-(CLRJ  {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWUconst y [int64(int32(x))]) yes no)
++(CGRJ  {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  => (BRC {c} (CMPconst   x [int32(y)]) yes no)
++(CRJ   {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  => (BRC {c} (CMPWconst  x [int32(y)]) yes no)
++(CLGRJ {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) => (BRC {c} (CMPUconst  x [int32(y)]) yes no)
++(CLRJ  {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) => (BRC {c} (CMPWUconst x [int32(y)]) yes no)
++(CGRJ  {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  => (BRC {c.ReverseComparison()} (CMPconst   y [int32(x)]) yes no)
++(CRJ   {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  => (BRC {c.ReverseComparison()} (CMPWconst  y [int32(x)]) yes no)
++(CLGRJ {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) => (BRC {c.ReverseComparison()} (CMPUconst  y [int32(x)]) yes no)
++(CLRJ  {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) => (BRC {c.ReverseComparison()} (CMPWUconst y [int32(x)]) yes no)
+ 
+ // Absorb sign/zero extensions into 32-bit compare-and-branch.
+-(CIJ  {c} (MOV(W|WZ)reg x) [y] yes no) -> (CIJ  {c} x [y] yes no)
+-(CLIJ {c} (MOV(W|WZ)reg x) [y] yes no) -> (CLIJ {c} x [y] yes no)
++(CIJ  {c} (MOV(W|WZ)reg x) [y] yes no) => (CIJ  {c} x [y] yes no)
++(CLIJ {c} (MOV(W|WZ)reg x) [y] yes no) => (CLIJ {c} x [y] yes no)
+ 
+ // Bring out-of-range signed immediates into range by varying branch condition.
+-(BRC {s390x.Less}           (CMPconst  x [ 128]) yes no) -> (CGIJ {s390x.LessOrEqual}    x [ 127] yes no)
+-(BRC {s390x.Less}           (CMPWconst x [ 128]) yes no) -> (CIJ  {s390x.LessOrEqual}    x [ 127] yes no)
+-(BRC {s390x.LessOrEqual}    (CMPconst  x [-129]) yes no) -> (CGIJ {s390x.Less}           x [-128] yes no)
+-(BRC {s390x.LessOrEqual}    (CMPWconst x [-129]) yes no) -> (CIJ  {s390x.Less}           x [-128] yes no)
+-(BRC {s390x.Greater}        (CMPconst  x [-129]) yes no) -> (CGIJ {s390x.GreaterOrEqual} x [-128] yes no)
+-(BRC {s390x.Greater}        (CMPWconst x [-129]) yes no) -> (CIJ  {s390x.GreaterOrEqual} x [-128] yes no)
+-(BRC {s390x.GreaterOrEqual} (CMPconst  x [ 128]) yes no) -> (CGIJ {s390x.Greater}        x [ 127] yes no)
+-(BRC {s390x.GreaterOrEqual} (CMPWconst x [ 128]) yes no) -> (CIJ  {s390x.Greater}        x [ 127] yes no)
++(BRC {s390x.Less}           (CMPconst  x [ 128]) yes no) => (CGIJ {s390x.LessOrEqual}    x [ 127] yes no)
++(BRC {s390x.Less}           (CMPWconst x [ 128]) yes no) => (CIJ  {s390x.LessOrEqual}    x [ 127] yes no)
++(BRC {s390x.LessOrEqual}    (CMPconst  x [-129]) yes no) => (CGIJ {s390x.Less}           x [-128] yes no)
++(BRC {s390x.LessOrEqual}    (CMPWconst x [-129]) yes no) => (CIJ  {s390x.Less}           x [-128] yes no)
++(BRC {s390x.Greater}        (CMPconst  x [-129]) yes no) => (CGIJ {s390x.GreaterOrEqual} x [-128] yes no)
++(BRC {s390x.Greater}        (CMPWconst x [-129]) yes no) => (CIJ  {s390x.GreaterOrEqual} x [-128] yes no)
++(BRC {s390x.GreaterOrEqual} (CMPconst  x [ 128]) yes no) => (CGIJ {s390x.Greater}        x [ 127] yes no)
++(BRC {s390x.GreaterOrEqual} (CMPWconst x [ 128]) yes no) => (CIJ  {s390x.Greater}        x [ 127] yes no)
+ 
+ // Bring out-of-range unsigned immediates into range by varying branch condition.
+-// Note: int64(int8(255)) == -1
+-(BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) -> (C(L|LG)IJ {s390x.LessOrEqual} x [-1] yes no)
+-(BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) -> (C(L|LG)IJ {s390x.Greater}     x [-1] yes no)
++(BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.LessOrEqual} x [255] yes no)
++(BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.Greater}     x [255] yes no)
+ 
+ // Fold constants into instructions.
+ (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
+@@ -732,7 +731,7 @@
+ (MOVDaddridx [c] {s} x (ADDconst [d] y)) && is20Bit(c+d) && y.Op != OpSB -> (MOVDaddridx [c+d] {s} x y)
+ 
+ // reverse ordering of compare instruction
+-(LOCGR {c} x y (InvertFlags cmp)) -> (LOCGR {c.(s390x.CCMask).ReverseComparison()} x y cmp)
++(LOCGR {c} x y (InvertFlags cmp)) => (LOCGR {c.ReverseComparison()} x y cmp)
+ 
+ // replace load from same location as preceding store with copy
+ (MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
+@@ -1006,7 +1005,7 @@
+        (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
+ 
+ // Absorb InvertFlags into branches.
+-(BRC {c} (InvertFlags cmp) yes no) -> (BRC {c.(s390x.CCMask).ReverseComparison()} cmp yes no)
++(BRC {c} (InvertFlags cmp) yes no) => (BRC {c.ReverseComparison()} cmp yes no)
+ 
+ // Constant comparisons.
+ (CMPconst (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
+@@ -1036,38 +1035,38 @@
+ (CMPWUconst (ANDWconst _ [m]) [n]) && uint32(m) < uint32(n) -> (FlagLT)
+ 
+ // Constant compare-and-branch with immediate.
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 &&  int64(x) ==  int64( int8(y)) -> (First yes no)
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 &&  int64(x) <   int64( int8(y)) -> (First yes no)
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 &&  int64(x) >   int64( int8(y)) -> (First yes no)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 &&  int32(x) ==  int32( int8(y)) -> (First yes no)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 &&  int32(x) <   int32( int8(y)) -> (First yes no)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 &&  int32(x) >   int32( int8(y)) -> (First yes no)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 && uint64(x) == uint64(uint8(y)) -> (First yes no)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 && uint64(x) <  uint64(uint8(y)) -> (First yes no)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 && uint64(x) >  uint64(uint8(y)) -> (First yes no)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 && uint32(x) == uint32(uint8(y)) -> (First yes no)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 && uint32(x) <  uint32(uint8(y)) -> (First yes no)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 && uint32(x) >  uint32(uint8(y)) -> (First yes no)
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 &&  int64(x) ==  int64( int8(y)) -> (First no yes)
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 &&  int64(x) <   int64( int8(y)) -> (First no yes)
+-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 &&  int64(x) >   int64( int8(y)) -> (First no yes)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 &&  int32(x) ==  int32( int8(y)) -> (First no yes)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 &&  int32(x) <   int32( int8(y)) -> (First no yes)
+-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 &&  int32(x) >   int32( int8(y)) -> (First no yes)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 && uint64(x) == uint64(uint8(y)) -> (First no yes)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 && uint64(x) <  uint64(uint8(y)) -> (First no yes)
+-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 && uint64(x) >  uint64(uint8(y)) -> (First no yes)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 && uint32(x) == uint32(uint8(y)) -> (First no yes)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 && uint32(x) <  uint32(uint8(y)) -> (First no yes)
+-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 && uint32(x) >  uint32(uint8(y)) -> (First no yes)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 &&  int64(x) ==  int64(y) => (First yes no)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 &&  int64(x) <   int64(y) => (First yes no)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 &&  int64(x) >   int64(y) => (First yes no)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 &&  int32(x) ==  int32(y) => (First yes no)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 &&  int32(x) <   int32(y) => (First yes no)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 &&  int32(x) >   int32(y) => (First yes no)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 && uint64(x) == uint64(y) => (First yes no)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 && uint64(x) <  uint64(y) => (First yes no)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 && uint64(x) >  uint64(y) => (First yes no)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 && uint32(x) == uint32(y) => (First yes no)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 && uint32(x) <  uint32(y) => (First yes no)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 && uint32(x) >  uint32(y) => (First yes no)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 &&  int64(x) ==  int64(y) => (First no yes)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 &&  int64(x) <   int64(y) => (First no yes)
++(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 &&  int64(x) >   int64(y) => (First no yes)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 &&  int32(x) ==  int32(y) => (First no yes)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 &&  int32(x) <   int32(y) => (First no yes)
++(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 &&  int32(x) >   int32(y) => (First no yes)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 && uint64(x) == uint64(y) => (First no yes)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 && uint64(x) <  uint64(y) => (First no yes)
++(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 && uint64(x) >  uint64(y) => (First no yes)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 && uint32(x) == uint32(y) => (First no yes)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 && uint32(x) <  uint32(y) => (First no yes)
++(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 && uint32(x) >  uint32(y) => (First no yes)
+ 
+ // Constant compare-and-branch with immediate when unsigned comparison with zero.
+-(C(L|LG)IJ {s390x.GreaterOrEqual} _ [0] yes no) -> (First yes no)
+-(C(L|LG)IJ {s390x.Less}           _ [0] yes no) -> (First no yes)
++(C(L|LG)IJ {s390x.GreaterOrEqual} _ [0] yes no) => (First yes no)
++(C(L|LG)IJ {s390x.Less}           _ [0] yes no) => (First no yes)
+ 
+ // Constant compare-and-branch when operands match.
+-(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c.(s390x.CCMask)&s390x.Equal != 0 -> (First yes no)
+-(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c.(s390x.CCMask)&s390x.Equal == 0 -> (First no yes)
++(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c&s390x.Equal != 0 => (First yes no)
++(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c&s390x.Equal == 0 => (First no yes)
+ 
+ // Convert 64-bit comparisons to 32-bit comparisons and signed comparisons
+ // to unsigned comparisons.
+@@ -1086,26 +1085,26 @@
+ (CMP(W|W|WU|WU)const (MOV(W|WZ|W|WZ)reg x) [c]) -> (CMP(W|W|WU|WU)const x [c])
+ 
+ // Absorb flag constants into branches.
+-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     != 0 -> (First yes no)
+-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      != 0 -> (First yes no)
+-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   != 0 -> (First yes no)
+-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered != 0 -> (First yes no)
++(BRC {c} (FlagEQ) yes no) && c&s390x.Equal     != 0 => (First yes no)
++(BRC {c} (FlagLT) yes no) && c&s390x.Less      != 0 => (First yes no)
++(BRC {c} (FlagGT) yes no) && c&s390x.Greater   != 0 => (First yes no)
++(BRC {c} (FlagOV) yes no) && c&s390x.Unordered != 0 => (First yes no)
+ 
+-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     == 0 -> (First no yes)
+-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      == 0 -> (First no yes)
+-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   == 0 -> (First no yes)
+-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered == 0 -> (First no yes)
++(BRC {c} (FlagEQ) yes no) && c&s390x.Equal     == 0 => (First no yes)
++(BRC {c} (FlagLT) yes no) && c&s390x.Less      == 0 => (First no yes)
++(BRC {c} (FlagGT) yes no) && c&s390x.Greater   == 0 => (First no yes)
++(BRC {c} (FlagOV) yes no) && c&s390x.Unordered == 0 => (First no yes)
+ 
+ // Absorb flag constants into SETxx ops.
+-(LOCGR {c} _ x (FlagEQ)) && c.(s390x.CCMask) & s390x.Equal     != 0 -> x
+-(LOCGR {c} _ x (FlagLT)) && c.(s390x.CCMask) & s390x.Less      != 0 -> x
+-(LOCGR {c} _ x (FlagGT)) && c.(s390x.CCMask) & s390x.Greater   != 0 -> x
+-(LOCGR {c} _ x (FlagOV)) && c.(s390x.CCMask) & s390x.Unordered != 0 -> x
+-
+-(LOCGR {c} x _ (FlagEQ)) && c.(s390x.CCMask) & s390x.Equal     == 0 -> x
+-(LOCGR {c} x _ (FlagLT)) && c.(s390x.CCMask) & s390x.Less      == 0 -> x
+-(LOCGR {c} x _ (FlagGT)) && c.(s390x.CCMask) & s390x.Greater   == 0 -> x
+-(LOCGR {c} x _ (FlagOV)) && c.(s390x.CCMask) & s390x.Unordered == 0 -> x
++(LOCGR {c} _ x (FlagEQ)) && c&s390x.Equal     != 0 => x
++(LOCGR {c} _ x (FlagLT)) && c&s390x.Less      != 0 => x
++(LOCGR {c} _ x (FlagGT)) && c&s390x.Greater   != 0 => x
++(LOCGR {c} _ x (FlagOV)) && c&s390x.Unordered != 0 => x
++
++(LOCGR {c} x _ (FlagEQ)) && c&s390x.Equal     == 0 => x
++(LOCGR {c} x _ (FlagLT)) && c&s390x.Less      == 0 => x
++(LOCGR {c} x _ (FlagGT)) && c&s390x.Greater   == 0 => x
++(LOCGR {c} x _ (FlagOV)) && c&s390x.Unordered == 0 => x
+ 
+ // Remove redundant *const ops
+ (ADDconst [0] x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index f6ed7b5314..26893993e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -370,7 +370,7 @@ func init() {
+ 		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
+ 		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+ 		//
+-		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
++		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "S390XRotateParams", clobberFlags: true}, // rotate then xor selected bits
+ 
+ 		// unary ops
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
+@@ -383,7 +383,7 @@ func init() {
+ 
+ 		// Conditional register-register moves.
+ 		// The aux for these values is an s390x.CCMask value representing the condition code mask.
+-		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "ArchSpecific"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
++		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "S390XCCMask"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
+ 
+ 		{name: "MOVBreg", argLength: 1, reg: gp11sp, asm: "MOVB", typ: "Int64"},    // sign extend arg0 from int8 to int64
+ 		{name: "MOVBZreg", argLength: 1, reg: gp11sp, asm: "MOVBZ", typ: "UInt64"}, // zero extend arg0 from int8 to int64
+@@ -772,25 +772,25 @@ func init() {
+ 	// Note: that compare-and-branch instructions must not have bit 3 (0b0001) set.
+ 	var S390Xblocks = []blockData{
+ 		// branch on condition
+-		{name: "BRC", controls: 1}, // condition code value (flags) is Controls[0]
++		{name: "BRC", controls: 1, aux: "S390XCCMask"}, // condition code value (flags) is Controls[0]
+ 
+ 		// compare-and-branch (register-register)
+ 		//  - integrates comparison of Controls[0] with Controls[1]
+ 		//  - both control values must be in general purpose registers
+-		{name: "CRJ", controls: 2},   // signed 32-bit integer comparison
+-		{name: "CGRJ", controls: 2},  // signed 64-bit integer comparison
+-		{name: "CLRJ", controls: 2},  // unsigned 32-bit integer comparison
+-		{name: "CLGRJ", controls: 2}, // unsigned 64-bit integer comparison
++		{name: "CRJ", controls: 2, aux: "S390XCCMask"},   // signed 32-bit integer comparison
++		{name: "CGRJ", controls: 2, aux: "S390XCCMask"},  // signed 64-bit integer comparison
++		{name: "CLRJ", controls: 2, aux: "S390XCCMask"},  // unsigned 32-bit integer comparison
++		{name: "CLGRJ", controls: 2, aux: "S390XCCMask"}, // unsigned 64-bit integer comparison
+ 
+ 		// compare-and-branch (register-immediate)
+ 		//  - integrates comparison of Controls[0] with AuxInt
+ 		//  - control value must be in a general purpose register
+ 		//  - the AuxInt value is sign-extended for signed comparisons
+ 		//    and zero-extended for unsigned comparisons
+-		{name: "CIJ", controls: 1, auxint: "Int8"},    // signed 32-bit integer comparison
+-		{name: "CGIJ", controls: 1, auxint: "Int8"},   // signed 64-bit integer comparison
+-		{name: "CLIJ", controls: 1, auxint: "UInt8"},  // unsigned 32-bit integer comparison
+-		{name: "CLGIJ", controls: 1, auxint: "UInt8"}, // unsigned 64-bit integer comparison
++		{name: "CIJ", controls: 1, aux: "S390XCCMaskInt8"},    // signed 32-bit integer comparison
++		{name: "CGIJ", controls: 1, aux: "S390XCCMaskInt8"},   // signed 64-bit integer comparison
++		{name: "CLIJ", controls: 1, aux: "S390XCCMaskUint8"},  // unsigned 32-bit integer comparison
++		{name: "CLGIJ", controls: 1, aux: "S390XCCMaskUint8"}, // unsigned 64-bit integer comparison
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index f2a0915737..4a908090c1 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -71,7 +71,7 @@ type opData struct {
+ type blockData struct {
+ 	name     string // the suffix for this block ("EQ", "LT", etc.)
+ 	controls int    // the number of control values this type of block requires
+-	auxint   string // the type of the AuxInt value, if any
++	aux      string // the type of the Aux/AuxInt value, if any
+ }
+ 
+ type regInfo struct {
+@@ -226,10 +226,10 @@ func genOp() {
+ 	fmt.Fprintln(w, "switch k {")
+ 	for _, a := range archs {
+ 		for _, b := range a.blocks {
+-			if b.auxint == "" {
++			if b.auxIntType() == "invalid" {
+ 				continue
+ 			}
+-			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
++			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxIntType())
+ 		}
+ 	}
+ 	fmt.Fprintln(w, "}")
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 52dc3634cf..d475a58aa0 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -889,19 +889,31 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 		}
+ 	}
+ 	for _, e := range []struct {
+-		name, field string
++		name, field, dclType string
+ 	}{
+-		{auxint, "AuxInt"},
+-		{aux, "Aux"},
++		{auxint, "AuxInt", data.auxIntType()},
++		{aux, "Aux", data.auxType()},
+ 	} {
+ 		if e.name == "" {
+ 			continue
+ 		}
++		if !rr.typed {
++			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
++				// code or variable
++				rr.add(breakf("b.%s != %s", e.field, e.name))
++			} else {
++				rr.add(declf(e.name, "b.%s", e.field))
++			}
++			continue
++		}
++
++		if e.dclType == "" {
++			log.Fatalf("op %s has no declared type for %s", data.name, e.field)
++		}
+ 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+-			// code or variable
+-			rr.add(breakf("b.%s != %s", e.field, e.name))
++			rr.add(breakf("%sTo%s(b.%s) != %s", unTitle(e.field), title(e.dclType), e.field, e.name))
+ 		} else {
+-			rr.add(declf(e.name, "b.%s", e.field))
++			rr.add(declf(e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
+ 		}
+ 	}
+ 	if rr.cond != "" {
+@@ -910,7 +922,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 
+ 	// Rule matches. Generate result.
+ 	outop, _, auxint, aux, t := extract(rr.result) // remove parens, then split
+-	_, outdata := getBlockInfo(outop, arch)
++	blockName, outdata := getBlockInfo(outop, arch)
+ 	if len(t) < outdata.controls {
+ 		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
+ 	}
+@@ -935,7 +947,6 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 		log.Fatalf("unmatched successors %v in %s", m, rule)
+ 	}
+ 
+-	blockName, _ := getBlockInfo(outop, arch)
+ 	var genControls [2]string
+ 	for i, control := range t[:outdata.controls] {
+ 		// Select a source position for any new control values.
+@@ -963,10 +974,20 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 	}
+ 
+ 	if auxint != "" {
+-		rr.add(stmtf("b.AuxInt = %s", auxint))
++		if rr.typed {
++			// Make sure auxint value has the right type.
++			rr.add(stmtf("b.AuxInt = %sToAuxInt(%s)", unTitle(outdata.auxIntType()), auxint))
++		} else {
++			rr.add(stmtf("b.AuxInt = %s", auxint))
++		}
+ 	}
+ 	if aux != "" {
+-		rr.add(stmtf("b.Aux = %s", aux))
++		if rr.typed {
++			// Make sure aux value has the right type.
++			rr.add(stmtf("b.Aux = %sToAux(%s)", unTitle(outdata.auxType()), aux))
++		} else {
++			rr.add(stmtf("b.Aux = %s", aux))
++		}
+ 	}
+ 
+ 	succChanged := false
+@@ -1409,7 +1430,8 @@ func opHasAuxInt(op opData) bool {
+ 
+ func opHasAux(op opData) bool {
+ 	switch op.aux {
+-	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
++	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop",
++		"S390XCCMask", "S390XRotateParams":
+ 		return true
+ 	}
+ 	return false
+@@ -1751,6 +1773,10 @@ func (op opData) auxType() string {
+ 		return "*types.Type"
+ 	case "TypSize":
+ 		return "*types.Type"
++	case "S390XCCMask":
++		return "s390x.CCMask"
++	case "S390XRotateParams":
++		return "s390x.RotateParams"
+ 	default:
+ 		return "invalid"
+ 	}
+@@ -1788,16 +1814,50 @@ func (op opData) auxIntType() string {
+ 	}
+ }
+ 
++// auxType returns the Go type that this block should store in its aux field.
++func (b blockData) auxType() string {
++	switch b.aux {
++	case "S390XCCMask", "S390XCCMaskInt8", "S390XCCMaskUint8":
++		return "s390x.CCMask"
++	case "S390XRotateParams":
++		return "s390x.RotateParams"
++	default:
++		return "invalid"
++	}
++}
++
++// auxIntType returns the Go type that this block should store in its auxInt field.
++func (b blockData) auxIntType() string {
++	switch b.aux {
++	case "S390XCCMaskInt8":
++		return "int8"
++	case "S390XCCMaskUint8":
++		return "uint8"
++	default:
++		return "invalid"
++	}
++}
++
+ func title(s string) string {
+ 	if i := strings.Index(s, "."); i >= 0 {
+-		s = s[i+1:]
++		switch strings.ToLower(s[:i]) {
++		case "s390x": // keep arch prefix for clarity
++			s = s[:i] + s[i+1:]
++		default:
++			s = s[i+1:]
++		}
+ 	}
+ 	return strings.Title(s)
+ }
+ 
+ func unTitle(s string) string {
+ 	if i := strings.Index(s, "."); i >= 0 {
+-		s = s[i+1:]
++		switch strings.ToLower(s[:i]) {
++		case "s390x": // keep arch prefix for clarity
++			s = s[:i] + s[i+1:]
++		default:
++			s = s[i+1:]
++		}
+ 	}
+ 	return strings.ToLower(s[:1]) + s[1:]
+ }
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 9f65e135d3..3f4aa31350 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -68,24 +68,29 @@ type regInfo struct {
+ type auxType int8
+ 
+ const (
+-	auxNone          auxType = iota
+-	auxBool                  // auxInt is 0/1 for false/true
+-	auxInt8                  // auxInt is an 8-bit integer
+-	auxInt16                 // auxInt is a 16-bit integer
+-	auxInt32                 // auxInt is a 32-bit integer
+-	auxInt64                 // auxInt is a 64-bit integer
+-	auxInt128                // auxInt represents a 128-bit integer.  Always 0.
+-	auxFloat32               // auxInt is a float32 (encoded with math.Float64bits)
+-	auxFloat64               // auxInt is a float64 (encoded with math.Float64bits)
+-	auxString                // aux is a string
+-	auxSym                   // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
+-	auxSymOff                // aux is a symbol, auxInt is an offset
+-	auxSymValAndOff          // aux is a symbol, auxInt is a ValAndOff
+-	auxTyp                   // aux is a type
+-	auxTypSize               // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+-	auxCCop                  // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+-	auxARM64BitField         // aux is an arm64 bitfield lsb and width packed into auxint
+-	auxArchSpecific          // aux type is specific to a particular backend (see the relevant op for the actual type)
++	auxNone         auxType = iota
++	auxBool                 // auxInt is 0/1 for false/true
++	auxInt8                 // auxInt is an 8-bit integer
++	auxInt16                // auxInt is a 16-bit integer
++	auxInt32                // auxInt is a 32-bit integer
++	auxInt64                // auxInt is a 64-bit integer
++	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
++	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
++	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
++	auxString               // aux is a string
++	auxSym                  // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
++	auxSymOff               // aux is a symbol, auxInt is an offset
++	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
++	auxTyp                  // aux is a type
++	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
++	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
++
++	// architecture specific aux types
++	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
++	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
++	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
++	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is a int8 immediate
++	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+ )
+ 
+ // A SymEffect describes the effect that an SSA Value has on the variable
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2168d262aa..44c427ebe3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -256,13 +256,13 @@ func (k BlockKind) String() string { return blockString[k] }
+ func (k BlockKind) AuxIntType() string {
+ 	switch k {
+ 	case BlockS390XCIJ:
+-		return "Int8"
++		return "int8"
+ 	case BlockS390XCGIJ:
+-		return "Int8"
++		return "int8"
+ 	case BlockS390XCLIJ:
+-		return "UInt8"
++		return "uint8"
+ 	case BlockS390XCLGIJ:
+-		return "UInt8"
++		return "uint8"
+ 	}
+ 	return ""
+ }
+@@ -28569,7 +28569,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "RXSBG",
+-		auxType:      auxArchSpecific,
++		auxType:      auxS390XRotateParams,
+ 		argLen:       2,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+@@ -28655,7 +28655,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LOCGR",
+-		auxType:      auxArchSpecific,
++		auxType:      auxS390XCCMask,
+ 		argLen:       3,
+ 		resultInArg0: true,
+ 		asm:          s390x.ALOCGR,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 968ef4edb3..71ab4dc4e3 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"encoding/binary"
+@@ -590,6 +591,9 @@ func auxIntToInt32(i int64) int32 {
+ func auxIntToInt64(i int64) int64 {
+ 	return i
+ }
++func auxIntToUint8(i int64) uint8 {
++	return uint8(i)
++}
+ func auxIntToFloat32(i int64) float32 {
+ 	return float32(math.Float64frombits(uint64(i)))
+ }
+@@ -624,6 +628,9 @@ func int32ToAuxInt(i int32) int64 {
+ func int64ToAuxInt(i int64) int64 {
+ 	return int64(i)
+ }
++func uint8ToAuxInt(i uint8) int64 {
++	return int64(int8(i))
++}
+ func float32ToAuxInt(f float32) int64 {
+ 	return int64(math.Float64bits(float64(f)))
+ }
+@@ -651,6 +658,12 @@ func auxToSym(i interface{}) Sym {
+ func auxToType(i interface{}) *types.Type {
+ 	return i.(*types.Type)
+ }
++func auxToS390xCCMask(i interface{}) s390x.CCMask {
++	return i.(s390x.CCMask)
++}
++func auxToS390xRotateParams(i interface{}) s390x.RotateParams {
++	return i.(s390x.RotateParams)
++}
+ 
+ func stringToAux(s string) interface{} {
+ 	return s
+@@ -661,6 +674,12 @@ func symToAux(s Sym) interface{} {
+ func typeToAux(t *types.Type) interface{} {
+ 	return t
+ }
++func s390xCCMaskToAux(c s390x.CCMask) interface{} {
++	return c
++}
++func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
++	return r
++}
+ 
+ // uaddOvf reports whether unsigned a+b would overflow.
+ func uaddOvf(a, b int64) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index fda0bc6b34..29a6cb67fa 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -8082,9 +8082,9 @@ func rewriteValueS390X_OpS390XLOCGR(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (LOCGR {c} x y (InvertFlags cmp))
+-	// result: (LOCGR {c.(s390x.CCMask).ReverseComparison()} x y cmp)
++	// result: (LOCGR {c.ReverseComparison()} x y cmp)
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_0
+ 		y := v_1
+ 		if v_2.Op != OpS390XInvertFlags {
+@@ -8092,101 +8092,101 @@ func rewriteValueS390X_OpS390XLOCGR(v *Value) bool {
+ 		}
+ 		cmp := v_2.Args[0]
+ 		v.reset(OpS390XLOCGR)
+-		v.Aux = c.(s390x.CCMask).ReverseComparison()
++		v.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 		v.AddArg3(x, y, cmp)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} _ x (FlagEQ))
+-	// cond: c.(s390x.CCMask) & s390x.Equal != 0
++	// cond: c&s390x.Equal != 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_1
+-		if v_2.Op != OpS390XFlagEQ || !(c.(s390x.CCMask)&s390x.Equal != 0) {
++		if v_2.Op != OpS390XFlagEQ || !(c&s390x.Equal != 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} _ x (FlagLT))
+-	// cond: c.(s390x.CCMask) & s390x.Less != 0
++	// cond: c&s390x.Less != 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_1
+-		if v_2.Op != OpS390XFlagLT || !(c.(s390x.CCMask)&s390x.Less != 0) {
++		if v_2.Op != OpS390XFlagLT || !(c&s390x.Less != 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} _ x (FlagGT))
+-	// cond: c.(s390x.CCMask) & s390x.Greater != 0
++	// cond: c&s390x.Greater != 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_1
+-		if v_2.Op != OpS390XFlagGT || !(c.(s390x.CCMask)&s390x.Greater != 0) {
++		if v_2.Op != OpS390XFlagGT || !(c&s390x.Greater != 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} _ x (FlagOV))
+-	// cond: c.(s390x.CCMask) & s390x.Unordered != 0
++	// cond: c&s390x.Unordered != 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_1
+-		if v_2.Op != OpS390XFlagOV || !(c.(s390x.CCMask)&s390x.Unordered != 0) {
++		if v_2.Op != OpS390XFlagOV || !(c&s390x.Unordered != 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} x _ (FlagEQ))
+-	// cond: c.(s390x.CCMask) & s390x.Equal == 0
++	// cond: c&s390x.Equal == 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_0
+-		if v_2.Op != OpS390XFlagEQ || !(c.(s390x.CCMask)&s390x.Equal == 0) {
++		if v_2.Op != OpS390XFlagEQ || !(c&s390x.Equal == 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} x _ (FlagLT))
+-	// cond: c.(s390x.CCMask) & s390x.Less == 0
++	// cond: c&s390x.Less == 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_0
+-		if v_2.Op != OpS390XFlagLT || !(c.(s390x.CCMask)&s390x.Less == 0) {
++		if v_2.Op != OpS390XFlagLT || !(c&s390x.Less == 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} x _ (FlagGT))
+-	// cond: c.(s390x.CCMask) & s390x.Greater == 0
++	// cond: c&s390x.Greater == 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_0
+-		if v_2.Op != OpS390XFlagGT || !(c.(s390x.CCMask)&s390x.Greater == 0) {
++		if v_2.Op != OpS390XFlagGT || !(c&s390x.Greater == 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (LOCGR {c} x _ (FlagOV))
+-	// cond: c.(s390x.CCMask) & s390x.Unordered == 0
++	// cond: c&s390x.Unordered == 0
+ 	// result: x
+ 	for {
+-		c := v.Aux
++		c := auxToS390xCCMask(v.Aux)
+ 		x := v_0
+-		if v_2.Op != OpS390XFlagOV || !(c.(s390x.CCMask)&s390x.Unordered == 0) {
++		if v_2.Op != OpS390XFlagOV || !(c&s390x.Unordered == 0) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -8675,12 +8675,12 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value) bool {
+ 		if x_0.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+-		c := x_0.AuxInt
++		c := auxIntToInt64(x_0.AuxInt)
+ 		x_1 := x.Args[1]
+ 		if x_1.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+-		d := x_1.AuxInt
++		d := auxIntToInt64(x_1.AuxInt)
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d && (!x.Type.IsSigned() || x.Type.Size() > 1)) {
+ 			break
+ 		}
+@@ -19021,365 +19021,365 @@ func rewriteBlockS390X(b *Block) bool {
+ 	switch b.Kind {
+ 	case BlockS390XBRC:
+ 		// match: (BRC {c} (CMP x y) yes no)
+-		// result: (CGRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
++		// result: (CGRJ {c&^s390x.Unordered} x y yes no)
+ 		for b.Controls[0].Op == OpS390XCMP {
+ 			v_0 := b.Controls[0]
+ 			y := v_0.Args[1]
+ 			x := v_0.Args[0]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl2(BlockS390XCGRJ, x, y)
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPW x y) yes no)
+-		// result: (CRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
++		// result: (CRJ {c&^s390x.Unordered} x y yes no)
+ 		for b.Controls[0].Op == OpS390XCMPW {
+ 			v_0 := b.Controls[0]
+ 			y := v_0.Args[1]
+ 			x := v_0.Args[0]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl2(BlockS390XCRJ, x, y)
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPU x y) yes no)
+-		// result: (CLGRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
++		// result: (CLGRJ {c&^s390x.Unordered} x y yes no)
+ 		for b.Controls[0].Op == OpS390XCMPU {
+ 			v_0 := b.Controls[0]
+ 			y := v_0.Args[1]
+ 			x := v_0.Args[0]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl2(BlockS390XCLGRJ, x, y)
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPWU x y) yes no)
+-		// result: (CLRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
++		// result: (CLRJ {c&^s390x.Unordered} x y yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWU {
+ 			v_0 := b.Controls[0]
+ 			y := v_0.Args[1]
+ 			x := v_0.Args[0]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl2(BlockS390XCLRJ, x, y)
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPconst x [y]) yes no)
+-		// cond: is8Bit(y)
+-		// result: (CGIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
++		// cond: y == int32( int8(y))
++		// result: (CGIJ {c&^s390x.Unordered} x [ int8(y)] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPconst {
+ 			v_0 := b.Controls[0]
+-			y := v_0.AuxInt
++			y := auxIntToInt32(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			c := b.Aux
+-			if !(is8Bit(y)) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(int8(y))) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPWconst x [y]) yes no)
+-		// cond: is8Bit(y)
+-		// result: (CIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
++		// cond: y == int32( int8(y))
++		// result: (CIJ {c&^s390x.Unordered} x [ int8(y)] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWconst {
+ 			v_0 := b.Controls[0]
+-			y := v_0.AuxInt
++			y := auxIntToInt32(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			c := b.Aux
+-			if !(is8Bit(y)) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(int8(y))) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPUconst x [y]) yes no)
+-		// cond: isU8Bit(y)
+-		// result: (CLGIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
++		// cond: y == int32(uint8(y))
++		// result: (CLGIJ {c&^s390x.Unordered} x [uint8(y)] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPUconst {
+ 			v_0 := b.Controls[0]
+-			y := v_0.AuxInt
++			y := auxIntToInt32(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			c := b.Aux
+-			if !(isU8Bit(y)) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(uint8(y))) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLGIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (CMPWUconst x [y]) yes no)
+-		// cond: isU8Bit(y)
+-		// result: (CLIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
++		// cond: y == int32(uint8(y))
++		// result: (CLIJ {c&^s390x.Unordered} x [uint8(y)] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWUconst {
+ 			v_0 := b.Controls[0]
+-			y := v_0.AuxInt
++			y := auxIntToInt32(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			c := b.Aux
+-			if !(isU8Bit(y)) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(uint8(y))) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Less} (CMPconst x [ 128]) yes no)
+ 		// result: (CGIJ {s390x.LessOrEqual} x [ 127] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 128 {
++			if auxIntToInt32(v_0.AuxInt) != 128 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Less {
++			if auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = 127
+-			b.Aux = s390x.LessOrEqual
++			b.AuxInt = int8ToAuxInt(127)
++			b.Aux = s390xCCMaskToAux(s390x.LessOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Less} (CMPWconst x [ 128]) yes no)
+ 		// result: (CIJ {s390x.LessOrEqual} x [ 127] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 128 {
++			if auxIntToInt32(v_0.AuxInt) != 128 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Less {
++			if auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = 127
+-			b.Aux = s390x.LessOrEqual
++			b.AuxInt = int8ToAuxInt(127)
++			b.Aux = s390xCCMaskToAux(s390x.LessOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.LessOrEqual} (CMPconst x [-129]) yes no)
+ 		// result: (CGIJ {s390x.Less} x [-128] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != -129 {
++			if auxIntToInt32(v_0.AuxInt) != -129 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.LessOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.LessOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = -128
+-			b.Aux = s390x.Less
++			b.AuxInt = int8ToAuxInt(-128)
++			b.Aux = s390xCCMaskToAux(s390x.Less)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.LessOrEqual} (CMPWconst x [-129]) yes no)
+ 		// result: (CIJ {s390x.Less} x [-128] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != -129 {
++			if auxIntToInt32(v_0.AuxInt) != -129 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.LessOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.LessOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = -128
+-			b.Aux = s390x.Less
++			b.AuxInt = int8ToAuxInt(-128)
++			b.Aux = s390xCCMaskToAux(s390x.Less)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Greater} (CMPconst x [-129]) yes no)
+ 		// result: (CGIJ {s390x.GreaterOrEqual} x [-128] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != -129 {
++			if auxIntToInt32(v_0.AuxInt) != -129 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Greater {
++			if auxToS390xCCMask(b.Aux) != s390x.Greater {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = -128
+-			b.Aux = s390x.GreaterOrEqual
++			b.AuxInt = int8ToAuxInt(-128)
++			b.Aux = s390xCCMaskToAux(s390x.GreaterOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Greater} (CMPWconst x [-129]) yes no)
+ 		// result: (CIJ {s390x.GreaterOrEqual} x [-128] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != -129 {
++			if auxIntToInt32(v_0.AuxInt) != -129 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Greater {
++			if auxToS390xCCMask(b.Aux) != s390x.Greater {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = -128
+-			b.Aux = s390x.GreaterOrEqual
++			b.AuxInt = int8ToAuxInt(-128)
++			b.Aux = s390xCCMaskToAux(s390x.GreaterOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.GreaterOrEqual} (CMPconst x [ 128]) yes no)
+ 		// result: (CGIJ {s390x.Greater} x [ 127] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 128 {
++			if auxIntToInt32(v_0.AuxInt) != 128 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.GreaterOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = 127
+-			b.Aux = s390x.Greater
++			b.AuxInt = int8ToAuxInt(127)
++			b.Aux = s390xCCMaskToAux(s390x.Greater)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.GreaterOrEqual} (CMPWconst x [ 128]) yes no)
+ 		// result: (CIJ {s390x.Greater} x [ 127] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 128 {
++			if auxIntToInt32(v_0.AuxInt) != 128 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.GreaterOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = 127
+-			b.Aux = s390x.Greater
++			b.AuxInt = int8ToAuxInt(127)
++			b.Aux = s390xCCMaskToAux(s390x.Greater)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Less} (CMPWUconst x [256]) yes no)
+-		// result: (CLIJ {s390x.LessOrEqual} x [-1] yes no)
++		// result: (CLIJ {s390x.LessOrEqual} x [255] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWUconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 256 {
++			if auxIntToInt32(v_0.AuxInt) != 256 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Less {
++			if auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = -1
+-			b.Aux = s390x.LessOrEqual
++			b.AuxInt = uint8ToAuxInt(255)
++			b.Aux = s390xCCMaskToAux(s390x.LessOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.Less} (CMPUconst x [256]) yes no)
+-		// result: (CLGIJ {s390x.LessOrEqual} x [-1] yes no)
++		// result: (CLGIJ {s390x.LessOrEqual} x [255] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPUconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 256 {
++			if auxIntToInt32(v_0.AuxInt) != 256 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.Less {
++			if auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLGIJ, x)
+-			b.AuxInt = -1
+-			b.Aux = s390x.LessOrEqual
++			b.AuxInt = uint8ToAuxInt(255)
++			b.Aux = s390xCCMaskToAux(s390x.LessOrEqual)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.GreaterOrEqual} (CMPWUconst x [256]) yes no)
+-		// result: (CLIJ {s390x.Greater} x [-1] yes no)
++		// result: (CLIJ {s390x.Greater} x [255] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPWUconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 256 {
++			if auxIntToInt32(v_0.AuxInt) != 256 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.GreaterOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = -1
+-			b.Aux = s390x.Greater
++			b.AuxInt = uint8ToAuxInt(255)
++			b.Aux = s390xCCMaskToAux(s390x.Greater)
+ 			return true
+ 		}
+ 		// match: (BRC {s390x.GreaterOrEqual} (CMPUconst x [256]) yes no)
+-		// result: (CLGIJ {s390x.Greater} x [-1] yes no)
++		// result: (CLGIJ {s390x.Greater} x [255] yes no)
+ 		for b.Controls[0].Op == OpS390XCMPUconst {
+ 			v_0 := b.Controls[0]
+-			if v_0.AuxInt != 256 {
++			if auxIntToInt32(v_0.AuxInt) != 256 {
+ 				break
+ 			}
+ 			x := v_0.Args[0]
+-			if b.Aux != s390x.GreaterOrEqual {
++			if auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLGIJ, x)
+-			b.AuxInt = -1
+-			b.Aux = s390x.Greater
++			b.AuxInt = uint8ToAuxInt(255)
++			b.Aux = s390xCCMaskToAux(s390x.Greater)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (InvertFlags cmp) yes no)
+-		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} cmp yes no)
++		// result: (BRC {c.ReverseComparison()} cmp yes no)
+ 		for b.Controls[0].Op == OpS390XInvertFlags {
+ 			v_0 := b.Controls[0]
+ 			cmp := v_0.Args[0]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl(BlockS390XBRC, cmp)
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagEQ) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Equal != 0
++		// cond: c&s390x.Equal != 0
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XFlagEQ {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagLT) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Less != 0
++		// cond: c&s390x.Less != 0
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XFlagLT {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagGT) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Greater != 0
++		// cond: c&s390x.Greater != 0
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XFlagGT {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagOV) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Unordered != 0
++		// cond: c&s390x.Unordered != 0
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XFlagOV {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Unordered != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagEQ) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Equal == 0
++		// cond: c&s390x.Equal == 0
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XFlagEQ {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19387,11 +19387,11 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagLT) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Less == 0
++		// cond: c&s390x.Less == 0
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XFlagLT {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19399,11 +19399,11 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagGT) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Greater == 0
++		// cond: c&s390x.Greater == 0
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XFlagGT {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19411,11 +19411,11 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (BRC {c} (FlagOV) yes no)
+-		// cond: c.(s390x.CCMask) & s390x.Unordered == 0
++		// cond: c&s390x.Unordered == 0
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XFlagOV {
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Unordered == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19424,56 +19424,56 @@ func rewriteBlockS390X(b *Block) bool {
+ 		}
+ 	case BlockS390XCGIJ:
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal != 0 && int64(x) == int64( int8(y))
++		// cond: c&s390x.Equal != 0 && int64(x) == int64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal != 0 && int64(x) == int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal != 0 && int64(x) == int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less != 0 && int64(x) < int64( int8(y))
++		// cond: c&s390x.Less != 0 && int64(x) < int64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less != 0 && int64(x) < int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less != 0 && int64(x) < int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater != 0 && int64(x) > int64( int8(y))
++		// cond: c&s390x.Greater != 0 && int64(x) > int64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater != 0 && int64(x) > int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater != 0 && int64(x) > int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal == 0 && int64(x) == int64( int8(y))
++		// cond: c&s390x.Equal == 0 && int64(x) == int64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal == 0 && int64(x) == int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal == 0 && int64(x) == int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19481,14 +19481,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less == 0 && int64(x) < int64( int8(y))
++		// cond: c&s390x.Less == 0 && int64(x) < int64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less == 0 && int64(x) < int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less == 0 && int64(x) < int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19496,14 +19496,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater == 0 && int64(x) > int64( int8(y))
++		// cond: c&s390x.Greater == 0 && int64(x) > int64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater == 0 && int64(x) > int64(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater == 0 && int64(x) > int64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19513,93 +19513,93 @@ func rewriteBlockS390X(b *Block) bool {
+ 	case BlockS390XCGRJ:
+ 		// match: (CGRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: is8Bit(y)
+-		// result: (CGIJ {c} x [int64(int8(y))] yes no)
++		// result: (CGIJ {c} x [ int8(y)] yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(is8Bit(y)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CGRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: is8Bit(x)
+-		// result: (CGIJ {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
++		// result: (CGIJ {c.ReverseComparison()} y [ int8(x)] yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(is8Bit(x)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCGIJ, y)
+-			b.AuxInt = int64(int8(x))
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.AuxInt = int8ToAuxInt(int8(x))
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CGRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: !is8Bit(y) && is32Bit(y)
+-		// result: (BRC {c} (CMPconst x [int64(int32(y))]) yes no)
++		// result: (BRC {c} (CMPconst x [int32(y)]) yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!is8Bit(y) && is32Bit(y)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(x.Pos, OpS390XCMPconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(y))
++			v0.AuxInt = int32ToAuxInt(int32(y))
+ 			v0.AddArg(x)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CGRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: !is8Bit(x) && is32Bit(x)
+-		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPconst y [int64(int32(x))]) yes no)
++		// result: (BRC {c.ReverseComparison()} (CMPconst y [int32(x)]) yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!is8Bit(x) && is32Bit(x)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(x))
++			v0.AuxInt = int32ToAuxInt(int32(x))
+ 			v0.AddArg(y)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CGRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal != 0
++		// cond: x == y && c&s390x.Equal != 0
+ 		// result: (First yes no)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CGRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal == 0
++		// cond: x == y && c&s390x.Equal == 0
+ 		// result: (First no yes)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19612,11 +19612,11 @@ func rewriteBlockS390X(b *Block) bool {
+ 		for b.Controls[0].Op == OpS390XMOVWreg {
+ 			v_0 := b.Controls[0]
+ 			x := v_0.Args[0]
+-			y := b.AuxInt
+-			c := b.Aux
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = y
+-			b.Aux = c
++			b.AuxInt = int8ToAuxInt(y)
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVWZreg x) [y] yes no)
+@@ -19624,64 +19624,64 @@ func rewriteBlockS390X(b *Block) bool {
+ 		for b.Controls[0].Op == OpS390XMOVWZreg {
+ 			v_0 := b.Controls[0]
+ 			x := v_0.Args[0]
+-			y := b.AuxInt
+-			c := b.Aux
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = y
+-			b.Aux = c
++			b.AuxInt = int8ToAuxInt(y)
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal != 0 && int32(x) == int32( int8(y))
++		// cond: c&s390x.Equal != 0 && int32(x) == int32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal != 0 && int32(x) == int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal != 0 && int32(x) == int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less != 0 && int32(x) < int32( int8(y))
++		// cond: c&s390x.Less != 0 && int32(x) < int32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less != 0 && int32(x) < int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less != 0 && int32(x) < int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater != 0 && int32(x) > int32( int8(y))
++		// cond: c&s390x.Greater != 0 && int32(x) > int32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater != 0 && int32(x) > int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater != 0 && int32(x) > int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal == 0 && int32(x) == int32( int8(y))
++		// cond: c&s390x.Equal == 0 && int32(x) == int32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal == 0 && int32(x) == int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal == 0 && int32(x) == int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19689,14 +19689,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less == 0 && int32(x) < int32( int8(y))
++		// cond: c&s390x.Less == 0 && int32(x) < int32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less == 0 && int32(x) < int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less == 0 && int32(x) < int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19704,14 +19704,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater == 0 && int32(x) > int32( int8(y))
++		// cond: c&s390x.Greater == 0 && int32(x) > int32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater == 0 && int32(x) > int32(int8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToInt8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater == 0 && int32(x) > int32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19720,56 +19720,56 @@ func rewriteBlockS390X(b *Block) bool {
+ 		}
+ 	case BlockS390XCLGIJ:
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal != 0 && uint64(x) == uint64(uint8(y))
++		// cond: c&s390x.Equal != 0 && uint64(x) == uint64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal != 0 && uint64(x) == uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal != 0 && uint64(x) == uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less != 0 && uint64(x) < uint64(uint8(y))
++		// cond: c&s390x.Less != 0 && uint64(x) < uint64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less != 0 && uint64(x) < uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less != 0 && uint64(x) < uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater != 0 && uint64(x) > uint64(uint8(y))
++		// cond: c&s390x.Greater != 0 && uint64(x) > uint64(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater != 0 && uint64(x) > uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater != 0 && uint64(x) > uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal == 0 && uint64(x) == uint64(uint8(y))
++		// cond: c&s390x.Equal == 0 && uint64(x) == uint64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal == 0 && uint64(x) == uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal == 0 && uint64(x) == uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19777,14 +19777,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less == 0 && uint64(x) < uint64(uint8(y))
++		// cond: c&s390x.Less == 0 && uint64(x) < uint64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less == 0 && uint64(x) < uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less == 0 && uint64(x) < uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19792,14 +19792,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CLGIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater == 0 && uint64(x) > uint64(uint8(y))
++		// cond: c&s390x.Greater == 0 && uint64(x) > uint64(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater == 0 && uint64(x) > uint64(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater == 0 && uint64(x) > uint64(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19809,7 +19809,7 @@ func rewriteBlockS390X(b *Block) bool {
+ 		// match: (CLGIJ {s390x.GreaterOrEqual} _ [0] yes no)
+ 		// result: (First yes no)
+ 		for {
+-			if b.AuxInt != 0 || b.Aux != s390x.GreaterOrEqual {
++			if auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19818,7 +19818,7 @@ func rewriteBlockS390X(b *Block) bool {
+ 		// match: (CLGIJ {s390x.Less} _ [0] yes no)
+ 		// result: (First no yes)
+ 		for {
+-			if b.AuxInt != 0 || b.Aux != s390x.Less {
++			if auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19828,93 +19828,93 @@ func rewriteBlockS390X(b *Block) bool {
+ 	case BlockS390XCLGRJ:
+ 		// match: (CLGRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: isU8Bit(y)
+-		// result: (CLGIJ {c} x [int64(int8(y))] yes no)
++		// result: (CLGIJ {c} x [uint8(y)] yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(isU8Bit(y)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLGIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLGRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: isU8Bit(x)
+-		// result: (CLGIJ {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
++		// result: (CLGIJ {c.ReverseComparison()} y [uint8(x)] yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(isU8Bit(x)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLGIJ, y)
+-			b.AuxInt = int64(int8(x))
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.AuxInt = uint8ToAuxInt(uint8(x))
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CLGRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: !isU8Bit(y) && isU32Bit(y)
+-		// result: (BRC {c} (CMPUconst x [int64(int32(y))]) yes no)
++		// result: (BRC {c} (CMPUconst x [int32(y)]) yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!isU8Bit(y) && isU32Bit(y)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(x.Pos, OpS390XCMPUconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(y))
++			v0.AuxInt = int32ToAuxInt(int32(y))
+ 			v0.AddArg(x)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLGRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: !isU8Bit(x) && isU32Bit(x)
+-		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPUconst y [int64(int32(x))]) yes no)
++		// result: (BRC {c.ReverseComparison()} (CMPUconst y [int32(x)]) yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!isU8Bit(x) && isU32Bit(x)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPUconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(x))
++			v0.AuxInt = int32ToAuxInt(int32(x))
+ 			v0.AddArg(y)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CLGRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal != 0
++		// cond: x == y && c&s390x.Equal != 0
+ 		// result: (First yes no)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLGRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal == 0
++		// cond: x == y && c&s390x.Equal == 0
+ 		// result: (First no yes)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -19927,22 +19927,22 @@ func rewriteBlockS390X(b *Block) bool {
+ 		// result: (BRC {d} cmp yes no)
+ 		for b.Controls[0].Op == OpS390XLOCGR {
+ 			v_0 := b.Controls[0]
+-			d := v_0.Aux
++			d := auxToS390xCCMask(v_0.Aux)
+ 			cmp := v_0.Args[2]
+ 			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpS390XMOVDconst || v_0_0.AuxInt != 0 {
++			if v_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0.AuxInt) != 0 {
+ 				break
+ 			}
+ 			v_0_1 := v_0.Args[1]
+ 			if v_0_1.Op != OpS390XMOVDconst {
+ 				break
+ 			}
+-			x := v_0_1.AuxInt
+-			if b.AuxInt != 0 || b.Aux != s390x.LessOrGreater || !(int32(x) != 0) {
++			x := auxIntToInt64(v_0_1.AuxInt)
++			if auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater || !(int32(x) != 0) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XBRC, cmp)
+-			b.Aux = d
++			b.Aux = s390xCCMaskToAux(d)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVWreg x) [y] yes no)
+@@ -19950,11 +19950,11 @@ func rewriteBlockS390X(b *Block) bool {
+ 		for b.Controls[0].Op == OpS390XMOVWreg {
+ 			v_0 := b.Controls[0]
+ 			x := v_0.Args[0]
+-			y := b.AuxInt
+-			c := b.Aux
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = y
+-			b.Aux = c
++			b.AuxInt = uint8ToAuxInt(y)
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVWZreg x) [y] yes no)
+@@ -19962,64 +19962,64 @@ func rewriteBlockS390X(b *Block) bool {
+ 		for b.Controls[0].Op == OpS390XMOVWZreg {
+ 			v_0 := b.Controls[0]
+ 			x := v_0.Args[0]
+-			y := b.AuxInt
+-			c := b.Aux
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = y
+-			b.Aux = c
++			b.AuxInt = uint8ToAuxInt(y)
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal != 0 && uint32(x) == uint32(uint8(y))
++		// cond: c&s390x.Equal != 0 && uint32(x) == uint32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal != 0 && uint32(x) == uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal != 0 && uint32(x) == uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less != 0 && uint32(x) < uint32(uint8(y))
++		// cond: c&s390x.Less != 0 && uint32(x) < uint32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less != 0 && uint32(x) < uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less != 0 && uint32(x) < uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater != 0 && uint32(x) > uint32(uint8(y))
++		// cond: c&s390x.Greater != 0 && uint32(x) > uint32(y)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater != 0 && uint32(x) > uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater != 0 && uint32(x) > uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Equal == 0 && uint32(x) == uint32(uint8(y))
++		// cond: c&s390x.Equal == 0 && uint32(x) == uint32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Equal == 0 && uint32(x) == uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Equal == 0 && uint32(x) == uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20027,14 +20027,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Less == 0 && uint32(x) < uint32(uint8(y))
++		// cond: c&s390x.Less == 0 && uint32(x) < uint32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Less == 0 && uint32(x) < uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Less == 0 && uint32(x) < uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20042,14 +20042,14 @@ func rewriteBlockS390X(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (CLIJ {c} (MOVDconst [x]) [y] yes no)
+-		// cond: c.(s390x.CCMask)&s390x.Greater == 0 && uint32(x) > uint32(uint8(y))
++		// cond: c&s390x.Greater == 0 && uint32(x) > uint32(y)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
+-			y := b.AuxInt
+-			c := b.Aux
+-			if !(c.(s390x.CCMask)&s390x.Greater == 0 && uint32(x) > uint32(uint8(y))) {
++			x := auxIntToInt64(v_0.AuxInt)
++			y := auxIntToUint8(b.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Greater == 0 && uint32(x) > uint32(y)) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20059,7 +20059,7 @@ func rewriteBlockS390X(b *Block) bool {
+ 		// match: (CLIJ {s390x.GreaterOrEqual} _ [0] yes no)
+ 		// result: (First yes no)
+ 		for {
+-			if b.AuxInt != 0 || b.Aux != s390x.GreaterOrEqual {
++			if auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.GreaterOrEqual {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20068,7 +20068,7 @@ func rewriteBlockS390X(b *Block) bool {
+ 		// match: (CLIJ {s390x.Less} _ [0] yes no)
+ 		// result: (First no yes)
+ 		for {
+-			if b.AuxInt != 0 || b.Aux != s390x.Less {
++			if auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Less {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20078,93 +20078,93 @@ func rewriteBlockS390X(b *Block) bool {
+ 	case BlockS390XCLRJ:
+ 		// match: (CLRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: isU8Bit(y)
+-		// result: (CLIJ {c} x [int64(int8(y))] yes no)
++		// result: (CLIJ {c} x [uint8(y)] yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(isU8Bit(y)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: isU8Bit(x)
+-		// result: (CLIJ {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
++		// result: (CLIJ {c.ReverseComparison()} y [uint8(x)] yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(isU8Bit(x)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCLIJ, y)
+-			b.AuxInt = int64(int8(x))
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.AuxInt = uint8ToAuxInt(uint8(x))
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CLRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: !isU8Bit(y) && isU32Bit(y)
+-		// result: (BRC {c} (CMPWUconst x [int64(int32(y))]) yes no)
++		// result: (BRC {c} (CMPWUconst x [int32(y)]) yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!isU8Bit(y) && isU32Bit(y)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(x.Pos, OpS390XCMPWUconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(y))
++			v0.AuxInt = int32ToAuxInt(int32(y))
+ 			v0.AddArg(x)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CLRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: !isU8Bit(x) && isU32Bit(x)
+-		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWUconst y [int64(int32(x))]) yes no)
++		// result: (BRC {c.ReverseComparison()} (CMPWUconst y [int32(x)]) yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!isU8Bit(x) && isU32Bit(x)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPWUconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(x))
++			v0.AuxInt = int32ToAuxInt(int32(x))
+ 			v0.AddArg(y)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CLRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal != 0
++		// cond: x == y && c&s390x.Equal != 0
+ 		// result: (First yes no)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CLRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal == 0
++		// cond: x == y && c&s390x.Equal == 0
+ 		// result: (First no yes)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+@@ -20174,93 +20174,93 @@ func rewriteBlockS390X(b *Block) bool {
+ 	case BlockS390XCRJ:
+ 		// match: (CRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: is8Bit(y)
+-		// result: (CIJ {c} x [int64(int8(y))] yes no)
++		// result: (CIJ {c} x [ int8(y)] yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(is8Bit(y)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, x)
+-			b.AuxInt = int64(int8(y))
+-			b.Aux = c
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: is8Bit(x)
+-		// result: (CIJ {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
++		// result: (CIJ {c.ReverseComparison()} y [ int8(x)] yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(is8Bit(x)) {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockS390XCIJ, y)
+-			b.AuxInt = int64(int8(x))
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.AuxInt = int8ToAuxInt(int8(x))
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CRJ {c} x (MOVDconst [y]) yes no)
+ 		// cond: !is8Bit(y) && is32Bit(y)
+-		// result: (BRC {c} (CMPWconst x [int64(int32(y))]) yes no)
++		// result: (BRC {c} (CMPWconst x [int32(y)]) yes no)
+ 		for b.Controls[1].Op == OpS390XMOVDconst {
+ 			x := b.Controls[0]
+ 			v_1 := b.Controls[1]
+-			y := v_1.AuxInt
+-			c := b.Aux
++			y := auxIntToInt64(v_1.AuxInt)
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!is8Bit(y) && is32Bit(y)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(x.Pos, OpS390XCMPWconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(y))
++			v0.AuxInt = int32ToAuxInt(int32(y))
+ 			v0.AddArg(x)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c
++			b.Aux = s390xCCMaskToAux(c)
+ 			return true
+ 		}
+ 		// match: (CRJ {c} (MOVDconst [x]) y yes no)
+ 		// cond: !is8Bit(x) && is32Bit(x)
+-		// result: (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWconst y [int64(int32(x))]) yes no)
++		// result: (BRC {c.ReverseComparison()} (CMPWconst y [int32(x)]) yes no)
+ 		for b.Controls[0].Op == OpS390XMOVDconst {
+ 			v_0 := b.Controls[0]
+-			x := v_0.AuxInt
++			x := auxIntToInt64(v_0.AuxInt)
+ 			y := b.Controls[1]
+-			c := b.Aux
++			c := auxToS390xCCMask(b.Aux)
+ 			if !(!is8Bit(x) && is32Bit(x)) {
+ 				break
+ 			}
+ 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPWconst, types.TypeFlags)
+-			v0.AuxInt = int64(int32(x))
++			v0.AuxInt = int32ToAuxInt(int32(x))
+ 			v0.AddArg(y)
+ 			b.resetWithControl(BlockS390XBRC, v0)
+-			b.Aux = c.(s390x.CCMask).ReverseComparison()
++			b.Aux = s390xCCMaskToAux(c.ReverseComparison())
+ 			return true
+ 		}
+ 		// match: (CRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal != 0
++		// cond: x == y && c&s390x.Equal != 0
+ 		// result: (First yes no)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal != 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal != 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+ 		// match: (CRJ {c} x y yes no)
+-		// cond: x == y && c.(s390x.CCMask)&s390x.Equal == 0
++		// cond: x == y && c&s390x.Equal == 0
+ 		// result: (First no yes)
+ 		for {
+ 			x := b.Controls[0]
+ 			y := b.Controls[1]
+-			c := b.Aux
+-			if !(x == y && c.(s390x.CCMask)&s390x.Equal == 0) {
++			c := auxToS390xCCMask(b.Aux)
++			if !(x == y && c&s390x.Equal == 0) {
+ 				break
+ 			}
+ 			b.Reset(BlockFirst)
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index f88d7d3578..ca5b884946 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -183,7 +183,7 @@ func (v *Value) auxString() string {
+ 		return fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:
+ 		return fmt.Sprintf(" {%q}", v.Aux)
+-	case auxSym, auxTyp, auxArchSpecific:
++	case auxSym, auxTyp:
+ 		if v.Aux != nil {
+ 			return fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+@@ -204,6 +204,8 @@ func (v *Value) auxString() string {
+ 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+ 	case auxCCop:
+ 		return fmt.Sprintf(" {%s}", v.Aux.(Op))
++	case auxS390XCCMask, auxS390XRotateParams:
++		return fmt.Sprintf(" {%v}", v.Aux)
+ 	}
+ 	return ""
+ }

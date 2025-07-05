@@ -14,6 +14,23 @@ Date:   Fri Dec 17 06:53:21 2021 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 47b4921cd8..4aaed7baf0 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -471,6 +471,11 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
+ 	if strings.HasPrefix(name, "struct {") {
+ 		return nil
+ 	}
++	// cmd/compile uses "noalg.struct {...}" as type name when hash and eq algorithm generation of
++	// this struct type is suppressed.
++	if strings.HasPrefix(name, "noalg.struct {") {
++		return nil
++	}
+ 	if strings.HasPrefix(name, "chan ") {
+ 		return nil
+ 	}

@@ -24,7 +24,50 @@ Date:   Tue Jun 27 16:51:24 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 5 ++++-
  test/fixedbugs/issue60982.go           | 7 ++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 4aedf9cd35..678e1ebc11 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -949,7 +949,6 @@ var (
+ 	typVar       = ssaMarker("typ")
+ 	okVar        = ssaMarker("ok")
+ 	deferBitsVar = ssaMarker("deferBits")
+-	ternaryVar   = ssaMarker("ternary")
+ )
+ 
+ // startBlock sets the current block we're generating code in to b.
+@@ -3621,6 +3620,10 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 
+ // ternary emits code to evaluate cond ? x : y.
+ func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
++	// Note that we need a new ternaryVar each time (unlike okVar where we can
++	// reuse the variable) because it might have a different type every time.
++	ternaryVar := ssaMarker("ternary")
++
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+ 	bElse := s.f.NewBlock(ssa.BlockPlain)
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
+diff --git a/test/fixedbugs/issue60982.go b/test/fixedbugs/issue60982.go
+index 11c3af214f..4e5fc34646 100644
+--- a/test/fixedbugs/issue60982.go
++++ b/test/fixedbugs/issue60982.go
+@@ -6,8 +6,13 @@
+ 
+ package main
+ 
+-func f(x int) int {
++func f(x int, b bool) int {
+ 	if x >= 1000 {
++		if b { // from #61041
++			var a struct{ f int64 }
++			_ = max(0, a.f)
++		}
++
+ 		return max(x, 2000)
+ 	}
+ 	// generate 1000 basic blocks to put this function

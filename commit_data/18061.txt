@@ -10,7 +10,35 @@ Date:   Wed Dec 18 20:19:59 2013 +0100
     R=golang-dev, gobot, rsc
     CC=golang-dev
     https://golang.org/cl/40500043
-
+---
  src/cmd/ld/pcln.c | 2 +-
  src/libmach/sym.c | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index ac7294a78c..50bd56ed85 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -26,7 +26,7 @@ addvarint(Pcdata *d, uint32 val)
+ 	p = d->p + d->n;
+ 	for(v = val; v >= 0x80; v >>= 7)
+ 		*p++ = v | 0x80;
+-	*p++ = v;
++	*p = v;
+ 	d->n += n;
+ }
+ 
+diff --git a/src/libmach/sym.c b/src/libmach/sym.c
+index 474cc0c62c..75e3787539 100644
+--- a/src/libmach/sym.c
++++ b/src/libmach/sym.c
+@@ -1858,7 +1858,8 @@ havefile:
+ 		fp = pcline + pcswal(*(uint32*)(func+FuncPCFile));
+ 		lp = pcline + pcswal(*(uint32*)(func+FuncPCLine));
+ 		fval = lval = -1;
+-		fpc = lpc = entry;
++		lpc = entry;
++		fpc = lpc;
+ 		fstartpc = fpc;
+ 		while(step(&fp, &fpc, &fval, fpc==entry)) {
+ 			if(fval == fno && fstartpc < fpc) {

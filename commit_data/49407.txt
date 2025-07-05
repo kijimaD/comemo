@@ -14,8 +14,186 @@ Date:   Mon Jun 28 15:41:20 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/next.txt                    |  4 ++
  src/internal/poll/fd_windows.go | 90 +++++++++++++++++++++++++++++++++++++++--
  src/syscall/syscall_windows.go  | 32 +++++++++++++++
  3 files changed, 122 insertions(+), 4 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index 4dbaae3cf2..3eb7f3f797 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -102,3 +102,7 @@ pkg syscall (openbsd-amd64-cgo), func RecvfromInet4(int, []uint8, int, *Sockaddr
+ pkg syscall (openbsd-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (openbsd-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (openbsd-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (windows-386), func WSASendtoInet4(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet4, *Overlapped, *uint8) error
++pkg syscall (windows-386), func WSASendtoInet6(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet6, *Overlapped, *uint8) error
++pkg syscall (windows-amd64), func WSASendtoInet4(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet4, *Overlapped, *uint8) error
++pkg syscall (windows-amd64), func WSASendtoInet6(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet6, *Overlapped, *uint8) error
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 14e8f4965b..48fcdf306c 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -79,6 +79,8 @@ type operation struct {
+ 	buf    syscall.WSABuf
+ 	msg    windows.WSAMsg
+ 	sa     syscall.Sockaddr
++	sa4    syscall.SockaddrInet4
++	sa6    syscall.SockaddrInet6
+ 	rsa    *syscall.RawSockaddrAny
+ 	rsan   int32
+ 	handle syscall.Handle
+@@ -595,7 +597,30 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 
+ // ReadFrom wraps the recvfrom network call for IPv4.
+ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+-	n, sa, err := fd.ReadFrom(buf)
++	if len(buf) == 0 {
++		return 0, nil
++	}
++	if len(buf) > maxRW {
++		buf = buf[:maxRW]
++	}
++	if err := fd.readLock(); err != nil {
++		return 0, err
++	}
++	defer fd.readUnlock()
++	o := &fd.rop
++	o.InitBuf(buf)
++	n, err := execIO(o, func(o *operation) error {
++		if o.rsa == nil {
++			o.rsa = new(syscall.RawSockaddrAny)
++		}
++		o.rsan = int32(unsafe.Sizeof(*o.rsa))
++		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
++	})
++	err = fd.eofError(n, err)
++	if err != nil {
++		return n, err
++	}
++	sa, _ := o.rsa.Sockaddr()
+ 	if sa != nil {
+ 		*sa4 = *(sa.(*syscall.SockaddrInet4))
+ 	}
+@@ -604,7 +629,30 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
+ 
+ // ReadFrom wraps the recvfrom network call for IPv6.
+ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+-	n, sa, err := fd.ReadFrom(buf)
++	if len(buf) == 0 {
++		return 0, nil
++	}
++	if len(buf) > maxRW {
++		buf = buf[:maxRW]
++	}
++	if err := fd.readLock(); err != nil {
++		return 0, err
++	}
++	defer fd.readUnlock()
++	o := &fd.rop
++	o.InitBuf(buf)
++	n, err := execIO(o, func(o *operation) error {
++		if o.rsa == nil {
++			o.rsa = new(syscall.RawSockaddrAny)
++		}
++		o.rsan = int32(unsafe.Sizeof(*o.rsa))
++		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
++	})
++	err = fd.eofError(n, err)
++	if err != nil {
++		return n, err
++	}
++	sa, _ := o.rsa.Sockaddr()
+ 	if sa != nil {
+ 		*sa6 = *(sa.(*syscall.SockaddrInet6))
+ 	}
+@@ -810,8 +858,42 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ }
+ 
+ // WriteTo wraps the sendto network call for IPv4.
+-func (fd *FD) WriteToInet4(buf []byte, sa syscall.SockaddrInet4) (int, error) {
+-	return fd.WriteTo(buf, &sa)
++func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
++	if err := fd.writeLock(); err != nil {
++		return 0, err
++	}
++	defer fd.writeUnlock()
++
++	if len(buf) == 0 {
++		// handle zero-byte payload
++		o := &fd.wop
++		o.InitBuf(buf)
++		o.sa4 = sa4
++		n, err := execIO(o, func(o *operation) error {
++			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
++		})
++		return n, err
++	}
++
++	ntotal := 0
++	for len(buf) > 0 {
++		b := buf
++		if len(b) > maxRW {
++			b = b[:maxRW]
++		}
++		o := &fd.wop
++		o.InitBuf(b)
++		o.sa4 = sa4
++		n, err := execIO(o, func(o *operation) error {
++			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
++		})
++		ntotal += int(n)
++		if err != nil {
++			return ntotal, err
++		}
++		buf = buf[n:]
++	}
++	return ntotal, nil
+ }
+ 
+ // WriteTo wraps the sendto network call for IPv6.
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 660179ae9e..d4e51e541d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -924,6 +924,38 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
+ 	return err
+ }
+ 
++func WSASendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
++	rsa, len, err := to.sockaddr()
++	if err != nil {
++		return err
++	}
++	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
++	if r1 == socket_error {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return err
++}
++
++func WSASendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
++	rsa, len, err := to.sockaddr()
++	if err != nil {
++		return err
++	}
++	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
++	if r1 == socket_error {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return err
++}
++
+ func LoadGetAddrInfo() error {
+ 	return procGetAddrInfoW.Find()
+ }

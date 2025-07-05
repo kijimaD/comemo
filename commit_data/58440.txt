@@ -16,7 +16,76 @@ Date:   Thu Nov 9 01:53:45 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  src/slices/slices.go      |  7 ++++---
  src/slices/slices_test.go | 10 ++++++++++
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index fe50a91d48..4c398557ff 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -212,7 +212,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ }
+ 
+ // Delete removes the elements s[i:j] from s, returning the modified slice.
+-// Delete panics if s[i:j] is not a valid slice of s.
++// Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
+ // Delete is O(len(s)-j), so if many items must be deleted, it is better to
+ // make a single call deleting them all together than to delete one at a time.
+ // Delete might not modify the elements s[len(s)-(j-i):len(s)]. If those
+@@ -246,9 +246,10 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+ }
+ 
+ // Replace replaces the elements s[i:j] by the given v, and returns the
+-// modified slice. Replace panics if s[i:j] is not a valid slice of s.
++// modified slice.
++// Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
+ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+-	_ = s[i:j] // verify that i:j is a valid subslice
++	_ = s[i:j] // bounds check
+ 
+ 	if i == j {
+ 		return Insert(s, i, v...)
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 7d4fc34b2e..2fc583ff90 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -659,6 +659,10 @@ func panics(f func()) (b bool) {
+ }
+ 
+ func TestDeletePanics(t *testing.T) {
++	s := []int{0, 1, 2, 3, 4}
++	s = s[0:2]
++	_ = s[0:4] // this is a valid slice of s
++
+ 	for _, test := range []struct {
+ 		name string
+ 		s    []int
+@@ -669,6 +673,7 @@ func TestDeletePanics(t *testing.T) {
+ 		{"with out-of-bounds first index", []int{42}, 2, 3},
+ 		{"with out-of-bounds second index", []int{42}, 0, 2},
+ 		{"with invalid i>j", []int{42}, 1, 0},
++		{"s[i:j] is valid and j > len(s)", s, 0, 4},
+ 	} {
+ 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
+ 			t.Errorf("Delete %s: got no panic, want panic", test.name)
+@@ -928,6 +933,10 @@ func TestReplace(t *testing.T) {
+ }
+ 
+ func TestReplacePanics(t *testing.T) {
++	s := []int{0, 1, 2, 3, 4}
++	s = s[0:2]
++	_ = s[0:4] // this is a valid slice of s
++
+ 	for _, test := range []struct {
+ 		name string
+ 		s, v []int
+@@ -936,6 +945,7 @@ func TestReplacePanics(t *testing.T) {
+ 		{"indexes out of order", []int{1, 2}, []int{3}, 2, 1},
+ 		{"large index", []int{1, 2}, []int{3}, 1, 10},
+ 		{"negative index", []int{1, 2}, []int{3}, -1, 2},
++		{"s[i:j] is valid and j > len(s)", s, nil, 0, 4},
+ 	} {
+ 		ss, vv := Clone(test.s), Clone(test.v)
+ 		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {

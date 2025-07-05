@@ -15,9 +15,73 @@ Date:   Thu Aug 9 12:34:19 2018 -0400
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/api_test.go    | 4 ++--
  src/go/types/assignments.go | 2 +-
  src/go/types/call.go        | 4 +---
  src/go/types/expr.go        | 2 ++
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 700fde9231..1fe20794ea 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -42,7 +42,7 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
+ 	return pkg.Name()
+ }
+ 
+-func maybeTypecheck(t *testing.T, path, source string, info *Info) string {
++func mayTypecheck(t *testing.T, path, source string, info *Info) string {
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, path, source, 0)
+ 	if f == nil { // ignore errors unless f is nil
+@@ -265,7 +265,7 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+-		name := maybeTypecheck(t, "TypesInfo", test.src, &info)
++		name := mayTypecheck(t, "TypesInfo", test.src, &info)
+ 
+ 		// look for expression type
+ 		var typ Type
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 6adef3b407..27002f6699 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -310,7 +310,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+ 				check.recordDef(ident, obj)
+ 			}
+ 		} else {
+-			check.expr(&operand{}, lhs)
++			check.useLHS(lhs)
+ 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+ 		}
+ 		if obj == nil {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 4e8544ad88..d5c196afe8 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -34,9 +34,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 				check.conversion(x, T)
+ 			}
+ 		default:
+-			for _, arg := range e.Args {
+-				check.expr(&operand{}, arg)
+-			}
++			check.use(e.Args...)
+ 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
+ 		}
+ 		x.expr = e
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 60ac4a33ad..c1deaf8325 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1094,6 +1094,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 						continue
+ 					}
+ 					key, _ := kv.Key.(*ast.Ident)
++					// do all possible checks early (before exiting due to errors)
++					// so we don't drop information on the floor
+ 					check.expr(x, kv.Value)
+ 					if key == nil {
+ 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)

@@ -14,8 +14,46 @@ Date:   Wed Dec 4 19:22:51 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/next/4-runtime.md                      | 16 ++++++++++++++++
  doc/next/6-stdlib/{1-weak.md => 6-weak.md} |  0
  doc/next/6-stdlib/99-minor/sync/70683.md   |  5 +++++
  3 files changed, 21 insertions(+)
+
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+index 1f8e445e0b..7079a0107f 100644
+--- a/doc/next/4-runtime.md
++++ b/doc/next/4-runtime.md
+@@ -1 +1,17 @@
+ ## Runtime {#runtime}
++
++<!-- go.dev/issue/54766 -->
++<!-- go.dev/cl/614795 -->
++<!-- go.dev/issue/68578 -->
++
++Several performance improvements to the runtime have decreased CPU overheads by
++2—3% on average across a suite of representative benchmarks.
++Results may vary by application.
++These improvements include a new builtin `map` implementation based on
++[Swiss Tables](https://abseil.io/about/design/swisstables), more efficient
++memory allocation of small objects, and a new runtime-internal mutex
++implementation.
++
++The new builtin `map` implementation and new runtime-internal mutex may be
++disabled by setting `GOEXPERIMENT=noswissmap` and `GOEXPERIMENT=nospinbitmutex`
++at build time respectively.
+diff --git a/doc/next/6-stdlib/1-weak.md b/doc/next/6-stdlib/6-weak.md
+similarity index 100%
+rename from doc/next/6-stdlib/1-weak.md
+rename to doc/next/6-stdlib/6-weak.md
+diff --git a/doc/next/6-stdlib/99-minor/sync/70683.md b/doc/next/6-stdlib/99-minor/sync/70683.md
+new file mode 100644
+index 0000000000..f88f3889e2
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/sync/70683.md
+@@ -0,0 +1,5 @@
++The implementation of [sync.Map] has been changed, improving overall performance
++and resolving some long-standing issues.
++If you encounter any problems, set `GOEXPERIMENT=nosynchashtriemap` at build
++time to switch back to the old implementation and please [file an
++issue](/issue/new).

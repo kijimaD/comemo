@@ -11,7 +11,54 @@ Date:   Fri Apr 22 00:47:04 2016 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 6 +++++-
  src/net/url/url_test.go | 6 ++++--
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d9c8c49e94..05b41fa964 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -573,8 +573,12 @@ func parseHost(host string) (string, error) {
+ 			}
+ 			return host1 + host2 + host3, nil
+ 		}
++	} else if i := strings.LastIndex(host, ":"); i > 0 {
++		colonPort := host[i:]
++		if !validOptionalPort(colonPort) {
++			return "", fmt.Errorf("invalid port %q after host", colonPort)
++		}
+ 	}
+-
+ 	var err error
+ 	if host, err = unescape(host, encodeHost); err != nil {
+ 		return "", err
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 7560f22c4a..da6bc2843e 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -418,10 +418,10 @@ var urltests = []URLTest{
+ 	},
+ 	// worst case host, still round trips
+ 	{
+-		"scheme://!$&'()*+,;=hello!:port/path",
++		"scheme://!$&'()*+,;=hello!:8080/path",
+ 		&URL{
+ 			Scheme: "scheme",
+-			Host:   "!$&'()*+,;=hello!:port",
++			Host:   "!$&'()*+,;=hello!:8080",
+ 			Path:   "/path",
+ 		},
+ 		"",
+@@ -636,8 +636,10 @@ var parseRequestURLTests = []struct {
+ 	{"*", true},
+ 	{"http://192.168.0.1/", true},
+ 	{"http://192.168.0.1:8080/", true},
++	{"http://192.168.0.1:foo/", false},
+ 	{"http://[fe80::1]/", true},
+ 	{"http://[fe80::1]:8080/", true},
++	{"http://[fe80::1]:foo/", false},
+ 
+ 	// Tests exercising RFC 6874 compliance:
+ 	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier

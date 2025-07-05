@@ -7,6 +7,19 @@ Date:   Fri Jul 29 13:31:42 2011 -0400
     R=golang-dev, r
     CC=golang-dev, jsing
     https://golang.org/cl/4830044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index bbf5e60414..fe38c03816 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -126,6 +126,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
++Joel Sing <jsing@google.com>
+ Johan Euphrosine <proppy@google.com>
+ John Asmuth <jasmuth@gmail.com>
+ John DeNero <denero@google.com>

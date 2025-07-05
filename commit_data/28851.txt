@@ -9,6 +9,34 @@ Date:   Mon Aug 8 17:44:33 2016 -0700
     Change-Id: Ia5d5237754e77774a3a6049765eea163911f41c9
     Reviewed-on: https://go-review.googlesource.com/25592
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.7.html | 11 +----------
  1 file changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 58b12917c5..2f25928175 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -1,5 +1,5 @@
+ <!--{
+-	"Title": "Go 1.7 Release Notes DRAFT",
++	"Title": "Go 1.7 Release Notes",
+ 	"Path":  "/doc/go1.7",
+ 	"Template": true
+ }-->
+@@ -25,15 +25,6 @@ Do not send CLs removing the interior tags from such phrases.
+ ul li { margin: 0.5em 0; }
+ </style>
+ 
+-<p>
+-<!-- TODO: REMOVE THIS COMMENT -->
+-<!-- TODO: Also remove "DRAFT" in the "Title" at the top of this file. -->
+-<i>NOTE: This is a DRAFT of the Go 1.7 release notes, prepared for the Go 1.7 beta.
+-Go 1.7 has NOT yet been released.
+-By our regular schedule, it is expected some time in August 2016.
+-</i>
+-</p>
+-
+ <h2 id="introduction">Introduction to Go 1.7</h2>
+ 
+ <p>

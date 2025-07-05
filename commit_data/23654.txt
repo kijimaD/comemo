@@ -11,7 +11,47 @@ Date:   Mon Apr 20 13:45:56 2015 -0400
     Change-Id: I8c657dadeb5f10af060f22dedc15c1af989d4519
     Reviewed-on: https://go-review.googlesource.com/9156
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/pkg.go    |  7 -------
  src/cmd/go/test.bash | 10 +++++++---
  2 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 601c30362f..8abddecd18 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -322,13 +322,6 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
+ 	// An import of a path containing the element “internal”
+ 	// is disallowed if the importing code is outside the tree
+ 	// rooted at the parent of the “internal” directory.
+-	//
+-	// ... For Go 1.4, we will implement the rule first for $GOROOT, but not $GOPATH.
+-
+-	// Only applies to $GOROOT.
+-	if !p.Standard {
+-		return p
+-	}
+ 
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 1dabc14a4a..1d79a3bea6 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -156,9 +156,13 @@ elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; t
+ 	ok=false
+ fi
+ 
+-TEST 'internal packages outside $GOROOT are not respected'
+-if ! ./testgo build -v ./testdata/testinternal2; then
+-	echo "go build ./testdata/testinternal2 failed"
++TEST 'internal packages outside $GOROOT are respected (as of Go 1.5)'
++if ./testgo build -v ./testdata/testinternal2 >testdata/std.out 2>&1; then
++	echo "go build ./testdata/testinternal2 succeeded incorrectly"
++	ok=false
++elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; then
++	echo "wrong error message for testdata/testinternal2"
++	cat std.out
+ 	ok=false
+ fi
+ 

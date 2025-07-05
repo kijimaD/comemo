@@ -9,6 +9,20 @@ Date:   Wed Jan 21 13:33:37 2015 +1100
     Change-Id: I987833b6263482a402e58fcd9eeb0e42401599b5
     Reviewed-on: https://go-review.googlesource.com/3073
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/html/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index d422ada37a..1827403aa3 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -151,7 +151,7 @@ The template
+ 
+ can be invoked with
+ 
+-  tmpl.Execute(out, HTML(`<b>World</b>`))
++  tmpl.Execute(out, template.HTML(`<b>World</b>`))
+ 
+ to produce
+ 

@@ -9,6 +9,20 @@ Date:   Fri Apr 8 13:04:29 2011 -0400
     R=bradfitzgo, r2
     CC=golang-dev
     https://golang.org/cl/4387042
-
+---
  src/pkg/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index cf889553fb..1f91a24043 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -231,7 +231,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 
+ func TestServerTimeouts(t *testing.T) {
+ 	// TODO(bradfitz): convert this to use httptest.Server
+-	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: 0})
++	l, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("listen error: %v", err)
+ 	}

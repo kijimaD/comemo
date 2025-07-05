@@ -24,7 +24,65 @@ Date:   Wed Apr 12 14:45:44 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/main_test.go  | 20 ++++++++++++++++++++
  src/net/http/serve_test.go |  3 ---
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 1e83ca3c0a..ff56ef883d 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -108,11 +108,30 @@ func runningBenchmarks() bool {
+ 	return false
+ }
+ 
++var leakReported bool
++
+ func afterTest(t testing.TB) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+ 		return
+ 	}
++	if leakReported {
++		// To avoid confusion, only report the first leak of each test run.
++		// After the first leak has been reported, we can't tell whether the leaked
++		// goroutines are a new leak from a subsequent test or just the same
++		// goroutines from the first leak still hanging around, and we may add a lot
++		// of latency waiting for them to exit at the end of each test.
++		return
++	}
++
++	// We shouldn't be running the leak check for parallel tests, because we might
++	// report the goroutines from a test that is still running as a leak from a
++	// completely separate test that has just finished. So we use non-atomic loads
++	// and stores for the leakReported variable, and store every time we start a
++	// leak check so that the race detector will flag concurrent leak checks as a
++	// race even if we don't detect any leaks.
++	leakReported = true
++
+ 	var bad string
+ 	badSubstring := map[string]string{
+ 		").readLoop(":  "a Transport",
+@@ -132,6 +151,7 @@ func afterTest(t testing.TB) {
+ 			}
+ 		}
+ 		if bad == "" {
++			leakReported = false
+ 			return
+ 		}
+ 		// Bad stuff found, but goroutines might just still be
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 88184bcf35..164b18287f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5519,9 +5519,6 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
+ 	if testing.Short() {
+ 		t.Skip("test takes 5-6 seconds; skipping in short mode")
+ 	}
+-	// The run helper runs the test in parallel only in short mode by default.
+-	// Since this test has a very long latency, always run it in parallel.
+-	t.Parallel()
+ 
+ 	var connAccepted sync.WaitGroup
+ 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

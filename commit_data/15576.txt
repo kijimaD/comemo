@@ -9,7 +9,41 @@ Date:   Mon Mar 4 17:01:42 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7415051
-
+---
  src/cmd/gc/typecheck.c | 4 ++++
  test/blank1.go         | 5 +++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0889b92f81..fbab85d033 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -761,6 +761,10 @@ reswitch:
+ 			n->op = ODOTPTR;
+ 			checkwidth(t);
+ 		}
++		if(isblank(n->right)) {
++			yyerror("cannot refer to blank field or method");
++			goto error;
++		}
+ 		if(!lookdot(n, t, 0)) {
+ 			if(lookdot(n, t, 1))
+ 				yyerror("%N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
+diff --git a/test/blank1.go b/test/blank1.go
+index c6e038a0d9..4edb2db702 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -9,8 +9,13 @@
+ 
+ package _	// ERROR "invalid package name _"
+ 
++var t struct {
++	_ int
++}
++
+ func main() {
+ 	_()	// ERROR "cannot use _ as value"
+ 	x := _+1	// ERROR "cannot use _ as value"
+ 	_ = x
++	_ = t._ // ERROR "cannot refer to blank field"
+ }

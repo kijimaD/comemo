@@ -11,6 +11,22 @@ Date:   Wed Nov 6 14:49:56 2019 -0800
     Change-Id: Ifeff3484740786b0470de3a4d2d4103d91e06f5d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205717
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/runtime_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 26ae77456a..e5d2d97d05 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -192,6 +192,10 @@ func TestSetPanicOnFault(t *testing.T) {
+ 	}
+ }
+ 
++// testSetPanicOnFault tests one potentially faulting address.
++// It deliberately constructs and uses an invalid pointer,
++// so mark it as nocheckptr.
++//go:nocheckptr
+ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
+ 	if GOOS == "js" {
+ 		t.Skip("js does not support catching faults")

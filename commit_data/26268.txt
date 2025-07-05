@@ -7,6 +7,47 @@ Date:   Thu Jan 7 13:32:46 2016 +1100
     Change-Id: I995ac0559f89110662d79d136d710ef3a0bb1505
     Reviewed-on: https://go-review.googlesource.com/18351
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 4a006fb369..34e2a4d670 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2685,7 +2685,7 @@ func TestHeaderToWire(t *testing.T) {
+ 					return errors.New("header appeared from after WriteHeader")
+ 				}
+ 				if !strings.Contains(got, "Content-Type: some/type") {
+-					return errors.New("wrong content-length")
++					return errors.New("wrong content-type")
+ 				}
+ 				return nil
+ 			},
+@@ -2698,7 +2698,7 @@ func TestHeaderToWire(t *testing.T) {
+ 			},
+ 			check: func(got string) error {
+ 				if !strings.Contains(got, "Content-Type: text/html") {
+-					return errors.New("wrong content-length; want html")
++					return errors.New("wrong content-type; want html")
+ 				}
+ 				return nil
+ 			},
+@@ -2711,7 +2711,7 @@ func TestHeaderToWire(t *testing.T) {
+ 			},
+ 			check: func(got string) error {
+ 				if !strings.Contains(got, "Content-Type: some/type") {
+-					return errors.New("wrong content-length; want html")
++					return errors.New("wrong content-type; want html")
+ 				}
+ 				return nil
+ 			},
+@@ -2722,7 +2722,7 @@ func TestHeaderToWire(t *testing.T) {
+ 			},
+ 			check: func(got string) error {
+ 				if !strings.Contains(got, "Content-Type: text/plain") {
+-					return errors.New("wrong content-length; want text/plain")
++					return errors.New("wrong content-type; want text/plain")
+ 				}
+ 				if !strings.Contains(got, "Content-Length: 0") {
+ 					return errors.New("want 0 content-length")

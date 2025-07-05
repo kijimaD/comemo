@@ -12,6 +12,20 @@ Date:   Tue Feb 16 15:51:32 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/290329
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index d5de0ee5ce..08f5d5431e 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -317,7 +317,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="vet">Vet</h3>
+ 
+-<h4 id="vet-string-int">New warning for invalid testing.T use in
++<h4 id="vet-testing-T">New warning for invalid testing.T use in
+ goroutines</h4>
+ 
+ <p><!-- CL 235677 -->

@@ -8,9 +8,63 @@ Date:   Mon Feb 6 12:49:28 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5634043
-
+---
  src/cmd/8a/lex.c          | 1 +
  src/cmd/8l/8.out.h        | 4 +++-
  src/cmd/8l/optab.c        | 2 ++
  src/pkg/runtime/asm_386.s | 2 +-
  4 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 403669404e..254deab6a4 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -445,6 +445,7 @@ struct
+ 	"RCRB",		LTYPE3,	ARCRB,
+ 	"RCRL",		LTYPE3,	ARCRL,
+ 	"RCRW",		LTYPE3,	ARCRW,
++	"RDTSC",	LTYPE0,	ARDTSC,
+ 	"REP",		LTYPE0,	AREP,
+ 	"REPN",		LTYPE0,	AREPN,
+ 	"RET",		LTYPE0,	ARET,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 5e4b73ad09..e8f530664b 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -395,7 +395,9 @@ enum	as
+ 	ACMPXCHGL,
+ 	ACMPXCHGW,
+ 	ACMPXCHG8B,
+-	
++
++	ARDTSC,
++
+ 	AXADDB,
+ 	AXADDL,
+ 	AXADDW,
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 69602d704a..c7700aa792 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -707,6 +707,8 @@ Optab optab[] =
+ 	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
+ 	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
+ 
++	{ ARDTSC,	ynone,	Pm, 0x31 },
++
+ 	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
+ 	{ AXADDL,	yrl_ml,	Pm, 0xc1 },
+ 	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index c242af8296..a4f94601dc 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -527,7 +527,7 @@ TEXT runtime·getcallersp(SB), 7, $0
+ // int64 runtime·cputicks(void), so really
+ // void runtime·cputicks(int64 *ticks)
+ TEXT runtime·cputicks(SB),7,$0
+-	BYTE	$0x0F; BYTE $0x31;     // RDTSC; not supported by 8a
++	RDTSC
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)

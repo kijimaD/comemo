@@ -19,8 +19,66 @@ Date:   Fri Apr 3 10:42:55 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/mvs.go                 |  2 +-
  .../go/testdata/mod/example.com_quote_v1.5.2.txt   |  9 +++++++++
  .../testdata/script/mod_load_replace_mismatch.txt  | 23 ++++++++++++++++++++++
  3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 50620e30b6..065a533e1f 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -148,7 +148,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
+ 		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
+ 	module declares its path as: %s
+-	        but was required as: %s`, mpath, mod.Path))
++	        but was required as: %s`, mpath, origPath))
+ 	}
+ 	if f.Go != nil {
+ 		r.versions.LoadOrStore(mod, f.Go.Version)
+diff --git a/src/cmd/go/testdata/mod/example.com_quote_v1.5.2.txt b/src/cmd/go/testdata/mod/example.com_quote_v1.5.2.txt
+new file mode 100644
+index 0000000000..05f7ae28a3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_quote_v1.5.2.txt
+@@ -0,0 +1,9 @@
++This module is a replacement for rsc.io/quote, but its go.mod file declares
++a module path different from its location and the original module.
++
++-- .mod --
++module rsc.io/Quote
++
++go 1.14
++-- .info --
++{"Version":"v1.5.2"}
+diff --git a/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+new file mode 100644
+index 0000000000..74dbb34b8a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+@@ -0,0 +1,23 @@
++# If a replacement module declares a module path different from both
++# the original module and its location, report an error with all three paths.
++# In particular, the "required as" path should be the original.
++# Verifies golang.org/issue/38220.
++! go list .
++cmp stderr want
++
++-- go.mod --
++module m
++
++require rsc.io/quote v1.5.2
++
++replace rsc.io/quote v1.5.2 => example.com/quote v1.5.2
++
++-- use.go --
++package use
++
++import _ "rsc.io/quote"
++
++-- want --
++go: example.com/quote@v1.5.2: parsing go.mod:
++	module declares its path as: rsc.io/Quote
++	        but was required as: rsc.io/quote

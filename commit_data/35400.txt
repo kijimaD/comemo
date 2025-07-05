@@ -18,8 +18,62 @@ Date:   Sun Dec 24 16:50:28 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 4 ++--
  src/cmd/internal/objabi/flag.go     | 7 +++----
  src/cmd/link/internal/ld/lib.go     | 2 +-
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f1591c16d2..802e02896d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -94,8 +94,8 @@ Key "pctab" supports values:
+ `
+ 
+ func usage() {
+-	fmt.Printf("usage: compile [options] file.go...\n")
+-	objabi.Flagprint(1)
++	fmt.Fprintf(os.Stderr, "usage: compile [options] file.go...\n")
++	objabi.Flagprint(os.Stderr)
+ 	Exit(2)
+ }
+ 
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 1bd4bc9063..d0522c8f43 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -7,6 +7,7 @@ package objabi
+ import (
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -20,10 +21,8 @@ func Flagfn1(name, usage string, f func(string)) {
+ 	flag.Var(fn1(f), name, usage)
+ }
+ 
+-func Flagprint(fd int) {
+-	if fd == 1 {
+-		flag.CommandLine.SetOutput(os.Stdout)
+-	}
++func Flagprint(w io.Writer) {
++	flag.CommandLine.SetOutput(w)
+ 	flag.PrintDefaults()
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 6dcaf64122..bfff5209a6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1953,7 +1953,7 @@ func stkprint(ctxt *Link, ch *chain, limit int) {
+ 
+ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: link [options] main.o\n")
+-	objabi.Flagprint(2)
++	objabi.Flagprint(os.Stderr)
+ 	Exit(2)
+ }
+ 

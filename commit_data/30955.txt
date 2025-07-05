@@ -20,7 +20,35 @@ Date:   Sat Dec 31 18:35:15 2016 +0000
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Kale B <kale@lemnisys.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/h2_bundle.go  | 4 ++++
  src/net/http/serve_test.go | 1 -
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 2e0b3c905a..4536b2ff5d 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3141,6 +3141,10 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 		pushEnabled:       true,
+ 	}
+ 
++	if sc.hs.WriteTimeout != 0 {
++		sc.conn.SetWriteDeadline(time.Time{})
++	}
++
+ 	if s.NewWriteScheduler != nil {
+ 		sc.writeSched = s.NewWriteScheduler()
+ 	} else {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 17cfde7e7a..d8561f7c7f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -537,7 +537,6 @@ func TestServerTimeouts(t *testing.T) {
+ 
+ // Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
+ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
+-	t.Skip("disabled until Issue 18437 is fixed")
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}

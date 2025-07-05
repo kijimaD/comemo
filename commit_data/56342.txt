@@ -18,10 +18,106 @@ Date:   Fri Apr 28 17:46:00 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go             |  4 ++--
  src/cmd/compile/internal/types2/infer.go            | 10 +++++++---
  src/go/types/call.go                                |  4 ++--
  src/go/types/infer.go                               | 10 +++++++---
  src/internal/types/testdata/fixedbugs/issue59890.go | 17 +++++++++++++++++
  5 files changed, 35 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 7e8fce4350..20cde9f44e 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -329,8 +329,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	x.expr = call
+ 	check.hasCallOrRecv = true
+ 
+-	// if type inference failed, a parametrized result must be invalidated
+-	// (operands cannot have a parametrized type)
++	// if type inference failed, a parameterized result must be invalidated
++	// (operands cannot have a parameterized type)
+ 	if x.mode == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ) {
+ 		x.mode = invalid
+ 	}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 46f461ea09..dbe621cded 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -498,9 +498,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 	case *Pointer:
+ 		return w.isParameterized(t.base)
+ 
+-	// case *Tuple:
+-	//      This case should not occur because tuples only appear
+-	//      in signatures where they are handled explicitly.
++	case *Tuple:
++		// This case does not occur from within isParameterized
++		// because tuples only appear in signatures where they
++		// are handled explicitly. But isParameterized is also
++		// called by Checker.callExpr with a function result tuple
++		// if instantiation failed (go.dev/issue/59890).
++		return t != nil && w.varList(t.vars)
+ 
+ 	case *Signature:
+ 		// t.tparams may not be nil if we are looking at a signature
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 418de06e76..979de2338f 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -334,8 +334,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	x.expr = call
+ 	check.hasCallOrRecv = true
+ 
+-	// if type inference failed, a parametrized result must be invalidated
+-	// (operands cannot have a parametrized type)
++	// if type inference failed, a parameterized result must be invalidated
++	// (operands cannot have a parameterized type)
+ 	if x.mode == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ) {
+ 		x.mode = invalid
+ 	}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index f24c729d7a..3aa66105c4 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -500,9 +500,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 	case *Pointer:
+ 		return w.isParameterized(t.base)
+ 
+-	// case *Tuple:
+-	//      This case should not occur because tuples only appear
+-	//      in signatures where they are handled explicitly.
++	case *Tuple:
++		// This case does not occur from within isParameterized
++		// because tuples only appear in signatures where they
++		// are handled explicitly. But isParameterized is also
++		// called by Checker.callExpr with a function result tuple
++		// if instantiation failed (go.dev/issue/59890).
++		return t != nil && w.varList(t.vars)
+ 
+ 	case *Signature:
+ 		// t.tparams may not be nil if we are looking at a signature
+diff --git a/src/internal/types/testdata/fixedbugs/issue59890.go b/src/internal/types/testdata/fixedbugs/issue59890.go
+new file mode 100644
+index 0000000000..ed7afd939a
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59890.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() { g /* ERROR "cannot infer T" */ () }
++
++func g[T any]() (_ /* ERROR "cannot use _ as value or type" */, int) { panic(0) }
++
++// test case from issue
++
++var _ = append(f /* ERROR "cannot infer T" */ ()())
++
++func f[T any]() (_ /* ERROR "cannot use _" */, _ /* ERROR "cannot use _" */, int) {
++	panic("not implemented")
++}

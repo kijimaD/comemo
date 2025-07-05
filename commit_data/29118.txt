@@ -24,7 +24,7 @@ Date:   Thu Aug 25 14:31:50 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go          |  5 ++++-
  src/cmd/compile/internal/gc/reflect.go      |  9 +++++++++
  test/fixedbugs/issue16616.dir/a.go          |  7 +++++++
@@ -32,3 +32,120 @@ Date:   Thu Aug 25 14:31:50 2016 -0400
  test/fixedbugs/issue16616.dir/issue16616.go | 26 ++++++++++++++++++++++++++
  test/fixedbugs/issue16616.go                |  9 +++++++++
  6 files changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 937f71469d..49a41c8e91 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1574,7 +1574,10 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 			if f.Funarg != FunargNone {
+ 				name = Nconv(f.Nname, 0)
+ 			} else if flag&FmtLong != 0 {
+-				name = sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
++				name = sconv(s, FmtShort|FmtByte)
++				if !exportname(name) && flag&FmtUnsigned == 0 {
++					name = sconv(s, 0) // qualify non-exported names (used on structs, not on funarg)
++				}
+ 			} else {
+ 				name = sconv(s, 0)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index cff1acc343..7ef825360b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1301,6 +1301,15 @@ ok:
+ 		pkg := localpkg
+ 		if t.Sym != nil {
+ 			pkg = t.Sym.Pkg
++		} else {
++			// Unnamed type. Grab the package from the first field, if any.
++			for _, f := range t.Fields().Slice() {
++				if f.Embedded != 0 {
++					continue
++				}
++				pkg = f.Sym.Pkg
++				break
++			}
+ 		}
+ 		ot = dgopkgpath(s, ot, pkg)
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
+diff --git a/test/fixedbugs/issue16616.dir/a.go b/test/fixedbugs/issue16616.dir/a.go
+new file mode 100644
+index 0000000000..0ffdbbe268
+--- /dev/null
++++ b/test/fixedbugs/issue16616.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type V struct{ i int }
+diff --git a/test/fixedbugs/issue16616.dir/b.go b/test/fixedbugs/issue16616.dir/b.go
+new file mode 100644
+index 0000000000..4f238b9a25
+--- /dev/null
++++ b/test/fixedbugs/issue16616.dir/b.go
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var V struct{ i int }
++
++var U struct {
++	a.V
++	j int
++}
+diff --git a/test/fixedbugs/issue16616.dir/issue16616.go b/test/fixedbugs/issue16616.dir/issue16616.go
+new file mode 100644
+index 0000000000..0bfadb8c74
+--- /dev/null
++++ b/test/fixedbugs/issue16616.dir/issue16616.go
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++
++	_ "./a"
++	"./b"
++)
++
++var V struct{ i int }
++
++func main() {
++	if got := reflect.ValueOf(b.V).Type().Field(0).PkgPath; got != "b" {
++		panic(`PkgPath=` + got + ` for first field of b.V, want "b"`)
++	}
++	if got := reflect.ValueOf(V).Type().Field(0).PkgPath; got != "main" {
++		panic(`PkgPath=` + got + ` for first field of V, want "main"`)
++	}
++	if got := reflect.ValueOf(b.U).Type().Field(0).PkgPath; got != "b" {
++		panic(`PkgPath=` + got + ` for first field of b.U, want "b"`)
++	}
++}
+diff --git a/test/fixedbugs/issue16616.go b/test/fixedbugs/issue16616.go
+new file mode 100644
+index 0000000000..a7d6ac095e
+--- /dev/null
++++ b/test/fixedbugs/issue16616.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests that unexported fields of unnamed types have different PkgPath values.
++
++package ignored

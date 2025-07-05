@@ -8,6 +8,20 @@ Date:   Thu Mar 5 12:55:44 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222257
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 2ce6203dd9..fc2efcced2 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -704,7 +704,7 @@ func (s *scanner) rawString() {
+ }
+ 
+ func (s *scanner) comment(text string) {
+-	s.errorAtf(0, text)
++	s.errorAtf(0, "%s", text)
+ }
+ 
+ func (s *scanner) skipLine() {

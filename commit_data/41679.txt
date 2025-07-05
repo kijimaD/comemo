@@ -16,9 +16,111 @@ Date:   Sun Oct 20 11:25:56 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go                  | 2 +-
  src/cmd/go/alldocs.go               | 6 +++---
  src/cmd/go/internal/help/helpdoc.go | 6 +++---
  src/go/build/build.go               | 8 ++++----
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 5c9c8674c2..8c3bf81bf7 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -99,7 +99,7 @@ Will be expanded to:
+ 
+ When the Go tool sees that one or more Go files use the special import
+ "C", it will look for other non-Go files in the directory and compile
+-them as part of the Go package. Any .c, .s, or .S files will be
++them as part of the Go package. Any .c, .s, .S or .sx files will be
+ compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
+ compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
+ compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2561f5b2f8..51b8fccb45 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1510,8 +1510,8 @@
+ // extension will be passed to SWIG. Any file with a .swigcxx extension
+ // will be passed to SWIG with the -c++ option.
+ //
+-// When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+-// or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++// When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
++// or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+ // compiler. The CC or CXX environment variables may be set to determine
+ // the C or C++ compiler, respectively, to use.
+ //
+@@ -1730,7 +1730,7 @@
+ // 	.m
+ // 		Objective-C source files. Only useful with cgo, and always
+ // 		compiled with the OS-native compiler.
+-// 	.s, .S
++// 	.s, .S, .sx
+ // 		Assembler source files.
+ // 		If the package uses cgo or SWIG, these will be assembled with the
+ // 		OS-native assembler (typically gcc (sic)); otherwise they
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index dfb89d4910..1dc892cb32 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -21,8 +21,8 @@ http://swig.org/. When running go build, any file with a .swig
+ extension will be passed to SWIG. Any file with a .swigcxx extension
+ will be passed to SWIG with the -c++ option.
+ 
+-When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+-or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
++or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+ compiler. The CC or CXX environment variables may be set to determine
+ the C or C++ compiler, respectively, to use.
+ 	`,
+@@ -645,7 +645,7 @@ the extension of the file name. These extensions are:
+ 	.m
+ 		Objective-C source files. Only useful with cgo, and always
+ 		compiled with the OS-native compiler.
+-	.s, .S
++	.s, .S, .sx
+ 		Assembler source files.
+ 		If the package uses cgo or SWIG, these will be assembled with the
+ 		OS-native assembler (typically gcc (sic)); otherwise they
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index deeda35c2a..c763db4f86 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -773,7 +773,7 @@ Found:
+ 	}
+ 
+ 	var badGoError error
+-	var Sfiles []string // files with ".S" (capital S)
++	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
+ 	var firstFile, firstCommentFile string
+ 	imported := make(map[string][]token.Position)
+ 	testImported := make(map[string][]token.Position)
+@@ -827,7 +827,7 @@ Found:
+ 		case ".s":
+ 			p.SFiles = append(p.SFiles, name)
+ 			continue
+-		case ".S":
++		case ".S", ".sx":
+ 			Sfiles = append(Sfiles, name)
+ 			continue
+ 		case ".swig":
+@@ -967,7 +967,7 @@ Found:
+ 	p.TestImports, p.TestImportPos = cleanImports(testImported)
+ 	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
+ 
+-	// add the .S files only if we are using cgo
++	// add the .S/.sx files only if we are using cgo
+ 	// (which means gcc will compile them).
+ 	// The standard assemblers expect .s files.
+ 	if len(p.CgoFiles) > 0 {
+@@ -1274,7 +1274,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
+ 	}
+ 
+ 	switch ext {
+-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
++	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".sx", ".swig", ".swigcxx":
+ 		// tentatively okay - read to make sure
+ 	case ".syso":
+ 		// binary, no reading

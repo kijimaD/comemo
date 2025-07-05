@@ -36,7 +36,91 @@ Date:   Thu Sep 8 14:31:42 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 26 +++++++++++++++++++++++-
  test/typeparam/issue54225.go              | 33 +++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 5a41d2f1f0..91c0edff96 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1789,6 +1789,7 @@ func (g *genInst) getSymForMethodCall(se *ir.SelectorExpr, subst *typecheck.Tsub
+ // instantiations have been created.
+ // Also handles writing method expression closures into the dictionaries.
+ func (g *genInst) finalizeSyms() {
++Outer:
+ 	for _, d := range g.dictSymsToFinalize {
+ 		infoPrint("=== Finalizing dictionary %s\n", d.sym.Name)
+ 
+@@ -1858,7 +1859,30 @@ func (g *genInst) finalizeSyms() {
+ 				}
+ 			}
+ 			if !found {
+-				base.Fatalf("method %s on %v not found", bf.name, rcvr)
++				// We failed to find a method expression needed for this
++				// dictionary. This may happen because we tried to create a
++				// dictionary for an invalid instantiation.
++				//
++				// For example, in test/typeparam/issue54225.go, we attempt to
++				// construct a dictionary for "Node[struct{}].contentLen",
++				// even though "struct{}" does not implement "Value", so it
++				// cannot actually be used as a type argument to "Node".
++				//
++				// The real issue here is we shouldn't be attempting to create
++				// those dictionaries in the first place (e.g., CL 428356),
++				// but that fix is scarier for backporting to Go 1.19. Too
++				// many backport CLs to this code have fixed one issue while
++				// introducing another.
++				//
++				// So as a hack, instead of calling Fatalf, we simply skip
++				// calling objw.Global below, which prevents us from emitting
++				// the broken dictionary. The linker's dead code elimination
++				// should then naturally prune this invalid, unneeded
++				// dictionary. Worst case, if the dictionary somehow *is*
++				// needed by the final executable, we've just turned an ICE
++				// into a link-time missing symbol failure.
++				infoPrint(" ! abandoning dictionary %v; missing method expression %v.%s\n", d.sym.Name, rcvr, bf.name)
++				continue Outer
+ 			}
+ 		}
+ 
+diff --git a/test/typeparam/issue54225.go b/test/typeparam/issue54225.go
+new file mode 100644
+index 0000000000..4de3efcaaf
+--- /dev/null
++++ b/test/typeparam/issue54225.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	One[TextValue]()
++}
++
++func One[V Value]() { Two[Node[V]]() }
++
++func Two[V interface{ contentLen() int }]() {
++	var v V
++	v.contentLen()
++}
++
++type Value interface {
++	Len() int
++}
++
++type Node[V Value] struct{}
++
++func (Node[V]) contentLen() int {
++	var value V
++	return value.Len()
++}
++
++type TextValue struct{}
++
++func (TextValue) Len() int { return 0 }

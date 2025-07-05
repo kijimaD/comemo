@@ -16,7 +16,43 @@ Date:   Wed Dec 2 18:13:14 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/assign.go  | 4 ++--
  test/method2.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/assign.go b/test/assign.go
+index 6611f8ce3e..62fd3b5be3 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -56,13 +56,13 @@ func main() {
+ 	{
+ 		var x = 1
+ 		{
+-			x, x := 2, 3 // ERROR "x repeated on left side of :="
++			x, x := 2, 3 // ERROR ".*x.* repeated on left side of :="
+ 			_ = x
+ 		}
+ 		_ = x
+ 	}
+ 	{
+-		a, a := 1, 2 // ERROR "a repeated on left side of :="
++		a, a := 1, 2 // ERROR ".*a.* repeated on left side of :="
+ 		_ = a
+ 	}
+ }
+diff --git a/test/method2.go b/test/method2.go
+index 7feb675055..ac1d771c05 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -33,8 +33,8 @@ var _ = (*Val).val // ERROR "method"
+ var v Val
+ var pv = &v
+ 
+-var _ = pv.val() // ERROR "undefined"
+-var _ = pv.val   // ERROR "undefined"
++var _ = pv.val() // ERROR "undefined|pointer to interface"
++var _ = pv.val   // ERROR "undefined|pointer to interface"
+ 
+ func (t *T) g() int { return t.a }
+ 

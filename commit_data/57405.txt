@@ -13,6 +13,27 @@ Date:   Fri Aug 4 20:50:12 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/testenv/testenv.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 31b58ddba7..5c8013740e 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -124,13 +124,13 @@ func MustHaveGoBuild(t testing.TB) {
+ 	}
+ }
+ 
+-// HasGoRun reports whether the current system can run programs with “go run.”
++// HasGoRun reports whether the current system can run programs with “go run”.
+ func HasGoRun() bool {
+ 	// For now, having go run and having go build are the same.
+ 	return HasGoBuild()
+ }
+ 
+-// MustHaveGoRun checks that the current system can run programs with “go run.”
++// MustHaveGoRun checks that the current system can run programs with “go run”.
+ // If not, MustHaveGoRun calls t.Skip with an explanation.
+ func MustHaveGoRun(t testing.TB) {
+ 	if !HasGoRun() {

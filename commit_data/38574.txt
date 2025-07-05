@@ -128,9 +128,582 @@ Date:   Thu May 10 05:58:16 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  21 ++
  src/cmd/internal/obj/arm64/a.out.go       |   2 +
  src/cmd/internal/obj/arm64/anames7.go     |   2 +
  src/cmd/internal/obj/arm64/asm7.go        | 339 ++++++++++++++++++++++++++----
  4 files changed, 323 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index a577c4da9d..d025543e6d 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -195,6 +195,11 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	CMPW	$27745, R2                      // 3b8c8d525f001b6b
+ 	CMNW	$0x3fffffc0, R2                 // CMNW	$1073741760, R2                   // fb5f1a325f001b2b
+ 	CMPW	$0xffff0, R1                    // CMPW	$1048560, R1                      // fb3f1c323f001b6b
++	CMP	$0xffffffffffa0, R3             // CMP	$281474976710560, R3              // fb0b80921b00e0f27f001beb
++	CMP	$0xf4240, R1                    // CMP	$1000000, R1                      // 1b4888d2fb01a0f23f001beb
++	ADD	$0x186a0, R2, R5                // ADD	$100000, R2, R5                   // 45801a91a5604091
++	SUB	$0xe7791f700, R3, R1            // SUB	$62135596800, R3, R1              // 1be09ed23bf2aef2db01c0f261001bcb
++	CMP     $3343198598084851058, R3        // 5bae8ed2db8daef23badcdf2bbcce5f27f001beb
+ 	ADD	$0x3fffffffc000, R5             // ADD	$70368744161280, R5               // fb7f72b2a5001b8b
+ //	LTYPE1 imsr ',' spreg ','
+ //	{
+@@ -240,12 +245,21 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 
+ 	EOR	$0xe03fffffffffffff, R20, R22       // EOR	$-2287828610704211969, R20, R22 // 96e243d2
+ 	TSTW	$0x600000006, R1                    // TSTW	$25769803782, R1                // 3f041f72
++	TST	$0x4900000049, R0                   // TST	$313532612681, R0               // 3b0980d23b09c0f21f001bea
++	ORR	$0x170000, R2, R1                   // ORR	$1507328, R2, R1                // fb02a0d241001baa
++	AND	$0xff00ff, R2                       // AND	$16711935, R2                   // fb1f80d2fb1fa0f242001b8a
++	AND	$0xff00ffff, R1                     // AND	$4278255615, R1                 // fbff9fd21be0bff221001b8a
+ 	ANDS	$0xffff, R2                         // ANDS	$65535, R2                      // 423c40f2
+ 	AND	$0x7fffffff, R3                     // AND	$2147483647, R3                 // 63784092
+ 	ANDS	$0x0ffffffff80000000, R2            // ANDS	$-2147483648, R2                // 428061f2
+ 	AND	$0xfffff, R2                        // AND	$1048575, R2                    // 424c4092
+ 	ANDW	$0xf00fffff, R1                     // ANDW	$4027580415, R1                 // 215c0412
+ 	ANDSW	$0xff00ffff, R1                     // ANDSW	$4278255615, R1                 // 215c0872
++	TST	$0x11223344, R2                     // TST	$287454020, R2                  // 9b6886d25b24a2f25f001bea
++	TSTW	$0xa000, R3                         // TSTW	$40960, R3                      // 1b0094527f001b6a
++	BICW	$0xa000, R3                         // BICW	$40960, R3                      // 1b00945263003b0a
++	ORRW	$0x1b000, R2, R3                    // ORRW	$110592, R2, R3                 // 1b0096523b00a07243001b2a
++	TSTW	$0x500000, R1                       // TSTW	$5242880, R1                    // 1b0aa0523f001b6a
+ 	TSTW	$0xff00ff, R1                       // TSTW	$16711935, R1                   // 3f9c0072
+ 
+ 	AND	$8, R0, RSP // 1f007d92
+@@ -256,13 +270,20 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	EON	$8, R0, RSP // 1ff87cd2
+ 
+ 	MOVD	$0x3fffffffc000, R0           // MOVD	$70368744161280, R0         // e07f72b2
++	MOVW	$1000000, R4                  // 04488852e401a072
+ 	MOVW	$0xaaaa0000, R1               // MOVW	$2863267840, R1             // 4155b552
+ 	MOVW	$0xaaaaffff, R1               // MOVW	$2863333375, R1             // a1aaaa12
+ 	MOVW	$0xaaaa, R1                   // MOVW	$43690, R1                  // 41559552
+ 	MOVW	$0xffffaaaa, R1               // MOVW	$4294945450, R1             // a1aa8a12
+ 	MOVW	$0xffff0000, R1               // MOVW	$4294901760, R1             // e1ffbf52
+ 	MOVD	$0xffff00000000000, R1        // MOVD	$1152903912420802560, R1    // e13f54b2
++	MOVD	$0x1111000000001111, R1       // MOVD	$1229764173248860433, R1    // 212282d22122e2f2
++	MOVD	$0x1111ffff1111ffff, R1       // MOVD	$1230045644216991743, R1    // c1ddbd922122e2f2
++	MOVD	$0x1111222233334444, R1       // MOVD	$1229801703532086340, R1    // 818888d26166a6f24144c4f22122e2f2
++	MOVD	$0xaaaaffff, R1               // MOVD	$2863333375, R1             // e1ff9fd24155b5f2
+ 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
++	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
++	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
+ 	MOVD	$0, R1                        // 010080d2
+ 	MOVD	$-1, R1                       // 01008092
+ 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index c4c75e41d4..18cdd10f9b 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -414,6 +414,8 @@ const (
+ 	C_BITCON   // bitfield and logical immediate masks
+ 	C_ADDCON2  // 24-bit constant
+ 	C_LCON     // 32-bit constant
++	C_MOVCON2  // a constant that can be loaded with one MOVZ/MOVN and one MOVK
++	C_MOVCON3  // a constant that can be loaded with one MOVZ/MOVN and two MOVKs
+ 	C_VCON     // 64-bit constant
+ 	C_FCON     // floating-point constant
+ 	C_VCONADDR // 64-bit memory address
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index f8fdc68c1e..e1703fc4ab 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -30,6 +30,8 @@ var cnames7 = []string{
+ 	"BITCON",
+ 	"ADDCON2",
+ 	"LCON",
++	"MOVCON2",
++	"MOVCON3",
+ 	"VCON",
+ 	"FCON",
+ 	"VCONADDR",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 770b4b6fc3..9746426d90 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -198,9 +198,15 @@ var optab = []Optab{
+ 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
+ 	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+ 	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+-	{AADD, C_VCON, C_RSP, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
+-	{AADD, C_VCON, C_NONE, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
+-	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 8, 0, LFROM, 0},
++	{AADD, C_MOVCON2, C_RSP, C_NONE, C_RSP, 13, 12, 0, 0, 0},
++	{AADD, C_MOVCON2, C_NONE, C_NONE, C_RSP, 13, 12, 0, 0, 0},
++	{AADD, C_MOVCON3, C_RSP, C_NONE, C_RSP, 13, 16, 0, 0, 0},
++	{AADD, C_MOVCON3, C_NONE, C_NONE, C_RSP, 13, 16, 0, 0, 0},
++	{AADD, C_VCON, C_RSP, C_NONE, C_RSP, 13, 20, 0, 0, 0},
++	{AADD, C_VCON, C_NONE, C_NONE, C_RSP, 13, 20, 0, 0, 0},
++	{ACMP, C_MOVCON2, C_REG, C_NONE, C_NONE, 13, 12, 0, 0, 0},
++	{ACMP, C_MOVCON3, C_REG, C_NONE, C_NONE, 13, 16, 0, 0, 0},
++	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 20, 0, 0, 0},
+ 	{AADD, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AADD, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AMVN, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
+@@ -255,11 +261,21 @@ var optab = []Optab{
+ 	{AANDS, C_MOVCON, C_REG, C_NONE, C_REG, 62, 8, 0, 0, 0},
+ 	{AANDS, C_MOVCON, C_NONE, C_NONE, C_REG, 62, 8, 0, 0, 0},
+ 	{ATST, C_MOVCON, C_REG, C_NONE, C_NONE, 62, 8, 0, 0, 0},
+-	{AAND, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+-	{AAND, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+-	{AANDS, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+-	{AANDS, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+-	{ATST, C_VCON, C_REG, C_NONE, C_NONE, 28, 8, 0, LFROM, 0},
++	{AAND, C_MOVCON2, C_REG, C_NONE, C_REG, 28, 12, 0, 0, 0},
++	{AAND, C_MOVCON2, C_NONE, C_NONE, C_REG, 28, 12, 0, 0, 0},
++	{AAND, C_MOVCON3, C_REG, C_NONE, C_REG, 28, 16, 0, 0, 0},
++	{AAND, C_MOVCON3, C_NONE, C_NONE, C_REG, 28, 16, 0, 0, 0},
++	{AAND, C_VCON, C_REG, C_NONE, C_REG, 28, 20, 0, 0, 0},
++	{AAND, C_VCON, C_NONE, C_NONE, C_REG, 28, 20, 0, 0, 0},
++	{AANDS, C_MOVCON2, C_REG, C_NONE, C_REG, 28, 12, 0, 0, 0},
++	{AANDS, C_MOVCON2, C_NONE, C_NONE, C_REG, 28, 12, 0, 0, 0},
++	{AANDS, C_MOVCON3, C_REG, C_NONE, C_REG, 28, 16, 0, 0, 0},
++	{AANDS, C_MOVCON3, C_NONE, C_NONE, C_REG, 28, 16, 0, 0, 0},
++	{AANDS, C_VCON, C_REG, C_NONE, C_REG, 28, 20, 0, 0, 0},
++	{AANDS, C_VCON, C_NONE, C_NONE, C_REG, 28, 20, 0, 0, 0},
++	{ATST, C_MOVCON2, C_REG, C_NONE, C_NONE, 28, 12, 0, 0, 0},
++	{ATST, C_MOVCON3, C_REG, C_NONE, C_NONE, 28, 16, 0, 0, 0},
++	{ATST, C_VCON, C_REG, C_NONE, C_NONE, 28, 20, 0, 0, 0},
+ 	{AAND, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AAND, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AANDS, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
+@@ -278,8 +294,10 @@ var optab = []Optab{
+ 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+ 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+ 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+-	{AMOVW, C_LCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
+-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
++	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
++	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
++	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, 0, 0},
++	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, 0, 0},
+ 
+ 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
+ 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
+@@ -401,8 +419,8 @@ var optab = []Optab{
+ 	{AMOVH, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+-	{AMOVD, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+ 	{AMOVD, C_REG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
++	{AMOVD, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+ 
+ 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+ 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+@@ -411,15 +429,15 @@ var optab = []Optab{
+ 
+ 	/* scaled 12-bit unsigned displacement load */
+ 	{AMOVB, C_UAUTO4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVB, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVB, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVBU, C_UAUTO4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVBU, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVBU, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVH, C_UAUTO8K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVH, C_UOREG8K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVH, C_UOREG8K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVW, C_UAUTO16K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVW, C_UOREG16K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVW, C_UOREG16K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVD, C_UAUTO32K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVD, C_UOREG32K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVD, C_UOREG32K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 
+ 	{AFMOVS, C_UAUTO16K, C_NONE, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+ 	{AFMOVS, C_UOREG16K, C_NONE, C_NONE, C_FREG, 21, 4, 0, 0, 0},
+@@ -428,15 +446,15 @@ var optab = []Optab{
+ 
+ 	/* unscaled 9-bit signed displacement load */
+ 	{AMOVB, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVB, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVB, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVBU, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVBU, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVBU, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVH, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVH, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVH, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVW, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVW, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVW, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVD, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+-	{AMOVD, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
++	{AMOVD, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 
+ 	{AFMOVS, C_NSAUTO, C_NONE, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
+ 	{AFMOVS, C_NSOREG, C_NONE, C_NONE, C_FREG, 21, 4, 0, 0, 0},
+@@ -1105,6 +1123,15 @@ func isSTXPop(op obj.As) bool {
+ 	return false
+ }
+ 
++func isANDop(op obj.As) bool {
++	switch op {
++	case AAND, AORR, AEOR, AANDS, ATST,
++		ABIC, AEON, AORN, ABICS:
++		return true
++	}
++	return false
++}
++
+ func isANDWop(op obj.As) bool {
+ 	switch op {
+ 	case AANDW, AORRW, AEORW, AANDSW, ATSTW,
+@@ -1114,6 +1141,14 @@ func isANDWop(op obj.As) bool {
+ 	return false
+ }
+ 
++func isADDop(op obj.As) bool {
++	switch op {
++	case AADD, AADDS, ASUB, ASUBS, ACMN, ACMP:
++		return true
++	}
++	return false
++}
++
+ func isADDWop(op obj.As) bool {
+ 	switch op {
+ 	case AADDW, AADDSW, ASUBW, ASUBSW, ACMNW, ACMPW:
+@@ -1445,6 +1480,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 		if isbitcon(uint64(v)) {
+ 			return C_ABCON
+ 		}
++		if movcon(int64(v)) >= 0 {
++			return C_AMCON
++		}
++		if movcon(int64(^v)) >= 0 {
++			return C_AMCON
++		}
+ 		return C_ADDCON
+ 	}
+ 
+@@ -1474,6 +1515,29 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 	return C_LCON
+ }
+ 
++// con64class reclassifies the constant of C_VCON and C_LCON class.
++func (c *ctxt7) con64class(a *obj.Addr) int {
++	zeroCount := 0
++	negCount := 0
++	for i := uint(0); i < 4; i++ {
++		immh := uint32(a.Offset >> (i * 16) & 0xffff)
++		if immh == 0 {
++			zeroCount++
++		} else if immh == 0xffff {
++			negCount++
++		}
++	}
++	if zeroCount >= 3 || negCount >= 3 {
++		return C_MOVCON
++	} else if zeroCount == 2 || negCount == 2 {
++		return C_MOVCON2
++	} else if zeroCount == 1 || negCount == 1 {
++		return C_MOVCON3
++	} else {
++		return C_VCON
++	}
++}
++
+ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 	switch a.Type {
+ 	case obj.TYPE_NONE:
+@@ -1698,6 +1762,10 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+ 				a1 = c.con32class(&p.From) + 1
+ 				p.From.Class = int8(a1)
+ 			}
++			if ((p.As == AMOVD) || isANDop(p.As) || isADDop(p.As)) && (a0 == C_LCON || a0 == C_VCON) {
++				a1 = c.con64class(&p.From) + 1
++				p.From.Class = int8(a1)
++			}
+ 		}
+ 	}
+ 
+@@ -1793,6 +1861,9 @@ func cmp(a int, b int) bool {
+ 			return true
+ 		}
+ 
++	case C_MOVCON2:
++		return cmp(C_LCON, b)
++
+ 	case C_VCON:
+ 		return cmp(C_LCON, b)
+ 
+@@ -2711,6 +2782,7 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
+ }
+ 
+ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
++	var os [5]uint32
+ 	o1 := uint32(0)
+ 	o2 := uint32(0)
+ 	o3 := uint32(0)
+@@ -2900,13 +2972,29 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 	case 12: /* movT $vcon, reg */
+-		o1 = c.omovlit(p.As, p, &p.From, int(p.To.Reg))
++		num := c.omovlconst(p.As, p, &p.From, int(p.To.Reg), os[:])
++		if num == 0 {
++			c.ctxt.Diag("invalid constant: %v", p)
++		}
++		o1 = os[0]
++		o2 = os[1]
++		o3 = os[2]
++		o4 = os[3]
+ 
+ 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
+-		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
+-
+-		if o1 == 0 {
+-			break
++		o := uint32(0)
++		num := uint8(0)
++		cls := oclass(&p.From)
++		if isADDWop(p.As) {
++			if (cls != C_LCON) && (cls != C_ADDCON2) {
++				c.ctxt.Diag("illegal combination: %v", p)
++			}
++			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])
++		} else {
++			num = c.omovlconst(AMOVD, p, &p.From, REGTMP, os[:])
++		}
++		if num == 0 {
++			c.ctxt.Diag("invalid constant: %v", p)
+ 		}
+ 		rt := int(p.To.Reg)
+ 		if p.To.Type == obj.TYPE_NONE {
+@@ -2917,16 +3005,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = rt
+ 		}
+ 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
+-			o2 = c.opxrrr(p, p.As, false)
+-			o2 |= REGTMP & 31 << 16
+-			o2 |= LSL0_64
++			o = c.opxrrr(p, p.As, false)
++			o |= REGTMP & 31 << 16
++			o |= LSL0_64
+ 		} else {
+-			o2 = c.oprrr(p, p.As)
+-			o2 |= REGTMP & 31 << 16 /* shift is 0 */
++			o = c.oprrr(p, p.As)
++			o |= REGTMP & 31 << 16 /* shift is 0 */
+ 		}
+ 
+-		o2 |= uint32(r&31) << 5
+-		o2 |= uint32(rt & 31)
++		o |= uint32(r&31) << 5
++		o |= uint32(rt & 31)
++
++		os[num] = o
++		o1 = os[0]
++		o2 = os[1]
++		o3 = os[2]
++		o4 = os[3]
++		o5 = os[4]
+ 
+ 	case 14: /* word */
+ 		if c.aclass(&p.To) == C_ADDR {
+@@ -3172,10 +3267,20 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
+ 
+ 	case 28: /* logop $vcon, [R], R (64 bit literal) */
+-		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
++		o := uint32(0)
++		num := uint8(0)
++		cls := oclass(&p.From)
++		if isANDWop(p.As) {
++			if (cls != C_LCON) && (cls != C_ADDCON) {
++				c.ctxt.Diag("illegal combination: %v", p)
++			}
++			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])
++		} else {
++			num = c.omovlconst(AMOVD, p, &p.From, REGTMP, os[:])
++		}
+ 
+-		if o1 == 0 {
+-			break
++		if num == 0 {
++			c.ctxt.Diag("invalid constant: %v", p)
+ 		}
+ 		rt := int(p.To.Reg)
+ 		if p.To.Type == obj.TYPE_NONE {
+@@ -3185,10 +3290,17 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == 0 {
+ 			r = rt
+ 		}
+-		o2 = c.oprrr(p, p.As)
+-		o2 |= REGTMP & 31 << 16 /* shift is 0 */
+-		o2 |= uint32(r&31) << 5
+-		o2 |= uint32(rt & 31)
++		o = c.oprrr(p, p.As)
++		o |= REGTMP & 31 << 16 /* shift is 0 */
++		o |= uint32(r&31) << 5
++		o |= uint32(rt & 31)
++
++		os[num] = o
++		o1 = os[0]
++		o2 = os[1]
++		o3 = os[2]
++		o4 = os[3]
++		o5 = os[4]
+ 
+ 	case 29: /* op Rn, Rd */
+ 		fc := c.aclass(&p.From)
+@@ -6319,10 +6431,155 @@ func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint3
+ 		}
+ 		o1 |= MOVCONST(d, s, rt)
+ 	}
+-
+ 	return o1
+ }
+ 
++// load a 32-bit/64-bit large constant (LCON or VCON) in a.Offset into rt
++// put the instruction sequence in os and return the number of instructions.
++func (c *ctxt7) omovlconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int, os []uint32) (num uint8) {
++	switch as {
++	case AMOVW:
++		d := uint32(a.Offset)
++		// use MOVZW and MOVKW to load a constant to rt
++		os[0] = c.opirr(p, AMOVZW)
++		os[0] |= MOVCONST(int64(d), 0, rt)
++		os[1] = c.opirr(p, AMOVKW)
++		os[1] |= MOVCONST(int64(d), 1, rt)
++		return 2
++
++	case AMOVD:
++		d := a.Offset
++		dn := ^d
++		var immh [4]uint64
++		var i int
++		zeroCount := int(0)
++		negCount := int(0)
++		for i = 0; i < 4; i++ {
++			immh[i] = uint64((d >> uint(i*16)) & 0xffff)
++			if immh[i] == 0 {
++				zeroCount++
++			} else if immh[i] == 0xffff {
++				negCount++
++			}
++		}
++
++		if zeroCount == 4 || negCount == 4 {
++			c.ctxt.Diag("the immediate should be MOVCON: %v", p)
++		}
++		switch {
++		case zeroCount == 3:
++			// one MOVZ
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0 {
++					os[0] = c.opirr(p, AMOVZ)
++					os[0] |= MOVCONST(d, i, rt)
++					break
++				}
++			}
++			return 1
++
++		case negCount == 3:
++			// one MOVN
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0xffff {
++					os[0] = c.opirr(p, AMOVN)
++					os[0] |= MOVCONST(dn, i, rt)
++					break
++				}
++			}
++			return 1
++
++		case zeroCount == 2:
++			// one MOVZ and one MOVK
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0 {
++					os[0] = c.opirr(p, AMOVZ)
++					os[0] |= MOVCONST(d, i, rt)
++					i++
++					break
++				}
++			}
++			for ; i < 4; i++ {
++				if immh[i] != 0 {
++					os[1] = c.opirr(p, AMOVK)
++					os[1] |= MOVCONST(d, i, rt)
++				}
++			}
++			return 2
++
++		case negCount == 2:
++			// one MOVN and one MOVK
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0xffff {
++					os[0] = c.opirr(p, AMOVN)
++					os[0] |= MOVCONST(dn, i, rt)
++					i++
++					break
++				}
++			}
++			for ; i < 4; i++ {
++				if immh[i] != 0xffff {
++					os[1] = c.opirr(p, AMOVK)
++					os[1] |= MOVCONST(d, i, rt)
++				}
++			}
++			return 2
++
++		case zeroCount == 1:
++			// one MOVZ and two MOVKs
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0 {
++					os[0] = c.opirr(p, AMOVZ)
++					os[0] |= MOVCONST(d, i, rt)
++					i++
++					break
++				}
++			}
++
++			for j := 1; i < 4; i++ {
++				if immh[i] != 0 {
++					os[j] = c.opirr(p, AMOVK)
++					os[j] |= MOVCONST(d, i, rt)
++					j++
++				}
++			}
++			return 3
++
++		case negCount == 1:
++			// one MOVN and two MOVKs
++			for i = 0; i < 4; i++ {
++				if immh[i] != 0xffff {
++					os[0] = c.opirr(p, AMOVN)
++					os[0] |= MOVCONST(dn, i, rt)
++					i++
++					break
++				}
++			}
++
++			for j := 1; i < 4; i++ {
++				if immh[i] != 0xffff {
++					os[j] = c.opirr(p, AMOVK)
++					os[j] |= MOVCONST(d, i, rt)
++					j++
++				}
++			}
++			return 3
++
++		default:
++			// one MOVZ and 3 MOVKs
++			os[0] = c.opirr(p, AMOVZ)
++			os[0] |= MOVCONST(d, 0, rt)
++			for i = 1; i < 4; i++ {
++				os[i] = c.opirr(p, AMOVK)
++				os[i] |= MOVCONST(d, i, rt)
++			}
++			return 4
++		}
++	default:
++		return 0
++	}
++}
++
+ func (c *ctxt7) opbfm(p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint32 {
+ 	var b uint32
+ 	o := c.opirr(p, a)

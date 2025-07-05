@@ -22,7 +22,60 @@ Date:   Wed Mar 11 08:15:23 2015 +0100
     Change-Id: I37795c3b1dfdfdd455d870e499b63885eb9bda4f
     Reviewed-on: https://go-review.googlesource.com/7371
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go      | 13 ++++++++++++-
  src/crypto/x509/x509_test.go |  6 ++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 0c096e2b6f..71b0804d0a 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -619,6 +619,12 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
+ // CheckSignature verifies that signature is a valid signature over signed from
+ // c's public key.
+ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err error) {
++	return checkSignature(algo, signed, signature, c.PublicKey)
++}
++
++// CheckSignature verifies that signature is a valid signature over signed from
++// a crypto.PublicKey.
++func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
+ 	var hashType crypto.Hash
+ 
+ 	switch algo {
+@@ -642,7 +648,7 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 	h.Write(signed)
+ 	digest := h.Sum(nil)
+ 
+-	switch pub := c.PublicKey.(type) {
++	switch pub := publicKey.(type) {
+ 	case *rsa.PublicKey:
+ 		return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
+ 	case *dsa.PublicKey:
+@@ -1955,3 +1961,8 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 
+ 	return out, nil
+ }
++
++// CheckSignature verifies that the signature on c is a valid signature
++func (c *CertificateRequest) CheckSignature() (err error) {
++	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
++}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 75207fe619..95efaf33b5 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -904,6 +904,12 @@ func TestCreateCertificateRequest(t *testing.T) {
+ 			continue
+ 		}
+ 
++		err = out.CheckSignature()
++		if err != nil {
++			t.Errorf("%s: failed to check certificate request signature: %s", test.name, err)
++			continue
++		}
++
+ 		if out.Subject.CommonName != template.Subject.CommonName {
+ 			t.Errorf("%s: output subject common name and template subject common name don't match", test.name)
+ 		} else if len(out.Subject.Organization) != len(template.Subject.Organization) {

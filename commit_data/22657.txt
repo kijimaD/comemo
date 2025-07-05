@@ -37,7 +37,7 @@ Date:   Sun Mar 1 12:27:01 2015 +0900
     Change-Id: I0e84be59a0699bc31245c78e2249423459b8cdda
     Reviewed-on: https://go-review.googlesource.com/6390
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix_test.go |  9 +++++
  src/net/dnsname_test.go        |  3 ++
  src/net/fd_unix.go             | 14 +++----
@@ -60,3 +60,782 @@ Date:   Sun Mar 1 12:27:01 2015 +0900
  src/net/sys_cloexec.go         |  8 ++--
  src/net/tcp_test.go            |  5 +++
  21 files changed, 330 insertions(+), 40 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 40b78bda98..2934634769 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -219,18 +219,27 @@ func TestReloadResolvConfChange(t *testing.T) {
+ }
+ 
+ func BenchmarkGoLookupIP(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		goLookupIP("www.example.com")
+ 	}
+ }
+ 
+ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		goLookupIP("some.nonexistent")
+ 	}
+ }
+ 
+ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	onceLoadConfig.Do(loadDefaultConfig)
+ 	if cfg.dnserr != nil || cfg.dnsConfig == nil {
+ 		b.Fatalf("loadConfig failed: %v", cfg.dnserr)
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index 57dd25fe4c..4fecf8dbe2 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -69,6 +69,9 @@ func TestDNSNames(t *testing.T) {
+ }
+ 
+ func BenchmarkDNSNames(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	benchmarks := append(tests, []testCase{
+ 		{strings.Repeat("a", 63), true},
+ 		{strings.Repeat("a", 64), false},
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 24e6c59f37..9e1976136d 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -72,7 +72,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 	// Do not need to call fd.writeLock here,
+ 	// because fd is not yet accessible to user,
+ 	// so no concurrent operations are possible.
+-	switch err := syscall.Connect(fd.sysfd, ra); err {
++	switch err := connectFunc(fd.sysfd, ra); err {
+ 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
+ 	case nil, syscall.EISCONN:
+ 		if !deadline.IsZero() && deadline.Before(time.Now()) {
+@@ -114,7 +114,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		if err := fd.pd.WaitWrite(); err != nil {
+ 			return err
+ 		}
+-		nerr, err := syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
++		nerr, err := getsockoptIntFunc(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -130,9 +130,9 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 
+ func (fd *netFD) destroy() {
+ 	// Poller may want to unregister fd in readiness notification mechanism,
+-	// so this must be executed before closesocket.
++	// so this must be executed before closeFunc.
+ 	fd.pd.Close()
+-	closesocket(fd.sysfd)
++	closeFunc(fd.sysfd)
+ 	fd.sysfd = -1
+ 	runtime.SetFinalizer(fd, nil)
+ }
+@@ -417,7 +417,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	}
+ 
+ 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
+-		closesocket(s)
++		closeFunc(s)
+ 		return nil, err
+ 	}
+ 	if err = netfd.init(); err != nil {
+@@ -492,7 +492,3 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 
+ 	return os.NewFile(uintptr(ns), fd.name()), nil
+ }
+-
+-func closesocket(s int) error {
+-	return syscall.Close(s)
+-}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 995bc4a7f5..d685883716 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -69,10 +69,6 @@ func sysInit() {
+ 	}
+ }
+ 
+-func closesocket(s syscall.Handle) error {
+-	return syscall.Closesocket(s)
+-}
+-
+ func canUseConnectEx(net string) bool {
+ 	switch net {
+ 	case "udp", "udp4", "udp6", "ip", "ip4", "ip6":
+@@ -336,7 +332,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		defer fd.setWriteDeadline(noDeadline)
+ 	}
+ 	if !canUseConnectEx(fd.net) {
+-		return syscall.Connect(fd.sysfd, ra)
++		return connectFunc(fd.sysfd, ra)
+ 	}
+ 	// ConnectEx windows API requires an unconnected, previously bound socket.
+ 	if la == nil {
+@@ -356,7 +352,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 	o := &fd.wop
+ 	o.sa = ra
+ 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
+-		return syscall.ConnectEx(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
++		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
+ 	})
+ 	if err != nil {
+ 		return err
+@@ -370,9 +366,9 @@ func (fd *netFD) destroy() {
+ 		return
+ 	}
+ 	// Poller may want to unregister fd in readiness notification mechanism,
+-	// so this must be executed before closesocket.
++	// so this must be executed before closeFunc.
+ 	fd.pd.Close()
+-	closesocket(fd.sysfd)
++	closeFunc(fd.sysfd)
+ 	fd.sysfd = syscall.InvalidHandle
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(fd, nil)
+@@ -540,7 +536,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	// Associate our new socket with IOCP.
+ 	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
+ 	if err != nil {
+-		closesocket(s)
++		closeFunc(s)
+ 		return nil, &OpError{"accept", fd.net, fd.laddr, err}
+ 	}
+ 	if err := netfd.init(); err != nil {
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 214a4196c8..8d806a1d63 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -18,13 +18,13 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	}
+ 
+ 	if err = syscall.SetNonblock(fd, true); err != nil {
+-		closesocket(fd)
++		closeFunc(fd)
+ 		return nil, err
+ 	}
+ 
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+-		closesocket(fd)
++		closeFunc(fd)
+ 		return nil, os.NewSyscallError("getsockopt", err)
+ 	}
+ 
+@@ -33,7 +33,7 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	lsa, _ := syscall.Getsockname(fd)
+ 	switch lsa.(type) {
+ 	default:
+-		closesocket(fd)
++		closeFunc(fd)
+ 		return nil, syscall.EINVAL
+ 	case *syscall.SockaddrInet4:
+ 		family = syscall.AF_INET
+@@ -64,7 +64,7 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 
+ 	netfd, err := newFD(fd, family, sotype, laddr.Network())
+ 	if err != nil {
+-		closesocket(fd)
++		closeFunc(fd)
+ 		return nil, err
+ 	}
+ 	if err := netfd.init(); err != nil {
+diff --git a/src/net/hook_cloexec.go b/src/net/hook_cloexec.go
+new file mode 100644
+index 0000000000..870f0d78b1
+--- /dev/null
++++ b/src/net/hook_cloexec.go
+@@ -0,0 +1,14 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux
++
++package net
++
++import "syscall"
++
++var (
++	// Placeholders for socket system calls.
++	accept4Func func(int, int) (int, syscall.Sockaddr, error) = syscall.Accept4
++)
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+new file mode 100644
+index 0000000000..626d07fbb0
+--- /dev/null
++++ b/src/net/hook_unix.go
+@@ -0,0 +1,18 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package net
++
++import "syscall"
++
++var (
++	// Placeholders for socket system calls.
++	socketFunc        func(int, int, int) (int, error)         = syscall.Socket
++	closeFunc         func(int) error                          = syscall.Close
++	connectFunc       func(int, syscall.Sockaddr) error        = syscall.Connect
++	acceptFunc        func(int) (int, syscall.Sockaddr, error) = syscall.Accept
++	getsockoptIntFunc func(int, int, int) (int, error)         = syscall.GetsockoptInt
++)
+diff --git a/src/net/hook_windows.go b/src/net/hook_windows.go
+new file mode 100644
+index 0000000000..2a6e5bf267
+--- /dev/null
++++ b/src/net/hook_windows.go
+@@ -0,0 +1,15 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "syscall"
++
++var (
++	// Placeholders for socket system calls.
++	socketFunc    func(int, int, int) (syscall.Handle, error)                                               = syscall.Socket
++	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
++	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                              = syscall.Connect
++	connectExFunc func(syscall.Handle, syscall.Sockaddr, *byte, uint32, *uint32, *syscall.Overlapped) error = syscall.ConnectEx
++)
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 16217e7c26..666f11a980 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -229,6 +229,9 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
+ }
+ 
+ func BenchmarkInterfaces(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := Interfaces(); err != nil {
+ 			b.Fatal(err)
+@@ -237,6 +240,9 @@ func BenchmarkInterfaces(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByIndex(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+ 		b.Skip("loopback interface not found")
+@@ -249,6 +255,9 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByName(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+ 		b.Skip("loopback interface not found")
+@@ -261,6 +270,9 @@ func BenchmarkInterfaceByName(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceAddrs(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := InterfaceAddrs(); err != nil {
+ 			b.Fatal(err)
+@@ -269,6 +281,9 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndAddrs(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+ 		b.Skip("loopback interface not found")
+@@ -281,6 +296,9 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+ 		b.Skip("loopback interface not found")
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 604da3923a..e6f4e650ca 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -53,6 +53,9 @@ func TestParseIP(t *testing.T) {
+ }
+ 
+ func BenchmarkParseIP(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range parseIPTests {
+ 			ParseIP(tt.in)
+@@ -108,6 +111,9 @@ func TestIPString(t *testing.T) {
+ }
+ 
+ func BenchmarkIPString(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipStringTests {
+ 			if tt.in != nil {
+@@ -158,6 +164,9 @@ func TestIPMaskString(t *testing.T) {
+ }
+ 
+ func BenchmarkIPMaskString(b *testing.B) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipMaskStringTests {
+ 			tt.in.String()
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index f9ebe40a21..7597a92f6f 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -14,12 +14,12 @@ import (
+ )
+ 
+ func probeIPv4Stack() bool {
+-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+ 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+ 		return false
+ 	case nil:
+-		closesocket(s)
++		closeFunc(s)
+ 	}
+ 	return true
+ }
+@@ -50,11 +50,11 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	}
+ 
+ 	for i := range probes {
+-		s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 		if err != nil {
+ 			continue
+ 		}
+-		defer closesocket(s)
++		defer closeFunc(s)
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probes[i].value)
+ 		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
+ 		if err != nil {
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+new file mode 100644
+index 0000000000..7903819585
+--- /dev/null
++++ b/src/net/main_cloexec_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux
++
++package net
++
++func init() {
++	extraTestHookInstallers = append(extraTestHookInstallers, installAccept4TestHook)
++	extraTestHookUninstallers = append(extraTestHookUninstallers, uninstallAccept4TestHook)
++}
++
++var (
++	// Placeholders for saving original socket system calls.
++	origAccept4 = accept4Func
++)
++
++func installAccept4TestHook() {
++	accept4Func = sw.Accept4
++}
++
++func uninstallAccept4TestHook() {
++	accept4Func = origAccept4
++}
+diff --git a/src/net/main_plan9_test.go b/src/net/main_plan9_test.go
+new file mode 100644
+index 0000000000..bbd47aaaf6
+--- /dev/null
++++ b/src/net/main_plan9_test.go
+@@ -0,0 +1,11 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func installTestHooks() {}
++
++func uninstallTestHooks() {}
++
++func forceCloseSockets() {}
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+new file mode 100644
+index 0000000000..bc0f92ed25
+--- /dev/null
++++ b/src/net/main_test.go
+@@ -0,0 +1,89 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"fmt"
++	"net/internal/socktest"
++	"os"
++	"runtime"
++	"sort"
++	"strings"
++	"testing"
++)
++
++var sw socktest.Switch
++
++func TestMain(m *testing.M) {
++	installTestHooks()
++
++	st := m.Run()
++
++	if !testing.Short() {
++		printLeakedGoroutines()
++		printLeakedSockets()
++		printSocketStats()
++	}
++	forceCloseSockets()
++	uninstallTestHooks()
++	os.Exit(st)
++}
++
++func printLeakedGoroutines() {
++	gss := leakedGoroutines()
++	if len(gss) == 0 {
++		return
++	}
++	fmt.Fprintf(os.Stderr, "Leaked goroutines:\n")
++	for _, gs := range gss {
++		fmt.Fprintf(os.Stderr, "%v\n", gs)
++	}
++	fmt.Fprintf(os.Stderr, "\n")
++}
++
++// leakedGoroutines returns a list of remaining goroutins used in test
++// cases.
++func leakedGoroutines() []string {
++	var gss []string
++	b := make([]byte, 2<<20)
++	b = b[:runtime.Stack(b, true)]
++	for _, s := range strings.Split(string(b), "\n\n") {
++		ss := strings.SplitN(s, "\n", 2)
++		if len(ss) != 2 {
++			continue
++		}
++		stack := strings.TrimSpace(ss[1])
++		if !strings.Contains(stack, "created by net") {
++			continue
++		}
++		gss = append(gss, stack)
++	}
++	sort.Strings(gss)
++	return gss
++}
++
++func printLeakedSockets() {
++	sos := sw.Sockets()
++	if len(sos) == 0 {
++		return
++	}
++	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
++	for s, so := range sos {
++		fmt.Fprintf(os.Stderr, "%v: %+v\n", s, so)
++	}
++	fmt.Fprintf(os.Stderr, "\n")
++}
++
++func printSocketStats() {
++	sts := sw.Stats()
++	if len(sts) == 0 {
++		return
++	}
++	fmt.Fprintf(os.Stderr, "Socket statistical information:\n")
++	for _, st := range sts {
++		fmt.Fprintf(os.Stderr, "%+v\n", st)
++	}
++	fmt.Fprintf(os.Stderr, "\n")
++}
+diff --git a/src/net/main_unix_test.go b/src/net/main_unix_test.go
+new file mode 100644
+index 0000000000..637ac3dbc2
+--- /dev/null
++++ b/src/net/main_unix_test.go
+@@ -0,0 +1,49 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package net
++
++var (
++	// Placeholders for saving original socket system calls.
++	origSocket        = socketFunc
++	origClose         = closeFunc
++	origConnect       = connectFunc
++	origAccept        = acceptFunc
++	origGetsockoptInt = getsockoptIntFunc
++
++	extraTestHookInstallers   []func()
++	extraTestHookUninstallers []func()
++)
++
++func installTestHooks() {
++	socketFunc = sw.Socket
++	closeFunc = sw.Close
++	connectFunc = sw.Connect
++	acceptFunc = sw.Accept
++	getsockoptIntFunc = sw.GetsockoptInt
++
++	for _, fn := range extraTestHookInstallers {
++		fn()
++	}
++}
++
++func uninstallTestHooks() {
++	socketFunc = origSocket
++	closeFunc = origClose
++	connectFunc = origConnect
++	acceptFunc = origAccept
++	getsockoptIntFunc = origGetsockoptInt
++
++	for _, fn := range extraTestHookUninstallers {
++		fn()
++	}
++}
++
++func forceCloseSockets() {
++	for s := range sw.Sockets() {
++		closeFunc(s)
++	}
++}
+diff --git a/src/net/main_windows_test.go b/src/net/main_windows_test.go
+new file mode 100644
+index 0000000000..03c3796a50
+--- /dev/null
++++ b/src/net/main_windows_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++var (
++	// Placeholders for saving original socket system calls.
++	origSocket      = socketFunc
++	origClosesocket = closeFunc
++	origConnect     = connectFunc
++	origConnectEx   = connectExFunc
++)
++
++func installTestHooks() {
++	socketFunc = sw.Socket
++	closeFunc = sw.Closesocket
++	connectFunc = sw.Connect
++	connectExFunc = sw.ConnectEx
++}
++
++func uninstallTestHooks() {
++	socketFunc = origSocket
++	closeFunc = origClosesocket
++	connectFunc = origConnect
++	connectExFunc = origConnectEx
++}
++
++func forceCloseSockets() {
++	for s := range sw.Sockets() {
++		closeFunc(s)
++	}
++}
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index dec81855b6..842d7d5538 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -14,7 +14,7 @@ import "syscall"
+ // Wrapper around the socket system call that marks the returned file
+ // descriptor as nonblocking and close-on-exec.
+ func sysSocket(family, sotype, proto int) (int, error) {
+-	s, err := syscall.Socket(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
++	s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
+ 	// On Linux the SOCK_NONBLOCK and SOCK_CLOEXEC flags were
+ 	// introduced in 2.6.27 kernel and on FreeBSD both flags were
+ 	// introduced in 10 kernel. If we get an EINVAL error on Linux
+@@ -26,7 +26,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+-	s, err = syscall.Socket(family, sotype, proto)
++	s, err = socketFunc(family, sotype, proto)
+ 	if err == nil {
+ 		syscall.CloseOnExec(s)
+ 	}
+@@ -35,7 +35,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 		return -1, err
+ 	}
+ 	if err = syscall.SetNonblock(s, true); err != nil {
+-		syscall.Close(s)
++		closeFunc(s)
+ 		return -1, err
+ 	}
+ 	return s, nil
+@@ -44,7 +44,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ // Wrapper around the accept system call that marks the returned file
+ // descriptor as nonblocking and close-on-exec.
+ func accept(s int) (int, syscall.Sockaddr, error) {
+-	ns, sa, err := syscall.Accept4(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
++	ns, sa, err := accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+ 	// On Linux the accept4 system call was introduced in 2.6.28
+ 	// kernel and on FreeBSD it was introduced in 10 kernel. If we
+ 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
+@@ -63,7 +63,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 	// because we have put fd.sysfd into non-blocking mode.
+ 	// However, a call to the File method will put it back into
+ 	// blocking mode. We can't take that risk, so no use of ForkLock here.
+-	ns, sa, err = syscall.Accept(s)
++	ns, sa, err = acceptFunc(s)
+ 	if err == nil {
+ 		syscall.CloseOnExec(ns)
+ 	}
+@@ -71,7 +71,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 		return -1, nil, err
+ 	}
+ 	if err = syscall.SetNonblock(ns, true); err != nil {
+-		syscall.Close(ns)
++		closeFunc(ns)
+ 		return -1, nil, err
+ 	}
+ 	return ns, sa, nil
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 3f956df65a..013944ebec 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -42,11 +42,11 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
+ 		return nil, err
+ 	}
+ 	if err = setDefaultSockopts(s, family, sotype, ipv6only); err != nil {
+-		closesocket(s)
++		closeFunc(s)
+ 		return nil, err
+ 	}
+ 	if fd, err = newFD(s, family, sotype, net); err != nil {
+-		closesocket(s)
++		closeFunc(s)
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/net/sock_windows.go b/src/net/sock_windows.go
+index 6ccde3a24b..591861f443 100644
+--- a/src/net/sock_windows.go
++++ b/src/net/sock_windows.go
+@@ -12,10 +12,10 @@ func maxListenerBacklog() int {
+ 	return syscall.SOMAXCONN
+ }
+ 
+-func sysSocket(f, t, p int) (syscall.Handle, error) {
++func sysSocket(family, sotype, proto int) (syscall.Handle, error) {
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+-	s, err := syscall.Socket(f, t, p)
++	s, err := socketFunc(family, sotype, proto)
+ 	if err == nil {
+ 		syscall.CloseOnExec(s)
+ 	}
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 898fb7c0c2..5a631aa56d 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -16,7 +16,7 @@ import "syscall"
+ func sysSocket(family, sotype, proto int) (int, error) {
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+-	s, err := syscall.Socket(family, sotype, proto)
++	s, err := socketFunc(family, sotype, proto)
+ 	if err == nil {
+ 		syscall.CloseOnExec(s)
+ 	}
+@@ -25,7 +25,7 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 		return -1, err
+ 	}
+ 	if err = syscall.SetNonblock(s, true); err != nil {
+-		syscall.Close(s)
++		closeFunc(s)
+ 		return -1, err
+ 	}
+ 	return s, nil
+@@ -39,7 +39,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 	// because we have put fd.sysfd into non-blocking mode.
+ 	// However, a call to the File method will put it back into
+ 	// blocking mode. We can't take that risk, so no use of ForkLock here.
+-	ns, sa, err := syscall.Accept(s)
++	ns, sa, err := acceptFunc(s)
+ 	if err == nil {
+ 		syscall.CloseOnExec(ns)
+ 	}
+@@ -47,7 +47,7 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 		return -1, nil, err
+ 	}
+ 	if err = syscall.SetNonblock(ns, true); err != nil {
+-		syscall.Close(ns)
++		closeFunc(ns)
+ 		return -1, nil, err
+ 	}
+ 	return ns, sa, nil
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index f9a340d2d3..434c9c6cef 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -59,6 +59,9 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
+ }
+ 
+ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
++	uninstallTestHooks()
++	defer installTestHooks()
++
+ 	const msgLen = 512
+ 	conns := b.N
+ 	numConcurrent := runtime.GOMAXPROCS(-1) * 2
+@@ -172,6 +175,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 	// The benchmark stresses concurrent reading and writing to the same connection.
+ 	// Such pattern is used in net/http and net/rpc.
+ 
++	uninstallTestHooks()
++	defer installTestHooks()
+ 	b.StopTimer()
+ 
+ 	P := runtime.GOMAXPROCS(0)

@@ -9,6 +9,19 @@ Date:   Fri Aug 2 14:28:52 2013 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12379043
-
+---
  src/cmd/go/bootstrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/bootstrap.go
+index 32941404cd..dc7ed5f4c0 100644
+--- a/src/cmd/go/bootstrap.go
++++ b/src/cmd/go/bootstrap.go
+@@ -25,6 +25,6 @@ func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
+ 	return "", nil, errHTTP
+ }
+ 
+-func parseMetaGoImports(r io.Reader) (imports []metaImport) {
++func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
+ 	panic("unreachable")
+ }

@@ -12,7 +12,60 @@ Date:   Wed Jul 1 10:33:56 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/test.go             |  2 ++
  src/cmd/go/testdata/script/mod_list_test.txt | 14 ++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index a0e275095b..e0f13323df 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -191,6 +191,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 				GoFiles:    p.XTestGoFiles,
+ 				Imports:    p.XTestImports,
+ 				ForTest:    p.ImportPath,
++				Module:     p.Module,
+ 				Error:      pxtestErr,
+ 			},
+ 			Internal: PackageInternal{
+@@ -222,6 +223,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 			ImportPath: p.ImportPath + ".test",
+ 			Root:       p.Root,
+ 			Imports:    str.StringList(TestMainDeps),
++			Module:     p.Module,
+ 		},
+ 		Internal: PackageInternal{
+ 			Build:      &build.Package{Name: "main"},
+diff --git a/src/cmd/go/testdata/script/mod_list_test.txt b/src/cmd/go/testdata/script/mod_list_test.txt
+index a99e4f36cd..f697af6c92 100644
+--- a/src/cmd/go/testdata/script/mod_list_test.txt
++++ b/src/cmd/go/testdata/script/mod_list_test.txt
+@@ -3,9 +3,19 @@ env GO111MODULE=on
+ # go list -compiled -test must handle test-only packages
+ # golang.org/issue/27097.
+ go list -compiled -test
++stdout -count=4 '^.' # 4 lines
+ stdout '^m$'
+ stdout '^m\.test$'
+ stdout '^m \[m\.test\]$'
++stdout '^m_test \[m\.test\]$'
++
++# https://golang.org/issue/39974: test packages should have the Module field populated.
++go list -test -f '{{.ImportPath}}{{with .Module}}: {{.Path}}{{end}}'
++stdout -count=4 '^.' # 4 lines
++stdout '^m: m$'
++stdout '^m\.test: m$'
++stdout '^m \[m\.test\]: m$'
++stdout '^m_test \[m\.test\]: m$'
+ 
+ -- go.mod --
+ module m
+@@ -14,3 +24,7 @@ module m
+ package x
+ import "testing"
+ func Test(t *testing.T) {}
++-- x_x_test.go --
++package x_test
++import "testing"
++func Test(t *testing.T) {}

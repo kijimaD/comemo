@@ -7,6 +7,37 @@ Date:   Wed Jan 1 16:40:52 2014 +1100
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/46450043
-
+---
  src/pkg/os/os_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 414e4e6243..14ecd95875 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -252,11 +252,25 @@ func TestReaddirnames(t *testing.T) {
+ 	testReaddirnames(sysdir.name, sysdir.files, t)
+ }
+ 
++func TestReaddirnamesNilFile(t *testing.T) {
++	var f *File
++	if fi, err := f.Readdirnames(1); fi != nil || err != ErrInvalid {
++		t.Errorf("Readdirnames should fail when f is nil: %v, %v", fi, err)
++	}
++}
++
+ func TestReaddir(t *testing.T) {
+ 	testReaddir(".", dot, t)
+ 	testReaddir(sysdir.name, sysdir.files, t)
+ }
+ 
++func TestReaddirNilFile(t *testing.T) {
++	var f *File
++	if fi, err := f.Readdir(1); fi != nil || err != ErrInvalid {
++		t.Errorf("Readdir should fail when f is nil: %v, %v", fi, err)
++	}
++}
++
+ // Read the directory one entry at a time.
+ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 	names := make([]string, length)

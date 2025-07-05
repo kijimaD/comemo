@@ -7,6 +7,34 @@ Date:   Thu Dec 18 19:47:29 2014 -0500
     Change-Id: I64c8c247acd5d134b2f17ed7aab0a035d7710679
     Reviewed-on: https://go-review.googlesource.com/1804
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/compress/bzip2/bzip2.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 15575d2202..6897957270 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -353,7 +353,7 @@ func (bz2 *reader) readBlock() (err error) {
+ 	// variables accumulate the repeat count. See the Wikipedia page for
+ 	// details.
+ 	repeat := 0
+-	repeat_power := 0
++	repeatPower := 0
+ 
+ 	// The `C' array (used by the inverse BWT) needs to be zero initialized.
+ 	for i := range bz2.c {
+@@ -380,10 +380,10 @@ func (bz2 *reader) readBlock() (err error) {
+ 		if v < 2 {
+ 			// This is either the RUNA or RUNB symbol.
+ 			if repeat == 0 {
+-				repeat_power = 1
++				repeatPower = 1
+ 			}
+-			repeat += repeat_power << v
+-			repeat_power <<= 1
++			repeat += repeatPower << v
++			repeatPower <<= 1
+ 
+ 			// This limit of 2 million comes from the bzip2 source
+ 			// code. It prevents repeat from overflowing.

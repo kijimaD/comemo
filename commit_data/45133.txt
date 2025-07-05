@@ -44,7 +44,7 @@ Date:   Fri Oct 2 17:51:13 2020 -0400
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |  4 +++
  src/cmd/compile/internal/gc/bench_test.go    | 12 +++++++
  src/cmd/compile/internal/ppc64/ssa.go        |  3 +-
@@ -54,3 +54,256 @@ Date:   Fri Oct 2 17:51:13 2020 -0400
  src/cmd/compile/internal/ssa/rewritePPC64.go | 54 ++++++++++++++++++++++++++++
  src/cmd/internal/obj/ppc64/asm9.go           |  9 ++---
  8 files changed, 111 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index 869f8c2d4f..c6d7b59aad 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -204,12 +204,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 
+ 	MULLW R3, R4                    // 7c8419d6
+ 	MULLW R3, R4, R5                // 7ca419d6
++	MULLW $10, R3                   // 1c63000a
++	MULLW $10000000, R3             // 641f009863ff96807c7f19d6
+ 	MULLWCC R3, R4, R5              // 7ca419d7
+ 	MULHW R3, R4, R5                // 7ca41896
+ 
+ 	MULHWU R3, R4, R5               // 7ca41816
+ 	MULLD R3, R4                    // 7c8419d2
+ 	MULLD R4, R4, R5                // 7ca421d2
++	MULLD $20, R4                   // 1c840014
++	MULLD $200000000, R4            // 641f0beb63ffc2007c9f21d2
+ 	MULLDCC R3, R4, R5              // 7ca419d3
+ 	MULHD R3, R4, R5                // 7ca41892
+ 	MULHDCC R3, R4, R5              // 7ca41893
+diff --git a/src/cmd/compile/internal/gc/bench_test.go b/src/cmd/compile/internal/gc/bench_test.go
+index a2887f2f7b..8c4288128f 100644
+--- a/src/cmd/compile/internal/gc/bench_test.go
++++ b/src/cmd/compile/internal/gc/bench_test.go
+@@ -7,6 +7,7 @@ package gc
+ import "testing"
+ 
+ var globl int64
++var globl32 int32
+ 
+ func BenchmarkLoadAdd(b *testing.B) {
+ 	x := make([]int64, 1024)
+@@ -42,6 +43,17 @@ func BenchmarkModify(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMullImm(b *testing.B) {
++	x := make([]int32, 1024)
++	for i := 0; i < b.N; i++ {
++		var s int32
++		for i := range x {
++			s += x[i] * 100
++		}
++		globl32 = s
++	}
++}
++
+ func BenchmarkConstModify(b *testing.B) {
+ 	a := make([]int64, 1024)
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index d83b2df379..1ece4d999f 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -677,7 +677,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 
+ 	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst,
+-		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst:
++		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst,
++		ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst, ssa.OpPPC64MULLWconst, ssa.OpPPC64MULLDconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 83ee4c499b..a05cfee654 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -821,6 +821,8 @@
+ 
+ (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
+ 
++(MULL(W|D) x (MOVDconst [c])) && is16Bit(c) => (MULL(W|D)const [int32(c)] x)
++
+ // Subtract from (with carry, but ignored) constant.
+ // Note, these clobber the carry bit.
+ (SUB (MOVDconst [c]) x) && is32Bit(c) => (SUBFCconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 28317928a8..5885660597 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -181,6 +181,8 @@ func init() {
+ 
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
++		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int32", typ: "Int64"}, // arg0*auxInt (signed 64-bit)
++		{name: "MULLWconst", argLength: 1, reg: gp11, asm: "MULLW", aux: "Int32", typ: "Int64"}, // arg0*auxInt (signed 64-bit)
+ 		{name: "MADDLD", argLength: 3, reg: gp31, asm: "MADDLD", typ: "Int64"},                  // (arg0*arg1)+arg2 (signed 64-bit)
+ 
+ 		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d7d2b24a48..051550fb17 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1832,6 +1832,8 @@ const (
+ 	OpPPC64FSUBS
+ 	OpPPC64MULLD
+ 	OpPPC64MULLW
++	OpPPC64MULLDconst
++	OpPPC64MULLWconst
+ 	OpPPC64MADDLD
+ 	OpPPC64MULHD
+ 	OpPPC64MULHW
+@@ -24377,6 +24379,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MULLDconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AMULLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MULLWconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AMULLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "MADDLD",
+ 		argLen: 3,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9822637b05..1b8a5a78ca 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -568,6 +568,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64MOVWstorezero(v)
+ 	case OpPPC64MTVSRD:
+ 		return rewriteValuePPC64_OpPPC64MTVSRD(v)
++	case OpPPC64MULLD:
++		return rewriteValuePPC64_OpPPC64MULLD(v)
++	case OpPPC64MULLW:
++		return rewriteValuePPC64_OpPPC64MULLW(v)
+ 	case OpPPC64NEG:
+ 		return rewriteValuePPC64_OpPPC64NEG(v)
+ 	case OpPPC64NOR:
+@@ -11003,6 +11007,56 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64MULLD(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (MULLD x (MOVDconst [c]))
++	// cond: is16Bit(c)
++	// result: (MULLDconst [int32(c)] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpPPC64MOVDconst {
++				continue
++			}
++			c := auxIntToInt64(v_1.AuxInt)
++			if !(is16Bit(c)) {
++				continue
++			}
++			v.reset(OpPPC64MULLDconst)
++			v.AuxInt = int32ToAuxInt(int32(c))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64MULLW(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (MULLW x (MOVDconst [c]))
++	// cond: is16Bit(c)
++	// result: (MULLWconst [int32(c)] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpPPC64MOVDconst {
++				continue
++			}
++			c := auxIntToInt64(v_1.AuxInt)
++			if !(is16Bit(c)) {
++				continue
++			}
++			v.reset(OpPPC64MULLWconst)
++			v.AuxInt = int32ToAuxInt(int32(c))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64NEG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (NEG (ADDconst [c] x))
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 928e299f43..c2e8e9e9d0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1279,6 +1279,9 @@ func buildop(ctxt *obj.Link) {
+ 		case AREMD:
+ 			opset(AREMDU, r0)
+ 
++		case AMULLW:
++			opset(AMULLD, r0)
++
+ 		case ADIVW: /* op Rb[,Ra],Rd */
+ 			opset(AMULHW, r0)
+ 
+@@ -1312,7 +1315,6 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMULHDCC, r0)
+ 			opset(AMULHDU, r0)
+ 			opset(AMULHDUCC, r0)
+-			opset(AMULLD, r0)
+ 			opset(AMULLDCC, r0)
+ 			opset(AMULLDVCC, r0)
+ 			opset(AMULLDV, r0)
+@@ -1996,7 +1998,6 @@ func buildop(ctxt *obj.Link) {
+ 			AMOVB,  /* macro: move byte with sign extension */
+ 			AMOVBU, /* macro: move byte with sign extension & update */
+ 			AMOVFL,
+-			AMULLW,
+ 			/* op $s[,r2],r3; op r1[,r2],r3; no cc/v */
+ 			ASUBC, /* op r1,$s,r3; op r1[,r2],r3 */
+ 			ASTSW,
+@@ -4990,8 +4991,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
+ 	case ADARN:
+ 		return OPVCC(31, 755, 0, 0) /* darn - v3.00 */
+ 
+-	case AMULLW:
+-		return OPVCC(7, 0, 0, 0)
++	case AMULLW, AMULLD:
++		return OPVCC(7, 0, 0, 0) /* mulli works with MULLW or MULLD */
+ 
+ 	case AOR:
+ 		return OPVCC(24, 0, 0, 0)

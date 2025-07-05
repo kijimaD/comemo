@@ -9,9 +9,175 @@ Date:   Mon Aug 5 12:26:05 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12349044
-
+---
  src/pkg/os/getwd.go                 |  4 +-
  src/pkg/syscall/syscall_bsd.go      | 11 -----
  src/pkg/syscall/syscall_darwin.go   | 93 ++++++++++++++++++++++++++++++++++++-
  src/pkg/syscall/syscall_no_getwd.go | 11 +++++
  4 files changed, 106 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 0235c5d779..1326e15259 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -22,7 +22,9 @@ func Getwd() (pwd string, err error) {
+ 	// If the operating system provides a Getwd call, use it.
+ 	if syscall.ImplementsGetwd {
+ 		s, e := syscall.Getwd()
+-		return s, NewSyscallError("getwd", e)
++		if e != syscall.ENOTSUP {
++			return s, NewSyscallError("getwd", e)
++		}
+ 	}
+ 
+ 	// Otherwise, we're trying to find our way back to ".".
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index cc940cffae..bd094ae368 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -17,17 +17,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-/*
+- * Pseudo-system calls
+- */
+-
+-// The const provides a compile-time constant so clients
+-// can adjust to whether there is a working Getwd and avoid
+-// even linking this function into the binary.  See ../os/getwd.go.
+-const ImplementsGetwd = false
+-
+-func Getwd() (string, error) { return "", ENOTSUP }
+-
+ /*
+  * Wrapped
+  */
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 329098ba4a..bd929ff991 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -12,7 +12,28 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	errorspkg "errors"
++	"unsafe"
++)
++
++const ImplementsGetwd = true
++
++func Getwd() (string, error) {
++	buf := make([]byte, 2048)
++	attrs, err := getAttrList(".", attrList{CommonAttr: attrCmnFullpath}, buf, 0)
++	if err == nil && len(attrs) == 1 && len(attrs[0]) >= 2 {
++		wd := string(attrs[0])
++		// Sanity check that it's an absolute path and ends
++		// in a null byte, which we then strip.
++		if wd[0] == '/' && wd[len(wd)-1] == 0 {
++			return wd[:len(wd)-1], nil
++		}
++	}
++	// If pkg/os/getwd.go gets ENOTSUP, it will fall back to the
++	// slow algorithm.
++	return "", ENOTSUP
++}
+ 
+ type SockaddrDatalink struct {
+ 	Len    uint8
+@@ -86,6 +107,76 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
+ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+ 
++const (
++	attrBitMapCount = 5
++	attrCmnFullpath = 0x08000000
++)
++
++type attrList struct {
++	bitmapCount uint16
++	_           uint16
++	CommonAttr  uint32
++	VolAttr     uint32
++	DirAttr     uint32
++	FileAttr    uint32
++	Forkattr    uint32
++}
++
++func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (attrs [][]byte, err error) {
++	if len(attrBuf) < 4 {
++		return nil, errorspkg.New("attrBuf too small")
++	}
++	attrList.bitmapCount = attrBitMapCount
++
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return nil, err
++	}
++
++	_, _, e1 := Syscall6(
++		SYS_GETATTRLIST,
++		uintptr(unsafe.Pointer(_p0)),
++		uintptr(unsafe.Pointer(&attrList)),
++		uintptr(unsafe.Pointer(&attrBuf[0])),
++		uintptr(len(attrBuf)),
++		uintptr(options),
++		0,
++	)
++	if e1 != 0 {
++		return nil, e1
++	}
++	size := *(*uint32)(unsafe.Pointer(&attrBuf[0]))
++
++	// dat is the section of attrBuf that contains valid data,
++	// without the 4 byte length header. All attribute offsets
++	// are relative to dat.
++	dat := attrBuf
++	if int(size) < len(attrBuf) {
++		dat = dat[:size]
++	}
++	dat = dat[4:] // remove length prefix
++
++	for i := uint32(0); int(i) < len(dat); {
++		header := dat[i:]
++		if len(header) < 8 {
++			return attrs, errorspkg.New("truncated attribute header")
++		}
++		datOff := *(*int32)(unsafe.Pointer(&header[0]))
++		attrLen := *(*uint32)(unsafe.Pointer(&header[4]))
++		if datOff < 0 || uint32(datOff)+attrLen > uint32(len(dat)) {
++			return attrs, errorspkg.New("truncated results; attrBuf too small")
++		}
++		end := uint32(datOff) + attrLen
++		attrs = append(attrs, dat[datOff:end])
++		i = end
++		if r := i % 4; r != 0 {
++			i += (4 - r)
++		}
++	}
++	return
++}
++
+ //sysnb pipe() (r int, w int, err error)
+ 
+ func Pipe(p []int) (err error) {
+diff --git a/src/pkg/syscall/syscall_no_getwd.go b/src/pkg/syscall/syscall_no_getwd.go
+new file mode 100644
+index 0000000000..18fc317dcf
+--- /dev/null
++++ b/src/pkg/syscall/syscall_no_getwd.go
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd netbsd openbsd
++
++package syscall
++
++const ImplementsGetwd = false
++
++func Getwd() (string, error) { return "", ENOTSUP }

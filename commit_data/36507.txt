@@ -12,6 +12,45 @@ Date:   Wed May 2 12:45:47 2018 +0200
     Change-Id: I41e16df1e7c8ca59d27e7514537609e309a51c51
     Reviewed-on: https://go-review.googlesource.com/110816
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c90609feef..e06d1493e0 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1249,9 +1249,15 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
+ 		pciterinit(ctxt, &pcstmt, &pctostmtData)
+ 
++		if pcstmt.done != 0 {
++			// Assembly files lack a pcstmt section, we assume that every instruction
++			// is a valid statement.
++			pcstmt.value = 1
++		}
++
+ 		var thispc uint32
+ 		// TODO this loop looks like it could exit with work remaining.
+-		for pcfile.done == 0 && pcline.done == 0 && pcstmt.done == 0 {
++		for pcfile.done == 0 && pcline.done == 0 {
+ 			// Only changed if it advanced
+ 			if int32(file) != pcfile.value {
+ 				ls.AddUint8(dwarf.DW_LNS_set_file)
+@@ -1280,14 +1286,14 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 			if pcline.nextpc < thispc {
+ 				thispc = pcline.nextpc
+ 			}
+-			if pcstmt.nextpc < thispc {
++			if pcstmt.done == 0 && pcstmt.nextpc < thispc {
+ 				thispc = pcstmt.nextpc
+ 			}
+ 
+ 			if pcfile.nextpc == thispc {
+ 				pciternext(&pcfile)
+ 			}
+-			if pcstmt.nextpc == thispc {
++			if pcstmt.done == 0 && pcstmt.nextpc == thispc {
+ 				pciternext(&pcstmt)
+ 			}
+ 			if pcline.nextpc == thispc {

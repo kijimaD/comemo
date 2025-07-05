@@ -8,6 +8,20 @@ Date:   Wed Jul 30 20:24:03 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/121920043
-
+---
  src/pkg/runtime/os_windows_386.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index 7ee7dedc1f..02bc81adbf 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -97,7 +97,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·panicking = 1;
+ 
+ 	runtime·printf("Exception %x %p %p %p\n", info->ExceptionCode,
+-		info->ExceptionInformation[0], info->ExceptionInformation[1], r->Eip);
++		(uintptr)info->ExceptionInformation[0], (uintptr)info->ExceptionInformation[1], (uintptr)r->Eip);
+ 
+ 	runtime·printf("PC=%x\n", r->Eip);
+ 	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {

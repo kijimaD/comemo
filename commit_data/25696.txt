@@ -15,7 +15,51 @@ Date:   Sat Nov 14 15:42:49 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/16933
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go | 10 +++++++++-
  src/cmd/compile/internal/gc/gsubr.go    | 11 +++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 4cc946f2b6..003b0ad0c9 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -108,7 +108,15 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	}
+ 	// General case.
+ 	var r1, r2, g1, g2 gc.Node
+-	if n1.Op == gc.ONAME && n1.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
++
++	// A special case to make write barriers more efficient.
++	// Comparing the first field of a named struct can be done directly.
++	base := n1
++	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Type.Sym == n1.Right.Sym {
++		base = n1.Left
++	}
++
++	if base.Op == gc.ONAME && base.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
+ 		r1 = *n1
+ 	} else {
+ 		gc.Regalloc(&r1, t, n1)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index ba2c601b7f..14d4d3da8f 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -404,6 +404,17 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 		a.Sym = Linksym(s)
+ 
++	case ODOT:
++		// A special case to make write barriers more efficient.
++		// Taking the address of the first field of a named struct
++		// is the same as taking the address of the struct.
++		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
++			Debug['h'] = 1
++			Dump("naddr", n)
++			Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
++		}
++		Naddr(a, n.Left)
++
+ 	case OLITERAL:
+ 		if Thearch.Thechar == '8' {
+ 			a.Width = 0

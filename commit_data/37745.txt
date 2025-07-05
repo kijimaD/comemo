@@ -16,7 +16,7 @@ Date:   Sun May 27 08:49:36 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu.go         | 10 ++++++++++
  src/internal/cpu/cpu_arm.go     | 25 +++++++++++++++++++++++++
  src/internal/cpu/cpu_no_init.go |  1 +
@@ -31,3 +31,283 @@ Date:   Sun May 27 08:49:36 2018 +0200
  src/runtime/os_plan9_arm.go     |  2 --
  src/runtime/vlop_arm.s          |  2 +-
  13 files changed, 67 insertions(+), 28 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index f2dfadbff8..2b5db91fe2 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -66,6 +66,16 @@ type ppc64 struct {
+ 	_          CacheLinePad
+ }
+ 
++var ARM arm
++
++// The booleans in arm contain the correspondingly named cpu feature bit.
++// The struct is padded to avoid false sharing.
++type arm struct {
++	_        CacheLinePad
++	HasIDIVA bool
++	_        CacheLinePad
++}
++
+ var ARM64 arm64
+ 
+ // The booleans in arm64 contain the correspondingly named cpu feature bit.
+diff --git a/src/internal/cpu/cpu_arm.go b/src/internal/cpu/cpu_arm.go
+index 078a6c3b80..b9baa44fea 100644
+--- a/src/internal/cpu/cpu_arm.go
++++ b/src/internal/cpu/cpu_arm.go
+@@ -5,3 +5,28 @@
+ package cpu
+ 
+ const CacheLineSize = 32
++
++// arm doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
++// These are linknamed in runtime/os_(linux|freebsd)_arm.go and are
++// initialized by archauxv().
++// These should not be changed after they are initialized.
++var HWCap uint
++var HWCap2 uint
++
++// HWCAP/HWCAP2 bits. These are exposed by Linux and FreeBSD.
++const (
++	hwcap_IDIVA = 1 << 17
++)
++
++func doinit() {
++	options = []option{
++		{"idiva", &ARM.HasIDIVA},
++	}
++
++	// HWCAP feature bits
++	ARM.HasIDIVA = isSet(HWCap, hwcap_IDIVA)
++}
++
++func isSet(hwc uint, value uint) bool {
++	return hwc&value != 0
++}
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+index 1be4f29ddd..777ea9de8b 100644
+--- a/src/internal/cpu/cpu_no_init.go
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -5,6 +5,7 @@
+ // +build !386
+ // +build !amd64
+ // +build !amd64p32
++// +build !arm
+ // +build !arm64
+ // +build !ppc64
+ // +build !ppc64le
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index dee6116a90..050168c2d7 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -14,4 +14,6 @@ const (
+ 	offset_x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+ 	offset_x86_HasERMS = unsafe.Offsetof(cpu.X86.HasERMS)
+ 	offset_x86_HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
++
++	offset_arm_HasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ )
+diff --git a/src/runtime/os_darwin_arm.go b/src/runtime/os_darwin_arm.go
+index 8eb5655969..ee1bd174f1 100644
+--- a/src/runtime/os_darwin_arm.go
++++ b/src/runtime/os_darwin_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
+-
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 631dc20ab4..08f7b0ecf0 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -389,6 +389,7 @@ const (
+ 	_AT_PAGESZ   = 6  // Page size in bytes
+ 	_AT_TIMEKEEP = 22 // Pointer to timehands.
+ 	_AT_HWCAP    = 25 // CPU feature flags
++	_AT_HWCAP2   = 26 // CPU feature flags 2
+ )
+ 
+ func sysauxv(auxv []uintptr) {
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index d2dc26f0c4..eb4de9bc21 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -4,22 +4,29 @@
+ 
+ package runtime
+ 
++import "internal/cpu"
++
+ const (
+ 	_HWCAP_VFP   = 1 << 6
+ 	_HWCAP_VFPv3 = 1 << 13
+-	_HWCAP_IDIVA = 1 << 17
+ )
+ 
+-var hwcap = ^uint32(0) // set by archauxv
+-var hardDiv bool       // set if a hardware divider is available
++// AT_HWCAP is not available on FreeBSD-11.1-RELEASE or earlier.
++// Default to mandatory VFP hardware support for arm being available.
++// If AT_HWCAP is available goarmHWCap will be updated in archauxv.
++// TODO(moehrmann) remove once all go supported FreeBSD versions support _AT_HWCAP.
++var goarmHWCap uint = (_HWCAP_VFP | _HWCAP_VFPv3)
+ 
+ func checkgoarm() {
+-	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
++	// Update cpu.HWCap to match goarmHWCap in case they were not updated in archauxv.
++	cpu.HWCap = goarmHWCap
++
++	if goarm > 5 && cpu.HWCap&_HWCAP_VFP == 0 {
+ 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
+ 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
+ 		exit(1)
+ 	}
+-	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
++	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+ 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
+ 		exit(1)
+@@ -35,9 +42,11 @@ func checkgoarm() {
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_HWCAP: // CPU capability bit flags
+-		hwcap = uint32(val)
+-		hardDiv = (hwcap & _HWCAP_IDIVA) != 0
++	case _AT_HWCAP:
++		cpu.HWCap = uint(val)
++		goarmHWCap = cpu.HWCap
++	case _AT_HWCAP2:
++		cpu.HWCap2 = uint(val)
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 14f1cfeaef..8f082ba6a0 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -4,20 +4,20 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ const (
+ 	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
+ 
+ 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
+ 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
+-	_HWCAP_IDIVA = 1 << 17
+ )
+ 
+ var randomNumber uint32
+ var armArch uint8 = 6 // we default to ARMv6
+-var hwcap uint32      // set by archauxv
+-var hardDiv bool      // set if a hardware divider is available
+ 
+ func checkgoarm() {
+ 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
+@@ -26,12 +26,12 @@ func checkgoarm() {
+ 	if GOOS == "android" {
+ 		return
+ 	}
+-	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
++	if goarm > 5 && cpu.HWCap&_HWCAP_VFP == 0 {
+ 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
+ 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
+ 		exit(1)
+ 	}
+-	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
++	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+ 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
+ 		exit(1)
+@@ -53,9 +53,10 @@ func archauxv(tag, val uintptr) {
+ 			armArch = t - '0'
+ 		}
+ 
+-	case _AT_HWCAP: // CPU capability bit flags
+-		hwcap = uint32(val)
+-		hardDiv = (hwcap & _HWCAP_IDIVA) != 0
++	case _AT_HWCAP:
++		cpu.HWCap = uint(val)
++	case _AT_HWCAP2:
++		cpu.HWCap2 = uint(val)
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_nacl_arm.go b/src/runtime/os_nacl_arm.go
+index c64ebf31d3..8669ee75b4 100644
+--- a/src/runtime/os_nacl_arm.go
++++ b/src/runtime/os_nacl_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
+-
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index b02e36a73a..95603da643 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -6,8 +6,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
+-
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+ 	mc.__gregs[_REG_R15] = uint32(funcPC(lwp_tramp))
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index c318578ab5..be2e1e9959 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
+-
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_plan9_arm.go b/src/runtime/os_plan9_arm.go
+index 1ce0141ce2..fdce1e7a35 100644
+--- a/src/runtime/os_plan9_arm.go
++++ b/src/runtime/os_plan9_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
+-
+ func checkgoarm() {
+ 	return // TODO(minux)
+ }
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index d48e515d32..8df13abd98 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -44,7 +44,7 @@
+ // the RET instruction will clobber R12 on nacl, and the compiler's register
+ // allocator needs to know.
+ TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
+-	MOVBU	runtime·hardDiv(SB), Ra
++	MOVBU	internal∕cpu·ARM+const_offset_arm_HasIDIVA(SB), Ra
+ 	CMP	$0, Ra
+ 	BNE	udiv_hardware
+ 

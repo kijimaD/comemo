@@ -11,8 +11,191 @@ Date:   Fri Oct 9 07:37:49 2009 -0700
     DELTA=61  (59 added, 0 deleted, 2 changed)
     OCL=35506
     CL=35517
-
+---
  src/cmd/5g/cgen.c | 44 +++++++++++++++++++++++++++++++++++++++++++-
  src/make-arm.bash |  2 +-
  test/arm-pass.txt | 17 +++++++++++++++++
  3 files changed, 61 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 1362cc07db..0fa69b69ee 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -42,7 +42,7 @@ void
+ cgen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr, *r;
+-	Node n1, n2, n3;
++	Node n1, n2, n3, f0, f1;
+ 	int a, w;
+ 	Prog *p1, *p2, *p3;
+ 	Addr addr;
+@@ -180,6 +180,9 @@ cgen(Node *n, Node *res)
+ 		}
+ 	}
+ 
++	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
++		goto flt;
++
+ 	switch(n->op) {
+ 	default:
+ 		dump("cgen", n);
+@@ -372,6 +375,45 @@ abop:	// asymmetric binary
+ 	regfree(&n2);
+ 	goto ret;
+ 
++flt:	// floating-point.
++	regalloc(&f0, nl->type, res);
++	if(nr != N)
++		goto flt2;
++
++	if(n->op == OMINUS) {
++		nr = nodintconst(-1);
++		convlit(&nr, n->type);
++		n->op = OMUL;
++		goto flt2;
++	}
++
++	// unary
++	cgen(nl, &f0);
++	if(n->op != OCONV && n->op != OPLUS)
++		gins(optoas(n->op, n->type), &f0, &f0);
++	gmove(&f0, res);
++	regfree(&f0);
++	goto ret;
++
++flt2:	// binary
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &f0);
++		regalloc(&f1, n->type, N);
++		gmove(&f0, &f1);
++		cgen(nr, &f0);
++		gins(optoas(n->op, n->type), &f1, &f0);
++	} else {
++		cgen(nr, &f0);
++		regalloc(&f1, n->type, N);
++		gmove(&f0, &f1);
++		cgen(nl, &f0);
++		gins(optoas(n->op, n->type), &f1, &f0);
++	}
++	gmove(&f1, res);
++	regfree(&f0);
++	regfree(&f1);
++	goto ret;
++
+ ret:
+ 	;
+ }
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index 9db1ca3f74..a0e6375998 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -21,7 +21,7 @@ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+ #for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/io
++for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/io pkg/malloc pkg/time
+ #for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+ # pkg/hash
+ # pkg/math
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index de9683b70c..514248bef2 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,4 +1,5 @@
+ 64bit.go
++args.go
+ assign.go
+ bigalg.go
+ blank1.go
+@@ -10,6 +11,7 @@ bugs/bug193.go
+ bugs/bug196.go
+ bugs/bug198.go
+ chan/perm.go
++char_lit.go
+ cmp1.go
+ cmp2.go
+ cmp3.go
+@@ -32,6 +34,7 @@ fixedbugs/bug002.go
+ fixedbugs/bug003.go
+ fixedbugs/bug004.go
+ fixedbugs/bug005.go
++fixedbugs/bug006.go
+ fixedbugs/bug007.go
+ fixedbugs/bug008.go
+ fixedbugs/bug009.go
+@@ -47,6 +50,7 @@ fixedbugs/bug022.go
+ fixedbugs/bug023.go
+ fixedbugs/bug024.go
+ fixedbugs/bug026.go
++fixedbugs/bug027.go
+ fixedbugs/bug028.go
+ fixedbugs/bug030.go
+ fixedbugs/bug031.go
+@@ -64,9 +68,11 @@ fixedbugs/bug050.go
+ fixedbugs/bug051.go
+ fixedbugs/bug052.go
+ fixedbugs/bug053.go
++fixedbugs/bug054.go
+ fixedbugs/bug056.go
+ fixedbugs/bug057.go
+ fixedbugs/bug058.go
++fixedbugs/bug060.go
+ fixedbugs/bug061.go
+ fixedbugs/bug062.go
+ fixedbugs/bug063.go
+@@ -156,6 +162,7 @@ fixedbugs/bug156.go
+ fixedbugs/bug157.go
+ fixedbugs/bug158.go
+ fixedbugs/bug159.go
++fixedbugs/bug160.go
+ fixedbugs/bug161.go
+ fixedbugs/bug163.go
+ fixedbugs/bug164.go
+@@ -178,6 +185,7 @@ fixedbugs/bug182.go
+ fixedbugs/bug183.go
+ fixedbugs/bug185.go
+ fixedbugs/bug186.go
++fixedbugs/bug187.go
+ fixedbugs/bug188.go
+ fixedbugs/bug189.go
+ fixedbugs/bug191.go
+@@ -198,20 +206,26 @@ func1.go
+ func2.go
+ func3.go
+ func4.go
++gc.go
+ gc1.go
+ hashmap.go
+ helloworld.go
+ if.go
++if1.go
+ import.go
+ import1.go
+ indirect.go
+ indirect1.go
+ initcomma.go
+ initializerr.go
++initsyscall.go
++int_lit.go
+ intcvt.go
++interface/bigdata.go
+ interface/convert.go
+ interface/convert1.go
+ interface/convert2.go
++interface/embed.go
+ interface/explicit.go
+ interface/fail.go
+ interface/pointer.go
+@@ -251,7 +265,10 @@ parentype.go
+ printbig.go
+ rename1.go
+ sieve.go
++sigchld.go
+ simassign.go
++string_lit.go
+ switch.go
++switch1.go
+ test0.go
+ varinit.go

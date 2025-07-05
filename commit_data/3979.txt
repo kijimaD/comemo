@@ -9,6 +9,30 @@ Date:   Wed Nov 11 11:18:17 2009 -0800
     R=rsc, r1
     CC=golang-dev
     https://golang.org/cl/154055
-
+---
  doc/install.html | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 85ae63f2ca..d095cff28e 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -154,13 +154,14 @@ $ hg clone -r release https://go.googlecode.com/hg/ $GOROOT
+ <h2>Install Go</h2>
+ 
+ <p>The Go tool chain is written in C.  To build it, you need
+-to have GCC, the standard C libraries, the parser generator Bison, and the text editor ed
+-installed.  On OS X, they can be installed as part of <a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>.
+-On Linux, 
++to have GCC, the standard C libraries, the parser generator Bison,
++<tt>make</tt> and the text editor <tt>ed</tt> installed.  On OS X, they can be
++installed as part of
++<a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>.  On Linux,
+ </p>
+ 
+ <pre>
+-$ sudo apt-get install bison gcc libc6-dev ed
++$ sudo apt-get install bison gcc libc6-dev ed make
+ </pre>
+ 
+ <p>

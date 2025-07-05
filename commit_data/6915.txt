@@ -9,8 +9,120 @@ Date:   Fri Dec 10 10:43:45 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/3564041
-
+---
  src/pkg/os/os_test.go   |  7 +++----
  src/pkg/os/path.go      |  2 +-
  src/pkg/os/path_test.go | 35 ++++++++++++++++++++++++++++++-----
  3 files changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index d60a52f850..49b58c83c8 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -863,13 +863,14 @@ func TestAppend(t *testing.T) {
+ }
+ 
+ func TestStatDirWithTrailingSlash(t *testing.T) {
+-	// Create new dir, in _obj so it will get
++	// Create new dir, in _test so it will get
+ 	// cleaned up by make if not by us.
+-	path := "_obj/_TestStatDirWithSlash_"
++	path := "_test/_TestStatDirWithSlash_"
+ 	err := MkdirAll(path, 0777)
+ 	if err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err)
+ 	}
++	defer RemoveAll(path)
+ 
+ 	// Stat of path should succeed.
+ 	_, err = Stat(path)
+@@ -882,6 +883,4 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("stat failed:", err)
+ 	}
+-
+-	RemoveAll("_obj/_TestMkdirAll_")
+ }
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 74c83ab17a..b762971d9c 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -14,7 +14,7 @@ package os
+ // and returns nil.
+ func MkdirAll(path string, perm uint32) Error {
+ 	// If path exists, stop with success or error.
+-	dir, err := Lstat(path)
++	dir, err := Stat(path)
+ 	if err == nil {
+ 		if dir.IsDirectory() {
+ 			return nil
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index e19c28afd0..799e3ec2fa 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -7,17 +7,19 @@ package os_test
+ import (
+ 	. "os"
+ 	"testing"
++	"runtime"
+ 	"syscall"
+ )
+ 
+ func TestMkdirAll(t *testing.T) {
+-	// Create new dir, in _obj so it will get
++	// Create new dir, in _test so it will get
+ 	// cleaned up by make if not by us.
+-	path := "_obj/_TestMkdirAll_/dir/./dir2"
++	path := "_test/_TestMkdirAll_/dir/./dir2"
+ 	err := MkdirAll(path, 0777)
+ 	if err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err)
+ 	}
++	defer RemoveAll("_test/_TestMkdirAll_")
+ 
+ 	// Already exists, should succeed.
+ 	err = MkdirAll(path, 0777)
+@@ -58,13 +60,11 @@ func TestMkdirAll(t *testing.T) {
+ 	if perr.Path != fpath {
+ 		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, perr.Path, fpath)
+ 	}
+-
+-	RemoveAll("_obj/_TestMkdirAll_")
+ }
+ 
+ func TestRemoveAll(t *testing.T) {
+ 	// Work directory.
+-	path := "_obj/_TestRemoveAll_"
++	path := "_test/_TestRemoveAll_"
+ 	fpath := path + "/file"
+ 	dpath := path + "/dir"
+ 
+@@ -154,3 +154,28 @@ func TestRemoveAll(t *testing.T) {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
+ 	}
+ }
++
++func TestMkdirAllWithSymlink(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Log("Skipping test: symlinks don't exist under Windows")
++		return
++	}
++
++	err := Mkdir("_test/dir", 0755)
++	if err != nil {
++		t.Fatal(`Mkdir "_test/dir":`, err)
++	}
++	defer RemoveAll("_test/dir")
++
++	err = Symlink("dir", "_test/link")
++	if err != nil {
++		t.Fatal(`Symlink "dir", "_test/link":`, err)
++	}
++	defer RemoveAll("_test/link")
++
++	path := "_test/link/foo"
++	err = MkdirAll(path, 0755)
++	if err != nil {
++		t.Errorf("MkdirAll %q: %s", path, err)
++	}
++}

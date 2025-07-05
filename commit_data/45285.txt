@@ -18,7 +18,43 @@ Date:   Sat Oct 17 01:10:06 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 10 ++++++++++
  test/fixedbugs/issue24491a.go       |  3 ---
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 05a049b3cc..9df288ea65 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3881,6 +3881,16 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	isBuiltinCall := n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER
++
++	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
++	if !isBuiltinCall && n.IsDDD() {
++		last := n.List.Len() - 1
++		if va := n.List.Index(last); va.Op == OSLICELIT {
++			n.List.Set(append(n.List.Slice()[:last], va.List.Slice()...))
++			n.SetIsDDD(false)
++		}
++	}
++
+ 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
+ 	origArgs := make([]*Node, n.List.Len())
+ 	t := nod(OTFUNC, nil, nil)
+diff --git a/test/fixedbugs/issue24491a.go b/test/fixedbugs/issue24491a.go
+index 3c595798b5..8accf8c0a3 100644
+--- a/test/fixedbugs/issue24491a.go
++++ b/test/fixedbugs/issue24491a.go
+@@ -34,9 +34,6 @@ func test(s string, p, q uintptr, rest ...uintptr) int {
+ 		panic(s + ": q failed")
+ 	}
+ 	for _, r := range rest {
+-		// TODO(mdempsky): Remove.
+-		break
+-
+ 		if *(*string)(unsafe.Pointer(r)) != "ok" {
+ 			panic(s + ": r[i] failed")
+ 		}

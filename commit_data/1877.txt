@@ -10,9 +10,73 @@ Date:   Tue Mar 24 16:04:25 2009 -0700
     TBR=r
     OCL=26691
     CL=26691
-
+---
  src/clean.bash                  | 1 +
  src/runtime/Makefile            | 3 ++-
  src/runtime/darwin/amd64/defs.h | 6 +++---
  src/runtime/darwin/signal.c     | 2 +-
  4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 1beb6a5133..4b6c6d73dc 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -4,6 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ rm -f $GOROOT/pkg/*.[6a]
++rm -f $GOROOT/lib/*.[6a]
+ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+ do
+ 	cd $i
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 5bf0dbbea8..633576755b 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -26,6 +26,7 @@ OFILES=\
+ 	mfixalloc.$O\
+ 	mgc0.$O\
+ 	mheap.$O\
++	mheapmap64.$O\
+ 	msize.$O\
+ 	print.$O\
+ 	proc.$O\
+@@ -49,7 +50,7 @@ HFILES=\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
+ install: $(LIB) runtime.acid
+-	cp $(LIB) $(GOROOT)/lib_$(GOARCH)_$(GOOS).a
++	cp $(LIB) $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a
+ 	cp runtime.acid $(GOROOT)/acid/runtime.acid
+ 
+ $(LIB): $(OFILES)
+diff --git a/src/runtime/darwin/amd64/defs.h b/src/runtime/darwin/amd64/defs.h
+index 8db6c2ecac..1076e4c10a 100644
+--- a/src/runtime/darwin/amd64/defs.h
++++ b/src/runtime/darwin/amd64/defs.h
+@@ -80,9 +80,9 @@ typedef struct MachPort MachPort;
+ struct MachPort {
+ 	uint32 name;
+ 	uint32 pad1;
+-	uint32 pad2;
+-	uint32 disposition;
+-	uint32 type;
++	uint16 pad2;
++	uint8 disposition;
++	uint8 type;
+ };
+ 
+ typedef struct StackT StackT;
+diff --git a/src/runtime/darwin/signal.c b/src/runtime/darwin/signal.c
+index 374b6bd6f7..88cddeb00d 100644
+--- a/src/runtime/darwin/signal.c
++++ b/src/runtime/darwin/signal.c
+@@ -55,7 +55,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	r = &mc->ss;
+ 
+ 	printf("Faulting address: %p\n", info->si_addr);
+-	printf("PC=%X\n", r->rip);
++	printf("pc: %X\n", r->rip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){

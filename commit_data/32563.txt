@@ -20,6 +20,20 @@ Date:   Mon May 1 07:36:43 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 0c9505e655..c6c2fa5fdf 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -985,7 +985,7 @@ func hashGrow(t *maptype, h *hmap) {
+ // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
+ func overLoadFactor(count int64, B uint8) bool {
+ 	// TODO: rewrite to use integer math and comparison?
+-	return count >= bucketCnt && float32(count) >= loadFactor*float32((uintptr(1)<<B))
++	return count >= bucketCnt && float32(count) >= loadFactor*float32((uint64(1)<<B))
+ }
+ 
+ // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.

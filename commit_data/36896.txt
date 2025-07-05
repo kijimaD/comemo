@@ -10,6 +10,19 @@ Date:   Thu Jun 7 15:46:19 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/117075
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f1fbf6cb69..dbb3ddedfe 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4217,6 +4217,7 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+ }
+ 
+ func TestBinaryOnlyPackages(t *testing.T) {
++	t.Skip("known failing test; see golang.org/issue/25784")
+ 	tooSlow(t)
+ 
+ 	tg := testgo(t)

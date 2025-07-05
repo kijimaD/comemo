@@ -16,7 +16,52 @@ Date:   Thu Jun 28 20:34:05 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  3 ++-
  test/fixedbugs/issue26120.go       | 23 +++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 92bfa7de4f..ff2b93d3d4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2170,8 +2170,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			p := s.addr(n, false)
+ 			return s.load(n.Left.Type.Elem(), p)
+ 		case n.Left.Type.IsArray():
+-			if bound := n.Left.Type.NumElem(); bound <= 1 {
++			if canSSAType(n.Left.Type) {
+ 				// SSA can handle arrays of length at most 1.
++				bound := n.Left.Type.NumElem()
+ 				a := s.expr(n.Left)
+ 				i := s.expr(n.Right)
+ 				if bound == 0 {
+diff --git a/test/fixedbugs/issue26120.go b/test/fixedbugs/issue26120.go
+new file mode 100644
+index 0000000000..94bf7d9cb7
+--- /dev/null
++++ b/test/fixedbugs/issue26120.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26120: INDEX of 1-element but non-SSAable array
++// is mishandled when building SSA.
++
++package p
++
++type T [1]struct {
++	f    []int
++	i, j int
++}
++
++func F() {
++	var v T
++	f := func() T {
++		return v
++	}
++	_ = []int{}[f()[0].i]
++}

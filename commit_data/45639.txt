@@ -10,6 +10,30 @@ Date:   Mon Nov 2 11:43:50 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/267137
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.16.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 3592d0b663..5d29307886 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -161,6 +161,18 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO
+ </p>
+ 
++<p><!-- CL 267100 -->
++  On Linux, the runtime now defaults to releasing memory to the
++  operating system promptly (using <code>MADV_DONTNEED</code>), rather
++  than lazily when the operating system is under memory pressure
++  (using <code>MADV_FREE</code>). This means process-level memory
++  statistics like RSS will more accurately reflect the amount of
++  physical memory being used by Go processes. Systems that are
++  currently using <code>GODEBUG=madvdontneed=1</code> to improve
++  memory monitoring behavior no longer need to set this environment
++  variable.
++</p>
++
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p>

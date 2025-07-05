@@ -13,7 +13,7 @@ Date:   Mon Jun 15 22:52:56 2020 -0700
     Change-Id: Id424a4e18964b848f05aa42f4d78e5f2e2cdf43b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237999
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |    8 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules   |    8 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  216 ++--
@@ -22,3 +22,2335 @@ Date:   Mon Jun 15 22:52:56 2020 -0700
  src/cmd/compile/internal/ssa/rewrite.go      |   74 +-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 1482 +++++++-------------------
  7 files changed, 514 insertions(+), 1321 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index e2a12f353d..b6bb81a847 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -943,12 +943,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpARM64FlagEQ,
+-		ssa.OpARM64FlagLT_ULT,
+-		ssa.OpARM64FlagLT_UGT,
+-		ssa.OpARM64FlagGT_ULT,
+-		ssa.OpARM64FlagGT_UGT:
+-		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
++	case ssa.OpARM64FlagConstant:
++		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARM64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+ 	case ssa.OpClobber:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 495fe2c935..ab8bd0e81e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -615,10 +615,10 @@
+ (TEQconst (MOVWconst [x]) [y]) => (FlagConstant [logicFlags32(x^y)])
+ 
+ // other known comparisons
+-(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags32(0,1)])
+-(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags32(0,1)])
+-(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [subFlags32(0,1)])
+-(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [subFlags32(0,1)])
++(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags32(0, 1)])
++(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags32(0, 1)])
++(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [subFlags32(0, 1)])
++(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [subFlags32(0, 1)])
+ 
+ // absorb flag constants into branches
+ (EQ (FlagConstant [fc]) yes no) &&  fc.eq() => (First yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 47f221495a..442d769fdd 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1381,103 +1381,64 @@
+ (MOVDreg  (MOVDconst [c])) -> (MOVDconst [c])
+ 
+ // constant comparisons
+-(CMPconst  (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
+-(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)<uint64(y) -> (FlagLT_ULT)
+-(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)>uint64(y) -> (FlagLT_UGT)
+-(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)<uint64(y) -> (FlagGT_ULT)
+-(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)>uint64(y) -> (FlagGT_UGT)
+-(CMPWconst (MOVDconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
+-(CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)<uint32(y) -> (FlagLT_ULT)
+-(CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)>uint32(y) -> (FlagLT_UGT)
+-(CMPWconst (MOVDconst [x]) [y]) && int32(x)>int32(y) && uint32(x)<uint32(y) -> (FlagGT_ULT)
+-(CMPWconst (MOVDconst [x]) [y]) && int32(x)>int32(y) && uint32(x)>uint32(y) -> (FlagGT_UGT)
+-(TSTconst  (MOVDconst [x]) [y]) && int64(x&y)==0 -> (FlagEQ)
+-(TSTconst  (MOVDconst [x]) [y]) && int64(x&y)<0  -> (FlagLT_UGT)
+-(TSTconst  (MOVDconst [x]) [y]) && int64(x&y)>0  -> (FlagGT_UGT)
+-(TSTWconst (MOVDconst [x]) [y]) && int32(x&y)==0 -> (FlagEQ)
+-(TSTWconst (MOVDconst [x]) [y]) && int32(x&y)<0  -> (FlagLT_UGT)
+-(TSTWconst (MOVDconst [x]) [y]) && int32(x&y)>0  -> (FlagGT_UGT)
+-(CMNconst  (MOVDconst [x]) [y]) && int64(x)==int64(-y) -> (FlagEQ)
+-(CMNconst  (MOVDconst [x]) [y]) && int64(x)<int64(-y) && uint64(x)<uint64(-y) -> (FlagLT_ULT)
+-(CMNconst  (MOVDconst [x]) [y]) && int64(x)<int64(-y) && uint64(x)>uint64(-y) -> (FlagLT_UGT)
+-(CMNconst  (MOVDconst [x]) [y]) && int64(x)>int64(-y) && uint64(x)<uint64(-y) -> (FlagGT_ULT)
+-(CMNconst  (MOVDconst [x]) [y]) && int64(x)>int64(-y) && uint64(x)>uint64(-y) -> (FlagGT_UGT)
+-(CMNWconst (MOVDconst [x]) [y]) && int32(x)==int32(-y) -> (FlagEQ)
+-(CMNWconst  (MOVDconst [x]) [y]) && int32(x)<int32(-y) && uint32(x)<uint32(-y) -> (FlagLT_ULT)
+-(CMNWconst  (MOVDconst [x]) [y]) && int32(x)<int32(-y) && uint32(x)>uint32(-y) -> (FlagLT_UGT)
+-(CMNWconst  (MOVDconst [x]) [y]) && int32(x)>int32(-y) && uint32(x)<uint32(-y) -> (FlagGT_ULT)
+-(CMNWconst  (MOVDconst [x]) [y]) && int32(x)>int32(-y) && uint32(x)>uint32(-y) -> (FlagGT_UGT)
+-
++(CMPconst  (MOVDconst [x]) [y]) => (FlagConstant [subFlags64(x,y)])
++(CMPWconst (MOVDconst [x]) [y]) => (FlagConstant [subFlags32(int32(x),y)])
++(TSTconst  (MOVDconst [x]) [y]) => (FlagConstant [logicFlags64(x&y)])
++(TSTWconst (MOVDconst [x]) [y]) => (FlagConstant [logicFlags32(int32(x)&y)])
++(CMNconst  (MOVDconst [x]) [y]) => (FlagConstant [addFlags64(x,y)])
++(CMNWconst (MOVDconst [x]) [y]) => (FlagConstant [addFlags32(int32(x),y)])
+ 
+ // other known comparisons
+-(CMPconst (MOVBUreg _) [c]) && 0xff < c -> (FlagLT_ULT)
+-(CMPconst (MOVHUreg _) [c]) && 0xffff < c -> (FlagLT_ULT)
+-(CMPconst (MOVWUreg _) [c]) && 0xffffffff < c -> (FlagLT_ULT)
+-(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
+-(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n) -> (FlagLT_ULT)
+-(CMPWconst (MOVBUreg _) [c]) && 0xff < int32(c) -> (FlagLT_ULT)
+-(CMPWconst (MOVHUreg _) [c]) && 0xffff < int32(c) -> (FlagLT_ULT)
++(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags64(0,1)])
++(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags64(0,1)])
++(CMPconst (MOVWUreg _) [c]) && 0xffffffff < c => (FlagConstant [subFlags64(0,1)])
++(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [subFlags64(0,1)])
++(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n) => (FlagConstant [subFlags64(0,1)])
++(CMPWconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags64(0,1)])
++(CMPWconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags64(0,1)])
+ 
+ // absorb flag constants into branches
+-(EQ (FlagEQ) yes no) -> (First yes no)
+-(EQ (FlagLT_ULT) yes no) -> (First no yes)
+-(EQ (FlagLT_UGT) yes no) -> (First no yes)
+-(EQ (FlagGT_ULT) yes no) -> (First no yes)
+-(EQ (FlagGT_UGT) yes no) -> (First no yes)
+-
+-(NE (FlagEQ) yes no) -> (First no yes)
+-(NE (FlagLT_ULT) yes no) -> (First yes no)
+-(NE (FlagLT_UGT) yes no) -> (First yes no)
+-(NE (FlagGT_ULT) yes no) -> (First yes no)
+-(NE (FlagGT_UGT) yes no) -> (First yes no)
+-
+-(LT (FlagEQ) yes no) -> (First no yes)
+-(LT (FlagLT_ULT) yes no) -> (First yes no)
+-(LT (FlagLT_UGT) yes no) -> (First yes no)
+-(LT (FlagGT_ULT) yes no) -> (First no yes)
+-(LT (FlagGT_UGT) yes no) -> (First no yes)
+-
+-(LE (FlagEQ) yes no) -> (First yes no)
+-(LE (FlagLT_ULT) yes no) -> (First yes no)
+-(LE (FlagLT_UGT) yes no) -> (First yes no)
+-(LE (FlagGT_ULT) yes no) -> (First no yes)
+-(LE (FlagGT_UGT) yes no) -> (First no yes)
+-
+-(GT (FlagEQ) yes no) -> (First no yes)
+-(GT (FlagLT_ULT) yes no) -> (First no yes)
+-(GT (FlagLT_UGT) yes no) -> (First no yes)
+-(GT (FlagGT_ULT) yes no) -> (First yes no)
+-(GT (FlagGT_UGT) yes no) -> (First yes no)
+-
+-(GE (FlagEQ) yes no) -> (First yes no)
+-(GE (FlagLT_ULT) yes no) -> (First no yes)
+-(GE (FlagLT_UGT) yes no) -> (First no yes)
+-(GE (FlagGT_ULT) yes no) -> (First yes no)
+-(GE (FlagGT_UGT) yes no) -> (First yes no)
+-
+-(ULT (FlagEQ) yes no) -> (First no yes)
+-(ULT (FlagLT_ULT) yes no) -> (First yes no)
+-(ULT (FlagLT_UGT) yes no) -> (First no yes)
+-(ULT (FlagGT_ULT) yes no) -> (First yes no)
+-(ULT (FlagGT_UGT) yes no) -> (First no yes)
+-
+-(ULE (FlagEQ) yes no) -> (First yes no)
+-(ULE (FlagLT_ULT) yes no) -> (First yes no)
+-(ULE (FlagLT_UGT) yes no) -> (First no yes)
+-(ULE (FlagGT_ULT) yes no) -> (First yes no)
+-(ULE (FlagGT_UGT) yes no) -> (First no yes)
+-
+-(UGT (FlagEQ) yes no) -> (First no yes)
+-(UGT (FlagLT_ULT) yes no) -> (First no yes)
+-(UGT (FlagLT_UGT) yes no) -> (First yes no)
+-(UGT (FlagGT_ULT) yes no) -> (First no yes)
+-(UGT (FlagGT_UGT) yes no) -> (First yes no)
+-
+-(UGE (FlagEQ) yes no) -> (First yes no)
+-(UGE (FlagLT_ULT) yes no) -> (First no yes)
+-(UGE (FlagLT_UGT) yes no) -> (First yes no)
+-(UGE (FlagGT_ULT) yes no) -> (First no yes)
+-(UGE (FlagGT_UGT) yes no) -> (First yes no)
++(EQ (FlagConstant [fc]) yes no) &&  fc.eq() => (First yes no)
++(EQ (FlagConstant [fc]) yes no) && !fc.eq() => (First no yes)
++
++(NE (FlagConstant [fc]) yes no) &&  fc.ne() => (First yes no)
++(NE (FlagConstant [fc]) yes no) && !fc.ne() => (First no yes)
++
++(LT (FlagConstant [fc]) yes no) &&  fc.lt() => (First yes no)
++(LT (FlagConstant [fc]) yes no) && !fc.lt() => (First no yes)
++
++(LE (FlagConstant [fc]) yes no) &&  fc.le() => (First yes no)
++(LE (FlagConstant [fc]) yes no) && !fc.le() => (First no yes)
++
++(GT (FlagConstant [fc]) yes no) &&  fc.gt() => (First yes no)
++(GT (FlagConstant [fc]) yes no) && !fc.gt() => (First no yes)
++
++(GE (FlagConstant [fc]) yes no) &&  fc.ge() => (First yes no)
++(GE (FlagConstant [fc]) yes no) && !fc.ge() => (First no yes)
++
++(ULT (FlagConstant [fc]) yes no) &&  fc.ult() => (First yes no)
++(ULT (FlagConstant [fc]) yes no) && !fc.ult() => (First no yes)
++
++(ULE (FlagConstant [fc]) yes no) &&  fc.ule() => (First yes no)
++(ULE (FlagConstant [fc]) yes no) && !fc.ule() => (First no yes)
++
++(UGT (FlagConstant [fc]) yes no) &&  fc.ugt() => (First yes no)
++(UGT (FlagConstant [fc]) yes no) && !fc.ugt() => (First no yes)
++
++(UGE (FlagConstant [fc]) yes no) &&  fc.uge() => (First yes no)
++(UGE (FlagConstant [fc]) yes no) && !fc.uge() => (First no yes)
++
++(LTnoov (FlagConstant [fc]) yes no) &&  fc.ltNoov() => (First yes no)
++(LTnoov (FlagConstant [fc]) yes no) && !fc.ltNoov() => (First no yes)
++
++(LEnoov (FlagConstant [fc]) yes no) &&  fc.leNoov() => (First yes no)
++(LEnoov (FlagConstant [fc]) yes no) && !fc.leNoov() => (First no yes)
++
++(GTnoov (FlagConstant [fc]) yes no) &&  fc.gtNoov() => (First yes no)
++(GTnoov (FlagConstant [fc]) yes no) && !fc.gtNoov() => (First no yes)
++
++(GEnoov (FlagConstant [fc]) yes no) &&  fc.geNoov() => (First yes no)
++(GEnoov (FlagConstant [fc]) yes no) && !fc.geNoov() => (First no yes)
+ 
+ (Z (MOVDconst [0]) yes no) -> (First yes no)
+ (Z (MOVDconst [c]) yes no) && c != 0 -> (First no yes)
+@@ -1513,65 +1474,16 @@
+ (CSEL0 {cc} x (InvertFlags cmp)) -> (CSEL0 {arm64Invert(cc.(Op))} x cmp)
+ 
+ // absorb flag constants into boolean values
+-(Equal (FlagEQ)) -> (MOVDconst [1])
+-(Equal (FlagLT_ULT)) -> (MOVDconst [0])
+-(Equal (FlagLT_UGT)) -> (MOVDconst [0])
+-(Equal (FlagGT_ULT)) -> (MOVDconst [0])
+-(Equal (FlagGT_UGT)) -> (MOVDconst [0])
+-
+-(NotEqual (FlagEQ)) -> (MOVDconst [0])
+-(NotEqual (FlagLT_ULT)) -> (MOVDconst [1])
+-(NotEqual (FlagLT_UGT)) -> (MOVDconst [1])
+-(NotEqual (FlagGT_ULT)) -> (MOVDconst [1])
+-(NotEqual (FlagGT_UGT)) -> (MOVDconst [1])
+-
+-(LessThan (FlagEQ)) -> (MOVDconst [0])
+-(LessThan (FlagLT_ULT)) -> (MOVDconst [1])
+-(LessThan (FlagLT_UGT)) -> (MOVDconst [1])
+-(LessThan (FlagGT_ULT)) -> (MOVDconst [0])
+-(LessThan (FlagGT_UGT)) -> (MOVDconst [0])
+-
+-(LessThanU (FlagEQ)) -> (MOVDconst [0])
+-(LessThanU (FlagLT_ULT)) -> (MOVDconst [1])
+-(LessThanU (FlagLT_UGT)) -> (MOVDconst [0])
+-(LessThanU (FlagGT_ULT)) -> (MOVDconst [1])
+-(LessThanU (FlagGT_UGT)) -> (MOVDconst [0])
+-
+-(LessEqual (FlagEQ)) -> (MOVDconst [1])
+-(LessEqual (FlagLT_ULT)) -> (MOVDconst [1])
+-(LessEqual (FlagLT_UGT)) -> (MOVDconst [1])
+-(LessEqual (FlagGT_ULT)) -> (MOVDconst [0])
+-(LessEqual (FlagGT_UGT)) -> (MOVDconst [0])
+-
+-(LessEqualU (FlagEQ)) -> (MOVDconst [1])
+-(LessEqualU (FlagLT_ULT)) -> (MOVDconst [1])
+-(LessEqualU (FlagLT_UGT)) -> (MOVDconst [0])
+-(LessEqualU (FlagGT_ULT)) -> (MOVDconst [1])
+-(LessEqualU (FlagGT_UGT)) -> (MOVDconst [0])
+-
+-(GreaterThan (FlagEQ)) -> (MOVDconst [0])
+-(GreaterThan (FlagLT_ULT)) -> (MOVDconst [0])
+-(GreaterThan (FlagLT_UGT)) -> (MOVDconst [0])
+-(GreaterThan (FlagGT_ULT)) -> (MOVDconst [1])
+-(GreaterThan (FlagGT_UGT)) -> (MOVDconst [1])
+-
+-(GreaterThanU (FlagEQ)) -> (MOVDconst [0])
+-(GreaterThanU (FlagLT_ULT)) -> (MOVDconst [0])
+-(GreaterThanU (FlagLT_UGT)) -> (MOVDconst [1])
+-(GreaterThanU (FlagGT_ULT)) -> (MOVDconst [0])
+-(GreaterThanU (FlagGT_UGT)) -> (MOVDconst [1])
+-
+-(GreaterEqual (FlagEQ)) -> (MOVDconst [1])
+-(GreaterEqual (FlagLT_ULT)) -> (MOVDconst [0])
+-(GreaterEqual (FlagLT_UGT)) -> (MOVDconst [0])
+-(GreaterEqual (FlagGT_ULT)) -> (MOVDconst [1])
+-(GreaterEqual (FlagGT_UGT)) -> (MOVDconst [1])
+-
+-(GreaterEqualU (FlagEQ)) -> (MOVDconst [1])
+-(GreaterEqualU (FlagLT_ULT)) -> (MOVDconst [0])
+-(GreaterEqualU (FlagLT_UGT)) -> (MOVDconst [1])
+-(GreaterEqualU (FlagGT_ULT)) -> (MOVDconst [0])
+-(GreaterEqualU (FlagGT_UGT)) -> (MOVDconst [1])
++(Equal (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
++(NotEqual (FlagConstant [fc])) => (MOVDconst [b2i(fc.ne())])
++(LessThan (FlagConstant [fc])) => (MOVDconst [b2i(fc.lt())])
++(LessThanU (FlagConstant [fc])) => (MOVDconst [b2i(fc.ult())])
++(LessEqual (FlagConstant [fc])) => (MOVDconst [b2i(fc.le())])
++(LessEqualU (FlagConstant [fc])) => (MOVDconst [b2i(fc.ule())])
++(GreaterThan (FlagConstant [fc])) => (MOVDconst [b2i(fc.gt())])
++(GreaterThanU (FlagConstant [fc])) => (MOVDconst [b2i(fc.ugt())])
++(GreaterEqual (FlagConstant [fc])) => (MOVDconst [b2i(fc.ge())])
++(GreaterEqualU (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
+ 
+ // absorb InvertFlags into boolean values
+ (Equal (InvertFlags x)) -> (Equal x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 63faab2909..b402e35ea6 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -587,18 +587,12 @@ func init() {
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 
+-		// Constant flag values. For any comparison, there are 5 possible
+-		// outcomes: the three from the signed total order (<,==,>) and the
+-		// three from the unsigned total order. The == cases overlap.
+-		// Note: there's a sixth "unordered" outcome for floating-point
++		// Constant flag value.
++		// Note: there's an "unordered" outcome for floating-point
+ 		// comparisons, but we don't use such a beast yet.
+-		// These ops are for temporary use by rewrite rules. They
++		// This op is for temporary use by rewrite rules. It
+ 		// cannot appear in the generated assembly.
+-		{name: "FlagEQ"},     // equal
+-		{name: "FlagLT_ULT"}, // signed < and unsigned <
+-		{name: "FlagLT_UGT"}, // signed < and unsigned >
+-		{name: "FlagGT_UGT"}, // signed > and unsigned <
+-		{name: "FlagGT_ULT"}, // signed > and unsigned >
++		{name: "FlagConstant", aux: "FlagConstant"},
+ 
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 48edb3e3af..d27682e3b3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1554,11 +1554,7 @@ const (
+ 	OpARM64LoweredGetClosurePtr
+ 	OpARM64LoweredGetCallerSP
+ 	OpARM64LoweredGetCallerPC
+-	OpARM64FlagEQ
+-	OpARM64FlagLT_ULT
+-	OpARM64FlagLT_UGT
+-	OpARM64FlagGT_UGT
+-	OpARM64FlagGT_ULT
++	OpARM64FlagConstant
+ 	OpARM64InvertFlags
+ 	OpARM64LDAR
+ 	OpARM64LDARB
+@@ -20498,29 +20494,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "FlagEQ",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+-	{
+-		name:   "FlagLT_ULT",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+-	{
+-		name:   "FlagLT_UGT",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+-	{
+-		name:   "FlagGT_UGT",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+-	{
+-		name:   "FlagGT_ULT",
+-		argLen: 0,
+-		reg:    regInfo{},
++		name:    "FlagConstant",
++		auxType: auxFlagConstant,
++		argLen:  0,
++		reg:     regInfo{},
+ 	},
+ 	{
+ 		name:   "InvertFlags",
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 93790b1a43..2152b1675a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1011,52 +1011,42 @@ func arm64Invert(op Op) Op {
+ func ccARM64Eval(cc interface{}, flags *Value) int {
+ 	op := cc.(Op)
+ 	fop := flags.Op
+-	switch fop {
+-	case OpARM64InvertFlags:
++	if fop == OpARM64InvertFlags {
+ 		return -ccARM64Eval(op, flags.Args[0])
+-	case OpARM64FlagEQ:
+-		switch op {
+-		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
+-			OpARM64GreaterEqualU, OpARM64LessEqualU:
+-			return 1
+-		default:
+-			return -1
+-		}
+-	case OpARM64FlagLT_ULT:
+-		switch op {
+-		case OpARM64LessThan, OpARM64LessThanU,
+-			OpARM64LessEqual, OpARM64LessEqualU:
+-			return 1
+-		default:
+-			return -1
+-		}
+-	case OpARM64FlagLT_UGT:
+-		switch op {
+-		case OpARM64LessThan, OpARM64GreaterThanU,
+-			OpARM64LessEqual, OpARM64GreaterEqualU:
+-			return 1
+-		default:
+-			return -1
+-		}
+-	case OpARM64FlagGT_ULT:
+-		switch op {
+-		case OpARM64GreaterThan, OpARM64LessThanU,
+-			OpARM64GreaterEqual, OpARM64LessEqualU:
+-			return 1
+-		default:
+-			return -1
+-		}
+-	case OpARM64FlagGT_UGT:
+-		switch op {
+-		case OpARM64GreaterThan, OpARM64GreaterThanU,
+-			OpARM64GreaterEqual, OpARM64GreaterEqualU:
++	}
++	if fop != OpARM64FlagConstant {
++		return 0
++	}
++	fc := flagConstant(flags.AuxInt)
++	b2i := func(b bool) int {
++		if b {
+ 			return 1
+-		default:
+-			return -1
+ 		}
+-	default:
+-		return 0
++		return -1
+ 	}
++	switch op {
++	case OpARM64Equal:
++		return b2i(fc.eq())
++	case OpARM64NotEqual:
++		return b2i(fc.ne())
++	case OpARM64LessThan:
++		return b2i(fc.lt())
++	case OpARM64LessThanU:
++		return b2i(fc.ult())
++	case OpARM64GreaterThan:
++		return b2i(fc.gt())
++	case OpARM64GreaterThanU:
++		return b2i(fc.ugt())
++	case OpARM64LessEqual:
++		return b2i(fc.le())
++	case OpARM64LessEqualU:
++		return b2i(fc.ule())
++	case OpARM64GreaterEqual:
++		return b2i(fc.ge())
++	case OpARM64GreaterEqualU:
++		return b2i(fc.uge())
++	}
++	return 0
+ }
+ 
+ // logRule logs the use of the rule s. This will only be enabled if
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 4b8ef43303..8e48b33628 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -2575,78 +2575,15 @@ func rewriteValueARM64_OpARM64CMNW(v *Value) bool {
+ func rewriteValueARM64_OpARM64CMNWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (CMNWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)==int32(-y)
+-	// result: (FlagEQ)
++	// result: (FlagConstant [addFlags32(int32(x),y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt32(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(int32(x) == int32(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (CMNWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)<int32(-y) && uint32(x)<uint32(-y)
+-	// result: (FlagLT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) < int32(-y) && uint32(x) < uint32(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_ULT)
+-		return true
+-	}
+-	// match: (CMNWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)<int32(-y) && uint32(x)>uint32(-y)
+-	// result: (FlagLT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) < int32(-y) && uint32(x) > uint32(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (CMNWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)>int32(-y) && uint32(x)<uint32(-y)
+-	// result: (FlagGT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) > int32(-y) && uint32(x) < uint32(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_ULT)
+-		return true
+-	}
+-	// match: (CMNWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)>int32(-y) && uint32(x)>uint32(-y)
+-	// result: (FlagGT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) > int32(-y) && uint32(x) > uint32(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(addFlags32(int32(x), y))
+ 		return true
+ 	}
+ 	return false
+@@ -2654,78 +2591,15 @@ func rewriteValueARM64_OpARM64CMNWconst(v *Value) bool {
+ func rewriteValueARM64_OpARM64CMNconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (CMNconst (MOVDconst [x]) [y])
+-	// cond: int64(x)==int64(-y)
+-	// result: (FlagEQ)
++	// result: (FlagConstant [addFlags64(x,y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(int64(x) == int64(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (CMNconst (MOVDconst [x]) [y])
+-	// cond: int64(x)<int64(-y) && uint64(x)<uint64(-y)
+-	// result: (FlagLT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x) < int64(-y) && uint64(x) < uint64(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_ULT)
+-		return true
+-	}
+-	// match: (CMNconst (MOVDconst [x]) [y])
+-	// cond: int64(x)<int64(-y) && uint64(x)>uint64(-y)
+-	// result: (FlagLT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x) < int64(-y) && uint64(x) > uint64(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (CMNconst (MOVDconst [x]) [y])
+-	// cond: int64(x)>int64(-y) && uint64(x)<uint64(-y)
+-	// result: (FlagGT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x) > int64(-y) && uint64(x) < uint64(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_ULT)
+-		return true
+-	}
+-	// match: (CMNconst (MOVDconst [x]) [y])
+-	// cond: int64(x)>int64(-y) && uint64(x)>uint64(-y)
+-	// result: (FlagGT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x) > int64(-y) && uint64(x) > uint64(-y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(addFlags64(x, y))
+ 		return true
+ 	}
+ 	return false
+@@ -3062,100 +2936,39 @@ func rewriteValueARM64_OpARM64CMPW(v *Value) bool {
+ func rewriteValueARM64_OpARM64CMPWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (CMPWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)==int32(y)
+-	// result: (FlagEQ)
++	// result: (FlagConstant [subFlags32(int32(x),y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt32(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(int32(x) == int32(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (CMPWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)<int32(y) && uint32(x)<uint32(y)
+-	// result: (FlagLT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) < int32(y) && uint32(x) < uint32(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_ULT)
+-		return true
+-	}
+-	// match: (CMPWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)<int32(y) && uint32(x)>uint32(y)
+-	// result: (FlagLT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) < int32(y) && uint32(x) > uint32(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (CMPWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)>int32(y) && uint32(x)<uint32(y)
+-	// result: (FlagGT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) > int32(y) && uint32(x) < uint32(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_ULT)
+-		return true
+-	}
+-	// match: (CMPWconst (MOVDconst [x]) [y])
+-	// cond: int32(x)>int32(y) && uint32(x)>uint32(y)
+-	// result: (FlagGT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x) > int32(y) && uint32(x) > uint32(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags32(int32(x), y))
+ 		return true
+ 	}
+ 	// match: (CMPWconst (MOVBUreg _) [c])
+-	// cond: 0xff < int32(c)
+-	// result: (FlagLT_ULT)
++	// cond: 0xff < c
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		c := v.AuxInt
+-		if v_0.Op != OpARM64MOVBUreg || !(0xff < int32(c)) {
++		c := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpARM64MOVBUreg || !(0xff < c) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	// match: (CMPWconst (MOVHUreg _) [c])
+-	// cond: 0xffff < int32(c)
+-	// result: (FlagLT_ULT)
++	// cond: 0xffff < c
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		c := v.AuxInt
+-		if v_0.Op != OpARM64MOVHUreg || !(0xffff < int32(c)) {
++		c := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpARM64MOVHUreg || !(0xffff < c) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	return false
+@@ -3163,141 +2976,83 @@ func rewriteValueARM64_OpARM64CMPWconst(v *Value) bool {
+ func rewriteValueARM64_OpARM64CMPconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: x==y
+-	// result: (FlagEQ)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(x == y) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: x<y && uint64(x)<uint64(y)
+-	// result: (FlagLT_ULT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(x < y && uint64(x) < uint64(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_ULT)
+-		return true
+-	}
+-	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: x<y && uint64(x)>uint64(y)
+-	// result: (FlagLT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(x < y && uint64(x) > uint64(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: x>y && uint64(x)<uint64(y)
+-	// result: (FlagGT_ULT)
++	// result: (FlagConstant [subFlags64(x,y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(x > y && uint64(x) < uint64(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_ULT)
+-		return true
+-	}
+-	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: x>y && uint64(x)>uint64(y)
+-	// result: (FlagGT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(x > y && uint64(x) > uint64(y)) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(x, y))
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVBUreg _) [c])
+ 	// cond: 0xff < c
+-	// result: (FlagLT_ULT)
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		c := v.AuxInt
++		c := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVBUreg || !(0xff < c) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVHUreg _) [c])
+ 	// cond: 0xffff < c
+-	// result: (FlagLT_ULT)
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		c := v.AuxInt
++		c := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVHUreg || !(0xffff < c) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVWUreg _) [c])
+ 	// cond: 0xffffffff < c
+-	// result: (FlagLT_ULT)
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		c := v.AuxInt
++		c := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVWUreg || !(0xffffffff < c) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	// match: (CMPconst (ANDconst _ [m]) [n])
+ 	// cond: 0 <= m && m < n
+-	// result: (FlagLT_ULT)
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		n := v.AuxInt
++		n := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64ANDconst {
+ 			break
+ 		}
+-		m := v_0.AuxInt
++		m := auxIntToInt64(v_0.AuxInt)
+ 		if !(0 <= m && m < n) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	// match: (CMPconst (SRLconst _ [c]) [n])
+ 	// cond: 0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n)
+-	// result: (FlagLT_ULT)
++	// result: (FlagConstant [subFlags64(0,1)])
+ 	for {
+-		n := v.AuxInt
++		n := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64SRLconst {
+ 			break
+ 		}
+-		c := v_0.AuxInt
++		c := auxIntToInt64(v_0.AuxInt)
+ 		if !(0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n)) {
+ 			break
+ 		}
+-		v.reset(OpARM64FlagLT_ULT)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(subFlags64(0, 1))
+ 		return true
+ 	}
+ 	return false
+@@ -3849,54 +3604,15 @@ func rewriteValueARM64_OpARM64EONshiftRL(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (Equal (FlagEQ))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (Equal (FlagLT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (Equal (FlagLT_UGT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (Equal (FlagGT_ULT))
+-	// result: (MOVDconst [0])
++	// match: (Equal (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.eq())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (Equal (FlagGT_UGT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.eq()))
+ 		return true
+ 	}
+ 	// match: (Equal (InvertFlags x))
+@@ -4866,54 +4582,15 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (GreaterEqual (FlagEQ))
+-	// result: (MOVDconst [1])
++	// match: (GreaterEqual (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ge())])
+ 	for {
+-		if v_0.Op != OpARM64FlagEQ {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterEqual (FlagLT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterEqual (FlagLT_UGT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterEqual (FlagGT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterEqual (FlagGT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
++		v.AuxInt = int64ToAuxInt(b2i(fc.ge()))
+ 		return true
+ 	}
+ 	// match: (GreaterEqual (InvertFlags x))
+@@ -4934,131 +4611,53 @@ func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
+ 	// match: (GreaterEqualF (InvertFlags x))
+ 	// result: (LessEqualF x)
+ 	for {
+-		if v_0.Op != OpARM64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpARM64LessEqualF)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueARM64_OpARM64GreaterEqualU(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (GreaterEqualU (FlagEQ))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterEqualU (FlagLT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterEqualU (FlagLT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterEqualU (FlagGT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterEqualU (FlagGT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterEqualU (InvertFlags x))
+-	// result: (LessEqualU x)
+-	for {
+-		if v_0.Op != OpARM64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpARM64LessEqualU)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueARM64_OpARM64GreaterThan(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (GreaterThan (FlagEQ))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterThan (FlagLT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
++		if v_0.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		x := v_0.Args[0]
++		v.reset(OpARM64LessEqualF)
++		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (GreaterThan (FlagLT_UGT))
+-	// result: (MOVDconst [0])
++	return false
++}
++func rewriteValueARM64_OpARM64GreaterEqualU(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (GreaterEqualU (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.uge())])
+ 	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.uge()))
+ 		return true
+ 	}
+-	// match: (GreaterThan (FlagGT_ULT))
+-	// result: (MOVDconst [1])
++	// match: (GreaterEqualU (InvertFlags x))
++	// result: (LessEqualU x)
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
++		if v_0.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
++		x := v_0.Args[0]
++		v.reset(OpARM64LessEqualU)
++		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (GreaterThan (FlagGT_UGT))
+-	// result: (MOVDconst [1])
++	return false
++}
++func rewriteValueARM64_OpARM64GreaterThan(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (GreaterThan (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.gt())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
++		v.AuxInt = int64ToAuxInt(b2i(fc.gt()))
+ 		return true
+ 	}
+ 	// match: (GreaterThan (InvertFlags x))
+@@ -5091,54 +4690,15 @@ func rewriteValueARM64_OpARM64GreaterThanF(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64GreaterThanU(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (GreaterThanU (FlagEQ))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterThanU (FlagLT_ULT))
+-	// result: (MOVDconst [0])
++	// match: (GreaterThanU (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ugt())])
+ 	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterThanU (FlagLT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (GreaterThanU (FlagGT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (GreaterThanU (FlagGT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
++		v.AuxInt = int64ToAuxInt(b2i(fc.ugt()))
+ 		return true
+ 	}
+ 	// match: (GreaterThanU (InvertFlags x))
+@@ -5156,54 +4716,15 @@ func rewriteValueARM64_OpARM64GreaterThanU(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64LessEqual(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (LessEqual (FlagEQ))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqual (FlagLT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqual (FlagLT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqual (FlagGT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessEqual (FlagGT_UGT))
+-	// result: (MOVDconst [0])
++	// match: (LessEqual (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.le())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.le()))
+ 		return true
+ 	}
+ 	// match: (LessEqual (InvertFlags x))
+@@ -5236,54 +4757,15 @@ func rewriteValueARM64_OpARM64LessEqualF(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64LessEqualU(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (LessEqualU (FlagEQ))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqualU (FlagLT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqualU (FlagLT_UGT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessEqualU (FlagGT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessEqualU (FlagGT_UGT))
+-	// result: (MOVDconst [0])
++	// match: (LessEqualU (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ule())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.ule()))
+ 		return true
+ 	}
+ 	// match: (LessEqualU (InvertFlags x))
+@@ -5301,54 +4783,15 @@ func rewriteValueARM64_OpARM64LessEqualU(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (LessThan (FlagEQ))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessThan (FlagLT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessThan (FlagLT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessThan (FlagGT_ULT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessThan (FlagGT_UGT))
+-	// result: (MOVDconst [0])
++	// match: (LessThan (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.lt())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.lt()))
+ 		return true
+ 	}
+ 	// match: (LessThan (InvertFlags x))
+@@ -5381,54 +4824,15 @@ func rewriteValueARM64_OpARM64LessThanF(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64LessThanU(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (LessThanU (FlagEQ))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessThanU (FlagLT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessThanU (FlagLT_UGT))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (LessThanU (FlagGT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (LessThanU (FlagGT_UGT))
+-	// result: (MOVDconst [0])
++	// match: (LessThanU (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ult())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		v.AuxInt = int64ToAuxInt(b2i(fc.ult()))
+ 		return true
+ 	}
+ 	// match: (LessThanU (InvertFlags x))
+@@ -15447,54 +14851,15 @@ func rewriteValueARM64_OpARM64NEGshiftRL(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (NotEqual (FlagEQ))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpARM64FlagEQ {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (NotEqual (FlagLT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (NotEqual (FlagLT_UGT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (NotEqual (FlagGT_ULT))
+-	// result: (MOVDconst [1])
+-	for {
+-		if v_0.Op != OpARM64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (NotEqual (FlagGT_UGT))
+-	// result: (MOVDconst [1])
++	// match: (NotEqual (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ne())])
+ 	for {
+-		if v_0.Op != OpARM64FlagGT_UGT {
++		if v_0.Op != OpARM64FlagConstant {
+ 			break
+ 		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 1
++		v.AuxInt = int64ToAuxInt(b2i(fc.ne()))
+ 		return true
+ 	}
+ 	// match: (NotEqual (InvertFlags x))
+@@ -20709,48 +20074,15 @@ func rewriteValueARM64_OpARM64TSTW(v *Value) bool {
+ func rewriteValueARM64_OpARM64TSTWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (TSTWconst (MOVDconst [x]) [y])
+-	// cond: int32(x&y)==0
+-	// result: (FlagEQ)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x&y) == 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (TSTWconst (MOVDconst [x]) [y])
+-	// cond: int32(x&y)<0
+-	// result: (FlagLT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int32(x&y) < 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (TSTWconst (MOVDconst [x]) [y])
+-	// cond: int32(x&y)>0
+-	// result: (FlagGT_UGT)
++	// result: (FlagConstant [logicFlags32(int32(x)&y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt32(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(int32(x&y) > 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(logicFlags32(int32(x) & y))
+ 		return true
+ 	}
+ 	return false
+@@ -20758,48 +20090,15 @@ func rewriteValueARM64_OpARM64TSTWconst(v *Value) bool {
+ func rewriteValueARM64_OpARM64TSTconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (TSTconst (MOVDconst [x]) [y])
+-	// cond: int64(x&y)==0
+-	// result: (FlagEQ)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x&y) == 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagEQ)
+-		return true
+-	}
+-	// match: (TSTconst (MOVDconst [x]) [y])
+-	// cond: int64(x&y)<0
+-	// result: (FlagLT_UGT)
++	// result: (FlagConstant [logicFlags64(x&y)])
+ 	for {
+-		y := v.AuxInt
++		y := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpARM64MOVDconst {
+ 			break
+ 		}
+-		x := v_0.AuxInt
+-		if !(int64(x&y) < 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagLT_UGT)
+-		return true
+-	}
+-	// match: (TSTconst (MOVDconst [x]) [y])
+-	// cond: int64(x&y)>0
+-	// result: (FlagGT_UGT)
+-	for {
+-		y := v.AuxInt
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		x := v_0.AuxInt
+-		if !(int64(x&y) > 0) {
+-			break
+-		}
+-		v.reset(OpARM64FlagGT_UGT)
++		x := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64FlagConstant)
++		v.AuxInt = flagConstantToAuxInt(logicFlags64(x & y))
+ 		return true
+ 	}
+ 	return false
+@@ -26244,45 +25543,36 @@ func rewriteBlockARM64(b *Block) bool {
+ 		// result: (TBZ [int64(ntz64(int64(uint32(c))))] x yes no)
+ 		for b.Controls[0].Op == OpARM64TSTWconst {
+ 			v_0 := b.Controls[0]
+-			c := auxIntToInt32(v_0.AuxInt)
+-			x := v_0.Args[0]
+-			if !(oneBit(int64(uint32(c)))) {
+-				break
+-			}
+-			b.resetWithControl(BlockARM64TBZ, x)
+-			b.AuxInt = int64ToAuxInt(int64(ntz64(int64(uint32(c)))))
+-			return true
+-		}
+-		// match: (EQ (FlagEQ) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (EQ (FlagLT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (EQ (FlagLT_UGT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
++			c := auxIntToInt32(v_0.AuxInt)
++			x := v_0.Args[0]
++			if !(oneBit(int64(uint32(c)))) {
++				break
++			}
++			b.resetWithControl(BlockARM64TBZ, x)
++			b.AuxInt = int64ToAuxInt(int64(ntz64(int64(uint32(c)))))
+ 			return true
+ 		}
+-		// match: (EQ (FlagGT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		// match: (EQ (FlagConstant [fc]) yes no)
++		// cond: fc.eq()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.eq()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (EQ (FlagGT_UGT) yes no)
++		// match: (EQ (FlagConstant [fc]) yes no)
++		// cond: !fc.eq()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.eq()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+@@ -26700,38 +25990,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.AuxInt = int64ToAuxInt(63)
+ 			return true
+ 		}
+-		// match: (GE (FlagEQ) yes no)
++		// match: (GE (FlagConstant [fc]) yes no)
++		// cond: fc.ge()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (GE (FlagLT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ge()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GE (FlagLT_UGT) yes no)
++		// match: (GE (FlagConstant [fc]) yes no)
++		// cond: !fc.ge()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ge()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GE (FlagGT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (GE (FlagGT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+ 		// match: (GE (InvertFlags cmp) yes no)
+ 		// result: (LE cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -26741,6 +26024,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64GEnoov:
++		// match: (GEnoov (FlagConstant [fc]) yes no)
++		// cond: fc.geNoov()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.geNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			return true
++		}
++		// match: (GEnoov (FlagConstant [fc]) yes no)
++		// cond: !fc.geNoov()
++		// result: (First no yes)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.geNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			b.swapSuccessors()
++			return true
++		}
+ 		// match: (GEnoov (InvertFlags cmp) yes no)
+ 		// result: (LEnoov cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -27094,39 +26402,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+-		// match: (GT (FlagEQ) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (GT (FlagLT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
++		// match: (GT (FlagConstant [fc]) yes no)
++		// cond: fc.gt()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.gt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GT (FlagLT_UGT) yes no)
++		// match: (GT (FlagConstant [fc]) yes no)
++		// cond: !fc.gt()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.gt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GT (FlagGT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (GT (FlagGT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+ 		// match: (GT (InvertFlags cmp) yes no)
+ 		// result: (LT cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -27136,6 +26436,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64GTnoov:
++		// match: (GTnoov (FlagConstant [fc]) yes no)
++		// cond: fc.gtNoov()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.gtNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			return true
++		}
++		// match: (GTnoov (FlagConstant [fc]) yes no)
++		// cond: !fc.gtNoov()
++		// result: (First no yes)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.gtNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			b.swapSuccessors()
++			return true
++		}
+ 		// match: (GTnoov (InvertFlags cmp) yes no)
+ 		// result: (LTnoov cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -27609,34 +26934,27 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+-		// match: (LE (FlagEQ) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (LE (FlagLT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (LE (FlagLT_UGT) yes no)
++		// match: (LE (FlagConstant [fc]) yes no)
++		// cond: fc.le()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (LE (FlagGT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.le()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LE (FlagGT_UGT) yes no)
++		// match: (LE (FlagConstant [fc]) yes no)
++		// cond: !fc.le()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.le()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+@@ -27650,6 +26968,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64LEnoov:
++		// match: (LEnoov (FlagConstant [fc]) yes no)
++		// cond: fc.leNoov()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.leNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			return true
++		}
++		// match: (LEnoov (FlagConstant [fc]) yes no)
++		// cond: !fc.leNoov()
++		// result: (First no yes)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.leNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			b.swapSuccessors()
++			return true
++		}
+ 		// match: (LEnoov (InvertFlags cmp) yes no)
+ 		// result: (GEnoov cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -28027,35 +27370,27 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.AuxInt = int64ToAuxInt(63)
+ 			return true
+ 		}
+-		// match: (LT (FlagEQ) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (LT (FlagLT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (LT (FlagLT_UGT) yes no)
++		// match: (LT (FlagConstant [fc]) yes no)
++		// cond: fc.lt()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (LT (FlagGT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.lt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LT (FlagGT_UGT) yes no)
++		// match: (LT (FlagConstant [fc]) yes no)
++		// cond: !fc.lt()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.lt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+@@ -28069,6 +27404,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64LTnoov:
++		// match: (LTnoov (FlagConstant [fc]) yes no)
++		// cond: fc.ltNoov()
++		// result: (First yes no)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ltNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			return true
++		}
++		// match: (LTnoov (FlagConstant [fc]) yes no)
++		// cond: !fc.ltNoov()
++		// result: (First no yes)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ltNoov()) {
++				break
++			}
++			b.Reset(BlockFirst)
++			b.swapSuccessors()
++			return true
++		}
+ 		// match: (LTnoov (InvertFlags cmp) yes no)
+ 		// result: (GTnoov cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -28472,35 +27832,29 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.AuxInt = int64ToAuxInt(int64(ntz64(int64(uint32(c)))))
+ 			return true
+ 		}
+-		// match: (NE (FlagEQ) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (NE (FlagLT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (NE (FlagLT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (NE (FlagGT_ULT) yes no)
++		// match: (NE (FlagConstant [fc]) yes no)
++		// cond: fc.ne()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ne()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+-		// match: (NE (FlagGT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		// match: (NE (FlagConstant [fc]) yes no)
++		// cond: !fc.ne()
++		// result: (First no yes)
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ne()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
++			b.swapSuccessors()
+ 			return true
+ 		}
+ 		// match: (NE (InvertFlags cmp) yes no)
+@@ -28702,38 +28056,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64UGE:
+-		// match: (UGE (FlagEQ) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (UGE (FlagLT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (UGE (FlagLT_UGT) yes no)
++		// match: (UGE (FlagConstant [fc]) yes no)
++		// cond: fc.uge()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.uge()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+-		// match: (UGE (FlagGT_ULT) yes no)
++		// match: (UGE (FlagConstant [fc]) yes no)
++		// cond: !fc.uge()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.uge()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (UGE (FlagGT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+ 		// match: (UGE (InvertFlags cmp) yes no)
+ 		// result: (ULE cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -28743,39 +28090,31 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64UGT:
+-		// match: (UGT (FlagEQ) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (UGT (FlagLT_ULT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (UGT (FlagLT_UGT) yes no)
++		// match: (UGT (FlagConstant [fc]) yes no)
++		// cond: fc.ugt()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ugt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+-		// match: (UGT (FlagGT_ULT) yes no)
++		// match: (UGT (FlagConstant [fc]) yes no)
++		// cond: !fc.ugt()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ugt()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (UGT (FlagGT_UGT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+ 		// match: (UGT (InvertFlags cmp) yes no)
+ 		// result: (ULT cmp yes no)
+ 		for b.Controls[0].Op == OpARM64InvertFlags {
+@@ -28785,34 +28124,27 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64ULE:
+-		// match: (ULE (FlagEQ) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (ULE (FlagLT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (ULE (FlagLT_UGT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (ULE (FlagGT_ULT) yes no)
++		// match: (ULE (FlagConstant [fc]) yes no)
++		// cond: fc.ule()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ule()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+-		// match: (ULE (FlagGT_UGT) yes no)
++		// match: (ULE (FlagConstant [fc]) yes no)
++		// cond: !fc.ule()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ule()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true
+@@ -28826,35 +28158,27 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64ULT:
+-		// match: (ULT (FlagEQ) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagEQ {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (ULT (FlagLT_ULT) yes no)
+-		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagLT_ULT {
+-			b.Reset(BlockFirst)
+-			return true
+-		}
+-		// match: (ULT (FlagLT_UGT) yes no)
+-		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagLT_UGT {
+-			b.Reset(BlockFirst)
+-			b.swapSuccessors()
+-			return true
+-		}
+-		// match: (ULT (FlagGT_ULT) yes no)
++		// match: (ULT (FlagConstant [fc]) yes no)
++		// cond: fc.ult()
+ 		// result: (First yes no)
+-		for b.Controls[0].Op == OpARM64FlagGT_ULT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(fc.ult()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
+-		// match: (ULT (FlagGT_UGT) yes no)
++		// match: (ULT (FlagConstant [fc]) yes no)
++		// cond: !fc.ult()
+ 		// result: (First no yes)
+-		for b.Controls[0].Op == OpARM64FlagGT_UGT {
++		for b.Controls[0].Op == OpARM64FlagConstant {
++			v_0 := b.Controls[0]
++			fc := auxIntToFlagConstant(v_0.AuxInt)
++			if !(!fc.ult()) {
++				break
++			}
+ 			b.Reset(BlockFirst)
+ 			b.swapSuccessors()
+ 			return true

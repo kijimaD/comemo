@@ -8,6 +8,20 @@ Date:   Tue Mar 24 12:58:51 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8021
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.4.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index b4f9619bb5..ca44d56ceb 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -677,7 +677,7 @@ now supports ALPN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC
+ The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+ now supports programmatic selection of server certificates
+ through the new <a href="/pkg/crypto/tls/#Config.CertificateForName"><code>CertificateForName</code></a> function
+-of the <a href="/pkg/crypo/tls/#Config"><code>Config</code></a> struct.
++of the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> struct.
+ </li>
+ 
+ <li>

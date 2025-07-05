@@ -8,6 +8,28 @@ Date:   Thu Nov 6 15:22:29 2014 +1100
     R=r
     CC=golang-codereviews
     https://golang.org/cl/166230044
-
+---
  src/bufio/scan_test.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index bf888dafb5..eea87cbf7b 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -467,15 +467,12 @@ func TestDontLoopForever(t *testing.T) {
+ 	s := NewScanner(strings.NewReader("abc"))
+ 	s.Split(loopAtEOFSplit)
+ 	// Expect a panic
+-	panicked := true
+ 	defer func() {
+ 		err := recover()
+ 		if err == nil {
+ 			t.Fatal("should have panicked")
+ 		}
+-		if msg, ok := err.(string); ok && strings.Contains(msg, "empty tokens") {
+-			panicked = true
+-		} else {
++		if msg, ok := err.(string); !ok || !strings.Contains(msg, "empty tokens") {
+ 			panic(err)
+ 		}
+ 	}()

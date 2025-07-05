@@ -27,9 +27,113 @@ Date:   Wed Aug 11 12:40:12 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go |  7 ++++++-
  src/make.bash         |  8 +-------
  src/make.bat          | 20 ++++++++++----------
  src/make.rc           |  7 +------
  4 files changed, 18 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 1abb03bcc5..bec17696f3 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1263,14 +1263,19 @@ func cmdbootstrap() {
+ 	timelog("start", "dist bootstrap")
+ 	defer timelog("end", "dist bootstrap")
+ 
+-	var noBanner bool
++	var noBanner, noClean bool
+ 	var debug bool
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+ 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
+ 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
++	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
+ 
+ 	xflagparse(0)
+ 
++	if noClean {
++		xprintf("warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead\n")
++	}
++
+ 	// Set GOPATH to an internal directory. We shouldn't actually
+ 	// need to store files here, since the toolchain won't
+ 	// depend on modules outside of vendor directories, but if
+diff --git a/src/make.bash b/src/make.bash
+index f5e1b60bd5..7986125a06 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -203,16 +203,10 @@ if [ "$1" = "--dist-tool" ]; then
+ 	exit 0
+ fi
+ 
+-buildall="-a"
+-if [ "$1" = "--no-clean" ]; then
+-	buildall=""
+-	shift
+-fi
+-
+ # Run dist bootstrap to complete make.bash.
+ # Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ # Throw ours, built with Go 1.4, away after bootstrap.
+-./cmd/dist/dist bootstrap $buildall $vflag $GO_DISTFLAGS "$@"
++./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@"
+ rm -f ./cmd/dist/dist
+ 
+ # DO NOT ADD ANY NEW CODE HERE.
+diff --git a/src/make.bat b/src/make.bat
+index b4a8e70849..8f2825b09a 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -112,20 +112,20 @@ if x%2==x--dist-tool goto copydist
+ if x%3==x--dist-tool goto copydist
+ if x%4==x--dist-tool goto copydist
+ 
+-set buildall=-a
+-if x%1==x--no-clean set buildall=
+-if x%2==x--no-clean set buildall=
+-if x%3==x--no-clean set buildall=
+-if x%4==x--no-clean set buildall=
+-if x%1==x--no-banner set buildall=%buildall% --no-banner
+-if x%2==x--no-banner set buildall=%buildall% --no-banner
+-if x%3==x--no-banner set buildall=%buildall% --no-banner
+-if x%4==x--no-banner set buildall=%buildall% --no-banner
++set bootstrapflags=
++if x%1==x--no-clean set bootstrapflags=--no-clean
++if x%2==x--no-clean set bootstrapflags=--no-clean
++if x%3==x--no-clean set bootstrapflags=--no-clean
++if x%4==x--no-clean set bootstrapflags=--no-clean
++if x%1==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
++if x%2==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
++if x%3==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
++if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+ 
+ :: Run dist bootstrap to complete make.bash.
+ :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ :: Throw ours, built with Go 1.4, away after bootstrap.
+-.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
++.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
+ if errorlevel 1 goto fail
+ del .\cmd\dist\dist.exe
+ goto end
+diff --git a/src/make.rc b/src/make.rc
+index f5e57e9755..7bdc7dea1c 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -92,15 +92,10 @@ if(~ $1 --dist-tool){
+ 	exit
+ }
+ 
+-buildall = -a
+-if(~ $1 --no-clean) {
+-	buildall = ()
+-	shift
+-}
+ # Run dist bootstrap to complete make.bash.
+ # Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ # Throw ours, built with Go 1.4, away after bootstrap.
+-./cmd/dist/dist bootstrap $vflag $buildall $*
++./cmd/dist/dist bootstrap -a $vflag $*
+ rm -f ./cmd/dist/dist
+ 
+ # DO NOT ADD ANY NEW CODE HERE.

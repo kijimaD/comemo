@@ -13,6 +13,19 @@ Date:   Fri Mar 21 22:34:52 2025 -0700
     Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/testing/testing.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 471046e89d..5b0a33f28d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -345,7 +345,6 @@
+ //
+ //	func TestGroupedParallel(t *testing.T) {
+ //	    for _, tc := range tests {
+-//	        tc := tc // capture range variable
+ //	        t.Run(tc.Name, func(t *testing.T) {
+ //	            t.Parallel()
+ //	            ...

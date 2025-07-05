@@ -13,10 +13,304 @@ Date:   Tue Nov 24 12:58:21 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                 | 25 ++++++++++
  src/cmd/go/internal/work/exec.go      | 36 ++++++++++++---
  src/cmd/go/internal/work/exec_test.go | 86 +++++++++++++++++++++++++++++++++++
  src/cmd/internal/objabi/flag.go       | 39 ++++++++++++++++
  src/cmd/internal/objabi/flag_test.go  | 26 +++++++++++
  5 files changed, 206 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 19764bfc60..c472620db2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -31,6 +31,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/robustio"
++	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -1365,6 +1366,30 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
+ 	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
+ }
+ 
++func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
++	// Test the extremely long command line arguments that contain '\n' characters
++	// get encoded and passed correctly.
++	skipIfGccgo(t, "gccgo does not support -ldflags -X")
++	tooSlow(t)
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("main.go", `package main
++		var extern string
++		func main() {
++			print(extern)
++		}`)
++	testStr := "test test test test test \n\\ "
++	var buf bytes.Buffer
++	for buf.Len() < work.ArgLengthForResponseFile+1 {
++		buf.WriteString(testStr)
++	}
++	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
++	if tg.stderr.String() != buf.String() {
++		t.Errorf("strings differ")
++	}
++}
++
+ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no standard packages")
+ 	tooSlow(t)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 336751df27..feb2299d40 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -3236,7 +3236,7 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+ 	cleanup = func() { os.Remove(tf.Name()) }
+ 	var buf bytes.Buffer
+ 	for _, arg := range cmd.Args[1:] {
+-		fmt.Fprintf(&buf, "%s\n", arg)
++		fmt.Fprintf(&buf, "%s\n", encodeArg(arg))
+ 	}
+ 	if _, err := tf.Write(buf.Bytes()); err != nil {
+ 		tf.Close()
+@@ -3251,6 +3251,12 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+ 	return cleanup
+ }
+ 
++// Windows has a limit of 32 KB arguments. To be conservative and not worry
++// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
++// less clear. The OS claims 256KB, but we've seen failures with arglen as
++// small as 50KB.
++const ArgLengthForResponseFile = (30 << 10)
++
+ func useResponseFile(path string, argLen int) bool {
+ 	// Unless the program uses objabi.Flagparse, which understands
+ 	// response files, don't use response files.
+@@ -3262,11 +3268,7 @@ func useResponseFile(path string, argLen int) bool {
+ 		return false
+ 	}
+ 
+-	// Windows has a limit of 32 KB arguments. To be conservative and not
+-	// worry about whether that includes spaces or not, just use 30 KB.
+-	// Darwin's limit is less clear. The OS claims 256KB, but we've seen
+-	// failures with arglen as small as 50KB.
+-	if argLen > (30 << 10) {
++	if argLen > ArgLengthForResponseFile {
+ 		return true
+ 	}
+ 
+@@ -3279,3 +3281,25 @@ func useResponseFile(path string, argLen int) bool {
+ 
+ 	return false
+ }
++
++// encodeArg encodes an argument for response file writing.
++func encodeArg(arg string) string {
++	// If there aren't any characters we need to reencode, fastpath out.
++	if !strings.ContainsAny(arg, "\\\n") {
++		return arg
++	}
++	var b strings.Builder
++	for _, r := range arg {
++		switch r {
++		case '\\':
++			b.WriteByte('\\')
++			b.WriteByte('\\')
++		case '\n':
++			b.WriteByte('\\')
++			b.WriteByte('n')
++		default:
++			b.WriteRune(r)
++		}
++	}
++	return b.String()
++}
+diff --git a/src/cmd/go/internal/work/exec_test.go b/src/cmd/go/internal/work/exec_test.go
+new file mode 100644
+index 0000000000..4eb762cb28
+--- /dev/null
++++ b/src/cmd/go/internal/work/exec_test.go
+@@ -0,0 +1,86 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package work
++
++import (
++	"bytes"
++	"cmd/internal/objabi"
++	"fmt"
++	"math/rand"
++	"testing"
++	"time"
++	"unicode/utf8"
++)
++
++func TestEncodeArgs(t *testing.T) {
++	t.Parallel()
++	tests := []struct {
++		arg, want string
++	}{
++		{"", ""},
++		{"hello", "hello"},
++		{"hello\n", "hello\\n"},
++		{"hello\\", "hello\\\\"},
++		{"hello\nthere", "hello\\nthere"},
++		{"\\\n", "\\\\\\n"},
++	}
++	for _, test := range tests {
++		if got := encodeArg(test.arg); got != test.want {
++			t.Errorf("encodeArg(%q) = %q, want %q", test.arg, got, test.want)
++		}
++	}
++}
++
++func TestEncodeDecode(t *testing.T) {
++	t.Parallel()
++	tests := []string{
++		"",
++		"hello",
++		"hello\\there",
++		"hello\nthere",
++		"hello 中国",
++		"hello \n中\\国",
++	}
++	for _, arg := range tests {
++		if got := objabi.DecodeArg(encodeArg(arg)); got != arg {
++			t.Errorf("objabi.DecodeArg(encodeArg(%q)) = %q", arg, got)
++		}
++	}
++}
++
++func TestEncodeDecodeFuzz(t *testing.T) {
++	if testing.Short() {
++		t.Skip("fuzz test is slow")
++	}
++	t.Parallel()
++
++	nRunes := ArgLengthForResponseFile + 100
++	rBuffer := make([]rune, nRunes)
++	buf := bytes.NewBuffer([]byte(string(rBuffer)))
++
++	seed := time.Now().UnixNano()
++	t.Logf("rand seed: %v", seed)
++	rng := rand.New(rand.NewSource(seed))
++
++	for i := 0; i < 50; i++ {
++		// Generate a random string of runes.
++		buf.Reset()
++		for buf.Len() < ArgLengthForResponseFile+1 {
++			var r rune
++			for {
++				r = rune(rng.Intn(utf8.MaxRune + 1))
++				if utf8.ValidRune(r) {
++					break
++				}
++			}
++			fmt.Fprintf(buf, "%c", r)
++		}
++		arg := buf.String()
++
++		if got := objabi.DecodeArg(encodeArg(arg)); got != arg {
++			t.Errorf("[%d] objabi.DecodeArg(encodeArg(%q)) = %q [seed: %v]", i, arg, got, seed)
++		}
++	}
++}
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 79ad2ccf74..3fd73f3c57 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -5,6 +5,7 @@
+ package objabi
+ 
+ import (
++	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -59,6 +60,9 @@ func expandArgs(in []string) (out []string) {
+ 				log.Fatal(err)
+ 			}
+ 			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
++			for i, arg := range args {
++				args[i] = DecodeArg(arg)
++			}
+ 			out = append(out, expandArgs(args)...)
+ 		} else if out != nil {
+ 			out = append(out, s)
+@@ -160,3 +164,38 @@ func (f fn1) Set(s string) error {
+ }
+ 
+ func (f fn1) String() string { return "" }
++
++// DecodeArg decodes an argument.
++//
++// This function is public for testing with the parallel encoder.
++func DecodeArg(arg string) string {
++	// If no encoding, fastpath out.
++	if !strings.ContainsAny(arg, "\\\n") {
++		return arg
++	}
++
++	// We can't use strings.Builder as this must work at bootstrap.
++	var b bytes.Buffer
++	var wasBS bool
++	for _, r := range arg {
++		if wasBS {
++			switch r {
++			case '\\':
++				b.WriteByte('\\')
++			case 'n':
++				b.WriteByte('\n')
++			default:
++				// This shouldn't happen. The only backslashes that reach here
++				// should encode '\n' and '\\' exclusively.
++				panic("badly formatted input")
++			}
++		} else if r == '\\' {
++			wasBS = true
++			continue
++		} else {
++			b.WriteRune(r)
++		}
++		wasBS = false
++	}
++	return b.String()
++}
+diff --git a/src/cmd/internal/objabi/flag_test.go b/src/cmd/internal/objabi/flag_test.go
+new file mode 100644
+index 0000000000..935b9c2193
+--- /dev/null
++++ b/src/cmd/internal/objabi/flag_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package objabi
++
++import "testing"
++
++func TestDecodeArg(t *testing.T) {
++	t.Parallel()
++	tests := []struct {
++		arg, want string
++	}{
++		{"", ""},
++		{"hello", "hello"},
++		{"hello\\n", "hello\n"},
++		{"hello\\nthere", "hello\nthere"},
++		{"hello\\\\there", "hello\\there"},
++		{"\\\\\\n", "\\\n"},
++	}
++	for _, test := range tests {
++		if got := DecodeArg(test.arg); got != test.want {
++			t.Errorf("decodoeArg(%q) = %q, want %q", test.arg, got, test.want)
++		}
++	}
++}

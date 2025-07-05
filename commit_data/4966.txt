@@ -7,6 +7,35 @@ Date:   Fri Feb 26 17:18:43 2010 -0800
     R=wcn
     CC=golang-dev
     https://golang.org/cl/223075
-
+---
  src/pkg/testing/benchmark.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 6d95c90df0..6266de9323 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -78,6 +78,13 @@ func min(x, y int) int {
+ 	return x
+ }
+ 
++func max(x, y int) int {
++	if x < y {
++		return y
++	}
++	return x
++}
++
+ // roundDown10 rounds a number down to the nearest power of 10.
+ func roundDown10(n int) int {
+ 	var tens = 0
+@@ -125,7 +132,8 @@ func (b *B) run() {
+ 		}
+ 		// Run more iterations than we think we'll need for a second (1.5x).
+ 		// Don't grow too fast in case we had timing errors previously.
+-		n = min(int(1.5*float(n)), 100*last)
++		// Be sure to run at least one more than last time.
++		n = max(min(n+n/2, 100*last), last+1)
+ 		// Round up to something easy to read.
+ 		n = roundUp(n)
+ 		b.runN(n)

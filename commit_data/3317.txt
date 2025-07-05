@@ -9,6 +9,19 @@ Date:   Fri Sep 18 12:47:25 2009 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=34799
     CL=34801
-
+---
  src/cmd/5g/gobj.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index d2c86ad5b0..8cb1a54d16 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -427,7 +427,6 @@ datagostring(Strlit *sval, Addr *a)
+ 
+ 	// $string len+ptr
+ 	datastring(sval->s, sval->len, &ap);
+-	ap.name = ap.type;
+ 	ap.type = D_CONST;
+ 	ap.etype = TINT32;
+ 

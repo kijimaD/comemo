@@ -10,6 +10,33 @@ Date:   Wed Sep 27 09:04:38 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmp/cmp_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmp/cmp_test.go b/src/cmp/cmp_test.go
+index 0bb39c6941..dcf783af51 100644
+--- a/src/cmp/cmp_test.go
++++ b/src/cmp/cmp_test.go
+@@ -8,8 +8,8 @@ import (
+ 	"cmp"
+ 	"fmt"
+ 	"math"
+-	"sort"
+ 	"slices"
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -133,9 +133,9 @@ func ExampleOr() {
+ 
+ func ExampleOr_sort() {
+ 	type Order struct {
+-		Product string
++		Product  string
+ 		Customer string
+-		Price float64
++		Price    float64
+ 	}
+ 	orders := []Order{
+ 		{"foo", "alice", 1.00},

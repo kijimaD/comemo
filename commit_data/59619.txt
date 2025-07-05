@@ -14,7 +14,7 @@ Date:   Tue Apr 2 13:08:24 2024 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 62 ++++++++++++-------------
  src/cmd/internal/objabi/typekind.go             | 40 ----------------
  src/cmd/link/internal/ld/deadcode.go            | 21 +++++----
@@ -44,3 +44,1558 @@ Date:   Tue Apr 2 13:08:24 2024 +0000
  src/runtime/type.go                             | 30 ++++++------
  src/runtime/typekind.go                         | 35 +-------------
  28 files changed, 235 insertions(+), 313 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 185be4dd51..816ccc627f 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -624,33 +624,33 @@ func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
+ 	r.Type = objabi.R_METHODOFF
+ }
+ 
+-var kinds = []int{
+-	types.TINT:        objabi.KindInt,
+-	types.TUINT:       objabi.KindUint,
+-	types.TINT8:       objabi.KindInt8,
+-	types.TUINT8:      objabi.KindUint8,
+-	types.TINT16:      objabi.KindInt16,
+-	types.TUINT16:     objabi.KindUint16,
+-	types.TINT32:      objabi.KindInt32,
+-	types.TUINT32:     objabi.KindUint32,
+-	types.TINT64:      objabi.KindInt64,
+-	types.TUINT64:     objabi.KindUint64,
+-	types.TUINTPTR:    objabi.KindUintptr,
+-	types.TFLOAT32:    objabi.KindFloat32,
+-	types.TFLOAT64:    objabi.KindFloat64,
+-	types.TBOOL:       objabi.KindBool,
+-	types.TSTRING:     objabi.KindString,
+-	types.TPTR:        objabi.KindPtr,
+-	types.TSTRUCT:     objabi.KindStruct,
+-	types.TINTER:      objabi.KindInterface,
+-	types.TCHAN:       objabi.KindChan,
+-	types.TMAP:        objabi.KindMap,
+-	types.TARRAY:      objabi.KindArray,
+-	types.TSLICE:      objabi.KindSlice,
+-	types.TFUNC:       objabi.KindFunc,
+-	types.TCOMPLEX64:  objabi.KindComplex64,
+-	types.TCOMPLEX128: objabi.KindComplex128,
+-	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
++var kinds = []abi.Kind{
++	types.TINT:        abi.Int,
++	types.TUINT:       abi.Uint,
++	types.TINT8:       abi.Int8,
++	types.TUINT8:      abi.Uint8,
++	types.TINT16:      abi.Int16,
++	types.TUINT16:     abi.Uint16,
++	types.TINT32:      abi.Int32,
++	types.TUINT32:     abi.Uint32,
++	types.TINT64:      abi.Int64,
++	types.TUINT64:     abi.Uint64,
++	types.TUINTPTR:    abi.Uintptr,
++	types.TFLOAT32:    abi.Float32,
++	types.TFLOAT64:    abi.Float64,
++	types.TBOOL:       abi.Bool,
++	types.TSTRING:     abi.String,
++	types.TPTR:        abi.Pointer,
++	types.TSTRUCT:     abi.Struct,
++	types.TINTER:      abi.Interface,
++	types.TCHAN:       abi.Chan,
++	types.TMAP:        abi.Map,
++	types.TARRAY:      abi.Array,
++	types.TSLICE:      abi.Slice,
++	types.TFUNC:       abi.Func,
++	types.TCOMPLEX64:  abi.Complex64,
++	types.TCOMPLEX128: abi.Complex128,
++	types.TUNSAFEPTR:  abi.UnsafePointer,
+ }
+ 
+ var (
+@@ -743,14 +743,14 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
+ 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
+ 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
+ 
+-	i = kinds[t.Kind()]
++	kind := kinds[t.Kind()]
+ 	if types.IsDirectIface(t) {
+-		i |= objabi.KindDirectIface
++		kind |= abi.KindDirectIface
+ 	}
+ 	if useGCProg {
+-		i |= objabi.KindGCProg
++		kind |= abi.KindGCProg
+ 	}
+-	c.Field("Kind_").WriteUint8(uint8(i))
++	c.Field("Kind_").WriteUint8(uint8(kind))
+ 
+ 	c.Field("Equal").WritePtr(eqfunc)
+ 	c.Field("GCData").WritePtr(gcsym)
+diff --git a/src/cmd/internal/objabi/typekind.go b/src/cmd/internal/objabi/typekind.go
+deleted file mode 100644
+index 990ff1888d..0000000000
+--- a/src/cmd/internal/objabi/typekind.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package objabi
+-
+-// Must match runtime and reflect.
+-// Included by cmd/gc.
+-
+-const (
+-	KindBool = 1 + iota
+-	KindInt
+-	KindInt8
+-	KindInt16
+-	KindInt32
+-	KindInt64
+-	KindUint
+-	KindUint8
+-	KindUint16
+-	KindUint32
+-	KindUint64
+-	KindUintptr
+-	KindFloat32
+-	KindFloat64
+-	KindComplex64
+-	KindComplex128
+-	KindArray
+-	KindChan
+-	KindFunc
+-	KindInterface
+-	KindMap
+-	KindPtr
+-	KindSlice
+-	KindString
+-	KindStruct
+-	KindUnsafePointer
+-	KindDirectIface = 1 << 5
+-	KindGCProg      = 1 << 6
+-	KindMask        = (1 << 5) - 1
+-)
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index de4395d5df..f635d7582f 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/buildcfg"
+ 	"strings"
+ 	"unicode"
+@@ -511,7 +512,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
+ 	if p == nil {
+ 		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
+ 	}
+-	if decodetypeKind(arch, p)&kindMask != kindInterface {
++	if abi.Kind(decodetypeKind(arch, p)&abi.KindMask) != abi.Interface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
+ 	}
+ 	relocs := ldr.Relocs(symIdx)
+@@ -532,22 +533,22 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
+ 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
+ 	}
+ 	off := commonsize(arch) // reflect.rtype
+-	switch decodetypeKind(arch, p) & kindMask {
+-	case kindStruct: // reflect.structType
++	switch abi.Kind(decodetypeKind(arch, p) & abi.KindMask) {
++	case abi.Struct: // reflect.structType
+ 		off += 4 * arch.PtrSize
+-	case kindPtr: // reflect.ptrType
++	case abi.Pointer: // reflect.ptrType
+ 		off += arch.PtrSize
+-	case kindFunc: // reflect.funcType
++	case abi.Func: // reflect.funcType
+ 		off += arch.PtrSize // 4 bytes, pointer aligned
+-	case kindSlice: // reflect.sliceType
++	case abi.Slice: // reflect.sliceType
+ 		off += arch.PtrSize
+-	case kindArray: // reflect.arrayType
++	case abi.Array: // reflect.arrayType
+ 		off += 3 * arch.PtrSize
+-	case kindChan: // reflect.chanType
++	case abi.Chan: // reflect.chanType
+ 		off += 2 * arch.PtrSize
+-	case kindMap: // reflect.mapType
++	case abi.Map: // reflect.mapType
+ 		off += 4*arch.PtrSize + 8
+-	case kindInterface: // reflect.interfaceType
++	case abi.Interface: // reflect.interfaceType
+ 		off += 3 * arch.PtrSize
+ 	default:
+ 		// just Sizeof(rtype)
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index aa40496492..99f058aed2 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -5,7 +5,6 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+@@ -39,12 +38,12 @@ func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }
+ 
+ // Type.commonType.kind
+ func decodetypeKind(arch *sys.Arch, p []byte) uint8 {
+-	return p[2*arch.PtrSize+7] & objabi.KindMask //  0x13 / 0x1f
++	return p[2*arch.PtrSize+7] & abi.KindMask //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ func decodetypeUsegcprog(arch *sys.Arch, p []byte) uint8 {
+-	return p[2*arch.PtrSize+7] & objabi.KindGCProg //  0x13 / 0x1f
++	return p[2*arch.PtrSize+7] & abi.KindGCProg //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+@@ -81,19 +80,6 @@ func decodetypeIfaceMethodCount(arch *sys.Arch, p []byte) int64 {
+ 	return int64(decodeInuxi(arch, p[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+ }
+ 
+-// Matches runtime/typekind.go and reflect.Kind.
+-const (
+-	kindArray     = 17
+-	kindChan      = 18
+-	kindFunc      = 19
+-	kindInterface = 20
+-	kindMap       = 21
+-	kindPtr       = 22
+-	kindSlice     = 23
+-	kindStruct    = 25
+-	kindMask      = (1 << 5) - 1
+-)
+-
+ func decodeReloc(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc {
+ 	for j := 0; j < relocs.Count(); j++ {
+ 		rel := relocs.At(j)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index e2bb3f45f9..50fbdf1f18 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -542,44 +542,44 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 	bytesize := decodetypeSize(d.arch, tdata)
+ 
+ 	var die, typedefdie *dwarf.DWDie
+-	switch kind {
+-	case objabi.KindBool:
++	switch abi.Kind(kind) {
++	case abi.Bool:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_boolean, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindInt,
+-		objabi.KindInt8,
+-		objabi.KindInt16,
+-		objabi.KindInt32,
+-		objabi.KindInt64:
++	case abi.Int,
++		abi.Int8,
++		abi.Int16,
++		abi.Int32,
++		abi.Int64:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_signed, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindUint,
+-		objabi.KindUint8,
+-		objabi.KindUint16,
+-		objabi.KindUint32,
+-		objabi.KindUint64,
+-		objabi.KindUintptr:
++	case abi.Uint,
++		abi.Uint8,
++		abi.Uint16,
++		abi.Uint32,
++		abi.Uint64,
++		abi.Uintptr:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindFloat32,
+-		objabi.KindFloat64:
++	case abi.Float32,
++		abi.Float64:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_float, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindComplex64,
+-		objabi.KindComplex128:
++	case abi.Complex64,
++		abi.Complex128:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_complex_float, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindArray:
++	case abi.Array:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+@@ -592,7 +592,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 
+ 		d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
+ 
+-	case objabi.KindChan:
++	case abi.Chan:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_CHANTYPE, name)
+ 		s := decodetypeChanElem(d.ldr, d.arch, gotype)
+ 		d.newrefattr(die, dwarf.DW_AT_go_elem, d.defgotype(s))
+@@ -600,7 +600,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		// but that would change the order of DIEs we output.
+ 		d.newrefattr(die, dwarf.DW_AT_type, s)
+ 
+-	case objabi.KindFunc:
++	case abi.Func:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_FUNCTYPE, name)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+@@ -626,7 +626,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
+ 		}
+ 
+-	case objabi.KindInterface:
++	case abi.Interface:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_IFACETYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		data := d.ldr.Data(gotype)
+@@ -639,7 +639,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		}
+ 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
+ 
+-	case objabi.KindMap:
++	case abi.Map:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_MAPTYPE, name)
+ 		s := decodetypeMapKey(d.ldr, d.arch, gotype)
+ 		d.newrefattr(die, dwarf.DW_AT_go_key, d.defgotype(s))
+@@ -649,13 +649,13 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		// but that would change the order of the DIEs.
+ 		d.newrefattr(die, dwarf.DW_AT_type, gotype)
+ 
+-	case objabi.KindPtr:
++	case abi.Pointer:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_PTRTYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		s := decodetypePtrElem(d.ldr, d.arch, gotype)
+ 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
+ 
+-	case objabi.KindSlice:
++	case abi.Slice:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+@@ -663,11 +663,11 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		elem := d.defgotype(s)
+ 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
+ 
+-	case objabi.KindString:
++	case abi.String:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRINGTYPE, name)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 
+-	case objabi.KindStruct:
++	case abi.Struct:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+@@ -688,7 +688,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 			}
+ 		}
+ 
+-	case objabi.KindUnsafePointer:
++	case abi.UnsafePointer:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BARE_PTRTYPE, name)
+ 
+ 	default:
+@@ -748,7 +748,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
+ 	// pointers of slices. Link to the ones we can find.
+ 	gts := d.ldr.Lookup("type:"+ptrname, 0)
+ 	if gts != 0 && d.ldr.AttrReachable(gts) {
+-		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(objabi.KindPtr), 0)
++		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Pointer), 0)
+ 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
+ 	}
+ 
+@@ -1759,7 +1759,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	uintptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
+ 	newattr(uintptrDie, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+ 	newattr(uintptrDie, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
+-	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
++	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Uintptr), 0)
+ 	newattr(uintptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:uintptr")))
+ 
+ 	d.uintptrInfoSym = d.mustFind("uintptr")
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 6474007de4..1b6cc00855 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -24,7 +24,7 @@ type Type struct {
+ 	TFlag       TFlag   // extra type information flags
+ 	Align_      uint8   // alignment of variable with this type
+ 	FieldAlign_ uint8   // alignment of struct field with this type
+-	Kind_       uint8   // enumeration for C
++	Kind_       Kind    // enumeration for C
+ 	// function for comparing objects of this type
+ 	// (ptr to object A, ptr to object B) -> ==?
+ 	Equal func(unsafe.Pointer, unsafe.Pointer) bool
+@@ -38,7 +38,7 @@ type Type struct {
+ 
+ // A Kind represents the specific kind of type that a Type represents.
+ // The zero Kind is not a valid kind.
+-type Kind uint
++type Kind uint8
+ 
+ const (
+ 	Invalid Kind = iota
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 902f4bfa10..30a0e823af 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -58,7 +58,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
+ 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
+ 	}
+-	if ft.Kind_&kindGCProg != 0 {
++	if ft.Kind_&abi.KindGCProg != 0 {
+ 		panic("can't handle gc programs")
+ 	}
+ 
+@@ -97,7 +97,7 @@ func MapBucketOf(x, y Type) Type {
+ 
+ func CachedBucketOf(m Type) Type {
+ 	t := m.(*rtype)
+-	if Kind(t.t.Kind_&kindMask) != Map {
++	if Kind(t.t.Kind_&abi.KindMask) != Map {
+ 		panic("not map")
+ 	}
+ 	tt := (*mapType)(unsafe.Pointer(t))
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 56cecc80c6..4e650f765c 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -454,12 +454,6 @@ func (m Method) IsExported() bool {
+ 	return m.PkgPath == ""
+ }
+ 
+-const (
+-	kindDirectIface = 1 << 5
+-	kindGCProg      = 1 << 6 // Type.gc points to GC program
+-	kindMask        = (1 << 5) - 1
+-)
+-
+ // String returns the name of k.
+ func (k Kind) String() string {
+ 	if uint(k) < uint(len(kindNames)) {
+@@ -2068,7 +2062,7 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
+ 	b := &abi.Type{
+ 		Align_:   goarch.PtrSize,
+ 		Size_:    size,
+-		Kind_:    uint8(Struct),
++		Kind_:    abi.Struct,
+ 		PtrBytes: ptrdata,
+ 		GCData:   gcdata,
+ 	}
+@@ -2084,7 +2078,7 @@ func (t *rtype) gcSlice(begin, end uintptr) []byte {
+ // emitGCMask writes the GC mask for [n]typ into out, starting at bit
+ // offset base.
+ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		panic("reflect: unexpected GC program")
+ 	}
+ 	ptrs := typ.PtrBytes / goarch.PtrSize
+@@ -2103,7 +2097,7 @@ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
+ // appendGCProg appends the GC program for the first ptrdata bytes of
+ // typ to dst and returns the extended slice.
+ func appendGCProg(dst []byte, typ *abi.Type) []byte {
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Element has GC program; emit one element.
+ 		n := uintptr(*(*uint32)(unsafe.Pointer(typ.GCData)))
+ 		prog := typ.GcSlice(4, 4+n-1)
+@@ -2283,7 +2277,7 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		f, fpkgpath := runtimeStructField(field)
+ 		ft := f.Typ
+-		if ft.Kind_&kindGCProg != 0 {
++		if ft.Kind_&abi.KindGCProg != 0 {
+ 			hasGCProg = true
+ 		}
+ 		if fpkgpath != "" {
+@@ -2372,7 +2366,7 @@ func StructOf(fields []StructField) Type {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
+-					if len(fields) > 1 && ft.Kind_&kindDirectIface != 0 {
++					if len(fields) > 1 && ft.Kind_&abi.KindDirectIface != 0 {
+ 						panic("reflect: embedded type with methods not implemented for non-pointer type")
+ 					}
+ 					for _, m := range unt.Methods() {
+@@ -2590,10 +2584,10 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		prog = append(prog, 0)
+ 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		typ.Kind_ |= kindGCProg
++		typ.Kind_ |= abi.KindGCProg
+ 		typ.GCData = &prog[0]
+ 	} else {
+-		typ.Kind_ &^= kindGCProg
++		typ.Kind_ &^= abi.KindGCProg
+ 		bv := new(bitVector)
+ 		addTypeBits(bv, 0, &typ.Type)
+ 		if len(bv.data) > 0 {
+@@ -2617,9 +2611,9 @@ func StructOf(fields []StructField) Type {
+ 	switch {
+ 	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
+ 		// structs of 1 direct iface type can be direct
+-		typ.Kind_ |= kindDirectIface
++		typ.Kind_ |= abi.KindDirectIface
+ 	default:
+-		typ.Kind_ &^= kindDirectIface
++		typ.Kind_ &^= abi.KindDirectIface
+ 	}
+ 
+ 	return addToCache(toType(&typ.Type))
+@@ -2745,11 +2739,11 @@ func ArrayOf(length int, elem Type) Type {
+ 
+ 	case length == 1:
+ 		// In memory, 1-element array looks just like the element.
+-		array.Kind_ |= typ.Kind_ & kindGCProg
++		array.Kind_ |= typ.Kind_ & abi.KindGCProg
+ 		array.GCData = typ.GCData
+ 		array.PtrBytes = typ.PtrBytes
+ 
+-	case typ.Kind_&kindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
++	case typ.Kind_&abi.KindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
+ 		// Element is small with pointer mask; array is still small.
+ 		// Create direct pointer mask by turning each 1 bit in elem
+ 		// into length 1 bits in larger mask.
+@@ -2786,7 +2780,7 @@ func ArrayOf(length int, elem Type) Type {
+ 		prog = appendVarint(prog, uintptr(length)-1)
+ 		prog = append(prog, 0)
+ 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		array.Kind_ |= kindGCProg
++		array.Kind_ |= abi.KindGCProg
+ 		array.GCData = &prog[0]
+ 		array.PtrBytes = array.Size_ // overestimate but ok; must match program
+ 	}
+@@ -2812,9 +2806,9 @@ func ArrayOf(length int, elem Type) Type {
+ 	switch {
+ 	case length == 1 && !ifaceIndir(typ):
+ 		// array of 1 direct iface type can be direct
+-		array.Kind_ |= kindDirectIface
++		array.Kind_ |= abi.KindDirectIface
+ 	default:
+-		array.Kind_ &^= kindDirectIface
++		array.Kind_ &^= abi.KindDirectIface
+ 	}
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
+@@ -2914,7 +2908,7 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+ func ifaceIndir(t *abi.Type) bool {
+-	return t.Kind_&kindDirectIface == 0
++	return t.Kind_&abi.KindDirectIface == 0
+ }
+ 
+ // Note: this type must agree with runtime.bitvector.
+@@ -2942,7 +2936,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
+ 		return
+ 	}
+ 
+-	switch Kind(t.Kind_ & kindMask) {
++	switch Kind(t.Kind_ & abi.KindMask) {
+ 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
+ 		// 1 pointer at start of representation
+ 		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 93b14accb4..f5125d414f 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -154,30 +154,30 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 			return memhash(p, h, t.Size_)
+ 		}
+ 	}
+-	switch t.Kind_ & kindMask {
+-	case kindFloat32:
++	switch t.Kind_ & abi.KindMask {
++	case abi.Float32:
+ 		return f32hash(p, h)
+-	case kindFloat64:
++	case abi.Float64:
+ 		return f64hash(p, h)
+-	case kindComplex64:
++	case abi.Complex64:
+ 		return c64hash(p, h)
+-	case kindComplex128:
++	case abi.Complex128:
+ 		return c128hash(p, h)
+-	case kindString:
++	case abi.String:
+ 		return strhash(p, h)
+-	case kindInterface:
++	case abi.Interface:
+ 		i := (*interfacetype)(unsafe.Pointer(t))
+ 		if len(i.Methods) == 0 {
+ 			return nilinterhash(p, h)
+ 		}
+ 		return interhash(p, h)
+-	case kindArray:
++	case abi.Array:
+ 		a := (*arraytype)(unsafe.Pointer(t))
+ 		for i := uintptr(0); i < a.Len; i++ {
+ 			h = typehash(a.Elem, add(p, i*a.Elem.Size_), h)
+ 		}
+ 		return h
+-	case kindStruct:
++	case abi.Struct:
+ 		s := (*structtype)(unsafe.Pointer(t))
+ 		for _, f := range s.Fields {
+ 			if f.Name.IsBlank() {
+@@ -204,10 +204,10 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
+ 	if t.TFlag&abi.TFlagRegularMemory != 0 {
+ 		return nil
+ 	}
+-	switch t.Kind_ & kindMask {
+-	case kindFloat32, kindFloat64, kindComplex64, kindComplex128, kindString:
++	switch t.Kind_ & abi.KindMask {
++	case abi.Float32, abi.Float64, abi.Complex64, abi.Complex128, abi.String:
+ 		return nil
+-	case kindInterface:
++	case abi.Interface:
+ 		i := (*interfacetype)(unsafe.Pointer(t))
+ 		var t *_type
+ 		var pdata *unsafe.Pointer
+@@ -236,7 +236,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
+ 		} else {
+ 			return mapKeyError2(t, *pdata)
+ 		}
+-	case kindArray:
++	case abi.Array:
+ 		a := (*arraytype)(unsafe.Pointer(t))
+ 		for i := uintptr(0); i < a.Len; i++ {
+ 			if err := mapKeyError2(a.Elem, add(p, i*a.Elem.Size_)); err != nil {
+@@ -244,7 +244,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
+ 			}
+ 		}
+ 		return nil
+-	case kindStruct:
++	case abi.Struct:
+ 		s := (*structtype)(unsafe.Pointer(t))
+ 		for _, f := range s.Fields {
+ 			if f.Name.IsBlank() {
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 5c3350aabf..de3022e08a 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -83,6 +83,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"internal/runtime/atomic"
+@@ -110,7 +111,7 @@ func arena_newArena() unsafe.Pointer {
+ //go:linkname arena_arena_New arena.runtime_arena_arena_New
+ func arena_arena_New(arena unsafe.Pointer, typ any) any {
+ 	t := (*_type)(efaceOf(&typ).data)
+-	if t.Kind_&kindMask != kindPtr {
++	if t.Kind_&abi.KindMask != abi.Pointer {
+ 		throw("arena_New: non-pointer type")
+ 	}
+ 	te := (*ptrtype)(unsafe.Pointer(t)).Elem
+@@ -144,12 +145,12 @@ func arena_heapify(s any) any {
+ 	var v unsafe.Pointer
+ 	e := efaceOf(&s)
+ 	t := e._type
+-	switch t.Kind_ & kindMask {
+-	case kindString:
++	switch t.Kind_ & abi.KindMask {
++	case abi.String:
+ 		v = stringStructOf((*string)(e.data)).str
+-	case kindSlice:
++	case abi.Slice:
+ 		v = (*slice)(e.data).array
+-	case kindPtr:
++	case abi.Pointer:
+ 		v = e.data
+ 	default:
+ 		panic("arena: Clone only supports pointers, slices, and strings")
+@@ -161,13 +162,13 @@ func arena_heapify(s any) any {
+ 	}
+ 	// Heap-allocate storage for a copy.
+ 	var x any
+-	switch t.Kind_ & kindMask {
+-	case kindString:
++	switch t.Kind_ & abi.KindMask {
++	case abi.String:
+ 		s1 := s.(string)
+ 		s2, b := rawstring(len(s1))
+ 		copy(b, s1)
+ 		x = s2
+-	case kindSlice:
++	case abi.Slice:
+ 		len := (*slice)(e.data).len
+ 		et := (*slicetype)(unsafe.Pointer(t)).Elem
+ 		sl := new(slice)
+@@ -175,7 +176,7 @@ func arena_heapify(s any) any {
+ 		xe := efaceOf(&x)
+ 		xe._type = t
+ 		xe.data = unsafe.Pointer(sl)
+-	case kindPtr:
++	case abi.Pointer:
+ 		et := (*ptrtype)(unsafe.Pointer(t)).Elem
+ 		e2 := newobject(et)
+ 		typedmemmove(et, e2, e.data)
+@@ -295,11 +296,11 @@ func (a *userArena) slice(sl any, cap int) {
+ 	}
+ 	i := efaceOf(&sl)
+ 	typ := i._type
+-	if typ.Kind_&kindMask != kindPtr {
++	if typ.Kind_&abi.KindMask != abi.Pointer {
+ 		panic("slice result of non-ptr type")
+ 	}
+ 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
+-	if typ.Kind_&kindMask != kindSlice {
++	if typ.Kind_&abi.KindMask != abi.Slice {
+ 		panic("slice of non-ptr-to-slice type")
+ 	}
+ 	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index e81852f607..a913c0a3a1 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -85,6 +85,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"runtime/internal/sys"
+@@ -501,29 +502,29 @@ func cgoCheckPointer(ptr any, arg any) {
+ 	t := ep._type
+ 
+ 	top := true
+-	if arg != nil && (t.Kind_&kindMask == kindPtr || t.Kind_&kindMask == kindUnsafePointer) {
++	if arg != nil && (t.Kind_&abi.KindMask == abi.Pointer || t.Kind_&abi.KindMask == abi.UnsafePointer) {
+ 		p := ep.data
+-		if t.Kind_&kindDirectIface == 0 {
++		if t.Kind_&abi.KindDirectIface == 0 {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+ 		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+ 		aep := efaceOf(&arg)
+-		switch aep._type.Kind_ & kindMask {
+-		case kindBool:
+-			if t.Kind_&kindMask == kindUnsafePointer {
++		switch aep._type.Kind_ & abi.KindMask {
++		case abi.Bool:
++			if t.Kind_&abi.KindMask == abi.UnsafePointer {
+ 				// We don't know the type of the element.
+ 				break
+ 			}
+ 			pt := (*ptrtype)(unsafe.Pointer(t))
+ 			cgoCheckArg(pt.Elem, p, true, false, cgoCheckPointerFail)
+ 			return
+-		case kindSlice:
++		case abi.Slice:
+ 			// Check the slice rather than the pointer.
+ 			ep = aep
+ 			t = ep._type
+-		case kindArray:
++		case abi.Array:
+ 			// Check the array rather than the pointer.
+ 			// Pass top as false since we have a pointer
+ 			// to the array.
+@@ -535,7 +536,7 @@ func cgoCheckPointer(ptr any, arg any) {
+ 		}
+ 	}
+ 
+-	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, top, cgoCheckPointerFail)
++	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, top, cgoCheckPointerFail)
+ }
+ 
+ const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
+@@ -552,28 +553,28 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		return
+ 	}
+ 
+-	switch t.Kind_ & kindMask {
++	switch t.Kind_ & abi.KindMask {
+ 	default:
+ 		throw("can't happen")
+-	case kindArray:
++	case abi.Array:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		if !indir {
+ 			if at.Len != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg(at.Elem, p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
++			cgoCheckArg(at.Elem, p, at.Elem.Kind_&abi.KindDirectIface == 0, top, msg)
+ 			return
+ 		}
+ 		for i := uintptr(0); i < at.Len; i++ {
+ 			cgoCheckArg(at.Elem, p, true, top, msg)
+ 			p = add(p, at.Elem.Size_)
+ 		}
+-	case kindChan, kindMap:
++	case abi.Chan, abi.Map:
+ 		// These types contain internal pointers that will
+ 		// always be allocated in the Go heap. It's never OK
+ 		// to pass them to C.
+ 		panic(errorString(msg))
+-	case kindFunc:
++	case abi.Func:
+ 		if indir {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+@@ -581,7 +582,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			return
+ 		}
+ 		panic(errorString(msg))
+-	case kindInterface:
++	case abi.Interface:
+ 		it := *(**_type)(p)
+ 		if it == nil {
+ 			return
+@@ -599,8 +600,8 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top && !isPinned(p) {
+ 			panic(errorString(msg))
+ 		}
+-		cgoCheckArg(it, p, it.Kind_&kindDirectIface == 0, false, msg)
+-	case kindSlice:
++		cgoCheckArg(it, p, it.Kind_&abi.KindDirectIface == 0, false, msg)
++	case abi.Slice:
+ 		st := (*slicetype)(unsafe.Pointer(t))
+ 		s := (*slice)(p)
+ 		p = s.array
+@@ -617,7 +618,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			cgoCheckArg(st.Elem, p, true, false, msg)
+ 			p = add(p, st.Elem.Size_)
+ 		}
+-	case kindString:
++	case abi.String:
+ 		ss := (*stringStruct)(p)
+ 		if !cgoIsGoPointer(ss.str) {
+ 			return
+@@ -625,13 +626,13 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top && !isPinned(ss.str) {
+ 			panic(errorString(msg))
+ 		}
+-	case kindStruct:
++	case abi.Struct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+ 		if !indir {
+ 			if len(st.Fields) != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&kindDirectIface == 0, top, msg)
++			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&abi.KindDirectIface == 0, top, msg)
+ 			return
+ 		}
+ 		for _, f := range st.Fields {
+@@ -640,7 +641,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			}
+ 			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)
+ 		}
+-	case kindPtr, kindUnsafePointer:
++	case abi.Pointer, abi.UnsafePointer:
+ 		if indir {
+ 			p = *(*unsafe.Pointer)(p)
+ 			if p == nil {
+@@ -754,5 +755,5 @@ func cgoCheckResult(val any) {
+ 
+ 	ep := efaceOf(&val)
+ 	t := ep._type
+-	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, false, cgoResultFail)
++	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, false, cgoResultFail)
+ }
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index fd87723dfc..fbf4edf7cc 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"unsafe"
+@@ -142,7 +143,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.Kind_&kindGCProg == 0 {
++	if typ.Kind_&abi.KindGCProg == 0 {
+ 		cgoCheckBits(src, typ.GCData, off, size)
+ 		return
+ 	}
+@@ -259,14 +260,14 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.Kind_&kindGCProg == 0 {
++	if typ.Kind_&abi.KindGCProg == 0 {
+ 		cgoCheckBits(src, typ.GCData, off, size)
+ 		return
+ 	}
+-	switch typ.Kind_ & kindMask {
++	switch typ.Kind_ & abi.KindMask {
+ 	default:
+ 		throw("can't happen")
+-	case kindArray:
++	case abi.Array:
+ 		at := (*arraytype)(unsafe.Pointer(typ))
+ 		for i := uintptr(0); i < at.Len; i++ {
+ 			if off < at.Elem.Size_ {
+@@ -284,7 +285,7 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 			}
+ 			size -= checked
+ 		}
+-	case kindStruct:
++	case abi.Struct:
+ 		st := (*structtype)(unsafe.Pointer(typ))
+ 		for _, f := range st.Fields {
+ 			if off < f.Typ.Size_ {
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 545fde2b24..695cd204f5 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -16,6 +16,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -277,8 +278,8 @@ func (l *dlogger) p(x any) *dlogger {
+ 		l.w.uvarint(0)
+ 	} else {
+ 		v := efaceOf(&x)
+-		switch v._type.Kind_ & kindMask {
+-		case kindChan, kindFunc, kindMap, kindPtr, kindUnsafePointer:
++		switch v._type.Kind_ & abi.KindMask {
++		case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
+ 			l.w.uvarint(uint64(uintptr(v.data)))
+ 		default:
+ 			throw("not a pointer type")
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index b507f25e18..fe95f31005 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "internal/bytealg"
++import (
++	"internal/abi"
++	"internal/bytealg"
++)
+ 
+ // The Error interface identifies a run time error.
+ type Error interface {
+@@ -259,39 +262,39 @@ func printanycustomtype(i any) {
+ 	typestring := toRType(eface._type).string()
+ 
+ 	switch eface._type.Kind_ {
+-	case kindString:
++	case abi.String:
+ 		print(typestring, `("`, *(*string)(eface.data), `")`)
+-	case kindBool:
++	case abi.Bool:
+ 		print(typestring, "(", *(*bool)(eface.data), ")")
+-	case kindInt:
++	case abi.Int:
+ 		print(typestring, "(", *(*int)(eface.data), ")")
+-	case kindInt8:
++	case abi.Int8:
+ 		print(typestring, "(", *(*int8)(eface.data), ")")
+-	case kindInt16:
++	case abi.Int16:
+ 		print(typestring, "(", *(*int16)(eface.data), ")")
+-	case kindInt32:
++	case abi.Int32:
+ 		print(typestring, "(", *(*int32)(eface.data), ")")
+-	case kindInt64:
++	case abi.Int64:
+ 		print(typestring, "(", *(*int64)(eface.data), ")")
+-	case kindUint:
++	case abi.Uint:
+ 		print(typestring, "(", *(*uint)(eface.data), ")")
+-	case kindUint8:
++	case abi.Uint8:
+ 		print(typestring, "(", *(*uint8)(eface.data), ")")
+-	case kindUint16:
++	case abi.Uint16:
+ 		print(typestring, "(", *(*uint16)(eface.data), ")")
+-	case kindUint32:
++	case abi.Uint32:
+ 		print(typestring, "(", *(*uint32)(eface.data), ")")
+-	case kindUint64:
++	case abi.Uint64:
+ 		print(typestring, "(", *(*uint64)(eface.data), ")")
+-	case kindUintptr:
++	case abi.Uintptr:
+ 		print(typestring, "(", *(*uintptr)(eface.data), ")")
+-	case kindFloat32:
++	case abi.Float32:
+ 		print(typestring, "(", *(*float32)(eface.data), ")")
+-	case kindFloat64:
++	case abi.Float64:
+ 		print(typestring, "(", *(*float64)(eface.data), ")")
+-	case kindComplex64:
++	case abi.Complex64:
+ 		print(typestring, *(*complex64)(eface.data))
+-	case kindComplex128:
++	case abi.Complex128:
+ 		print(typestring, *(*complex128)(eface.data))
+ 	default:
+ 		print("(", typestring, ") ", eface.data)
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 7ee73ef07c..810a5a6435 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -32,13 +32,13 @@ func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill f
+ 	}
+ 
+ 	f := efaceOf(&fn)
+-	if f._type == nil || f._type.Kind_&kindMask != kindFunc {
++	if f._type == nil || f._type.Kind_&abi.KindMask != abi.Func {
+ 		return nil, plainError("fn must be a function")
+ 	}
+ 	fv := (*funcval)(f.data)
+ 
+ 	a := efaceOf(&stackArgs)
+-	if a._type != nil && a._type.Kind_&kindMask != kindPtr {
++	if a._type != nil && a._type.Kind_&abi.KindMask != abi.Pointer {
+ 		return nil, plainError("args must be a pointer or nil")
+ 	}
+ 	argp := a.data
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e71f4766c6..4eb187c007 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1909,7 +1909,7 @@ func NewUserArena() *UserArena {
+ func (a *UserArena) New(out *any) {
+ 	i := efaceOf(out)
+ 	typ := i._type
+-	if typ.Kind_&kindMask != kindPtr {
++	if typ.Kind_&abi.KindMask != abi.Pointer {
+ 		panic("new result of non-ptr type")
+ 	}
+ 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index c1c71fad48..1fbb124f2e 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -206,7 +206,7 @@ func dumptype(t *_type) {
+ 		dwritebyte('.')
+ 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
+ 	}
+-	dumpbool(t.Kind_&kindDirectIface == 0 || t.Pointers())
++	dumpbool(t.Kind_&abi.KindDirectIface == 0 || t.PtrBytes != 0)
+ }
+ 
+ // dump an object.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 61530bbe7f..0a2f53d0ae 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+@@ -413,7 +414,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 5f1f978189..2640521210 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -215,7 +215,7 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ //go:nosplit
+ func (span *mspan) typePointersOfType(typ *abi.Type, addr uintptr) typePointers {
+ 	const doubleCheck = false
+-	if doubleCheck && (typ == nil || typ.Kind_&kindGCProg != 0) {
++	if doubleCheck && (typ == nil || typ.Kind_&abi.KindGCProg != 0) {
+ 		throw("bad type passed to typePointersOfType")
+ 	}
+ 	if span.spanclass.noscan() {
+@@ -459,7 +459,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
+ 	}
+ 
+ 	var tp typePointers
+-	if typ != nil && typ.Kind_&kindGCProg == 0 {
++	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
+ 		tp = s.typePointersOfType(typ, dst)
+ 	} else {
+ 		tp = s.typePointersOf(dst, size)
+@@ -520,7 +520,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
+ 	}
+ 
+ 	var tp typePointers
+-	if typ != nil && typ.Kind_&kindGCProg == 0 {
++	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
+ 		tp = s.typePointersOfType(typ, dst)
+ 	} else {
+ 		tp = s.typePointersOf(dst, size)
+@@ -860,7 +860,7 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
+ 		// Handle the case where we have no malloc header.
+ 		scanSize = span.writeHeapBitsSmall(x, dataSize, typ)
+ 	} else {
+-		if typ.Kind_&kindGCProg != 0 {
++		if typ.Kind_&abi.KindGCProg != 0 {
+ 			// Allocate space to unroll the gcprog. This space will consist of
+ 			// a dummy _type value and the unrolled gcprog. The dummy _type will
+ 			// refer to the bitmap, and the mspan will refer to the dummy _type.
+@@ -964,7 +964,7 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
+ 		}
+ 		println("runtime: extra pointer:", hex(addr))
+ 	}
+-	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&kindGCProg != 0, "\n")
++	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&abi.KindGCProg != 0, "\n")
+ 	print("runtime: x=", hex(x), " dataSize=", dataSize, " elemsize=", span.elemsize, "\n")
+ 	print("runtime: typ=", unsafe.Pointer(typ), " typ.PtrBytes=", typ.PtrBytes, "\n")
+ 	print("runtime: limit=", hex(x+span.elemsize), "\n")
+@@ -1062,10 +1062,10 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
+ 
+ //go:nosplit
+ func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
+-	if typ == nil || typ.Kind_&kindGCProg != 0 {
++	if typ == nil || typ.Kind_&abi.KindGCProg != 0 {
+ 		return
+ 	}
+-	if typ.Kind_&kindMask == kindInterface {
++	if typ.Kind_&abi.KindMask == abi.Interface {
+ 		// Interfaces are unfortunately inconsistently handled
+ 		// when it comes to the type pointer, so it's easy to
+ 		// produce a lot of false positives here.
+@@ -1130,7 +1130,7 @@ func getgcmask(ep any) (mask []byte) {
+ 	t := e._type
+ 
+ 	var et *_type
+-	if t.Kind_&kindMask != kindPtr {
++	if t.Kind_&abi.KindMask != abi.Pointer {
+ 		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
+ 	}
+ 	et = (*ptrtype)(unsafe.Pointer(t)).Elem
+@@ -1200,7 +1200,7 @@ func getgcmask(ep any) (mask []byte) {
+ 			maskFromHeap = maskFromHeap[:len(maskFromHeap)-1]
+ 		}
+ 
+-		if et.Kind_&kindGCProg == 0 {
++		if et.Kind_&abi.KindGCProg == 0 {
+ 			// Unroll again, but this time from the type information.
+ 			maskFromType := make([]byte, (limit-base)/goarch.PtrSize)
+ 			tp = s.typePointersOfType(et, base)
+@@ -1298,7 +1298,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 
+ 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
+ 	var gcProgBits uintptr
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Expand gc program, using the object itself for storage.
+ 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
+ 		p = (*byte)(ptr)
+@@ -1327,7 +1327,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 	h = h.pad(s, typ.Size_-typ.PtrBytes)
+ 	h.flush(s, uintptr(ptr), typ.Size_)
+ 
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Zero out temporary ptrmask buffer inside object.
+ 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
+ 	}
+diff --git a/src/runtime/mbitmap_noallocheaders.go b/src/runtime/mbitmap_noallocheaders.go
+index 383993aa1e..eeaeaafaac 100644
+--- a/src/runtime/mbitmap_noallocheaders.go
++++ b/src/runtime/mbitmap_noallocheaders.go
+@@ -552,7 +552,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	h := writeHeapBitsForAddr(x)
+ 
+ 	// Handle GC program.
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Expand the gc program into the storage we're going to use for the actual object.
+ 		obj := (*uint8)(unsafe.Pointer(x))
+ 		n := runGCProg(addb(typ.GCData, 4), obj)
+@@ -829,7 +829,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 
+ 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
+ 	var gcProgBits uintptr
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Expand gc program, using the object itself for storage.
+ 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
+ 		p = (*byte)(ptr)
+@@ -852,7 +852,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 	h = h.pad(typ.Size_ - typ.PtrBytes)
+ 	h.flush(uintptr(ptr), typ.Size_)
+ 
+-	if typ.Kind_&kindGCProg != 0 {
++	if typ.Kind_&abi.KindGCProg != 0 {
+ 		// Zero out temporary ptrmask buffer inside object.
+ 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 7820f50e51..1feab27717 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -235,11 +235,11 @@ func runfinq() {
+ 					// confusing the write barrier.
+ 					*(*[2]uintptr)(frame) = [2]uintptr{}
+ 				}
+-				switch f.fint.Kind_ & kindMask {
+-				case kindPtr:
++				switch f.fint.Kind_ & abi.KindMask {
++				case abi.Pointer:
+ 					// direct use of pointer
+ 					*(*unsafe.Pointer)(r) = f.arg
+-				case kindInterface:
++				case abi.Interface:
+ 					ityp := (*interfacetype)(unsafe.Pointer(f.fint))
+ 					// set up with empty interface
+ 					(*eface)(r)._type = &f.ot.Type
+@@ -418,7 +418,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	if etyp == nil {
+ 		throw("runtime.SetFinalizer: first argument is nil")
+ 	}
+-	if etyp.Kind_&kindMask != kindPtr {
++	if etyp.Kind_&abi.KindMask != abi.Pointer {
+ 		throw("runtime.SetFinalizer: first argument is " + toRType(etyp).string() + ", not pointer")
+ 	}
+ 	ot := (*ptrtype)(unsafe.Pointer(etyp))
+@@ -464,7 +464,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 		return
+ 	}
+ 
+-	if ftyp.Kind_&kindMask != kindFunc {
++	if ftyp.Kind_&abi.KindMask != abi.Func {
+ 		throw("runtime.SetFinalizer: second argument is " + toRType(ftyp).string() + ", not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(ftyp))
+@@ -479,13 +479,13 @@ func SetFinalizer(obj any, finalizer any) {
+ 	case fint == etyp:
+ 		// ok - same type
+ 		goto okarg
+-	case fint.Kind_&kindMask == kindPtr:
++	case fint.Kind_&abi.KindMask == abi.Pointer:
+ 		if (fint.Uncommon() == nil || etyp.Uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).Elem == ot.Elem {
+ 			// ok - not same type, but both pointers,
+ 			// one or the other is unnamed, and same element type, so assignable.
+ 			goto okarg
+ 		}
+-	case fint.Kind_&kindMask == kindInterface:
++	case fint.Kind_&abi.KindMask == abi.Interface:
+ 		ityp := (*interfacetype)(unsafe.Pointer(fint))
+ 		if len(ityp.Methods) == 0 {
+ 			// ok - satisfies empty interface
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index f9efe237c1..208fc983ee 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+@@ -107,7 +108,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
+ 	if etyp == nil {
+ 		panic(errorString("runtime.Pinner: argument is nil"))
+ 	}
+-	if kind := etyp.Kind_ & kindMask; kind != kindPtr && kind != kindUnsafePointer {
++	if kind := etyp.Kind_ & abi.KindMask; kind != abi.Pointer && kind != abi.UnsafePointer {
+ 		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
+ 	}
+ 	if inUserArenaChunk(uintptr(e.data)) {
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 40dfefde17..4b6821b1fb 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
+ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*initTask, errstr string) {
+@@ -85,7 +88,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
+ 		(*valp)[0] = unsafe.Pointer(t)
+ 
+ 		name := symName.Name()
+-		if t.Kind_&kindMask == kindFunc {
++		if t.Kind_&abi.KindMask == abi.Func {
+ 			name = "." + name
+ 		}
+ 		syms[name] = val
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index ca4f051979..9acc0c6920 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -93,8 +93,8 @@ const raceenabled = true
+ // callerpc is a return PC of the function that calls this function,
+ // pc is start PC of the function that calls this function.
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-	kind := t.Kind_ & kindMask
+-	if kind == kindArray || kind == kindStruct {
++	kind := t.Kind_ & abi.KindMask
++	if kind == abi.Array || kind == abi.Struct {
+ 		// for composite objects we have to read every address
+ 		// because a write might happen to any subobject.
+ 		racereadrangepc(addr, t.Size_, callerpc, pc)
+@@ -106,8 +106,8 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ }
+ 
+ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-	kind := t.Kind_ & kindMask
+-	if kind == kindArray || kind == kindStruct {
++	kind := t.Kind_ & abi.KindMask
++	if kind == abi.Array || kind == abi.Struct {
+ 		// for composite objects we have to write every address
+ 		// because a write might happen to any subobject.
+ 		racewriterangepc(addr, t.Size_, callerpc, pc)
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index becb729e59..42b6947751 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -264,7 +264,7 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
+ func stkobjinit() {
+ 	var abiRegArgsEface any = abi.RegArgs{}
+ 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
+-	if abiRegArgsType.Kind_&kindGCProg != 0 {
++	if abiRegArgsType.Kind_&abi.KindGCProg != 0 {
+ 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
+ 	}
+ 	// Set methodValueCallFrameObjs[0].gcdataoff so that
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 09762aed51..f0e7661a1b 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -103,7 +103,7 @@ func (p *abiDesc) assignArg(t *_type) {
+ 		// registers and the stack.
+ 		panic("compileCallback: argument size is larger than uintptr")
+ 	}
+-	if k := t.Kind_ & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
++	if k := t.Kind_ & abi.KindMask; GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
+ 		// In fastcall, floating-point arguments in
+ 		// the first four positions are passed in
+ 		// floating-point registers, which we don't
+@@ -174,21 +174,21 @@ func (p *abiDesc) assignArg(t *_type) {
+ //
+ // Returns whether the assignment succeeded.
+ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
+-	switch k := t.Kind_ & kindMask; k {
+-	case kindBool, kindInt, kindInt8, kindInt16, kindInt32, kindUint, kindUint8, kindUint16, kindUint32, kindUintptr, kindPtr, kindUnsafePointer:
++	switch k := t.Kind_ & abi.KindMask; k {
++	case abi.Bool, abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uintptr, abi.Pointer, abi.UnsafePointer:
+ 		// Assign a register for all these types.
+ 		return p.assignReg(t.Size_, offset)
+-	case kindInt64, kindUint64:
++	case abi.Int64, abi.Uint64:
+ 		// Only register-assign if the registers are big enough.
+ 		if goarch.PtrSize == 8 {
+ 			return p.assignReg(t.Size_, offset)
+ 		}
+-	case kindArray:
++	case abi.Array:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		if at.Len == 1 {
+ 			return p.tryRegAssignArg(at.Elem, offset) // TODO fix when runtime is fully commoned up w/ abi.Type
+ 		}
+-	case kindStruct:
++	case abi.Struct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+ 		for i := range st.Fields {
+ 			f := &st.Fields[i]
+@@ -269,7 +269,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 		cdecl = false
+ 	}
+ 
+-	if fn._type == nil || (fn._type.Kind_&kindMask) != kindFunc {
++	if fn._type == nil || (fn._type.Kind_&abi.KindMask) != abi.Func {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(fn._type))
+@@ -290,7 +290,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+-	if k := ft.OutSlice()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
++	if k := ft.OutSlice()[0].Kind_ & abi.KindMask; k == abi.Float32 || k == abi.Float64 {
+ 		// In cdecl and stdcall, float results are returned in
+ 		// ST(0). In fastcall, they're returned in XMM0.
+ 		// Either way, it's not AX.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 1150a53208..a2975c4a99 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -61,11 +61,11 @@ func (t rtype) pkgpath() string {
+ 	if u := t.uncommon(); u != nil {
+ 		return t.nameOff(u.PkgPath).Name()
+ 	}
+-	switch t.Kind_ & kindMask {
+-	case kindStruct:
++	switch t.Kind_ & abi.KindMask {
++	case abi.Struct:
+ 		st := (*structtype)(unsafe.Pointer(t.Type))
+ 		return st.PkgPath.Name()
+-	case kindInterface:
++	case abi.Interface:
+ 		it := (*interfacetype)(unsafe.Pointer(t.Type))
+ 		return it.PkgPath.Name()
+ 	}
+@@ -338,8 +338,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 	if t == v {
+ 		return true
+ 	}
+-	kind := t.Kind_ & kindMask
+-	if kind != v.Kind_&kindMask {
++	kind := t.Kind_ & abi.KindMask
++	if kind != v.Kind_&abi.KindMask {
+ 		return false
+ 	}
+ 	rt, rv := toRType(t), toRType(v)
+@@ -358,21 +358,21 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 			return false
+ 		}
+ 	}
+-	if kindBool <= kind && kind <= kindComplex128 {
++	if abi.Bool <= kind && kind <= abi.Complex128 {
+ 		return true
+ 	}
+ 	switch kind {
+-	case kindString, kindUnsafePointer:
++	case abi.String, abi.UnsafePointer:
+ 		return true
+-	case kindArray:
++	case abi.Array:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		av := (*arraytype)(unsafe.Pointer(v))
+ 		return typesEqual(at.Elem, av.Elem, seen) && at.Len == av.Len
+-	case kindChan:
++	case abi.Chan:
+ 		ct := (*chantype)(unsafe.Pointer(t))
+ 		cv := (*chantype)(unsafe.Pointer(v))
+ 		return ct.Dir == cv.Dir && typesEqual(ct.Elem, cv.Elem, seen)
+-	case kindFunc:
++	case abi.Func:
+ 		ft := (*functype)(unsafe.Pointer(t))
+ 		fv := (*functype)(unsafe.Pointer(v))
+ 		if ft.OutCount != fv.OutCount || ft.InCount != fv.InCount {
+@@ -391,7 +391,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 			}
+ 		}
+ 		return true
+-	case kindInterface:
++	case abi.Interface:
+ 		it := (*interfacetype)(unsafe.Pointer(t))
+ 		iv := (*interfacetype)(unsafe.Pointer(v))
+ 		if it.PkgPath.Name() != iv.PkgPath.Name() {
+@@ -420,19 +420,19 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 			}
+ 		}
+ 		return true
+-	case kindMap:
++	case abi.Map:
+ 		mt := (*maptype)(unsafe.Pointer(t))
+ 		mv := (*maptype)(unsafe.Pointer(v))
+ 		return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
+-	case kindPtr:
++	case abi.Pointer:
+ 		pt := (*ptrtype)(unsafe.Pointer(t))
+ 		pv := (*ptrtype)(unsafe.Pointer(v))
+ 		return typesEqual(pt.Elem, pv.Elem, seen)
+-	case kindSlice:
++	case abi.Slice:
+ 		st := (*slicetype)(unsafe.Pointer(t))
+ 		sv := (*slicetype)(unsafe.Pointer(v))
+ 		return typesEqual(st.Elem, sv.Elem, seen)
+-	case kindStruct:
++	case abi.Struct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+ 		sv := (*structtype)(unsafe.Pointer(v))
+ 		if len(st.Fields) != len(sv.Fields) {
+diff --git a/src/runtime/typekind.go b/src/runtime/typekind.go
+index bd2dec94c4..4920a7cf14 100644
+--- a/src/runtime/typekind.go
++++ b/src/runtime/typekind.go
+@@ -4,40 +4,9 @@
+ 
+ package runtime
+ 
+-const (
+-	kindBool = 1 + iota
+-	kindInt
+-	kindInt8
+-	kindInt16
+-	kindInt32
+-	kindInt64
+-	kindUint
+-	kindUint8
+-	kindUint16
+-	kindUint32
+-	kindUint64
+-	kindUintptr
+-	kindFloat32
+-	kindFloat64
+-	kindComplex64
+-	kindComplex128
+-	kindArray
+-	kindChan
+-	kindFunc
+-	kindInterface
+-	kindMap
+-	kindPtr
+-	kindSlice
+-	kindString
+-	kindStruct
+-	kindUnsafePointer
+-
+-	kindDirectIface = 1 << 5
+-	kindGCProg      = 1 << 6
+-	kindMask        = (1 << 5) - 1
+-)
++import "internal/abi"
+ 
+ // isDirectIface reports whether t is stored directly in an interface value.
+ func isDirectIface(t *_type) bool {
+-	return t.Kind_&kindDirectIface != 0
++	return t.Kind_&abi.KindDirectIface != 0
+ }

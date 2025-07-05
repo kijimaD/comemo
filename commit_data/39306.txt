@@ -12,6 +12,24 @@ Date:   Wed Feb 13 03:37:57 2019 -0500
     Change-Id: I6bb0f7f94c7e6dd4c5ac19761bc8e5df1f9ec618
     Reviewed-on: https://go-review.googlesource.com/c/162297
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rc4/rc4.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index d5e6ebcd71..c2df0db2dc 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -45,8 +45,10 @@ func NewCipher(key []byte) (*Cipher, error) {
+ 	return &c, nil
+ }
+ 
+-// Reset zeros the key data so that it will no longer appear in the
+-// process's memory.
++// Reset zeros the key data and makes the Cipher unusable.
++//
++// Deprecated: Reset can't guarantee that the key will be entirely removed from
++// the process's memory.
+ func (c *Cipher) Reset() {
+ 	for i := range c.s {
+ 		c.s[i] = 0

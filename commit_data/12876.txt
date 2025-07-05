@@ -9,6 +9,20 @@ Date:   Wed Apr 11 10:59:03 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5986074
-
+---
  doc/go1.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index fce9001994..e1afe479ae 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1788,7 +1788,7 @@ for full details.
+ <td colspan="2"><hr></td>
+ </tr>
+ <tr><td>Atoui(x)</td> <td>ParseUint(x, 10, 0)§</td></tr>
+-<tr><td>Atoi64(x)</td> <td>ParseInt(x, 10, 64)</td></tr>
++<tr><td>Atoui64(x)</td> <td>ParseUint(x, 10, 64)</td></tr>
+ <tr>
+ <td colspan="2"><hr></td>
+ </tr>

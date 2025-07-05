@@ -11,6 +11,19 @@ Date:   Sun Nov 13 12:13:46 2011 -0500
     R=agl, rsc, cw
     CC=golang-dev
     https://golang.org/cl/5372083
-
+---
  src/pkg/exp/ssh/client.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index da45688eee..669182b2c8 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -195,6 +195,7 @@ func (c *ClientConn) openChan(typ string) (*clientChan, error) {
+ 	switch msg := (<-ch.msg).(type) {
+ 	case *channelOpenConfirmMsg:
+ 		ch.peersId = msg.MyId
++		ch.win <- int(msg.MyWindow)
+ 	case *channelOpenFailureMsg:
+ 		c.chanlist.remove(ch.id)
+ 		return nil, errors.New(msg.Message)

@@ -10,6 +10,27 @@ Date:   Wed Nov 20 13:47:37 2013 -0800
     R=golang-dev, rsc, adg, dave
     CC=golang-dev
     https://golang.org/cl/28500043
-
+---
  README | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/README b/README
+index 8bf9e7b8cf..a557fe9b4c 100644
+--- a/README
++++ b/README
+@@ -1,11 +1,12 @@
+ This is the source code repository for the Go programming language.  
+ 
+ For documentation about how to install and use Go,
+-visit http://golang.org/ or load doc/install.html in your web browser.
++visit http://golang.org/ or load doc/install-source.html
++in your web browser.
+ 
+ After installing Go, you can view a nicely formatted
+-doc/install.html by running godoc --http=:6060
+-and then visiting http://localhost:6060/doc/install.html.
++doc/install-source.html by running godoc --http=:6060
++and then visiting http://localhost:6060/doc/install/source.
+ 
+ Unless otherwise noted, the Go source files are distributed
+ under the BSD-style license found in the LICENSE file.

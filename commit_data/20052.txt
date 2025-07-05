@@ -8,8 +8,90 @@ Date:   Tue Aug 12 23:57:02 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/125170043
-
+---
  src/cmd/9g/cgen.c  |  6 ++----
  src/cmd/9g/gg.h    |  1 +
  src/cmd/9g/gsubr.c | 34 ++++++++++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index 3644ebf8f6..f8078aece3 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -690,8 +690,7 @@ agenr(Node *n, Node *a, Node *res)
+ 					n1.xoffset = Array_nel;
+ 					regalloc(&n4, n1.type, N);
+ 					gmove(&n1, &n4);
+-					nodconst(&n2, types[TUINT64], v);
+-					gins(optoas(OCMP, types[TUINT64]), &n4, &n2);
++					ginscon2(optoas(OCMP, types[TUINT64]), &n4, v);
+ 					regfree(&n4);
+ 					p1 = gbranch(optoas(OGT, types[TUINT64]), T, +1);
+ 					ginscall(panicindex, 0);
+@@ -706,8 +705,7 @@ agenr(Node *n, Node *a, Node *res)
+ 			}
+ 
+ 			if (v*w != 0) {
+-				nodconst(&n2, types[tptr], v*w);
+-				gins(optoas(OADD, types[tptr]), &n2, &n3);
++				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
+ 			}
+ 			*a = n3;
+ 			break;
+diff --git a/src/cmd/9g/gg.h b/src/cmd/9g/gg.h
+index 2b95dc7a6f..319702200c 100644
+--- a/src/cmd/9g/gg.h
++++ b/src/cmd/9g/gg.h
+@@ -87,6 +87,7 @@ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+ void	ginscon(int, vlong, Node*);
++void	ginscon2(int, Node*, vlong);
+ void	buildtxt(void);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index 0e5df5c6dc..a5ce5f141f 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -562,6 +562,40 @@ ginscon(int as, vlong c, Node *n2)
+ 	gins(as, &n1, n2);
+ }
+ 
++/*
++ * generate
++ *	as n, $c (CMP/CMPU)
++ */
++void
++ginscon2(int as, Node *n2, vlong c)
++{
++	Node n1, ntmp;
++
++	nodconst(&n1, types[TINT64], c);
++
++	switch(as) {
++	default:
++		fatal("ginscon2");
++	case ACMP:
++		if(-BIG <= c && c <= BIG) {
++			gins(as, n2, &n1);
++			return;
++		}
++		break;
++	case ACMPU:
++		if(0 <= c && c <= 2*BIG) {
++			gins(as, n2, &n1);
++			return;
++		}
++		break;
++	}
++	// MOV n1 into register first
++	regalloc(&ntmp, types[TINT64], N);
++	gins(AMOVD, &n1, &ntmp);
++	gins(as, n2, &ntmp);
++	regfree(&ntmp);
++}
++
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ /*c2go int CASE(int, int); */
+ 

@@ -22,7 +22,48 @@ Date:   Thu Oct 13 13:30:26 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/go/constant/value.go     |  8 +++++++-
  test/fixedbugs/issue56220.go | 15 +++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index f8d03cf375..ae300c7c13 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -200,7 +200,13 @@ func (x floatVal) String() string {
+ 	// Use exact fmt formatting if in float64 range (common case):
+ 	// proceed if f doesn't underflow to 0 or overflow to inf.
+ 	if x, _ := f.Float64(); f.Sign() == 0 == (x == 0) && !math.IsInf(x, 0) {
+-		return fmt.Sprintf("%.6g", x)
++		s := fmt.Sprintf("%.6g", x)
++		if !f.IsInt() && strings.IndexByte(s, '.') < 0 {
++			// f is not an integer, but its string representation
++			// doesn't reflect that. Use more digits. See issue 56220.
++			s = fmt.Sprintf("%g", x)
++		}
++		return s
+ 	}
+ 
+ 	// Out of float64 range. Do approximate manual to decimal
+diff --git a/test/fixedbugs/issue56220.go b/test/fixedbugs/issue56220.go
+new file mode 100644
+index 0000000000..3cb5210e89
+--- /dev/null
++++ b/test/fixedbugs/issue56220.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() int {
++	return int(1 - .0000001) // ERROR "cannot convert 1 - \.0000001 \(untyped float constant 0\.9999999\) to type int"
++}
++
++func g() int64 {
++	return int64((float64(0.03) - float64(0.02)) * 1_000_000) // ERROR "cannot convert \(float64\(0\.03\) - float64\(0\.02\)\) \* 1_000_000 \(constant 9999\.999999999998 of type float64\) to type int64"
++}

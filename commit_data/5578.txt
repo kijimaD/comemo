@@ -7,7 +7,42 @@ Date:   Tue Jun 1 16:21:34 2010 +0200
     R=golang-dev, adg
     CC=golang-dev, rsc
     https://golang.org/cl/1426042
-
+---
  doc/codelab/wiki/index.html | 6 +++---
  doc/codelab/wiki/wiki.html  | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index bfd9a8e49a..107e49f261 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -848,9 +848,9 @@ a title string:
+ </p>
+ 
+ <pre>
+-func viewHandler(c, *http.Conn, r *http.Request, title string)
+-func editHandler(c, *http.Conn, r *http.Request, title string)
+-func saveHandler(c, *http.Conn, r *http.Request, title string)
++func viewHandler(c *http.Conn, r *http.Request, title string)
++func editHandler(c *http.Conn, r *http.Request, title string)
++func saveHandler(c *http.Conn, r *http.Request, title string)
+ </pre>
+ 
+ <p>
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index 7661f466d3..c7f44ded4e 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -670,9 +670,9 @@ a title string:
+ </p>
+ 
+ <pre>
+-func viewHandler(c, *http.Conn, r *http.Request, title string)
+-func editHandler(c, *http.Conn, r *http.Request, title string)
+-func saveHandler(c, *http.Conn, r *http.Request, title string)
++func viewHandler(c *http.Conn, r *http.Request, title string)
++func editHandler(c *http.Conn, r *http.Request, title string)
++func saveHandler(c *http.Conn, r *http.Request, title string)
+ </pre>
+ 
+ <p>

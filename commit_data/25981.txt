@@ -21,6 +21,50 @@ Date:   Tue Dec 8 13:02:17 2015 +0100
     Change-Id: Iec751a2b0082af6e672a09dc9b7f4b4fb309e8a8
     Reviewed-on: https://go-review.googlesource.com/17499
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/pem/pem_test.go | 28 ++++++++++++++++++----------
  1 file changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index ab656c6261..958dbc1a3a 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -155,20 +155,28 @@ func TestFuzz(t *testing.T) {
+ 		}
+ 
+ 		var buf bytes.Buffer
+-		err := Encode(&buf, &block)
+-		decoded, rest := Decode(buf.Bytes())
+-
+-		switch {
+-		case err != nil:
++		if err := Encode(&buf, &block); err != nil {
+ 			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
+-		case !reflect.DeepEqual(&block, decoded):
++			return false
++		}
++		decoded, rest := Decode(buf.Bytes())
++		if block.Headers == nil {
++			// Encoder supports nil Headers but decoder returns initialized.
++			block.Headers = make(map[string]string)
++		}
++		if block.Bytes == nil {
++			// Encoder supports nil Bytes but decoder returns initialized.
++			block.Bytes = make([]byte, 0)
++		}
++		if !reflect.DeepEqual(decoded, &block) {
+ 			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
+-		case len(rest) != 0:
++			return false
++		}
++		if len(rest) != 0 {
+ 			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
+-		default:
+-			return true
++			return false
+ 		}
+-		return false
++		return true
+ 	}
+ 
+ 	// Explicitly test the empty block.

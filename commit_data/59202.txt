@@ -22,7 +22,7 @@ Date:   Sat Sep 30 10:38:01 2023 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/531677
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/57151.txt                                |  1 +
  doc/next/6-stdlib/99-minor/path/filepath/57151.md |  2 +
  src/internal/safefilepath/path.go                 | 17 +++--
@@ -37,3 +37,445 @@ Date:   Sat Sep 30 10:38:01 2023 -0700
  src/path/filepath/path.go                         | 16 +++++
  src/path/filepath/path_test.go                    | 67 +++++++++++++++++
  13 files changed, 149 insertions(+), 145 deletions(-)
+
+diff --git a/api/next/57151.txt b/api/next/57151.txt
+new file mode 100644
+index 0000000000..5d0e34e8b7
+--- /dev/null
++++ b/api/next/57151.txt
+@@ -0,0 +1 @@
++pkg path/filepath, func Localize(string) (string, error) #57151
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/57151.md b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+new file mode 100644
+index 0000000000..67e84894fe
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+@@ -0,0 +1,2 @@
++The new [`Localize`](/path/filepath#Localize) function safely converts
++a slash-separated path into an operating system path.
+diff --git a/src/internal/safefilepath/path.go b/src/internal/safefilepath/path.go
+index 0f0a270c30..c2cc6ce5d4 100644
+--- a/src/internal/safefilepath/path.go
++++ b/src/internal/safefilepath/path.go
+@@ -7,15 +7,20 @@ package safefilepath
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ )
+ 
+ var errInvalidPath = errors.New("invalid path")
+ 
+-// FromFS converts a slash-separated path into an operating-system path.
++// Localize is filepath.Localize.
+ //
+-// FromFS returns an error if the path cannot be represented by the operating
+-// system. For example, paths containing '\' and ':' characters are rejected
+-// on Windows.
+-func FromFS(path string) (string, error) {
+-	return fromFS(path)
++// It is implemented in this package to avoid a dependency cycle
++// between os and file/filepath.
++//
++// Tests for this function are in path/filepath.
++func Localize(path string) (string, error) {
++	if !fs.ValidPath(path) {
++		return "", errInvalidPath
++	}
++	return localize(path)
+ }
+diff --git a/src/internal/safefilepath/path_other.go b/src/internal/safefilepath/path_other.go
+deleted file mode 100644
+index 10971e8203..0000000000
+--- a/src/internal/safefilepath/path_other.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !windows
+-
+-package safefilepath
+-
+-import (
+-	"internal/bytealg"
+-	"runtime"
+-)
+-
+-func fromFS(path string) (string, error) {
+-	if runtime.GOOS == "plan9" {
+-		if len(path) > 0 && path[0] == '#' {
+-			return "", errInvalidPath
+-		}
+-	}
+-	if bytealg.IndexByteString(path, 0) >= 0 {
+-		return "", errInvalidPath
+-	}
+-	return path, nil
+-}
+diff --git a/src/internal/safefilepath/path_plan9.go b/src/internal/safefilepath/path_plan9.go
+new file mode 100644
+index 0000000000..55627c5102
+--- /dev/null
++++ b/src/internal/safefilepath/path_plan9.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package safefilepath
++
++import "internal/bytealg"
++
++func localize(path string) (string, error) {
++	if path[0] == '#' || bytealg.IndexByteString(path, 0) >= 0 {
++		return "", errInvalidPath
++	}
++	return path, nil
++}
+diff --git a/src/internal/safefilepath/path_test.go b/src/internal/safefilepath/path_test.go
+deleted file mode 100644
+index dc662c18b3..0000000000
+--- a/src/internal/safefilepath/path_test.go
++++ /dev/null
+@@ -1,88 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package safefilepath_test
+-
+-import (
+-	"internal/safefilepath"
+-	"os"
+-	"path/filepath"
+-	"runtime"
+-	"testing"
+-)
+-
+-type PathTest struct {
+-	path, result string
+-}
+-
+-const invalid = ""
+-
+-var fspathtests = []PathTest{
+-	{".", "."},
+-	{"/a/b/c", "/a/b/c"},
+-	{"a\x00b", invalid},
+-}
+-
+-var winreservedpathtests = []PathTest{
+-	{`a\b`, `a\b`},
+-	{`a:b`, `a:b`},
+-	{`a/b:c`, `a/b:c`},
+-	{`NUL`, `NUL`},
+-	{`./com1`, `./com1`},
+-	{`a/nul/b`, `a/nul/b`},
+-}
+-
+-// Whether a reserved name with an extension is reserved or not varies by
+-// Windows version.
+-var winreservedextpathtests = []PathTest{
+-	{"nul.txt", "nul.txt"},
+-	{"a/nul.txt/b", "a/nul.txt/b"},
+-}
+-
+-var plan9reservedpathtests = []PathTest{
+-	{`#c`, `#c`},
+-}
+-
+-func TestFromFS(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "windows":
+-		if canWriteFile(t, "NUL") {
+-			t.Errorf("can unexpectedly write a file named NUL on Windows")
+-		}
+-		if canWriteFile(t, "nul.txt") {
+-			fspathtests = append(fspathtests, winreservedextpathtests...)
+-		} else {
+-			winreservedpathtests = append(winreservedpathtests, winreservedextpathtests...)
+-		}
+-		for i := range winreservedpathtests {
+-			winreservedpathtests[i].result = invalid
+-		}
+-		for i := range fspathtests {
+-			fspathtests[i].result = filepath.FromSlash(fspathtests[i].result)
+-		}
+-	case "plan9":
+-		for i := range plan9reservedpathtests {
+-			plan9reservedpathtests[i].result = invalid
+-		}
+-	}
+-	tests := fspathtests
+-	tests = append(tests, winreservedpathtests...)
+-	tests = append(tests, plan9reservedpathtests...)
+-	for _, test := range tests {
+-		got, err := safefilepath.FromFS(test.path)
+-		if (got == "") != (err != nil) {
+-			t.Errorf(`FromFS(%q) = %q, %v; want "" only if err != nil`, test.path, got, err)
+-		}
+-		if got != test.result {
+-			t.Errorf("FromFS(%q) = %q, %v; want %q", test.path, got, err, test.result)
+-		}
+-	}
+-}
+-
+-func canWriteFile(t *testing.T, name string) bool {
+-	path := filepath.Join(t.TempDir(), name)
+-	os.WriteFile(path, []byte("ok"), 0666)
+-	b, _ := os.ReadFile(path)
+-	return string(b) == "ok"
+-}
+diff --git a/src/internal/safefilepath/path_unix.go b/src/internal/safefilepath/path_unix.go
+new file mode 100644
+index 0000000000..873d0935ec
+--- /dev/null
++++ b/src/internal/safefilepath/path_unix.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || (js && wasm) || wasip1
++
++package safefilepath
++
++import "internal/bytealg"
++
++func localize(path string) (string, error) {
++	if bytealg.IndexByteString(path, 0) >= 0 {
++		return "", errInvalidPath
++	}
++	return path, nil
++}
+diff --git a/src/internal/safefilepath/path_windows.go b/src/internal/safefilepath/path_windows.go
+index 7cfd6ce2ea..b626196f11 100644
+--- a/src/internal/safefilepath/path_windows.go
++++ b/src/internal/safefilepath/path_windows.go
+@@ -5,36 +5,31 @@
+ package safefilepath
+ 
+ import (
++	"internal/bytealg"
+ 	"syscall"
+-	"unicode/utf8"
+ )
+ 
+-func fromFS(path string) (string, error) {
+-	if !utf8.ValidString(path) {
+-		return "", errInvalidPath
+-	}
+-	for len(path) > 1 && path[0] == '/' && path[1] == '/' {
+-		path = path[1:]
++func localize(path string) (string, error) {
++	for i := 0; i < len(path); i++ {
++		switch path[i] {
++		case ':', '\\', 0:
++			return "", errInvalidPath
++		}
+ 	}
+ 	containsSlash := false
+ 	for p := path; p != ""; {
+ 		// Find the next path element.
+-		i := 0
+-		for i < len(p) && p[i] != '/' {
+-			switch p[i] {
+-			case 0, '\\', ':':
+-				return "", errInvalidPath
+-			}
+-			i++
+-		}
+-		part := p[:i]
+-		if i < len(p) {
++		var element string
++		i := bytealg.IndexByteString(p, '/')
++		if i < 0 {
++			element = p
++			p = ""
++		} else {
+ 			containsSlash = true
++			element = p[:i]
+ 			p = p[i+1:]
+-		} else {
+-			p = ""
+ 		}
+-		if IsReservedName(part) {
++		if IsReservedName(element) {
+ 			return "", errInvalidPath
+ 		}
+ 	}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 678b978b7b..977c3a766e 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -9,7 +9,6 @@ package http
+ import (
+ 	"errors"
+ 	"fmt"
+-	"internal/safefilepath"
+ 	"io"
+ 	"io/fs"
+ 	"mime"
+@@ -70,7 +69,11 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
+ // Open implements [FileSystem] using [os.Open], opening files for reading rooted
+ // and relative to the directory d.
+ func (d Dir) Open(name string) (File, error) {
+-	path, err := safefilepath.FromFS(path.Clean("/" + name))
++	path := path.Clean("/" + name)[1:]
++	if path == "" {
++		path = "."
++	}
++	path, err := filepath.Localize(path)
+ 	if err != nil {
+ 		return nil, errors.New("http: invalid or unsafe file path")
+ 	}
+diff --git a/src/os/dir.go b/src/os/dir.go
+index 5c15127bc1..cab16a7a42 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -146,7 +146,7 @@ func CopyFS(dir string, fsys fs.FS) error {
+ 			return err
+ 		}
+ 
+-		fpath, err := safefilepath.FromFS(path)
++		fpath, err := safefilepath.Localize(path)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/os/file.go b/src/os/file.go
+index 090ffba4dc..228f2f01b6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -747,10 +747,7 @@ func (dir dirFS) join(name string) (string, error) {
+ 	if dir == "" {
+ 		return "", errors.New("os: DirFS with empty root")
+ 	}
+-	if !fs.ValidPath(name) {
+-		return "", ErrInvalid
+-	}
+-	name, err := safefilepath.FromFS(name)
++	name, err := safefilepath.Localize(name)
+ 	if err != nil {
+ 		return "", ErrInvalid
+ 	}
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 2af0f5b04c..6c8a0aa8b3 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -13,6 +13,7 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"internal/safefilepath"
+ 	"io/fs"
+ 	"os"
+ 	"slices"
+@@ -211,6 +212,18 @@ func unixIsLocal(path string) bool {
+ 	return true
+ }
+ 
++// Localize converts a slash-separated path into an operating system path.
++// The input path must be a valid path as reported by [io/fs.ValidPath].
++//
++// Localize returns an error if the path cannot be represented by the operating system.
++// For example, the path a\b is rejected on Windows, on which \ is a separator
++// character and cannot be part of a filename.
++//
++// The path returned by Localize will always be local, as reported by IsLocal.
++func Localize(path string) (string, error) {
++	return safefilepath.Localize(path)
++}
++
+ // ToSlash returns the result of replacing each separator character
+ // in path with a slash ('/') character. Multiple separators are
+ // replaced by multiple slashes.
+@@ -224,6 +237,9 @@ func ToSlash(path string) string {
+ // FromSlash returns the result of replacing each slash ('/') character
+ // in path with a separator character. Multiple slashes are replaced
+ // by multiple separators.
++//
++// See also the Localize function, which converts a slash-separated path
++// as used by the io/fs package to an operating system path.
+ func FromSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index c96a758c69..1b2a66bc6d 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -237,6 +237,73 @@ func TestIsLocal(t *testing.T) {
+ 	}
+ }
+ 
++type LocalizeTest struct {
++	path string
++	want string
++}
++
++var localizetests = []LocalizeTest{
++	{"", ""},
++	{".", "."},
++	{"..", ""},
++	{"a/..", ""},
++	{"/", ""},
++	{"/a", ""},
++	{"a\xffb", ""},
++	{"a/", ""},
++	{"a/./b", ""},
++	{"\x00", ""},
++	{"a", "a"},
++	{"a/b/c", "a/b/c"},
++}
++
++var plan9localizetests = []LocalizeTest{
++	{"#a", ""},
++	{`a\b:c`, `a\b:c`},
++}
++
++var unixlocalizetests = []LocalizeTest{
++	{"#a", "#a"},
++	{`a\b:c`, `a\b:c`},
++}
++
++var winlocalizetests = []LocalizeTest{
++	{"#a", "#a"},
++	{"c:", ""},
++	{`a\b`, ""},
++	{`a:b`, ""},
++	{`a/b:c`, ""},
++	{`NUL`, ""},
++	{`a/NUL`, ""},
++	{`./com1`, ""},
++	{`a/nul/b`, ""},
++}
++
++func TestLocalize(t *testing.T) {
++	tests := localizetests
++	switch runtime.GOOS {
++	case "plan9":
++		tests = append(tests, plan9localizetests...)
++	case "windows":
++		tests = append(tests, winlocalizetests...)
++		for i := range tests {
++			tests[i].want = filepath.FromSlash(tests[i].want)
++		}
++	default:
++		tests = append(tests, unixlocalizetests...)
++	}
++	for _, test := range tests {
++		got, err := filepath.Localize(test.path)
++		wantErr := "<nil>"
++		if test.want == "" {
++			wantErr = "error"
++		}
++		if got != test.want || ((err == nil) != (test.want != "")) {
++			t.Errorf("IsLocal(%q) = %q, %v want %q, %v", test.path, got, err, test.want, wantErr)
++		}
++	}
++}
++
+ const sep = filepath.Separator
+ 
+ var slashtests = []PathTest{

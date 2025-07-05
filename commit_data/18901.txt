@@ -13,9 +13,196 @@ Date:   Wed Mar 19 09:00:58 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/77580046
-
+---
  src/pkg/bytes/reader.go         |  7 +++++--
  src/pkg/bytes/reader_test.go    | 27 +++++++++++++++++++++++++++
  src/pkg/strings/reader.go       |  7 +++++--
  src/pkg/strings/strings_test.go | 27 +++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+index 77511b9455..8041a3b324 100644
+--- a/src/pkg/bytes/reader.go
++++ b/src/pkg/bytes/reader.go
+@@ -30,6 +30,7 @@ func (r *Reader) Len() int {
+ }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
++	r.prevRune = -1
+ 	if len(b) == 0 {
+ 		return 0, nil
+ 	}
+@@ -38,11 +39,11 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	}
+ 	n = copy(b, r.s[r.i:])
+ 	r.i += n
+-	r.prevRune = -1
+ 	return
+ }
+ 
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
++	r.prevRune = -1
+ 	if off < 0 {
+ 		return 0, errors.New("bytes: invalid offset")
+ 	}
+@@ -57,12 +58,12 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ }
+ 
+ func (r *Reader) ReadByte() (b byte, err error) {
++	r.prevRune = -1
+ 	if r.i >= len(r.s) {
+ 		return 0, io.EOF
+ 	}
+ 	b = r.s[r.i]
+ 	r.i++
+-	r.prevRune = -1
+ 	return
+ }
+ 
+@@ -77,6 +78,7 @@ func (r *Reader) UnreadByte() error {
+ 
+ func (r *Reader) ReadRune() (ch rune, size int, err error) {
+ 	if r.i >= len(r.s) {
++		r.prevRune = -1
+ 		return 0, 0, io.EOF
+ 	}
+ 	r.prevRune = r.i
+@@ -100,6 +102,7 @@ func (r *Reader) UnreadRune() error {
+ 
+ // Seek implements the io.Seeker interface.
+ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
++	r.prevRune = -1
+ 	var abs int64
+ 	switch whence {
+ 	case 0:
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index 19f014da03..01cfa6deb5 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -133,6 +133,33 @@ func TestReaderLen(t *testing.T) {
+ 	}
+ }
+ 
++var UnreadRuneErrorTests = []struct {
++	name string
++	f    func(*Reader)
++}{
++	{"Read", func(r *Reader) { r.Read([]byte{}) }},
++	{"ReadAt", func(r *Reader) { r.ReadAt([]byte{}, 0) }},
++	{"ReadByte", func(r *Reader) { r.ReadByte() }},
++	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
++	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
++	{"WriteTo", func(r *Reader) { r.WriteTo(&Buffer{}) }},
++}
++
++func TestUnreadRuneError(t *testing.T) {
++	for _, tt := range UnreadRuneErrorTests {
++		reader := NewReader([]byte("0123456789"))
++		if _, _, err := reader.ReadRune(); err != nil {
++			// should not happen
++			t.Fatal(err)
++		}
++		tt.f(reader)
++		err := reader.UnreadRune()
++		if err == nil {
++			t.Errorf("Unreading after %s: expected error", tt.name)
++		}
++	}
++}
++
+ func TestReaderDoubleUnreadRune(t *testing.T) {
+ 	buf := NewBuffer([]byte("groucho"))
+ 	if _, _, err := buf.ReadRune(); err != nil {
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 11240efc07..df4d807120 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -29,6 +29,7 @@ func (r *Reader) Len() int {
+ }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
++	r.prevRune = -1
+ 	if len(b) == 0 {
+ 		return 0, nil
+ 	}
+@@ -37,11 +38,11 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	}
+ 	n = copy(b, r.s[r.i:])
+ 	r.i += n
+-	r.prevRune = -1
+ 	return
+ }
+ 
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
++	r.prevRune = -1
+ 	if off < 0 {
+ 		return 0, errors.New("strings: invalid offset")
+ 	}
+@@ -56,12 +57,12 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ }
+ 
+ func (r *Reader) ReadByte() (b byte, err error) {
++	r.prevRune = -1
+ 	if r.i >= len(r.s) {
+ 		return 0, io.EOF
+ 	}
+ 	b = r.s[r.i]
+ 	r.i++
+-	r.prevRune = -1
+ 	return
+ }
+ 
+@@ -76,6 +77,7 @@ func (r *Reader) UnreadByte() error {
+ 
+ func (r *Reader) ReadRune() (ch rune, size int, err error) {
+ 	if r.i >= len(r.s) {
++		r.prevRune = -1
+ 		return 0, 0, io.EOF
+ 	}
+ 	r.prevRune = r.i
+@@ -99,6 +101,7 @@ func (r *Reader) UnreadRune() error {
+ 
+ // Seek implements the io.Seeker interface.
+ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
++	r.prevRune = -1
+ 	var abs int64
+ 	switch whence {
+ 	case 0:
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index a5be2f9bed..5c38965775 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -858,6 +858,33 @@ func TestReadRune(t *testing.T) {
+ 	}
+ }
+ 
++var UnreadRuneErrorTests = []struct {
++	name string
++	f    func(*Reader)
++}{
++	{"Read", func(r *Reader) { r.Read([]byte{}) }},
++	{"ReadAt", func(r *Reader) { r.ReadAt([]byte{}, 0) }},
++	{"ReadByte", func(r *Reader) { r.ReadByte() }},
++	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
++	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
++	{"WriteTo", func(r *Reader) { r.WriteTo(&bytes.Buffer{}) }},
++}
++
++func TestUnreadRuneError(t *testing.T) {
++	for _, tt := range UnreadRuneErrorTests {
++		reader := NewReader("0123456789")
++		if _, _, err := reader.ReadRune(); err != nil {
++			// should not happen
++			t.Fatal(err)
++		}
++		tt.f(reader)
++		err := reader.UnreadRune()
++		if err == nil {
++			t.Errorf("Unreading after %s: expected error", tt.name)
++		}
++	}
++}
++
+ var ReplaceTests = []struct {
+ 	in       string
+ 	old, new string

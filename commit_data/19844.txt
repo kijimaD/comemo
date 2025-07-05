@@ -8,6 +8,30 @@ Date:   Tue Jul 29 17:56:28 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/118410043
-
+---
  src/pkg/bufio/bufio_test.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 4f3bc10364..550dac9173 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -31,9 +31,6 @@ func newRot13Reader(r io.Reader) *rot13Reader {
+ 
+ func (r13 *rot13Reader) Read(p []byte) (int, error) {
+ 	n, err := r13.r.Read(p)
+-	if err != nil {
+-		return n, err
+-	}
+ 	for i := 0; i < n; i++ {
+ 		c := p[i] | 0x20 // lowercase byte
+ 		if 'a' <= c && c <= 'm' {
+@@ -42,7 +39,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, error) {
+ 			p[i] -= 13
+ 		}
+ 	}
+-	return n, nil
++	return n, err
+ }
+ 
+ // Call ReadByte to accumulate the text of a file

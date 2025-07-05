@@ -9,8 +9,66 @@ Date:   Thu Apr 30 19:14:45 2015 -0700
     Change-Id: If17b7521f0bf70bc0c8da9c5adf246d90f644637
     Reviewed-on: https://go-review.googlesource.com/9564
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover   | Bin 6084208 -> 0 bytes
  src/cmd/cover/func.go |   4 ++--
  src/cmd/cover/html.go |   6 +++---
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cover/cover b/src/cmd/cover/cover
+deleted file mode 100755
+index 5e1b990a38..0000000000
+Binary files a/src/cmd/cover/cover and /dev/null differ
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index d5a41305ac..66ec242a40 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -31,7 +31,7 @@ import (
+ //	total:		(statements)			91.9%
+ 
+ func funcOutput(profile, outputFile string) error {
+-	profiles, err := cover.ParseProfiles(profile)
++	profiles, err := ParseProfiles(profile)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -128,7 +128,7 @@ func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
+ }
+ 
+ // coverage returns the fraction of the statements in the function that were covered, as a numerator and denominator.
+-func (f *FuncExtent) coverage(profile *cover.Profile) (num, den int64) {
++func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
+ 	// We could avoid making this n^2 overall by doing a single scan and annotating the functions,
+ 	// but the sizes of the data structures is never very large and the scan is almost instantaneous.
+ 	var covered, total int64
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index a9a6a3a04f..bb0a495ae7 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -22,7 +22,7 @@ import (
+ // coverage report, writing it to outfile. If outfile is empty,
+ // it writes the report to a temporary file and opens it in a web browser.
+ func htmlOutput(profile, outfile string) error {
+-	profiles, err := cover.ParseProfiles(profile)
++	profiles, err := ParseProfiles(profile)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -85,7 +85,7 @@ func htmlOutput(profile, outfile string) error {
+ // percentCovered returns, as a percentage, the fraction of the statements in
+ // the profile covered by the test run.
+ // In effect, it reports the coverage of a given source file.
+-func percentCovered(p *cover.Profile) float64 {
++func percentCovered(p *Profile) float64 {
+ 	var total, covered int64
+ 	for _, b := range p.Blocks {
+ 		total += int64(b.NumStmt)
+@@ -101,7 +101,7 @@ func percentCovered(p *cover.Profile) float64 {
+ 
+ // htmlGen generates an HTML coverage report with the provided filename,
+ // source code, and tokens, and writes it to the given Writer.
+-func htmlGen(w io.Writer, src []byte, boundaries []cover.Boundary) error {
++func htmlGen(w io.Writer, src []byte, boundaries []Boundary) error {
+ 	dst := bufio.NewWriter(w)
+ 	for i := range src {
+ 		for len(boundaries) > 0 && boundaries[0].Offset == i {

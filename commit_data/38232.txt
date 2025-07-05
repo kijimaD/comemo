@@ -16,10 +16,118 @@ Date:   Fri Oct 12 16:48:38 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objabi/util.go  | 2 --
  src/internal/cpu/cpu.go          | 6 ++----
  src/internal/cpu/cpu_test.go     | 8 ++++----
  src/internal/cpu/cpu_x86_test.go | 2 +-
  src/runtime/proc.go              | 4 ++--
  5 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index ffd1c04d39..d1017322f0 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -105,7 +105,6 @@ var (
+ 	Fieldtrack_enabled       int
+ 	Preemptibleloops_enabled int
+ 	Clobberdead_enabled      int
+-	DebugCPU_enabled         int
+ )
+ 
+ // Toolchain experiments.
+@@ -120,7 +119,6 @@ var exper = []struct {
+ 	{"framepointer", &framepointer_enabled},
+ 	{"preemptibleloops", &Preemptibleloops_enabled},
+ 	{"clobberdead", &Clobberdead_enabled},
+-	{"debugcpu", &DebugCPU_enabled},
+ }
+ 
+ var defaultExpstring = Expstring()
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index bfb016c7f7..54b100b1d4 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -6,8 +6,7 @@
+ // used by the Go standard library.
+ package cpu
+ 
+-// DebugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
+-// and GOOS is Linux or Darwin.
++// DebugOptions is set to true by the runtime if the OS supports GODEBUGCPU.
+ // This should not be changed after it is initialized.
+ var DebugOptions bool
+ 
+@@ -139,8 +138,7 @@ type s390x struct {
+ 
+ // Initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+-// before normal init functions are run. env is set by runtime on Linux and Darwin
+-// if go was compiled with GOEXPERIMENT=debugcpu.
++// before normal init functions are run. env is set by runtime if the OS supports GODEBUGCPU.
+ func Initialize(env string) {
+ 	doinit()
+ 	processOptions(env)
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index d4115a1b87..04ab9eeecb 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -13,14 +13,14 @@ import (
+ 	"testing"
+ )
+ 
+-func MustHaveDebugOptionsEnabled(t *testing.T) {
++func MustHaveDebugOptionsSupport(t *testing.T) {
+ 	if !DebugOptions {
+-		t.Skipf("skipping test: cpu feature options not enabled")
++		t.Skipf("skipping test: cpu feature options not supported by OS")
+ 	}
+ }
+ 
+ func runDebugOptionsTest(t *testing.T, test string, options string) {
+-	MustHaveDebugOptionsEnabled(t)
++	MustHaveDebugOptionsSupport(t)
+ 
+ 	testenv.MustHaveExec(t)
+ 
+@@ -42,7 +42,7 @@ func TestDisableAllCapabilities(t *testing.T) {
+ }
+ 
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+-	MustHaveDebugOptionsEnabled(t)
++	MustHaveDebugOptionsSupport(t)
+ 
+ 	if os.Getenv("GODEBUGCPU") != "all=0" {
+ 		t.Skipf("skipping test: GODEBUGCPU=all=0 not set")
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index d03306c907..c3ea7cb590 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -34,7 +34,7 @@ func TestDisableSSE2(t *testing.T) {
+ }
+ 
+ func TestSSE2DebugOption(t *testing.T) {
+-	MustHaveDebugOptionsEnabled(t)
++	MustHaveDebugOptionsSupport(t)
+ 
+ 	if os.Getenv("GODEBUGCPU") != "sse2=0" {
+ 		t.Skipf("skipping test: GODEBUGCPU=sse2=0 not set")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f536b82aab..86c14997b1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -478,12 +478,12 @@ const (
+ )
+ 
+ // cpuinit extracts the environment variable GODEBUGCPU from the environment on
+-// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.Initialize.
++// Linux and Darwin and calls internal/cpu.Initialize.
+ func cpuinit() {
+ 	const prefix = "GODEBUGCPU="
+ 	var env string
+ 
+-	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
++	if GOOS == "linux" || GOOS == "darwin" {
+ 		cpu.DebugOptions = true
+ 
+ 		// Similar to goenv_unix but extracts the environment value for

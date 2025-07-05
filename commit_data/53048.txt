@@ -20,6 +20,26 @@ Date:   Wed Jun 29 17:15:08 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/live_regabi.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index aac9a7766c..59be1863fc 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -1,4 +1,5 @@
+ // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
++//go:build (amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs)
+ // +build amd64,goexperiment.regabiargs arm64,goexperiment.regabiargs
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+@@ -601,7 +602,7 @@ func f38(b bool) {
+ 			printnl()
+ 		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
+ 			printnl()
+-		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
++		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to f[ibc]38:( .autotmp_[0-9]+)+$"
+ 			printnl()
+ 		}
+ 		printnl()

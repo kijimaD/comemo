@@ -14,6 +14,27 @@ Date:   Fri Mar 25 13:22:44 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/internal/boring/Dockerfile | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/boring/Dockerfile b/src/crypto/internal/boring/Dockerfile
+index 811a6dc379..dab7c85f7c 100644
+--- a/src/crypto/internal/boring/Dockerfile
++++ b/src/crypto/internal/boring/Dockerfile
+@@ -6,10 +6,12 @@
+ # Security Policy. To use it, build the image, run it, and then extract
+ # /boring/godriver/goboringcrypto_linux_amd64.syso.
+ #
+-#   $ docker build -t goboring:140sp3678 .
+-#   $ docker run -it --name goboring-140sp3678 goboring:140sp3678
+-#   $ docker cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso .
++#   $ podman build -t goboring:140sp3678 .
++#   $ podman run -it --name goboring-140sp3678 goboring:140sp3678
++#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso .
+ #   $ sha256sum goboringcrypto_linux_amd64.syso # compare to docker output
++#
++# The podman commands may need to run under sudo to work around a subuid/subgid bug.
+ 
+ FROM ubuntu:focal
+ 

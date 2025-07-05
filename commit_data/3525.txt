@@ -9,7 +9,40 @@ Date:   Tue Oct 13 17:14:49 2009 -0700
     DELTA=7  (5 added, 0 deleted, 2 changed)
     OCL=35651
     CL=35692
-
+---
  src/pkg/image/png/reader.go | 2 ++
  src/pkg/image/png/writer.go | 7 +++++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 86240cd54b..12c59e49c1 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -412,6 +412,8 @@ func (d *decoder) checkHeader(r io.Reader) os.Error {
+ 	return nil;
+ }
+ 
++// Decode reads a PNG formatted image from r and returns it as an image.Image.
++// The type of Image returned depends on the PNG contents.
+ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	var d decoder;
+ 	err := d.checkHeader(r);
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 2526fb3718..ce6c3f3d0e 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -316,9 +316,12 @@ func (e *encoder) writeIEND() {
+ 	e.writeChunk(e.tmp[0:0], "IEND");
+ }
+ 
++// Encode writes the Image m to w in PNG format. Any Image may be encoded, but
++// images that are not image.NRGBA might be encoded lossily.
+ func Encode(w io.Writer, m image.Image) os.Error {
+-	// Obviously, negative widths and heights are invalid. Furthermore,
+-	// the PNG spec section 11.2.2 says that zero is an invalid dimension.
++	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
++	// spec section 11.2.2 says that zero is invalid. Excessively large images are
++	// also rejected.
+ 	mw, mh := int64(m.Width()), int64(m.Height());
+ 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
+ 		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw));

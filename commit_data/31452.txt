@@ -21,7 +21,31 @@ Date:   Tue Feb 21 10:22:05 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/except.txt        | 1 +
  src/math/big/arith.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 857ebb5d7d..fbabd18a81 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -1,4 +1,5 @@
+ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
++pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+ pkg os (linux-arm), const O_SYNC = 4096
+ pkg os (linux-arm-cgo), const O_SYNC = 4096
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index d7ea8381e7..1101451f98 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -9,7 +9,7 @@
+ package big
+ 
+ // A Word represents a single digit of a multi-precision unsigned integer.
+-type Word uintptr
++type Word uint
+ 
+ const (
+ 	// Compute the size _S of a Word in bytes.

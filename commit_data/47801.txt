@@ -16,8 +16,141 @@ Date:   Sun Apr 11 14:33:28 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++++---
  src/cmd/compile/internal/ssa/rewrite.go        |  6 +--
  src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
  3 files changed, 77 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 6b5fd99c7e..aad7600d79 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2055,12 +2055,13 @@
+ (IsNonNil (Addr _)) => (ConstBool [true])
+ (IsNonNil (LocalAddr _ _)) => (ConstBool [true])
+ 
+-// TODO REGISTER ARGS this will need revision.
+-// Because expand calls runs after prove, constants useful to this pattern may not appear
+-// In the future both versions need to exist; the memory and register variants.
+-
+ // Inline small or disjoint runtime.memmove calls with constant length.
+ // See the comment in op Move in genericOps.go for discussion of the type.
++
++// Because expand calls runs after prove, constants useful to this pattern may not appear.
++// Both versions need to exist; the memory and register variants.
++//
++// Match post-expansion calls, memory version.
+ (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
+ 	&& sz >= 0
+ 	&& isSameCall(sym, "runtime.memmove")
+@@ -2070,8 +2071,17 @@
+ 	&& clobber(s1, s2, s3, call)
+ 	=> (Move {t.Elem()} [int64(sz)] dst src mem)
+ 
+-// Inline small or disjoint runtime.memmove calls with constant length.
+-// See the comment in op Move in genericOps.go for discussion of the type.
++// Match post-expansion calls, register version.
++(SelectN [0] call:(StaticCall {sym} dst src (Const(64|32) [sz]) mem))
++	&& sz >= 0
++	&& call.Uses == 1 // this will exclude all calls with results
++	&& isSameCall(sym, "runtime.memmove")
++	&& dst.Type.IsPtr() // avoids TUINTPTR, see issue 30061
++	&& isInlinableMemmove(dst, src, int64(sz), config)
++	&& clobber(call)
++	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++
++// Match pre-expansion calls.
+ (SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
+ 	&& sz >= 0
+ 	&& call.Uses == 1 // this will exclude all calls with results
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index f9ad980172..b8a9062d83 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -859,13 +859,13 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+ 		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
+ 			return true
+ 		}
+-		return p2.Op == OpArg && p1.Args[0].Op == OpSP
+-	case OpArg:
++		return (p2.Op == OpArg || p2.Op == OpArgIntReg) && p1.Args[0].Op == OpSP
++	case OpArg, OpArgIntReg:
+ 		if p2.Op == OpSP || p2.Op == OpLocalAddr {
+ 			return true
+ 		}
+ 	case OpSP:
+-		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
++		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 535fc8916d..52258201ca 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -20796,6 +20796,64 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
++	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const64 [sz]) mem))
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticCall || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst64 {
++			break
++		}
++		sz := auxIntToInt64(call_2.AuxInt)
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(int64(sz))
++		v.Aux = typeToAux(dst.Type.Elem())
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const32 [sz]) mem))
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticCall || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst32 {
++			break
++		}
++		sz := auxIntToInt32(call_2.AuxInt)
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(int64(sz))
++		v.Aux = typeToAux(dst.Type.Elem())
++		v.AddArg3(dst, src, mem)
++		return true
++	}
+ 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
+ 	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+ 	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)

@@ -12,6 +12,33 @@ Date:   Fri Dec 3 17:09:06 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index ab6aeaac2f..77e54a9125 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -125,10 +125,10 @@ type Conn interface {
+ 	// Any blocked Read or Write operations will be unblocked and return errors.
+ 	Close() error
+ 
+-	// LocalAddr returns the local network address.
++	// LocalAddr returns the local network address, if known.
+ 	LocalAddr() Addr
+ 
+-	// RemoteAddr returns the remote network address.
++	// RemoteAddr returns the remote network address, if known.
+ 	RemoteAddr() Addr
+ 
+ 	// SetDeadline sets the read and write deadlines associated
+@@ -328,7 +328,7 @@ type PacketConn interface {
+ 	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
+ 	Close() error
+ 
+-	// LocalAddr returns the local network address.
++	// LocalAddr returns the local network address, if known.
+ 	LocalAddr() Addr
+ 
+ 	// SetDeadline sets the read and write deadlines associated

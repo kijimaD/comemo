@@ -7,7 +7,107 @@ Date:   Thu Oct 28 15:09:21 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2736044
-
+---
  src/pkg/go/typechecker/typechecker.go      | 17 +++++++----------
  src/pkg/go/typechecker/typechecker_test.go | 17 ++++-------------
  2 files changed, 11 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/go/typechecker/typechecker.go b/src/pkg/go/typechecker/typechecker.go
+index 64b429d125..0289f2c61f 100644
+--- a/src/pkg/go/typechecker/typechecker.go
++++ b/src/pkg/go/typechecker/typechecker.go
+@@ -9,7 +9,6 @@
+ package typechecker
+ 
+ import (
+-	"container/vector"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+@@ -122,21 +121,20 @@ func (tc *typechecker) checkPackage(pkg *ast.Package) {
+ 	// TODO(gri) there's no file scope at the moment since we ignore imports
+ 
+ 	// phase 1: declare all global objects; also collect all function and method declarations
+-	var funcs vector.Vector
++	var funcs []*ast.FuncDecl
+ 	for _, file := range pkg.Files {
+ 		for _, decl := range file.Decls {
+ 			tc.declGlobal(decl)
+ 			if f, isFunc := decl.(*ast.FuncDecl); isFunc {
+-				funcs.Push(f)
++				funcs = append(funcs, f)
+ 			}
+ 		}
+ 	}
+ 
+ 	// phase 2: bind methods to their receiver base types
+-	for _, decl := range funcs {
+-		d := decl.(*ast.FuncDecl)
+-		if d.Recv != nil {
+-			tc.bindMethod(d)
++	for _, m := range funcs {
++		if m.Recv != nil {
++			tc.bindMethod(m)
+ 		}
+ 	}
+ 
+@@ -149,9 +147,8 @@ func (tc *typechecker) checkPackage(pkg *ast.Package) {
+ 	assert(len(tc.cyclemap) == 0)
+ 
+ 	// 4: sequentially typecheck function and method bodies
+-	for _, decl := range funcs {
+-		d := decl.(*ast.FuncDecl)
+-		tc.checkBlock(d.Body.List, d.Name.Obj.Type)
++	for _, f := range funcs {
++		tc.checkBlock(f.Body.List, f.Name.Obj.Type)
+ 	}
+ 
+ 	pkg.Scope = tc.topScope
+diff --git a/src/pkg/go/typechecker/typechecker_test.go b/src/pkg/go/typechecker/typechecker_test.go
+index a8e2e050a1..c9bfea0c86 100644
+--- a/src/pkg/go/typechecker/typechecker_test.go
++++ b/src/pkg/go/typechecker/typechecker_test.go
+@@ -27,7 +27,6 @@
+ package typechecker
+ 
+ import (
+-	"container/vector"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -58,9 +57,7 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+ // expectedErrors collects the regular expressions of ERROR comments
+ // found in the package files of pkg and returns them in sorted order
+ // (by filename and position).
+-func expectedErrors(t *testing.T, pkg *ast.Package) scanner.ErrorList {
+-	var list vector.Vector
+-
++func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+ 	// scan all package files
+ 	for filename := range pkg.Files {
+ 		src, err := ioutil.ReadFile(filename)
+@@ -80,21 +77,15 @@ func expectedErrors(t *testing.T, pkg *ast.Package) scanner.ErrorList {
+ 			case token.COMMENT:
+ 				s := errRx.FindSubmatch(lit)
+ 				if len(s) == 2 {
+-					list.Push(&scanner.Error{prev, string(s[1])})
++					list = append(list, &scanner.Error{prev, string(s[1])})
+ 				}
+ 			default:
+ 				prev = pos
+ 			}
+ 		}
+ 	}
+-
+-	// convert list
+-	errs := make(scanner.ErrorList, len(list))
+-	for i, e := range list {
+-		errs[i] = e.(*scanner.Error)
+-	}
+-	sort.Sort(errs) // multiple files may not be sorted
+-	return errs
++	sort.Sort(list) // multiple files may not be sorted
++	return
+ }
+ 
+ 

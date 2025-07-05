@@ -13,6 +13,21 @@ Date:   Tue Aug 4 11:52:01 2015 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b3d50888ad..2508945146 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2097,7 +2097,8 @@ parentheses) where <code>T</code> is a type name. The type denoted by <code>T</c
+ the receiver <i>base type</i>; it must not be a pointer or interface type and
+ it must be declared in the same package as the method.
+ The method is said to be <i>bound</i> to the base type and the method name
+-is visible only within selectors for that type.
++is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
++or <code>*T</code>.
+ </p>
+ 
+ <p>

@@ -9,7 +9,64 @@ Date:   Tue Oct 18 23:50:45 2016 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go   | 28 ++++++++++++++++------------
  src/cmd/link/internal/ld/ldelf.go |  6 ++++++
  2 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index c331944ecb..bfd449847b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -946,18 +946,22 @@ func Elfinit(ctxt *Link) {
+ 		ehdr.shentsize = ELF64SHDRSIZE /* Must be ELF64SHDRSIZE */
+ 
+ 	// 32-bit architectures
+-	case sys.ARM:
+-		// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
+-		if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd || Headtype == obj.Hnetbsd {
+-			// We set a value here that makes no indication of which
+-			// float ABI the object uses, because this is information
+-			// used by the dynamic linker to compare executables and
+-			// shared libraries -- so it only matters for cgo calls, and
+-			// the information properly comes from the object files
+-			// produced by the host C compiler. parseArmAttributes in
+-			// ldelf.go reads that information and updates this field as
+-			// appropriate.
+-			ehdr.flags = 0x5000002 // has entry point, Version5 EABI
++	case sys.ARM, sys.MIPS:
++		if SysArch.Family == sys.ARM {
++			// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
++			if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd || Headtype == obj.Hnetbsd {
++				// We set a value here that makes no indication of which
++				// float ABI the object uses, because this is information
++				// used by the dynamic linker to compare executables and
++				// shared libraries -- so it only matters for cgo calls, and
++				// the information properly comes from the object files
++				// produced by the host C compiler. parseArmAttributes in
++				// ldelf.go reads that information and updates this field as
++				// appropriate.
++				ehdr.flags = 0x5000002 // has entry point, Version5 EABI
++			}
++		} else if SysArch.Family == sys.MIPS {
++			ehdr.flags = 0x50000000 /* MIPS 32 */
+ 		}
+ 		fallthrough
+ 	default:
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 6faa4a1918..d700aa6ede 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -546,6 +546,12 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		Errorf(nil, "%s: elf %s unimplemented", pn, SysArch.Name)
+ 		return
+ 
++	case sys.MIPS:
++		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass32 {
++			Errorf(nil, "%s: elf object but not mips", pn)
++			return
++		}
++
+ 	case sys.MIPS64:
+ 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
+ 			Errorf(nil, "%s: elf object but not mips64", pn)

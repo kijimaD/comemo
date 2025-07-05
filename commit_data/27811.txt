@@ -11,6 +11,26 @@ Date:   Wed Apr 13 11:47:25 2016 -0700
     Change-Id: I3c7d80ce9e668ac7515f7ebb9da80f3bd8e534d6
     Reviewed-on: https://go-review.googlesource.com/22006
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/doc.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 4eea48eb6b..2f2ee24207 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -95,10 +95,10 @@
+ 
+ 	For floating-point values, width sets the minimum width of the field and
+ 	precision sets the number of places after the decimal, if appropriate,
+-	except that for %g/%G it sets the total number of digits. For example,
+-	given 123.45 the format %6.2f prints 123.45 while %.4g prints 123.5.
+-	The default precision for %e and %f is 6; for %g it is the smallest
+-	number of digits necessary to identify the value uniquely.
++	except that for %g/%G precision sets the total number of significant
++	digits. For example, given 12.345 the format %6.3f prints 12.345 while
++	%.3g prints 12.3. The default precision for %e and %f is 6; for %g it
++	is the smallest number of digits necessary to identify the value uniquely.
+ 
+ 	For complex numbers, the width and precision apply to the two
+ 	components independently and the result is parenthesized, so %f applied

@@ -12,6 +12,28 @@ Date:   Sun Jul 5 23:39:45 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 1a122c615f..4a5da308a0 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -16,7 +16,6 @@ import (
+ 	"internal/goversion"
+ 	"io"
+ 	"io/ioutil"
+-	"log"
+ 	"os"
+ 	"os/exec"
+ 	pathpkg "path"
+@@ -924,7 +923,7 @@ Found:
+ 				quoted := spec.Path.Value
+ 				path, err := strconv.Unquote(quoted)
+ 				if err != nil {
+-					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
++					panic(fmt.Sprintf("%s: parser returned invalid quoted string: <%s>", filename, quoted))
+ 				}
+ 				fileImports = append(fileImports, importPos{path, spec.Pos()})
+ 				if path == "C" {

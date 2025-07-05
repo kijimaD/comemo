@@ -20,7 +20,7 @@ Date:   Mon Oct 11 11:57:24 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/gcc.go                                 |   4 +-
  src/cmd/compile/internal/ssa/stmtlines_test.go     |   4 +-
  src/cmd/dist/buildtool.go                          |   2 +-
@@ -57,3 +57,1074 @@ Date:   Mon Oct 11 11:57:24 2021 -0400
  src/cmd/link/dwarf_test.go                         |   4 +-
  src/cmd/link/internal/ld/main.go                   |   6 +-
  35 files changed, 314 insertions(+), 292 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c78197896c..997a830994 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -29,7 +29,7 @@ import (
+ 	"unicode"
+ 	"unicode/utf8"
+ 
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ )
+ 
+ var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
+@@ -1568,7 +1568,7 @@ func checkGCCBaseCmd() ([]string, error) {
+ 	if value == "" {
+ 		value = defaultCC(goos, goarch)
+ 	}
+-	args, err := str.SplitQuotedFields(value)
++	args, err := quoted.Split(value)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 843db8c07e..90dd261c55 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -2,7 +2,7 @@ package ssa_test
+ 
+ import (
+ 	cmddwarf "cmd/internal/dwarf"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+@@ -58,7 +58,7 @@ func TestStmtLines(t *testing.T) {
+ 		if extld == "" {
+ 			extld = "gcc"
+ 		}
+-		extldArgs, err := str.SplitQuotedFields(extld)
++		extldArgs, err := quoted.Split(extld)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 320c62f850..75f04a975c 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -46,8 +46,8 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/obj/...",
+ 	"cmd/internal/objabi",
+ 	"cmd/internal/pkgpath",
++	"cmd/internal/quoted",
+ 	"cmd/internal/src",
+-	"cmd/internal/str",
+ 	"cmd/internal/sys",
+ 	"cmd/link",
+ 	"cmd/link/internal/...",
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 0144525e30..954ce47a98 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -17,7 +17,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/cfg"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ // A Command is an implementation of a go command
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 7e5121bffb..2c72c7e562 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -9,7 +9,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ )
+ 
+ // A StringsFlag is a command-line flag that interprets its argument
+@@ -18,7 +18,7 @@ type StringsFlag []string
+ 
+ func (v *StringsFlag) Set(s string) error {
+ 	var err error
+-	*v, err = str.SplitQuotedFields(s)
++	*v, err = quoted.Split(s)
+ 	if *v == nil {
+ 		*v = []string{}
+ 	}
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 181d2a2ca1..e56dd8223f 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -26,7 +26,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ )
+ 
+ var CmdEnv = &base.Command{
+@@ -470,7 +470,7 @@ func checkEnvWrite(key, val string) error {
+ 		if val == "" {
+ 			break
+ 		}
+-		args, err := str.SplitQuotedFields(val)
++		args, err := quoted.Split(val)
+ 		if err != nil {
+ 			return fmt.Errorf("invalid %s: %v", key, err)
+ 		}
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index cc5940fccd..988d45e71c 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 	"context"
+ 	"fmt"
+ 	"os"
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 5981e5ecdb..a3873d1138 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -26,7 +26,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ var CmdGenerate = &base.Command{
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 0412506b9e..f46313dcff 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -20,7 +20,7 @@ import (
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/web"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 821e622abb..8c85ddcf21 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -24,7 +24,7 @@ import (
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ var CmdList = &base.Command{
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index d0d5716c3f..de079decdf 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -6,7 +6,7 @@ package load
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -63,7 +63,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
+ 		match = MatchPackage(pattern, cwd)
+ 		v = v[i+1:]
+ 	}
+-	flags, err := str.SplitQuotedFields(v)
++	flags, err := quoted.Split(v)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index dfe7849516..c6c5fb00a8 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -38,9 +38,9 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/vcs"
+-	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 
+ 	"golang.org/x/mod/modfile"
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 4cefb62d51..8a18dfbe93 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -23,7 +23,7 @@ import (
+ 
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/trace"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ var TestMainDeps = []string{
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 57189b4607..484e095cc7 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -24,7 +24,7 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index efb4b1516a..378fbae34f 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -21,7 +21,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ // Downloaded size limits.
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 5d810d2621..c2cca084e3 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -20,7 +20,7 @@ import (
+ 
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ // A VCSError indicates an error using a version control system.
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index d7341e7813..887cb51b31 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -14,7 +14,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 0f5b015000..845bf2f8a2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -119,7 +119,7 @@ import (
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index c9ed129dbf..1eb484de9d 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -22,7 +22,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 11e2c81b9a..03895d27eb 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -19,7 +19,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ var CmdRun = &base.Command{
+diff --git a/src/cmd/internal/str/path.go b/src/cmd/go/internal/str/path.go
+similarity index 100%
+rename from src/cmd/internal/str/path.go
+rename to src/cmd/go/internal/str/path.go
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/go/internal/str/str.go
+new file mode 100644
+index 0000000000..5bc521b9df
+--- /dev/null
++++ b/src/cmd/go/internal/str/str.go
+@@ -0,0 +1,111 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package str provides string manipulation utilities.
++package str
++
++import (
++	"bytes"
++	"fmt"
++	"unicode"
++	"unicode/utf8"
++)
++
++// StringList flattens its arguments into a single []string.
++// Each argument in args must have type string or []string.
++func StringList(args ...interface{}) []string {
++	var x []string
++	for _, arg := range args {
++		switch arg := arg.(type) {
++		case []string:
++			x = append(x, arg...)
++		case string:
++			x = append(x, arg)
++		default:
++			panic("stringList: invalid argument of type " + fmt.Sprintf("%T", arg))
++		}
++	}
++	return x
++}
++
++// ToFold returns a string with the property that
++//	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
++// This lets us test a large set of strings for fold-equivalent
++// duplicates without making a quadratic number of calls
++// to EqualFold. Note that strings.ToUpper and strings.ToLower
++// do not have the desired property in some corner cases.
++func ToFold(s string) string {
++	// Fast path: all ASCII, no upper case.
++	// Most paths look like this already.
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c >= utf8.RuneSelf || 'A' <= c && c <= 'Z' {
++			goto Slow
++		}
++	}
++	return s
++
++Slow:
++	var buf bytes.Buffer
++	for _, r := range s {
++		// SimpleFold(x) cycles to the next equivalent rune > x
++		// or wraps around to smaller values. Iterate until it wraps,
++		// and we've found the minimum value.
++		for {
++			r0 := r
++			r = unicode.SimpleFold(r0)
++			if r <= r0 {
++				break
++			}
++		}
++		// Exception to allow fast path above: A-Z => a-z
++		if 'A' <= r && r <= 'Z' {
++			r += 'a' - 'A'
++		}
++		buf.WriteRune(r)
++	}
++	return buf.String()
++}
++
++// FoldDup reports a pair of strings from the list that are
++// equal according to strings.EqualFold.
++// It returns "", "" if there are no such strings.
++func FoldDup(list []string) (string, string) {
++	clash := map[string]string{}
++	for _, s := range list {
++		fold := ToFold(s)
++		if t := clash[fold]; t != "" {
++			if s > t {
++				s, t = t, s
++			}
++			return s, t
++		}
++		clash[fold] = s
++	}
++	return "", ""
++}
++
++// Contains reports whether x contains s.
++func Contains(x []string, s string) bool {
++	for _, t := range x {
++		if t == s {
++			return true
++		}
++	}
++	return false
++}
++
++// Uniq removes consecutive duplicate strings from ss.
++func Uniq(ss *[]string) {
++	if len(*ss) <= 1 {
++		return
++	}
++	uniq := (*ss)[:1]
++	for _, s := range *ss {
++		if s != uniq[len(uniq)-1] {
++			uniq = append(uniq, s)
++		}
++	}
++	*ss = uniq
++}
+diff --git a/src/cmd/go/internal/str/str_test.go b/src/cmd/go/internal/str/str_test.go
+new file mode 100644
+index 0000000000..8ea758e0a8
+--- /dev/null
++++ b/src/cmd/go/internal/str/str_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package str
++
++import (
++	"testing"
++)
++
++var foldDupTests = []struct {
++	list   []string
++	f1, f2 string
++}{
++	{StringList("math/rand", "math/big"), "", ""},
++	{StringList("math", "strings"), "", ""},
++	{StringList("strings"), "", ""},
++	{StringList("strings", "strings"), "strings", "strings"},
++	{StringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
++}
++
++func TestFoldDup(t *testing.T) {
++	for _, tt := range foldDupTests {
++		f1, f2 := FoldDup(tt.list)
++		if f1 != tt.f1 || f2 != tt.f2 {
++			t.Errorf("foldDup(%q) = %q, %q, want %q, %q", tt.list, f1, f2, tt.f1, tt.f2)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index dc1bea505b..ea1d4ff20e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -33,7 +33,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 	"cmd/internal/test2json"
+ )
+ 
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 941bd57147..c4853d7ae3 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -27,7 +27,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/web"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 15f944d2af..d4f2a716d7 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -16,7 +16,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/internal/buildid"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ // Build IDs
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 62d8143828..03f8866cf2 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -34,8 +34,9 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -2666,7 +2667,7 @@ func envList(key, def string) []string {
+ 	if v == "" {
+ 		v = def
+ 	}
+-	args, err := str.SplitQuotedFields(v)
++	args, err := quoted.Split(v)
+ 	if err != nil {
+ 		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))
+ 	}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3eb9b35f40..e3b4a817e7 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -20,8 +20,9 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/str"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
+ 	"crypto/sha1"
+ )
+@@ -565,7 +566,7 @@ func setextld(ldflags []string, compiler []string) ([]string, error) {
+ 			return ldflags, nil
+ 		}
+ 	}
+-	joined, err := str.JoinAndQuoteFields(compiler)
++	joined, err := quoted.Join(compiler)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 3cb7b64183..60181b99e4 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -17,7 +17,7 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+ 	"cmd/internal/pkgpath"
+-	"cmd/internal/str"
++	"cmd/go/internal/str"
+ )
+ 
+ // The Gccgo toolchain.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 56e39f8c52..4dbbd2a13f 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -11,7 +11,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/modload"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"os"
+@@ -46,7 +46,7 @@ func BuildInit() {
+ 	// Make sure CC, CXX, and FC are absolute paths.
+ 	for _, key := range []string{"CC", "CXX", "FC"} {
+ 		value := cfg.Getenv(key)
+-		args, err := str.SplitQuotedFields(value)
++		args, err := quoted.Split(value)
+ 		if err != nil {
+ 			base.Fatalf("go: %s environment variable could not be parsed: %v", key, err)
+ 		}
+diff --git a/src/cmd/internal/quoted/quoted.go b/src/cmd/internal/quoted/quoted.go
+new file mode 100644
+index 0000000000..e7575dfc66
+--- /dev/null
++++ b/src/cmd/internal/quoted/quoted.go
+@@ -0,0 +1,127 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package quoted provides string manipulation utilities.
++package quoted
++
++import (
++	"flag"
++	"fmt"
++	"strings"
++	"unicode"
++)
++
++func isSpaceByte(c byte) bool {
++	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
++}
++
++// Split splits s into a list of fields,
++// allowing single or double quotes around elements.
++// There is no unescaping or other processing within
++// quoted fields.
++func Split(s string) ([]string, error) {
++	// Split fields allowing '' or "" around elements.
++	// Quotes further inside the string do not count.
++	var f []string
++	for len(s) > 0 {
++		for len(s) > 0 && isSpaceByte(s[0]) {
++			s = s[1:]
++		}
++		if len(s) == 0 {
++			break
++		}
++		// Accepted quoted string. No unescaping inside.
++		if s[0] == '"' || s[0] == '\'' {
++			quote := s[0]
++			s = s[1:]
++			i := 0
++			for i < len(s) && s[i] != quote {
++				i++
++			}
++			if i >= len(s) {
++				return nil, fmt.Errorf("unterminated %c string", quote)
++			}
++			f = append(f, s[:i])
++			s = s[i+1:]
++			continue
++		}
++		i := 0
++		for i < len(s) && !isSpaceByte(s[i]) {
++			i++
++		}
++		f = append(f, s[:i])
++		s = s[i:]
++	}
++	return f, nil
++}
++
++// Join joins a list of arguments into a string that can be parsed
++// with Split. Arguments are quoted only if necessary; arguments
++// without spaces or quotes are kept as-is. No argument may contain both
++// single and double quotes.
++func Join(args []string) (string, error) {
++	var buf []byte
++	for i, arg := range args {
++		if i > 0 {
++			buf = append(buf, ' ')
++		}
++		var sawSpace, sawSingleQuote, sawDoubleQuote bool
++		for _, c := range arg {
++			switch {
++			case c > unicode.MaxASCII:
++				continue
++			case isSpaceByte(byte(c)):
++				sawSpace = true
++			case c == '\'':
++				sawSingleQuote = true
++			case c == '"':
++				sawDoubleQuote = true
++			}
++		}
++		switch {
++		case !sawSpace && !sawSingleQuote && !sawDoubleQuote:
++			buf = append(buf, []byte(arg)...)
++
++		case !sawSingleQuote:
++			buf = append(buf, '\'')
++			buf = append(buf, []byte(arg)...)
++			buf = append(buf, '\'')
++
++		case !sawDoubleQuote:
++			buf = append(buf, '"')
++			buf = append(buf, []byte(arg)...)
++			buf = append(buf, '"')
++
++		default:
++			return "", fmt.Errorf("argument %q contains both single and double quotes and cannot be quoted", arg)
++		}
++	}
++	return string(buf), nil
++}
++
++// A Flag parses a list of string arguments encoded with Join.
++// It is useful for flags like cmd/link's -extldflags.
++type Flag []string
++
++var _ flag.Value = (*Flag)(nil)
++
++func (f *Flag) Set(v string) error {
++	fs, err := Split(v)
++	if err != nil {
++		return err
++	}
++	*f = fs[:len(fs):len(fs)]
++	return nil
++}
++
++func (f *Flag) String() string {
++	if f == nil {
++		return ""
++	}
++	s, err := Join(*f)
++	if err != nil {
++		return strings.Join(*f, " ")
++	}
++	return s
++}
+diff --git a/src/cmd/internal/str/str_test.go b/src/cmd/internal/quoted/quoted_test.go
+similarity index 79%
+rename from src/cmd/internal/str/str_test.go
+rename to src/cmd/internal/quoted/quoted_test.go
+index 3609af6a06..d76270c87b 100644
+--- a/src/cmd/internal/str/str_test.go
++++ b/src/cmd/internal/quoted/quoted_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package str
++package quoted
+ 
+ import (
+ 	"reflect"
+@@ -10,27 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-var foldDupTests = []struct {
+-	list   []string
+-	f1, f2 string
+-}{
+-	{StringList("math/rand", "math/big"), "", ""},
+-	{StringList("math", "strings"), "", ""},
+-	{StringList("strings"), "", ""},
+-	{StringList("strings", "strings"), "strings", "strings"},
+-	{StringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
+-}
+-
+-func TestFoldDup(t *testing.T) {
+-	for _, tt := range foldDupTests {
+-		f1, f2 := FoldDup(tt.list)
+-		if f1 != tt.f1 || f2 != tt.f2 {
+-			t.Errorf("foldDup(%q) = %q, %q, want %q, %q", tt.list, f1, f2, tt.f1, tt.f2)
+-		}
+-	}
+-}
+-
+-func TestSplitQuotedFields(t *testing.T) {
++func TestSplit(t *testing.T) {
+ 	for _, test := range []struct {
+ 		name    string
+ 		value   string
+@@ -54,7 +34,7 @@ func TestSplitQuotedFields(t *testing.T) {
+ 		{name: "quote_unclosed", value: `'a`, wantErr: "unterminated ' string"},
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+-			got, err := SplitQuotedFields(test.value)
++			got, err := Split(test.value)
+ 			if err != nil {
+ 				if test.wantErr == "" {
+ 					t.Fatalf("unexpected error: %v", err)
+@@ -73,7 +53,7 @@ func TestSplitQuotedFields(t *testing.T) {
+ 	}
+ }
+ 
+-func TestJoinAndQuoteFields(t *testing.T) {
++func TestJoin(t *testing.T) {
+ 	for _, test := range []struct {
+ 		name          string
+ 		args          []string
+@@ -88,7 +68,7 @@ func TestJoinAndQuoteFields(t *testing.T) {
+ 		{name: "unquoteable", args: []string{`'"`}, wantErr: "contains both single and double quotes and cannot be quoted"},
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+-			got, err := JoinAndQuoteFields(test.args)
++			got, err := Join(test.args)
+ 			if err != nil {
+ 				if test.wantErr == "" {
+ 					t.Fatalf("unexpected error: %v", err)
+diff --git a/src/cmd/internal/str/str.go b/src/cmd/internal/str/str.go
+deleted file mode 100644
+index 409cf8f7b4..0000000000
+--- a/src/cmd/internal/str/str.go
++++ /dev/null
+@@ -1,227 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package str provides string manipulation utilities.
+-package str
+-
+-import (
+-	"bytes"
+-	"flag"
+-	"fmt"
+-	"strings"
+-	"unicode"
+-	"unicode/utf8"
+-)
+-
+-// StringList flattens its arguments into a single []string.
+-// Each argument in args must have type string or []string.
+-func StringList(args ...interface{}) []string {
+-	var x []string
+-	for _, arg := range args {
+-		switch arg := arg.(type) {
+-		case []string:
+-			x = append(x, arg...)
+-		case string:
+-			x = append(x, arg)
+-		default:
+-			panic("stringList: invalid argument of type " + fmt.Sprintf("%T", arg))
+-		}
+-	}
+-	return x
+-}
+-
+-// ToFold returns a string with the property that
+-//	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
+-// This lets us test a large set of strings for fold-equivalent
+-// duplicates without making a quadratic number of calls
+-// to EqualFold. Note that strings.ToUpper and strings.ToLower
+-// do not have the desired property in some corner cases.
+-func ToFold(s string) string {
+-	// Fast path: all ASCII, no upper case.
+-	// Most paths look like this already.
+-	for i := 0; i < len(s); i++ {
+-		c := s[i]
+-		if c >= utf8.RuneSelf || 'A' <= c && c <= 'Z' {
+-			goto Slow
+-		}
+-	}
+-	return s
+-
+-Slow:
+-	var buf bytes.Buffer
+-	for _, r := range s {
+-		// SimpleFold(x) cycles to the next equivalent rune > x
+-		// or wraps around to smaller values. Iterate until it wraps,
+-		// and we've found the minimum value.
+-		for {
+-			r0 := r
+-			r = unicode.SimpleFold(r0)
+-			if r <= r0 {
+-				break
+-			}
+-		}
+-		// Exception to allow fast path above: A-Z => a-z
+-		if 'A' <= r && r <= 'Z' {
+-			r += 'a' - 'A'
+-		}
+-		buf.WriteRune(r)
+-	}
+-	return buf.String()
+-}
+-
+-// FoldDup reports a pair of strings from the list that are
+-// equal according to strings.EqualFold.
+-// It returns "", "" if there are no such strings.
+-func FoldDup(list []string) (string, string) {
+-	clash := map[string]string{}
+-	for _, s := range list {
+-		fold := ToFold(s)
+-		if t := clash[fold]; t != "" {
+-			if s > t {
+-				s, t = t, s
+-			}
+-			return s, t
+-		}
+-		clash[fold] = s
+-	}
+-	return "", ""
+-}
+-
+-// Contains reports whether x contains s.
+-func Contains(x []string, s string) bool {
+-	for _, t := range x {
+-		if t == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// Uniq removes consecutive duplicate strings from ss.
+-func Uniq(ss *[]string) {
+-	if len(*ss) <= 1 {
+-		return
+-	}
+-	uniq := (*ss)[:1]
+-	for _, s := range *ss {
+-		if s != uniq[len(uniq)-1] {
+-			uniq = append(uniq, s)
+-		}
+-	}
+-	*ss = uniq
+-}
+-
+-func isSpaceByte(c byte) bool {
+-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+-}
+-
+-// SplitQuotedFields splits s into a list of fields,
+-// allowing single or double quotes around elements.
+-// There is no unescaping or other processing within
+-// quoted fields.
+-func SplitQuotedFields(s string) ([]string, error) {
+-	// Split fields allowing '' or "" around elements.
+-	// Quotes further inside the string do not count.
+-	var f []string
+-	for len(s) > 0 {
+-		for len(s) > 0 && isSpaceByte(s[0]) {
+-			s = s[1:]
+-		}
+-		if len(s) == 0 {
+-			break
+-		}
+-		// Accepted quoted string. No unescaping inside.
+-		if s[0] == '"' || s[0] == '\'' {
+-			quote := s[0]
+-			s = s[1:]
+-			i := 0
+-			for i < len(s) && s[i] != quote {
+-				i++
+-			}
+-			if i >= len(s) {
+-				return nil, fmt.Errorf("unterminated %c string", quote)
+-			}
+-			f = append(f, s[:i])
+-			s = s[i+1:]
+-			continue
+-		}
+-		i := 0
+-		for i < len(s) && !isSpaceByte(s[i]) {
+-			i++
+-		}
+-		f = append(f, s[:i])
+-		s = s[i:]
+-	}
+-	return f, nil
+-}
+-
+-// JoinAndQuoteFields joins a list of arguments into a string that can be parsed
+-// with SplitQuotedFields. Arguments are quoted only if necessary; arguments
+-// without spaces or quotes are kept as-is. No argument may contain both
+-// single and double quotes.
+-func JoinAndQuoteFields(args []string) (string, error) {
+-	var buf []byte
+-	for i, arg := range args {
+-		if i > 0 {
+-			buf = append(buf, ' ')
+-		}
+-		var sawSpace, sawSingleQuote, sawDoubleQuote bool
+-		for _, c := range arg {
+-			switch {
+-			case c > unicode.MaxASCII:
+-				continue
+-			case isSpaceByte(byte(c)):
+-				sawSpace = true
+-			case c == '\'':
+-				sawSingleQuote = true
+-			case c == '"':
+-				sawDoubleQuote = true
+-			}
+-		}
+-		switch {
+-		case !sawSpace && !sawSingleQuote && !sawDoubleQuote:
+-			buf = append(buf, []byte(arg)...)
+-
+-		case !sawSingleQuote:
+-			buf = append(buf, '\'')
+-			buf = append(buf, []byte(arg)...)
+-			buf = append(buf, '\'')
+-
+-		case !sawDoubleQuote:
+-			buf = append(buf, '"')
+-			buf = append(buf, []byte(arg)...)
+-			buf = append(buf, '"')
+-
+-		default:
+-			return "", fmt.Errorf("argument %q contains both single and double quotes and cannot be quoted", arg)
+-		}
+-	}
+-	return string(buf), nil
+-}
+-
+-// A QuotedStringListFlag parses a list of string arguments encoded with
+-// JoinAndQuoteFields. It is useful for flags like cmd/link's -extldflags.
+-type QuotedStringListFlag []string
+-
+-var _ flag.Value = (*QuotedStringListFlag)(nil)
+-
+-func (f *QuotedStringListFlag) Set(v string) error {
+-	fs, err := SplitQuotedFields(v)
+-	if err != nil {
+-		return err
+-	}
+-	*f = fs[:len(fs):len(fs)]
+-	return nil
+-}
+-
+-func (f *QuotedStringListFlag) String() string {
+-	if f == nil {
+-		return ""
+-	}
+-	s, err := JoinAndQuoteFields(*f)
+-	if err != nil {
+-		return strings.Join(*f, " ")
+-	}
+-	return s
+-}
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index f7bbb014d9..78ef3cfe97 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	cmddwarf "cmd/internal/dwarf"
+ 	"cmd/internal/objfile"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"debug/dwarf"
+ 	"internal/testenv"
+ 	"os"
+@@ -68,7 +68,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 			if extld == "" {
+ 				extld = "gcc"
+ 			}
+-			extldArgs, err := str.SplitQuotedFields(extld)
++			extldArgs, err := quoted.Split(extld)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a5a5a71250..a1d86965e4 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -34,7 +34,7 @@ import (
+ 	"bufio"
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/str"
++	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/benchmark"
+ 	"flag"
+@@ -76,8 +76,8 @@ var (
+ 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
+ 	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
+ 
+-	flagExtld      str.QuotedStringListFlag
+-	flagExtldflags str.QuotedStringListFlag
++	flagExtld      quoted.Flag
++	flagExtldflags quoted.Flag
+ 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
+ 
+ 	flagA             = flag.Bool("a", false, "no-op (deprecated)")

@@ -11,7 +11,49 @@ Date:   Mon Jul 21 20:52:11 2014 -0700
     R=golang-codereviews, minux, khr, rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/117040043
-
+---
  src/cmd/dist/buildruntime.c | 3 ++-
  src/pkg/runtime/proc.c      | 9 +++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 4e5295b658..b16b5756cc 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -30,7 +30,8 @@ mkzversion(char *dir, char *file)
+ 		"package runtime\n"
+ 		"\n"
+ 		"const defaultGoroot = `%s`\n"
+-		"const theVersion = `%s`\n", goroot_final, goversion));
++		"const theVersion = `%s`\n"
++		"var buildVersion = theVersion\n", goroot_final, goversion));
+ 
+ 	writefile(&out, file, 0);
+ 	
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 21b036eaea..55c58442ba 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -129,6 +129,8 @@ static bool exitsyscallfast(void);
+ static bool haveexperiment(int8*);
+ static void allgadd(G*);
+ 
++extern String runtime·buildVersion;
++
+ // The bootstrap sequence is:
+ //
+ //	call osinit
+@@ -188,6 +190,13 @@ runtime·schedinit(void)
+ 		runtime·copystack = false;
+ 
+ 	mstats.enablegc = 1;
++
++	if(runtime·buildVersion.str == nil) {
++		// Condition should never trigger.  This code just serves
++		// to ensure runtime·buildVersion is kept in the resulting binary.
++		runtime·buildVersion.str = (uint8*)"unknown";
++		runtime·buildVersion.len = 7;
++	}
+ }
+ 
+ extern void main·init(void);

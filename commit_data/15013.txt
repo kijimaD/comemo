@@ -10,7 +10,7 @@ Date:   Tue Jan 29 14:57:11 2013 +0400
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/7098050
-
+---
  src/pkg/runtime/panic.c         | 2 ++
  src/pkg/runtime/proc.c          | 6 ++++++
  src/pkg/runtime/runtime.h       | 4 +++-
@@ -19,3 +19,190 @@ Date:   Tue Jan 29 14:57:11 2013 +0400
  src/pkg/runtime/traceback_arm.c | 9 +++++----
  src/pkg/runtime/traceback_x86.c | 7 ++++---
  7 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index c96007dd16..a0651e4ad5 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -454,6 +454,8 @@ runtime·throwinit(void)
+ void
+ runtime·throw(int8 *s)
+ {
++	if(m->throwing == 0)
++		m->throwing = 1;
+ 	runtime·startpanic();
+ 	runtime·printf("fatal error: %s\n", s);
+ 	runtime·dopanic(0);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cd66bcecdb..9b143b92f3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -242,6 +242,7 @@ runtime·main(void)
+ 	setmcpumax(runtime·gomaxprocs);
+ 	runtime·sched.init = true;
+ 	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
++	scvg->issystem = true;
+ 	main·init();
+ 	runtime·sched.init = false;
+ 	if(!runtime·sched.lockmain)
+@@ -325,10 +326,14 @@ void
+ runtime·tracebackothers(G *me)
+ {
+ 	G *gp;
++	int32 traceback;
+ 
++	traceback = runtime·gotraceback();
+ 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+ 		if(gp == me || gp->status == Gdead)
+ 			continue;
++		if(gp->issystem && traceback < 2)
++			continue;
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(gp);
+ 		runtime·traceback(gp->sched.pc, (byte*)gp->sched.sp, 0, gp);
+@@ -624,6 +629,7 @@ top:
+ 	if((scvg == nil && runtime·sched.grunning == 0) ||
+ 	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
+ 	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
++		m->throwing = -1;  // do not dump full stacks
+ 		runtime·throw("all goroutines are asleep - deadlock!");
+ 	}
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e21c276e17..22aead792c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -219,6 +219,7 @@ struct	G
+ 	G*	schedlink;
+ 	bool	readyonstop;
+ 	bool	ispanic;
++	bool	issystem;
+ 	int8	raceignore; // ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+@@ -252,6 +253,7 @@ struct	M
+ 	G*	curg;		// current running goroutine
+ 	int32	id;
+ 	int32	mallocing;
++	int32	throwing;
+ 	int32	gcing;
+ 	int32	locks;
+ 	int32	nomemprof;
+@@ -865,7 +867,7 @@ Hmap*	runtime·makemap_c(MapType*, int64);
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+-bool	runtime·showframe(Func*);
++bool	runtime·showframe(Func*, bool);
+ 
+ void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
+ 
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 5df9fd2d3d..a8679b1069 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -559,11 +559,13 @@ contains(String s, int8 *p)
+ }
+ 
+ bool
+-runtime·showframe(Func *f)
++runtime·showframe(Func *f, bool current)
+ {
+ 	static int32 traceback = -1;
+ 
++	if(current && m->throwing > 0)
++		return 1;
+ 	if(traceback < 0)
+ 		traceback = runtime·gotraceback();
+-	return traceback > 1 || contains(f->name, ".") && !hasprefix(f->name, "runtime.");
++	return traceback > 1 || f != nil && contains(f->name, ".") && !hasprefix(f->name, "runtime.");
+ }
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 57a49ee58c..e41df2c572 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -108,8 +108,10 @@ addtimer(Timer *t)
+ 			runtime·ready(timers.timerproc);
+ 		}
+ 	}
+-	if(timers.timerproc == nil)
++	if(timers.timerproc == nil) {
+ 		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
++		timers.timerproc->issystem = true;
++	}
+ }
+ 
+ // Delete timer t from the heap.
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index e67ccd4153..da7ab570ca 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -25,7 +25,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 	bool waspanic;
+ 	Stktop *stk;
+ 	Func *f;
+-	
++
+ 	pc = (uintptr)pc0;
+ 	lr = (uintptr)lr0;
+ 	fp = nil;
+@@ -60,7 +60,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			sp = (byte*)stk->gobuf.sp;
+ 			lr = 0;
+ 			fp = nil;
+-			if(pcbuf == nil)
++			if(pcbuf == nil && runtime·showframe(nil, gp == m->curg))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+@@ -118,7 +118,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			if(runtime·showframe(f)) {
++			if(runtime·showframe(f, gp == m->curg)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+@@ -184,7 +184,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			sp += 12;
+ 	}
+ 	
+-	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
++	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
++			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
+ 		runtime·printf("created by %S\n", f->name);
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(n > 0 && pc > f->entry)
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 4547556096..e235757b0f 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -77,7 +77,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			sp = (byte*)stk->gobuf.sp;
+ 			lr = 0;
+ 			fp = nil;
+-			if(pcbuf == nil)
++			if(pcbuf == nil && runtime·showframe(nil, gp == m->curg))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+@@ -126,7 +126,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			if(runtime·showframe(f)) {
++			if(runtime·showframe(f, gp == m->curg)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+@@ -196,7 +196,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 	}
+ 	
+ 	// Show what created goroutine, except main goroutine (goid 1).
+-	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
++	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
++			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
+ 		runtime·printf("created by %S\n", f->name);
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(n > 0 && pc > f->entry)

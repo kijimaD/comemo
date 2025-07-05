@@ -15,7 +15,153 @@ Date:   Tue Nov 14 13:23:10 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/encoding/csv/reader.go      | 20 ++++++++++----------
  src/encoding/csv/reader_test.go | 24 ++++++++++++------------
  2 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 031ee6cedb..09f0dac5d0 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -64,18 +64,18 @@ import (
+ // A ParseError is returned for parsing errors.
+ // Line numbers are 1-indexed and columns are 0-indexed.
+ type ParseError struct {
+-	RecordLine int   // Line where the record starts
+-	Line       int   // Line where the error occurred
+-	Column     int   // Column (rune index) where the error occurred
+-	Err        error // The actual error
++	StartLine int   // Line where the record starts
++	Line      int   // Line where the error occurred
++	Column    int   // Column (rune index) where the error occurred
++	Err       error // The actual error
+ }
+ 
+ func (e *ParseError) Error() string {
+ 	if e.Err == ErrFieldCount {
+ 		return fmt.Sprintf("record on line %d: %v", e.Line, e.Err)
+ 	}
+-	if e.RecordLine != e.Line {
+-		return fmt.Sprintf("record on line %d; parse error on line %d, column %d: %v", e.RecordLine, e.Line, e.Column, e.Err)
++	if e.StartLine != e.Line {
++		return fmt.Sprintf("record on line %d; parse error on line %d, column %d: %v", e.StartLine, e.Line, e.Column, e.Err)
+ 	}
+ 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
+ }
+@@ -287,7 +287,7 @@ parseField:
+ 			if !r.LazyQuotes {
+ 				if j := bytes.IndexByte(field, '"'); j >= 0 {
+ 					col := utf8.RuneCount(fullLine[:len(fullLine)-len(line[j:])])
+-					err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
++					err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
+ 					break parseField
+ 				}
+ 			}
+@@ -327,7 +327,7 @@ parseField:
+ 					default:
+ 						// `"*` sequence (invalid non-escaped quote).
+ 						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
+-						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
++						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+ 						break parseField
+ 					}
+ 				} else if len(line) > 0 {
+@@ -345,7 +345,7 @@ parseField:
+ 					// Abrupt end of file (EOF or error).
+ 					if !r.LazyQuotes && errRead == nil {
+ 						col := utf8.RuneCount(fullLine)
+-						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
++						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+ 						break parseField
+ 					}
+ 					r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+@@ -375,7 +375,7 @@ parseField:
+ 	// Check or update the expected fields per record.
+ 	if r.FieldsPerRecord > 0 {
+ 		if len(dst) != r.FieldsPerRecord && err == nil {
+-			err = &ParseError{RecordLine: recLine, Line: recLine, Err: ErrFieldCount}
++			err = &ParseError{StartLine: recLine, Line: recLine, Err: ErrFieldCount}
+ 		}
+ 	} else if r.FieldsPerRecord == 0 {
+ 		r.FieldsPerRecord = len(dst)
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index 48efbb6719..69e2e2becd 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -123,7 +123,7 @@ field"`,
+ 	}, {
+ 		Name:  "BadDoubleQuotes",
+ 		Input: `a""b,c`,
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 1, Err: ErrBareQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 1, Err: ErrBareQuote},
+ 	}, {
+ 		Name:             "TrimQuote",
+ 		Input:            ` "a"," b",c`,
+@@ -132,25 +132,25 @@ field"`,
+ 	}, {
+ 		Name:  "BadBareQuote",
+ 		Input: `a "word","b"`,
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 2, Err: ErrBareQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 2, Err: ErrBareQuote},
+ 	}, {
+ 		Name:  "BadTrailingQuote",
+ 		Input: `"a word",b"`,
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 10, Err: ErrBareQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 10, Err: ErrBareQuote},
+ 	}, {
+ 		Name:  "ExtraneousQuote",
+ 		Input: `"a "word","b"`,
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 3, Err: ErrQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 3, Err: ErrQuote},
+ 	}, {
+ 		Name:               "BadFieldCount",
+ 		Input:              "a,b,c\nd,e",
+-		Error:              &ParseError{RecordLine: 2, Line: 2, Err: ErrFieldCount},
++		Error:              &ParseError{StartLine: 2, Line: 2, Err: ErrFieldCount},
+ 		UseFieldsPerRecord: true,
+ 		FieldsPerRecord:    0,
+ 	}, {
+ 		Name:               "BadFieldCount1",
+ 		Input:              `a,b,c`,
+-		Error:              &ParseError{RecordLine: 1, Line: 1, Err: ErrFieldCount},
++		Error:              &ParseError{StartLine: 1, Line: 1, Err: ErrFieldCount},
+ 		UseFieldsPerRecord: true,
+ 		FieldsPerRecord:    2,
+ 	}, {
+@@ -226,13 +226,13 @@ x,,,
+ 		},
+ 		ReuseRecord: true,
+ 	}, {
+-		Name:  "RecordLine1", // Issue 19019
++		Name:  "StartLine1", // Issue 19019
+ 		Input: "a,\"b\nc\"d,e",
+-		Error: &ParseError{RecordLine: 1, Line: 2, Column: 1, Err: ErrQuote},
++		Error: &ParseError{StartLine: 1, Line: 2, Column: 1, Err: ErrQuote},
+ 	}, {
+-		Name:  "RecordLine2",
++		Name:  "StartLine2",
+ 		Input: "a,b\n\"d\n\n,e",
+-		Error: &ParseError{RecordLine: 2, Line: 5, Column: 0, Err: ErrQuote},
++		Error: &ParseError{StartLine: 2, Line: 5, Column: 0, Err: ErrQuote},
+ 	}, {
+ 		Name:  "CRLFInQuotedField", // Issue 21201
+ 		Input: "\"Hello\r\nHi\"",
+@@ -290,7 +290,7 @@ x,,,
+ 	}, {
+ 		Name:  "QuoteWithTrailingCRLF",
+ 		Input: "\"foo\"bar\"\r\n",
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 4, Err: ErrQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 4, Err: ErrQuote},
+ 	}, {
+ 		Name:       "LazyQuoteWithTrailingCRLF",
+ 		Input:      "\"foo\"bar\"\r\n",
+@@ -307,7 +307,7 @@ x,,,
+ 	}, {
+ 		Name:  "OddQuotes",
+ 		Input: `"""""""`,
+-		Error: &ParseError{RecordLine: 1, Line: 1, Column: 7, Err: ErrQuote},
++		Error: &ParseError{StartLine: 1, Line: 1, Column: 7, Err: ErrQuote},
+ 	}, {
+ 		Name:       "LazyOddQuotes",
+ 		Input:      `"""""""`,

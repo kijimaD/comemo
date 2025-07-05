@@ -7,6 +7,20 @@ Date:   Mon Aug 8 15:38:37 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4839052
-
+---
  src/pkg/exp/template/helper.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 89ec0e363f..ae6a057eef 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -18,7 +18,7 @@ import (
+ // Must is a helper that wraps a call to a function returning (*Template, os.Error)
+ // and panics if the error is non-nil. It is intended for use in variable initializations
+ // such as
+-//	var t = template.Must(template.Parse("text"))
++//	var t = template.Must(template.New("name").Parse("text"))
+ func Must(t *Template, err os.Error) *Template {
+ 	if err != nil {
+ 		panic(err)

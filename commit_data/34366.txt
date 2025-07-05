@@ -11,7 +11,7 @@ Date:   Sat Oct 7 13:49:44 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 20 +++++++-------
  src/cmd/link/internal/amd64/obj.go   |  4 +--
  src/cmd/link/internal/arm/asm.go     | 10 +++----
@@ -40,3 +40,1221 @@ Date:   Sat Oct 7 13:49:44 2017 -0400
  src/cmd/link/internal/x86/asm.go     | 14 +++++-----
  src/cmd/link/internal/x86/obj.go     |  4 +--
  27 files changed, 145 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index dde47ac7c5..ca652f8353 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -251,7 +251,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 	case objabi.R_ADDR:
+ 		if s.Type == sym.STEXT && ctxt.IsELF {
+-			if ld.Headtype == objabi.Hsolaris {
++			if ctxt.HeadType == objabi.Hsolaris {
+ 				addpltsym(ctxt, targ)
+ 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 				r.Add += int64(targ.Plt)
+@@ -334,7 +334,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
++		if ctxt.HeadType == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -603,7 +603,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 
+ 		s.Plt = int32(plt.Size - 16)
+-	} else if ld.Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		// To do lazy symbol lookup right, we're supposed
+ 		// to tell the dynamic loader which library each
+ 		// symbol comes from and format the link info
+@@ -645,7 +645,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+-	} else if ld.Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+ 	} else {
+ 		ld.Errorf(s, "addgotsym: unsupported binary format")
+@@ -700,13 +700,13 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+ 
+ 	machlink := int64(0)
+-	if ld.Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = ld.Domacholink(ctxt)
+ 	}
+ 
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Errorf(nil, "unknown header type %v", ld.Headtype)
++		ld.Errorf(nil, "unknown header type %v", ctxt.HeadType)
+ 		fallthrough
+ 
+ 	case objabi.Hplan9:
+@@ -736,7 +736,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 		case objabi.Hplan9:
+ 			*ld.FlagS = true
+@@ -761,7 +761,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(symo)
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ctxt.Out.SeekSet(symo)
+@@ -805,7 +805,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f headr\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan9 */
+ 		magic := int32(4*26*26 + 7)
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index c766512a01..87e809166a 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -74,9 +74,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32 + 8
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index cbb97c3b6b..93c2a85690 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -590,7 +590,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+ 			// the section load address.
+ 			// we need to compensate that by removing the instruction's address
+ 			// from addend.
+-			if ld.Headtype == objabi.Hdarwin {
++			if ctxt.HeadType == objabi.Hdarwin {
+ 				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
+ 			}
+ 
+@@ -781,7 +781,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+ 
+ 	machlink := uint32(0)
+-	if ld.Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+ 	}
+ 
+@@ -795,7 +795,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+@@ -810,7 +810,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				if ctxt.Debugvlog != 0 {
+@@ -847,7 +847,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f header\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ctxt.Out.Write32b(0x647)                      /* magic */
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index a874a24e6c..da16f92345 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -70,9 +70,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index cc7f4d1abf..d8245590be 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -273,7 +273,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+ 			// the BR26 relocation should be fully resolved at link time.
+ 			// That is the reason why the next if block is disabled. When the bug in ld64
+ 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
+-			if false && ld.Headtype == objabi.Hdarwin {
++			if false && ctxt.HeadType == objabi.Hdarwin {
+ 				var o0, o1 uint32
+ 
+ 				if ctxt.Arch.ByteOrder == binary.BigEndian {
+@@ -346,8 +346,8 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+ 		return true
+ 	case objabi.R_ARM64_TLS_LE:
+ 		r.Done = false
+-		if ld.Headtype != objabi.Hlinux {
+-			ld.Errorf(s, "TLS reloc on unsupported OS %v", ld.Headtype)
++		if ctxt.HeadType != objabi.Hlinux {
++			ld.Errorf(s, "TLS reloc on unsupported OS %v", ctxt.HeadType)
+ 		}
+ 		// The TCB is two pointers. This is not documented anywhere, but is
+ 		// de facto part of the ABI.
+@@ -417,7 +417,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+ 
+ 	machlink := uint32(0)
+-	if ld.Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+ 	}
+ 
+@@ -431,7 +431,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+@@ -446,7 +446,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				if ctxt.Debugvlog != 0 {
+@@ -483,7 +483,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f header\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ctxt.Out.Write32(0x647)                      /* magic */
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 225cfbd294..6b386ad737 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -70,9 +70,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 11bdf9ce41..cb824811aa 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -148,7 +148,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 		// We need to be able to reference dynimport symbols when linking against
+ 		// shared libraries, and Solaris needs it always
+-		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() {
++		if ctxt.HeadType != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() {
+ 			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
+ 				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			}
+@@ -212,12 +212,12 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				// related to the fact that our own TLS storage happens
+ 				// to take up 8 bytes.
+ 				o = 8 + r.Sym.Value
+-			} else if ctxt.IsELF || Headtype == objabi.Hplan9 || Headtype == objabi.Hdarwin || isAndroidX86 {
++			} else if ctxt.IsELF || ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hdarwin || isAndroidX86 {
+ 				o = int64(ctxt.Tlsoffset) + r.Add
+-			} else if Headtype == objabi.Hwindows {
++			} else if ctxt.HeadType == objabi.Hwindows {
+ 				o = r.Add
+ 			} else {
+-				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
++				log.Fatalf("unexpected R_TLS_LE relocation for %v", ctxt.HeadType)
+ 			}
+ 		case objabi.R_TLS_IE:
+ 			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
+@@ -272,7 +272,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 					if ctxt.Arch.Family == sys.AMD64 {
+ 						o = 0
+ 					}
+-				} else if Headtype == objabi.Hdarwin {
++				} else if ctxt.HeadType == objabi.Hdarwin {
+ 					// ld64 for arm64 has a bug where if the address pointed to by o exists in the
+ 					// symbol table (dynid >= 0), or is inside a symbol that exists in the symbol
+ 					// table, then it will add o twice into the relocated value.
+@@ -286,10 +286,10 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 							o += Symaddr(rs)
+ 						}
+ 					}
+-				} else if Headtype == objabi.Hwindows {
++				} else if ctxt.HeadType == objabi.Hwindows {
+ 					// nothing to do
+ 				} else {
+-					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
++					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
+ 				}
+ 
+ 				break
+@@ -319,7 +319,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				// DWARF linking, and it understands how to follow section offsets.
+ 				// Leaving in the relocation records confuses it (see
+ 				// https://golang.org/issue/22068) so drop them for Darwin.
+-				if Headtype == objabi.Hdarwin {
++				if ctxt.HeadType == objabi.Hdarwin {
+ 					r.Done = true
+ 				}
+ 
+@@ -328,7 +328,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
+ 				// Do not replace R_DWARFREF with R_ADDR for windows -
+ 				// let PE code emit correct relocations.
+-				if Headtype != objabi.Hwindows {
++				if ctxt.HeadType != objabi.Hwindows {
+ 					r.Type = objabi.R_ADDR
+ 				}
+ 
+@@ -359,7 +359,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case objabi.R_GOTPCREL:
+-			if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin && r.Sym != nil && r.Sym.Type != sym.SCONST {
++			if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin && r.Sym != nil && r.Sym.Type != sym.SCONST {
+ 				r.Done = false
+ 				r.Xadd = r.Add
+ 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+@@ -394,7 +394,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 					if ctxt.Arch.Family == sys.AMD64 {
+ 						o = 0
+ 					}
+-				} else if Headtype == objabi.Hdarwin {
++				} else if ctxt.HeadType == objabi.Hdarwin {
+ 					if r.Type == objabi.R_CALL {
+ 						if rs.Type != sym.SHOSTOBJ {
+ 							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+@@ -406,12 +406,12 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+-				} else if Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
++				} else if ctxt.HeadType == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
+ 					// PE/COFF's PC32 relocation uses the address after the relocated
+ 					// bytes as the base. Compensate by skewing the addend.
+ 					o += int64(r.Siz)
+ 				} else {
+-					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
++					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
+ 				}
+ 
+ 				break
+@@ -531,7 +531,7 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
+ }
+ 
+ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		if ctxt.LinkMode == LinkInternal {
+ 			windynrelocsym(ctxt, s)
+ 		}
+@@ -561,7 +561,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
+ 	// -d suppresses dynamic loader format, so we may as well not
+ 	// compute these sections or mark their symbols as reachable.
+-	if *FlagD && Headtype != objabi.Hwindows {
++	if *FlagD && ctxt.HeadType != objabi.Hwindows {
+ 		return
+ 	}
+ 	if ctxt.Debugvlog != 0 {
+@@ -1009,7 +1009,7 @@ func (ctxt *Link) dodata() {
+ 		ctxt.Logf("%5.2f dodata\n", Cputime())
+ 	}
+ 
+-	if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin {
++	if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+ 		// The values in moduledata are filled out by relocations
+ 		// pointing to the addresses of these special symbols.
+ 		// Typically these symbols have no size and are not laid
+@@ -1067,7 +1067,7 @@ func (ctxt *Link) dodata() {
+ 	// symbol, which is itself data.
+ 	//
+ 	// On darwin, we need the symbol table numbers for dynreloc.
+-	if Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		machosymorder(ctxt)
+ 	}
+ 	dynreloc(ctxt, &data)
+@@ -1612,7 +1612,7 @@ func (ctxt *Link) dodata() {
+ }
+ 
+ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym.Symbol, maxAlign int32) {
+-	if Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		// Some symbols may no longer belong in syms
+ 		// due to movement in machosymorder.
+ 		newSyms := make([]*sym.Symbol, 0, len(syms))
+@@ -1643,7 +1643,7 @@ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym
+ 		// If the usually-special section-marker symbols are being laid
+ 		// out as regular symbols, put them either at the beginning or
+ 		// end of their section.
+-		if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin {
++		if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+ 			switch s.Name {
+ 			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types":
+ 				head = s
+@@ -1764,7 +1764,7 @@ func (ctxt *Link) textaddress() {
+ 	text := ctxt.Syms.Lookup("runtime.text", 0)
+ 	text.Sect = sect
+ 
+-	if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin {
++	if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+ 		etext := ctxt.Syms.Lookup("runtime.etext", 0)
+ 		etext.Sect = sect
+ 
+@@ -1873,7 +1873,7 @@ func (ctxt *Link) address() {
+ 
+ 	Segtext.Length = va - uint64(*FlagTextAddr)
+ 	Segtext.Filelen = Segtext.Length
+-	if Headtype == objabi.Hnacl {
++	if ctxt.HeadType == objabi.Hnacl {
+ 		va += 32 // room for the "halt sled"
+ 	}
+ 
+@@ -1930,10 +1930,10 @@ func (ctxt *Link) address() {
+ 	Segdata.Vaddr = va
+ 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
+ 	Segdata.Filelen = 0
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		Segdata.Fileoff = Segtext.Fileoff + uint64(Rnd(int64(Segtext.Length), PEFILEALIGN))
+ 	}
+-	if Headtype == objabi.Hplan9 {
++	if ctxt.HeadType == objabi.Hplan9 {
+ 		Segdata.Fileoff = Segtext.Fileoff + Segtext.Filelen
+ 	}
+ 	var data *sym.Section
+@@ -1972,7 +1972,7 @@ func (ctxt *Link) address() {
+ 	Segdwarf.Vaddr = va
+ 	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
+ 	Segdwarf.Filelen = 0
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+ 	}
+ 	for i, s := range Segdwarf.Sections {
+@@ -1982,7 +1982,7 @@ func (ctxt *Link) address() {
+ 		}
+ 		s.Vaddr = va
+ 		va += uint64(vlen)
+-		if Headtype == objabi.Hwindows {
++		if ctxt.HeadType == objabi.Hwindows {
+ 			va = uint64(Rnd(int64(va), PEFILEALIGN))
+ 		}
+ 		Segdwarf.Length = va - Segdwarf.Vaddr
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 99e7789ad5..c065146fcd 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -222,7 +222,7 @@ func (d *deadcodepass) init() {
+ 		} else {
+ 			// The external linker refers main symbol directly.
+ 			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+-				if Headtype == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
++				if d.ctxt.HeadType == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
+ 					*flagEntrySymbol = "_main"
+ 				} else {
+ 					*flagEntrySymbol = "main"
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index f4987bd23a..df19e82760 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1463,7 +1463,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*s
+ }
+ 
+ func writegdbscript(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+-	if ctxt.LinkMode == LinkExternal && Headtype == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
++	if ctxt.LinkMode == LinkExternal && ctxt.HeadType == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
+ 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
+ 		// causes the program not to run. See https://golang.org/issue/20183
+ 		// Non c-archives can avoid this issue via a linker script
+@@ -1499,18 +1499,18 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	if *FlagW { // disable dwarf
+ 		return
+ 	}
+-	if *FlagS && Headtype != objabi.Hdarwin {
++	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
+ 		return
+ 	}
+-	if Headtype == objabi.Hplan9 {
++	if ctxt.HeadType == objabi.Hplan9 {
+ 		return
+ 	}
+ 
+ 	if ctxt.LinkMode == LinkExternal {
+ 		switch {
+ 		case ctxt.IsELF:
+-		case Headtype == objabi.Hdarwin:
+-		case Headtype == objabi.Hwindows:
++		case ctxt.HeadType == objabi.Hdarwin:
++		case ctxt.HeadType == objabi.Hwindows:
+ 		default:
+ 			return
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 4f7162f9af..230b0aa5df 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -516,7 +516,7 @@ func Elfinit(ctxt *Link) {
+ 	case sys.ARM, sys.MIPS:
+ 		if ctxt.Arch.Family == sys.ARM {
+ 			// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
+-			if Headtype == objabi.Hlinux || Headtype == objabi.Hfreebsd || Headtype == objabi.Hnetbsd {
++			if ctxt.HeadType == objabi.Hlinux || ctxt.HeadType == objabi.Hfreebsd || ctxt.HeadType == objabi.Hnetbsd {
+ 				// We set a value here that makes no indication of which
+ 				// float ABI the object uses, because this is information
+ 				// used by the dynamic linker to compare executables and
+@@ -1450,10 +1450,10 @@ func (ctxt *Link) doelf() {
+ 	if !*FlagD || ctxt.LinkMode == LinkExternal {
+ 		Addstring(shstrtab, ".tbss")
+ 	}
+-	if Headtype == objabi.Hnetbsd {
++	if ctxt.HeadType == objabi.Hnetbsd {
+ 		Addstring(shstrtab, ".note.netbsd.ident")
+ 	}
+-	if Headtype == objabi.Hopenbsd {
++	if ctxt.HeadType == objabi.Hopenbsd {
+ 		Addstring(shstrtab, ".note.openbsd.ident")
+ 	}
+ 	if len(buildinfo) > 0 {
+@@ -1826,7 +1826,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	 * segment boundaries downwards to include it.
+ 	 * Except on NaCl where it must not be loaded.
+ 	 */
+-	if Headtype != objabi.Hnacl {
++	if ctxt.HeadType != objabi.Hnacl {
+ 		o := int64(Segtext.Vaddr - pph.vaddr)
+ 		Segtext.Vaddr -= uint64(o)
+ 		Segtext.Length += uint64(o)
+@@ -1843,7 +1843,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+ 		if interpreter == "" {
+-			switch Headtype {
++			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+ 				interpreter = Thearch.Linuxdynld
+ 
+@@ -1873,9 +1873,9 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	}
+ 
+ 	pnote = nil
+-	if Headtype == objabi.Hnetbsd || Headtype == objabi.Hopenbsd {
++	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
+ 		var sh *ElfShdr
+-		switch Headtype {
++		switch ctxt.HeadType {
+ 		case objabi.Hnetbsd:
+ 			sh = elfshname(".note.netbsd.ident")
+ 			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
+@@ -2087,7 +2087,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		}
+ 	}
+ 
+-	if Headtype == objabi.Hlinux {
++	if ctxt.HeadType == objabi.Hlinux {
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_GNU_STACK
+ 		ph.flags = PF_W + PF_R
+@@ -2097,7 +2097,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		ph.type_ = PT_PAX_FLAGS
+ 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
+ 		ph.align = uint64(ctxt.Arch.RegSize)
+-	} else if Headtype == objabi.Hsolaris {
++	} else if ctxt.HeadType == objabi.Hsolaris {
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_SUNWSTACK
+ 		ph.flags = PF_W + PF_R
+@@ -2181,13 +2181,13 @@ elfobj:
+ 	eh.ident[EI_MAG1] = 'E'
+ 	eh.ident[EI_MAG2] = 'L'
+ 	eh.ident[EI_MAG3] = 'F'
+-	if Headtype == objabi.Hfreebsd {
++	if ctxt.HeadType == objabi.Hfreebsd {
+ 		eh.ident[EI_OSABI] = ELFOSABI_FREEBSD
+-	} else if Headtype == objabi.Hnetbsd {
++	} else if ctxt.HeadType == objabi.Hnetbsd {
+ 		eh.ident[EI_OSABI] = ELFOSABI_NETBSD
+-	} else if Headtype == objabi.Hopenbsd {
++	} else if ctxt.HeadType == objabi.Hopenbsd {
+ 		eh.ident[EI_OSABI] = ELFOSABI_OPENBSD
+-	} else if Headtype == objabi.Hdragonfly {
++	} else if ctxt.HeadType == objabi.Hdragonfly {
+ 		eh.ident[EI_OSABI] = ELFOSABI_NONE
+ 	}
+ 	if elf64 {
+@@ -2230,10 +2230,10 @@ elfobj:
+ 		a += int64(elfwriteinterp(ctxt.Out))
+ 	}
+ 	if ctxt.LinkMode != LinkExternal {
+-		if Headtype == objabi.Hnetbsd {
++		if ctxt.HeadType == objabi.Hnetbsd {
+ 			a += int64(elfwritenetbsdsig(ctxt.Out))
+ 		}
+-		if Headtype == objabi.Hopenbsd {
++		if ctxt.HeadType == objabi.Hopenbsd {
+ 			a += int64(elfwriteopenbsdsig(ctxt.Out))
+ 		}
+ 		if len(buildinfo) > 0 {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index c4e6bf6f2f..6cfbaebb73 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -171,7 +171,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				// to force a link of foo.so.
+ 				havedynamic = 1
+ 
+-				if Headtype == objabi.Hdarwin {
++				if ctxt.HeadType == objabi.Hdarwin {
+ 					machoadddynlib(lib, ctxt.LinkMode)
+ 				} else {
+ 					dynlib = append(dynlib, lib)
+@@ -316,9 +316,9 @@ func Adddynsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 	if ctxt.IsELF {
+ 		elfadddynsym(ctxt, s)
+-	} else if Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
+-	} else if Headtype == objabi.Hwindows {
++	} else if ctxt.HeadType == objabi.Hwindows {
+ 		// already taken care of
+ 	} else {
+ 		Errorf(s, "adddynsym: unsupported binary format")
+@@ -358,7 +358,7 @@ func fieldtrack(ctxt *Link) {
+ }
+ 
+ func (ctxt *Link) addexport() {
+-	if Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 913b70ec93..bd3abbba0a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -170,9 +170,8 @@ var (
+ 	elfglobalsymndx int
+ 	interpreter     string
+ 
+-	debug_s  bool // backup old value of debug['s']
+-	HEADR    int32
+-	Headtype objabi.HeadType
++	debug_s bool // backup old value of debug['s']
++	HEADR   int32
+ 
+ 	nerrors  int
+ 	liveness int64
+@@ -382,11 +381,11 @@ func (ctxt *Link) loadlib() {
+ 	determineLinkMode(ctxt)
+ 
+ 	// Recalculate pe parameters now that we have ctxt.LinkMode set.
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		Peinit(ctxt)
+ 	}
+ 
+-	if Headtype == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
++	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+ 		*FlagTextAddr = 0
+ 	}
+ 
+@@ -522,7 +521,7 @@ func (ctxt *Link) loadlib() {
+ 			if *flagLibGCC != "none" {
+ 				hostArchive(ctxt, *flagLibGCC)
+ 			}
+-			if Headtype == objabi.Hwindows {
++			if ctxt.HeadType == objabi.Hwindows {
+ 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+ 					hostArchive(ctxt, p)
+ 				}
+@@ -557,7 +556,7 @@ func (ctxt *Link) loadlib() {
+ 	// Also leave it enabled on Solaris which doesn't support
+ 	// statically linked binaries.
+ 	if ctxt.BuildMode == BuildModeExe {
+-		if havedynamic == 0 && Headtype != objabi.Hdarwin && Headtype != objabi.Hsolaris {
++		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
+ 			*FlagD = true
+ 		}
+ 	}
+@@ -594,7 +593,7 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	if ctxt.Arch == sys.Arch386 {
+-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
++		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && ctxt.HeadType != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 			got.Type = sym.SDYNIMPORT
+ 			got.Attr |= sym.AttrReachable
+@@ -866,7 +865,7 @@ var internalpkg = []string{
+ 	"runtime/msan",
+ }
+ 
+-func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
++func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+ 	isinternal := false
+ 	for i := 0; i < len(internalpkg); i++ {
+ 		if pkg == internalpkg[i] {
+@@ -881,7 +880,7 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader
+ 	// force external linking for any libraries that link in code that
+ 	// uses errno. This can be removed if the Go linker ever supports
+ 	// these relocation types.
+-	if Headtype == objabi.Hdragonfly {
++	if headType == objabi.Hdragonfly {
+ 		if pkg == "net" || pkg == "os/user" {
+ 			isinternal = false
+ 		}
+@@ -1076,7 +1075,7 @@ func (ctxt *Link) hostlink() {
+ 
+ 	if !*FlagS && !debug_s {
+ 		argv = append(argv, "-gdwarf-2")
+-	} else if Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		// Recent versions of macOS print
+ 		//	ld: warning: option -s is obsolete and being ignored
+ 		// so do not pass any arguments.
+@@ -1084,7 +1083,7 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, "-s")
+ 	}
+ 
+-	switch Headtype {
++	switch ctxt.HeadType {
+ 	case objabi.Hdarwin:
+ 		argv = append(argv, "-Wl,-headerpad,1144")
+ 		if ctxt.DynlinkingGo() {
+@@ -1105,19 +1104,19 @@ func (ctxt *Link) hostlink() {
+ 
+ 	switch ctxt.BuildMode {
+ 	case BuildModeExe:
+-		if Headtype == objabi.Hdarwin {
++		if ctxt.HeadType == objabi.Hdarwin {
+ 			argv = append(argv, "-Wl,-pagezero_size,4000000")
+ 		}
+ 	case BuildModePIE:
+ 		// ELF.
+-		if Headtype != objabi.Hdarwin {
++		if ctxt.HeadType != objabi.Hdarwin {
+ 			if ctxt.UseRelro() {
+ 				argv = append(argv, "-Wl,-z,relro")
+ 			}
+ 			argv = append(argv, "-pie")
+ 		}
+ 	case BuildModeCShared:
+-		if Headtype == objabi.Hdarwin {
++		if ctxt.HeadType == objabi.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+ 			if ctxt.Arch.Family != sys.AMD64 {
+ 				argv = append(argv, "-Wl,-read_only_relocs,suppress")
+@@ -1129,7 +1128,7 @@ func (ctxt *Link) hostlink() {
+ 				argv = append(argv, "-Wl,-z,relro")
+ 			}
+ 			argv = append(argv, "-shared")
+-			if Headtype != objabi.Hwindows {
++			if ctxt.HeadType != objabi.Hwindows {
+ 				// Pass -z nodelete to mark the shared library as
+ 				// non-closeable: a dlclose will do nothing.
+ 				argv = append(argv, "-Wl,-z,nodelete")
+@@ -1141,7 +1140,7 @@ func (ctxt *Link) hostlink() {
+ 		}
+ 		argv = append(argv, "-shared")
+ 	case BuildModePlugin:
+-		if Headtype == objabi.Hdarwin {
++		if ctxt.HeadType == objabi.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+ 		} else {
+ 			if ctxt.UseRelro() {
+@@ -1299,7 +1298,7 @@ func (ctxt *Link) hostlink() {
+ 			}
+ 		}
+ 	}
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		// use gcc linker script to work around gcc bug
+ 		// (see https://golang.org/issue/20183 for details).
+ 		p := writeGDBLinkerScript()
+@@ -1326,7 +1325,7 @@ func (ctxt *Link) hostlink() {
+ 		ctxt.Logf("%s", out)
+ 	}
+ 
+-	if !*FlagS && !*FlagW && !debug_s && Headtype == objabi.Hdarwin {
++	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
+ 		// Skip combining dwarf on arm.
+ 		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+ 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+@@ -1395,7 +1394,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 			ehdr.flags = flags
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+ 		}
+-		return ldhostobj(ldelf, f, pkg, length, pn, file)
++		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+@@ -1407,7 +1406,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 			}
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+ 		}
+-		return ldhostobj(ldmacho, f, pkg, length, pn, file)
++		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+@@ -1422,7 +1421,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 			}
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+ 		}
+-		return ldhostobj(ldpe, f, pkg, length, pn, file)
++		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+ 	/* check the header */
+@@ -1959,9 +1958,9 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 	s := ctxt.Syms.Lookup("runtime.text", 0)
+ 	if s.Type == sym.STEXT {
+ 		// We've already included this symbol in ctxt.Textp
+-		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
++		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+ 		// See data.go:/textaddress
+-		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
++		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+ 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 		}
+ 	}
+@@ -1990,9 +1989,9 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 	s = ctxt.Syms.Lookup("runtime.etext", 0)
+ 	if s.Type == sym.STEXT {
+ 		// We've already included this symbol in ctxt.Textp
+-		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
++		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+ 		// See data.go:/textaddress
+-		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
++		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+ 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 		}
+ 	}
+@@ -2043,7 +2042,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
+ 
+ 		case sym.SHOSTOBJ:
+-			if Headtype == objabi.Hwindows || ctxt.IsELF {
++			if ctxt.HeadType == objabi.Hwindows || ctxt.IsELF {
+ 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 65afd49db9..a413353b9f 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -60,7 +60,8 @@ type Link struct {
+ 
+ 	Loaded bool // set after all inputs have been loaded as symbols
+ 
+-	IsELF bool
++	IsELF    bool
++	HeadType objabi.HeadType
+ 
+ 	linkShared bool // link against installed Go shared libraries
+ 	LinkMode   LinkMode
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8c69d297c0..42e1ef7f47 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -85,7 +85,6 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 
+-	flagHeadtype    = flag.String("H", "", "set header `type`")
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+ 	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
+@@ -115,6 +114,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
++	flagHeadType := flag.String("H", "", "set header `type`")
+ 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
+ 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
+ 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
+@@ -127,13 +127,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	objabi.Flagparse(usage)
+ 
+-	switch *flagHeadtype {
++	switch *flagHeadType {
+ 	case "":
+ 	case "windowsgui":
+-		Headtype = objabi.Hwindows
++		ctxt.HeadType = objabi.Hwindows
+ 		windowsgui = true
+ 	default:
+-		if err := Headtype.Set(*flagHeadtype); err != nil {
++		if err := ctxt.HeadType.Set(*flagHeadType); err != nil {
+ 			Errorf(nil, "%v", err)
+ 			usage()
+ 		}
+@@ -150,7 +150,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	if *flagOutfile == "" {
+ 		*flagOutfile = "a.out"
+-		if Headtype == objabi.Hwindows {
++		if ctxt.HeadType == objabi.Hwindows {
+ 			*flagOutfile += ".exe"
+ 		}
+ 	}
+@@ -159,8 +159,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	libinit(ctxt) // creates outfile
+ 
+-	if Headtype == objabi.Hunknown {
+-		Headtype.Set(objabi.GOOS)
++	if ctxt.HeadType == objabi.Hunknown {
++		ctxt.HeadType.Set(objabi.GOOS)
+ 	}
+ 
+ 	ctxt.computeTLSOffset()
+@@ -171,7 +171,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 {
+-		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", Headtype, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
++		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+ 	}
+ 
+ 	switch ctxt.BuildMode {
+@@ -202,11 +202,11 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.callgraph()
+ 
+ 	ctxt.doelf()
+-	if Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		ctxt.domacho()
+ 	}
+ 	ctxt.dostkcheck()
+-	if Headtype == objabi.Hwindows {
++	if ctxt.HeadType == objabi.Hwindows {
+ 		ctxt.dope()
+ 	}
+ 	ctxt.addexport()
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 6384c81d5c..b954c05c81 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -176,7 +176,7 @@ func emitPcln(ctxt *Link, s *sym.Symbol) bool {
+ 	if s == nil {
+ 		return true
+ 	}
+-	if ctxt.BuildMode == BuildModePlugin && Headtype == objabi.Hdarwin && onlycsymbol(s) {
++	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(s) {
+ 		return false
+ 	}
+ 	// We want to generate func table entries only for the "lowest level" symbols,
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 1c75ead6c1..6f019de8cc 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -62,9 +62,9 @@ func linknew(arch *sys.Arch) *Link {
+ 
+ // computeTLSOffset records the thread-local storage offset.
+ func (ctxt *Link) computeTLSOffset() {
+-	switch Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		log.Fatalf("unknown thread-local storage offset for %v", Headtype)
++		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9, objabi.Hwindows:
+ 		break
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 572b63a523..20ac6b7139 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -231,7 +231,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
+ 
+ 	case AutoSym, ParamSym, FrameSym:
+ 		l := 4
+-		if Headtype == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
++		if ctxt.HeadType == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
+ 			ctxt.Out.Write32b(uint32(addr >> 32))
+ 			l = 8
+ 		}
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 4c1be5250a..306d53f571 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -240,7 +240,7 @@ func asmb(ctxt *ld.Link) {
+ 	}
+ 
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 		ld.Errorf(nil, "unsupported operating system")
+ 	case objabi.Hlinux:
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 3a3aadf720..c5d3451c39 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -73,9 +73,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 	case objabi.Hlinux: /* mips elf */
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 98ddcad5a3..295a0aafae 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -226,7 +226,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+@@ -238,7 +238,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				if ctxt.Debugvlog != 0 {
+@@ -270,7 +270,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f header\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+ 		magic := uint32(4*18*18 + 7)
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index c3b810afc4..83974e5b56 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -71,9 +71,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index ff011c170c..4e277f9aa9 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -958,7 +958,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+@@ -970,7 +970,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				if ctxt.Debugvlog != 0 {
+@@ -1002,7 +1002,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f header\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ctxt.Out.Write32(0x647)                      /* magic */
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 49c3fe129d..273d9b42cb 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -75,9 +75,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index d6dc91cd04..634ba98dd3 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -579,7 +579,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f header\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 		ld.Errorf(nil, "unsupported operating system")
+ 	case objabi.Hlinux:
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 47b22c1033..9ac7eb8217 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -71,9 +71,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hlinux: // s390x ELF
+ 		ld.Elfinit(ctxt)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 208e26aad1..2230384303 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -316,7 +316,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
++		if ctxt.HeadType == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -574,7 +574,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_JMP_SLOT)))
+ 
+ 		s.Plt = int32(plt.Size - 16)
+-	} else if ld.Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		// Same laziness as in 6l.
+ 
+ 		plt := ctxt.Syms.Lookup(".plt", 0)
+@@ -608,7 +608,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rel := ctxt.Syms.Lookup(".rel", 0)
+ 		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_GLOB_DAT)))
+-	} else if ld.Headtype == objabi.Hdarwin {
++	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+ 	} else {
+ 		ld.Errorf(s, "addgotsym: unsupported binary format")
+@@ -660,7 +660,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+ 
+ 	machlink := uint32(0)
+-	if ld.Headtype == objabi.Hdarwin {
++	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+ 	}
+ 
+@@ -673,7 +673,7 @@ func asmb(ctxt *ld.Link) {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", ld.Cputime())
+ 		}
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+@@ -692,7 +692,7 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+-		switch ld.Headtype {
++		switch ctxt.HeadType {
+ 		default:
+ 			if ctxt.IsELF {
+ 				if ctxt.Debugvlog != 0 {
+@@ -734,7 +734,7 @@ func asmb(ctxt *ld.Link) {
+ 		ctxt.Logf("%5.2f headr\n", ld.Cputime())
+ 	}
+ 	ctxt.Out.SeekSet(0)
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan9 */
+ 		magic := int32(4*11*11 + 7)
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 542ce15204..6a744dc04e 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -69,9 +69,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	switch ld.Headtype {
++	switch ctxt.HeadType {
+ 	default:
+-		ld.Exitf("unknown -H option: %v", ld.Headtype)
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32

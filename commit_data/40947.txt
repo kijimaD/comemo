@@ -19,7 +19,62 @@ Date:   Wed May 22 17:00:34 2019 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/reflectlite/type.go | 8 ++++++--
  src/reflect/type.go              | 8 ++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 03274bcd4c..c706319a8e 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -521,8 +521,12 @@ func (t *rtype) PkgPath() string {
+ 	return t.nameOff(ut.pkgPath).name()
+ }
+ 
++func (t *rtype) hasName() bool {
++	return t.tflag&tflagNamed != 0
++}
++
+ func (t *rtype) Name() string {
+-	if t.tflag&tflagNamed == 0 {
++	if !t.hasName() {
+ 		return ""
+ 	}
+ 	s := t.String()
+@@ -782,7 +786,7 @@ func directlyAssignable(T, V *rtype) bool {
+ 
+ 	// Otherwise at least one of T and V must not be defined
+ 	// and they must have the same kind.
+-	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
++	if T.hasName() && V.hasName() || T.Kind() != V.Kind() {
+ 		return false
+ 	}
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 7aafc505bd..4afe634bbf 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -871,8 +871,12 @@ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+ }
+ 
++func (t *rtype) hasName() bool {
++	return t.tflag&tflagNamed != 0
++}
++
+ func (t *rtype) Name() string {
+-	if t.tflag&tflagNamed == 0 {
++	if !t.hasName() {
+ 		return ""
+ 	}
+ 	s := t.String()
+@@ -1563,7 +1567,7 @@ func directlyAssignable(T, V *rtype) bool {
+ 
+ 	// Otherwise at least one of T and V must not be defined
+ 	// and they must have the same kind.
+-	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
++	if T.hasName() && V.hasName() || T.Kind() != V.Kind() {
+ 		return false
+ 	}
+ 

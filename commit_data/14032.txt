@@ -7,6 +7,24 @@ Date:   Sat Oct 6 13:56:12 2012 +0800
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6621052
-
+---
  src/cmd/cc/godefs.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/godefs.c b/src/cmd/cc/godefs.c
+index 4274c56265..7457bd0007 100644
+--- a/src/cmd/cc/godefs.c
++++ b/src/cmd/cc/godefs.c
+@@ -188,10 +188,10 @@ printtypename(Type *t)
+ 
+ 	switch(t->etype) {
+ 	case TINT:
+-		Bprint(&outbuf, "int");
++		Bprint(&outbuf, "int32");
+ 		break;
+ 	case TUINT:
+-		Bprint(&outbuf, "uint");
++		Bprint(&outbuf, "uint32");
+ 		break;
+ 	case TCHAR:
+ 		Bprint(&outbuf, "int8");

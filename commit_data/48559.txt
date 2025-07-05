@@ -41,6 +41,54 @@ Date:   Sun May 30 18:13:36 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types/fmt.go | 33 +++++++++++----------------------
  1 file changed, 11 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index b538ea8054..cecd1b3cc1 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -319,31 +319,20 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 
+ 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
+ 	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] {
+-		switch mode {
+-		case fmtTypeID, fmtTypeIDName:
+-			if verb == 'S' {
+-				if t.Vargen != 0 {
+-					sconv2(b, t.Sym(), 'S', mode)
+-					fmt.Fprintf(b, "·%d", t.Vargen)
+-					return
+-				}
+-				sconv2(b, t.Sym(), 'S', mode)
+-				return
+-			}
++		// Default to 'v' if verb is invalid.
++		if verb != 'S' {
++			verb = 'v'
++		}
+ 
+-			if mode == fmtTypeIDName {
+-				sconv2(b, t.Sym(), 'v', fmtTypeIDName)
+-				return
+-			}
++		sconv2(b, t.Sym(), verb, mode)
+ 
+-			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
+-				sconv2(b, t.Sym(), 'v', mode)
+-				fmt.Fprintf(b, "·%d", t.Vargen)
+-				return
+-			}
++		// TODO(mdempsky): Investigate including Vargen in fmtTypeIDName
++		// output too. It seems like it should, but that mode is currently
++		// used in string representation used by reflection, which is
++		// user-visible and doesn't expect this.
++		if mode == fmtTypeID && t.Vargen != 0 {
++			fmt.Fprintf(b, "·%d", t.Vargen)
+ 		}
+-
+-		sconv2(b, t.Sym(), 'v', mode)
+ 		return
+ 	}
+ 

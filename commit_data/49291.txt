@@ -20,9 +20,88 @@ Date:   Fri Aug 6 16:29:09 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 4 ----
  src/cmd/compile/internal/typecheck/iexport.go | 1 -
  src/cmd/compile/internal/typecheck/iimport.go | 9 +++++++--
  src/cmd/compile/internal/types/type.go        | 6 ++++++
  4 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 523b00313d..99eb964415 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -364,10 +364,6 @@ func (r *importReader) obj(name string) {
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected type param type")
+ 		}
+-		// Type parameter indices are lazily "allocated".
+-		// There's no need to export them anymore.
+-		// TODO change the export format accordingly
+-		_ = int(r.int64())
+ 		name0, sub := parseSubscript(name)
+ 		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
+ 		t := (*types2.Checker)(nil).NewTypeParam(tn, nil)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index d877b03e48..2944908bcb 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -531,7 +531,6 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// A typeparam has a name, and has a type bound rather
+ 			// than an underlying type.
+ 			w.pos(n.Pos())
+-			w.int64(int64(n.Type().Index()))
+ 			w.typ(n.Type().Bound())
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 2957212fb2..2e8b18c0b7 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -388,8 +388,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			// this types2-to-types1 translation.
+ 			return sym.Def.(*ir.Name)
+ 		}
+-		index := int(r.int64())
+-		t := types.NewTypeParam(sym, index)
++		// The typeparam index is set at the point where the containing type
++		// param list is imported.
++		t := types.NewTypeParam(sym, 0)
+ 		// Nname needed to save the pos.
+ 		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+ 		sym.Def = nname
+@@ -875,6 +876,9 @@ func (r *importReader) typeList() []*types.Type {
+ 	ts := make([]*types.Type, n)
+ 	for i := range ts {
+ 		ts[i] = r.typ()
++		if ts[i].IsTypeParam() {
++			ts[i].SetIndex(i)
++		}
+ 	}
+ 	return ts
+ }
+@@ -887,6 +891,7 @@ func (r *importReader) tparamList() []*types.Field {
+ 	fs := make([]*types.Field, n)
+ 	for i := range fs {
+ 		typ := r.typ()
++		typ.SetIndex(i)
+ 		fs[i] = types.NewField(typ.Pos(), typ.Sym(), typ)
+ 	}
+ 	return fs
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 1f01498ca1..099080f48f 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1885,6 +1885,12 @@ func (t *Type) Index() int {
+ 	return t.Extra.(*Typeparam).index
+ }
+ 
++// SetIndex sets the index of the type param within its param list.
++func (t *Type) SetIndex(i int) {
++	t.wantEtype(TTYPEPARAM)
++	t.Extra.(*Typeparam).index = i
++}
++
+ // SetBound sets the bound of a typeparam.
+ func (t *Type) SetBound(bound *Type) {
+ 	t.wantEtype(TTYPEPARAM)

@@ -11,7 +11,41 @@ Date:   Thu Nov 7 20:23:06 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go        | 7 +++++++
  src/cmd/go/testdata/script/env_write.txt | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index da704777f5..023d542d88 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -353,6 +353,13 @@ func checkEnvWrite(key, val string) error {
+ 		default:
+ 			return fmt.Errorf("invalid %s value %q", key, val)
+ 		}
++	case "GOPATH":
++		if strings.HasPrefix(val, "~") {
++			return fmt.Errorf("GOPATH entry cannot start with shell metacharacter '~': %q", val)
++		}
++		if !filepath.IsAbs(val) && val != "" {
++			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
++		}
+ 	}
+ 
+ 	if !utf8.ValidString(val) {
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 7dbb1d9028..8b9c1bbf45 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -89,3 +89,10 @@ stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'
+ # go env -w rejects invalid GO111MODULE values, as otherwise cmd/go would break
+ ! go env -w GO111MODULE=badvalue
+ stderr 'invalid GO111MODULE value "badvalue"'
++
++# go env -w rejects invalid GOPATH values
++! go env -w GOPATH=~/go
++stderr 'GOPATH entry cannot start with shell metacharacter'
++
++! go env -w GOPATH=./go
++stderr 'GOPATH entry is relative; must be absolute path'

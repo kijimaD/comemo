@@ -7,6 +7,19 @@ Date:   Tue Jan 25 10:48:44 2011 -0500
     R=agl1, danderson
     CC=golang-dev
     https://golang.org/cl/4029044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fe28865f0c..76199ddb50 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -72,6 +72,7 @@ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Nadasi <dnadasi@google.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Daniel Theophanes <kardianos@gmail.com>
++David Anderson <danderson@google.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Symonds <dsymonds@golang.org>
+ David Titarenco <david.titarenco@gmail.com>

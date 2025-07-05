@@ -15,8 +15,64 @@ Date:   Sun Sep 22 19:53:55 2013 -0700
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/13386047
-
+---
  src/pkg/net/http/export_test.go |  2 ++
  src/pkg/net/http/serve_test.go  | 13 +++++++++++++
  src/pkg/net/http/server.go      |  3 ++-
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/export_test.go b/src/pkg/net/http/export_test.go
+index 271ff4df9c..22b7f27968 100644
+--- a/src/pkg/net/http/export_test.go
++++ b/src/pkg/net/http/export_test.go
+@@ -16,6 +16,8 @@ func NewLoggingConn(baseName string, c net.Conn) net.Conn {
+ 	return newLoggingConn(baseName, c)
+ }
+ 
++var ExportAppendTime = appendTime
++
+ func (t *Transport) NumPendingRequestsForTesting() int {
+ 	t.reqMu.Lock()
+ 	defer t.reqMu.Unlock()
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index c7c842b2fd..d5ee6e0e8a 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2080,6 +2080,19 @@ func TestResponseWriterWriteStringAllocs(t *testing.T) {
+ 	}
+ }
+ 
++func TestAppendTime(t *testing.T) {
++	var b [len(TimeFormat)]byte
++	t1 := time.Date(2013, 9, 21, 15, 41, 0, 0, time.FixedZone("CEST", 2*60*60))
++	res := ExportAppendTime(b[:0], t1)
++	t2, err := ParseTime(string(res))
++	if err != nil {
++		t.Fatalf("Error parsing time: %s", err)
++	}
++	if !t1.Equal(t2) {
++		t.Fatalf("Times differ; expected: %v, got %v (%s)", t1, t2, string(res))
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 67f175fd6e..cc0b4e237b 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -530,11 +530,12 @@ func (ecr *expectContinueReader) Close() error {
+ // It is like time.RFC1123 but hard codes GMT as the time zone.
+ const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
+ 
+-// appendTime is a non-allocating version of []byte(time.Now().UTC().Format(TimeFormat))
++// appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
+ func appendTime(b []byte, t time.Time) []byte {
+ 	const days = "SunMonTueWedThuFriSat"
+ 	const months = "JanFebMarAprMayJunJulAugSepOctNovDec"
+ 
++	t = t.UTC()
+ 	yy, mm, dd := t.Date()
+ 	hh, mn, ss := t.Clock()
+ 	day := days[3*t.Weekday():]

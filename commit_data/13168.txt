@@ -9,8 +9,164 @@ Date:   Thu May 24 17:32:25 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6250056
-
+---
  misc/dist/bindist.go     | 64 ++----------------------------------------------
  misc/dist/stat_darwin.go | 32 ------------------------
  misc/dist/stat_linux.go  | 32 ------------------------
  3 files changed, 2 insertions(+), 126 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 891397635b..6ddce29d9f 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -581,7 +581,8 @@ func makeTar(targ, workdir string) error {
+ 		if *verbose {
+ 			log.Printf("adding to tar: %s", name)
+ 		}
+-		hdr, err := tarFileInfoHeader(fi, path)
++		target, _ := os.Readlink(path)
++		hdr, err := tar.FileInfoHeader(fi, target)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -752,64 +753,3 @@ func lookPath(prog string) (absPath string, err error) {
+ 	}
+ 	return
+ }
+-
+-// sysStat, if non-nil, populates h from system-dependent fields of fi.
+-var sysStat func(fi os.FileInfo, h *tar.Header) error
+-
+-// Mode constants from the tar spec.
+-const (
+-	c_ISDIR  = 040000
+-	c_ISFIFO = 010000
+-	c_ISREG  = 0100000
+-	c_ISLNK  = 0120000
+-	c_ISBLK  = 060000
+-	c_ISCHR  = 020000
+-	c_ISSOCK = 0140000
+-)
+-
+-// tarFileInfoHeader creates a partially-populated Header from an os.FileInfo.
+-// The filename parameter is used only in the case of symlinks, to call os.Readlink.
+-// If fi is a symlink but filename is empty, an error is returned.
+-func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
+-	h := &tar.Header{
+-		Name:    fi.Name(),
+-		ModTime: fi.ModTime(),
+-		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
+-	}
+-	switch {
+-	case fi.Mode()&os.ModeType == 0:
+-		h.Mode |= c_ISREG
+-		h.Typeflag = tar.TypeReg
+-		h.Size = fi.Size()
+-	case fi.IsDir():
+-		h.Typeflag = tar.TypeDir
+-		h.Mode |= c_ISDIR
+-	case fi.Mode()&os.ModeSymlink != 0:
+-		h.Typeflag = tar.TypeSymlink
+-		h.Mode |= c_ISLNK
+-		if filename == "" {
+-			return h, fmt.Errorf("archive/tar: unable to populate Header.Linkname of symlinks")
+-		}
+-		targ, err := os.Readlink(filename)
+-		if err != nil {
+-			return h, err
+-		}
+-		h.Linkname = targ
+-	case fi.Mode()&os.ModeDevice != 0:
+-		if fi.Mode()&os.ModeCharDevice != 0 {
+-			h.Mode |= c_ISCHR
+-			h.Typeflag = tar.TypeChar
+-		} else {
+-			h.Mode |= c_ISBLK
+-			h.Typeflag = tar.TypeBlock
+-		}
+-	case fi.Mode()&os.ModeSocket != 0:
+-		h.Mode |= c_ISSOCK
+-	default:
+-		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fi.Mode())
+-	}
+-	if sysStat != nil {
+-		return h, sysStat(fi, h)
+-	}
+-	return h, nil
+-}
+diff --git a/misc/dist/stat_darwin.go b/misc/dist/stat_darwin.go
+deleted file mode 100644
+index eb3f76a27c..0000000000
+--- a/misc/dist/stat_darwin.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin
+-
+-package main
+-
+-import (
+-	"archive/tar"
+-	"os"
+-	"syscall"
+-	"time"
+-)
+-
+-func init() {
+-	sysStat = func(fi os.FileInfo, h *tar.Header) error {
+-		sys, ok := fi.Sys().(*syscall.Stat_t)
+-		if !ok {
+-			return nil
+-		}
+-		h.Uid = int(sys.Uid)
+-		h.Gid = int(sys.Gid)
+-		// TODO(bradfitz): populate username & group.  os/user
+-		// doesn't cache LookupId lookups, and lacks group
+-		// lookup functions.
+-		h.AccessTime = time.Unix(sys.Atimespec.Unix())
+-		h.ChangeTime = time.Unix(sys.Ctimespec.Unix())
+-		// TODO(bradfitz): major/minor device numbers?
+-		return nil
+-	}
+-}
+diff --git a/misc/dist/stat_linux.go b/misc/dist/stat_linux.go
+deleted file mode 100644
+index 0ddb8a3bfc..0000000000
+--- a/misc/dist/stat_linux.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build linux
+-
+-package main
+-
+-import (
+-	"archive/tar"
+-	"os"
+-	"syscall"
+-	"time"
+-)
+-
+-func init() {
+-	sysStat = func(fi os.FileInfo, h *tar.Header) error {
+-		sys, ok := fi.Sys().(*syscall.Stat_t)
+-		if !ok {
+-			return nil
+-		}
+-		h.Uid = int(sys.Uid)
+-		h.Gid = int(sys.Gid)
+-		// TODO(bradfitz): populate username & group.  os/user
+-		// doesn't cache LookupId lookups, and lacks group
+-		// lookup functions.
+-		h.AccessTime = time.Unix(sys.Atim.Unix())
+-		h.ChangeTime = time.Unix(sys.Ctim.Unix())
+-		// TODO(bradfitz): major/minor device numbers?
+-		return nil
+-	}
+-}

@@ -11,6 +11,24 @@ Date:   Thu Dec 7 11:34:35 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/547999
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  doc/go1.22.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 2f08803221..d11a633029 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -805,9 +805,10 @@ defer func() {
+   The <code>linux/loong64</code> port now supports the memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
+ </p>
+ 
+-
++<h3 id="openbsd">OpenBSD</h3>
+ <p><!-- CL 517935 -->
+-  TODO: <a href="https://go.dev/cl/517935">https://go.dev/cl/517935</a>: cmd/dist,internal/platform: enable openbsd/ppc64 port
++  Go 1.22 adds an experimental port to OpenBSD on big-endian 64-bit PowerPC
++  (<code>openbsd/ppc64</code>).
+ </p>
+ 
+ 

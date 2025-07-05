@@ -11,7 +11,33 @@ Date:   Sat Jun 13 11:25:17 2015 -0400
     Change-Id: I21fa0d070dd35256681ad0714000f238477d4af1
     Reviewed-on: https://go-review.googlesource.com/11044
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/request.go  | 1 +
  src/net/http/response.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 08d1230df1..353323c410 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -243,6 +243,7 @@ func (r *Request) Cookies() []*Cookie {
+ 	return readCookies(r.Header, "")
+ }
+ 
++// ErrNoCookie is returned by Request's Cookie method when a cookie is not found.
+ var ErrNoCookie = errors.New("http: named cookie not present")
+ 
+ // Cookie returns the named cookie provided in the request or
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 4afecda130..76b8538524 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -93,6 +93,8 @@ func (r *Response) Cookies() []*Cookie {
+ 	return readSetCookies(r.Header)
+ }
+ 
++// ErrNoLocation is returned by Response's Location method
++// when no Location header is present.
+ var ErrNoLocation = errors.New("http: no Location header in response")
+ 
+ // Location returns the URL of the response's "Location" header,

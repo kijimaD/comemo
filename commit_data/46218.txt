@@ -13,6 +13,20 @@ Date:   Mon Dec 14 21:43:50 2020 -0800
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue11362.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue11362.go b/test/fixedbugs/issue11362.go
+index 9e9e599595..964e5fdf6b 100644
+--- a/test/fixedbugs/issue11362.go
++++ b/test/fixedbugs/issue11362.go
+@@ -8,7 +8,7 @@
+ 
+ package main
+ 
+-import _ "unicode//utf8" // ERROR "non-canonical import path .unicode//utf8. \(should be .unicode/utf8.\)" "can't find import: .unicode//utf8."
++import _ "unicode//utf8" // GC_ERROR "non-canonical import path .unicode//utf8. \(should be .unicode/utf8.\)" "can't find import: .unicode//utf8."
+ 
+ func main() {
+ }

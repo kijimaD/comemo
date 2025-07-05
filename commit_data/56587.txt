@@ -14,7 +14,80 @@ Date:   Fri May 5 13:22:02 2023 +0200
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/ed25519/ed25519.go |  5 +++--
  src/crypto/rsa/rsa.go         | 12 +++++++++---
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index a043eaf807..32a8d9e86c 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -18,6 +18,7 @@ import (
+ 	"crypto/internal/edwards25519"
+ 	cryptorand "crypto/rand"
+ 	"crypto/sha512"
++	"crypto/subtle"
+ 	"errors"
+ 	"io"
+ 	"strconv"
+@@ -46,7 +47,7 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return bytes.Equal(pub, xx)
++	return subtle.ConstantTimeCompare(pub, xx) == 1
+ }
+ 
+ // PrivateKey is the type of Ed25519 private keys. It implements [crypto.Signer].
+@@ -65,7 +66,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return bytes.Equal(priv, xx)
++	return subtle.ConstantTimeCompare(priv, xx) == 1
+ }
+ 
+ // Seed returns the private key seed corresponding to priv. It is provided for
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 64a27660dc..6f0221d74b 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -64,7 +64,7 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
++	return bigIntEqual(pub.N, xx.N) && pub.E == xx.E
+ }
+ 
+ // OAEPOptions is an interface for passing options to OAEP decryption using the
+@@ -130,20 +130,26 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
++	if !priv.PublicKey.Equal(&xx.PublicKey) || !bigIntEqual(priv.D, xx.D) {
+ 		return false
+ 	}
+ 	if len(priv.Primes) != len(xx.Primes) {
+ 		return false
+ 	}
+ 	for i := range priv.Primes {
+-		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
++		if !bigIntEqual(priv.Primes[i], xx.Primes[i]) {
+ 			return false
+ 		}
+ 	}
+ 	return true
+ }
+ 
++// bigIntEqual reports whether a and b are equal leaking only their bit length
++// through timing side-channels.
++func bigIntEqual(a, b *big.Int) bool {
++	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
++}
++
+ // Sign signs digest with priv, reading randomness from rand. If opts is a
+ // *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+ // be used. digest must be the result of hashing the input message using

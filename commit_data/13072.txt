@@ -15,6 +15,22 @@ Date:   Tue May 15 12:51:58 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6209067
-
+---
  src/cmd/gc/typecheck.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index e98d538572..02d6cc4777 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1140,6 +1140,10 @@ reswitch:
+ 			goto error;
+ 		n->type = t;
+ 		if(!isslice(t)) {
++			if(isconst(args->n, CTNIL)) {
++				yyerror("first argument to append must be typed slice; have untyped nil", t);
++				goto error;
++			}
+ 			yyerror("first argument to append must be slice; have %lT", t);
+ 			goto error;
+ 		}

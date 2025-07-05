@@ -20,9 +20,135 @@ Date:   Mon Nov 28 18:03:16 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/os_linux.go         | 28 +++++++++++++++++++++++++---
  src/runtime/rt0_android_amd64.s | 15 ++++-----------
  src/runtime/rt0_android_arm.s   | 15 ++++-----------
  src/runtime/rt0_android_arm64.s |  7 ++++---
  4 files changed, 37 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 67c62bc18e..320c1281c2 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -187,6 +187,8 @@ const (
+ 	_AT_HWCAP2 = 26 // hardware capability bit vector 2
+ )
+ 
++var procAuxv = []byte("/proc/self/auxv\x00")
++
+ func sysargs(argc int32, argv **byte) {
+ 	n := argc + 1
+ 
+@@ -200,11 +202,30 @@ func sysargs(argc int32, argv **byte) {
+ 
+ 	// now argv+n is auxv
+ 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+-	sysauxv(auxv[:])
++	if sysauxv(auxv[:]) == 0 {
++		// In some situations we don't get a loader-provided
++		// auxv, such as when loaded as a library on Android.
++		// Fall back to /proc/self/auxv.
++		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
++		if fd < 0 {
++			return
++		}
++		var buf [128]uintptr
++		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
++		closefd(fd)
++		if n < 0 {
++			return
++		}
++		// Make sure buf is terminated, even if we didn't read
++		// the whole file.
++		buf[len(buf)-2] = _AT_NULL
++		sysauxv(buf[:])
++	}
+ }
+ 
+-func sysauxv(auxv []uintptr) {
+-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++func sysauxv(auxv []uintptr) int {
++	var i int
++	for ; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		case _AT_RANDOM:
+@@ -218,6 +239,7 @@ func sysauxv(auxv []uintptr) {
+ 
+ 		archauxv(tag, val)
+ 	}
++	return i / 2
+ }
+ 
+ func osinit() {
+diff --git a/src/runtime/rt0_android_amd64.s b/src/runtime/rt0_android_amd64.s
+index 9af6cab16f..6420c9f35d 100644
+--- a/src/runtime/rt0_android_amd64.s
++++ b/src/runtime/rt0_android_amd64.s
+@@ -17,17 +17,10 @@ TEXT _rt0_amd64_android_lib(SB),NOSPLIT,$0
+ 	JMP	AX
+ 
+ DATA _rt0_amd64_android_argv+0x00(SB)/8,$_rt0_amd64_android_argv0(SB)
+-DATA _rt0_amd64_android_argv+0x08(SB)/8,$0
+-DATA _rt0_amd64_android_argv+0x10(SB)/8,$0
+-DATA _rt0_amd64_android_argv+0x18(SB)/8,$15  // AT_PLATFORM
+-DATA _rt0_amd64_android_argv+0x20(SB)/8,$_rt0_amd64_android_auxv0(SB)
+-DATA _rt0_amd64_android_argv+0x28(SB)/8,$0
+-GLOBL _rt0_amd64_android_argv(SB),NOPTR,$0x30
+-
+-// TODO: AT_HWCAP necessary? If so, what value?
++DATA _rt0_amd64_android_argv+0x08(SB)/8,$0 // end argv
++DATA _rt0_amd64_android_argv+0x10(SB)/8,$0 // end envv
++DATA _rt0_amd64_android_argv+0x18(SB)/8,$0 // end auxv
++GLOBL _rt0_amd64_android_argv(SB),NOPTR,$0x20
+ 
+ DATA _rt0_amd64_android_argv0(SB)/8, $"gojni"
+ GLOBL _rt0_amd64_android_argv0(SB),RODATA,$8
+-
+-DATA _rt0_amd64_android_auxv0(SB)/8, $"x86_64"
+-GLOBL _rt0_amd64_android_auxv0(SB),RODATA,$8
+diff --git a/src/runtime/rt0_android_arm.s b/src/runtime/rt0_android_arm.s
+index 85712531d2..189e290e35 100644
+--- a/src/runtime/rt0_android_arm.s
++++ b/src/runtime/rt0_android_arm.s
+@@ -19,17 +19,10 @@ TEXT _rt0_arm_android_lib(SB),NOSPLIT,$0
+ 	RET
+ 
+ DATA _rt0_arm_android_argv+0x00(SB)/4,$_rt0_arm_android_argv0(SB)
+-DATA _rt0_arm_android_argv+0x04(SB)/4,$0
+-DATA _rt0_arm_android_argv+0x08(SB)/4,$0
+-DATA _rt0_arm_android_argv+0x0C(SB)/4,$15      // AT_PLATFORM
+-DATA _rt0_arm_android_argv+0x10(SB)/4,$_rt0_arm_android_auxv0(SB)
+-DATA _rt0_arm_android_argv+0x14(SB)/4,$16      // AT_HWCAP
+-DATA _rt0_arm_android_argv+0x18(SB)/4,$0x2040  // HWCAP_VFP | HWCAP_VFPv3
+-DATA _rt0_arm_android_argv+0x1C(SB)/4,$0
+-GLOBL _rt0_arm_android_argv(SB),NOPTR,$0x20
++DATA _rt0_arm_android_argv+0x04(SB)/4,$0 // end argv
++DATA _rt0_arm_android_argv+0x08(SB)/4,$0 // end envv
++DATA _rt0_arm_android_argv+0x0c(SB)/4,$0 // end auxv
++GLOBL _rt0_arm_android_argv(SB),NOPTR,$0x10
+ 
+ DATA _rt0_arm_android_argv0(SB)/8, $"gojni"
+ GLOBL _rt0_arm_android_argv0(SB),RODATA,$8
+-
+-DATA _rt0_arm_android_auxv0(SB)/4, $"v7l"
+-GLOBL _rt0_arm_android_auxv0(SB),RODATA,$4
+diff --git a/src/runtime/rt0_android_arm64.s b/src/runtime/rt0_android_arm64.s
+index 582fc5a28c..9378213dac 100644
+--- a/src/runtime/rt0_android_arm64.s
++++ b/src/runtime/rt0_android_arm64.s
+@@ -17,9 +17,10 @@ TEXT _rt0_arm64_android_lib(SB),NOSPLIT,$-8
+ 	B	(R4)
+ 
+ DATA _rt0_arm64_android_argv+0x00(SB)/8,$_rt0_arm64_android_argv0(SB)
+-DATA _rt0_arm64_android_argv+0x08(SB)/8,$0
+-DATA _rt0_arm64_android_argv+0x10(SB)/8,$0
+-GLOBL _rt0_arm64_android_argv(SB),NOPTR,$0x18
++DATA _rt0_arm64_android_argv+0x08(SB)/8,$0 // end argv
++DATA _rt0_arm64_android_argv+0x10(SB)/8,$0 // end envv
++DATA _rt0_arm64_android_argv+0x18(SB)/8,$0 // end auxv
++GLOBL _rt0_arm64_android_argv(SB),NOPTR,$0x20
+ 
+ DATA _rt0_arm64_android_argv0(SB)/8, $"gojni"
+ GLOBL _rt0_arm64_android_argv0(SB),RODATA,$8

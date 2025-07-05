@@ -15,7 +15,117 @@ Date:   Thu Mar 10 14:42:52 2016 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/likelyadjust.go | 22 ++++++++++++++++++++--
  src/cmd/compile/internal/ssa/regalloc.go     | 28 ++++++++--------------------
  2 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 4046958c7b..76251bdd14 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -13,8 +13,9 @@ type loop struct {
+ 	outer  *loop  // loop containing this loop
+ 	// Next two fields not currently used, but cheap to maintain,
+ 	// and aid in computation of inner-ness and list of blocks.
+-	nBlocks int32 // Number of blocks in this loop but not within inner loops
+-	isInner bool  // True if never discovered to contain a loop
++	nBlocks      int32 // Number of blocks in this loop but not within inner loops
++	isInner      bool  // True if never discovered to contain a loop
++	containsCall bool  // if any block in this loop or any loop it contains is a BlockCall or BlockDefer
+ }
+ 
+ // outerinner records that outer contains inner
+@@ -23,6 +24,21 @@ func (sdom sparseTree) outerinner(outer, inner *loop) {
+ 	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
+ 		inner.outer = outer
+ 		outer.isInner = false
++		if inner.containsCall {
++			outer.setContainsCall()
++		}
++	}
++}
++
++func (l *loop) setContainsCall() {
++	for ; l != nil && !l.containsCall; l = l.outer {
++		l.containsCall = true
++	}
++
++}
++func (l *loop) checkContainsCall(bb *Block) {
++	if bb.Kind == BlockCall || bb.Kind == BlockDefer {
++		l.setContainsCall()
+ 	}
+ }
+ 
+@@ -246,6 +262,7 @@ func loopnestfor(f *Func) *loopnest {
+ 					l = &loop{header: bb, isInner: true}
+ 					loops = append(loops, l)
+ 					b2l[bb.ID] = l
++					l.checkContainsCall(bb)
+ 				}
+ 			} else { // Perhaps a loop header is inherited.
+ 				// is there any loop containing our successor whose
+@@ -274,6 +291,7 @@ func loopnestfor(f *Func) *loopnest {
+ 
+ 		if innermost != nil {
+ 			b2l[b.ID] = innermost
++			innermost.checkContainsCall(b)
+ 			innermost.nBlocks++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 8a5e438a4a..4e2ca4e334 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -274,6 +274,8 @@ type regAllocState struct {
+ 
+ 	// spillLive[blockid] is the set of live spills at the end of each block
+ 	spillLive [][]ID
++
++	loopnest *loopnest
+ }
+ 
+ type endReg struct {
+@@ -996,27 +998,12 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		// If we are approaching a merge point and we are the primary
+ 		// predecessor of it, find live values that we use soon after
+ 		// the merge point and promote them to registers now.
+-		if len(b.Succs) == 1 && len(b.Succs[0].Preds) > 1 && b.Succs[0].Preds[s.primary[b.Succs[0].ID]] == b {
++		if len(b.Succs) == 1 {
+ 			// For this to be worthwhile, the loop must have no calls in it.
+-			// Use a very simple loop detector. TODO: incorporate David's loop stuff
+-			// once it is in.
+ 			top := b.Succs[0]
+-			for _, p := range top.Preds {
+-				if p == b {
+-					continue
+-				}
+-				for {
+-					if p.Kind == BlockCall || p.Kind == BlockDefer {
+-						goto badloop
+-					}
+-					if p == top {
+-						break
+-					}
+-					if len(p.Preds) != 1 {
+-						goto badloop
+-					}
+-					p = p.Preds[0]
+-				}
++			loop := s.loopnest.b2l[top.ID]
++			if loop == nil || loop.header != top || loop.containsCall {
++				goto badloop
+ 			}
+ 
+ 			// TODO: sort by distance, pick the closest ones?
+@@ -1620,7 +1607,8 @@ func (s *regAllocState) computeLive() {
+ 	// Walk the dominator tree from end to beginning, just once, treating SCC
+ 	// components as single blocks, duplicated calculated liveness information
+ 	// out to all of them.
+-	po := postorder(f)
++	s.loopnest = loopnestfor(f)
++	po := s.loopnest.po
+ 	for {
+ 		changed := false
+ 

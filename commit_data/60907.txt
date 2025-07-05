@@ -10,6 +10,23 @@ Date:   Wed Sep 4 17:31:31 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/os/os_test.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index e2ceaa9dff..9f6f531288 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2603,10 +2603,7 @@ func TestRemoveAllRace(t *testing.T) {
+ 
+ 	n := runtime.GOMAXPROCS(16)
+ 	defer runtime.GOMAXPROCS(n)
+-	root, err := MkdirTemp("", "issue")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	root := t.TempDir()
+ 	mkdirTree(t, root, 1, 6)
+ 	hold := make(chan struct{})
+ 	var wg sync.WaitGroup

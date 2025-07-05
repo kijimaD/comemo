@@ -9,7 +9,7 @@ Date:   Fri Mar 25 16:31:10 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4317044
-
+---
  src/pkg/bytes/buffer_test.go           | 12 ++++++++++--
  src/pkg/bytes/bytes_test.go            |  5 ++++-
  src/pkg/crypto/openpgp/s2k/s2k_test.go |  3 +++
@@ -22,3 +22,283 @@ Date:   Fri Mar 25 16:31:10 2011 -0700
  src/pkg/sync/rwmutex_test.go           | 24 ++++++++++++++----------
  src/pkg/testing/testing.go             |  2 +-
  11 files changed, 77 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 56a2d92753..14f9501416 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -178,7 +178,11 @@ func TestBasicOperations(t *testing.T) {
+ 
+ func TestLargeStringWrites(t *testing.T) {
+ 	var buf Buffer
+-	for i := 3; i < 30; i += 3 {
++	limit := 30
++	if testing.Short() {
++		limit = 9
++	}
++	for i := 3; i < limit; i += 3 {
+ 		s := fillString(t, "TestLargeWrites (1)", &buf, "", 5, data)
+ 		empty(t, "TestLargeStringWrites (2)", &buf, s, make([]byte, len(data)/i))
+ 	}
+@@ -188,7 +192,11 @@ func TestLargeStringWrites(t *testing.T) {
+ 
+ func TestLargeByteWrites(t *testing.T) {
+ 	var buf Buffer
+-	for i := 3; i < 30; i += 3 {
++	limit := 30
++	if testing.Short() {
++		limit = 9
++	}
++	for i := 3; i < limit; i += 3 {
+ 		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes)
+ 		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i))
+ 	}
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 063686ec5d..4ce291a4f6 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -201,7 +201,10 @@ func TestIndexByte(t *testing.T) {
+ 
+ // test a larger buffer with different sizes and alignments
+ func TestIndexByteBig(t *testing.T) {
+-	const n = 1024
++	var n = 1024
++	if testing.Short() {
++		n = 128
++	}
+ 	b := make([]byte, n)
+ 	for i := 0; i < n; i++ {
+ 		// different start alignments
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k_test.go b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+index 814b78627f..75bc47ec10 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k_test.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+@@ -90,5 +90,8 @@ func TestParse(t *testing.T) {
+ 		if !bytes.Equal(out, expected) {
+ 			t.Errorf("%d: output got: %x want: %x", i, out, expected)
+ 		}
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+index f64ead4cab..bfae7ce4f9 100644
+--- a/src/pkg/crypto/rand/rand_test.go
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -11,7 +11,11 @@ import (
+ )
+ 
+ func TestRead(t *testing.T) {
+-	b := make([]byte, 4e6)
++	var n int = 4e6
++	if testing.Short() {
++		n = 1e5
++	}
++	b := make([]byte, n)
+ 	n, err := Read(b)
+ 	if n != len(b) || err != nil {
+ 		t.Fatalf("Read(buf) = %d, %s", n, err)
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index 7b2ce08cb0..30a4824a6b 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -97,7 +97,11 @@ func TestEncryptPKCS1v15(t *testing.T) {
+ 		return true
+ 	}
+ 
+-	quick.Check(tryEncryptDecrypt, nil)
++	config := new(quick.Config)
++	if testing.Short() {
++		config.MaxCount = 10
++	}
++	quick.Check(tryEncryptDecrypt, config)
+ }
+ 
+ // These test vectors were generated with `openssl rsautl -pkcs -encrypt`
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index 22d4576e8d..bf7c05137a 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -15,7 +15,11 @@ import (
+ func TestKeyGeneration(t *testing.T) {
+ 	random := rand.Reader
+ 
+-	priv, err := GenerateKey(random, 1024)
++	size := 1024
++	if testing.Short() {
++		size = 128
++	}
++	priv, err := GenerateKey(random, size)
+ 	if err != nil {
+ 		t.Errorf("failed to generate key")
+ 	}
+@@ -99,6 +103,9 @@ func TestDecryptOAEP(t *testing.T) {
+ 				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in)
+ 			}
+ 		}
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 1bea8f0326..3d7337fd01 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -74,7 +74,11 @@ func TestSortStrings(t *testing.T) {
+ }
+ 
+ func TestSortLarge_Random(t *testing.T) {
+-	data := make([]int, 1000000)
++	n := 1000000
++	if testing.Short() {
++		n /= 100
++	}
++	data := make([]int, n)
+ 	for i := 0; i < len(data); i++ {
+ 		data[i] = rand.Intn(100)
+ 	}
+@@ -174,6 +178,9 @@ func lg(n int) int {
+ 
+ func TestBentleyMcIlroy(t *testing.T) {
+ 	sizes := []int{100, 1023, 1024, 1025}
++	if testing.Short() {
++		sizes = []int{100, 127, 128, 129}
++	}
+ 	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"}
+ 	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"}
+ 	var tmp1, tmp2 [1025]int
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 41e398782e..d75f1ad9c6 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -617,7 +617,11 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
+ 
+ func TestCaseConsistency(t *testing.T) {
+ 	// Make a string of all the runes.
+-	a := make([]int, unicode.MaxRune+1)
++	numRunes := unicode.MaxRune + 1
++	if testing.Short() {
++		numRunes = 1000
++	}
++	a := make([]int, numRunes)
+ 	for i := range a {
+ 		a[i] = i
+ 	}
+@@ -627,10 +631,10 @@ func TestCaseConsistency(t *testing.T) {
+ 	lower := ToLower(s)
+ 
+ 	// Consistency checks
+-	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
++	if n := utf8.RuneCountInString(upper); n != numRunes {
+ 		t.Error("rune count wrong in upper:", n)
+ 	}
+-	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
++	if n := utf8.RuneCountInString(lower); n != numRunes {
+ 		t.Error("rune count wrong in lower:", n)
+ 	}
+ 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 7b204b1d9f..bf8a692b60 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -370,10 +370,11 @@ func hammerCompareAndSwapUintptr32(uval *uint32, count int) {
+ }
+ 
+ func TestHammer32(t *testing.T) {
+-	const (
+-		n = 100000
+-		p = 4
+-	)
++	const p = 4
++	n := 100000
++	if testing.Short() {
++		n = 1000
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
+ 
+ 	for _, tt := range hammer32 {
+@@ -391,7 +392,7 @@ func TestHammer32(t *testing.T) {
+ 		for i := 0; i < p; i++ {
+ 			<-c
+ 		}
+-		if val != n*p {
++		if val != uint32(n)*p {
+ 			t.Errorf("%s: val=%d want %d", tt.name, val, n*p)
+ 		}
+ 	}
+@@ -478,10 +479,11 @@ func hammerCompareAndSwapUintptr64(uval *uint64, count int) {
+ }
+ 
+ func TestHammer64(t *testing.T) {
+-	const (
+-		n = 100000
+-		p = 4
+-	)
++	const p = 4
++	n := 100000
++	if testing.Short() {
++		n = 1000
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
+ 
+ 	for _, tt := range hammer64 {
+@@ -499,7 +501,7 @@ func TestHammer64(t *testing.T) {
+ 		for i := 0; i < p; i++ {
+ 			<-c
+ 		}
+-		if val != n*p {
++		if val != uint64(n)*p {
+ 			t.Errorf("%s: val=%d want %d", tt.name, val, n*p)
+ 		}
+ 	}
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+index 405079270d..9fb89f8e8a 100644
+--- a/src/pkg/sync/rwmutex_test.go
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -102,16 +102,20 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
+ }
+ 
+ func TestRWMutex(t *testing.T) {
+-	HammerRWMutex(1, 1, 1000)
+-	HammerRWMutex(1, 3, 1000)
+-	HammerRWMutex(1, 10, 1000)
+-	HammerRWMutex(4, 1, 1000)
+-	HammerRWMutex(4, 3, 1000)
+-	HammerRWMutex(4, 10, 1000)
+-	HammerRWMutex(10, 1, 1000)
+-	HammerRWMutex(10, 3, 1000)
+-	HammerRWMutex(10, 10, 1000)
+-	HammerRWMutex(10, 5, 10000)
++	n := 1000
++	if testing.Short() {
++		n = 5
++	}
++	HammerRWMutex(1, 1, n)
++	HammerRWMutex(1, 3, n)
++	HammerRWMutex(1, 10, n)
++	HammerRWMutex(4, 1, n)
++	HammerRWMutex(4, 3, n)
++	HammerRWMutex(4, 10, n)
++	HammerRWMutex(10, 1, n)
++	HammerRWMutex(10, 3, n)
++	HammerRWMutex(10, 10, n)
++	HammerRWMutex(10, 5, n)
+ }
+ 
+ func TestRLocker(t *testing.T) {
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index cdc9826290..d1893907a5 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -186,7 +186,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 		go tRunner(t, &tests[i])
+ 		<-t.ch
+ 		ns += time.Nanoseconds()
+-		tstr := fmt.Sprintf("(%.1f seconds)", float64(ns)/1e9)
++		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+ 		if t.failed {
+ 			println("--- FAIL:", tests[i].Name, tstr)
+ 			print(t.errors)

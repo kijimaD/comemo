@@ -27,7 +27,116 @@ Date:   Tue Mar 29 12:59:12 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/abi.go      | 12 -------
  src/cmd/compile/internal/staticdata/data.go | 51 +----------------------------
  2 files changed, 1 insertion(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 3a653e46b4..3d3cba7dd3 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -14,7 +14,6 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -243,17 +242,6 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ 		if f.Pragma&ir.Systemstack != 0 {
+ 			f.LSym.Set(obj.AttrCFunc, true)
+ 		}
+-		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
+-			// Function values can only point to
+-			// ABIInternal entry points. This will create
+-			// the funcsym for either the defining
+-			// function or its wrapper as appropriate.
+-			//
+-			// If we're not using ABI wrappers, we only
+-			// InitLSym for the defining ABI of a function,
+-			// so we make the funcsym when we see that.
+-			staticdata.NeedFuncSym(f)
+-		}
+ 	}
+ 	if hasBody {
+ 		setupTextLSym(f, 0)
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 57c15a34a0..b114bb2df6 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -8,7 +8,6 @@ import (
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"go/constant"
+-	"internal/buildcfg"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -236,15 +235,9 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
+ 	// except for the types package, which is protected separately.
+ 	// Reusing funcsymsmu to also cover this package lookup
+ 	// avoids a general, broader, expensive package lookup mutex.
+-	// Note NeedFuncSym also does package look-up of func sym names,
+-	// but that it is only called serially, from the front end.
+ 	funcsymsmu.Lock()
+ 	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
+-	// Don't export s·f when compiling for dynamic linking.
+-	// When dynamically linking, the necessary function
+-	// symbols will be created explicitly with NeedFuncSym.
+-	// See the NeedFuncSym comment for details.
+-	if !base.Ctxt.Flag_dynlink && !existed {
++	if !existed {
+ 		funcsyms = append(funcsyms, n)
+ 	}
+ 	funcsymsmu.Unlock()
+@@ -259,48 +252,6 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
+ 	return n.Linksym()
+ }
+ 
+-// NeedFuncSym ensures that fn·f is exported, if needed.
+-// It is only used with -dynlink.
+-// When not compiling for dynamic linking,
+-// the funcsyms are created as needed by
+-// the packages that use them.
+-// Normally we emit the fn·f stubs as DUPOK syms,
+-// but DUPOK doesn't work across shared library boundaries.
+-// So instead, when dynamic linking, we only create
+-// the fn·f stubs in fn's package.
+-func NeedFuncSym(fn *ir.Func) {
+-	if base.Ctxt.InParallel {
+-		// The append below probably just needs to lock
+-		// funcsymsmu, like in FuncSym.
+-		base.Fatalf("NeedFuncSym must be called in serial")
+-	}
+-	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
+-		// Function values must always reference ABIInternal
+-		// entry points, so it doesn't make sense to create a
+-		// funcsym for other ABIs.
+-		//
+-		// (If we're not using ABI wrappers, it doesn't matter.)
+-		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
+-	}
+-	if ir.IsBlank(fn.Nname) {
+-		// Blank functions aren't unique, so we can't make a
+-		// funcsym for them.
+-		base.Fatalf("NeedFuncSym called for _")
+-	}
+-	if !base.Ctxt.Flag_dynlink {
+-		return
+-	}
+-	s := fn.Nname.Sym()
+-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
+-		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
+-		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
+-		// and internal/abi.FuncPCABIxxx() are not real functions and so
+-		// do not get funcsyms.
+-		return
+-	}
+-	funcsyms = append(funcsyms, fn.Nname)
+-}
+-
+ func WriteFuncSyms() {
+ 	sort.Slice(funcsyms, func(i, j int) bool {
+ 		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name

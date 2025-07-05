@@ -21,8 +21,126 @@ Date:   Wed Sep 5 14:36:20 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_darwin.go | 11 ++++++++++-
  src/runtime/os_nacl.go   | 12 ++++++------
  src/runtime/os_netbsd.go | 31 ++++++++++++++-----------------
  3 files changed, 30 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index d2144edf2e..26b02820cd 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -34,6 +34,10 @@ func semacreate(mp *m) {
+ 
+ //go:nosplit
+ func semasleep(ns int64) int32 {
++	var start int64
++	if ns >= 0 {
++		start = nanotime()
++	}
+ 	mp := getg().m
+ 	pthread_mutex_lock(&mp.mutex)
+ 	for {
+@@ -43,8 +47,13 @@ func semasleep(ns int64) int32 {
+ 			return 0
+ 		}
+ 		if ns >= 0 {
++			spent := nanotime() - start
++			if spent >= ns {
++				pthread_mutex_unlock(&mp.mutex)
++				return -1
++			}
+ 			var t timespec
+-			t.set_nsec(ns)
++			t.set_nsec(ns - spent)
+ 			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
+ 			if err == _ETIMEDOUT {
+ 				pthread_mutex_unlock(&mp.mutex)
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 23ab03b953..ac7bf69582 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -197,23 +197,23 @@ func semacreate(mp *m) {
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+ 	var ret int32
+-
+ 	systemstack(func() {
+ 		_g_ := getg()
+ 		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
+ 			throw("semasleep")
+ 		}
+-
++		var ts timespec
++		if ns >= 0 {
++			end := ns + nanotime()
++			ts.tv_sec = end / 1e9
++			ts.tv_nsec = int32(end % 1e9)
++		}
+ 		for _g_.m.waitsemacount == 0 {
+ 			if ns < 0 {
+ 				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
+ 					throw("semasleep")
+ 				}
+ 			} else {
+-				var ts timespec
+-				end := ns + nanotime()
+-				ts.tv_sec = end / 1e9
+-				ts.tv_nsec = int32(end % 1e9)
+ 				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
+ 				if r == -_ETIMEDOUT {
+ 					nacl_mutex_unlock(_g_.m.waitsemalock)
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index a9bf407a36..7deab3ed03 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -126,15 +126,9 @@ func semacreate(mp *m) {
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+ 	_g_ := getg()
+-
+-	// Compute sleep deadline.
+-	var tsp *timespec
+-	var ts timespec
++	var deadline int64
+ 	if ns >= 0 {
+-		var nsec int32
+-		ts.set_sec(timediv(ns, 1000000000, &nsec))
+-		ts.set_nsec(nsec)
+-		tsp = &ts
++		deadline = nanotime() + ns
+ 	}
+ 
+ 	for {
+@@ -147,18 +141,21 @@ func semasleep(ns int64) int32 {
+ 		}
+ 
+ 		// Sleep until unparked by semawakeup or timeout.
++		var tsp *timespec
++		var ts timespec
++		if ns >= 0 {
++			wait := deadline - nanotime()
++			if wait <= 0 {
++				return -1
++			}
++			var nsec int32
++			ts.set_sec(timediv(wait, 1000000000, &nsec))
++			ts.set_nsec(nsec)
++			tsp = &ts
++		}
+ 		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+ 		if ret == _ETIMEDOUT {
+ 			return -1
+-		} else if ret == _EINTR && ns >= 0 {
+-			// Avoid sleeping forever if we keep getting
+-			// interrupted (for example by the profiling
+-			// timer). It would be if tsp upon return had the
+-			// remaining time to sleep, but this is good enough.
+-			var nsec int32
+-			ns /= 2
+-			ts.set_sec(timediv(ns, 1000000000, &nsec))
+-			ts.set_nsec(nsec)
+ 		}
+ 	}
+ }

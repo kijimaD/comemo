@@ -21,7 +21,7 @@ Date:   Wed Nov 10 16:22:08 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  2 +-
  .../go/testdata/script/test_fuzz_mutate_crash.txt  | 16 +++++++++-
  .../testdata/script/test_fuzz_mutator_repeat.txt   |  2 +-
@@ -30,3 +30,230 @@ Date:   Wed Nov 10 16:22:08 2021 -0500
  src/internal/fuzz/worker.go                        | 36 ++++++++++++++--------
  src/internal/fuzz/worker_test.go                   |  3 +-
  7 files changed, 49 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 462fb9a963..a6dc3f1953 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -67,7 +67,7 @@ rm testdata
+ ! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x .
+ ! stdout '^ok'
+ ! stdout 'minimizing'
+-stdout -count=1 'fuzzing process terminated unexpectedly: exit status 99'
++stdout -count=1 '^\s+fuzzing process hung or terminated unexpectedly: exit status 99'
+ stdout FAIL
+ 
+ # Check that re-running the value causes a crash.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 4c4fa8e651..99bae1daf0 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -54,9 +54,14 @@ go run check_testdata.go FuzzWithFatalf
+ 
+ ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]fuzz[/\\]FuzzWithBadExit[/\\]'
+-stdout 'unexpectedly'
++stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
+ go run check_testdata.go FuzzWithBadExit
+ 
++! go test -run=FuzzDeadlock -fuzz=FuzzDeadlock -fuzztime=100x -fuzzminimizetime=0x
++stdout 'testdata[/\\]fuzz[/\\]FuzzDeadlock[/\\]'
++stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
++go run check_testdata.go FuzzDeadlock
++
+ # Running the fuzzer should find a crashing input quickly for fuzzing two types.
+ ! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]fuzz[/\\]FuzzWithTwoTypes[/\\]'
+@@ -190,6 +195,15 @@ func FuzzWithBadExit(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzDeadlock(f *testing.F) {
++	f.Add(int(0))
++	f.Fuzz(func(t *testing.T, n int) {
++		if n != 0 {
++			select {}
++		}
++	})
++}
++
+ func FuzzWithTwoTypes(f *testing.F) {
+ 	f.Fuzz(func(t *testing.T, a, b []byte) {
+ 		if len(a) > 0 && len(b) > 0 {
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index 60f5787464..3764dcb915 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -12,7 +12,7 @@
+ # The fuzzing engine reconstructs the crashing input and saves it to testdata.
+ ! exists want
+ ! go test -fuzz=. -parallel=1 -fuzztime=110x -fuzzminimizetime=10x -v
+-stdout 'fuzzing process terminated unexpectedly'
++stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
+ stdout 'Failing input written to testdata'
+ 
+ # Run the fuzz target without fuzzing. The fuzz function is called with the
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index 31d54bcb70..1051292fcb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -25,7 +25,7 @@ stdout 'fuzzing process terminated by unexpected signal; no crash will be record
+ # We should save a crasher.
+ ! go test -fuzz=FuzzCrash
+ exists testdata/fuzz/FuzzCrash
+-stdout 'fuzzing process terminated unexpectedly'
++stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
+ 
+ -- go.mod --
+ module test
+diff --git a/src/internal/fuzz/minimize_test.go b/src/internal/fuzz/minimize_test.go
+index dc153d0de4..04d785ce40 100644
+--- a/src/internal/fuzz/minimize_test.go
++++ b/src/internal/fuzz/minimize_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"testing"
++	"time"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -279,7 +280,9 @@ func TestMinimizeInput(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			t.Parallel()
+ 			ws := &workerServer{
+-				fuzzFn: tc.fn,
++				fuzzFn: func(e CorpusEntry) (time.Duration, error) {
++					return time.Second, tc.fn(e)
++				},
+ 			}
+ 			count := int64(0)
+ 			vals := tc.input
+@@ -304,8 +307,8 @@ func TestMinimizeInput(t *testing.T) {
+ // input and a flaky failure occurs, that minimization was not indicated
+ // to be successful, and the error isn't returned (since it's flaky).
+ func TestMinimizeFlaky(t *testing.T) {
+-	ws := &workerServer{fuzzFn: func(e CorpusEntry) error {
+-		return errors.New("ohno")
++	ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, error) {
++		return time.Second, errors.New("ohno")
+ 	}}
+ 	keepCoverage := make([]byte, len(coverageSnapshot))
+ 	count := int64(0)
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 02efa7f84a..48a3923112 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -142,7 +142,7 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 			}
+ 			// Worker exited non-zero or was terminated by a non-interrupt
+ 			// signal (for example, SIGSEGV) while fuzzing.
+-			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
++			return fmt.Errorf("fuzzing process hung or terminated unexpectedly: %w", err)
+ 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+ 
+ 		case input := <-w.coordinator.inputC:
+@@ -183,7 +183,7 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 				// Unexpected termination. Set error message and fall through.
+ 				// We'll restart the worker on the next iteration.
+ 				// Don't attempt to minimize this since it crashed the worker.
+-				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
++				resp.Err = fmt.Sprintf("fuzzing process hung or terminated unexpectedly: %v", w.waitErr)
+ 				canMinimize = false
+ 			}
+ 			result := fuzzResult{
+@@ -255,7 +255,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
+ 				limit:        input.limit,
+ 			}, nil
+ 		}
+-		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
++		return fuzzResult{}, fmt.Errorf("fuzzing process hung or terminated unexpectedly while minimizing: %w", w.waitErr)
+ 	}
+ 
+ 	if input.crasherMsg != "" && resp.Err == "" {
+@@ -471,8 +471,16 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
+ 	}
+ 	srv := &workerServer{
+ 		workerComm: comm,
+-		fuzzFn:     fn,
+-		m:          newMutator(),
++		fuzzFn: func(e CorpusEntry) (time.Duration, error) {
++			timer := time.AfterFunc(10*time.Second, func() {
++				panic("deadlocked!") // this error message won't be printed
++			})
++			defer timer.Stop()
++			start := time.Now()
++			err := fn(e)
++			return time.Since(start), err
++		},
++		m: newMutator(),
+ 	}
+ 	return srv.serve(ctx)
+ }
+@@ -604,9 +612,12 @@ type workerServer struct {
+ 	// coverage is found.
+ 	coverageMask []byte
+ 
+-	// fuzzFn runs the worker's fuzz function on the given input and returns
+-	// an error if it finds a crasher (the process may also exit or crash).
+-	fuzzFn func(CorpusEntry) error
++	// fuzzFn runs the worker's fuzz target on the given input and returns an
++	// error if it finds a crasher (the process may also exit or crash), and the
++	// time it took to run the input. It sets a deadline of 10 seconds, at which
++	// point it will panic with the assumption that the process is hanging or
++	// deadlocked.
++	fuzzFn func(CorpusEntry) (time.Duration, error)
+ }
+ 
+ // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
+@@ -699,9 +710,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	}
+ 	fuzzOnce := func(entry CorpusEntry) (dur time.Duration, cov []byte, errMsg string) {
+ 		mem.header().count++
+-		start := time.Now()
+-		err := ws.fuzzFn(entry)
+-		dur = time.Since(start)
++		var err error
++		dur, err = ws.fuzzFn(entry)
+ 		if err != nil {
+ 			errMsg = err.Error()
+ 			if errMsg == "" {
+@@ -803,7 +813,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
+ 	// If not, then whatever caused us to think the value was interesting may
+ 	// have been a flake, and we can't minimize it.
+ 	*count++
+-	retErr = ws.fuzzFn(CorpusEntry{Values: vals})
++	_, retErr = ws.fuzzFn(CorpusEntry{Values: vals})
+ 	if keepCoverage != nil {
+ 		if !hasCoverageBit(keepCoverage, coverageSnapshot) || retErr != nil {
+ 			return false, nil
+@@ -870,7 +880,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
+ 			panic("impossible")
+ 		}
+ 		*count++
+-		err := ws.fuzzFn(CorpusEntry{Values: vals})
++		_, err := ws.fuzzFn(CorpusEntry{Values: vals})
+ 		if err != nil {
+ 			retErr = err
+ 			if keepCoverage != nil {
+diff --git a/src/internal/fuzz/worker_test.go b/src/internal/fuzz/worker_test.go
+index c6f83fd08d..ed9722f43a 100644
+--- a/src/internal/fuzz/worker_test.go
++++ b/src/internal/fuzz/worker_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os/signal"
+ 	"reflect"
+ 	"testing"
++	"time"
+ )
+ 
+ var benchmarkWorkerFlag = flag.Bool("benchmarkworker", false, "")
+@@ -36,7 +37,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
+ 
+ 	ws := &workerServer{
+-		fuzzFn:     func(_ CorpusEntry) error { return nil },
++		fuzzFn:     func(_ CorpusEntry) (time.Duration, error) { return time.Second, nil },
+ 		workerComm: workerComm{memMu: make(chan *sharedMem, 1)},
+ 	}
+ 

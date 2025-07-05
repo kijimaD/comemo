@@ -65,8 +65,194 @@ Date:   Wed Jan 7 11:11:57 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2480
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/arith.go      | 69 ++++++++++++++++++++++++++++++++++++++++------
  src/math/big/arith_test.go |  2 +-
  src/math/big/nat_test.go   | 52 ++++++++++++++++++++++++++++++++++
  3 files changed, 113 insertions(+), 10 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 3d5a8682d9..328c85c4f7 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -70,7 +70,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 
+ // z1<<_W + z0 = x*y + c
+ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+-	z1, zz0 := mulWW(x, y)
++	z1, zz0 := mulWW_g(x, y)
+ 	if z0 = zz0 + c; z0 < zz0 {
+ 		z1++
+ 	}
+@@ -154,32 +154,82 @@ func divWW_g(u1, u0, v Word) (q, r Word) {
+ 	return q1*_B2 + q0, (un21*_B2 + un0 - q0*v) >> s
+ }
+ 
++// Keep for performance debugging.
++// Using addWW_g is likely slower.
++const use_addWW_g = false
++
++// The resulting carry c is either 0 or 1.
+ func addVV_g(z, x, y []Word) (c Word) {
+-	for i := range z {
+-		c, z[i] = addWW_g(x[i], y[i], c)
++	if use_addWW_g {
++		for i := range z {
++			c, z[i] = addWW_g(x[i], y[i], c)
++		}
++		return
++	}
++
++	for i, xi := range x[:len(z)] {
++		yi := y[i]
++		zi := xi + yi + c
++		z[i] = zi
++		// see "Hacker's Delight", section 2-12 (overflow detection)
++		c = (xi&yi | (xi|yi)&^zi) >> (_W - 1)
+ 	}
+ 	return
+ }
+ 
++// The resulting carry c is either 0 or 1.
+ func subVV_g(z, x, y []Word) (c Word) {
+-	for i := range z {
+-		c, z[i] = subWW_g(x[i], y[i], c)
++	if use_addWW_g {
++		for i := range z {
++			c, z[i] = subWW_g(x[i], y[i], c)
++		}
++		return
++	}
++
++	for i, xi := range x[:len(z)] {
++		yi := y[i]
++		zi := xi - yi - c
++		z[i] = zi
++		// see "Hacker's Delight", section 2-12 (overflow detection)
++		c = (yi&^xi | (yi|^xi)&zi) >> (_W - 1)
+ 	}
+ 	return
+ }
+ 
++// Argument y must be either 0 or 1.
++// The resulting carry c is either 0 or 1.
+ func addVW_g(z, x []Word, y Word) (c Word) {
++	if use_addWW_g {
++		c = y
++		for i := range z {
++			c, z[i] = addWW_g(x[i], c, 0)
++		}
++		return
++	}
++
+ 	c = y
+-	for i := range z {
+-		c, z[i] = addWW_g(x[i], c, 0)
++	for i, xi := range x[:len(z)] {
++		zi := xi + c
++		z[i] = zi
++		c = xi &^ zi >> (_W - 1)
+ 	}
+ 	return
+ }
+ 
+ func subVW_g(z, x []Word, y Word) (c Word) {
++	if use_addWW_g {
++		c = y
++		for i := range z {
++			c, z[i] = subWW_g(x[i], c, 0)
++		}
++		return
++	}
++
+ 	c = y
+-	for i := range z {
+-		c, z[i] = subWW_g(x[i], c, 0)
++	for i, xi := range x[:len(z)] {
++		zi := xi - c
++		z[i] = zi
++		c = (zi &^ xi) >> (_W - 1)
+ 	}
+ 	return
+ }
+@@ -222,6 +272,7 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
+ 	return
+ }
+ 
++// TODO(gri) Remove use of addWW_g here and then we can remove addWW_g and subWW_g.
+ func addMulVVW_g(z, x []Word, y Word) (c Word) {
+ 	for i := range z {
+ 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 3615a659c3..cd92dd7173 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -254,7 +254,7 @@ func benchmarkFunVW(b *testing.B, f funVW, n int) {
+ 	x := rndV(n)
+ 	y := rndW()
+ 	z := make([]Word, n)
+-	b.SetBytes(int64(n * _W))
++	b.SetBytes(int64(n * _S))
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		f(z, x, y)
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index a2ae53385c..5d93df735d 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -769,3 +769,55 @@ func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
+ func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
+ func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
+ func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }
++
++func fibo(n int) nat {
++	switch n {
++	case 0:
++		return nil
++	case 1:
++		return nat{1}
++	}
++	f0 := fibo(0)
++	f1 := fibo(1)
++	var f2 nat
++	for i := 1; i < n; i++ {
++		f2 = f2.add(f0, f1)
++		f0, f1, f2 = f1, f2, f0
++	}
++	return f1
++}
++
++var fiboNums = []string{
++	"0",
++	"55",
++	"6765",
++	"832040",
++	"102334155",
++	"12586269025",
++	"1548008755920",
++	"190392490709135",
++	"23416728348467685",
++	"2880067194370816120",
++	"354224848179261915075",
++}
++
++func TestFibo(t *testing.T) {
++	for i, want := range fiboNums {
++		n := i * 10
++		got := fibo(n).decimalString()
++		if got != want {
++			t.Errorf("fibo(%d) failed: got %s want %s", n, got, want)
++		}
++	}
++}
++
++func BenchmarkFibo(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		fibo(1e0)
++		fibo(1e1)
++		fibo(1e2)
++		fibo(1e3)
++		fibo(1e4)
++		fibo(1e5)
++	}
++}

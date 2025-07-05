@@ -25,9 +25,212 @@ Date:   Wed Dec 2 12:19:13 2020 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/time.go       | 31 +++++++++++++++++++++++++------
  src/time/internal_test.go | 42 +++++++++++++++++-------------------------
  src/time/sleep.go         |  2 ++
  src/time/sleep_test.go    | 23 ++++++++++++++++-------
  4 files changed, 60 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 83d93c5686..d338705b7c 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -187,6 +187,9 @@ func timeSleep(ns int64) {
+ 	t.f = goroutineReady
+ 	t.arg = gp
+ 	t.nextwhen = nanotime() + ns
++	if t.nextwhen < 0 { // check for overflow.
++		t.nextwhen = maxWhen
++	}
+ 	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceEvGoSleep, 1)
+ }
+ 
+@@ -244,10 +247,14 @@ func goroutineReady(arg interface{}, seq uintptr) {
+ // That avoids the risk of changing the when field of a timer in some P's heap,
+ // which could cause the heap to become unsorted.
+ func addtimer(t *timer) {
+-	// when must never be negative; otherwise runtimer will overflow
+-	// during its delta calculation and never expire other runtime timers.
+-	if t.when < 0 {
+-		t.when = maxWhen
++	// when must be positive. A negative value will cause runtimer to
++	// overflow during its delta calculation and never expire other runtime
++	// timers. Zero will cause checkTimers to fail to notice the timer.
++	if t.when <= 0 {
++		throw("timer when must be positive")
++	}
++	if t.period < 0 {
++		throw("timer period must be non-negative")
+ 	}
+ 	if t.status != timerNoStatus {
+ 		throw("addtimer called with initialized timer")
+@@ -408,8 +415,11 @@ func dodeltimer0(pp *p) {
+ // This is called by the netpoll code or time.Ticker.Reset or time.Timer.Reset.
+ // Reports whether the timer was modified before it was run.
+ func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) bool {
+-	if when < 0 {
+-		when = maxWhen
++	if when <= 0 {
++		throw("timer when must be positive")
++	}
++	if period < 0 {
++		throw("timer period must be non-negative")
+ 	}
+ 
+ 	status := uint32(timerNoStatus)
+@@ -848,6 +858,9 @@ func runOneTimer(pp *p, t *timer, now int64) {
+ 		// Leave in heap but adjust next time to fire.
+ 		delta := t.when - now
+ 		t.when += t.period * (1 + -delta/t.period)
++		if t.when < 0 { // check for overflow.
++			t.when = maxWhen
++		}
+ 		siftdownTimer(pp.timers, 0)
+ 		if !atomic.Cas(&t.status, timerRunning, timerWaiting) {
+ 			badTimer()
+@@ -1066,6 +1079,9 @@ func siftupTimer(t []*timer, i int) {
+ 		badTimer()
+ 	}
+ 	when := t[i].when
++	if when <= 0 {
++		badTimer()
++	}
+ 	tmp := t[i]
+ 	for i > 0 {
+ 		p := (i - 1) / 4 // parent
+@@ -1086,6 +1102,9 @@ func siftdownTimer(t []*timer, i int) {
+ 		badTimer()
+ 	}
+ 	when := t[i].when
++	if when <= 0 {
++		badTimer()
++	}
+ 	tmp := t[i]
+ 	for {
+ 		c := i*4 + 1 // left child
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index e70b6f34de..ffe54e47c2 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -33,38 +33,30 @@ var DaysIn = daysIn
+ 
+ func empty(arg interface{}, seq uintptr) {}
+ 
+-// Test that a runtimeTimer with a duration so large it overflows
+-// does not cause other timers to hang.
++// Test that a runtimeTimer with a period that would overflow when on
++// expiration does not throw or cause other timers to hang.
+ //
+ // This test has to be in internal_test.go since it fiddles with
+ // unexported data structures.
+-func CheckRuntimeTimerOverflow() {
+-	// We manually create a runtimeTimer to bypass the overflow
+-	// detection logic in NewTimer: we're testing the underlying
+-	// runtime.addtimer function.
++func CheckRuntimeTimerPeriodOverflow() {
++	// We manually create a runtimeTimer with huge period, but that expires
++	// immediately. The public Timer interface would require waiting for
++	// the entire period before the first update.
+ 	r := &runtimeTimer{
+-		when: runtimeNano() + (1<<63 - 1),
+-		f:    empty,
+-		arg:  nil,
++		when:   runtimeNano(),
++		period: 1<<63 - 1,
++		f:      empty,
++		arg:    nil,
+ 	}
+ 	startTimer(r)
++	defer stopTimer(r)
+ 
+-	// Start a goroutine that should send on t.C right away.
+-	t := NewTimer(1)
+-
+-	defer func() {
+-		stopTimer(r)
+-		t.Stop()
+-	}()
+-
+-	// If the test fails, we will hang here until the timeout in the
+-	// testing package fires, which is 10 minutes. It would be nice to
+-	// catch the problem sooner, but there is no reliable way to guarantee
+-	// that timers are run without doing something involving the scheduler.
+-	// Previous failed attempts have tried calling runtime.Gosched and
+-	// runtime.GC, but neither is reliable. So we fall back to hope:
+-	// We hope we don't hang here.
+-	<-t.C
++	// If this test fails, we will either throw (when siftdownTimer detects
++	// bad when on update), or other timers will hang (if the timer in a
++	// heap is in a bad state). There is no reliable way to test this, but
++	// we wait on a short timer here as a smoke test (alternatively, timers
++	// in later tests may hang).
++	<-After(25 * Millisecond)
+ }
+ 
+ var (
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 22ffd68282..90d8a18a68 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -31,6 +31,8 @@ func when(d Duration) int64 {
+ 	}
+ 	t := runtimeNano() + int64(d)
+ 	if t < 0 {
++		// N.B. runtimeNano() and d are always positive, so addition
++		// (including overflow) will never result in t == 0.
+ 		t = 1<<63 - 1 // math.MaxInt64
+ 	}
+ 	return t
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index ba0016bf49..084ac33f51 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -434,17 +434,29 @@ func TestReset(t *testing.T) {
+ 	t.Error(err)
+ }
+ 
+-// Test that sleeping for an interval so large it overflows does not
+-// result in a short sleep duration.
++// Test that sleeping (via Sleep or Timer) for an interval so large it
++// overflows does not result in a short sleep duration. Nor does it interfere
++// with execution of other timers. If it does, timers in this or subsequent
++// tests may not fire.
+ func TestOverflowSleep(t *testing.T) {
+ 	const big = Duration(int64(1<<63 - 1))
++
++	go func() {
++		Sleep(big)
++		// On failure, this may return after the test has completed, so
++		// we need to panic instead.
++		panic("big sleep returned")
++	}()
++
+ 	select {
+ 	case <-After(big):
+ 		t.Fatalf("big timeout fired")
+ 	case <-After(25 * Millisecond):
+ 		// OK
+ 	}
++
+ 	const neg = Duration(-1 << 63)
++	Sleep(neg) // Returns immediately.
+ 	select {
+ 	case <-After(neg):
+ 		// OK
+@@ -473,13 +485,10 @@ func TestIssue5745(t *testing.T) {
+ 	t.Error("Should be unreachable.")
+ }
+ 
+-func TestOverflowRuntimeTimer(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping in short mode, see issue 6874")
+-	}
++func TestOverflowPeriodRuntimeTimer(t *testing.T) {
+ 	// This may hang forever if timers are broken. See comment near
+ 	// the end of CheckRuntimeTimerOverflow in internal_test.go.
+-	CheckRuntimeTimerOverflow()
++	CheckRuntimeTimerPeriodOverflow()
+ }
+ 
+ func checkZeroPanicString(t *testing.T) {

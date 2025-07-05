@@ -13,7 +13,7 @@ Date:   Tue Nov 15 09:57:01 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/amd64/versions_test.go          | 16 +++++++++++++---
  src/cmd/compile/internal/dwarfgen/scope_test.go          |  3 +--
  src/cmd/compile/internal/importer/gcimporter_test.go     |  3 +--
@@ -33,3 +33,553 @@ Date:   Tue Nov 15 09:57:01 2022 -0500
  src/cmd/compile/internal/test/ssa_test.go                |  9 ++++-----
  src/cmd/compile/internal/typecheck/builtin_test.go       |  3 +--
  18 files changed, 49 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index 28cd073e6f..fc0046acee 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -72,7 +72,7 @@ func TestGoAMD64v1(t *testing.T) {
+ 	}
+ 
+ 	// Run the resulting binary.
+-	cmd := exec.Command(dst.Name())
++	cmd := testenv.Command(t, dst.Name())
+ 	testenv.CleanCmdEnv(cmd)
+ 	cmd.Env = append(cmd.Env, "TESTGOAMD64V1=yes")
+ 	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
+@@ -104,7 +104,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 	if false {
+ 		// TODO: go tool objdump doesn't disassemble the bmi1 instructions
+ 		// in question correctly. See issue 48584.
+-		cmd := exec.Command("go", "tool", "objdump", src)
++		cmd := testenv.Command(t, "go", "tool", "objdump", src)
+ 		var err error
+ 		disasm, err = cmd.StdoutPipe()
+ 		if err != nil {
+@@ -113,11 +113,16 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 		if err := cmd.Start(); err != nil {
+ 			t.Fatal(err)
+ 		}
++		t.Cleanup(func() {
++			if err := cmd.Wait(); err != nil {
++				t.Error(err)
++			}
++		})
+ 		re = regexp.MustCompile(`^[^:]*:[-\d]+\s+0x([\da-f]+)\s+([\da-f]+)\s+([A-Z]+)`)
+ 	} else {
+ 		// TODO: we're depending on platform-native objdump here. Hence the Skipf
+ 		// below if it doesn't run for some reason.
+-		cmd := exec.Command("objdump", "-d", src)
++		cmd := testenv.Command(t, "objdump", "-d", src)
+ 		var err error
+ 		disasm, err = cmd.StdoutPipe()
+ 		if err != nil {
+@@ -129,6 +134,11 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 			}
+ 			t.Fatal(err)
+ 		}
++		t.Cleanup(func() {
++			if err := cmd.Wait(); err != nil {
++				t.Error(err)
++			}
++		})
+ 		re = regexp.MustCompile(`^\s*([\da-f]+):\s*((?:[\da-f][\da-f] )+)\s*([a-z\d]+)`)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index 03567227b7..502b66f014 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sort"
+@@ -474,7 +473,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
+ 	}
+ 	args = append(args, "-o", dst, src)
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", string(b))
+ 		t.Fatal(err)
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 03562d394f..4f1ba41a1d 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -40,7 +39,7 @@ func compile(t *testing.T, dirname, filename, outdirname string, packagefiles ma
+ 	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
+ 	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
+ 	pkgpath := path.Join("testdata", basename)
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index b44cf4be66..eb5c31380b 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -7,7 +7,6 @@ package logopt
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -227,7 +226,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
+ 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", flag, "-o", outfile, src}
+ 	t.Log(run)
+-	cmd := exec.Command(run[0], run[1:]...)
++	cmd := testenv.Command(t, run[0], run[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+ 	return string(out), err
+@@ -237,7 +236,7 @@ func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error)
+ 	// Notice the specified import path "x"
+ 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", flag, "-o", outfile, src}
+ 	t.Log(run)
+-	cmd := exec.Command(run[0], run[1:]...)
++	cmd := testenv.Command(t, run[0], run[1:]...)
+ 	cmd.Dir = dir
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+@@ -248,7 +247,7 @@ func testCopy(t *testing.T, dir, goarch, goos, src, outfile string) (string, err
+ 	// Notice the specified import path "x"
+ 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", "-json=0,file://log/opt", "-o", outfile, src}
+ 	t.Log(run)
+-	cmd := exec.Command(run[0], run[1:]...)
++	cmd := testenv.Command(t, run[0], run[1:]...)
+ 	cmd.Dir = dir
+ 	cmd.Env = append(os.Environ(), "GOARCH="+goarch, "GOOS="+goos)
+ 	out, err := cmd.CombinedOutput()
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index b5607d7efc..6678a96e77 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
+@@ -142,7 +141,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
+ 		panic(fmt.Sprintf("Could not get abspath of testdata directory and file, %v", err))
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
+ 	cmd.Dir = tmpdir
+ 	cmd.Env = replaceEnv(cmd.Env, "GOSSADIR", tmpdir)
+ 	testGoos := "linux" // default to linux
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index af32ba7047..094d1a9340 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -244,9 +244,9 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
+ 	tmplog := tmpbase + ".nexts"
+ 	var dbg dbgr
+ 	if *useGdb {
+-		dbg = newGdb(tag, exe)
++		dbg = newGdb(t, tag, exe)
+ 	} else {
+-		dbg = newDelve(tag, exe)
++		dbg = newDelve(t, tag, exe)
+ 	}
+ 	h1 := runDbgr(dbg, count)
+ 	if *dryrun {
+@@ -261,7 +261,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
+ 		if !h0.equals(h1) {
+ 			// Be very noisy about exactly what's wrong to simplify debugging.
+ 			h1.write(tmplog)
+-			cmd := exec.Command("diff", "-u", nextlog, tmplog)
++			cmd := testenv.Command(t, "diff", "-u", nextlog, tmplog)
+ 			line := asCommandLine("", cmd)
+ 			bytes, err := cmd.CombinedOutput()
+ 			if err != nil && len(bytes) == 0 {
+@@ -297,7 +297,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
+ 
+ func runGo(t *testing.T, dir string, args ...string) string {
+ 	var stdout, stderr strings.Builder
+-	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+ 	cmd.Dir = dir
+ 	if *dryrun {
+ 		fmt.Printf("%s\n", asCommandLine("", cmd))
+@@ -501,8 +501,8 @@ type delveState struct {
+ 	function         string
+ }
+ 
+-func newDelve(tag, executable string, args ...string) dbgr {
+-	cmd := exec.Command("dlv", "exec", executable)
++func newDelve(t testing.TB, tag, executable string, args ...string) dbgr {
++	cmd := testenv.Command(t, "dlv", "exec", executable)
+ 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
+ 	if len(args) > 0 {
+ 		cmd.Args = append(cmd.Args, "--")
+@@ -586,9 +586,9 @@ type gdbState struct {
+ 	function         string
+ }
+ 
+-func newGdb(tag, executable string, args ...string) dbgr {
++func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
+ 	// Turn off shell, necessary for Darwin apparently
+-	cmd := exec.Command(gdb, "-nx",
++	cmd := testenv.Command(t, gdb, "-nx",
+ 		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+ 		"-ex", "set startup-with-shell off", executable)
+ 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+index 6e78e66045..8bdb3bf207 100644
+--- a/src/cmd/compile/internal/ssa/fmahash_test.go
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -7,7 +7,6 @@ package ssa_test
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -39,7 +38,7 @@ func TestFmaHash(t *testing.T) {
+ 	defer os.RemoveAll(tmpdir)
+ 	source := filepath.Join("testdata", "fma.go")
+ 	output := filepath.Join(tmpdir, "fma.exe")
+-	cmd := exec.Command(gocmd, "build", "-o", output, source)
++	cmd := testenv.Command(t, gocmd, "build", "-o", output, source)
+ 	// The hash-dependence on file path name is dodged by specifying "all hashes ending in 1" plus "all hashes ending in 0"
+ 	// i.e., all hashes.  This will print all the FMAs; this test is only interested in one of them (that should appear near the end).
+ 	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=1/0", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir)
+diff --git a/src/cmd/compile/internal/test/clobberdead_test.go b/src/cmd/compile/internal/test/clobberdead_test.go
+index e7910b865c..80d9678c08 100644
+--- a/src/cmd/compile/internal/test/clobberdead_test.go
++++ b/src/cmd/compile/internal/test/clobberdead_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -44,7 +43,7 @@ func runHello(t *testing.T, flag string) {
+ 		t.Fatalf("write file failed: %v", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all="+flag, src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", "-gcflags=all="+flag, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go run failed: %v\n%s", err, out)
+diff --git a/src/cmd/compile/internal/test/dep_test.go b/src/cmd/compile/internal/test/dep_test.go
+index 698a848db6..d141f1074a 100644
+--- a/src/cmd/compile/internal/test/dep_test.go
++++ b/src/cmd/compile/internal/test/dep_test.go
+@@ -6,13 +6,12 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"os/exec"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestDeps(t *testing.T) {
+-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Deps}}", "cmd/compile/internal/gc").Output()
++	out, err := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", "{{.Deps}}", "cmd/compile/internal/gc").Output()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/fixedbugs_test.go b/src/cmd/compile/internal/test/fixedbugs_test.go
+index 5978b44a7d..cf607b7e48 100644
+--- a/src/cmd/compile/internal/test/fixedbugs_test.go
++++ b/src/cmd/compile/internal/test/fixedbugs_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -71,7 +70,7 @@ func TestIssue16214(t *testing.T) {
+ 		t.Fatalf("could not write file: %v", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go tool compile: %v\n%s", err, out)
+diff --git a/src/cmd/compile/internal/test/global_test.go b/src/cmd/compile/internal/test/global_test.go
+index 4862b90d44..2cf93dc4f7 100644
+--- a/src/cmd/compile/internal/test/global_test.go
++++ b/src/cmd/compile/internal/test/global_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -46,14 +45,14 @@ func main() {
+ 	dst := filepath.Join(dir, "test")
+ 
+ 	// Compile source.
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", dst, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("could not build target: %v\n%s", err, out)
+ 	}
+ 
+ 	// Check destination to see if scanf code was included.
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "nm", dst)
++	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", dst)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("could not read target: %v", err)
+@@ -91,7 +90,7 @@ func main() {
+ 	f.Close()
+ 
+ 	// Compile source.
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("could not build target: %v\n%s", err, out)
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index c73f49eeb7..201f5773e9 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"math/bits"
+-	"os/exec"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -279,7 +278,7 @@ func TestIntendedInlining(t *testing.T) {
+ 	}
+ 
+ 	args := append([]string{"build", "-gcflags=-m -m", "-tags=math_big_pure_go"}, pkgs...)
+-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), args...))
+ 	pr, pw := io.Pipe()
+ 	cmd.Stdout = pw
+ 	cmd.Stderr = pw
+@@ -362,7 +361,7 @@ func TestIssue56044(t *testing.T) {
+ 	for _, mode := range modes {
+ 		// Build the Go runtime with "-m", capturing output.
+ 		args := []string{"build", "-gcflags=runtime=-m", "runtime"}
+-		cmd := exec.Command(testenv.GoToolPath(t), args...)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+ 		b, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("build failed (%v): %s", err, b)
+@@ -371,7 +370,7 @@ func TestIssue56044(t *testing.T) {
+ 
+ 		// Redo the build with -cover, also with "-m".
+ 		args = []string{"build", "-gcflags=runtime=-m", mode, "runtime"}
+-		cmd = exec.Command(testenv.GoToolPath(t), args...)
++		cmd = testenv.Command(t, testenv.GoToolPath(t), args...)
+ 		b, err = cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("build failed (%v): %s", err, b)
+diff --git a/src/cmd/compile/internal/test/inst_test.go b/src/cmd/compile/internal/test/inst_test.go
+index 65d3a6c37e..de435de49f 100644
+--- a/src/cmd/compile/internal/test/inst_test.go
++++ b/src/cmd/compile/internal/test/inst_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"testing"
+@@ -34,14 +33,14 @@ func TestInst(t *testing.T) {
+ 	outname := "ptrsort.out"
+ 	gotool := testenv.GoToolPath(t)
+ 	dest := filepath.Join(tmpdir, exename)
+-	cmd := exec.Command(gotool, "build", "-o", dest, filepath.Join("testdata", filename))
++	cmd := testenv.Command(t, gotool, "build", "-o", dest, filepath.Join("testdata", filename))
+ 	if output, err = cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOutput: %s\n", err, output)
+ 	}
+ 
+ 	// Test that there is exactly one shape-based instantiation of Sort in
+ 	// the executable.
+-	cmd = exec.Command(gotool, "tool", "nm", dest)
++	cmd = testenv.Command(t, gotool, "tool", "nm", dest)
+ 	if output, err = cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
+ 	}
+@@ -54,7 +53,7 @@ func TestInst(t *testing.T) {
+ 	}
+ 
+ 	// Actually run the test and make sure output is correct.
+-	cmd = exec.Command(gotool, "run", filepath.Join("testdata", filename))
++	cmd = testenv.Command(t, gotool, "run", filepath.Join("testdata", filename))
+ 	if output, err = cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
+ 	}
+diff --git a/src/cmd/compile/internal/test/lang_test.go b/src/cmd/compile/internal/test/lang_test.go
+index 5cb4695b68..0b957dc3d8 100644
+--- a/src/cmd/compile/internal/test/lang_test.go
++++ b/src/cmd/compile/internal/test/lang_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -57,7 +56,7 @@ func TestInvalidLang(t *testing.T) {
+ func testLang(t *testing.T, lang, src, outfile string) error {
+ 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", "-lang", lang, "-o", outfile, src}
+ 	t.Log(run)
+-	out, err := exec.Command(run[0], run[1:]...).CombinedOutput()
++	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
+ 	t.Logf("%s", out)
+ 	return err
+ }
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+index ea2e00ce38..2f6391fded 100644
+--- a/src/cmd/compile/internal/test/pgo_inl_test.go
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -72,7 +71,7 @@ go 1.19
+ 	pprof := filepath.Join(dir, "inline_hot.pprof")
+ 	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+ 	out := filepath.Join(dir, "test.exe")
+-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
+ 	cmd.Dir = dir
+ 
+ 	pr, pw, err := os.Pipe()
+diff --git a/src/cmd/compile/internal/test/reproduciblebuilds_test.go b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+index 7eca7f6c89..a803e741b9 100644
+--- a/src/cmd/compile/internal/test/reproduciblebuilds_test.go
++++ b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -40,7 +39,7 @@ func TestReproducibleBuilds(t *testing.T) {
+ 			for i := 0; i < iters; i++ {
+ 				// Note: use -c 2 to expose any nondeterminism which is the result
+ 				// of the runtime scheduler.
+-				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
++				out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
+ 				if err != nil {
+ 					t.Fatalf("failed to compile: %v\n%s", err, out)
+ 				}
+@@ -88,7 +87,7 @@ func TestIssue38068(t *testing.T) {
+ 		s := &scenarios[i]
+ 		s.libpath = filepath.Join(tmpdir, s.tag+".a")
+ 		// Note: use of "-p" required in order for DWARF to be generated.
+-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+diff --git a/src/cmd/compile/internal/test/ssa_test.go b/src/cmd/compile/internal/test/ssa_test.go
+index 56cd1285ec..0b6a675238 100644
+--- a/src/cmd/compile/internal/test/ssa_test.go
++++ b/src/cmd/compile/internal/test/ssa_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/token"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -27,7 +26,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 	testenv.MustHaveGoRun(t)
+ 	gotool := testenv.GoToolPath(t)
+ 	var stdout, stderr bytes.Buffer
+-	cmd := exec.Command(gotool, "run", filepath.Join("testdata", filename))
++	cmd := testenv.Command(t, gotool, "run", filepath.Join("testdata", filename))
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {
+@@ -48,7 +47,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 
+ 	stdout.Reset()
+ 	stderr.Reset()
+-	cmd = exec.Command(gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
++	cmd = testenv.Command(t, gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	cmd.Env = append(cmd.Env, ev...)
+@@ -167,7 +166,7 @@ func TestCode(t *testing.T) {
+ 	for _, flag := range flags {
+ 		args := []string{"test", "-c", "-gcflags=-d=ssa/check/on" + flag, "-o", filepath.Join(tmpdir, "code.test")}
+ 		args = append(args, srcs...)
+-		out, err := exec.Command(gotool, args...).CombinedOutput()
++		out, err := testenv.Command(t, gotool, args...).CombinedOutput()
+ 		if err != nil || len(out) != 0 {
+ 			t.Fatalf("Build failed: %v\n%s\n", err, out)
+ 		}
+@@ -180,7 +179,7 @@ func TestCode(t *testing.T) {
+ 				continue
+ 			}
+ 			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func(t *testing.T) {
+-				out, err := exec.Command(filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
++				out, err := testenv.Command(t, filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
+ 				if err != nil || string(out) != "PASS\n" {
+ 					t.Errorf("Failed:\n%s\n", out)
+ 				}
+diff --git a/src/cmd/compile/internal/typecheck/builtin_test.go b/src/cmd/compile/internal/typecheck/builtin_test.go
+index a46ec107ae..3c0d6b8171 100644
+--- a/src/cmd/compile/internal/typecheck/builtin_test.go
++++ b/src/cmd/compile/internal/typecheck/builtin_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"testing"
+ )
+ 
+@@ -21,7 +20,7 @@ func TestBuiltin(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	new, err := exec.Command(testenv.GoToolPath(t), "run", "mkbuiltin.go", "-stdout").Output()
++	new, err := testenv.Command(t, testenv.GoToolPath(t), "run", "mkbuiltin.go", "-stdout").Output()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

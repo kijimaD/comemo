@@ -9,9 +9,104 @@ Date:   Tue Nov 1 21:46:59 2011 -0400
     R=r, gustavo, adg, r
     CC=golang-dev
     https://golang.org/cl/5321061
-
+---
  src/pkg/Makefile              |  1 +
  src/pkg/errors/Makefile       | 11 +++++++++++
  src/pkg/errors/errors.go      | 20 ++++++++++++++++++++
  src/pkg/errors/errors_test.go | 33 +++++++++++++++++++++++++++++++++
  4 files changed, 65 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ffb1547c56..f23f7fc4ed 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -75,6 +75,7 @@ DIRS=\
+ 	encoding/git85\
+ 	encoding/hex\
+ 	encoding/pem\
++	errors\
+ 	exec\
+ 	exp/ebnf\
+ 	exp/ebnflint\
+diff --git a/src/pkg/errors/Makefile b/src/pkg/errors/Makefile
+new file mode 100644
+index 0000000000..05b4de5937
+--- /dev/null
++++ b/src/pkg/errors/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=errors
++GOFILES=\
++	errors.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/errors/errors.go b/src/pkg/errors/errors.go
+new file mode 100644
+index 0000000000..3085a7962c
+--- /dev/null
++++ b/src/pkg/errors/errors.go
+@@ -0,0 +1,20 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package errors implements functions to manipulate errors.
++package errors
++
++// New returns an error that formats as the given text.
++func New(text string) error {
++	return &errorString{text}
++}
++
++// errorString is a trivial implementation of error.
++type errorString struct {
++	s string
++}
++
++func (e *errorString) Error() string {
++	return e.s
++}
+diff --git a/src/pkg/errors/errors_test.go b/src/pkg/errors/errors_test.go
+new file mode 100644
+index 0000000000..c537eeb625
+--- /dev/null
++++ b/src/pkg/errors/errors_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errors_test
++
++import (
++	. "errors"
++	"testing"
++)
++
++func TestNewEqual(t *testing.T) {
++	// Different allocations should not be equal.
++	if New("abc") == New("abc") {
++		t.Errorf(`New("abc") == New("abc")`)
++	}
++	if New("abc") == New("xyz") {
++		t.Errorf(`New("abc") == New("xyz")`)
++	}
++
++	// Same allocation should be equal to itself (not crash).
++	err := New("jkl")
++	if err != err {
++		t.Errorf(`err != err`)
++	}
++}
++
++func TestErrorMethod(t *testing.T) {
++	err := New("abc")
++	if err.Error() != "abc" {
++		t.Errorf(`New("abc").Error() = %q, want %q`, err.Error(), "abc")
++	}
++}

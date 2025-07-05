@@ -21,7 +21,72 @@ Date:   Mon Oct 17 11:10:39 2011 -0700
     R=golang-dev, go.peter.90, r
     CC=golang-dev
     https://golang.org/cl/5284046
-
+---
  src/pkg/csv/reader.go      |  4 ++--
  src/pkg/csv/reader_test.go | 24 ++++++++++++++++++++----
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/csv/reader.go b/src/pkg/csv/reader.go
+index ea2c266a47..29ceeae85b 100644
+--- a/src/pkg/csv/reader.go
++++ b/src/pkg/csv/reader.go
+@@ -267,7 +267,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 	}
+ 
+ 	if r.TrimLeadingSpace {
+-		for unicode.IsSpace(rune) {
++		for rune != '\n' && unicode.IsSpace(rune) {
+ 			rune, err = r.readRune()
+ 			if err != nil {
+ 				return false, 0, err
+@@ -355,7 +355,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 		c := r.column
+ 		rune, err = r.readRune()
+ 		if r.TrimLeadingSpace {
+-			for unicode.IsSpace(rune) {
++			for rune != '\n' && unicode.IsSpace(rune) {
+ 				rune, err = r.readRune()
+ 				if err != nil {
+ 					break
+diff --git a/src/pkg/csv/reader_test.go b/src/pkg/csv/reader_test.go
+index 0068bad1db..967f96b8d1 100644
+--- a/src/pkg/csv/reader_test.go
++++ b/src/pkg/csv/reader_test.go
+@@ -127,10 +127,9 @@ field"`,
+ 		Output:     [][]string{{`a""b`, `c`}},
+ 	},
+ 	{
+-		Name:   "BadDoubleQuotes",
+-		Input:  `a""b,c`,
+-		Output: [][]string{{`a""b`, `c`}},
+-		Error:  `bare " in non-quoted-field`, Line: 1, Column: 1,
++		Name:  "BadDoubleQuotes",
++		Input: `a""b,c`,
++		Error: `bare " in non-quoted-field`, Line: 1, Column: 1,
+ 	},
+ 	{
+ 		Name:             "TrimQuote",
+@@ -231,6 +230,23 @@ x,,,
+ 			{"", "", "", ""},
+ 		},
+ 	},
++	{
++		Name:             "Issue 2366",
++		TrailingComma:    true,
++		TrimLeadingSpace: true,
++		Input:            "a,b,\nc,d,e",
++		Output: [][]string{
++			{"a", "b", ""},
++			{"c", "d", "e"},
++		},
++	},
++	{
++		Name:             "Issue 2366a",
++		TrailingComma:    false,
++		TrimLeadingSpace: true,
++		Input:            "a,b,\nc,d,e",
++		Error:            "extra delimiter at end of line",
++	},
+ }
+ 
+ func TestRead(t *testing.T) {

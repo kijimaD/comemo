@@ -27,7 +27,7 @@ Date:   Fri Nov 4 03:23:37 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/net/http/client_test.go       |   6 ++
  src/net/http/clientserver_test.go |   5 ++
  src/net/http/fs_test.go           |   2 +
@@ -38,3 +38,842 @@ Date:   Fri Nov 4 03:23:37 2016 +0000
  src/net/http/sniff_test.go        |   2 +
  src/net/http/transport_test.go    |  20 ++++++-
  9 files changed, 127 insertions(+), 33 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 59603def67..7dfd078a41 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -197,6 +197,7 @@ func TestPostFormRequestFormat(t *testing.T) {
+ }
+ 
+ func TestClientRedirects(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -294,6 +295,7 @@ func TestClientRedirects(t *testing.T) {
+ }
+ 
+ func TestClientRedirectContext(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		Redirect(w, r, "/", StatusTemporaryRedirect)
+@@ -462,6 +464,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ }
+ 
+ func TestClientRedirectUseResponse(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	const body = "Hello, world."
+ 	var ts *httptest.Server
+@@ -811,6 +814,7 @@ func TestClientWrites(t *testing.T) {
+ }
+ 
+ func TestClientInsecureTransport(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Write([]byte("Hello"))
+@@ -1269,6 +1273,7 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
+ func TestClientRedirectEatsBody_h1(t *testing.T) { testClientRedirectEatsBody(t, h1Mode) }
+ func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
+ func testClientRedirectEatsBody(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	saw := make(chan string, 2)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -1580,6 +1585,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
+ }
+ 
+ func TestClientRedirectTypes(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	tests := [...]struct {
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index d01e7558dc..19dc156003 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -170,6 +170,7 @@ func (tt h12Compare) reqFunc() reqFunc {
+ }
+ 
+ func (tt h12Compare) run(t *testing.T) {
++	setParallel(t)
+ 	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler), tt.Opts...)
+ 	defer cst1.close()
+ 	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler), tt.Opts...)
+@@ -938,6 +939,7 @@ func testStarRequest(t *testing.T, method string, h2 bool) {
+ 
+ // Issue 13957
+ func TestTransportDiscardsUnneededConns(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
+@@ -1022,6 +1024,7 @@ func TestTransportGCRequest_Body_h2(t *testing.T)   { testTransportGCRequest(t,
+ func TestTransportGCRequest_NoBody_h1(t *testing.T) { testTransportGCRequest(t, h1Mode, false) }
+ func TestTransportGCRequest_NoBody_h2(t *testing.T) { testTransportGCRequest(t, h2Mode, false) }
+ func testTransportGCRequest(t *testing.T, h2, body bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ioutil.ReadAll(r.Body)
+@@ -1068,6 +1071,7 @@ func TestTransportRejectsInvalidHeaders_h2(t *testing.T) {
+ 	testTransportRejectsInvalidHeaders(t, h2Mode)
+ }
+ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
+@@ -1200,6 +1204,7 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
+ func TestCloseIdleConnections_h1(t *testing.T) { testCloseIdleConnections(t, h1Mode) }
+ func TestCloseIdleConnections_h2(t *testing.T) { testCloseIdleConnections(t, h2Mode) }
+ func testCloseIdleConnections(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("X-Addr", r.RemoteAddr)
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 3344390cca..55f0debe70 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -68,6 +68,7 @@ var ServeFileRangeTests = []struct {
+ }
+ 
+ func TestServeFile(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "testdata/file")
+@@ -1064,6 +1065,7 @@ func TestServeContentErrorMessages(t *testing.T) {
+ 
+ // verifies that sendfile is being used on Linux
+ func TestLinuxSendfile(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	if runtime.GOOS != "linux" {
+ 		t.Skip("skipping; linux-only test")
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index aaae67cf29..8f466bb366 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -82,6 +82,7 @@ func TestCleanHost(t *testing.T) {
+ // This catches accidental dependencies between the HTTP transport and
+ // server code.
+ func TestCmdGoNoHTTPServer(t *testing.T) {
++	t.Parallel()
+ 	goBin := testenv.GoToolPath(t)
+ 	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
+ 	if err != nil {
+diff --git a/src/net/http/npn_test.go b/src/net/http/npn_test.go
+index e2e911d3dd..4c1f6b573d 100644
+--- a/src/net/http/npn_test.go
++++ b/src/net/http/npn_test.go
+@@ -18,6 +18,7 @@ import (
+ )
+ 
+ func TestNextProtoUpgrade(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "path=%s,proto=", r.URL.Path)
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 342d4f5fc5..660d51791b 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -589,6 +589,7 @@ var readResponseCloseInMiddleTests = []struct {
+ // reading only part of its contents advances the read to the end of
+ // the request, right up until the next request.
+ func TestReadResponseCloseInMiddle(t *testing.T) {
++	t.Parallel()
+ 	for _, test := range readResponseCloseInMiddleTests {
+ 		fatalf := func(format string, args ...interface{}) {
+ 			args = append([]interface{}{test.chunked, test.compressed}, args...)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index fe63c6925f..08b9862e16 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -156,6 +156,7 @@ func (ht handlerTest) rawResponse(req string) string {
+ }
+ 
+ func TestConsumingBodyOnNextConn(t *testing.T) {
++	t.Parallel()
+ 	defer afterTest(t)
+ 	conn := new(testConn)
+ 	for i := 0; i < 2; i++ {
+@@ -237,6 +238,7 @@ var vtests = []struct {
+ }
+ 
+ func TestHostHandlers(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	mux := NewServeMux()
+ 	for _, h := range handlers {
+@@ -353,6 +355,7 @@ var serveMuxTests = []struct {
+ }
+ 
+ func TestServeMuxHandler(t *testing.T) {
++	setParallel(t)
+ 	mux := NewServeMux()
+ 	for _, e := range serveMuxRegister {
+ 		mux.Handle(e.pattern, e.h)
+@@ -390,6 +393,7 @@ var serveMuxTests2 = []struct {
+ // TestServeMuxHandlerRedirects tests that automatic redirects generated by
+ // mux.Handler() shouldn't clear the request's query string.
+ func TestServeMuxHandlerRedirects(t *testing.T) {
++	setParallel(t)
+ 	mux := NewServeMux()
+ 	for _, e := range serveMuxRegister {
+ 		mux.Handle(e.pattern, e.h)
+@@ -432,6 +436,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
+ 
+ // Tests for https://golang.org/issue/900
+ func TestMuxRedirectLeadingSlashes(t *testing.T) {
++	setParallel(t)
+ 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+ 	for _, path := range paths {
+ 		req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET " + path + " HTTP/1.1\r\nHost: test\r\n\r\n")))
+@@ -536,6 +541,7 @@ func TestServerTimeouts(t *testing.T) {
+ // shouldn't cause a handler to block forever on reads (next HTTP
+ // request) that will never happen.
+ func TestOnlyWriteTimeout(t *testing.T) {
++	setParallel(t)
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+@@ -598,6 +604,7 @@ func (l trackLastConnListener) Accept() (c net.Conn, err error) {
+ 
+ // TestIdentityResponse verifies that a handler can unset
+ func TestIdentityResponse(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+ 		rw.Header().Set("Content-Length", "3")
+@@ -674,6 +681,7 @@ func TestIdentityResponse(t *testing.T) {
+ }
+ 
+ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	s := httptest.NewServer(h)
+ 	defer s.Close()
+@@ -717,6 +725,7 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+ }
+ 
+ func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(handler)
+ 	defer ts.Close()
+@@ -796,6 +805,7 @@ func TestHTTP10KeepAlive304Response(t *testing.T) {
+ 
+ // Issue 15703
+ func TestKeepAliveFinalChunkWithEOF(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, false /* h1 */, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.(Flusher).Flush() // force chunked encoding
+@@ -828,6 +838,7 @@ func TestSetsRemoteAddr_h1(t *testing.T) { testSetsRemoteAddr(t, h1Mode) }
+ func TestSetsRemoteAddr_h2(t *testing.T) { testSetsRemoteAddr(t, h2Mode) }
+ 
+ func testSetsRemoteAddr(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "%s", r.RemoteAddr)
+@@ -877,6 +888,7 @@ func (c *blockingRemoteAddrConn) RemoteAddr() net.Addr {
+ 
+ // Issue 12943
+ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "RA:%s", r.RemoteAddr)
+@@ -948,7 +960,9 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+ 		t.Fatalf("response 1 addr = %q; want %q", g, e)
+ 	}
+ }
++
+ func TestIdentityResponseHeaders(t *testing.T) {
++	// Not parallel; changes log output.
+ 	defer afterTest(t)
+ 	log.SetOutput(ioutil.Discard) // is noisy otherwise
+ 	defer log.SetOutput(os.Stderr)
+@@ -983,6 +997,7 @@ func TestHeadResponses_h1(t *testing.T) { testHeadResponses(t, h1Mode) }
+ func TestHeadResponses_h2(t *testing.T) { testHeadResponses(t, h2Mode) }
+ 
+ func testHeadResponses(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		_, err := w.Write([]byte("<html>"))
+@@ -1054,6 +1069,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
+ }
+ 
+ func TestTLSServer(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.TLS != nil {
+@@ -1121,6 +1137,7 @@ func TestAutomaticHTTP2_Serve_H2TLSConfig(t *testing.T) {
+ }
+ 
+ func testAutomaticHTTP2_Serve(t *testing.T, tlsConf *tls.Config, wantH2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ln := newLocalListener(t)
+ 	ln.Close() // immediately (not a defer!)
+@@ -1136,6 +1153,7 @@ func testAutomaticHTTP2_Serve(t *testing.T, tlsConf *tls.Config, wantH2 bool) {
+ }
+ 
+ func TestAutomaticHTTP2_Serve_WithTLSConfig(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ln := newLocalListener(t)
+ 	ln.Close() // immediately (not a defer!)
+@@ -1177,6 +1195,7 @@ func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
+ }
+ 
+ func testAutomaticHTTP2_ListenAndServe(t *testing.T, tlsConf *tls.Config) {
++	// Not parallel: uses global test hooks.
+ 	defer afterTest(t)
+ 	defer SetTestHookServerServe(nil)
+ 	var ok bool
+@@ -1280,6 +1299,7 @@ var serverExpectTests = []serverExpectTest{
+ // correctly.
+ // http2 test: TestServer_Response_Automatic100Continue
+ func TestServerExpect(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		// Note using r.FormValue("readbody") because for POST
+@@ -1373,6 +1393,7 @@ func TestServerExpect(t *testing.T) {
+ // Under a ~256KB (maxPostHandlerReadBytes) threshold, the server
+ // should consume client request bodies that a handler didn't read.
+ func TestServerUnreadRequestBodyLittle(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	conn := new(testConn)
+ 	body := strings.Repeat("x", 100<<10)
+@@ -1413,6 +1434,7 @@ func TestServerUnreadRequestBodyLittle(t *testing.T) {
+ // should ignore client request bodies that a handler didn't read
+ // and close the connection.
+ func TestServerUnreadRequestBodyLarge(t *testing.T) {
++	setParallel(t)
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Log("skipping in short mode")
+ 	}
+@@ -1546,6 +1568,7 @@ var handlerBodyCloseTests = [...]handlerBodyCloseTest{
+ }
+ 
+ func TestHandlerBodyClose(t *testing.T) {
++	setParallel(t)
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Skip("skipping in -short mode")
+ 	}
+@@ -1625,6 +1648,7 @@ var testHandlerBodyConsumers = []testHandlerBodyConsumer{
+ }
+ 
+ func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	for _, handler := range testHandlerBodyConsumers {
+ 		conn := new(testConn)
+@@ -1655,6 +1679,7 @@ func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
+ }
+ 
+ func TestInvalidTrailerClosesConnection(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	for _, handler := range testHandlerBodyConsumers {
+ 		conn := new(testConn)
+@@ -1823,6 +1848,7 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
+ func TestTimeoutHandler_h1(t *testing.T) { testTimeoutHandler(t, h1Mode) }
+ func TestTimeoutHandler_h2(t *testing.T) { testTimeoutHandler(t, h2Mode) }
+ func testTimeoutHandler(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	sendHi := make(chan bool, 1)
+ 	writeErrors := make(chan error, 1)
+@@ -1876,6 +1902,7 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
+ 
+ // See issues 8209 and 8414.
+ func TestTimeoutHandlerRace(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	delayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -1917,6 +1944,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
+ 
+ // See issues 8209 and 8414.
+ func TestTimeoutHandlerRaceHeader(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	delay204 := HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -1952,6 +1980,7 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
+ 
+ // Issue 9162
+ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	sendHi := make(chan bool, 1)
+ 	writeErrors := make(chan error, 1)
+@@ -2032,6 +2061,7 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
+ 
+ // https://golang.org/issue/15948
+ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
+ 		// No response.
+@@ -2124,6 +2154,7 @@ func TestZeroLengthPostAndResponse_h2(t *testing.T) {
+ }
+ 
+ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, r *Request) {
+ 		all, err := ioutil.ReadAll(r.Body)
+@@ -2294,6 +2325,7 @@ func TestServerNoContentType_h1(t *testing.T) { testServerNoHeader(t, h1Mode, "C
+ func TestServerNoContentType_h2(t *testing.T) { testServerNoHeader(t, h2Mode, "Content-Type") }
+ 
+ func testServerNoHeader(t *testing.T, h2 bool, header string) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header()[header] = nil
+@@ -2311,6 +2343,7 @@ func testServerNoHeader(t *testing.T, h2 bool, header string) {
+ }
+ 
+ func TestStripPrefix(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("X-Path", r.URL.Path)
+@@ -2340,6 +2373,7 @@ func TestStripPrefix(t *testing.T) {
+ func TestRequestLimit_h1(t *testing.T) { testRequestLimit(t, h1Mode) }
+ func TestRequestLimit_h2(t *testing.T) { testRequestLimit(t, h2Mode) }
+ func testRequestLimit(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		t.Fatalf("didn't expect to get request in Handler")
+@@ -2386,6 +2420,7 @@ func (cr countReader) Read(p []byte) (n int, err error) {
+ func TestRequestBodyLimit_h1(t *testing.T) { testRequestBodyLimit(t, h1Mode) }
+ func TestRequestBodyLimit_h2(t *testing.T) { testRequestBodyLimit(t, h2Mode) }
+ func testRequestBodyLimit(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	const limit = 1 << 20
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -2481,6 +2516,7 @@ func TestServerBufferedChunking(t *testing.T) {
+ // closing the TCP connection, causing the client to get a RST.
+ // See https://golang.org/issue/3595
+ func TestServerGracefulClose(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		Error(w, "bye", StatusUnauthorized)
+@@ -2743,6 +2779,7 @@ func TestHijackAfterCloseNotifier(t *testing.T) {
+ }
+ 
+ func TestHijackBeforeRequestBodyRead(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
+ 	bodyOkay := make(chan bool, 1)
+@@ -3064,15 +3101,18 @@ func (l *errorListener) Addr() net.Addr {
+ }
+ 
+ func TestAcceptMaxFds(t *testing.T) {
+-	log.SetOutput(ioutil.Discard) // is noisy otherwise
+-	defer log.SetOutput(os.Stderr)
++	setParallel(t)
+ 
+ 	ln := &errorListener{[]error{
+ 		&net.OpError{
+ 			Op:  "accept",
+ 			Err: syscall.EMFILE,
+ 		}}}
+-	err := Serve(ln, HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})))
++	server := &Server{
++		Handler:  HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})),
++		ErrorLog: log.New(ioutil.Discard, "", 0), // noisy otherwise
++	}
++	err := server.Serve(ln)
+ 	if err != io.EOF {
+ 		t.Errorf("got error %v, want EOF", err)
+ 	}
+@@ -3197,6 +3237,7 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
+ func TestServerReaderFromOrder_h1(t *testing.T) { testServerReaderFromOrder(t, h1Mode) }
+ func TestServerReaderFromOrder_h2(t *testing.T) { testServerReaderFromOrder(t, h2Mode) }
+ func testServerReaderFromOrder(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	pr, pw := io.Pipe()
+ 	const size = 3 << 20
+@@ -3301,6 +3342,7 @@ func TestTransportAndServerSharedBodyRace_h2(t *testing.T) {
+ 	testTransportAndServerSharedBodyRace(t, h2Mode)
+ }
+ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	const bodySize = 1 << 20
+@@ -3489,6 +3531,7 @@ func TestAppendTime(t *testing.T) {
+ }
+ 
+ func TestServerConnState(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	handler := map[string]func(w ResponseWriter, r *Request){
+ 		"/": func(w ResponseWriter, r *Request) {
+@@ -3536,14 +3579,39 @@ func TestServerConnState(t *testing.T) {
+ 	}
+ 	ts.Start()
+ 
+-	mustGet(t, ts.URL+"/")
+-	mustGet(t, ts.URL+"/close")
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
+ 
+-	mustGet(t, ts.URL+"/")
+-	mustGet(t, ts.URL+"/", "Connection", "close")
++	mustGet := func(url string, headers ...string) {
++		req, err := NewRequest("GET", url, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		for len(headers) > 0 {
++			req.Header.Add(headers[0], headers[1])
++			headers = headers[2:]
++		}
++		res, err := c.Do(req)
++		if err != nil {
++			t.Errorf("Error fetching %s: %v", url, err)
++			return
++		}
++		_, err = ioutil.ReadAll(res.Body)
++		defer res.Body.Close()
++		if err != nil {
++			t.Errorf("Error reading %s: %v", url, err)
++		}
++	}
++
++	mustGet(ts.URL + "/")
++	mustGet(ts.URL + "/close")
++
++	mustGet(ts.URL + "/")
++	mustGet(ts.URL+"/", "Connection", "close")
+ 
+-	mustGet(t, ts.URL+"/hijack")
+-	mustGet(t, ts.URL+"/hijack-panic")
++	mustGet(ts.URL + "/hijack")
++	mustGet(ts.URL + "/hijack-panic")
+ 
+ 	// New->Closed
+ 	{
+@@ -3623,31 +3691,10 @@ func TestServerConnState(t *testing.T) {
+ 	}
+ 
+ 	mu.Lock()
+-	t.Errorf("Unexpected events.\nGot log: %s\n   Want: %s\n", logString(stateLog), logString(want))
++	t.Errorf("Unexpected events.\nGot log:\n%s\n   Want:\n%s\n", logString(stateLog), logString(want))
+ 	mu.Unlock()
+ }
+ 
+-func mustGet(t *testing.T, url string, headers ...string) {
+-	req, err := NewRequest("GET", url, nil)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	for len(headers) > 0 {
+-		req.Header.Add(headers[0], headers[1])
+-		headers = headers[2:]
+-	}
+-	res, err := DefaultClient.Do(req)
+-	if err != nil {
+-		t.Errorf("Error fetching %s: %v", url, err)
+-		return
+-	}
+-	_, err = ioutil.ReadAll(res.Body)
+-	defer res.Body.Close()
+-	if err != nil {
+-		t.Errorf("Error reading %s: %v", url, err)
+-	}
+-}
+-
+ func TestServerKeepAlivesEnabled(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+@@ -3668,6 +3715,7 @@ func TestServerKeepAlivesEnabled(t *testing.T) {
+ func TestServerEmptyBodyRace_h1(t *testing.T) { testServerEmptyBodyRace(t, h1Mode) }
+ func TestServerEmptyBodyRace_h2(t *testing.T) { testServerEmptyBodyRace(t, h2Mode) }
+ func testServerEmptyBodyRace(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var n int32
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
+@@ -3731,6 +3779,7 @@ func (c *closeWriteTestConn) CloseWrite() error {
+ }
+ 
+ func TestCloseWrite(t *testing.T) {
++	setParallel(t)
+ 	var srv Server
+ 	var testConn closeWriteTestConn
+ 	c := ExportServerNewConn(&srv, &testConn)
+@@ -3971,6 +4020,7 @@ Host: foo
+ // If a Handler finishes and there's an unread request body,
+ // verify the server try to do implicit read on it before replying.
+ func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
++	setParallel(t)
+ 	conn := &testConn{closec: make(chan bool)}
+ 	conn.readBuf.Write([]byte(fmt.Sprintf(
+ 		"POST / HTTP/1.1\r\n" +
+@@ -4124,6 +4174,7 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
+ // Test that we validate the valid bytes in HTTP/1 headers.
+ // Issue 11207.
+ func TestServerValidatesHeaders(t *testing.T) {
++	setParallel(t)
+ 	tests := []struct {
+ 		header string
+ 		want   int
+@@ -4168,6 +4219,7 @@ func TestServerRequestContextCancel_ServeHTTPDone_h2(t *testing.T) {
+ 	testServerRequestContextCancel_ServeHTTPDone(t, h2Mode)
+ }
+ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ctxc := make(chan context.Context, 1)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -4198,6 +4250,7 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
+ // is always blocked in a Read call so it notices the EOF from the client.
+ // See issues 15927 and 15224.
+ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	inHandler := make(chan struct{})
+ 	handlerDone := make(chan struct{})
+@@ -4238,6 +4291,7 @@ func TestServerContext_ServerContextKey_h2(t *testing.T) {
+ 	testServerContext_ServerContextKey(t, h2Mode)
+ }
+ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ctx := r.Context()
+@@ -4263,6 +4317,7 @@ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
+ 
+ // https://golang.org/issue/15960
+ func TestHandlerSetTransferEncodingChunked(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Transfer-Encoding", "chunked")
+@@ -4277,6 +4332,7 @@ func TestHandlerSetTransferEncodingChunked(t *testing.T) {
+ 
+ // https://golang.org/issue/16063
+ func TestHandlerSetTransferEncodingGzip(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Transfer-Encoding", "gzip")
+@@ -4770,6 +4826,7 @@ func BenchmarkCloseNotifier(b *testing.B) {
+ 
+ // Verify this doesn't race (Issue 16505)
+ func TestConcurrentServerServe(t *testing.T) {
++	setParallel(t)
+ 	for i := 0; i < 100; i++ {
+ 		ln1 := &oneConnListener{conn: nil}
+ 		ln2 := &oneConnListener{conn: nil}
+@@ -4783,6 +4840,7 @@ func TestServerIdleTimeout(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		io.Copy(ioutil.Discard, r.Body)
+@@ -4852,6 +4910,7 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
+ 	if runtime.GOOS == "nacl" {
+ 		t.Skip("skipping on nacl; see golang.org/issue/17695")
+ 	}
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		io.WriteString(w, r.RemoteAddr)
+@@ -4899,6 +4958,7 @@ func TestServerShutdown_h1(t *testing.T) { testServerShutdown(t, h1Mode) }
+ func TestServerShutdown_h2(t *testing.T) { testServerShutdown(t, h2Mode) }
+ 
+ func testServerShutdown(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var doShutdown func() // set later
+ 	var shutdownRes = make(chan error, 1)
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index ac404bfa72..38f3f8197e 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -66,6 +66,7 @@ func TestServerContentType_h1(t *testing.T) { testServerContentType(t, h1Mode) }
+ func TestServerContentType_h2(t *testing.T) { testServerContentType(t, h2Mode) }
+ 
+ func testServerContentType(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		i, _ := strconv.Atoi(r.FormValue("i"))
+@@ -160,6 +161,7 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
+ func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }
+ func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, h2Mode) }
+ func testSniffWriteSize(t *testing.T, h2 bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		size, _ := strconv.Atoi(r.FormValue("size"))
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index b3052e146d..f6f21e87ed 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -441,6 +441,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ }
+ 
+ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		io.WriteString(w, r.RemoteAddr)
+@@ -697,6 +698,7 @@ var roundTripTests = []struct {
+ 
+ // Test that the modification made to the Request by the RoundTripper is cleaned up
+ func TestRoundTripGzip(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	const responseBody = "test response body"
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+@@ -755,6 +757,7 @@ func TestRoundTripGzip(t *testing.T) {
+ }
+ 
+ func TestTransportGzip(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ 	const nRandBytes = 1024 * 1024
+@@ -853,6 +856,7 @@ func TestTransportGzip(t *testing.T) {
+ // If a request has Expect:100-continue header, the request blocks sending body until the first response.
+ // Premature consumption of the request body should not be occurred.
+ func TestTransportExpect100Continue(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+@@ -1077,7 +1081,7 @@ func waitNumGoroutine(nmax int) int {
+ 
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
+-	setParallel(t)
++	// Not parallel: counts goroutines
+ 	defer afterTest(t)
+ 	gotReqCh := make(chan bool)
+ 	unblockCh := make(chan bool)
+@@ -1141,7 +1145,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ // golang.org/issue/4531: Transport leaks goroutines when
+ // request.ContentLength is explicitly short
+ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+-	setParallel(t)
++	// Not parallel: measures goroutines.
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	}))
+@@ -1237,6 +1241,7 @@ func TestIssue3644(t *testing.T) {
+ // Test that a client receives a server's reply, even if the server doesn't read
+ // the entire request body.
+ func TestIssue3595(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	const deniedMsg = "sorry, denied."
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -1285,6 +1290,7 @@ func TestChunkedNoContent(t *testing.T) {
+ }
+ 
+ func TestTransportConcurrency(t *testing.T) {
++	// Not parallel: uses global test hooks.
+ 	defer afterTest(t)
+ 	maxProcs, numReqs := 16, 500
+ 	if testing.Short() {
+@@ -1345,6 +1351,7 @@ func TestTransportConcurrency(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
++	setParallel(t)
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+@@ -1409,6 +1416,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
++	setParallel(t)
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+@@ -1930,6 +1938,7 @@ func TestTransportEmptyMethod(t *testing.T) {
+ }
+ 
+ func TestTransportSocketLateBinding(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 
+ 	mux := NewServeMux()
+@@ -2194,6 +2203,7 @@ func TestProxyFromEnvironment(t *testing.T) {
+ }
+ 
+ func TestIdleConnChannelLeak(t *testing.T) {
++	// Not parallel: uses global test hooks.
+ 	var mu sync.Mutex
+ 	var n int
+ 
+@@ -2425,6 +2435,7 @@ func (c byteFromChanReader) Read(p []byte) (n int, err error) {
+ // questionable state.
+ // golang.org/issue/7569
+ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	var sconn struct {
+ 		sync.Mutex
+@@ -2653,6 +2664,8 @@ func TestTransportClosesBodyOnError(t *testing.T) {
+ }
+ 
+ func TestTransportDialTLS(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
+ 	var mu sync.Mutex // guards following
+ 	var gotReq, didDial bool
+ 
+@@ -3170,6 +3183,7 @@ func TestTransportReuseConnection_Gzip_ContentLength(t *testing.T) {
+ 
+ // Make sure we re-use underlying TCP connection for gzipped responses too.
+ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	addr := make(chan string, 2)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -3205,6 +3219,7 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
+ }
+ 
+ func TestTransportResponseHeaderLength(t *testing.T) {
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.URL.Path == "/long" {
+@@ -3643,6 +3658,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
+ // know the successful tls.Dial from DialTLS will need to go into the
+ // idle pool. Then we give it a of time to explode.
+ func TestIdleConnH2Crash(t *testing.T) {
++	setParallel(t)
+ 	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		// nothing
+ 	}))

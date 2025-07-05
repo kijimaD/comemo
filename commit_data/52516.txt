@@ -22,6 +22,27 @@ Date:   Tue Feb 1 14:41:20 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 15dbc25830..1743536590 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -74,11 +74,14 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
+ 	}
+ 
+ 	tcpReq, err = b.Finish()
++	if err != nil {
++		return 0, nil, nil, err
++	}
+ 	udpReq = tcpReq[2:]
+ 	l := len(tcpReq) - 2
+ 	tcpReq[0] = byte(l >> 8)
+ 	tcpReq[1] = byte(l)
+-	return id, udpReq, tcpReq, err
++	return id, udpReq, tcpReq, nil
+ }
+ 
+ func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage.Header, respQues dnsmessage.Question) bool {

@@ -7,7 +7,7 @@ Date:   Mon Jan 9 11:23:07 2012 +1100
     R=hectorchu, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5519054
-
+---
  src/cmd/6l/pass.c                       |  8 ++++----
  src/cmd/8l/pass.c                       |  6 +++---
  src/pkg/runtime/cgo/gcc_windows_386.c   |  4 ++--
@@ -16,3 +16,217 @@ Date:   Mon Jan 9 11:23:07 2012 +1100
  src/pkg/runtime/sys_windows_386.s       | 10 +++++-----
  src/pkg/runtime/sys_windows_amd64.s     | 10 +++++-----
  7 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 9f450d8fa4..2357a7f77d 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -276,7 +276,7 @@ patch(void)
+ 			// Convert
+ 			//   op	  n(GS), reg
+ 			// to
+-			//   MOVL 0x58(GS), reg
++			//   MOVL 0x28(GS), reg
+ 			//   op	  n(reg), reg
+ 			// The purpose of this patch is to fix some accesses
+ 			// to extern register variables (TLS) on Windows, as
+@@ -291,7 +291,7 @@ patch(void)
+ 				q->as = p->as;
+ 				p->as = AMOVQ;
+ 				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = 0x58;
++				p->from.offset = 0x28;
+ 			}
+ 		}
+ 		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
+@@ -428,11 +428,11 @@ dostkoff(void)
+ 			p->from.offset = tlsoffset+0;
+ 			p->to.type = D_CX;
+ 			if(HEADTYPE == Hwindows) {
+-				// movq %gs:0x58, %rcx
++				// movq %gs:0x28, %rcx
+ 				// movq (%rcx), %rcx
+ 				p->as = AMOVQ;
+ 				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = 0x58;
++				p->from.offset = 0x28;
+ 				p->to.type = D_CX;
+ 
+ 			
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 54ea965da2..b900a5f796 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -259,7 +259,7 @@ patch(void)
+ 				// Convert
+ 				//   op	  n(GS), reg
+ 				// to
+-				//   MOVL 0x2C(FS), reg
++				//   MOVL 0x14(FS), reg
+ 				//   op	  n(reg), reg
+ 				// The purpose of this patch is to fix some accesses
+ 				// to extern register variables (TLS) on Windows, as
+@@ -273,7 +273,7 @@ patch(void)
+ 					q->as = p->as;
+ 					p->as = AMOVL;
+ 					p->from.type = D_INDIR+D_FS;
+-					p->from.offset = 0x2C;
++					p->from.offset = 0x14;
+ 				}
+ 			}
+ 			if(HEADTYPE == Hlinux) {
+@@ -424,7 +424,7 @@ dostkoff(void)
+ 			case Hwindows:
+ 				p->as = AMOVL;
+ 				p->from.type = D_INDIR+D_FS;
+-				p->from.offset = 0x2c;
++				p->from.offset = 0x14;
+ 				p->to.type = D_CX;
+ 
+ 				p = appendp(p);
+diff --git a/src/pkg/runtime/cgo/gcc_windows_386.c b/src/pkg/runtime/cgo/gcc_windows_386.c
+index 4f34323929..2b940d3622 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_386.c
++++ b/src/pkg/runtime/cgo/gcc_windows_386.c
+@@ -45,8 +45,8 @@ threadentry(void *v)
+ 	 */
+ 	tls0 = (void*)LocalAlloc(LPTR, 32);
+ 	asm volatile (
+-		"movl %0, %%fs:0x2c\n"	// MOVL tls0, 0x2c(FS)
+-		"movl %%fs:0x2c, %%eax\n"	// MOVL 0x2c(FS), tmp
++		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
++		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
+ 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
+ 		"movl %2, 4(%%eax)\n"	// MOVL m, 4(FS)
+ 		:: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%eax"
+diff --git a/src/pkg/runtime/cgo/gcc_windows_amd64.c b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+index 2abc30b892..0d2f5d233b 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+@@ -45,8 +45,8 @@ threadentry(void *v)
+ 	 */
+ 	tls0 = (void*)LocalAlloc(LPTR, 64);
+ 	asm volatile (
+-	  "movq %0, %%gs:0x58\n"	// MOVL tls0, 0x58(GS)
+-	  "movq %%gs:0x58, %%rax\n" // MOVQ 0x58(GS), tmp
++	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
++	  "movq %%gs:0x28, %%rax\n" // MOVQ 0x28(GS), tmp
+ 	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
+ 	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
+ 	  :: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%rax"
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index e50db87f40..bc6b31ccc5 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -38,7 +38,7 @@ case "$GOARCH" in
+ 	#	../../libcgo/darwin_386.c:/^threadentry
+ 	case "$GOOS" in
+ 	windows)
+-		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
++		echo '#define	get_tls(r)	MOVL 0x14(FS), r'
+ 		echo '#define	g(r)	0(r)'
+ 		echo '#define	m(r)	4(r)'
+ 		;;
+@@ -82,7 +82,7 @@ case "$GOARCH" in
+ amd64)
+ 	case "$GOOS" in
+ 	windows)
+-		echo '#define	get_tls(r) MOVQ 0x58(GS), r'
++		echo '#define	get_tls(r) MOVQ 0x28(GS), r'
+ 		echo '#define	g(r) 0(r)'
+ 		echo '#define	m(r) 8(r)'
+ 		;;
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index c864c7f83c..5290f60934 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -98,7 +98,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	PUSHL	BX
+ 	PUSHL	SI
+ 	PUSHL	DI
+-	PUSHL	0x2c(FS)
++	PUSHL	0x14(FS)
+ 	MOVL	SP, DX
+ 
+ 	// setup dummy m, g
+@@ -108,7 +108,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+ 
+ 	LEAL	m_tls(SP), CX
+-	MOVL	CX, 0x2c(FS)
++	MOVL	CX, 0x14(FS)
+ 	MOVL	SP, m(CX)
+ 	MOVL	SP, BX
+ 	SUBL	$g_end, SP		// space for G
+@@ -129,7 +129,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	get_tls(CX)
+ 	MOVL	g(CX), CX
+ 	MOVL	g_stackbase(CX), SP
+-	POPL	0x2c(FS)
++	POPL	0x14(FS)
+ 	POPL	DI
+ 	POPL	SI
+ 	POPL	BX
+@@ -208,7 +208,7 @@ TEXT runtime·tstart(SB),7,$0
+ 
+ 	// Set up tls.
+ 	LEAL	m_tls(CX), SI
+-	MOVL	SI, 0x2c(FS)
++	MOVL	SI, 0x14(FS)
+ 	MOVL	CX, m(SI)
+ 	MOVL	DX, g(SI)
+ 
+@@ -246,5 +246,5 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),7,$0
+ 	MOVL	address+4(FP), CX
+-	MOVL	CX, 0x2c(FS)
++	MOVL	CX, 0x14(FS)
+ 	RET
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index e2a518884d..76b5ee5fbe 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -121,7 +121,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	PUSHQ	BX
+ 	PUSHQ	SI
+ 	PUSHQ	DI
+-	PUSHQ	0x58(GS)
++	PUSHQ	0x28(GS)
+ 	MOVQ	SP, DX
+ 
+ 	// setup dummy m, g
+@@ -131,7 +131,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+ 
+ 	LEAQ	m_tls(SP), CX
+-	MOVQ	CX, 0x58(GS)
++	MOVQ	CX, 0x28(GS)
+ 	MOVQ	SP, m(CX)
+ 	MOVQ	SP, BX
+ 	SUBQ	$g_end, SP		// space for G
+@@ -152,7 +152,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), CX
+ 	MOVQ	g_stackbase(CX), SP
+-	POPQ	0x58(GS)
++	POPQ	0x28(GS)
+ 	POPQ	DI
+ 	POPQ	SI
+ 	POPQ	BX
+@@ -254,7 +254,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 
+ 	// Set up tls.
+ 	LEAQ	m_tls(CX), SI
+-	MOVQ	SI, 0x58(GS)
++	MOVQ	SI, 0x28(GS)
+ 	MOVQ	CX, m(SI)
+ 	MOVQ	DX, g(SI)
+ 
+@@ -276,5 +276,5 @@ TEXT runtime·notok(SB),7,$0
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$0
+ 	CALL	runtime·setstacklimits(SB)
+-	MOVQ	DI, 0x58(GS)
++	MOVQ	DI, 0x28(GS)
+ 	RET

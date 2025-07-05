@@ -13,6 +13,24 @@ Date:   Thu Dec 5 15:44:26 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/hkdf/hkdf.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/crypto/hkdf/hkdf.go b/src/crypto/hkdf/hkdf.go
+index f4f441af04..7cfbe2c60d 100644
+--- a/src/crypto/hkdf/hkdf.go
++++ b/src/crypto/hkdf/hkdf.go
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package hkdf implements the HMAC-based Extract-and-Expand Key Derivation
++// Function (HKDF) as defined in RFC 5869.
++//
++// HKDF is a cryptographic key derivation function (KDF) with the goal of
++// expanding limited input keying material into one or more cryptographically
++// strong secret keys.
+ package hkdf
+ 
+ import (

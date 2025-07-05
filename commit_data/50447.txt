@@ -13,7 +13,34 @@ Date:   Wed Oct 27 11:41:47 2021 +0800
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 2 +-
  src/cmd/go/internal/work/build.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8178073103..9d8c321307 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -114,7 +114,7 @@
+ // 		The default is GOMAXPROCS, normally the number of CPUs available.
+ // 	-race
+ // 		enable data race detection.
+-// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
++// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
+ // 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ // 	-msan
+ // 		enable interoperation with memory sanitizer.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ffe33bfa4d..9d0ad27f0d 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -68,7 +68,7 @@ and test commands:
+ 		The default is GOMAXPROCS, normally the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
++		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
+ 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ 	-msan
+ 		enable interoperation with memory sanitizer.

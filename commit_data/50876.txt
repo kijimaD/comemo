@@ -12,9 +12,77 @@ Date:   Sat Nov 13 13:37:15 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go                 | 2 +-
  src/cmd/compile/internal/types2/index.go                      | 6 +++++-
  src/cmd/compile/internal/types2/testdata/check/expr3.src      | 4 ++--
  src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 4 ++--
  4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index d4c7b7b39b..ddaacd2443 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -277,7 +277,7 @@ func TestManual(t *testing.T) {
+ 
+ // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+ 
+-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 75, false) } // TODO(gri) narrow column tolerance
++func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+ func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", 0, false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 524d1957b5..c773ae8ad3 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -222,7 +222,11 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	case *Basic:
+ 		if isString(u) {
+ 			if e.Full {
+-				check.error(x, invalidOp+"3-index slice of string")
++				at := e.Index[2]
++				if at == nil {
++					at = e // e.Index[2] should be present but be careful
++				}
++				check.error(at, invalidOp+"3-index slice of string")
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index d1e1dba9f4..523214461f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -110,8 +110,8 @@ func indexes() {
+ 	_ = t[- /* ERROR "negative" */ 1]
+ 	_ = t[- /* ERROR "negative" */ 1 :]
+ 	_ = t[: - /* ERROR "negative" */ 1]
+-	_ = t /* ERROR "3-index slice of string" */ [1:2:3]
+-	_ = "foo" /* ERROR "3-index slice of string" */ [1:2:3]
++	_ = t[1:2:3 /* ERROR "3-index slice of string" */ ]
++	_ = "foo"[1:2:3 /* ERROR "3-index slice of string" */ ]
+ 	var t0 byte
+ 	t0 = t[0]
+ 	_ = t0
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index f77d09391b..d72cf078a7 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -129,7 +129,7 @@ func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
+ func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
+-func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
++func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+ 
+ type myByte1 []byte
+ type myByte2 []byte
+@@ -137,7 +137,7 @@ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T =
+ func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x[ /* ERROR no structural type */ i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+-func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+ func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x[ /* ERROR no structural type */ i:j] }
+ 
+ // len/cap built-ins

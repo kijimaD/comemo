@@ -11,6 +11,31 @@ Date:   Mon Dec 10 01:42:53 2012 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6905058
-
+---
  src/pkg/net/rpc/server.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index 8898b98aba..e71b6fb1a4 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -112,7 +112,7 @@
+ 
+ 		// Asynchronous call
+ 		quotient := new(Quotient)
+-		divCall := client.Go("Arith.Divide", args, &quotient, nil)
++		divCall := client.Go("Arith.Divide", args, quotient, nil)
+ 		replyCall := <-divCall.Done	// will be equal to divCall
+ 		// check errors, print, etc.
+ 
+@@ -219,8 +219,8 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
+ //	- exported method
+ //	- two arguments, both pointers to exported structs
+ //	- one return value, of type error
+-// It returns an error if the receiver is not an exported type or has no
+-// suitable methods.
++// It returns an error if the receiver is not an exported type or has
++// no methods or unsuitable methods. It also logs the error using package log.
+ // The client accesses each method using a string of the form "Type.Method",
+ // where Type is the receiver's concrete type.
+ func (server *Server) Register(rcvr interface{}) error {

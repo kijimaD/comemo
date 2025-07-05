@@ -16,8 +16,78 @@ Date:   Wed Dec 23 01:08:27 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go                   | 3 ++-
  src/cmd/compile/internal/{gc => pkginit}/init.go      | 6 +++---
  src/cmd/compile/internal/{gc => pkginit}/initorder.go | 2 +-
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index aeb58a3310..8483c87a38 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/noder"
++	"cmd/compile/internal/pkginit"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+@@ -223,7 +224,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.ExitIfErrors()
+ 
+ 	// Build init task.
+-	if initTask := fninit(); initTask != nil {
++	if initTask := pkginit.Task(); initTask != nil {
+ 		typecheck.Export(initTask)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/pkginit/init.go
+similarity index 96%
+rename from src/cmd/compile/internal/gc/init.go
+rename to src/cmd/compile/internal/pkginit/init.go
+index a299b8688b..f964edee88 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package pkginit
+ 
+ import (
+ 	"cmd/compile/internal/base"
+@@ -13,13 +13,13 @@ import (
+ 	"cmd/internal/obj"
+ )
+ 
+-// fninit makes and returns an initialization record for the package.
++// Task makes and returns an initialization record for the package.
+ // See runtime/proc.go:initTask for its layout.
+ // The 3 tasks for initialization are:
+ //   1) Initialize all of the packages the current package depends on.
+ //   2) Initialize all the variables that have initializers.
+ //   3) Run any init functions.
+-func fninit() *ir.Name {
++func Task() *ir.Name {
+ 	nf := initOrder(typecheck.Target.Decls)
+ 
+ 	var deps []*obj.LSym // initTask records for packages the current package depends on
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/initorder.go
+rename to src/cmd/compile/internal/pkginit/initorder.go
+index 4ac468fb4e..d63c5a4717 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package pkginit
+ 
+ import (
+ 	"bytes"

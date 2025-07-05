@@ -11,7 +11,94 @@ Date:   Mon Jul 1 17:36:08 2013 -0400
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/10784043
-
+---
  src/pkg/runtime/panic.c |  6 ++++-
  test/deferfin.go        | 59 +++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 963063a8e8..8ec8078d22 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -104,11 +104,15 @@ popdefer(void)
+ static void
+ freedefer(Defer *d)
+ {
++	int32 total;
++
+ 	if(d->special) {
+ 		if(d->free)
+ 			runtime·free(d);
+ 	} else {
+-		runtime·memclr((byte*)d->args, d->siz);
++		// Wipe out any possible pointers in argp/pc/fn/args.
++		total = sizeof(*d) + ROUND(d->siz, sizeof(uintptr)) - sizeof(d->args);
++		runtime·memclr((byte*)d, total);
+ 	}
+ }
+ 
+diff --git a/test/deferfin.go b/test/deferfin.go
+new file mode 100644
+index 0000000000..f9a74eba9c
+--- /dev/null
++++ b/test/deferfin.go
+@@ -0,0 +1,59 @@
++// run
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that defers do not prevent garbage collection.
++
++package main
++
++import (
++	"runtime"
++	"sync"
++	"sync/atomic"
++	"time"
++)
++
++var sink func()
++
++func main() {
++	// Does not work on 32-bits due to partially conservative GC.
++	// Try to enable when we have fully precise GC.
++	if runtime.GOARCH != "amd64" {
++		return
++	}
++	N := 10
++	count := int32(N)
++	var wg sync.WaitGroup
++	wg.Add(N)
++	for i := 0; i < N; i++ {
++		go func() {
++			defer wg.Done()
++			v := new(int)
++			f := func() {
++				if *v != 0 {
++					panic("oops")
++				}
++			}
++			if *v != 0 {
++				// let the compiler think f escapes
++				sink = f
++			}
++			runtime.SetFinalizer(v, func(p *int) {
++				atomic.AddInt32(&count, -1)
++			})
++			defer f()
++		}()
++	}
++	wg.Wait()
++	for i := 0; i < 3; i++ {
++		time.Sleep(10 * time.Millisecond)
++		runtime.GC()
++	}
++	if count != 0 {
++		println(count, "out of", N, "finalizer are not called")
++		panic("not all finalizers are called")
++	}
++}
++

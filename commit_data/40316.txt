@@ -13,7 +13,7 @@ Date:   Thu May 2 17:46:29 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   6 +-
  src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |  14 +-
@@ -41,3 +41,926 @@ Date:   Thu May 2 17:46:29 2019 -0400
  .../golang.org/x/sys/windows/syscall_windows.go    |   3 -
  src/cmd/vendor/modules.txt                         |  30 +--
  26 files changed, 296 insertions(+), 299 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f131fa006c..52b66da9d0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,6 +7,6 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+-	golang.org/x/sys v0.0.0-20190424175732-18eb32c0e2f0 // indirect
++	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+ 	golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index e796ae0321..75a8628478 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,10 +9,8 @@ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0F
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+-golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc h1:4gbWbmmPFp4ySWICouJl6emP0MyS31yy9SrTlAGFT+g=
+-golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20190424175732-18eb32c0e2f0 h1:V+O002es++Mnym06Rj/S6Fl7VCsgRBgVDGb/NoZVHUg=
+-golang.org/x/sys v0.0.0-20190424175732-18eb32c0e2f0/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
++golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04 h1:SRYGE+BqJRgY8JH4p2NmwTPeuREKqKYw5IuEmthTHKQ=
+ golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+index 8be2f49a95..80d00707bb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+@@ -146,24 +146,30 @@ netbsd_arm)
+ 	# API consistent across platforms.
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+ 	;;
++netbsd_arm64)
++	mkerrors="$mkerrors -m64"
++	mksyscall="go run mksyscall.go -netbsd"
++	mksysnum="go run mksysnum.go 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master'"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ openbsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="go run mksyscall.go -l32 -openbsd"
+-	mksysctl="./mksysctl_openbsd.pl"
++	mksysctl="go run mksysctl_openbsd.go"
+ 	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ openbsd_amd64)
+ 	mkerrors="$mkerrors -m64"
+ 	mksyscall="go run mksyscall.go -openbsd"
+-	mksysctl="./mksysctl_openbsd.pl"
++	mksysctl="go run mksysctl_openbsd.go"
+ 	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ openbsd_arm)
+ 	mkerrors="$mkerrors"
+ 	mksyscall="go run mksyscall.go -l32 -openbsd -arm"
+-	mksysctl="./mksysctl_openbsd.pl"
++	mksysctl="go run mksysctl_openbsd.go"
+ 	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+ 	# Let the type of C char be signed for making the bare syscall
+ 	# API consistent across platforms.
+@@ -172,7 +178,7 @@ openbsd_arm)
+ openbsd_arm64)
+ 	mkerrors="$mkerrors -m64"
+ 	mksyscall="go run mksyscall.go -openbsd"
+-	mksysctl="./mksysctl_openbsd.pl"
++	mksysctl="go run mksysctl_openbsd.go"
+ 	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+ 	# Let the type of C char be signed for making the bare syscall
+ 	# API consistent across platforms.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksysctl_openbsd.pl b/src/cmd/vendor/golang.org/x/sys/unix/mksysctl_openbsd.pl
+deleted file mode 100644
+index 20632e1460..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksysctl_openbsd.pl
++++ /dev/null
+@@ -1,265 +0,0 @@
+-#!/usr/bin/env perl
+-
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#
+-# Parse the header files for OpenBSD and generate a Go usable sysctl MIB.
+-#
+-# Build a MIB with each entry being an array containing the level, type and
+-# a hash that will contain additional entries if the current entry is a node.
+-# We then walk this MIB and create a flattened sysctl name to OID hash.
+-#
+-
+-use strict;
+-
+-if($ENV{'GOARCH'} eq "" || $ENV{'GOOS'} eq "") {
+-	print STDERR "GOARCH or GOOS not defined in environment\n";
+-	exit 1;
+-}
+-
+-my $debug = 0;
+-my %ctls = ();
+-
+-my @headers = qw (
+-	sys/sysctl.h
+-	sys/socket.h
+-	sys/tty.h
+-	sys/malloc.h
+-	sys/mount.h
+-	sys/namei.h
+-	sys/sem.h
+-	sys/shm.h
+-	sys/vmmeter.h
+-	uvm/uvmexp.h
+-	uvm/uvm_param.h
+-	uvm/uvm_swap_encrypt.h
+-	ddb/db_var.h
+-	net/if.h
+-	net/if_pfsync.h
+-	net/pipex.h
+-	netinet/in.h
+-	netinet/icmp_var.h
+-	netinet/igmp_var.h
+-	netinet/ip_ah.h
+-	netinet/ip_carp.h
+-	netinet/ip_divert.h
+-	netinet/ip_esp.h
+-	netinet/ip_ether.h
+-	netinet/ip_gre.h
+-	netinet/ip_ipcomp.h
+-	netinet/ip_ipip.h
+-	netinet/pim_var.h
+-	netinet/tcp_var.h
+-	netinet/udp_var.h
+-	netinet6/in6.h
+-	netinet6/ip6_divert.h
+-	netinet6/pim6_var.h
+-	netinet/icmp6.h
+-	netmpls/mpls.h
+-);
+-
+-my @ctls = qw (
+-	kern
+-	vm
+-	fs
+-	net
+-	#debug				# Special handling required
+-	hw
+-	#machdep			# Arch specific
+-	user
+-	ddb
+-	#vfs				# Special handling required
+-	fs.posix
+-	kern.forkstat
+-	kern.intrcnt
+-	kern.malloc
+-	kern.nchstats
+-	kern.seminfo
+-	kern.shminfo
+-	kern.timecounter
+-	kern.tty
+-	kern.watchdog
+-	net.bpf
+-	net.ifq
+-	net.inet
+-	net.inet.ah
+-	net.inet.carp
+-	net.inet.divert
+-	net.inet.esp
+-	net.inet.etherip
+-	net.inet.gre
+-	net.inet.icmp
+-	net.inet.igmp
+-	net.inet.ip
+-	net.inet.ip.ifq
+-	net.inet.ipcomp
+-	net.inet.ipip
+-	net.inet.mobileip
+-	net.inet.pfsync
+-	net.inet.pim
+-	net.inet.tcp
+-	net.inet.udp
+-	net.inet6
+-	net.inet6.divert
+-	net.inet6.ip6
+-	net.inet6.icmp6
+-	net.inet6.pim6
+-	net.inet6.tcp6
+-	net.inet6.udp6
+-	net.mpls
+-	net.mpls.ifq
+-	net.key
+-	net.pflow
+-	net.pfsync
+-	net.pipex
+-	net.rt
+-	vm.swapencrypt
+-	#vfsgenctl			# Special handling required
+-);
+-
+-# Node name "fixups"
+-my %ctl_map = (
+-	"ipproto" => "net.inet",
+-	"net.inet.ipproto" => "net.inet",
+-	"net.inet6.ipv6proto" => "net.inet6",
+-	"net.inet6.ipv6" => "net.inet6.ip6",
+-	"net.inet.icmpv6" => "net.inet6.icmp6",
+-	"net.inet6.divert6" => "net.inet6.divert",
+-	"net.inet6.tcp6" => "net.inet.tcp",
+-	"net.inet6.udp6" => "net.inet.udp",
+-	"mpls" => "net.mpls",
+-	"swpenc" => "vm.swapencrypt"
+-);
+-
+-# Node mappings
+-my %node_map = (
+-	"net.inet.ip.ifq" => "net.ifq",
+-	"net.inet.pfsync" => "net.pfsync",
+-	"net.mpls.ifq" => "net.ifq"
+-);
+-
+-my $ctlname;
+-my %mib = ();
+-my %sysctl = ();
+-my $node;
+-
+-sub debug() {
+-	print STDERR "$_[0]\n" if $debug;
+-}
+-
+-# Walk the MIB and build a sysctl name to OID mapping.
+-sub build_sysctl() {
+-	my ($node, $name, $oid) = @_;
+-	my %node = %{$node};
+-	my @oid = @{$oid};
+-
+-	foreach my $key (sort keys %node) {
+-		my @node = @{$node{$key}};
+-		my $nodename = $name.($name ne '' ? '.' : '').$key;
+-		my @nodeoid = (@oid, $node[0]);
+-		if ($node[1] eq 'CTLTYPE_NODE') {
+-			if (exists $node_map{$nodename}) {
+-				$node = \%mib;
+-				$ctlname = $node_map{$nodename};
+-				foreach my $part (split /\./, $ctlname) {
+-					$node = \%{@{$$node{$part}}[2]};
+-				}
+-			} else {
+-				$node = $node[2];
+-			}
+-			&build_sysctl($node, $nodename, \@nodeoid);
+-		} elsif ($node[1] ne '') {
+-			$sysctl{$nodename} = \@nodeoid;
+-		}
+-	}
+-}
+-
+-foreach my $ctl (@ctls) {
+-	$ctls{$ctl} = $ctl;
+-}
+-
+-# Build MIB
+-foreach my $header (@headers) {
+-	&debug("Processing $header...");
+-	open HEADER, "/usr/include/$header" ||
+-	    print STDERR "Failed to open $header\n";
+-	while (<HEADER>) {
+-		if ($_ =~ /^#define\s+(CTL_NAMES)\s+{/ ||
+-		    $_ =~ /^#define\s+(CTL_(.*)_NAMES)\s+{/ ||
+-		    $_ =~ /^#define\s+((.*)CTL_NAMES)\s+{/) {
+-			if ($1 eq 'CTL_NAMES') {
+-				# Top level.
+-				$node = \%mib;
+-			} else {
+-				# Node.
+-				my $nodename = lc($2);
+-				if ($header =~ /^netinet\//) {
+-					$ctlname = "net.inet.$nodename";
+-				} elsif ($header =~ /^netinet6\//) {
+-					$ctlname = "net.inet6.$nodename";
+-				} elsif ($header =~ /^net\//) {
+-					$ctlname = "net.$nodename";
+-				} else {
+-					$ctlname = "$nodename";
+-					$ctlname =~ s/^(fs|net|kern)_/$1\./;
+-				}
+-				if (exists $ctl_map{$ctlname}) {
+-					$ctlname = $ctl_map{$ctlname};
+-				}
+-				if (not exists $ctls{$ctlname}) {
+-					&debug("Ignoring $ctlname...");
+-					next;
+-				}
+-
+-				# Walk down from the top of the MIB.
+-				$node = \%mib;
+-				foreach my $part (split /\./, $ctlname) {
+-					if (not exists $$node{$part}) {
+-						&debug("Missing node $part");
+-						$$node{$part} = [ 0, '', {} ];
+-					}
+-					$node = \%{@{$$node{$part}}[2]};
+-				}
+-			}
+-
+-			# Populate current node with entries.
+-			my $i = -1;
+-			while (defined($_) && $_ !~ /^}/) {
+-				$_ = <HEADER>;
+-				$i++ if $_ =~ /{.*}/;
+-				next if $_ !~ /{\s+"(\w+)",\s+(CTLTYPE_[A-Z]+)\s+}/;
+-				$$node{$1} = [ $i, $2, {} ];
+-			}
+-		}
+-	}
+-	close HEADER;
+-}
+-
+-&build_sysctl(\%mib, "", []);
+-
+-print <<EOF;
+-// mksysctl_openbsd.pl
+-// Code generated by the command above; DO NOT EDIT.
+-
+-// +build $ENV{'GOARCH'},$ENV{'GOOS'}
+-
+-package unix;
+-
+-type mibentry struct {
+-	ctlname string
+-	ctloid []_C_int
+-}
+-
+-var sysctlMib = []mibentry {
+-EOF
+-
+-foreach my $name (sort keys %sysctl) {
+-	my @oid = @{$sysctl{$name}};
+-	print "\t{ \"$name\", []_C_int{ ", join(', ', @oid), " } }, \n";
+-}
+-
+-print <<EOF;
+-}
+-EOF
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index a79565a7ff..062bcabab1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -22,9 +22,9 @@ func cmsgAlignOf(salen int) int {
+ 		// There is no alignment on AIX.
+ 		salign = 1
+ 	case "darwin", "dragonfly", "solaris", "illumos":
+-		// NOTE: It seems like 64-bit Darwin, DragonFly BSD, illumos,
+-		// and Solaris kernels still require 32-bit aligned access to
+-		// network subsystem.
++		// NOTE: It seems like 64-bit Darwin, DragonFly BSD,
++		// illumos, and Solaris kernels still require 32-bit
++		// aligned access to network subsystem.
+ 		if SizeofPtr == 8 {
+ 			salign = 4
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall.go
+index 0d4b1d7a20..fd4ee8ebeb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall.go
+@@ -50,5 +50,4 @@ func BytePtrFromString(s string) (*byte, error) {
+ }
+ 
+ // Single-word zero for use when we need a valid pointer to 0 bytes.
+-// See mkunix.pl.
+ var _zero uintptr
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 558f07b53f..c302f01b2e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1675,6 +1675,69 @@ type fileHandle struct {
+ 	Type  int32
+ }
+ 
++// FileHandle represents the C struct file_handle used by
++// name_to_handle_at (see NameToHandleAt) and open_by_handle_at (see
++// OpenByHandleAt).
++type FileHandle struct {
++	*fileHandle
++}
++
++// NewFileHandle constructs a FileHandle.
++func NewFileHandle(handleType int32, handle []byte) FileHandle {
++	const hdrSize = unsafe.Sizeof(fileHandle{})
++	buf := make([]byte, hdrSize+uintptr(len(handle)))
++	copy(buf[hdrSize:], handle)
++	fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
++	fh.Type = handleType
++	fh.Bytes = uint32(len(handle))
++	return FileHandle{fh}
++}
++
++func (fh *FileHandle) Size() int   { return int(fh.fileHandle.Bytes) }
++func (fh *FileHandle) Type() int32 { return fh.fileHandle.Type }
++func (fh *FileHandle) Bytes() []byte {
++	n := fh.Size()
++	if n == 0 {
++		return nil
++	}
++	return (*[1 << 30]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type)) + 4))[:n:n]
++}
++
++// NameToHandleAt wraps the name_to_handle_at system call; it obtains
++// a handle for a path name.
++func NameToHandleAt(dirfd int, path string, flags int) (handle FileHandle, mountID int, err error) {
++	var mid _C_int
++	// Try first with a small buffer, assuming the handle will
++	// only be 32 bytes.
++	size := uint32(32 + unsafe.Sizeof(fileHandle{}))
++	didResize := false
++	for {
++		buf := make([]byte, size)
++		fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
++		fh.Bytes = size - uint32(unsafe.Sizeof(fileHandle{}))
++		err = nameToHandleAt(dirfd, path, fh, &mid, flags)
++		if err == EOVERFLOW {
++			if didResize {
++				// We shouldn't need to resize more than once
++				return
++			}
++			didResize = true
++			size = fh.Bytes + uint32(unsafe.Sizeof(fileHandle{}))
++			continue
++		}
++		if err != nil {
++			return
++		}
++		return FileHandle{fh}, int(mid), nil
++	}
++}
++
++// OpenByHandleAt wraps the open_by_handle_at system call; it opens a
++// file via a handle as previously returned by NameToHandleAt.
++func OpenByHandleAt(mountFD int, handle FileHandle, flags int) (fd int, err error) {
++	return openByHandleAt(mountFD, handle.fileHandle, flags)
++}
++
+ /*
+  * Unimplemented
+  */
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_386.go
+index b005031abe..37dcc74c2d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_386.go
+@@ -1,6 +1,8 @@
+ // mksysctl_openbsd.pl
+ // Code generated by the command above; DO NOT EDIT.
+ 
++// +build 386,openbsd
++
+ package unix
+ 
+ type mibentry struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_amd64.go
+index d014451c9d..fe6caa6eb7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_amd64.go
+@@ -1,4 +1,4 @@
+-// mksysctl_openbsd.pl
++// go run mksysctl_openbsd.go
+ // Code generated by the command above; DO NOT EDIT.
+ 
+ // +build amd64,openbsd
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm.go
+index b005031abe..6eb8c0b086 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm.go
+@@ -1,6 +1,8 @@
+-// mksysctl_openbsd.pl
++// go run mksysctl_openbsd.go
+ // Code generated by the command above; DO NOT EDIT.
+ 
++// +build arm,openbsd
++
+ package unix
+ 
+ type mibentry struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm64.go
+index bfd21b0799..ba4304fd23 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysctl_openbsd_arm64.go
+@@ -1,4 +1,4 @@
+-// mksysctl_openbsd.pl
++// go run mksysctl_openbsd.go
+ // Code generated by the command above; DO NOT EDIT.
+ 
+ // +build arm64,openbsd
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+index e09fe879ba..06471afa36 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+@@ -1452,6 +1452,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+index 45e693438d..6bba58ed25 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+@@ -1464,6 +1464,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+index 093afab186..07aa92b29d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+@@ -1442,6 +1442,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+index 5402721a18..66dba9aab6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+@@ -1443,6 +1443,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+index 19c8351c6d..b11b77d3ba 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+@@ -1448,6 +1448,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+index 1431b26557..ccfd9522eb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+@@ -1445,6 +1445,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+index 181e370066..95374fd9b5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+@@ -1445,6 +1445,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+index 8c037caddd..9d4953daf5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+@@ -1448,6 +1448,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+index 97a2f8da24..a436410d62 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+@@ -1453,6 +1453,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+index 8c2cdd77d1..dbe32bb303 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+@@ -1453,6 +1453,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index cd3a2d0b34..774d5c3eb7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -1470,6 +1470,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+index 0d459c7f8d..3b7747ed96 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+@@ -1467,6 +1467,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+index 71e3b40021..c606f4776b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+@@ -1448,6 +1448,21 @@ type TpacketBlockDesc struct {
+ 	Hdr     [40]byte
+ }
+ 
++type TpacketBDTS struct {
++	Sec  uint32
++	Usec uint32
++}
++
++type TpacketHdrV1 struct {
++	Block_status        uint32
++	Num_pkts            uint32
++	Offset_to_first_pkt uint32
++	Blk_len             uint32
++	Seq_num             uint64
++	Ts_first_pkt        TpacketBDTS
++	Ts_last_pkt         TpacketBDTS
++}
++
+ type TpacketReq struct {
+ 	Block_size uint32
+ 	Block_nr   uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 4c9bc55b4e..f4d19644e1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -561,9 +561,6 @@ func Fsync(fd Handle) (err error) {
+ }
+ 
+ func Chmod(path string, mode uint32) (err error) {
+-	if mode == 0 {
+-		return syscall.EINVAL
+-	}
+ 	p, e := UTF16PtrFromString(path)
+ 	if e != nil {
+ 		return e
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 3a4eca6395..5974e060dd 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,19 +1,19 @@
+ # github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57
+ github.com/google/pprof/driver
+-github.com/google/pprof/profile
+-github.com/google/pprof/internal/driver
+-github.com/google/pprof/internal/plugin
+ github.com/google/pprof/internal/binutils
++github.com/google/pprof/internal/driver
++github.com/google/pprof/internal/elfexec
+ github.com/google/pprof/internal/graph
+ github.com/google/pprof/internal/measurement
++github.com/google/pprof/internal/plugin
+ github.com/google/pprof/internal/report
+ github.com/google/pprof/internal/symbolizer
++github.com/google/pprof/internal/symbolz
+ github.com/google/pprof/internal/transport
++github.com/google/pprof/profile
+ github.com/google/pprof/third_party/d3
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+-github.com/google/pprof/internal/elfexec
+-github.com/google/pprof/internal/symbolz
+ # github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+@@ -23,12 +23,15 @@ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+ # golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ golang.org/x/crypto/ed25519
+-golang.org/x/crypto/ssh/terminal
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/sys v0.0.0-20190424175732-18eb32c0e2f0
++golang.org/x/crypto/ssh/terminal
++# golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+ # golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
++golang.org/x/tools/go/analysis
++golang.org/x/tools/go/analysis/internal/analysisflags
++golang.org/x/tools/go/analysis/internal/facts
+ golang.org/x/tools/go/analysis/passes/asmdecl
+ golang.org/x/tools/go/analysis/passes/assign
+ golang.org/x/tools/go/analysis/passes/atomic
+@@ -37,7 +40,10 @@ golang.org/x/tools/go/analysis/passes/buildtag
+ golang.org/x/tools/go/analysis/passes/cgocall
+ golang.org/x/tools/go/analysis/passes/composite
+ golang.org/x/tools/go/analysis/passes/copylock
++golang.org/x/tools/go/analysis/passes/ctrlflow
+ golang.org/x/tools/go/analysis/passes/httpresponse
++golang.org/x/tools/go/analysis/passes/inspect
++golang.org/x/tools/go/analysis/passes/internal/analysisutil
+ golang.org/x/tools/go/analysis/passes/loopclosure
+ golang.org/x/tools/go/analysis/passes/lostcancel
+ golang.org/x/tools/go/analysis/passes/nilfunc
+@@ -51,14 +57,8 @@ golang.org/x/tools/go/analysis/passes/unreachable
+ golang.org/x/tools/go/analysis/passes/unsafeptr
+ golang.org/x/tools/go/analysis/passes/unusedresult
+ golang.org/x/tools/go/analysis/unitchecker
+-golang.org/x/tools/go/analysis
+-golang.org/x/tools/go/analysis/passes/internal/analysisutil
+-golang.org/x/tools/go/analysis/passes/inspect
++golang.org/x/tools/go/ast/astutil
+ golang.org/x/tools/go/ast/inspector
+-golang.org/x/tools/go/analysis/passes/ctrlflow
+ golang.org/x/tools/go/cfg
+-golang.org/x/tools/go/types/typeutil
+-golang.org/x/tools/go/analysis/internal/analysisflags
+-golang.org/x/tools/go/analysis/internal/facts
+-golang.org/x/tools/go/ast/astutil
+ golang.org/x/tools/go/types/objectpath
++golang.org/x/tools/go/types/typeutil

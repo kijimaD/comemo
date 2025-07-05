@@ -20,6 +20,20 @@ Date:   Wed Jun 27 15:37:19 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/nonblocking_js.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/syscall/unix/nonblocking_js.go b/src/internal/syscall/unix/nonblocking_js.go
+index ff67c75e81..a360b53c3d 100644
+--- a/src/internal/syscall/unix/nonblocking_js.go
++++ b/src/internal/syscall/unix/nonblocking_js.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build js,wasm
++
+ package unix
+ 
+ func IsNonblock(fd int) (nonblocking bool, err error) {

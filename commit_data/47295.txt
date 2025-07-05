@@ -16,9 +16,112 @@ Date:   Tue Mar 9 19:13:37 2021 +0000
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/crypto/rand/rand_batched.go                  |  4 +-
  src/crypto/rand/rand_batched_test.go             |  4 +-
  src/crypto/rand/rand_dragonfly.go                |  9 +++++
  src/internal/syscall/unix/getrandom_dragonfly.go | 51 ++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/rand/rand_batched.go b/src/crypto/rand/rand_batched.go
+index 45e9351a31..538769a868 100644
+--- a/src/crypto/rand/rand_batched.go
++++ b/src/crypto/rand/rand_batched.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd
+-// +build linux freebsd
++//go:build linux || freebsd || dragonfly
++// +build linux freebsd dragonfly
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_batched_test.go b/src/crypto/rand/rand_batched_test.go
+index fd50735c7d..814f15201a 100644
+--- a/src/crypto/rand/rand_batched_test.go
++++ b/src/crypto/rand/rand_batched_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd
+-// +build linux freebsd
++//go:build linux || freebsd || dragonfly
++// +build linux freebsd dragonfly
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_dragonfly.go b/src/crypto/rand/rand_dragonfly.go
+new file mode 100644
+index 0000000000..8a36fea6cd
+--- /dev/null
++++ b/src/crypto/rand/rand_dragonfly.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
++// getrandom() syscall. In DragonFlyBSD at most 256 bytes will be returned per call.
++const maxGetRandomRead = 1 << 8
+diff --git a/src/internal/syscall/unix/getrandom_dragonfly.go b/src/internal/syscall/unix/getrandom_dragonfly.go
+new file mode 100644
+index 0000000000..b345b4c00c
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_dragonfly.go
+@@ -0,0 +1,51 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"sync/atomic"
++	"syscall"
++	"unsafe"
++)
++
++var randomUnsupported int32 // atomic
++
++// DragonFlyBSD getrandom system call number.
++const randomTrap uintptr = 550
++
++// GetRandomFlag is a flag supported by the getrandom system call.
++type GetRandomFlag uintptr
++
++const (
++	// GRND_RANDOM is only set for portability purpose, no-op on DragonFlyBSD.
++	GRND_RANDOM GetRandomFlag = 0x0001
++
++	// GRND_NONBLOCK means return EAGAIN rather than blocking.
++	GRND_NONBLOCK GetRandomFlag = 0x0002
++
++	// GRND_INSECURE is an GRND_NONBLOCK alias
++	GRND_INSECURE GetRandomFlag = 0x0004
++)
++
++// GetRandom calls the DragonFlyBSD getrandom system call.
++func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if atomic.LoadInt32(&randomUnsupported) != 0 {
++		return 0, syscall.ENOSYS
++	}
++	r1, _, errno := syscall.Syscall(randomTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		uintptr(flags))
++	if errno != 0 {
++		if errno == syscall.ENOSYS {
++			atomic.StoreInt32(&randomUnsupported, 1)
++		}
++		return 0, errno
++	}
++	return int(r1), nil
++}

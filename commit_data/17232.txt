@@ -9,7 +9,46 @@ Date:   Wed Aug 14 13:18:32 2013 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12842044
-
+---
  src/pkg/runtime/sys_freebsd_arm.s | 6 +++---
  src/pkg/runtime/sys_netbsd_arm.s  | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 1146af64ef..5d31012092 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -152,11 +152,11 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, because _cgo_load_gm will clobber it
++	// first save R0, because runtime·load_gm will clobber it
+ 	MOVW	R0, 4(R13) // signum
+-	MOVW	_cgo_load_gm(SB), R0
++	MOVB	runtime·iscgo(SB), R0
+ 	CMP 	$0, R0
+-	BL.NE	(R0)
++	BL.NE	runtime·load_gm(SB)
+ 
+ 	CMP $0, m
+ 	BNE 4(PC)
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index b660072102..4a5b889966 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -201,11 +201,11 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
+ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, because _cgo_load_gm will clobber it
++	// first save R0, because runtime·load_gm will clobber it
+ 	MOVW	R0, 4(R13) // signum
+-	MOVW	_cgo_load_gm(SB), R0
++	MOVB	runtime·iscgo(SB), R0
+ 	CMP 	$0, R0
+-	BL.NE	(R0)
++	BL.NE	runtime·load_gm(SB)
+ 
+ 	CMP $0, m
+ 	BNE 4(PC)

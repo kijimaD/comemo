@@ -9,8 +9,83 @@ Date:   Thu Sep 24 13:38:18 2009 -0700
     DELTA=56  (56 added, 0 deleted, 0 changed)
     OCL=34979
     CL=34981
-
+---
  src/cmd/8l/elf.c            |  6 ++++++
  src/pkg/runtime/nacl/defs.c | 27 +++++++++++++++++++++++++++
  test/compos.go              | 23 +++++++++++++++++++++++
  3 files changed, 56 insertions(+)
+
+diff --git a/src/cmd/8l/elf.c b/src/cmd/8l/elf.c
+new file mode 100644
+index 0000000000..e8ff543aae
+--- /dev/null
++++ b/src/cmd/8l/elf.c
+@@ -0,0 +1,6 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "l.h"
++#include "../ld/elf.c"
+diff --git a/src/pkg/runtime/nacl/defs.c b/src/pkg/runtime/nacl/defs.c
+new file mode 100644
+index 0000000000..bcaddd74fc
+--- /dev/null
++++ b/src/pkg/runtime/nacl/defs.c
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Input to godefs.
++
++godefs -f-m32 -f-I/home/rsc/pub/nacl/native_client/src/third_party/nacl_sdk/linux/sdk/nacl-sdk/nacl/include -f-I/home/rsc/pub/nacl/native_client defs.c >386/defs.h
++*/
++
++#define __native_client__ 1
++
++#define suseconds_t nacl_suseconds_t_1
++#include <sys/types.h>
++#undef suseconds_t
++
++#include <sys/mman.h>
++
++enum {
++	$PROT_NONE = PROT_NONE,
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$PROT_EXEC = PROT_EXEC,
++
++	$MAP_ANON = MAP_ANONYMOUS,
++	$MAP_PRIVATE = MAP_PRIVATE,
++};
+diff --git a/test/compos.go b/test/compos.go
+new file mode 100644
+index 0000000000..78a7965ef6
+--- /dev/null
++++ b/test/compos.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: compos
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	int;
++}
++
++func f() *T {
++	return &T{1}
++}
++
++func main() {
++	x := f();
++	y := f();
++	if x == y {
++		panic("not allocating & composite literals");
++	}
++}

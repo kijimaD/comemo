@@ -20,7 +20,48 @@ Date:   Sun Sep 1 15:38:31 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/encode.go      |  3 +++
  src/encoding/json/encode_test.go | 15 +++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 07d3098f1c..f085b5a08d 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -932,6 +932,9 @@ func (w *reflectWithString) resolve() error {
+ 		return nil
+ 	}
+ 	if tm, ok := w.v.Interface().(encoding.TextMarshaler); ok {
++		if w.v.Kind() == reflect.Ptr && w.v.IsNil() {
++			return nil
++		}
+ 		buf, err := tm.MarshalText()
+ 		w.s = string(buf)
+ 		return err
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index bdf2a9f079..642f397fb9 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -793,6 +793,21 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+ 	}
+ }
+ 
++// https://golang.org/issue/33675
++func TestNilMarshalerTextMapKey(t *testing.T) {
++	b, err := Marshal(map[*unmarshalerText]int{
++		(*unmarshalerText)(nil):    1,
++		&unmarshalerText{"A", "B"}: 2,
++	})
++	if err != nil {
++		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
++	}
++	const want = `{"":1,"A:B":2}`
++	if string(b) != want {
++		t.Errorf("Marshal map with *text.Marshaler keys: got %#q, want %#q", b, want)
++	}
++}
++
+ var re = regexp.MustCompile
+ 
+ // syntactic checks on form of marshaled floating point numbers.

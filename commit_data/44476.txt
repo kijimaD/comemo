@@ -15,6 +15,34 @@ Date:   Tue Jul 14 18:55:29 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/link/link_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index dc7adcb5fb..8f417ec8db 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -541,6 +541,13 @@ func TestOldLink(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
++	// Check that the old linker exists (we don't ship it in binary releases,
++	// see issue 39509).
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "-n", "oldlink")
++	if err := cmd.Run(); err != nil {
++		t.Skip("skipping because cannot find installed cmd/oldlink binary")
++	}
++
+ 	tmpdir, err := ioutil.TempDir("", "TestOldLink")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -553,7 +560,7 @@ func TestOldLink(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
++	cmd = exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+ 	}

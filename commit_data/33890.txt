@@ -109,10 +109,483 @@ Date:   Thu Sep 14 06:52:51 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  14 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules |  10 +
  src/cmd/compile/internal/ssa/gen/ARMOps.go |   6 +
  src/cmd/compile/internal/ssa/opGen.go      |  68 +++++++
  src/cmd/compile/internal/ssa/rewriteARM.go | 284 +++++++++++++++++++++++++++++
  5 files changed, 382 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 5525197d31..a70df6dd0e 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -197,6 +197,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD:
++		r := v.Reg()
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		r2 := v.Args[2].Reg()
++		if r != r0 {
++			v.Fatalf("result and addend are not in the same register: %v", v.LongString())
++		}
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpARMADDS,
+ 		ssa.OpARMSUBS:
+ 		r := v.Reg0()
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 197f9540d3..b21cd6f9f3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1248,6 +1248,16 @@
+ (NMULF (NEGF x) y) -> (MULF x y)
+ (NMULD (NEGD x) y) -> (MULD x y)
+ 
++// the result will overwrite the addend, since they are in the same register
++(ADDF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAF a x y)
++(ADDF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSF a x y)
++(ADDD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAD a x y)
++(ADDD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSD a x y)
++(SUBF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSF a x y)
++(SUBF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAF a x y)
++(SUBD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULSD a x y)
++(SUBD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 -> (MULAD a x y)
++
+ (AND x (MVN y)) -> (BIC x y)
+ 
+ // simplification with *shift ops
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index f94ef53258..93b50135d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -122,6 +122,7 @@ func init() {
+ 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
+ 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+ 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+ 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+@@ -181,6 +182,11 @@ func init() {
+ 		{name: "DIVF", argLength: 2, reg: fp21, asm: "DIVF"},                      // arg0 / arg1
+ 		{name: "DIVD", argLength: 2, reg: fp21, asm: "DIVD"},                      // arg0 / arg1
+ 
++		{name: "MULAF", argLength: 3, reg: fp31, asm: "MULAF", resultInArg0: true}, // arg0 + (arg1 * arg2)
++		{name: "MULAD", argLength: 3, reg: fp31, asm: "MULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
++		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
++		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
++
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c5d43f4611..4493759ae9 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -707,6 +707,10 @@ const (
+ 	OpARMNMULD
+ 	OpARMDIVF
+ 	OpARMDIVD
++	OpARMMULAF
++	OpARMMULAD
++	OpARMMULSF
++	OpARMMULSD
+ 	OpARMAND
+ 	OpARMANDconst
+ 	OpARMOR
+@@ -8655,6 +8659,70 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "MULAF",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          arm.AMULAF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:         "MULAD",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          arm.AMULAD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:         "MULSF",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          arm.AMULSF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:         "MULSD",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          arm.AMULSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 1c7eb39236..38695c503d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -33,6 +33,10 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMADCshiftRLreg_0(v)
+ 	case OpARMADD:
+ 		return rewriteValueARM_OpARMADD_0(v) || rewriteValueARM_OpARMADD_10(v)
++	case OpARMADDD:
++		return rewriteValueARM_OpARMADDD_0(v)
++	case OpARMADDF:
++		return rewriteValueARM_OpARMADDF_0(v)
+ 	case OpARMADDS:
+ 		return rewriteValueARM_OpARMADDS_0(v) || rewriteValueARM_OpARMADDS_10(v)
+ 	case OpARMADDSshiftLL:
+@@ -321,6 +325,10 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMSRLconst_0(v)
+ 	case OpARMSUB:
+ 		return rewriteValueARM_OpARMSUB_0(v) || rewriteValueARM_OpARMSUB_10(v)
++	case OpARMSUBD:
++		return rewriteValueARM_OpARMSUBD_0(v)
++	case OpARMSUBF:
++		return rewriteValueARM_OpARMSUBF_0(v)
+ 	case OpARMSUBS:
+ 		return rewriteValueARM_OpARMSUBS_0(v) || rewriteValueARM_OpARMSUBS_10(v)
+ 	case OpARMSUBSshiftLL:
+@@ -2039,6 +2047,188 @@ func rewriteValueARM_OpARMADD_10(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMADDD_0(v *Value) bool {
++	// match: (ADDD a (MULD x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAD a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMULD {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDD (MULD x y) a)
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAD a x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMULD {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDD a (NMULD x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSD a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMNMULD {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDD (NMULD x y) a)
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSD a x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMNMULD {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMADDF_0(v *Value) bool {
++	// match: (ADDF a (MULF x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAF a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMULF {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDF (MULF x y) a)
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAF a x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMULF {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDF a (NMULF x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSF a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMNMULF {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDF (NMULF x y) a)
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSF a x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMNMULF {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMADDS_0(v *Value) bool {
+ 	// match: (ADDS x (MOVWconst [c]))
+ 	// cond:
+@@ -13627,6 +13817,100 @@ func rewriteValueARM_OpARMSUB_10(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMSUBD_0(v *Value) bool {
++	// match: (SUBD a (MULD x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSD a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMULD {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (SUBD a (NMULD x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAD a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMNMULD {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAD)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMSUBF_0(v *Value) bool {
++	// match: (SUBF a (MULF x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULSF a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMULF {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULSF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (SUBF a (NMULF x y))
++	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// result: (MULAF a x y)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMNMULF {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMMULAF)
++		v.AddArg(a)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMSUBS_0(v *Value) bool {
+ 	// match: (SUBS x (MOVWconst [c]))
+ 	// cond:

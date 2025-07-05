@@ -7,7 +7,117 @@ Date:   Fri Jun 19 14:00:53 2009 -0700
     R=ken
     OCL=30519
     CL=30534
-
+---
  src/cmd/gc/subr.c | 23 +++++++++++++++++++++--
  src/cmd/gc/walk.c | 41 ++++++++++++++++++++++++++---------------
  2 files changed, 47 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0ff75248b8..43cde4ac4f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1723,10 +1723,29 @@ eqtype(Type *t1, Type *t2)
+ 	return eqtype1(t1, t2, 0, 1);
+ }
+ 
++/*
++ * can we convert from type src to dst with
++ * a trivial conversion (no bits changing)?
++ */
+ int
+-cvttype(Type *t1, Type *t2)
++cvttype(Type *dst, Type *src)
+ {
+-	return eqtype1(t1, t2, 0, 0);
++	Sym *ds, *ss;
++	int ret;
++
++	if(eqtype1(dst, src, 0, 0))
++		return 1;
++
++	// Can convert if assignment compatible when
++	// top-level names are ignored.
++	ds = dst->sym;
++	dst->sym = nil;
++	ss = src->sym;
++	src->sym = nil;
++	ret = ascompat(dst, src);
++	dst->sym = ds;
++	src->sym = ss;
++	return ret == 1;
+ }
+ 
+ int
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e29d608cd8..bcd139f4ba 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1301,7 +1301,7 @@ walkconv(Node *n)
+ 		return;
+ 
+ 	// no-op conversion
+-	if(cvttype(t, l->type)) {
++	if(cvttype(t, l->type) == 1) {
+ 	nop:
+ 		if(l->op != ONAME) {
+ 			indir(n, l);
+@@ -2217,7 +2217,8 @@ exportasok(Type *t)
+ }
+ 
+ /*
+- * can we assign var of type src to var of type dst
++ * can we assign var of type src to var of type dst?
++ * return 0 if not, 1 if conversion is trivial, 2 if conversion is non-trivial.
+  */
+ int
+ ascompat(Type *dst, Type *src)
+@@ -2230,6 +2231,28 @@ ascompat(Type *dst, Type *src)
+ 	if(dst == T || src == T)
+ 		return 0;
+ 
++	if(dst->etype == TFORWINTER || dst->etype == TFORWSTRUCT || dst->etype == TFORW)
++		return 0;
++	if(src->etype == TFORWINTER || src->etype == TFORWSTRUCT || src->etype == TFORW)
++		return 0;
++
++	// interfaces go through even if names don't match
++	if(isnilinter(dst) || isnilinter(src))
++		return 2;
++
++	if(isinter(dst) && isinter(src))
++		return 2;
++
++	if(isinter(dst) && methtype(src))
++		return 2;
++
++	if(isinter(src) && methtype(dst))
++		return 2;
++
++	// otherwise, if concrete types have names, they must match
++	if(dst->sym && src->sym && dst != src)
++		return 0;
++
+ 	if(dst->etype == TCHAN && src->etype == TCHAN) {
+ 		if(!eqtype(dst->type, src->type))
+ 			return 0;
+@@ -2242,19 +2265,7 @@ ascompat(Type *dst, Type *src)
+ 	&& isptr[src->etype]
+ 	&& isfixedarray(src->type)
+ 	&& eqtype(dst->type, src->type->type))
+-		return 1;
+-
+-	if(isnilinter(dst) || isnilinter(src))
+-		return 1;
+-
+-	if(isinter(dst) && isinter(src))
+-		return 1;
+-
+-	if(isinter(dst) && methtype(src))
+-		return 1;
+-
+-	if(isinter(src) && methtype(dst))
+-		return 1;
++		return 2;
+ 
+ 	return 0;
+ }

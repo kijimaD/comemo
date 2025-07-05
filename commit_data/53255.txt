@@ -11,9 +11,116 @@ Date:   Fri Jul 15 14:33:16 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/align_runtime_test.go |  1 -
  src/runtime/export_test.go        |  2 +-
  src/runtime/mgc.go                |  2 +-
  src/runtime/mgcpacer.go           | 16 +++++++---------
  4 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index 9fe7b61c44..5d12616f89 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -26,7 +26,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),
+ 	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
+ 	unsafe.Offsetof(gcControllerState{}.idleMarkTime),
+-	unsafe.Offsetof(gcControllerState{}.globalsScan),
+ 	unsafe.Offsetof(timeHistogram{}.underflow),
+ 	unsafe.Offsetof(profBuf{}.overflow),
+ 	unsafe.Offsetof(profBuf{}.overflowTime),
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 4736163673..81f60b3ada 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1323,7 +1323,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
+ 		trigger = c.heapMarked
+ 	}
+ 	c.maxStackScan.Store(stackSize)
+-	c.globalsScan = globalsSize
++	c.globalsScan.Store(globalsSize)
+ 	c.heapLive.Store(trigger)
+ 	c.heapScan.Add(int64(float64(trigger-c.heapMarked) * scannableFrac))
+ 	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b1657482a0..0a0de568e3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1121,7 +1121,7 @@ func gcMarkTermination() {
+ 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
+ 			gcController.lastHeapGoal>>20, " MB goal, ",
+ 			gcController.maxStackScan.Load()>>20, " MB stacks, ",
+-			gcController.globalsScan>>20, " MB globals, ",
++			gcController.globalsScan.Load()>>20, " MB globals, ",
+ 			work.maxprocs, " P")
+ 		if work.userForced {
+ 			print(" (forced)")
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index fe31d6fbd8..da74263ba4 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -231,9 +231,7 @@ type gcControllerState struct {
+ 
+ 	// globalsScan is the total amount of global variable space
+ 	// that is scannable.
+-	//
+-	// Read and updated atomically.
+-	globalsScan uint64
++	globalsScan atomic.Uint64
+ 
+ 	// heapMarked is the number of bytes marked by the previous
+ 	// GC. After mark termination, heapLive == heapMarked, but
+@@ -555,14 +553,14 @@ func (c *gcControllerState) revise() {
+ 
+ 	// The expected scan work is computed as the amount of bytes scanned last
+ 	// GC cycle (both heap and stack), plus our estimate of globals work for this cycle.
+-	scanWorkExpected := int64(c.lastHeapScan + c.lastStackScan.Load() + c.globalsScan)
++	scanWorkExpected := int64(c.lastHeapScan + c.lastStackScan.Load() + c.globalsScan.Load())
+ 
+ 	// maxScanWork is a worst-case estimate of the amount of scan work that
+ 	// needs to be performed in this GC cycle. Specifically, it represents
+ 	// the case where *all* scannable memory turns out to be live, and
+ 	// *all* allocated stack space is scannable.
+ 	maxStackScan := c.maxStackScan.Load()
+-	maxScanWork := int64(scan + maxStackScan + c.globalsScan)
++	maxScanWork := int64(scan + maxStackScan + c.globalsScan.Load())
+ 	if work > scanWorkExpected {
+ 		// We've already done more scan work than expected. Because our expectation
+ 		// is based on a steady-state scannable heap size, we assume this means our
+@@ -738,7 +736,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ 		printlock()
+ 		goal := gcGoalUtilization * 100
+ 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
+-		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan, " B exp.) ")
++		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan.Load(), " B exp.) ")
+ 		live := c.heapLive.Load()
+ 		print("in ", c.triggered, " B -> ", live, " B (∆goal ", int64(live)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
+ 		if !ok {
+@@ -953,7 +951,7 @@ func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
+ }
+ 
+ func (c *gcControllerState) addGlobals(amount int64) {
+-	atomic.Xadd64(&c.globalsScan, amount)
++	c.globalsScan.Add(amount)
+ }
+ 
+ // heapGoal returns the current heap goal.
+@@ -1255,7 +1253,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
+ 	// plus additional runway for non-heap sources of GC work.
+ 	gcPercentHeapGoal := ^uint64(0)
+ 	if gcPercent := c.gcPercent.Load(); gcPercent >= 0 {
+-		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+c.lastStackScan.Load()+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
++		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+c.lastStackScan.Load()+c.globalsScan.Load())*uint64(gcPercent)/100
+ 	}
+ 	// Apply the minimum heap size here. It's defined in terms of gcPercent
+ 	// and is only updated by functions that call commit.
+@@ -1287,7 +1285,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
+ 	// Furthermore, by setting the runway so that CPU resources are divided
+ 	// this way, assuming that the cons/mark ratio is correct, we make that
+ 	// division a reality.
+-	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan)))
++	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan.Load())))
+ }
+ 
+ // setGCPercent updates gcPercent. commit must be called after.

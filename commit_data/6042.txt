@@ -11,8 +11,136 @@ Date:   Tue Aug 17 18:55:42 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1986044
-
+---
  src/pkg/rpc/jsonrpc/all_test.go | 13 +++++++++++--
  src/pkg/rpc/jsonrpc/client.go   | 17 ++++++++++++++---
  src/pkg/rpc/jsonrpc/server.go   | 14 ++++++++++++--
  3 files changed, 37 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/rpc/jsonrpc/all_test.go b/src/pkg/rpc/jsonrpc/all_test.go
+index e94c594da0..764ee7ff36 100644
+--- a/src/pkg/rpc/jsonrpc/all_test.go
++++ b/src/pkg/rpc/jsonrpc/all_test.go
+@@ -53,7 +53,7 @@ func TestServer(t *testing.T) {
+ 	type addResp struct {
+ 		Id     interface{} "id"
+ 		Result Reply       "result"
+-		Error  string      "error"
++		Error  interface{} "error"
+ 	}
+ 
+ 	cli, srv := net.Pipe()
+@@ -69,7 +69,7 @@ func TestServer(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Decode: %s", err)
+ 		}
+-		if resp.Error != "" {
++		if resp.Error != nil {
+ 			t.Fatalf("resp.Error: %s", resp.Error)
+ 		}
+ 		if resp.Id.(string) != string(i) {
+@@ -79,6 +79,15 @@ func TestServer(t *testing.T) {
+ 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)
+ 		}
+ 	}
++
++	fmt.Fprintf(cli, "{}\n")
++	var resp addResp
++	if err := dec.Decode(&resp); err != nil {
++		t.Fatalf("Decode after empty: %s", err)
++	}
++	if resp.Error == nil {
++		t.Fatalf("Expected error, got nil")
++	}
+ }
+ 
+ func TestClient(t *testing.T) {
+diff --git a/src/pkg/rpc/jsonrpc/client.go b/src/pkg/rpc/jsonrpc/client.go
+index ed2b4ed379..b34ffab056 100644
+--- a/src/pkg/rpc/jsonrpc/client.go
++++ b/src/pkg/rpc/jsonrpc/client.go
+@@ -7,6 +7,7 @@
+ package jsonrpc
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"json"
+ 	"net"
+@@ -61,13 +62,13 @@ func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) os.Error {
+ type clientResponse struct {
+ 	Id     uint64           "id"
+ 	Result *json.RawMessage "result"
+-	Error  string           "error"
++	Error  interface{}      "error"
+ }
+ 
+ func (r *clientResponse) reset() {
+ 	r.Id = 0
+ 	r.Result = nil
+-	r.Error = ""
++	r.Error = nil
+ }
+ 
+ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+@@ -81,8 +82,18 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+ 	c.pending[c.resp.Id] = "", false
+ 	c.mutex.Unlock()
+ 
++	r.Error = ""
+ 	r.Seq = c.resp.Id
+-	r.Error = c.resp.Error
++	if c.resp.Error != nil {
++		x, ok := c.resp.Error.(string)
++		if !ok {
++			return os.NewError(fmt.Sprintf("invalid error %v", c.resp.Error))
++		}
++		if x == "" {
++			x = "unspecified error"
++		}
++		r.Error = x
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index 9f3472a39c..bf53bda8da 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -61,7 +61,7 @@ func (r *serverRequest) reset() {
+ type serverResponse struct {
+ 	Id     *json.RawMessage "id"
+ 	Result interface{}      "result"
+-	Error  string           "error"
++	Error  interface{}      "error"
+ }
+ 
+ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
+@@ -94,6 +94,8 @@ func (c *serverCodec) ReadRequestBody(x interface{}) os.Error {
+ 	return json.Unmarshal(*c.req.Params, &params)
+ }
+ 
++var null = json.RawMessage([]byte("null"))
++
+ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
+ 	var resp serverResponse
+ 	c.mutex.Lock()
+@@ -105,9 +107,17 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
+ 	c.pending[r.Seq] = nil, false
+ 	c.mutex.Unlock()
+ 
++	if b == nil {
++		// Invalid request so no id.  Use JSON null.
++		b = &null
++	}
+ 	resp.Id = b
+ 	resp.Result = x
+-	resp.Error = r.Error
++	if r.Error == "" {
++		resp.Error = nil
++	} else {
++		resp.Error = r.Error
++	}
+ 	return c.enc.Encode(resp)
+ }
+ 

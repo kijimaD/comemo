@@ -9,6 +9,22 @@ Date:   Thu Jan 20 13:11:06 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4072043
-
+---
  src/cmd/gotest/gotest | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 7572610d2e..87c6800893 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -180,10 +180,4 @@ importpath=$(gomake -s importpath)
+ 
+ $GC _testmain.go
+ $GL _testmain.$O
+-
+-# Set dynamic linker library path, no matter what it's called,
+-# to include the current directory while running $O.out,
+-# so that cgo libraries can be tested without installation.
+-LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH \
+-DYLD_LIBRARY_PATH=.:$DYLD_LIBRARY_PATH \
+ $E ./$O.out "$@"

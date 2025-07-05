@@ -7,6 +7,20 @@ Date:   Fri Mar 2 11:51:22 2018 +0000
     Change-Id: I289af4884583537639800e37928c22814d38cba9
     Reviewed-on: https://go-review.googlesource.com/98115
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 294e3739b7..afaec55569 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -170,7 +170,7 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
+ 	return markBits{bytep, mask, allocBitIndex}
+ }
+ 
+-// refillaCache takes 8 bytes s.allocBits starting at whichByte
++// refillAllocCache takes 8 bytes s.allocBits starting at whichByte
+ // and negates them so that ctz (count trailing zeros) instructions
+ // can be used. It then places these 8 bytes into the cached 64 bit
+ // s.allocCache.

@@ -7,6 +7,19 @@ Date:   Mon Jul 26 18:41:36 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1871049
-
+---
  src/cmd/gc/go.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8417872f40..96fce565ef 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include	<u.h>
++#include	<signal.h>
+ #include	<libc.h>
+ #include	<bio.h>
+ 

@@ -11,7 +11,51 @@ Date:   Wed Jun 30 18:02:31 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1741045
-
+---
  src/pkg/crypto/x509/x509.go      | 11 ++++++-----
  src/pkg/crypto/x509/x509_test.go |  2 +-
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 45197497cc..c4c79eb0de 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -761,19 +761,20 @@ var (
+ // MaxPathLen, SubjectKeyId, DNSNames.
+ //
+ // The certificate is signed by parent. If parent is equal to template then the
+-// certificate is self-signed.
++// certificate is self-signed. pub is the public key of the signee. priv is the
++// private key of the signer.
+ //
+ // The returned slice is the certificate in DER encoding.
+-func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
++func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
+ 	asn1PublicKey, err := asn1.MarshalToMemory(rsaPublicKey{
+-		N: asn1.RawValue{Tag: 2, Bytes: priv.PublicKey.N.Bytes()},
+-		E: priv.PublicKey.E,
++		N: asn1.RawValue{Tag: 2, Bytes: pub.N.Bytes()},
++		E: pub.E,
+ 	})
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	if len(template.SubjectKeyId) > 0 && len(parent.SubjectKeyId) > 0 {
++	if len(parent.SubjectKeyId) > 0 {
+ 		template.AuthorityKeyId = parent.SubjectKeyId
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 85e9e1bc83..23ce1ad11f 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -174,7 +174,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		DNSNames:              []string{"test.example.com"},
+ 	}
+ 
+-	derBytes, err := CreateCertificate(urandom, &template, &template, priv)
++	derBytes, err := CreateCertificate(urandom, &template, &template, &priv.PublicKey, priv)
+ 	if err != nil {
+ 		t.Errorf("Failed to create certificate: %s", err)
+ 		return

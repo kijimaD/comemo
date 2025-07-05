@@ -13,7 +13,73 @@ Date:   Thu Jun 9 18:10:21 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4584049
-
+---
  src/pkg/http/serve_test.go |  7 +++++++
  src/pkg/http/server.go     | 15 +++++++++++----
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 1054d4797c..dc4594a790 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	. "http"
+ 	"http/httptest"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -495,6 +496,12 @@ func TestHeadResponses(t *testing.T) {
+ 		if err != ErrBodyNotAllowed {
+ 			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+ 		}
++
++		// Also exercise the ReaderFrom path
++		_, err = io.Copy(w, strings.NewReader("Ignored body"))
++		if err != ErrBodyNotAllowed {
++			t.Errorf("on Copy, expected ErrBodyNotAllowed, got %v", err)
++		}
+ 	}))
+ 	defer ts.Close()
+ 	res, err := Head(ts.URL)
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 4063fad224..d4638f127c 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -129,7 +129,7 @@ func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
+ 	// WriteHeader if it hasn't been called yet, and WriteHeader
+ 	// is what sets r.chunking.
+ 	r.Flush()
+-	if !r.chunking {
++	if !r.chunking && r.bodyAllowed() {
+ 		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
+ 			n, err = rf.ReadFrom(src)
+ 			r.written += n
+@@ -335,6 +335,15 @@ func (w *response) WriteHeader(code int) {
+ 	io.WriteString(w.conn.buf, "\r\n")
+ }
+ 
++// bodyAllowed returns true if a Write is allowed for this response type.
++// It's illegal to call this before the header has been flushed.
++func (w *response) bodyAllowed() bool {
++	if !w.wroteHeader {
++		panic("")
++	}
++	return w.status != StatusNotModified && w.req.Method != "HEAD"
++}
++
+ func (w *response) Write(data []byte) (n int, err os.Error) {
+ 	if w.conn.hijacked {
+ 		log.Print("http: response.Write on hijacked connection")
+@@ -346,9 +355,7 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
+ 	if len(data) == 0 {
+ 		return 0, nil
+ 	}
+-
+-	if w.status == StatusNotModified || w.req.Method == "HEAD" {
+-		// Must not have body.
++	if !w.bodyAllowed() {
+ 		return 0, ErrBodyNotAllowed
+ 	}
+ 

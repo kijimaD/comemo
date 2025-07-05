@@ -20,7 +20,7 @@ Date:   Fri Aug 11 20:19:59 2023 +1000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_386.S         | 14 ++++++++++----
  src/runtime/cgo/gcc_freebsd_386.c |  8 ++------
  src/runtime/cgo/gcc_linux_386.c   |  8 ++------
@@ -29,3 +29,198 @@ Date:   Fri Aug 11 20:19:59 2023 +1000
  src/runtime/cgo/gcc_windows_386.c |  6 ++++--
  src/runtime/cgo/libcgo.h          |  5 -----
  7 files changed, 22 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_386.S b/src/runtime/cgo/gcc_386.S
+index 5bd677f4d6..d4c5934bcc 100644
+--- a/src/runtime/cgo/gcc_386.S
++++ b/src/runtime/cgo/gcc_386.S
+@@ -14,20 +14,26 @@
+ #endif
+ 
+ /*
+- * void crosscall_386(void (*fn)(void))
++ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
+  *
+- * Calling into the 8c tool chain, where all registers are caller save.
++ * Calling into the gc tool chain, where all registers are caller save.
+  * Called from standard x86 ABI, where %ebp, %ebx, %esi,
+  * and %edi are callee-save, so they must be saved explicitly.
+  */
+-.globl EXT(crosscall_386)
+-EXT(crosscall_386):
++.globl EXT(crosscall1)
++EXT(crosscall1):
+ 	pushl %ebp
+ 	movl %esp, %ebp
+ 	pushl %ebx
+ 	pushl %esi
+ 	pushl %edi
+ 
++	movl 16(%ebp), %eax	/* g */
++	pushl %eax
++	movl 12(%ebp), %eax	/* setg_gcc */
++	call *%eax
++	popl %eax
++
+ 	movl 8(%ebp), %eax	/* fn */
+ 	call *%eax
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_386.c b/src/runtime/cgo/gcc_freebsd_386.c
+index e56fad6a5b..ee4306071c 100644
+--- a/src/runtime/cgo/gcc_freebsd_386.c
++++ b/src/runtime/cgo/gcc_freebsd_386.c
+@@ -47,6 +47,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -55,11 +56,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	/*
+-	 * Set specific keys.
+-	 */
+-	setg_gcc((void*)ts.g);
+-
+-	crosscall_386(ts.fn);
++	crosscall1(ts.fn, setg_gcc, ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 13a5aa90de..9c23c90308 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -50,6 +50,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -58,11 +59,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	/*
+-	 * Set specific keys.
+-	 */
+-	setg_gcc((void*)ts.g);
+-
+-	crosscall_386(ts.fn);
++	crosscall1(ts.fn, setg_gcc, ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index b8cb5d0bc9..2e77564718 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -46,6 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -55,11 +56,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	/*
+-	 * Set specific keys.
+-	 */
+-	setg_gcc((void*)ts.g);
+-
+ 	// On NetBSD, a new thread inherits the signal stack of the
+ 	// creating thread. That confuses minit, so we remove that
+ 	// signal stack here before calling the regular mstart. It's
+@@ -71,6 +67,6 @@ threadentry(void *v)
+ 	ss.ss_flags = SS_DISABLE;
+ 	sigaltstack(&ss, nil);
+ 
+-	crosscall_386(ts.fn);
++	crosscall1(ts.fn, setg_gcc, ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index 092da4a6d2..5fd2c2f10f 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -46,6 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -54,11 +55,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	/*
+-	 * Set specific keys.
+-	 */
+-	setg_gcc((void*)ts.g);
+-
+-	crosscall_386(ts.fn);
++	crosscall1(ts.fn, setg_gcc, ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index 0f4f01c7c0..983e14b7c8 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -12,21 +12,23 @@
+ #include "libcgo_windows.h"
+ 
+ static void threadentry(void*);
++static void (*setg_gcc)(void*);
+ static DWORD *tls_g;
+ 
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
++	setg_gcc = setg;
+ 	tls_g = (DWORD *)tlsg;
+ }
+ 
+-
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	_cgo_beginthread(threadentry, ts);
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void
+ threadentry(void *v)
+ {
+@@ -47,5 +49,5 @@ threadentry(void *v)
+ 		:: "r"(ts.tls), "r"(*tls_g), "r"(ts.g) : "%eax"
+ 	);
+ 
+-	crosscall_386(ts.fn);
++	crosscall1(ts.fn, setg_gcc, ts.g);
+ }
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 1d2da2d0df..443aa2696d 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -68,11 +68,6 @@ void _cgo_sys_thread_start(ThreadStart *ts);
+  */
+ uintptr_t _cgo_wait_runtime_init_done(void);
+ 
+-/*
+- * Call fn in the 8c world.
+- */
+-void crosscall_386(void (*fn)(void));
+-
+ /*
+  * Prints error then calls abort. For linux and android.
+  */

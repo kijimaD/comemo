@@ -18,7 +18,73 @@ Date:   Mon Feb 25 16:22:00 2013 +0000
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/7338045
-
+---
  src/pkg/net/rpc/client.go      | 12 ++++++++----
  src/pkg/net/rpc/server_test.go | 17 +++++++++++++++++
  2 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index ee3cc4d34d..4b0c9c3bba 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -71,7 +71,7 @@ func (client *Client) send(call *Call) {
+ 
+ 	// Register this call.
+ 	client.mutex.Lock()
+-	if client.shutdown {
++	if client.shutdown || client.closing {
+ 		call.Error = ErrShutdown
+ 		client.mutex.Unlock()
+ 		call.done()
+@@ -105,9 +105,6 @@ func (client *Client) input() {
+ 		response = Response{}
+ 		err = client.codec.ReadResponseHeader(&response)
+ 		if err != nil {
+-			if err == io.EOF && !client.closing {
+-				err = io.ErrUnexpectedEOF
+-			}
+ 			break
+ 		}
+ 		seq := response.Seq
+@@ -150,6 +147,13 @@ func (client *Client) input() {
+ 	client.mutex.Lock()
+ 	client.shutdown = true
+ 	closing := client.closing
++	if err == io.EOF {
++		if closing {
++			err = ErrShutdown
++		} else {
++			err = io.ErrUnexpectedEOF
++		}
++	}
+ 	for _, call := range client.pending {
+ 		call.Error = err
+ 		call.done()
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index db7778dcb2..8a15306235 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -524,6 +524,23 @@ func TestTCPClose(t *testing.T) {
+ 	}
+ }
+ 
++func TestErrorAfterClientClose(t *testing.T) {
++	once.Do(startServer)
++
++	client, err := dialHTTP()
++	if err != nil {
++		t.Fatalf("dialing: %v", err)
++	}
++	err = client.Close()
++	if err != nil {
++		t.Fatal("close error:", err)
++	}
++	err = client.Call("Arith.Add", &Args{7, 9}, new(Reply))
++	if err != ErrShutdown {
++		t.Errorf("Forever: expected ErrShutdown got %v", err)
++	}
++}
++
+ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ 	b.StopTimer()
+ 	once.Do(startServer)

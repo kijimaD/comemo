@@ -23,7 +23,70 @@ Date:   Sun Sep 18 22:05:00 2022 +1000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/flag/flag.go      |  6 ++++--
  src/flag/flag_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 9abf8d769e..f6b38908f6 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -550,9 +550,11 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
+ 	}
+ 	// No explicit name, so use type if we can find one.
+ 	name = "value"
+-	switch flag.Value.(type) {
++	switch fv := flag.Value.(type) {
+ 	case boolFlag:
+-		name = ""
++		if fv.IsBoolFlag() {
++			name = ""
++		}
+ 	case *durationValue:
+ 		name = "duration"
+ 	case *float64Value:
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 791a8826be..1755168405 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -5,6 +5,7 @@
+ package flag_test
+ 
+ import (
++	"bytes"
+ 	. "flag"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -355,6 +356,31 @@ func TestUserDefinedBool(t *testing.T) {
+ 	}
+ }
+ 
++func TestUserDefinedBoolUsage(t *testing.T) {
++	var flags FlagSet
++	flags.Init("test", ContinueOnError)
++	var buf bytes.Buffer
++	flags.SetOutput(&buf)
++	var b boolFlagVar
++	flags.Var(&b, "b", "X")
++	b.count = 0
++	// b.IsBoolFlag() will return true and usage will look boolean.
++	flags.PrintDefaults()
++	got := buf.String()
++	want := "  -b\tX\n"
++	if got != want {
++		t.Errorf("false: want %q; got %q", want, got)
++	}
++	b.count = 4
++	// b.IsBoolFlag() will return false and usage will look non-boolean.
++	flags.PrintDefaults()
++	got = buf.String()
++	want = "  -b\tX\n  -b value\n    \tX\n"
++	if got != want {
++		t.Errorf("false: want %q; got %q", want, got)
++	}
++}
++
+ func TestSetOutput(t *testing.T) {
+ 	var flags FlagSet
+ 	var buf strings.Builder

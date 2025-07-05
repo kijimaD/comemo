@@ -12,9 +12,125 @@ Date:   Fri Dec 13 15:42:24 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.15.html                                  |  8 ++++++++
  src/cmd/go/go_test.go                            | 24 ------------------------
  src/cmd/go/internal/test/test.go                 |  5 +----
  src/cmd/go/testdata/script/test_cache_inputs.txt | 21 +++++++++++++++++++++
  4 files changed, 30 insertions(+), 28 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 9cc576e4be..b4319874c9 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -47,6 +47,14 @@ TODO
+ TODO
+ </p>
+ 
++<h4 id="go-test"><code>go</code> <code>test</code></h4>
++
++<p><!-- https://golang.org/issue/36134 -->
++  Changing the <code>-timeout</code> flag now invalidates cached test results. A
++  cached result for a test run with a long timeout will no longer count as
++  passing when <code>go</code> <code>test</code> is re-invoked with a short one.
++</p>
++
+ <h4 id="go-flag-parsing">Flag parsing</h4>
+ 
+ <p><!-- https://golang.org/cl/211358 -->
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6654bd3143..a5b0f0898b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2431,30 +2431,6 @@ func TestTestCache(t *testing.T) {
+ 	tg.setenv("GOPATH", tg.tempdir)
+ 	tg.setenv("GOCACHE", tg.path("cache"))
+ 
+-	if runtime.Compiler != "gccgo" {
+-		// timeout here should not affect result being cached
+-		// or being retrieved later.
+-		tg.run("test", "-x", "-timeout=10s", "errors")
+-		tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
+-		tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+-		tg.grepStderr(`errors\.test`, "did not run test")
+-
+-		tg.run("test", "-x", "errors")
+-		tg.grepStdout(`ok  \terrors\t\(cached\)`, "did not report cached result")
+-		tg.grepStderrNot(`[\\/]compile|gccgo`, "incorrectly ran compiler")
+-		tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
+-		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+-		tg.grepStderrNot("DO NOT USE", "poisoned action status leaked")
+-
+-		// Even very low timeouts do not disqualify cached entries.
+-		tg.run("test", "-timeout=1ns", "-x", "errors")
+-		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+-
+-		tg.run("clean", "-testcache")
+-		tg.run("test", "-x", "errors")
+-		tg.grepStderr(`errors\.test`, "did not run test")
+-	}
+-
+ 	// The -p=1 in the commands below just makes the -x output easier to read.
+ 
+ 	t.Log("\n\nINITIAL\n\n")
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 600f76df4c..1c6fb0b97f 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1291,16 +1291,13 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			"-test.parallel",
+ 			"-test.run",
+ 			"-test.short",
++			"-test.timeout",
+ 			"-test.v":
+ 			// These are cacheable.
+ 			// Note that this list is documented above,
+ 			// so if you add to this list, update the docs too.
+ 			cacheArgs = append(cacheArgs, arg)
+ 
+-		case "-test.timeout":
+-			// Special case: this is cacheable but ignored during the hash.
+-			// Do not add to cacheArgs.
+-
+ 		default:
+ 			// nothing else is cacheable
+ 			if cache.DebugTest {
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 46faca0f42..57602e91dc 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -29,6 +29,23 @@ go test testcache -run=TestLookupEnv
+ go test testcache -run=TestLookupEnv
+ stdout '\(cached\)'
+ 
++# Changes in arguments forwarded to the test should invalidate cached test
++# results.
++go test testcache -run=TestOSArgs -v hello
++! stdout '\(cached\)'
++stdout 'hello'
++go test testcache -run=TestOSArgs -v goodbye
++! stdout '\(cached\)'
++stdout 'goodbye'
++
++# golang.org/issue/36134: that includes the `-timeout` argument.
++go test testcache -run=TestOSArgs -timeout=20m -v
++! stdout '\(cached\)'
++stdout '-test\.timeout[= ]20m'
++go test testcache -run=TestOSArgs -timeout=5s -v
++! stdout '\(cached\)'
++stdout '-test\.timeout[= ]5s'
++
+ # If the test stats a file, changes to the file should invalidate the cache.
+ go test testcache -run=FileSize
+ go test testcache -run=FileSize
+@@ -207,6 +224,10 @@ func TestExternalFile(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestOSArgs(t *testing.T) {
++	t.Log(os.Args)
++}
+ -- mkold.go --
+ package main
+ 

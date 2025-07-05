@@ -8,7 +8,124 @@ Date:   Thu Jul 2 16:24:44 2009 -0700
     DELTA=28  (5 added, 0 deleted, 23 changed)
     OCL=31093
     CL=31093
-
+---
  src/pkg/strconv/atoi.go      | 27 ++++++++++++++++-----------
  src/pkg/strconv/atoi_test.go | 12 ++++++------
  2 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 857b1afe68..cc9688bb05 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -113,16 +113,19 @@ func Atoui64(s string) (n uint64, err os.Error) {
+ 	}
+ 
+ 	// Look for octal, hex prefix.
+-	if s[0] == '0' && len(s) > 1 {
+-		if s[1] == 'x' || s[1] == 'X' {
+-			// hex
+-			return Btoui64(s[2:len(s)], 16);
+-		}
+-		// octal
+-		return Btoui64(s[1:len(s)], 8);
++	switch {
++	case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
++		n, err = Btoui64(s[2:len(s)], 16);
++	case s[0] == '0':
++		n, err = Btoui64(s, 8);
++	default:
++		n, err = Btoui64(s, 10);
++	}
++
++	if err != nil {
++		err.(*NumError).Num = s;
+ 	}
+-	// decimal
+-	return Btoui64(s, 10);
++	return;
+ }
+ 
+ 
+@@ -135,6 +138,7 @@ func Atoi64(s string) (i int64, err os.Error) {
+ 	}
+ 
+ 	// Pick off leading sign.
++	s0 := s;
+ 	neg := false;
+ 	if s[0] == '+' {
+ 		s = s[1:len(s)]
+@@ -147,13 +151,14 @@ func Atoi64(s string) (i int64, err os.Error) {
+ 	var un uint64;
+ 	un, err = Atoui64(s);
+ 	if err != nil && err.(*NumError).Error != os.ERANGE {
++		err.(*NumError).Num = s0;
+ 		return 0, err
+ 	}
+ 	if !neg && un >= 1<<63 {
+-		return 1<<63-1, &NumError{s, os.ERANGE}
++		return 1<<63-1, &NumError{s0, os.ERANGE}
+ 	}
+ 	if neg && un > 1<<63 {
+-		return -1<<63, &NumError{s, os.ERANGE}
++		return -1<<63, &NumError{s0, os.ERANGE}
+ 	}
+ 	n := int64(un);
+ 	if neg {
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index 2483a6ff41..54630ae62b 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -153,7 +153,7 @@ func TestAtoui64(t *testing.T) {
+ 		test := &atoui64tests[i];
+ 		out, err := strconv.Atoui64(test.in);
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("strconv.Atoui64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("strconv.Atoui64(%q) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+@@ -164,7 +164,7 @@ func TestAtoi64(t *testing.T) {
+ 		test := &atoi64tests[i];
+ 		out, err := strconv.Atoi64(test.in);
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("strconv.Atoi64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("strconv.Atoi64(%q) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+@@ -177,7 +177,7 @@ func TestAtoui(t *testing.T) {
+ 			test := &atoui32tests[i];
+ 			out, err := strconv.Atoui(test.in);
+ 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoui(%q) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+@@ -186,7 +186,7 @@ func TestAtoui(t *testing.T) {
+ 			test := &atoui64tests[i];
+ 			out, err := strconv.Atoui(test.in);
+ 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoui(%q) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+@@ -200,7 +200,7 @@ func TestAtoi(t *testing.T) {
+ 			test := &atoi32tests[i];
+ 			out, err := strconv.Atoi(test.in);
+ 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoi(%q) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+@@ -209,7 +209,7 @@ func TestAtoi(t *testing.T) {
+ 			test := &atoi64tests[i];
+ 			out, err := strconv.Atoi(test.in);
+ 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
+-				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoi(%q) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}

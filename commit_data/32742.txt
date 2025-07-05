@@ -7,6 +7,39 @@ Date:   Tue May 23 10:36:28 2017 -0700
     Change-Id: I2ed2e8c4890a65288cf3066ebe3c1d9a16fb4c05
     Reviewed-on: https://go-review.googlesource.com/43990
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 521c75582a..baf86b9937 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -42,6 +42,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.1">Go
+ 1.8.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.8.2 (released 2017/05/23) includes a security fix to the
++<code>crypto/elliptic</code> package.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.2">Go
++1.8.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.7">go1.7 (released 2016/08/15)</h2>
+ 
+ <p>
+@@ -88,6 +95,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.5">Go
+ 1.7.5 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.7.6 (released 2017/05/23) includes the same security fix as Go 1.8.2 and
++was released at the same time.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.2">Go
++1.8.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>

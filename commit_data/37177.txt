@@ -18,6 +18,23 @@ Date:   Sun Jul 8 01:05:18 2018 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 7eb20f24ea..f1229f154b 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -650,7 +650,10 @@ func TestAbort(t *testing.T) {
+ 	}
+ 	// Check that it's a breakpoint traceback.
+ 	want := "SIGTRAP"
+-	if runtime.GOOS == "windows" {
++	switch runtime.GOOS {
++	case "plan9":
++		want = "sys: breakpoint"
++	case "windows":
+ 		want = "Exception 0x80000003"
+ 	}
+ 	if !strings.Contains(output, want) {

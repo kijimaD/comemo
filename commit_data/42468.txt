@@ -12,8 +12,68 @@ Date:   Thu Jan 2 02:00:55 2020 -0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql_test.go | 6 +++++-
  src/net/lookup_test.go       | 6 +++++-
  src/time/sleep_test.go       | 2 +-
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index ed0099e0e9..6f59260cda 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -629,7 +629,8 @@ func TestPoolExhaustOnCancel(t *testing.T) {
+ 		go func() {
+ 			rows, err := db.Query("SELECT|people|name,photo|")
+ 			if err != nil {
+-				t.Fatalf("Query: %v", err)
++				t.Errorf("Query: %v", err)
++				return
+ 			}
+ 			rows.Close()
+ 			saturateDone.Done()
+@@ -637,6 +638,9 @@ func TestPoolExhaustOnCancel(t *testing.T) {
+ 	}
+ 
+ 	saturate.Wait()
++	if t.Failed() {
++		t.FailNow()
++	}
+ 	state = 2
+ 
+ 	// Now cancel the request while it is waiting.
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 8a41510daf..1663b78ef0 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -998,12 +998,16 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
+ 			defer wg.Done()
+ 			_, err := r.LookupIPAddr(context.Background(), "google.com")
+ 			if err != nil {
+-				t.Fatalf("lookup failed for resolver %d: %q", index, err)
++				t.Errorf("lookup failed for resolver %d: %q", index, err)
+ 			}
+ 		}(resolver.Resolver, i)
+ 	}
+ 	wg.Wait()
+ 
++	if t.Failed() {
++		t.FailNow()
++	}
++
+ 	for i, resolver := range resolvers {
+ 		if !resolver.dialed {
+ 			t.Errorf("custom resolver %d not dialed during lookup", i)
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 950e0eabe1..f5678020b9 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -356,7 +356,7 @@ func TestTimerStopStress(t *testing.T) {
+ 	for i := 0; i < 100; i++ {
+ 		go func(i int) {
+ 			timer := AfterFunc(2*Second, func() {
+-				t.Fatalf("timer %d was not stopped", i)
++				t.Errorf("timer %d was not stopped", i)
+ 			})
+ 			Sleep(1 * Second)
+ 			timer.Stop()

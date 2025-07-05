@@ -9,7 +9,67 @@ Date:   Mon Dec 9 23:25:49 2013 -0500
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/35870043
-
+---
  src/pkg/crypto/rand/util.go      |  8 +++++---
  src/pkg/crypto/rand/util_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/util.go b/src/pkg/crypto/rand/util.go
+index 0cd5e0e022..5f74407850 100644
+--- a/src/pkg/crypto/rand/util.go
++++ b/src/pkg/crypto/rand/util.go
+@@ -27,9 +27,11 @@ var smallPrimesProduct = new(big.Int).SetUint64(16294579238595022365)
+ 
+ // Prime returns a number, p, of the given size, such that p is prime
+ // with high probability.
++// Prime will return error for any error returned by rand.Read or if bits < 2.
+ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
+-	if bits < 1 {
+-		err = errors.New("crypto/rand: prime size must be positive")
++	if bits < 2 {
++		err = errors.New("crypto/rand: prime size must be at least 2-bit")
++		return
+ 	}
+ 
+ 	b := uint(bits % 8)
+@@ -79,7 +81,7 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
+ 		for delta := uint64(0); delta < 1<<20; delta += 2 {
+ 			m := mod + delta
+ 			for _, prime := range smallPrimes {
+-				if m%uint64(prime) == 0 {
++				if m%uint64(prime) == 0 && (bits > 6 || m != uint64(prime)) {
+ 					continue NextDelta
+ 				}
+ 			}
+diff --git a/src/pkg/crypto/rand/util_test.go b/src/pkg/crypto/rand/util_test.go
+new file mode 100644
+index 0000000000..33f9820371
+--- /dev/null
++++ b/src/pkg/crypto/rand/util_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand_test
++
++import (
++	"crypto/rand"
++	"testing"
++)
++
++// http://golang.org/issue/6849.
++func TestPrimeSmall(t *testing.T) {
++	for n := 2; n < 10; n++ {
++		p, err := rand.Prime(rand.Reader, n)
++		if err != nil {
++			t.Fatalf("Can't generate %d-bit prime: %v", n, err)
++		}
++		if p.BitLen() != n {
++			t.Fatalf("%v is not %d-bit", p, n)
++		}
++		if !p.ProbablyPrime(32) {
++			t.Fatalf("%v is not prime", p)
++		}
++	}
++}

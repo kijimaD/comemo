@@ -58,7 +58,50 @@ Date:   Mon Jan 21 13:50:22 2019 -0500
     Change-Id: I4e374163b16c3f972f9591ec2647fd3d5a2dd5ae
     Reviewed-on: https://go-review.googlesource.com/c/158817
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go                    | 7 +++++--
  src/cmd/go/internal/generate/generate.go | 7 +++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5a6a1c82cc..03a0e4f19d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -442,11 +442,14 @@
+ // command alias, described below.
+ //
+ // To convey to humans and machine tools that code is generated,
+-// generated source should have a line early in the file that
+-// matches the following regular expression (in Go syntax):
++// generated source should have a line that matches the following
++// regular expression (in Go syntax):
+ //
+ // 	^// Code generated .* DO NOT EDIT\.$
+ //
++// The line may appear anywhere in the file, but is typically
++// placed near the beginning so it is easy to find.
++//
+ // Note that go generate does not parse the file, so lines that look
+ // like directives in comments or multiline strings will be treated
+ // as directives.
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 7cbc448e6d..124dbc05f5 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -49,11 +49,14 @@ that can be run locally. It must either be in the shell path
+ command alias, described below.
+ 
+ To convey to humans and machine tools that code is generated,
+-generated source should have a line early in the file that
+-matches the following regular expression (in Go syntax):
++generated source should have a line that matches the following
++regular expression (in Go syntax):
+ 
+ 	^// Code generated .* DO NOT EDIT\.$
+ 
++The line may appear anywhere in the file, but is typically
++placed near the beginning so it is easy to find.
++
+ Note that go generate does not parse the file, so lines that look
+ like directives in comments or multiline strings will be treated
+ as directives.

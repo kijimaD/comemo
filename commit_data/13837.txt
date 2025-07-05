@@ -7,6 +7,20 @@ Date:   Mon Sep 17 11:05:43 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6499127
-
+---
  misc/dashboard/builder/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 59e0f3c1db..8c6b65caeb 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -55,7 +55,7 @@ var (
+ 	failAll       = flag.Bool("fail", false, "fail all builds")
+ 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
+ 	buildTimeout  = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
+-	cmdTimeout    = flag.Duration("cmdTimeout", 2*time.Minute, "Maximum time to wait for an external command")
++	cmdTimeout    = flag.Duration("cmdTimeout", 5*time.Minute, "Maximum time to wait for an external command")
+ 	verbose       = flag.Bool("v", false, "verbose")
+ )
+ 

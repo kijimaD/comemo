@@ -31,8 +31,185 @@ Date:   Thu Mar 25 12:33:35 2021 -0700
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go1.17.html         |  9 ++++++
  src/time/format.go      | 85 +++++++++++++++++++++++++++++++++++++++++++++----
  src/time/format_test.go | 30 ++++++++++++++++-
  3 files changed, 117 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index b670d1b149..0521f9fd91 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -205,6 +205,15 @@ that can be used to pass values between C and Go safely. See
+   </p>
+ </dl><!-- net/http -->
+ 
++<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
++  <dd>
++    <p><!-- CL 260858 -->
++    time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
++    method that will return a more useful value for times when printed with
++    the <code>"%#v"</code> format specifier in the fmt package.
++    </p>
++  </dd>
++</dl><!-- time -->
+ <p>
+   TODO: complete this section
+ </p>
+diff --git a/src/time/format.go b/src/time/format.go
+index 9624752fb4..f6dc8ee621 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -477,6 +477,60 @@ func (t Time) String() string {
+ 	return s
+ }
+ 
++// GoString implements fmt.GoStringer and formats t to be printed in Go source
++// code.
++func (t Time) GoString() string {
++	buf := []byte("time.Date(")
++	buf = appendInt(buf, t.Year(), 0)
++	month := t.Month()
++	if January <= month && month <= December {
++		buf = append(buf, ", time."...)
++		buf = append(buf, t.Month().String()...)
++	} else {
++		// It's difficult to construct a time.Time with a date outside the
++		// standard range but we might as well try to handle the case.
++		buf = appendInt(buf, int(month), 0)
++	}
++	buf = append(buf, ", "...)
++	buf = appendInt(buf, t.Day(), 0)
++	buf = append(buf, ", "...)
++	buf = appendInt(buf, t.Hour(), 0)
++	buf = append(buf, ", "...)
++	buf = appendInt(buf, t.Minute(), 0)
++	buf = append(buf, ", "...)
++	buf = appendInt(buf, t.Second(), 0)
++	buf = append(buf, ", "...)
++	buf = appendInt(buf, t.Nanosecond(), 0)
++	buf = append(buf, ", "...)
++	switch loc := t.Location(); loc {
++	case UTC, nil:
++		buf = append(buf, "time.UTC"...)
++	case Local:
++		buf = append(buf, "time.Local"...)
++	default:
++		// there are several options for how we could display this, none of
++		// which are great:
++		//
++		// - use Location(loc.name), which is not technically valid syntax
++		// - use LoadLocation(loc.name), which will cause a syntax error when
++		// embedded and also would require us to escape the string without
++		// importing fmt or strconv
++		// - try to use FixedZone, which would also require escaping the name
++		// and would represent e.g. "America/Los_Angeles" daylight saving time
++		// shifts inaccurately
++		// - use the pointer format, which is no worse than you'd get with the
++		// old fmt.Sprintf("%#v", t) format.
++		//
++		// Of these, Location(loc.name) is the least disruptive. This is an edge
++		// case we hope not to hit too often.
++		buf = append(buf, `time.Location(`...)
++		buf = append(buf, []byte(quote(loc.name))...)
++		buf = append(buf, `)`...)
++	}
++	buf = append(buf, ')')
++	return string(buf)
++}
++
+ // Format returns a textual representation of the time value formatted
+ // according to layout, which defines the format by showing how the reference
+ // time, defined to be
+@@ -688,14 +742,33 @@ type ParseError struct {
+ 	Message    string
+ }
+ 
++// These are borrowed from unicode/utf8 and strconv and replicate behavior in
++// that package, since we can't take a dependency on either.
++const runeSelf = 0x80
++const lowerhex = "0123456789abcdef"
++
+ func quote(s string) string {
+-	buf := make([]byte, 0, len(s)+2) // +2 for surrounding quotes
+-	buf = append(buf, '"')
+-	for _, c := range s {
+-		if c == '"' || c == '\\' {
+-			buf = append(buf, '\\')
++	buf := make([]byte, 1, len(s)+2) // slice will be at least len(s) + quotes
++	buf[0] = '"'
++	for i, c := range s {
++		if c >= runeSelf || c < ' ' {
++			// This means you are asking us to parse a time.Duration or
++			// time.Location with unprintable or non-ASCII characters in it.
++			// We don't expect to hit this case very often. We could try to
++			// reproduce strconv.Quote's behavior with full fidelity but
++			// given how rarely we expect to hit these edge cases, speed and
++			// conciseness are better.
++			for j := 0; j < len(string(c)) && j < len(s); j++ {
++				buf = append(buf, `\x`...)
++				buf = append(buf, lowerhex[s[i+j]>>4])
++				buf = append(buf, lowerhex[s[i+j]&0xF])
++			}
++		} else {
++			if c == '"' || c == '\\' {
++				buf = append(buf, '\\')
++			}
++			buf = append(buf, string(c)...)
+ 		}
+-		buf = append(buf, string(c)...)
+ 	}
+ 	buf = append(buf, '"')
+ 	return string(buf)
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 09d3f842e3..1af41e2dfb 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -129,6 +129,31 @@ func TestFormat(t *testing.T) {
+ 	}
+ }
+ 
++var goStringTests = []struct {
++	in   Time
++	want string
++}{
++	{Date(2009, February, 5, 5, 0, 57, 12345600, UTC),
++		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.UTC)"},
++	{Date(2009, February, 5, 5, 0, 57, 12345600, Local),
++		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Local)"},
++	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Europe/Berlin", 3*60*60)),
++		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Europe/Berlin"))`,
++	},
++	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Non-ASCII character ⏰", 3*60*60)),
++		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Non-ASCII character \xe2\x8f\xb0"))`,
++	},
++}
++
++func TestGoString(t *testing.T) {
++	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2009
++	for _, tt := range goStringTests {
++		if tt.in.GoString() != tt.want {
++			t.Errorf("GoString (%q): got %q want %q", tt.in, tt.in.GoString(), tt.want)
++		}
++	}
++}
++
+ // issue 12440.
+ func TestFormatSingleDigits(t *testing.T) {
+ 	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
+@@ -796,10 +821,13 @@ func TestQuote(t *testing.T) {
+ 		{`abc"xyz"`, `"abc\"xyz\""`},
+ 		{"", `""`},
+ 		{"abc", `"abc"`},
++		{`☺`, `"\xe2\x98\xba"`},
++		{`☺ hello ☺ hello`, `"\xe2\x98\xba hello \xe2\x98\xba hello"`},
++		{"\x04", `"\x04"`},
+ 	}
+ 	for _, tt := range tests {
+ 		if q := Quote(tt.s); q != tt.want {
+-			t.Errorf("Quote(%q) = %q, want %q", tt.s, q, tt.want)
++			t.Errorf("Quote(%q) = got %q, want %q", tt.s, q, tt.want)
+ 		}
+ 	}
+ 

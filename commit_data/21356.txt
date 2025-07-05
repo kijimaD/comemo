@@ -10,6 +10,31 @@ Date:   Mon Dec 22 22:33:39 2014 +0100
     Change-Id: Icd71ec04be9c944bc235b8b198158465172e4fde
     Reviewed-on: https://go-review.googlesource.com/2030
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/plan9.c | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index e4bf251475..13bee4a057 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -504,19 +504,13 @@ done:
+ void
+ fatal(char *msg, ...)
+ {
+-	char buf[ERRMAX];
+ 	va_list arg;
+ 	
+-	rerrstr(buf, sizeof buf);
+-
+ 	fflush(stdout);
+ 	fprintf(stderr, "go tool dist: ");
+ 	va_start(arg, msg);
+ 	vfprintf(stderr, msg, arg);
+ 	va_end(arg);
+-
+-	if(buf[0])
+-		fprintf(stderr, ": %s", buf);
+ 	fprintf(stderr, "\n");
+ 
+ 	bgwait();

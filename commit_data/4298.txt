@@ -8,7 +8,7 @@ Date:   Thu Dec 3 00:51:03 2009 -0800
     
     R=ken2
     https://golang.org/cl/164093
-
+---
  src/cmd/gc/closure.c     |  3 ++-
  src/cmd/gc/dcl.c         |  1 +
  src/cmd/gc/go.h          |  1 -
@@ -16,3 +16,193 @@ Date:   Thu Dec 3 00:51:03 2009 -0800
  src/cmd/gc/subr.c        |  1 -
  test/fixedbugs/bug223.go | 21 +++++++++++++++
  6 files changed, 88 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 2f102993c6..33c576c878 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -152,9 +152,10 @@ walkclosure(Node *func, NodeList **init)
+ 
+ 	// create the function
+ 	xfunc = nod(ODCLFUNC, N, N);
+-	snprint(namebuf, sizeof namebuf, "_f%.3ld", ++closgen);
++	snprint(namebuf, sizeof namebuf, "_func_%.3ld", ++closgen);
+ 	xfunc->nname = newname(lookup(namebuf));
+ 	xfunc->nname->ntype = xtype;
++	xfunc->nname->defn = xfunc;
+ 	declare(xfunc->nname, PFUNC);
+ 	xfunc->nname->funcdepth = func->funcdepth;
+ 	xfunc->funcdepth = func->funcdepth;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ec386f3a0c..338a6213a6 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -167,6 +167,7 @@ declare(Node *n, int ctxt)
+ 	if(isblank(n))
+ 		return;
+ 
++	n->lineno = parserline();
+ 	s = n->sym;
+ 	gen = 0;
+ 	if(ctxt == PEXTERN) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 595d7c8b8c..87362156d3 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -351,7 +351,6 @@ enum
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+-	OFUNC,
+ 	OIND,
+ 	OINDEX, OINDEXSTR, OINDEXMAP,
+ 	OKEY, OPARAM,
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index dc95360ee8..ade8426c02 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -8,6 +8,10 @@
+ 
+ #include	"go.h"
+ 
++static NodeList *initlist;
++static void init2(Node*, NodeList**);
++static void init2list(NodeList*, NodeList**);
++
+ static void
+ init1(Node *n, NodeList **out)
+ {
+@@ -34,20 +38,45 @@ init1(Node *n, NodeList **out)
+ 
+ 	if(n->initorder == 1)
+ 		return;
+-	if(n->initorder == 2)
+-		fatal("init loop");
++	if(n->initorder == 2) {
++		if(n->class == PFUNC)
++			return;
++		
++		// if there have already been errors printed,
++		// those errors probably confused us and
++		// there might not be a loop.  let the user
++		// fix those first.
++		flusherrors();
++		if(nerrors > 0)
++			errorexit();
++
++		print("initialization loop:\n");
++		for(l=initlist;; l=l->next) {
++			if(l->next == nil)
++				break;
++			l->next->end = l;
++		}
++		for(; l; l=l->end)
++			print("\t%L %S refers to\n", l->n->lineno, l->n->sym);
++		print("\t%L %S\n", n->lineno, n->sym);
++		errorexit();
++	}
++	n->initorder = 2;
++	l = malloc(sizeof *l);
++	l->next = initlist;
++	l->n = n;
++	l->end = nil;
++	initlist = l;
+ 
+ 	// make sure that everything n depends on is initialized.
+ 	// n->defn is an assignment to n
+-	n->initorder = 2;
+ 	if(n->defn != N) {
+ 		switch(n->defn->op) {
+ 		default:
+ 			goto bad;
+ 
+ 		case ODCLFUNC:
+-			for(l=n->defn->nbody; l; l=l->next)
+-				init1(l->n, out);
++			init2list(n->defn->nbody, out);
+ 			break;
+ 
+ 		case OAS:
+@@ -67,6 +96,11 @@ init1(Node *n, NodeList **out)
+ 			break;
+ 		}
+ 	}
++	l = initlist;
++	initlist = l->next;
++	if(l->n != n)
++		fatal("bad initlist");
++	free(l);
+ 	n->initorder = 1;
+ 	return;
+ 
+@@ -75,6 +109,31 @@ bad:
+ 	fatal("init1: bad defn");
+ }
+ 
++// recurse over n, doing init1 everywhere.
++static void
++init2(Node *n, NodeList **out)
++{
++	if(n == N || n->initorder == 1)
++		return;
++	init1(n, out);
++	init2(n->left, out);
++	init2(n->right, out);
++	init2(n->ntest, out);
++	init2list(n->ninit, out);
++	init2list(n->list, out);
++	init2list(n->rlist, out);
++	init2list(n->nbody, out);
++	init2list(n->nelse, out);
++}
++
++static void
++init2list(NodeList *l, NodeList **out)
++{
++	for(; l; l=l->next)
++		init2(l->n, out);
++}
++
++
+ static void
+ initreorder(NodeList *l, NodeList **out)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 22e59c5c80..6b73570e52 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -753,7 +753,6 @@ goopnames[] =
+ 	[OEQ]		= "==",
+ 	[OFALL]		= "fallthrough",
+ 	[OFOR]		= "for",
+-	[OFUNC]		= "func",
+ 	[OGE]		= ">=",
+ 	[OGOTO]		= "goto",
+ 	[OGT]		= ">",
+diff --git a/test/fixedbugs/bug223.go b/test/fixedbugs/bug223.go
+new file mode 100644
+index 0000000000..80f9cae819
+--- /dev/null
++++ b/test/fixedbugs/bug223.go
+@@ -0,0 +1,21 @@
++// (! $G $D/$F.go) | grep 'initialization loop' >/dev/null || echo BUG: bug223
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// check that initialization loop is diagnosed
++// and that closure cannot be used to hide it.
++// error message is not standard format, so no errchk above.
++
++package main
++
++type F func()
++
++func f() {
++	if true {
++		_ = func() { _ = m }
++	}
++}
++
++var m = map[string]F{"f": f}

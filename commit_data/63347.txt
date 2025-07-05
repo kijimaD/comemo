@@ -20,8 +20,116 @@ Date:   Fri Jun 27 12:45:22 2025 +0200
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/go/alldocs.go          | 44 +++++++++++++++++++++++-------------------
  src/cmd/go/internal/doc/doc.go |  4 ++++
  src/cmd/internal/doc/main.go   | 12 ++++++++++--
  3 files changed, 38 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e8034bf5d1..7403b92cd1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -405,6 +405,8 @@
+ //
+ //	go doc
+ //		Show documentation for current package.
++//	go doc -http
++//		Serve HTML documentation over HTTP for the current package.
+ //	go doc Foo
+ //		Show documentation for Foo in the current package.
+ //		(Foo starts with a capital letter so it cannot match
+@@ -439,26 +441,28 @@
+ //
+ // Flags:
+ //
+-//	-all
+-//		Show all the documentation for the package.
+-//	-c
+-//		Respect case when matching symbols.
+-//	-cmd
+-//		Treat a command (package main) like a regular package.
+-//		Otherwise package main's exported symbols are hidden
+-//		when showing the package's top-level documentation.
+-//	-short
+-//		One-line representation for each symbol.
+-//	-src
+-//		Show the full source code for the symbol. This will
+-//		display the full Go source of its declaration and
+-//		definition, such as a function definition (including
+-//		the body), type declaration or enclosing const
+-//		block. The output may therefore include unexported
+-//		details.
+-//	-u
+-//		Show documentation for unexported as well as exported
+-//		symbols, methods, and fields.
++//		-all
++//			Show all the documentation for the package.
++//		-c
++//			Respect case when matching symbols.
++//		-cmd
++//			Treat a command (package main) like a regular package.
++//			Otherwise package main's exported symbols are hidden
++//			when showing the package's top-level documentation.
++//	  	-http
++//			Serve HTML docs over HTTP.
++//		-short
++//			One-line representation for each symbol.
++//		-src
++//			Show the full source code for the symbol. This will
++//			display the full Go source of its declaration and
++//			definition, such as a function definition (including
++//			the body), type declaration or enclosing const
++//			block. The output may therefore include unexported
++//			details.
++//		-u
++//			Show documentation for unexported as well as exported
++//			symbols, methods, and fields.
+ //
+ // # Print Go environment information
+ //
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 131da81495..74c70e2c7a 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -75,6 +75,8 @@ different cases. If this occurs, documentation for all matches is printed.
+ Examples:
+ 	go doc
+ 		Show documentation for current package.
++	go doc -http
++		Serve HTML documentation over HTTP for the current package.
+ 	go doc Foo
+ 		Show documentation for Foo in the current package.
+ 		(Foo starts with a capital letter so it cannot match
+@@ -116,6 +118,8 @@ Flags:
+ 		Treat a command (package main) like a regular package.
+ 		Otherwise package main's exported symbols are hidden
+ 		when showing the package's top-level documentation.
++  	-http
++		Serve HTML docs over HTTP.
+ 	-short
+ 		One-line representation for each symbol.
+ 	-src
+diff --git a/src/cmd/internal/doc/main.go b/src/cmd/internal/doc/main.go
+index fe99ee70bd..c51fbef517 100644
+--- a/src/cmd/internal/doc/main.go
++++ b/src/cmd/internal/doc/main.go
+@@ -227,8 +227,16 @@ func doPkgsite(urlPath string) error {
+ 	fields := strings.Fields(vars)
+ 	if err == nil && len(fields) == 2 {
+ 		goproxy, gomodcache := fields[0], fields[1]
+-		goproxy = "file://" + filepath.Join(gomodcache, "cache", "download") + "," + goproxy
+-		env = append(env, "GOPROXY="+goproxy)
++		gomodcache = filepath.Join(gomodcache, "cache", "download")
++		// Convert absolute path to file URL. pkgsite will not accept
++		// Windows absolute paths because they look like a host:path remote.
++		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
++		if strings.HasPrefix(gomodcache, "/") {
++			gomodcache = "file://" + gomodcache
++		} else {
++			gomodcache = "file:///" + filepath.ToSlash(gomodcache)
++		}
++		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
+ 	}
+ 
+ 	const version = "v0.0.0-20250608123103-82c52f1754cd"

@@ -11,6 +11,20 @@ Date:   Sun Apr 26 16:37:31 2015 +1200
     Change-Id: I2de23be68e7d822d182e5a0d6a00c607448d861e
     Reviewed-on: https://go-review.googlesource.com/9341
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 07f26200c8..9a34828026 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -412,7 +412,7 @@ func relocsym(s *LSym) {
+ 				break
+ 			}
+ 
+-			if Iself || Ctxt.Headtype == obj.Hplan9 {
++			if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
+ 				o = int64(Ctxt.Tlsoffset) + r.Add
+ 			} else if Ctxt.Headtype == obj.Hwindows {
+ 				o = r.Add

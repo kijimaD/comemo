@@ -23,7 +23,61 @@ Date:   Thu Apr 18 13:28:55 2019 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strconv/quote.go        |  7 +++++++
  src/strconv/strconv_test.go | 10 ++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index d8a1ed9ecc..b50496a0ff 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -25,6 +25,13 @@ func quoteRuneWith(r rune, quote byte, ASCIIonly, graphicOnly bool) string {
+ }
+ 
+ func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly bool) []byte {
++	// Often called with big strings, so preallocate. If there's quoting,
++	// this is conservative but still helps a lot.
++	if cap(buf)-len(buf) < len(s) {
++		nBuf := make([]byte, len(buf), len(buf)+1+len(s)+1)
++		copy(nBuf, buf)
++		buf = nBuf
++	}
+ 	buf = append(buf, quote)
+ 	for width := 0; len(s) > 0; s = s[width:] {
+ 		r := rune(s[0])
+diff --git a/src/strconv/strconv_test.go b/src/strconv/strconv_test.go
+index 0c14236097..d3c1e953de 100644
+--- a/src/strconv/strconv_test.go
++++ b/src/strconv/strconv_test.go
+@@ -30,6 +30,9 @@ var (
+ 			AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)
+ 		}},
+ 		{0, `AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64)`, func() { AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64) }},
++		// In practice we see 7 for the next one, but allow some slop.
++		// Before pre-allocation in appendQuotedWith, we saw 39.
++		{10, `AppendQuoteToASCII(nil, oneMB)`, func() { AppendQuoteToASCII(nil, string(oneMB)) }},
+ 		{0, `ParseFloat("123.45", 64)`, func() { ParseFloat("123.45", 64) }},
+ 		{0, `ParseFloat("123.456789123456789", 64)`, func() { ParseFloat("123.456789123456789", 64) }},
+ 		{0, `ParseFloat("1.000000000000000111022302462515654042363166809082031251", 64)`, func() {
+@@ -41,6 +44,8 @@ var (
+ 	}
+ )
+ 
++var oneMB []byte // Will be allocated to 1MB of random data by TestCountMallocs.
++
+ func TestCountMallocs(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping malloc count in short mode")
+@@ -48,6 +53,11 @@ func TestCountMallocs(t *testing.T) {
+ 	if runtime.GOMAXPROCS(0) > 1 {
+ 		t.Skip("skipping; GOMAXPROCS>1")
+ 	}
++	// Allocate a big messy buffer for AppendQuoteToASCII's test.
++	oneMB = make([]byte, 1e6)
++	for i := range oneMB {
++		oneMB[i] = byte(i)
++	}
+ 	for _, mt := range mallocTest {
+ 		allocs := testing.AllocsPerRun(100, mt.fn)
+ 		if max := float64(mt.count); allocs > max {

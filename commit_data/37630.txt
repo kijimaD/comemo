@@ -11,7 +11,36 @@ Date:   Tue Jun 19 12:34:17 2018 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go | 2 +-
  src/encoding/json/encode.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 0b29249218..97fee54f4e 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -611,7 +611,7 @@ func (d *decodeState) array(v reflect.Value) error {
+ }
+ 
+ var nullLiteral = []byte("null")
+-var textUnmarshalerType = reflect.TypeOf(new(encoding.TextUnmarshaler)).Elem()
++var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+ 
+ // object consumes an object from d.data[d.off-1:], decoding into v.
+ // The first byte ('{') of the object has been read already.
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 28ca5fe9e0..7ebb04c50a 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -381,8 +381,8 @@ func typeEncoder(t reflect.Type) encoderFunc {
+ }
+ 
+ var (
+-	marshalerType     = reflect.TypeOf(new(Marshaler)).Elem()
+-	textMarshalerType = reflect.TypeOf(new(encoding.TextMarshaler)).Elem()
++	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
++	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+ )
+ 
+ // newTypeEncoder constructs an encoderFunc for a type.

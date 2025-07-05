@@ -13,6 +13,20 @@ Date:   Wed Mar 15 18:16:57 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/internal/fuzz/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 8024ffb2b8..8e4351e011 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -824,7 +824,7 @@ func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byt
+ 			"queueing input for minimization, id: %s, parent: %s, keepCoverage: %t, crasher: %t",
+ 			result.entry.Path,
+ 			result.entry.Parent,
+-			keepCoverage,
++			keepCoverage != nil,
+ 			result.crasherMsg != "",
+ 		)
+ 	}

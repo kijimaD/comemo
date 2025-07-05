@@ -9,9 +9,183 @@ Date:   Tue Aug 13 13:01:30 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12183044
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 33 ++++++++++++++++++++++++++++++---
  src/pkg/runtime/proc.c              | 31 ++++++++++++++++++++++++++++++-
  src/pkg/syscall/exec_bsd.go         |  7 +++++++
  src/pkg/syscall/exec_linux.go       |  7 +++++++
  4 files changed, 74 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 630d3643be..a9868ccb10 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// See issue 5659.
+-// +build !race
+-
+ package pprof_test
+ 
+ import (
+@@ -145,6 +142,36 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 	}
+ }
+ 
++func TestCPUProfileWithFork(t *testing.T) {
++	// Fork can hang if preempted with signals frequently enough (see issue 5517).
++	// Ensure that we do not do this.
++	heap := 1 << 30
++	if testing.Short() {
++		heap = 100 << 20
++	}
++	// This makes fork slower.
++	garbage := make([]byte, heap)
++	// Need to touch the slice, otherwise it won't be paged in.
++	done := make(chan bool)
++	go func() {
++		for i := range garbage {
++			garbage[i] = 42
++		}
++		done <- true
++	}()
++	<-done
++
++	var prof bytes.Buffer
++	if err := StartCPUProfile(&prof); err != nil {
++		t.Fatal(err)
++	}
++	defer StopCPUProfile()
++
++	for i := 0; i < 10; i++ {
++		exec.Command("go").CombinedOutput()
++	}
++}
++
+ // Operating systems that are expected to fail the tests. See issue 6047.
+ var badOS = map[string]bool{
+ 	"darwin":  true,
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 994542c257..5574f0d6dc 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1610,6 +1610,29 @@ exitsyscall0(G *gp)
+ 	schedule();  // Never returns.
+ }
+ 
++// Called from syscall package before fork.
++void
++syscall·runtime_BeforeFork(void)
++{
++	// Fork can hang if preempted with signals frequently enough (see issue 5517).
++	// Ensure that we stay on the same M where we disable profiling.
++	m->locks++;
++	if(m->profilehz != 0)
++		runtime·resetcpuprofiler(0);
++}
++
++// Called from syscall package after fork in parent.
++void
++syscall·runtime_AfterFork(void)
++{
++	int32 hz;
++
++	hz = runtime·sched.profilehz;
++	if(hz != 0)
++		runtime·resetcpuprofiler(hz);
++	m->locks--;
++}
++
+ // Hook used by runtime·malg to call runtime·stackalloc on the
+ // scheduler stack.  This exists because runtime·stackalloc insists
+ // on being called on the scheduler stack, to avoid trying to grow
+@@ -2002,7 +2025,11 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+ 	if(fn == nil)
+ 		hz = 0;
+ 
+-	// Stop profiler on this cpu so that it is safe to lock prof.
++	// Disable preemption, otherwise we can be rescheduled to another thread
++	// that has profiling enabled.
++	m->locks++;
++
++	// Stop profiler on this thread so that it is safe to lock prof.
+ 	// if a profiling signal came in while we had prof locked,
+ 	// it would deadlock.
+ 	runtime·resetcpuprofiler(0);
+@@ -2017,6 +2044,8 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+ 
+ 	if(hz != 0)
+ 		runtime·resetcpuprofiler(hz);
++
++	m->locks--;
+ }
+ 
+ // Change number of processors.  The world is stopped, sched is locked.
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index 249fa638dd..49f792cf00 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -21,6 +21,10 @@ type SysProcAttr struct {
+ 	Noctty     bool        // Detach fd 0 from controlling terminal
+ }
+ 
++// Implemented in runtime package.
++func runtime_BeforeFork()
++func runtime_AfterFork()
++
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+ // If a dup or exec fails, write the errno error to pipe.
+ // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
+@@ -57,8 +61,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
++	runtime_BeforeFork()
+ 	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+ 	if err1 != 0 {
++		runtime_AfterFork()
+ 		return 0, err1
+ 	}
+ 
+@@ -72,6 +78,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	if r1 != 0 {
+ 		// parent; return PID
++		runtime_AfterFork()
+ 		return int(r1), 0
+ 	}
+ 
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+index 934c657712..f332b7069c 100644
+--- a/src/pkg/syscall/exec_linux.go
++++ b/src/pkg/syscall/exec_linux.go
+@@ -22,6 +22,10 @@ type SysProcAttr struct {
+ 	Pdeathsig  Signal      // Signal that the process will get when its parent dies (Linux only)
+ }
+ 
++// Implemented in runtime package.
++func runtime_BeforeFork()
++func runtime_AfterFork()
++
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+ // If a dup or exec fails, write the errno error to pipe.
+ // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
+@@ -56,13 +60,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
++	runtime_BeforeFork()
+ 	r1, _, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+ 	if err1 != 0 {
++		runtime_AfterFork()
+ 		return 0, err1
+ 	}
+ 
+ 	if r1 != 0 {
+ 		// parent; return PID
++		runtime_AfterFork()
+ 		return int(r1), 0
+ 	}
+ 

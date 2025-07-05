@@ -9,7 +9,7 @@ Date:   Wed Feb 10 00:00:12 2010 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/207044
-
+---
  src/pkg/runtime/iface.c    |  4 ++--
  src/pkg/runtime/malloc.cgo | 36 +++++++++++++++++++--------------
  src/pkg/runtime/malloc.h   | 23 ++++++++++++++++-----
@@ -20,3 +20,581 @@ Date:   Wed Feb 10 00:00:12 2010 -0800
  src/pkg/runtime/proc.c     | 36 +++++++++++++++------------------
  src/pkg/runtime/slice.c    |  4 ++--
  9 files changed, 131 insertions(+), 86 deletions(-)
+
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index b9b00de29e..eb5d76eb85 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -641,7 +641,7 @@ unsafe·New(Eface typ, void *ret)
+ 	t = (Type*)((Eface*)typ.data-1);
+ 
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(t->size, RefNoPointers, 1);
++		ret = mallocgc(t->size, RefNoPointers, 1, 1);
+ 	else
+ 		ret = mal(t->size);
+ 	FLUSH(&ret);
+@@ -661,7 +661,7 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
+ 	
+ 	size = n*t->size;
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(size, RefNoPointers, 1);
++		ret = mallocgc(size, RefNoPointers, 1, 1);
+ 	else
+ 		ret = mal(size);
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index c6d5c6e33c..8c945baebd 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -19,7 +19,7 @@ MStats mstats;
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+ void*
+-mallocgc(uintptr size, uint32 refflag, int32 dogc)
++mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ {
+ 	int32 sizeclass;
+ 	MCache *c;
+@@ -42,7 +42,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ 		sizeclass = SizeToClass(size);
+ 		size = class_to_size[sizeclass];
+ 		c = m->mcache;
+-		v = MCache_Alloc(c, sizeclass, size);
++		v = MCache_Alloc(c, sizeclass, size, zeroed);
+ 		if(v == nil)
+ 			throw("out of memory");
+ 		mstats.alloc += size;
+@@ -80,7 +80,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ void*
+ malloc(uintptr size)
+ {
+-	return mallocgc(size, 0, 0);
++	return mallocgc(size, 0, 0, 1);
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -128,6 +128,8 @@ free(void *v)
+ 	// Small object.
+ 	c = m->mcache;
+ 	size = class_to_size[sizeclass];
++	if(size > sizeof(uintptr))
++		((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
+ 	runtime_memclr(v, size);
+ 	mstats.alloc -= size;
+ 	mstats.by_size[sizeclass].nfree++;
+@@ -180,14 +182,18 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
+ 		*base = p + i*n;
+ 	if(size)
+ 		*size = n;
+-	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
+-	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
+-		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
+-			s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
+-		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
+-			s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
+-			(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
+-		throw("bad gcref");
++
++	// good for error checking, but expensive
++	if(0) {
++		nobj = (s->npages << PageShift) / (n + RefcountOverhead);
++		if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
++			printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
++				s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
++			printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
++				s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
++				(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
++			throw("bad gcref");
++		}
+ 	}
+ 	if(ref)
+ 		*ref = &s->gcref[i];
+@@ -217,7 +223,7 @@ mallocinit(void)
+ void*
+ mal(uint32 n)
+ {
+-	return mallocgc(n, 0, 1);
++	return mallocgc(n, 0, 1, 1);
+ }
+ 
+ // Stack allocator uses malloc/free most of the time,
+@@ -250,7 +256,7 @@ stackalloc(uint32 n)
+ 		unlock(&stacks);
+ 		return v;
+ 	}
+-	v = malloc(n);
++	v = mallocgc(n, 0, 0, 0);
+ 	if(!mlookup(v, nil, nil, &ref))
+ 		throw("stackalloc mlookup");
+ 	*ref = RefStack;
+@@ -291,7 +297,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	FuncType *ft;
+ 	int32 i, nret;
+ 	Type *t;
+-	
++
+ 	if(obj.type == nil) {
+ 		printf("runtime.SetFinalizer: first argument is nil interface\n");
+ 	throw:
+@@ -315,7 +321,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		ft = (FuncType*)finalizer.type;
+ 		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+ 			goto badfunc;
+-		
++
+ 		// compute size needed for return parameters
+ 		for(i=0; i<ft->out.len; i++) {
+ 			t = ((Type**)ft->out.array)[i];
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 3a3b9bef6f..2d94872f77 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -67,10 +67,22 @@
+ // Allocating and freeing a large object uses the page heap
+ // directly, bypassing the MCache and MCentral free lists.
+ //
++// The small objects on the MCache and MCentral free lists
++// may or may not be zeroed.  They are zeroed if and only if
++// the second word of the object is zero.  The spans in the
++// page heap are always zeroed.  When a span full of objects
++// is returned to the page heap, the objects that need to be
++// are zeroed first.  There are two main benefits to delaying the
++// zeroing this way:
++//
++//	1. stack frames allocated from the small object lists
++//	   can avoid zeroing altogether.
++//	2. the cost of zeroing when reusing a small object is
++//	   charged to the mutator, not the garbage collector.
++//
+ // This C code was written with an eye toward translating to Go
+ // in the future.  Methods have the form Type_Method(Type *t, ...).
+ 
+-
+ typedef struct FixAlloc	FixAlloc;
+ typedef struct MCentral	MCentral;
+ typedef struct MHeap	MHeap;
+@@ -218,7 +230,7 @@ struct MCache
+ 	uint64 size;
+ };
+ 
+-void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size);
++void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
+ void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
+ 
+ 
+@@ -285,7 +297,7 @@ struct MHeap
+ 	// span lookup
+ 	MHeapMap map;
+ 	MHeapMapCache mapcache;
+-	
++
+ 	// range of addresses we might see in the heap
+ 	byte *min;
+ 	byte *max;
+@@ -310,7 +322,7 @@ void	MHeap_Free(MHeap *h, MSpan *s);
+ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+ 
+-void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
++void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+ int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
+ void	gc(int32 force);
+ 
+@@ -329,5 +341,6 @@ enum
+ 	RefNone,		// no references
+ 	RefSome,		// some references
+ 	RefFinalize,	// ready to be finalized
+-	RefNoPointers = 0x80000000U,	// flag - no pointers here     
++	RefNoPointers = 0x80000000U,	// flag - no pointers here
++	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
+ };
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index ae25940230..429b42541e 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -10,7 +10,7 @@
+ #include "malloc.h"
+ 
+ void*
+-MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
++MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
+ {
+ 	MCacheList *l;
+ 	MLink *first, *v;
+@@ -36,6 +36,16 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
+ 	// v is zeroed except for the link pointer
+ 	// that we used above; zero that.
+ 	v->next = nil;
++	if(zeroed) {
++		// block is zeroed iff second word is zero ...
++		if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
++			runtime_memclr((byte*)v, size);
++		else {
++			// ... except for the link pointer
++			// that we used above; zero that.
++			v->next = nil;
++		}
++	}
+ 	return v;
+ }
+ 
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 9881812e32..7e33e01af2 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -115,6 +115,7 @@ MCentral_Free(MCentral *c, void *v)
+ 	MSpan *s;
+ 	PageID page;
+ 	MLink *p, *next;
++	int32 size;
+ 
+ 	// Find span for v.
+ 	page = (uintptr)v >> PageShift;
+@@ -136,15 +137,20 @@ MCentral_Free(MCentral *c, void *v)
+ 
+ 	// If s is completely freed, return it to the heap.
+ 	if(--s->ref == 0) {
++		size = class_to_size[c->sizeclass];
+ 		MSpanList_Remove(s);
+-		// Freed blocks are zeroed except for the link pointer.
+-		// Zero the link pointers so that the page is all zero.
++		// The second word of each freed block indicates
++		// whether it needs to be zeroed.  The first word
++		// is the link pointer and must always be cleared.
+ 		for(p=s->freelist; p; p=next) {
+ 			next = p->next;
+-			p->next = nil;
++			if(size > sizeof(uintptr) && ((uintptr*)p)[1] != 0)
++				runtime_memclr((byte*)p, size);
++			else
++				p->next = nil;
+ 		}
+ 		s->freelist = nil;
+-		c->nfree -= (s->npages << PageShift) / class_to_size[c->sizeclass];
++		c->nfree -= (s->npages << PageShift) / size;
+ 		unlock(c);
+ 		MHeap_Free(&mheap, s);
+ 		lock(c);
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 3034f05672..4fad6aa951 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -29,7 +29,7 @@ static void
+ addfintab(Fintab *t, void *k, void *fn, int32 nret)
+ {
+ 	int32 i, j;
+-	
++
+ 	i = (uintptr)k % (uintptr)t->max;
+ 	for(j=0; j<t->max; j++) {
+ 		if(t->key[i] == nil) {
+@@ -58,7 +58,7 @@ lookfintab(Fintab *t, void *k, bool del, int32 *nret)
+ {
+ 	int32 i, j;
+ 	void *v;
+-	
++
+ 	if(t->max == 0)
+ 		return nil;
+ 	i = (uintptr)k % (uintptr)t->max;
+@@ -94,11 +94,27 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ {
+ 	Fintab newtab;
+ 	int32 i;
++	uint32 *ref;
++	byte *base;
++
++	if(!mlookup(p, &base, nil, &ref) || p != base)
++		throw("addfinalizer on invalid pointer");
++	if(f == nil) {
++		if(*ref & RefHasFinalizer) {
++			getfinalizer(p, 1, nil);
++			*ref &= ~RefHasFinalizer;
++		}
++		return;
++	}
++
++	if(*ref & RefHasFinalizer)
++		throw("double finalizer");
++	*ref |= RefHasFinalizer;
+ 
+ 	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
+ 		// keep table at most 3/4 full:
+ 		// allocate new table and rehash.
+-		
++
+ 		runtime_memclr((byte*)&newtab, sizeof newtab);
+ 		newtab.max = fintab.max;
+ 		if(newtab.max == 0)
+@@ -108,13 +124,13 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 			// otherwise just rehash into table of same size.
+ 			newtab.max *= 3;
+ 		}
+-		
+-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0);
+-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0);
+-		
++
++		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
++		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
++
+ 		for(i=0; i<fintab.max; i++) {
+ 			void *k;
+-			
++
+ 			k = fintab.key[i];
+ 			if(k != nil && k != (void*)-1)
+ 				addfintab(&newtab, k, fintab.val[i].fn, fintab.val[i].nret);
+@@ -123,10 +139,12 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 		free(fintab.val);
+ 		fintab = newtab;
+ 	}
+-	
+-	addfintab(&fintab, p, f, nret);		
++
++	addfintab(&fintab, p, f, nret);
+ }
+ 
++// get finalizer; if del, delete finalizer.
++// caller is responsible for updating RefHasFinalizer bit.
+ void*
+ getfinalizer(void *p, bool del, int32 *nret)
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index bd5d2e25a8..7cc965400e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -47,7 +47,7 @@ scanblock(int32 depth, byte *b, int64 n)
+ 	int32 off;
+ 	void *obj;
+ 	uintptr size;
+-	uint32 *ref;
++	uint32 *refp, ref;
+ 	void **vp;
+ 	int64 i;
+ 
+@@ -65,24 +65,22 @@ scanblock(int32 depth, byte *b, int64 n)
+ 		obj = vp[i];
+ 		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
+ 			continue;
+-		if(mlookup(obj, &obj, &size, &ref)) {
+-			if(*ref == RefFree || *ref == RefStack)
+-				continue;
+-
+-			// If marked for finalization already, some other finalization-ready
+-			// object has a pointer: turn off finalization until that object is gone.
+-			// This means that cyclic finalizer loops never get collected,
+-			// so don't do that.
+-
+-			if(*ref == (RefNone|RefNoPointers) || *ref == (RefFinalize|RefNoPointers)) {
+-				*ref = RefSome|RefNoPointers;
+-				continue;
+-			}
+-			if(*ref == RefNone || *ref == RefFinalize) {
++		if(mlookup(obj, &obj, &size, &refp)) {
++			ref = *refp;
++			switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
++			case RefFinalize:
++				// If marked for finalization already, some other finalization-ready
++				// object has a pointer: turn off finalization until that object is gone.
++				// This means that cyclic finalizer loops never get collected,
++				// so don't do that.
++				/* fall through */
++			case RefNone:
+ 				if(Debug > 1)
+ 					printf("%d found at %p: ", depth, &vp[i]);
+-				*ref = RefSome;
+-				scanblock(depth+1, obj, size);
++				*refp = RefSome | (ref & (RefNoPointers|RefHasFinalizer));
++				if(!(ref & RefNoPointers))
++					scanblock(depth+1, obj, size);
++				break;
+ 			}
+ 		}
+ 	}
+@@ -172,20 +170,19 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+ 	uint32 gcref;
+ 
+ 	gcref = *gcrefp;
+-	switch(gcref) {
++	switch(gcref & ~(RefNoPointers|RefHasFinalizer)) {
+ 	default:
+ 		throw("bad 'ref count'");
+ 	case RefFree:
+ 	case RefStack:
+ 		break;
+ 	case RefNone:
+-	case RefNone|RefNoPointers:
+-		if(pass == 0 && getfinalizer(p, 0, nil)) {
++		if(pass == 0 && (gcref & RefHasFinalizer)) {
+ 			// Tentatively mark as finalizable.
+ 			// Make sure anything it points at will not be collected.
+ 			if(Debug > 0)
+ 				printf("maybe finalize %p+%D\n", p, n);
+-			*gcrefp = RefFinalize | (gcref&RefNoPointers);
++			*gcrefp = RefFinalize | RefHasFinalizer | (gcref&RefNoPointers);
+ 			scanblock(100, p, n);
+ 		} else if(pass == 1) {
+ 			if(Debug > 0)
+@@ -194,7 +191,6 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+ 		}
+ 		break;
+ 	case RefFinalize:
+-	case RefFinalize|RefNoPointers:
+ 		if(pass != 1)
+ 			throw("sweepspan pass 0 RefFinalize");
+ 		if(pfinq < efinq) {
+@@ -203,18 +199,18 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+ 			pfinq->p = p;
+ 			pfinq->nret = 0;
+ 			pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
++			gcref &= ~RefHasFinalizer;
+ 			if(pfinq->fn == nil)
+ 				throw("getfinalizer inconsistency");
+ 			pfinq++;
+ 		}
+ 		// Reset for next mark+sweep.
+-		*gcrefp = RefNone | (gcref&RefNoPointers);
++		*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
+ 		break;
+ 	case RefSome:
+-	case RefSome|RefNoPointers:
+ 		// Reset for next mark+sweep.
+ 		if(pass == 1)
+-			*gcrefp = RefNone | (gcref&RefNoPointers);
++			*gcrefp = RefNone | (gcref&(RefNoPointers|RefHasFinalizer));
+ 		break;
+ 	}
+ }
+@@ -227,7 +223,7 @@ sweep(void)
+ 	// Sweep all the spans marking blocks to be finalized.
+ 	for(s = mheap.allspans; s != nil; s = s->allnext)
+ 		sweepspan(s, 0);
+-		
++
+ 	// Sweep again queueing finalizers and freeing the others.
+ 	for(s = mheap.allspans; s != nil; s = s->allnext)
+ 		sweepspan(s, 1);
+@@ -292,7 +288,7 @@ gc(int32 force)
+ 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+ 	}
+ 	m->gcing = 0;
+-	
++
+ 	// kick off goroutines to run queued finalizers
+ 	m->locks++;	// disable gc during the mallocs in newproc
+ 	for(fp=finq; fp<pfinq; fp++) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5bd92dd809..9b4e34f6f7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -434,23 +434,20 @@ matchmg(void)
+ 			// when it is just in a register (R14 on amd64).
+ 			m->alllink = allm;
+ 			allm = m;
+-			m->g0 = malg(8192);
+ 			m->id = sched.mcount++;
+ 
+ 			if(libcgo_thread_start != nil) {
+ 				CgoThreadStart ts;
+-				// pthread_create will make us a stack,
+-				// so free the one malg made.
+-				stackfree(m->g0->stack0);
+-				m->g0->stack0 = nil;
+-				m->g0->stackguard = nil;
+-				m->g0->stackbase = nil;
++				// pthread_create will make us a stack.
++				m->g0 = malg(-1);
+ 				ts.m = m;
+ 				ts.g = m->g0;
+ 				ts.fn = mstart;
+ 				runcgo(libcgo_thread_start, &ts);
+-			} else
++			} else {
++				m->g0 = malg(8192);
+ 				newosproc(m, m->g0, m->g0->stackbase, mstart);
++			}
+ 		}
+ 		mnextg(m, g);
+ 	}
+@@ -682,7 +679,7 @@ oldstack(void)
+ 		mcpy(top->fp, sp, args);
+ 	}
+ 
+-	stackfree((byte*)g1->stackguard - StackGuard);
++	stackfree(g1->stackguard - StackGuard);
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+@@ -710,6 +707,7 @@ newstack(void)
+ 	frame += 1024;	// for more functions, Stktop.
+ 	stk = stackalloc(frame);
+ 
++
+ //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+ 
+ 	g1 = m->curg;
+@@ -746,10 +744,13 @@ malg(int32 stacksize)
+ 	byte *stk;
+ 
+ 	g = malloc(sizeof(G));
+-	stk = stackalloc(stacksize + StackGuard);
+-	g->stack0 = stk;
+-	g->stackguard = stk + StackGuard;
+-	g->stackbase = stk + StackGuard + stacksize;
++	if(stacksize >= 0) {
++		stk = stackalloc(stacksize + StackGuard);
++		g->stack0 = stk;
++		g->stackguard = stk + StackGuard;
++		g->stackbase = stk + StackGuard + stacksize - sizeof(Stktop);
++		runtime_memclr(g->stackbase, sizeof(Stktop));
++	}
+ 	return g;
+ }
+ 
+@@ -772,7 +773,7 @@ void
+ void
+ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ {
+-	byte *stk, *sp;
++	byte *sp;
+ 	G *newg;
+ 	int32 siz;
+ 
+@@ -792,13 +793,8 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 		newg->alllink = allg;
+ 		allg = newg;
+ 	}
+-	stk = newg->stack0;
+-
+-	newg->stackguard = stk+StackGuard;
+-
+-	sp = stk + 4096 - 4*8;
+-	newg->stackbase = sp;
+ 
++	sp = newg->stackbase;
+ 	sp -= siz;
+ 	mcpy(sp, argp, narg);
+ 
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index c61c315e81..4ee5fc51f5 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -23,14 +23,14 @@ void
+ 	ret.cap = cap;
+ 
+ 	if((t->elem->kind&KindNoPointers))
+-		ret.array = mallocgc(size, RefNoPointers, 1);
++		ret.array = mallocgc(size, RefNoPointers, 1, 1);
+ 	else
+ 		ret.array = mal(size);
+ 
+ 	FLUSH(&ret);
+ 
+ 	if(debug) {
+-		printf("makeslice(%S, %d, %d); ret=", 
++		printf("makeslice(%S, %d, %d); ret=",
+ 			*t->string, nel, cap);
+  		·printslice(ret);
+ 	}

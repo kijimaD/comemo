@@ -14,9 +14,151 @@ Date:   Thu Sep 26 10:01:42 2019 -0400
     Change-Id: I10230e191057c5c5705541eeb06f747d5f73c42d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197500
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go     |  6 ------
  src/cmd/link/internal/ld/lib.go          | 34 --------------------------------
  src/cmd/link/internal/objfile/objfile.go | 22 +++------------------
  src/cmd/link/internal/sym/symbol.go      |  8 --------
  4 files changed, 3 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 418703cb2f..c880c0da01 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -270,12 +270,6 @@ func (d *deadcodepass) flood() {
+ 			if d.ctxt.Debugvlog > 1 {
+ 				d.ctxt.Logf("marktext %s\n", s.Name)
+ 			}
+-			if s.FuncInfo != nil {
+-				for _, a := range s.FuncInfo.Autom {
+-					d.mark(a.Gotype, s)
+-				}
+-			}
+-
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3739838bce..182e5b0769 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2366,7 +2366,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 		}
+ 	}
+ 
+-	var off int32
+ 	for _, s := range ctxt.Textp {
+ 		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
+ 
+@@ -2380,39 +2379,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 		if s.FuncInfo == nil {
+ 			continue
+ 		}
+-		for _, a := range s.FuncInfo.Autom {
+-			if a.Name == objabi.A_DELETED_AUTO {
+-				put(ctxt, nil, "", DeletedAutoSym, 0, a.Gotype)
+-				continue
+-			}
+-
+-			// Emit a or p according to actual offset, even if label is wrong.
+-			// This avoids negative offsets, which cannot be encoded.
+-			if a.Name != objabi.A_AUTO && a.Name != objabi.A_PARAM {
+-				continue
+-			}
+-
+-			// compute offset relative to FP
+-			if a.Name == objabi.A_PARAM {
+-				off = a.Aoffset
+-			} else {
+-				off = a.Aoffset - int32(ctxt.Arch.PtrSize)
+-			}
+-
+-			// FP
+-			if off >= 0 {
+-				put(ctxt, nil, a.Asym.Name, ParamSym, int64(off), a.Gotype)
+-				continue
+-			}
+-
+-			// SP
+-			if off <= int32(-ctxt.Arch.PtrSize) {
+-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(ctxt.Arch.PtrSize)), a.Gotype)
+-				continue
+-			}
+-			// Otherwise, off is addressing the saved program counter.
+-			// Something underhanded is going on. Say nothing.
+-		}
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 || *flagN {
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index da9a38a6d4..3a4ba8224c 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -55,7 +55,6 @@ type objReader struct {
+ 	data        []byte
+ 	reloc       []sym.Reloc
+ 	pcdata      []sym.Pcdata
+-	autom       []sym.Auto
+ 	funcdata    []*sym.Symbol
+ 	funcdataoff []int64
+ 	file        []*sym.Symbol
+@@ -193,8 +192,7 @@ func (r *objReader) readSlices() {
+ 	r.reloc = make([]sym.Reloc, n)
+ 	n = r.readInt()
+ 	r.pcdata = make([]sym.Pcdata, n)
+-	n = r.readInt()
+-	r.autom = make([]sym.Auto, n)
++	_ = r.readInt() // TODO: remove on next object file rev (autom count)
+ 	n = r.readInt()
+ 	r.funcdata = make([]*sym.Symbol, n)
+ 	r.funcdataoff = make([]int64, n)
+@@ -328,24 +326,10 @@ overwrite:
+ 			s.Attr |= sym.AttrTopFrame
+ 		}
+ 		n := r.readInt()
+-		pc.Autom = r.autom[:n:n]
+-		if !isdup {
+-			r.autom = r.autom[n:]
++		if n != 0 {
++			log.Fatalf("stale object file: autom count nonzero")
+ 		}
+ 
+-		for i := 0; i < n; i++ {
+-			pc.Autom[i] = sym.Auto{
+-				Asym:    r.readSymIndex(),
+-				Aoffset: r.readInt32(),
+-				Name:    r.readInt16(),
+-				Gotype:  r.readSymIndex(),
+-			}
+-		}
+-
+-		// Temporary: zero out the autom list after we've read it.
+-		// In a subsequent patch we'll remove autom handling more completely.
+-		pc.Autom = nil
+-
+ 		pc.Pcsp.P = r.readData()
+ 		pc.Pcfile.P = r.readData()
+ 		pc.Pcline.P = r.readData()
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index da06b08ebd..698f8ee653 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -518,7 +518,6 @@ func SortSub(l *Symbol) *Symbol {
+ type FuncInfo struct {
+ 	Args        int32
+ 	Locals      int32
+-	Autom       []Auto
+ 	Pcsp        Pcdata
+ 	Pcfile      Pcdata
+ 	Pcline      Pcdata
+@@ -542,10 +541,3 @@ type InlinedCall struct {
+ type Pcdata struct {
+ 	P []byte
+ }
+-
+-type Auto struct {
+-	Asym    *Symbol
+-	Gotype  *Symbol
+-	Aoffset int32
+-	Name    int16
+-}

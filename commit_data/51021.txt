@@ -12,6 +12,20 @@ Date:   Fri Nov 26 07:36:09 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 9ea058db3e..7483946fc0 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -244,6 +244,8 @@ func (b *Reader) Read(p []byte) (n int, err error) {
+ 	}
+ 
+ 	// copy as much as we can
++	// Note: if the slice panics here, it is probably because
++	// the underlying reader returned a bad count. See issue 49795.
+ 	n = copy(p, b.buf[b.r:b.w])
+ 	b.r += n
+ 	b.lastByte = int(b.buf[b.r-1])

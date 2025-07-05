@@ -17,7 +17,7 @@ Date:   Thu Apr 22 15:38:33 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 39 +++++++++++++++
  src/cmd/compile/internal/types2/builtins_test.go   | 10 ++++
  src/cmd/compile/internal/types2/check.go           | 10 ++--
@@ -28,3 +28,291 @@ Date:   Thu Apr 22 15:38:33 2021 -0700
  test/makechan.go                                   |  2 +-
  test/makemap.go                                    |  4 +-
  9 files changed, 102 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 25bfb24ef4..b9e178dd57 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -577,6 +577,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
+ 		}
+ 
++	case _Add:
++		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
++		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
++		if x.mode == invalid {
++			return
++		}
++
++		var y operand
++		arg(&y, 1)
++		if !check.isValidIndex(&y, "length", true) {
++			return
++		}
++
++		x.mode = value
++		x.typ = Typ[UnsafePointer]
++		if check.Types != nil {
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, x.typ, y.typ))
++		}
++
+ 	case _Alignof:
+ 		// unsafe.Alignof(x T) uintptr
+ 		if asTypeParam(x.typ) != nil {
+@@ -654,6 +673,26 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		x.typ = Typ[Uintptr]
+ 		// result is constant - no need to record signature
+ 
++	case _Slice:
++		// unsafe.Slice(ptr *T, len IntegerType) []T
++		typ := asPointer(x.typ)
++		if typ == nil {
++			check.errorf(x, invalidArg+"%s is not a pointer", x)
++			return
++		}
++
++		var y operand
++		arg(&y, 1)
++		if !check.isValidIndex(&y, "length", false) {
++			return
++		}
++
++		x.mode = value
++		x.typ = NewSlice(typ.base)
++		if check.Types != nil {
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
++		}
++
+ 	case _Assert:
+ 		// assert(pred) causes a typechecker error if pred is false.
+ 		// The result of assert is the value of pred if there is no error.
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 780d0a15a7..82c786b86e 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -85,6 +85,9 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+ 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+ 
++	// issue #45667
++	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
++
+ 	{"new", `_ = new(int)`, `func(int) *int`},
+ 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
+ 
+@@ -102,6 +105,10 @@ var builtinCalls = []struct {
+ 	{"recover", `recover()`, `func() interface{}`},
+ 	{"recover", `_ = recover()`, `func() interface{}`},
+ 
++	{"Add", `var p unsafe.Pointer; _ = unsafe.Add(p, -1.0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
++	{"Add", `var p unsafe.Pointer; var n uintptr; _ = unsafe.Add(p, n)`, `func(unsafe.Pointer, uintptr) unsafe.Pointer`},
++	{"Add", `_ = unsafe.Add(nil, 0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
++
+ 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
+ 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
+ 
+@@ -111,6 +118,9 @@ var builtinCalls = []struct {
+ 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
+ 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+ 
++	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
++	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
++
+ 	{"assert", `assert(true)`, `invalid type`},                                    // constant
+ 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 66637459e7..c8ca118c3c 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -364,14 +364,14 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
+ }
+ 
+ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
+-	// f must be a (possibly parenthesized) identifier denoting a built-in
+-	// (built-ins in package unsafe always produce a constant result and
+-	// we don't record their signatures, so we don't see qualified idents
+-	// here): record the signature for f and possible children.
++	// f must be a (possibly parenthesized, possibly qualified)
++	// identifier denoting a built-in (including unsafe's non-constant
++	// functions Add and Slice): record the signature for f and possible
++	// children.
+ 	for {
+ 		check.recordTypeAndValue(f, builtin, sig, nil)
+ 		switch p := f.(type) {
+-		case *syntax.Name:
++		case *syntax.Name, *syntax.SelectorExpr:
+ 			return // we're done
+ 		case *syntax.ParenExpr:
+ 			f = p.X
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 331f0c7105..1ecd43778e 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -250,7 +250,7 @@ func TestCheck(t *testing.T) {
+ 	checkFiles(t, strings.Split(*testFiles, ","), *goVersion, 0, testing.Verbose())
+ }
+ 
+-// TODO(gri) go/types has an extra TestLongConstants test
++// TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+ 
+ func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata", 75) } // TODO(gri) narrow column tolerance
+ func TestExamples(t *testing.T)  { testDir(t, "examples", 0) }
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 6726272f6c..b30799d37c 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -320,19 +320,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 
+ 	var x operand
+ 	check.expr(&x, index)
+-	if x.mode == invalid {
+-		return
+-	}
+-
+-	// an untyped constant must be representable as Int
+-	check.convertUntyped(&x, Typ[Int])
+-	if x.mode == invalid {
+-		return
+-	}
+-
+-	// the index must be of integer type
+-	if !isInteger(x.typ) {
+-		check.errorf(&x, invalidArg+"index %s must be integer", &x)
++	if !check.isValidIndex(&x, "index", false) {
+ 		return
+ 	}
+ 
+@@ -340,14 +328,13 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 		return x.typ, -1
+ 	}
+ 
+-	// a constant index i must be in bounds
+-	if constant.Sign(x.val) < 0 {
+-		check.errorf(&x, invalidArg+"index %s must not be negative", &x)
++	if x.val.Kind() == constant.Unknown {
+ 		return
+ 	}
+ 
+-	v, valid := constant.Int64Val(constant.ToInt(x.val))
+-	if !valid || max >= 0 && v >= max {
++	v, ok := constant.Int64Val(x.val)
++	assert(ok)
++	if max >= 0 && v >= max {
+ 		if check.conf.CompilerErrorMessages {
+ 			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
+ 		} else {
+@@ -360,6 +347,40 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 	return x.typ, v
+ }
+ 
++func (check *Checker) isValidIndex(x *operand, what string, allowNegative bool) bool {
++	if x.mode == invalid {
++		return false
++	}
++
++	// spec: "a constant index that is untyped is given type int"
++	check.convertUntyped(x, Typ[Int])
++	if x.mode == invalid {
++		return false
++	}
++
++	// spec: "the index x must be of integer type or an untyped constant"
++	if !isInteger(x.typ) {
++		check.errorf(x, invalidArg+"%s %s must be integer", what, x)
++		return false
++	}
++
++	if x.mode == constant_ {
++		// spec: "a constant index must be non-negative ..."
++		if !allowNegative && constant.Sign(x.val) < 0 {
++			check.errorf(x, invalidArg+"%s %s must not be negative", what, x)
++			return false
++		}
++
++		// spec: "... and representable by a value of type int"
++		if !representableConst(x.val, check, Typ[Int], &x.val) {
++			check.errorf(x, invalidArg+"%s %s overflows int", what, x)
++			return false
++		}
++	}
++
++	return true
++}
++
+ // indexElts checks the elements (elts) of an array or slice composite literal
+ // against the literal's element type (typ), and the element indices against
+ // the literal length if known (length >= 0). It returns the length of the
+diff --git a/src/cmd/compile/internal/types2/testdata/expr3.src b/src/cmd/compile/internal/types2/testdata/expr3.src
+index d1be806cfd..eab3f72c4d 100644
+--- a/src/cmd/compile/internal/types2/testdata/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/expr3.src
+@@ -35,6 +35,7 @@ func indexes() {
+ 	_ = a[9]
+ 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
+ 	_ = a[1 /* ERROR "overflows" */ <<100]
++	_ = a[1<< /* ERROR "constant shift overflow" */ 1000] // no out-of-bounds follow-on error
+ 	_ = a[10:]
+ 	_ = a[:10]
+ 	_ = a[10:10]
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 3654ab4945..76d4e55e84 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -136,9 +136,11 @@ const (
+ 	_Recover
+ 
+ 	// package unsafe
++	_Add
+ 	_Alignof
+ 	_Offsetof
+ 	_Sizeof
++	_Slice
+ 
+ 	// testing support
+ 	_Assert
+@@ -167,9 +169,11 @@ var predeclaredFuncs = [...]struct {
+ 	_Real:    {"real", 1, false, expression},
+ 	_Recover: {"recover", 0, false, statement},
+ 
++	_Add:      {"Add", 2, false, expression},
+ 	_Alignof:  {"Alignof", 1, false, expression},
+ 	_Offsetof: {"Offsetof", 1, false, expression},
+ 	_Sizeof:   {"Sizeof", 1, false, expression},
++	_Slice:    {"Slice", 2, false, expression},
+ 
+ 	_Assert: {"assert", 1, false, statement},
+ 	_Trace:  {"trace", 0, true, statement},
+diff --git a/test/makechan.go b/test/makechan.go
+index 30a57456b3..9fabd1701f 100644
+--- a/test/makechan.go
++++ b/test/makechan.go
+@@ -16,7 +16,7 @@ var sink T
+ 
+ func main() {
+ 	sink = make(T, -1)            // ERROR "negative buffer argument in make.*|must not be negative"
+-	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*|out of bounds"
++	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*|overflows int"
+ 
+ 	sink = make(T, 0.5) // ERROR "constant 0.5 truncated to integer|truncated to int"
+ 	sink = make(T, 1.0)
+diff --git a/test/makemap.go b/test/makemap.go
+index a60f5b5ee5..f63e5b4b6a 100644
+--- a/test/makemap.go
++++ b/test/makemap.go
+@@ -16,13 +16,13 @@ var sink T
+ 
+ func main() {
+ 	sink = make(T, -1)            // ERROR "negative size argument in make.*|must not be negative"
+-	sink = make(T, uint64(1<<63)) // ERROR "size argument too large in make.*|out of bounds"
++	sink = make(T, uint64(1<<63)) // ERROR "size argument too large in make.*|overflows int"
+ 
+ 	// Test that errors are emitted at call sites, not const declarations
+ 	const x = -1
+ 	sink = make(T, x) // ERROR "negative size argument in make.*|must not be negative"
+ 	const y = uint64(1 << 63)
+-	sink = make(T, y) // ERROR "size argument too large in make.*|out of bounds"
++	sink = make(T, y) // ERROR "size argument too large in make.*|overflows int"
+ 
+ 	sink = make(T, 0.5) // ERROR "constant 0.5 truncated to integer|truncated to int"
+ 	sink = make(T, 1.0)

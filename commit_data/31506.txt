@@ -15,6 +15,11 @@ Date:   Mon Feb 27 02:28:24 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/{lookup_unix.go => cgo_lookup_unix.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+similarity index 100%
+rename from src/os/user/lookup_unix.go
+rename to src/os/user/cgo_lookup_unix.go

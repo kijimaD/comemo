@@ -16,7 +16,43 @@ Date:   Fri Mar 11 17:49:07 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  2 +-
  src/reflect/all_test.go                | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index cd39969258..5ca292c39e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1068,7 +1068,7 @@ ok:
+ 			ot += 4 // align for *rtype
+ 		}
+ 
+-		dataAdd := (inCount + outCount) * Widthptr
++		dataAdd := (inCount + t.Outtuple) * Widthptr
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 352b2046e7..32dd782c3c 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2410,6 +2410,17 @@ func TestEmbeddedMethods(t *testing.T) {
+ 	}
+ }
+ 
++type FuncDDD func(...interface{}) error
++
++func (f FuncDDD) M() {}
++
++func TestNumMethodOnDDD(t *testing.T) {
++	rv := ValueOf((FuncDDD)(nil))
++	if n := rv.NumMethod(); n != 1 {
++		t.Fatalf("NumMethod()=%d, want 1", n)
++	}
++}
++
+ func TestPtrTo(t *testing.T) {
+ 	var i int
+ 

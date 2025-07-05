@@ -14,7 +14,49 @@ Date:   Tue Jun 18 14:59:50 2013 +1000
     R=dsymonds
     CC=gobot, golang-dev
     https://golang.org/cl/10323043
-
+---
  misc/vim/ftplugin/go.vim | 17 +++++++++++++++++
  misc/vim/readme.txt      |  7 ++++---
  2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/misc/vim/ftplugin/go.vim b/misc/vim/ftplugin/go.vim
+new file mode 100644
+index 0000000000..8066733cf8
+--- /dev/null
++++ b/misc/vim/ftplugin/go.vim
+@@ -0,0 +1,17 @@
++" Copyright 2013 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" go.vim: Vim filetype plugin for Go.
++
++if exists("b:did_ftplugin")
++    finish
++endif
++let b:did_ftplugin = 1
++
++setlocal comments=s1:/*,mb:*,ex:*/,://
++setlocal commentstring=//\ %s
++
++let b:undo_ftplugin = "setl com< cms<"
++
++" vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index cb3a520739..dca24ea1d0 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -47,9 +47,10 @@ Vim filetype plugins
+ To install one of the available filetype plugins:
+ 
+   1. Same as 1 above.
+-  2. Copy or link one or more plugins from ftplugin/go/*.vim to the
+-     Go-specific ftplugin directory underneath your vim runtime directory
+-     (normally $HOME/.vim/ftplugin/go/*.vim).
++  2. Copy or link ftplugin/go.vim to the ftplugin directory underneath your vim
++     runtime directory (normally $HOME/.vim/ftplugin). Copy or link one or more
++     additional plugins from ftplugin/go/*.vim to the Go-specific subdirectory
++     in the same place ($HOME/.vim/ftplugin/go/*.vim).
+   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+ 
+      filetype plugin on

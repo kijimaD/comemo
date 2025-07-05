@@ -11,7 +11,7 @@ Date:   Wed Apr 25 16:02:58 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/builtins.go   | 4 ++--
  src/go/types/call.go       | 4 ++--
  src/go/types/check.go      | 2 +-
@@ -20,3 +20,122 @@ Date:   Wed Apr 25 16:02:58 2018 -0400
  src/go/types/interfaces.go | 2 +-
  src/go/types/typexpr.go    | 4 ++--
  7 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 785daec331..afe5f5d0fc 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -623,7 +623,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// Note: trace is only available in self-test mode.
+ 		// (no argument evaluated yet)
+ 		if nargs == 0 {
+-			check.dump("%s: trace() without arguments", call.Pos())
++			check.dump("%v: trace() without arguments", call.Pos())
+ 			x.mode = novalue
+ 			break
+ 		}
+@@ -631,7 +631,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x1 := x
+ 		for _, arg := range call.Args {
+ 			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
+-			check.dump("%s: %s", x1.pos(), x1)
++			check.dump("%v: %s", x1.pos(), x1)
+ 			x1 = &t // use incoming x only for first argument
+ 		}
+ 		// trace is only available in test mode - no need to record signature
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index ba9e45f7af..1b40651b73 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -274,7 +274,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand,
+ 		typ = sig.params.vars[n-1].typ
+ 		if debug {
+ 			if _, ok := typ.(*Slice); !ok {
+-				check.dump("%s: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
++				check.dump("%v: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+ 			}
+ 		}
+ 	default:
+@@ -448,7 +448,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				// lookup.
+ 				mset := NewMethodSet(typ)
+ 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
+-					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
++					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+ 					check.dump("%s\n", mset)
+ 					panic("method sets and lookup don't agree")
+ 				}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index d1b7155cf5..177065fded 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -249,7 +249,7 @@ func (check *Checker) recordUntyped() {
+ 
+ 	for x, info := range check.untyped {
+ 		if debug && isTyped(info.typ) {
+-			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
++			check.dump("%v: %s (type %s) is typed", x.Pos(), x, info.typ)
+ 			unreachable()
+ 		}
+ 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 8278fab2ad..288ba8e447 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -67,7 +67,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 
+ 	d := check.objMap[obj]
+ 	if d == nil {
+-		check.dump("%s: %s should have been declared", obj.Pos(), obj)
++		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+ 		unreachable()
+ 	}
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 04d6b72bc2..0a2a811bd8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -382,7 +382,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		// The respective sub-expressions got their final types
+ 		// upon assignment or use.
+ 		if debug {
+-			check.dump("%s: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
++			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
+ 			unreachable()
+ 		}
+ 		return
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index 1ce5e1ed97..b4efebae5d 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -144,7 +144,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
+ 	}
+ 
+ 	if trace {
+-		check.trace(iface.Pos(), "-- collect methods for %s (path = %s)", iface, pathString(path))
++		check.trace(iface.Pos(), "-- collect methods for %v (path = %s)", iface, pathString(path))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 18234cb19d..5e48edef70 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -487,7 +487,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	interfaceContext := check.context // capture for use in closure below
+ 	check.later(func() {
+ 		if trace {
+-			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
++			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %v", iface)
+ 			check.indent++
+ 			defer func() {
+ 				check.indent--
+@@ -524,7 +524,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 				// don't just assert, but report error since this
+ 				// used to be the underlying cause for issue #18395.
+ 				if embed.allMethods == nil {
+-					check.dump("%s: incomplete embedded interface %s", f.Type.Pos(), typ)
++					check.dump("%v: incomplete embedded interface %s", f.Type.Pos(), typ)
+ 					unreachable()
+ 				}
+ 				// collect interface

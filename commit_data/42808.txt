@@ -14,6 +14,29 @@ Date:   Thu Feb 20 12:53:32 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9da94360f9..8926482b05 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2454,11 +2454,15 @@ func copyFile(src, dst string, perm os.FileMode) error {
+ 	}
+ 
+ 	_, err = io.Copy(df, sf)
+-	err2 := df.Close()
++	err2 := df.Sync()
++	err3 := df.Close()
+ 	if err != nil {
+ 		return err
+ 	}
+-	return err2
++	if err2 != nil {
++		return err2
++	}
++	return err3
+ }
+ 
+ // TestExecutableGOROOT verifies that the cmd/go binary itself uses

@@ -12,9 +12,94 @@ Date:   Mon Jan 12 00:12:59 2015 -0500
     Change-Id: I22b0a212b31e7b4f199f6a70deb73374beb80f84
     Reviewed-on: https://go-review.googlesource.com/2654
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go       |  1 +
  misc/cgo/test/issue7234_test.go |  2 +-
  misc/cgo/test/issue9557.go      | 36 ++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go              |  7 +++++++
  4 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index fbdfac87ac..76576d7a13 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -63,5 +63,6 @@ func Test8811(t *testing.T)                  { test8811(t) }
+ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ func Test9026(t *testing.T)                  { test9026(t) }
++func Test9557(t *testing.T)                  { test9557(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue7234_test.go b/misc/cgo/test/issue7234_test.go
+index 713dade4c8..604dfad4ba 100644
+--- a/misc/cgo/test/issue7234_test.go
++++ b/misc/cgo/test/issue7234_test.go
+@@ -14,7 +14,7 @@ import "testing"
+ 
+ var v7234 = [...]string{"runtime/cgo"}
+ 
+-func TestIssue7234(t *testing.T) {
++func Test7234(t *testing.T) {
+ 	if v7234[0] != "runtime/cgo" {
+ 		t.Errorf("bad string constant %q", v7234[0])
+ 	}
+diff --git a/misc/cgo/test/issue9557.go b/misc/cgo/test/issue9557.go
+new file mode 100644
+index 0000000000..b29bacdfff
+--- /dev/null
++++ b/misc/cgo/test/issue9557.go
+@@ -0,0 +1,36 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cgo rewrote C.var to *_Cvar_var, but left
++// C.var.field as _Cvar.var.field.  It now rewrites
++// the latter as (*_Cvar_var).field.
++// See https://golang.org/issue/9557.
++
++package cgotest
++
++// struct issue9557_t {
++//   int a;
++// } test9557bar = { 42 };
++//
++// struct issue9557_t *issue9557foo = &test9557bar;
++import "C"
++import "testing"
++
++func test9557(t *testing.T) {
++	// implicitly dereference a Go variable
++	foo := C.issue9557foo
++	if v := foo.a; v != 42 {
++		t.Fatalf("foo.a expected 42, but got %d", v)
++	}
++
++	// explicitly dereference a C variable
++	if v := (*C.issue9557foo).a; v != 42 {
++		t.Fatalf("(*C.issue9557foo).a expected 42, but is %d", v)
++	}
++
++	// implicitly dereference a C variable
++	if v := C.issue9557foo.a; v != 42 {
++		t.Fatalf("C.issue9557foo.a expected 42, but is %d", v)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 864fda0258..e217ddcf0b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -659,6 +659,13 @@ func (p *Package) rewriteRef(f *File) {
+ 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+ 			}
+ 
++		case "selector":
++			if r.Name.Kind == "var" {
++				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
++			} else {
++				error_(r.Pos(), "only C variables allowed in selector expression", fixGo(r.Name.Go))
++			}
++
+ 		case "type":
+ 			if r.Name.Kind != "type" {
+ 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))

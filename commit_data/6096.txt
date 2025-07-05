@@ -7,6 +7,19 @@ Date:   Thu Aug 26 16:50:17 2010 +1000
     R=golang-dev, adg1, adg
     CC=golang-dev
     https://golang.org/cl/2023044
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index efdc34c109..450a7e17be 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -19,6 +19,7 @@ doc/htmlgen
+ src/Make.inc
+ src/cmd/6a/6a
+ src/cmd/?l/enam.c
++src/cmd/cc/y.output
+ src/cmd/gc/builtin.c
+ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h

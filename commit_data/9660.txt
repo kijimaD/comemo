@@ -9,7 +9,43 @@ Date:   Mon Sep 12 16:01:30 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4967065
-
+---
  src/pkg/exp/template/html/escape.go      | 4 ++--
  src/pkg/exp/template/html/escape_test.go | 8 ++++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index d3c06bb7f6..955b41be22 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -487,9 +487,9 @@ func tJS(c context, s []byte) (context, []byte) {
+ 	case '/':
+ 		switch {
+ 		case i+1 < len(s) && s[i+1] == '/':
+-			c.state = stateJSLineCmt
++			c.state, i = stateJSLineCmt, i+1
+ 		case i+1 < len(s) && s[i+1] == '*':
+-			c.state = stateJSBlockCmt
++			c.state, i = stateJSBlockCmt, i+1
+ 		case c.jsCtx == jsCtxRegexp:
+ 			c.state = stateJSRegexp
+ 		default:
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 23f5734987..488f33a4ad 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -643,6 +643,14 @@ func TestEscapeText(t *testing.T) {
+ 			`<a onclick="/*`,
+ 			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
+ 		},
++		{
++			`<a onclick="/*/`,
++			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="/**/`,
++			context{state: stateJS, delim: delimDoubleQuote},
++		},
+ 		{
+ 			`<a onkeypress="&quot;`,
+ 			context{state: stateJSDqStr, delim: delimDoubleQuote},

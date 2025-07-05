@@ -12,6 +12,22 @@ Date:   Sun Aug 18 23:20:15 2024 +0300
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/time.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 572ea64ccf..0ff7faedec 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -54,8 +54,8 @@
+ // On some systems the monotonic clock will stop if the computer goes to sleep.
+ // On such a system, t.Sub(u) may not accurately reflect the actual
+ // time that passed between t and u. The same applies to other functions and
+-// methods that subtract times, such as [Since], [Until], [Before], [After],
+-// [Add], [Sub], [Equal] and [Compare]. In some cases, you may need to strip
++// methods that subtract times, such as [Since], [Until], [Time.Before], [Time.After],
++// [Time.Add], [Time.Equal] and [Time.Compare]. In some cases, you may need to strip
+ // the monotonic clock to get accurate results.
+ //
+ // Because the monotonic clock reading has no meaning outside

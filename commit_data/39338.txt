@@ -17,6 +17,32 @@ Date:   Thu Jan 24 17:27:23 2019 +0000
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/bits/bits.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index b06c363348..6f367dcc93 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -232,8 +232,7 @@ func Reverse32(x uint32) uint32 {
+ 	x = x>>1&(m0&m) | x&(m0&m)<<1
+ 	x = x>>2&(m1&m) | x&(m1&m)<<2
+ 	x = x>>4&(m2&m) | x&(m2&m)<<4
+-	x = x>>8&(m3&m) | x&(m3&m)<<8
+-	return x>>16 | x<<16
++	return ReverseBytes32(x)
+ }
+ 
+ // Reverse64 returns the value of x with its bits in reversed order.
+@@ -242,9 +241,7 @@ func Reverse64(x uint64) uint64 {
+ 	x = x>>1&(m0&m) | x&(m0&m)<<1
+ 	x = x>>2&(m1&m) | x&(m1&m)<<2
+ 	x = x>>4&(m2&m) | x&(m2&m)<<4
+-	x = x>>8&(m3&m) | x&(m3&m)<<8
+-	x = x>>16&(m4&m) | x&(m4&m)<<16
+-	return x>>32 | x<<32
++	return ReverseBytes64(x)
+ }
+ 
+ // --- ReverseBytes ---

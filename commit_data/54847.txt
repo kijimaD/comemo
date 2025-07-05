@@ -17,6 +17,20 @@ Date:   Wed Nov 16 20:24:03 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/fix/main_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index 837a5d72c7..2b293077d1 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -17,7 +17,7 @@ import (
+ func init() {
+ 	// If cgo is enabled, enforce that cgo commands invoked by cmd/fix
+ 	// do not fail during testing.
+-	if testenv.HasCGO() {
++	if testenv.HasCGO() && testenv.HasGoBuild() {
+ 		// The reportCgoError hook is global, so we can't set it per-test
+ 		// if we want to be able to run those tests in parallel.
+ 		// Instead, simply set it to panic on error: the goroutine dump

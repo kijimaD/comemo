@@ -9,6 +9,19 @@ Date:   Tue Mar 13 15:31:39 2012 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5783090
-
+---
  misc/dist/bindist.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 3a7fe168eb..0d2fa21ea6 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -154,6 +154,7 @@ func (b *Build) Do() error {
+ 	if err != nil {
+ 		return err
+ 	}
++	fullVersion = bytes.TrimSpace(fullVersion)
+ 	v := bytes.SplitN(fullVersion, []byte(" "), 2)
+ 	version = string(v[0])
+ 

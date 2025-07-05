@@ -9,7 +9,34 @@ Date:   Tue Mar 15 14:42:18 2011 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4271046
-
+---
  src/lib9/Makefile    | 2 +-
  src/libmach/Makefile | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index a10d7730aa..d222e2f531 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -82,7 +82,7 @@ LIB9OFILES=\
+ 	time.$O\
+ 	tokenize.$O\
+ 
+-ifeq ($(GOOS),windows)
++ifeq ($(GOHOSTOS),windows)
+ LIB9OFILES+=\
+ 	win32.$O\
+ 
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index 5d7e87d86f..2a53749c81 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -49,7 +49,7 @@ OFILES=\
+ 	6obj.$O\
+ 	8obj.$O\
+ 
+-ifneq ($(GOOS),windows)
++ifneq ($(GOHOSTOS),windows)
+ OFILES+=\
+ 	$(shell uname | tr A-Z a-z).$O\
+ 

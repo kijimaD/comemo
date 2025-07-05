@@ -13,8 +13,62 @@ Date:   Wed Jan 8 14:36:20 2020 -0500
     Change-Id: I85e0d168d4e9862a718872427f56213ddc21fa32
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213825
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                | 12 ------------
  src/cmd/go/testdata/script/build_dash_o_dev_null.txt | 13 +++++++++++++
  src/cmd/go/testdata/src/hello/hello.go               |  5 -----
  3 files changed, 13 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a6b8a07b4d..fa7a6af464 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4542,18 +4542,6 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 25579.
+-func TestGoBuildDashODevNull(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("build", "-o", os.DevNull, filepath.Join(tg.pwd(), "testdata", "src", "hello", "hello.go"))
+-	tg.mustNotExist("hello")
+-	tg.mustNotExist("hello.exe")
+-}
+-
+ // Issue 25093.
+ func TestCoverpkgTestOnly(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
+diff --git a/src/cmd/go/testdata/script/build_dash_o_dev_null.txt b/src/cmd/go/testdata/script/build_dash_o_dev_null.txt
+new file mode 100644
+index 0000000000..e415fc224d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_dash_o_dev_null.txt
+@@ -0,0 +1,13 @@
++# Issue #25579
++
++[short] skip
++
++go build -o $devnull hello.go
++! exists 'hello'$GOEXE
++
++-- hello.go --
++package main
++
++func main() {
++	println("hello, world")
++}
+diff --git a/src/cmd/go/testdata/src/hello/hello.go b/src/cmd/go/testdata/src/hello/hello.go
+deleted file mode 100644
+index 73d83e646f..0000000000
+--- a/src/cmd/go/testdata/src/hello/hello.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package main
+-
+-func main() {
+-	println("hello, world")
+-}

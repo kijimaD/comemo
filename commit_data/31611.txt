@@ -9,7 +9,7 @@ Date:   Fri Mar 3 11:35:44 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |   3 +-
  src/cmd/compile/internal/ssa/gen/386.rules     |   4 -
  src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 -
@@ -33,3 +33,1381 @@ Date:   Fri Mar 3 11:35:44 2017 -0800
  src/cmd/compile/internal/ssa/rewriteS390X.go   |  96 ---------------
  src/cmd/compile/internal/x86/ssa.go            |   3 +-
  22 files changed, 2 insertions(+), 928 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b403e6d0c9..53f3b8d540 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -281,8 +281,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		j1.To.Val = n1
+ 		j2.To.Val = s.Pc()
+ 
+-	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
+-		ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
++	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU:
+ 		// the frontend rewrites constant division by 8/16/32 bit integers into
+ 		// HMUL by a constant
+ 		// SSA rewrites generate the 64 bit versions
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 3640857b58..0ca1761b33 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -45,10 +45,6 @@
+ 
+ (Hmul32  x y) -> (HMULL  x y)
+ (Hmul32u x y) -> (HMULLU x y)
+-(Hmul16  x y) -> (HMULW  x y)
+-(Hmul16u x y) -> (HMULWU x y)
+-(Hmul8   x y) -> (HMULB  x y)
+-(Hmul8u  x y) -> (HMULBU x y)
+ 
+ (Mod32  x y) -> (MODL  x y)
+ (Mod32u x y) -> (MODLU x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 5562c88c4b..2754e0dec0 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -195,10 +195,6 @@ func init() {
+ 
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB", clobberFlags: true}, // (arg0 * arg1) >> width
+ 
+ 		{name: "MULLQU", argLength: 2, reg: gp21mul, asm: "MULL", clobberFlags: true}, // arg0 * arg1, high 32 in result[0], low 32 in result[1]
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index fa1359fecf..fd2aa82143 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -44,10 +44,6 @@
+ (Hmul64u x y) -> (HMULQU x y)
+ (Hmul32  x y) -> (HMULL  x y)
+ (Hmul32u x y) -> (HMULLU x y)
+-(Hmul16  x y) -> (HMULW  x y)
+-(Hmul16u x y) -> (HMULWU x y)
+-(Hmul8   x y) -> (HMULB  x y)
+-(Hmul8u  x y) -> (HMULBU x y)
+ 
+ (Mul64uhilo x y) -> (MULQU2 x y)
+ (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 0af9d004ec..476febdbb7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -204,12 +204,8 @@ func init() {
+ 
+ 		{name: "HMULQ", argLength: 2, reg: gp21hmul, asm: "IMULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULQU", argLength: 2, reg: gp21hmul, asm: "MULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW", clobberFlags: true}, // (arg0 * arg1) >> width
+-		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB", clobberFlags: true}, // (arg0 * arg1) >> width
+ 
+ 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index fc17573ee3..79f6f7b27f 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -30,10 +30,6 @@
+ 
+ (Hmul32 x y) -> (HMUL x y)
+ (Hmul32u x y) -> (HMULU x y)
+-(Hmul16 x y) -> (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-(Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-(Hmul8 x y) -> (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-(Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+ 
+ (Mul32uhilo x y) -> (MULLU x y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 94d5902abd..deff9a4249 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -29,10 +29,6 @@
+ (Hmul64u x y) -> (UMULH x y)
+ (Hmul32 x y) -> (SRAconst (MULL <config.fe.TypeInt64()> x y) [32])
+ (Hmul32u x y) -> (SRAconst (UMULL <config.fe.TypeUInt64()> x y) [32])
+-(Hmul16 x y) -> (SRAconst (MULW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-(Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-(Hmul8 x y) -> (SRAconst (MULW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-(Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+ 
+ (Div64 x y) -> (DIV x y)
+ (Div64u x y) -> (UDIV x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 42aef79f56..4382fad59d 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -32,10 +32,6 @@
+ 
+ (Hmul32 x y) -> (Select0 (MULT x y))
+ (Hmul32u x y) -> (Select0 (MULTU x y))
+-(Hmul16 x y) -> (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-(Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-(Hmul8 x y) -> (SRAconst  (MUL <config.fe.TypeInt32()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-(Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+ 
+ (Mul32uhilo x y) -> (MULTU x y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 720f91d747..1bb33840f3 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -29,10 +29,6 @@
+ (Hmul64u x y) -> (Select0 (MULVU x y))
+ (Hmul32 x y) -> (SRAVconst (Select1 <config.fe.TypeInt64()> (MULV (SignExt32to64 x) (SignExt32to64 y))) [32])
+ (Hmul32u x y) -> (SRLVconst (Select1 <config.fe.TypeUInt64()> (MULVU (ZeroExt32to64 x) (ZeroExt32to64 y))) [32])
+-(Hmul16 x y) -> (SRAVconst (Select1 <config.fe.TypeInt32()> (MULV (SignExt16to64 x) (SignExt16to64 y))) [16])
+-(Hmul16u x y) -> (SRLVconst (Select1 <config.fe.TypeUInt32()> (MULVU (ZeroExt16to64 x) (ZeroExt16to64 y))) [16])
+-(Hmul8 x y) -> (SRAVconst (Select1 <config.fe.TypeInt16()> (MULV (SignExt8to64 x) (SignExt8to64 y))) [8])
+-(Hmul8u x y) -> (SRLVconst (Select1 <config.fe.TypeUInt16()> (MULVU (ZeroExt8to64 x) (ZeroExt8to64 y))) [8])
+ 
+ (Div64 x y) -> (Select1 (DIVV x y))
+ (Div64u x y) -> (Select1 (DIVVU x y))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 0467f4a4f9..f7b6417d08 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -49,10 +49,6 @@
+ (Hmul64u  x y) -> (MULHDU x y)
+ (Hmul32  x y) -> (MULHW  x y)
+ (Hmul32u  x y) -> (MULHWU x y)
+-(Hmul16 x y) -> (SRAWconst (MULLW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-(Hmul16u x y) -> (SRWconst (MULLW <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-(Hmul8 x y) -> (SRAWconst (MULLW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-(Hmul8u x y) -> (SRWconst (MULLW <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+ 
+ (Mul32F x y) -> (FMULS x y)
+ (Mul64F x y) -> (FMUL x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 82468ec2c3..5210d0abc0 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -44,10 +44,6 @@
+ (Hmul64u x y) -> (MULHDU x y)
+ (Hmul32  x y) -> (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
+ (Hmul32u x y) -> (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
+-(Hmul16  x y) -> (SRDconst [16] (MULLW (MOVHreg x) (MOVHreg y)))
+-(Hmul16u x y) -> (SRDconst [16] (MULLW (MOVHZreg x) (MOVHZreg y)))
+-(Hmul8   x y) -> (SRDconst [8] (MULLW (MOVBreg x) (MOVBreg y)))
+-(Hmul8u  x y) -> (SRDconst [8] (MULLW (MOVBZreg x) (MOVBZreg y)))
+ 
+ (Mod64  x y) -> (MODD  x y)
+ (Mod64u x y) -> (MODDU x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 88809d794b..a90d3c8e62 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -49,10 +49,6 @@ var genericOps = []opData{
+ 	{name: "Div32F", argLength: 2}, // arg0 / arg1
+ 	{name: "Div64F", argLength: 2},
+ 
+-	{name: "Hmul8", argLength: 2},  // (arg0 * arg1) >> width, signed
+-	{name: "Hmul8u", argLength: 2}, // (arg0 * arg1) >> width, unsigned
+-	{name: "Hmul16", argLength: 2},
+-	{name: "Hmul16u", argLength: 2},
+ 	{name: "Hmul32", argLength: 2},
+ 	{name: "Hmul32u", argLength: 2},
+ 	{name: "Hmul64", argLength: 2},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 70eaf6c1bd..7360acb4cd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -268,10 +268,6 @@ const (
+ 	Op386MULLconst
+ 	Op386HMULL
+ 	Op386HMULLU
+-	Op386HMULW
+-	Op386HMULB
+-	Op386HMULWU
+-	Op386HMULBU
+ 	Op386MULLQU
+ 	Op386AVGLU
+ 	Op386DIVL
+@@ -454,12 +450,8 @@ const (
+ 	OpAMD64MULLconst
+ 	OpAMD64HMULQ
+ 	OpAMD64HMULL
+-	OpAMD64HMULW
+-	OpAMD64HMULB
+ 	OpAMD64HMULQU
+ 	OpAMD64HMULLU
+-	OpAMD64HMULWU
+-	OpAMD64HMULBU
+ 	OpAMD64AVGQU
+ 	OpAMD64DIVQ
+ 	OpAMD64DIVL
+@@ -1625,10 +1617,6 @@ const (
+ 	OpMul64F
+ 	OpDiv32F
+ 	OpDiv64F
+-	OpHmul8
+-	OpHmul8u
+-	OpHmul16
+-	OpHmul16u
+ 	OpHmul32
+ 	OpHmul32u
+ 	OpHmul64
+@@ -2509,70 +2497,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:         "HMULW",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AIMULW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},   // AX
+-				{1, 255}, // AX CX DX BX SP BP SI DI
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:         "HMULB",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AIMULB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},   // AX
+-				{1, 255}, // AX CX DX BX SP BP SI DI
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:         "HMULWU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AMULW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},   // AX
+-				{1, 255}, // AX CX DX BX SP BP SI DI
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:         "HMULBU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AMULB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},   // AX
+-				{1, 255}, // AX CX DX BX SP BP SI DI
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+ 	{
+ 		name:         "MULLQU",
+ 		argLen:       2,
+@@ -5017,38 +4941,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:         "HMULW",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AIMULW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:         "HMULB",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AIMULB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+ 	{
+ 		name:         "HMULQU",
+ 		argLen:       2,
+@@ -5081,38 +4973,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:         "HMULWU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AMULW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:         "HMULBU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          x86.AMULB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+ 	{
+ 		name:         "AVGQU",
+ 		argLen:       2,
+@@ -20619,26 +20479,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+-	{
+-		name:    "Hmul8",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Hmul8u",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Hmul16",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Hmul16u",
+-		argLen:  2,
+-		generic: true,
+-	},
+ 	{
+ 		name:    "Hmul32",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 417f59fc0a..0280bdd04c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -346,18 +346,10 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValue386_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValue386_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValue386_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValue386_OpHmul32(v, config)
+ 	case OpHmul32u:
+ 		return rewriteValue386_OpHmul32u(v, config)
+-	case OpHmul8:
+-		return rewriteValue386_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValue386_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValue386_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -10564,36 +10556,6 @@ func rewriteValue386_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValue386_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16  x y)
+-	// cond:
+-	// result: (HMULW  x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(Op386HMULW)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+-func rewriteValue386_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (HMULWU x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(Op386HMULWU)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+ func rewriteValue386_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10624,36 +10586,6 @@ func rewriteValue386_OpHmul32u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValue386_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8   x y)
+-	// cond:
+-	// result: (HMULB  x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(Op386HMULB)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+-func rewriteValue386_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u  x y)
+-	// cond:
+-	// result: (HMULBU x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(Op386HMULBU)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+ func rewriteValue386_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 49cf0d1665..2a82ed9e2d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -512,10 +512,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueAMD64_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueAMD64_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueAMD64_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueAMD64_OpHmul32(v, config)
+ 	case OpHmul32u:
+@@ -524,10 +520,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpHmul64(v, config)
+ 	case OpHmul64u:
+ 		return rewriteValueAMD64_OpHmul64u(v, config)
+-	case OpHmul8:
+-		return rewriteValueAMD64_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueAMD64_OpHmul8u(v, config)
+ 	case OpInt64Hi:
+ 		return rewriteValueAMD64_OpInt64Hi(v, config)
+ 	case OpInterCall:
+@@ -18834,36 +18826,6 @@ func rewriteValueAMD64_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16  x y)
+-	// cond:
+-	// result: (HMULW  x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpAMD64HMULW)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+-func rewriteValueAMD64_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (HMULWU x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpAMD64HMULWU)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -18924,36 +18886,6 @@ func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8   x y)
+-	// cond:
+-	// result: (HMULB  x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpAMD64HMULB)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+-func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u  x y)
+-	// cond:
+-	// result: (HMULBU x y)
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpAMD64HMULBU)
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpInt64Hi(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index a5b766ebbb..eba480c62c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -478,18 +478,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueARM_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueARM_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueARM_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueARM_OpHmul32(v, config)
+ 	case OpHmul32u:
+ 		return rewriteValueARM_OpHmul32u(v, config)
+-	case OpHmul8:
+-		return rewriteValueARM_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueARM_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueARM_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -14046,50 +14038,6 @@ func rewriteValueARM_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16 x y)
+-	// cond:
+-	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARMSRAconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpARMMUL, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueARM_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARMSRLconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpARMMUL, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueARM_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -14120,50 +14068,6 @@ func rewriteValueARM_OpHmul32u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8 x y)
+-	// cond:
+-	// result: (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARMSRAconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpARMMUL, config.fe.TypeInt16())
+-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueARM_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARMSRLconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpARMMUL, config.fe.TypeUInt16())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueARM_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 93472934ae..afe3081cb1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -404,10 +404,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueARM64_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueARM64_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueARM64_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueARM64_OpHmul32(v, config)
+ 	case OpHmul32u:
+@@ -416,10 +412,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpHmul64(v, config)
+ 	case OpHmul64u:
+ 		return rewriteValueARM64_OpHmul64u(v, config)
+-	case OpHmul8:
+-		return rewriteValueARM64_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueARM64_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueARM64_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -10875,50 +10867,6 @@ func rewriteValueARM64_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16 x y)
+-	// cond:
+-	// result: (SRAconst (MULW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARM64SRAconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpARM64MULW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueARM64_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARM64SRLconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpARM64MUL, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueARM64_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10985,50 +10933,6 @@ func rewriteValueARM64_OpHmul64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8 x y)
+-	// cond:
+-	// result: (SRAconst (MULW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARM64SRAconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpARM64MULW, config.fe.TypeInt16())
+-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueARM64_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARM64SRLconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpARM64MUL, config.fe.TypeUInt16())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueARM64_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 5c45d1c481..5bfcb52273 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -158,18 +158,10 @@ func rewriteValueMIPS(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueMIPS_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueMIPS_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueMIPS_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueMIPS_OpHmul32(v, config)
+ 	case OpHmul32u:
+ 		return rewriteValueMIPS_OpHmul32u(v, config)
+-	case OpHmul8:
+-		return rewriteValueMIPS_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueMIPS_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueMIPS_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -1909,50 +1901,6 @@ func rewriteValueMIPS_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16 x y)
+-	// cond:
+-	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPSSRAconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueMIPS_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPSSRLconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1987,50 +1935,6 @@ func rewriteValueMIPS_OpHmul32u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8 x y)
+-	// cond:
+-	// result: (SRAconst  (MUL <config.fe.TypeInt32()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPSSRAconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueMIPS_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u x y)
+-	// cond:
+-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPSSRLconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index ef07ab0268..a66f81115c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -166,10 +166,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS64_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueMIPS64_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueMIPS64_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueMIPS64_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueMIPS64_OpHmul32(v, config)
+ 	case OpHmul32u:
+@@ -178,10 +174,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS64_OpHmul64(v, config)
+ 	case OpHmul64u:
+ 		return rewriteValueMIPS64_OpHmul64u(v, config)
+-	case OpHmul8:
+-		return rewriteValueMIPS64_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueMIPS64_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueMIPS64_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -1918,54 +1910,6 @@ func rewriteValueMIPS64_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS64_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16 x y)
+-	// cond:
+-	// result: (SRAVconst (Select1 <config.fe.TypeInt32()> (MULV (SignExt16to64 x) (SignExt16to64 y))) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPS64SRAVconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpMIPS64MULV, MakeTuple(config.fe.TypeInt64(), config.fe.TypeInt64()))
+-		v2 := b.NewValue0(v.Pos, OpSignExt16to64, config.fe.TypeInt64())
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpSignExt16to64, config.fe.TypeInt64())
+-		v3.AddArg(y)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueMIPS64_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRLVconst (Select1 <config.fe.TypeUInt32()> (MULVU (ZeroExt16to64 x) (ZeroExt16to64 y))) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPS64SRLVconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpMIPS64MULVU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
+-		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, config.fe.TypeUInt64())
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, config.fe.TypeUInt64())
+-		v3.AddArg(y)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS64_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2048,54 +1992,6 @@ func rewriteValueMIPS64_OpHmul64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS64_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8 x y)
+-	// cond:
+-	// result: (SRAVconst (Select1 <config.fe.TypeInt16()> (MULV (SignExt8to64 x) (SignExt8to64 y))) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPS64SRAVconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeInt16())
+-		v1 := b.NewValue0(v.Pos, OpMIPS64MULV, MakeTuple(config.fe.TypeInt64(), config.fe.TypeInt64()))
+-		v2 := b.NewValue0(v.Pos, OpSignExt8to64, config.fe.TypeInt64())
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpSignExt8to64, config.fe.TypeInt64())
+-		v3.AddArg(y)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueMIPS64_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u x y)
+-	// cond:
+-	// result: (SRLVconst (Select1 <config.fe.TypeUInt16()> (MULVU (ZeroExt8to64 x) (ZeroExt8to64 y))) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpMIPS64SRLVconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeUInt16())
+-		v1 := b.NewValue0(v.Pos, OpMIPS64MULVU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
+-		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, config.fe.TypeUInt64())
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpZeroExt8to64, config.fe.TypeUInt64())
+-		v3.AddArg(y)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS64_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d614fbd866..2499d80464 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -192,10 +192,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValuePPC64_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValuePPC64_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValuePPC64_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValuePPC64_OpHmul32(v, config)
+ 	case OpHmul32u:
+@@ -204,10 +200,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpHmul64(v, config)
+ 	case OpHmul64u:
+ 		return rewriteValuePPC64_OpHmul64u(v, config)
+-	case OpHmul8:
+-		return rewriteValuePPC64_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValuePPC64_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValuePPC64_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -2151,50 +2143,6 @@ func rewriteValuePPC64_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16 x y)
+-	// cond:
+-	// result: (SRAWconst (MULLW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpPPC64SRAWconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValuePPC64_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRWconst (MULLW <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpPPC64SRWconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeUInt32())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValuePPC64_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2255,50 +2203,6 @@ func rewriteValuePPC64_OpHmul64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8 x y)
+-	// cond:
+-	// result: (SRAWconst (MULLW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpPPC64SRAWconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeInt16())
+-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValuePPC64_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u x y)
+-	// cond:
+-	// result: (SRWconst (MULLW <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpPPC64SRWconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeUInt16())
+-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValuePPC64_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 29ea57c948..14770ca18d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -200,10 +200,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueS390X_OpGreater8U(v, config)
+-	case OpHmul16:
+-		return rewriteValueS390X_OpHmul16(v, config)
+-	case OpHmul16u:
+-		return rewriteValueS390X_OpHmul16u(v, config)
+ 	case OpHmul32:
+ 		return rewriteValueS390X_OpHmul32(v, config)
+ 	case OpHmul32u:
+@@ -212,10 +208,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpHmul64(v, config)
+ 	case OpHmul64u:
+ 		return rewriteValueS390X_OpHmul64u(v, config)
+-	case OpHmul8:
+-		return rewriteValueS390X_OpHmul8(v, config)
+-	case OpHmul8u:
+-		return rewriteValueS390X_OpHmul8u(v, config)
+ 	case OpITab:
+ 		return rewriteValueS390X_OpITab(v, config)
+ 	case OpInterCall:
+@@ -2465,50 +2457,6 @@ func rewriteValueS390X_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpHmul16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16  x y)
+-	// cond:
+-	// result: (SRDconst [16] (MULLW (MOVHreg x) (MOVHreg y)))
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpS390XSRDconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpS390XMULLW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpS390XMOVHreg, config.fe.TypeInt64())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpS390XMOVHreg, config.fe.TypeInt64())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueS390X_OpHmul16u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul16u x y)
+-	// cond:
+-	// result: (SRDconst [16] (MULLW (MOVHZreg x) (MOVHZreg y)))
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpS390XSRDconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Pos, OpS390XMULLW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpS390XMOVHZreg, config.fe.TypeUInt64())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, config.fe.TypeUInt64())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueS390X_OpHmul32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2583,50 +2531,6 @@ func rewriteValueS390X_OpHmul64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpHmul8(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8   x y)
+-	// cond:
+-	// result: (SRDconst [8] (MULLW (MOVBreg x) (MOVBreg y)))
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpS390XSRDconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpS390XMULLW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpS390XMOVBreg, config.fe.TypeInt64())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpS390XMOVBreg, config.fe.TypeInt64())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueS390X_OpHmul8u(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Hmul8u  x y)
+-	// cond:
+-	// result: (SRDconst [8] (MULLW (MOVBZreg x) (MOVBZreg y)))
+-	for {
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpS390XSRDconst)
+-		v.AuxInt = 8
+-		v0 := b.NewValue0(v.Pos, OpS390XMULLW, config.fe.TypeInt32())
+-		v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, config.fe.TypeUInt64())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpS390XMOVBZreg, config.fe.TypeUInt64())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueS390X_OpITab(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index cf17dda684..a82083af09 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -264,8 +264,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			j2.To.Val = s.Pc()
+ 		}
+ 
+-	case ssa.Op386HMULL, ssa.Op386HMULW, ssa.Op386HMULB,
+-		ssa.Op386HMULLU, ssa.Op386HMULWU, ssa.Op386HMULBU:
++	case ssa.Op386HMULL, ssa.Op386HMULLU:
+ 		// the frontend rewrites constant division by 8/16/32 bit integers into
+ 		// HMUL by a constant
+ 		// SSA rewrites generate the 64 bit versions

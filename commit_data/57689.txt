@@ -13,6 +13,27 @@ Date:   Fri Aug 11 00:57:27 2023 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  ...g.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt
+new file mode 100644
+index 0000000000..60c73b7c1a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-ppc64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-ppc64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --

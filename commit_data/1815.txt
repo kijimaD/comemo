@@ -7,6 +7,20 @@ Date:   Wed Mar 11 22:02:18 2009 -0700
     R=gri
     OCL=26158
     CL=26158
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c682526318..afadef3311 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3023,7 +3023,7 @@ x = 1
+ *p = f()
+ a[i] = 23
+ k = <-ch
+-i &^= (1<<n)
++i &^= (1&lt;&lt;n)
+ </pre>
+ 
+ <p>

@@ -9,8 +9,224 @@ Date:   Sat Oct 24 22:47:25 2009 -0700
     
     R=rsc
     http://go/go-review/1015007
-
+---
  src/cmd/5g/cgen.c  | 28 ++++++++++------------------
  src/cmd/5g/gsubr.c | 36 ++++++++++++++++++++++++------------
  test/arm-pass.txt  | 13 +++++++++++++
  3 files changed, 47 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index b6190c256d..f36ba09a0a 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -429,13 +429,13 @@ flt2:	// binary
+ 		regalloc(&f1, n->type, N);
+ 		gmove(&f0, &f1);
+ 		cgen(nr, &f0);
+-		gins(optoas(n->op, n->type), &f1, &f0);
++		gins(optoas(n->op, n->type), &f0, &f1);
+ 	} else {
+ 		cgen(nr, &f0);
+ 		regalloc(&f1, n->type, N);
+ 		gmove(&f0, &f1);
+ 		cgen(nl, &f0);
+-		gins(optoas(n->op, n->type), &f1, &f0);
++		gins(optoas(n->op, n->type), &f0, &f1);
+ 	}
+ 	gmove(&f1, res);
+ 	regfree(&f0);
+@@ -1170,29 +1170,21 @@ sgen(Node *n, Node *res, int32 w)
+ 			p = gins(AMOVW, &src, &tmp);
+ 			p->from.type = D_OREG;
+ 
+-			//	MOVW	tmp>>((4-c)*8),src
+-			p = gins(AMOVW, N, &src);
+-			p->from.type = D_SHIFT;
+-			p->from.offset = SHIFT_LR | ((4-c)*8)<<7 | tmp.val.u.reg;
++			//	MOVW	tmp<<((4-c)*8),src
++			gshift(AMOVW, &tmp, SHIFT_LL, ((4-c)*8), &src);
+ 
+-			//	MOVW	src<<((4-c)*8),src
+-			p = gins(AMOVW, N, &src);
+-			p->from.type = D_SHIFT;
+-			p->from.offset = SHIFT_LL | ((4-c)*8)<<7 | tmp.val.u.reg;
++			//	MOVW	src>>((4-c)*8),src
++			gshift(AMOVW, &src, SHIFT_LR, ((4-c)*8), &src);
+ 
+ 			//	MOVW	(dst), tmp
+ 			p = gins(AMOVW, &dst, &tmp);
+ 			p->from.type = D_OREG;
+ 
+-			//	MOVW	tmp<<(c*8),tmp
+-			p = gins(AMOVW, N, &tmp);
+-			p->from.type = D_SHIFT;
+-			p->from.offset = SHIFT_LL | (c*8)<<7 | tmp.val.u.reg;
+-
+ 			//	MOVW	tmp>>(c*8),tmp
+-			p = gins(AMOVW, N, &tmp);
+-			p->from.type = D_SHIFT;
+-			p->from.offset = SHIFT_LR | (c*8)<<7 | tmp.val.u.reg;
++			gshift(AMOVW, &tmp, SHIFT_LR, (c*8), &tmp);
++
++			//	MOVW	tmp<<(c*8),tmp
++			gshift(AMOVW, &tmp, SHIFT_LL, c*8, &tmp);
+ 
+ 			//	ORR		src, tmp
+ 			gins(AORR, &src, &tmp);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 44c7e26702..a34320f6f3 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1188,52 +1188,64 @@ optoas(int op, Type *t)
+ 	case CASE(OLT, TINT16):
+ 	case CASE(OLT, TINT32):
+ 	case CASE(OLT, TINT64):
++	case CASE(OLT, TFLOAT32):
++	case CASE(OLT, TFLOAT64):
++		a = ABLT;
++		break;
++
+ 	case CASE(OLT, TUINT8):
+ 	case CASE(OLT, TUINT16):
+ 	case CASE(OLT, TUINT32):
+ 	case CASE(OLT, TUINT64):
+-	case CASE(OGT, TFLOAT32):
+-	case CASE(OGT, TFLOAT64):
+-		a = ABLT;
++		a = ABLO;
+ 		break;
+ 
+ 	case CASE(OLE, TINT8):
+ 	case CASE(OLE, TINT16):
+ 	case CASE(OLE, TINT32):
+ 	case CASE(OLE, TINT64):
++	case CASE(OLE, TFLOAT32):
++	case CASE(OLE, TFLOAT64):
++		a = ABLE;
++		break;
++
+ 	case CASE(OLE, TUINT8):
+ 	case CASE(OLE, TUINT16):
+ 	case CASE(OLE, TUINT32):
+ 	case CASE(OLE, TUINT64):
+-	case CASE(OGE, TFLOAT32):
+-	case CASE(OGE, TFLOAT64):
+-		a = ABLE;
++		a = ABLS;
+ 		break;
+ 
+ 	case CASE(OGT, TINT8):
+ 	case CASE(OGT, TINT16):
+ 	case CASE(OGT, TINT32):
+ 	case CASE(OGT, TINT64):
++	case CASE(OGT, TFLOAT32):
++	case CASE(OGT, TFLOAT64):
++		a = ABGT;
++		break;
++
+ 	case CASE(OGT, TUINT8):
+ 	case CASE(OGT, TUINT16):
+ 	case CASE(OGT, TUINT32):
+ 	case CASE(OGT, TUINT64):
+-	case CASE(OLT, TFLOAT32):
+-	case CASE(OLT, TFLOAT64):
+-		a = ABGT;
++		a = ABHI;
+ 		break;
+ 
+ 	case CASE(OGE, TINT8):
+ 	case CASE(OGE, TINT16):
+ 	case CASE(OGE, TINT32):
+ 	case CASE(OGE, TINT64):
++	case CASE(OGE, TFLOAT32):
++	case CASE(OGE, TFLOAT64):
++		a = ABGE;
++		break;
++
+ 	case CASE(OGE, TUINT8):
+ 	case CASE(OGE, TUINT16):
+ 	case CASE(OGE, TUINT32):
+ 	case CASE(OGE, TUINT64):
+-	case CASE(OLE, TFLOAT32):
+-	case CASE(OLE, TFLOAT64):
+-		a = ABGE;
++		a = ABHS;
+ 		break;
+ 
+ 	case CASE(OCMP, TBOOL):
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 64f4b544be..b7fa90acfa 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -21,10 +21,13 @@ cmp2.go
+ cmp3.go
+ cmp4.go
+ cmp5.go
++complit.go
+ compos.go
+ const.go
+ const1.go
+ const2.go
++const3.go
++convert.go
+ convert3.go
+ convlit.go
+ convlit1.go
+@@ -190,12 +193,14 @@ fixedbugs/bug173.go
+ fixedbugs/bug174.go
+ fixedbugs/bug175.go
+ fixedbugs/bug176.go
++fixedbugs/bug177.go
+ fixedbugs/bug178.go
+ fixedbugs/bug179.go
+ fixedbugs/bug180.go
+ fixedbugs/bug181.go
+ fixedbugs/bug182.go
+ fixedbugs/bug183.go
++fixedbugs/bug184.go
+ fixedbugs/bug185.go
+ fixedbugs/bug186.go
+ fixedbugs/bug187.go
+@@ -218,6 +223,7 @@ fixedbugs/bug203.go
+ fixedbugs/bug204.go
+ fixedbugs/bug205.go
+ fixedbugs/bug206.go
++fixedbugs/bug207.go
+ fixedbugs/bug208.go
+ fixedbugs/bug209.go
+ fixedbugs/bug211.go
+@@ -240,6 +246,7 @@ import1.go
+ indirect.go
+ indirect1.go
+ initcomma.go
++initialize.go
+ initializerr.go
+ initsyscall.go
+ int_lit.go
+@@ -252,6 +259,7 @@ interface/embed.go
+ interface/embed0.go
+ interface/explicit.go
+ interface/fail.go
++interface/fake.go
+ interface/pointer.go
+ interface/receiver.go
+ interface/receiver1.go
+@@ -293,6 +301,10 @@ ken/sliceslice.go
+ ken/string.go
+ ken/strvar.go
+ literal.go
++malloc1.go
++mallocrand.go
++mallocrep.go
++mallocrep1.go
+ map.go
+ method.go
+ method1.go
+@@ -318,6 +330,7 @@ switch.go
+ switch1.go
+ test0.go
+ typeswitch.go
++typeswitch1.go
+ utf.go
+ varinit.go
+ vectors.go

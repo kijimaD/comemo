@@ -21,7 +21,7 @@ Date:   Tue May 21 01:01:12 2019 -0400
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go   |  6 ++----
  src/cmd/compile/internal/types/pkg.go |  3 ++-
  src/runtime/proc.go                   |  9 ---------
@@ -32,3 +32,155 @@ Date:   Tue May 21 01:01:12 2019 -0400
  test/fixedbugs/issue31636.go          |  7 +++++++
  test/fixedbugs/issue31636.out         |  3 +++
  9 files changed, 61 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 6467aafd53..8157292216 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -37,10 +37,8 @@ func fninit(n []*Node) {
+ 	var fns []*obj.LSym  // functions to call for package initialization
+ 
+ 	// Find imported packages with init tasks.
+-	for _, p := range types.ImportedPkgList() {
+-		if s, ok := p.LookupOK(".inittask"); ok {
+-			deps = append(deps, s.Linksym())
+-		}
++	for _, s := range types.InitSyms {
++		deps = append(deps, s.Linksym())
+ 	}
+ 
+ 	// Make a function that contains all the initialization statements.
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index e502b986ae..bcc6789509 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -84,6 +84,7 @@ func (pkg *Pkg) Lookup(name string) *Sym {
+ 	return s
+ }
+ 
++// List of .inittask entries in imported packages, in source code order.
+ var InitSyms []*Sym
+ 
+ // LookupOK looks up name in pkg and reports whether it previously existed.
+@@ -100,7 +101,7 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+ 		Name: name,
+ 		Pkg:  pkg,
+ 	}
+-	if name == "init" {
++	if name == ".inittask" {
+ 		InitSyms = append(InitSyms, s)
+ 	}
+ 	pkg.Syms[name] = s
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index bf7835eb19..e9eca23138 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5211,15 +5211,6 @@ func doInit(t *initTask) {
+ 		throw("recursive call during initialization - linker skew")
+ 	default: // not initialized yet
+ 		t.state = 1 // initialization in progress
+-		if raceenabled {
+-			// Randomize initialization order of packages t depends on.
+-			// TODO: enable always instead of just for race?
+-			s := *(*[]uintptr)(unsafe.Pointer(&slice{array: add(unsafe.Pointer(t), 3*sys.PtrSize), len: int(t.ndeps), cap: int(t.ndeps)}))
+-			for i := len(s) - 1; i > 0; i-- {
+-				j := int(fastrandn(uint32(i + 1)))
+-				s[i], s[j] = s[j], s[i]
+-			}
+-		}
+ 		for i := uintptr(0); i < t.ndeps; i++ {
+ 			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
+ 			t2 := *(**initTask)(p)
+diff --git a/test/fixedbugs/issue31636.dir/a.go b/test/fixedbugs/issue31636.dir/a.go
+new file mode 100644
+index 0000000000..e57e0d5fb7
+--- /dev/null
++++ b/test/fixedbugs/issue31636.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func init() {
++	println("a")
++}
+diff --git a/test/fixedbugs/issue31636.dir/b.go b/test/fixedbugs/issue31636.dir/b.go
+new file mode 100644
+index 0000000000..990e68209b
+--- /dev/null
++++ b/test/fixedbugs/issue31636.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++func init() {
++	println("b")
++}
+diff --git a/test/fixedbugs/issue31636.dir/c.go b/test/fixedbugs/issue31636.dir/c.go
+new file mode 100644
+index 0000000000..e53529aa59
+--- /dev/null
++++ b/test/fixedbugs/issue31636.dir/c.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++func init() {
++	println("c")
++}
+diff --git a/test/fixedbugs/issue31636.dir/main.go b/test/fixedbugs/issue31636.dir/main.go
+new file mode 100644
+index 0000000000..d8ae902c64
+--- /dev/null
++++ b/test/fixedbugs/issue31636.dir/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// We want the initializers of these packages to occur in source code
++// order. See issue 31636. This is the behavior up to and including
++// 1.13. For 1.14, we will move to a variant of lexicographic ordering
++// which will require a change to the test output of this test.
++import (
++	_ "c"
++
++	_ "b"
++
++	_ "a"
++)
++
++func main() {
++}
+diff --git a/test/fixedbugs/issue31636.go b/test/fixedbugs/issue31636.go
+new file mode 100644
+index 0000000000..af6f134172
+--- /dev/null
++++ b/test/fixedbugs/issue31636.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue31636.out b/test/fixedbugs/issue31636.out
+new file mode 100644
+index 0000000000..e274b2bb10
+--- /dev/null
++++ b/test/fixedbugs/issue31636.out
+@@ -0,0 +1,3 @@
++c
++b
++a

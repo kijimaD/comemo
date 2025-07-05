@@ -31,7 +31,7 @@ Date:   Sat Feb 25 18:37:17 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/asm_linux_amd64.s        | 23 +++++++++++++++++++++++
  src/syscall/exec_linux.go            |  7 +++++--
  src/syscall/syscall_linux_386.go     |  4 ++++
@@ -43,3 +43,151 @@ Date:   Sat Feb 25 18:37:17 2017 +0100
  src/syscall/syscall_linux_ppc64x.go  |  4 ++++
  src/syscall/syscall_linux_s390x.go   |  4 ++++
  10 files changed, 58 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index 6634875f6a..b7cd5416fe 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -111,6 +111,29 @@ ok2:
+ 	MOVQ	$0, err+72(FP)
+ 	RET
+ 
++// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
++	MOVQ	a1+8(FP), DI
++	MOVQ	$0, SI
++	MOVQ	$0, DX
++	MOVQ	$0, R10
++	MOVQ	$0, R8
++	MOVQ	$0, R9
++	MOVQ	trap+0(FP), AX	// syscall entry
++	POPQ	R12 // preserve return address
++	SYSCALL
++	PUSHQ	R12
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	ok2
++	MOVQ	$-1, r1+16(FP)
++	NEGQ	AX
++	MOVQ	AX, err+24(FP)
++	RET
++ok2:
++	MOVQ	AX, r1+16(FP)
++	MOVQ	$0, err+24(FP)
++	RET
++
+ // func gettimeofday(tv *Timeval) (err uintptr)
+ TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+ 	MOVQ	tv+0(FP), DI
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 6ad20f6af1..1ed10dd915 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -95,9 +95,12 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+ 	runtime_BeforeFork()
+-	if runtime.GOARCH == "s390x" {
++	switch {
++	case runtime.GOARCH == "amd64" && sys.Cloneflags&CLONE_NEWUSER == 0:
++		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
++	case runtime.GOARCH == "s390x":
+ 		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
+-	} else {
++	default:
+ 		r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
+ 	}
+ 	if err1 != 0 {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index d08338b1db..2c5d9a3eee 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -375,3 +375,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 0184d7d850..eaba868f89 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -134,3 +134,5 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index a58ebd4ed1..5c652b2e5b 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -215,3 +215,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 4462139c8b..4e81673109 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -139,3 +139,7 @@ const (
+ 	SYS_EPOLL_CREATE = 1042
+ 	SYS_EPOLL_WAIT   = 1069
+ )
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 9fd7982d2f..671cfe6d8a 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -198,3 +198,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 1b072c1380..1da265d3c4 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -218,3 +218,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 307abc9f53..53086f9034 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -115,3 +115,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index a1dd5d6fdb..8f3bbfc6f7 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -286,3 +286,7 @@ func (msghdr *Msghdr) SetControllen(length int) {
+ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
++
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
++	panic("not implemented")
++}

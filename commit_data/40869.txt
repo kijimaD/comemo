@@ -13,6 +13,22 @@ Date:   Fri Aug 2 19:09:20 2019 +0200
     Change-Id: I8b9aac4dc6af3eec968bbc8f3ee5366b99016fcc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188797
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 7bb60a0786..158f39ebc8 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2282,8 +2282,8 @@ The  <code>crypto/cipher</code> interfaces look like this:
+ <pre>
+ type Block interface {
+     BlockSize() int
+-    Encrypt(src, dst []byte)
+-    Decrypt(src, dst []byte)
++    Encrypt(dst, src []byte)
++    Decrypt(dst, src []byte)
+ }
+ 
+ type Stream interface {

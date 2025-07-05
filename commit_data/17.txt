@@ -5,6 +5,20 @@ Date:   Thu Mar 6 22:40:49 2008 -0800
     - added missing ''''s
     
     SVN=111693
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index f58cdae118..9077478b39 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1139,7 +1139,7 @@ Assignments
+   Assignment = SingleAssignment | TupleAssignment | Send .
+   SimpleAssignment = Designator assign_op Expression .
+   TupleAssignment = DesignatorList assign_op ExpressionList .
+-  Send = '>' Expression = Expression .
++  Send = '>' Expression '=' Expression .
+   
+   assign_op = [ add_op | mul_op ] '=' .
+ 

@@ -10,8 +10,115 @@ Date:   Mon Aug 5 15:45:39 2013 -0700
     R=gri, rsc, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/12265043
-
+---
  src/pkg/container/heap/example_intheap_test.go |  8 +++++--
  src/pkg/container/heap/heap.go                 | 13 +++++++++++-
  src/pkg/container/heap/heap_test.go            | 29 ++++++++++++++++++++++++++
  3 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/container/heap/example_intheap_test.go b/src/pkg/container/heap/example_intheap_test.go
+index e718cbc586..02d3d8668e 100644
+--- a/src/pkg/container/heap/example_intheap_test.go
++++ b/src/pkg/container/heap/example_intheap_test.go
+@@ -31,13 +31,17 @@ func (h *IntHeap) Pop() interface{} {
+ 	return x
+ }
+ 
+-// This example inserts several ints into an IntHeap and removes them in order of priority.
++// This example inserts several ints into an IntHeap, checks the minimum,
++// and removes them in order of priority.
+ func Example_intHeap() {
+ 	h := &IntHeap{2, 1, 5}
+ 	heap.Init(h)
+ 	heap.Push(h, 3)
++	fmt.Printf("minimum: %d\n", (*h)[0])
+ 	for h.Len() > 0 {
+ 		fmt.Printf("%d ", heap.Pop(h))
+ 	}
+-	// Output: 1 2 3 5
++	// Output:
++	// minimum: 1
++	// 1 2 3 5
+ }
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index c37e50e3c4..52c8507b42 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -6,6 +6,8 @@
+ // heap.Interface. A heap is a tree with the property that each node is the
+ // minimum-valued node in its subtree.
+ //
++// The minimum element in the tree is the root, at index 0.
++//
+ // A heap is a common way to implement a priority queue. To build a priority
+ // queue, implement the Heap interface with the (negative) priority as the
+ // ordering for the Less method, so Push adds items while Pop removes the
+@@ -54,7 +56,7 @@ func Push(h Interface, x interface{}) {
+ 
+ // Pop removes the minimum element (according to Less) from the heap
+ // and returns it. The complexity is O(log(n)) where n = h.Len().
+-// Same as Remove(h, 0).
++// It is equivalent to Remove(h, 0).
+ //
+ func Pop(h Interface) interface{} {
+ 	n := h.Len() - 1
+@@ -76,6 +78,15 @@ func Remove(h Interface, i int) interface{} {
+ 	return h.Pop()
+ }
+ 
++// Fix reestablishes the heap ordering after the element at index i has changed its value.
++// Changing the value of the element at index i and then calling Fix is equivalent to,
++// but less expensive than, calling Remove(h, i) followed by a Push of the new value.
++// The complexity is O(log(n)) where n = h.Len().
++func Fix(h Interface, i int) {
++	down(h, i, h.Len())
++	up(h, i)
++}
++
+ func up(h Interface, j int) {
+ 	for {
+ 		i := (j - 1) / 2 // parent
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 274d587d87..b3d054c5f3 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -5,6 +5,7 @@
+ package heap
+ 
+ import (
++	"math/rand"
+ 	"testing"
+ )
+ 
+@@ -182,3 +183,31 @@ func BenchmarkDup(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func TestFix(t *testing.T) {
++	h := new(myHeap)
++	h.verify(t, 0)
++
++	for i := 200; i > 0; i -= 10 {
++		Push(h, i)
++	}
++	h.verify(t, 0)
++
++	if (*h)[0] != 10 {
++		t.Fatalf("Expected head to be 10, was %d", (*h)[0])
++	}
++	(*h)[0] = 210
++	Fix(h, 0)
++	h.verify(t, 0)
++
++	for i := 100; i > 0; i-- {
++		elem := rand.Intn(h.Len())
++		if i&1 == 0 {
++			(*h)[elem] *= 2
++		} else {
++			(*h)[elem] /= 2
++		}
++		Fix(h, elem)
++		h.verify(t, 0)
++	}
++}

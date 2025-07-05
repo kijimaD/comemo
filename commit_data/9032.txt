@@ -17,7 +17,7 @@ Date:   Tue Jul 12 09:24:32 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4657091
-
+---
  src/pkg/runtime/malloc.goc   | 50 ++++++++++++++++++--------------------------
  src/pkg/runtime/malloc.h     |  1 -
  src/pkg/runtime/proc.c       | 23 +++++++++++++-------
@@ -25,3 +25,239 @@ Date:   Tue Jul 12 09:24:32 2011 -0700
  src/pkg/runtime/runtime.h    |  2 ++
  src/pkg/runtime/stack.h      |  1 +
  6 files changed, 67 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 696a998276..4274e3e162 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -358,26 +358,11 @@ func new(n uint32) (ret *uint8) {
+ 	ret = runtime·mal(n);
+ }
+ 
+-// Stack allocator uses malloc/free most of the time,
+-// but if we're in the middle of malloc and need stack,
+-// we have to do something else to avoid deadlock.
+-// In that case, we fall back on a fixed-size free-list
+-// allocator, assuming that inside malloc all the stack
+-// frames are small, so that all the stack allocations
+-// will be a single size, the minimum (right now, 5k).
+-static struct {
+-	Lock;
+-	FixAlloc;
+-} stacks;
+-
+-enum {
+-	FixedStack = StackMin,
+-};
+-
+ void*
+ runtime·stackalloc(uint32 n)
+ {
+ 	void *v;
++	uintptr sys0;
+ 
+ 	// Stackalloc must be called on scheduler stack, so that we
+ 	// never try to grow the stack during the code that stackalloc runs.
+@@ -385,18 +370,22 @@ runtime·stackalloc(uint32 n)
+ 	if(g != m->g0)
+ 		runtime·throw("stackalloc not on scheduler stack");
+ 
++	// Stack allocator uses malloc/free most of the time,
++	// but if we're in the middle of malloc and need stack,
++	// we have to do something else to avoid deadlock.
++	// In that case, we fall back on a fixed-size free-list
++	// allocator, assuming that inside malloc all the stack
++	// frames are small, so that all the stack allocations
++	// will be a single size, the minimum (right now, 5k).
+ 	if(m->mallocing || m->gcing || n == FixedStack) {
+-		runtime·lock(&stacks);
+-		if(stacks.size == 0)
+-			runtime·FixAlloc_Init(&stacks, n, runtime·SysAlloc, nil, nil);
+-		if(stacks.size != n) {
+-			runtime·printf("stackalloc: in malloc, size=%D want %d", (uint64)stacks.size, n);
++		if(n != FixedStack) {
++			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
+ 			runtime·throw("stackalloc");
+ 		}
+-		v = runtime·FixAlloc_Alloc(&stacks);
+-		mstats.stacks_inuse = stacks.inuse;
+-		mstats.stacks_sys = stacks.sys;
+-		runtime·unlock(&stacks);
++		sys0 = m->stackalloc->sys;
++		v = runtime·FixAlloc_Alloc(m->stackalloc);
++		mstats.stacks_inuse += FixedStack;
++		mstats.stacks_sys += m->stackalloc->sys - sys0;
+ 		return v;
+ 	}
+ 	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
+@@ -405,12 +394,13 @@ runtime·stackalloc(uint32 n)
+ void
+ runtime·stackfree(void *v, uintptr n)
+ {
++	uintptr sys0;
++
+ 	if(m->mallocing || m->gcing || n == FixedStack) {
+-		runtime·lock(&stacks);
+-		runtime·FixAlloc_Free(&stacks, v);
+-		mstats.stacks_inuse = stacks.inuse;
+-		mstats.stacks_sys = stacks.sys;
+-		runtime·unlock(&stacks);
++		sys0 = m->stackalloc->sys;
++		runtime·FixAlloc_Free(m->stackalloc, v);
++		mstats.stacks_inuse -= FixedStack;
++		mstats.stacks_sys += m->stackalloc->sys - sys0;
+ 		return;
+ 	}
+ 	runtime·free(v);
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 4e2794570d..d8d2111cf7 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -80,7 +80,6 @@
+ // This C code was written with an eye toward translating to Go
+ // in the future.  Methods have the form Type_Method(Type *t, ...).
+ 
+-typedef struct FixAlloc	FixAlloc;
+ typedef struct MCentral	MCentral;
+ typedef struct MHeap	MHeap;
+ typedef struct MSpan	MSpan;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 76356c11bc..41a8a1b4df 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -97,6 +97,7 @@ static G* gfget(void);
+ static void matchmg(void);	// match ms to gs
+ static void readylocked(G*);	// ready, but sched is locked
+ static void mnextg(M*, G*);
++static void mcommoninit(M*);
+ 
+ // The bootstrap sequence is:
+ //
+@@ -116,11 +117,10 @@ runtime·schedinit(void)
+ 	int32 n;
+ 	byte *p;
+ 
+-	runtime·allm = m;
+ 	m->nomemprof++;
+-	m->fastrand = 0x49f6428aUL + m->id;
+-
+ 	runtime·mallocinit();
++	mcommoninit(m);
++
+ 	runtime·goargs();
+ 	runtime·goenvs();
+ 
+@@ -134,7 +134,6 @@ runtime·schedinit(void)
+ 	if(p != nil && (n = runtime·atoi(p)) != 0)
+ 		runtime·gomaxprocs = n;
+ 	runtime·sched.mcpumax = runtime·gomaxprocs;
+-	runtime·sched.mcount = 1;
+ 	runtime·sched.predawn = 1;
+ 
+ 	m->nomemprof--;
+@@ -208,6 +207,17 @@ runtime·idlegoroutine(void)
+ 	g->idlem = m;
+ }
+ 
++static void
++mcommoninit(M *m)
++{
++	m->alllink = runtime·allm;
++	runtime·allm = m;
++	m->id = runtime·sched.mcount++;
++	m->fastrand = 0x49f6428aUL + m->id;
++	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
++	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
++}
++
+ // Put on `g' queue.  Sched must be locked.
+ static void
+ gput(G *g)
+@@ -494,10 +504,7 @@ matchmg(void)
+ 			m = runtime·malloc(sizeof(M));
+ 			// Add to runtime·allm so garbage collector doesn't free m
+ 			// when it is just in a register or thread-local storage.
+-			m->alllink = runtime·allm;
+-			runtime·allm = m;
+-			m->id = runtime·sched.mcount++;
+-			m->fastrand = 0x49f6428aUL + m->id;
++			mcommoninit(m);
+ 
+ 			if(runtime·iscgo) {
+ 				CgoThreadStart ts;
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index cac4f9eeac..46b41cdc10 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
++	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -44,3 +45,31 @@ func TestStopTheWorldDeadlock(t *testing.T) {
+ 	stop <- true
+ 	runtime.GOMAXPROCS(maxprocs)
+ }
++
++func stackGrowthRecursive(i int) {
++	var pad [128]uint64
++	if i != 0 && pad[0] == 0 {
++		stackGrowthRecursive(i - 1)
++	}
++}
++
++func BenchmarkStackGrowth(b *testing.B) {
++	const CallsPerSched = 1000
++	procs := runtime.GOMAXPROCS(-1)
++	N := int32(b.N / CallsPerSched)
++	c := make(chan bool, procs)
++	for p := 0; p < procs; p++ {
++		go func() {
++			for atomic.AddInt32(&N, -1) >= 0 {
++				runtime.Gosched()
++				for g := 0; g < CallsPerSched; g++ {
++					stackGrowthRecursive(10)
++				}
++			}
++			c <- true
++		}()
++	}
++	for p := 0; p < procs; p++ {
++		<-c
++	}
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 83ea0f9ce2..de0a21b956 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -57,6 +57,7 @@ typedef	struct	String		String;
+ typedef	struct	Usema		Usema;
+ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
++typedef struct	FixAlloc	FixAlloc;
+ typedef	struct	Iface		Iface;
+ typedef	struct	Itab		Itab;
+ typedef	struct	Eface		Eface;
+@@ -236,6 +237,7 @@ struct	M
+ 	M*	schedlink;
+ 	uint32	machport;	// Return address for Mach IPC (OS X)
+ 	MCache	*mcache;
++	FixAlloc	*stackalloc;
+ 	G*	lockedg;
+ 	G*	idleg;
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 2b6b0e3876..cf35365366 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -71,6 +71,7 @@ enum {
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+ 	StackMin = 4096,
++	FixedStack = StackMin,
+ 
+ 	// Functions that need frames bigger than this call morestack
+ 	// unconditionally.  That is, on entry to a function it is assumed

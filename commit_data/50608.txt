@@ -16,7 +16,7 @@ Date:   Fri Jul 16 03:06:18 2021 +1000
     Trust: Joel Sing <joel@sing.id.au>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testcshared/testdata/libgo2/dup2.go |  2 +-
  misc/cgo/testcshared/testdata/libgo2/dup3.go |  2 +-
  src/cmd/compile/internal/ssa/regalloc.go     |  2 +
@@ -25,3 +25,200 @@ Date:   Fri Jul 16 03:06:18 2021 +1000
  src/cmd/link/internal/ld/config.go           |  2 +-
  src/runtime/rt0_linux_riscv64.s              | 98 ++++++++++++++++++++++++++++
  7 files changed, 106 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup2.go b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+index d18f0b130d..d343aa54d9 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux,!arm64 netbsd openbsd
++// +build darwin dragonfly freebsd linux,!arm64,!riscv64 netbsd openbsd
+ 
+ package main
+ 
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup3.go b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+index c9c65a6e3c..459f0dc196 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup3.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,arm64
++// +build linux,arm64 linux,riscv64
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 91b04e99f4..64792d0c80 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -635,6 +635,8 @@ func (s *regAllocState) init(f *Func) {
+ 			// nothing to do
+ 		case "ppc64le": // R2 already reserved.
+ 			// nothing to do
++		case "riscv64": // X3 (aka GP) and X4 (aka TP) already reserved.
++			// nothing to do
+ 		case "s390x":
+ 			s.allocatable &^= 1 << 11 // R11
+ 		default:
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5935011e19..14b48351db 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1031,7 +1031,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "aix-ppc64",
+ 			"darwin-amd64", "darwin-arm64", "ios-arm64",
+-			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
++			"linux-amd64", "linux-386", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+ 			"freebsd-amd64",
+ 			"windows-amd64", "windows-386":
+ 			return true
+@@ -1039,7 +1039,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "c-shared":
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+ 			"darwin-amd64", "darwin-arm64",
+ 			"freebsd-amd64",
+ 			"android-arm", "android-arm64", "android-386",
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index de2a3fd140..c6a78a51eb 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -105,7 +105,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "c-shared":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 72616ff62f..2d7e1bff68 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -74,7 +74,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildModeCArchive
+ 	case "c-shared":
+ 		switch buildcfg.GOARCH {
+-		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
++		case "386", "amd64", "arm", "arm64", "ppc64le", "riscv64", "s390x":
+ 		default:
+ 			return badmode()
+ 		}
+diff --git a/src/runtime/rt0_linux_riscv64.s b/src/runtime/rt0_linux_riscv64.s
+index f31f7f75e5..d6b8ac85dc 100644
+--- a/src/runtime/rt0_linux_riscv64.s
++++ b/src/runtime/rt0_linux_riscv64.s
+@@ -9,6 +9,104 @@ TEXT _rt0_riscv64_linux(SB),NOSPLIT|NOFRAME,$0
+ 	ADD	$8, X2, A1	// argv
+ 	JMP	main(SB)
+ 
++// When building with -buildmode=c-shared, this symbol is called when the shared
++// library is loaded.
++TEXT _rt0_riscv64_linux_lib(SB),NOSPLIT,$224
++	// Preserve callee-save registers, along with X1 (LR).
++	MOV	X1, (8*3)(X2)
++	MOV	X8, (8*4)(X2)
++	MOV	X9, (8*5)(X2)
++	MOV	X18, (8*6)(X2)
++	MOV	X19, (8*7)(X2)
++	MOV	X20, (8*8)(X2)
++	MOV	X21, (8*9)(X2)
++	MOV	X22, (8*10)(X2)
++	MOV	X23, (8*11)(X2)
++	MOV	X24, (8*12)(X2)
++	MOV	X25, (8*13)(X2)
++	MOV	X26, (8*14)(X2)
++	MOV	g, (8*15)(X2)
++	MOVD	F8, (8*16)(X2)
++	MOVD	F9, (8*17)(X2)
++	MOVD	F18, (8*18)(X2)
++	MOVD	F19, (8*19)(X2)
++	MOVD	F20, (8*20)(X2)
++	MOVD	F21, (8*21)(X2)
++	MOVD	F22, (8*22)(X2)
++	MOVD	F23, (8*23)(X2)
++	MOVD	F24, (8*24)(X2)
++	MOVD	F25, (8*25)(X2)
++	MOVD	F26, (8*26)(X2)
++	MOVD	F27, (8*27)(X2)
++
++	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
++	MOV	X0, g
++
++	MOV	A0, _rt0_riscv64_linux_lib_argc<>(SB)
++	MOV	A1, _rt0_riscv64_linux_lib_argv<>(SB)
++
++	// Synchronous initialization.
++	MOV	$runtime·libpreinit(SB), T0
++	JALR	RA, T0
++
++	// Create a new thread to do the runtime initialization and return.
++	MOV	_cgo_sys_thread_create(SB), T0
++	BEQZ	T0, nocgo
++	MOV	$_rt0_riscv64_linux_lib_go(SB), A0
++	MOV	$0, A1
++	JALR	RA, T0
++	JMP	restore
++
++nocgo:
++	MOV	$0x800000, A0                     // stacksize = 8192KB
++	MOV	$_rt0_riscv64_linux_lib_go(SB), A1
++	MOV	A0, 8(X2)
++	MOV	A1, 16(X2)
++	MOV	$runtime·newosproc0(SB), T0
++	JALR	RA, T0
++
++restore:
++	// Restore callee-save registers, along with X1 (LR).
++	MOV	(8*3)(X2), X1
++	MOV	(8*4)(X2), X8
++	MOV	(8*5)(X2), X9
++	MOV	(8*6)(X2), X18
++	MOV	(8*7)(X2), X19
++	MOV	(8*8)(X2), X20
++	MOV	(8*9)(X2), X21
++	MOV	(8*10)(X2), X22
++	MOV	(8*11)(X2), X23
++	MOV	(8*12)(X2), X24
++	MOV	(8*13)(X2), X25
++	MOV	(8*14)(X2), X26
++	MOV	(8*15)(X2), g
++	MOVD	(8*16)(X2), F8
++	MOVD	(8*17)(X2), F9
++	MOVD	(8*18)(X2), F18
++	MOVD	(8*19)(X2), F19
++	MOVD	(8*20)(X2), F20
++	MOVD	(8*21)(X2), F21
++	MOVD	(8*22)(X2), F22
++	MOVD	(8*23)(X2), F23
++	MOVD	(8*24)(X2), F24
++	MOVD	(8*25)(X2), F25
++	MOVD	(8*26)(X2), F26
++	MOVD	(8*27)(X2), F27
++
++	RET
++
++TEXT _rt0_riscv64_linux_lib_go(SB),NOSPLIT,$0
++	MOV	_rt0_riscv64_linux_lib_argc<>(SB), A0
++	MOV	_rt0_riscv64_linux_lib_argv<>(SB), A1
++	MOV	$runtime·rt0_go(SB), T0
++	JALR	ZERO, T0
++
++DATA _rt0_riscv64_linux_lib_argc<>(SB)/8, $0
++GLOBL _rt0_riscv64_linux_lib_argc<>(SB),NOPTR, $8
++DATA _rt0_riscv64_linux_lib_argv<>(SB)/8, $0
++GLOBL _rt0_riscv64_linux_lib_argv<>(SB),NOPTR, $8
++
++
+ TEXT main(SB),NOSPLIT|NOFRAME,$0
+ 	MOV	$runtime·rt0_go(SB), T0
+ 	JALR	ZERO, T0

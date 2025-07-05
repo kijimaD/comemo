@@ -10,7 +10,63 @@ Date:   Mon Apr 13 17:47:47 2020 -0700
     Change-Id: Ie7498c2cab728ae798e66e7168425e16b063520e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228102
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  misc/cgo/test/testx.go | 10 ++++++++++
  src/cmd/cgo/gcc.go     | 12 ++++++++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 98c48fa383..7fbc5c64b3 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -124,6 +124,11 @@ typedef struct {
+ } Issue31891B;
+ 
+ void callIssue31891(void);
++
++typedef struct {
++	int i;
++} Issue38408, *PIssue38408;
++
+ */
+ import "C"
+ 
+@@ -552,3 +557,8 @@ func useIssue31891B(c *C.Issue31891B) {}
+ func test31891(t *testing.T) {
+ 	C.callIssue31891()
+ }
++
++// issue 38408
++// A typedef pointer can be used as the element type.
++// No runtime test; just make sure it compiles.
++var _ C.PIssue38408 = &C.Issue38408{i: 1}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 668a246b5f..e01ea081d9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2060,6 +2060,10 @@ var goIdent = make(map[string]*ast.Ident)
+ // that may contain a pointer. This is used for cgo pointer checking.
+ var unionWithPointer = make(map[ast.Expr]bool)
+ 
++// anonymousStructTag provides a consistent tag for an anonymous struct.
++// The same dwarf.StructType pointer will always get the same tag.
++var anonymousStructTag = make(map[*dwarf.StructType]string)
++
+ func (c *typeConv) Init(ptrSize, intSize int64) {
+ 	c.ptrSize = ptrSize
+ 	c.intSize = intSize
+@@ -2408,8 +2412,12 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			break
+ 		}
+ 		if tag == "" {
+-			tag = "__" + strconv.Itoa(tagGen)
+-			tagGen++
++			tag = anonymousStructTag[dt]
++			if tag == "" {
++				tag = "__" + strconv.Itoa(tagGen)
++				tagGen++
++				anonymousStructTag[dt] = tag
++			}
+ 		} else if t.C.Empty() {
+ 			t.C.Set(dt.Kind + " " + tag)
+ 		}

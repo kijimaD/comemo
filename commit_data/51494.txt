@@ -23,7 +23,7 @@ Date:   Thu Feb 3 15:03:02 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/383014
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            | 32 ++++++++--------------
  src/cmd/compile/internal/types2/stmt.go            | 16 ++++++-----
  .../internal/types2/testdata/check/issues.src      |  4 +--
@@ -35,3 +35,351 @@ Date:   Thu Feb 3 15:03:02 2022 -0800
  src/go/types/testdata/fixedbugs/issue49005.go      | 31 +++++++++++++++++++++
  src/go/types/testdata/fixedbugs/issue50816.go2     |  4 +--
  10 files changed, 84 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index f1696bbe51..4fdabe754e 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1578,8 +1578,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			check.errorf(x, invalidOp+"cannot use type assertion on type parameter value %s", x)
+ 			goto Error
+ 		}
+-		xtyp, _ := under(x.typ).(*Interface)
+-		if xtyp == nil {
++		if _, ok := under(x.typ).(*Interface); !ok {
+ 			check.errorf(x, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+@@ -1592,7 +1591,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if T == Typ[Invalid] {
+ 			goto Error
+ 		}
+-		check.typeAssertion(e, x, xtyp, T, false)
++		check.typeAssertion(e, x, T, false)
+ 		x.mode = commaok
+ 		x.typ = T
+ 
+@@ -1733,28 +1732,21 @@ func keyVal(x constant.Value) interface{} {
+ 	return x
+ }
+ 
+-// typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
+-func (check *Checker) typeAssertion(e syntax.Expr, x *operand, xtyp *Interface, T Type, typeSwitch bool) {
+-	method, wrongType := check.assertableTo(xtyp, T)
++// typeAssertion checks x.(T). The type of x must be an interface.
++func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitch bool) {
++	method, alt := check.assertableTo(under(x.typ).(*Interface), T)
+ 	if method == nil {
+-		return
++		return // success
+ 	}
+ 
+-	var err error_
+-	var msg string
+-	if typeSwitch {
+-		err.errorf(e.Pos(), "impossible type switch case: %s", e)
+-		msg = check.sprintf("%s cannot have dynamic type %s %s", x, T,
+-			check.missingMethodReason(T, x.typ, method, wrongType))
+-
+-	} else {
+-		err.errorf(e.Pos(), "impossible type assertion: %s", e)
+-		msg = check.sprintf("%s does not implement %s %s", T, x.typ,
+-			check.missingMethodReason(T, x.typ, method, wrongType))
++	cause := check.missingMethodReason(T, x.typ, method, alt)
+ 
++	if typeSwitch {
++		check.errorf(e, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
++		return
+ 	}
+-	err.errorf(nopos, msg)
+-	check.report(&err)
++
++	check.errorf(e, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 633ee31551..03da98af34 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -274,7 +274,8 @@ func (check *Checker) isNil(e syntax.Expr) bool {
+ 	return false
+ }
+ 
+-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
++// If the type switch expression is invalid, x is nil.
++func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
+ 	var dummy operand
+ L:
+ 	for _, e := range types {
+@@ -305,8 +306,8 @@ L:
+ 			}
+ 		}
+ 		seen[T] = e
+-		if T != nil && xtyp != nil {
+-			check.typeAssertion(e, x, xtyp, T, true)
++		if x != nil && T != nil {
++			check.typeAssertion(e, x, T, true)
+ 		}
+ 	}
+ 	return
+@@ -733,12 +734,13 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	}
+ 
+ 	// TODO(gri) we may want to permit type switches on type parameter values at some point
+-	var xtyp *Interface
++	var sx *operand // switch expression against which cases are compared against; nil if invalid
+ 	if isTypeParam(x.typ) {
+ 		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
+ 	} else {
+-		xtyp, _ = under(x.typ).(*Interface)
+-		if xtyp == nil {
++		if _, ok := under(x.typ).(*Interface); ok {
++			sx = &x
++		} else {
+ 			check.errorf(&x, "%s is not an interface", &x)
+ 		}
+ 	}
+@@ -758,7 +760,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		}
+ 		// Check each type in this type switch case.
+ 		cases := unpackExpr(clause.Cases)
+-		T := check.caseTypes(&x, xtyp, cases, seen)
++		T := check.caseTypes(sx, cases, seen)
+ 		check.openScopeUntil(clause, end, "case")
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+ 		if lhs != nil {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index 4c49147922..3b27e03585 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -132,12 +132,12 @@ func issue10260() {
+ 
+ 	var x I1
+ 	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+-	_ = x. /* ERROR impossible type assertion: x.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ (T1)
++	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2. /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ (*T1)
++	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+ 	i1 = t0 /* ERROR cannot use .* missing method foo */
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+index f152e7f55c..7083dc9eef 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file is tested when running "go test -run Manual"
+-// without source arguments. Use for one-off debugging.
+-
+ package p
+ 
+ type T1 interface{ M() }
+@@ -23,7 +20,7 @@ type T2 interface{ M() }
+ 
+ func F2() T2
+ 
+-var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ (*X2)
++var _ = F2 /* ERROR impossible type assertion: F2\(\)\.\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ ().(*X2)
+ 
+ type X2 struct{}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2
+index b2bcb45248..e7e31d9192 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2
+@@ -18,6 +18,6 @@ func (T2) foo() string { return "" }
+ 
+ func _() {
+ 	var i I
+-	_ = i./* ERROR impossible type assertion: i.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\) */ (T1)
+-	_ = i./* ERROR impossible type assertion: i.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\) */ (T2)
++	_ = i /* ERROR impossible type assertion: i\.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\) */ .(T1)
++	_ = i /* ERROR impossible type assertion: i\.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\) */ .(T2)
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 88a8901b07..0d21a592f9 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1556,8 +1556,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.invalidOp(x, _InvalidAssert, "cannot use type assertion on type parameter value %s", x)
+ 			goto Error
+ 		}
+-		xtyp, _ := under(x.typ).(*Interface)
+-		if xtyp == nil {
++		if _, ok := under(x.typ).(*Interface); !ok {
+ 			check.invalidOp(x, _InvalidAssert, "%s is not an interface", x)
+ 			goto Error
+ 		}
+@@ -1572,7 +1571,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		if T == Typ[Invalid] {
+ 			goto Error
+ 		}
+-		check.typeAssertion(x, x, xtyp, T)
++		check.typeAssertion(e, x, T, false)
+ 		x.mode = commaok
+ 		x.typ = T
+ 
+@@ -1676,23 +1675,21 @@ func keyVal(x constant.Value) any {
+ 	return x
+ }
+ 
+-// typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
+-func (check *Checker) typeAssertion(at positioner, x *operand, xtyp *Interface, T Type) {
+-	method, wrongType := check.assertableTo(xtyp, T)
++// typeAssertion checks x.(T). The type of x must be an interface.
++func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch bool) {
++	method, alt := check.assertableTo(under(x.typ).(*Interface), T)
+ 	if method == nil {
+-		return
++		return // success
+ 	}
+-	var msg string
+-	if wrongType != nil {
+-		if Identical(method.typ, wrongType.typ) {
+-			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
+-		} else {
+-			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
+-		}
+-	} else {
+-		msg = "missing method " + method.name
++
++	cause := check.missingMethodReason(T, x.typ, method, alt)
++
++	if typeSwitch {
++		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
++		return
+ 	}
+-	check.errorf(at, _ImpossibleAssert, "%s cannot have dynamic type %s (%s)", x, T, msg)
++
++	check.errorf(e, _ImpossibleAssert, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 5ceae08daa..b32eb18bef 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -281,7 +281,8 @@ func (check *Checker) isNil(e ast.Expr) bool {
+ 	return false
+ }
+ 
+-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]ast.Expr) (T Type) {
++// If the type switch expression is invalid, x is nil.
++func (check *Checker) caseTypes(x *operand, types []ast.Expr, seen map[Type]ast.Expr) (T Type) {
+ 	var dummy operand
+ L:
+ 	for _, e := range types {
+@@ -310,8 +311,8 @@ L:
+ 			}
+ 		}
+ 		seen[T] = e
+-		if T != nil && xtyp != nil {
+-			check.typeAssertion(e, x, xtyp, T)
++		if x != nil && T != nil {
++			check.typeAssertion(e, x, T, true)
+ 		}
+ 	}
+ 	return
+@@ -684,12 +685,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			return
+ 		}
+ 		// TODO(gri) we may want to permit type switches on type parameter values at some point
+-		var xtyp *Interface
++		var sx *operand // switch expression against which cases are compared against; nil if invalid
+ 		if isTypeParam(x.typ) {
+ 			check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
+ 		} else {
+-			xtyp, _ = under(x.typ).(*Interface)
+-			if xtyp == nil {
++			if _, ok := under(x.typ).(*Interface); ok {
++				sx = &x
++			} else {
+ 				check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+ 			}
+ 		}
+@@ -705,7 +707,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				continue
+ 			}
+ 			// Check each type in this type switch case.
+-			T := check.caseTypes(&x, xtyp, clause.List, seen)
++			T := check.caseTypes(sx, clause.List, seen)
+ 			check.openScope(clause, "case")
+ 			// If lhs exists, declare a corresponding variable in the case-local scope.
+ 			if lhs != nil {
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index 0b77b0e854..ce27ac3cfb 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -132,12 +132,12 @@ func issue10260() {
+ 
+ 	var x I1
+ 	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+-	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
++	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
++	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+ 	i1 = t0 /* ERROR cannot use .* missing method foo */
+diff --git a/src/go/types/testdata/fixedbugs/issue49005.go b/src/go/types/testdata/fixedbugs/issue49005.go
+new file mode 100644
+index 0000000000..7083dc9eef
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49005.go
+@@ -0,0 +1,31 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T1 interface{ M() }
++
++func F1() T1
++
++var _ = F1().(*X1 /* ERROR undeclared name: X1 */)
++
++func _() {
++	switch F1().(type) {
++	case *X1 /* ERROR undeclared name: X1 */ :
++	}
++}
++
++type T2 interface{ M() }
++
++func F2() T2
++
++var _ = F2 /* ERROR impossible type assertion: F2\(\)\.\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ ().(*X2)
++
++type X2 struct{}
++
++func _() {
++	switch F2().(type) {
++	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing method M\) */ X2:
++	}
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue50816.go2 b/src/go/types/testdata/fixedbugs/issue50816.go2
+index a5eecc551b..025a338184 100644
+--- a/src/go/types/testdata/fixedbugs/issue50816.go2
++++ b/src/go/types/testdata/fixedbugs/issue50816.go2
+@@ -18,6 +18,6 @@ func (T2) foo() string { return "" }
+ 
+ func _() {
+ 	var i I
+-	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T1 \(missing method Foo\) */.(T1)
+-	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T2 \(missing method Foo\) */.(T2)
++	_ = i /* ERROR impossible type assertion: i\.\(T1\)\n\tT1 does not implement I \(missing method Foo\) */ .(T1)
++	_ = i /* ERROR impossible type assertion: i\.\(T2\)\n\tT2 does not implement I \(missing method Foo\) */ .(T2)
+ }

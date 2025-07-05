@@ -17,6 +17,20 @@ Date:   Thu Aug 26 12:52:02 2021 +0000
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/tls/boring_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/boring_test.go
+index 6ad72faebf..8dd477a021 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@ -264,7 +264,7 @@ func TestBoringClientHello(t *testing.T) {
+ 	clientConfig.CipherSuites = allCipherSuites()
+ 	clientConfig.CurvePreferences = defaultCurvePreferences
+ 
+-	go Client(c, testConfig).Handshake()
++	go Client(c, clientConfig).Handshake()
+ 	srv := Server(s, testConfig)
+ 	msg, err := srv.readHandshake()
+ 	if err != nil {

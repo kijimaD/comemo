@@ -84,9 +84,103 @@ Date:   Sun Oct 10 17:56:16 2021 +0200
     Trust: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 15 ++++++++++++++-
  test/codegen/arithmetic.go            |  8 ++++----
  test/codegen/bits.go                  |  2 +-
  test/codegen/bool.go                  |  2 +-
  4 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 78822098a7..0e74574422 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -618,8 +618,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = r
+ 		p.SetFrom3Reg(v.Args[0].Reg())
+ 
++	case ssa.OpAMD64ANDQconst:
++		asm := v.Op.Asm()
++		// If the constant is positive and fits into 32 bits, use ANDL.
++		// This saves a few bytes of encoding.
++		if 0 <= v.AuxInt && v.AuxInt <= (1<<32-1) {
++			asm = x86.AANDL
++		}
++		p := s.Prog(asm)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
+ 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
+-		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst,
++		ssa.OpAMD64ANDLconst,
+ 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst,
+ 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst,
+ 		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst,
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index eb95416b6a..8b8c8ed64b 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -241,7 +241,7 @@ func FloatDivs(a []float32) float32 {
+ 
+ func Pow2Mods(n1 uint, n2 int) (uint, int) {
+ 	// 386:"ANDL\t[$]31",-"DIVL"
+-	// amd64:"ANDQ\t[$]31",-"DIVQ"
++	// amd64:"ANDL\t[$]31",-"DIVQ"
+ 	// arm:"AND\t[$]31",-".*udiv"
+ 	// arm64:"AND\t[$]31",-"UDIV"
+ 	// ppc64:"ANDCC\t[$]31"
+@@ -452,7 +452,7 @@ func LenDiv2(s string) int {
+ 
+ func LenMod1(a []int) int {
+ 	// 386:"ANDL\t[$]1023"
+-	// amd64:"ANDQ\t[$]1023"
++	// amd64:"ANDL\t[$]1023"
+ 	// arm64:"AND\t[$]1023",-"SDIV"
+ 	// arm/6:"AND",-".*udiv"
+ 	// arm/7:"BFC",-".*udiv",-"AND"
+@@ -463,7 +463,7 @@ func LenMod1(a []int) int {
+ 
+ func LenMod2(s string) int {
+ 	// 386:"ANDL\t[$]2047"
+-	// amd64:"ANDQ\t[$]2047"
++	// amd64:"ANDL\t[$]2047"
+ 	// arm64:"AND\t[$]2047",-"SDIV"
+ 	// arm/6:"AND",-".*udiv"
+ 	// arm/7:"BFC",-".*udiv",-"AND"
+@@ -484,7 +484,7 @@ func CapDiv(a []int) int {
+ 
+ func CapMod(a []int) int {
+ 	// 386:"ANDL\t[$]4095"
+-	// amd64:"ANDQ\t[$]4095"
++	// amd64:"ANDL\t[$]4095"
+ 	// arm64:"AND\t[$]4095",-"SDIV"
+ 	// arm/6:"AND",-".*udiv"
+ 	// arm/7:"BFC",-".*udiv",-"AND"
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 8e973d5726..e7826b8e65 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -332,7 +332,7 @@ func bitSetPowerOf2Test(x int) bool {
+ }
+ 
+ func bitSetTest(x int) bool {
+-	// amd64:"ANDQ\t[$]9, AX"
++	// amd64:"ANDL\t[$]9, AX"
+ 	// amd64:"CMPQ\tAX, [$]9"
+ 	return x&9 == 9
+ }
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index 929b1b49b9..a32423308e 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -27,7 +27,7 @@ func convertNeq0L(x uint32, c bool) bool {
+ }
+ 
+ func convertNeq0Q(x uint64, c bool) bool {
+-	// amd64:"ANDQ\t[$]1",-"SETB"
++	// amd64:"ANDL\t[$]1",-"SETB"
+ 	b := x&1 != 0
+ 	return c && b
+ }

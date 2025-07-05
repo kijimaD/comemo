@@ -20,7 +20,7 @@ Date:   Fri Jul 1 16:10:19 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/cache.go             | 26 ++++++----
  src/cmd/go/internal/modfetch/codehost/codehost.go |  9 +++-
  src/cmd/go/internal/modfetch/codehost/git.go      | 48 ++++++++++++++++--
@@ -28,3 +28,309 @@ Date:   Fri Jul 1 16:10:19 2022 -0400
  src/cmd/go/internal/modload/query.go              |  2 +-
  src/cmd/go/testdata/script/reuse_git.txt          | 62 +++++++++++++++++++++--
  6 files changed, 136 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 7ebe208c12..c1ed18736c 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -253,11 +253,12 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 		return cachedInfo{info, err}
+ 	}).(cachedInfo)
+ 
+-	if c.err != nil {
+-		return nil, c.err
++	info := c.info
++	if info != nil {
++		copy := *info
++		info = &copy
+ 	}
+-	info := *c.info
+-	return &info, nil
++	return info, c.err
+ }
+ 
+ func (r *cachingRepo) Latest() (*RevInfo, error) {
+@@ -277,11 +278,12 @@ func (r *cachingRepo) Latest() (*RevInfo, error) {
+ 		return cachedInfo{info, err}
+ 	}).(cachedInfo)
+ 
+-	if c.err != nil {
+-		return nil, c.err
++	info := c.info
++	if info != nil {
++		copy := *info
++		info = &copy
+ 	}
+-	info := *c.info
+-	return &info, nil
++	return info, c.err
+ }
+ 
+ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+@@ -330,15 +332,21 @@ func InfoFile(path, version string) (*RevInfo, string, error) {
+ 	}
+ 
+ 	var info *RevInfo
++	var err2info map[error]*RevInfo
+ 	err := TryProxies(func(proxy string) error {
+ 		i, err := Lookup(proxy, path).Stat(version)
+ 		if err == nil {
+ 			info = i
++		} else {
++			if err2info == nil {
++				err2info = make(map[error]*RevInfo)
++			}
++			err2info[err] = info
+ 		}
+ 		return err
+ 	})
+ 	if err != nil {
+-		return nil, "", err
++		return err2info[err], "", err
+ 	}
+ 
+ 	// Stat should have populated the disk cache for us.
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 937ac6819a..8eaf254b44 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -110,12 +110,18 @@ type Origin struct {
+ 	// with a mutable meaning while Hash is a name with an immutable meaning.
+ 	Ref  string `json:",omitempty"`
+ 	Hash string `json:",omitempty"`
++
++	// If RepoSum is non-empty, then the resolution of this module version
++	// failed due to the repo being available but the version not being present.
++	// This depends on the entire state of the repo, which RepoSum summarizes.
++	// For Git, this is a hash of all the refs and their hashes.
++	RepoSum string `json:",omitempty"`
+ }
+ 
+ // Checkable reports whether the Origin contains anything that can be checked.
+ // If not, the Origin is purely informational and should fail a CheckReuse call.
+ func (o *Origin) Checkable() bool {
+-	return o.TagSum != "" || o.Ref != "" || o.Hash != ""
++	return o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != ""
+ }
+ 
+ // ClearCheckable clears the Origin enough to make Checkable return false.
+@@ -124,6 +130,7 @@ func (o *Origin) ClearCheckable() {
+ 	o.TagPrefix = ""
+ 	o.Ref = ""
+ 	o.Hash = ""
++	o.RepoSum = ""
+ }
+ 
+ // A Tags describes the available tags in a code repository.
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index a225aaf1ed..35f77e870e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -182,12 +182,12 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+ 		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, "git", r.remoteURL, subdir)
+ 	}
+ 
+-	// Note: Can have Hash with no Ref and no TagSum,
++	// Note: Can have Hash with no Ref and no TagSum and no RepoSum,
+ 	// meaning the Hash simply has to remain in the repo.
+ 	// In that case we assume it does in the absence of any real way to check.
+ 	// But if neither Hash nor TagSum is present, we have nothing to check,
+ 	// which we take to mean we didn't record enough information to be sure.
+-	if old.Hash == "" && old.TagSum == "" {
++	if old.Hash == "" && old.TagSum == "" && old.RepoSum == "" {
+ 		return fmt.Errorf("non-specific origin")
+ 	}
+ 
+@@ -214,7 +214,11 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+ 			return fmt.Errorf("tags changed")
+ 		}
+ 	}
+-
++	if old.RepoSum != "" {
++		if r.repoSum(r.refs) != old.RepoSum {
++			return fmt.Errorf("refs changed")
++		}
++	}
+ 	return nil
+ }
+ 
+@@ -307,6 +311,35 @@ func (r *gitRepo) Tags(prefix string) (*Tags, error) {
+ 	return tags, nil
+ }
+ 
++// repoSum returns a checksum of the entire repo state,
++// which can be checked (as Origin.RepoSum) to cache
++// the absence of a specific module version.
++// The caller must supply refs, the result of a successful r.loadRefs.
++func (r *gitRepo) repoSum(refs map[string]string) string {
++	var list []string
++	for ref := range refs {
++		list = append(list, ref)
++	}
++	sort.Strings(list)
++	h := sha256.New()
++	for _, ref := range list {
++		fmt.Fprintf(h, "%q %s\n", ref, refs[ref])
++	}
++	return "r1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
++}
++
++// unknownRevisionInfo returns a RevInfo containing an Origin containing a RepoSum of refs,
++// for use when returning an UnknownRevisionError.
++func (r *gitRepo) unknownRevisionInfo(refs map[string]string) *RevInfo {
++	return &RevInfo{
++		Origin: &Origin{
++			VCS:     "git",
++			URL:     r.remoteURL,
++			RepoSum: r.repoSum(refs),
++		},
++	}
++}
++
+ func (r *gitRepo) Latest() (*RevInfo, error) {
+ 	refs, err := r.loadRefs()
+ 	if err != nil {
+@@ -418,7 +451,7 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 			hash = rev
+ 		}
+ 	} else {
+-		return nil, &UnknownRevisionError{Rev: rev}
++		return r.unknownRevisionInfo(refs), &UnknownRevisionError{Rev: rev}
+ 	}
+ 
+ 	defer func() {
+@@ -532,7 +565,12 @@ func (r *gitRepo) fetchRefsLocked() error {
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+ 	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+-		return nil, &UnknownRevisionError{Rev: rev}
++		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
++		var info *RevInfo
++		if refs, err := r.loadRefs(); err == nil {
++			info = r.unknownRevisionInfo(refs)
++		}
++		return info, &UnknownRevisionError{Rev: rev}
+ 	}
+ 	f := strings.Fields(string(out))
+ 	if len(f) < 2 {
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 86e3ee9d1c..b934e362a4 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -297,7 +297,15 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
+ 	codeRev := r.revToRev(rev)
+ 	info, err := r.code.Stat(codeRev)
+ 	if err != nil {
+-		return nil, &module.ModuleError{
++		// Note: info may be non-nil to supply Origin for caching error.
++		var revInfo *RevInfo
++		if info != nil {
++			revInfo = &RevInfo{
++				Origin:  info.Origin,
++				Version: rev,
++			}
++		}
++		return revInfo, &module.ModuleError{
+ 			Path: r.modPath,
+ 			Err: &module.InvalidVersionError{
+ 				Version: rev,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 1d2f5d5e15..01df14fca4 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -197,7 +197,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 				}
+ 			}
+ 			if err != nil {
+-				return nil, queryErr
++				return info, queryErr
+ 			}
+ 		}
+ 		if err := allowed(ctx, module.Version{Path: path, Version: info.Version}); errors.Is(err, ErrDisallowed) {
+diff --git a/src/cmd/go/testdata/script/reuse_git.txt b/src/cmd/go/testdata/script/reuse_git.txt
+index 7d8844d932..a5a0c8a9a0 100644
+--- a/src/cmd/go/testdata/script/reuse_git.txt
++++ b/src/cmd/go/testdata/script/reuse_git.txt
+@@ -56,8 +56,7 @@ stdout '"Version": "latest"'
+ stdout '"Error":.*no matching versions'
+ ! stdout '"TagPrefix"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"Ref":'
+-! stdout '"Hash":'
++! stdout '"(Ref|Hash|RepoSum)":'
+ 
+ # go mod download vcstest/hello/sub/v9 should also fail, print origin info with TagPrefix
+ ! go mod download -x -json vcs-test.golang.org/git/hello.git/sub/v9@latest
+@@ -66,8 +65,33 @@ stdout '"Version": "latest"'
+ stdout '"Error":.*no matching versions'
+ stdout '"TagPrefix": "sub/"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"Ref":'
+-! stdout '"Hash":'
++! stdout '"(Ref|Hash|RepoSum)":'
++
++# go mod download vcstest/hello@nonexist should fail, still print origin info
++! go mod download -x -json vcs-test.golang.org/git/hello.git@nonexist
++cp stdout hellononexist.json
++stdout '"Version": "nonexist"'
++stdout '"Error":.*unknown revision nonexist'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
++
++# go mod download vcstest/hello@1234567890123456789012345678901234567890 should fail, still print origin info
++# (40 hex digits is assumed to be a full hash and is a slightly different code path from @nonexist)
++! go mod download -x -json vcs-test.golang.org/git/hello.git@1234567890123456789012345678901234567890
++cp stdout hellononhash.json
++stdout '"Version": "1234567890123456789012345678901234567890"'
++stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
++
++# go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc should fail, still print origin info
++# (non-existent pseudoversion)
++! go mod download -x -json vcs-test.golang.org/git/hello.git@v0.0.0-20220101120101-123456789abc
++cp stdout hellononpseudo.json
++stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
++stdout '"Error":.*unknown revision 123456789abc'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+ 
+ # go mod download vcstest/tagtests should invoke git, print origin info
+ go mod download -x -json vcs-test.golang.org/git/tagtests.git@latest
+@@ -190,6 +214,36 @@ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+ ! stdout '"(Ref|Hash)":'
+ ! stdout '"(Dir|Info|GoMod|Zip)"'
+ 
++# reuse go mod download vcstest/hello@nonexist
++! go mod download -reuse=hellononexist.json -x -json vcs-test.golang.org/git/hello.git@nonexist
++! stderr 'git fetch'
++stdout '"Reuse": true'
++stdout '"Version": "nonexist"'
++stdout '"Error":.*unknown revision nonexist'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
++! stdout '"(Dir|Info|GoMod|Zip)"'
++
++# reuse go mod download vcstest/hello@1234567890123456789012345678901234567890
++! go mod download -reuse=hellononhash.json -x -json vcs-test.golang.org/git/hello.git@1234567890123456789012345678901234567890
++! stderr 'git fetch'
++stdout '"Reuse": true'
++stdout '"Version": "1234567890123456789012345678901234567890"'
++stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
++! stdout '"(Dir|Info|GoMod|Zip)"'
++
++# reuse go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc
++! go mod download -reuse=hellononpseudo.json -x -json vcs-test.golang.org/git/hello.git@v0.0.0-20220101120101-123456789abc
++! stderr 'git fetch'
++stdout '"Reuse": true'
++stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
++stdout '"Error":.*unknown revision 123456789abc'
++stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
++! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
++! stdout '"(Dir|Info|GoMod|Zip)"'
++
+ # reuse go mod download vcstest/tagtests result
+ go mod download -reuse=tagtests.json -x -json vcs-test.golang.org/git/tagtests.git@latest
+ ! stderr 'git fetch'

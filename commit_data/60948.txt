@@ -17,7 +17,50 @@ Date:   Thu Sep 5 18:56:26 2024 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 4 +++-
  test/wasmexport2.go                    | 9 +++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 9e89da90c9..6b6adff81f 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -451,8 +451,10 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
+ 			wfs[i].Type = obj.WasmF32
+ 		case types.TFLOAT64:
+ 			wfs[i].Type = obj.WasmF64
++		case types.TUNSAFEPTR:
++			wfs[i].Type = obj.WasmPtr
+ 		default:
+-			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported result type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
++			base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
+ 		}
+ 		wfs[i].Offset = p.FrameOffset(result)
+ 	}
+diff --git a/test/wasmexport2.go b/test/wasmexport2.go
+index c7c0fa2ec8..e3b3bbed6e 100644
+--- a/test/wasmexport2.go
++++ b/test/wasmexport2.go
+@@ -24,6 +24,9 @@ func good2(MyInt32) {} // named type is ok
+ //go:wasmexport good3
+ func good3() int32 { return 0 } // one result is ok
+ 
++//go:wasmexport good4
++func good4() unsafe.Pointer { return nil } // one result is ok
++
+ //go:wasmexport bad1
+ func bad1(string) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+@@ -54,5 +57,11 @@ func bad7(*S) {} // ERROR "go:wasmexport: unsupported parameter type"
+ //go:wasmexport bad8
+ func bad8([4]int32) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
++//go:wasmexport bad9
++func bad9() bool { return false } // ERROR "go:wasmexport: unsupported result type"
++
++//go:wasmexport bad10
++func bad10() *byte { return nil } // ERROR "go:wasmexport: unsupported result type"
++
+ //go:wasmexport toomanyresults
+ func toomanyresults() (int32, int32) { return 0, 0 } // ERROR "go:wasmexport: too many return values"

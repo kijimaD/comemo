@@ -14,7 +14,44 @@ Date:   Thu Jul 3 22:58:42 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/105490044
-
+---
  src/pkg/runtime/mgc0.c    | 5 -----
  src/pkg/runtime/runtime.h | 2 +-
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4ad8f3b08f..059417209d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1615,8 +1615,6 @@ addstackroots(G *gp, Workbuf **wbufp)
+ 	int32 n;
+ 	Stktop *stk;
+ 	uintptr sp, guard;
+-	void *base;
+-	uintptr size;
+ 
+ 	switch(gp->status){
+ 	default:
+@@ -1652,9 +1650,6 @@ addstackroots(G *gp, Workbuf **wbufp)
+ 		sp = gp->sched.sp;
+ 		stk = (Stktop*)gp->stackbase;
+ 		guard = gp->stackguard;
+-		// For function about to start, context argument is a root too.
+-		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
+-			enqueue1(wbufp, (Obj){base, size, 0});
+ 	}
+ 	if(ScanStackByFrames) {
+ 		USED(sp);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0f630abbf2..2fab69b3a2 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -213,7 +213,7 @@ struct	Gobuf
+ 	uintptr	sp;
+ 	uintptr	pc;
+ 	G*	g;
+-	void*	ctxt;
++	void*	ctxt; // this has to be a pointer so that GC scans it
+ 	uintreg	ret;
+ 	uintptr	lr;
+ };

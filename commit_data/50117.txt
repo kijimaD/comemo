@@ -10,9 +10,143 @@ Date:   Fri Oct 1 12:21:36 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile.go    | 26 ++++++++++++++++++++------
  src/cmd/link/internal/ld/lib.go    |  2 +-
  src/cmd/link/internal/ld/pcln.go   |  1 +
  src/cmd/link/internal/ld/symtab.go | 23 +++++------------------
  4 files changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 4fd2119b96..b6b922e02b 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -332,14 +332,27 @@ func (w *writer) Sym(s *LSym) {
+ 	if fn := s.Func(); fn != nil {
+ 		align = uint32(fn.Align)
+ 	}
+-	if s.ContentAddressable() {
+-		// We generally assume data symbols are natually aligned,
+-		// except for strings. If we dedup a string symbol and a
+-		// non-string symbol with the same content, we should keep
++	if s.ContentAddressable() && s.Size != 0 {
++		// We generally assume data symbols are natually aligned
++		// (e.g. integer constants), except for strings and a few
++		// compiler-emitted funcdata. If we dedup a string symbol and
++		// a non-string symbol with the same content, we should keep
+ 		// the largest alignment.
+ 		// TODO: maybe the compiler could set the alignment for all
+ 		// data symbols more carefully.
+-		if s.Size != 0 && !strings.HasPrefix(s.Name, "go.string.") {
++		switch {
++		case strings.HasPrefix(s.Name, "go.string."),
++			strings.HasPrefix(name, "type..namedata."),
++			strings.HasPrefix(name, "type..importpath."),
++			strings.HasSuffix(name, ".opendefer"),
++			strings.HasSuffix(name, ".arginfo0"),
++			strings.HasSuffix(name, ".arginfo1"):
++			// These are just bytes, or varints.
++			align = 1
++		case strings.HasPrefix(name, "gclocals·"):
++			// It has 32-bit fields.
++			align = 4
++		default:
+ 			switch {
+ 			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
+ 				align = 8
+@@ -347,8 +360,9 @@ func (w *writer) Sym(s *LSym) {
+ 				align = 4
+ 			case s.Size%2 == 0:
+ 				align = 2
++			default:
++				align = 1
+ 			}
+-			// don't bother setting align to 1.
+ 		}
+ 	}
+ 	if s.Size > cutoff {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9709c2e886..3221d60f80 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -320,7 +320,7 @@ var (
+ 	HEADR   int32
+ 
+ 	nerrors  int
+-	liveness int64
++	liveness int64 // size of liveness data (funcdata), printed if -v
+ 
+ 	// See -strictdups command line flag.
+ 	checkStrictDups   int // 0=off 1=warning 2=error
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 39dd4b916e..7506bf17a3 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -169,6 +169,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
+ 	// eventually switch the type back to SRODATA.
+ 	inlTreeSym.SetType(sym.SGOFUNC)
+ 	ldr.SetAttrReachable(its, true)
++	ldr.SetSymAlign(its, 4) // it has 32-bit fields
+ 	ninl := fi.NumInlTree()
+ 	for i := 0; i < int(ninl); i++ {
+ 		call := fi.InlTree(i)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 1e5c73c573..5e7eeeb94f 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -537,16 +537,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			continue
+ 		}
+ 
+-		align := int32(1)
+ 		name := ldr.SymName(s)
+ 		switch {
+ 		case strings.HasPrefix(name, "go.string."):
+ 			symGroupType[s] = sym.SGOSTRING
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgostring)
+-			if ldr.SymAlign(s) == 0 {
+-				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
+-			}
+ 
+ 		case strings.HasPrefix(name, "runtime.gcbits."):
+ 			symGroupType[s] = sym.SGCBITS
+@@ -570,23 +566,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		case strings.HasPrefix(name, "gcargs."),
+ 			strings.HasPrefix(name, "gclocals."),
+ 			strings.HasPrefix(name, "gclocals·"),
+-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc: // inltree, see pcln.go
+-			// GC stack maps and inltrees have 32-bit fields.
+-			align = 4
+-			fallthrough
+-		case strings.HasSuffix(name, ".opendefer"),
++			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
++			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+ 			strings.HasSuffix(name, ".arginfo1"):
+-			// These are just bytes, or varints, use align 1 (set before the switch).
+ 			symGroupType[s] = sym.SGOFUNC
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgofunc)
+-			if a := ldr.SymAlign(s); a < align {
+-				ldr.SetSymAlign(s, align)
+-			} else {
+-				align = a
++			if ctxt.Debugvlog != 0 {
++				align := ldr.SymAlign(s)
++				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+ 			}
+-			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+ 
+ 		// Note: Check for "type." prefix after checking for .arginfo1 suffix.
+ 		// That way symbols like "type..eq.[2]interface {}.arginfo1" that belong
+@@ -606,9 +596,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 					ldr.SetCarrierSym(s, symtype)
+ 				}
+ 			}
+-			if (strings.HasPrefix(name, "type..namedata.") || strings.HasPrefix(name, "type..importpath.")) && ldr.SymAlign(s) == 0 {
+-				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
+-			}
+ 		}
+ 	}
+ 

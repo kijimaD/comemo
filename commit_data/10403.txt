@@ -26,7 +26,7 @@ Date:   Tue Nov 15 12:20:59 2011 -0500
     R=golang-dev, adg, dvyukov, r, bradfitz, jan.mercl, gri
     CC=golang-dev
     https://golang.org/cl/5372095
-
+---
  doc/go_spec.html               | 11 +------
  src/cmd/gc/go.h                |  1 -
  src/cmd/gc/subr.c              |  4 ---
@@ -43,3 +43,533 @@ Date:   Tue Nov 15 12:20:59 2011 -0500
  test/fixedbugs/bug359.go       | 26 ----------------
  test/fixedbugs/bug378.go       | 27 -----------------
  15 files changed, 56 insertions(+), 221 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e397d0aea0..0e52d4d230 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of November 13, 2011 -->
++<!-- subtitle Version of November 14, 2011 -->
+ 
+ <!--
+ TODO
+@@ -1367,15 +1367,6 @@ by a value of type <code>T</code>.
+ </li>
+ </ul>
+ 
+-<p>
+-If <code>T</code> is a struct type with non-<a href="#Exported_identifiers">exported</a>
+-fields, the assignment must be in the same package in which <code>T</code> is declared,
+-or <code>x</code> must be the receiver of a method call.
+-In other words, a struct value can be assigned to a struct variable only if
+-every field of the struct may be legally assigned individually by the program,
+-or if the assignment is initializing the receiver of a method of the struct type.
+-</p>
+-
+ <p>
+ Any value may be assigned to the <a href="#Blank_identifier">blank identifier</a>.
+ </p>
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e21620f455..a473c2fb50 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1234,7 +1234,6 @@ void	walkswitch(Node *sw);
+ /*
+  *	typecheck.c
+  */
+-int	exportassignok(Type *t, char *desc);
+ int	islvalue(Node *n);
+ Node*	typecheck(Node **np, int top);
+ void	typechecklist(NodeList *l, int top);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0df34c1a4f..913ea22d30 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1018,9 +1018,6 @@ eqtypenoname(Type *t1, Type *t2)
+ // Is type src assignment compatible to type dst?
+ // If so, return op code to use in conversion.
+ // If not, return 0.
+-//
+-// It is the caller's responsibility to call exportassignok
+-// to check for assignments to other packages' unexported fields,
+ int
+ assignop(Type *src, Type *dst, char **why)
+ {
+@@ -1225,7 +1222,6 @@ assignconv(Node *n, Type *t, char *context)
+ 	if(t->etype == TBLANK)
+ 		return n;
+ 
+-	exportassignok(n->type, context);
+ 	if(eqtype(n->type, t))
+ 		return n;
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index aaf836f823..5b667553fa 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1045,8 +1045,6 @@ reswitch:
+ 			yyerror("first argument to append must be slice; have %lT", t);
+ 			goto error;
+ 		}
+-		if(!exportassignok(t->type, "append"))
+-			goto error;
+ 
+ 		if(n->isddd) {
+ 			if(args->next == nil) {
+@@ -1114,8 +1112,6 @@ reswitch:
+ 			yyerror("arguments to copy have different element types: %lT and %lT", n->left->type, n->right->type);
+ 			goto error;
+ 		}
+-		if(!exportassignok(n->left->type->type, "copy"))
+-			goto error;
+ 		goto ret;
+ 
+ 	case OCONV:
+@@ -1731,7 +1727,6 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+ 			if(tl->isddd) {
+ 				for(; tn; tn=tn->down) {
+-					exportassignok(tn->type, desc);
+ 					if(assignop(tn->type, tl->type->type, &why) == 0) {
+ 						if(call != N)
+ 							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
+@@ -1743,7 +1738,6 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 			}
+ 			if(tn == T)
+ 				goto notenough;
+-			exportassignok(tn->type, desc);
+ 			if(assignop(tn->type, tl->type, &why) == 0) {
+ 				if(call != N)
+ 					yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
+@@ -1815,66 +1809,6 @@ toomany:
+ 	goto out;
+ }
+ 
+-/*
+- * do the export rules allow writing to this type?
+- * cannot be implicitly assigning to any type with
+- * an unavailable field.
+- */
+-int
+-exportassignok(Type *t, char *desc)
+-{
+-	Type *f;
+-	Sym *s;
+-
+-	if(t == T)
+-		return 1;
+-	if(t->trecur)
+-		return 1;
+-	t->trecur = 1;
+-
+-	switch(t->etype) {
+-	default:
+-		// most types can't contain others; they're all fine.
+-		break;
+-	case TSTRUCT:
+-		for(f=t->type; f; f=f->down) {
+-			if(f->etype != TFIELD)
+-				fatal("structas: not field");
+-			s = f->sym;
+-			// s == nil doesn't happen for embedded fields (they get the type symbol).
+-			// it only happens for fields in a ... struct.
+-			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
+-				char *prefix;
+-
+-				prefix = "";
+-				if(desc != nil)
+-					prefix = " in ";
+-				else
+-					desc = "";
+-				yyerror("implicit assignment of unexported field '%s' of %T%s%s", s->name, t, prefix, desc);
+-				goto no;
+-			}
+-			if(!exportassignok(f->type, desc))
+-				goto no;
+-		}
+-		break;
+-
+-	case TARRAY:
+-		if(t->bound < 0)	// slices are pointers; that's fine
+-			break;
+-		if(!exportassignok(t->type, desc))
+-			goto no;
+-		break;
+-	}
+-	t->trecur = 0;
+-	return 1;
+-
+-no:
+-	t->trecur = 0;
+-	return 0;
+-}
+-
+-
+ /*
+  * type check composite
+  */
+@@ -2310,8 +2244,6 @@ typecheckas(Node *n)
+ 	if(n->right && n->right->type != T) {
+ 		if(n->left->type != T)
+ 			n->right = assignconv(n->right, n->left->type, "assignment");
+-		else if(!isblank(n->left))
+-			exportassignok(n->right->type, "assignment");
+ 	}
+ 	if(n->left->defn == n && n->left->ntype == N) {
+ 		defaultlit(&n->right, T);
+@@ -2335,7 +2267,6 @@ checkassignto(Type *src, Node *dst)
+ 		yyerror("cannot assign %T to %lN in multiple assignment%s", src, dst, why);
+ 		return;
+ 	}
+-	exportassignok(dst->type, "multiple assignment");
+ }
+ 
+ static void
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 15d66813a2..fc64301484 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -11,6 +11,14 @@ import (
+ 
+ // File represents an open file descriptor.
+ type File struct {
++	*file
++}
++
++// file is the real representation of *File.
++// The extra level of indirection ensures that no clients of os
++// can overwrite this data, which could cause the finalizer
++// to close the wrong file descriptor.
++type file struct {
+ 	fd      int
+ 	name    string
+ 	dirinfo *dirInfo // nil unless directory being read
+@@ -29,8 +37,8 @@ func NewFile(fd int, name string) *File {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	f := &File{fd: fd, name: name}
+-	runtime.SetFinalizer(f, (*File).Close)
++	f := &File{&file{fd: fd, name: name}}
++	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+ 
+@@ -110,6 +118,10 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an error, if any.
+ func (file *File) Close() error {
++	return file.file.close()
++}
++
++func (file *file) close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return Ebadfd
+ 	}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index d8fcb22ae1..f3e0d1f9be 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -13,6 +13,14 @@ import (
+ 
+ // File represents an open file descriptor.
+ type File struct {
++	*file
++}
++
++// file is the real representation of *File.
++// The extra level of indirection ensures that no clients of os
++// can overwrite this data, which could cause the finalizer
++// to close the wrong file descriptor.
++type file struct {
+ 	fd      int
+ 	name    string
+ 	dirinfo *dirInfo // nil unless directory being read
+@@ -32,8 +40,8 @@ func NewFile(fd int, name string) *File {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	f := &File{fd: fd, name: name}
+-	runtime.SetFinalizer(f, (*File).Close)
++	f := &File{&file{fd: fd, name: name}}
++	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+ 
+@@ -71,6 +79,10 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an error, if any.
+ func (file *File) Close() error {
++	return file.file.close()
++}
++
++func (file *file) close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return EINVAL
+ 	}
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index fef868c68e..5b098880f4 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -13,6 +13,14 @@ import (
+ 
+ // File represents an open file descriptor.
+ type File struct {
++	*file
++}
++
++// file is the real representation of *File.
++// The extra level of indirection ensures that no clients of os
++// can overwrite this data, which could cause the finalizer
++// to close the wrong file descriptor.
++type file struct {
+ 	fd      syscall.Handle
+ 	name    string
+ 	dirinfo *dirInfo   // nil unless directory being read
+@@ -33,8 +41,8 @@ func NewFile(fd syscall.Handle, name string) *File {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	f := &File{fd: fd, name: name}
+-	runtime.SetFinalizer(f, (*File).Close)
++	f := &File{&file{fd: fd, name: name}}
++	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+ 
+@@ -99,6 +107,10 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an error, if any.
+ func (file *File) Close() error {
++	return file.file.close()
++}
++
++func (file *file) close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return EINVAL
+ 	}
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 2d46c89948..4fc02743c6 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -6,6 +6,8 @@
+ // exclusion locks.  Other than the Once and WaitGroup types, most are intended
+ // for use by low-level library routines.  Higher-level synchronization is
+ // better done via channels and communication.
++//
++// Values containing the types defined in this package should not be copied.
+ package sync
+ 
+ import (
+diff --git a/test/assign.go b/test/assign.go
+index 59471388c0..2192f9ede0 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -16,38 +16,38 @@ type T struct {
+ func main() {
+ 	{
+ 		var x, y sync.Mutex
+-		x = y	// ERROR "assignment.*Mutex"
++		x = y // ok
+ 		_ = x
+ 	}
+ 	{
+ 		var x, y T
+-		x = y	// ERROR "assignment.*Mutex"
++		x = y // ok
+ 		_ = x
+ 	}
+ 	{
+ 		var x, y [2]sync.Mutex
+-		x = y	// ERROR "assignment.*Mutex"
++		x = y // ok
+ 		_ = x
+ 	}
+ 	{
+ 		var x, y [2]T
+-		x = y	// ERROR "assignment.*Mutex"
++		x = y // ok
+ 		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{0, 0}	// ERROR "assignment.*Mutex"
++		x := sync.Mutex{0, 0} // ERROR "assignment.*Mutex"
+ 		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{key: 0}	// ERROR "(unknown|assignment).*Mutex"
++		x := sync.Mutex{key: 0} // ERROR "(unknown|assignment).*Mutex"
+ 		_ = x
+ 	}
+ 	{
+-		x := &sync.Mutex{}	// ok
+-		var y sync.Mutex	// ok
+-		y = *x	// ERROR "assignment.*Mutex"
+-		*x = y	// ERROR "assignment.*Mutex"
++		x := &sync.Mutex{} // ok
++		var y sync.Mutex   // ok
++		y = *x             // ok
++		*x = y             // ok
+ 		_ = x
+ 		_ = y
+-	}		
++	}
+ }
+diff --git a/test/fixedbugs/bug226.dir/x.go b/test/fixedbugs/bug226.dir/x.go
+deleted file mode 100644
+index 64d7a29e7e..0000000000
+--- a/test/fixedbugs/bug226.dir/x.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package x
+-
+-type T struct { x, Y int }
+-
+-func (t T) M()
+diff --git a/test/fixedbugs/bug226.dir/y.go b/test/fixedbugs/bug226.dir/y.go
+deleted file mode 100644
+index c66d592b7c..0000000000
+--- a/test/fixedbugs/bug226.dir/y.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package y
+-
+-import "./x"
+-
+-func f() {
+-	ok := new(x.T);
+-	var ok1 x.T;
+-	ok2 := &ok1;
+-	ok3 := &x.T{};
+-	ok4 := &x.T{Y:2};
+-	_ = x.T{};
+-	_ = x.T{Y:2};
+-	
+-	ok1.M();
+-	bad1 := *ok;	// ERROR "assignment.*T"
+-	bad2 := ok1;	// ERROR "assignment.*T"
+-	*ok4 = ok1;	// ERROR "assignment.*T"
+-	*ok4 = *ok2;	// ERROR "assignment.*T"
+-	ok1 = *ok4;	// ERROR "assignment.*T"
+-	_ = bad1;
+-	_ = bad2;
+-	_ = ok4;
+-	_ = ok3;
+-	_ = ok2;
+-	_ = ok1;
+-	_ = ok;
+-}
+diff --git a/test/fixedbugs/bug226.go b/test/fixedbugs/bug226.go
+deleted file mode 100644
+index 5457a64bc1..0000000000
+--- a/test/fixedbugs/bug226.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// $G $D/$F.dir/x.go && errchk $G $D/$F.dir/y.go
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-ignored
+diff --git a/test/fixedbugs/bug310.go b/test/fixedbugs/bug310.go
+deleted file mode 100644
+index 191f3ed2b4..0000000000
+--- a/test/fixedbugs/bug310.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import (
+-	"bytes"
+-	"fmt"
+-)
+-
+-type t int
+-
+-func main() {
+-	_ = t.bar	// ERROR "no method"
+-	var b bytes.Buffer
+-	fmt.Print(b)	// ERROR "implicit assignment"
+-}
+diff --git a/test/fixedbugs/bug359.go b/test/fixedbugs/bug359.go
+deleted file mode 100644
+index 3701499ed2..0000000000
+--- a/test/fixedbugs/bug359.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// issue 1910
+-// error on wrong line
+-
+-package main
+-
+-import "container/list"
+-
+-type Painting struct {
+-	fragments list.List // private
+-}
+-
+-func (p Painting) Foo() {
+-	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field|hidden field"
+-	}
+-}
+-
+-// from comment 4 of issue 1910
+-type Foo interface {
+-	Run(a int) (a int)  // ERROR "a redeclared|redefinition|previous"
+-}
+diff --git a/test/fixedbugs/bug378.go b/test/fixedbugs/bug378.go
+deleted file mode 100644
+index 91975f2e93..0000000000
+--- a/test/fixedbugs/bug378.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Issue 1387
+-package foo
+-
+-import "bytes"
+-
+-func i() {
+-	a := make([]bytes.Buffer, 1)
+-	b := a[0] // ERROR "unexported field"
+-}
+-
+-func f() {
+-	a := make([]bytes.Buffer, 1)
+-	a = append(a, a...) // ERROR "unexported field"
+-}
+-
+-
+-func g() {
+-	a := make([]bytes.Buffer, 1)
+-	b := make([]bytes.Buffer, 1)
+-	copy(b, a)	// ERROR "unexported field"
+-}

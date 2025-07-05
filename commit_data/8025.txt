@@ -9,7 +9,80 @@ Date:   Fri Apr 8 10:59:25 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4376046
-
+---
  src/cmd/gofix/osopen.go      | 23 +++++++++++++----------
  src/cmd/gofix/osopen_test.go |  4 ++++
  2 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 5d7f5cbde5..49993d8f99 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -70,7 +70,6 @@ func osopen(f *ast.File) bool {
+ func isCreateFlag(flag ast.Expr) bool {
+ 	foundCreate := false
+ 	foundTrunc := false
+-	foundAppend := false
+ 	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
+ 	// and don't worry about the actual opeator.
+ 	p := flag.Pos()
+@@ -80,14 +79,21 @@ func isCreateFlag(flag ast.Expr) bool {
+ 		if isBinary {
+ 			lhs = expr.Y
+ 		}
+-		if isPkgDot(lhs, "os", "O_CREATE") {
+-			foundCreate = true
++		sel, ok := lhs.(*ast.SelectorExpr)
++		if !ok || !isTopName(sel.X, "os") {
++			return false
+ 		}
+-		if isPkgDot(lhs, "os", "O_TRUNC") {
++		switch sel.Sel.Name {
++		case "O_CREATE":
++			foundCreate = true
++		case "O_TRUNC":
+ 			foundTrunc = true
+-		}
+-		if isPkgDot(lhs, "os", "O_APPEND") {
+-			foundAppend = true
++		case "O_RDONLY", "O_WRONLY", "O_RDWR":
++			// okay 
++		default:
++			// Unexpected flag, like O_APPEND or O_EXCL.
++			// Be conservative and do not rewrite.
++			return false
+ 		}
+ 		if !isBinary {
+ 			break
+@@ -97,9 +103,6 @@ func isCreateFlag(flag ast.Expr) bool {
+ 	if !foundCreate {
+ 		return false
+ 	}
+-	if foundAppend {
+-		return false
+-	}
+ 	if !foundTrunc {
+ 		warn(p, "rewrote os.Open with O_CREATE but not O_TRUNC to os.Create")
+ 	}
+diff --git a/src/cmd/gofix/osopen_test.go b/src/cmd/gofix/osopen_test.go
+index b0a4f63c69..43ddd1a40d 100644
+--- a/src/cmd/gofix/osopen_test.go
++++ b/src/cmd/gofix/osopen_test.go
+@@ -28,6 +28,8 @@ func f() {
+ 	os.Open(a, os.O_CREATE|os.O_TRUNC, 0664)
+ 	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+ 	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
++	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
++	os.Open(a, os.O_SURPRISE|os.O_CREATE, 0666)
+ 	_ = os.O_CREAT
+ }
+ `,
+@@ -48,6 +50,8 @@ func f() {
+ 	os.Create(a)
+ 	os.Create(a)
+ 	os.OpenFile(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
++	os.OpenFile(a, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
++	os.OpenFile(a, os.O_SURPRISE|os.O_CREATE, 0666)
+ 	_ = os.O_CREATE
+ }
+ `,

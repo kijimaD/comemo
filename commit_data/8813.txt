@@ -7,7 +7,7 @@ Date:   Tue Jun 21 12:02:40 2011 -0400
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/4635053
-
+---
  misc/nacl/naclrun            | 15 ---------------
  src/cmd/8l/asm.c             |  4 ----
  src/cmd/8l/obj.c             | 15 ---------------
@@ -17,3 +17,171 @@ Date:   Tue Jun 21 12:02:40 2011 -0400
  src/pkg/syscall/mksyscall.pl |  5 -----
  test/run                     |  6 ------
  8 files changed, 49 deletions(-)
+
+diff --git a/misc/nacl/naclrun b/misc/nacl/naclrun
+deleted file mode 100755
+index 1cdcf876c2..0000000000
+--- a/misc/nacl/naclrun
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#!/bin/sh
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Run nacl binary in debug mode (allow file access)
+-# and then grep away the chatter.
+-# See ../../src/pkg/exp/nacl/README for more on
+-# how to configure NaCl.
+-
+-nacl -d "$@" >/tmp/nacl.out.$$ 2>&1
+-status=$?
+-egrep -v 'DEBUG MODE ENABLED|^\[[0-9]+,' /tmp/nacl.out.$$
+-rm -f /tmp/nacl.out.$$
+-exit $status
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index cb900d28d0..aa44b07dbd 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -920,10 +920,6 @@ asmb(void)
+ 		break;
+ 
+ 	Elfput:
+-		/* elf 386 */
+-		if(HEADTYPE == Htiny)
+-			debug['d'] = 1;
+-
+ 		eh = getElfEhdr();
+ 		startva = INITTEXT - HEADR;
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 440dcb77f8..7fd0dafaed 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -54,11 +54,9 @@ Header headers[] = {
+    "msdosexe", Hmsdosexe,
+    "darwin", Hdarwin,
+    "linux", Hlinux,
+-   "nacl", Hnacl,
+    "freebsd", Hfreebsd,
+    "windows", Hwindows,
+    "windowsgui", Hwindows,
+-   "tiny", Htiny,
+    0, 0
+ };
+ 
+@@ -70,10 +68,8 @@ Header headers[] = {
+  *	-Hmsdosexe -Tx -Rx			is fake MS-DOS .EXE
+  *	-Hdarwin -Tx -Rx			is Apple Mach-O
+  *	-Hlinux -Tx -Rx				is Linux ELF32
+- *	-Hnacl -Tx -Rx				was Google Native Client
+  *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
+  *	-Hwindows -Tx -Rx			is MS Windows PE32
+- *	-Htiny -Tx -Rx				is tiny (os image)
+  */
+ 
+ void
+@@ -254,17 +250,6 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = PESECTALIGN;
+ 		break;
+-	case Htiny:
+-		tlsoffset = 0;
+-		elfinit();
+-		HEADR = ELFRESERVE;
+-		if(INITTEXT == -1)
+-			INITTEXT = 0x100000+HEADR;
+-		if(INITDAT == -1)
+-			INITDAT = 0;
+-		if(INITRND == -1)
+-			INITRND = 4096;
+-		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 4db7a63d64..c63df22417 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -110,7 +110,6 @@ typedef struct {
+ #define ELFOSABI_OPENVMS	13	/* Open VMS */
+ #define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
+ #define ELFOSABI_ARM		97	/* ARM */
+-#define ELFOSABI_NACL		123	/* Native Client */
+ #define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
+ 
+ #define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index dfd18fbff9..4637131436 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -260,10 +260,8 @@ enum {
+ 	Hipaq,		// ipaq
+ 	Hdarwin,	// Apple Mach-O
+ 	Hlinux,		// Linux ELF
+-	Hnacl,		// Google Native Client
+ 	Hfreebsd,	// FreeBSD ELF
+ 	Hwindows,	// MS Windows PE
+-	Htiny		// tiny (os image)
+ };
+ 
+ typedef struct Header Header;
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 91d1bbe5d8..00b5b3c89d 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -14,7 +14,6 @@ EOF
+ case "$GOARCH" in
+ 386)
+ 	# The offsets 0 and 4 are also known to:
+-	#	nacl/thread.c:/^newosproc
+ 	#	../../cmd/8l/pass.c:/D_GS
+ 	#	../../libcgo/linux_386.c:/^threadentry
+ 	#	../../libcgo/darwin_386.c:/^threadentry
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index 9a474b6ff3..ed6525972c 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -24,7 +24,6 @@ use strict;
+ my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
+ my $errors = 0;
+ my $_32bit = "";
+-my $nacl = 0;
+ my $plan9 = 0;
+ 
+ if($ARGV[0] eq "-b32") {
+@@ -34,10 +33,6 @@ if($ARGV[0] eq "-b32") {
+ 	$_32bit = "little-endian";
+ 	shift;
+ }
+-if($ARGV[0] eq "-nacl") {
+-	$nacl = 1;
+-	shift;
+-}
+ if($ARGV[0] eq "-plan9") {
+ 	$plan9 = 1;
+ 	shift;
+diff --git a/test/run b/test/run
+index 628cc2d7b4..bb6119836a 100755
+--- a/test/run
++++ b/test/run
+@@ -23,11 +23,6 @@ Xarm)
+ 	exit 1
+ esac
+ 
+-case X"$GOOS" in
+-Xnacl)
+-	export E=${GORUN:-$GOROOT/misc/nacl/naclrun}
+-esac
+-
+ export G=${A}g
+ export L=${A}l
+ export GOTRACEBACK=0
+@@ -112,7 +107,6 @@ done | # clean up some stack noise
+ 		/^Trace\/BPT trap/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+-		/Fault in NaCl untrusted code/d
+ 		/Segmentation fault/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 

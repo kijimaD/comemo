@@ -18,6 +18,36 @@ Date:   Sun Feb 18 14:12:52 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/string.go | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 97909196e9..cfe2959b36 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -280,13 +280,20 @@ func rawruneslice(size int) (b []rune) {
+ }
+ 
+ // used by cmd/cgo
+-func gobytes(p *byte, n int) []byte {
++func gobytes(p *byte, n int) (b []byte) {
+ 	if n == 0 {
+ 		return make([]byte, 0)
+ 	}
+-	x := make([]byte, n)
+-	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
+-	return x
++
++	if n < 0 || uintptr(n) > maxAlloc {
++		panic(errorString("gobytes: length out of range"))
++	}
++
++	bp := mallocgc(uintptr(n), nil, false)
++	memmove(bp, unsafe.Pointer(p), uintptr(n))
++
++	*(*slice)(unsafe.Pointer(&b)) = slice{bp, n, n}
++	return
+ }
+ 
+ func gostring(p *byte) string {

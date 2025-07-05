@@ -12,7 +12,52 @@ Date:   Mon Oct 2 08:17:15 2017 +0900
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go |  2 +-
  src/cmd/objdump/objdump_test.go    | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 18cc4e6fff..c486016d6c 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -304,7 +304,7 @@ func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder)
+ }
+ 
+ func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
+-	inst, err := x86asm.Decode(code, 64)
++	inst, err := x86asm.Decode(code, arch)
+ 	var text string
+ 	size := inst.Len
+ 	if err != nil || size == 0 || inst.Op == 0 {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index f0771cdde9..a2ca329609 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -148,6 +148,13 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
+ 			ok = false
+ 		}
+ 	}
++	if goarch == "386" {
++		if strings.Contains(text, "(IP)") {
++			t.Errorf("disassembly contains PC-Relative addressing on 386")
++			ok = false
++		}
++	}
++
+ 	if !ok {
+ 		t.Logf("full disassembly:\n%s", text)
+ 	}
+@@ -234,6 +241,12 @@ func TestDisasmGoobj(t *testing.T) {
+ 			ok = false
+ 		}
+ 	}
++	if runtime.GOARCH == "386" {
++		if strings.Contains(text, "(IP)") {
++			t.Errorf("disassembly contains PC-Relative addressing on 386")
++			ok = false
++		}
++	}
+ 	if !ok {
+ 		t.Logf("full disassembly:\n%s", text)
+ 	}

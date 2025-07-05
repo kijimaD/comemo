@@ -9,7 +9,60 @@ Date:   Sun Sep 9 23:53:48 2012 +0900
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/6499091
-
+---
  src/pkg/net/dialgoogle_test.go | 11 -----------
  src/pkg/net/lookup_test.go     | 12 ++++++++++++
  2 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 03c4499720..426e2ffb00 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -41,17 +41,6 @@ func doDial(t *testing.T, network, addr string) {
+ 	fd.Close()
+ }
+ 
+-func TestLookupCNAME(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
+-	}
+-	cname, err := LookupCNAME("www.google.com")
+-	if !strings.HasSuffix(cname, ".l.google.com.") || err != nil {
+-		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "*.l.google.com.", nil`, cname, err)
+-	}
+-}
+-
+ var googleaddrsipv4 = []string{
+ 	"%d.%d.%d.%d:80",
+ 	"www.google.com:80",
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index 3a61dfb29c..84f089e869 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -9,6 +9,7 @@ package net
+ 
+ import (
+ 	"flag"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -79,6 +80,17 @@ func TestGoogleDNSAddr(t *testing.T) {
+ 	}
+ }
+ 
++func TestLookupIANACNAME(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
++		return
++	}
++	cname, err := LookupCNAME("www.iana.org")
++	if !strings.HasSuffix(cname, ".icann.org.") || err != nil {
++		t.Errorf(`LookupCNAME("www.iana.org.") = %q, %v, want "*.icann.org.", nil`, cname, err)
++	}
++}
++
+ var revAddrTests = []struct {
+ 	Addr      string
+ 	Reverse   string

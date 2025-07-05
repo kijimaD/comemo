@@ -11,7 +11,57 @@ Date:   Thu Mar 3 23:53:39 2016 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go      |  9 +++++++++
  src/net/http/fs_test.go | 18 ++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 7e672a0910..5546d37516 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -393,6 +393,15 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 	}
+ 
++	// redirect if the directory name doesn't end in a slash
++	if d.IsDir() {
++		url := r.URL.Path
++		if url[len(url)-1] != '/' {
++			localRedirect(w, r, path.Base(url)+"/")
++			return
++		}
++	}
++
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDir() {
+ 		index := strings.TrimSuffix(name, "/") + indexPage
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 8524df6f31..9253ebe43a 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -505,6 +505,24 @@ func TestServeFileFromCWD(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 13996
++func TestServeDirWithoutTrailingSlash(t *testing.T) {
++	e := "/testdata/"
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		ServeFile(w, r, ".")
++	}))
++	defer ts.Close()
++	r, err := Get(ts.URL + "/testdata")
++	if err != nil {
++		t.Fatal(err)
++	}
++	r.Body.Close()
++	if g := r.Request.URL.Path; g != e {
++		t.Errorf("got %s, want %s", g, e)
++	}
++}
++
+ // Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
+ // specified.
+ func TestServeFileWithContentEncoding_h1(t *testing.T) { testServeFileWithContentEncoding(t, h1Mode) }

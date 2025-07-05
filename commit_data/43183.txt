@@ -11,9 +11,208 @@ Date:   Fri Feb 21 02:50:57 2020 +1100
     Change-Id: I00bb59e77b1aace549d7857cc9721ba2cb4ac6ca
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220541
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/riscv64.go         |  5 ++++-
  src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++++++++++++-
  src/cmd/internal/obj/riscv/obj.go            | 23 +++++++++++++++++++++-
  src/runtime/internal/atomic/atomic_riscv64.s | 29 ++++++++++------------------
  4 files changed, 57 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/riscv64.go b/src/cmd/asm/internal/arch/riscv64.go
+index 1b0cccec46..27a66c5e63 100644
+--- a/src/cmd/asm/internal/arch/riscv64.go
++++ b/src/cmd/asm/internal/arch/riscv64.go
+@@ -18,7 +18,10 @@ import (
+ // handling.
+ func IsRISCV64AMO(op obj.As) bool {
+ 	switch op {
+-	case riscv.ASCW, riscv.ASCD:
++	case riscv.ASCW, riscv.ASCD, riscv.AAMOSWAPW, riscv.AAMOSWAPD, riscv.AAMOADDW, riscv.AAMOADDD,
++		riscv.AAMOANDW, riscv.AAMOANDD, riscv.AAMOORW, riscv.AAMOORD, riscv.AAMOXORW, riscv.AAMOXORD,
++		riscv.AAMOMINW, riscv.AAMOMIND, riscv.AAMOMINUW, riscv.AAMOMINUD,
++		riscv.AAMOMAXW, riscv.AAMOMAXD, riscv.AAMOMAXUW, riscv.AAMOMAXUD:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 1327505e2a..aae862628d 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -163,6 +163,26 @@ start:
+ 	SCW	X5, (X6), X7				// af23531c
+ 	SCD	X5, (X6), X7				// af33531c
+ 
++	// 8.3: Atomic Memory Operations
++	AMOSWAPW	X5, (X6), X7			// af23530c
++	AMOSWAPD	X5, (X6), X7			// af33530c
++	AMOADDW		X5, (X6), X7			// af235304
++	AMOADDD		X5, (X6), X7			// af335304
++	AMOANDW		X5, (X6), X7			// af235364
++	AMOANDD		X5, (X6), X7			// af335364
++	AMOORW		X5, (X6), X7			// af235344
++	AMOORD		X5, (X6), X7			// af335344
++	AMOXORW		X5, (X6), X7			// af235324
++	AMOXORD		X5, (X6), X7			// af335324
++	AMOMAXW		X5, (X6), X7			// af2353a4
++	AMOMAXD		X5, (X6), X7			// af3353a4
++	AMOMAXUW	X5, (X6), X7			// af2353e4
++	AMOMAXUD	X5, (X6), X7			// af3353e4
++	AMOMINW		X5, (X6), X7			// af235384
++	AMOMIND		X5, (X6), X7			// af335384
++	AMOMINUW	X5, (X6), X7			// af2353c4
++	AMOMINUD	X5, (X6), X7			// af3353c4
++
+ 	// 10.1: Base Counters and Timers
+ 	RDCYCLE		X5				// f32200c0
+ 	RDTIME		X5				// f32210c0
+@@ -282,7 +302,7 @@ start:
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff09fcb
++	JMP	start		// JMP	2		// 6ff01fc7
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index d55c05a38c..698d9e51da 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1591,6 +1591,26 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	ASCW & obj.AMask: rIIIEncoding,
+ 	ASCD & obj.AMask: rIIIEncoding,
+ 
++	// 8.3: Atomic Memory Operations
++	AAMOSWAPW & obj.AMask: rIIIEncoding,
++	AAMOSWAPD & obj.AMask: rIIIEncoding,
++	AAMOADDW & obj.AMask:  rIIIEncoding,
++	AAMOADDD & obj.AMask:  rIIIEncoding,
++	AAMOANDW & obj.AMask:  rIIIEncoding,
++	AAMOANDD & obj.AMask:  rIIIEncoding,
++	AAMOORW & obj.AMask:   rIIIEncoding,
++	AAMOORD & obj.AMask:   rIIIEncoding,
++	AAMOXORW & obj.AMask:  rIIIEncoding,
++	AAMOXORD & obj.AMask:  rIIIEncoding,
++	AAMOMAXW & obj.AMask:  rIIIEncoding,
++	AAMOMAXD & obj.AMask:  rIIIEncoding,
++	AAMOMAXUW & obj.AMask: rIIIEncoding,
++	AAMOMAXUD & obj.AMask: rIIIEncoding,
++	AAMOMINW & obj.AMask:  rIIIEncoding,
++	AAMOMIND & obj.AMask:  rIIIEncoding,
++	AAMOMINUW & obj.AMask: rIIIEncoding,
++	AAMOMINUD & obj.AMask: rIIIEncoding,
++
+ 	// 10.1: Base Counters and Timers
+ 	ARDCYCLE & obj.AMask:   iIEncoding,
+ 	ARDTIME & obj.AMask:    iIEncoding,
+@@ -1776,7 +1796,8 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.funct7 = 2
+ 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+ 
+-	case ASCW, ASCD:
++	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
++		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
+ 		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+ 		ins.funct7 = 2
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index e4b7902d52..d005325ca3 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -30,15 +30,6 @@
+ 
+ #include "textflag.h"
+ 
+-#define AMOWSC(op,rd,rs1,rs2) WORD $0x0600202f+rd<<7+rs1<<15+rs2<<20+op<<27
+-#define AMODSC(op,rd,rs1,rs2) WORD $0x0600302f+rd<<7+rs1<<15+rs2<<20+op<<27
+-#define ADD_ 0
+-#define SWAP_ 1
+-#define LR_ 2
+-#define SC_ 3
+-#define OR_ 8
+-#define AND_ 12
+-
+ // Atomically:
+ //      if(*val == *old){
+ //              *val = new;
+@@ -108,7 +99,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ TEXT ·Store(SB), NOSPLIT, $0-12
+ 	MOV	ptr+0(FP), A0
+ 	MOVW	val+8(FP), A1
+-	AMOWSC(SWAP_,0,10,11)
++	AMOSWAPW A1, (A0), ZERO
+ 	RET
+ 
+ // func Store8(ptr *uint8, val uint8)
+@@ -124,7 +115,7 @@ TEXT ·Store8(SB), NOSPLIT, $0-9
+ TEXT ·Store64(SB), NOSPLIT, $0-16
+ 	MOV	ptr+0(FP), A0
+ 	MOV	val+8(FP), A1
+-	AMODSC(SWAP_,0,10,11)
++	AMOSWAPD A1, (A0), ZERO
+ 	RET
+ 
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+@@ -151,7 +142,7 @@ TEXT ·Loadint64(SB),NOSPLIT,$0-16
+ TEXT ·Xaddint64(SB),NOSPLIT,$0-24
+ 	MOV	ptr+0(FP), A0
+ 	MOV	delta+8(FP), A1
+-	WORD $0x04b5352f	// amoadd.d.aq a0,a1,(a0)
++	AMOADDD A1, (A0), A0
+ 	ADD	A0, A1, A0
+ 	MOVW	A0, ret+16(FP)
+ 	RET
+@@ -174,7 +165,7 @@ TEXT ·StoreRel(SB), NOSPLIT, $0-12
+ TEXT ·Xchg(SB), NOSPLIT, $0-20
+ 	MOV	ptr+0(FP), A0
+ 	MOVW	new+8(FP), A1
+-	AMOWSC(SWAP_,11,10,11)
++	AMOSWAPW A1, (A0), A1
+ 	MOVW	A1, ret+16(FP)
+ 	RET
+ 
+@@ -182,7 +173,7 @@ TEXT ·Xchg(SB), NOSPLIT, $0-20
+ TEXT ·Xchg64(SB), NOSPLIT, $0-24
+ 	MOV	ptr+0(FP), A0
+ 	MOV	new+8(FP), A1
+-	AMODSC(SWAP_,11,10,11)
++	AMOSWAPD A1, (A0), A1
+ 	MOV	A1, ret+16(FP)
+ 	RET
+ 
+@@ -194,7 +185,7 @@ TEXT ·Xchg64(SB), NOSPLIT, $0-24
+ TEXT ·Xadd(SB), NOSPLIT, $0-20
+ 	MOV	ptr+0(FP), A0
+ 	MOVW	delta+8(FP), A1
+-	AMOWSC(ADD_,12,10,11)
++	AMOADDW A1, (A0), A2
+ 	ADD	A2,A1,A0
+ 	MOVW	A0, ret+16(FP)
+ 	RET
+@@ -203,8 +194,8 @@ TEXT ·Xadd(SB), NOSPLIT, $0-20
+ TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ 	MOV	ptr+0(FP), A0
+ 	MOV	delta+8(FP), A1
+-	AMODSC(ADD_,12,10,11)
+-	ADD	A2,A1,A0
++	AMOADDD A1, (A0), A2
++	ADD	A2, A1, A0
+ 	MOV	A0, ret+16(FP)
+ 	RET
+ 
+@@ -226,7 +217,7 @@ TEXT ·And8(SB), NOSPLIT, $0-9
+ 	XOR	$255, A1
+ 	SLL	A2, A1
+ 	XOR	$-1, A1
+-	AMOWSC(AND_,0,10,11)
++	AMOANDW A1, (A0), ZERO
+ 	RET
+ 
+ // func Or8(ptr *uint8, val uint8)
+@@ -237,5 +228,5 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
+ 	AND	$-4, A0
+ 	SLL	$3, A2
+ 	SLL	A2, A1
+-	AMOWSC(OR_,0,10,11)
++	AMOORW	A1, (A0), ZERO
+ 	RET

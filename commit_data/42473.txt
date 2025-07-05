@@ -15,10 +15,124 @@ Date:   Mon Dec 30 17:10:23 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 16 ------------
  src/cmd/go/testdata/script/cover_pattern.txt | 37 ++++++++++++++++++++++++++++
  src/cmd/go/testdata/src/sleepy1/p_test.go    | 10 --------
  src/cmd/go/testdata/src/sleepy2/p_test.go    | 10 --------
  src/cmd/go/testdata/src/sleepybad/p.go       |  5 ----
  5 files changed, 37 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 95c6202edd..4efb471411 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2193,22 +2193,6 @@ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg.grepStderr("not an importable package", "did not detect import main")
+ }
+ 
+-func TestCoveragePattern(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	// If coverpkg=sleepy... expands by package loading
+-	// (as opposed to pattern matching on deps)
+-	// then it will try to load sleepybad, which does not compile,
+-	// and the test command will fail.
+-	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
+-}
+-
+ func TestCoverageErrorLine(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/cover_pattern.txt b/src/cmd/go/testdata/script/cover_pattern.txt
+new file mode 100644
+index 0000000000..0b7f2d70a2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_pattern.txt
+@@ -0,0 +1,37 @@
++[gccgo] skip
++
++# If coverpkg=sleepy... expands by package loading
++# (as opposed to pattern matching on deps)
++# then it will try to load sleepybad, which does not compile,
++# and the test command will fail.
++! go list sleepy...
++go test -c -n -coverprofile=$TMPDIR/cover.out -coverpkg=sleepy... -run=^$ sleepy1
++
++-- sleepy1/p_test.go --
++package p
++
++import (
++	"testing"
++	"time"
++)
++
++func Test1(t *testing.T) {
++	time.Sleep(200 * time.Millisecond)
++}
++-- sleepy2/p_test.go --
++package p
++
++import (
++	"testing"
++	"time"
++)
++
++func Test1(t *testing.T) {
++	time.Sleep(200 * time.Millisecond)
++}
++-- sleepybad/p.go --
++package p
++
++import ^
++
++var _ = io.DoesNotExist
+diff --git a/src/cmd/go/testdata/src/sleepy1/p_test.go b/src/cmd/go/testdata/src/sleepy1/p_test.go
+deleted file mode 100644
+index 333be7d8e4..0000000000
+--- a/src/cmd/go/testdata/src/sleepy1/p_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package p
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-func Test1(t *testing.T) {
+-	time.Sleep(200 * time.Millisecond)
+-}
+diff --git a/src/cmd/go/testdata/src/sleepy2/p_test.go b/src/cmd/go/testdata/src/sleepy2/p_test.go
+deleted file mode 100644
+index 333be7d8e4..0000000000
+--- a/src/cmd/go/testdata/src/sleepy2/p_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package p
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-func Test1(t *testing.T) {
+-	time.Sleep(200 * time.Millisecond)
+-}
+diff --git a/src/cmd/go/testdata/src/sleepybad/p.go b/src/cmd/go/testdata/src/sleepybad/p.go
+deleted file mode 100644
+index e05b403e39..0000000000
+--- a/src/cmd/go/testdata/src/sleepybad/p.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p
+-
+-// missing import
+-
+-var _ = io.DoesNotExist

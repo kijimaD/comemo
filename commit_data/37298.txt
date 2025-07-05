@@ -29,7 +29,7 @@ Date:   Tue Jul 17 15:55:01 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/cgo_test.go             |  1 +
  misc/cgo/test/issue26213/jni.h        | 29 ++++++++++++++++++++++
  misc/cgo/test/issue26213/test26213.go | 46 +++++++++++++++++++++++++++++++++++
@@ -37,3 +37,191 @@ Date:   Tue Jul 17 15:55:01 2018 +0000
  src/cmd/cgo/gcc.go                    | 30 ++++++++++++++++++-----
  src/cmd/dist/test.go                  |  7 +++++-
  6 files changed, 121 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index ba2a89ef82..ccacc50fe1 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -91,6 +91,7 @@ func Test24206(t *testing.T)                 { test24206(t) }
+ func Test25143(t *testing.T)                 { test25143(t) }
+ func Test23356(t *testing.T)                 { test23356(t) }
+ func Test26066(t *testing.T)                 { test26066(t) }
++func Test26213(t *testing.T)                 { test26213(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+ func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/issue26213/jni.h b/misc/cgo/test/issue26213/jni.h
+new file mode 100644
+index 0000000000..0c76979a5a
+--- /dev/null
++++ b/misc/cgo/test/issue26213/jni.h
+@@ -0,0 +1,29 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// It's going to be hard to include a whole real JVM to test this.
++// So we'll simulate a really easy JVM using just the parts we need.
++
++// This is the relevant part of jni.h.
++
++// On Android NDK16, jobject is defined like this in C and C++
++typedef void* jobject;
++
++typedef jobject jclass;
++typedef jobject jthrowable;
++typedef jobject jstring;
++typedef jobject jarray;
++typedef jarray jbooleanArray;
++typedef jarray jbyteArray;
++typedef jarray jcharArray;
++typedef jarray jshortArray;
++typedef jarray jintArray;
++typedef jarray jlongArray;
++typedef jarray jfloatArray;
++typedef jarray jdoubleArray;
++typedef jarray jobjectArray;
++
++typedef jobject jweak;
++
++// Note: jvalue is already a non-pointer type due to it being a C union.
+diff --git a/misc/cgo/test/issue26213/test26213.go b/misc/cgo/test/issue26213/test26213.go
+new file mode 100644
+index 0000000000..5d1f637ff9
+--- /dev/null
++++ b/misc/cgo/test/issue26213/test26213.go
+@@ -0,0 +1,46 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue26213
++
++/*
++#include "jni.h"
++*/
++import "C"
++import (
++	"testing"
++)
++
++func Test26213(t *testing.T) {
++	var x1 C.jobject = 0 // Note: 0, not nil. That makes sure we use uintptr for these types.
++	_ = x1
++	var x2 C.jclass = 0
++	_ = x2
++	var x3 C.jthrowable = 0
++	_ = x3
++	var x4 C.jstring = 0
++	_ = x4
++	var x5 C.jarray = 0
++	_ = x5
++	var x6 C.jbooleanArray = 0
++	_ = x6
++	var x7 C.jbyteArray = 0
++	_ = x7
++	var x8 C.jcharArray = 0
++	_ = x8
++	var x9 C.jshortArray = 0
++	_ = x9
++	var x10 C.jintArray = 0
++	_ = x10
++	var x11 C.jlongArray = 0
++	_ = x11
++	var x12 C.jfloatArray = 0
++	_ = x12
++	var x13 C.jdoubleArray = 0
++	_ = x13
++	var x14 C.jobjectArray = 0
++	_ = x14
++	var x15 C.jweak = 0
++	_ = x15
++}
+diff --git a/misc/cgo/test/test26213.go b/misc/cgo/test/test26213.go
+new file mode 100644
+index 0000000000..176a7ece9c
+--- /dev/null
++++ b/misc/cgo/test/test26213.go
+@@ -0,0 +1,15 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import (
++	"testing"
++
++	"./issue26213"
++)
++
++func test26213(t *testing.T) {
++	issue26213.Test26213(t)
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 251cb18f5f..8bd4093587 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2772,13 +2772,31 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
+ 			}
+ 		}
+ 
+-		// Check that the typedef is:
+-		//     struct _jobject;
+-		//     typedef struct _jobject *jobject;
++		// Check that the typedef is either:
++		// 1:
++		//     	struct _jobject;
++		//     	typedef struct _jobject *jobject;
++		// 2: (in NDK16 in C++)
++		//     	class _jobject {};
++		//     	typedef _jobject* jobject;
++		// 3: (in NDK16 in C)
++		//     	typedef void* jobject;
+ 		if ptr, ok := w.Type.(*dwarf.PtrType); ok {
+-			if str, ok := ptr.Type.(*dwarf.StructType); ok {
+-				if str.StructName == "_jobject" && str.Kind == "struct" && len(str.Field) == 0 && str.Incomplete {
+-					return true
++			switch v := ptr.Type.(type) {
++			case *dwarf.VoidType:
++				return true
++			case *dwarf.StructType:
++				if v.StructName == "_jobject" && len(v.Field) == 0 {
++					switch v.Kind {
++					case "struct":
++						if v.Incomplete {
++							return true
++						}
++					case "class":
++						if !v.Incomplete {
++							return true
++						}
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index c8c918d36b..448c7867a1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -645,7 +645,7 @@ func (t *tester) registerTests() {
+ 					return nil
+ 				},
+ 			})
+-			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
++			if t.hasCxx() {
+ 				t.tests = append(t.tests, distTest{
+ 					name:    "swig_callback",
+ 					heading: "../misc/swig/callback",
+@@ -1249,6 +1249,11 @@ func (t *tester) hasBash() bool {
+ 	return true
+ }
+ 
++func (t *tester) hasCxx() bool {
++	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
++	return cxx != ""
++}
++
+ func (t *tester) hasSwig() bool {
+ 	swig, err := exec.LookPath("swig")
+ 	if err != nil {

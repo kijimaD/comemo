@@ -24,7 +24,7 @@ Date:   Mon Apr 11 20:23:19 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/s390x/cgen.go   |  178 ++++
  src/cmd/compile/internal/s390x/galign.go |   66 ++
  src/cmd/compile/internal/s390x/ggen.go   |  577 +++++++++++
@@ -35,3 +35,3987 @@ Date:   Mon Apr 11 20:23:19 2016 -0400
  src/cmd/compile/main.go                  |    3 +
  src/cmd/dist/buildtool.go                |    1 +
  9 files changed, 3913 insertions(+)
+
+diff --git a/src/cmd/compile/internal/s390x/cgen.go b/src/cmd/compile/internal/s390x/cgen.go
+new file mode 100644
+index 0000000000..28bb34e0ef
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/cgen.go
+@@ -0,0 +1,178 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
++)
++
++type direction int
++
++const (
++	_FORWARDS direction = iota
++	_BACKWARDS
++)
++
++// blockcopy copies w bytes from &n to &res
++func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
++	var dst gc.Node
++	var src gc.Node
++	if n.Ullman >= res.Ullman {
++		gc.Agenr(n, &dst, res) // temporarily use dst
++		gc.Regalloc(&src, gc.Types[gc.Tptr], nil)
++		gins(s390x.AMOVD, &dst, &src)
++		if res.Op == gc.ONAME {
++			gc.Gvardef(res)
++		}
++		gc.Agen(res, &dst)
++	} else {
++		if res.Op == gc.ONAME {
++			gc.Gvardef(res)
++		}
++		gc.Agenr(res, &dst, res)
++		gc.Agenr(n, &src, nil)
++	}
++	defer gc.Regfree(&src)
++	defer gc.Regfree(&dst)
++
++	var tmp gc.Node
++	gc.Regalloc(&tmp, gc.Types[gc.Tptr], nil)
++	defer gc.Regfree(&tmp)
++
++	offset := int64(0)
++	dir := _FORWARDS
++	if osrc < odst && odst < osrc+w {
++		// Reverse. Can't use MVC, fall back onto basic moves.
++		dir = _BACKWARDS
++		const copiesPerIter = 2
++		if w >= 8*copiesPerIter {
++			cnt := w - (w % (8 * copiesPerIter))
++			ginscon(s390x.AADD, w, &src)
++			ginscon(s390x.AADD, w, &dst)
++
++			var end gc.Node
++			gc.Regalloc(&end, gc.Types[gc.Tptr], nil)
++			p := gins(s390x.ASUB, nil, &end)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = cnt
++			p.Reg = src.Reg
++
++			var label *obj.Prog
++			for i := 0; i < copiesPerIter; i++ {
++				offset := int64(-8 * (i + 1))
++				p := gins(s390x.AMOVD, &src, &tmp)
++				p.From.Type = obj.TYPE_MEM
++				p.From.Offset = offset
++				if i == 0 {
++					label = p
++				}
++				p = gins(s390x.AMOVD, &tmp, &dst)
++				p.To.Type = obj.TYPE_MEM
++				p.To.Offset = offset
++			}
++
++			ginscon(s390x.ASUB, 8*copiesPerIter, &src)
++			ginscon(s390x.ASUB, 8*copiesPerIter, &dst)
++			gins(s390x.ACMP, &src, &end)
++			gc.Patch(gc.Gbranch(s390x.ABNE, nil, 0), label)
++			gc.Regfree(&end)
++
++			w -= cnt
++		} else {
++			offset = w
++		}
++	}
++
++	if dir == _FORWARDS && w > 1024 {
++		// Loop over MVCs
++		cnt := w - (w % 256)
++
++		var end gc.Node
++		gc.Regalloc(&end, gc.Types[gc.Tptr], nil)
++		add := gins(s390x.AADD, nil, &end)
++		add.From.Type = obj.TYPE_CONST
++		add.From.Offset = cnt
++		add.Reg = src.Reg
++
++		mvc := gins(s390x.AMVC, &src, &dst)
++		mvc.From.Type = obj.TYPE_MEM
++		mvc.From.Offset = 0
++		mvc.To.Type = obj.TYPE_MEM
++		mvc.To.Offset = 0
++		mvc.From3 = new(obj.Addr)
++		mvc.From3.Type = obj.TYPE_CONST
++		mvc.From3.Offset = 256
++
++		ginscon(s390x.AADD, 256, &src)
++		ginscon(s390x.AADD, 256, &dst)
++		gins(s390x.ACMP, &src, &end)
++		gc.Patch(gc.Gbranch(s390x.ABNE, nil, 0), mvc)
++		gc.Regfree(&end)
++
++		w -= cnt
++	}
++
++	for w > 0 {
++		cnt := w
++		// If in reverse we can only do 8, 4, 2 or 1 bytes at a time.
++		if dir == _BACKWARDS {
++			switch {
++			case cnt >= 8:
++				cnt = 8
++			case cnt >= 4:
++				cnt = 4
++			case cnt >= 2:
++				cnt = 2
++			}
++		} else if cnt > 256 {
++			cnt = 256
++		}
++
++		switch cnt {
++		case 8, 4, 2, 1:
++			op := s390x.AMOVB
++			switch cnt {
++			case 8:
++				op = s390x.AMOVD
++			case 4:
++				op = s390x.AMOVW
++			case 2:
++				op = s390x.AMOVH
++			}
++			load := gins(op, &src, &tmp)
++			load.From.Type = obj.TYPE_MEM
++			load.From.Offset = offset
++
++			store := gins(op, &tmp, &dst)
++			store.To.Type = obj.TYPE_MEM
++			store.To.Offset = offset
++
++			if dir == _BACKWARDS {
++				load.From.Offset -= cnt
++				store.To.Offset -= cnt
++			}
++
++		default:
++			p := gins(s390x.AMVC, &src, &dst)
++			p.From.Type = obj.TYPE_MEM
++			p.From.Offset = offset
++			p.To.Type = obj.TYPE_MEM
++			p.To.Offset = offset
++			p.From3 = new(obj.Addr)
++			p.From3.Type = obj.TYPE_CONST
++			p.From3.Offset = cnt
++		}
++
++		switch dir {
++		case _FORWARDS:
++			offset += cnt
++		case _BACKWARDS:
++			offset -= cnt
++		}
++		w -= cnt
++	}
++}
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+new file mode 100644
+index 0000000000..d0d621e557
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -0,0 +1,66 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj/s390x"
++)
++
++func betypeinit() {
++	gc.Widthptr = 8
++	gc.Widthint = 8
++	gc.Widthreg = 8
++}
++
++func Main() {
++	gc.Thearch.LinkArch = &s390x.Links390x
++	gc.Thearch.REGSP = s390x.REGSP
++	gc.Thearch.REGCTXT = s390x.REGCTXT
++	gc.Thearch.REGCALLX = s390x.REG_R3
++	gc.Thearch.REGCALLX2 = s390x.REG_R4
++	gc.Thearch.REGRETURN = s390x.REG_R3
++	gc.Thearch.REGMIN = s390x.REG_R0
++	gc.Thearch.REGMAX = s390x.REG_R15
++	gc.Thearch.FREGMIN = s390x.REG_F0
++	gc.Thearch.FREGMAX = s390x.REG_F15
++	gc.Thearch.MAXWIDTH = 1 << 50
++	gc.Thearch.ReservedRegs = resvd
++
++	gc.Thearch.Betypeinit = betypeinit
++	gc.Thearch.Cgen_hmul = cgen_hmul
++	gc.Thearch.Cgen_shift = cgen_shift
++	gc.Thearch.Clearfat = clearfat
++	gc.Thearch.Defframe = defframe
++	gc.Thearch.Dodiv = dodiv
++	gc.Thearch.Excise = excise
++	gc.Thearch.Expandchecks = expandchecks
++	gc.Thearch.Getg = getg
++	gc.Thearch.Gins = gins
++	gc.Thearch.Ginscmp = ginscmp
++	gc.Thearch.Ginscon = ginscon
++	gc.Thearch.Ginsnop = ginsnop
++	gc.Thearch.Gmove = gmove
++	gc.Thearch.Peep = peep
++	gc.Thearch.Proginfo = proginfo
++	gc.Thearch.Regtyp = isReg
++	gc.Thearch.Sameaddr = sameaddr
++	gc.Thearch.Smallindir = smallindir
++	gc.Thearch.Stackaddr = stackaddr
++	gc.Thearch.Blockcopy = blockcopy
++	gc.Thearch.Sudoaddable = sudoaddable
++	gc.Thearch.Sudoclean = sudoclean
++	gc.Thearch.Excludedregs = excludedregs
++	gc.Thearch.RtoB = RtoB
++	gc.Thearch.FtoB = RtoB
++	gc.Thearch.BtoR = BtoR
++	gc.Thearch.BtoF = BtoF
++	gc.Thearch.Optoas = optoas
++	gc.Thearch.Doregbits = doregbits
++	gc.Thearch.Regnames = regnames
++
++	gc.Main()
++	gc.Exit(0)
++}
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+new file mode 100644
+index 0000000000..39885baace
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -0,0 +1,577 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
++	"fmt"
++)
++
++// clearLoopCutOff is the (somewhat arbitrary) value above which it is better
++// to have a loop of clear instructions (e.g. XCs) rather than just generating
++// multiple instructions (i.e. loop unrolling).
++// Must be between 256 and 4096.
++const clearLoopCutoff = 1024
++
++func defframe(ptxt *obj.Prog) {
++	// fill in argument size, stack size
++	ptxt.To.Type = obj.TYPE_TEXTSIZE
++
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
++	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	ptxt.To.Offset = int64(frame)
++
++	// insert code to zero ambiguously live variables
++	// so that the garbage collector only sees initialized values
++	// when it looks for pointers.
++	p := ptxt
++
++	hi := int64(0)
++	lo := hi
++
++	// iterate through declarations - they are sorted in decreasing xoffset order.
++	for _, n := range gc.Curfn.Func.Dcl {
++		if !n.Name.Needzero {
++			continue
++		}
++		if n.Class != gc.PAUTO {
++			gc.Fatalf("needzero class %d", n.Class)
++		}
++		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
++		}
++
++		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
++			// merge with range we already have
++			lo = n.Xoffset
++
++			continue
++		}
++
++		// zero old range
++		p = zerorange(p, int64(frame), lo, hi)
++
++		// set new range
++		hi = n.Xoffset + n.Type.Width
++
++		lo = n.Xoffset
++	}
++
++	// zero final range
++	zerorange(p, int64(frame), lo, hi)
++}
++
++// zerorange clears the stack in the given range.
++func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
++	cnt := hi - lo
++	if cnt == 0 {
++		return p
++	}
++
++	// Adjust the frame to account for LR.
++	frame += gc.Ctxt.FixedFrameSize()
++	offset := frame + lo
++	reg := int16(s390x.REGSP)
++
++	// If the offset cannot fit in a 12-bit unsigned displacement then we
++	// need to create a copy of the stack pointer that we can adjust.
++	// We also need to do this if we are going to loop.
++	if offset < 0 || offset > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
++		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
++		p.Reg = int16(s390x.REGSP)
++		reg = s390x.REGRT1
++		offset = 0
++	}
++
++	// Generate a loop of large clears.
++	if cnt > clearLoopCutoff {
++		n := cnt - (cnt % 256)
++		end := int16(s390x.REGRT2)
++		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
++		p.Reg = reg
++		p = appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
++		p.From3 = new(obj.Addr)
++		p.From3.Type = obj.TYPE_CONST
++		p.From3.Offset = 256
++		pl := p
++		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
++		p = appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
++		p = appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
++		gc.Patch(p, pl)
++
++		cnt -= n
++	}
++
++	// Generate remaining clear instructions without a loop.
++	for cnt > 0 {
++		n := cnt
++
++		// Can clear at most 256 bytes per instruction.
++		if n > 256 {
++			n = 256
++		}
++
++		switch n {
++		// Handle very small clears with move instructions.
++		case 8, 4, 2, 1:
++			ins := s390x.AMOVB
++			switch n {
++			case 8:
++				ins = s390x.AMOVD
++			case 4:
++				ins = s390x.AMOVW
++			case 2:
++				ins = s390x.AMOVH
++			}
++			p = appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
++
++		// Handle clears that would require multiple move instructions with XC.
++		default:
++			p = appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
++			p.From3 = new(obj.Addr)
++			p.From3.Type = obj.TYPE_CONST
++			p.From3.Offset = n
++		}
++
++		cnt -= n
++		offset += n
++	}
++
++	return p
++}
++
++func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
++	q := gc.Ctxt.NewProg()
++	gc.Clearp(q)
++	q.As = as
++	q.Lineno = p.Lineno
++	q.From.Type = ftype
++	q.From.Reg = freg
++	q.From.Offset = foffset
++	q.To.Type = ttype
++	q.To.Reg = treg
++	q.To.Offset = toffset
++	q.Link = p.Link
++	p.Link = q
++	return q
++}
++
++func ginsnop() {
++	var reg gc.Node
++	gc.Nodreg(&reg, gc.Types[gc.TINT], s390x.REG_R0)
++	gins(s390x.AOR, &reg, &reg)
++}
++
++var panicdiv *gc.Node
++
++/*
++ * generate division.
++ * generates one of:
++ *	res = nl / nr
++ *	res = nl % nr
++ * according to op.
++ */
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++	// Have to be careful about handling
++	// most negative int divided by -1 correctly.
++	// The hardware will generate undefined result.
++	// Also need to explicitly trap on division on zero,
++	// the hardware will silently generate undefined result.
++	// DIVW will leave unpredicable result in higher 32-bit,
++	// so always use DIVD/DIVDU.
++	t := nl.Type
++
++	t0 := t
++	check := 0
++	if t.IsSigned() {
++		check = 1
++		if gc.Isconst(nl, gc.CTINT) && nl.Int64() != -(1<<uint64(t.Width*8-1)) {
++			check = 0
++		} else if gc.Isconst(nr, gc.CTINT) && nr.Int64() != -1 {
++			check = 0
++		}
++	}
++
++	if t.Width < 8 {
++		if t.IsSigned() {
++			t = gc.Types[gc.TINT64]
++		} else {
++			t = gc.Types[gc.TUINT64]
++		}
++		check = 0
++	}
++
++	a := optoas(gc.ODIV, t)
++
++	var tl gc.Node
++	gc.Regalloc(&tl, t0, nil)
++	var tr gc.Node
++	gc.Regalloc(&tr, t0, nil)
++	if nl.Ullman >= nr.Ullman {
++		gc.Cgen(nl, &tl)
++		gc.Cgen(nr, &tr)
++	} else {
++		gc.Cgen(nr, &tr)
++		gc.Cgen(nl, &tl)
++	}
++
++	if t != t0 {
++		// Convert
++		tl2 := tl
++
++		tr2 := tr
++		tl.Type = t
++		tr.Type = t
++		gmove(&tl2, &tl)
++		gmove(&tr2, &tr)
++	}
++
++	// Handle divide-by-zero panic.
++	p1 := gins(optoas(gc.OCMP, t), &tr, nil)
++
++	p1.To.Type = obj.TYPE_REG
++	p1.To.Reg = s390x.REGZERO
++	p1 = gc.Gbranch(optoas(gc.ONE, t), nil, +1)
++	if panicdiv == nil {
++		panicdiv = gc.Sysfunc("panicdivide")
++	}
++	gc.Ginscall(panicdiv, -1)
++	gc.Patch(p1, gc.Pc)
++
++	var p2 *obj.Prog
++	if check != 0 {
++		var nm1 gc.Node
++		gc.Nodconst(&nm1, t, -1)
++		gins(optoas(gc.OCMP, t), &tr, &nm1)
++		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
++		if op == gc.ODIV {
++			// a / (-1) is -a.
++			gins(optoas(gc.OMINUS, t), nil, &tl)
++
++			gmove(&tl, res)
++		} else {
++			// a % (-1) is 0.
++			var nz gc.Node
++			gc.Nodconst(&nz, t, 0)
++
++			gmove(&nz, res)
++		}
++
++		p2 = gc.Gbranch(obj.AJMP, nil, 0)
++		gc.Patch(p1, gc.Pc)
++	}
++
++	p1 = gins(a, &tr, &tl)
++	if op == gc.ODIV {
++		gc.Regfree(&tr)
++		gmove(&tl, res)
++	} else {
++		// A%B = A-(A/B*B)
++		var tm gc.Node
++		gc.Regalloc(&tm, t, nil)
++
++		// patch div to use the 3 register form
++		// TODO(minux): add gins3?
++		p1.Reg = p1.To.Reg
++
++		p1.To.Reg = tm.Reg
++		gins(optoas(gc.OMUL, t), &tr, &tm)
++		gc.Regfree(&tr)
++		gins(optoas(gc.OSUB, t), &tm, &tl)
++		gc.Regfree(&tm)
++		gmove(&tl, res)
++	}
++
++	gc.Regfree(&tl)
++	if check != 0 {
++		gc.Patch(p2, gc.Pc)
++	}
++}
++
++/*
++ * generate high multiply:
++ *   res = (nl*nr) >> width
++ */
++func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
++	// largest ullman on left.
++	if nl.Ullman < nr.Ullman {
++		nl, nr = nr, nl
++	}
++
++	t := nl.Type
++	w := int(t.Width) * 8
++	var n1 gc.Node
++	gc.Cgenr(nl, &n1, res)
++	var n2 gc.Node
++	gc.Cgenr(nr, &n2, nil)
++	switch gc.Simtype[t.Etype] {
++	case gc.TINT8,
++		gc.TINT16,
++		gc.TINT32:
++		gins(optoas(gc.OMUL, t), &n2, &n1)
++		p := gins(s390x.ASRAD, nil, &n1)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = int64(w)
++
++	case gc.TUINT8,
++		gc.TUINT16,
++		gc.TUINT32:
++		gins(optoas(gc.OMUL, t), &n2, &n1)
++		p := gins(s390x.ASRD, nil, &n1)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = int64(w)
++
++	case gc.TINT64:
++		gins(s390x.AMULHD, &n2, &n1)
++
++	case gc.TUINT64:
++		gins(s390x.AMULHDU, &n2, &n1)
++
++	default:
++		gc.Fatalf("cgen_hmul %v", t)
++	}
++
++	gc.Cgen(&n1, res)
++	gc.Regfree(&n1)
++	gc.Regfree(&n2)
++}
++
++/*
++ * generate shift according to op, one of:
++ *	res = nl << nr
++ *	res = nl >> nr
++ */
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++	a := optoas(op, nl.Type)
++
++	if nr.Op == gc.OLITERAL {
++		var n1 gc.Node
++		gc.Regalloc(&n1, nl.Type, res)
++		gc.Cgen(nl, &n1)
++		sc := uint64(nr.Int64())
++		if sc >= uint64(nl.Type.Width*8) {
++			// large shift gets 2 shifts by width-1
++			var n3 gc.Node
++			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
++
++			gins(a, &n3, &n1)
++			gins(a, &n3, &n1)
++		} else {
++			gins(a, nr, &n1)
++		}
++		gmove(&n1, res)
++		gc.Regfree(&n1)
++		return
++	}
++
++	if nl.Ullman >= gc.UINF {
++		var n4 gc.Node
++		gc.Tempname(&n4, nl.Type)
++		gc.Cgen(nl, &n4)
++		nl = &n4
++	}
++
++	if nr.Ullman >= gc.UINF {
++		var n5 gc.Node
++		gc.Tempname(&n5, nr.Type)
++		gc.Cgen(nr, &n5)
++		nr = &n5
++	}
++
++	// Allow either uint32 or uint64 as shift type,
++	// to avoid unnecessary conversion from uint32 to uint64
++	// just to do the comparison.
++	tcount := gc.Types[gc.Simtype[nr.Type.Etype]]
++
++	if tcount.Etype < gc.TUINT32 {
++		tcount = gc.Types[gc.TUINT32]
++	}
++
++	var n1 gc.Node
++	gc.Regalloc(&n1, nr.Type, nil) // to hold the shift type in CX
++	var n3 gc.Node
++	gc.Regalloc(&n3, tcount, &n1) // to clear high bits of CX
++
++	var n2 gc.Node
++	gc.Regalloc(&n2, nl.Type, res)
++
++	if nl.Ullman >= nr.Ullman {
++		gc.Cgen(nl, &n2)
++		gc.Cgen(nr, &n1)
++		gmove(&n1, &n3)
++	} else {
++		gc.Cgen(nr, &n1)
++		gmove(&n1, &n3)
++		gc.Cgen(nl, &n2)
++	}
++
++	gc.Regfree(&n3)
++
++	// test and fix up large shifts
++	if !bounded {
++		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
++		gins(optoas(gc.OCMP, tcount), &n1, &n3)
++		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, 1)
++		if op == gc.ORSH && nl.Type.IsSigned() {
++			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
++			gins(a, &n3, &n2)
++		} else {
++			gc.Nodconst(&n3, nl.Type, 0)
++			gmove(&n3, &n2)
++		}
++
++		gc.Patch(p1, gc.Pc)
++	}
++
++	gins(a, &n1, &n2)
++
++	gmove(&n2, res)
++
++	gc.Regfree(&n1)
++	gc.Regfree(&n2)
++}
++
++// clearfat clears (i.e. replaces with zeros) the value pointed to by nl.
++func clearfat(nl *gc.Node) {
++	if gc.Debug['g'] != 0 {
++		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
++	}
++
++	// Avoid taking the address for simple enough types.
++	if gc.Componentgen(nil, nl) {
++		return
++	}
++
++	var dst gc.Node
++	gc.Regalloc(&dst, gc.Types[gc.Tptr], nil)
++	gc.Agen(nl, &dst)
++
++	var boff int64
++	w := nl.Type.Width
++	if w > clearLoopCutoff {
++		// Generate a loop clearing 256 bytes per iteration using XCs.
++		var end gc.Node
++		gc.Regalloc(&end, gc.Types[gc.Tptr], nil)
++		p := gins(s390x.AMOVD, &dst, &end)
++		p.From.Type = obj.TYPE_ADDR
++		p.From.Offset = w - (w % 256)
++
++		p = gins(s390x.AXC, &dst, &dst)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = 0
++		p.From3 = new(obj.Addr)
++		p.From3.Offset = 256
++		p.From3.Type = obj.TYPE_CONST
++		pl := p
++
++		ginscon(s390x.AADD, 256, &dst)
++		gins(s390x.ACMP, &dst, &end)
++		gc.Patch(gc.Gbranch(s390x.ABNE, nil, 0), pl)
++		gc.Regfree(&end)
++		w = w % 256
++	}
++
++	// Generate instructions to clear the remaining memory.
++	for w > 0 {
++		n := w
++
++		// Can clear at most 256 bytes per instruction.
++		if n > 256 {
++			n = 256
++		}
++
++		switch n {
++		// Handle very small clears using moves.
++		case 8, 4, 2, 1:
++			ins := s390x.AMOVB
++			switch n {
++			case 8:
++				ins = s390x.AMOVD
++			case 4:
++				ins = s390x.AMOVW
++			case 2:
++				ins = s390x.AMOVH
++			}
++			p := gins(ins, nil, &dst)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 0
++			p.To.Type = obj.TYPE_MEM
++			p.To.Offset = boff
++
++		// Handle clears that would require multiple moves with a XC.
++		default:
++			p := gins(s390x.AXC, &dst, &dst)
++			p.From.Type = obj.TYPE_MEM
++			p.From.Offset = boff
++			p.To.Type = obj.TYPE_MEM
++			p.To.Offset = boff
++			p.From3 = new(obj.Addr)
++			p.From3.Offset = n
++			p.From3.Type = obj.TYPE_CONST
++		}
++
++		boff += n
++		w -= n
++	}
++
++	gc.Regfree(&dst)
++}
++
++// Called after regopt and peep have run.
++// Expand CHECKNIL pseudo-op into actual nil pointer check.
++func expandchecks(firstp *obj.Prog) {
++	for p := firstp; p != nil; p = p.Link {
++		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
++			fmt.Printf("expandchecks: %v\n", p)
++		}
++		if p.As != obj.ACHECKNIL {
++			continue
++		}
++		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
++			gc.Warnl(p.Lineno, "generated nil check")
++		}
++		if p.From.Type != obj.TYPE_REG {
++			gc.Fatalf("invalid nil check %v\n", p)
++		}
++
++		// check is
++		//	CMPBNE arg, $0, 2(PC) [likely]
++		//	MOVD   R0, 0(R0)
++		p1 := gc.Ctxt.NewProg()
++
++		gc.Clearp(p1)
++		p1.Link = p.Link
++		p.Link = p1
++		p1.Lineno = p.Lineno
++		p1.Pc = 9999
++		p.As = s390x.ACMPBNE
++		p.From3 = new(obj.Addr)
++		p.From3.Type = obj.TYPE_CONST
++		p.From3.Offset = 0
++
++		p.To.Type = obj.TYPE_BRANCH
++		p.To.Val = p1.Link
++
++		// crash by write to memory address 0.
++		p1.As = s390x.AMOVD
++
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = s390x.REGZERO
++		p1.To.Type = obj.TYPE_MEM
++		p1.To.Reg = s390x.REGZERO
++		p1.To.Offset = 0
++	}
++}
++
++// res = runtime.getg()
++func getg(res *gc.Node) {
++	var n1 gc.Node
++	gc.Nodreg(&n1, res.Type, s390x.REGG)
++	gmove(&n1, res)
++}
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+new file mode 100644
+index 0000000000..e9cfd23e42
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -0,0 +1,1115 @@
++// Derived from Inferno utils/6c/txt.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
++	"fmt"
++)
++
++var resvd = []int{
++	s390x.REGZERO, // R0
++	s390x.REGTMP,  // R10
++	s390x.REGTMP2, // R11
++	s390x.REGCTXT, // R12
++	s390x.REGG,    // R13
++	s390x.REG_LR,  // R14
++	s390x.REGSP,   // R15
++}
++
++// generate
++//	as $c, n
++func ginscon(as obj.As, c int64, n2 *gc.Node) {
++	var n1 gc.Node
++
++	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
++
++	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER || as == s390x.AMULLD {
++		// cannot have more than 16-bit of immediate in ADD, etc.
++		// instead, MOV into register first.
++		var ntmp gc.Node
++		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
++
++		rawgins(s390x.AMOVD, &n1, &ntmp)
++		rawgins(as, &ntmp, n2)
++		gc.Regfree(&ntmp)
++		return
++	}
++
++	rawgins(as, &n1, n2)
++}
++
++// generate
++//	as n, $c (CMP/CMPU)
++func ginscon2(as obj.As, n2 *gc.Node, c int64) {
++	var n1 gc.Node
++
++	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
++
++	switch as {
++	default:
++		gc.Fatalf("ginscon2")
++
++	case s390x.ACMP:
++		if -s390x.BIG <= c && c <= s390x.BIG {
++			rawgins(as, n2, &n1)
++			return
++		}
++
++	case s390x.ACMPU:
++		if 0 <= c && c <= 2*s390x.BIG {
++			rawgins(as, n2, &n1)
++			return
++		}
++	}
++
++	// MOV n1 into register first
++	var ntmp gc.Node
++	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
++
++	rawgins(s390x.AMOVD, &n1, &ntmp)
++	rawgins(as, n2, &ntmp)
++	gc.Regfree(&ntmp)
++}
++
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if t.IsInteger() && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
++		// Reverse comparison to place constant last.
++		op = gc.Brrev(op)
++		n1, n2 = n2, n1
++	}
++
++	var r1, r2, g1, g2 gc.Node
++	gc.Regalloc(&r1, t, n1)
++	gc.Regalloc(&g1, n1.Type, &r1)
++	gc.Cgen(n1, &g1)
++	gmove(&g1, &r1)
++	if t.IsInteger() && gc.Isconst(n2, gc.CTINT) {
++		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int64())
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++		rawgins(optoas(gc.OCMP, t), &r1, &r2)
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
++	gc.Regfree(&g1)
++	gc.Regfree(&r1)
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
++// gmvc tries to move f to t using a mvc instruction.
++// If successful it returns true, otherwise it returns false.
++func gmvc(f, t *gc.Node) bool {
++	ft := int(gc.Simsimtype(f.Type))
++	tt := int(gc.Simsimtype(t.Type))
++
++	if ft != tt {
++		return false
++	}
++
++	if f.Op != gc.OINDREG || t.Op != gc.OINDREG {
++		return false
++	}
++
++	if f.Xoffset < 0 || f.Xoffset >= 4096-8 {
++		return false
++	}
++
++	if t.Xoffset < 0 || t.Xoffset >= 4096-8 {
++		return false
++	}
++
++	var len int64
++	switch ft {
++	case gc.TUINT8, gc.TINT8, gc.TBOOL:
++		len = 1
++	case gc.TUINT16, gc.TINT16:
++		len = 2
++	case gc.TUINT32, gc.TINT32, gc.TFLOAT32:
++		len = 4
++	case gc.TUINT64, gc.TINT64, gc.TFLOAT64, gc.TPTR64:
++		len = 8
++	case gc.TUNSAFEPTR:
++		len = int64(gc.Widthptr)
++	default:
++		return false
++	}
++
++	p := gc.Prog(s390x.AMVC)
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
++	p.From3 = new(obj.Addr)
++	p.From3.Offset = len
++	p.From3.Type = obj.TYPE_CONST
++	return true
++}
++
++// generate move:
++//	t = f
++// hard part is conversions.
++func gmove(f *gc.Node, t *gc.Node) {
++	if gc.Debug['M'] != 0 {
++		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
++	}
++
++	ft := int(gc.Simsimtype(f.Type))
++	tt := int(gc.Simsimtype(t.Type))
++	cvt := t.Type
++
++	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
++		gc.Complexmove(f, t)
++		return
++	}
++
++	var a obj.As
++
++	// cannot have two memory operands
++	if gc.Ismem(f) && gc.Ismem(t) {
++		if gmvc(f, t) {
++			return
++		}
++		goto hard
++	}
++
++	// convert constant to desired type
++	if f.Op == gc.OLITERAL {
++		var con gc.Node
++		f.Convconst(&con, t.Type)
++		f = &con
++		ft = tt // so big switch will choose a simple mov
++
++		// some constants can't move directly to memory.
++		if gc.Ismem(t) {
++			// float constants come from memory.
++			if t.Type.IsFloat() {
++				goto hard
++			}
++
++			// all immediates are 16-bit sign-extended
++			// unless moving into a register.
++			if t.Type.IsInteger() {
++				if i := con.Int64(); int64(int16(i)) != i {
++					goto hard
++				}
++			}
++
++			// immediate moves to memory have a 12-bit unsigned displacement
++			if t.Xoffset < 0 || t.Xoffset >= 4096-8 {
++				goto hard
++			}
++		}
++	}
++
++	// a float-to-int or int-to-float conversion requires the source operand in a register
++	if gc.Ismem(f) && ((f.Type.IsFloat() && t.Type.IsInteger()) || (f.Type.IsInteger() && t.Type.IsFloat())) {
++		cvt = f.Type
++		goto hard
++	}
++
++	// a float32-to-float64 or float64-to-float32 conversion requires the source operand in a register
++	if gc.Ismem(f) && f.Type.IsFloat() && t.Type.IsFloat() && (ft != tt) {
++		cvt = f.Type
++		goto hard
++	}
++
++	// value -> value copy, only one memory operand.
++	// figure out the instruction to use.
++	// break out of switch for one-instruction gins.
++	// goto rdst for "destination must be register".
++	// goto hard for "convert to cvt type first".
++	// otherwise handle and return.
++	switch uint32(ft)<<16 | uint32(tt) {
++	default:
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
++
++	// integer copy and truncate
++	case gc.TINT8<<16 | gc.TINT8,
++		gc.TUINT8<<16 | gc.TINT8,
++		gc.TINT16<<16 | gc.TINT8,
++		gc.TUINT16<<16 | gc.TINT8,
++		gc.TINT32<<16 | gc.TINT8,
++		gc.TUINT32<<16 | gc.TINT8,
++		gc.TINT64<<16 | gc.TINT8,
++		gc.TUINT64<<16 | gc.TINT8:
++		a = s390x.AMOVB
++
++	case gc.TINT8<<16 | gc.TUINT8,
++		gc.TUINT8<<16 | gc.TUINT8,
++		gc.TINT16<<16 | gc.TUINT8,
++		gc.TUINT16<<16 | gc.TUINT8,
++		gc.TINT32<<16 | gc.TUINT8,
++		gc.TUINT32<<16 | gc.TUINT8,
++		gc.TINT64<<16 | gc.TUINT8,
++		gc.TUINT64<<16 | gc.TUINT8:
++		a = s390x.AMOVBZ
++
++	case gc.TINT16<<16 | gc.TINT16,
++		gc.TUINT16<<16 | gc.TINT16,
++		gc.TINT32<<16 | gc.TINT16,
++		gc.TUINT32<<16 | gc.TINT16,
++		gc.TINT64<<16 | gc.TINT16,
++		gc.TUINT64<<16 | gc.TINT16:
++		a = s390x.AMOVH
++
++	case gc.TINT16<<16 | gc.TUINT16,
++		gc.TUINT16<<16 | gc.TUINT16,
++		gc.TINT32<<16 | gc.TUINT16,
++		gc.TUINT32<<16 | gc.TUINT16,
++		gc.TINT64<<16 | gc.TUINT16,
++		gc.TUINT64<<16 | gc.TUINT16:
++		a = s390x.AMOVHZ
++
++	case gc.TINT32<<16 | gc.TINT32,
++		gc.TUINT32<<16 | gc.TINT32,
++		gc.TINT64<<16 | gc.TINT32,
++		gc.TUINT64<<16 | gc.TINT32:
++		a = s390x.AMOVW
++
++	case gc.TINT32<<16 | gc.TUINT32,
++		gc.TUINT32<<16 | gc.TUINT32,
++		gc.TINT64<<16 | gc.TUINT32,
++		gc.TUINT64<<16 | gc.TUINT32:
++		a = s390x.AMOVWZ
++
++	case gc.TINT64<<16 | gc.TINT64,
++		gc.TINT64<<16 | gc.TUINT64,
++		gc.TUINT64<<16 | gc.TINT64,
++		gc.TUINT64<<16 | gc.TUINT64:
++		a = s390x.AMOVD
++
++	// sign extend int8
++	case gc.TINT8<<16 | gc.TINT16,
++		gc.TINT8<<16 | gc.TUINT16,
++		gc.TINT8<<16 | gc.TINT32,
++		gc.TINT8<<16 | gc.TUINT32,
++		gc.TINT8<<16 | gc.TINT64,
++		gc.TINT8<<16 | gc.TUINT64:
++		a = s390x.AMOVB
++		goto rdst
++
++	// sign extend uint8
++	case gc.TUINT8<<16 | gc.TINT16,
++		gc.TUINT8<<16 | gc.TUINT16,
++		gc.TUINT8<<16 | gc.TINT32,
++		gc.TUINT8<<16 | gc.TUINT32,
++		gc.TUINT8<<16 | gc.TINT64,
++		gc.TUINT8<<16 | gc.TUINT64:
++		a = s390x.AMOVBZ
++		goto rdst
++
++	// sign extend int16
++	case gc.TINT16<<16 | gc.TINT32,
++		gc.TINT16<<16 | gc.TUINT32,
++		gc.TINT16<<16 | gc.TINT64,
++		gc.TINT16<<16 | gc.TUINT64:
++		a = s390x.AMOVH
++		goto rdst
++
++	// zero extend uint16
++	case gc.TUINT16<<16 | gc.TINT32,
++		gc.TUINT16<<16 | gc.TUINT32,
++		gc.TUINT16<<16 | gc.TINT64,
++		gc.TUINT16<<16 | gc.TUINT64:
++		a = s390x.AMOVHZ
++		goto rdst
++
++	// sign extend int32
++	case gc.TINT32<<16 | gc.TINT64,
++		gc.TINT32<<16 | gc.TUINT64:
++		a = s390x.AMOVW
++		goto rdst
++
++	// zero extend uint32
++	case gc.TUINT32<<16 | gc.TINT64,
++		gc.TUINT32<<16 | gc.TUINT64:
++		a = s390x.AMOVWZ
++		goto rdst
++
++	// float to integer
++	case gc.TFLOAT32<<16 | gc.TUINT8,
++		gc.TFLOAT32<<16 | gc.TUINT16:
++		cvt = gc.Types[gc.TUINT32]
++		goto hard
++
++	case gc.TFLOAT32<<16 | gc.TUINT32:
++		a = s390x.ACLFEBR
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TUINT64:
++		a = s390x.ACLGEBR
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TUINT8,
++		gc.TFLOAT64<<16 | gc.TUINT16:
++		cvt = gc.Types[gc.TUINT32]
++		goto hard
++
++	case gc.TFLOAT64<<16 | gc.TUINT32:
++		a = s390x.ACLFDBR
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TUINT64:
++		a = s390x.ACLGDBR
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TINT8,
++		gc.TFLOAT32<<16 | gc.TINT16:
++		cvt = gc.Types[gc.TINT32]
++		goto hard
++
++	case gc.TFLOAT32<<16 | gc.TINT32:
++		a = s390x.ACFEBRA
++		goto rdst
++
++	case gc.TFLOAT32<<16 | gc.TINT64:
++		a = s390x.ACGEBRA
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TINT8,
++		gc.TFLOAT64<<16 | gc.TINT16:
++		cvt = gc.Types[gc.TINT32]
++		goto hard
++
++	case gc.TFLOAT64<<16 | gc.TINT32:
++		a = s390x.ACFDBRA
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TINT64:
++		a = s390x.ACGDBRA
++		goto rdst
++
++	// integer to float
++	case gc.TUINT8<<16 | gc.TFLOAT32,
++		gc.TUINT16<<16 | gc.TFLOAT32:
++		cvt = gc.Types[gc.TUINT32]
++		goto hard
++
++	case gc.TUINT32<<16 | gc.TFLOAT32:
++		a = s390x.ACELFBR
++		goto rdst
++
++	case gc.TUINT64<<16 | gc.TFLOAT32:
++		a = s390x.ACELGBR
++		goto rdst
++
++	case gc.TUINT8<<16 | gc.TFLOAT64,
++		gc.TUINT16<<16 | gc.TFLOAT64:
++		cvt = gc.Types[gc.TUINT32]
++		goto hard
++
++	case gc.TUINT32<<16 | gc.TFLOAT64:
++		a = s390x.ACDLFBR
++		goto rdst
++
++	case gc.TUINT64<<16 | gc.TFLOAT64:
++		a = s390x.ACDLGBR
++		goto rdst
++
++	case gc.TINT8<<16 | gc.TFLOAT32,
++		gc.TINT16<<16 | gc.TFLOAT32:
++		cvt = gc.Types[gc.TINT32]
++		goto hard
++
++	case gc.TINT32<<16 | gc.TFLOAT32:
++		a = s390x.ACEFBRA
++		goto rdst
++
++	case gc.TINT64<<16 | gc.TFLOAT32:
++		a = s390x.ACEGBRA
++		goto rdst
++
++	case gc.TINT8<<16 | gc.TFLOAT64,
++		gc.TINT16<<16 | gc.TFLOAT64:
++		cvt = gc.Types[gc.TINT32]
++		goto hard
++
++	case gc.TINT32<<16 | gc.TFLOAT64:
++		a = s390x.ACDFBRA
++		goto rdst
++
++	case gc.TINT64<<16 | gc.TFLOAT64:
++		a = s390x.ACDGBRA
++		goto rdst
++
++	// float to float
++	case gc.TFLOAT32<<16 | gc.TFLOAT32:
++		a = s390x.AFMOVS
++
++	case gc.TFLOAT64<<16 | gc.TFLOAT64:
++		a = s390x.AFMOVD
++
++	case gc.TFLOAT32<<16 | gc.TFLOAT64:
++		a = s390x.ALDEBR
++		goto rdst
++
++	case gc.TFLOAT64<<16 | gc.TFLOAT32:
++		a = s390x.ALEDBR
++		goto rdst
++	}
++
++	gins(a, f, t)
++	return
++
++	// requires register destination
++rdst:
++	if t != nil && t.Op == gc.OREGISTER {
++		gins(a, f, t)
++		return
++	} else {
++		var r1 gc.Node
++		gc.Regalloc(&r1, t.Type, t)
++
++		gins(a, f, &r1)
++		gmove(&r1, t)
++		gc.Regfree(&r1)
++		return
++	}
++
++	// requires register intermediate
++hard:
++	var r1 gc.Node
++	gc.Regalloc(&r1, cvt, t)
++
++	gmove(f, &r1)
++	gmove(&r1, t)
++	gc.Regfree(&r1)
++	return
++}
++
++func intLiteral(n *gc.Node) (x int64, ok bool) {
++	switch {
++	case n == nil:
++		return
++	case gc.Isconst(n, gc.CTINT):
++		return n.Int64(), true
++	case gc.Isconst(n, gc.CTBOOL):
++		return int64(obj.Bool2int(n.Bool())), true
++	}
++	return
++}
++
++// gins is called by the front end.
++// It synthesizes some multiple-instruction sequences
++// so the front end can stay simpler.
++func gins(as obj.As, f, t *gc.Node) *obj.Prog {
++	if t != nil {
++		if as >= obj.A_ARCHSPECIFIC {
++			if x, ok := intLiteral(f); ok {
++				ginscon(as, x, t)
++				return nil // caller must not use
++			}
++		}
++		if as == s390x.ACMP || as == s390x.ACMPU {
++			if x, ok := intLiteral(t); ok {
++				ginscon2(as, f, x)
++				return nil // caller must not use
++			}
++		}
++	}
++	return rawgins(as, f, t)
++}
++
++// generate one instruction:
++//	as f, t
++func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
++	// self move check
++	// TODO(mundaym): use sized math and extend to MOVB, MOVWZ etc.
++	switch as {
++	case s390x.AMOVD, s390x.AFMOVS, s390x.AFMOVD:
++		if f != nil && t != nil &&
++			f.Op == gc.OREGISTER && t.Op == gc.OREGISTER &&
++			f.Reg == t.Reg {
++			return nil
++		}
++	}
++
++	p := gc.Prog(as)
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
++
++	switch as {
++	// Bad things the front end has done to us. Crash to find call stack.
++	case s390x.AMULLD:
++		if p.From.Type == obj.TYPE_CONST {
++			gc.Debug['h'] = 1
++			gc.Fatalf("bad inst: %v", p)
++		}
++	case s390x.ACMP, s390x.ACMPU:
++		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
++			gc.Debug['h'] = 1
++			gc.Fatalf("bad inst: %v", p)
++		}
++	}
++
++	if gc.Debug['g'] != 0 {
++		fmt.Printf("%v\n", p)
++	}
++
++	w := int32(0)
++	switch as {
++	case s390x.AMOVB, s390x.AMOVBZ:
++		w = 1
++
++	case s390x.AMOVH, s390x.AMOVHZ:
++		w = 2
++
++	case s390x.AMOVW, s390x.AMOVWZ:
++		w = 4
++
++	case s390x.AMOVD:
++		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
++			break
++		}
++		w = 8
++	}
++
++	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
++		gc.Dump("f", f)
++		gc.Dump("t", t)
++		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
++	}
++
++	return p
++}
++
++// optoas returns the Axxx equivalent of Oxxx for type t
++func optoas(op gc.Op, t *gc.Type) obj.As {
++	if t == nil {
++		gc.Fatalf("optoas: t is nil")
++	}
++
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_ = uint32(gc.OMINUS) << 16
++		OLSH_   = uint32(gc.OLSH) << 16
++		ORSH_   = uint32(gc.ORSH) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OOR_    = uint32(gc.OOR) << 16
++		OAND_   = uint32(gc.OAND) << 16
++		OXOR_   = uint32(gc.OXOR) << 16
++		OEQ_    = uint32(gc.OEQ) << 16
++		ONE_    = uint32(gc.ONE) << 16
++		OLT_    = uint32(gc.OLT) << 16
++		OLE_    = uint32(gc.OLE) << 16
++		OGE_    = uint32(gc.OGE) << 16
++		OGT_    = uint32(gc.OGT) << 16
++		OCMP_   = uint32(gc.OCMP) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OHMUL_  = uint32(gc.OHMUL) << 16
++		OSQRT_  = uint32(gc.OSQRT) << 16
++		OLROT_  = uint32(gc.OLROT) << 16
++	)
++
++	a := obj.AXXX
++	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
++	default:
++		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
++		a = s390x.ABEQ
++
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
++		a = s390x.ABNE
++
++	case OLT_ | gc.TINT8, // ACMP
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64,
++		OLT_ | gc.TUINT8,
++		// ACMPU
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
++		// AFCMPU
++		OLT_ | gc.TFLOAT64:
++		a = s390x.ABLT
++
++	case OLE_ | gc.TINT8, // ACMP
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64,
++		OLE_ | gc.TUINT8,
++		// ACMPU
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64,
++		OLE_ | gc.TFLOAT32,
++		OLE_ | gc.TFLOAT64:
++		a = s390x.ABLE
++
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64,
++		OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64,
++		OGT_ | gc.TFLOAT32,
++		OGT_ | gc.TFLOAT64:
++		a = s390x.ABGT
++
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64,
++		OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64,
++		OGE_ | gc.TFLOAT32,
++		OGE_ | gc.TFLOAT64:
++		a = s390x.ABGE
++
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TINT16,
++		OCMP_ | gc.TINT32,
++		OCMP_ | gc.TPTR32,
++		OCMP_ | gc.TINT64:
++		a = s390x.ACMP
++
++	case OCMP_ | gc.TUINT8,
++		OCMP_ | gc.TUINT16,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TUINT64,
++		OCMP_ | gc.TPTR64:
++		a = s390x.ACMPU
++
++	case OCMP_ | gc.TFLOAT32:
++		a = s390x.ACEBR
++
++	case OCMP_ | gc.TFLOAT64:
++		a = s390x.AFCMPU
++
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8:
++		a = s390x.AMOVB
++
++	case OAS_ | gc.TUINT8:
++		a = s390x.AMOVBZ
++
++	case OAS_ | gc.TINT16:
++		a = s390x.AMOVH
++
++	case OAS_ | gc.TUINT16:
++		a = s390x.AMOVHZ
++
++	case OAS_ | gc.TINT32:
++		a = s390x.AMOVW
++
++	case OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
++		a = s390x.AMOVWZ
++
++	case OAS_ | gc.TINT64,
++		OAS_ | gc.TUINT64,
++		OAS_ | gc.TPTR64:
++		a = s390x.AMOVD
++
++	case OAS_ | gc.TFLOAT32:
++		a = s390x.AFMOVS
++
++	case OAS_ | gc.TFLOAT64:
++		a = s390x.AFMOVD
++
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8,
++		OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16,
++		OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32,
++		OADD_ | gc.TINT64,
++		OADD_ | gc.TUINT64,
++		OADD_ | gc.TPTR64:
++		a = s390x.AADD
++
++	case OADD_ | gc.TFLOAT32:
++		a = s390x.AFADDS
++
++	case OADD_ | gc.TFLOAT64:
++		a = s390x.AFADD
++
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8,
++		OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16,
++		OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32,
++		OSUB_ | gc.TINT64,
++		OSUB_ | gc.TUINT64,
++		OSUB_ | gc.TPTR64:
++		a = s390x.ASUB
++
++	case OSUB_ | gc.TFLOAT32:
++		a = s390x.AFSUBS
++
++	case OSUB_ | gc.TFLOAT64:
++		a = s390x.AFSUB
++
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8,
++		OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16,
++		OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32,
++		OMINUS_ | gc.TINT64,
++		OMINUS_ | gc.TUINT64,
++		OMINUS_ | gc.TPTR64:
++		a = s390x.ANEG
++
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8,
++		OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16,
++		OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32,
++		OAND_ | gc.TINT64,
++		OAND_ | gc.TUINT64,
++		OAND_ | gc.TPTR64:
++		a = s390x.AAND
++
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8,
++		OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16,
++		OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32,
++		OOR_ | gc.TINT64,
++		OOR_ | gc.TUINT64,
++		OOR_ | gc.TPTR64:
++		a = s390x.AOR
++
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8,
++		OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16,
++		OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32,
++		OXOR_ | gc.TINT64,
++		OXOR_ | gc.TUINT64,
++		OXOR_ | gc.TPTR64:
++		a = s390x.AXOR
++
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8,
++		OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16,
++		OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32,
++		OLSH_ | gc.TINT64,
++		OLSH_ | gc.TUINT64,
++		OLSH_ | gc.TPTR64:
++		a = s390x.ASLD
++
++	case ORSH_ | gc.TUINT8,
++		ORSH_ | gc.TUINT16,
++		ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32,
++		ORSH_ | gc.TUINT64,
++		ORSH_ | gc.TPTR64:
++		a = s390x.ASRD
++
++	case ORSH_ | gc.TINT8,
++		ORSH_ | gc.TINT16,
++		ORSH_ | gc.TINT32,
++		ORSH_ | gc.TINT64:
++		a = s390x.ASRAD
++
++	case OHMUL_ | gc.TINT64:
++		a = s390x.AMULHD
++
++	case OHMUL_ | gc.TUINT64,
++		OHMUL_ | gc.TPTR64:
++		a = s390x.AMULHDU
++
++	case OMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT32,
++		OMUL_ | gc.TINT64:
++		a = s390x.AMULLD
++
++	case OMUL_ | gc.TUINT8,
++		OMUL_ | gc.TUINT16,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32,
++		// don't use word multiply, the high 32-bit are undefined.
++		OMUL_ | gc.TUINT64,
++		OMUL_ | gc.TPTR64:
++		// for 64-bit multiplies, signedness doesn't matter.
++		a = s390x.AMULLD
++
++	case OMUL_ | gc.TFLOAT32:
++		a = s390x.AFMULS
++
++	case OMUL_ | gc.TFLOAT64:
++		a = s390x.AFMUL
++
++	case ODIV_ | gc.TINT8,
++		ODIV_ | gc.TINT16,
++		ODIV_ | gc.TINT32,
++		ODIV_ | gc.TINT64:
++		a = s390x.ADIVD
++
++	case ODIV_ | gc.TUINT8,
++		ODIV_ | gc.TUINT16,
++		ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		ODIV_ | gc.TUINT64,
++		ODIV_ | gc.TPTR64:
++		a = s390x.ADIVDU
++
++	case ODIV_ | gc.TFLOAT32:
++		a = s390x.AFDIVS
++
++	case ODIV_ | gc.TFLOAT64:
++		a = s390x.AFDIV
++
++	case OSQRT_ | gc.TFLOAT64:
++		a = s390x.AFSQRT
++
++	case OLROT_ | gc.TUINT32,
++		OLROT_ | gc.TPTR32,
++		OLROT_ | gc.TINT32:
++		a = s390x.ARLL
++
++	case OLROT_ | gc.TUINT64,
++		OLROT_ | gc.TPTR64,
++		OLROT_ | gc.TINT64:
++		a = s390x.ARLLG
++	}
++
++	return a
++}
++
++const (
++	ODynam   = 1 << 0
++	OAddable = 1 << 1
++)
++
++var clean [20]gc.Node
++
++var cleani int = 0
++
++func sudoclean() {
++	if clean[cleani-1].Op != gc.OEMPTY {
++		gc.Regfree(&clean[cleani-1])
++	}
++	if clean[cleani-2].Op != gc.OEMPTY {
++		gc.Regfree(&clean[cleani-2])
++	}
++	cleani -= 2
++}
++
++/*
++ * generate code to compute address of n,
++ * a reference to a (perhaps nested) field inside
++ * an array or struct.
++ * return 0 on failure, 1 on success.
++ * on success, leaves usable address in a.
++ *
++ * caller is responsible for calling sudoclean
++ * after successful sudoaddable,
++ * to release the register used for a.
++ */
++func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
++	if n.Type == nil {
++		return false
++	}
++
++	*a = obj.Addr{}
++
++	switch n.Op {
++	case gc.OLITERAL:
++		if !gc.Isconst(n, gc.CTINT) {
++			return false
++		}
++		v := n.Int64()
++		switch as {
++		default:
++			return false
++
++		// operations that can cope with a 32-bit immediate
++		// TODO(mundaym): logical operations can work on high bits
++		case s390x.AADD,
++			s390x.AADDC,
++			s390x.ASUB,
++			s390x.AMULLW,
++			s390x.AAND,
++			s390x.AOR,
++			s390x.AXOR,
++			s390x.ASLD,
++			s390x.ASLW,
++			s390x.ASRAW,
++			s390x.ASRAD,
++			s390x.ASRW,
++			s390x.ASRD,
++			s390x.AMOVB,
++			s390x.AMOVBZ,
++			s390x.AMOVH,
++			s390x.AMOVHZ,
++			s390x.AMOVW,
++			s390x.AMOVWZ,
++			s390x.AMOVD:
++			if int64(int32(v)) != v {
++				return false
++			}
++
++		// for comparisons avoid immediates unless they can
++		// fit into a int8/uint8
++		// this favours combined compare and branch instructions
++		case s390x.ACMP:
++			if int64(int8(v)) != v {
++				return false
++			}
++		case s390x.ACMPU:
++			if int64(uint8(v)) != v {
++				return false
++			}
++		}
++
++		cleani += 2
++		reg := &clean[cleani-1]
++		reg1 := &clean[cleani-2]
++		reg.Op = gc.OEMPTY
++		reg1.Op = gc.OEMPTY
++		gc.Naddr(a, n)
++		return true
++
++	case gc.ODOT,
++		gc.ODOTPTR:
++		cleani += 2
++		reg := &clean[cleani-1]
++		reg1 := &clean[cleani-2]
++		reg.Op = gc.OEMPTY
++		reg1.Op = gc.OEMPTY
++		var nn *gc.Node
++		var oary [10]int64
++		o := gc.Dotoffset(n, oary[:], &nn)
++		if nn == nil {
++			sudoclean()
++			return false
++		}
++
++		if nn.Addable && o == 1 && oary[0] >= 0 {
++			// directly addressable set of DOTs
++			n1 := *nn
++
++			n1.Type = n.Type
++			n1.Xoffset += oary[0]
++			// check that the offset fits into a 12-bit displacement
++			if n1.Xoffset < 0 || n1.Xoffset >= (1<<12)-8 {
++				sudoclean()
++				return false
++			}
++			gc.Naddr(a, &n1)
++			return true
++		}
++
++		gc.Regalloc(reg, gc.Types[gc.Tptr], nil)
++		n1 := *reg
++		n1.Op = gc.OINDREG
++		if oary[0] >= 0 {
++			gc.Agen(nn, reg)
++			n1.Xoffset = oary[0]
++		} else {
++			gc.Cgen(nn, reg)
++			gc.Cgen_checknil(reg)
++			n1.Xoffset = -(oary[0] + 1)
++		}
++
++		for i := 1; i < o; i++ {
++			if oary[i] >= 0 {
++				gc.Fatalf("can't happen")
++			}
++			gins(s390x.AMOVD, &n1, reg)
++			gc.Cgen_checknil(reg)
++			n1.Xoffset = -(oary[i] + 1)
++		}
++
++		a.Type = obj.TYPE_NONE
++		a.Index = 0
++		// check that the offset fits into a 12-bit displacement
++		if n1.Xoffset < 0 || n1.Xoffset >= (1<<12)-8 {
++			tmp := n1
++			tmp.Op = gc.OREGISTER
++			tmp.Type = gc.Types[gc.Tptr]
++			tmp.Xoffset = 0
++			gc.Cgen_checknil(&tmp)
++			ginscon(s390x.AADD, n1.Xoffset, &tmp)
++			n1.Xoffset = 0
++		}
++		gc.Naddr(a, &n1)
++		return true
++	}
++
++	return false
++}
+diff --git a/src/cmd/compile/internal/s390x/peep.go b/src/cmd/compile/internal/s390x/peep.go
+new file mode 100644
+index 0000000000..86258d67da
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/peep.go
+@@ -0,0 +1,1664 @@
++// Derived from Inferno utils/6c/peep.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
++	"fmt"
++)
++
++type usage int
++
++const (
++	_None          usage = iota // no usage found
++	_Read                       // only read from
++	_ReadWriteSame              // both read from and written to in a single operand
++	_Write                      // only written to
++	_ReadWriteDiff              // both read from and written to in different operands
++)
++
++var gactive uint32
++
++func peep(firstp *obj.Prog) {
++	g := gc.Flowstart(firstp, nil)
++	if g == nil {
++		return
++	}
++	gactive = 0
++
++	run := func(name string, pass func(r *gc.Flow) int) int {
++		n := pass(g.Start)
++		if gc.Debug['P'] != 0 {
++			fmt.Println(name, ":", n)
++		}
++		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++			gc.Dumpit(name, g.Start, 0)
++		}
++		return n
++	}
++
++	for {
++		n := 0
++		n += run("constant propagation", constantPropagation)
++		n += run("copy propagation", copyPropagation)
++		n += run("cast propagation", castPropagation)
++		n += run("remove load-hit-stores", removeLoadHitStores)
++		n += run("dead code elimination", deadCodeElimination)
++		if n == 0 {
++			break
++		}
++	}
++	run("fuse op moves", fuseOpMoves)
++	run("fuse clears", fuseClear)
++	run("load pipelining", loadPipelining)
++	run("fuse compare branch", fuseCompareBranch)
++	run("simplify ops", simplifyOps)
++	run("dead code elimination", deadCodeElimination)
++
++	// TODO(mundaym): load/store multiple aren't currently handled by copyu
++	// so this pass must be last.
++	run("fuse multiple", fuseMultiple)
++
++	gc.Flowend(g)
++}
++
++func pushback(r0 *gc.Flow) {
++	var r *gc.Flow
++
++	var b *gc.Flow
++	p0 := r0.Prog
++	for r = gc.Uniqp(r0); r != nil && gc.Uniqs(r) != nil; r = gc.Uniqp(r) {
++		p := r.Prog
++		if p.As != obj.ANOP {
++			if !(isReg(&p.From) || isConst(&p.From)) || !isReg(&p.To) {
++				break
++			}
++			if copyu(p, &p0.To, nil) != _None || copyu(p0, &p.To, nil) != _None {
++				break
++			}
++		}
++
++		if p.As == obj.ACALL {
++			break
++		}
++		b = r
++	}
++
++	if b == nil {
++		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++			fmt.Printf("no pushback: %v\n", r0.Prog)
++			if r != nil {
++				fmt.Printf("\t%v [%v]\n", r.Prog, gc.Uniqs(r) != nil)
++			}
++		}
++
++		return
++	}
++
++	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++		fmt.Printf("pushback\n")
++		for r := b; ; r = r.Link {
++			fmt.Printf("\t%v\n", r.Prog)
++			if r == r0 {
++				break
++			}
++		}
++	}
++
++	t := obj.Prog(*r0.Prog)
++	for r = gc.Uniqp(r0); ; r = gc.Uniqp(r) {
++		p0 = r.Link.Prog
++		p := r.Prog
++		p0.As = p.As
++		p0.Lineno = p.Lineno
++		p0.From = p.From
++		p0.To = p.To
++		p0.From3 = p.From3
++		p0.Reg = p.Reg
++		p0.RegTo2 = p.RegTo2
++		if r == b {
++			break
++		}
++	}
++
++	p0 = r.Prog
++	p0.As = t.As
++	p0.Lineno = t.Lineno
++	p0.From = t.From
++	p0.To = t.To
++	p0.From3 = t.From3
++	p0.Reg = t.Reg
++	p0.RegTo2 = t.RegTo2
++
++	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++		fmt.Printf("\tafter\n")
++		for r := (*gc.Flow)(b); ; r = r.Link {
++			fmt.Printf("\t%v\n", r.Prog)
++			if r == r0 {
++				break
++			}
++		}
++	}
++}
++
++// excise replaces the given instruction with a NOP and clears
++// its operands.
++func excise(r *gc.Flow) {
++	p := r.Prog
++	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++		fmt.Printf("%v ===delete===\n", p)
++	}
++	obj.Nopout(p)
++	gc.Ostats.Ndelmov++
++}
++
++// isZero returns true if a is either the constant 0 or the register
++// REGZERO.
++func isZero(a *obj.Addr) bool {
++	if a.Type == obj.TYPE_CONST && a.Offset == 0 {
++		return true
++	}
++	if a.Type == obj.TYPE_REG && a.Reg == s390x.REGZERO {
++		return true
++	}
++	return false
++}
++
++// isReg returns true if a is a general purpose or floating point
++// register (GPR or FPR).
++//
++// TODO(mundaym): currently this excludes REGZER0, but not other
++// special registers.
++func isReg(a *obj.Addr) bool {
++	return a.Type == obj.TYPE_REG &&
++		s390x.REG_R0 <= a.Reg &&
++		a.Reg <= s390x.REG_F15 &&
++		a.Reg != s390x.REGZERO
++}
++
++// isGPR returns true if a is a general purpose register (GPR).
++// REGZERO is treated as a GPR.
++func isGPR(a *obj.Addr) bool {
++	return a.Type == obj.TYPE_REG &&
++		s390x.REG_R0 <= a.Reg &&
++		a.Reg <= s390x.REG_R15
++}
++
++// isFPR returns true if a is a floating point register (FPR).
++func isFPR(a *obj.Addr) bool {
++	return a.Type == obj.TYPE_REG &&
++		s390x.REG_F0 <= a.Reg &&
++		a.Reg <= s390x.REG_F15
++}
++
++// isConst returns true if a refers to a constant (integer or
++// floating point, not string currently).
++func isConst(a *obj.Addr) bool {
++	return a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_FCONST
++}
++
++// isBDMem returns true if a refers to a memory location addressable by a
++// base register (B) and a displacement (D), such as:
++// 	x+8(R1)
++// and
++//	0(R10)
++// It returns false if the address contains an index register (X) such as:
++// 	16(R1)(R2*1)
++// or if a relocation is required.
++func isBDMem(a *obj.Addr) bool {
++	return a.Type == obj.TYPE_MEM &&
++		a.Index == 0 &&
++		(a.Name == obj.NAME_NONE || a.Name == obj.NAME_AUTO || a.Name == obj.NAME_PARAM)
++}
++
++// the idea is to substitute
++// one register for another
++// from one MOV to another
++//	MOV	a, R1
++//	ADD	b, R1	/ no use of R2
++//	MOV	R1, R2
++// would be converted to
++//	MOV	a, R2
++//	ADD	b, R2
++//	MOV	R2, R1
++// hopefully, then the former or latter MOV
++// will be eliminated by copy propagation.
++//
++// r0 (the argument, not the register) is the MOV at the end of the
++// above sequences. subprop returns true if it modified any instructions.
++func subprop(r0 *gc.Flow) bool {
++	p := r0.Prog
++	v1 := &p.From
++	if !isReg(v1) {
++		return false
++	}
++	v2 := &p.To
++	if !isReg(v2) {
++		return false
++	}
++	cast := false
++	switch p.As {
++	case s390x.AMOVW, s390x.AMOVWZ,
++		s390x.AMOVH, s390x.AMOVHZ,
++		s390x.AMOVB, s390x.AMOVBZ:
++		cast = true
++	}
++	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
++		if gc.Uniqs(r) == nil {
++			break
++		}
++		p = r.Prog
++		switch copyu(p, v1, nil) {
++		case _Write, _ReadWriteDiff:
++			if p.As == obj.ACALL {
++				return false
++			}
++			if (!cast || p.As == r0.Prog.As) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
++				copysub(&p.To, v1, v2)
++				for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
++					p = r.Prog
++					copysub(&p.From, v1, v2)
++					copysub1(p, v1, v2)
++					copysub(&p.To, v1, v2)
++				}
++				v1.Reg, v2.Reg = v2.Reg, v1.Reg
++				return true
++			}
++			if cast {
++				return false
++			}
++		case _ReadWriteSame:
++			if cast {
++				return false
++			}
++		}
++		if copyu(p, v2, nil) != _None {
++			return false
++		}
++	}
++	return false
++}
++
++// The idea is to remove redundant copies.
++//     v1->v2  F=0
++//     (use v2 s/v2/v1/)*
++//     set v1  F=1
++//     use v2  return fail (v1->v2 move must remain)
++//     -----------------
++//     v1->v2  F=0
++//     (use v2 s/v2/v1/)*
++//     set v1  F=1
++//     set v2  return success (caller can remove v1->v2 move)
++func copyprop(r *gc.Flow) bool {
++	p := r.Prog
++
++	canSub := false
++	switch p.As {
++	case s390x.AFMOVS, s390x.AFMOVD, s390x.AMOVD:
++		canSub = true
++	default:
++		for rr := gc.Uniqp(r); rr != nil; rr = gc.Uniqp(rr) {
++			if gc.Uniqs(rr) == nil {
++				break
++			}
++			switch copyu(rr.Prog, &p.From, nil) {
++			case _Read, _None:
++				continue
++			}
++			// write
++			if rr.Prog.As == p.As {
++				canSub = true
++			}
++			break
++		}
++	}
++	if !canSub {
++		return false
++	}
++	if copyas(&p.From, &p.To) {
++		return true
++	}
++
++	gactive++
++	return copy1(&p.From, &p.To, r.S1, 0)
++}
++
++// copy1 replaces uses of v2 with v1 starting at r and returns true if
++// all uses were rewritten.
++func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
++	if uint32(r.Active) == gactive {
++		return true
++	}
++	r.Active = int32(gactive)
++	for ; r != nil; r = r.S1 {
++		p := r.Prog
++		if f == 0 && gc.Uniqp(r) == nil {
++			// Multiple predecessors; conservatively
++			// assume v1 was set on other path
++			f = 1
++		}
++		t := copyu(p, v2, nil)
++		switch t {
++		case _ReadWriteSame:
++			return false
++		case _Write:
++			return true
++		case _Read, _ReadWriteDiff:
++			if f != 0 {
++				return false
++			}
++			if copyu(p, v2, v1) != 0 {
++				return false
++			}
++			if t == _ReadWriteDiff {
++				return true
++			}
++		}
++		if f == 0 {
++			switch copyu(p, v1, nil) {
++			case _ReadWriteSame, _ReadWriteDiff, _Write:
++				f = 1
++			}
++		}
++		if r.S2 != nil {
++			if !copy1(v1, v2, r.S2, f) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// If s==nil, copyu returns the set/use of v in p; otherwise, it
++// modifies p to replace reads of v with reads of s and returns 0 for
++// success or non-zero for failure.
++//
++// If s==nil, copy returns one of the following values:
++// 	_Read           if v only used
++//	_ReadWriteSame  if v is set and used in one address (read-alter-rewrite;
++// 	                can't substitute)
++//	_Write          if v is only set
++//	_ReadWriteDiff  if v is set in one address and used in another (so addresses
++// 	                can be rewritten independently)
++//	_None           otherwise (not touched)
++func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) usage {
++	if p.From3Type() != obj.TYPE_NONE && p.From3Type() != obj.TYPE_CONST {
++		// Currently we never generate a From3 with anything other than a constant in it.
++		fmt.Printf("copyu: From3 (%v) not implemented\n", gc.Ctxt.Dconv(p.From3))
++	}
++
++	switch p.As {
++	default:
++		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		return _ReadWriteSame
++
++	case // read p.From, write p.To
++		s390x.AMOVH,
++		s390x.AMOVHZ,
++		s390x.AMOVB,
++		s390x.AMOVBZ,
++		s390x.AMOVW,
++		s390x.AMOVWZ,
++		s390x.AMOVD,
++		s390x.ANEG,
++		s390x.AADDME,
++		s390x.AADDZE,
++		s390x.ASUBME,
++		s390x.ASUBZE,
++		s390x.AFMOVS,
++		s390x.AFMOVD,
++		s390x.ALEDBR,
++		s390x.AFNEG,
++		s390x.ALDEBR,
++		s390x.ACLFEBR,
++		s390x.ACLGEBR,
++		s390x.ACLFDBR,
++		s390x.ACLGDBR,
++		s390x.ACFEBRA,
++		s390x.ACGEBRA,
++		s390x.ACFDBRA,
++		s390x.ACGDBRA,
++		s390x.ACELFBR,
++		s390x.ACELGBR,
++		s390x.ACDLFBR,
++		s390x.ACDLGBR,
++		s390x.ACEFBRA,
++		s390x.ACEGBRA,
++		s390x.ACDFBRA,
++		s390x.ACDGBRA,
++		s390x.AFSQRT:
++
++		if s != nil {
++			copysub(&p.From, v, s)
++
++			// Update only indirect uses of v in p.To
++			if !copyas(&p.To, v) {
++				copysub(&p.To, v, s)
++			}
++			return _None
++		}
++
++		if copyas(&p.To, v) {
++			// Fix up implicit from
++			if p.From.Type == obj.TYPE_NONE {
++				p.From = p.To
++			}
++			if copyau(&p.From, v) {
++				return _ReadWriteDiff
++			}
++			return _Write
++		}
++
++		if copyau(&p.From, v) {
++			return _Read
++		}
++		if copyau(&p.To, v) {
++			// p.To only indirectly uses v
++			return _Read
++		}
++
++		return _None
++
++	// read p.From, read p.Reg, write p.To
++	case s390x.AADD,
++		s390x.AADDC,
++		s390x.AADDE,
++		s390x.ASUB,
++		s390x.ASLW,
++		s390x.ASRW,
++		s390x.ASRAW,
++		s390x.ASLD,
++		s390x.ASRD,
++		s390x.ASRAD,
++		s390x.ARLL,
++		s390x.ARLLG,
++		s390x.AOR,
++		s390x.AORN,
++		s390x.AAND,
++		s390x.AANDN,
++		s390x.ANAND,
++		s390x.ANOR,
++		s390x.AXOR,
++		s390x.AMULLW,
++		s390x.AMULLD,
++		s390x.AMULHD,
++		s390x.AMULHDU,
++		s390x.ADIVW,
++		s390x.ADIVD,
++		s390x.ADIVWU,
++		s390x.ADIVDU,
++		s390x.AFADDS,
++		s390x.AFADD,
++		s390x.AFSUBS,
++		s390x.AFSUB,
++		s390x.AFMULS,
++		s390x.AFMUL,
++		s390x.AFDIVS,
++		s390x.AFDIV:
++		if s != nil {
++			copysub(&p.From, v, s)
++			copysub1(p, v, s)
++
++			// Update only indirect uses of v in p.To
++			if !copyas(&p.To, v) {
++				copysub(&p.To, v, s)
++			}
++		}
++
++		if copyas(&p.To, v) {
++			if p.Reg == 0 {
++				p.Reg = p.To.Reg
++			}
++			if copyau(&p.From, v) || copyau1(p, v) {
++				return _ReadWriteDiff
++			}
++			return _Write
++		}
++
++		if copyau(&p.From, v) {
++			return _Read
++		}
++		if copyau1(p, v) {
++			return _Read
++		}
++		if copyau(&p.To, v) {
++			return _Read
++		}
++		return _None
++
++	case s390x.ABEQ,
++		s390x.ABGT,
++		s390x.ABGE,
++		s390x.ABLT,
++		s390x.ABLE,
++		s390x.ABNE,
++		s390x.ABVC,
++		s390x.ABVS:
++		return _None
++
++	case obj.ACHECKNIL, // read p.From
++		s390x.ACMP, // read p.From, read p.To
++		s390x.ACMPU,
++		s390x.ACMPW,
++		s390x.ACMPWU,
++		s390x.AFCMPO,
++		s390x.AFCMPU,
++		s390x.ACEBR,
++		s390x.AMVC,
++		s390x.ACLC,
++		s390x.AXC,
++		s390x.AOC,
++		s390x.ANC:
++		if s != nil {
++			copysub(&p.From, v, s)
++			copysub(&p.To, v, s)
++			return _None
++		}
++
++		if copyau(&p.From, v) {
++			return _Read
++		}
++		if copyau(&p.To, v) {
++			return _Read
++		}
++		return _None
++
++	case s390x.ACMPBNE, s390x.ACMPBEQ,
++		s390x.ACMPBLT, s390x.ACMPBLE,
++		s390x.ACMPBGT, s390x.ACMPBGE,
++		s390x.ACMPUBNE, s390x.ACMPUBEQ,
++		s390x.ACMPUBLT, s390x.ACMPUBLE,
++		s390x.ACMPUBGT, s390x.ACMPUBGE:
++		if s != nil {
++			copysub(&p.From, v, s)
++			copysub1(p, v, s)
++			return _None
++		}
++		if copyau(&p.From, v) {
++			return _Read
++		}
++		if copyau1(p, v) {
++			return _Read
++		}
++		return _None
++
++	case s390x.ACLEAR:
++		if s != nil {
++			copysub(&p.To, v, s)
++			return _None
++		}
++		if copyau(&p.To, v) {
++			return _Read
++		}
++		return _None
++
++	// go never generates a branch to a GPR
++	// read p.To
++	case s390x.ABR:
++		if s != nil {
++			copysub(&p.To, v, s)
++			return _None
++		}
++
++		if copyau(&p.To, v) {
++			return _Read
++		}
++		return _None
++
++	case obj.ARET, obj.AUNDEF:
++		if s != nil {
++			return _None
++		}
++
++		// All registers die at this point, so claim
++		// everything is set (and not used).
++		return _Write
++
++	case s390x.ABL:
++		if v.Type == obj.TYPE_REG {
++			if s390x.REGARG != -1 && v.Reg == s390x.REGARG {
++				return _ReadWriteSame
++			}
++			if p.From.Type == obj.TYPE_REG && p.From.Reg == v.Reg {
++				return _ReadWriteSame
++			}
++			if v.Reg == s390x.REGZERO {
++				// Deliberately inserted nops set R0.
++				return _ReadWriteSame
++			}
++			if v.Reg == s390x.REGCTXT {
++				// Context register for closures.
++				// TODO(mundaym): not sure if we need to exclude this.
++				return _ReadWriteSame
++			}
++		}
++		if s != nil {
++			copysub(&p.To, v, s)
++			return _None
++		}
++		if copyau(&p.To, v) {
++			return _ReadWriteDiff
++		}
++		return _Write
++
++	case obj.ATEXT:
++		if v.Type == obj.TYPE_REG {
++			if v.Reg == s390x.REGARG {
++				return _Write
++			}
++		}
++		return _None
++
++	case obj.APCDATA,
++		obj.AFUNCDATA,
++		obj.AVARDEF,
++		obj.AVARKILL,
++		obj.AVARLIVE,
++		obj.AUSEFIELD,
++		obj.ANOP:
++		return _None
++	}
++}
++
++// copyas returns 1 if a and v address the same register.
++//
++// If a is the from operand, this means this operation reads the
++// register in v.  If a is the to operand, this means this operation
++// writes the register in v.
++func copyas(a *obj.Addr, v *obj.Addr) bool {
++	if isReg(v) {
++		if a.Type == v.Type {
++			if a.Reg == v.Reg {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// copyau returns 1 if a either directly or indirectly addresses the
++// same register as v.
++//
++// If a is the from operand, this means this operation reads the
++// register in v.  If a is the to operand, this means the operation
++// either reads or writes the register in v (if !copyas(a, v), then
++// the operation reads the register in v).
++func copyau(a *obj.Addr, v *obj.Addr) bool {
++	if copyas(a, v) {
++		return true
++	}
++	if v.Type == obj.TYPE_REG {
++		if a.Type == obj.TYPE_MEM || (a.Type == obj.TYPE_ADDR && a.Reg != 0) {
++			if v.Reg == a.Reg {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// copyau1 returns 1 if p.Reg references the same register as v and v
++// is a direct reference.
++func copyau1(p *obj.Prog, v *obj.Addr) bool {
++	if isReg(v) && v.Reg != 0 {
++		if p.Reg == v.Reg {
++			return true
++		}
++	}
++	return false
++}
++
++// copysub replaces v.Reg with s.Reg if a.Reg and v.Reg are direct
++// references to the same register.
++func copysub(a, v, s *obj.Addr) {
++	if copyau(a, v) {
++		a.Reg = s.Reg
++	}
++}
++
++// copysub1 replaces p.Reg with s.Reg if p.Reg and v.Reg are direct
++// references to the same register.
++func copysub1(p *obj.Prog, v, s *obj.Addr) {
++	if copyau1(p, v) {
++		p.Reg = s.Reg
++	}
++}
++
++func sameaddr(a *obj.Addr, v *obj.Addr) bool {
++	if a.Type != v.Type {
++		return false
++	}
++	if isReg(v) && a.Reg == v.Reg {
++		return true
++	}
++	if v.Type == obj.NAME_AUTO || v.Type == obj.NAME_PARAM {
++		// TODO(mundaym): is the offset enough here? Node?
++		if v.Offset == a.Offset {
++			return true
++		}
++	}
++	return false
++}
++
++func smallindir(a *obj.Addr, reg *obj.Addr) bool {
++	return reg.Type == obj.TYPE_REG &&
++		a.Type == obj.TYPE_MEM &&
++		a.Reg == reg.Reg &&
++		0 <= a.Offset && a.Offset < 4096
++}
++
++func stackaddr(a *obj.Addr) bool {
++	// TODO(mundaym): the name implies this should check
++	// for TYPE_ADDR with a base register REGSP.
++	return a.Type == obj.TYPE_REG && a.Reg == s390x.REGSP
++}
++
++// isMove returns true if p is a move. Moves may imply
++// sign/zero extension.
++func isMove(p *obj.Prog) bool {
++	switch p.As {
++	case s390x.AMOVD,
++		s390x.AMOVW, s390x.AMOVWZ,
++		s390x.AMOVH, s390x.AMOVHZ,
++		s390x.AMOVB, s390x.AMOVBZ,
++		s390x.AFMOVD, s390x.AFMOVS:
++		return true
++	}
++	return false
++}
++
++// isLoad returns true if p is a move from memory to a register.
++func isLoad(p *obj.Prog) bool {
++	if !isMove(p) {
++		return false
++	}
++	if !(isGPR(&p.To) || isFPR(&p.To)) {
++		return false
++	}
++	if p.From.Type != obj.TYPE_MEM {
++		return false
++	}
++	return true
++}
++
++// isStore returns true if p is a move from a register to memory.
++func isStore(p *obj.Prog) bool {
++	if !isMove(p) {
++		return false
++	}
++	if !(isGPR(&p.From) || isFPR(&p.From) || isConst(&p.From)) {
++		return false
++	}
++	if p.To.Type != obj.TYPE_MEM {
++		return false
++	}
++	return true
++}
++
++// sameStackMem returns true if a and b are both memory operands
++// and address the same location which must reside on the stack.
++func sameStackMem(a, b *obj.Addr) bool {
++	if a.Type != obj.TYPE_MEM ||
++		b.Type != obj.TYPE_MEM ||
++		a.Name != b.Name ||
++		a.Sym != b.Sym ||
++		a.Node != b.Node ||
++		a.Reg != b.Reg ||
++		a.Index != b.Index ||
++		a.Offset != b.Offset {
++		return false
++	}
++	switch a.Name {
++	case obj.NAME_NONE:
++		return a.Reg == s390x.REGSP
++	case obj.NAME_PARAM, obj.NAME_AUTO:
++		// params and autos are always on the stack
++		return true
++	}
++	return false
++}
++
++// removeLoadHitStores trys to remove loads that take place
++// immediately after a store to the same location. Returns
++// true if load-hit-stores were removed.
++//
++// For example:
++// 	MOVD	R1, 0(R15)
++// 	MOVD	0(R15), R2
++// Would become:
++// 	MOVD	R1, 0(R15)
++// 	MOVD	R1, R2
++func removeLoadHitStores(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		if !isStore(p) {
++			continue
++		}
++		for rr := gc.Uniqs(r); rr != nil; rr = gc.Uniqs(rr) {
++			pp := rr.Prog
++			if gc.Uniqp(rr) == nil {
++				break
++			}
++			if pp.As == obj.ANOP {
++				continue
++			}
++			if isLoad(pp) && sameStackMem(&p.To, &pp.From) {
++				if size(p.As) >= size(pp.As) && isGPR(&p.From) == isGPR(&pp.To) {
++					pp.From = p.From
++				}
++			}
++			if !isMove(pp) || isStore(pp) {
++				break
++			}
++			if copyau(&p.From, &pp.To) {
++				break
++			}
++		}
++	}
++	return n
++}
++
++// size returns the width of the given move.
++func size(as obj.As) int {
++	switch as {
++	case s390x.AMOVD, s390x.AFMOVD:
++		return 8
++	case s390x.AMOVW, s390x.AMOVWZ, s390x.AFMOVS:
++		return 4
++	case s390x.AMOVH, s390x.AMOVHZ:
++		return 2
++	case s390x.AMOVB, s390x.AMOVBZ:
++		return 1
++	}
++	return -1
++}
++
++// castPropagation tries to eliminate unecessary casts.
++//
++// For example:
++// 	MOVHZ	R1, R2     // uint16
++//	MOVB	R2, 0(R15) // int8
++// Can be simplified to:
++//	MOVB	R1, 0(R15)
++func castPropagation(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		if !isMove(p) || !isGPR(&p.To) {
++			continue
++		}
++
++		// r is a move with a destination register
++		var move *gc.Flow
++		for rr := gc.Uniqs(r); rr != nil; rr = gc.Uniqs(rr) {
++			if gc.Uniqp(rr) == nil {
++				// branch target: leave alone
++				break
++			}
++			pp := rr.Prog
++			if isMove(pp) && copyas(&pp.From, &p.To) {
++				if pp.To.Type == obj.TYPE_MEM {
++					if p.From.Type == obj.TYPE_MEM ||
++						p.From.Type == obj.TYPE_ADDR {
++						break
++					}
++					if p.From.Type == obj.TYPE_CONST &&
++						int64(int16(p.From.Offset)) != p.From.Offset {
++						break
++					}
++				}
++				move = rr
++				break
++			}
++			if pp.As == obj.ANOP {
++				continue
++			}
++			break
++		}
++		if move == nil {
++			continue
++		}
++
++		// we have a move that reads from our destination reg, check if any future
++		// instructions also read from the reg
++		mp := move.Prog
++		if !copyas(&mp.From, &mp.To) {
++			safe := false
++			for rr := gc.Uniqs(move); rr != nil; rr = gc.Uniqs(rr) {
++				if gc.Uniqp(rr) == nil {
++					break
++				}
++				switch copyu(rr.Prog, &p.To, nil) {
++				case _None:
++					continue
++				case _Write:
++					safe = true
++				}
++				break
++			}
++			if !safe {
++				continue
++			}
++		}
++
++		// at this point we have something like:
++		// MOV* const/mem/reg, reg
++		// MOV* reg, reg/mem
++		// now check if this is a cast that cannot be forward propagated
++		execute := false
++		if p.As == mp.As || isZero(&p.From) || size(p.As) == size(mp.As) {
++			execute = true
++		} else if isGPR(&p.From) && size(p.As) >= size(mp.As) {
++			execute = true
++		}
++
++		if execute {
++			mp.From = p.From
++			excise(r)
++			n++
++		}
++	}
++	return n
++}
++
++// fuseClear merges memory clear operations.
++//
++// Looks for this pattern (sequence of clears):
++// 	MOVD	R0, n(R15)
++// 	MOVD	R0, n+8(R15)
++// 	MOVD	R0, n+16(R15)
++// Replaces with:
++//	CLEAR	$24, n(R15)
++func fuseClear(r *gc.Flow) int {
++	n := 0
++	var align int64
++	var clear *obj.Prog
++	for ; r != nil; r = r.Link {
++		// If there is a branch into the instruction stream then
++		// we can't fuse into previous instructions.
++		if gc.Uniqp(r) == nil {
++			clear = nil
++		}
++
++		p := r.Prog
++		if p.As == obj.ANOP {
++			continue
++		}
++		if p.As == s390x.AXC {
++			if p.From.Reg == p.To.Reg && p.From.Offset == p.To.Offset {
++				// TODO(mundaym): merge clears?
++				p.As = s390x.ACLEAR
++				p.From.Offset = p.From3.Offset
++				p.From3 = nil
++				p.From.Type = obj.TYPE_CONST
++				p.From.Reg = 0
++				clear = p
++			} else {
++				clear = nil
++			}
++			continue
++		}
++
++		// Is our source a constant zero?
++		if !isZero(&p.From) {
++			clear = nil
++			continue
++		}
++
++		// Are we moving to memory?
++		if p.To.Type != obj.TYPE_MEM ||
++			p.To.Index != 0 ||
++			p.To.Offset >= 4096 ||
++			!(p.To.Name == obj.NAME_NONE || p.To.Name == obj.NAME_AUTO || p.To.Name == obj.NAME_PARAM) {
++			clear = nil
++			continue
++		}
++
++		size := int64(0)
++		switch p.As {
++		default:
++			clear = nil
++			continue
++		case s390x.AMOVB, s390x.AMOVBZ:
++			size = 1
++		case s390x.AMOVH, s390x.AMOVHZ:
++			size = 2
++		case s390x.AMOVW, s390x.AMOVWZ:
++			size = 4
++		case s390x.AMOVD:
++			size = 8
++		}
++
++		// doubleword aligned clears should be kept doubleword
++		// aligned
++		if (size == 8 && align != 8) || (size != 8 && align == 8) {
++			clear = nil
++		}
++
++		if clear != nil &&
++			clear.To.Reg == p.To.Reg &&
++			clear.To.Name == p.To.Name &&
++			clear.To.Node == p.To.Node &&
++			clear.To.Sym == p.To.Sym {
++
++			min := clear.To.Offset
++			max := clear.To.Offset + clear.From.Offset
++
++			// previous clear is already clearing this region
++			if min <= p.To.Offset && max >= p.To.Offset+size {
++				excise(r)
++				n++
++				continue
++			}
++
++			// merge forwards
++			if max == p.To.Offset {
++				clear.From.Offset += size
++				excise(r)
++				n++
++				continue
++			}
++
++			// merge backwards
++			if min-size == p.To.Offset {
++				clear.From.Offset += size
++				clear.To.Offset -= size
++				excise(r)
++				n++
++				continue
++			}
++		}
++
++		// transform into clear
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = size
++		p.From.Reg = 0
++		p.As = s390x.ACLEAR
++		clear = p
++		align = size
++	}
++	return n
++}
++
++// fuseMultiple merges memory loads and stores into load multiple and
++// store multiple operations.
++//
++// Looks for this pattern (sequence of loads or stores):
++// 	MOVD	R1, 0(R15)
++//	MOVD	R2, 8(R15)
++//	MOVD	R3, 16(R15)
++// Replaces with:
++//	STMG	R1, R3, 0(R15)
++func fuseMultiple(r *gc.Flow) int {
++	n := 0
++	var fused *obj.Prog
++	for ; r != nil; r = r.Link {
++		// If there is a branch into the instruction stream then
++		// we can't fuse into previous instructions.
++		if gc.Uniqp(r) == nil {
++			fused = nil
++		}
++
++		p := r.Prog
++
++		isStore := isGPR(&p.From) && isBDMem(&p.To)
++		isLoad := isGPR(&p.To) && isBDMem(&p.From)
++
++		// are we a candidate?
++		size := int64(0)
++		switch p.As {
++		default:
++			fused = nil
++			continue
++		case obj.ANOP:
++			// skip over nops
++			continue
++		case s390x.AMOVW, s390x.AMOVWZ:
++			size = 4
++			// TODO(mundaym): 32-bit load multiple is currently not supported
++			// as it requires sign/zero extension.
++			if !isStore {
++				fused = nil
++				continue
++			}
++		case s390x.AMOVD:
++			size = 8
++			if !isLoad && !isStore {
++				fused = nil
++				continue
++			}
++		}
++
++		// If we merge two loads/stores with different source/destination Nodes
++		// then we will lose a reference the second Node which means that the
++		// compiler might mark the Node as unused and free its slot on the stack.
++		// TODO(mundaym): allow this by adding a dummy reference to the Node.
++		if fused == nil ||
++			fused.From.Node != p.From.Node ||
++			fused.From.Type != p.From.Type ||
++			fused.To.Node != p.To.Node ||
++			fused.To.Type != p.To.Type {
++			fused = p
++			continue
++		}
++
++		// check two addresses
++		ca := func(a, b *obj.Addr, offset int64) bool {
++			return a.Reg == b.Reg && a.Offset+offset == b.Offset &&
++				a.Sym == b.Sym && a.Name == b.Name
++		}
++
++		switch fused.As {
++		default:
++			fused = p
++		case s390x.AMOVW, s390x.AMOVWZ:
++			if size == 4 && fused.From.Reg+1 == p.From.Reg && ca(&fused.To, &p.To, 4) {
++				fused.As = s390x.ASTMY
++				fused.Reg = p.From.Reg
++				excise(r)
++				n++
++			} else {
++				fused = p
++			}
++		case s390x.AMOVD:
++			if size == 8 && fused.From.Reg+1 == p.From.Reg && ca(&fused.To, &p.To, 8) {
++				fused.As = s390x.ASTMG
++				fused.Reg = p.From.Reg
++				excise(r)
++				n++
++			} else if size == 8 && fused.To.Reg+1 == p.To.Reg && ca(&fused.From, &p.From, 8) {
++				fused.As = s390x.ALMG
++				fused.Reg = fused.To.Reg
++				fused.To.Reg = p.To.Reg
++				excise(r)
++				n++
++			} else {
++				fused = p
++			}
++		case s390x.ASTMG, s390x.ASTMY:
++			if (fused.As == s390x.ASTMY && size != 4) ||
++				(fused.As == s390x.ASTMG && size != 8) {
++				fused = p
++				continue
++			}
++			offset := size * int64(fused.Reg-fused.From.Reg+1)
++			if fused.Reg+1 == p.From.Reg && ca(&fused.To, &p.To, offset) {
++				fused.Reg = p.From.Reg
++				excise(r)
++				n++
++			} else {
++				fused = p
++			}
++		case s390x.ALMG:
++			offset := 8 * int64(fused.To.Reg-fused.Reg+1)
++			if size == 8 && fused.To.Reg+1 == p.To.Reg && ca(&fused.From, &p.From, offset) {
++				fused.To.Reg = p.To.Reg
++				excise(r)
++				n++
++			} else {
++				fused = p
++			}
++		}
++	}
++	return n
++}
++
++// simplifyOps looks for side-effect free ops that can be removed or
++// replaced with moves.
++//
++// For example:
++// 	XOR $0, R1 => NOP
++//	ADD $0, R1, R2 => MOVD R1, R2
++func simplifyOps(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++
++		// if the target is R0 then this is a required NOP
++		if isGPR(&p.To) && p.To.Reg == s390x.REGZERO {
++			continue
++		}
++
++		switch p.As {
++		case s390x.AADD, s390x.ASUB,
++			s390x.AOR, s390x.AXOR,
++			s390x.ASLW, s390x.ASRW, s390x.ASRAW,
++			s390x.ASLD, s390x.ASRD, s390x.ASRAD,
++			s390x.ARLL, s390x.ARLLG:
++			if isZero(&p.From) && isGPR(&p.To) {
++				if p.Reg == 0 || p.Reg == p.To.Reg {
++					excise(r)
++					n++
++				} else {
++					p.As = s390x.AMOVD
++					p.From.Type = obj.TYPE_REG
++					p.From.Reg = p.Reg
++					p.Reg = 0
++				}
++			}
++		case s390x.AMULLW, s390x.AAND:
++			if isZero(&p.From) && isGPR(&p.To) {
++				p.As = s390x.AMOVD
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = s390x.REGZERO
++				p.Reg = 0
++			}
++		}
++	}
++	return n
++}
++
++// fuseOpMoves looks for moves following 2-operand operations and trys to merge them into
++// a 3-operand operation.
++//
++// For example:
++//	ADD R1, R2
++//	MOVD R2, R3
++// might become
++//	ADD R1, R2, R3
++func fuseOpMoves(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		switch p.As {
++		case s390x.AADD:
++		case s390x.ASUB:
++			if isConst(&p.From) && int64(int16(p.From.Offset)) != p.From.Offset {
++				continue
++			}
++		case s390x.ASLW,
++			s390x.ASRW,
++			s390x.ASRAW,
++			s390x.ASLD,
++			s390x.ASRD,
++			s390x.ASRAD,
++			s390x.ARLL,
++			s390x.ARLLG:
++			// ok - p.From will be a reg or a constant
++		case s390x.AOR,
++			s390x.AORN,
++			s390x.AAND,
++			s390x.AANDN,
++			s390x.ANAND,
++			s390x.ANOR,
++			s390x.AXOR,
++			s390x.AMULLW,
++			s390x.AMULLD:
++			if isConst(&p.From) {
++				// these instructions can either use 3 register form
++				// or have an immediate but not both
++				continue
++			}
++		default:
++			continue
++		}
++
++		if p.Reg != 0 && p.Reg != p.To.Reg {
++			continue
++		}
++
++		var move *gc.Flow
++		rr := gc.Uniqs(r)
++		for {
++			if rr == nil || gc.Uniqp(rr) == nil || rr == r {
++				break
++			}
++			pp := rr.Prog
++			switch copyu(pp, &p.To, nil) {
++			case _None:
++				rr = gc.Uniqs(rr)
++				continue
++			case _Read:
++				if move == nil && pp.As == s390x.AMOVD && isGPR(&pp.From) && isGPR(&pp.To) {
++					move = rr
++					rr = gc.Uniqs(rr)
++					continue
++				}
++			case _Write:
++				if move == nil {
++					// dead code
++					excise(r)
++					n++
++				} else {
++					for prev := gc.Uniqp(move); prev != r; prev = gc.Uniqp(prev) {
++						if copyu(prev.Prog, &move.Prog.To, nil) != 0 {
++							move = nil
++							break
++						}
++					}
++					if move == nil {
++						break
++					}
++					p.Reg, p.To.Reg = p.To.Reg, move.Prog.To.Reg
++					excise(move)
++					n++
++
++					// clean up
++					if p.From.Reg == p.To.Reg && isCommutative(p.As) {
++						p.From.Reg, p.Reg = p.Reg, 0
++					}
++					if p.To.Reg == p.Reg {
++						p.Reg = 0
++					}
++					// we could try again if p has become a 2-operand op
++					// but in testing nothing extra was extracted
++				}
++			}
++			break
++		}
++	}
++	return n
++}
++
++// isCommutative returns true if the order of input operands
++// does not affect the result. For example:
++//	x + y == y + x so ADD is commutative
++//	x ^ y == y ^ x so XOR is commutative
++func isCommutative(as obj.As) bool {
++	switch as {
++	case s390x.AADD,
++		s390x.AOR,
++		s390x.AAND,
++		s390x.AXOR,
++		s390x.AMULLW,
++		s390x.AMULLD:
++		return true
++	}
++	return false
++}
++
++// applyCast applies the cast implied by the given move
++// instruction to v and returns the result.
++func applyCast(cast obj.As, v int64) int64 {
++	switch cast {
++	case s390x.AMOVWZ:
++		return int64(uint32(v))
++	case s390x.AMOVHZ:
++		return int64(uint16(v))
++	case s390x.AMOVBZ:
++		return int64(uint8(v))
++	case s390x.AMOVW:
++		return int64(int32(v))
++	case s390x.AMOVH:
++		return int64(int16(v))
++	case s390x.AMOVB:
++		return int64(int8(v))
++	}
++	return v
++}
++
++// constantPropagation removes redundant constant copies.
++func constantPropagation(r *gc.Flow) int {
++	n := 0
++	// find MOV $con,R followed by
++	// another MOV $con,R without
++	// setting R in the interim
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		if isMove(p) {
++			if !isReg(&p.To) {
++				continue
++			}
++			if !isConst(&p.From) {
++				continue
++			}
++		} else {
++			continue
++		}
++
++		rr := r
++		for {
++			rr = gc.Uniqs(rr)
++			if rr == nil || rr == r {
++				break
++			}
++			if gc.Uniqp(rr) == nil {
++				break
++			}
++
++			pp := rr.Prog
++			t := copyu(pp, &p.To, nil)
++			switch t {
++			case _None:
++				continue
++			case _Read:
++				if !isGPR(&pp.From) || !isMove(pp) {
++					continue
++				}
++				if p.From.Type == obj.TYPE_CONST {
++					v := applyCast(p.As, p.From.Offset)
++					if isGPR(&pp.To) {
++						if int64(int32(v)) == v || ((v>>32)<<32) == v {
++							pp.From.Reg = 0
++							pp.From.Offset = v
++							pp.From.Type = obj.TYPE_CONST
++							n++
++						}
++					} else if int64(int16(v)) == v {
++						pp.From.Reg = 0
++						pp.From.Offset = v
++						pp.From.Type = obj.TYPE_CONST
++						n++
++					}
++				}
++				continue
++			case _Write:
++				if p.As != pp.As || p.From.Type != pp.From.Type {
++					break
++				}
++				if p.From.Type == obj.TYPE_CONST && p.From.Offset == pp.From.Offset {
++					excise(rr)
++					n++
++					continue
++				} else if p.From.Type == obj.TYPE_FCONST {
++					if p.From.Val.(float64) == pp.From.Val.(float64) {
++						excise(rr)
++						n++
++						continue
++					}
++				}
++			}
++			break
++		}
++	}
++	return n
++}
++
++// copyPropagation tries to eliminate register-to-register moves.
++func copyPropagation(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		if isMove(p) && isReg(&p.To) {
++			// Convert uses to $0 to uses of R0 and
++			// propagate R0
++			if isGPR(&p.To) && isZero(&p.From) {
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = s390x.REGZERO
++			}
++
++			// Try to eliminate reg->reg moves
++			if isGPR(&p.From) || isFPR(&p.From) {
++				if copyprop(r) || (subprop(r) && copyprop(r)) {
++					excise(r)
++					n++
++				}
++			}
++		}
++	}
++	return n
++}
++
++// loadPipelining pushes any load from memory as early as possible.
++func loadPipelining(r *gc.Flow) int {
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		if isLoad(p) {
++			pushback(r)
++		}
++	}
++	return 0
++}
++
++// fuseCompareBranch finds comparisons followed by a branch and converts
++// them into a compare-and-branch instruction (which avoid setting the
++// condition code).
++func fuseCompareBranch(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		r1 := gc.Uniqs(r)
++		if r1 == nil {
++			continue
++		}
++		p1 := r1.Prog
++
++		var ins obj.As
++		switch p.As {
++		case s390x.ACMP:
++			switch p1.As {
++			case s390x.ABCL, s390x.ABC:
++				continue
++			case s390x.ABEQ:
++				ins = s390x.ACMPBEQ
++			case s390x.ABGE:
++				ins = s390x.ACMPBGE
++			case s390x.ABGT:
++				ins = s390x.ACMPBGT
++			case s390x.ABLE:
++				ins = s390x.ACMPBLE
++			case s390x.ABLT:
++				ins = s390x.ACMPBLT
++			case s390x.ABNE:
++				ins = s390x.ACMPBNE
++			default:
++				continue
++			}
++
++		case s390x.ACMPU:
++			switch p1.As {
++			case s390x.ABCL, s390x.ABC:
++				continue
++			case s390x.ABEQ:
++				ins = s390x.ACMPUBEQ
++			case s390x.ABGE:
++				ins = s390x.ACMPUBGE
++			case s390x.ABGT:
++				ins = s390x.ACMPUBGT
++			case s390x.ABLE:
++				ins = s390x.ACMPUBLE
++			case s390x.ABLT:
++				ins = s390x.ACMPUBLT
++			case s390x.ABNE:
++				ins = s390x.ACMPUBNE
++			default:
++				continue
++			}
++
++		case s390x.ACMPW, s390x.ACMPWU:
++			continue
++
++		default:
++			continue
++		}
++
++		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++			fmt.Printf("cnb %v; %v  ", p, p1)
++		}
++
++		if p1.To.Sym != nil {
++			continue
++		}
++
++		if p.To.Type == obj.TYPE_REG {
++			p1.As = ins
++			p1.From = p.From
++			p1.Reg = p.To.Reg
++			p1.From3 = nil
++		} else if p.To.Type == obj.TYPE_CONST {
++			switch p.As {
++			case s390x.ACMP, s390x.ACMPW:
++				if (p.To.Offset < -(1 << 7)) || (p.To.Offset >= ((1 << 7) - 1)) {
++					continue
++				}
++			case s390x.ACMPU, s390x.ACMPWU:
++				if p.To.Offset >= (1 << 8) {
++					continue
++				}
++			default:
++			}
++			p1.As = ins
++			p1.From = p.From
++			p1.Reg = 0
++			p1.From3 = new(obj.Addr)
++			*(p1.From3) = p.To
++		} else {
++			continue
++		}
++
++		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
++			fmt.Printf("%v\n", p1)
++		}
++		excise(r)
++		n++
++	}
++	return n
++}
++
++// deadCodeElimination removes writes to registers which are written
++// to again before they are next read.
++func deadCodeElimination(r *gc.Flow) int {
++	n := 0
++	for ; r != nil; r = r.Link {
++		p := r.Prog
++		// Currently there are no instructions which write to multiple
++		// registers in copyu. This check will need to change if there
++		// ever are.
++		if !(isGPR(&p.To) || isFPR(&p.To)) || copyu(p, &p.To, nil) != _Write {
++			continue
++		}
++		for rr := gc.Uniqs(r); rr != nil; rr = gc.Uniqs(rr) {
++			t := copyu(rr.Prog, &p.To, nil)
++			if t == _None {
++				continue
++			}
++			if t == _Write {
++				excise(r)
++				n++
++			}
++			break
++		}
++	}
++	return n
++}
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+new file mode 100644
+index 0000000000..306adf85c3
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -0,0 +1,179 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/internal/obj"
++	"cmd/internal/obj/s390x"
++)
++
++// This table gives the basic information about instruction
++// generated by the compiler and processed in the optimizer.
++// See opt.h for bit definitions.
++//
++// Instructions not generated need not be listed.
++// As an exception to that rule, we typically write down all the
++// size variants of an operation even if we just use a subset.
++var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
++	obj.ATYPE & obj.AMask:     {Flags: gc.Pseudo | gc.Skip},
++	obj.ATEXT & obj.AMask:     {Flags: gc.Pseudo},
++	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
++	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
++	obj.AUNDEF & obj.AMask:    {Flags: gc.Break},
++	obj.AUSEFIELD & obj.AMask: {Flags: gc.OK},
++	obj.ACHECKNIL & obj.AMask: {Flags: gc.LeftRead},
++	obj.AVARDEF & obj.AMask:   {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARKILL & obj.AMask:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE & obj.AMask:  {Flags: gc.Pseudo | gc.LeftRead},
++
++	// NOP is an internal no-op that also stands
++	// for USED and SET annotations.
++	obj.ANOP & obj.AMask: {Flags: gc.LeftRead | gc.RightWrite},
++
++	// Integer
++	s390x.AADD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ASUB & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ANEG & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AAND & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AOR & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AXOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AMULHD & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AMULHDU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ADIVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ADIVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ASLD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ASRD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ARLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ARLLG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.ACMP & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
++	s390x.ACMPU & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
++
++	// Floating point.
++	s390x.AFADD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFADDS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFSUB & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFSUBS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFMUL & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFMULS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFDIV & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFDIVS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFCMPU & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	s390x.ACEBR & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
++	s390x.ALEDBR & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ALDEBR & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.AFSQRT & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
++
++	// Conversions
++	s390x.ACEFBRA & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACDFBRA & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACEGBRA & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACDGBRA & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACFEBRA & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACFDBRA & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACGEBRA & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACGDBRA & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACELFBR & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACDLFBR & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACELGBR & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACDLGBR & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACLFEBR & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACLFDBR & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACLGEBR & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++	s390x.ACLGDBR & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
++
++	// Moves
++	s390x.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVBZ & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVHZ & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVWZ & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AMOVD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	s390x.AFMOVS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	s390x.AFMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++
++	// Storage operations
++	s390x.AMVC & obj.AMask: {Flags: gc.LeftRead | gc.LeftAddr | gc.RightWrite | gc.RightAddr},
++	s390x.ACLC & obj.AMask: {Flags: gc.LeftRead | gc.LeftAddr | gc.RightRead | gc.RightAddr},
++	s390x.AXC & obj.AMask:  {Flags: gc.LeftRead | gc.LeftAddr | gc.RightWrite | gc.RightAddr},
++	s390x.AOC & obj.AMask:  {Flags: gc.LeftRead | gc.LeftAddr | gc.RightWrite | gc.RightAddr},
++	s390x.ANC & obj.AMask:  {Flags: gc.LeftRead | gc.LeftAddr | gc.RightWrite | gc.RightAddr},
++
++	// Jumps
++	s390x.ABR & obj.AMask:      {Flags: gc.Jump | gc.Break},
++	s390x.ABL & obj.AMask:      {Flags: gc.Call},
++	s390x.ABEQ & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ABNE & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ABGE & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ABLT & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ABGT & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ABLE & obj.AMask:     {Flags: gc.Cjmp},
++	s390x.ACMPBEQ & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPBNE & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPBGE & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPBLT & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPBGT & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPBLE & obj.AMask:  {Flags: gc.Cjmp},
++	s390x.ACMPUBEQ & obj.AMask: {Flags: gc.Cjmp},
++	s390x.ACMPUBNE & obj.AMask: {Flags: gc.Cjmp},
++	s390x.ACMPUBGE & obj.AMask: {Flags: gc.Cjmp},
++	s390x.ACMPUBLT & obj.AMask: {Flags: gc.Cjmp},
++	s390x.ACMPUBGT & obj.AMask: {Flags: gc.Cjmp},
++	s390x.ACMPUBLE & obj.AMask: {Flags: gc.Cjmp},
++
++	// Macros
++	s390x.ACLEAR & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightAddr | gc.RightWrite},
++
++	// Load/store multiple
++	s390x.ASTMG & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightAddr | gc.RightWrite},
++	s390x.ASTMY & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightAddr | gc.RightWrite},
++	s390x.ALMG & obj.AMask:  {Flags: gc.SizeQ | gc.LeftAddr | gc.LeftRead | gc.RightWrite},
++	s390x.ALMY & obj.AMask:  {Flags: gc.SizeL | gc.LeftAddr | gc.LeftRead | gc.RightWrite},
++
++	obj.ARET & obj.AMask: {Flags: gc.Break},
++}
++
++func proginfo(p *obj.Prog) {
++	info := &p.Info
++	*info = progtable[p.As&obj.AMask]
++	if info.Flags == 0 {
++		gc.Fatalf("proginfo: unknown instruction %v", p)
++	}
++
++	if (info.Flags&gc.RegRead != 0) && p.Reg == 0 {
++		info.Flags &^= gc.RegRead
++		info.Flags |= gc.RightRead /*CanRegRead |*/
++	}
++
++	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
++		info.Regindex |= RtoB(int(p.From.Reg))
++	}
++
++	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
++		info.Regindex |= RtoB(int(p.To.Reg))
++	}
++
++	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
++		info.Flags &^= gc.LeftRead
++		info.Flags |= gc.LeftAddr
++	}
++
++	switch p.As {
++	// load multiple sets a range of registers
++	case s390x.ALMG, s390x.ALMY:
++		for r := p.Reg; r <= p.To.Reg; r++ {
++			info.Regset |= RtoB(int(r))
++		}
++	// store multiple reads a range of registers
++	case s390x.ASTMG, s390x.ASTMY:
++		for r := p.From.Reg; r <= p.Reg; r++ {
++			info.Reguse |= RtoB(int(r))
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/s390x/reg.go b/src/cmd/compile/internal/s390x/reg.go
+new file mode 100644
+index 0000000000..4cb8a9da05
+--- /dev/null
++++ b/src/cmd/compile/internal/s390x/reg.go
+@@ -0,0 +1,130 @@
++// Derived from Inferno utils/6c/reg.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package s390x
++
++import "cmd/internal/obj/s390x"
++import "cmd/compile/internal/gc"
++
++const (
++	NREGVAR = 32 /* 16 general + 16 floating */
++)
++
++var regname = []string{
++	".R0",
++	".R1",
++	".R2",
++	".R3",
++	".R4",
++	".R5",
++	".R6",
++	".R7",
++	".R8",
++	".R9",
++	".R10",
++	".R11",
++	".R12",
++	".R13",
++	".R14",
++	".R15",
++	".F0",
++	".F1",
++	".F2",
++	".F3",
++	".F4",
++	".F5",
++	".F6",
++	".F7",
++	".F8",
++	".F9",
++	".F10",
++	".F11",
++	".F12",
++	".F13",
++	".F14",
++	".F15",
++}
++
++func regnames(n *int) []string {
++	*n = NREGVAR
++	return regname
++}
++
++func excludedregs() uint64 {
++	// Exclude registers with fixed functions
++	return RtoB(s390x.REG_R0) |
++		RtoB(s390x.REGSP) |
++		RtoB(s390x.REGG) |
++		RtoB(s390x.REGTMP) |
++		RtoB(s390x.REGTMP2) |
++		RtoB(s390x.REG_LR)
++}
++
++func doregbits(r int) uint64 {
++	return 0
++}
++
++/*
++ * track register variables including external registers:
++ *	bit	reg
++ *	0	R0
++ *	...	...
++ *	15	R15
++ *	16+0	F0
++ *	16+1	F1
++ *	...	...
++ *	16+15	F15
++ */
++func RtoB(r int) uint64 {
++	if r >= s390x.REG_R0 && r <= s390x.REG_R15 {
++		return 1 << uint(r-s390x.REG_R0)
++	}
++	if r >= s390x.REG_F0 && r <= s390x.REG_F15 {
++		return 1 << uint(16+r-s390x.REG_F0)
++	}
++	return 0
++}
++
++func BtoR(b uint64) int {
++	b &= 0xffff
++	if b == 0 {
++		return 0
++	}
++	return gc.Bitno(b) + s390x.REG_R0
++}
++
++func BtoF(b uint64) int {
++	b >>= 16
++	b &= 0xffff
++	if b == 0 {
++		return 0
++	}
++	return gc.Bitno(b) + s390x.REG_F0
++}
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index 49c2fb6263..8b8161efd1 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/arm64"
+ 	"cmd/compile/internal/mips64"
+ 	"cmd/compile/internal/ppc64"
++	"cmd/compile/internal/s390x"
+ 	"cmd/compile/internal/x86"
+ 	"cmd/internal/obj"
+ 	"fmt"
+@@ -38,5 +39,7 @@ func main() {
+ 		mips64.Main()
+ 	case "ppc64", "ppc64le":
+ 		ppc64.Main()
++	case "s390x":
++		s390x.Main()
+ 	}
+ }
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 777c92c726..a535316ca0 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -38,6 +38,7 @@ var bootstrapDirs = []string{
+ 	"compile/internal/ppc64",
+ 	"compile/internal/ssa",
+ 	"compile/internal/x86",
++	"compile/internal/s390x",
+ 	"internal/bio",
+ 	"internal/gcprog",
+ 	"internal/obj",

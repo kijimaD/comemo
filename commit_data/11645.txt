@@ -9,8 +9,79 @@ Date:   Mon Feb 6 15:41:01 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5606061
-
+---
  src/cmd/gc/subr.c        |  6 ++++++
  src/cmd/gc/walk.c        |  3 ++-
  test/fixedbugs/bug406.go | 25 +++++++++++++++++++++++++
  3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 64a0070776..d865961104 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1670,6 +1670,11 @@ ullmancalc(Node *n)
+ 	if(n == N)
+ 		return;
+ 
++	if(n->ninit != nil) {
++		ul = UINF;
++		goto out;
++	}
++
+ 	switch(n->op) {
+ 	case OREGISTER:
+ 	case OLITERAL:
+@@ -3577,4 +3582,5 @@ addinit(Node **np, NodeList *init)
+ 		break;
+ 	}
+ 	n->ninit = concat(init, n->ninit);
++	n->ullman = UINF;
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 53040fe93d..37691f029f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1203,10 +1203,11 @@ walkexpr(Node **np, NodeList **init)
+ 	fatal("missing switch %O", n->op);
+ 
+ ret:
++	ullmancalc(n);
++
+ 	if(debug['w'] && n != N)
+ 		dump("walk", n);
+ 
+-	ullmancalc(n);
+ 	lineno = lno;
+ 	*np = n;
+ }
+diff --git a/test/fixedbugs/bug406.go b/test/fixedbugs/bug406.go
+new file mode 100644
+index 0000000000..9d755045b6
+--- /dev/null
++++ b/test/fixedbugs/bug406.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo "Bug406"
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2821
++package main
++
++type matrix struct {
++	e []int
++}
++
++func (a matrix) equal() bool {
++	for _ = range a.e {
++	}
++	return true
++}
++
++func main() {
++	var a matrix
++	var i interface{}
++	i = true && a.equal()
++	_ = i
++}

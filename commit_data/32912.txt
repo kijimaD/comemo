@@ -22,7 +22,55 @@ Date:   Wed Jun 14 11:07:24 2017 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 5 ++++-
  src/runtime/sema.go             | 6 +++---
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index c45735f254..22fea0a52f 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -542,6 +542,10 @@ func blockMutex() {
+ 		time.Sleep(blockDelay)
+ 		mu.Unlock()
+ 	}()
++	// Note: Unlock releases mu before recording the mutex event,
++	// so it's theoretically possible for this to proceed and
++	// capture the profile before the event is recorded. As long
++	// as this is blocked before the unlock happens, it's okay.
+ 	mu.Lock()
+ }
+ 
+@@ -560,7 +564,6 @@ func blockCond() {
+ }
+ 
+ func TestMutexProfile(t *testing.T) {
+-	testenv.SkipFlaky(t, 19139)
+ 	old := runtime.SetMutexProfileFraction(1)
+ 	defer runtime.SetMutexProfileFraction(old)
+ 	if old != 0 {
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 860765cd91..8715e07d7a 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -182,6 +182,9 @@ func semrelease1(addr *uint32, handoff bool) {
+ 	unlock(&root.lock)
+ 	if s != nil { // May be slow, so unlock first
+ 		acquiretime := s.acquiretime
++		if acquiretime != 0 {
++			mutexevent(t0-acquiretime, 3)
++		}
+ 		if s.ticket != 0 {
+ 			throw("corrupted semaphore ticket")
+ 		}
+@@ -189,9 +192,6 @@ func semrelease1(addr *uint32, handoff bool) {
+ 			s.ticket = 1
+ 		}
+ 		readyWithTime(s, 5)
+-		if acquiretime != 0 {
+-			mutexevent(t0-acquiretime, 3)
+-		}
+ 	}
+ }
+ 

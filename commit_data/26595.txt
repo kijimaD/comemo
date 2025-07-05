@@ -12,7 +12,74 @@ Date:   Thu Feb 11 13:33:33 2016 -0500
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/asm.html   |  9 +++++++++
  doc/go1.6.html | 14 +++++++-------
  2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index cce2fe2b8d..392af174c2 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -621,6 +621,15 @@ These modes accept only 1, 2, 4, and 8 as scale factors.
+ 
+ </ul>
+ 
++<p>
++When using the compiler and assembler's
++<code>-dynlink</code> or <code>-shared</code> modes,
++any load or store of a fixed memory location such as a global variable
++must be assumed to overwrite <code>CX</code>.
++Therefore, to be safe for use with these modes,
++assembly sources should typically avoid CX except between memory references.
++</p>
++
+ <h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
+ 
+ <p>
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 0b9dc8a9f3..4937fc9a59 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -17,6 +17,7 @@ ul li { margin: 0.5em 0; }
+ <i>NOTE: This is a DRAFT of the Go 1.6 release notes, prepared for the Go 1.6 beta.
+ Go 1.6 has NOT yet been released.
+ By our regular schedule, it is expected some time in February 2016.
++<!-- NOTE: WHEN REMOVING THIS COMMENT FIX THE TITLE AT THE TOP OF THE FILE TOO! -->
+ </i>
+ </p>
+ 
+@@ -70,9 +71,12 @@ On NaCl, Go 1.5 required SDK version pepper-41.
+ Go 1.6 adds support for later SDK versions.
+ </p>
+ 
+-<pre>
+-TODO: CX no longer available on 386 assembly? (https://golang.org/cl/16386)
+-</pre>
++<p>
++On 32-bit x86 systems using the <code>-dynlink</code> or <code>-shared</code> compilation modes,
++the register CX is now overwritten by certain memory references and should
++be avoided in hand-written assembly.
++See the <a href="/doc/asm#x86">assembly documentation</a> for details.
++</p>
+ 
+ <h2 id="tools">Tools</h2>
+ 
+@@ -632,7 +636,6 @@ In previous releases, the argument to <code>*</code> was required to have type <
+ Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+ <a href="/pkg/fmt/#Scanf"><code>Scanf</code></a> can now scan hexadecimal strings using %X, as an alias for %x.
+ Both formats accept any mix of upper- and lower-case hexadecimal.
+-<a href="https://golang.org/issues/13585">TODO: Keep?</a>
+ </li>
+ 
+ <li>
+@@ -717,9 +720,6 @@ Second, DNS lookup functions such as
+ <a href="/pkg/net/#LookupAddr"><code>LookupAddr</code></a>
+ now return rooted domain names (with a trailing dot)
+ on Plan 9 and Windows, to match the behavior of Go on Unix systems.
+-TODO: Third, lookups satisfied from /etc/hosts now add a trailing dot as well,
+-so that looking up 127.0.0.1 typically now returns &ldquo;localhost.&rdquo; not &ldquo;localhost&rdquo;.
+-This is arguably a mistake but is not yet fixed. See https://golang.org/issue/13564.
+ </li>
+ 
+ <li>

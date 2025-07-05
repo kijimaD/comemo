@@ -11,8 +11,106 @@ Date:   Sun Nov 6 19:56:14 2016 -0800
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/print.go          | 21 +++++++++++++++++----
  src/cmd/vet/testdata/print.go | 12 ++++++++++--
  src/cmd/vet/types.go          |  3 +--
  3 files changed, 28 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index df8e57e259..9998ddae07 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -192,6 +192,12 @@ func isStringer(f *File, d *ast.FuncDecl) bool {
+ 		f.pkg.types[d.Type.Results.List[0].Type].Type == types.Typ[types.String]
+ }
+ 
++// isFormatter reports whether t satisfies fmt.Formatter.
++// Unlike fmt.Stringer, it's impossible to satisfy fmt.Formatter without importing fmt.
++func (f *File) isFormatter(t types.Type) bool {
++	return formatterType != nil && types.Implements(t, formatterType)
++}
++
+ // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
+ // It is constructed by parsePrintfVerb.
+ type formatState struct {
+@@ -423,8 +429,6 @@ const (
+ )
+ 
+ // printVerbs identifies which flags are known to printf for each verb.
+-// TODO: A type that implements Formatter may do what it wants, and vet
+-// will complain incorrectly.
+ var printVerbs = []printVerb{
+ 	// '-' is a width modifier, always valid.
+ 	// '.' is a precision for float, max width for strings.
+@@ -466,7 +470,16 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ 			break
+ 		}
+ 	}
+-	if !found {
++
++	// Does current arg implement fmt.Formatter?
++	formatter := false
++	if state.argNum < len(call.Args) {
++		if tv, ok := f.pkg.types[call.Args[state.argNum]]; ok {
++			formatter = f.isFormatter(tv.Type)
++		}
++	}
++
++	if !found && !formatter {
+ 		f.Badf(call.Pos(), "unrecognized printf verb %q", state.verb)
+ 		return false
+ 	}
+@@ -494,7 +507,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ 			return false
+ 		}
+ 	}
+-	if state.verb == '%' {
++	if state.verb == '%' || formatter {
+ 		return true
+ 	}
+ 	argNum := state.argNums[len(state.argNums)-1]
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 4221e9017f..b5c59ebd1b 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -128,8 +128,10 @@ func PrintfTests() {
+ 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
+ 	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
+ 	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
+-	fmt.Printf("%d", Formatter(true))          // correct (the type is responsible for formatting)
+-	fmt.Printf("%s", nonemptyinterface)        // correct (the dynamic type of nonemptyinterface may be a stringer)
++	fmt.Printf("%d", Formatter(true))          // ERROR "arg Formatter\(true\) for printf verb %d of wrong type: testdata.Formatter"
++	fmt.Printf("%z", FormatterVal(true))       // correct (the type is responsible for formatting)
++	fmt.Printf("%d", FormatterVal(true))       // correct (the type is responsible for formatting)
++	fmt.Printf("%s", nonemptyinterface)        // correct (the type is responsible for formatting)
+ 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
+ 	fmt.Println()                              // not an error
+ 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
+@@ -416,6 +418,12 @@ type Formatter bool
+ func (*Formatter) Format(fmt.State, rune) {
+ }
+ 
++// Formatter with value receiver
++type FormatterVal bool
++
++func (FormatterVal) Format(fmt.State, rune) {
++}
++
+ type RecursiveSlice []RecursiveSlice
+ 
+ var recursiveSliceV = &RecursiveSlice{}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 35ee19c85b..8357d3c2bf 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -113,8 +113,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
+ 		}
+ 	}
+ 	// If the type implements fmt.Formatter, we have nothing to check.
+-	// formatterTyp may be nil - be conservative and check for Format method in that case.
+-	if formatterType != nil && types.Implements(typ, formatterType) || f.hasMethod(typ, "Format") {
++	if f.isFormatter(typ) {
+ 		return true
+ 	}
+ 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?

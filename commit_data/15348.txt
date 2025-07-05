@@ -9,7 +9,7 @@ Date:   Thu Feb 21 16:24:38 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7389043
-
+---
  src/pkg/runtime/proc.c           |  2 ++
  src/pkg/runtime/runtime.h        |  1 +
  src/pkg/runtime/thread_darwin.c  | 11 +++++++++--
@@ -20,3 +20,209 @@ Date:   Thu Feb 21 16:24:38 2013 +0400
  src/pkg/runtime/thread_plan9.c   | 14 +++++++++++---
  src/pkg/runtime/thread_windows.c |  9 +++++++++
  9 files changed, 68 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 67d6dad488..5c36ddf745 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -370,6 +370,8 @@ mcommoninit(M *mp)
+ 
+ 	runtime·callers(1, mp->createstack, nelem(mp->createstack));
+ 
++	runtime·mpreinit(mp);
++
+ 	// Add to runtime·allm so garbage collector doesn't free m
+ 	// when it is just in a register or thread-local storage.
+ 	mp->alllink = runtime·allm;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8162874bbe..4ca7cc7dc9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -660,6 +660,7 @@ int32	runtime·atoi(byte*);
+ void	runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void));
+ G*	runtime·malg(int32);
+ void	runtime·asminit(void);
++void	runtime·mpreinit(M*);
+ void	runtime·minit(void);
+ void	runtime·unminit(void);
+ void	runtime·signalstack(byte*, int32);
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 1d6037b48b..1a13eba1cd 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -109,12 +109,19 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+-	if(m->gsignal == nil)
+-		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 4d5f69a9f3..d7758eaafb 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -121,11 +121,19 @@ runtime·goenvs(void)
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+-	m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(&sigset_none, nil);
+ }
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 02a5eaee2f..85c3e6b8cf 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -171,12 +171,19 @@ runtime·goenvs(void)
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+-	if(m->gsignal == nil)
+-		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof(Sigset));
+ }
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index ebef45e757..aba8fea7a2 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -187,14 +187,21 @@ runtime·goenvs(void)
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {
+ 	m->procid = runtime·lwp_self();
+ 
+ 	// Initialize signal handling
+-	if(m->gsignal == nil)
+-		m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 8433e8bae5..525dc697e0 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -166,12 +166,19 @@ runtime·goenvs(void)
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+-	if(m->gsignal == nil)
+-		m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index bca0deac62..625c8b48d4 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -11,13 +11,21 @@ extern SigTab runtime·sigtab[];
+ 
+ int32 runtime·postnote(int32, int8*);
+ 
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ void
+-runtime·minit(void)
++runtime·mpreinit(M *mp)
+ {
+ 	// Initialize stack and goroutine for note handling.
+-	m->gsignal = runtime·malg(32*1024);
+-	m->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
++	mp->gsignal = runtime·malg(32*1024);
++	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
++}
+ 
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++void
++runtime·minit(void)
++{
+ 	// Mask all SSE floating-point exceptions
+ 	// when running on the 64-bit kernel.
+ 	runtime·setfpmasks();
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 7110c6efe4..4d95e99870 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -206,6 +206,15 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	USED(mp);
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
+ void
+ runtime·minit(void)
+ {

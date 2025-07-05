@@ -10,10 +10,132 @@ Date:   Fri Mar 7 15:11:16 2014 -0500
     R=golang-codereviews, mattn.jp, dvyukov, 0intro, rsc
     CC=golang-codereviews
     https://golang.org/cl/72360043
-
+---
  src/pkg/runtime/proc.c    |  7 ++++---
  src/pkg/runtime/runtime.c |  4 ++++
  src/pkg/runtime/runtime.h |  1 +
  src/pkg/runtime/stack.c   |  6 +++---
  src/pkg/runtime/stack.h   | 13 ++++++-------
  5 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index bf55912783..eb7dfe4f84 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1751,12 +1751,13 @@ runtime·malg(int32 stacksize)
+ 
+ 	newg = runtime·malloc(sizeof(G));
+ 	if(stacksize >= 0) {
++		stacksize = runtime·round2(StackSystem + stacksize);
+ 		if(g == m->g0) {
+ 			// running on scheduler stack already.
+-			stk = runtime·stackalloc(newg, StackSystem + stacksize);
++			stk = runtime·stackalloc(newg, stacksize);
+ 		} else {
+ 			// have to call stackalloc on scheduler stack.
+-			newg->stacksize = StackSystem + stacksize;
++			newg->stacksize = stacksize;
+ 			g->param = newg;
+ 			runtime·mcall(mstackalloc);
+ 			stk = g->param;
+@@ -1765,7 +1766,7 @@ runtime·malg(int32 stacksize)
+ 		newg->stack0 = (uintptr)stk;
+ 		newg->stackguard = (uintptr)stk + StackGuard;
+ 		newg->stackguard0 = newg->stackguard;
+-		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
++		newg->stackbase = (uintptr)stk + stacksize - sizeof(Stktop);
+ 	}
+ 	return newg;
+ }
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 08a395fbe2..2198bc6850 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "stack.h"
+ #include "arch_GOARCH.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+@@ -256,6 +257,9 @@ runtime·check(void)
+ 		runtime·throw("float32nan3");
+ 
+ 	TestAtomic64();
++
++	if(FixedStack != runtime·round2(FixedStack))
++		runtime·throw("FixedStack is not power-of-2");
+ }
+ 
+ uint32
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4415f550d4..716071eb83 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -900,6 +900,7 @@ void	runtime·mcall(void(*)(G*));
+ uint32	runtime·fastrand1(void);
+ void	runtime·rewindmorestack(Gobuf*);
+ int32	runtime·timediv(int64, int32, int32*);
++int32	runtime·round2(int32 x); // round x up to a power of 2.
+ 
+ // atomic operations
+ bool	runtime·cas(uint32*, uint32, uint32);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index d1ba2bfdb9..ead9ba59c1 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -555,8 +555,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ }
+ 
+ // round x up to a power of 2.
+-static int32
+-round2(int32 x)
++int32
++runtime·round2(int32 x)
+ {
+ 	int32 s;
+ 
+@@ -683,7 +683,7 @@ runtime·newstack(void)
+ 	if(framesize < StackMin)
+ 		framesize = StackMin;
+ 	framesize += StackSystem;
+-	framesize = round2(framesize);
++	framesize = runtime·round2(framesize);
+ 	stk = runtime·stackalloc(gp, framesize);
+ 	if(gp->stacksize > runtime·maxstacksize) {
+ 		runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index f2e4e43198..a3a5d83a64 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -57,15 +57,13 @@ enum {
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows and on
+ 	// Plan 9 because they do not use a separate stack.
+-	// The new stack code requires stacks to be a power of two,
+-	// and the default start size is 4k, so make StackSystem also 4k
+-	// to keep the sum a power of two. StackSystem used to be
+-	// 512*sizeof(uintptr) on Windows and 512 bytes on Plan 9.
+ #ifdef GOOS_windows
+-	StackSystem = 4096,
++	StackSystem = 512 * sizeof(uintptr),
+ #else
+ #ifdef GOOS_plan9
+-	StackSystem = 4096,
++	// The size of the note handler frame varies among architectures,
++	// but 512 bytes should be enough for every implementation.
++	StackSystem = 512,
+ #else
+ 	StackSystem = 0,
+ #endif	// Plan 9
+@@ -79,7 +77,8 @@ enum {
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+ 	StackMin = 4096,
+-	FixedStack = StackMin + StackSystem,
++	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
++	FixedStack = StackMin + StackSystemRounded,
+ 
+ 	// Functions that need frames bigger than this use an extra
+ 	// instruction to do the stack split check, to avoid overflow

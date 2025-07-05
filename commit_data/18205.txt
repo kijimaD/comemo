@@ -8,6 +8,20 @@ Date:   Thu Jan 9 15:21:24 2014 -0500
     R=golang-codereviews, gobot, r
     CC=golang-codereviews
     https://golang.org/cl/44880044
-
+---
  src/pkg/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 3473c5b2cb..cff0774179 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -74,7 +74,7 @@ func (b *B) StopTimer() {
+ 	}
+ }
+ 
+-// ResetTimer sets the elapsed benchmark time to zero.
++// ResetTimer zeros the elapsed benchmark time and memory allocation counters.
+ // It does not affect whether the timer is running.
+ func (b *B) ResetTimer() {
+ 	if b.timerOn {

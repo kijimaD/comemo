@@ -9,6 +9,19 @@ Date:   Fri Feb 4 14:32:59 2011 -0500
     R=adg, brainman
     CC=golang-dev
     https://golang.org/cl/4092048
-
+---
  src/pkg/runtime/mkasmh.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 3ed5f74c90..d6c8d64e09 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -84,6 +84,7 @@ esac
+ echo
+ 
+ awk '
++{ gsub(/\r/, ""); }
+ /^aggr G$/ { aggr="g" }
+ /^aggr M$/ { aggr = "m" }
+ /^aggr Gobuf$/ { aggr = "gobuf" }

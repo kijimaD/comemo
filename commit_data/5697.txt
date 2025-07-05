@@ -7,9 +7,181 @@ Date:   Mon Jun 21 18:03:49 2010 -0700
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/1707043
-
+---
  src/cmd/5l/obj.c | 10 ----------
  src/cmd/6l/obj.c | 10 ----------
  src/cmd/8l/obj.c | 10 ----------
  src/cmd/ld/go.c  | 29 ++++++++++++++++++++++++++++-
  4 files changed, 28 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 06a84eeace..1d09f286a5 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -135,16 +135,6 @@ main(int argc, char *argv[])
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		/* do something about setting INITTEXT */
+ 		break;
+-	case 'x':	/* produce export table */
+-		doexp = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SEXPORT);
+-		break;
+-	case 'u':	/* produce dynamically loadable module */
+-		dlm = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SIMPORT);
+-		break;
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index b75f8bea28..6a0d49f135 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -129,16 +129,6 @@ main(int argc, char *argv[])
+ 	case 'r':
+ 		rpath = EARGF(usage());
+ 		break;
+-	case 'x':	/* produce export table */
+-		doexp = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SEXPORT);
+-		break;
+-	case 'u':	/* produce dynamically loadable module */
+-		dlm = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SIMPORT);
+-		break;
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 7f99173796..304187649f 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -134,16 +134,6 @@ main(int argc, char *argv[])
+ 	case 'r':
+ 		rpath = EARGF(usage());
+ 		break;
+-	case 'x':	/* produce export table */
+-		doexp = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SEXPORT);
+-		break;
+-	case 'u':	/* produce dynamically loadable module */
+-		dlm = 1;
+-		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+-			readundefs(ARGF(), SIMPORT);
+-		break;
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b5e0def7be..2598a528f2 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -84,19 +84,28 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 
+ 	if((int)len != len) {
+ 		fprint(2, "%s: too much pkg data in %s\n", argv0, filename);
++		if(debug['u'])
++			errorexit();
+ 		return;
+ 	}
+ 	data = mal(len+1);
+ 	if(Bread(f, data, len) != len) {
+ 		fprint(2, "%s: short pkg read %s\n", argv0, filename);
++		if(debug['u'])
++			errorexit();
+ 		return;
+ 	}
+ 	data[len] = '\0';
+ 
+ 	// first \n$$ marks beginning of exports - skip rest of line
+ 	p0 = strstr(data, "\n$$");
+-	if(p0 == nil)
++	if(p0 == nil) {
++		if(debug['u']) {
++			fprint(2, "%s: cannot find export data in %s\n", argv0, filename);
++			errorexit();
++		}
+ 		return;
++	}
+ 	p0 += 3;
+ 	while(*p0 != '\n' && *p0 != '\0')
+ 		p0++;
+@@ -105,6 +114,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 	p1 = strstr(p0, "\n$$");
+ 	if(p1 == nil) {
+ 		fprint(2, "%s: cannot find end of exports in %s\n", argv0, filename);
++		if(debug['u'])
++			errorexit();
+ 		return;
+ 	}
+ 	while(p0 < p1 && (*p0 == ' ' || *p0 == '\t' || *p0 == '\n'))
+@@ -112,6 +123,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 	if(p0 < p1) {
+ 		if(strncmp(p0, "package ", 8) != 0) {
+ 			fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
++			if(debug['u'])
++				errorexit();
+ 			return;
+ 		}
+ 		p0 += 8;
+@@ -120,6 +133,10 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 		name = p0;
+ 		while(p0 < p1 && *p0 != ' ' && *p0 != '\t' && *p0 != '\n')
+ 			p0++;
++		if(debug['u'] && memcmp(p0, " safe\n", 6) != 0) {
++			fprint(2, "%s: load of unsafe package %s\n", argv0, filename);
++			errorexit();
++		}
+ 		if(p0 < p1) {
+ 			*p0++ = '\0';
+ 			if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
+@@ -140,6 +157,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 	p1 = strstr(p0, "\n$$");
+ 	if(p1 == nil) {
+ 		fprint(2, "%s: cannot find end of local types in %s\n", argv0, filename);
++		if(debug['u'])
++			errorexit();
+ 		return;
+ 	}
+ 
+@@ -151,6 +170,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 		p0 = strchr(p0+1, '\n');
+ 		if(p0 == nil) {
+ 			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
++			if(debug['u'])
++				errorexit();
+ 			return;
+ 		}
+ 		p1 = strstr(p0, "\n$$");
+@@ -158,6 +179,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 			p1 = strstr(p0, "\n!\n");
+ 		if(p1 == nil) {
+ 			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
++			if(debug['u'])
++				errorexit();
+ 			return;
+ 		}
+ 		loaddynimport(filename, p0 + 1, p1 - (p0+1));
+@@ -169,6 +192,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 		p0 = strchr(p0+1, '\n');
+ 		if(p0 == nil) {
+ 			fprint(2, "%s: found $$ // dynexporg but no newline in %s\n", argv0, filename);
++			if(debug['u'])
++				errorexit();
+ 			return;
+ 		}
+ 		p1 = strstr(p0, "\n$$");
+@@ -176,6 +201,8 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 			p1 = strstr(p0, "\n!\n");
+ 		if(p1 == nil) {
+ 			fprint(2, "%s: cannot find end of // dynexporg section in %s\n", argv0, filename);
++			if(debug['u'])
++				errorexit();
+ 			return;
+ 		}
+ 		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));

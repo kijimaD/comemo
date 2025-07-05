@@ -16,9 +16,91 @@ Date:   Sat Feb 15 20:01:15 2014 -0500
     TBR=ken2
     CC=golang-codereviews
     https://golang.org/cl/64470043
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/typecheck.c   |  3 ++-
  src/cmd/gc/walk.c        |  2 +-
  test/fixedbugs/bug483.go | 36 ++++++++++++++++++++++++++++++++++++
  4 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 049809e61a..e5d12a8345 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1452,6 +1452,7 @@ void	walkstmt(Node **np);
+ void	walkstmtlist(NodeList *l);
+ Node*	conv(Node*, Type*);
+ int	candiscard(Node*);
++Node*	outervalue(Node*);
+ 
+ /*
+  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9e1ec10124..0ef497f62d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -721,7 +721,8 @@ reswitch:
+ 		if(n->left->type == T)
+ 			goto error;
+ 		checklvalue(n->left, "take the address of");
+-		for(l=n->left; l->op == ODOT; l=l->left)
++		r = outervalue(n->left);
++		for(l = n->left; l != r; l = l->left)
+ 			l->addrtaken = 1;
+ 		if(l->orig != l && l->op == ONAME)
+ 			fatal("found non-orig name node %N", l);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e9f4c25c4b..fe07490cbd 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2205,7 +2205,7 @@ reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
+  * what's the outer value that a write to n affects?
+  * outer value means containing struct or array.
+  */
+-static Node*
++Node*
+ outervalue(Node *n)
+ {	
+ 	for(;;) {
+diff --git a/test/fixedbugs/bug483.go b/test/fixedbugs/bug483.go
+new file mode 100644
+index 0000000000..2372e89a71
+--- /dev/null
++++ b/test/fixedbugs/bug483.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test for a garbage collection bug involving not
++// marking x as having its address taken by &x[0]
++// when x is an array value.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"runtime"
++)
++
++func main() {
++	var x = [4]struct{ x, y interface{} }{
++		{"a", "b"},
++		{"c", "d"},
++		{"e", "f"},
++		{"g", "h"},
++	}
++
++	var buf bytes.Buffer
++	for _, z := range x {
++		runtime.GC()
++		fmt.Fprintf(&buf, "%s %s ", z.x.(string), z.y.(string))
++	}
++
++	if buf.String() != "a b c d e f g h " {
++		println("BUG wrong output\n", buf.String())
++	}
++}

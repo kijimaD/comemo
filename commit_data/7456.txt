@@ -14,8 +14,262 @@ Date:   Mon Feb 14 10:17:30 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4179045
-
+---
  src/pkg/gob/decode.go       |  50 ++++++++++++++++++--
  src/pkg/gob/decoder.go      |   8 +---
  src/pkg/gob/encoder_test.go | 109 ++++++++++++++++++++++++++------------------
  3 files changed, 113 insertions(+), 54 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index db8b968700..9667f6157e 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -481,6 +481,19 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) (err os.Error) {
+ 	return nil
+ }
+ 
++func (dec *Decoder) ignoreSingle(engine *decEngine) (err os.Error) {
++	defer catchError(&err)
++	state := newDecodeState(dec, &dec.buf)
++	state.fieldnum = singletonField
++	delta := int(state.decodeUint())
++	if delta != 0 {
++		errorf("gob decode: corrupted data: non-zero delta for singleton")
++	}
++	instr := &engine.instr[singletonField]
++	instr.op(instr, state, unsafe.Pointer(nil))
++	return nil
++}
++
+ func (dec *Decoder) decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
+ 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
+ 	for i := 0; i < length; i++ {
+@@ -653,8 +666,8 @@ func (dec *Decoder) ignoreInterface(state *decodeState) {
+ 	if id < 0 {
+ 		error(dec.err)
+ 	}
+-	// At this point, the decoder buffer contains the value. Just toss it.
+-	state.b.Reset()
++	// At this point, the decoder buffer contains a delimited value. Just toss it.
++	state.b.Next(int(state.decodeUint()))
+ }
+ 
+ // Index by Go types.
+@@ -901,6 +914,16 @@ func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *dec
+ 	return
+ }
+ 
++func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err os.Error) {
++	engine = new(decEngine)
++	engine.instr = make([]decInstr, 1) // one item
++	op := dec.decIgnoreOpFor(remoteId)
++	ovfl := overflow(dec.typeString(remoteId))
++	engine.instr[0] = decInstr{op, 0, 0, 0, ovfl}
++	engine.numInstr = 1
++	return
++}
++
+ // Is this an exported - upper case - name?
+ func isExported(name string) bool {
+ 	rune, _ := utf8.DecodeRuneInString(name)
+@@ -984,7 +1007,12 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
+ 		// To handle recursive types, mark this engine as underway before compiling.
+ 		enginePtr = new(*decEngine)
+ 		dec.ignorerCache[wireId] = enginePtr
+-		*enginePtr, err = dec.compileDec(wireId, emptyStructType)
++		wire := dec.wireType[wireId]
++		if wire != nil && wire.StructT != nil {
++			*enginePtr, err = dec.compileDec(wireId, emptyStructType)
++		} else {
++			*enginePtr, err = dec.compileIgnoreSingle(wireId)
++		}
+ 		if err != nil {
+ 			dec.ignorerCache[wireId] = nil, false
+ 		}
+@@ -993,6 +1021,10 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
+ }
+ 
+ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
++	// If the value is nil, it means we should just ignore this item.
++	if val == nil {
++		return dec.decodeIgnoredValue(wireId)
++	}
+ 	// Dereference down to the underlying struct type.
+ 	rt, indir := indirect(val.Type())
+ 	enginePtr, err := dec.getDecEnginePtr(wireId, rt)
+@@ -1010,6 +1042,18 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) os.Error {
+ 	return dec.decodeSingle(engine, rt, uintptr(val.Addr()), indir)
+ }
+ 
++func (dec *Decoder) decodeIgnoredValue(wireId typeId) os.Error {
++	enginePtr, err := dec.getIgnoreEnginePtr(wireId)
++	if err != nil {
++		return err
++	}
++	wire := dec.wireType[wireId]
++	if wire != nil && wire.StructT != nil {
++		return dec.ignoreStruct(*enginePtr)
++	}
++	return dec.ignoreSingle(*enginePtr)
++}
++
+ func init() {
+ 	var iop, uop decOp
+ 	switch reflect.Typeof(int(0)).Bits() {
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 922794ea83..f7c994ffa7 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -183,12 +183,8 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+ 	dec.buf.Reset() // In case data lingers from previous invocation.
+ 	dec.err = nil
+ 	id := dec.decodeTypeSequence(false)
+-	if id >= 0 {
+-		// A nil value means "ignore the data".  Since it's already read into
+-		// the decoder's buffer, all we need to do is not bother to decode it.
+-		if value != nil {
+-			dec.err = dec.decodeValue(id, value)
+-		}
++	if dec.err == nil {
++		dec.err = dec.decodeValue(id, value)
+ 	}
+ 	return dec.err
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 8825fe15d0..3e06db7272 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -6,6 +6,7 @@ package gob
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"os"
+ 	"reflect"
+@@ -120,7 +121,7 @@ func corruptDataCheck(s string, err os.Error, t *testing.T) {
+ 	dec := NewDecoder(b)
+ 	err1 := dec.Decode(new(ET2))
+ 	if err1 != err {
+-		t.Error("expected error", err, "got", err1)
++		t.Errorf("from %q expected error %s; got %s", s, err, err1)
+ 	}
+ }
+ 
+@@ -384,54 +385,72 @@ func TestInterfaceIndirect(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDecodeIntoEmptyStruct(t *testing.T) {
+-	type Empty struct{}
+-	empty := &Empty{}
+-	b := new(bytes.Buffer)
+-	enc := NewEncoder(b)
+-	err := enc.Encode(&struct{ A int }{23})
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
+-	dec := NewDecoder(b)
+-	err = dec.Decode(empty)
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
++// Now follow various tests that decode into things that can't represent the
++// encoded value, all of which should be legal.
++
++// Also, when the ignored object contains an interface value, it may define
++// types. Make sure that skipping the value still defines the types by using
++// the encoder/decoder pair to send a value afterwards.  If an interface
++// is sent, its type in the test is always NewType0, so this checks that the
++// encoder and decoder don't skew with respect to type definitions.
++
++type Struct0 struct {
++	I interface{}
+ }
+ 
+-func TestStructDecodeIntoNil(t *testing.T) {
+-	nonempty := &struct{ A int }{23}
+-	b := new(bytes.Buffer)
+-	enc := NewEncoder(b)
+-	err := enc.Encode(nonempty)
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
+-	dec := NewDecoder(b)
+-	err = dec.Decode(nil)
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
+-	if b.Len() != 0 {
+-		t.Fatalf("%d bytes remain after decode", b.Len())
+-	}
++type NewType0 struct {
++	S string
+ }
+ 
+-func TestSingletonDecodeIntoNil(t *testing.T) {
+-	b := new(bytes.Buffer)
+-	enc := NewEncoder(b)
+-	err := enc.Encode("hello world")
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
+-	dec := NewDecoder(b)
+-	err = dec.Decode(nil)
+-	if err != nil {
+-		t.Fatal("encode error:", err)
+-	}
+-	if b.Len() != 0 {
+-		t.Fatalf("%d bytes remain after decode", b.Len())
++type ignoreTest struct {
++	in, out interface{}
++}
++
++var ignoreTests = []ignoreTest{
++	// Decode normal struct into an empty struct
++	{&struct{ A int }{23}, &struct{}{}},
++	// Decode normal struct into a nil.
++	{&struct{ A int }{23}, nil},
++	// Decode singleton string into a nil.
++	{"hello, world", nil},
++	// Decode singleton slice into a nil.
++	{[]int{1, 2, 3, 4}, nil},
++	// Decode struct containing an interface into a nil.
++	{&Struct0{&NewType0{"value0"}}, nil},
++	// Decode singleton slice of interfaces into a nil.
++	{[]interface{}{"hi", &NewType0{"value1"}, 23}, nil},
++}
++
++func TestDecodeIntoNothing(t *testing.T) {
++	Register(new(NewType0))
++	for i, test := range ignoreTests {
++		b := new(bytes.Buffer)
++		enc := NewEncoder(b)
++		err := enc.Encode(test.in)
++		if err != nil {
++			t.Errorf("%d: encode error %s:", i, err)
++			continue
++		}
++		dec := NewDecoder(b)
++		err = dec.Decode(test.out)
++		if err != nil {
++			t.Errorf("%d: decode error: %s", i, err)
++			continue
++		}
++		// Now see if the encoder and decoder are in a consistent state.
++		str := fmt.Sprintf("Value %d", i)
++		err = enc.Encode(&NewType0{str})
++		if err != nil {
++			t.Fatalf("%d: NewType0 encode error: %s", i, err)
++		}
++		ns := new(NewType0)
++		err = dec.Decode(ns)
++		if err != nil {
++			t.Fatalf("%d: NewType0 decode error: %s", i, err)
++		}
++		if ns.S != str {
++			t.Fatalf("%d: expected %q got %q", i, str, ns.S)
++		}
+ 	}
+ }
+ 

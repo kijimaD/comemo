@@ -13,9 +13,113 @@ Date:   Fri May 21 18:13:04 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/pprof/pprof.go      | 3 ++-
  src/runtime/pprof/pprof_test.go | 3 ++-
  src/runtime/pprof/proto.go      | 8 ++------
  src/runtime/pprof/proto_test.go | 9 +++++----
  4 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 99eda10f1c..000abf935c 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -76,6 +76,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/abi"
+ 	"io"
+ 	"runtime"
+ 	"sort"
+@@ -289,7 +290,7 @@ func (p *Profile) Add(value interface{}, skip int) {
+ 	stk = stk[:n]
+ 	if len(stk) == 0 {
+ 		// The value for skip is too large, and there's no stack trace to record.
+-		stk = []uintptr{funcPC(lostProfileEvent)}
++		stk = []uintptr{abi.FuncPCABIInternal(lostProfileEvent)}
+ 	}
+ 
+ 	p.mu.Lock()
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 7cbb4fc7ae..cfcf379d1f 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/profile"
+ 	"internal/testenv"
+ 	"io"
+@@ -116,7 +117,7 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
+ // findInlinedCall returns the PC of an inlined function call within
+ // the function body for the function f if any.
+ func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
+-	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
++	fFunc := runtime.FuncForPC(uintptr(abi.FuncPCABIInternal(f)))
+ 	if fFunc == nil || fFunc.Entry() == 0 {
+ 		panic("failed to locate function entry")
+ 	}
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index bdb4454b6e..6862513956 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"fmt"
++	"internal/abi"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -21,11 +22,6 @@ import (
+ // (The name shows up in the pprof graphs.)
+ func lostProfileEvent() { lostProfileEvent() }
+ 
+-// funcPC returns the PC for the func value f.
+-func funcPC(f interface{}) uintptr {
+-	return *(*[2]*uintptr)(unsafe.Pointer(&f))[1]
+-}
+-
+ // A profileBuilder writes a profile incrementally from a
+ // stream of profile samples delivered by the runtime.
+ type profileBuilder struct {
+@@ -325,7 +321,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ 				// gentraceback guarantees that PCs in the
+ 				// stack can be unconditionally decremented and
+ 				// still be valid, so we must do the same.
+-				uint64(funcPC(lostProfileEvent) + 1),
++				uint64(abi.FuncPCABIInternal(lostProfileEvent) + 1),
+ 			}
+ 		}
+ 		b.m.lookup(stk, tag).count += int64(count)
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 5eb1aab140..d052b9fa42 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/profile"
+ 	"internal/testenv"
+ 	"os"
+@@ -97,11 +98,11 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 		map2 = mprof.Mapping[1]
+ 		map2.BuildID, _ = elfBuildID(map2.File)
+ 	case "js":
+-		addr1 = uint64(funcPC(f1))
+-		addr2 = uint64(funcPC(f2))
++		addr1 = uint64(abi.FuncPCABIInternal(f1))
++		addr2 = uint64(abi.FuncPCABIInternal(f2))
+ 	default:
+-		addr1 = uint64(funcPC(f1))
+-		addr2 = uint64(funcPC(f2))
++		addr1 = uint64(abi.FuncPCABIInternal(f1))
++		addr2 = uint64(abi.FuncPCABIInternal(f2))
+ 		// Fake mapping - HasFunctions will be true because two PCs from Go
+ 		// will be fully symbolized.
+ 		fake := &profile.Mapping{ID: 1, HasFunctions: true}

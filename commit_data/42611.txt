@@ -12,6 +12,22 @@ Date:   Sat Jan 25 02:24:02 2020 +1100
     Change-Id: Ia0cdf69f1830b995f2882b47d1bc0be82c4b3039
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216259
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/testdata/script/link_syso_issue33139.txt | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index c2ca27acbf..03169bf5e9 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -8,6 +8,10 @@
+ # See: https://github.com/golang/go/issues/8912
+ [linux] [ppc64] skip
+ 
++# External linking is not supported on linux/riscv64.
++# See: https://github.com/golang/go/issues/36739
++[linux] [riscv64] skip
++
+ # External linking is not supported on darwin/386 (10.14+).
+ # See: https://github.com/golang/go/issues/31751
+ [darwin] [386] skip

@@ -7,9 +7,101 @@ Date:   Tue Aug 11 17:05:22 2009 -0700
     R=ken
     OCL=33051
     CL=33051
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/typecheck.c   | 10 +++++++---
  src/cmd/gc/walk.c        |  2 +-
  test/fixedbugs/bug186.go | 18 ++++++++++++++++++
  4 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 73deb98263..72c6b745d4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -470,6 +470,7 @@ enum
+ 	Etype = 1<<3,
+ 	Ecall = 1<<4,	// call-only expressions are ok
+ 	Efnstruct = 1<<5,	// multivalue function returns are ok
++	Eiota = 1<<6,		// iota is ok
+ };
+ 
+ #define	BITS	5
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 983ff78356..a7d5b8d40e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -85,6 +85,8 @@ reswitch:
+ 	 */
+ 	case OLITERAL:
+ 		ok |= Erv;
++		if(n->iota && !(top & Eiota))
++			yyerror("use of iota outside of constant initializer");
+ 		goto ret;
+ 
+ 	case ONONAME:
+@@ -261,8 +263,8 @@ reswitch:
+ 	case OSUB:
+ 	case OXOR:
+ 		ok |= Erv;
+-		l = typecheck(&n->left, Erv);
+-		r = typecheck(&n->right, Erv);
++		l = typecheck(&n->left, Erv | (top & Eiota));
++		r = typecheck(&n->right, Erv | (top & Eiota));
+ 		if(l->type == T || r->type == T)
+ 			goto error;
+ 		op = n->op;
+@@ -339,7 +341,7 @@ reswitch:
+ 	case ONOT:
+ 	case OPLUS:
+ 		ok |= Erv;
+-		l = typecheck(&n->left, Erv);
++		l = typecheck(&n->left, Erv | (top & Eiota));
+ 		if((t = l->type) == T)
+ 			goto error;
+ 		if(!okfor[n->op][t->etype]) {
+@@ -995,6 +997,8 @@ error:
+ out:
+ 	lineno = lno;
+ 	n->typecheck = 1;
++	if(n->iota)
++		n->typecheck = 0;
+ 	*np = n;
+ 	return n;
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d1e7f3a1be..fd1220f618 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -160,7 +160,7 @@ walkdef(Node *n)
+ 			dump("walkdef nil defn", n);
+ 			yyerror("xxx");
+ 		}
+-		typecheck(&e, Erv);
++		typecheck(&e, Erv | Eiota);
+ 		if(e->op != OLITERAL) {
+ 			yyerror("const initializer must be constant");
+ 			goto ret;
+diff --git a/test/fixedbugs/bug186.go b/test/fixedbugs/bug186.go
+new file mode 100644
+index 0000000000..97c094734d
+--- /dev/null
++++ b/test/fixedbugs/bug186.go
+@@ -0,0 +1,18 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const X = iota
++
++func f(x int) { }
++
++func main() {
++	f(X);
++	f(iota);	// ERROR "iota.*outside.*initializer"
++	f(X);
++	f(iota);	// ERROR "iota.*outside.*initializer"
++}

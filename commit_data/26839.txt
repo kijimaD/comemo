@@ -22,7 +22,58 @@ Date:   Sun Feb 28 11:15:22 2016 -0500
     Change-Id: Id5fb8c260eaec27bd727cb0ae1476c60343b0986
     Reviewed-on: https://go-review.googlesource.com/19998
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 12 ++++++++----
  src/runtime/mgc.go                 |  7 ++++---
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9847806110..8e68c20fb4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2718,9 +2718,11 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 
+ 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+-	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
++	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
+ 	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+-	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
++	// Load word, test byte, avoiding partial register write from load byte.
++	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
++	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Likely = ssa.BranchUnlikely
+@@ -2761,9 +2763,11 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 
+ 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+-	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
++	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
+ 	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+-	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
++	// Load word, test byte, avoiding partial register write from load byte.
++	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
++	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Likely = ssa.BranchUnlikely
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 94301c6dc7..102d44160e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -216,9 +216,10 @@ var gcphase uint32
+ // The compiler knows about this variable.
+ // If you change it, you must change the compiler too.
+ var writeBarrier struct {
+-	enabled bool // compiler emits a check of this before calling write barrier
+-	needed  bool // whether we need a write barrier for current GC phase
+-	cgo     bool // whether we need a write barrier for a cgo check
++	enabled bool   // compiler emits a check of this before calling write barrier
++	needed  bool   // whether we need a write barrier for current GC phase
++	cgo     bool   // whether we need a write barrier for a cgo check
++	alignme uint64 // guarantee alignment so that compiler can use a 32 or 64-bit load
+ }
+ 
+ // gcBlackenEnabled is 1 if mutator assists and background mark

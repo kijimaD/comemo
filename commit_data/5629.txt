@@ -18,7 +18,7 @@ Date:   Tue Jun 8 18:50:02 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1303042
-
+---
  src/cmd/6g/cgen.c                  |   2 +-
  src/cmd/gc/bits.c                  |  25 +-
  src/cmd/gc/builtin.c.boot          |  28 ++-
@@ -49,3 +49,3995 @@ Date:   Tue Jun 8 18:50:02 2010 -0700
  test/named.go                      | 474 +++++++++++++++++------------------
  test/named1.go                     |  69 +++---
  29 files changed, 1469 insertions(+), 1330 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 282f6d7be7..aacc0d06f0 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -431,7 +431,7 @@ agen(Node *n, Node *res)
+ 	if(n == N || n->type == T)
+ 		return;
+ 
+-	if(!isptr[res->type->etype])
++	if(!isptr[res->type->etype] && res->type->etype != TUINTPTR)
+ 		fatal("agen: not tptr: %T", res->type);
+ 
+ 	while(n->op == OCONVNOP)
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index 57caf58dc0..59a8e04efb 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -133,25 +133,22 @@ bitno(int32 b)
+ int
+ Qconv(Fmt *fp)
+ {
+-	char str[STRINGSZ], ss[STRINGSZ], *s;
+ 	Bits bits;
+-	int i;
++	int i, first;
+ 
+-	str[0] = 0;
++	first = 1;
+ 	bits = va_arg(fp->args, Bits);
+ 	while(bany(&bits)) {
+ 		i = bnum(bits);
+-		if(str[0])
+-			strcat(str, " ");
+-		if(var[i].sym == S) {
+-			sprint(ss, "$%lld", var[i].offset);
+-			s = ss;
+-		} else
+-			s = var[i].sym->name;
+-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
+-			break;
+-		strcat(str, s);
++		if(first)
++			first = 0;
++		else
++			fmtprint(fp, " ");
++		if(var[i].sym == S)
++			fmtprint(fp, "$%lld", var[i].offset);
++		else
++			fmtprint(fp, var[i].sym->name);
+ 		bits.b[i/32] &= ~(1L << (i%32));
+ 	}
+-	return fmtstrcpy(fp, str);
++	return 0;
+ }
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 1e7a14947b..3e2d988725 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -33,18 +33,22 @@ char *runtimeimport =
+ 	"func \"\".stringiter (? string, ? int) int\n"
+ 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+ 	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
+-	"func \"\".ifaceI2E (iface any) any\n"
+-	"func \"\".ifaceE2I (typ *uint8, iface any) any\n"
+-	"func \"\".ifaceT2E (typ *uint8, elem any) any\n"
+-	"func \"\".ifaceE2T (typ *uint8, elem any) any\n"
+-	"func \"\".ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func \"\".ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
+-	"func \"\".ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) any\n"
+-	"func \"\".ifaceI2T (typ *uint8, iface any) any\n"
+-	"func \"\".ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func \"\".ifaceI2I (typ *uint8, iface any) any\n"
+-	"func \"\".ifaceI2Ix (typ *uint8, iface any) any\n"
+-	"func \"\".ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".convI2E (elem any) any\n"
++	"func \"\".convI2I (typ *uint8, elem any) any\n"
++	"func \"\".convT2E (typ *uint8, elem any) any\n"
++	"func \"\".convT2I (typ *uint8, typ2 *uint8, elem any) any\n"
++	"func \"\".assertE2E (typ *uint8, iface any) any\n"
++	"func \"\".assertE2E2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".assertE2I (typ *uint8, iface any) any\n"
++	"func \"\".assertE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".assertE2T (typ *uint8, iface any) any\n"
++	"func \"\".assertE2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".assertI2E (typ *uint8, iface any) any\n"
++	"func \"\".assertI2E2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".assertI2I (typ *uint8, iface any) any\n"
++	"func \"\".assertI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".assertI2T (typ *uint8, iface any) any\n"
++	"func \"\".assertI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+ 	"func \"\".ifaceeq (i1 any, i2 any) bool\n"
+ 	"func \"\".efaceeq (i1 any, i2 any) bool\n"
+ 	"func \"\".ifacethash (i1 any) uint32\n"
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index c194a0df32..a24a03a496 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -119,6 +119,7 @@ walkclosure(Node *func, NodeList **init)
+ 	Node *xtype, *v, *addr, *xfunc, *call, *clos;
+ 	NodeList *l, *in;
+ 	static int closgen;
++	char *p;
+ 
+ 	/*
+ 	 * wrap body in external function
+@@ -134,8 +135,9 @@ walkclosure(Node *func, NodeList **init)
+ 		if(v->op == 0)
+ 			continue;
+ 		addr = nod(ONAME, N, N);
+-		snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
+-		addr->sym = lookup(namebuf);
++		p = smprint("&%s", v->sym->name);
++		addr->sym = lookup(p);
++		free(p);
+ 		addr->ntype = nod(OIND, typenod(v->type), N);
+ 		addr->class = PPARAM;
+ 		addr->addable = 1;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index be351def65..c33d4d3a70 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -93,8 +93,11 @@ convlit1(Node **np, Type *t, int explicit)
+ 		return;
+ 	case OLITERAL:
+ 		// target is invalid type for a constant?  leave alone.
+-		if(!okforconst[t->etype] && n->type->etype != TNIL)
++		if(!okforconst[t->etype] && n->type->etype != TNIL) {
++			defaultlit(&n, T);
++			*np = n;
+ 			return;
++		}
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+@@ -109,10 +112,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 	}
+ 
+ 	// avoided repeated calculations, errors
+-	if(cvttype(n->type, t) == 1) {
+-		n->type = t;
++	if(eqtype(n->type, t))
+ 		return;
+-	}
+ 
+ 	ct = consttype(n);
+ 	if(ct < 0)
+@@ -968,6 +969,8 @@ defaultlit(Node **np, Type *t)
+ 		break;
+ 	case CTBOOL:
+ 		n->type = types[TBOOL];
++		if(t != T && t->etype == TBOOL)
++			n->type = t;
+ 		break;
+ 	case CTINT:
+ 		n->type = types[TINT];
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index bb81d2a222..48391d510a 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -281,6 +281,7 @@ updatetype(Type *n, Type *t)
+ 	local = n->local;
+ 	vargen = n->vargen;
+ 	*n = *t;
++	n->orig = t->orig;
+ 	n->sym = s;
+ 	n->local = local;
+ 	n->siggen = 0;
+@@ -759,7 +760,7 @@ typedcl2(Type *pt, Type *t)
+ 
+ 	if(pt->etype == TFORW)
+ 		goto ok;
+-	if(!cvttype(pt, t))
++	if(!eqtype(pt->orig, t))
+ 		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
+ 	return;
+ 
+@@ -1154,7 +1155,7 @@ Sym*
+ methodsym(Sym *nsym, Type *t0)
+ {
+ 	Sym *s;
+-	char buf[NSYMB];
++	char *p;
+ 	Type *t;
+ 
+ 	t = t0;
+@@ -1177,8 +1178,10 @@ methodsym(Sym *nsym, Type *t0)
+ 	if(t != t0 && t0->sym)
+ 		t0 = ptrto(t);
+ 
+-	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
+-	return pkglookup(buf, s->pkg);
++	p = smprint("%#hT·%s", t0, nsym->name);
++	s = pkglookup(p, s->pkg);
++	free(p);
++	return s;
+ 
+ bad:
+ 	yyerror("illegal receiver type: %T", t0);
+@@ -1200,7 +1203,7 @@ Node*
+ methodname1(Node *n, Node *t)
+ {
+ 	char *star;
+-	char buf[NSYMB];
++	char *p;
+ 
+ 	star = "";
+ 	if(t->op == OIND) {
+@@ -1209,8 +1212,10 @@ methodname1(Node *n, Node *t)
+ 	}
+ 	if(t->sym == S || isblank(n))
+ 		return newname(n->sym);
+-	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
+-	return newname(pkglookup(buf, t->sym->pkg));
++	p = smprint("%s%S·%S", star, t->sym, n->sym);
++	n = newname(pkglookup(p, t->sym->pkg));
++	free(p);
++	return n;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index d11ddf2ea8..9992c5219e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -182,10 +182,22 @@ dumpexporttype(Sym *s)
+ 	Bprint(bout, "type %#T %l#T\n",  t, t);
+ }
+ 
++static int
++methcmp(const void *va, const void *vb)
++{
++	Type *a, *b;
++	
++	a = *(Type**)va;
++	b = *(Type**)vb;
++	return strcmp(a->sym->name, b->sym->name);
++}
++
+ void
+ dumpsym(Sym *s)
+ {
+ 	Type *f, *t;
++	Type **m;
++	int i, n;
+ 
+ 	if(s->flags & SymExported)
+ 		return;
+@@ -207,14 +219,23 @@ dumpsym(Sym *s)
+ 		break;
+ 	case OTYPE:
+ 		t = s->def->type;
+-		// TODO(rsc): sort methods by name
+-		for(f=t->method; f!=T; f=f->down)
++		n = 0;
++		for(f=t->method; f!=T; f=f->down) {	
+ 			dumpprereq(f);
++			n++;
++		}
++		m = mal(n*sizeof m[0]);
++		i = 0;
++		for(f=t->method; f!=T; f=f->down)
++			m[i++] = f;
++		qsort(m, n, sizeof m[0], methcmp);
+ 
+ 		dumpexporttype(s);
+-		for(f=t->method; f!=T; f=f->down)
++		for(i=0; i<n; i++) {
++			f = m[i];
+ 			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
+ 				f->type->type->type, f->sym, f->type);
++		}
+ 		break;
+ 	case ONAME:
+ 		dumpexportvar(s);
+@@ -357,7 +378,7 @@ importvar(Sym *s, Type *t, int ctxt)
+ 
+ 	importsym(s, ONAME);
+ 	if(s->def != N && s->def->op == ONAME) {
+-		if(cvttype(t, s->def->type))
++		if(eqtype(t, s->def->type))
+ 			return;
+ 		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T",
+ 			s, s->def->type, t);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5aa95eee3b..18e87f0cad 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -158,6 +158,7 @@ struct	Type
+ 	uchar	isddd;	// TFIELD is ... argument
+ 
+ 	Node*	nod;		// canonical OTYPE node
++	Type*	orig;		// original type (type literal or predefined type)
+ 	int		lineno;
+ 
+ 	// TFUNCT
+@@ -361,11 +362,12 @@ enum
+ 	OCLOSURE,
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+-	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
++	OCONV, OCONVIFACE, OCONVNOP, OCONVSLICE,
+ 	OCOPY,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
++	ODOTTYPE2,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+ 	OIND,
+ 	OINDEX, OINDEXSTR, OINDEXMAP,
+@@ -904,26 +906,21 @@ NodeList*	list(NodeList*, Node*);
+ NodeList*	concat(NodeList*, NodeList*);
+ int		count(NodeList*);
+ Node*	liststmt(NodeList*);
+-
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+ Type**	getinarg(Type*);
+-
+ Type*	getthisx(Type*);
+ Type*	getoutargx(Type*);
+ Type*	getinargx(Type*);
+-
+ Type*	structfirst(Iter*, Type**);
+ Type*	structnext(Iter*);
+ Type*	funcfirst(Iter*, Type*);
+ Type*	funcnext(Iter*);
+-
+ int	brcom(int);
+ int	brrev(int);
+ void	setmaxarg(Type*);
+ int	dotoffset(Node*, int*, Node**);
+ void	tempname(Node*, Type*);
+-
+ int	Econv(Fmt*);
+ int	Jconv(Fmt*);
+ int	Lconv(Fmt*);
+@@ -934,23 +931,22 @@ int	Nconv(Fmt*);
+ void	exprfmt(Fmt*, Node*, int);
+ int	Wconv(Fmt*);
+ int	Zconv(Fmt*);
+-
+ int	lookdot0(Sym*, Type*, Type**);
+ int	adddot1(Sym*, Type*, int, Type**);
+ Node*	adddot(Node*);
+ void	expandmeth(Sym*, Type*);
+ void	genwrapper(Type*, Type*, Sym*);
+-
+ int	simsimtype(Type*);
+-
+ int	powtwo(Node*);
+ Type*	tounsigned(Type*);
+ void	smagic(Magic*);
+ void	umagic(Magic*);
+-
+ void	redeclare(Sym*, char*);
+ Sym*	ngotype(Node*);
+-
++int	convertop(Type*, Type*, char**);
++int	assignop(Type*, Type*, char**);
++Node*	assignconv(Node*, Type*, char*);
++int	implements(Type*, Type*, Type**, Type**);
+ 
+ /*
+  *	dcl.c
+@@ -1053,7 +1049,6 @@ void	walkstmt(Node**);
+ void	walkstmtlist(NodeList*);
+ void	walkexprlist(NodeList*, NodeList**);
+ void	walkconv(Node**, NodeList**);
+-void	walkdottype(Node*, NodeList**);
+ void	walkas(Node*);
+ void	walkswitch(Node*);
+ void	walkrange(Node*);
+@@ -1071,8 +1066,6 @@ Type*	fixchan(Type*);
+ Node*	ifacecvt(Type*, Node*, int, NodeList**);
+ int	ifaceas(Type*, Type*, int);
+ int	ifaceas1(Type*, Type*, int);
+-void	ifacecheck(Type*, Type*, int, int);
+-void	runifacechecks(void);
+ Node*	convas(Node*, NodeList**);
+ Node*	colas(NodeList*, NodeList*);
+ void	colasdefn(NodeList*, Node*);
+@@ -1090,10 +1083,10 @@ void	typecheckswitch(Node*);
+ void	typecheckselect(Node*);
+ void	typecheckrange(Node*);
+ Node*	typecheckconv(Node*, Node*, Type*, int, char*);
+-int	checkconv(Type*, Type*, int, int*, int*, char*);
+ Node*	typecheck(Node**, int);
+ int	islvalue(Node*);
+ void	queuemethod(Node*);
++int	exportassignok(Type*, char*);
+ 
+ /*
+  *	const.c
+@@ -1242,4 +1235,4 @@ int	duintptr(Sym *s, int off, uint64 v);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+ void	genembedtramp(Type*, Type*, Sym*);
+ int	gen_as_init(Node*);
+-int	anyregalloc();
++int	anyregalloc(void);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f50c857a66..7f85271749 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -148,8 +148,21 @@ main(int argc, char *argv[])
+ 	typecheckok = 1;
+ 	if(debug['f'])
+ 		frame(1);
++
++	// Process top-level declarations in three phases.
++	// Phase 1: const, type, and names and types of funcs.
++	//   This will gather all the information about types
++	//   and methods but doesn't depend on any of it.
++	// Phase 2: Variable assignments.
++	//   To check interface assignments, depends on phase 1.
++	// Phase 3: Function bodies.
+ 	defercheckwidth();
+-	typechecklist(xtop, Etop);
++	for(l=xtop; l; l=l->next)
++		if(l->n->op != ODCL && l->n->op != OAS)
++			typecheck(&l->n, Etop);
++	for(l=xtop; l; l=l->next)
++		if(l->n->op == ODCL || l->n->op == OAS)
++			typecheck(&l->n, Etop);
+ 	resumecheckwidth();
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+@@ -164,7 +177,6 @@ main(int argc, char *argv[])
+ 	}
+ 	dclchecks();
+ 
+-	runifacechecks();
+ 	if(nerrors)
+ 		errorexit();
+ 
+@@ -1155,7 +1167,7 @@ loop:
+ int
+ escchar(int e, int *escflg, vlong *val)
+ {
+-	int i, c;
++	int i, u, c;
+ 	vlong l;
+ 
+ 	*escflg = 0;
+@@ -1177,6 +1189,7 @@ escchar(int e, int *escflg, vlong *val)
+ 		return 0;
+ 	}
+ 
++	u = 0;
+ 	c = getr();
+ 	switch(c) {
+ 	case 'x':
+@@ -1186,10 +1199,12 @@ escchar(int e, int *escflg, vlong *val)
+ 
+ 	case 'u':
+ 		i = 4;
++		u = 1;
+ 		goto hex;
+ 
+ 	case 'U':
+ 		i = 8;
++		u = 1;
+ 		goto hex;
+ 
+ 	case '0':
+@@ -1239,6 +1254,10 @@ hex:
+ 		ungetc(c);
+ 		break;
+ 	}
++	if(u && l > Runemax) {
++		yyerror("invalid Unicode code point in escape sequence: %#llx", l);
++		l = Runeerror;
++	}
+ 	*val = l;
+ 	return 0;
+ 
+@@ -1388,7 +1407,6 @@ lexinit(void)
+ 	// (the type of x in var x string or var x = "hello").
+ 	// this is the ideal form
+ 	// (the type of x in const x = "hello").
+-	// TODO(rsc): this may need some more thought.
+ 	idealstring = typ(TSTRING);
+ 	idealbool = typ(TBOOL);
+ 
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 83ab1cb86c..97d92e1dc6 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -39,6 +39,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ODOTPTR:
+ 	case ODOTINTER:
+ 	case ODOTMETH:
++	case ODOTTYPE:
++	case ODOTTYPE2:
+ 	case OARRAYBYTESTR:
+ 	case OCAP:
+ 	case OCLOSE:
+@@ -54,7 +56,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCONV:
+ 	case OCONVNOP:
+ 	case OCONVSLICE:
+-	case OCONVIFACE:
+ 	case OMAKESLICE:
+ 	case ORUNESTR:
+ 	case OADDR:
+@@ -64,6 +65,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ONOT:
+ 	case OPLUS:
+ 	case ORECV:
++	case OCONVIFACE:
+ 		nprec = 7;
+ 		break;
+ 
+@@ -277,6 +279,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case ODOTTYPE:
++	case ODOTTYPE2:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, ".(");
+ 		if(n->right != N)
+@@ -336,9 +339,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case OCONV:
++	case OCONVIFACE:
+ 	case OCONVNOP:
+ 	case OCONVSLICE:
+-	case OCONVIFACE:
+ 	case OARRAYBYTESTR:
+ 	case ORUNESTR:
+ 		if(n->type == T || n->type->sym == S)
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 2794504d2c..09d54b3ee6 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -11,7 +11,7 @@
+ void
+ typecheckrange(Node *n)
+ {
+-	int op, et;
++	char *why;
+ 	Type *t, *t1, *t2;
+ 	Node *v1, *v2;
+ 	NodeList *ll;
+@@ -66,13 +66,13 @@ typecheckrange(Node *n)
+ 
+ 	if(v1->defn == n)
+ 		v1->type = t1;
+-	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et, "range") < 0)
+-		yyerror("cannot assign type %T to %+N", t1, v1);
++	else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
++		yyerror("cannot assign type %T to %+N in range%s", t1, v1, why);
+ 	if(v2) {
+ 		if(v2->defn == n)
+ 			v2->type = t2;
+-		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et, "range") < 0)
+-			yyerror("cannot assign type %T to %+N", t1, v1);
++		else if(v2->type != T && assignop(t2, v2->type, &why) == 0)
++			yyerror("cannot assign type %T to %+N in range%s", t2, v2, why);
+ 	}
+ 
+ out:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 392de17a00..5783faafda 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -47,18 +47,26 @@ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv int)
+ func slicecopy(to any, fr any, wid uint32) int
+ 
+-func ifaceI2E(iface any) (ret any)
+-func ifaceE2I(typ *byte, iface any) (ret any)
+-func ifaceT2E(typ *byte, elem any) (ret any)
+-func ifaceE2T(typ *byte, elem any) (ret any)
+-func ifaceE2I2(typ *byte, iface any) (ret any, ok bool)
+-func ifaceE2T2(typ *byte, elem any) (ret any, ok bool)
+-func ifaceT2I(typ1 *byte, typ2 *byte, elem any) (ret any)
+-func ifaceI2T(typ *byte, iface any) (ret any)
+-func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
+-func ifaceI2I(typ *byte, iface any) (ret any)
+-func ifaceI2Ix(typ *byte, iface any) (ret any)
+-func ifaceI2I2(typ *byte, iface any) (ret any, ok bool)
++// interface conversions
++func convI2E(elem any) (ret any)
++func convI2I(typ *byte, elem any) (ret any)
++func convT2E(typ *byte, elem any) (ret any)
++func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
++
++// interface type assertions  x.(T)
++func assertE2E(typ *byte, iface any) (ret any)
++func assertE2E2(typ *byte, iface any) (ret any, ok bool)
++func assertE2I(typ *byte, iface any) (ret any)
++func assertE2I2(typ *byte, iface any) (ret any, ok bool)
++func assertE2T(typ *byte, iface any) (ret any)
++func assertE2T2(typ *byte, iface any) (ret any, ok bool)
++func assertI2E(typ *byte, iface any) (ret any)
++func assertI2E2(typ *byte, iface any) (ret any, ok bool)
++func assertI2I(typ *byte, iface any) (ret any)
++func assertI2I2(typ *byte, iface any) (ret any, ok bool)
++func assertI2T(typ *byte, iface any) (ret any)
++func assertI2T2(typ *byte, iface any) (ret any, ok bool)
++
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+ func ifacethash(i1 any) (ret uint32)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ac700b4c0e..96d03617ce 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -524,6 +524,7 @@ typ(int et)
+ 	t->etype = et;
+ 	t->width = BADWIDTH;
+ 	t->lineno = lineno;
++	t->orig = t;
+ 	return t;
+ }
+ 
+@@ -863,16 +864,13 @@ goopnames[] =
+ int
+ Oconv(Fmt *fp)
+ {
+-	char buf[500];
+ 	int o;
+ 
+ 	o = va_arg(fp->args, int);
+ 	if((fp->flags & FmtSharp) && o >= 0 && o < nelem(goopnames) && goopnames[o] != nil)
+ 		return fmtstrcpy(fp, goopnames[o]);
+-	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil) {
+-		snprint(buf, sizeof(buf), "O-%d", o);
+-		return fmtstrcpy(fp, buf);
+-	}
++	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil)
++		return fmtprint(fp, "O-%d", o);
+ 	return fmtstrcpy(fp, opnames[o]);
+ }
+ 
+@@ -992,14 +990,11 @@ etnames[] =
+ int
+ Econv(Fmt *fp)
+ {
+-	char buf[500];
+ 	int et;
+ 
+ 	et = va_arg(fp->args, int);
+-	if(et < 0 || et >= nelem(etnames) || etnames[et] == nil) {
+-		snprint(buf, sizeof(buf), "E-%d", et);
+-		return fmtstrcpy(fp, buf);
+-	}
++	if(et < 0 || et >= nelem(etnames) || etnames[et] == nil)
++		return fmtprint(fp, "E-%d", et);
+ 	return fmtstrcpy(fp, etnames[et]);
+ }
+ 
+@@ -1139,6 +1134,13 @@ Tpretty(Fmt *fp, Type *t)
+ {
+ 	Type *t1;
+ 	Sym *s;
++	
++	if(debug['U']) {
++		debug['U'] = 0;
++		fmtprint(fp, "%T (orig=%T)", t, t->orig);
++		debug['U'] = 1;
++		return 0;
++	}
+ 
+ 	if(t->etype != TFIELD
+ 	&& t->sym != S
+@@ -1775,113 +1777,73 @@ iscomposite(Type *t)
+ 	return 0;
+ }
+ 
++// Return 1 if t1 and t2 are identical, following the spec rules.
++//
++// Any cyclic type must go through a named type, and if one is
++// named, it is only identical to the other if they are the same
++// pointer (t1 == t2), so there's no chance of chasing cycles
++// ad infinitum, so no need for a depth counter.
+ int
+-eqtype1(Type *t1, Type *t2, int d, int names)
++eqtype(Type *t1, Type *t2)
+ {
+-	if(d >= 20)
+-		return 1;
+ 	if(t1 == t2)
+ 		return 1;
+-	if(t1 == T || t2 == T)
+-		return 0;
+-	if(t1->etype != t2->etype)
+-		return 0;
+-	if(names && t1->etype != TFIELD && t1->sym && t2->sym && t1 != t2)
++	if(t1 == T || t2 == T || t1->etype != t2->etype || t1->sym || t2->sym)
+ 		return 0;
++
+ 	switch(t1->etype) {
+ 	case TINTER:
+ 	case TSTRUCT:
+-		t1 = t1->type;
+-		t2 = t2->type;
+-		for(;;) {
+-			if(!eqtype1(t1, t2, d+1, names))
++		for(t1=t1->type, t2=t2->type; t1 && t2; t1=t1->down, t2=t2->down) {
++			if(t1->etype != TFIELD || t2->etype != TFIELD)
++				fatal("struct/interface missing field: %T %T", t1, t2);
++			if(t1->sym != t2->sym || t1->embedded != t2->embedded || !eqtype(t1->type, t2->type))
+ 				return 0;
+-			if(t1 == T)
+-				return 1;
+-			if(t1->embedded != t2->embedded)
+-				return 0;
+-			if(t1->nname != N && t1->nname->sym != S) {
+-				if(t2->nname == N || t2->nname->sym == S)
+-					return 0;
+-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
+-					return 0;
+-			}
+-			t1 = t1->down;
+-			t2 = t2->down;
+ 		}
+-		return 1;
++		return t1 == T && t2 == T;
+ 
+ 	case TFUNC:
+ 		// Loop over structs: receiver, in, out.
+-		t1 = t1->type;
+-		t2 = t2->type;
+-		for(;;) {
++		for(t1=t1->type, t2=t2->type; t1 && t2; t1=t1->down, t2=t2->down) {
+ 			Type *ta, *tb;
+-			if(t1 == t2)
+-				break;
+-			if(t1 == T || t2 == T)
+-				return 0;
++
+ 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+-				return 0;
++				fatal("func missing struct: %T %T", t1, t2);
+ 
+-			// Loop over fields in structs, checking type only.
+-			ta = t1->type;
+-			tb = t2->type;
+-			while(ta != tb) {
+-				if(ta == T || tb == T)
++			// Loop over fields in structs, ignoring argument names.
++			for(ta=t1->type, tb=t2->type; ta && tb; ta=ta->down, tb=tb->down) {
++				if(ta->etype != TFIELD || tb->etype != TFIELD)
++					fatal("func struct missing field: %T %T", ta, tb);
++				if(ta->isddd != tb->isddd || !eqtype(ta->type, tb->type))
+ 					return 0;
+-				if(ta->etype != TFIELD || tb->etype != TFIELD || ta->isddd != tb->isddd)
+-					return 0;
+-				if(!eqtype1(ta->type, tb->type, d+1, names))
+-					return 0;
+-				ta = ta->down;
+-				tb = tb->down;
+ 			}
+-
+-			t1 = t1->down;
+-			t2 = t2->down;
++			if(ta != T || tb != T)
++				return 0;
+ 		}
+-		return 1;
+-
++		return t1 == T && t2 == T;
++	
+ 	case TARRAY:
+ 		if(t1->bound != t2->bound)
+ 			return 0;
+ 		break;
+-
++	
+ 	case TCHAN:
+ 		if(t1->chan != t2->chan)
+ 			return 0;
+ 		break;
+-
+-	case TMAP:
+-		if(!eqtype1(t1->down, t2->down, d+1, names))
+-			return 0;
+-		break;
+ 	}
+-	return eqtype1(t1->type, t2->type, d+1, names);
+-}
+ 
+-int
+-eqtype(Type *t1, Type *t2)
+-{
+-	return eqtype1(t1, t2, 0, 1);
+-}
+-
+-/*
+- * can we convert from type src to dst with
+- * a trivial conversion (no bits changing)?
+- */
+-int
+-cvttype(Type *dst, Type *src)
+-{
+-	return eqtype1(dst, src, 0, 0);
++	return eqtype(t1->down, t2->down) && eqtype(t1->type, t2->type);
+ }
+ 
++// Are t1 and t2 equal struct types when field names are ignored?
++// For deciding whether the result struct from g can be copied
++// directly when compiling f(g()).
+ int
+ eqtypenoname(Type *t1, Type *t2)
+ {
+ 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+-		return eqtype(t1, t2);
++		return 0;
+ 
+ 	t1 = t1->type;
+ 	t2 = t2->type;
+@@ -1895,6 +1857,216 @@ eqtypenoname(Type *t1, Type *t2)
+ 	}
+ }
+ 
++// Is type src assignment compatible to type dst?
++// If so, return op code to use in conversion.
++// If not, return 0.
++//
++// It is the caller's responsibility to call exportassignok
++// to check for assignments to other packages' unexported fields,
++int
++assignop(Type *src, Type *dst, char **why)
++{
++	Type *missing, *have;
++
++	if(why != nil)
++		*why = "";
++
++	if(src == dst)
++		return OCONVNOP;
++	if(src == T || dst == T || src->etype == TFORW || dst->etype == TFORW || src->orig == T || dst->orig == T)
++		return 0;
++
++	// 1. src type is identical to dst.
++	if(eqtype(src, dst))
++		return OCONVNOP;
++	
++	// 2. src and dst have identical underlying types
++	// and either src or dst is not a named type.
++	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S))
++		return OCONVNOP;
++
++	// 3. dst is an interface type and src implements dst.
++	if(dst->etype == TINTER && src->etype != TNIL) {
++		if(implements(src, dst, &missing, &have))
++			return OCONVIFACE;
++		if(why != nil) {
++			if(isptrto(src, TINTER))
++				*why = smprint(": %T is pointer to interface, not interface", src);
++			else if(have)
++				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
++					"\thave %T\n\twant %T", src, dst, missing->sym, have->type, missing->type);
++			else
++				*why = smprint(": %T does not implement %T (missing %S method)",
++					src, dst, missing->sym);
++		}
++		return 0;
++	}
++	if(src->etype == TINTER && dst->etype != TBLANK) {
++		if(why != nil)
++			*why = ": need type assertion";
++		return 0;
++	}
++
++	// 4. src is a bidirectional channel value, dst is a channel type,
++	// src and dst have identical element types, and
++	// either src or dst is not a named type.
++	if(src->etype == TCHAN && src->chan == Cboth && dst->etype == TCHAN)
++	if(eqtype(src->type, dst->type) && (src->sym == S || dst->sym == S))
++		return OCONVNOP;
++
++	// 5. src is the predeclared identifier nil and dst is a nillable type.
++	if(src->etype == TNIL) {
++		switch(dst->etype) {
++		case TARRAY:
++			if(dst->bound != -100)	// not slice
++				break;
++		case TPTR32:
++		case TPTR64:
++		case TFUNC:
++		case TMAP:
++		case TCHAN:
++		case TINTER:
++			return OCONVNOP;
++		}
++	}
++
++	// 6. rule about untyped constants - already converted by defaultlit.
++	
++	// 7. Any typed value can be assigned to the blank identifier.
++	if(dst->etype == TBLANK)
++		return OCONVNOP;
++	
++	// 8. Array to slice.
++	// TODO(rsc): Not for long.
++	if(!src->sym || !dst->sym)
++	if(isptr[src->etype] && isfixedarray(src->type) && isslice(dst))
++	if(eqtype(src->type->type, dst->type))
++		return OCONVSLICE;
++
++	return 0;
++}
++
++// Can we convert a value of type src to a value of type dst?
++// If so, return op code to use in conversion (maybe OCONVNOP).
++// If not, return 0.
++int
++convertop(Type *src, Type *dst, char **why)
++{
++	int op;
++	
++	if(why != nil)
++		*why = "";
++
++	if(src == dst)
++		return OCONVNOP;
++	if(src == T || dst == T)
++		return 0;
++	
++	// 1. src can be assigned to dst.
++	if((op = assignop(src, dst, why)) != 0)
++		return op;
++
++	// The rules for interfaces are no different in conversions
++	// than assignments.  If interfaces are involved, stop now
++	// with the good message from assignop.
++	// Otherwise clear the error.
++	if(src->etype == TINTER || dst->etype == TINTER)
++		return 0;
++	if(why != nil)
++		*why = "";
++
++	// 2. src and dst have identical underlying types.
++	if(eqtype(src->orig, dst->orig))
++		return OCONVNOP;
++	
++	// 3. src and dst are unnamed pointer types 
++	// and their base types have identical underlying types.
++	if(isptr[src->etype] && isptr[dst->etype] && src->sym == S && dst->sym == S)
++	if(eqtype(src->type->orig, dst->type->orig))
++		return OCONVNOP;
++
++	// 4. src and dst are both integer or floating point types.
++	if((isint[src->etype] || isfloat[src->etype]) && (isint[dst->etype] || isfloat[dst->etype])) {
++		if(simtype[src->etype] == simtype[dst->etype])
++			return OCONVNOP;
++		return OCONV;
++	}
++
++	// 5. src and dst are both complex types.
++	if(iscomplex[src->etype] && iscomplex[dst->etype]) {
++		if(simtype[src->etype] == simtype[dst->etype])
++			return OCONVNOP;
++		return OCONV;
++	}
++
++	// 6. src is an integer or has type []byte or []int
++	// and dst is a string type.
++	if(isint[src->etype] && dst->etype == TSTRING)
++		return ORUNESTR;
++
++	if(isslice(src) && src->sym == nil &&  src->type == types[src->type->etype] && dst->etype == TSTRING) {
++		switch(src->type->etype) {
++		case TUINT8:
++			return OARRAYBYTESTR;
++		case TINT:
++			return OARRAYRUNESTR;
++		}
++	}
++	
++	// 7. src is a string and dst is []byte or []int.
++	// String to slice.
++	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil && dst->type == types[dst->type->etype]) {
++		switch(dst->type->etype) {
++		case TUINT8:
++			return OSTRARRAYBYTE;
++		case TINT:
++			return OSTRARRAYRUNE;
++		}
++	}
++	
++	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
++	if((isptr[src->etype] || src->etype == TUINTPTR) && isptrto(dst, TANY))
++		return OCONVNOP;
++
++	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
++	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
++		return OCONVNOP;
++		
++
++	return 0;
++}
++
++// Convert node n for assignment to type t.
++Node*
++assignconv(Node *n, Type *t, char *context)
++{
++	int op;
++	Node *r;
++	char *why;
++	
++	if(n == N || n->type == T)
++		return n;
++
++	defaultlit(&n, t);
++	if(t->etype == TBLANK)
++		return n;
++
++	exportassignok(n->type, context);
++	if(eqtype(n->type, t))
++		return n;
++
++	op = assignop(n->type, t, &why);
++	if(op == 0) {
++		yyerror("cannot use %+N as type %T in %s%s", n, t, context, why);
++		op = OCONV;
++	}
++
++	r = nod(op, n, N);
++	r->type = t;
++	r->typecheck = 1;
++	return r;
++}
++
+ static int
+ subtype(Type **stp, Type *t, int d)
+ {
+@@ -2026,6 +2198,8 @@ shallow(Type *t)
+ 		return T;
+ 	nt = typ(0);
+ 	*nt = *t;
++	if(t->orig == t)
++		nt->orig = nt;
+ 	return nt;
+ }
+ 
+@@ -2941,43 +3115,6 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 	funccompile(fn, 0);
+ }
+ 
+-/*
+- * delayed interface type check.
+- * remember that there is an interface conversion
+- * on the given line.  once the file is completely read
+- * and all methods are known, we can check that
+- * the conversions are valid.
+- */
+-
+-typedef struct Icheck Icheck;
+-struct Icheck
+-{
+-	Icheck *next;
+-	Type *dst;
+-	Type *src;
+-	int lineno;
+-	int explicit;
+-};
+-Icheck *icheck;
+-Icheck *ichecktail;
+-
+-void
+-ifacecheck(Type *dst, Type *src, int lineno, int explicit)
+-{
+-	Icheck *p;
+-
+-	p = mal(sizeof *p);
+-	if(ichecktail)
+-		ichecktail->next = p;
+-	else
+-		icheck = p;
+-	p->dst = dst;
+-	p->src = src;
+-	p->lineno = lineno;
+-	p->explicit = explicit;
+-	ichecktail = p;
+-}
+-
+ Type*
+ ifacelookdot(Sym *s, Type *t, int *followptr)
+ {
+@@ -3012,20 +3149,42 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
+ 	return T;
+ }
+ 
+-// check whether non-interface type t
+-// satisifes inteface type iface.
+ int
+-ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
++implements(Type *t, Type *iface, Type **m, Type **samename)
+ {
+-	Type *t, *im, *tm, *rcvr, *imtype;
++	Type *t0, *im, *tm, *rcvr, *imtype;
+ 	int followptr;
+ 
+-	t = methtype(t0);
++	t0 = t;
++	if(t == T)
++		return 0;
+ 
+ 	// if this is too slow,
+ 	// could sort these first
+ 	// and then do one loop.
+ 
++	if(t->etype == TINTER) {
++		for(im=iface->type; im; im=im->down) {
++			for(tm=t->type; tm; tm=tm->down) {
++				if(tm->sym == im->sym) {
++					if(eqtype(tm->type, im->type))
++						goto found;
++					*m = im;
++					*samename = tm;
++					return 0;
++				}
++			}
++			*m = im;
++			*samename = nil;
++			return 0;
++		found:;
++		}
++		return 1;
++	}
++
++	t = methtype(t);
++	if(t != T)
++		expandmeth(t->sym, t);
+ 	for(im=iface->type; im; im=im->down) {
+ 		imtype = methodfunc(im->type, 0);
+ 		tm = ifacelookdot(im->sym, t, &followptr);
+@@ -3048,87 +3207,6 @@ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
+ 	return 1;
+ }
+ 
+-// check whether interface type i1 satisifes interface type i2.
+-int
+-ifaceokI2I(Type *i1, Type *i2, Type **m)
+-{
+-	Type *m1, *m2;
+-
+-	// if this is too slow,
+-	// could sort these first
+-	// and then do one loop.
+-
+-	for(m2=i2->type; m2; m2=m2->down) {
+-		for(m1=i1->type; m1; m1=m1->down)
+-			if(m1->sym == m2->sym && eqtype(m1, m2))
+-				goto found;
+-		*m = m2;
+-		return 0;
+-	found:;
+-	}
+-	return 1;
+-}
+-
+-void
+-runifacechecks(void)
+-{
+-	Icheck *p;
+-	int lno, wrong, needexplicit;
+-	Type *m, *t, *iface, *samename;
+-
+-	lno = lineno;
+-	for(p=icheck; p; p=p->next) {
+-		lineno = p->lineno;
+-		wrong = 0;
+-		needexplicit = 0;
+-		m = nil;
+-		samename = nil;
+-		if(isinter(p->dst) && isinter(p->src)) {
+-			iface = p->dst;
+-			t = p->src;
+-			needexplicit = !ifaceokI2I(t, iface, &m);
+-		}
+-		else if(isinter(p->dst)) {
+-			t = p->src;
+-			iface = p->dst;
+-			wrong = !ifaceokT2I(t, iface, &m, &samename);
+-		} else {
+-			t = p->dst;
+-			iface = p->src;
+-			wrong = !ifaceokT2I(t, iface, &m, &samename);
+-			needexplicit = 1;
+-		}
+-		if(wrong) {
+-			if(p->explicit) {
+-				if(samename)
+-					yyerror("%T cannot contain %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
+-						iface, t, m->sym, m->type, samename->sym, samename->type);
+-				else
+-					yyerror("%T cannot contain %T\n\tmissing %S%hhT", iface, t, m->sym, m->type);
+-			} else {
+-				if(samename)
+-					yyerror("%T is not %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
+-						t, iface, m->sym, m->type, samename->sym, samename->type);
+-				else
+-					yyerror("%T is not %T\n\tmissing %S%hhT", t, iface, m->sym, m->type);
+-			}
+-		}
+-		else if(!p->explicit && needexplicit) {
+-			if(m) {
+-				if(samename)
+-					yyerror("need type assertion to use %T as %T\n\tmissing %S %hhT\n\tdo have %S%hhT",
+-						p->src, p->dst, m->sym, m->type, samename->sym, samename->type);
+-				else
+-					yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
+-						p->src, p->dst, m->sym, m->type);
+-			} else
+-				yyerror("need type assertion to use %T as %T",
+-					p->src, p->dst);
+-		}
+-	}
+-	lineno = lno;
+-}
+-
+ /*
+  * even simpler simtype; get rid of ptr, bool.
+  * assuming that the front end has rejected
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 19155f07ba..d285ad0a76 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -21,7 +21,6 @@ static int	onearg(Node*);
+ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
+ static void	typecheckaste(int, Type*, NodeList*, char*);
+-static int	exportassignok(Type*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+@@ -32,7 +31,6 @@ static void	typecheckfunc(Node*);
+ static void	checklvalue(Node*, char*);
+ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+-static void	toslice(Node**);
+ static void stringtoarraylit(Node**);
+ 
+ void
+@@ -57,6 +55,7 @@ typecheck(Node **np, int top)
+ 	Type *t;
+ 	Sym *sym;
+ 	Val v;
++	char *why;
+ 
+ 	// cannot type check until all the source has been parsed
+ 	if(!typecheckok)
+@@ -549,8 +548,8 @@ reswitch:
+ 		case TMAP:
+ 			n->etype = 0;
+ 			defaultlit(&n->right, t->down);
+-			if(n->right->type != T && !eqtype(n->right->type, t->down))
+-				yyerror("invalid map index %#N - need type %T", n->right, t->down);
++			if(n->right->type != T)
++				n->right = assignconv(n->right, t->down, "map index");
+ 			n->type = t->type;
+ 			n->op = OINDEXMAP;
+ 			break;
+@@ -644,8 +643,6 @@ reswitch:
+ 		l = n->left;
+ 		if((t = l->type) == T)
+ 			goto error;
+-		// TODO(rsc): 64-bit slice index needs to be checked
+-		// for overflow in generated code
+ 		if(istype(t, TSTRING)) {
+ 			n->type = t;
+ 			n->op = OSLICESTR;
+@@ -866,21 +863,19 @@ reswitch:
+ 		typecheck(&n->right, Erv);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto error;
+-		toslice(&n->left);
+-		toslice(&n->right);
+ 		defaultlit(&n->left, T);
+ 		defaultlit(&n->right, T);
+ 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
+ 			if(!isslice(n->left->type) && !isslice(n->right->type))
+-				yyerror("arguments to copy must be array pointer or slice; have %lT, %lT", n->left->type, n->right->type);
++				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);
+ 			else if(!isslice(n->left->type))
+-				yyerror("first argument to copy should be array pointer or slice; have %lT", n->left->type);
++				yyerror("first argument to copy should be slice; have %lT", n->left->type);
+ 			else
+-				yyerror("second argument to copy should be array pointer or slice; have %lT", n->right->type);
++				yyerror("second argument to copy should be slice; have %lT", n->right->type);
+ 			goto error;
+ 		}
+-		if(!eqtype(n->left->type, n->right->type)) {
+-			yyerror("arguments to copy have different element types %lT and %lT", n->left->type, n->right->type);
++		if(!eqtype(n->left->type->type, n->right->type->type)) {
++			yyerror("arguments to copy have different element types: %lT and %lT", n->left->type, n->right->type);
+ 			goto error;
+ 		}
+ 		goto ret;
+@@ -892,10 +887,17 @@ reswitch:
+ 		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+ 			goto error;
+-		n = typecheckconv(n, n->left, n->type, 1, "conversion");
+-		if(n->type == T)
+-			goto error;
++		if((n->op = convertop(t, n->type, &why)) == 0) {
++			yyerror("cannot convert %+N to type %T%s", n->left, n->type, why);
++			op = OCONV;
++		}
+ 		switch(n->op) {
++		case OCONVNOP:
++			if(n->left->op == OLITERAL) {
++				n->op = OLITERAL;
++				n->val = n->left->val;
++			}
++			break;
+ 		case OSTRARRAYBYTE:
+ 		case OSTRARRAYRUNE:
+ 			if(n->left->op == OLITERAL)
+@@ -1031,7 +1033,7 @@ reswitch:
+ 		if(onearg(n) < 0)
+ 			goto error;
+ 		typecheck(&n->left, Erv);
+-		defaultlit(&n->left, types[TINTER]);
++		defaultlit(&n->left, T);
+ 		if(n->left->type == T)
+ 			goto error;
+ 		goto ret;
+@@ -1242,25 +1244,6 @@ implicitstar(Node **nn)
+ 	*nn = n;
+ }
+ 
+-static void
+-toslice(Node **nn)
+-{
+-	Node *n;
+-	Type *t;
+-
+-	n = *nn;
+-	if(n->type == T)
+-		return;
+-	if(isptr[n->type->etype] && isfixedarray(n->type->type)) {
+-		// convert to slice
+-		t = typ(TARRAY);
+-		t->bound = -1;
+-		t->type = n->type->type->type;
+-		n = typecheckconv(nil, n, t, 0, "conversion of array pointer to slice");
+-		*nn = n;
+-	}
+-}
+-
+ static int
+ onearg(Node *n)
+ {
+@@ -1397,208 +1380,6 @@ nokeys(NodeList *l)
+ 	return 1;
+ }
+ 
+-/*
+- * check implicit or explicit conversion from node type nt to type t.
+- */
+-int
+-checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
+-{
+-	*op = OCONV;
+-	*et = 0;
+-
+-	// preexisting error
+-	if(t == T || t->etype == TFORW)
+-		return 0;
+-
+-	/*
+-	 * implicit conversions
+-	 */
+-	if(nt == T)
+-		return 0;
+-
+-	if(t->etype == TBLANK) {
+-		*op = OCONVNOP;
+-		return 0;
+-	}
+-
+-	if(eqtype(t, nt)) {
+-		exportassignok(t, desc);
+-		*op = OCONVNOP;
+-		if(!explicit || t == nt)
+-			return 0;
+-		return 1;
+-	}
+-
+-	// interfaces are not subject to the name restrictions below.
+-	// accept anything involving interfaces and let ifacecvt
+-	// generate a good message.  some messages have to be
+-	// delayed anyway.
+-	// TODO(rsc): now that everything is delayed for whole-package
+-	// compilation, the messages could be generated right here.
+-	if(isnilinter(t) || isnilinter(nt) || isinter(t) || isinter(nt)) {
+-		*et = ifaceas1(t, nt, 0);
+-		*op = OCONVIFACE;
+-		return 1;
+-	}
+-
+-	// otherwise, if concrete types have names, they must match.
+-	if(!explicit && t->sym && nt->sym && t != nt)
+-		return -1;
+-
+-	// channel must not lose directionality
+-	if(t->etype == TCHAN && nt->etype == TCHAN) {
+-		if(t->chan & ~nt->chan)
+-			return -1;
+-		if(eqtype(t->type, nt->type)) {
+-			*op = OCONVNOP;
+-			return 1;
+-		}
+-	}
+-
+-	// array to slice
+-	if(isslice(t) && isptr[nt->etype] && isfixedarray(nt->type)
+-	&& eqtype(t->type, nt->type->type)) {
+-		*op = OCONVSLICE;
+-		return 1;
+-	}
+-
+-	/*
+-	 * explicit conversions
+-	 */
+-	if(!explicit)
+-		return -1;
+-
+-	// same representation
+-	if(cvttype(t, nt)) {
+-		*op = OCONVNOP;
+-		return 1;
+-	}
+-
+-	// simple fix-float
+-	if(isint[t->etype] || isfloat[t->etype])
+-	if(isint[nt->etype] || isfloat[nt->etype])
+-		return 1;
+-
+-	// simple complex-complex
+-	if(iscomplex[t->etype])
+-	if(iscomplex[nt->etype])
+-		return 1;
+-
+-	// to string
+-	if(istype(t, TSTRING)) {
+-		// integer rune
+-		if(isint[nt->etype]) {
+-			*op = ORUNESTR;
+-			return 1;
+-		}
+-
+-		// *[10]byte -> string
+-		// in preparation for next step
+-		if(isptr[nt->etype] && isfixedarray(nt->type)) {
+-			switch(nt->type->type->etype) {
+-			case TUINT8:
+-				*op = OARRAYBYTESTR;
+-				return 1;
+-			case TINT:
+-				*op = OARRAYRUNESTR;
+-				return 1;
+-			}
+-		}
+-
+-		// []byte -> string
+-		if(isslice(nt)) {
+-			switch(nt->type->etype) {
+-			case TUINT8:
+-				*op = OARRAYBYTESTR;
+-				return 1;
+-			case TINT:
+-				*op = OARRAYRUNESTR;
+-				return 1;
+-			}
+-		}
+-	}
+-
+-	// from string
+-	if(istype(nt, TSTRING) && isslice(t) && t->sym == S) {
+-		switch(t->type->etype) {
+-		case TUINT8:
+-			*op = OSTRARRAYBYTE;
+-			return 1;
+-		case TINT:
+-			*op = OSTRARRAYRUNE;
+-			return 1;
+-		}
+-	}
+-
+-	// convert to unsafe pointer
+-	if(isptrto(t, TANY)
+-	&& (isptr[nt->etype] || nt->etype == TUINTPTR))
+-		return 1;
+-
+-	// convert from unsafe pointer
+-	if(isptrto(nt, TANY)
+-	&& (isptr[t->etype] || t->etype == TUINTPTR))
+-		return 1;
+-
+-	return -1;
+-}
+-
+-Node*
+-typecheckconv(Node *nconv, Node *n, Type *t, int explicit, char *desc)
+-{
+-	int et, op;
+-	Node *n1;
+-	char *prefix;
+-
+-	convlit1(&n, t, explicit);
+-	if(n->type == T)
+-		return n;
+-
+-
+-	if(n->op == OLITERAL)
+-	if(explicit || isideal(n->type))
+-	if(cvttype(t, n->type)) {
+-		// can convert literal in place
+-		// TODO(rsc) is this needed?
+-		n1 = nod(OXXX, N, N);
+-		*n1 = *n;
+-		n1->type = t;
+-		return n1;
+-	}
+-
+-	prefix = "";
+-	if(desc != nil)
+-		prefix = " in ";
+-	else
+-		desc = "";
+-	switch(checkconv(n->type, t, explicit, &op, &et, desc)) {
+-	case -1:
+-		if(explicit)
+-			yyerror("cannot convert %+N to type %T%s%s", n, t, prefix, desc);
+-		else
+-			yyerror("cannot use %+N as type %T%s%s", n, t, prefix, desc);
+-		return n;
+-
+-	case 0:
+-		if(nconv) {
+-			nconv->op = OCONVNOP;
+-			return nconv;
+-		}
+-		return n;
+-	}
+-
+-	if(op == OCONVIFACE)
+-		defaultlit(&n, T);
+-
+-	if(nconv == N)
+-		nconv = nod(OCONV, n, N);
+-	nconv->op = op;
+-	nconv->etype = et;
+-	nconv->type = t;
+-	nconv->typecheck = 1;
+-	return nconv;
+-}
+-
+ /*
+  * typecheck assignment: type list = expression list
+  */
+@@ -1608,6 +1389,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 	Type *t, *tl, *tn;
+ 	Node *n;
+ 	int lno;
++	char *why;
+ 
+ 	lno = lineno;
+ 
+@@ -1619,21 +1401,20 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 		setlineno(n);
+ 		tn = n->type->type;
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+-			int xx, yy;
+ 			if(tl->isddd) {
+ 				// TODO(rsc): delete if (but not body) in DDD cleanup.
+ 				if(tl->type->etype != TINTER)
+-					for(; tn; tn=tn->down)
+-						if(checkconv(tn->type, tl->type->type, 0, &xx, &yy, desc) < 0)
+-							yyerror("cannot use %T as type %T in %s", tn->type, tl->type->type, desc);
++				for(; tn; tn=tn->down)
++					if(assignop(tn->type, tl->type->type, &why) == 0)
++						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+ 				goto out;
+ 			}
+ 			if(tn == T) {
+ 				yyerror("not enough arguments to %#O", op);
+ 				goto out;
+ 			}
+-			if(checkconv(tn->type, tl->type, 0, &xx, &yy, desc) < 0)
+-				yyerror("cannot use type %T as type %T in %s", tn->type, tl->type, desc);
++			if(assignop(tn->type, tl->type, &why) == 0)
++				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+ 			tn = tn->down;
+ 		}
+ 		if(tn != T)
+@@ -1652,13 +1433,12 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
+ 				goto out;
+ 			for(; nl; nl=nl->next) {
+-				int xx, yy;
+ 				setlineno(nl->n);
+ 				defaultlit(&nl->n, t->type);
+ 				// TODO(rsc): drop first if in DDD cleanup
+ 				if(t->etype != TINTER)
+-				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
+-					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);
++				if(assignop(nl->n->type, t->type, &why) == 0)
++					yyerror("cannot use %+N as type %T in %s%s", nl->n, t->type, desc, why);
+ 			}
+ 			goto out;
+ 		}
+@@ -1669,7 +1449,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 		n = nl->n;
+ 		setlineno(nl->n);
+ 		if(n->type != T)
+-			nl->n = typecheckconv(nil, n, t, 0, desc);
++			nl->n = assignconv(n, t, desc);
+ 		nl = nl->next;
+ 	}
+ 	if(nl != nil) {
+@@ -1686,7 +1466,7 @@ out:
+  * cannot be implicitly assigning to any type with
+  * an unavailable field.
+  */
+-static int
++int
+ exportassignok(Type *t, char *desc)
+ {
+ 	Type *f;
+@@ -1882,11 +1662,11 @@ typecheckcomplit(Node **np)
+ 				}
+ 				typecheck(&l->right, Erv);
+ 				defaultlit(&l->right, t->type);
+-				l->right = typecheckconv(nil, l->right, t->type, 0, "array index");
++				l->right = assignconv(l->right, t->type, "array index");
+ 			} else {
+ 				typecheck(&ll->n, Erv);
+ 				defaultlit(&ll->n, t->type);
+-				ll->n = typecheckconv(nil, ll->n, t->type, 0, "array index");
++				ll->n = assignconv(ll->n, t->type, "array index");
+ 				ll->n = nod(OKEY, nodintconst(i), ll->n);
+ 				ll->n->left->type = types[TINT];
+ 				ll->n->left->typecheck = 1;
+@@ -1922,8 +1702,8 @@ typecheckcomplit(Node **np)
+ 			typecheck(&l->right, Erv);
+ 			defaultlit(&l->left, t->down);
+ 			defaultlit(&l->right, t->type);
+-			l->left = typecheckconv(nil, l->left, t->down, 0, "map key");
+-			l->right = typecheckconv(nil, l->right, t->type, 0, "map value");
++			l->left = assignconv(l->left, t->down, "map key");
++			l->right = assignconv(l->right, t->type, "map value");
+ 			keydup(l->left, hash, nelem(hash));
+ 		}
+ 		n->op = OMAPLIT;
+@@ -1944,7 +1724,7 @@ typecheckcomplit(Node **np)
+ 				s = f->sym;
+ 				if(s != nil && !exportname(s->name) && s->pkg != localpkg)
+ 					yyerror("implicit assignment of unexported field '%s' in %T literal", s->name, t);
+-				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
++				ll->n = assignconv(ll->n, f->type, "field value");
+ 				ll->n = nod(OKEY, newname(f->sym), ll->n);
+ 				ll->n->left->typecheck = 1;
+ 				f = f->down;
+@@ -1977,7 +1757,7 @@ typecheckcomplit(Node **np)
+ 				}
+ 				s = f->sym;
+ 				fielddup(newname(s), hash, nelem(hash));
+-				l->right = typecheckconv(nil, l->right, f->type, 0, "field value");
++				l->right = assignconv(l->right, f->type, "field value");
+ 			}
+ 		}
+ 		n->op = OSTRUCTLIT;
+@@ -2139,8 +1919,8 @@ typecheckas(Node *n)
+ 	typecheck(&n->right, Erv);
+ 	if(n->right && n->right->type != T) {
+ 		if(n->left->type != T)
+-			n->right = typecheckconv(nil, n->right, n->left->type, 0, "assignment");
+-		else
++			n->right = assignconv(n->right, n->left->type, "assignment");
++		else if(!isblank(n->left))
+ 			exportassignok(n->right->type, "assignment");
+ 	}
+ 	if(n->left->defn == n && n->left->ntype == N) {
+@@ -2156,10 +1936,22 @@ typecheckas(Node *n)
+ 		typecheck(&n->left, Erv | Easgn);
+ }
+ 
++static void
++checkassignto(Type *src, Node *dst)
++{
++	char *why;
++
++	if(assignop(src, dst->type, &why) == 0) {
++		yyerror("cannot assign %T to %+N in multiple assignment%s", src, dst, why);
++		return;
++	}
++	exportassignok(dst->type, "multiple assignment");
++}
++
+ static void
+ typecheckas2(Node *n)
+ {
+-	int cl, cr, op, et;
++	int cl, cr;
+ 	NodeList *ll, *lr;
+ 	Node *l, *r;
+ 	Iter s;
+@@ -2182,7 +1974,7 @@ typecheckas2(Node *n)
+ 		// easy
+ 		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next) {
+ 			if(ll->n->type != T && lr->n->type != T)
+-				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0, nil);
++				lr->n = assignconv(lr->n, ll->n->type, "assignment");
+ 			if(ll->n->defn == n && ll->n->ntype == N) {
+ 				defaultlit(&lr->n, T);
+ 				ll->n->type = lr->n->type;
+@@ -2200,9 +1992,9 @@ typecheckas2(Node *n)
+ 		if(l->type == T)
+ 			goto out;
+ 		n->op = OAS2MAPW;
+-		n->rlist->n = typecheckconv(nil, r, l->type, 0, nil);
++		n->rlist->n = assignconv(r, l->type, "assignment");
+ 		r = n->rlist->next->n;
+-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0, nil);
++		n->rlist->next->n = assignconv(r, types[TBOOL], "assignment");
+ 		goto out;
+ 	}
+ 
+@@ -2223,8 +2015,7 @@ typecheckas2(Node *n)
+ 			t = structfirst(&s, &r->type);
+ 			for(ll=n->list; ll; ll=ll->next) {
+ 				if(ll->n->type != T)
+-					if(checkconv(t->type, ll->n->type, 0, &op, &et, nil) < 0)
+-						yyerror("cannot assign type %T to %+N", t->type, ll->n);
++					checkassignto(t->type, ll->n);
+ 				if(ll->n->defn == n && ll->n->ntype == N)
+ 					ll->n->type = t->type;
+ 				t = structnext(&s);
+@@ -2246,14 +2037,15 @@ typecheckas2(Node *n)
+ 			goto common;
+ 		case ODOTTYPE:
+ 			n->op = OAS2DOTTYPE;
++			r->op = ODOTTYPE2;
+ 		common:
+-			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et, nil) < 0)
+-				yyerror("cannot assign %+N to %+N", r, l);
++			if(l->type != T)
++				checkassignto(r->type, l);
+ 			if(l->defn == n)
+ 				l->type = r->type;
+ 			l = n->list->next->n;
+-			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et, nil) < 0)
+-				yyerror("cannot assign bool value to %+N", l);
++			if(l->type != T)
++				checkassignto(types[TBOOL], l);
+ 			if(l->defn == n && l->ntype == N)
+ 				l->type = types[TBOOL];
+ 			goto out;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 21bd0b56ea..a4e5096507 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -9,26 +9,6 @@ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
+ 
+-enum
+-{
+-	Inone,
+-	I2T,
+-	I2T2,
+-	I2I,
+-	I2Ix,
+-	I2I2,
+-	T2I,
+-	I2Isame,
+-	E2T,
+-	E2T2,
+-	E2I,
+-	E2I2,
+-	I2E,
+-	I2E2,
+-	T2E,
+-	E2Esame,
+-};
+-
+ // can this code branch reach the end
+ // without an undcontitional RETURN
+ // this is hard, so it is conservative
+@@ -169,8 +149,7 @@ walkdeftype(Node *n)
+ 	t->printed = 0;
+ 	t->deferwidth = 0;
+ 
+-	// double-check use of type as map key
+-	// TODO(rsc): also use of type as receiver?
++	// double-check use of type as map key.
+ 	if(maplineno) {
+ 		lineno = maplineno;
+ 		maptype(n->type, types[TBOOL]);
+@@ -441,7 +420,10 @@ walkstmt(Node **np)
+ 		walkstmtlist(n->ninit);
+ 		if(n->ntest != N) {
+ 			walkstmtlist(n->ntest->ninit);
+-			walkexpr(&n->ntest, &n->ninit);
++			init = n->ntest->ninit;
++			n->ntest->ninit = nil;
++			walkexpr(&n->ntest, &init);
++			n->ntest->ninit = concat(init, n->ntest->ninit);
+ 		}
+ 		walkstmt(&n->nincr);
+ 		walkstmtlist(n->nbody);
+@@ -483,7 +465,7 @@ walkstmt(Node **np)
+ 			break;
+ 		}
+ 		ll = ascompatte(n->op, getoutarg(curfn->type), n->list, 1, &n->ninit);
+-		n->list = reorder4(ll);
++		n->list = ll;
+ 		break;
+ 
+ 	case OSELECT:
+@@ -541,6 +523,7 @@ walkexpr(Node **np, NodeList **init)
+ 	int et;
+ 	int32 lno;
+ 	Node *n, *fn;
++	char buf[100], *p;
+ 
+ 	n = *np;
+ 
+@@ -671,6 +654,7 @@ walkexpr(Node **np, NodeList **init)
+ 			// the output bool, so we clear it before the call.
+ 			Node *b;
+ 			b = nodbool(0);
++			typecheck(&b, Erv);
+ 			lr = ascompatte(n->op, getoutarg(t), list1(b), 0, init);
+ 			n->list = concat(n->list, lr);
+ 		}
+@@ -710,7 +694,6 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OAS2:
+-	as2:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		walkexprlistsafe(n->list, init);
+@@ -802,41 +785,77 @@ walkexpr(Node **np, NodeList **init)
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+-		walkdottype(r, init);
+-		et = ifaceas1(r->type, r->left->type, 1);
+-		switch(et) {
+-		case I2Isame:
+-		case E2Esame:
+-		case I2E:
+-			n->rlist = list(list1(r->left), nodbool(1));
+-			typechecklist(n->rlist, Erv);
+-			goto as2;
+-		case I2T:
+-			et = I2T2;
+-			break;
+-		case I2Ix:
+-			et = I2I2;
+-			break;
+-		case E2I:
+-			et = E2I2;
+-			break;
+-		case E2T:
+-			et = E2T2;
+-			break;
+-		default:
+-			et = Inone;
+-			break;
+-		}
+-		if(et == Inone)
+-			break;
+-		r = ifacecvt(r->type, r->left, et, init);
++		r->op = ODOTTYPE2;
++		walkexpr(&r, init);
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+ 		n = liststmt(concat(list1(r), ll));
+ 		goto ret;
+ 
+ 	case ODOTTYPE:
+-		walkdottype(n, init);
+-		walkconv(&n, init);
++	case ODOTTYPE2:		
++		// Build name of function: assertI2E2 etc.
++		strcpy(buf, "assert");
++		p = buf+strlen(buf);
++		if(isnilinter(n->left->type))
++			*p++ = 'E';
++		else
++			*p++ = 'I';
++		*p++ = '2';
++		if(isnilinter(n->type))
++			*p++ = 'E';
++		else if(isinter(n->type))
++			*p++ = 'I';
++		else
++			*p++ = 'T';
++		if(n->op == ODOTTYPE2)
++			*p++ = '2';
++		*p = '\0';
++	
++		fn = syslook(buf, 1);
++		ll = list1(typename(n->type));
++		ll = list(ll, n->left);
++		argtype(fn, n->left->type);
++		argtype(fn, n->type);
++		n = nod(OCALL, fn, N);
++		n->list = ll;
++		typecheck(&n, Erv | Efnstruct);
++		walkexpr(&n, init);
++		goto ret;
++
++	case OCONVIFACE:
++		// Build name of function: convI2E etc.
++		// Not all names are possible
++		// (e.g., we'll never generate convE2E or convE2I).
++		walkexpr(&n->left, init);
++		strcpy(buf, "conv");
++		p = buf+strlen(buf);
++		if(isnilinter(n->left->type))
++			*p++ = 'E';
++		else if(isinter(n->left->type))
++			*p++ = 'I';
++		else
++			*p++ = 'T';
++		*p++ = '2';
++		if(isnilinter(n->type))
++			*p++ = 'E';
++		else
++			*p++ = 'I';
++		*p = '\0';
++		
++		fn = syslook(buf, 1);
++		ll = nil;
++		if(!isinter(n->left->type))
++			ll = list(ll, typename(n->left->type));
++		if(!isnilinter(n->type))
++			ll = list(ll, typename(n->type));
++		ll = list(ll, n->left);
++		argtype(fn, n->left->type);
++		argtype(fn, n->type);
++		dowidth(fn->type);
++		n = nod(OCALL, fn, N);
++		n->list = ll;
++		typecheck(&n, Erv);
++		walkexpr(&n, init);
+ 		goto ret;
+ 
+ 	case OCONV:
+@@ -1176,7 +1195,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case ORUNESTR:
+ 		// sys_intstring(v)
+ 		n = mkcall("intstring", n->type, init,
+-			conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
++			conv(n->left, types[TINT64]));
+ 		goto ret;
+ 
+ 	case OARRAYBYTESTR:
+@@ -1234,11 +1253,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall1(chanfn("chansend2", 2, n->left->type), n->type, init, n->left, n->right);
+ 		goto ret;
+ 
+-	case OCONVIFACE:
+-		walkexpr(&n->left, init);
+-		n = ifacecvt(n->type, n->left, n->etype, init);
+-		goto ret;
+-
+ 	case OCLOSURE:
+ 		n = walkclosure(n, init);
+ 		goto ret;
+@@ -1271,70 +1285,6 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
+ 	return nvar;
+ }
+ 
+-// TODO(rsc): cut
+-void
+-walkdottype(Node *n, NodeList **init)
+-{
+-	walkexpr(&n->left, init);
+-	if(n->left == N)
+-		return;
+-	if(n->right != N) {
+-		walkexpr(&n->right, init);
+-		n->type = n->right->type;
+-		n->right = N;
+-	}
+-}
+-
+-// TODO(rsc): cut
+-void
+-walkconv(Node **np, NodeList **init)
+-{
+-	int et;
+-	char *what;
+-	Type *t;
+-	Node *l;
+-	Node *n;
+-
+-	n = *np;
+-	t = n->type;
+-	if(t == T)
+-		return;
+-	walkexpr(&n->left, init);
+-	l = n->left;
+-	if(l == N)
+-		return;
+-	if(l->type == T)
+-		return;
+-
+-	// if using .(T), interface assertion.
+-	if(n->op == ODOTTYPE) {
+-		et = ifaceas1(t, l->type, 1);
+-		if(et == I2Isame || et == E2Esame) {
+-			n->op = OCONVNOP;
+-			return;
+-		}
+-		if(et != Inone) {
+-			n = ifacecvt(t, l, et, init);
+-			*np = n;
+-			return;
+-		}
+-		goto bad;
+-	}
+-
+-	fatal("walkconv");
+-
+-bad:
+-	if(n->diag)
+-		return;
+-	n->diag = 1;
+-	if(n->op == ODOTTYPE)
+-		what = "type assertion";
+-	else
+-		what = "conversion";
+-	if(l->type != T)
+-		yyerror("invalid %s: %T to %T", what, l->type, t);
+-}
+-
+ Node*
+ ascompatee1(int op, Node *l, Node *r, NodeList **init)
+ {
+@@ -1418,6 +1368,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 		if(fncall(l, r->type)) {
+ 			tmp = nod(OXXX, N, N);
+ 			tempname(tmp, r->type);
++			typecheck(&tmp, Erv);
+ 			a = nod(OAS, l, tmp);
+ 			a = convas(a, init);
+ 			mm = list(mm, a);
+@@ -1517,6 +1468,7 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, st);
+ 	var->sym = lookup(".ddd");
++	typecheck(&var, Erv);
+ 
+ 	// assign the fields to the struct.
+ 	// use the init list so that reorder1 doesn't reorder
+@@ -1927,166 +1879,11 @@ bad:
+ 	return T;
+ }
+ 
+-/*
+- * assigning src to dst involving interfaces?
+- * return op to use.
+- */
+-int
+-ifaceas1(Type *dst, Type *src, int explicit)
+-{
+-	if(src == T || dst == T)
+-		return Inone;
+-
+-	if(explicit && !isinter(src))
+-		yyerror("cannot use .(T) on non-interface type %T", src);
+-
+-	if(isinter(dst)) {
+-		if(isinter(src)) {
+-			if(isnilinter(dst)) {
+-				if(isnilinter(src))
+-					return E2Esame;
+-				return I2E;
+-			}
+-			if(eqtype(dst, src))
+-				return I2Isame;
+-			ifacecheck(dst, src, lineno, explicit);
+-			if(isnilinter(src))
+-				return E2I;
+-			if(explicit)
+-				return I2Ix;
+-			return I2I;
+-		}
+-		if(isnilinter(dst))
+-			return T2E;
+-		ifacecheck(dst, src, lineno, explicit);
+-		return T2I;
+-	}
+-	if(isinter(src)) {
+-		ifacecheck(dst, src, lineno, explicit);
+-		if(isnilinter(src))
+-			return E2T;
+-		return I2T;
+-	}
+-	return Inone;
+-}
+-
+-/*
+- * treat convert T to T as noop
+- */
+-int
+-ifaceas(Type *dst, Type *src, int explicit)
+-{
+-	int et;
+-
+-	et = ifaceas1(dst, src, explicit);
+-	if(et == I2Isame || et == E2Esame)
+-		et = Inone;
+-	return et;
+-}
+-
+-static	char*
+-ifacename[] =
+-{
+-	[I2T]		= "ifaceI2T",
+-	[I2T2]		= "ifaceI2T2",
+-	[I2I]		= "ifaceI2I",
+-	[I2Ix]		= "ifaceI2Ix",
+-	[I2I2]		= "ifaceI2I2",
+-	[I2Isame]	= "ifaceI2Isame",
+-	[E2T]		= "ifaceE2T",
+-	[E2T2]		= "ifaceE2T2",
+-	[E2I]		= "ifaceE2I",
+-	[E2I2]		= "ifaceE2I2",
+-	[I2E]		= "ifaceI2E",
+-	[I2E2]		= "ifaceI2E2",
+-	[T2I]		= "ifaceT2I",
+-	[T2E]		= "ifaceT2E",
+-	[E2Esame]	= "ifaceE2Esame",
+-};
+-
+-Node*
+-ifacecvt(Type *tl, Node *n, int et, NodeList **init)
+-{
+-	Type *tr;
+-	Node *r, *on;
+-	NodeList *args;
+-
+-	tr = n->type;
+-
+-	switch(et) {
+-	default:
+-		fatal("ifacecvt: unknown op %d\n", et);
+-
+-	case I2Isame:
+-	case E2Esame:
+-		return n;
+-
+-	case T2I:
+-		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+-		args = list1(typename(tl));	// sigi
+-		args = list(args, typename(tr));	// sigt
+-		args = list(args, n);	// elem
+-
+-		on = syslook("ifaceT2I", 1);
+-		argtype(on, tr);
+-		argtype(on, tl);
+-		dowidth(on->type);
+-		break;
+-
+-	case I2T:
+-	case I2T2:
+-	case I2I:
+-	case I2Ix:
+-	case I2I2:
+-	case E2T:
+-	case E2T2:
+-	case E2I:
+-	case E2I2:
+-		// iface[IT]2[IT][2](sigt *byte, iface any) (ret any[, ok bool]);
+-		args = list1(typename(tl));	// sigi or sigt
+-		args = list(args, n);		// iface
+-
+-		on = syslook(ifacename[et], 1);
+-		argtype(on, tr);
+-		argtype(on, tl);
+-		break;
+-
+-	case I2E:
+-		// TODO(rsc): Should do this in back end, without a call.
+-		// ifaceI2E(elem any) (ret any);
+-		args = list1(n);	// elem
+-
+-		on = syslook("ifaceI2E", 1);
+-		argtype(on, tr);
+-		argtype(on, tl);
+-		break;
+-
+-	case T2E:
+-		// TODO(rsc): Should do this in back end for pointer case, without a call.
+-		// ifaceT2E(sigt *byte, elem any) (ret any);
+-		args = list1(typename(tr));	// sigt
+-		args = list(args, n);		// elem
+-
+-		on = syslook("ifaceT2E", 1);
+-		argtype(on, tr);
+-		argtype(on, tl);
+-		break;
+-	}
+-
+-	dowidth(on->type);
+-	r = nod(OCALL, on, N);
+-	r->list = args;
+-	typecheck(&r, Erv | Efnstruct);
+-	walkexpr(&r, init);
+-	return r;
+-}
+-
+ Node*
+ convas(Node *n, NodeList **init)
+ {
+ 	Node *l, *r;
+ 	Type *lt, *rt;
+-	int et;
+ 
+ 	if(n->op != OAS)
+ 		fatal("convas: not OAS %O", n->op);
+@@ -2115,15 +1912,12 @@ convas(Node *n, NodeList **init)
+ 			n->left->left, n->left->right, n->right);
+ 		goto out;
+ 	}
+-
++	
+ 	if(eqtype(lt, rt))
+ 		goto out;
+-
+-	et = ifaceas(lt, rt, 0);
+-	if(et != Inone) {
+-		n->right = ifacecvt(lt, r, et, init);
+-		goto out;
+-	}
++	
++	n->right = assignconv(r, lt, "assignment");
++	walkexpr(&n->right, init);
+ 
+ out:
+ 	ullmancalc(n);
+@@ -2292,24 +2086,6 @@ reorder3(NodeList *all)
+ 	return concat(all, r);
+ }
+ 
+-NodeList*
+-reorder4(NodeList *ll)
+-{
+-	/*
+-	 * from ascompat[te]
+-	 *	return c,d
+-	 * return expression assigned to output
+-	 * parameters. there may be no problems.
+-	 *
+-	 * TODO(rsc): i don't believe that.
+-	 *	func f() (a, b int) {
+-	 *		a, b = 1, 2;
+-	 *		return b, a;
+-	 *	}
+-	 */
+-	return ll;
+-}
+-
+ /*
+  * walk through argin parameters.
+  * generate and return code to allocate
+diff --git a/src/pkg/math/fltasm_amd64.s b/src/pkg/math/fltasm_amd64.s
+new file mode 100644
+index 0000000000..66442cd30f
+--- /dev/null
++++ b/src/pkg/math/fltasm_amd64.s
+@@ -0,0 +1,67 @@
++// Derived from Inferno's libkern/getfcr-amd64.s
++// http://code.google.com/p/inferno-os/source/browse/libkern/getfcr-amd64.s
++//
++//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
++//         Portions Copyright 2009 The Go Authors. All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++TEXT	·SetFPControl(SB), 7, $8
++	// Set new
++	MOVL	p+0(FP), DI
++	XORL	$(0x3F<<7), DI
++	ANDL	$0xFFC0, DI
++	WAIT
++	STMXCSR	0(SP)
++	MOVL	0(SP), AX
++	ANDL	$~0x3F, AX
++	ORL	DI, AX
++	MOVL	AX, 0(SP)
++	LDMXCSR	0(SP)
++	RET
++
++TEXT	·GetFPControl(SB), 7, $0
++	WAIT
++	STMXCSR	0(SP)
++	MOVWLZX	0(SP), AX
++	ANDL	$0xFFC0, AX
++	XORL	$(0x3F<<7), AX
++	MOVL	AX, ret+0(FP)
++	RET
++
++TEXT	·SetFPStatus(SB), $0
++	MOVL	p+0(FP), DI
++	ANDL	$0x3F, DI
++	WAIT
++	STMXCSR	0(SP)
++	MOVL	0(SP), AX
++	ANDL	$~0x3F, AX
++	ORL	DI, AX
++	MOVL	AX, 0(SP)
++	LDMXCSR	0(SP)
++	RET
++
++TEXT	·GetFPStatus(SB), $0
++	WAIT
++	STMXCSR	0(SP)
++	MOVL	0(SP), AX
++	ANDL	$0x3F, AX
++	MOVL	AX, ret+0(FP)
++	RET
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 55a1362c61..35a710eca3 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -177,26 +177,26 @@ copyout(Type *t, void **src, void *dst)
+ 		algarray[alg].copy(wid, dst, *src);
+ }
+ 
+-// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret Iface);
++// func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
+ #pragma textflag 7
+ void
+-·ifaceT2I(InterfaceType *inter, Type *t, ...)
++·convT2I(Type *t, InterfaceType *inter, ...)
+ {
+ 	byte *elem;
+ 	Iface *ret;
+ 	int32 wid;
+ 
+-	elem = (byte*)(&t+1);
++	elem = (byte*)(&inter+1);
+ 	wid = t->size;
+ 	ret = (Iface*)(elem + rnd(wid, Structrnd));
+ 	ret->tab = itab(inter, t, 0);
+ 	copyin(t, elem, &ret->data);
+ }
+ 
+-// ifaceT2E(sigt *byte, elem any) (ret Eface);
++// func convT2E(typ *byte, elem any) (ret any)
+ #pragma textflag 7
+ void
+-·ifaceT2E(Type *t, ...)
++·convT2E(Type *t, ...)
+ {
+ 	byte *elem;
+ 	Eface *ret;
+@@ -205,15 +205,14 @@ void
+ 	elem = (byte*)(&t+1);
+ 	wid = t->size;
+ 	ret = (Eface*)(elem + rnd(wid, Structrnd));
+-
+ 	ret->type = t;
+ 	copyin(t, elem, &ret->data);
+ }
+ 
+-// ifaceI2T(sigt *byte, iface any) (ret any);
++// func ifaceI2T(typ *byte, iface any) (ret any)
+ #pragma textflag 7
+ void
+-·ifaceI2T(Type *t, Iface i, ...)
++·assertI2T(Type *t, Iface i, ...)
+ {
+ 	Itab *tab;
+ 	byte *ret;
+@@ -236,10 +235,10 @@ void
+ 	copyout(t, &i.data, ret);
+ }
+ 
+-// ifaceI2T2(sigt *byte, i Iface) (ret any, ok bool);
++// func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
+ #pragma textflag 7
+ void
+-·ifaceI2T2(Type *t, Iface i, ...)
++·assertI2T2(Type *t, Iface i, ...)
+ {
+ 	byte *ret;
+ 	bool *ok;
+@@ -259,10 +258,10 @@ void
+ 	copyout(t, &i.data, ret);
+ }
+ 
+-// ifaceE2T(sigt *byte, e Eface) (ret any);
++// func ifaceE2T(typ *byte, iface any) (ret any)
+ #pragma textflag 7
+ void
+-·ifaceE2T(Type *t, Eface e, ...)
++·assertE2T(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+ 	Eface err;
+@@ -284,10 +283,10 @@ void
+ 	copyout(t, &e.data, ret);
+ }
+ 
+-// ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
++// func ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
+ #pragma textflag 7
+ void
+-·ifaceE2T2(Type *t, Eface e, ...)
++·assertE2T2(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+ 	bool *ok;
+@@ -307,50 +306,82 @@ void
+ 	copyout(t, &e.data, ret);
+ }
+ 
+-// ifaceI2E(sigi *byte, iface any) (ret any);
+-// TODO(rsc): Move to back end, throw away function.
++// func convI2E(elem any) (ret any)
++#pragma textflag 7
+ void
+-·ifaceI2E(Iface i, Eface ret)
++·convI2E(Iface i, Eface ret)
+ {
+ 	Itab *tab;
+ 
+ 	ret.data = i.data;
+-	tab = i.tab;
+-	if(tab == nil)
++	if((tab = i.tab) == nil)
+ 		ret.type = nil;
+ 	else
+ 		ret.type = tab->type;
+ 	FLUSH(&ret);
+ }
+ 
+-// ifaceI2I(sigi *byte, iface any) (ret any);
+-// called only for implicit (no type assertion) conversions.
+-// converting nil is okay.
++// func ifaceI2E(typ *byte, iface any) (ret any)
++#pragma textflag 7
+ void
+-·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
++·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+ {
+ 	Itab *tab;
++	Eface err;
+ 
+ 	tab = i.tab;
+ 	if(tab == nil) {
+-		// If incoming interface is uninitialized (zeroed)
+-		// make the outgoing interface zeroed as well.
+-		ret.tab = nil;
+-		ret.data = nil;
++		// explicit conversions require non-nil interface value.
++		·newTypeAssertionError(nil, nil, inter,
++			nil, nil, inter->string,
++			nil, &err);
++		·panic(err);
++	}
++	ret.data = i.data;
++	ret.type = tab->type;
++	FLUSH(&ret);
++}
++
++// func ifaceI2E2(typ *byte, iface any) (ret any, ok bool)
++#pragma textflag 7
++void
++·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
++{
++	Itab *tab;
++
++	USED(inter);
++	tab = i.tab;
++	if(tab == nil) {
++		ret.type = nil;
++		ok = 0;
+ 	} else {
+-		ret = i;
+-		if(tab->inter != inter)
+-			ret.tab = itab(inter, tab->type, 0);
++		ret.type = tab->type;
++		ok = 1;
+ 	}
++	ret.data = i.data;
++	FLUSH(&ret);
++	FLUSH(&ok);
++}
+ 
++// func convI2I(typ *byte, elem any) (ret any)
++#pragma textflag 7
++void
++·convI2I(InterfaceType* inter, Iface i, Iface ret)
++{
++	Itab *tab;
++	
++	ret.data = i.data;
++	if((tab = i.tab) == nil)
++		ret.tab = nil;
++	else if(tab->inter == inter)
++		ret.tab = tab;
++	else
++		ret.tab = itab(inter, tab->type, 0);
+ 	FLUSH(&ret);
+ }
+ 
+-// ifaceI2Ix(sigi *byte, iface any) (ret any);
+-// called only for explicit conversions (with type assertion).
+-// converting nil is not okay.
+ void
+-·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
++ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+ {
+ 	Itab *tab;
+ 	Eface err;
+@@ -362,45 +393,40 @@ void
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		·panic(err);
+-	} else {
+-		ret = i;
+-		if(tab->inter != inter)
+-			ret.tab = itab(inter, tab->type, 0);
+ 	}
++	ret->data = i.data;
++	ret->tab = itab(inter, tab->type, 0);
++}
+ 
+-	FLUSH(&ret);
++// func ifaceI2I(sigi *byte, iface any) (ret any)
++#pragma textflag 7
++void
++·assertI2I(InterfaceType* inter, Iface i, Iface ret)
++{
++	ifaceI2I(inter, i, &ret);
+ }
+ 
+-// ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
++// func ifaceI2I2(sigi *byte, iface any) (ret any, ok bool)
++#pragma textflag 7
+ void
+-·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
++·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+ {
+ 	Itab *tab;
+ 
+ 	tab = i.tab;
+-	if(tab == nil) {
+-		// If incoming interface is nil, the conversion fails.
+-		ret.tab = nil;
+-		ret.data = nil;
+-		ok = false;
++	if(tab != nil && (tab->inter == inter || (tab = itab(inter, tab->type, 1)) != nil)) {
++		ret.data = i.data;
++		ret.tab = tab;
++		ok = 1;
+ 	} else {
+-		ret = i;
+-		ok = true;
+-		if(tab->inter != inter) {
+-			ret.tab = itab(inter, tab->type, 1);
+-			if(ret.tab == nil) {
+-				ret.data = nil;
+-				ok = false;
+-			}
+-		}
++		ret.data = 0;
++		ret.tab = 0;
++		ok = 0;
+ 	}
+-
+ 	FLUSH(&ret);
+ 	FLUSH(&ok);
+ }
+ 
+-// ifaceE2I(sigi *byte, iface any) (ret any);
+-// Called only for explicit conversions (with type assertion).
+ void
+ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ {
+@@ -414,45 +440,71 @@ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		·panic(err);
+-	} else {
+-		ret->data = e.data;
+-		ret->tab = itab(inter, t, 0);
+ 	}
++	ret->data = e.data;
++	ret->tab = itab(inter, t, 0);
+ }
+ 
+-// ifaceE2I(sigi *byte, iface any) (ret any);
+-// Called only for explicit conversions (with type assertion).
++// func ifaceE2I(sigi *byte, iface any) (ret any)
++#pragma textflag 7
+ void
+-·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
++·assertE2I(InterfaceType* inter, Eface e, Iface ret)
+ {
+ 	ifaceE2I(inter, e, &ret);
+ }
+ 
+-// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
++// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool)
++#pragma textflag 7
+ void
+-·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
++·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ {
+-	Type *t;
+-
+-	t = e.type;
+-	ok = true;
+-	if(t == nil) {
+-		// If incoming interface is nil, the conversion fails.
++	if(e.type == nil) {
++		ok = 0;
+ 		ret.data = nil;
+ 		ret.tab = nil;
+-		ok = false;
++	} else if((ret.tab = itab(inter, e.type, 1)) == nil) {
++		ok = 0;
++		ret.data = nil;
+ 	} else {
++		ok = 1;
+ 		ret.data = e.data;
+-		ret.tab = itab(inter, t, 1);
+-		if(ret.tab == nil) {
+-			ret.data = nil;
+-			ok = false;
+-		}
+ 	}
+ 	FLUSH(&ret);
+ 	FLUSH(&ok);
+ }
+ 
++// func ifaceE2E(typ *byte, iface any) (ret any)
++#pragma textflag 7
++void
++·assertE2E(InterfaceType* inter, Eface e, Eface ret)
++{
++	Type *t;
++	Eface err;
++
++	t = e.type;
++	if(t == nil) {
++		// explicit conversions require non-nil interface value.
++		·newTypeAssertionError(nil, nil, inter,
++			nil, nil, inter->string,
++			nil, &err);
++		·panic(err);
++	}
++	ret = e;
++	FLUSH(&ret);
++}
++
++// func ifaceE2E2(iface any) (ret any, ok bool)
++#pragma textflag 7
++void
++·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
++{
++	USED(inter);
++	ret = e;
++	ok = e.type != nil;
++	FLUSH(&ret);
++	FLUSH(&ok);
++}
++
+ static uintptr
+ ifacehash1(void *data, Type *t)
+ {
+diff --git a/test/assign1.go b/test/assign1.go
+new file mode 100644
+index 0000000000..452f90f1cc
+--- /dev/null
++++ b/test/assign1.go
+@@ -0,0 +1,343 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type (
++	A [10]int
++	B []int
++	C chan int
++	F func() int
++	I interface {
++		m() int
++	}
++	M map[int]int
++	P *int
++	S struct {
++		X int
++	}
++
++	A1 [10]int
++	B1 []int
++	C1 chan int
++	F1 func() int
++	I1 interface {
++		m() int
++	}
++	M1 map[int]int
++	P1 *int
++	S1 struct {
++		X int
++	}
++)
++
++var (
++	a0 [10]int
++	b0 []int
++	c0 chan int
++	f0 func() int
++	i0 interface {
++		m() int
++	}
++	m0 map[int]int
++	p0 *int
++	s0 struct {
++		X int
++	}
++
++	a A
++	b B
++	c C
++	f F
++	i I
++	m M
++	p P
++	s S
++
++	a1 A1
++	b1 B1
++	c1 C1
++	f1 F1
++	i1 I1
++	m1 M1
++	p1 P1
++	s1 S1
++
++	pa0 *[10]int
++	pb0 *[]int
++	pc0 *chan int
++	pf0 *func() int
++	pi0 *interface {
++		m() int
++	}
++	pm0 *map[int]int
++	pp0 **int
++	ps0 *struct {
++		X int
++	}
++
++	pa *A
++	pb *B
++	pc *C
++	pf *F
++	pi *I
++	pm *M
++	pp *P
++	ps *S
++
++	pa1 *A1
++	pb1 *B1
++	pc1 *C1
++	pf1 *F1
++	pi1 *I1
++	pm1 *M1
++	pp1 *P1
++	ps1 *S1
++)
++
++func main() {
++	a0 = a
++	a0 = a1
++	a = a0
++	a = a1 // ERROR "cannot use"
++	a1 = a0
++	a1 = a // ERROR "cannot use"
++
++	b0 = b
++	b0 = b1
++	b = b0
++	b = b1 // ERROR "cannot use"
++	b1 = b0
++	b1 = b // ERROR "cannot use"
++
++	c0 = c
++	c0 = c1
++	c = c0
++	c = c1 // ERROR "cannot use"
++	c1 = c0
++	c1 = c // ERROR "cannot use"
++
++	f0 = f
++	f0 = f1
++	f = f0
++	f = f1 // ERROR "cannot use"
++	f1 = f0
++	f1 = f // ERROR "cannot use"
++
++	i0 = i
++	i0 = i1
++	i = i0
++	i = i1
++	i1 = i0
++	i1 = i
++
++	m0 = m
++	m0 = m1
++	m = m0
++	m = m1 // ERROR "cannot use"
++	m1 = m0
++	m1 = m // ERROR "cannot use"
++
++	p0 = p
++	p0 = p1
++	p = p0
++	p = p1 // ERROR "cannot use"
++	p1 = p0
++	p1 = p // ERROR "cannot use"
++
++	s0 = s
++	s0 = s1
++	s = s0
++	s = s1 // ERROR "cannot use"
++	s1 = s0
++	s1 = s // ERROR "cannot use"
++
++	pa0 = pa  // ERROR "cannot use"
++	pa0 = pa1 // ERROR "cannot use"
++	pa = pa0  // ERROR "cannot use"
++	pa = pa1  // ERROR "cannot use"
++	pa1 = pa0 // ERROR "cannot use"
++	pa1 = pa  // ERROR "cannot use"
++
++	pb0 = pb  // ERROR "cannot use"
++	pb0 = pb1 // ERROR "cannot use"
++	pb = pb0  // ERROR "cannot use"
++	pb = pb1  // ERROR "cannot use"
++	pb1 = pb0 // ERROR "cannot use"
++	pb1 = pb  // ERROR "cannot use"
++
++	pc0 = pc  // ERROR "cannot use"
++	pc0 = pc1 // ERROR "cannot use"
++	pc = pc0  // ERROR "cannot use"
++	pc = pc1  // ERROR "cannot use"
++	pc1 = pc0 // ERROR "cannot use"
++	pc1 = pc  // ERROR "cannot use"
++
++	pf0 = pf  // ERROR "cannot use"
++	pf0 = pf1 // ERROR "cannot use"
++	pf = pf0  // ERROR "cannot use"
++	pf = pf1  // ERROR "cannot use"
++	pf1 = pf0 // ERROR "cannot use"
++	pf1 = pf  // ERROR "cannot use"
++
++	pi0 = pi  // ERROR "cannot use"
++	pi0 = pi1 // ERROR "cannot use"
++	pi = pi0  // ERROR "cannot use"
++	pi = pi1  // ERROR "cannot use"
++	pi1 = pi0 // ERROR "cannot use"
++	pi1 = pi  // ERROR "cannot use"
++
++	pm0 = pm  // ERROR "cannot use"
++	pm0 = pm1 // ERROR "cannot use"
++	pm = pm0  // ERROR "cannot use"
++	pm = pm1  // ERROR "cannot use"
++	pm1 = pm0 // ERROR "cannot use"
++	pm1 = pm  // ERROR "cannot use"
++
++	pp0 = pp  // ERROR "cannot use"
++	pp0 = pp1 // ERROR "cannot use"
++	pp = pp0  // ERROR "cannot use"
++	pp = pp1  // ERROR "cannot use"
++	pp1 = pp0 // ERROR "cannot use"
++	pp1 = pp  // ERROR "cannot use"
++
++	ps0 = ps  // ERROR "cannot use"
++	ps0 = ps1 // ERROR "cannot use"
++	ps = ps0  // ERROR "cannot use"
++	ps = ps1  // ERROR "cannot use"
++	ps1 = ps0 // ERROR "cannot use"
++	ps1 = ps  // ERROR "cannot use"
++
++
++	a0 = [10]int(a)
++	a0 = [10]int(a1)
++	a = A(a0)
++	a = A(a1)
++	a1 = A1(a0)
++	a1 = A1(a)
++
++	b0 = []int(b)
++	b0 = []int(b1)
++	b = B(b0)
++	b = B(b1)
++	b1 = B1(b0)
++	b1 = B1(b)
++
++	c0 = chan int(c)
++	c0 = chan int(c1)
++	c = C(c0)
++	c = C(c1)
++	c1 = C1(c0)
++	c1 = C1(c)
++
++	f0 = func() int(f)
++	f0 = func() int(f1)
++	f = F(f0)
++	f = F(f1)
++	f1 = F1(f0)
++	f1 = F1(f)
++
++	i0 = interface {
++		m() int
++	}(i)
++	i0 = interface {
++		m() int
++	}(i1)
++	i = I(i0)
++	i = I(i1)
++	i1 = I1(i0)
++	i1 = I1(i)
++
++	m0 = map[int]int(m)
++	m0 = map[int]int(m1)
++	m = M(m0)
++	m = M(m1)
++	m1 = M1(m0)
++	m1 = M1(m)
++
++	p0 = (*int)(p)
++	p0 = (*int)(p1)
++	p = P(p0)
++	p = P(p1)
++	p1 = P1(p0)
++	p1 = P1(p)
++
++	s0 = struct {
++		X int
++	}(s)
++	s0 = struct {
++		X int
++	}(s1)
++	s = S(s0)
++	s = S(s1)
++	s1 = S1(s0)
++	s1 = S1(s)
++
++	pa0 = (*[10]int)(pa)
++	pa0 = (*[10]int)(pa1)
++	pa = (*A)(pa0)
++	pa = (*A)(pa1)
++	pa1 = (*A1)(pa0)
++	pa1 = (*A1)(pa)
++
++	pb0 = (*[]int)(pb)
++	pb0 = (*[]int)(pb1)
++	pb = (*B)(pb0)
++	pb = (*B)(pb1)
++	pb1 = (*B1)(pb0)
++	pb1 = (*B1)(pb)
++
++	pc0 = (*chan int)(pc)
++	pc0 = (*chan int)(pc1)
++	pc = (*C)(pc0)
++	pc = (*C)(pc1)
++	pc1 = (*C1)(pc0)
++	pc1 = (*C1)(pc)
++
++	pf0 = (*func() int)(pf)
++	pf0 = (*func() int)(pf1)
++	pf = (*F)(pf0)
++	pf = (*F)(pf1)
++	pf1 = (*F1)(pf0)
++	pf1 = (*F1)(pf)
++
++	pi0 = (*interface {
++		m() int
++	})(pi)
++	pi0 = (*interface {
++		m() int
++	})(pi1)
++	pi = (*I)(pi0)
++	pi = (*I)(pi1)
++	pi1 = (*I1)(pi0)
++	pi1 = (*I1)(pi)
++
++	pm0 = (*map[int]int)(pm)
++	pm0 = (*map[int]int)(pm1)
++	pm = (*M)(pm0)
++	pm = (*M)(pm1)
++	pm1 = (*M1)(pm0)
++	pm1 = (*M1)(pm)
++
++	pp0 = (**int)(pp)
++	pp0 = (**int)(pp1)
++	pp = (*P)(pp0)
++	pp = (*P)(pp1)
++	pp1 = (*P1)(pp0)
++	pp1 = (*P1)(pp)
++
++	ps0 = (*struct {
++		X int
++	})(ps)
++	ps0 = (*struct {
++		X int
++	})(ps1)
++	ps = (*S)(ps0)
++	ps = (*S)(ps1)
++	ps1 = (*S1)(ps0)
++	ps1 = (*S1)(ps)
++
++}
+diff --git a/test/convert3.go b/test/convert3.go
+index cb05000128..5f1f0dd94e 100644
+--- a/test/convert3.go
++++ b/test/convert3.go
+@@ -18,8 +18,9 @@ var f2 = []int(e)
+ 
+ var g = []int(nil)
+ 
+-type H *[4]int
++type H []int
+ type J []int
++
+ var h H
+-var j1 J = h	// ERROR "compat|illegal|cannot|cannot"
++var j1 J = h // ERROR "compat|illegal|cannot"
+ var j2 = J(h)
+diff --git a/test/fixedbugs/bug248.dir/bug3.go b/test/fixedbugs/bug248.dir/bug3.go
+index 41f559b526..c96bf16768 100644
+--- a/test/fixedbugs/bug248.dir/bug3.go
++++ b/test/fixedbugs/bug248.dir/bug3.go
+@@ -34,14 +34,14 @@ func (t1) M(p1.T) {}
+ var i0 I0 = t0(0) // ok
+ var i1 I1 = t1(0) // ok
+ 
+-var i2 I0 = t1(0) // ERROR "is not|incompatible"
+-var i3 I1 = t0(0) // ERROR "is not|incompatible"
++var i2 I0 = t1(0) // ERROR "does not implement|incompatible"
++var i3 I1 = t0(0) // ERROR "does not implement|incompatible"
+ 
+ var p0i p0.I = t0(0) // ok
+ var p1i p1.I = t1(0) // ok
+ 
+-var p0i1 p0.I = t1(0) // ERROR "is not|incompatible"
+-var p0i2 p1.I = t0(0) // ERROR "is not|incompatible"
++var p0i1 p0.I = t1(0) // ERROR "does not implement|incompatible"
++var p0i2 p1.I = t0(0) // ERROR "does not implement|incompatible"
+ 
+ func main() {
+ 	// check that cannot assign one to the other,
+@@ -52,14 +52,14 @@ func main() {
+ 	v0 = p0.T(v1)
+ 	v1 = p1.T(v0)
+ 
+-	i0 = i1   // ERROR "need type assertion|incompatible"
+-	i1 = i0   // ERROR "need type assertion|incompatible"
+-	p0i = i1  // ERROR "need type assertion|incompatible"
+-	p1i = i0  // ERROR "need type assertion|incompatible"
+-	i0 = p1i  // ERROR "need type assertion|incompatible"
+-	i1 = p0i  // ERROR "need type assertion|incompatible"
+-	p0i = p1i // ERROR "need type assertion|incompatible"
+-	p1i = p0i // ERROR "need type assertion|incompatible"
++	i0 = i1   // ERROR "cannot use|incompatible"
++	i1 = i0   // ERROR "cannot use|incompatible"
++	p0i = i1  // ERROR "cannot use|incompatible"
++	p1i = i0  // ERROR "cannot use|incompatible"
++	i0 = p1i  // ERROR "cannot use|incompatible"
++	i1 = p0i  // ERROR "cannot use|incompatible"
++	p0i = p1i // ERROR "cannot use|incompatible"
++	p1i = p0i // ERROR "cannot use|incompatible"
+ 
+ 	i0 = p0i
+ 	p0i = i0
+diff --git a/test/fixedbugs/bug251.go b/test/fixedbugs/bug251.go
+index 6ddc4a5a65..37dec90559 100644
+--- a/test/fixedbugs/bug251.go
++++ b/test/fixedbugs/bug251.go
+@@ -12,10 +12,10 @@ type I1 interface {
+ }
+ 
+ type I2 interface {
+-	I1	// ERROR "loop|interface"
++	I1 // ERROR "loop|interface"
+ }
+ 
+ 
+-var i1 I1 = i2	// ERROR "need type assertion"
++var i1 I1 = i2 // ERROR "missing m method|need type assertion"
+ var i2 I2
+ var i2a I2 = i1
+diff --git a/test/bugs/bug284.go b/test/fixedbugs/bug284.go
+similarity index 100%
+rename from test/bugs/bug284.go
+rename to test/fixedbugs/bug284.go
+diff --git a/test/bugs/bug285.go b/test/fixedbugs/bug285.go
+similarity index 98%
+rename from test/bugs/bug285.go
+rename to test/fixedbugs/bug285.go
+index 59499c983c..544d3487ef 100644
+--- a/test/bugs/bug285.go
++++ b/test/fixedbugs/bug285.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.go && ./$A.out || echo BUG: bug285
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug285
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/golden.out b/test/golden.out
+index cda1ec412b..1bed6599a8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -180,58 +180,3 @@ BUG: bug260 failed
+ 
+ =========== bugs/bug274.go
+ BUG: errchk: command succeeded unexpectedly
+-
+-=========== bugs/bug284.go
+-BUG: errchk: bugs/bug284.go:33: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:36: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:37: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:38: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:56: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:59: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:60: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:61: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:71: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:74: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:75: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:76: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:96: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:99: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:101: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:111: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:114: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:115: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:116: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:134: missing expected error: 'cannot|need type assertion'
+-errchk: bugs/bug284.go:137: missing expected error: 'cannot|need type assertion'
+-errchk: bugs/bug284.go:138: missing expected error: 'cannot|need type assertion'
+-errchk: bugs/bug284.go:139: missing expected error: 'cannot|need type assertion'
+-errchk: bugs/bug284.go:149: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:152: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:153: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:154: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:164: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:167: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:168: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:169: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:179: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:182: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:183: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:184: missing expected error: 'cannot'
+-errchk: bugs/bug284.go: unmatched error messages:
+-==================================================
+-bugs/bug284.go:190: internal compiler error: typename ideal
+-==================================================
+-
+-=========== bugs/bug285.go
+-bugs/bug285.go:23: invalid map index false - need type B
+-bugs/bug285.go:80: invalid map index z - need type interface { }
+-bugs/bug285.go:83: invalid map index new(struct { x int }) - need type interface { }
+-bugs/bug285.go:84: invalid map index p - need type interface { }
+-bugs/bug285.go:85: invalid map index false - need type interface { }
+-bugs/bug285.go:86: invalid map index 17 - need type interface { }
+-bugs/bug285.go:87: invalid map index "foo" - need type interface { }
+-bugs/bug285.go:93: invalid map index new(struct { x int }) - need type I1
+-bugs/bug285.go:94: invalid map index false - need type I1
+-bugs/bug285.go:95: invalid map index 17 - need type I1
+-bugs/bug285.go:95: too many errors
+-BUG: bug285
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index bd1bd19a96..797cec80e4 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -8,34 +8,45 @@
+ 
+ package main
+ 
+-type T struct { a int }
++type T struct {
++	a int
++}
++
+ var t *T
+ 
+-type I interface { M() }
++type I interface {
++	M()
++}
++
+ var i I
+ 
+-type I2 interface { M(); N(); }
++type I2 interface {
++	M()
++	N()
++}
++
+ var i2 I2
+ 
+-type E interface { }
++type E interface{}
++
+ var e E
+ 
+ func main() {
+-	e = t;	// ok
+-	t = e;	// ERROR "need explicit|need type assertion"
++	e = t // ok
++	t = e // ERROR "need explicit|need type assertion"
+ 
+ 	// neither of these can work,
+ 	// because i has an extra method
+ 	// that t does not, so i cannot contain a t.
+-	i = t;	// ERROR "missing|incompatible|is not"
+-	t = i;	// ERROR "missing|incompatible|is not"
++	i = t // ERROR "incompatible|missing M method"
++	t = i // ERROR "incompatible|need type assertion"
++
++	i = i2 // ok
++	i2 = i // ERROR "missing N method"
+ 
+-	i = i2;	// ok
+-	i2 = i;	// ERROR "need explicit|need type assertion"
+-	
+-	i = I(i2);	// ok
+-	i2 = I2(i);	// ERROR "need explicit|need type assertion"
++	i = I(i2)  // ok
++	i2 = I2(i) // ERROR "missing N method"
+ 
+-	e = E(t);	// ok
+-	t = T(e);	// ERROR "need explicit|need type assertion|incompatible"
++	e = E(t) // ok
++	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+ }
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index be24952ffb..e628b558ea 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -9,28 +9,28 @@
+ package main
+ 
+ type Inst interface {
+-	Next()	*Inst;
++	Next() *Inst
+ }
+ 
+ type Regexp struct {
+-	code []Inst;
+-	start	Inst;
++	code  []Inst
++	start Inst
+ }
+ 
+ type Start struct {
+-	foo	*Inst;
++	foo *Inst
+ }
+ 
+ func (start *Start) Next() *Inst { return nil }
+ 
+ 
+ func AddInst(Inst) *Inst {
+-	print("ok in addinst\n");
++	print("ok in addinst\n")
+ 	return nil
+ }
+ 
+ func main() {
+-	print("call addinst\n");
+-	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible|is not"
+-	print("return from  addinst\n");
++	print("call addinst\n")
++	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
++	print("return from  addinst\n")
+ }
+diff --git a/test/interface/receiver1.go b/test/interface/receiver1.go
+index 8ce96424e3..51312d0002 100644
+--- a/test/interface/receiver1.go
++++ b/test/interface/receiver1.go
+@@ -9,41 +9,50 @@
+ package main
+ 
+ type T int
++
+ func (t T) V()
+ func (t *T) P()
+ 
+-type V interface { V() }
+-type P interface { P(); V() }
++type V interface {
++	V()
++}
++type P interface {
++	P()
++	V()
++}
+ 
+-type S struct { T; }
+-type SP struct { *T; }
++type S struct {
++	T
++}
++type SP struct {
++	*T
++}
+ 
+ func main() {
+-	var t T;
+-	var v V;
+-	var p P;
+-	var s S;
+-	var sp SP;
+-
+-	v = t;
+-	p = t;	// ERROR "is not|requires a pointer"
+-	_, _= v, p;
+-	v = &t;
+-	p = &t;
+-	_, _= v, p;
+-
+-	v = s;
+-	p = s;	// ERROR "is not|requires a pointer"
+-	_, _= v, p;
+-	v = &s;
+-	p = &s;
+-	_, _= v, p;
+-
+-	v = sp;
+-	p = sp;	// no error!
+-	_, _= v, p;
+-	v = &sp;
+-	p = &sp;
+-	_, _= v, p;
++	var t T
++	var v V
++	var p P
++	var s S
++	var sp SP
++
++	v = t
++	p = t // ERROR "does not implement|requires a pointer"
++	_, _ = v, p
++	v = &t
++	p = &t
++	_, _ = v, p
++
++	v = s
++	p = s // ERROR "does not implement|requires a pointer"
++	_, _ = v, p
++	v = &s
++	p = &s
++	_, _ = v, p
++
++	v = sp
++	p = sp // no error!
++	_, _ = v, p
++	v = &sp
++	p = &sp
++	_, _ = v, p
+ }
+-
+diff --git a/test/named.go b/test/named.go
+index a52490215b..d2039bab4d 100644
+--- a/test/named.go
++++ b/test/named.go
+@@ -20,13 +20,13 @@ type String string
+ 
+ // Calling these functions checks at compile time that the argument
+ // can be converted implicitly to (used as) the given type.
+-func asArray(Array) {}
+-func asBool(Bool) {}
+-func asChan(Chan) {}
+-func asFloat(Float) {}
+-func asInt(Int) {}
+-func asMap(Map) {}
+-func asSlice(Slice) {}
++func asArray(Array)   {}
++func asBool(Bool)     {}
++func asChan(Chan)     {}
++func asFloat(Float)   {}
++func asInt(Int)       {}
++func asMap(Map)       {}
++func asSlice(Slice)   {}
+ func asString(String) {}
+ 
+ func (Map) M() {}
+@@ -35,247 +35,247 @@ func (Map) M() {}
+ // These functions check at run time that the default type
+ // (in the absence of any implicit conversion hints)
+ // is the given type.
+-func isArray(x interface{}) { _ = x.(Array) }
+-func isBool(x interface{}) { _ = x.(Bool) }
+-func isChan(x interface{}) { _ = x.(Chan) }
+-func isFloat(x interface{}) { _ = x.(Float) }
+-func isInt(x interface{}) { _ = x.(Int) }
+-func isMap(x interface{}) { _ = x.(Map) }
+-func isSlice(x interface{}) { _ = x.(Slice) }
++func isArray(x interface{})  { _ = x.(Array) }
++func isBool(x interface{})   { _ = x.(Bool) }
++func isChan(x interface{})   { _ = x.(Chan) }
++func isFloat(x interface{})  { _ = x.(Float) }
++func isInt(x interface{})    { _ = x.(Int) }
++func isMap(x interface{})    { _ = x.(Map) }
++func isSlice(x interface{})  { _ = x.(Slice) }
+ func isString(x interface{}) { _ = x.(String) }
+ 
+ func main() {
+ 	var (
+-		a Array;
+-		b Bool = true;
+-		c Chan = make(Chan);
+-		f Float = 1;
+-		i Int = 1;
+-		m Map = make(Map);
+-		slice Slice = make(Slice, 10);
+-		str String = "hello";
++		a     Array
++		b     Bool   = true
++		c     Chan   = make(Chan)
++		f     Float  = 1
++		i     Int    = 1
++		m     Map    = make(Map)
++		slice Slice  = make(Slice, 10)
++		str   String = "hello"
+ 	)
+ 
+-	asArray(a);
+-	isArray(a);
+-	asArray(*&a);
+-	isArray(*&a);
+-	asArray(Array{});
+-	isArray(Array{});
++	asArray(a)
++	isArray(a)
++	asArray(*&a)
++	isArray(*&a)
++	asArray(Array{})
++	isArray(Array{})
+ 
+-	asBool(b);
+-	isBool(b);
+-	asBool(!b);
+-	isBool(!b);
+-	asBool(true);
+-	asBool(*&b);
+-	isBool(*&b);
+-	asBool(Bool(true));
+-	isBool(Bool(true));
++	asBool(b)
++	isBool(b)
++	asBool(!b)
++	isBool(!b)
++	asBool(true)
++	asBool(*&b)
++	isBool(*&b)
++	asBool(Bool(true))
++	isBool(Bool(true))
+ 
+-	asChan(c);
+-	isChan(c);
+-	asChan(make(Chan));
+-	isChan(make(Chan));
+-	asChan(*&c);
+-	isChan(*&c);
+-	asChan(Chan(nil));
+-	isChan(Chan(nil));
++	asChan(c)
++	isChan(c)
++	asChan(make(Chan))
++	isChan(make(Chan))
++	asChan(*&c)
++	isChan(*&c)
++	asChan(Chan(nil))
++	isChan(Chan(nil))
+ 
+-	asFloat(f);
+-	isFloat(f);
+-	asFloat(-f);
+-	isFloat(-f);
+-	asFloat(+f);
+-	isFloat(+f);
+-	asFloat(f+1);
+-	isFloat(f+1);
+-	asFloat(1+f);
+-	isFloat(1+f);
+-	asFloat(f+f);
+-	isFloat(f+f);
+-	f++;
+-	f+=2;
+-	asFloat(f-1);
+-	isFloat(f-1);
+-	asFloat(1-f);
+-	isFloat(1-f);
+-	asFloat(f-f);
+-	isFloat(f-f);
+-	f--;
+-	f-=2;
+-	asFloat(f*2.5);
+-	isFloat(f*2.5);
+-	asFloat(2.5*f);
+-	isFloat(2.5*f);
+-	asFloat(f*f);
+-	isFloat(f*f);
+-	f*=4;
+-	asFloat(f/2.5);
+-	isFloat(f/2.5);
+-	asFloat(2.5/f);
+-	isFloat(2.5/f);
+-	asFloat(f/f);
+-	isFloat(f/f);
+-	f/=4;
+-	asFloat(f);
+-	isFloat(f);
+-	f = 5;
+-	asFloat(*&f);
+-	isFloat(*&f);
+-	asFloat(234);
+-	asFloat(Float(234));
+-	isFloat(Float(234));
+-	asFloat(1.2);
+-	asFloat(Float(i));
+-	isFloat(Float(i));
++	asFloat(f)
++	isFloat(f)
++	asFloat(-f)
++	isFloat(-f)
++	asFloat(+f)
++	isFloat(+f)
++	asFloat(f + 1)
++	isFloat(f + 1)
++	asFloat(1 + f)
++	isFloat(1 + f)
++	asFloat(f + f)
++	isFloat(f + f)
++	f++
++	f += 2
++	asFloat(f - 1)
++	isFloat(f - 1)
++	asFloat(1 - f)
++	isFloat(1 - f)
++	asFloat(f - f)
++	isFloat(f - f)
++	f--
++	f -= 2
++	asFloat(f * 2.5)
++	isFloat(f * 2.5)
++	asFloat(2.5 * f)
++	isFloat(2.5 * f)
++	asFloat(f * f)
++	isFloat(f * f)
++	f *= 4
++	asFloat(f / 2.5)
++	isFloat(f / 2.5)
++	asFloat(2.5 / f)
++	isFloat(2.5 / f)
++	asFloat(f / f)
++	isFloat(f / f)
++	f /= 4
++	asFloat(f)
++	isFloat(f)
++	f = 5
++	asFloat(*&f)
++	isFloat(*&f)
++	asFloat(234)
++	asFloat(Float(234))
++	isFloat(Float(234))
++	asFloat(1.2)
++	asFloat(Float(i))
++	isFloat(Float(i))
+ 
+-	asInt(i);
+-	isInt(i);
+-	asInt(-i);
+-	isInt(-i);
+-	asInt(^i);
+-	isInt(^i);
+-	asInt(+i);
+-	isInt(+i);
+-	asInt(i+1);
+-	isInt(i+1);
+-	asInt(1+i);
+-	isInt(1+i);
+-	asInt(i+i);
+-	isInt(i+i);
+-	i++;
+-	i+=1;
+-	asInt(i-1);
+-	isInt(i-1);
+-	asInt(1-i);
+-	isInt(1-i);
+-	asInt(i-i);
+-	isInt(i-i);
+-	i--;
+-	i-=1;
+-	asInt(i*2);
+-	isInt(i*2);
+-	asInt(2*i);
+-	isInt(2*i);
+-	asInt(i*i);
+-	isInt(i*i);
+-	i*=2;
+-	asInt(i/5);
+-	isInt(i/5);
+-	asInt(5/i);
+-	isInt(5/i);
+-	asInt(i/i);
+-	isInt(i/i);
+-	i/=2;
+-	asInt(i%5);
+-	isInt(i%5);
+-	asInt(5%i);
+-	isInt(5%i);
+-	asInt(i%i);
+-	isInt(i%i);
+-	i%=2;
+-	asInt(i&5);
+-	isInt(i&5);
+-	asInt(5&i);
+-	isInt(5&i);
+-	asInt(i&i);
+-	isInt(i&i);
+-	i&=2;
+-	asInt(i&^5);
+-	isInt(i&^5);
+-	asInt(5&^i);
+-	isInt(5&^i);
+-	asInt(i&^i);
+-	isInt(i&^i);
+-	i&^=2;
+-	asInt(i|5);
+-	isInt(i|5);
+-	asInt(5|i);
+-	isInt(5|i);
+-	asInt(i|i);
+-	isInt(i|i);
+-	i|=2;
+-	asInt(i^5);
+-	isInt(i^5);
+-	asInt(5^i);
+-	isInt(5^i);
+-	asInt(i^i);
+-	isInt(i^i);
+-	i^=2;
+-	asInt(i<<4);
+-	isInt(i<<4);
+-	i<<=2;
+-	asInt(i>>4);
+-	isInt(i>>4);
+-	i>>=2;
+-	asInt(i);
+-	isInt(i);
+-	asInt(0);
+-	asInt(Int(0));
+-	isInt(Int(0));
+-	i = 10;
+-	asInt(*&i);
+-	isInt(*&i);
+-	asInt(23);
+-	asInt(Int(f));
+-	isInt(Int(f));
++	asInt(i)
++	isInt(i)
++	asInt(-i)
++	isInt(-i)
++	asInt(^i)
++	isInt(^i)
++	asInt(+i)
++	isInt(+i)
++	asInt(i + 1)
++	isInt(i + 1)
++	asInt(1 + i)
++	isInt(1 + i)
++	asInt(i + i)
++	isInt(i + i)
++	i++
++	i += 1
++	asInt(i - 1)
++	isInt(i - 1)
++	asInt(1 - i)
++	isInt(1 - i)
++	asInt(i - i)
++	isInt(i - i)
++	i--
++	i -= 1
++	asInt(i * 2)
++	isInt(i * 2)
++	asInt(2 * i)
++	isInt(2 * i)
++	asInt(i * i)
++	isInt(i * i)
++	i *= 2
++	asInt(i / 5)
++	isInt(i / 5)
++	asInt(5 / i)
++	isInt(5 / i)
++	asInt(i / i)
++	isInt(i / i)
++	i /= 2
++	asInt(i % 5)
++	isInt(i % 5)
++	asInt(5 % i)
++	isInt(5 % i)
++	asInt(i % i)
++	isInt(i % i)
++	i %= 2
++	asInt(i & 5)
++	isInt(i & 5)
++	asInt(5 & i)
++	isInt(5 & i)
++	asInt(i & i)
++	isInt(i & i)
++	i &= 2
++	asInt(i &^ 5)
++	isInt(i &^ 5)
++	asInt(5 &^ i)
++	isInt(5 &^ i)
++	asInt(i &^ i)
++	isInt(i &^ i)
++	i &^= 2
++	asInt(i | 5)
++	isInt(i | 5)
++	asInt(5 | i)
++	isInt(5 | i)
++	asInt(i | i)
++	isInt(i | i)
++	i |= 2
++	asInt(i ^ 5)
++	isInt(i ^ 5)
++	asInt(5 ^ i)
++	isInt(5 ^ i)
++	asInt(i ^ i)
++	isInt(i ^ i)
++	i ^= 2
++	asInt(i << 4)
++	isInt(i << 4)
++	i <<= 2
++	asInt(i >> 4)
++	isInt(i >> 4)
++	i >>= 2
++	asInt(i)
++	isInt(i)
++	asInt(0)
++	asInt(Int(0))
++	isInt(Int(0))
++	i = 10
++	asInt(*&i)
++	isInt(*&i)
++	asInt(23)
++	asInt(Int(f))
++	isInt(Int(f))
+ 
+-	asMap(m);
+-	isMap(m);
+-	asMap(nil);
+-	m = nil;
+-	asMap(make(Map));
+-	isMap(make(Map));
+-	asMap(*&m);
+-	isMap(*&m);
+-	asMap(Map(nil));
+-	isMap(Map(nil));
+-	asMap(Map{});
+-	isMap(Map{});
++	asMap(m)
++	isMap(m)
++	asMap(nil)
++	m = nil
++	asMap(make(Map))
++	isMap(make(Map))
++	asMap(*&m)
++	isMap(*&m)
++	asMap(Map(nil))
++	isMap(Map(nil))
++	asMap(Map{})
++	isMap(Map{})
+ 
+-	asSlice(slice);
+-	isSlice(slice);
+-	asSlice(make(Slice, 5));
+-	isSlice(make(Slice, 5));
+-	asSlice([]byte{1,2,3});
+-	asSlice([]byte{1,2,3}[0:2]);
+-	asSlice(slice[0:4]);
+-	isSlice(slice[0:4]);
+-	asSlice(slice[3:8]);
+-	isSlice(slice[3:8]);
+-	asSlice(nil);
+-	asSlice(Slice(nil));
+-	isSlice(Slice(nil));
+-	slice = nil;
+-	asSlice(Slice{1,2,3});
+-	isSlice(Slice{1,2,3});
+-	asSlice(Slice{});
+-	isSlice(Slice{});
+-	asSlice(*&slice);
+-	isSlice(*&slice);
++	asSlice(slice)
++	isSlice(slice)
++	asSlice(make(Slice, 5))
++	isSlice(make(Slice, 5))
++	asSlice([]byte{1, 2, 3})
++	asSlice([]byte{1, 2, 3}[0:2])
++	asSlice(slice[0:4])
++	isSlice(slice[0:4])
++	asSlice(slice[3:8])
++	isSlice(slice[3:8])
++	asSlice(nil)
++	asSlice(Slice(nil))
++	isSlice(Slice(nil))
++	slice = nil
++	asSlice(Slice{1, 2, 3})
++	isSlice(Slice{1, 2, 3})
++	asSlice(Slice{})
++	isSlice(Slice{})
++	asSlice(*&slice)
++	isSlice(*&slice)
+ 
+-	asString(str);
+-	isString(str);
+-	asString(str+"a");
+-	isString(str+"a");
+-	asString("a"+str);
+-	isString("a"+str);
+-	asString(str+str);
+-	isString(str+str);
+-	str += "a";
+-	str += str;
+-	asString(String('a'));
+-	isString(String('a'));
+-	asString(String(slice));
+-	isString(String(slice));
+-	asString(String([]byte(nil)));
+-	isString(String([]byte(nil)));
+-	asString("hello");
+-	asString(String("hello"));
+-	isString(String("hello"));
+-	str = "hello";
+-	isString(str);
+-	asString(*&str);
+-	isString(*&str);
++	asString(str)
++	isString(str)
++	asString(str + "a")
++	isString(str + "a")
++	asString("a" + str)
++	isString("a" + str)
++	asString(str + str)
++	isString(str + str)
++	str += "a"
++	str += str
++	asString(String('a'))
++	isString(String('a'))
++	asString(String([]byte(slice)))
++	isString(String([]byte(slice)))
++	asString(String([]byte(nil)))
++	isString(String([]byte(nil)))
++	asString("hello")
++	asString(String("hello"))
++	isString(String("hello"))
++	str = "hello"
++	isString(str)
++	asString(*&str)
++	isString(*&str)
+ }
+diff --git a/test/named1.go b/test/named1.go
+index 21019533ce..241697d5c0 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -12,46 +12,57 @@ package main
+ type Bool bool
+ 
+ type Map map[int]int
++
+ func (Map) M() {}
+ 
+-func asBool(Bool) {}
++type Slice []byte
++
++var slice Slice
++
++func asBool(Bool)     {}
++func asString(String) {}
++
++type String string
+ 
+ func main() {
+ 	var (
+-		b Bool = true;
+-		i, j int;
+-		c = make(chan int);
+-		m = make(Map);
++		b    Bool = true
++		i, j int
++		c    = make(chan int)
++		m    = make(Map)
+ 	)
+ 
+-	asBool(b);
+-	asBool(!b);
+-	asBool(true);
+-	asBool(*&b);
+-	asBool(Bool(true));
+-	asBool(1!=2);	// ERROR "cannot use.*type bool.*as type Bool"
+-	asBool(i < j);	// ERROR "cannot use.*type bool.*as type Bool"
++	asBool(b)
++	asBool(!b)
++	asBool(true)
++	asBool(*&b)
++	asBool(Bool(true))
++	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"
++	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
+ 
+-	_, b = m[2];	// ERROR "cannot .* bool.*type Bool"
+-	m[2] = 1, b;	// ERROR "cannot use.*type Bool.*as type bool"
++	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
++	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
+ 
+-	b = c<-1;	// ERROR "cannot use.*type bool.*type Bool"
+-	_ = b;
+-	asBool(c<-1);	// ERROR "cannot use.*type bool.*as type Bool"
++	b = c <- 1 // ERROR "cannot use.*type bool.*type Bool"
++	_ = b
++	asBool(c <- 1) // ERROR "cannot use.*type bool.*as type Bool"
+ 
+-	_, b = <-c;	// ERROR "cannot .* bool.*type Bool"
+-	_ = b;
++	_, b = <-c // ERROR "cannot .* bool.*type Bool"
++	_ = b
+ 
+-	var inter interface{};
+-	_, b = inter.(Map);	// ERROR "cannot .* bool.*type Bool"
+-	_ = b;
++	var inter interface{}
++	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"
++	_ = b
+ 
+-	var minter interface{M()};
+-	_, b = minter.(Map);	// ERROR "cannot .* bool.*type Bool"
+-	_ = b;
++	var minter interface {
++		M()
++	}
++	_, b = minter.(Map) // ERROR "cannot .* bool.*type Bool"
++	_ = b
+ 
+-	asBool(closed(c));	// ERROR "cannot use.*type bool.*as type Bool"
+-	b = closed(c);		// ERROR "cannot use.*type bool.*type Bool"
+-	_ = b;
+-}
++	asBool(closed(c)) // ERROR "cannot use.*type bool.*as type Bool"
++	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
++	_ = b
+ 
++	asString(String(slice)) // ERROR "cannot convert slice"
++}

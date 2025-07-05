@@ -13,7 +13,56 @@ Date:   Fri Jan 10 18:04:08 2020 -0500
     Change-Id: I27e52c4eabfcd1782965f17c098719dd0ea7e3ca
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214390
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 15 ---------------
  src/cmd/go/testdata/script/test_env_term.txt | 15 +++++++++++++++
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2c829f38b6..2e07565648 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2189,21 +2189,6 @@ func TestIssue11709(t *testing.T) {
+ 	tg.run("run", tg.path("run.go"))
+ }
+ 
+-func TestIssue12096(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempFile("test_test.go", `
+-		package main
+-		import ("os"; "testing")
+-		func TestEnv(t *testing.T) {
+-			if os.Getenv("TERM") != "" {
+-				t.Fatal("TERM is set")
+-			}
+-		}`)
+-	tg.unsetenv("TERM")
+-	tg.run("test", tg.path("test_test.go"))
+-}
+-
+ func TestGoBuildARM(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping cross-compile in short mode")
+diff --git a/src/cmd/go/testdata/script/test_env_term.txt b/src/cmd/go/testdata/script/test_env_term.txt
+new file mode 100644
+index 0000000000..8a5f79ab22
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_env_term.txt
+@@ -0,0 +1,15 @@
++# Tests golang.org/issue/12096
++
++env TERM=''
++go test test_test.go
++! stdout '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- test_test.go --
++package main
++import ("os"; "testing")
++func TestEnv(t *testing.T) {
++	if os.Getenv("TERM") != "" {
++		t.Fatal("TERM is set")
++	}
++}
+\ No newline at end of file

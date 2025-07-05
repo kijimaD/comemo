@@ -30,7 +30,78 @@ Date:   Tue Nov 5 16:05:09 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go |  5 +++--
  src/runtime/time.go | 11 +++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index acef0f7b84..b0ac4c4421 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4452,10 +4452,10 @@ func sysmon() {
+ 		}
+ 		usleep(delay)
+ 		now := nanotime()
++		next := timeSleepUntil()
+ 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+ 			lock(&sched.lock)
+ 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+-				next := timeSleepUntil()
+ 				if next > now {
+ 					atomic.Store(&sched.sysmonwait, 1)
+ 					unlock(&sched.lock)
+@@ -4474,6 +4474,7 @@ func sysmon() {
+ 						osRelax(false)
+ 					}
+ 					now = nanotime()
++					next = timeSleepUntil()
+ 					lock(&sched.lock)
+ 					atomic.Store(&sched.sysmonwait, 0)
+ 					noteclear(&sched.sysmonnote)
+@@ -4505,7 +4506,7 @@ func sysmon() {
+ 				incidlelocked(1)
+ 			}
+ 		}
+-		if timeSleepUntil() < now {
++		if next < now {
+ 			// There are timers that should have already run,
+ 			// perhaps because there is an unpreemptible P.
+ 			// Try to start an M to run them.
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index ad5eaf7c48..39df413ad9 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1234,6 +1234,8 @@ func timejumpLocked() *g {
+ 	return tb.gp
+ }
+ 
++// timeSleepUntil returns the time when the next timer should fire.
++// This is only called by sysmon.
+ func timeSleepUntil() int64 {
+ 	if oldTimers {
+ 		return timeSleepUntilOld()
+@@ -1241,7 +1243,15 @@ func timeSleepUntil() int64 {
+ 
+ 	next := int64(maxWhen)
+ 
++	// Prevent allp slice changes. This is like retake.
++	lock(&allpLock)
+ 	for _, pp := range allp {
++		if pp == nil {
++			// This can happen if procresize has grown
++			// allp but not yet created new Ps.
++			continue
++		}
++
+ 		lock(&pp.timersLock)
+ 		c := atomic.Load(&pp.adjustTimers)
+ 		for _, t := range pp.timers {
+@@ -1276,6 +1286,7 @@ func timeSleepUntil() int64 {
+ 		}
+ 		unlock(&pp.timersLock)
+ 	}
++	unlock(&allpLock)
+ 
+ 	return next
+ }

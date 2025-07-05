@@ -10,6 +10,37 @@ Date:   Tue Oct 18 10:43:47 2016 +1100
     Change-Id: Ic95245147d3585f2ccc59d4424fcab17d2a5617b
     Reviewed-on: https://go-review.googlesource.com/31319
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/doc.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index 3c3933f590..2baa53099d 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -84,14 +84,14 @@ Flag: -copylocks
+ 
+ Locks that are erroneously passed by value.
+ 
+-Tests, benchmarks and documentation examples
++Tests and documentation examples
+ 
+ Flag: -tests
+ 
+ Mistakes involving tests including functions with incorrect names or signatures
+ and example tests that document identifiers not in the package.
+ 
+-Failure to call the cancelation function returned by context.WithCancel.
++Failure to call the cancelation function returned by WithCancel
+ 
+ Flag: -lostcancel
+ 
+@@ -137,8 +137,6 @@ complains about arguments that look like format descriptor strings.
+ It also checks for errors such as using a Writer as the first argument of
+ Printf.
+ 
+-Struct tags
+-
+ Range loop variables
+ 
+ Flag: -rangeloops

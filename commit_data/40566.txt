@@ -41,6 +41,38 @@ Date:   Sun May 26 15:28:05 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ca29da4f01..032968f983 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -833,18 +833,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 	oh.SectionAlignment = uint32(PESECTALIGN)
+ 	oh64.FileAlignment = uint32(PEFILEALIGN)
+ 	oh.FileAlignment = uint32(PEFILEALIGN)
+-	oh64.MajorOperatingSystemVersion = 4
+-	oh.MajorOperatingSystemVersion = 4
+-	oh64.MinorOperatingSystemVersion = 0
+-	oh.MinorOperatingSystemVersion = 0
++	oh64.MajorOperatingSystemVersion = 6
++	oh.MajorOperatingSystemVersion = 6
++	oh64.MinorOperatingSystemVersion = 1
++	oh.MinorOperatingSystemVersion = 1
+ 	oh64.MajorImageVersion = 1
+ 	oh.MajorImageVersion = 1
+ 	oh64.MinorImageVersion = 0
+ 	oh.MinorImageVersion = 0
+-	oh64.MajorSubsystemVersion = 4
+-	oh.MajorSubsystemVersion = 4
+-	oh64.MinorSubsystemVersion = 0
+-	oh.MinorSubsystemVersion = 0
++	oh64.MajorSubsystemVersion = 6
++	oh.MajorSubsystemVersion = 6
++	oh64.MinorSubsystemVersion = 1
++	oh.MinorSubsystemVersion = 1
+ 	oh64.SizeOfImage = f.nextSectOffset
+ 	oh.SizeOfImage = f.nextSectOffset
+ 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)

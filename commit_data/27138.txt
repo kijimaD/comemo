@@ -14,7 +14,159 @@ Date:   Sat Mar 12 16:41:08 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/export_test.go | 62 +++++++++++++++++++++++++++++++++++++++++--
  src/runtime/proc.go        | 65 ----------------------------------------------
  2 files changed, 60 insertions(+), 67 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0f6d9f7c99..3d29851fa0 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -53,10 +53,68 @@ func GCMask(x interface{}) (ret []byte) {
+ }
+ 
+ func RunSchedLocalQueueTest() {
+-	testSchedLocalQueue()
++	_p_ := new(p)
++	gs := make([]g, len(_p_.runq))
++	for i := 0; i < len(_p_.runq); i++ {
++		if g, _ := runqget(_p_); g != nil {
++			throw("runq is not empty initially")
++		}
++		for j := 0; j < i; j++ {
++			runqput(_p_, &gs[i], false)
++		}
++		for j := 0; j < i; j++ {
++			if g, _ := runqget(_p_); g != &gs[i] {
++				print("bad element at iter ", i, "/", j, "\n")
++				throw("bad element")
++			}
++		}
++		if g, _ := runqget(_p_); g != nil {
++			throw("runq is not empty afterwards")
++		}
++	}
+ }
++
+ func RunSchedLocalQueueStealTest() {
+-	testSchedLocalQueueSteal()
++	p1 := new(p)
++	p2 := new(p)
++	gs := make([]g, len(p1.runq))
++	for i := 0; i < len(p1.runq); i++ {
++		for j := 0; j < i; j++ {
++			gs[j].sig = 0
++			runqput(p1, &gs[j], false)
++		}
++		gp := runqsteal(p2, p1, true)
++		s := 0
++		if gp != nil {
++			s++
++			gp.sig++
++		}
++		for {
++			gp, _ = runqget(p2)
++			if gp == nil {
++				break
++			}
++			s++
++			gp.sig++
++		}
++		for {
++			gp, _ = runqget(p1)
++			if gp == nil {
++				break
++			}
++			gp.sig++
++		}
++		for j := 0; j < i; j++ {
++			if gs[j].sig != 1 {
++				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
++				throw("bad element")
++			}
++		}
++		if s != i/2 && s != i/2+1 {
++			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
++			throw("bad steal")
++		}
++	}
+ }
+ 
+ var StringHash = stringHash
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4aa6b3600e..758a0a898c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4027,71 +4027,6 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
+ 	return gp
+ }
+ 
+-func testSchedLocalQueue() {
+-	_p_ := new(p)
+-	gs := make([]g, len(_p_.runq))
+-	for i := 0; i < len(_p_.runq); i++ {
+-		if g, _ := runqget(_p_); g != nil {
+-			throw("runq is not empty initially")
+-		}
+-		for j := 0; j < i; j++ {
+-			runqput(_p_, &gs[i], false)
+-		}
+-		for j := 0; j < i; j++ {
+-			if g, _ := runqget(_p_); g != &gs[i] {
+-				print("bad element at iter ", i, "/", j, "\n")
+-				throw("bad element")
+-			}
+-		}
+-		if g, _ := runqget(_p_); g != nil {
+-			throw("runq is not empty afterwards")
+-		}
+-	}
+-}
+-
+-func testSchedLocalQueueSteal() {
+-	p1 := new(p)
+-	p2 := new(p)
+-	gs := make([]g, len(p1.runq))
+-	for i := 0; i < len(p1.runq); i++ {
+-		for j := 0; j < i; j++ {
+-			gs[j].sig = 0
+-			runqput(p1, &gs[j], false)
+-		}
+-		gp := runqsteal(p2, p1, true)
+-		s := 0
+-		if gp != nil {
+-			s++
+-			gp.sig++
+-		}
+-		for {
+-			gp, _ = runqget(p2)
+-			if gp == nil {
+-				break
+-			}
+-			s++
+-			gp.sig++
+-		}
+-		for {
+-			gp, _ = runqget(p1)
+-			if gp == nil {
+-				break
+-			}
+-			gp.sig++
+-		}
+-		for j := 0; j < i; j++ {
+-			if gs[j].sig != 1 {
+-				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+-				throw("bad element")
+-			}
+-		}
+-		if s != i/2 && s != i/2+1 {
+-			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+-			throw("bad steal")
+-		}
+-	}
+-}
+-
+ //go:linkname setMaxThreads runtime/debug.setMaxThreads
+ func setMaxThreads(in int) (out int) {
+ 	lock(&sched.lock)

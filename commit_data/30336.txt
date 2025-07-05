@@ -20,7 +20,7 @@ Date:   Sun Oct 30 20:30:38 2016 -0400
     Change-Id: I04790fd07e40c7295beb47cea202eb439206d33d
     Reviewed-on: https://go-review.googlesource.com/32357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgocall.go  |  4 ++--
  src/runtime/cgocheck.go |  2 +-
  src/runtime/iface.go    |  4 ++--
@@ -33,3 +33,295 @@ Date:   Sun Oct 30 20:30:38 2016 -0400
  src/runtime/symtab.go   | 47 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/type.go     |  7 +++----
  11 files changed, 74 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 4542cb7b09..86091c7a4d 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -569,7 +569,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 		return
+ 	}
+ 
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++	for _, datap := range activeModules() {
+ 		if cgoInRange(p, datap.data, datap.edata) || cgoInRange(p, datap.bss, datap.ebss) {
+ 			// We have no way to know the size of the object.
+ 			// We have to assume that it might contain a pointer.
+@@ -596,7 +596,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++	for _, datap := range activeModules() {
+ 		if cgoInRange(p, datap.data, datap.edata) || cgoInRange(p, datap.bss, datap.ebss) {
+ 			return true
+ 		}
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index cdec4f816f..8cac5d994d 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -108,7 +108,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	}
+ 
+ 	// The type has a GC program. Try to find GC bits somewhere else.
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++	for _, datap := range activeModules() {
+ 		if cgoInRange(src, datap.data, datap.edata) {
+ 			doff := uintptr(src) - datap.data
+ 			cgoCheckBits(add(src, -doff), datap.gcdatamask.bytedata, off+doff, size)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 721ac6924f..26e2956eea 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -148,8 +148,8 @@ func additab(m *itab, locked, canfail bool) {
+ 
+ func itabsinit() {
+ 	lock(&ifaceLock)
+-	for m := &firstmoduledata; m != nil; m = m.next {
+-		for _, i := range m.itablinks {
++	for _, md := range activeModules() {
++		for _, i := range md.itablinks {
+ 			additab(i, true, false)
+ 		}
+ 	}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index d32a8889d0..89d8a4cc76 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -606,13 +606,13 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 
+ 		// If dst is a global, use the data or BSS bitmaps to
+ 		// execute write barriers.
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			if datap.data <= dst && dst < datap.edata {
+ 				bulkBarrierBitmap(dst, src, size, dst-datap.data, datap.gcdatamask.bytedata)
+ 				return
+ 			}
+ 		}
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			if datap.bss <= dst && dst < datap.ebss {
+ 				bulkBarrierBitmap(dst, src, size, dst-datap.bss, datap.gcbssmask.bytedata)
+ 				return
+@@ -1852,7 +1852,7 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 	p := e.data
+ 	t := e._type
+ 	// data or bss
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++	for _, datap := range activeModules() {
+ 		// data
+ 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+ 			bitmap := datap.gcdatamask.bytedata
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c625b75ea9..430b7aa657 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -176,10 +176,6 @@ func gcinit() {
+ 	}
+ 
+ 	_ = setGCPercent(readgogc())
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+-		datap.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
+-	}
+ 	memstats.gc_trigger = heapminimum
+ 	// Compute the goal heap size based on the trigger:
+ 	//   trigger = marked * (1 + triggerRatio)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 71092cb19d..00787ade04 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -60,14 +60,14 @@ func gcMarkRootPrepare() {
+ 
+ 	// Only scan globals once per cycle; preferably concurrently.
+ 	if !work.markrootDone {
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			nDataRoots := nBlocks(datap.edata - datap.data)
+ 			if nDataRoots > work.nDataRoots {
+ 				work.nDataRoots = nDataRoots
+ 			}
+ 		}
+ 
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			nBSSRoots := nBlocks(datap.ebss - datap.bss)
+ 			if nBSSRoots > work.nBSSRoots {
+ 				work.nBSSRoots = nBSSRoots
+@@ -175,12 +175,12 @@ func markroot(gcw *gcWork, i uint32) {
+ 		flushmcache(int(i - baseFlushCache))
+ 
+ 	case baseData <= i && i < baseBSS:
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
+ 		}
+ 
+ 	case baseBSS <= i && i < baseSpans:
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		for _, datap := range activeModules() {
+ 			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-baseBSS))
+ 		}
+ 
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 91fc275a65..7907936e14 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -19,7 +19,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+ 		throw("runtime: plugin already initialized")
+ 	}
+ 
+-	for pmd := &firstmoduledata; pmd != md; pmd = pmd.next {
++	for _, pmd := range activeModules() {
+ 		if pmd.pluginpath == md.pluginpath {
+ 			println("plugin: plugin", md.pluginpath, "already loaded")
+ 			throw("plugin: plugin already loaded")
+@@ -43,9 +43,8 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+ 	}
+ 
+ 	// Initialize the freshly loaded module.
++	modulesinit()
+ 	typelinksinit()
+-	md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
+-	md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+ 
+ 	lock(&ifaceLock)
+ 	for _, i := range md.itablinks {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c83644e810..1f47dc4de4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -465,8 +465,9 @@ func schedinit() {
+ 	mallocinit()
+ 	mcommoninit(_g_.m)
+ 	alginit()       // maps must not be used before this call
+-	typelinksinit() // uses maps
+-	itabsinit()
++	modulesinit()   // provides activeModules
++	typelinksinit() // uses maps, activeModules
++	itabsinit()     // uses activeModules
+ 
+ 	msigsave(_g_.m)
+ 	initSigmask = _g_.m.sigmask
+@@ -474,7 +475,7 @@ func schedinit() {
+ 	goargs()
+ 	goenvs()
+ 	parsedebugvars()
+-	gcinit()
++	gcinit() // requires modulesinit
+ 
+ 	sched.lastpoll = uint64(nanotime())
+ 	procs := ncpu
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 780e1d907a..40c0e8579c 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -493,11 +493,12 @@ func gomcache() *mcache {
+ 
+ //go:linkname reflect_typelinks reflect.typelinks
+ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
+-	sections := []unsafe.Pointer{unsafe.Pointer(firstmoduledata.types)}
+-	ret := [][]int32{firstmoduledata.typelinks}
+-	for datap := firstmoduledata.next; datap != nil; datap = datap.next {
+-		sections = append(sections, unsafe.Pointer(datap.types))
+-		ret = append(ret, datap.typelinks)
++	modules := activeModules()
++	sections := []unsafe.Pointer{unsafe.Pointer(modules[0].types)}
++	ret := [][]int32{modules[0].typelinks}
++	for _, md := range modules[1:] {
++		sections = append(sections, unsafe.Pointer(md.types))
++		ret = append(ret, md.typelinks)
+ 	}
+ 	return sections, ret
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index d69f610ebb..9ec95d7a0c 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -233,6 +234,52 @@ var pinnedTypemaps []map[typeOff]*_type
+ 
+ var firstmoduledata moduledata  // linker symbol
+ var lastmoduledatap *moduledata // linker symbol
++var modulesSlice unsafe.Pointer // see activeModules
++
++// activeModules returns a slice of active modules.
++//
++// A module is active once its gcdatamask and gcbssmask have been
++// assembled and it is usable by the GC.
++func activeModules() []*moduledata {
++	p := (*[]*moduledata)(atomic.Loadp(unsafe.Pointer(&modulesSlice)))
++	if p == nil {
++		return nil
++	}
++	return *p
++}
++
++// modulesinit creates the active modules slice out of all loaded modules.
++//
++// When a module is first loaded by the dynamic linker, an .init_array
++// function (written by cmd/link) is invoked to call addmoduledata,
++// appending to the module to the linked list that starts with
++// firstmoduledata.
++//
++// There are two times this can happen in the lifecycle of a Go
++// program. First, if compiled with -linkshared, a number of modules
++// built with -buildmode=shared can be loaded at program initialization.
++// Second, a Go program can load a module while running that was built
++// with -buildmode=plugin.
++//
++// After loading, this function is called which initializes the
++// moduledata so it is usable by the GC and creates a new activeModules
++// list.
++//
++// Only one goroutine may call modulesinit at a time.
++func modulesinit() {
++	oldNum := len(activeModules())
++	modules := new([]*moduledata)
++	num := 0
++	for md := &firstmoduledata; md != nil; md = md.next {
++		*modules = append(*modules, md)
++		num++
++		if num > oldNum {
++			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
++			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
++		}
++	}
++	atomicstorep(unsafe.Pointer(&modulesSlice), unsafe.Pointer(modules))
++}
+ 
+ type functab struct {
+ 	entry   uintptr
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index cacf880e9e..a3a19b9be0 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -471,9 +471,9 @@ func typelinksinit() {
+ 	}
+ 	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
+ 
+-	prev := &firstmoduledata
+-	md := firstmoduledata.next
+-	for md != nil {
++	modules := activeModules()
++	prev := modules[0]
++	for _, md := range modules[1:] {
+ 		// Collect types from the previous module into typehash.
+ 	collect:
+ 		for _, tl := range prev.typelinks {
+@@ -513,7 +513,6 @@ func typelinksinit() {
+ 		}
+ 
+ 		prev = md
+-		md = md.next
+ 	}
+ }
+ 

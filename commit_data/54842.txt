@@ -20,7 +20,7 @@ Date:   Wed Nov 9 17:49:44 2022 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  api/next/56219.txt                |  1 +
  doc/go1.20.html                   |  7 ++++
  src/path/filepath/path.go         | 40 +++++++++++++++++++++++
@@ -29,3 +29,253 @@ Date:   Wed Nov 9 17:49:44 2022 -0800
  src/path/filepath/path_unix.go    |  4 +++
  src/path/filepath/path_windows.go | 67 +++++++++++++++++++++++++++++++++++++++
  7 files changed, 177 insertions(+)
+
+diff --git a/api/next/56219.txt b/api/next/56219.txt
+new file mode 100644
+index 0000000000..6379c06a2e
+--- /dev/null
++++ b/api/next/56219.txt
+@@ -0,0 +1 @@
++pkg path/filepath, func IsLocal(string) bool #56219
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 3d4eeb0f36..7246e6efb2 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -665,6 +665,13 @@ proxyHandler := &httputil.ReverseProxy{
+     <p><!-- CL 363814 --><!-- https://go.dev/issue/47209 -->
+       TODO: <a href="https://go.dev/cl/363814">https://go.dev/cl/363814</a>: path/filepath, io/fs: add SkipAll; modified api/next/47209.txt
+     </p>
++    <p><!-- https://go.dev/issue/56219 -->
++      The new <code>IsLocal</code> function reports whether a path is
++      lexically local to a directory.
++      For example, if <code>IsLocal(p)</code> is <code>true</code>,
++      then <code>Open(p)</code> will refer to a file that is lexically
++      within the subtree rooted at the current directory.
++    </p>
+   </dd>
+ </dl><!-- io -->
+ 
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index c5c54fc9a5..a6578cbb72 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -172,6 +172,46 @@ func Clean(path string) string {
+ 	return FromSlash(out.string())
+ }
+ 
++// IsLocal reports whether path, using lexical analysis only, has all of these properties:
++//
++//   - is within the subtree rooted at the directory in which path is evaluated
++//   - is not an absolute path
++//   - is not empty
++//   - on Windows, is not a reserved name such as "NUL"
++//
++// If IsLocal(path) returns true, then
++// Join(base, path) will always produce a path contained within base and
++// Clean(path) will always produce an unrooted path with no ".." path elements.
++//
++// IsLocal is a purely lexical operation.
++// In particular, it does not account for the effect of any symbolic links
++// that may exist in the filesystem.
++func IsLocal(path string) bool {
++	return isLocal(path)
++}
++
++func unixIsLocal(path string) bool {
++	if IsAbs(path) || path == "" {
++		return false
++	}
++	hasDots := false
++	for p := path; p != ""; {
++		var part string
++		part, p, _ = strings.Cut(p, "/")
++		if part == "." || part == ".." {
++			hasDots = true
++			break
++		}
++	}
++	if hasDots {
++		path = Clean(path)
++	}
++	if path == ".." || strings.HasPrefix(path, "../") {
++		return false
++	}
++	return true
++}
++
+ // ToSlash returns the result of replacing each separator character
+ // in path with a slash ('/') character. Multiple separators are
+ // replaced by multiple slashes.
+diff --git a/src/path/filepath/path_plan9.go b/src/path/filepath/path_plan9.go
+index ec792fc831..453206aee3 100644
+--- a/src/path/filepath/path_plan9.go
++++ b/src/path/filepath/path_plan9.go
+@@ -6,6 +6,10 @@ package filepath
+ 
+ import "strings"
+ 
++func isLocal(path string) bool {
++	return unixIsLocal(path)
++}
++
+ // IsAbs reports whether the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 382381eb4e..771416770e 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -143,6 +143,60 @@ func TestClean(t *testing.T) {
+ 	}
+ }
+ 
++type IsLocalTest struct {
++	path    string
++	isLocal bool
++}
++
++var islocaltests = []IsLocalTest{
++	{"", false},
++	{".", true},
++	{"..", false},
++	{"../a", false},
++	{"/", false},
++	{"/a", false},
++	{"/a/../..", false},
++	{"a", true},
++	{"a/../a", true},
++	{"a/", true},
++	{"a/.", true},
++	{"a/./b/./c", true},
++}
++
++var winislocaltests = []IsLocalTest{
++	{"NUL", false},
++	{"nul", false},
++	{"nul.", false},
++	{"nul.txt", false},
++	{"com1", false},
++	{"./nul", false},
++	{"a/nul.txt/b", false},
++	{`\`, false},
++	{`\a`, false},
++	{`C:`, false},
++	{`C:\a`, false},
++	{`..\a`, false},
++}
++
++var plan9islocaltests = []IsLocalTest{
++	{"#a", false},
++}
++
++func TestIsLocal(t *testing.T) {
++	tests := islocaltests
++	if runtime.GOOS == "windows" {
++		tests = append(tests, winislocaltests...)
++	}
++	if runtime.GOOS == "plan9" {
++		tests = append(tests, plan9islocaltests...)
++	}
++	for _, test := range tests {
++		if got := filepath.IsLocal(test.path); got != test.isLocal {
++			t.Errorf("IsLocal(%q) = %v, want %v", test.path, got, test.isLocal)
++		}
++	}
++}
++
+ const sep = filepath.Separator
+ 
+ var slashtests = []PathTest{
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 93fdfdd8a0..ab1d08d356 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -8,6 +8,10 @@ package filepath
+ 
+ import "strings"
+ 
++func isLocal(path string) bool {
++	return unixIsLocal(path)
++}
++
+ // IsAbs reports whether the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/")
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index c754301bf4..b26658a937 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -20,6 +20,73 @@ func toUpper(c byte) byte {
+ 	return c
+ }
+ 
++// isReservedName reports if name is a Windows reserved device name.
++// It does not detect names with an extension, which are also reserved on some Windows versions.
++//
++// For details, search for PRN in
++// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file.
++func isReservedName(name string) bool {
++	if 3 <= len(name) && len(name) <= 4 {
++		switch string([]byte{toUpper(name[0]), toUpper(name[1]), toUpper(name[2])}) {
++		case "CON", "PRN", "AUX", "NUL":
++			return len(name) == 3
++		case "COM", "LPT":
++			return len(name) == 4 && '1' <= name[3] && name[3] <= '9'
++		}
++	}
++	return false
++}
++
++func isLocal(path string) bool {
++	if path == "" {
++		return false
++	}
++	if isSlash(path[0]) {
++		// Path rooted in the current drive.
++		return false
++	}
++	if strings.IndexByte(path, ':') >= 0 {
++		// Colons are only valid when marking a drive letter ("C:foo").
++		// Rejecting any path with a colon is conservative but safe.
++		return false
++	}
++	hasDots := false // contains . or .. path elements
++	for p := path; p != ""; {
++		var part string
++		part, p, _ = cutPath(p)
++		if part == "." || part == ".." {
++			hasDots = true
++		}
++		// Trim the extension and look for a reserved name.
++		base, _, hasExt := strings.Cut(part, ".")
++		if isReservedName(base) {
++			if !hasExt {
++				return false
++			}
++			// The path element is a reserved name with an extension. Some Windows
++			// versions consider this a reserved name, while others do not. Use
++			// FullPath to see if the name is reserved.
++			//
++			// FullPath will convert references to reserved device names to their
++			// canonical form: \\.\${DEVICE_NAME}
++			//
++			// FullPath does not perform this conversion for paths which contain
++			// a reserved device name anywhere other than in the last element,
++			// so check the part rather than the full path.
++			if p, _ := syscall.FullPath(part); len(p) >= 4 && p[:4] == `\\.\` {
++				return false
++			}
++		}
++	}
++	if hasDots {
++		path = Clean(path)
++	}
++	if path == ".." || strings.HasPrefix(path, `..\`) {
++		return false
++	}
++	return true
++}
++
+ // IsAbs reports whether the path is absolute.
+ func IsAbs(path string) (b bool) {
+ 	l := volumeNameLen(path)

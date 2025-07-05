@@ -13,6 +13,23 @@ Date:   Thu Sep 10 10:08:21 2020 +0000
     GitHub-Pull-Request: golang/go#41276
     Reviewed-on: https://go-review.googlesource.com/c/go/+/253537
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/debug.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 76eeb2e41a..f411b22676 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -10,9 +10,8 @@ import (
+ )
+ 
+ // GOMAXPROCS sets the maximum number of CPUs that can be executing
+-// simultaneously and returns the previous setting. If n < 1, it does not
+-// change the current setting.
+-// The number of logical CPUs on the local machine can be queried with NumCPU.
++// simultaneously and returns the previous setting. It defaults to
++// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int {
+ 	if GOARCH == "wasm" && n > 1 {

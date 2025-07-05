@@ -8,9 +8,89 @@ Date:   Sat Apr 11 05:09:12 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8785
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go                          | 2 +-
  src/crypto/x509/root_darwin.go                              | 2 +-
  src/crypto/x509/root_darwin_arm_gen.go                      | 7 +++++--
  src/crypto/x509/{root_darwin_arm.go => root_darwin_armx.go} | 5 ++++-
  4 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index 39a5781a8e..9fb08ddf0b 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo,!arm
++// +build cgo,!arm,!arm64
+ 
+ package x509
+ 
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 96b6599dac..78de56c221 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:generate go run root_darwin_arm_gen.go -output root_darwin_arm.go
++//go:generate go run root_darwin_arm_gen.go -output root_darwin_armx.go
+ 
+ package x509
+ 
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 194e016045..40e85b752e 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -4,7 +4,7 @@
+ 
+ // +build ignore
+ 
+-// Generates root_darwin_arm.go.
++// Generates root_darwin_armx.go.
+ //
+ // As of iOS 8, there is no API for querying the system trusted X.509 root
+ // certificates. We could use SecTrustEvaluate to verify that a trust chain
+@@ -31,7 +31,7 @@ import (
+ 	"strings"
+ )
+ 
+-var output = flag.String("output", "root_darwin_arm.go", "file name to write")
++var output = flag.String("output", "root_darwin_armx.go", "file name to write")
+ 
+ func main() {
+ 	certs, err := selectCerts()
+@@ -178,6 +178,9 @@ const header = `
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin
++// +build arm arm64
++
+ package x509
+ 
+ func initSystemRoots() {
+diff --git a/src/crypto/x509/root_darwin_arm.go b/src/crypto/x509/root_darwin_armx.go
+similarity index 99%
+rename from src/crypto/x509/root_darwin_arm.go
+rename to src/crypto/x509/root_darwin_armx.go
+index 43cd9ec2bd..62b7d24c91 100644
+--- a/src/crypto/x509/root_darwin_arm.go
++++ b/src/crypto/x509/root_darwin_armx.go
+@@ -1,9 +1,12 @@
+-// Created by root_darwin_arm_gen --output root_darwin_arm.go; DO NOT EDIT
++// Created by root_darwin_arm_gen --output root_darwin_armx.go; DO NOT EDIT
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin
++// +build arm arm64
++
+ package x509
+ 
+ func initSystemRoots() {

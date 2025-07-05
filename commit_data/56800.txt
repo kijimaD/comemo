@@ -15,6 +15,21 @@ Date:   Mon Mar 20 20:28:47 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/pprof/pprof.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 385eb423f7..bc3225daca 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -66,8 +66,7 @@
+ // in your browser.
+ //
+ // For a study of the facility in action, visit
+-//
+-//	https://blog.golang.org/2011/06/profiling-go-programs.html
++// https://blog.golang.org/2011/06/profiling-go-programs.html.
+ package pprof
+ 
+ import (

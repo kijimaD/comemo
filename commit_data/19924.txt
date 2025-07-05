@@ -9,6 +9,21 @@ Date:   Wed Aug 6 16:12:24 2014 -0400
     TBR=minux
     CC=golang-codereviews
     https://golang.org/cl/125770043
-
+---
  lib/codereview/codereview.py | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index b5fdf1338e..fdf11d1f48 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -389,7 +389,8 @@ class CL(object):
+ 		if vcs:
+ 			set_status("uploading base files")
+ 			vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
+-		MySend("/" + issue + "/upload_complete/" + patchset, payload="")
++		if patchset != "1":
++			MySend("/" + issue + "/upload_complete/" + patchset, payload="")
+ 		if send_mail:
+ 			set_status("sending mail")
+ 			MySend("/" + issue + "/mail", payload="")

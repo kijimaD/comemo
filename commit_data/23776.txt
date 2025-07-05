@@ -11,7 +11,43 @@ Date:   Fri Jun 12 22:49:42 2015 +0200
     Change-Id: I9d5d0210c3990e6fb9434c3fe333be0d507d5962
     Reviewed-on: https://go-review.googlesource.com/10954
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/archive/tar/reader.go      |  2 +-
  src/archive/tar/reader_test.go | 11 ++++++++---
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index ae0b97e840..8662e5643b 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -333,7 +333,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 		}
+ 		// Parse the first token as a decimal integer.
+ 		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
+-		if err != nil {
++		if err != nil || n < 5 || int64(len(buf)) < n {
+ 			return nil, ErrHeader
+ 		}
+ 		// Extract everything between the decimal and the n -1 on the
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 6ffb383a22..311db77641 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -462,9 +462,14 @@ func TestParsePAXHeader(t *testing.T) {
+ 			t.Error("Buffer wasn't consumed")
+ 		}
+ 	}
+-	badHeader := bytes.NewReader([]byte("3 somelongkey="))
+-	if _, err := parsePAX(badHeader); err != ErrHeader {
+-		t.Fatal("Unexpected success when parsing bad header")
++	badHeaderTests := [][]byte{
++		[]byte("3 somelongkey=\n"),
++		[]byte("50 tooshort=\n"),
++	}
++	for _, test := range badHeaderTests {
++		if _, err := parsePAX(bytes.NewReader(test)); err != ErrHeader {
++			t.Fatal("Unexpected success when parsing bad header")
++		}
+ 	}
+ }
+ 

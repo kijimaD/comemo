@@ -9,7 +9,34 @@ Date:   Thu Nov 19 20:43:30 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157099
-
+---
  src/pkg/archive/tar/reader.go | 2 +-
  src/pkg/archive/tar/writer.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 654b5b03d9..74057401f8 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -204,7 +204,7 @@ func (tr *Reader) readHeader() *Header {
+ // Read reads from the current entry in the tar archive.
+ // It returns 0, nil when it reaches the end of that entry,
+ // until Next is called to advance to the next entry.
+-func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
++func (tr *Reader) Read(b []byte) (n int, err os.Error) {
+ 	if int64(len(b)) > tr.nb {
+ 		b = b[0:tr.nb]
+ 	}
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 2c207d618f..6bb4acdf40 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -163,7 +163,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ // Write writes to the current entry in the tar archive.
+ // Write returns the error ErrWriteTooLong if more than
+ // hdr.Size bytes are written after WriteHeader.
+-func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
++func (tw *Writer) Write(b []byte) (n int, err os.Error) {
+ 	overwrite := false;
+ 	if int64(len(b)) > tw.nb {
+ 		b = b[0:tw.nb];

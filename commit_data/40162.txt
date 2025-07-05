@@ -21,7 +21,7 @@ Date:   Mon Sep 18 16:41:13 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/asin_amd64.s                     |  11 -
  src/math/asin_amd64p32.s                  |   5 -
  src/math/asin_arm.s                       |  11 -
@@ -88,3 +88,2657 @@ Date:   Mon Sep 18 16:41:13 2017 +0100
  src/math/tan_amd64p32.s                   |   5 -
  src/math/tan_arm.s                        |   8 -
  65 files changed, 789 insertions(+), 1007 deletions(-)
+
+diff --git a/src/math/asin_amd64.s b/src/math/asin_amd64.s
+deleted file mode 100644
+index ad71be014b..0000000000
+--- a/src/math/asin_amd64.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	JMP ·asin(SB)
+-
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	JMP ·acos(SB)
+diff --git a/src/math/asin_amd64p32.s b/src/math/asin_amd64p32.s
+deleted file mode 100644
+index 7cbdd41579..0000000000
+--- a/src/math/asin_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "asin_amd64.s"
+diff --git a/src/math/asin_arm.s b/src/math/asin_arm.s
+deleted file mode 100644
+index 21a8d07d6e..0000000000
+--- a/src/math/asin_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	B ·asin(SB)
+-
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	B ·acos(SB)
+diff --git a/src/math/asinh_stub.s b/src/math/asinh_stub.s
+deleted file mode 100644
+index 2c94aad355..0000000000
+--- a/src/math/asinh_stub.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build 386 amd64 amd64p32 arm
+-
+-#include "textflag.h"
+-
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-    JMP ·acosh(SB)
+-
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-    JMP ·asinh(SB)
+-
+-TEXT ·Atanh(SB),NOSPLIT,$0
+-	JMP ·atanh(SB)
+-
+diff --git a/src/math/atan2_amd64.s b/src/math/atan2_amd64.s
+deleted file mode 100644
+index 256e98cb04..0000000000
+--- a/src/math/atan2_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	JMP ·atan2(SB)
+diff --git a/src/math/atan2_amd64p32.s b/src/math/atan2_amd64p32.s
+deleted file mode 100644
+index 3d1711a9e9..0000000000
+--- a/src/math/atan2_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "atan2_amd64.s"
+diff --git a/src/math/atan2_arm.s b/src/math/atan2_arm.s
+deleted file mode 100644
+index 755131f484..0000000000
+--- a/src/math/atan2_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	B ·atan2(SB)
+diff --git a/src/math/atan_amd64.s b/src/math/atan_amd64.s
+deleted file mode 100644
+index 0458625ee1..0000000000
+--- a/src/math/atan_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	JMP ·atan(SB)
+diff --git a/src/math/atan_amd64p32.s b/src/math/atan_amd64p32.s
+deleted file mode 100644
+index 166f5b9f23..0000000000
+--- a/src/math/atan_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "atan_amd64.s"
+diff --git a/src/math/atan_arm.s b/src/math/atan_arm.s
+deleted file mode 100644
+index 29b5de24d0..0000000000
+--- a/src/math/atan_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	B ·atan(SB)
+diff --git a/src/math/cbrt_stub.s b/src/math/cbrt_stub.s
+deleted file mode 100644
+index 65300d4519..0000000000
+--- a/src/math/cbrt_stub.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build 386 amd64 amd64p32 arm
+-
+-#include "textflag.h"
+-
+-TEXT ·Cbrt(SB),NOSPLIT,$0
+-    JMP ·cbrt(SB)
+-
+diff --git a/src/math/dim_386.s b/src/math/dim_386.s
+deleted file mode 100644
+index 2ee13886d7..0000000000
+--- a/src/math/dim_386.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Max(SB),NOSPLIT,$0
+-	JMP ·max(SB)
+-
+-TEXT ·Min(SB),NOSPLIT,$0
+-	JMP ·min(SB)
+diff --git a/src/math/dim_arm.s b/src/math/dim_arm.s
+deleted file mode 100644
+index c6f1d87fb5..0000000000
+--- a/src/math/dim_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Min(SB),NOSPLIT,$0
+-	B ·min(SB)
+-
+-TEXT ·Max(SB),NOSPLIT,$0
+-	B ·max(SB)
+diff --git a/src/math/erf_stub.s b/src/math/erf_stub.s
+deleted file mode 100644
+index a1eccc77c1..0000000000
+--- a/src/math/erf_stub.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build 386 amd64 amd64p32 arm
+-
+-#include "textflag.h"
+-
+-TEXT ·Erf(SB),NOSPLIT,$0
+-    JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB),NOSPLIT,$0
+-    JMP ·erfc(SB)
+-
+diff --git a/src/math/exp2_amd64.s b/src/math/exp2_amd64.s
+deleted file mode 100644
+index e7e1f865a4..0000000000
+--- a/src/math/exp2_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Exp2(SB),NOSPLIT,$0
+-	JMP ·exp2(SB)
+diff --git a/src/math/exp2_amd64p32.s b/src/math/exp2_amd64p32.s
+deleted file mode 100644
+index 067d3bf2d4..0000000000
+--- a/src/math/exp2_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "exp2_amd64.s"
+diff --git a/src/math/exp2_arm.s b/src/math/exp2_arm.s
+deleted file mode 100644
+index 9b996fbe39..0000000000
+--- a/src/math/exp2_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Exp2(SB),NOSPLIT,$0
+-	B ·exp2(SB)
+diff --git a/src/math/exp_386.s b/src/math/exp_386.s
+deleted file mode 100644
+index 9d63295c60..0000000000
+--- a/src/math/exp_386.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Exp(x float64) float64
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	// Used to use 387 assembly (FLDL2E+F2XM1) here,
+-	// but it was both slower and less accurate than the portable Go code.
+-	JMP ·exp(SB)
+diff --git a/src/math/exp_arm.s b/src/math/exp_arm.s
+deleted file mode 100644
+index 493677afbc..0000000000
+--- a/src/math/exp_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	B ·exp(SB)
+diff --git a/src/math/expm1_amd64.s b/src/math/expm1_amd64.s
+deleted file mode 100644
+index bdb78b3f3a..0000000000
+--- a/src/math/expm1_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	JMP ·expm1(SB)
+diff --git a/src/math/expm1_amd64p32.s b/src/math/expm1_amd64p32.s
+deleted file mode 100644
+index 2d27ef5c7f..0000000000
+--- a/src/math/expm1_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "expm1_amd64.s"
+diff --git a/src/math/expm1_arm.s b/src/math/expm1_arm.s
+deleted file mode 100644
+index b7b3b482dd..0000000000
+--- a/src/math/expm1_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	B ·expm1(SB)
+diff --git a/src/math/floor_arm.s b/src/math/floor_arm.s
+deleted file mode 100644
+index 3123be330e..0000000000
+--- a/src/math/floor_arm.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Floor(SB),NOSPLIT,$0
+-	B	·floor(SB)
+-
+-TEXT ·Ceil(SB),NOSPLIT,$0
+-	B	·ceil(SB)
+-
+-TEXT ·Trunc(SB),NOSPLIT,$0
+-	B	·trunc(SB)
+diff --git a/src/math/frexp_amd64.s b/src/math/frexp_amd64.s
+deleted file mode 100644
+index 41a6c612cf..0000000000
+--- a/src/math/frexp_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Frexp(SB),NOSPLIT,$0
+-	JMP ·frexp(SB)
+diff --git a/src/math/frexp_amd64p32.s b/src/math/frexp_amd64p32.s
+deleted file mode 100644
+index 2a9da7328d..0000000000
+--- a/src/math/frexp_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "frexp_amd64.s"
+diff --git a/src/math/frexp_arm.s b/src/math/frexp_arm.s
+deleted file mode 100644
+index fda006897d..0000000000
+--- a/src/math/frexp_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Frexp(SB),NOSPLIT,$0
+-	B ·frexp(SB)
+diff --git a/src/math/hypot_arm.s b/src/math/hypot_arm.s
+deleted file mode 100644
+index a78653af8b..0000000000
+--- a/src/math/hypot_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Hypot(SB),NOSPLIT,$0
+-	B ·hypot(SB)
+diff --git a/src/math/ldexp_amd64.s b/src/math/ldexp_amd64.s
+deleted file mode 100644
+index a8fb7c7974..0000000000
+--- a/src/math/ldexp_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Ldexp(SB),NOSPLIT,$0
+-	JMP ·ldexp(SB)
+diff --git a/src/math/ldexp_amd64p32.s b/src/math/ldexp_amd64p32.s
+deleted file mode 100644
+index a629e9bde0..0000000000
+--- a/src/math/ldexp_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "ldexp_amd64.s"
+diff --git a/src/math/ldexp_arm.s b/src/math/ldexp_arm.s
+deleted file mode 100644
+index b571c0acad..0000000000
+--- a/src/math/ldexp_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Ldexp(SB),NOSPLIT,$0
+-	B ·ldexp(SB)
+diff --git a/src/math/log10_amd64.s b/src/math/log10_amd64.s
+deleted file mode 100644
+index 4a4d587411..0000000000
+--- a/src/math/log10_amd64.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB),NOSPLIT,$0
+-	JMP ·log2(SB)
+diff --git a/src/math/log10_amd64p32.s b/src/math/log10_amd64p32.s
+deleted file mode 100644
+index c356226617..0000000000
+--- a/src/math/log10_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "log10_amd64.s"
+diff --git a/src/math/log10_arm.s b/src/math/log10_arm.s
+deleted file mode 100644
+index 271473d2af..0000000000
+--- a/src/math/log10_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	B ·log10(SB)
+-
+-TEXT ·Log2(SB),NOSPLIT,$0
+-	B ·log2(SB)
+diff --git a/src/math/log1p_amd64.s b/src/math/log1p_amd64.s
+deleted file mode 100644
+index 5d10f29dbe..0000000000
+--- a/src/math/log1p_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	JMP ·log1p(SB)
+diff --git a/src/math/log1p_amd64p32.s b/src/math/log1p_amd64p32.s
+deleted file mode 100644
+index 10b286bca3..0000000000
+--- a/src/math/log1p_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "log1p_amd64.s"
+diff --git a/src/math/log1p_arm.s b/src/math/log1p_arm.s
+deleted file mode 100644
+index 6919b56c7f..0000000000
+--- a/src/math/log1p_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	B ·log1p(SB)
+diff --git a/src/math/log_arm.s b/src/math/log_arm.s
+deleted file mode 100644
+index ecc2a35d6b..0000000000
+--- a/src/math/log_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Log(SB),NOSPLIT,$0
+-	B ·log(SB)
+diff --git a/src/math/mod_amd64.s b/src/math/mod_amd64.s
+deleted file mode 100644
+index 3a0c9805b1..0000000000
+--- a/src/math/mod_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Mod(SB),NOSPLIT,$0
+-	JMP ·mod(SB)
+diff --git a/src/math/mod_amd64p32.s b/src/math/mod_amd64p32.s
+deleted file mode 100644
+index fa85420f7f..0000000000
+--- a/src/math/mod_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "mod_amd64.s"
+diff --git a/src/math/mod_arm.s b/src/math/mod_arm.s
+deleted file mode 100644
+index 6e9891214e..0000000000
+--- a/src/math/mod_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Mod(SB),NOSPLIT,$0
+-	B ·mod(SB)
+diff --git a/src/math/modf_amd64.s b/src/math/modf_amd64.s
+deleted file mode 100644
+index 5292dd57d6..0000000000
+--- a/src/math/modf_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	JMP ·modf(SB)
+diff --git a/src/math/modf_amd64p32.s b/src/math/modf_amd64p32.s
+deleted file mode 100644
+index e9cf32df62..0000000000
+--- a/src/math/modf_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "modf_amd64.s"
+diff --git a/src/math/modf_arm.s b/src/math/modf_arm.s
+deleted file mode 100644
+index 7abd6d361f..0000000000
+--- a/src/math/modf_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	B ·modf(SB)
+diff --git a/src/math/remainder_amd64.s b/src/math/remainder_amd64.s
+deleted file mode 100644
+index 71b981a29d..0000000000
+--- a/src/math/remainder_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Remainder(SB),NOSPLIT,$0
+-	JMP ·remainder(SB)
+diff --git a/src/math/remainder_amd64p32.s b/src/math/remainder_amd64p32.s
+deleted file mode 100644
+index fdca642a6c..0000000000
+--- a/src/math/remainder_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "remainder_amd64.s"
+diff --git a/src/math/remainder_arm.s b/src/math/remainder_arm.s
+deleted file mode 100644
+index 523a59cf26..0000000000
+--- a/src/math/remainder_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Remainder(SB),NOSPLIT,$0
+-	B ·remainder(SB)
+diff --git a/src/math/sin_386.s b/src/math/sin_386.s
+deleted file mode 100644
+index cf7679d188..0000000000
+--- a/src/math/sin_386.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Cos(x float64) float64
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	JMP ·cos(SB)
+-
+-// func Sin(x float64) float64
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	JMP ·sin(SB)
+diff --git a/src/math/sin_amd64.s b/src/math/sin_amd64.s
+deleted file mode 100644
+index a3d5f103f0..0000000000
+--- a/src/math/sin_amd64.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	JMP	·sin(SB)
+-
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	JMP	·cos(SB)
+diff --git a/src/math/sin_amd64p32.s b/src/math/sin_amd64p32.s
+deleted file mode 100644
+index 4d9b000cde..0000000000
+--- a/src/math/sin_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "sin_amd64.s"
+diff --git a/src/math/sin_arm.s b/src/math/sin_arm.s
+deleted file mode 100644
+index c8142a9a8c..0000000000
+--- a/src/math/sin_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	B	·sin(SB)
+-
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	B	·cos(SB)
+diff --git a/src/math/sinh_stub.s b/src/math/sinh_stub.s
+deleted file mode 100644
+index 4caaa0c034..0000000000
+--- a/src/math/sinh_stub.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build 386 amd64 amd64p32 arm
+-
+-#include "textflag.h"
+-
+-TEXT ·Sinh(SB),NOSPLIT,$0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Cosh(SB),NOSPLIT,$0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Tanh(SB),NOSPLIT,$0
+-	JMP ·tanh(SB)
+-
+diff --git a/src/math/stubs_386.s b/src/math/stubs_386.s
+new file mode 100644
+index 0000000000..92c8621523
+--- /dev/null
++++ b/src/math/stubs_386.s
+@@ -0,0 +1,53 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Acosh(SB), NOSPLIT, $0
++	JMP ·acosh(SB)
++
++TEXT ·Asinh(SB), NOSPLIT, $0
++	JMP ·asinh(SB)
++
++TEXT ·Atanh(SB), NOSPLIT, $0
++	JMP ·atanh(SB)
++
++TEXT ·Cbrt(SB), NOSPLIT, $0
++	JMP ·cbrt(SB)
++
++TEXT ·Cos(SB), NOSPLIT, $0
++	JMP ·cos(SB)
++
++TEXT ·Cosh(SB), NOSPLIT, $0
++	JMP ·cosh(SB)
++
++TEXT ·Erf(SB), NOSPLIT, $0
++	JMP ·erf(SB)
++
++TEXT ·Erfc(SB), NOSPLIT, $0
++	JMP ·erfc(SB)
++
++TEXT ·Exp(SB), NOSPLIT, $0
++	JMP ·exp(SB)
++
++TEXT ·Max(SB), NOSPLIT, $0
++	JMP ·max(SB)
++
++TEXT ·Min(SB), NOSPLIT, $0
++	JMP ·min(SB)
++
++TEXT ·Pow(SB), NOSPLIT, $0
++	JMP ·pow(SB)
++
++TEXT ·Sin(SB), NOSPLIT, $0
++	JMP ·sin(SB)
++
++TEXT ·Sinh(SB), NOSPLIT, $0
++	JMP ·sinh(SB)
++
++TEXT ·Tan(SB), NOSPLIT, $0
++	JMP ·tan(SB)
++
++TEXT ·Tanh(SB), NOSPLIT, $0
++	JMP ·tanh(SB)
+diff --git a/src/math/stubs_amd64.s b/src/math/stubs_amd64.s
+new file mode 100644
+index 0000000000..31e01fd266
+--- /dev/null
++++ b/src/math/stubs_amd64.s
+@@ -0,0 +1,86 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Acos(SB), NOSPLIT, $0
++	JMP ·acos(SB)
++
++TEXT ·Acosh(SB), NOSPLIT, $0
++	JMP ·acosh(SB)
++
++TEXT ·Asin(SB), NOSPLIT, $0
++	JMP ·asin(SB)
++
++TEXT ·Asinh(SB), NOSPLIT, $0
++	JMP ·asinh(SB)
++
++TEXT ·Atan(SB), NOSPLIT, $0
++	JMP ·atan(SB)
++
++TEXT ·Atan2(SB), NOSPLIT, $0
++	JMP ·atan2(SB)
++
++TEXT ·Atanh(SB), NOSPLIT, $0
++	JMP ·atanh(SB)
++
++TEXT ·Cbrt(SB), NOSPLIT, $0
++	JMP ·cbrt(SB)
++
++TEXT ·Cos(SB), NOSPLIT, $0
++	JMP ·cos(SB)
++
++TEXT ·Cosh(SB), NOSPLIT, $0
++	JMP ·cosh(SB)
++
++TEXT ·Erf(SB), NOSPLIT, $0
++	JMP ·erf(SB)
++
++TEXT ·Erfc(SB), NOSPLIT, $0
++	JMP ·erfc(SB)
++
++TEXT ·Exp2(SB), NOSPLIT, $0
++	JMP ·exp2(SB)
++
++TEXT ·Expm1(SB), NOSPLIT, $0
++	JMP ·expm1(SB)
++
++TEXT ·Frexp(SB), NOSPLIT, $0
++	JMP ·frexp(SB)
++
++TEXT ·Ldexp(SB), NOSPLIT, $0
++	JMP ·ldexp(SB)
++
++TEXT ·Log10(SB), NOSPLIT, $0
++	JMP ·log10(SB)
++
++TEXT ·Log2(SB), NOSPLIT, $0
++	JMP ·log2(SB)
++
++TEXT ·Log1p(SB), NOSPLIT, $0
++	JMP ·log1p(SB)
++
++TEXT ·Mod(SB), NOSPLIT, $0
++	JMP ·mod(SB)
++
++TEXT ·Modf(SB), NOSPLIT, $0
++	JMP ·modf(SB)
++
++TEXT ·Pow(SB), NOSPLIT, $0
++	JMP ·pow(SB)
++
++TEXT ·Remainder(SB), NOSPLIT, $0
++	JMP ·remainder(SB)
++
++TEXT ·Sin(SB), NOSPLIT, $0
++	JMP ·sin(SB)
++
++TEXT ·Sinh(SB), NOSPLIT, $0
++	JMP ·sinh(SB)
++
++TEXT ·Tan(SB), NOSPLIT, $0
++	JMP ·tan(SB)
++
++TEXT ·Tanh(SB), NOSPLIT, $0
++	JMP ·tanh(SB)
+diff --git a/src/math/pow_stub.s b/src/math/stubs_amd64p32.s
+similarity index 61%
+rename from src/math/pow_stub.s
+rename to src/math/stubs_amd64p32.s
+index 322d6c45db..5a4fe14823 100644
+--- a/src/math/pow_stub.s
++++ b/src/math/stubs_amd64p32.s
+@@ -2,10 +2,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 arm
+-
+-#include "textflag.h"
+-
+-TEXT ·Pow(SB),NOSPLIT,$0
+-    JMP ·pow(SB)
+-
++#include "stubs_amd64.s"
+diff --git a/src/math/stubs_arm.s b/src/math/stubs_arm.s
+new file mode 100644
+index 0000000000..31bf872e43
+--- /dev/null
++++ b/src/math/stubs_arm.s
+@@ -0,0 +1,110 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Acos(SB), NOSPLIT, $0
++	B ·acos(SB)
++
++TEXT ·Acosh(SB), NOSPLIT, $0
++	B ·acosh(SB)
++
++TEXT ·Asin(SB), NOSPLIT, $0
++	B ·asin(SB)
++
++TEXT ·Asinh(SB), NOSPLIT, $0
++	B ·asinh(SB)
++
++TEXT ·Atan(SB), NOSPLIT, $0
++	B ·atan(SB)
++
++TEXT ·Atan2(SB), NOSPLIT, $0
++	B ·atan2(SB)
++
++TEXT ·Atanh(SB), NOSPLIT, $0
++	B ·atanh(SB)
++
++TEXT ·Cbrt(SB), NOSPLIT, $0
++	B ·cbrt(SB)
++
++TEXT ·Cos(SB), NOSPLIT, $0
++	B ·cos(SB)
++
++TEXT ·Cosh(SB), NOSPLIT, $0
++	B ·cosh(SB)
++
++TEXT ·Erf(SB), NOSPLIT, $0
++	B ·erf(SB)
++
++TEXT ·Erfc(SB), NOSPLIT, $0
++	B ·erfc(SB)
++
++TEXT ·Exp2(SB), NOSPLIT, $0
++	B ·exp2(SB)
++
++TEXT ·Exp(SB), NOSPLIT, $0
++	B ·exp(SB)
++
++TEXT ·Expm1(SB), NOSPLIT, $0
++	B ·expm1(SB)
++
++TEXT ·Floor(SB), NOSPLIT, $0
++	B ·floor(SB)
++
++TEXT ·Ceil(SB), NOSPLIT, $0
++	B ·ceil(SB)
++
++TEXT ·Trunc(SB), NOSPLIT, $0
++	B ·trunc(SB)
++
++TEXT ·Frexp(SB), NOSPLIT, $0
++	B ·frexp(SB)
++
++TEXT ·Hypot(SB), NOSPLIT, $0
++	B ·hypot(SB)
++
++TEXT ·Ldexp(SB), NOSPLIT, $0
++	B ·ldexp(SB)
++
++TEXT ·Log10(SB), NOSPLIT, $0
++	B ·log10(SB)
++
++TEXT ·Log2(SB), NOSPLIT, $0
++	B ·log2(SB)
++
++TEXT ·Log1p(SB), NOSPLIT, $0
++	B ·log1p(SB)
++
++TEXT ·Log(SB), NOSPLIT, $0
++	B ·log(SB)
++
++TEXT ·Max(SB), NOSPLIT, $0
++	B ·max(SB)
++
++TEXT ·Min(SB), NOSPLIT, $0
++	B ·min(SB)
++
++TEXT ·Mod(SB), NOSPLIT, $0
++	B ·mod(SB)
++
++TEXT ·Modf(SB), NOSPLIT, $0
++	B ·modf(SB)
++
++TEXT ·Pow(SB), NOSPLIT, $0
++	JMP ·pow(SB)
++
++TEXT ·Remainder(SB), NOSPLIT, $0
++	B ·remainder(SB)
++
++TEXT ·Sin(SB), NOSPLIT, $0
++	B ·sin(SB)
++
++TEXT ·Sinh(SB), NOSPLIT, $0
++	B ·sinh(SB)
++
++TEXT ·Tan(SB), NOSPLIT, $0
++	B ·tan(SB)
++
++TEXT ·Tanh(SB), NOSPLIT, $0
++	B ·tanh(SB)
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+index 2fa80de183..24564d0c8e 100644
+--- a/src/math/stubs_arm64.s
++++ b/src/math/stubs_arm64.s
+@@ -6,83 +6,83 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
++TEXT ·Asin(SB), NOSPLIT, $0
+ 	B ·asin(SB)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
++TEXT ·Acos(SB), NOSPLIT, $0
+ 	B ·acos(SB)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-        B ·asinh(SB)
++TEXT ·Asinh(SB), NOSPLIT, $0
++	B ·asinh(SB)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-        B ·acosh(SB)
++TEXT ·Acosh(SB), NOSPLIT, $0
++	B ·acosh(SB)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
++TEXT ·Atan2(SB), NOSPLIT, $0
+ 	B ·atan2(SB)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
++TEXT ·Atan(SB), NOSPLIT, $0
+ 	B ·atan(SB)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
++TEXT ·Atanh(SB), NOSPLIT, $0
+ 	B ·atanh(SB)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
++TEXT ·Erf(SB), NOSPLIT, $0
+ 	B ·erf(SB)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
++TEXT ·Erfc(SB), NOSPLIT, $0
+ 	B ·erfc(SB)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
++TEXT ·Cbrt(SB), NOSPLIT, $0
+ 	B ·cbrt(SB)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
++TEXT ·Cosh(SB), NOSPLIT, $0
+ 	B ·cosh(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
++TEXT ·Expm1(SB), NOSPLIT, $0
+ 	B ·expm1(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
++TEXT ·Frexp(SB), NOSPLIT, $0
+ 	B ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
++TEXT ·Hypot(SB), NOSPLIT, $0
+ 	B ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
++TEXT ·Ldexp(SB), NOSPLIT, $0
+ 	B ·ldexp(SB)
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
++TEXT ·Log10(SB), NOSPLIT, $0
+ 	B ·log10(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
++TEXT ·Log2(SB), NOSPLIT, $0
+ 	B ·log2(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
++TEXT ·Log1p(SB), NOSPLIT, $0
+ 	B ·log1p(SB)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
++TEXT ·Log(SB), NOSPLIT, $0
+ 	B ·log(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
++TEXT ·Mod(SB), NOSPLIT, $0
+ 	B ·mod(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
++TEXT ·Remainder(SB), NOSPLIT, $0
+ 	B ·remainder(SB)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
++TEXT ·Sin(SB), NOSPLIT, $0
+ 	B ·sin(SB)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
++TEXT ·Sinh(SB), NOSPLIT, $0
+ 	B ·sinh(SB)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
++TEXT ·Cos(SB), NOSPLIT, $0
+ 	B ·cos(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
++TEXT ·Tan(SB), NOSPLIT, $0
+ 	B ·tan(SB)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
++TEXT ·Tanh(SB), NOSPLIT, $0
+ 	B ·tanh(SB)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
++TEXT ·Pow(SB), NOSPLIT, $0
+ 	B ·pow(SB)
+diff --git a/src/math/stubs_mips64x.s b/src/math/stubs_mips64x.s
+index b3ffa5b21e..187b0699f6 100644
+--- a/src/math/stubs_mips64x.s
++++ b/src/math/stubs_mips64x.s
+@@ -6,110 +6,110 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
++TEXT ·Asin(SB), NOSPLIT, $0
+ 	JMP ·asin(SB)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
++TEXT ·Acos(SB), NOSPLIT, $0
+ 	JMP ·acos(SB)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-        JMP ·asinh(SB)
++TEXT ·Asinh(SB), NOSPLIT, $0
++	JMP ·asinh(SB)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-        JMP ·acosh(SB)
++TEXT ·Acosh(SB), NOSPLIT, $0
++	JMP ·acosh(SB)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
++TEXT ·Atan2(SB), NOSPLIT, $0
+ 	JMP ·atan2(SB)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
++TEXT ·Atan(SB), NOSPLIT, $0
+ 	JMP ·atan(SB)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
++TEXT ·Atanh(SB), NOSPLIT, $0
+ 	JMP ·atanh(SB)
+ 
+-TEXT ·Min(SB),NOSPLIT,$0
++TEXT ·Min(SB), NOSPLIT, $0
+ 	JMP ·min(SB)
+ 
+-TEXT ·Max(SB),NOSPLIT,$0
++TEXT ·Max(SB), NOSPLIT, $0
+ 	JMP ·max(SB)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
++TEXT ·Erf(SB), NOSPLIT, $0
+ 	JMP ·erf(SB)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
++TEXT ·Erfc(SB), NOSPLIT, $0
+ 	JMP ·erfc(SB)
+ 
+-TEXT ·Exp2(SB),NOSPLIT,$0
++TEXT ·Exp2(SB), NOSPLIT, $0
+ 	JMP ·exp2(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
++TEXT ·Expm1(SB), NOSPLIT, $0
+ 	JMP ·expm1(SB)
+ 
+-TEXT ·Exp(SB),NOSPLIT,$0
++TEXT ·Exp(SB), NOSPLIT, $0
+ 	JMP ·exp(SB)
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
++TEXT ·Floor(SB), NOSPLIT, $0
+ 	JMP ·floor(SB)
+ 
+-TEXT ·Ceil(SB),NOSPLIT,$0
++TEXT ·Ceil(SB), NOSPLIT, $0
+ 	JMP ·ceil(SB)
+ 
+-TEXT ·Trunc(SB),NOSPLIT,$0
++TEXT ·Trunc(SB), NOSPLIT, $0
+ 	JMP ·trunc(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
++TEXT ·Frexp(SB), NOSPLIT, $0
+ 	JMP ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
++TEXT ·Hypot(SB), NOSPLIT, $0
+ 	JMP ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
++TEXT ·Ldexp(SB), NOSPLIT, $0
+ 	JMP ·ldexp(SB)
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
++TEXT ·Log10(SB), NOSPLIT, $0
+ 	JMP ·log10(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
++TEXT ·Log2(SB), NOSPLIT, $0
+ 	JMP ·log2(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
++TEXT ·Log1p(SB), NOSPLIT, $0
+ 	JMP ·log1p(SB)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
++TEXT ·Log(SB), NOSPLIT, $0
+ 	JMP ·log(SB)
+ 
+-TEXT ·Modf(SB),NOSPLIT,$0
++TEXT ·Modf(SB), NOSPLIT, $0
+ 	JMP ·modf(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
++TEXT ·Mod(SB), NOSPLIT, $0
+ 	JMP ·mod(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
++TEXT ·Remainder(SB), NOSPLIT, $0
+ 	JMP ·remainder(SB)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
++TEXT ·Sin(SB), NOSPLIT, $0
+ 	JMP ·sin(SB)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
++TEXT ·Sinh(SB), NOSPLIT, $0
+ 	JMP ·sinh(SB)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
++TEXT ·Cos(SB), NOSPLIT, $0
+ 	JMP ·cos(SB)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
++TEXT ·Cosh(SB), NOSPLIT, $0
+ 	JMP ·cosh(SB)
+ 
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++TEXT ·Sqrt(SB), NOSPLIT, $0
+ 	JMP ·sqrt(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
++TEXT ·Tan(SB), NOSPLIT, $0
+ 	JMP ·tan(SB)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
++TEXT ·Tanh(SB), NOSPLIT, $0
+ 	JMP ·tanh(SB)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
++TEXT ·Cbrt(SB), NOSPLIT, $0
+ 	JMP ·cbrt(SB)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
++TEXT ·Pow(SB), NOSPLIT, $0
+ 	JMP ·pow(SB)
+diff --git a/src/math/stubs_mipsx.s b/src/math/stubs_mipsx.s
+index 129898eb5f..4b82449b14 100644
+--- a/src/math/stubs_mipsx.s
++++ b/src/math/stubs_mipsx.s
+@@ -6,108 +6,108 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	JMP	·asin(SB)
++TEXT ·Asin(SB), NOSPLIT, $0
++	JMP ·asin(SB)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	JMP	·acos(SB)
++TEXT ·Acos(SB), NOSPLIT, $0
++	JMP ·acos(SB)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-        JMP ·asinh(SB)
++TEXT ·Asinh(SB), NOSPLIT, $0
++	JMP ·asinh(SB)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-        JMP ·acosh(SB)
++TEXT ·Acosh(SB), NOSPLIT, $0
++	JMP ·acosh(SB)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	JMP	·atan2(SB)
++TEXT ·Atan2(SB), NOSPLIT, $0
++	JMP ·atan2(SB)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	JMP	·atan(SB)
++TEXT ·Atan(SB), NOSPLIT, $0
++	JMP ·atan(SB)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
+-	JMP	·atanh(SB)
++TEXT ·Atanh(SB), NOSPLIT, $0
++	JMP ·atanh(SB)
+ 
+-TEXT ·Min(SB),NOSPLIT,$0
+-	JMP	·min(SB)
++TEXT ·Min(SB), NOSPLIT, $0
++	JMP ·min(SB)
+ 
+-TEXT ·Max(SB),NOSPLIT,$0
+-	JMP	·max(SB)
++TEXT ·Max(SB), NOSPLIT, $0
++	JMP ·max(SB)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
+-	JMP	·erf(SB)
++TEXT ·Erf(SB), NOSPLIT, $0
++	JMP ·erf(SB)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
+-	JMP	·erfc(SB)
++TEXT ·Erfc(SB), NOSPLIT, $0
++	JMP ·erfc(SB)
+ 
+-TEXT ·Exp2(SB),NOSPLIT,$0
+-	JMP	·exp2(SB)
++TEXT ·Exp2(SB), NOSPLIT, $0
++	JMP ·exp2(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	JMP	·expm1(SB)
++TEXT ·Expm1(SB), NOSPLIT, $0
++	JMP ·expm1(SB)
+ 
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	JMP	·exp(SB)
++TEXT ·Exp(SB), NOSPLIT, $0
++	JMP ·exp(SB)
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
+-	JMP	·floor(SB)
++TEXT ·Floor(SB), NOSPLIT, $0
++	JMP ·floor(SB)
+ 
+-TEXT ·Ceil(SB),NOSPLIT,$0
+-	JMP	·ceil(SB)
++TEXT ·Ceil(SB), NOSPLIT, $0
++	JMP ·ceil(SB)
+ 
+-TEXT ·Trunc(SB),NOSPLIT,$0
+-	JMP	·trunc(SB)
++TEXT ·Trunc(SB), NOSPLIT, $0
++	JMP ·trunc(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
+-	JMP	·frexp(SB)
++TEXT ·Frexp(SB), NOSPLIT, $0
++	JMP ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
+-	JMP	·hypot(SB)
++TEXT ·Hypot(SB), NOSPLIT, $0
++	JMP ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
+-	JMP	·ldexp(SB)
++TEXT ·Ldexp(SB), NOSPLIT, $0
++	JMP ·ldexp(SB)
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	JMP	·log10(SB)
++TEXT ·Log10(SB), NOSPLIT, $0
++	JMP ·log10(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
+-	JMP	·log2(SB)
++TEXT ·Log2(SB), NOSPLIT, $0
++	JMP ·log2(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	JMP	·log1p(SB)
++TEXT ·Log1p(SB), NOSPLIT, $0
++	JMP ·log1p(SB)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
+-	JMP	·log(SB)
++TEXT ·Log(SB), NOSPLIT, $0
++	JMP ·log(SB)
+ 
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	JMP	·modf(SB)
++TEXT ·Modf(SB), NOSPLIT, $0
++	JMP ·modf(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
+-	JMP	·mod(SB)
++TEXT ·Mod(SB), NOSPLIT, $0
++	JMP ·mod(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
+-	JMP	·remainder(SB)
++TEXT ·Remainder(SB), NOSPLIT, $0
++	JMP ·remainder(SB)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	JMP	·sin(SB)
++TEXT ·Sin(SB), NOSPLIT, $0
++	JMP ·sin(SB)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
+-        JMP ·sinh(SB)
++TEXT ·Sinh(SB), NOSPLIT, $0
++	JMP ·sinh(SB)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	JMP	·cos(SB)
++TEXT ·Cos(SB), NOSPLIT, $0
++	JMP ·cos(SB)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
+-        JMP ·cosh(SB)
++TEXT ·Cosh(SB), NOSPLIT, $0
++	JMP ·cosh(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	JMP	·tan(SB)
++TEXT ·Tan(SB), NOSPLIT, $0
++	JMP ·tan(SB)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
+-        JMP ·tanh(SB)
++TEXT ·Tanh(SB), NOSPLIT, $0
++	JMP ·tanh(SB)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
+-        JMP ·cbrt(SB)
++TEXT ·Cbrt(SB), NOSPLIT, $0
++	JMP ·cbrt(SB)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
+-        JMP ·pow(SB)
++TEXT ·Pow(SB), NOSPLIT, $0
++	JMP ·pow(SB)
+ 
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+index dc5d615088..e7be07e8e3 100644
+--- a/src/math/stubs_ppc64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -6,96 +6,96 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
++TEXT ·Asin(SB), NOSPLIT, $0
+ 	BR ·asin(SB)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
++TEXT ·Acos(SB), NOSPLIT, $0
+ 	BR ·acos(SB)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-        BR ·asinh(SB)
++TEXT ·Asinh(SB), NOSPLIT, $0
++	BR ·asinh(SB)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-        BR ·acosh(SB)
++TEXT ·Acosh(SB), NOSPLIT, $0
++	BR ·acosh(SB)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
++TEXT ·Atan2(SB), NOSPLIT, $0
+ 	BR ·atan2(SB)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
++TEXT ·Atan(SB), NOSPLIT, $0
+ 	BR ·atan(SB)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
++TEXT ·Atanh(SB), NOSPLIT, $0
+ 	BR ·atanh(SB)
+ 
+-TEXT ·Min(SB),NOSPLIT,$0
++TEXT ·Min(SB), NOSPLIT, $0
+ 	BR ·min(SB)
+ 
+-TEXT ·Max(SB),NOSPLIT,$0
++TEXT ·Max(SB), NOSPLIT, $0
+ 	BR ·max(SB)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
++TEXT ·Erf(SB), NOSPLIT, $0
+ 	BR ·erf(SB)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
++TEXT ·Erfc(SB), NOSPLIT, $0
+ 	BR ·erfc(SB)
+ 
+-TEXT ·Exp2(SB),NOSPLIT,$0
++TEXT ·Exp2(SB), NOSPLIT, $0
+ 	BR ·exp2(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
++TEXT ·Expm1(SB), NOSPLIT, $0
+ 	BR ·expm1(SB)
+ 
+-TEXT ·Exp(SB),NOSPLIT,$0
++TEXT ·Exp(SB), NOSPLIT, $0
+ 	BR ·exp(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
++TEXT ·Frexp(SB), NOSPLIT, $0
+ 	BR ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
++TEXT ·Hypot(SB), NOSPLIT, $0
+ 	BR ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
++TEXT ·Ldexp(SB), NOSPLIT, $0
+ 	BR ·ldexp(SB)
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
++TEXT ·Log10(SB), NOSPLIT, $0
+ 	BR ·log10(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
++TEXT ·Log2(SB), NOSPLIT, $0
+ 	BR ·log2(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
++TEXT ·Log1p(SB), NOSPLIT, $0
+ 	BR ·log1p(SB)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
++TEXT ·Log(SB), NOSPLIT, $0
+ 	BR ·log(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
++TEXT ·Mod(SB), NOSPLIT, $0
+ 	BR ·mod(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
++TEXT ·Remainder(SB), NOSPLIT, $0
+ 	BR ·remainder(SB)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
++TEXT ·Sin(SB), NOSPLIT, $0
+ 	BR ·sin(SB)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
++TEXT ·Sinh(SB), NOSPLIT, $0
+ 	BR ·sinh(SB)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
++TEXT ·Cos(SB), NOSPLIT, $0
+ 	BR ·cos(SB)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
++TEXT ·Cosh(SB), NOSPLIT, $0
+ 	BR ·cosh(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
++TEXT ·Tan(SB), NOSPLIT, $0
+ 	BR ·tan(SB)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
++TEXT ·Tanh(SB), NOSPLIT, $0
+ 	BR ·tanh(SB)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
++TEXT ·Cbrt(SB), NOSPLIT, $0
+ 	BR ·cbrt(SB)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
++TEXT ·Pow(SB), NOSPLIT, $0
+ 	BR ·pow(SB)
+ 
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 889e248db9..021bc1fa8f 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -4,509 +4,512 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Exp2(SB),NOSPLIT,$0
++TEXT ·Exp2(SB), NOSPLIT, $0
+ 	BR ·exp2(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
++TEXT ·Frexp(SB), NOSPLIT, $0
+ 	BR ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
++TEXT ·Hypot(SB), NOSPLIT, $0
+ 	BR ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
++TEXT ·Ldexp(SB), NOSPLIT, $0
+ 	BR ·ldexp(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
++TEXT ·Log2(SB), NOSPLIT, $0
+ 	BR ·log2(SB)
+ 
+-TEXT ·Modf(SB),NOSPLIT,$0
++TEXT ·Modf(SB), NOSPLIT, $0
+ 	BR ·modf(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
++TEXT ·Mod(SB), NOSPLIT, $0
+ 	BR ·mod(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
++TEXT ·Remainder(SB), NOSPLIT, $0
+ 	BR ·remainder(SB)
+ 
+-//if go assembly use vector instruction
+-TEXT ·hasVectorFacility(SB),NOSPLIT,$24-1
+-	MOVD    $x-24(SP), R1
+-	XC      $24, 0(R1), 0(R1) // clear the storage
+-	MOVD    $2, R0            // R0 is the number of double words stored -1
+-	WORD    $0xB2B01000       // STFLE 0(R1)
+-	XOR     R0, R0            // reset the value of R0
+-	MOVBZ   z-8(SP), R1
+-	AND     $0x40, R1
+-	BEQ     novector
++// if go assembly use vector instruction
++TEXT ·hasVectorFacility(SB), NOSPLIT, $24-1
++	MOVD  $x-24(SP), R1
++	XC    $24, 0(R1), 0(R1) // clear the storage
++	MOVD  $2, R0            // R0 is the number of double words stored -1
++	WORD  $0xB2B01000       // STFLE 0(R1)
++	XOR   R0, R0            // reset the value of R0
++	MOVBZ z-8(SP), R1
++	AND   $0x40, R1
++	BEQ   novector
++
+ vectorinstalled:
+ 	// check if the vector instruction has been enabled
+-	VLEIB   $0, $0xF, V16
+-	VLGVB   $0, V16, R1
+-	CMPBNE  R1, $0xF, novector
+-	MOVB    $1, ret+0(FP) // have vx
++	VLEIB  $0, $0xF, V16
++	VLGVB  $0, V16, R1
++	CMPBNE R1, $0xF, novector
++	MOVB   $1, ret+0(FP)      // have vx
+ 	RET
++
+ novector:
+-	MOVB    $0, ret+0(FP) // no vx
++	MOVB $0, ret+0(FP) // no vx
+ 	RET
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	MOVD    ·log10vectorfacility+0x00(SB),R1
+-	BR      (R1)
+-
+-TEXT ·log10TrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·log10vectorfacility+0x00(SB), R1
+-	MOVD    $·log10(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·log10(SB)
++TEXT ·Log10(SB), NOSPLIT, $0
++	MOVD ·log10vectorfacility+0x00(SB), R1
++	BR   (R1)
++
++TEXT ·log10TrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·log10vectorfacility+0x00(SB), R1
++	MOVD   $·log10(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·log10(SB)
++
+ vectorimpl:
+-	MOVD    $·log10vectorfacility+0x00(SB), R1
+-	MOVD    $·log10Asm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·log10Asm(SB)
++	MOVD $·log10vectorfacility+0x00(SB), R1
++	MOVD $·log10Asm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·log10Asm(SB)
+ 
+ GLOBL ·log10vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·log10vectorfacility+0x00(SB)/8, $·log10TrampolineSetup(SB)
+ 
++TEXT ·Cos(SB), NOSPLIT, $0
++	MOVD ·cosvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	MOVD    ·cosvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·cosTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·cosvectorfacility+0x00(SB), R1
++	MOVD   $·cos(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·cos(SB)
+ 
+-TEXT ·cosTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·cosvectorfacility+0x00(SB), R1
+-	MOVD    $·cos(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·cos(SB)
+ vectorimpl:
+-	MOVD    $·cosvectorfacility+0x00(SB), R1
+-	MOVD    $·cosAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·cosAsm(SB)
++	MOVD $·cosvectorfacility+0x00(SB), R1
++	MOVD $·cosAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·cosAsm(SB)
+ 
+ GLOBL ·cosvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·cosvectorfacility+0x00(SB)/8, $·cosTrampolineSetup(SB)
+ 
++TEXT ·Cosh(SB), NOSPLIT, $0
++	MOVD ·coshvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
+-	MOVD    ·coshvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·coshTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·coshvectorfacility+0x00(SB), R1
++	MOVD   $·cosh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·cosh(SB)
+ 
+-TEXT ·coshTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·coshvectorfacility+0x00(SB), R1
+-	MOVD    $·cosh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·cosh(SB)
+ vectorimpl:
+-	MOVD    $·coshvectorfacility+0x00(SB), R1
+-	MOVD    $·coshAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·coshAsm(SB)
++	MOVD $·coshvectorfacility+0x00(SB), R1
++	MOVD $·coshAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·coshAsm(SB)
+ 
+ GLOBL ·coshvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·coshvectorfacility+0x00(SB)/8, $·coshTrampolineSetup(SB)
+ 
++TEXT ·Sin(SB), NOSPLIT, $0
++	MOVD ·sinvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	MOVD    ·sinvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·sinTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·sinvectorfacility+0x00(SB), R1
++	MOVD   $·sin(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·sin(SB)
+ 
+-TEXT ·sinTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·sinvectorfacility+0x00(SB), R1
+-	MOVD    $·sin(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·sin(SB)
+ vectorimpl:
+-	MOVD    $·sinvectorfacility+0x00(SB), R1
+-	MOVD    $·sinAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·sinAsm(SB)
++	MOVD $·sinvectorfacility+0x00(SB), R1
++	MOVD $·sinAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·sinAsm(SB)
+ 
+ GLOBL ·sinvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·sinvectorfacility+0x00(SB)/8, $·sinTrampolineSetup(SB)
+ 
++TEXT ·Sinh(SB), NOSPLIT, $0
++	MOVD ·sinhvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
+-	MOVD    ·sinhvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·sinhTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·sinhvectorfacility+0x00(SB), R1
++	MOVD   $·sinh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·sinh(SB)
+ 
+-TEXT ·sinhTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·sinhvectorfacility+0x00(SB), R1
+-	MOVD    $·sinh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·sinh(SB)
+ vectorimpl:
+-	MOVD    $·sinhvectorfacility+0x00(SB), R1
+-	MOVD    $·sinhAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·sinhAsm(SB)
++	MOVD $·sinhvectorfacility+0x00(SB), R1
++	MOVD $·sinhAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·sinhAsm(SB)
+ 
+ GLOBL ·sinhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·sinhvectorfacility+0x00(SB)/8, $·sinhTrampolineSetup(SB)
+ 
++TEXT ·Tanh(SB), NOSPLIT, $0
++	MOVD ·tanhvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
+-	MOVD    ·tanhvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·tanhTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·tanhvectorfacility+0x00(SB), R1
++	MOVD   $·tanh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·tanh(SB)
+ 
+-TEXT ·tanhTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·tanhvectorfacility+0x00(SB), R1
+-	MOVD    $·tanh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·tanh(SB)
+ vectorimpl:
+-	MOVD    $·tanhvectorfacility+0x00(SB), R1
+-	MOVD    $·tanhAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·tanhAsm(SB)
++	MOVD $·tanhvectorfacility+0x00(SB), R1
++	MOVD $·tanhAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·tanhAsm(SB)
+ 
+ GLOBL ·tanhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·tanhvectorfacility+0x00(SB)/8, $·tanhTrampolineSetup(SB)
+ 
++TEXT ·Log1p(SB), NOSPLIT, $0
++	MOVD ·log1pvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	MOVD    ·log1pvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·log1pTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·log1pvectorfacility+0x00(SB), R1
++	MOVD   $·log1p(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·log1p(SB)
+ 
+-TEXT ·log1pTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·log1pvectorfacility+0x00(SB), R1
+-	MOVD    $·log1p(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·log1p(SB)
+ vectorimpl:
+-	MOVD    $·log1pvectorfacility+0x00(SB), R1
+-	MOVD    $·log1pAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·log1pAsm(SB)
++	MOVD $·log1pvectorfacility+0x00(SB), R1
++	MOVD $·log1pAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·log1pAsm(SB)
+ 
+ GLOBL ·log1pvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·log1pvectorfacility+0x00(SB)/8, $·log1pTrampolineSetup(SB)
+ 
++TEXT ·Atanh(SB), NOSPLIT, $0
++	MOVD ·atanhvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
+-	MOVD    ·atanhvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·atanhTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·atanhvectorfacility+0x00(SB), R1
++	MOVD   $·atanh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·atanh(SB)
+ 
+-TEXT ·atanhTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·atanhvectorfacility+0x00(SB), R1
+-	MOVD    $·atanh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atanh(SB)
+ vectorimpl:
+-	MOVD    $·atanhvectorfacility+0x00(SB), R1
+-	MOVD    $·atanhAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atanhAsm(SB)
++	MOVD $·atanhvectorfacility+0x00(SB), R1
++	MOVD $·atanhAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·atanhAsm(SB)
+ 
+ GLOBL ·atanhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atanhvectorfacility+0x00(SB)/8, $·atanhTrampolineSetup(SB)
+ 
++TEXT ·Acos(SB), NOSPLIT, $0
++	MOVD ·acosvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	MOVD    ·acosvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·acosTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·acosvectorfacility+0x00(SB), R1
++	MOVD   $·acos(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·acos(SB)
+ 
+-TEXT ·acosTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·acosvectorfacility+0x00(SB), R1
+-	MOVD    $·acos(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·acos(SB)
+ vectorimpl:
+-	MOVD    $·acosvectorfacility+0x00(SB), R1
+-	MOVD    $·acosAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·acosAsm(SB)
++	MOVD $·acosvectorfacility+0x00(SB), R1
++	MOVD $·acosAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·acosAsm(SB)
+ 
+ GLOBL ·acosvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·acosvectorfacility+0x00(SB)/8, $·acosTrampolineSetup(SB)
+ 
++TEXT ·Asin(SB), NOSPLIT, $0
++	MOVD ·asinvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	MOVD    ·asinvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·asinTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·asinvectorfacility+0x00(SB), R1
++	MOVD   $·asin(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·asin(SB)
+ 
+-TEXT ·asinTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·asinvectorfacility+0x00(SB), R1
+-	MOVD    $·asin(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·asin(SB)
+ vectorimpl:
+-	MOVD    $·asinvectorfacility+0x00(SB), R1
+-	MOVD    $·asinAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·asinAsm(SB)
++	MOVD $·asinvectorfacility+0x00(SB), R1
++	MOVD $·asinAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·asinAsm(SB)
+ 
+ GLOBL ·asinvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·asinvectorfacility+0x00(SB)/8, $·asinTrampolineSetup(SB)
+ 
++TEXT ·Asinh(SB), NOSPLIT, $0
++	MOVD ·asinhvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-	MOVD    ·asinhvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·asinhTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·asinhvectorfacility+0x00(SB), R1
++	MOVD   $·asinh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·asinh(SB)
+ 
+-TEXT ·asinhTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·asinhvectorfacility+0x00(SB), R1
+-	MOVD    $·asinh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·asinh(SB)
+ vectorimpl:
+-	MOVD    $·asinhvectorfacility+0x00(SB), R1
+-	MOVD    $·asinhAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·asinhAsm(SB)
++	MOVD $·asinhvectorfacility+0x00(SB), R1
++	MOVD $·asinhAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·asinhAsm(SB)
+ 
+ GLOBL ·asinhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·asinhvectorfacility+0x00(SB)/8, $·asinhTrampolineSetup(SB)
+ 
++TEXT ·Acosh(SB), NOSPLIT, $0
++	MOVD ·acoshvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-	MOVD    ·acoshvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·acoshTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·acoshvectorfacility+0x00(SB), R1
++	MOVD   $·acosh(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·acosh(SB)
+ 
+-TEXT ·acoshTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·acoshvectorfacility+0x00(SB), R1
+-	MOVD    $·acosh(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·acosh(SB)
+ vectorimpl:
+-	MOVD    $·acoshvectorfacility+0x00(SB), R1
+-	MOVD    $·acoshAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·acoshAsm(SB)
++	MOVD $·acoshvectorfacility+0x00(SB), R1
++	MOVD $·acoshAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·acoshAsm(SB)
+ 
+ GLOBL ·acoshvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·acoshvectorfacility+0x00(SB)/8, $·acoshTrampolineSetup(SB)
+ 
++TEXT ·Erf(SB), NOSPLIT, $0
++	MOVD ·erfvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
+-	MOVD    ·erfvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·erfTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·erfvectorfacility+0x00(SB), R1
++	MOVD   $·erf(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·erf(SB)
+ 
+-TEXT ·erfTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·erfvectorfacility+0x00(SB), R1
+-	MOVD    $·erf(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·erf(SB)
+ vectorimpl:
+-	MOVD    $·erfvectorfacility+0x00(SB), R1
+-	MOVD    $·erfAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·erfAsm(SB)
++	MOVD $·erfvectorfacility+0x00(SB), R1
++	MOVD $·erfAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·erfAsm(SB)
+ 
+ GLOBL ·erfvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·erfvectorfacility+0x00(SB)/8, $·erfTrampolineSetup(SB)
+ 
++TEXT ·Erfc(SB), NOSPLIT, $0
++	MOVD ·erfcvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
+-	MOVD    ·erfcvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·erfcTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·erfcvectorfacility+0x00(SB), R1
++	MOVD   $·erfc(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·erfc(SB)
+ 
+-TEXT ·erfcTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·erfcvectorfacility+0x00(SB), R1
+-	MOVD    $·erfc(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·erfc(SB)
+ vectorimpl:
+-	MOVD    $·erfcvectorfacility+0x00(SB), R1
+-	MOVD    $·erfcAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·erfcAsm(SB)
++	MOVD $·erfcvectorfacility+0x00(SB), R1
++	MOVD $·erfcAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·erfcAsm(SB)
+ 
+ GLOBL ·erfcvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·erfcvectorfacility+0x00(SB)/8, $·erfcTrampolineSetup(SB)
+ 
++TEXT ·Atan(SB), NOSPLIT, $0
++	MOVD ·atanvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	MOVD    ·atanvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·atanTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·atanvectorfacility+0x00(SB), R1
++	MOVD   $·atan(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·atan(SB)
+ 
+-TEXT ·atanTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·atanvectorfacility+0x00(SB), R1
+-	MOVD    $·atan(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atan(SB)
+ vectorimpl:
+-	MOVD    $·atanvectorfacility+0x00(SB), R1
+-	MOVD    $·atanAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atanAsm(SB)
++	MOVD $·atanvectorfacility+0x00(SB), R1
++	MOVD $·atanAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·atanAsm(SB)
+ 
+ GLOBL ·atanvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atanvectorfacility+0x00(SB)/8, $·atanTrampolineSetup(SB)
+ 
++TEXT ·Atan2(SB), NOSPLIT, $0
++	MOVD ·atan2vectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	MOVD    ·atan2vectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·atan2TrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·atan2vectorfacility+0x00(SB), R1
++	MOVD   $·atan2(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·atan2(SB)
+ 
+-TEXT ·atan2TrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·atan2vectorfacility+0x00(SB), R1
+-	MOVD    $·atan2(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atan2(SB)
+ vectorimpl:
+-	MOVD    $·atan2vectorfacility+0x00(SB), R1
+-	MOVD    $·atan2Asm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·atan2Asm(SB)
++	MOVD $·atan2vectorfacility+0x00(SB), R1
++	MOVD $·atan2Asm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·atan2Asm(SB)
+ 
+ GLOBL ·atan2vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atan2vectorfacility+0x00(SB)/8, $·atan2TrampolineSetup(SB)
+ 
++TEXT ·Cbrt(SB), NOSPLIT, $0
++	MOVD ·cbrtvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
+-	MOVD    ·cbrtvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·cbrtTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                // vectorfacility = 1, vector supported
++	MOVD   $·cbrtvectorfacility+0x00(SB), R1
++	MOVD   $·cbrt(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·cbrt(SB)
+ 
+-TEXT ·cbrtTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·cbrtvectorfacility+0x00(SB), R1
+-	MOVD    $·cbrt(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·cbrt(SB)
+ vectorimpl:
+-	MOVD    $·cbrtvectorfacility+0x00(SB), R1
+-	MOVD    $·cbrtAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·cbrtAsm(SB)
++	MOVD $·cbrtvectorfacility+0x00(SB), R1
++	MOVD $·cbrtAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·cbrtAsm(SB)
+ 
+ GLOBL ·cbrtvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·cbrtvectorfacility+0x00(SB)/8, $·cbrtTrampolineSetup(SB)
+ 
++TEXT ·Log(SB), NOSPLIT, $0
++	MOVD ·logvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
+-	MOVD    ·logvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·logTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·logvectorfacility+0x00(SB), R1
++	MOVD   $·log(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·log(SB)
+ 
+-TEXT ·logTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·logvectorfacility+0x00(SB), R1
+-	MOVD    $·log(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·log(SB)
+ vectorimpl:
+-	MOVD    $·logvectorfacility+0x00(SB), R1
+-	MOVD    $·logAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·logAsm(SB)
++	MOVD $·logvectorfacility+0x00(SB), R1
++	MOVD $·logAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·logAsm(SB)
+ 
+ GLOBL ·logvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·logvectorfacility+0x00(SB)/8, $·logTrampolineSetup(SB)
+ 
++TEXT ·Tan(SB), NOSPLIT, $0
++	MOVD ·tanvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	MOVD    ·tanvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·tanTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·tanvectorfacility+0x00(SB), R1
++	MOVD   $·tan(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·tan(SB)
+ 
+-TEXT ·tanTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·tanvectorfacility+0x00(SB), R1
+-	MOVD    $·tan(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·tan(SB)
+ vectorimpl:
+-	MOVD    $·tanvectorfacility+0x00(SB), R1
+-	MOVD    $·tanAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·tanAsm(SB)
++	MOVD $·tanvectorfacility+0x00(SB), R1
++	MOVD $·tanAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·tanAsm(SB)
+ 
+ GLOBL ·tanvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·tanvectorfacility+0x00(SB)/8, $·tanTrampolineSetup(SB)
+ 
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	MOVD    ·expvectorfacility+0x00(SB),R1
+-	BR      (R1)
+-
+-TEXT ·expTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·expvectorfacility+0x00(SB), R1
+-	MOVD    $·exp(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·exp(SB)
++TEXT ·Exp(SB), NOSPLIT, $0
++	MOVD ·expvectorfacility+0x00(SB), R1
++	BR   (R1)
++
++TEXT ·expTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·expvectorfacility+0x00(SB), R1
++	MOVD   $·exp(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·exp(SB)
++
+ vectorimpl:
+-	MOVD    $·expvectorfacility+0x00(SB), R1
+-	MOVD    $·expAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·expAsm(SB)
++	MOVD $·expvectorfacility+0x00(SB), R1
++	MOVD $·expAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·expAsm(SB)
+ 
+ GLOBL ·expvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·expvectorfacility+0x00(SB)/8, $·expTrampolineSetup(SB)
+ 
++TEXT ·Expm1(SB), NOSPLIT, $0
++	MOVD ·expm1vectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	MOVD    ·expm1vectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·expm1TrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl                 // vectorfacility = 1, vector supported
++	MOVD   $·expm1vectorfacility+0x00(SB), R1
++	MOVD   $·expm1(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·expm1(SB)
+ 
+-TEXT ·expm1TrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·expm1vectorfacility+0x00(SB), R1
+-	MOVD    $·expm1(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·expm1(SB)
+ vectorimpl:
+-	MOVD    $·expm1vectorfacility+0x00(SB), R1
+-	MOVD    $·expm1Asm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·expm1Asm(SB)
++	MOVD $·expm1vectorfacility+0x00(SB), R1
++	MOVD $·expm1Asm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·expm1Asm(SB)
+ 
+ GLOBL ·expm1vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·expm1vectorfacility+0x00(SB)/8, $·expm1TrampolineSetup(SB)
+ 
++TEXT ·Pow(SB), NOSPLIT, $0
++	MOVD ·powvectorfacility+0x00(SB), R1
++	BR   (R1)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
+-	MOVD    ·powvectorfacility+0x00(SB),R1
+-	BR      (R1)
++TEXT ·powTrampolineSetup(SB), NOSPLIT, $0
++	MOVB   ·hasVX(SB), R1
++	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
++	MOVD   $·powvectorfacility+0x00(SB), R1
++	MOVD   $·pow(SB), R2
++	MOVD   R2, 0(R1)
++	BR     ·pow(SB)
+ 
+-TEXT ·powTrampolineSetup(SB),NOSPLIT, $0
+-	MOVB    ·hasVX(SB), R1
+-	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $·powvectorfacility+0x00(SB), R1
+-	MOVD    $·pow(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·pow(SB)
+ vectorimpl:
+-	MOVD    $·powvectorfacility+0x00(SB), R1
+-	MOVD    $·powAsm(SB), R2
+-	MOVD    R2, 0(R1)
+-	BR      ·powAsm(SB)
++	MOVD $·powvectorfacility+0x00(SB), R1
++	MOVD $·powAsm(SB), R2
++	MOVD R2, 0(R1)
++	BR   ·powAsm(SB)
+ 
+ GLOBL ·powvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·powvectorfacility+0x00(SB)/8, $·powTrampolineSetup(SB)
+ 
+-
+diff --git a/src/math/stubs_wasm.s b/src/math/stubs_wasm.s
+index 744e1d7318..c97a2d7dd5 100644
+--- a/src/math/stubs_wasm.s
++++ b/src/math/stubs_wasm.s
+@@ -4,98 +4,98 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
++TEXT ·Asin(SB), NOSPLIT, $0
+ 	JMP ·asin(SB)
+ 
+-TEXT ·Asinh(SB),NOSPLIT,$0
++TEXT ·Asinh(SB), NOSPLIT, $0
+ 	JMP ·asinh(SB)
+ 
+-TEXT ·Acos(SB),NOSPLIT,$0
++TEXT ·Acos(SB), NOSPLIT, $0
+ 	JMP ·acos(SB)
+ 
+-TEXT ·Acosh(SB),NOSPLIT,$0
++TEXT ·Acosh(SB), NOSPLIT, $0
+ 	JMP ·acosh(SB)
+ 
+-TEXT ·Atan(SB),NOSPLIT,$0
++TEXT ·Atan(SB), NOSPLIT, $0
+ 	JMP ·atan(SB)
+ 
+-TEXT ·Atanh(SB),NOSPLIT,$0
++TEXT ·Atanh(SB), NOSPLIT, $0
+ 	JMP ·atanh(SB)
+ 
+-TEXT ·Atan2(SB),NOSPLIT,$0
++TEXT ·Atan2(SB), NOSPLIT, $0
+ 	JMP ·atan2(SB)
+ 
+-TEXT ·Cbrt(SB),NOSPLIT,$0
++TEXT ·Cbrt(SB), NOSPLIT, $0
+ 	JMP ·cbrt(SB)
+ 
+-TEXT ·Cos(SB),NOSPLIT,$0
++TEXT ·Cos(SB), NOSPLIT, $0
+ 	JMP ·cos(SB)
+ 
+-TEXT ·Cosh(SB),NOSPLIT,$0
++TEXT ·Cosh(SB), NOSPLIT, $0
+ 	JMP ·cosh(SB)
+ 
+-TEXT ·Erf(SB),NOSPLIT,$0
++TEXT ·Erf(SB), NOSPLIT, $0
+ 	JMP ·erf(SB)
+ 
+-TEXT ·Erfc(SB),NOSPLIT,$0
++TEXT ·Erfc(SB), NOSPLIT, $0
+ 	JMP ·erfc(SB)
+ 
+-TEXT ·Exp(SB),NOSPLIT,$0
++TEXT ·Exp(SB), NOSPLIT, $0
+ 	JMP ·exp(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
++TEXT ·Expm1(SB), NOSPLIT, $0
+ 	JMP ·expm1(SB)
+ 
+-TEXT ·Exp2(SB),NOSPLIT,$0
++TEXT ·Exp2(SB), NOSPLIT, $0
+ 	JMP ·exp2(SB)
+ 
+-TEXT ·Frexp(SB),NOSPLIT,$0
++TEXT ·Frexp(SB), NOSPLIT, $0
+ 	JMP ·frexp(SB)
+ 
+-TEXT ·Hypot(SB),NOSPLIT,$0
++TEXT ·Hypot(SB), NOSPLIT, $0
+ 	JMP ·hypot(SB)
+ 
+-TEXT ·Ldexp(SB),NOSPLIT,$0
++TEXT ·Ldexp(SB), NOSPLIT, $0
+ 	JMP ·ldexp(SB)
+ 
+-TEXT ·Log(SB),NOSPLIT,$0
++TEXT ·Log(SB), NOSPLIT, $0
+ 	JMP ·log(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
++TEXT ·Log1p(SB), NOSPLIT, $0
+ 	JMP ·log1p(SB)
+ 
+-TEXT ·Log10(SB),NOSPLIT,$0
++TEXT ·Log10(SB), NOSPLIT, $0
+ 	JMP ·log10(SB)
+ 
+-TEXT ·Log2(SB),NOSPLIT,$0
++TEXT ·Log2(SB), NOSPLIT, $0
+ 	JMP ·log2(SB)
+ 
+-TEXT ·Max(SB),NOSPLIT,$0
++TEXT ·Max(SB), NOSPLIT, $0
+ 	JMP ·max(SB)
+ 
+-TEXT ·Min(SB),NOSPLIT,$0
++TEXT ·Min(SB), NOSPLIT, $0
+ 	JMP ·min(SB)
+ 
+-TEXT ·Mod(SB),NOSPLIT,$0
++TEXT ·Mod(SB), NOSPLIT, $0
+ 	JMP ·mod(SB)
+ 
+-TEXT ·Modf(SB),NOSPLIT,$0
++TEXT ·Modf(SB), NOSPLIT, $0
+ 	JMP ·modf(SB)
+ 
+-TEXT ·Pow(SB),NOSPLIT,$0
++TEXT ·Pow(SB), NOSPLIT, $0
+ 	JMP ·pow(SB)
+ 
+-TEXT ·Remainder(SB),NOSPLIT,$0
++TEXT ·Remainder(SB), NOSPLIT, $0
+ 	JMP ·remainder(SB)
+ 
+-TEXT ·Sin(SB),NOSPLIT,$0
++TEXT ·Sin(SB), NOSPLIT, $0
+ 	JMP ·sin(SB)
+ 
+-TEXT ·Sinh(SB),NOSPLIT,$0
++TEXT ·Sinh(SB), NOSPLIT, $0
+ 	JMP ·sinh(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
++TEXT ·Tan(SB), NOSPLIT, $0
+ 	JMP ·tan(SB)
+ 
+-TEXT ·Tanh(SB),NOSPLIT,$0
++TEXT ·Tanh(SB), NOSPLIT, $0
+ 	JMP ·tanh(SB)
+diff --git a/src/math/tan_386.s b/src/math/tan_386.s
+deleted file mode 100644
+index 4e44c2692d..0000000000
+--- a/src/math/tan_386.s
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Tan(x float64) float64
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	JMP     ·tan(SB)
+diff --git a/src/math/tan_amd64.s b/src/math/tan_amd64.s
+deleted file mode 100644
+index 385ca05e27..0000000000
+--- a/src/math/tan_amd64.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	JMP ·tan(SB)
+diff --git a/src/math/tan_amd64p32.s b/src/math/tan_amd64p32.s
+deleted file mode 100644
+index b5e789d660..0000000000
+--- a/src/math/tan_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "tan_amd64.s"
+diff --git a/src/math/tan_arm.s b/src/math/tan_arm.s
+deleted file mode 100644
+index 5f2cdd1a19..0000000000
+--- a/src/math/tan_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	B ·tan(SB)

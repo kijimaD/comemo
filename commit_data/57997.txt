@@ -14,7 +14,7 @@ Date:   Thu Sep 14 18:02:41 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go         |  4 ++--
  src/cmd/compile/internal/types2/assignments.go | 10 +++++-----
  src/cmd/compile/internal/types2/builtins.go    |  6 +++---
@@ -56,3 +56,957 @@ Date:   Thu Sep 14 18:02:41 2023 -0700
  src/go/types/union.go                          |  6 +++---
  src/go/types/validtype.go                      |  2 +-
  40 files changed, 93 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 48cafe03e7..9f2daa7f70 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -458,7 +458,7 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
+ func AssertableTo(V *Interface, T Type) bool {
+ 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+ 	// handling here.
+-	if T.Underlying() == Typ[Invalid] {
++	if !isValid(T.Underlying()) {
+ 		return false
+ 	}
+ 	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
+@@ -496,7 +496,7 @@ func Implements(V Type, T *Interface) bool {
+ 	}
+ 	// Checker.implements suppresses errors for invalid types, so we need special
+ 	// handling here.
+-	if V.Underlying() == Typ[Invalid] {
++	if !isValid(V.Underlying()) {
+ 		return false
+ 	}
+ 	return (*Checker)(nil).implements(nopos, V, T, false, nil)
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 28ceb6cd75..079802b0b0 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -102,7 +102,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ }
+ 
+ func (check *Checker) initConst(lhs *Const, x *operand) {
+-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+@@ -137,7 +137,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
+ // or Typ[Invalid] in case of an error.
+ // If the initialization check fails, x.mode is set to invalid.
+ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
+-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+@@ -202,7 +202,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 		v.used = v_used // restore v.used
+ 	}
+ 
+-	if x.mode == invalid || x.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) {
+ 		return Typ[Invalid]
+ 	}
+ 
+@@ -234,7 +234,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ // If the assignment check fails and x != nil, x.mode is set to invalid.
+ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
+ 	T := check.lhsVar(lhs) // nil if lhs is _
+-	if T == Typ[Invalid] {
++	if !isValid(T) {
+ 		if x != nil {
+ 			x.mode = invalid
+ 		} else {
+@@ -282,7 +282,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		switch {
+ 		case t == nil:
+ 			fallthrough // should not happen but be cautious
+-		case t == Typ[Invalid]:
++		case !isValid(t):
+ 			s = "unknown type"
+ 		case isUntyped(t):
+ 			if isNumeric(t) {
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 41e60f118d..01b8e46304 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -206,7 +206,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		if mode == invalid {
+ 			// avoid error if underlying type is invalid
+-			if under(x.typ) != Typ[Invalid] {
++			if isValid(under(x.typ)) {
+ 				code := InvalidCap
+ 				if id == _Len {
+ 					code = InvalidLen
+@@ -490,7 +490,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// (no argument evaluated yet)
+ 		arg0 := argList[0]
+ 		T := check.varType(arg0)
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			return
+ 		}
+ 
+@@ -600,7 +600,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// new(T)
+ 		// (no argument evaluated yet)
+ 		T := check.varType(argList[0])
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 643242db57..718c54913d 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -792,7 +792,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+-		if under(x.typ) == Typ[Invalid] {
++		if !isValid(under(x.typ)) {
+ 			goto Error
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 0a24eb2dab..f21704f108 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -170,7 +170,7 @@ func (check *Checker) validAlias(alias *TypeName, typ Type) {
+ 
+ // isBrokenAlias reports whether alias doesn't have a determined type yet.
+ func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+-	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
++	return !isValid(alias.typ) && check.brokenAliases[alias]
+ }
+ 
+ func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+@@ -503,7 +503,7 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
+ 		assert(val != nil)
+ 		// We check allBasic(typ, IsConstType) here as constant expressions may be
+ 		// recorded as type parameters.
+-		assert(typ == Typ[Invalid] || allBasic(typ, IsConstType))
++		assert(!isValid(typ) || allBasic(typ, IsConstType))
+ 	}
+ 	if m := check.Types; m != nil {
+ 		m[x] = TypeAndValue{mode, typ, val}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 8c6fb45ac0..ccdfb19722 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -387,7 +387,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+ 			// (go.dev/issue/22090)
+-			if under(t) != Typ[Invalid] {
++			if isValid(under(t)) {
+ 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
+ 			}
+ 			obj.typ = Typ[Invalid]
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index f28fbae123..321b0c4762 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -392,7 +392,7 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
+ // If x is a constant operand, the returned constant.Value will be the
+ // representation of x in this context.
+ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
+-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
++	if x.mode == invalid || isTyped(x.typ) || !isValid(target) {
+ 		return x.typ, nil, 0
+ 	}
+ 	// x is untyped
+@@ -474,7 +474,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
+ 	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
+-	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
++	if !isValid(x.typ) || !isValid(y.typ) {
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -828,7 +828,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 	if !Identical(x.typ, y.typ) {
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+-		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
++		if isValid(x.typ) && isValid(y.typ) {
+ 			if e != nil {
+ 				check.errorf(x, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+ 			} else {
+@@ -1308,7 +1308,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 				check.use(e)
+ 			}
+ 			// if utyp is invalid, an error was reported before
+-			if utyp != Typ[Invalid] {
++			if isValid(utyp) {
+ 				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
+ 				goto Error
+ 			}
+@@ -1363,7 +1363,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 			goto Error
+ 		}
+ 		T := check.varType(e.Type)
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			goto Error
+ 		}
+ 		check.typeAssertion(e, x, T, false)
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 3ebe851355..4db2213086 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -29,7 +29,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		x.mode = invalid
+ 		// TODO(gri) here we re-evaluate e.X - try to avoid this
+ 		x.typ = check.varType(e)
+-		if x.typ != Typ[Invalid] {
++		if isValid(x.typ) {
+ 			x.mode = typexpr
+ 		}
+ 		return false
+@@ -428,7 +428,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
+ 		validIndex := false
+ 		eval := e
+ 		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
+-			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
++			if typ, i := check.index(kv.Key, length); isValid(typ) {
+ 				if i >= 0 {
+ 					index = i
+ 					validIndex = true
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 6024035a38..0c6b202ff9 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -192,10 +192,10 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+-	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
++	if !isValid(Vu) || !isValid(Tu) {
+ 		return true // avoid follow-on errors
+ 	}
+-	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
++	if p, _ := Vu.(*Pointer); p != nil && !isValid(under(p.base)) {
+ 		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 6623ff5575..3866975a91 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -143,7 +143,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		typ := check.typ(f.Type)
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+-			if typ != Typ[Invalid] {
++			if isValid(typ) {
+ 				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
+ 			}
+ 			continue // ignore
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 0469b000bb..3f151007e5 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -172,7 +172,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 
+ 	// <typ>
+ 	if hasType {
+-		if x.typ != Typ[Invalid] {
++		if isValid(x.typ) {
+ 			var intro string
+ 			if isGeneric(x.typ) {
+ 				intro = " of generic type "
+@@ -245,7 +245,7 @@ func (x *operand) isNil() bool { return x.mode == nilvalue }
+ // if assignableTo is invoked through an exported API call, i.e., when all
+ // methods have been type-checked.
+ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
+-	if x.mode == invalid || T == Typ[Invalid] {
++	if x.mode == invalid || !isValid(T) {
+ 		return true, 0 // avoid spurious errors
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 872b874ecb..c48f926bf8 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -6,6 +6,9 @@
+ 
+ package types2
+ 
++// isValid reports whether t is a valid type.
++func isValid(t Type) bool { return t != Typ[Invalid] }
++
+ // The isX predicates below report whether t is an X.
+ // If t is a type parameter the result is false; i.e.,
+ // these predicates don't look inside a type parameter.
+@@ -222,7 +225,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		return true
+ 	}
+ 
+-	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
++	if c.ignoreInvalids && (!isValid(x) || !isValid(y)) {
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 7eeb7340f8..edd8d66f13 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -208,7 +208,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		check.later(func() {
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 			rtyp, _ := deref(recv.typ)
+-			if rtyp == Typ[Invalid] {
++			if !isValid(rtyp) {
+ 				return // error was reported before
+ 			}
+ 			// spec: "The type denoted by T is called the receiver base type; it must not
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 3b8c79f108..a671002e12 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -297,7 +297,7 @@ L:
+ 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+ 		} else {
+ 			T = check.varType(e)
+-			if T == Typ[Invalid] {
++			if !isValid(T) {
+ 				continue L
+ 			}
+ 		}
+@@ -341,7 +341,7 @@ L:
+ // 			hash = "<nil>" // avoid collision with a type named nil
+ // 		} else {
+ // 			T = check.varType(e)
+-// 			if T == Typ[Invalid] {
++// 			if !isValid(T) {
+ // 				continue L
+ // 			}
+ // 			hash = typeHash(T, nil)
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 125e94647b..9e46b349a3 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -147,7 +147,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 				t, isPtr := deref(embeddedTyp)
+ 				switch u := under(t).(type) {
+ 				case *Basic:
+-					if t == Typ[Invalid] {
++					if !isValid(t) {
+ 						// error was reported before
+ 						return
+ 					}
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 46c2101c47..42b1a63915 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -108,7 +108,7 @@ func (t *TypeParam) iface() *Interface {
+ 	var ityp *Interface
+ 	switch u := under(bound).(type) {
+ 	case *Basic:
+-		if u == Typ[Invalid] {
++		if !isValid(u) {
+ 			// error is reported elsewhere
+ 			return &emptyInterface
+ 		}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 70b9e36aef..719041657c 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -290,7 +290,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			assert(len(tset.methods) == 0)
+ 			terms = tset.terms
+ 		default:
+-			if u == Typ[Invalid] {
++			if !isValid(u) {
+ 				continue
+ 			}
+ 			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
+@@ -389,7 +389,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+ 			terms = computeInterfaceTypeSet(check, pos, ui).terms
+-		} else if u == Typ[Invalid] {
++		} else if !isValid(u) {
+ 			continue
+ 		} else {
+ 			if t.tilde && !Identical(t.typ, u) {
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index de420e39c7..47e9dbae8b 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -78,7 +78,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 
+ 	case *Const:
+ 		check.addDeclDep(obj)
+-		if typ == Typ[Invalid] {
++		if !isValid(typ) {
+ 			return
+ 		}
+ 		if obj == universeIota {
+@@ -108,7 +108,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 			obj.used = true
+ 		}
+ 		check.addDeclDep(obj)
+-		if typ == Typ[Invalid] {
++		if !isValid(typ) {
+ 			return
+ 		}
+ 		x.mode = variable
+@@ -193,7 +193,7 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
+ func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+-	if typ != Typ[Invalid] && !isGeneric(typ) {
++	if isValid(typ) && !isGeneric(typ) {
+ 		if cause != nil {
+ 			*cause = check.sprintf("%s is not a generic type", typ)
+ 		}
+@@ -323,7 +323,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			// useful - even a valid dereferenciation will lead to an invalid
+ 			// type again, and in some cases we get unexpected follow-on errors
+ 			// (e.g., go.dev/issue/49005). Return an invalid type instead.
+-			if typ.base == Typ[Invalid] {
++			if !isValid(typ.base) {
+ 				return Typ[Invalid]
+ 			}
+ 			return typ
+@@ -416,7 +416,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	if cause != "" {
+ 		check.errorf(x, NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, cause)
+ 	}
+-	if gtyp == Typ[Invalid] {
++	if !isValid(gtyp) {
+ 		return gtyp // error already reported
+ 	}
+ 
+@@ -520,7 +520,7 @@ func (check *Checker) typeList(list []syntax.Expr) []Type {
+ 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+ 	for i, x := range list {
+ 		t := check.varType(x)
+-		if t == Typ[Invalid] {
++		if !isValid(t) {
+ 			res = nil
+ 		}
+ 		if res != nil {
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 8f354a708f..1bf4353f26 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -66,7 +66,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 			return term.typ // typ already recorded through check.typ in parseTilde
+ 		}
+ 		if len(terms) >= maxTermCount {
+-			if u != Typ[Invalid] {
++			if isValid(u) {
+ 				check.errorf(x, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+ 				u = Typ[Invalid]
+ 			}
+@@ -80,7 +80,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 		}
+ 	}
+ 
+-	if u == Typ[Invalid] {
++	if !isValid(u) {
+ 		return u
+ 	}
+ 
+@@ -89,7 +89,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+ 		for i, t := range terms {
+-			if t.typ == Typ[Invalid] {
++			if !isValid(t.typ) {
+ 				continue
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index dbe91dc08f..8337e0c8c7 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -68,7 +68,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
+ 		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		// Note: ensure that t.orig is fully resolved by calling Underlying().
+-		if t.Underlying() == Typ[Invalid] {
++		if !isValid(t.Underlying()) {
+ 			return false
+ 		}
+ 
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 4583b4f7b5..30a9c1f3fe 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -446,7 +446,7 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
+ func AssertableTo(V *Interface, T Type) bool {
+ 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+ 	// handling here.
+-	if T.Underlying() == Typ[Invalid] {
++	if !isValid(T.Underlying()) {
+ 		return false
+ 	}
+ 	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
+@@ -484,7 +484,7 @@ func Implements(V Type, T *Interface) bool {
+ 	}
+ 	// Checker.implements suppresses errors for invalid types, so we need special
+ 	// handling here.
+-	if V.Underlying() == Typ[Invalid] {
++	if !isValid(V.Underlying()) {
+ 		return false
+ 	}
+ 	return (*Checker)(nil).implements(0, V, T, false, nil)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 1ea51142e0..f9f0e8f20a 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -101,7 +101,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ }
+ 
+ func (check *Checker) initConst(lhs *Const, x *operand) {
+-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+@@ -136,7 +136,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
+ // or Typ[Invalid] in case of an error.
+ // If the initialization check fails, x.mode is set to invalid.
+ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
+-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+@@ -201,7 +201,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ 		v.used = v_used // restore v.used
+ 	}
+ 
+-	if x.mode == invalid || x.typ == Typ[Invalid] {
++	if x.mode == invalid || !isValid(x.typ) {
+ 		return Typ[Invalid]
+ 	}
+ 
+@@ -233,7 +233,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ // If the assignment check fails and x != nil, x.mode is set to invalid.
+ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
+ 	T := check.lhsVar(lhs) // nil if lhs is _
+-	if T == Typ[Invalid] {
++	if !isValid(T) {
+ 		if x != nil {
+ 			x.mode = invalid
+ 		} else {
+@@ -281,7 +281,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		switch {
+ 		case t == nil:
+ 			fallthrough // should not happen but be cautious
+-		case t == Typ[Invalid]:
++		case !isValid(t):
+ 			s = "unknown type"
+ 		case isUntyped(t):
+ 			if isNumeric(t) {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 0f054e35ae..72b4c5370d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -205,7 +205,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		if mode == invalid {
+ 			// avoid error if underlying type is invalid
+-			if under(x.typ) != Typ[Invalid] {
++			if isValid(under(x.typ)) {
+ 				code := InvalidCap
+ 				if id == _Len {
+ 					code = InvalidLen
+@@ -489,7 +489,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// (no argument evaluated yet)
+ 		arg0 := argList[0]
+ 		T := check.varType(arg0)
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			return
+ 		}
+ 
+@@ -599,7 +599,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// new(T)
+ 		// (no argument evaluated yet)
+ 		T := check.varType(argList[0])
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			return
+ 		}
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 8a3cec7309..f581a8ad51 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -795,7 +795,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+-		if under(x.typ) == Typ[Invalid] {
++		if !isValid(under(x.typ)) {
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 6aaab064c5..c714754fef 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -172,7 +172,7 @@ func (check *Checker) validAlias(alias *TypeName, typ Type) {
+ 
+ // isBrokenAlias reports whether alias doesn't have a determined type yet.
+ func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+-	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
++	return !isValid(alias.typ) && check.brokenAliases[alias]
+ }
+ 
+ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+@@ -512,7 +512,7 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
+ 		assert(val != nil)
+ 		// We check allBasic(typ, IsConstType) here as constant expressions may be
+ 		// recorded as type parameters.
+-		assert(typ == Typ[Invalid] || allBasic(typ, IsConstType))
++		assert(!isValid(typ) || allBasic(typ, IsConstType))
+ 	}
+ 	if m := check.Types; m != nil {
+ 		m[x] = TypeAndValue{mode, typ, val}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 642d2604f9..d347ede219 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -456,7 +456,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool)
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+ 			// (go.dev/issue/22090)
+-			if under(t) != Typ[Invalid] {
++			if isValid(under(t)) {
+ 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
+ 			}
+ 			obj.typ = Typ[Invalid]
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index fd776c2350..2b020a570a 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -356,7 +356,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
+ // If x is a constant operand, the returned constant.Value will be the
+ // representation of x in this context.
+ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
+-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
++	if x.mode == invalid || isTyped(x.typ) || !isValid(target) {
+ 		return x.typ, nil, 0
+ 	}
+ 	// x is untyped
+@@ -452,7 +452,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
+ 	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
+-	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
++	if !isValid(x.typ) || !isValid(y.typ) {
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -810,7 +810,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 	if !Identical(x.typ, y.typ) {
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+-		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
++		if isValid(x.typ) && isValid(y.typ) {
+ 			var posn positioner = x
+ 			if e != nil {
+ 				posn = e
+@@ -1290,7 +1290,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 				check.use(e)
+ 			}
+ 			// if utyp is invalid, an error was reported before
+-			if utyp != Typ[Invalid] {
++			if isValid(utyp) {
+ 				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
+ 				goto Error
+ 			}
+@@ -1348,7 +1348,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 			goto Error
+ 		}
+ 		T := check.varType(e.Type)
+-		if T == Typ[Invalid] {
++		if !isValid(T) {
+ 			goto Error
+ 		}
+ 		check.typeAssertion(e, x, T, false)
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index c1c0f40e87..6f532a96c1 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -30,7 +30,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 		x.mode = invalid
+ 		// TODO(gri) here we re-evaluate e.X - try to avoid this
+ 		x.typ = check.varType(e.Orig)
+-		if x.typ != Typ[Invalid] {
++		if isValid(x.typ) {
+ 			x.mode = typexpr
+ 		}
+ 		return false
+@@ -421,7 +421,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
+ 		validIndex := false
+ 		eval := e
+ 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+-			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
++			if typ, i := check.index(kv.Key, length); isValid(typ) {
+ 				if i >= 0 {
+ 					index = i
+ 					validIndex = true
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 088b4338fc..34dfd85a26 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -194,10 +194,10 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+-	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
++	if !isValid(Vu) || !isValid(Tu) {
+ 		return true // avoid follow-on errors
+ 	}
+-	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
++	if p, _ := Vu.(*Pointer); p != nil && !isValid(under(p.base)) {
+ 		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
+ 	}
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 74562d8a89..ac909fa4d6 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -182,7 +182,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		typ := check.typ(f.Type)
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+-			if typ != Typ[Invalid] {
++			if isValid(typ) {
+ 				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
+ 			}
+ 			continue // ignore
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index d7719fdaaf..d5c16346bf 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -159,7 +159,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 
+ 	// <typ>
+ 	if hasType {
+-		if x.typ != Typ[Invalid] {
++		if isValid(x.typ) {
+ 			var intro string
+ 			if isGeneric(x.typ) {
+ 				intro = " of generic type "
+@@ -232,7 +232,7 @@ func (x *operand) isNil() bool { return x.mode == value && x.typ == Typ[UntypedN
+ // if assignableTo is invoked through an exported API call, i.e., when all
+ // methods have been type-checked.
+ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
+-	if x.mode == invalid || T == Typ[Invalid] {
++	if x.mode == invalid || !isValid(T) {
+ 		return true, 0 // avoid spurious errors
+ 	}
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index dcbf30a556..331a8f69aa 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -8,6 +8,9 @@
+ 
+ package types
+ 
++// isValid reports whether t is a valid type.
++func isValid(t Type) bool { return t != Typ[Invalid] }
++
+ // The isX predicates below report whether t is an X.
+ // If t is a type parameter the result is false; i.e.,
+ // these predicates don't look inside a type parameter.
+@@ -224,7 +227,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		return true
+ 	}
+ 
+-	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
++	if c.ignoreInvalids && (!isValid(x) || !isValid(y)) {
+ 		return true
+ 	}
+ 
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index a366b9dd0d..3c67fd9f15 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -211,7 +211,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		check.later(func() {
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 			rtyp, _ := deref(recv.typ)
+-			if rtyp == Typ[Invalid] {
++			if !isValid(rtyp) {
+ 				return // error was reported before
+ 			}
+ 			// spec: "The type denoted by T is called the receiver base type; it must not
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7869f37077..3e56d415b6 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -291,7 +291,7 @@ L:
+ 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+ 		} else {
+ 			T = check.varType(e)
+-			if T == Typ[Invalid] {
++			if !isValid(T) {
+ 				continue L
+ 			}
+ 		}
+@@ -332,7 +332,7 @@ L:
+ // 			hash = "<nil>" // avoid collision with a type named nil
+ // 		} else {
+ // 			T = check.varType(e)
+-// 			if T == Typ[Invalid] {
++// 			if !isValid(T) {
+ // 				continue L
+ // 			}
+ // 			hash = typeHash(T, nil)
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 7247a25719..935a549530 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -146,7 +146,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 				t, isPtr := deref(embeddedTyp)
+ 				switch u := under(t).(type) {
+ 				case *Basic:
+-					if t == Typ[Invalid] {
++					if !isValid(t) {
+ 						// error was reported before
+ 						return
+ 					}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 787926a367..b23601dc3f 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -110,7 +110,7 @@ func (t *TypeParam) iface() *Interface {
+ 	var ityp *Interface
+ 	switch u := under(bound).(type) {
+ 	case *Basic:
+-		if u == Typ[Invalid] {
++		if !isValid(u) {
+ 			// error is reported elsewhere
+ 			return &emptyInterface
+ 		}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 206aa3da08..8d8c490c6a 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -288,7 +288,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			assert(len(tset.methods) == 0)
+ 			terms = tset.terms
+ 		default:
+-			if u == Typ[Invalid] {
++			if !isValid(u) {
+ 				continue
+ 			}
+ 			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
+@@ -387,7 +387,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos tok
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+ 			terms = computeInterfaceTypeSet(check, pos, ui).terms
+-		} else if u == Typ[Invalid] {
++		} else if !isValid(u) {
+ 			continue
+ 		} else {
+ 			if t.tilde && !Identical(t.typ, u) {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index d92ac9cabd..4c7c8a5ab5 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -79,7 +79,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 
+ 	case *Const:
+ 		check.addDeclDep(obj)
+-		if typ == Typ[Invalid] {
++		if !isValid(typ) {
+ 			return
+ 		}
+ 		if obj == universeIota {
+@@ -109,7 +109,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 			obj.used = true
+ 		}
+ 		check.addDeclDep(obj)
+-		if typ == Typ[Invalid] {
++		if !isValid(typ) {
+ 			return
+ 		}
+ 		x.mode = variable
+@@ -193,7 +193,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+ func (check *Checker) genericType(e ast.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+-	if typ != Typ[Invalid] && !isGeneric(typ) {
++	if isValid(typ) && !isGeneric(typ) {
+ 		if cause != nil {
+ 			*cause = check.sprintf("%s is not a generic type", typ)
+ 		}
+@@ -407,7 +407,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	if cause != "" {
+ 		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
+ 	}
+-	if gtyp == Typ[Invalid] {
++	if !isValid(gtyp) {
+ 		return gtyp // error already reported
+ 	}
+ 
+@@ -511,7 +511,7 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
+ 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+ 	for i, x := range list {
+ 		t := check.varType(x)
+-		if t == Typ[Invalid] {
++		if !isValid(t) {
+ 			res = nil
+ 		}
+ 		if res != nil {
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 085f507ad3..f2cfd6a737 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -67,7 +67,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 			return term.typ // typ already recorded through check.typ in parseTilde
+ 		}
+ 		if len(terms) >= maxTermCount {
+-			if u != Typ[Invalid] {
++			if isValid(u) {
+ 				check.errorf(x, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+ 				u = Typ[Invalid]
+ 			}
+@@ -81,7 +81,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 		}
+ 	}
+ 
+-	if u == Typ[Invalid] {
++	if !isValid(u) {
+ 		return u
+ 	}
+ 
+@@ -90,7 +90,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+ 		for i, t := range terms {
+-			if t.typ == Typ[Invalid] {
++			if !isValid(t.typ) {
+ 				continue
+ 			}
+ 
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index d915fef825..0c0562b287 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -70,7 +70,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
+ 		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		// Note: ensure that t.orig is fully resolved by calling Underlying().
+-		if t.Underlying() == Typ[Invalid] {
++		if !isValid(t.Underlying()) {
+ 			return false
+ 		}
+ 

@@ -9,7 +9,7 @@ Date:   Thu Feb 21 09:06:09 2019 -0500
     Change-Id: I84bc705591bdb3da0106404b24353251939355b8
     Reviewed-on: https://go-review.googlesource.com/c/163209
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/errors/errors_test.go                        | 2 +-
  misc/cgo/errors/ptr_test.go                           | 9 +++++++--
  misc/cgo/errors/{src => testdata}/err1.go             | 0
@@ -36,3 +36,136 @@ Date:   Thu Feb 21 09:06:09 2019 -0500
  misc/cgo/errors/{src => testdata}/long_double_size.go | 0
  misc/cgo/errors/{src => testdata}/malloc.go           | 0
  25 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index 59054f4703..f727158c48 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ func path(file string) string {
+-	return filepath.Join("src", file)
++	return filepath.Join("testdata", file)
+ }
+ 
+ func check(t *testing.T, file string) {
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index 254671f179..629f4c9226 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -444,8 +444,8 @@ func testOne(t *testing.T, pt ptrTest) {
+ 	}
+ 	defer os.RemoveAll(gopath)
+ 
+-	src := filepath.Join(gopath, "src")
+-	if err := os.Mkdir(src, 0777); err != nil {
++	src := filepath.Join(gopath, "src", "ptrtest")
++	if err := os.MkdirAll(src, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -490,6 +490,11 @@ func testOne(t *testing.T, pt ptrTest) {
+ 		}
+ 	}
+ 
++	gomod := fmt.Sprintf("module %s\n", filepath.Base(src))
++	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte(gomod), 0666); err != nil {
++		t.Fatalf("writing go.mod: %v", err)
++	}
++
+ 	args := func(cmd *exec.Cmd) string {
+ 		return strings.Join(cmd.Args, " ")
+ 	}
+diff --git a/misc/cgo/errors/src/err1.go b/misc/cgo/errors/testdata/err1.go
+similarity index 100%
+rename from misc/cgo/errors/src/err1.go
+rename to misc/cgo/errors/testdata/err1.go
+diff --git a/misc/cgo/errors/src/err2.go b/misc/cgo/errors/testdata/err2.go
+similarity index 100%
+rename from misc/cgo/errors/src/err2.go
+rename to misc/cgo/errors/testdata/err2.go
+diff --git a/misc/cgo/errors/src/err3.go b/misc/cgo/errors/testdata/err3.go
+similarity index 100%
+rename from misc/cgo/errors/src/err3.go
+rename to misc/cgo/errors/testdata/err3.go
+diff --git a/misc/cgo/errors/src/err4.go b/misc/cgo/errors/testdata/err4.go
+similarity index 100%
+rename from misc/cgo/errors/src/err4.go
+rename to misc/cgo/errors/testdata/err4.go
+diff --git a/misc/cgo/errors/src/issue11097a.go b/misc/cgo/errors/testdata/issue11097a.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue11097a.go
+rename to misc/cgo/errors/testdata/issue11097a.go
+diff --git a/misc/cgo/errors/src/issue11097b.go b/misc/cgo/errors/testdata/issue11097b.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue11097b.go
+rename to misc/cgo/errors/testdata/issue11097b.go
+diff --git a/misc/cgo/errors/src/issue13129.go b/misc/cgo/errors/testdata/issue13129.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue13129.go
+rename to misc/cgo/errors/testdata/issue13129.go
+diff --git a/misc/cgo/errors/src/issue13423.go b/misc/cgo/errors/testdata/issue13423.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue13423.go
+rename to misc/cgo/errors/testdata/issue13423.go
+diff --git a/misc/cgo/errors/src/issue13467.go b/misc/cgo/errors/testdata/issue13467.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue13467.go
+rename to misc/cgo/errors/testdata/issue13467.go
+diff --git a/misc/cgo/errors/src/issue13635.go b/misc/cgo/errors/testdata/issue13635.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue13635.go
+rename to misc/cgo/errors/testdata/issue13635.go
+diff --git a/misc/cgo/errors/src/issue13830.go b/misc/cgo/errors/testdata/issue13830.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue13830.go
+rename to misc/cgo/errors/testdata/issue13830.go
+diff --git a/misc/cgo/errors/src/issue14669.go b/misc/cgo/errors/testdata/issue14669.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue14669.go
+rename to misc/cgo/errors/testdata/issue14669.go
+diff --git a/misc/cgo/errors/src/issue16116.go b/misc/cgo/errors/testdata/issue16116.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue16116.go
+rename to misc/cgo/errors/testdata/issue16116.go
+diff --git a/misc/cgo/errors/src/issue16591.go b/misc/cgo/errors/testdata/issue16591.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue16591.go
+rename to misc/cgo/errors/testdata/issue16591.go
+diff --git a/misc/cgo/errors/src/issue18452.go b/misc/cgo/errors/testdata/issue18452.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue18452.go
+rename to misc/cgo/errors/testdata/issue18452.go
+diff --git a/misc/cgo/errors/src/issue18889.go b/misc/cgo/errors/testdata/issue18889.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue18889.go
+rename to misc/cgo/errors/testdata/issue18889.go
+diff --git a/misc/cgo/errors/src/issue26745.go b/misc/cgo/errors/testdata/issue26745.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue26745.go
+rename to misc/cgo/errors/testdata/issue26745.go
+diff --git a/misc/cgo/errors/src/issue28069.go b/misc/cgo/errors/testdata/issue28069.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue28069.go
+rename to misc/cgo/errors/testdata/issue28069.go
+diff --git a/misc/cgo/errors/src/issue28721.go b/misc/cgo/errors/testdata/issue28721.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue28721.go
+rename to misc/cgo/errors/testdata/issue28721.go
+diff --git a/misc/cgo/errors/src/issue7757.go b/misc/cgo/errors/testdata/issue7757.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue7757.go
+rename to misc/cgo/errors/testdata/issue7757.go
+diff --git a/misc/cgo/errors/src/issue8442.go b/misc/cgo/errors/testdata/issue8442.go
+similarity index 100%
+rename from misc/cgo/errors/src/issue8442.go
+rename to misc/cgo/errors/testdata/issue8442.go
+diff --git a/misc/cgo/errors/src/long_double_size.go b/misc/cgo/errors/testdata/long_double_size.go
+similarity index 100%
+rename from misc/cgo/errors/src/long_double_size.go
+rename to misc/cgo/errors/testdata/long_double_size.go
+diff --git a/misc/cgo/errors/src/malloc.go b/misc/cgo/errors/testdata/malloc.go
+similarity index 100%
+rename from misc/cgo/errors/src/malloc.go
+rename to misc/cgo/errors/testdata/malloc.go

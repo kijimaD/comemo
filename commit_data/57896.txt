@@ -16,7 +16,7 @@ Date:   Tue Jul 18 11:45:42 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511565
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |   2 +-
  .../inline/inlheur/analyze_func_callsites.go       | 137 ++++++++++++++++++--
  .../internal/inline/inlheur/analyze_func_flags.go  |  16 ++-
@@ -25,3 +25,539 @@ Date:   Tue Jul 18 11:45:42 2023 -0400
  .../inline/inlheur/testdata/props/calls.go         | 142 +++++++++++++++++++++
  .../inline/inlheur/testdata/props/funcflags.go     |  27 ++--
  7 files changed, 305 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 81aa7af41d..319de37a56 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -98,7 +98,7 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) (*FuncProps, CallSi
+ 		a.setResults(fp)
+ 	}
+ 	// Now build up a partial table of callsites for this func.
+-	cstab := computeCallSiteTable(fn)
++	cstab := computeCallSiteTable(fn, ffa.panicPathTable())
+ 	disableDebugTrace()
+ 	return fp, cstab
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index e494d03e0a..d281430693 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -9,25 +9,34 @@ import (
+ 	"cmd/compile/internal/pgo"
+ 	"fmt"
+ 	"os"
++	"strings"
+ )
+ 
+ type callSiteAnalyzer struct {
+-	cstab  CallSiteTab
+-	nstack []ir.Node
++	cstab    CallSiteTab
++	fn       *ir.Func
++	ptab     map[ir.Node]pstate
++	nstack   []ir.Node
++	loopNest int
++	isInit   bool
+ }
+ 
+-func makeCallSiteAnalyzer(fn *ir.Func) *callSiteAnalyzer {
++func makeCallSiteAnalyzer(fn *ir.Func, ptab map[ir.Node]pstate) *callSiteAnalyzer {
++	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
+ 	return &callSiteAnalyzer{
+-		cstab: make(CallSiteTab),
++		fn:     fn,
++		cstab:  make(CallSiteTab),
++		ptab:   ptab,
++		isInit: isInit,
+ 	}
+ }
+ 
+-func computeCallSiteTable(fn *ir.Func) CallSiteTab {
+-	if debugTrace&debugTraceCalls != 0 {
++func computeCallSiteTable(fn *ir.Func, ptab map[ir.Node]pstate) CallSiteTab {
++	if debugTrace != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n",
+ 			fn.Sym().Name)
+ 	}
+-	csa := makeCallSiteAnalyzer(fn)
++	csa := makeCallSiteAnalyzer(fn, ptab)
+ 	var doNode func(ir.Node) bool
+ 	doNode = func(n ir.Node) bool {
+ 		csa.nodeVisitPre(n)
+@@ -40,7 +49,74 @@ func computeCallSiteTable(fn *ir.Func) CallSiteTab {
+ }
+ 
+ func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
+-	return 0
++	var r CSPropBits
++
++	if debugTrace&debugTraceCalls != 0 {
++		fmt.Fprintf(os.Stderr, "=-= analyzing call at %s\n",
++			fmtFullPos(call.Pos()))
++	}
++
++	// Set a bit if this call is within a loop.
++	if csa.loopNest > 0 {
++		r |= CallSiteInLoop
++	}
++
++	// Set a bit if the call is within an init function (either
++	// compiler-generated or user-written).
++	if csa.isInit {
++		r |= CallSiteInInitFunc
++	}
++
++	// Decide whether to apply the panic path heuristic. Hack: don't
++	// apply this heuristic in the function "main.main" (mostly just
++	// to avoid annoying users).
++	if !isMainMain(csa.fn) {
++		r = csa.determinePanicPathBits(call, r)
++	}
++
++	return r
++}
++
++// determinePanicPathBits updates the CallSiteOnPanicPath bit within
++// "r" if we think this call is on an unconditional path to
++// panic/exit. Do this by walking back up the node stack to see if we
++// can find either A) an enclosing panic, or B) a statement node that
++// we've determined leads to a panic/exit.
++func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
++	csa.nstack = append(csa.nstack, call)
++	defer func() {
++		csa.nstack = csa.nstack[:len(csa.nstack)-1]
++	}()
++
++	for ri := range csa.nstack[:len(csa.nstack)-1] {
++		i := len(csa.nstack) - ri - 1
++		n := csa.nstack[i]
++		_, isCallExpr := n.(*ir.CallExpr)
++		_, isStmt := n.(ir.Stmt)
++		if isCallExpr {
++			isStmt = false
++		}
++
++		if debugTrace&debugTraceCalls != 0 {
++			ps, inps := csa.ptab[n]
++			fmt.Fprintf(os.Stderr, "=-= callpar %d op=%s ps=%s inptab=%v stmt=%v\n", i, n.Op().String(), ps.String(), inps, isStmt)
++		}
++
++		if n.Op() == ir.OPANIC {
++			r |= CallSiteOnPanicPath
++			break
++		}
++		if v, ok := csa.ptab[n]; ok {
++			if v == psCallsPanic {
++				r |= CallSiteOnPanicPath
++				break
++			}
++			if isStmt {
++				break
++			}
++		}
++	}
++	return r
+ }
+ 
+ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+@@ -68,6 +144,10 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+ 
+ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+ 	switch n.Op() {
++	case ir.ORANGE, ir.OFOR:
++		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
++			csa.loopNest++
++		}
+ 	case ir.OCALLFUNC:
+ 		ce := n.(*ir.CallExpr)
+ 		callee := pgo.DirectCallee(ce.X)
+@@ -80,6 +160,47 @@ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+ 
+ func (csa *callSiteAnalyzer) nodeVisitPost(n ir.Node) {
+ 	csa.nstack = csa.nstack[:len(csa.nstack)-1]
++	switch n.Op() {
++	case ir.ORANGE, ir.OFOR:
++		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
++			csa.loopNest--
++		}
++	}
++}
++
++func loopBody(n ir.Node) ir.Nodes {
++	if forst, ok := n.(*ir.ForStmt); ok {
++		return forst.Body
++	}
++	if rst, ok := n.(*ir.RangeStmt); ok {
++		return rst.Body
++	}
++	return nil
++}
++
++// hasTopLevelLoopBodyReturnOrBreak examines the body of a "for" or
++// "range" loop to try to verify that it is a real loop, as opposed to
++// a construct that is syntactically loopy but doesn't actually iterate
++// multiple times, like:
++//
++//	for {
++//	  blah()
++//	  return 1
++//	}
++//
++// [Remark: the pattern above crops up quite a bit in the source code
++// for the compiler itself, e.g. the auto-generated rewrite code]
++//
++// Note that we don't look for GOTO statements here, so it's possible
++// we'll get the wrong result for a loop with complicated control
++// jumps via gotos.
++func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
++	for _, n := range loopBody {
++		if n.Op() == ir.ORETURN || n.Op() == ir.OBREAK {
++			return true
++		}
++	}
++	return false
+ }
+ 
+ // containingAssignment returns the top-level assignment statement
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 4427653693..463fa36a69 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -82,10 +82,22 @@ func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
+ 	}
+ }
+ 
++func (ffa *funcFlagsAnalyzer) updatestate(n ir.Node, st pstate) {
++	if _, ok := ffa.nstate[n]; !ok {
++		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, expected existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
++	} else {
++		ffa.nstate[n] = st
++	}
++}
++
+ func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
+ 	ffa.nstate[n] = st
+ }
+ 
++func (ffa *funcFlagsAnalyzer) panicPathTable() map[ir.Node]pstate {
++	return ffa.nstate
++}
++
+ // blockCombine merges together states as part of a linear sequence of
+ // statements, where 'pred' and 'succ' are analysis results for a pair
+ // of consecutive statements. Examples:
+@@ -132,7 +144,8 @@ func branchCombine(p1, p2 pstate) pstate {
+ }
+ 
+ // stateForList walks through a list of statements and computes the
+-// state/diposition for the entire list as a whole.
++// state/diposition for the entire list as a whole, as well
++// as updating disposition of intermediate nodes.
+ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
+ 	st := psTop
+ 	for i := range list {
+@@ -143,6 +156,7 @@ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
+ 				ir.Line(n), n.Op().String(), psi.String())
+ 		}
+ 		st = blockCombine(st, psi)
++		ffa.updatestate(n, st)
+ 	}
+ 	if st == psTop {
+ 		st = psNoInfo
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 52cc28e2fd..1242733ce9 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -36,8 +36,8 @@ func TestFuncProperties(t *testing.T) {
+ 	// to building a fresh compiler on the fly, or using some other
+ 	// scheme.
+ 
+-	testcases := []string{"funcflags", "returns", "params", "acrosscall"}
+-
++	testcases := []string{"funcflags", "returns", "params",
++		"acrosscall", "calls"}
+ 	for _, tc := range testcases {
+ 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
+ 		if err != nil {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt b/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt
+index 815c892460..af5ebec850 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt
+@@ -27,18 +27,20 @@ cmd/compile/internal/inline/inlheur/testdata/props:
+   properties, as well as the JSON for the properties object, each
+   section separated by a "<>" delimiter.
+ 
+-	  // funcflags.go T_feeds_if_simple 35 0 1
++	  // params.go T_feeds_if_simple 35 0 1
+ 	  // RecvrParamFlags:
+ 	  //   0: ParamFeedsIfOrSwitch
+ 	  // <endpropsdump>
+ 	  // {"Flags":0,"RecvrParamFlags":[8],"ReturnFlags":[]}
++	  // callsite: params.go:34:10|0 "CallSiteOnPanicPath" 2
++	  // <endcallsites>
+ 	  // <endfuncpreamble>
+ 	  func T_feeds_if_simple(x int) {
+ 		if x < 100 {
+ 			os.Exit(1)
+ 		}
+ 		println(x)
+-	  }
++	}
+ 
+ - when the test runs, it will compile the Go source file with an
+   option to dump out function properties, then compare the new dump
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+new file mode 100644
+index 0000000000..3e1a91dc26
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -0,0 +1,142 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++package calls
++
++import "os"
++
++// calls.go T_call_in_panic_arg 19 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: calls.go:21:15|0 flagstr "CallSiteOnPanicPath" flagval 2
++// <endcallsites>
++// <endfuncpreamble>
++func T_call_in_panic_arg(x int) {
++	if x < G {
++		panic(callee(x))
++	}
++}
++
++// calls.go T_calls_in_loops 32 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// callsite: calls.go:34:9|0 flagstr "CallSiteInLoop" flagval 1
++// callsite: calls.go:37:9|1 flagstr "CallSiteInLoop" flagval 1
++// <endcallsites>
++// <endfuncpreamble>
++func T_calls_in_loops(x int, q []string) {
++	for i := 0; i < x; i++ {
++		callee(i)
++	}
++	for _, s := range q {
++		callee(len(s))
++	}
++}
++
++// calls.go T_calls_in_pseudo_loop 48 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// callsite: calls.go:50:9|0 flagstr "" flagval 0
++// callsite: calls.go:54:9|1 flagstr "" flagval 0
++// <endcallsites>
++// <endfuncpreamble>
++func T_calls_in_pseudo_loop(x int, q []string) {
++	for i := 0; i < x; i++ {
++		callee(i)
++		return
++	}
++	for _, s := range q {
++		callee(len(s))
++		break
++	}
++}
++
++// calls.go T_calls_on_panic_paths 67 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// callsite: calls.go:69:9|0 flagstr "" flagval 0
++// callsite: calls.go:73:9|1 flagstr "" flagval 0
++// callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2
++// <endcallsites>
++// <endfuncpreamble>
++func T_calls_on_panic_paths(x int, q []string) {
++	if x+G == 101 {
++		callee(x)
++		panic("ouch")
++	}
++	if x < G-101 {
++		callee(x)
++		if len(q) == 0 {
++			G++
++		}
++		callsexit(x)
++	}
++}
++
++// calls.go T_calls_not_on_panic_paths 93 0 1
++// ParamFlags
++//   0 ParamFeedsIfOrSwitch|ParamMayFeedIfOrSwitch
++//   1 ParamNoInfo
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[96,0],"ResultFlags":[]}
++// callsite: calls.go:103:9|0 flagstr "" flagval 0
++// callsite: calls.go:112:9|1 flagstr "" flagval 0
++// callsite: calls.go:115:9|2 flagstr "" flagval 0
++// callsite: calls.go:119:12|3 flagstr "" flagval 0
++// <endcallsites>
++// <endfuncpreamble>
++func T_calls_not_on_panic_paths(x int, q []string) {
++	if x != G {
++		panic("ouch")
++		/* Notes: */
++		/* - we only look for post-dominating panic/exit, so */
++		/*   this site will on fact not have a panicpath flag */
++		/* - vet will complain about this site as unreachable */
++		callee(x)
++	}
++	if x != G {
++		callee(x)
++		if x < 100 {
++			panic("ouch")
++		}
++	}
++	if x+G == 101 {
++		if x < 100 {
++			panic("ouch")
++		}
++		callee(x)
++	}
++	if x < -101 {
++		callee(x)
++		if len(q) == 0 {
++			return
++		}
++		callsexit(x)
++	}
++}
++
++// calls.go init.0 129 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
++// callsite: calls.go:130:16|0 flagstr "CallSiteInInitFunc" flagval 4
++// <endcallsites>
++// <endfuncpreamble>
++func init() {
++	println(callee(5))
++}
++
++var G int
++
++func callee(x int) int {
++	return x
++}
++
++func callsexit(x int) {
++	println(x)
++	os.Exit(x)
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+index 8366a499ed..4f23139286 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -160,8 +160,7 @@ func T_recov(x int) {
+ 	}
+ }
+ 
+-
+-// funcflags.go T_forloops1 170 0 1
++// funcflags.go T_forloops1 169 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
+@@ -173,7 +172,7 @@ func T_forloops1(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_forloops2 181 0 1
++// funcflags.go T_forloops2 180 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+ // <endcallsites>
+@@ -188,8 +187,7 @@ func T_forloops2(x int) {
+ 	}
+ }
+ 
+-
+-// funcflags.go T_forloops3 197 0 1
++// funcflags.go T_forloops3 195 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+ // <endcallsites>
+@@ -209,8 +207,7 @@ func T_forloops3(x int) {
+ 	panic("whatev")
+ }
+ 
+-
+-// funcflags.go T_hasgotos 218 0 1
++// funcflags.go T_hasgotos 215 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+ // <endcallsites>
+@@ -238,7 +235,7 @@ func T_hasgotos(x int, y int) {
+ 	}
+ }
+ 
+-// funcflags.go T_break_with_label 248 0 1
++// funcflags.go T_break_with_label 246 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIfOrSwitch
+ //   1 ParamNoInfo
+@@ -260,7 +257,7 @@ lab1:
+ 	}
+ }
+ 
+-// funcflags.go T_callsexit 271 0 1
++// funcflags.go T_callsexit 268 0 1
+ // Flags FuncPropNeverReturns
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+@@ -275,10 +272,10 @@ func T_callsexit(x int) {
+ 	os.Exit(2)
+ }
+ 
+-// funcflags.go T_exitinexpr 284 0 1
++// funcflags.go T_exitinexpr 281 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+-// callsite: funcflags.go:289:18|0 flagstr "" flagval 0
++// callsite: funcflags.go:286:18|0 flagstr "CallSiteOnPanicPath" flagval 2
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_exitinexpr(x int) {
+@@ -291,7 +288,7 @@ func T_exitinexpr(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_select_noreturn 300 0 1
++// funcflags.go T_select_noreturn 297 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0,0,0],"ResultFlags":[]}
+@@ -309,7 +306,7 @@ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_select_mayreturn 317 0 1
++// funcflags.go T_select_mayreturn 314 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0,0],"ResultFlags":[0]}
+ // <endcallsites>
+@@ -327,11 +324,11 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_calls_callsexit 337 0 1
++// funcflags.go T_calls_callsexit 334 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
+-// callsite: funcflags.go:338:15|0 flagstr "" flagval 0
++// callsite: funcflags.go:335:15|0 flagstr "CallSiteOnPanicPath" flagval 2
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_callsexit(x int) {

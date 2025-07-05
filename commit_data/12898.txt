@@ -7,6 +7,21 @@ Date:   Tue Apr 17 02:41:27 2012 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5989045
-
+---
  doc/code.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index f2dfeebd48..efbe7eed02 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -300,7 +300,8 @@ func main() {
+ 
+ <p>
+ Next, run <code>go install</code>, which builds and installs the binary to
+-<code>$GOPATH/bin</code>:
++<code>$GOPATH/bin</code> (or <code>$GOBIN</code>, if set; to simplify
++presentation, this document assumes <code>GOBIN</code> is unset):
+ </p>
+ 
+ <pre>

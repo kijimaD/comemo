@@ -16,7 +16,72 @@ Date:   Wed Sep 8 14:06:52 2021 -0400
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 23 +++++++++++++++++++++++
  src/internal/fuzz/fuzz.go                |  4 ++--
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index d3c7b4d55f..a25f0fba3f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -160,6 +160,21 @@ stdout ok
+ ! stdout FAIL
+ ! stdout 'fatal here'
+ 
++# Test pass with testdata and f.Add seed corpus
++go test -run FuzzPassString corpustesting/fuzz_testdata_corpus_test.go
++stdout ok
++! stdout FAIL
++
++# Fuzzing pass with testdata and f.Add seed corpus (skip running tests first)
++go test -run=None -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
++stdout ok
++! stdout FAIL
++
++# Fuzzing pass with testdata and f.Add seed corpus
++go test -run=FuzzPassString -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
++stdout ok
++! stdout FAIL
++
+ # Test panic with malformed seed corpus
+ ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+@@ -413,6 +428,11 @@ func FuzzPass(f *testing.F) {
+     fuzzFn(f)
+ }
+ 
++func FuzzPassString(f *testing.F) {
++    f.Add("some seed corpus")
++    f.Fuzz(func(*testing.T, string) {})
++}
++
+ func FuzzPanic(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+@@ -431,6 +451,9 @@ go test fuzz v1
+ -- corpustesting/testdata/corpus/FuzzPass/1 --
+ go test fuzz v1
+ []byte("00000")
++-- corpustesting/testdata/corpus/FuzzPassString/1 --
++go test fuzz v1
++string("hello")
+ -- corpustesting/testdata/corpus/FuzzPanic/1 --
+ malformed
+ -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 5b940e4929..f36569b4cc 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -576,9 +576,9 @@ type coordinator struct {
+ }
+ 
+ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+-	// Make sure all of the seed corpus has marshalled data.
++	// Make sure all of the seed corpus given by f.Add has marshalled data.
+ 	for i := range opts.Seed {
+-		if opts.Seed[i].Data == nil {
++		if opts.Seed[i].Data == nil && opts.Seed[i].Values != nil {
+ 			opts.Seed[i].Data = marshalCorpusFile(opts.Seed[i].Values...)
+ 		}
+ 	}

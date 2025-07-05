@@ -21,6 +21,24 @@ Date:   Tue Jul 14 01:22:53 2015 -0400
     Change-Id: I576579b106764029853e0f74d411e19108deecf5
     Reviewed-on: https://go-review.googlesource.com/12175
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/get.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 12fe77a382..0e81d7c1c3 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -77,6 +77,12 @@ func runGet(cmd *Command, args []string) {
+ 		fatalf("go get: cannot use -f flag without -u")
+ 	}
+ 
++	// Disable any prompting for passwords by Git.
++	// Only has an effect for 2.3.0 or later, but avoiding
++	// the prompt in earlier versions is just too hard.
++	// See golang.org/issue/9341.
++	os.Setenv("GIT_TERMINAL_PROMPT", "0")
++
+ 	// Phase 1.  Download/update.
+ 	var stk importStack
+ 	for _, arg := range downloadPaths(args) {

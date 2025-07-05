@@ -16,7 +16,7 @@ Date:   Tue Aug 30 22:02:02 2011 +1000
     R=golang-dev, alex.brainman, vcc.163
     CC=golang-dev, hectorchu
     https://golang.org/cl/4958042
-
+---
  src/pkg/runtime/Makefile                 |   1 +
  src/pkg/runtime/syscall_windows_test.go  |  38 +++++++++++
  src/pkg/runtime/windows/386/callback.c   | 107 +++++++++++++++++++++++++++++++
@@ -24,3 +24,482 @@ Date:   Tue Aug 30 22:02:02 2011 +1000
  src/pkg/runtime/windows/amd64/sys.s      |  75 +++++++++++++++++++++-
  src/pkg/runtime/windows/thread.c         |  99 ----------------------------
  6 files changed, 323 insertions(+), 101 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index df46d0391c..725c2b07e2 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -31,6 +31,7 @@ GOFILES=\
+ CLEANFILES+=version.go version_*.go
+ 
+ OFILES_windows=\
++	callback.$O\
+ 	syscall.$O\
+ 
+ # 386-specific object files
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index aec85ec167..c270607015 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -59,3 +59,41 @@ func TestCDecl(t *testing.T) {
+ 		t.Error("cdecl USER32.wsprintfA returns", a, "buf=", buf[:a])
+ 	}
+ }
++
++func TestCallback(t *testing.T) {
++	h, e := syscall.LoadLibrary("user32.dll")
++	if e != 0 {
++		t.Fatal("LoadLibrary(USER32)")
++	}
++	pEnumWindows, e := syscall.GetProcAddress(h, "EnumWindows")
++	if e != 0 {
++		t.Fatal("GetProcAddress(USER32.EnumWindows)")
++	}
++	pIsWindow, e := syscall.GetProcAddress(h, "IsWindow")
++	if e != 0 {
++		t.Fatal("GetProcAddress(USER32.IsWindow)")
++	}
++	counter := 0
++	cb := syscall.NewCallback(func(hwnd syscall.Handle, lparam uintptr) uintptr {
++		if lparam != 888 {
++			t.Error("lparam was not passed to callback")
++		}
++		b, _, _ := syscall.Syscall(uintptr(pIsWindow), 1, uintptr(hwnd), 0, 0)
++		if b == 0 {
++			t.Error("USER32.IsWindow returns FALSE")
++		}
++		counter++
++		return 1 // continue enumeration
++	})
++	a, _, _ := syscall.Syscall(uintptr(pEnumWindows), 2, cb, 888, 0)
++	if a == 0 {
++		t.Error("USER32.EnumWindows returns FALSE")
++	}
++	if counter == 0 {
++		t.Error("Callback has been never called or your have no windows")
++	}
++}
++
++func TestCallbackInAnotherThread(t *testing.T) {
++	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
++}
+diff --git a/src/pkg/runtime/windows/386/callback.c b/src/pkg/runtime/windows/386/callback.c
+new file mode 100644
+index 0000000000..11b3d294d9
+--- /dev/null
++++ b/src/pkg/runtime/windows/386/callback.c
+@@ -0,0 +1,107 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "type.h"
++#include "defs.h"
++#include "os.h"
++
++// Will keep all callbacks in a linked list, so they don't get garbage collected.
++typedef	struct	Callback	Callback;
++struct	Callback {
++	Callback*	link;
++	void*		gobody;
++	byte		asmbody;
++};
++
++typedef	struct	Callbacks	Callbacks;
++struct	Callbacks {
++	Lock;
++	Callback*	link;
++	int32		n;
++};
++
++static	Callbacks	cbs;
++
++// Call back from windows dll into go.
++byte *
++runtime·compilecallback(Eface fn, bool cleanstack)
++{
++	FuncType *ft;
++	Type *t;
++	int32 argsize, i, n;
++	byte *p;
++	Callback *c;
++
++	if(fn.type == nil || fn.type->kind != KindFunc)
++		runtime·panicstring("compilecallback: not a function");
++	ft = (FuncType*)fn.type;
++	if(ft->out.len != 1)
++		runtime·panicstring("compilecallback: function must have one output parameter");
++	if(((Type**)ft->out.array)[0]->size != sizeof(uintptr))
++		runtime·panicstring("compilecallback: output parameter size is wrong");
++	argsize = 0;
++	for(i=0; i<ft->in.len; i++) {
++		t = ((Type**)ft->in.array)[i];
++		if(t->size > sizeof(uintptr))
++			runtime·panicstring("compilecallback: input parameter size is wrong");
++		argsize += sizeof(uintptr);
++	}
++
++	// compute size of new fn.
++	// must match code laid out below.
++	n = 1+4;		// MOVL fn, AX
++	n += 1+4;		// MOVL argsize, DX
++	n += 1+4;		// MOVL callbackasm, CX
++	n += 2;			// CALL CX
++	n += 1;			// RET
++	if(cleanstack && argsize!=0)
++		n += 2;		// ... argsize
++
++	runtime·lock(&cbs);
++	for(c = cbs.link; c != nil; c = c->link) {
++		if(c->gobody == fn.data) {
++			runtime·unlock(&cbs);
++			return &c->asmbody;
++		}
++	}
++	if(cbs.n >= 2000)
++		runtime·throw("too many callback functions");
++	c = runtime·mal(sizeof *c + n);
++	c->gobody = fn.data;
++	c->link = cbs.link;
++	cbs.link = c;
++	cbs.n++;
++	runtime·unlock(&cbs);
++
++	p = &c->asmbody;
++
++	// MOVL fn, AX
++	*p++ = 0xb8;
++	*(uint32*)p = (uint32)fn.data;
++	p += 4;
++
++	// MOVL argsize, DX
++	*p++ = 0xba;
++	*(uint32*)p = argsize;
++	p += 4;
++
++	// MOVL callbackasm, CX
++	*p++ = 0xb9;
++	*(uint32*)p = (uint32)runtime·callbackasm;
++	p += 4;
++
++	// CALL CX
++	*p++ = 0xff;
++	*p++ = 0xd1;
++
++	// RET argsize?
++	if(cleanstack && argsize!=0) {
++		*p++ = 0xc2;
++		*(uint16*)p = argsize;
++	} else
++		*p = 0xc3;
++
++	return &c->asmbody;
++}
+diff --git a/src/pkg/runtime/windows/amd64/callback.c b/src/pkg/runtime/windows/amd64/callback.c
+new file mode 100644
+index 0000000000..d53822e2be
+--- /dev/null
++++ b/src/pkg/runtime/windows/amd64/callback.c
+@@ -0,0 +1,104 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "type.h"
++#include "defs.h"
++#include "os.h"
++
++// Will keep all callbacks in a linked list, so they don't get garbage collected.
++typedef	struct	Callback	Callback;
++struct	Callback {
++	Callback*	link;
++	void*		gobody;
++	byte		asmbody;
++};
++
++typedef	struct	Callbacks	Callbacks;
++struct	Callbacks {
++	Lock;
++	Callback*	link;
++	int32		n;
++};
++
++static	Callbacks	cbs;
++
++// Call back from windows dll into go.
++byte *
++runtime·compilecallback(Eface fn, bool /*cleanstack*/)
++{
++	FuncType *ft;
++	Type *t;
++	int32 argsize, i, n;
++	byte *p;
++	Callback *c;
++
++	if(fn.type == nil || fn.type->kind != KindFunc)
++		runtime·panicstring("compilecallback: not a function");
++	ft = (FuncType*)fn.type;
++	if(ft->out.len != 1)
++		runtime·panicstring("compilecallback: function must have one output parameter");
++	if(((Type**)ft->out.array)[0]->size != sizeof(uintptr))
++		runtime·panicstring("compilecallback: output parameter size is wrong");
++	argsize = 0;
++	for(i=0; i<ft->in.len; i++) {
++		t = ((Type**)ft->in.array)[i];
++		if(t->size > sizeof(uintptr))
++			runtime·panicstring("compilecallback: input parameter size is wrong");
++		argsize += sizeof(uintptr);
++	}
++
++	// compute size of new fn.
++	// must match code laid out below.
++	n  = 2+8+1; // MOVQ fn, AX           / PUSHQ AX
++	n += 2+8+1; // MOVQ argsize, AX      / PUSHQ AX
++	n += 2+8;   // MOVQ callbackasm, AX
++	n += 2;     // JMP  AX
++
++	runtime·lock(&cbs);
++	for(c = cbs.link; c != nil; c = c->link) {
++		if(c->gobody == fn.data) {
++			runtime·unlock(&cbs);
++			return &c->asmbody;
++		}
++	}
++	if(cbs.n >= 2000)
++		runtime·throw("too many callback functions");
++	c = runtime·mal(sizeof *c + n);
++	c->gobody = fn.data;
++	c->link = cbs.link;
++	cbs.link = c;
++	cbs.n++;
++	runtime·unlock(&cbs);
++
++	p = &c->asmbody;
++
++	// MOVQ fn, AX
++	*p++ = 0x48;
++	*p++ = 0xb8;
++	*(uint64*)p = (uint64)fn.data;
++	p += 8;
++	// PUSH AX
++	*p++ = 0x50;
++
++	// MOVQ argsize, AX
++	*p++ = 0x48;
++	*p++ = 0xb8;
++	*(uint64*)p = argsize;
++	p += 8;
++	// PUSH AX
++	*p++ = 0x50;
++
++	// MOVQ callbackasm, AX
++	*p++ = 0x48;
++	*p++ = 0xb8;
++	*(uint64*)p = (uint64)runtime·callbackasm;
++	p += 8;
++
++	// JMP AX
++	*p++ = 0xFF;
++	*p++ = 0xE0;
++
++	return &c->asmbody;
++}
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 81659228e2..eb197d72ef 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -106,9 +106,80 @@ TEXT runtime·ctrlhandler(SB),7,$0
+ 	POPQ	BX
+ 	POPQ	BP
+ 	RET
+-	
++
++// Continuation of thunk function created for each callback by ../thread.c compilecallback,
++// runs on Windows stack (not Go stack).
++// Thunk code designed to have minimal size for it is copied many (up to thousands) times.
++//
++// thunk:
++//	MOVQ	$fn, AX
++//	PUSHQ	AX
++//	MOVQ	$argsize, AX
++//	PUSHQ	AX
++//	MOVQ	$runtime·callbackasm, AX
++//	JMP	AX
+ TEXT runtime·callbackasm(SB),7,$0
+-	// TODO
++	// Construct args vector for cgocallback().
++	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
++	// args from the 5th on are on the stack.
++	// In any case, even if function has 0,1,2,3,4 args, there is reserved
++	// but uninitialized "shadow space" for the first 4 args.
++	// The values are in registers.
++  	MOVQ	CX, (24+0)(SP)
++  	MOVQ	DX, (24+8)(SP)
++  	MOVQ	R8, (24+16)(SP)
++  	MOVQ	R9, (24+24)(SP)
++	// 6l does not accept writing POPQs here issuing a warning "unbalanced PUSH/POP"
++  	MOVQ	0(SP), DX	// POPQ DX
++  	MOVQ	8(SP), AX	// POPQ AX
++	ADDQ	$16, SP
++
++	// preserve whatever's at the memory location that
++	// the callback will use to store the return value
++	LEAQ	8(SP), CX       // args vector, skip return address
++	PUSHQ	0(CX)(DX*1)     // store 8 bytes from just after the args array
++	ADDQ	$8, DX          // extend argsize by size of return value
++
++	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
++	// as required by windows callback convention.
++	// 6l does not allow writing many PUSHQs here issuing a warning "nosplit stack overflow"
++	// the warning has no sense as this code uses os thread stack
++	PUSHFQ
++	SUBQ	$64, SP
++	MOVQ	DI, 56(SP)
++	MOVQ	SI, 48(SP)
++	MOVQ	BP, 40(SP)
++	MOVQ	BX, 32(SP)
++	MOVQ	R12, 24(SP)
++	MOVQ	R13, 16(SP)
++	MOVQ	R14, 8(SP)
++	MOVQ	R15, 0(SP)
++
++	// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++	PUSHQ	DX    // uintptr framesize
++	PUSHQ	CX    // void *frame
++	PUSHQ	AX    // void (*fn)(void*)
++	CLD
++	CALL  runtime·cgocallback(SB)
++	POPQ	AX
++	POPQ	CX
++	POPQ	DX
++
++	// restore registers as required for windows callback
++	// 6l does not allow writing many POPs here issuing a warning "nosplit stack overflow"
++	MOVQ	0(SP), R15
++	MOVQ	8(SP), R14
++	MOVQ	16(SP), R13
++	MOVQ	24(SP), R12
++	MOVQ	32(SP), BX
++	MOVQ	40(SP), BP
++	MOVQ	48(SP), SI
++	MOVQ	56(SP), DI
++	ADDQ	$64, SP
++	POPFQ
++
++	MOVL	-8(CX)(DX*1), AX  // return value
++	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index fbcbf871e6..b76eaac596 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -320,105 +320,6 @@ runtime·ctrlhandler1(uint32 type)
+ 	return 0;
+ }
+ 
+-// Will keep all callbacks in a linked list, so they don't get garbage collected.
+-typedef	struct	Callback	Callback;
+-struct	Callback {
+-	Callback*	link;
+-	void*		gobody;
+-	byte		asmbody;
+-};
+-
+-typedef	struct	Callbacks	Callbacks;
+-struct	Callbacks {
+-	Lock;
+-	Callback*	link;
+-	int32		n;
+-};
+-
+-static	Callbacks	cbs;
+-
+-// Call back from windows dll into go.
+-byte *
+-runtime·compilecallback(Eface fn, bool cleanstack)
+-{
+-	FuncType *ft;
+-	Type *t;
+-	int32 argsize, i, n;
+-	byte *p;
+-	Callback *c;
+-
+-	if(fn.type == nil || fn.type->kind != KindFunc)
+-		runtime·panicstring("compilecallback: not a function");
+-	ft = (FuncType*)fn.type;
+-	if(ft->out.len != 1)
+-		runtime·panicstring("compilecallback: function must have one output parameter");
+-	if(((Type**)ft->out.array)[0]->size != sizeof(uintptr))
+-		runtime·panicstring("compilecallback: output parameter size is wrong");
+-	argsize = 0;
+-	for(i=0; i<ft->in.len; i++) {
+-		t = ((Type**)ft->in.array)[i];
+-		if(t->size != sizeof(uintptr))
+-			runtime·panicstring("compilecallback: input parameter size is wrong");
+-		argsize += t->size;
+-	}
+-
+-	// compute size of new fn.
+-	// must match code laid out below.
+-	n = 1+4;		// MOVL fn, AX
+-	n += 1+4;		// MOVL argsize, DX
+-	n += 1+4;		// MOVL callbackasm, CX
+-	n += 2;			// CALL CX
+-	n += 1;			// RET
+-	if(cleanstack)
+-		n += 2;		// ... argsize
+-
+-	runtime·lock(&cbs);
+-	for(c = cbs.link; c != nil; c = c->link) {
+-		if(c->gobody == fn.data) {
+-			runtime·unlock(&cbs);
+-			return &c->asmbody;
+-		}
+-	}
+-	if(cbs.n >= 2000)
+-		runtime·throw("too many callback functions");
+-	c = runtime·mal(sizeof *c + n);
+-	c->gobody = fn.data;
+-	c->link = cbs.link;
+-	cbs.link = c;
+-	cbs.n++;
+-	runtime·unlock(&cbs);
+-
+-	p = &c->asmbody;
+-
+-	// MOVL fn, AX
+-	*p++ = 0xb8;
+-	*(uint32*)p = (uint32)fn.data;
+-	p += 4;
+-
+-	// MOVL argsize, DX
+-	*p++ = 0xba;
+-	*(uint32*)p = argsize;
+-	p += 4;
+-
+-	// MOVL callbackasm, CX
+-	*p++ = 0xb9;
+-	*(uint32*)p = (uint32)runtime·callbackasm;
+-	p += 4;
+-
+-	// CALL CX
+-	*p++ = 0xff;
+-	*p++ = 0xd1;
+-
+-	// RET argsize?
+-	if(cleanstack) {
+-		*p++ = 0xc2;
+-		*(uint16*)p = argsize;
+-	} else
+-		*p = 0xc3;
+-
+-	return &c->asmbody;
+-}
+-
+ void
+ os·sigpipe(void)
+ {

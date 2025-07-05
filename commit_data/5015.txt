@@ -7,10 +7,403 @@ Date:   Mon Mar 8 17:00:04 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/240043
-
+---
  src/pkg/Makefile                     |   1 +
  src/pkg/crypto/sha512/Makefile       |  12 +++
  src/pkg/crypto/sha512/sha512.go      | 127 ++++++++++++++++++++++++++++++
  src/pkg/crypto/sha512/sha512_test.go |  73 ++++++++++++++++++
  src/pkg/crypto/sha512/sha512block.go | 144 +++++++++++++++++++++++++++++++++++
  5 files changed, 357 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 196a570fb4..3fa6b00ed0 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -43,6 +43,7 @@ DIRS=\
+ 	crypto/rsa\
+ 	crypto/sha1\
+ 	crypto/sha256\
++	crypto/sha512\
+ 	crypto/subtle\
+ 	crypto/tls\
+ 	crypto/x509\
+diff --git a/src/pkg/crypto/sha512/Makefile b/src/pkg/crypto/sha512/Makefile
+new file mode 100644
+index 0000000000..cf52732a4f
+--- /dev/null
++++ b/src/pkg/crypto/sha512/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=crypto/sha512
++GOFILES=\
++	sha512.go\
++	sha512block.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+new file mode 100644
+index 0000000000..c12dab479c
+--- /dev/null
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -0,0 +1,127 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements the SHA512 hash algorithm as defined in FIPS 180-2.
++package sha512
++
++import (
++	"hash"
++	"os"
++)
++
++// The size of a SHA512 checksum in bytes.
++const Size = 64
++
++const (
++	_Chunk = 128
++	_Init0 = 0x6a09e667f3bcc908
++	_Init1 = 0xbb67ae8584caa73b
++	_Init2 = 0x3c6ef372fe94f82b
++	_Init3 = 0xa54ff53a5f1d36f1
++	_Init4 = 0x510e527fade682d1
++	_Init5 = 0x9b05688c2b3e6c1f
++	_Init6 = 0x1f83d9abfb41bd6b
++	_Init7 = 0x5be0cd19137e2179
++)
++
++// digest represents the partial evaluation of a checksum.
++type digest struct {
++	h   [8]uint64
++	x   [_Chunk]byte
++	nx  int
++	len uint64
++}
++
++func (d *digest) Reset() {
++	d.h[0] = _Init0
++	d.h[1] = _Init1
++	d.h[2] = _Init2
++	d.h[3] = _Init3
++	d.h[4] = _Init4
++	d.h[5] = _Init5
++	d.h[6] = _Init6
++	d.h[7] = _Init7
++	d.nx = 0
++	d.len = 0
++}
++
++// New returns a new hash.Hash computing the SHA512 checksum.
++func New() hash.Hash {
++	d := new(digest)
++	d.Reset()
++	return d
++}
++
++func (d *digest) Size() int { return Size }
++
++func (d *digest) Write(p []byte) (nn int, err os.Error) {
++	nn = len(p)
++	d.len += uint64(nn)
++	if d.nx > 0 {
++		n := len(p)
++		if n > _Chunk-d.nx {
++			n = _Chunk - d.nx
++		}
++		for i := 0; i < n; i++ {
++			d.x[d.nx+i] = p[i]
++		}
++		d.nx += n
++		if d.nx == _Chunk {
++			_Block(d, &d.x)
++			d.nx = 0
++		}
++		p = p[n:]
++	}
++	n := _Block(d, p)
++	p = p[n:]
++	if len(p) > 0 {
++		for i, x := range p {
++			d.x[i] = x
++		}
++		d.nx = len(p)
++	}
++	return
++}
++
++func (d0 *digest) Sum() []byte {
++	// Make a copy of d0 so that caller can keep writing and summing.
++	d := new(digest)
++	*d = *d0
++
++	// Padding.  Add a 1 bit and 0 bits until 112 bytes mod 128.
++	len := d.len
++	var tmp [128]byte
++	tmp[0] = 0x80
++	if len%128 < 112 {
++		d.Write(tmp[0 : 112-len%128])
++	} else {
++		d.Write(tmp[0 : 128+112-len%128])
++	}
++
++	// Length in bits.
++	len <<= 3
++	for i := uint(0); i < 16; i++ {
++		tmp[i] = byte(len >> (120 - 8*i))
++	}
++	d.Write(tmp[0:16])
++
++	if d.nx != 0 {
++		panicln("oops")
++	}
++
++	p := make([]byte, 64)
++	j := 0
++	for _, s := range d.h {
++		p[j+0] = byte(s >> 56)
++		p[j+1] = byte(s >> 48)
++		p[j+2] = byte(s >> 40)
++		p[j+3] = byte(s >> 32)
++		p[j+4] = byte(s >> 24)
++		p[j+5] = byte(s >> 16)
++		p[j+6] = byte(s >> 8)
++		p[j+7] = byte(s >> 0)
++		j += 8
++	}
++	return p
++}
+diff --git a/src/pkg/crypto/sha512/sha512_test.go b/src/pkg/crypto/sha512/sha512_test.go
+new file mode 100644
+index 0000000000..2920f70714
+--- /dev/null
++++ b/src/pkg/crypto/sha512/sha512_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// SHA512 hash algorithm.  See FIPS 180-2.
++
++package sha512
++
++import (
++	"fmt"
++	"io"
++	"testing"
++)
++
++type sha512Test struct {
++	out string
++	in  string
++}
++
++var golden = []sha512Test{
++	sha512Test{"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e", ""},
++	sha512Test{"1f40fc92da241694750979ee6cf582f2d5d7d28e18335de05abc54d0560e0f5302860c652bf08d560252aa5e74210546f369fbbbce8c12cfc7957b2652fe9a75", "a"},
++	sha512Test{"2d408a0717ec188158278a796c689044361dc6fdde28d6f04973b80896e1823975cdbf12eb63f9e0591328ee235d80e9b5bf1aa6a44f4617ff3caf6400eb172d", "ab"},
++	sha512Test{"ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f", "abc"},
++	sha512Test{"d8022f2060ad6efd297ab73dcc5355c9b214054b0d1776a136a669d26a7d3b14f73aa0d0ebff19ee333368f0164b6419a96da49e3e481753e7e96b716bdccb6f", "abcd"},
++	sha512Test{"878ae65a92e86cac011a570d4c30a7eaec442b85ce8eca0c2952b5e3cc0628c2e79d889ad4d5c7c626986d452dd86374b6ffaa7cd8b67665bef2289a5c70b0a1", "abcde"},
++	sha512Test{"e32ef19623e8ed9d267f657a81944b3d07adbb768518068e88435745564e8d4150a0a703be2a7d88b61e3d390c2bb97e2d4c311fdc69d6b1267f05f59aa920e7", "abcdef"},
++	sha512Test{"d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c", "abcdefg"},
++	sha512Test{"a3a8c81bc97c2560010d7389bc88aac974a104e0e2381220c6e084c4dccd1d2d17d4f86db31c2a851dc80e6681d74733c55dcd03dd96f6062cdda12a291ae6ce", "abcdefgh"},
++	sha512Test{"f22d51d25292ca1d0f68f69aedc7897019308cc9db46efb75a03dd494fc7f126c010e8ade6a00a0c1a5f1b75d81e0ed5a93ce98dc9b833db7839247b1d9c24fe", "abcdefghi"},
++	sha512Test{"ef6b97321f34b1fea2169a7db9e1960b471aa13302a988087357c520be957ca119c3ba68e6b4982c019ec89de3865ccf6a3cda1fe11e59f98d99f1502c8b9745", "abcdefghij"},
++	sha512Test{"2210d99af9c8bdecda1b4beff822136753d8342505ddce37f1314e2cdbb488c6016bdaa9bd2ffa513dd5de2e4b50f031393d8ab61f773b0e0130d7381e0f8a1d", "Discard medicine more than two years old."},
++	sha512Test{"a687a8985b4d8d0a24f115fe272255c6afaf3909225838546159c1ed685c211a203796ae8ecc4c81a5b6315919b3a64f10713da07e341fcdbb08541bf03066ce", "He who has a shady past knows that nice guys finish last."},
++	sha512Test{"8ddb0392e818b7d585ab22769a50df660d9f6d559cca3afc5691b8ca91b8451374e42bcdabd64589ed7c91d85f626596228a5c8572677eb98bc6b624befb7af8", "I wouldn't marry him with a ten foot pole."},
++	sha512Test{"26ed8f6ca7f8d44b6a8a54ae39640fa8ad5c673f70ee9ce074ba4ef0d483eea00bab2f61d8695d6b34df9c6c48ae36246362200ed820448bdc03a720366a87c6", "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave"},
++	sha512Test{"e5a14bf044be69615aade89afcf1ab0389d5fc302a884d403579d1386a2400c089b0dbb387ed0f463f9ee342f8244d5a38cfbc0e819da9529fbff78368c9a982", "The days of the digital watch are numbered.  -Tom Stoppard"},
++	sha512Test{"420a1faa48919e14651bed45725abe0f7a58e0f099424c4e5a49194946e38b46c1f8034b18ef169b2e31050d1648e0b982386595f7df47da4b6fd18e55333015", "Nepal premier won't resign."},
++	sha512Test{"d926a863beadb20134db07683535c72007b0e695045876254f341ddcccde132a908c5af57baa6a6a9c63e6649bba0c213dc05fadcf9abccea09f23dcfb637fbe", "For every action there is an equal and opposite government program."},
++	sha512Test{"9a98dd9bb67d0da7bf83da5313dff4fd60a4bac0094f1b05633690ffa7f6d61de9a1d4f8617937d560833a9aaa9ccafe3fd24db418d0e728833545cadd3ad92d", "His money is twice tainted: 'taint yours and 'taint mine."},
++	sha512Test{"d7fde2d2351efade52f4211d3746a0780a26eec3df9b2ed575368a8a1c09ec452402293a8ea4eceb5a4f60064ea29b13cdd86918cd7a4faf366160b009804107", "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977"},
++	sha512Test{"b0f35ffa2697359c33a56f5c0cf715c7aeed96da9905ca2698acadb08fbc9e669bf566b6bd5d61a3e86dc22999bcc9f2224e33d1d4f32a228cf9d0349e2db518", "It's a tiny change to the code and not completely disgusting. - Bob Manchek"},
++	sha512Test{"3d2e5f91778c9e66f7e061293aaa8a8fc742dd3b2e4f483772464b1144189b49273e610e5cccd7a81a19ca1fa70f16b10f1a100a4d8c1372336be8484c64b311", "size:  a.out:  bad magic"},
++	sha512Test{"b2f68ff58ac015efb1c94c908b0d8c2bf06f491e4de8e6302c49016f7f8a33eac3e959856c7fddbc464de618701338a4b46f76dbfaf9a1e5262b5f40639771c7", "The major problem is with sendmail.  -Mark Horton"},
++	sha512Test{"d8c92db5fdf52cf8215e4df3b4909d29203ff4d00e9ad0b64a6a4e04dec5e74f62e7c35c7fb881bd5de95442123df8f57a489b0ae616bd326f84d10021121c57", "Give me a rock, paper and scissors and I will move the world.  CCFestoon"},
++	sha512Test{"19a9f8dc0a233e464e8566ad3ca9b91e459a7b8c4780985b015776e1bf239a19bc233d0556343e2b0a9bc220900b4ebf4f8bdf89ff8efeaf79602d6849e6f72e", "If the enemy is within range, then so are you."},
++	sha512Test{"00b4c41f307bde87301cdc5b5ab1ae9a592e8ecbb2021dd7bc4b34e2ace60741cc362560bec566ba35178595a91932b8d5357e2c9cec92d393b0fa7831852476", "It's well we cannot hear the screams/That we create in others' dreams."},
++	sha512Test{"91eccc3d5375fd026e4d6787874b1dce201cecd8a27dbded5065728cb2d09c58a3d467bb1faf353bf7ba567e005245d5321b55bc344f7c07b91cb6f26c959be7", "You remind me of a TV show, but that's all right: I watch it anyway."},
++	sha512Test{"fabbbe22180f1f137cfdc9556d2570e775d1ae02a597ded43a72a40f9b485d500043b7be128fb9fcd982b83159a0d99aa855a9e7cc4240c00dc01a9bdf8218d7", "C is as portable as Stonehedge!!"},
++	sha512Test{"2ecdec235c1fa4fc2a154d8fba1dddb8a72a1ad73838b51d792331d143f8b96a9f6fcb0f34d7caa351fe6d88771c4f105040e0392f06e0621689d33b2f3ba92e", "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley"},
++	sha512Test{"7ad681f6f96f82f7abfa7ecc0334e8fa16d3dc1cdc45b60b7af43fe4075d2357c0c1d60e98350f1afb1f2fe7a4d7cd2ad55b88e458e06b73c40b437331f5dab4", "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
++	sha512Test{"833f9248ab4a3b9e5131f745fda1ffd2dd435b30e965957e78291c7ab73605fd1912b0794e5c233ab0a12d205a39778d19b83515d6a47003f19cdee51d98c7e0", "How can you write a big system without C++?  -Paul Glick"},
++}
++
++func TestGolden(t *testing.T) {
++	for i := 0; i < len(golden); i++ {
++		g := golden[i]
++		c := New()
++		for j := 0; j < 3; j++ {
++			if j < 2 {
++				io.WriteString(c, g.in)
++			} else {
++				io.WriteString(c, g.in[0:len(g.in)/2])
++				c.Sum()
++				io.WriteString(c, g.in[len(g.in)/2:])
++			}
++			s := fmt.Sprintf("%x", c.Sum())
++			if s != g.out {
++				t.Fatalf("sha512[%d](%s) = %s want %s", j, g.in, s, g.out)
++			}
++			c.Reset()
++		}
++	}
++}
+diff --git a/src/pkg/crypto/sha512/sha512block.go b/src/pkg/crypto/sha512/sha512block.go
+new file mode 100644
+index 0000000000..6b7506287e
+--- /dev/null
++++ b/src/pkg/crypto/sha512/sha512block.go
+@@ -0,0 +1,144 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// SHA512 block step.
++// In its own file so that a faster assembly or C version
++// can be substituted easily.
++
++package sha512
++
++var _K = []uint64{
++	0x428a2f98d728ae22,
++	0x7137449123ef65cd,
++	0xb5c0fbcfec4d3b2f,
++	0xe9b5dba58189dbbc,
++	0x3956c25bf348b538,
++	0x59f111f1b605d019,
++	0x923f82a4af194f9b,
++	0xab1c5ed5da6d8118,
++	0xd807aa98a3030242,
++	0x12835b0145706fbe,
++	0x243185be4ee4b28c,
++	0x550c7dc3d5ffb4e2,
++	0x72be5d74f27b896f,
++	0x80deb1fe3b1696b1,
++	0x9bdc06a725c71235,
++	0xc19bf174cf692694,
++	0xe49b69c19ef14ad2,
++	0xefbe4786384f25e3,
++	0x0fc19dc68b8cd5b5,
++	0x240ca1cc77ac9c65,
++	0x2de92c6f592b0275,
++	0x4a7484aa6ea6e483,
++	0x5cb0a9dcbd41fbd4,
++	0x76f988da831153b5,
++	0x983e5152ee66dfab,
++	0xa831c66d2db43210,
++	0xb00327c898fb213f,
++	0xbf597fc7beef0ee4,
++	0xc6e00bf33da88fc2,
++	0xd5a79147930aa725,
++	0x06ca6351e003826f,
++	0x142929670a0e6e70,
++	0x27b70a8546d22ffc,
++	0x2e1b21385c26c926,
++	0x4d2c6dfc5ac42aed,
++	0x53380d139d95b3df,
++	0x650a73548baf63de,
++	0x766a0abb3c77b2a8,
++	0x81c2c92e47edaee6,
++	0x92722c851482353b,
++	0xa2bfe8a14cf10364,
++	0xa81a664bbc423001,
++	0xc24b8b70d0f89791,
++	0xc76c51a30654be30,
++	0xd192e819d6ef5218,
++	0xd69906245565a910,
++	0xf40e35855771202a,
++	0x106aa07032bbd1b8,
++	0x19a4c116b8d2d0c8,
++	0x1e376c085141ab53,
++	0x2748774cdf8eeb99,
++	0x34b0bcb5e19b48a8,
++	0x391c0cb3c5c95a63,
++	0x4ed8aa4ae3418acb,
++	0x5b9cca4f7763e373,
++	0x682e6ff3d6b2b8a3,
++	0x748f82ee5defb2fc,
++	0x78a5636f43172f60,
++	0x84c87814a1f0ab72,
++	0x8cc702081a6439ec,
++	0x90befffa23631e28,
++	0xa4506cebde82bde9,
++	0xbef9a3f7b2c67915,
++	0xc67178f2e372532b,
++	0xca273eceea26619c,
++	0xd186b8c721c0c207,
++	0xeada7dd6cde0eb1e,
++	0xf57d4f7fee6ed178,
++	0x06f067aa72176fba,
++	0x0a637dc5a2c898a6,
++	0x113f9804bef90dae,
++	0x1b710b35131c471b,
++	0x28db77f523047d84,
++	0x32caab7b40c72493,
++	0x3c9ebe0a15c9bebc,
++	0x431d67c49c100d4c,
++	0x4cc5d4becb3e42b6,
++	0x597f299cfc657e2a,
++	0x5fcb6fab3ad6faec,
++	0x6c44198c4a475817,
++}
++
++func _Block(dig *digest, p []byte) int {
++	var w [80]uint64
++	n := 0
++	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
++	for len(p) >= _Chunk {
++		for i := 0; i < 16; i++ {
++			j := i * 8
++			w[i] = uint64(p[j])<<56 | uint64(p[j+1])<<48 | uint64(p[j+2])<<40 | uint64(p[j+3])<<32 |
++				uint64(p[j+4])<<24 | uint64(p[j+5])<<16 | uint64(p[j+6])<<8 | uint64(p[j+7])
++		}
++		for i := 16; i < 80; i++ {
++			t1 := (w[i-2]>>19 | w[i-2]<<(64-19)) ^ (w[i-2]>>61 | w[i-2]<<(64-61)) ^ (w[i-2] >> 6)
++
++			t2 := (w[i-15]>>1 | w[i-15]<<(64-1)) ^ (w[i-15]>>8 | w[i-15]<<(64-8)) ^ (w[i-15] >> 7)
++
++			w[i] = t1 + w[i-7] + t2 + w[i-16]
++		}
++
++		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
++
++		for i := 0; i < 80; i++ {
++			t1 := h + ((e>>14 | e<<(64-14)) ^ (e>>18 | e<<(64-18)) ^ (e>>41 | e<<(64-41))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
++
++			t2 := ((a>>28 | a<<(64-28)) ^ (a>>34 | a<<(64-34)) ^ (a>>39 | a<<(64-39))) + ((a & b) ^ (a & c) ^ (b & c))
++
++			h = g
++			g = f
++			f = e
++			e = d + t1
++			d = c
++			c = b
++			b = a
++			a = t1 + t2
++		}
++
++		h0 += a
++		h1 += b
++		h2 += c
++		h3 += d
++		h4 += e
++		h5 += f
++		h6 += g
++		h7 += h
++
++		p = p[_Chunk:]
++		n += _Chunk
++	}
++
++	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7] = h0, h1, h2, h3, h4, h5, h6, h7
++	return n
++}

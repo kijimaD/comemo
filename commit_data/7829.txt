@@ -7,9 +7,116 @@ Date:   Tue Mar 22 10:32:43 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4290059
-
+---
  test/fixedbugs/bug069.go | 21 ++++++++++-----------
  test/fixedbugs/bug196.go |  7 +++----
  test/fixedbugs/bug234.go | 26 +++++++++++++-------------
  test/fixedbugs/bug242.go |  8 +++-----
  4 files changed, 29 insertions(+), 33 deletions(-)
+
+diff --git a/test/fixedbugs/bug069.go b/test/fixedbugs/bug069.go
+index bf73163134..9038387ac8 100644
+--- a/test/fixedbugs/bug069.go
++++ b/test/fixedbugs/bug069.go
+@@ -7,15 +7,14 @@
+ package main
+ 
+ func main() {
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	//	c := make(chan int);
+-	//	ok := false;
+-	//	var i int;
+-	//
+-	//	i, ok = <-c;  // works
+-	//	_, _ = i, ok;
+-	//
+-	//	ca := new([2]chan int);
+-	//	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
+-	//	_, _ = i, ok;
++	c := make(chan int);
++	ok := false;
++	var i int;
++	
++	i, ok = <-c;  // works
++	_, _ = i, ok;
++	
++	ca := new([2]chan int);
++	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
++	_, _ = i, ok;
+ }
+diff --git a/test/fixedbugs/bug196.go b/test/fixedbugs/bug196.go
+index 8cb9c9990d..ea8ab0dc19 100644
+--- a/test/fixedbugs/bug196.go
++++ b/test/fixedbugs/bug196.go
+@@ -13,12 +13,11 @@ var i int
+ func multi() (int, int) { return 1, 2 }
+ 
+ func xxx() {
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	//	var c chan int
+-	//	x, ok := <-c
++	var c chan int
++	x, ok := <-c
+ 
+ 	var m map[int]int
+-	x, ok := m[1]
++	x, ok = m[1]
+ 
+ 	var i interface{}
+ 	var xx int
+diff --git a/test/fixedbugs/bug234.go b/test/fixedbugs/bug234.go
+index 9affad0430..562109a058 100644
+--- a/test/fixedbugs/bug234.go
++++ b/test/fixedbugs/bug234.go
+@@ -7,17 +7,17 @@
+ package main
+ 
+ func main() {
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	//	c := make(chan int, 1)
+-	//	c <- 100
+-	//	x, ok := <-c
+-	//	if x != 100 || !ok {
+-	//		println("x=", x, " ok=", ok, " want 100, true")
+-	//		panic("fail")
+-	//	}
+-	//	x, ok = <-c
+-	//	if x != 0 || ok {
+-	//		println("x=", x, " ok=", ok, " want 0, false")
+-	//		panic("fail")
+-	//	}
++	c := make(chan int, 1)
++	c <- 100
++	x, ok := <-c
++	if x != 100 || !ok {
++		println("x=", x, " ok=", ok, " want 100, true")
++		panic("fail")
++	}
++	close(c)
++	x, ok = <-c
++	if x != 0 || ok {
++		println("x=", x, " ok=", ok, " want 0, false")
++		panic("fail")
++	}
+ }
+diff --git a/test/fixedbugs/bug242.go b/test/fixedbugs/bug242.go
+index ad1cef8df4..839dccd374 100644
+--- a/test/fixedbugs/bug242.go
++++ b/test/fixedbugs/bug242.go
+@@ -101,13 +101,11 @@ func main() {
+ 
+ 	c := make(chan byte, 1)
+ 	c <- 'C'
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+ 	// 15          16
+-	//	*f(), p1 = <-e1(c, 16)
+-	*f(), p1 = <-e1(c, 16), true // delete uncommenting above
++	*f(), p1 = <-e1(c, 16)
++	close(c)
+ 	// 17          18
+-	//	*f(), p2 = <-e1(c, 18)
+-	*f(), p2, _ = 0, false, e1(c, 18) // delete when uncommenting above
++	*f(), p2 = <-e1(c, 18)
+ 	a[17] += '0'
+ 	if !p1 || p2 {
+ 		println("bad chan check", i, p1, p2)

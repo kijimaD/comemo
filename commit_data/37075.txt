@@ -14,6 +14,20 @@ Date:   Mon Jun 25 20:24:37 2018 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 756f1ddd4e..5be4bcfa65 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -308,7 +308,7 @@ func (t *tester) registerStdTest(pkg string) {
+ 			timeoutSec := 180
+ 			for _, pkg := range stdMatches {
+ 				if pkg == "cmd/go" {
+-					timeoutSec *= 2
++					timeoutSec *= 3
+ 					break
+ 				}
+ 			}

@@ -14,7 +14,49 @@ Date:   Fri May 13 12:33:27 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 21 +++++++++++++++++++++
  src/reflect/type.go     |  1 +
  2 files changed, 22 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5beec63273..9799fee357 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5782,3 +5782,24 @@ func TestMethodPkgPathReadable(t *testing.T) {
+ 		t.Errorf(`PkgPath=%q, want "reflect"`, m.PkgPath)
+ 	}
+ }
++
++func TestTypeStrings(t *testing.T) {
++	type stringTest struct {
++		typ  Type
++		want string
++	}
++	stringTests := []stringTest{
++		{TypeOf(func(int) {}), "func(int)"},
++		{FuncOf([]Type{TypeOf(int(0))}, nil, false), "func(int)"},
++		{TypeOf(XM{}), "reflect_test.XM"},
++		{TypeOf(new(XM)), "*reflect_test.XM"},
++		{TypeOf(new(XM).String), "func() string"},
++		{TypeOf(new(XM)).Method(0).Type, "func(*reflect_test.XM) string"},
++	}
++
++	for i, test := range stringTests {
++		if got, want := test.typ.String(), test.want; got != want {
++			t.Errorf("type %d String()=%q, want %q", i, got, want)
++		}
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5c6e3d5500..3bfff4a7cc 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1985,6 +1985,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	if len(args) > 50 {
+ 		panic("reflect.FuncOf does not support more than 50 arguments")
+ 	}
++	ft.tflag = 0
+ 	ft.hash = hash
+ 	ft.inCount = uint16(len(in))
+ 	ft.outCount = uint16(len(out))

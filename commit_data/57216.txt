@@ -27,6 +27,30 @@ Date:   Tue Jul 18 16:55:26 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/rt0_windows_amd64.s | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index d5f0940540..bd18bdd311 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -16,12 +16,17 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT|NOFRAME,$-8
+ // phase.
+ // Leave space for four pointers on the stack as required
+ // by the Windows amd64 calling convention.
+-TEXT _rt0_amd64_windows_lib(SB),NOSPLIT|NOFRAME,$0x20
++TEXT _rt0_amd64_windows_lib(SB),NOSPLIT|NOFRAME,$40
+ 	// Create a new thread to do the runtime initialization and return.
++	MOVQ	BX, 32(SP) // callee-saved, preserved across the CALL
++	MOVQ	SP, BX
++	ANDQ	$~15, SP // alignment as per Windows requirement
+ 	MOVQ	_cgo_sys_thread_create(SB), AX
+ 	MOVQ	$_rt0_amd64_windows_lib_go(SB), CX
+ 	MOVQ	$0, DX
+ 	CALL	AX
++	MOVQ	BX, SP
++	MOVQ	32(SP), BX
+ 	RET
+ 
+ TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT|NOFRAME,$0

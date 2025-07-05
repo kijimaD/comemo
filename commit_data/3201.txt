@@ -8,8 +8,87 @@ Date:   Thu Sep 3 10:24:38 2009 -0700
     DELTA=9  (0 added, 0 deleted, 9 changed)
     OCL=34309
     CL=34311
-
+---
  src/cmd/5g/list.c | 6 +++---
  src/cmd/6g/list.c | 6 +++---
  src/cmd/8g/list.c | 6 +++---
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index a7dde13d49..c408faba45 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -55,18 +55,18 @@ Pconv(Fmt *fp)
+ 	sconsize = 8;
+ 	switch(p->as) {
+ 	default:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+ 		sconsize = p->reg;
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+ 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 	}
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 5f71813c55..41956e63ca 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -52,18 +52,18 @@ Pconv(Fmt *fp)
+ 	sconsize = 8;
+ 	switch(p->as) {
+ 	default:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+ 		sconsize = p->from.scale;
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+ 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 	}
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index 0ea61504f0..f94b9e1766 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -52,18 +52,18 @@ Pconv(Fmt *fp)
+ 	sconsize = 8;
+ 	switch(p->as) {
+ 	default:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+ 		sconsize = p->from.scale;
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+ 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
+ 			p->loc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 	}

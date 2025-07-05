@@ -17,7 +17,7 @@ Date:   Wed May 8 11:44:15 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/386.txt         | 18 ------------------
  src/cmd/vet/all/whitelist/amd64.txt       |  3 ---
  src/cmd/vet/all/whitelist/android_386.txt |  8 --------
@@ -55,3 +55,586 @@ Date:   Wed May 8 11:44:15 2019 -0400
  src/runtime/sys_plan9_amd64.s             |  4 ----
  src/runtime/sys_windows_386.s             |  2 +-
  36 files changed, 102 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+deleted file mode 100644
+index f791a26570..0000000000
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// 386-specific vet whitelist. See readme.txt for details.
+-
+-// startup code uses non-standard calling convention and intentionally
+-// omits args.
+-runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame
+-
+-// reflect trampolines intentionally omit arg size. Same for morestack.
+-runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+-runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
+-runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+-
+-// Intentionally missing declarations. These are special assembly routines.
+-runtime/asm_386.s: [386] ldt0setup: function ldt0setup missing Go declaration
+-runtime/asm_386.s: [386] emptyfunc: function emptyfunc missing Go declaration
+-runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
+-runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
+-runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 020241f615..5ce30cc6c2 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -13,6 +13,3 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
+ // Others use the platform ABI.
+ // There is no sensible corresponding Go prototype.
+ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+-runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+-runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/android_386.txt b/src/cmd/vet/all/whitelist/android_386.txt
+deleted file mode 100644
+index 5095f2fc0c..0000000000
+--- a/src/cmd/vet/all/whitelist/android_386.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// android/386-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_386.s: [386] setldt: function setldt missing Go declaration
+-
+-// These SP references occur after a stack-altering call. They're fine.
+-runtime/sys_linux_386.s: [386] clone: 12(SP) should be mp+8(FP)
+-runtime/sys_linux_386.s: [386] clone: 4(SP) should be flags+0(FP)
+-runtime/sys_linux_386.s: [386] clone: 8(SP) should be stk+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 44eb97ec93..307f17bac8 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -3,8 +3,5 @@
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
+-runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration
+-runtime/duff_arm.s: [arm] duffzero: function duffzero missing Go declaration
+-runtime/duff_arm.s: [arm] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 550eb055e5..cd9577b7b5 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -1,6 +1,5 @@
+ // arm64-specific vet whitelist. See readme.txt for details.
+ 
+ // Intentionally missing declarations.
+-runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+ runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_386.txt b/src/cmd/vet/all/whitelist/darwin_386.txt
+deleted file mode 100644
+index 5c25e092f2..0000000000
+--- a/src/cmd/vet/all/whitelist/darwin_386.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// darwin/386-specific vet whitelist. See readme.txt for details.
+-
+-// Ok
+-
+-runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/freebsd_386.txt b/src/cmd/vet/all/whitelist/freebsd_386.txt
+index d37132cebb..b5218e814f 100644
+--- a/src/cmd/vet/all/whitelist/freebsd_386.txt
++++ b/src/cmd/vet/all/whitelist/freebsd_386.txt
+@@ -5,7 +5,6 @@ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
+ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
+-runtime/sys_freebsd_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_freebsd_386.s: [386] i386_set_ldt: function i386_set_ldt missing Go declaration
+ syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+ syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/linux_386.txt b/src/cmd/vet/all/whitelist/linux_386.txt
+deleted file mode 100644
+index a5111ca876..0000000000
+--- a/src/cmd/vet/all/whitelist/linux_386.txt
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// linux/386-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_386.s: [386] setldt: function setldt missing Go declaration
+-
+-// These SP references occur after a stack-altering call. They're fine.
+-runtime/sys_linux_386.s: [386] clone: 12(SP) should be mp+8(FP)
+-runtime/sys_linux_386.s: [386] clone: 4(SP) should be flags+0(FP)
+-runtime/sys_linux_386.s: [386] clone: 8(SP) should be stk+4(FP)
+-
+-// Android-specific; stubs missing on other linux platforms.
+-runtime/sys_linux_386.s: [386] access: function access missing Go declaration
+-runtime/sys_linux_386.s: [386] connect: function connect missing Go declaration
+-runtime/sys_linux_386.s: [386] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_amd64.txt b/src/cmd/vet/all/whitelist/linux_amd64.txt
+index 69ba65d54b..2f4a933553 100644
+--- a/src/cmd/vet/all/whitelist/linux_amd64.txt
++++ b/src/cmd/vet/all/whitelist/linux_amd64.txt
+@@ -1,8 +1,3 @@
+ // linux/amd64-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
+-
+-// Android-specific; stubs missing on other linux platforms.
+-runtime/sys_linux_amd64.s: [amd64] access: function access missing Go declaration
+-runtime/sys_linux_amd64.s: [amd64] connect: function connect missing Go declaration
+-runtime/sys_linux_amd64.s: [amd64] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm.txt b/src/cmd/vet/all/whitelist/linux_arm.txt
+index f7a9a0c468..a911700c3d 100644
+--- a/src/cmd/vet/all/whitelist/linux_arm.txt
++++ b/src/cmd/vet/all/whitelist/linux_arm.txt
+@@ -1,11 +1,5 @@
+ // linux/arm-specific vet whitelist. See readme.txt for details.
+ 
+-
+ // These SP references occur after a stack-altering call. They're fine.
+ runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+ runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+-
+-// Special functions.
+-runtime/sys_linux_arm.s: [arm] access: function access missing Go declaration
+-runtime/sys_linux_arm.s: [arm] connect: function connect missing Go declaration
+-runtime/sys_linux_arm.s: [arm] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm64.txt b/src/cmd/vet/all/whitelist/linux_arm64.txt
+deleted file mode 100644
+index 67280b7273..0000000000
+--- a/src/cmd/vet/all/whitelist/linux_arm64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// linux/arm64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_arm64.s: [arm64] access: function access missing Go declaration
+-runtime/sys_linux_arm64.s: [arm64] connect: function connect missing Go declaration
+-runtime/sys_linux_arm64.s: [arm64] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_386.txt b/src/cmd/vet/all/whitelist/nacl_386.txt
+index c4b03e4093..9e756d1bd5 100644
+--- a/src/cmd/vet/all/whitelist/nacl_386.txt
++++ b/src/cmd/vet/all/whitelist/nacl_386.txt
+@@ -1,7 +1,6 @@
+ // nacl/386-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/sys_nacl_386.s: [386] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+-runtime/sys_nacl_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+ runtime/sys_nacl_386.s: [386] sigtramp: use of 4(SP) points beyond argument frame
+ runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
+diff --git a/src/cmd/vet/all/whitelist/netbsd_386.txt b/src/cmd/vet/all/whitelist/netbsd_386.txt
+index 9a54f87192..a85c6e0f78 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_386.txt
+@@ -9,8 +9,6 @@ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argu
+ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
+-runtime/sys_netbsd_386.s: [386] setldt: function setldt missing Go declaration
+-runtime/sys_netbsd_386.s: [386] setldt: use of 16(SP) points beyond argument frame
+ 
+ syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+ syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/openbsd_386.txt b/src/cmd/vet/all/whitelist/openbsd_386.txt
+index b5c0a736c2..66172ff008 100644
+--- a/src/cmd/vet/all/whitelist/openbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/openbsd_386.txt
+@@ -3,7 +3,6 @@
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context
+-runtime/sys_openbsd_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_openbsd_386.s: [386] settls: function settls missing Go declaration
+ syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+ syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/plan9_386.txt b/src/cmd/vet/all/whitelist/plan9_386.txt
+deleted file mode 100644
+index 153116100d..0000000000
+--- a/src/cmd/vet/all/whitelist/plan9_386.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// plan9/386-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_plan9_386.s: [386] setldt: function setldt missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/plan9_amd64.txt b/src/cmd/vet/all/whitelist/plan9_amd64.txt
+index 39fc8e2c3c..1390475c77 100644
+--- a/src/cmd/vet/all/whitelist/plan9_amd64.txt
++++ b/src/cmd/vet/all/whitelist/plan9_amd64.txt
+@@ -1,4 +1,3 @@
+ // plan9/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_plan9_amd64.s: [amd64] setldt: function setldt missing Go declaration
+ runtime/sys_plan9_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+index 0bf072b11d..60875a424c 100644
+--- a/src/cmd/vet/all/whitelist/windows_386.txt
++++ b/src/cmd/vet/all/whitelist/windows_386.txt
+@@ -2,7 +2,6 @@
+ 
+ runtime/sys_windows_386.s: [386] profileloop: use of 4(SP) points beyond argument frame
+ runtime/sys_windows_386.s: [386] ctrlhandler: 4(SP) should be _type+0(FP)
+-runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 682f1ab5d0..b98843e73e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -89,7 +89,7 @@ GLOBL _rt0_386_lib_argc<>(SB),NOPTR, $4
+ DATA _rt0_386_lib_argv<>(SB)/4, $0
+ GLOBL _rt0_386_lib_argv<>(SB),NOPTR, $4
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
+ 	// Copy arguments forward on an even stack.
+ 	// Users of this function jump to it, they don't call it.
+ 	MOVL	0(SP), AX
+@@ -209,7 +209,7 @@ needtls:
+ #endif
+ 
+ 	// set up %gs
+-	CALL	runtime·ldt0setup(SB)
++	CALL	ldt0setup<>(SB)
+ 
+ 	// store through it, to make sure it works
+ 	get_tls(BX)
+@@ -453,6 +453,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVL	4(SP), DI	// f's caller's PC
+ 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
+ 	LEAL	8(SP), CX	// f's caller's SP
+@@ -895,7 +896,7 @@ done:
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+-TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
++TEXT ldt0setup<>(SB),NOSPLIT,$16-0
+ 	// set up ldt 7 to point at m0.tls
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+ 	// the entry number is just a hint.  setldt will set up GS with what it used.
+@@ -914,19 +915,19 @@ TEXT runtime·aeshash(SB),NOSPLIT,$0-16
+ 	MOVL	p+0(FP), AX	// ptr to data
+ 	MOVL	s+8(FP), BX	// size
+ 	LEAL	ret+12(FP), DX
+-	JMP	runtime·aeshashbody(SB)
++	JMP	aeshashbody<>(SB)
+ 
+ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
+ 	MOVL	p+0(FP), AX	// ptr to string object
+ 	MOVL	4(AX), BX	// length of string
+ 	MOVL	(AX), AX	// string data
+ 	LEAL	ret+8(FP), DX
+-	JMP	runtime·aeshashbody(SB)
++	JMP	aeshashbody<>(SB)
+ 
+ // AX: data
+ // BX: length
+ // DX: address to put return value
+-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
++TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+ 	MOVL	h+4(FP), X0	            // 32 bits of per-table hash seed
+ 	PINSRW	$4, BX, X0	            // 16 bits of length
+ 	PSHUFHW	$0, X0, X0	            // replace size with its low 2 bytes repeated 4 times
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index efd0e2a1a2..5a7e3b7ea7 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -893,7 +893,7 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
+ 
+ #ifndef GOOS_nacl
+ // This is called from .init_array and follows the platform, not Go, ABI.
+-TEXT runtime·addmoduledata(SB),NOSPLIT,$0-8
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	MOVW	R9, saver9-4(SP) // The access to global variables below implicitly uses R9, which is callee-save
+ 	MOVW	R11, saver11-8(SP) // Likewise, R11 is the temp register, but callee-save in C ABI
+ 	MOVW	runtime·lastmoduledatap(SB), R1
+diff --git a/src/runtime/duff_mips64x.s b/src/runtime/duff_mips64x.s
+index 59c7adc8ee..acf0a4e698 100644
+--- a/src/runtime/duff_mips64x.s
++++ b/src/runtime/duff_mips64x.s
+@@ -266,3 +266,6 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	RET
+ 
+ // TODO: Implement runtime·duffcopy.
++TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
++	MOVV	R0, 2(R0)
++	RET
+diff --git a/src/runtime/duff_ppc64x.s b/src/runtime/duff_ppc64x.s
+index b4bb9e7dbe..0c62d0afe9 100644
+--- a/src/runtime/duff_ppc64x.s
++++ b/src/runtime/duff_ppc64x.s
+@@ -138,3 +138,6 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	RET
+ 
+ // TODO: Implement runtime·duffcopy.
++TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	R0, 0(R0)
++	RET
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 7210b6f4cb..18e64dd5f7 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -319,3 +319,8 @@ func abort()
+ 
+ // Called from compiled code; declared for vet; do NOT call from Go.
+ func gcWriteBarrier()
++func duffzero()
++func duffcopy()
++
++// Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
++func addmoduledata()
+diff --git a/src/runtime/stubs_386.go b/src/runtime/stubs_386.go
+index 01d92d399f..ecdf0a9df0 100644
+--- a/src/runtime/stubs_386.go
++++ b/src/runtime/stubs_386.go
+@@ -4,5 +4,11 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ func float64touint32(a float64) uint32
+ func uint32tofloat64(a uint32) float64
++
++// Called from assembly only; declared for go vet.
++func setldt(slot uintptr, base unsafe.Pointer, size uintptr)
++func emptyfunc()
+diff --git a/src/runtime/stubs_android.go b/src/runtime/stubs_android.go
+deleted file mode 100644
+index 0380dca891..0000000000
+--- a/src/runtime/stubs_android.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-package runtime
+-
+-import "unsafe"
+-
+-// Return values of access/connect/socket are the return values of the syscall
+-// (may encode error numbers).
+-
+-// int access(const char *, int)
+-//go:noescape
+-func access(name *byte, mode int32) int32
+-
+-// int connect(int, const struct sockaddr*, socklen_t)
+-func connect(fd int32, addr unsafe.Pointer, len int32) int32
+-
+-// int socket(int, int, int)
+-func socket(domain int32, typ int32, prot int32) int32
+diff --git a/src/runtime/stubs_linux.go b/src/runtime/stubs_linux.go
+index d10f657197..e75fcf6c95 100644
+--- a/src/runtime/stubs_linux.go
++++ b/src/runtime/stubs_linux.go
+@@ -6,4 +6,14 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ func sbrk0() uintptr
++
++// Called from write_err_android.go only, but defined in sys_linux_*.s;
++// declared here (instead of in write_err_android.go) for go vet on non-android builds.
++// The return value is the raw syscall result, which may encode an error number.
++//go:noescape
++func access(name *byte, mode int32) int32
++func connect(fd int32, addr unsafe.Pointer, len int32) int32
++func socket(domain int32, typ int32, prot int32) int32
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index bc309ba453..26a81ebf44 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -295,7 +295,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),NOSPLIT,$32
+-	MOVL	address+4(FP), BX	// aka base
++	MOVL	base+4(FP), BX
+ 	// see comment in sys_linux_386.s; freebsd is similar
+ 	ADDL	$0x4, BX
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 8c791b3004..72c43bd9da 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -474,6 +474,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect.
++	NOP	SP // tell vet SP changed - stop checking offsets
+ 	MOVL	12(SP), BP
+ 	CMPL	BP, $1234
+ 	JEQ	2(PC)
+@@ -572,7 +573,7 @@ GLOBL runtime·tls_entry_number(SB), NOPTR, $4
+ // The name, setldt, is a misnomer, although we leave this name as it is for
+ // the compatibility with other platforms.
+ TEXT runtime·setldt(SB),NOSPLIT,$32
+-	MOVL	address+4(FP), DX	// base address
++	MOVL	base+4(FP), DX
+ 
+ #ifdef GOOS_android
+ 	// Android stores the TLS offset in runtime·tls_g.
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index c45703d228..33ed1050c2 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -462,3 +462,18 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	SYSCALL
+ 	MOVV	R2, ret+0(FP)
+ 	RET
++
++TEXT runtime·access(SB),$0-20
++	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP) // for vet
++	RET
++
++TEXT runtime·connect(SB),$0-28
++	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+24(FP) // for vet
++	RET
++
++TEXT runtime·socket(SB),$0-20
++	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP) // for vet
++	RET
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index f362b0f3f1..ee9f9303c7 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -492,3 +492,18 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	SYSCALL
+ 	MOVW	R2, ret+0(FP)
+ 	RET
++
++TEXT runtime·access(SB),$0-12
++	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+8(FP)	// for vet
++	RET
++
++TEXT runtime·connect(SB),$0-16
++	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+12(FP)	// for vet
++	RET
++
++TEXT runtime·socket(SB),$0-16
++	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+12(FP)	// for vet
++	RET
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 6835f434de..f1515ec41b 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -616,3 +616,18 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL	$SYS_brk
+ 	MOVD	R3, ret+0(FP)
+ 	RET
++
++TEXT runtime·access(SB),$0-20
++	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP) // for vet
++	RET
++
++TEXT runtime·connect(SB),$0-28
++	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+24(FP) // for vet
++	RET
++
++TEXT runtime·socket(SB),$0-20
++	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP) // for vet
++	RET
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index c79ceea751..d7ee391126 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -446,3 +446,18 @@ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	SYSCALL
+ 	MOVD	R2, ret+0(FP)
+ 	RET
++
++TEXT runtime·access(SB),$0-20
++	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT runtime·connect(SB),$0-28
++	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+24(FP)
++	RET
++
++TEXT runtime·socket(SB),$0-20
++	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
++	MOVW	R0, ret+16(FP)
++	RET
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 24eaeb238c..fff75b8626 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -287,7 +287,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$20
+ 	RET
+ 
+ TEXT runtime·setldt(SB),NOSPLIT,$8
+-	MOVL	addr+4(FP), BX // aka base
++	MOVL	base+4(FP), BX
+ 	ADDL	$0x8, BX
+ 	MOVL	BX, 0(SP)
+ 	NACL_SYSCALL(SYS_tls_init)
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 5501e10106..ee4e3cf5a2 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -361,7 +361,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 
+ TEXT runtime·setldt(SB),NOSPLIT,$8
+ 	// Under NetBSD we set the GS base instead of messing with the LDT.
+-	MOVL	16(SP), AX		// tls0
++	MOVL	base+4(FP), AX
+ 	MOVL	AX, 0(SP)
+ 	CALL	runtime·settls(SB)
+ 	RET
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index d555edb71f..741907312e 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -329,7 +329,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 
+ TEXT runtime·setldt(SB),NOSPLIT,$4
+ 	// Under OpenBSD we set the GS base instead of messing with the LDT.
+-	MOVL	tls0+4(FP), AX
++	MOVL	base+4(FP), AX
+ 	MOVL	AX, 0(SP)
+ 	CALL	runtime·settls(SB)
+ 	RET
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 4ef4aab376..a73c33f104 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -6,10 +6,6 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
+-// setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),NOSPLIT,$0
+-	RET
+-
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	$14, BP
+ 	SYSCALL
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index e6d774e66f..ff9f4bafa5 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -354,7 +354,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),NOSPLIT,$0
+-	MOVL	address+4(FP), CX
++	MOVL	base+4(FP), CX
+ 	MOVL	CX, 0x14(FS)
+ 	RET
+ 

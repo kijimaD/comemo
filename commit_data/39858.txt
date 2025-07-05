@@ -14,7 +14,7 @@ Date:   Mon Mar 25 17:39:11 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go               |  2 +-
  src/cmd/go/internal/load/pkg.go     |  7 ++++
  src/go/build/deps_test.go           | 10 ++++-
@@ -26,3 +26,410 @@ Date:   Mon Mar 25 17:39:11 2019 +0000
  src/sort/slice.go                   | 16 ++++----
  src/sort/slice_pre113.go            | 46 +++++++++++++++++++++++
  10 files changed, 224 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1ee50ac983..d7e9ab4c74 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1888,7 +1888,7 @@ func TestGoListTest(t *testing.T) {
+ 	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
+ 
+ 	tg.run("list", "-deps", "-f", "{{if .DepOnly}}{{.ImportPath}}{{end}}", "sort")
+-	tg.grepStdout(`^reflect$`, "missing reflect")
++	tg.grepStdout(`^internal/reflectlite$`, "missing internal/reflectlite")
+ 	tg.grepStdoutNot(`^sort`, "unexpected sort")
+ }
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3827d3184e..cc81cc0317 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -969,6 +969,13 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
+ 		return p
+ 	}
+ 
++	// The sort package depends on internal/reflectlite, but during bootstrap
++	// the path rewriting causes the normal internal checks to fail.
++	// Instead, just ignore the internal rules during bootstrap.
++	if p.Standard && strings.HasPrefix(importerPath, "bootstrap/") {
++		return p
++	}
++
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+ 	// with a name given on the command line, not an
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 92b115eb53..853a7e64c8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -120,7 +120,7 @@ var pkgDeps = map[string][]string{
+ 	"image/color/palette":    {"L2", "image/color"},
+ 	"internal/fmtsort":       {"reflect", "sort"},
+ 	"reflect":                {"L2"},
+-	"sort":                   {"reflect"},
++	"sort":                   {"internal/reflectlite"},
+ 
+ 	"L3": {
+ 		"L2",
+@@ -563,11 +563,12 @@ func TestDependencies(t *testing.T) {
+ 	// these dependency paths:
+ 	badPaths := []struct{ from, to string }{
+ 		{"net", "unicode"},
++		{"os", "unicode"},
+ 	}
+ 
+ 	for _, path := range badPaths {
+ 		if how := depPath(path.from, path.to); how != "" {
+-			t.Logf("TODO(issue 30440): policy violation: %s", how)
++			t.Errorf("policy violation: %s", how)
+ 		}
+ 	}
+ 
+@@ -585,6 +586,11 @@ func findImports(pkg string) ([]string, error) {
+ 	var haveImport = map[string]bool{}
+ 	for _, file := range files {
+ 		name := file.Name()
++		if name == "slice_pre113.go" {
++			// This file is ignored by build tags which aren't
++			// handled by this findImports func.
++			continue
++		}
+ 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+ 			continue
+ 		}
+diff --git a/src/internal/reflectlite/swapper.go b/src/internal/reflectlite/swapper.go
+new file mode 100644
+index 0000000000..4594fb5ee2
+--- /dev/null
++++ b/src/internal/reflectlite/swapper.go
+@@ -0,0 +1,74 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflectlite
++
++import "unsafe"
++
++// Swapper returns a function that swaps the elements in the provided
++// slice.
++//
++// Swapper panics if the provided interface is not a slice.
++func Swapper(slice interface{}) func(i, j int) {
++	v := ValueOf(slice)
++	if v.Kind() != Slice {
++		panic(&ValueError{Method: "Swapper", Kind: v.Kind()})
++	}
++	// Fast path for slices of size 0 and 1. Nothing to swap.
++	switch v.Len() {
++	case 0:
++		return func(i, j int) { panic("reflect: slice index out of range") }
++	case 1:
++		return func(i, j int) {
++			if i != 0 || j != 0 {
++				panic("reflect: slice index out of range")
++			}
++		}
++	}
++
++	typ := v.Type().Elem().(*rtype)
++	size := typ.Size()
++	hasPtr := typ.ptrdata != 0
++
++	// Some common & small cases, without using memmove:
++	if hasPtr {
++		if size == ptrSize {
++			ps := *(*[]unsafe.Pointer)(v.ptr)
++			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
++		}
++		if typ.Kind() == String {
++			ss := *(*[]string)(v.ptr)
++			return func(i, j int) { ss[i], ss[j] = ss[j], ss[i] }
++		}
++	} else {
++		switch size {
++		case 8:
++			is := *(*[]int64)(v.ptr)
++			return func(i, j int) { is[i], is[j] = is[j], is[i] }
++		case 4:
++			is := *(*[]int32)(v.ptr)
++			return func(i, j int) { is[i], is[j] = is[j], is[i] }
++		case 2:
++			is := *(*[]int16)(v.ptr)
++			return func(i, j int) { is[i], is[j] = is[j], is[i] }
++		case 1:
++			is := *(*[]int8)(v.ptr)
++			return func(i, j int) { is[i], is[j] = is[j], is[i] }
++		}
++	}
++
++	s := (*sliceHeader)(v.ptr)
++	tmp := unsafe_New(typ) // swap scratch space
++
++	return func(i, j int) {
++		if uint(i) >= uint(s.Len) || uint(j) >= uint(s.Len) {
++			panic("reflect: slice index out of range")
++		}
++		val1 := arrayAt(s.Data, i, size, "i < s.Len")
++		val2 := arrayAt(s.Data, j, size, "j < s.Len")
++		typedmemmove(typ, tmp, val1)
++		typedmemmove(typ, val1, val2)
++		typedmemmove(typ, val2, tmp)
++	}
++}
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 3375464647..03274bcd4c 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -35,6 +35,10 @@ type Type interface {
+ 	// will be the empty string.
+ 	PkgPath() string
+ 
++	// Size returns the number of bytes needed to store
++	// a value of the given type; it is analogous to unsafe.Sizeof.
++	Size() uintptr
++
+ 	// Kind returns the specific kind of this type.
+ 	Kind() Kind
+ 
+@@ -482,8 +486,12 @@ func (t *rtype) String() string {
+ 	return s
+ }
+ 
++func (t *rtype) Size() uintptr { return t.size }
++
+ func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
+ 
++func (t *rtype) pointers() bool { return t.ptrdata != 0 }
++
+ func (t *rtype) common() *rtype { return t }
+ 
+ func (t *rtype) exportedMethods() []method {
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 837fa6c638..985087254f 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -9,6 +9,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
++
+ // Value is the reflection interface to a Go value.
+ //
+ // Not all methods apply to all kinds of values. Restrictions,
+@@ -84,6 +86,18 @@ func (f flag) ro() flag {
+ 	return 0
+ }
+ 
++// pointer returns the underlying pointer represented by v.
++// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
++func (v Value) pointer() unsafe.Pointer {
++	if v.typ.size != ptrSize || !v.typ.pointers() {
++		panic("can't call pointer on a non-pointer Value")
++	}
++	if v.flag&flagIndir != 0 {
++		return *(*unsafe.Pointer)(v.ptr)
++	}
++	return v.ptr
++}
++
+ // packEface converts v to the empty interface.
+ func packEface(v Value) interface{} {
+ 	t := v.typ
+@@ -316,6 +330,32 @@ func (v Value) Kind() Kind {
+ 	return v.kind()
+ }
+ 
++// implemented in runtime:
++func chanlen(unsafe.Pointer) int
++func maplen(unsafe.Pointer) int
++
++// Len returns v's length.
++// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
++func (v Value) Len() int {
++	k := v.kind()
++	switch k {
++	case Array:
++		tt := (*arrayType)(unsafe.Pointer(v.typ))
++		return int(tt.len)
++	case Chan:
++		return chanlen(v.pointer())
++	case Map:
++		return maplen(v.pointer())
++	case Slice:
++		// Slice is bigger than a word; assume flagIndir.
++		return (*sliceHeader)(v.ptr).Len
++	case String:
++		// String is bigger than a word; assume flagIndir.
++		return (*stringHeader)(v.ptr).Len
++	}
++	panic(&ValueError{"reflect.Value.Len", v.kind()})
++}
++
+ // NumMethod returns the number of exported methods in the value's method set.
+ func (v Value) numMethod() int {
+ 	if v.typ == nil {
+@@ -427,6 +467,17 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 	panic(context + ": value of type " + v.typ.String() + " is not assignable to type " + dst.String())
+ }
+ 
++// arrayAt returns the i-th element of p,
++// an array whose elements are eltSize bytes wide.
++// The array pointed at by p must have at least i+1 elements:
++// it is invalid (but impossible to check here) to pass i >= len,
++// because then the result will point outside the array.
++// whySafe must explain why i < len. (Passing "i < len" is fine;
++// the benefit is to surface this assumption at the call site.)
++func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Pointer {
++	return add(p, uintptr(i)*eltSize, "i < len")
++}
++
+ func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+ 
+ // typedmemmove copies a value of type t to dst from src.
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 8194457434..8334c1ebba 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -678,6 +678,14 @@ func reflect_chanlen(c *hchan) int {
+ 	return int(c.qcount)
+ }
+ 
++//go:linkname reflectlite_chanlen internal/reflectlite.chanlen
++func reflectlite_chanlen(c *hchan) int {
++	if c == nil {
++		return 0
++	}
++	return int(c.qcount)
++}
++
+ //go:linkname reflect_chancap reflect.chancap
+ func reflect_chancap(c *hchan) int {
+ 	if c == nil {
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 0ebbf2ae76..bb32526846 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1371,6 +1371,18 @@ func reflect_maplen(h *hmap) int {
+ 	return h.count
+ }
+ 
++//go:linkname reflectlite_maplen internal/reflectlite.maplen
++func reflectlite_maplen(h *hmap) int {
++	if h == nil {
++		return 0
++	}
++	if raceenabled {
++		callerpc := getcallerpc()
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
++	}
++	return h.count
++}
++
+ //go:linkname reflect_ismapkey reflect.ismapkey
+ func reflect_ismapkey(t *_type) bool {
+ 	return ismapkey(t)
+diff --git a/src/sort/slice.go b/src/sort/slice.go
+index 206f12173d..5196affcfd 100644
+--- a/src/sort/slice.go
++++ b/src/sort/slice.go
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !compiler_bootstrap go1.8
++// +build !compiler_bootstrap go1.13
+ 
+ package sort
+ 
+-import "reflect"
++import (
++	"internal/reflectlite"
++)
+ 
+ // Slice sorts the provided slice given the provided less function.
+ //
+@@ -15,8 +17,8 @@ import "reflect"
+ //
+ // The function panics if the provided interface is not a slice.
+ func Slice(slice interface{}, less func(i, j int) bool) {
+-	rv := reflect.ValueOf(slice)
+-	swap := reflect.Swapper(slice)
++	rv := reflectlite.ValueOf(slice)
++	swap := reflectlite.Swapper(slice)
+ 	length := rv.Len()
+ 	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
+ }
+@@ -26,8 +28,8 @@ func Slice(slice interface{}, less func(i, j int) bool) {
+ //
+ // The function panics if the provided interface is not a slice.
+ func SliceStable(slice interface{}, less func(i, j int) bool) {
+-	rv := reflect.ValueOf(slice)
+-	swap := reflect.Swapper(slice)
++	rv := reflectlite.ValueOf(slice)
++	swap := reflectlite.Swapper(slice)
+ 	stable_func(lessSwap{less, swap}, rv.Len())
+ }
+ 
+@@ -35,7 +37,7 @@ func SliceStable(slice interface{}, less func(i, j int) bool) {
+ //
+ // The function panics if the provided interface is not a slice.
+ func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
+-	rv := reflect.ValueOf(slice)
++	rv := reflectlite.ValueOf(slice)
+ 	n := rv.Len()
+ 	for i := n - 1; i > 0; i-- {
+ 		if less(i, i-1) {
+diff --git a/src/sort/slice_pre113.go b/src/sort/slice_pre113.go
+new file mode 100644
+index 0000000000..4d5f759a92
+--- /dev/null
++++ b/src/sort/slice_pre113.go
+@@ -0,0 +1,46 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.8,!go1.13
++
++package sort
++
++import "reflect"
++
++// Slice sorts the provided slice given the provided less function.
++//
++// The sort is not guaranteed to be stable. For a stable sort, use
++// SliceStable.
++//
++// The function panics if the provided interface is not a slice.
++func Slice(slice interface{}, less func(i, j int) bool) {
++	rv := reflect.ValueOf(slice)
++	swap := reflect.Swapper(slice)
++	length := rv.Len()
++	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
++}
++
++// SliceStable sorts the provided slice given the provided less
++// function while keeping the original order of equal elements.
++//
++// The function panics if the provided interface is not a slice.
++func SliceStable(slice interface{}, less func(i, j int) bool) {
++	rv := reflect.ValueOf(slice)
++	swap := reflect.Swapper(slice)
++	stable_func(lessSwap{less, swap}, rv.Len())
++}
++
++// SliceIsSorted tests whether a slice is sorted.
++//
++// The function panics if the provided interface is not a slice.
++func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
++	rv := reflect.ValueOf(slice)
++	n := rv.Len()
++	for i := n - 1; i > 0; i-- {
++		if less(i, i-1) {
++			return false
++		}
++	}
++	return true
++}

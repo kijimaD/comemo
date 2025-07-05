@@ -11,6 +11,32 @@ Date:   Tue Aug 12 07:13:52 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/129760044
-
+---
  src/run.bash | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index d13161e9de..b5f061d885 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -162,7 +162,7 @@ android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | fr
+ esac
+ ) || exit $?
+ 
+-# This tests cgo -godefs. That mode is not supported,
++# This tests cgo -cdefs. That mode is not supported,
+ # so it's okay if it doesn't work on some systems.
+ # In particular, it works badly with clang on OS X.
+ [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+@@ -170,6 +170,11 @@ esac
+ ./test.bash || exit 1
+ ) || exit $?
+ 
++[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
++(xcd ../misc/cgo/testgodefs
++./test.bash || exit 1
++) || exit $?
++
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/testso

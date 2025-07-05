@@ -19,7 +19,67 @@ Date:   Thu Jul 26 16:33:27 2018 -0700
     Change-Id: Iad86150d516fcfac167591daf5a26c38bec7d143
     Reviewed-on: https://go-review.googlesource.com/126275
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue26517.go | 23 +++++++++++++++++++++++
  src/cmd/cgo/gcc.go          |  6 ++++--
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue26517.go b/misc/cgo/test/issue26517.go
+new file mode 100644
+index 0000000000..c1bf1c9213
+--- /dev/null
++++ b/misc/cgo/test/issue26517.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Introduce two pointer types which are distinct, but have the same
++// base type. Make sure that both of those pointer types get resolved
++// correctly. Before the fix for 26517 if one of these pointer types
++// was resolved before the other one was processed, the second one
++// would never be resolved.
++// Before this issue was fixed this test failed on Windows,
++// where va_list expands to a named char* type.
++
++/*
++#include <stdarg.h>
++typedef va_list TypeOne;
++typedef char *TypeTwo;
++*/
++import "C"
++
++var a C.TypeOne
++var b C.TypeTwo
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 0b4038fb77..d48fc7958d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1735,6 +1735,7 @@ type typeConv struct {
+ 	// Map from types to incomplete pointers to those types.
+ 	ptrs map[dwarf.Type][]*Type
+ 	// Keys of ptrs in insertion order (deterministic worklist)
++	// ptrKeys contains exactly the keys in ptrs.
+ 	ptrKeys []dwarf.Type
+ 
+ 	// Type names X for which there exists an XGetTypeID function with type func() CFTypeID.
+@@ -1877,14 +1878,15 @@ func (c *typeConv) FinishType(pos token.Pos) {
+ 	for len(c.ptrKeys) > 0 {
+ 		dtype := c.ptrKeys[0]
+ 		c.ptrKeys = c.ptrKeys[1:]
++		ptrs := c.ptrs[dtype]
++		delete(c.ptrs, dtype)
+ 
+ 		// Note Type might invalidate c.ptrs[dtype].
+ 		t := c.Type(dtype, pos)
+-		for _, ptr := range c.ptrs[dtype] {
++		for _, ptr := range ptrs {
+ 			ptr.Go.(*ast.StarExpr).X = t.Go
+ 			ptr.C.Set("%s*", t.C)
+ 		}
+-		c.ptrs[dtype] = nil // retain the map key
+ 	}
+ }
+ 

@@ -15,9 +15,111 @@ Date:   Tue Oct 1 17:04:51 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 26 +++++++++++++++++++++++++
  src/cmd/compile/internal/types2/literals.go    |  5 +++--
  src/go/types/issues_test.go                    | 27 ++++++++++++++++++++++++++
  src/go/types/literals.go                       |  5 +++--
  4 files changed, 59 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index b339def735..86b0a24e51 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -1141,3 +1141,29 @@ type (
+ 		t.Errorf("got %s, want %s", got, want)
+ 	}
+ }
++
++func TestIssue69092(t *testing.T) {
++	const src = `
++package p
++
++var _ = T{{x}}
++`
++
++	file := mustParse(src)
++	conf := Config{Error: func(err error) {}} // ignore errors
++	info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
++	conf.Check("p", []*syntax.File{file}, &info)
++
++	// look for {x} expression
++	outer := file.DeclList[0].(*syntax.VarDecl).Values.(*syntax.CompositeLit) // T{{x}}
++	inner := outer.ElemList[0]                                                // {x}
++
++	// type of {x} must have been recorded
++	tv, ok := info.Types[inner]
++	if !ok {
++		t.Fatal("no type found for {x}")
++	}
++	if tv.Type != Typ[Invalid] {
++		t.Fatalf("unexpected type for {x}: %s", tv.Type)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/literals.go b/src/cmd/compile/internal/types2/literals.go
+index b4fa9d9ee7..b81d51564c 100644
+--- a/src/cmd/compile/internal/types2/literals.go
++++ b/src/cmd/compile/internal/types2/literals.go
+@@ -137,8 +137,9 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
+ 	default:
+ 		// TODO(gri) provide better error messages depending on context
+ 		check.error(e, UntypedLit, "missing type in composite literal")
+-		x.mode = invalid
+-		return
++		// continue with invalid type so that elements are "used" (go.dev/issue/69092)
++		typ = Typ[Invalid]
++		base = typ
+ 	}
+ 
+ 	switch utyp := coreType(base).(type) {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index da0c0c1255..9fc650df7c 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -1151,3 +1151,30 @@ type (
+ 		t.Errorf("got %s, want %s", got, want)
+ 	}
+ }
++
++func TestIssue69092(t *testing.T) {
++	const src = `
++package p
++
++var _ = T{{x}}
++`
++
++	fset := token.NewFileSet()
++	file := mustParse(fset, src)
++	conf := Config{Error: func(err error) {}} // ignore errors
++	info := Info{Types: make(map[ast.Expr]TypeAndValue)}
++	conf.Check("p", fset, []*ast.File{file}, &info)
++
++	// look for {x} expression
++	outer := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit) // T{{x}}
++	inner := outer.Elts[0]                                                                        // {x}
++
++	// type of {x} must have been recorded
++	tv, ok := info.Types[inner]
++	if !ok {
++		t.Fatal("no type found for {x}")
++	}
++	if tv.Type != Typ[Invalid] {
++		t.Fatalf("unexpected type for {x}: %s", tv.Type)
++	}
++}
+diff --git a/src/go/types/literals.go b/src/go/types/literals.go
+index 4019c094d5..d3102d4f91 100644
+--- a/src/go/types/literals.go
++++ b/src/go/types/literals.go
+@@ -141,8 +141,9 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 	default:
+ 		// TODO(gri) provide better error messages depending on context
+ 		check.error(e, UntypedLit, "missing type in composite literal")
+-		x.mode = invalid
+-		return
++		// continue with invalid type so that elements are "used" (go.dev/issue/69092)
++		typ = Typ[Invalid]
++		base = typ
+ 	}
+ 
+ 	switch utyp := coreType(base).(type) {

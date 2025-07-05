@@ -9,6 +9,52 @@ Date:   Mon Aug 3 11:05:05 2015 +1000
     Change-Id: Icffa3213246663982b7cc795982e0923e272f405
     Reviewed-on: https://go-review.googlesource.com/12919
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.html | 27 +++++++++++++++++++++++++--
  1 file changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 16620e34ae..23874efff4 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -416,8 +416,8 @@ by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
+ </p>
+ 
+ <p>
+-There are a couple of other changes.
+-The more significant is the addition of a <code>-buildmode</code> option that
++There are several other changes.
++The most significant is the addition of a <code>-buildmode</code> option that
+ expands the style of linking; it now supports
+ situations such as building shared libraries and allowing other languages
+ to call into Go libraries.
+@@ -436,6 +436,29 @@ Also, although this may be fixed, Windows cgo executables are missing some
+ DWARF information.
+ </p>
+ 
++<p>
++Finally, the <code>-X</code> flag, which takes two arguments,
++as in
++</p>
++
++<pre>
++-X importpath.name value
++</pre>
++
++<p>
++now also accepts a more common Go flag style with a single argument
++that is itself a <code>name=value</code> pair:
++</p>
++
++<pre>
++-X importpath.name=value
++</pre>
++
++<p>
++Although the old syntax still works, it is recommended that uses of this
++flag in scripts and the like be updated to the new form.
++</p>
++
+ <h3 id="go_command">Go command</h3>
+ 
+ <p>

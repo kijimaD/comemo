@@ -17,7 +17,131 @@ Date:   Thu May 31 15:18:21 2018 -0700
     Change-Id: Ie20de65e3b26a5a6ff7b0eddc3d089f56be204e8
     Reviewed-on: https://go-review.googlesource.com/115619
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/decl.go   | 49 ++++++++++++++++---------------------------------
  src/go/types/object.go |  6 ++----
  2 files changed, 18 insertions(+), 37 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 9a27fbbed6..8430ebddb7 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -113,27 +113,29 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 	case grey:
+ 		// We have a cycle.
+ 		// In the existing code, this is marked by a non-nil type
+-		// for the object except for constants and variables, which
+-		// have their own "visited" flag (the new marking approach
+-		// will allow us to remove that flag eventually). Their type
+-		// may be nil because they haven't determined their init
+-		// values yet (from which to deduce the type). But in that
+-		// case, they must have been marked as visited.
+-		// For now, handle constants and variables specially.
+-		visited := false
++		// for the object except for constants and variables whose
++		// type may be non-nil (known), or nil if it depends on the
++		// not-yet known initialization value.
++		// In the former case, set the type to Typ[Invalid] because
++		// we have an initialization cycle. The cycle error will be
++		// reported later, when determining initialization order.
++		// TODO(gri) Report cycle here and simplify initialization
++		// order code.
+ 		switch obj := obj.(type) {
+ 		case *Const:
+-			visited = obj.visited
++			if obj.typ == nil {
++				obj.typ = Typ[Invalid]
++			}
+ 
+ 		case *Var:
+-			visited = obj.visited
++			if obj.typ == nil {
++				obj.typ = Typ[Invalid]
++			}
+ 
+ 		case *TypeName:
+-			assert(obj.Type() != nil)
+ 			if useCycleMarking {
+ 				check.typeCycle(obj)
+ 			}
+-			return
+ 
+ 		case *Func:
+ 			// Cycles involving functions require variables in
+@@ -142,19 +144,12 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 			// function type is set to an empty signature which
+ 			// makes it impossible to initialize a variable with
+ 			// the function).
+-			assert(obj.Type() != nil)
+-			return
+ 
+ 		default:
+ 			unreachable()
+ 		}
+-
+-		// we have a *Const or *Var
+-		if obj.Type() != nil {
+-			return
+-		}
+-		assert(visited)
+-
++		assert(obj.Type() != nil)
++		return
+ 	}
+ 
+ 	if trace {
+@@ -260,12 +255,6 @@ func (check *Checker) typeCycle(obj *TypeName) {
+ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	assert(obj.typ == nil)
+ 
+-	if obj.visited {
+-		obj.typ = Typ[Invalid]
+-		return
+-	}
+-	obj.visited = true
+-
+ 	// use the correct value of iota
+ 	check.iota = obj.val
+ 	defer func() { check.iota = nil }()
+@@ -299,12 +288,6 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	assert(obj.typ == nil)
+ 
+-	if obj.visited {
+-		obj.typ = Typ[Invalid]
+-		return
+-	}
+-	obj.visited = true
+-
+ 	// determine type, if any
+ 	if typ != nil {
+ 		obj.typ = check.typ(typ)
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 1305a9db6e..07adfbc34c 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -197,14 +197,13 @@ func (obj *PkgName) Imported() *Package { return obj.imported }
+ // A Const represents a declared constant.
+ type Const struct {
+ 	object
+-	val     constant.Value
+-	visited bool // for initialization cycle detection
++	val constant.Value
+ }
+ 
+ // NewConst returns a new constant with value val.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
+-	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val, false}
++	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val}
+ }
+ 
+ // Val returns the constant's value.
+@@ -256,7 +255,6 @@ func (obj *TypeName) IsAlias() bool {
+ type Var struct {
+ 	object
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+-	visited  bool // for initialization cycle detection
+ 	isField  bool // var is struct field
+ 	used     bool // set if the variable was used
+ }

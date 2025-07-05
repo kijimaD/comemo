@@ -7,6 +7,11 @@ Date:   Sun Feb 22 15:39:50 2009 -0800
     R=rsc
     OCL=25293
     CL=25293
-
+---
  doc/logo_blue.png | Bin 0 -> 7107 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/logo_blue.png b/doc/logo_blue.png
+new file mode 100644
+index 0000000000..350d3512a3
+Binary files /dev/null and b/doc/logo_blue.png differ

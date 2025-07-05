@@ -7,7 +7,7 @@ Date:   Wed Oct 6 09:53:12 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2331045
-
+---
  src/cmd/5g/cgen.c |  3 +++
  src/cmd/6g/cgen.c |  3 +++
  src/cmd/8g/cgen.c |  3 +++
@@ -16,3 +16,179 @@ Date:   Wed Oct 6 09:53:12 2010 -0400
  src/cmd/gc/subr.c | 20 +++++++++++++++++++-
  src/cmd/gc/walk.c | 29 +++++++++++++++++++++++++++--
  7 files changed, 56 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 9306436ee6..9185aa5acd 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -820,6 +820,9 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n == N)
+ 		n = nodbool(1);
+ 
++	if(n->ninit != nil)
++		genlist(n->ninit);
++
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 9bca759961..8c6bfd99b8 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -699,6 +699,9 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n == N)
+ 		n = nodbool(1);
+ 
++	if(n->ninit != nil)
++		genlist(n->ninit);
++
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index f054a89f40..b0fd991749 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -754,6 +754,9 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n == N)
+ 		n = nodbool(1);
+ 
++	if(n->ninit != nil)
++		genlist(n->ninit);
++
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 724f16ae61..d2396aa09f 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -248,9 +248,6 @@ gen(Node *n)
+ 
+ 		gen(n->nincr);				// contin:	incr
+ 		patch(p1, pc);				// test:
+-		if(n->ntest != N)
+-			if(n->ntest->ninit != nil)
+-				genlist(n->ntest->ninit);
+ 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
+ 		genlist(n->nbody);				//		body
+ 		gjmp(continpc);
+@@ -263,9 +260,6 @@ gen(Node *n)
+ 		p1 = gjmp(P);			//		goto test
+ 		p2 = gjmp(P);			// p2:		goto else
+ 		patch(p1, pc);				// test:
+-		if(n->ntest != N)
+-			if(n->ntest->ninit != nil)
+-				genlist(n->ntest->ninit);
+ 		bgen(n->ntest, 0, p2);			//		if(!test) goto p2
+ 		genlist(n->nbody);				//		then
+ 		p3 = gjmp(P);			//		goto done
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5dd9356ef4..490710b7e0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1109,6 +1109,7 @@ Type*	ptrto(Type *t);
+ void*	remal(void *p, int32 on, int32 n);
+ Sym*	restrictlookup(char *name, Pkg *pkg);
+ Node*	safeexpr(Node *n, NodeList **init);
++Node*	cheapexpr(Node *n, NodeList **init);
+ int32	setlineno(Node *n);
+ void	setmaxarg(Type *t);
+ Type*	shallow(Type *t);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 00f213e18f..9dd4a386a4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2595,7 +2595,7 @@ brrev(int a)
+ }
+ 
+ /*
+- * return side effect-free appending side effects to init.
++ * return side effect-free n, appending side effects to init.
+  * result is assignable if n is.
+  */
+ Node*
+@@ -2652,6 +2652,24 @@ safeexpr(Node *n, NodeList **init)
+ 	// make a copy; must not be used as an lvalue
+ 	if(islvalue(n))
+ 		fatal("missing lvalue case in safeexpr: %N", n);
++	return cheapexpr(n, init);
++}
++
++/*
++ * return side-effect free and cheap n, appending side effects to init.
++ * result may not be assignable.
++ */
++Node*
++cheapexpr(Node *n, NodeList **init)
++{
++	Node *a, *l;
++
++	switch(n->op) {
++	case ONAME:
++	case OLITERAL:
++		return n;
++	}
++
+ 	l = nod(OXXX, N, N);
+ 	tempname(l, n->type);
+ 	a = nod(OAS, l, n);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 803977482e..a3368aa2d5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -654,8 +654,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OAND:
+ 	case OOR:
+ 	case OXOR:
+-	case OANDAND:
+-	case OOROR:
+ 	case OSUB:
+ 	case OMUL:
+ 	case OEQ:
+@@ -669,6 +667,17 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+ 		goto ret;
++	
++	case OANDAND:
++	case OOROR:
++		walkexpr(&n->left, init);
++		// cannot put side effects from n->right on init,
++		// because they cannot run before n->left is checked.
++		// save elsewhere and store on the eventual n->right.
++		ll = nil;
++		walkexpr(&n->right, &ll);
++		n->right->ninit = concat(n->right->ninit, ll);
++		goto ret;
+ 
+ 	case OPRINT:
+ 	case OPRINTN:
+@@ -1196,11 +1205,27 @@ walkexpr(Node **np, NodeList **init)
+ 			goto ret;
+ 		}
+ 
++		// prepare for rewrite below
++		if(n->etype == OEQ || n->etype == ONE) {
++			n->left = cheapexpr(n->left, init);
++			n->right = cheapexpr(n->right, init);
++		}
++
+ 		// sys_cmpstring(s1, s2) :: 0
+ 		r = mkcall("cmpstring", types[TINT], init,
+ 			conv(n->left, types[TSTRING]),
+ 			conv(n->right, types[TSTRING]));
+ 		r = nod(n->etype, r, nodintconst(0));
++
++		// quick check of len before full compare for == or !=
++		if(n->etype == OEQ || n->etype == ONE) {
++			if(n->etype == OEQ)
++				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
++			else
++				r = nod(OOROR, nod(ONE, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
++			typecheck(&r, Erv);
++			walkexpr(&r, nil);
++		}
+ 		typecheck(&r, Erv);
+ 		n = r;
+ 		goto ret;

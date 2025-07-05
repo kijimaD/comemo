@@ -11,7 +11,47 @@ Date:   Thu May 11 11:09:45 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 ++++++-
  test/fixedbugs/issue20333.go             | 15 +++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6f544a5b9a..5e92e926e3 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -498,7 +498,12 @@ OpSwitch:
+ 			ok |= Etype
+ 			n.Op = OTYPE
+ 			n.Type = types.NewPtr(l.Type)
+-			checkwidth(l.Type) // ensure this gets dowidth'd for the backend
++			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
++			// Don't checkwidth [...] arrays, though, since they
++			// will be replaced by concrete-sized arrays. Issue 20333.
++			if !l.Type.IsDDDArray() {
++				checkwidth(l.Type)
++			}
+ 			n.Left = nil
+ 			break OpSwitch
+ 		}
+diff --git a/test/fixedbugs/issue20333.go b/test/fixedbugs/issue20333.go
+new file mode 100644
+index 0000000000..8202ab3e22
+--- /dev/null
++++ b/test/fixedbugs/issue20333.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20333: early checkwidth of [...] arrays led to compilation errors.
++
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println(&[...]string{"abc", "def", "ghi"})
++}

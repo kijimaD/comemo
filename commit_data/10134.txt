@@ -7,6 +7,19 @@ Date:   Fri Oct 28 10:55:58 2011 +0900
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5318058
-
+---
  doc/docs.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 45a8a05e1a..43c2034ff6 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -157,6 +157,7 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ 
+ <h3 id="docs_jp">Japanese &mdash; 日本語</h3>
+ <ul>
++<li><a href="http://go-tour-jp.appspot.com/">A Tour of Go</a></li>
+ <li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.</li>
+ </ul>
+ 

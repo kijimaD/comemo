@@ -7,6 +7,29 @@ Date:   Mon Dec 27 10:05:32 2010 -0800
     R=golang-dev, gri
     CC=binet, golang-dev
     https://golang.org/cl/3782044
-
+---
  src/pkg/exp/eval/expr.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 66adeef957..f633aea390 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -595,9 +595,15 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		return ei.compileIndexExpr(l, r)
+ 
+ 	case *ast.SliceExpr:
+-		var hi *expr
++		var lo, hi *expr
+ 		arr := a.compile(x.X, false)
+-		lo := a.compile(x.Index, false)
++		if x.Index == nil {
++			// beginning was omitted, so we need to provide it
++			ei := &exprInfo{a.compiler, x.Pos()}
++			lo = ei.compileIntLit("0")
++		} else {
++			lo = a.compile(x.Index, false)
++		}
+ 		if x.End == nil {
+ 			// End was omitted, so we need to compute len(x.X)
+ 			ei := &exprInfo{a.compiler, x.Pos()}

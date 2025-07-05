@@ -18,7 +18,7 @@ Date:   Tue Sep 7 09:57:22 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2150042
-
+---
  src/pkg/runtime/darwin/386/sys.s    |   7 ++
  src/pkg/runtime/darwin/amd64/sys.s  |   9 +++
  src/pkg/runtime/darwin/mem.c        |   4 +-
@@ -40,3 +40,667 @@ Date:   Tue Sep 7 09:57:22 2010 -0400
  src/pkg/runtime/tiny/mem.c          |  19 +++--
  src/pkg/runtime/windows/mem.c       |  14 +++-
  20 files changed, 220 insertions(+), 81 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 4e0a0b3fd6..6bc17a4ae5 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -42,6 +42,13 @@ TEXT ·mmap(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT ·munmap(SB),7,$0
++	MOVL	$73, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
+ // void gettime(int64 *sec, int32 *usec)
+ TEXT gettime(SB), 7, $32
+ 	LEAL	12(SP), AX	// must be non-nil, unused
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 148624934e..450bed8c20 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -107,6 +107,15 @@ TEXT	·mmap(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT ·munmap(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	$(0x2000000+73), AX	// syscall entry
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
+ TEXT	notok(SB),7,$0
+ 	MOVL	$0xf1, BP
+ 	MOVQ	BP, (BP)
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+index 52e351a7d7..f6fbe5016d 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -21,8 +21,6 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call munmap
++	runtime_munmap(v, n);
+ }
+ 
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index b65cc66933..b5f6571faa 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -36,10 +36,11 @@ type MemStatsType struct {
+ 	Mallocs    uint64 // number of mallocs
+ 
+ 	// Main allocation heap statistics.
+-	HeapAlloc uint64 // bytes allocated and still in use
+-	HeapSys   uint64 // bytes obtained from system
+-	HeapIdle  uint64 // bytes in idle spans
+-	HeapInuse uint64 // bytes in non-idle span
++	HeapAlloc   uint64 // bytes allocated and still in use
++	HeapSys     uint64 // bytes obtained from system
++	HeapIdle    uint64 // bytes in idle spans
++	HeapInuse   uint64 // bytes in non-idle span
++	HeapObjects uint64 // total number of allocated objects
+ 
+ 	// Low-level fixed-size structure allocator statistics.
+ 	//	Inuse is bytes used now.
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 4b3b474271..6dc98bc96a 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -84,6 +84,13 @@ TEXT ·mmap(SB),7,$32
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT ·munmap(SB),7,$-4
++	MOVL	$73, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
+ TEXT	gettime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 50ec64d6f9..62dcc5dda6 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -116,6 +116,15 @@ TEXT	·mmap(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT	·munmap(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	$73, AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
+ TEXT	notok(SB),7,$-8
+ 	MOVL	$0xf1, BP
+ 	MOVQ	BP, (BP)
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index 52e351a7d7..f6fbe5016d 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -21,8 +21,6 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call munmap
++	runtime_munmap(v, n);
+ }
+ 
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 35c3780cef..d13f85890a 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -110,6 +110,16 @@ TEXT ·mmap(SB),7,$0
+ 	INCL	AX
+ 	RET
+ 
++TEXT ·munmap(SB),7,$0
++	MOVL	$91, AX	// munmap
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	INT $3
++	RET
++
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT futex(SB),7,$0
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 20287c8d02..7e0fffc656 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -100,7 +100,7 @@ TEXT	·mmap(SB),7,$0
+ 	MOVL	32(SP), R8
+ 	MOVL	36(SP), R9
+ 
+-	MOVL	$9, AX			// syscall entry
++	MOVL	$9, AX			// mmap
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	3(PC)
+@@ -108,6 +108,16 @@ TEXT	·mmap(SB),7,$0
+ 	INCQ	AX
+ 	RET
+ 
++TEXT	munmap(SB),7,$0
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	$11, AX	// munmap
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	CALL	notok(SB)
++	RET
++
+ TEXT	notok(SB),7,$0
+ 	MOVQ	$0xf1, BP
+ 	MOVQ	BP, (BP)
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index f30aed0012..6824e29e85 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -25,6 +25,7 @@
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_futex (SYS_BASE + 240)
+ #define SYS_exit_group (SYS_BASE + 248)
++#define SYS_munmap (SYS_BASE + 91)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -64,6 +65,13 @@ TEXT ·mmap(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT ·mmap(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	$SYS_munmap, R7
++	SWI	$0
++	RET
++
+ TEXT gettime(SB),7,$32
+ 	/* dummy version - return 0,0 */
+ 	MOVW	$0, R1
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 7f837bd45e..ab47787f6c 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -33,8 +33,6 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call munmap
++	runtime_munmap(v, n);
+ }
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 473e8a836f..d7ee2535de 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -183,6 +183,7 @@ struct MStats
+ 	uint64	heap_sys;	// bytes obtained from system
+ 	uint64	heap_idle;	// bytes in idle spans
+ 	uint64	heap_inuse;	// bytes in non-idle spans
++	uint64	heap_objects;	// total number of allocated objects
+ 
+ 	// Statistics about allocation of low-level fixed-size structures.
+ 	// Protected by FixAlloc locks.
+@@ -251,6 +252,7 @@ struct MCache
+ 	MCacheList list[NumSizeClasses];
+ 	uint64 size;
+ 	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
++	int64 local_objects;	// objects allocated (or freed) since last lock of heap
+ 	int32 next_sample;	// trigger heap sample after allocating this many bytes
+ };
+ 
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 202936f6e8..80997bf35b 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -47,6 +47,7 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
+ 		}
+ 	}
+ 	c->local_alloc += size;
++	c->local_objects++;
+ 	return v;
+ }
+ 
+@@ -88,6 +89,7 @@ MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+ 	l->nlist++;
+ 	c->size += size;
+ 	c->local_alloc -= size;
++	c->local_objects--;
+ 
+ 	if(l->nlist >= MaxMCacheListLen) {
+ 		// Release a chunk back.
+@@ -121,11 +123,6 @@ MCache_ReleaseAll(MCache *c)
+ 	int32 i;
+ 	MCacheList *l;
+ 
+-	lock(&mheap);
+-	mstats.heap_alloc += c->local_alloc;
+-	c->local_alloc = 0;
+-	unlock(&mheap);
+-
+ 	for(i=0; i<NumSizeClasses; i++) {
+ 		l = &c->list[i];
+ 		ReleaseN(c, l, l->nlist, i);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 93a8f6d810..47e324ddf7 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -19,6 +19,13 @@ enum {
+ 	Debug = 0
+ };
+ 
++typedef struct BlockList BlockList;
++struct BlockList
++{
++	byte *obj;
++	uintptr size;
++};
++
+ extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+@@ -26,6 +33,7 @@ extern byte end[];
+ static G *fing;
+ static Finalizer *finq;
+ static int32 fingwait;
++static BlockList *bl, *ebl;
+ 
+ static void runfinq(void);
+ 
+@@ -34,7 +42,7 @@ enum {
+ };
+ 
+ static void
+-scanblock(int32 depth, byte *b, int64 n)
++scanblock(byte *b, int64 n)
+ {
+ 	int32 off;
+ 	void *obj;
+@@ -42,48 +50,65 @@ scanblock(int32 depth, byte *b, int64 n)
+ 	uint32 *refp, ref;
+ 	void **vp;
+ 	int64 i;
+-
+-	if(Debug > 1)
+-		printf("%d scanblock %p %D\n", depth, b, n);
+-	off = (uint32)(uintptr)b & (PtrSize-1);
+-	if(off) {
+-		b += PtrSize - off;
+-		n -= PtrSize - off;
+-	}
+-
+-	vp = (void**)b;
+-	n /= PtrSize;
+-	for(i=0; i<n; i++) {
+-		obj = vp[i];
+-		if(obj == nil)
+-			continue;
+-		if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
+-			if((((uintptr)obj) & 63) != 0)
+-				continue;
+-
+-			// Looks like a Native Client closure.
+-			// Actual pointer is pointed at by address in first instruction.
+-			// Embedded pointer starts at byte 2.
+-			// If it is f4f4f4f4 then that space hasn't been
+-			// used for a closure yet (f4 is the HLT instruction).
+-			// See nacl/386/closure.c for more.
+-			void **pp;
+-			pp = *(void***)((byte*)obj+2);
+-			if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
+-				continue;
+-			obj = *pp;
++	BlockList *w;
++
++	w = bl;
++	w->obj = b;
++	w->size = n;
++	w++;
++
++	while(w > bl) {
++		w--;
++		b = w->obj;
++		n = w->size;
++
++		if(Debug > 1)
++			printf("scanblock %p %D\n", b, n);
++		off = (uint32)(uintptr)b & (PtrSize-1);
++		if(off) {
++			b += PtrSize - off;
++			n -= PtrSize - off;
+ 		}
+-		if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
+-			if(mlookup(obj, &obj, &size, nil, &refp)) {
+-				ref = *refp;
+-				switch(ref & ~RefFlags) {
+-				case RefNone:
+-					if(Debug > 1)
+-						printf("%d found at %p: ", depth, &vp[i]);
+-					*refp = RefSome | (ref & RefFlags);
+-					if(!(ref & RefNoPointers))
+-						scanblock(depth+1, obj, size);
+-					break;
++	
++		vp = (void**)b;
++		n /= PtrSize;
++		for(i=0; i<n; i++) {
++			obj = vp[i];
++			if(obj == nil)
++				continue;
++			if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
++				if((((uintptr)obj) & 63) != 0)
++					continue;
++	
++				// Looks like a Native Client closure.
++				// Actual pointer is pointed at by address in first instruction.
++				// Embedded pointer starts at byte 2.
++				// If it is f4f4f4f4 then that space hasn't been
++				// used for a closure yet (f4 is the HLT instruction).
++				// See nacl/386/closure.c for more.
++				void **pp;
++				pp = *(void***)((byte*)obj+2);
++				if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
++					continue;
++				obj = *pp;
++			}
++			if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
++				if(mlookup(obj, &obj, &size, nil, &refp)) {
++					ref = *refp;
++					switch(ref & ~RefFlags) {
++					case RefNone:
++						if(Debug > 1)
++							printf("found at %p: ", &vp[i]);
++						*refp = RefSome | (ref & RefFlags);
++						if(!(ref & RefNoPointers)) {
++							if(w >= ebl)
++								throw("scanblock: garbage collection stack overflow");
++							w->obj = obj;
++							w->size = size;
++							w++;
++						}
++						break;
++					}
+ 				}
+ 			}
+ 		}
+@@ -104,7 +129,7 @@ scanstack(G *gp)
+ 		printf("scanstack %d %p\n", gp->goid, sp);
+ 	stk = (Stktop*)gp->stackbase;
+ 	while(stk) {
+-		scanblock(0, sp, (byte*)stk - sp);
++		scanblock(sp, (byte*)stk - sp);
+ 		sp = stk->gobuf.sp;
+ 		stk = (Stktop*)stk->stackbase;
+ 	}
+@@ -122,19 +147,40 @@ markfin(void *v)
+ 		throw("mark - finalizer inconsistency");
+ 	
+ 	// do not mark the finalizer block itself.  just mark the things it points at.
+-	scanblock(1, v, size);
++	scanblock(v, size);
+ }
+ 
+ static void
+ mark(void)
+ {
+ 	G *gp;
++	uintptr blsize, nobj;
++
++	// Figure out how big an object stack we need.
++	// Get a new one if we need more than we have
++	// or we need significantly less than we have.
++	nobj = mstats.heap_objects;
++	if(nobj > ebl - bl || nobj < (ebl-bl)/4) {
++		if(bl != nil)
++			SysFree(bl, (byte*)ebl - (byte*)bl);
++		
++		// While we're allocated a new object stack,
++		// add 20% headroom and also round up to
++		// the nearest page boundary, since mmap
++		// will anyway.
++		nobj = nobj * 12/10;
++		blsize = nobj * sizeof *bl;
++		blsize = (blsize + 4095) & ~4095;
++		nobj = blsize / sizeof *bl;
++		bl = SysAlloc(blsize);
++		ebl = bl + nobj;
++	}
+ 
+ 	// mark data+bss.
+ 	// skip mheap itself, which has no interesting pointers
+ 	// and is mostly zeroed and would not otherwise be paged in.
+-	scanblock(0, data, (byte*)&mheap - data);
+-	scanblock(0, (byte*)(&mheap+1), end - (byte*)(&mheap+1));
++	scanblock(data, (byte*)&mheap - data);
++	scanblock((byte*)(&mheap+1), end - (byte*)(&mheap+1));
+ 
+ 	// mark stacks
+ 	for(gp=allg; gp!=nil; gp=gp->alllink) {
+@@ -276,6 +322,21 @@ stealcache(void)
+ 		MCache_ReleaseAll(m->mcache);
+ }
+ 
++static void
++cachestats(void)
++{
++	M *m;
++	MCache *c;
++
++	for(m=allm; m; m=m->alllink) {
++		c = m->mcache;
++		mstats.heap_alloc += c->local_alloc;
++		c->local_alloc = 0;
++		mstats.heap_objects += c->local_objects;
++		c->local_objects = 0;
++	}
++}
++
+ void
+ gc(int32 force)
+ {
+@@ -313,6 +374,7 @@ gc(int32 force)
+ 	if(mheap.Lock.key != 0)
+ 		throw("mheap locked during gc");
+ 	if(force || mstats.heap_alloc >= mstats.next_gc) {
++		cachestats();
+ 		mark();
+ 		sweep();
+ 		stealcache();
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 44817ddd5a..12c37eab10 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -60,11 +60,15 @@ MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+ 	lock(h);
+ 	mstats.heap_alloc += m->mcache->local_alloc;
+ 	m->mcache->local_alloc = 0;
++	mstats.heap_objects += m->mcache->local_objects;
++	m->mcache->local_objects = 0;
+ 	s = MHeap_AllocLocked(h, npage, sizeclass);
+ 	if(s != nil) {
+ 		mstats.heap_inuse += npage<<PageShift;
+-		if(acct)
++		if(acct) {
++			mstats.heap_objects++;
+ 			mstats.heap_alloc += npage<<PageShift;
++		}
+ 	}
+ 	unlock(h);
+ 	return s;
+@@ -240,9 +244,13 @@ MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+ 	lock(h);
+ 	mstats.heap_alloc += m->mcache->local_alloc;
+ 	m->mcache->local_alloc = 0;
++	mstats.heap_objects += m->mcache->local_objects;
++	m->mcache->local_objects = 0;
+ 	mstats.heap_inuse -= s->npages<<PageShift;
+-	if(acct)
++	if(acct) {
+ 		mstats.heap_alloc -= s->npages<<PageShift;
++		mstats.heap_objects--;
++	}
+ 	MHeap_FreeLocked(h, s);
+ 	unlock(h);
+ }
+diff --git a/src/pkg/runtime/nacl/386/sys.s b/src/pkg/runtime/nacl/386/sys.s
+index e855351b92..483cb7f415 100644
+--- a/src/pkg/runtime/nacl/386/sys.s
++++ b/src/pkg/runtime/nacl/386/sys.s
+@@ -11,6 +11,7 @@
+ // http://code.google.com/p/nativeclient/source/browse/trunk/src/native_client/src/trusted/service_runtime/include/bits/nacl_syscalls.h
+ #define SYS_exit 30
+ #define SYS_mmap 21
++#define SYS_munmap 22
+ #define SYS_thread_create 80
+ #define SYS_thread_exit 81
+ #define SYS_tls_init 82
+@@ -91,6 +92,9 @@ TEXT ·mmap(SB),7,$24
+ 	INT $3
+ 	RET
+ 
++TEXT ·munmap(SB),7,$0
++	JMP	SYSCALL(munmap)
++
+ TEXT gettime(SB),7,$32
+ 	LEAL	8(SP), BX
+ 	MOVL	BX, 0(SP)
+diff --git a/src/pkg/runtime/nacl/mem.c b/src/pkg/runtime/nacl/mem.c
+index 52e351a7d7..f6fbe5016d 100644
+--- a/src/pkg/runtime/nacl/mem.c
++++ b/src/pkg/runtime/nacl/mem.c
+@@ -21,8 +21,6 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call munmap
++	runtime_munmap(v, n);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8d88716a45..6e8a79624a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -498,6 +498,7 @@ void	notewakeup(Note*);
+ #define runtime_memclr ·memclr
+ #define runtime_getcallerpc ·getcallerpc
+ #define runtime_mmap ·mmap
++#define runtime_munmap ·munmap
+ #define runtime_printslice ·printslice
+ #define runtime_printbool ·printbool
+ #define runtime_printfloat ·printfloat
+@@ -524,6 +525,7 @@ void	notewakeup(Note*);
+  * low level go-called
+  */
+ uint8*	runtime_mmap(byte*, uintptr, int32, int32, int32, uint32);
++void	runtime_munmap(uint8*, uintptr);
+ void	runtime_memclr(byte*, uint32);
+ void	runtime_setcallerpc(void*, void*);
+ void*	runtime_getcallerpc(void*);
+diff --git a/src/pkg/runtime/tiny/mem.c b/src/pkg/runtime/tiny/mem.c
+index a66a4a731c..5b720a46a4 100644
+--- a/src/pkg/runtime/tiny/mem.c
++++ b/src/pkg/runtime/tiny/mem.c
+@@ -8,21 +8,22 @@
+ // Assume there's an arbitrary amount of memory starting at "end".
+ // Sizing PC memory is beyond the scope of this demo.
+ 
++static byte *allocp;
++
+ void*
+ SysAlloc(uintptr ask)
+ {
+-	static byte *p;
+ 	extern byte end[];
+ 	byte *q;
+ 	
+-	if(p == nil) {
+-		p = end;
+-		p += 7 & -(uintptr)p;
++	if(allocp == nil) {
++		allocp = end;
++		allocp += 7 & -(uintptr)allocp;
+ 	}
+ 	ask += 7 & -ask;
+ 
+-	q = p;
+-	p += ask;
++	q = allocp;
++	allocp += ask;
+ 	·memclr(q, ask);
+ 	return q;
+ }
+@@ -30,7 +31,11 @@ SysAlloc(uintptr ask)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v, n);
++	// Push pointer back if this is a free
++	// of the most recent SysAlloc.
++	n += 7 & -n;
++	if(allocp == v+n)
++		allocp -= n;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 982344fa05..6f6efd7aa2 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -7,10 +7,18 @@
+ #include "defs.h"
+ #include "malloc.h"
+ 
++enum {
++	MEM_COMMIT = 0x1000,
++	MEM_RESERVE = 0x2000,
++	MEM_RELEASE = 0x8000,
++	
++	PAGE_EXECUTE_READWRITE = 0x40,
++};
++
+ void*
+ SysAlloc(uintptr n)
+ {
+-	return stdcall(VirtualAlloc, 4, nil, n, 0x3000, 0x40);
++	return stdcall(VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+ }
+ 
+ void
+@@ -23,7 +31,5 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
++	return stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
+ }
+-

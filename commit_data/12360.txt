@@ -7,7 +7,7 @@ Date:   Mon Mar 5 14:23:00 2012 +1100
     R=golang-dev, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/5738045
-
+---
  src/cmd/cgo/doc.go  |  3 ++-
  src/cmd/cov/doc.go  |  4 +++-
  src/cmd/go/doc.go   | 15 +++++++++++----
@@ -16,3 +16,152 @@ Date:   Mon Mar 5 14:23:00 2012 +1100
  src/cmd/prof/doc.go |  4 ++--
  src/cmd/yacc/doc.go |  7 +++++--
  7 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 83f1ba46c0..f6a14ae08a 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -6,7 +6,8 @@
+ 
+ Cgo enables the creation of Go packages that call C code.
+ 
+-Usage: go tool cgo [compiler options] file.go
++Usage:
++	go tool cgo [compiler options] file.go
+ 
+ The compiler options are passed through uninterpreted when
+ invoking gcc to compile the C parts of the package.
+diff --git a/src/cmd/cov/doc.go b/src/cmd/cov/doc.go
+index edeb915733..a5fc0036d2 100644
+--- a/src/cmd/cov/doc.go
++++ b/src/cmd/cov/doc.go
+@@ -6,12 +6,14 @@
+ 
+ Cov is a rudimentary code coverage tool.
+ 
++Usage:
++	go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
++
+ Given a command to run, it runs the command while tracking which
+ sections of code have been executed.  When the command finishes,
+ cov prints the line numbers of sections of code in the binary that
+ were not executed.   With no arguments it assumes the command "6.out".
+ 
+-Usage: go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
+ 
+ The options are:
+ 
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 51514cb4fb..8df57ff38e 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -5,7 +5,9 @@
+ /*
+ Go is a tool for managing Go source code.
+ 
+-Usage: go command [arguments]
++Usage:
++
++	go command [arguments]
+ 
+ The commands are:
+ 
+@@ -49,11 +51,13 @@ If the arguments are a list of .go files, build treats them as a list
+ of source files specifying a single package.
+ 
+ When the command line specifies a single main package,
+-build writes the resulting executable to output (default a.out).
++build writes the resulting executable to output.
+ Otherwise build compiles the packages but discards the results,
+ serving only as a check that the packages can be built.
+ 
+-The -o flag specifies the output file name.
++The -o flag specifies the output file name.  If not specified, the
++name is packagename.a (for a non-main package) or the base
++name of the first source file (for a main package).
+ 
+ The build flags are shared by the build, install, run, and test commands:
+ 
+@@ -389,6 +393,9 @@ See also: go fmt, go fix.
+ 
+ GOPATH environment variable
+ 
++The Go path is used to resolve import statements.
++It is implemented by and documented in the go/build package.
++
+ The GOPATH environment variable lists places to look for Go code.
+ On Unix, the value is a colon-separated string.
+ On Windows, the value is a semicolon-separated string.
+@@ -472,7 +479,7 @@ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package
+ directories found in the GOPATH trees with names matching the
+-patterns.  For example, encoding/... expands to all package
++patterns.  For example, encoding/... expands to all packages
+ in subdirectories of the encoding tree, while net... expands to
+ net and all its subdirectories.
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index a56910eb1a..3a0f7a089d 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -141,7 +141,9 @@ func main() {
+ 
+ var usageTemplate = `Go is a tool for managing Go source code.
+ 
+-Usage: go command [arguments]
++Usage:
++
++	go command [arguments]
+ 
+ The commands are:
+ {{range .}}{{if .Runnable}}
+diff --git a/src/cmd/pack/doc.go b/src/cmd/pack/doc.go
+index 6cbc357db9..8b17f3ca22 100644
+--- a/src/cmd/pack/doc.go
++++ b/src/cmd/pack/doc.go
+@@ -12,7 +12,8 @@ It adds a special Go-specific section __.PKGDEF that collects all the
+ Go type information from the files in the archive; that section is
+ used by the compiler when importing the package during compilation.
+ 
+-Usage: go tool pack [uvnbailogS][mrxtdpq][P prefix] archive files ...
++Usage:
++	go tool pack [uvnbailogS][mrxtdpq][P prefix] archive files ...
+ 
+ The new option 'g' causes pack to maintain the __.PKGDEF section
+ as files are added to the archive.
+diff --git a/src/cmd/prof/doc.go b/src/cmd/prof/doc.go
+index 08aa086291..0072f9ad5d 100644
+--- a/src/cmd/prof/doc.go
++++ b/src/cmd/prof/doc.go
+@@ -16,8 +16,8 @@ the program's state even when it is not running, such as when it is
+ asleep or waiting for I/O.  Each thread contributes equally to the
+ statistics.
+ 
+-
+-Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]
++Usage:
++	go tool prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]
+ 
+ The output modes (default -h) are:
+ 
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index 9874a2ae2e..4a2c2a3148 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -4,10 +4,13 @@
+ 
+ /*
+ 
+-Yacc is a version of yacc for Go. It is run with the command
+-	go tool yacc args...
++Yacc is a version of yacc for Go.
+ It is written in Go and generates parsers written in Go.
+ 
++Usage:
++
++	go tool yacc args...
++
+ It is largely transliterated from the Inferno version written in Limbo
+ which in turn was largely transliterated from the Plan 9 version
+ written in C and documented at

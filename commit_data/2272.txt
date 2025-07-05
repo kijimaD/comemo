@@ -9,7 +9,7 @@ Date:   Thu May 21 13:46:20 2009 -0700
     DELTA=1632  (827 added, 804 deleted, 1 changed)
     OCL=29181
     CL=29191
-
+---
  test/golden.out                                 | 24 ++++++++++++------------
  test/{interface4.go => interface/bigdata.go}    |  0
  test/{interface11.go => interface/convert.go}   |  0
@@ -26,3 +26,186 @@ Date:   Thu May 21 13:46:20 2009 -0700
  test/{interface6.go => interface/struct.go}     |  0
  test/run                                        |  2 +-
  15 files changed, 48 insertions(+), 21 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index aaef7c3073..6f0eb13400 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -26,18 +26,6 @@ panic PC=xxx
+ =========== ./helloworld.go
+ hello, world
+ 
+-=========== ./interface2.go
+-cannot convert type *main.S to interface main.I: missing method Foo
+-throw: interface conversion
+-
+-panic PC=xxx
+-
+-=========== ./interface3.go
+-cannot convert type *main.S to interface main.I2: missing method Name
+-throw: interface conversion
+-
+-panic PC=xxx
+-
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+@@ -85,6 +73,18 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
++=========== interface/fail.go
++cannot convert type *main.S to interface main.I: missing method Foo
++throw: interface conversion
++
++panic PC=xxx
++
++=========== interface/returntype.go
++cannot convert type *main.S to interface main.I2: missing method Name
++throw: interface conversion
++
++panic PC=xxx
++
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
+diff --git a/test/interface4.go b/test/interface/bigdata.go
+similarity index 100%
+rename from test/interface4.go
+rename to test/interface/bigdata.go
+diff --git a/test/interface11.go b/test/interface/convert.go
+similarity index 100%
+rename from test/interface11.go
+rename to test/interface/convert.go
+diff --git a/test/interface/convert1.go b/test/interface/convert1.go
+new file mode 100644
+index 0000000000..0eff6a95d8
+--- /dev/null
++++ b/test/interface/convert1.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that static interface conversion of
++// interface value nil succeeds.
++
++package main
++
++type R interface { R(); }
++type RW interface { R(); W(); }
++
++var e interface {}
++var r R;
++var rw RW;
++
++func main() {
++	r = r;
++	r = rw;
++	e = r;
++	e = rw;
++	rw = rw;
++}
+diff --git a/test/interface10.go b/test/interface/embed.go
+similarity index 100%
+rename from test/interface10.go
+rename to test/interface/embed.go
+diff --git a/test/interface5.go b/test/interface/explicit.go
+similarity index 100%
+rename from test/interface5.go
+rename to test/interface/explicit.go
+diff --git a/test/interface2.go b/test/interface/fail.go
+similarity index 100%
+rename from test/interface2.go
+rename to test/interface/fail.go
+diff --git a/test/interface7.go b/test/interface/fake.go
+similarity index 100%
+rename from test/interface7.go
+rename to test/interface/fake.go
+diff --git a/test/interface1.go b/test/interface/pointer.go
+similarity index 100%
+rename from test/interface1.go
+rename to test/interface/pointer.go
+diff --git a/test/interface8.go b/test/interface/receiver.go
+similarity index 91%
+rename from test/interface8.go
+rename to test/interface/receiver.go
+index 4c2d4d4c5c..438fea0155 100644
+--- a/test/interface8.go
++++ b/test/interface/receiver.go
+@@ -1,9 +1,9 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+ // Implicit methods for embedded types.
+ // Mixed pointer and non-pointer receivers.
+ 
+diff --git a/test/interface9.go b/test/interface/receiver1.go
+similarity index 88%
+rename from test/interface9.go
+rename to test/interface/receiver1.go
+index c26bdb0872..7f257a3baa 100644
+--- a/test/interface9.go
++++ b/test/interface/receiver1.go
+@@ -1,9 +1,9 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// errchk $G $F.go
+-
+ // Error messages about missing implicit methods.
+ 
+ package main
+diff --git a/test/interface.go b/test/interface/recursive.go
+similarity index 78%
+rename from test/interface.go
+rename to test/interface/recursive.go
+index ee03f67f03..707cfcb8c3 100644
+--- a/test/interface.go
++++ b/test/interface/recursive.go
+@@ -1,8 +1,10 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go || echo BUG: should compile
++// Check mutually recursive interfaces
+ 
+ package main
+ 
+diff --git a/test/interface3.go b/test/interface/returntype.go
+similarity index 100%
+rename from test/interface3.go
+rename to test/interface/returntype.go
+diff --git a/test/interface6.go b/test/interface/struct.go
+similarity index 100%
+rename from test/interface6.go
+rename to test/interface/struct.go
+diff --git a/test/run b/test/run
+index 55c36b0b13..f4bd6e1515 100755
+--- a/test/run
++++ b/test/run
+@@ -30,7 +30,7 @@ TMP2FILE=/tmp/gotest2-$USER
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ ulimit -v 4000000
+ 
+-for dir in . ken chan bugs fixedbugs
++for dir in . ken chan interface bugs fixedbugs
+ do
+ 	for i in $dir/*.go
+ 	do

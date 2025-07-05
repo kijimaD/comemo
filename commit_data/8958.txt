@@ -7,7 +7,151 @@ Date:   Wed Jul 6 22:27:06 2011 +1000
     R=golang-dev, adg, r
     CC=golang-dev
     https://golang.org/cl/4643072
-
+---
  src/pkg/exp/template/exec_test.go | 36 ++++++++++++++++++++++--------
  src/pkg/exp/template/funcs.go     | 47 ++++++++++++++++++++++++++++++++++++---
  2 files changed, 71 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 74c92e5f69..f974673d44 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -31,6 +31,7 @@ type T struct {
+ 	MSI      map[string]int
+ 	MSIone   map[string]int // one element, for deterministic output
+ 	MSIEmpty map[string]int
++	SMSI     []map[string]int
+ 	// Empty interface; used to see if we can dig inside one.
+ 	EmptyInterface interface{}
+ }
+@@ -81,14 +82,18 @@ type U struct {
+ }
+ 
+ var tVal = &T{
+-	I:              17,
+-	U16:            16,
+-	X:              "x",
+-	U:              &U{"v"},
+-	SI:             []int{3, 4, 5},
+-	SB:             []bool{true, false},
+-	MSI:            map[string]int{"one": 1, "two": 2, "three": 3},
+-	MSIone:         map[string]int{"one": 1},
++	I:      17,
++	U16:    16,
++	X:      "x",
++	U:      &U{"v"},
++	SI:     []int{3, 4, 5},
++	SB:     []bool{true, false},
++	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
++	MSIone: map[string]int{"one": 1},
++	SMSI: []map[string]int{
++		{"one": 1, "two": 2},
++		{"eleven": 11, "twelve": 12},
++	},
+ 	EmptyInterface: []int{7, 8},
+ }
+ 
+@@ -166,6 +171,16 @@ var execTests = []execTest{
+ 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 1}} {{or 1 1}}", "false true true true", nil, true},
+ 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
+ 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
++	// Indexing.
++	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
++	{"slice[1]", "{{index .SI 1}}", "4", tVal, true},
++	{"slice[HUGE]", "{{index .SI 10}}", "", tVal, false},
++	{"slice[WRONG]", "{{index .SI `hello`}}", "", tVal, false},
++	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
++	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
++	{"map[NO]", "{{index .MSI `XXX`}}", "", tVal, false},
++	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
++	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
+ 	// With.
+ 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
+ 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
+@@ -222,7 +237,10 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 			t.Errorf("%s: unexpected execute error: %s", test.name, err)
+ 			continue
+ 		case !test.ok && err != nil:
+-			continue
++			// expected error, got one
++			if *debug {
++				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
++			}
+ 		}
+ 		result := b.String()
+ 		if result != test.output {
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index c42f3b2509..2ca4342de0 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"os"
+ 	"reflect"
+ 	"strings"
+ 	"unicode"
+@@ -20,12 +21,13 @@ import (
+ type FuncMap map[string]interface{}
+ 
+ var funcs = map[string]reflect.Value{
+-	"printf": reflect.ValueOf(fmt.Sprintf),
++	"and":    reflect.ValueOf(and),
+ 	"html":   reflect.ValueOf(HTMLEscaper),
++	"index":  reflect.ValueOf(index),
+ 	"js":     reflect.ValueOf(JSEscaper),
+-	"and":    reflect.ValueOf(and),
+-	"or":     reflect.ValueOf(or),
+ 	"not":    reflect.ValueOf(not),
++	"or":     reflect.ValueOf(or),
++	"printf": reflect.ValueOf(fmt.Sprintf),
+ }
+ 
+ // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
+@@ -72,6 +74,45 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
+ 	return reflect.Value{}, false
+ }
+ 
++// Indexing.
++
++// index returns the result of indexing its first argument by the following
++// arguments.  Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
++// indexed item must be a map, slice, or array.
++func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
++	v := reflect.ValueOf(item)
++	for _, i := range indices {
++		index := reflect.ValueOf(i)
++		switch v.Kind() {
++		case reflect.Array, reflect.Slice:
++			var x int64
++			switch index.Kind() {
++			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++				x = index.Int()
++			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++				x = int64(index.Uint())
++			default:
++				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())
++			}
++			if x < 0 || x >= int64(v.Len()) {
++				return nil, fmt.Errorf("index out of range: %d", x)
++			}
++			v = v.Index(int(x))
++		case reflect.Map:
++			if !index.Type().AssignableTo(v.Type().Key()) {
++				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
++			}
++			v = v.MapIndex(index)
++			if !v.IsValid() {
++				return nil, fmt.Errorf("index %v not present in map", index.Interface())
++			}
++		default:
++			return nil, fmt.Errorf("can't index item of type %s", index.Type())
++		}
++	}
++	return v.Interface(), nil
++}
++
+ // Boolean logic.
+ 
+ // and returns the Boolean AND of its arguments.

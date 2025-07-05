@@ -10,6 +10,21 @@ Date:   Fri Feb 25 14:40:36 2011 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/4250043
-
+---
  src/pkg/sync/atomic/doc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index be18cea70c..1335def59f 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -22,8 +22,7 @@
+ //
+ package atomic
+ 
+-// BUG(rsc):
+-// On ARM, the 64-bit functions use instructions unavailable before ARM 11.
++// BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
+ //
+ // On x86-32, the 64-bit functions use instructions unavailable before the Pentium.
+ 

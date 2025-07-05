@@ -7,6 +7,19 @@ Date:   Fri Oct 28 15:58:44 2016 -0400
     Change-Id: Ia511b0aadc87eb53e084d14cdb90ba4be958a43e
     Reviewed-on: https://go-review.googlesource.com/32259
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/pprof/internal/profile/profile_memmap.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/internal/profile/profile_memmap.go b/src/runtime/pprof/internal/profile/profile_memmap.go
+index bb6cff60e0..774c03ad69 100644
+--- a/src/runtime/pprof/internal/profile/profile_memmap.go
++++ b/src/runtime/pprof/internal/profile/profile_memmap.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package profile
+ 
+ import (

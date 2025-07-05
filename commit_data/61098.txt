@@ -17,6 +17,20 @@ Date:   Fri Sep 6 07:19:18 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index dc38069edc..657408439a 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3506,7 +3506,7 @@ bas:
+ 	return
+ 
+ bad:
+-	ctxt.Diag("asmidx: bad address %d/%d/%d", scale, index, base)
++	ctxt.Diag("asmidx: bad address %d/%s/%s", scale, rconv(index), rconv(base))
+ 	ab.Put1(0)
+ }
+ 

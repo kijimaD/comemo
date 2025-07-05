@@ -9,7 +9,7 @@ Date:   Sat Aug 31 09:32:07 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13237051
-
+---
  src/pkg/runtime/defs_dragonfly_386.h     | 198 +++++++++++++++++
  src/pkg/runtime/rt0_dragonfly_386.s      |  16 ++
  src/pkg/runtime/signal_dragonfly_386.h   |  23 ++
@@ -18,3 +18,860 @@ Date:   Sat Aug 31 09:32:07 2013 -0700
  src/pkg/syscall/mkall.sh                 |   6 +
  src/pkg/syscall/syscall_dragonfly_386.go |  58 +++++
  7 files changed, 809 insertions(+)
+
+diff --git a/src/pkg/runtime/defs_dragonfly_386.h b/src/pkg/runtime/defs_dragonfly_386.h
+new file mode 100644
+index 0000000000..696dcd887d
+--- /dev/null
++++ b/src/pkg/runtime/defs_dragonfly_386.h
+@@ -0,0 +1,198 @@
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_dragonfly.go
++
++
++enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++	EBUSY	= 0x10,
++	EAGAIN	= 0x23,
++
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
++
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
++
++	MADV_FREE	= 0x5,
++
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x2,
++	FPE_INTOVF	= 0x1,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
++
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
++
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
++};
++
++typedef struct Rtprio Rtprio;
++typedef struct Lwpparams Lwpparams;
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigset Sigset;
++typedef struct StackT StackT;
++typedef struct Siginfo Siginfo;
++typedef struct Mcontext Mcontext;
++typedef struct Ucontext Ucontext;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
++
++#pragma pack on
++
++struct Rtprio {
++	uint16	type;
++	uint16	prio;
++};
++struct Lwpparams {
++	void	*func;
++	byte	*arg;
++	byte	*stack;
++	int32	*tid1;
++	int32	*tid2;
++};
++struct Sigaltstack {
++	int8	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
++};
++struct Sigset {
++	uint32	__bits[4];
++};
++struct StackT {
++	int8	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
++};
++
++struct Siginfo {
++	int32	si_signo;
++	int32	si_errno;
++	int32	si_code;
++	int32	si_pid;
++	uint32	si_uid;
++	int32	si_status;
++	byte	*si_addr;
++	byte	si_value[4];
++	int32	si_band;
++	int32	__spare__[7];
++};
++
++struct Mcontext {
++	int32	mc_onstack;
++	int32	mc_gs;
++	int32	mc_fs;
++	int32	mc_es;
++	int32	mc_ds;
++	int32	mc_edi;
++	int32	mc_esi;
++	int32	mc_ebp;
++	int32	mc_isp;
++	int32	mc_ebx;
++	int32	mc_edx;
++	int32	mc_ecx;
++	int32	mc_eax;
++	int32	mc_xflags;
++	int32	mc_trapno;
++	int32	mc_err;
++	int32	mc_eip;
++	int32	mc_cs;
++	int32	mc_eflags;
++	int32	mc_esp;
++	int32	mc_ss;
++	int32	mc_len;
++	int32	mc_fpformat;
++	int32	mc_ownedfp;
++	int32	mc_fpregs[128];
++	int32	__spare__[16];
++};
++struct Ucontext {
++	Sigset	uc_sigmask;
++	Mcontext	uc_mcontext;
++	Ucontext	*uc_link;
++	StackT	uc_stack;
++	int32	__spare__[8];
++};
++
++struct Timespec {
++	int32	tv_sec;
++	int32	tv_nsec;
++};
++struct Timeval {
++	int32	tv_sec;
++	int32	tv_usec;
++};
++struct Itimerval {
++	Timeval	it_interval;
++	Timeval	it_value;
++};
++
++struct Kevent {
++	uint32	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int32	data;
++	byte	*udata;
++};
++
++
++#pragma pack off
+diff --git a/src/pkg/runtime/rt0_dragonfly_386.s b/src/pkg/runtime/rt0_dragonfly_386.s
+new file mode 100644
+index 0000000000..b857f60391
+--- /dev/null
++++ b/src/pkg/runtime/rt0_dragonfly_386.s
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_dragonfly(SB),NOSPLIT,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),NOSPLIT,$0
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/signal_dragonfly_386.h b/src/pkg/runtime/signal_dragonfly_386.h
+new file mode 100644
+index 0000000000..a24f1ee96c
+--- /dev/null
++++ b/src/pkg/runtime/signal_dragonfly_386.h
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).mc_ecx)
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).mc_edx)
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).mc_edi)
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).mc_esi)
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).mc_ebp)
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).mc_esp)
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).mc_eip)
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_eflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/sys_dragonfly_386.s b/src/pkg/runtime/sys_dragonfly_386.s
+new file mode 100644
+index 0000000000..9085ded6fd
+--- /dev/null
++++ b/src/pkg/runtime/sys_dragonfly_386.s
+@@ -0,0 +1,369 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// System calls and other sys.stuff for 386, FreeBSD
++// /usr/src/sys/kern/syscalls.master for syscall numbers.
++//
++
++#include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
++	
++TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4
++	MOVL	$469, AX		// umtx_sleep
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++TEXT runtime·sys_umtx_wakeup(SB),NOSPLIT,$-4
++	MOVL	$470, AX		// umtx_wakeup
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++TEXT runtime·lwp_create(SB),NOSPLIT,$-4
++	MOVL	$495, AX		// lwp_create
++	INT	$0x80
++	RET
++
++TEXT runtime·lwp_start(SB),NOSPLIT,$0
++
++	// Set GS to point at m->tls.
++	MOVL	mm+0(FP), BX
++	MOVL	m_g0(BX), DX
++	LEAL	m_tls(BX), BP
++	PUSHAL
++	PUSHL	BP
++	CALL	runtime·settls(SB)
++	POPL	AX
++	POPAL
++	
++	// Now segment is established.  Initialize m, g.
++	get_tls(CX)
++	MOVL	BX, m(CX)
++	MOVL	DX, g(CX)
++
++	CALL	runtime·stackcheck(SB)	// smashes AX, CX
++	MOVL	0(DX), DX		// paranoia; check they are not nil
++	MOVL	0(BX), BX
++
++	// More paranoia; check that stack splitting code works.
++	PUSHAL
++	CALL	runtime·emptyfunc(SB)
++	POPAL
++
++	CALL	runtime·mstart(SB)
++
++	CALL	runtime·exit1(SB)
++	MOVL	$0x1234, 0x1005
++	RET
++
++// Exit the entire program (like C exit)
++TEXT runtime·exit(SB),NOSPLIT,$-4
++	MOVL	$1, AX
++	INT	$0x80
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·exit1(SB),NOSPLIT,$16
++	MOVL	$0, 0(SP)		// syscall gap
++	MOVL	$0x10000, 4(SP)		// arg 1 - how (EXTEXIT_LWP)
++	MOVL	$0, 8(SP)		// arg 2 - status
++	MOVL	$0, 12(SP)		// arg 3 - addr
++	MOVL	$494, AX
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·open(SB),NOSPLIT,$-4
++	MOVL	$5, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),NOSPLIT,$-4
++	MOVL	$6, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),NOSPLIT,$-4
++	MOVL	$3, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·write(SB),NOSPLIT,$-4
++	MOVL	$4, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·getrlimit(SB),NOSPLIT,$-4
++	MOVL	$194, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·raise(SB),NOSPLIT,$16
++	MOVL	$496, AX		// lwp_gettid
++	INT	$0x80
++	MOVL	$0, 0(SP)
++	MOVL	$-1, 4(SP)		// arg 1 - pid
++	MOVL	AX, 8(SP)		// arg 2 - tid
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 3 - signum
++	MOVL	$497, AX		// lwp_kill
++	INT	$0x80
++	RET
++
++TEXT runtime·mmap(SB),NOSPLIT,$36
++	LEAL	arg0+0(FP), SI
++	LEAL	4(SP), DI
++	CLD
++	MOVSL				// arg 1 - addr
++	MOVSL				// arg 2 - len
++	MOVSL				// arg 3 - prot
++	MOVSL				// arg 4 - flags
++	MOVSL				// arg 5 - fd
++	MOVL	$0, AX
++	STOSL				// arg 6 - pad
++	MOVSL				// arg 7 - offset
++	MOVL	$0, AX			// top 32 bits of file offset
++	STOSL
++	MOVL	$197, AX		// sys_mmap
++	INT	$0x80
++	RET
++
++TEXT runtime·munmap(SB),NOSPLIT,$-4
++	MOVL	$73, AX
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·madvise(SB),NOSPLIT,$-4
++	MOVL	$75, AX	// madvise
++	INT	$0x80
++	// ignore failure - maybe pages are locked
++	RET
++
++TEXT runtime·setitimer(SB), NOSPLIT, $-4
++	MOVL	$83, AX
++	INT	$0x80
++	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), NOSPLIT, $32
++	MOVL	$232, AX
++	LEAL	12(SP), BX
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
++	INT	$0x80
++	MOVL	12(SP), AX	// sec
++	MOVL	16(SP), BX	// nsec
++
++	// sec is in AX, nsec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	MOVL	BX, nsec+8(FP)
++	RET
++
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB), NOSPLIT, $32
++	MOVL	$232, AX
++	LEAL	12(SP), BX
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
++	INT	$0x80
++	MOVL	12(SP), AX	// sec
++	MOVL	16(SP), BX	// nsec
++
++	// sec is in AX, nsec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	ADDL	BX, AX
++	ADCL	$0, DX
++
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
++	RET
++
++
++TEXT runtime·sigaction(SB),NOSPLIT,$-4
++	MOVL	$342, AX
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$44
++	get_tls(CX)
++
++	// check that m exists
++	MOVL	m(CX), BX
++	CMPL	BX, $0
++	JNE	6(PC)
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
++
++	// save g
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
++	
++	// g = m->gsignal
++	MOVL	m_gsignal(BX), BX
++	MOVL	BX, g(CX)
++
++	// copy arguments for call to sighandler
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)
++	MOVL	info+4(FP), BX
++	MOVL	BX, 4(SP)
++	MOVL	context+8(FP), BX
++	MOVL	BX, 8(SP)
++	MOVL	DI, 12(SP)
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(CX)
++	MOVL	20(SP), BX
++	MOVL	BX, g(CX)
++
++sigtramp_ret:
++	// call sigreturn
++	MOVL	context+8(FP), AX
++	MOVL	$0, 0(SP)	// syscall gap
++	MOVL	AX, 4(SP)
++	MOVL	$344, AX	// sigreturn(ucontext)
++	INT	$0x80
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
++	MOVL	$53, AX
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·usleep(SB),NOSPLIT,$20
++	MOVL	$0, DX
++	MOVL	usec+0(FP), AX
++	MOVL	$1000000, CX
++	DIVL	CX
++	MOVL	AX, 12(SP)		// tv_sec
++	MOVL	$1000, AX
++	MULL	DX
++	MOVL	AX, 16(SP)		// tv_nsec
++
++	MOVL	$0, 0(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 4(SP)		// arg 1 - rqtp
++	MOVL	$0, 8(SP)		// arg 2 - rmtp
++	MOVL	$240, AX		// sys_nanosleep
++	INT	$0x80
++	RET
++
++TEXT runtime·setldt(SB),NOSPLIT,$4
++	// Under DragonFly we set the GS base instead of messing with the LDT.
++	MOVL	tls0+4(FP), AX
++	MOVL	AX, 0(SP)
++	CALL	runtime·settls(SB)
++	RET
++
++TEXT runtime·settls(SB),NOSPLIT,$24
++	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
++	MOVL	tlsbase+0(FP), CX
++	ADDL	$8, CX
++
++	// Set up a struct tls_info - a size of -1 maps the whole address
++	// space and is required for direct-tls access of variable data
++	// via negative offsets.
++	LEAL	16(SP), BX
++	MOVL	CX, 16(SP)		// base
++	MOVL	$-1, 20(SP)		// size
++
++	// set_tls_area returns the descriptor that needs to be loaded into GS.
++	MOVL	$0, 0(SP)		// syscall gap
++	MOVL	$0, 4(SP)		// arg 1 - which
++	MOVL	BX, 8(SP)		// arg 2 - tls_info
++	MOVL	$8, 12(SP)		// arg 3 - infosize
++	MOVL    $472, AX                // set_tls_area
++	INT     $0x80
++	JCC     2(PC)
++	MOVL    $0xf1, 0xf1             // crash
++	MOVW	AX, GS
++	RET
++
++TEXT runtime·sysctl(SB),NOSPLIT,$28
++	LEAL	arg0+0(FP), SI
++	LEAL	4(SP), DI
++	CLD
++	MOVSL				// arg 1 - name
++	MOVSL				// arg 2 - namelen
++	MOVSL				// arg 3 - oldp
++	MOVSL				// arg 4 - oldlenp
++	MOVSL				// arg 5 - newp
++	MOVSL				// arg 6 - newlen
++	MOVL	$202, AX		// sys___sysctl
++	INT	$0x80
++	JCC	3(PC)
++	NEGL	AX
++	RET
++	MOVL	$0, AX
++	RET
++
++TEXT runtime·osyield(SB),NOSPLIT,$-4
++	MOVL	$331, AX		// sys_sched_yield
++	INT	$0x80
++	RET
++
++TEXT runtime·sigprocmask(SB),NOSPLIT,$16
++	MOVL	$0, 0(SP)		// syscall gap
++	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
++	MOVL	args+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - set
++	MOVL	args+4(FP), AX
++	MOVL	AX, 12(SP)		// arg 3 - oset
++	MOVL	$340, AX		// sys_sigprocmask
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	MOVL	$362, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVL	$363, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),NOSPLIT,$32
++	MOVL	$92, AX		// fcntl
++	// 0(SP) is where the caller PC would be; kernel skips it
++	MOVL	fd+0(FP), BX
++	MOVL	BX, 4(SP)	// fd
++	MOVL	$2, 8(SP)	// F_SETFD
++	MOVL	$1, 12(SP)	// FD_CLOEXEC
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/syscall/asm_dragonfly_386.s b/src/pkg/syscall/asm_dragonfly_386.s
+new file mode 100644
+index 0000000000..d24216fddc
+--- /dev/null
++++ b/src/pkg/syscall/asm_dragonfly_386.s
+@@ -0,0 +1,139 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++//
++// System call support for 386, FreeBSD
++//
++
++// func Syscall(trap int32, a1, a2, a3 int32) (r1, r2, err int32);
++// func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
++// Trap # in AX, args on stack above caller pc.
++
++TEXT	·Syscall(SB),NOSPLIT,$0-32
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	·Syscall6(SB),NOSPLIT,$0-44
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok6
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok6:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	·Syscall9(SB),NOSPLIT,$0-56
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok9
++	MOVL	$-1, 44(SP)	// r1
++	MOVL	$-1, 48(SP)	// r2
++	MOVL	AX, 52(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok9:
++	MOVL	AX, 44(SP)	// r1
++	MOVL	DX, 48(SP)	// r2
++	MOVL	$0, 52(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT ·RawSyscall(SB),NOSPLIT,$0-32
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok1
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	RET
++ok1:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	RET
++
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok2
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	RET
++ok2:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 4aa979bd11..a3139d603d 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -121,6 +121,12 @@ darwin_amd64)
+ 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
++dragonfly_386)
++	mkerrors="$mkerrors -m32"
++	mksyscall="./mksyscall.pl -l32 -dragonfly"
++	mksysnum="curl -s 'http://gitweb.dragonflybsd.org/dragonfly.git/blob_plain/HEAD:/sys/kern/syscalls.master' | ./mksysnum_dragonfly.pl"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ dragonfly_amd64)
+ 	mkerrors="$mkerrors -m64"
+ 	mksyscall="./mksyscall.pl -dragonfly"
+diff --git a/src/pkg/syscall/syscall_dragonfly_386.go b/src/pkg/syscall/syscall_dragonfly_386.go
+new file mode 100644
+index 0000000000..ebd3d4c9cf
+--- /dev/null
++++ b/src/pkg/syscall/syscall_dragonfly_386.go
+@@ -0,0 +1,58 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import "unsafe"
++
++func Getpagesize() int { return 4096 }
++
++func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = int32(nsec / 1e9)
++	ts.Nsec = int32(nsec % 1e9)
++	return
++}
++
++func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999 // round up to microsecond
++	tv.Usec = int32(nsec % 1e9 / 1e3)
++	tv.Sec = int32(nsec / 1e9)
++	return
++}
++
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint32(fd)
++	k.Filter = int16(mode)
++	k.Flags = uint16(flags)
++}
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint32(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
++
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	var writtenOut uint64 = 0
++	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
++
++	written = int(writtenOut)
++
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic

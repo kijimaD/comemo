@@ -16,7 +16,41 @@ Date:   Wed May 20 17:35:43 2015 -0700
     Change-Id: I31cc9dd67269851a430b56bcc7d255c9349eb522
     Reviewed-on: https://go-review.googlesource.com/10255
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/link.go     | 1 -
  src/cmd/internal/obj/x86/asm6.go | 5 +----
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 9f5e87b4c3..b0c7a55ca1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -222,7 +222,6 @@ type Prog struct {
+ 	Scond    uint8
+ 	Back     uint8
+ 	Ft       uint8
+-	F3t      uint8
+ 	Tt       uint8
+ 	Isize    uint8
+ 	Printed  uint8
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 0c0cc04548..2b9c2670df 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2974,15 +2974,12 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	if p.Ft == 0 {
+ 		p.Ft = uint8(oclass(ctxt, p, &p.From))
+ 	}
+-	if p.F3t == 0 {
+-		p.F3t = uint8(oclass(ctxt, p, &p.From3))
+-	}
+ 	if p.Tt == 0 {
+ 		p.Tt = uint8(oclass(ctxt, p, &p.To))
+ 	}
+ 
+ 	ft := int(p.Ft) * Ymax
+-	f3t := int(p.F3t) * Ymax
++	f3t := oclass(ctxt, p, &p.From3) * Ymax
+ 	tt := int(p.Tt) * Ymax
+ 
+ 	xo := obj.Bool2int(o.op[0] == 0x0f)

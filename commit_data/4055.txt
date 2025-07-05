@@ -10,8 +10,132 @@ Date:   Sun Nov 15 12:07:27 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/155056
-
+---
  src/pkg/bytes/bytes.go          |  4 +---
  src/pkg/bytes/bytes_test.go     | 28 ++++++++++++++++++++++++++++
  src/pkg/strings/strings_test.go | 27 +++++++++++++++++++++++++++
  3 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index ccaa71a933..f6cae73537 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -220,9 +220,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 	for i := 0; i < len(s); {
+ 		wid := 1;
+ 		rune := int(s[i]);
+-		if rune < utf8.RuneSelf {
+-			rune = mapping(rune)
+-		} else {
++		if rune >= utf8.RuneSelf {
+ 			rune, wid = utf8.DecodeRune(s[i:len(s)])
+ 		}
+ 		rune = mapping(rune);
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 20d6b25f7c..dddaf5064e 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -268,9 +268,22 @@ func tenRunes(rune int) string {
+ 	return string(r);
+ }
+ 
++// User-defined self-inverse mapping function
++func rot13(rune int) int {
++	step := 13;
++	if rune >= 'a' && rune <= 'z' {
++		return ((rune - 'a' + step) % 26) + 'a'
++	}
++	if rune >= 'A' && rune <= 'Z' {
++		return ((rune - 'A' + step) % 26) + 'A'
++	}
++	return rune;
++}
++
+ func TestMap(t *testing.T) {
+ 	// Run a couple of awful growth/shrinkage tests
+ 	a := tenRunes('a');
++
+ 	// 1.  Grow.  This triggers two reallocations in Map.
+ 	maxRune := func(rune int) int { return unicode.MaxRune };
+ 	m := Map(maxRune, Bytes(a));
+@@ -278,6 +291,7 @@ func TestMap(t *testing.T) {
+ 	if string(m) != expect {
+ 		t.Errorf("growing: expected %q got %q", expect, m)
+ 	}
++
+ 	// 2. Shrink
+ 	minRune := func(rune int) int { return 'a' };
+ 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
+@@ -285,6 +299,20 @@ func TestMap(t *testing.T) {
+ 	if string(m) != expect {
+ 		t.Errorf("shrinking: expected %q got %q", expect, m)
+ 	}
++
++	// 3. Rot13
++	m = Map(rot13, Bytes("a to zed"));
++	expect = "n gb mrq";
++	if string(m) != expect {
++		t.Errorf("rot13: expected %q got %q", expect, m)
++	}
++
++	// 4. Rot13^2
++	m = Map(rot13, Map(rot13, Bytes("a to zed")));
++	expect = "a to zed";
++	if string(m) != expect {
++		t.Errorf("rot13: expected %q got %q", expect, m)
++	}
+ }
+ 
+ func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 2281458ea2..732da42421 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -226,6 +226,18 @@ func tenRunes(rune int) string {
+ 	return string(r);
+ }
+ 
++// User-defined self-inverse mapping function
++func rot13(rune int) int {
++	step := 13;
++	if rune >= 'a' && rune <= 'z' {
++		return ((rune - 'a' + step) % 26) + 'a'
++	}
++	if rune >= 'A' && rune <= 'Z' {
++		return ((rune - 'A' + step) % 26) + 'A'
++	}
++	return rune;
++}
++
+ func TestMap(t *testing.T) {
+ 	// Run a couple of awful growth/shrinkage tests
+ 	a := tenRunes('a');
+@@ -236,6 +248,7 @@ func TestMap(t *testing.T) {
+ 	if m != expect {
+ 		t.Errorf("growing: expected %q got %q", expect, m)
+ 	}
++
+ 	// 2. Shrink
+ 	minRune := func(rune int) int { return 'a' };
+ 	m = Map(minRune, tenRunes(unicode.MaxRune));
+@@ -243,6 +256,20 @@ func TestMap(t *testing.T) {
+ 	if m != expect {
+ 		t.Errorf("shrinking: expected %q got %q", expect, m)
+ 	}
++
++	// 3. Rot13
++	m = Map(rot13, "a to zed");
++	expect = "n gb mrq";
++	if m != expect {
++		t.Errorf("rot13: expected %q got %q", expect, m)
++	}
++
++	// 4. Rot13^2
++	m = Map(rot13, Map(rot13, "a to zed"));
++	expect = "a to zed";
++	if m != expect {
++		t.Errorf("rot13: expected %q got %q", expect, m)
++	}
+ }
+ 
+ func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }

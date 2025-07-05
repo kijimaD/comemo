@@ -17,8 +17,53 @@ Date:   Mon Sep 12 17:18:49 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/link/internal/ld/outbuf_darwin.go      | 3 ---
  src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 ++--
  src/cmd/link/internal/ld/outbuf_notdarwin.go   | 4 ++--
  3 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index 9d8cb583e7..c0d994ea61 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && go1.12
+-// +build darwin,go1.12
+-
+ package ld
+ 
+ import (
+diff --git a/src/cmd/link/internal/ld/outbuf_nofallocate.go b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+index 3bffe4543d..6564bd54a3 100644
+--- a/src/cmd/link/internal/ld/outbuf_nofallocate.go
++++ b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!darwin && !linux) || (darwin && !go1.12)
+-// +build !darwin,!linux darwin,!go1.12
++//go:build !darwin && !linux
++// +build !darwin,!linux
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_notdarwin.go b/src/cmd/link/internal/ld/outbuf_notdarwin.go
+index 85e64421a3..f9caa413e3 100644
+--- a/src/cmd/link/internal/ld/outbuf_notdarwin.go
++++ b/src/cmd/link/internal/ld/outbuf_notdarwin.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !darwin || (darwin && !go1.12)
+-// +build !darwin darwin,!go1.12
++//go:build !darwin
++// +build !darwin
+ 
+ package ld
+ 

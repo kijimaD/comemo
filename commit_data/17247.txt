@@ -11,6 +11,30 @@ Date:   Thu Aug 15 00:20:36 2013 +0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/12936043
-
+---
  src/pkg/runtime/mprof.goc | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 6e51ef3eb1..473e6e11cf 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -295,7 +295,17 @@ int64 runtime·blockprofilerate;  // in CPU ticks
+ void
+ runtime·SetBlockProfileRate(intgo rate)
+ {
+-	runtime·atomicstore64((uint64*)&runtime·blockprofilerate, rate * runtime·tickspersecond() / (1000*1000*1000));
++	int64 r;
++
++	if(rate <= 0)
++		r = 0;  // disable profiling
++	else {
++		// convert ns to cycles, use float64 to prevent overflow during multiplication
++		r = (float64)rate*runtime·tickspersecond()/(1000*1000*1000);
++		if(r == 0)
++			r = 1;
++	}
++	runtime·atomicstore64((uint64*)&runtime·blockprofilerate, r);
+ }
+ 
+ void

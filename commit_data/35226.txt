@@ -10,6 +10,20 @@ Date:   Tue Jan 16 12:44:52 2018 +0100
     Change-Id: I86b9cae4b898c4a45bc7c54891ce6ead91a22670
     Reviewed-on: https://go-review.googlesource.com/87815
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/vdso_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 5a4e8e578d..61872e3b27 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -12,7 +12,7 @@ import "unsafe"
+ // Look up symbols in the Linux vDSO.
+ 
+ // This code was originally based on the sample Linux vDSO parser at
+-// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/vDSO/parse_vdso.c
++// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/vDSO/parse_vdso.c
+ 
+ // This implements the ELF dynamic linking spec at
+ // http://sco.com/developers/gabi/latest/ch5.dynamic.html

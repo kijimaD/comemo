@@ -30,6 +30,41 @@ Date:   Thu May 15 20:12:06 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/95040044
-
+---
  src/cmd/pack/pack_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 8ecca98e63..e634c86f76 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+@@ -223,9 +224,10 @@ func TestLargeDefs(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	b := bufio.NewWriter(f)
+ 
+ 	printf := func(format string, args ...interface{}) {
+-		_, err := fmt.Fprintf(f, format, args...)
++		_, err := fmt.Fprintf(b, format, args...)
+ 		if err != nil {
+ 			t.Fatalf("Writing to %s: %v", large, err)
+ 		}
+@@ -240,6 +242,9 @@ func TestLargeDefs(t *testing.T) {
+ 		printf("\"`\n")
+ 	}
+ 	printf("}\n")
++	if err = b.Flush(); err != nil {
++		t.Fatal(err)
++	}
+ 	if err = f.Close(); err != nil {
+ 		t.Fatal(err)
+ 	}

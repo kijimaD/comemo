@@ -20,7 +20,36 @@ Date:   Fri Feb 8 11:22:48 2019 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/install-source.html | 1 -
  doc/install.html        | 5 -----
  2 files changed, 6 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 2d12a28869..6d416d33f1 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -666,7 +666,6 @@ something like this:
+ </p>
+ 
+ <pre>
+-export GOROOT=$HOME/go1.X
+ export GOARCH=amd64
+ export GOOS=linux
+ </pre>
+diff --git a/doc/install.html b/doc/install.html
+index ab192031c4..a41c60ba6c 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -171,11 +171,6 @@ command prompts for the change to take effect.
+ <a href="/dl/">Download the zip file</a> and extract it into the directory of your choice (we suggest <code>c:\Go</code>).
+ </p>
+ 
+-<p>
+-If you chose a directory other than <code>c:\Go</code>,
+-you must set the <code>GOROOT</code> environment variable to your chosen path.
+-</p>
+-
+ <p>
+ Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
+ </p>

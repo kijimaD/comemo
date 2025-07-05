@@ -8,6 +8,22 @@ Date:   Mon Jul 27 10:59:37 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=32215
     CL=32222
-
+---
  src/pkg/reflect/value.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index b3bab5f0bf..00772a87c2 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -519,8 +519,8 @@ func (v *ArrayValue) Elem(i int) Value {
+ // runtime representation of slice
+ type SliceHeader struct {
+ 	Data uintptr;
+-	Len uint32;
+-	Cap uint32;
++	Len int;
++	Cap int;
+ }
+ 
+ // A SliceValue represents a slice.

@@ -8,6 +8,46 @@ Date:   Mon Sep 1 23:03:26 2014 -0400
     R=rsc, ality
     CC=golang-codereviews
     https://golang.org/cl/137030043
-
+---
  src/pkg/runtime/env_plan9.go | 20 +++++---------------
  1 file changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/env_plan9.go b/src/pkg/runtime/env_plan9.go
+index 85c1c856b0..b6dcb4c1ea 100644
+--- a/src/pkg/runtime/env_plan9.go
++++ b/src/pkg/runtime/env_plan9.go
+@@ -30,21 +30,11 @@ func gogetenv(key string) string {
+ 	if fd < 0 {
+ 		return ""
+ 	}
+-	n := seek(fd, 0, 2)
+-
+-	var p unsafe.Pointer
+-
+-	// Be sure not to allocate for $GOTRACEBACK.
+-	if key == "GOTRACEBACK" {
+-		if n >= 128 {
+-			return ""
+-		}
+-		p = unsafe.Pointer(&tracebackbuf[0])
+-	} else {
+-		p = gomallocgc(uintptr(n+1), nil, 0)
+-	}
++	n := seek(fd, 0, 2) - 1
++
++	p := make([]byte, n)
+ 
+-	r := pread(fd, p, int32(n), 0)
++	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
+ 	close(fd)
+ 	if r < 0 {
+ 		return ""
+@@ -52,7 +42,7 @@ func gogetenv(key string) string {
+ 
+ 	var s string
+ 	sp := (*_string)(unsafe.Pointer(&s))
+-	sp.str = (*byte)(p)
++	sp.str = &p[0]
+ 	sp.len = int(r)
+ 	return s
+ }

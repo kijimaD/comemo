@@ -10,6 +10,32 @@ Date:   Fri Jan 16 09:11:17 2015 +1100
     Change-Id: I3150596931d1c77e7cf9fb8da1a999d2c6730121
     Reviewed-on: https://go-review.googlesource.com/2930
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/makerelease/makerelease.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index f1b643cca9..b49b941f1c 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -775,7 +775,19 @@ func setupOAuthClient() error {
+ 
+ func (b *Build) clean(files []string) error {
+ 	for _, name := range files {
+-		err := os.RemoveAll(filepath.Join(b.root, name))
++		path := filepath.Join(b.root, name)
++		var err error
++		if b.OS == "windows" {
++			// Git sets some of its packfiles as 'read only',
++			// so os.RemoveAll will fail for the ".git" directory.
++			// Instead, shell out to cmd's 'del' subcommand.
++			cmd := exec.Command("cmd.exe", "/C", "del", "/Q", "/F", "/S", path)
++			cmd.Stdout = os.Stdout
++			cmd.Stderr = os.Stderr
++			err = cmd.Run()
++		} else {
++			err = os.RemoveAll(path)
++		}
+ 		if err != nil {
+ 			return err
+ 		}

@@ -13,6 +13,66 @@ Date:   Tue Apr 16 23:48:19 2019 +0300
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/escape5.go | 25 +++++++++++++++++++++----
  1 file changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/test/escape5.go b/test/escape5.go
+index 393a4b0ac4..11cab629a7 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -9,7 +9,10 @@
+ 
+ package foo
+ 
+-import "runtime"
++import (
++	"runtime"
++	"unsafe"
++)
+ 
+ func noleak(p *int) int { // ERROR "p does not escape"
+ 	return *p
+@@ -71,13 +74,13 @@ func f2() {
+ }
+ 
+ func f3() {
+-	var x int          // ERROR "moved to heap: x"
++	var x int // ERROR "moved to heap: x"
+ 	p := leaktoret(&x)
+ 	gp = p
+ }
+ 
+ func f4() {
+-	var x int              // ERROR "moved to heap: x"
++	var x int // ERROR "moved to heap: x"
+ 	p, q := leaktoret2(&x)
+ 	gp = p
+ 	gp = q
+@@ -89,7 +92,7 @@ func f5() {
+ }
+ 
+ func f6() {
+-	var x int                               // ERROR "moved to heap: x"
++	var x int // ERROR "moved to heap: x"
+ 	px1, px2 := leaktoret22(leaktoret2(&x))
+ 	gp = px1
+ 	_ = px2
+@@ -245,3 +248,17 @@ func g29000() {
+ 	x := 1
+ 	f29000(2, x) // ERROR "x escapes to heap"
+ }
++
++// Issue 28369: taking an address of a parameter and converting it into a uintptr causes an
++// unnecessary escape.
++
++var sink28369 uintptr
++
++func f28369(n int) int {
++	if n == 0 {
++		sink28369 = uintptr(unsafe.Pointer(&n))
++		return n
++	}
++
++	return 1 + f28369(n-1)
++}

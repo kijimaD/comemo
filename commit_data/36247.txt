@@ -21,6 +21,27 @@ Date:   Fri Apr 13 15:37:37 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 40f87e4869..deba727695 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -197,6 +197,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ 		fc = NewFileCache(8)
+ 	}
+ 
++	tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
+ 	for _, sym := range d.syms {
+ 		symStart := sym.Addr
+ 		symEnd := sym.Addr + uint64(sym.Size)
+@@ -215,7 +216,6 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ 		file, _, _ := d.pcln.PCToLine(sym.Addr)
+ 		fmt.Fprintf(bw, "TEXT %s(SB) %s\n", sym.Name, file)
+ 
+-		tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
+ 		if symEnd > end {
+ 			symEnd = end
+ 		}

@@ -11,7 +11,64 @@ Date:   Wed Feb 7 04:28:49 2018 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strconv/quote.go      |  4 +++-
  src/strconv/quote_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index 156a510d21..d514b5f552 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -385,7 +385,9 @@ func Unquote(s string) (string, error) {
+ 	if !contains(s, '\\') && !contains(s, quote) {
+ 		switch quote {
+ 		case '"':
+-			return s, nil
++			if utf8.ValidString(s) {
++				return s, nil
++			}
+ 		case '\'':
+ 			r, size := utf8.DecodeRuneInString(s)
+ 			if size == len(s) && (r != utf8.RuneError || size != 1) {
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index a4b5804fc8..cdc9aafd55 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -326,6 +326,36 @@ func TestUnquote(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 23685: invalid UTF-8 should not go through the fast path.
++func TestUnquoteInvalidUTF8(t *testing.T) {
++	tests := []struct {
++		in string
++
++		// one of:
++		want    string
++		wantErr string
++	}{
++		{in: `"foo"`, want: "foo"},
++		{in: `"foo`, wantErr: "invalid syntax"},
++		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
++		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
++		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
++	}
++	for i, tt := range tests {
++		got, err := Unquote(tt.in)
++		var gotErr string
++		if err != nil {
++			gotErr = err.Error()
++		}
++		if gotErr != tt.wantErr {
++			t.Errorf("%d. Unquote(%q) = err %v; want %q", i, tt.in, err, tt.wantErr)
++		}
++		if tt.wantErr == "" && err == nil && got != tt.want {
++			t.Errorf("%d. Unquote(%q) = %02x; want %02x", i, tt.in, []byte(got), []byte(tt.want))
++		}
++	}
++}
++
+ func BenchmarkUnquoteEasy(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Unquote(`"Give me a rock, paper and scissors and I will move the world."`)

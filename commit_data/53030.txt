@@ -21,7 +21,99 @@ Date:   Sun Jun 26 09:39:09 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 21 ++++++++++++++++-----
  src/cmd/internal/obj/arm64/obj7.go | 13 -------------
  2 files changed, 16 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 8732bf7935..c2894a0b9c 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1557,6 +1557,10 @@ func sequenceOfOnes(x uint64) bool {
+ // N=0, S=11110x -- period=2
+ // R is the shift amount, low bits of S = n-1
+ func bitconEncode(x uint64, mode int) uint32 {
++	if mode == 32 {
++		x &= 0xffffffff
++		x = x<<32 | x
++	}
+ 	var period uint32
+ 	// determine the period and sign-extend a unit to 64 bits
+ 	switch {
+@@ -1825,17 +1829,24 @@ func rclass(r int16) int {
+ // but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 	v := uint32(a.Offset)
++	// For 32-bit instruction with constant, rewrite
++	// the high 32-bit to be a repetition of the low
++	// 32-bit, so that the BITCON test can be shared
++	// for both 32-bit and 64-bit. 32-bit ops will
++	// zero the high 32-bit of the destination register
++	// anyway.
++	vbitcon := uint64(v)<<32 | uint64(v)
+ 	if v == 0 {
+ 		return C_ZCON
+ 	}
+ 	if isaddcon(int64(v)) {
+ 		if v <= 0xFFF {
+-			if isbitcon(uint64(a.Offset)) {
++			if isbitcon(vbitcon) {
+ 				return C_ABCON0
+ 			}
+ 			return C_ADDCON0
+ 		}
+-		if isbitcon(uint64(a.Offset)) {
++		if isbitcon(vbitcon) {
+ 			return C_ABCON
+ 		}
+ 		if movcon(int64(v)) >= 0 {
+@@ -1849,7 +1860,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 
+ 	t := movcon(int64(v))
+ 	if t >= 0 {
+-		if isbitcon(uint64(a.Offset)) {
++		if isbitcon(vbitcon) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+@@ -1857,13 +1868,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 
+ 	t = movcon(int64(^v))
+ 	if t >= 0 {
+-		if isbitcon(uint64(a.Offset)) {
++		if isbitcon(vbitcon) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+ 	}
+ 
+-	if isbitcon(uint64(a.Offset)) {
++	if isbitcon(vbitcon) {
+ 		return C_BITCON
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index ee5a6fa273..1f2625d54f 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -382,19 +382,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	// For 32-bit instruction with constant, rewrite
+-	// the high 32-bit to be a repetition of the low
+-	// 32-bit, so that the BITCON test can be shared
+-	// for both 32-bit and 64-bit. 32-bit ops will
+-	// zero the high 32-bit of the destination register
+-	// anyway.
+-	// For MOVW, the destination register can't be ZR,
+-	// so don't bother rewriting it in this situation.
+-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
+-		v := p.From.Offset & 0xffffffff
+-		p.From.Offset = v | v<<32
+-	}
+-
+ 	if c.ctxt.Flag_dynlink {
+ 		c.rewriteToUseGot(p)
+ 	}

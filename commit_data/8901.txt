@@ -37,7 +37,7 @@ Date:   Wed Jun 29 09:52:34 2011 -0400
     R=r, r, dsymonds, bradfitz, kevlar, fvbommel, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4645069
-
+---
  src/cmd/godoc/codewalk.go            |  8 ++--
  src/cmd/govet/govet.go               | 37 ++++++++++++++---
  src/pkg/asn1/asn1.go                 |  2 +-
@@ -63,3 +63,1327 @@ Date:   Wed Jun 29 09:52:34 2011 -0400
  src/pkg/xml/read.go                  | 41 +++++++++---------
  src/pkg/xml/read_test.go             | 42 +++++++++----------
  24 files changed, 293 insertions(+), 184 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 54bebe854f..74178cecd0 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -74,7 +74,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 
+ // A Codewalk represents a single codewalk read from an XML file.
+ type Codewalk struct {
+-	Title string "attr"
++	Title string `xml:"attr"`
+ 	File  []string
+ 	Step  []*Codestep
+ }
+@@ -83,9 +83,9 @@ type Codewalk struct {
+ // A Codestep is a single step in a codewalk.
+ type Codestep struct {
+ 	// Filled in from XML
+-	Src   string "attr"
+-	Title string "attr"
+-	XML   string "innerxml"
++	Src   string `xml:"attr"`
++	Title string `xml:"attr"`
++	XML   string `xml:"innerxml"`
+ 
+ 	// Derived from Src; not in XML.
+ 	Err    os.Error
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 73bd2faeff..28652676fd 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/token"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"strconv"
+ 	"strings"
+ 	"utf8"
+@@ -59,7 +60,7 @@ func main() {
+ 				var err os.Error
+ 				skip, err = strconv.Atoi(name[colon+1:])
+ 				if err != nil {
+-					error(`illegal format for "Func:N" argument %q; %s`, name, err)
++					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
+ 				}
+ 				name = name[:colon]
+ 			}
+@@ -93,7 +94,7 @@ func doFile(name string, reader io.Reader) {
+ 	fs := token.NewFileSet()
+ 	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
+ 	if err != nil {
+-		error("%s: %s", name, err)
++		errorf("%s: %s", name, err)
+ 		return
+ 	}
+ 	file := &File{fs.File(parsedFile.Pos())}
+@@ -121,7 +122,7 @@ func walkDir(root string) {
+ 	done := make(chan bool)
+ 	go func() {
+ 		for e := range errors {
+-			error("walk error: %s", e)
++			errorf("walk error: %s", e)
+ 		}
+ 		done <- true
+ 	}()
+@@ -132,7 +133,7 @@ func walkDir(root string) {
+ 
+ // error formats the error to standard error, adding program
+ // identification and a newline
+-func error(format string, args ...interface{}) {
++func errorf(format string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, "govet: "+format+"\n", args...)
+ 	setExit(2)
+ }
+@@ -185,15 +186,35 @@ func (f *File) checkFile(name string, file *ast.File) {
+ 
+ // Visit implements the ast.Visitor interface.
+ func (f *File) Visit(node ast.Node) ast.Visitor {
+-	// TODO: could return nil for nodes that cannot contain a CallExpr -
+-	// will shortcut traversal.  Worthwhile?
+ 	switch n := node.(type) {
+ 	case *ast.CallExpr:
+ 		f.checkCallExpr(n)
++	case *ast.Field:
++		f.checkFieldTag(n)
+ 	}
+ 	return f
+ }
+ 
++// checkField checks a struct field tag.
++func (f *File) checkFieldTag(field *ast.Field) {
++	if field.Tag == nil {
++		return
++	}
++
++	tag, err := strconv.Unquote(field.Tag.Value)
++	if err != nil {
++		f.Warnf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
++		return
++	}
++
++	// Check tag for validity by appending
++	// new key:value to end and checking that
++	// the tag parsing code can find it.
++	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
++		f.Warnf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
++		return
++	}
++}
+ 
+ // checkCallExpr checks a call expression.
+ func (f *File) checkCallExpr(call *ast.CallExpr) {
+@@ -373,6 +394,10 @@ func BadFunctionUsedInTests() {
+ 	f.Warnf(0, "%s", "hello", 3) // wrong # %s in call to added function
+ }
+ 
++type BadTypeUsedInTests struct {
++	X int "hello" // struct field not well-formed
++}
++
+ // printf is used by the test.
+ func printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 2650ef2a26..95f299e63d 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -707,7 +707,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			if i == 0 && field.Type == rawContentsType {
+ 				continue
+ 			}
+-			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag))
++			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag.Get("asn1")))
+ 			if err != nil {
+ 				return
+ 			}
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index 463dbe0264..3c9478618e 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -299,11 +299,11 @@ type TestObjectIdentifierStruct struct {
+ }
+ 
+ type TestContextSpecificTags struct {
+-	A int "tag:1"
++	A int `asn1:"tag:1"`
+ }
+ 
+ type TestContextSpecificTags2 struct {
+-	A int "explicit,tag:1"
++	A int `asn1:"explicit,tag:1"`
+ 	B int
+ }
+ 
+@@ -353,7 +353,7 @@ type Certificate struct {
+ }
+ 
+ type TBSCertificate struct {
+-	Version            int "optional,explicit,default:0,tag:0"
++	Version            int `asn1:"optional,explicit,default:0,tag:0"`
+ 	SerialNumber       RawValue
+ 	SignatureAlgorithm AlgorithmIdentifier
+ 	Issuer             RDNSequence
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 7212c91ef9..d7eb63bf82 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -413,7 +413,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		for i := startingField; i < t.NumField(); i++ {
+ 			var pre *forkableWriter
+ 			pre, out = out.fork()
+-			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag))
++			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag.Get("asn1")))
+ 			if err != nil {
+ 				return
+ 			}
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/asn1/marshal_test.go
+index a9517634d8..03df5f1e1d 100644
+--- a/src/pkg/asn1/marshal_test.go
++++ b/src/pkg/asn1/marshal_test.go
+@@ -30,23 +30,23 @@ type rawContentsStruct struct {
+ }
+ 
+ type implicitTagTest struct {
+-	A int "implicit,tag:5"
++	A int `asn1:"implicit,tag:5"`
+ }
+ 
+ type explicitTagTest struct {
+-	A int "explicit,tag:5"
++	A int `asn1:"explicit,tag:5"`
+ }
+ 
+ type ia5StringTest struct {
+-	A string "ia5"
++	A string `asn1:"ia5"`
+ }
+ 
+ type printableStringTest struct {
+-	A string "printable"
++	A string `asn1:"printable"`
+ }
+ 
+ type optionalRawValueTest struct {
+-	A RawValue "optional"
++	A RawValue `asn1:"optional"`
+ }
+ 
+ type testSET []int
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index 57dbe7d2d9..e725bded81 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -43,7 +43,7 @@ type certID struct {
+ 
+ type responseASN1 struct {
+ 	Status   asn1.Enumerated
+-	Response responseBytes "explicit,tag:0"
++	Response responseBytes `asn1:"explicit,tag:0"`
+ }
+ 
+ type responseBytes struct {
+@@ -55,30 +55,30 @@ type basicResponse struct {
+ 	TBSResponseData    responseData
+ 	SignatureAlgorithm pkix.AlgorithmIdentifier
+ 	Signature          asn1.BitString
+-	Certificates       []asn1.RawValue "explicit,tag:0,optional"
++	Certificates       []asn1.RawValue `asn1:"explicit,tag:0,optional"`
+ }
+ 
+ type responseData struct {
+ 	Raw           asn1.RawContent
+-	Version       int              "optional,default:1,explicit,tag:0"
+-	RequestorName pkix.RDNSequence "optional,explicit,tag:1"
+-	KeyHash       []byte           "optional,explicit,tag:2"
++	Version       int              `asn1:"optional,default:1,explicit,tag:0"`
++	RequestorName pkix.RDNSequence `asn1:"optional,explicit,tag:1"`
++	KeyHash       []byte           `asn1:"optional,explicit,tag:2"`
+ 	ProducedAt    *time.Time
+ 	Responses     []singleResponse
+ }
+ 
+ type singleResponse struct {
+ 	CertID     certID
+-	Good       asn1.Flag   "explicit,tag:0,optional"
+-	Revoked    revokedInfo "explicit,tag:1,optional"
+-	Unknown    asn1.Flag   "explicit,tag:2,optional"
++	Good       asn1.Flag   `asn1:"explicit,tag:0,optional"`
++	Revoked    revokedInfo `asn1:"explicit,tag:1,optional"`
++	Unknown    asn1.Flag   `asn1:"explicit,tag:2,optional"`
+ 	ThisUpdate *time.Time
+-	NextUpdate *time.Time "explicit,tag:0,optional"
++	NextUpdate *time.Time `asn1:"explicit,tag:0,optional"`
+ }
+ 
+ type revokedInfo struct {
+ 	RevocationTime *time.Time
+-	Reason         int "explicit,tag:0,optional"
++	Reason         int `asn1:"explicit,tag:0,optional"`
+ }
+ 
+ // This is the exposed reflection of the internal OCSP structures.
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 7806b2a2eb..266fd557a5 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -16,7 +16,7 @@ import (
+ // 5280, section 4.1.1.2.
+ type AlgorithmIdentifier struct {
+ 	Algorithm  asn1.ObjectIdentifier
+-	Parameters asn1.RawValue "optional"
++	Parameters asn1.RawValue `asn1:"optional"`
+ }
+ 
+ type RDNSequence []RelativeDistinguishedNameSET
+@@ -32,7 +32,7 @@ type AttributeTypeAndValue struct {
+ // 5280, section 4.2.
+ type Extension struct {
+ 	Id       asn1.ObjectIdentifier
+-	Critical bool "optional"
++	Critical bool `asn1:"optional"`
+ 	Value    []byte
+ }
+ 
+@@ -149,13 +149,13 @@ func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
+ // 5280, section 5.1.
+ type TBSCertificateList struct {
+ 	Raw                 asn1.RawContent
+-	Version             int "optional,default:2"
++	Version             int `asn1:"optional,default:2"`
+ 	Signature           AlgorithmIdentifier
+ 	Issuer              RDNSequence
+ 	ThisUpdate          *time.Time
+ 	NextUpdate          *time.Time
+-	RevokedCertificates []RevokedCertificate "optional"
+-	Extensions          []Extension          "tag:0,optional,explicit"
++	RevokedCertificates []RevokedCertificate `asn1:"optional"`
++	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
+ }
+ 
+ // RevokedCertificate represents the ASN.1 structure of the same name. See RFC
+@@ -163,5 +163,5 @@ type TBSCertificateList struct {
+ type RevokedCertificate struct {
+ 	SerialNumber   *big.Int
+ 	RevocationTime *time.Time
+-	Extensions     []Extension "optional"
++	Extensions     []Extension `asn1:"optional"`
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 8bafeda5c9..348727a26e 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -30,11 +30,11 @@ type pkcs1PrivateKey struct {
+ 	P       *big.Int
+ 	Q       *big.Int
+ 	// We ignore these values, if present, because rsa will calculate them.
+-	Dp   *big.Int "optional"
+-	Dq   *big.Int "optional"
+-	Qinv *big.Int "optional"
++	Dp   *big.Int `asn1:"optional"`
++	Dq   *big.Int `asn1:"optional"`
++	Qinv *big.Int `asn1:"optional"`
+ 
+-	AdditionalPrimes []pkcs1AdditionalRSAPrime "optional"
++	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional"`
+ }
+ 
+ type pkcs1AdditionalRSAPrime struct {
+@@ -136,16 +136,16 @@ type certificate struct {
+ 
+ type tbsCertificate struct {
+ 	Raw                asn1.RawContent
+-	Version            int "optional,explicit,default:1,tag:0"
++	Version            int `asn1:"optional,explicit,default:1,tag:0"`
+ 	SerialNumber       *big.Int
+ 	SignatureAlgorithm pkix.AlgorithmIdentifier
+ 	Issuer             pkix.RDNSequence
+ 	Validity           validity
+ 	Subject            pkix.RDNSequence
+ 	PublicKey          publicKeyInfo
+-	UniqueId           asn1.BitString   "optional,tag:1"
+-	SubjectUniqueId    asn1.BitString   "optional,tag:2"
+-	Extensions         []pkix.Extension "optional,explicit,tag:3"
++	UniqueId           asn1.BitString   `asn1:"optional,tag:1"`
++	SubjectUniqueId    asn1.BitString   `asn1:"optional,tag:2"`
++	Extensions         []pkix.Extension `asn1:"optional,explicit,tag:3"`
+ }
+ 
+ type dsaAlgorithmParameters struct {
+@@ -168,7 +168,7 @@ type publicKeyInfo struct {
+ 
+ // RFC 5280,  4.2.1.1
+ type authKeyId struct {
+-	Id []byte "optional,tag:0"
++	Id []byte `asn1:"optional,tag:0"`
+ }
+ 
+ type SignatureAlgorithm int
+@@ -480,8 +480,8 @@ func (h UnhandledCriticalExtension) String() string {
+ }
+ 
+ type basicConstraints struct {
+-	IsCA       bool "optional"
+-	MaxPathLen int  "optional"
++	IsCA       bool `asn1:"optional"`
++	MaxPathLen int  `asn1:"optional"`
+ }
+ 
+ type rsaPublicKey struct {
+@@ -497,14 +497,14 @@ type policyInformation struct {
+ 
+ // RFC 5280, 4.2.1.10
+ type nameConstraints struct {
+-	Permitted []generalSubtree "optional,tag:0"
+-	Excluded  []generalSubtree "optional,tag:1"
++	Permitted []generalSubtree `asn1:"optional,tag:0"`
++	Excluded  []generalSubtree `asn1:"optional,tag:1"`
+ }
+ 
+ type generalSubtree struct {
+-	Name string "tag:2,optional,ia5"
+-	Min  int    "optional,tag:0"
+-	Max  int    "optional,tag:1"
++	Name string `asn1:"tag:2,optional,ia5"`
++	Min  int    `asn1:"optional,tag:0"`
++	Max  int    `asn1:"optional,tag:1"`
+ }
+ 
+ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, os.Error) {
+diff --git a/src/pkg/go/types/testdata/exports.go b/src/pkg/go/types/testdata/exports.go
+index 1de2e00ad8..035a13fb70 100644
+--- a/src/pkg/go/types/testdata/exports.go
++++ b/src/pkg/go/types/testdata/exports.go
+@@ -38,7 +38,7 @@ type (
+ 	T9  struct {
+ 		a    int
+ 		b, c float32
+-		d    []string "tag"
++		d    []string `go:"tag"`
+ 	}
+ 	T10 struct {
+ 		T8
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index e78b60ccb5..35a06b0f96 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -482,7 +482,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 			if isValidTag(key) {
+ 				for i := 0; i < sv.NumField(); i++ {
+ 					f = st.Field(i)
+-					if f.Tag == key {
++					if f.Tag.Get("json") == key {
+ 						ok = true
+ 						break
+ 					}
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index bf8bf10bf8..9b84bc76c4 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -42,8 +42,9 @@ var (
+ 
+ type badTag struct {
+ 	X string
+-	Y string "y"
+-	Z string "@#*%(#@"
++	Y string `json:"y"`
++	Z string `x:"@#*%(#@"`
++	W string `json:"@#$@#$"`
+ }
+ 
+ type unmarshalTest struct {
+@@ -68,7 +69,7 @@ var unmarshalTests = []unmarshalTest{
+ 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+ 
+ 	// skip invalid tags
+-	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
++	{`{"X":"a", "y":"b", "Z":"c", "W":"d"}`, new(badTag), badTag{"a", "b", "c", "d"}, nil},
+ 
+ 	// syntax errors
+ 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
+@@ -250,7 +251,7 @@ type All struct {
+ 	Float32 float32
+ 	Float64 float64
+ 
+-	Foo string "bar"
++	Foo string `json:"bar"`
+ 
+ 	PBool    *bool
+ 	PInt     *int
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index ec0a14a6a4..adc0f0f371 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -36,11 +36,13 @@ import (
+ // Array and slice values encode as JSON arrays, except that
+ // []byte encodes as a base64-encoded string.
+ //
+-// Struct values encode as JSON objects.  Each struct field becomes
+-// a member of the object.  By default the object's key name is the
+-// struct field name.  If the struct field has a non-empty tag consisting
+-// of only Unicode letters, digits, and underscores, that tag will be used
+-// as the name instead.  Only exported fields will be encoded.
++// Struct values encode as JSON objects.  Each exported struct field
++// becomes a member of the object.  By default the object's key string
++// is the struct field name.  If the struct field's tag has a "json" key with a
++// value that is a non-empty string consisting of only Unicode letters,
++// digits, and underscores, that value will be used as the object key.
++// For example, the field tag `json:"myName"` says to use "myName"
++// as the object key.
+ //
+ // Map values encode as JSON objects.
+ // The map's key type must be string; the object keys are used directly
+@@ -236,8 +238,8 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 			} else {
+ 				e.WriteByte(',')
+ 			}
+-			if isValidTag(f.Tag) {
+-				e.string(f.Tag)
++			if tag := f.Tag.Get("json"); tag != "" && isValidTag(tag) {
++				e.string(tag)
+ 			} else {
+ 				e.string(f.Name)
+ 			}
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index ade1bb3a97..640973b13a 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -93,7 +93,7 @@ const (
+ 
+ // DNS queries.
+ type dnsQuestion struct {
+-	Name   string "domain-name" // "domain-name" specifies encoding; see packers below
++	Name   string `net:"domain-name"` // `net:"domain-name"` specifies encoding; see packers below
+ 	Qtype  uint16
+ 	Qclass uint16
+ }
+@@ -102,7 +102,7 @@ type dnsQuestion struct {
+ // There are many types of messages,
+ // but they all share the same header.
+ type dnsRR_Header struct {
+-	Name     string "domain-name"
++	Name     string `net:"domain-name"`
+ 	Rrtype   uint16
+ 	Class    uint16
+ 	Ttl      uint32
+@@ -121,7 +121,7 @@ type dnsRR interface {
+ 
+ type dnsRR_CNAME struct {
+ 	Hdr   dnsRR_Header
+-	Cname string "domain-name"
++	Cname string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_CNAME) Header() *dnsRR_Header {
+@@ -140,7 +140,7 @@ func (rr *dnsRR_HINFO) Header() *dnsRR_Header {
+ 
+ type dnsRR_MB struct {
+ 	Hdr dnsRR_Header
+-	Mb  string "domain-name"
++	Mb  string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_MB) Header() *dnsRR_Header {
+@@ -149,7 +149,7 @@ func (rr *dnsRR_MB) Header() *dnsRR_Header {
+ 
+ type dnsRR_MG struct {
+ 	Hdr dnsRR_Header
+-	Mg  string "domain-name"
++	Mg  string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_MG) Header() *dnsRR_Header {
+@@ -158,8 +158,8 @@ func (rr *dnsRR_MG) Header() *dnsRR_Header {
+ 
+ type dnsRR_MINFO struct {
+ 	Hdr   dnsRR_Header
+-	Rmail string "domain-name"
+-	Email string "domain-name"
++	Rmail string `net:"domain-name"`
++	Email string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
+@@ -168,7 +168,7 @@ func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
+ 
+ type dnsRR_MR struct {
+ 	Hdr dnsRR_Header
+-	Mr  string "domain-name"
++	Mr  string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_MR) Header() *dnsRR_Header {
+@@ -178,7 +178,7 @@ func (rr *dnsRR_MR) Header() *dnsRR_Header {
+ type dnsRR_MX struct {
+ 	Hdr  dnsRR_Header
+ 	Pref uint16
+-	Mx   string "domain-name"
++	Mx   string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_MX) Header() *dnsRR_Header {
+@@ -187,7 +187,7 @@ func (rr *dnsRR_MX) Header() *dnsRR_Header {
+ 
+ type dnsRR_NS struct {
+ 	Hdr dnsRR_Header
+-	Ns  string "domain-name"
++	Ns  string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_NS) Header() *dnsRR_Header {
+@@ -196,7 +196,7 @@ func (rr *dnsRR_NS) Header() *dnsRR_Header {
+ 
+ type dnsRR_PTR struct {
+ 	Hdr dnsRR_Header
+-	Ptr string "domain-name"
++	Ptr string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_PTR) Header() *dnsRR_Header {
+@@ -205,8 +205,8 @@ func (rr *dnsRR_PTR) Header() *dnsRR_Header {
+ 
+ type dnsRR_SOA struct {
+ 	Hdr     dnsRR_Header
+-	Ns      string "domain-name"
+-	Mbox    string "domain-name"
++	Ns      string `net:"domain-name"`
++	Mbox    string `net:"domain-name"`
+ 	Serial  uint32
+ 	Refresh uint32
+ 	Retry   uint32
+@@ -232,7 +232,7 @@ type dnsRR_SRV struct {
+ 	Priority uint16
+ 	Weight   uint16
+ 	Port     uint16
+-	Target   string "domain-name"
++	Target   string `net:"domain-name"`
+ }
+ 
+ func (rr *dnsRR_SRV) Header() *dnsRR_Header {
+@@ -241,7 +241,7 @@ func (rr *dnsRR_SRV) Header() *dnsRR_Header {
+ 
+ type dnsRR_A struct {
+ 	Hdr dnsRR_Header
+-	A   uint32 "ipv4"
++	A   uint32 `net:"ipv4"`
+ }
+ 
+ func (rr *dnsRR_A) Header() *dnsRR_Header {
+@@ -250,7 +250,7 @@ func (rr *dnsRR_A) Header() *dnsRR_Header {
+ 
+ type dnsRR_AAAA struct {
+ 	Hdr  dnsRR_Header
+-	AAAA [16]byte "ipv6"
++	AAAA [16]byte `net:"ipv6"`
+ }
+ 
+ func (rr *dnsRR_AAAA) Header() *dnsRR_Header {
+@@ -435,7 +435,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
+ 			default:
+ 				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
+ 				return len(msg), false
+-			case "domain-name":
++			case `net:"domain-name"`:
+ 				off, ok = packDomainName(s, msg, off)
+ 				if !ok {
+ 					return len(msg), false
+@@ -506,7 +506,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
+ 			default:
+ 				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
+ 				return len(msg), false
+-			case "domain-name":
++			case `net:"domain-name"`:
+ 				s, off, ok = unpackDomainName(msg, off)
+ 				if !ok {
+ 					return len(msg), false
+@@ -536,9 +536,9 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ }
+ 
+ // Generic struct printer.
+-// Doesn't care about the string tag "domain-name",
+-// but does look for an "ipv4" tag on uint32 variables
+-// and the "ipv6" tag on array variables,
++// Doesn't care about the string tag `net:"domain-name"`,
++// but does look for an `net:"ipv4"` tag on uint32 variables
++// and the `net:"ipv6"` tag on array variables,
+ // printing them as IP addresses.
+ func printStructValue(val reflect.Value) string {
+ 	s := "{"
+@@ -553,10 +553,10 @@ func printStructValue(val reflect.Value) string {
+ 		fval := val.Field(i)
+ 		if fv := fval; fv.Kind() == reflect.Struct {
+ 			s += printStructValue(fv)
+-		} else if fv := fval; (fv.Kind() == reflect.Uint || fv.Kind() == reflect.Uint8 || fv.Kind() == reflect.Uint16 || fv.Kind() == reflect.Uint32 || fv.Kind() == reflect.Uint64 || fv.Kind() == reflect.Uintptr) && f.Tag == "ipv4" {
++		} else if fv := fval; (fv.Kind() == reflect.Uint || fv.Kind() == reflect.Uint8 || fv.Kind() == reflect.Uint16 || fv.Kind() == reflect.Uint32 || fv.Kind() == reflect.Uint64 || fv.Kind() == reflect.Uintptr) && f.Tag == `net:"ipv4"` {
+ 			i := fv.Uint()
+ 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
+-		} else if fv := fval; fv.Kind() == reflect.Array && f.Tag == "ipv6" {
++		} else if fv := fval; fv.Kind() == reflect.Array && f.Tag == `net:"ipv6"` {
+ 			i := fv.Interface().([]byte)
+ 			s += IP(i).String()
+ 		} else {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 94b0fb5b36..34d74b37a4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -127,17 +127,17 @@ var typeTests = []pair{
+ 	},
+ 	{struct {
+ 		x struct {
+-			a int8 "hi there"
++			a int8 `reflect:"hi there"`
+ 		}
+ 	}{},
+-		`struct { a int8 "hi there" }`,
++		`struct { a int8 "reflect:\"hi there\"" }`,
+ 	},
+ 	{struct {
+ 		x struct {
+-			a int8 "hi \x00there\t\n\"\\"
++			a int8 `reflect:"hi \x00there\t\n\"\\"`
+ 		}
+ 	}{},
+-		`struct { a int8 "hi \x00there\t\n\"\\" }`,
++		`struct { a int8 "reflect:\"hi \\x00there\\t\\n\\\"\\\\\"" }`,
+ 	},
+ 	{struct {
+ 		x struct {
+@@ -423,7 +423,7 @@ func TestAll(t *testing.T) {
+ 
+ 	// make sure tag strings are not part of element type
+ 	typ = TypeOf(struct {
+-		d []uint32 "TAG"
++		d []uint32 `reflect:"TAG"`
+ 	}{}).Field(0).Type
+ 	testType(t, 14, typ, "[]uint32")
+ }
+@@ -1544,3 +1544,23 @@ func TestVariadic(t *testing.T) {
+ 		t.Errorf("after Fprintf CallSlice: %q != %q", b.String(), "hello 42 world")
+ 	}
+ }
++
++var tagGetTests = []struct {
++	Tag   StructTag
++	Key   string
++	Value string
++}{
++	{`protobuf:"PB(1,2)"`, `protobuf`, `PB(1,2)`},
++	{`protobuf:"PB(1,2)"`, `foo`, ``},
++	{`protobuf:"PB(1,2)"`, `rotobuf`, ``},
++	{`protobuf:"PB(1,2)" json:"name"`, `json`, `name`},
++	{`protobuf:"PB(1,2)" json:"name"`, `protobuf`, `PB(1,2)`},
++}
++
++func TestTagGet(t *testing.T) {
++	for _, tt := range tagGetTests {
++		if v := tt.Tag.Get(tt.Key); v != tt.Value {
++			t.Errorf("StructTag(%#q).Get(%#q) = %#q, want %#q", tt.Tag, tt.Key, v, tt.Value)
++		}
++	}
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index f774f73075..a120da732a 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -274,7 +274,7 @@ const (
+ 
+ // arrayType represents a fixed array type.
+ type arrayType struct {
+-	commonType "array"
++	commonType `reflect:"array"`
+ 	elem       *runtime.Type
+ 	slice      *runtime.Type
+ 	len        uintptr
+@@ -282,14 +282,14 @@ type arrayType struct {
+ 
+ // chanType represents a channel type.
+ type chanType struct {
+-	commonType "chan"
++	commonType `reflect:"chan"`
+ 	elem       *runtime.Type
+ 	dir        uintptr
+ }
+ 
+ // funcType represents a function type.
+ type funcType struct {
+-	commonType "func"
++	commonType `reflect:"func"`
+ 	dotdotdot  bool
+ 	in         []*runtime.Type
+ 	out        []*runtime.Type
+@@ -304,26 +304,26 @@ type imethod struct {
+ 
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+-	commonType "interface"
++	commonType `reflect:"interface"`
+ 	methods    []imethod
+ }
+ 
+ // mapType represents a map type.
+ type mapType struct {
+-	commonType "map"
++	commonType `reflect:"map"`
+ 	key        *runtime.Type
+ 	elem       *runtime.Type
+ }
+ 
+ // ptrType represents a pointer type.
+ type ptrType struct {
+-	commonType "ptr"
++	commonType `reflect:"ptr"`
+ 	elem       *runtime.Type
+ }
+ 
+ // sliceType represents a slice type.
+ type sliceType struct {
+-	commonType "slice"
++	commonType `reflect:"slice"`
+ 	elem       *runtime.Type
+ }
+ 
+@@ -338,7 +338,7 @@ type structField struct {
+ 
+ // structType represents a struct type.
+ type structType struct {
+-	commonType "struct"
++	commonType `reflect:"struct"`
+ 	fields     []structField
+ }
+ 
+@@ -696,12 +696,72 @@ type StructField struct {
+ 	PkgPath   string // empty for uppercase Name
+ 	Name      string
+ 	Type      Type
+-	Tag       string
++	Tag       StructTag
+ 	Offset    uintptr
+ 	Index     []int
+ 	Anonymous bool
+ }
+ 
++// A StructTag is the tag string in a struct field.
++//
++// By convention, tag strings are a concatenation of
++// optionally space-separated key:"value" pairs.
++// Each key is a non-empty string consisting of non-control
++// characters other than space (U+0020 ' '), quote (U+0022 '"'),
++// and colon (U+003A ':').  Each value is quoted using U+0022 '"'
++// characters and Go string literal syntax.
++type StructTag string
++
++// Get returns the value associated with key in the tag string.
++// If there is no such key in the tag, Get returns the empty string.
++// If the tag does not have the conventional format, the value
++// returned by Get is unspecified, 
++func (tag StructTag) Get(key string) string {
++	for tag != "" {
++		// skip leading space
++		i := 0
++		for i < len(tag) && tag[i] == ' ' {
++			i++
++		}
++		tag = tag[i:]
++		if tag == "" {
++			break
++		}
++
++		// scan to colon.
++		// a space or a quote is a syntax error
++		i = 0
++		for i < len(tag) && tag[i] != ' ' && tag[i] != ':' && tag[i] != '"' {
++			i++
++		}
++		if i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
++			break
++		}
++		name := string(tag[:i])
++		tag = tag[i+1:]
++
++		// scan quoted string to find value
++		i = 1
++		for i < len(tag) && tag[i] != '"' {
++			if tag[i] == '\\' {
++				i++
++			}
++			i++
++		}
++		if i >= len(tag) {
++			break
++		}
++		qvalue := string(tag[:i+1])
++		tag = tag[i+1:]
++
++		if key == name {
++			value, _ := strconv.Unquote(qvalue)
++			return value
++		}
++	}
++	return ""
++}
++
+ // Field returns the i'th struct field.
+ func (t *structType) Field(i int) (f StructField) {
+ 	if i < 0 || i >= len(t.fields) {
+@@ -723,7 +783,7 @@ func (t *structType) Field(i int) (f StructField) {
+ 		f.PkgPath = *p.pkgPath
+ 	}
+ 	if p.tag != nil {
+-		f.Tag = *p.tag
++		f.Tag = StructTag(*p.tag)
+ 	}
+ 	f.Offset = p.offset
+ 	f.Index = []int{i}
+diff --git a/src/pkg/rpc/jsonrpc/all_test.go b/src/pkg/rpc/jsonrpc/all_test.go
+index 02b9735eb1..c1a9e8ecbc 100644
+--- a/src/pkg/rpc/jsonrpc/all_test.go
++++ b/src/pkg/rpc/jsonrpc/all_test.go
+@@ -51,9 +51,9 @@ func init() {
+ 
+ func TestServer(t *testing.T) {
+ 	type addResp struct {
+-		Id     interface{} "id"
+-		Result Reply       "result"
+-		Error  interface{} "error"
++		Id     interface{} `json:"id"`
++		Result Reply       `json:"result"`
++		Error  interface{} `json:"error"`
+ 	}
+ 
+ 	cli, srv := net.Pipe()
+diff --git a/src/pkg/rpc/jsonrpc/client.go b/src/pkg/rpc/jsonrpc/client.go
+index 57e977d325..577d0ce429 100644
+--- a/src/pkg/rpc/jsonrpc/client.go
++++ b/src/pkg/rpc/jsonrpc/client.go
+@@ -44,9 +44,9 @@ func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+ }
+ 
+ type clientRequest struct {
+-	Method string         "method"
+-	Params [1]interface{} "params"
+-	Id     uint64         "id"
++	Method string         `json:"method"`
++	Params [1]interface{} `json:"params"`
++	Id     uint64         `json:"id"`
+ }
+ 
+ func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) os.Error {
+@@ -60,9 +60,9 @@ func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) os.Error {
+ }
+ 
+ type clientResponse struct {
+-	Id     uint64           "id"
+-	Result *json.RawMessage "result"
+-	Error  interface{}      "error"
++	Id     uint64           `json:"id"`
++	Result *json.RawMessage `json:"result"`
++	Error  interface{}      `json:"error"`
+ }
+ 
+ func (r *clientResponse) reset() {
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index 9c6b8b40d6..9801fdf221 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -43,9 +43,9 @@ func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+ }
+ 
+ type serverRequest struct {
+-	Method string           "method"
+-	Params *json.RawMessage "params"
+-	Id     *json.RawMessage "id"
++	Method string           `json:"method"`
++	Params *json.RawMessage `json:"params"`
++	Id     *json.RawMessage `json:"id"`
+ }
+ 
+ func (r *serverRequest) reset() {
+@@ -59,9 +59,9 @@ func (r *serverRequest) reset() {
+ }
+ 
+ type serverResponse struct {
+-	Id     *json.RawMessage "id"
+-	Result interface{}      "result"
+-	Error  interface{}      "error"
++	Id     *json.RawMessage `json:"id"`
++	Result interface{}      `json:"result"`
++	Error  interface{}      `json:"error"`
+ }
+ 
+ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
+diff --git a/src/pkg/xml/embed_test.go b/src/pkg/xml/embed_test.go
+index abfe781acd..ec7f478bec 100644
+--- a/src/pkg/xml/embed_test.go
++++ b/src/pkg/xml/embed_test.go
+@@ -12,14 +12,14 @@ type C struct {
+ }
+ 
+ type A struct {
+-	XMLName Name "http://domain a"
++	XMLName Name `xml:"http://domain a"`
+ 	C
+ 	B      B
+ 	FieldA string
+ }
+ 
+ type B struct {
+-	XMLName Name "b"
++	XMLName Name `xml:"b"`
+ 	C
+ 	FieldB string
+ }
+@@ -65,7 +65,7 @@ func TestEmbedded1(t *testing.T) {
+ }
+ 
+ type A2 struct {
+-	XMLName Name "http://domain a"
++	XMLName Name `xml:"http://domain a"`
+ 	XY      string
+ 	Xy      string
+ }
+@@ -92,7 +92,7 @@ func TestEmbedded2(t *testing.T) {
+ }
+ 
+ type A3 struct {
+-	XMLName Name "http://domain a"
++	XMLName Name `xml:"http://domain a"`
+ 	xy      string
+ }
+ 
+@@ -108,7 +108,7 @@ func TestEmbedded3(t *testing.T) {
+ }
+ 
+ type A4 struct {
+-	XMLName Name "http://domain a"
++	XMLName Name `xml:"http://domain a"`
+ 	Any     string
+ }
+ 
+diff --git a/src/pkg/xml/marshal.go b/src/pkg/xml/marshal.go
+index d3a1f95367..2ac03a91e2 100644
+--- a/src/pkg/xml/marshal.go
++++ b/src/pkg/xml/marshal.go
+@@ -108,7 +108,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 	xmlns := ""
+ 	if kind == reflect.Struct {
+ 		if f, ok := typ.FieldByName("XMLName"); ok {
+-			if tag := f.Tag; tag != "" {
++			if tag := f.Tag.Get("xml"); tag != "" {
+ 				if i := strings.Index(tag, " "); i >= 0 {
+ 					xmlns, name = tag[:i], tag[i+1:]
+ 				} else {
+@@ -132,7 +132,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 		}
+ 
+ 		for i, n := 0, typ.NumField(); i < n; i++ {
+-			if f := typ.Field(i); f.PkgPath == "" && f.Tag == "attr" {
++			if f := typ.Field(i); f.PkgPath == "" && f.Tag.Get("xml") == "attr" {
+ 				if f.Type.Kind() == reflect.String {
+ 					if str := val.Field(i).String(); str != "" {
+ 						p.WriteByte(' ')
+@@ -173,7 +173,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 		for i, n := 0, val.NumField(); i < n; i++ {
+ 			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
+ 				name := f.Name
+-				switch tag := f.Tag; tag {
++				switch tag := f.Tag.Get("xml"); tag {
+ 				case "":
+ 				case "chardata":
+ 					if tk := f.Type.Kind(); tk == reflect.String {
+diff --git a/src/pkg/xml/marshal_test.go b/src/pkg/xml/marshal_test.go
+index 3408f6d508..77b2e726d5 100644
+--- a/src/pkg/xml/marshal_test.go
++++ b/src/pkg/xml/marshal_test.go
+@@ -22,18 +22,18 @@ const (
+ )
+ 
+ type Passenger struct {
+-	Name   []string "name"
+-	Weight float32  "weight"
++	Name   []string `xml:"name"`
++	Weight float32  `xml:"weight"`
+ }
+ 
+ type Ship struct {
+-	XMLName Name "spaceship"
++	XMLName Name `xml:"spaceship"`
+ 
+-	Name      string       "attr"
+-	Pilot     string       "attr"
+-	Drive     DriveType    "drive"
+-	Age       uint         "age"
+-	Passenger []*Passenger "passenger"
++	Name      string       `xml:"attr"`
++	Pilot     string       `xml:"attr"`
++	Drive     DriveType    `xml:"drive"`
++	Age       uint         `xml:"age"`
++	Passenger []*Passenger `xml:"passenger"`
+ 	secret    string
+ }
+ 
+@@ -46,22 +46,22 @@ func (rx RawXML) MarshalXML() ([]byte, os.Error) {
+ type NamedType string
+ 
+ type Port struct {
+-	XMLName Name   "port"
+-	Type    string "attr"
+-	Number  string "chardata"
++	XMLName Name   `xml:"port"`
++	Type    string `xml:"attr"`
++	Number  string `xml:"chardata"`
+ }
+ 
+ type Domain struct {
+-	XMLName Name   "domain"
+-	Country string "attr"
+-	Name    []byte "chardata"
++	XMLName Name   `xml:"domain"`
++	Country string `xml:"attr"`
++	Name    []byte `xml:"chardata"`
+ }
+ 
+ type SecretAgent struct {
+-	XMLName   Name   "agent"
+-	Handle    string "attr"
++	XMLName   Name   `xml:"agent"`
++	Handle    string `xml:"attr"`
+ 	Identity  string
+-	Obfuscate string "innerxml"
++	Obfuscate string `xml:"innerxml"`
+ }
+ 
+ var nilStruct *Ship
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 427c311583..786b69f5a3 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -31,16 +31,16 @@ import (
+ // For example, given these definitions:
+ //
+ //	type Email struct {
+-//		Where string "attr"
++//		Where string `xml:"attr"`
+ //		Addr  string
+ //	}
+ //
+ //	type Result struct {
+-//		XMLName xml.Name "result"
++//		XMLName xml.Name `xml:"result"`
+ //		Name	string
+ //		Phone	string
+ //		Email	[]Email
+-//		Groups  []string "group>value"
++//		Groups  []string `xml:"group>value"`
+ //	}
+ //
+ //	result := Result{Name: "name", Phone: "phone", Email: nil}
+@@ -79,11 +79,13 @@ import (
+ // Groups was assigned considering the element path provided in the
+ // field tag.
+ //
+-// Because Unmarshal uses the reflect package, it can only
+-// assign to upper case fields.  Unmarshal uses a case-insensitive
++// Because Unmarshal uses the reflect package, it can only assign
++// to exported (upper case) fields.  Unmarshal uses a case-insensitive
+ // comparison to match XML element names to struct field names.
+ //
+-// Unmarshal maps an XML element to a struct using the following rules:
++// Unmarshal maps an XML element to a struct using the following rules.
++// In the rules, the tag of a field refers to the value associated with the
++// key 'xml' in the struct field's tag (see the example above).
+ //
+ //   * If the struct has a field of type []byte or string with tag "innerxml",
+ //      Unmarshal accumulates the raw XML nested inside the element
+@@ -92,9 +94,9 @@ import (
+ //   * If the struct has a field named XMLName of type xml.Name,
+ //      Unmarshal records the element name in that field.
+ //
+-//   * If the XMLName field has an associated tag string of the form
+-//      "tag" or "namespace-URL tag", the XML element must have
+-//      the given tag (and, optionally, name space) or else Unmarshal
++//   * If the XMLName field has an associated tag of the form
++//      "name" or "namespace-URL name", the XML element must have
++//      the given name (and, optionally, name space) or else Unmarshal
+ //      returns an error.
+ //
+ //   * If the XML element has an attribute whose name matches a
+@@ -112,14 +114,14 @@ import (
+ //      field, the comments are discarded.
+ //
+ //   * If the XML element contains a sub-element whose name matches
+-//      the prefix of a struct field tag formatted as "a>b>c", unmarshal
++//      the prefix of a tag formatted as "a>b>c", unmarshal
+ //      will descend into the XML structure looking for elements with the
+ //      given names, and will map the innermost elements to that struct field.
+-//      A struct field tag starting with ">" is equivalent to one starting
++//      A tag starting with ">" is equivalent to one starting
+ //      with the field name followed by ">".
+ //
+ //   * If the XML element contains a sub-element whose name
+-//      matches a struct field whose tag is neither "attr" nor "chardata",
++//      matches a field whose tag is neither "attr" nor "chardata",
+ //      Unmarshal maps the sub-element to that struct field.
+ //      Otherwise, if the struct has a field named Any, unmarshal
+ //      maps the sub-element to that struct field.
+@@ -297,8 +299,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		// Assign name.
+ 		if f, ok := typ.FieldByName("XMLName"); ok {
+ 			// Validate element name.
+-			if f.Tag != "" {
+-				tag := f.Tag
++			if tag := f.Tag.Get("xml"); tag != "" {
+ 				ns := ""
+ 				i := strings.LastIndex(tag, " ")
+ 				if i >= 0 {
+@@ -330,7 +331,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		// Also, determine whether we need to save character data or comments.
+ 		for i, n := 0, typ.NumField(); i < n; i++ {
+ 			f := typ.Field(i)
+-			switch f.Tag {
++			switch f.Tag.Get("xml") {
+ 			case "attr":
+ 				strv := sv.FieldByIndex(f.Index)
+ 				// Look for attribute.
+@@ -366,15 +367,15 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 				}
+ 
+ 			default:
+-				if strings.Contains(f.Tag, ">") {
++				if tag := f.Tag.Get("xml"); strings.Contains(tag, ">") {
+ 					if fieldPaths == nil {
+ 						fieldPaths = make(map[string]pathInfo)
+ 					}
+-					path := strings.ToLower(f.Tag)
+-					if strings.HasPrefix(f.Tag, ">") {
++					path := strings.ToLower(tag)
++					if strings.HasPrefix(tag, ">") {
+ 						path = strings.ToLower(f.Name) + path
+ 					}
+-					if strings.HasSuffix(f.Tag, ">") {
++					if strings.HasSuffix(tag, ">") {
+ 						path = path[:len(path)-1]
+ 					}
+ 					err := addFieldPath(sv, fieldPaths, path, f.Index)
+@@ -574,7 +575,7 @@ func tagError(sv reflect.Value, idx1 []int, idx2 []int) os.Error {
+ 	t := sv.Type()
+ 	f1 := t.FieldByIndex(idx1)
+ 	f2 := t.FieldByIndex(idx2)
+-	return &TagPathError{t, f1.Name, f1.Tag, f2.Name, f2.Tag}
++	return &TagPathError{t, f1.Name, f1.Tag.Get("xml"), f2.Name, f2.Tag.Get("xml")}
+ }
+ 
+ // unmarshalPaths walks down an XML structure looking for
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/xml/read_test.go
+index e07cb15310..2126da3c75 100644
+--- a/src/pkg/xml/read_test.go
++++ b/src/pkg/xml/read_test.go
+@@ -78,7 +78,7 @@ not being used from outside intra_region_diff.py.
+ </summary></entry></feed> 	   `
+ 
+ type Feed struct {
+-	XMLName Name "http://www.w3.org/2005/Atom feed"
++	XMLName Name `xml:"http://www.w3.org/2005/Atom feed"`
+ 	Title   string
+ 	Id      string
+ 	Link    []Link
+@@ -97,20 +97,20 @@ type Entry struct {
+ }
+ 
+ type Link struct {
+-	Rel  string "attr"
+-	Href string "attr"
++	Rel  string `xml:"attr"`
++	Href string `xml:"attr"`
+ }
+ 
+ type Person struct {
+ 	Name     string
+ 	URI      string
+ 	Email    string
+-	InnerXML string "innerxml"
++	InnerXML string `xml:"innerxml"`
+ }
+ 
+ type Text struct {
+-	Type string "attr"
+-	Body string "chardata"
++	Type string `xml:"attr"`
++	Body string `xml:"chardata"`
+ }
+ 
+ type Time string
+@@ -255,18 +255,18 @@ type PathTestItem struct {
+ }
+ 
+ type PathTestA struct {
+-	Items         []PathTestItem ">item1"
++	Items         []PathTestItem `xml:">item1"`
+ 	Before, After string
+ }
+ 
+ type PathTestB struct {
+-	Other         []PathTestItem "items>Item1"
++	Other         []PathTestItem `xml:"items>Item1"`
+ 	Before, After string
+ }
+ 
+ type PathTestC struct {
+-	Values1       []string "items>item1>value"
+-	Values2       []string "items>item2>value"
++	Values1       []string `xml:"items>item1>value"`
++	Values2       []string `xml:"items>item2>value"`
+ 	Before, After string
+ }
+ 
+@@ -275,7 +275,7 @@ type PathTestSet struct {
+ }
+ 
+ type PathTestD struct {
+-	Other         PathTestSet "items>"
++	Other         PathTestSet `xml:"items>"`
+ 	Before, After string
+ }
+ 
+@@ -299,15 +299,15 @@ func TestUnmarshalPaths(t *testing.T) {
+ }
+ 
+ type BadPathTestA struct {
+-	First  string "items>item1"
+-	Other  string "items>item2"
+-	Second string "items>"
++	First  string `xml:"items>item1"`
++	Other  string `xml:"items>item2"`
++	Second string `xml:"items>"`
+ }
+ 
+ type BadPathTestB struct {
+-	Other  string "items>item2>value"
+-	First  string "items>item1"
+-	Second string "items>item1>value"
++	Other  string `xml:"items>item2>value"`
++	First  string `xml:"items>item1"`
++	Second string `xml:"items>item1>value"`
+ }
+ 
+ var badPathTests = []struct {
+@@ -342,13 +342,13 @@ type AttrTest struct {
+ }
+ 
+ type Test1 struct {
+-	Int   int     "attr"
+-	Float float64 "attr"
+-	Uint8 uint8   "attr"
++	Int   int     `xml:"attr"`
++	Float float64 `xml:"attr"`
++	Uint8 uint8   `xml:"attr"`
+ }
+ 
+ type Test2 struct {
+-	Bool bool "attr"
++	Bool bool `xml:"attr"`
+ }
+ 
+ const attrString = `

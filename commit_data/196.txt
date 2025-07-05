@@ -5,8 +5,80 @@ Date:   Wed Jun 18 13:53:51 2008 -0700
     a couple of bugs around nil are fixed
     
     SVN=123423
-
+---
  test/{bugs => fixedbugs}/bug045.go | 4 ++--
  test/golden.out                    | 8 ++------
  test/nil.go                        | 6 +++---
  3 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/test/bugs/bug045.go b/test/fixedbugs/bug045.go
+similarity index 90%
+rename from test/bugs/bug045.go
+rename to test/fixedbugs/bug045.go
+index d6ec0f1e4a..08b6990ae6 100644
+--- a/test/bugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -11,9 +11,9 @@ type T struct {
+ }
+ 
+ func main() {
+-	var ta *[]T;
++	var ta *[]*T;
+ 
+-	ta = new([1]T);
++	ta = new([1]*T);
+ 	ta[0] = nil;
+ }
+ /*
+diff --git a/test/golden.out b/test/golden.out
+index 1179f0d7e2..67fb83f57b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -26,8 +26,6 @@ hello, world
+ =========== ./literal.go
+ 
+ =========== ./nil.go
+-nil.go:30: illegal conversion of constant to <T>{}
+-BUG: known to fail incorrectly
+ 
+ =========== ./sieve.go
+ sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(151)
+@@ -210,10 +208,6 @@ BUG: compilation should succeed
+ bugs/bug044.go:23: error in shape across assignment
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug045.go
+-bugs/bug045.go:13: illegal conversion of constant to <T>{}
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug046.go
+ bugs/bug046.go:7: illegal <this> pointer
+ BUG: known to fail incorrectly
+@@ -304,3 +298,5 @@ BUG: known to fail incorrectly
+ =========== fixedbugs/bug028.go
+ 
+ =========== fixedbugs/bug031.go
++
++=========== fixedbugs/bug045.go
+diff --git a/test/nil.go b/test/nil.go
+index 3062ea372d..d0cb65dcb3 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -21,7 +21,7 @@ func main() {
+ 	var c *chan int;
+ 	var t *T;
+ 	var in IN;
+-	var ta *[]T;
++	var ta *[]IN;
+ 
+ 	i = nil;
+ 	f = nil;
+@@ -30,6 +30,6 @@ func main() {
+ 	c = nil;
+ 	t = nil;
+ 	i = nil;
+-	ta = new([1]T);
+-	ta[0] = nil;  //BUG (see bugs/bug045.go) 
++	ta = new([1]IN);
++	ta[0] = nil;
+ }

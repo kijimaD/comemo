@@ -17,6 +17,22 @@ Date:   Thu Jan 25 15:39:09 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/net/http/transport_internal_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport_internal_test.go b/src/net/http/transport_internal_test.go
+index 2ed637e9f0..dc3259fadf 100644
+--- a/src/net/http/transport_internal_test.go
++++ b/src/net/http/transport_internal_test.go
+@@ -58,8 +58,8 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
+ 
+ 	<-pc.closech
+ 	err = pc.closed
+-	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
+-		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
++	if !isNothingWrittenError(err) && !isTransportReadFromServerError(err) && err != errServerClosedIdle {
++		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError, or nothingWrittenError", err, err)
+ 	}
+ }
+ 

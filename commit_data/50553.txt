@@ -10,8 +10,54 @@ Date:   Mon Nov 1 17:27:09 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/ascii85/ascii85.go | 4 +---
  src/encoding/base32/base32.go   | 4 +---
  src/encoding/base64/base64.go   | 4 +---
  3 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/ascii85/ascii85.go b/src/encoding/ascii85/ascii85.go
+index d42eb0ab00..f1f7af863c 100644
+--- a/src/encoding/ascii85/ascii85.go
++++ b/src/encoding/ascii85/ascii85.go
+@@ -142,9 +142,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
+ 	}
+ 
+ 	// Trailing fringe.
+-	for i := 0; i < len(p); i++ {
+-		e.buf[i] = p[i]
+-	}
++	copy(e.buf[:], p)
+ 	e.nbuf = len(p)
+ 	n += len(p)
+ 	return
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 2f7d3637e5..3feea9ba47 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -221,9 +221,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
+ 	}
+ 
+ 	// Trailing fringe.
+-	for i := 0; i < len(p); i++ {
+-		e.buf[i] = p[i]
+-	}
++	copy(e.buf[:], p)
+ 	e.nbuf = len(p)
+ 	n += len(p)
+ 	return
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 0c33f8e5f8..4a3e590649 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -229,9 +229,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
+ 	}
+ 
+ 	// Trailing fringe.
+-	for i := 0; i < len(p); i++ {
+-		e.buf[i] = p[i]
+-	}
++	copy(e.buf[:], p)
+ 	e.nbuf = len(p)
+ 	n += len(p)
+ 	return

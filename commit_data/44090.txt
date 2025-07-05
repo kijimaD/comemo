@@ -35,10 +35,342 @@ Date:   Tue Apr 28 21:09:17 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go      |   4 +-
  src/runtime/mgcscavenge.go      |  22 ++++-----
  src/runtime/mpagealloc.go       |   2 +-
  src/runtime/mpagealloc_64bit.go |  12 ++---
  src/runtime/mranges.go          | 100 +++++++++++++++++++++++++++++++++-------
  5 files changed, 103 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 01e1d0dc9e..37271e473a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -748,8 +748,8 @@ func (p *PageAlloc) InUse() []AddrRange {
+ 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
+ 	for _, r := range p.inUse.ranges {
+ 		ranges = append(ranges, AddrRange{
+-			Base:  r.base,
+-			Limit: r.limit,
++			Base:  r.base.addr(),
++			Limit: r.limit.addr(),
+ 		})
+ 	}
+ 	return ranges
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 069f267130..4dacfa0a5c 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -508,11 +508,11 @@ func (s *pageAlloc) scavengeReserve() (addrRange, uint32) {
+ 	// palloc chunk because that's the unit of operation for
+ 	// the scavenger, so align down, potentially extending
+ 	// the range.
+-	newBase := alignDown(r.base, pallocChunkBytes)
++	newBase := alignDown(r.base.addr(), pallocChunkBytes)
+ 
+ 	// Remove from inUse however much extra we just pulled out.
+ 	s.scav.inUse.removeGreaterEqual(newBase)
+-	r.base = newBase
++	r.base = offAddr{newBase}
+ 	return r, s.scav.gen
+ }
+ 
+@@ -528,7 +528,7 @@ func (s *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
+ 	if r.size() == 0 || gen != s.scav.gen {
+ 		return
+ 	}
+-	if r.base%pallocChunkBytes != 0 {
++	if r.base.addr()%pallocChunkBytes != 0 {
+ 		throw("unreserving unaligned region")
+ 	}
+ 	s.scav.inUse.add(r)
+@@ -559,7 +559,7 @@ func (s *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 		return 0, work
+ 	}
+ 	// Check the prerequisites of work.
+-	if work.base%pallocChunkBytes != 0 {
++	if work.base.addr()%pallocChunkBytes != 0 {
+ 		throw("scavengeOne called with unaligned work region")
+ 	}
+ 	// Calculate the maximum number of pages to scavenge.
+@@ -598,9 +598,9 @@ func (s *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 	// Fast path: check the chunk containing the top-most address in work,
+ 	// starting at that address's page index in the chunk.
+ 	//
+-	// Note that work.limit is exclusive, so get the chunk we care about
++	// Note that work.end() is exclusive, so get the chunk we care about
+ 	// by subtracting 1.
+-	maxAddr := work.limit - 1
++	maxAddr := work.limit.addr() - 1
+ 	maxChunk := chunkIndex(maxAddr)
+ 	if s.summary[len(s.summary)-1][maxChunk].max() >= uint(minPages) {
+ 		// We only bother looking for a candidate if there at least
+@@ -609,12 +609,12 @@ func (s *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 
+ 		// If we found something, scavenge it and return!
+ 		if npages != 0 {
+-			work.limit = s.scavengeRangeLocked(maxChunk, base, npages)
++			work.limit = offAddr{s.scavengeRangeLocked(maxChunk, base, npages)}
+ 			return uintptr(npages) * pageSize, work
+ 		}
+ 	}
+ 	// Update the limit to reflect the fact that we checked maxChunk already.
+-	work.limit = chunkBase(maxChunk)
++	work.limit = offAddr{chunkBase(maxChunk)}
+ 
+ 	// findCandidate finds the next scavenge candidate in work optimistically.
+ 	//
+@@ -623,7 +623,7 @@ func (s *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 	// The heap need not be locked.
+ 	findCandidate := func(work addrRange) (chunkIdx, bool) {
+ 		// Iterate over this work's chunks.
+-		for i := chunkIndex(work.limit - 1); i >= chunkIndex(work.base); i-- {
++		for i := chunkIndex(work.limit.addr() - 1); i >= chunkIndex(work.base.addr()); i-- {
+ 			// If this chunk is totally in-use or has no unscavenged pages, don't bother
+ 			// doing a more sophisticated check.
+ 			//
+@@ -673,12 +673,12 @@ func (s *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 		chunk := s.chunkOf(candidateChunkIdx)
+ 		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+ 		if npages > 0 {
+-			work.limit = s.scavengeRangeLocked(candidateChunkIdx, base, npages)
++			work.limit = offAddr{s.scavengeRangeLocked(candidateChunkIdx, base, npages)}
+ 			return uintptr(npages) * pageSize, work
+ 		}
+ 
+ 		// We were fooled, so let's continue from where we left off.
+-		work.limit = chunkBase(candidateChunkIdx)
++		work.limit = offAddr{chunkBase(candidateChunkIdx)}
+ 	}
+ 	return 0, work
+ }
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 905d49d751..5078738b60 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -375,7 +375,7 @@ func (s *pageAlloc) grow(base, size uintptr) {
+ 	// Note that [base, limit) will never overlap with any existing
+ 	// range inUse because grow only ever adds never-used memory
+ 	// regions to the page allocator.
+-	s.inUse.add(addrRange{base, limit})
++	s.inUse.add(makeAddrRange(base, limit))
+ 
+ 	// A grow operation is a lot like a free operation, so if our
+ 	// chunk ends up below the (linearized) s.searchAddr, update
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 0b475ed206..831626e4b2 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -106,7 +106,7 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
+ 	// of summary indices which must be mapped to support those addresses
+ 	// in the summary range.
+ 	addrRangeToSummaryRange := func(level int, r addrRange) (int, int) {
+-		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base, r.limit)
++		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base.addr(), r.limit.addr())
+ 		return blockAlignSummaryRange(level, sumIdxBase, sumIdxLimit)
+ 	}
+ 
+@@ -118,8 +118,8 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
+ 		limitOffset := alignUp(uintptr(sumIdxLimit)*pallocSumBytes, physPageSize)
+ 		base := unsafe.Pointer(&s.summary[level][0])
+ 		return addrRange{
+-			uintptr(add(base, baseOffset)),
+-			uintptr(add(base, limitOffset)),
++			offAddr{uintptr(add(base, baseOffset))},
++			offAddr{uintptr(add(base, limitOffset))},
+ 		}
+ 	}
+ 
+@@ -145,7 +145,7 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
+ 	// Walk up the radix tree and map summaries in as needed.
+ 	for l := range s.summary {
+ 		// Figure out what part of the summary array this new address space needs.
+-		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, addrRange{base, limit})
++		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, makeAddrRange(base, limit))
+ 
+ 		// Update the summary slices with a new upper-bound. This ensures
+ 		// we get tight bounds checks on at least the top bound.
+@@ -174,7 +174,7 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
+ 		}
+ 
+ 		// Map and commit need.
+-		sysMap(unsafe.Pointer(need.base), need.size(), s.sysStat)
+-		sysUsed(unsafe.Pointer(need.base), need.size())
++		sysMap(unsafe.Pointer(need.base.addr()), need.size(), s.sysStat)
++		sysUsed(unsafe.Pointer(need.base.addr()), need.size())
+ 	}
+ }
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index 1e96911952..468a73057b 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -15,23 +15,41 @@ import (
+ )
+ 
+ // addrRange represents a region of address space.
++//
++// An addrRange must never span a gap in the address space.
+ type addrRange struct {
+ 	// base and limit together represent the region of address space
+ 	// [base, limit). That is, base is inclusive, limit is exclusive.
+-	base, limit uintptr
++	// These are address over an offset view of the address space on
++	// platforms with a segmented address space, that is, on platforms
++	// where arenaBaseOffset != 0.
++	base, limit offAddr
++}
++
++// makeAddrRange creates a new address range from two virtual addresses.
++//
++// Throws if the base and limit are not in the same memory segment.
++func makeAddrRange(base, limit uintptr) addrRange {
++	r := addrRange{offAddr{base}, offAddr{limit}}
++	if (base+arenaBaseOffset >= arenaBaseOffset) != (limit+arenaBaseOffset >= arenaBaseOffset) {
++		throw("addr range base and limit are not in the same memory segment")
++	}
++	return r
+ }
+ 
+ // size returns the size of the range represented in bytes.
+ func (a addrRange) size() uintptr {
+-	if a.limit <= a.base {
++	if !a.base.lessThan(a.limit) {
+ 		return 0
+ 	}
+-	return a.limit - a.base
++	// Subtraction is safe because limit and base must be in the same
++	// segment of the address space.
++	return a.limit.diff(a.base)
+ }
+ 
+ // contains returns whether or not the range contains a given address.
+ func (a addrRange) contains(addr uintptr) bool {
+-	return addr >= a.base && addr < a.limit
++	return a.base.lessEqual(offAddr{addr}) && (offAddr{addr}).lessThan(a.limit)
+ }
+ 
+ // subtract takes the addrRange toPrune and cuts out any overlap with
+@@ -39,18 +57,65 @@ func (a addrRange) contains(addr uintptr) bool {
+ // either don't overlap at all, only overlap on one side, or are equal.
+ // If b is strictly contained in a, thus forcing a split, it will throw.
+ func (a addrRange) subtract(b addrRange) addrRange {
+-	if a.base >= b.base && a.limit <= b.limit {
++	if b.base.lessEqual(a.base) && a.limit.lessEqual(b.limit) {
+ 		return addrRange{}
+-	} else if a.base < b.base && a.limit > b.limit {
++	} else if a.base.lessThan(b.base) && b.limit.lessThan(a.limit) {
+ 		throw("bad prune")
+-	} else if a.limit > b.limit && a.base < b.limit {
++	} else if b.limit.lessThan(a.limit) && a.base.lessThan(b.limit) {
+ 		a.base = b.limit
+-	} else if a.base < b.base && a.limit > b.base {
++	} else if a.base.lessThan(b.base) && b.base.lessThan(a.limit) {
+ 		a.limit = b.base
+ 	}
+ 	return a
+ }
+ 
++// offAddr represents an address in a contiguous view
++// of the address space on systems where the address space is
++// segmented. On other systems, it's just a normal address.
++type offAddr struct {
++	a uintptr
++}
++
++// add adds a uintptr offset to the offAddr.
++func (l offAddr) add(bytes uintptr) offAddr {
++	return offAddr{a: l.a + bytes}
++}
++
++// sub subtracts a uintptr offset from the offAddr.
++func (l offAddr) sub(bytes uintptr) offAddr {
++	return offAddr{a: l.a - bytes}
++}
++
++// diff returns the amount of bytes in between the
++// two offAddrs.
++func (l1 offAddr) diff(l2 offAddr) uintptr {
++	return l1.a - l2.a
++}
++
++// lessThan returns true if l1 is less than l2 in the offset
++// address space.
++func (l1 offAddr) lessThan(l2 offAddr) bool {
++	return (l1.a + arenaBaseOffset) < (l2.a + arenaBaseOffset)
++}
++
++// lessEqual returns true if l1 is less than or equal to l2 in
++// the offset address space.
++func (l1 offAddr) lessEqual(l2 offAddr) bool {
++	return (l1.a + arenaBaseOffset) <= (l2.a + arenaBaseOffset)
++}
++
++// equal returns true if the two offAddr values are equal.
++func (l1 offAddr) equal(l2 offAddr) bool {
++	// No need to compare in the offset space, it
++	// means the same thing.
++	return l1 == l2
++}
++
++// addr returns the virtual address for this offset address.
++func (l offAddr) addr() uintptr {
++	return l.a
++}
++
+ // addrRanges is a data structure holding a collection of ranges of
+ // address space.
+ //
+@@ -84,13 +149,14 @@ func (a *addrRanges) init(sysStat *uint64) {
+ 
+ // findSucc returns the first index in a such that base is
+ // less than the base of the addrRange at that index.
+-func (a *addrRanges) findSucc(base uintptr) int {
++func (a *addrRanges) findSucc(addr uintptr) int {
+ 	// TODO(mknyszek): Consider a binary search for large arrays.
+ 	// While iterating over these ranges is potentially expensive,
+ 	// the expected number of ranges is small, ideally just 1,
+ 	// since Go heaps are usually mostly contiguous.
++	base := offAddr{addr}
+ 	for i := range a.ranges {
+-		if base < a.ranges[i].base {
++		if base.lessThan(a.ranges[i].base) {
+ 			return i
+ 		}
+ 	}
+@@ -121,9 +187,9 @@ func (a *addrRanges) add(r addrRange) {
+ 
+ 	// Because we assume r is not currently represented in a,
+ 	// findSucc gives us our insertion index.
+-	i := a.findSucc(r.base)
+-	coalescesDown := i > 0 && a.ranges[i-1].limit == r.base
+-	coalescesUp := i < len(a.ranges) && r.limit == a.ranges[i].base
++	i := a.findSucc(r.base.addr())
++	coalescesDown := i > 0 && a.ranges[i-1].limit.equal(r.base)
++	coalescesUp := i < len(a.ranges) && r.limit.equal(a.ranges[i].base)
+ 	if coalescesUp && coalescesDown {
+ 		// We have neighbors and they both border us.
+ 		// Merge a.ranges[i-1], r, and a.ranges[i] together into a.ranges[i-1].
+@@ -176,10 +242,10 @@ func (a *addrRanges) removeLast(nBytes uintptr) addrRange {
+ 	r := a.ranges[len(a.ranges)-1]
+ 	size := r.size()
+ 	if size > nBytes {
+-		newLimit := r.limit - nBytes
+-		a.ranges[len(a.ranges)-1].limit = newLimit
++		newEnd := r.limit.sub(nBytes)
++		a.ranges[len(a.ranges)-1].limit = newEnd
+ 		a.totalBytes -= nBytes
+-		return addrRange{newLimit, r.limit}
++		return addrRange{newEnd, r.limit}
+ 	}
+ 	a.ranges = a.ranges[:len(a.ranges)-1]
+ 	a.totalBytes -= size
+@@ -202,7 +268,7 @@ func (a *addrRanges) removeGreaterEqual(addr uintptr) {
+ 	}
+ 	if r := a.ranges[pivot-1]; r.contains(addr) {
+ 		removed += r.size()
+-		r = r.subtract(addrRange{addr, maxSearchAddr})
++		r = r.subtract(makeAddrRange(addr, maxSearchAddr))
+ 		if r.size() == 0 {
+ 			pivot--
+ 		} else {

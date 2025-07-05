@@ -7,6 +7,20 @@ Date:   Fri Sep 28 10:01:09 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6565061
-
+---
  src/pkg/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 78708c44b6..7a8cc1c4ed 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -256,7 +256,7 @@ func (r BenchmarkResult) String() string {
+ }
+ 
+ func (r BenchmarkResult) MemString() string {
+-	return fmt.Sprintf("\t%8d B/op\t%8d allocs/op",
++	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
+ 		r.AllocedBytesPerOp(), r.AllocsPerOp())
+ }
+ 

@@ -12,6 +12,59 @@ Date:   Sat Mar 25 16:17:59 2017 -0600
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/typeswitch3.go | 29 +++++++++++++++++++++--------
  1 file changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 287e32e71e..58d4cba2d0 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -18,26 +18,39 @@ type I interface {
+ 	M()
+ }
+ 
+-func main(){
++func main() {
+ 	var x I
+ 	switch x.(type) {
+-	case string:	// ERROR "impossible"
++	case string: // ERROR "impossible"
+ 		println("FAIL")
+ 	}
+-	
++
+ 	// Issue 2700: if the case type is an interface, nothing is impossible
+-	
++
+ 	var r io.Reader
+-	
++
+ 	_, _ = r.(io.Writer)
+-	
++
+ 	switch r.(type) {
+ 	case io.Writer:
+ 	}
+-	
++
+ 	// Issue 2827.
+-	switch _ := r.(type) {  // ERROR "invalid variable name _|no new variables"
++	switch _ := r.(type) { // ERROR "invalid variable name _|no new variables"
+ 	}
+ }
+ 
++func noninterface() {
++	var i int
++	switch i.(type) { // ERROR "cannot type switch on non-interface value"
++	case string:
++	case int:
++	}
+ 
++	type S struct {
++		name string
++	}
++	var s S
++	switch s.(type) { // ERROR "cannot type switch on non-interface value"
++	}
++}

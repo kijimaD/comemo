@@ -7,7 +7,193 @@ Date:   Wed Feb 10 17:29:03 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/199070
-
+---
  src/pkg/http/requestwrite_test.go  | 104 +++++++++++++++++++++++++++++++++++++
  src/pkg/http/responsewrite_test.go |  69 ++++++++++++++++++++++++
  2 files changed, 173 insertions(+)
+
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+new file mode 100644
+index 0000000000..da2d5e375b
+--- /dev/null
++++ b/src/pkg/http/requestwrite_test.go
+@@ -0,0 +1,104 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"bytes"
++	"testing"
++)
++
++type reqWriteTest struct {
++	Req Request
++	Raw string
++}
++
++var reqWriteTests = []reqWriteTest{
++	// HTTP/1.1 => chunked coding; no body; no trailer
++	reqWriteTest{
++		Request{
++			Method: "GET",
++			RawURL: "http://www.techcrunch.com/",
++			URL: &URL{
++				Raw: "http://www.techcrunch.com/",
++				Scheme: "http",
++				RawPath: "//www.techcrunch.com/",
++				Authority: "www.techcrunch.com",
++				Userinfo: "",
++				Host: "www.techcrunch.com",
++				Path: "/",
++				RawQuery: "",
++				Fragment: "",
++			},
++			Proto: "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Header: map[string]string{
++				"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
++				"Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
++				"Accept-Encoding": "gzip,deflate",
++				"Accept-Language": "en-us,en;q=0.5",
++				"Keep-Alive": "300",
++				"Proxy-Connection": "keep-alive",
++			},
++			Body: nil,
++			Close: false,
++			Host: "www.techcrunch.com",
++			Referer: "",
++			UserAgent: "Fake",
++			Form: map[string][]string{},
++		},
++
++		"GET / HTTP/1.1\r\n" +
++			"Host: www.techcrunch.com\r\n" +
++			"User-Agent: Fake\r\n" +
++			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
++			"Accept-Encoding: gzip,deflate\r\n" +
++			"Accept-Language: en-us,en;q=0.5\r\n" +
++			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
++			"Keep-Alive: 300\r\n" +
++			"Proxy-Connection: keep-alive\r\n\r\n",
++	},
++	// HTTP/1.1 => chunked coding; body; empty trailer
++	reqWriteTest{
++		Request{
++			Method: "GET",
++			URL: &URL{
++				Scheme: "http",
++				Host: "www.google.com",
++				Path: "/search",
++			},
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Header: map[string]string{},
++			Body: nopCloser{bytes.NewBufferString("abcdef")},
++		},
++
++		"GET /search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"6\r\nabcdef\r\n0\r\n\r\n",
++	},
++}
++
++// FIXME(petar): The write order of keys in Request.Header depends on the
++// map[string]string iterator. Since this isn't defined in Go's semantics, we
++// should eventually fix Request.Write()
++func TestRequestWrite(t *testing.T) {
++	for i := range reqWriteTests {
++		tt := &reqWriteTests[i]
++		var braw bytes.Buffer
++		err := tt.Req.Write(&braw)
++		if err != nil {
++			t.Errorf("error writing #%d: %s", i, err)
++			continue
++		}
++		sraw := braw.String()
++		if sraw != tt.Raw {
++			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
++			continue
++		}
++	}
++}
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+new file mode 100644
+index 0000000000..6dd5a59123
+--- /dev/null
++++ b/src/pkg/http/responsewrite_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"bytes"
++	"testing"
++)
++
++type respWriteTest struct {
++	Resp Response
++	Raw  string
++}
++
++var respWriteTests = []respWriteTest{
++	// HTTP/1.0, identity coding; no trailer
++	respWriteTest{
++		Response{
++			StatusCode: 503,
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			RequestMethod: "GET",
++			Header: map[string]string{},
++			Body: nopCloser{bytes.NewBufferString("abcdef")},
++			ContentLength: 6,
++		},
++
++		"HTTP/1.0 503 Service Unavailable\r\n" +
++			"Content-Length: 6\r\n\r\n" +
++			"abcdef",
++	},
++	// HTTP/1.1, chunked coding; empty trailer; close
++	respWriteTest{
++		Response{
++			StatusCode: 200,
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			RequestMethod: "GET",
++			Header: map[string]string{},
++			Body: nopCloser{bytes.NewBufferString("abcdef")},
++			ContentLength: 6,
++			TransferEncoding: []string{"chunked"},
++			Close: true, // TODO(petar): "Connection: close" is not written
++		},
++
++		"HTTP/1.1 200 OK\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"6\r\nabcdef\r\n0\r\n\r\n",
++	},
++}
++
++func TestResponseWrite(t *testing.T) {
++	for i := range respWriteTests {
++		tt := &respWriteTests[i]
++		var braw bytes.Buffer
++		err := tt.Resp.Write(&braw)
++		if err != nil {
++			t.Errorf("error writing #%d: %s", i, err)
++			continue
++		}
++		sraw := braw.String()
++		if sraw != tt.Raw {
++			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
++			continue
++		}
++	}
++}

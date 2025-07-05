@@ -13,10 +13,206 @@ Date:   Thu Apr 23 14:38:05 2015 +1200
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 13 +++++--------
  src/cmd/internal/obj/arm64/obj7.go | 13 +++++--------
  src/cmd/internal/obj/link.go       |  1 -
  src/cmd/internal/obj/ppc64/obj9.go | 13 +++++--------
  src/cmd/internal/obj/x86/obj6.go   | 12 +++++-------
  5 files changed, 20 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 0960647af2..2d3e537ca0 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -180,11 +180,6 @@ func linkcase(casep *obj.Prog) {
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	autosize := int32(0)
+ 
+-	if ctxt.Symmorestack[0] == nil {
+-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
+-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+-	}
+-
+ 	ctxt.Cursym = cursym
+ 
+ 	if cursym.Text == nil || cursym.Text.Link == nil {
+@@ -367,7 +362,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if p.From3.Offset&obj.NOSPLIT == 0 {
+-				p = stacksplit(ctxt, p, autosize, cursym.Text.From3.Offset&obj.NEEDCTXT == 0) // emit split check
++				p = stacksplit(ctxt, p, autosize) // emit split check
+ 			}
+ 
+ 			// MOVW.W		R14,$-autosize(SP)
+@@ -718,7 +713,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ }
+ 
+-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
++func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	// MOVW			g_stackguard(g), R1
+ 	p = obj.Appendp(ctxt, p)
+ 
+@@ -828,8 +823,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+ 	}
+ 
+ 	// BLS	start
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 09fb6d6083..6fe13ea3cb 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -49,7 +49,7 @@ var complements = []int16{
+ 	ACMNW: ACMPW,
+ }
+ 
+-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.Prog {
++func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	// MOV	g_stackguard(g), R1
+ 	p = obj.Appendp(ctxt, p)
+ 
+@@ -186,8 +186,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[noctxt]
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+ 	}
+ 
+ 	// B	start
+@@ -465,11 +467,6 @@ loop:
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+-	if ctxt.Symmorestack[0] == nil {
+-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
+-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+-	}
+-
+ 	ctxt.Cursym = cursym
+ 
+ 	if cursym.Text == nil || cursym.Text.Link == nil {
+@@ -583,7 +580,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if !(p.From3.Offset&obj.NOSPLIT != 0) {
+-				p = stacksplit(ctxt, p, ctxt.Autosize, obj.Bool2int(cursym.Text.From3.Offset&obj.NEEDCTXT == 0)) // emit split check
++				p = stacksplit(ctxt, p, ctxt.Autosize) // emit split check
+ 			}
+ 
+ 			aoffset = ctxt.Autosize
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a0add7bf1f..9f5e87b4c3 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -472,7 +472,6 @@ type Link struct {
+ 	Sym_divu           *LSym
+ 	Sym_mod            *LSym
+ 	Sym_modu           *LSym
+-	Symmorestack       [2]*LSym
+ 	Tlsg               *LSym
+ 	Plan9privates      *LSym
+ 	Curp               *Prog
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 87a46ca9fb..4de04a7406 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -115,11 +115,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+-	if ctxt.Symmorestack[0] == nil {
+-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
+-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+-	}
+-
+ 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
+ 	ctxt.Cursym = cursym
+ 
+@@ -328,7 +323,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.To.Offset = int64(autosize) - 8
+ 
+ 			if p.From3.Offset&obj.NOSPLIT == 0 {
+-				p = stacksplit(ctxt, p, autosize, cursym.Text.From3.Offset&obj.NEEDCTXT == 0) // emit split check
++				p = stacksplit(ctxt, p, autosize) // emit split check
+ 			}
+ 
+ 			q = p
+@@ -628,7 +623,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		q = p;
+ 	}
+ */
+-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.Prog {
++func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	// MOVD	g_stackguard(g), R3
+ 	p = obj.Appendp(ctxt, p)
+ 
+@@ -757,8 +752,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+ 	}
+ 
+ 	// BR	start
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 549738bae1..743a48a494 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -449,10 +449,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	if ctxt.Tlsg == nil {
+ 		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+ 	}
+-	if ctxt.Symmorestack[0] == nil {
+-		ctxt.Symmorestack[0] = obj.Linklookup(ctxt, "runtime.morestack", 0)
+-		ctxt.Symmorestack[1] = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+-	}
+ 
+ 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
+ 		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+@@ -514,7 +510,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 	var q *obj.Prog
+ 	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
+-		p = stacksplit(ctxt, p, autoffset, int32(textarg), cursym.Text.From3.Offset&obj.NEEDCTXT == 0, &q) // emit split check
++		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
+ 	}
+ 
+ 	if autoffset != 0 {
+@@ -871,7 +867,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
+ // Returns last new instruction.
+ // On return, *jmpok is the instruction that should jump
+ // to the stack frame allocation if no split is needed.
+-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noctxt bool, jmpok **obj.Prog) *obj.Prog {
++func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmpok **obj.Prog) *obj.Prog {
+ 	cmp := ACMPQ
+ 	lea := ALEAQ
+ 	mov := AMOVQ
+@@ -997,8 +993,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noc
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
++		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+ 	}
+ 
+ 	p = obj.Appendp(ctxt, p)

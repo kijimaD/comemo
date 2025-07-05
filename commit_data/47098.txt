@@ -786,3 +786,76 @@ Date:   Wed Feb 24 15:49:21 2021 +0100
  test/used.go                                       |  165 +-
  test/varerr.go                                     |    2 +-
  778 files changed, 60616 insertions(+), 5350 deletions(-)
+
+diff --cc src/go/build/build.go
+index 35e07ea04c,0732f6aa19..5b5a742d72
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@@ -1831,39 -1830,40 +1830,41 @@@ func splitQuoted(s string) (r []string
+  	return args, err
+  }
+  
+- // match reports whether the name is one of:
++ // matchAuto interprets text as either a +build or //go:build expression (whichever works),
++ // reporting whether the expression matches the build context.
+  //
++ // matchAuto is only used for testing of tag evaluation
++ // and in #cgo lines, which accept either syntax.
++ func (ctxt *Context) matchAuto(text string, allTags map[string]bool) bool {
++ 	if strings.ContainsAny(text, "&|()") {
++ 		text = "//go:build " + text
++ 	} else {
++ 		text = "// +build " + text
++ 	}
++ 	x, err := constraint.Parse(text)
++ 	if err != nil {
++ 		return false
++ 	}
++ 	return ctxt.eval(x, allTags)
++ }
++ 
++ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
++ 	return x.Eval(func(tag string) bool { return ctxt.matchTag(tag, allTags) })
++ }
++ 
++ // matchTag reports whether the name is one of:
++ //
++ //	cgo (if cgo is enabled)
+  //	$GOOS
+  //	$GOARCH
+- //	cgo (if cgo is enabled)
+- //	!cgo (if cgo is disabled)
+ +//	boringcrypto
+  //	ctxt.Compiler
+- //	!ctxt.Compiler
++ //	linux (if GOOS = android)
++ //	solaris (if GOOS = illumos)
+  //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+- //	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
+- //	a comma-separated list of any of these
+  //
+- func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+- 	if name == "" {
+- 		if allTags != nil {
+- 			allTags[name] = true
+- 		}
+- 		return false
+- 	}
+- 	if i := strings.Index(name, ","); i >= 0 {
+- 		// comma-separated list
+- 		ok1 := ctxt.match(name[:i], allTags)
+- 		ok2 := ctxt.match(name[i+1:], allTags)
+- 		return ok1 && ok2
+- 	}
+- 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+- 		return false
+- 	}
+- 	if strings.HasPrefix(name, "!") { // negation
+- 		return len(name) > 1 && !ctxt.match(name[1:], allTags)
+- 	}
+- 
++ // It records all consulted tags in allTags.
++ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+  	if allTags != nil {
+  		allTags[name] = true
+  	}

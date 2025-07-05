@@ -11,6 +11,23 @@ Date:   Thu Oct 3 13:53:16 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14345043
-
+---
  doc/go_faq.html | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index ecfc84ff70..d36080ff07 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1060,11 +1060,6 @@ For example, you might copy "original.com/pkg" to "you.com/external/original.com
+ Keith Rarick's <a href="https://github.com/kr/goven">goven</a> is one tool to help automate this process.
+ </p>
+ 
+-<p>
+-The <a href="/wiki/PackageVersioning">PackageVersioning</a> wiki page collects 
+-additional tools and approaches.
+-</p>
+-
+ <h2 id="Pointers">Pointers and Allocation</h2>
+ 
+ <h3 id="pass_by_value">

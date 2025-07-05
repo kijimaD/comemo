@@ -13,7 +13,70 @@ Date:   Wed Feb 20 13:52:23 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/list_std.txt   | 17 ++++++++++++++---
  src/cmd/go/testdata/script/std_vendor.txt | 24 ++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_std.txt b/src/cmd/go/testdata/script/list_std.txt
+index 88a659f743..5960d442e5 100644
+--- a/src/cmd/go/testdata/script/list_std.txt
++++ b/src/cmd/go/testdata/script/list_std.txt
+@@ -2,13 +2,24 @@ env GO111MODULE=off
+ 
+ [!gc] skip
+ 
+-# listing GOROOT should only find standard packages
++# Listing GOROOT should only find standard packages.
+ cd $GOROOT/src
+ go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
+ ! stdout .
+ # TODO: ignore _/blah/go/src in output
+ 
+-# our vendored packages should be reported as standard
+-go list std cmd
++# Standard packages should include cmd, but not cmd/vendor.
++go list ./...
++stdout cmd/compile
++! stdout vendor/golang.org
++! stdout cmd/vendor
++
++# In GOPATH mode, packages vendored into GOROOT should be reported as standard.
++go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+ stdout internal/x/net/http2/hpack
+ stdout cmd/vendor/golang\.org/x/arch/x86/x86asm
++
++# However, vendored packages should not match wildcard patterns beginning with cmd.
++go list cmd/...
++stdout cmd/compile
++! stdout cmd/vendor
+diff --git a/src/cmd/go/testdata/script/std_vendor.txt b/src/cmd/go/testdata/script/std_vendor.txt
+new file mode 100644
+index 0000000000..f781519973
+--- /dev/null
++++ b/src/cmd/go/testdata/script/std_vendor.txt
+@@ -0,0 +1,24 @@
++env GO111MODULE=off
++
++[!gc] skip
++
++# 'go list' should report imports from _test.go in the TestImports field.
++go list -f '{{.TestImports}}'
++stdout net/http # from .TestImports
++
++# 'go list -test' should report vendored transitive dependencies of _test.go
++# imports in the Deps field, with a 'vendor' prefix on their import paths.
++go list -test -f '{{.Deps}}'
++stdout internal/x/crypto # dep of .TestImports
++
++-- go.mod --
++module m
++
++-- x.go --
++package x
++
++-- x_test.go --
++package x
++import "testing"
++import _ "net/http"
++func Test(t *testing.T) {}

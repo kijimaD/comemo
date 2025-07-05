@@ -16,6 +16,25 @@ Date:   Sat Dec 29 23:16:01 2018 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 4fe1f8b95f..791fc063b7 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -62,13 +62,6 @@ func autoexport(n *Node, ctxt Class) {
+ 	}
+ }
+ 
+-// methodbyname sorts types by symbol name.
+-type methodbyname []*types.Field
+-
+-func (x methodbyname) Len() int           { return len(x) }
+-func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
+-
+ func dumpexport(bout *bio.Writer) {
+ 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 	exportf(bout, "\n$$B\n") // indicate binary export format

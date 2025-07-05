@@ -44,7 +44,7 @@ Date:   Wed Dec 6 16:51:11 2023 +0100
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/compress/gzip/issue14937_test.go               |   4 +
  src/crypto/internal/mlkem768/mlkem768.go           | 813 +++++++++++++++++++++
  src/crypto/internal/mlkem768/mlkem768_test.go      | 438 +++++++++++
@@ -66,3 +66,3263 @@ Date:   Wed Dec 6 16:51:11 2023 +0100
  .../golang.org/x/crypto/sha3/xor_unaligned.go      |  66 ++
  src/vendor/modules.txt                             |   1 +
  20 files changed, 3108 insertions(+), 2 deletions(-)
+
+diff --git a/src/compress/gzip/issue14937_test.go b/src/compress/gzip/issue14937_test.go
+index faee9bd43a..fe0b264f8a 100644
+--- a/src/compress/gzip/issue14937_test.go
++++ b/src/compress/gzip/issue14937_test.go
+@@ -18,6 +18,10 @@ import (
+ // has a zero MTIME. This is a requirement for the Debian maintainers
+ // to be able to have deterministic packages.
+ //
++// To patch a .gz file, use the following command:
++//
++//	$ dd if=/dev/zero bs=1 seek=4 count=4 conv=notrunc of=filename.gz
++//
+ // See https://golang.org/issue/14937.
+ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
+ 	// To avoid spurious false positives due to untracked GZIP files that
+diff --git a/src/crypto/internal/mlkem768/mlkem768.go b/src/crypto/internal/mlkem768/mlkem768.go
+new file mode 100644
+index 0000000000..c6b191c1ae
+--- /dev/null
++++ b/src/crypto/internal/mlkem768/mlkem768.go
+@@ -0,0 +1,813 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package mlkem768 implements the quantum-resistant key encapsulation method
++// ML-KEM (formerly known as Kyber).
++//
++// Only the recommended ML-KEM-768 parameter set is provided.
++//
++// The version currently implemented is the one specified by [NIST FIPS 203 ipd],
++// with the unintentional transposition of the matrix A reverted to match the
++// behavior of [Kyber version 3.0]. Future versions of this package might
++// introduce backwards incompatible changes to implement changes to FIPS 203.
++//
++// [Kyber version 3.0]: https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf
++// [NIST FIPS 203 ipd]: https://doi.org/10.6028/NIST.FIPS.203.ipd
++package mlkem768
++
++// This package targets security, correctness, simplicity, readability, and
++// reviewability as its primary goals. All critical operations are performed in
++// constant time.
++//
++// Variable and function names, as well as code layout, are selected to
++// facilitate reviewing the implementation against the NIST FIPS 203 ipd
++// document.
++//
++// Reviewers unfamiliar with polynomials or linear algebra might find the
++// background at https://words.filippo.io/kyber-math/ useful.
++
++import (
++	"crypto/rand"
++	"crypto/subtle"
++	"encoding/binary"
++	"errors"
++
++	"golang.org/x/crypto/sha3"
++)
++
++const (
++	// ML-KEM global constants.
++	n = 256
++	q = 3329
++
++	log2q = 12
++
++	// ML-KEM-768 parameters. The code makes assumptions based on these values,
++	// they can't be changed blindly.
++	k  = 3
++	η  = 2
++	du = 10
++	dv = 4
++
++	// encodingSizeX is the byte size of a ringElement or nttElement encoded
++	// by ByteEncode_X (FIPS 203 (DRAFT), Algorithm 4).
++	encodingSize12 = n * log2q / 8
++	encodingSize10 = n * du / 8
++	encodingSize4  = n * dv / 8
++	encodingSize1  = n * 1 / 8
++
++	messageSize       = encodingSize1
++	decryptionKeySize = k * encodingSize12
++	encryptionKeySize = k*encodingSize12 + 32
++
++	CiphertextSize       = k*encodingSize10 + encodingSize4
++	EncapsulationKeySize = encryptionKeySize
++	DecapsulationKeySize = decryptionKeySize + encryptionKeySize + 32 + 32
++	SharedKeySize        = 32
++	SeedSize             = 32 + 32
++)
++
++// GenerateKey generates an encapsulation key and a corresponding decapsulation
++// key, drawing random bytes from crypto/rand.
++//
++// The decapsulation key must be kept secret.
++func GenerateKey() (encapsulationKey, decapsulationKey []byte, err error) {
++	d := make([]byte, 32)
++	if _, err := rand.Read(d); err != nil {
++		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
++	}
++	z := make([]byte, 32)
++	if _, err := rand.Read(z); err != nil {
++		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
++	}
++	ek, dk := kemKeyGen(d, z)
++	return ek, dk, nil
++}
++
++// NewKeyFromSeed deterministically generates an encapsulation key and a
++// corresponding decapsulation key from a 64-byte seed. The seed must be
++// uniformly random.
++func NewKeyFromSeed(seed []byte) (encapsulationKey, decapsulationKey []byte, err error) {
++	if len(seed) != SeedSize {
++		return nil, nil, errors.New("mlkem768: invalid seed length")
++	}
++	ek, dk := kemKeyGen(seed[:32], seed[32:])
++	return ek, dk, nil
++}
++
++// kemKeyGen generates an encapsulation key and a corresponding decapsulation key.
++//
++// It implements ML-KEM.KeyGen according to FIPS 203 (DRAFT), Algorithm 15.
++func kemKeyGen(d, z []byte) (ek, dk []byte) {
++	ekPKE, dkPKE := pkeKeyGen(d)
++	dk = make([]byte, 0, DecapsulationKeySize)
++	dk = append(dk, dkPKE...)
++	dk = append(dk, ekPKE...)
++	H := sha3.New256()
++	H.Write(ekPKE)
++	dk = H.Sum(dk)
++	dk = append(dk, z...)
++	return ekPKE, dk
++}
++
++// pkeKeyGen generates a key pair for the underlying PKE from a 32-byte random seed.
++//
++// It implements K-PKE.KeyGen according to FIPS 203 (DRAFT), Algorithm 12.
++func pkeKeyGen(d []byte) (ek, dk []byte) {
++	G := sha3.Sum512(d)
++	ρ, σ := G[:32], G[32:]
++
++	A := make([]nttElement, k*k)
++	for i := byte(0); i < k; i++ {
++		for j := byte(0); j < k; j++ {
++			// Note that this is consistent with Kyber round 3, rather than with
++			// the initial draft of FIPS 203, because NIST signaled that the
++			// change was involuntary and will be reverted.
++			A[i*k+j] = sampleNTT(ρ, j, i)
++		}
++	}
++
++	var N byte
++	s, e := make([]nttElement, k), make([]nttElement, k)
++	for i := range s {
++		s[i] = ntt(samplePolyCBD(σ, N))
++		N++
++	}
++	for i := range e {
++		e[i] = ntt(samplePolyCBD(σ, N))
++		N++
++	}
++
++	t := make([]nttElement, k) // A ◦ s + e
++	for i := range t {
++		t[i] = e[i]
++		for j := range s {
++			t[i] = polyAdd(t[i], nttMul(A[i*k+j], s[j]))
++		}
++	}
++
++	ek = make([]byte, 0, encryptionKeySize)
++	for i := range t {
++		ek = polyByteEncode(ek, t[i])
++	}
++	ek = append(ek, ρ...)
++
++	dk = make([]byte, 0, decryptionKeySize)
++	for i := range s {
++		dk = polyByteEncode(dk, s[i])
++	}
++
++	return ek, dk
++}
++
++// Encapsulate generates a shared key and an associated ciphertext from an
++// encapsulation key, drawing random bytes from crypto/rand.
++// If the encapsulation key is not valid, Encapsulate returns an error.
++//
++// The shared key must be kept secret.
++func Encapsulate(encapsulationKey []byte) (ciphertext, sharedKey []byte, err error) {
++	if len(encapsulationKey) != EncapsulationKeySize {
++		return nil, nil, errors.New("mlkem768: invalid encapsulation key length")
++	}
++	m := make([]byte, messageSize)
++	if _, err := rand.Read(m); err != nil {
++		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
++	}
++	ciphertext, sharedKey, err = kemEncaps(encapsulationKey, m)
++	if err != nil {
++		return nil, nil, err
++	}
++	return ciphertext, sharedKey, nil
++}
++
++// kemEncaps generates a shared key and an associated ciphertext.
++//
++// It implements ML-KEM.Encaps according to FIPS 203 (DRAFT), Algorithm 16.
++func kemEncaps(ek, m []byte) (c, K []byte, err error) {
++	H := sha3.Sum256(ek)
++	g := sha3.New512()
++	g.Write(m)
++	g.Write(H[:])
++	G := g.Sum(nil)
++	K, r := G[:SharedKeySize], G[SharedKeySize:]
++	c, err = pkeEncrypt(ek, m, r)
++	return c, K, err
++}
++
++// pkeEncrypt encrypt a plaintext message. It expects ek (the encryption key) to
++// be 1184 bytes, and m (the message) and rnd (the randomness) to be 32 bytes.
++//
++// It implements K-PKE.Encrypt according to FIPS 203 (DRAFT), Algorithm 13.
++func pkeEncrypt(ek, m, rnd []byte) ([]byte, error) {
++	if len(ek) != encryptionKeySize {
++		return nil, errors.New("mlkem768: invalid encryption key length")
++	}
++	if len(m) != messageSize {
++		return nil, errors.New("mlkem768: invalid messages length")
++	}
++
++	t := make([]nttElement, k)
++	for i := range t {
++		var err error
++		t[i], err = polyByteDecode[nttElement](ek[:encodingSize12])
++		if err != nil {
++			return nil, err
++		}
++		ek = ek[encodingSize12:]
++	}
++	ρ := ek
++
++	AT := make([]nttElement, k*k)
++	for i := byte(0); i < k; i++ {
++		for j := byte(0); j < k; j++ {
++			// Note that i and j are inverted, as we need the transposed of A.
++			AT[i*k+j] = sampleNTT(ρ, i, j)
++		}
++	}
++
++	var N byte
++	r, e1 := make([]nttElement, k), make([]ringElement, k)
++	for i := range r {
++		r[i] = ntt(samplePolyCBD(rnd, N))
++		N++
++	}
++	for i := range e1 {
++		e1[i] = samplePolyCBD(rnd, N)
++		N++
++	}
++	e2 := samplePolyCBD(rnd, N)
++
++	u := make([]ringElement, k) // NTT⁻¹(AT ◦ r) + e1
++	for i := range u {
++		u[i] = e1[i]
++		for j := range r {
++			u[i] = polyAdd(u[i], inverseNTT(nttMul(AT[i*k+j], r[j])))
++		}
++	}
++
++	μ, err := ringDecodeAndDecompress1(m)
++	if err != nil {
++		return nil, err
++	}
++
++	var vNTT nttElement // t⊺ ◦ r
++	for i := range t {
++		vNTT = polyAdd(vNTT, nttMul(t[i], r[i]))
++	}
++	v := polyAdd(polyAdd(inverseNTT(vNTT), e2), μ)
++
++	c := make([]byte, 0, CiphertextSize)
++	for _, f := range u {
++		c = ringCompressAndEncode10(c, f)
++	}
++	c = ringCompressAndEncode4(c, v)
++
++	return c, nil
++}
++
++// Decapsulate generates a shared key from a ciphertext and a decapsulation key.
++// If the decapsulation key or the ciphertext are not valid, Decapsulate returns
++// an error.
++//
++// The shared key must be kept secret.
++func Decapsulate(decapsulationKey, ciphertext []byte) (sharedKey []byte, err error) {
++	if len(decapsulationKey) != DecapsulationKeySize {
++		return nil, errors.New("mlkem768: invalid decapsulation key length")
++	}
++	if len(ciphertext) != CiphertextSize {
++		return nil, errors.New("mlkem768: invalid ciphertext length")
++	}
++	return kemDecaps(decapsulationKey, ciphertext)
++}
++
++// kemDecaps produces a shared key from a ciphertext.
++//
++// It implements ML-KEM.Decaps according to FIPS 203 (DRAFT), Algorithm 17.
++func kemDecaps(dk, c []byte) (K []byte, err error) {
++	dkPKE := dk[:decryptionKeySize]
++	ekPKE := dk[decryptionKeySize : decryptionKeySize+encryptionKeySize]
++	h := dk[decryptionKeySize+encryptionKeySize : decryptionKeySize+encryptionKeySize+32]
++	z := dk[decryptionKeySize+encryptionKeySize+32:]
++
++	m, err := pkeDecrypt(dkPKE, c)
++	if err != nil {
++		// This is only reachable if the ciphertext or the decryption key are
++		// encoded incorrectly, so it leaks no information about the message.
++		return nil, err
++	}
++	g := sha3.New512()
++	g.Write(m)
++	g.Write(h)
++	G := g.Sum(nil)
++	Kprime, r := G[:SharedKeySize], G[SharedKeySize:]
++	J := sha3.NewShake256()
++	J.Write(z)
++	J.Write(c)
++	Kout := make([]byte, SharedKeySize)
++	J.Read(Kout)
++	c1, err := pkeEncrypt(ekPKE, m, r)
++	if err != nil {
++		// Likewise, this is only reachable if the encryption key is encoded
++		// incorrectly, so it leaks no secret information through timing.
++		return nil, err
++	}
++
++	subtle.ConstantTimeCopy(subtle.ConstantTimeCompare(c, c1), Kout, Kprime)
++	return Kout, nil
++}
++
++// pkeDecrypt decrypts a ciphertext. It expects dk (the decryption key) to
++// be 1152 bytes, and c (the ciphertext) to be 1088 bytes.
++//
++// It implements K-PKE.Decrypt according to FIPS 203 (DRAFT), Algorithm 14.
++func pkeDecrypt(dk, c []byte) ([]byte, error) {
++	if len(dk) != decryptionKeySize {
++		return nil, errors.New("mlkem768: invalid decryption key length")
++	}
++	if len(c) != CiphertextSize {
++		return nil, errors.New("mlkem768: invalid ciphertext length")
++	}
++
++	u := make([]ringElement, k)
++	for i := range u {
++		f, err := ringDecodeAndDecompress10(c[:encodingSize10])
++		if err != nil {
++			return nil, err
++		}
++		u[i] = f
++		c = c[encodingSize10:]
++	}
++
++	v, err := ringDecodeAndDecompress4(c)
++	if err != nil {
++		return nil, err
++	}
++
++	s := make([]nttElement, k)
++	for i := range s {
++		f, err := polyByteDecode[nttElement](dk[:encodingSize12])
++		if err != nil {
++			return nil, err
++		}
++		s[i] = f
++		dk = dk[encodingSize12:]
++	}
++
++	var mask nttElement // s⊺ ◦ NTT(u)
++	for i := range s {
++		mask = polyAdd(mask, nttMul(s[i], ntt(u[i])))
++	}
++	w := polySub(v, inverseNTT(mask))
++
++	return ringCompressAndEncode1(nil, w), nil
++}
++
++// fieldElement is an integer modulo q, an element of ℤ_q. It is always reduced.
++type fieldElement uint16
++
++// fieldCheckReduced checks that a value a is < q.
++func fieldCheckReduced(a uint16) (fieldElement, error) {
++	if a >= q {
++		return 0, errors.New("unreduced field element")
++	}
++	return fieldElement(a), nil
++}
++
++// fieldReduceOnce reduces a value a < 2q.
++func fieldReduceOnce(a uint16) fieldElement {
++	x := a - q
++	// If x underflowed, then x >= 2¹⁶ - q > 2¹⁵, so the top bit is set.
++	x += (x >> 15) * q
++	return fieldElement(x)
++}
++
++func fieldAdd(a, b fieldElement) fieldElement {
++	x := uint16(a + b)
++	return fieldReduceOnce(x)
++}
++
++func fieldSub(a, b fieldElement) fieldElement {
++	x := uint16(a - b + q)
++	return fieldReduceOnce(x)
++}
++
++const (
++	barrettMultiplier = 5039 // 2¹² * 2¹² / q
++	barrettShift      = 24   // log₂(2¹² * 2¹²)
++)
++
++// fieldReduce reduces a value a < q² using Barrett reduction, to avoid
++// potentially variable-time division.
++func fieldReduce(a uint32) fieldElement {
++	quotient := uint32((uint64(a) * barrettMultiplier) >> barrettShift)
++	return fieldReduceOnce(uint16(a - quotient*q))
++}
++
++func fieldMul(a, b fieldElement) fieldElement {
++	x := uint32(a) * uint32(b)
++	return fieldReduce(x)
++}
++
++// compress maps a field element uniformly to the range 0 to 2ᵈ-1, according to
++// FIPS 203 (DRAFT), Definition 4.5.
++func compress(x fieldElement, d uint8) uint16 {
++	// We want to compute (x * 2ᵈ) / q, rounded to nearest integer, with 1/2
++	// rounding up (see FIPS 203 (DRAFT), Section 2.3).
++
++	// Barrett reduction produces a quotient and a remainder in the range [0, 2q),
++	// such that dividend = quotient * q + remainder.
++	dividend := uint32(x) << d // x * 2ᵈ
++	quotient := uint32(uint64(dividend) * barrettMultiplier >> barrettShift)
++	remainder := dividend - quotient*q
++
++	// Since the remainder is in the range [0, 2q), not [0, q), we need to
++	// portion it into three spans for rounding.
++	//
++	//     [ 0,       q/2     ) -> round to 0
++	//     [ q/2,     q + q/2 ) -> round to 1
++	//     [ q + q/2, 2q      ) -> round to 2
++	//
++	// We can convert that to the following logic: add 1 if remainder > q/2,
++	// then add 1 again if remainder > q + q/2.
++	//
++	// Note that if remainder > x, then ⌊x⌋ - remainder underflows, and the top
++	// bit of the difference will be set.
++	quotient += (q/2 - remainder) >> 31 & 1
++	quotient += (q + q/2 - remainder) >> 31 & 1
++
++	// quotient might have overflowed at this point, so reduce it by masking.
++	var mask uint32 = (1 << d) - 1
++	return uint16(quotient & mask)
++}
++
++// decompress maps a number x between 0 and 2ᵈ-1 uniformly to the full range of
++// field elements, according to FIPS 203 (DRAFT), Definition 4.6.
++func decompress(y uint16, d uint8) fieldElement {
++	// We want to compute (y * q) / 2ᵈ, rounded to nearest integer, with 1/2
++	// rounding up (see FIPS 203 (DRAFT), Section 2.3).
++
++	dividend := uint32(y) * q
++	quotient := dividend >> d // (y * q) / 2ᵈ
++
++	// The d'th least-significant bit of the dividend (the most significant bit
++	// of the remainder) is 1 for the top half of the values that divide to the
++	// same quotient, which are the ones that round up.
++	quotient += dividend >> (d - 1) & 1
++
++	// quotient is at most (2¹¹-1) * q / 2¹¹ + 1 = 3328, so it didn't overflow.
++	return fieldElement(quotient)
++}
++
++// ringElement is a polynomial, an element of R_q, represented as an array
++// according to FIPS 203 (DRAFT), Section 2.4.
++type ringElement [n]fieldElement
++
++// polyAdd adds two ringElements or nttElements.
++func polyAdd[T ~[n]fieldElement](a, b T) (s T) {
++	for i := range s {
++		s[i] = fieldAdd(a[i], b[i])
++	}
++	return s
++}
++
++// polySub subtracts two ringElements or nttElements.
++func polySub[T ~[n]fieldElement](a, b T) (s T) {
++	for i := range s {
++		s[i] = fieldSub(a[i], b[i])
++	}
++	return s
++}
++
++// polyByteEncode appends the 384-byte encoding of f to b.
++//
++// It implements ByteEncode₁₂, according to FIPS 203 (DRAFT), Algorithm 4.
++func polyByteEncode[T ~[n]fieldElement](b []byte, f T) []byte {
++	out, B := sliceForAppend(b, encodingSize12)
++	for i := 0; i < n; i += 2 {
++		x := uint32(f[i]) | uint32(f[i+1])<<12
++		B[0] = uint8(x)
++		B[1] = uint8(x >> 8)
++		B[2] = uint8(x >> 16)
++		B = B[3:]
++	}
++	return out
++}
++
++// polyByteDecode decodes the 384-byte encoding of a polynomial, checking that
++// all the coefficients are properly reduced. This achieves the "Modulus check"
++// step of ML-KEM Encapsulation Input Validation.
++//
++// polyByteDecode is also used in ML-KEM Decapsulation, where the input
++// validation is not required, but implicitly allowed by the specification.
++//
++// It implements ByteDecode₁₂, according to FIPS 203 (DRAFT), Algorithm 5.
++func polyByteDecode[T ~[n]fieldElement](b []byte) (T, error) {
++	if len(b) != encodingSize12 {
++		return T{}, errors.New("mlkem768: invalid encoding length")
++	}
++	var f T
++	for i := 0; i < n; i += 2 {
++		d := uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16
++		const mask12 = 0b1111_1111_1111
++		var err error
++		if f[i], err = fieldCheckReduced(uint16(d & mask12)); err != nil {
++			return T{}, errors.New("mlkem768: invalid polynomial encoding")
++		}
++		if f[i+1], err = fieldCheckReduced(uint16(d >> 12)); err != nil {
++			return T{}, errors.New("mlkem768: invalid polynomial encoding")
++		}
++		b = b[3:]
++	}
++	return f, nil
++}
++
++// sliceForAppend takes a slice and a requested number of bytes. It returns a
++// slice with the contents of the given slice followed by that many bytes and a
++// second slice that aliases into it and contains only the extra bytes. If the
++// original slice has sufficient capacity then no allocation is performed.
++func sliceForAppend(in []byte, n int) (head, tail []byte) {
++	if total := len(in) + n; cap(in) >= total {
++		head = in[:total]
++	} else {
++		head = make([]byte, total)
++		copy(head, in)
++	}
++	tail = head[len(in):]
++	return
++}
++
++// ringCompressAndEncode1 appends a 32-byte encoding of a ring element to s,
++// compressing one coefficients per bit.
++//
++// It implements Compress₁, according to FIPS 203 (DRAFT), Definition 4.5,
++// followed by ByteEncode₁, according to FIPS 203 (DRAFT), Algorithm 4.
++func ringCompressAndEncode1(s []byte, f ringElement) []byte {
++	s, b := sliceForAppend(s, encodingSize1)
++	for i := range b {
++		b[i] = 0
++	}
++	for i := range f {
++		b[i/8] |= uint8(compress(f[i], 1) << (i % 8))
++	}
++	return s
++}
++
++// ringDecodeAndDecompress1 decodes a 32-byte slice to a ring element where each
++// bit is mapped to 0 or ⌈q/2⌋.
++//
++// It implements ByteDecode₁, according to FIPS 203 (DRAFT), Algorithm 5,
++// followed by Decompress₁, according to FIPS 203 (DRAFT), Definition 4.6.
++func ringDecodeAndDecompress1(b []byte) (ringElement, error) {
++	if len(b) != encodingSize1 {
++		return ringElement{}, errors.New("mlkem768: invalid message length")
++	}
++	var f ringElement
++	for i := range f {
++		b_i := b[i/8] >> (i % 8) & 1
++		const halfQ = (q + 1) / 2        // ⌈q/2⌋, rounded up per FIPS 203 (DRAFT), Section 2.3
++		f[i] = fieldElement(b_i) * halfQ // 0 decompresses to 0, and 1 to ⌈q/2⌋
++	}
++	return f, nil
++}
++
++// ringCompressAndEncode4 appends a 128-byte encoding of a ring element to s,
++// compressing two coefficients per byte.
++//
++// It implements Compress₄, according to FIPS 203 (DRAFT), Definition 4.5,
++// followed by ByteEncode₄, according to FIPS 203 (DRAFT), Algorithm 4.
++func ringCompressAndEncode4(s []byte, f ringElement) []byte {
++	s, b := sliceForAppend(s, encodingSize4)
++	for i := 0; i < n; i += 2 {
++		b[i/2] = uint8(compress(f[i], 4) | compress(f[i+1], 4)<<4)
++	}
++	return s
++}
++
++// ringDecodeAndDecompress4 decodes a 128-byte encoding of a ring element where
++// each four bits are mapped to an equidistant distribution.
++//
++// It implements ByteDecode₄, according to FIPS 203 (DRAFT), Algorithm 5,
++// followed by Decompress₄, according to FIPS 203 (DRAFT), Definition 4.6.
++func ringDecodeAndDecompress4(b []byte) (ringElement, error) {
++	if len(b) != encodingSize4 {
++		return ringElement{}, errors.New("mlkem768: invalid encoding length")
++	}
++	var f ringElement
++	for i := 0; i < n; i += 2 {
++		f[i] = fieldElement(decompress(uint16(b[i/2]&0b1111), 4))
++		f[i+1] = fieldElement(decompress(uint16(b[i/2]>>4), 4))
++	}
++	return f, nil
++}
++
++// ringCompressAndEncode10 appends a 320-byte encoding of a ring element to s,
++// compressing four coefficients per five bytes.
++//
++// It implements Compress₁₀, according to FIPS 203 (DRAFT), Definition 4.5,
++// followed by ByteEncode₁₀, according to FIPS 203 (DRAFT), Algorithm 4.
++func ringCompressAndEncode10(s []byte, f ringElement) []byte {
++	s, b := sliceForAppend(s, encodingSize10)
++	for i := 0; i < n; i += 4 {
++		var x uint64
++		x |= uint64(compress(f[i+0], 10))
++		x |= uint64(compress(f[i+1], 10)) << 10
++		x |= uint64(compress(f[i+2], 10)) << 20
++		x |= uint64(compress(f[i+3], 10)) << 30
++		b[0] = uint8(x)
++		b[1] = uint8(x >> 8)
++		b[2] = uint8(x >> 16)
++		b[3] = uint8(x >> 24)
++		b[4] = uint8(x >> 32)
++		b = b[5:]
++	}
++	return s
++}
++
++// ringDecodeAndDecompress10 decodes a 320-byte encoding of a ring element where
++// each ten bits are mapped to an equidistant distribution.
++//
++// It implements ByteDecode₁₀, according to FIPS 203 (DRAFT), Algorithm 5,
++// followed by Decompress₁₀, according to FIPS 203 (DRAFT), Definition 4.6.
++func ringDecodeAndDecompress10(b []byte) (ringElement, error) {
++	if len(b) != encodingSize10 {
++		return ringElement{}, errors.New("mlkem768: invalid encoding length")
++	}
++	var f ringElement
++	for i := 0; i < n; i += 4 {
++		x := uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 | uint64(b[4])<<32
++		b = b[5:]
++		f[i] = fieldElement(decompress(uint16(x>>0&0b11_1111_1111), 10))
++		f[i+1] = fieldElement(decompress(uint16(x>>10&0b11_1111_1111), 10))
++		f[i+2] = fieldElement(decompress(uint16(x>>20&0b11_1111_1111), 10))
++		f[i+3] = fieldElement(decompress(uint16(x>>30&0b11_1111_1111), 10))
++	}
++	return f, nil
++}
++
++// samplePolyCBD draws a ringElement from the special Dη distribution given a
++// stream of random bytes generated by the PRF function, according to FIPS 203
++// (DRAFT), Algorithm 7 and Definition 4.1.
++func samplePolyCBD(s []byte, b byte) ringElement {
++	prf := sha3.NewShake256()
++	prf.Write(s)
++	prf.Write([]byte{b})
++	B := make([]byte, 128)
++	prf.Read(B)
++
++	// SamplePolyCBD simply draws four (2η) bits for each coefficient, and adds
++	// the first two and subtracts the last two.
++
++	var f ringElement
++	for i := 0; i < n; i += 2 {
++		b := B[i/2]
++		b_7, b_6, b_5, b_4 := b>>7, b>>6&1, b>>5&1, b>>4&1
++		b_3, b_2, b_1, b_0 := b>>3&1, b>>2&1, b>>1&1, b&1
++		f[i] = fieldSub(fieldElement(b_0+b_1), fieldElement(b_2+b_3))
++		f[i+1] = fieldSub(fieldElement(b_4+b_5), fieldElement(b_6+b_7))
++	}
++	return f
++}
++
++// nttElement is an NTT representation, an element of T_q, represented as an
++// array according to FIPS 203 (DRAFT), Section 2.4.
++type nttElement [n]fieldElement
++
++// gammas are the values ζ^2BitRev7(i)+1 mod q for each index i.
++var gammas = [128]fieldElement{17, 3312, 2761, 568, 583, 2746, 2649, 680, 1637, 1692, 723, 2606, 2288, 1041, 1100, 2229, 1409, 1920, 2662, 667, 3281, 48, 233, 3096, 756, 2573, 2156, 1173, 3015, 314, 3050, 279, 1703, 1626, 1651, 1678, 2789, 540, 1789, 1540, 1847, 1482, 952, 2377, 1461, 1868, 2687, 642, 939, 2390, 2308, 1021, 2437, 892, 2388, 941, 733, 2596, 2337, 992, 268, 3061, 641, 2688, 1584, 1745, 2298, 1031, 2037, 1292, 3220, 109, 375, 2954, 2549, 780, 2090, 1239, 1645, 1684, 1063, 2266, 319, 3010, 2773, 556, 757, 2572, 2099, 1230, 561, 2768, 2466, 863, 2594, 735, 2804, 525, 1092, 2237, 403, 2926, 1026, 2303, 1143, 2186, 2150, 1179, 2775, 554, 886, 2443, 1722, 1607, 1212, 2117, 1874, 1455, 1029, 2300, 2110, 1219, 2935, 394, 885, 2444, 2154, 1175}
++
++// nttMul multiplies two nttElements.
++//
++// It implements MultiplyNTTs, according to FIPS 203 (DRAFT), Algorithm 10.
++func nttMul(f, g nttElement) nttElement {
++	var h nttElement
++	for i := 0; i < 128; i++ {
++		a0, a1 := f[2*i], f[2*i+1]
++		b0, b1 := g[2*i], g[2*i+1]
++		h[2*i] = fieldAdd(fieldMul(a0, b0), fieldMul(fieldMul(a1, b1), gammas[i]))
++		h[2*i+1] = fieldAdd(fieldMul(a0, b1), fieldMul(a1, b0))
++	}
++	return h
++}
++
++// zetas are the values ζ^BitRev7(k) mod q for each index k.
++var zetas = [128]fieldElement{1, 1729, 2580, 3289, 2642, 630, 1897, 848, 1062, 1919, 193, 797, 2786, 3260, 569, 1746, 296, 2447, 1339, 1476, 3046, 56, 2240, 1333, 1426, 2094, 535, 2882, 2393, 2879, 1974, 821, 289, 331, 3253, 1756, 1197, 2304, 2277, 2055, 650, 1977, 2513, 632, 2865, 33, 1320, 1915, 2319, 1435, 807, 452, 1438, 2868, 1534, 2402, 2647, 2617, 1481, 648, 2474, 3110, 1227, 910, 17, 2761, 583, 2649, 1637, 723, 2288, 1100, 1409, 2662, 3281, 233, 756, 2156, 3015, 3050, 1703, 1651, 2789, 1789, 1847, 952, 1461, 2687, 939, 2308, 2437, 2388, 733, 2337, 268, 641, 1584, 2298, 2037, 3220, 375, 2549, 2090, 1645, 1063, 319, 2773, 757, 2099, 561, 2466, 2594, 2804, 1092, 403, 1026, 1143, 2150, 2775, 886, 1722, 1212, 1874, 1029, 2110, 2935, 885, 2154}
++
++// ntt maps a ringElement to its nttElement representation.
++//
++// It implements NTT, according to FIPS 203 (DRAFT), Algorithm 8.
++func ntt(f ringElement) nttElement {
++	k := 1
++	for len := 128; len >= 2; len /= 2 {
++		for start := 0; start < 256; start += 2 * len {
++			zeta := zetas[k]
++			k++
++			for j := start; j < start+len; j += 2 {
++				// Loop 2x unrolled for performance.
++				{
++					t := fieldMul(zeta, f[j+len])
++					f[j+len] = fieldSub(f[j], t)
++					f[j] = fieldAdd(f[j], t)
++				}
++				{
++					t := fieldMul(zeta, f[j+1+len])
++					f[j+1+len] = fieldSub(f[j+1], t)
++					f[j+1] = fieldAdd(f[j+1], t)
++				}
++			}
++		}
++	}
++	return nttElement(f)
++}
++
++// inverseNTT maps a nttElement back to the ringElement it represents.
++//
++// It implements NTT⁻¹, according to FIPS 203 (DRAFT), Algorithm 9.
++func inverseNTT(f nttElement) ringElement {
++	k := 127
++	for len := 2; len <= 128; len *= 2 {
++		for start := 0; start < 256; start += 2 * len {
++			zeta := zetas[k]
++			k--
++			for j := start; j < start+len; j += 2 {
++				// Loop 2x unrolled for performance.
++				{
++					t := f[j]
++					f[j] = fieldAdd(t, f[j+len])
++					f[j+len] = fieldMul(zeta, fieldSub(f[j+len], t))
++				}
++				{
++					t := f[j+1]
++					f[j+1] = fieldAdd(t, f[j+1+len])
++					f[j+1+len] = fieldMul(zeta, fieldSub(f[j+1+len], t))
++				}
++			}
++		}
++	}
++	for i := range f {
++		f[i] = fieldMul(f[i], 3303) // 3303 = 128⁻¹ mod q
++	}
++	return ringElement(f)
++}
++
++// sampleNTT draws a uniformly random nttElement from a stream of uniformly
++// random bytes generated by the XOF function, according to FIPS 203 (DRAFT),
++// Algorithm 6 and Definition 4.2.
++func sampleNTT(rho []byte, ii, jj byte) nttElement {
++	B := sha3.NewShake128()
++	B.Write(rho)
++	B.Write([]byte{ii, jj})
++
++	// SampleNTT essentially draws 12 bits at a time from r, interprets them in
++	// little-endian, and rejects values higher than q, until it drew 256
++	// values. (The rejection rate is approximately 19%.)
++	//
++	// To do this from a bytes stream, it draws three bytes at a time, and
++	// splits them into two uint16 appropriately masked.
++	//
++	//               r₀              r₁              r₂
++	//       |- - - - - - - -|- - - - - - - -|- - - - - - - -|
++	//
++	//               Uint16(r₀ || r₁)
++	//       |- - - - - - - - - - - - - - - -|
++	//       |- - - - - - - - - - - -|
++	//                   d₁
++	//
++	//                                Uint16(r₁ || r₂)
++	//                       |- - - - - - - - - - - - - - - -|
++	//                               |- - - - - - - - - - - -|
++	//                                           d₂
++	//
++	// Note that in little-endian, the rightmost bits are the most significant
++	// bits (dropped with a mask) and the leftmost bits are the least
++	// significant bits (dropped with a right shift).
++
++	var a nttElement
++	var j int        // index into a
++	var buf [24]byte // buffered reads from B
++	off := len(buf)  // index into buf, starts in a "buffer fully consumed" state
++	for {
++		if off >= len(buf) {
++			B.Read(buf[:])
++			off = 0
++		}
++		d1 := binary.LittleEndian.Uint16(buf[off:]) & 0b1111_1111_1111
++		d2 := binary.LittleEndian.Uint16(buf[off+1:]) >> 4
++		off += 3
++		if d1 < q {
++			a[j] = fieldElement(d1)
++			j++
++		}
++		if j >= len(a) {
++			break
++		}
++		if d2 < q {
++			a[j] = fieldElement(d2)
++			j++
++		}
++		if j >= len(a) {
++			break
++		}
++	}
++	return a
++}
+diff --git a/src/crypto/internal/mlkem768/mlkem768_test.go b/src/crypto/internal/mlkem768/mlkem768_test.go
+new file mode 100644
+index 0000000000..6e2ac769ef
+--- /dev/null
++++ b/src/crypto/internal/mlkem768/mlkem768_test.go
+@@ -0,0 +1,438 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mlkem768
++
++import (
++	"bytes"
++	"crypto/rand"
++	_ "embed"
++	"encoding/hex"
++	"flag"
++	"math/big"
++	"strconv"
++	"testing"
++
++	"golang.org/x/crypto/sha3"
++)
++
++func TestFieldAdd(t *testing.T) {
++	for a := fieldElement(0); a < q; a++ {
++		for b := fieldElement(0); b < q; b++ {
++			got := fieldAdd(a, b)
++			exp := (a + b) % q
++			if got != exp {
++				t.Fatalf("%d + %d = %d, expected %d", a, b, got, exp)
++			}
++		}
++	}
++}
++
++func TestFieldSub(t *testing.T) {
++	for a := fieldElement(0); a < q; a++ {
++		for b := fieldElement(0); b < q; b++ {
++			got := fieldSub(a, b)
++			exp := (a - b + q) % q
++			if got != exp {
++				t.Fatalf("%d - %d = %d, expected %d", a, b, got, exp)
++			}
++		}
++	}
++}
++
++func TestFieldMul(t *testing.T) {
++	for a := fieldElement(0); a < q; a++ {
++		for b := fieldElement(0); b < q; b++ {
++			got := fieldMul(a, b)
++			exp := fieldElement((uint32(a) * uint32(b)) % q)
++			if got != exp {
++				t.Fatalf("%d * %d = %d, expected %d", a, b, got, exp)
++			}
++		}
++	}
++}
++
++func TestDecompressCompress(t *testing.T) {
++	for _, bits := range []uint8{1, 4, 10} {
++		for a := uint16(0); a < 1<<bits; a++ {
++			f := decompress(a, bits)
++			if f >= q {
++				t.Fatalf("decompress(%d, %d) = %d >= q", a, bits, f)
++			}
++			got := compress(f, bits)
++			if got != a {
++				t.Fatalf("compress(decompress(%d, %d), %d) = %d", a, bits, bits, got)
++			}
++		}
++
++		for a := fieldElement(0); a < q; a++ {
++			c := compress(a, bits)
++			if c >= 1<<bits {
++				t.Fatalf("compress(%d, %d) = %d >= 2^bits", a, bits, c)
++			}
++			got := decompress(c, bits)
++			diff := min(a-got, got-a, a-got+q, got-a+q)
++			ceil := q / (1 << bits)
++			if diff > fieldElement(ceil) {
++				t.Fatalf("decompress(compress(%d, %d), %d) = %d (diff %d, max diff %d)",
++					a, bits, bits, got, diff, ceil)
++			}
++		}
++	}
++}
++
++func CompressRat(x fieldElement, d uint8) uint16 {
++	if x >= q {
++		panic("x out of range")
++	}
++	if d <= 0 || d >= 12 {
++		panic("d out of range")
++	}
++
++	precise := big.NewRat((1<<d)*int64(x), q) // (2ᵈ / q) * x == (2ᵈ * x) / q
++
++	// FloatString rounds halves away from 0, and our result should always be positive,
++	// so it should work as we expect. (There's no direct way to round a Rat.)
++	rounded, err := strconv.ParseInt(precise.FloatString(0), 10, 64)
++	if err != nil {
++		panic(err)
++	}
++
++	// If we rounded up, `rounded` may be equal to 2ᵈ, so we perform a final reduction.
++	return uint16(rounded % (1 << d))
++}
++
++func TestCompress(t *testing.T) {
++	for d := 1; d < 12; d++ {
++		for n := 0; n < q; n++ {
++			expected := CompressRat(fieldElement(n), uint8(d))
++			result := compress(fieldElement(n), uint8(d))
++			if result != expected {
++				t.Errorf("compress(%d, %d): got %d, expected %d", n, d, result, expected)
++			}
++		}
++	}
++}
++
++func DecompressRat(y uint16, d uint8) fieldElement {
++	if y >= 1<<d {
++		panic("y out of range")
++	}
++	if d <= 0 || d >= 12 {
++		panic("d out of range")
++	}
++
++	precise := big.NewRat(q*int64(y), 1<<d) // (q / 2ᵈ) * y  ==  (q * y) / 2ᵈ
++
++	// FloatString rounds halves away from 0, and our result should always be positive,
++	// so it should work as we expect. (There's no direct way to round a Rat.)
++	rounded, err := strconv.ParseInt(precise.FloatString(0), 10, 64)
++	if err != nil {
++		panic(err)
++	}
++
++	// If we rounded up, `rounded` may be equal to q, so we perform a final reduction.
++	return fieldElement(rounded % q)
++}
++
++func TestDecompress(t *testing.T) {
++	for d := 1; d < 12; d++ {
++		for n := 0; n < (1 << d); n++ {
++			expected := DecompressRat(uint16(n), uint8(d))
++			result := decompress(uint16(n), uint8(d))
++			if result != expected {
++				t.Errorf("decompress(%d, %d): got %d, expected %d", n, d, result, expected)
++			}
++		}
++	}
++}
++
++func BitRev7(n uint8) uint8 {
++	if n>>7 != 0 {
++		panic("not 7 bits")
++	}
++	var r uint8
++	r |= n >> 6 & 0b0000_0001
++	r |= n >> 4 & 0b0000_0010
++	r |= n >> 2 & 0b0000_0100
++	r |= n /**/ & 0b0000_1000
++	r |= n << 2 & 0b0001_0000
++	r |= n << 4 & 0b0010_0000
++	r |= n << 6 & 0b0100_0000
++	return r
++}
++
++func TestZetas(t *testing.T) {
++	ζ := big.NewInt(17)
++	q := big.NewInt(q)
++	for k, zeta := range zetas {
++		// ζ^BitRev7(k) mod q
++		exp := new(big.Int).Exp(ζ, big.NewInt(int64(BitRev7(uint8(k)))), q)
++		if big.NewInt(int64(zeta)).Cmp(exp) != 0 {
++			t.Errorf("zetas[%d] = %v, expected %v", k, zeta, exp)
++		}
++	}
++}
++
++func TestGammas(t *testing.T) {
++	ζ := big.NewInt(17)
++	q := big.NewInt(q)
++	for k, gamma := range gammas {
++		// ζ^2BitRev7(i)+1
++		exp := new(big.Int).Exp(ζ, big.NewInt(int64(BitRev7(uint8(k)))*2+1), q)
++		if big.NewInt(int64(gamma)).Cmp(exp) != 0 {
++			t.Errorf("gammas[%d] = %v, expected %v", k, gamma, exp)
++		}
++	}
++}
++
++func TestRoundTrip(t *testing.T) {
++	ek, dk, err := GenerateKey()
++	if err != nil {
++		t.Fatal(err)
++	}
++	c, Ke, err := Encapsulate(ek)
++	if err != nil {
++		t.Fatal(err)
++	}
++	Kd, err := Decapsulate(dk, c)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(Ke, Kd) {
++		t.Fail()
++	}
++
++	ek1, dk1, err := GenerateKey()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if bytes.Equal(ek, ek1) {
++		t.Fail()
++	}
++	if bytes.Equal(dk, dk1) {
++		t.Fail()
++	}
++	if bytes.Equal(dk[len(dk)-32:], dk1[len(dk)-32:]) {
++		t.Fail()
++	}
++
++	c1, Ke1, err := Encapsulate(ek)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if bytes.Equal(c, c1) {
++		t.Fail()
++	}
++	if bytes.Equal(Ke, Ke1) {
++		t.Fail()
++	}
++}
++
++func TestBadLengths(t *testing.T) {
++	ek, dk, err := GenerateKey()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for i := 0; i < len(ek)-1; i++ {
++		if _, _, err := Encapsulate(ek[:i]); err == nil {
++			t.Errorf("expected error for ek length %d", i)
++		}
++	}
++	ekLong := ek
++	for i := 0; i < 100; i++ {
++		ekLong = append(ekLong, 0)
++		if _, _, err := Encapsulate(ekLong); err == nil {
++			t.Errorf("expected error for ek length %d", len(ekLong))
++		}
++	}
++
++	c, _, err := Encapsulate(ek)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for i := 0; i < len(dk)-1; i++ {
++		if _, err := Decapsulate(dk[:i], c); err == nil {
++			t.Errorf("expected error for dk length %d", i)
++		}
++	}
++	dkLong := dk
++	for i := 0; i < 100; i++ {
++		dkLong = append(dkLong, 0)
++		if _, err := Decapsulate(dkLong, c); err == nil {
++			t.Errorf("expected error for dk length %d", len(dkLong))
++		}
++	}
++
++	for i := 0; i < len(c)-1; i++ {
++		if _, err := Decapsulate(dk, c[:i]); err == nil {
++			t.Errorf("expected error for c length %d", i)
++		}
++	}
++	cLong := c
++	for i := 0; i < 100; i++ {
++		cLong = append(cLong, 0)
++		if _, err := Decapsulate(dk, cLong); err == nil {
++			t.Errorf("expected error for c length %d", len(cLong))
++		}
++	}
++}
++
++var millionFlag = flag.Bool("million", false, "run the million vector test")
++
++// TestPQCrystalsAccumulated accumulates the 10k vectors generated by the
++// reference implementation and checks the hash of the result, to avoid checking
++// in 150MB of test vectors.
++func TestPQCrystalsAccumulated(t *testing.T) {
++	n := 10000
++	expected := "f7db260e1137a742e05fe0db9525012812b004d29040a5b606aad3d134b548d3"
++	if testing.Short() {
++		n = 100
++		expected = "8d0c478ead6037897a0da6be21e5399545babf5fc6dd10c061c99b7dee2bf0dc"
++	}
++	if *millionFlag {
++		n = 1000000
++		expected = "70090cc5842aad0ec43d5042c783fae9bc320c047b5dafcb6e134821db02384d"
++	}
++
++	s := sha3.NewShake128()
++	o := sha3.NewShake128()
++	d := make([]byte, 32)
++	z := make([]byte, 32)
++	msg := make([]byte, 32)
++	ct1 := make([]byte, CiphertextSize)
++
++	for i := 0; i < n; i++ {
++		s.Read(d)
++		s.Read(z)
++		ek, dk := kemKeyGen(d, z)
++		o.Write(ek)
++		o.Write(dk)
++
++		s.Read(msg)
++		ct, k, err := kemEncaps(ek, msg)
++		if err != nil {
++			t.Fatal(err)
++		}
++		o.Write(ct)
++		o.Write(k)
++
++		kk, err := kemDecaps(dk, ct)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !bytes.Equal(kk, k) {
++			t.Errorf("k: got %x, expected %x", kk, k)
++		}
++
++		s.Read(ct1)
++		k1, err := kemDecaps(dk, ct1)
++		if err != nil {
++			t.Fatal(err)
++		}
++		o.Write(k1)
++	}
++
++	got := hex.EncodeToString(o.Sum(nil))
++	if got != expected {
++		t.Errorf("got %s, expected %s", got, expected)
++	}
++}
++
++var sinkElement fieldElement
++
++func BenchmarkSampleNTT(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkElement ^= sampleNTT(bytes.Repeat([]byte("A"), 32), '4', '2')[0]
++	}
++}
++
++var sink byte
++
++func BenchmarkKeyGen(b *testing.B) {
++	d := make([]byte, 32)
++	rand.Read(d)
++	z := make([]byte, 32)
++	rand.Read(z)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ek, dk := kemKeyGen(d, z)
++		sink ^= ek[0] ^ dk[0]
++	}
++}
++
++func BenchmarkEncaps(b *testing.B) {
++	d := make([]byte, 32)
++	rand.Read(d)
++	z := make([]byte, 32)
++	rand.Read(z)
++	m := make([]byte, 32)
++	rand.Read(m)
++	ek, _ := kemKeyGen(d, z)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		c, K, err := kemEncaps(ek, m)
++		if err != nil {
++			b.Fatal(err)
++		}
++		sink ^= c[0] ^ K[0]
++	}
++}
++
++func BenchmarkDecaps(b *testing.B) {
++	d := make([]byte, 32)
++	rand.Read(d)
++	z := make([]byte, 32)
++	rand.Read(z)
++	m := make([]byte, 32)
++	rand.Read(m)
++	ek, dk := kemKeyGen(d, z)
++	c, _, err := kemEncaps(ek, m)
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		K, err := kemDecaps(dk, c)
++		if err != nil {
++			b.Fatal(err)
++		}
++		sink ^= K[0]
++	}
++}
++
++func BenchmarkRoundTrip(b *testing.B) {
++	ek, dk, err := GenerateKey()
++	if err != nil {
++		b.Fatal(err)
++	}
++	c, _, err := Encapsulate(ek)
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.Run("Alice", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			ekS, dkS, err := GenerateKey()
++			if err != nil {
++				b.Fatal(err)
++			}
++			Ks, err := Decapsulate(dk, c)
++			if err != nil {
++				b.Fatal(err)
++			}
++			sink ^= ekS[0] ^ dkS[0] ^ Ks[0]
++		}
++	})
++	b.Run("Bob", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			cS, Ks, err := Encapsulate(ek)
++			if err != nil {
++				b.Fatal(err)
++			}
++			sink ^= cS[0] ^ Ks[0]
++		}
++	})
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 59c0fdde55..d598b4fa5c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -453,7 +453,8 @@ var depsRules = `
+ 
+ 	crypto/boring
+ 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+-	  crypto/sha1, crypto/sha256, crypto/sha512;
++	  crypto/sha1, crypto/sha256, crypto/sha512,
++	  golang.org/x/crypto/sha3;
+ 
+ 	crypto/boring, crypto/internal/edwards25519/field
+ 	< crypto/ecdh;
+@@ -467,7 +468,8 @@ var depsRules = `
+ 	crypto/rc4,
+ 	crypto/sha1,
+ 	crypto/sha256,
+-	crypto/sha512
++	crypto/sha512,
++	golang.org/x/crypto/sha3
+ 	< CRYPTO;
+ 
+ 	CGO, fmt, net !< CRYPTO;
+@@ -476,6 +478,7 @@ var depsRules = `
+ 	CRYPTO, FMT, math/big
+ 	< crypto/internal/boring/bbig
+ 	< crypto/rand
++	< crypto/internal/mlkem768
+ 	< crypto/ed25519
+ 	< encoding/asn1
+ 	< golang.org/x/crypto/cryptobyte/asn1
+diff --git a/src/vendor/golang.org/x/crypto/sha3/doc.go b/src/vendor/golang.org/x/crypto/sha3/doc.go
+new file mode 100644
+index 0000000000..decd8cf9bf
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/doc.go
+@@ -0,0 +1,62 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sha3 implements the SHA-3 fixed-output-length hash functions and
++// the SHAKE variable-output-length hash functions defined by FIPS-202.
++//
++// Both types of hash function use the "sponge" construction and the Keccak
++// permutation. For a detailed specification see http://keccak.noekeon.org/
++//
++// # Guidance
++//
++// If you aren't sure what function you need, use SHAKE256 with at least 64
++// bytes of output. The SHAKE instances are faster than the SHA3 instances;
++// the latter have to allocate memory to conform to the hash.Hash interface.
++//
++// If you need a secret-key MAC (message authentication code), prepend the
++// secret key to the input, hash with SHAKE256 and read at least 32 bytes of
++// output.
++//
++// # Security strengths
++//
++// The SHA3-x (x equals 224, 256, 384, or 512) functions have a security
++// strength against preimage attacks of x bits. Since they only produce "x"
++// bits of output, their collision-resistance is only "x/2" bits.
++//
++// The SHAKE-256 and -128 functions have a generic security strength of 256 and
++// 128 bits against all attacks, provided that at least 2x bits of their output
++// is used.  Requesting more than 64 or 32 bytes of output, respectively, does
++// not increase the collision-resistance of the SHAKE functions.
++//
++// # The sponge construction
++//
++// A sponge builds a pseudo-random function from a public pseudo-random
++// permutation, by applying the permutation to a state of "rate + capacity"
++// bytes, but hiding "capacity" of the bytes.
++//
++// A sponge starts out with a zero state. To hash an input using a sponge, up
++// to "rate" bytes of the input are XORed into the sponge's state. The sponge
++// is then "full" and the permutation is applied to "empty" it. This process is
++// repeated until all the input has been "absorbed". The input is then padded.
++// The digest is "squeezed" from the sponge in the same way, except that output
++// is copied out instead of input being XORed in.
++//
++// A sponge is parameterized by its generic security strength, which is equal
++// to half its capacity; capacity + rate is equal to the permutation's width.
++// Since the KeccakF-1600 permutation is 1600 bits (200 bytes) wide, this means
++// that the security strength of a sponge instance is equal to (1600 - bitrate) / 2.
++//
++// # Recommendations
++//
++// The SHAKE functions are recommended for most new uses. They can produce
++// output of arbitrary length. SHAKE256, with an output length of at least
++// 64 bytes, provides 256-bit security against all attacks.  The Keccak team
++// recommends it for most applications upgrading from SHA2-512. (NIST chose a
++// much stronger, but much slower, sponge instance for SHA3-512.)
++//
++// The SHA-3 functions are "drop-in" replacements for the SHA-2 functions.
++// They produce output of the same length, with the same security strengths
++// against all attacks. This means, in particular, that SHA3-256 only has
++// 128-bit collision resistance, because its output length is 32 bytes.
++package sha3 // import "golang.org/x/crypto/sha3"
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes.go b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+new file mode 100644
+index 0000000000..0d8043fd2a
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+@@ -0,0 +1,97 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++// This file provides functions for creating instances of the SHA-3
++// and SHAKE hash functions, as well as utility functions for hashing
++// bytes.
++
++import (
++	"hash"
++)
++
++// New224 creates a new SHA3-224 hash.
++// Its generic security strength is 224 bits against preimage attacks,
++// and 112 bits against collision attacks.
++func New224() hash.Hash {
++	if h := new224Asm(); h != nil {
++		return h
++	}
++	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
++}
++
++// New256 creates a new SHA3-256 hash.
++// Its generic security strength is 256 bits against preimage attacks,
++// and 128 bits against collision attacks.
++func New256() hash.Hash {
++	if h := new256Asm(); h != nil {
++		return h
++	}
++	return &state{rate: 136, outputLen: 32, dsbyte: 0x06}
++}
++
++// New384 creates a new SHA3-384 hash.
++// Its generic security strength is 384 bits against preimage attacks,
++// and 192 bits against collision attacks.
++func New384() hash.Hash {
++	if h := new384Asm(); h != nil {
++		return h
++	}
++	return &state{rate: 104, outputLen: 48, dsbyte: 0x06}
++}
++
++// New512 creates a new SHA3-512 hash.
++// Its generic security strength is 512 bits against preimage attacks,
++// and 256 bits against collision attacks.
++func New512() hash.Hash {
++	if h := new512Asm(); h != nil {
++		return h
++	}
++	return &state{rate: 72, outputLen: 64, dsbyte: 0x06}
++}
++
++// NewLegacyKeccak256 creates a new Keccak-256 hash.
++//
++// Only use this function if you require compatibility with an existing cryptosystem
++// that uses non-standard padding. All other users should use New256 instead.
++func NewLegacyKeccak256() hash.Hash { return &state{rate: 136, outputLen: 32, dsbyte: 0x01} }
++
++// NewLegacyKeccak512 creates a new Keccak-512 hash.
++//
++// Only use this function if you require compatibility with an existing cryptosystem
++// that uses non-standard padding. All other users should use New512 instead.
++func NewLegacyKeccak512() hash.Hash { return &state{rate: 72, outputLen: 64, dsbyte: 0x01} }
++
++// Sum224 returns the SHA3-224 digest of the data.
++func Sum224(data []byte) (digest [28]byte) {
++	h := New224()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum256 returns the SHA3-256 digest of the data.
++func Sum256(data []byte) (digest [32]byte) {
++	h := New256()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum384 returns the SHA3-384 digest of the data.
++func Sum384(data []byte) (digest [48]byte) {
++	h := New384()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum512 returns the SHA3-512 digest of the data.
++func Sum512(data []byte) (digest [64]byte) {
++	h := New512()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go b/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go
+new file mode 100644
+index 0000000000..fe8c84793c
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go
+@@ -0,0 +1,27 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++import (
++	"hash"
++)
++
++// new224Asm returns an assembly implementation of SHA3-224 if available,
++// otherwise it returns nil.
++func new224Asm() hash.Hash { return nil }
++
++// new256Asm returns an assembly implementation of SHA3-256 if available,
++// otherwise it returns nil.
++func new256Asm() hash.Hash { return nil }
++
++// new384Asm returns an assembly implementation of SHA3-384 if available,
++// otherwise it returns nil.
++func new384Asm() hash.Hash { return nil }
++
++// new512Asm returns an assembly implementation of SHA3-512 if available,
++// otherwise it returns nil.
++func new512Asm() hash.Hash { return nil }
+diff --git a/src/vendor/golang.org/x/crypto/sha3/keccakf.go b/src/vendor/golang.org/x/crypto/sha3/keccakf.go
+new file mode 100644
+index 0000000000..ce48b1dd3e
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/keccakf.go
+@@ -0,0 +1,414 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 || purego || !gc
++
++package sha3
++
++import "math/bits"
++
++// rc stores the round constants for use in the ι step.
++var rc = [24]uint64{
++	0x0000000000000001,
++	0x0000000000008082,
++	0x800000000000808A,
++	0x8000000080008000,
++	0x000000000000808B,
++	0x0000000080000001,
++	0x8000000080008081,
++	0x8000000000008009,
++	0x000000000000008A,
++	0x0000000000000088,
++	0x0000000080008009,
++	0x000000008000000A,
++	0x000000008000808B,
++	0x800000000000008B,
++	0x8000000000008089,
++	0x8000000000008003,
++	0x8000000000008002,
++	0x8000000000000080,
++	0x000000000000800A,
++	0x800000008000000A,
++	0x8000000080008081,
++	0x8000000000008080,
++	0x0000000080000001,
++	0x8000000080008008,
++}
++
++// keccakF1600 applies the Keccak permutation to a 1600b-wide
++// state represented as a slice of 25 uint64s.
++func keccakF1600(a *[25]uint64) {
++	// Implementation translated from Keccak-inplace.c
++	// in the keccak reference code.
++	var t, bc0, bc1, bc2, bc3, bc4, d0, d1, d2, d3, d4 uint64
++
++	for i := 0; i < 24; i += 4 {
++		// Combines the 5 steps in each round into 2 steps.
++		// Unrolls 4 rounds per loop and spreads some steps across rounds.
++
++		// Round 1
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[6] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[12] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[18] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[24] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i]
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[16] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[22] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[3] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[1] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[7] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[19] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[11] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[23] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[4] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[2] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[8] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[14] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 2
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[16] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[7] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[23] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[14] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+1]
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[11] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[2] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[18] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[6] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[22] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[4] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[1] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[8] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[24] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[12] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[3] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[19] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 3
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[11] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[22] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[8] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[19] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+2]
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[1] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[12] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[23] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[16] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[2] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[24] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[6] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[3] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[14] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[7] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[18] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[4] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 4
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[1] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[2] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[3] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[4] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+3]
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[6] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[7] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[8] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[11] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[12] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[14] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[16] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[18] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[19] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[22] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[23] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[24] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++	}
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.go b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.go
+new file mode 100644
+index 0000000000..b908696be5
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && !purego && gc
++
++package sha3
++
++// This function is implemented in keccakf_amd64.s.
++
++//go:noescape
++
++func keccakF1600(a *[25]uint64)
+diff --git a/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s
+new file mode 100644
+index 0000000000..1f53938861
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/keccakf_amd64.s
+@@ -0,0 +1,390 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && !purego && gc
++
++// This code was translated into a form compatible with 6a from the public
++// domain sources at https://github.com/gvanas/KeccakCodePackage
++
++// Offsets in state
++#define _ba  (0*8)
++#define _be  (1*8)
++#define _bi  (2*8)
++#define _bo  (3*8)
++#define _bu  (4*8)
++#define _ga  (5*8)
++#define _ge  (6*8)
++#define _gi  (7*8)
++#define _go  (8*8)
++#define _gu  (9*8)
++#define _ka (10*8)
++#define _ke (11*8)
++#define _ki (12*8)
++#define _ko (13*8)
++#define _ku (14*8)
++#define _ma (15*8)
++#define _me (16*8)
++#define _mi (17*8)
++#define _mo (18*8)
++#define _mu (19*8)
++#define _sa (20*8)
++#define _se (21*8)
++#define _si (22*8)
++#define _so (23*8)
++#define _su (24*8)
++
++// Temporary registers
++#define rT1  AX
++
++// Round vars
++#define rpState DI
++#define rpStack SP
++
++#define rDa BX
++#define rDe CX
++#define rDi DX
++#define rDo R8
++#define rDu R9
++
++#define rBa R10
++#define rBe R11
++#define rBi R12
++#define rBo R13
++#define rBu R14
++
++#define rCa SI
++#define rCe BP
++#define rCi rBi
++#define rCo rBo
++#define rCu R15
++
++#define MOVQ_RBI_RCE MOVQ rBi, rCe
++#define XORQ_RT1_RCA XORQ rT1, rCa
++#define XORQ_RT1_RCE XORQ rT1, rCe
++#define XORQ_RBA_RCU XORQ rBa, rCu
++#define XORQ_RBE_RCU XORQ rBe, rCu
++#define XORQ_RDU_RCU XORQ rDu, rCu
++#define XORQ_RDA_RCA XORQ rDa, rCa
++#define XORQ_RDE_RCE XORQ rDe, rCe
++
++#define mKeccakRound(iState, oState, rc, B_RBI_RCE, G_RT1_RCA, G_RT1_RCE, G_RBA_RCU, K_RT1_RCA, K_RT1_RCE, K_RBA_RCU, M_RT1_RCA, M_RT1_RCE, M_RBE_RCU, S_RDU_RCU, S_RDA_RCA, S_RDE_RCE) \
++	/* Prepare round */    \
++	MOVQ rCe, rDa;         \
++	ROLQ $1, rDa;          \
++	                       \
++	MOVQ _bi(iState), rCi; \
++	XORQ _gi(iState), rDi; \
++	XORQ rCu, rDa;         \
++	XORQ _ki(iState), rCi; \
++	XORQ _mi(iState), rDi; \
++	XORQ rDi, rCi;         \
++	                       \
++	MOVQ rCi, rDe;         \
++	ROLQ $1, rDe;          \
++	                       \
++	MOVQ _bo(iState), rCo; \
++	XORQ _go(iState), rDo; \
++	XORQ rCa, rDe;         \
++	XORQ _ko(iState), rCo; \
++	XORQ _mo(iState), rDo; \
++	XORQ rDo, rCo;         \
++	                       \
++	MOVQ rCo, rDi;         \
++	ROLQ $1, rDi;          \
++	                       \
++	MOVQ rCu, rDo;         \
++	XORQ rCe, rDi;         \
++	ROLQ $1, rDo;          \
++	                       \
++	MOVQ rCa, rDu;         \
++	XORQ rCi, rDo;         \
++	ROLQ $1, rDu;          \
++	                       \
++	/* Result b */         \
++	MOVQ _ba(iState), rBa; \
++	MOVQ _ge(iState), rBe; \
++	XORQ rCo, rDu;         \
++	MOVQ _ki(iState), rBi; \
++	MOVQ _mo(iState), rBo; \
++	MOVQ _su(iState), rBu; \
++	XORQ rDe, rBe;         \
++	ROLQ $44, rBe;         \
++	XORQ rDi, rBi;         \
++	XORQ rDa, rBa;         \
++	ROLQ $43, rBi;         \
++	                       \
++	MOVQ rBe, rCa;         \
++	MOVQ rc, rT1;          \
++	ORQ  rBi, rCa;         \
++	XORQ rBa, rT1;         \
++	XORQ rT1, rCa;         \
++	MOVQ rCa, _ba(oState); \
++	                       \
++	XORQ rDu, rBu;         \
++	ROLQ $14, rBu;         \
++	MOVQ rBa, rCu;         \
++	ANDQ rBe, rCu;         \
++	XORQ rBu, rCu;         \
++	MOVQ rCu, _bu(oState); \
++	                       \
++	XORQ rDo, rBo;         \
++	ROLQ $21, rBo;         \
++	MOVQ rBo, rT1;         \
++	ANDQ rBu, rT1;         \
++	XORQ rBi, rT1;         \
++	MOVQ rT1, _bi(oState); \
++	                       \
++	NOTQ rBi;              \
++	ORQ  rBa, rBu;         \
++	ORQ  rBo, rBi;         \
++	XORQ rBo, rBu;         \
++	XORQ rBe, rBi;         \
++	MOVQ rBu, _bo(oState); \
++	MOVQ rBi, _be(oState); \
++	B_RBI_RCE;             \
++	                       \
++	/* Result g */         \
++	MOVQ _gu(iState), rBe; \
++	XORQ rDu, rBe;         \
++	MOVQ _ka(iState), rBi; \
++	ROLQ $20, rBe;         \
++	XORQ rDa, rBi;         \
++	ROLQ $3, rBi;          \
++	MOVQ _bo(iState), rBa; \
++	MOVQ rBe, rT1;         \
++	ORQ  rBi, rT1;         \
++	XORQ rDo, rBa;         \
++	MOVQ _me(iState), rBo; \
++	MOVQ _si(iState), rBu; \
++	ROLQ $28, rBa;         \
++	XORQ rBa, rT1;         \
++	MOVQ rT1, _ga(oState); \
++	G_RT1_RCA;             \
++	                       \
++	XORQ rDe, rBo;         \
++	ROLQ $45, rBo;         \
++	MOVQ rBi, rT1;         \
++	ANDQ rBo, rT1;         \
++	XORQ rBe, rT1;         \
++	MOVQ rT1, _ge(oState); \
++	G_RT1_RCE;             \
++	                       \
++	XORQ rDi, rBu;         \
++	ROLQ $61, rBu;         \
++	MOVQ rBu, rT1;         \
++	ORQ  rBa, rT1;         \
++	XORQ rBo, rT1;         \
++	MOVQ rT1, _go(oState); \
++	                       \
++	ANDQ rBe, rBa;         \
++	XORQ rBu, rBa;         \
++	MOVQ rBa, _gu(oState); \
++	NOTQ rBu;              \
++	G_RBA_RCU;             \
++	                       \
++	ORQ  rBu, rBo;         \
++	XORQ rBi, rBo;         \
++	MOVQ rBo, _gi(oState); \
++	                       \
++	/* Result k */         \
++	MOVQ _be(iState), rBa; \
++	MOVQ _gi(iState), rBe; \
++	MOVQ _ko(iState), rBi; \
++	MOVQ _mu(iState), rBo; \
++	MOVQ _sa(iState), rBu; \
++	XORQ rDi, rBe;         \
++	ROLQ $6, rBe;          \
++	XORQ rDo, rBi;         \
++	ROLQ $25, rBi;         \
++	MOVQ rBe, rT1;         \
++	ORQ  rBi, rT1;         \
++	XORQ rDe, rBa;         \
++	ROLQ $1, rBa;          \
++	XORQ rBa, rT1;         \
++	MOVQ rT1, _ka(oState); \
++	K_RT1_RCA;             \
++	                       \
++	XORQ rDu, rBo;         \
++	ROLQ $8, rBo;          \
++	MOVQ rBi, rT1;         \
++	ANDQ rBo, rT1;         \
++	XORQ rBe, rT1;         \
++	MOVQ rT1, _ke(oState); \
++	K_RT1_RCE;             \
++	                       \
++	XORQ rDa, rBu;         \
++	ROLQ $18, rBu;         \
++	NOTQ rBo;              \
++	MOVQ rBo, rT1;         \
++	ANDQ rBu, rT1;         \
++	XORQ rBi, rT1;         \
++	MOVQ rT1, _ki(oState); \
++	                       \
++	MOVQ rBu, rT1;         \
++	ORQ  rBa, rT1;         \
++	XORQ rBo, rT1;         \
++	MOVQ rT1, _ko(oState); \
++	                       \
++	ANDQ rBe, rBa;         \
++	XORQ rBu, rBa;         \
++	MOVQ rBa, _ku(oState); \
++	K_RBA_RCU;             \
++	                       \
++	/* Result m */         \
++	MOVQ _ga(iState), rBe; \
++	XORQ rDa, rBe;         \
++	MOVQ _ke(iState), rBi; \
++	ROLQ $36, rBe;         \
++	XORQ rDe, rBi;         \
++	MOVQ _bu(iState), rBa; \
++	ROLQ $10, rBi;         \
++	MOVQ rBe, rT1;         \
++	MOVQ _mi(iState), rBo; \
++	ANDQ rBi, rT1;         \
++	XORQ rDu, rBa;         \
++	MOVQ _so(iState), rBu; \
++	ROLQ $27, rBa;         \
++	XORQ rBa, rT1;         \
++	MOVQ rT1, _ma(oState); \
++	M_RT1_RCA;             \
++	                       \
++	XORQ rDi, rBo;         \
++	ROLQ $15, rBo;         \
++	MOVQ rBi, rT1;         \
++	ORQ  rBo, rT1;         \
++	XORQ rBe, rT1;         \
++	MOVQ rT1, _me(oState); \
++	M_RT1_RCE;             \
++	                       \
++	XORQ rDo, rBu;         \
++	ROLQ $56, rBu;         \
++	NOTQ rBo;              \
++	MOVQ rBo, rT1;         \
++	ORQ  rBu, rT1;         \
++	XORQ rBi, rT1;         \
++	MOVQ rT1, _mi(oState); \
++	                       \
++	ORQ  rBa, rBe;         \
++	XORQ rBu, rBe;         \
++	MOVQ rBe, _mu(oState); \
++	                       \
++	ANDQ rBa, rBu;         \
++	XORQ rBo, rBu;         \
++	MOVQ rBu, _mo(oState); \
++	M_RBE_RCU;             \
++	                       \
++	/* Result s */         \
++	MOVQ _bi(iState), rBa; \
++	MOVQ _go(iState), rBe; \
++	MOVQ _ku(iState), rBi; \
++	XORQ rDi, rBa;         \
++	MOVQ _ma(iState), rBo; \
++	ROLQ $62, rBa;         \
++	XORQ rDo, rBe;         \
++	MOVQ _se(iState), rBu; \
++	ROLQ $55, rBe;         \
++	                       \
++	XORQ rDu, rBi;         \
++	MOVQ rBa, rDu;         \
++	XORQ rDe, rBu;         \
++	ROLQ $2, rBu;          \
++	ANDQ rBe, rDu;         \
++	XORQ rBu, rDu;         \
++	MOVQ rDu, _su(oState); \
++	                       \
++	ROLQ $39, rBi;         \
++	S_RDU_RCU;             \
++	NOTQ rBe;              \
++	XORQ rDa, rBo;         \
++	MOVQ rBe, rDa;         \
++	ANDQ rBi, rDa;         \
++	XORQ rBa, rDa;         \
++	MOVQ rDa, _sa(oState); \
++	S_RDA_RCA;             \
++	                       \
++	ROLQ $41, rBo;         \
++	MOVQ rBi, rDe;         \
++	ORQ  rBo, rDe;         \
++	XORQ rBe, rDe;         \
++	MOVQ rDe, _se(oState); \
++	S_RDE_RCE;             \
++	                       \
++	MOVQ rBo, rDi;         \
++	MOVQ rBu, rDo;         \
++	ANDQ rBu, rDi;         \
++	ORQ  rBa, rDo;         \
++	XORQ rBi, rDi;         \
++	XORQ rBo, rDo;         \
++	MOVQ rDi, _si(oState); \
++	MOVQ rDo, _so(oState)  \
++
++// func keccakF1600(a *[25]uint64)
++TEXT ·keccakF1600(SB), 0, $200-8
++	MOVQ a+0(FP), rpState
++
++	// Convert the user state into an internal state
++	NOTQ _be(rpState)
++	NOTQ _bi(rpState)
++	NOTQ _go(rpState)
++	NOTQ _ki(rpState)
++	NOTQ _mi(rpState)
++	NOTQ _sa(rpState)
++
++	// Execute the KeccakF permutation
++	MOVQ _ba(rpState), rCa
++	MOVQ _be(rpState), rCe
++	MOVQ _bu(rpState), rCu
++
++	XORQ _ga(rpState), rCa
++	XORQ _ge(rpState), rCe
++	XORQ _gu(rpState), rCu
++
++	XORQ _ka(rpState), rCa
++	XORQ _ke(rpState), rCe
++	XORQ _ku(rpState), rCu
++
++	XORQ _ma(rpState), rCa
++	XORQ _me(rpState), rCe
++	XORQ _mu(rpState), rCu
++
++	XORQ _sa(rpState), rCa
++	XORQ _se(rpState), rCe
++	MOVQ _si(rpState), rDi
++	MOVQ _so(rpState), rDo
++	XORQ _su(rpState), rCu
++
++	mKeccakRound(rpState, rpStack, $0x0000000000000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x0000000000008082, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x800000000000808a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000080008000, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x000000000000808b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x0000000080000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x8000000080008081, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000000008009, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x000000000000008a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x0000000000000088, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x0000000080008009, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x000000008000000a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x000000008000808b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x800000000000008b, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x8000000000008089, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000000008003, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x8000000000008002, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000000000080, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x000000000000800a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x800000008000000a, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x8000000080008081, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000000008080, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpState, rpStack, $0x0000000080000001, MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	mKeccakRound(rpStack, rpState, $0x8000000080008008, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP)
++
++	// Revert the internal state to the user state
++	NOTQ _be(rpState)
++	NOTQ _bi(rpState)
++	NOTQ _go(rpState)
++	NOTQ _ki(rpState)
++	NOTQ _mi(rpState)
++	NOTQ _sa(rpState)
++
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/sha3/register.go b/src/vendor/golang.org/x/crypto/sha3/register.go
+new file mode 100644
+index 0000000000..addfd5049b
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/register.go
+@@ -0,0 +1,18 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.4
++
++package sha3
++
++import (
++	"crypto"
++)
++
++func init() {
++	crypto.RegisterHash(crypto.SHA3_224, New224)
++	crypto.RegisterHash(crypto.SHA3_256, New256)
++	crypto.RegisterHash(crypto.SHA3_384, New384)
++	crypto.RegisterHash(crypto.SHA3_512, New512)
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3.go b/src/vendor/golang.org/x/crypto/sha3/sha3.go
+new file mode 100644
+index 0000000000..4884d172a4
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3.go
+@@ -0,0 +1,197 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++// spongeDirection indicates the direction bytes are flowing through the sponge.
++type spongeDirection int
++
++const (
++	// spongeAbsorbing indicates that the sponge is absorbing input.
++	spongeAbsorbing spongeDirection = iota
++	// spongeSqueezing indicates that the sponge is being squeezed.
++	spongeSqueezing
++)
++
++const (
++	// maxRate is the maximum size of the internal buffer. SHAKE-256
++	// currently needs the largest buffer.
++	maxRate = 168
++)
++
++type state struct {
++	// Generic sponge components.
++	a    [25]uint64 // main state of the hash
++	buf  []byte     // points into storage
++	rate int        // the number of bytes of state to use
++
++	// dsbyte contains the "domain separation" bits and the first bit of
++	// the padding. Sections 6.1 and 6.2 of [1] separate the outputs of the
++	// SHA-3 and SHAKE functions by appending bitstrings to the message.
++	// Using a little-endian bit-ordering convention, these are "01" for SHA-3
++	// and "1111" for SHAKE, or 00000010b and 00001111b, respectively. Then the
++	// padding rule from section 5.1 is applied to pad the message to a multiple
++	// of the rate, which involves adding a "1" bit, zero or more "0" bits, and
++	// a final "1" bit. We merge the first "1" bit from the padding into dsbyte,
++	// giving 00000110b (0x06) and 00011111b (0x1f).
++	// [1] http://csrc.nist.gov/publications/drafts/fips-202/fips_202_draft.pdf
++	//     "Draft FIPS 202: SHA-3 Standard: Permutation-Based Hash and
++	//      Extendable-Output Functions (May 2014)"
++	dsbyte byte
++
++	storage storageBuf
++
++	// Specific to SHA-3 and SHAKE.
++	outputLen int             // the default output size in bytes
++	state     spongeDirection // whether the sponge is absorbing or squeezing
++}
++
++// BlockSize returns the rate of sponge underlying this hash function.
++func (d *state) BlockSize() int { return d.rate }
++
++// Size returns the output size of the hash function in bytes.
++func (d *state) Size() int { return d.outputLen }
++
++// Reset clears the internal state by zeroing the sponge state and
++// the byte buffer, and setting Sponge.state to absorbing.
++func (d *state) Reset() {
++	// Zero the permutation's state.
++	for i := range d.a {
++		d.a[i] = 0
++	}
++	d.state = spongeAbsorbing
++	d.buf = d.storage.asBytes()[:0]
++}
++
++func (d *state) clone() *state {
++	ret := *d
++	if ret.state == spongeAbsorbing {
++		ret.buf = ret.storage.asBytes()[:len(ret.buf)]
++	} else {
++		ret.buf = ret.storage.asBytes()[d.rate-cap(d.buf) : d.rate]
++	}
++
++	return &ret
++}
++
++// permute applies the KeccakF-1600 permutation. It handles
++// any input-output buffering.
++func (d *state) permute() {
++	switch d.state {
++	case spongeAbsorbing:
++		// If we're absorbing, we need to xor the input into the state
++		// before applying the permutation.
++		xorIn(d, d.buf)
++		d.buf = d.storage.asBytes()[:0]
++		keccakF1600(&d.a)
++	case spongeSqueezing:
++		// If we're squeezing, we need to apply the permutation before
++		// copying more output.
++		keccakF1600(&d.a)
++		d.buf = d.storage.asBytes()[:d.rate]
++		copyOut(d, d.buf)
++	}
++}
++
++// pads appends the domain separation bits in dsbyte, applies
++// the multi-bitrate 10..1 padding rule, and permutes the state.
++func (d *state) padAndPermute(dsbyte byte) {
++	if d.buf == nil {
++		d.buf = d.storage.asBytes()[:0]
++	}
++	// Pad with this instance's domain-separator bits. We know that there's
++	// at least one byte of space in d.buf because, if it were full,
++	// permute would have been called to empty it. dsbyte also contains the
++	// first one bit for the padding. See the comment in the state struct.
++	d.buf = append(d.buf, dsbyte)
++	zerosStart := len(d.buf)
++	d.buf = d.storage.asBytes()[:d.rate]
++	for i := zerosStart; i < d.rate; i++ {
++		d.buf[i] = 0
++	}
++	// This adds the final one bit for the padding. Because of the way that
++	// bits are numbered from the LSB upwards, the final bit is the MSB of
++	// the last byte.
++	d.buf[d.rate-1] ^= 0x80
++	// Apply the permutation
++	d.permute()
++	d.state = spongeSqueezing
++	d.buf = d.storage.asBytes()[:d.rate]
++	copyOut(d, d.buf)
++}
++
++// Write absorbs more data into the hash's state. It panics if any
++// output has already been read.
++func (d *state) Write(p []byte) (written int, err error) {
++	if d.state != spongeAbsorbing {
++		panic("sha3: Write after Read")
++	}
++	if d.buf == nil {
++		d.buf = d.storage.asBytes()[:0]
++	}
++	written = len(p)
++
++	for len(p) > 0 {
++		if len(d.buf) == 0 && len(p) >= d.rate {
++			// The fast path; absorb a full "rate" bytes of input and apply the permutation.
++			xorIn(d, p[:d.rate])
++			p = p[d.rate:]
++			keccakF1600(&d.a)
++		} else {
++			// The slow path; buffer the input until we can fill the sponge, and then xor it in.
++			todo := d.rate - len(d.buf)
++			if todo > len(p) {
++				todo = len(p)
++			}
++			d.buf = append(d.buf, p[:todo]...)
++			p = p[todo:]
++
++			// If the sponge is full, apply the permutation.
++			if len(d.buf) == d.rate {
++				d.permute()
++			}
++		}
++	}
++
++	return
++}
++
++// Read squeezes an arbitrary number of bytes from the sponge.
++func (d *state) Read(out []byte) (n int, err error) {
++	// If we're still absorbing, pad and apply the permutation.
++	if d.state == spongeAbsorbing {
++		d.padAndPermute(d.dsbyte)
++	}
++
++	n = len(out)
++
++	// Now, do the squeezing.
++	for len(out) > 0 {
++		n := copy(out, d.buf)
++		d.buf = d.buf[n:]
++		out = out[n:]
++
++		// Apply the permutation if we've squeezed the sponge dry.
++		if len(d.buf) == 0 {
++			d.permute()
++		}
++	}
++
++	return
++}
++
++// Sum applies padding to the hash state and then squeezes out the desired
++// number of output bytes. It panics if any output has already been read.
++func (d *state) Sum(in []byte) []byte {
++	if d.state != spongeAbsorbing {
++		panic("sha3: Sum after Read")
++	}
++
++	// Make a copy of the original hash so that caller can keep writing
++	// and summing.
++	dup := d.clone()
++	hash := make([]byte, dup.outputLen, 64) // explicit cap to allow stack allocation
++	dup.Read(hash)
++	return append(in, hash...)
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+new file mode 100644
+index 0000000000..d861bca528
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+@@ -0,0 +1,288 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build gc && !purego
++
++package sha3
++
++// This file contains code for using the 'compute intermediate
++// message digest' (KIMD) and 'compute last message digest' (KLMD)
++// instructions to compute SHA-3 and SHAKE hashes on IBM Z.
++
++import (
++	"hash"
++
++	"golang.org/x/sys/cpu"
++)
++
++// codes represent 7-bit KIMD/KLMD function codes as defined in
++// the Principles of Operation.
++type code uint64
++
++const (
++	// function codes for KIMD/KLMD
++	sha3_224  code = 32
++	sha3_256       = 33
++	sha3_384       = 34
++	sha3_512       = 35
++	shake_128      = 36
++	shake_256      = 37
++	nopad          = 0x100
++)
++
++// kimd is a wrapper for the 'compute intermediate message digest' instruction.
++// src must be a multiple of the rate for the given function code.
++//
++//go:noescape
++func kimd(function code, chain *[200]byte, src []byte)
++
++// klmd is a wrapper for the 'compute last message digest' instruction.
++// src padding is handled by the instruction.
++//
++//go:noescape
++func klmd(function code, chain *[200]byte, dst, src []byte)
++
++type asmState struct {
++	a         [200]byte       // 1600 bit state
++	buf       []byte          // care must be taken to ensure cap(buf) is a multiple of rate
++	rate      int             // equivalent to block size
++	storage   [3072]byte      // underlying storage for buf
++	outputLen int             // output length for full security
++	function  code            // KIMD/KLMD function code
++	state     spongeDirection // whether the sponge is absorbing or squeezing
++}
++
++func newAsmState(function code) *asmState {
++	var s asmState
++	s.function = function
++	switch function {
++	case sha3_224:
++		s.rate = 144
++		s.outputLen = 28
++	case sha3_256:
++		s.rate = 136
++		s.outputLen = 32
++	case sha3_384:
++		s.rate = 104
++		s.outputLen = 48
++	case sha3_512:
++		s.rate = 72
++		s.outputLen = 64
++	case shake_128:
++		s.rate = 168
++		s.outputLen = 32
++	case shake_256:
++		s.rate = 136
++		s.outputLen = 64
++	default:
++		panic("sha3: unrecognized function code")
++	}
++
++	// limit s.buf size to a multiple of s.rate
++	s.resetBuf()
++	return &s
++}
++
++func (s *asmState) clone() *asmState {
++	c := *s
++	c.buf = c.storage[:len(s.buf):cap(s.buf)]
++	return &c
++}
++
++// copyIntoBuf copies b into buf. It will panic if there is not enough space to
++// store all of b.
++func (s *asmState) copyIntoBuf(b []byte) {
++	bufLen := len(s.buf)
++	s.buf = s.buf[:len(s.buf)+len(b)]
++	copy(s.buf[bufLen:], b)
++}
++
++// resetBuf points buf at storage, sets the length to 0 and sets cap to be a
++// multiple of the rate.
++func (s *asmState) resetBuf() {
++	max := (cap(s.storage) / s.rate) * s.rate
++	s.buf = s.storage[:0:max]
++}
++
++// Write (via the embedded io.Writer interface) adds more data to the running hash.
++// It never returns an error.
++func (s *asmState) Write(b []byte) (int, error) {
++	if s.state != spongeAbsorbing {
++		panic("sha3: Write after Read")
++	}
++	length := len(b)
++	for len(b) > 0 {
++		if len(s.buf) == 0 && len(b) >= cap(s.buf) {
++			// Hash the data directly and push any remaining bytes
++			// into the buffer.
++			remainder := len(b) % s.rate
++			kimd(s.function, &s.a, b[:len(b)-remainder])
++			if remainder != 0 {
++				s.copyIntoBuf(b[len(b)-remainder:])
++			}
++			return length, nil
++		}
++
++		if len(s.buf) == cap(s.buf) {
++			// flush the buffer
++			kimd(s.function, &s.a, s.buf)
++			s.buf = s.buf[:0]
++		}
++
++		// copy as much as we can into the buffer
++		n := len(b)
++		if len(b) > cap(s.buf)-len(s.buf) {
++			n = cap(s.buf) - len(s.buf)
++		}
++		s.copyIntoBuf(b[:n])
++		b = b[n:]
++	}
++	return length, nil
++}
++
++// Read squeezes an arbitrary number of bytes from the sponge.
++func (s *asmState) Read(out []byte) (n int, err error) {
++	n = len(out)
++
++	// need to pad if we were absorbing
++	if s.state == spongeAbsorbing {
++		s.state = spongeSqueezing
++
++		// write hash directly into out if possible
++		if len(out)%s.rate == 0 {
++			klmd(s.function, &s.a, out, s.buf) // len(out) may be 0
++			s.buf = s.buf[:0]
++			return
++		}
++
++		// write hash into buffer
++		max := cap(s.buf)
++		if max > len(out) {
++			max = (len(out)/s.rate)*s.rate + s.rate
++		}
++		klmd(s.function, &s.a, s.buf[:max], s.buf)
++		s.buf = s.buf[:max]
++	}
++
++	for len(out) > 0 {
++		// flush the buffer
++		if len(s.buf) != 0 {
++			c := copy(out, s.buf)
++			out = out[c:]
++			s.buf = s.buf[c:]
++			continue
++		}
++
++		// write hash directly into out if possible
++		if len(out)%s.rate == 0 {
++			klmd(s.function|nopad, &s.a, out, nil)
++			return
++		}
++
++		// write hash into buffer
++		s.resetBuf()
++		if cap(s.buf) > len(out) {
++			s.buf = s.buf[:(len(out)/s.rate)*s.rate+s.rate]
++		}
++		klmd(s.function|nopad, &s.a, s.buf, nil)
++	}
++	return
++}
++
++// Sum appends the current hash to b and returns the resulting slice.
++// It does not change the underlying hash state.
++func (s *asmState) Sum(b []byte) []byte {
++	if s.state != spongeAbsorbing {
++		panic("sha3: Sum after Read")
++	}
++
++	// Copy the state to preserve the original.
++	a := s.a
++
++	// Hash the buffer. Note that we don't clear it because we
++	// aren't updating the state.
++	klmd(s.function, &a, nil, s.buf)
++	return append(b, a[:s.outputLen]...)
++}
++
++// Reset resets the Hash to its initial state.
++func (s *asmState) Reset() {
++	for i := range s.a {
++		s.a[i] = 0
++	}
++	s.resetBuf()
++	s.state = spongeAbsorbing
++}
++
++// Size returns the number of bytes Sum will return.
++func (s *asmState) Size() int {
++	return s.outputLen
++}
++
++// BlockSize returns the hash's underlying block size.
++// The Write method must be able to accept any amount
++// of data, but it may operate more efficiently if all writes
++// are a multiple of the block size.
++func (s *asmState) BlockSize() int {
++	return s.rate
++}
++
++// Clone returns a copy of the ShakeHash in its current state.
++func (s *asmState) Clone() ShakeHash {
++	return s.clone()
++}
++
++// new224Asm returns an assembly implementation of SHA3-224 if available,
++// otherwise it returns nil.
++func new224Asm() hash.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_224)
++	}
++	return nil
++}
++
++// new256Asm returns an assembly implementation of SHA3-256 if available,
++// otherwise it returns nil.
++func new256Asm() hash.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_256)
++	}
++	return nil
++}
++
++// new384Asm returns an assembly implementation of SHA3-384 if available,
++// otherwise it returns nil.
++func new384Asm() hash.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_384)
++	}
++	return nil
++}
++
++// new512Asm returns an assembly implementation of SHA3-512 if available,
++// otherwise it returns nil.
++func new512Asm() hash.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_512)
++	}
++	return nil
++}
++
++// newShake128Asm returns an assembly implementation of SHAKE-128 if available,
++// otherwise it returns nil.
++func newShake128Asm() ShakeHash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(shake_128)
++	}
++	return nil
++}
++
++// newShake256Asm returns an assembly implementation of SHAKE-256 if available,
++// otherwise it returns nil.
++func newShake256Asm() ShakeHash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(shake_256)
++	}
++	return nil
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.s b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.s
+new file mode 100644
+index 0000000000..826b862c77
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.s
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build gc && !purego
++
++#include "textflag.h"
++
++// func kimd(function code, chain *[200]byte, src []byte)
++TEXT ·kimd(SB), NOFRAME|NOSPLIT, $0-40
++	MOVD function+0(FP), R0
++	MOVD chain+8(FP), R1
++	LMG  src+16(FP), R2, R3 // R2=base, R3=len
++
++continue:
++	WORD $0xB93E0002 // KIMD --, R2
++	BVS  continue    // continue if interrupted
++	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
++	RET
++
++// func klmd(function code, chain *[200]byte, dst, src []byte)
++TEXT ·klmd(SB), NOFRAME|NOSPLIT, $0-64
++	// TODO: SHAKE support
++	MOVD function+0(FP), R0
++	MOVD chain+8(FP), R1
++	LMG  dst+16(FP), R2, R3 // R2=base, R3=len
++	LMG  src+40(FP), R4, R5 // R4=base, R5=len
++
++continue:
++	WORD $0xB93F0024 // KLMD R2, R4
++	BVS  continue    // continue if interrupted
++	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/sha3/shake.go b/src/vendor/golang.org/x/crypto/sha3/shake.go
+new file mode 100644
+index 0000000000..bb69984027
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/shake.go
+@@ -0,0 +1,172 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++// This file defines the ShakeHash interface, and provides
++// functions for creating SHAKE and cSHAKE instances, as well as utility
++// functions for hashing bytes to arbitrary-length output.
++//
++//
++// SHAKE implementation is based on FIPS PUB 202 [1]
++// cSHAKE implementations is based on NIST SP 800-185 [2]
++//
++// [1] https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
++// [2] https://doi.org/10.6028/NIST.SP.800-185
++
++import (
++	"encoding/binary"
++	"hash"
++	"io"
++)
++
++// ShakeHash defines the interface to hash functions that support
++// arbitrary-length output. When used as a plain [hash.Hash], it
++// produces minimum-length outputs that provide full-strength generic
++// security.
++type ShakeHash interface {
++	hash.Hash
++
++	// Read reads more output from the hash; reading affects the hash's
++	// state. (ShakeHash.Read is thus very different from Hash.Sum)
++	// It never returns an error, but subsequent calls to Write or Sum
++	// will panic.
++	io.Reader
++
++	// Clone returns a copy of the ShakeHash in its current state.
++	Clone() ShakeHash
++}
++
++// cSHAKE specific context
++type cshakeState struct {
++	*state // SHA-3 state context and Read/Write operations
++
++	// initBlock is the cSHAKE specific initialization set of bytes. It is initialized
++	// by newCShake function and stores concatenation of N followed by S, encoded
++	// by the method specified in 3.3 of [1].
++	// It is stored here in order for Reset() to be able to put context into
++	// initial state.
++	initBlock []byte
++}
++
++// Consts for configuring initial SHA-3 state
++const (
++	dsbyteShake  = 0x1f
++	dsbyteCShake = 0x04
++	rate128      = 168
++	rate256      = 136
++)
++
++func bytepad(input []byte, w int) []byte {
++	// leftEncode always returns max 9 bytes
++	buf := make([]byte, 0, 9+len(input)+w)
++	buf = append(buf, leftEncode(uint64(w))...)
++	buf = append(buf, input...)
++	padlen := w - (len(buf) % w)
++	return append(buf, make([]byte, padlen)...)
++}
++
++func leftEncode(value uint64) []byte {
++	var b [9]byte
++	binary.BigEndian.PutUint64(b[1:], value)
++	// Trim all but last leading zero bytes
++	i := byte(1)
++	for i < 8 && b[i] == 0 {
++		i++
++	}
++	// Prepend number of encoded bytes
++	b[i-1] = 9 - i
++	return b[i-1:]
++}
++
++func newCShake(N, S []byte, rate, outputLen int, dsbyte byte) ShakeHash {
++	c := cshakeState{state: &state{rate: rate, outputLen: outputLen, dsbyte: dsbyte}}
++
++	// leftEncode returns max 9 bytes
++	c.initBlock = make([]byte, 0, 9*2+len(N)+len(S))
++	c.initBlock = append(c.initBlock, leftEncode(uint64(len(N)*8))...)
++	c.initBlock = append(c.initBlock, N...)
++	c.initBlock = append(c.initBlock, leftEncode(uint64(len(S)*8))...)
++	c.initBlock = append(c.initBlock, S...)
++	c.Write(bytepad(c.initBlock, c.rate))
++	return &c
++}
++
++// Reset resets the hash to initial state.
++func (c *cshakeState) Reset() {
++	c.state.Reset()
++	c.Write(bytepad(c.initBlock, c.rate))
++}
++
++// Clone returns copy of a cSHAKE context within its current state.
++func (c *cshakeState) Clone() ShakeHash {
++	b := make([]byte, len(c.initBlock))
++	copy(b, c.initBlock)
++	return &cshakeState{state: c.clone(), initBlock: b}
++}
++
++// Clone returns copy of SHAKE context within its current state.
++func (c *state) Clone() ShakeHash {
++	return c.clone()
++}
++
++// NewShake128 creates a new SHAKE128 variable-output-length ShakeHash.
++// Its generic security strength is 128 bits against all attacks if at
++// least 32 bytes of its output are used.
++func NewShake128() ShakeHash {
++	if h := newShake128Asm(); h != nil {
++		return h
++	}
++	return &state{rate: rate128, outputLen: 32, dsbyte: dsbyteShake}
++}
++
++// NewShake256 creates a new SHAKE256 variable-output-length ShakeHash.
++// Its generic security strength is 256 bits against all attacks if
++// at least 64 bytes of its output are used.
++func NewShake256() ShakeHash {
++	if h := newShake256Asm(); h != nil {
++		return h
++	}
++	return &state{rate: rate256, outputLen: 64, dsbyte: dsbyteShake}
++}
++
++// NewCShake128 creates a new instance of cSHAKE128 variable-output-length ShakeHash,
++// a customizable variant of SHAKE128.
++// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
++// desired. S is a customization byte string used for domain separation - two cSHAKE
++// computations on same input with different S yield unrelated outputs.
++// When N and S are both empty, this is equivalent to NewShake128.
++func NewCShake128(N, S []byte) ShakeHash {
++	if len(N) == 0 && len(S) == 0 {
++		return NewShake128()
++	}
++	return newCShake(N, S, rate128, 32, dsbyteCShake)
++}
++
++// NewCShake256 creates a new instance of cSHAKE256 variable-output-length ShakeHash,
++// a customizable variant of SHAKE256.
++// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
++// desired. S is a customization byte string used for domain separation - two cSHAKE
++// computations on same input with different S yield unrelated outputs.
++// When N and S are both empty, this is equivalent to NewShake256.
++func NewCShake256(N, S []byte) ShakeHash {
++	if len(N) == 0 && len(S) == 0 {
++		return NewShake256()
++	}
++	return newCShake(N, S, rate256, 64, dsbyteCShake)
++}
++
++// ShakeSum128 writes an arbitrary-length digest of data into hash.
++func ShakeSum128(hash, data []byte) {
++	h := NewShake128()
++	h.Write(data)
++	h.Read(hash)
++}
++
++// ShakeSum256 writes an arbitrary-length digest of data into hash.
++func ShakeSum256(hash, data []byte) {
++	h := NewShake256()
++	h.Write(data)
++	h.Read(hash)
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/shake_generic.go b/src/vendor/golang.org/x/crypto/sha3/shake_generic.go
+new file mode 100644
+index 0000000000..8d31cf5be2
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/shake_generic.go
+@@ -0,0 +1,19 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++// newShake128Asm returns an assembly implementation of SHAKE-128 if available,
++// otherwise it returns nil.
++func newShake128Asm() ShakeHash {
++	return nil
++}
++
++// newShake256Asm returns an assembly implementation of SHAKE-256 if available,
++// otherwise it returns nil.
++func newShake256Asm() ShakeHash {
++	return nil
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor.go b/src/vendor/golang.org/x/crypto/sha3/xor.go
+new file mode 100644
+index 0000000000..7337cca88e
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/xor.go
+@@ -0,0 +1,23 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !386 && !ppc64le) || purego
++
++package sha3
++
++// A storageBuf is an aligned array of maxRate bytes.
++type storageBuf [maxRate]byte
++
++func (b *storageBuf) asBytes() *[maxRate]byte {
++	return (*[maxRate]byte)(b)
++}
++
++var (
++	xorIn            = xorInGeneric
++	copyOut          = copyOutGeneric
++	xorInUnaligned   = xorInGeneric
++	copyOutUnaligned = copyOutGeneric
++)
++
++const xorImplementationUnaligned = "generic"
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor_generic.go b/src/vendor/golang.org/x/crypto/sha3/xor_generic.go
+new file mode 100644
+index 0000000000..8d94771127
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/xor_generic.go
+@@ -0,0 +1,28 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++import "encoding/binary"
++
++// xorInGeneric xors the bytes in buf into the state; it
++// makes no non-portable assumptions about memory layout
++// or alignment.
++func xorInGeneric(d *state, buf []byte) {
++	n := len(buf) / 8
++
++	for i := 0; i < n; i++ {
++		a := binary.LittleEndian.Uint64(buf)
++		d.a[i] ^= a
++		buf = buf[8:]
++	}
++}
++
++// copyOutGeneric copies uint64s to a byte buffer.
++func copyOutGeneric(d *state, b []byte) {
++	for i := 0; len(b) >= 8; i++ {
++		binary.LittleEndian.PutUint64(b, d.a[i])
++		b = b[8:]
++	}
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go b/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go
+new file mode 100644
+index 0000000000..870e2d16e0
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go
+@@ -0,0 +1,66 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || 386 || ppc64le) && !purego
++
++package sha3
++
++import "unsafe"
++
++// A storageBuf is an aligned array of maxRate bytes.
++type storageBuf [maxRate / 8]uint64
++
++func (b *storageBuf) asBytes() *[maxRate]byte {
++	return (*[maxRate]byte)(unsafe.Pointer(b))
++}
++
++// xorInUnaligned uses unaligned reads and writes to update d.a to contain d.a
++// XOR buf.
++func xorInUnaligned(d *state, buf []byte) {
++	n := len(buf)
++	bw := (*[maxRate / 8]uint64)(unsafe.Pointer(&buf[0]))[: n/8 : n/8]
++	if n >= 72 {
++		d.a[0] ^= bw[0]
++		d.a[1] ^= bw[1]
++		d.a[2] ^= bw[2]
++		d.a[3] ^= bw[3]
++		d.a[4] ^= bw[4]
++		d.a[5] ^= bw[5]
++		d.a[6] ^= bw[6]
++		d.a[7] ^= bw[7]
++		d.a[8] ^= bw[8]
++	}
++	if n >= 104 {
++		d.a[9] ^= bw[9]
++		d.a[10] ^= bw[10]
++		d.a[11] ^= bw[11]
++		d.a[12] ^= bw[12]
++	}
++	if n >= 136 {
++		d.a[13] ^= bw[13]
++		d.a[14] ^= bw[14]
++		d.a[15] ^= bw[15]
++		d.a[16] ^= bw[16]
++	}
++	if n >= 144 {
++		d.a[17] ^= bw[17]
++	}
++	if n >= 168 {
++		d.a[18] ^= bw[18]
++		d.a[19] ^= bw[19]
++		d.a[20] ^= bw[20]
++	}
++}
++
++func copyOutUnaligned(d *state, buf []byte) {
++	ab := (*[maxRate]uint8)(unsafe.Pointer(&d.a[0]))
++	copy(buf, ab[:])
++}
++
++var (
++	xorIn   = xorInUnaligned
++	copyOut = copyOutUnaligned
++)
++
++const xorImplementationUnaligned = "unaligned"
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 19555379f6..a6de6f5650 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,6 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
++golang.org/x/crypto/sha3
+ # golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage

@@ -27,6 +27,51 @@ Date:   Fri Feb 1 08:34:08 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7232071
-
+---
  src/cmd/cgo/ast.go | 26 +++++++++++++++++++++++++-
  1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 381e606ef4..dbae3b7b16 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -78,7 +78,7 @@ func (f *File) ReadGo(name string) {
+ 			}
+ 			if cg != nil {
+ 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
+-				f.Preamble += cg.Text() + "\n"
++				f.Preamble += commentText(cg) + "\n"
+ 			}
+ 		}
+ 	}
+@@ -131,6 +131,30 @@ func (f *File) ReadGo(name string) {
+ 	f.AST = ast2
+ }
+ 
++// Like ast.CommentGroup's Text method but preserves
++// leading blank lines, so that line numbers line up.
++func commentText(g *ast.CommentGroup) string {
++	if g == nil {
++		return ""
++	}
++	var pieces []string
++	for _, com := range g.List {
++		c := string(com.Text)
++		// Remove comment markers.
++		// The parser has given us exactly the comment text.
++		switch c[1] {
++		case '/':
++			//-style comment (no newline at the end)
++			c = c[2:] + "\n"
++		case '*':
++			/*-style comment */
++			c = c[2 : len(c)-2]
++		}
++		pieces = append(pieces, c)
++	}
++	return strings.Join(pieces, "")
++}
++
+ // Save references to C.xxx for later processing.
+ func (f *File) saveRef(x interface{}, context string) {
+ 	n, ok := x.(*ast.Expr)

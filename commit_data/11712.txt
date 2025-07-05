@@ -9,6 +9,51 @@ Date:   Wed Feb 8 14:35:00 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5647054
-
+---
  doc/go_spec.html | 25 +++++++++++++++++++++++--
  1 file changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ff7ce325ca..8b2d515df0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1120,9 +1120,10 @@ they implement the <code>Lock</code> interface as well
+ as the <code>File</code> interface.
+ </p>
+ <p>
+-An interface may contain an interface type name <code>T</code>
++An interface may use an interface type name <code>T</code>
+ in place of a method specification.
+-The effect is equivalent to enumerating the methods of <code>T</code> explicitly
++The effect, called embedding an interface,
++is equivalent to enumerating the methods of <code>T</code> explicitly
+ in the interface.
+ </p>
+ 
+@@ -1139,6 +1140,26 @@ type File interface {
+ }
+ </pre>
+ 
++<p>
++An interface definition for type <code>T</code> may not embed itself,
++nor any interface type that embeds <code>T</code> directly or indirectly.
++</p>
++
++<pre>
++// illegal: Bad cannot embed itself
++type Bad interface {
++	Bad
++}
++
++// illegal: Bad1 cannot embed itself using Bad2
++type Bad1 interface {
++	Bad2
++}
++type Bad2 interface {
++	Bad1
++}
++</pre>
++
+ <h3 id="Map_types">Map types</h3>
+ 
+ <p>

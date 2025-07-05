@@ -20,7 +20,102 @@ Date:   Sat Apr 16 18:36:07 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/internal/imageutil/gen.go  | 11 ++++++----
  src/image/internal/imageutil/impl.go | 40 +++++++++++++++++++++---------------
  2 files changed, 31 insertions(+), 20 deletions(-)
+
+diff --git a/src/image/internal/imageutil/gen.go b/src/image/internal/imageutil/gen.go
+index b9158d0ce9..6792b28a45 100644
+--- a/src/image/internal/imageutil/gen.go
++++ b/src/image/internal/imageutil/gen.go
+@@ -133,10 +133,13 @@ const sratioCase = `
+ 					b = ^(b >> 31)
+ 				}
+ 
+-				dpix[x+0] = uint8(r)
+-				dpix[x+1] = uint8(g)
+-				dpix[x+2] = uint8(b)
+-				dpix[x+3] = 255
++
++				// use a temp slice to hint to the compiler that a single bounds check suffices
++				rgba := dpix[x : x+4 : len(dpix)]
++				rgba[0] = uint8(r)
++				rgba[1] = uint8(g)
++				rgba[2] = uint8(b)
++				rgba[3] = 255
+ 			}
+ 		}
+ `
+diff --git a/src/image/internal/imageutil/impl.go b/src/image/internal/imageutil/impl.go
+index 39b455fdfa..3696b08e41 100644
+--- a/src/image/internal/imageutil/impl.go
++++ b/src/image/internal/imageutil/impl.go
+@@ -82,10 +82,12 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					b = ^(b >> 31)
+ 				}
+ 
+-				dpix[x+0] = uint8(r)
+-				dpix[x+1] = uint8(g)
+-				dpix[x+2] = uint8(b)
+-				dpix[x+3] = 255
++				// use a temp slice to hint to the compiler that a single bounds check suffices
++				rgba := dpix[x : x+4 : len(dpix)]
++				rgba[0] = uint8(r)
++				rgba[1] = uint8(g)
++				rgba[2] = uint8(b)
++				rgba[3] = 255
+ 			}
+ 		}
+ 
+@@ -137,10 +139,12 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					b = ^(b >> 31)
+ 				}
+ 
+-				dpix[x+0] = uint8(r)
+-				dpix[x+1] = uint8(g)
+-				dpix[x+2] = uint8(b)
+-				dpix[x+3] = 255
++				// use a temp slice to hint to the compiler that a single bounds check suffices
++				rgba := dpix[x : x+4 : len(dpix)]
++				rgba[0] = uint8(r)
++				rgba[1] = uint8(g)
++				rgba[2] = uint8(b)
++				rgba[3] = 255
+ 			}
+ 		}
+ 
+@@ -192,10 +196,12 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					b = ^(b >> 31)
+ 				}
+ 
+-				dpix[x+0] = uint8(r)
+-				dpix[x+1] = uint8(g)
+-				dpix[x+2] = uint8(b)
+-				dpix[x+3] = 255
++				// use a temp slice to hint to the compiler that a single bounds check suffices
++				rgba := dpix[x : x+4 : len(dpix)]
++				rgba[0] = uint8(r)
++				rgba[1] = uint8(g)
++				rgba[2] = uint8(b)
++				rgba[3] = 255
+ 			}
+ 		}
+ 
+@@ -246,10 +252,12 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					b = ^(b >> 31)
+ 				}
+ 
+-				dpix[x+0] = uint8(r)
+-				dpix[x+1] = uint8(g)
+-				dpix[x+2] = uint8(b)
+-				dpix[x+3] = 255
++				// use a temp slice to hint to the compiler that a single bounds check suffices
++				rgba := dpix[x : x+4 : len(dpix)]
++				rgba[0] = uint8(r)
++				rgba[1] = uint8(g)
++				rgba[2] = uint8(b)
++				rgba[3] = 255
+ 			}
+ 		}
+ 

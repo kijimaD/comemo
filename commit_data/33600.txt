@@ -15,7 +15,33 @@ Date:   Thu Aug 10 13:08:23 2017 -0600
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/gob/codec_test.go | 1 +
  src/encoding/gob/debug.go      | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index eb9f306bcf..8f7b6f3c62 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1321,6 +1321,7 @@ func TestUnexportedFields(t *testing.T) {
+ var singletons = []interface{}{
+ 	true,
+ 	7,
++	uint(10),
+ 	3.2,
+ 	"hello",
+ 	[3]int{11, 22, 33},
+diff --git a/src/encoding/gob/debug.go b/src/encoding/gob/debug.go
+index d69d36f516..8f93742f49 100644
+--- a/src/encoding/gob/debug.go
++++ b/src/encoding/gob/debug.go
+@@ -594,7 +594,7 @@ func (deb *debugger) printBuiltin(indent tab, id typeId) {
+ 		x := deb.int64()
+ 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
+ 	case tUint:
+-		x := deb.int64()
++		x := deb.uint64()
+ 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
+ 	case tFloat:
+ 		x := deb.uint64()

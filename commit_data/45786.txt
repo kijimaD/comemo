@@ -17,7 +17,7 @@ Date:   Tue Nov 10 15:48:37 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/270858
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 160 +++++++++++++--------
  src/cmd/go/internal/modload/build.go               |   8 +-
  src/cmd/go/internal/modload/modfile.go             |  20 +--
@@ -29,3 +29,491 @@ Date:   Tue Nov 10 15:48:37 2020 -0500
  .../go/testdata/script/mod_retract_rationale.txt   |  14 +-
  src/cmd/go/testdata/script/mod_retract_rename.txt  |   2 +-
  10 files changed, 174 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 0b7f6bf1d5..13106de2f2 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -419,20 +419,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			pkgPatterns = append(pkgPatterns, q.pattern)
+ 		}
+ 	}
+-	if len(pkgPatterns) > 0 {
+-		// We skipped over missing-package errors earlier: we want to resolve
+-		// pathSets ourselves, but at that point we don't have enough context
+-		// to log the package-import chains leading to the error. Reload the package
+-		// import graph one last time to report any remaining unresolved
+-		// dependencies.
+-		pkgOpts := modload.PackageOpts{
+-			LoadTests:             *getT,
+-			ResolveMissingImports: false,
+-			AllowErrors:           false,
+-		}
+-		modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
+-		base.ExitIfErrors()
+-	}
++	r.checkPackagesAndRetractions(ctx, pkgPatterns)
+ 
+ 	// We've already downloaded modules (and identified direct and indirect
+ 	// dependencies) by loading packages in findAndUpgradeImports.
+@@ -480,14 +467,20 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.WriteGoMod()
+ 	modload.DisallowWriteGoMod()
+ 
+-	// Report warnings if any retracted versions are in the build list.
+-	// This must be done after writing go.mod to avoid spurious '// indirect'
+-	// comments. These functions read and write global state.
++	// Ensure .info files are cached for each module in the build list.
++	// This ensures 'go list -m all' can succeed later if offline.
++	// 'go get' only loads .info files for queried versions. 'go list -m' needs
++	// them to add timestamps to the output.
+ 	//
+-	// TODO(golang.org/issue/40775): ListModules (called from reportRetractions)
+-	// resets modload.loader, which contains information about direct dependencies
+-	// that WriteGoMod uses. Refactor to avoid these kinds of global side effects.
+-	reportRetractions(ctx)
++	// This is best effort since build commands don't need .info files to load
++	// the build list.
++	//
++	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
++	// contains information about direct dependencies that WriteGoMod uses.
++	// Refactor to avoid these kinds of global side effects.
++	if modload.HasModRoot() {
++		modload.ListModules(ctx, []string{"all"}, false, false, false)
++	}
+ }
+ 
+ // parseArgs parses command-line arguments and reports errors.
+@@ -531,43 +524,6 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 	return queries
+ }
+ 
+-// reportRetractions prints warnings if any modules in the build list are
+-// retracted.
+-func reportRetractions(ctx context.Context) {
+-	// Query for retractions of modules in the build list.
+-	// Use modload.ListModules, since that provides information in the same format
+-	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
+-	// module.
+-	buildList := modload.LoadedModules()
+-	args := make([]string, 0, len(buildList))
+-	for _, m := range buildList {
+-		if m.Version == "" {
+-			// main module or dummy target module
+-			continue
+-		}
+-		args = append(args, m.Path+"@"+m.Version)
+-	}
+-	listU := false
+-	listVersions := false
+-	listRetractions := true
+-	mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+-	retractPath := ""
+-	for _, mod := range mods {
+-		if len(mod.Retracted) > 0 {
+-			if retractPath == "" {
+-				retractPath = mod.Path
+-			} else {
+-				retractPath = "<module>"
+-			}
+-			rationale := modload.ShortRetractionRationale(mod.Retracted[0])
+-			fmt.Fprintf(os.Stderr, "go: warning: %s@%s is retracted: %s\n", mod.Path, mod.Version, rationale)
+-		}
+-	}
+-	if modload.HasModRoot() && retractPath != "" {
+-		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
+-	}
+-}
+-
+ type resolver struct {
+ 	localQueries      []*query // queries for absolute or relative paths
+ 	pathQueries       []*query // package path literal queries in original order
+@@ -594,9 +550,6 @@ type resolver struct {
+ 
+ 	work *par.Queue
+ 
+-	queryModuleCache   par.Cache
+-	queryPackagesCache par.Cache
+-	queryPatternCache  par.Cache
+ 	matchInModuleCache par.Cache
+ }
+ 
+@@ -681,7 +634,7 @@ func (r *resolver) noneForPath(mPath string) (nq *query, found bool) {
+ 	return nil, false
+ }
+ 
+-// queryModule wraps modload.Query, substituting r.checkAllowedor to decide
++// queryModule wraps modload.Query, substituting r.checkAllowedOr to decide
+ // allowed versions.
+ func (r *resolver) queryModule(ctx context.Context, mPath, query string, selected func(string) string) (module.Version, error) {
+ 	current := r.initialSelected(mPath)
+@@ -1217,7 +1170,7 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query)
+ 		}
+ 
+ 		mu.Lock()
+-		upgrades = append(upgrades, pathSet{pkgMods: pkgMods, err: err})
++		upgrades = append(upgrades, pathSet{path: path, pkgMods: pkgMods, err: err})
+ 		mu.Unlock()
+ 		return false
+ 	}
+@@ -1544,6 +1497,87 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
+ 	return false, cs.mod
+ }
+ 
++// checkPackagesAndRetractions reloads packages for the given patterns and
++// reports missing and ambiguous package errors. It also reports loads and
++// reports retractions for resolved modules and modules needed to build
++// named packages.
++//
++// We skip missing-package errors earlier in the process, since we want to
++// resolve pathSets ourselves, but at that point, we don't have enough context
++// to log the package-import chains leading to each error.
++func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns []string) {
++	defer base.ExitIfErrors()
++
++	// Build a list of modules to load retractions for. Start with versions
++	// selected based on command line queries.
++	//
++	// This is a subset of the build list. If the main module has a lot of
++	// dependencies, loading retractions for the entire build list would be slow.
++	relevantMods := make(map[module.Version]struct{})
++	for path, reason := range r.resolvedVersion {
++		relevantMods[module.Version{Path: path, Version: reason.version}] = struct{}{}
++	}
++
++	// Reload packages, reporting errors for missing and ambiguous imports.
++	if len(pkgPatterns) > 0 {
++		// LoadPackages will print errors (since it has more context) but will not
++		// exit, since we need to load retractions later.
++		pkgOpts := modload.PackageOpts{
++			LoadTests:             *getT,
++			ResolveMissingImports: false,
++			AllowErrors:           true,
++		}
++		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
++		for _, m := range matches {
++			if len(m.Errs) > 0 {
++				base.SetExitStatus(1)
++				break
++			}
++		}
++		for _, pkg := range pkgs {
++			if _, _, err := modload.Lookup("", false, pkg); err != nil {
++				base.SetExitStatus(1)
++				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
++					for _, m := range ambiguousErr.Modules {
++						relevantMods[m] = struct{}{}
++					}
++				}
++			}
++			if m := modload.PackageModule(pkg); m.Path != "" {
++				relevantMods[m] = struct{}{}
++			}
++		}
++	}
++
++	// Load and report retractions.
++	type retraction struct {
++		m   module.Version
++		err error
++	}
++	retractions := make([]retraction, 0, len(relevantMods))
++	for m := range relevantMods {
++		retractions = append(retractions, retraction{m: m})
++	}
++	sort.Slice(retractions, func(i, j int) bool {
++		return retractions[i].m.Path < retractions[j].m.Path
++	})
++	for i := 0; i < len(retractions); i++ {
++		i := i
++		r.work.Add(func() {
++			err := modload.CheckRetractions(ctx, retractions[i].m)
++			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
++				retractions[i].err = err
++			}
++		})
++	}
++	<-r.work.Idle()
++	for _, r := range retractions {
++		if r.err != nil {
++			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
++		}
++	}
++}
++
+ // reportChanges logs resolved version changes to os.Stderr.
+ func (r *resolver) reportChanges(queries []*query) {
+ 	for _, q := range queries {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b9abb0b93c..b9e344045d 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -123,13 +123,13 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+ 		return
+ 	}
+ 
+-	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+-	var rerr *retractedError
++	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
++	var rerr *ModuleRetractedError
+ 	if errors.As(err, &rerr) {
+-		if len(rerr.rationale) == 0 {
++		if len(rerr.Rationale) == 0 {
+ 			m.Retracted = []string{"retracted by module author"}
+ 		} else {
+-			m.Retracted = rerr.rationale
++			m.Retracted = rerr.Rationale
+ 		}
+ 	} else if err != nil && m.Error == nil {
+ 		m.Error = &modinfo.ModuleError{Err: err.Error()}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 7a8963246b..e9601c3e7c 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -59,7 +59,7 @@ func CheckAllowed(ctx context.Context, m module.Version) error {
+ 	if err := CheckExclusions(ctx, m); err != nil {
+ 		return err
+ 	}
+-	if err := checkRetractions(ctx, m); err != nil {
++	if err := CheckRetractions(ctx, m); err != nil {
+ 		return err
+ 	}
+ 	return nil
+@@ -85,9 +85,9 @@ type excludedError struct{}
+ func (e *excludedError) Error() string     { return "excluded by go.mod" }
+ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
+ 
+-// checkRetractions returns an error if module m has been retracted by
++// CheckRetractions returns an error if module m has been retracted by
+ // its author.
+-func checkRetractions(ctx context.Context, m module.Version) error {
++func CheckRetractions(ctx context.Context, m module.Version) error {
+ 	if m.Version == "" {
+ 		// Main module, standard library, or file replacement module.
+ 		// Cannot be retracted.
+@@ -165,28 +165,28 @@ func checkRetractions(ctx context.Context, m module.Version) error {
+ 		}
+ 	}
+ 	if isRetracted {
+-		return module.VersionError(m, &retractedError{rationale: rationale})
++		return module.VersionError(m, &ModuleRetractedError{Rationale: rationale})
+ 	}
+ 	return nil
+ }
+ 
+ var retractCache par.Cache
+ 
+-type retractedError struct {
+-	rationale []string
++type ModuleRetractedError struct {
++	Rationale []string
+ }
+ 
+-func (e *retractedError) Error() string {
++func (e *ModuleRetractedError) Error() string {
+ 	msg := "retracted by module author"
+-	if len(e.rationale) > 0 {
++	if len(e.Rationale) > 0 {
+ 		// This is meant to be a short error printed on a terminal, so just
+ 		// print the first rationale.
+-		msg += ": " + ShortRetractionRationale(e.rationale[0])
++		msg += ": " + ShortRetractionRationale(e.Rationale[0])
+ 	}
+ 	return msg
+ }
+ 
+-func (e *retractedError) Is(err error) bool {
++func (e *ModuleRetractedError) Is(err error) bool {
+ 	return err == ErrDisallowed
+ }
+ 
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_ambiguous_nested_v1.9.0-bad.txt b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_nested_v1.9.0-bad.txt
+new file mode 100644
+index 0000000000..f8e623d56f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_nested_v1.9.0-bad.txt
+@@ -0,0 +1,10 @@
++-- .mod --
++module example.com/retract/ambiguous/nested
++
++go 1.16
++
++retract v1.9.0-bad // nested modules are bad
++-- .info --
++{"Version":"v1.9.0-bad"}
++-- nested.go --
++package nested
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_ambiguous_other_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_other_v1.0.0.txt
+new file mode 100644
+index 0000000000..5ee01391a2
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_other_v1.0.0.txt
+@@ -0,0 +1,12 @@
++-- .mod --
++module example.com/retract/ambiguous/other
++
++go 1.16
++
++require example.com/retract/ambiguous v1.0.0
++-- .info --
++{"Version":"v1.0.0"}
++-- other.go --
++package other
++
++import _ "example.com/retract/ambiguous/nested"
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_ambiguous_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_v1.0.0.txt
+new file mode 100644
+index 0000000000..c8eeb1654f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_ambiguous_v1.0.0.txt
+@@ -0,0 +1,9 @@
++-- .mod --
++module example.com/retract/ambiguous
++
++go 1.16
++-- .info --
++{"Version":"v1.0.0"}
++-- nested/nested.go --
++package nested
++
+diff --git a/src/cmd/go/testdata/script/mod_get_retract.txt b/src/cmd/go/testdata/script/mod_get_retract.txt
+index da6c25523f..13a47bc359 100644
+--- a/src/cmd/go/testdata/script/mod_get_retract.txt
++++ b/src/cmd/go/testdata/script/mod_get_retract.txt
+@@ -10,7 +10,7 @@ stdout '^example.com/retract/self/prev v1.1.0$'
+ cp go.mod.orig go.mod
+ go mod edit -require example.com/retract/self/prev@v1.9.0
+ go get -d example.com/retract/self/prev
+-stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
++stderr '^go: warning: example.com/retract/self/prev@v1.9.0: retracted by module author: self$'
+ go list -m example.com/retract/self/prev
+ stdout '^example.com/retract/self/prev v1.9.0$'
+ 
+@@ -25,7 +25,7 @@ stdout '^example.com/retract/self/prev v1.1.0$'
+ # version is retracted.
+ cp go.mod.orig go.mod
+ go get -d example.com/retract@v1.0.0-bad
+-stderr '^go: warning: example.com/retract@v1.0.0-bad is retracted: bad$'
++stderr '^go: warning: example.com/retract@v1.0.0-bad: retracted by module author: bad$'
+ go list -m example.com/retract
+ stdout '^example.com/retract v1.0.0-bad$'
+ 
+@@ -33,17 +33,26 @@ stdout '^example.com/retract v1.0.0-bad$'
+ # version is available.
+ cp go.mod.orig go.mod
+ go mod edit -require example.com/retract/self/prev@v1.9.0
+-go get -d -u .
+-stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
++go get -d -u ./use
++stderr '^go: warning: example.com/retract/self/prev@v1.9.0: retracted by module author: self$'
+ go list -m example.com/retract/self/prev
+ stdout '^example.com/retract/self/prev v1.9.0$'
+ 
++# 'go get' should warn if a module needed to build named packages is retracted.
++# 'go get' should not warn about unrelated modules.
++go get -d ./empty
++! stderr retracted
++go get -d ./use
++stderr '^go: warning: example.com/retract/self/prev@v1.9.0: retracted by module author: self$'
++
+ -- go.mod.orig --
+ module example.com/use
+ 
+ go 1.15
+ 
+--- use.go --
++-- use/use.go --
+ package use
+ 
+ import _ "example.com/retract/self/prev"
++-- empty/empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/script/mod_get_retract_ambiguous.txt b/src/cmd/go/testdata/script/mod_get_retract_ambiguous.txt
+new file mode 100644
+index 0000000000..b49ba54982
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_retract_ambiguous.txt
+@@ -0,0 +1,10 @@
++! go get -d example.com/retract/ambiguous/other
++stderr 'ambiguous import: found package example.com/retract/ambiguous/nested in multiple modules:'
++stderr '^go: warning: example.com/retract/ambiguous/nested@v1.9.0-bad: retracted by module author: nested modules are bad$'
++
++-- go.mod --
++module example.com/use
++
++go 1.16
++
++require example.com/retract/ambiguous/nested v1.9.0-bad
+diff --git a/src/cmd/go/testdata/script/mod_retract_rationale.txt b/src/cmd/go/testdata/script/mod_retract_rationale.txt
+index 584c3a3849..4d3a3d67c6 100644
+--- a/src/cmd/go/testdata/script/mod_retract_rationale.txt
++++ b/src/cmd/go/testdata/script/mod_retract_rationale.txt
+@@ -1,6 +1,6 @@
+ # When there is no rationale, 'go get' should print a hard-coded message.
+ go get -d example.com/retract/rationale@v1.0.0-empty
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-empty is retracted: retracted by module author$'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-empty: retracted by module author$'
+ 
+ # 'go list' should print the same hard-coded message.
+ go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+@@ -9,7 +9,7 @@ stdout '^\[retracted by module author\]$'
+ 
+ # When there is a multi-line message, 'go get' should print the first line.
+ go get -d example.com/retract/rationale@v1.0.0-multiline1
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline1 is retracted: short description$'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline1: retracted by module author: short description$'
+ ! stderr 'detail'
+ 
+ # 'go list' should show the full message.
+@@ -19,7 +19,7 @@ cmp stdout multiline
+ # 'go get' output should be the same whether the retraction appears at top-level
+ # or in a block.
+ go get -d example.com/retract/rationale@v1.0.0-multiline2
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline2 is retracted: short description$'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline2: retracted by module author: short description$'
+ ! stderr 'detail'
+ 
+ # Same for 'go list'.
+@@ -29,7 +29,7 @@ cmp stdout multiline
+ 
+ # 'go get' should omit long messages.
+ go get -d example.com/retract/rationale@v1.0.0-long
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-long is retracted: \(rationale omitted: too long\)'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-long: retracted by module author: \(rationale omitted: too long\)'
+ 
+ # 'go list' should show the full message.
+ go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+@@ -38,7 +38,7 @@ stdout '^\[lo{500}ng\]$'
+ 
+ # 'go get' should omit messages with unprintable characters.
+ go get -d example.com/retract/rationale@v1.0.0-unprintable
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable is retracted: \(rationale omitted: contains non-printable characters\)'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable: retracted by module author: \(rationale omitted: contains non-printable characters\)'
+ 
+ # 'go list' should show the full message.
+ go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
+@@ -62,9 +62,9 @@ stdout '^single version,degenerate range,$'
+ 
+ # 'go get' will only report the first retraction to avoid being too verbose.
+ go get -d example.com/retract/rationale@v1.0.0-order
+-stderr '^go: warning: example.com/retract/rationale@v1.0.0-order is retracted: degenerate range$'
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-order: retracted by module author: degenerate range$'
+ go get -d example.com/retract/rationale@v1.0.1-order
+-stderr '^go: warning: example.com/retract/rationale@v1.0.1-order is retracted: single version$'
++stderr '^go: warning: example.com/retract/rationale@v1.0.1-order: retracted by module author: single version$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_retract_rename.txt b/src/cmd/go/testdata/script/mod_retract_rename.txt
+index b75bfe9963..f54742c523 100644
+--- a/src/cmd/go/testdata/script/mod_retract_rename.txt
++++ b/src/cmd/go/testdata/script/mod_retract_rename.txt
+@@ -10,7 +10,7 @@ go list -m -u -f '{{with .Retracted}}retracted{{end}}' example.com/retract/renam
+ 
+ # 'go get' should warn about the retracted version.
+ go get -d
+-stderr '^go: warning: example.com/retract/rename@v1.0.0-bad is retracted: bad$'
++stderr '^go: warning: example.com/retract/rename@v1.0.0-bad: retracted by module author: bad$'
+ 
+ # We can't upgrade, since this latest version has a different module path.
+ ! go get -d example.com/retract/rename

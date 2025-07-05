@@ -87,7 +87,7 @@ Date:   Tue May 5 00:26:53 2015 -0400
     Change-Id: Ia0e9b50b1d75a3c0c7556184cd966305574fe07c
     Reviewed-on: https://go-review.googlesource.com/9706
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/atomic_pointer.go |  18 ----
  src/runtime/extern.go         |  12 ---
  src/runtime/malloc.go         |   7 --
@@ -99,3 +99,475 @@ Date:   Tue May 5 00:26:53 2015 -0400
  src/runtime/proc1.go          |   1 -
  src/runtime/symtab.go         |   7 --
  10 files changed, 2 insertions(+), 272 deletions(-)
+
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index 50a30242d9..f84afe0362 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -20,18 +20,12 @@ import "unsafe"
+ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	atomicstorep1(noescape(ptr), new)
+ 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
+-	}
+ }
+ 
+ //go:nosplit
+ func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+ 	old := xchgp1(noescape(ptr), new)
+ 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
+-	}
+ 	return old
+ }
+ 
+@@ -41,9 +35,6 @@ func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+ 		return false
+ 	}
+ 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
+-	}
+ 	return true
+ }
+ 
+@@ -60,9 +51,6 @@ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+ 	atomicstorep1(noescape(unsafe.Pointer(ptr)), new)
+ 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
+-	}
+ }
+ 
+ //go:linkname sync_atomic_SwapUintptr sync/atomic.SwapUintptr
+@@ -73,9 +61,6 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
+ func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+ 	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
+ 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
+-	}
+ 	return old
+ }
+ 
+@@ -89,8 +74,5 @@ func sync_atomic_CompareAndSwapPointer(ptr *unsafe.Pointer, old, new unsafe.Poin
+ 		return false
+ 	}
+ 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
+-	}
+ 	return true
+ }
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 540d7b5124..476c3c5ae3 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -58,18 +58,6 @@ a comma-separated list of name=val pairs. Supported names are:
+ 
+ 	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+ 
+-	wbshadow: setting wbshadow=1 enables a shadow copy of the heap
+-	used to detect missing write barriers at the next write to a
+-	given location. If a bug can be detected in this mode it is
+-	typically easy to understand, since the crash says quite
+-	clearly what kind of word has missed a write barrier.
+-	Setting wbshadow=2 checks the shadow copy during garbage
+-	collection as well. Bugs detected at garbage collection can be
+-	difficult to understand, because there is no context for what
+-	the found word means. Typically you have to reproduce the
+-	problem with allocfreetrace=1 in order to understand the type
+-	of the badly updated word.
+-
+ 	gccheckmark: setting gccheckmark=1 enables verification of the
+ 	garbage collector's concurrent mark phase by performing a
+ 	second mark pass while the world is stopped.  If the second
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 1619ccb9f4..a0cd8bb433 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -424,9 +424,6 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 		if raceenabled {
+ 			racemapshadow((unsafe.Pointer)(p), n)
+ 		}
+-		if mheap_.shadow_enabled {
+-			sysMap(unsafe.Pointer(p+mheap_.shadow_heap), n, h.shadow_reserved, &memstats.other_sys)
+-		}
+ 
+ 		if uintptr(p)&(_PageSize-1) != 0 {
+ 			throw("misrounded allocation in MHeap_SysAlloc")
+@@ -669,10 +666,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		})
+ 	}
+ 
+-	if mheap_.shadow_enabled {
+-		clearshadow(uintptr(x), size)
+-	}
+-
+ 	if raceenabled {
+ 		racemalloc(x, size)
+ 	}
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 4162483ade..eb41a60087 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -10,12 +10,6 @@
+ // implementation, markwb, and the various wrappers called by the
+ // compiler to implement pointer assignment, slice assignment,
+ // typed memmove, and so on.
+-//
+-// To check for missed write barriers, the GODEBUG=wbshadow debugging
+-// mode allocates a second copy of the heap. Write barrier-based pointer
+-// updates make changes to both the real heap and the shadow, and both
+-// the pointer updates and the GC look for inconsistencies between the two,
+-// indicating pointer writes that bypassed the barrier.
+ 
+ package runtime
+ 
+@@ -107,43 +101,16 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
+ // but if we do that, Go inserts a write barrier on *dst = src.
+ //go:nosplit
+ func writebarrierptr(dst *uintptr, src uintptr) {
++	*dst = src
+ 	if !writeBarrierEnabled {
+-		*dst = src
+ 		return
+ 	}
+-
+ 	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+ 		systemstack(func() { throw("bad pointer in write barrier") })
+ 	}
+-
+-	if mheap_.shadow_enabled {
+-		writebarrierptr_shadow(dst, src)
+-	}
+-
+-	*dst = src
+ 	writebarrierptr_nostore1(dst, src)
+ }
+ 
+-//go:nosplit
+-func writebarrierptr_shadow(dst *uintptr, src uintptr) {
+-	systemstack(func() {
+-		addr := uintptr(unsafe.Pointer(dst))
+-		shadow := shadowptr(addr)
+-		if shadow == nil {
+-			return
+-		}
+-		// There is a race here but only if the program is using
+-		// racy writes instead of sync/atomic. In that case we
+-		// don't mind crashing.
+-		if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
+-			mheap_.shadow_enabled = false
+-			print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
+-			throw("missed write barrier")
+-		}
+-		*shadow = src
+-	})
+-}
+-
+ // Like writebarrierptr, but the store has already been applied.
+ // Do not reapply.
+ //go:nosplit
+@@ -151,44 +118,12 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+ 	if !writeBarrierEnabled {
+ 		return
+ 	}
+-
+ 	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+ 		systemstack(func() { throw("bad pointer in write barrier") })
+ 	}
+-
+-	// Apply changes to shadow.
+-	// Since *dst has been overwritten already, we cannot check
+-	// whether there were any missed updates, but writebarrierptr_nostore
+-	// is only rarely used.
+-	if mheap_.shadow_enabled {
+-		systemstack(func() {
+-			addr := uintptr(unsafe.Pointer(dst))
+-			shadow := shadowptr(addr)
+-			if shadow == nil {
+-				return
+-			}
+-			*shadow = src
+-		})
+-	}
+-
+ 	writebarrierptr_nostore1(dst, src)
+ }
+ 
+-// writebarrierptr_noshadow records that the value in *dst
+-// has been written to using an atomic operation and the shadow
+-// has not been updated. (In general if dst must be manipulated
+-// atomically we cannot get the right bits for use in the shadow.)
+-//go:nosplit
+-func writebarrierptr_noshadow(dst *uintptr) {
+-	addr := uintptr(unsafe.Pointer(dst))
+-	shadow := shadowptr(addr)
+-	if shadow == nil {
+-		return
+-	}
+-
+-	*shadow = noShadow
+-}
+-
+ //go:nosplit
+ func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
+ 	writebarrierptr(&dst[0], src[0])
+@@ -394,132 +329,3 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ 	return typedslicecopy(elemType, dst, src)
+ }
+-
+-// Shadow heap for detecting missed write barriers.
+-
+-// noShadow is stored in as the shadow pointer to mark that there is no
+-// shadow word recorded. It matches any actual pointer word.
+-// noShadow is used when it is impossible to know the right word
+-// to store in the shadow heap, such as when the real heap word
+-// is being manipulated atomically.
+-const noShadow uintptr = 1
+-
+-func wbshadowinit() {
+-	// Initialize write barrier shadow heap if we were asked for it
+-	// and we have enough address space (not on 32-bit).
+-	if debug.wbshadow == 0 {
+-		return
+-	}
+-	if ptrSize != 8 {
+-		print("runtime: GODEBUG=wbshadow=1 disabled on 32-bit system\n")
+-		return
+-	}
+-
+-	var reserved bool
+-	p1 := sysReserveHigh(mheap_.arena_end-mheap_.arena_start, &reserved)
+-	if p1 == nil {
+-		throw("cannot map shadow heap")
+-	}
+-	mheap_.shadow_heap = uintptr(p1) - mheap_.arena_start
+-	sysMap(p1, mheap_.arena_used-mheap_.arena_start, reserved, &memstats.other_sys)
+-	memmove(p1, unsafe.Pointer(mheap_.arena_start), mheap_.arena_used-mheap_.arena_start)
+-
+-	mheap_.shadow_reserved = reserved
+-
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		start := ^uintptr(0)
+-		end := uintptr(0)
+-		if start > datap.noptrdata {
+-			start = datap.noptrdata
+-		}
+-		if start > datap.data {
+-			start = datap.data
+-		}
+-		if start > datap.noptrbss {
+-			start = datap.noptrbss
+-		}
+-		if start > datap.bss {
+-			start = datap.bss
+-		}
+-		if end < datap.enoptrdata {
+-			end = datap.enoptrdata
+-		}
+-		if end < datap.edata {
+-			end = datap.edata
+-		}
+-		if end < datap.enoptrbss {
+-			end = datap.enoptrbss
+-		}
+-		if end < datap.ebss {
+-			end = datap.ebss
+-		}
+-		start &^= _PhysPageSize - 1
+-		end = round(end, _PhysPageSize)
+-		datap.data_start = start
+-		datap.data_end = end
+-		reserved = false
+-		p1 = sysReserveHigh(end-start, &reserved)
+-		if p1 == nil {
+-			throw("cannot map shadow data")
+-		}
+-		datap.shadow_data = uintptr(p1) - start
+-		sysMap(p1, end-start, reserved, &memstats.other_sys)
+-		memmove(p1, unsafe.Pointer(start), end-start)
+-	}
+-
+-	mheap_.shadow_enabled = true
+-	writeBarrierEnabled = true
+-}
+-
+-// shadowptr returns a pointer to the shadow value for addr.
+-//go:nosplit
+-func shadowptr(addr uintptr) *uintptr {
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		if datap.data_start <= addr && addr < datap.data_end {
+-			return (*uintptr)(unsafe.Pointer(addr + datap.shadow_data))
+-		}
+-	}
+-	if inheap(addr) {
+-		return (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
+-	}
+-	return nil
+-}
+-
+-// istrackedptr reports whether the pointer value p requires a write barrier
+-// when stored into the heap.
+-func istrackedptr(p uintptr) bool {
+-	return inheap(p)
+-}
+-
+-// checkwbshadow checks that p matches its shadow word.
+-// The garbage collector calls checkwbshadow for each pointer during the checkmark phase.
+-// It is only called when mheap_.shadow_enabled is true.
+-func checkwbshadow(p *uintptr) {
+-	addr := uintptr(unsafe.Pointer(p))
+-	shadow := shadowptr(addr)
+-	if shadow == nil {
+-		return
+-	}
+-	// There is no race on the accesses here, because the world is stopped,
+-	// but there may be racy writes that lead to the shadow and the
+-	// heap being inconsistent. If so, we will detect that here as a
+-	// missed write barrier and crash. We don't mind.
+-	// Code should use sync/atomic instead of racy pointer writes.
+-	if *shadow != *p && *shadow != noShadow && istrackedptr(*p) {
+-		mheap_.shadow_enabled = false
+-		print("runtime: checkwritebarrier p=", p, " *p=", hex(*p), " shadow=", shadow, " *shadow=", hex(*shadow), "\n")
+-		throw("missed write barrier")
+-	}
+-}
+-
+-// clearshadow clears the shadow copy associated with the n bytes of memory at addr.
+-func clearshadow(addr, n uintptr) {
+-	if !mheap_.shadow_enabled {
+-		return
+-	}
+-	p := shadowptr(addr)
+-	if p == nil || n <= ptrSize {
+-		return
+-	}
+-	memclr(unsafe.Pointer(p), n)
+-}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9bd36d1a5e..11e885f928 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -208,7 +208,7 @@ const (
+ //go:nosplit
+ func setGCPhase(x uint32) {
+ 	atomicstore(&gcphase, x)
+-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
++	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
+ }
+ 
+ // gcMarkWorkerMode represents the mode that a concurrent mark worker
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index bf21e47d83..460997880b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -557,9 +557,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 				// Same work as in scanobject; see comments there.
+ 				obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 				if obj != 0 && arena_start <= obj && obj < arena_used {
+-					if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
+-						checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+-					}
+ 					if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+ 						greyobject(obj, b, i, hbits, span, gcw)
+ 					}
+@@ -616,10 +613,6 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		// At this point we have extracted the next potential pointer.
+ 		// Check if it points into heap.
+ 		if obj != 0 && arena_start <= obj && obj < arena_used {
+-			if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && useCheckmark {
+-				checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+-			}
+-
+ 			// Mark the object.
+ 			if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+ 				greyobject(obj, b, i, hbits, span, gcw)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 10878ee5cf..48e391648b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -36,14 +36,6 @@ type mheap struct {
+ 	arena_end      uintptr
+ 	arena_reserved bool
+ 
+-	// write barrier shadow heap.
+-	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+-	// See also shadow_data, data_start, data_end fields on moduledata in
+-	// symtab.go.
+-	shadow_enabled  bool    // shadow should be updated and checked
+-	shadow_reserved bool    // shadow memory is reserved
+-	shadow_heap     uintptr // heap-addr + shadow_heap = shadow heap addr
+-
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+ 	// spaced CacheLineSize bytes apart, so that each MCentral.lock
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 0e4086c7ef..47563f450e 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -188,16 +188,6 @@ func newdefer(siz int32) *_defer {
+ 		d = (*_defer)(mallocgc(total, deferType, 0))
+ 	}
+ 	d.siz = siz
+-	if mheap_.shadow_enabled {
+-		// This memory will be written directly, with no write barrier,
+-		// and then scanned like stacks during collection.
+-		// Unlike real stacks, it is from heap spans, so mark the
+-		// shadow as explicitly unusable.
+-		p := deferArgs(d)
+-		for i := uintptr(0); i+ptrSize <= uintptr(siz); i += ptrSize {
+-			writebarrierptr_noshadow((*uintptr)(add(p, i)))
+-		}
+-	}
+ 	gp := mp.curg
+ 	d.link = gp._defer
+ 	gp._defer = d
+@@ -214,12 +204,6 @@ func freedefer(d *_defer) {
+ 	if d.fn != nil {
+ 		freedeferfn()
+ 	}
+-	if mheap_.shadow_enabled {
+-		// Undo the marking in newdefer.
+-		systemstack(func() {
+-			clearshadow(uintptr(deferArgs(d)), uintptr(d.siz))
+-		})
+-	}
+ 	sc := deferclass(uintptr(d.siz))
+ 	if sc < uintptr(len(p{}.deferpool)) {
+ 		mp := acquirem()
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 6bd90ece31..01c46a85ec 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -59,7 +59,6 @@ func schedinit() {
+ 	goargs()
+ 	goenvs()
+ 	parsedebugvars()
+-	wbshadowinit()
+ 	gcinit()
+ 
+ 	sched.lastpoll = uint64(nanotime())
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 25f5bf46fb..bbf00bf134 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -50,13 +50,6 @@ type moduledata struct {
+ 
+ 	gcdatamask, gcbssmask bitvector
+ 
+-	// write barrier shadow data
+-	// 64-bit systems only, enabled by GODEBUG=wbshadow=1.
+-	// See also the shadow_* fields on mheap in mheap.go.
+-	shadow_data uintptr // data-addr + shadow_data = shadow data addr
+-	data_start  uintptr // start of shadowed data addresses
+-	data_end    uintptr // end of shadowed data addresses
+-
+ 	next *moduledata
+ }
+ 

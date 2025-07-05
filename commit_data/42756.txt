@@ -13,7 +13,7 @@ Date:   Tue Jan 7 16:41:26 2020 -0500
     Change-Id: Ie2c60ec0654ef605439beeed92cf5f1c2c8a1dd3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213681
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                           |  8 ----
  src/cmd/go/testdata/script/cover_statements.txt | 57 +++++++++++++++++++++++++
  src/cmd/go/testdata/testcover/pkg1/a.go         |  7 ---
@@ -24,3 +24,171 @@ Date:   Tue Jan 7 16:41:26 2020 -0500
  src/cmd/go/testdata/testcover/pkg4/a.go         |  5 ---
  src/cmd/go/testdata/testcover/pkg4/a_test.go    |  9 ----
  9 files changed, 57 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2c952474c5..57a5bb8f5a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2045,14 +2045,6 @@ func TestCoverageRuns(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
+-func TestCoverageNoStatements(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-cover", "./testdata/testcover/pkg4")
+-	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
+-}
+-
+ func TestTestEmpty(t *testing.T) {
+ 	if !canRace {
+ 		t.Skip("no race detector")
+diff --git a/src/cmd/go/testdata/script/cover_statements.txt b/src/cmd/go/testdata/script/cover_statements.txt
+new file mode 100644
+index 0000000000..314ea6bead
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_statements.txt
+@@ -0,0 +1,57 @@
++[short] skip
++go test -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
++stdout 'pkg1	\[no test files\]'
++stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
++stdout 'pkg3	\S+	coverage: 100.0% of statements'
++stdout 'pkg4	\S+	coverage: \[no statements\]'
++
++-- pkg1/a.go --
++package pkg1
++
++import "fmt"
++
++func F() {
++	fmt.Println("pkg1")
++}
++-- pkg2/a.go --
++package pkg2
++
++import "fmt"
++
++func F() {
++	fmt.Println("pkg2")
++}
++-- pkg2/a_test.go --
++package pkg2
++-- pkg3/a.go --
++package pkg3
++
++import "fmt"
++
++func F() {
++	fmt.Println("pkg3")
++}
++-- pkg3/a_test.go --
++package pkg3
++
++import "testing"
++
++func TestF(t *testing.T) {
++	F()
++}
++-- pkg4/a.go --
++package pkg4
++
++type T struct {
++	X bool
++}
++-- pkg4/a_test.go --
++package pkg4
++
++import (
++	"testing"
++)
++
++func TestT(t *testing.T) {
++	_ = T{}
++}
+diff --git a/src/cmd/go/testdata/testcover/pkg1/a.go b/src/cmd/go/testdata/testcover/pkg1/a.go
+deleted file mode 100644
+index e2916119d4..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg1/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg1
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg1")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg2/a.go b/src/cmd/go/testdata/testcover/pkg2/a.go
+deleted file mode 100644
+index 7bd9bd44ee..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg2/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg2
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg2")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg2/a_test.go b/src/cmd/go/testdata/testcover/pkg2/a_test.go
+deleted file mode 100644
+index 4f791ad6ab..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg2/a_test.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package pkg2
+diff --git a/src/cmd/go/testdata/testcover/pkg3/a.go b/src/cmd/go/testdata/testcover/pkg3/a.go
+deleted file mode 100644
+index bf86ed8dc0..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg3/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg3
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg3")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg3/a_test.go b/src/cmd/go/testdata/testcover/pkg3/a_test.go
+deleted file mode 100644
+index 39c2c5a6fc..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg3/a_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg3
+-
+-import "testing"
+-
+-func TestF(t *testing.T) {
+-	F()
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg4/a.go b/src/cmd/go/testdata/testcover/pkg4/a.go
+deleted file mode 100644
+index cf09e6f1b0..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg4/a.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package pkg4
+-
+-type T struct {
+-	X bool
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg4/a_test.go b/src/cmd/go/testdata/testcover/pkg4/a_test.go
+deleted file mode 100644
+index 12b8685294..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg4/a_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-package pkg4
+-
+-import (
+-	"testing"
+-)
+-
+-func TestT(t *testing.T) {
+-	_ = T{}
+-}

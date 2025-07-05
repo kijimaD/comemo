@@ -11,6 +11,20 @@ Date:   Wed Mar 30 16:19:10 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/fuse.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index 1f826cd25e..ce759cdec1 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -65,7 +65,7 @@ func fuseBlockIf(b *Block) bool {
+ 		b.Fatalf("invalid predecessors")
+ 	}
+ 	for _, v := range ss.Values {
+-		if v.Op == OpPhi && v.Args[i0] != v.Args[i1] {
++		if v.Op == OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
+ 			return false
+ 		}
+ 	}

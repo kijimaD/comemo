@@ -7,7 +7,117 @@ Date:   Thu Dec 15 10:51:32 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5495049
-
+---
  src/pkg/go/scanner/scanner.go      | 27 ++++++++++++++++++++++++---
  src/pkg/go/scanner/scanner_test.go | 14 ++++++++++++--
  2 files changed, 36 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index cef9c48650..7fb0104e45 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -426,13 +426,16 @@ func (S *Scanner) scanString() {
+ 	S.next()
+ }
+ 
+-func (S *Scanner) scanRawString() {
++func (S *Scanner) scanRawString() (hasCR bool) {
+ 	// '`' opening already consumed
+ 	offs := S.offset - 1
+ 
+ 	for S.ch != '`' {
+ 		ch := S.ch
+ 		S.next()
++		if ch == '\r' {
++			hasCR = true
++		}
+ 		if ch < 0 {
+ 			S.error(offs, "string not terminated")
+ 			break
+@@ -440,6 +443,7 @@ func (S *Scanner) scanRawString() {
+ 	}
+ 
+ 	S.next()
++	return
+ }
+ 
+ func (S *Scanner) skipWhitespace() {
+@@ -490,6 +494,18 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
+ 	return tok0
+ }
+ 
++func stripCR(b []byte) []byte {
++	c := make([]byte, len(b))
++	i := 0
++	for _, ch := range b {
++		if ch != '\r' {
++			c[i] = ch
++			i++
++		}
++	}
++	return c[:i]
++}
++
+ // Scan scans the next token and returns the token position,
+ // the token, and the literal string corresponding to the
+ // token. The source end is indicated by token.EOF.
+@@ -518,6 +534,7 @@ scanAgain:
+ 	insertSemi := false
+ 	offs := S.offset
+ 	tok := token.ILLEGAL
++	hasCR := false
+ 
+ 	// determine token value
+ 	switch ch := S.ch; {
+@@ -556,7 +573,7 @@ scanAgain:
+ 		case '`':
+ 			insertSemi = true
+ 			tok = token.STRING
+-			S.scanRawString()
++			hasCR = S.scanRawString()
+ 		case ':':
+ 			tok = S.switch2(token.COLON, token.DEFINE)
+ 		case '.':
+@@ -663,5 +680,9 @@ scanAgain:
+ 	// TODO(gri): The scanner API should change such that the literal string
+ 	//            is only valid if an actual literal was scanned. This will
+ 	//            permit a more efficient implementation.
+-	return S.file.Pos(offs), tok, string(S.src[offs:S.offset])
++	lit := S.src[offs:S.offset]
++	if hasCR {
++		lit = stripCR(lit)
++	}
++	return S.file.Pos(offs), tok, string(lit)
+ }
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 7ed927a49f..dc8ab2a748 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -83,6 +83,8 @@ var tokens = [...]elt{
+ 		"`",
+ 		literal,
+ 	},
++	{token.STRING, "`\r`", literal},
++	{token.STRING, "`foo\r\nbar`", literal},
+ 
+ 	// Operators and delimiters
+ 	{token.ADD, "+", operator},
+@@ -239,8 +241,16 @@ func TestScan(t *testing.T) {
+ 		if tok != e.tok {
+ 			t.Errorf("bad token for %q: got %s, expected %s", lit, tok, e.tok)
+ 		}
+-		if e.tok.IsLiteral() && lit != e.lit {
+-			t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, e.lit)
++		if e.tok.IsLiteral() {
++			// no CRs in raw string literals
++			elit := e.lit
++			if elit[0] == '`' {
++				elit = string(stripCR([]byte(elit)))
++				epos.Offset += len(e.lit) - len(lit) // correct position
++			}
++			if lit != elit {
++				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
++			}
+ 		}
+ 		if tokenclass(tok) != e.class {
+ 			t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)

@@ -8,6 +8,27 @@ Date:   Tue Feb 11 16:27:14 2014 +1100
     R=dsymonds
     CC=golang-codereviews
     https://golang.org/cl/61070047
-
+---
  src/pkg/archive/zip/reader_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 971fbedb5c..5652f3a500 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -371,11 +371,11 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	}
+ 	r.Close()
+ 
+-	size := int(f.UncompressedSize)
+-	if size == 1<<32-1 {
+-		size = int(f.UncompressedSize64)
++	size := uint64(f.UncompressedSize)
++	if size == uint32max {
++		size = f.UncompressedSize64
+ 	}
+-	if g := b.Len(); g != size {
++	if g := uint64(b.Len()); g != size {
+ 		t.Errorf("%v: read %v bytes but f.UncompressedSize == %v", f.Name, g, size)
+ 	}
+ 

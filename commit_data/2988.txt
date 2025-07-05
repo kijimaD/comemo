@@ -8,8 +8,83 @@ Date:   Fri Aug 14 14:55:22 2009 -0700
     DELTA=70  (16 added, 52 deleted, 2 changed)
     OCL=33295
     CL=33299
-
+---
  src/cmd/5a/Makefile |  2 --
  src/cmd/5a/a.h      |  1 -
  src/cmd/5a/lex.c    | 20 ++++++++++++++++++--
  3 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index 6508d94115..ac2931ed04 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -11,12 +11,10 @@ HFILES=\
+ 	a.h\
+ 	y.tab.h\
+ 	../5l/5.out.h\
+-	compat.h\
+ 
+ OFILES=\
+ 	y.tab.$O\
+ 	lex.$O\
+-	compat.$O\
+ #	../5l/enam.$O\
+ 
+ YFILES=\
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 939ae563e4..a8456b2485 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -31,7 +31,6 @@
+ #include <lib9.h>
+ #include <bio.h>
+ #include "../5l/5.out.h"
+-#include "compat.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 2184cdccf6..8a28c7d555 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -33,6 +33,22 @@
+ #include "y.tab.h"
+ #include <ctype.h>
+ 
++enum
++{
++	Plan9	= 1<<0,
++	Unix	= 1<<1,
++	Windows	= 1<<2,
++};
++
++int
++systemtype(int sys)
++{
++	return sys&Plan9;
++}
++
++void*	alloc(int32);
++void*	allocn(void*, int32, int32);
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -127,7 +143,7 @@ assemble(char *file)
+ 	int i, of;
+ 
+ 	strcpy(ofile, file);
+-	p = utfrrune(ofile, pathchar());
++	p = utfrrune(ofile, '/');
+ 	if(p) {
+ 		include[0] = ofile;
+ 		*p++ = 0;
+@@ -656,7 +672,7 @@ outhist(void)
+ 	int n;
+ 
+ 	g = nullgen;
+-	c = pathchar();
++	c = '/';
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;

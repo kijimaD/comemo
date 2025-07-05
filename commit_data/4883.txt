@@ -8,7 +8,7 @@ Date:   Thu Feb 18 14:46:28 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/214050
-
+---
  src/cmd/gc/const.c      | 20 ++++++++++++++++++++
  src/cmd/gc/export.c     |  3 +++
  src/cmd/gc/go.h         |  1 +
@@ -16,3 +16,128 @@ Date:   Thu Feb 18 14:46:28 2010 -0800
  src/cmd/gc/walk.c       |  6 ++++++
  src/pkg/runtime/type.go |  2 +-
  6 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index fed3b14762..1727e775a2 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -851,6 +851,26 @@ nodlit(Val v)
+ 	return n;
+ }
+ 
++Node*
++nodcplxlit(Val r, Val i)
++{
++	Node *n;
++	Mpcplx *c;
++
++	c = mal(sizeof(*c));
++	n = nod(OLITERAL, N, N);
++	n->type = types[TIDEAL];
++	n->val.u.cval = c;
++	n->val.ctype = CTCPLX;
++
++	if(r.ctype != CTFLT || i.ctype != CTFLT)
++		fatal("nodcplxlit ctype %d/%d", r.ctype, i.ctype);
++
++	mpmovefltflt(&c->real, r.u.fval);
++	mpmovefltflt(&c->imag, i.u.fval);
++	return n;
++}
++
+ // TODO(rsc): combine with convlit
+ void
+ defaultlit(Node **np, Type *t)
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index ec1c135d82..d11ddf2ea8 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -133,6 +133,9 @@ dumpexportconst(Sym *s)
+ 	case CTFLT:
+ 		Bprint(bout, "%F\n", n->val.u.fval);
+ 		break;
++	case CTCPLX:
++		Bprint(bout, "(%F+%F)\n", &n->val.u.cval->real, &n->val.u.cval->imag);
++		break;
+ 	case CTSTR:
+ 		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
+ 		break;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 642b706111..753de0399a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -851,6 +851,7 @@ void	linehist(char*, int32, int);
+ int32	setlineno(Node*);
+ Node*	nod(int, Node*, Node*);
+ Node*	nodlit(Val);
++Node*	nodcplxlit(Val, Val);
+ Type*	typ(int);
+ int	algtype(Type*);
+ void	dodump(Node*, int);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f2a037710b..06696d52fc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -76,7 +76,8 @@
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+-%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl hidden_opt_sym
++%type	<node>	hidden_constant hidden_literal hidden_dcl
++%type	<node>	hidden_interfacedcl hidden_structdcl hidden_opt_sym
+ 
+ %type	<list>	hidden_funres
+ %type	<list>	ohidden_funres
+@@ -1743,7 +1744,7 @@ hidden_funres:
+ 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
+ 	}
+ 
+-hidden_constant:
++hidden_literal:
+ 	LLITERAL
+ 	{
+ 		$$ = nodlit($1);
+@@ -1769,6 +1770,13 @@ hidden_constant:
+ 			yyerror("bad constant %S", $$->sym);
+ 	}
+ 
++hidden_constant:
++	hidden_literal
++|	'(' hidden_literal '+' hidden_literal ')'
++	{
++		$$ = nodcplxlit($2->val, $4->val);
++	}
++
+ hidden_importsym:
+ 	LLITERAL '.' sym
+ 	{
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a6b420eb66..e528e3f6c0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1724,6 +1724,12 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 				t = types[TFLOAT64];
+ 			} else
+ 				on = syslook("printfloat", 0);
++		} else if(iscomplex[et]) {
++			if(defer) {
++				fmtprint(&fmt, "%%f");
++				t = types[TFLOAT64];
++			} else
++				on = syslook("printcomplex", 0);
+ 		} else if(et == TBOOL) {
+ 			if(defer)
+ 				fmtprint(&fmt, "%%t");
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index 7227904acd..c37447718f 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -102,7 +102,7 @@ type FloatType commonType
+ // Complex64Type represents a complex64 type.
+ type Complex64Type commonType
+ 
+-// Complex128Type represents a complex32 type.
++// Complex128Type represents a complex128 type.
+ type Complex128Type commonType
+ 
+ // ComplexType represents a complex type.

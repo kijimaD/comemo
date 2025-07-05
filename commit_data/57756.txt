@@ -14,6 +14,20 @@ Date:   Mon Aug 28 15:12:08 2023 +0200
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 2752fcc86d..6fee1dc00b 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -980,7 +980,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
+ 			case '\t':
+ 				dst = append(dst, '\\', 't')
+ 			default:
+-				// This encodes bytes < 0x20 except for \t, \n and \r.
++				// This encodes bytes < 0x20 except for \b, \f, \n, \r and \t.
+ 				// If escapeHTML is set, it also escapes <, >, and &
+ 				// because they can lead to security holes when
+ 				// user-controlled strings are rendered into JSON

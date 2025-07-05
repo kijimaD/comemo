@@ -59,8 +59,300 @@ Date:   Tue Apr 25 03:27:23 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         | 168 +++++++++++-------------
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  28 ++--
  src/cmd/compile/internal/ssa/opGen.go           |   6 +-
  3 files changed, 91 insertions(+), 111 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index d60751562b..6e81da3ef8 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -80,6 +80,28 @@ func storeByType(t *types.Type, r int16) obj.As {
+ 	panic("bad store type")
+ }
+ 
++// largestMove returns the largest move instruction possible and its size,
++// given the alignment of the total size of the move.
++//
++// e.g., a 16-byte move may use MOVV, but an 11-byte move must use MOVB.
++//
++// Note that the moves may not be on naturally aligned addresses depending on
++// the source and destination.
++//
++// This matches the calculation in ssa.moveSize.
++func largestMove(alignment int64) (obj.As, int64) {
++	switch {
++	case alignment%8 == 0:
++		return loong64.AMOVV, 8
++	case alignment%4 == 0:
++		return loong64.AMOVW, 4
++	case alignment%2 == 0:
++		return loong64.AMOVH, 2
++	default:
++		return loong64.AMOVB, 1
++	}
++}
++
+ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	switch v.Op {
+ 	case ssa.OpCopy, ssa.OpLOONG64MOVVreg:
+@@ -348,49 +370,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpLOONG64LoweredZero:
+-		// SUBV	$8, R19
+-		// MOVV	R0, 8(R19)
+-		// ADDV	$8, R19
+-		// BNE	Rarg1, R19, -2(PC)
+-		// arg1 is the address of the last element to zero
+-		var sz int64
+-		var mov obj.As
+-		switch {
+-		case v.AuxInt%8 == 0:
+-			sz = 8
+-			mov = loong64.AMOVV
+-		case v.AuxInt%4 == 0:
+-			sz = 4
+-			mov = loong64.AMOVW
+-		case v.AuxInt%2 == 0:
+-			sz = 2
+-			mov = loong64.AMOVH
+-		default:
+-			sz = 1
+-			mov = loong64.AMOVB
+-		}
+-		p := s.Prog(loong64.ASUBVU)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = sz
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = loong64.REG_R19
+-		p2 := s.Prog(mov)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = loong64.REGZERO
+-		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = loong64.REG_R19
+-		p2.To.Offset = sz
+-		p3 := s.Prog(loong64.AADDVU)
+-		p3.From.Type = obj.TYPE_CONST
+-		p3.From.Offset = sz
+-		p3.To.Type = obj.TYPE_REG
+-		p3.To.Reg = loong64.REG_R19
+-		p4 := s.Prog(loong64.ABNE)
+-		p4.From.Type = obj.TYPE_REG
+-		p4.From.Reg = v.Args[1].Reg()
+-		p4.Reg = loong64.REG_R19
+-		p4.To.Type = obj.TYPE_BRANCH
+-		p4.To.SetTarget(p2)
++		// MOVx	R0, (Rarg0)
++		// ADDV	$sz, Rarg0
++		// BGEU	Rarg1, Rarg0, -2(PC)
++		mov, sz := largestMove(v.AuxInt)
++		p := s.Prog(mov)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = loong64.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++
++		p2 := s.Prog(loong64.AADDVU)
++		p2.From.Type = obj.TYPE_CONST
++		p2.From.Offset = sz
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = v.Args[0].Reg()
++
++		p3 := s.Prog(loong64.ABGEU)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = v.Args[1].Reg()
++		p3.Reg = v.Args[0].Reg()
++		p3.To.Type = obj.TYPE_BRANCH
++		p3.To.SetTarget(p)
++
+ 	case ssa.OpLOONG64DUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -398,61 +400,43 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpLOONG64LoweredMove:
+-		// SUBV	$8, R19
+-		// MOVV	8(R19), Rtmp
+-		// MOVV	Rtmp, (R4)
+-		// ADDV	$8, R19
+-		// ADDV	$8, R4
+-		// BNE	Rarg2, R19, -4(PC)
+-		// arg2 is the address of the last element of src
+-		var sz int64
+-		var mov obj.As
+-		switch {
+-		case v.AuxInt%8 == 0:
+-			sz = 8
+-			mov = loong64.AMOVV
+-		case v.AuxInt%4 == 0:
+-			sz = 4
+-			mov = loong64.AMOVW
+-		case v.AuxInt%2 == 0:
+-			sz = 2
+-			mov = loong64.AMOVH
+-		default:
+-			sz = 1
+-			mov = loong64.AMOVB
+-		}
+-		p := s.Prog(loong64.ASUBVU)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = sz
++		// MOVx	(Rarg1), Rtmp
++		// MOVx	Rtmp, (Rarg0)
++		// ADDV	$sz, Rarg1
++		// ADDV	$sz, Rarg0
++		// BGEU	Rarg2, Rarg0, -4(PC)
++		mov, sz := largestMove(v.AuxInt)
++		p := s.Prog(mov)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = loong64.REG_R19
++		p.To.Reg = loong64.REGTMP
++
+ 		p2 := s.Prog(mov)
+-		p2.From.Type = obj.TYPE_MEM
+-		p2.From.Reg = loong64.REG_R19
+-		p2.From.Offset = sz
+-		p2.To.Type = obj.TYPE_REG
+-		p2.To.Reg = loong64.REGTMP
+-		p3 := s.Prog(mov)
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = loong64.REGTMP
+-		p3.To.Type = obj.TYPE_MEM
+-		p3.To.Reg = loong64.REG_R4
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = loong64.REGTMP
++		p2.To.Type = obj.TYPE_MEM
++		p2.To.Reg = v.Args[0].Reg()
++
++		p3 := s.Prog(loong64.AADDVU)
++		p3.From.Type = obj.TYPE_CONST
++		p3.From.Offset = sz
++		p3.To.Type = obj.TYPE_REG
++		p3.To.Reg = v.Args[1].Reg()
++
+ 		p4 := s.Prog(loong64.AADDVU)
+ 		p4.From.Type = obj.TYPE_CONST
+ 		p4.From.Offset = sz
+ 		p4.To.Type = obj.TYPE_REG
+-		p4.To.Reg = loong64.REG_R19
+-		p5 := s.Prog(loong64.AADDVU)
+-		p5.From.Type = obj.TYPE_CONST
+-		p5.From.Offset = sz
+-		p5.To.Type = obj.TYPE_REG
+-		p5.To.Reg = loong64.REG_R4
+-		p6 := s.Prog(loong64.ABNE)
+-		p6.From.Type = obj.TYPE_REG
+-		p6.From.Reg = v.Args[2].Reg()
+-		p6.Reg = loong64.REG_R19
+-		p6.To.Type = obj.TYPE_BRANCH
+-		p6.To.SetTarget(p2)
++		p4.To.Reg = v.Args[0].Reg()
++
++		p5 := s.Prog(loong64.ABGEU)
++		p5.From.Type = obj.TYPE_REG
++		p5.From.Reg = v.Args[2].Reg()
++		p5.Reg = v.Args[1].Reg()
++		p5.To.Type = obj.TYPE_BRANCH
++		p5.To.SetTarget(p)
++
+ 	case ssa.OpLOONG64CALLstatic, ssa.OpLOONG64CALLclosure, ssa.OpLOONG64CALLinter:
+ 		s.Call(v)
+ 	case ssa.OpLOONG64CALLtail:
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index ee887e7ede..3442fc8d7c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -321,10 +321,9 @@ func init() {
+ 		// arg2 = mem
+ 		// auxint = alignment
+ 		// returns mem
+-		//	SUBV	$8, R19
+-		//	MOVV	R0, 8(R19)
+-		//	ADDV	$8, R19
+-		//	BNE	Rarg1, R19, -2(PC)
++		//	MOVx	R0, (R19)
++		//	ADDV	$sz, R19
++		//	BGEU	Rarg1, R19, -2(PC)
+ 		{
+ 			name:      "LoweredZero",
+ 			aux:       "Int64",
+@@ -333,32 +332,31 @@ func init() {
+ 				inputs:   []regMask{buildReg("R19"), gp},
+ 				clobbers: buildReg("R19"),
+ 			},
+-			clobberFlags:   true,
++			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large or unaligned move
+-		// arg0 = address of dst memory (in R4, changed as side effect)
++		// arg0 = address of dst memory (in R20, changed as side effect)
+ 		// arg1 = address of src memory (in R19, changed as side effect)
+ 		// arg2 = address of the last element of src
+ 		// arg3 = mem
+ 		// auxint = alignment
+ 		// returns mem
+-		//	SUBV	$8, R19
+-		//	MOVV	8(R19), Rtmp
+-		//	MOVV	Rtmp, (R4)
+-		//	ADDV	$8, R19
+-		//	ADDV	$8, R4
+-		//	BNE	Rarg2, R19, -4(PC)
++		//	MOVx	(R19), Rtmp
++		//	MOVx	Rtmp, (R20)
++		//	ADDV	$sz, R19
++		//	ADDV	$sz, R20
++		//	BGEU	Rarg2, R19, -4(PC)
+ 		{
+ 			name:      "LoweredMove",
+ 			aux:       "Int64",
+ 			argLength: 4,
+ 			reg: regInfo{
+-				inputs:   []regMask{buildReg("R4"), buildReg("R19"), gp},
+-				clobbers: buildReg("R19 R4"),
++				inputs:   []regMask{buildReg("R20"), buildReg("R19"), gp},
++				clobbers: buildReg("R19 R20"),
+ 			},
+-			clobberFlags:   true,
++			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 			faultOnNilArg1: true,
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ded1bc648c..b2af30a37d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -24565,7 +24565,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "LoweredZero",
+ 		auxType:        auxInt64,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -24579,16 +24578,15 @@ var opcodeTable = [...]opInfo{
+ 		name:           "LoweredMove",
+ 		auxType:        auxInt64,
+ 		argLen:         4,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 8},          // R4
++				{0, 524288},     // R20
+ 				{1, 262144},     // R19
+ 				{2, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+ 			},
+-			clobbers: 262152, // R4 R19
++			clobbers: 786432, // R19 R20
+ 		},
+ 	},
+ 	{

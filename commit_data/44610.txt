@@ -20,6 +20,101 @@ Date:   Fri Aug 14 00:04:05 2020 +1000
     Change-Id: I10a6ea4e9590bb0d9f76e8cc0f4a88d43b1d650d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/248218
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/image/gif/writer_test.go | 53 +++++++++++++++++++++++++++++++-------------
  1 file changed, 38 insertions(+), 15 deletions(-)
+
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 9b15c8d99d..5d1b2c439e 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"image"
+ 	"image/color"
+ 	"image/color/palette"
++	"image/draw"
+ 	_ "image/png"
+ 	"io/ioutil"
+ 	"math/rand"
+@@ -656,25 +657,14 @@ func TestEncodeWrappedImage(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkEncode(b *testing.B) {
++func BenchmarkEncodeRandomPaletted(b *testing.B) {
++	img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette.Plan9)
+ 	rnd := rand.New(rand.NewSource(123))
+-
+-	// Restrict to a 256-color paletted image to avoid quantization path.
+-	palette := make(color.Palette, 256)
+-	for i := range palette {
+-		palette[i] = color.RGBA{
+-			uint8(rnd.Intn(256)),
+-			uint8(rnd.Intn(256)),
+-			uint8(rnd.Intn(256)),
+-			255,
+-		}
+-	}
+-	img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
+ 	for i := range img.Pix {
+ 		img.Pix[i] = uint8(rnd.Intn(256))
+ 	}
+ 
+-	b.SetBytes(640 * 480 * 4)
++	b.SetBytes(640 * 480 * 1)
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -682,7 +672,7 @@ func BenchmarkEncode(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkQuantizedEncode(b *testing.B) {
++func BenchmarkEncodeRandomRGBA(b *testing.B) {
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	bo := img.Bounds()
+ 	rnd := rand.New(rand.NewSource(123))
+@@ -696,6 +686,7 @@ func BenchmarkQuantizedEncode(b *testing.B) {
+ 			})
+ 		}
+ 	}
++
+ 	b.SetBytes(640 * 480 * 4)
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+@@ -703,3 +694,35 @@ func BenchmarkQuantizedEncode(b *testing.B) {
+ 		Encode(ioutil.Discard, img, nil)
+ 	}
+ }
++
++func BenchmarkEncodeRealisticPaletted(b *testing.B) {
++	rgba, err := readImg("../testdata/video-001.png")
++	if err != nil {
++		b.Fatalf("readImg: %v", err)
++	}
++	bo := rgba.Bounds()
++	img := image.NewPaletted(bo, palette.Plan9)
++	draw.Draw(img, bo, rgba, bo.Min, draw.Src)
++
++	b.SetBytes(int64(bo.Dx() * bo.Dy() * 1))
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, nil)
++	}
++}
++
++func BenchmarkEncodeRealisticRGBA(b *testing.B) {
++	img, err := readImg("../testdata/video-001.png")
++	if err != nil {
++		b.Fatalf("readImg: %v", err)
++	}
++	bo := img.Bounds()
++
++	b.SetBytes(int64(bo.Dx() * bo.Dy() * 4))
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, nil)
++	}
++}

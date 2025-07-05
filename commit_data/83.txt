@@ -5,6 +5,25 @@ Date:   Wed Jun 4 15:32:47 2008 -0700
     fix loader problem loading main from a library
     
     SVN=121174
-
+---
  src/cmd/6g/align.c | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 6538d3c86b..092c8b78df 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -4,6 +4,13 @@
+ 
+ #include "gg.h"
+ 
++int
++main(int argc, char *argv[])
++{
++	mainlex(argc, argv);
++	return 99;
++}
++
+ /*
+  * machine size and rounding
+  * alignment is dictated around

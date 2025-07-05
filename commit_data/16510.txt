@@ -7,7 +7,41 @@ Date:   Thu Jun 6 18:10:42 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10036047
-
+---
  src/pkg/runtime/extern.go | 3 ---
  src/pkg/runtime/proc.c    | 8 --------
  2 files changed, 11 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 7c5eb5317b..a7451e6630 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -112,9 +112,6 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ // implemented in symtab.c
+ func funcline_go(*Func, uintptr) (string, int)
+ 
+-// mid returns the current OS thread (m) id.
+-func mid() uint32
+-
+ // SetFinalizer sets the finalizer associated with x to f.
+ // When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c27d1f5f55..bc9ca50dc7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1732,14 +1732,6 @@ runtime·golockedOSThread(bool ret)
+ 	FLUSH(&ret);
+ }
+ 
+-// for testing of wire, unwire
+-void
+-runtime·mid(uint32 ret)
+-{
+-	ret = m->id;
+-	FLUSH(&ret);
+-}
+-
+ void
+ runtime·NumGoroutine(intgo ret)
+ {

@@ -7,7 +7,7 @@ Date:   Tue Oct 20 08:27:14 2009 -0700
     R=ken
     OCL=35920
     CL=35920
-
+---
  doc/go_spec.html                   | 1 +
  src/cmd/gc/const.c                 | 4 ++--
  src/cmd/gc/subr.c                  | 7 ++++---
@@ -17,3 +17,118 @@ Date:   Tue Oct 20 08:27:14 2009 -0700
  test/golden.out                    | 3 ---
  test/run                           | 5 +++--
  8 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 1f0b520904..40c65dfdbd 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -9,6 +9,7 @@ Todo
+     (struct{T} vs struct {T T} vs struct {t T})
+ [ ] need explicit language about the result type of operations
+ [ ] may want to have some examples for the types of shift operations
++[ ] should string(1<<s) and float(1<<s) be valid?
+ [ ] should probably write something about evaluation order of statements even
+ 	though obvious
+ [ ] specify iteration direction for range clause
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index dd0cc15e52..5829904196 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -96,7 +96,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+-		convlit(&n->left, t);
++		convlit1(&n->left, t, explicit);
+ 		t = n->left->type;
+ 		if(t != T && !isint[t->etype]) {
+ 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+@@ -292,7 +292,7 @@ tostr(Val v)
+ 
+ 	case CTFLT:
+ 		yyerror("no float -> string");
+-	
++
+ 	case CTNIL:
+ 		memset(&v, 0, sizeof v);
+ 		v.ctype = CTSTR;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 06a05895b1..ccb2b76530 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1455,11 +1455,12 @@ Zconv(Fmt *fp)
+ 		s += chartorune(&r, s);
+ 		switch(r) {
+ 		default:
++			if(r < ' ') {
++				fmtprint(fp, "\\x%02x", r);
++				break;
++			}
+ 			fmtrune(fp, r);
+ 			break;
+-		case '\0':
+-			fmtstrcpy(fp, "\\x00");
+-			break;
+ 		case '\t':
+ 			fmtstrcpy(fp, "\\t");
+ 			break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6c90004cfb..b87da54255 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -765,7 +765,7 @@ reswitch:
+ 	doconv:
+ 		ok |= Erv;
+ 		typecheck(&n->left, Erv | (top & Eindir));
+-		defaultlit(&n->left, n->type);
++		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+ 			goto error;
+ 		n = typecheckconv(n, n->left, n->type, 1);
+diff --git a/test/bugs/placeholder b/test/bugs/placeholder
+new file mode 100644
+index 0000000000..b816d34fc3
+--- /dev/null
++++ b/test/bugs/placeholder
+@@ -0,0 +1,2 @@
++This file keeps Mercurial from deleting the directory
++when there are no known bugs.
+diff --git a/test/bugs/bug193.go b/test/fixedbugs/bug193.go
+similarity index 100%
+rename from test/bugs/bug193.go
+rename to test/fixedbugs/bug193.go
+diff --git a/test/golden.out b/test/golden.out
+index 79c2990bb1..c87d7e519e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -201,6 +201,3 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug193.go
+-BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+diff --git a/test/run b/test/run
+index aa4b6003d2..164636a3a0 100755
+--- a/test/run
++++ b/test/run
+@@ -47,7 +47,7 @@ for dir in . ken chan interface nilptr fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'
+-	for i in $dir/*.go
++	for i in $(ls $dir/*.go 2>/dev/null)
+ 	do
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+@@ -75,8 +75,9 @@ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+ 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+ 		s!'$RUNFILE'!$RUNFILE!g
+-		s/ PC=0x[0-9a-f]*/ PC=xxx/
++		s/^PC=0x[0-9a-f]*/pc: xxx/
+ 		s/^pc: 0x[0-9a-f]*/pc: xxx/
++		s/PC=0x[0-9a-f]*/PC=xxx/
+ 		/^Trace\/breakpoint trap/d
+ 		/^Trace\/BPT trap/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/

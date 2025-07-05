@@ -16,7 +16,34 @@ Date:   Tue Jul 29 16:46:53 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/104320043
-
+---
  src/pkg/fmt/fmt_test.go | 2 ++
  src/pkg/fmt/format.go   | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index ef8b2ad86e..89227cce80 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -183,6 +183,8 @@ var fmtTests = []struct {
+ 	{"%.3q", "日本語日本語", `"日本語"`},
+ 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+ 	{"%10.1q", "日本語日本語", `       "日"`},
++	{"%3c", '⌘', "  ⌘"},
++	{"%5q", '\u2026', `  '…'`},
+ 	{"%10v", nil, "     <nil>"},
+ 	{"%-10v", nil, "<nil>     "},
+ 
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index f50163c4a2..8aeffd7b2b 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -114,7 +114,7 @@ func (f *fmt) pad(b []byte) {
+ 		f.buf.Write(b)
+ 		return
+ 	}
+-	padding, left, right := f.computePadding(len(b))
++	padding, left, right := f.computePadding(utf8.RuneCount(b))
+ 	if left > 0 {
+ 		f.writePadding(left, padding)
+ 	}

@@ -9,6 +9,22 @@ Date:   Tue Jan 6 08:41:55 2015 -0800
     Change-Id: I634a772814e7cd066f631a68342e7c3dc9d27e72
     Reviewed-on: https://go-review.googlesource.com/2370
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/chan.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index e9390d3da4..abe73e70a0 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -46,7 +46,9 @@ func makechan(t *chantype, size int64) *hchan {
+ 		if size > 0 && elem.size != 0 {
+ 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
+ 		} else {
+-			c.buf = (*uint8)(unsafe.Pointer(c)) // race detector uses this location for synchronization
++			// race detector uses this location for synchronization
++			// Also prevents us from pointing beyond the allocation (see issue 9401).
++			c.buf = (*uint8)(unsafe.Pointer(c))
+ 		}
+ 	} else {
+ 		c = new(hchan)

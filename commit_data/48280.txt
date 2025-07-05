@@ -18,7 +18,7 @@ Date:   Sun Nov 8 22:12:38 2020 +0100
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                  | 22 ++++++++++++++++++++++
  src/cmd/go/internal/base/path.go       | 26 ++++++++++++++++----------
  src/cmd/go/internal/envcmd/env.go      |  2 +-
@@ -39,3 +39,526 @@ Date:   Sun Nov 8 22:12:38 2020 +0100
  src/cmd/go/internal/work/gccgo.go      | 10 +++++-----
  src/cmd/go/internal/work/init.go       |  2 +-
  19 files changed, 93 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5a657bcfca..ff397a1995 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2832,3 +2832,25 @@ func TestCoverpkgTestOnly(t *testing.T) {
+ 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
+ 	tg.grepStdout("coverage: 100", "no coverage")
+ }
++
++// Regression test for golang.org/issue/34499: version command should not crash
++// when executed in a deleted directory on Linux.
++func TestExecInDeletedDir(t *testing.T) {
++	// The crash has only been reproduced on Linux.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Skip()
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	wd, err := os.Getwd()
++	tg.check(err)
++	tg.makeTempdir()
++	tg.check(os.Chdir(tg.tempdir))
++	defer func() { tg.check(os.Chdir(wd)) }()
++
++	tg.check(os.Remove(tg.tempdir))
++
++	// `go version` should not fail
++	tg.run("version")
++}
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index cb4adbde42..4d8715ef5f 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -8,21 +8,27 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"sync"
+ )
+ 
+-func getwd() string {
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		Fatalf("cannot determine current directory: %v", err)
+-	}
+-	return wd
+-}
++var cwd string
++var cwdOnce sync.Once
+ 
+-var Cwd = getwd()
++// Cwd returns the current working directory at the time of the first call.
++func Cwd() string {
++	cwdOnce.Do(func() {
++		var err error
++		cwd, err = os.Getwd()
++		if err != nil {
++			Fatalf("cannot determine current directory: %v", err)
++		}
++	})
++	return cwd
++}
+ 
+ // ShortPath returns an absolute or relative name for path, whatever is shorter.
+ func ShortPath(path string) string {
+-	if rel, err := filepath.Rel(Cwd, path); err == nil && len(rel) < len(path) {
++	if rel, err := filepath.Rel(Cwd(), path); err == nil && len(rel) < len(path) {
+ 		return rel
+ 	}
+ 	return path
+@@ -33,7 +39,7 @@ func ShortPath(path string) string {
+ func RelPaths(paths []string) []string {
+ 	var out []string
+ 	for _, p := range paths {
+-		rel, err := filepath.Rel(Cwd, p)
++		rel, err := filepath.Rel(Cwd(), p)
+ 		if err == nil && len(rel) < len(p) {
+ 			p = rel
+ 		}
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 8dbb8af1e7..b30c37ab27 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -200,7 +200,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	env := cfg.CmdEnv
+ 	env = append(env, ExtraEnvVars()...)
+ 
+-	if err := fsys.Init(base.Cwd); err != nil {
++	if err := fsys.Init(base.Cwd()); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index ae10946fb1..0b806027e6 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -44,7 +44,7 @@ func (n *node) isDeleted() bool {
+ 
+ // TODO(matloob): encapsulate these in an io/fs-like interface
+ var overlay map[string]*node // path -> file or directory node
+-var cwd string               // copy of base.Cwd to avoid dependency
++var cwd string               // copy of base.Cwd() to avoid dependency
+ 
+ // Canonicalize a path for looking it up in the overlay.
+ // Important: filepath.Join(cwd, path) doesn't always produce
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index c28bce8cfc..3c16dc3040 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -258,7 +258,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 	load1 := func(path string, mode int) *load.Package {
+ 		if parent == nil {
+ 			mode := 0 // don't do module or vendor resolution
+-			return load.LoadImport(context.TODO(), load.PackageOpts{}, path, base.Cwd, nil, stk, nil, mode)
++			return load.LoadImport(context.TODO(), load.PackageOpts{}, path, base.Cwd(), nil, stk, nil, mode)
+ 		}
+ 		return load.LoadImport(context.TODO(), load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+ 	}
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index 7534e65f54..440cb86134 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -34,7 +34,7 @@ type ppfValue struct {
+ 
+ // Set is called each time the flag is encountered on the command line.
+ func (f *PerPackageFlag) Set(v string) error {
+-	return f.set(v, base.Cwd)
++	return f.set(v, base.Cwd())
+ }
+ 
+ // set is the implementation of Set, taking a cwd (current working directory) for easier testing.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2d91d10583..153399d83e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -603,7 +603,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
+ 		})
+ 		packageDataCache.Delete(p.ImportPath)
+ 	}
+-	return LoadImport(context.TODO(), PackageOpts{}, arg, base.Cwd, nil, stk, nil, 0)
++	return LoadImport(context.TODO(), PackageOpts{}, arg, base.Cwd(), nil, stk, nil, 0)
+ }
+ 
+ // dirToImportPath returns the pseudo-import path we use for a package
+@@ -991,7 +991,7 @@ func (pre *preload) preloadMatches(ctx context.Context, opts PackageOpts, matche
+ 			case pre.sema <- struct{}{}:
+ 				go func(pkg string) {
+ 					mode := 0 // don't use vendoring or module import resolution
+-					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd, "", false, mode)
++					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd(), "", false, mode)
+ 					<-pre.sema
+ 					if bp != nil && loaded && err == nil && !opts.IgnoreImports {
+ 						pre.preloadImports(ctx, opts, bp.Imports, bp)
+@@ -2456,7 +2456,7 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ 			if pkg == "" {
+ 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
+ 			}
+-			p := loadImport(ctx, opts, pre, pkg, base.Cwd, nil, &stk, nil, 0)
++			p := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, 0)
+ 			p.Match = append(p.Match, m.Pattern())
+ 			p.Internal.CmdlinePkg = true
+ 			if m.IsLiteral() {
+@@ -2670,7 +2670,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
+ 
+ 	var err error
+ 	if dir == "" {
+-		dir = base.Cwd
++		dir = base.Cwd()
+ 	}
+ 	dir, err = filepath.Abs(dir)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 99c0c2b981..5cdea12cd3 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -135,7 +135,7 @@ func Init() {
+ 		return
+ 	}
+ 
+-	if err := fsys.Init(base.Cwd); err != nil {
++	if err := fsys.Init(base.Cwd()); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+@@ -179,7 +179,7 @@ func Init() {
+ 		}
+ 		modRoot = ""
+ 	} else {
+-		modRoot = findModuleRoot(base.Cwd)
++		modRoot = findModuleRoot(base.Cwd())
+ 		if modRoot == "" {
+ 			if cfg.ModFile != "" {
+ 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+@@ -276,7 +276,7 @@ func WillBeEnabled() bool {
+ 		return false
+ 	}
+ 
+-	if modRoot := findModuleRoot(base.Cwd); modRoot == "" {
++	if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
+ 		// GO111MODULE is 'auto', and we can't find a module root.
+ 		// Stay in GOPATH mode.
+ 		return false
+@@ -335,8 +335,8 @@ func die() {
+ 	if cfg.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+-	if dir, name := findAltConfig(base.Cwd); dir != "" {
+-		rel, err := filepath.Rel(base.Cwd, dir)
++	if dir, name := findAltConfig(base.Cwd()); dir != "" {
++		rel, err := filepath.Rel(base.Cwd(), dir)
+ 		if err != nil {
+ 			rel = dir
+ 		}
+@@ -479,7 +479,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ // exactly the same as in the legacy configuration (for example, we can't get
+ // packages at multiple versions from the same module).
+ func CreateModFile(ctx context.Context, modPath string) {
+-	modRoot = base.Cwd
++	modRoot = base.Cwd()
+ 	Init()
+ 	modFilePath := ModFilePath()
+ 	if _, err := fsys.Stat(modFilePath); err == nil {
+@@ -646,7 +646,7 @@ func initTarget(m module.Version) {
+ 	Target = m
+ 	targetPrefix = m.Path
+ 
+-	if rel := search.InDir(base.Cwd, cfg.GOROOTsrc); rel != "" {
++	if rel := search.InDir(base.Cwd(), cfg.GOROOTsrc); rel != "" {
+ 		targetInGorootSrc = true
+ 		if m.Path == "std" {
+ 			// The "std" module in GOROOT/src is the Go standard library. Unlike other
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index c811029ab5..f30ac6e0c8 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -407,7 +407,7 @@ func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
+ 		dir := filepath.Dir(filepath.Clean(m.Pattern()[:i+3]))
+ 		absDir := dir
+ 		if !filepath.IsAbs(dir) {
+-			absDir = filepath.Join(base.Cwd, dir)
++			absDir = filepath.Join(base.Cwd(), dir)
+ 		}
+ 		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+ 			m.Dirs = []string{}
+@@ -425,7 +425,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 	if filepath.IsAbs(dir) {
+ 		absDir = filepath.Clean(dir)
+ 	} else {
+-		absDir = filepath.Join(base.Cwd, dir)
++		absDir = filepath.Join(base.Cwd(), dir)
+ 	}
+ 
+ 	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
+@@ -632,7 +632,7 @@ func DirImportPath(ctx context.Context, dir string) string {
+ 	LoadModFile(ctx) // Sets targetPrefix.
+ 
+ 	if !filepath.IsAbs(dir) {
+-		dir = filepath.Join(base.Cwd, dir)
++		dir = filepath.Join(base.Cwd(), dir)
+ 	} else {
+ 		dir = filepath.Clean(dir)
+ 	}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index f1152080a7..a0c806a259 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -445,7 +445,7 @@ func ImportPathsQuiet(patterns []string) []*Match {
+ 			for i, dir := range m.Dirs {
+ 				absDir := dir
+ 				if !filepath.IsAbs(dir) {
+-					absDir = filepath.Join(base.Cwd, dir)
++					absDir = filepath.Join(base.Cwd(), dir)
+ 				}
+ 				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+ 					m.Pkgs[i] = bp.ImportPath
+diff --git a/src/cmd/go/internal/test/cover.go b/src/cmd/go/internal/test/cover.go
+index 9841791552..657d22a6b4 100644
+--- a/src/cmd/go/internal/test/cover.go
++++ b/src/cmd/go/internal/test/cover.go
+@@ -26,8 +26,8 @@ func initCoverProfile() {
+ 	if testCoverProfile == "" || testC {
+ 		return
+ 	}
+-	if !filepath.IsAbs(testCoverProfile) && testOutputDir != "" {
+-		testCoverProfile = filepath.Join(testOutputDir, testCoverProfile)
++	if !filepath.IsAbs(testCoverProfile) {
++		testCoverProfile = filepath.Join(testOutputDir.getAbs(), testCoverProfile)
+ 	}
+ 
+ 	// No mutex - caller's responsibility to call with no racing goroutines.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index c2f8aed004..59ea1ef544 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -486,7 +486,7 @@ var (
+ 	testJSON         bool                              // -json flag
+ 	testList         string                            // -list flag
+ 	testO            string                            // -o flag
+-	testOutputDir    = base.Cwd                        // -outputdir flag
++	testOutputDir    outputdirFlag                     // -outputdir flag
+ 	testShuffle      shuffleFlag                       // -shuffle flag
+ 	testTimeout      time.Duration                     // -timeout flag
+ 	testV            bool                              // -v flag
+@@ -710,7 +710,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		match := make([]func(*load.Package) bool, len(testCoverPaths))
+ 		matched := make([]bool, len(testCoverPaths))
+ 		for i := range testCoverPaths {
+-			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd)
++			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd())
+ 		}
+ 
+ 		// Select for coverage all dependencies matching the testCoverPaths patterns.
+@@ -945,11 +945,11 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 	var installAction, cleanAction *work.Action
+ 	if testC || testNeedBinary() {
+ 		// -c or profiling flag: create action to copy binary to ./test.out.
+-		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
++		target := filepath.Join(base.Cwd(), testBinary+cfg.ExeSuffix)
+ 		if testO != "" {
+ 			target = testO
+ 			if !filepath.IsAbs(target) {
+-				target = filepath.Join(base.Cwd, target)
++				target = filepath.Join(base.Cwd(), target)
+ 			}
+ 		}
+ 		if target == os.DevNull {
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 6ed96a36d0..08f1efa2c0 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -62,7 +62,7 @@ func init() {
+ 	cf.String("memprofilerate", "", "")
+ 	cf.StringVar(&testMutexProfile, "mutexprofile", "", "")
+ 	cf.String("mutexprofilefraction", "", "")
+-	cf.Var(outputdirFlag{&testOutputDir}, "outputdir", "")
++	cf.Var(&testOutputDir, "outputdir", "")
+ 	cf.Int("parallel", 0, "")
+ 	cf.String("run", "", "")
+ 	cf.Bool("short", false, "")
+@@ -71,7 +71,7 @@ func init() {
+ 	cf.BoolVar(&testV, "v", false, "")
+ 	cf.Var(&testShuffle, "shuffle", "")
+ 
+-	for name, _ := range passFlagToTest {
++	for name := range passFlagToTest {
+ 		cf.Var(cf.Lookup(name).Value, "test."+name, "")
+ 	}
+ }
+@@ -128,19 +128,26 @@ func (f stringFlag) Set(value string) error {
+ // outputdirFlag implements the -outputdir flag.
+ // It interprets an empty value as the working directory of the 'go' command.
+ type outputdirFlag struct {
+-	resolved *string
++	abs string
+ }
+ 
+-func (f outputdirFlag) String() string { return *f.resolved }
+-func (f outputdirFlag) Set(value string) (err error) {
++func (f *outputdirFlag) String() string {
++	return f.abs
++}
++func (f *outputdirFlag) Set(value string) (err error) {
+ 	if value == "" {
+-		// The empty string implies the working directory of the 'go' command.
+-		*f.resolved = base.Cwd
++		f.abs = ""
+ 	} else {
+-		*f.resolved, err = filepath.Abs(value)
++		f.abs, err = filepath.Abs(value)
+ 	}
+ 	return err
+ }
++func (f *outputdirFlag) getAbs() string {
++	if f.abs == "" {
++		return base.Cwd()
++	}
++	return f.abs
++}
+ 
+ // vetFlag implements the special parsing logic for the -vet flag:
+ // a comma-separated list, with a distinguished value "off" and
+@@ -404,7 +411,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	// command. Set it explicitly if it is needed due to some other flag that
+ 	// requests output.
+ 	if testProfile() != "" && !outputDirSet {
+-		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir)
++		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir.getAbs())
+ 	}
+ 
+ 	// If the user is explicitly passing -help or -h, show output
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 9d141ae233..69940cb001 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -344,7 +344,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
+ 			if strings.HasPrefix(t, "pkgpath ") {
+ 				t = strings.TrimPrefix(t, "pkgpath ")
+ 				t = strings.TrimSuffix(t, ";")
+-				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
++				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
+ 			}
+ 		}
+ 	} else {
+@@ -355,7 +355,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
+ 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
+ 		for scanner.Scan() {
+ 			t := scanner.Text()
+-			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
++			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
+ 		}
+ 	}
+ 	return
+@@ -776,7 +776,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 					}
+ 				}
+ 				var stk load.ImportStack
+-				p := load.LoadImportWithFlags(pkg, base.Cwd, nil, &stk, nil, 0)
++				p := load.LoadImportWithFlags(pkg, base.Cwd(), nil, &stk, nil, 0)
+ 				if p.Error != nil {
+ 					base.Fatalf("load %s: %v", pkg, p.Error)
+ 				}
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index eaf2639e9e..600fc3083f 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -173,10 +173,11 @@ func TestSharedLibName(t *testing.T) {
+ 				if err != nil {
+ 					t.Fatal(err)
+ 				}
++				cwd := base.Cwd()
+ 				oldGopath := cfg.BuildContext.GOPATH
+ 				defer func() {
+ 					cfg.BuildContext.GOPATH = oldGopath
+-					os.Chdir(base.Cwd)
++					os.Chdir(cwd)
+ 					err := os.RemoveAll(tmpGopath)
+ 					if err != nil {
+ 						t.Error(err)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 994c4dafcf..b506b83656 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2377,7 +2377,7 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
+ 
+ 	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
+ 	dir := p.Dir
+-	out, err := b.runOut(a, base.Cwd, b.cCompilerEnv(), cmdargs...)
++	out, err := b.runOut(a, base.Cwd(), b.cCompilerEnv(), cmdargs...)
+ 
+ 	if len(out) > 0 {
+ 		// Filter out useless linker warnings caused by bugs outside Go.
+@@ -2991,7 +2991,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
+ 	}
+-	return b.run(a, base.Cwd, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
++	return b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+ }
+ 
+ // Run SWIG on all SWIG input files.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 9adcf3035f..85da4f89f9 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -197,7 +197,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 		args = append(args, f)
+ 	}
+ 
+-	output, err = b.runOut(a, base.Cwd, nil, args...)
++	output, err = b.runOut(a, base.Cwd(), nil, args...)
+ 	return ofile, output, err
+ }
+ 
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index b58c8aa885..1499536932 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -102,7 +102,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 
+ 	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
+ 		if cfg.BuildTrimpath {
+-			args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
++			args = append(args, "-ffile-prefix-map="+base.Cwd()+"=.")
+ 			args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+ 		}
+ 		if fsys.OverlayFile != "" {
+@@ -114,9 +114,9 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 				}
+ 				toPath := absPath
+ 				// gccgo only applies the last matching rule, so also handle the case where
+-				// BuildTrimpath is true and the path is relative to base.Cwd.
+-				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd) {
+-					toPath = "." + toPath[len(base.Cwd):]
++				// BuildTrimpath is true and the path is relative to base.Cwd().
++				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd()) {
++					toPath = "." + toPath[len(base.Cwd()):]
+ 				}
+ 				args = append(args, "-ffile-prefix-map="+overlayPath+"="+toPath)
+ 			}
+@@ -572,7 +572,7 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
+ 	}
+ 	defs = tools.maybePIC(defs)
+ 	if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
+-		defs = append(defs, "-ffile-prefix-map="+base.Cwd+"=.")
++		defs = append(defs, "-ffile-prefix-map="+base.Cwd()+"=.")
+ 		defs = append(defs, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+ 	} else if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+ 		defs = append(defs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index ca7e04d280..37a3e2d0ff 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -23,7 +23,7 @@ func BuildInit() {
+ 	modload.Init()
+ 	instrumentInit()
+ 	buildModeInit()
+-	if err := fsys.Init(base.Cwd); err != nil {
++	if err := fsys.Init(base.Cwd()); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 

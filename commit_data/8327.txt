@@ -7,6 +7,20 @@ Date:   Fri May 6 10:00:50 2011 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/4485046
-
+---
  src/pkg/http/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 0fc0cb2d76..d7ee14ee84 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -449,7 +449,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ //
+ // There are redundant fields stored in the URL structure:
+ // the String method consults Scheme, Path, Host, RawUserinfo,
+-// RawQuery, and Fragment, but not Raw, RawPath or Authority.
++// RawQuery, and Fragment, but not Raw, RawPath or RawAuthority.
+ func (url *URL) String() string {
+ 	result := ""
+ 	if url.Scheme != "" {

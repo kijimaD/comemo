@@ -14,7 +14,118 @@ Date:   Wed Apr 7 16:28:13 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/script/test_fuzz_mutate_crash.txt  | 14 +++++++
  src/internal/fuzz/mutator.go                       | 48 ++++++++++++++++++++++
  2 files changed, 62 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index a143edda08..57db788436 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -28,6 +28,12 @@ stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+ stdout 'these inputs caused a crash!'
+ go run check_testdata.go FuzzWithTwoTypes
+ 
++# Running the fuzzer should find a crashing input quickly for an integer
++! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=5s
++stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzInt
++
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+@@ -132,6 +138,14 @@ func FuzzWithTwoTypes(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzInt(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a int) {
++		if 200 > a && a < 250 {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
+ func FuzzWithBadExit(f *testing.F) {
+ 	f.Add([]byte("aa"))
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index aa72972147..e4ee2f44ea 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -7,6 +7,7 @@ package fuzz
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"math"
+ 	"reflect"
+ 	"unsafe"
+ )
+@@ -75,11 +76,53 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 		}
+ 		m.mutateBytes(&v)
+ 		vals[i] = v
++	case int8:
++		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
++	case int16:
++		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
++	case int32:
++		vals[i] = int32(m.mutateInt(int64(v), math.MaxInt32))
++	case int64:
++		vals[i] = m.mutateInt(v, int64(maxInt))
++	case int:
++		vals[i] = int(m.mutateInt(int64(v), int64(maxInt)))
+ 	default:
+ 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
+ 	}
+ }
+ 
++func (m *mutator) mutateInt(v, maxValue int64) int64 {
++	numIters := 1 + m.r.exp2()
++	var max int64
++	for iter := 0; iter < numIters; iter++ {
++		switch m.rand(2) {
++		case 0:
++			// Add a random number
++			if v >= maxValue {
++				continue
++			}
++			max = 100
++			if v > 0 && maxValue-v < max {
++				// Don't let v exceed maxValue
++				max = maxValue - v
++			}
++			v += int64(m.rand(int(max)))
++		case 1:
++			// Subtract a random number
++			if v <= -maxValue {
++				continue
++			}
++			max = 100
++			if v < 0 && maxValue+v < max {
++				// Don't let v drop below -maxValue
++				max = maxValue + v
++			}
++			v -= int64(m.rand(int(max)))
++		}
++	}
++	return v
++}
++
+ func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 	b := *ptrB
+ 	defer func() {
+@@ -267,6 +310,11 @@ var (
+ 	interesting32 = []int32{-2147483648, -100663046, -32769, 32768, 65535, 65536, 100663045, 2147483647}
+ )
+ 
++const (
++	maxUint = ^uint(0)
++	maxInt  = maxUint >> 1
++)
++
+ func init() {
+ 	for _, v := range interesting8 {
+ 		interesting16 = append(interesting16, int16(v))

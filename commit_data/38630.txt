@@ -33,7 +33,7 @@ Date:   Sat Nov 3 18:29:09 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go                           |   2 +-
  src/crypto/tls/conn.go                             | 247 ++++++++++++---------
  src/crypto/tls/handshake_client.go                 |   5 +-
@@ -42,3 +42,879 @@ Date:   Sat Nov 3 18:29:09 2018 -0400
  src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 130 +++++++++++
  .../testdata/Client-TLSv13-RenegotiationRejected   | 107 ---------
  7 files changed, 363 insertions(+), 227 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 6c86a71363..1d9e0bd0b5 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -38,7 +38,7 @@ const (
+ 	maxCiphertextTLS13 = 16384 + 256  // maximum ciphertext length in TLS 1.3
+ 	recordHeaderLen    = 5            // record header length
+ 	maxHandshake       = 65536        // maximum handshake we support (protocol max is 16 MB)
+-	maxUselessRecords  = 5            // maximum number of consecutive non-advancing records
++	maxUselessRecords  = 16           // maximum number of consecutive non-advancing records
+ )
+ 
+ // TLS record types.
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 95ca60383d..451773ec6e 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -94,8 +94,9 @@ type Conn struct {
+ 	bytesSent   int64
+ 	packetsSent int64
+ 
+-	// retryCount counts the number of consecutive warning alerts received
+-	// by Conn.readRecord. Protected by in.Mutex.
++	// retryCount counts the number of consecutive non-advancing records
++	// received by Conn.readRecord. That is, records that neither advance the
++	// handshake, nor deliver application data. Protected by in.Mutex.
+ 	retryCount int
+ 
+ 	// activeCall is an atomic int32; the low bit is whether Close has
+@@ -550,28 +551,35 @@ func (c *Conn) newRecordHeaderError(conn net.Conn, msg string) (err RecordHeader
+ 	return err
+ }
+ 
+-// readRecord reads the next TLS record from the connection
+-// and updates the record layer state.
+-func (c *Conn) readRecord(want recordType) error {
+-	// Caller must be in sync with connection:
+-	// handshake data if handshake not yet completed,
+-	// else application data.
+-	switch want {
+-	default:
+-		panic("tls: unknown record type requested")
+-	case recordTypeHandshake, recordTypeChangeCipherSpec:
+-		if c.handshakeComplete() {
+-			panic("tls: handshake or ChangeCipherSpec requested while not in handshake")
+-		}
+-	case recordTypeApplicationData:
+-		if !c.handshakeComplete() {
+-			panic("tls: application data record requested while in handshake")
+-		}
+-	}
++func (c *Conn) readRecord() error {
++	return c.readRecordOrCCS(false)
++}
++
++func (c *Conn) readChangeCipherSpec() error {
++	return c.readRecordOrCCS(true)
++}
++
++// readRecordOrCCS reads one or more TLS records from the connection and
++// updates the record layer state. Some invariants:
++//   * c.in must be locked
++//   * c.input must be empty
++// During the handshake one and only one of the following will happen:
++//   - c.hand grows
++//   - c.in.changeCipherSpec is called
++//   - an error is returned
++// After the handshake one and only one of the following will happen:
++//   - c.hand grows
++//   - c.input is set
++//   - an error is returned
++func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
++	if c.in.err != nil {
++		return c.in.err
++	}
++	handshakeComplete := c.handshakeComplete()
+ 
+ 	// This function modifies c.rawInput, which owns the c.input memory.
+ 	if c.input.Len() != 0 {
+-		panic("tls: attempted to read record with pending application data")
++		return c.in.setErrorLocked(errors.New("tls: internal error: attempted to read record with pending application data"))
+ 	}
+ 	c.input.Reset(nil)
+ 
+@@ -595,7 +603,7 @@ func (c *Conn) readRecord(want recordType) error {
+ 	// start with a uint16 length where the MSB is set and the first record
+ 	// is always < 256 bytes long. Therefore typ == 0x80 strongly suggests
+ 	// an SSLv2 client.
+-	if want == recordTypeHandshake && typ == 0x80 {
++	if !handshakeComplete && typ == 0x80 {
+ 		c.sendAlert(alertProtocolVersion)
+ 		return c.in.setErrorLocked(c.newRecordHeaderError(nil, "unsupported SSLv2 handshake received"))
+ 	}
+@@ -612,7 +620,7 @@ func (c *Conn) readRecord(want recordType) error {
+ 		// client. Bail out before reading a full 'body', if possible.
+ 		// The current max version is 3.3 so if the version is >= 16.0,
+ 		// it's probably not real.
+-		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 {
++		if (typ != recordTypeAlert && typ != recordTypeHandshake) || vers >= 0x1000 {
+ 			return c.in.setErrorLocked(c.newRecordHeaderError(c.conn, "first record does not look like a TLS handshake"))
+ 		}
+ 	}
+@@ -653,18 +661,6 @@ func (c *Conn) readRecord(want recordType) error {
+ 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 	}
+ 
+-	// In TLS 1.3, change_cipher_spec records are ignored until the Finished.
+-	// See RFC 8446, Appendix D.4. Note that according to Section 5, a server
+-	// can send a ChangeCipherSpec before its ServerHello, when c.vers is still
+-	// unset. That's not useful though and suspicious if the server then selects
+-	// a lower protocol version, so don't allow that.
+-	if c.vers == VersionTLS13 && typ == recordTypeChangeCipherSpec {
+-		if len(data) != 1 || data[0] != 1 || c.handshakeComplete() {
+-			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+-		}
+-		return c.retryReadRecord(want)
+-	}
+-
+ 	switch typ {
+ 	default:
+ 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+@@ -681,7 +677,8 @@ func (c *Conn) readRecord(want recordType) error {
+ 		}
+ 		switch data[0] {
+ 		case alertLevelWarning:
+-			return c.retryReadRecord(want) // Drop the record on the floor and retry.
++			// Drop the record on the floor and retry.
++			return c.retryReadRecord(expectChangeCipherSpec)
+ 		case alertLevelError:
+ 			return c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
+ 		default:
+@@ -689,59 +686,61 @@ func (c *Conn) readRecord(want recordType) error {
+ 		}
+ 
+ 	case recordTypeChangeCipherSpec:
+-		if typ != want || len(data) != 1 || data[0] != 1 {
+-			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
++		if len(data) != 1 || data[0] != 1 {
++			return c.in.setErrorLocked(c.sendAlert(alertDecodeError))
+ 		}
+ 		// Handshake messages are not allowed to fragment across the CCS.
+ 		if c.hand.Len() > 0 {
+ 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 		}
++		// In TLS 1.3, change_cipher_spec records are ignored until the
++		// Finished. See RFC 8446, Appendix D.4. Note that according to Section
++		// 5, a server can send a ChangeCipherSpec before its ServerHello, when
++		// c.vers is still unset. That's not useful though and suspicious if the
++		// server then selects a lower protocol version, so don't allow that.
++		if c.vers == VersionTLS13 {
++			return c.retryReadRecord(expectChangeCipherSpec)
++		}
++		if !expectChangeCipherSpec {
++			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
++		}
+ 		if err := c.in.changeCipherSpec(); err != nil {
+ 			return c.in.setErrorLocked(c.sendAlert(err.(alert)))
+ 		}
+-		return nil
+ 
+ 	case recordTypeApplicationData:
+-		if typ != want {
++		if !handshakeComplete || expectChangeCipherSpec {
+ 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 		}
++		// Some OpenSSL servers send empty records in order to randomize the
++		// CBC IV. Ignore a limited number of empty records.
+ 		if len(data) == 0 {
+-			return c.retryReadRecord(want)
++			return c.retryReadRecord(expectChangeCipherSpec)
+ 		}
+ 		// Note that data is owned by c.rawInput, following the Next call above,
+ 		// to avoid copying the plaintext. This is safe because c.rawInput is
+ 		// not read from or written to until c.input is drained.
+ 		c.input.Reset(data)
+-		return nil
+ 
+ 	case recordTypeHandshake:
+-		if typ != want && !c.isRenegotiationAcceptable() {
+-			return c.in.setErrorLocked(c.sendAlert(alertNoRenegotiation))
+-		}
+-		if len(data) == 0 {
++		if len(data) == 0 || expectChangeCipherSpec {
+ 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 		}
+ 		c.hand.Write(data)
+-		return nil
+ 	}
++
++	return nil
+ }
+ 
+-// retryReadRecord recurses into readRecord to drop a non-advancing record, like
++// retryReadRecord recurses into readRecordOrCCS to drop a non-advancing record, like
+ // a warning alert, empty application_data, or a change_cipher_spec in TLS 1.3.
+-func (c *Conn) retryReadRecord(want recordType) error {
++func (c *Conn) retryReadRecord(expectChangeCipherSpec bool) error {
+ 	c.retryCount++
+ 	if c.retryCount > maxUselessRecords {
+ 		c.sendAlert(alertUnexpectedMessage)
+ 		return c.in.setErrorLocked(errors.New("tls: too many ignored records"))
+ 	}
+-	return c.readRecord(want)
+-}
+-
+-func (c *Conn) isRenegotiationAcceptable() bool {
+-	return c.isClient &&
+-		c.vers != VersionTLS13 &&
+-		c.handshakeComplete() &&
+-		c.config.Renegotiation != RenegotiateNever
++	return c.readRecordOrCCS(expectChangeCipherSpec)
+ }
+ 
+ // atLeastReader reads from R, stopping with EOF once at least N bytes have been
+@@ -969,10 +968,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
+ // the record layer.
+ func (c *Conn) readHandshake() (interface{}, error) {
+ 	for c.hand.Len() < 4 {
+-		if err := c.in.err; err != nil {
+-			return nil, err
+-		}
+-		if err := c.readRecord(recordTypeHandshake); err != nil {
++		if err := c.readRecord(); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -984,10 +980,7 @@ func (c *Conn) readHandshake() (interface{}, error) {
+ 		return nil, c.in.setErrorLocked(fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake))
+ 	}
+ 	for c.hand.Len() < 4+n {
+-		if err := c.in.err; err != nil {
+-			return nil, err
+-		}
+-		if err := c.readRecord(recordTypeHandshake); err != nil {
++		if err := c.readRecord(); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -1130,10 +1123,10 @@ func (c *Conn) handleRenegotiation() error {
+ 		return err
+ 	}
+ 
+-	_, ok := msg.(*helloRequestMsg)
++	helloReq, ok := msg.(*helloRequestMsg)
+ 	if !ok {
+ 		c.sendAlert(alertUnexpectedMessage)
+-		return alertUnexpectedMessage
++		return unexpectedMessageError(helloReq, msg)
+ 	}
+ 
+ 	if !c.isClient {
+@@ -1164,6 +1157,70 @@ func (c *Conn) handleRenegotiation() error {
+ 	return c.handshakeErr
+ }
+ 
++// handlePostHandshakeMessage processes a handshake message arrived after the
++// handshake is complete. Up to TLS 1.2, it indicates the start of a renegotiation.
++func (c *Conn) handlePostHandshakeMessage() error {
++	if c.vers != VersionTLS13 {
++		return c.handleRenegotiation()
++	}
++
++	msg, err := c.readHandshake()
++	if err != nil {
++		return err
++	}
++
++	switch msg := msg.(type) {
++	case *newSessionTicketMsgTLS13:
++		// TODO(filippo): TLS 1.3 session ticket not implemented.
++		return nil
++	case *keyUpdateMsg:
++		return c.handleKeyUpdate(msg)
++	default:
++		c.sendAlert(alertUnexpectedMessage)
++		return fmt.Errorf("tls: received unexpected handshake message of type %T", msg)
++	}
++}
++
++func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
++	c.retryCount++
++	if c.retryCount > maxUselessRecords {
++		c.sendAlert(alertUnexpectedMessage)
++		return c.in.setErrorLocked(errors.New("tls: too many non-advancing records"))
++	}
++
++	var cipherSuite *cipherSuiteTLS13
++	for _, suite := range cipherSuitesTLS13 {
++		if suite.id == c.cipherSuite {
++			cipherSuite = suite
++			break
++		}
++	}
++	if cipherSuite == nil {
++		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
++	}
++
++	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
++	c.in.setTrafficSecret(cipherSuite, newSecret)
++
++	if keyUpdate.updateRequested {
++		c.out.Lock()
++		defer c.out.Unlock()
++
++		msg := &keyUpdateMsg{}
++		_, err := c.writeRecordLocked(recordTypeHandshake, msg.marshal())
++		if err != nil {
++			// Surface the error at the next write.
++			c.out.setErrorLocked(err)
++			return nil
++		}
++
++		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
++		c.out.setTrafficSecret(cipherSuite, newSecret)
++	}
++
++	return nil
++}
++
+ // Read can be made to time out and return a net.Error with Timeout() == true
+ // after a fixed time limit; see SetDeadline and SetReadDeadline.
+ func (c *Conn) Read(b []byte) (int, error) {
+@@ -1179,48 +1236,34 @@ func (c *Conn) Read(b []byte) (int, error) {
+ 	c.in.Lock()
+ 	defer c.in.Unlock()
+ 
+-	// Some OpenSSL servers send empty records in order to randomize the
+-	// CBC IV. So this loop ignores a limited number of empty records.
+-	const maxConsecutiveEmptyRecords = 100
+-	for emptyRecordCount := 0; emptyRecordCount <= maxConsecutiveEmptyRecords; emptyRecordCount++ {
+-		for c.input.Len() == 0 && c.in.err == nil {
+-			if err := c.readRecord(recordTypeApplicationData); err != nil {
+-				return 0, err
+-			}
+-			if c.hand.Len() > 0 {
+-				// We received handshake bytes, indicating the
+-				// start of a renegotiation.
+-				if err := c.handleRenegotiation(); err != nil {
+-					return 0, err
+-				}
+-			}
+-		}
+-		if err := c.in.err; err != nil {
++	for c.input.Len() == 0 {
++		if err := c.readRecord(); err != nil {
+ 			return 0, err
+ 		}
+-
+-		n, _ := c.input.Read(b)
+-
+-		// If a close-notify alert is waiting, read it so that we can return (n,
+-		// EOF) instead of (n, nil), to signal to the HTTP response reading
+-		// goroutine that the connection is now closed. This eliminates a race
+-		// where the HTTP response reading goroutine would otherwise not observe
+-		// the EOF until its next read, by which time a client goroutine might
+-		// have already tried to reuse the HTTP connection for a new request.
+-		// See https://golang.org/cl/76400046 and https://golang.org/issue/3514
+-		if n != 0 && c.input.Len() == 0 && c.rawInput.Len() > 0 &&
+-			recordType(c.rawInput.Bytes()[0]) == recordTypeAlert {
+-			if err := c.readRecord(recordTypeApplicationData); err != nil {
+-				return n, err // will be io.EOF on closeNotify
++		for c.hand.Len() > 0 {
++			if err := c.handlePostHandshakeMessage(); err != nil {
++				return 0, err
+ 			}
+ 		}
++	}
+ 
+-		if n != 0 {
+-			return n, nil
++	n, _ := c.input.Read(b)
++
++	// If a close-notify alert is waiting, read it so that we can return (n,
++	// EOF) instead of (n, nil), to signal to the HTTP response reading
++	// goroutine that the connection is now closed. This eliminates a race
++	// where the HTTP response reading goroutine would otherwise not observe
++	// the EOF until its next read, by which time a client goroutine might
++	// have already tried to reuse the HTTP connection for a new request.
++	// See https://golang.org/cl/76400046 and https://golang.org/issue/3514
++	if n != 0 && c.input.Len() == 0 && c.rawInput.Len() > 0 &&
++		recordType(c.rawInput.Bytes()[0]) == recordTypeAlert {
++		if err := c.readRecord(); err != nil {
++			return n, err // will be io.EOF on closeNotify
+ 		}
+ 	}
+ 
+-	return 0, io.ErrNoProgress
++	return n, nil
+ }
+ 
+ // Close closes the connection.
+@@ -1314,7 +1357,7 @@ func (c *Conn) Handshake() error {
+ 	}
+ 
+ 	if c.handshakeErr == nil && !c.handshakeComplete() {
+-		panic("tls: internal error: handshake should have had a result")
++		c.handshakeErr = errors.New("tls: internal error: handshake should have had a result")
+ 	}
+ 
+ 	return c.handshakeErr
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 3092b1d671..1d2ba12864 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -643,9 +643,8 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ func (hs *clientHandshakeState) readFinished(out []byte) error {
+ 	c := hs.c
+ 
+-	c.readRecord(recordTypeChangeCipherSpec)
+-	if c.in.err != nil {
+-		return c.in.err
++	if err := c.readChangeCipherSpec(); err != nil {
++		return err
+ 	}
+ 
+ 	msg, err := c.readHandshake()
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 745a12e268..d52c7cc6e5 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -53,6 +53,10 @@ const (
+ 	// opensslSendBanner causes OpenSSL to send the contents of
+ 	// opensslSentinel on the connection.
+ 	opensslSendSentinel
++
++	// opensslKeyUpdate causes OpenSSL to send send a key update message to the
++	// client and request one back.
++	opensslKeyUpdate
+ )
+ 
+ const opensslSentinel = "SENTINEL\n"
+@@ -64,6 +68,8 @@ func (i opensslInput) Read(buf []byte) (n int, err error) {
+ 		switch event {
+ 		case opensslRenegotiate:
+ 			return copy(buf, []byte("R\n")), nil
++		case opensslKeyUpdate:
++			return copy(buf, []byte("K\n")), nil
+ 		case opensslSendSentinel:
+ 			return copy(buf, []byte(opensslSentinel)), nil
+ 		default:
+@@ -74,23 +80,28 @@ func (i opensslInput) Read(buf []byte) (n int, err error) {
+ 	return 0, io.EOF
+ }
+ 
+-// opensslOutputSink is an io.Writer that receives the stdout and stderr from
+-// an `openssl` process and sends a value to handshakeComplete when it sees a
+-// log message from a completed server handshake.
++// opensslOutputSink is an io.Writer that receives the stdout and stderr from an
++// `openssl` process and sends a value to handshakeComplete or readKeyUpdate
++// when certain messages are seen.
+ type opensslOutputSink struct {
+ 	handshakeComplete chan struct{}
++	readKeyUpdate     chan struct{}
+ 	all               []byte
+ 	line              []byte
+ }
+ 
+ func newOpensslOutputSink() *opensslOutputSink {
+-	return &opensslOutputSink{make(chan struct{}), nil, nil}
++	return &opensslOutputSink{make(chan struct{}), make(chan struct{}), nil, nil}
+ }
+ 
+ // opensslEndOfHandshake is a message that the “openssl s_server” tool will
+ // print when a handshake completes if run with “-state”.
+ const opensslEndOfHandshake = "SSL_accept:SSLv3/TLS write finished"
+ 
++// opensslReadKeyUpdate is a message that the “openssl s_server” tool will
++// print when a KeyUpdate message is received if run with “-state”.
++const opensslReadKeyUpdate = "SSL_accept:TLSv1.3 read client key update"
++
+ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
+ 	o.line = append(o.line, data...)
+ 	o.all = append(o.all, data...)
+@@ -104,6 +115,9 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
+ 		if bytes.Equal([]byte(opensslEndOfHandshake), o.line[:i]) {
+ 			o.handshakeComplete <- struct{}{}
+ 		}
++		if bytes.Equal([]byte(opensslReadKeyUpdate), o.line[:i]) {
++			o.readKeyUpdate <- struct{}{}
++		}
+ 		o.line = o.line[i+1:]
+ 	}
+ 
+@@ -150,6 +164,8 @@ type clientTest struct {
+ 	// arising from renegotiation. It can map expected errors to nil to
+ 	// ignore them.
+ 	checkRenegotiationError func(renegotiationNum int, err error) error
++	// sendKeyUpdate will cause the server to send a KeyUpdate message.
++	sendKeyUpdate bool
+ }
+ 
+ var defaultServerCommand = []string{"openssl", "s_server"}
+@@ -221,7 +237,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
+ 		command = append(command, "-serverinfo", serverInfoPath)
+ 	}
+ 
+-	if test.numRenegotiations > 0 {
++	if test.numRenegotiations > 0 || test.sendKeyUpdate {
+ 		found := false
+ 		for _, flag := range command[1:] {
+ 			if flag == "-state" {
+@@ -231,7 +247,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
+ 		}
+ 
+ 		if !found {
+-			panic("-state flag missing to OpenSSL. You need this if testing renegotiation")
++			panic("-state flag missing to OpenSSL, you need this if testing renegotiation or KeyUpdate")
+ 		}
+ 	}
+ 
+@@ -352,7 +368,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 			signalChan := make(chan struct{})
+ 
+ 			go func() {
+-				defer func() { signalChan <- struct{}{} }()
++				defer close(signalChan)
+ 
+ 				buf := make([]byte, 256)
+ 				n, err := client.Read(buf)
+@@ -387,11 +403,62 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 			<-signalChan
+ 		}
+ 
++		if test.sendKeyUpdate {
++			if write {
++				<-stdout.handshakeComplete
++				stdin <- opensslKeyUpdate
++			}
++
++			doneRead := make(chan struct{})
++
++			go func() {
++				defer close(doneRead)
++
++				buf := make([]byte, 256)
++				n, err := client.Read(buf)
++
++				if err != nil {
++					t.Errorf("Client.Read failed after KeyUpdate: %s", err)
++					return
++				}
++
++				buf = buf[:n]
++				if !bytes.Equal([]byte(opensslSentinel), buf) {
++					t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
++				}
++			}()
++
++			if write {
++				// There's no real reason to wait for the client KeyUpdate to
++				// send data with the new server keys, except that s_server
++				// drops writes if they are sent at the wrong time.
++				<-stdout.readKeyUpdate
++				stdin <- opensslSendSentinel
++			}
++			<-doneRead
++
++			if _, err := client.Write([]byte("hello again\n")); err != nil {
++				t.Errorf("Client.Write failed: %s", err)
++				return
++			}
++		}
++
+ 		if test.validate != nil {
+ 			if err := test.validate(client.ConnectionState()); err != nil {
+ 				t.Errorf("validate callback returned error: %s", err)
+ 			}
+ 		}
++
++		// If the server sent us an alert after our last flight, give it a
++		// chance to arrive.
++		if write {
++			client.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
++			if _, err := client.Read(make([]byte, 1)); err != nil {
++				if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
++					t.Errorf("final Read returned an error: %s", err)
++				}
++			}
++		}
+ 	}()
+ 
+ 	if !write {
+@@ -786,6 +853,15 @@ func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
+ 	runClientTestTLS12(t, test)
+ }
+ 
++func TestClientKeyUpdate(t *testing.T) {
++	test := &clientTest{
++		name:          "KeyUpdate",
++		command:       []string{"openssl", "s_server", "-state"},
++		sendKeyUpdate: true,
++	}
++	runClientTestTLS13(t, test)
++}
++
+ func TestClientResumption(t *testing.T) {
+ 	serverConfig := &Config{
+ 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+@@ -1092,11 +1168,7 @@ func TestRenegotiationRejected(t *testing.T) {
+ 			return nil
+ 		},
+ 	}
+-
+ 	runClientTestTLS12(t, test)
+-
+-	config.Renegotiation = RenegotiateFreelyAsClient
+-	runClientTestTLS13(t, test)
+ }
+ 
+ func TestRenegotiateOnce(t *testing.T) {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 61903bb03a..3b4f8b7edc 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -602,9 +602,8 @@ func (hs *serverHandshakeState) establishKeys() error {
+ func (hs *serverHandshakeState) readFinished(out []byte) error {
+ 	c := hs.c
+ 
+-	c.readRecord(recordTypeChangeCipherSpec)
+-	if c.in.err != nil {
+-		return c.in.err
++	if err := c.readChangeCipherSpec(); err != nil {
++		return err
+ 	}
+ 
+ 	if hs.hello.nextProtoNeg {
+diff --git a/src/crypto/tls/testdata/Client-TLSv13-KeyUpdate b/src/crypto/tls/testdata/Client-TLSv13-KeyUpdate
+new file mode 100644
+index 0000000000..6ba717e8be
+--- /dev/null
++++ b/src/crypto/tls/testdata/Client-TLSv13-KeyUpdate
+@@ -0,0 +1,130 @@
++>>> Flow 1 (client to server)
++00000000  16 03 01 00 f8 01 00 00  f4 03 03 00 00 00 00 00  |................|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000020  00 00 00 00 00 00 00 00  00 00 00 20 00 00 00 00  |........... ....|
++00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 32 cc a8  |.............2..|
++00000050  cc a9 c0 2f c0 2b c0 30  c0 2c c0 27 c0 13 c0 23  |.../.+.0.,.'...#|
++00000060  c0 09 c0 14 c0 0a 00 9c  00 9d 00 3c 00 2f 00 35  |...........<./.5|
++00000070  c0 12 00 0a 00 05 c0 11  c0 07 13 01 13 03 13 02  |................|
++00000080  01 00 00 79 00 05 00 05  01 00 00 00 00 00 0a 00  |...y............|
++00000090  0a 00 08 00 1d 00 17 00  18 00 19 00 0b 00 02 01  |................|
++000000a0  00 00 0d 00 18 00 16 08  04 08 05 08 06 04 01 04  |................|
++000000b0  03 05 01 05 03 06 01 06  03 02 01 02 03 ff 01 00  |................|
++000000c0  01 00 00 12 00 00 00 2b  00 09 08 03 04 03 03 03  |.......+........|
++000000d0  02 03 01 00 33 00 26 00  24 00 1d 00 20 2f e5 7d  |....3.&.$... /.}|
++000000e0  a3 47 cd 62 43 15 28 da  ac 5f bb 29 07 30 ff f6  |.G.bC.(.._.).0..|
++000000f0  84 af c4 cf c2 ed 90 99  5f 58 cb 3b 74           |........_X.;t|
++>>> Flow 2 (server to client)
++00000000  16 03 03 00 7a 02 00 00  76 03 03 91 02 b1 d0 21  |....z...v......!|
++00000010  d1 5d ff 00 e2 ab f3 af  0d 22 45 1a a0 7d f1 c7  |.]......."E..}..|
++00000020  73 fd 01 af f5 6e b4 d8  51 a7 26 20 00 00 00 00  |s....n..Q.& ....|
++00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000040  00 00 00 00 00 00 00 00  00 00 00 00 13 01 00 00  |................|
++00000050  2e 00 2b 00 02 03 04 00  33 00 24 00 1d 00 20 d4  |..+.....3.$... .|
++00000060  6c db da 9b 60 3b 55 58  d2 7b 00 7c 85 8f 97 92  |l...`;UX.{.|....|
++00000070  b6 02 a7 9f c2 fc cd 7f  e4 45 37 ff f0 85 51 14  |.........E7...Q.|
++00000080  03 03 00 01 01 17 03 03  00 17 c0 42 45 55 77 7d  |...........BEUw}|
++00000090  3c 65 5a 6a 1f d2 57 ff  9b b6 fe bf 2f 50 04 c9  |<eZj..W...../P..|
++000000a0  5d 17 03 03 02 6d 8f f3  b8 02 b6 22 f2 de 83 41  |]....m....."...A|
++000000b0  82 89 17 99 bf 18 bc 07  1b 75 02 3f ff 6b 54 dd  |.........u.?.kT.|
++000000c0  67 e6 81 2d 0b 10 5e b5  f5 e8 13 fd 4f 6a 49 2a  |g..-..^.....OjI*|
++000000d0  af 8e b0 2f 04 fe db 56  e5 71 f1 66 38 b4 62 82  |.../...V.q.f8.b.|
++000000e0  5b dd 8f c4 ef f7 e9 bb  35 47 4e 3d a6 a7 0b f5  |[.......5GN=....|
++000000f0  b3 4a 5a b7 92 6d 65 26  b6 94 88 f8 a4 9b 7e 33  |.JZ..me&......~3|
++00000100  36 47 11 a2 53 44 f7 8e  f6 b0 a7 b6 ba e1 0a ad  |6G..SD..........|
++00000110  00 7d eb 57 3b 18 54 cc  10 59 42 87 2a d0 99 27  |.}.W;.T..YB.*..'|
++00000120  e4 25 6d 97 0f 6b d2 ec  3d 17 51 99 9d 6f af 57  |.%m..k..=.Q..o.W|
++00000130  1e fc f2 32 2a bb 6e 05  cd eb 99 af 8e 6b 79 a8  |...2*.n......ky.|
++00000140  23 60 e4 3f 1a 1c 2a 33  82 b1 bd 7d 7f 39 75 18  |#`.?..*3...}.9u.|
++00000150  a6 94 91 6b 89 5c 9b c9  94 cc 09 65 8a 72 df 22  |...k.\.....e.r."|
++00000160  6d ac 89 7b 59 0e 89 04  09 f7 15 7d 07 7b 26 49  |m..{Y......}.{&I|
++00000170  da 66 1b b2 5b 0d aa 71  40 01 a2 53 ef da 55 ea  |.f..[..q@..S..U.|
++00000180  f0 22 33 e2 ff db 10 a5  67 3a ee f4 57 08 75 ea  |."3.....g:..W.u.|
++00000190  d1 c2 8c 7e 9b ab ca f8  38 86 92 5f 10 11 57 c9  |...~....8.._..W.|
++000001a0  e5 ba 3c d2 82 61 0c aa  3f 2a e8 9e 1b 9a c0 55  |..<..a..?*.....U|
++000001b0  74 1c b3 12 a3 26 a1 2e  a8 b0 09 cf f8 92 4b aa  |t....&........K.|
++000001c0  b8 ec ff c0 f0 be 38 5e  68 39 58 47 1f ad b3 ba  |......8^h9XG....|
++000001d0  99 bd 21 da 63 50 73 37  8f 5b 92 3a 0e d9 d3 7a  |..!.cPs7.[.:...z|
++000001e0  26 df 07 6c 0b f0 f8 73  23 c9 9f b9 d0 79 aa b0  |&..l...s#....y..|
++000001f0  17 cb 85 f6 47 55 c2 31  aa b0 77 54 b7 a1 dc 12  |....GU.1..wT....|
++00000200  d6 d3 aa 5b 9c c6 ad 7b  b5 34 77 a9 35 7f 7b 25  |...[...{.4w.5.{%|
++00000210  b0 5f d2 c5 8d 41 3c eb  4b 4a 94 a0 07 25 d4 31  |._...A<.KJ...%.1|
++00000220  80 93 13 a8 0c ae 7a 56  b2 52 de e6 30 66 ec 3e  |......zV.R..0f.>|
++00000230  6c 69 fd b2 4a f8 85 54  99 25 35 f7 66 50 fe 3f  |li..J..T.%5.fP.?|
++00000240  3f a3 2e b6 a1 f3 df d0  0b 2c 81 04 37 83 bd fe  |?........,..7...|
++00000250  15 69 2a 28 93 25 7e be  a7 a2 54 14 ce ad 8c 93  |.i*(.%~...T.....|
++00000260  5d 4b e8 bf 07 27 c3 ec  91 2f 55 39 4f 70 1d 17  |]K...'.../U9Op..|
++00000270  3a f9 a5 71 0f 41 a6 17  fc 71 b6 50 43 aa 14 b6  |:..q.A...q.PC...|
++00000280  38 ab af 0b 30 92 77 4d  02 97 fc fb 0d a9 50 96  |8...0.wM......P.|
++00000290  68 30 49 6f 80 0e d3 99  27 a9 50 37 42 51 04 e1  |h0Io....'.P7BQ..|
++000002a0  e8 88 93 1b 0a bf 86 14  c3 d9 b3 49 1a ce 2d 65  |...........I..-e|
++000002b0  72 47 2a 3c b1 fd a3 4a  fb a1 e8 c1 69 24 3a 51  |rG*<...J....i$:Q|
++000002c0  17 1d 7b e7 33 77 21 94  67 5e f0 e7 93 5c 84 97  |..{.3w!.g^...\..|
++000002d0  25 00 cd b2 d9 a1 40 06  6b f8 df a3 4b 7e 48 4c  |%.....@.k...K~HL|
++000002e0  14 30 93 17 cd 6b 8e e7  56 a0 34 1f d9 ba 14 16  |.0...k..V.4.....|
++000002f0  cf 2c 1e c5 35 84 31 6f  e8 81 f5 7c b2 11 5c 9d  |.,..5.1o...|..\.|
++00000300  5d 05 1c 12 41 74 ad 20  74 0c 0c 72 5e f2 43 1c  |]...At. t..r^.C.|
++00000310  91 1a 4d 17 03 03 00 99  d6 a2 b9 7b 55 6b d2 13  |..M........{Uk..|
++00000320  9d 89 e6 7b d4 b2 e9 1c  f6 7d 91 0a 87 00 ba 03  |...{.....}......|
++00000330  c3 ae 47 e9 79 1b 75 e8  8b fe a8 15 4d 33 93 a5  |..G.y.u.....M3..|
++00000340  df e7 d0 40 de 7c f2 63  2d 46 7a 1d e8 2d c6 dd  |...@.|.c-Fz..-..|
++00000350  56 ec cc 49 87 05 ad 2a  c3 e4 89 2c c6 7c 2a 6a  |V..I...*...,.|*j|
++00000360  60 68 40 49 73 2b 29 55  9a 7b c4 e4 c6 24 5e 41  |`h@Is+)U.{...$^A|
++00000370  16 c7 c2 46 e1 cf 10 cc  1d 3d b4 96 b3 ba c4 17  |...F.....=......|
++00000380  1e dd e2 71 fc 80 45 f9  43 a1 16 4d e7 b4 ac a6  |...q..E.C..M....|
++00000390  d3 26 a6 c2 23 06 6e 1c  4f 7e 1e a3 f1 57 e1 0c  |.&..#.n.O~...W..|
++000003a0  50 a6 5f 23 f4 a9 f8 b4  56 e9 d0 8c f6 fb ac 33  |P._#....V......3|
++000003b0  b8 17 03 03 00 35 55 f6  25 b8 52 df c4 e2 2f b0  |.....5U.%.R.../.|
++000003c0  ac 41 c3 ed 49 8d 73 cf  f4 48 c2 4f 33 8c 56 df  |.A..I.s..H.O3.V.|
++000003d0  11 03 9e 7f de 78 d7 03  c3 f4 de e5 69 8e e4 9a  |.....x......i...|
++000003e0  c0 47 3b c9 99 3e 35 c9  66 b9 5a                 |.G;..>5.f.Z|
++>>> Flow 3 (client to server)
++00000000  17 03 03 00 35 03 e0 6c  82 55 1c 8a cb 82 4e 3d  |....5..l.U....N=|
++00000010  4a 5c 4f 94 3b 9c 23 fe  9d 5f 66 22 6a 83 31 98  |J\O.;.#.._f"j.1.|
++00000020  e9 5b 0c 17 54 86 11 5f  85 2c 8c a8 fa 80 a0 d5  |.[..T.._.,......|
++00000030  5f c5 02 30 0a 93 1f 42  b1 a9 17 03 03 00 17 3f  |_..0...B.......?|
++00000040  82 d9 94 f8 84 d1 9f 87  67 c2 37 b5 17 09 0a 99  |........g.7.....|
++00000050  81 6d 0b 70 0b 6e                                 |.m.p.n|
++>>> Flow 4 (server to client)
++00000000  17 03 03 00 da 94 6d 10  ed 89 9a e2 a8 d4 87 52  |......m........R|
++00000010  7e ff c2 55 79 a7 9d a6  41 6d 1c d0 b5 75 10 95  |~..Uy...Am...u..|
++00000020  8f 02 f4 49 b8 ad e7 29  77 d3 ed ab ee 4d db 6c  |...I...)w....M.l|
++00000030  fa 1b 42 d2 fe f7 d3 a2  a5 ed d5 0a d9 33 13 00  |..B..........3..|
++00000040  6b 7b a0 79 08 c6 80 8c  74 c4 15 18 50 a4 b3 93  |k{.y....t...P...|
++00000050  73 89 85 eb e6 d2 3d 64  db aa ec 68 22 64 22 ae  |s.....=d...h"d".|
++00000060  35 a5 7f 01 5b de eb ba  f9 0e 5b 89 30 a8 5e 47  |5...[.....[.0.^G|
++00000070  39 06 cb 4a bb ce 2c e5  87 36 3f b7 4f 02 6d 32  |9..J..,..6?.O.m2|
++00000080  38 86 15 b2 17 60 af 95  8a 6c f1 29 ac e6 da 05  |8....`...l.)....|
++00000090  78 42 e0 5f 7c a7 1e 3b  1c 85 5f 2d 2f 8f de c2  |xB._|..;.._-/...|
++000000a0  a4 fb 53 ed 74 06 76 08  ef af 8b 59 f2 5e d2 2f  |..S.t.v....Y.^./|
++000000b0  a0 09 81 cb 41 e4 7d 11  6e 64 49 ff dc bf ac f3  |....A.}.ndI.....|
++000000c0  13 d8 d5 a2 69 60 ef cd  82 7a 72 78 c3 58 5b 73  |....i`...zrx.X[s|
++000000d0  7b 77 7a 4d cd 66 a0 fb  ab 46 37 6d 4f 4e 57 17  |{wzM.f...F7mONW.|
++000000e0  03 03 00 da d8 64 ed 87  a6 ac ae d1 16 25 ee 7a  |.....d.......%.z|
++000000f0  e1 2d 0a 61 1b db 33 c9  72 92 75 04 1f af 6b fb  |.-.a..3.r.u...k.|
++00000100  73 e6 55 fe 3c cb c8 93  0b 15 ae d1 dc 39 f2 a9  |s.U.<........9..|
++00000110  52 29 69 0f cd 3a 9d c6  8a c6 e0 57 c0 29 19 dc  |R)i..:.....W.)..|
++00000120  26 4d ec b8 49 d3 11 6f  83 c3 a3 71 bb 70 ca 07  |&M..I..o...q.p..|
++00000130  bf 7a 94 15 58 6f a0 f8  b4 23 70 e7 c4 1a 3d 03  |.z..Xo...#p...=.|
++00000140  c9 55 da 35 47 8c 08 79  09 f6 0e 67 b0 ea 35 ed  |.U.5G..y...g..5.|
++00000150  37 72 02 92 41 ef 6f 05  db 04 e2 17 35 22 2c c9  |7r..A.o.....5",.|
++00000160  98 4b 86 a9 b3 bf 4a 21  9f 01 b1 9b b2 6e 08 d4  |.K....J!.....n..|
++00000170  04 9d 60 1d af 79 b5 cd  c1 5d c3 26 92 60 c7 7b  |..`..y...].&.`.{|
++00000180  b2 6f 11 21 58 7d 28 75  92 f3 7c 43 d2 60 0c 8b  |.o.!X}(u..|C.`..|
++00000190  51 a0 ec a7 b9 1e bb 31  52 ca 48 7e 77 fe 24 d7  |Q......1R.H~w.$.|
++000001a0  a5 f6 51 ab 7a 1d ad dd  e3 6e 9c 6a a3 46 f5 5d  |..Q.z....n.j.F.]|
++000001b0  22 33 c7 86 c9 08 d1 1c  07 b7 93 ac f3 93 17 03  |"3..............|
++000001c0  03 00 16 51 14 60 dd e3  6f 3d ae 8e b0 da 29 b3  |...Q.`..o=....).|
++000001d0  ef 24 61 5b 10 52 da ba  b0                       |.$a[.R...|
++>>> Flow 5 (client to server)
++00000000  17 03 03 00 16 28 82 46  cd 7d f4 b8 ad 95 3d 87  |.....(.F.}....=.|
++00000010  6f 95 c2 b5 84 1e 5b fc  f9 9b 15                 |o.....[....|
++>>> Flow 6 (server to client)
++00000000  17 03 03 00 1a 3b 79 64  b2 54 a9 0f e7 76 a3 47  |.....;yd.T...v.G|
++00000010  bc c1 e2 e0 0d 3d c3 60  43 d2 29 cb e4 89 de     |.....=.`C.)....|
++>>> Flow 7 (client to server)
++00000000  17 03 03 00 1d fc 2f 64  89 dc 2d 83 18 7e 48 20  |....../d..-..~H |
++00000010  33 32 5c bf 2c a6 c6 4d  26 f6 75 cd 9d ce 20 1e  |32\.,..M&.u... .|
++00000020  d9 b8 17 03 03 00 13 6b  c6 68 a6 50 07 18 2b f3  |.......k.h.P..+.|
++00000030  73 29 e5 f4 0d f1 ce c9  c0 39                    |s).......9|
+diff --git a/src/crypto/tls/testdata/Client-TLSv13-RenegotiationRejected b/src/crypto/tls/testdata/Client-TLSv13-RenegotiationRejected
+deleted file mode 100644
+index 69efb59360..0000000000
+--- a/src/crypto/tls/testdata/Client-TLSv13-RenegotiationRejected
++++ /dev/null
+@@ -1,107 +0,0 @@
+->>> Flow 1 (client to server)
+-00000000  16 03 01 00 f8 01 00 00  f4 03 03 00 00 00 00 00  |................|
+-00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000020  00 00 00 00 00 00 00 00  00 00 00 20 00 00 00 00  |........... ....|
+-00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 32 cc a8  |.............2..|
+-00000050  cc a9 c0 2f c0 2b c0 30  c0 2c c0 27 c0 13 c0 23  |.../.+.0.,.'...#|
+-00000060  c0 09 c0 14 c0 0a 00 9c  00 9d 00 3c 00 2f 00 35  |...........<./.5|
+-00000070  c0 12 00 0a 00 05 c0 11  c0 07 13 01 13 03 13 02  |................|
+-00000080  01 00 00 79 00 05 00 05  01 00 00 00 00 00 0a 00  |...y............|
+-00000090  0a 00 08 00 1d 00 17 00  18 00 19 00 0b 00 02 01  |................|
+-000000a0  00 00 0d 00 18 00 16 08  04 08 05 08 06 04 01 04  |................|
+-000000b0  03 05 01 05 03 06 01 06  03 02 01 02 03 ff 01 00  |................|
+-000000c0  01 00 00 12 00 00 00 2b  00 09 08 03 04 03 03 03  |.......+........|
+-000000d0  02 03 01 00 33 00 26 00  24 00 1d 00 20 2f e5 7d  |....3.&.$... /.}|
+-000000e0  a3 47 cd 62 43 15 28 da  ac 5f bb 29 07 30 ff f6  |.G.bC.(.._.).0..|
+-000000f0  84 af c4 cf c2 ed 90 99  5f 58 cb 3b 74           |........_X.;t|
+->>> Flow 2 (server to client)
+-00000000  16 03 03 00 7a 02 00 00  76 03 03 54 7e 6f 02 63  |....z...v..T~o.c|
+-00000010  1c ce 10 08 72 06 43 09  69 c1 bb d1 df 5d 05 1f  |....r.C.i....]..|
+-00000020  67 44 47 37 10 75 37 ab  8b dd 58 20 00 00 00 00  |gDG7.u7...X ....|
+-00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000040  00 00 00 00 00 00 00 00  00 00 00 00 13 01 00 00  |................|
+-00000050  2e 00 2b 00 02 03 04 00  33 00 24 00 1d 00 20 e0  |..+.....3.$... .|
+-00000060  69 f4 18 18 65 bd a3 f0  ec c5 29 6b 1d 97 53 4c  |i...e.....)k..SL|
+-00000070  84 c0 e1 d7 81 21 66 9d  bc 9a e1 b6 62 70 3e 14  |.....!f.....bp>.|
+-00000080  03 03 00 01 01 17 03 03  00 17 b8 7a b7 13 71 7b  |...........z..q{|
+-00000090  d0 0f fa 58 ae bb b3 1f  2b c9 77 08 94 22 d9 69  |...X....+.w..".i|
+-000000a0  78 17 03 03 02 6d 80 bb  df 32 4b 7f 94 3d f2 34  |x....m...2K..=.4|
+-000000b0  ea cd 2d fc f1 8f eb 33  39 73 f2 ad 17 20 fa be  |..-....39s... ..|
+-000000c0  99 15 48 91 af fc 01 80  63 e2 05 64 ea 5f 72 9c  |..H.....c..d._r.|
+-000000d0  2c 30 41 ad 62 d2 17 4e  eb 10 bb 54 b6 63 08 cb  |,0A.b..N...T.c..|
+-000000e0  3b 2c a7 30 44 ca 78 20  f3 0b 8f 41 cf 3f 32 e8  |;,.0D.x ...A.?2.|
+-000000f0  e5 b1 a7 2f 0d 04 59 3e  00 85 36 41 17 f8 13 b7  |.../..Y>..6A....|
+-00000100  92 24 2c 14 49 05 0c fa  d7 73 95 10 e6 fb b4 7e  |.$,.I....s.....~|
+-00000110  6e 24 b1 87 cb aa 5e 09  c8 c7 57 16 eb 6d d3 ec  |n$....^...W..m..|
+-00000120  d6 39 c2 ab 3d b8 8e 0e  7e ec 58 3d 0e 9e 81 7f  |.9..=...~.X=....|
+-00000130  2d ad 32 0d d7 18 5f e2  b8 0d d7 59 90 e6 40 49  |-.2..._....Y..@I|
+-00000140  4f 20 8b fb 9d 94 f9 15  50 0e bb d9 cd ed 9c 7f  |O ......P.......|
+-00000150  88 ce cb b2 60 6a 9d f1  de fa df 43 df 24 c2 15  |....`j.....C.$..|
+-00000160  64 a0 72 f8 36 fe 38 2d  a1 78 58 51 cd 9e df 59  |d.r.6.8-.xXQ...Y|
+-00000170  5b ea fb d8 e9 31 e2 33  b9 5f fb a6 a2 bb 5f c8  |[....1.3._...._.|
+-00000180  80 37 16 71 2c 9d d5 98  85 dd 79 ff 82 01 e4 80  |.7.q,.....y.....|
+-00000190  09 e1 02 22 b2 08 a6 ef  bb 05 2b 52 6c 31 08 94  |..."......+Rl1..|
+-000001a0  f3 31 7a fd b6 f3 b9 8d  19 74 f9 fd 76 6e 4c 29  |.1z......t..vnL)|
+-000001b0  cf 06 48 e0 4e 85 5d 03  63 97 ef 59 fe 8e 51 2e  |..H.N.].c..Y..Q.|
+-000001c0  2f 68 ad 55 14 b1 56 9b  00 eb 43 2a 03 7e 56 a8  |/h.U..V...C*.~V.|
+-000001d0  5f 83 6d 4f a2 43 1f 95  2d 8f 6d b3 e2 fb 63 ce  |_.mO.C..-.m...c.|
+-000001e0  de ef e6 e2 0b 3d 7c dd  06 62 38 80 ce a6 88 03  |.....=|..b8.....|
+-000001f0  3b 39 67 3c 60 ea 4c a4  0b 2d 8a d3 b0 b9 2f 10  |;9g<`.L..-..../.|
+-00000200  85 5f 30 a5 37 e9 f1 0d  34 f7 a4 c7 15 7b c7 08  |._0.7...4....{..|
+-00000210  7a 32 8f 52 87 ac 67 c1  c3 f4 1a e0 f3 3a ff ae  |z2.R..g......:..|
+-00000220  85 85 ca d9 4b 4f ad 5f  b3 bd 65 98 b4 63 b1 68  |....KO._..e..c.h|
+-00000230  29 38 39 37 e0 46 01 2f  4d dd 11 94 b0 0e 15 d9  |)897.F./M.......|
+-00000240  1d c8 a8 ee 4f 72 2d 3c  7b 4a 9b 6a 82 bd f6 78  |....Or-<{J.j...x|
+-00000250  94 c2 43 e5 6c 14 3f 69  4c dc 6a 7b fa e4 a3 1c  |..C.l.?iL.j{....|
+-00000260  cc 46 75 e3 b2 50 5b 29  50 67 91 ea 45 54 87 42  |.Fu..P[)Pg..ET.B|
+-00000270  38 99 12 e8 25 86 ab 2b  a8 24 72 dc 75 ae d6 bd  |8...%..+.$r.u...|
+-00000280  93 ab fb 75 07 8a 7a 2b  6c 1b 0f 06 6d 9e cd e2  |...u..z+l...m...|
+-00000290  d4 c6 f0 52 7e 52 59 dd  9b cd 5c d1 77 17 1b d7  |...R~RY...\.w...|
+-000002a0  1d 03 4f 4e d8 0f b7 7c  c7 f8 10 6a 3c 97 4f e3  |..ON...|...j<.O.|
+-000002b0  e3 2d b3 2a b0 42 c0 ab  9c fd 33 88 b6 8b 60 95  |.-.*.B....3...`.|
+-000002c0  fb 14 35 28 66 b5 49 1b  a3 45 a6 e3 d4 86 ff ec  |..5(f.I..E......|
+-000002d0  6e ad 18 54 60 66 e0 28  89 e8 12 3a ba f6 ab b6  |n..T`f.(...:....|
+-000002e0  f6 e8 68 3e 2a 2b d7 e0  c8 ed dc 37 9b 1c 94 ef  |..h>*+.....7....|
+-000002f0  c9 91 c7 c6 47 13 4a c7  bf fc 44 9a 41 94 73 61  |....G.J...D.A.sa|
+-00000300  b2 ca 6a a1 cf 0a 65 c9  79 be 2a 8f 00 b7 99 98  |..j...e.y.*.....|
+-00000310  03 03 20 17 03 03 00 99  50 46 40 7e 04 bd 9f ec  |.. .....PF@~....|
+-00000320  82 d2 f7 72 a0 00 aa 7c  9b 59 b7 a1 14 81 98 8e  |...r...|.Y......|
+-00000330  18 58 c5 7c e2 96 7d 79  24 41 ad f1 51 1f d9 8a  |.X.|..}y$A..Q...|
+-00000340  25 3c d0 f0 c0 77 82 1c  76 0c f0 f0 f4 2e c7 1a  |%<...w..v.......|
+-00000350  dd 81 84 77 b5 9a 5c 78  02 7f db bb 2c d4 8e 7f  |...w..\x....,...|
+-00000360  63 c2 86 de 43 01 c1 3c  35 28 d0 91 f0 bc ec 83  |c...C..<5(......|
+-00000370  dd b7 a4 91 b2 c5 1e e4  b7 da fd 0a df f7 33 b0  |..............3.|
+-00000380  37 39 1b 0c 01 00 1f df  1d c5 44 fc 5b 84 53 22  |79........D.[.S"|
+-00000390  21 1d 02 49 97 c7 08 dc  4a 28 cc 6f fc 5e 9c d5  |!..I....J(.o.^..|
+-000003a0  cf ea 11 89 f5 5f 15 25  e6 f7 bf a9 b4 c1 bb 91  |....._.%........|
+-000003b0  5d 17 03 03 00 35 23 b8  53 0a 97 0f e7 6c 01 5c  |]....5#.S....l.\|
+-000003c0  5e 22 2e 14 ab 33 6d 87  3f 99 41 35 50 c4 95 76  |^"...3m.?.A5P..v|
+-000003d0  ea ac 8d d4 01 10 55 0a  74 c3 8a 80 64 44 cc 7c  |......U.t...dD.||
+-000003e0  d0 59 a5 34 dd c7 b9 13  ff 54 55                 |.Y.4.....TU|
+->>> Flow 3 (client to server)
+-00000000  17 03 03 00 35 c9 d1 1c  82 c8 d6 03 be 95 47 78  |....5.........Gx|
+-00000010  4d 0e 3a 7c fb 60 55 5f  41 5c dd 63 47 41 ff 43  |M.:|.`U_A\.cGA.C|
+-00000020  c9 4b 1c 37 bc be ac 2a  f6 2c d7 39 06 58 5d 71  |.K.7...*.,.9.X]q|
+-00000030  ab 71 6a 5d 3c 52 c6 f1  48 ee 17 03 03 00 17 d6  |.qj]<R..H.......|
+-00000040  b0 41 b8 01 ce 8e 3e e4  45 bf db 7e 58 49 77 09  |.A....>.E..~XIw.|
+-00000050  50 e4 a2 35 35 67                                 |P..55g|
+->>> Flow 4 (server to client)
+-00000000  17 03 03 00 da 01 9d a9  a7 3b 74 8a d3 cb 20 49  |.........;t... I|
+-00000010  b1 73 82 ca 35 bb d7 6b  0d 0d 29 c2 6b 3c 63 75  |.s..5..k..).k<cu|
+-00000020  e2 40 11 fb 2a 03 9b dd  28 01 f1 ed b4 18 d0 dd  |.@..*...(.......|
+-00000030  6e 86 02 4b 8d a8 00 73  8e 53 38 df 79 a6 8b 4b  |n..K...s.S8.y..K|
+-00000040  3e fd 73 17 20 14 ed 6c  9e 5d 6d 5d 0f 30 28 a2  |>.s. ..l.]m].0(.|
+-00000050  f1 37 92 e8 f7 f7 db 16  82 0e 01 60 9c 88 c4 18  |.7.........`....|
+-00000060  d5 e7 b2 7c 3e ba e5 df  40 12 77 83 2c c8 0a 59  |...|>...@.w.,..Y|
+-00000070  a1 cc 43 17 c5 3d 77 76  39 07 ea 4a 37 10 dd d2  |..C..=wv9..J7...|
+-00000080  cc a5 70 3b d6 d1 41 c6  67 1c 16 61 e3 32 f7 a0  |..p;..A.g..a.2..|
+-00000090  21 76 4d 3f c0 6a 9d 82  e8 0f b4 44 07 a4 c7 74  |!vM?.j.....D...t|
+-000000a0  e4 38 be d8 7d 61 f7 cc  dc 61 0f 3b 81 f0 b7 4d  |.8..}a...a.;...M|
+-000000b0  7c ac 85 0c 2b 93 6c 02  a4 76 c5 fe f2 c2 d6 81  ||...+.l..v......|
+-000000c0  18 9b f4 11 ae 8c e6 c4  7a 91 d2 f7 84 43 fc 22  |........z....C."|
+-000000d0  a1 85 90 cb 20 07 2e 91  87 e9 65 a1 2f 1f 5b     |.... .....e./.[|
+->>> Flow 5 (client to server)
+-00000000  17 03 03 00 13 6f bd 84  f6 9b 45 bc 84 ba 22 b0  |.....o....E...".|
+-00000010  ae 0f cf 02 fa f7 4e 15  17 03 03 00 13 c1 b9 70  |......N........p|
+-00000020  e4 13 f9 b1 dc 1c d6 6e  7f ca 2b 1e d5 ab 0f 9c  |.......n..+.....|

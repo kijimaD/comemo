@@ -9,7 +9,7 @@ Date:   Fri Mar 26 14:15:30 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/782041
-
+---
  src/pkg/runtime/extern.go  |   6 +-
  src/pkg/runtime/malloc.cgo |   2 +-
  src/pkg/runtime/malloc.h   |  14 +++-
@@ -19,3 +19,584 @@ Date:   Fri Mar 26 14:15:30 2010 -0700
  src/pkg/runtime/runtime.h  |   5 +-
  test/mallocfin.go          |  10 ++-
  8 files changed, 160 insertions(+), 123 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 338b0c5b27..17ef634407 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -31,7 +31,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+ // on the calling goroutine's stack.  The argument skip is the number of stack frames
+ // to skip before recording in pc, with 0 starting at the caller of Caller.
+ // It returns the number of entries written to pc.
+-func Callers(skip int, pc []int) int
++func Callers(skip int, pc []uintptr) int
+ 
+ // FuncForPC returns a *Func describing the function that contains the
+ // given program counter address, or else nil.
+@@ -208,6 +208,10 @@ func GC()
+ // to depend on a finalizer to flush an in-memory I/O buffer such as a
+ // bufio.Writer, because the buffer would not be flushed at program exit.
+ //
++// A single goroutine runs all finalizers for a program, sequentially.
++// If a finalizer must run for a long time, it should do so by starting
++// a new goroutine.
++//
+ // TODO(rsc): make os.File use SetFinalizer
+ // TODO(rsc): allow f to have (ignored) return values
+ //
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index b9572b2a7a..fed8e037cf 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -366,7 +366,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		}
+ 		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
+ 
+-		if(getfinalizer(obj.data, 0, nil)) {
++		if(getfinalizer(obj.data, 0)) {
+ 			printf("runtime.SetFinalizer: finalizer already set");
+ 			goto throw;
+ 		}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 67e7d42eb1..621394bda1 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -330,8 +330,6 @@ void*	SysAlloc(uintptr);
+ void	SysUnused(void*, uintptr);
+ void	SysFree(void*, uintptr);
+ 
+-void*	getfinalizer(void*, bool, int32*);
+-
+ enum
+ {
+ 	RefcountOverhead = 4,	// one uint32 per object
+@@ -340,7 +338,6 @@ enum
+ 	RefStack,		// stack segment - don't free and don't scan for pointers
+ 	RefNone,		// no references
+ 	RefSome,		// some references
+-	RefFinalize,	// ready to be finalized
+ 	RefNoPointers = 0x80000000U,	// flag - no pointers here
+ 	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
+ 	RefProfiled = 0x20000000U,	// flag - is in profiling table
+@@ -359,3 +356,14 @@ enum {
+ 	MProf_All = 2,
+ };
+ extern int32 malloc_profile;
++
++typedef struct Finalizer Finalizer;
++struct Finalizer
++{
++	Finalizer *next;	// for use by caller of getfinalizer
++	void (*fn)(void*);
++	void *arg;
++	int32 nret;
++};
++
++Finalizer*	getfinalizer(void*, bool);
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 817d987372..ae737e8da2 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -18,17 +18,14 @@ typedef struct Fintab Fintab;
+ struct Fintab
+ {
+ 	void **key;
+-	struct {
+-		void *fn;
+-		int32 nret;
+-	} *val;
++	Finalizer **val;
+ 	int32 nkey;	// number of non-nil entries in key
+ 	int32 ndead;	// number of dead (-1) entries in key
+ 	int32 max;	// size of key, val allocations
+ };
+ 
+ static void
+-addfintab(Fintab *t, void *k, void *fn, int32 nret)
++addfintab(Fintab *t, void *k, Finalizer *v)
+ {
+ 	int32 i, j;
+ 
+@@ -51,15 +48,14 @@ addfintab(Fintab *t, void *k, void *fn, int32 nret)
+ 
+ ret:
+ 	t->key[i] = k;
+-	t->val[i].fn = fn;
+-	t->val[i].nret = nret;
++	t->val[i] = v;
+ }
+ 
+-static void*
+-lookfintab(Fintab *t, void *k, bool del, int32 *nret)
++static Finalizer*
++lookfintab(Fintab *t, void *k, bool del)
+ {
+ 	int32 i, j;
+-	void *v;
++	Finalizer *v;
+ 
+ 	if(t->max == 0)
+ 		return nil;
+@@ -68,13 +64,10 @@ lookfintab(Fintab *t, void *k, bool del, int32 *nret)
+ 		if(t->key[i] == nil)
+ 			return nil;
+ 		if(t->key[i] == k) {
+-			v = t->val[i].fn;
+-			if(nret)
+-				*nret = t->val[i].nret;
++			v = t->val[i];
+ 			if(del) {
+ 				t->key[i] = (void*)-1;
+-				t->val[i].fn = nil;
+-				t->val[i].nret = 0;
++				t->val[i] = nil;
+ 				t->ndead++;
+ 			}
+ 			return v;
+@@ -98,6 +91,14 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 	int32 i;
+ 	uint32 *ref;
+ 	byte *base;
++	Finalizer *e;
++	
++	e = nil;
++	if(f != nil) {
++		e = mal(sizeof *e);
++		e->fn = f;
++		e->nret = nret;
++	}
+ 
+ 	lock(&finlock);
+ 	if(!mlookup(p, &base, nil, nil, &ref) || p != base) {
+@@ -106,7 +107,7 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 	}
+ 	if(f == nil) {
+ 		if(*ref & RefHasFinalizer) {
+-			lookfintab(&fintab, p, 1, nil);
++			lookfintab(&fintab, p, 1);
+ 			*ref &= ~RefHasFinalizer;
+ 		}
+ 		unlock(&finlock);
+@@ -141,26 +142,41 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 
+ 			k = fintab.key[i];
+ 			if(k != nil && k != (void*)-1)
+-				addfintab(&newtab, k, fintab.val[i].fn, fintab.val[i].nret);
++				addfintab(&newtab, k, fintab.val[i]);
+ 		}
+ 		free(fintab.key);
+ 		free(fintab.val);
+ 		fintab = newtab;
+ 	}
+ 
+-	addfintab(&fintab, p, f, nret);
++	addfintab(&fintab, p, e);
+ 	unlock(&finlock);
+ }
+ 
+ // get finalizer; if del, delete finalizer.
+ // caller is responsible for updating RefHasFinalizer bit.
+-void*
+-getfinalizer(void *p, bool del, int32 *nret)
++Finalizer*
++getfinalizer(void *p, bool del)
+ {
+-	void *f;
++	Finalizer *f;
+ 	
+ 	lock(&finlock);
+-	f = lookfintab(&fintab, p, del, nret);
++	f = lookfintab(&fintab, p, del);
+ 	unlock(&finlock);
+ 	return f;
+ }
++
++void
++walkfintab(void (*fn)(void*))
++{
++	void **key;
++	void **ekey;
++
++	lock(&finlock);
++	key = fintab.key;
++	ekey = key + fintab.max;
++	for(; key < ekey; key++)
++		if(*key != nil && *key != ((void*)-1))
++			fn(*key);
++	unlock(&finlock);
++}
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d18965d36e..8cde102094 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -23,19 +23,10 @@ extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+ 
+-typedef struct Finq Finq;
+-struct Finq
+-{
+-	void (*fn)(void*);
+-	void *p;
+-	int32 nret;
+-};
+-
+-static Finq finq[128];	// finalizer queue - two elements per entry
+-static Finq *pfinq = finq;
+-static Finq *efinq = finq+nelem(finq);
+-
++static G *fing;
++static Finalizer *finq;
+ static void sweepblock(byte*, int64, uint32*, int32);
++static void runfinq(void);
+ 
+ enum {
+ 	PtrSize = sizeof(void*)
+@@ -68,12 +59,6 @@ scanblock(int32 depth, byte *b, int64 n)
+ 		if(mlookup(obj, &obj, &size, nil, &refp)) {
+ 			ref = *refp;
+ 			switch(ref & ~RefFlags) {
+-			case RefFinalize:
+-				// If marked for finalization already, some other finalization-ready
+-				// object has a pointer: turn off finalization until that object is gone.
+-				// This means that cyclic finalizer loops never get collected,
+-				// so don't do that.
+-				/* fall through */
+ 			case RefNone:
+ 				if(Debug > 1)
+ 					printf("%d found at %p: ", depth, &vp[i]);
+@@ -106,6 +91,21 @@ scanstack(G *gp)
+ 	}
+ }
+ 
++static void
++markfin(void *v)
++{
++	uintptr size;
++	uint32 *refp;
++
++	size = 0;
++	refp = nil;
++	if(!mlookup(v, &v, &size, nil, &refp) || !(*refp & RefHasFinalizer))
++		throw("mark - finalizer inconsistency");
++	
++	// do not mark the finalizer block itself.  just mark the things it points at.
++	scanblock(1, v, size);
++}
++
+ static void
+ mark(void)
+ {
+@@ -137,58 +137,26 @@ mark(void)
+ 			break;
+ 		}
+ 	}
+-}
+ 
+-// pass 0: mark RefNone with finalizer as RefFinalize and trace
+-static void
+-sweepspan0(MSpan *s)
+-{
+-	byte *p;
+-	uint32 ref, *gcrefp, *gcrefep;
+-	int32 n, size, npages;
+-
+-	p = (byte*)(s->start << PageShift);
+-	if(s->sizeclass == 0) {
+-		// Large block.
+-		ref = s->gcref0;
+-		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
+-			// Mark as finalizable.
+-			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
+-			if(!(ref & RefNoPointers))
+-				scanblock(100, p, s->npages<<PageShift);
+-		}
+-		return;
+-	}
+-
+-	// Chunk full of small blocks.
+-	MGetSizeClassInfo(s->sizeclass, &size, &npages, &n);
+-	gcrefp = s->gcref;
+-	gcrefep = s->gcref + n;
+-	for(; gcrefp < gcrefep; gcrefp++) {
+-		ref = *gcrefp;
+-		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
+-			// Mark as finalizable.
+-			*gcrefp = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
+-			if(!(ref & RefNoPointers))
+-				scanblock(100, p+(gcrefp-s->gcref)*size, size);
+-		}
+-	}
+-}	
++	// mark things pointed at by objects with finalizers
++	walkfintab(markfin);
++}
+ 
+-// pass 1: free RefNone, queue RefFinalize, reset RefSome
++// free RefNone, free & queue finalizers for RefNone|RefHasFinalizer, reset RefSome
+ static void
+-sweepspan1(MSpan *s)
++sweepspan(MSpan *s)
+ {
+ 	int32 n, npages, size;
+ 	byte *p;
+ 	uint32 ref, *gcrefp, *gcrefep;
+ 	MCache *c;
++	Finalizer *f;
+ 
+ 	p = (byte*)(s->start << PageShift);
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+ 		ref = s->gcref0;
+-		switch(ref & ~RefFlags) {
++		switch(ref & ~(RefFlags^RefHasFinalizer)) {
+ 		case RefNone:
+ 			// Free large object.
+ 			mstats.alloc -= s->npages<<PageShift;
+@@ -198,18 +166,17 @@ sweepspan1(MSpan *s)
+ 			s->gcref0 = RefFree;
+ 			MHeap_Free(&mheap, s, 1);
+ 			break;
+-		case RefFinalize:
+-			if(pfinq < efinq) {
+-				pfinq->p = p;
+-				pfinq->nret = 0;
+-				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+-				ref &= ~RefHasFinalizer;
+-				if(pfinq->fn == nil)
+-					throw("finalizer inconsistency");
+-				pfinq++;
+-			}
++		case RefNone|RefHasFinalizer:
++			f = getfinalizer(p, 1);
++			if(f == nil)
++				throw("finalizer inconsistency");
++			f->arg = p;
++			f->next = finq;
++			finq = f;
++			ref &= ~RefHasFinalizer;
+ 			// fall through
+ 		case RefSome:
++		case RefSome|RefHasFinalizer:
+ 			s->gcref0 = RefNone | (ref&RefFlags);
+ 			break;
+ 		}
+@@ -224,7 +191,7 @@ sweepspan1(MSpan *s)
+ 		ref = *gcrefp;
+ 		if(ref < RefNone)	// RefFree or RefStack
+ 			continue;
+-		switch(ref & ~RefFlags) {
++		switch(ref & ~(RefFlags^RefHasFinalizer)) {
+ 		case RefNone:
+ 			// Free small object.
+ 			if(ref & RefProfiled)
+@@ -237,18 +204,17 @@ sweepspan1(MSpan *s)
+ 			mstats.by_size[s->sizeclass].nfree++;
+ 			MCache_Free(c, p, s->sizeclass, size);
+ 			break;
+-		case RefFinalize:
+-			if(pfinq < efinq) {
+-				pfinq->p = p;
+-				pfinq->nret = 0;
+-				pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
+-				ref &= ~RefHasFinalizer;
+-				if(pfinq->fn == nil)	
+-					throw("finalizer inconsistency");
+-				pfinq++;
+-			}
++		case RefNone|RefHasFinalizer:
++			f = getfinalizer(p, 1);
++			if(f == nil)
++				throw("finalizer inconsistency");
++			f->arg = p;
++			f->next = finq;
++			finq = f;
++			ref &= ~RefHasFinalizer;
+ 			// fall through
+ 		case RefSome:
++		case RefSome|RefHasFinalizer:
+ 			*gcrefp = RefNone | (ref&RefFlags);
+ 			break;
+ 		}
+@@ -260,15 +226,9 @@ sweep(void)
+ {
+ 	MSpan *s;
+ 
+-	// Sweep all the spans marking blocks to be finalized.
+ 	for(s = mheap.allspans; s != nil; s = s->allnext)
+ 		if(s->state == MSpanInUse)
+-			sweepspan0(s);
+-
+-	// Sweep again queueing finalizers and freeing the others.
+-	for(s = mheap.allspans; s != nil; s = s->allnext)
+-		if(s->state == MSpanInUse)
+-			sweepspan1(s);
++			sweepspan(s);
+ }
+ 
+ // Semaphore, not Lock, so that the goroutine
+@@ -301,7 +261,7 @@ gc(int32 force)
+ {
+ 	int64 t0, t1;
+ 	byte *p;
+-	Finq *fp;
++	Finalizer *fp;
+ 
+ 	// The gc is turned off (via enablegc) until
+ 	// the bootstrap has completed.
+@@ -340,14 +300,15 @@ gc(int32 force)
+ 	}
+ 	m->gcing = 0;
+ 
+-	// kick off goroutines to run queued finalizers
+ 	m->locks++;	// disable gc during the mallocs in newproc
+-	for(fp=finq; fp<pfinq; fp++) {
+-		newproc1((byte*)fp->fn, (byte*)&fp->p, sizeof(fp->p), fp->nret);
+-		fp->fn = nil;
+-		fp->p = nil;
++	fp = finq;
++	if(fp != nil) {
++		// kick off or wake up goroutine to run queued finalizers
++		if(fing == nil)
++			fing = newproc1((byte*)runfinq, nil, 0, 0);
++		else if(fing->status == Gwaiting)
++			ready(fing);
+ 	}
+-	pfinq = finq;
+ 	m->locks--;
+ 
+ 	t1 = nanotime();
+@@ -357,4 +318,42 @@ gc(int32 force)
+ 		printf("pause %D\n", t1-t0);
+ 	semrelease(&gcsema);
+ 	starttheworld();
++	
++	// give the queued finalizers, if any, a chance to run
++	if(fp != nil)
++		gosched();
++}
++
++static void
++runfinq(void)
++{
++	Finalizer *f, *next;
++	byte *frame;
++
++	for(;;) {
++		// There's no need for a lock in this section
++		// because it only conflicts with the garbage
++		// collector, and the garbage collector only
++		// runs when everyone else is stopped, and
++		// runfinq only stops at the gosched() or
++		// during the calls in the for loop.
++		f = finq;
++		finq = nil;
++		if(f == nil) {
++			g->status = Gwaiting;
++			gosched();
++			continue;
++		}
++		for(; f; f=next) {
++			next = f->next;
++			frame = mal(sizeof(uintptr) + f->nret);
++			*(void**)frame = f->arg;
++			reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
++			free(frame);
++			f->fn = nil;
++			f->arg = nil;
++			f->next = nil;
++		}
++		gc(1);	// trigger another gc to clean up the finalized objects, if possible
++	}
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c4783d8cf3..cc48b61deb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -775,7 +775,7 @@ void
+ 	newproc1(fn, (byte*)(&fn+1), siz, 0);
+ }
+ 
+-void
++G*
+ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ {
+ 	byte *sp;
+@@ -815,6 +815,7 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 	newprocreadylocked(newg);
+ 	unlock(&sched);
+ 
++	return newg;
+ //printf(" goid=%d\n", newg->goid);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cd6e227ec7..d20d5b9362 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -396,6 +396,8 @@ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+ void	free(void *v);
+ void	addfinalizer(void*, void(*fn)(void*), int32);
++void	walkfintab(void (*fn)(void*));
++
+ void	exit(int32);
+ void	breakpoint(void);
+ void	gosched(void);
+@@ -403,7 +405,7 @@ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
+ void	·entersyscall(void);
+ void	·exitsyscall(void);
+-void	newproc1(byte*, byte*, int32, int32);
++G*	newproc1(byte*, byte*, int32, int32);
+ void	siginit(void);
+ bool	sigsend(int32 sig);
+ void	gettime(int64*, int32*);
+@@ -508,6 +510,7 @@ void	runtime_printhex(uint64);
+ void	runtime_printslice(Slice);
+ void	runtime_printcomplex(Complex128);
+ void	·panicl(int32);
++void	reflect·call(byte*, byte*, uint32);
+ 
+ /*
+  * wrapped for go users
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index da3253a04f..44229d490c 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -8,7 +8,10 @@
+ 
+ package main
+ 
+-import "runtime"
++import (
++	"runtime"
++	"time"
++)
+ 
+ const N = 250
+ 
+@@ -25,12 +28,14 @@ var i int
+ var nfinal int
+ var final [N]int
+ 
+-func finalA(a *A) {
++// the unused return is to test finalizers with return values
++func finalA(a *A) (unused [N]int) {
+ 	if final[a.n] != 0 {
+ 		println("finalA", a.n, final[a.n])
+ 		panic("fail")
+ 	}
+ 	final[a.n] = 1
++	return
+ }
+ 
+ func finalB(b *B) {
+@@ -53,6 +58,7 @@ func main() {
+ 	for i := 0; i < N; i++ {
+ 		runtime.GC()
+ 		runtime.Gosched()
++		time.Sleep(1e6);
+ 	}
+ 	if nfinal < N*8/10 {
+ 		panic("not enough finalizing:", nfinal, "/", N)

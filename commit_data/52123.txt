@@ -27,8 +27,206 @@ Date:   Thu Mar 31 14:16:49 2022 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396795
     Trust: Nigel Tao <nigeltao@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.19.html             | 13 +++++++++
  src/image/draw/draw.go      | 59 ++++++++++++++++++++++++++++++-----------
  src/image/draw/draw_test.go | 64 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 121 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 857d8ed8ce..5c48302bf7 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -76,6 +76,19 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO: complete this section
+ </p>
++
++<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
++  <dd>
++    <p><!-- CL 396795 -->
++      <code>Draw</code> with the <code>Src</code> operator preserves
++      non-premultiplied-alpha colors when destination and source images are
++      both <code>*image.NRGBA</code> (or both <code>*image.NRGBA64</code>).
++      This reverts a behavior change accidentally introduced by a Go 1.18
++      library optimization, to match the behavior in Go 1.17 and earlier.
++    </p>
++  </dd>
++</dl><!-- image/draw -->
++
+ <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+   <dd>
+     <p><!-- CL 386016 -->
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 7dd18dfdb5..920ebb905e 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -121,6 +121,11 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 
+ 	// Fast paths for special cases. If none of them apply, then we fall back
+ 	// to general but slower implementations.
++	//
++	// For NRGBA and NRGBA64 image types, the code paths aren't just faster.
++	// They also avoid the information loss that would otherwise occur from
++	// converting non-alpha-premultiplied color to and from alpha-premultiplied
++	// color. See TestDrawSrcNonpremultiplied.
+ 	switch dst0 := dst.(type) {
+ 	case *image.RGBA:
+ 		if op == Over {
+@@ -181,7 +186,10 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 					drawFillSrc(dst0, r, sr, sg, sb, sa)
+ 					return
+ 				case *image.RGBA:
+-					drawCopySrc(dst0, r, src0, sp)
++					d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
++					s0 := src0.PixOffset(sp.X, sp.Y)
++					drawCopySrc(
++						dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 4*r.Dx())
+ 					return
+ 				case *image.NRGBA:
+ 					drawNRGBASrc(dst0, r, src0, sp)
+@@ -222,6 +230,26 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 				return
+ 			}
+ 		}
++	case *image.NRGBA:
++		if op == Src && mask == nil {
++			if src0, ok := src.(*image.NRGBA); ok {
++				d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
++				s0 := src0.PixOffset(sp.X, sp.Y)
++				drawCopySrc(
++					dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 4*r.Dx())
++				return
++			}
++		}
++	case *image.NRGBA64:
++		if op == Src && mask == nil {
++			if src0, ok := src.(*image.NRGBA64); ok {
++				d0 := dst0.PixOffset(r.Min.X, r.Min.Y)
++				s0 := src0.PixOffset(sp.X, sp.Y)
++				drawCopySrc(
++					dst0.Pix[d0:], dst0.Stride, r, src0.Pix[s0:], src0.Stride, sp, 8*r.Dx())
++				return
++			}
++		}
+ 	}
+ 
+ 	x0, x1, dx := r.Min.X, r.Max.X, 1
+@@ -449,27 +477,28 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
+ 	}
+ }
+ 
+-func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+-	n, dy := 4*r.Dx(), r.Dy()
+-	d0 := dst.PixOffset(r.Min.X, r.Min.Y)
+-	s0 := src.PixOffset(sp.X, sp.Y)
+-	var ddelta, sdelta int
+-	if r.Min.Y <= sp.Y {
+-		ddelta = dst.Stride
+-		sdelta = src.Stride
+-	} else {
++// drawCopySrc copies bytes to dstPix from srcPix. These arguments roughly
++// correspond to the Pix fields of the image package's concrete image.Image
++// implementations, but are offset (dstPix is dst.Pix[dpOffset:] not dst.Pix).
++func drawCopySrc(
++	dstPix []byte, dstStride int, r image.Rectangle,
++	srcPix []byte, srcStride int, sp image.Point,
++	bytesPerRow int) {
++
++	d0, s0, ddelta, sdelta, dy := 0, 0, dstStride, srcStride, r.Dy()
++	if r.Min.Y > sp.Y {
+ 		// If the source start point is higher than the destination start
+ 		// point, then we compose the rows in bottom-up order instead of
+ 		// top-down. Unlike the drawCopyOver function, we don't have to check
+ 		// the x coordinates because the built-in copy function can handle
+ 		// overlapping slices.
+-		d0 += (dy - 1) * dst.Stride
+-		s0 += (dy - 1) * src.Stride
+-		ddelta = -dst.Stride
+-		sdelta = -src.Stride
++		d0 = (dy - 1) * dstStride
++		s0 = (dy - 1) * srcStride
++		ddelta = -dstStride
++		sdelta = -srcStride
+ 	}
+ 	for ; dy > 0; dy-- {
+-		copy(dst.Pix[d0:d0+n], src.Pix[s0:s0+n])
++		copy(dstPix[d0:d0+bytesPerRow], srcPix[s0:s0+bytesPerRow])
+ 		d0 += ddelta
+ 		s0 += sdelta
+ 	}
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index 3be93962ad..a34d1c3e6e 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -622,6 +622,70 @@ func TestFill(t *testing.T) {
+ 	}
+ }
+ 
++func TestDrawSrcNonpremultiplied(t *testing.T) {
++	var (
++		opaqueGray       = color.NRGBA{0x99, 0x99, 0x99, 0xff}
++		transparentBlue  = color.NRGBA{0x00, 0x00, 0xff, 0x00}
++		transparentGreen = color.NRGBA{0x00, 0xff, 0x00, 0x00}
++		transparentRed   = color.NRGBA{0xff, 0x00, 0x00, 0x00}
++
++		opaqueGray64        = color.NRGBA64{0x9999, 0x9999, 0x9999, 0xffff}
++		transparentPurple64 = color.NRGBA64{0xfedc, 0x0000, 0x7654, 0x0000}
++	)
++
++	// dst and src are 1x3 images but the dr rectangle (and hence the overlap)
++	// is only 1x2. The Draw call should affect dst's pixels at (1, 10) and (2,
++	// 10) but the pixel at (0, 10) should be untouched.
++	//
++	// The src image is entirely transparent (and the Draw operator is Src) so
++	// the two touched pixels should be set to transparent colors.
++	//
++	// In general, Go's color.Color type (and specifically the Color.RGBA
++	// method) works in premultiplied alpha, where there's no difference
++	// between "transparent blue" and "transparent red". It's all "just
++	// transparent" and canonically "transparent black" (all zeroes).
++	//
++	// However, since the operator is Src (so the pixels are 'copied', not
++	// 'blended') and both dst and src images are *image.NRGBA (N stands for
++	// Non-premultiplied alpha which *does* distinguish "transparent blue" and
++	// "transparent red"), we prefer that this distinction carries through and
++	// dst's touched pixels should be transparent blue and transparent green,
++	// not just transparent black.
++	{
++		dst := image.NewNRGBA(image.Rect(0, 10, 3, 11))
++		dst.SetNRGBA(0, 10, opaqueGray)
++		src := image.NewNRGBA(image.Rect(1, 20, 4, 21))
++		src.SetNRGBA(1, 20, transparentBlue)
++		src.SetNRGBA(2, 20, transparentGreen)
++		src.SetNRGBA(3, 20, transparentRed)
++
++		dr := image.Rect(1, 10, 3, 11)
++		Draw(dst, dr, src, image.Point{1, 20}, Src)
++
++		if got, want := dst.At(0, 10), opaqueGray; got != want {
++			t.Errorf("At(0, 10):\ngot  %#v\nwant %#v", got, want)
++		}
++		if got, want := dst.At(1, 10), transparentBlue; got != want {
++			t.Errorf("At(1, 10):\ngot  %#v\nwant %#v", got, want)
++		}
++		if got, want := dst.At(2, 10), transparentGreen; got != want {
++			t.Errorf("At(2, 10):\ngot  %#v\nwant %#v", got, want)
++		}
++	}
++
++	// Check image.NRGBA64 (not image.NRGBA) similarly.
++	{
++		dst := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
++		dst.SetNRGBA64(0, 0, opaqueGray64)
++		src := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
++		src.SetNRGBA64(0, 0, transparentPurple64)
++		Draw(dst, dst.Bounds(), src, image.Point{0, 0}, Src)
++		if got, want := dst.At(0, 0), transparentPurple64; got != want {
++			t.Errorf("At(0, 0):\ngot  %#v\nwant %#v", got, want)
++		}
++	}
++}
++
+ // TestFloydSteinbergCheckerboard tests that the result of Floyd-Steinberg
+ // error diffusion of a uniform 50% gray source image with a black-and-white
+ // palette is a checkerboard pattern.

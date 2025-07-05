@@ -17,7 +17,97 @@ Date:   Wed Mar 1 21:09:52 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/37542
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/mono_test.go |  4 ++--
  src/time/time.go      | 27 +++++++++++++++++----------
  2 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/time/mono_test.go b/src/time/mono_test.go
+index dfb88e792b..794f1d1b1c 100644
+--- a/src/time/mono_test.go
++++ b/src/time/mono_test.go
+@@ -54,8 +54,8 @@ func TestHasMonotonicClock(t *testing.T) {
+ 	yes("tm.In(UTC)", tm.In(UTC))
+ 	yes("tm.Local()", tm.Local())
+ 	yes("tm.UTC()", tm.UTC())
+-	yes("tm.Round(2)", tm.Round(2))
+-	yes("tm.Truncate(2)", tm.Truncate(2))
++	no("tm.Round(2)", tm.Round(2))
++	no("tm.Truncate(2)", tm.Truncate(2))
+ }
+ 
+ func TestMonotonicAdd(t *testing.T) {
+diff --git a/src/time/time.go b/src/time/time.go
+index 48aa1eb8f2..5bb7dd961d 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -37,13 +37,12 @@
+ // to use this package.
+ //
+ // The Time returned by time.Now contains a monotonic clock reading.
+-// If Time t has a monotonic clock reading, t.Add, t.Round, and
+-// t.Truncate add the same duration to both the wall clock and
+-// monotonic clock readings to compute the result. Similarly, t.In,
+-// t.Local, and t.UTC, which are defined to change only the Time's
++// If Time t has a monotonic clock reading, t.Add adds the same duration to
++// both the wall clock and monotonic clock readings to compute the result.
++// Similarly, t.In, t.Local, and t.UTC, which are defined to change only the Time's
+ // Location, pass any monotonic clock reading through unmodified.
+-// Because t.AddDate(y, m, d) is a wall time computation, it always
+-// strips any monotonic clock reading from its result.
++// Because t.AddDate(y, m, d), t.Round(d), and t.Truncate(d) are wall time
++// computations, they always strip any monotonic clock reading from their results.
+ //
+ // If Times t and u both contain monotonic clock readings, the operations
+ // t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
+@@ -172,8 +171,7 @@ func (t *Time) addSec(d int64) {
+ 		}
+ 		// Wall second now out of range for packed field.
+ 		// Move to ext.
+-		t.ext = t.sec()
+-		t.wall &= nsecMask
++		t.stripMono()
+ 	}
+ 
+ 	// TODO: Check for overflow.
+@@ -188,6 +186,14 @@ func (t *Time) setLoc(loc *Location) {
+ 	t.loc = loc
+ }
+ 
++// stripMono strips the monotonic clock reading in t.
++func (t *Time) stripMono() {
++	if t.wall&hasMonotonic != 0 {
++		t.ext = t.sec()
++		t.wall &= nsecMask
++	}
++}
++
+ // setMono sets the monotonic clock reading in t.
+ // If t cannot hold a monotonic clock reading,
+ // because its wall time is too large,
+@@ -839,8 +845,7 @@ func (t Time) Add(d Duration) Time {
+ 		te := t.ext + int64(d)
+ 		if d < 0 && te > int64(t.ext) || d > 0 && te < int64(t.ext) {
+ 			// Monotonic clock reading now out of range; degrade to wall-only.
+-			t.ext = t.sec()
+-			t.wall &= nsecMask
++			t.stripMono()
+ 		} else {
+ 			t.ext = te
+ 		}
+@@ -1373,6 +1378,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ // time. Thus, Truncate(Hour) may return a time with a non-zero
+ // minute, depending on the time's Location.
+ func (t Time) Truncate(d Duration) Time {
++	t.stripMono()
+ 	if d <= 0 {
+ 		return t
+ 	}
+@@ -1389,6 +1395,7 @@ func (t Time) Truncate(d Duration) Time {
+ // time. Thus, Round(Hour) may return a time with a non-zero
+ // minute, depending on the time's Location.
+ func (t Time) Round(d Duration) Time {
++	t.stripMono()
+ 	if d <= 0 {
+ 		return t
+ 	}

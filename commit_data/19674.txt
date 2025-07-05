@@ -10,6 +10,22 @@ Date:   Mon Jul 7 16:57:07 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/101670044
-
+---
  src/pkg/net/rpc/debug.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/rpc/debug.go b/src/pkg/net/rpc/debug.go
+index 926466d625..98b2c1c6c4 100644
+--- a/src/pkg/net/rpc/debug.go
++++ b/src/pkg/net/rpc/debug.go
+@@ -11,9 +11,9 @@ package rpc
+ 
+ import (
+ 	"fmt"
++	"html/template"
+ 	"net/http"
+ 	"sort"
+-	"text/template"
+ )
+ 
+ const debugText = `<html>

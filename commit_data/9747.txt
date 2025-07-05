@@ -9,7 +9,109 @@ Date:   Mon Sep 19 11:41:09 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4952052
-
+---
  src/pkg/http/requestwrite_test.go |  5 +++++
  src/pkg/http/transfer.go          | 35 +++++++++++++++++++++++++++++------
  2 files changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index a8cb75a597..8c29c44f49 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -246,14 +246,19 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+ 
++		// RFC 2616 Section 14.13 says Content-Length should be specified
++		// unless body is prohibited by the request method.
++		// Also, nginx expects it for POST and PUT.
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
++			"Content-Length: 0\r\n" +
+ 			"\r\n",
+ 
+ 		WantProxy: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
++			"Content-Length: 0\r\n" +
+ 			"\r\n",
+ 	},
+ 
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 8b12447acc..300c7a88d5 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -19,6 +19,7 @@ import (
+ // sanitizes them without changing the user object and provides methods for
+ // writing the respective header, body and trailer in wire format.
+ type transferWriter struct {
++	Method           string
+ 	Body             io.Reader
+ 	BodyCloser       io.Closer
+ 	ResponseToHEAD   bool
+@@ -38,7 +39,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+ 		if rr.ContentLength != 0 && rr.Body == nil {
+ 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
+ 		}
+-
++		t.Method = rr.Method
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+@@ -69,6 +70,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+ 			}
+ 		}
+ 	case *Response:
++		t.Method = rr.Request.Method
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+@@ -110,6 +112,27 @@ func noBodyExpected(requestMethod string) bool {
+ 	return requestMethod == "HEAD"
+ }
+ 
++func (t *transferWriter) shouldSendContentLength() bool {
++	if chunked(t.TransferEncoding) {
++		return false
++	}
++	if t.ContentLength > 0 {
++		return true
++	}
++	if t.ResponseToHEAD {
++		return true
++	}
++	// Many servers expect a Content-Length for these methods
++	if t.Method == "POST" || t.Method == "PUT" {
++		return true
++	}
++	if t.ContentLength == 0 && isIdentity(t.TransferEncoding) {
++		return true
++	}
++
++	return false
++}
++
+ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
+ 	if t.Close {
+ 		_, err = io.WriteString(w, "Connection: close\r\n")
+@@ -121,14 +144,14 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
+ 	// Write Content-Length and/or Transfer-Encoding whose values are a
+ 	// function of the sanitized field triple (Body, ContentLength,
+ 	// TransferEncoding)
+-	if chunked(t.TransferEncoding) {
+-		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
++	if t.shouldSendContentLength() {
++		io.WriteString(w, "Content-Length: ")
++		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
+ 		if err != nil {
+ 			return
+ 		}
+-	} else if t.ContentLength > 0 || t.ResponseToHEAD || (t.ContentLength == 0 && isIdentity(t.TransferEncoding)) {
+-		io.WriteString(w, "Content-Length: ")
+-		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
++	} else if chunked(t.TransferEncoding) {
++		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
+ 		if err != nil {
+ 			return
+ 		}

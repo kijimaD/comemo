@@ -9,6 +9,21 @@ Date:   Wed Sep 17 15:30:48 2014 -0400
     TBR=minux
     CC=golang-codereviews
     https://golang.org/cl/145070043
-
+---
  src/sync/atomic/64bit_arm.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/sync/atomic/64bit_arm.go b/src/sync/atomic/64bit_arm.go
+index 0aab7160e9..b98e60827e 100644
+--- a/src/sync/atomic/64bit_arm.go
++++ b/src/sync/atomic/64bit_arm.go
+@@ -50,3 +50,9 @@ func swapUint64(addr *uint64, new uint64) (old uint64) {
+ func armCompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+ func armCompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
+ func generalCAS64(addr *uint64, old, new uint64) (swapped bool)
++func armAddUint32(addr *uint32, delta uint32) (new uint32)
++func armAddUint64(addr *uint64, delta uint64) (new uint64)
++func armSwapUint32(addr *uint32, new uint32) (old uint32)
++func armSwapUint64(addr *uint64, new uint64) (old uint64)
++func armLoadUint64(addr *uint64) (val uint64)
++func armStoreUint64(addr *uint64, val uint64)

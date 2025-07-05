@@ -33,7 +33,7 @@ Date:   Mon Aug 3 13:57:25 2015 +1000
     Change-Id: Ieb94b6558535b504180b1378f19e8f5a96f92d3c
     Reviewed-on: https://go-review.googlesource.com/13051
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/types/api.go         |   6 +--
  src/go/types/assignments.go |   4 +-
  src/go/types/builtins.go    |  52 ++++++++++-----------
@@ -50,3 +50,978 @@ Date:   Mon Aug 3 13:57:25 2015 +1000
  src/go/types/typexpr.go     |   8 ++--
  src/go/types/universe.go    |  10 ++--
  15 files changed, 151 insertions(+), 151 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index b0478b3239..b3bf6f0147 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -28,7 +28,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -218,7 +218,7 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
+ type TypeAndValue struct {
+ 	mode  operandMode
+ 	Type  Type
+-	Value exact.Value // == constant.Value
++	Value constant.Value
+ }
+ 
+ // TODO(gri) Consider eliminating the IsVoid predicate. Instead, report
+@@ -246,7 +246,7 @@ func (tv TypeAndValue) IsBuiltin() bool {
+ // nil Value.
+ func (tv TypeAndValue) IsValue() bool {
+ 	switch tv.mode {
+-	case constant, variable, mapindex, value, commaok:
++	case constant_, variable, mapindex, value, commaok:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 93b842eaa0..e88de56a0d 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -23,7 +23,7 @@ func (check *Checker) assignment(x *operand, T Type) bool {
+ 	switch x.mode {
+ 	case invalid:
+ 		return true // error reported before
+-	case constant, variable, mapindex, value, commaok:
++	case constant_, variable, mapindex, value, commaok:
+ 		// ok
+ 	default:
+ 		unreachable()
+@@ -74,7 +74,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
+ 	}
+ 
+ 	// rhs must be a constant
+-	if x.mode != constant {
++	if x.mode != constant_ {
+ 		check.errorf(x.pos(), "%s is not constant", x)
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 9a2b665cbf..47295914d0 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -138,13 +138,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// len(x)
+ 		mode := invalid
+ 		var typ Type
+-		var val exact.Value
++		var val constant.Value
+ 		switch typ = implicitArrayDeref(x.typ.Underlying()); t := typ.(type) {
+ 		case *Basic:
+ 			if isString(t) && id == _Len {
+-				if x.mode == constant {
+-					mode = constant
+-					val = exact.MakeInt64(int64(len(exact.StringVal(x.val))))
++				if x.mode == constant_ {
++					mode = constant_
++					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
+ 				} else {
+ 					mode = value
+ 				}
+@@ -157,8 +157,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			// the expression s does not contain channel receives or
+ 			// function calls; in this case s is not evaluated."
+ 			if !check.hasCallOrRecv {
+-				mode = constant
+-				val = exact.MakeInt64(t.len)
++				mode = constant_
++				val = constant.MakeInt64(t.len)
+ 			}
+ 
+ 		case *Slice, *Chan:
+@@ -178,7 +178,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x.mode = mode
+ 		x.typ = Typ[Int]
+ 		x.val = val
+-		if check.Types != nil && mode != constant {
++		if check.Types != nil && mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+ 		}
+ 
+@@ -228,8 +228,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if x.mode == constant && y.mode == constant {
+-			x.val = exact.BinaryOp(x.val, token.ADD, exact.MakeImag(y.val))
++		if x.mode == constant_ && y.mode == constant_ {
++			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
+ 		} else {
+ 			x.mode = value
+ 		}
+@@ -242,7 +242,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		case Float64:
+ 			complexT = Typ[Complex128]
+ 		case UntypedInt, UntypedRune, UntypedFloat:
+-			if x.mode == constant {
++			if x.mode == constant_ {
+ 				realT = defaultType(realT).(*Basic)
+ 				complexT = Typ[UntypedComplex]
+ 			} else {
+@@ -257,11 +257,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 		x.typ = complexT
+-		if check.Types != nil && x.mode != constant {
++		if check.Types != nil && x.mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(complexT, realT, realT))
+ 		}
+ 
+-		if x.mode != constant {
++		if x.mode != constant_ {
+ 			// The arguments have now their final types, which at run-
+ 			// time will be materialized. Update the expression trees.
+ 			// If the current types are untyped, the materialized type
+@@ -339,11 +339,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			check.invalidArg(x.pos(), "%s must be a complex number", x)
+ 			return
+ 		}
+-		if x.mode == constant {
++		if x.mode == constant_ {
+ 			if id == _Real {
+-				x.val = exact.Real(x.val)
++				x.val = constant.Real(x.val)
+ 			} else {
+-				x.val = exact.Imag(x.val)
++				x.val = constant.Imag(x.val)
+ 			}
+ 		} else {
+ 			x.mode = value
+@@ -360,7 +360,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			unreachable()
+ 		}
+ 
+-		if check.Types != nil && x.mode != constant {
++		if check.Types != nil && x.mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(Typ[k], x.typ))
+ 		}
+ 		x.typ = Typ[k]
+@@ -471,8 +471,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		x.mode = constant
+-		x.val = exact.MakeInt64(check.conf.alignof(x.typ))
++		x.mode = constant_
++		x.val = constant.MakeInt64(check.conf.alignof(x.typ))
+ 		x.typ = Typ[Uintptr]
+ 		// result is constant - no need to record signature
+ 
+@@ -516,8 +516,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		check.recordSelection(selx, FieldVal, base, obj, index, false)
+ 
+ 		offs := check.conf.offsetof(base, index)
+-		x.mode = constant
+-		x.val = exact.MakeInt64(offs)
++		x.mode = constant_
++		x.val = constant.MakeInt64(offs)
+ 		x.typ = Typ[Uintptr]
+ 		// result is constant - no need to record signature
+ 
+@@ -528,8 +528,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		x.mode = constant
+-		x.val = exact.MakeInt64(check.conf.sizeof(x.typ))
++		x.mode = constant_
++		x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
+ 		x.typ = Typ[Uintptr]
+ 		// result is constant - no need to record signature
+ 
+@@ -537,15 +537,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// assert(pred) causes a typechecker error if pred is false.
+ 		// The result of assert is the value of pred if there is no error.
+ 		// Note: assert is only available in self-test mode.
+-		if x.mode != constant || !isBoolean(x.typ) {
++		if x.mode != constant_ || !isBoolean(x.typ) {
+ 			check.invalidArg(x.pos(), "%s is not a boolean constant", x)
+ 			return
+ 		}
+-		if x.val.Kind() != exact.Bool {
++		if x.val.Kind() != constant.Bool {
+ 			check.errorf(x.pos(), "internal error: value of %s should be a boolean constant", x)
+ 			return
+ 		}
+-		if !exact.BoolVal(x.val) {
++		if !constant.BoolVal(x.val) {
+ 			check.errorf(call.Pos(), "%s failed", call)
+ 			// compile-time assertion failure - safe to continue
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 1e94212398..62cefc047e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -46,7 +46,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 		}
+ 		x.expr = e
+ 		// a non-constant result implies a function call
+-		if x.mode != invalid && x.mode != constant {
++		if x.mode != invalid && x.mode != constant_ {
+ 			check.hasCallOrRecv = true
+ 		}
+ 		return predeclaredFuncs[id].kind
+@@ -302,7 +302,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 			switch exp := exp.(type) {
+ 			case *Const:
+ 				assert(exp.Val() != nil)
+-				x.mode = constant
++				x.mode = constant_
+ 				x.typ = exp.typ
+ 				x.val = exp.val
+ 			case *TypeName:
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index a3c0538654..bb0b07415e 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -36,7 +36,7 @@ type exprInfo struct {
+ 	isLhs bool // expression is lhs operand of a shift with delayed type-check
+ 	mode  operandMode
+ 	typ   *Basic
+-	val   exact.Value // constant value; or nil (if not a constant)
++	val   constant.Value // constant value; or nil (if not a constant)
+ }
+ 
+ // funcInfo stores the information required for type-checking a function.
+@@ -49,12 +49,12 @@ type funcInfo struct {
+ 
+ // A context represents the context within which an object is type-checked.
+ type context struct {
+-	decl          *declInfo   // package-level declaration whose init expression/function body is checked
+-	scope         *Scope      // top-most scope for lookups
+-	iota          exact.Value // value of iota in a constant declaration; nil otherwise
+-	sig           *Signature  // function signature if inside a function; nil otherwise
+-	hasLabel      bool        // set if a function makes use of labels (only ~1% of functions); unused outside functions
+-	hasCallOrRecv bool        // set if an expression contains a function call or channel receive operation
++	decl          *declInfo      // package-level declaration whose init expression/function body is checked
++	scope         *Scope         // top-most scope for lookups
++	iota          constant.Value // value of iota in a constant declaration; nil otherwise
++	sig           *Signature     // function signature if inside a function; nil otherwise
++	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
++	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
+ }
+ 
+ // A Checker maintains the state of the type checker.
+@@ -126,7 +126,7 @@ func (check *Checker) assocMethod(tname string, meth *Func) {
+ 	m[tname] = append(m[tname], meth)
+ }
+ 
+-func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val exact.Value) {
++func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+ 	m := check.untyped
+ 	if m == nil {
+ 		m = make(map[ast.Expr]exprInfo)
+@@ -257,14 +257,14 @@ func (check *Checker) recordUntyped() {
+ 	}
+ }
+ 
+-func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val exact.Value) {
++func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val constant.Value) {
+ 	assert(x != nil)
+ 	assert(typ != nil)
+ 	if mode == invalid {
+ 		return // omit
+ 	}
+ 	assert(typ != nil)
+-	if mode == constant {
++	if mode == constant_ {
+ 		assert(val != nil)
+ 		assert(typ == Typ[Invalid] || isConstType(typ))
+ 	}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index f72751d532..74826ce934 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -6,12 +6,12 @@
+ 
+ package types
+ 
+-import exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++import "go/constant"
+ 
+ // Conversion type-checks the conversion T(x).
+ // The result is in x.
+ func (check *Checker) conversion(x *operand, T Type) {
+-	constArg := x.mode == constant
++	constArg := x.mode == constant_
+ 
+ 	var ok bool
+ 	switch {
+@@ -22,13 +22,13 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 			ok = true
+ 		case isInteger(x.typ) && isString(t):
+ 			codepoint := int64(-1)
+-			if i, ok := exact.Int64Val(x.val); ok {
++			if i, ok := constant.Int64Val(x.val); ok {
+ 				codepoint = i
+ 			}
+ 			// If codepoint < 0 the absolute value is too large (or unknown) for
+ 			// conversion. This is the same as converting any other out-of-range
+ 			// value - let string(codepoint) do the work.
+-			x.val = exact.MakeString(string(codepoint))
++			x.val = constant.MakeString(string(codepoint))
+ 			ok = true
+ 		}
+ 	case x.convertibleTo(check.conf, T):
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 9be7565771..8e9e5f36de 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -6,7 +6,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -105,7 +105,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	defer func() { check.iota = nil }()
+ 
+ 	// provide valid constant value under all circumstances
+-	obj.val = exact.MakeUnknown()
++	obj.val = constant.MakeUnknown()
+ 
+ 	// determine type, if any
+ 	if typ != nil {
+@@ -335,7 +335,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 					// declare all constants
+ 					lhs := make([]*Const, len(s.Names))
+ 					for i, name := range s.Names {
+-						obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
++						obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
+ 						lhs[i] = obj
+ 
+ 						var init ast.Expr
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 9a057befa1..7d00dd5fa5 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ 	"math"
+ )
+@@ -116,13 +116,13 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
+ 		return
+ 	}
+ 
+-	if x.mode == constant {
++	if x.mode == constant_ {
+ 		typ := x.typ.Underlying().(*Basic)
+ 		var prec uint
+ 		if isUnsigned(typ) {
+ 			prec = uint(check.conf.sizeof(typ) * 8)
+ 		}
+-		x.val = exact.UnaryOp(op, x.val, prec)
++		x.val = constant.UnaryOp(op, x.val, prec)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+@@ -151,30 +151,30 @@ func isComparison(op token.Token) bool {
+ 	return false
+ }
+ 
+-func fitsFloat32(x exact.Value) bool {
+-	f32, _ := exact.Float32Val(x)
++func fitsFloat32(x constant.Value) bool {
++	f32, _ := constant.Float32Val(x)
+ 	f := float64(f32)
+ 	return !math.IsInf(f, 0)
+ }
+ 
+-func roundFloat32(x exact.Value) exact.Value {
+-	f32, _ := exact.Float32Val(x)
++func roundFloat32(x constant.Value) constant.Value {
++	f32, _ := constant.Float32Val(x)
+ 	f := float64(f32)
+ 	if !math.IsInf(f, 0) {
+-		return exact.MakeFloat64(f)
++		return constant.MakeFloat64(f)
+ 	}
+ 	return nil
+ }
+ 
+-func fitsFloat64(x exact.Value) bool {
+-	f, _ := exact.Float64Val(x)
++func fitsFloat64(x constant.Value) bool {
++	f, _ := constant.Float64Val(x)
+ 	return !math.IsInf(f, 0)
+ }
+ 
+-func roundFloat64(x exact.Value) exact.Value {
+-	f, _ := exact.Float64Val(x)
++func roundFloat64(x constant.Value) constant.Value {
++	f, _ := constant.Float64Val(x)
+ 	if !math.IsInf(f, 0) {
+-		return exact.MakeFloat64(f)
++		return constant.MakeFloat64(f)
+ 	}
+ 	return nil
+ }
+@@ -186,16 +186,16 @@ func roundFloat64(x exact.Value) exact.Value {
+ // If rounded != nil, *rounded is set to the rounded value of x for
+ // representable floating-point values; it is left alone otherwise.
+ // It is ok to provide the addressof the first argument for rounded.
+-func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exact.Value) bool {
++func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *constant.Value) bool {
+ 	switch x.Kind() {
+-	case exact.Unknown:
++	case constant.Unknown:
+ 		return true
+ 
+-	case exact.Bool:
++	case constant.Bool:
+ 		return as == Bool || as == UntypedBool
+ 
+-	case exact.Int:
+-		if x, ok := exact.Int64Val(x); ok {
++	case constant.Int:
++		if x, ok := constant.Int64Val(x); ok {
+ 			switch as {
+ 			case Int:
+ 				var s = uint(conf.sizeof(Typ[as])) * 8
+@@ -233,13 +233,13 @@ func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exac
+ 			}
+ 		}
+ 
+-		n := exact.BitLen(x)
++		n := constant.BitLen(x)
+ 		switch as {
+ 		case Uint, Uintptr:
+ 			var s = uint(conf.sizeof(Typ[as])) * 8
+-			return exact.Sign(x) >= 0 && n <= int(s)
++			return constant.Sign(x) >= 0 && n <= int(s)
+ 		case Uint64:
+-			return exact.Sign(x) >= 0 && n <= 64
++			return constant.Sign(x) >= 0 && n <= 64
+ 		case Float32, Complex64:
+ 			if rounded == nil {
+ 				return fitsFloat32(x)
+@@ -262,7 +262,7 @@ func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exac
+ 			return true
+ 		}
+ 
+-	case exact.Float:
++	case constant.Float:
+ 		switch as {
+ 		case Float32, Complex64:
+ 			if rounded == nil {
+@@ -286,33 +286,33 @@ func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exac
+ 			return true
+ 		}
+ 
+-	case exact.Complex:
++	case constant.Complex:
+ 		switch as {
+ 		case Complex64:
+ 			if rounded == nil {
+-				return fitsFloat32(exact.Real(x)) && fitsFloat32(exact.Imag(x))
++				return fitsFloat32(constant.Real(x)) && fitsFloat32(constant.Imag(x))
+ 			}
+-			re := roundFloat32(exact.Real(x))
+-			im := roundFloat32(exact.Imag(x))
++			re := roundFloat32(constant.Real(x))
++			im := roundFloat32(constant.Imag(x))
+ 			if re != nil && im != nil {
+-				*rounded = exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
++				*rounded = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
+ 				return true
+ 			}
+ 		case Complex128:
+ 			if rounded == nil {
+-				return fitsFloat64(exact.Real(x)) && fitsFloat64(exact.Imag(x))
++				return fitsFloat64(constant.Real(x)) && fitsFloat64(constant.Imag(x))
+ 			}
+-			re := roundFloat64(exact.Real(x))
+-			im := roundFloat64(exact.Imag(x))
++			re := roundFloat64(constant.Real(x))
++			im := roundFloat64(constant.Imag(x))
+ 			if re != nil && im != nil {
+-				*rounded = exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
++				*rounded = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
+ 				return true
+ 			}
+ 		case UntypedComplex:
+ 			return true
+ 		}
+ 
+-	case exact.String:
++	case constant.String:
+ 		return as == String || as == UntypedString
+ 
+ 	default:
+@@ -324,7 +324,7 @@ func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exac
+ 
+ // representable checks that a constant operand is representable in the given basic type.
+ func (check *Checker) representable(x *operand, typ *Basic) {
+-	assert(x.mode == constant)
++	assert(x.mode == constant_)
+ 	if !representableConst(x.val, check.conf, typ.kind, &x.val) {
+ 		var msg string
+ 		if isNumeric(x.typ) && isNumeric(typ) {
+@@ -458,7 +458,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ }
+ 
+ // updateExprVal updates the value of x to val.
+-func (check *Checker) updateExprVal(x ast.Expr, val exact.Value) {
++func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
+ 	if info, ok := check.untyped[x]; ok {
+ 		info.val = val
+ 		check.untyped[x] = info
+@@ -492,7 +492,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 	// typed target
+ 	switch t := target.Underlying().(type) {
+ 	case *Basic:
+-		if x.mode == constant {
++		if x.mode == constant_ {
+ 			check.representable(x, t)
+ 			if x.mode == invalid {
+ 				return
+@@ -599,8 +599,8 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 		return
+ 	}
+ 
+-	if x.mode == constant && y.mode == constant {
+-		x.val = exact.MakeBool(exact.Compare(x.val, op, y.val))
++	if x.mode == constant_ && y.mode == constant_ {
++		x.val = constant.MakeBool(constant.Compare(x.val, op, y.val))
+ 		// The operands are never materialized; no need to update
+ 		// their types.
+ 	} else {
+@@ -647,8 +647,8 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 		return
+ 	}
+ 
+-	if x.mode == constant {
+-		if y.mode == constant {
++	if x.mode == constant_ {
++		if y.mode == constant_ {
+ 			// rhs must be an integer value
+ 			if !y.isInteger() {
+ 				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+@@ -657,7 +657,7 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 			}
+ 			// rhs must be within reasonable bounds
+ 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
+-			s, ok := exact.Uint64Val(y.val)
++			s, ok := constant.Uint64Val(y.val)
+ 			if !ok || s > stupidShift {
+ 				check.invalidOp(y.pos(), "stupid shift count %s", y)
+ 				x.mode = invalid
+@@ -670,7 +670,7 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 			if !isInteger(x.typ) {
+ 				x.typ = Typ[UntypedInt]
+ 			}
+-			x.val = exact.Shift(x.val, op, uint(s))
++			x.val = constant.Shift(x.val, op, uint(s))
+ 			return
+ 		}
+ 
+@@ -695,7 +695,7 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 	}
+ 
+ 	// constant rhs must be >= 0
+-	if y.mode == constant && exact.Sign(y.val) < 0 {
++	if y.mode == constant_ && constant.Sign(y.val) < 0 {
+ 		check.invalidOp(y.pos(), "shift count %s must not be negative", y)
+ 	}
+ 
+@@ -776,19 +776,19 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 		return
+ 	}
+ 
+-	if (op == token.QUO || op == token.REM) && (x.mode == constant || isInteger(x.typ)) && y.mode == constant && exact.Sign(y.val) == 0 {
++	if (op == token.QUO || op == token.REM) && (x.mode == constant_ || isInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+ 		check.invalidOp(y.pos(), "division by zero")
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+-	if x.mode == constant && y.mode == constant {
++	if x.mode == constant_ && y.mode == constant_ {
+ 		typ := x.typ.Underlying().(*Basic)
+ 		// force integer division of integer operands
+ 		if op == token.QUO && isInteger(typ) {
+ 			op = token.QUO_ASSIGN
+ 		}
+-		x.val = exact.BinaryOp(x.val, op, y.val)
++		x.val = constant.BinaryOp(x.val, op, y.val)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+@@ -827,12 +827,12 @@ func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
+ 	}
+ 
+ 	// a constant index i must be in bounds
+-	if x.mode == constant {
+-		if exact.Sign(x.val) < 0 {
++	if x.mode == constant_ {
++		if constant.Sign(x.val) < 0 {
+ 			check.invalidArg(x.pos(), "index %s must not be negative", &x)
+ 			return
+ 		}
+-		i, valid = exact.Int64Val(x.val)
++		i, valid = constant.Int64Val(x.val)
+ 		if !valid || max >= 0 && i >= max {
+ 			check.errorf(x.pos(), "index %s is out of bounds", &x)
+ 			return i, false
+@@ -923,13 +923,13 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
+ 	// convert x into a user-friendly set of values
+ 	// TODO(gri) this code can be simplified
+ 	var typ Type
+-	var val exact.Value
++	var val constant.Value
+ 	switch x.mode {
+ 	case invalid:
+ 		typ = Typ[Invalid]
+ 	case novalue:
+ 		typ = (*Tuple)(nil)
+-	case constant:
++	case constant_:
+ 		typ = x.typ
+ 		val = x.val
+ 	default:
+@@ -1115,7 +1115,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					}
+ 					continue
+ 				}
+-				if x.mode == constant {
++				if x.mode == constant_ {
+ 					duplicate := false
+ 					// if the key is of interface type, the type is also significant when checking for duplicates
+ 					if _, ok := utyp.key.Underlying().(*Interface); ok {
+@@ -1175,8 +1175,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		case *Basic:
+ 			if isString(typ) {
+ 				valid = true
+-				if x.mode == constant {
+-					length = int64(len(exact.StringVal(x.val)))
++				if x.mode == constant_ {
++					length = int64(len(constant.StringVal(x.val)))
+ 				}
+ 				// an indexed string always yields a byte value
+ 				// (not a constant) even if the string and the
+@@ -1250,8 +1250,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					goto Error
+ 				}
+ 				valid = true
+-				if x.mode == constant {
+-					length = int64(len(exact.StringVal(x.val)))
++				if x.mode == constant_ {
++					length = int64(len(constant.StringVal(x.val)))
+ 				}
+ 				// spec: "For untyped string operands the result
+ 				// is a non-constant value of type string."
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 62b39c6b81..b835c6e53e 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -143,15 +143,15 @@ func (obj *PkgName) Imported() *Package { return obj.imported }
+ // A Const represents a declared constant.
+ type Const struct {
+ 	object
+-	val     exact.Value
++	val     constant.Value
+ 	visited bool // for initialization cycle detection
+ }
+ 
+-func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
++func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
+ 	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
+ }
+ 
+-func (obj *Const) Val() exact.Value { return obj.val }
++func (obj *Const) Val() constant.Value { return obj.val }
+ 
+ // A TypeName represents a declared type.
+ type TypeName struct {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index afa9206142..d3bab51b04 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"bytes"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -17,27 +17,27 @@ import (
+ type operandMode byte
+ 
+ const (
+-	invalid  operandMode = iota // operand is invalid
+-	novalue                     // operand represents no value (result of a function call w/o result)
+-	builtin                     // operand is a built-in function
+-	typexpr                     // operand is a type
+-	constant                    // operand is a constant; the operand's typ is a Basic type
+-	variable                    // operand is an addressable variable
+-	mapindex                    // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
+-	value                       // operand is a computed value
+-	commaok                     // like value, but operand may be used in a comma,ok expression
++	invalid   operandMode = iota // operand is invalid
++	novalue                      // operand represents no value (result of a function call w/o result)
++	builtin                      // operand is a built-in function
++	typexpr                      // operand is a type
++	constant_                    // operand is a constant; the operand's typ is a Basic type
++	variable                     // operand is an addressable variable
++	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
++	value                        // operand is a computed value
++	commaok                      // like value, but operand may be used in a comma,ok expression
+ )
+ 
+ var operandModeString = [...]string{
+-	invalid:  "invalid operand",
+-	novalue:  "no value",
+-	builtin:  "built-in",
+-	typexpr:  "type",
+-	constant: "constant",
+-	variable: "variable",
+-	mapindex: "map index expression",
+-	value:    "value",
+-	commaok:  "comma, ok expression",
++	invalid:   "invalid operand",
++	novalue:   "no value",
++	builtin:   "built-in",
++	typexpr:   "type",
++	constant_: "constant",
++	variable:  "variable",
++	mapindex:  "map index expression",
++	value:     "value",
++	commaok:   "comma, ok expression",
+ }
+ 
+ // An operand represents an intermediate value during type checking.
+@@ -50,7 +50,7 @@ type operand struct {
+ 	mode operandMode
+ 	expr ast.Expr
+ 	typ  Type
+-	val  exact.Value
++	val  constant.Value
+ 	id   builtinId
+ }
+ 
+@@ -105,7 +105,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 			expr = predeclaredFuncs[x.id].name
+ 		case typexpr:
+ 			expr = TypeString(x.typ, qf)
+-		case constant:
++		case constant_:
+ 			expr = x.val.String()
+ 		}
+ 	}
+@@ -135,7 +135,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 	buf.WriteString(operandModeString[x.mode])
+ 
+ 	// <val>
+-	if x.mode == constant {
++	if x.mode == constant_ {
+ 		if s := x.val.String(); s != expr {
+ 			buf.WriteByte(' ')
+ 			buf.WriteString(s)
+@@ -166,7 +166,7 @@ func (x *operand) String() string {
+ 
+ // setConst sets x to the untyped constant for literal lit.
+ func (x *operand) setConst(tok token.Token, lit string) {
+-	val := exact.MakeFromLiteral(lit, tok, 0)
++	val := constant.MakeFromLiteral(lit, tok, 0)
+ 	if val == nil {
+ 		// TODO(gri) Should we make it an unknown constant instead?
+ 		x.mode = invalid
+@@ -187,7 +187,7 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ 		kind = UntypedString
+ 	}
+ 
+-	x.mode = constant
++	x.mode = constant_
+ 	x.typ = Typ[kind]
+ 	x.val = val
+ }
+@@ -260,7 +260,7 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
+ 	if isUntyped(Vu) {
+ 		switch t := Tu.(type) {
+ 		case *Basic:
+-			if x.mode == constant {
++			if x.mode == constant_ {
+ 				return representableConst(x.val, conf, t.kind, nil)
+ 			}
+ 			// The result of a comparison is an untyped boolean,
+@@ -283,5 +283,5 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
+ func (x *operand) isInteger() bool {
+ 	return x.mode == invalid ||
+ 		isInteger(x.typ) ||
+-		isUntyped(x.typ) && x.mode == constant && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
++		isUntyped(x.typ) && x.mode == constant_ && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 35a4f7c3b2..c31ef423d9 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -7,7 +7,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ 	pathLib "path"
+ 	"strconv"
+@@ -256,7 +256,7 @@ func (check *Checker) collectObjects() {
+ 
+ 							// declare all constants
+ 							for i, name := range s.Names {
+-								obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
++								obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
+ 
+ 								var init ast.Expr
+ 								if i < len(last.Values) {
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index 4ff4e4d4a8..10ad06fbca 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -47,7 +47,7 @@ func TestBenchmark(t *testing.T) {
+ 	// We're not using testing's benchmarking mechanism directly
+ 	// because we want custom output.
+ 
+-	for _, p := range []string{"types", "exact", "gcimporter"} {
++	for _, p := range []string{"types", "constant", filepath.Join("internal", "gcimporter")} {
+ 		path := filepath.Join("..", p)
+ 		runbench(t, path, false)
+ 		runbench(t, path, true)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 731059ef7d..88a1d9b866 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -402,9 +402,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		} else {
+ 			// spec: "A missing switch expression is
+ 			// equivalent to the boolean value true."
+-			x.mode = constant
++			x.mode = constant_
+ 			x.typ = Typ[Bool]
+-			x.val = exact.MakeBool(true)
++			x.val = constant.MakeBool(true)
+ 			x.expr = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
+ 		}
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index dd0e8b028c..c744eeaa0c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ 	"sort"
+ 	"strconv"
+@@ -65,7 +65,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 			x.val = obj.val
+ 		}
+ 		assert(x.val != nil)
+-		x.mode = constant
++		x.mode = constant_
+ 
+ 	case *TypeName:
+ 		x.mode = typexpr
+@@ -367,7 +367,7 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
+ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 	var x operand
+ 	check.expr(&x, e)
+-	if x.mode != constant {
++	if x.mode != constant_ {
+ 		if x.mode != invalid {
+ 			check.errorf(x.pos(), "array length %s must be constant", &x)
+ 		}
+@@ -377,7 +377,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 		check.errorf(x.pos(), "array length %s must be integer", &x)
+ 		return 0
+ 	}
+-	n, ok := exact.Int64Val(x.val)
++	n, ok := constant.Int64Val(x.val)
+ 	if !ok || n < 0 {
+ 		check.errorf(x.pos(), "invalid array length %s", &x)
+ 		return 0
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 38a3a3eadb..40185c1ad4 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -7,7 +7,7 @@
+ package types
+ 
+ import (
+-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
++	"go/constant"
+ 	"go/token"
+ 	"strings"
+ )
+@@ -76,11 +76,11 @@ func defPredeclaredTypes() {
+ var predeclaredConsts = [...]struct {
+ 	name string
+ 	kind BasicKind
+-	val  exact.Value
++	val  constant.Value
+ }{
+-	{"true", UntypedBool, exact.MakeBool(true)},
+-	{"false", UntypedBool, exact.MakeBool(false)},
+-	{"iota", UntypedInt, exact.MakeInt64(0)},
++	{"true", UntypedBool, constant.MakeBool(true)},
++	{"false", UntypedBool, constant.MakeBool(false)},
++	{"iota", UntypedInt, constant.MakeInt64(0)},
+ }
+ 
+ func defPredeclaredConsts() {

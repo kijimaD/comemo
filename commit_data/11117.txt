@@ -7,8 +7,96 @@ Date:   Wed Jan 11 17:25:09 2012 -0500
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5532077
-
+---
  src/cmd/gc/inl.c                 | 14 +++++++++-----
  test/fixedbugs/bug392.dir/one.go |  4 ++++
  test/fixedbugs/bug392.dir/two.go |  4 ++++
  3 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 8830f6bb12..137d913711 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -290,12 +290,13 @@ inlnode(Node **np)
+ {
+ 	Node *n;
+ 	NodeList *l;
++	int lno;
+ 
+ 	if(*np == nil)
+ 		return;
+ 
+ 	n = *np;
+-
++	
+ 	switch(n->op) {
+ 	case ODEFER:
+ 	case OPROC:
+@@ -312,6 +313,8 @@ inlnode(Node **np)
+ 		return;
+ 	}
+ 
++	lno = setlineno(n);
++
+ 	inlnodelist(n->ninit);
+ 	for(l=n->ninit; l; l=l->next)
+ 		if(l->n->op == OINLCALL)
+@@ -431,6 +434,8 @@ inlnode(Node **np)
+ 
+ 		break;
+ 	}
++	
++	lineno = lno;
+ }
+ 
+ // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
+@@ -495,20 +500,19 @@ mkinlcall(Node **np, Node *fn)
+ 	as = N;
+ 	if(fn->type->thistuple) {
+ 		t = getthisx(fn->type)->type;
+-
+-		if(t != T && t->nname != N && !t->nname->inlvar)
++		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
+ 			fatal("missing inlvar for %N\n", t->nname);
+ 
+ 		if(n->left->op == ODOTMETH) {
+ 			if (!n->left->left)
+ 				fatal("method call without receiver: %+N", n);
+-			if(t != T && t->nname)
++			if(t != T && t->nname != N && !isblank(t->nname))
+ 				as = nod(OAS, t->nname->inlvar, n->left->left);
+ 			// else if !ONAME add to init anyway?
+ 		} else {  // non-method call to method
+ 			if (!n->list)
+ 				fatal("non-method call to method without first arg: %+N", n);
+-			if(t != T && t->nname)
++			if(t != T && t->nname != N && !isblank(t->nname))
+ 				as = nod(OAS, t->nname->inlvar, n->list->n);
+ 		}
+ 
+diff --git a/test/fixedbugs/bug392.dir/one.go b/test/fixedbugs/bug392.dir/one.go
+index 50c1689e3b..f086ebe4e2 100644
+--- a/test/fixedbugs/bug392.dir/one.go
++++ b/test/fixedbugs/bug392.dir/one.go
+@@ -13,3 +13,7 @@ func F1(T *T) bool { return T == nil }
+ 
+ // Issue 2682.
+ func F2(c chan int) bool { return c == (<-chan int)(nil) }
++
++// Call of inlined method with blank receiver.
++func (_ *T) M() int { return 1 }
++func (t *T) MM() int { return t.M() }
+diff --git a/test/fixedbugs/bug392.dir/two.go b/test/fixedbugs/bug392.dir/two.go
+index f16533a330..3704e65c5e 100644
+--- a/test/fixedbugs/bug392.dir/two.go
++++ b/test/fixedbugs/bug392.dir/two.go
+@@ -12,5 +12,9 @@ import "./one"
+ func use() {
+ 	one.F1(nil)
+ 	one.F2(nil)
++
++	var t *one.T
++	t.M()
++	t.MM()
+ }
+ 

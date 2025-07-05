@@ -21,7 +21,65 @@ Date:   Sat Aug 30 07:50:50 2014 +0900
     R=golang-codereviews, iant, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/137870043
-
+---
  src/pkg/net/dnsclient_unix.go      | 21 +++++++++------------
  src/pkg/net/dnsclient_unix_test.go |  6 ++++++
  2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index eb4b5900de..dc5eed96cc 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -310,13 +310,10 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error)
+ 		}
+ 		// Can try as ordinary name.
+ 		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+-		if err == nil {
++		if rooted || err == nil {
+ 			return
+ 		}
+ 	}
+-	if rooted {
+-		return
+-	}
+ 
+ 	// Otherwise, try suffixes.
+ 	for i := 0; i < len(cfg.dnsConfig.search); i++ {
+@@ -330,15 +327,15 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error)
+ 		}
+ 	}
+ 
+-	// Last ditch effort: try unsuffixed.
+-	rname := name
+-	if !rooted {
+-		rname += "."
+-	}
+-	cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
+-	if err == nil {
+-		return
++	// Last ditch effort: try unsuffixed only if we haven't already,
++	// that is, name is not rooted and has less than ndots dots.
++	if count(name, '.') < cfg.dnsConfig.ndots {
++		cname, addrs, err = tryOneName(cfg.dnsConfig, name+".", qtype)
++		if err == nil {
++			return
++		}
+ 	}
++
+ 	if e, ok := err.(*DNSError); ok {
+ 		// Show original name passed to lookup, not suffixed one.
+ 		// In general we might have tried many suffixes; showing
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index 39d82d9961..204c8b7ef7 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -217,3 +217,9 @@ func TestReloadResolvConfChange(t *testing.T) {
+ 	r.SetConf("nameserver 8.8.4.4")
+ 	r.WantServers([]string{"[8.8.4.4]"})
+ }
++
++func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		goLookupIP("some.nonexistent")
++	}
++}

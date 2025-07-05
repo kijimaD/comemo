@@ -12,7 +12,36 @@ Date:   Thu Sep 2 10:42:43 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go   | 2 +-
  src/cmd/compile/internal/noder/reader2.go | 4 ----
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 70f7991a8e..fd29c51c8a 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -35,7 +35,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 
+ 	// typechecking
+ 	importer := gcimports{
+-		packages: make(map[string]*types2.Package),
++		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+ 	}
+ 	conf := types2.Config{
+ 		GoVersion:             base.Flag.Lang,
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index a775ffda34..cffa037236 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -147,10 +147,6 @@ func (r *reader2) doPkg() *types2.Package {
+ 	if path == "builtin" {
+ 		return nil // universe
+ 	}
+-	if path == "unsafe" {
+-		// TODO(mdempsky): This should be in r.p.imports.
+-		return types2.Unsafe
+-	}
+ 	if path == "" {
+ 		path = r.p.pkgPath
+ 	}

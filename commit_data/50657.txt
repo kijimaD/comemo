@@ -20,7 +20,51 @@ Date:   Thu Nov 4 21:09:34 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mgcpacer.go      | 7 ++++---
  src/runtime/mgcpacer_test.go | 6 ++++++
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index f886a07da1..230e78b000 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -517,7 +517,7 @@ func (c *gcControllerState) revise() {
+ 			// growths. It's OK to use more memory this cycle to scan all the live heap,
+ 			// because the next GC cycle is inevitably going to use *at least* that much
+ 			// memory anyway.
+-			heapGoal = int64(float64(heapGoal-int64(c.trigger))/float64(scanWorkExpected)*float64(maxScanWork)) + int64(c.trigger)
++			extHeapGoal := int64(float64(heapGoal-int64(c.trigger))/float64(scanWorkExpected)*float64(maxScanWork)) + int64(c.trigger)
+ 			scanWorkExpected = maxScanWork
+ 
+ 			// hardGoal is a hard limit on the amount that we're willing to push back the
+@@ -528,9 +528,10 @@ func (c *gcControllerState) revise() {
+ 			// This maintains the invariant that we use no more memory than the next GC cycle
+ 			// will anyway.
+ 			hardGoal := int64((1.0 + float64(gcPercent)/100.0) * float64(heapGoal))
+-			if heapGoal > hardGoal {
+-				heapGoal = hardGoal
++			if extHeapGoal > hardGoal {
++				extHeapGoal = hardGoal
+ 			}
++			heapGoal = extHeapGoal
+ 		}
+ 		if int64(live) > heapGoal {
+ 			// We're already past our heap goal, even the extrapolated one.
+diff --git a/src/runtime/mgcpacer_test.go b/src/runtime/mgcpacer_test.go
+index d2707ca5a1..9ec0e5172b 100644
+--- a/src/runtime/mgcpacer_test.go
++++ b/src/runtime/mgcpacer_test.go
+@@ -302,6 +302,12 @@ func TestGcPacer(t *testing.T) {
+ 				}
+ 			},
+ 		},
++		// TODO(mknyszek): Write a test that exercises the pacer's hard goal.
++		// This is difficult in the idealized model this testing framework places
++		// the pacer in, because the calculated overshoot is directly proportional
++		// to the runway for the case of the expected work.
++		// However, it is still possible to trigger this case if something exceptional
++		// happens between calls to revise; the framework just doesn't support this yet.
+ 	} {
+ 		e := e
+ 		t.Run(e.name, func(t *testing.T) {

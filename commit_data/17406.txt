@@ -9,6 +9,29 @@ Date:   Tue Aug 27 16:13:21 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13289043
-
+---
  src/pkg/net/http/request.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 603299df55..ccdf121117 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -105,7 +105,16 @@ type Request struct {
+ 	// following a hyphen uppercase and the rest lowercase.
+ 	Header Header
+ 
+-	// The message body.
++	// Body is the request's body.
++	//
++	// For client requests, a nil body means the request has no
++	// body, such as a GET request. The HTTP Client's Transport
++	// is responsible for calling the Close method.
++	//
++	// For server requests, the Request Body is always non-nil
++	// but will return EOF immediately when no body is present.
++	// The Server will close the request body. The ServeHTTP
++	// Handler does not need to.
+ 	Body io.ReadCloser
+ 
+ 	// ContentLength records the length of the associated content.

@@ -25,7 +25,172 @@ Date:   Mon Mar 23 09:21:44 2020 +0100
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |   8 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 120 +++++++++++++++++++++++++++
  2 files changed, 128 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c6fad48f3c..306847d28c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1202,6 +1202,14 @@
+       (LEAQ8 [off1+4*off2] {sym1} x y)
+ // TODO: more?
+ 
++// Lower LEAQ2/4/8 when the offset is a constant
++(LEAQ2 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*2) ->
++	(LEAQ [off+scale*2] {sym} x)
++(LEAQ4 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*4) ->
++	(LEAQ [off+scale*4] {sym} x)
++(LEAQ8 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*8) ->
++	(LEAQ [off+scale*8] {sym} x)
++
+ // Absorb InvertFlags into branches.
+ (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+ (GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e178c1251e..b9a401cca9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9486,6 +9486,46 @@ func rewriteValueAMD64_OpAMD64LEAQ2(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (LEAQ2 [off] {sym} x (MOVQconst [scale]))
++	// cond: is32Bit(off+scale*2)
++	// result: (LEAQ [off+scale*2] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*2)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*2
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
++	// match: (LEAQ2 [off] {sym} x (MOVLconst [scale]))
++	// cond: is32Bit(off+scale*2)
++	// result: (LEAQ [off+scale*2] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*2)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*2
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64LEAQ4(v *Value) bool {
+@@ -9593,6 +9633,46 @@ func rewriteValueAMD64_OpAMD64LEAQ4(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (LEAQ4 [off] {sym} x (MOVQconst [scale]))
++	// cond: is32Bit(off+scale*4)
++	// result: (LEAQ [off+scale*4] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*4)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*4
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
++	// match: (LEAQ4 [off] {sym} x (MOVLconst [scale]))
++	// cond: is32Bit(off+scale*4)
++	// result: (LEAQ [off+scale*4] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*4)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*4
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
+@@ -9662,6 +9742,46 @@ func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (LEAQ8 [off] {sym} x (MOVQconst [scale]))
++	// cond: is32Bit(off+scale*8)
++	// result: (LEAQ [off+scale*8] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*8)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*8
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
++	// match: (LEAQ8 [off] {sym} x (MOVLconst [scale]))
++	// cond: is32Bit(off+scale*8)
++	// result: (LEAQ [off+scale*8] {sym} x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		x := v_0
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		scale := v_1.AuxInt
++		if !(is32Bit(off + scale*8)) {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off + scale*8
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value) bool {

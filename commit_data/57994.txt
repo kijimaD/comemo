@@ -14,8 +14,74 @@ Date:   Thu Sep 14 18:43:14 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dial.go   |  3 ++-
  src/net/ipsock.go |  4 ++--
  src/net/parse.go  | 11 -----------
  3 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index dd34b6cef2..7ca9b4a468 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/bytealg"
+ 	"internal/godebug"
+ 	"internal/nettrace"
+ 	"syscall"
+@@ -226,7 +227,7 @@ func (d *Dialer) fallbackDelay() time.Duration {
+ }
+ 
+ func parseNetwork(ctx context.Context, network string, needsProto bool) (afnet string, proto int, err error) {
+-	i := last(network, ':')
++	i := bytealg.LastIndexByteString(network, ':')
+ 	if i < 0 { // no colon
+ 		switch network {
+ 		case "tcp", "tcp4", "tcp6":
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index cdd097c2d3..176dbc748e 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -172,7 +172,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 	j, k := 0, 0
+ 
+ 	// The port starts after the last colon.
+-	i := last(hostport, ':')
++	i := bytealg.LastIndexByteString(hostport, ':')
+ 	if i < 0 {
+ 		return addrErr(hostport, missingPort)
+ 	}
+@@ -219,7 +219,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ func splitHostZone(s string) (host, zone string) {
+ 	// The IPv6 scoped addressing zone identifier starts after the
+ 	// last percent sign.
+-	if i := last(s, '%'); i > 0 {
++	if i := bytealg.LastIndexByteString(s, '%'); i > 0 {
+ 		host, zone = s[:i], s[i+1:]
+ 	} else {
+ 		host = s
+diff --git a/src/net/parse.go b/src/net/parse.go
+index f2e790e48f..29dffad43c 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -180,17 +180,6 @@ func xtoi2(s string, e byte) (byte, bool) {
+ 	return byte(n), ok && ei == 2
+ }
+ 
+-// Index of rightmost occurrence of b in s.
+-func last(s string, b byte) int {
+-	i := len(s)
+-	for i--; i >= 0; i-- {
+-		if s[i] == b {
+-			break
+-		}
+-	}
+-	return i
+-}
+-
+ // hasUpperCase tells whether the given string contains at least one upper-case.
+ func hasUpperCase(s string) bool {
+ 	for i := range s {

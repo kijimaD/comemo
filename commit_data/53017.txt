@@ -15,7 +15,7 @@ Date:   Mon Jun 6 10:52:12 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go   |  7 ++-----
  src/cmd/compile/internal/importer/ureader.go   |  4 ++--
  src/cmd/compile/internal/types2/object.go      |  5 +----
@@ -23,3 +23,151 @@ Date:   Mon Jun 6 10:52:12 2022 +0700
  src/cmd/compile/internal/types2/resolver.go    | 10 ----------
  src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
  6 files changed, 7 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 576036bdce..440f557a80 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -139,22 +139,19 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 		pkgPathOff := r.uint64()
+ 		pkgPath := p.stringAt(pkgPathOff)
+ 		pkgName := p.stringAt(r.uint64())
+-		pkgHeight := int(r.uint64())
++		_ = int(r.uint64()) // was package height, but not necessary anymore.
+ 
+ 		if pkgPath == "" {
+ 			pkgPath = path
+ 		}
+ 		pkg := imports[pkgPath]
+ 		if pkg == nil {
+-			pkg = types2.NewPackageHeight(pkgPath, pkgName, pkgHeight)
++			pkg = types2.NewPackage(pkgPath, pkgName)
+ 			imports[pkgPath] = pkg
+ 		} else {
+ 			if pkg.Name() != pkgName {
+ 				errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
+ 			}
+-			if pkg.Height() != pkgHeight {
+-				errorf("conflicting heights %v and %v for package %q", pkg.Height(), pkgHeight, path)
+-			}
+ 		}
+ 
+ 		p.pkgCache[pkgPathOff] = pkg
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index e5547b6d44..dc5614c841 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -162,9 +162,9 @@ func (r *reader) doPkg() *types2.Package {
+ 	}
+ 
+ 	name := r.String()
+-	height := r.Len()
++	_ = r.Len() // was package height, but not necessary anymore.
+ 
+-	pkg := types2.NewPackageHeight(path, name, height)
++	pkg := types2.NewPackage(path, name)
+ 	r.p.imports[path] = pkg
+ 
+ 	// TODO(mdempsky): The list of imported packages is important for
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index df080f071c..f373561809 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -189,7 +189,7 @@ func (obj *object) sameId(pkg *Package, name string) bool {
+ //
+ // Objects are ordered nil before non-nil, exported before
+ // non-exported, then by name, and finally (for non-exported
+-// functions) by package height and path.
++// functions) by package path.
+ func (a *object) less(b *object) bool {
+ 	if a == b {
+ 		return false
+@@ -215,9 +215,6 @@ func (a *object) less(b *object) bool {
+ 		return a.name < b.name
+ 	}
+ 	if !ea {
+-		if a.pkg.height != b.pkg.height {
+-			return a.pkg.height < b.pkg.height
+-		}
+ 		return a.pkg.path < b.pkg.path
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/package.go b/src/cmd/compile/internal/types2/package.go
+index 8044e7e6a7..26f10645d2 100644
+--- a/src/cmd/compile/internal/types2/package.go
++++ b/src/cmd/compile/internal/types2/package.go
+@@ -14,7 +14,6 @@ type Package struct {
+ 	name     string
+ 	scope    *Scope
+ 	imports  []*Package
+-	height   int
+ 	complete bool
+ 	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
+ 	cgo      bool // uses of this package will be rewritten into uses of declarations from _cgo_gotypes.go
+@@ -23,14 +22,8 @@ type Package struct {
+ // NewPackage returns a new Package for the given package path and name.
+ // The package is not complete and contains no explicit imports.
+ func NewPackage(path, name string) *Package {
+-	return NewPackageHeight(path, name, 0)
+-}
+-
+-// NewPackageHeight is like NewPackage, but allows specifying the
+-// package's height.
+-func NewPackageHeight(path, name string, height int) *Package {
+ 	scope := NewScope(Universe, nopos, nopos, fmt.Sprintf("package %q", path))
+-	return &Package{path: path, name: name, scope: scope, height: height}
++	return &Package{path: path, name: name, scope: scope}
+ }
+ 
+ // Path returns the package path.
+@@ -39,9 +32,6 @@ func (pkg *Package) Path() string { return pkg.path }
+ // Name returns the package name.
+ func (pkg *Package) Name() string { return pkg.name }
+ 
+-// Height returns the package height.
+-func (pkg *Package) Height() int { return pkg.height }
+-
+ // SetName sets the package name.
+ func (pkg *Package) SetName(name string) { pkg.name = name }
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 5d498b6b2b..77881f493f 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -197,7 +197,6 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
+ // methods with receiver base type names.
+ func (check *Checker) collectObjects() {
+ 	pkg := check.pkg
+-	pkg.height = 0
+ 
+ 	// pkgImports is the set of packages already imported by any package file seen
+ 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
+@@ -255,15 +254,6 @@ func (check *Checker) collectObjects() {
+ 					continue
+ 				}
+ 
+-				if imp == Unsafe {
+-					// typecheck ignores imports of package unsafe for
+-					// calculating height.
+-					// TODO(mdempsky): Revisit this. This seems fine, but I
+-					// don't remember explicitly considering this case.
+-				} else if h := imp.height + 1; h > pkg.height {
+-					pkg.height = h
+-				}
+-
+ 				// local name overrides imported package name
+ 				name := imp.name
+ 				if s.LocalPkgName != nil {
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 17876d1f3c..af82b3fa7a 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -47,7 +47,7 @@ func TestSizeof(t *testing.T) {
+ 
+ 		// Misc
+ 		{Scope{}, 60, 104},
+-		{Package{}, 40, 80},
++		{Package{}, 36, 72},
+ 		{_TypeSet{}, 28, 56},
+ 	}
+ 

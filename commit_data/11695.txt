@@ -9,8 +9,178 @@ Date:   Tue Feb 7 23:37:15 2012 -0500
     R=remyoudompheng, r, r
     CC=golang-dev
     https://golang.org/cl/5639052
-
+---
  src/pkg/strconv/atof.go      | 10 +++++++---
  src/pkg/strconv/atof_test.go | 15 +++++++++++++++
  src/pkg/strconv/decimal.go   | 41 ++++++++++++++++++++++++++++-------------
  3 files changed, 50 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 42fc431db8..cd3031b0e6 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -52,10 +52,10 @@ func special(s string) (f float64, ok bool) {
+ 	return
+ }
+ 
+-// TODO(rsc): Better truncation handling.
+ func (b *decimal) set(s string) (ok bool) {
+ 	i := 0
+ 	b.neg = false
++	b.trunc = false
+ 
+ 	// optional sign
+ 	if i >= len(s) {
+@@ -88,8 +88,12 @@ func (b *decimal) set(s string) (ok bool) {
+ 				b.dp--
+ 				continue
+ 			}
+-			b.d[b.nd] = s[i]
+-			b.nd++
++			if b.nd < len(b.d) {
++				b.d[b.nd] = s[i]
++				b.nd++
++			} else if s[i] != '0' {
++				b.trunc = true
++			}
+ 			continue
+ 		}
+ 		break
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 3fa637d2bc..72cea49256 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"math/rand"
+ 	"reflect"
+ 	. "strconv"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -117,6 +118,20 @@ var atoftests = []atofTest{
+ 
+ 	// A very large number (initially wrongly parsed by the fast algorithm).
+ 	{"4.630813248087435e+307", "4.630813248087435e+307", nil},
++
++	// A different kind of very large number.
++	{"22.222222222222222", "22.22222222222222", nil},
++	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
++
++	// Exactly halfway between 1 and math.Nextafter(1, 2).
++	// Round to even (down).
++	{"1.00000000000000011102230246251565404236316680908203125", "1", nil},
++	// Slightly lower; still round down.
++	{"1.00000000000000011102230246251565404236316680908203124", "1", nil},
++	// Slightly higher; round up.
++	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil},
++	// Slightly higher, but you have to read all the way to the end.
++	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},
+ }
+ 
+ type atofSimpleTest struct {
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index cc5591a8d8..a75071dcc4 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -12,12 +12,11 @@
+ package strconv
+ 
+ type decimal struct {
+-	// TODO(rsc): Can make d[] a bit smaller and add
+-	// truncated bool;
+-	d   [800]byte // digits
+-	nd  int       // number of digits used
+-	dp  int       // decimal point
+-	neg bool
++	d     [800]byte // digits
++	nd    int       // number of digits used
++	dp    int       // decimal point
++	neg   bool
++	trunc bool // discarded nonzero digits beyond d[:nd]
+ }
+ 
+ func (a *decimal) String() string {
+@@ -145,8 +144,12 @@ func rightShift(a *decimal, k uint) {
+ 	for n > 0 {
+ 		dig := n >> k
+ 		n -= dig << k
+-		a.d[w] = byte(dig + '0')
+-		w++
++		if w < len(a.d) {
++			a.d[w] = byte(dig + '0')
++			w++
++		} else if dig > 0 {
++			a.trunc = true
++		}
+ 		n = n * 10
+ 	}
+ 
+@@ -242,7 +245,11 @@ func leftShift(a *decimal, k uint) {
+ 		quo := n / 10
+ 		rem := n - 10*quo
+ 		w--
+-		a.d[w] = byte(rem + '0')
++		if w < len(a.d) {
++			a.d[w] = byte(rem + '0')
++		} else if rem != 0 {
++			a.trunc = true
++		}
+ 		n = quo
+ 	}
+ 
+@@ -251,11 +258,18 @@ func leftShift(a *decimal, k uint) {
+ 		quo := n / 10
+ 		rem := n - 10*quo
+ 		w--
+-		a.d[w] = byte(rem + '0')
++		if w < len(a.d) {
++			a.d[w] = byte(rem + '0')
++		} else if rem != 0 {
++			a.trunc = true
++		}
+ 		n = quo
+ 	}
+ 
+ 	a.nd += delta
++	if a.nd >= len(a.d) {
++		a.nd = len(a.d)
++	}
+ 	a.dp += delta
+ 	trim(a)
+ }
+@@ -286,6 +300,10 @@ func shouldRoundUp(a *decimal, nd int) bool {
+ 		return false
+ 	}
+ 	if a.d[nd] == '5' && nd+1 == a.nd { // exactly halfway - round to even
++		// if we truncated, a little higher than what's recorded - always round up
++		if a.trunc {
++			return true
++		}
+ 		return nd > 0 && (a.d[nd-1]-'0')%2 != 0
+ 	}
+ 	// not halfway - digit tells all
+@@ -293,7 +311,6 @@ func shouldRoundUp(a *decimal, nd int) bool {
+ }
+ 
+ // Round a to nd digits (or fewer).
+-// Returns receiver for convenience.
+ // If nd is zero, it means we're rounding
+ // just to the left of the digits, as in
+ // 0.09 -> 0.1.
+@@ -309,7 +326,6 @@ func (a *decimal) Round(nd int) {
+ }
+ 
+ // Round a down to nd digits (or fewer).
+-// Returns receiver for convenience.
+ func (a *decimal) RoundDown(nd int) {
+ 	if nd < 0 || nd >= a.nd {
+ 		return
+@@ -319,7 +335,6 @@ func (a *decimal) RoundDown(nd int) {
+ }
+ 
+ // Round a up to nd digits (or fewer).
+-// Returns receiver for convenience.
+ func (a *decimal) RoundUp(nd int) {
+ 	if nd < 0 || nd >= a.nd {
+ 		return

@@ -17,6 +17,27 @@ Date:   Tue Mar 19 18:32:11 2019 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_solaris.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index b4bb40ed9b..ddddb27962 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -233,10 +233,11 @@ retry:
+ 		}
+ 
+ 		if mode != 0 {
+-			pd.everr = false
+-			if ev.portev_events == _POLLERR {
+-				pd.everr = true
+-			}
++			// TODO(mikio): Consider implementing event
++			// scanning error reporting once we are sure
++			// about the event port on SmartOS.
++			//
++			// See golang.org/x/issue/30840.
+ 			netpollready(&toRun, pd, mode)
+ 		}
+ 	}

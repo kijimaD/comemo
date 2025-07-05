@@ -8,9 +8,184 @@ Date:   Thu Jun 16 17:48:02 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4639041
-
+---
  src/pkg/sort/search.go      | 12 ++++++------
  src/pkg/sort/search_test.go |  2 +-
  src/pkg/sort/sort.go        | 32 ++++++++++++++++----------------
  src/pkg/sort/sort_test.go   | 10 +++++-----
  4 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/sort/search.go b/src/pkg/sort/search.go
+index bb73b35eeb..7d468da8a0 100644
+--- a/src/pkg/sort/search.go
++++ b/src/pkg/sort/search.go
+@@ -15,7 +15,7 @@ package sort
+ // Search calls f(i) only for i in the range [0, n).
+ //
+ // A common use of Search is to find the index i for a value x in
+-// a sorted, indexable data structure like an array or slice.
++// a sorted, indexable data structure such as an array or slice.
+ // In this case, the argument f, typically a closure, captures the value
+ // to be searched for, and how the data structure is indexed and
+ // ordered.
+@@ -75,7 +75,7 @@ func Search(n int, f func(int) bool) int {
+ // Convenience wrappers for common cases.
+ 
+ // SearchInts searches for x in a sorted slice of ints and returns the index
+-// as specified by Search. The array must be sorted in ascending order.
++// as specified by Search. The slice must be sorted in ascending order.
+ //
+ func SearchInts(a []int, x int) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+@@ -83,15 +83,15 @@ func SearchInts(a []int, x int) int {
+ 
+ 
+ // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
+-// as specified by Search. The array must be sorted in ascending order.
++// as specified by Search. The slice must be sorted in ascending order.
+ // 
+ func SearchFloat64s(a []float64, x float64) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+ 
+ 
+-// SearchStrings searches for x in a sorted slice of strings and returns the index
+-// as specified by Search. The array must be sorted in ascending order.
++// SearchStrings searches for x slice a sorted slice of strings and returns the index
++// as specified by Search. The slice must be sorted in ascending order.
+ // 
+ func SearchStrings(a []string, x string) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+@@ -103,7 +103,7 @@ func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
+ 
+ 
+ // Search returns the result of applying SearchFloat64s to the receiver and x.
+-func (p Float64Array) Search(x float64) int { return SearchFloat64s(p, x) }
++func (p Float64Slice) Search(x float64) int { return SearchFloat64s(p, x) }
+ 
+ 
+ // Search returns the result of applying SearchStrings to the receiver and x.
+diff --git a/src/pkg/sort/search_test.go b/src/pkg/sort/search_test.go
+index 71e8c83e0e..2a9a858545 100644
+--- a/src/pkg/sort/search_test.go
++++ b/src/pkg/sort/search_test.go
+@@ -108,7 +108,7 @@ var wrappertests = []struct {
+ 	{"SearchFloat64s", SearchFloat64s(fdata, 2.1), 4},
+ 	{"SearchStrings", SearchStrings(sdata, ""), 0},
+ 	{"IntSlice.Search", IntSlice(data).Search(0), 2},
+-	{"Float64Array.Search", Float64Array(fdata).Search(2.0), 3},
++	{"Float64Slice.Search", Float64Slice(fdata).Search(2.0), 3},
+ 	{"StringSlice.Search", StringSlice(sdata).Search("x"), 3},
+ }
+ 
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 42594ffa81..b707579590 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package sort provides primitives for sorting arrays and user-defined
++// Package sort provides primitives for sorting slices and user-defined
+ // collections.
+ package sort
+ 
+@@ -82,7 +82,7 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+ 	//	data[d <= i < hi] = pivot
+ 	//
+ 	// Once b meets c, can swap the "= pivot" sections
+-	// into the middle of the array.
++	// into the middle of the slice.
+ 	pivot := lo
+ 	a, b, c, d := lo+1, lo+1, hi, hi
+ 	for b < c {
+@@ -166,15 +166,15 @@ func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ func (p IntSlice) Sort() { Sort(p) }
+ 
+ 
+-// Float64Array attaches the methods of Interface to []float64, sorting in increasing order.
+-type Float64Array []float64
++// Float64Slice attaches the methods of Interface to []float64, sorting in increasing order.
++type Float64Slice []float64
+ 
+-func (p Float64Array) Len() int           { return len(p) }
+-func (p Float64Array) Less(i, j int) bool { return p[i] < p[j] }
+-func (p Float64Array) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++func (p Float64Slice) Len() int           { return len(p) }
++func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] }
++func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ // Sort is a convenience method.
+-func (p Float64Array) Sort() { Sort(p) }
++func (p Float64Slice) Sort() { Sort(p) }
+ 
+ 
+ // StringSlice attaches the methods of Interface to []string, sorting in increasing order.
+@@ -190,17 +190,17 @@ func (p StringSlice) Sort() { Sort(p) }
+ 
+ // Convenience wrappers for common cases
+ 
+-// SortInts sorts an array of ints in increasing order.
++// SortInts sorts a slice of ints in increasing order.
+ func SortInts(a []int) { Sort(IntSlice(a)) }
+-// SortFloat64s sorts an array of float64s in increasing order.
+-func SortFloat64s(a []float64) { Sort(Float64Array(a)) }
+-// SortStrings sorts an array of strings in increasing order.
++// SortFloat64s sorts a slice of float64s in increasing order.
++func SortFloat64s(a []float64) { Sort(Float64Slice(a)) }
++// SortStrings sorts a slice of strings in increasing order.
+ func SortStrings(a []string) { Sort(StringSlice(a)) }
+ 
+ 
+-// IntsAreSorted tests whether an array of ints is sorted in increasing order.
++// IntsAreSorted tests whether a slice of ints is sorted in increasing order.
+ func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
+-// Float64sAreSorted tests whether an array of float64s is sorted in increasing order.
+-func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Array(a)) }
+-// StringsAreSorted tests whether an array of strings is sorted in increasing order.
++// Float64sAreSorted tests whether a slice of float64s is sorted in increasing order.
++func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
++// StringsAreSorted tests whether a slice of strings is sorted in increasing order.
+ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 1f0805a7b6..29359c83fb 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -26,9 +26,9 @@ func TestSortIntSlice(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSortFloat64Array(t *testing.T) {
++func TestSortFloat64Slice(t *testing.T) {
+ 	data := float64s
+-	a := Float64Array(data[0:])
++	a := Float64Slice(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", float64s)
+@@ -161,7 +161,7 @@ func (d *testingData) Len() int           { return len(d.data) }
+ func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j] }
+ func (d *testingData) Swap(i, j int) {
+ 	if d.nswap >= d.maxswap {
+-		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data))
++		d.t.Errorf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
+ 		d.t.FailNow()
+ 	}
+ 	d.nswap++
+@@ -255,13 +255,13 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 					Sort(d)
+ 
+ 					// If we were testing C qsort, we'd have to make a copy
+-					// of the array and sort it ourselves and then compare
++					// of the slice and sort it ourselves and then compare
+ 					// x against it, to ensure that qsort was only permuting
+ 					// the data, not (for example) overwriting it with zeros.
+ 					//
+ 					// In go, we don't have to be so paranoid: since the only
+ 					// mutating method Sort can call is TestingData.swap,
+-					// it suffices here just to check that the final array is sorted.
++					// it suffices here just to check that the final slice is sorted.
+ 					if !IntsAreSorted(mdata) {
+ 						t.Errorf("%s: ints not sorted", desc)
+ 						t.Errorf("\t%v", mdata)

@@ -14,6 +14,21 @@ Date:   Tue Nov 20 18:35:56 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/mediatype.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index fc6e0d0673..05390773a8 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -56,7 +56,8 @@ func FormatMediaType(t string, param map[string]string) string {
+ 
+ 		b.WriteByte('"')
+ 		offset := 0
+-		for index, character := range []byte(value) {
++		for index := 0; index < len(value); index++ {
++			character := value[index]
+ 			if character == '"' || character == '\\' {
+ 				b.WriteString(value[offset:index])
+ 				offset = index

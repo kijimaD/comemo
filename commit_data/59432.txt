@@ -11,9 +11,82 @@ Date:   Mon Mar 11 18:16:16 2024 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/godebugs/table.go |  4 ++--
  src/os/file_windows.go         |  1 +
  src/os/types_windows.go        | 13 +++++++++++--
  src/runtime/metrics/doc.go     |  8 ++++++++
  4 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index c11f708dd9..572fb72983 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -49,8 +49,8 @@ var All = []Info{
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+-	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0", Opaque: true}, // bug #66215: remove Opaque
+-	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0", Opaque: true},        // bug #66215: remove Opaque
++	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
++	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509"},
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 49fdd8d44d..fcdb5f2e8f 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -378,6 +378,7 @@ func normaliseLinkPath(path string) (string, error) {
+ 	if winreadlinkvolume.Value() != "0" {
+ 		return `\\?\` + path[4:], nil
+ 	}
++	winreadlinkvolume.IncNonDefault()
+ 
+ 	h, err := openSymlink(path)
+ 	if err != nil {
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index c4a8721924..16042fea51 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -161,10 +161,19 @@ func (fs *fileStat) Size() int64 {
+ 
+ var winsymlink = godebug.New("winsymlink")
+ 
+-func (fs *fileStat) Mode() (m FileMode) {
++func (fs *fileStat) Mode() FileMode {
++	m := fs.mode()
+ 	if winsymlink.Value() == "0" {
+-		return fs.modePreGo1_23()
++		old := fs.modePreGo1_23()
++		if old != m {
++			winsymlink.IncNonDefault()
++			m = old
++		}
+ 	}
++	return m
++}
++
++func (fs *fileStat) mode() (m FileMode) {
+ 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+ 		m |= 0444
+ 	} else {
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index e1b3387c13..deb993241d 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -310,6 +310,14 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+ 
++	/godebug/non-default-behavior/winreadlinkvolume:events
++		The number of non-default behaviors executed by the os package
++		due to a non-default GODEBUG=winreadlinkvolume=... setting.
++
++	/godebug/non-default-behavior/winsymlink:events
++		The number of non-default behaviors executed by the os package
++		due to a non-default GODEBUG=winsymlink=... setting.
++
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

@@ -18,7 +18,7 @@ Date:   Thu Jun 22 11:04:45 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  .gitignore                            |   2 -
  src/cmd/dist/build.go                 |   9 ++-
  src/cmd/dist/buildruntime.go          |  23 -------
@@ -29,3 +29,469 @@ Date:   Thu Jun 22 11:04:45 2023 -0400
  src/internal/platform/zosarch.go      | 114 ++++++++++++++++++++++++++++++++++
  src/internal/platform/zosarch_test.go | 109 ++++++++++++++++++++++++++++++++
  9 files changed, 275 insertions(+), 45 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 52263cdb80..7978d68b76 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -33,12 +33,10 @@ _testmain.go
+ /src/cmd/cgo/zdefaultcc.go
+ /src/cmd/dist/dist
+ /src/cmd/go/internal/cfg/zdefaultcc.go
+-/src/cmd/go/internal/cfg/zosarch.go
+ /src/cmd/internal/objabi/zbootstrap.go
+ /src/go/build/zcgo.go
+ /src/go/doc/headscan
+ /src/internal/buildcfg/zbootstrap.go
+-/src/internal/platform/zosarch.go
+ /src/runtime/internal/sys/zversion.go
+ /src/unicode/maketables
+ /src/time/tzdata/zzipdata.go
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4b77ed36f7..8973a87168 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -631,7 +631,6 @@ var gentab = []struct {
+ }{
+ 	{"go/build", "zcgo.go", mkzcgo},
+ 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
+-	{"internal/platform", "zosarch.go", mkzosarch},
+ 	{"runtime/internal/sys", "zversion.go", mkzversion},
+ 	{"time/tzdata", "zzipdata.go", mktzdata},
+ }
+@@ -1899,11 +1898,12 @@ func cmdversion() {
+ // cmdlist lists all supported platforms.
+ func cmdlist() {
+ 	jsonFlag := flag.Bool("json", false, "produce JSON output")
++	brokenFlag := flag.Bool("broken", false, "include broken ports")
+ 	xflagparse(0)
+ 
+ 	var plats []string
+ 	for p := range cgoEnabled {
+-		if broken[p] {
++		if broken[p] && !*brokenFlag {
+ 			continue
+ 		}
+ 		plats = append(plats, p)
+@@ -1922,6 +1922,7 @@ func cmdlist() {
+ 		GOARCH       string
+ 		CgoSupported bool
+ 		FirstClass   bool
++		Broken       bool `json:",omitempty"`
+ 	}
+ 	var results []jsonResult
+ 	for _, p := range plats {
+@@ -1930,7 +1931,9 @@ func cmdlist() {
+ 			GOOS:         fields[0],
+ 			GOARCH:       fields[1],
+ 			CgoSupported: cgoEnabled[p],
+-			FirstClass:   firstClass[p]})
++			FirstClass:   firstClass[p],
++			Broken:       broken[p],
++		})
+ 	}
+ 	out, err := json.MarshalIndent(results, "", "\t")
+ 	if err != nil {
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index b3fe8b02d8..1de78f0fdb 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -80,25 +79,3 @@ func mkobjabi(file string) {
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+-
+-// mkzosarch writes zosarch.go for internal/platform.
+-func mkzosarch(dir, file string) {
+-	// sort for deterministic file contents.
+-	var list []string
+-	for plat := range cgoEnabled {
+-		list = append(list, plat)
+-	}
+-	sort.Strings(list)
+-
+-	var buf strings.Builder
+-	writeHeader(&buf)
+-	fmt.Fprintf(&buf, "package platform\n")
+-	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "var osArchSupportsCgo = map[string]bool{\n")
+-	for _, plat := range list {
+-		fmt.Fprintf(&buf, "\t\t%s: %v,\n", quote(plat), cgoEnabled[plat])
+-	}
+-	fmt.Fprintf(&buf, "}\n")
+-
+-	writefile(buf.String(), file, writeSkipSame)
+-}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 5e026f7bed..e638d51af7 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -126,7 +126,6 @@ func bootstrapBuildTools() {
+ 
+ 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
+ 	mkobjabi(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
+-	mkzosarch("", pathf("%s/src/internal/platform/zosarch.go", goroot))
+ 
+ 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
+ 	// We use a subdirectory of $GOROOT/pkg because that's the
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 5f3e5bc9bd..f3425a9dd8 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -16,14 +16,14 @@ func usage() {
+ 	xprintf(`usage: go tool dist [command]
+ Commands are:
+ 
+-banner         print installation banner
+-bootstrap      rebuild everything
+-clean          deletes all built files
+-env [-p]       print environment (-p: include $PATH)
+-install [dir]  install individual directory
+-list [-json]   list all supported platforms
+-test [-h]      run Go test(s)
+-version        print Go version
++banner                  print installation banner
++bootstrap               rebuild everything
++clean                   deletes all built files
++env [-p]                print environment (-p: include $PATH)
++install [dir]           install individual directory
++list [-json] [-broken]  list all supported platforms
++test [-h]               run Go test(s)
++version                 print Go version
+ 
+ All commands take -v flags to emit extra information.
+ `)
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 6867ac17c2..e8b5255e63 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -127,7 +127,6 @@ func main() {
+ 		// Generated during cmd/dist. See ../dist/build.go:/gentab.
+ 		"src/cmd/go/internal/cfg/zdefaultcc.go",
+ 		"src/go/build/zcgo.go",
+-		"src/internal/platform/zosarch.go",
+ 		"src/runtime/internal/sys/zversion.go",
+ 		"src/time/tzdata/zzipdata.go",
+ 
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index e762bb304e..230a952d2d 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -2,8 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go test . -run=TestGenerated -fix
++
+ package platform
+ 
++// An OSArch is a pair of GOOS and GOARCH values indicating a platform.
++type OSArch struct {
++	GOOS, GOARCH string
++}
++
++func (p OSArch) String() string {
++	return p.GOOS + "/" + p.GOARCH
++}
++
+ // RaceDetectorSupported reports whether goos/goarch supports the race
+ // detector. There is a copy of this function in cmd/dist/test.go.
+ // Race detector only supports 48-bit VMA on arm64. But it will always
+@@ -123,11 +134,11 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		return true
+ 	}
+ 
+-	platform := goos + "/" + goarch
+-	if _, ok := osArchSupportsCgo[platform]; !ok {
++	if _, ok := distInfo[OSArch{goos, goarch}]; !ok {
+ 		return false // platform unrecognized
+ 	}
+ 
++	platform := goos + "/" + goarch
+ 	switch buildmode {
+ 	case "archive":
+ 		return true
+@@ -239,11 +250,6 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
+ 	return false
+ }
+ 
+-// CgoSupported reports whether goos/goarch supports cgo.
+-func CgoSupported(goos, goarch string) bool {
+-	return osArchSupportsCgo[goos+"/"+goarch]
+-}
+-
+ // ExecutableHasDWARF reports whether the linked executable includes DWARF
+ // symbols on goos/goarch.
+ func ExecutableHasDWARF(goos, goarch string) bool {
+@@ -253,3 +259,28 @@ func ExecutableHasDWARF(goos, goarch string) bool {
+ 	}
+ 	return true
+ }
++
++// osArchInfo describes information about an OSArch extracted from cmd/dist and
++// stored in the generated distInfo map.
++type osArchInfo struct {
++	CgoSupported bool
++	FirstClass   bool
++	Broken       bool
++}
++
++// CgoSupported reports whether goos/goarch supports cgo.
++func CgoSupported(goos, goarch string) bool {
++	return distInfo[OSArch{goos, goarch}].CgoSupported
++}
++
++// FirstClass reports whether goos/goarch is considered a “first class” port.
++// (See https://go.dev/wiki/PortingPolicy#first-class-ports.)
++func FirstClass(goos, goarch string) bool {
++	return distInfo[OSArch{goos, goarch}].FirstClass
++}
++
++// Broken reportsr whether goos/goarch is considered a broken port.
++// (See https://go.dev/wiki/PortingPolicy#broken-ports.)
++func Broken(goos, goarch string) bool {
++	return distInfo[OSArch{goos, goarch}].Broken
++}
+diff --git a/src/internal/platform/zosarch.go b/src/internal/platform/zosarch.go
+new file mode 100644
+index 0000000000..7f5a290332
+--- /dev/null
++++ b/src/internal/platform/zosarch.go
+@@ -0,0 +1,114 @@
++// Code generated by go test internal/platform -fix. DO NOT EDIT.
++
++// To change the information in this file, edit the cgoEnabled and/or firstClass
++// maps in cmd/dist/build.go, then run 'go generate internal/platform'.
++
++package platform
++
++// List is the list of all valid GOOS/GOARCH combinations,
++// including known-broken ports.
++var List = []OSArch{
++	{"aix", "ppc64"},
++	{"android", "386"},
++	{"android", "amd64"},
++	{"android", "arm"},
++	{"android", "arm64"},
++	{"darwin", "amd64"},
++	{"darwin", "arm64"},
++	{"dragonfly", "amd64"},
++	{"freebsd", "386"},
++	{"freebsd", "amd64"},
++	{"freebsd", "arm"},
++	{"freebsd", "arm64"},
++	{"freebsd", "riscv64"},
++	{"illumos", "amd64"},
++	{"ios", "amd64"},
++	{"ios", "arm64"},
++	{"js", "wasm"},
++	{"linux", "386"},
++	{"linux", "amd64"},
++	{"linux", "arm"},
++	{"linux", "arm64"},
++	{"linux", "loong64"},
++	{"linux", "mips"},
++	{"linux", "mips64"},
++	{"linux", "mips64le"},
++	{"linux", "mipsle"},
++	{"linux", "ppc64"},
++	{"linux", "ppc64le"},
++	{"linux", "riscv64"},
++	{"linux", "s390x"},
++	{"linux", "sparc64"},
++	{"netbsd", "386"},
++	{"netbsd", "amd64"},
++	{"netbsd", "arm"},
++	{"netbsd", "arm64"},
++	{"openbsd", "386"},
++	{"openbsd", "amd64"},
++	{"openbsd", "arm"},
++	{"openbsd", "arm64"},
++	{"openbsd", "mips64"},
++	{"openbsd", "ppc64"},
++	{"plan9", "386"},
++	{"plan9", "amd64"},
++	{"plan9", "arm"},
++	{"solaris", "amd64"},
++	{"wasip1", "wasm"},
++	{"windows", "386"},
++	{"windows", "amd64"},
++	{"windows", "arm"},
++	{"windows", "arm64"},
++}
++
++var distInfo = map[OSArch]osArchInfo{
++	{"aix", "ppc64"}:       {CgoSupported: true},
++	{"android", "386"}:     {CgoSupported: true},
++	{"android", "amd64"}:   {CgoSupported: true},
++	{"android", "arm"}:     {CgoSupported: true},
++	{"android", "arm64"}:   {CgoSupported: true},
++	{"darwin", "amd64"}:    {CgoSupported: true, FirstClass: true},
++	{"darwin", "arm64"}:    {CgoSupported: true, FirstClass: true},
++	{"dragonfly", "amd64"}: {CgoSupported: true},
++	{"freebsd", "386"}:     {CgoSupported: true},
++	{"freebsd", "amd64"}:   {CgoSupported: true},
++	{"freebsd", "arm"}:     {CgoSupported: true},
++	{"freebsd", "arm64"}:   {CgoSupported: true},
++	{"freebsd", "riscv64"}: {CgoSupported: true},
++	{"illumos", "amd64"}:   {CgoSupported: true},
++	{"ios", "amd64"}:       {CgoSupported: true},
++	{"ios", "arm64"}:       {CgoSupported: true},
++	{"js", "wasm"}:         {},
++	{"linux", "386"}:       {CgoSupported: true, FirstClass: true},
++	{"linux", "amd64"}:     {CgoSupported: true, FirstClass: true},
++	{"linux", "arm"}:       {CgoSupported: true, FirstClass: true},
++	{"linux", "arm64"}:     {CgoSupported: true, FirstClass: true},
++	{"linux", "loong64"}:   {CgoSupported: true},
++	{"linux", "mips"}:      {CgoSupported: true},
++	{"linux", "mips64"}:    {CgoSupported: true},
++	{"linux", "mips64le"}:  {CgoSupported: true},
++	{"linux", "mipsle"}:    {CgoSupported: true},
++	{"linux", "ppc64"}:     {},
++	{"linux", "ppc64le"}:   {CgoSupported: true},
++	{"linux", "riscv64"}:   {CgoSupported: true},
++	{"linux", "s390x"}:     {CgoSupported: true},
++	{"linux", "sparc64"}:   {CgoSupported: true, Broken: true},
++	{"netbsd", "386"}:      {CgoSupported: true},
++	{"netbsd", "amd64"}:    {CgoSupported: true},
++	{"netbsd", "arm"}:      {CgoSupported: true},
++	{"netbsd", "arm64"}:    {CgoSupported: true},
++	{"openbsd", "386"}:     {CgoSupported: true},
++	{"openbsd", "amd64"}:   {CgoSupported: true},
++	{"openbsd", "arm"}:     {CgoSupported: true},
++	{"openbsd", "arm64"}:   {CgoSupported: true},
++	{"openbsd", "mips64"}:  {CgoSupported: true, Broken: true},
++	{"openbsd", "ppc64"}:   {Broken: true},
++	{"plan9", "386"}:       {},
++	{"plan9", "amd64"}:     {},
++	{"plan9", "arm"}:       {},
++	{"solaris", "amd64"}:   {CgoSupported: true},
++	{"wasip1", "wasm"}:     {},
++	{"windows", "386"}:     {CgoSupported: true, FirstClass: true},
++	{"windows", "amd64"}:   {CgoSupported: true, FirstClass: true},
++	{"windows", "arm"}:     {},
++	{"windows", "arm64"}:   {CgoSupported: true},
++}
+diff --git a/src/internal/platform/zosarch_test.go b/src/internal/platform/zosarch_test.go
+new file mode 100644
+index 0000000000..e8ffe9e75d
+--- /dev/null
++++ b/src/internal/platform/zosarch_test.go
+@@ -0,0 +1,109 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package platform_test
++
++import (
++	"bytes"
++	"encoding/json"
++	"flag"
++	"internal/diff"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"testing"
++	"text/template"
++)
++
++var flagFix = flag.Bool("fix", false, "if true, fix out-of-date generated files")
++
++// TestGenerated verifies that zosarch.go is up to date,
++// or regenerates it if the -fix flag is set.
++func TestGenerated(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++
++	// Here we use 'go run cmd/dist' instead of 'go tool dist' in case the
++	// installed cmd/dist is stale or missing. We don't want to miss a
++	// skew in the data due to a stale binary.
++	cmd := testenv.Command(t, "go", "run", "cmd/dist", "list", "-json", "-broken")
++
++	// cmd/dist requires GOROOT to be set explicitly in the environment.
++	cmd.Env = append(cmd.Environ(), "GOROOT="+testenv.GOROOT(t))
++
++	out, err := cmd.Output()
++	if err != nil {
++		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++			t.Logf("stderr:\n%s", ee.Stderr)
++		}
++		t.Fatalf("%v: %v", cmd, err)
++	}
++
++	type listEntry struct {
++		GOOS, GOARCH string
++		CgoSupported bool
++		FirstClass   bool
++		Broken       bool
++	}
++	var entries []listEntry
++	if err := json.Unmarshal(out, &entries); err != nil {
++		t.Fatal(err)
++	}
++
++	tmplOut := new(bytes.Buffer)
++	tmpl := template.Must(template.New("zosarch").Parse(zosarchTmpl))
++	err = tmpl.Execute(tmplOut, entries)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cmd = testenv.Command(t, "gofmt")
++	cmd.Stdin = bytes.NewReader(tmplOut.Bytes())
++	want, err := cmd.Output()
++	if err != nil {
++		t.Logf("stdin:\n%s", tmplOut.Bytes())
++		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++			t.Logf("stderr:\n%s", ee.Stderr)
++		}
++		t.Fatalf("%v: %v", cmd, err)
++	}
++
++	got, err := os.ReadFile("zosarch.go")
++	if err == nil && bytes.Equal(got, want) {
++		return
++	}
++
++	if !*flagFix {
++		if err != nil {
++			t.Log(err)
++		} else {
++			t.Logf("diff:\n%s", diff.Diff("zosarch.go", got, "want", want))
++		}
++		t.Fatalf("zosarch.go is missing or out of date; to regenerate, run\ngo generate internal/platform")
++	}
++
++	if err := os.WriteFile("zosarch.go", want, 0666); err != nil {
++		t.Fatal(err)
++	}
++}
++
++const zosarchTmpl = `// Code generated by go test internal/platform -fix. DO NOT EDIT.
++
++// To change the information in this file, edit the cgoEnabled and/or firstClass
++// maps in cmd/dist/build.go, then run 'go generate internal/platform'.
++
++package platform
++
++// List is the list of all valid GOOS/GOARCH combinations,
++// including known-broken ports.
++var List = []OSArch{
++{{range .}}	{ {{ printf "%q" .GOOS }}, {{ printf "%q" .GOARCH }} },
++{{end}}
++}
++
++var distInfo = map[OSArch]osArchInfo {
++{{range .}}	{ {{ printf "%q" .GOOS }}, {{ printf "%q" .GOARCH }} }:
++{ {{if .CgoSupported}}CgoSupported: true, {{end}}{{if .FirstClass}}FirstClass: true, {{end}}{{if .Broken}} Broken: true, {{end}} },
++{{end}}
++}
++`

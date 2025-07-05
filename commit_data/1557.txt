@@ -8,8 +8,134 @@ Date:   Mon Jan 26 11:34:38 2009 -0800
     R=r
     OCL=23488
     CL=23488
-
+---
  src/cmd/gc/go.y   | 12 ------------
  test/ken/chan1.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/ken/range.go |  8 ++++----
  3 files changed, 60 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e8843a97e6..0a7cd0813b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -538,23 +538,11 @@ orange_stmt:
+ 		$$ = nod(ORANGE, $1, $4);
+ 		$$->etype = 0;	// := flag
+ 	}
+-|	exprsym3 ':' exprsym3 '=' LRANGE expr
+-	{
+-		$$ = nod(OLIST, $1, $3);
+-		$$ = nod(ORANGE, $$, $6);
+-		$$->etype = 0;
+-	}
+ |	exprsym3_list_r LCOLAS LRANGE expr
+ 	{
+ 		$$ = nod(ORANGE, $1, $4);
+ 		$$->etype = 1;
+ 	}
+-|	exprsym3 ':' exprsym3 LCOLAS LRANGE expr
+-	{
+-		$$ = nod(OLIST, $1, $3);
+-		$$ = nod(ORANGE, $$, $6);
+-		$$->etype = 1;
+-	}
+ 
+ for_header:
+ 	osimple_stmt ';' orange_stmt ';' osimple_stmt
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+new file mode 100644
+index 0000000000..c6d7825b77
+--- /dev/null
++++ b/test/ken/chan1.go
+@@ -0,0 +1,56 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const	N	= 1000;		// sent messages
++const	M	= 10;		// receiving goroutines
++const	W	= 2;		// channel buffering
++var	h	[N]int;		// marking of send/recv
++
++func
++r(c chan int, m int)
++{
++	for {
++	       	select {
++		case r := <- c:
++			if h[r] != 1 {
++				panicln("r",
++					"m=", m,
++					"r=", r,
++					"h=", h[r]
++				);
++			}
++			h[r] = 2;
++		}
++        }
++}
++
++func
++s(c chan int)
++{
++	for n:=0; n<N; n++ {
++		r := n;
++		if h[r] != 0 {
++			panicln("s");
++		}
++		h[r] = 1;
++		c <- r;
++	}
++}
++
++func
++main()
++{
++	c := make(chan int, W);
++	for m:=0; m<M; m++ {
++		go r(c, m);
++		sys.Gosched();
++	}
++	sys.Gosched();
++	sys.Gosched();
++	s(c);
++}
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 2417580ddb..55e168920b 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -76,10 +76,10 @@ main()
+ 	}
+ 
+ 	/*
+-	 * key:value
++	 * key,value
+ 	 */
+ 	i = 0;
+-	for k:v := range a {
++	for k,v := range a {
+ 		if v != f(k) {
+ 			panicln("key:value array range", k, v, a[k]);
+ 		}
+@@ -90,7 +90,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k:v := range p {
++	for k,v := range p {
+ 		if v != f(k) {
+ 			panicln("key:value pointer range", k, v, p[k]);
+ 		}
+@@ -101,7 +101,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k:v := range m {
++	for k,v := range m {
+ 		if v != f(k) {
+ 			panicln("key:value map range", k, v, m[k]);
+ 		}

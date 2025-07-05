@@ -9,6 +9,25 @@ Date:   Fri Apr 29 15:44:36 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/runtime/asm_arm64.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 4a18db80c3..7ebd7bacb9 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -648,10 +648,10 @@ havem:
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVD	(g_sched+gobuf_pc)(g), R5
+-	MOVD	R5, -(16+8)(R4)
++	MOVD	R5, -(24+8)(R4)
+ 	MOVD	ctxt+24(FP), R0
+-	MOVD	R0, -(24+8)(R4)	// maintain 16-byte SP alignment
+-	MOVD	$-(24+8)(R4), R0
++	MOVD	R0, -(16+8)(R4)
++	MOVD	$-(24+8)(R4), R0 // maintain 16-byte SP alignment
+ 	MOVD	R0, RSP
+ 	BL	runtime·cgocallbackg(SB)
+ 

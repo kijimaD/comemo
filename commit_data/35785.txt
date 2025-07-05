@@ -11,7 +11,152 @@ Date:   Thu Mar 8 10:57:10 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
  test/codegen/arithmetic.go              | 26 +++++++++++
  2 files changed, 26 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 0e39d0df3e..1e3cbfe16f 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -272,26 +272,6 @@ var allAsmTests = []*asmTests{
+ }
+ 
+ var linuxAMD64Tests = []*asmTest{
+-	// multiplication by powers of two
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return n * 64
+-		}
+-		`,
+-		pos: []string{"\tSHLQ\t\\$6,"},
+-		neg: []string{"IMULQ"},
+-	},
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return -128*n
+-		}
+-		`,
+-		pos: []string{"SHLQ"},
+-		neg: []string{"IMULQ"},
+-	},
+-
+ 	{
+ 		fn: `
+ 		func $(x int) int {
+@@ -927,26 +907,6 @@ var linuxAMD64Tests = []*asmTest{
+ }
+ 
+ var linux386Tests = []*asmTest{
+-	// multiplication by powers of two
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return 32*n
+-		}
+-		`,
+-		pos: []string{"SHLL"},
+-		neg: []string{"IMULL"},
+-	},
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return -64*n
+-		}
+-		`,
+-		pos: []string{"SHLL"},
+-		neg: []string{"IMULL"},
+-	},
+-
+ 	// multiplication merging tests
+ 	{
+ 		fn: `
+@@ -1155,26 +1115,6 @@ var linuxS390XTests = []*asmTest{
+ }
+ 
+ var linuxARMTests = []*asmTest{
+-	// multiplication by powers of two
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return 16*n
+-		}
+-		`,
+-		pos: []string{"\tSLL\t[$]4"},
+-		neg: []string{"\tMUL\t"},
+-	},
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return -32*n
+-		}
+-		`,
+-		pos: []string{"\tSLL\t[$]5"},
+-		neg: []string{"\tMUL\t"},
+-	},
+-
+ 	{
+ 		fn: `
+ 		func f0(x uint32) uint32 {
+@@ -1222,26 +1162,6 @@ var linuxARMTests = []*asmTest{
+ }
+ 
+ var linuxARM64Tests = []*asmTest{
+-	// multiplication by powers of two
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return 64*n
+-		}
+-		`,
+-		pos: []string{"\tLSL\t[$]6"},
+-		neg: []string{"\tMUL\t"},
+-	},
+-	{
+-		fn: `
+-		func $(n int) int {
+-			return -128*n
+-		}
+-		`,
+-		pos: []string{"\tLSL\t[$]7"},
+-		neg: []string{"\tMUL\t"},
+-	},
+-
+ 	{
+ 		fn: `
+ 		func f0(x uint64) uint64 {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+new file mode 100644
+index 0000000000..c09fad60c8
+--- /dev/null
++++ b/test/codegen/arithmetic.go
+@@ -0,0 +1,26 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// This file contains codegen tests related to arithmetic
++// simplifications/optimizations.
++
++func Pow2Muls(n1, n2 int) (int, int) {
++	// amd64:"SHLQ\t[$]5",-"IMULQ"
++	// 386:"SHLL\t[$]5",-"IMULL"
++	// arm:"SLL\t[$]5",-"MUL"
++	// arm64:"LSL\t[$]5",-"MUL"
++	a := n1 * 32
++
++	// amd64:"SHLQ\t[$]6",-"IMULQ"
++	// 386:"SHLL\t[$]6",-"IMULL"
++	// arm:"SLL\t[$]6",-"MUL"
++	// arm64:"LSL\t[$]6",-"MUL"
++	b := -64 * n2
++
++	return a, b
++}

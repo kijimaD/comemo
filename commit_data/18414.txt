@@ -9,6 +9,28 @@ Date:   Wed Feb 5 01:24:51 2014 -0500
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/57140043
-
+---
  src/pkg/encoding/json/encode.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 4a77ba1cd2..741ddd89cb 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -44,6 +44,7 @@ import (
+ // if an invalid UTF-8 sequence is encountered.
+ // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+ // to keep some browsers from misinterpreting JSON output as HTML.
++// Ampersand "&" is also escaped to "\u0026" for the same reason.
+ //
+ // Array and slice values encode as JSON arrays, except that
+ // []byte encodes as a base64-encoded string, and a nil slice
+@@ -804,7 +805,7 @@ func (e *encodeState) string(s string) (int, error) {
+ 				e.WriteByte('r')
+ 			default:
+ 				// This encodes bytes < 0x20 except for \n and \r,
+-				// as well as < and >. The latter are escaped because they
++				// as well as <, > and &. The latter are escaped because they
+ 				// can lead to security holes when user-controlled strings
+ 				// are rendered into JSON and served to some browsers.
+ 				e.WriteString(`\u00`)

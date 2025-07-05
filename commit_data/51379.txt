@@ -12,9 +12,58 @@ Date:   Tue Jan 18 19:44:34 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mem_aix.go    | 1 +
  src/runtime/mem_bsd.go    | 1 +
  src/runtime/mem_darwin.go | 1 +
  src/runtime/mem_linux.go  | 1 +
  4 files changed, 4 insertions(+)
+
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 957aa4dcc2..489d7928e1 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -72,6 +72,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 		throw("runtime: out of memory")
+ 	}
+ 	if err != 0 {
++		print("runtime: mprotect(", v, ", ", n, ") returned ", err, "\n")
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index b152571792..49337eafbf 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -73,6 +73,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 		throw("runtime: out of memory")
+ 	}
+ 	if p != v || err != 0 {
++		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 7fccd2bb8e..9f836c0818 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -66,6 +66,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 		throw("runtime: out of memory")
+ 	}
+ 	if p != v || err != 0 {
++		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index f8f9c53170..f8333014c2 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -189,6 +189,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 		throw("runtime: out of memory")
+ 	}
+ 	if p != v || err != 0 {
++		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }

@@ -9,6 +9,22 @@ Date:   Fri Nov 11 17:30:52 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5376078
-
+---
  src/cmd/godoc/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 60c678e130..53104152d9 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -80,6 +80,10 @@ The flags are:
+ 		repository holding the source files.
+ 	-sync_minutes=0
+ 		sync interval in minutes; sync is disabled if <= 0
++	-templates=""
++		directory containing alternate template files; if set,
++		the directory may provide alternative template files
++		for the files in $GOROOT/lib/godoc
+ 	-filter=""
+ 		filter file containing permitted package directory paths
+ 	-filter_minutes=0

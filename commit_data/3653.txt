@@ -7,9 +7,26 @@ Date:   Mon Oct 26 10:13:07 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1013013
-
+---
  doc/gordon/gopherbw.png         | Bin 0 -> 210660 bytes
  doc/gordon/gophercolor.png      | Bin 0 -> 231683 bytes
  doc/gordon/gophercolor16x16.png | Bin 0 -> 785 bytes
  favicon.ico                     | Bin 0 -> 785 bytes
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gordon/gopherbw.png b/doc/gordon/gopherbw.png
+new file mode 100644
+index 0000000000..48a08cc613
+Binary files /dev/null and b/doc/gordon/gopherbw.png differ
+diff --git a/doc/gordon/gophercolor.png b/doc/gordon/gophercolor.png
+new file mode 100644
+index 0000000000..b48ffba374
+Binary files /dev/null and b/doc/gordon/gophercolor.png differ
+diff --git a/doc/gordon/gophercolor16x16.png b/doc/gordon/gophercolor16x16.png
+new file mode 100644
+index 0000000000..48854ff3b7
+Binary files /dev/null and b/doc/gordon/gophercolor16x16.png differ
+diff --git a/favicon.ico b/favicon.ico
+new file mode 100644
+index 0000000000..48854ff3b7
+Binary files /dev/null and b/favicon.ico differ

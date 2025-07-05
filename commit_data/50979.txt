@@ -17,7 +17,109 @@ Date:   Mon Nov 22 14:30:40 2021 -0500
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/semasleep_test.go          | 41 +++++++++++++++++++++++++---------
  src/runtime/testdata/testprog/sleep.go |  7 +++++-
  2 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index cf4ef18208..bc73140a2a 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -7,6 +7,7 @@
+ package runtime_test
+ 
+ import (
++	"io"
+ 	"os/exec"
+ 	"syscall"
+ 	"testing"
+@@ -28,6 +29,10 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 
+ 	start := time.Now()
+ 	cmd := exec.Command(exe, "After1")
++	stdout, err := cmd.StdoutPipe()
++	if err != nil {
++		t.Fatalf("StdoutPipe: %v", err)
++	}
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatalf("Failed to start command: %v", err)
+ 	}
+@@ -36,27 +41,43 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 		doneCh <- cmd.Wait()
+ 	}()
+ 
++	// Wait for After1 to close its stdout so that we know the runtime's SIGIO
++	// handler is registered.
++	b, err := io.ReadAll(stdout)
++	if len(b) > 0 {
++		t.Logf("read from testprog stdout: %s", b)
++	}
++	if err != nil {
++		t.Fatalf("error reading from testprog: %v", err)
++	}
++
+ 	// With the repro running, we can continuously send to it
+-	// a non-terminal signal such as SIGIO, to spuriously
+-	// wakeup pthread_cond_timedwait_relative_np.
+-	unfixedTimer := time.NewTimer(2 * time.Second)
++	// a signal that the runtime considers non-terminal,
++	// such as SIGIO, to spuriously wake up
++	// pthread_cond_timedwait_relative_np.
++	ticker := time.NewTicker(200 * time.Millisecond)
++	defer ticker.Stop()
+ 	for {
+ 		select {
+-		case <-time.After(200 * time.Millisecond):
++		case now := <-ticker.C:
++			if now.Sub(start) > 2*time.Second {
++				t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
++				cmd.Process.Signal(syscall.SIGKILL)
++				<-doneCh
++				return
++			}
++
+ 			// Send the pesky signal that toggles spinning
+ 			// indefinitely if #27520 is not fixed.
+ 			cmd.Process.Signal(syscall.SIGIO)
+ 
+-		case <-unfixedTimer.C:
+-			t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
+-			cmd.Process.Signal(syscall.SIGKILL)
+-			return
+-
+ 		case err := <-doneCh:
+ 			if err != nil {
+ 				t.Fatalf("The program returned but unfortunately with an error: %v", err)
+ 			}
+-			if time.Since(start) < 100*time.Millisecond {
++			if time.Since(start) < 1*time.Second {
++				// The program was supposed to sleep for a full (monotonic) second;
++				// it should not return before that has elapsed.
+ 				t.Fatalf("The program stopped too quickly.")
+ 			}
+ 			return
+diff --git a/src/runtime/testdata/testprog/sleep.go b/src/runtime/testdata/testprog/sleep.go
+index 86e2f6cfe6..b230e60181 100644
+--- a/src/runtime/testdata/testprog/sleep.go
++++ b/src/runtime/testdata/testprog/sleep.go
+@@ -4,7 +4,10 @@
+ 
+ package main
+ 
+-import "time"
++import (
++	"os"
++	"time"
++)
+ 
+ // for golang.org/issue/27250
+ 
+@@ -13,5 +16,7 @@ func init() {
+ }
+ 
+ func After1() {
++	os.Stdout.WriteString("ready\n")
++	os.Stdout.Close()
+ 	<-time.After(1 * time.Second)
+ }

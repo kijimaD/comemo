@@ -7,6 +7,20 @@ Date:   Thu Feb 28 11:31:52 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7431046
-
+---
  src/cmd/cgo/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 4738304858..334ceefc99 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -300,7 +300,7 @@ For example, here is the definition of _Cfunc_puts:
+ 
+ The hexadecimal number is a hash of cgo's input, chosen to be
+ deterministic yet unlikely to collide with other uses. The actual
+-function _cgo_be59f0f25121_Cfunc_flush is implemented in a C source
++function _cgo_be59f0f25121_Cfunc_puts is implemented in a C source
+ file compiled by gcc, the file x.cgo2.c:
+ 
+ 	void

@@ -26,7 +26,75 @@ Date:   Wed Jan 10 13:33:40 2024 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Commit-Queue: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/fs.go      | 13 +++++++++----
  src/net/http/fs_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 977c3a766e..45cf16eed1 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -28,7 +28,7 @@ import (
+ // specific directory tree.
+ //
+ // While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
+-// value is a filename on the native file system, not a URL, so it is separated
++// value is a directory path on the native file system, not a URL, so it is separated
+ // by [filepath.Separator], which isn't necessarily '/'.
+ //
+ // Note that Dir could expose sensitive files and directories. Dir will follow
+@@ -665,11 +665,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 				localRedirect(w, r, path.Base(url)+"/")
+ 				return
+ 			}
+-		} else {
+-			if url[len(url)-1] == '/' {
+-				localRedirect(w, r, "../"+path.Base(url))
++		} else if url[len(url)-1] == '/' {
++			base := path.Base(url)
++			if base == "/" || base == "." {
++				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
++				msg := "http: attempting to traverse a non-directory"
++				Error(w, msg, StatusInternalServerError)
+ 				return
+ 			}
++			localRedirect(w, r, "../"+base)
++			return
+ 		}
+ 	}
+ 
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 383d27df9b..70a4b8982f 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1668,3 +1668,29 @@ func (grw gzipResponseWriter) Flush() {
+ 		fw.Flush()
+ 	}
+ }
++
++// Issue 63769
++func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
++func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
++	testDirFile := func(t *testing.T, h Handler) {
++		ts := newClientServerTest(t, mode, h).ts
++		defer ts.Close()
++
++		res, err := ts.Client().Get(ts.URL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if g, w := res.StatusCode, StatusInternalServerError; g != w {
++			t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
++		}
++		res.Body.Close()
++	}
++
++	t.Run("FileServer", func(t *testing.T) {
++		testDirFile(t, FileServer(Dir("testdata/index.html")))
++	})
++
++	t.Run("FileServerFS", func(t *testing.T) {
++		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
++	})
++}

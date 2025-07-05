@@ -23,6 +23,20 @@ Date:   Mon Apr 4 10:49:55 2016 -0700
     Change-Id: Ibdaf694581b5fd5fb87fa8ce6a792f3eb4493622
     Reviewed-on: https://go-review.googlesource.com/21545
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/objfile.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a8d86b52cd..30a380fadf 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -553,6 +553,8 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 		name := ""
+ 		if r.Sym != nil {
+ 			name = r.Sym.Name
++		} else if r.Type == R_TLS_LE {
++			name = "TLS"
+ 		}
+ 		if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
+ 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))

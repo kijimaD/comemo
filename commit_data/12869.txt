@@ -21,7 +21,7 @@ Date:   Tue Apr 10 12:51:59 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6002043
-
+---
  src/cmd/6c/peep.c  |  2 ++
  src/cmd/6c/reg.c   |  1 +
  src/cmd/6c/txt.c   | 68 ++++++++++++++++++++++++++++++++----------------------
@@ -31,3 +31,248 @@ Date:   Tue Apr 10 12:51:59 2012 -0400
  src/cmd/6l/6.out.h |  2 ++
  src/cmd/6l/optab.c |  2 ++
  8 files changed, 54 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 8b82adbf56..1991c0c352 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -383,6 +383,7 @@ subprop(Reg *r0)
+ 		case AMOVSB:
+ 		case AMOVSL:
+ 		case AMOVSQ:
++		case AMOVQL:
+ 			return 0;
+ 
+ 		case AMOVL:
+@@ -581,6 +582,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case AMOVWLZX:
+ 	case AMOVWQSX:
+ 	case AMOVWQZX:
++	case AMOVQL:
+ 
+ 	case AMOVSS:
+ 	case AMOVSD:
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index 996128f75f..bbea92560e 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -211,6 +211,7 @@ regopt(Prog *p)
+ 		case AMOVWLZX:
+ 		case AMOVWQSX:
+ 		case AMOVWQZX:
++		case AMOVQL:
+ 
+ 		case AMOVSS:
+ 		case AMOVSD:
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 2cb8c15851..605ed3786a 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -809,7 +809,6 @@ gmove(Node *f, Node *t)
+ 	case CASE(	TUINT,	TCHAR):
+ 	case CASE(	TLONG,	TCHAR):
+ 	case CASE(	TULONG,	TCHAR):
+-	case CASE(	TIND,	TCHAR):
+ 
+ 	case CASE(	TCHAR,	TUCHAR):
+ 	case CASE(	TUCHAR,	TUCHAR):
+@@ -819,7 +818,6 @@ gmove(Node *f, Node *t)
+ 	case CASE(	TUINT,	TUCHAR):
+ 	case CASE(	TLONG,	TUCHAR):
+ 	case CASE(	TULONG,	TUCHAR):
+-	case CASE(	TIND,	TUCHAR):
+ 
+ 	case CASE(	TSHORT,	TSHORT):
+ 	case CASE(	TUSHORT,TSHORT):
+@@ -827,7 +825,6 @@ gmove(Node *f, Node *t)
+ 	case CASE(	TUINT,	TSHORT):
+ 	case CASE(	TLONG,	TSHORT):
+ 	case CASE(	TULONG,	TSHORT):
+-	case CASE(	TIND,	TSHORT):
+ 
+ 	case CASE(	TSHORT,	TUSHORT):
+ 	case CASE(	TUSHORT,TUSHORT):
+@@ -835,42 +832,26 @@ gmove(Node *f, Node *t)
+ 	case CASE(	TUINT,	TUSHORT):
+ 	case CASE(	TLONG,	TUSHORT):
+ 	case CASE(	TULONG,	TUSHORT):
+-	case CASE(	TIND,	TUSHORT):
+ 
+ 	case CASE(	TINT,	TINT):
+ 	case CASE(	TUINT,	TINT):
+ 	case CASE(	TLONG,	TINT):
+ 	case CASE(	TULONG,	TINT):
+-	case CASE(	TIND,	TINT):
+ 
+ 	case CASE(	TINT,	TUINT):
+ 	case CASE(	TUINT,	TUINT):
+ 	case CASE(	TLONG,	TUINT):
+ 	case CASE(	TULONG,	TUINT):
+-	case CASE(	TIND,	TUINT):
+-
+-	case CASE(	TUINT,	TIND):
+-	case CASE(	TVLONG,	TUINT):
+-	case CASE(	TVLONG,	TULONG):
+-	case CASE(	TUVLONG, TUINT):
+-	case CASE(	TUVLONG, TULONG):
+  *****/
+ 		a = AMOVL;
+ 		break;
+ 
+-	case CASE(	TVLONG,	TCHAR):
+-	case	CASE(	TVLONG,	TSHORT):
+-	case CASE(	TVLONG,	TINT):
+-	case CASE(	TVLONG,	TLONG):
+-	case CASE(	TUVLONG, TCHAR):
+-	case	CASE(	TUVLONG, TSHORT):
+-	case CASE(	TUVLONG, TINT):
+-	case CASE(	TUVLONG, TLONG):
++	case CASE(	TINT,	TIND):
+ 	case CASE(	TINT,	TVLONG):
+ 	case CASE(	TINT,	TUVLONG):
+-	case CASE(	TLONG,	TVLONG):
+-	case CASE(	TINT,	TIND):
+ 	case CASE(	TLONG,	TIND):
++	case CASE(	TLONG,	TVLONG):
++	case CASE(	TLONG,	TUVLONG):
+ 		a = AMOVLQSX;
+ 		if(f->op == OCONST) {
+ 			f->vconst &= (uvlong)0xffffffffU;
+@@ -886,22 +867,53 @@ gmove(Node *f, Node *t)
+ 	case CASE(	TULONG,	TVLONG):
+ 	case CASE(	TULONG,	TUVLONG):
+ 	case CASE(	TULONG,	TIND):
+-		a = AMOVL;	/* same effect as AMOVLQZX */
++		a = AMOVLQZX;
+ 		if(f->op == OCONST) {
+ 			f->vconst &= (uvlong)0xffffffffU;
+ 			a = AMOVQ;
+ 		}
+ 		break;
++	
++	case CASE(	TIND,	TCHAR):
++	case CASE(	TIND,	TUCHAR):
++	case CASE(	TIND,	TSHORT):
++	case CASE(	TIND,	TUSHORT):
++	case CASE(	TIND,	TINT):
++	case CASE(	TIND,	TUINT):
++	case CASE(	TIND,	TLONG):
++	case CASE(	TIND,	TULONG):
++	case CASE(	TVLONG,	TCHAR):
++	case CASE(	TVLONG,	TUCHAR):
++	case CASE(	TVLONG,	TSHORT):
++	case CASE(	TVLONG,	TUSHORT):
++	case CASE(	TVLONG,	TINT):
++	case CASE(	TVLONG,	TUINT):
++	case CASE(	TVLONG,	TLONG):
++	case CASE(	TVLONG,	TULONG):
++	case CASE(	TUVLONG,	TCHAR):
++	case CASE(	TUVLONG,	TUCHAR):
++	case CASE(	TUVLONG,	TSHORT):
++	case CASE(	TUVLONG,	TUSHORT):
++	case CASE(	TUVLONG,	TINT):
++	case CASE(	TUVLONG,	TUINT):
++	case CASE(	TUVLONG,	TLONG):
++	case CASE(	TUVLONG,	TULONG):
++		a = AMOVQL;
++		if(f->op == OCONST) {
++			f->vconst &= (int)0xffffffffU;
++			a = AMOVL;
++		}
++		break;	
+ 
++	case CASE(	TIND,	TIND):
+ 	case CASE(	TIND,	TVLONG):
+-	case CASE(	TVLONG,	TVLONG):
+-	case CASE(	TUVLONG,	TVLONG):
+-	case CASE(	TVLONG,	TUVLONG):
+-	case CASE(	TUVLONG,	TUVLONG):
+ 	case CASE(	TIND,	TUVLONG):
+ 	case CASE(	TVLONG,	TIND):
++	case CASE(	TVLONG,	TVLONG):
++	case CASE(	TVLONG,	TUVLONG):
+ 	case CASE(	TUVLONG,	TIND):
+-	case CASE(	TIND,	TIND):
++	case CASE(	TUVLONG,	TVLONG):
++	case CASE(	TUVLONG,	TUVLONG):
+ 		a = AMOVQ;
+ 		break;
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ededcf6732..fb312126b7 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -706,11 +706,14 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT32, TUINT32):
+ 	case CASE(TUINT32, TINT32):
+ 	case CASE(TUINT32, TUINT32):
++		a = AMOVL;
++		break;
++
+ 	case CASE(TINT64, TINT32):	// truncate
+ 	case CASE(TUINT64, TINT32):
+ 	case CASE(TINT64, TUINT32):
+ 	case CASE(TUINT64, TUINT32):
+-		a = AMOVL;
++		a = AMOVQL;
+ 		break;
+ 
+ 	case CASE(TINT64, TINT64):	// same size
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 3710033b20..a4d9b8edab 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -200,6 +200,7 @@ loop1:
+ 		case AMOVWQZX:
+ 		case AMOVLQSX:
+ 		case AMOVLQZX:
++		case AMOVQL:
+ 			if(regtyp(&p->to)) {
+ 				r1 = rnops(uniqs(r));
+ 				if(r1 != R) {
+@@ -636,6 +637,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case AMOVWLZX:
+ 	case AMOVWQSX:
+ 	case AMOVWQZX:
++	case AMOVQL:
+ 
+ 	case AMOVSS:
+ 	case AMOVSD:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index bed9f8da68..e8259c476d 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -326,6 +326,7 @@ regopt(Prog *firstp)
+ 		case AMOVWLZX:
+ 		case AMOVWQSX:
+ 		case AMOVWQZX:
++		case AMOVQL:
+ 		case APOPQ:
+ 
+ 		case AMOVSS:
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index b1ef050d9e..97f5fbf7bc 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -741,6 +741,8 @@ enum	as
+ 	APREFETCHT1,
+ 	APREFETCHT2,
+ 	APREFETCHNTA,
++	
++	AMOVQL,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index f09f3d3414..747e808339 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1282,6 +1282,8 @@ Optab optab[] =
+ 	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+ 	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+ 	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
++	
++	{ AMOVQL,	yrl_ml,	Px, 0x89 },
+ 
+ 	{ AEND },
+ 	0

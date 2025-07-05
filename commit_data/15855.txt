@@ -9,7 +9,59 @@ Date:   Wed Mar 20 22:18:20 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7767044
-
+---
  src/cmd/gc/dcl.c            | 12 ++++++------
  test/fixedbugs/issue5089.go | 15 +++++++++++++++
  2 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 45945467b9..429f212e7f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1380,6 +1380,12 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ 		}
+ 	}
+ 
++	if(local && !pa->local) {
++		// defining method on non-local type.
++		yyerror("cannot define new methods on non-local type %T", pa);
++		return;
++	}
++
+ 	n = nod(ODCLFIELD, newname(sf), N);
+ 	n->type = t;
+ 
+@@ -1395,12 +1401,6 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ 		return;
+ 	}
+ 
+-	if(local && !pa->local) {
+-		// defining method on non-local type.
+-		yyerror("cannot define new methods on non-local type %T", pa);
+-		return;
+-	}
+-
+ 	f = structfield(n);
+ 	f->nointerface = nointerface;
+ 
+diff --git a/test/fixedbugs/issue5089.go b/test/fixedbugs/issue5089.go
+new file mode 100644
+index 0000000000..14d6bde989
+--- /dev/null
++++ b/test/fixedbugs/issue5089.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 5089: gc allows methods on non-locals if symbol already exists
++
++package p
++
++import "bufio"
++
++func (b *bufio.Reader) Buffered() int { // ERROR "non-local"
++	return -1
++}

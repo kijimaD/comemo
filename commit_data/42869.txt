@@ -25,7 +25,158 @@ Date:   Tue Oct 8 13:19:48 2019 -0400
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/decode_test.go | 96 ++++++++++++++++++++++++++++++++++++++++
  src/encoding/json/scanner.go     | 19 +++++---
  2 files changed, 109 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 498bd97b46..3c5fd1428f 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -2431,3 +2431,99 @@ func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
+ 		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+ 	}
+ }
++
++func TestUnmarshalMaxDepth(t *testing.T) {
++	testcases := []struct {
++		name        string
++		data        string
++		errMaxDepth bool
++	}{
++		{
++			name:        "ArrayUnderMaxNestingDepth",
++			data:        `{"a":` + strings.Repeat(`[`, 10000-1) + strings.Repeat(`]`, 10000-1) + `}`,
++			errMaxDepth: false,
++		},
++		{
++			name:        "ArrayOverMaxNestingDepth",
++			data:        `{"a":` + strings.Repeat(`[`, 10000) + strings.Repeat(`]`, 10000) + `}`,
++			errMaxDepth: true,
++		},
++		{
++			name:        "ArrayOverStackDepth",
++			data:        `{"a":` + strings.Repeat(`[`, 3000000) + strings.Repeat(`]`, 3000000) + `}`,
++			errMaxDepth: true,
++		},
++		{
++			name:        "ObjectUnderMaxNestingDepth",
++			data:        `{"a":` + strings.Repeat(`{"a":`, 10000-1) + `0` + strings.Repeat(`}`, 10000-1) + `}`,
++			errMaxDepth: false,
++		},
++		{
++			name:        "ObjectOverMaxNestingDepth",
++			data:        `{"a":` + strings.Repeat(`{"a":`, 10000) + `0` + strings.Repeat(`}`, 10000) + `}`,
++			errMaxDepth: true,
++		},
++		{
++			name:        "ObjectOverStackDepth",
++			data:        `{"a":` + strings.Repeat(`{"a":`, 3000000) + `0` + strings.Repeat(`}`, 3000000) + `}`,
++			errMaxDepth: true,
++		},
++	}
++
++	targets := []struct {
++		name     string
++		newValue func() interface{}
++	}{
++		{
++			name: "unstructured",
++			newValue: func() interface{} {
++				var v interface{}
++				return &v
++			},
++		},
++		{
++			name: "typed named field",
++			newValue: func() interface{} {
++				v := struct {
++					A interface{} `json:"a"`
++				}{}
++				return &v
++			},
++		},
++		{
++			name: "typed missing field",
++			newValue: func() interface{} {
++				v := struct {
++					B interface{} `json:"b"`
++				}{}
++				return &v
++			},
++		},
++		{
++			name: "custom unmarshaler",
++			newValue: func() interface{} {
++				v := unmarshaler{}
++				return &v
++			},
++		},
++	}
++
++	for _, tc := range testcases {
++		for _, target := range targets {
++			t.Run(target.name+"-"+tc.name, func(t *testing.T) {
++				err := Unmarshal([]byte(tc.data), target.newValue())
++				if !tc.errMaxDepth {
++					if err != nil {
++						t.Errorf("unexpected error: %v", err)
++					}
++				} else {
++					if err == nil {
++						t.Errorf("expected error containing 'exceeded max depth', got none")
++					} else if !strings.Contains(err.Error(), "exceeded max depth") {
++						t.Errorf("expected error containing 'exceeded max depth', got: %v", err)
++					}
++				}
++			})
++		}
++	}
++}
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index 552bd70360..975b2bf80f 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -139,6 +139,10 @@ const (
+ 	parseArrayValue         // parsing array value
+ )
+ 
++// This limits the max nesting depth to prevent stack overflow.
++// This is permitted by https://tools.ietf.org/html/rfc7159#section-9
++const maxNestingDepth = 10000
++
+ // reset prepares the scanner for use.
+ // It must be called before calling s.step.
+ func (s *scanner) reset() {
+@@ -168,8 +172,13 @@ func (s *scanner) eof() int {
+ }
+ 
+ // pushParseState pushes a new parse state p onto the parse stack.
+-func (s *scanner) pushParseState(p int) {
+-	s.parseState = append(s.parseState, p)
++// an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
++func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
++	s.parseState = append(s.parseState, newParseState)
++	if len(s.parseState) <= maxNestingDepth {
++		return successState
++	}
++	return s.error(c, "exceeded max depth")
+ }
+ 
+ // popParseState pops a parse state (already obtained) off the stack
+@@ -208,12 +217,10 @@ func stateBeginValue(s *scanner, c byte) int {
+ 	switch c {
+ 	case '{':
+ 		s.step = stateBeginStringOrEmpty
+-		s.pushParseState(parseObjectKey)
+-		return scanBeginObject
++		return s.pushParseState(c, parseObjectKey, scanBeginObject)
+ 	case '[':
+ 		s.step = stateBeginValueOrEmpty
+-		s.pushParseState(parseArrayValue)
+-		return scanBeginArray
++		return s.pushParseState(c, parseArrayValue, scanBeginArray)
+ 	case '"':
+ 		s.step = stateInString
+ 		return scanBeginLiteral

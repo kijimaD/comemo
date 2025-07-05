@@ -14,9 +14,204 @@ Date:   Fri Aug 5 20:29:51 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  1 +
  src/cmd/compile/internal/noder/reader.go | 38 +++++++++--------
  src/cmd/compile/internal/noder/writer.go | 73 ++++++++++++++++++++------------
  src/internal/pkgbits/encoder.go          |  1 +
  4 files changed, 67 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 1a60ea39bb..7c72a94e5f 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -54,6 +54,7 @@ const (
+ 	exprNew
+ 	exprMake
+ 	exprNil
++	exprFuncInst
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 4bdce25cca..1c4323b67a 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -558,24 +558,7 @@ var objReader = map[*types.Sym]pkgReaderIndex{}
+ // obj reads an instantiated object reference from the bitstream.
+ func (r *reader) obj() ir.Node {
+ 	r.Sync(pkgbits.SyncObject)
+-
+-	if r.Bool() {
+-		idx := r.Len()
+-		obj := r.dict.funcsObj[idx]
+-		if obj == nil {
+-			fn := r.dict.funcs[idx]
+-			targs := make([]*types.Type, len(fn.explicits))
+-			for i, targ := range fn.explicits {
+-				targs[i] = r.p.typIdx(targ, r.dict, true)
+-			}
+-
+-			obj = r.p.objIdx(fn.idx, nil, targs)
+-			assert(r.dict.funcsObj[idx] == nil)
+-			r.dict.funcsObj[idx] = obj
+-		}
+-		return obj
+-	}
+-
++	assert(!r.Bool()) // TODO(mdempsky): Remove; was derived func inst.
+ 	idx := r.Reloc(pkgbits.RelocObj)
+ 
+ 	explicits := make([]*types.Type, r.Len())
+@@ -1860,6 +1843,25 @@ func (r *reader) expr() (res ir.Node) {
+ 		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
+ 		return typecheck.Callee(r.obj())
+ 
++	case exprFuncInst:
++		if r.Bool() {
++			idx := r.Len()
++			obj := r.dict.funcsObj[idx]
++			if obj == nil {
++				fn := r.dict.funcs[idx]
++				targs := make([]*types.Type, len(fn.explicits))
++				for i, targ := range fn.explicits {
++					targs[i] = r.p.typIdx(targ, r.dict, true)
++				}
++
++				obj = r.p.objIdx(fn.idx, nil, targs)
++				assert(r.dict.funcsObj[idx] == nil)
++				r.dict.funcsObj[idx] = obj
++			}
++			return obj
++		}
++		return r.obj()
++
+ 	case exprConst:
+ 		pos := r.pos()
+ 		typ := r.typ()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 5ef50ef71e..7702de223e 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -591,34 +591,14 @@ func (w *writer) param(param *types2.Var) {
+ // arguments used to instantiate it (i.e., used to substitute the
+ // object's own declared type parameters).
+ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+-	explicitInfos := make([]typeInfo, explicits.Len())
+-	for i := range explicitInfos {
+-		explicitInfos[i] = w.p.typIdx(explicits.At(i), w.dict)
+-	}
+-	info := objInfo{idx: w.p.objIdx(obj), explicits: explicitInfos}
+-
+-	if _, ok := obj.(*types2.Func); ok && info.anyDerived() {
+-		idx := -1
+-		for i, prev := range w.dict.funcs {
+-			if prev.equals(info) {
+-				idx = i
+-			}
+-		}
+-		if idx < 0 {
+-			idx = len(w.dict.funcs)
+-			w.dict.funcs = append(w.dict.funcs, info)
+-		}
+-
+-		// TODO(mdempsky): Push up into expr; this shouldn't appear
+-		// outside of expression context.
+-		w.Sync(pkgbits.SyncObject)
+-		w.Bool(true)
+-		w.Len(idx)
+-		return
+-	}
++	w.objInfo(w.p.objInstIdx(obj, explicits, w.dict))
++}
+ 
++// objInfo writes a use of the given encoded object into the
++// bitstream.
++func (w *writer) objInfo(info objInfo) {
+ 	w.Sync(pkgbits.SyncObject)
+-	w.Bool(false)
++	w.Bool(false) // TODO(mdempsky): Remove; was derived func inst.
+ 	w.Reloc(pkgbits.RelocObj, info.idx)
+ 
+ 	w.Len(len(info.explicits))
+@@ -627,6 +607,17 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ 	}
+ }
+ 
++// objInstIdx returns the indices for an object and a corresponding
++// list of type arguments used to instantiate it, adding them to the
++// export data as needed.
++func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits *types2.TypeList, dict *writerDict) objInfo {
++	explicitInfos := make([]typeInfo, explicits.Len())
++	for i := range explicitInfos {
++		explicitInfos[i] = pw.typIdx(explicits.At(i), dict)
++	}
++	return objInfo{idx: pw.objIdx(obj), explicits: explicitInfos}
++}
++
+ // objIdx returns the index for the given Object, adding it to the
+ // export data as needed.
+ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
+@@ -1551,15 +1542,27 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	}
+ 
+ 	if obj != nil {
++		if targs.Len() != 0 {
++			obj := obj.(*types2.Func)
++			info := w.p.objInstIdx(obj, targs, w.dict)
++
++			w.Code(exprFuncInst)
++			if w.Bool(info.anyDerived()) {
++				w.Len(w.dict.funcIdx(info))
++				return
++			}
++			w.objInfo(info)
++			return
++		}
++
+ 		if isGlobal(obj) {
+ 			w.Code(exprGlobal)
+-			w.obj(obj, targs)
++			w.obj(obj, nil)
+ 			return
+ 		}
+ 
+ 		obj := obj.(*types2.Var)
+ 		assert(!obj.IsField())
+-		assert(targs.Len() == 0)
+ 
+ 		w.Code(exprLocal)
+ 		w.useLocal(expr.Pos(), obj)
+@@ -1782,6 +1785,20 @@ func sliceElem(typ types2.Type) types2.Type {
+ 	return types2.CoreType(typ).(*types2.Slice).Elem()
+ }
+ 
++// funcIdx returns the index of a given encoded function instantiation
++// within the dictionary, adding it if not already present.
++func (dict *writerDict) funcIdx(newInfo objInfo) int {
++	for idx, oldInfo := range dict.funcs {
++		if oldInfo.equals(newInfo) {
++			return idx
++		}
++	}
++
++	idx := len(dict.funcs)
++	dict.funcs = append(dict.funcs, newInfo)
++	return idx
++}
++
+ func (w *writer) optExpr(expr syntax.Expr) {
+ 	if w.Bool(expr != nil) {
+ 		w.expr(expr)
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 3859b0f091..70a2cbae51 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -23,6 +23,7 @@ import (
+ //
+ // TODO(mdempsky): For the next version bump:
+ //   - remove the legacy "has init" bool from the public root
++//   - remove obj's "derived func instance" bool
+ const currentVersion uint32 = 1
+ 
+ // A PkgEncoder provides methods for encoding a package's Unified IR

@@ -10,6 +10,20 @@ Date:   Thu Jul 12 11:37:17 2018 +1000
     Change-Id: Iec2b1f841d0353dd7925f8f934fe82d4ed059d7d
     Reviewed-on: https://go-review.googlesource.com/123495
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 57a667c406..80472fd68a 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -63,7 +63,7 @@ Do not send CLs removing the interior tags from such phrases.
+   Go files named <code>*_js.go</code> or <code>*_wasm.go</code> will
+   now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
+   tools</a> except when those GOOS/GOARCH values are being used.
+-  If you have existing filenames matching those patterns, you will have to rename them.
++  If you have existing filenames matching those patterns, you will need to rename them.
+ </p>
+ 
+ <h2 id="tools">Tools</h2>

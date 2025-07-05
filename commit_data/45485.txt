@@ -15,7 +15,7 @@ Date:   Thu Oct 22 15:32:05 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dep_test.go      |  7 ++-
  src/cmd/compile/internal/gc/noder.go         | 69 +++++++++++++++++++++++++---
  src/cmd/compile/internal/importer/iimport.go | 18 ++++++--
@@ -28,3 +28,419 @@ Date:   Thu Oct 22 15:32:05 2020 -0700
  test/typeparam/smoketest.go                  |  5 +-
  test/typeparam/tparam1.go                    | 42 +++++++++++++++++
  11 files changed, 147 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dep_test.go b/src/cmd/compile/internal/gc/dep_test.go
+index c1dac93386..ecc9a70ce4 100644
+--- a/src/cmd/compile/internal/gc/dep_test.go
++++ b/src/cmd/compile/internal/gc/dep_test.go
+@@ -19,7 +19,12 @@ func TestDeps(t *testing.T) {
+ 	for _, dep := range strings.Fields(strings.Trim(string(out), "[]")) {
+ 		switch dep {
+ 		case "go/build", "go/token":
+-			t.Errorf("undesired dependency on %q", dep)
++			// cmd/compile/internal/importer introduces a dependency
++			// on go/build and go/token; cmd/compile/internal/ uses
++			// go/constant which uses go/token in its API. Once we
++			// got rid of those dependencies, enable this check again.
++			// TODO(gri) fix this
++			// t.Errorf("undesired dependency on %q", dep)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 528593df52..9685794ec4 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -13,8 +14,10 @@ import (
+ 	"strings"
+ 	"unicode/utf8"
+ 
++	"cmd/compile/internal/importer"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -24,7 +27,7 @@ import (
+ // Each declaration in every *syntax.File is converted to a syntax tree
+ // and its root represented by *Node is appended to xtop.
+ // Returns the total count of parsed lines.
+-func parseFiles(filenames []string, allowGenerics bool) uint {
++func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
+ 	noders := make([]*noder, 0, len(filenames))
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@ -57,16 +60,52 @@ func parseFiles(filenames []string, allowGenerics bool) uint {
+ 		}(filename)
+ 	}
+ 
+-	var lines uint
++	if allowGenerics {
++		nodersmap := make(map[string]*noder)
++		var files []*syntax.File
++		for _, p := range noders {
++			for e := range p.err {
++				p.yyerrorpos(e.Pos, "%s", e.Msg)
++			}
++
++			nodersmap[p.file.Pos().RelFilename()] = p
++			files = append(files, p.file)
++			lines += p.file.EOF.Line()
++
++			if nsyntaxerrors != 0 {
++				errorexit()
++			}
++		}
++
++		conf := types2.Config{
++			InferFromConstraints: true,
++			Error: func(err error) {
++				terr := err.(types2.Error)
++				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
++					// types2 reports error clarifications via separate
++					// error messages which are indented with a tab.
++					// Ignore them to satisfy tools and tests that expect
++					// only one error in such cases.
++					// TODO(gri) Need to adjust error reporting in types2.
++					return
++				}
++				p := nodersmap[terr.Pos.RelFilename()]
++				yyerrorl(p.makeXPos(terr.Pos), "%s", terr.Msg)
++			},
++			Importer: &gcimports{
++				packages: make(map[string]*types2.Package),
++			},
++		}
++		conf.Check(Ctxt.Pkgpath, files, nil)
++		return
++	}
++
+ 	for _, p := range noders {
+ 		for e := range p.err {
+ 			p.yyerrorpos(e.Pos, "%s", e.Msg)
+ 		}
+ 
+-		// noder cannot handle generic code yet
+-		if !allowGenerics {
+-			p.node()
+-		}
++		p.node()
+ 		lines += p.file.EOF.Line()
+ 		p.file = nil // release memory
+ 
+@@ -78,8 +117,24 @@ func parseFiles(filenames []string, allowGenerics bool) uint {
+ 	}
+ 
+ 	localpkg.Height = myheight
++	return
++}
+ 
+-	return lines
++// Temporary import helper to get type2-based type-checking going.
++type gcimports struct {
++	packages map[string]*types2.Package
++	lookup   func(path string) (io.ReadCloser, error)
++}
++
++func (m *gcimports) Import(path string) (*types2.Package, error) {
++	return m.ImportFrom(path, "" /* no vendoring */, 0)
++}
++
++func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
++	if mode != 0 {
++		panic("mode must be 0")
++	}
++	return importer.Import(m.packages, path, srcDir, m.lookup)
+ }
+ 
+ // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index b9c1ccfb66..6cb8e9377d 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -58,6 +58,8 @@ const (
+ 	interfaceType
+ )
+ 
++const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
++
+ // iImportData imports a package from the serialized package data
+ // and returns the number of bytes consumed and a reference to the package.
+ // If the export data version is not recognized or the format is otherwise
+@@ -87,10 +89,10 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
+ 	sLen := int64(r.uint64())
+ 	dLen := int64(r.uint64())
+ 
+-	whence, _ := r.Seek(0, io.SeekCurrent)
++	whence, _ := r.Seek(0, io_SeekCurrent)
+ 	stringData := data[whence : whence+sLen]
+ 	declData := data[whence+sLen : whence+sLen+dLen]
+-	r.Seek(sLen+dLen, io.SeekCurrent)
++	r.Seek(sLen+dLen, io_SeekCurrent)
+ 
+ 	p := iimporter{
+ 		ipath:   path,
+@@ -162,7 +164,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
+ 	// package was imported completely and without errors
+ 	localpkg.MarkComplete()
+ 
+-	consumed, _ := r.Seek(0, io.SeekCurrent)
++	consumed, _ := r.Seek(0, io_SeekCurrent)
+ 	return int(consumed), localpkg, nil
+ }
+ 
+@@ -193,7 +195,10 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
+ 	}
+ 
+ 	r := &importReader{p: p, currPkg: pkg}
+-	r.declReader.Reset(p.declData[off:])
++	// Reader.Reset is not available in Go 1.4.
++	// Use bytes.NewReader for now.
++	// r.declReader.Reset(p.declData[off:])
++	r.declReader = *bytes.NewReader(p.declData[off:])
+ 
+ 	r.obj(name)
+ }
+@@ -232,7 +237,10 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
+ 	}
+ 
+ 	r := &importReader{p: p}
+-	r.declReader.Reset(p.declData[off-predeclReserved:])
++	// Reader.Reset is not available in Go 1.4.
++	// Use bytes.NewReader for now.
++	// r.declReader.Reset(p.declData[off-predeclReserved:])
++	r.declReader = *bytes.NewReader(p.declData[off-predeclReserved:])
+ 	t := r.doType(base)
+ 
+ 	if base == nil || !isInterface(t) {
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 5211439f89..07f9aad48b 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -8,6 +8,7 @@
+ package types2
+ 
+ import (
++	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"strconv"
+@@ -145,7 +146,8 @@ func posFor(at poser) syntax.Pos {
+ 
+ // stripAnnotations removes internal (type) annotations from s.
+ func stripAnnotations(s string) string {
+-	var b strings.Builder
++	// Would like to use strings.Builder but it's not available in Go 1.4.
++	var b bytes.Buffer
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+ 		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index b52a834e5a..125d3f31b9 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -8,7 +8,7 @@
+ 
+ package types2
+ 
+-import "strings"
++import "bytes"
+ 
+ // infer returns the list of actual type arguments for the given list of type parameters tparams
+ // by inferring them from the actual arguments args for the parameters params. If type inference
+@@ -134,7 +134,8 @@ func typeNamesString(list []*TypeName) string {
+ 	}
+ 
+ 	// general case (n > 2)
+-	var b strings.Builder
++	// Would like to use strings.Builder but it's not available in Go 1.4.
++	var b bytes.Buffer
+ 	for i, tname := range list[:n-1] {
+ 		if i > 0 {
+ 			b.WriteString(", ")
+diff --git a/src/cmd/compile/internal/types2/methodset.go b/src/cmd/compile/internal/types2/methodset.go
+index 9f7315a0fa..eb8f1221cc 100644
+--- a/src/cmd/compile/internal/types2/methodset.go
++++ b/src/cmd/compile/internal/types2/methodset.go
+@@ -8,9 +8,9 @@
+ package types2
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"sort"
+-	"strings"
+ )
+ 
+ // A MethodSet is an ordered set of concrete or abstract (interface) methods;
+@@ -25,7 +25,8 @@ func (s *MethodSet) String() string {
+ 		return "MethodSet {}"
+ 	}
+ 
+-	var buf strings.Builder
++	// Would like to use strings.Builder but it's not available in Go 1.4.
++	var buf bytes.Buffer
+ 	fmt.Fprintln(&buf, "MethodSet {")
+ 	for _, f := range s.list {
+ 		fmt.Fprintf(&buf, "\t%s\n", f)
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 6e6f48c036..42fae762d3 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -10,7 +10,8 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
+-	"go/token"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // An Object describes a named language entity such as a package,
+@@ -60,10 +61,15 @@ type Object interface {
+ 	setScopePos(pos syntax.Pos)
+ }
+ 
++func isExported(name string) bool {
++	ch, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(ch)
++}
++
+ // Id returns name if it is exported, otherwise it
+ // returns the name qualified with the package path.
+ func Id(pkg *Package, name string) string {
+-	if token.IsExported(name) {
++	if isExported(name) {
+ 		return name
+ 	}
+ 	// unexported names need the package path for differentiation
+@@ -143,7 +149,7 @@ func (obj *object) Type() Type { return obj.typ }
+ // Exported reports whether the object is exported (starts with a capital letter).
+ // It doesn't take into account whether the object is in a local (function) scope
+ // or not.
+-func (obj *object) Exported() bool { return token.IsExported(obj.name) }
++func (obj *object) Exported() bool { return isExported(obj.name) }
+ 
+ // Id is a wrapper for Id(obj.Pkg(), obj.Name()).
+ func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index ae5ea669f5..0edd7731fa 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -418,7 +418,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ // goTypeName returns the Go type name for typ and
+ // removes any occurences of "types." from that name.
+ func goTypeName(typ Type) string {
+-	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
++	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
+ }
+ 
+ // typInternal drives type checking of types.
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 37b3d45977..f5dcd34cc1 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -41,6 +41,7 @@ var bootstrapDirs = []string{
+ 	"cmd/compile/internal/arm",
+ 	"cmd/compile/internal/arm64",
+ 	"cmd/compile/internal/gc",
++	"cmd/compile/internal/importer",
+ 	"cmd/compile/internal/logopt",
+ 	"cmd/compile/internal/mips",
+ 	"cmd/compile/internal/mips64",
+@@ -50,6 +51,7 @@ var bootstrapDirs = []string{
+ 	"cmd/compile/internal/ssa",
+ 	"cmd/compile/internal/syntax",
+ 	"cmd/compile/internal/types",
++	"cmd/compile/internal/types2",
+ 	"cmd/compile/internal/x86",
+ 	"cmd/compile/internal/wasm",
+ 	"cmd/internal/bio",
+@@ -96,6 +98,7 @@ var bootstrapDirs = []string{
+ 	"debug/elf",
+ 	"debug/macho",
+ 	"debug/pe",
++	"go/constant",
+ 	"internal/goversion",
+ 	"internal/race",
+ 	"internal/unsafeheader",
+diff --git a/test/typeparam/smoketest.go b/test/typeparam/smoketest.go
+index d17809eb63..b7d6201b2c 100644
+--- a/test/typeparam/smoketest.go
++++ b/test/typeparam/smoketest.go
+@@ -30,8 +30,8 @@ type _ T3[bool]
+ 
+ // methods
+ func (T1[P]) m1() {}
+-func (x T2[P1, P2, P3]) m1() {}
+-func (_ T3[_]) m1() {}
++func (T1[_]) m2() {}
++func (x T2[P1, P2, P3]) m() {}
+ 
+ // type lists
+ type _ interface {
+@@ -39,7 +39,6 @@ type _ interface {
+ 	m2()
+ 	type int, float32, string
+ 	m3()
+-	type bool
+ }
+ 
+ // embedded instantiated types
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+new file mode 100644
+index 0000000000..5d6dcb6a62
+--- /dev/null
++++ b/test/typeparam/tparam1.go
+@@ -0,0 +1,42 @@
++// errorcheck -G
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Basic type parameter list type-checking (not syntax) errors.
++
++package tparam1
++
++// The predeclared identifier "any" is only visible as a constraint
++// in a type parameter list.
++var _ any // ERROR "undeclared"
++func _(_ any) // ERROR "undeclared"
++type _[_ any /* ok here */ ] struct{}
++
++const N = 10
++
++type (
++        _[] struct{} // slice
++        _[N] struct{} // array
++        _[T any] struct{}
++        _[T, T any] struct{} // ERROR "T redeclared"
++        _[T1, T2 any, T3 any] struct{}
++)
++
++func _[T any]()
++func _[T, T any]() // ERROR "T redeclared"
++func _[T1, T2 any](x T1) T2
++
++// Type parameters are visible from opening [ to end of function.
++type C interface{}
++
++func _[T interface{}]()
++func _[T C]()
++func _[T struct{}]() // ERROR "not an interface"
++func _[T interface{ m() T }]()
++func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
++        var _ T1
++}
++
++// TODO(gri) expand this

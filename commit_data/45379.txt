@@ -24,8 +24,136 @@ Date:   Sat Oct 17 20:03:19 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  doc/go1.16.html                         |  9 ++++
  src/cmd/go/internal/work/exec.go        |  7 +++
  src/cmd/go/testdata/script/toolexec.txt | 83 +++++++++++++++++++++++++++++++++
  3 files changed, 99 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 1239217eed..1e73355b69 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -122,6 +122,15 @@ Do not send CLs removing the interior tags from such phrases.
+   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
+ </p>
+ 
++<h4 id="toolexec">The <code>-toolexec</code> build flag</h4>
++
++<p><!-- golang.org/cl/263357 -->
++  When the <code>-toolexec</code> build flag is specified to use a program when
++  invoking toolchain programs like compile or asm, the environment variable
++  <code>TOOLEXEC_IMPORTPATH</code> is now set to the import path of the package
++  being built.
++</p>
++
+ <h3 id="cgo">Cgo</h3>
+ 
+ <p> <!-- CL 252378 -->
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 3ffdca5718..24e309c657 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2001,6 +2001,13 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
+ 	defer cleanup()
+ 	cmd.Dir = dir
+ 	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
++
++	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
++	// It doesn't really matter if -toolexec isn't being used.
++	if a != nil && a.Package != nil {
++		cmd.Env = append(cmd.Env, "TOOLEXEC_IMPORTPATH="+a.Package.ImportPath)
++	}
++
+ 	cmd.Env = append(cmd.Env, env...)
+ 	start := time.Now()
+ 	err := cmd.Run()
+diff --git a/src/cmd/go/testdata/script/toolexec.txt b/src/cmd/go/testdata/script/toolexec.txt
+new file mode 100644
+index 0000000000..021b7f1684
+--- /dev/null
++++ b/src/cmd/go/testdata/script/toolexec.txt
+@@ -0,0 +1,83 @@
++[short] skip
++
++# Build our simple toolexec program.
++go build ./cmd/mytool
++
++# Build the main package with our toolexec program. For each action, it will
++# print the tool's name and the TOOLEXEC_IMPORTPATH value. We expect to compile
++# each package once, and link the main package once.
++# Don't check the entire output at once, because the order in which the tools
++# are run is irrelevant here.
++# Finally, note that asm and cgo are run twice.
++
++go build -toolexec=$PWD/mytool
++stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
++[cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
++[cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main$'
++stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main$'
++
++-- go.mod --
++module test/main
++-- foo.go --
++// Simple package so we can test a program build with -toolexec.
++// With a dummy import, to test different TOOLEXEC_IMPORTPATH values.
++// Includes dummy uses of cgo and asm, to cover those tools as well.
++package main
++
++import (
++	_ "test/main/withasm"
++	_ "test/main/withcgo"
++)
++
++func main() {}
++-- withcgo/withcgo.go --
++package withcgo
++
++// int fortytwo()
++// {
++//     return 42;
++// }
++import "C"
++-- withcgo/stub.go --
++package withcgo
++
++// Stub file to ensure we build without cgo too.
++-- withasm/withasm.go --
++package withasm
++-- withasm/withasm.s --
++TEXT ·Add(SB),$0-24
++	MOVQ a+0(FP), AX
++	ADDQ b+8(FP), AX
++	MOVQ AX, ret+16(FP)
++	RET
++-- cmd/mytool/main.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	tool, args := os.Args[1], os.Args[2:]
++	toolName := filepath.Base(tool)
++	if len(args) > 0 && args[0] == "-V=full" {
++		// We can't alter the version output.
++	} else {
++		// Print which tool we're running, and on what package.
++		fmt.Fprintf(os.Stdout, "%s TOOLEXEC_IMPORTPATH=%s\n", toolName, os.Getenv("TOOLEXEC_IMPORTPATH"))
++	}
++
++	// Simply run the tool.
++	cmd := exec.Command(tool, args...)
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++}

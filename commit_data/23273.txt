@@ -22,9 +22,192 @@ Date:   Thu Apr 30 19:03:31 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9570
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go   |  1 +
  src/runtime/softfloat_arm.go |  3 +-
  src/runtime/sqrt.go          | 32 +++++++++++------
  src/runtime/sqrt_test.go     | 85 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 108 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1b5f267b8b..e0c8b17bd3 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -17,6 +17,7 @@ var F32to64 = f32to64
+ var Fcmp64 = fcmp64
+ var Fintto64 = fintto64
+ var F64toint = f64toint
++var Sqrt = sqrt
+ 
+ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 8f184ccf3b..4e97e13f1a 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -437,8 +437,7 @@ stage3: // regd, regm are 4bit variables
+ 		break
+ 
+ 	case 0xeeb10bc0: // D[regd] = sqrt D[regm]
+-		uval = float64bits(sqrt(float64frombits(fgetd(regm))))
+-		fputd(regd, uval)
++		fputd(regd, sqrt(fgetd(regm)))
+ 
+ 		if fptrace > 0 {
+ 			print("*** D[", regd, "] = sqrt D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
+diff --git a/src/runtime/sqrt.go b/src/runtime/sqrt.go
+index d483f8a01f..7452a61f3c 100644
+--- a/src/runtime/sqrt.go
++++ b/src/runtime/sqrt.go
+@@ -3,11 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Copy of math/sqrt.go, here for use by ARM softfloat.
++// Modified to not use any floating point arithmetic so
++// that we don't clobber any floating-point registers
++// while emulating the sqrt instruction.
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ // The original C code and the long comment below are
+ // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
+ // came with this notice.  The go code is a simplified
+@@ -89,21 +90,30 @@ const (
+ 	float64Mask  = 0x7FF
+ 	float64Shift = 64 - 11 - 1
+ 	float64Bias  = 1023
++	float64NaN   = 0x7FF8000000000001
++	float64Inf   = 0x7FF0000000000000
+ 	maxFloat64   = 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
+ )
+ 
+-func float64bits(f float64) uint64     { return *(*uint64)(unsafe.Pointer(&f)) }
+-func float64frombits(b uint64) float64 { return *(*float64)(unsafe.Pointer(&b)) }
++// isnanu returns whether ix represents a NaN floating point number.
++func isnanu(ix uint64) bool {
++	exp := (ix >> float64Shift) & float64Mask
++	sig := ix << (64 - float64Shift) >> (64 - float64Shift)
++	return exp == float64Mask && sig != 0
++}
+ 
+-func sqrt(x float64) float64 {
++func sqrt(ix uint64) uint64 {
+ 	// special cases
+ 	switch {
+-	case x == 0 || x != x || x > maxFloat64:
+-		return x
+-	case x < 0:
+-		return nan()
++	case ix == 0 || ix == 1<<63: // x == 0
++		return ix
++	case isnanu(ix): // x != x
++		return ix
++	case ix&(1<<63) != 0: // x < 0
++		return float64NaN
++	case ix == float64Inf: // x > MaxFloat
++		return ix
+ 	}
+-	ix := float64bits(x)
+ 	// normalize x
+ 	exp := int((ix >> float64Shift) & float64Mask)
+ 	if exp == 0 { // subnormal x
+@@ -139,5 +149,5 @@ func sqrt(x float64) float64 {
+ 		q += q & 1 // round according to extra bit
+ 	}
+ 	ix = q>>1 + uint64(exp-1+float64Bias)<<float64Shift // significand + biased exponent
+-	return float64frombits(ix)
++	return ix
+ }
+diff --git a/src/runtime/sqrt_test.go b/src/runtime/sqrt_test.go
+new file mode 100644
+index 0000000000..f1a6e8369d
+--- /dev/null
++++ b/src/runtime/sqrt_test.go
+@@ -0,0 +1,85 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A copy of Sqrt tests from the math package to test the
++// purely integer arithmetic implementaiton in sqrt.go.
++
++package runtime_test
++
++import (
++	"math"
++	"runtime"
++	"testing"
++)
++
++func SqrtRT(x float64) float64 {
++	return math.Float64frombits(runtime.Sqrt(math.Float64bits(x)))
++}
++
++func TestSqrt(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := math.Abs(vf[i])
++		if f := SqrtRT(a); sqrt[i] != f {
++			t.Errorf("Sqrt(%g) = %g, want %g", a, f, sqrt[i])
++		}
++	}
++	for i := 0; i < len(vfsqrtSC); i++ {
++		if f := SqrtRT(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
++			t.Errorf("Sqrt(%g) = %g, want %g", vfsqrtSC[i], f, sqrtSC[i])
++		}
++	}
++}
++
++func alike(a, b float64) bool {
++	switch {
++	case math.IsNaN(a) && math.IsNaN(b):
++		return true
++	case a == b:
++		return math.Signbit(a) == math.Signbit(b)
++	}
++	return false
++}
++
++var vf = []float64{
++	4.9790119248836735e+00,
++	7.7388724745781045e+00,
++	-2.7688005719200159e-01,
++	-5.0106036182710749e+00,
++	9.6362937071984173e+00,
++	2.9263772392439646e+00,
++	5.2290834314593066e+00,
++	2.7279399104360102e+00,
++	1.8253080916808550e+00,
++	-8.6859247685756013e+00,
++}
++
++var sqrt = []float64{
++	2.2313699659365484748756904e+00,
++	2.7818829009464263511285458e+00,
++	5.2619393496314796848143251e-01,
++	2.2384377628763938724244104e+00,
++	3.1042380236055381099288487e+00,
++	1.7106657298385224403917771e+00,
++	2.286718922705479046148059e+00,
++	1.6516476350711159636222979e+00,
++	1.3510396336454586262419247e+00,
++	2.9471892997524949215723329e+00,
++}
++
++var vfsqrtSC = []float64{
++	math.Inf(-1),
++	-math.Pi,
++	math.Copysign(0, -1),
++	0,
++	math.Inf(1),
++	math.NaN(),
++}
++var sqrtSC = []float64{
++	math.NaN(),
++	math.NaN(),
++	math.Copysign(0, -1),
++	0,
++	math.Inf(1),
++	math.NaN(),
++}

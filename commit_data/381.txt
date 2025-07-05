@@ -5,9 +5,179 @@ Date:   Thu Jul 17 14:53:13 2008 -0700
     - moved package code into globals.go, adjusted deps
     
     SVN=127887
-
+---
  usr/gri/gosrc/compilation.go | 10 +++++-----
  usr/gri/gosrc/export.go      |  7 +++----
  usr/gri/gosrc/globals.go     | 24 +++++++++++++++++++++---
  usr/gri/gosrc/package.go     | 24 ------------------------
  4 files changed, 29 insertions(+), 36 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index ac2ac59aff..3e602b9e40 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -8,7 +8,6 @@ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Universe "universe"
+-import Package "package"
+ import Scanner "scanner"
+ import Parser "parser"
+ import Export "export"
+@@ -18,12 +17,12 @@ export Compilation
+ type Compilation struct {
+   src_name string;
+   pkg *Globals.Object;
+-  imports [256] *Package.Package;  // TODO need open arrays
++  imports [256] *Globals.Package;  // TODO need open arrays
+   nimports int;
+ }
+ 
+ 
+-func (C *Compilation) Lookup(file_name string) *Package.Package {
++func (C *Compilation) Lookup(file_name string) *Globals.Package {
+ 	for i := 0; i < C.nimports; i++ {
+ 		pkg := C.imports[i];
+ 		if pkg.file_name == file_name {
+@@ -34,7 +33,7 @@ func (C *Compilation) Lookup(file_name string) *Package.Package {
+ }
+ 
+ 
+-func (C *Compilation) Insert(pkg *Package.Package) {
++func (C *Compilation) Insert(pkg *Globals.Package) {
+ 	if C.Lookup(pkg.file_name) != nil {
+ 		panic "package already inserted";
+ 	}
+@@ -44,7 +43,7 @@ func (C *Compilation) Insert(pkg *Package.Package) {
+ }
+ 
+ 
+-func (C *Compilation) InsertImport(pkg *Package.Package) *Package.Package {
++func (C *Compilation) InsertImport(pkg *Globals.Package) *Globals.Package {
+ 	p := C.Lookup(pkg.file_name);
+ 	if (p == nil) {
+ 		// no primary package found
+@@ -111,4 +110,5 @@ func Compile(src_name string, verbose int) {
+ 	
+ 	print "parsing ", src_name, "\n";
+ 	P.ParseProgram();
++	//comp.Export();
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 6a321cafda..4193921680 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -7,7 +7,6 @@ package Exporter
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+-import Package "package"
+ //import Compilation "compilation"
+ 
+ 
+@@ -25,7 +24,7 @@ type Exporter struct {
+ 
+ func (E *Exporter) WriteType(typ *Globals.Type);
+ func (E *Exporter) WriteObject(obj *Globals.Object);
+-func (E *Exporter) WritePackage(pkg *Package.Package) ;
++func (E *Exporter) WritePackage(pkg *Globals.Package) ;
+ 
+ 
+ func (E *Exporter) WriteByte(x byte) {
+@@ -240,7 +239,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ }
+ 
+ 
+-func (E *Exporter) WritePackage(pkg *Package.Package) {
++func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 	if pkg.ref >= 0 {
+ 		E.WritePackageTag(-pkg.ref);  // package already exported
+ 		return;
+@@ -279,7 +278,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
+ 	E.type_ref = Universe.types.len();
+ 	*/
+ 	
+-	var pkg *Package.Package = nil; // comp.packages[0];
++	var pkg *Globals.Package = nil; // comp.packages[0];
+ 	E.WritePackage(pkg);
+ 	for p := pkg.scope.entries.first; p != nil; p = p.next {
+ 		if p.obj.mark {
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 3fd0981ebf..83d3a8fb3f 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -6,9 +6,9 @@ package Globals
+ 
+ 
+ // The following types should really be in their respective files
+-// object.go, type.go, and scope.go but they refer to each other
+-// and we don't know how to handle forward-declared pointers across
+-// packages yet.
++// (object.go, type.go, scope.go, package.go) but they refer to each
++// other and we don't know how to handle forward-declared pointers
++// across packages yet.
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -64,6 +64,17 @@ type Scope struct {
+ }
+ 
+ 
++export Package
++type Package struct {
++	ref int;  // for exporting only: >= 0 means already exported
++	file_name string;
++	ident string;
++	key string;
++	scope *Scope;
++	pno int;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Creation
+ 
+@@ -103,6 +114,13 @@ func NewScope(parent *Scope) *Scope {
+ }
+ 
+ 
++export NewPackage;
++func NewPackage() *Package {
++	pkg := new(Package);
++	return pkg;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // List methods
+ 
+diff --git a/usr/gri/gosrc/package.go b/usr/gri/gosrc/package.go
+deleted file mode 100644
+index bea260b572..0000000000
+--- a/usr/gri/gosrc/package.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Package
+-
+-import Globals "globals"
+-
+-export Package
+-type Package struct {
+-	ref int;
+-	file_name string;
+-	ident string;
+-	key string;
+-	scope *Globals.Scope;
+-	pno int;
+-}
+-
+-
+-export NewPackage;
+-func NewPackage() *Package {
+-	pkg := new(Package);
+-	return pkg;
+-}

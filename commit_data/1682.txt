@@ -14,7 +14,7 @@ Date:   Sun Feb 15 22:12:35 2009 -0800
     DELTA=265  (87 added, 58 deleted, 120 changed)
     OCL=25057
     CL=25057
-
+---
  src/lib/Makefile          |   7 ++-
  src/lib/once.go           |  81 ++++++++------------------
  src/lib/os/env.go         |  66 +++++++++++++++++----
@@ -26,3 +26,676 @@ Date:   Sun Feb 15 22:12:35 2009 -0800
  src/lib/time/time_test.go |  38 +++++++-----
  src/lib/time/zoneinfo.go  | 145 +++++++++++++++++++++++-----------------------
  10 files changed, 192 insertions(+), 163 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 780aa3a431..93aa95f00d 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -94,11 +94,12 @@ test: test.files
+ 
+ bignum.6: fmt.dirinstall
+ bufio.6: io.dirinstall os.dirinstall
++exec.6: os.dirinstall
+ flag.6: fmt.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+-testing.6: flag.install fmt.dirinstall
++once.6: sync.dirinstall
+ strings.6: utf8.install
+-exec.6: os.dirinstall
++testing.6: flag.install fmt.dirinstall
+ 
+ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+ hash.dirinstall: os.dirinstall
+@@ -108,7 +109,7 @@ json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.di
+ 	strconv.dirinstall strings.install utf8.install
+ # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
+ net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
+-os.dirinstall: syscall.dirinstall
++os.dirinstall: syscall.dirinstall once.install
+ regexp.dirinstall: os.dirinstall
+ reflect.dirinstall: strconv.dirinstall sync.dirinstall
+ strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
+diff --git a/src/lib/once.go b/src/lib/once.go
+index 8ebddccee6..2a09a179bc 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -4,74 +4,41 @@
+ 
+ // For one-time initialization that is not done during init.
+ // Wrap the initialization in a niladic function f() and call
+-//	once.Do(&f)
+-// If multiple processes call once.Do(&f) simultaneously
++//	once.Do(f)
++// If multiple processes call once.Do(f) simultaneously
+ // with the same f argument, only one will call f, and the
+ // others will block until f finishes running.
+ 
+ package once
+ 
+-type _Job struct {
+-	done bool;
+-	doit chan bool;	// buffer of 1
+-}
++import "sync"
+ 
+-type _Request struct {
+-	f func();
+-	reply chan *_Job
++type job struct {
++	done bool;
++	sync.Mutex;	// should probably be sync.Notification or some such
+ }
+ 
+-var service = make(chan _Request)
+-var jobmap = make(map[func()]*_Job)
+-
+-// Moderate access to the jobmap.
+-// Even if accesses were thread-safe (they should be but are not)
+-// something needs to serialize creation of new jobs.
+-// That's what the Server does.
+-func server() {
+-	for {
+-		req := <-service;
+-		job, present := jobmap[req.f];
+-		if !present {
+-			job = new(_Job);
+-			job.doit = make(chan bool, 1);
+-			job.doit <- true;
+-			jobmap[req.f] = job
+-		}
+-		req.reply <- job
+-	}
+-}
++var jobs = make(map[func()]*job)
++var joblock sync.Mutex;
+ 
+ func Do(f func()) {
+-	// Look for job in map (avoids channel communication).
+-	// If not there, ask map server to make one.
+-	// TODO: Uncomment use of jobmap[f] once
+-	// maps are thread-safe.
+-	var job *_Job;
+-	var present bool;
+-	// job, present = jobmap[f]
++	joblock.Lock();
++	j, present := jobs[f];
+ 	if !present {
+-		c := make(chan *_Job);
+-		service <- _Request(f, c);
+-		job = <-c
+-	}
+-
+-	// Optimization
+-	if job.done {
+-		return
+-	}
+-
+-	// If we're the first one, job.doit has a true waiting.
+-	if <-job.doit {
++		// run it
++		j = new(job);
++		j.Lock();
++		jobs[f] = j;
++		joblock.Unlock();
+ 		f();
+-		job.done = true
++		j.done = true;
++		j.Unlock();
++	} else {
++		// wait for it
++		joblock.Unlock();
++		if j.done != true {
++			j.Lock();
++			j.Unlock();
++		}
+ 	}
+-
+-	// Leave a false waiting for the next guy.
+-	job.doit <- false
+-}
+-
+-func init() {
+-	go server()
+ }
+-
+diff --git a/src/lib/os/env.go b/src/lib/os/env.go
+index dd4970dead..4c53a9ad9d 100644
+--- a/src/lib/os/env.go
++++ b/src/lib/os/env.go
+@@ -3,25 +3,71 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Environment variables.
+-// Setenv doesn't exist yet: don't have the run-time hooks yet
+ 
+ package os
+ 
+-import os "os"
++import (
++	"once";
++	"os";
++)
+ 
+ var (
+ 	ENOENV = NewError("no such environment variable");
++
++	env map[string] string;
+ )
+ 
+-func Getenv(s string) (v string, err *Error) {
+-	n := len(s);
+-	if n == 0 {
+-		return "", EINVAL
++func copyenv() {
++	env = make(map[string] string);
++	for i, s := range sys.Envs {
++		for j := 0; j < len(s); j++ {
++			if s[j] == '=' {
++				env[s[0:j]] = s[j+1:len(s)];
++				break;
++			}
++		}
++	}
++}
++
++func Getenv(key string) (value string, err *Error) {
++	once.Do(copyenv);
++
++	if len(key) == 0 {
++		return "", EINVAL;
++	}
++	v, ok := env[key];
++	if !ok {
++		return "", ENOENV;
++	}
++	return v, nil;
++}
++
++func Setenv(key, value string) *Error {
++	once.Do(copyenv);
++
++	if len(key) == 0 {
++		return EINVAL;
+ 	}
+-	for i, e := range sys.Envs {
+-		if len(e) > n && e[n] == '=' && e[0:n] == s {
+-			return e[n+1:len(e)], nil
++	env[key] = value;
++	return nil;
++}
++
++func Clearenv() {
++	once.Do(copyenv);	// prevent copyenv in Getenv/Setenv
++	env = make(map[string] string);
++}
++
++func Environ() []string {
++	once.Do(copyenv);
++	a := make([]string, len(env));
++	i := 0;
++	for k, v := range(env) {
++		// check i < len(a) for safety,
++		// in case env is changing underfoot.
++		if i < len(a) {
++			a[i] = k + "=" + v;
++			i++;
+ 		}
+ 	}
+-	return "", ENOENV
++	return a[0:i];
+ }
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+index 0ce51773c5..44e70cbbe2 100644
+--- a/src/lib/os/exec.go
++++ b/src/lib/os/exec.go
+@@ -27,6 +27,9 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
+ }
+ 
+ func Exec(argv0 string, argv []string, envv []string) *Error {
++	if envv == nil {
++		envv = Environ();
++	}
+ 	e := syscall.Exec(argv0, argv, envv);
+ 	return ErrnoToError(e);
+ }
+diff --git a/src/lib/syscall/mkdarwin b/src/lib/syscall/mkdarwin
+index ca521bae1b..6536ec120c 100755
+--- a/src/lib/syscall/mkdarwin
++++ b/src/lib/syscall/mkdarwin
+@@ -10,7 +10,7 @@ print <<EOF;
+ 
+ package syscall
+ 
+-export const (
++const (
+ EOF
+ 
+ while(<>){
+diff --git a/src/lib/syscall/mklinux b/src/lib/syscall/mklinux
+index f1b02fa2fd..2252bfd7cc 100755
+--- a/src/lib/syscall/mklinux
++++ b/src/lib/syscall/mklinux
+@@ -11,7 +11,7 @@ print <<EOF;
+ 
+ package syscall
+ 
+-export const(
++const(
+ EOF
+ 
+ while(<>){
+@@ -25,4 +25,7 @@ while(<>){
+ 
+ print <<EOF;
+ )
++
++func _darwin_system_call_conflict() {
++}
+ EOF
+diff --git a/src/lib/syscall/mksignal b/src/lib/syscall/mksignal
+index abf2608157..4ee28a2a05 100755
+--- a/src/lib/syscall/mksignal
++++ b/src/lib/syscall/mksignal
+@@ -10,7 +10,7 @@ print <<EOF;
+ 
+ package syscall
+ 
+-export const(
++const(
+ EOF
+ 
+ while(<>){
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index 27db87ff3d..205a314c22 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -138,7 +138,7 @@ func SecondsToUTC(sec int64) *Time {
+ 	}
+ 	t.Month = m+1;
+ 	t.Day = yday+1;
+-	t.Zone = "GMT";
++	t.Zone = "UTC";
+ 
+ 	return t;
+ }
+@@ -149,12 +149,12 @@ func UTC() *Time {
+ 
+ // TODO: Should this return an error?
+ func SecondsToLocalTime(sec int64) *Time {
+-	zone, offset, err := time.LookupTimezone(sec);
++	z, offset, err := time.LookupTimezone(sec);
+ 	if err != nil {
+ 		return SecondsToUTC(sec)
+ 	}
+ 	t := SecondsToUTC(sec+int64(offset));
+-	t.Zone = zone;
++	t.Zone = z;
+ 	t.ZoneOffset = offset;
+ 	return t
+ }
+diff --git a/src/lib/time/time_test.go b/src/lib/time/time_test.go
+index 453c34e962..a816e1d50e 100644
+--- a/src/lib/time/time_test.go
++++ b/src/lib/time/time_test.go
+@@ -5,31 +5,39 @@
+ package time
+ 
+ import (
++	"os";
+ 	"testing";
+ 	"time";
+ )
+ 
+-type _TimeTest struct {
++func init() {
++	// Force US Pacific time for daylight-savings
++	// tests below (localtests).  Needs to be set
++	// before the first call into the time library.
++	os.Setenv("TZ", "US/Pacific");
++}
++
++type TimeTest struct {
+ 	seconds int64;
+ 	golden Time;
+ }
+ 
+-var utctests = []_TimeTest (
+-	_TimeTest(0, Time(1970, 1, 1, 0, 0, 0, Thursday, 0, "GMT")),
+-	_TimeTest(1221681866, Time(2008, 9, 17, 20, 4, 26, Wednesday, 0, "GMT")),
+-	_TimeTest(-1221681866, Time(1931, 4, 16, 3, 55, 34, Thursday, 0, "GMT")),
+-	_TimeTest(1e18, Time(31688740476, 10, 23, 1, 46, 40, Friday, 0, "GMT")),
+-	_TimeTest(-1e18, Time(-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "GMT")),
+-	_TimeTest(0x7fffffffffffffff, Time(292277026596, 12, 4, 15, 30, 7, Sunday, 0, "GMT")),
+-	_TimeTest(-0x8000000000000000, Time(-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "GMT"))
++var utctests = []TimeTest (
++	TimeTest(0, Time(1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC")),
++	TimeTest(1221681866, Time(2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC")),
++	TimeTest(-1221681866, Time(1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC")),
++	TimeTest(1e18, Time(31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC")),
++	TimeTest(-1e18, Time(-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC")),
++	TimeTest(0x7fffffffffffffff, Time(292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC")),
++	TimeTest(-0x8000000000000000, Time(-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "UTC"))
+ )
+ 
+-var localtests = []_TimeTest (
+-	_TimeTest(0, Time(1969, 12, 31, 16, 0, 0, Wednesday, -8*60*60, "PST")),
+-	_TimeTest(1221681866, Time(2008, 9, 17, 13, 4, 26, Wednesday, -7*60*60, "PDT"))
++var localtests = []TimeTest (
++	TimeTest(0, Time(1969, 12, 31, 16, 0, 0, Wednesday, -8*60*60, "PST")),
++	TimeTest(1221681866, Time(2008, 9, 17, 13, 4, 26, Wednesday, -7*60*60, "PDT"))
+ )
+ 
+-func _Same(t, u *Time) bool {
++func same(t, u *Time) bool {
+ 	return t.Year == u.Year
+ 		&& t.Month == u.Month
+ 		&& t.Day == u.Day
+@@ -50,7 +58,7 @@ func TestSecondsToUTC(t *testing.T) {
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec);
+ 		}
+-		if !_Same(tm, golden) {
++		if !same(tm, golden) {
+ 			t.Errorf("SecondsToUTC(%d):", sec);
+ 			t.Errorf("  want=%v", *golden);
+ 			t.Errorf("  have=%v", *tm);
+@@ -67,7 +75,7 @@ func TestSecondsToLocalTime(t *testing.T) {
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec);
+ 		}
+-		if !_Same(tm, golden) {
++		if !same(tm, golden) {
+ 			t.Errorf("SecondsToLocalTime(%d):", sec);
+ 			t.Errorf("  want=%v", *golden);
+ 			t.Errorf("  have=%v", *tm);
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 5dc74d4ee1..ea75f8cb98 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -16,8 +16,10 @@ import (
+ )
+ 
+ const (
+-	_MaxFileSize = 8192;	// actual files are closer to 1K
+-	_HeaderSize = 4+16+4*7
++	maxFileSize = 8192;	// actual files are closer to 1K
++	headerSize = 4+16+4*7;
++
++	zoneDir = "/usr/share/zoneinfo/";
+ )
+ 
+ var (
+@@ -26,13 +28,13 @@ var (
+ )
+ 
+ // Simple I/O interface to binary blob of data.
+-type _Data struct {
++type data struct {
+ 	p []byte;
+ 	error bool;
+ }
+ 
+ 
+-func (d *_Data) Read(n int) []byte {
++func (d *data) read(n int) []byte {
+ 	if len(d.p) < n {
+ 		d.p = nil;
+ 		d.error = true;
+@@ -43,8 +45,8 @@ func (d *_Data) Read(n int) []byte {
+ 	return p
+ }
+ 
+-func (d *_Data) Big4() (n uint32, ok bool) {
+-	p := d.Read(4);
++func (d *data) big4() (n uint32, ok bool) {
++	p := d.read(4);
+ 	if len(p) < 4 {
+ 		d.error = true;
+ 		return 0, false
+@@ -52,8 +54,8 @@ func (d *_Data) Big4() (n uint32, ok bool) {
+ 	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
+ }
+ 
+-func (d *_Data) Byte() (n byte, ok bool) {
+-	p := d.Read(1);
++func (d *data) byte() (n byte, ok bool) {
++	p := d.read(1);
+ 	if len(p) < 1 {
+ 		d.error = true;
+ 		return 0, false
+@@ -63,7 +65,7 @@ func (d *_Data) Byte() (n byte, ok bool) {
+ 
+ 
+ // Make a string by stopping at the first NUL
+-func _ByteString(p []byte) string {
++func byteString(p []byte) string {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] == 0 {
+ 			return string(p[0:i])
+@@ -73,31 +75,29 @@ func _ByteString(p []byte) string {
+ }
+ 
+ // Parsed representation
+-type _Zone struct {
++type zone struct {
+ 	utcoff int;
+ 	isdst bool;
+ 	name string;
+ }
+ 
+-type _Zonetime struct {
++type zonetime struct {
+ 	time int32;		// transition time, in seconds since 1970 GMT
+-	zone *_Zone;		// the zone that goes into effect at that time
++	zone *zone;		// the zone that goes into effect at that time
+ 	isstd, isutc bool;	// ignored - no idea what these mean
+ }
+ 
+-func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+-
+-	data1 := _Data(bytes, false);
+-	data := &data1;
++func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
++	d := data(bytes, false);
+ 
+ 	// 4-byte magic "TZif"
+-	if magic := data.Read(4); string(magic) != "TZif" {
++	if magic := d.read(4); string(magic) != "TZif" {
+ 		return nil, BadZoneinfo
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+ 	var p []byte;
+-	if p = data.Read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
++	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+ 		return nil, BadZoneinfo
+ 	}
+ 	vers := p[0];
+@@ -119,7 +119,7 @@ func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+ 	)
+ 	var n [6]int;
+ 	for i := 0; i < 6; i++ {
+-		nn, ok := data.Big4();
++		nn, ok := d.big4();
+ 		if !ok {
+ 			return nil, BadZoneinfo
+ 		}
+@@ -127,32 +127,29 @@ func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+ 	}
+ 
+ 	// Transition times.
+-	txtimes1 := _Data(data.Read(n[NTime]*4), false);
+-	txtimes := &txtimes1;
++	txtimes := data(d.read(n[NTime]*4), false);
+ 
+ 	// Time zone indices for transition times.
+-	txzones := data.Read(n[NTime]);
++	txzones := d.read(n[NTime]);
+ 
+ 	// Zone info structures
+-	zonedata1 := _Data(data.Read(n[NZone]*6), false);
+-	zonedata := &zonedata1;
++	zonedata := data(d.read(n[NZone]*6), false);
+ 
+ 	// Time zone abbreviations.
+-	abbrev := data.Read(n[NChar]);
++	abbrev := d.read(n[NChar]);
+ 
+ 	// Leap-second time pairs
+-	leapdata1 := _Data(data.Read(n[NLeap]*8), false);
+-	leapdata := &leapdata1;
++	leapdata := data(d.read(n[NLeap]*8), false);
+ 
+ 	// Whether tx times associated with local time types
+ 	// are specified as standard time or wall time.
+-	isstd := data.Read(n[NStdWall]);
++	isstd := d.read(n[NStdWall]);
+ 
+ 	// Whether tx times associated with local time types
+ 	// are specified as UTC or local time.
+-	isutc := data.Read(n[NUTCLocal]);
++	isutc := d.read(n[NUTCLocal]);
+ 
+-	if data.error {	// ran out of data
++	if d.error {	// ran out of data
+ 		return nil, BadZoneinfo
+ 	}
+ 
+@@ -163,38 +160,38 @@ func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	zone := make([]_Zone, n[NZone]);
+-	for i := 0; i < len(zone); i++ {
++	z := make([]zone, n[NZone]);
++	for i := 0; i < len(z); i++ {
+ 		var ok bool;
+ 		var n uint32;
+-		if n, ok = zonedata.Big4(); !ok {
++		if n, ok = zonedata.big4(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].utcoff = int(n);
++		z[i].utcoff = int(n);
+ 		var b byte;
+-		if b, ok = zonedata.Byte(); !ok {
++		if b, ok = zonedata.byte(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].isdst = b != 0;
+-		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
++		z[i].isdst = b != 0;
++		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].name = _ByteString(abbrev[b:len(abbrev)])
++		z[i].name = byteString(abbrev[b:len(abbrev)])
+ 	}
+ 
+ 	// Now the transition time info.
+-	zt = make([]_Zonetime, n[NTime]);
++	zt = make([]zonetime, n[NTime]);
+ 	for i := 0; i < len(zt); i++ {
+ 		var ok bool;
+ 		var n uint32;
+-		if n, ok = txtimes.Big4(); !ok {
++		if n, ok = txtimes.big4(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+ 		zt[i].time = int32(n);
+-		if int(txzones[i]) >= len(zone) {
++		if int(txzones[i]) >= len(z) {
+ 			return nil, BadZoneinfo
+ 		}
+-		zt[i].zone = &zone[txzones[i]];
++		zt[i].zone = &z[txzones[i]];
+ 		if i < len(isstd) {
+ 			zt[i].isstd = isstd[i] != 0
+ 		}
+@@ -208,52 +205,56 @@ func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+ func readfile(name string, max int) (p []byte, err *os.Error) {
+ 	fd, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+-		return nil, e
+-	}
+-	p = make([]byte, max+1)[0:0];
+-	n := 0;
+-	for len(p) < max {
+-		nn, e := fd.Read(p[n:cap(p)]);
+-		if e != nil {
+-			fd.Close();
+-			return nil, e
+-		}
+-		if nn == 0 {
+-			fd.Close();
+-			return p, nil
+-		}
+-		p = p[0:n+nn]
++		return nil, e;
+ 	}
++	p = make([]byte, max);
++	n, err1 := io.Readn(fd, p);
+ 	fd.Close();
+-	return nil, BadZoneinfo	// too long
++	if err1 == nil {	// too long
++		return nil, BadZoneinfo;
++	}
++	if err1 != io.ErrEOF {
++		return nil, err1;
++	}
++	return p[0:n], nil;
+ }
+ 
+-
+-func readinfofile(name string) (tx []_Zonetime, err *os.Error) {
+-	data, e := readfile(name, _MaxFileSize);
++func readinfofile(name string) (tx []zonetime, err *os.Error) {
++	buf, e := readfile(name, maxFileSize);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	tx, err = parseinfo(data);
++	tx, err = parseinfo(buf);
+ 	return tx, err
+ }
+ 
+-var zones []_Zonetime
++var zones []zonetime
+ var zoneerr *os.Error
+ 
+-func _SetupZone() {
+-	// TODO: /etc/localtime is the default time zone info
+-	// for the system, but libc allows setting an environment
+-	// variable in order to direct reading a different file
+-	// (in /usr/share/zoneinfo).  We should check that
+-	// environment variable.
+-	zones, zoneerr = readinfofile("/etc/localtime");
++func setupZone() {
++	// consult $TZ to find the time zone to use.
++	// no $TZ means use the system default /etc/localtime.
++	// $TZ="" means use UTC.
++	// $TZ="foo" means use /usr/share/zoneinfo/foo.
++
++	tz, err := os.Getenv("TZ");
++	var file string;
++	switch {
++	case err == os.ENOENV:
++		zones, zoneerr = readinfofile("/etc/localtime");
++	case err != nil:
++		zoneerr = err;
++	case len(tz) > 0:
++		zones, zoneerr = readinfofile(zoneDir + tz);
++	case len(tz) == 0:
++		// do nothing: use UTC
++	}
+ }
+ 
+ func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+-	once.Do(_SetupZone);
++	once.Do(setupZone);
+ 	if zoneerr != nil || len(zones) == 0 {
+-		return "GMT", 0, zoneerr
++		return "UTC", 0, zoneerr
+ 	}
+ 
+ 	// Binary search for entry with largest time <= sec

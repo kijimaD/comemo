@@ -12,9 +12,123 @@ Date:   Wed Apr 7 22:32:56 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/syscall/dirent_test.go          | 16 ++++------------
  src/syscall/getdirentries_test.go   |  6 +-----
  src/syscall/syscall_unix_test.go    | 12 ++----------
  src/syscall/syscall_windows_test.go |  6 +-----
  4 files changed, 8 insertions(+), 32 deletions(-)
+
+diff --git a/src/syscall/dirent_test.go b/src/syscall/dirent_test.go
+index 8ed3caa9d4..71b445ba9b 100644
+--- a/src/syscall/dirent_test.go
++++ b/src/syscall/dirent_test.go
+@@ -27,16 +27,12 @@ func TestDirent(t *testing.T) {
+ 		filenameMinSize = 11
+ 	)
+ 
+-	d, err := os.MkdirTemp("", "dirent-test")
+-	if err != nil {
+-		t.Fatalf("tempdir: %v", err)
+-	}
+-	defer os.RemoveAll(d)
++	d := t.TempDir()
+ 	t.Logf("tmpdir: %s", d)
+ 
+ 	for i, c := range []byte("0123456789") {
+ 		name := string(bytes.Repeat([]byte{c}, filenameMinSize+i))
+-		err = os.WriteFile(filepath.Join(d, name), nil, 0644)
++		err := os.WriteFile(filepath.Join(d, name), nil, 0644)
+ 		if err != nil {
+ 			t.Fatalf("writefile: %v", err)
+ 		}
+@@ -93,18 +89,14 @@ func TestDirentRepeat(t *testing.T) {
+ 	}
+ 
+ 	// Make a directory containing N files
+-	d, err := os.MkdirTemp("", "direntRepeat-test")
+-	if err != nil {
+-		t.Fatalf("tempdir: %v", err)
+-	}
+-	defer os.RemoveAll(d)
++	d := t.TempDir()
+ 
+ 	var files []string
+ 	for i := 0; i < N; i++ {
+ 		files = append(files, fmt.Sprintf("file%d", i))
+ 	}
+ 	for _, file := range files {
+-		err = os.WriteFile(filepath.Join(d, file), []byte("contents"), 0644)
++		err := os.WriteFile(filepath.Join(d, file), []byte("contents"), 0644)
+ 		if err != nil {
+ 			t.Fatalf("writefile: %v", err)
+ 		}
+diff --git a/src/syscall/getdirentries_test.go b/src/syscall/getdirentries_test.go
+index 936c8a163a..814e656649 100644
+--- a/src/syscall/getdirentries_test.go
++++ b/src/syscall/getdirentries_test.go
+@@ -29,11 +29,7 @@ func testGetdirentries(t *testing.T, count int) {
+ 	if count > 100 && testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+ 		t.Skip("skipping in -short mode")
+ 	}
+-	d, err := os.MkdirTemp("", "getdirentries-test")
+-	if err != nil {
+-		t.Fatalf("Tempdir: %v", err)
+-	}
+-	defer os.RemoveAll(d)
++	d := t.TempDir()
+ 	var names []string
+ 	for i := 0; i < count; i++ {
+ 		names = append(names, fmt.Sprintf("file%03d", i))
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index a05fff5136..ce56c21ff2 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -79,16 +79,12 @@ func TestFcntlFlock(t *testing.T) {
+ 	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
+ 		// parent
+-		tempDir, err := os.MkdirTemp("", "TestFcntlFlock")
+-		if err != nil {
+-			t.Fatalf("Failed to create temp dir: %v", err)
+-		}
++		tempDir := t.TempDir()
+ 		name := filepath.Join(tempDir, "TestFcntlFlock")
+ 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
+ 		if err != nil {
+ 			t.Fatalf("Open failed: %v", err)
+ 		}
+-		defer os.RemoveAll(tempDir)
+ 		defer syscall.Close(fd)
+ 		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+ 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
+@@ -157,11 +153,7 @@ func TestPassFD(t *testing.T) {
+ 
+ 	}
+ 
+-	tempDir, err := os.MkdirTemp("", "TestPassFD")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tempDir)
++	tempDir := t.TempDir()
+ 
+ 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
+ 	if err != nil {
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index a9ae54752b..b8ec6bee39 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -12,11 +12,7 @@ import (
+ )
+ 
+ func TestWin32finddata(t *testing.T) {
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	path := filepath.Join(dir, "long_name.and_extension")
+ 	f, err := os.Create(path)

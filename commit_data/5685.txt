@@ -11,6 +11,39 @@ Date:   Mon Jun 21 07:35:24 2010 +0200
     R=golang-dev, Kyle Lemons, adg
     CC=golang-dev
     https://golang.org/cl/1702045
-
+---
  misc/vim/readme.txt | 23 +++++++++++++++++------
  1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index eaa839eb7a..bb36d4bbea 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -3,10 +3,21 @@ Vim syntax highlighting for Go (http://golang.org)
+ 
+ To install automatic syntax highlighting for GO programs:
+ 
+-  1. Copy ftplugin/gofiletype.vim to the ftplugin directory underneath your vim
+-     runtime directory (normally $HOME/.vim/ftplugin)
+-  2. Copy syntax/go.vim to the syntax directory underneath your vim runtime
+-     directory (normally $HOME/.vim/syntax)
+-  3. Add the following line to your .vimrc file (or equivalent):
+-    
++  1. Copy or link the filetype detection script to the ftdetect directory
++     underneath your vim runtime directory (normally $HOME/.vim/ftdetect)
++  2. Copy or link syntax/go.vim to the syntax directory underneath your vim
++     runtime directory (normally $HOME/.vim/syntax). Linking this file rather
++     than just copying it will ensure any changes are automatically reflected
++     in your syntax highlighting.
++  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
++
+      syntax on
++
++In a typical unix environment you might accomplish this using the following
++commands:
++
++  mkdir -p $HOME/.vim/ftdetect
++  mkdir -p $HOME/.vim/syntax
++  ln -s $GOROOT/misc/vim/ftdetect/gofiletype.vim $HOME/.vim/ftdetect/
++  ln -s $GOROOT/misc/vim/syntax/go.vim $HOME/.vim/syntax
++  echo "syntax on" >> $HOME/.vimrc

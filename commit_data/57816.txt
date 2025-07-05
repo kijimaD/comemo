@@ -15,7 +15,7 @@ Date:   Mon Aug 28 15:26:32 2023 +0200
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/syscall/windows/security_windows.go |  6 ++++++
  src/net/conf.go                                  | 11 +---------
  src/net/dnsclient_unix_test.go                   | 24 +++++++++++-----------
@@ -27,3 +27,278 @@ Date:   Mon Aug 28 15:26:32 2023 +0200
  src/net/hosts_test.go                            | 26 ++++++++++++------------
  src/runtime/os_windows.go                        |  5 +++++
  10 files changed, 52 insertions(+), 38 deletions(-)
+
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 4a2dfc0c73..c8c5cbed74 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -126,3 +126,9 @@ type UserInfo4 struct {
+ }
+ 
+ //sys	NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, flags uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32) (neterr error) = netapi32.NetUserGetLocalGroups
++
++// GetSystemDirectory retrieves the path to current location of the system
++// directory, which is typically, though not always, `C:\Windows\System32`.
++//
++//go:linkname GetSystemDirectory
++func GetSystemDirectory() string // Implemented in runtime package.
+diff --git a/src/net/conf.go b/src/net/conf.go
+index ff3ec20c8a..08c2e7e33d 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -238,16 +238,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 		// Go resolver was explicitly requested
+ 		// or cgo resolver is not available.
+ 		// Figure out the order below.
+-		switch c.goos {
+-		case "windows":
+-			// TODO(bradfitz): implement files-based
+-			// lookup on Windows too? I guess /etc/hosts
+-			// kinda exists on Windows. But for now, only
+-			// do DNS.
+-			fallbackOrder = hostLookupDNS
+-		default:
+-			fallbackOrder = hostLookupFilesDNS
+-		}
++		fallbackOrder = hostLookupFilesDNS
+ 		canUseCgo = false
+ 	} else if c.netCgo {
+ 		// Cgo resolver was explicitly requested.
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 8d50d8dee0..0da36303cc 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -619,8 +619,8 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// Redirect host file lookups.
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+-	testHookHostsPath = "testdata/hosts"
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
++	hostsFilePath = "testdata/hosts"
+ 
+ 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
+ 		name := fmt.Sprintf("order %v", order)
+@@ -1966,8 +1966,8 @@ func TestCVE202133195(t *testing.T) {
+ 	DefaultResolver = &r
+ 	defer func() { DefaultResolver = originalDefault }()
+ 	// Redirect host file lookups.
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+-	testHookHostsPath = "testdata/hosts"
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
++	hostsFilePath = "testdata/hosts"
+ 
+ 	tests := []struct {
+ 		name string
+@@ -2186,8 +2186,8 @@ func TestRootNS(t *testing.T) {
+ }
+ 
+ func TestGoLookupIPCNAMEOrderHostsAliasesFilesOnlyMode(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+-	testHookHostsPath = "testdata/aliases"
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
++	hostsFilePath = "testdata/aliases"
+ 	mode := hostLookupFiles
+ 
+ 	for _, v := range lookupStaticHostAliasesTest {
+@@ -2196,8 +2196,8 @@ func TestGoLookupIPCNAMEOrderHostsAliasesFilesOnlyMode(t *testing.T) {
+ }
+ 
+ func TestGoLookupIPCNAMEOrderHostsAliasesFilesDNSMode(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+-	testHookHostsPath = "testdata/aliases"
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
++	hostsFilePath = "testdata/aliases"
+ 	mode := hostLookupFilesDNS
+ 
+ 	for _, v := range lookupStaticHostAliasesTest {
+@@ -2213,8 +2213,8 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
+ }
+ 
+ func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+-	testHookHostsPath = "testdata/aliases"
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
++	hostsFilePath = "testdata/aliases"
+ 	mode := hostLookupDNSFiles
+ 
+ 	for _, v := range goLookupIPCNAMEOrderDNSFilesModeTests {
+@@ -2541,7 +2541,7 @@ func TestDNSConfigNoReload(t *testing.T) {
+ }
+ 
+ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+ 	if runtime.GOOS != "openbsd" {
+ 		defer setSystemNSS(getSystemNSS(), 0)
+ 		setSystemNSS(nssStr(t, "hosts: files"), time.Hour)
+@@ -2568,7 +2568,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
+ 	if err := os.WriteFile(tmpFile, []byte{}, 0660); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	testHookHostsPath = tmpFile
++	hostsFilePath = tmpFile
+ 
+ 	const testName = "test.invalid"
+ 
+diff --git a/src/net/hook.go b/src/net/hook.go
+index 35c660b4a3..eded34d48a 100644
+--- a/src/net/hook.go
++++ b/src/net/hook.go
+@@ -13,8 +13,7 @@ var (
+ 	// if non-nil, overrides dialTCP.
+ 	testHookDialTCP func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error)
+ 
+-	testHookHostsPath = "/etc/hosts"
+-	testHookLookupIP  = func(
++	testHookLookupIP = func(
+ 		ctx context.Context,
+ 		fn func(context.Context, string, string) ([]IPAddr, error),
+ 		network string,
+diff --git a/src/net/hook_plan9.go b/src/net/hook_plan9.go
+new file mode 100644
+index 0000000000..6020d32924
+--- /dev/null
++++ b/src/net/hook_plan9.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++var (
++	hostsFilePath = "/etc/hosts"
++)
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index 89cb404c83..bad92939b9 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -11,6 +11,8 @@ import "syscall"
+ var (
+ 	testHookCanceledDial = func() {} // for golang.org/issue/16523
+ 
++	hostsFilePath = "/etc/hosts"
++
+ 	// Placeholders for socket system calls.
+ 	socketFunc        func(int, int, int) (int, error)  = syscall.Socket
+ 	connectFunc       func(int, syscall.Sockaddr) error = syscall.Connect
+diff --git a/src/net/hook_windows.go b/src/net/hook_windows.go
+index 946e1efa8d..f7c5b5af90 100644
+--- a/src/net/hook_windows.go
++++ b/src/net/hook_windows.go
+@@ -10,6 +10,8 @@ import (
+ )
+ 
+ var (
++	hostsFilePath = windows.GetSystemDirectory() + "/Drivers/etc/hosts"
++
+ 	// Placeholders for socket system calls.
+ 	wsaSocketFunc func(int32, int32, int32, *syscall.WSAProtocolInfo, uint32, uint32) (syscall.Handle, error) = windows.WSASocket
+ 	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                                = syscall.Connect
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 56e6674144..73e6fcc7a4 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -51,7 +51,7 @@ var hosts struct {
+ 
+ func readHosts() {
+ 	now := time.Now()
+-	hp := testHookHostsPath
++	hp := hostsFilePath
+ 
+ 	if now.Before(hosts.expire) && hosts.path == hp && len(hosts.byName) > 0 {
+ 		return
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index b3f189e641..5f22920765 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -59,10 +59,10 @@ var lookupStaticHostTests = []struct {
+ }
+ 
+ func TestLookupStaticHost(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+ 
+ 	for _, tt := range lookupStaticHostTests {
+-		testHookHostsPath = tt.name
++		hostsFilePath = tt.name
+ 		for _, ent := range tt.ents {
+ 			testStaticHost(t, tt.name, ent)
+ 		}
+@@ -128,10 +128,10 @@ var lookupStaticAddrTests = []struct {
+ }
+ 
+ func TestLookupStaticAddr(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+ 
+ 	for _, tt := range lookupStaticAddrTests {
+-		testHookHostsPath = tt.name
++		hostsFilePath = tt.name
+ 		for _, ent := range tt.ents {
+ 			testStaticAddr(t, tt.name, ent)
+ 		}
+@@ -151,27 +151,27 @@ func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
+ func TestHostCacheModification(t *testing.T) {
+ 	// Ensure that programs can't modify the internals of the host cache.
+ 	// See https://golang.org/issues/14212.
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+ 
+-	testHookHostsPath = "testdata/ipv4-hosts"
++	hostsFilePath = "testdata/ipv4-hosts"
+ 	ent := staticHostEntry{"localhost", []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"}}
+-	testStaticHost(t, testHookHostsPath, ent)
++	testStaticHost(t, hostsFilePath, ent)
+ 	// Modify the addresses return by lookupStaticHost.
+ 	addrs, _ := lookupStaticHost(ent.in)
+ 	for i := range addrs {
+ 		addrs[i] += "junk"
+ 	}
+-	testStaticHost(t, testHookHostsPath, ent)
++	testStaticHost(t, hostsFilePath, ent)
+ 
+-	testHookHostsPath = "testdata/ipv6-hosts"
++	hostsFilePath = "testdata/ipv6-hosts"
+ 	ent = staticHostEntry{"::1", []string{"localhost"}}
+-	testStaticAddr(t, testHookHostsPath, ent)
++	testStaticAddr(t, hostsFilePath, ent)
+ 	// Modify the hosts return by lookupStaticAddr.
+ 	hosts := lookupStaticAddr(ent.in)
+ 	for i := range hosts {
+ 		hosts[i] += "junk"
+ 	}
+-	testStaticAddr(t, testHookHostsPath, ent)
++	testStaticAddr(t, hostsFilePath, ent)
+ }
+ 
+ var lookupStaticHostAliasesTest = []struct {
+@@ -195,9 +195,9 @@ var lookupStaticHostAliasesTest = []struct {
+ }
+ 
+ func TestLookupStaticHostAliases(t *testing.T) {
+-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+ 
+-	testHookHostsPath = "testdata/aliases"
++	hostsFilePath = "testdata/aliases"
+ 	for _, ent := range lookupStaticHostAliasesTest {
+ 		testLookupStaticHostAliases(t, ent.lookup, absDomainName(ent.res))
+ 	}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 6686a90534..081a4a23d0 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -243,6 +243,11 @@ func initSysDirectory() {
+ 	sysDirectoryLen = l + 1
+ }
+ 
++//go:linkname windows_GetSystemDirectory internal/syscall/windows.GetSystemDirectory
++func windows_GetSystemDirectory() string {
++	return unsafe.String(&sysDirectory[0], sysDirectoryLen)
++}
++
+ func windowsLoadSystemLib(name []uint16) uintptr {
+ 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+ }

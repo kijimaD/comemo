@@ -9,6 +9,20 @@ Date:   Thu Feb 24 10:02:52 2022 +0100
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 8c786b94fc..2af5e04f98 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -182,7 +182,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <p><!-- CL 349595 -->
+   Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects at compile time
+-  a mininum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
++  a minimum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
+   <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
+   and takes advantage of, additional processor features. A detailed
+   description can be found

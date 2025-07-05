@@ -11,7 +11,43 @@ Date:   Tue Jan 21 06:12:54 2014 -0800
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/54010043
-
+---
  include/link.h     | 2 +-
  src/liblink/data.c | 8 +++++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 2e23d20c7c..32d158428d 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -500,7 +500,7 @@ vlong	setuint32(Link *ctxt, LSym *s, vlong r, uint32 v);
+ vlong	setuint64(Link *ctxt, LSym *s, vlong r, uint64 v);
+ vlong	setuint8(Link *ctxt, LSym *s, vlong r, uint8 v);
+ vlong	setuintxx(Link *ctxt, LSym *s, vlong off, uint64 v, vlong wid);
+-void	symgrow(Link *ctxt, LSym *s, int32 siz);
++void	symgrow(Link *ctxt, LSym *s, vlong siz);
+ 
+ // go.c
+ void	double2ieee(uint64 *ieee, double native);
+diff --git a/src/liblink/data.c b/src/liblink/data.c
+index 9a481b6e5e..58d6d6b5e8 100644
+--- a/src/liblink/data.c
++++ b/src/liblink/data.c
+@@ -41,10 +41,16 @@ mangle(char *file)
+ }
+ 
+ void
+-symgrow(Link *ctxt, LSym *s, int32 siz)
++symgrow(Link *ctxt, LSym *s, vlong lsiz)
+ {
++	int32 siz;
++
+ 	USED(ctxt);
+ 
++	siz = (int32)lsiz;
++	if((vlong)siz != lsiz)
++		sysfatal("symgrow size %lld too long", lsiz);
++
+ 	if(s->np >= siz)
+ 		return;
+ 

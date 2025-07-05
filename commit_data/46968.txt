@@ -23,9 +23,283 @@ Date:   Thu Jan 28 16:10:58 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288801
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_arm.s           |  4 --
  src/runtime/pprof/pprof_test.go | 18 +++++---
  src/runtime/proc.go             | 95 +----------------------------------------
  src/runtime/traceback.go        | 52 +++++++++++-----------
  4 files changed, 42 insertions(+), 127 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 92d7854306..4620f19074 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -506,10 +506,6 @@ CALLFN(·call1073741824, 1073741824)
+ // 1. grab stored LR for caller
+ // 2. sub 4 bytes to get back to BL deferreturn
+ // 3. B to fn
+-// TODO(rsc): Push things on stack and then use pop
+-// to load all registers simultaneously, so that a profiling
+-// interrupt can never see mismatched SP/LR/PC.
+-// (And double-check that pop is atomic in that way.)
+ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	MOVW	0(R13), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index b6ee160e84..37f12de0d9 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -514,8 +514,10 @@ func TestGoroutineSwitch(t *testing.T) {
+ 		}
+ 		StopCPUProfile()
+ 
+-		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
+-		// The special entry
++		// Read profile to look for entries for gogo with an attempt at a traceback.
++		// "runtime.gogo" is OK, because that's the part of the context switch
++		// before the actual switch begins. But we should not see "gogo",
++		// aka "gogo<>(SB)", which does the actual switch and is marked SPWRITE.
+ 		parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, _ map[string][]string) {
+ 			// An entry with two frames with 'System' in its top frame
+ 			// exists to record a PC without a traceback. Those are okay.
+@@ -526,13 +528,19 @@ func TestGoroutineSwitch(t *testing.T) {
+ 				}
+ 			}
+ 
+-			// Otherwise, should not see runtime.gogo.
++			// An entry with just one frame is OK too:
++			// it knew to stop at gogo.
++			if len(stk) == 1 {
++				return
++			}
++
++			// Otherwise, should not see gogo.
+ 			// The place we'd see it would be the inner most frame.
+ 			name := stk[0].Line[0].Function.Name
+-			if name == "runtime.gogo" {
++			if name == "gogo" {
+ 				var buf bytes.Buffer
+ 				fprintStack(&buf, stk)
+-				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
++				t.Fatalf("found profile entry for gogo:\n%s", buf.String())
+ 			}
+ 		})
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 388d843004..e6670135db 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4420,75 +4420,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// See golang.org/issue/17165.
+ 	getg().m.mallocing++
+ 
+-	// Define that a "user g" is a user-created goroutine, and a "system g"
+-	// is one that is m->g0 or m->gsignal.
+-	//
+-	// We might be interrupted for profiling halfway through a
+-	// goroutine switch. The switch involves updating three (or four) values:
+-	// g, PC, SP, and (on arm) LR. The PC must be the last to be updated,
+-	// because once it gets updated the new g is running.
+-	//
+-	// When switching from a user g to a system g, LR is not considered live,
+-	// so the update only affects g, SP, and PC. Since PC must be last, there
+-	// the possible partial transitions in ordinary execution are (1) g alone is updated,
+-	// (2) both g and SP are updated, and (3) SP alone is updated.
+-	// If SP or g alone is updated, we can detect the partial transition by checking
+-	// whether the SP is within g's stack bounds. (We could also require that SP
+-	// be changed only after g, but the stack bounds check is needed by other
+-	// cases, so there is no need to impose an additional requirement.)
+-	//
+-	// There is one exceptional transition to a system g, not in ordinary execution.
+-	// When a signal arrives, the operating system starts the signal handler running
+-	// with an updated PC and SP. The g is updated last, at the beginning of the
+-	// handler. There are two reasons this is okay. First, until g is updated the
+-	// g and SP do not match, so the stack bounds check detects the partial transition.
+-	// Second, signal handlers currently run with signals disabled, so a profiling
+-	// signal cannot arrive during the handler.
+-	//
+-	// When switching from a system g to a user g, there are three possibilities.
+-	//
+-	// First, it may be that the g switch has no PC update, because the SP
+-	// either corresponds to a user g throughout (as in asmcgocall)
+-	// or because it has been arranged to look like a user g frame
+-	// (as in cgocallback). In this case, since the entire
+-	// transition is a g+SP update, a partial transition updating just one of
+-	// those will be detected by the stack bounds check.
+-	//
+-	// Second, when returning from a signal handler, the PC and SP updates
+-	// are performed by the operating system in an atomic update, so the g
+-	// update must be done before them. The stack bounds check detects
+-	// the partial transition here, and (again) signal handlers run with signals
+-	// disabled, so a profiling signal cannot arrive then anyway.
+-	//
+-	// Third, the common case: it may be that the switch updates g, SP, and PC
+-	// separately. If the PC is within any of the functions that does this,
+-	// we don't ask for a traceback. C.F. the function setsSP for more about this.
+-	//
+-	// There is another apparently viable approach, recorded here in case
+-	// the "PC within setsSP function" check turns out not to be usable.
+-	// It would be possible to delay the update of either g or SP until immediately
+-	// before the PC update instruction. Then, because of the stack bounds check,
+-	// the only problematic interrupt point is just before that PC update instruction,
+-	// and the sigprof handler can detect that instruction and simulate stepping past
+-	// it in order to reach a consistent state. On ARM, the update of g must be made
+-	// in two places (in R10 and also in a TLS slot), so the delayed update would
+-	// need to be the SP update. The sigprof handler must read the instruction at
+-	// the current PC and if it was the known instruction (for example, JMP BX or
+-	// MOV R2, PC), use that other register in place of the PC value.
+-	// The biggest drawback to this solution is that it requires that we can tell
+-	// whether it's safe to read from the memory pointed at by PC.
+-	// In a correct program, we can test PC == nil and otherwise read,
+-	// but if a profiling signal happens at the instant that a program executes
+-	// a bad jump (before the program manages to handle the resulting fault)
+-	// the profiling handler could fault trying to read nonexistent memory.
+-	//
+-	// To recap, there are no constraints on the assembly being used for the
+-	// transition. We simply require that g and SP match and that the PC is not
+-	// in gogo.
+-	traceback := true
+-	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) || (mp != nil && mp.vdsoSP != 0) {
+-		traceback = false
+-	}
+ 	var stk [maxCPUProfStack]uintptr
+ 	n := 0
+ 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+@@ -4511,7 +4442,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		if n > 0 {
+ 			n += cgoOff
+ 		}
+-	} else if traceback {
++	} else {
+ 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
+ 	}
+ 
+@@ -4590,30 +4521,6 @@ func sigprofNonGoPC(pc uintptr) {
+ 	}
+ }
+ 
+-// Reports whether a function will set the SP
+-// to an absolute value. Important that
+-// we don't traceback when these are at the bottom
+-// of the stack since we can't be sure that we will
+-// find the caller.
+-//
+-// If the function is not on the bottom of the stack
+-// we assume that it will have set it up so that traceback will be consistent,
+-// either by being a traceback terminating function
+-// or putting one on the stack at the right offset.
+-func setsSP(pc uintptr) bool {
+-	f := findfunc(pc)
+-	if !f.valid() {
+-		// couldn't find the function for this PC,
+-		// so assume the worst and stop traceback
+-		return true
+-	}
+-	switch f.funcID {
+-	case funcID_gogo, funcID_systemstack, funcID_mcall, funcID_morestack:
+-		return true
+-	}
+-	return false
+-}
+-
+ // setcpuprofilerate sets the CPU profiling rate to hz times per second.
+ // If hz <= 0, setcpuprofilerate turns off CPU profiling.
+ func setcpuprofilerate(hz int32) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 127f54e42e..18d8a42854 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -15,24 +15,9 @@ import (
+ // The most important fact about a given architecture is whether it uses a link register.
+ // On systems with link registers, the prologue for a non-leaf function stores the
+ // incoming value of LR at the bottom of the newly allocated stack frame.
+-// On systems without link registers, the architecture pushes a return PC during
++// On systems without link registers (x86), the architecture pushes a return PC during
+ // the call instruction, so the return PC ends up above the stack frame.
+ // In this file, the return PC is always called LR, no matter how it was found.
+-//
+-// To date, the opposite of a link register architecture is an x86 architecture.
+-// This code may need to change if some other kind of non-link-register
+-// architecture comes along.
+-//
+-// The other important fact is the size of a pointer: on 32-bit systems the LR
+-// takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
+-// Typically this is ptrSize.
+-//
+-// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
+-// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
+-// as the size of the architecture-pushed return PC.
+-//
+-// usesLR is defined below in terms of minFrameSize, which is defined in
+-// arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
+ 
+ const usesLR = sys.MinFrameSize > 0
+ 
+@@ -180,6 +165,16 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			break
+ 		}
+ 
++		// Compute function info flags.
++		flag := f.flag
++		if f.funcID == funcID_cgocallback {
++			// cgocallback does write SP to switch from the g0 to the curg stack,
++			// but it carefully arranges that during the transition BOTH stacks
++			// have cgocallback frame valid for unwinding through.
++			// So we don't need to exclude it with the other SP-writing functions.
++			flag &^= funcFlag_SPWRITE
++		}
++
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.
+ 		if frame.fp == 0 {
+@@ -196,6 +191,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					frame.pc = gp.m.curg.sched.pc
+ 					frame.fn = findfunc(frame.pc)
+ 					f = frame.fn
++					flag = f.flag
+ 					frame.sp = gp.m.curg.sched.sp
+ 					cgoCtxt = gp.m.curg.cgoCtxt
+ 				case funcID_systemstack:
+@@ -203,6 +199,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					// stack transition.
+ 					frame.sp = gp.m.curg.sched.sp
+ 					cgoCtxt = gp.m.curg.cgoCtxt
++					flag &^= funcFlag_SPWRITE
+ 				}
+ 			}
+ 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
+@@ -213,19 +210,26 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 		var flr funcInfo
+ 		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
++			// This function marks the top of the stack. Stop the traceback.
+ 			frame.lr = 0
+ 			flr = funcInfo{}
+-		} else if usesLR && f.funcID == funcID_jmpdefer {
+-			// jmpdefer modifies SP/LR/PC non-atomically.
+-			// If a profiling interrupt arrives during jmpdefer,
+-			// the stack unwind may see a mismatched register set
+-			// and get confused. Stop if we see PC within jmpdefer
+-			// to avoid that confusion.
+-			// See golang.org/issue/8153.
++		} else if flag&funcFlag_SPWRITE != 0 {
++			// The function we are in does a write to SP that we don't know
++			// how to encode in the spdelta table. Examples include context
++			// switch routines like runtime.gogo but also any code that switches
++			// to the g0 stack to run host C code. Since we can't reliably unwind
++			// the SP (we might not even be on the stack we think we are),
++			// we stop the traceback here.
+ 			if callback != nil {
+-				throw("traceback_arm: found jmpdefer when tracing with callback")
++				// Finding an SPWRITE should only happen for a profiling signal, which can
++				// arrive at any time. For a GC stack traversal (callback != nil),
++				// we shouldn't see this case, and we must be sure to walk the
++				// entire stack or the GC is invalid. So crash.
++				println("traceback: unexpected SPWRITE function", funcname(f))
++				throw("traceback")
+ 			}
+ 			frame.lr = 0
++			flr = funcInfo{}
+ 		} else {
+ 			var lrPtr uintptr
+ 			if usesLR {

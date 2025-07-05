@@ -16,8 +16,141 @@ Date:   Thu Apr 2 17:59:09 2009 -0700
     R=ken
     OCL=27047
     CL=27047
-
+---
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/lex.c  | 24 ++++++++++++------------
  src/cmd/gc/subr.c |  2 +-
  3 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2d8f092088..b3f8a50bce 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -533,6 +533,7 @@ EXTERN	char*	package;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
+ EXTERN	char	namebuf[NSYMB];
++EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	dclstack;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c186058b44..3477a2cffc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -370,12 +370,12 @@ l0:
+ 
+ 	if(c >= Runeself) {
+ 		/* all multibyte runes are alpha */
+-		cp = namebuf;
++		cp = lexbuf;
+ 		goto talph;
+ 	}
+ 
+ 	if(isalpha(c)) {
+-		cp = namebuf;
++		cp = lexbuf;
+ 		goto talph;
+ 	}
+ 
+@@ -388,13 +388,13 @@ l0:
+ 		return -1;
+ 
+ 	case '_':
+-		cp = namebuf;
++		cp = lexbuf;
+ 		goto talph;
+ 
+ 	case '.':
+ 		c1 = getc();
+ 		if(isdigit(c1)) {
+-			cp = namebuf;
++			cp = lexbuf;
+ 			*cp++ = c;
+ 			c = c1;
+ 			c1 = 0;
+@@ -413,7 +413,7 @@ l0:
+ 
+ 	case '"':
+ 		/* "..." */
+-		strcpy(namebuf, "\"<string>\"");
++		strcpy(lexbuf, "\"<string>\"");
+ 		cp = mal(sizeof(int32));
+ 		clen = sizeof(int32);
+ 
+@@ -437,7 +437,7 @@ l0:
+ 
+ 	case '`':
+ 		/* `...` */
+-		strcpy(namebuf, "`<string>`");
++		strcpy(lexbuf, "`<string>`");
+ 		cp = mal(sizeof(int32));
+ 		clen = sizeof(int32);
+ 
+@@ -719,7 +719,7 @@ asop:
+ 
+ talph:
+ 	/*
+-	 * cp is set to namebuf and some
++	 * cp is set to lexbuf and some
+ 	 * prefix has been stored
+ 	 */
+ 	for(;;) {
+@@ -748,7 +748,7 @@ talph:
+ 	*cp = 0;
+ 	ungetc(c);
+ 
+-	s = lookup(namebuf);
++	s = lookup(lexbuf);
+ 	if(s->lexical == LIGNORE)
+ 		goto l0;
+ 
+@@ -768,7 +768,7 @@ talph:
+ 
+ tnum:
+ 	c1 = 0;
+-	cp = namebuf;
++	cp = lexbuf;
+ 	if(c != '0') {
+ 		for(;;) {
+ 			*cp++ = c;
+@@ -790,7 +790,7 @@ tnum:
+ 				continue;
+ 			if(c >= 'A' && c <= 'F')
+ 				continue;
+-			if(cp == namebuf+2)
++			if(cp == lexbuf+2)
+ 				yyerror("malformed hex constant");
+ 			goto ncu;
+ 		}
+@@ -826,7 +826,7 @@ ncu:
+ 	ungetc(c);
+ 
+ 	yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
+-	mpatofix(yylval.val.u.xval, namebuf);
++	mpatofix(yylval.val.u.xval, lexbuf);
+ 	if(yylval.val.u.xval->ovf) {
+ 		yyerror("overflow in constant");
+ 		mpmovecfix(yylval.val.u.xval, 0);
+@@ -880,7 +880,7 @@ caseout:
+ 	ungetc(c);
+ 
+ 	yylval.val.u.fval = mal(sizeof(*yylval.val.u.fval));
+-	mpatoflt(yylval.val.u.fval, namebuf);
++	mpatoflt(yylval.val.u.fval, lexbuf);
+ 	if(yylval.val.u.fval->val.ovf) {
+ 		yyerror("overflow in float constant");
+ 		mpmovecflt(yylval.val.u.fval, 0.0);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d6414f7eb6..fe5d33084e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -23,7 +23,7 @@ yyerror(char *fmt, ...)
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+ 	if(strcmp(fmt, "syntax error") == 0)
+-		print(" near %s", namebuf);
++		print(" near %s", lexbuf);
+ 	print("\n");
+ 	if(debug['h'])
+ 		*(int*)0 = 0;

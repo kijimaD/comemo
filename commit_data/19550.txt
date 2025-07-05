@@ -15,7 +15,7 @@ Date:   Mon Jun 16 21:00:37 2014 -0700
     R=golang-codereviews, bradfitz, josharian, dave, khr
     CC=golang-codereviews
     https://golang.org/cl/105280044
-
+---
  src/pkg/runtime/asm_386.s       | 22 ++++++++++++++++++++++
  src/pkg/runtime/asm_amd64.s     | 22 ++++++++++++++++++++++
  src/pkg/runtime/asm_amd64p32.s  | 22 ++++++++++++++++++++++
@@ -23,3 +23,210 @@ Date:   Mon Jun 16 21:00:37 2014 -0700
  src/pkg/runtime/runtime_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/string.goc      | 12 ------------
  6 files changed, 131 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 95312089d9..088eecfd33 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1096,6 +1096,28 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
+ 	MOVL	count+8(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++// eqstring tests whether two strings are equal.
++// See runtime_test.go:eqstring_generic for
++// equivlaent Go code.
++TEXT runtime·eqstring(SB),NOSPLIT,$0-17
++	MOVL	s1len+4(FP), AX
++	MOVL	s2len+12(FP), BX
++	CMPL	AX, BX
++	JNE	different
++	MOVL	s1str+0(FP), SI
++	MOVL	s2str+8(FP), DI
++	CMPL	SI, DI
++	JEQ	same
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, v+16(FP)
++	RET
++same:
++	MOVB	$1, v+16(FP)
++	RET
++different:
++	MOVB	$0, v+16(FP)
++	RET
++
+ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ 	MOVL	a_len+4(FP), BX
+ 	MOVL	b_len+16(FP), CX
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 3c7eaf3433..b352a50752 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1058,6 +1058,28 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-24
+ 	MOVQ	count+16(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++// eqstring tests whether two strings are equal.
++// See runtime_test.go:eqstring_generic for
++// equivlaent Go code.
++TEXT runtime·eqstring(SB),NOSPLIT,$0-33
++	MOVQ	s1len+8(FP), AX
++	MOVQ	s2len+24(FP), BX
++	CMPQ	AX, BX
++	JNE	different
++	MOVQ	s1str+0(FP), SI
++	MOVQ	s2str+16(FP), DI
++	CMPQ	SI, DI
++	JEQ	same
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, v+32(FP)
++	RET
++same:
++	MOVB	$1, v+32(FP)
++	RET
++different:
++	MOVB	$0, v+32(FP)
++	RET
++
+ // a in SI
+ // b in DI
+ // count in BX
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index d47f122836..afe57340ce 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -715,6 +715,28 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
+ 	MOVL	count+8(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++// eqstring tests whether two strings are equal.
++// See runtime_test.go:eqstring_generic for
++// equivlaent Go code.
++TEXT runtime·eqstring(SB),NOSPLIT,$0-17
++	MOVL	s1len+4(FP), AX
++	MOVL	s2len+12(FP), BX
++	CMPL	AX, BX
++	JNE	different
++	MOVL	s1str+0(FP), SI
++	MOVL	s2str+8(FP), DI
++	CMPL	SI, DI
++	JEQ	same
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, v+16(FP)
++	RET
++same:
++	MOVB	$1, v+16(FP)
++	RET
++different:
++	MOVB	$0, v+16(FP)
++	RET
++
+ // a in SI
+ // b in DI
+ // count in BX
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 1aea9036a7..2b43ac41bb 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -646,6 +646,33 @@ _next:
+ 	MOVW	$0, R0
+ 	RET
+ 
++// eqstring tests whether two strings are equal.
++// See runtime_test.go:eqstring_generic for
++// equivlaent Go code.
++TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
++	MOVW	s1len+4(FP), R0
++	MOVW	s2len+12(FP), R1
++	MOVW	$0, R7
++	CMP	R0, R1
++	MOVB.NE R7, v+16(FP)
++	RET.NE
++	MOVW	s1str+0(FP), R2
++	MOVW	s2str+8(FP), R3
++	MOVW	$1, R8
++	MOVB	R8, v+16(FP)
++	CMP	R2, R3
++	RET.EQ
++	ADD	R2, R0, R6
++_eqnext:
++	CMP	R2, R6
++	RET.EQ
++	MOVBU.P	1(R2), R4
++	MOVBU.P	1(R3), R5
++	CMP	R4, R5
++	BEQ	_eqnext
++	MOVB	R7, v+16(FP)
++	RET
++
+ // We have to resort to TLS variable to save g(R10) and
+ // m(R9). One reason is that external code might trigger
+ // SIGSEGV, and our runtime.sigtramp don't even know we
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index 5a9f52fe0f..a726f500d1 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -202,3 +202,41 @@ func testSetPanicOnFault(t *testing.T, addr uintptr) {
+ 	println(*p)
+ 	t.Fatalf("still here - should have faulted on address %#x", addr)
+ }
++
++func eqstring_generic(s1, s2 string) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	// optimization in assembly versions:
++	// if s1.str == s2.str { return true }
++	for i := 0; i < len(s1); i++ {
++		if s1[i] != s2[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func TestEqString(t *testing.T) {
++	// This isn't really an exhaustive test of eqstring, it's
++	// just a convenient way of documenting (via eqstring_generic)
++	// what eqstring does.
++	s := []string{
++		"",
++		"a",
++		"c",
++		"aaa",
++		"ccc",
++		"cccc"[:3], // same contents, different string
++		"1234567890",
++	}
++	for _, s1 := range s {
++		for _, s2 := range s {
++			x := s1 == s2
++			y := eqstring_generic(s1, s2)
++			if x != y {
++				t.Errorf(`eqstring("%s","%s") = %t, want %t`, s1, s2, x, y)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 97a69d07b1..64a1d9064b 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -206,18 +206,6 @@ func concatstrings(s Slice) (res String) {
+ 	res = concatstring(s.len, (String*)s.array);
+ }
+ 
+-func eqstring(s1 String, s2 String) (v bool) {
+-	if(s1.len != s2.len) {
+-		v = false;
+-		return;
+-	}
+-	if(s1.str == s2.str) {
+-		v = true;
+-		return;
+-	}
+-	v = runtime·memeq(s1.str, s2.str, s1.len);
+-}
+-
+ int32
+ runtime·strcmp(byte *s1, byte *s2)
+ {

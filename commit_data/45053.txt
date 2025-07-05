@@ -18,7 +18,7 @@ Date:   Mon Aug 17 18:26:00 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/root_aix.go     |  6 ++++++
  src/crypto/x509/root_bsd.go     |  7 +++++++
  src/crypto/x509/root_js.go      |  4 ++++
@@ -26,3 +26,97 @@ Date:   Mon Aug 17 18:26:00 2020 +0200
  src/crypto/x509/root_solaris.go |  6 ++++++
  src/crypto/x509/root_unix.go    | 11 -----------
  6 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/x509/root_aix.go b/src/crypto/x509/root_aix.go
+index 6d427739a4..4d50a13473 100644
+--- a/src/crypto/x509/root_aix.go
++++ b/src/crypto/x509/root_aix.go
+@@ -8,3 +8,9 @@ package x509
+ var certFiles = []string{
+ 	"/var/ssl/certs/ca-bundle.crt",
+ }
++
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{
++	"/var/ssl/certs",
++}
+diff --git a/src/crypto/x509/root_bsd.go b/src/crypto/x509/root_bsd.go
+index 1371933891..f04b6bd0d6 100644
+--- a/src/crypto/x509/root_bsd.go
++++ b/src/crypto/x509/root_bsd.go
+@@ -13,3 +13,10 @@ var certFiles = []string{
+ 	"/usr/local/share/certs/ca-root-nss.crt", // DragonFly
+ 	"/etc/openssl/certs/ca-certificates.crt", // NetBSD
+ }
++
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{
++	"/usr/local/share/certs", // FreeBSD
++	"/etc/openssl/certs",     // NetBSD
++}
+diff --git a/src/crypto/x509/root_js.go b/src/crypto/x509/root_js.go
+index 70abb73f99..4e537a4fe5 100644
+--- a/src/crypto/x509/root_js.go
++++ b/src/crypto/x509/root_js.go
+@@ -8,3 +8,7 @@ package x509
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{}
++
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{}
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index 267775dc5f..ad6ce5cae7 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -13,3 +13,11 @@ var certFiles = []string{
+ 	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS/RHEL 7
+ 	"/etc/ssl/cert.pem",                                 // Alpine Linux
+ }
++
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{
++	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
++	"/etc/pki/tls/certs",           // Fedora/RHEL
++	"/system/etc/security/cacerts", // Android
++}
+diff --git a/src/crypto/x509/root_solaris.go b/src/crypto/x509/root_solaris.go
+index e6d4e61399..97c19139e3 100644
+--- a/src/crypto/x509/root_solaris.go
++++ b/src/crypto/x509/root_solaris.go
+@@ -10,3 +10,9 @@ var certFiles = []string{
+ 	"/etc/ssl/certs/ca-certificates.crt", // Joyent SmartOS
+ 	"/etc/ssl/cacert.pem",                // OmniOS
+ }
++
++// Possible directories with certificate files; stop after successfully
++// reading at least one file from a directory.
++var certDirectories = []string{
++	"/etc/certs/CA",
++}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index b48e618a65..2aa38751f3 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -13,17 +13,6 @@ import (
+ 	"strings"
+ )
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
+-var certDirectories = []string{
+-	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
+-	"/system/etc/security/cacerts", // Android
+-	"/usr/local/share/certs",       // FreeBSD
+-	"/etc/pki/tls/certs",           // Fedora/RHEL
+-	"/etc/openssl/certs",           // NetBSD
+-	"/var/ssl/certs",               // AIX
+-}
+-
+ const (
+ 	// certFileEnv is the environment variable which identifies where to locate
+ 	// the SSL certificate file. If set this overrides the system default.

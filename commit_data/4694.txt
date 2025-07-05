@@ -7,7 +7,53 @@ Date:   Tue Jan 26 17:49:33 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194094
-
+---
  src/pkg/patch/patch.go      |  5 ++++-
  src/pkg/patch/patch_test.go | 11 +++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/patch/patch.go b/src/pkg/patch/patch.go
+index 04ecd9d242..9d9aa1b485 100644
+--- a/src/pkg/patch/patch.go
++++ b/src/pkg/patch/patch.go
+@@ -207,7 +207,7 @@ func Parse(text []byte) (*Set, os.Error) {
+ 				p.Diff = diff
+ 				break
+ 			}
+-			if hasPrefix(l, "index ") || hasPrefix(l, "GIT binary patch") {
++			if hasPrefix(l, "GIT binary patch") || (hasPrefix(l, "index ") && !hasPrefix(raw, "--- ")) {
+ 				diff, err := ParseGitBinary(oldraw)
+ 				if err != nil {
+ 					return nil, err
+@@ -215,6 +215,9 @@ func Parse(text []byte) (*Set, os.Error) {
+ 				p.Diff = diff
+ 				break
+ 			}
++			if hasPrefix(l, "index ") {
++				continue
++			}
+ 			return nil, SyntaxError("unexpected patch header line: " + string(l))
+ 		}
+ 		if p.Diff == nil {
+diff --git a/src/pkg/patch/patch_test.go b/src/pkg/patch/patch_test.go
+index 5b3d48315f..49a5c76d45 100644
+--- a/src/pkg/patch/patch_test.go
++++ b/src/pkg/patch/patch_test.go
+@@ -50,6 +50,17 @@ var tests = []Test{
+ 			"-hello, world\n" +
+ 			"+goodbye, world\n",
+ 	},
++	Test{
++		"hello, world\n",
++		"goodbye, world\n",
++		"Index: a\n" +
++			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1 +1 @@\n" +
++			"-hello, world\n" +
++			"+goodbye, world\n",
++	},
+ 	Test{
+ 		"hello, world\n",
+ 		"goodbye, world\n",

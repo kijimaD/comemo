@@ -13,7 +13,7 @@ Date:   Tue Jun 23 15:30:59 2009 -0700
     R=ken
     OCL=30639
     CL=30662
-
+---
  src/cmd/5g/cgen.c  | 18 +++++++-----------
  src/cmd/6g/cgen.c  | 16 ++++++----------
  src/cmd/8g/cgen.c  | 12 ++++++------
@@ -23,3 +23,265 @@ Date:   Tue Jun 23 15:30:59 2009 -0700
  src/cmd/gc/subr.c  |  5 ++++-
  src/cmd/gc/walk.c  | 18 +++++++++++++-----
  8 files changed, 43 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 36dd8767cb..443c2ca3aa 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -28,6 +28,9 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	// static initializations
+ 	if(initflag && gen_as_init(n, res))
+ 		goto ret;
+@@ -197,10 +200,6 @@ cgen(Node *n, Node *res)
+ 		goto abop;
+ 
+ 	case OCONV:
+-		if(eqtype(n->type, nl->type)) {
+-			cgen(nl, res);
+-			break;
+-		}
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+ 		gmove(&n1, res);
+@@ -373,7 +372,10 @@ agen(Node *n, Node *res)
+ 
+ //	if(!isptr[res->type->etype])
+ //		fatal("agen: not tptr: %T", res->type);
+-
++//
++//	while(n->op == OCONVNOP)
++//		n = n->left;
++//
+ //	if(n->addable) {
+ //		regalloc(&n1, types[tptr], res);
+ //		gins(ALEAQ, n, &n1);
+@@ -390,12 +392,6 @@ agen(Node *n, Node *res)
+ //		fatal("agen: unknown op %N", n);
+ //		break;
+ 
+-//	case OCONV:
+-//		if(!cvttype(n->type, nl->type))
+-//			fatal("agen: non-trivial OCONV");
+-//		agen(nl, res);
+-//		return;
+-
+ //	case OCALLMETH:
+ //		cgen_callmeth(n, 0);
+ //		cgen_aret(n, res);
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 1bc399c170..f14ba4f0b5 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -28,6 +28,9 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	// static initializations
+ 	if(initflag && gen_as_init(n, res))
+ 		goto ret;
+@@ -196,10 +199,6 @@ cgen(Node *n, Node *res)
+ 		goto abop;
+ 
+ 	case OCONV:
+-		if(eqtype(n->type, nl->type)) {
+-			cgen(nl, res);
+-			break;
+-		}
+ 		regalloc(&n1, nl->type, res);
+ 		regalloc(&n2, n->type, &n1);
+ 		cgen(nl, &n1);
+@@ -378,6 +377,9 @@ agen(Node *n, Node *res)
+ 	if(!isptr[res->type->etype])
+ 		fatal("agen: not tptr: %T", res->type);
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	if(n->addable) {
+ 		regalloc(&n1, types[tptr], res);
+ 		gins(ALEAQ, n, &n1);
+@@ -394,12 +396,6 @@ agen(Node *n, Node *res)
+ 		fatal("agen: unknown op %N", n);
+ 		break;
+ 
+-	case OCONV:
+-		if(!cvttype(n->type, nl->type))
+-			fatal("agen: non-trivial OCONV");
+-		agen(nl, res);
+-		return;
+-
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0);
+ 		cgen_aret(n, res);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 14797922f5..85cc9aca7d 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -61,6 +61,9 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	// static initializations
+ 	if(initflag && gen_as_init(n, res))
+ 		return;
+@@ -403,6 +406,9 @@ agen(Node *n, Node *res)
+ 	if(n == N || n->type == T || res == N || res->type == T)
+ 		fatal("agen");
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	// addressable var is easy
+ 	if(n->addable) {
+ 		if(n->op == OREGISTER)
+@@ -422,12 +428,6 @@ agen(Node *n, Node *res)
+ 	default:
+ 		fatal("agen %O", n->op);
+ 
+-	case OCONV:
+-		if(!cvttype(n->type, nl->type))
+-			fatal("agen: non-trivial OCONV");
+-		agen(nl, res);
+-		break;
+-
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0);
+ 		cgen_aret(n, res);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4d95316253..876a03a93a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -327,7 +327,7 @@ enum
+ 	OREGISTER, OINDREG,
+ 	OKEY, OPARAM,
+ 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
+-	OCONV,
++	OCONV, OCONVNOP,
+ 	ODOTTYPE, OTYPESW,
+ 	OBAD,
+ 
+@@ -530,6 +530,7 @@ EXTERN	char*	outfile;
+ EXTERN	char*	package;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
++EXTERN	int	nsyntaxerrors;
+ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	debug[256];
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0102b58e22..ec5032e9ee 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -129,7 +129,8 @@ file:
+ 		if(debug['f'])
+ 			frame(1);
+ 		fninit($4);
+-		testdclstack();
++		if(nsyntaxerrors == 0)
++			testdclstack();
+ 	}
+ 
+ package:
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 8fe3523918..021b030146 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -144,6 +144,9 @@ slicerewrite(Node *n)
+ 	int b;
+ 	Node *a;
+ 
++	while(n->op == OCONVNOP)
++		n = n->left;
++
+ 	// call to newarray - find nel argument
+ 	nel = findarg(n, "nel", "newarray");
+ 	if(nel == N || !isslice(n->type))
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 43cde4ac4f..b2b8e77d6e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -22,8 +22,10 @@ yyerror(char *fmt, ...)
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+-	if(strcmp(fmt, "syntax error") == 0)
++	if(strcmp(fmt, "syntax error") == 0) {
++		nsyntaxerrors++;
+ 		print(" near %s", lexbuf);
++	}
+ 	print("\n");
+ 	if(debug['h'])
+ 		*(int*)0 = 0;
+@@ -670,6 +672,7 @@ opnames[] =
+ 	[OCOM]		= "COM",
+ 	[OCONTINUE]	= "CONTINUE",
+ 	[OCONV]		= "CONV",
++	[OCONVNOP]		= "CONVNOP",
+ 	[ODCLARG]	= "DCLARG",
+ 	[ODCLFIELD]	= "DCLFIELD",
+ 	[ODCLFUNC]	= "DCLFUNC",
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bcd139f4ba..22711bc7d5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -618,6 +618,9 @@ loop:
+ 			goto nottop;
+ 		walkconv(n);
+ 		goto ret;
++	
++	case OCONVNOP:
++		goto ret;
+ 
+ 	case OCOMPMAP:
+ 	case OCOMPSLICE:
+@@ -1284,10 +1287,8 @@ walkconv(Node *n)
+ 		if(!isinter(l->type))
+ 			yyerror("type assertion requires interface on left, have %T", l->type);
+ 		et = ifaceas1(t, l->type, 1);
+-		if(et == I2Isame || et == E2Esame) {
+-			n->op = OCONV;
++		if(et == I2Isame || et == E2Esame)
+ 			goto nop;
+-		}
+ 		if(et != Inone) {
+ 			indir(n, ifacecvt(t, l, et));
+ 			return;
+@@ -1303,10 +1304,15 @@ walkconv(Node *n)
+ 	// no-op conversion
+ 	if(cvttype(t, l->type) == 1) {
+ 	nop:
+-		if(l->op != ONAME) {
++		if(l->op == OLITERAL) {
+ 			indir(n, l);
+-			n->type = t;
++			l->type = t;
++			return;
+ 		}
++		// leave OCONV node in place
++		// in case tree gets walked again.
++		// back end will ignore.
++		n->op = OCONVNOP;
+ 		return;
+ 	}
+ 
+@@ -3564,6 +3570,8 @@ colas(Node *nl, Node *nr)
+ 			// finish call - first half above
+ 			l = listfirst(&savel, &nl);
+ 			t = structfirst(&saver, getoutarg(t));
++			if(t == T)
++				return N;
+ 			while(l != N) {
+ 				a = mixedoldnew(l, t->type);
+ 				n = list(n, a);

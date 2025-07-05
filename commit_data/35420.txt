@@ -13,6 +13,22 @@ Date:   Sun Sep 24 10:48:18 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2e958f7fc5..f20e77eee5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2824,10 +2824,6 @@ func reentersyscall(pc, sp uintptr) {
+ 		save(pc, sp)
+ 	}
+ 
+-	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
+-	// We set _StackGuard to StackPreempt so that first split stack check calls morestack.
+-	// Morestack detects this case and throws.
+-	_g_.stackguard0 = stackPreempt
+ 	_g_.m.locks--
+ }
+ 

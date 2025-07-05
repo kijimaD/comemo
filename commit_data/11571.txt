@@ -9,8 +9,112 @@ Date:   Fri Feb 3 11:15:06 2012 +1100
     R=golang-dev, cw, adg
     CC=golang-dev
     https://golang.org/cl/5618045
-
+---
  src/pkg/encoding/json/decode_test.go | 21 ++++++++++++++++++
  src/pkg/encoding/json/encode.go      | 14 ++++++++++--
  src/pkg/encoding/json/encode_test.go | 41 ++++++++++++++++++++++++++++++++++++
  3 files changed, 74 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index cc3103f032..775becfa7c 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -598,3 +598,24 @@ var pallValueIndent = `{
+ }`
+ 
+ var pallValueCompact = strings.Map(noSpace, pallValueIndent)
++
++func TestRefUnmarshal(t *testing.T) {
++	type S struct {
++		// Ref is defined in encode_test.go.
++		R0 Ref
++		R1 *Ref
++	}
++	want := S{
++		R0: 12,
++		R1: new(Ref),
++	}
++	*want.R1 = 12
++
++	var got S
++	if err := Unmarshal([]byte(`{"R0":"ref","R1":"ref"}`), &got); err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("got %+v, want %+v", got, want)
++	}
++}
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index eac14a47ed..83e73c09cb 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -262,8 +262,18 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 		return
+ 	}
+ 
+-	if j, ok := v.Interface().(Marshaler); ok && (v.Kind() != reflect.Ptr || !v.IsNil()) {
+-		b, err := j.MarshalJSON()
++	m, ok := v.Interface().(Marshaler)
++	if !ok {
++		// T doesn't match the interface. Check against *T too.
++		if v.Kind() != reflect.Ptr && v.CanAddr() {
++			m, ok = v.Addr().Interface().(Marshaler)
++			if ok {
++				v = v.Addr()
++			}
++		}
++	}
++	if ok && (v.Kind() != reflect.Ptr || !v.IsNil()) {
++		b, err := m.MarshalJSON()
+ 		if err == nil {
+ 			// copy JSON into buffer, checking validity.
+ 			err = Compact(&e.Buffer, b)
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index 0e39559a46..7a726a91c4 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -126,3 +126,44 @@ func TestUnsupportedValues(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Ref has Marshaler and Unmarshaler methods with pointer receiver.
++type Ref int
++
++func (*Ref) MarshalJSON() ([]byte, error) {
++	return []byte(`"ref"`), nil
++}
++
++func (r *Ref) UnmarshalJSON([]byte) error {
++	*r = 12
++	return nil
++}
++
++// Val has Marshaler methods with value receiver.
++type Val int
++
++func (Val) MarshalJSON() ([]byte, error) {
++	return []byte(`"val"`), nil
++}
++
++func TestRefValMarshal(t *testing.T) {
++	var s = struct {
++		R0 Ref
++		R1 *Ref
++		V0 Val
++		V1 *Val
++	}{
++		R0: 12,
++		R1: new(Ref),
++		V0: 13,
++		V1: new(Val),
++	}
++	const want = `{"R0":"ref","R1":"ref","V0":"val","V1":"val"}`
++	b, err := Marshal(&s)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	if got := string(b); got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}

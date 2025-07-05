@@ -14,6 +14,20 @@ Date:   Tue Oct 27 15:52:42 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265721
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/lockrank.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 3f9b087856..0a52e8ed3d 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -222,7 +222,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankNetpollInit:   {lockRankTimers},
+ 
+ 	lockRankRwmutexW: {},
+-	lockRankRwmutexR: {lockRankRwmutexW},
++	lockRankRwmutexR: {lockRankSysmon, lockRankRwmutexW},
+ 
+ 	lockRankSpanSetSpine: {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
+ 	lockRankGscan:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankTraceBuf, lockRankTraceStrings, lockRankRoot, lockRankNotifyList, lockRankProf, lockRankGcBitsArenas, lockRankTrace, lockRankTraceStackTab, lockRankNetpollInit, lockRankSpanSetSpine},

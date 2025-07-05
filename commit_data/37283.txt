@@ -15,8 +15,177 @@ Date:   Thu Jul 12 19:19:45 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/123695
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 26 +++++++++++++++++++++++
  src/crypto/x509/verify.go                | 10 ++++++++-
  src/crypto/x509/verify_test.go           | 36 ++++++++++++++++++++++++++++++++
  3 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index e356fc5cb9..4c9bc1b87a 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -46,6 +46,7 @@ type nameConstraintsTest struct {
+ 	requestedEKUs []ExtKeyUsage
+ 	expectedError string
+ 	noOpenSSL     bool
++	ignoreCN      bool
+ }
+ 
+ type constraintsSpec struct {
+@@ -1635,6 +1636,26 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 			cn:   "foo.bar",
+ 		},
+ 	},
++
++	// #85: without SANs, a certificate with a valid CN is accepted in a
++	// constrained chain if x509ignoreCN is set.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com", "dns:.foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{},
++			cn:   "foo.com",
++		},
++		ignoreCN: true,
++	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+@@ -1885,6 +1906,10 @@ func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIden
+ }
+ 
+ func TestConstraintCases(t *testing.T) {
++	defer func(savedIgnoreCN bool) {
++		ignoreCN = savedIgnoreCN
++	}(ignoreCN)
++
+ 	privateKeys := sync.Pool{
+ 		New: func() interface{} {
+ 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+@@ -1976,6 +2001,7 @@ func TestConstraintCases(t *testing.T) {
+ 			}
+ 		}
+ 
++		ignoreCN = test.ignoreCN
+ 		verifyOpts := VerifyOptions{
+ 			Roots:         rootPool,
+ 			Intermediates: intermediatePool,
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 4326e39f1c..210db4c1d0 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"net/url"
++	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
+@@ -17,6 +18,9 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
++var ignoreCN = strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=1")
++
+ type InvalidReason int
+ 
+ const (
+@@ -43,6 +47,10 @@ const (
+ 	// contain a Subject Alternative Name extension, but a CA certificate
+ 	// contains name constraints, and the Common Name can be interpreted as
+ 	// a hostname.
++	//
++	// You can avoid this error by setting the experimental GODEBUG environment
++	// variable to "x509ignoreCN=1", disabling Common Name matching entirely.
++	// This behavior might become the default in the future.
+ 	NameConstraintsWithoutSANs
+ 	// UnconstrainedName results when a CA certificate contains permitted
+ 	// name constraints, but leaf certificate contains a name of an
+@@ -907,7 +915,7 @@ func validHostname(host string) bool {
+ // constraints if there is no risk the CN would be matched as a hostname.
+ // See NameConstraintsWithoutSANs and issue 24151.
+ func (c *Certificate) commonNameAsHostname() bool {
+-	return !c.hasSANExtension() && validHostname(c.Subject.CommonName)
++	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+ }
+ 
+ func matchHostnames(pattern, host string) bool {
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index c677c03141..7684145839 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -25,6 +25,7 @@ type verifyTest struct {
+ 	keyUsages            []ExtKeyUsage
+ 	testSystemRootsError bool
+ 	sha2                 bool
++	ignoreCN             bool
+ 
+ 	errorCallback  func(*testing.T, int, error) bool
+ 	expectedChains [][]string
+@@ -349,6 +350,37 @@ var verifyTests = []verifyTest{
+ 			{"foo.example.com", "Test root"},
+ 		},
+ 	},
++	// Replicate CN tests with ignoreCN = true
++	{
++		leaf:        ignoreCNWithSANLeaf,
++		dnsName:     "foo.example.com",
++		roots:       []string{ignoreCNWithSANRoot},
++		currentTime: 1486684488,
++		systemSkip:  true,
++		ignoreCN:    true,
++
++		errorCallback: expectHostnameError("certificate is not valid for any names"),
++	},
++	{
++		leaf:        invalidCNWithoutSAN,
++		dnsName:     "foo,invalid",
++		roots:       []string{invalidCNRoot},
++		currentTime: 1540000000,
++		systemSkip:  true,
++		ignoreCN:    true,
++
++		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
++	},
++	{
++		leaf:        validCNWithoutSAN,
++		dnsName:     "foo.example.com",
++		roots:       []string{invalidCNRoot},
++		currentTime: 1540000000,
++		systemSkip:  true,
++		ignoreCN:    true,
++
++		errorCallback: expectHostnameError("not valid for any names"),
++	},
+ }
+ 
+ func expectHostnameError(msg string) func(*testing.T, int, error) bool {
+@@ -454,6 +486,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ }
+ 
+ func testVerify(t *testing.T, useSystemRoots bool) {
++	defer func(savedIgnoreCN bool) {
++		ignoreCN = savedIgnoreCN
++	}(ignoreCN)
+ 	for i, test := range verifyTests {
+ 		if useSystemRoots && test.systemSkip {
+ 			continue
+@@ -462,6 +497,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 			continue
+ 		}
+ 
++		ignoreCN = test.ignoreCN
+ 		opts := VerifyOptions{
+ 			Intermediates: NewCertPool(),
+ 			DNSName:       test.dnsName,

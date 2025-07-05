@@ -24,6 +24,30 @@ Date:   Fri Aug 18 15:24:39 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 8ebf6eafde..f716e1b697 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1276,9 +1276,16 @@ func (test) updateErrors(out, file string) {
+ 	// Parse new errors.
+ 	errors := make(map[int]map[string]bool)
+ 	tmpRe := regexp.MustCompile(`autotmp_\d+`)
++	fileRe := regexp.MustCompile(`(\.go):\d+:`)
+ 	for _, errStr := range splitOutput(out, false) {
+-		errFile, rest, ok := strings.Cut(errStr, ":")
+-		if !ok || errFile != file {
++		m := fileRe.FindStringSubmatchIndex(errStr)
++		if len(m) != 4 {
++			continue
++		}
++		// The end of the file is the end of the first and only submatch.
++		errFile := errStr[:m[3]]
++		rest := errStr[m[3]+1:]
++		if errFile != file {
+ 			continue
+ 		}
+ 		lineStr, msg, ok := strings.Cut(rest, ":")

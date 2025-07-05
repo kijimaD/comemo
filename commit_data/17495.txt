@@ -9,7 +9,51 @@ Date:   Fri Sep 6 16:55:35 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12916047
-
+---
  src/cmd/go/build.go |  2 +-
  src/cmd/go/clean.go | 20 ++++++++++++++++++--
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 9c3693abb3..1846f745da 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1093,7 +1093,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+ 	if err != nil && toolIsWindows {
+ 		// Windows does not allow deletion of a binary file
+ 		// while it is executing.  Try to move it out of the way.
+-		// If the remove fails, which is likely, we'll try again the
++		// If the move fails, which is likely, we'll try again the
+ 		// next time we do an install of this binary.
+ 		if err := os.Rename(dst, dst+"~"); err == nil {
+ 			os.Remove(dst + "~")
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index bfae967a76..16687f72f7 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -237,7 +237,23 @@ func clean(p *Package) {
+ // removeFile tries to remove file f, if error other than file doesn't exist
+ // occurs, it will report the error.
+ func removeFile(f string) {
+-	if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+-		errorf("go clean: %v", err)
++	err := os.Remove(f)
++	if err == nil || os.IsNotExist(err) {
++		return
++	}
++	// Windows does not allow deletion of a binary file while it is executing.
++	if toolIsWindows {
++		// Remove lingering ~ file from last attempt.
++		if _, err2 := os.Stat(f + "~"); err2 == nil {
++			os.Remove(f + "~")
++		}
++		// Try to move it out of the way. If the move fails,
++		// which is likely, we'll try again the
++		// next time we do an install of this binary.
++		if err2 := os.Rename(f, f+"~"); err2 == nil {
++			os.Remove(f + "~")
++			return
++		}
+ 	}
++	errorf("go clean: %v", err)
+ }

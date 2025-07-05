@@ -10,7 +10,107 @@ Date:   Thu Jul 18 13:03:26 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11403043
-
+---
  src/pkg/io/io.go      | 12 ++++++++----
  src/pkg/io/io_test.go | 42 +++++++++++++++++++++++++++++++++++-------
  2 files changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 16c825fdbc..f7073ffc06 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -91,10 +91,14 @@ type Closer interface {
+ // Seek sets the offset for the next Read or Write to offset,
+ // interpreted according to whence: 0 means relative to the origin of
+ // the file, 1 means relative to the current offset, and 2 means
+-// relative to the end.  Seek returns the new offset and an Error, if
++// relative to the end.  Seek returns the new offset and an error, if
+ // any.
++//
++// Seeking to a negative offset is an error. Seeking to any positive
++// offset is legal, but the behavior of subsequent I/O operations on
++// the underlying object is implementation-dependent.
+ type Seeker interface {
+-	Seek(offset int64, whence int) (ret int64, err error)
++	Seek(offset int64, whence int) (int64, error)
+ }
+ 
+ // ReadWriter is the interface that groups the basic Read and Write methods.
+@@ -426,7 +430,7 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
+ var errWhence = errors.New("Seek: invalid whence")
+ var errOffset = errors.New("Seek: invalid offset")
+ 
+-func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err error) {
++func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
+ 	switch whence {
+ 	default:
+ 		return 0, errWhence
+@@ -437,7 +441,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err error) {
+ 	case 2:
+ 		offset += s.limit
+ 	}
+-	if offset < s.base || offset > s.limit {
++	if offset < s.base {
+ 		return 0, errOffset
+ 	}
+ 	s.off = offset
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index dc7df0288e..bd7a82f17b 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -260,7 +260,7 @@ func TestTeeReader(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSectionReader_ReadAt(tst *testing.T) {
++func TestSectionReader_ReadAt(t *testing.T) {
+ 	dat := "a long sample data, 1234567890"
+ 	tests := []struct {
+ 		data   string
+@@ -282,12 +282,40 @@ func TestSectionReader_ReadAt(tst *testing.T) {
+ 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
+ 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
+ 	}
+-	for i, t := range tests {
+-		r := strings.NewReader(t.data)
+-		s := NewSectionReader(r, int64(t.off), int64(t.n))
+-		buf := make([]byte, t.bufLen)
+-		if n, err := s.ReadAt(buf, int64(t.at)); n != len(t.exp) || string(buf[:n]) != t.exp || err != t.err {
+-			tst.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, t.at, buf[:n], err, t.exp, t.err)
++	for i, tt := range tests {
++		r := strings.NewReader(tt.data)
++		s := NewSectionReader(r, int64(tt.off), int64(tt.n))
++		buf := make([]byte, tt.bufLen)
++		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
++			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
+ 		}
+ 	}
+ }
++
++func TestSectionReader_Seek(t *testing.T) {
++	// Verifies that NewSectionReader's Seeker behaves like bytes.NewReader (which is like strings.NewReader)
++	br := bytes.NewReader([]byte("foo"))
++	sr := NewSectionReader(br, 0, int64(len("foo")))
++
++	for whence := 0; whence <= 2; whence++ {
++		for offset := int64(-3); offset <= 4; offset++ {
++			brOff, brErr := br.Seek(offset, whence)
++			srOff, srErr := sr.Seek(offset, whence)
++			if (brErr != nil) != (srErr != nil) || brOff != srOff {
++				t.Errorf("For whence %d, offset %d: bytes.Reader.Seek = (%v, %v) != SectionReader.Seek = (%v, %v)",
++					whence, offset, brOff, brErr, srErr, srOff)
++			}
++		}
++	}
++
++	// And verify we can just seek past the end and get an EOF
++	got, err := sr.Seek(100, 0)
++	if err != nil || got != 100 {
++		t.Errorf("Seek = %v, %v; want 100, nil", got, err)
++	}
++
++	n, err := sr.Read(make([]byte, 10))
++	if n != 0 || err != EOF {
++		t.Errorf("Read = %v, %v; want 0, EOF", n, err)
++	}
++}

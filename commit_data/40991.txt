@@ -12,8 +12,73 @@ Date:   Tue Aug 27 13:33:45 2019 -0600
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/xml/marshal.go  | 2 +-
  src/encoding/xml/read.go     | 2 +-
  src/encoding/xml/typeinfo.go | 8 ++++----
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index add5ece782..e325f31374 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -914,7 +914,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 			p.WriteString("-->")
+ 			continue
+ 
+-		case fInnerXml:
++		case fInnerXML:
+ 			vf = indirect(vf)
+ 			iface := vf.Interface()
+ 			switch raw := iface.(type) {
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 12102bc804..10a60eed1a 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -491,7 +491,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 					saveAny = finfo.value(sv)
+ 				}
+ 
+-			case fInnerXml:
++			case fInnerXML:
+ 				if !saveXML.IsValid() {
+ 					saveXML = finfo.value(sv)
+ 					if d.saved == nil {
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 48de3d7e9e..639952c74a 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -33,13 +33,13 @@ const (
+ 	fAttr
+ 	fCDATA
+ 	fCharData
+-	fInnerXml
++	fInnerXML
+ 	fComment
+ 	fAny
+ 
+ 	fOmitEmpty
+ 
+-	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
++	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXML | fComment | fAny
+ 
+ 	xmlName = "XMLName"
+ )
+@@ -134,7 +134,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 			case "chardata":
+ 				finfo.flags |= fCharData
+ 			case "innerxml":
+-				finfo.flags |= fInnerXml
++				finfo.flags |= fInnerXML
+ 			case "comment":
+ 				finfo.flags |= fComment
+ 			case "any":
+@@ -149,7 +149,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 		switch mode := finfo.flags & fMode; mode {
+ 		case 0:
+ 			finfo.flags |= fElement
+-		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
++		case fAttr, fCDATA, fCharData, fInnerXML, fComment, fAny, fAny | fAttr:
+ 			if f.Name == xmlName || tag != "" && mode != fAttr {
+ 				valid = false
+ 			}

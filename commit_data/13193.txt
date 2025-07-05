@@ -11,7 +11,7 @@ Date:   Tue May 29 14:02:29 2012 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/6260051
-
+---
  src/cmd/gc/reflect.c      | 32 ++++++++++++++++++++------------
  src/pkg/runtime/chan.c    | 20 ++++++++++----------
  src/pkg/runtime/hashmap.c | 22 +++++++++++-----------
@@ -20,3 +20,460 @@ Date:   Tue May 29 14:02:29 2012 -0400
  src/pkg/runtime/runtime.c | 13 -------------
  src/pkg/runtime/runtime.h |  2 +-
  7 files changed, 55 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 07b4265081..ed7f5cf068 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -19,7 +19,7 @@ static int
+ sigcmp(Sig *a, Sig *b)
+ {
+ 	int i;
+-	
++
+ 	i = strcmp(a->name, b->name);
+ 	if(i != 0)
+ 		return i;
+@@ -262,12 +262,12 @@ imethods(Type *t)
+ 		else
+ 			last->link = a;
+ 		last = a;
+-		
++
+ 		// Compiler can only refer to wrappers for
+ 		// named interface types.
+ 		if(t->sym == S)
+ 			continue;
+-		
++
+ 		// NOTE(rsc): Perhaps an oversight that
+ 		// IfaceType.Method is not in the reflect data.
+ 		// Generate the method body, so that compiled
+@@ -287,7 +287,7 @@ dimportpath(Pkg *p)
+ 	static Pkg *gopkg;
+ 	char *nam;
+ 	Node *n;
+-	
++
+ 	if(p->pathsym != S)
+ 		return;
+ 
+@@ -303,7 +303,7 @@ dimportpath(Pkg *p)
+ 	n->class = PEXTERN;
+ 	n->xoffset = 0;
+ 	p->pathsym = n->sym;
+-	
++
+ 	gdatastring(n, p->path);
+ 	ggloblsym(n->sym, types[TSTRING]->width, 1);
+ }
+@@ -319,7 +319,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ 	// that imports this one directly defines the symbol.
+ 	if(pkg == localpkg) {
+ 		static Sym *ns;
+-		
++
+ 		if(ns == nil)
+ 			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
+ 		return dsymptr(s, ot, ns, 0);
+@@ -343,7 +343,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 	m = methods(t);
+ 	if(t->sym == nil && m == nil)
+ 		return off;
+-	
++
+ 	// fill in *extraType pointer in header
+ 	dsymptr(sym, ptroff, sym, off);
+ 
+@@ -419,7 +419,7 @@ enum {
+ 	KindString,
+ 	KindStruct,
+ 	KindUnsafePointer,
+-	
++
+ 	KindNoPointers = 1<<7,
+ };
+ 
+@@ -559,8 +559,16 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	ot = duintptr(s, ot, t->width);
+ 	ot = duint32(s, ot, typehash(t));
+ 	ot = duint8(s, ot, 0);	// unused
++
++	// runtime (and common sense) expects alignment to be a power of two.
++	i = t->align;
++	if(i == 0)
++		i = 1;
++	if((i&(i-1)) != 0)
++		fatal("invalid alignment %d for %T", t->align, t);
+ 	ot = duint8(s, ot, t->align);	// align
+ 	ot = duint8(s, ot, t->align);	// fieldAlign
++
+ 	i = kinds[t->etype];
+ 	if(t->etype == TARRAY && t->bound < 0)
+ 		i = KindSlice;
+@@ -575,7 +583,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	//print("dcommontype: %s\n", p);
+ 	ot = dgostringptr(s, ot, p);	// string
+ 	free(p);
+-	
++
+ 	// skip pointer to extraType,
+ 	// which follows the rest of this type structure.
+ 	// caller will fill in if needed.
+@@ -678,7 +686,7 @@ dtypesym(Type *t)
+ 		tbase = t->type;
+ 	dupok = tbase->sym == S;
+ 
+-	if(compiling_runtime && 
++	if(compiling_runtime &&
+ 			(tbase == types[tbase->etype] ||
+ 			tbase == bytetype ||
+ 			tbase == runetype ||
+@@ -897,10 +905,10 @@ dumptypestructs(void)
+ 		// emit type structs for error and func(error) string.
+ 		// The latter is the type of an auto-generated wrapper.
+ 		dtypesym(ptrto(errortype));
+-		dtypesym(functype(nil, 
++		dtypesym(functype(nil,
+ 			list1(nod(ODCLFIELD, N, typenod(errortype))),
+ 			list1(nod(ODCLFIELD, N, typenod(types[TSTRING])))));
+-		
++
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(runtimepkg);
+ 		dimportpath(mkpkg(strlit("main")));
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index ef27144ef3..07ab431b43 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -86,7 +86,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 	Hchan *c;
+ 	int32 n;
+ 	Type *elem;
+-	
++
+ 	elem = t->elem;
+ 
+ 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
+@@ -180,7 +180,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 	sg = dequeue(&c->recvq);
+ 	if(sg != nil) {
+ 		runtime·unlock(c);
+-		
++
+ 		gp = sg->g;
+ 		gp->param = sg;
+ 		if(sg->elem != nil)
+@@ -446,7 +446,7 @@ runtime·selectnbsend(ChanType *t, Hchan *c, ...)
+ 	byte *ae, *ap;
+ 
+ 	ae = (byte*)(&c + 1);
+-	ap = ae + runtime·rnd(t->elem->size, Structrnd);
++	ap = ae + ROUND(t->elem->size, Structrnd);
+ 	runtime·chansend(t, c, ae, ap);
+ }
+ 
+@@ -474,7 +474,7 @@ void
+ runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
+ {
+ 	runtime·chanrecv(t, c, v, &selected, nil);
+-}	
++}
+ 
+ // func selectnbrecv2(elem *any, ok *bool, c chan any) bool
+ //
+@@ -500,7 +500,7 @@ void
+ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
+ {
+ 	runtime·chanrecv(t, c, v, &selected, received);
+-}	
++}
+ 
+ // For reflect:
+ //	func chansend(c chan, val iword, nb bool) (selected bool)
+@@ -514,7 +514,7 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+ {
+ 	bool *sp;
+ 	byte *vp;
+-	
++
+ 	if(nb) {
+ 		selected = false;
+ 		sp = (bool*)&selected;
+@@ -571,7 +571,7 @@ runtime·newselect(int32 size, ...)
+ 	int32 o;
+ 	Select **selp;
+ 
+-	o = runtime·rnd(sizeof(size), Structrnd);
++	o = ROUND(sizeof(size), Structrnd);
+ 	selp = (Select**)((byte*)&size + o);
+ 	newselect(size, selp);
+ }
+@@ -619,7 +619,7 @@ runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
+ 	// nil cases do not compete
+ 	if(c == nil)
+ 		return;
+-	
++
+ 	selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
+ }
+ 
+@@ -628,7 +628,7 @@ selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so)
+ {
+ 	int32 i;
+ 	Scase *cas;
+-	
++
+ 	i = sel->ncase;
+ 	if(i >= sel->tcase)
+ 		runtime·throw("selectsend: too many cases");
+@@ -899,7 +899,7 @@ loop:
+ 		case CaseRecv:
+ 			enqueue(&c->recvq, sg);
+ 			break;
+-		
++
+ 		case CaseSend:
+ 			enqueue(&c->sendq, sg);
+ 			break;
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 63ed4e2a37..ea9887a19f 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -115,7 +115,7 @@ hash_init (Hmap *h, int32 datasize, int64 hint)
+ 
+ 	if(datasize < sizeof (void *))
+ 		datasize = sizeof (void *);
+-	datasize = runtime·rnd(datasize, sizeof (void *));
++	datasize = ROUND(datasize, sizeof (void *));
+ 	init_sizes (hint, &init_power);
+ 	h->datasize = datasize;
+ 	assert (h->datasize == datasize);
+@@ -273,7 +273,7 @@ hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
+ 	struct hash_entry *end_e;
+ 	void *key;
+ 	bool eq;
+-	
++
+ 	hash = h->hash0;
+ 	(*t->key->alg->hash) (&hash, t->key->size, data);
+ 	hash &= ~HASH_MASK;
+@@ -462,7 +462,7 @@ hash_insert (MapType *t, Hmap *h, void *data, void **pres)
+ {
+ 	uintptr hash;
+ 	int32 rc;
+-	
++
+ 	hash = h->hash0;
+ 	(*t->key->alg->hash) (&hash, t->key->size, data);
+ 	rc = hash_insert_internal (t, &h->st, 0, hash, h, data, pres);
+@@ -618,7 +618,7 @@ hash_iter_init (MapType *t, Hmap *h, struct hash_iter *it)
+ 	it->subtable_state[0].e = h->st->entry;
+ 	it->subtable_state[0].start = h->st->entry;
+ 	it->subtable_state[0].last = h->st->last;
+-	
++
+ 	// fastrand1 returns 31 useful bits.
+ 	// We don't care about not having a bottom bit but we
+ 	// do want top bits.
+@@ -731,7 +731,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 	Hmap *h;
+ 	Type *key, *val;
+ 	uintptr ksize, vsize;
+-	
++
+ 	key = typ->key;
+ 	val = typ->elem;
+ 
+@@ -744,8 +744,8 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 	h = runtime·mal(sizeof(*h));
+ 	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
+ 
+-	ksize = runtime·rnd(key->size, sizeof(void*));
+-	vsize = runtime·rnd(val->size, sizeof(void*));
++	ksize = ROUND(key->size, sizeof(void*));
++	vsize = ROUND(val->size, sizeof(void*));
+ 	if(ksize > MaxData || vsize > MaxData || ksize+vsize > MaxData) {
+ 		// Either key is too big, or value is, or combined they are.
+ 		// Prefer to keep the key if possible, because we look at
+@@ -829,7 +829,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 	bool pres;
+ 
+ 	ak = (byte*)(&h + 1);
+-	av = ak + runtime·rnd(t->key->size, Structrnd);
++	av = ak + ROUND(t->key->size, Structrnd);
+ 
+ 	runtime·mapaccess(t, h, ak, av, &pres);
+ 
+@@ -854,7 +854,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ 	byte *ak, *av, *ap;
+ 
+ 	ak = (byte*)(&h + 1);
+-	av = ak + runtime·rnd(t->key->size, Structrnd);
++	av = ak + ROUND(t->key->size, Structrnd);
+ 	ap = av + t->elem->size;
+ 
+ 	runtime·mapaccess(t, h, ak, av, ap);
+@@ -952,7 +952,7 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+ 	ak = (byte*)(&h + 1);
+-	av = ak + runtime·rnd(t->key->size, t->elem->align);
++	av = ak + ROUND(t->key->size, t->elem->align);
+ 
+ 	runtime·mapassign(t, h, ak, av);
+ }
+@@ -1171,7 +1171,7 @@ runtime·mapiter2(struct hash_iter *it, ...)
+ 
+ 	t = it->t;
+ 	ak = (byte*)(&it + 1);
+-	av = ak + runtime·rnd(t->key->size, t->elem->align);
++	av = ak + ROUND(t->key->size, t->elem->align);
+ 
+ 	res = it->data;
+ 	if(res == nil)
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 2b60c4f23a..b7eb2c18d1 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -193,7 +193,7 @@ runtime·convT2I(Type *t, InterfaceType *inter, ...)
+ 
+ 	elem = (byte*)(&inter+1);
+ 	wid = t->size;
+-	ret = (Iface*)(elem + runtime·rnd(wid, Structrnd));
++	ret = (Iface*)(elem + ROUND(wid, Structrnd));
+ 	ret->tab = itab(inter, t, 0);
+ 	copyin(t, elem, &ret->data);
+ }
+@@ -209,7 +209,7 @@ runtime·convT2E(Type *t, ...)
+ 
+ 	elem = (byte*)(&t+1);
+ 	wid = t->size;
+-	ret = (Eface*)(elem + runtime·rnd(wid, Structrnd));
++	ret = (Eface*)(elem + ROUND(wid, Structrnd));
+ 	ret->type = t;
+ 	copyin(t, elem, &ret->data);
+ }
+@@ -387,7 +387,7 @@ void
+ runtime·convI2I(InterfaceType* inter, Iface i, Iface ret)
+ {
+ 	Itab *tab;
+-	
++
+ 	ret.data = i.data;
+ 	if((tab = i.tab) == nil)
+ 		ret.tab = nil;
+@@ -694,7 +694,7 @@ reflect·unsafe_NewArray(Eface typ, uint32 n, void *ret)
+ 	// We know that the pointer to the original
+ 	// type structure sits before the data pointer.
+ 	t = (Type*)((Eface*)typ.data-1);
+-	
++
+ 	size = n*t->size;
+ 	if(t->kind&KindNoPointers)
+ 		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 6702c3cde7..b41e28b37a 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -18,10 +18,10 @@ gwrite(void *v, int32 n)
+ 		runtime·write(2, v, n);
+ 		return;
+ 	}
+-	
++
+ 	if(g->writenbuf == 0)
+ 		return;
+-	
++
+ 	if(n > g->writenbuf)
+ 		n = g->writenbuf;
+ 	runtime·memmove(g->writebuf, v, n);
+@@ -88,36 +88,36 @@ vprintf(int8 *s, byte *base)
+ 			break;
+ 		case 'd':	// 32-bit
+ 		case 'x':
+-			arg = runtime·rnd(arg, 4);
++			arg = ROUND(arg, 4);
+ 			narg = arg + 4;
+ 			break;
+ 		case 'D':	// 64-bit
+ 		case 'U':
+ 		case 'X':
+ 		case 'f':
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + 8;
+ 			break;
+ 		case 'C':
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + 16;
+ 			break;
+ 		case 'p':	// pointer-sized
+ 		case 's':
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(uintptr);
+ 			break;
+ 		case 'S':	// pointer-aligned but bigger
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(String);
+ 			break;
+ 		case 'a':	// pointer-aligned but bigger
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(Slice);
+ 			break;
+ 		case 'i':	// pointer-aligned but bigger
+ 		case 'e':
+-			arg = runtime·rnd(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(Eface);
+ 			break;
+ 		}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 2cb3501dd1..cca061be79 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -156,19 +156,6 @@ runtime·mchr(byte *p, byte c, byte *ep)
+ 	return nil;
+ }
+ 
+-uint32
+-runtime·rnd(uint32 n, uint32 m)
+-{
+-	uint32 r;
+-
+-	if(m > maxround)
+-		m = maxround;
+-	r = n % m;
+-	if(r)
+-		n += m-r;
+-	return n;
+-}
+-
+ static int32	argc;
+ static uint8**	argv;
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1f7819197a..665d477f7d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -390,6 +390,7 @@ struct ParFor
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+ #define	nil		((void*)0)
+ #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
++#define	ROUND(x, n)	(((x)+(n)-1)&~((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
+ 
+ /*
+  * known to compiler
+@@ -533,7 +534,6 @@ void	runtime·goenvs_unix(void);
+ void*	runtime·getu(void);
+ void	runtime·throw(int8*);
+ void	runtime·panicstring(int8*);
+-uint32	runtime·rnd(uint32, uint32);
+ void	runtime·prints(int8*);
+ void	runtime·printf(int8*, ...);
+ byte*	runtime·mchr(byte*, byte, byte*);

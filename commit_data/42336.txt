@@ -213,3 +213,34 @@ Date:   Tue Dec 3 10:38:43 2019 -0500
  test/fixedbugs/issue9355.go                        |  11 +-
  test/sinit_run.go                                  |  11 +-
  200 files changed, 3537 insertions(+), 2007 deletions(-)
+
+diff --cc src/cmd/link/internal/loadelf/ldelf.go
+index c32f32c32b,60bebab818..8bcba8b2f9
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@@ -460,11 -476,7 +460,14 @@@ func parseArmAttributes(e binary.ByteOr
+  // parameter initEhdrFlags contains the current header flags for the output
+  // object, and the returned ehdrFlags contains what this Load function computes.
+  // TODO: find a better place for this logic.
+ -func load(arch *sys.Arch, localSymVersion int, newSym, lookup lookupFunc, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+ +func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+ +	localSymVersion := syms.IncVersion()
+++	newSym := func(name string, version int) *sym.Symbol {
+++		return l.Create(name, syms)
+++	}
+ +	lookup := func(name string, version int) *sym.Symbol {
+ +		return l.LookupOrCreate(name, version, syms)
+ +	}
+  	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
+  		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
+  	}
+@@@ -1006,7 -1018,7 +1009,7 @@@ func elfmap(elfobj *ElfObj, sect *ElfSe
+  	return nil
+  }
+  
+- func readelfsym(lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+ -func readelfsym(newSym, lookup lookupFunc, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+++func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+  	if i >= elfobj.nsymtab || i < 0 {
+  		err = fmt.Errorf("invalid elf symbol index")
+  		return err

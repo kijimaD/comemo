@@ -11,7 +11,100 @@ Date:   Mon Nov 18 16:09:37 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207699
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                  | 34 ----------------------------
  src/cmd/go/testdata/script/build_i.txt | 41 ++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5f2ba97334..0a5021e459 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2724,40 +2724,6 @@ func TestIssue6844(t *testing.T) {
+ 	tg.grepStderr("regexp", "go test -x -a -c testdata/dep-test.go did not rebuild regexp")
+ }
+ 
+-func TestBuildDashIInstallsDependencies(t *testing.T) {
+-	tooSlow(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("src/x/y/foo/foo.go", `package foo
+-		func F() {}`)
+-	tg.tempFile("src/x/y/bar/bar.go", `package bar
+-		import "x/y/foo"
+-		func F() { foo.F() }`)
+-	tg.setenv("GOPATH", tg.path("."))
+-
+-	// don't let build -i overwrite runtime
+-	tg.wantNotStale("runtime", "", "must be non-stale before build -i")
+-
+-	checkbar := func(desc string) {
+-		tg.run("build", "-v", "-i", "x/y/bar")
+-		tg.grepBoth("x/y/foo", "first build -i "+desc+" did not build x/y/foo")
+-		tg.run("build", "-v", "-i", "x/y/bar")
+-		tg.grepBothNot("x/y/foo", "second build -i "+desc+" built x/y/foo")
+-	}
+-	checkbar("pkg")
+-
+-	tg.creatingTemp("bar" + exeSuffix)
+-	tg.sleep()
+-	tg.tempFile("src/x/y/foo/foo.go", `package foo
+-		func F() { F() }`)
+-	tg.tempFile("src/x/y/bar/bar.go", `package main
+-		import "x/y/foo"
+-		func main() { foo.F() }`)
+-	checkbar("cmd")
+-}
+-
+ func TestGoBuildTestOnly(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/build_i.txt b/src/cmd/go/testdata/script/build_i.txt
+new file mode 100644
+index 0000000000..0e7ebed0f9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_i.txt
+@@ -0,0 +1,41 @@
++env GO111MODULE=off
++
++# Test that 'go build -i' installs dependencies of the requested package.
++
++[short] skip
++
++# Since we are checking installation of dependencies, use a clean cache
++# to ensure that multiple runs of the test do not interfere.
++env GOCACHE=$WORK/cache
++
++# The initial 'go build -i' for bar should install its dependency foo.
++
++go build -v -i x/y/bar
++stderr 'x/y/foo'    # should be rebuilt
++go build -v -i x/y/bar
++! stderr 'x/y/foo'  # should already be installed
++
++# After modifying the source files, both packages should be rebuild.
++
++cp x/y/foo/foo.go.next x/y/foo/foo.go
++cp x/y/bar/bar.go.next x/y/bar/bar.go
++
++go build -v -i x/y/bar
++stderr 'x/y/foo'    # should be rebuilt
++go build -v -i x/y/bar
++! stderr 'x/y/foo'  # should already be installed
++
++-- x/y/foo/foo.go --
++package foo
++func F() {}
++-- x/y/bar/bar.go --
++package bar
++import "x/y/foo"
++func F() { foo.F() }
++-- x/y/foo/foo.go.next --
++package foo
++func F() { F() }
++-- x/y/bar/bar.go.next --
++package main
++import "x/y/foo"
++func main() { foo.F() }

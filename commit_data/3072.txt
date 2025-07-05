@@ -8,6 +8,20 @@ Date:   Mon Aug 24 16:12:59 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=33788
     CL=33791
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e362b7e76b..11596ae5b6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2412,7 +2412,7 @@ second is a value of the channel's element type.
+ <p>
+ Except for shift operations,
+ if one operand has ideal type and the other operand does not,
+-the ideal operand is converted converted to match the type of
++the ideal operand is converted to match the type of
+ the other operand (§<a href="#Expressions">Expressions</a>).
+ If both operands are ideal numbers and one is an
+ ideal float, the other is converted to ideal float

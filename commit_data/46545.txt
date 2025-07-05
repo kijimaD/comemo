@@ -12,7 +12,7 @@ Date:   Fri Jan 8 10:29:11 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer.go       | 11 ++++-------
  src/cmd/compile/internal/syntax/printer_test.go  |  2 +-
  src/cmd/compile/internal/types2/api_test.go      | 10 +++++-----
@@ -21,3 +21,140 @@ Date:   Fri Jan 8 10:29:11 2021 -0800
  src/cmd/compile/internal/types2/errors.go        |  2 +-
  src/cmd/compile/internal/types2/operand.go       |  2 +-
  7 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 0a60e1753d..161eb0d092 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -44,20 +44,17 @@ func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
+ 	return
+ }
+ 
+-func asString(n Node, form Form) string {
++// String is a convenience functions that prints n in ShortForm
++// and returns the printed string.
++func String(n Node) string {
+ 	var buf bytes.Buffer
+-	_, err := Fprint(&buf, n, form)
++	_, err := Fprint(&buf, n, ShortForm)
+ 	if err != nil {
+ 		fmt.Fprintf(&buf, "<<< ERROR: %s", err)
+ 	}
+ 	return buf.String()
+ }
+ 
+-// String and ShortString are convenience functions that print n in
+-// LineForm or ShortForm respectively, and return the printed string.
+-func String(n Node) string      { return asString(n, LineForm) }
+-func ShortString(n Node) string { return asString(n, ShortForm) }
+-
+ type ctrlSymbol int
+ 
+ const (
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index e83e9c1b2c..bcae815a46 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -178,7 +178,7 @@ func TestShortString(t *testing.T) {
+ 			continue
+ 		}
+ 		x := ast.DeclList[0].(*VarDecl).Values
+-		if got := ShortString(x); got != test[1] {
++		if got := String(x); got != test[1] {
+ 			t.Errorf("%s: got %s, want %s", test[0], got, test[1])
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index c1327b179c..d9647b9432 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -151,7 +151,7 @@ func TestValuesInfo(t *testing.T) {
+ 		// look for expression
+ 		var expr syntax.Expr
+ 		for e := range info.Types {
+-			if syntax.ShortString(e) == test.expr {
++			if syntax.String(e) == test.expr {
+ 				expr = e
+ 				break
+ 			}
+@@ -306,7 +306,7 @@ func TestTypesInfo(t *testing.T) {
+ 		// look for expression type
+ 		var typ Type
+ 		for e, tv := range info.Types {
+-			if syntax.ShortString(e) == test.expr {
++			if syntax.String(e) == test.expr {
+ 				typ = tv.Type
+ 				break
+ 			}
+@@ -454,7 +454,7 @@ func TestInferredInfo(t *testing.T) {
+ 			default:
+ 				panic(fmt.Sprintf("unexpected call expression type %T", call))
+ 			}
+-			if syntax.ShortString(fun) == test.fun {
++			if syntax.String(fun) == test.fun {
+ 				targs = inf.Targs
+ 				sig = inf.Sig
+ 				break
+@@ -733,8 +733,8 @@ func TestPredicatesInfo(t *testing.T) {
+ 		// look for expression predicates
+ 		got := "<missing>"
+ 		for e, tv := range info.Types {
+-			//println(name, syntax.ShortString(e))
+-			if syntax.ShortString(e) == test.expr {
++			//println(name, syntax.String(e))
++			if syntax.String(e) == test.expr {
+ 				got = predString(tv)
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 0fa9c6b8e6..3238b3ac37 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -197,7 +197,7 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 			var op operand
+ 			check.expr(&op, sel.X)
+ 			if op.mode == mapindex {
+-				check.errorf(&z, "cannot assign to struct field %s in map", syntax.ShortString(z.expr))
++				check.errorf(&z, "cannot assign to struct field %s in map", syntax.String(z.expr))
+ 				return nil
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 0fc7c17d3e..35c38518f6 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -176,7 +176,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 		// the recorded type for the built-in must match the wanted signature
+ 		typ := types[fun].Type
+ 		if typ == nil {
+-			t.Errorf("%s: no type recorded for %s", src0, syntax.ShortString(fun))
++			t.Errorf("%s: no type recorded for %s", src0, syntax.String(fun))
+ 			return
+ 		}
+ 		if got := typ.String(); got != want {
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index d74980253e..62b1d39d83 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -53,7 +53,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 		case syntax.Pos:
+ 			arg = a.String()
+ 		case syntax.Expr:
+-			arg = syntax.ShortString(a)
++			arg = syntax.String(a)
+ 		case Object:
+ 			arg = ObjectString(a, check.qualifier)
+ 		case Type:
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index ab4a7eb4f3..d5a10b2c29 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -110,7 +110,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 
+ 	var expr string
+ 	if x.expr != nil {
+-		expr = syntax.ShortString(x.expr)
++		expr = syntax.String(x.expr)
+ 	} else {
+ 		switch x.mode {
+ 		case builtin:

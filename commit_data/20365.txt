@@ -8,6 +8,20 @@ Date:   Wed Sep 3 10:44:33 2014 -0700
     R=golang-codereviews, gobot, gri
     CC=golang-codereviews
     https://golang.org/cl/140750043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index eec1cdb7a7..e8bb35f0b0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -479,7 +479,7 @@ Interpreted string literals are character sequences between double
+ quotes <code>&quot;&quot;</code>. The text between the quotes,
+ which may not contain newlines, forms the
+ value of the literal, with backslash escapes interpreted as they
+-are in rune literals (except that <code>\'</code> is illegal and
++are in <a href="#Rune_literals">rune literals</a> (except that <code>\'</code> is illegal and
+ <code>\"</code> is legal), with the same restrictions.
+ The three-digit octal (<code>\</code><i>nnn</i>)
+ and two-digit hexadecimal (<code>\x</code><i>nn</i>) escapes represent individual

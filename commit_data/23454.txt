@@ -19,7 +19,126 @@ Date:   Thu May 14 17:27:04 2015 -0400
     Change-Id: I56b098a091abf3ac0945de28ebef9a6c08e76614
     Reviewed-on: https://go-review.googlesource.com/10111
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/type.go    |  9 ---------
  src/runtime/hashmap.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5a43805626..bffe2595dd 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1087,7 +1087,6 @@ func (t *rtype) ptrTo() *rtype {
+ 
+ 	p.uncommonType = nil
+ 	p.ptrToThis = nil
+-	p.zero = unsafe.Pointer(&make([]byte, p.size)[0])
+ 	p.elem = t
+ 
+ 	ptrMap.m[t] = p
+@@ -1467,7 +1466,6 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	ch.elem = typ
+ 	ch.uncommonType = nil
+ 	ch.ptrToThis = nil
+-	ch.zero = unsafe.Pointer(&make([]byte, ch.size)[0])
+ 
+ 	return cachePut(ckey, &ch.rtype)
+ }
+@@ -1530,7 +1528,6 @@ func MapOf(key, elem Type) Type {
+ 	mt.reflexivekey = isReflexive(ktyp)
+ 	mt.uncommonType = nil
+ 	mt.ptrToThis = nil
+-	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
+ 
+ 	return cachePut(ckey, &mt.rtype)
+ }
+@@ -1610,7 +1607,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	ft.string = &str
+ 	ft.uncommonType = nil
+ 	ft.ptrToThis = nil
+-	ft.zero = unsafe.Pointer(&make([]byte, ft.size)[0])
+ 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+ 
+ 	return ft
+@@ -1857,7 +1853,6 @@ func SliceOf(t Type) Type {
+ 	slice.elem = typ
+ 	slice.uncommonType = nil
+ 	slice.ptrToThis = nil
+-	slice.zero = unsafe.Pointer(&make([]byte, slice.size)[0])
+ 
+ 	return cachePut(ckey, &slice.rtype)
+ }
+@@ -1913,10 +1908,6 @@ func ArrayOf(count int, elem Type) Type {
+ 	array.fieldAlign = typ.fieldAlign
+ 	array.uncommonType = nil
+ 	array.ptrToThis = nil
+-	if array.size > 0 {
+-		zero := make([]byte, array.size)
+-		array.zero = unsafe.Pointer(&zero[0])
+-	}
+ 	array.len = uintptr(count)
+ 	array.slice = slice.(*rtype)
+ 
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 9ca33992bb..2b3af301b3 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -233,6 +233,9 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 		throw("need padding in bucket (value)")
+ 	}
+ 
++	// make sure zero of element type is available.
++	mapzero(t.elem)
++
+ 	// find size parameter which will hold the requested # of elements
+ 	B := uint8(0)
+ 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
+@@ -990,3 +993,48 @@ func reflect_maplen(h *hmap) int {
+ func reflect_ismapkey(t *_type) bool {
+ 	return ismapkey(t)
+ }
++
++var zerobuf struct {
++	lock mutex
++	p    *byte
++	size uintptr
++}
++
++var zerotiny [1024]byte
++
++// mapzero ensures that t.zero points at a zero value for type t.
++// Types known to the compiler are in read-only memory and all point
++// to a single zero in the bss of a large enough size.
++// Types allocated by package reflect are in writable memory and
++// start out with zero set to nil; we initialize those on demand.
++func mapzero(t *_type) {
++	// Already done?
++	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
++	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {
++		return
++	}
++
++	// Small enough for static buffer?
++	if t.size <= uintptr(len(zerotiny)) {
++		atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(&zerotiny[0]))
++		return
++	}
++
++	// Use allocated buffer.
++	lock(&zerobuf.lock)
++	if zerobuf.size < t.size {
++		if zerobuf.size == 0 {
++			zerobuf.size = 4 * 1024
++		}
++		for zerobuf.size < t.size {
++			zerobuf.size *= 2
++			if zerobuf.size == 0 {
++				// need >2GB zero on 32-bit machine
++				throw("map element too large")
++			}
++		}
++		zerobuf.p = (*byte)(persistentalloc(zerobuf.size, 64, &memstats.other_sys))
++	}
++	atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(zerobuf.p))
++	unlock(&zerobuf.lock)
++}

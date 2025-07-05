@@ -11,8 +11,113 @@ Date:   Tue Aug 5 22:32:24 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/115660043
-
+---
  src/cmd/ld/dwarf.c      |  4 ++--
  src/pkg/runtime/type.go | 56 -------------------------------------------------
  src/pkg/runtime/type.h  |  9 ++------
  3 files changed, 4 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 9277ebc54b..3f93f58184 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -2049,8 +2049,8 @@ dwarfemitdebugsections(void)
+ 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, KindUintptr, 0);
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+-	defgotype(lookup_or_diag("type.runtime.rtype"));
+-	defgotype(lookup_or_diag("type.runtime.interfaceType"));
++	defgotype(lookup_or_diag("type.runtime._type"));
++	defgotype(lookup_or_diag("type.runtime.interfacetype"));
+ 	defgotype(lookup_or_diag("type.runtime.itab"));
+ 
+ 	genasmsym(defdwsymb);
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+deleted file mode 100644
+index 4e610dbc2f..0000000000
+--- a/src/pkg/runtime/type.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * Runtime type representation.
+- * This file exists only to provide types that 6l can turn into
+- * DWARF information for use by gdb.  Nothing else uses these.
+- * They should match the same types in ../reflect/type.go.
+- * For comments see ../reflect/type.go.
+- */
+-
+-package runtime
+-
+-import "unsafe"
+-
+-type rtype struct {
+-	size       uintptr
+-	hash       uint32
+-	_          uint8
+-	align      uint8
+-	fieldAlign uint8
+-	kind       uint8
+-	alg        unsafe.Pointer
+-	gc         [2]unsafe.Pointer
+-	string     *string
+-	*uncommonType
+-	ptrToThis *rtype
+-	zero      unsafe.Pointer
+-}
+-
+-type _method struct {
+-	name    *string
+-	pkgPath *string
+-	mtyp    *rtype
+-	typ     *rtype
+-	ifn     unsafe.Pointer
+-	tfn     unsafe.Pointer
+-}
+-
+-type uncommonType struct {
+-	name    *string
+-	pkgPath *string
+-	methods []_method
+-}
+-
+-type _imethod struct {
+-	name    *string
+-	pkgPath *string
+-	typ     *rtype
+-}
+-
+-type interfaceType struct {
+-	rtype
+-	methods []_imethod
+-}
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 8de0ccba2c..2eda291aed 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -2,11 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*
+- * Runtime type representation; master is type.go
+- *
+- * The Type*s here correspond 1-1 to type.go's *rtype.
+- */
++// Runtime type representation.
+ 
+ typedef struct Type Type;
+ typedef struct UncommonType UncommonType;
+@@ -16,8 +12,7 @@ typedef struct IMethod IMethod;
+ typedef struct SliceType SliceType;
+ typedef struct FuncType FuncType;
+ 
+-// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize,
+-// pkg/reflect/type.go:/type anf type.go:/rtype
++// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize and pkg/reflect/type.go:/type.
+ struct Type
+ {
+ 	uintptr size;

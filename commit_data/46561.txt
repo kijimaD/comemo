@@ -16,7 +16,193 @@ Date:   Sat Jan 9 23:36:13 2021 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go  | 60 +++---------------------
  src/cmd/compile/internal/noder/posmap.go | 79 ++++++++++++++++++++++++++++++++
  2 files changed, 86 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 099e3a6956..3e4d2c9bee 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -59,7 +59,6 @@ func ParseFiles(filenames []string) (lines uint) {
+ 
+ 	for _, filename := range filenames {
+ 		p := &noder{
+-			basemap:     make(map[*syntax.PosBase]*src.PosBase),
+ 			err:         make(chan syntax.Error),
+ 			trackScopes: base.Flag.Dwarf,
+ 		}
+@@ -271,42 +270,6 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
+ 	return importer.Import(m.packages, path, srcDir, m.lookup)
+ }
+ 
+-// makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
+-func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+-	// fast path: most likely PosBase hasn't changed
+-	if p.basecache.last == b0 {
+-		return p.basecache.base
+-	}
+-
+-	b1, ok := p.basemap[b0]
+-	if !ok {
+-		fn := b0.Filename()
+-		if b0.IsFileBase() {
+-			b1 = src.NewFileBase(fn, absFilename(fn))
+-		} else {
+-			// line directive base
+-			p0 := b0.Pos()
+-			p0b := p0.Base()
+-			if p0b == b0 {
+-				panic("infinite recursion in makeSrcPosBase")
+-			}
+-			p1 := src.MakePos(p.makeSrcPosBase(p0b), p0.Line(), p0.Col())
+-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
+-		}
+-		p.basemap[b0] = b1
+-	}
+-
+-	// update cache
+-	p.basecache.last = b0
+-	p.basecache.base = b1
+-
+-	return b1
+-}
+-
+-func (p *noder) makeXPos(pos syntax.Pos) (_ src.XPos) {
+-	return base.Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
+-}
+-
+ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+ 	base.ErrorfAt(p.makeXPos(pos), format, args...)
+ }
+@@ -322,11 +285,7 @@ func absFilename(name string) string {
+ 
+ // noder transforms package syntax's AST into a Node tree.
+ type noder struct {
+-	basemap   map[*syntax.PosBase]*src.PosBase
+-	basecache struct {
+-		last *syntax.PosBase
+-		base *src.PosBase
+-	}
++	posMap
+ 
+ 	file           *syntax.File
+ 	linknames      []linkname
+@@ -900,7 +859,11 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 	case *syntax.Name:
+ 		return p.mkname(expr)
+ 	case *syntax.BasicLit:
+-		n := ir.NewBasicLit(p.pos(expr), p.basicLit(expr))
++		pos := base.Pos
++		if expr != syntax.ImplicitOne { // ImplicitOne doesn't have a unique position
++			pos = p.pos(expr)
++		}
++		n := ir.NewBasicLit(pos, p.basicLit(expr))
+ 		if expr.Kind == syntax.RuneLit {
+ 			n.SetType(types.UntypedRune)
+ 		}
+@@ -1720,17 +1683,8 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+ 	return x
+ }
+ 
+-func (p *noder) pos(n syntax.Node) src.XPos {
+-	// TODO(gri): orig.Pos() should always be known - fix package syntax
+-	xpos := base.Pos
+-	if pos := n.Pos(); pos.IsKnown() {
+-		xpos = p.makeXPos(pos)
+-	}
+-	return xpos
+-}
+-
+ func (p *noder) setlineno(n syntax.Node) {
+-	if n != nil {
++	if n != nil && n != syntax.ImplicitOne {
+ 		base.Pos = p.pos(n)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/noder/posmap.go b/src/cmd/compile/internal/noder/posmap.go
+new file mode 100644
+index 0000000000..d24f706281
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/posmap.go
+@@ -0,0 +1,79 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/syntax"
++	"cmd/internal/src"
++)
++
++// A posMap handles mapping from syntax.Pos to src.XPos.
++type posMap struct {
++	bases map[*syntax.PosBase]*src.PosBase
++	cache struct {
++		last *syntax.PosBase
++		base *src.PosBase
++	}
++}
++
++type poser interface{ Pos() syntax.Pos }
++type ender interface{ End() syntax.Pos }
++
++func (m *posMap) pos(p poser) src.XPos { return m.makeXPos(p.Pos()) }
++func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
++
++func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
++	if !pos.IsKnown() {
++		base.Fatalf("unknown position")
++	}
++
++	posBase := m.makeSrcPosBase(pos.Base())
++	return base.Ctxt.PosTable.XPos(src.MakePos(posBase, pos.Line(), pos.Col()))
++}
++
++// makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
++func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
++	// fast path: most likely PosBase hasn't changed
++	if m.cache.last == b0 {
++		return m.cache.base
++	}
++
++	b1, ok := m.bases[b0]
++	if !ok {
++		fn := b0.Filename()
++		if b0.IsFileBase() {
++			b1 = src.NewFileBase(fn, absFilename(fn))
++		} else {
++			// line directive base
++			p0 := b0.Pos()
++			p0b := p0.Base()
++			if p0b == b0 {
++				panic("infinite recursion in makeSrcPosBase")
++			}
++			p1 := src.MakePos(m.makeSrcPosBase(p0b), p0.Line(), p0.Col())
++			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
++		}
++		if m.bases == nil {
++			m.bases = make(map[*syntax.PosBase]*src.PosBase)
++		}
++		m.bases[b0] = b1
++	}
++
++	// update cache
++	m.cache.last = b0
++	m.cache.base = b1
++
++	return b1
++}
++
++func (m *posMap) join(other *posMap) {
++	for k, v := range other.bases {
++		if m.bases[k] != nil {
++			base.Fatalf("duplicate posmap bases")
++		}
++		m.bases[k] = v
++	}
++}

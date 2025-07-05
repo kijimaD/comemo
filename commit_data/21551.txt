@@ -12,7 +12,44 @@ Date:   Thu Jan 15 10:43:04 2015 +1100
     Change-Id: I1fd5c564a14217e1b9815b09bc24cc43c54c096f
     Reviewed-on: https://go-review.googlesource.com/2850
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/cmplxdivide.c  | 13 ++++++++++++-
  test/cmplxdivide.go |  1 +
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/test/cmplxdivide.c b/test/cmplxdivide.c
+index 12dc4f1c0c..d65436223c 100644
+--- a/test/cmplxdivide.c
++++ b/test/cmplxdivide.c
+@@ -2,7 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// gcc '-std=c99' cmplxdivide.c && a.out >cmplxdivide1.go
++// This C program generates the file cmplxdivide1.go. It uses the
++// output of the operations by C99 as the reference to check
++// the implementation of complex numbers in Go.
++// The generated file, cmplxdivide1.go, is compiled along
++// with the driver cmplxdivide.go (the names are confusing
++// and unimaginative) to run the actual test. This is done by
++// the usual test runner.
++//
++// The file cmplxdivide1.go is checked in to the repository, but
++// if it needs to be regenerated, compile and run this C program
++// like this:
++//	gcc '-std=c99' cmplxdivide.c && a.out >cmplxdivide1.go
+ 
+ #include <complex.h>
+ #include <math.h>
+diff --git a/test/cmplxdivide.go b/test/cmplxdivide.go
+index 40c84486da..8e2967258f 100644
+--- a/test/cmplxdivide.go
++++ b/test/cmplxdivide.go
+@@ -5,6 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Driver for complex division table defined in cmplxdivide1.go
++// For details, see the comment at the top of in cmplxdivide.c.
+ 
+ package main
+ 

@@ -12,8 +12,84 @@ Date:   Wed Sep 17 21:22:11 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/145880043
-
+---
  src/sync/atomic/norace.go | 17 -----------------
  src/sync/atomic/race.go   | 22 ----------------------
  src/sync/atomic/value.go  |  6 ------
  3 files changed, 45 deletions(-)
+
+diff --git a/src/sync/atomic/norace.go b/src/sync/atomic/norace.go
+deleted file mode 100644
+index 1866fd16cb..0000000000
+--- a/src/sync/atomic/norace.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-package atomic
+-
+-import "unsafe"
+-
+-const raceenabled = false
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-}
+diff --git a/src/sync/atomic/race.go b/src/sync/atomic/race.go
+deleted file mode 100644
+index a833d9e7f4..0000000000
+--- a/src/sync/atomic/race.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package atomic
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const raceenabled = true
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-	runtime.RaceAcquire(addr)
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-	runtime.RaceReleaseMerge(addr)
+-}
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index c290fdab85..ab46d9a240 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -35,9 +35,6 @@ func (v *Value) Load() (x interface{}) {
+ 	xp := (*ifaceWords)(unsafe.Pointer(&x))
+ 	xp.typ = typ
+ 	xp.data = data
+-	if raceenabled {
+-		raceAcquire(unsafe.Pointer(v))
+-	}
+ 	return
+ }
+ 
+@@ -48,9 +45,6 @@ func (v *Value) Store(x interface{}) {
+ 	if x == nil {
+ 		panic("sync/atomic: store of nil value into Value")
+ 	}
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(v))
+-	}
+ 	vp := (*ifaceWords)(unsafe.Pointer(v))
+ 	xp := (*ifaceWords)(unsafe.Pointer(&x))
+ 	for {

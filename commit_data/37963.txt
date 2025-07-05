@@ -9,6 +9,34 @@ Date:   Mon Sep 17 12:46:33 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/decl.go | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index e248aab4f5..0ff1fb058b 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -140,20 +140,12 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 		// order code.
+ 		switch obj := obj.(type) {
+ 		case *Const:
+-			if check.typeCycle(obj) {
+-				obj.typ = Typ[Invalid]
+-				break
+-			}
+-			if obj.typ == nil {
++			if check.typeCycle(obj) || obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+ 
+ 		case *Var:
+-			if check.typeCycle(obj) {
+-				obj.typ = Typ[Invalid]
+-				break
+-			}
+-			if obj.typ == nil {
++			if check.typeCycle(obj) || obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+ 

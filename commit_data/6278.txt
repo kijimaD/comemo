@@ -7,6 +7,33 @@ Date:   Tue Sep 14 13:59:45 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2201041
-
+---
  src/cmd/godoc/godoc.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 4d084a6bdb..e174c4e5ae 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -135,7 +135,7 @@ func getPathFilter() func(string) bool {
+ }
+ 
+ 
+-// readDirList reads a file containing newline-separated list
++// readDirList reads a file containing a newline-separated list
+ // of directory paths and returns the list of paths.
+ func readDirList(filename string) ([]string, os.Error) {
+ 	contents, err := ioutil.ReadFile(filename)
+@@ -205,8 +205,11 @@ func initDirTrees() {
+ 		filterDelay.set(*filterMin) // initial filter update delay
+ 		go func() {
+ 			for {
++				if *verbose {
++					log.Stderrf("start update of %s", *filter)
++				}
+ 				updateFilterFile()
+-				delay, _ := syncDelay.get()
++				delay, _ := filterDelay.get()
+ 				if *verbose {
+ 					log.Stderrf("next filter update in %dmin", delay.(int))
+ 				}

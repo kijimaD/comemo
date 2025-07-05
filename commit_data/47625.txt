@@ -13,6 +13,19 @@ Date:   Thu Apr 1 20:08:32 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/sym/compilation_unit.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/sym/compilation_unit.go b/src/cmd/link/internal/sym/compilation_unit.go
+index 926cbc3d20..3bad5bf3f4 100644
+--- a/src/cmd/link/internal/sym/compilation_unit.go
++++ b/src/cmd/link/internal/sym/compilation_unit.go
+@@ -20,7 +20,6 @@ type LoaderSym int
+ //
+ // These are used for both DWARF and pclntab generation.
+ type CompilationUnit struct {
+-	Pkg       string        // The package name, eg ("fmt", or "runtime")
+ 	Lib       *Library      // Our library
+ 	PclnIndex int           // Index of this CU in pclntab
+ 	PCs       []dwarf.Range // PC ranges, relative to Textp[0]

@@ -29,7 +29,47 @@ Date:   Fri Feb 23 15:08:11 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/96895
     Run-TryBot: Joe Tsai <joetsai@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/reader.go      | 8 +-------
  src/archive/zip/reader_test.go | 2 +-
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 1563e74dfc..2444106ba6 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -366,7 +366,7 @@ parseExtras:
+ 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
+ 				modified = time.Unix(epoch.Unix()+secs, nsecs)
+ 			}
+-		case unixExtraID:
++		case unixExtraID, infoZipUnixExtraID:
+ 			if len(fieldBuf) < 8 {
+ 				continue parseExtras
+ 			}
+@@ -379,12 +379,6 @@ parseExtras:
+ 			}
+ 			ts := int64(fieldBuf.uint32()) // ModTime since Unix epoch
+ 			modified = time.Unix(ts, 0)
+-		case infoZipUnixExtraID:
+-			if len(fieldBuf) < 4 {
+-				continue parseExtras
+-			}
+-			ts := int64(fieldBuf.uint32()) // ModTime since Unix epoch
+-			modified = time.Unix(ts, 0)
+ 		}
+ 	}
+ 
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 0d9040f767..1e58b26b6e 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -414,7 +414,7 @@ var tests = []ZipTest{
+ 				Name:     "test.txt",
+ 				Content:  []byte{},
+ 				Size:     1<<32 - 1,
+-				Modified: time.Date(2017, 10, 31, 21, 17, 27, 0, timeZone(-7*time.Hour)),
++				Modified: time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour)),
+ 				Mode:     0644,
+ 			},
+ 		},

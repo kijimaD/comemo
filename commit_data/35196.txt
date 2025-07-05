@@ -9,8 +9,47 @@ Date:   Tue Jan 9 20:34:33 2018 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testsanitizers/cc_test.go  | 2 +-
  src/runtime/internal/sys/gengoos.go | 2 +-
  test/recover4.go                    | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index cacb0d93df..306844bdc8 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -407,7 +407,7 @@ func (d *tempDir) RemoveAll(t *testing.T) {
+ 		return
+ 	}
+ 	if err := os.RemoveAll(d.base); err != nil {
+-		t.Fatal("Failed to remove temp dir: %v", err)
++		t.Fatalf("Failed to remove temp dir: %v", err)
+ 	}
+ }
+ 
+diff --git a/src/runtime/internal/sys/gengoos.go b/src/runtime/internal/sys/gengoos.go
+index a9f86256bf..d078921874 100644
+--- a/src/runtime/internal/sys/gengoos.go
++++ b/src/runtime/internal/sys/gengoos.go
+@@ -37,7 +37,7 @@ func main() {
+ 		if strings.HasPrefix(line, goarchPrefix) {
+ 			text, err := strconv.Unquote(strings.TrimPrefix(line, goarchPrefix))
+ 			if err != nil {
+-				log.Fatal("parsing goarchList: %v", err)
++				log.Fatalf("parsing goarchList: %v", err)
+ 			}
+ 			goarches = strings.Fields(text)
+ 		}
+diff --git a/test/recover4.go b/test/recover4.go
+index da5117cc21..67ed970ecb 100644
+--- a/test/recover4.go
++++ b/test/recover4.go
+@@ -68,6 +68,6 @@ func main() {
+ 		log.Fatal("no error from memcopy across memory hole")
+ 	}
+ 	if n != 8*size-5 {
+-		log.Fatal("memcopy returned %d, want %d", n, 8*size-5)
++		log.Fatalf("memcopy returned %d, want %d", n, 8*size-5)
+ 	}
+ }

@@ -20,7 +20,7 @@ Date:   Wed Mar 30 16:41:18 2016 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/x509/cert_pool.go           | 24 ++++++++++++++++++------
  src/crypto/x509/root.go                |  9 +++++++--
  src/crypto/x509/root_cgo_darwin.go     | 12 ++++++++----
@@ -32,3 +32,305 @@ Date:   Wed Mar 30 16:41:18 2016 +1100
  src/crypto/x509/root_windows.go        |  3 +--
  src/crypto/x509/verify.go              | 14 ++++++++++----
  10 files changed, 80 insertions(+), 41 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 2362e84688..59ab887105 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -6,6 +6,8 @@ package x509
+ 
+ import (
+ 	"encoding/pem"
++	"errors"
++	"runtime"
+ )
+ 
+ // CertPool is a set of certificates.
+@@ -18,12 +20,22 @@ type CertPool struct {
+ // NewCertPool returns a new, empty CertPool.
+ func NewCertPool() *CertPool {
+ 	return &CertPool{
+-		make(map[string][]int),
+-		make(map[string][]int),
+-		nil,
++		bySubjectKeyId: make(map[string][]int),
++		byName:         make(map[string][]int),
+ 	}
+ }
+ 
++// SystemCertPool returns a copy of the system cert pool.
++//
++// Any mutations to the returned pool are not written to disk and do
++// not affect any other pool.
++func SystemCertPool() (*CertPool, error) {
++	if runtime.GOOS == "windows" {
++		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
++	}
++	return loadSystemRoots()
++}
++
+ // findVerifiedParents attempts to find certificates in s which have signed the
+ // given certificate. If any candidates were rejected then errCert will be set
+ // to one of them, arbitrarily, and err will contain the reason that it was
+@@ -107,10 +119,10 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ 
+ // Subjects returns a list of the DER-encoded subjects of
+ // all of the certificates in the pool.
+-func (s *CertPool) Subjects() (res [][]byte) {
+-	res = make([][]byte, len(s.certs))
++func (s *CertPool) Subjects() [][]byte {
++	res := make([][]byte, len(s.certs))
+ 	for i, c := range s.certs {
+ 		res[i] = c.RawSubject
+ 	}
+-	return
++	return res
+ }
+diff --git a/src/crypto/x509/root.go b/src/crypto/x509/root.go
+index 8aae14e09e..787d955be4 100644
+--- a/src/crypto/x509/root.go
++++ b/src/crypto/x509/root.go
+@@ -7,11 +7,16 @@ package x509
+ import "sync"
+ 
+ var (
+-	once        sync.Once
+-	systemRoots *CertPool
++	once           sync.Once
++	systemRoots    *CertPool
++	systemRootsErr error
+ )
+ 
+ func systemRootsPool() *CertPool {
+ 	once.Do(initSystemRoots)
+ 	return systemRoots
+ }
++
++func initSystemRoots() {
++	systemRoots, systemRootsErr = loadSystemRoots()
++}
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index bf4a5cdfee..f067cd7cf4 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -61,19 +61,23 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
+ }
+ */
+ import "C"
+-import "unsafe"
++import (
++	"errors"
++	"unsafe"
++)
+ 
+-func initSystemRoots() {
++func loadSystemRoots() (*CertPool, error) {
+ 	roots := NewCertPool()
+ 
+ 	var data C.CFDataRef = nil
+ 	err := C.FetchPEMRoots(&data)
+ 	if err == -1 {
+-		return
++		// TODO: better error message
++		return nil, errors.New("crypto/x509: failed to load darwin system roots with cgo")
+ 	}
+ 
+ 	defer C.CFRelease(C.CFTypeRef(data))
+ 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+ 	roots.AppendCertsFromPEM(buf)
+-	systemRoots = roots
++	return roots, nil
+ }
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 5817158c33..6b373b9d53 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -184,8 +184,9 @@ const header = `
+ 
+ package x509
+ 
+-func initSystemRoots() {
+-	systemRoots = NewCertPool()
+-	systemRoots.AppendCertsFromPEM([]byte(systemRootsPEM))
++func loadSystemRoots() (*CertPool, error) {
++	p := NewCertPool()
++	p.AppendCertsFromPEM([]byte(systemRootsPEM))
++	return p
+ }
+ `
+diff --git a/src/crypto/x509/root_darwin_armx.go b/src/crypto/x509/root_darwin_armx.go
+index 37675b48a3..66b7051684 100644
+--- a/src/crypto/x509/root_darwin_armx.go
++++ b/src/crypto/x509/root_darwin_armx.go
+@@ -10,9 +10,10 @@
+ 
+ package x509
+ 
+-func initSystemRoots() {
+-	systemRoots = NewCertPool()
+-	systemRoots.AppendCertsFromPEM([]byte(systemRootsPEM))
++func loadSystemRoots() (*CertPool, error) {
++	p := NewCertPool()
++	p.AppendCertsFromPEM([]byte(systemRootsPEM))
++	return p
+ }
+ 
+ const systemRootsPEM = `
+diff --git a/src/crypto/x509/root_nocgo_darwin.go b/src/crypto/x509/root_nocgo_darwin.go
+index d00e257662..2ac4666aff 100644
+--- a/src/crypto/x509/root_nocgo_darwin.go
++++ b/src/crypto/x509/root_nocgo_darwin.go
+@@ -6,6 +6,6 @@
+ 
+ package x509
+ 
+-func initSystemRoots() {
+-	systemRoots, _ = execSecurityRoots()
++func loadSystemRoots() (*CertPool, error) {
++	return execSecurityRoots()
+ }
+diff --git a/src/crypto/x509/root_plan9.go b/src/crypto/x509/root_plan9.go
+index 9965caadee..ebeb7dfccd 100644
+--- a/src/crypto/x509/root_plan9.go
++++ b/src/crypto/x509/root_plan9.go
+@@ -6,7 +6,10 @@
+ 
+ package x509
+ 
+-import "io/ioutil"
++import (
++	"io/ioutil"
++	"os"
++)
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+@@ -17,17 +20,18 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	return nil, nil
+ }
+ 
+-func initSystemRoots() {
++func loadSystemRoots() (*CertPool, error) {
+ 	roots := NewCertPool()
++	var bestErr error
+ 	for _, file := range certFiles {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+ 			roots.AppendCertsFromPEM(data)
+-			systemRoots = roots
+-			return
++			return roots, nil
++		}
++		if bestErr == nil || (os.IsNotExist(bestErr) && !os.IsNotExist(err)) {
++			bestErr = err
+ 		}
+ 	}
+-
+-	// All of the files failed to load. systemRoots will be nil which will
+-	// trigger a specific error at verification time.
++	return nil, bestErr
+ }
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 9f06f9dabb..7bcb3d63d1 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -6,7 +6,10 @@
+ 
+ package x509
+ 
+-import "io/ioutil"
++import (
++	"io/ioutil"
++	"os"
++)
+ 
+ // Possible directories with certificate files; stop after successfully
+ // reading at least one file from a directory.
+@@ -19,20 +22,26 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	return nil, nil
+ }
+ 
+-func initSystemRoots() {
++func loadSystemRoots() (*CertPool, error) {
+ 	roots := NewCertPool()
++	var firstErr error
+ 	for _, file := range certFiles {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+ 			roots.AppendCertsFromPEM(data)
+-			systemRoots = roots
+-			return
++			return roots, nil
++		}
++		if firstErr == nil && !os.IsNotExist(err) {
++			firstErr = err
+ 		}
+ 	}
+ 
+ 	for _, directory := range certDirectories {
+ 		fis, err := ioutil.ReadDir(directory)
+ 		if err != nil {
++			if firstErr == nil && !os.IsNotExist(err) {
++				firstErr = err
++			}
+ 			continue
+ 		}
+ 		rootsAdded := false
+@@ -43,11 +52,9 @@ func initSystemRoots() {
+ 			}
+ 		}
+ 		if rootsAdded {
+-			systemRoots = roots
+-			return
++			return roots, nil
+ 		}
+ 	}
+ 
+-	// All of the files failed to load. systemRoots will be nil which will
+-	// trigger a specific error at verification time.
++	return nil, firstErr
+ }
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 51c3be3fa4..392c869012 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -225,5 +225,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	return chains, nil
+ }
+ 
+-func initSystemRoots() {
+-}
++func loadSystemRoots() (*CertPool, error) { return nil, nil }
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index d3b62d174c..85c083fbb2 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -117,10 +117,16 @@ func (e UnknownAuthorityError) Error() string {
+ }
+ 
+ // SystemRootsError results when we fail to load the system root certificates.
+-type SystemRootsError struct{}
++type SystemRootsError struct {
++	Err error
++}
+ 
+-func (SystemRootsError) Error() string {
+-	return "x509: failed to load system roots and no roots provided"
++func (se SystemRootsError) Error() string {
++	msg := "x509: failed to load system roots and no roots provided"
++	if se.Err != nil {
++		return msg + "; " + se.Err.Error()
++	}
++	return msg
+ }
+ 
+ // errNotParsed is returned when a certificate without ASN.1 contents is
+@@ -240,7 +246,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 	if opts.Roots == nil {
+ 		opts.Roots = systemRootsPool()
+ 		if opts.Roots == nil {
+-			return nil, SystemRootsError{}
++			return nil, SystemRootsError{systemRootsErr}
+ 		}
+ 	}
+ 

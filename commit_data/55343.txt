@@ -16,6 +16,17 @@ Date:   Fri Jan 27 22:51:39 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Evan Phoenix <evan@phx.io>
-
+---
  misc/wasm/go_js_wasm_exec | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/wasm/go_js_wasm_exec b/misc/wasm/go_js_wasm_exec
+index fcbd0e4fc8..db4d2cb608 100755
+--- a/misc/wasm/go_js_wasm_exec
++++ b/misc/wasm/go_js_wasm_exec
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2018 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

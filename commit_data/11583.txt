@@ -9,10 +9,145 @@ Date:   Thu Feb 2 19:25:29 2012 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5615043
-
+---
  src/pkg/go/doc/reader.go           | 15 +++++++++------
  src/pkg/go/doc/testdata/f.0.golden | 13 +++++++++++++
  src/pkg/go/doc/testdata/f.1.golden | 16 ++++++++++++++++
  src/pkg/go/doc/testdata/f.2.golden | 13 +++++++++++++
  src/pkg/go/doc/testdata/f.go       | 14 ++++++++++++++
  5 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 31648b13e1..dcf49f68fd 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -154,6 +154,10 @@ type reader struct {
+ 	funcs   methodSet
+ }
+ 
++func (r *reader) isVisible(name string) bool {
++	return r.mode&AllDecls != 0 || ast.IsExported(name)
++}
++
+ // lookupType returns the base type with the given name.
+ // If the base type has not been encountered yet, a new
+ // type with the given name but no associated declaration
+@@ -343,7 +347,7 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 	// strip function body
+ 	fun.Body = nil
+ 
+-	// determine if it should be associated with a type
++	// associate methods with the receiver type, if any
+ 	if fun.Recv != nil {
+ 		// method
+ 		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
+@@ -363,17 +367,16 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 		return
+ 	}
+ 
+-	// perhaps a factory function
+-	// determine result type, if any
++	// associate factory functions with the first visible result type, if any
+ 	if fun.Type.Results.NumFields() >= 1 {
+ 		res := fun.Type.Results.List[0]
+ 		if len(res.Names) <= 1 {
+ 			// exactly one (named or anonymous) result associated
+ 			// with the first type in result signature (there may
+ 			// be more than one result)
+-			if n, imp := baseTypeName(res.Type); !imp {
++			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
+ 				if typ := r.lookupType(n); typ != nil {
+-					// associate Func with typ
++					// associate function with typ
+ 					typ.funcs.set(fun)
+ 					return
+ 				}
+@@ -580,7 +583,7 @@ func (r *reader) computeMethodSets() {
+ // 
+ func (r *reader) cleanupTypes() {
+ 	for _, t := range r.types {
+-		visible := r.mode&AllDecls != 0 || ast.IsExported(t.name)
++		visible := r.isVisible(t.name)
+ 		if t.decl == nil && (predeclaredTypes[t.name] || t.isEmbedded && visible) {
+ 			// t.name is a predeclared type (and was not redeclared in this package),
+ 			// or it was embedded somewhere but its declaration is missing (because
+diff --git a/src/pkg/go/doc/testdata/f.0.golden b/src/pkg/go/doc/testdata/f.0.golden
+new file mode 100644
+index 0000000000..8175901861
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/f.0.golden
+@@ -0,0 +1,13 @@
++// The package f is a go/doc test for functions and factory ...
++PACKAGE f
++
++IMPORTPATH
++	testdata/f
++
++FILENAMES
++	testdata/f.go
++
++FUNCTIONS
++	// Exported must always be visible. Was issue 2824. 
++	func Exported() private
++
+diff --git a/src/pkg/go/doc/testdata/f.1.golden b/src/pkg/go/doc/testdata/f.1.golden
+new file mode 100644
+index 0000000000..ba68e884c2
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/f.1.golden
+@@ -0,0 +1,16 @@
++// The package f is a go/doc test for functions and factory ...
++PACKAGE f
++
++IMPORTPATH
++	testdata/f
++
++FILENAMES
++	testdata/f.go
++
++TYPES
++	// 
++	type private struct{}
++
++	// Exported must always be visible. Was issue 2824. 
++	func Exported() private
++
+diff --git a/src/pkg/go/doc/testdata/f.2.golden b/src/pkg/go/doc/testdata/f.2.golden
+new file mode 100644
+index 0000000000..8175901861
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/f.2.golden
+@@ -0,0 +1,13 @@
++// The package f is a go/doc test for functions and factory ...
++PACKAGE f
++
++IMPORTPATH
++	testdata/f
++
++FILENAMES
++	testdata/f.go
++
++FUNCTIONS
++	// Exported must always be visible. Was issue 2824. 
++	func Exported() private
++
+diff --git a/src/pkg/go/doc/testdata/f.go b/src/pkg/go/doc/testdata/f.go
+new file mode 100644
+index 0000000000..a3051e1fb3
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/f.go
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The package f is a go/doc test for functions and factory methods.
++package f
++
++// ----------------------------------------------------------------------------
++// Factory functions for non-exported types must not get lost.
++
++type private struct{}
++
++// Exported must always be visible. Was issue 2824.
++func Exported() private {}

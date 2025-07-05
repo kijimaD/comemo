@@ -20,8 +20,67 @@ Date:   Mon Aug 29 09:40:50 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/cache.go            | 2 ++
  src/crypto/tls/conn.go             | 3 +++
  src/crypto/tls/handshake_client.go | 7 +++++--
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/cache.go b/src/crypto/tls/cache.go
+index aa44173c80..2bdf2d9a01 100644
+--- a/src/crypto/tls/cache.go
++++ b/src/crypto/tls/cache.go
+@@ -39,6 +39,8 @@ type certCache struct {
+ 	sync.Map
+ }
+ 
++var clientCertCache = new(certCache)
++
+ // activeCert is a handle to a certificate held in the cache. Once there are
+ // no alive activeCerts for a given certificate, the certificate is removed
+ // from the cache by a finalizer.
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 21f693995e..03c72633be 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -49,6 +49,9 @@ type Conn struct {
+ 	ocspResponse     []byte   // stapled OCSP response
+ 	scts             [][]byte // signed certificate timestamps from server
+ 	peerCertificates []*x509.Certificate
++	// activeCertHandles contains the cache handles to certificates in
++	// peerCertificates that are used to track active references.
++	activeCertHandles []*activeCert
+ 	// verifiedChains contains the certificate chains that we built, as
+ 	// opposed to the ones presented by the server.
+ 	verifiedChains [][]*x509.Certificate
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 721143cb75..2e3b693199 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -849,14 +849,16 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
+ // verifyServerCertificate parses and verifies the provided chain, setting
+ // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
+ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
++	activeHandles := make([]*activeCert, len(certificates))
+ 	certs := make([]*x509.Certificate, len(certificates))
+ 	for i, asn1Data := range certificates {
+-		cert, err := x509.ParseCertificate(asn1Data)
++		cert, err := clientCertCache.newCert(asn1Data)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
+ 		}
+-		certs[i] = cert
++		activeHandles[i] = cert
++		certs[i] = cert.cert
+ 	}
+ 
+ 	if !c.config.InsecureSkipVerify {
+@@ -886,6 +888,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", certs[0].PublicKey)
+ 	}
+ 
++	c.activeCertHandles = activeHandles
+ 	c.peerCertificates = certs
+ 
+ 	if c.config.VerifyPeerCertificate != nil {

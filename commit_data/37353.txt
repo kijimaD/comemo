@@ -7,7 +7,7 @@ Date:   Wed Jul 18 13:23:17 2018 -0400
     Change-Id: Iba68b3aaf4a132bd4ca44edf4912a46549d2ef8f
     Reviewed-on: https://go-review.googlesource.com/124700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/mod_test.go                             | 573 ---------------------
  src/cmd/go/proxy_test.go                           |   2 +
  src/cmd/go/script_test.go                          | 225 ++++++--
@@ -27,3 +27,1562 @@ Date:   Wed Jul 18 13:23:17 2018 -0400
  src/cmd/go/testdata/script/mod_find.txt            |  87 ++++
  src/cmd/go/testdata/script/mod_vendor.txt          | 224 ++++++++
  18 files changed, 800 insertions(+), 603 deletions(-)
+
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+deleted file mode 100644
+index cfd5de5221..0000000000
+--- a/src/cmd/go/mod_test.go
++++ /dev/null
+@@ -1,573 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main_test
+-
+-import (
+-	"bytes"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"path/filepath"
+-	"sort"
+-	"testing"
+-
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/modconv"
+-	"cmd/go/internal/modload"
+-	"cmd/go/internal/txtar"
+-)
+-
+-var cmdGoDir, _ = os.Getwd()
+-
+-// testGoModules returns a testgoData set up for running
+-// tests of Go modules. It:
+-//
+-// - sets $GO111MODULE=on
+-// - sets $GOPROXY to the URL of a module proxy serving from ./testdata/mod
+-// - creates a new temp directory with subdirectories home, gopath, and work
+-// - sets $GOPATH to the new temp gopath directory
+-// - sets $HOME to the new temp home directory
+-// - writes work/go.mod containing "module m"
+-// - chdirs to the the new temp work directory
+-//
+-// The caller must defer tg.cleanup().
+-//
+-func testGoModules(t *testing.T) *testgoData {
+-	tg := testgo(t)
+-	tg.setenv("GO111MODULE", "on")
+-	StartProxy()
+-	tg.setenv("GOPROXY", proxyURL)
+-	tg.makeTempdir()
+-	tg.setenv(homeEnvName(), tg.path("home")) // for build cache
+-	tg.setenv("GOPATH", tg.path("gopath"))    // for download cache
+-	tg.tempFile("work/go.mod", "module m")
+-	tg.cd(tg.path("work"))
+-
+-	return tg
+-}
+-
+-// extract clears the temp work directory and then
+-// extracts the txtar archive named by file into that directory.
+-// The file name is interpreted relative to the cmd/go directory,
+-// so it usually begins with "testdata/".
+-func (tg *testgoData) extract(file string) {
+-	a, err := txtar.ParseFile(filepath.Join(cmdGoDir, file))
+-	if err != nil {
+-		tg.t.Fatal(err)
+-	}
+-	tg.cd(tg.path("."))
+-	tg.must(removeAll(tg.path("work")))
+-	tg.must(os.MkdirAll(tg.path("work"), 0777))
+-	tg.cd(tg.path("work"))
+-	for _, f := range a.Files {
+-		tg.tempFile(filepath.Join("work", f.Name), string(f.Data))
+-	}
+-}
+-
+-func TestModFindModuleRoot(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x/Godeps"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x/vendor"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x/y/z"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x/.git"), 0777))
+-	var files []string
+-	for file := range modconv.Converters {
+-		files = append(files, file)
+-	}
+-	files = append(files, "go.mod")
+-	files = append(files, ".git/config")
+-	sort.Strings(files)
+-
+-	for file := range modconv.Converters {
+-		tg.must(ioutil.WriteFile(tg.path("x/"+file), []byte{}, 0666))
+-		root, file1 := modload.FindModuleRoot(tg.path("x/y/z"), tg.path("."), true)
+-		if root != tg.path("x") || file1 != file {
+-			t.Errorf("%s: findModuleRoot = %q, %q, want %q, %q", file, root, file1, tg.path("x"), file)
+-		}
+-		tg.must(os.Remove(tg.path("x/" + file)))
+-	}
+-}
+-
+-func TestModFindModulePath(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte("package x // import \"x\"\n"), 0666))
+-	path, err := modload.FindModulePath(tg.path("x"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if path != "x" {
+-		t.Fatalf("FindModulePath = %q, want %q", path, "x")
+-	}
+-
+-	// Windows line-ending.
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte("package x // import \"x\"\r\n"), 0666))
+-	path, err = modload.FindModulePath(tg.path("x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// Explicit setting in Godeps.json takes priority over implicit setting from GOPATH location.
+-	tg.tempFile("gp/src/example.com/x/y/z/z.go", "package z")
+-	gopath := cfg.BuildContext.GOPATH
+-	defer func() {
+-		cfg.BuildContext.GOPATH = gopath
+-	}()
+-	cfg.BuildContext.GOPATH = tg.path("gp")
+-	path, err = modload.FindModulePath(tg.path("gp/src/example.com/x/y/z"))
+-	if path != "example.com/x/y/z" || err != nil {
+-		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "example.com/x/y/z")
+-	}
+-
+-	tg.tempFile("gp/src/example.com/x/y/z/Godeps/Godeps.json", `
+-		{"ImportPath": "unexpected.com/z"}
+-	`)
+-	path, err = modload.FindModulePath(tg.path("gp/src/example.com/x/y/z"))
+-	if path != "unexpected.com/z" || err != nil {
+-		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "unexpected.com/z")
+-	}
+-
+-	// Empty dir outside GOPATH
+-	tg.must(os.MkdirAll(tg.path("gp1"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x1"), 0777))
+-	cfg.BuildContext.GOPATH = tg.path("gp1")
+-
+-	path, err = modload.FindModulePath(tg.path("x1"))
+-	if path != "" || err == nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, %q", path, err, "", "cannot determine module path for source directory")
+-	}
+-
+-	// Empty dir inside GOPATH
+-	tg.must(os.MkdirAll(tg.path("gp2/src/x"), 0777))
+-	cfg.BuildContext.GOPATH = tg.path("gp2")
+-
+-	path, err = modload.FindModulePath(tg.path("gp2/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	if !testenv.HasSymlink() {
+-		t.Logf("skipping symlink tests")
+-		return
+-	}
+-
+-	// Empty dir inside GOPATH, dir has symlink
+-	// GOPATH = gp
+-	// gplink -> gp
+-	tg.must(os.MkdirAll(tg.path("gp3/src/x"), 0777))
+-	tg.must(os.Symlink(tg.path("gp3"), tg.path("gplink3")))
+-	cfg.BuildContext.GOPATH = tg.path("gp3")
+-
+-	path, err = modload.FindModulePath(tg.path("gplink3/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-	path, err = modload.FindModulePath(tg.path("gp3/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// Empty dir inside GOPATH, dir has symlink 2
+-	// GOPATH = gp
+-	// gp/src/x -> x/x
+-	tg.must(os.MkdirAll(tg.path("gp4/src"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x4/x"), 0777))
+-	tg.must(os.Symlink(tg.path("x4/x"), tg.path("gp4/src/x")))
+-	cfg.BuildContext.GOPATH = tg.path("gp4")
+-
+-	path, err = modload.FindModulePath(tg.path("gp4/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// Empty dir inside GOPATH, GOPATH has symlink
+-	// GOPATH = gplink
+-	// gplink -> gp
+-	tg.must(os.MkdirAll(tg.path("gp5/src/x"), 0777))
+-	tg.must(os.Symlink(tg.path("gp5"), tg.path("gplink5")))
+-	cfg.BuildContext.GOPATH = tg.path("gplink5")
+-
+-	path, err = modload.FindModulePath(tg.path("gplink5/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-	path, err = modload.FindModulePath(tg.path("gp5/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// Empty dir inside GOPATH, GOPATH has symlink, dir has symlink 2
+-	// GOPATH = gplink
+-	// gplink -> gp
+-	// gplink2 -> gp
+-	tg.must(os.MkdirAll(tg.path("gp6/src/x"), 0777))
+-	tg.must(os.Symlink(tg.path("gp6"), tg.path("gplink6")))
+-	tg.must(os.Symlink(tg.path("gp6"), tg.path("gplink62")))
+-	cfg.BuildContext.GOPATH = tg.path("gplink6")
+-
+-	path, err = modload.FindModulePath(tg.path("gplink62/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-	path, err = modload.FindModulePath(tg.path("gplink6/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-	path, err = modload.FindModulePath(tg.path("gp6/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// Empty dir inside GOPATH, GOPATH has symlink, dir has symlink 3
+-	// GOPATH = gplink
+-	// gplink -> gp
+-	// gplink2 -> gp
+-	// gp/src/x -> x/x
+-	tg.must(os.MkdirAll(tg.path("gp7/src"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x7/x"), 0777))
+-	tg.must(os.Symlink(tg.path("gp7"), tg.path("gplink7")))
+-	tg.must(os.Symlink(tg.path("gp7"), tg.path("gplink72")))
+-	tg.must(os.Symlink(tg.path("x7/x"), tg.path("gp7/src/x")))
+-	cfg.BuildContext.GOPATH = tg.path("gplink7")
+-
+-	path, err = modload.FindModulePath(tg.path("gplink7/src/x"))
+-	if path != "x" || err != nil {
+-		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	}
+-
+-	// This test fails when /tmp -> /private/tmp.
+-	// path, err = modload.FindModulePath(tg.path("gp7/src/x"))
+-	// if path != "x" || err != nil {
+-	// 	t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
+-	// }
+-}
+-
+-func TestModEdit(t *testing.T) {
+-	// Test that local replacements work
+-	// and that they can use a dummy name
+-	// that isn't resolvable and need not even
+-	// include a dot. See golang.org/issue/24100.
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.cd(tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("w"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x.go"), []byte("package x\n"), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("w/w.go"), []byte("package w\n"), 0666))
+-
+-	mustHaveGoMod := func(text string) {
+-		t.Helper()
+-		data, err := ioutil.ReadFile(tg.path("go.mod"))
+-		tg.must(err)
+-		if string(data) != text {
+-			t.Fatalf("go.mod mismatch:\nhave:<<<\n%s>>>\nwant:<<<\n%s\n", string(data), text)
+-		}
+-	}
+-
+-	tg.runFail("mod", "-init")
+-	tg.grepStderr(`cannot determine module path`, "")
+-	_, err := os.Stat(tg.path("go.mod"))
+-	if err == nil {
+-		t.Fatalf("failed go mod -init created go.mod")
+-	}
+-
+-	tg.run("mod", "-init", "-module", "x.x/y/z")
+-	tg.grepStderr("creating new go.mod: module x.x/y/z", "")
+-	mustHaveGoMod(`module x.x/y/z
+-`)
+-
+-	tg.runFail("mod", "-init")
+-	mustHaveGoMod(`module x.x/y/z
+-`)
+-
+-	tg.run("mod",
+-		"-droprequire=x.1",
+-		"-require=x.1@v1.0.0",
+-		"-require=x.2@v1.1.0",
+-		"-droprequire=x.2",
+-		"-exclude=x.1 @ v1.2.0",
+-		"-exclude=x.1@v1.2.1",
+-		"-replace=x.1@v1.3.0=y.1@v1.4.0",
+-		"-replace=x.1@v1.4.0 = ../z",
+-	)
+-	mustHaveGoMod(`module x.x/y/z
+-
+-require x.1 v1.0.0
+-
+-exclude (
+-	x.1 v1.2.0
+-	x.1 v1.2.1
+-)
+-
+-replace (
+-	x.1 v1.3.0 => y.1 v1.4.0
+-	x.1 v1.4.0 => ../z
+-)
+-`)
+-
+-	tg.run("mod",
+-		"-droprequire=x.1",
+-		"-dropexclude=x.1@v1.2.1",
+-		"-dropreplace=x.1@v1.3.0",
+-		"-require=x.3@v1.99.0",
+-	)
+-	mustHaveGoMod(`module x.x/y/z
+-
+-exclude x.1 v1.2.0
+-
+-replace x.1 v1.4.0 => ../z
+-
+-require x.3 v1.99.0
+-`)
+-
+-	tg.run("mod", "-json")
+-	want := `{
+-	"Module": {
+-		"Path": "x.x/y/z"
+-	},
+-	"Require": [
+-		{
+-			"Path": "x.3",
+-			"Version": "v1.99.0"
+-		}
+-	],
+-	"Exclude": [
+-		{
+-			"Path": "x.1",
+-			"Version": "v1.2.0"
+-		}
+-	],
+-	"Replace": [
+-		{
+-			"Old": {
+-				"Path": "x.1",
+-				"Version": "v1.4.0"
+-			},
+-			"New": {
+-				"Path": "../z"
+-			}
+-		}
+-	]
+-}
+-`
+-	if have := tg.getStdout(); have != want {
+-		t.Fatalf("go mod -json mismatch:\nhave:<<<\n%s>>>\nwant:<<<\n%s\n", have, want)
+-	}
+-
+-	tg.run("mod",
+-		"-replace=x.1@v1.3.0=y.1/v2@v2.3.5",
+-		"-replace=x.1@v1.4.0=y.1/v2@v2.3.5",
+-	)
+-	mustHaveGoMod(`module x.x/y/z
+-
+-exclude x.1 v1.2.0
+-
+-replace (
+-	x.1 v1.3.0 => y.1/v2 v2.3.5
+-	x.1 v1.4.0 => y.1/v2 v2.3.5
+-)
+-
+-require x.3 v1.99.0
+-`)
+-	tg.run("mod",
+-		"-replace=x.1=y.1/v2@v2.3.6",
+-	)
+-	mustHaveGoMod(`module x.x/y/z
+-
+-exclude x.1 v1.2.0
+-
+-replace x.1 => y.1/v2 v2.3.6
+-
+-require x.3 v1.99.0
+-`)
+-
+-	tg.run("mod", "-packages")
+-	want = `x.x/y/z
+-x.x/y/z/w
+-`
+-	if have := tg.getStdout(); have != want {
+-		t.Fatalf("go mod -packages mismatch:\nhave:<<<\n%s>>>\nwant:<<<\n%s\n", have, want)
+-	}
+-
+-	data, err := ioutil.ReadFile(tg.path("go.mod"))
+-	tg.must(err)
+-	data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+-	data = append(data, "    \n"...)
+-	tg.must(ioutil.WriteFile(tg.path("go.mod"), data, 0666))
+-
+-	tg.run("mod", "-fmt")
+-	mustHaveGoMod(`module x.x/y/z
+-
+-exclude x.1 v1.2.0
+-
+-replace x.1 => y.1/v2 v2.3.6
+-
+-require x.3 v1.99.0
+-`)
+-}
+-
+-func TestModSync(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	write := func(name, text string) {
+-		name = tg.path(name)
+-		dir := filepath.Dir(name)
+-		tg.must(os.MkdirAll(dir, 0777))
+-		tg.must(ioutil.WriteFile(name, []byte(text), 0666))
+-	}
+-
+-	write("m/go.mod", `
+-module m
+-
+-require (
+-	x.1 v1.0.0
+-	y.1 v1.0.0
+-	w.1 v1.2.0
+-)
+-
+-replace x.1 v1.0.0 => ../x
+-replace y.1 v1.0.0 => ../y
+-replace z.1 v1.1.0 => ../z
+-replace z.1 v1.2.0 => ../z
+-replace w.1 => ../w
+-`)
+-	write("m/m.go", `
+-package m
+-
+-import _ "x.1"
+-import _ "z.1/sub"
+-`)
+-
+-	write("w/go.mod", `
+-module w
+-`)
+-	write("w/w.go", `
+-package w
+-`)
+-
+-	write("x/go.mod", `
+-module x
+-require w.1 v1.1.0
+-require z.1 v1.1.0
+-`)
+-	write("x/x.go", `
+-package x
+-
+-import _ "w.1"
+-`)
+-
+-	write("y/go.mod", `
+-module y
+-require z.1 v1.2.0
+-`)
+-
+-	write("z/go.mod", `
+-module z
+-`)
+-	write("z/sub/sub.go", `
+-package sub
+-`)
+-
+-	tg.cd(tg.path("m"))
+-	tg.run("mod", "-sync", "-v")
+-	tg.grepStderr(`^unused y.1`, "need y.1 unused")
+-	tg.grepStderrNot(`^unused [^y]`, "only y.1 should be unused")
+-
+-	tg.run("list", "-m", "all")
+-	tg.grepStdoutNot(`^y.1`, "y should be gone")
+-	tg.grepStdout(`^w.1\s+v1.2.0`, "need w.1 to stay at v1.2.0")
+-	tg.grepStdout(`^z.1\s+v1.2.0`, "need z.1 to stay at v1.2.0 even though y is gone")
+-}
+-
+-func TestModVendor(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.extract("testdata/vendormod.txt")
+-
+-	tg.run("list", "-m", "all")
+-	tg.grepStdout(`^x`, "expected to see module x")
+-	tg.grepStdout(`=> ./x`, "expected to see replacement for module x")
+-	tg.grepStdout(`^w`, "expected to see module w")
+-
+-	if !testing.Short() {
+-		tg.run("build")
+-		tg.runFail("build", "-getmode=vendor")
+-	}
+-
+-	tg.run("list", "-f={{.Dir}}", "x")
+-	tg.grepStdout(`work[/\\]x$`, "expected x in work/x")
+-
+-	mustHaveVendor := func(name string) {
+-		t.Helper()
+-		tg.mustExist(filepath.Join(tg.path("work/vendor"), name))
+-	}
+-	mustNotHaveVendor := func(name string) {
+-		t.Helper()
+-		tg.mustNotExist(filepath.Join(tg.path("work/vendor"), name))
+-	}
+-
+-	tg.run("mod", "-vendor", "-v")
+-	tg.grepStderr(`^# x v1.0.0 => ./x`, "expected to see module x with replacement")
+-	tg.grepStderr(`^x`, "expected to see package x")
+-	tg.grepStderr(`^# y v1.0.0 => ./y`, "expected to see module y with replacement")
+-	tg.grepStderr(`^y`, "expected to see package y")
+-	tg.grepStderr(`^# z v1.0.0 => ./z`, "expected to see module z with replacement")
+-	tg.grepStderr(`^z`, "expected to see package z")
+-	tg.grepStderrNot(`w`, "expected NOT to see unused module w")
+-
+-	tg.run("list", "-f={{.Dir}}", "x")
+-	tg.grepStdout(`work[/\\]x$`, "expected x in work/x")
+-
+-	tg.run("list", "-f={{.Dir}}", "-m", "x")
+-	tg.grepStdout(`work[/\\]x$`, "expected x in work/x")
+-
+-	tg.run("list", "-getmode=vendor", "-f={{.Dir}}", "x")
+-	tg.grepStdout(`work[/\\]vendor[/\\]x$`, "expected x in work/vendor/x in -get=vendor mode")
+-
+-	tg.run("list", "-getmode=vendor", "-f={{.Dir}}", "-m", "x")
+-	tg.grepStdout(`work[/\\]vendor[/\\]x$`, "expected x in work/vendor/x in -get=vendor mode")
+-
+-	tg.run("list", "-f={{.Dir}}", "w")
+-	tg.grepStdout(`work[/\\]w$`, "expected w in work/w")
+-	tg.runFail("list", "-getmode=vendor", "-f={{.Dir}}", "w")
+-	tg.grepStderr(`work[/\\]vendor[/\\]w`, "want error about work/vendor/w not existing")
+-
+-	tg.run("list", "-getmode=local", "-f={{.Dir}}", "w")
+-	tg.grepStdout(`work[/\\]w`, "expected w in work/w")
+-
+-	tg.runFail("list", "-getmode=local", "-f={{.Dir}}", "newpkg")
+-	tg.grepStderr(`disabled by -getmode=local`, "expected -getmode=local to avoid network")
+-
+-	mustNotHaveVendor("x/testdata")
+-	mustNotHaveVendor("a/foo/bar/b/main_test.go")
+-
+-	mustHaveVendor("a/foo/AUTHORS.txt")
+-	mustHaveVendor("a/foo/CONTRIBUTORS")
+-	mustHaveVendor("a/foo/LICENSE")
+-	mustHaveVendor("a/foo/PATENTS")
+-	mustHaveVendor("a/foo/COPYING")
+-	mustHaveVendor("a/foo/COPYLEFT")
+-	mustHaveVendor("x/NOTICE!")
+-	mustHaveVendor("mysite/myname/mypkg/LICENSE.txt")
+-
+-	mustNotHaveVendor("a/foo/licensed-to-kill")
+-	mustNotHaveVendor("w")
+-	mustNotHaveVendor("w/LICENSE") // w wasn't copied at all
+-	mustNotHaveVendor("x/x2")
+-	mustNotHaveVendor("x/x2/LICENSE") // x/x2 wasn't copied at all
+-
+-	if !testing.Short() {
+-		tg.run("build")
+-		tg.run("build", "-getmode=vendor")
+-		tg.run("test", "-getmode=vendor", ".", "./subdir")
+-		tg.run("test", "-getmode=vendor", "./...")
+-	}
+-}
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 5ecfa32e2f..7e3fe1e4e5 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -231,6 +231,8 @@ func findHash(m module.Version) string {
+ 
+ var archiveCache par.Cache
+ 
++var cmdGoDir, _ = os.Getwd()
++
+ func readArchive(path, vers string) *txtar.Archive {
+ 	enc, err := module.EncodePath(path)
+ 	if err != nil {
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index a525e27ada..33bd6440e7 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -294,20 +294,37 @@ Script:
+ // NOTE: If you make changes here, update testdata/script/README too!
+ //
+ var scriptCmds = map[string]func(*testScript, bool, []string){
+-	"cd":     (*testScript).cmdCd,
+-	"cp":     (*testScript).cmdCp,
+-	"env":    (*testScript).cmdEnv,
+-	"exec":   (*testScript).cmdExec,
+-	"exists": (*testScript).cmdExists,
+-	"go":     (*testScript).cmdGo,
+-	"grep":   (*testScript).cmdGrep,
+-	"mkdir":  (*testScript).cmdMkdir,
+-	"rm":     (*testScript).cmdRm,
+-	"skip":   (*testScript).cmdSkip,
+-	"stale":  (*testScript).cmdStale,
+-	"stderr": (*testScript).cmdStderr,
+-	"stdout": (*testScript).cmdStdout,
+-	"stop":   (*testScript).cmdStop,
++	"addcrlf": (*testScript).cmdAddcrlf,
++	"cd":      (*testScript).cmdCd,
++	"cmp":     (*testScript).cmdCmp,
++	"cp":      (*testScript).cmdCp,
++	"env":     (*testScript).cmdEnv,
++	"exec":    (*testScript).cmdExec,
++	"exists":  (*testScript).cmdExists,
++	"go":      (*testScript).cmdGo,
++	"grep":    (*testScript).cmdGrep,
++	"mkdir":   (*testScript).cmdMkdir,
++	"rm":      (*testScript).cmdRm,
++	"skip":    (*testScript).cmdSkip,
++	"stale":   (*testScript).cmdStale,
++	"stderr":  (*testScript).cmdStderr,
++	"stdout":  (*testScript).cmdStdout,
++	"stop":    (*testScript).cmdStop,
++	"symlink": (*testScript).cmdSymlink,
++}
++
++// addcrlf adds CRLF line endings to the named files.
++func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
++	if len(args) == 0 {
++		ts.fatalf("usage: addcrlf file...")
++	}
++
++	for _, file := range args {
++		file = ts.mkabs(file)
++		data, err := ioutil.ReadFile(file)
++		ts.check(err)
++		ts.check(ioutil.WriteFile(file, bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1), 0666))
++	}
+ }
+ 
+ // cd changes to a different directory.
+@@ -335,6 +352,40 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
+ 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
+ }
+ 
++// cmp compares two files.
++func (ts *testScript) cmdCmp(neg bool, args []string) {
++	if neg {
++		// It would be strange to say "this file can have any content except this precise byte sequence".
++		ts.fatalf("unsupported: ! cmp")
++	}
++	if len(args) != 2 {
++		ts.fatalf("usage: cmp file1 file2")
++	}
++
++	name1, name2 := args[0], args[1]
++	var text1, text2 string
++	if name1 == "stdout" {
++		text1 = ts.stdout
++	} else if name1 == "stderr" {
++		text1 = ts.stderr
++	} else {
++		data, err := ioutil.ReadFile(ts.mkabs(name1))
++		ts.check(err)
++		text1 = string(data)
++	}
++
++	data, err := ioutil.ReadFile(ts.mkabs(name2))
++	ts.check(err)
++	text2 = string(data)
++
++	if text1 == text2 {
++		return
++	}
++
++	fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
++	ts.fatalf("%s and %s differ", name1, name2)
++}
++
+ // cp copies files, maybe eventually directories.
+ func (ts *testScript) cmdCp(neg bool, args []string) {
+ 	if neg {
+@@ -516,22 +567,6 @@ func (ts *testScript) cmdStale(neg bool, args []string) {
+ 	}
+ }
+ 
+-// stop stops execution of the test (marking it passed).
+-func (ts *testScript) cmdStop(neg bool, args []string) {
+-	if neg {
+-		ts.fatalf("unsupported: ! stop")
+-	}
+-	if len(args) > 1 {
+-		ts.fatalf("usage: stop [msg]")
+-	}
+-	if len(args) == 1 {
+-		fmt.Fprintf(&ts.log, "stop: %s\n", args[0])
+-	} else {
+-		fmt.Fprintf(&ts.log, "stop\n")
+-	}
+-	ts.stopped = true
+-}
+-
+ // stdout checks that the last go command standard output matches a regexp.
+ func (ts *testScript) cmdStdout(neg bool, args []string) {
+ 	scriptMatch(ts, neg, args, ts.stdout, "stdout")
+@@ -614,6 +649,35 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 	}
+ }
+ 
++// stop stops execution of the test (marking it passed).
++func (ts *testScript) cmdStop(neg bool, args []string) {
++	if neg {
++		ts.fatalf("unsupported: ! stop")
++	}
++	if len(args) > 1 {
++		ts.fatalf("usage: stop [msg]")
++	}
++	if len(args) == 1 {
++		fmt.Fprintf(&ts.log, "stop: %s\n", args[0])
++	} else {
++		fmt.Fprintf(&ts.log, "stop\n")
++	}
++	ts.stopped = true
++}
++
++// symlink creates a symbolic link.
++func (ts *testScript) cmdSymlink(neg bool, args []string) {
++	if neg {
++		ts.fatalf("unsupported: ! symlink")
++	}
++	if len(args) != 3 || args[1] != "->" {
++		ts.fatalf("usage: symlink file -> target")
++	}
++	// Note that the link target args[2] is not interpreted with mkabs:
++	// it will be interpreted relative to the directory file is in.
++	ts.check(os.Symlink(args[2], ts.mkabs(args[0])))
++}
++
+ // Helpers for command implementations.
+ 
+ // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
+@@ -727,3 +791,104 @@ func (ts *testScript) parse(line string) []string {
+ 	}
+ 	return args
+ }
++
++// diff returns a formatted diff of the two texts,
++// showing the entire text and the minimum line-level
++// additions and removals to turn text1 into text2.
++// (That is, lines only in text1 appear with a leading -,
++// and lines only in text2 appear with a leading +.)
++func diff(text1, text2 string) string {
++	if text1 != "" && !strings.HasSuffix(text1, "\n") {
++		text1 += "(missing final newline)"
++	}
++	lines1 := strings.Split(text1, "\n")
++	lines1 = lines1[:len(lines1)-1] // remove empty string after final line
++	if text2 != "" && !strings.HasSuffix(text2, "\n") {
++		text2 += "(missing final newline)"
++	}
++	lines2 := strings.Split(text2, "\n")
++	lines2 = lines2[:len(lines2)-1] // remove empty string after final line
++
++	// Naive dynamic programming algorithm for edit distance.
++	// https://en.wikipedia.org/wiki/Wagner–Fischer_algorithm
++	// dist[i][j] = edit distance between lines1[:len(lines1)-i] and lines2[:len(lines2)-j]
++	// (The reversed indices make following the minimum cost path
++	// visit lines in the same order as in the text.)
++	dist := make([][]int, len(lines1)+1)
++	for i := range dist {
++		dist[i] = make([]int, len(lines2)+1)
++		if i == 0 {
++			for j := range dist[0] {
++				dist[0][j] = j
++			}
++			continue
++		}
++		for j := range dist[i] {
++			if j == 0 {
++				dist[i][0] = i
++				continue
++			}
++			cost := dist[i][j-1] + 1
++			if cost > dist[i-1][j]+1 {
++				cost = dist[i-1][j] + 1
++			}
++			if lines1[len(lines1)-i] == lines2[len(lines2)-j] {
++				if cost > dist[i-1][j-1] {
++					cost = dist[i-1][j-1]
++				}
++			}
++			dist[i][j] = cost
++		}
++	}
++
++	var buf strings.Builder
++	i, j := len(lines1), len(lines2)
++	for i > 0 || j > 0 {
++		cost := dist[i][j]
++		if i > 0 && j > 0 && cost == dist[i-1][j-1] && lines1[len(lines1)-i] == lines2[len(lines2)-j] {
++			fmt.Fprintf(&buf, " %s\n", lines1[len(lines1)-i])
++			i--
++			j--
++		} else if i > 0 && cost == dist[i-1][j]+1 {
++			fmt.Fprintf(&buf, "-%s\n", lines1[len(lines1)-i])
++			i--
++		} else {
++			fmt.Fprintf(&buf, "+%s\n", lines2[len(lines2)-j])
++			j--
++		}
++	}
++	return buf.String()
++}
++
++var diffTests = []struct {
++	text1 string
++	text2 string
++	diff  string
++}{
++	{"a b c", "a b d e f", "a b -c +d +e +f"},
++	{"", "a b c", "+a +b +c"},
++	{"a b c", "", "-a -b -c"},
++	{"a b c", "d e f", "-a -b -c +d +e +f"},
++	{"a b c d e f", "a b d e f", "a b -c d e f"},
++	{"a b c e f", "a b c d e f", "a b c +d e f"},
++}
++
++func TestDiff(t *testing.T) {
++	for _, tt := range diffTests {
++		// Turn spaces into \n.
++		text1 := strings.Replace(tt.text1, " ", "\n", -1)
++		if text1 != "" {
++			text1 += "\n"
++		}
++		text2 := strings.Replace(tt.text2, " ", "\n", -1)
++		if text2 != "" {
++			text2 += "\n"
++		}
++		out := diff(text1, text2)
++		// Cut final \n, cut spaces, turn remaining \n into spaces.
++		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
++		if out != tt.diff {
++			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
++		}
++	}
++}
+diff --git a/src/cmd/go/testdata/mod/mod_sync.txt b/src/cmd/go/testdata/mod/mod_sync.txt
+new file mode 100644
+index 0000000000..868aa2cb15
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/mod_sync.txt
+@@ -0,0 +1,57 @@
++env GO111MODULE=on
++
++# sync removes unused y, but everything else is used
++go mod -sync -v
++stderr '^unused y.1'
++! stderr '^unused [^y]'
++
++go list -m all
++! stdout '^y'
++stdout '^w.1 v1.2.0'
++stdout '^z.1 v1.2.0'
++
++-- go.mod --
++module m
++
++require (
++	x.1 v1.0.0
++	y.1 v1.0.0
++	w.1 v1.2.0
++)
++
++replace x.1 v1.0.0 => ../x
++replace y.1 v1.0.0 => ../y
++replace z.1 v1.1.0 => ../z
++replace z.1 v1.2.0 => ../z
++replace w.1 => ../w
++
++-- m.go --
++package m
++
++import _ "x.1"
++import _ "z.1/sub"
++
++-- w/go.mod --
++module w
++
++-- w/w.go --
++package w
++
++-- x/go.mod --
++module x
++require w.1 v1.1.0
++require z.1 v1.1.0
++
++-- x/x.go --
++package x
++import _ "w.1"
++
++-- y/go.mod --
++module y
++require z.1 v1.2.0
++
++-- z/go.mod --
++module z
++
++-- z/sub/sub.go --
++package sub
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 40ffc8f3ce..0418bc9f13 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -85,6 +85,13 @@ The commands are:
+ - cd dir
+   Change to the given directory for future commands.
+ 
++- cmp file1 file2
++  Check that the named files have the same content.
++  By convention, file1 is the actual data and file2 the expected data.
++  File1 can be "stdout" or "stderr" to use the standard output or standard error
++  from the most recent exec or go command.
++  (If the files have differing content, the failure prints a diff.)
++
+ - cp src... dst
+   Copy the listed files to the target file or existing directory.
+ 
+@@ -133,6 +140,9 @@ The commands are:
+ - stop [message]
+   Stop the test early (marking it as passing), including the message if given.
+ 
++- symlink file -> target
++  Create file as a symlink to target. The -> (like in ls -l output) is required.
++
+ When TestScript runs a script and the script fails, by default TestScript shows
+ the execution of the most recent phase of the script (since the last # comment)
+ and only shows the # comments for earlier phases. For example, here is a
+diff --git a/src/cmd/go/testdata/script/mod_convert_dep.txt b/src/cmd/go/testdata/script/mod_convert_dep.txt
+new file mode 100644
+index 0000000000..cc1083bcba
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_dep.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/Gopkg.lock --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_git.txt b/src/cmd/go/testdata/script/mod_convert_git.txt
+new file mode 100644
+index 0000000000..5ef534a8f8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_git.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++
++# detect root of module tree as root of enclosing git repo
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/.git/config --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_glide.txt b/src/cmd/go/testdata/script/mod_convert_glide.txt
+new file mode 100644
+index 0000000000..50460bbf36
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_glide.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/glide.lock --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_glockfile.txt b/src/cmd/go/testdata/script/mod_convert_glockfile.txt
+new file mode 100644
+index 0000000000..4d9aaffab5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_glockfile.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/GLOCKFILE --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_godeps.txt b/src/cmd/go/testdata/script/mod_convert_godeps.txt
+new file mode 100644
+index 0000000000..61fbab1124
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_godeps.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/Godeps/Godeps.json --
++{}
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv.txt b/src/cmd/go/testdata/script/mod_convert_tsv.txt
+new file mode 100644
+index 0000000000..5b82d85d65
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_tsv.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/dependencies.tsv --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt b/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
+new file mode 100644
+index 0000000000..b45d3b69fe
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/vendor.conf --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+new file mode 100644
+index 0000000000..cb6e5fee15
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/vendor/vendor.json --
++{}
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+new file mode 100644
+index 0000000000..bcf185136b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/vendor/manifest --
++{}
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt b/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
+new file mode 100644
+index 0000000000..0cd245bace
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++cd $WORK/test/x
++go list -m all
++stdout '^m$'
++
++-- $WORK/test/vendor.yml --
++-- $WORK/test/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+new file mode 100644
+index 0000000000..920f34adee
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -0,0 +1,131 @@
++env GO111MODULE=on
++
++# Test that go mod edits and related mod flags work.
++# Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
++
++# go mod -init
++! go mod -init
++stderr 'cannot determine module path'
++! exists go.mod
++
++go mod -init -module x.x/y/z
++stderr 'creating new go.mod: module x.x/y/z'
++cmp go.mod $WORK/go.mod.init
++
++! go mod -init
++cmp go.mod $WORK/go.mod.init
++
++# go mod edits
++go mod -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
++cmp go.mod $WORK/go.mod.edit1
++go mod -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
++cmp go.mod $WORK/go.mod.edit2
++
++# go mod -json
++go mod -json
++cmp stdout $WORK/go.mod.json
++
++# go mod -replace
++go mod -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
++cmp go.mod $WORK/go.mod.edit3
++go mod -replace=x.1=y.1/v2@v2.3.6
++cmp go.mod $WORK/go.mod.edit4
++
++# go mod -packages
++go mod -packages
++cmp stdout $WORK/go.mod.packages
++
++# go mod -fmt
++cp $WORK/go.mod.badfmt go.mod
++go mod -fmt
++cmp go.mod $WORK/go.mod.edit4
++
++-- x.go --
++package x
++
++-- w/w.go --
++package w
++
++-- $WORK/go.mod.init --
++module x.x/y/z
++-- $WORK/go.mod.edit1 --
++module x.x/y/z
++
++require x.1 v1.0.0
++
++exclude (
++	x.1 v1.2.0
++	x.1 v1.2.1
++)
++
++replace (
++	x.1 v1.3.0 => y.1 v1.4.0
++	x.1 v1.4.0 => ../z
++)
++-- $WORK/go.mod.edit2 --
++module x.x/y/z
++
++exclude x.1 v1.2.0
++
++replace x.1 v1.4.0 => ../z
++
++require x.3 v1.99.0
++-- $WORK/go.mod.json --
++{
++	"Module": {
++		"Path": "x.x/y/z"
++	},
++	"Require": [
++		{
++			"Path": "x.3",
++			"Version": "v1.99.0"
++		}
++	],
++	"Exclude": [
++		{
++			"Path": "x.1",
++			"Version": "v1.2.0"
++		}
++	],
++	"Replace": [
++		{
++			"Old": {
++				"Path": "x.1",
++				"Version": "v1.4.0"
++			},
++			"New": {
++				"Path": "../z"
++			}
++		}
++	]
++}
++-- $WORK/go.mod.edit3 --
++module x.x/y/z
++
++exclude x.1 v1.2.0
++
++replace (
++	x.1 v1.3.0 => y.1/v2 v2.3.5
++	x.1 v1.4.0 => y.1/v2 v2.3.5
++)
++
++require x.3 v1.99.0
++-- $WORK/go.mod.edit4 --
++module x.x/y/z
++
++exclude x.1 v1.2.0
++
++replace x.1 => y.1/v2 v2.3.6
++
++require x.3 v1.99.0
++-- $WORK/go.mod.packages --
++x.x/y/z
++x.x/y/z/w
++-- $WORK/go.mod.badfmt --
++module     x.x/y/z
++
++exclude x.1     v1.2.0
++
++replace x.1    =>   y.1/v2 v2.3.6
++
++require x.3   v1.99.0
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+new file mode 100644
+index 0000000000..673a817c02
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -0,0 +1,87 @@
++env GO111MODULE=on
++
++# Derive module path from import comment.
++# TODO SHOULD NOT NEED ENV VAR YET
++cd $WORK/x
++exists x.go
++go mod -init
++stderr 'module x'
++
++# Import comment works even with CRLF line endings.
++rm go.mod
++addcrlf x.go
++go mod -init
++stderr 'module x'
++
++# Derive module path from location inside GOPATH.
++cd $GOPATH/src/example.com/x/y
++go mod -init
++stderr 'module example.com/x/y$'
++rm go.mod
++
++# Module path from Godeps/Godeps.json overrides GOPATH.
++cd $GOPATH/src/example.com/x/y/z
++go mod -init
++stderr 'unexpected.com/z'
++rm go.mod
++
++# Empty directory outside GOPATH fails.
++mkdir $WORK/empty
++cd $WORK/empty
++! go mod -init
++stderr 'cannot determine module path for source directory'
++rm go.mod
++
++# Empty directory inside GOPATH/src uses location inside GOPATH.
++mkdir $GOPATH/src/empty
++cd $GOPATH/src/empty
++go mod -init
++stderr 'empty'
++rm go.mod
++
++[!symlink] stop
++
++# gplink1/src/empty where gopathlink -> GOPATH
++symlink $WORK/gopathlink -> gopath
++cd $WORK/gopathlink/src/empty
++go mod -init
++rm go.mod
++
++# GOPATH/src/link where link -> out of GOPATH
++symlink $GOPATH/src/link -> $WORK/empty
++cd $WORK/empty
++! go mod -init
++cd $GOPATH/src/link
++go mod -init
++stderr link
++rm go.mod
++
++# GOPATH/src/empty where GOPATH itself is a symlink
++env GOPATH=$WORK/gopathlink
++cd $GOPATH/src/empty
++go mod -init
++rm go.mod
++cd $WORK/gopath/src/empty
++go mod -init
++rm go.mod
++
++# GOPATH/src/link where GOPATH and link are both symlinks
++cd $GOPATH/src/link
++go mod -init
++stderr link
++rm go.mod
++
++# Too hard: doesn't match unevaluated nor completely evaluated. (Only partially evaluated.)
++# Whether this works depends on which OS we are running on.
++# cd $WORK/gopath/src/link
++# ! go mod -init
++
++-- $WORK/x/x.go --
++package x // import "x"
++
++-- $GOPATH/src/example.com/x/y/y.go --
++package y
++-- $GOPATH/src/example.com/x/y/z/z.go --
++package z
++-- $GOPATH/src/example.com/x/y/z/Godeps/Godeps.json --
++{"ImportPath": "unexpected.com/z"}
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+new file mode 100644
+index 0000000000..31f422cc3d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -0,0 +1,224 @@
++env GO111MODULE=on
++
++go list -m all
++stdout '^x v1.0.0 => ./x'
++stdout '^w'
++
++[!short] go build
++[!short] ! go build -getmode=vendor
++
++go list -f {{.Dir}} x
++stdout 'src[\\/]x'
++
++go mod -vendor -v
++stderr '^# x v1.0.0 => ./x'
++stderr '^x'
++stderr '^# y v1.0.0 => ./y'
++stderr '^y'
++stderr '^# z v1.0.0 => ./z'
++stderr '^z'
++! stderr '^w'
++
++go list -f {{.Dir}} x
++stdout 'src[\\/]x'
++
++go list -f {{.Dir}} -m x
++stdout 'src[\\/]x'
++
++go list -getmode=vendor -f {{.Dir}} x
++stdout 'src[\\/]vendor[\\/]x'
++
++go list -getmode=vendor -f {{.Dir}} -m x
++stdout 'src[\\/]vendor[\\/]x'
++
++go list -f {{.Dir}} -m w
++stdout 'src[\\/]w'
++
++! go list -getmode=vendor -f {{.Dir}} w
++stderr 'src[\\/]vendor[\\/]w'
++
++! exists vendor/x/testdata
++! exists vendor/a/foo/bar/b/main_test.go
++
++exists vendor/a/foo/AUTHORS.txt
++exists vendor/a/foo/CONTRIBUTORS
++exists vendor/a/foo/LICENSE
++exists vendor/a/foo/PATENTS
++exists vendor/a/foo/COPYING
++exists vendor/a/foo/COPYLEFT
++exists vendor/x/NOTICE!
++exists vendor/mysite/myname/mypkg/LICENSE.txt
++
++! exists vendor/a/foo/licensed-to-kill
++! exists vendor/w
++! exists vendor/w/LICENSE
++! exists vendor/x/x2
++! exists vendor/x/x2/LICENSE
++
++[short] stop
++
++go build
++go build -getmode=vendor
++go test -getmode=vendor . ./subdir
++go test -getmode=vendor ./...
++
++-- go.mod --
++module m
++
++require (
++	a v1.0.0
++	mysite/myname/mypkg v1.0.0
++	w v1.0.0 // indirect
++	x v1.0.0
++	y v1.0.0
++	z v1.0.0
++)
++
++replace (
++	a v1.0.0 => ./a
++	mysite/myname/mypkg v1.0.0 => ./mypkg
++	w v1.0.0 => ./w
++	x v1.0.0 => ./x
++	y v1.0.0 => ./y
++	z v1.0.0 => ./z
++)
++
++-- a/foo/AUTHORS.txt --
++-- a/foo/CONTRIBUTORS --
++-- a/foo/LICENSE --
++-- a/foo/PATENTS --
++-- a/foo/COPYING --
++-- a/foo/COPYLEFT --
++-- a/foo/licensed-to-kill --
++-- w/LICENSE --
++-- x/NOTICE! --
++-- x/x2/LICENSE --
++-- mypkg/LICENSE.txt --
++
++-- a/foo/bar/b/main.go --
++package b
++-- a/foo/bar/b/main_test.go --
++package b
++
++import (
++	"os"
++	"testing"
++)
++
++func TestDir(t *testing.T) {
++	if _, err := os.Stat("../testdata/1"); err != nil {
++		t.Fatalf("testdata: %v", err)
++	}
++}
++-- a/foo/bar/c/main.go --
++package c
++-- a/foo/bar/c/main_test.go --
++package c
++
++import (
++	"os"
++	"testing"
++)
++
++func TestDir(t *testing.T) {
++	if _, err := os.Stat("../../../testdata/1"); err != nil {
++		t.Fatalf("testdata: %v", err)
++	}
++	if _, err := os.Stat("./testdata/1"); err != nil {
++		t.Fatalf("testdata: %v", err)
++	}
++}
++-- a/foo/bar/c/testdata/1 --
++-- a/foo/bar/testdata/1 --
++-- a/go.mod --
++module a
++-- a/main.go --
++package a
++-- a/main_test.go --
++package a
++
++import (
++	"os"
++	"testing"
++)
++
++func TestDir(t *testing.T) {
++	if _, err := os.Stat("./testdata/1"); err != nil {
++		t.Fatalf("testdata: %v", err)
++	}
++}
++-- a/testdata/1 --
++-- appengine.go --
++// +build appengine
++
++package m
++
++import _ "appengine"
++import _ "appengine/datastore"
++-- mypkg/go.mod --
++module me
++-- mypkg/mydir/d.go --
++package mydir
++-- subdir/v1_test.go --
++package m
++
++import _ "mysite/myname/mypkg/mydir"
++-- testdata1.go --
++package m
++
++import _ "a"
++-- testdata2.go --
++package m
++
++import _ "a/foo/bar/b"
++import _ "a/foo/bar/c"
++-- v1.go --
++package m
++
++import _ "x"
++-- v2.go --
++// +build abc
++
++package mMmMmMm
++
++import _ "y"
++-- v3.go --
++// +build !abc
++
++package m
++
++import _ "z"
++-- v4.go --
++// +build notmytag
++
++package m
++
++import _ "x/x1"
++-- w/go.mod --
++module w
++-- w/w.go --
++package w
++-- x/go.mod --
++module x
++-- x/testdata/x.txt --
++placeholder - want directory with no go files
++-- x/x.go --
++package x
++-- x/x1/x1.go --
++// +build notmytag
++
++package x1
++-- x/x2/dummy.txt --
++dummy
++-- x/x_test.go --
++package x
++
++import _ "w"
++-- y/go.mod --
++module y
++-- y/y.go --
++package y
++-- z/go.mod --
++module z
++-- z/z.go --
++package z

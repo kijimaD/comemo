@@ -21,9 +21,85 @@ Date:   Fri Sep 10 07:44:02 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go | 12 ++++++------
  test/typeparam/issue48280.dir/a.go           | 11 +++++++++++
  test/typeparam/issue48280.dir/main.go        | 11 +++++++++++
  test/typeparam/issue48280.go                 |  7 +++++++
  4 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index b61b1e97fb..7f7143dcfe 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -318,17 +318,17 @@ func (r *importReader) obj(name string) {
+ 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
+ 
+ 	case 'T', 'U':
+-		var tparams []*types2.TypeParam
+-		if tag == 'U' {
+-			tparams = r.tparamList()
+-		}
+-
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
+ 		named := types2.NewNamed(obj, nil, nil)
+-		named.SetTypeParams(tparams)
++		// Declare obj before calling r.tparamList, so the new type name is recognized
++		// if used in the constraint of one of its own typeparams (see #48280).
+ 		r.declare(obj)
++		if tag == 'U' {
++			tparams := r.tparamList()
++			named.SetTypeParams(tparams)
++		}
+ 
+ 		underlying := r.p.typAt(r.uint64(), named).Underlying()
+ 		named.SetUnderlying(underlying)
+diff --git a/test/typeparam/issue48280.dir/a.go b/test/typeparam/issue48280.dir/a.go
+new file mode 100644
+index 0000000000..17859e6aa9
+--- /dev/null
++++ b/test/typeparam/issue48280.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I[T I[T]] interface {
++	F() T
++}
++
++type S struct{}
+diff --git a/test/typeparam/issue48280.dir/main.go b/test/typeparam/issue48280.dir/main.go
+new file mode 100644
+index 0000000000..b9981c6f61
+--- /dev/null
++++ b/test/typeparam/issue48280.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	_ = a.S{}
++}
+diff --git a/test/typeparam/issue48280.go b/test/typeparam/issue48280.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48280.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

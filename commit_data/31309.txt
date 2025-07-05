@@ -21,7 +21,7 @@ Date:   Thu Jan 5 09:36:27 2017 +0300
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s      | 14 --------------
  src/runtime/asm_amd64.s    | 13 -------------
  src/runtime/asm_amd64p32.s | 13 -------------
@@ -35,3 +35,276 @@ Date:   Thu Jan 5 09:36:27 2017 +0300
  src/runtime/rand_test.go   | 32 ++++++++++++++++++++++++++++++++
  src/runtime/stubs.go       | 11 +++++++++--
  12 files changed, 43 insertions(+), 105 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 3d0b74ce92..2c265c9f6c 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1595,20 +1595,6 @@ allsame:
+ 	MOVL	BX, (AX)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	get_tls(CX)
+-	MOVL	g(CX), AX
+-	MOVL	g_m(AX), AX
+-	MOVL	m_fastrand(AX), DX
+-	ADDL	DX, DX
+-	MOVL	DX, BX
+-	XORL	$0x88888eef, DX
+-	JPL	2(PC)
+-	MOVL	BX, DX
+-	MOVL	DX, m_fastrand(AX)
+-	MOVL	DX, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cb428d6de3..232c7c647d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2163,19 +2163,6 @@ eqret:
+ 	MOVB	$0, ret+48(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	get_tls(CX)
+-	MOVQ	g(CX), AX
+-	MOVQ	g_m(AX), AX
+-	MOVL	m_fastrand(AX), DX
+-	ADDL	DX, DX
+-	MOVL	DX, BX
+-	XORL	$0x88888eef, DX
+-	CMOVLMI	BX, DX
+-	MOVL	DX, m_fastrand(AX)
+-	MOVL	DX, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c3c1c15f0c..ecc66647c7 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -991,19 +991,6 @@ eqret:
+ 	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	get_tls(CX)
+-	MOVL	g(CX), AX
+-	MOVL	g_m(AX), AX
+-	MOVL	m_fastrand(AX), DX
+-	ADDL	DX, DX
+-	MOVL	DX, BX
+-	XORL	$0x88888eef, DX
+-	CMOVLMI	BX, DX
+-	MOVL	DX, m_fastrand(AX)
+-	MOVL	DX, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 79c28a8178..a33fa03312 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -971,15 +971,6 @@ _sib_notfound:
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB),NOSPLIT,$-4-4
+-	MOVW	g_m(g), R1
+-	MOVW	m_fastrand(R1), R0
+-	ADD.S	R0, R0
+-	EOR.MI	$0x88888eef, R0
+-	MOVW	R0, m_fastrand(R1)
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 0e286d484f..5f2d4a5681 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -959,18 +959,6 @@ equal:
+ 	MOVB	R0, ret+48(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB),NOSPLIT,$-8-4
+-	MOVD	g_m(g), R1
+-	MOVWU	m_fastrand(R1), R0
+-	ADD	R0, R0
+-	CMPW	$0, R0
+-	BGE	notneg
+-	EOR	$0x88888eef, R0
+-notneg:
+-	MOVW	R0, m_fastrand(R1)
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index c2d991d36d..1de8d71f67 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -831,16 +831,6 @@ notfound:
+ 	MOVV	R1, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	MOVV	g_m(g), R2
+-	MOVWU	m_fastrand(R2), R1
+-	ADDU	R1, R1
+-	BGEZ	R1, 2(PC)
+-	XOR	$0x88888eef, R1
+-	MOVW	R1, m_fastrand(R2)
+-	MOVW	R1, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R1
+ 	RET
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 73da768897..4e05ab7f33 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -904,16 +904,6 @@ cmp_ret:
+ 	MOVW	R8, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB),NOSPLIT,$0-4
+-	MOVW	g_m(g), R2
+-	MOVW	m_fastrand(R2), R1
+-	ADDU	R1, R1
+-	BGEZ	R1, 2(PC)
+-	XOR	$0x88888eef, R1
+-	MOVW	R1, m_fastrand(R2)
+-	MOVW	R1, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R1
+ 	RET
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 1d6adcc553..754c07a84c 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1224,17 +1224,6 @@ TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+ 	BR      cmpbodyBE<>(SB)
+ #endif
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	MOVD	g_m(g), R4
+-	MOVWZ	m_fastrand(R4), R3
+-	ADD	R3, R3
+-	CMPW	R3, $0
+-	BGE	2(PC)
+-	XOR	$0x88888eef, R3
+-	MOVW	R3, m_fastrand(R4)
+-	MOVW	R3, ret+0(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+ 	RET
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index c2212a5f21..50a29e89d2 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -851,17 +851,6 @@ TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+ 	CLC	$1, 0(R3), 0(R5)
+ 	RET
+ 
+-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+-	MOVD	g_m(g), R4
+-	MOVWZ	m_fastrand(R4), R3
+-	ADD	R3, R3
+-	CMPW	R3, $0
+-	BGE	2(PC)
+-	XOR	$0x88888eef, R3
+-	MOVW	R3, m_fastrand(R4)
+-	MOVW	R3, ret+0(FP)
+-	RET
+-
+ TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	s+0(FP), R3     // s => R3
+ 	MOVD	s_len+8(FP), R4 // s_len => R4
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9b765550ca..5f85d91f5e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -245,3 +245,5 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 
+ 	return
+ }
++
++func Fastrand() uint32 { return fastrand() }
+diff --git a/src/runtime/rand_test.go b/src/runtime/rand_test.go
+new file mode 100644
+index 0000000000..0f6ec0f2ec
+--- /dev/null
++++ b/src/runtime/rand_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"testing"
++)
++
++func BenchmarkFastrand(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Fastrand()
++		}
++	})
++}
++
++func BenchmarkFastrandHashiter(b *testing.B) {
++	var m = make(map[int]int, 10)
++	for i := 0; i < 10; i++ {
++		m[i] = i
++	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			for _ = range m {
++				break
++			}
++		}
++	})
++}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index e431b441b2..101c8cfd10 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -93,8 +93,15 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+ // exported value for testing
+ var hashLoad = loadFactor
+ 
+-// in asm_*.s
+-func fastrand() uint32
++//go:nosplit
++func fastrand() uint32 {
++	mp := getg().m
++	fr := mp.fastrand
++	fr <<= 1
++	fr ^= uint32(int32(fr)>>31) & 0x88888eef
++	mp.fastrand = fr
++	return fr
++}
+ 
+ //go:linkname sync_fastrand sync.fastrand
+ func sync_fastrand() uint32 { return fastrand() }

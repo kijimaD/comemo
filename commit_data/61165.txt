@@ -10,6 +10,30 @@ Date:   Wed Oct 9 11:56:25 2024 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/url/example_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index a1913508f7..311ba5c329 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -253,6 +253,18 @@ func ExampleURL_IsAbs() {
+ 	// true
+ }
+ 
++func ExampleURL_JoinPath() {
++	u, err := url.Parse("https://example.com/foo/bar")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println(u.JoinPath("baz", "qux"))
++
++	// Output:
++	// https://example.com/foo/bar/baz/qux
++}
++
+ func ExampleURL_MarshalBinary() {
+ 	u, _ := url.Parse("https://example.org")
+ 	b, err := u.MarshalBinary()

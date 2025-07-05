@@ -37,10 +37,121 @@ Date:   Mon Apr 22 23:02:37 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go     | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/elf.go      |  2 ++
  src/cmd/link/internal/ld/macho.go    |  2 +-
  src/cmd/link/internal/ld/main.go     |  1 +
  src/cmd/link/internal/sym/symkind.go |  2 ++
  5 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b4a76af328..3b551db853 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1302,6 +1302,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	// Writable data sections that do not need any specialized handling.
+ 	writable := []sym.SymKind{
++		sym.SBUILDINFO,
+ 		sym.SELFSECT,
+ 		sym.SMACHO,
+ 		sym.SMACHOGOT,
+@@ -1963,6 +1964,39 @@ func (ctxt *Link) textbuildid() {
+ 	ctxt.Textp[0] = s
+ }
+ 
++func (ctxt *Link) buildinfo() {
++	if ctxt.linkShared || ctxt.BuildMode == BuildModePlugin {
++		// -linkshared and -buildmode=plugin get confused
++		// about the relocations in go.buildinfo
++		// pointing at the other data sections.
++		// The version information is only available in executables.
++		return
++	}
++
++	s := ctxt.Syms.Lookup(".go.buildinfo", 0)
++	s.Attr |= sym.AttrReachable
++	s.Type = sym.SBUILDINFO
++	s.Align = 16
++	// The \xff is invalid UTF-8, meant to make it less likely
++	// to find one of these accidentally.
++	const prefix = "\xff Go buildinf:" // 14 bytes, plus 2 data bytes filled in below
++	data := make([]byte, 32)
++	copy(data, prefix)
++	data[len(prefix)] = byte(ctxt.Arch.PtrSize)
++	data[len(prefix)+1] = 0
++	if ctxt.Arch.ByteOrder == binary.BigEndian {
++		data[len(prefix)+1] = 1
++	}
++	s.P = data
++	s.Size = int64(len(s.P))
++	s1 := ctxt.Syms.Lookup("runtime.buildVersion", 0)
++	s2 := ctxt.Syms.Lookup("runtime.modinfo", 0)
++	s.R = []sym.Reloc{
++		{Off: 16, Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s1},
++		{Off: 16 + int32(ctxt.Arch.PtrSize), Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s2},
++	}
++}
++
+ // assign addresses to text
+ func (ctxt *Link) textaddress() {
+ 	addsection(ctxt.Arch, &Segtext, ".text", 05)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3995a9423d..5a3098ce85 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1439,6 +1439,7 @@ func (ctxt *Link) doelf() {
+ 	Addstring(shstrtab, ".data")
+ 	Addstring(shstrtab, ".bss")
+ 	Addstring(shstrtab, ".noptrbss")
++	Addstring(shstrtab, ".go.buildinfo")
+ 
+ 	// generate .tbss section for dynamic internal linker or external
+ 	// linking, so that various binutils could correctly calculate
+@@ -1485,6 +1486,7 @@ func (ctxt *Link) doelf() {
+ 		if ctxt.UseRelro() {
+ 			Addstring(shstrtab, elfRelType+".data.rel.ro")
+ 		}
++		Addstring(shstrtab, elfRelType+".go.buildinfo")
+ 
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+ 		Addstring(shstrtab, ".note.GNU-stack")
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 6ebae160b1..f577ed1fc3 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -828,7 +828,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
+ 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
+ 		return true
+ 	}
+-	return s.Type >= sym.SELFSECT // only writable sections
++	return s.Type >= sym.SFirstWritable // only writable sections
+ }
+ 
+ func machosymtab(ctxt *Link) {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index e0725a1384..f47e35301c 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -237,6 +237,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.findfunctab()
+ 	ctxt.typelink()
+ 	ctxt.symtab()
++	ctxt.buildinfo()
+ 	ctxt.dodata()
+ 	order := ctxt.address()
+ 	dwarfcompress(ctxt)
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 82e4b9eda4..dbc2750732 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -81,6 +81,8 @@ const (
+ 	SPCLNTAB
+ 
+ 	// Writable sections.
++	SFirstWritable
++	SBUILDINFO
+ 	SELFSECT
+ 	SMACHO
+ 	SMACHOGOT

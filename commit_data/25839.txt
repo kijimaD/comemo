@@ -44,7 +44,87 @@ Date:   Tue Oct 20 01:37:06 2015 -0700
     Change-Id: I15201a080c363d1b44104eafed46d8df5e311902
     Reviewed-on: https://go-review.googlesource.com/16110
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/regexp/all_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/regexp/regexp.go   | 11 +++++++++++
  2 files changed, 53 insertions(+)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 9448f60624..ebe31d7fbb 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -113,6 +113,25 @@ func TestMatchFunction(t *testing.T) {
+ 	}
+ }
+ 
++func copyMatchTest(t *testing.T, test *FindTest) {
++	re := compileTest(t, test.pat, "")
++	if re == nil {
++		return
++	}
++	m1 := re.MatchString(test.text)
++	m2 := re.Copy().MatchString(test.text)
++	if m1 != m2 {
++		t.Errorf("Copied Regexp match failure on %s: original gave %t; copy gave %t; should be %t",
++			test, m1, m2, len(test.matches) > 0)
++	}
++}
++
++func TestCopyMatch(t *testing.T) {
++	for _, test := range findTests {
++		copyMatchTest(t, &test)
++	}
++}
++
+ type ReplaceTest struct {
+ 	pattern, replacement, input, output string
+ }
+@@ -671,3 +690,26 @@ func BenchmarkOnePassLongNotPrefix(b *testing.B) {
+ 		re.Match(x)
+ 	}
+ }
++
++func BenchmarkMatchParallelShared(b *testing.B) {
++	x := []byte("this is a long line that contains foo bar baz")
++	re := MustCompile("foo (ba+r)? baz")
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			re.Match(x)
++		}
++	})
++}
++
++func BenchmarkMatchParallelCopied(b *testing.B) {
++	x := []byte("this is a long line that contains foo bar baz")
++	re := MustCompile("foo (ba+r)? baz")
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		re := re.Copy()
++		for pb.Next() {
++			re.Match(x)
++		}
++	})
++}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 85c070eaeb..d7d0edb993 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -104,6 +104,17 @@ func (re *Regexp) String() string {
+ 	return re.expr
+ }
+ 
++// Copy returns a new Regexp object copied from re.
++//
++// When using a Regexp in multiple goroutines, giving each goroutine
++// its own copy helps to avoid lock contention.
++func (re *Regexp) Copy() *Regexp {
++	r := *re
++	r.mu = sync.Mutex{}
++	r.machine = nil
++	return &r
++}
++
+ // Compile parses a regular expression and returns, if successful,
+ // a Regexp object that can be used to match against text.
+ //

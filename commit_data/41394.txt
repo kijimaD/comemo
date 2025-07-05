@@ -15,6 +15,19 @@ Date:   Mon Sep 30 11:47:04 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index f7fab7b659..acf84128ef 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -309,6 +309,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
++		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
+ 	}
+ 	for _, e := range expected {
+ 		if strOut == e {

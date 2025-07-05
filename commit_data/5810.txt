@@ -7,6 +7,22 @@ Date:   Wed Jul 14 17:21:13 2010 -0700
     R=rsc
     CC=brainman, golang-dev
     https://golang.org/cl/1690053
-
+---
  src/Make.cmd | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index b2a184b822..b2b764f26d 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -11,6 +11,10 @@ QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+ 
+ include $(QUOTED_GOROOT)/src/Make.common
+ 
++ifeq ($(GOOS),windows) 
++TARG:=$(TARG).exe 
++endif
++
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ $(TARG): _go_.$O $(OFILES)

@@ -13,6 +13,17 @@ Date:   Mon Dec 31 17:14:54 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/textflag.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index 929e9b36a9..d1bb52cc00 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -31,4 +31,4 @@
+ // TODO(mwhudson): only implemented for ppc64x at present.
+ #define NOFRAME 512
+ // Function can call reflect.Type.Method or reflect.Type.MethodByName.
+-#define REFLECTMETHOD = 1024
++#define REFLECTMETHOD 1024

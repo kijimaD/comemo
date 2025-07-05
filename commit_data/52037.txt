@@ -13,9 +13,68 @@ Date:   Thu Mar 31 12:30:14 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/397255
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  api/go1.1.txt             |  2 +-
  doc/go1.19.html           | 12 +++++++++++-
  src/strconv/quote.go      |  2 +-
  src/strconv/quote_test.go |  1 +
  4 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/api/go1.1.txt b/api/go1.1.txt
+index bb00b3b02c..06291faa4b 100644
+--- a/api/go1.1.txt
++++ b/api/go1.1.txt
+@@ -371,7 +371,7 @@ pkg debug/elf, const ELFCLASSNONE = 0
+ pkg debug/elf, const ELFDATA2LSB = 1
+ pkg debug/elf, const ELFDATA2MSB = 2
+ pkg debug/elf, const ELFDATANONE = 0
+-pkg debug/elf, const ELFMAG = "\u007fELF"
++pkg debug/elf, const ELFMAG = "\x7fELF"
+ pkg debug/elf, const ELFOSABI_86OPEN = 5
+ pkg debug/elf, const ELFOSABI_AIX = 7
+ pkg debug/elf, const ELFOSABI_ARM = 97
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index c0e2cf1761..cfeb3d3d79 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -90,4 +90,14 @@ Do not send CLs removing the interior tags from such phrases.
+       issue tracker</a>.
+     </p>
+   </dd>
+-</dl>
++</dl><!-- net -->
++
++<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
++  <dd>
++    <p><!-- CL 397255 -->
++      <a href="/pkg/strconv/#strconv.Quote"><code>strconv.Quote</code></a>
++      and related functions now quote the rune 007F as <code>\x7f</code>,
++      not <code>\u007f</code>.
++    </p>
++  </dd>
++</dl><!-- strconv -->
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index 9d20b75a58..6c022846c0 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -99,7 +99,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
+ 		buf = append(buf, `\v`...)
+ 	default:
+ 		switch {
+-		case r < ' ':
++		case r < ' ' || r == 0x7f:
+ 			buf = append(buf, `\x`...)
+ 			buf = append(buf, lowerhex[byte(r)>>4])
+ 			buf = append(buf, lowerhex[byte(r)&0xF])
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index 81fc8f79e1..fc000de7b1 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -55,6 +55,7 @@ var quotetests = []quoteTest{
+ 	{"\x04", `"\x04"`, `"\x04"`, `"\x04"`},
+ 	// Some non-printable but graphic runes. Final column is double-quoted.
+ 	{"!\u00a0!\u2000!\u3000!", `"!\u00a0!\u2000!\u3000!"`, `"!\u00a0!\u2000!\u3000!"`, "\"!\u00a0!\u2000!\u3000!\""},
++	{"\x7f", `"\x7f"`, `"\x7f"`, `"\x7f"`},
+ }
+ 
+ func TestQuote(t *testing.T) {

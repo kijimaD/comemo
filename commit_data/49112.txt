@@ -10,6 +10,20 @@ Date:   Sun Jul 11 11:46:26 2021 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index a5ddbb5a74..37f5a7bba0 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1540,7 +1540,7 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
+ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+ 	if go117ExportTypes {
+ 		// These should all be encoded as direct ops, not OCALL.
+-		base.Fatalf("builtinCall should not be invoked when types are included in inport/export")
++		base.Fatalf("builtinCall should not be invoked when types are included in import/export")
+ 	}
+ 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }

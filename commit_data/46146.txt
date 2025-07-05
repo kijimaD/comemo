@@ -16,7 +16,36 @@ Date:   Wed Dec 9 15:49:04 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go | 4 ++--
  test/run.go                             | 1 -
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2fabd9694e..252d4814cc 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1277,9 +1277,9 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
+ 					if i < 0 {
+ 						if check.conf.CompilerErrorMessages {
+-							check.errorf(kv, "unknown field '%s' in struct literal of type %s", key.Value, base)
++							check.errorf(kv.Key, "unknown field '%s' in struct literal of type %s", key.Value, base)
+ 						} else {
+-							check.errorf(kv, "unknown field %s in struct literal", key.Value)
++							check.errorf(kv.Key, "unknown field %s in struct literal", key.Value)
+ 						}
+ 						continue
+ 					}
+diff --git a/test/run.go b/test/run.go
+index 1932c9e610..db8bffc81f 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2004,7 +2004,6 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
+ 	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
+ 	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue24339.go":  true, // types2 reports wrong line number
+ 	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
+ 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors

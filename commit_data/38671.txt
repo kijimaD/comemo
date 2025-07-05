@@ -17,7 +17,98 @@ Date:   Mon Nov 12 15:49:09 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/stack.go          |  7 +++++
  test/fixedbugs/issue27695c.go | 65 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 72 insertions(+)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 65aa7dbd59..85902a6b68 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1254,7 +1254,14 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 	// Arguments.
+ 	if frame.arglen > 0 {
+ 		if frame.argmap != nil {
++			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
++			// In this case, arglen specifies how much of the args section is actually live.
++			// (It could be either all the args + results, or just the args.)
+ 			args = *frame.argmap
++			n := int32(frame.arglen / sys.PtrSize)
++			if n < args.n {
++				args.n = n // Don't use more of the arguments than arglen.
++			}
+ 		} else {
+ 			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+ 			if stackmap == nil || stackmap.n <= 0 {
+diff --git a/test/fixedbugs/issue27695c.go b/test/fixedbugs/issue27695c.go
+new file mode 100644
+index 0000000000..948191cc96
+--- /dev/null
++++ b/test/fixedbugs/issue27695c.go
+@@ -0,0 +1,65 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure return values aren't scanned until they
++// are initialized, when calling functions and methods
++// via reflect.
++
++package main
++
++import (
++	"io"
++	"reflect"
++	"runtime"
++	"unsafe"
++)
++
++var badPtr uintptr
++
++var sink []byte
++
++func init() {
++	// Allocate large enough to use largeAlloc.
++	b := make([]byte, 1<<16-1)
++	sink = b // force heap allocation
++	//  Any space between the object and the end of page is invalid to point to.
++	badPtr = uintptr(unsafe.Pointer(&b[len(b)-1])) + 1
++}
++
++func f(d func(error) error) error {
++	// Initialize callee args section with a bad pointer.
++	g(badPtr, badPtr, badPtr, badPtr)
++
++	// Then call a function which returns a pointer.
++	// That return slot starts out holding a bad pointer.
++	return d(io.EOF)
++}
++
++//go:noinline
++func g(x, y, z, w uintptr) {
++}
++
++type T struct {
++}
++
++func (t *T) Foo(e error) error {
++	runtime.GC()
++	return e
++}
++
++func main() {
++	// Functions
++	d := reflect.MakeFunc(reflect.TypeOf(func(e error) error { return e }),
++		func(args []reflect.Value) []reflect.Value {
++			runtime.GC()
++			return args
++		}).Interface().(func(error) error)
++	f(d)
++
++	// Methods
++	x := reflect.ValueOf(&T{}).Method(0).Interface().(func(error) error)
++	f(x)
++}

@@ -16,6 +16,22 @@ Date:   Tue Dec 1 18:14:40 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/syntax/semi6.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/syntax/semi6.go b/test/syntax/semi6.go
+index 4a04f89ddb..9bc730d43d 100644
+--- a/test/syntax/semi6.go
++++ b/test/syntax/semi6.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-type T1	// ERROR "unexpected newline in type declaration"
++type T1	// ERROR "newline in type declaration"
+ 
+-type T2 /* // ERROR "unexpected EOF in type declaration" */
+\ No newline at end of file
++type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
+\ No newline at end of file

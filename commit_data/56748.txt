@@ -12,7 +12,49 @@ Date:   Tue May 23 11:23:48 2023 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/builtin.go | 10 ++++++++++
  test/codegen/strings.go                  |  5 +++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 528296e99d..5c924a90c5 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -250,6 +250,10 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 		// Replace len([]rune(string)) with runtime.countrunes(string).
+ 		return mkcall("countrunes", n.Type(), init, typecheck.Conv(n.X.(*ir.ConvExpr).X, types.Types[types.TSTRING]))
+ 	}
++	if isByteCount(n) {
++		_, len := backingArrayPtrLen(cheapExpr(n.X.(*ir.ConvExpr).X, init))
++		return len
++	}
+ 
+ 	n.X = walkExpr(n.X, init)
+ 
+@@ -862,3 +866,9 @@ func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
+ func isRuneCount(n ir.Node) bool {
+ 	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN && n.(*ir.UnaryExpr).X.Op() == ir.OSTR2RUNES
+ }
++
++// isByteCount reports whether n is of the form len(string([]byte)).
++func isByteCount(n ir.Node) bool {
++	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN &&
++		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
++}
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index a2c2fc0a62..94512f5cd3 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -14,6 +14,11 @@ func CountRunes(s string) int { // Issue #24923
+ 	return len([]rune(s))
+ }
+ 
++func CountBytes(s []byte) int {
++	// amd64:-`.*runtime.slicebytetostring`
++	return len(string(s))
++}
++
+ func ToByteSlice() []byte { // Issue #24698
+ 	// amd64:`LEAQ\ttype:\[3\]uint8`
+ 	// amd64:`CALL\truntime\.newobject`

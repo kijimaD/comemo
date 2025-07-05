@@ -11,8 +11,54 @@ Date:   Wed Jun 14 20:11:21 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 5 +++--
  src/cmd/go/internal/test/test.go | 5 +++--
  src/testing/testing.go           | 2 +-
  3 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 745ee31d99..8a5aa5bf4f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1489,8 +1489,9 @@
+ // 	    the Go tree can run a sanity check but not spend time running
+ // 	    exhaustive tests.
+ //
+-// 	-timeout t
+-// 	    If a test runs longer than t, panic.
++// 	-timeout d
++// 	    If the cumulative test time for a package runs longer than
++// 	    duration d, panic. Timeout is disabled if set to 0.
+ // 	    The default is 10 minutes (10m).
+ //
+ // 	-v
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 8cffa14a1c..3575cad204 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -214,8 +214,9 @@ const testFlag2 = `
+ 	    the Go tree can run a sanity check but not spend time running
+ 	    exhaustive tests.
+ 
+-	-timeout t
+-	    If a test runs longer than t, panic.
++	-timeout d
++	    If the cumulative test time for a package runs longer than
++	    duration d, panic. Timeout is disabled if set to 0.
+ 	    The default is 10 minutes (10m).
+ 
+ 	-v
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index dbe9089fb5..fa6c36c6d3 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -265,7 +265,7 @@ var (
+ 	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+ 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
+ 	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
+-	timeout              = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
++	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (0 means unlimited)")
+ 	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+ 	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+ 

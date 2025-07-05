@@ -9,6 +9,60 @@ Date:   Tue Nov 24 15:36:35 2015 -0800
     Change-Id: I87be63cc7b27f70ca2f9fb6bc9908b9061fe3d9d
     Reviewed-on: https://go-review.googlesource.com/17203
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 40 +++++++++++++++++++++--------------
  1 file changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 37b244cdc4..3da648a151 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3279,24 +3279,32 @@ func (p *parser) hidden_interfacedcl() *Node {
+ 		defer p.trace("hidden_interfacedcl")()
+ 	}
+ 
+-	// TODO(gri) possible conflict here: both cases may start with '@' per grammar
+-	// (issue 13245).
++	// The original (now defunct) grammar in go.y accepted both a method
++	// or an (embedded) type:
++	//
++	// hidden_interfacedcl:
++	// 	sym '(' ohidden_funarg_list ')' ohidden_funres
++	// 	{
++	// 		$$ = Nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
++	// 	}
++	// |	hidden_type
++	// 	{
++	// 		$$ = Nod(ODCLFIELD, nil, typenod($1));
++	// 	}
++	//
++	// But the current textual export code only exports (inlined) methods,
++	// even if the methods came from embedded interfaces. Furthermore, in
++	// the original grammar, hidden_type may also start with a sym (LNAME
++	// or '@'), complicating matters further. Since we never have embedded
++	// types, only parse methods here.
+ 
+-	switch p.tok {
+-	case LNAME, '@', '?':
+-		s1 := p.sym()
+-		p.want('(')
+-		s3 := p.ohidden_funarg_list()
+-		p.want(')')
+-		s5 := p.ohidden_funres()
+-
+-		return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
+-
+-	default:
+-		s1 := p.hidden_type()
++	s1 := p.sym()
++	p.want('(')
++	s3 := p.ohidden_funarg_list()
++	p.want(')')
++	s5 := p.ohidden_funres()
+ 
+-		return Nod(ODCLFIELD, nil, typenod(s1))
+-	}
++	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
+ }
+ 
+ func (p *parser) ohidden_funres() *NodeList {

@@ -18,6 +18,19 @@ Date:   Thu Oct 5 12:02:43 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/runtime-gdb_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 8c759bf406..ced71ca476 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -275,6 +275,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("gdb exited with error: %v", err)
+ 	}
+ 
++	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
+ 	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
+ 	if string(firstLine) != "Loading Go Runtime support." {
+ 		// This can happen when using all.bash with

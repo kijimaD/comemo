@@ -24,6 +24,31 @@ Date:   Fri Sep 13 15:45:18 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 3a18ca252c..ed3ed75638 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -607,7 +607,7 @@ func fprint(w io.Writer, n Node) {
+ 		fprint(w, n.expr)
+ 		fmt.Fprintf(w, " {\nbreak\n}\n")
+ 	case ast.Node:
+-		printer.Fprint(w, emptyFset, n)
++		printConfig.Fprint(w, emptyFset, n)
+ 		if _, ok := n.(ast.Stmt); ok {
+ 			fmt.Fprintln(w)
+ 		}
+@@ -616,6 +616,10 @@ func fprint(w io.Writer, n Node) {
+ 	}
+ }
+ 
++var printConfig = printer.Config{
++	Mode: printer.RawFormat, // we use go/format later, so skip work here
++}
++
+ var emptyFset = token.NewFileSet()
+ 
+ // Node can be a Statement or an ast.Expr.

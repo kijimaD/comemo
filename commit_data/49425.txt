@@ -15,7 +15,53 @@ Date:   Mon Jun 21 08:17:35 2021 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: eric fang <eric.fang@arm.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 8 ++++----
  src/cmd/internal/obj/arm64/asm7.go        | 8 +++++---
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 7b40ed24b4..a4b56b0696 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -388,10 +388,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VMOVQ	$0x8040201008040202, $0x7040201008040201, V20         // VMOVQ	$-9205322385119247870, $8088500183983456769, V20
+ 
+ // mov(to/from sp)
+-	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // fb074091610b0091
+-	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // fb0740917f231c91
+-	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // fb08409161070091
+-	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // fbfc7f9161ff3f91
++	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // e107409121080091
++	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // ff074091ff231c91
++	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // e108409121040091
++	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // e1fc7f9121fc3f91
+ 	MOVD	$-0x1(R7), R1                 // MOVD	$-1(R7), R1                 // e10400d1
+ 	MOVD	$-0x30(R7), R1                // MOVD	$-48(R7), R1                // e1c000d1
+ 	MOVD	$-0x708(R7), R1               // MOVD	$-1800(R7), R1              // e1201cd1
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 02687ab162..050add9aac 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -417,7 +417,7 @@ var optab = []Optab{
+ 
+ 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
+ 	{AMOVD, C_AACON, C_NONE, C_NONE, C_RSP, 4, 4, REGFROM, 0, 0},
+-	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, 0, 0},
++	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, NOTUSETMP, 0},
+ 
+ 	/* load long effective stack address (load int32 offset and add) */
+ 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
+@@ -3306,8 +3306,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 		if int(o.size) == 8 {
+-			o1 = c.oaddi(p, op, v&0xfff000, r, REGTMP)
+-			o2 = c.oaddi(p, op, v&0x000fff, REGTMP, rt)
++			// NOTE: this case does not use REGTMP. If it ever does,
++			// remove the NOTUSETMP flag in optab.
++			o1 = c.oaddi(p, op, v&0xfff000, r, rt)
++			o2 = c.oaddi(p, op, v&0x000fff, rt, rt)
+ 			break
+ 		}
+ 

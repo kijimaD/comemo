@@ -13,7 +13,115 @@ Date:   Thu Jul 30 14:05:04 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/12893
     Reviewed-by: Didier Spezia <didier.06@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/encoding/json/decode.go      |  2 +-
  src/encoding/json/decode_test.go | 76 +---------------------------------------
  2 files changed, 2 insertions(+), 76 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 4d17c279bd..530e8521dc 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -358,7 +358,7 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
+ 		if v.IsNil() {
+ 			v.Set(reflect.New(v.Type().Elem()))
+ 		}
+-		if v.Type().NumMethod() > 0 && !decodingNull {
++		if v.Type().NumMethod() > 0 {
+ 			if u, ok := v.Interface().(Unmarshaler); ok {
+ 				return u, nil, reflect.Value{}
+ 			}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 8c449d4784..8aa158f08c 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1322,48 +1322,7 @@ func (t *Time3339) UnmarshalJSON(b []byte) error {
+ 	return nil
+ }
+ 
+-// A Time-like type supporting the json Unmarshal interface
+-type AJson struct {
+-	T int
+-}
+-
+-func (t *AJson) UnmarshalJSON(b []byte) error {
+-	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
+-		return fmt.Errorf("types: failed to unmarshal non-string value %q", b)
+-	}
+-	if _, err := fmt.Sscanf(string(b[1:len(b)-1]), "%d", &t.T); err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// A Time-like type supporting the text Unmarshal interface
+-type AText struct {
+-	T int
+-}
+-
+-func (t *AText) UnmarshalText(b []byte) error {
+-	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
+-		return fmt.Errorf("types: failed to unmarshal non-string value %q", b)
+-	}
+-	if _, err := fmt.Sscanf(string(b[1:len(b)-1]), "%d", &t.T); err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// This type mixes pointers and structures, supporting json or text Unmarshal interfaces
+-type STime struct {
+-	X  int
+-	J1 AJson
+-	J2 *AJson
+-	J3 **AJson
+-	T1 AText
+-	T2 *AText
+-	T3 **AText
+-}
+-
+-func TestUnmarshalJSONLiteralError1(t *testing.T) {
++func TestUnmarshalJSONLiteralError(t *testing.T) {
+ 	var t3 Time3339
+ 	err := Unmarshal([]byte(`"0000-00-00T00:00:00Z"`), &t3)
+ 	if err == nil {
+@@ -1372,39 +1331,6 @@ func TestUnmarshalJSONLiteralError1(t *testing.T) {
+ 	if !strings.Contains(err.Error(), "range") {
+ 		t.Errorf("got err = %v; want out of range error", err)
+ 	}
+-
+-	out := time.Now()
+-	want := out
+-	err = Unmarshal([]byte(`null`), &out)
+-	if err != nil {
+-		t.Fatalf("got err = %v; no error was expected", err)
+-	}
+-	if out != want {
+-		t.Fatalf("got %q, want %q", out, want)
+-	}
+-}
+-
+-func TestUnmarshalJSONLiteralError2(t *testing.T) {
+-	out := STime{
+-		X:  1,
+-		J1: AJson{2},
+-		J2: &AJson{3},
+-		J3: new(*AJson),
+-		T1: AText{5},
+-		T2: &AText{6},
+-		T3: new(*AText),
+-	}
+-	want := out
+-	want.J2 = nil
+-	want.T2 = nil
+-	// Keep the spaces as they are in the following line
+-	err := Unmarshal([]byte(`{"X":1,"J1":null,"J2":null,"J3": null,"T1":null ,"T2": null , "T3":null}`), &out)
+-	if err != nil {
+-		t.Fatalf("got err = %v; no error was expected", err)
+-	}
+-	if out != want {
+-		t.Fatalf("got %v, want %v", out, want)
+-	}
+ }
+ 
+ // Test that extra object elements in an array do not result in a

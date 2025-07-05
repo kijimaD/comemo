@@ -7,7 +7,54 @@ Date:   Thu May 13 11:52:04 2010 -0700
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/1195042
-
+---
  test/bugs/bug274.go | 29 +++++++++++++++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 32 insertions(+)
+
+diff --git a/test/bugs/bug274.go b/test/bugs/bug274.go
+new file mode 100644
+index 0000000000..621f31eed3
+--- /dev/null
++++ b/test/bugs/bug274.go
+@@ -0,0 +1,29 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// 6g accepts the program below even though it is syntactically incorrect:
++// Each statement in the list of statements for each case clause must be
++// terminated with a semicolon. No semicolon is present for the labeled
++// statements and because the last token is a colon ":", no semicolon is
++// inserted automatically.
++//
++// Both gccgo and gofmt correctly refuse this program as is and accept it
++// when the semicolons are present.
++
++// This is a test case for issue 777 ( http://code.google.com/p/go/issues/detail?id=777 ).
++
++package main
++
++func main() {
++	switch 0 {
++	case 0:
++		L0:  // ERROR "statement"
++	case 1:
++		L1:  // ERROR "statement"
++	default:
++		L2:  // correct since no semicolon is required before a '}'
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 49bca4b874..1bed6599a8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,3 +177,6 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
++
++=========== bugs/bug274.go
++BUG: errchk: command succeeded unexpectedly

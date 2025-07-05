@@ -25,8 +25,431 @@ Date:   Thu Oct 29 12:20:53 2020 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/path/filepath/export_test.go |   2 +
  src/path/filepath/path.go        | 213 ++++++++++++++++++++++++++++++++++-----
  src/path/filepath/path_test.go   |  92 +++++++++++------
  3 files changed, 253 insertions(+), 54 deletions(-)
+
+diff --git a/src/path/filepath/export_test.go b/src/path/filepath/export_test.go
+index 0cf9e3bca1..e7ad7dd01a 100644
+--- a/src/path/filepath/export_test.go
++++ b/src/path/filepath/export_test.go
+@@ -5,3 +5,5 @@
+ package filepath
+ 
+ var LstatP = &lstat
++
++type DirEntryFromInfo = dirEntryFromInfo
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index dffd27db14..3f7e5c713d 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -336,25 +336,130 @@ func Rel(basepath, targpath string) (string, error) {
+ // as an error by any function.
+ var SkipDir = errors.New("skip this directory")
+ 
+-// WalkFunc is the type of the function called for each file or directory
+-// visited by Walk. The path argument contains the argument to Walk as a
+-// prefix; that is, if Walk is called with "dir", which is a directory
+-// containing the file "a", the walk function will be called with argument
+-// "dir/a". The info argument is the fs.FileInfo for the named path.
+-//
+-// If there was a problem walking to the file or directory named by path, the
+-// incoming error will describe the problem and the function can decide how
+-// to handle that error (and Walk will not descend into that directory). In the
+-// case of an error, the info argument will be nil. If an error is returned,
+-// processing stops. The sole exception is when the function returns the special
+-// value SkipDir. If the function returns SkipDir when invoked on a directory,
+-// Walk skips the directory's contents entirely. If the function returns SkipDir
+-// when invoked on a non-directory file, Walk skips the remaining files in the
+-// containing directory.
++// WalkDirFunc is the type of the function called by WalkDir to visit
++// each each file or directory.
++//
++// The path argument contains the argument to Walk as a prefix.
++// That is, if Walk is called with root argument "dir" and finds a file
++// named "a" in that directory, the walk function will be called with
++// argument "dir/a".
++//
++// The directory and file are joined with Join, which may clean the
++// directory name: if Walk is called with the root argument "x/../dir"
++// and finds a file named "a" in that directory, the walk function will
++// be called with argument "dir/a", not "x/../dir/a".
++//
++// The d argument is the fs.DirEntry for the named path.
++//
++// The error result returned by the function controls how WalkDir
++// continues. If the function returns the special value SkipDir, WalkDir
++// skips the current directory (path if d.IsDir() is true, otherwise
++// path's parent directory). Otherwise, if the function returns a non-nil
++// error, WalkDir stops entirely and returns that error.
++//
++// The err argument reports an error related to path, signaling that
++// WalkDir will not walk into that directory. The function can decide how
++// to handle that error; as described earlier, returning the error will
++// cause WalkDir to stop walking the entire tree.
++//
++// WalkDir calls the function with a non-nil err argument in two cases.
++//
++// First, if the initial os.Lstat on the root directory fails, WalkDir
++// calls the function with path set to root, d set to nil, and err set to
++// the error from os.Lstat.
++//
++// Second, if a directory's ReadDir method fails, WalkDir calls the
++// function with path set to the directory's path, d set to an
++// fs.DirEntry describing the directory, and err set to the error from
++// ReadDir. In this second case, the function is called twice with the
++// path of the directory: the first call is before the directory read is
++// attempted and has err set to nil, giving the function a chance to
++// return SkipDir and avoid the ReadDir entirely. The second call is
++// after a failed ReadDir and reports the error from ReadDir.
++// (If ReadDir succeeds, there is no second call.)
++//
++// The differences between WalkDirFunc compared to WalkFunc are:
++//
++//   - The second argument has type fs.DirEntry instead of fs.FileInfo.
++//   - The function is called before reading a directory, to allow SkipDir
++//     to bypass the directory read entirely.
++//   - If a directory read fails, the function is called a second time
++//     for that directory to report the error.
++//
++type WalkDirFunc func(path string, d fs.DirEntry, err error) error
++
++// WalkFunc is the type of the function called by Walk to visit each each
++// file or directory.
++//
++// The path argument contains the argument to Walk as a prefix.
++// That is, if Walk is called with root argument "dir" and finds a file
++// named "a" in that directory, the walk function will be called with
++// argument "dir/a".
++//
++// The directory and file are joined with Join, which may clean the
++// directory name: if Walk is called with the root argument "x/../dir"
++// and finds a file named "a" in that directory, the walk function will
++// be called with argument "dir/a", not "x/../dir/a".
++//
++// The info argument is the fs.FileInfo for the named path.
++//
++// The error result returned by the function controls how Walk continues.
++// If the function returns the special value SkipDir, Walk skips the
++// current directory (path if info.IsDir() is true, otherwise path's
++// parent directory). Otherwise, if the function returns a non-nil error,
++// Walk stops entirely and returns that error.
++//
++// The err argument reports an error related to path, signaling that Walk
++// will not walk into that directory. The function can decide how to
++// handle that error; as described earlier, returning the error will
++// cause Walk to stop walking the entire tree.
++//
++// Walk calls the function with a non-nil err argument in two cases.
++//
++// First, if an os.Lstat on the root directory or any directory or file
++// in the tree fails, Walk calls the function with path set to that
++// directory or file's path, info set to nil, and err set to the error
++// from os.Lstat.
++//
++// Second, if a directory's Readdirnames method fails, Walk calls the
++// function with path set to the directory's path, info, set to an
++// fs.FileInfo describing the directory, and err set to the error from
++// Readdirnames.
+ type WalkFunc func(path string, info fs.FileInfo, err error) error
+ 
+ var lstat = os.Lstat // for testing
+ 
++// walkDir recursively descends path, calling walkDirFn.
++func walkDir(path string, d fs.DirEntry, walkDirFn WalkDirFunc) error {
++	if err := walkDirFn(path, d, nil); err != nil || !d.IsDir() {
++		if err == SkipDir && d.IsDir() {
++			// Successfully skipped directory.
++			err = nil
++		}
++		return err
++	}
++
++	dirs, err := readDir(path)
++	if err != nil {
++		// Second call, to report ReadDir error.
++		err = walkDirFn(path, d, err)
++		if err != nil {
++			return err
++		}
++	}
++
++	for _, d1 := range dirs {
++		path1 := Join(path, d1.Name())
++		if err := walkDir(path1, d1, walkDirFn); err != nil {
++			if err == SkipDir {
++				break
++			}
++			return err
++		}
++	}
++	return nil
++}
++
+ // walk recursively descends path, calling walkFn.
+ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
+ 	if !info.IsDir() {
+@@ -393,18 +498,62 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
+ 	return nil
+ }
+ 
+-// Walk walks the file tree rooted at root, calling walkFn for each file or
+-// directory in the tree, including root. All errors that arise visiting files
+-// and directories are filtered by walkFn. The files are walked in lexical
+-// order, which makes the output deterministic but means that for very
+-// large directories Walk can be inefficient.
++// WalkDir walks the file tree rooted at root, calling fn for each file or
++// directory in the tree, including root.
++//
++// All errors that arise visiting files and directories are filtered by fn:
++// see the WalkDirFunc documentation for details.
++//
++// The files are walked in lexical order, which makes the output deterministic
++// but requires WalkDir to read an entire directory into memory before proceeding
++// to walk that directory.
++//
++// WalkDir does not follow symbolic links.
++func WalkDir(root string, fn WalkDirFunc) error {
++	info, err := os.Lstat(root)
++	if err != nil {
++		err = fn(root, nil, err)
++	} else {
++		err = walkDir(root, &dirEntryFromInfo{info}, fn)
++	}
++	if err == SkipDir {
++		return nil
++	}
++	return err
++}
++
++type dirEntryFromInfo struct {
++	fs.FileInfo
++}
++
++func (e *dirEntryFromInfo) Type() fs.FileMode {
++	return e.Mode().Type()
++}
++
++func (e *dirEntryFromInfo) Info() (fs.FileInfo, error) {
++	return e.FileInfo, nil
++}
++
++// Walk walks the file tree rooted at root, calling fn for each file or
++// directory in the tree, including root.
++//
++// All errors that arise visiting files and directories are filtered by fn:
++// see the WalkFunc documentation for details.
++//
++// The files are walked in lexical order, which makes the output deterministic
++// but requires Walk to read an entire directory into memory before proceeding
++// to walk that directory.
++//
+ // Walk does not follow symbolic links.
+-func Walk(root string, walkFn WalkFunc) error {
++//
++// Walk is less efficient than WalkDir, introduced in Go 1.16,
++// which avoids calling os.Lstat on every visited file or directory.
++func Walk(root string, fn WalkFunc) error {
+ 	info, err := os.Lstat(root)
+ 	if err != nil {
+-		err = walkFn(root, nil, err)
++		err = fn(root, nil, err)
+ 	} else {
+-		err = walk(root, info, walkFn)
++		err = walk(root, info, fn)
+ 	}
+ 	if err == SkipDir {
+ 		return nil
+@@ -412,8 +561,24 @@ func Walk(root string, walkFn WalkFunc) error {
+ 	return err
+ }
+ 
+-// readDirNames reads the directory named by dirname and returns
++// readDir reads the directory named by dirname and returns
+ // a sorted list of directory entries.
++func readDir(dirname string) ([]fs.DirEntry, error) {
++	f, err := os.Open(dirname)
++	if err != nil {
++		return nil, err
++	}
++	dirs, err := f.ReadDir(-1)
++	f.Close()
++	if err != nil {
++		return nil, err
++	}
++	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
++	return dirs, nil
++}
++
++// readDirNames reads the directory named by dirname and returns
++// a sorted list of directory entry names.
+ func readDirNames(dirname string) ([]string, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 7dc8b60c28..ec6f8f2de9 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -394,8 +394,8 @@ func checkMarks(t *testing.T, report bool) {
+ // Assumes that each node name is unique. Good enough for a test.
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+-func mark(info fs.FileInfo, err error, errors *[]error, clear bool) error {
+-	name := info.Name()
++func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
++	name := d.Name()
+ 	walkTree(tree, tree.name, func(path string, n *Node) {
+ 		if n.name == name {
+ 			n.mark++
+@@ -432,6 +432,19 @@ func chtmpdir(t *testing.T) (restore func()) {
+ }
+ 
+ func TestWalk(t *testing.T) {
++	walk := func(root string, fn filepath.WalkDirFunc) error {
++		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
++			return fn(path, &filepath.DirEntryFromInfo{info}, err)
++		})
++	}
++	testWalk(t, walk, 1)
++}
++
++func TestWalkDir(t *testing.T) {
++	testWalk(t, filepath.WalkDir, 2)
++}
++
++func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVisit int) {
+ 	if runtime.GOOS == "ios" {
+ 		restore := chtmpdir(t)
+ 		defer restore()
+@@ -455,11 +468,11 @@ func TestWalk(t *testing.T) {
+ 	makeTree(t)
+ 	errors := make([]error, 0, 10)
+ 	clear := true
+-	markFn := func(path string, info fs.FileInfo, err error) error {
+-		return mark(info, err, &errors, clear)
++	markFn := func(path string, d fs.DirEntry, err error) error {
++		return mark(d, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+-	err = filepath.Walk(tree.name, markFn)
++	err = walk(tree.name, markFn)
+ 	if err != nil {
+ 		t.Fatalf("no error expected, found: %s", err)
+ 	}
+@@ -469,10 +482,20 @@ func TestWalk(t *testing.T) {
+ 	checkMarks(t, true)
+ 	errors = errors[0:0]
+ 
+-	// Test permission errors. Only possible if we're not root
+-	// and only on some file systems (AFS, FAT).  To avoid errors during
+-	// all.bash on those file systems, skip during go test -short.
+-	if os.Getuid() > 0 && !testing.Short() {
++	t.Run("PermErr", func(t *testing.T) {
++		// Test permission errors. Only possible if we're not root
++		// and only on some file systems (AFS, FAT).  To avoid errors during
++		// all.bash on those file systems, skip during go test -short.
++		if runtime.GOOS == "windows" {
++			t.Skip("skipping on Windows")
++		}
++		if os.Getuid() == 0 {
++			t.Skip("skipping as root")
++		}
++		if testing.Short() {
++			t.Skip("skipping in short mode")
++		}
++
+ 		// introduce 2 errors: chmod top-level directories to 0
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0)
+@@ -482,9 +505,9 @@ func TestWalk(t *testing.T) {
+ 		markTree(tree.entries[1])
+ 		markTree(tree.entries[3])
+ 		// correct double-marking of directory itself
+-		tree.entries[1].mark--
+-		tree.entries[3].mark--
+-		err := filepath.Walk(tree.name, markFn)
++		tree.entries[1].mark -= errVisit
++		tree.entries[3].mark -= errVisit
++		err := walk(tree.name, markFn)
+ 		if err != nil {
+ 			t.Fatalf("expected no error return from Walk, got %s", err)
+ 		}
+@@ -500,10 +523,10 @@ func TestWalk(t *testing.T) {
+ 		markTree(tree.entries[1])
+ 		markTree(tree.entries[3])
+ 		// correct double-marking of directory itself
+-		tree.entries[1].mark--
+-		tree.entries[3].mark--
++		tree.entries[1].mark -= errVisit
++		tree.entries[3].mark -= errVisit
+ 		clear = false // error will stop processing
+-		err = filepath.Walk(tree.name, markFn)
++		err = walk(tree.name, markFn)
+ 		if err == nil {
+ 			t.Fatalf("expected error return from Walk")
+ 		}
+@@ -517,7 +540,7 @@ func TestWalk(t *testing.T) {
+ 		// restore permissions
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
+-	}
++	})
+ }
+ 
+ func touch(t *testing.T, name string) {
+@@ -544,7 +567,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 	touch(t, filepath.Join(td, "dir/foo2"))
+ 
+ 	sawFoo2 := false
+-	walker := func(path string, info fs.FileInfo, err error) error {
++	walker := func(path string) error {
+ 		if strings.HasSuffix(path, "foo2") {
+ 			sawFoo2 = true
+ 		}
+@@ -553,22 +576,31 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 		}
+ 		return nil
+ 	}
++	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
++	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
+ 
+-	err = filepath.Walk(td, walker)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if sawFoo2 {
+-		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
++	check := func(t *testing.T, walk func(root string) error, root string) {
++		t.Helper()
++		sawFoo2 = false
++		err = walk(root)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if sawFoo2 {
++			t.Errorf("SkipDir on file foo1 did not block processing of foo2")
++		}
+ 	}
+ 
+-	err = filepath.Walk(filepath.Join(td, "dir"), walker)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if sawFoo2 {
+-		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+-	}
++	t.Run("Walk", func(t *testing.T) {
++		Walk := func(root string) error { return filepath.Walk(td, walkFn) }
++		check(t, Walk, td)
++		check(t, Walk, filepath.Join(td, "dir"))
++	})
++	t.Run("WalkDir", func(t *testing.T) {
++		WalkDir := func(root string) error { return filepath.WalkDir(td, walkDirFn) }
++		check(t, WalkDir, td)
++		check(t, WalkDir, filepath.Join(td, "dir"))
++	})
+ }
+ 
+ func TestWalkFileError(t *testing.T) {

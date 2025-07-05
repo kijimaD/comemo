@@ -19,8 +19,101 @@ Date:   Fri Jun 24 17:00:24 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/gob/decode.go  | 17 ++++++-----------
  src/encoding/gob/decoder.go |  6 ++++--
  src/go/build/deps_test.go   |  8 ++++----
  3 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 7bca13c957..470e357b10 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -57,17 +57,6 @@ func (d *decBuffer) Drop(n int) {
+ 	d.offset += n
+ }
+ 
+-// Size grows the buffer to exactly n bytes, so d.Bytes() will
+-// return a slice of length n. Existing data is first discarded.
+-func (d *decBuffer) Size(n int) {
+-	d.Reset()
+-	if cap(d.data) < n {
+-		d.data = make([]byte, n)
+-	} else {
+-		d.data = d.data[0:n]
+-	}
+-}
+-
+ func (d *decBuffer) ReadByte() (byte, error) {
+ 	if d.offset >= len(d.data) {
+ 		return 0, io.EOF
+@@ -85,6 +74,12 @@ func (d *decBuffer) Bytes() []byte {
+ 	return d.data[d.offset:]
+ }
+ 
++// SetBytes sets the buffer to the bytes, discarding any existing data.
++func (d *decBuffer) SetBytes(data []byte) {
++	d.data = data
++	d.offset = 0
++}
++
+ func (d *decBuffer) Reset() {
+ 	d.data = d.data[0:0]
+ 	d.offset = 0
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 9c4257eb3b..5b77adc7e8 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -7,6 +7,7 @@ package gob
+ import (
+ 	"bufio"
+ 	"errors"
++	"internal/saferio"
+ 	"io"
+ 	"reflect"
+ 	"sync"
+@@ -98,8 +99,9 @@ func (dec *Decoder) readMessage(nbytes int) {
+ 		panic("non-empty decoder buffer")
+ 	}
+ 	// Read the data
+-	dec.buf.Size(nbytes)
+-	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
++	var buf []byte
++	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
++	dec.buf.SetBytes(buf)
+ 	if dec.err == io.EOF {
+ 		dec.err = io.ErrUnexpectedEOF
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 07bac04dcb..19b886875c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -187,6 +187,9 @@ var depsRules = `
+ 	  text/scanner,
+ 	  text/tabwriter;
+ 
++	io, reflect
++	< internal/saferio;
++
+ 	# encodings
+ 	# core ones do not use fmt.
+ 	io, strconv
+@@ -200,7 +203,7 @@ var depsRules = `
+ 
+ 	fmt !< encoding/base32, encoding/base64;
+ 
+-	FMT, encoding/base32, encoding/base64
++	FMT, encoding/base32, encoding/base64, internal/saferio
+ 	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
+ 	  encoding/json, encoding/pem, encoding/xml, mime;
+ 
+@@ -239,9 +242,6 @@ var depsRules = `
+ 	encoding/binary, regexp
+ 	< index/suffixarray;
+ 
+-	io, reflect
+-	< internal/saferio;
+-
+ 	# executable parsing
+ 	FMT, encoding/binary, compress/zlib, internal/saferio
+ 	< runtime/debug

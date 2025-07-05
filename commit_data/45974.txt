@@ -34,7 +34,7 @@ Date:   Tue Dec 1 11:37:30 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/dcl.go       | 10 +++++-----
  src/cmd/compile/internal/gc/escape.go    | 10 +++++-----
@@ -50,3 +50,368 @@ Date:   Tue Dec 1 11:37:30 2020 -0800
  src/cmd/compile/internal/gc/universe.go  |  2 +-
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  14 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 0ba2858b8b..e33a561bd4 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -437,7 +437,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+ 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+ 
+ 	if sym.Uniq() {
+-		return ir.AsNode(sym.Def).(*ir.Func)
++		return sym.Def.(*ir.Func)
+ 	}
+ 	sym.SetUniq(true)
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3d0bdaec7a..dd59d829fe 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -95,7 +95,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 			gen = vargen
+ 		}
+ 		types.Pushdcl(s)
+-		n.Name().Curfn = Curfn
++		n.Curfn = Curfn
+ 	}
+ 
+ 	if ctxt == ir.PAUTO {
+@@ -113,7 +113,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 	s.Block = types.Block
+ 	s.Lastlineno = base.Pos
+ 	s.Def = n
+-	n.Name().Vargen = int32(gen)
++	n.Vargen = int32(gen)
+ 	n.SetClass(ctxt)
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+@@ -335,7 +335,7 @@ func colasdefn(left []ir.Node, defn ir.Node) {
+ 		nnew++
+ 		n := NewName(n.Sym())
+ 		declare(n, dclcontext)
+-		n.Name().Defn = defn
++		n.Defn = defn
+ 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+ 		left[i] = n
+ 	}
+@@ -438,7 +438,7 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 	declare(name, ctxt)
+ 
+ 	vargen++
+-	n.Decl.Name().Vargen = int32(vargen)
++	n.Decl.Vargen = int32(vargen)
+ }
+ 
+ // Same as funcargs, except run over an already constructed TFUNC.
+@@ -837,7 +837,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
+ 	}
+ 
+ 	f := types.NewField(base.Pos, msym, t)
+-	f.Nname = n.Func().Nname
++	f.Nname = n.Nname
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index b29896e5a4..c139771730 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1802,8 +1802,8 @@ func addrescapes(n ir.Node) {
+ 		}
+ 
+ 		// If a closure reference escapes, mark the outer variable as escaping.
+-		if n.Name().IsClosureVar() {
+-			addrescapes(n.Name().Defn)
++		if n.IsClosureVar() {
++			addrescapes(n.Defn)
+ 			break
+ 		}
+ 
+@@ -1824,7 +1824,7 @@ func addrescapes(n ir.Node) {
+ 		// then we're analyzing the inner closure but we need to move x to the
+ 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
+ 		oldfn := Curfn
+-		Curfn = n.Name().Curfn
++		Curfn = n.Curfn
+ 		ln := base.Pos
+ 		base.Pos = Curfn.Pos()
+ 		moveToHeap(n)
+@@ -1893,7 +1893,7 @@ func moveToHeap(n *ir.Name) {
+ 			// See issue 16095.
+ 			heapaddr.SetIsOutputParamHeapAddr(true)
+ 		}
+-		n.Name().Stackcopy = stackcopy
++		n.Stackcopy = stackcopy
+ 
+ 		// Substitute the stackcopy into the function variable list so that
+ 		// liveness and other analyses use the underlying stack slot
+@@ -1920,7 +1920,7 @@ func moveToHeap(n *ir.Name) {
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+ 	n.SetClass(ir.PAUTOHEAP)
+ 	n.SetOffset(0)
+-	n.Name().Heapaddr = heapaddr
++	n.Heapaddr = heapaddr
+ 	n.SetEsc(EscHeap)
+ 	if base.Flag.LowerM != 0 {
+ 		base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 8f50868fc7..2231f493dd 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -395,7 +395,7 @@ func (p *iexporter) stringOff(s string) uint64 {
+ 
+ // pushDecl adds n to the declaration work queue, if not already present.
+ func (p *iexporter) pushDecl(n ir.Node) {
+-	if n.Sym() == nil || ir.AsNode(n.Sym().Def) != n && n.Op() != ir.OTYPE {
++	if n.Sym() == nil || n.Sym().Def != n && n.Op() != ir.OTYPE {
+ 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
+ 	}
+ 
+@@ -988,7 +988,7 @@ func (w *exportWriter) funcExt(n *ir.Name) {
+ 
+ func (w *exportWriter) methExt(m *types.Field) {
+ 	w.bool(m.Nointerface())
+-	w.funcExt(ir.AsNode(m.Nname).(*ir.Name))
++	w.funcExt(m.Nname.(*ir.Name))
+ }
+ 
+ func (w *exportWriter) linkname(s *types.Sym) {
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index b5fd2e7c75..e67a032c5d 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -60,7 +60,7 @@ func fninit(n []ir.Node) {
+ 		initializers := lookup("init")
+ 		fn := dclfunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+ 		for _, dcl := range initTodo.Dcl {
+-			dcl.Name().Curfn = fn
++			dcl.Curfn = fn
+ 		}
+ 		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
+ 		initTodo.Dcl = nil
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 718239484b..96031fe511 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -984,7 +984,7 @@ func clearImports() {
+ }
+ 
+ func IsAlias(sym *types.Sym) bool {
+-	return sym.Def != nil && ir.AsNode(sym.Def).Sym() != sym
++	return sym.Def != nil && sym.Def.Sym() != sym
+ }
+ 
+ // recordFlags records the specified command-line flags to be placed
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 1340068c72..de7dcda15e 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1071,7 +1071,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 				if ln.Class() != ir.PPARAMOUT {
+ 					break
+ 				}
+-				if ir.AsNode(ln.Sym().Def) != ln {
++				if ln.Sym().Def != ln {
+ 					base.Errorf("%s is shadowed during return", ln.Sym().Name)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index f65131417a..21a50257b8 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -220,10 +220,10 @@ func addptabs() {
+ 		}
+ 		if n.Type().Kind() == types.TFUNC && n.Class() == ir.PFUNC {
+ 			// function
+-			ptabs = append(ptabs, ptabEntry{s: s, t: ir.AsNode(s.Def).Type()})
++			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
+ 		} else {
+ 			// variable
+-			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(ir.AsNode(s.Def).Type())})
++			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(s.Def.Type())})
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ea294ed66d..1da0929290 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -77,8 +77,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
+ 		return a.Offset() < b.Offset()
+ 	}
+ 
+-	if a.Name().Used() != b.Name().Used() {
+-		return a.Name().Used()
++	if a.Used() != b.Used() {
++		return a.Used()
+ 	}
+ 
+ 	ap := a.Type().HasPointers()
+@@ -87,8 +87,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
+ 		return ap
+ 	}
+ 
+-	ap = a.Name().Needzero()
+-	bp = b.Name().Needzero()
++	ap = a.Needzero()
++	bp = b.Needzero()
+ 	if ap != bp {
+ 		return ap
+ 	}
+@@ -115,7 +115,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range fn.Dcl {
+ 		if ln.Class() == ir.PAUTO {
+-			ln.Name().SetUsed(false)
++			ln.SetUsed(false)
+ 		}
+ 	}
+ 
+@@ -158,7 +158,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		if n.Op() != ir.ONAME || n.Class() != ir.PAUTO {
+ 			continue
+ 		}
+-		if !n.Name().Used() {
++		if !n.Used() {
+ 			fn.Dcl = fn.Dcl[:i]
+ 			break
+ 		}
+@@ -260,7 +260,7 @@ func compile(fn *ir.Func) {
+ 	for _, n := range fn.Dcl {
+ 		switch n.Class() {
+ 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+-			if livenessShouldTrack(n) && n.Name().Addrtaken() {
++			if livenessShouldTrack(n) && n.Addrtaken() {
+ 				dtypesym(n.Type())
+ 				// Also make sure we allocate a linker symbol
+ 				// for the stack object data, for the same reason.
+@@ -447,7 +447,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 			}
+ 			switch n.Class() {
+ 			case ir.PAUTO:
+-				if !n.Name().Used() {
++				if !n.Used() {
+ 					// Text == nil -> generating abstract function
+ 					if fnsym.Func().Text != nil {
+ 						base.Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4ab3005ce8..06b91ddae6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1001,7 +1001,7 @@ func typename(t *types.Type) ir.Node {
+ 	}
+ 
+ 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
++	n.SetType(types.NewPtr(s.Def.Type()))
+ 	n.SetTypecheck(1)
+ 	return n
+ }
+@@ -1021,7 +1021,7 @@ func itabname(t, itype *types.Type) ir.Node {
+ 	}
+ 
+ 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
++	n.SetType(types.NewPtr(s.Def.Type()))
+ 	n.SetTypecheck(1)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3e020d7b92..60e65e4b11 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6196,7 +6196,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func emitStackObjects(e *ssafn, pp *Progs) {
+ 	var vars []ir.Node
+ 	for _, n := range e.curfn.Dcl {
+-		if livenessShouldTrack(n) && n.Name().Addrtaken() {
++		if livenessShouldTrack(n) && n.Addrtaken() {
+ 			vars = append(vars, n)
+ 		}
+ 	}
+@@ -6583,7 +6583,7 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 
+ 	// Iterate through declarations. They are sorted in decreasing Xoffset order.
+ 	for _, n := range e.curfn.Dcl {
+-		if !n.Name().Needzero() {
++		if !n.Needzero() {
+ 			continue
+ 		}
+ 		if n.Class() != ir.PAUTO {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f120b44413..20ef3fc70a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2493,7 +2493,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
+ 			pll = ll
+ 			ll = ll.Left()
+ 		}
+-		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym() != nil && ir.AsNode(ll.Type().Sym().Def) != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
++		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym() != nil && ll.Type().Sym().Def != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
+ 			// It is invalid to automatically dereference a named pointer type when selecting a method.
+ 			// Make n.Left == ll to clarify error message.
+ 			n.SetLeft(ll)
+@@ -3369,7 +3369,7 @@ func typecheckfunc(n *ir.Func) {
+ 
+ 	for _, ln := range n.Dcl {
+ 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PPARAM || ln.Class() == ir.PPARAMOUT) {
+-			ln.Name().Decldepth = 1
++			ln.Decldepth = 1
+ 		}
+ 	}
+ 
+@@ -3923,7 +3923,7 @@ func curpkg() *types.Pkg {
+ // referenced by expression n, which must be a method selector,
+ // method expression, or method value.
+ func methodExprName(n ir.Node) *ir.Name {
+-	name, _ := ir.AsNode(methodExprFunc(n).Nname).(*ir.Name)
++	name, _ := methodExprFunc(n).Nname.(*ir.Name)
+ 	return name
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 49e50734c6..b554674fbc 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -358,5 +358,5 @@ func finishUniverse() {
+ 	nodfp = NewName(lookup(".fp"))
+ 	nodfp.SetType(types.Types[types.TINT32])
+ 	nodfp.SetClass(ir.PPARAM)
+-	nodfp.Name().SetUsed(true)
++	nodfp.SetUsed(true)
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b3af353c3f..be6f1539b9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -43,16 +43,16 @@ func walk(fn *ir.Func) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+ 	for _, ln := range fn.Dcl {
+-		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Name().Defn != nil && ln.Name().Defn.Op() == ir.OTYPESW && ln.Name().Used() {
+-			ln.Name().Defn.Left().Name().SetUsed(true)
++		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
++			ln.Defn.Left().Name().SetUsed(true)
+ 		}
+ 	}
+ 
+ 	for _, ln := range fn.Dcl {
+-		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Name().Used() {
++		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
+ 			continue
+ 		}
+-		if defn := ln.Name().Defn; defn != nil && defn.Op() == ir.OTYPESW {
++		if defn := ln.Defn; defn != nil && defn.Op() == ir.OTYPESW {
+ 			if defn.Left().Name().Used() {
+ 				continue
+ 			}
+@@ -91,7 +91,7 @@ func paramoutheap(fn *ir.Func) bool {
+ 	for _, ln := range fn.Dcl {
+ 		switch ln.Class() {
+ 		case ir.PPARAMOUT:
+-			if isParamStackCopy(ln) || ln.Name().Addrtaken() {
++			if isParamStackCopy(ln) || ln.Addrtaken() {
+ 				return true
+ 			}
+ 

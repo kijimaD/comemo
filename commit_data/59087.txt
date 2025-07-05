@@ -13,7 +13,34 @@ Date:   Thu Feb 8 22:18:27 2024 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  src/net/http/server.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 2185869414..f633bf0799 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2659,7 +2659,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
+ 		wantCT   string
+ 		wantBody string
+ 	}{
+-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
++		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
+ 		{MethodHead, nil, "text/html; charset=utf-8", ""},
+ 		{MethodPost, nil, "", ""},
+ 		{MethodDelete, nil, "", ""},
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index acac78bcd0..d42fdc6322 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2273,7 +2273,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 
+ 	// Shouldn't send the body for POST or HEAD; that leaves GET.
+ 	if !hadCT && r.Method == "GET" {
+-		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>.\n"
++		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>."
+ 		fmt.Fprintln(w, body)
+ 	}
+ }

@@ -9,6 +9,19 @@ Date:   Mon Jun 25 14:54:26 2012 -0700
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/6334053
-
+---
  doc/root.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 9c7b9e2d57..787ed107f9 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -68,7 +68,6 @@ Linux, Mac OS X, Windows, and more.
+ 
+ <div id="video">
+ <div class="rootHeading">Featured video</div>
+-<a class="title" href="http://www.youtube.com/watch?v=ytEkHepK08c">A Tour of Go</a>
+ <iframe width="415" height="241" src="http://www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
+ </div>
+ 
